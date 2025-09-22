@@ -1,0 +1,20 @@
+static_library("gdb-server") {
+  output_name = "lldbPluginPlatformGDB"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//lldb/source/Breakpoint",
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Plugins/Process/Utility",
+
+    #"//lldb/source/Plugins/Process/gdb-remote",  # 4-deep dependency cycle
+    "//lldb/source/Target",
+  ]
+
+  # Reaches into Plugins/Process/Utility.
+  include_dirs = [ "//lldb/source" ]
+  sources = [ "PlatformRemoteGDBServer.cpp" ]
+}

@@ -1,0 +1,39 @@
+#
+#	$OpenBSD: rpc,v 1.7 2025/07/31 09:05:26 ajacoutot Exp $
+# from: rpc 88/08/01 4.0 RPCSRC; from 1.12   88/02/07 SMI
+#
+portmapper	100000	portmap sunrpc
+rstatd		100001	rstat rstat_svc rup perfmeter
+rusersd		100002	rusers
+nfs		100003	nfsprog
+ypserv		100004	ypprog
+mountd		100005	mount showmount
+ypbind		100007
+walld		100008	rwall shutdown
+yppasswdd	100009	yppasswd
+etherstatd	100010	etherstat
+rquotad		100011	rquotaprog quota rquota
+sprayd		100012	spray
+3270_mapper	100013
+rje_mapper	100014
+selection_svc	100015	selnsvc
+database_svc	100016
+rexd		100017	rex
+alis		100018
+sched		100019
+llockmgr	100020
+nlockmgr	100021
+x25.inr		100022
+statmon		100023
+status		100024
+bootparam	100026
+ypupdated	100028	ypupdate
+keyserv		100029	keyserver
+tfsd		100037
+nsed		100038
+nsemntd		100039
+cmsd		100068	dtcalendar
+ttdbserver	100083	ttooltalk
+pcnfsd		150001	pcnfs
+amd		300019	amq
+sgi_fam		391002	fam	# File alteration monitor

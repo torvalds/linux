@@ -1,0 +1,66 @@
+.\" $OpenBSD: ifiq_input.9,v 1.4 2022/03/31 17:27:23 naddy Exp $
+.\"
+.\" Copyright (c) 2020 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt IFIQ_INPUT 9
+.Os
+.Sh NAME
+.Nm ifiq_input ,
+.Nm ifiq_enqueue
+.Nd network interface input queue (ifiqueue) API
+.Sh SYNOPSIS
+.In net/if_var.h
+.Ft int
+.Fn ifiq_input "struct ifiqueue *ifiq" "struct mbuf_list *ml"
+.Ft void
+.Fn ifiq_enqueue "struct ifiqueue *ifiq" "struct mbuf *m"
+.Sh DESCRIPTION
+The network interface input queue (ifiqueue) API provides functions
+for network drivers to queue received packets for processing by the
+network stack.
+.Bl -tag -width Ds
+.It Fn ifiq_input "struct ifiqueue *ifq" "struct mbuf_list *ml"
+Enqueue the list of mbufs in
+.Fa ml
+on the
+.Fa ifiq
+interface input queue and notify the network stack to process them.
+If the queue rejects the packets, they will be freed
+and counted as drops.
+.It Fn ifiq_enqueue "struct ifiqueue *ifq" "struct mbuf *m"
+Enqueue the mbuf
+.Fa m
+on the
+.Fa ifiq
+interface input queue and notify the network stack to process it.
+.El
+.Sh CONTEXT
+.Fn ifiq_input
+and
+.Fn ifiq_enqueue
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn ifiq_input
+returns a non-zero value if mbufs are queued too rapidly for the
+stack to process.
+If possible, the caller should attempt to reduce the number of mbufs
+being generated in the future.
+For example, if mbufs are being received from
+hardware managed with the interface RX ring API,
+.Xr if_rxr_livelocked 9
+can be called to indicate to the hardware that backpressure is required.
+.Sh SEE ALSO
+.Xr if_rxr_livelocked 9

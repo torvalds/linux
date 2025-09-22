@@ -1,0 +1,136 @@
+.\"	$OpenBSD: copy.9,v 1.18 2023/01/06 19:10:18 miod Exp $
+.\"	$NetBSD: copy.9,v 1.2 1996/01/09 03:23:04 thorpej Exp $
+.\"
+.\" Copyright (c) 1996 Jason R. Thorpe.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed by Kenneth Stailey.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed for the NetBSD Project
+.\"	by Jason R. Thorpe.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 6 2023 $
+.Dt COPYIN 9
+.Os
+.Sh NAME
+.Nm copyin ,
+.Nm copyout ,
+.Nm copyinstr ,
+.Nm copyoutstr ,
+.Nm kcopy
+.Nd kernel copy functions
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.Ft int
+.Fn copyin "const void *uaddr" "void *kaddr" "size_t len"
+.Ft int
+.Fn copyout "const void *kaddr" "void *uaddr" "size_t len"
+.Ft int
+.Fn copyinstr "const void *uaddr" "void *kaddr" "size_t len" "size_t *done"
+.Ft int
+.Fn copyoutstr "const void *kaddr" "void *uaddr" "size_t len" "size_t *done"
+.Ft int
+.Fn kcopy "const void *kfaddr" "void *kdaddr" "size_t len"
+.Sh DESCRIPTION
+The
+.Nm
+functions are designed to copy contiguous data from one address to another.
+All but
+.Fn kcopy
+copy data from user-space to kernel-space or vice-versa.
+.Pp
+The
+.Nm
+routines provide the following functionality:
+.Bl -tag -width "copyoutstr()"
+.It Fn copyin
+Copies
+.Fa len
+bytes of data from the user-space address
+.Fa uaddr
+to the kernel-space address
+.Fa kaddr .
+.It Fn copyout
+Copies
+.Fa len
+bytes of data from the kernel-space address
+.Fa kaddr
+to the user-space address
+.Fa uaddr .
+.It Fn copyinstr
+Copies a null-terminated string, at most
+.Fa len
+bytes long, from user-space address
+.Fa uaddr
+to kernel-space address
+.Fa kaddr .
+The number of bytes actually copied, including the terminating null,
+is returned in
+.Fa *done ,
+if
+.Fa done
+is not
+.Dv NULL .
+.It Fn copyoutstr
+Copies a null-terminated string, at most
+.Fa len
+bytes long, from kernel-space address
+.Fa kaddr
+to user-space address
+.Fa uaddr .
+The number of bytes actually copied, including the terminating null,
+is returned in
+.Fa *done ,
+if
+.Fa done
+is not
+.Dv NULL .
+.It Fn kcopy
+Copies
+.Fa len
+bytes of data from the kernel-space address
+.Fa kfaddr
+to the kernel-space address
+.Fa kdaddr .
+.El
+.Sh RETURN VALUES
+The
+.Nm
+functions return 0 on success or
+.Er EFAULT
+if a bad address is encountered.
+In addition, the
+.Fn copyinstr
+and
+.Fn copyoutstr
+functions return
+.Er ENAMETOOLONG
+if the string is longer than
+.Fa len
+bytes.
+.\" .Sh SEE ALSO

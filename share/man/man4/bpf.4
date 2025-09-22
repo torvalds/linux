@@ -1,0 +1,1111 @@
+.\"	$OpenBSD: bpf.4,v 1.47 2024/08/15 12:20:20 dlg Exp $
+.\"     $NetBSD: bpf.4,v 1.7 1995/09/27 18:31:50 thorpej Exp $
+.\"
+.\" Copyright (c) 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\" This document is derived in part from the enet man page (enet.4)
+.\" distributed with 4.3BSD Unix.
+.\"
+.Dd $Mdocdate: August 15 2024 $
+.Dt BPF 4
+.Os
+.Sh NAME
+.Nm bpf
+.Nd Berkeley Packet Filter
+.Sh SYNOPSIS
+.Cd "pseudo-device bpfilter"
+.Sh DESCRIPTION
+The Berkeley Packet Filter provides a raw interface to data link layers in
+a protocol-independent fashion.
+All packets on the network, even those destined for other hosts, are
+accessible through this mechanism.
+.Pp
+The packet filter appears as a character special device,
+.Pa /dev/bpf .
+After opening the device, the file descriptor must be bound to a specific
+network interface with the
+.Dv BIOCSETIF
+.Xr ioctl 2 .
+A given interface can be shared between multiple listeners, and the filter
+underlying each descriptor will see an identical packet stream.
+.Pp
+Associated with each open instance of a
+.Nm
+file is a user-settable
+packet filter.
+Whenever a packet is received by an interface, all file descriptors
+listening on that interface apply their filter.
+Each descriptor that accepts the packet receives its own copy.
+.Pp
+Reads from these files return the next group of packets that have matched
+the filter.
+To improve performance, the buffer passed to read must be the same size as
+the buffers used internally by
+.Nm bpf .
+This size is returned by the
+.Dv BIOCGBLEN
+.Xr ioctl 2
+and can be set with
+.Dv BIOCSBLEN .
+Note that an individual packet larger than this size is necessarily truncated.
+.Pp
+A packet can be sent out on the network by writing to a
+.Nm
+file descriptor.
+Each descriptor can also have a user-settable filter
+for controlling the writes.
+Only packets matching the filter are sent out of the interface.
+The writes are unbuffered, meaning only one packet can be processed per write.
+.Pp
+Once a descriptor is configured, further changes to the configuration
+can be prevented using the
+.Dv BIOCLOCK
+.Xr ioctl 2 .
+.Sh IOCTL INTERFACE
+The
+.Xr ioctl 2
+command codes below are defined in
+.In net/bpf.h .
+All commands require these includes:
+.Pp
+.nr nS 1
+.In sys/types.h
+.In sys/time.h
+.In sys/ioctl.h
+.In net/bpf.h
+.nr nS 0
+.Pp
+Additionally,
+.Dv BIOCGETIF
+and
+.Dv BIOCSETIF
+require
+.In sys/socket.h
+and
+.In net/if.h .
+.Pp
+The (third) argument to the
+.Xr ioctl 2
+call should be a pointer to the type indicated.
+.Pp
+.Bl -tag -width Ds -compact
+.It Dv BIOCGBLEN Fa "u_int *"
+Returns the required buffer length for reads on
+.Nm
+files.
+.Pp
+.It Dv BIOCSBLEN Fa "u_int *"
+Sets the buffer length for reads on
+.Nm
+files.
+The buffer must be set before the file is attached to an interface with
+.Dv BIOCSETIF .
+If the requested buffer size cannot be accommodated, the closest allowable
+size will be set and returned in the argument.
+A read call will result in
+.Er EINVAL
+if it is passed a buffer that is not this size.
+.Pp
+.It Dv BIOCGDLT Fa "u_int *"
+Returns the type of the data link layer underlying the attached interface.
+.Er EINVAL
+is returned if no interface has been specified.
+The device types, prefixed with
+.Dq DLT_ ,
+are defined in
+.In net/bpf.h .
+.Pp
+.It Dv BIOCGDLTLIST Fa "struct bpf_dltlist *"
+Returns an array of the available types of the data link layer
+underlying the attached interface:
+.Bd -literal -offset indent
+struct bpf_dltlist {
+	u_int bfl_len;
+	u_int *bfl_list;
+};
+.Ed
+.Pp
+The available types are returned in the array pointed to by the
+.Va bfl_list
+field while their length in
+.Vt u_int
+is supplied to the
+.Va bfl_len
+field.
+.Er ENOMEM
+is returned if there is not enough buffer space and
+.Er EFAULT
+is returned if a bad address is encountered.
+The
+.Va bfl_len
+field is modified on return to indicate the actual length in
+.Vt u_int
+of the array returned.
+If
+.Va bfl_list
+is
+.Dv NULL ,
+the
+.Va bfl_len
+field is set to indicate the required length of the array in
+.Vt u_int .
+.Pp
+.It Dv BIOCSDLT Fa "u_int *"
+Changes the type of the data link layer underlying the attached interface.
+.Er EINVAL
+is returned if no interface has been specified or the specified
+type is not available for the interface.
+.Pp
+.It Dv BIOCPROMISC
+Forces the interface into promiscuous mode.
+All packets, not just those destined for the local host, are processed.
+Since more than one file can be listening on a given interface, a listener
+that opened its interface non-promiscuously may receive packets promiscuously.
+This problem can be remedied with an appropriate filter.
+.Pp
+The interface remains in promiscuous mode until all files listening
+promiscuously are closed.
+.Pp
+.It Dv BIOCFLUSH
+Flushes the buffer of incoming packets and resets the statistics that are
+returned by
+.Dv BIOCGSTATS .
+.Pp
+.It Dv BIOCLOCK
+This ioctl is designed to prevent the security issues associated
+with an open
+.Nm
+descriptor in unprivileged programs.
+Even with dropped privileges, an open
+.Nm
+descriptor can be abused by a rogue program to listen on any interface
+on the system, send packets on these interfaces if the descriptor was
+opened read-write and send signals to arbitrary processes using the
+signaling mechanism of
+.Nm bpf .
+By allowing only
+.Dq known safe
+ioctls, the
+.Dv BIOCLOCK
+ioctl prevents this abuse.
+The allowable ioctls are
+.Dv BIOCFLUSH ,
+.Dv BIOCGBLEN ,
+.Dv BIOCGDIRFILT ,
+.Dv BIOCGDLT ,
+.Dv BIOCGDIRFILT ,
+.Dv BIOCGDLTLIST ,
+.Dv BIOCGETIF ,
+.Dv BIOCGHDRCMPLT ,
+.Dv BIOCGRSIG ,
+.Dv BIOCGRTIMEOUT ,
+.Dv BIOCGSTATS ,
+.Dv BIOCIMMEDIATE ,
+.Dv BIOCLOCK ,
+.Dv BIOCSRTIMEOUT ,
+.Dv BIOCSWTIMEOUT ,
+.Dv BIOCDWTIMEOUT ,
+.Dv BIOCVERSION ,
+.Dv TIOCGPGRP ,
+and
+.Dv FIONREAD .
+Use of any other ioctl is denied with error
+.Er EPERM .
+Once a descriptor is locked, it is not possible to unlock it.
+A process with root privileges is not affected by the lock.
+.Pp
+A privileged program can open a
+.Nm
+device, drop privileges, set the interface, filters and modes on the
+descriptor, and lock it.
+Once the descriptor is locked, the system is safe
+from further abuse through the descriptor.
+Locking a descriptor does not prevent writes.
+If the application does not need to send packets through
+.Nm bpf ,
+it can open the device read-only to prevent writing.
+If sending packets is necessary, a write-filter can be set before locking the
+descriptor to prevent arbitrary packets from being sent out.
+.Pp
+.It Dv BIOCGETIF Fa "struct ifreq *"
+Returns the name of the hardware interface that the file is listening on.
+The name is returned in the
+.Fa ifr_name
+field of the
+.Vt struct ifreq .
+All other fields are undefined.
+.Pp
+.It Dv BIOCSETIF Fa "struct ifreq *"
+Sets the hardware interface associated with the file.
+This command must be performed before any packets can be read.
+The device is indicated by name using the
+.Fa ifr_name
+field of the
+.Vt struct ifreq .
+Additionally, performs the actions of
+.Dv BIOCFLUSH .
+.Pp
+.It Dv BIOCSRTIMEOUT Fa "struct timeval *"
+.It Dv BIOCGRTIMEOUT Fa "struct timeval *"
+Sets or gets the read timeout parameter.
+The
+.Ar timeval
+specifies the length of time to wait before timing out on a read request.
+This parameter is initialized to zero by
+.Xr open 2 ,
+indicating no timeout.
+.Pp
+.It Dv BIOCGSTATS Fa "struct bpf_stat *"
+Returns the following structure of packet statistics:
+.Bd -literal -offset indent
+struct bpf_stat {
+	u_int bs_recv;
+	u_int bs_drop;
+};
+.Ed
+.Pp
+The fields are:
+.Bl -tag -width bs_recv
+.It Fa bs_recv
+Number of packets received by the descriptor since opened or reset (including
+any buffered since the last read call).
+.It Fa bs_drop
+Number of packets which were accepted by the filter but dropped by the kernel
+because of buffer overflows (i.e., the application's reads aren't keeping up
+with the packet traffic).
+.El
+.Pp
+.It Dv BIOCIMMEDIATE Fa "u_int *"
+Enables or disables
+.Dq immediate mode ,
+based on the truth value of the argument.
+When immediate mode is enabled, reads return immediately upon packet reception.
+Otherwise, a read will block until either the kernel buffer becomes full or a
+timeout occurs.
+This is useful for programs like
+.Xr rarpd 8 ,
+which must respond to messages in real time.
+The default for a new file is off.
+.Pp
+.It Dv BIOCSWTIMEOUT Fa "struct timeval *"
+.It Dv BIOCGWTIMEOUT Fa "struct timeval *"
+.It Dv BIOCDWTIMEOUT
+Sets, gets, or deletes (resets) the wait timeout parameter.
+The
+.Ar timeval
+specifies the length of time to wait between receiving a packet and
+the kernel buffer becoming readable.
+By default, or when reset, the wait timeout is infinite, meaning
+the age of packets in the kernel buffer does not make the buffer
+readable.
+The maximum wait time that can be set is 5 minutes (300 seconds).
+.Pp
+.It Dv BIOCSETF Fa "struct bpf_program *"
+.It Dv BIOCSETFNR Fa "struct bpf_program *"
+Sets the filter program used by the kernel to discard uninteresting packets.
+An array of instructions and its length are passed in using the following
+structure:
+.Bd -literal -offset indent
+struct bpf_program {
+	u_int bf_len;
+	struct bpf_insn *bf_insns;
+};
+.Ed
+.Pp
+The filter program is pointed to by the
+.Fa bf_insns
+field, while its length in units of
+.Vt struct bpf_insn
+is given by the
+.Fa bf_len
+field.
+If
+.Dv BIOCSETF
+is used, the actions of
+.Dv BIOCFLUSH
+are also performed.
+.Pp
+See section
+.Sx FILTER MACHINE
+for an explanation of the filter language.
+.Pp
+.It Dv BIOCSETWF Fa "struct bpf_program *"
+Sets the filter program used by the kernel to filter the packets
+written to the descriptor before the packets are sent out on the
+network.
+See
+.Dv BIOCSETF
+for a description of the filter program.
+.Pp
+Note that the filter operates on the packet data written to the descriptor.
+If the
+.Dq header complete
+flag is not set, the kernel sets the link-layer source address
+of the packet after filtering.
+.Pp
+.It Dv BIOCVERSION Fa "struct bpf_version *"
+Returns the major and minor version numbers of the filter language currently
+recognized by the kernel.
+Before installing a filter, applications must check that the current version
+is compatible with the running kernel.
+Version numbers are compatible if the major numbers match and the application
+minor is less than or equal to the kernel minor.
+The kernel version number is returned in the following structure:
+.Bd -literal -offset indent
+struct bpf_version {
+	u_short bv_major;
+	u_short bv_minor;
+};
+.Ed
+.Pp
+The current version numbers are given by
+.Dv BPF_MAJOR_VERSION
+and
+.Dv BPF_MINOR_VERSION
+from
+.In net/bpf.h .
+An incompatible filter may result in undefined behavior (most likely, an
+error returned by
+.Xr ioctl 2
+or haphazard packet matching).
+.Pp
+.It Dv BIOCSRSIG Fa "u_int *"
+.It Dv BIOCGRSIG Fa "u_int *"
+Sets or gets the receive signal.
+This signal will be sent to the process or process group specified by
+.Dv FIOSETOWN .
+It defaults to
+.Dv SIGIO .
+.Pp
+.It Dv BIOCSHDRCMPLT Fa "u_int *"
+.It Dv BIOCGHDRCMPLT Fa "u_int *"
+Sets or gets the status of the
+.Dq header complete
+flag.
+Set to zero if the link level source address should be filled in
+automatically by the interface output routine.
+Set to one if the link level source address will be written,
+as provided, to the wire.
+This flag is initialized to zero by default.
+.Pp
+.It Dv BIOCSFILDROP Fa "u_int *"
+.It Dv BIOCGFILDROP Fa "u_int *"
+Sets or gets the
+.Dq filter drop
+action.
+The supported actions for packets matching the filter are:
+.Pp
+.Bl -tag -width "BPF_FILDROP_CAPTURE" -compact
+.It Dv BPF_FILDROP_PASS
+Accept and capture
+.It Dv BPF_FILDROP_CAPTURE
+Drop and capture
+.It Dv BPF_FILDROP_DROP
+Drop and do not capture
+.El
+.Pp
+Packets matching any filter configured to drop packets will be
+reported to the associated interface so that they can be dropped.
+The default action is
+.Dv BPF_FILDROP_PASS .
+.Pp
+.It Dv BIOCSDIRFILT Fa "u_int *"
+.It Dv BIOCGDIRFILT Fa "u_int *"
+Sets or gets the status of the
+.Dq direction filter
+flag.
+If non-zero, packets matching the specified direction (either
+.Dv BPF_DIRECTION_IN
+or
+.Dv BPF_DIRECTION_OUT )
+will be ignored.
+.El
+.Ss Standard ioctls
+.Nm
+now supports several standard ioctls which allow the user to do asynchronous
+and/or non-blocking I/O to an open
+.Nm
+file descriptor.
+.Pp
+.Bl -tag -width Ds -compact
+.It Dv FIONREAD Fa "int *"
+Returns the number of bytes that are immediately available for reading.
+.Pp
+.It Dv FIONBIO Fa "int *"
+Sets or clears non-blocking I/O.
+If the argument is non-zero, enable non-blocking I/O.
+If the argument is zero, disable non-blocking I/O.
+If non-blocking I/O is enabled, the return value of a read while no data
+is available will be 0.
+The non-blocking read behavior is different from performing non-blocking
+reads on other file descriptors, which will return \-1 and set
+.Va errno
+to
+.Er EAGAIN
+if no data is available.
+Note: setting this overrides the timeout set by
+.Dv BIOCSRTIMEOUT .
+.Pp
+.It Dv FIOASYNC Fa "int *"
+Enables or disables asynchronous I/O.
+When enabled (argument is non-zero), the process or process group specified
+by
+.Dv FIOSETOWN
+will start receiving
+.Dv SIGIO
+signals when packets arrive.
+Note that you must perform an
+.Dv FIOSETOWN
+command in order for this to take effect, as the system will not do it by
+default.
+The signal may be changed via
+.Dv BIOCSRSIG .
+.Pp
+.It Dv FIOSETOWN Fa "int *"
+.It Dv FIOGETOWN Fa "int *"
+Sets or gets the process or process group (if negative) that should receive
+.Dv SIGIO
+when packets are available.
+The signal may be changed using
+.Dv BIOCSRSIG
+(see above).
+.El
+.Ss BPF header
+The following structure is prepended to each packet returned by
+.Xr read 2 :
+.Bd -literal -offset indent
+struct bpf_hdr {
+	struct bpf_timeval bh_tstamp;
+	u_int32_t	bh_caplen;
+	u_int32_t	bh_datalen;
+	u_int16_t	bh_hdrlen;
+};
+.Ed
+.Pp
+The fields, stored in host order, are as follows:
+.Bl -tag -width Ds
+.It Fa bh_tstamp
+Time at which the packet was processed by the packet filter.
+.It Fa bh_caplen
+Length of the captured portion of the packet.
+This is the minimum of the truncation amount specified by the filter and the
+length of the packet.
+.It Fa bh_datalen
+Length of the packet off the wire.
+This value is independent of the truncation amount specified by the filter.
+.It Fa bh_hdrlen
+Length of the BPF header, which may not be equal to
+.Li sizeof(struct bpf_hdr) .
+.El
+.Pp
+The
+.Fa bh_hdrlen
+field exists to account for padding between the header and the link level
+protocol.
+The purpose here is to guarantee proper alignment of the packet data
+structures, which is required on alignment-sensitive architectures and
+improves performance on many other architectures.
+The packet filter ensures that the
+.Fa bpf_hdr
+and the network layer header will be word aligned.
+Suitable precautions must be taken when accessing the link layer protocol
+fields on alignment restricted machines.
+(This isn't a problem on an Ethernet, since the type field is a
+.Vt short
+falling on an even offset, and the addresses are probably accessed in a
+bytewise fashion).
+.Pp
+Additionally, individual packets are padded so that each starts on a
+word boundary.
+This requires that an application has some knowledge of how to get from packet
+to packet.
+The macro
+.Dv BPF_WORDALIGN
+is defined in
+.In net/bpf.h
+to facilitate this process.
+It rounds up its argument to the nearest word aligned value (where a word is
+.Dv BPF_ALIGNMENT
+bytes wide).
+For example, if
+.Va p
+points to the start of a packet, this expression will advance it to the
+next packet:
+.Pp
+.Dl p = (char *)p + BPF_WORDALIGN(p->bh_hdrlen + p->bh_caplen);
+.Pp
+For the alignment mechanisms to work properly, the buffer passed to
+.Xr read 2
+must itself be word aligned.
+.Xr malloc 3
+will always return an aligned buffer.
+.Ss Filter machine
+A filter program is an array of instructions with all branches forwardly
+directed, terminated by a
+.Dq return
+instruction.
+Each instruction performs some action on the pseudo-machine state, which
+consists of an accumulator, index register, scratch memory store, and
+implicit program counter.
+.Pp
+The following structure defines the instruction format:
+.Bd -literal -offset indent
+struct bpf_insn {
+	u_int16_t	code;
+	u_char		jt;
+	u_char		jf;
+	u_int32_t	k;
+};
+.Ed
+.Pp
+The
+.Fa k
+field is used in different ways by different instructions, and the
+.Fa jt
+and
+.Fa jf
+fields are used as offsets by the branch instructions.
+The opcodes are encoded in a semi-hierarchical fashion.
+There are eight classes of instructions:
+.Dv BPF_LD ,
+.Dv BPF_LDX ,
+.Dv BPF_ST ,
+.Dv BPF_STX ,
+.Dv BPF_ALU ,
+.Dv BPF_JMP ,
+.Dv BPF_RET ,
+and
+.Dv BPF_MISC .
+Various other mode and operator bits are logically OR'd into the class to
+give the actual instructions.
+The classes and modes are defined in
+.In net/bpf.h .
+Below are the semantics for each defined
+.Nm
+instruction.
+We use the convention that A is the accumulator, X is the index register,
+P[] packet data, and M[] scratch memory store.
+P[i:n] gives the data at byte offset
+.Dq i
+in the packet, interpreted as a word (n=4), unsigned halfword (n=2), or
+unsigned byte (n=1).
+M[i] gives the i'th word in the scratch memory store, which is only addressed
+in word units.
+The memory store is indexed from 0 to
+.Dv BPF_MEMWORDS Ns \-1 .
+.Fa k ,
+.Fa jt ,
+and
+.Fa jf
+are the corresponding fields in the instruction definition.
+.Dq len
+refers to the length of the packet.
+.Bl -tag -width Ds
+.It Dv BPF_LD
+These instructions copy a value into the accumulator.
+The type of the source operand is specified by an
+.Dq addressing mode
+and can be a constant
+.Pf ( Dv BPF_IMM ) ,
+packet data at a fixed offset
+.Pf ( Dv BPF_ABS ) ,
+packet data at a variable offset
+.Pf ( Dv BPF_IND ) ,
+the packet length
+.Pf ( Dv BPF_LEN ) ,
+a random number
+.Pf ( Dv BPF_RND ) ,
+or a word in the scratch memory store
+.Pf ( Dv BPF_MEM ) .
+For
+.Dv BPF_IND
+and
+.Dv BPF_ABS ,
+the data size must be specified as a word
+.Pf ( Dv BPF_W ) ,
+halfword
+.Pf ( Dv BPF_H ) ,
+or byte
+.Pf ( Dv BPF_B ) .
+The semantics of all recognized
+.Dv BPF_LD
+instructions follow.
+.Pp
+.Bl -tag -width 32n -compact
+.Sm off
+.It Xo Dv BPF_LD No + Dv BPF_W No +
+.Dv BPF_ABS
+.Xc
+.Sm on
+A <- P[k:4]
+.Sm off
+.It Xo Dv BPF_LD No + Dv BPF_H No +
+.Dv BPF_ABS
+.Xc
+.Sm on
+A <- P[k:2]
+.Sm off
+.It Xo Dv BPF_LD No + Dv BPF_B No +
+.Dv BPF_ABS
+.Xc
+.Sm on
+A <- P[k:1]
+.Sm off
+.It Xo Dv BPF_LD No + Dv BPF_W No +
+.Dv BPF_IND
+.Xc
+.Sm on
+A <- P[X+k:4]
+.Sm off
+.It Xo Dv BPF_LD No + Dv BPF_H No +
+.Dv BPF_IND
+.Xc
+.Sm on
+A <- P[X+k:2]
+.Sm off
+.It Xo Dv BPF_LD No + Dv BPF_B No +
+.Dv BPF_IND
+.Xc
+.Sm on
+A <- P[X+k:1]
+.Sm off
+.It Xo Dv BPF_LD No + Dv BPF_W No +
+.Dv BPF_LEN
+.Xc
+.Sm on
+A <- len
+.Sm off
+.It Xo Dv BPF_LD No + Dv BPF_W No +
+.Dv BPF_RND
+.Xc
+.Sm on
+A <- arc4random()
+.Sm off
+.It Dv BPF_LD No + Dv BPF_IMM
+.Sm on
+A <- k
+.Sm off
+.It Dv BPF_LD No + Dv BPF_MEM
+.Sm on
+A <- M[k]
+.El
+.It Dv BPF_LDX
+These instructions load a value into the index register.
+Note that the addressing modes are more restricted than those of the
+accumulator loads, but they include
+.Dv BPF_MSH ,
+a hack for efficiently loading the IP header length.
+.Pp
+.Bl -tag -width 32n -compact
+.Sm off
+.It Xo Dv BPF_LDX No + Dv BPF_W No +
+.Dv BPF_IMM
+.Xc
+.Sm on
+X <- k
+.Sm off
+.It Xo Dv BPF_LDX No + Dv BPF_W No +
+.Dv BPF_MEM
+.Xc
+.Sm on
+X <- M[k]
+.Sm off
+.It Xo Dv BPF_LDX No + Dv BPF_W No +
+.Dv BPF_LEN
+.Xc
+.Sm on
+X <- len
+.Sm off
+.It Xo Dv BPF_LDX No + Dv BPF_B No +
+.Dv BPF_MSH
+.Xc
+.Sm on
+X <- 4*(P[k:1]&0xf)
+.El
+.It Dv BPF_ST
+This instruction stores the accumulator into the scratch memory.
+We do not need an addressing mode since there is only one possibility for
+the destination.
+.Pp
+.Bl -tag -width 32n -compact
+.It Dv BPF_ST
+M[k] <- A
+.El
+.It Dv BPF_STX
+This instruction stores the index register in the scratch memory store.
+.Pp
+.Bl -tag -width 32n -compact
+.It Dv BPF_STX
+M[k] <- X
+.El
+.It Dv BPF_ALU
+The ALU instructions perform operations between the accumulator and index
+register or constant, and store the result back in the accumulator.
+For binary operations, a source mode is required
+.Pf ( Dv BPF_K
+or
+.Dv BPF_X ) .
+.Pp
+.Bl -tag -width 32n -compact
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_ADD No +
+.Dv BPF_K
+.Xc
+.Sm on
+A <- A + k
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_SUB No +
+.Dv BPF_K
+.Xc
+.Sm on
+A <- A - k
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_MUL No +
+.Dv BPF_K
+.Xc
+.Sm on
+A <- A * k
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_DIV No +
+.Dv BPF_K
+.Xc
+.Sm on
+A <- A / k
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_AND No +
+.Dv BPF_K
+.Xc
+.Sm on
+A <- A & k
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_OR No +
+.Dv BPF_K
+.Xc
+.Sm on
+A <- A | k
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_LSH No +
+.Dv BPF_K
+.Xc
+.Sm on
+A <- A << k
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_RSH No +
+.Dv BPF_K
+.Xc
+.Sm on
+A <- A >> k
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_ADD No +
+.Dv BPF_X
+.Xc
+.Sm on
+A <- A + X
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_SUB No +
+.Dv BPF_X
+.Xc
+.Sm on
+A <- A - X
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_MUL No +
+.Dv BPF_X
+.Xc
+.Sm on
+A <- A * X
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_DIV No +
+.Dv BPF_X
+.Xc
+.Sm on
+A <- A / X
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_AND No +
+.Dv BPF_X
+.Xc
+.Sm on
+A <- A & X
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_OR No +
+.Dv BPF_X
+.Xc
+.Sm on
+A <- A | X
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_LSH No +
+.Dv BPF_X
+.Xc
+.Sm on
+A <- A << X
+.Sm off
+.It Xo Dv BPF_ALU No + BPF_RSH No +
+.Dv BPF_X
+.Xc
+.Sm on
+A <- A >> X
+.Sm off
+.It Dv BPF_ALU No + BPF_NEG
+.Sm on
+A <- -A
+.El
+.It Dv BPF_JMP
+The jump instructions alter flow of control.
+Conditional jumps compare the accumulator against a constant
+.Pf ( Dv BPF_K )
+or the index register
+.Pf ( Dv BPF_X ) .
+If the result is true (or non-zero), the true branch is taken, otherwise the
+false branch is taken.
+Jump offsets are encoded in 8 bits so the longest jump is 256 instructions.
+However, the jump always
+.Pf ( Dv BPF_JA )
+opcode uses the 32-bit
+.Fa k
+field as the offset, allowing arbitrarily distant destinations.
+All conditionals use unsigned comparison conventions.
+.Pp
+.Bl -tag -width 32n -compact
+.Sm off
+.It Dv BPF_JMP No + BPF_JA
+pc += k
+.Sm on
+.Sm off
+.It Xo Dv BPF_JMP No + BPF_JGT No +
+.Dv BPF_K
+.Xc
+.Sm on
+pc += (A > k) ? jt : jf
+.Sm off
+.It Xo Dv BPF_JMP No + BPF_JGE No +
+.Dv BPF_K
+.Xc
+.Sm on
+pc += (A >= k) ? jt : jf
+.Sm off
+.It Xo Dv BPF_JMP No + BPF_JEQ No +
+.Dv BPF_K
+.Xc
+.Sm on
+pc += (A == k) ? jt : jf
+.Sm off
+.It Xo Dv BPF_JMP No + BPF_JSET No +
+.Dv BPF_K
+.Xc
+.Sm on
+pc += (A & k) ? jt : jf
+.Sm off
+.It Xo Dv BPF_JMP No + BPF_JGT No +
+.Dv BPF_X
+.Xc
+.Sm on
+pc += (A > X) ? jt : jf
+.Sm off
+.It Xo Dv BPF_JMP No + BPF_JGE No +
+.Dv BPF_X
+.Xc
+.Sm on
+pc += (A >= X) ? jt : jf
+.Sm off
+.It Xo Dv BPF_JMP No + BPF_JEQ No +
+.Dv BPF_X
+.Xc
+.Sm on
+pc += (A == X) ? jt : jf
+.Sm off
+.It Xo Dv BPF_JMP No + BPF_JSET No +
+.Dv BPF_X
+.Xc
+.Sm on
+pc += (A & X) ? jt : jf
+.El
+.It Dv BPF_RET
+The return instructions terminate the filter program and specify the
+amount of packet to accept (i.e., they return the truncation amount)
+or, for the write filter, the maximum acceptable size for the packet
+(i.e., the packet is dropped if it is larger than the returned
+amount).
+A return value of zero indicates that the packet should be ignored/dropped.
+The return value is either a constant
+.Pf ( Dv BPF_K )
+or the accumulator
+.Pf ( Dv BPF_A ) .
+.Pp
+.Bl -tag -width 32n -compact
+.It Dv BPF_RET No + Dv BPF_A
+Accept A bytes.
+.It Dv BPF_RET No + Dv BPF_K
+Accept k bytes.
+.El
+.It Dv BPF_MISC
+The miscellaneous category was created for anything that doesn't fit into
+the above classes, and for any new instructions that might need to be added.
+Currently, these are the register transfer instructions that copy the index
+register to the accumulator or vice versa.
+.Pp
+.Bl -tag -width 32n -compact
+.Sm off
+.It Dv BPF_MISC No + Dv BPF_TAX
+.Sm on
+X <- A
+.Sm off
+.It Dv BPF_MISC No + Dv BPF_TXA
+.Sm on
+A <- X
+.El
+.El
+.Pp
+The
+.Nm
+interface provides the following macros to facilitate array initializers:
+.Bd -filled -offset indent
+.Dv BPF_STMT ( Ns Ar opcode ,
+.Ar operand )
+.Pp
+.Dv BPF_JUMP ( Ns Ar opcode ,
+.Ar operand ,
+.Ar true_offset ,
+.Ar false_offset )
+.Ed
+.Sh FILES
+.Bl -tag -width /dev/bpf -compact
+.It Pa /dev/bpf
+.Nm
+device
+.El
+.Sh EXAMPLES
+The following filter is taken from the Reverse ARP daemon.
+It accepts only Reverse ARP requests.
+.Bd -literal -offset indent
+struct bpf_insn insns[] = {
+	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ETHERTYPE_REVARP, 0, 3),
+	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 20),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, REVARP_REQUEST, 0, 1),
+	BPF_STMT(BPF_RET+BPF_K, sizeof(struct ether_arp) +
+	    sizeof(struct ether_header)),
+	BPF_STMT(BPF_RET+BPF_K, 0),
+};
+.Ed
+.Pp
+This filter accepts only IP packets between host 128.3.112.15 and
+128.3.112.35.
+.Bd -literal -offset indent
+struct bpf_insn insns[] = {
+	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ETHERTYPE_IP, 0, 8),
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, 26),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x8003700f, 0, 2),
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, 30),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x80037023, 3, 4),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x80037023, 0, 3),
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, 30),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x8003700f, 0, 1),
+	BPF_STMT(BPF_RET+BPF_K, (u_int)-1),
+	BPF_STMT(BPF_RET+BPF_K, 0),
+};
+.Ed
+.Pp
+Finally, this filter returns only TCP finger packets.
+We must parse the IP header to reach the TCP header.
+The
+.Dv BPF_JSET
+instruction checks that the IP fragment offset is 0 so we are sure that we
+have a TCP header.
+.Bd -literal -offset indent
+struct bpf_insn insns[] = {
+	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ETHERTYPE_IP, 0, 10),
+	BPF_STMT(BPF_LD+BPF_B+BPF_ABS, 23),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, IPPROTO_TCP, 0, 8),
+	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 20),
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, 0x1fff, 6, 0),
+	BPF_STMT(BPF_LDX+BPF_B+BPF_MSH, 14),
+	BPF_STMT(BPF_LD+BPF_H+BPF_IND, 14),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 79, 2, 0),
+	BPF_STMT(BPF_LD+BPF_H+BPF_IND, 16),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 79, 0, 1),
+	BPF_STMT(BPF_RET+BPF_K, (u_int)-1),
+	BPF_STMT(BPF_RET+BPF_K, 0),
+};
+.Ed
+.Sh ERRORS
+If the
+.Xr ioctl 2
+call fails,
+.Xr errno 2
+is set to one of the following values:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The timeout used in a
+.Dv BIOCSRTIMEOUT
+request is negative.
+.It Bq Er EINVAL
+The timeout used in a
+.Dv BIOCSRTIMEOUT
+request specified a microsecond value less than zero or
+greater than or equal to 1 million.
+.It Bq Er EOVERFLOW
+The timeout used in a
+.Dv BIOCSRTIMEOUT
+request is too large to be represented by an
+.Vt int .
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr read 2 ,
+.Xr select 2 ,
+.Xr signal 3 ,
+.Xr MAKEDEV 8 ,
+.Xr tcpdump 8 ,
+.Xr arc4random 9
+.Rs
+.%A McCanne, S.
+.%A Jacobson, V.
+.%D January 1993
+.%J 1993 Winter USENIX Conference
+.%T The BSD Packet Filter: A New Architecture for User-level Packet Capture
+.Re
+.Sh HISTORY
+The Enet packet filter was created in 1980 by Mike Accetta and Rick Rashid
+at Carnegie-Mellon University.
+Jeffrey Mogul, at Stanford, ported the code to
+.Bx
+and continued its
+development from 1983 on.
+Since then, it has evolved into the Ultrix Packet Filter at DEC, a STREAMS
+NIT module under SunOS 4.1, and BPF.
+.Sh AUTHORS
+.An -nosplit
+.An Steve McCanne
+of Lawrence Berkeley Laboratory implemented BPF in Summer 1990.
+Much of the design is due to
+.An Van Jacobson .
+.Sh BUGS
+The read buffer must be of a fixed size (returned by the
+.Dv BIOCGBLEN
+ioctl).
+.Pp
+A file that does not request promiscuous mode may receive promiscuously
+received packets as a side effect of another file requesting this mode on
+the same hardware interface.
+This could be fixed in the kernel with additional processing overhead.
+However, we favor the model where all files must assume that the interface
+is promiscuous, and if so desired, must utilize a filter to reject foreign
+packets.

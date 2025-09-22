@@ -1,0 +1,4 @@
+dnl	$OpenBSD: whatis,v 1.12 2014/01/09 19:44:49 miod Exp $
+
+OpenBSD/MACHINE runs on 64-bit UltraSPARC-based machines, including most of
+Sun Microsystems (now Oracle) workstations and their clones.

@@ -1,0 +1,112 @@
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+  <title>Build and Writing Guide for libstdc++ Doxygen</title>
+  <link href="style.css" rel="stylesheet" type="text/css">
+</head>
+
+<body bgcolor="#ffffff">
+
+<h1>libstdc++ Source Documentation</h1>
+
+<p>This file is docs/doxygen/guide.html in the libstdc++ source tree.  It
+   is not included in the generated pages (no real point to doing that).
+</p>
+
+<ul>
+ <li><a href="#creating">Creating the pages</a></li>
+ <li><a href="#writing">Writing the markup</a></li>
+</ul>
+
+<hr />
+
+<a name="creating"><h2>Creating the pages</h2></a>
+<p>The Makefile rules <code>'make doxygen'</code>,
+   <code>'make doxygen-maint'</code>, and <code>'make doxygen-man'</code>
+   in the libstdc++ build directory generate the user-level HTML docs, the
+   maintainer-level HTML docs, and the man pages, respectively.  Prerequisite
+   tools are Bash 2.x, 
+   <a href="http://www.doxygen.org/">
+   <!-- snagged from the generated page -->
+   <img src="doxygen.png" alt="Doxygen" align=center border=0 width=110 height=53>
+   </a>, a working version of <code>g++</code> somewhere in the PATH, and
+   the <a href="http://www.gnu.org/software/coreutils/">GNU coreutils</a>.
+
+   In addition, to generate the pretty pictures, the 
+   <a href=
+   "http://www.research.att.com/sw/tools/graphviz/download.html">Graphviz</a>
+   package will need to be installed.
+   (g++ is used to build a program which manipulates man pages.  GNU versions
+   of find, xargs, and possibly sed and grep are used, just because the GNU
+   versions make things very easy.)
+</p>
+
+<p>Careful observers will see that the Makefile rules simply call a script
+   from the source tree, <code>run_doxygen</code>, which does the actual work
+   of running Doxygen and then (most importantly) massaging the output files.
+   If for some reason you prefer to not go through the Makefile, you can call
+   this script directly.  (Start by passing <code>'--help'</code>.)
+</p>
+
+<p>If you wish to tweak the Doxygen settings, do so by editing
+   <code>docs/doxygen/user.cfg.in</code>.  Notes to v3-hackers are written in
+   triple-# comments.
+</p>
+
+<a name="writing"><h2>Writing the markup</h2></a>
+<p>In general, libstdc++ files should be formatted according to the GNU
+   C++ Coding Standard rules found in the file
+   <a href="http://gcc.gnu.org/onlinedocs/libstdc++/17_intro/C++STYLE">C++STYLE</a>.
+   Before any doxygen-specific formatting tweaks are made, please try to make
+   sure that the initial formatting is sound.
+</p>
+
+<p>Adding Doxygen markup to a file (informally called "doxygenating") is very
+   simple.  The Doxygen manual can be found
+   <a href="http://www.stack.nl/~dimitri/doxygen/download.html#latestman">here</a>.
+   We try to use a very-recent version of Doxygen.
+</p>
+
+<h3>Doxygen style guide</h3>
+<p>[incomplete and constantly evolving]</p>
+
+<p>For classes, use deque/vector/list and std::pair as examples.  For
+   functions, see their member functions, and the free functions in
+   <code>stl_algobase.h</code>.  Member functions of other container-like
+   types should read similarly to these member functions.
+</p>
+
+<p>These points accompany the first list in section 3.1 of the Doxygen manual:
+</p>
+<ol>
+ <li>Use the Javadoc style...</li>
+ <li>...not the Qt style.  The intermediate *'s are preferred.</li>
+ <li>Use the triple-slash style only for one-line comments (the "brief" mode).
+     Very recent versions of Doxygen permit full-mode comments in triple-slash
+     blocks, but the formatting still comes out wonky.</li>
+ <li>This is disgusting.  Don't do this.</li>
+</ol>
+
+<p>Use the @-style of commands, not the !-style.  Please be careful about
+   whitespace in your markup comments.  Most of the time it doesn't matter;
+   doxygen absorbs most whitespace, and both HTML and *roff are agnostic about
+   whitespace.  However, in &lt;pre&gt; blocks and @code/@endcode sections,
+   spacing can have "interesting" effects.
+</p>
+
+<p>Use either kind of grouping, as appropriate.  <code>doxygroups.cc</code>
+   exists for this purpose.  See <code>stl_iterator.h</code> for a good
+   example of the "other" kind of grouping.
+</p>
+
+<p>Please use markup tags like @p and @a when referring to things such as the
+   names of function parameters.  Use @e for emphasis when necessary.  Use @c
+   to refer to other standard names.  (Examples of all these abound in the
+   present code.)
+</p>
+
+</body>
+</html>

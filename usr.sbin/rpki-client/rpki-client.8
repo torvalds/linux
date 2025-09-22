@@ -1,0 +1,495 @@
+.\"	$OpenBSD: rpki-client.8,v 1.130 2025/09/11 09:25:05 job Exp $
+.\"
+.\" Copyright (c) 2019 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 11 2025 $
+.Dt RPKI-CLIENT 8
+.Os
+.Sh NAME
+.Nm rpki-client
+.Nd RPKI validator to support BGP routing security
+.Sh SYNOPSIS
+.Nm
+.Op Fl 0ABcjmnoRVvx
+.Op Fl b Ar sourceaddr
+.Op Fl d Ar cachedir
+.Op Fl e Ar rsync_prog
+.Op Fl H Ar fqdn
+.Op Fl P Ar posix-seconds
+.Op Fl p Ar threads
+.Op Fl S Ar skiplist
+.Op Fl s Ar timeout
+.Op Fl t Ar tal
+.Op Ar outputdir
+.Nm
+.Op Fl Vv
+.Op Fl d Ar cachedir
+.Op Fl j
+.Op Fl t Ar tal
+.Fl f
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility queries the
+.Em Resource Public Key Infrastructure Pq RPKI
+repository system with a built-in HTTPS client and
+.Xr openrsync 1
+to fetch all X.509 certificates, manifests, and revocation lists under a given
+.Em Trust Anchor .
+.Nm
+subsequently validates each
+.Em Signed Object
+by constructing and verifying a certification path for the certificate
+associated with the Object (including checking relevant CRLs).
+.Nm
+produces lists of the
+.Em Validated ROA Payloads Pq VRPs ,
+.Em BGPsec Router Keys Pq BRKs ,
+and
+.Em Validated ASPA Payloads Pq VAPs
+in various formats.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 0
+Include hazardous AS0 TALs in the output files.
+AS0 TALs are not recommended for automatic filtering of BGP routes.
+The default is not to include them.
+.It Fl A
+Exclude the ASPA-set from the output files that support it (BIRD, JSON, and
+OpenBGPD).
+.It Fl B
+Create output in the file
+.Pa bird
+in the output directory suitable for BIRD internet routing daemon version
+2.16 and up.
+For compatibility with earlier versions, use
+.Fl A .
+The validated payload table names are
+.Em ROAS4 ,
+.Em ROAS6 ,
+and
+.Em ASPAS .
+.It Fl b Ar sourceaddr
+Tell the HTTP and rsync clients to use
+.Ar sourceaddr
+as the source address for connections, which is useful on machines
+with multiple interfaces.
+.It Fl c
+Create output in the file
+.Pa csv
+in the output directory as comma-separated values of the
+.Em Autonomous System ,
+the prefix in slash notation, the maximum prefix length, an abbreviation for
+the
+.Em Trust Anchor
+the entry is derived from, and the moment the VRP will expire derived from
+the chain of X.509 certificates and CRLs in seconds since the Epoch, UTC.
+.It Fl d Ar cachedir
+The directory where
+.Nm
+will store the cached repository data.
+Defaults to
+.Pa /var/cache/rpki-client .
+.It Fl e Ar rsync_prog
+Use
+.Ar rsync_prog
+instead of
+.Xr openrsync 1
+to fetch repositories.
+It must accept the
+.Fl rt
+and
+.Fl -address
+flags and connect with rsync-protocol locations.
+.It Fl f Ar
+Attempt to decode and validate the RPKI object in
+.Ar file
+using the cache stored in
+.Ar cachedir
+and print human-readable information about the object.
+If
+.Ar file
+is an rsync:// URI, the corresponding file from the cache will be used.
+This option implies
+.Fl n ,
+and can be combined with
+.Fl j
+to emit a stream of
+.Em Concatenated JSON .
+This option is intended for debugging.
+.It Fl H Ar fqdn
+Create a shortlist and add
+.Ar fqdn
+to the shortlist.
+.Nm
+only connects to shortlisted hosts.
+The shortlist filter is enforced during processing of the
+.Em Subject Information Access Pq SIA
+extension in CA certificates, thus applies to both RSYNC and RRDP connections.
+This option can be used multiple times.
+.It Fl j
+Create output in the file
+.Pa json
+in the output directory as JSON object.
+See
+.Fl c
+for a description of the fields.
+.It Fl m
+Create output in the file
+.Pa metrics
+in the output directory in OpenMetrics format.
+.It Fl n
+Offline mode.
+Validate the contents of
+.Ar cachedir
+and write to
+.Ar outputdir
+without synchronizing via RRDP or RSYNC.
+.It Fl o
+Create output in the file
+.Pa openbgpd
+in the output directory as
+.Xr bgpd 8
+compatible input.
+If the
+.Fl B ,
+.Fl c ,
+and
+.Fl j
+options are not specified this is the default.
+.It Fl P Ar posix-seconds
+Specify the time for the evaluation in
+.Ar posix-seconds
+seconds from the unix epoch.
+This overrides the default of using the current system time.
+.It Fl p Ar threads
+Validate using the specified number of threads.
+The default is two.
+Has no effect in combination with
+.Fl f .
+.It Fl R
+Disable RRDP, synchronize only via RSYNC.
+.It Fl S Ar skiplist
+Do not connect to hosts listed in the
+.Ar skiplist
+file.
+Entries in the
+.Ar skiplist
+are newline separated
+.Em Fully Qualified Domain Names Pq FQDNs .
+A
+.Ql #
+indicates the beginning of a comment; characters up to the end of the line are
+not interpreted.
+The skip filter is enforced during processing of the
+.Em Subject Information Access Pq SIA
+extension in CA certificates, thus applies to both RSYNC and RRDP connections.
+By default load entries from
+.Pa /etc/rpki/skiplist .
+.It Fl s Ar timeout
+Terminate after
+.Ar timeout
+seconds of runtime, because normal practice will restart from
+.Xr cron 8 .
+Disable by specifying 0.
+Defaults to 1 hour.
+Individual RSYNC/RRDP repositories are timed out after one fourth of
+.Em timeout .
+All network synchronisation tasks are aborted after seven eights of
+.Em timeout .
+.It Fl t Ar tal
+Specify a
+.Em Trust Anchor Locator Pq TAL
+file to be used.
+This option can be used multiple times to load multiple TALs.
+By default
+.Nm
+will load all TAL files in
+.Pa /etc/rpki .
+TAL are small files containing a public key and URL endpoint address.
+.It Fl V
+Show the version and exit.
+.It Fl v
+Increase verbosity.
+Specify once for synchronisation status, twice to print the name of each file
+as it's processed.
+If
+.Fl f
+is given, specify once to print more information about the encapsulated X.509
+certificate, twice to print the certificate in PEM format.
+.It Fl x
+Enable processing of experimental file formats.
+This option is implied by
+.Fl f .
+.It Ar outputdir
+The directory where
+.Nm
+will write the output files.
+Defaults to
+.Pa /var/db/rpki-client/ .
+.El
+.Pp
+By default
+.Nm
+outputs validated payloads in
+.Fl o
+(OpenBGPD compatible) format.
+.Pp
+.Nm
+should be run hourly by
+.Xr cron 8 :
+use
+.Xr crontab 1
+to uncomment the entry in root's crontab.
+.Sh TRUST ANCHOR CONSTRAINTS
+.Nm
+can impose locally configured
+.Em constraints
+on cryptographic products subordinate to publicly-trusted
+.Em Trust Anchors .
+.Pp
+Constraining a Trust Anchor's effective signing authority to a limited set of
+.Em Internet Number Resources
+allows Relying Parties to take advantage of the potential benefits of
+assuming trust, while deriving trust within a bounded scope.
+.Pp
+Each
+.Em .constraints
+file imposes constraints on the Trust Anchor reachable via the same-named
+.Em .tal
+file.
+One entry per line.
+Entries can be IP prefixes, IP address ranges,
+AS identifiers, or AS identifier ranges.
+Ranges are a minimum and maximum separated by a hyphen
+.Pq Sq - .
+Comments can be put anywhere in the file using a hash mark
+.Pq Sq # ,
+and extend to the end of the current line.
+.Em deny
+entries may not overlap with other
+.Em deny
+entries.
+.Em allow
+entries may not overlap with other
+.Em allow
+entries.
+.Pp
+A given EE certificate's resources may not overlap with any
+.Em deny
+entry, and must be fully contained within the
+.Em allow
+entries.
+.Sh ENVIRONMENT
+.Nm
+utilizes the following environment variables:
+.Bl -tag -width "http_proxy"
+.It Ev http_proxy
+URL of HTTP proxy to use.
+.El
+.Sh FILES
+.Bl -tag -width "/var/db/rpki-client/openbgpd" -compact
+.It Pa /etc/rpki/*.tal
+default TAL files used unless
+.Fl t Ar tal
+is specified.
+The TAL files of the five Regional Internet Registries are included.
+.It Pa /etc/rpki/*.constraints
+files containing registry-specific constraints to restrict what IP addresses
+and AS identifiers may or may not appear in EE certificates subordinate to the
+same-named Trust Anchor.
+.It Pa /etc/rpki/skiplist
+default skiplist file, unless
+.Fl S Ar skiplist
+is specified.
+.It Pa /var/cache/rpki-client
+cached repository data.
+.It Pa /var/db/rpki-client/openbgpd
+default roa-set output file.
+.It Pa /var/db/rpki-client/rpki.ccr
+DER-encoded canonical cache representation file.
+This facility is experimental and is still subject to change.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr openrsync 1 ,
+.Xr bgpd.conf 5
+.Sh STANDARDS
+.Rs
+.%T X.509 Extensions for IP Addresses and AS Identifiers
+.%R RFC 3779
+.Re
+.Pp
+.Rs
+.%T Internet X.509 Public Key Infrastructure Certificate and CRL Profile
+.%R RFC 5280
+.Re
+.Pp
+.Rs
+.%T Cryptographic Message Syntax (CMS)
+.%R RFC 5652
+.Re
+.Pp
+.Rs
+.%T The rsync URI Scheme
+.%R RFC 5781
+.Re
+.Pp
+.Rs
+.%T \&An Infrastructure to Support Secure Internet Routing
+.%R RFC 6480
+.Re
+.Pp
+.Rs
+.%T A Profile for Resource Certificate Repository Structure
+.%R RFC 6481
+.Re
+.Pp
+.Rs
+.%T A Profile for X.509 PKIX Resource Certificates
+.%R RFC 6487
+.Re
+.Pp
+.Rs
+.%T Signed Object Template for the RPKI
+.%R RFC 6488
+.Re
+.Pp
+.Rs
+.%T The RPKI Ghostbusters Record
+.%R RFC 6493
+.Re
+.Pp
+.Rs
+.%T Policy Qualifiers in RPKI Certificates
+.%R RFC 7318
+.Re
+.Pp
+.Rs
+.%T The Profile for Algorithms and Key Sizes for Use in the RPKI
+.%R RFC 7935
+.Re
+.Pp
+.Rs
+.%T The RPKI Repository Delta Protocol (RRDP)
+.%R RFC 8182
+.Re
+.Pp
+.Rs
+.%T A Profile for BGPsec Router Certificates, Certificate Revocation Lists, and Certification Requests
+.%R RFC 8209
+.Re
+.Pp
+.Rs
+.%T RPKI Trust Anchor Locator
+.%R RFC 8630
+.Re
+.Pp
+.Rs
+.%T Manifests for the RPKI
+.%R RFC 9286
+.Re
+.Pp
+.Rs
+.%T A Profile for RPKI Signed Checklists (RSCs)
+.%R RFC 9323
+.Re
+.Pp
+.Rs
+.%T A Profile for Route Origin Authorizations (ROAs)
+.%R RFC 9582
+.Re
+.Pp
+.Rs
+.%T On the use of the CMS Signing-Time Attribute in RPKI Signed Objects
+.%R RFC 9589
+.Re
+.Pp
+.Rs
+.%T Finding and Using Geofeed Data
+.%R RFC 9632
+.Re
+.Pp
+.Rs
+.%T Same-Origin Policy for the RRDP
+.%R RFC 9674
+.Re
+.Pp
+.Rs
+.%T A Profile for RPKI Trust Anchor Keys
+.%R RFC 9691
+.Re
+.Pp
+.Rs
+.%T Detecting RRDP Session Desynchronization
+.%R RFC 9697
+.Re
+.Pp
+.Rs
+.%T Handling of RPKI CRL Number Extensions
+.%R RFC 9829
+.Re
+.Pp
+.Rs
+.%T A Profile for Autonomous System Provider Authorization (ASPA)
+.%U https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-aspa-profile
+.%D Jun, 2023
+.Re
+.Pp
+.Rs
+.%T Constraining RPKI Trust Anchors
+.%U https://datatracker.ietf.org/doc/html/draft-snijders-constraining-rpki-trust-anchors
+.%D September, 2023
+.Re
+.Pp
+.Rs
+.%T A profile for Signed Prefix Lists for Use in the RPKI
+.%U https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-rpki-prefixlist-02
+.%D Jan, 2024
+.Re
+.Pp
+.Rs
+.%T RPKI Manifest Number Handling
+.%U https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-manifest-numbers
+.%D June, 2024
+.Re
+.Pp
+.Rs
+.%T Tiebreaking RPKI Trust Anchors
+.%U https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-rpki-ta-tiebreaker
+.%D June, 2024
+.Re
+.Pp
+.Rs
+.%T A Profile for RPKI Canonical Cache Representation
+.%U https://datatracker.ietf.org/doc/html/draft-spaghetti-sidrops-rpki-ccr
+.%D September, 2025
+.Re
+.Sh HISTORY
+.Nm
+first appeared in
+.Ox 6.7 .
+.Sh AUTHORS
+.An -nosplit
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv ,
+.An Claudio Jeker Aq Mt claudio@openbsd.org ,
+.An Theo Buehler Aq Mt tb@openbsd.org ,
+and
+.An Job Snijders Aq Mt job@openbsd.org .
+.\" .Sh CAVEATS
+.\" .Sh BUGS

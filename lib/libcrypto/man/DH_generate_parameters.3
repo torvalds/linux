@@ -1,0 +1,242 @@
+.\" $OpenBSD: DH_generate_parameters.3,v 1.15 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\" selective merge up to: OpenSSL b0edda11 Mar 20 13:00:17 2018 +0000
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Ulf Moeller <ulf@openssl.org>
+.\" and Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2000, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt DH_GENERATE_PARAMETERS 3
+.Os
+.Sh NAME
+.Nm DH_generate_parameters_ex ,
+.Nm DH_check ,
+.Nm DH_check_pub_key ,
+.Nm DH_generate_parameters
+.Nd generate and check Diffie-Hellman parameters
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/dh.h
+.Ft int
+.Fo DH_generate_parameters_ex
+.Fa "DH *dh"
+.Fa "int prime_len"
+.Fa "int generator"
+.Fa "BN_GENCB *cb"
+.Fc
+.Ft int
+.Fo DH_check
+.Fa "DH *dh"
+.Fa "int *codes"
+.Fc
+.Ft int
+.Fo DH_check_pub_key
+.Fa "const DH *dh"
+.Fa "const BIGNUM *pub_key"
+.Fa "int *codes"
+.Fc
+.Pp
+Deprecated:
+.Pp
+.Ft DH *
+.Fo DH_generate_parameters
+.Fa "int prime_len"
+.Fa "int generator"
+.Fa "void (*callback)(int, int, void *)"
+.Fa "void *cb_arg"
+.Fc
+.Sh DESCRIPTION
+.Fn DH_generate_parameters_ex
+generates Diffie-Hellman parameters that can be shared among a group of
+users, and stores them in the provided
+.Vt DH
+structure.
+.Pp
+.Fa prime_len
+is the length in bits of the safe prime to be generated.
+.Fa generator
+is a small number > 1, typically 2 or 5.
+.Pp
+A callback function may be used to provide feedback about the progress
+of the key generation.
+If
+.Fa cb
+is not
+.Dv NULL ,
+it will be called as described in
+.Xr BN_generate_prime 3
+while a random prime number is generated, and when a prime has been
+found,
+.Fn BN_GENCB_call cb 3 0
+is called; see
+.Xr BN_GENCB_call 3 .
+.Pp
+.Fn DH_check
+validates Diffie-Hellman parameters.
+If no problems are found,
+.Pf * Ar codes
+is set to zero.
+Otherwise, one or more of the following bits are set:
+.Bl -tag -width Ds
+.It Dv DH_CHECK_P_NOT_PRIME
+The parameter
+.Fa dh->p
+is not prime.
+.It Dv DH_CHECK_P_NOT_SAFE_PRIME
+The parameter
+.Fa dh->p
+is not a safe prime.
+.It Dv DH_UNABLE_TO_CHECK_GENERATOR
+The generator
+.Fa dh->g
+cannot be checked for suitability: it is neither 2 nor 5.
+.It Dv DH_NOT_SUITABLE_GENERATOR
+The generator
+.Fa dh->g
+is not suitable.
+.El
+.Pp
+.Fn DH_check_pub_key
+checks whether
+.Fa pub_key
+is a valid public key when using the domain parameters contained in
+.Fa dh .
+If no problems are found,
+.Pf * Ar codes
+is set to zero.
+Otherwise, one or more of the following bits are set:
+.Bl -tag -width Ds
+.It Dv DH_CHECK_PUBKEY_TOO_SMALL
+.Fa pub_key
+is less than or equal to 1.
+.It Dv DH_CHECK_PUBKEY_TOO_LARGE
+.Fa pub_key
+is greater than or equal to
+.Fa dh->p No \- 1 .
+.It DH_CHECK_PUBKEY_INVALID
+.Fa dh->q
+is set but
+.Fa pub_key
+to the power of
+.Fa dh->q
+is not 1 modulo
+.Fa dh->p .
+.El
+.Sh RETURN VALUES
+.Fn DH_generate_parameters_ex ,
+.Fn DH_check ,
+and
+.Fn DH_check_pub_key
+return 1 if the check could be performed or 0 otherwise.
+.Pp
+.Fn DH_generate_parameters
+(deprecated) returns a pointer to the
+.Vt DH
+structure, or
+.Dv NULL
+if the parameter generation fails.
+.Pp
+The error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr DH_get0_pqg 3 ,
+.Xr DH_new 3
+.Sh HISTORY
+.Fn DH_check
+and
+.Fn DH_generate_parameters
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .
+.Pp
+The
+.Fa cb_arg
+argument to
+.Fn DH_generate_parameters
+was added in SSLeay 0.9.0.
+.Pp
+.Fn DH_check_pub_key
+first appeared in OpenSSL 0.9.8a and has been available since
+.Ox 4.0 .
+.Pp
+.Fn DH_generate_parameters_ex
+first appeared in OpenSSL 0.9.8 and has been available since
+.Ox 4.5 .
+.Sh CAVEATS
+.Fn DH_generate_parameters_ex
+and
+.Fn DH_generate_parameters
+may run for several hours before finding a suitable prime.
+.Pp
+The parameters generated by
+.Fn DH_generate_parameters_ex
+and
+.Fn DH_generate_parameters
+are not to be used in signature schemes.
+.Sh BUGS
+If
+.Fa generator
+is not 2 or 5,
+.Fa dh->g Ns = Ns Fa generator
+is not a usable generator.

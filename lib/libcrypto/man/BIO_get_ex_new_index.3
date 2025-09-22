@@ -1,0 +1,199 @@
+.\" $OpenBSD: BIO_get_ex_new_index.3,v 1.18 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 61f805c1 Jan 16 01:01:46 2018 +0800
+.\"
+.\" This file was written by Rich Salz <rsalz@akamai.com>.
+.\" Copyright (c) 2015, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_GET_EX_NEW_INDEX 3
+.Os
+.Sh NAME
+.Nm BIO_get_ex_new_index ,
+.Nm BIO_set_ex_data ,
+.Nm BIO_get_ex_data ,
+.Nm BIO_set_app_data ,
+.Nm BIO_get_app_data ,
+.Nm UI_get_ex_new_index ,
+.Nm UI_set_ex_data ,
+.Nm UI_get_ex_data ,
+.Nm X509_get_ex_new_index ,
+.Nm X509_set_ex_data ,
+.Nm X509_get_ex_data ,
+.Nm EC_KEY_get_ex_new_index ,
+.Nm EC_KEY_get_ex_data ,
+.Nm EC_KEY_set_ex_data
+.Nd application-specific data
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.In openssl/ui.h
+.In openssl/x509.h
+.In openssl/ec.h
+.Ft int
+.Fo TYPE_get_ex_new_index
+.Fa "long argl"
+.Fa "void *argp"
+.Fa "CRYPTO_EX_new *new_func"
+.Fa "CRYPTO_EX_dup *dup_func"
+.Fa "CRYPTO_EX_free *free_func"
+.Fc
+.Ft int
+.Fo TYPE_set_ex_data
+.Fa "TYPE *d"
+.Fa "int idx"
+.Fa "void *arg"
+.Fc
+.Ft void *
+.Fo TYPE_get_ex_data
+.Fa "TYPE *d"
+.Fa "int idx"
+.Fc
+.Ft int
+.Fo TYPE_set_app_data
+.Fa "TYPE *d"
+.Fa "void *arg"
+.Fc
+.Ft void *
+.Fo TYPE_get_app_data
+.Fa "TYPE *d"
+.Fc
+.Sh DESCRIPTION
+In the description here,
+.Vt TYPE
+is used a placeholder for any of the OpenSSL datatypes listed in
+.Xr CRYPTO_get_ex_new_index 3 .
+.Pp
+These functions handle application-specific data in OpenSSL data
+structures.
+Their usage is identical to that of
+.Xr RSA_get_ex_new_index 3 ,
+.Xr RSA_set_ex_data 3 ,
+and
+.Xr RSA_get_ex_data 3 .
+.Pp
+.Fn TYPE_get_ex_new_index
+is a macro that calls
+.Xr CRYPTO_get_ex_new_index 3
+with the correct index value.
+.Pp
+.Fn TYPE_set_ex_data
+is a function that calls
+.Xr CRYPTO_set_ex_data 3
+with an offset into the opaque ex_data part of the
+.Vt TYPE
+object.
+.Pp
+.Fn TYPE_get_ex_data
+is a function that calls
+.Xr CRYPTO_get_ex_data 3
+with an offset into the opaque ex_data part of the
+.Vt TYPE
+object.
+.Pp
+.Fn TYPE_set_app_data
+and
+.Fn TYPE_get_app_data
+are deprecated wrapper macros that call
+.Fn TYPE_set_ex_data
+and
+.Fn TYPE_get_ex_data
+with
+.Fa idx
+set to 0.
+.Sh RETURN VALUES
+.Fn TYPE_get_new_ex_index
+returns a new index on success or \-1 on error.
+.Pp
+.Fn TYPE_set_ex_data
+and
+.Fn TYPE_set_app_data
+return 1 on success or 0 on error.
+.Pp
+.Fn TYPE_get_ex_data
+and
+.Fn TYPE_get_app_data
+return the application data or
+.Dv NULL
+if an error occurred.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr CRYPTO_get_ex_new_index 3 ,
+.Xr RSA_get_ex_new_index 3 ,
+.Xr X509_new 3
+.Sh HISTORY
+.Fn BIO_set_app_data
+and
+.Fn BIO_get_app_data
+first appeared in SSLeay 0.8.1.
+.Fn BIO_get_ex_new_index ,
+.Fn BIO_set_ex_data ,
+and
+.Fn BIO_get_ex_data
+first appeared in SSLeay 0.9.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_get_ex_new_index ,
+.Fn X509_set_ex_data ,
+and
+.Fn X509_get_ex_data
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn UI_get_ex_new_index ,
+.Fn UI_set_ex_data ,
+and
+.Fn UI_get_ex_data
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn EC_KEY_get_ex_new_index ,
+.Fn EC_KEY_set_ex_data ,
+and
+.Fn EC_KEY_get_ex_data
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.5 .

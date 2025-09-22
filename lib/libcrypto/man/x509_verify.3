@@ -1,0 +1,221 @@
+.\" $OpenBSD: x509_verify.3,v 1.2 2020/09/14 14:21:46 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Bob Beck <beck@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 14 2020 $
+.Dt X509_VERIFY 3
+.Os
+.Sh NAME
+.Nm x509_verify ,
+.Nm x509_verify_ctx_new ,
+.Nm x509_verify_ctx_free ,
+.Nm x509_verify_ctx_set_max_depth ,
+.Nm x509_verify_ctx_set_max_signatures ,
+.Nm x509_verify_ctx_set_max_chains ,
+.Nm x509_verify_ctx_set_purpose ,
+.Nm x509_verify_ctx_set_intermediates ,
+.Nm x509_verify_ctx_error_string ,
+.Nm x509_verify_ctx_error_depth ,
+.Nm x509_verify_ctx_chain
+.Nd discover and verify X.509 certificate chains
+.Sh SYNOPSIS
+.In openssl/x509_verify.h
+.Ft size_t
+.Fo x509_verify
+.Fa "X509_VERIFY_CTX *ctx"
+.Fa "X509 *leaf"
+.Fa "char *name"
+.Fc
+.Ft X509_VERIFY_CTX *
+.Fo x509_verify_ctx_new
+.Fa "STACK_OF(X509) *roots"
+.Fc
+.Ft void
+.Fo x509_verify_ctx_free
+.Fa "X509_VERIFY_CTX *ctx"
+.Fc
+.Ft int
+.Fo x509_verify_ctx_set_max_depth
+.Fa "X509_VERIFY_CTX *ctx"
+.Fa "size_t max"
+.Fc
+.Ft int
+.Fo x509_verify_ctx_set_max_signatures
+.Fa "X509_VERIFY_CTX *ctx"
+.Fa "size_t max"
+.Fc
+.Ft int
+.Fo x509_verify_ctx_set_max_chains
+.Fa "X509_VERIFY_CTX *ctx"
+.Fa "size_t max"
+.Fc
+.Ft int
+.Fo x509_verify_ctx_set_purpose
+.Fa "X509_VERIFY_CTX *ctx"
+.Fa "int purpose_id"
+.Fc
+.Ft int
+.Fo x509_verify_ctx_set_intermediates
+.Fa "X509_VERIFY_CTX *ctx"
+.Fa "STACK_OF(X509) *intermediates"
+.Fc
+.Ft const char *
+.Fo x509_verify_ctx_error_string
+.Fa "X509_VERIFY_CTX *ctx"
+.Fc
+.Ft size_t
+.Fo x509_verify_ctx_error_depth
+.Fa "X509_VERIFY_CTX *ctx"
+.Fc
+.Ft STACK_OF(X509) *
+.Fo x509_verify_ctx_chain
+.Fa "X509_VERIFY_CTX *ctx"
+.Fa "size_t index"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn x509_verify
+function attempts to discover and validate all certificate chains
+for the
+.Fa name
+from the
+.Fa leaf
+certificate based on the parameters in
+.Fa ctx .
+Multiple chains may be built and validated.
+Revocation checking is not done by this function, and should be
+performed by the caller on any returned chains if so desired.
+.Pp
+.Fn x509_verify_ctx_new
+allocates a new context using the trusted
+.Fa roots .
+In case of success, it increments the reference count of
+.Fa roots .
+.Pp
+.Fn x509_verify_ctx_free
+frees
+.Fa ctx
+and decrements the reference count of the
+.Fa roots
+and
+.Fa intermediates
+associated with it.
+If
+.Fa ctx
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+.Fn x509_verify_ctx_set_max_depth
+sets the maximum depth of certificate chains that will be constructed to
+.Fa max ,
+which can be in the range from 1 to the default of 32.
+.Pp
+.Fn x509_verify_ctx_set_max_signatures
+sets the maximum number of public key signature operations that will be
+used when verifying certificate chains to
+.Fa max ,
+which can be in the range from 1 to 100000.
+The default is 256.
+.Pp
+.Fn x509_verify_ctx_set_max_chains
+sets the maximum number of chains which may be returned to
+.Fa max ,
+which can be in the range from 1 to the default of 8.
+.Pp
+.Fn x509_verify_ctx_set_purpose
+sets the certificate purpose for validation to
+.Fa purpose_id .
+The
+.Dv X509_PURPOSE_*
+constants listed in
+.Xr X509_check_purpose 3
+can be used.
+.Pp
+.Fn x509_verify_ctx_set_intermediates
+provides some intermediate certificates, typically received from
+the peer, to be used for building chains.
+In case of success, this function increases the reference count of
+.Fa intermediates .
+.Pp
+.Fn x509_verify_ctx_error_string
+extracts a description of the last error encountered by a previous
+call to
+.Fn x509_verify
+from
+.Fa ctx .
+.Pp
+.Fn x509_verify_ctx_error_depth
+extracts the depth of the last error encountered by a previous
+call to
+.Fn x509_verify
+from
+.Fa ctx .
+.Pp
+.Fn x509_verify_ctx_chain
+extracts the validated chain with the given
+.Fa index
+from
+.Fa ctx
+after a previous call to
+.Fn x509_verify .
+The
+.Fa index
+starts at 0, and it is an error to pass a number
+greater than or equal to the return value of
+.Fn x509_verify .
+The returned chain is neither copied,
+nor is its reference count increased.
+.Sh RETURN VALUES
+.Fn x509_verify
+returns the number of chains successfully built and validated
+or 0 on failure.
+.Pp
+.Fn x509_verify_ctx_new
+returns a newly allocated context or
+.Dv NULL
+on failure.
+.Pp
+.Fn x509_verify_ctx_set_max_depth ,
+.Fn x509_verify_ctx_set_max_signatures ,
+.Fn x509_verify_ctx_set_max_chains ,
+.Fn x509_verify_ctx_set_purpose ,
+and
+.Fn x509_verify_ctx_set_intermediates
+return 1 on success or 0 on failure.
+.Pp
+.Fn x509_verify_ctx_error_string
+returns a pointer to a human readable error string.
+If no error occurred,
+.Qq ok
+is returned.
+.Pp
+.Fn x509_verify_ctx_chain
+returns an internal pointer to a validated chain or
+.Dv NULL
+if
+.Fa index
+is greater than or equal to the number of chains
+that were successfully built and validated.
+The returned pointer becomes invalid when
+.Fa ctx
+is destroyed.
+.Sh SEE ALSO
+.Xr X509_verify_cert 3
+.Sh HISTORY
+These functions first appeared in
+.Ox 6.8 .
+.Sh AUTHORS
+.An Bob Beck Aq Mt beck@openbsd.org

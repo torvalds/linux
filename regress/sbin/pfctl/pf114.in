@@ -1,0 +1,16 @@
+pass in on lo0 from 127.1.0.0/16
+pass in on lo0 from 127.2.0.0/16
+pass in on lo0 from 127.3.0.0/16
+pass in on lo0 from 127.4.0.0/16
+pass in on lo0 from 127.5.0.0/16
+pass in on lo0 from 127.6.0.0/16
+pass in on lo0 from 127.7.0.0/16
+pass in on lo0 from 127.8.0.0/16
+pass in on lo0 from 127.9.0.0/16
+pass in on lo0 from 127.10.0.0/16
+pass in on lo0 from 127.11.0.0/16
+pass in on lo0 from 127.12.0.0/16
+pass in on lo0 from 127.13.0.0/16
+pass in on lo0 from 127.14.0.0/16
+pass in on lo0 from 127.15.0.0/16
+pass label "ruleNo:$nr"

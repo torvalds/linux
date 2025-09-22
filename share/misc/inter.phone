@@ -1,0 +1,3226 @@
+#	$OpenBSD: inter.phone,v 1.46 2023/04/12 09:07:42 jsg Exp $
+#	@(#)inter.phone	8.1 (Berkeley) 6/9/93
+#	$FreeBSD-Id: inter.phone,v 1.15 1997/02/22 13:56:06 peter Exp $
+#
+# Country Code: City Code: City: Country
+1:510:Berkeley:USA
+7:495:Moscow:Russia
+7:3832:Novosibirsk:Russia
+7:812:St. Petersburg:Russia
+7:::Kazakhstan
+20:2:Cairo:Egypt, Arab Rep. of
+20:3:Alexandria:Egypt, Arab Rep. of
+20:66:Port Said:Egypt, Arab Rep. of
+20:95:Luxor:Egypt, Arab Rep. of
+20:97:Aswan:Egypt, Arab Rep. of
+27:11:Johannesburg:South Africa
+27:12:Pretoria:South Africa
+27:21:Cape Town:South Africa
+27:31:Durban:South Africa
+27:51:Bloemfontein:South Africa
+30:1:Athens:Greece
+30:1:Piraeus:Greece
+30:241:Rhodes:Greece
+30:31:Thessaloniki:Greece
+30:321:Serrai:Greece
+30:41:Larissa:Greece
+30:421:Volos:Greece
+30:51:Kavala:Greece
+30:521:Drama:Greece
+30:61:Patrai:Greece
+30:651:Ioannina:Greece
+30:721:Kalamata:Greece
+30:81:Iraklion Kritis (Crete):Greece
+31:10:Rotterdam:Netherlands
+31:13:Tilburg:Netherlands
+31:15:Delft:Netherlands
+31:20:Amsterdam:Netherlands
+31:24:Nijmegen:Netherlands
+31:26:Arnhem:Netherlands
+31:30:Utrecht:Netherlands
+31:35:Hilversum:Netherlands
+31:40:Eindhoven:Netherlands
+31:50:Groningen:Netherlands
+31:53:Enschede:Netherlands
+31:55:Apeldoorn:Netherlands
+31:70:The Hague:Netherlands
+31:76:Breda:Netherlands
+32:2:Brussels:Belgium
+32:3:Antwerp:Belgium
+32:4:Liege:Belgium
+32:9:Ghent:Belgium
+32:10:Wavre:Belgium
+32:11:Hasselt:Belgium
+32:12:Tongeren:Belgium
+32:13:Diest:Belgium
+32:14:Herentals:Belgium
+32:15:Mechelen:Belgium
+32:16:Leuven:Belgium
+32:19:Waremme:Belgium
+32:41:Liege (Luik):Belgium
+32:50:Brugge:Belgium
+32:51:Roeselare:Belgium
+32:52:Dendermonde:Belgium
+32:53:Aalst:Belgium
+32:54:Ninove:Belgium
+32:55:Ronse:Belgium
+32:56:Kortrijk:Belgium
+32:57:Ieper:Belgium
+32:58:Veurne:Belgium
+32:59:Oostende:Belgium
+32:60:Chimay:Belgium
+32:61:Libramont-Chevigny:Belgium
+32:63:Arlon:Belgium
+32:64:La Louviere:Belgium
+32:65:Mons:Belgium
+32:67:Nivelles:Belgium
+32:68:Ath:Belgium
+32:69:Tournai:Belgium
+32:71:Charleroi:Belgium
+32:80:Stavelot:Belgium
+32:81:Namur:Belgium
+32:82:Dinant:Belgium
+32:83:Ciney:Belgium
+32:84:Marche-en-Famenne:Belgium
+32:85:Huy:Belgium
+32:86:Durbuy:Belgium
+32:87:Verviers:Belgium
+32:472:Proximus:Belgium
+32:474:Proximus:Belgium
+32:473:Proximus:Belgium
+32:475:Proximus:Belgium
+32:476:Proximus:Belgium
+32:477:Proximus:Belgium
+32:478:Proximus:Belgium
+32:479:Proximus:Belgium
+32:485:Base:Belgium
+32:486:Base:Belgium
+32:495:Mobistar:Belgium
+32:496:Mobistar:Belgium
+32:497:Mobistar:Belgium
+32:498:Mobistar:Belgium
+33:1:Paris and surrounds:France
+33:2:NW region:France
+33:3:NE region:France
+33:4:SE region:France
+33:4:Corsica:France
+33:5:SW region:France
+33:628::Andorra
+33:93::Monaco
+34:1:Madrid:Spain
+34:28:Las Palmas (Canary Is.):Spain
+34:3:Barcelona:Spain
+34:48:Pamplona:Spain
+34:4:Bilbao:Spain
+34:54:Seville:Spain
+34:58:Granada:Spain
+34:6:Valencia:Spain
+34:71:Palma de Mallorca:Spain
+34:76:Zaragoza:Spain
+36:1:Budapest:Hungary
+36:1:Pilisborosjeno:Hungary
+36:1:Torokbalint:Hungary
+36:1:Urom:Hungary
+36:20:Cegled:Hungary
+36:22:Szekesfehervar (Stuhlwessenburg):Hungary
+36:24:Alcsutdoboz:Hungary
+36:24:Alsoorspuszta (Many):Hungary
+36:24:Banyatelep (Gant):Hungary
+36:24:Obarok (Bicske):Hungary
+36:24:Odonmajor (Etyek):Hungary
+36:24:Szar:Hungary
+36:24:Szunyogpuszta (Felcsut):Hungary
+36:24:Tabajd:Hungary
+36:24:Tukrospuszta (Bicske):Hungary
+36:24:Ujbarok:Hungary
+36:24:Val:Hungary
+36:24:Vertesacsa:Hungary
+36:24:Vertesboglar:Hungary
+36:24:Verteskozma (Gant):Hungary
+36:26:Alsomajor (Biatorbagy):Hungary
+36:26:Alsonemedi:Hungary
+36:26:Anasztaziapuszta (Tarnok):Hungary
+36:26:Erd:Hungary
+36:26:Ocsa:Hungary
+36:26:Paty:Hungary
+36:26:Perbal:Hungary
+36:26:Piliscsaba:Hungary
+36:26:Pilisszanto:Hungary
+36:26:Pilisszentivan:Hungary
+36:26:Pilisszentkereszt:Hungary
+36:26:Pilisszentlaszlo:Hungary
+36:26:Pilisvorosvar:Hungary
+36:26:Pocsmegyer:Hungary
+36:26:Pomaz:Hungary
+36:26:Pusztazamor:Hungary
+36:26:Rackeve:Hungary
+36:26:Simonpuszta (Erd):Hungary
+36:26:Solymar:Hungary
+36:26:Soskut:Hungary
+36:26:Surany (Pocsmegyer):Hungary
+36:26:Szabadsagforras (Szentendre):Hungary
+36:26:Szabotanya (Telki):Hungary
+36:26:Szazhalombatta:Hungary
+36:26:Szentendre:Hungary
+36:26:Szentetanya (Pomaz):Hungary
+36:26:Szentgyorgypuszta (Visegrad):Hungary
+36:26:Szentistvantelep (Budakalasz):Hungary
+36:26:Szigetbecse:Hungary
+36:26:Szigetcsep:Hungary
+36:26:Szigethalom:Hungary
+36:26:Szigetmonostor:Hungary
+36:26:Szigetszentmarton:Hungary
+36:26:Szigetszentmiklos:Hungary
+36:26:Szigetujfalu:Hungary
+36:26:Tahi (Tahitotfalu):Hungary
+36:26:Tahitotfalu:Hungary
+36:26:Taksony:Hungary
+36:26:Tarnok:Hungary
+36:26:Telki:Hungary
+36:26:Tinnye:Hungary
+36:26:Tok:Hungary
+36:26:Tokol:Hungary
+36:26:Visegrad:Hungary
+36:26:Zsambek:Hungary
+36:27:Alagimajor (Dunakeszi):Hungary
+36:27:Alsogod:Hungary
+36:27:Paphegy (Szokolya):Hungary
+36:27:Perocseny:Hungary
+36:27:Sikatorpuszta (Fot):Hungary
+36:27:Szalacsipuszta (Szodliget):Hungary
+36:27:Szod:Hungary
+36:27:Szodliget:Hungary
+36:27:Szokolya:Hungary
+36:27:Teglahazdulo (Vac):Hungary
+36:27:Tesa:Hungary
+36:27:Vac:Hungary
+36:27:Vamosmikola:Hungary
+36:28:Babatpuszta (Godollo):Hungary
+36:28:Szaritopuszta (Godollo):Hungary
+36:32:Baglyasaja (Salgotarjan):Hungary
+36:32:Salgotarjan:Hungary
+36:32:Somoskoujfalu:Hungary
+36:32:Vizslas:Hungary
+36:32:Zagyvapalfalva (Salgotarjan):Hungary
+36:32:Zagyvarona (Salgotarjan):Hungary
+36:34:Agostvan:Hungary
+36:34:Almasneszmely:Hungary
+36:34:Almaspuszta (Naszaly):Hungary
+36:34:Baj:Hungary
+36:34:Banhida (Tatabanya):Hungary
+36:34:Oroszlany:Hungary
+36:34:Paulamajor (Tata):Hungary
+36:34:Sikvolgypuszta (Tatabanya):Hungary
+36:34:Szakszend:Hungary
+36:34:Szomod:Hungary
+36:34:Szolohegy (Baj):Hungary
+36:34:Tatabanya:Hungary
+36:34:Tardosbanya:Hungary
+36:34:Tarjan:Hungary
+36:34:Tata:Hungary
+36:34:Tatabanya:Hungary
+36:34:Tornyo:Hungary
+36:34:Vargesztes:Hungary
+36:34:Vertessomlo:Hungary
+36:34:Vertesszolos:Hungary
+36:34:Vertestolna:Hungary
+36:36:Almar (Eger):Hungary
+36:36:Andornaktalya:Hungary
+36:36:Eger:Hungary
+36:36:Maklar:Hungary
+36:36:Szilvasvarad:Hungary
+36:37:Abasar:Hungary
+36:37:Atkar:Hungary
+36:37:Bagolyirtas (Matraszentimre):Hungary
+36:37:Gyongyos (Gyo:ngyo:s):Hungary
+36:37:Szucsi:Hungary
+36:37:Vamosgyork:Hungary
+36:37:Visonta:Hungary
+36:38:Petofibanyatelep (Lorinci):Hungary
+36:38:Selyp (Lorinci):Hungary
+36:42:Nyiregyhaza:Hungary
+36:42:Nyirszollos (Nyiregyhaza):Hungary
+36:42:Sostogyogyfurdo (Nyiregyhaza):Hungary
+36:42:Sostohegy (Nyiregyhaza):Hungary
+36:42:Zahony:Hungary
+36:42:Zsurk:Hungary
+36:46:Alsozsolca:Hungary
+36:46:Bankut (Nagyvisnyo):Hungary
+36:46:Kisgyor:Hungary
+36:46:Lillafured (Miskolc):Hungary
+36:46:Lyukobanya (Miskolc):Hungary
+36:46:Miskolc:Hungary
+36:46:Miskolctapolca (Miskolc):Hungary
+36:46:Nyekladhaza:Hungary
+36:46:Omassa:Hungary
+36:46:Pereces (Miskolc):Hungary
+36:46:Szakald:Hungary
+36:46:Szirma (Miskolc):Hungary
+36:46:Tapolcafurdo (Miskolc):Hungary
+36:47:Ozd:Hungary
+36:47:Sajonemeti:Hungary
+36:47:Sajovarkony:Hungary
+36:47:Somsalybanya (Hodoscsepany):Hungary
+36:47:Uraj:Hungary
+36:48:Alacska:Hungary
+36:48:Rudolftelep (Izsofalva):Hungary
+36:48:Sajoszentpeter:Hungary
+36:48:Szuhakallo:Hungary
+36:49:Sajoors:Hungary
+36:49:Tiszapalkonya:Hungary
+36:52:Balmazujvaros:Hungary
+36:52:Debrecen:Hungary
+36:52:Hajduszobsszio:Hungary
+36:52:Hortobagy:Hungary
+36:52:Hortobagyi-halasto (Hortobagy):Hungary
+36:52:Kaposvar:Hungary
+36:56:Alcsisziget (Szolnok):Hungary
+36:56:Szandaszolos (Szolnok):Hungary
+36:56:Szolnok:Hungary
+36:62:Algyo (Szeged):Hungary
+36:62:Asotthalom:Hungary
+36:62:Balastya:Hungary
+36:62:Kiskundorozsma (Szeged):Hungary
+36:62:Kistelek:Hungary
+36:62:Morahalom:Hungary
+36:62:Roszke:Hungary
+36:62:Sandorfalva:Hungary
+36:62:Szatymaz:Hungary
+36:62:Szeged:Hungary
+36:62:Szentmihalytelek (Szeged):Hungary
+36:62:Szoreg (Szeged):Hungary
+36:62:Tape (Szeged):Hungary
+36:62:Tarjan (Szeged):Hungary
+36:62:Ulles:Hungary
+36:62:Zakanyszek:Hungary
+36:66:Bekescsaba:Hungary
+36:66:Szabadkigyos:Hungary
+36:66:Tarhos:Hungary
+36:66:Telekgerendas:Hungary
+36:66:Ujkigyos:Hungary
+36:66:Vizesfas (Tarhos):Hungary
+36:72:Abaliget:Hungary
+36:72:Aranyhegy (Pecs):Hungary
+36:72:Aranyosgadany:Hungary
+36:72:Arpadteto (Pecs):Hungary
+36:72:Ata:Hungary
+36:72:Babarcszolos:Hungary
+36:72:Baksa:Hungary
+36:72:Baliks (Pecs):Hungary
+36:72:Banos:Hungary
+36:72:Baranyajeno:Hungary
+36:72:Basamalomdulo (Pecs):Hungary
+36:72:Hetvehely:Hungary
+36:72:Hird (Pecs):Hungary
+36:72:Husztot:Hungary
+36:72:Ipacsia:Hungary
+36:72:Istenaldasvolgy (Pecs):Hungary
+36:72:Istvanakna (Pecs):Hungary
+36:72:Kacsota (Szentlorinc):Hungary
+36:72:Karacodfa (Szentkatalin):Hungary
+36:72:Keresztespuszta (Gorcsony):Hungary
+36:72:Keszu:Hungary
+36:72:Kisder:Hungary
+36:72:Kisherend (Egerag):Hungary
+36:72:Kiskassa:Hungary
+36:72:Kispiricsizmadulo (Pecs):Hungary
+36:72:Kisszkokoteto (Pecs):Hungary
+36:72:Kistotfalu (Ujpetre):Hungary
+36:72:Kokeny (Pogany):Hungary
+36:72:Komlo:Hungary
+36:72:Kovacsszenaja:Hungary
+36:72:Kozar (Pecs):Hungary
+36:72:Kozarmisleny:Hungary
+36:72:Kozepdeindol (Pecs):Hungary
+36:72:Lampasvolgy (Pecs):Hungary
+36:72:Lothard:Hungary
+36:72:Malom (Pecs):Hungary
+36:72:Marfa:Hungary
+36:72:Mecsekalja (Pecs):Hungary
+36:72:Mecsekrakos (Orfu):Hungary
+36:72:Mecsekszakai (Orfu):Hungary
+36:72:Mecsekszentkut (Pecs):Hungary
+36:72:Misinateto:Hungary
+36:72:Nemeti:Hungary
+36:72:Nyugati kohiddulo (Pecs):Hungary
+36:72:Ocsard:Hungary
+36:72:Okorvolgy:Hungary
+36:72:Orfu:Hungary
+36:72:Patacsiujhegy (Pecs):Hungary
+36:72:Pecs:Hungary
+36:72:Pecsbagota:Hungary
+36:72:Pecsbanyatelep (Pecs):Hungary
+36:72:Pecsdevecser:Hungary
+36:72:Pecsszabolcs (Pecs):Hungary
+36:72:Pecsudvard:Hungary
+36:72:Pellerd:Hungary
+36:72:Peterd:Hungary
+36:72:Peterpuszta (Pecs):Hungary
+36:72:Pogany:Hungary
+36:72:Postavolgy (Pecs):Hungary
+36:72:Puspokszentlaszlo (Hosszuheteny):Hungary
+36:72:Regenye:Hungary
+36:72:Remenypuszta (Pecs):Hungary
+36:72:Rigoderdulo (Pecs):Hungary
+36:72:Sasd:Hungary
+36:72:Siklosbodony:Hungary
+36:72:Sikonda (Komlo):Hungary
+36:72:Szabadszentkiraly:Hungary
+36:72:Szalanta:Hungary
+36:72:Szava:Hungary
+36:72:Szemely:Hungary
+36:72:Szentdomjanpuszta (Bukkosd):Hungary
+36:72:Szentkatalin:Hungary
+36:72:Szentkut (Pecs):Hungary
+36:72:Szentlorinc:Hungary
+36:72:Szentpalpuszta (Szoke):Hungary
+36:72:Szilvas:Hungary
+36:72:Szoke:Hungary
+36:72:Szoked:Hungary
+36:72:Tarcsapuszta (Szentlorinc):Hungary
+36:72:Tekeres:Hungary
+36:72:Tengeri:Hungary
+36:72:Terehegy (Harkany):Hungary
+36:72:Teseny:Hungary
+36:72:Ujhegy (Pecs):Hungary
+36:72:Ujpetre:Hungary
+36:72:Uszogpuszta:Hungary
+36:72:Vasas (Pecs):Hungary
+36:72:Vekeny:Hungary
+36:72:Veleny:Hungary
+36:72:Vokany:Hungary
+36:72:Zobakpuszta (Komlo):Hungary
+36:72:Zok:Hungary
+36:74:Alsoapati (Szedres):Hungary
+36:74:Alsohidveg (Alsotengelic):Hungary
+36:74:Alsopatlan (Zomba):Hungary
+36:74:Alsotengelic (Tengelic):Hungary
+36:74:Alsovarszeg (Fadd):Hungary
+36:74:Andormajor (Zomba):Hungary
+36:74:Apatipuszta (Szedres):Hungary
+36:74:Attala:Hungary
+36:74:Bakta (Szekszard):Hungary
+36:74:Ozsakpuszta (Szekszard):Hungary
+36:74:Ocsenyi szolohegy:Hungary
+36:74:Palank:Hungary
+36:74:Palanki hegy (Szekszard):Hungary
+36:74:Paradicsompuszta (Zomba):Hungary
+36:74:Regoly:Hungary
+36:74:Rozsamaj:Hungary
+36:74:Simontornya:Hungary
+36:74:Sioagard:Hungary
+36:74:Szakadat:Hungary
+36:74:Szakaly:Hungary
+36:74:Szakcs:Hungary
+36:74:Szalka:Hungary
+36:74:Szarazd:Hungary
+36:74:Szedres:Hungary
+36:74:Szekszard:Hungary
+36:74:Szentgalpuszta (Zomba):Hungary
+36:74:Szolohegy (Tengelic):Hungary
+36:74:Tamasi:Hungary
+36:74:Tengelic:Hungary
+36:74:Tengelicszolohegy:Hungary
+36:74:Tolna:Hungary
+36:74:Udvari:Hungary
+36:74:Zomba:Hungary
+36:75:Alsocsampapuszta (Paks):Hungary
+36:75:Alsoracegres (Sarszentlorinc):Hungary
+36:75:Andraspuszta (Bolcske):Hungary
+36:75:Nemetker:Hungary
+36:75:Paks:Hungary
+36:75:Palfa:Hungary
+36:75:Pusztahencse:Hungary
+36:75:Sarszentlorinc:Hungary
+36:75:Uzd (Sarszentlorinc):Hungary
+36:75:Vetlepuszta (Dunaszentgyorgy):Hungary
+36:76:Kecskemet:Hungary
+36:76:Kerekegyhaza:Hungary
+36:76:Kiskunfelegyhaza:Hungary
+36:76:Lakitelek:Hungary
+36:76:Laszlofalva:Hungary
+36:76:Nyarlorinc:Hungary
+36:76:Tiszaalpar:Hungary
+36:76:Tiszabog:Hungary
+36:76:Tiszakecske:Hungary
+36:76:Varosfold:Hungary
+36:80:Balatonakarattya (Balatonkenese):Hungary
+36:80:Balatonalmadi:Hungary
+36:80:Balatonfokajar:Hungary
+36:80:Balatonfuzfo:Hungary
+36:80:Balatonkenese:Hungary
+36:80:Balatonkenese-Udulotelep:Hungary
+36:80:Balatonszolos:Hungary
+36:80:Barnag:Hungary
+36:80:Nemesvamos:Hungary
+36:80:Osi:Hungary
+36:80:Osku:Hungary
+36:80:Papkeszi:Hungary
+36:80:Peremarton gyartelep (Berhida):Hungary
+36:80:Petfurdo (Varpalota):Hungary
+36:80:Pula:Hungary
+36:80:Soly:Hungary
+36:80:Szentkiralyszabadja:Hungary
+36:80:Totvazsony:Hungary
+36:80:Varpalota:Hungary
+36:80:Vaszoly:Hungary
+36:80:Veszprem:Hungary
+36:80:Veszpremfajsz:Hungary
+36:80:Vilonya:Hungary
+36:80:Vorosbereny (Balatonalmadi):Hungary
+36:80:Vorosto:Hungary
+36:82:Kaposuari:Hungary
+36:82:Repaspuszta (Kaposvar):Hungary
+36:82:Toponar (Kaposvar):Hungary
+36:82:Zaranypuszta (Kaposvar):Hungary
+36:84:Adand:Hungary
+36:84:Alsobelatelep (Fonyod):Hungary
+36:84:Babonymegyer:Hungary
+36:84:Bagohegy (Balvanyos):Hungary
+36:84:Balatonaliga (Balatonvilagos):Hungary
+36:84:Balatonbereny:Hungary
+36:84:Balatonendred:Hungary
+36:84:Balatonfenyves:Hungary
+36:84:Balatonfoldvar:Hungary
+36:84:Balatonkeresztur (Balatonmariafurdo):Hungary
+36:84:Balatonkiliti (Siofok):Hungary
+36:84:Balatonmariafurdo:Hungary
+36:84:Balatonoszod:Hungary
+36:84:Balatonszabadi:Hungary
+36:84:Balatonszabadi-furdo (Siofok):Hungary
+36:84:Balatonszabadi-sosto (Siofok):Hungary
+36:84:Balatonszarszo:Hungary
+36:84:Balatonszemes:Hungary
+36:84:Balatonszentgyorgy:Hungary
+36:84:Balatonszeplak (Siofok):Hungary
+36:84:Balatonujhely (Siofok):Hungary
+36:84:Balatonvilagos:Hungary
+36:84:Balvanyos:Hungary
+36:84:Hollad:Hungary
+36:84:Jabapuszta:Hungary
+36:84:Kereki:Hungary
+36:84:Koroshegy:Hungary
+36:84:Kotcse:Hungary
+36:84:Lulla:Hungary
+36:84:Neszde (Szolad):Hungary
+36:84:Nyim:Hungary
+36:84:Papkutapuszta (Siofok):Hungary
+36:84:Pusztaszemes:Hungary
+36:84:Sagvar:Hungary
+36:84:Sersekszolos:Hungary
+36:84:Siofok (-furdo, -susto):Hungary
+36:84:Siojut:Hungary
+36:84:Som:Hungary
+36:84:Somostelep (Koroshegy):Hungary
+36:84:Szantod (Zamardi):Hungary
+36:84:Szantod-furdotelep (Zamardi):Hungary
+36:84:Szantodpuszta (Zamardi):Hungary
+36:84:Szegerdo (Vors):Hungary
+36:84:Szolad:Hungary
+36:84:Tab:Hungary
+36:84:Teleki:Hungary
+36:84:Tikos (Hollad):Hungary
+36:84:Tokozpuszta (Zamardi):Hungary
+36:84:Torvaj:Hungary
+36:84:Totokilap (Balatonfured):Hungary
+36:84:Vors:Hungary
+36:84:Zala:Hungary
+36:84:Zamardi:Hungary
+36:86:Alsoors:Hungary
+36:86:Aszofo:Hungary
+36:86:Balatonakali:Hungary
+36:86:Balatonalmadi:Hungary
+36:86:Balatonaracs (Balatonfured):Hungary
+36:86:Balatonfured (Balatonfu:red):Hungary
+36:86:Balatonudvari:Hungary
+36:86:Csopak:Hungary
+36:86:Kaptalanfured (Balatonalmadi):Hungary
+36:86:Orvenyes:Hungary
+36:86:Kilantelep (Balatonudvari):Hungary
+36:86:Lovas:Hungary
+36:86:Paloznak:Hungary
+36:86:Pecsely:Hungary
+36:86:Tihany:Hungary
+36:87:Abrahamhegy (Balatonrendes):Hungary
+36:87:Badacsony (Badacsonytomaj):Hungary
+36:87:Badacsonylabdihegy (Badacsonytomaj):Hungary
+36:87:Badacsonyors (Badacsonytomaj):Hungary
+36:87:Badacsonytomaj:Hungary
+36:87:Badacsonytordemic:Hungary
+36:87:Balatoncsicso:Hungary
+36:87:Balatonrendes:Hungary
+36:87:Balatonszepezd:Hungary
+36:87:Obudavar:Hungary
+36:87:Raposka(Tapolca):Hungary
+36:87:Revfulop:Hungary
+36:87:Salfold:Hungary
+36:87:Szentjakabfa:Hungary
+36:87:Szentantalfa:Hungary
+36:87:Szigliget:Hungary
+36:87:Tagyon:Hungary
+36:87:Tapolca:Hungary
+36:87:Zanka:Hungary
+36:87:Zanka-Uttorovaros:Hungary
+36:89:Papa:Hungary
+36:92:Alsoerdeiut (Zalaegerszeg):Hungary
+36:92:Andrashida (Zalaegerszeg):Hungary
+36:92:Neszele (Zalaegerszeg):Hungary
+36:92:Pozva (Zalaegerszeg):Hungary
+36:92:Sagod (Zalaegerszeg):Hungary
+36:92:Szenterzsebethegy (Zalaegerszeg):Hungary
+36:92:Szivhegy (Zalaegerszeg):Hungary
+36:92:Zalaegerszeg:Hungary
+36:92:Zalakaros:Hungary
+36:93:Bagola (Nagykanizsa):Hungary
+36:93:Bajcsa (Nagykanizsa):Hungary
+36:93:Szabadhegy (Nagykanizsa):Hungary
+36:94:Szombathely (Steinamanger):Hungary
+36:96:Abda:Hungary
+36:96:Bacsa (Gyor):Hungary
+36:96:Gyor (Raab):Hungary
+36:96:Ikreny:Hungary
+36:96:Nyalka:Hungary
+36:96:Nyul:Hungary
+36:96:Janoshazapuszta (Lebenymiklos):Hungary
+36:96:Kisbajcs:Hungary
+36:96:Kismegyer (Gyor):Hungary
+36:96:Koronco:Hungary
+36:96:Kunsziget:Hungary
+36:96:Lebenymiklos:Hungary
+36:96:Menfocsanak (Gyor):Hungary
+36:96:Mindszentpuszta (Mezoors):Hungary
+36:96:Mosonszentmiklos (Lebenymiklos):Hungary
+36:96:Nagybajcs (Kisbajcs):Hungary
+36:96:Otteveny:Hungary
+36:96:Pannonhalma:Hungary
+36:96:Pazmandfalu:Hungary
+36:96:Per:Hungary
+36:96:Pinnyed (Gyor):Hungary
+36:96:Rabapatona:Hungary
+36:96:Ravazd:Hungary
+36:96:Sokoropatka:Hungary
+36:96:Tap:Hungary
+36:96:Tapszentmiklos:Hungary
+36:96:Tarjanpuszta:Hungary
+36:96:Tenyo:Hungary
+36:96:Toltestava:Hungary
+36:96:Vamosszabadi:Hungary
+36:96:Venek:Hungary
+36:97:Babot:Hungary
+36:97:Osli:Hungary
+36:97:Ontesmajor(Kapuvar):Hungary
+36:97:Szarfold:Hungary
+36:97:Veszkeny:Hungary
+36:97:Vitnyed:Hungary
+36:98:Rajka:Hungary
+36:99:Agfalva:Hungary
+36:98:Agyagosszergeny:Hungary
+36:98:Balf:Hungary
+36:98:Pereszteg:Hungary
+36:98:Petohaza:Hungary
+36:98:Pinnye:Hungary
+36:99:Rojtokmuzsaj:Hungary
+36:99:Sarrod:Hungary
+36:99:Sopron(Odenburg):Hungary
+36:99:Sopronhorpacs:Hungary
+36:99:Sopronkohida:Hungary
+36:99:Sopronkovesd:Hungary
+36:99:Sopronpuszta(Sopron):Hungary
+36:99:Tozeggyarmajor(Fertod):Hungary
+36:99:Und:Hungary
+39:10:Genoa:Italy
+39:11:Turin:Italy
+39:2:Milan:Italy
+39:40:Trieste:Italy
+39:41:Venice:Italy
+39:45:Verona:Italy
+39:51:Bologna:Italy
+39:55:Florence:Italy
+39:6::Vatican City
+39:6:Rome:Italy
+39:80:Bari:Italy
+39:81:Naples:Italy
+39:90:Messina:Italy
+39:91:Palermo:Italy
+39:95:Catania:Italy
+39:99:Taranto:Italy
+40:0:Bucharest:Romania
+41:21:Lausanne:Switzerland
+41:21:Montreux:Switzerland
+41:22:Geneva:Switzerland
+41:31:Berne:Switzerland
+41:41:Lucerne:Switzerland
+41:43:Zurich:Switzerland
+41:44:Zurich:Switzerland
+41:52:Winterthur:Switzerland
+41:61:Basel:Switzerland
+41:71:St. Gallen:Switzerland
+41:75::Liechtenstein
+41:82:St. Moritz:Switzerland
+41:91:Lugano:Switzerland
+43:1:Vienna:Austria
+43:316:Graz:Austria
+43:512:Innsbruck:Austria
+43:662:Salzburg:Austria
+43:732:Linz:Austria
+#
+# UK numbering data are derived from the UK National Telephone
+# Numbering Plan, issued by Ofcom.
+#
+# http://www.ofcom.org.uk/static/numbering/codelist.zip
+# http://www.ofcom.org.uk/static/numbering/readme.txt
+# http://consumers.ofcom.org.uk/2009/09/telephone-area-codes-tool/
+#
+# "The information is Ofcom Copyright and is published as required
+# by the NTNP.  It may be reproduced with due acknowledgement of the source."
+# 
+44:113:Leeds:United Kingdom
+44:114:Sheffield:United Kingdom
+44:115:Nottingham:United Kingdom
+44:116:Leicester:United Kingdom
+44:117:Bristol:United Kingdom
+44:118:Reading:United Kingdom
+44:1200:Clitheroe:United Kingdom
+44:1202:Bournemouth:United Kingdom
+44:1204:Bolton:United Kingdom
+44:1205:Boston:United Kingdom
+44:1206:Colchester:United Kingdom
+44:1207:Consett:United Kingdom
+44:1208:Bodmin:United Kingdom
+44:1209:Redruth:United Kingdom
+44:121:Birmingham:United Kingdom
+44:1223:Cambridge:United Kingdom
+44:1224:Aberdeen:United Kingdom
+44:1225:Bath:United Kingdom
+44:1226:Barnsley:United Kingdom
+44:1227:Canterbury:United Kingdom
+44:1228:Carlisle:United Kingdom
+44:1229:Barrow-in-Furness(2,4,5,6,8), Millom(3,7,9):United Kingdom
+44:1233:Ashford (Kent):United Kingdom
+44:1234:Bedford:United Kingdom
+44:1235:Abingdon:United Kingdom
+44:1236:Coatbridge:United Kingdom
+44:1237:Bideford:United Kingdom
+44:1239:Cardigan:United Kingdom
+44:1241:Arbroath:United Kingdom
+44:1242:Cheltenham:United Kingdom
+44:1243:Chichester:United Kingdom
+44:1244:Chester:United Kingdom
+44:1245:Chelmsford:United Kingdom
+44:1246:Chesterfield:United Kingdom
+44:1248:Bangor (Gwynedd):United Kingdom
+44:1249:Chippenham:United Kingdom
+44:1250:Blairgowrie:United Kingdom
+44:1252:Aldershot:United Kingdom
+44:1253:Blackpool:United Kingdom
+44:1254:Blackburn:United Kingdom
+44:1255:Clacton-on-Sea:United Kingdom
+44:1256:Basingstoke:United Kingdom
+44:1257:Coppull:United Kingdom
+44:1258:Blandford:United Kingdom
+44:1259:Alloa:United Kingdom
+44:1260:Congleton:United Kingdom
+44:1261:Banff:United Kingdom
+44:1262:Bridlington:United Kingdom
+44:1263:Cromer:United Kingdom
+44:1264:Andover:United Kingdom
+44:1267:Carmarthen:United Kingdom
+44:1268:Basildon:United Kingdom
+44:1269:Ammanford:United Kingdom
+44:1270:Crewe:United Kingdom
+44:1271:Barnstable:United Kingdom
+44:1273:Brighton:United Kingdom
+44:1274:Bradford:United Kingdom
+44:1275:Clevedon:United Kingdom
+44:1276:Camberley:United Kingdom
+44:1277:Brentwood:United Kingdom
+44:1278:Bridgwater:United Kingdom
+44:1279:Bishops Stortford:United Kingdom
+44:1280:Buckingham:United Kingdom
+44:1282:Burnley:United Kingdom
+44:1283:Burton-on-Trent:United Kingdom
+44:1284:Bury-St-Edmunds:United Kingdom
+44:1285:Cirencester:United Kingdom
+44:1286:Caernarvon:United Kingdom
+44:1287:Guisborough:United Kingdom
+44:1288:Bude:United Kingdom
+44:1289:Berwick-on-Tweed:United Kingdom
+44:1290:Cumnock:United Kingdom
+44:1291:Chepstow:United Kingdom
+44:1292:Ayr:United Kingdom
+44:1293:Crawley:United Kingdom
+44:1294:Ardrossan:United Kingdom
+44:1295:Banbury:United Kingdom
+44:1296:Aylesbury:United Kingdom
+44:1297:Axminster:United Kingdom
+44:1298:Buxton:United Kingdom
+44:1299:Bewdley:United Kingdom
+44:1300:Cerne Abbas:United Kingdom
+44:1301:Arrochar:United Kingdom
+44:1302:Doncaster:United Kingdom
+44:1303:Folkestone:United Kingdom
+44:1304:Dover:United Kingdom
+44:1305:Dorchester:United Kingdom
+44:1306:Dorking:United Kingdom
+44:1307:Forfar:United Kingdom
+44:1308:Bridport:United Kingdom
+44:1309:Forres:United Kingdom
+44:131:Edinburgh:United Kingdom
+44:1320:Fort Augustus:United Kingdom
+44:1322:Dartford:United Kingdom
+44:1323:Eastbourne:United Kingdom
+44:1324:Falkirk:United Kingdom
+44:1325:Darlington:United Kingdom
+44:1326:Falmouth:United Kingdom
+44:1327:Daventry:United Kingdom
+44:1328:Fakenham:United Kingdom
+44:1329:Fareham:United Kingdom
+44:1330:Banchory:United Kingdom
+44:1332:Derby:United Kingdom
+44:1333:Peat Inn:United Kingdom
+44:1334:St Andrews:United Kingdom
+44:1335:Ashbourne:United Kingdom
+44:1337:Ladybank:United Kingdom
+44:1339:Aboyne(2,3,5,8), Ballater(4,6,7,9):United Kingdom
+44:1340:Craigellachie:United Kingdom
+44:1341:Barmouth:United Kingdom
+44:1342:East Grinstead:United Kingdom
+44:1343:Elgin:United Kingdom
+44:1344:Bracknell:United Kingdom
+44:1346:Fraserburgh:United Kingdom
+44:1347:Easingwold:United Kingdom
+44:1348:Fishguard:United Kingdom
+44:1349:Dingwall:United Kingdom
+44:1350:Dunkeld:United Kingdom
+44:1352:Mold:United Kingdom
+44:1353:Ely:United Kingdom
+44:1354:Chatteris:United Kingdom
+44:1355:East Kilbride:United Kingdom
+44:1356:Brechin:United Kingdom
+44:1357:Strathaven:United Kingdom
+44:1358:Ellon:United Kingdom
+44:1359:Pakenham:United Kingdom
+44:1360:Killearn:United Kingdom
+44:1361:Duns:United Kingdom
+44:1362:Dereham:United Kingdom
+44:1363:Crediton:United Kingdom
+44:1364:Ashburton:United Kingdom
+44:1366:Downham Market:United Kingdom
+44:1367:Faringdon:United Kingdom
+44:1368:Dunbar:United Kingdom
+44:1369:Dunoon:United Kingdom
+44:1371:Great Dunmow:United Kingdom
+44:1372:Esher:United Kingdom
+44:1373:Frome:United Kingdom
+44:1375:Grays Thurrock:United Kingdom
+44:1376:Braintree:United Kingdom
+44:1377:Driffield:United Kingdom
+44:1379:Diss:United Kingdom
+44:1380:Devizes:United Kingdom
+44:1381:Fortrose:United Kingdom
+44:1382:Dundee:United Kingdom
+44:1383:Dunfermline:United Kingdom
+44:1384:Dudley:United Kingdom
+44:1386:Evesham:United Kingdom
+44:1387:Dumfries:United Kingdom
+44:13873:Langholm:United Kingdom
+44:1388:Bishop Auckland(3,4,6,7,8,9), Stanhope(2,5):United Kingdom
+44:1389:Dumbarton:United Kingdom
+44:1392:Exeter:United Kingdom
+44:1394:Felixstowe:United Kingdom
+44:1395:Budleigh Salterton:United Kingdom
+44:1397:Fort William:United Kingdom
+44:1398:Dulverton:United Kingdom
+44:1400:Honington:United Kingdom
+44:1403:Horsham:United Kingdom
+44:1404:Honiton:United Kingdom
+44:1405:Goole:United Kingdom
+44:1406:Holbeach:United Kingdom
+44:1407:Holyhead:United Kingdom
+44:1408:Golspie:United Kingdom
+44:1409:Holsworthy:United Kingdom
+44:141:Glasgow:United Kingdom
+44:1420:Alton:United Kingdom
+44:1422:Halifax:United Kingdom
+44:1423:Boroughbridge(3,4,9), Harrogate(2,5,6,7,8):United Kingdom
+44:1424:Hastings:United Kingdom
+44:1425:Ringwood:United Kingdom
+44:1427:Gainsborough:United Kingdom
+44:1428:Haslemere:United Kingdom
+44:1429:Hartlepool:United Kingdom
+44:1430:Market Weighton(6,7,8,9), North Cave(2,3,4,5):United Kingdom
+44:1431:Helmsdale:United Kingdom
+44:1432:Hereford:United Kingdom
+44:1433:Hathersage:United Kingdom
+44:1434:Bellingham(2,4,9), Haltwhistle(3,5), Hexham(6,7,8):United Kingdom
+44:1435:Heathfield:United Kingdom
+44:1436:Helensburgh:United Kingdom
+44:1437:Clynderwen(2,3,4,5), Haverfordwest(6,7,8,9):United Kingdom
+44:1438:Stevenage:United Kingdom
+44:1439:Helmsley:United Kingdom
+44:1440:Haverhill:United Kingdom
+44:1442:Hemel Hempstead:United Kingdom
+44:1443:Pontypridd:United Kingdom
+44:1444:Haywards Heath:United Kingdom
+44:1445:Gairloch:United Kingdom
+44:1446:Barry:United Kingdom
+44:1449:Stowmarket:United Kingdom
+44:1450:Hawick:United Kingdom
+44:1451:Stow-on-the-Wold:United Kingdom
+44:1452:Gloucester:United Kingdom
+44:1453:Dursley:United Kingdom
+44:1454:Chipping Sodbury:United Kingdom
+44:1455:Hinckley:United Kingdom
+44:1456:Glenurquhart:United Kingdom
+44:1457:Glossop:United Kingdom
+44:1458:Glastonbury:United Kingdom
+44:1460:Chard:United Kingdom
+44:1461:Gretna:United Kingdom
+44:1462:Hitchin:United Kingdom
+44:1463:Inverness:United Kingdom
+44:1464:Insch:United Kingdom
+44:1465:Girvan:United Kingdom
+44:1466:Huntly:United Kingdom
+44:1467:Inverurie:United Kingdom
+44:1469:Killingholme:United Kingdom
+44:1470:Isle of Skye - Edinbane:United Kingdom
+44:1471:Isle of Skye - Broadford:United Kingdom
+44:1472:Grimsby:United Kingdom
+44:1473:Ipswich:United Kingdom
+44:1474:Gravesend:United Kingdom
+44:1475:Greenock:United Kingdom
+44:1476:Grantham:United Kingdom
+44:1477:Holmes Chapel:United Kingdom
+44:1478:Isle of Skye - Portree:United Kingdom
+44:1479:Grantown-on-Spey:United Kingdom
+44:1480:Huntingdon:United Kingdom
+44:1481:Guernsey:United Kingdom
+44:1482:Hull:United Kingdom
+44:1483:Guildford:United Kingdom
+44:1484:Huddersfield:United Kingdom
+44:1485:Hunstanton:United Kingdom
+44:1487:Warboys:United Kingdom
+44:1488:Hungerford:United Kingdom
+44:1489:Bishops Waltham:United Kingdom
+44:1490:Corwen:United Kingdom
+44:1491:Henley-on-Thames:United Kingdom
+44:1492:Colwyn Bay:United Kingdom
+44:1493:Great Yarmouth:United Kingdom
+44:1494:High Wycombe:United Kingdom
+44:1495:Pontypool:United Kingdom
+44:1496:Port Ellen:United Kingdom
+44:1497:Hay-on-Wye:United Kingdom
+44:1499:Inveraray:United Kingdom
+44:1501:Harthill:United Kingdom
+44:1502:Lowestoft:United Kingdom
+44:1503:Looe:United Kingdom
+44:1505:Johnstone:United Kingdom
+44:1506:Bathgate:United Kingdom
+44:1507:Alford (Lincs)(4,8,9), Louth (3,6,7), Spilsby(2,5):United Kingdom
+44:1508:Brooke:United Kingdom
+44:1509:Loughborough:United Kingdom
+44:151:Liverpool:United Kingdom
+44:1520:Lochcarron:United Kingdom
+44:1522:Lincoln:United Kingdom
+44:1524:Lancaster:United Kingdom
+44:15242:Hornby:United Kingdom
+44:1525:Leighton Buzzard:United Kingdom
+44:1526:Martin:United Kingdom
+44:1527:Redditch:United Kingdom
+44:1528:Laggan:United Kingdom
+44:1529:Sleaford:United Kingdom
+44:1530:Coalville:United Kingdom
+44:1531:Ledbury:United Kingdom
+44:1534:Jersey:United Kingdom
+44:1535:Keighley:United Kingdom
+44:1536:Kettering:United Kingdom
+44:1538:Ipstones:United Kingdom
+44:1539:Kendal:United Kingdom
+44:15394:Hawkshead:United Kingdom
+44:15395:Grange-Over-Sands:United Kingdom
+44:15396:Sedbergh:United Kingdom
+44:1540:Kingussie:United Kingdom
+44:1542:Keith:United Kingdom
+44:1543:Cannock:United Kingdom
+44:1544:Kington:United Kingdom
+44:1545:Llanarth:United Kingdom
+44:1546:Lochgilphead:United Kingdom
+44:1547:Knighton:United Kingdom
+44:1548:Kingsbridge:United Kingdom
+44:1549:Lairg:United Kingdom
+44:1550:Llandovery:United Kingdom
+44:1553:Kings Lynn:United Kingdom
+44:1554:Llanelli:United Kingdom
+44:1555:Lanark:United Kingdom
+44:1556:Castle Douglas:United Kingdom
+44:1557:Kirkcudbright:United Kingdom
+44:1558:Llandeilo:United Kingdom
+44:1559:Llandyssul:United Kingdom
+44:1560:Moscow:United Kingdom
+44:1561:Laurencekirk:United Kingdom
+44:1562:Kidderminster:United Kingdom
+44:1563:Kilmarnock:United Kingdom
+44:1564:Lapworth:United Kingdom
+44:1565:Knutsford:United Kingdom
+44:1566:Launceston:United Kingdom
+44:1567:Killin:United Kingdom
+44:1568:Leominster:United Kingdom
+44:1569:Stonehaven:United Kingdom
+44:1570:Lampeter:United Kingdom
+44:1571:Lochinver:United Kingdom
+44:1572:Oakham:United Kingdom
+44:1573:Kelso:United Kingdom
+44:1575:Kirriemuir:United Kingdom
+44:1576:Lockerbie:United Kingdom
+44:1577:Kinross:United Kingdom
+44:1578:Lauder:United Kingdom
+44:1579:Liskeard:United Kingdom
+44:1580:Cranbrook:United Kingdom
+44:1581:New Luce:United Kingdom
+44:1582:Luton:United Kingdom
+44:1583:Carradale:United Kingdom
+44:1584:Ludlow:United Kingdom
+44:1586:Campbeltown:United Kingdom
+44:1588:Bishops Castle:United Kingdom
+44:1590:Lymington:United Kingdom
+44:1591:Llanwrtyd Wells:United Kingdom
+44:1592:Kirkcaldy:United Kingdom
+44:1593:Lybster:United Kingdom
+44:1594:Lydney:United Kingdom
+44:1595:Lerwick, Foula(75), Fair Isle(76):United Kingdom
+44:1597:Llandrindod Wells:United Kingdom
+44:1598:Lynton:United Kingdom
+44:1599:Kyle:United Kingdom
+44:1600:Monmouth:United Kingdom
+44:1603:Norwich:United Kingdom
+44:1604:Northampton:United Kingdom
+44:1606:Northwich:United Kingdom
+44:1608:Chipping Norton:United Kingdom
+44:1609:Northallerton:United Kingdom
+44:161:Manchester:United Kingdom
+44:1620:North Berwick:United Kingdom
+44:1621:Maldon:United Kingdom
+44:1622:Maidstone:United Kingdom
+44:1623:Mansfield:United Kingdom
+44:1624:Isle of Man:United Kingdom
+44:1625:Macclesfield:United Kingdom
+44:1626:Newton Abbot:United Kingdom
+44:1628:Maidenhead:United Kingdom
+44:1629:Matlock:United Kingdom
+44:1630:Market Drayton:United Kingdom
+44:1631:Oban:United Kingdom
+44:1633:Newport:United Kingdom
+44:1634:Medway:United Kingdom
+44:1635:Newbury:United Kingdom
+44:1636:Newark:United Kingdom
+44:1637:Newquay:United Kingdom
+44:1638:Newmarket:United Kingdom
+44:1639:Neath:United Kingdom
+44:1641:Strathy:United Kingdom
+44:1642:Middlesbrough:United Kingdom
+44:1643:Minehead:United Kingdom
+44:1644:New Galloway:United Kingdom
+44:1646:Milford Haven:United Kingdom
+44:1647:Moretonhampstead:United Kingdom
+44:1650:Cemmaes Road:United Kingdom
+44:1651:Oldmeldrum:United Kingdom
+44:1652:Brigg:United Kingdom
+44:1653:Malton:United Kingdom
+44:1654:Machynlleth:United Kingdom
+44:1655:Maybole:United Kingdom
+44:1656:Bridgend:United Kingdom
+44:1659:Sanquhar:United Kingdom
+44:1661:Prudhoe:United Kingdom
+44:1663:New Mills:United Kingdom
+44:1664:Melton Mowbray:United Kingdom
+44:1665:Alnwick:United Kingdom
+44:1666:Malmesbury:United Kingdom
+44:1667:Nairn:United Kingdom
+44:1668:Bamburgh:United Kingdom
+44:1669:Rothbury:United Kingdom
+44:1670:Morpeth:United Kingdom
+44:1671:Newton Stewart:United Kingdom
+44:1672:Marlborough:United Kingdom
+44:1673:Market Rasen:United Kingdom
+44:1674:Montrose:United Kingdom
+44:1675:Coleshill:United Kingdom
+44:1676:Meriden:United Kingdom
+44:1677:Bedale:United Kingdom
+44:1678:Bala:United Kingdom
+44:1680:Isle of Mull - Craignure:United Kingdom
+44:1681:Isle of Mull - Fionnphort:United Kingdom
+44:1683:Moffat:United Kingdom
+44:1684:Malvern:United Kingdom
+44:1685:Merthyr Tydfil:United Kingdom
+44:1686:Llanidloes(2,3,4,7), Newtown(5,6,8,9):United Kingdom
+44:1687:Mallaig:United Kingdom
+44:1688:Isle of Mull - Tobermory:United Kingdom
+44:1689:Orpington:United Kingdom
+44:1690:Betws-y-Coed:United Kingdom
+44:1691:Oswestry:United Kingdom
+44:1692:North Walsham:United Kingdom
+44:1694:Church Stretton:United Kingdom
+44:1695:Skelmersdale:United Kingdom
+44:1697:Brampton:United Kingdom
+44:16973:Wigton:United Kingdom
+44:16974:Raughton Head:United Kingdom
+44:1698:Motherwell:United Kingdom
+44:1700:Rothesay:United Kingdom
+44:1702:Southend-on-Sea:United Kingdom
+44:1704:Southport:United Kingdom
+44:1706:Rochdale:United Kingdom
+44:1707:Welwyn Garden City:United Kingdom
+44:1708:Romford:United Kingdom
+44:1709:Rotherham:United Kingdom
+44:1720:Isles of Scilly:United Kingdom
+44:1721:Peebles:United Kingdom
+44:1722:Salisbury:United Kingdom
+44:1723:Scarborough:United Kingdom
+44:1724:Scunthorpe:United Kingdom
+44:1725:Rockbourne:United Kingdom
+44:1726:St Austell:United Kingdom
+44:1727:St Albans:United Kingdom
+44:1728:Saxmundham:United Kingdom
+44:1729:Settle:United Kingdom
+44:1730:Petersfield:United Kingdom
+44:1732:Sevenoaks:United Kingdom
+44:1733:Peterborough:United Kingdom
+44:1736:Penzance:United Kingdom
+44:1737:Redhill:United Kingdom
+44:1738:Perth:United Kingdom
+44:1740:Sedgefield:United Kingdom
+44:1743:Shrewsbury:United Kingdom
+44:1744:St Helens:United Kingdom
+44:1745:Rhyl:United Kingdom
+44:1746:Bridgnorth:United Kingdom
+44:1747:Shaftesbury:United Kingdom
+44:1748:Richmond:United Kingdom
+44:1749:Shepton Mallet:United Kingdom
+44:1750:Selkirk:United Kingdom
+44:1751:Pickering:United Kingdom
+44:1752:Plymouth:United Kingdom
+44:1753:Slough:United Kingdom
+44:1754:Skegness:United Kingdom
+44:1756:Skipton:United Kingdom
+44:1757:Selby:United Kingdom
+44:1758:Pwllheli:United Kingdom
+44:1759:Pocklington:United Kingdom
+44:1760:Swaffham:United Kingdom
+44:1761:Temple Cloud:United Kingdom
+44:1763:Royston:United Kingdom
+44:1764:Crieff:United Kingdom
+44:1765:Ripon:United Kingdom
+44:1766:Porthmadog:United Kingdom
+44:1767:Sandy:United Kingdom
+44:1768:Penrith:United Kingdom
+44:17683:Appleby:United Kingdom
+44:17684:Pooley Bridge:United Kingdom
+44:17687:Keswick:United Kingdom
+44:1769:South Molton:United Kingdom
+44:1770:Isle of Arran:United Kingdom
+44:1771:Maud:United Kingdom
+44:1772:Preston:United Kingdom
+44:1773:Ripley:United Kingdom
+44:1775:Spalding:United Kingdom
+44:1776:Stranraer:United Kingdom
+44:1777:Retford:United Kingdom
+44:1778:Bourne:United Kingdom
+44:1779:Peterhead:United Kingdom
+44:1780:Stamford:United Kingdom
+44:1782:Stoke-on-Trent:United Kingdom
+44:1784:Staines:United Kingdom
+44:1785:Stafford:United Kingdom
+44:1786:Stirling:United Kingdom
+44:1787:Sudbury:United Kingdom
+44:1788:Rugby:United Kingdom
+44:1789:Stratford-upon-Avon:United Kingdom
+44:1790:Spilsby:United Kingdom
+44:1792:Swansea:United Kingdom
+44:1793:Swindon:United Kingdom
+44:1794:Romsey:United Kingdom
+44:1795:Sittingbourne:United Kingdom
+44:1796:Pitlochry:United Kingdom
+44:1797:Rye:United Kingdom
+44:1798:Pulborough:United Kingdom
+44:1799:Saffron Walden:United Kingdom
+44:1803:Torquay:United Kingdom
+44:1805:Torrington:United Kingdom
+44:1806:Shetland:United Kingdom
+44:1807:Ballindalloch:United Kingdom
+44:1808:Tomatin:United Kingdom
+44:1809:Tomdoun:United Kingdom
+44:1821:Kinrossie:United Kingdom
+44:1822:Tavistock:United Kingdom
+44:1823:Taunton:United Kingdom
+44:1824:Ruthin:United Kingdom
+44:1825:Uckfield:United Kingdom
+44:1827:Tamworth:United Kingdom
+44:1828:Coupar Angus:United Kingdom
+44:1829:Tarporley:United Kingdom
+44:1830:Kirkwhelpington:United Kingdom
+44:1832:Clopton:United Kingdom
+44:1833:Barnard Castle:United Kingdom
+44:1834:Narberth:United Kingdom
+44:1835:St Boswells:United Kingdom
+44:1837:Okehampton:United Kingdom
+44:1838:Dalmally:United Kingdom
+44:1840:Camelford:United Kingdom
+44:1841:Newquay:United Kingdom
+44:1842:Thetford:United Kingdom
+44:1843:Thanet:United Kingdom
+44:1844:Thame:United Kingdom
+44:1845:Thirsk:United Kingdom
+44:1847:Thurso(2,3,4,5,8), Tongue(6,7,9):United Kingdom
+44:1848:Thornhill:United Kingdom
+44:1851:Great Bernera(4,6,9), Stornoway(2,3,5,7,8):United Kingdom
+44:1852:Kilmelford:United Kingdom
+44:1854:Ullapool:United Kingdom
+44:1855:Ballachulish:United Kingdom
+44:1856:Orkney:United Kingdom
+44:1857:Sanday:United Kingdom
+44:1858:Market Harborough:United Kingdom
+44:1859:Harris:United Kingdom
+44:1862:Tain:United Kingdom
+44:1863:Ardgay:United Kingdom
+44:1864:Abington:United Kingdom
+44:1865:Oxford:United Kingdom
+44:1866:Kilchrenan:United Kingdom
+44:1869:Bicester:United Kingdom
+44:1870:Isle of Benbecula:United Kingdom
+44:1871:Castlebay:United Kingdom
+44:1872:Truro:United Kingdom
+44:1873:Abergavenny:United Kingdom
+44:1874:Brecon:United Kingdom
+44:1875:Tranent:United Kingdom
+44:1876:Lochmaddy:United Kingdom
+44:1877:Callandar:United Kingdom
+44:1878:Lochboisdale:United Kingdom
+44:1879:Scarinish:United Kingdom
+44:1880:Tarbert:United Kingdom
+44:1882:Kinloch Rannoch:United Kingdom
+44:1883:Caterham:United Kingdom
+44:1884:Tiverton:United Kingdom
+44:1885:Pencombe:United Kingdom
+44:1886:Bromyard:United Kingdom
+44:1887:Aberfeldy:United Kingdom
+44:1888:Turriff:United Kingdom
+44:1889:Rugely:United Kingdom
+44:1890:Ayton(5,6,7,9), Coldstream(2,3,4,8):United Kingdom
+44:1892:Tunbridge Wells:United Kingdom
+44:1895:Uxbridge:United Kingdom
+44:1896:Galashiels:United Kingdom
+44:1899:Biggar:United Kingdom
+44:1900:Workington:United Kingdom
+44:1902:Wolverhampton:United Kingdom
+44:1903:Worthing:United Kingdom
+44:1904:York:United Kingdom
+44:1905:Worcester:United Kingdom
+44:1908:Milton Keynes:United Kingdom
+44:1909:Worksop:United Kingdom
+44:191:Tyneside(2,4,6), Durham(3), Sunderland(5):United Kingdom
+44:1920:Ware:United Kingdom
+44:1922:Walsall:United Kingdom
+44:1923:Watford:United Kingdom
+44:1924:Wakefield:United Kingdom
+44:1925:Warrington:United Kingdom
+44:1926:Warwick:United Kingdom
+44:1928:Runcorn:United Kingdom
+44:1929:Wareham:United Kingdom
+44:1931:Shap:United Kingdom
+44:1932:Weybridge:United Kingdom
+44:1933:Wellingborough:United Kingdom
+44:1934:Weston-Super-Mare:United Kingdom
+44:1935:Yeovil:United Kingdom
+44:1937:Wetherby:United Kingdom
+44:1938:Welshpool:United Kingdom
+44:1939:Wem:United Kingdom
+44:1942:Wigan:United Kingdom
+44:1943:Guiseley:United Kingdom
+44:1944:West Heslerton:United Kingdom
+44:1945:Wisbech:United Kingdom
+44:1946:Whitehaven:United Kingdom
+44:19467:Gosforth:United Kingdom
+44:1947:Whitby:United Kingdom
+44:1948:Whitchurch:United Kingdom
+44:1949:Whatton:United Kingdom
+44:1950:Sandwick:United Kingdom
+44:1951:Colonsay:United Kingdom
+44:1952:Telford:United Kingdom
+44:1953:Wymondham:United Kingdom
+44:1954:Madingley:United Kingdom
+44:1955:Wick:United Kingdom
+44:1957:Mid Yell:United Kingdom
+44:1959:Westerham:United Kingdom
+44:1962:Winchester:United Kingdom
+44:1963:Wincanton:United Kingdom
+44:1964:Hornsea(2,5,8,9), Patrington(3,4,6,7):United Kingdom
+44:1967:Strontian:United Kingdom
+44:1968:Penicuik:United Kingdom
+44:1969:Leyburn:United Kingdom
+44:1970:Aberystwyth:United Kingdom
+44:1971:Scourie:United Kingdom
+44:1972:Glenborrodale:United Kingdom
+44:1974:Llanon:United Kingdom
+44:1975:Alford (Aberdeen)(2,4,5,9), Strathdon(3,6,7,8):United Kingdom
+44:1977:Pontefract:United Kingdom
+44:1978:Wrexham:United Kingdom
+44:1980:Amesbury:United Kingdom
+44:1981:Wormbridge:United Kingdom
+44:1982:Builth Wells:United Kingdom
+44:1983:Isle of Wight:United Kingdom
+44:1984:Watchet:United Kingdom
+44:1985:Warminster:United Kingdom
+44:1986:Bungay:United Kingdom
+44:1987:Ebbsfleet:United Kingdom
+44:1988:Wigtown:United Kingdom
+44:1989:Ross-on-Wye:United Kingdom
+44:1992:Lea Valley:United Kingdom
+44:1993:Witney:United Kingdom
+44:1994:St Clears:United Kingdom
+44:1995:Garstang:United Kingdom
+44:1997:Strathpeffer:United Kingdom
+44:20:London:United Kingdom
+44:23:Southampton and Portsmouth:United Kingdom
+44:238:Southampton (part of 23 code):United Kingdom
+44:239:Portsmouth (part of 23 code):United Kingdom
+44:24:Coventry:United Kingdom
+44:28:Northern Ireland:United Kingdom
+44:2820:Ballycastle (part of 28 code):United Kingdom
+44:2821:Martinstown (part of 28 code):United Kingdom
+44:2825:Ballymena (part of 28 code):United Kingdom
+44:2827:Ballymoney (part of 28 code):United Kingdom
+44:2828:Larne (part of 28 code):United Kingdom
+44:2829:Kilrea (part of 28 code):United Kingdom
+44:2830:Newry (part of 28 code):United Kingdom
+44:2837:Armagh (part of 28 code):United Kingdom
+44:2838:Portadown (part of 28 code):United Kingdom
+44:2840:Banbridge (part of 28 code):United Kingdom
+44:2841:Rostrevor (part of 28 code):United Kingdom
+44:2842:Kircubbin (part of 28 code):United Kingdom
+44:2843:Newcastle (Co. Down) (part of 28 code):United Kingdom
+44:2844:Downpatrick (part of 28 code):United Kingdom
+44:2866:Enniskillen (part of 28 code):United Kingdom
+44:2867:Lisnaskea (part of 28 code):United Kingdom
+44:2868:Kesh (part of 28 code):United Kingdom
+44:2870:Coleraine (part of 28 code):United Kingdom
+44:2871:Londonderry (part of 28 code):United Kingdom
+44:2877:Limavady (part of 28 code):United Kingdom
+44:2879:Magherafelt (part of 28 code):United Kingdom
+44:2880:Carrickmore (part of 28 code):United Kingdom
+44:2881:Newtownstewart (part of 28 code):United Kingdom
+44:2882:Omagh (part of 28 code):United Kingdom
+44:2885:Ballygawley (part of 28 code):United Kingdom
+44:2886:Cookstown (part of 28 code):United Kingdom
+44:2887:Dungannon (part of 28 code):United Kingdom
+44:2889:Fivemiletown (part of 28 code):United Kingdom
+44:2890:Belfast City (part of 28 code):United Kingdom
+44:2891:Bangor (Co. Down) (part of 28 code):United Kingdom
+44:2892:Lisburn (part of 28 code):United Kingdom
+44:2893:Ballyclare (part of 28 code):United Kingdom
+44:2894:Antrim (part of 28 code):United Kingdom
+44:2895:Belfast (part of 28 code):United Kingdom
+44:2897:Saintfield (part of 28 code):United Kingdom
+44:29:Cardiff:United Kingdom
+44:30:Non-geographic, same rate as landline - Government, public services, non-profit and charities:United Kingdom
+44:33:Non-geographic, same rate as landline:United Kingdom
+44:34:Non-geographic, same rate as landline:United Kingdom
+44:37:Non-geographic, same rate as landline:United Kingdom
+44:500:Free from landline - Deprecated:United Kingdom
+44:55:VoIP, rate varies:United Kingdom
+44:56:VoIP, rate varies:United Kingdom
+44:70:Personal Numbering, premium rate:United Kingdom
+44:71:Mobile Services:United Kingdom
+44:74:Mobile Services:United Kingdom
+44:75:Mobile Services:United Kingdom
+44:76:Radiopaging:United Kingdom
+44:77:Mobile Services:United Kingdom
+44:78:Mobile Services:United Kingdom
+44:79:Mobile Services:United Kingdom
+44:80:Freephone:United Kingdom
+44:8089:Internet Services Free to Caller:United Kingdom
+44:820:Internet for Schools:United Kingdom
+44:843:Special Services, up to 5p:United Kingdom
+44:8440:Internet Services, various rates from un-metered up to 5ppm:United Kingdom
+44:8441:For future Internet Services:United Kingdom
+44:8442:Special (non-Internet) services up to 5p:United Kingdom
+44:8443:Special (non-Internet) services up to 5p:United Kingdom
+44:8444:Special (non-Internet) services up to 5p:United Kingdom
+44:8445:Special (non-Internet) services up to 5p:United Kingdom
+44:8446:Special (non-Internet) services up to 5p:United Kingdom
+44:8447:Special (non-Internet) services up to 5p:United Kingdom
+44:8448:Special (non-Internet) services up to 5p:United Kingdom
+44:845:Up to Local Rate:United Kingdom
+44:846:For future services up to 5p or Local rate:United Kingdom
+44:847:For future services up to 5p or Local rate:United Kingdom
+44:848:For future services up to 5p or Local rate:United Kingdom
+44:849:For future services up to 5p or Local rate:United Kingdom
+44:870:Up to National Rate:United Kingdom
+44:8710:Internet Services incorporating un-metered access up to 10p:United Kingdom
+44:8711:For future Internet Services:United Kingdom
+44:8712:Special (non-Internet) Services up to 10p:United Kingdom
+44:8713:Special (non-Internet) Services up to 10p:United Kingdom
+44:8714:Special (non-Internet) Services up to 10p:United Kingdom
+44:8715:Special (non-Internet) Services up to 10p:United Kingdom
+44:8716:Special (non-Internet) Services up to 10p:United Kingdom
+44:8717:Special (non-Internet) Services up to 10p:United Kingdom
+44:8718:Special (non-Internet) Services up to 10p:United Kingdom
+44:872:Special (non-Internet) Services up to 10p:United Kingdom
+44:899:Internal routing services:United Kingdom
+44:900:Premium Rate '<=60ppm with GBP5 call-cap' or 'single-drop <=GBP1':United Kingdom
+44:901:Premium Rate '<=60ppm with GBP5 call-cap' or 'single-drop <=GBP1':United Kingdom
+44:902:Premium Rate '<=60ppm with GBP5 call-cap' or 'single-drop <=GBP1':United Kingdom
+44:903:Premium Rate 'open ended time dependent charge' or 'single-drop <=GBP1.50':United Kingdom
+44:904:Premium Rate 'open ended time dependent charge' or 'single-drop <=GBP1.50':United Kingdom
+44:905:Premium Rate 'open ended time dependent charge' or 'single-drop <=GBP1.50':United Kingdom
+44:906:Premium Rate 'open ended time dependent charge' or 'single-drop <=GBP1.50':United Kingdom
+44:907:Premium Rate 'pay for product, >GBP1':United Kingdom
+44:908:Premium Rate 'sexual entertainment services':United Kingdom
+44:909:Premium Rate 'sexual entertainment services':United Kingdom
+44:911:Premium Rate 'open ended time dependent charge' or 'single-drop <=GBP1.50':United Kingdom
+44:912:Premium Rate '<=60ppm with GBP5 call-cap' or 'single-drop <=GBP1':United Kingdom
+44:913:Premium Rate 'open ended time dependent charge' or 'single-drop <=GBP1.50':United Kingdom
+44:982:Premium Rate 'sexual entertainment services':United Kingdom
+44:983:Premium Rate 'sexual entertainment services':United Kingdom
+44:984:Premium Rate 'sexual entertainment services':United Kingdom
+44:989:Premium Rate 'sexual entertainment services':United Kingdom
+45:::Denmark
+46:11:Norrkoping (Norrköping):Sweden
+46:120:Atvidaberg (Åtvidaberg):Sweden
+46:121:Soderkoping (Söderköping):Sweden
+46:122:Finspang (Finspång):Sweden
+46:123:Valdemarsvik:Sweden
+46:125:Vikbolandet:Sweden
+46:13:Linkoping (Linköping):Sweden
+46:140:Tranas (Tranås):Sweden
+46:141:Motala:Sweden
+46:142:Mjolby (Mjölby):Sweden
+46:142:Skanninge (Skänninge):Sweden
+46:142:Boxholm:Sweden
+46:143:Vadstena:Sweden
+46:144:Odeshog (Ödeshög):Sweden
+46:150:Katrineholm:Sweden
+46:151:Vingaker (Vingåker):Sweden
+46:152:Strangnas (Strängnäs):Sweden
+46:155:Nykoping (Nyköping):Sweden
+46:155:Oxelosund (Oxelösund):Sweden
+46:156:Trosa:Sweden
+46:156:Vagnharad (Vagnhärad):Sweden
+46:157:Flen:Sweden
+46:157:Malmkoping (Malmköping):Sweden
+46:158:Gnesta:Sweden
+46:159:Mariefred:Sweden
+46:16:Eskilstuna:Sweden
+46:16:Torshalla (Torshälla):Sweden
+46:171:Enkoping (Enköping):Sweden
+46:173:Oregrund (Öregrund):Sweden
+46:173:Osthammar (Östhammar):Sweden
+46:174:Alunda:Sweden
+46:175:Hallstavik:Sweden
+46:175:Rimbo:Sweden
+46:176:Norrtalje (Norrtälje):Sweden
+46:18:Uppsala:Sweden
+46:19:Orebro (Örebro):Sweden
+46:19:Kumla:Sweden
+46:21:Vasteras (Västerås):Sweden
+46:220:Hallstahammar:Sweden
+46:220:Surahammar:Sweden
+46:221:Koping (Köping):Sweden
+46:222:Skinnskatteberg:Sweden
+46:223:Fagersta:Sweden
+46:223:Norberg:Sweden
+46:224:Sala:Sweden
+46:224:Heby:Sweden
+46:225:Hedemora:Sweden
+46:225:Sater (Säter):Sweden
+46:226:Avesta:Sweden
+46:226:Krylbo:Sweden
+46:227:Kungsor (Kungsör):Sweden
+46:23:Falun:Sweden
+46:240:Ludvika:Sweden
+46:240:Smedjebacken:Sweden
+46:241:Gagnef:Sweden
+46:241:Floda:Sweden
+46:243:Borlange (Borlänge):Sweden
+46:246:Svardsjo (Svärdsjö):Sweden
+46:246:Enviken:Sweden
+46:247:Leksand:Sweden
+46:247:Insjon (Insjön):Sweden
+46:248:Rattvik (Rättvik):Sweden
+46:250:Mora:Sweden
+46:250:Orsa:Sweden
+46:251:Alvdalen (Älvdalen):Sweden
+46:253:Idre:Sweden
+46:253:Sarna (Särna):Sweden
+46:258:Furudal:Sweden
+46:26:Gavle (Gävle):Sweden
+46:26:Sandviken:Sweden
+46:270:Soderhamn (Söderhamn):Sweden
+46:271:Alfta:Sweden
+46:271:Edsbyn:Sweden
+46:278:Bollnas (Bollnäs):Sweden
+46:280:Malung:Sweden
+46:281:Vansbro:Sweden
+46:290:Hofors:Sweden
+46:290:Storvik:Sweden
+46:291:Hedesunda:Sweden
+46:291:Osterfarnebo (Österfärnebo):Sweden
+46:292:Tarnsjo (Tärnsjö):Sweden
+46:292:Ostervala (Östervåla):Sweden
+46:293:Tierp:Sweden
+46:293:Soderfors (Söderfors):Sweden
+46:294:Karlsholmsbruk:Sweden
+46:294:Skarplinge (Skärplinge):Sweden
+46:295:Orbyhus (Örbyhus):Sweden
+46:295:Dannemora:Sweden
+46:297:Ockelbo:Sweden
+46:297:Hamrange (Hamrånge):Sweden
+46:300:Kungsbacka:Sweden
+46:301:Hindas (Hindås):Sweden
+46:302:Lerum:Sweden
+46:303:Kungalv (Kungälv):Sweden
+46:304:Orust:Sweden
+46:304:Tjorn (Tjörn):Sweden
+46:31:Goteborg (Göteborg):Sweden
+46:320:Kinna:Sweden
+46:321:Ulricehamn:Sweden
+46:322:Alingsas (Alingsås):Sweden
+46:322:Vargarda (Vårgårda):Sweden
+46:325:Svenljunga:Sweden
+46:325:Tranemo:Sweden
+46:33:Boras (Borås):Sweden
+46:340:Varberg:Sweden
+46:345:Hyltebruk:Sweden
+46:345:Torup:Sweden
+46:346:Falkenberg:Sweden
+46:35:Halmstad:Sweden
+46:36:Jonkoping (Jönköping):Sweden
+46:36:Huskvarna:Sweden
+46:370:Varnamo (Värnamo):Sweden
+46:371:Gislaved:Sweden
+46:371:Anderstorp:Sweden
+46:372:Lungby:Sweden
+46:380:Nassjo (Nässjö):Sweden
+46:381:Eksjo (Eksjö):Sweden
+46:382:Savsjo (Sävsjö):Sweden
+46:383:Vetlanda:Sweden
+46:390:Granna (Gränna):Sweden
+46:392:Mullsjo (Mullsjö):Sweden
+46:393:Vaggeryd:Sweden
+46:40:Malmo (Malmö):Sweden
+46:410:Trelleborg:Sweden
+46:411:Ystad:Sweden
+46:413:Eslov (Eslöv):Sweden
+46:413:Hoor (Höör):Sweden
+46:414:Simrishamn:Sweden
+46:415:Horby (Hörby):Sweden
+46:416:Sjobo (Sjöbo):Sweden
+46:417:Tomelilla:Sweden
+46:418:Landskrona:Sweden
+46:418:Svalov (Svalöv):Sweden
+46:42:Helsingborg:Sweden
+46:42:Hoganas (Höganäs):Sweden
+46:430:Laholm:Sweden
+46:431:Angelholm (Ängelholm):Sweden
+46:431:Bastad (Båstad):Sweden
+46:433:Markaryd:Sweden
+46:433:Stromnasbruk (Strömnäsbruk):Sweden
+46:435:Klippan:Sweden
+46:435:Perstorp:Sweden
+46:44:Kristianstad:Sweden
+46:451:Hassleholm (Hässleholm):Sweden
+46:454:Karlshamn:Sweden
+46:454:Olofstrom (Olofström):Sweden
+46:455:Karlskrona:Sweden
+46:456:Solvesborg (Sölvesborg):Sweden
+46:456:Bromolla (Bromölla):Sweden
+46:457:Ronneby:Sweden
+46:459:Ryd:Sweden
+46:46:Lund:Sweden
+46:470:Vaxjo (Växjö):Sweden
+46:471:Emmaboda:Sweden
+46:472:Alvesta:Sweden
+46:472:Rydaholm:Sweden
+46:474:Aseda (Åseda):Sweden
+46:474:Lenhovda:Sweden
+46:476:Almhult (Älmhult):Sweden
+46:477:Tingsryd:Sweden
+46:478:Lessebo:Sweden
+46:479:Osby:Sweden
+46:480:Kalmar:Sweden
+46:481:Nybro:Sweden
+46:485:Oland (Öland):Sweden
+46:486:Torsas (Torsås):Sweden
+46:490:Vastervik (Västervik):Sweden
+46:491:Oskarshamn:Sweden
+46:491:Hogsby (Högsby):Sweden
+46:492:Vimmerby:Sweden
+46:493:Gamleby:Sweden
+46:494:Kisa:Sweden
+46:495:Hultsfred:Sweden
+46:495:Virserum:Sweden
+46:496:Mariannelund:Sweden
+46:498:Gotland:Sweden
+46:499:Monsteras (Mönsterås):Sweden
+46:500:Skovde (Skövde):Sweden
+46:501:Mariestad:Sweden
+46:502:Tidaholm:Sweden
+46:503:Hjo:Sweden
+46:504:Tibro:Sweden
+46:505:Karlsborg:Sweden
+46:506:Toreboda (Töreboda):Sweden
+46:506:Hova:Sweden
+46:510:Lidkoping (Lidköping):Sweden
+46:511:Skara:Sweden
+46:511:Gotene (Götene):Sweden
+46:512:Vara:Sweden
+46:512:Nossebro:Sweden
+46:513:Herrljunga:Sweden
+46:514:Grastorp (Grästorp):Sweden
+46:515:Falkoping (Falköping):Sweden
+46:520:Trollhattan (Trollhättan):Sweden
+46:521:Vanersborg (Vänersborg):Sweden
+46:522:Uddevalla:Sweden
+46:523:Lysekil:Sweden
+46:524:Munkedal:Sweden
+46:525:Grebbestad:Sweden
+46:526:Stromstad (Strömstad):Sweden
+46:528:Fargelanda (Färgelanda):Sweden
+46:530:Mellerud:Sweden
+46:531:Bengtsfors:Sweden
+46:532:Amal (Åmål):Sweden
+46:533:Saffle (Säffle):Sweden
+46:534:Ed:Sweden
+46:54:Karlstad:Sweden
+46:550:Kristinehamn:Sweden
+46:551:Gullspang (Gullspång):Sweden
+46:552:Deje:Sweden
+46:553:Molkom:Sweden
+46:554:Kil:Sweden
+46:555:Grums:Sweden
+46:560:Torsby:Sweden
+46:563:Hagfors:Sweden
+46:563:Munkfors:Sweden
+46:564:Syssleback (Sysslebäck):Sweden
+46:565:Sunne:Sweden
+46:570:Arvika:Sweden
+46:571:Charlottenberg:Sweden
+46:571:Amotfors (Åmotfors):Sweden
+46:573:Arjang (Årjäng):Sweden
+46:580:Kopparberg:Sweden
+46:581:Lindesberg:Sweden
+46:582:Hallsberg:Sweden
+46:583:Askersund:Sweden
+46:584:Laxa (Laxå):Sweden
+46:585:Fjugesta:Sweden
+46:585:Svarta (Svartå):Sweden
+46:586:Karlskoga:Sweden
+46:586:Degerfors:Sweden
+46:587:Nora:Sweden
+46:589:Arboga:Sweden
+46:590:Filipstad:Sweden
+46:591:Hallefors (Hällefors):Sweden
+46:591:Grythyttan:Sweden
+46:60:Sundsvall:Sweden
+46:60:Timra (Timrå):Sweden
+46:611:Harnosand (Härnösand):Sweden
+46:612:Kramfors:Sweden
+46:613:Ullanger (Ullånger):Sweden
+46:620:Solleftea (Sollefteå):Sweden
+46:621:Junsele:Sweden
+46:623:Ramsele:Sweden
+46:624:Backe:Sweden
+46:63:Ostersund (Östersund):Sweden
+46:640:Krokom:Sweden
+46:642:Lit:Sweden
+46:643:Hallen:Sweden
+46:643:Oviken:Sweden
+46:644:Hammerdal:Sweden
+46:645:Follinge (Föllinge):Sweden
+46:647:Are (Åre):Sweden
+46:647:Jarpen (Järpen):Sweden
+46:650:Hudiksvall:Sweden
+46:651:Ljusdal:Sweden
+46:652:Bergsjo (Bergsjö):Sweden
+46:653:Delsbo:Sweden
+46:657:Los:Sweden
+46:660:Ornskoldsvik (Örnsköldsvik):Sweden
+46:661:Bredbyn:Sweden
+46:662:Bjorna (Björna):Sweden
+46:663:Husum:Sweden
+46:670:Stromsund (Strömsund):Sweden
+46:671:Hoting:Sweden
+46:672:Gaddede (Gäddede):Sweden
+46:680:Sveg:Sweden
+46:682:Ratan (Rätan):Sweden
+46:684:Hede:Sweden
+46:684:Funasdalen (Funäsdalen):Sweden
+46:687:Svenstavik:Sweden
+46:690:Ange (Ånge):Sweden
+46:691:Torpshammar:Sweden
+46:692:Liden:Sweden
+46:693:Bracke (Bräcke):Sweden
+46:693:Gallo (Gällö):Sweden
+46:695:Stugun:Sweden
+46:696:Hammarstrand:Sweden
+46:8:Stockholm:Sweden
+46:90:Umea (Umeå):Sweden
+46:910:Skelleftea (Skellefteå):Sweden
+46:911:Pitea (Piteå):Sweden
+46:912:Byske:Sweden
+46:913:Lovanger (Lövånger):Sweden
+46:914:Burtrask (Burträsk):Sweden
+46:915:Bastutrask (Bastuträsk):Sweden
+46:916:Jorn (Jörn):Sweden
+46:918:Norsjo (Norsjö):Sweden
+46:920:Lulea (Luleå):Sweden
+46:921:Boden:Sweden
+46:922:Haparanda:Sweden
+46:923:Kalix:Sweden
+46:924:Ranea (Råneå):Sweden
+46:925:Lakatrask (Lakaträsk):Sweden
+46:926:Overkalix (Överkalix):Sweden
+46:927:Overtornea (Övertorneå):Sweden
+46:928:Harads:Sweden
+46:929:Alvsbyn (Älvsbyn):Sweden
+46:930:Nordmaling:Sweden
+46:932:Bjurholm:Sweden
+46:933:Vindeln:Sweden
+46:934:Robertfors:Sweden
+46:935:Vannas (Vännäs):Sweden
+46:940:Vilhelmina:Sweden
+46:941:Asele (Åsele):Sweden
+46:942:Dorotea:Sweden
+46:943:Fredrika:Sweden
+46:950:Lycksele:Sweden
+46:951:Storuman:Sweden
+46:952:Sorsele:Sweden
+46:953:Mala (Malå):Sweden
+46:954:Tarnaby (Tärnaby):Sweden
+46:960:Arvidsjaur:Sweden
+46:961:Arjeplog:Sweden
+46:970:Gallivare (Gällivare):Sweden
+46:971:Jokkmokk:Sweden
+46:973:Porjus:Sweden
+46:975:Hakkas:Sweden
+46:976:Vuollerim:Sweden
+46:977:Korpilombolo:Sweden
+46:978:Pajala:Sweden
+46:980:Kiruna:Sweden
+46:981:Vittangi:Sweden
+47:2:Oslo:Norway
+47:5:Bergen:Norway
+47:7:Trondheim:Norway
+48:12:Krakow:Poland
+48:13:Krosno:Poland
+48:14:Tarnow:Poland
+48:15:Tarnobrzeg:Poland
+48:16:Przemysl:Poland
+48:17:Rzeszow:Poland
+48:18:Nowy Sacz:Poland
+48:22:Warsaw:Poland
+48:23:Ciechanow:Poland
+48:24:Plock:Poland
+48:25:Siedlce:Poland
+48:29:Ostroleka:Poland
+48:32:Katowice:Poland
+48:33:Bielsko-Biala:Poland
+48:34:Czestochowa:Poland
+48:41:Kielce:Poland
+48:42:Lodz:Poland
+48:43:Sieradz:Poland
+48:44:Piotrkow Trybunalski:Poland
+48:46:Skierniewice:Poland
+48:48:Radom:Poland
+48:52:Bydgoszcz:Poland
+48:54:Wloclawek:Poland
+48:55:Elblag:Poland
+48:56:Torun:Poland
+48:58:Gdansk:Poland
+48:59:Slupsk:Poland
+48:61:Poznan:Poland
+48:62:Kalisz:Poland
+48:63:Konin:Poland
+48:65:Leszno:Poland
+48:67:Pila:Poland
+48:68:Zielona Gora:Poland
+48:71:Wroclaw:Poland
+48:74:Walbrzych:Poland
+48:75:Jelenia Gora:Poland
+48:76:Legnica:Poland
+48:77:Opole:Poland
+48:81:Lublin:Poland
+48:82:Chelm:Poland
+48:83:Biala Podlaska:Poland
+48:84:Zamosc:Poland
+48:85:Bialystok:Poland
+48:86:Lomza:Poland
+48:87:Suwalki:Poland
+48:89:Olsztyn:Poland
+48:91:Szczecin:Poland
+48:94:Koszalin:Poland
+48:95:Gorzow Wielkopolski:Poland
+49:201:Essen:Germany
+49:202:Wuppertal:Germany
+49:203:Duisburg:Germany
+49:209:Gelsenkirchen:Germany
+49:211:Duesseldorf:Germany
+49:221:Cologne (Koeln):Germany
+49:228:Bonn:Germany
+49:231:Dortmund:Germany
+49:30:Berlin:Germany
+49:335:Frankfurt/Oder:Germany
+49:341:Leipzig:Germany
+49:351:Dresden:Germany
+49:371:Chemnitz:Germany
+49:40:Hamburg:Germany
+49:421:Bremen:Germany
+49:511:Hannover:Germany
+49:69:Frankfurt/Main:Germany
+49:711:Stuttgart:Germany
+49:89:Munich (Muenchen):Germany
+49:911:Nuremberg:Germany
+49:721:Karlsruhe:Germany
+49:941:Regensburg:Germany
+51:14:Callao:Peru
+51:14:Lima:Peru
+51:54:Arequipa:Peru
+52:5:Mexico City:Mexico
+52:621:Hermosillo:Mexico
+52:631:Nogales:Mexico
+52:641:Ciudad Obregon:Mexico
+52:65:Mexicali:Mexico
+52:667:Ensenada:Mexico
+52:66:Tijuana:Mexico
+52:671:Culiacan:Mexico
+52:678:Mazatlan:Mexico
+52:681:Los Mochis:Mexico
+52:682:La Paz:Mexico
+52:684:Cabo San Lucas:Mexico
+53:::Cuba
+54:11:Buenos Aires:Argentina
+54:221:La Plata:Argentina
+54:341:Rosario:Argentina
+54:351:Cordoba:Argentina
+55:11:Sao Paulo:Brazil
+55:13:Santos:Brazil
+55:19:Campinas:Brazil
+55:21:Rio de Janeiro:Brazil
+55:21:Niteroi:Brazil
+55:24:Petropolis:Brazil
+55:24:Angra dos Reis:Brazil
+55:27:Vitoria:Brazil
+55:31:Belo Horizonte:Brazil
+55:31:Ouro Preto:Brazil
+55:32:Juiz de Fora:Brazil
+55:34:Uberlandia:Brazil
+55:41:Curitiba:Brazil
+55:48:Florianopolis:Brazil
+55:51:Porto Alegre:Brazil
+55:61:Brasilia:Brazil
+55:62:Goiania:Brazil
+55:63:Palmas:Brazil
+55:65:Cuiaba:Brazil
+55:67:Campo Grande:Brazil
+55:68:Rio Branco:Brazil
+55:69:Porto Velho:Brazil
+55:71:Salvador:Brazil
+55:79:Aracaju:Brazil
+55:81:Recife:Brazil
+55:82:Maceio:Brazil
+55:83:Joao Pessoa:Brazil
+55:84:Natal:Brazil
+55:85:Fortaleza:Brazil
+55:86:Teresina:Brazil
+55:91:Belem:Brazil
+55:92:Manaus:Brazil
+55:95:Boa Vista:Brazil
+55:96:Macapa:Brazil
+55:98:Sao Luis:Brazil
+56:2:Santiago:Chile
+56:31:Valparaiso:Chile
+57:3:Cali:Colombia
+57:4:Medellin:Colombia
+57:59:Cartagena:Colombia
+57:5:Barranquilla:Colombia
+57:71:Bucaramanga:Colombia
+57::Bogota:Colombia
+58:2:Caracas:Venezuela
+58:41:Valencia:Venezuela
+58:43:Maracay:Venezuela
+58:51:Barquisimeto:Venezuela
+58:61:Maracaibo:Venezuela
+58:76:San Cristobal:Venezuela
+58:81:Barcelona:Venezuela
+58:85:Ciudad Bolivar:Venezuela
+58:91:Maturin:Venezuela
+58:93:Cumana:Venezuela
+60:3:Kuala Lumpur:Malaysia
+60:5:Ipoh:Malaysia
+61:2:Canberra:Australia
+61:2:Sydney:Australia
+61:3:Melbourne:Australia
+61:3:Hobart:Australia
+61:7:Brisbane:Australia
+61:8:Adelaide:Australia
+61:8:Perth:Australia
+61:8:Darwin:Australia
+62:21:Jakarta:Indonesia
+63:2:Manila:Philippines
+63:32:Cebu City:Philippines
+63:33:Iloilo City:Philippines
+63:34:Bacolod:Philippines
+63:452:Tarlac City:Philippines
+63:82:Davao:Philippines
+64:3:Christchurch:New Zealand
+64:4:Wellington:New Zealand
+64:9:Auckland:New Zealand
+65:::Singapore, Rep. of
+66:2:Bangkok:Thailand
+81:11:Sapporo:Japan
+81:3:Tokyo:Japan
+81:44:Kawasaki (Kanagawa):Japan
+81:45:Yokohama:Japan
+81:52:Nagoya:Japan
+81:6:Amagasaki:Japan
+81:6:Osaka:Japan
+81:722:Sakai (Osaka):Japan
+81:75:Kyoto:Japan
+81:78:Kobe:Japan
+81:82:Hiroshima:Japan
+81:92:Fukuoka:Japan
+81:93:Kitakyushu:Japan
+81:958:Nagasaki:Japan
+82:2:Seoul:South Korea
+82:32:Inchon:South Korea
+82:51:Pusan:South Korea
+82:53:Taegu:South Korea
+82:62:Kwangju:South Korea
+84:::Viet Nam
+86:1:Beijing:China, People's Rep. of
+86:20:Ghuangzhou:China, People's Rep. of
+86:21:Shanghai:China, People's Rep. of
+86:591:Fuzhou:China, People's Rep. of
+90:212:Istanbul (European side):Turkey
+90:216:Istanbul (Asian side):Turkey
+90:312:Ankara:Turkey
+91:11:New Delhi:India
+91:22:Bombay:India
+91:33:Calcutta:India
+91:44:Madras:India
+92:21:Karachi:Pakistan
+92:51:Islamabad:Pakistan
+94:1:Colombo Central:Sri Lanka, Dem. Soc. Rep. of
+94:8:Kandy:Sri Lanka, Dem. Soc. Rep. of
+95:::Myanmar
+98:21:Teheran:Iran
+98:31:Esfahan:Iran
+98:41:Tabriz:Iran
+98:51:Mashad:Iran
+98:631:Abadan:Iran
+212:7:Rabat:Morocco, Kingdom of
+213:::Algeria
+216:1:Tunis:Tunisia
+218:21:Tripoli:Libya
+218:51:Misuratha:Libya
+218:61:Benghazi:Libya
+220:::Gambia
+221:::Senegal Republic
+222:::Mauritania
+223:::Mali
+224:4:Conakry:Guinea, People's Rev. Rep.
+225:::Ivory Coast Rep. of
+226:::Burkina Faso
+227:::Niger Republic
+228:::Togo, Rep. of
+229:::Benin, People's Rep. of
+230:::Mauritius
+231:::Liberia
+232:::Sierra Leone
+233:21:Accra:Ghana
+234:1:Lagos:Nigeria, Fed. Rep. of
+234:22:Ibadan:Nigeria, Fed. Rep. of
+234:64:Kano:Nigeria, Fed. Rep. of
+235:::Chad
+236:::Central Africa
+237:::Cameroon, United Rep. of
+238:::Cape Verde Islands
+241:::Gabon Republic
+243:12:Kinshasa:Zaire, Rep. of
+243:222:Lubumbashi:Zaire, Rep. of
+244:::Angola
+245:::Guinea Bissau
+246:::Diego Garcia
+247:::Ascension Island
+248:::Seychelles
+249:::Sudan
+250:::Rwanda
+251:1:Addis Ababa:Ethiopia
+253:::Djibouti
+254:2:Nairobi:Kenya, Rep. of
+255:51:Dar Es Salaam:Tanzania
+256:41:Kampala:Uganda
+256:42:Entebbe:Uganda
+257:::Burundi
+258:::Mozambique
+259:::Zanzibar
+260:1:Lusaka:Zambia
+262:::Reunion
+263:4:Harare:Zimbabwe
+264:61:Windhoek:Namibia
+265::Blantyre:Malawi
+265::Lilongwe:Malawi
+266:::Lesotho
+267:31:Gaborone:Botswana
+268:::Swaziland
+290:::St. Helena
+291:::Eritrea
+297:::Aruba
+298:::Faeroe Islands
+299:11:Soendre Stroemfjord:Greenland (Kalaallit Nunaat)
+299:2:Godthaab:Greenland (Kalaallit Nunaat)
+299:50:Thule:Greenland (Kalaallit Nunaat)
+350:::Gibraltar
+351:21:Lisbon:Portugal
+351:22:Porto:Portugal
+351:234:Aveiro:Portugal
+351:284:Beja:Portugal
+351:253:Braga:Portugal
+351:239:Coimbra:Portugal
+351:289:Faro:Portugal
+351:271:Guarda:Portugal
+351:244:Leiria:Portugal
+351:245:Portalegre:Portugal
+351:243:Santarem:Portugal
+351:251:Viana do Castelo:Portugal
+351:291:Funchal:Portugal (Madeira)
+351:296:Ponta Delgada:Portugal (Azores)
+352:::Luxembourg
+353:1:Dublin:Ireland, Rep. of
+353:21:Cork:Ireland, Rep. of
+353:51:Waterford:Ireland, Rep. of
+353:61:Limerick:Ireland, Rep. of
+353:91:Galway:Ireland, Rep. of
+354:::Iceland
+355:::Albania
+356:::Malta
+357:21:Nicosia:Cyprus
+358:2:Turku & Pori:Finland
+358:3:H\344me:Finland
+358:5:Kymi:Finland
+358:6:Vaasa:Finland
+358:8:Oulu:Finland
+358:9:Helsinki:Finland
+358:13:Pohjois-Karjala:Finland
+358:14:Keski-Suomi:Finland
+358:15:Mikkeli:Finland
+358:16:Lappi:Finland
+358:17:Kuopio:Finland
+358:18:Ahvenanmaa:Finland
+358:19:Uusimaa:Finland
+358:28::Aaland Islands
+359:56:Burgas:Bulgaria
+359:659:Cherven Bryag:Bulgaria
+359:391:Dimitrovgrad:Bulgaria
+359:66:Gabrovo:Bulgaria
+359:350:Peshtera:Bulgaria
+359:64:Pleven:Bulgaria
+359:32:Plovdiv:Bulgaria
+359:82:Ruse:Bulgaria
+359:2:Shoumen:Bulgaria
+359:2:Sofia:Bulgaria
+359:52:Varna:Bulgaria
+370:1:Sauliai:Lithuania
+370:2:Vilnius:Lithuania
+370:6:Klaipeda:Lithuania
+370:7:Kaunas:Lithuania
+370:10:Birstonas:Lithuania
+370:11:Ukmerge:Lithuania
+370:16:Skuodas:Lithuania
+370:17:Svencionys:Lithuania
+370:18:Plunge:Lithuania
+370:19:Jonava:Lithuania
+370:20:Birzai:Lithuania
+370:28:Raseinai:Lithuania
+370:29:Ignalina:Lithuania
+370:30:Moletai:Lithuania
+370:31:Kupiskis:Lithuania
+370:32:Sirvintos:Lithuania
+370:33:Druskininkai:Lithuania
+370:35:Alytus:Lithuania
+370:36:Palanga:Lithuania
+370:37:Elektrienai:Lithuania
+370:38:Trakai:Lithuania
+370:39:Utena:Lithuania
+370:40:Gargzdai:Lithuania
+370:41:Silute:Lithuania
+370:42:Vilkaviskis:Lithuania
+370:43:Marijampole:Lithuania
+370:46:Taurage:Lithuania
+370:47:Sakiai:Lithuania
+370:48:Jurbarkas:Lithuania
+370:49:Prienai:Lithuania
+370:50:Salcininkai:Lithuania
+370:51:Anyksciai:Lithuania
+370:54:Panevezys:Lithuania
+370:56:Kaisiadorys:Lithuania
+370:57:Kedainiai:Lithuania
+370:58:Kretinga:Lithuania
+370:59:Nida:Lithuania
+370:60:Varena:Lithuania
+370:61:cellular mobile (GSM-1, Omnitel):Lithuania
+370:65:cellular mobile (GSM-2, Bite):Lithuania
+370:66:Snieckus, Visaginas:Lithuania
+370:67:cellular mobile (GSM-3, Tele2):Lithuania
+370:68:Lazdijai:Lithuania
+370:69:Silale:Lithuania
+370:70:Zarasai:Lithuania
+370:71:Pasvalys:Lithuania
+370:78:Rokiskis:Lithuania
+370:80:cellular mobile (GSM-1, Omnitel):Lithuania
+370:81:cellular mobile (GSM-2, Bite):Lithuania
+370:82:cellular mobile (GSM-1, Omnitel):Lithuania
+370:83:cellular mobile (GSM-3, Tele2):Lithuania
+370:84:cellular mobile (GSM-3, Tele2):Lithuania
+370:85:cellular mobile (GSM-2, Bite):Lithuania
+370:86:cellular mobile (GSM-1, Omnitel):Lithuania
+370:87:cellular mobile (GSM-1, Omnitel):Lithuania
+370:88:cellular mobile (GSM-1, Omnitel):Lithuania
+370:89:cellular mobile (GSM-2, Bite):Lithuania
+370:90:cellular mobile (NMT-450, Comliet):Lithuania
+370:91:Pakruojis:Lithuania
+370:92:Radviliskis:Lithuania
+370:93:Mazeikiai:Lithuania
+370:94:Telsiai:Lithuania
+370:95:Naujoji Akmene:Lithuania
+370:96:Joniskis:Lithuania
+370:97:Kelme:Lithuania
+370:98:cellular mobile (GSM-1, Omnitel):Lithuania
+370:99:cellular mobile (GSM-2, Bite):Lithuania
+371:2:Riga:Latvia
+371:2:Jurmala:Latvia
+371:2:Olaine:Latvia
+371:2:Sigulda:Latvia
+371:30:Jelgava:Latvia
+371:31:Tukums:Latvia
+371:32:Talsi:Latvia
+371:33:Kuldiga:Latvia
+371:34:Liepaja:Latvia
+371:36:Ventspils:Latvia
+371:37:Dobele:Latvia
+371:38:Saldus:Latvia
+371:39:Bauska:Latvia
+371:40:Limbazi:Latvia
+371:41:Cesis:Latvia
+371:42:Valmiera:Latvia
+371:43:Aluksne:Latvia
+371:44:Gulbene:Latvia
+371:45:Balvi:Latvia
+371:46:Rezekne:Latvia
+371:47:Valka:Latvia
+371:48:Madona:Latvia
+371:50:Ogre:Latvia
+371:51:Aizkraukle:Latvia
+371:52:Jekabpils:Latvia
+371:53:Preili:Latvia
+371:54:Daugavpils:Latvia
+371:56:Kraslava:Latvia
+371:57:Ludza:Latvia
+372:2:Harjus:Estonia
+372:2:Tallinn:Estonia
+372:5:NMT(mobile):Estonia
+372:6:Tallinn:Estonia
+372:32:Laane-Viru(Rakvere):Estonia
+372:33:Ida-Viru(Kohtla-Jarve):Estonia
+372:34:Tartu:Estonia
+372:35:Narva:Estonia
+372:38:Jarva(Paide):Estonia
+372:39:Sillamae:Estonia
+372:41:Voru:Estonia
+372:43:Viljandi:Estonia
+372:44:Parnu:Estonia
+372:45:Saare(Kuressaare):Estonia
+372:46:Hiiu(Kardla):Estonia
+372:47:Haapsalu:Estonia
+372:48:Rapla:Estonia
+372:72:Tartu:Estonia
+372:76:Valga:Estonia
+372:77:Jogeva:Estonia
+372:79:Polva:Estonia
+373:2:Kishinev:Moldova
+373:30:Soroka:Moldova
+373:31:Beltsy:Moldova
+373:32:Bandery:Moldova
+373:33:Tiraspol:Moldova
+373:35:Orchejis:Moldova
+373:38:Komratas:Moldova
+373:39:Kachulas:Moldova
+373:40:Grigoriopolis:Moldova
+373:41:Cimislija:Moldova
+373:42:Stefan Vode:Moldova
+373:43:Keusenis:Moldova
+373:44:Kelerasis:Moldova
+373:46:Jedinecas:Moldova
+373:47:Bricenis:Moldova
+373:48:Kriulenis:Moldova
+373:49:Glodenis:Moldova
+373:50:Florestis:Moldova
+373:51:Dondusenis:Moldova
+373:53:Vulkenestis:Moldova
+373:56:Ryskanis:Moldova
+373:58:Telenestis:Moldova
+373:59:Felestis:Moldova
+373:61:Cadyr Lunga:Moldova
+373:62:Synzereja:Moldova
+373:63:Leovo:Moldova
+373:65:Anenji Nojus:Moldova
+373:70:Maksimovka:Moldova
+373:76:Paskanai:Moldova
+374:2:Erevan:Armenia
+374:31:Charentsavan:Armenia
+374:33:Bagramian:Armenia
+374:35:Tsaxkadsor:Armenia
+374:3800:Axuriuan:Armenia
+374:41:Vedi:Armenia
+374:42:Maralik:Armenia
+374:43:Ashtarak:Armenia
+374:44:Artik:Armenia
+374:45:Artashat:Armenia
+374:46:Exegnadsor:Armenia
+374:47:Armavir:Armenia
+374:480:Tsaxkahovit:Armenia
+374:490:Talin:Armenia
+374:510:Amasia:Armenia
+374:520:Aparan:Armenia
+374:53:Ashotsk:Armenia
+374:54:Tashir:Armenia
+374:5500:Spitak:Armenia
+374:560:Stepanavan:Armenia
+374:57:Vanadsor:Armenia
+374:58:Vardenis:Armenia
+374:59:Echmiadzin:Armenia
+374:61:Kotaik:Armenia
+374:62:Masis:Armenia
+374:63:Ijevan:Armenia
+374:64:Kamo:Armenia
+374:65:Krasnoselsk:Armenia
+374:66:Noemberian:Armenia
+374:67:Hrasdan:Armenia
+374:68:Nairi:Armenia
+374:69:Gjumri:Armenia
+374:71:Taush:Armenia
+374:720:Dilijan:Armenia
+374:73:Tumanian:Armenia
+374:74:Martuni:Armenia
+374:750:Sisian:Armenia
+374:760:Sevan:Armenia
+374:77:Jermuk:Armenia
+374:78:Ararat:Armenia
+374:79:Vaik:Armenia
+374:91:Goris:Armenia
+374:92:Kapan:Armenia
+374:930:Megri:Armenia
+375:15:Grodno:Belorus
+375:1511:Berestovitsa:Belorus
+375:1512:Volkovysk:Belorus
+375:1513:Svisloch:Belorus
+375:1514:Shchuchin:Belorus
+375:1515:Mosty:Belorus
+375:1561:Lida:Belorus
+375:1562:Slonim:Belorus
+375:1563:Dyatlovo:Belorus
+375:1564:Zelva:Belorus
+375:1591:Ostrovets:Belorus
+375:1591:Smorgon:Belorus
+375:1593:Oshmyany:Belorus
+375:1594:Voronovo:Belorus
+375:1595:Ivje:Belorus
+375:1596:Korelichy:Belorus
+375:1597:Novogrudok:Belorus
+375:16:Brest:Belorus
+375:1631:Kamenets:Belorus
+375:1632:Pruzhany:Belorus
+375:1633:Lyakhovichi:Belorus
+375:1634:Baranovichi:Belorus
+375:1641:Zhabinka:Belorus
+375:1642:Kobrin(Kobrynsk):Belorus
+375:1643:Bereza:Belorus
+375:1644:Drogichin:Belorus
+375:1645:Ivatsevichi:Belorus
+375:1646:Gantsevchi:Belorus
+375:1647:Luninets:Belorus
+375:1651:Malorita:Belorus
+375:1652:Ivanovo Brestsky:Belorus
+375:1653:Pinsk:Belorus
+375:1655:Stolin:Belorus
+375:17:Mensk:Belorus
+375:1710:Soligorsk:Belorus
+375:1713:Pukhovichi:Belorus
+375:1714:Cherven:Belorus
+375:1715:Berezino:Belorus
+375:1716:Dzerzhinsk:Belorus
+375:1717:Stolbtsy:Belorus
+375:1718:Uzda:Belorus
+375:1719:Kopyl:Belorus
+375:1770:Nesvizh:Belorus
+375:1771:Vilejka:Belorus
+375:1772:Volozhin:Belorus
+375:1773:Molodechno:Belorus
+375:1774:Logojsk:Belorus
+375:1775:Zhodino:Belorus
+375:1776:Smolevichi:Belorus
+375:1777:Borisov:Belorus
+375:1779:Pleshchenitsy:Belorus
+375:1792:Starye Dorogi:Belorus
+375:1793:Kletsk:Belorus
+375:1794:Luban:Belorus
+375:1795:Slutsk:Belorus
+375:1796:Krupki:Belorus
+375:1797:Myadel:Belorus
+375:1797:Naroch:Belorus
+375:21:Vitebsk:Belorus
+375:2130:Shumilino:Belorus
+375:2131:Beshenkovichi:Belorus
+375:2132:Lepel:Belorus
+375:2133:Chashniki:Belorus
+375:2135:Senno:Belorus
+375:2136:Tolochin:Belorus
+375:2137:Dubrovno:Belorus
+375:2138:Liozno:Belorus
+375:2139:Gorodok:Belorus
+375:2144:Novopolotsk:Belorus
+375:2144:Polotsk:Belorus
+375:2151:Verkhnedvinsk:Belorus
+375:2152:Miory (Miary k/Minska):Belorus
+375:2153:Braslav:Belorus
+375:2154:Sharkovshchina:Belorus
+375:2155:Postavy:Belorus
+375:2156:Glubokoe:Belorus
+375:2157:Dokshitsy:Belorus
+375:2158:Ushachi:Belorus
+375:2159:Rossony:Belorus
+375:2161:Orsha:Belorus
+375:22:Mogilev:Belorus
+375:2230:Glusk:Belorus
+375:2231:Bykhov:Belorus
+375:2232:Belynichi:Belorus
+375:2233:Gorki:Belorus
+375:2234:Krugloe:Belorus
+375:2235:Osipovichi:Belorus
+375:2236:Klichev:Belorus
+375:2237:Kirovsk:Belorus
+375:2238:Krasnopolje:Belorus
+375:2239:Shklov:Belorus
+375:2240:Mstislavl:Belorus
+375:2241:Krichev:Belorus
+375:2242:Chausy:Belorus
+375:2243:Cherikov:Belorus
+375:2244:Klimovichi:Belorus
+375:2245:Kostyukovichi:Belorus
+375:2246:Slavgorod:Belorus
+375:2251:Bobruysk:Belorus
+375:23:Gomel:Belorus
+375:2330:Vetka:Belorus
+375:2332:Chechersk:Belorus
+375:2333:Dobrush:Belorus
+375:2334:Zhlobin:Belorus
+375:2336:Buda-Koshelevo:Belorus
+375:2337:Korma:Belorus
+375:2339:Rogachev:Belorus
+375:2340:Rechitsa:Belorus
+375:2342:Svetlogorsk:Belorus
+375:2344:Bragin:Belorus
+375:2345:Kalinkovichi:Belorus
+375:2346:Khojniki:Belorus
+375:2347:Loev:Belorus
+375:2350:Petrikov:Belorus
+375:2351:Mozyr:Belorus
+375:2353:Zhitkovichi:Belorus
+375:2354:Elsk:Belorus
+375:2355:Narovlya:Belorus
+375:2356:Lelshitsy:Belorus
+375:2357:Oktyabrsky:Belorus
+376:::Andorra
+378:549::San Marino
+380:3122:Uzhhorod:Ukraine
+380:3131:Mukacheve:Ukraine
+380:3132:Rakhiv:Ukraine
+380:3132:Tyachiv:Ukraine
+380:3133:Svalyava:Ukraine
+380:3135:Vel-Bereznyj:Ukraine
+380:3137:Chop:Ukraine
+380:3141:Berehove:Ukraine
+380:3142:Khust:Ukraine
+380:3143:Vynohradiv:Ukraine
+380:3144:Irshava:Ukraine
+380:3145:Perechyn:Ukraine
+380:3146:Mizhhirya:Ukraine
+380:322:Lviv:Ukraine
+380:3230:Pustomyty:Ukraine
+380:3231:Horodok:Ukraine
+380:3234:Mostyska:Ukraine
+380:3236:Sambir:Ukraine
+380:3238:Staruj Sambir:Ukraine
+380:3239:Zhydachiv:Ukraine
+380:3241:Mykolaiv-Lviv:Ukraine
+380:3244:Drohobuch:Ukraine
+380:3245:Stryj:Ukraine
+380:3247:Truskavets:Ukraine
+380:3248:Boryslav:Ukraine
+380:3249:Chervonohrad:Ukraine
+380:3251:Skole:Ukraine
+380:3252:Nesterov:Ukraine
+380:3254:Kafyanka-Buzsk:Ukraine
+380:3255:Radekhiv:Ukraine
+380:3257:Sokal:Ukraine
+380:3259:Yavoriv:Ukraine
+380:3261:Novyj Rozdil:Ukraine
+380:3263:Peremyshkyany:Ukraine
+380:3264:Busk:Ukraine
+380:3265:Zolochiv-Lviv:Ukraine
+380:3266:Brody:Ukraine
+380:3269:Turka:Ukraine
+380:3322:Lutsk:Ukraine
+380:3342:Volodynyr-Vol.:Ukraine
+380:3342:Volynsk:Ukraine
+380:3344:Novovolynsk:Ukraine
+380:3346:Stara Vyzhivka:Ukraine
+380:3352:Kovel:Ukraine
+380:3357:Kam-Kashyrskyj:Ukraine
+380:3362:Lyubeshiv:Ukraine
+380:3363:Turijsk:Ukraine
+380:3365:Kivertsi:Ukraine
+380:3366:Ratne:Ukraine
+380:3368:Rozhyshe:Ukraine
+380:3372:Ivanychi:Ukraine
+380:3374:Lokachi:Ukraine
+380:3376:Manevychi:Ukraine
+380:3377:Lyuboml:Ukraine
+380:3379:Horikhiv:Ukraine
+380:3422:Ivano-Frankivsk:Ukraine
+380:3430:Horodenka:Ukraine
+380:3431:Halych-I-Frankiv:Ukraine
+380:3432:Verkhovyna:Ukraine
+380:3433:Kolomyya:Ukraine
+380:3434:Yaremcha:Ukraine
+380:3435:Rohatyn:Ukraine
+380:3436:Tysmenytsya:Ukraine
+380:3438:Burshtyn:Ukraine
+380:3471:Bohorodchany:Ukraine
+380:3472:Kalush:Ukraine
+380:3474:Rozhnyativ:Ukraine
+380:3475:Nadvirna:Ukraine
+380:3476:Snyatyn:Ukraine
+380:3477:Dolyna:Ukraine
+380:3478:Kosiv:Ukraine
+380:3479:Tlumach:Ukraine
+380:3522:Ternopil:Ukraine
+380:3540:Zboriv:Ukraine
+380:3541:Borshiv:Ukraine
+380:3543:Pidvolochysk:Ukraine
+380:3544:Buchach:Ukraine
+380:3546:Kremenets:Ukraine
+380:3547:Kozova:Ukraine
+380:3548:Berezhany:Ukraine
+380:3549:Lanivtsy:Ukraine
+380:3550:Zbarazh:Ukraine
+380:3551:Terebovlya:Ukraine
+380:3552:Chortkiv:Ukraine
+380:3553:Tsuman:Ukraine
+380:3554:Zalizhchyky:Ukraine
+380:3555:Monastyryska:Ukraine
+380:3557:Husyatyn:Ukraine
+380:3558:Shumsk:Ukraine
+380:3622:Rivne:Ukraine
+380:3632:Zarichne:Ukraine
+380:3633:Chervonoarmujsk:Ukraine
+380:3634:Volodymyrets:Ukraine
+380:3635:Rokytne-Rivne:Ukraine
+380:3636:Kuznetsovsk:Ukraine
+380:3650:Hosha:Ukraine
+380:3651:Korets:Ukraine
+380:3652:Zdolbuniv:Ukraine
+380:3653:Berezne:Ukraine
+380:3654:Ostroh:Ukraine
+380:3655:Sarny:Ukraine
+380:3656:Dubno:Ukraine
+380:3657:Kostopil:Ukraine
+380:3658:Dubrovytsya:Ukraine
+380:3659:Mlyniv:Ukraine
+380:3700:Chernivtsi:Ukraine
+380:3730:Vyzhnytsya:Ukraine
+380:3731:Khotyn:Ukraine
+380:3732:Kelmentsi:Ukraine
+380:3733:Novoselytsya:Ukraine
+380:3734:Hlyboka:Ukraine
+380:3735:Storozhynets:Ukraine
+380:3736:Kitsman:Ukraine
+380:3737:Zastavna:Ukraine
+380:3738:Putyla:Ukraine
+380:3739:Sokyryany:Ukraine
+380:3822:Khmelnytskyj:Ukraine
+380:3840:Shepetivka:Ukraine
+380:3841:Bilohirya:Ukraine
+380:3842:Slavuta:Ukraine
+380:3843:Polonne:Ukraine
+380:3844:Teofipol:Ukraine
+380:3845:Volochysk:Ukraine
+380:3846:Vinkivtsi:Ukraine
+380:3847:Nova Ushytsya:Ukraine
+380:3849:Kami-Podilskyj:Ukraine
+380:3850:Staraya Synyava:Ukraine
+380:3851:Horodok:Ukraine
+380:3852:Izyaslav:Ukraine
+380:3853:Yarmolyntsi:Ukraine
+380:3854:Starokostyantyniv:Ukraine
+380:3855:Krasyliv:Ukraine
+380:3856:Derazhnya:Ukraine
+380:3857:Letychiv:Ukraine
+380:3858:Dunayivtsi:Ukraine
+380:3859:Chemerivtsi:Ukraine
+380:4122:Zhytomyr:Ukraine
+380:4130:Korostyshiv:Ukraine
+380:4131:Chervonarmijsk:Ukraine
+380:4132:Radomyshl:Ukraine
+380:4133:Malyn:Ukraine
+380:4134:Chernyakhiv:Ukraine
+380:4135:Olevsk:Ukraine
+380:4136:Andrushivka:Ukraine
+380:4137:Popilnya:Ukraine
+380:4138:Ruzhyn:Ukraine
+380:4139:Chudniv:Ukraine
+380:4140:Narodychi:Ukraine
+380:4141:Novohrad-Volyn.:Ukraine
+380:4142:Korosten:Ukraine
+380:4143:Berdychiv:Ukraine
+380:4144:Baranivka:Ukraine
+380:4144:Dzerzhynsk:Ukraine
+380:4145:Volodar-Volyn.:Ukraine
+380:4147:Lyubar:Ukraine
+380:4149:Emilchyne:Ukraine
+380:4183:Ovruch:Ukraine
+380:4191:Luhyny:Ukraine
+380:4322:Vinnytsya:Ukraine
+380:4360:Tulchyn:Ukraine
+380:4361:Hnivan:Ukraine
+380:4362:Yampil:Ukraine
+380:4363:Chechelnyk:Ukraine
+380:4364:Ladyzhyn:Ukraine
+380:4365:Bershad:Ukraine
+380:4366:Bar:Ukraine
+380:4367:Teplyk:Ukraine
+380:4368:Pischanka:Ukraine
+380:4369:Mohyliv-Podilsk:Ukraine
+380:4370:Lityn:Ukraine
+380:4371:Kozyatyn:Ukraine
+380:4372:Lypovets:Ukraine
+380:4373:Tyvriv:Ukraine
+380:4374:Kryzhopil:Ukraine
+380:4375:Murovani Kuryl.:Ukraine
+380:4376:Sharhorod:Ukraine
+380:4377:Illintsi:Ukraine
+380:4378:Pohrebyshe:Ukraine
+380:4379:Orativ:Ukraine
+380:4391:Nemyriv:Ukraine
+380:4392:Tomashpil:Ukraine
+380:4394:Hajsyn:Ukraine
+380:4395:Khmilnyk:Ukraine
+380:4396:Kalinovka:Ukraine
+380:4396:Zhmerynka:Ukraine
+380:4397:Trostyanets:Ukraine
+380:44:Kyyiv:Ukraine
+380:4446:Tarasha:Ukraine
+380:4460:Tetyiyiv:Ukraine
+380:4461:Bohuslav:Ukraine
+380:4462:Rakytno-Kyyiv:Ukraine
+380:4463:Bila Tserkva:Ukraine
+380:4464:Stavyshe:Ukraine
+380:4465:Fastiv:Ukraine
+380:4467:Pereyaslavl-Khm:Ukraine
+380:4468:Skvyra:Ukraine
+380:4469:Volodarka:Ukraine
+380:4470:Zhurivka:Ukraine
+380:4471:Vasylkiv:Ukraine
+380:4472:Obukhiv:Ukraine
+380:4473:Kaharlyk:Ukraine
+380:4474:Myronivka:Ukraine
+380:4475:Yahotyn:Ukraine
+380:4476:Baryshivka:Ukraine
+380:4477:Borodyanka:Ukraine
+380:4478:Makariv:Ukraine
+380:4479:Slavutych:Ukraine
+380:448:Makariv:Ukraine
+380:4491:Ivankiv:Ukraine
+380:4492:Poliske:Ukraine
+380:4493:Chornobyl:Ukraine
+380:4494:Brovary:Ukraine
+380:4495:Boryspil:Ukraine
+380:4496:Vyshhorod:Ukraine
+380:4497:Irpin:Ukraine
+380:4499:Prypyat:Ukraine
+380:4622:Chernihiv:Ukraine
+380:4631:Nizhyn:Ukraine
+380:4632:Bobrovytsya:Ukraine
+380:4633:Ichnya:Ukraine
+380:4634:Talalayivka:Ukraine
+380:4635:Bakhmach:Ukraine
+380:4636:Varva:Ukraine
+380:4637:Pryluky:Ukraine
+380:4639:Sribne:Ukraine
+380:4641:Ripky:Ukraine
+380:4642:Nosivka:Ukraine
+380:4643:Kulykivka:Ukraine
+380:4644:Mena:Ukraine
+380:4645:Horodnya:Ukraine
+380:4646:Kozelets:Ukraine
+380:4653:Borzna:Ukraine
+380:4654:Shors:Ukraine
+380:4655:Sosnytsya:Ukraine
+380:4656:Korop:Ukraine
+380:4657:Koryukivka:Ukraine
+380:4658:Novhorod-Siversk:Ukraine
+380:4659:Semenivka:Ukraine
+380:472:Cherkasy:Ukraine
+380:4730:Chyhyryn:Ukraine
+380:4730:Myhyryn:Ukraine
+380:4731:Talne:Ukraine
+380:4732:Kamyanka:Ukraine
+380:4733:Smila:Ukraine
+380:4734:Horodyshe:Ukraine
+380:4735:Korsun:Ukraine
+380:4736:Kaniv:Ukraine
+380:4737:Zolotonosha:Ukraine
+380:4738:Drabiv:Ukraine
+380:4739:Chornobaj:Ukraine
+380:4740:Zvenyhorodka:Ukraine
+380:4741:Shpola:Ukraine
+380:4742:Katerynopil:Ukraine
+380:4744:Uman:Ukraine
+380:4745:Khrystynivka:Ukraine
+380:4746:Monastyryshe:Ukraine
+380:4747:Zhashkiv:Ukraine
+380:4748:Mankivka:Ukraine
+380:4749:Lysyanka:Ukraine
+380:482:Odesa:Ukraine
+380:4835:Kominternivsk:Ukraine
+380:4840:Reni:Ukraine
+380:4841:Izmayil:Ukraine
+380:4843:Kiliya:Ukraine
+380:4844:Tatarbunary:Ukraine
+380:4845:Artsyz:Ukraine
+380:4846:Bolhrad:Ukraine
+380:4847:Tarutyne:Ukraine
+380:4848:Sarata:Ukraine
+380:4849:Bilhorod-Dnistrov:Ukraine
+380:4851:Ovidiopol:Ukraine
+380:4852:Bilyayivka:Ukraine
+380:4853:Rozdilna:Ukraine
+380:4854:Ivanivka:Ukraine
+380:4856:Berezivka:Ukraine
+380:48572:Mykolayivka:Ukraine
+380:4858:Shyryaeve:Ukraine
+380:4859:Vel-Mykhajlivka:Ukraine
+380:4860:Frunzivka:Ukraine
+380:4861:Krasni Okny:Ukraine
+380:4862:Kotovsk:Ukraine
+380:4863:Anaiv:Ukraine
+380:4864:Lyubashivka:Ukraine
+380:4865:Savran:Ukraine
+380:4866:Balta:Ukraine
+380:4867:Kodyma:Ukraine
+380:4872:Mukolyivka:Ukraine
+380:510:Mykolayiv:Ukraine
+380:5131:Bratske:Ukraine
+380:5132:Arbuzynka:Ukraine
+380:5133:Kryve Ozero:Ukraine
+380:5134:Voznesensk:Ukraine
+380:5135:Vradiyivka:Ukraine
+380:5136:Yuzhnoukrayinsk:Ukraine
+380:5151:Novyj Buh:Ukraine
+380:5152:Domanivska:Ukraine
+380:5153:Berezanka:Ukraine
+380:5154:Ochakiv:Ukraine
+380:5158:Bashtanka:Ukraine
+380:5159:Elanets:Ukraine
+380:5161:Pervomajsk:Ukraine
+380:5162:Snyhiruvka:Ukraine
+380:5163:Veselynove:Ukraine
+380:5164:Kazanka:Ukraine
+380:5167:Nova Odesa:Ukraine
+380:5168:Bereznehuvate:Ukraine
+380:5222:Kirovohrad:Ukraine
+380:5233:Znamyanka:Ukraine
+380:5234:Dolynska:Ukraine
+380:5235:Oleksandrivka:Ukraine
+380:5236:Svitlovodsk:Ukraine
+380:5237:Petrove:Ukraine
+380:5238:Onufriyivka:Ukraine
+380:5239:Ustynivka:Ukraine
+380:5240:Kompaniyivka:Ukraine
+380:5241:Novhorodka:Ukraine
+380:5242:Oleksandriya:Ukraine
+380:5250:Olshanka:Ukraine
+380:5251:Novoukrayinka:Ukraine
+380:5252:Holovanivsk:Ukraine
+380:5253:Dobrovelichkivka:Ukraine
+380:5254:Hajvoron:Ukraine
+380:5255:Novoarkhanhelsk:Ukraine
+380:5256:Novomyrhorod:Ukraine
+380:5257:Bobrynets:Ukraine
+380:5258:Mala Vyska:Ukraine
+380:5259:Ulyanovka:Ukraine
+380:5322:Poltava:Ukraine
+380:5340:Chornukhy:Ukraine
+380:5341:Semenivka:Ukraine
+380:5342:Kozelshyna:Ukraine
+380:5343:Kobelyaky:Ukraine
+380:5344:Novi Sanzhary:Ukraine
+380:5345:V-Bahachka:Ukraine
+380:5346:Karlivka:Ukraine
+380:5347:Chutove:Ukraine
+380:5348:Komsomolsk:Ukraine
+380:5350:Kotelva:Ukraine
+380:5351:Dykanka:Ukraine
+380:5352:Shyshaky:Ukraine
+380:5353:Zinkiv:Ukraine
+380:5354:Hadyach:Ukraine
+380:5355:Myrhorod:Ukraine
+380:5356:Lokhvytsya:Ukraine
+380:5357:Orzhytsya:Ukraine
+380:5358:Pyryatyn:Ukraine
+380:5359:Hrebinka:Ukraine
+380:5361:Lubny:Ukraine
+380:5362:Khorol:Ukraine
+380:5363:Reshetylivka:Ukraine
+380:5364:Mashivka:Ukraine
+380:5365:Hlobyne:Ukraine
+380:5366:Kremenchuk:Ukraine
+380:5400:Sumy:Ukraine
+380:5442:Putyvl:Ukraine
+380:5443:Bilopillya:Ukraine
+380:5444:Hlukhiv:Ukraine
+380:5445:Lebedyn:Ukraine
+380:5446:Okhtyrka:Ukraine
+380:5447:Konotop:Ukraine
+380:5448:Romny:Ukraine
+380:5449:Shostka:Ukraine
+380:5451:Seredyna-Buda:Ukraine
+380:5452:Lypova Dolyna:Ukraine
+380:5453:Korolevets:Ukraine
+380:5453:Trostyanets:Ukraine
+380:5454:Buryn:Ukraine
+380:5455:Nedryhajliv:Ukraine
+380:5456:Yampil:Ukraine
+380:5457:Vel-Pysarivka:Ukraine
+380:5459:Krasnopillya:Ukraine
+380:5500:Kherson:Ukraine
+380:5531:Ivanivka:Ukraine
+380:5534:Henichesk:Ukraine
+380:5536:Kakhovka:Ukraine
+380:5537:Skadovsk:Ukraine
+380:5538:Chaplynka:Ukraine
+380:5539:Hola Prystan:Ukraine
+380:5540:Nyzhni Sirohozy:Ukraine
+380:5543:V-Lepetykha:Ukraine
+380:5544:Hornostayivka:Ukraine
+380:5545:V-Rohachyk:Ukraine
+380:5546:Beryslav:Ukraine
+380:5547:Bilozerka:Ukraine
+380:5548:Novotroyitske:Ukraine
+380:5549:Nova Kakhovka:Ukraine
+380:5571:Kalanchak:Ukraine
+380:5572:Novovorontsovka:Ukraine
+380:5573:Tsyurupynsk:Ukraine
+380:5574:V-Oleksandrivka:Ukraine
+380:5575:Vysokopillya:Ukraine
+380:5610:Tsarychanka:Ukraine
+380:5611:Mahdalynivka:Ukraine
+380:5612:Novomoskovsk:Ukraine
+380:5615:Synelnykove:Ukraine
+380:5616:Solenoe:Ukraine
+380:5617:Krynychky:Ukraine
+380:5618:Verkhnodniprovs:Ukraine
+380:562:Dnipropetrovsk:Ukraine
+380:564:Kryvyj Rih:Ukraine
+380:5650:Sofiyivka:Ukraine
+380:5651:Pyatykhatky:Ukraine
+380:5652:Zhovti-Vody:Ukraine
+380:5656:Apostolove:Ukraine
+380:5657:Shyroke:Ukraine
+380:5662:Nikopol:Ukraine
+380:5665:Marhanets:Ukraine
+380:5667:Ordzhonikidze:Ukraine
+380:5668:Tomakivka:Ukraine
+380:5670:Mezhova:Ukraine
+380:5671:Petropavlivka:Ukraine
+380:5672:Pavlohrad:Ukraine
+380:5673:Pershotravensk:Ukraine
+380:5678:Pokrovske:Ukraine
+380:5679:Vasylkivka:Ukraine
+380:5692:Dniprodzerzhynsk:Ukraine
+380:57:Kharkiv:Ukraine
+380:5740:Nova Vodolaha:Ukraine
+380:5741:Volchansk:Ukraine
+380:5742:Kupyansk:Ukraine
+380:5743:Izyum:Ukraine
+380:5744:Krasnohrad:Ukraine
+380:5745:Lozova:Ukraine
+380:5746:Chuhuyiv:Ukraine
+380:5747:Zmiyiv:Ukraine
+380:5748:Pervomajskyj:Ukraine
+380:5749:Balakliya:Ukraine
+380:5750:Dvorichna:Ukraine
+380:5751:Shevchenkovo:Ukraine
+380:5752:Velykyj Burluk:Ukraine
+380:5753:Valky:Ukraine
+380:5754:Blyznyuky:Ukraine
+380:5755:Kehychivka:Ukraine
+380:5756:Krasnokutsk:Ukraine
+380:5757:Barvinkove:Ukraine
+380:5758:Bohodukhiv:Ukraine
+380:5759:Borova:Ukraine
+380:5761:Zachepylivka:Ukraine
+380:5762:Sakhnovshyna:Ukraine
+380:5763:Derhachi:Ukraine
+380:5764:Zolochiv:Ukraine
+380:612:Zaporizhzhya:Ukraine
+380:6131:Akymivka:Ukraine
+380:6132:Mykhajlivka:Ukraine
+380:6133:Pryazovske:Ukraine
+380:6136:Vesele:Ukraine
+380:6137:Prymorsk:Ukraine
+380:6138:Kamyanka-Dniprov:Ukraine
+380:6139:Enerhodar:Ukraine
+380:614:Hulyajpole:Ukraine
+380:6140:Chernihivka:Ukraine
+380:6141:Orikhiv:Ukraine
+380:6142:Melitopol:Ukraine
+380:6143:Volnyansk:Ukraine
+380:6144:Hulyajpole:Ukraine
+380:6144:Novmukolyivka:Ukraine
+380:6147:Kujbyshevo:Ukraine
+380:6153:Berdyansk:Ukraine
+380:6165:Polohy:Ukraine
+380:6175:Dniprorudne:Ukraine
+380:6175:Vasylivka:Ukraine
+380:6178:Tokmak:Ukraine
+380:6212:Kurakhove:Ukraine
+380:6212:Maryinka:Ukraine
+380:6213:Vel-Novosilka:Ukraine
+380:6214:Dokuchaevsk:Ukraine
+380:6214:Novotroitsk:Ukraine
+380:6214:Olenivka:Ukraine
+380:6214:Volnovakha:Ukraine
+380:6216:Volodarsk:Ukraine
+380:6217:Starobesheve:Ukraine
+380:622:Donetsk:Ukraine
+380:6232:Makiyivka:Ukraine
+380:6236:Avdiyivka:Ukraine
+380:6236:Yasynuvata:Ukraine
+380:6237:Hornyak:Ukraine
+380:6237:Selydove:Ukraine
+380:6239:Krasnoarmijsk:Ukraine
+380:6239:Rodynske:Ukraine
+380:6242:Horlivka:Ukraine
+380:6247:Dzerzhynsk:Ukraine
+380:6247:Novhorodivka:Ukraine
+380:6249:Debaltseve:Ukraine
+380:6250:Kirovske:Ukraine
+380:6252:Enakieve:Ukraine
+380:6252:Yunokommunarivsk:Ukraine
+380:6254:Torez:Ukraine
+380:6255:Shakhtarsk:Ukraine
+380:6256:Snizhne:Ukraine
+380:6257:Ilovajsk:Ukraine
+380:6257:Khartsyzk:Ukraine
+380:6259:Amvrosyyivka:Ukraine
+380:6261:Krasnyj Lyman:Ukraine
+380:6262:Slovyanohirsk:Ukraine
+380:6262:Slovyansk:Ukraine
+380:6264:Kramatorsk:Ukraine
+380:6267:Druzhkivka:Ukraine
+380:6269:Oleksandrivka:Ukraine
+380:6272:Konstyantynivka:Ukraine
+380:6274:Artemivsk:Ukraine
+380:6274:Siversk:Ukraine
+380:6277:Dobropillya:Ukraine
+380:629:Maryupol:Ukraine
+380:6296:Novoazovsk:Ukraine
+380:6297:Pershotravneve:Ukraine
+380:6299:Telmanove:Ukraine
+380:642:Luhansk:Ukraine
+380:6431:Antratsyt:Ukraine
+380:6432:Krasnyj Luch:Ukraine
+380:6433:Rovenky:Ukraine
+380:6434:Sverdlovsk:Ukraine
+380:6435:Krasnodon:Ukraine
+380:6436:Lutuhyne:Ukraine
+380:6441:Perevalsk:Ukraine
+380:6442:Kommunarsk:Ukraine
+380:6443:Bryanka:Ukraine
+380:6444:Stakhanov:Ukraine
+380:6445:Novoajdar:Ukraine
+380:6446:Kirovsk:Ukraine
+380:6451:Lysychansk:Ukraine
+380:6452:Severodonetsk:Ukraine
+380:6453:Rubizhne:Ukraine
+380:6454:Kreminna:Ukraine
+380:6455:Pervomajsk:Ukraine
+380:6456:Troyitske:Ukraine
+380:6461:Starobelsk:Ukraine
+380:6462:Bilokurakyne:Ukraine
+380:6463:Novopskov:Ukraine
+380:6464:Markivka:Ukraine
+380:6465:Milove:Ukraine
+380:6466:Bilovodsk:Ukraine
+380:6471:Svatove:Ukraine
+380:6472:Stanychno-Luhans:Ukraine
+380:6473:Slovyanoserbsk:Ukraine
+380:6474:Popasna:Ukraine
+380:652:Simferopol:Ukraine
+380:654:Yalta:Ukraine
+380:6550:Nyzhnohirskyj:Ukraine
+380:6551:Sovetskyj:Ukraine
+380:6552:Pervomajske:Ukraine
+380:6553:Razdolne:Ukraine
+380:6554:Bakhchysaraj:Ukraine
+380:6555:Kyrovske:Ukraine
+380:6556:Krasnohvardijske:Ukraine
+380:6557:Lenine:Ukraine
+380:6558:Chornomorske:Ukraine
+380:6559:Bilohirsk:Ukraine
+380:6560:Alushta:Ukraine
+380:6561:Kerch:Ukraine
+380:6562:Feodosiya:Ukraine
+380:6563:Saky:Ukraine
+380:6564:Dzhankoj:Ukraine
+380:6565:Krasnoperekopsk:Ukraine
+380:6566:Sudak:Ukraine
+380:6569:Evpatoriya:Ukraine
+380:690:Sevastopol:Ukraine
+380:6997:Pershotravne:Ukraine
+381:11:Belgrade:Yugoslavia
+381:11:Belgrade:Serbia
+381:81:Titograd:Montenegro
+385:1:Zagreb:Croatia
+385:20:Dubrovnik:Croatia
+386:61:Ljubliana:Slovenia
+387:71:Sarajevo:Bosnia-Herzegovina
+389:91:Skopje:Macedonia
+420:2:Prague:Czech Republic
+420:164:Ostrov nad Ohri:Czech Republic
+420:165:Marianske Lazne:Czech Republic
+420:166:Cheb:Czech Republic
+420:168:Sokolov:Czech Republic
+420:169:Touzim:Czech Republic
+420:17:Karlovy Vary:Czech Republic
+420:181:Rokycany:Czech Republic
+420:182:Plasy:Czech Republic
+420:183:Stribro:Czech Republic
+420:184:Tachov:Czech Republic
+420:185:Blovice:Czech Republic
+420:186:Klatovy:Czech Republic
+420:187:Susice:Czech Republic
+420:188:Horsovsky Tyn:Czech Republic
+420:189:Domazlice:Czech Republic
+420:19:Plzen:Czech Republic
+420:2:Prague (Praha):Czech Republic
+420:202:Brandys nad Labem:Czech Republic
+420:203:Cesky Brod:Czech Republic
+420:204:Ricany u Prahy:Czech Republic
+420:205:Kralupy nad Vlt.:Czech Republic
+420:206:Melnik:Czech Republic
+420:2098:Davle (MTO):Czech Republic
+420:301:Benesov u Prahy:Czech Republic
+420:302:Votice:Czech Republic
+420:303:Vlasim:Czech Republic
+420:304:Sedicany:Czech Republic
+420:305:Dobris:Czech Republic
+420:306:Pribram:Czech Republic
+420:311:Beroun:Czech Republic
+420:312:Kladno:Czech Republic
+420:313:Rakovnik:Czech Republic
+420:314:Slany:Czech Republic
+420:316:Horovice:Czech Republic
+420:321:Kolin:Czech Republic
+420:322:Caslav:Czech Republic
+420:324:Podebrady:Czech Republic
+420:325:Nymburk:Czech Republic
+420:326:Mlada Boleslav:Czech Republic
+420:327:Kutna Hora:Czech Republic
+420:328:Uhlirske Janovice:Czech Republic
+420:329:Mnichovo Hradiste:Czech Republic
+420:331:Jindrichuv Hradec:Czech Republic
+420:332:Dacice:Czech Republic
+420:333:Trebon:Czech Republic
+420:334:Tyn nad Vltavou:Czech Republic
+420:335:Trhove Sviny:Czech Republic
+420:336:Kaplice:Czech Republic
+420:337:Cesky Krumlov:Czech Republic
+420:338:Prachatice:Czech Republic
+420:339:Vimperk:Czech Republic
+420:342:Strakonice:Czech Republic
+420:344:Blatna:Czech Republic
+420:35:Most:Czech Republic
+420:361:Tabor:Czech Republic
+420:362:Pisek:Czech Republic
+420:364:Kamenice nad Lipou:Czech Republic
+420:365:Pacov:Czech Republic
+420:367:Humpolec:Czech Republic
+420:38:Ceske Budejovice:Czech Republic
+420:363:Sobeslav:Czech Republic
+420:366:Pelhrimov:Czech Republic
+420:368:Milevsko:Czech Republic
+420:395:Louny:Czech Republic
+420:396:Chomutov:Czech Republic
+420:397:Zatec:Czech Republic
+420:398:Kadan:Czech Republic
+420:399:Podborany:Czech Republic
+420:40:Pardubice:Czech Republic
+420:411:Roudnice nad Labem:Czech Republic
+420:412:Decin:Czech Republic
+420:413:Rumburk:Czech Republic
+420:416:Litomerice:Czech Republic
+420:417:Teplice:Czech Republic
+420:419:Lovosice:Czech Republic
+420:424:Novy Bor:Czech Republic
+420:425:Ceska Lipa:Czech Republic
+420:427:Frydlant v Cechach:Czech Republic
+420:428:Jablonec nad Nisou:Czech Republic
+420:437:Dvur Kralove n.L.:Czech Republic
+420:431:Semily:Czech Republic
+420:432:Jilemnice:Czech Republic
+420:433:Jicin:Czech Republic
+420:434:Nova Paka:Czech Republic
+420:435:Horice v Podkrkonosi:Czech Republic
+420:436:Turnov:Czech Republic
+420:438:Vrchlabi:Czech Republic
+420:439:Trutnov:Czech Republic
+420:441:Nachod:Czech Republic
+420:442:Jaromer:Czech Republic
+420:443:Dobruska:Czech Republic
+420:444:Kostelec nad Orlici:Czech Republic
+420:445:Rychnov nad Kneznou:Czech Republic
+420:446:Zamberk:Czech Republic
+420:447:Broumov:Czech Republic
+420:448:Novy Bydzov:Czech Republic
+420:451:Havlickuv Brod:Czech Republic
+420:452:Ledec nad Sazavou:Czech Republic
+420:453:Chotebor:Czech Republic
+420:454:Hlinsko v Cechach:Czech Republic
+420:455:Chrudim:Czech Republic
+420:456:Holice:Czech Republic
+420:457:Prelouc:Czech Republic
+420:461:Svitavy:Czech Republic
+420:462:Moravska Trebov:Czech Republic
+420:463:Policka:Czech Republic
+420:464:Litomysl:Czech Republic
+420:465:Usti nad Orlici:Czech Republic
+420:467:Lanskroun:Czech Republic
+420:468:Vysoke Myto:Czech Republic
+420:47:Usti nad Labem:Czech Republic
+420:48:Liberec:Czech Republic
+420:49:Hradec Kralove:Czech Republic
+420:5:Brno:Czech Republic
+420:501:Boskovice:Czech Republic
+420:502:Rosice u Brna:Czech Republic
+420:503:Zidlochovice:Czech Republic
+420:504:Tisnov:Czech Republic
+420:505:Bystrice nad Pernstejnem:Czech Republic
+420:506:Blansko:Czech Republic
+420:507:Vyskov:Czech Republic
+420:508:Prostejov:Czech Republic
+420:509:Namest nad Oslavou:Czech Republic
+420:601:Eurotel NMT:Czech Republic
+420:602:Eurotel GSM:Czech Republic
+420:603:Radiomobil GSM, Paegas:Czech Republic
+420:606:Eurotel GSM:Czech Republic
+420:616:Zdar nad Sazavou:Czech Republic
+420:617:Moravske Budejovice:Czech Republic
+420:618:Trebic:Czech Republic
+420:619:Velke Mezirici:Czech Republic
+420:621:Moravsky Krumlov:Czech Republic
+420:624:Znojmo:Czech Republic
+420:625:Mikulov:Czech Republic
+420:626:Hustopece:Czech Republic
+420:627:Breclav:Czech Republic
+420:628:Hodonin:Czech Republic
+420:629:Kyjov:Czech Republic
+420:631:Veseli nad Moravou:Czech Republic
+420:632:Uherske Hradiste:Czech Republic
+420:633:Uhersky Brod:Czech Republic
+420:634:Kromeriz:Czech Republic
+420:635:Holesov:Czech Republic
+420:636:Valasske Klobouky:Czech Republic
+420:641:Prerov:Czech Republic
+420:642:Hranice:Czech Republic
+420:643:Sternberk:Czech Republic
+420:644:Litovel:Czech Republic
+420:645:Jesenik:Czech Republic
+420:646:Bruntal:Czech Republic
+420:647:Rymarov:Czech Republic
+420:648:Zabreh:Czech Republic
+420:649:Sumperk:Czech Republic
+420:651:Valasske Mezirici:Czech Republic
+420:652:Krnov:Czech Republic
+420:653:Opava:Czech Republic
+420:654:Vitkov:Czech Republic
+420:655:Bilovoc:Czech Republic
+420:656:Novy Jicin:Czech Republic
+420:657:Vsetin:Czech Republic
+420:658:Frydek-Mistok:Czech Republic
+420:659:Trinec:Czech Republic
+420:66:Jihlava:Czech Republic
+420:67:Zlin (Gottwaldov):Czech Republic
+420:68:Olomouc:Czech Republic
+420:69:Ostrava:Czech Republic
+420:6992:Bohumin (MTO):Czech Republic
+420:6993:Karvina (MTO):Czech Republic
+420:6994:Havirov (MTO):Czech Republic
+420:6995:Orlova (MTO):Czech Republic
+420:800:toll-free:Czech Republic
+421:2:Bratislava:Slovak Republic
+421:31:Dunajska-Streda:Slovak Republic
+421:32:Trencin:Slovak Republic
+421:33:Trnava:Slovak Republic
+421:34:Senica:Slovak Republic
+421:35:Nove Zamky:Slovak Republic
+421:36:Levice:Slovak Republic
+421:37:Nitra:Slovak Republic
+421:38:Topolcany:Slovak Republic
+421:41:Zilina:Slovak Republic
+421:42:Povazska Bystrica:Slovak Republic
+421:43:Martin:Slovak Republic
+421:44:Liptovsky Mikulas:Slovak Republic
+421:45:Zvolen:Slovak Republic
+421:46:Prievidza:Slovak Republic
+421:47:Lucenec:Slovak Republic
+421:48:Banska Bystrica:Slovak Republic
+421:51:Presov:Slovak Republic
+421:52:Poprad:Slovak Republic
+421:53:Spisska Nova Ves:Slovak Republic
+421:54:Bardejov:Slovak Republic
+421:55:Kosice:Slovak Republic
+421:56:Michalovce:Slovak Republic
+421:57:Humenne:Slovak Republic
+421:58:Roznava:Slovak Republic
+421:901:mobile - Eurotel NMT:Slovak Republic
+421:903:mobile - Eurotel GSM:Slovak Republic
+421:904:mobile - Eurotel GSM:Slovak Republic
+421:905:mobile - Orange GSM:Slovak Republic
+421:907:mobile - Orange GSM:Slovak Republic
+421:908:mobile - Orange GSM:Slovak Republic
+501:2:Belize City:Belize
+501:8:Belmopan:Belize
+502:2:Guatemala City:Guatemala
+502:9:Amatitlan:Guatemala
+502:9:Antigua:Guatemala
+502:9:Quezaltenango:Guatemala
+502:9:Villa Nueva:Guatemala
+503:::El Salvador
+504:::Honduras
+505:2:Managua:Nicaragua
+505:311:Leon:Nicaragua
+506:::Costa Rica
+507:::Panama, Rep. of
+508:::St. Pierre and Miquelon
+509:1:Port Au Prince:Haiti
+5399:::Guantanamo Bay (U.S. Naval Base)
+590:::Guadeloupe
+591:2:La Paz:Bolivia
+591:64:Sucre:Bolivia
+592:2:Georgetown:Guyana
+593:2:Quito:Ecuador
+593:4:Cuenca:Ecuador
+593:4:Guayaquil:Ecuador
+594:::French Guiana
+595:21:Asuncion:Paraguay
+596:::Martinique
+597:::Suriname
+598:2:Montevideo:Uruguay
+599:3:St. Eustatius:Netherlands Antilles
+599:4:Saba:Netherlands Antilles
+599:5:St. Maarten:Netherlands Antilles
+599:7:Bonaire:Netherlands Antilles
+599:9:Curacao:Netherlands Antilles
+670:::Saipan
+671:::Guam
+672:::Australian External Territories
+673:2:Bandar Seri Begawan:Brunei
+674:::Nauru
+675:::Papua New Guinea
+676:::Tonga Islands
+678:::Vanuatu
+679:::Fiji Islands
+680:::Palau
+681:::Wallis and Futuna
+682:::Cook Islands
+684:::American Samoa
+685:::Samoa
+686:::Kiribati (Gilbert Islands)
+687:::New Caledonia
+689:::French Polynesia (Moorea & Tahiti)
+690:::Tokelau
+691:320:Ponape:Micronesia, Fed. States of
+691:330:Truk:Micronesia, Fed. States of
+691:350:Yap:Micronesia, Fed. States of
+691:370:Kosrae:Micronesia, Fed. States of
+692:871:Ebeye:Marshall Islands
+692:9:Majuro:Marshall Islands
+850:::North Korea
+852:0:Castle Peak:Hong Kong
+852:0:Kwai Chung:Hong Kong
+852:0:Sha Tin:Hong Kong
+852:0:Tai Po:Hong Kong
+852:0:Tsun Wan:Hong Kong
+852:3:Kowloon:Hong Kong
+852:5:Hong Kong:Hong Kong
+852:5:Lantau:Hong Kong
+852:5:Ma Wan:Hong Kong
+852:5:Peng Chau:Hong Kong
+853:::Macao
+855:::Cambodia
+856:::Lao
+880:2:Dhaka:Bangladesh, People's Rep. of
+886:2:Taipei:Taiwan, Rep. of China
+886:6:Tainan:Taiwan, Rep. of China
+886:7:Kaohsiung:Taiwan, Rep. of China
+960:::Maldives, Rep. of
+961:::Lebanon
+962:6:Amman:Jordan
+963:::Syria
+964:1:Baghdad:Iraq
+965:::Kuwait
+966:1:Riyadh:Saudi Arabia
+966:2:Jeddah:Saudi Arabia
+966:2:Makkah:Saudi Arabia
+966:3:Damman:Saudi Arabia
+967:2:Sanaa:Yemen Arab Republic
+968:::Oman
+970:::Palestine
+971:2:Abu Dahabi:United Arab Emirates
+971:3:Al Ain:United Arab Emirates
+971:4:Dubai:United Arab Emirates
+971:52:Jebel Dhana:United Arab Emirates
+971:6:Ajman:United Arab Emirates
+971:6:Sharjah:United Arab Emirates
+971:6:Umm-Al-Quwain:United Arab Emirates
+971:70:Fujairah:United Arab Emirates
+972:2:Jerusalem:Israel
+972:3:Ramat Gan:Israel
+972:3:Tel Aviv:Israel
+972:4:Haifa:Israel
+972:65:Nazareth:Israel
+972:8:Rehovot:Israel
+973:::Bahrain
+974:::Qatar
+975:::Bhutan
+976:::Mongolia
+977:::Nepal
+992:::Tajikistan
+993:12:Ashgabat:Turkmenistan
+993:422:Charjou:Turkmenistan
+993:522:Mary:Turkmenistan
+994:::Azerbaijan
+995:::Georgia
+996:::Kyrghyzstan
+998:::Uzbekistan

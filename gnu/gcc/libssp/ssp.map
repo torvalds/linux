@@ -1,0 +1,9 @@
+LIBSSP_1.0 {
+  global:
+    __stack_chk_fail; __stack_chk_guard; __chk_fail;
+    __gets_chk; __memcpy_chk; __memmove_chk; __mempcpy_chk; __memset_chk;
+    __snprintf_chk; __sprintf_chk; __stpcpy_chk; __strcat_chk; __strcpy_chk;
+    __strncat_chk; __strncpy_chk; __vsnprintf_chk; __vsprintf_chk;
+  local:
+    *;
+};

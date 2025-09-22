@@ -1,0 +1,36 @@
+AS 1
+router-id 127.0.0.1
+socket "/var/run/bgpd.sock.0"
+listen on 0.0.0.0
+listen on ::
+
+
+vpn "a rdomain" on mpe0 {
+	rd 65002:1
+	export-target rt 65002:42 
+	import-target rt 65002:42 
+	fib-update yes
+	network 192.0.2.0/24
+}
+vpn "an other" on mpe1 {
+	rd 1:2
+	fib-update yes
+}
+vpn "test-vpn" on mpe2 {
+	rd 1:3
+	import-target rt 65002:42 
+	fib-update yes
+}
+vpn "test-full" on mpe3 {
+	rd 192.0.2.4:1
+	export-target rt 65002:42 
+	export-target rt 192.0.2.3:42 
+	import-target rt 65002:21 
+	import-target rt 192.0.2.3:21 
+	fib-update no
+	network 192.0.2.32/27
+}
+
+rde rib Adj-RIB-In no evaluate
+rde rib Loc-RIB rtable 0 fib-update yes
+

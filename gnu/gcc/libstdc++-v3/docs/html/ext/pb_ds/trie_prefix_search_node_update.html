@@ -1,0 +1,628 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>trie_prefix_search_node_update Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>trie_prefix_search_node_update</tt> Interface</h1>
+
+    <p>A node updater that allows tries to be searched for the
+    range of values that match a certain prefix.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/trie_policy.hpp"><tt>trie_policy.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Template Parameters</a></h2>
+
+    <table class="c1" width="100%" border="1" summary=
+    "Template Parameters">
+      <tr>
+        <td width="20%" align="left"><b>Parameter</b></td>
+
+        <td width="50%" align="left"><b>Description</b></td>
+
+        <td width="30%" align="left"><b>Default Value</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Const_Node_Iterator1933878761" id=
+"Const_Node_Iterator1933878761"><b>class</b> Const_Node_Iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Const node iterator type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Node_Iterator4206909839" id=
+"Node_Iterator4206909839"><b>class</b> Node_Iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Node iterator type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="E_Access_Traits686553840" id=
+"E_Access_Traits686553840"><b>class</b> E_Access_Traits</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Comparison functor.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Allocator35940069" id=
+"Allocator35940069"><b>class</b> Allocator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Allocator type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link3" id="link3">Key-Type Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="key_type10393186" id="key_type10393186">key_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+The instantiating container's key type.
+</pre>
+        </td>
+
+        <td>
+          <p>Key type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_key_reference3185471705" id=
+"const_key_reference3185471705">const_key_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+The instantiating container's const key reference type.
+</pre>
+        </td>
+
+        <td>
+          <p>Const key reference.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link4" id="link4">Policy Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="e_access_traits1948190928" id=
+"e_access_traits1948190928">e_access_traits</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#E_Access_Traits686553840"><tt>E_Access_Traits</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Element access traits.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_e_iterator2450008044" id=
+"const_e_iterator2450008044">const_e_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#e_access_traits1948190928"><tt>e_access_traits</tt></a>::const_iterator
+</pre>
+        </td>
+
+        <td>
+          <p>Const element iterator.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="allocator48440069" id="allocator48440069">allocator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Allocator35940069"><tt>Allocator</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p><a href="#Allocator35940069"><tt>Allocator</tt></a>
+          type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link5" id="link5">General Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="size_type55424436" id="size_type55424436">size_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::size_type
+</pre>
+        </td>
+
+        <td>
+          <p>Size type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link6" id="link6">Metadata-Type
+    Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="metadata_type2849297114" id=
+"metadata_type2849297114">metadata_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+pb_ds::detail::null_node_metadata
+</pre>
+        </td>
+
+        <td>
+          <p>Metadata type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link7" id="link7">Iterator Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_node_iterator4205924553" id=
+"const_node_iterator4205924553">const_node_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href=
+"#Const_Node_Iterator1933878761"><tt>Const_Node_Iterator</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Const node iterator type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="node_iterator3431975247" id=
+"node_iterator3431975247">node_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Node_Iterator4206909839"><tt>Node_Iterator</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Node iterator type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_iterator98626788" id=
+"const_iterator98626788">const_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#const_node_iterator4205924553"><tt>const_node_iterator</tt></a>::value_type
+</pre>
+        </td>
+
+        <td>
+          <p>Const iterator type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="iterator10418194" id="iterator10418194">iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#node_iterator3431975247"><tt>node_iterator</tt></a>::value_type
+</pre>
+        </td>
+
+        <td>
+          <p>Iterator type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link8" id="link8">Public Methods</a></h2>
+
+    <h3><a name="link9" id="link9">Find Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+std::pair&lt;
+    <a href="#const_iterator98626788"><tt>const_iterator</tt></a>,
+    <a href=
+"#const_iterator98626788"><tt>const_iterator</tt></a>&gt;
+  prefix_range
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Finds the <tt><b>const</b></tt> <a href=
+          "#iterator10418194"><tt>iterator</tt></a> range
+          corresponding to all values whose prefixes match
+          <span class="c1"><tt>r_key</tt></span>.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+std::pair&lt;
+    <a href="#iterator10418194"><tt>iterator</tt></a>,
+    <a href="#iterator10418194"><tt>iterator</tt></a>&gt;
+  prefix_range
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key)
+</pre>
+        </td>
+
+        <td>
+          <p>Finds the <a href=
+          "#iterator10418194"><tt>iterator</tt></a> range
+          corresponding to all values whose prefixes match
+          <span class="c1"><tt>r_key</tt></span>.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+std::pair&lt;
+    <a href="#const_iterator98626788"><tt>const_iterator</tt></a>,
+    <a href=
+"#const_iterator98626788"><tt>const_iterator</tt></a>&gt;
+  prefix_range
+  (<a href=
+"#const_e_iterator2450008044"><tt>const_e_iterator</tt></a> b,
+    <a href=
+"#const_e_iterator2450008044"><tt>const_e_iterator</tt></a> e) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Finds the <tt><b>const</b></tt> <a href=
+          "#iterator10418194"><tt>iterator</tt></a> range
+          corresponding to all values whose prefixes match [b,
+          <span class="c1"><tt>e</tt></span>).</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+std::pair&lt;
+    <a href="#iterator10418194"><tt>iterator</tt></a>,
+    <a href="#iterator10418194"><tt>iterator</tt></a>&gt;
+  prefix_range
+  (<a href=
+"#const_e_iterator2450008044"><tt>const_e_iterator</tt></a> b,
+    <a href=
+"#const_e_iterator2450008044"><tt>const_e_iterator</tt></a> e)
+</pre>
+        </td>
+
+        <td>
+          <p>Finds the <a href=
+          "#iterator10418194"><tt>iterator</tt></a> range
+          corresponding to all values whose prefixes match [b,
+          <span class="c1"><tt>e</tt></span>).</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link10" id="link10">Protected Methods</a></h2>
+
+    <h3><a name="link11" id="link11">Operators</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  <b>operator</b>()
+  (<a href=
+"#node_iterator3431975247"><tt>node_iterator</tt></a> node_it,
+    <a href=
+"#const_node_iterator4205924553"><tt>const_node_iterator</tt></a> end_nd_it) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Called to update a node's metadata.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link12" id="link12">Private Methods</a></h2>
+
+    <h3><a name="link13" id="link13">Overrides</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> <a href=
+"#const_iterator98626788"><tt>const_iterator</tt></a>
+  end
+  () <b>const</b> = 0
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the <tt><b>const</b></tt> <a href=
+          "#iterator10418194"><tt>iterator</tt></a> associated with
+          the just-after last element.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> <a href="#iterator10418194"><tt>iterator</tt></a>
+  end
+  () = 0
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the <a href=
+          "#iterator10418194"><tt>iterator</tt></a> associated with
+          the just-after last element.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> <a href=
+"#const_node_iterator4205924553"><tt>const_node_iterator</tt></a>
+  node_begin
+  () <b>const</b> = 0
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the <a href=
+          "#const_node_iterator4205924553"><tt>const_node_iterator</tt></a>
+          associated with the trie's root node.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> <a href=
+"#node_iterator3431975247"><tt>node_iterator</tt></a>
+  node_begin
+  () = 0
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the <a href=
+          "#node_iterator3431975247"><tt>node_iterator</tt></a>
+          associated with the trie's root node.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> <a href=
+"#const_node_iterator4205924553"><tt>const_node_iterator</tt></a>
+  node_end
+  () <b>const</b> = 0
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the <a href=
+          "#const_node_iterator4205924553"><tt>const_node_iterator</tt></a>
+          associated with a just-after leaf node.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> <a href=
+"#node_iterator3431975247"><tt>node_iterator</tt></a>
+  node_end
+  () = 0
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the <a href=
+          "#node_iterator3431975247"><tt>node_iterator</tt></a>
+          associated with a just-after leaf node.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> <b>const</b> <a href=
+"#e_access_traits1948190928"><tt>e_access_traits</tt></a> &amp;
+  get_e_access_traits
+  () <b>const</b> = 0
+</pre>
+        </td>
+
+        <td>
+          <p>Access to the cmp_fn object.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

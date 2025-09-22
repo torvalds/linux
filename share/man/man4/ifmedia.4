@@ -1,0 +1,573 @@
+.\"	$OpenBSD: ifmedia.4,v 1.30 2023/08/15 00:43:00 jsg Exp $
+.\"	$NetBSD: ifmedia.4,v 1.14 2001/06/30 17:57:56 bjh21 Exp $
+.\"
+.\" Copyright (c) 1998 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+.\" NASA Ames Research Center.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 15 2023 $
+.Dt IFMEDIA 4
+.Os
+.Sh NAME
+.Nm ifmedia
+.Nd network interface media settings
+.Sh SYNOPSIS
+.In sys/socket.h
+.In net/if.h
+.In net/if_media.h
+.Sh DESCRIPTION
+The
+.Nm
+interface provides a consistent method for querying and setting
+network interface media and media options.
+The media is typically set using the
+.Xr ifconfig 8
+command.
+.Pp
+Currently these link types are supported by
+.Nm ifmedia :
+.Pp
+.Bl -tag -offset indent -width IFM_IEEE80211 -compact
+.It Dv IFM_ETHER
+Ethernet
+.It Dv IFM_FDDI
+FDDI
+.It Dv IFM_IEEE80211
+IEEE802.11 Wireless LAN
+.It Dv IFM_TDM
+Time Division Multiplex
+.It Dv IFM_CARP
+CARP
+.El
+.Pp
+The following sections describe the possible media settings for each
+link type.
+Not all of these are supported by every device; refer to
+your device's manual page for more information.
+.Pp
+The lists below provide the possible names of each media type or option.
+The first name in the list is the canonical name of the media type or
+option.
+Additional names are acceptable aliases for the media type or option.
+.Sh COMMON MEDIA TYPES AND OPTIONS
+The following media types are shared by all link types:
+.Pp
+.Bl -tag -offset indent -width IFM_MANUAL -compact
+.It Dv IFM_AUTO
+Autoselect the best media.
+[autoselect, auto]
+.It Dv IFM_MANUAL
+Jumper or switch on device selects media.
+[manual]
+.It Dv IFM_NONE
+Deselect all media.
+[none]
+.El
+.Pp
+The following media options are shared by all link types:
+.Bl -tag -offset indent -width IFM_FLAG0
+.It Dv IFM_FDX
+Place the device into full-duplex mode.
+This option only has meaning if the device is normally not full-duplex.
+.It Dv IFM_HDX
+Place the device into half-duplex mode.
+This option only has meaning if the device is normally not half-duplex.
+[half-duplex, hdx]
+.It Dv IFM_FLOW
+Enable hardware flow control on device.
+.It Dv IFM_FLAG0
+Driver-defined flag.
+[flag0]
+.It Dv IFM_FLAG1
+Driver-defined flag.
+[flag1]
+.It Dv IFM_FLAG2
+Driver-defined flag.
+[flag2]
+.It Dv IFM_LOOP
+Place the device into hardware loopback mode.
+[loopback, hw-loopback, loop]
+.El
+.Sh MEDIA TYPES AND OPTIONS FOR ETHERNET
+The following media types are defined for Ethernet:
+.Bl -tag -offset indent -width IFM_10G_SFP_CU
+.It Dv IFM_10_T
+10BASE-T, 10Mb/s over unshielded twisted pair, RJ45 connector.
+[10baseT, UTP, 10UTP]
+.It Dv IFM_10_2
+10BASE2, 10Mb/s over coaxial cable, BNC connector; also called Thinnet.
+[10base2, BNC, 10BNC]
+.It Dv IFM_10_5
+10BASE5, 10Mb/s over 15-wire cables, DB15 connector; also called AUI.
+[10base5, AUI, 10AUI]
+.It Dv IFM_10_STP
+10BASE-STP, 10Mb/s over shielded twisted pair, DB9 connector.
+[10baseSTP, STP, 10STP]
+.It Dv IFM_10_FL
+10BASE-FL, 10Mb/s over fiber optic cables.
+[10baseFL, FL, 10FL]
+.It Dv IFM_100_TX
+100BASE-TX, 100Mb/s over unshielded twisted pair, RJ45 connector.
+[100baseTX, 100TX]
+.It Dv IFM_100_FX
+100BASE-FX, 100Mb/s over fiber optic cables.
+[100baseFX, 100FX]
+.It Dv IFM_100_T4
+100BASE-T4, 100Mb/s over 4-wire (category 3) unshielded twisted pair, RJ45
+connector.
+[100baseT4, 100T4]
+.It Dv IFM_100_T2
+100BASE-T2.
+[100baseT2, 100T2]
+.It Dv IFM_100_VG
+100VG-AnyLAN.
+[100baseVG, 100VG]
+.It Dv IFM_1000_SX
+1000BASE-SX, 1Gb/s over multi-mode fiber optic cables.
+[1000baseSX, 1000SX]
+.It Dv IFM_1000_LX
+1000BASE-LX, 1Gb/s over single-mode fiber optic cables.
+[1000baseLX, 1000LX]
+.It Dv IFM_1000_CX
+1000BASE-CX, 1Gb/s over shielded twisted pair.
+[1000baseCX, 1000CX]
+.It Dv IFM_1000_T
+1000BASE-T, 1Gb/s over category 5 unshielded twisted pair, RJ45 connector.
+[1000baseT, 1000T]
+.It Dv IFM_1000_TX
+Compatibility for 1000BASE-T.
+[1000baseTX, 1000TX]
+.It Dv IFM_2500_SX
+2500BASE-SX, 2.5Gb/s over multi-mode fiber optic cables.
+[2500baseSX, 2500SX]
+.It Dv IFM_2500_T
+2500BASE-T, 2.5Gb/s over unshielded twisted pair, RJ45 connector.
+[2500baseT, 2500BASE-T]
+.It Dv IFM_10G_CX4
+10GBASE-CX4, 10Gb/s over XAUI 4-lane PCS and copper cables.
+[10GbaseCX4, 10GCX4, 10GBASE-CX4]
+.It Dv IFM_10G_LR
+10GBASE-LR, 10Gb/s over single-mode fiber optic cables.
+[10GbaseLR, 10GLR, 10GBASE-LR]
+.It Dv IFM_10G_SFP_CU
+10GSFP+Cu, 10Gb/s over SFP+ Direct Attach cables.
+[10GSFP+Cu, 10GCu]
+.It Dv IFM_10G_SR
+10GBASE-SR, 10Gb/s over multi-mode fiber optic cables.
+[10GbaseSR, 10GSR, 10GBASE-SR]
+.It Dv IFM_10G_T
+10GBASE-T, 10Gb/s over unshielded twisted pair, RJ45 connector.
+[10GbaseT, 10GT, 10GBASE-T]
+.It Dv IFM_HPNA_1
+HomePNA 1.0, 1Mb/s over 2-wire (category 3) unshielded twisted pair
+[HomePNA1, HPNA1]
+.El
+.Pp
+The following media options are defined for Ethernet:
+.Bl -tag -offset indent -width IFM_ETH_RXPAUSE
+.It Dv IFM_ETH_MASTER
+Configure a 1000BASE-T PHY as a MASTER PHY.
+.It Dv IFM_ETH_RXPAUSE
+Receive flow control is enabled on the 1000BASE-T PHY.
+.It Dv IFM_ETH_TXPAUSE
+Transmit flow control is enabled on the 1000BASE-T PHY.
+.El
+.Sh MEDIA TYPES AND OPTIONS FOR FDDI
+The following media types are defined for FDDI:
+.Pp
+.Bl -tag -offset indent -width IFM_FDDI_SMF -compact
+.It Dv IFM_FDDI_SMF
+Single-mode fiber.
+[Single-mode, SMF]
+.It Dv IFM_FDDI_MMF
+Multi-mode fiber.
+[Multi-mode, MMF]
+.It Dv IFM_FDDI_UTP
+Unshielded twisted pair, RJ45 connector.
+[UTP, CDDI]
+.El
+.Pp
+The following media options are defined for FDDI:
+.Bl -tag -offset indent -width IFM_FDDI_DA
+.It Dv IFM_FDDI_DA
+Dual-attached station vs. Single-attached station.
+[dual-attach, das]
+.El
+.Sh MEDIA TYPES AND OPTIONS FOR IEEE802.11 WIRELESS LAN
+The following media modes are defined for IEEE802.11 Wireless LAN:
+.Pp
+.Bl -tag -offset indent -width IFM_IEEE80211_11AC -compact
+.It Dv IFM_IEEE80211_11A
+5GHz, OFDM mode.
+[11a]
+.It Dv IFM_IEEE80211_11B
+2GHz, DSSS/CCK mode.
+[11b]
+.It Dv IFM_IEEE80211_11G
+2GHz, DSSS/CCK/OFDM mode.
+[11g]
+.It Dv IFM_IEEE80211_FH
+2GHz, GFSK mode.
+[fh]
+.It Dv IFM_IEEE80211_11N
+2GHz/5GHz, HT mode.
+[11n]
+.It Dv IFM_IEEE80211_11AC
+5GHz, VHT mode.
+[11ac]
+.El
+.Pp
+The following media options are defined for IEEE802.11 Wireless LAN:
+.Pp
+.Bl -tag -offset indent -width IFM_IEEE80211_IBSSMASTER -compact
+.It Dv IFM_IEEE80211_ADHOC
+Ad-hoc mode.
+[adhoc]
+.It Dv IFM_IEEE80211_HOSTAP
+Host Access Point mode.
+[hostap]
+.It Dv IFM_IEEE80211_IBSS
+IBSS mode.
+[ibss]
+.It Dv IFM_IEEE80211_IBSSMASTER
+IBSS master mode.
+[ibssmaster]
+.It Dv IFM_IEEE80211_MONITOR
+Monitor mode.
+[monitor]
+.El
+.Pp
+All of the above media options are mutually exclusive.
+If no media option is used, the wireless interface will try to find an
+access point to connect to.
+.Cm hostap
+mode allows the wireless interface to act as an access point for other
+802.11 devices.
+.Cm ibss
+mode is the standardized method of operating without an access point, with
+each participating device taking on part of the role of an access point.
+.Cm adhoc
+mode, more accurately known as
+.Em ad-hoc demo mode ,
+is not specified by the IEEE 802.11 standard and only works with
+.Xr wi 4
+devices.
+Likewise,
+.Cm ibssmaster
+mode only works with
+.Xr wi 4
+devices.
+On standard 802.11 networks the IBSS master role is assigned automatically.
+.Pp
+The channels detailed below are defined for IEEE802.11 Wireless LAN
+in the 2.4GHz band.
+The list of available frequencies is dependent on radio regulations
+specified by regional authorities.
+Recognized regulatory authorities include
+the FCC (United States), ETSI (Europe), and Japan.
+Frequencies in the table are specified in MHz.
+.Bl -column "Channel " "2412" "ETSI" "Japan" -offset indent
+.It Em Channel Ta Em FCC Ta Em ETSI Ta Em Japan
+.It 1 Ta 2412 Ta 2412 Ta 2412
+.It 2 Ta 2417 Ta 2417 Ta 2417
+.It 3 Ta 2422 Ta 2422 Ta 2422
+.It 4 Ta 2427 Ta 2427 Ta 2427
+.It 5 Ta 2432 Ta 2432 Ta 2432
+.It 6 Ta 2437 Ta 2437 Ta 2437
+.It 7 Ta 2442 Ta 2442 Ta 2442
+.It 8 Ta 2447 Ta 2447 Ta 2447
+.It 9 Ta 2452 Ta 2452 Ta 2452
+.It 10 Ta 2457 Ta 2457 Ta 2457
+.It 11 Ta 2462 Ta 2462 Ta 2462
+.It 12 Ta - Ta 2467 Ta 2467
+.It 13 Ta - Ta 2472 Ta 2472
+.It 14 Ta - Ta - Ta 2484
+.El
+.Pp
+The channels do overlap; the bandwidth required for each channel is about 20MHz.
+When using multiple channels in close proximity, it is suggested
+that channels be separated by at least 25MHz.
+In the US, this means that only channels 1, 6, and 11 may be used
+simultaneously without interference.
+.Pp
+Channels in the 5GHz band are too numerous to list here.
+Regulation of their use, particularly outdoors, varies between countries.
+Users are advised to inform themselves about applicable regulations before
+configuring wireless LAN devices for use in the 5GHz band.
+.Pp
+The following media types are defined for IEEE802.11 Wireless LAN:
+.Pp
+.Bl -tag -offset indent -width IFM_IEEE80211_FH1 -compact
+.It Dv IFM_IEEE80211_FH1
+Frequency Hopping 1Mbps.
+[FH1]
+.It Dv IFM_IEEE80211_FH2
+Frequency Hopping 2Mbps.
+[FH2]
+.It Dv IFM_IEEE80211_DS1
+Direct Sequence 1Mbps.
+[DS1]
+.It Dv IFM_IEEE80211_DS2
+Direct Sequence 2Mbps.
+[DS2]
+.El
+.Pp
+The above media types were first introduced in the IEEE 802.11-1997 standard
+and are used in the 2.4GHz band only.
+Frequency Hopping Spread Spectrum modulation is incompatible with modern
+802.11 networks.
+Direct Sequence Spread Spectrum modulation (DSSS) frames can still be used if
+backwards compatibility to 802.11b is enabled.
+.Pp
+.Bl -tag -offset indent -width IFM_IEEE80211_DS22 -compact
+.It Dv IFM_IEEE80211_DS5
+Direct Sequence 5.5Mbps.
+[DS5]
+.It Dv IFM_IEEE80211_DS11
+Direct Sequence 11Mbps.
+[DS11]
+.It Dv IFM_IEEE80211_DS22
+Direct Sequence 22Mbps.
+[DS22]
+.El
+.Pp
+The above media types were first introduced in the IEEE 802.11b-1999 standard
+and are used in the 2.4GHz band only.
+They use Complementary Code Keying (CCK) which, compared to frames sent at
+1Mbps or 2Mbps, reduces the possible distance between transmitter and receiver.
+.Pp
+Modern 802.11 networks remain compatible with 802.11b, even though DSSS frames
+are incompatible with modern 802.11 frames using OFDM.
+Co-existence with 802.11b requires OFDM transmitters to either risk frame
+collisions or
+.Dq reserve
+the medium with a separate preceding transmission that DSSS receivers are
+able to decode.
+This causes additional overhead which some 802.11 deployments avoid by
+deliberately disabling backwards compatibility with 802.11b.
+.Pp
+.Bl -tag -offset indent -width IFM_IEEE80211_VHT_MCSx -compact
+.It Dv IFM_IEEE80211_OFDM6
+OFDM 6Mbps.
+[OFDM6]
+.It Dv IFM_IEEE80211_OFDM9
+OFDM 9Mbps.
+[OFDM9]
+.It Dv IFM_IEEE80211_OFDM12
+OFDM 12Mbps.
+[OFDM12]
+.It Dv IFM_IEEE80211_OFDM18
+OFDM 18Mbps.
+[OFDM18]
+.It Dv IFM_IEEE80211_OFDM24
+OFDM 24Mbps.
+[OFDM24]
+.It Dv IFM_IEEE80211_OFDM36
+OFDM 36Mbps.
+[OFDM36]
+.It Dv IFM_IEEE80211_OFDM48
+OFDM 48Mbps.
+[OFDM48]
+.It Dv IFM_IEEE80211_OFDM54
+OFDM 54Mbps.
+[OFDM54]
+.It Dv IFM_IEEE80211_OFDM72
+OFDM 72Mbps.
+[OFDM72]
+.El
+.Pp
+The above media types were first introduced in the IEEE 802.11a-1999
+standard for the 5GHz band, and in the IEEE 802.11g-2003 standard
+for the 2.4GHz band.
+OFDM with 72Mbps is a proprietary extension and was never standardized
+by IEEE.
+.Pp
+Orthogonal Frequency Division Multiplexing (OFDM) is the current
+standard modulation technique for 802.11.
+Each 20MHz channel used by 802.11a and 802.11g provides space for
+48 OFDM sub-carriers for data.
+The sub-carriers use BPSK, QPSK, 16QAM, or 64QAM modulation, combined with
+a particular coding rate for error correction at the receiver.
+The coding rate specifies how many data bits in a frame are transmitted
+without redundancy.
+.Bl -column "Modulation" "Coding Rate " "Mbit/s" -offset 6n
+.It Em Modulation Ta Em Coding Rate Ta Em Mbit/s
+.It BPSK Ta 1/2 Ta 6
+.It BPSK Ta 3/4 Ta 9
+.It QPSK Ta 1/2 Ta 12
+.It QPSK Ta 3/4 Ta 18
+.It 16QAM Ta 1/2 Ta 24
+.It 16QAM Ta 3/4 Ta 36
+.It 64QAM Ta 1/2 Ta 48
+.It 64QAM Ta 3/4 Ta 52
+.El
+.Pp
+The IEEE 802.11n-2009 standard for
+.Dq High Throughput
+(HT) wireless LAN defines additional sub-carriers, modulations, and
+coding rates.
+The channel bandwidth for data frame transmissions was optionally extended
+to 40MHz, with full backwards compatibility to 802.11a/b/g devices which
+cannot decode 40MHz transmissions.
+Several additional features were introduced, most notably MIMO (multiple-input,
+multiple-output).
+With MIMO, a data stream is divided across up to 4
+.Dq spatial streams ,
+which are transmitted in parallel by a corresponding amount of antennas.
+Each spatial stream is received with a dedicated antenna, and the spatial
+streams are de-multiplexed to obtain the original data stream.
+.Pp
+802.11n assigns a numeric identifier to all possible combinations of
+modulation, coding rate, and number of spatial streams.
+This results in 77 distinct modulation and coding schemes, abbreviated as
+.Dq MCS .
+.Pp
+.Nm ifmedia
+supports HT_MCS0 up to HT_MCS31:
+.Pp
+.Bl -tag -offset indent -width IFM_IEEE80211_VHT_MCSx -compact
+.It Dv IFM_IEEE80211_HT_MCSx
+HT OFDM MCS x (where x is in the range 0 - 31, inclusive).
+[HT-MCSx]
+.El
+.Pp
+In practice, only MCS-0 to MCS-32 are supported by commonly available devices.
+The remaining MCS define combinations where distinct spatial streams employ
+distinct modulations, a feature which was not widely implemented by hardware
+vendors.
+.Pp
+The IEEE 802.11ac-2013 standard for
+.Dq Very High Throughput
+(VHT) wireless LAN operates in the 5GHz band only.
+The channel bandwidth for data frame transmissions can be up to 160MHz wide.
+The MCS identifiers were redefined and vastly reduced in number.
+As a result, only VHT_MCS0 to VHT_MCS9 are defined for 802.11ac:
+.Pp
+.Bl -tag -offset indent -width IFM_IEEE80211_VHT_MCSx -compact
+.It Dv IFM_IEEE80211_VHT_MCSx
+VHT OFDM MCS x (where x is in the range 0 - 9, inclusive).
+[VHT-MCSx]
+.El
+.Pp
+The number of spatial streams is no longer associated with a given VHT MCS
+identifier and must be specified as a separate
+.Dq NSS
+parameter.
+This parameter is not yet implemented by
+.Nm ifmedia .
+.Sh MEDIA TYPES AND OPTIONS FOR TDM
+The following media types are defined for TDM:
+.Bl -tag -offset indent -width IFM_TDM_E1_G704_CRC4
+.It Dv IFM_TDM_E1
+E1, 2048kb/s HDB3 encoded, G.703 clearchannel serial line.
+[e1]
+.It Dv IFM_TDM_E1_AMI
+E1, 2048kb/s AMI encoded, G.703 clearchannel serial line.
+[e1-ami]
+.It Dv IFM_TDM_E1_AMI_G704
+E1, 2048kb/s AMI encoded, G.704 structured serial line.
+[e1-ami-g.704]
+.It Dv IFM_TDM_E1_G704
+E1, 2048kb/s HDB3 encoded, G.704 structured serial line.
+[e1-g.704]
+.It Dv IFM_TDM_E1_G704_CRC4
+E1, 2048kb/s HDB3 encoded, G.704 structured serial line with CRC4 checksum.
+[e1-g.704-crc4]
+.It Dv IFM_TDM_E3
+E3, 34368kb/s HDB3 encoded, G.703 clearchannel serial line.
+[e3]
+.It Dv IFM_TDM_E3_G751
+E3, 34368kb/s HDB3 encoded, G.751 structured serial line.
+[e3-g.751]
+.It Dv IFM_TDM_E3_G832
+E3, 34368kb/s HDB3 encoded, G.832 structured serial line.
+[e3-g.832]
+.It Dv IFM_TDM_T1
+T1, 1536xkb/s B8ZS encoded, extended super frame (ESF) structured serial line.
+[t1]
+.It Dv IFM_TDM_T1_AMI
+T1, 1536kb/s AMI encoded, super frame (SF) structured serial line.
+[t1-ami]
+.It Dv IFM_TDM_T3
+T3, 44736kb/s B3ZS, C-bit structured serial line.
+[t3]
+.It Dv IFM_TDM_T3_M13
+T3, 44736kb/s B3ZS, M13 structured serial line.
+[t3-m13]
+.El
+.Pp
+The following media options are defined for TDM:
+.Bl -tag -offset indent -width IFM_TDM_HDLC_CRC16
+.It Dv IFM_TDM_HDLC_CRC16
+Cisco HDLC with 16-bit CRC checksum encoding.
+[hdlc-crc16]
+.It Dv IFM_TDM_FR_ANSI
+ANSI/ITU Framerelay encoding.
+[framerelay-ansi, framerelay-itu]
+.It Dv IFM_TDM_FR_CISCO
+Cisco Framerelay encoding.
+[framerelay-cisco]
+.It Dv IFM_TDM_PPP
+PPP encoding.
+[ppp]
+.El
+.Pp
+By default TDM interfaces will use Cisco HDLC encoding with a 32-bit CRC
+checksum.
+.Pp
+The following media modes are defined for TDM:
+.Bl -tag -offset indent -width IFM_TDM_MASTER
+.It Dv IFM_TDM_MASTER
+Use local clock source as master clock.
+[master]
+.El
+.Sh MEDIA TYPES AND OPTIONS FOR CARP
+.Xr carp 4
+does not support any media types or options.
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Bsx 3.0 .
+The implementation that appeared in
+.Nx 1.3
+was written by Jonathan Stone and Jason R. Thorpe to be compatible with
+the BSDI API.
+It has since gone through several revisions which have extended the
+API while maintaining backwards compatibility with the original API.
+.Pp
+Support for the
+.Sy IEEE802.11 Wireless LAN
+link type was added in
+.Nx 1.5 .
+.Pp
+.Sy Host AP
+mode was added in
+.Ox 3.1 .

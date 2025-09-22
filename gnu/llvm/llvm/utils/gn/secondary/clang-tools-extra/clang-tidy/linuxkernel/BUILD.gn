@@ -1,0 +1,17 @@
+static_library("linuxkernel") {
+  output_name = "clangTidyLinuxKernelModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "LinuxKernelTidyModule.cpp",
+    "MustCheckErrsCheck.cpp",
+  ]
+}

@@ -1,0 +1,147 @@
+import("//clang/runtimes.gni")
+
+declare_args() {
+  # Use exceptions.
+  libcxxabi_enable_exceptions = true
+
+  # Build libc++abi with definitions for operator new/delete.
+  libcxxabi_enable_new_delete_definitions = true
+
+  # Build libcxxabi as a shared library.
+  libcxxabi_enable_shared = true
+
+  # Build libcxxabi as a static library.
+  libcxxabi_enable_static = true
+
+  # Do not export any symbols from the static library.
+  libcxxabi_hermetic_static_library = true
+}
+
+cxxabi_headers = [
+  # Make `gn format` not collapse this, for sync_source_lists_from_cmake.py.
+  "../include/cxxabi.h",
+]
+
+cxxabi_sources = [
+  # C++ABI files
+  "cxa_aux_runtime.cpp",
+  "cxa_default_handlers.cpp",
+  "cxa_demangle.cpp",
+  "cxa_exception_storage.cpp",
+  "cxa_guard.cpp",
+  "cxa_handlers.cpp",
+  "cxa_vector.cpp",
+  "cxa_virtual.cpp",
+
+  # C++ STL files
+  "stdlib_exception.cpp",
+  "stdlib_stdexcept.cpp",
+  "stdlib_typeinfo.cpp",
+
+  # Internal files
+  "abort_message.cpp",
+  "fallback_malloc.cpp",
+  "private_typeinfo.cpp",
+]
+if (libcxxabi_enable_new_delete_definitions) {
+  cxxabi_sources += [ "stdlib_new_delete.cpp" ]
+}
+if (libcxxabi_enable_exceptions) {
+  cxxabi_sources += [
+    "cxa_exception.cpp",
+    "cxa_personality.cpp",
+  ]
+} else {
+  cxxabi_sources += [ "cxa_noexception.cpp" ]
+}
+if (target_os == "linux" || target_os == "fuchsia") {
+  cxxabi_sources += [ "cxa_thread_atexit.cpp" ]
+}
+
+config("cxxabi_config") {
+  include_dirs = [
+    "//libcxxabi/include",
+
+    # Some files depend on libc++ internals.
+    "//libcxx/src",
+  ]
+  cflags_cc = [
+    "-std=c++23",
+    "-nostdinc++",
+  ]
+  defines = [
+    "_LIBCXXABI_BUILDING_LIBRARY",
+    "_LIBCPP_BUILDING_LIBRARY",
+  ]
+  if (target_os == "win") {
+    defines += [ "_LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS" ]
+  }
+}
+
+if (libcxxabi_enable_shared) {
+  shared_library("cxxabi_shared") {
+    output_dir = runtimes_dir
+    output_name = "c++abi"
+    if (target_os == "linux" || target_os == "mac") {
+      cflags = [ "-fPIC" ]
+      ldflags = [ "-nostdlib++" ]
+      libs = [
+        "dl",
+        "pthread",
+      ]
+    }
+    sources = cxxabi_sources
+    public = cxxabi_headers
+    deps = [
+      "//compiler-rt/lib/builtins",
+      "//libcxx/include",
+      "//libunwind/src:unwind_shared",
+    ]
+    configs += [ ":cxxabi_config" ]
+    configs -= [
+      "//llvm/utils/gn/build:no_exceptions",
+      "//llvm/utils/gn/build:no_rtti",
+    ]
+  }
+}
+
+if (libcxxabi_enable_static) {
+  static_library("cxxabi_static") {
+    output_dir = runtimes_dir
+    output_name = "c++abi"
+    complete_static_lib = true
+    configs -= [ "//llvm/utils/gn/build:thin_archive" ]
+    sources = cxxabi_sources
+    public = cxxabi_headers
+    if (libcxxabi_hermetic_static_library) {
+      cflags = [ "-fvisibility=hidden" ]
+      if (libcxxabi_enable_new_delete_definitions) {
+        cflags_cc = [ "-fvisibility-global-new-delete=force-hidden" ]
+      }
+      defines = [
+        "_LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS",
+        "_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS",
+      ]
+    }
+    deps = [
+      "//compiler-rt/lib/builtins",
+      "//libcxx/include",
+      "//libunwind/src:unwind_static",
+    ]
+    configs += [ ":cxxabi_config" ]
+    configs -= [
+      "//llvm/utils/gn/build:no_exceptions",
+      "//llvm/utils/gn/build:no_rtti",
+    ]
+  }
+}
+
+group("src") {
+  deps = []
+  if (libcxxabi_enable_shared) {
+    deps += [ ":cxxabi_shared" ]
+  }
+  if (libcxxabi_enable_static) {
+    deps += [ ":cxxabi_static" ]
+  }
+}

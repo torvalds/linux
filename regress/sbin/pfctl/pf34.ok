@@ -1,0 +1,5 @@
+pass in inet from any to 127.0.0.1 flags S/SA
+pass in inet6 from any to 2000::1 flags S/SA
+pass in all flags S/SA probability 50%
+pass in all flags S/SA probability 50%
+pass in inet6 proto tcp from ::1 to any flags S/SA probability 0.8%

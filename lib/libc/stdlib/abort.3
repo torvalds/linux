@@ -1,0 +1,77 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: abort.3,v 1.11 2014/05/14 21:54:20 tedu Exp $
+.\"
+.Dd $Mdocdate: May 14 2014 $
+.Dt ABORT 3
+.Os
+.Sh NAME
+.Nm abort
+.Nd cause abnormal program termination
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft void
+.Fn abort void
+.Sh DESCRIPTION
+The
+.Fn abort
+function causes abnormal program termination to occur, unless the signal
+.Dv SIGABRT
+is being caught and the signal handler does not return.
+.Pp
+Some implementations may flush output streams before terminating.
+This implementation does not.
+.Sh RETURN VALUES
+The
+.Fn abort
+function never returns.
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr exit 3
+.Sh STANDARDS
+The
+.Fn abort
+function conforms to
+.St -p1003.1-90 .
+.Sh HISTORY
+The
+.Fn abort
+function first appeared in
+.At v5 .
+.Pp
+Historically, previous standards required
+.Fn abort
+to flush and close output streams, but this conflicted with the requirement
+that
+.Fn abort
+be async signal safe.
+As a result, the flushing requirement was dropped.

@@ -1,0 +1,136 @@
+.\" $OpenBSD: kgmon.8,v 1.14 2016/09/25 23:31:50 deraadt Exp $
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)kgmon.8	8.1 (Berkeley) 6/6/93
+.\"
+.Dd $Mdocdate: September 25 2016 $
+.Dt KGMON 8
+.Os
+.Sh NAME
+.Nm kgmon
+.Nd generate a dump of the operating system's profile buffers
+.Sh SYNOPSIS
+.Nm kgmon
+.Op Fl bhpr
+.Op Fl c Ar cpuid
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Sh DESCRIPTION
+.Nm kgmon
+is a tool used when profiling the operating system.
+When no arguments are supplied,
+.Nm kgmon
+indicates the state of per-CPU operating system profilings as
+.Dq running ,
+.Dq off ,
+or
+.Dq not configured
+(see
+.Xr config 8 ) .
+If the
+.Fl p
+flag is specified,
+.Nm kgmon
+extracts profile data from the operating system and produces a file for each
+CPU suitable for later analysis by
+.Xr gprof 1 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl b
+Resume the collection of profile data.
+.It Fl c Ar cpuid
+Operate on the CPU specified by
+.Pa cpuid ,
+instead of all of them.
+.It Fl h
+Stop the collection of profile data.
+.It Fl M Ar core
+Extract values associated with the name list from the specified
+.Ar core
+instead of the default
+.Pa /dev/kmem .
+.It Fl N Ar system
+Extract the name list from the specified
+.Ar system
+instead of the default
+.Pa /bsd .
+.It Fl p
+Dump the contents of the profile buffers into a
+.Pa gmon-<id>.out
+file, where
+.Dq id
+is the ID of the CPU.
+.It Fl r
+Reset all the profile buffers.
+If the
+.Fl p
+flag is also specified, the profile files are generated before the buffers are
+reset.
+.El
+.Pp
+If neither
+.Fl b
+nor
+.Fl h
+is specified, the state of profiling collection remains unchanged.
+For example, if the
+.Fl p
+flag is specified and profile data is being collected,
+profiling will be momentarily suspended,
+the operating system profile buffers will be dumped,
+and profiling will be immediately resumed.
+.Pp
+.Nm
+requires the ability to open
+.Pa /dev/kmem
+which may be restricted based upon the value of the
+.Ar kern.allowkmem
+.Xr sysctl 8 .
+.Sh FILES
+.Bl -tag -width /dev/kmemx -compact
+.It Pa /bsd
+default system
+.It Pa /dev/kmem
+default memory
+.El
+.Sh DIAGNOSTICS
+Users with only read permission on
+.Pa /dev/kmem
+cannot change the state
+of profiling collection.
+They can get profile files with the warning that the data may be inconsistent
+if profiling is in progress.
+.Sh SEE ALSO
+.Xr gprof 1 ,
+.Xr config 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

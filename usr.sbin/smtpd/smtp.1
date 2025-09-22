@@ -1,0 +1,142 @@
+.\"	$OpenBSD: smtp.1,v 1.14 2021/05/23 16:12:56 eric Exp $
+.\"
+.\" Copyright (c) 2018, Eric Faurot <eric@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 23 2021 $
+.Dt SMTP 1
+.Os
+.Sh NAME
+.Nm smtp
+.Nd Simple Mail Transfer Protocol client
+.Sh SYNOPSIS
+.Nm
+.Op Fl Chnv
+.Op Fl a Ar authfile
+.Op Fl F Ar from
+.Op Fl H Ar helo
+.Op Fl s Ar server
+.Op Fl T Ar params
+.Op Ar recipient ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is a Simple Mail Transfer Protocol
+.Pq SMTP
+client which can be used to run an SMTP transaction against an SMTP server.
+.Pp
+By default,
+.Nm
+reads the mail content from the standard input, establishes an SMTP session,
+and runs an SMTP transaction for all the specified recipients.
+The content is sent unaltered as mail data.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a Ar authfile
+Perform a login before sending the message.
+The username and password are read from
+.Ar authfile
+and need to be on the first and second line respectively.
+This option requires a TLS or STARTTLS
+.Ar server .
+.It Fl C
+Do not require server certificate to be valid.
+This flag is deprecated.
+Use
+.Dq Fl T Cm noverify
+instead.
+.It Fl F Ar from
+Set the return-path (MAIL FROM) for the SMTP transaction.
+Default to the current username.
+.It Fl H Ar helo
+Define the hostname to advertise (HELO) when establishing the SMTP session.
+.It Fl h
+Display usage.
+.It Fl n
+Do not actually execute a transaction,
+just try to establish an SMTP session and quit.
+When this option is given, no message is read from the standard input.
+.It Fl s Ar server
+Specify the server to connect to and connection parameters.
+The format is
+.Sm off
+.Op Ar proto No :// Op Ar user : pass No @
+.Ar host Op : Ar port .
+.Sm on
+The following protocols are available:
+.Pp
+.Bl -tag -width "smtp+notls" -compact
+.It smtp
+Normal SMTP session with opportunistic STARTTLS.
+.It smtp+tls
+Normal SMTP session with mandatory STARTTLS.
+.It smtp+notls
+Plain text SMTP session without TLS.
+.It lmtp
+LMTP session with opportunistic STARTTLS.
+.It lmtp+tls
+LMTP session with mandatory STARTTLS.
+.It lmtp+notls
+Plain text LMTP session without TLS.
+.It smtps
+SMTP session with forced TLS on connection.
+.El
+.Pp
+Defaults to
+.Dq smtp://localhost:25 .
+.It Fl T Ar params
+Set specific parameters for TLS sessions.
+The
+.Ar params
+string is a comma or space separated list of options.
+The available options are:
+.Bl -tag -width Ds
+.It Cm cafile Ns = Ns Ar filename
+Use
+.Ar filename
+as root certificates file instead of the system default.
+.It Cm ciphers Ns = Ns Ar value
+Specify the allowed ciphers.
+Refer to
+.Xr tls_config_set_ciphers 3
+for
+.Ar value .
+.It Cm nosni
+Disable Server Name Indication (SNI).
+.It Cm noverify
+Do not require server certificate to be valid.
+.It Cm protocols Ns = Ns Ar value
+Specify the protocols to use.
+Refer to
+.Xr tls_config_parse_protocols 3
+for
+.Ar value .
+.It Cm servername Ns = Ns Ar value
+Use
+.Ar value
+for Server Name Indication (SNI).
+Defaults to the specified server hostname.
+.El
+.It Fl v
+Be more verbose.
+This option can be specified multiple times.
+.El
+.Sh SEE ALSO
+.Xr smtpd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 6.4 .

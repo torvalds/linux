@@ -1,0 +1,141 @@
+dnl	$OpenBSD: prep,v 1.24 2017/03/04 22:46:20 tj Exp $
+To be able to boot the OpenBSD/MACHINE installation program, you will
+need to acquire some limited knowledge of Open Firmware, the low-level
+process that controls the microprocessor after hardware initialization
+and diagnostics are performed but before control is handed to the
+operating system.
+
+To access Open Firmware, you should simultaneously hold down the
+Command, Option, O, and F keys immediately upon booting.  (On a PC keyboard,
+use the Windows key instead of the Command key and use Alt instead of the
+Option key).  You will be presented with information and a ">" prompt that
+will look something like this (example taken from a Power Macintosh G4):
+
+Apple PowerMac3,1 2.4f1 BootROM built on 02/18/00 at 09:44:35
+Copyright 1994-2000 Apple Computer, Inc.
+All Rights Reserved
+
+Welcome to Open Firmware
+To continue booting, type "mac-boot" and press return
+To shut down, type "shut-down" and press return
+
+ ok
+0 >
+
+If you are installing OpenBSD/MACHINE on an Xserve, you will need
+to do so in headless mode.  This means you must remove the graphics
+card and use the serial console.  To bring up Open Firmware via
+the serial console, hold down the System Identifier button while
+pressing the Power button.  When the upper LED bank begins lighting
+up in sequence (similar to KITT from Knight Rider), repeatedly
+press the System Identifier button until the seventh LED from
+the right is highlighted on the lower bank.  Now hold the
+System Identifier button for two seconds.  For more details, read:
+http://support.apple.com/kb/TA26930
+
+dnl XXX Move the boot commands to install in sections (booting from network,
+dnl XXX booting from cd-rom, etc)
+Important Open Firmware command examples:
+
+boot cd:,ofwboot /OSREV/MACHINE/bsd.rd
+		(boot from an appropriately prepared
+		OpenBSD CD-ROM in the CD/DVD drive)
+
+boot enet:,ofwboot /bsd.rd
+		(netboot from a pre-configured dhcp/tftp/nfs
+		server; "ofwboot" will be obtained from the tftp server,
+		while "bsd.rd" will be obtained from the NFS server,
+		as specified by the "next-server" and "root-path" dhcp
+		options)
+
+boot ide1:,ofwboot /bsd
+		(After installation, boot /bsd from the slave
+		 device on the second ATA bus)
+
+mac-boot	(boot into Mac OS)
+reset-all	(reboot the machine)
+shut-down	(halt the machine; shutdown)
+printenv	(print current machine variables)
+setenv		(set a machine variable)
+devalias	(list device aliases; useful for locating other
+		devices in the machine such as hard drives, etc)
+
+As seen above, device aliases typically take the form of "ide", "cd",
+etc.  To boot to an alternative device, you may substitute them
+with entries from this list (example devices taken from a Power
+Macintosh G4):
+
+ultra0 = hd = master device, primary ATA bus (factory-installed drive)
+ultra1 =      slave device, primary ATA bus
+ide0   = cd = master device, secondary ATA bus (CD/DVD drive)
+ide1   =      slave device, secondary ATA bus (Zip drive, if installed)
+enet   =      motherboard Ethernet device
+
+
+Other Open Firmware command examples:
+
+setenv auto-boot? false
+		(force the machine to wait at Open Firmware
+		for user input at next reboot; options are true/false)
+
+setenv boot-device hd:,ofwboot
+		(force the machine to boot into OpenBSD
+		automatically at next reboot)
+
+dev /		(change to root level of the device tree)
+pwd		(show current location in the device tree)
+ls		(show items at current location in the device tree)
+words		(show methods of items at current location in the device
+		tree)
+.properties	(show properties of items at current location in the
+		device tree)
+
+
+To reset a Power Macintosh to the factory-configured Open Firmware settings,
+simultaneously hold down the Command, Option, P, and R keys immediately upon
+booting.  Typically the machine will then attempt to load Mac OS, if
+available.
+
+
+Autobooting OpenBSD/MACHINE
+
+It is possible to automatically boot into OpenBSD (selectably into Mac OS)
+by setting up the following:
+
+setenv auto-boot? true
+setenv boot-device hd:,ofwboot
+
+[to save the results into NVRAM]
+reset-all
+
+These settings assume that the master of the first IDE bus has OpenBSD
+installed on it, either in MBR format or in shared mode with ofwboot
+copied into the first HFS(+) partition. It is not necessary to specify
+'/bsd' on the boot line or in the boot-device variable, since it is the
+default.
+
+To boot in Mac OS with this setup (works on most supported machines),
+press and hold down the Alt/Option key during reboot, and select which
+(Mac OS/Mac OS X) partition to boot in the graphical boot selector
+presented. Note that OpenBSD does not currently show up in this boot
+selector except for the installation image. This works on most machines
+this has been tested with, but does not work on a Rev C (333MHz) iMac;
+perhaps this feature was added to the Open Firmware ROM after that
+machine.
+
+
+Sharing a disk with Mac OS:
+
+OpenBSD/MACHINE is capable of booting either from a dedicated disk using
+an MBR partitioned disk or sharing a disk with Mac OS.
+
+If the disk is to be shared between Mac OS and OpenBSD, it is necessary
+to reformat and install the Mac OS partitions first, using "Drive Setup",
+leaving space on the disk as an "Unused" partition.
+If the disk was previously partitioned, it is possible to reuse a partition
+for OpenBSD, as long as it is not the first partition on the disk.
+The bootloader is expected to be found in that first (HFS) partition.
+
+For dedicated disks, MACHINE port boots off a boot program in
+an MSDOS filesystem. This is set up by the install program
+and no special setup is required.

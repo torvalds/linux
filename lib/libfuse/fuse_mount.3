@@ -1,0 +1,122 @@
+.\" $OpenBSD: fuse_mount.3,v 1.4 2025/09/20 15:01:23 helg Exp $
+.\"
+.\" Copyright (c) 2018 Helg Bredow <helg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.  .\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 20 2025 $
+.Dt FUSE_MOUNT 3
+.Os
+.Sh NAME
+.Nm fuse_mount ,
+.Nm fuse_unmount
+.Nd mount or dismount a FUSE file system
+.Sh SYNOPSIS
+.Lb libfuse
+.In fuse.h
+.Ft struct fuse_chan *
+.Fn fuse_mount "const char *dir" "struct fuse_args *args"
+.Ft void
+.Fn fuse_unmount "const char *dir" "struct fuse_chan *ch"
+.Sh DESCRIPTION
+The
+.Fn fuse_mount
+function calls the
+.Xr mount 2
+system call to graft the FUSE file system on to the file system tree
+at the point
+.Fa dir .
+.Fa args
+are FUSE specific mount options as documented by
+.Xr mount 2 .
+.Pp
+The following mount options can be specified by preceding them with
+.Fl o ,
+either individually or together separated by a comma.
+.Bl -tag -width Ds
+.It allow_other
+Allow other users to access the file system.
+By default, FUSE will prevent other users from accessing the file system or to
+.Xr statfs 2
+the file system.
+This security measure is particularly important for
+network file system that may expose private files.
+It also guards against system processes being blocked indefinitely
+if the file system stops responding.
+.It default_permissions
+Request that the kernel enforce file access permissions.
+Alternatively, FUSE file systems can choose to implement access
+checks internally.
+On
+.Ox ,
+this option is always set.
+.It kernel_cache
+Enables buffering of files in the kernel.
+Not recommended for file systems that can be updated external to FUSE,
+such as network file systems.
+Not implemented.
+.It max_read=%u
+Specify the maximum size of read operations.
+Note that the kernel limits this to FUSEBUFMAXSIZE.
+This option should not be specified on the command line.
+The correct (or optimum) value depends on the filesystem implementation
+and should thus be specified by the filesystem internally.
+.It ro
+Mount the file system read-only.
+Can also be specified by itself with
+.Fl r .
+.El
+.Pp
+.Fn fuse_unmount
+will close the FUSE device and attempt to unmount the file system mounted at
+.Fa dir
+by calling the
+.Xr unmount 2
+system call.
+To avoid a deadlock, the kernel will not send the
+FBT_DESTROY message to the file system.
+There is no way to determine whether this call was successful.
+.Pp
+Only the super user can mount and unmount FUSE file systems.
+.Sh RETURN VALUES
+.Fn fuse_main
+will return NULL if the file system cannot be mounted.
+.Sh ERRORS
+.Fn fuse_mount
+will fail when one of the following occurs:
+.Fa dir
+does not exist or is not a directory.
+The fuse device cannot be opened for reading and writing.
+There was an error parsing the options specified by
+.Fa args .
+The file system could not be mounted.
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr fuse_main 3 ,
+.Xr fuse_setup 3 ,
+.Xr fuse 4
+.Sh STANDARDS
+The
+.Fn fuse_mount
+and
+.Fn fuse_unmount
+functions conforms to FUSE 2.6.
+.Sh HISTORY
+The
+.Fn fuse_mount
+and
+.Fn fuse_unmount
+functions first appeared in
+.Ox 5.4 .
+.Sh AUTHORS
+.An Sylvestre Gallon Aq Mt ccna.syl@gmail.com
+.An Helg Bredow Aq Mt helg@openbsd.org

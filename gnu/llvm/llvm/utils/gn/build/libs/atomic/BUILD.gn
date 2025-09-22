@@ -1,0 +1,14 @@
+config("atomic_config") {
+  visibility = [ ":atomic" ]
+  libs = [ "atomic" ]
+}
+
+group("atomic") {
+  # Needed on platforms that have no native support for 64-bit atomics.
+  # FIXME: Check which platforms need this; certainly needs to be false on
+  # macOS and Windows, and doesn't seem to be needed on Linux either.
+  needs_explicit_lib_atomic = false
+  if (needs_explicit_lib_atomic) {
+    public_configs = [ ":atomic_config" ]
+  }
+}

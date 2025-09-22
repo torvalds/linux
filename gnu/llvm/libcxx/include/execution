@@ -1,0 +1,149 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXECUTION
+#define _LIBCPP_EXECUTION
+
+/*
+namespace std::execution {
+  struct sequenced_policy;
+  struct parallel_policy;
+  struct parallel_unsequenced_policy;
+  struct unsequenced_policy; // since C++20
+
+  inline constexpr sequenced_policy seq = implementation-defined;
+  inline constexpr parallel_policy par = implementation-defined;
+  inline constexpr parallel_unsequenced_policy par_unseq = implementation-defined;
+  inline constexpr unsequenced_policy unseq = implementation-defined; // since C++20
+}
+
+namespace std {
+  template <class T>
+  struct is_execution_policy;
+
+  template <class T>
+  inline constexpr bool is_execution_policy_v;
+}
+*/
+
+#include <__config>
+#include <__type_traits/is_execution_policy.h>
+#include <__type_traits/is_same.h>
+#include <__type_traits/remove_cvref.h>
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+namespace execution {
+struct sequenced_policy {
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit sequenced_policy(__disable_user_instantiations_tag) {}
+  sequenced_policy(const sequenced_policy&)            = delete;
+  sequenced_policy& operator=(const sequenced_policy&) = delete;
+};
+
+inline constexpr sequenced_policy seq{__disable_user_instantiations_tag{}};
+
+struct parallel_policy {
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit parallel_policy(__disable_user_instantiations_tag) {}
+  parallel_policy(const parallel_policy&)            = delete;
+  parallel_policy& operator=(const parallel_policy&) = delete;
+};
+
+inline constexpr parallel_policy par{__disable_user_instantiations_tag{}};
+
+struct parallel_unsequenced_policy {
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit parallel_unsequenced_policy(__disable_user_instantiations_tag) {}
+  parallel_unsequenced_policy(const parallel_unsequenced_policy&)            = delete;
+  parallel_unsequenced_policy& operator=(const parallel_unsequenced_policy&) = delete;
+};
+
+inline constexpr parallel_unsequenced_policy par_unseq{__disable_user_instantiations_tag{}};
+
+struct __unsequenced_policy {
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit __unsequenced_policy(__disable_user_instantiations_tag) {}
+  __unsequenced_policy(const __unsequenced_policy&)            = delete;
+  __unsequenced_policy& operator=(const __unsequenced_policy&) = delete;
+};
+
+constexpr __unsequenced_policy __unseq{__disable_user_instantiations_tag{}};
+
+#  if _LIBCPP_STD_VER >= 20
+
+struct unsequenced_policy {
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit unsequenced_policy(__disable_user_instantiations_tag) {}
+  unsequenced_policy(const unsequenced_policy&)            = delete;
+  unsequenced_policy& operator=(const unsequenced_policy&) = delete;
+};
+
+inline constexpr unsequenced_policy unseq{__disable_user_instantiations_tag{}};
+
+#  endif // _LIBCPP_STD_VER >= 20
+
+} // namespace execution
+
+template <>
+inline constexpr bool is_execution_policy_v<execution::sequenced_policy> = true;
+
+template <>
+inline constexpr bool is_execution_policy_v<execution::parallel_policy> = true;
+
+template <>
+inline constexpr bool is_execution_policy_v<execution::parallel_unsequenced_policy> = true;
+
+template <>
+inline constexpr bool is_execution_policy_v<execution::__unsequenced_policy> = true;
+
+template <>
+inline constexpr bool __is_parallel_execution_policy_impl<execution::parallel_policy> = true;
+
+template <>
+inline constexpr bool __is_parallel_execution_policy_impl<execution::parallel_unsequenced_policy> = true;
+
+template <>
+inline constexpr bool __is_unsequenced_execution_policy_impl<execution::__unsequenced_policy> = true;
+
+template <>
+inline constexpr bool __is_unsequenced_execution_policy_impl<execution::parallel_unsequenced_policy> = true;
+
+#  if _LIBCPP_STD_VER >= 20
+template <>
+inline constexpr bool is_execution_policy_v<execution::unsequenced_policy> = true;
+
+template <>
+inline constexpr bool __is_unsequenced_execution_policy_impl<execution::unsequenced_policy> = true;
+
+#  endif
+
+template <class _Tp>
+struct is_execution_policy : bool_constant<is_execution_policy_v<_Tp>> {};
+
+template <class _ExecutionPolicy>
+_LIBCPP_HIDE_FROM_ABI auto __remove_parallel_policy(const _ExecutionPolicy&) {
+  if constexpr (is_same_v<_ExecutionPolicy, execution::parallel_policy>) {
+    return execution::sequenced_policy(execution::__disable_user_instantiations_tag{});
+  } else if constexpr (is_same_v<_ExecutionPolicy, execution::parallel_unsequenced_policy>) {
+    return execution::__unsequenced_policy{execution::__disable_user_instantiations_tag{}};
+  }
+}
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cstddef>
+#endif
+
+#endif // _LIBCPP_EXECUTION

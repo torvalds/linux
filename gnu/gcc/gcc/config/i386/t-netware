@@ -1,0 +1,9 @@
+TARGET_LIBGCC2_CFLAGS = -mpreferred-stack-boundary=2 -fomit-frame-pointer
+
+netware.o: $(srcdir)/config/i386/netware.c $(RTL_H) $(TREE_H) $(CONFIG_H) $(TM_P_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/i386/netware.c
+
+# We don't need some of GCC's own include files.
+USER_H = $(srcdir)/ginclude/stdarg.h \
+         $(srcdir)/ginclude/varargs.h \
+    $(EXTRA_HEADERS) $(LANG_EXTRA_HEADERS)

@@ -1,0 +1,359 @@
+.\"	$OpenBSD: pool.9,v 1.60 2024/05/20 11:12:08 jca Exp $
+.\"	$NetBSD: pool.9,v 1.18 2001/06/21 11:59:01 wiz Exp $
+.\"
+.\" Copyright (c) 1997, 1998 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 20 2024 $
+.Dt POOL_INIT 9
+.Os
+.Sh NAME
+.Nm pool_init ,
+.Nm pool_destroy ,
+.Nm pool_get ,
+.Nm pool_put ,
+.Nm pool_prime ,
+.Nm pool_sethiwat ,
+.Nm pool_setlowat ,
+.Nm pool_sethardlimit
+.Nd resource-pool manager
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/pool.h
+.Ft void
+.Fo pool_init
+.Fa "struct pool *pool"
+.Fa "size_t size"
+.Fa "u_int align"
+.Fa "int ipl"
+.Fa "int flags"
+.Fa "const char *wmesg"
+.Fa "struct pool_allocator *palloc"
+.Fc
+.Ft void
+.Fo pool_destroy
+.Fa "struct pool *pp"
+.Fc
+.Ft void *
+.Fn pool_get "struct pool *pp" "int flags"
+.Ft void
+.Fn pool_put "struct pool *pp" "void *item"
+.Ft int
+.Fn pool_prime "struct pool *pp" "int nitems"
+.Ft void
+.Fn pool_sethiwat "struct pool *pp" "int n"
+.Ft void
+.Fn pool_setlowat "struct pool *pp" "int n"
+.Ft int
+.Fo pool_sethardlimit
+.Fa "struct pool *pp"
+.Fa "unsigned n"
+.Fa "const char *warnmess"
+.Fa "int ratecap"
+.Fc
+.Sh DESCRIPTION
+These utility routines provide management of pools of fixed-sized
+areas of memory.
+Resource pools set aside an amount of memory for exclusive use by the resource
+pool owner.
+This can be used by applications to guarantee the availability of a minimum
+amount of memory needed to continue operation independent of the memory
+resources currently available from the system-wide memory allocator
+.Pq Xr malloc 9 .
+The pool manager obtains memory by using the special-purpose memory
+allocator
+.Fa palloc
+passed to
+.Fn pool_init ,
+for extra pool items in case the number of allocations exceeds
+the nominal number of pool items managed by a pool resource.
+This temporary memory will be automatically returned to the system
+at a later time.
+.Ss CREATING A POOL
+The function
+.Fn pool_init
+initializes a resource pool.
+The arguments are:
+.Bl -tag -offset indent -width "align_offset"
+.It Fa pool
+Specifies the pool storage to be initialized.
+.It Fa size
+Specifies the size of the memory items managed by the pool.
+.It Fa align
+Specifies the memory address alignment of the items returned by
+.Fn pool_get .
+This argument must be a power of two.
+If zero,
+the alignment defaults to an architecture-specific natural alignment.
+.It Fa ipl
+The interrupt protection level used to protect the pool's internals,
+and at what level the pool can be safely used.
+See
+.Xr spl 9
+for a list of the IPLs.
+.It Fa flags
+The bitwise OR of zero or more of the following values:
+.Pp
+.Bl -tag -width "PR_WAITOK" -offset indent -compact
+.It Dv PR_WAITOK
+The pool doesn't need to be interrupt safe.
+It is recommended to specify this flag if the pool will never be
+accessed in interrupt context.
+.It Dv PR_RWLOCK
+The pool will use an
+.Xr rwlock 9
+instead of a
+.Xr mutex 9
+for exclusion.
+Requires
+.Dv PR_WAITOK
+to be specified as well, both to
+.Fn pool_init
+and on all
+.Fn pool_get
+calls on this pool.
+.El
+.It Fa wmesg
+The message passed on to
+.Xr tsleep 9
+if
+.Fn pool_get
+must wait for items to be returned to the pool.
+.It Fa palloc
+The back-end allocator used to manage the memory for the pool.
+.Fa palloc
+may be
+.Dv NULL ,
+in which case the pool manager chooses an appropriate back-end allocator.
+.El
+.Ss DESTROYING A POOL
+The
+.Fn pool_destroy
+function destroys a resource pool.
+It takes a single argument
+.Fa pp
+identifying the pool resource instance.
+.Ss ALLOCATING ITEMS FROM A POOL
+.Fn pool_get
+allocates an item from the pool and returns a pointer to it.
+.Bl -tag -offset indent -width "flags"
+.It Fa pp
+The handle identifying the pool resource instance.
+.It Fa flags
+One or more flags.
+Either
+.Dv PR_WAITOK
+or
+.Dv PR_NOWAIT
+must be specified
+to define behaviour in case the pooled resources are depleted.
+If no resources are available and
+.Dv PR_NOWAIT
+was specified,
+this function returns
+.Dv NULL .
+If
+.Dv PR_WAITOK
+was specified
+but
+.Dv PR_LIMITFAIL
+was not,
+.Fn pool_get
+will wait until items are returned to the pool.
+If both
+.Dv PR_WAITOK
+and
+.Dv PR_LIMITFAIL
+were specified, and the pool has reached its hard limit,
+.Fn pool_get
+will return
+.Dv NULL
+without waiting, allowing the caller to do its own garbage collection;
+however, it will still wait if the pool is not yet at its hard limit.
+If
+.Dv PR_ZERO
+was specified and an item has been successfully allocated, it is zeroed before
+being returned to the caller.
+.El
+.Ss RETURNING ITEMS TO A POOL
+.Fn pool_put
+returns the pool item pointed at by
+.Fa item
+to the resource pool identified by the pool handle
+.Fa pp .
+If the number of available items in the pool exceeds the maximum pool
+size set by
+.Fn pool_sethiwat
+and there are no outstanding requests for pool items,
+the excess items will be returned to the system if possible.
+.Bl -tag -offset indent -width "item"
+.It Fa pp
+The handle identifying the pool resource instance.
+.It Fa item
+A pointer to a pool item previously obtained by
+.Fn pool_get .
+.El
+.Pp
+If a non-interrupt safe allocator has been selected by passing the
+.Dv PR_WAITOK
+flag to
+.Fn pool_init ,
+.Fn pool_put
+may sleep when completely unused pages are released.
+.Ss PRIMING A POOL
+.Fn pool_prime
+adds items to the pool.
+Storage space for the items is allocated by using the page allocation
+routine specified to
+.Fn pool_init .
+.Pp
+.Fn pool_prime
+.Bl -tag -offset indent -width "nitems"
+.It Fa pp
+The handle identifying the pool resource instance.
+.It Fa nitems
+The number of items to add to the pool.
+.El
+.Ss SETTING POOL RESOURCE WATERMARKS
+A pool will attempt to increase its resource usage to keep up with the demand
+for its items.
+Conversely,
+it will return unused memory to the system should the number of accumulated
+unused items in the pool exceed a programmable limit.
+The limits for the minimum and maximum number of items which a pool should keep
+at hand are known as the high and low
+.Sy watermarks .
+The functions
+.Fn pool_sethiwat
+and
+.Fn pool_setlowat
+set a pool's high and low watermarks, respectively.
+.Pp
+.Fn pool_sethiwat
+.Bl -tag -offset indent -width "flags"
+.It Fa pp
+The handle identifying the pool resource instance.
+.It Fa n
+The maximum number of items to keep in the pool.
+As items are returned and the total number of pages in the pool is larger
+than the maximum set by this function,
+any completely unused pages are released immediately.
+If this function is not used to specify a maximum number of items,
+the pages will remain associated with the pool until the system runs low
+on memory,
+at which point the VM system will try to reclaim unused pages.
+.El
+.Pp
+.Fn pool_setlowat
+.Bl -tag -offset indent -width "flags"
+.It Fa pp
+The handle identifying the pool resource instance.
+.It Fa n
+The minimum number of items to keep in the pool.
+The number of pages in the pool will not decrease below the required value to
+accommodate the minimum number of items specified by this function.
+.El
+.Ss SETTING HARD LIMITS
+The function
+.Fn pool_sethardlimit
+sets a hard limit on the pool to
+.Fa n
+items.
+If the hard limit is reached
+.Fa warnmess
+will be printed to the console, but no more than every
+.Fa ratecap
+seconds.
+Upon successful completion, a value of 0 is returned.
+The value EINVAL is returned when the current size of the pool
+already exceeds the requested hard limit.
+.Ss POTENTIAL PITFALLS
+Note that undefined behaviour results when mixing the storage providing
+methods supported by the pool resource routines.
+.Pp
+The pool resource code uses a per-pool lock to protect its internal state.
+If any pool functions are called in an interrupt context,
+the caller must block all interrupts that might cause the
+code to be reentered.
+.Sh CONTEXT
+.Fn pool_init ,
+.Fn pool_destroy ,
+.Fn pool_prime ,
+.Fn pool_sethiwat ,
+.Fn pool_setlowat ,
+and
+.Fn pool_sethardlimit
+can be called during autoconf or from process context.
+.Pp
+.Fn pool_get
+and
+.Fn pool_put
+can be called during autoconf or from process context.
+If the pool has been initialised with an interrupt safe pool allocator
+they can also be called from interrupt context at or below the
+interrupt level specified by a call to
+.Fn pool_init .
+.Sh RETURN VALUES
+.Fn pool_get
+will return a pointer to an item allocated from the pool.
+If
+.Dv PR_NOWAIT
+or
+.Dv PR_LIMITFAIL
+were passed as flags to the pool it may return
+.Dv NULL
+if there are no resources available or if the pool hard limit has been reached,
+respectively.
+.Pp
+.Fn pool_prime
+will return
+.Dv ENOMEM
+if the requested number of items could not be allocated.
+Otherwise, the return value is 0.
+.Pp
+.Fn pool_sethardlimit
+will return
+.Dv EINVAL
+if the current size of the pool exceeds the requested hard limit.
+Otherwise, the return value is 0.
+.Sh CODE REFERENCES
+The pool manager is implemented in the file
+.Pa sys/kern/subr_pool.c .
+.Sh SEE ALSO
+.Xr free 9 ,
+.Xr km_alloc 9 ,
+.Xr malloc 9 ,
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+.Xr spl 9
+.Sh HISTORY
+The pool manager first appeared in
+.Nx 1.4
+and was ported to
+.Ox
+by
+.An Artur Grabowski Aq Mt art@openbsd.org .

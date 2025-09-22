@@ -1,0 +1,223 @@
+.\" $OpenBSD: SSL_CTX_add1_chain_cert.3,v 1.3 2025/06/08 22:52:00 schwarze Exp $
+.\" selective merge up to: OpenSSL df75c2bf Dec 9 01:02:36 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>
+.\" and Rob Stradling <rob.stradling@comodo.com>.
+.\" Copyright (c) 2013 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_ADD1_CHAIN_CERT 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set0_chain ,
+.Nm SSL_CTX_set1_chain ,
+.Nm SSL_CTX_add0_chain_cert ,
+.Nm SSL_CTX_add1_chain_cert ,
+.Nm SSL_CTX_get0_chain_certs ,
+.Nm SSL_CTX_clear_chain_certs ,
+.Nm SSL_set0_chain ,
+.Nm SSL_set1_chain ,
+.Nm SSL_add0_chain_cert ,
+.Nm SSL_add1_chain_cert ,
+.Nm SSL_get0_chain_certs ,
+.Nm SSL_clear_chain_certs
+.Nd extra chain certificate processing
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fo SSL_CTX_set0_chain
+.Fa "SSL_CTX *ctx"
+.Fa "STACK_OF(X509) *chain"
+.Fc
+.Ft int
+.Fo SSL_CTX_set1_chain
+.Fa "SSL_CTX *ctx"
+.Fa "STACK_OF(X509) *chain"
+.Fc
+.Ft int
+.Fo SSL_CTX_add0_chain_cert
+.Fa "SSL_CTX *ctx"
+.Fa "X509 *cert"
+.Fc
+.Ft int
+.Fo SSL_CTX_add1_chain_cert
+.Fa "SSL_CTX *ctx"
+.Fa "X509 *cert"
+.Fc
+.Ft int
+.Fo SSL_CTX_get0_chain_certs
+.Fa "SSL_CTX *ctx"
+.Fa "STACK_OF(X509) **chain"
+.Fc
+.Ft int
+.Fo SSL_CTX_clear_chain_certs
+.Fa "SSL_CTX *ctx"
+.Fc
+.Ft int
+.Fo SSL_set0_chain
+.Fa "SSL *ssl"
+.Fa "STACK_OF(X509) *chain"
+.Fc
+.Ft int
+.Fo SSL_set1_chain
+.Fa "SSL *ssl"
+.Fa "STACK_OF(X509) *chain"
+.Fc
+.Ft int
+.Fo SSL_add0_chain_cert
+.Fa "SSL *ssl"
+.Fa "X509 *cert"
+.Fc
+.Ft int
+.Fo SSL_add1_chain_cert
+.Fa "SSL *ssl"
+.Fa "X509 *cert"
+.Fc
+.Ft int
+.Fo SSL_get0_chain_certs
+.Fa "SSL *ssl"
+.Fa "STACK_OF(X509) **chain"
+.Fc
+.Ft int
+.Fo SSL_clear_chain_certs
+.Fa "SSL *ssl"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_CTX_set0_chain
+and
+.Fn SSL_CTX_set1_chain
+set the certificate chain associated with the current certificate of
+.Fa ctx
+to
+.Fa chain .
+The
+.Fa chain
+is not supposed to include the current certificate itself.
+.Pp
+.Fn SSL_CTX_add0_chain_cert
+and
+.Fn SSL_CTX_add1_chain_cert
+append the single certificate
+.Fa cert
+to the chain associated with the current certificate of
+.Fa ctx .
+.Pp
+.Fn SSL_CTX_get0_chain_certs
+retrieves the chain associated with the current certificate of
+.Fa ctx .
+.Pp
+.Fn SSL_CTX_clear_chain_certs
+clears the existing chain associated with the current certificate of
+.Fa ctx ,
+if any.
+This is equivalent to calling
+.Fn SSL_CTX_set0_chain
+with
+.Fa chain
+set to
+.Dv NULL .
+.Pp
+Each of these functions operates on the
+.Em current
+end entity (i.e. server or client) certificate.
+This is the last certificate loaded or selected on the corresponding
+.Fa ctx
+structure, for example using
+.Xr SSL_CTX_use_certificate 3 .
+.Pp
+.Fn SSL_set0_chain ,
+.Fn SSL_set1_chain ,
+.Fn SSL_add0_chain_cert ,
+.Fn SSL_add1_chain_cert ,
+.Fn SSL_get0_chain_certs ,
+and
+.Fn SSL_clear_chain_certs
+are similar except that they operate on the
+.Fa ssl
+connection.
+.Pp
+The functions containing a
+.Sy 1
+in their name increment the reference count of the supplied certificate
+or chain, so it must be freed at some point after the operation.
+Those containing a
+.Sy 0
+do not increment reference counts and the supplied certificate or chain
+must not be freed after the operation.
+.Pp
+The chains associated with an
+.Vt SSL_CTX
+structure are copied to the new
+.Vt SSL
+structure when
+.Xr SSL_new 3
+is called.
+Existing
+.Vt SSL
+structures are not affected by any chains subsequently changed
+in the parent
+.Vt SSL_CTX .
+.Pp
+One chain can be set for each key type supported by a server.
+So, for example, an RSA and an ECDSA certificate can have
+different chains.
+.Pp
+If any certificates are added using these functions, no certificates
+added using
+.Xr SSL_CTX_add_extra_chain_cert 3
+will be used.
+.Sh RETURN VALUES
+These functions return 1 for success or 0 for failure.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_add_extra_chain_cert 3 ,
+.Xr SSL_CTX_use_certificate 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.0.2
+and have been available since
+.Ox 6.5 .

@@ -1,0 +1,25 @@
+static_library("POSIX-DYLD") {
+  output_name = "lldbPluginDynamicLoaderPosixDYLD"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//lldb/source/Breakpoint",
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+
+    #"//lldb/source/Plugins/Process/elf-core", # Dependency cycle.
+    "//lldb/source/Plugins/Process/Utility",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//llvm/lib/Support",
+  ]
+
+  # Reaches into Plugins/Process/Utility.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "DYLDRendezvous.cpp",
+    "DynamicLoaderPOSIXDYLD.cpp",
+  ]
+}

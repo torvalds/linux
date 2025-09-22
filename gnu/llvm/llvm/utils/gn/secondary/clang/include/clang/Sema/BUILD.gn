@@ -1,0 +1,26 @@
+import("//clang/utils/TableGen/clang_tablegen.gni")
+
+clang_tablegen("AttrTemplateInstantiate") {
+  args = [ "-gen-clang-attr-template-instantiate" ]
+  td_file = "../Basic/Attr.td"
+}
+
+clang_tablegen("AttrParsedAttrList") {
+  args = [ "-gen-clang-attr-parsed-attr-list" ]
+  td_file = "../Basic/Attr.td"
+}
+
+clang_tablegen("AttrParsedAttrKinds") {
+  args = [ "-gen-clang-attr-parsed-attr-kinds" ]
+  td_file = "../Basic/Attr.td"
+}
+
+clang_tablegen("AttrSpellingListIndex") {
+  args = [ "-gen-clang-attr-spelling-index" ]
+  td_file = "../Basic/Attr.td"
+}
+
+clang_tablegen("AttrParsedAttrImpl") {
+  args = [ "-gen-clang-attr-parsed-attr-impl" ]
+  td_file = "../Basic/Attr.td"
+}

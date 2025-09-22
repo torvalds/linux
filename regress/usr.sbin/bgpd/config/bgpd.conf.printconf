@@ -1,0 +1,91 @@
+ASN = "65001"
+AS 65001
+router-id 127.0.0.1
+socket "/var/run/bgpd.sock.0"
+holdtime min 3
+fib-priority 48
+network 192.0.2.0/24 set { large-community 65001:1:1  }
+network 2001:db8:abcd::/48 set { large-community 65001:1:1  }
+
+
+rde rib Adj-RIB-In no evaluate
+rde rib Adj-RIB-Out no evaluate
+rde rib Loc-RIB rtable 0 fib-update yes
+
+prefix-set "mynetworks" { 2001:db8:abcd::/48 192.0.2.0/24  }
+prefix-set "mynetworks_orlonger" { 2001:db8:abcd::/48 or-longer 192.0.2.0/24 or-longer  }
+prefix-set "bogons" { ff00::/8 or-longer fec0::/10 or-longer fe80::/10 or-longer fc00::/7 or-longer 3ffe::/16 or-longer 2002::/16 or-longer 2001:db8::/32 or-longer 2001:10::/28 or-longer 2001:2::/48 or-longer 100::/64 or-longer ::/8 or-longer 240.0.0.0/4 or-longer 224.0.0.0/4 or-longer 203.0.113.0/24 or-longer 198.51.100.0/24 or-longer 198.18.0.0/15 or-longer 192.168.0.0/16 or-longer 192.88.99.0/24 or-longer 192.0.2.0/24 or-longer 172.16.0.0/12 or-longer 169.254.0.0/16 or-longer 127.0.0.0/8 or-longer 100.64.0.0/10 or-longer 10.0.0.0/8 or-longer 0.0.0.0/8 or-longer  }
+
+
+group "ibgp mesh v4" {
+	neighbor 192.0.2.3 {
+		remote-as 65001
+		local-address 192.0.2.1
+		enforce neighbor-as no
+		enforce local-as yes
+		announce IPv4 unicast
+	}
+	neighbor 192.0.2.2 {
+		remote-as 65001
+		local-address 192.0.2.1
+		enforce neighbor-as no
+		enforce local-as yes
+		announce IPv4 unicast
+	}
+}
+
+group "ibgp mesh v6" {
+	neighbor 2001:db8:abcd::3 {
+		remote-as 65001
+		local-address 2001:db8:abcd::1
+		enforce neighbor-as no
+		enforce local-as yes
+		announce IPv6 unicast
+	}
+	neighbor 2001:db8:abcd::2 {
+		remote-as 65001
+		local-address 2001:db8:abcd::1
+		enforce neighbor-as no
+		enforce local-as yes
+		announce IPv6 unicast
+	}
+}
+
+group "upstreams" {
+	neighbor 198.51.100.0 {
+		descr "IPv4 Transit provider B"
+		remote-as 65123
+		enforce neighbor-as yes
+		enforce local-as yes
+		announce IPv4 unicast
+	}
+	neighbor 203.0.113.1 {
+		descr "IPv4 Transit Provider A"
+		remote-as 65002
+		enforce neighbor-as yes
+		enforce local-as yes
+		announce IPv4 unicast
+	}
+	neighbor 2001:db8:666::2 {
+		descr "IPv6 Transit provider B"
+		remote-as 65123
+		enforce neighbor-as yes
+		enforce local-as yes
+		announce IPv6 unicast
+	}
+}
+
+
+allow to ebgp prefix-set "mynetworks" large-community 65001:1:1 
+deny quick from ebgp prefix-set "mynetworks_orlonger" 
+allow from ibgp 
+allow to ibgp 
+match from ebgp set { community delete 65001:*  }
+match from ebgp set { large-community delete 65001:*:*  }
+allow from any prefix 0.0.0.0/0 prefixlen 8 - 24 
+allow from any prefix ::/0 prefixlen 16 - 48 
+match from any community 65535:0 set { localpref 0 }
+deny quick from any prefix-set "bogons" 
+deny quick from any AS 23456 
+deny quick from any AS 64496 - 131071 
+deny quick from any AS 4200000000 - 4294967295 

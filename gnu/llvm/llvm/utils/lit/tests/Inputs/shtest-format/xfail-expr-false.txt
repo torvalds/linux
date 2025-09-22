@@ -1,0 +1,3 @@
+# XFAIL with only false clauses. Test should run.
+XFAIL: false, a-missing-feature || ! a-present-feature || ! target=x86_64{{.*}}, false
+RUN: true

@@ -1,0 +1,141 @@
+.\"	$OpenBSD: ncheck_ffs.8,v 1.27 2020/02/08 17:25:25 schwarze Exp $
+.\"
+.\" Copyright (c) 1995, 1996 SigmaSoft, Th. Lockert <tholo@sigmasoft.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 8 2020 $
+.Dt NCHECK_FFS 8
+.Os
+.Sh NAME
+.Nm ncheck_ffs ,
+.Nm ncheck
+.Nd generate names from inode-numbers
+.Sh SYNOPSIS
+.Nm ncheck_ffs
+.Op Fl ams
+.Op Fl f Ar format
+.Op Fl i Ar number ...
+.Ar filesystem
+.Sh DESCRIPTION
+.Nm
+generates a list of filenames and inode numbers for the given
+file system.
+Names of directories are followed by a
+.Sq \&. .
+.Nm
+may be invoked more simply as
+.Nm ncheck ,
+with no change in behaviour.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Print the file names
+.Sq \&.
+and
+.Sq .. ,
+which are ordinarily skipped.
+.It Fl f Ar format
+Use a custom output format when printing inode information.
+Characters from
+.Ar format
+are printed for each inode with the following escape sequences:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Cm \ea
+Print a
+.Aq bell
+character.
+.It Cm \eb
+Print a
+.Aq backspace
+character.
+.It Cm \ee
+Print an
+.Aq escape
+character.
+.It Cm \ef
+Print a
+.Aq form-feed
+character.
+.It Cm \eI
+Print the inode number.
+.It Cm \en
+Print a
+.Aq new-line
+character.
+.It Cm \eP
+Print the pathname to the file using the current inode number.
+.It Cm \er
+Print a
+.Aq carriage return
+character.
+.It Cm \et
+Print a
+.Aq tab
+character.
+.It Cm \ev
+Print a
+.Aq vertical tab
+character.
+.It Cm \e\(aq
+Print a
+.Aq single quote
+character.
+.It Cm \e\e
+Print a backslash character.
+.It Cm \e0
+Print a NUL character.
+.El
+.Pp
+All other characters, when prefixed by a backslash, simply print
+the character following the backslash.
+The device name is not printed on the first line of output when the
+.Fl f
+option is specified.
+.It Fl i Ar number ...
+Report only those files whose inode numbers are as listed.
+.It Fl m
+Give more verbose information on inodes.
+.It Fl s
+Report only special files and files with set-user-ID or set-group-ID
+set.
+This is meant to find hidden violations of security policies.
+.El
+.Pp
+The report is not sorted.
+.Sh SEE ALSO
+.Xr sort 1 ,
+.Xr fsck 8 ,
+.Xr fsdb 8
+.Sh HISTORY
+An
+.Nm ncheck
+command appeared in
+.At v6 .
+The
+.Nm
+command was designed to be similar in functionality to the corresponding
+command in SunOS 4.1.3.
+.Sh AUTHORS
+.An Thorsten Lockert Aq Mt tholo@sigmasoft.com

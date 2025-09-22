@@ -1,0 +1,174 @@
+.\"	$OpenBSD: ldattach.8,v 1.18 2014/10/02 09:28:03 jmc Exp $
+.\"
+.\" Copyright (c) 2007, 2008 Marc Balmer <mbalmer@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 2 2014 $
+.Dt LDATTACH 8
+.Os
+.Sh NAME
+.Nm ldattach
+.Nd attach a line discipline to a serial line
+.Sh SYNOPSIS
+.Nm ldattach
+.Op Fl 27dehmop
+.Op Fl s Ar baudrate
+.Op Fl t Ar cond
+.Ar discipline
+.Ar device
+.Sh DESCRIPTION
+.Nm
+is used to attach a line discipline to a serial line to allow for in-kernel
+processing of the received and/or sent data.
+Depending on the line discipline being attached, one or more options may be
+applied.
+.Pp
+.Nm
+can be run from the command line or at system startup by having
+.Xr init 8
+read
+.Xr ttys 5
+entries to attach line disciplines.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl 2
+Use 2 stopbits instead of 1.
+.It Fl 7
+Use 7 databits instead of 8.
+.It Fl d
+Do not daemonize.
+.It Fl e
+Use even parity.
+.It Fl h
+Turn on RTS/CTS flow control.
+By default, no flow control is done.
+.It Fl m
+Maintain modem control signals after closing the line.
+Specifically, this disables HUPCL.
+.It Fl o
+Use odd parity.
+.It Fl p
+Pass the data received from
+.Ar device
+to the master device of a
+.Xr pty 4
+pair and vice versa.
+The name of the slave device is written to standard output.
+.It Fl s Ar baudrate
+Specifies the speed of the connection.
+If not specified, the default of 9600 baud is used
+(4800 baud for
+.Xr nmea 4 ) .
+.It Fl t Ar cond
+.Xr nmea 4 ,
+.Xr msts 4
+and
+.Xr endrun 4
+line disciplines only.
+Chooses the condition which will cause the current system time to be
+immediately copied to the terminal timestamp storage for subsequent use by
+.Xr nmea 4 ,
+.Xr msts 4
+or
+.Xr endrun 4 .
+Only one can be used.
+.Pp
+.Bl -tag -width DCDXX -offset indent -compact
+.It dcd
+Copy the timestamp when DCD is asserted.
+.It !dcd
+Copy the timestamp when DCD is deasserted.
+.It cts
+Copy the timestamp when CTS is asserted.
+.It !cts
+Copy the timestamp when CTS is deasserted.
+.El
+.Pp
+If no condition is specified, the
+.Xr nmea 4
+line discipline will timestamp on receiving the leading
+.Sq $
+character of each block of NMEA sentences.
+.It Ar discipline
+Specifies the name of the line discipline to be attached.
+.Pp
+.Bl -tag -width nmeaXX -offset indent -compact
+.It endrun
+Attach the
+.Xr endrun 4
+line discipline.
+.It msts
+Attach the
+.Xr msts 4
+line discipline.
+.It nmea
+Attach the
+.Xr nmea 4
+line discipline.
+.El
+.It Ar device
+Specifies the name of the serial line.
+.Ar device
+should be a string of the form
+.Dq cuaXX
+or
+.Dq /dev/cuaXX .
+.Pp
+.Xr cua 4
+devices should be used when
+.Nm
+is started from the command line;
+when started using
+.Xr init 8 ,
+.Xr tty 4
+devices should be used.
+.El
+.Pp
+If
+.Nm
+was not started by
+.Xr init 8 ,
+the line discipline can be detached by
+killing off the
+.Nm
+process.
+.Sh EXAMPLES
+To start
+.Nm
+using
+.Xr init 8
+to attach the
+.Xr nmea 4
+line discipline to
+.Pa /dev/tty01
+at 4800 baud using a device without a carrier (DCD) line,
+add a line of the following form to
+.Pa /etc/ttys :
+.Bd -literal -offset indent
+tty01	"/sbin/ldattach nmea"	unknown	on softcar
+.Ed
+.Sh SEE ALSO
+.Xr endrun 4 ,
+.Xr msts 4 ,
+.Xr nmea 4 ,
+.Xr pty 4 ,
+.Xr tty 4 ,
+.Xr ttys 5 ,
+.Xr init 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 4.3 .

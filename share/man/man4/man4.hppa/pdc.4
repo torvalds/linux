@@ -1,0 +1,732 @@
+.\" $OpenBSD: pdc.4,v 1.12 2022/03/31 17:27:21 naddy Exp $
+.\"
+.\" Copyright (c) 2004 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR OR HIS RELATIVES BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF MIND, USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt PDC 4 hppa
+.Os
+.Sh NAME
+.Nm pdc
+.Nd Processor-Dependent Code firmware driver
+.Sh SYNOPSIS
+.Cd "pdc0 at mainbus?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides system console services through the PDC
+and also a means for calling PDC procedures, described later.
+The PDC console is used early in the kernel startup before enough kernel
+subsystems have been initialized to directly use the hardware
+i.e. serial ports, keyboard, and video.
+.Pp
+The PDC version displayed at system boot is relevant to the particular
+system model and is not necessarily comparable to PDC versions
+on other systems.
+.\" TODO page0 description and entry points
+.Sh PDC PROCEDURES
+PDC procedure calls are all made through a single entry point
+and assume normal C language calling conventions, with option
+number in the first argument and the return data address in the
+second, unless indicated otherwise.
+Each call requires at most 7KB of the available stack.
+Here is the list of procedures and options descriptions:
+.Bl -tag -width pdc
+.It Fn pdc "PDC_ADD_VALID" "PDC_ADD_VALID_DFLT" "paddr"
+Perform a read operation attempt at the physical address
+.Ar paddr
+without causing a HPMC, in order to verify that the address is valid
+and there is a device to respond to it.
+The implementation may choose to call the caller's HPMC handler and
+raise error conditions on the bus converters.
+.It Fn pdc "PDC_ALLOC" "PDC_ALLOC_DFLT" "ptr" "size"
+Allocate static storage for IODC use of
+.Ar size
+bytes and return the address in a word pointed to by the
+.Ar ptr
+argument.
+There is no way of freeing the storage allocated and thus
+care shall be taken to not exhaust the total allocation limit of 32KB.
+.It Fn pdc "PDC_BLOCK_TLB" "PDC_BTLB_DEFAULT" "ptr"
+Get block TLB parameters into the data area pointed to by the
+.Ar ptr
+argument.
+This includes minimal and maximal entry size and number of fixed and
+variable sized entries in the block TLB.
+Fixed entries have size of power of two and are aligned to the size
+where variable entries can have any size and base address both
+aligned to a page.
+.It Xo
+.Fo pdc
+.Fa PDC_BLOCK_TLB
+.Fa PDC_BTLB_INSERT
+.Fa sp
+.Fa va
+.Fa pa
+.Fa len
+.Fa acc
+.Fa slot
+.Fc
+.Xc
+Insert block TLB entry specified by the space ID
+.Ar sp ,
+virtual address
+.Ar va ,
+physical address
+.Ar pa ,
+region length
+.Ar len ,
+access rights
+.Ar acc ,
+into the slot number
+.Ar slot .
+.It Fn pdc "PDC_BLOCK_TLB" "PDC_BTLB_PURGE" "sp" "va" "slot" "len"
+Purge one entry from the block TLB specified by the space ID
+.Ar sp ,
+virtual address
+.Ar va ,
+region length
+.Ar len ,
+from slot number
+.Ar slot .
+.It Fn pdc "PDC_BLOCK_TLB" "PDC_BTLB_PURGE_ALL"
+Purge all entries from the block TLB.
+.\" TODO .It Fn pdc "PDC_BUS_BAD" "PDC_BUS_BAD_DLFT"
+.It Fn pdc "PDC_CACHE" "PDC_CACHE_DFLT" "ptr"
+Retrieve cache and TLB configuration parameters into the data area
+pointed to by the
+.Ar ptr
+argument.
+The format of the data stores is as follows:
+.Bl -column "0x00" "contents" -offset indent
+.It Sy "addr" Ta Sy "contents"
+.It "0x00" Ta "I-cache size in bytes"
+.It "0x04" Ta "I-cache configuration"
+.It "0x08" Ta "I-cache base for flushing"
+.It "0x0c" Ta "I-cache stride for flushing"
+.It "0x10" Ta "I-cache count for flushing"
+.It "0x14" Ta "I-cache loop size for flushing"
+.It "0x18" Ta "D-cache size in bytes"
+.It "0x1c" Ta "D-cache configuration"
+.It "0x20" Ta "D-cache base for flushing"
+.It "0x24" Ta "D-cache stride for flushing"
+.It "0x28" Ta "D-cache count for flushing"
+.It "0x2c" Ta "D-cache loop size for flushing"
+.It "0x30" Ta "ITLB size"
+.It "0x34" Ta "ITLB configuration"
+.It "0x38" Ta "ITLB space base for flushing"
+.It "0x3c" Ta "ITLB space stride for flushing"
+.It "0x40" Ta "ITLB space count for flushing"
+.It "0x44" Ta "ITLB address base for flushing"
+.It "0x48" Ta "ITLB address stride for flushing"
+.It "0x4c" Ta "ITLB address count for flushing"
+.It "0x50" Ta "ITLB loop size for flushing"
+.It "0x54" Ta "DTLB size"
+.It "0x58" Ta "DTLB configuration"
+.It "0x5c" Ta "DTLB space base for flushing"
+.It "0x60" Ta "DTLB space stride for flushing"
+.It "0x64" Ta "DTLB space count for flushing"
+.It "0x68" Ta "DTLB address base for flushing"
+.It "0x6c" Ta "DTLB address stride for flushing"
+.It "0x70" Ta "DTLB address count for flushing"
+.It "0x74" Ta "DTLB loop size for flushing"
+.El
+.Pp
+The cache configuration word is formatted as follows:
+.Bl -column "bit" "len" "contents" -offset indent
+.It Sy "bit" Ta Sy "len" Ta Sy "contents"
+.It "0" Ta "12" Ta "reserved"
+.It "13" Ta "3" Ta "set 1 if coherent operation supported"
+.It "16" Ta "2" Ta "flush mode: 0 \(em fdc & fic; 1 \(em fdc;\
+ 2 \(em fic; 3 \(em either"
+.It "18" Ta "1" Ta "write-thru D-cache if set"
+.It "19" Ta "2" Ta "reserved"
+.It "21" Ta "3" Ta "cache line size"
+.It "24" Ta "4" Ta "associativity"
+.It "28" Ta "4" Ta "virtual address alias boundary"
+.El
+.It Fn pdc "PDC_CACHE" "PDC_CACHE_SETCS" "ptr" "i_cst" "d_cst" "it_cst" "dt_cst"
+The second word in each of the
+.Ar i_cst ,
+.Ar d_cst ,
+.Ar it_cst ,
+and
+.Ar dt_cst
+arguments specifies the desired coherency operation for the instructions cache,
+data cache, instructions TLB, and data TLB, respectively.
+The data area pointed to by the
+.Ar ptr
+argument receives the actual coherent operation state
+after an attempted change.
+The CPU does not support the requested operation change
+should the corresponding words not match the arguments upon return.
+The currently supported values are zero for incoherent operation,
+and one for coherent operation.
+.It Fn pdc "PDC_CACHE" "PDC_CACHE_GETSPIDB" "ptr"
+The word pointed to by the
+.Ar ptr
+argument receives a mask of space ID used in hashing for cache tag.
+.It Fn pdc "PDC_CHASSIS" "PDC_CHASSIS_DISP" "display"
+Update the chassis display with data given in the
+.Ar display
+argument.
+The bitfields in the word are as follows:
+.Pp
+.Bl -tag -width 0xfffff -compact
+.It 0xe0000
+Specifies the system state.
+.Bl -tag -width 0xfffff -compact
+.It 0x00000
+off
+.It 0x20000
+fault
+.It 0x40000
+test
+.It 0x60000
+initialize
+.It 0x80000
+shutdown
+.It 0xa0000
+warning
+.It 0xc0000
+run
+.It 0xe0000
+all on
+.El
+.It 0x10000
+Blank the chassis display.
+.It 0x0f000
+This and the other lower three nibbles specify the four hex digits
+to be displayed on the chassis display.
+.El
+.It Fn pdc "PDC_CHASSIS" "PDC_CHASSIS_WARN" "ptr"
+Return the warnings from the chassis fans, temperature sensors,
+batteries and power supplies.
+A word of data is returned in the area pointed by the
+.Ar ptr
+argument and is described with bitfields:
+.Pp
+.Bl -tag -width 0xff -compact
+.It 0xff000000
+Zero means none of the redundant chassis components has indicated any failures.
+A non-zero value specifies the failing component.
+.It 0x4
+Indicates the chassis battery charge is low.
+.It 0x2
+The chassis temperature has exceeded the low threshold.
+.It 0x1
+The chassis temperature has exceeded the middle threshold.
+.El
+.It Fn pdc "PDC_CHASSIS" "PDC_CHASSIS_ALL" "ptr" "display"
+Both retrieves the chassis warnings into the word pointed by the
+.Ar ptr
+argument and sets the chassis display using data in the
+.Ar display
+argument.
+.\" TODO .It Fn pdc "PDC_CONF" "PDC_CONFIG_DECONF" "ptr" "hpa"
+.\" TODO .It Fn pdc "PDC_CONF" "PDC_CONFIG_RECONF" "ptr" "hpa"
+.\" TODO .It Fn pdc "PDC_CONF" "PDC_CONFIG_INFO" "ptr" "hpa"
+.It Fn pdc "PDC_COPROC" "PDC_COPROC_DFLT" "ptr"
+Identify the coprocessors attached to the CPU.
+The
+.Ar ptr
+points to a memory location where data is to be stored.
+The first word provides a mask for functional coprocessors and
+the second word is the mask for all present coprocessors.
+.It Fn pdc "PDC_DEBUG" "PDC_DEBUG_DFLT" "ptr"
+Retrieve address of the PDC debugger placed in to the word
+pointed to by the
+.Ar ptr
+argument.
+.\" TODO .It Fn pdc "PDC_INSTR" "PDC_INSTR_DFLT"
+.It Fn pdc "PDC_IODC" "PDC_IODC_READ" "ptr" "hpa" "entry" "addr" "count"
+Given a module
+.Ar hpa ,
+retrieve the specified
+.Ar entry
+from the module's IODC into a memory area at
+.Ar adr
+of
+.Ar count
+bytes long at most.
+The
+.Ar entry
+index is a one-byte index, with a value of zero being a special case.
+For the 0th entry, an IODC header of 16 bytes is returned instead
+of an actual code.
+.It Fn pdc "PDC_IODC" "PDC_IODC_NINIT" "ptr" "hpa" "spa"
+Non-destructively initialize the memory module specified by the
+.Ar hpa
+and
+.Ar spa
+arguments and return the module status after the init in the first word
+pointed to by the
+.Ar ptr
+argument, followed by the SPA space size and an amount of
+available memory bytes in the subsequent two words.
+.It Fn pdc "PDC_IODC" "PDC_IODC_DINIT" "ptr" "hpa" "spa"
+Same as
+.Nm PDC_IODC_NINIT
+except a destructive memory test is performed.
+.It Fn pdc "PDC_IODC" "PDC_IODC_MEMERR" "ptr" "hpa" "spa"
+For the memory module that is specified by
+.Ar hpa
+and
+.Ar spa ,
+return the last most severe error information comprised of copies of
+IO_STATUS, IO_ERR_RESP, IO_ERR_INFO, and IO_ERR_REQ registers placed
+into the data area pointed to by the
+.Ar ptr
+argument, and clear the error status.
+.It Fn pdc "PDC_IODC" "PDC_IODC_IMEMMASTER" "ptr" "hpa"
+HPA for the primary memory module is returned in a word pointed to by the
+.Ar ptr
+argument for a memory module specified by
+.Ar hpa
+if it's configured as a slave module in an interleave group.
+.It Fn pdc "PDC_LAN_STATION_ID" "PDC_LAN_STATION_ID_READ" "macptr" "hpa"
+Retrieve the MAC address for the device at
+.Ar hpa
+into the data area pointed to by the
+.Ar macptr
+argument.
+.\" TODO .It Fn pdc "PDC_MEM" "PDC_MEM_INFO" "ptr"
+.\" TODO .It Fn pdc "PDC_MEM" "PDC_MEM_ADD" "ptr" "PDT"
+.\" TODO .It Fn pdc "PDC_MEM" "PDC_MEM_CLR" "ptr"
+.\" TODO .It Fn pdc "PDC_MEM" "PDC_MEM_READ" "ptr" "PDT"
+.\" TODO .It Fn pdc "PDC_MEM" "PDC_MEM_RSTCLR" "ptr"
+.\" TODO .It Fn pdc "PDC_MEM" "PDC_MEM_SETGOOD" "ptr" "good"
+.It Fn pdc "PDC_MEMMAP" "PDC_MEMMAP_HPA." "ptr" "path"
+Returns device HPA in the word pointed to by the
+.Ar ptr
+argument given the device
+.Ar path
+pointer.
+.It Fn pdc "PDC_MODEL" "PDC_MODEL_INFO" "ptr"
+Returns the System model numbers.
+.It Fn pdc "PDC_MODEL" "PDC_MODEL_BOOTID" "boot_id"
+Set BOOT_ID of the processor module (used during boot
+process of monarch selection) to a word given in the
+.Ar boot_id
+argument.
+.It Fn pdc "PDC_MODEL" "PDC_MODEL_COMP" "ptr" "index"
+Retrieve processor component versions by issuing this procedure with
+subsequent indexes in the
+.Ar index
+argument starting at zero.
+The component version number is stored in the word pointed to by
+the
+.Ar ptr
+argument.
+.It Fn pdc "PDC_MODEL" "PDC_MODEL_MODEL" "ptr" "os_id" "mod_addr"
+Return a string of 80 chars maximum stored at address
+.Ar mod_addr
+and conforming to the OS specified by the
+.Ar os_id
+16-bit integer (see
+.Nm PDC_STABLE
+for more information on OS ID).
+A word at the
+.Ar ptr
+address receives the result string length.
+.\" TODO .It Fn pdc "PDC_MODEL" "PDC_MODEL_ENSPEC" "ptr"
+.\" TODO .It Fn pdc "PDC_MODEL" "PDC_MODEL_DISPEC" "ptr"
+.It Fn pdc "PDC_MODEL" "PDC_MODEL_CPUID" "ptr"
+Retrieve CPU model information.
+A word stored at the address given by the
+.Ar ptr
+argument specifies the CPU revision in the lower 5 bits followed by 7 bits
+of CPU model number.
+.It Fn pdc "PDC_MODEL" "PDC_MODEL_CPBALITIES" "ptr"
+Retrieve platform capabilities into the word pointed by the
+.Ar ptr
+argument.
+Bit 0 and 1 specify that a 64- or 32-bit OS is supported, respectively.
+.It Fn pdc "PDC_MODEL" "PDC_MODEL_GETBOOTOPTS" "ptr"
+Retrieve the currently enabled, overall supported, and enabled by default
+boot test masks respectively stored at location pointed to by
+the
+.Ar ptr
+argument.
+.It Fn pdc "PDC_MODEL" "PDC_MODEL_SETBOOTOPTS" "ptr" "disable" "enable"
+Disable boot tests specified by mask in the
+.Ar disable
+argument and enable
+boot tests specified by the mask given in the
+.Ar enable
+argument.
+The memory location pointed to by
+.Ar ptr
+will contain the resulting masks as returned
+by the PDC_MODEL_GETBOOTOPTS function.
+If an attempt is made to enable and disable the same test in one
+call, a PDC_ERR_INVAL will be returned.
+.It Fn pdc "PDC_NVM" "PDC_NVM_READ" "offset" "ptr" "count"
+Read contents of the NVM at
+.Ar offset
+into the memory area pointed to by the
+.Ar ptr
+argument of no more than
+.Ar count
+bytes.
+.Pp
+The format of the NVM is as follows:
+.Bl -column "0x0000" "size" "contents" -offset indent
+.It Sy "offset" Ta Sy "size" Ta Sy "contents"
+.It "0x00" Ta "0x24" Ta "HV dependent"
+.It "0x24" Ta "0x20" Ta "bootpath"
+.It "0x44" Ta "0x04" Ta "ISL revision"
+.It "0x48" Ta "0x04" Ta "timestamp"
+.It "0x4c" Ta "0x30" Ta "LIF utility entries"
+.It "0x7c" Ta "0x04" Ta "entry point"
+.It "0x80" Ta "0x80" Ta "OS panic information"
+.El
+.It Fn pdc "PDC_NVM" "PDC_NVM_WRITE" "offset" "ptr" "count"
+Write data pointed to by the
+.Ar ptr
+argument of
+.Ar count
+bytes at
+.Ar address
+in the NVM.
+.It Fn pdc "PDC_NVM" "PDC_NVM_SIZE" "ptr"
+Put the size of Non-Volatile Memory into the word pointed to by the
+.Ar ptr
+argument.
+.It Fn pdc "PDC_NVM" "PDC_NVM_VRFY"
+Verify that the contents of NVM are valid.
+.It Fn pdc "PDC_NVM" "PDC_NVM_INIT"
+Reset the contents of NVM to zeroes without any arguments.
+.It Fn pdc "PDC_HPA" "PDC_HPA_DFLT" "ptr"
+The data returned provides the monarch CPUs HPA in the word pointed to by
+.Ar ptr .
+.It Fn pdc "PDC_HPA" "PDC_HPA_MODULES" "ptr"
+Retrieve the bit mask for devices on the CPU bus into the data location
+pointed to by
+.Ar ptr .
+The first word is a bitmask for devices 0-31, and the second is
+a bitmask for devices 32-63, where bits set to one specify that
+the corresponding device number is on the same bus as the CPU.
+.\" TODO .It Fn pdc "PDC_PAT_IO" "PDC_PAT_IO_GET_PCI_RTSZ"
+.\" TODO .It Fn pdc "PDC_PAT_IO" "PDC_PAT_IO_GET_PCI_RT"
+.It Fn pdc "PDC_PIM" "PDC_PIM_HPMC" "offset" "ptr" "count"
+Get HPMC data from
+.Ar offset
+in Processor Internal Memory (PIM) into a
+.Ar ptr
+memory area of no more than
+.Ar count
+bytes in size.
+Data provided includes (in the order it is copied into the buffer):
+general registers (r0-r31), control registers (cr0-cr31), space
+registers (sr0-sr7), IIA space tail, IIA offset tail, check type,
+CPU state, cache check, TLB check, bus check, assist check, assist
+state, path info, system responder address, system requestor address,
+FPU registers (fpr0-fpr31).
+.It Fn pdc "PDC_PIM" "PDC_PIM_SIZE" "ptr"
+Return the amount of data available in bytes in the word pointed to by
+.Ar ptr .
+.It Fn pdc "PDC_PIM" "PDC_PIM_LPMC" "offset" "ptr" "count"
+Get LPMC data from
+.Ar offset
+in PIM into a
+.Ar ptr
+memory area of no more than
+.Ar count
+bytes in size.
+Data provided includes: HV dependent 0x4a words, check type, HV dependent
+word, cache check, TLB check, bus check, assist check, assist state,
+path info, system responder address, system requestor address,
+FPU registers (fpr0-fpr31).
+.It Fn pdc "PDC_PIM" "PDC_PIM_SBD" "offset" "ptr" "count"
+Get Soft Boot Data from
+.Ar offset
+in PIM into a
+.Ar ptr
+memory area of no more than
+.Ar count
+bytes in size.
+Data provided includes: general registers (r0-r31), control registers
+(cr0-cr31), space registers (sr0-sr7), IIA space tail, IIA offset tail,
+HV dependent word, CPU state.
+.It Fn pdc "PDC_PIM" "PDC_PIM_TOC" "offset" "ptr" "count"
+Get TOC (Transfer Of Control) data from
+.Ar offset
+in PIM into a
+.Ar ptr
+memory area of no more than
+.Ar count
+bytes in size.
+Data provided includes: general registers (r0-r31), control registers
+(cr0-cr31), space registers (sr0-sr7), IIA space tail, IIA offset tail,
+HV dependent word, CPU state.
+.It Fn pdc "PDC_POW_FAIL" "PDC_POW_FAIL_DFLT"
+Prepare for power fail.
+On the machines that provide power failure interrupts, this function is
+to be called after the operating system has completed
+.Xr shutdown 8
+to finish system-dependent tasks and power down.
+This function only requires 512 bytes of stack.
+.It Fn pdc "PDC_PROC" "PDC_PROC_STOP"
+Stop the currently executing processor and also disable bus requestorship,
+disable interrupts, and exclude the processor from cache coherency protocols.
+The caller must flush any necessary data from the cache before calling this
+function.
+.It Fn pdc "PDC_PROC" "PDC_PROC_RENDEZVOUS"
+Enter the reset rendezvous code on the current processor.
+This function is only implemented on category B processors and
+implementation is optional on category A processors.
+.It Fn pdc "PDC_PSW" "PDC_PSW_GETMASK" "ptr"
+Get the mask of default bits implemented into a word pointed to by the
+.Ar ptr
+argument.
+The following mask values are possible:
+.Pp
+.Bl -tag -width 100 -compact
+.It 1
+Default endianness bit is available.
+.It 2
+Default word width bit is available.
+.El
+.It Fn pdc "PDC_PSW" "PDC_PSW_DEFAULTS" "ptr"
+Retrieve the default PSW bits into the word pointed to by the
+.Ar ptr
+argument.
+.It Fn pdc "PDC_PSW" "PDC_PSW_SETDEFAULTS" "bits"
+Set the default PSW
+.Ar bits .
+.It Fn pdc "PDC_SOFT_POWER" "PDC_SOFT_POWER_INFO" "ptr"
+Retrieve
+.Dq power
+register address into the word pointed to by the
+.Ar ptr
+argument.
+Bit-0 in the
+.Dq power
+register address being set specifies the power button being depressed.
+No dampening is required, unlike with the
+.Xr lasi 4
+power circuit.
+.It Fn pdc "PDC_SOFT_POWER" "PDC_SOFT_POWER_ENABLE" "ptr" "stat"
+Enable (zero
+.Ar stat )
+or disable (non-zero
+.Ar stat )
+the soft power function,
+where disable means the machine will turn immediately off
+should the power get depressed.
+The
+.Ar ptr
+argument still points to the data provided previously
+by the PDC_SOFT_POWER_INFO call.
+.It Fn pdc "PDC_STABLE" "PDC_STABLE_READ" "offset" "ptr" "count"
+Read contents of the
+.Dq Stable Storage
+at
+.Ar offset
+into the memory area pointed to by the
+.Ar ptr
+argument of no more than
+.Ar count
+bytes.
+.Pp
+The format of the stable storage is as follows:
+.Bl -column "offset" "0x00" "contents" -offset indent
+.It Sy "offset" Ta Sy "size" Ta Sy "contents"
+.It "0x0000" Ta "0x20" Ta "primary bootpath"
+.It "0x0020" Ta "0x20" Ta "reserved"
+.It "0x0040" Ta "0x02" Ta "OS ID"
+.It "0x0042" Ta "0x16" Ta "OS dependent"
+.It "0x0058" Ta "0x02" Ta "diagnostic"
+.It "0x005a" Ta "0x03" Ta "reserved"
+.It "0x005d" Ta "0x02" Ta "OS dependent"
+.It "0x005f" Ta "0x01" Ta "fast size"
+.It "0x0060" Ta "0x20" Ta "console path"
+.It "0x0080" Ta "0x20" Ta "alternative boot path"
+.It "0x00a0" Ta "0x20" Ta "keyboard path"
+.It "0x00c0" Ta "0x20" Ta "reserved"
+.It "0x00e0" Ta "size" Ta "OS dependent"
+.El
+.Pp
+The
+.Dq OS ID
+field may have the following values:
+.Bl -column "value" "OS" -offset indent
+.It Sy "value" Ta Sy "OS"
+.It "0x000" Ta "No OS-dependent info"
+.It "0x001" Ta "HP-UX"
+.It "0x002" Ta "MPE-iX"
+.It "0x003" Ta "OSF"
+.It "0x004" Ta "HP-RT"
+.It "0x005" Ta "Novell Netware"
+.El
+.Pp
+The
+.Dq fast size
+field is the amount of memory to be tested upon system boot
+and is a power of two multiplier for 256KB.
+Values of 0xe and 0xf are reserved.
+.It Fn pdc "PDC_STABLE" "PDC_STABLE_WRITE" "address" "ptr" "count"
+Write data pointed to by the
+.Ar ptr
+argument of
+.Ar count
+bytes at
+.Ar address
+in the
+.Dq Stable Storage .
+.It Fn pdc "PDC_STABLE" "PDC_STABLE_SIZE" "ptr"
+Put the size of the
+.Dq Stable Storage
+into the word pointed to by the
+.Ar ptr
+argument.
+.It Fn pdc "PDC_STABLE" "PDC_STABLE_VRFY" "ptr"
+Verify that the contents of the
+.Dq Stable Storage
+are valid.
+.It Fn pdc "PDC_STABLE" "PDC_STABLE_INIT" "ptr"
+Reset the contents of the
+.Dq Stable Storage
+to zeroes.
+.It Fn pdc "PDC_SYSMAP" "PDC_SYSMAP_FIND" "ptr" "path" "number"
+Map module
+.Ar number
+into HPA and also provide an area size starting at HPA and a number of
+additional addresses placed into the data area pointed to by the
+.Ar ptr
+argument words one, two, and three, respectively.
+The device path is placed into the data area pointed to by the
+.Ar path
+argument.
+.It Fn pdc "PDC_SYSMAP" "PDC_SYSMAP_ADDR" "ptr" "im" "ia"
+Retrieve a list of additional addresses for the module number
+.Ar im
+for the address index
+.Ar ia .
+The result is placed into the data area pointed to by
+.Ar ptr ,
+where the first word gives the address and the second the size of the area.
+.It Fn pdc "PDC_SYSMAP" "PDC_SYSMAP_HPA" "ptr" "path_ptr"
+Map device
+.Ar path_ptr
+into device's HPA placed into a word pointed to by the
+.Ar ptr
+argument.
+.It Fn pdc "PDC_TLB" "PDC_TLB_INFO" "ptr"
+Retrieve the hardware TLB handler parameters.
+This includes a minimal and maximal size for the page table, in bytes,
+stored into words zero and one, respectively,
+in the data area pointed to by the
+.Ar ptr
+argument.
+.It Fn pdc "PDC_TLB" "PDC_TLB_CONFIG" "ptr" "base" "size" "param"
+Configure the hardware TLB miss handler given the same parameters fetched
+previously with PDC_TLB_INFO into data area pointed to by the
+.Ar ptr
+and page table
+.Ar base
+address, page table
+.Ar size ,
+and handler parameters
+.Ar param .
+The hardware TLB handler parameter bits are as follows:
+.Pp
+.Bl -tag -width 0xff -compact
+.It 1
+Enable the hardware TLB miss handler.
+The default is to load cr28 with the faulted page table entry address.
+.It 4
+Pointer to the next page table entry is put into cr28.
+.It 6
+Next pointer field of the page table entry is put into cr28.
+.El
+.Pp
+Resetting the page table address and/or size without disabling
+the hardware TLB miss handler is allowed.
+Any changes made are immediate upon Code or Data virtual
+address translation bits are set in PSW.
+.It Fn pdc "PDC_TOD" "PDC_TOD_READ" "ptr"
+Read the TOD, which is a UNIX Epoch time, into the data area
+pointed to by the
+.Ar ptr
+argument.
+That includes seconds in the first word and microseconds in
+the second.
+.It Fn pdc "PDC_TOD" "PDC_TOD_WRITE" "sec" "usec"
+Write TOD with UNIX Epoch time with
+.Ar sec
+seconds and
+.Ar usec
+microseconds.
+.It Fn pdc "PDC_TOD" "PDC_TOD_ITIMER" "ptr"
+Get TOD and CPU timer accuracy into the data location pointed to by the
+.Ar ptr
+argument.
+The first two words specify a double floating-point value giving
+CPU timer frequency.
+The next two words provide accuracy in parts per billion for the TOD and
+CPU timer, respectively.
+.El
+.Sh FILES
+.Bl -tag -width /sys/arch/hppa/dev/cpudevs -compact
+.It machine/pdc.h
+C header file with relevant definitions.
+.It /sys/arch/hppa/dev/cpudevs
+System components' version numbers.
+.It /dev/console
+System console device.
+.El
+.Sh DIAGNOSTICS
+Upon successful completion all procedures return zero.
+The following error codes are returned in case of failures:
+.Pp
+.Bl -tag -width PDC_ERR_NOPROC -compact
+.It PDC_ERR_NOPROC
+No such procedure
+.It PDC_ERR_NOPT
+No such option
+.It PDC_ERR_COMPL
+Unable to complete without error
+.It PDC_ERR_EOD
+No such device
+.It PDC_ERR_INVAL
+Invalid argument
+.It PDC_ERR_PFAIL
+Aborted by powerfail
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr io 4 ,
+.Xr lasi 4
+.Rs
+.%T PA-RISC 1.1 Firmware Architecture Reference Specification
+.%A Hewlett-Packard
+.%D March 8, 1999
+.Re
+.Rs
+.%T PA-RISC 2.0 Firmware Architecture Reference Specification
+.%A Hewlett-Packard
+.%D March 7, 1999
+.Re

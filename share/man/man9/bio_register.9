@@ -1,0 +1,66 @@
+.\"	$OpenBSD: bio_register.9,v 1.6 2015/09/14 12:05:33 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 14 2015 $
+.Dt BIO_REGISTER 9
+.Os
+.Sh NAME
+.Nm bio_register ,
+.Nm bio_unregister
+.Nd block I/O ioctl tunnelling interface
+.Sh SYNOPSIS
+.In dev/biovar.h
+.Ft int
+.Fn bio_register "struct device *dev" "int (*bioctl)(struct device *, u_long, caddr_t)"
+.Ft void
+.Fn bio_unregister "struct device *dev"
+.Sh DESCRIPTION
+The block I/O ioctl tunnelling interface is used by drivers to register and
+unregister ioctl handlers to be accessed via the
+.Xr bio 4
+device.
+.Pp
+.Fn bio_register
+is called by the driver represented by
+.Fa dev
+to register the
+.Fa bioctl
+argument as the ioctl handler for itself.
+.Pp
+.Fn bio_unregister
+is called to remove the ioctl handler previously registered with
+.Fn bio_register
+for the device represented by
+.Fa dev .
+.Pp
+.Fn bio_register
+and
+.Fn bio_unregister
+can be called during
+.Xr autoconf 9
+or from process context.
+The
+.Fa bioctl
+callback is called from process context.
+.Sh SEE ALSO
+.Xr bio 4 ,
+.Xr autoconf 9
+.Sh HISTORY
+The block I/O ioctl tunnelling interface first appeared in
+.Ox 3.2 .
+.Sh AUTHORS
+The block I/O ioctl tunnelling interface was written by
+.An Niklas Hallqvist Aq Mt niklas@openbsd.org .

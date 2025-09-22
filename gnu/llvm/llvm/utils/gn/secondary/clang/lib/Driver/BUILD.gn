@@ -1,0 +1,106 @@
+static_library("Driver") {
+  output_name = "clangDriver"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  include_dirs = [ "." ]
+  deps = [
+    "//clang/include/clang/Config",
+
+    # Driver doesn't depend on StaticAnalyzer and the other way round, but
+    # as of clang r311958 Driver does depend on StaticAnalyzer/Checkers's
+    # tablegen'd Checkers.inc.  The CMake build runs all clang tablegen steps
+    # before all lib compilations via the clang-tablegen-targets target; the
+    # GN build has this dependency instead.
+    # FIXME: Move Checkers.td somewhere else to clean up this layering mess.
+    # See the review thread of r311958 for details.
+    "//clang/include/clang/StaticAnalyzer/Checkers",
+    "//clang/lib/Basic",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/WindowsDriver",
+  ]
+  public_deps = [
+    # public_dep because public header Options.h includes generated Options.inc.
+    "//clang/include/clang/Driver:Options",
+  ]
+  if (host_os == "win") {
+    # MSVCToolChain.cpp uses version.dll.
+    libs = [ "version.lib" ]
+  }
+  sources = [
+    "Action.cpp",
+    "Compilation.cpp",
+    "Distro.cpp",
+    "Driver.cpp",
+    "DriverOptions.cpp",
+    "Job.cpp",
+    "Multilib.cpp",
+    "MultilibBuilder.cpp",
+    "OffloadBundler.cpp",
+    "OptionUtils.cpp",
+    "Phases.cpp",
+    "SanitizerArgs.cpp",
+    "Tool.cpp",
+    "ToolChain.cpp",
+    "ToolChains/AIX.cpp",
+    "ToolChains/AMDGPU.cpp",
+    "ToolChains/AMDGPUOpenMP.cpp",
+    "ToolChains/AVR.cpp",
+    "ToolChains/Arch/AArch64.cpp",
+    "ToolChains/Arch/ARM.cpp",
+    "ToolChains/Arch/CSKY.cpp",
+    "ToolChains/Arch/LoongArch.cpp",
+    "ToolChains/Arch/M68k.cpp",
+    "ToolChains/Arch/Mips.cpp",
+    "ToolChains/Arch/PPC.cpp",
+    "ToolChains/Arch/RISCV.cpp",
+    "ToolChains/Arch/Sparc.cpp",
+    "ToolChains/Arch/SystemZ.cpp",
+    "ToolChains/Arch/VE.cpp",
+    "ToolChains/Arch/X86.cpp",
+    "ToolChains/BareMetal.cpp",
+    "ToolChains/CSKYToolChain.cpp",
+    "ToolChains/Clang.cpp",
+    "ToolChains/CommonArgs.cpp",
+    "ToolChains/CrossWindows.cpp",
+    "ToolChains/Cuda.cpp",
+    "ToolChains/Darwin.cpp",
+    "ToolChains/DragonFly.cpp",
+    "ToolChains/Flang.cpp",
+    "ToolChains/FreeBSD.cpp",
+    "ToolChains/Fuchsia.cpp",
+    "ToolChains/Gnu.cpp",
+    "ToolChains/HIPAMD.cpp",
+    "ToolChains/HIPSPV.cpp",
+    "ToolChains/HIPUtility.cpp",
+    "ToolChains/HLSL.cpp",
+    "ToolChains/Haiku.cpp",
+    "ToolChains/Hexagon.cpp",
+    "ToolChains/Hurd.cpp",
+    "ToolChains/InterfaceStubs.cpp",
+    "ToolChains/Linux.cpp",
+    "ToolChains/MSP430.cpp",
+    "ToolChains/MSVC.cpp",
+    "ToolChains/MinGW.cpp",
+    "ToolChains/MipsLinux.cpp",
+    "ToolChains/NaCl.cpp",
+    "ToolChains/NetBSD.cpp",
+    "ToolChains/OHOS.cpp",
+    "ToolChains/OpenBSD.cpp",
+    "ToolChains/PPCFreeBSD.cpp",
+    "ToolChains/PPCLinux.cpp",
+    "ToolChains/PS4CPU.cpp",
+    "ToolChains/RISCVToolchain.cpp",
+    "ToolChains/SPIRV.cpp",
+    "ToolChains/Solaris.cpp",
+    "ToolChains/TCE.cpp",
+    "ToolChains/VEToolchain.cpp",
+    "ToolChains/WebAssembly.cpp",
+    "ToolChains/XCore.cpp",
+    "ToolChains/ZOS.cpp",
+    "Types.cpp",
+    "XRayArgs.cpp",
+  ]
+}

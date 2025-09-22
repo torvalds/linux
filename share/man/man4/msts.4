@@ -1,0 +1,95 @@
+.\"	$OpenBSD: msts.4,v 1.4 2015/01/15 00:48:10 deraadt Exp $
+.\"
+.\" Copyright (c) 2008 Marc Balmer <mbalmer@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 15 2015 $
+.Dt MSTS 4
+.Os
+.Sh NAME
+.Nm msts
+.Nd Meinberg Standard Time String timedelta sensor
+.Sh SYNOPSIS
+.Cd "pseudo-device msts" Op Ar count
+.Sh DESCRIPTION
+This line discipline interfaces serial Meinberg devices.
+.Pp
+The line discipline is enabled by the following sequence:
+.Bd -literal -offset indent
+#include <sys/ioctl.h>
+int ldisc = MSTSDISC, fildes; ...
+ioctl(fildes, TIOCSETD, &ldisc);
+.Ed
+.Pp
+The byte stream is unaltered by the line discipline which
+maintains a timedelta sensor using the MSTS data.
+The timedelta sensor will appear as msts* in the list of sensors and the delta
+(in nanoseconds) between the received time information and the local time can
+be accessed through the
+.Xr sysctl 8
+interface.
+.Pp
+The Meinberg radio clocks use the following default baudrates:
+.Pp
+.Bl -tag -width "GPS-receivers (external and PCI, COM0)XXX" -offset indent -compact
+.It GPS-receivers (external and PCI, COM0)
+19200/8N1
+.It GPS-receivers (external, COM1)
+9600/8N1
+.It DCF77-receivers (external)
+9600/7E2
+.It DCF77-receivers (PCI)
+4800/8N1
+.El
+.Sh SENSOR STATES
+The quality of the timedelta is reported as the sensor status:
+.Bl -tag -width "CRITICALXX" -offset indent
+.It OK
+The time information is valid.
+The timedelta is safe to use for applications like
+.Xr ntpd 8 .
+.It WARN
+The attached receiver has been indicating a warning condition
+for at least the last ten minutes.
+The timedelta should be used with care.
+.It CRITICAL
+tty timestamping has been turned on but there is no PPS signal present or the
+receiver indicated a warning condition for at least the last twenty minutes.
+Check your hardware.
+Some receiver units need PPS to be manually turned on.
+.El
+.Pp
+The status of a second sensor is used to report the status of the
+device itself:
+.Bl -tag -width "CRITICALXX" -offset indent
+.It OK
+The clock is synchronized, e.g. a GPS receiver has a fix.
+.It WARN
+The device issued a warning condition, e.g. a GPS receiver has no fix.
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ldattach 8 ,
+.Xr ntpd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Ox 4.3 .
+.Sh AUTHORS
+The
+.Nm
+line discipline was written by
+.An Marc Balmer Aq Mt mbalmer@openbsd.org .

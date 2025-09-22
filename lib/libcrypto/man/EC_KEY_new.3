@@ -1,0 +1,536 @@
+.\" $OpenBSD: EC_KEY_new.3,v 1.23 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 3aef36ff Jan 5 13:06:03 2016 -0500
+.\" partial merge up to: OpenSSL e9b77246 Jan 20 19:58:49 2017 +0100
+.\"
+.\" This file was written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2013, 2014 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EC_KEY_NEW 3
+.Os
+.Sh NAME
+.Nm EC_KEY_new ,
+.Nm EC_KEY_get_flags ,
+.Nm EC_KEY_set_flags ,
+.Nm EC_KEY_clear_flags ,
+.Nm EC_KEY_new_by_curve_name ,
+.Nm EC_KEY_free ,
+.Nm EC_KEY_copy ,
+.Nm EC_KEY_dup ,
+.Nm EC_KEY_up_ref ,
+.Nm EC_KEY_get0_group ,
+.Nm EC_KEY_set_group ,
+.Nm EC_KEY_get0_private_key ,
+.Nm EC_KEY_set_private_key ,
+.Nm EC_KEY_get0_public_key ,
+.Nm EC_KEY_set_public_key ,
+.Nm EC_KEY_get_enc_flags ,
+.Nm EC_KEY_set_enc_flags ,
+.Nm EC_KEY_get_conv_form ,
+.Nm EC_KEY_set_conv_form ,
+.Nm EC_KEY_set_asn1_flag ,
+.Nm EC_KEY_precompute_mult ,
+.Nm EC_KEY_generate_key ,
+.Nm EC_KEY_check_key ,
+.Nm EC_KEY_set_public_key_affine_coordinates ,
+.Nm EC_KEY_print ,
+.Nm EC_KEY_print_fp
+.Nd create, destroy and manipulate EC_KEY objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ec.h
+.In openssl/bn.h
+.Ft EC_KEY *
+.Fn EC_KEY_new void
+.Ft int
+.Fo EC_KEY_get_flags
+.Fa "const EC_KEY *key"
+.Fc
+.Ft void
+.Fo EC_KEY_set_flags
+.Fa "EC_KEY *key"
+.Fa "int flags"
+.Fc
+.Ft void
+.Fo EC_KEY_clear_flags
+.Fa "EC_KEY *key"
+.Fa "int flags"
+.Fc
+.Ft EC_KEY *
+.Fo EC_KEY_new_by_curve_name
+.Fa "int nid"
+.Fc
+.Ft void
+.Fo EC_KEY_free
+.Fa "EC_KEY *key"
+.Fc
+.Ft EC_KEY *
+.Fo EC_KEY_copy
+.Fa "EC_KEY *dst"
+.Fa "const EC_KEY *src"
+.Fc
+.Ft EC_KEY *
+.Fo EC_KEY_dup
+.Fa "const EC_KEY *src"
+.Fc
+.Ft int
+.Fo EC_KEY_up_ref
+.Fa "EC_KEY *key"
+.Fc
+.Ft const EC_GROUP *
+.Fo EC_KEY_get0_group
+.Fa "const EC_KEY *key"
+.Fc
+.Ft int
+.Fo EC_KEY_set_group
+.Fa "EC_KEY *key"
+.Fa "const EC_GROUP *group"
+.Fc
+.Ft const BIGNUM *
+.Fo EC_KEY_get0_private_key
+.Fa "const EC_KEY *key"
+.Fc
+.Ft int
+.Fo EC_KEY_set_private_key
+.Fa "EC_KEY *key"
+.Fa "const BIGNUM *prv"
+.Fc
+.Ft const EC_POINT *
+.Fo EC_KEY_get0_public_key
+.Fa "const EC_KEY *key"
+.Fc
+.Ft int
+.Fo EC_KEY_set_public_key
+.Fa "EC_KEY *key"
+.Fa "const EC_POINT *pub"
+.Fc
+.Ft unsigned int
+.Fo EC_KEY_get_enc_flags
+.Fa "const EC_KEY *key"
+.Fc
+.Ft void
+.Fo EC_KEY_set_enc_flags
+.Fa "EC_KEY *key"
+.Fa "unsigned int flags"
+.Fc
+.Ft point_conversion_form_t
+.Fo EC_KEY_get_conv_form
+.Fa "const EC_KEY *key"
+.Fc
+.Ft void
+.Fo EC_KEY_set_conv_form
+.Fa "EC_KEY *key"
+.Fa "point_conversion_form_t cform"
+.Fc
+.Ft void
+.Fo EC_KEY_set_asn1_flag
+.Fa "EC_KEY *key"
+.Fa "int asn1_flag"
+.Fc
+.Ft int
+.Fo EC_KEY_precompute_mult
+.Fa "EC_KEY *key"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_KEY_generate_key
+.Fa "EC_KEY *key"
+.Fc
+.Ft int
+.Fo EC_KEY_check_key
+.Fa "const EC_KEY *key"
+.Fc
+.Ft int
+.Fo EC_KEY_set_public_key_affine_coordinates
+.Fa "EC_KEY *key"
+.Fa "BIGNUM *x"
+.Fa "BIGNUM *y"
+.Fc
+.Ft int
+.Fo EC_KEY_print
+.Fa "BIO *bp"
+.Fa "const EC_KEY *key"
+.Fa "int off"
+.Fc
+.Ft int
+.Fo EC_KEY_print_fp
+.Fa "FILE *fp"
+.Fa "const EC_KEY *key"
+.Fa "int off"
+.Fc
+.Sh DESCRIPTION
+An
+.Vt EC_KEY
+represents a public key and (optionally) an associated private key.
+The public key is a point on a curve represented by an
+.Vt EC_POINT ,
+see
+.Xr EC_POINT_new 3 .
+The private key is simply a
+.Vt BIGNUM ,
+see
+.Xr BN_new 3 .
+.Pp
+A new
+.Vt EC_KEY
+(with no associated curve) can be constructed by calling
+.Fn EC_KEY_new .
+The reference count for the newly created
+.Vt EC_KEY
+is initially set to 1.
+A curve can be associated with the
+.Vt EC_KEY
+by calling
+.Fn EC_KEY_set_group .
+.Pp
+Alternatively a new
+.Vt EC_KEY
+can be constructed by calling
+.Fn EC_KEY_new_by_curve_name
+and supplying the
+.Fa nid
+of the associated curve.
+Refer to
+.Xr EC_GROUP_new_by_curve_name 3
+for a description of curve names.
+This function simply wraps calls to
+.Fn EC_KEY_new
+and
+.Fn EC_GROUP_new_by_curve_name .
+.Pp
+Calling
+.Fn EC_KEY_free
+decrements the reference count for the
+.Vt EC_KEY
+object and, if it has dropped to zero, then frees the memory associated
+with it.
+If
+.Fa key
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn EC_KEY_copy
+copies the contents of the
+.Vt EC_KEY
+in
+.Fa src
+into
+.Fa dst .
+.Pp
+.Fn EC_KEY_dup
+creates a new
+.Vt EC_KEY
+object and copies
+.Fa src
+into it.
+.Pp
+.Fn EC_KEY_up_ref
+increments the reference count associated with the
+.Vt EC_KEY
+object.
+.Pp
+.Fn EC_KEY_generate_key
+generates a new public and private key for the supplied
+.Fa key
+object.
+.Fa key
+must have an
+.Vt EC_GROUP
+object associated with it before calling this function.
+The private key is a random integer (0 < priv_key < order, where order
+is the order of the
+.Vt EC_GROUP
+object).
+The public key is an
+.Vt EC_POINT
+on the curve calculated by multiplying the generator for the curve
+by the private key.
+.Pp
+.Fn EC_KEY_check_key
+performs various sanity checks on the
+.Vt EC_KEY
+object to confirm that it is valid.
+.Pp
+.Fn EC_KEY_set_public_key_affine_coordinates
+sets the public key for
+.Fa key
+based on its affine coordinates, i.e. it constructs an
+.Vt EC_POINT
+object based on the supplied
+.Fa x
+and
+.Fa y
+values and sets the public key to be this
+.Vt EC_POINT .
+It also performs certain sanity checks on the key to confirm that
+it is valid.
+.Pp
+The functions
+.Fn EC_KEY_get0_group ,
+.Fn EC_KEY_set_group ,
+.Fn EC_KEY_get0_private_key ,
+.Fn EC_KEY_set_private_key ,
+.Fn EC_KEY_get0_public_key ,
+and
+.Fn EC_KEY_set_public_key
+get and set the
+.Vt EC_GROUP
+object, the private key and the
+.Vt EC_POINT
+public key for the
+.Fa key ,
+respectively.
+The setters copy the group and key objects without sanity checks
+and it is the caller's responsibility to ensure that
+the resulting key is valid, for example using
+.Fn EC_KEY_check_key .
+.Pp
+The functions
+.Fn EC_KEY_get_enc_flags
+and
+.Fn EC_KEY_set_enc_flags
+get and set the value of the encoding flags for the
+.Fa key .
+There are two encoding flags currently defined:
+.Dv EC_PKEY_NO_PARAMETERS
+and
+.Dv EC_PKEY_NO_PUBKEY .
+These flags define the behaviour of how the
+.Fa key
+is converted into ASN.1 in a call to
+.Fn i2d_ECPrivateKey .
+If
+.Dv EC_PKEY_NO_PARAMETERS
+is set then the public parameters for the curve
+are not encoded along with the private key.
+If
+.Dv EC_PKEY_NO_PUBKEY
+is set then the public key is not encoded along with the private
+key.
+.Pp
+The format of the external representation of the public key written by
+.Xr i2d_ECPrivateKey 3 ,
+such as whether it is stored in a compressed form or not,
+is described by the point_conversion_form.
+See
+.Xr EC_POINT_point2oct 3
+for a description of point_conversion_form.
+.Pp
+When reading a private key encoded without an associated public key,
+for example if
+.Dv EC_PKEY_NO_PUBKEY
+was used,
+.Xr d2i_ECPrivateKey 3
+generates the missing public key automatically.
+Private keys encoded without parameters, for example if
+.Dv EC_PKEY_NO_PARAMETERS
+was used, cannot be loaded using
+.Xr d2i_ECPrivateKey 3 .
+.Pp
+The functions
+.Fn EC_KEY_get_conv_form
+and
+.Fn EC_KEY_set_conv_form
+get and set the point_conversion_form for the
+.Fa key .
+For a description of point_conversion_form refer to
+.Xr EC_POINT_point2oct 3 .
+.Pp
+.Fn EC_KEY_set_flags
+sets the flags in the
+.Fa flags
+parameter on the
+.Vt EC_KEY
+object.
+Any flags that are already set are left set.
+The currently defined standard flags are
+.Dv EC_FLAG_NON_FIPS_ALLOW
+and
+.Dv EC_FLAG_FIPS_CHECKED .
+In addition there is the ECDH-specific flag
+.Dv EC_FLAG_COFACTOR_ECDH .
+.Fn EC_KEY_get_flags
+returns the current flags that are set for this
+.Vt EC_KEY .
+.Fn EC_KEY_clear_flags
+clears the flags indicated by the
+.Fa flags
+parameter.
+All other flags are left in their existing state.
+.Pp
+.Fn EC_KEY_set_asn1_flag
+sets the asn1_flag on the underlying
+.Vt EC_GROUP
+object (if set).
+Refer to
+.Xr EC_GROUP_get_curve_name 3
+for further information on the asn1_flag.
+.Pp
+.Fn EC_KEY_precompute_mult
+stores multiples of the underlying
+.Vt EC_GROUP
+generator for faster point multiplication.
+See also
+.Xr EC_POINT_add 3 .
+.Pp
+.Fn EC_KEY_print
+and
+.Fn EC_KEY_print_fp
+print out the content of
+.Fa key
+to the
+.Vt BIO
+.Fa bp
+or to the
+.Vt FILE
+pointer
+.Fa fp ,
+respectively.
+Each line is indented by
+.Fa indent
+spaces.
+.Sh RETURN VALUES
+.Fn EC_KEY_new ,
+.Fn EC_KEY_new_by_curve_name ,
+and
+.Fn EC_KEY_dup
+return a pointer to the newly created
+.Vt EC_KEY object
+or
+.Dv NULL
+on error.
+.Pp
+.Fn EC_KEY_get_flags
+returns the flags associated with the
+.Vt EC_KEY object .
+.Pp
+.Fn EC_KEY_copy
+returns a pointer to the destination key or
+.Dv NULL
+on error.
+In the latter case, part of the content may already have been copied.
+.Pp
+.Fn EC_KEY_up_ref ,
+.Fn EC_KEY_set_group ,
+.Fn EC_KEY_set_private_key ,
+.Fn EC_KEY_set_public_key ,
+.Fn EC_KEY_precompute_mult ,
+.Fn EC_KEY_generate_key ,
+.Fn EC_KEY_check_key ,
+.Fn EC_KEY_set_public_key_affine_coordinates ,
+.Fn EC_KEY_print ,
+and
+.Fn EC_KEY_print_fp
+return 1 on success or 0 on error.
+.Pp
+.Fn EC_KEY_get0_group
+returns the
+.Vt EC_GROUP
+associated with the
+.Vt EC_KEY .
+.Pp
+.Fn EC_KEY_get0_private_key
+and
+.Fn EC_KEY_get0_public_key
+return the private or public keys, respectively, associated with the
+.Vt EC_KEY .
+.Pp
+.Fn EC_KEY_get_enc_flags
+returns the value of the current encoding flags for the
+.Vt EC_KEY .
+.Pp
+.Fn EC_KEY_get_conv_form
+returns the point_conversion_form for the
+.Vt EC_KEY .
+.Sh SEE ALSO
+.Xr d2i_ECPKParameters 3 ,
+.Xr EC_GROUP_check 3 ,
+.Xr EC_GROUP_get_curve_name 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr EC_GROUP_new_curve_GFp 3 ,
+.Xr EC_KEY_METHOD_new 3 ,
+.Xr EC_POINT_add 3 ,
+.Xr EC_POINT_get_affine_coordinates 3 ,
+.Xr EC_POINT_point2oct 3 ,
+.Xr ECDH_compute_key 3 ,
+.Xr ECDSA_SIG_new 3 ,
+.Xr EVP_PKEY_set1_EC_KEY 3
+.Sh HISTORY
+.Fn EC_KEY_new ,
+.Fn EC_KEY_new_by_curve_name ,
+.Fn EC_KEY_free ,
+.Fn EC_KEY_copy ,
+.Fn EC_KEY_dup ,
+.Fn EC_KEY_up_ref ,
+.Fn EC_KEY_get0_group ,
+.Fn EC_KEY_set_group ,
+.Fn EC_KEY_get0_private_key ,
+.Fn EC_KEY_set_private_key ,
+.Fn EC_KEY_get0_public_key ,
+.Fn EC_KEY_set_public_key ,
+.Fn EC_KEY_get_enc_flags ,
+.Fn EC_KEY_set_enc_flags ,
+.Fn EC_KEY_get_conv_form ,
+.Fn EC_KEY_set_conv_form ,
+.Fn EC_KEY_set_asn1_flag ,
+.Fn EC_KEY_precompute_mult ,
+.Fn EC_KEY_generate_key ,
+.Fn EC_KEY_check_key ,
+.Fn EC_KEY_print ,
+and
+.Fn EC_KEY_print_fp
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Pp
+.Fn EC_KEY_get_flags ,
+.Fn EC_KEY_set_flags ,
+.Fn EC_KEY_clear_flags ,
+and
+.Fn EC_KEY_set_public_key_affine_coordinates
+first appeared in OpenSSL 1.0.1 and have been available since
+.Ox 5.3 .

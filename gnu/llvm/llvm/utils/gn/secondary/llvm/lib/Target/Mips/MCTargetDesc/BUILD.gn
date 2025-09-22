@@ -1,0 +1,76 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("MipsGenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../Mips.td"
+}
+
+tablegen("MipsGenInstrInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../Mips.td"
+}
+
+tablegen("MipsGenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../Mips.td"
+}
+
+tablegen("MipsGenRegisterInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../Mips.td"
+}
+
+tablegen("MipsGenSubtargetInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../Mips.td"
+}
+
+# This should contain tablegen targets generating .inc files included
+# by other targets. .inc files only used by .cpp files in this directory
+# should be in deps on the static_library instead.
+group("tablegen") {
+  visibility = [
+    ":MCTargetDesc",
+    "../TargetInfo",
+  ]
+  public_deps = [
+    ":MipsGenInstrInfo",
+    ":MipsGenRegisterInfo",
+    ":MipsGenSubtargetInfo",
+  ]
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMMipsDesc"
+  public_deps = [ ":tablegen" ]
+  deps = [
+    ":MipsGenAsmWriter",
+    ":MipsGenMCCodeEmitter",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/Mips/TargetInfo",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "MipsABIFlagsSection.cpp",
+    "MipsABIInfo.cpp",
+    "MipsAsmBackend.cpp",
+    "MipsELFObjectWriter.cpp",
+    "MipsELFStreamer.cpp",
+    "MipsInstPrinter.cpp",
+    "MipsMCAsmInfo.cpp",
+    "MipsMCCodeEmitter.cpp",
+    "MipsMCExpr.cpp",
+    "MipsMCTargetDesc.cpp",
+    "MipsNaClELFStreamer.cpp",
+    "MipsOptionRecord.cpp",
+    "MipsTargetStreamer.cpp",
+  ]
+}

@@ -1,0 +1,96 @@
+.\"	$OpenBSD: nsclpcsio.4,v 1.11 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2004 Markus Friedl <markus@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt NSCLPCSIO 4
+.Os
+.Sh NAME
+.Nm nsclpcsio
+.Nd National Semiconductor PC87366 LPC Super I/O with GPIO
+.Sh SYNOPSIS
+.Cd "nsclpcsio* at isa?"
+.Cd "gpio* at nsclpcsio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the National Semiconductor PC87366 LPC Super I/O.
+The Super I/O module incorporates several logical devices, the following
+ones are supported: GPIO, VLM and TMS.
+.Pp
+The GPIO logical device provides 29 I/O pins which can be accessed
+through the
+.Xr gpio 4
+framework.
+The
+.Xr gpioctl 8
+program allows easy manipulation of the pins from userland.
+.Pp
+VLM and TMS logical devices provides hardware monitoring capabilities
+to be used with the
+.Xr sysctl 8
+interface.
+The following 17 monitoring sensors are available:
+.Bl -column "Sensor" "Units" "Typical" -offset indent
+.It Sy "Sensor" Ta Sy "Units" Ta Sy "Typical Use"
+.It Li "TSENS1" Ta "uK" Ta "Remote diode"
+.It Li "TSENS2" Ta "uK" Ta "Remote diode"
+.It Li "TNSC" Ta "uK" Ta "Local diode"
+.It Li "VSENS0" Ta "uV DC" Ta "External source"
+.It Li "VSENS1" Ta "uV DC" Ta "External source"
+.It Li "VSENS2" Ta "uV DC" Ta "External source"
+.It Li "VSENS3" Ta "uV DC" Ta "External source"
+.It Li "VSENS4" Ta "uV DC" Ta "External source"
+.It Li "VSENS5" Ta "uV DC" Ta "External source"
+.It Li "VSENS6" Ta "uV DC" Ta "External source"
+.It Li "VSB" Ta "uV DC" Ta "VSB"
+.It Li "VDD" Ta "uV DC" Ta "VDD"
+.It Li "VBAT" Ta "uV DC" Ta "VBAT"
+.It Li "AVDD" Ta "uV DC" Ta "AVDD"
+.It Li "TS1" Ta "uV DC" Ta "Thermistor"
+.It Li "TS2" Ta "uV DC" Ta "Thermistor"
+.It Li "TS3" Ta "uV DC" Ta "Thermistor"
+.El
+.Sh SEE ALSO
+.Xr gpio 4 ,
+.Xr isa 4 ,
+.Xr gpioctl 8 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Nx 2.0 ,
+.Ox
+support was added in
+.Ox 3.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Matthias Drochner Aq Mt drochner@netbsd.org
+for
+.Nx
+and then ported to
+.Ox 3.5
+by
+.An Markus Friedl Aq Mt markus@openbsd.org .
+.Tn GPIO
+support was added in
+.Ox 3.6
+by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

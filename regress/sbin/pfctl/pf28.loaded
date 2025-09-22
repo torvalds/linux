@@ -1,0 +1,24 @@
+@0 block drop in log (all) quick on lo0 all
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 block drop in log quick on lo0 all
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 block drop in log (all) quick on lo0 all
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 block drop in log quick on lo0 all
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 block drop in log on lo0 all
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 block drop in log (all) on lo0 all
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

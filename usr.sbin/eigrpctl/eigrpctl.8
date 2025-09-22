@@ -1,0 +1,183 @@
+.\"	$OpenBSD: eigrpctl.8,v 1.7 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2015 Renato Westphal <renato@openbsd.org>
+.\" Copyright (c) 2004, 2005 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt EIGRPCTL 8
+.Os
+.Sh NAME
+.Nm eigrpctl
+.Nd control the EIGRP routing daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar socket
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr eigrpd 8
+daemon.
+Commands may be abbreviated to the minimum unambiguous prefix; for example,
+.Cm s i
+for
+.Cm show interfaces .
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl s Ar socket
+Use
+.Ar socket
+instead of the default
+.Pa /var/run/eigrpd.sock
+to communicate with
+.Xr eigrpd 8 .
+.El
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Xo
+.Cm clear neighbors
+.Op Cm family Ar family
+.Op Cm as Ar as
+.Op Ar address
+.Xc
+Delete entries from the neighbor table.
+.Ar family ,
+.Ar as ,
+and
+.Ar address
+can be used to limit the scope of the command to the given address family, autonomous system and/or address.
+If no argument is given, all neighbors from all EIGRP instances will be deleted.
+.It Cm fib couple
+Insert the learned routes into the Forwarding Information Base
+a.k.a. the kernel routing table.
+.It Cm fib decouple
+Remove the learned routes from the Forwarding Information Base
+a.k.a. the kernel routing table.
+Decoupling the FIB from an EIGRP router may create routing loops and could cause
+major routing issues in the complete EIGRP cloud.
+Only routers with just one link to the EIGRP cloud can safely decouple the FIB.
+.It Cm log brief
+Disable verbose debug logging.
+.It Cm log verbose
+Enable verbose debug logging.
+.It Cm reload
+Reload the configuration file.
+.It Xo
+.Cm show fib
+.Op Cm family Ar family
+.Op Ar filter
+.Xc
+Show the Forwarding Information Base.
+.Ar family ,
+if given, limit the output to the given address family.
+.Ar filter
+can be any of the following:
+.Pp
+.Bl -tag -width "interfaceXXinterfaceXX" -compact
+.It Cm connected
+Show only connected routes.
+.It Cm interface Op Ar interface
+Show only interfaces or the specified
+.Ar interface .
+.It Cm eigrp
+Show only EIGRP routes.
+.It Cm static
+Show only static routes.
+.El
+.Pp
+.Cm connected ,
+.Cm eigrp
+and
+.Cm static
+may be specified together.
+.It Xo
+.Cm show interfaces
+.Op Cm family Ar family
+.Op Cm as Ar as
+.Op Ar interface
+.Xc
+Show details for all EIGRP enabled interfaces or the specified
+.Ar interface .
+.Ar family
+and
+.Ar as ,
+if given, limit the output to the given address family and/or autonomous system.
+.It Xo
+.Cm show neighbor
+.Op Cm family Ar family
+.Op Cm as Ar as
+.Xc
+Show neighbors.
+.Ar family
+and
+.Ar as ,
+if given, limit the output to the given address family and/or autonomous system.
+.It Xo
+.Cm show topology
+.Op Cm family Ar family
+.Op Cm as Ar as
+.Op Ar prefix | filter
+.Xc
+Show the topology table.
+.Ar family
+and
+.Ar as ,
+if given, limit the output to the given address family and/or autonomous system.
+.Ar prefix
+can be specified to show the entries matching a destination prefix.
+.Ar filter
+can be any of the following:
+.Pp
+.Bl -tag -width "interfaceXXinterfaceXX" -compact
+.It Cm active
+Show only active entries.
+.It Cm all-links
+Show all entries.
+.El
+.It Xo
+.Cm show traffic
+.Op Cm family Ar family
+.Op Cm as Ar as
+.Xc
+Show traffic statistics.
+.Ar family
+and
+.Ar as ,
+if given, limit the output to the given address family and/or autonomous system.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/eigrpd.sockXX" -compact
+.It Pa /var/run/eigrpd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr eigrpd 8 .
+.El
+.Sh SEE ALSO
+.Xr eigrpd.conf 5 ,
+.Xr eigrpd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Renato Westphal Aq Mt renato@openbsd.org .

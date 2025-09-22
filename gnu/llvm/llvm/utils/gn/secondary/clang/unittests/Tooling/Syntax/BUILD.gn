@@ -1,0 +1,27 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("SyntaxTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Serialization",
+    "//clang/lib/Testing",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Syntax",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/Testing/Annotations",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "BuildTreeTest.cpp",
+    "MutationsTest.cpp",
+    "SynthesisTest.cpp",
+    "TokensTest.cpp",
+    "TreeTest.cpp",
+    "TreeTestBase.cpp",
+  ]
+}

@@ -1,0 +1,18 @@
+set timeout { interval 43, frag 23 }
+set timeout { tcp.first 423, tcp.opening 123, tcp.established 43758 }
+set timeout { tcp.closing 744, tcp.finwait 25, tcp.closed 38 }
+set timeout { udp.first 356, udp.single 73, udp.multiple 34 }
+set timeout { icmp.first 464, icmp.error 34 }
+set timeout { other.first 455, other.single 54, other.multiple 324 }
+set timeout { src.track 3600 }
+set limit { states 4522, frags 43556 }
+set loginterface none
+set loginterface lo0
+set hostid 1
+set optimization normal
+set block-policy drop
+
+set limit states 43254
+set limit frags 34557
+set timeout interval 344
+set timeout frag 213

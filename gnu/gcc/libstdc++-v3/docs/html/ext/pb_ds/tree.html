@@ -1,0 +1,516 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>tree Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>tree</tt> Interface</h1>
+
+    <p>A concrete basic tree-based associative container.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/assoc_container.hpp"><tt>assoc_container.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Template Parameters</a></h2>
+
+    <table class="c1" width="100%" border="1" summary=
+    "Template Parameters">
+      <tr>
+        <td width="20%" align="left"><b>Parameter</b></td>
+
+        <td width="50%" align="left"><b>Description</b></td>
+
+        <td width="30%" align="left"><b>Default Value</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Key2501" id="Key2501"><b>typename</b> Key</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Key type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Mapped318655" id="Mapped318655"><b>typename</b> Mapped</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Mapped type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Cmp_Fn294335" id="Cmp_Fn294335"><b>class</b> Cmp_Fn </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Comparison functor.</p>
+        </td>
+
+        <td>
+          <pre>
+std::less&lt;<a href="#Key2501"><tt>Key</tt></a>&gt;
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Tag278938" id="Tag278938"><b>class</b> Tag </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Mapped-structure tag.</p>
+        </td>
+
+        <td><a href="rb_tree_tag.html"><span class=
+        "c2"><tt>rb_tree_tag</tt></span></a></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Node_Update841554648" id=
+"Node_Update841554648"><b>template</b>&lt; 
+  <b>typename</b> Const_Node_Iterator, 
+  <b>typename</b> Node_Iterator, 
+  <b>class</b> Cmp_Fn_, 
+  <b>typename</b> Allocator_&gt;
+<b>class</b> Node_Update </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Node updater type.</p>
+
+          <p><a href=
+          "tree_based_containers.html#invariants">Design::Tree-Based
+          Containers::Node Invariants</a> explains this
+          concept.</p>
+        </td>
+
+        <td><a href="null_tree_node_update.html"><span class=
+        "c2"><tt>null_tree_node_update</tt></span></a></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Allocator35940069" id=
+"Allocator35940069"><b>class</b> Allocator </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Allocator type.</p>
+        </td>
+
+        <td>
+          <pre>
+std::allocator&lt;<b>char</b>&gt;
+</pre>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Base Classes</a></h2>
+
+    <table class="c1" width="100%" border="1" summary="Bases">
+      <tr>
+        <td width="80%" align="left"><b>Class</b></td>
+
+        <td width="20%" align="left"><b>Derivation Type</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="basic_tree.html"><span class=
+"c2"><tt>basic_tree</tt></span></a>
+</pre>
+        </td>
+
+        <td>
+          <p>public</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link3" id="link3">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link4" id="link4">Policy Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="cmp_fn394495" id="cmp_fn394495">cmp_fn</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Cmp_Fn294335"><tt>Cmp_Fn</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Comparison functor type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link5" id="link5">Iterator Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_node_iterator4205924553" id=
+"const_node_iterator4205924553">const_node_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href=
+"tree_const_node_iterator.html"><span class=
+"c2"><tt>const_node_iterator</tt></span></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Const node iterator.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="node_iterator3431975247" id=
+"node_iterator3431975247">node_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="tree_node_iterator.html"><span class=
+"c2"><tt>node_iterator</tt></span></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Node iterator.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link6" id="link6">Public Methods</a></h2>
+
+    <h3><a name="link7" id="link7">Constructors, Destructor, and
+    Related</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  tree
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Default constructor.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  tree
+  (<b>const</b> <a href=
+"#cmp_fn394495"><tt>cmp_fn</tt></a> &amp;r_cmp_fn)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking some policy objects. <span class=
+          "c1"><tt>r_cmp_fn</tt></span> will be copied by the
+          <a href="#Cmp_Fn294335"><tt>Cmp_Fn</tt></a> object of the
+          container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>template</b>&lt;
+    <b>class</b> It&gt;
+  tree
+  (It first_it, 
+    It last_it)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking iterators to a range of
+          value_types. The value_types between <span class=
+          "c1"><tt>first_it</tt></span> and <span class=
+          "c1"><tt>last_it</tt></span> will be inserted into the
+          container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>template</b>&lt;
+    <b>class</b> It&gt;
+  tree
+  (It first_it, 
+    It last_it,
+    <b>const</b> <a href=
+"#cmp_fn394495"><tt>cmp_fn</tt></a> &amp;r_cmp_fn)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking iterators to a range of value_types
+          and some policy objects The value_types between
+          <span class="c1"><tt>first_it</tt></span> and
+          <span class="c1"><tt>last_it</tt></span> will be inserted
+          into the container object. <span class=
+          "c1"><tt>r_cmp_fn</tt></span> will be copied by the
+          <a href="#cmp_fn394495"><tt>cmp_fn</tt></a> object of the
+          container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  tree
+  (<b>const</b> <span class=
+"c2"><tt>tree</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Copy constructor.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> 
+  ~tree
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Destructor.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<span class="c2"><tt>tree</tt></span> &amp;
+  <b>operator</b>=
+  (<b>const</b> <span class=
+"c2"><tt>tree</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Assignment operator.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b>
+  swap
+  (<span class=
+"c2"><tt>tree</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Swaps content.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link8" id="link8">Policy Access Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#cmp_fn394495"><tt>cmp_fn</tt></a> &amp;
+  get_cmp_fn
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Access to the <a href=
+          "#cmp_fn394495"><tt>cmp_fn</tt></a> object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>const</b> <a href="#cmp_fn394495"><tt>cmp_fn</tt></a> &amp;
+  get_cmp_fn
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Const access to the <a href=
+          "#cmp_fn394495"><tt>cmp_fn</tt></a> object.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link9" id="link9">Node-Iteration Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#node_iterator3431975247"><tt>node_iterator</tt></a>
+  node_begin
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#node_iterator3431975247"><tt>node_iterator</tt></a>
+          corresponding to the node at the root of the tree.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href=
+"#const_node_iterator4205924553"><tt>const_node_iterator</tt></a>
+  node_begin
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#const_node_iterator4205924553"><tt>const_node_iterator</tt></a>
+          corresponding to the node at the root of the tree.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#node_iterator3431975247"><tt>node_iterator</tt></a>
+  node_end
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#node_iterator3431975247"><tt>node_iterator</tt></a>
+          corresponding to a node just after a leaf of the
+          tree.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href=
+"#const_node_iterator4205924553"><tt>const_node_iterator</tt></a>
+  node_end
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#const_node_iterator4205924553"><tt>const_node_iterator</tt></a>
+          corresponding to a node just after a leaf of the
+          tree.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

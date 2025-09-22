@@ -1,0 +1,144 @@
+.\"	$OpenBSD: ospfctl.8,v 1.28 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2004, 2005 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt OSPFCTL 8
+.Os
+.Sh NAME
+.Nm ospfctl
+.Nd control the OSPF routing daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar socket
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr ospfd 8
+daemon.
+Commands may be abbreviated to the minimum unambiguous prefix; for example,
+.Cm s s
+for
+.Cm show summary .
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl s Ar socket
+Use
+.Ar socket
+instead of the default
+.Pa /var/run/ospfd.sock
+to communicate with
+.Xr ospfd 8 .
+.El
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Cm fib couple
+Insert the learned routes into the Forwarding Information Base
+a.k.a. the kernel routing table.
+.It Cm fib decouple
+Remove the learned routes from the Forwarding Information Base
+a.k.a. the kernel routing table.
+Decoupling the FIB from an OSPF router may create routing loops and could cause
+major routing issues in the complete OSPF cloud.
+Only routers with just one link to the OSPF cloud can safely decouple the FIB.
+.It Cm fib reload
+Refetches and relearns the routes in the Forwarding Information Base
+a.k.a. the kernel routing table.
+.It Cm log brief
+Disable verbose debug logging.
+.It Cm log verbose
+Enable verbose debug logging.
+.It Cm reload
+Reload the configuration file.
+.It Cm show database Op Ar filter
+Show the link state database.
+.Ar filter
+can be any one of the following:
+.Pp
+.Bl -tag -width "self-originatedXX" -compact
+.It Cm area Ar ID
+Show only LSAs from the specified area
+.Ar ID .
+.It Cm asbr
+Show only ASBR LSAs.
+.It Cm external
+Show only AS-External LSAs.
+.It Cm network
+Show only Network LSAs.
+.It Cm router
+Show only Router LSAs.
+.It Cm self-originated
+Show only self-originated LSAs.
+.It Cm summary
+Show only Summary LSAs.
+.El
+.It Cm show fib Op Ar destination | filter
+Show the Forwarding Information Base.
+.Ar destination
+can be specified to show the route matching a destination IP address.
+.Ar filter
+can be any of the following:
+.Pp
+.Bl -tag -width "interfaceXXinterfaceXX" -compact
+.It Cm connected
+Show only connected routes.
+.It Cm interface Op Ar interface
+Show only interfaces or the specified
+.Ar interface .
+.It Cm ospf
+Show only OSPF routes.
+.It Cm static
+Show only static routes.
+.El
+.Pp
+.Cm connected ,
+.Cm ospf
+and
+.Cm static
+may be specified together.
+.It Cm show interfaces Op Ar interface
+Show details for all interfaces or the specified
+.Ar interface .
+.It Cm show neighbor Op Cm detail
+Show neighbors.
+.Cm detail
+can be specified for additional detail.
+.It Cm show rib Op Cm detail
+Show the Routing Information Base.
+.Cm detail
+can be specified for additional detail.
+.It Cm show summary
+Show summary information.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/ospfd.sockXX" -compact
+.It Pa /var/run/ospfd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr ospfd 8 .
+.El
+.Sh SEE ALSO
+.Xr ospfd.conf 5 ,
+.Xr ospfd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 3.7 .

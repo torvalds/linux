@@ -1,0 +1,46 @@
+.\"	$OpenBSD: brgphy.4,v 1.25 2021/09/08 20:29:21 jmc Exp $
+.\"
+.\" Copyright (c) 2000 Jason L. Wright (jason@thought.net)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 8 2021 $
+.Dt BRGPHY 4
+.Os
+.Sh NAME
+.Nm brgphy
+.Nd Broadcom BCM54xx/BCM57xx 10/100/1Gb/2.5Gb Ethernet PHY
+.Sh SYNOPSIS
+.Cd "brgphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Broadcom BCM5400 100/1000TX Ethernet PHY interfaces, as well
+as the BCM5401, BCM541x, BCM5421, BCM54K2, BCM5462, BCM546x, BCM570x, BCM5714,
+BCM5722, BCM575x, BCM5761, BCM578x, BCM5906 and BCM57780 10/100/1000baseT
+Ethernet PHY interfaces, and BCM5708S Gigabit/2500 Ethernet PHY interfaces.
+.Sh SEE ALSO
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr mii 4 ,
+.Xr ifconfig 8

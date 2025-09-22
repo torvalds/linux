@@ -1,0 +1,209 @@
+.\"	$OpenBSD: acx.4,v 1.50 2022/01/05 17:39:24 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Theo de Raadt.
+.\" Copyright (c) 2006 The DragonFly Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. Neither the name of The DragonFly Project nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific, prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 5 2022 $
+.Dt ACX 4
+.Os
+.Sh NAME
+.Nm acx
+.Nd TI ACX100/ACX111 IEEE 802.11a/b/g wireless network device
+.Sh SYNOPSIS
+.Cd "acx* at cardbus?"
+.Cd "acx* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for TI TNETW1100/TNETW1100B (ACX100) and
+TNETW1130 (ACX111) based PCI/CardBus network adapters.
+.Pp
+The ACX100A and ACX100B are first generation 802.11b devices
+from TI.
+The ACX111 is a second generation device which supports 802.11b/g
+and in some cases 802.11a.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It IBSS mode
+Also known as
+.Em IEEE ad-hoc
+mode or
+.Em peer-to-peer
+mode.
+This is the standardized method of operating without an access point.
+Stations associate with a service set.
+However, actual connections between stations are peer-to-peer.
+.It Host AP
+In this mode the driver acts as an access point (base station)
+for other cards.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP)
+in software for ACX111
+or in hardware for ACX100.
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+.Pp
+The transmit speed is user-selectable or can be adapted automatically by the
+driver depending on the number of hardware transmission retries.
+.Pp
+In Host AP mode,
+the driver is compatible with clients using powersave.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The driver needs a set of firmware files which are loaded when
+an interface is brought up:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/tiacx100
+.It Pa /etc/firmware/tiacx100r0D
+.It Pa /etc/firmware/tiacx100r11
+.It Pa /etc/firmware/tiacx111
+.It Pa /etc/firmware/tiacx111c16
+.It Pa /etc/firmware/tiacx111r16
+.El
+.Pp
+These firmware files are not free because TI refuses
+to grant distribution rights.
+In fact they have rebuffed thousands
+of attempts to start a dialogue on this issue.
+As a result, even though
+.Ox
+includes the driver, the firmware files cannot be included and
+users have to download these files on their own.
+.Pp
+A prepackaged version of the firmware can be installed using
+.Xr fw_update 8 .
+.Sh HARDWARE
+The following cards are among those supported by the
+.Nm
+driver:
+.Bl -column "Microcom Travelcard" "ACX111" "CardBus" "Standard" -offset 6n
+.It Em Card Ta Em Chip Ta Em Bus Ta Em Standard
+.It "D-Link DWL-520+" Ta ACX100 Ta PCI Ta b
+.It "D-Link DWL-650+" Ta ACX100 Ta CardBus Ta b
+.It "D-Link DWL-G520+" Ta ACX111 Ta PCI Ta b/g
+.It "D-Link DWL-G630+" Ta ACX111 Ta CardBus Ta b/g
+.It "D-Link DWL-G650+" Ta ACX111 Ta CardBus Ta b/g
+.It "Digitus DN-7001G" Ta ACX111 Ta CardBus Ta b/g
+.It "Ergenic ERG WL-003" Ta ACX100 Ta CardBus Ta b
+.It "Hamlet HNWP254" Ta ACX111 Ta CardBus Ta b/g
+.It "Hawking HWP54G" Ta ACX111 Ta PCI Ta b/g
+.It "Linksys WPC54Gv2" Ta ACX111 Ta CardBus Ta b/g
+.It "Microcom Travelcard" Ta ACX111 Ta CardBus Ta b/g
+.It "Netgear WG311v2" Ta ACX111 Ta PCI Ta b/g
+.It "Sceptre SC254W+" Ta ACX111 Ta CardBus Ta b/g
+.It "Tornado/ADT 211g" Ta ACX111 Ta PCI Ta b/g
+.It "USR USR5410" Ta ACX111 Ta CardBus Ta b/g
+.It "USR USR5416" Ta ACX111 Ta PCI Ta b/g
+.It "ZyXEL G-160" Ta ACX111 Ta CardBus Ta b/g
+.It "ZyXEL G-360 EE" Ta ACX111 Ta PCI Ta b/g
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig acx0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures acx0 to join network
+.Dq mynwid ,
+using WEP key
+.Dq mywepkey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+nwid mynwid nwkey mywepkey
+inet autoconf
+.Ed
+.Pp
+The following
+.Xr hostname.if 5
+example creates a host-based access point on boot:
+.Bd -literal -offset indent
+mediaopt hostap
+nwid mynwid nwkey mywepkey
+inet 192.168.1.1 255.255.255.0
+.Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr cardbus 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Sepherosa Ziehau .
+The manual page was written by
+.An Sascha Wildner .
+Both are based on the
+.Lk http://wlan.kewl.org
+project team's original code.
+.Pp
+The hardware specification was reverse engineered by the good folks at
+.Lk http://acx100.sourceforge.net .
+Without them this driver would not have been possible.

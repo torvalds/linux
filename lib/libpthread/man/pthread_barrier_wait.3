@@ -1,0 +1,59 @@
+.\"	$OpenBSD: pthread_barrier_wait.3,v 1.6 2025/06/07 00:16:52 schwarze Exp $
+.\"
+.\" Copyright (c) 2012 Paul Irofti <paul@irofti.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_BARRIER_WAIT 3
+.Os
+.Sh NAME
+.Nm pthread_barrier_wait
+.Nd synchronize at a barrier
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_barrier_wait "pthread_barrier_t *barrier"
+.Sh DESCRIPTION
+The
+.Fn pthread_barrier_wait
+function blocks the calling thread until the required number of threads
+call
+.Fn pthread_barrier_wait ,
+as specified at the object's initialization.
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_barrier_wait
+returns
+.Dv PTHREAD_BARRIER_SERIAL_THREAD
+for a single arbitrary thread and zero for each of the other threads;
+otherwise an error number is returned to indicate the error.
+.Sh ERRORS
+.Fn pthread_barrier_wait
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa barrier
+is invalid.
+.El
+.Sh SEE ALSO
+.Xr pthread_barrier_init 3 ,
+.Xr pthread_barrierattr_getpshared 3 ,
+.Xr pthread_barrierattr_init 3
+.Sh STANDARDS
+.Fn pthread_barrier_wait
+conforms to
+.St -p1003.1-2008 .

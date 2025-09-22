@@ -1,0 +1,124 @@
+.\"	$OpenBSD: cdboot.8,v 1.10 2016/03/30 06:58:06 jmc Exp $
+.\" Copyright (c) 2004 Tom Cosgrove
+.\" Copyright (c) 2003 Matthias Drochner
+.\" Copyright (c) 1999 Doug White
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 30 2016 $
+.Dt CDBOOT 8 amd64
+.Os
+.Sh NAME
+.Nm cdboot
+.Nd amd64-specific second-stage CD-specific bootstrap
+.Sh DESCRIPTION
+.Nm
+is a modified version of the amd64 second-stage bootstrap program,
+.Xr boot 8 ,
+configured to be run by the
+.Ox
+El Torito CD-ROM boot sector
+.Pa cdbr .
+.Nm
+will look for an
+.Pa /etc/boot.conf
+configuration
+file on the CD-ROM.
+If it finds one, it processes the commands within it.
+.Pa boot.conf
+processing can be skipped by holding down either Control key as
+.Nm
+starts.
+.Pp
+.Nm
+then sits in a loop,
+processing commands given by the user.
+It accepts all the commands accepted by
+.Xr boot 8 .
+.Pp
+If no commands are given for a short time,
+.Nm
+will then attempt to load an
+.Ox
+kernel from the CD.
+It first looks for the install kernel
+.Pa bsd.rd
+in the standard amd64 release directory
+(e.g.\&
+.Pa /3.6/amd64/bsd.rd ) ,
+then for
+.Pa /bsd .
+It may be told to boot an alternative kernel,
+either by commands in the
+.Pa boot.conf
+file,
+or by commands typed by the user at the
+.Ic boot>
+prompt.
+.Sh FILES
+.Bl -tag -width /usr/mdec/cdbootxx -compact
+.It Pa /usr/mdec/cdboot
+CD-specific second-stage bootstrap
+.It Pa /etc/boot.conf
+.Nm
+configuration file (read from CD)
+.El
+.Sh EXAMPLES
+Boot the install kernel:
+.Pp
+.Dl boot> bsd.rd
+.Sh SEE ALSO
+.Xr boot 8 ,
+.Xr boot_amd64 8 ,
+.Xr mkhybrid 8
+.Sh STANDARDS
+.Rs
+.%A Curtis E. Stevens
+.%A Stan Merkin
+.%D January 25, 1995
+.%N Version 1.0
+.%T "El Torito Bootable CD-ROM Format Specification"
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 3.6 .
+.Sh CAVEATS
+By default, many CD creation programs restrict filenames to
+the MS-DOS 8.3 format.
+Unless this is changed,
+.Nm
+will not be able to read its
+.Xr boot.conf 8
+file.
+For example, with
+.Xr mkhybrid 8
+the
+.Fl l
+option should be specified.
+.Sh BUGS
+The
+.Ic ls
+command does not work on ISO 9660 (cd9660) filesystems,
+which are used on most CDs.

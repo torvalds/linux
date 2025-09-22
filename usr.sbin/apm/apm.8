@@ -1,0 +1,168 @@
+.\"	$OpenBSD: apm.8,v 1.46 2025/03/26 23:48:23 jca Exp $
+.\"
+.\" Copyright (c) 1996 John T. Kohl
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR `AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 26 2025 $
+.Dt APM 8
+.Os
+.Sh NAME
+.Nm apm ,
+.Nm zzz ,
+.Nm ZZZ
+.Nd Advanced Power Management control program
+.Sh SYNOPSIS
+.Nm apm
+.Op Fl AabHLlmPSvZz
+.Op Fl f Ar sockname
+.Nm zzz
+.Op Fl SZz
+.Op Fl f Ar sockname
+.Nm ZZZ
+.Op Fl SZz
+.Op Fl f Ar sockname
+.Sh DESCRIPTION
+.Nm
+communicates with the Advanced Power Management daemon,
+.Xr apmd 8 ,
+making requests of it for current power status or to place the system
+into a suspend or stand-by state.
+With no flags,
+.Nm
+displays the current power management state in verbose form.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl A
+Switch to automatic performance adjustment mode.
+.It Fl a
+Display the external charger (AC) status.
+0 means disconnected, 1
+means connected, 2 means backup power source, and 255 means unknown.
+.It Fl b
+Display the battery status.
+0 means high, 1 means low, 2 means
+critical, 3 means charging, 4 means absent, and 255 means unknown.
+.It Fl f Ar sockname
+Set the name of the socket via which to contact
+.Xr apmd 8
+to
+.Ar sockname .
+.It Fl H
+Switch to manual performance adjustment mode,
+setting
+.Va hw.setperf
+to 100.
+.It Fl L
+Switch to manual performance adjustment mode,
+setting
+.Va hw.setperf
+to 0.
+.It Fl l
+Display the estimated battery lifetime, in percent.
+.It Fl m
+Display the estimated battery lifetime, in minutes.
+If charging, the estimated time to fully charge is displayed instead.
+.It Fl P
+Display the performance adjustment mode.
+0 means manual mode.
+1 means automatic mode.
+.It Fl S
+Put the system into stand-by (light sleep) state.
+.It Fl v
+Request more verbose description of the displayed states.
+.It Fl Z
+Put the system into hibernation.
+System memory is saved to disk (swap space)
+and the machine is powered down.
+For machines supporting the
+.Xr acpi 4
+style hibernate functionality, on resume a full kernel
+boot will occur, followed by the reading of the saved
+memory image.
+The image will then be unpacked and the system resumed
+at the point immediately after the hibernation request.
+.It Fl z
+Put the system into suspend (deep sleep) state.
+.El
+.Pp
+The
+.Nm zzz
+and
+.Nm ZZZ
+commands are shortcuts for suspending and hibernating the system,
+respectively.
+With no arguments,
+they are placed into their respective states.
+The command line flags serve the same purpose as for
+.Nm .
+.Pp
+These commands do not wait for positive confirmation that the requested
+state has been entered; to do so would mean the command does not return
+until the system resumes from its sleep state.
+.Pp
+Each system provides methods for waking from suspend or hibernate.
+For those machines supporting
+.Xr acpi 4
+style suspend/resume (or hibernate/unhibernate) semantics, the wakeup
+devices for each sleep state are printed during system boot in
+.Xr dmesg 8 .
+.Pp
+The system will attempt to provide as much feedback as is possible on
+the specific hardware being suspended/resumed.
+This includes setting system LEDs or other indicators
+to illustrate progress throughout the suspend/resume
+(or hibernate/unhibernate) process.
+Such feedback is machine-dependent.
+.Sh FILES
+.Bl -tag -width /var/run/apmdev -compact
+.It Pa /var/run/apmdev
+The
+default
+.Ux Ns -domain
+socket for communicating with
+.Xr apmd 8 .
+The
+.Fl f
+flag may be used to specify an alternate socket name.
+The protection modes on this socket govern which users may access the
+APM functions.
+.El
+.Sh SEE ALSO
+.Xr apm 4 ,
+.Xr apmd 8
+.Pp
+Advanced Power Management (APM) BIOS Interface Specification
+(revision 1.2),
+Intel Corporation and Microsoft Corporation
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Nx 1.3 ;
+.Ox
+support was added in
+.Ox 1.2 .

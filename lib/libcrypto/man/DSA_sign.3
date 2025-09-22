@@ -1,0 +1,174 @@
+.\"	$OpenBSD: DSA_sign.3,v 1.11 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt DSA_SIGN 3
+.Os
+.Sh NAME
+.Nm DSA_sign ,
+.Nm DSA_sign_setup ,
+.Nm DSA_verify
+.Nd DSA signatures
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/dsa.h
+.Ft int
+.Fo DSA_sign
+.Fa "int type"
+.Fa "const unsigned char *dgst"
+.Fa "int len"
+.Fa "unsigned char *sigret"
+.Fa "unsigned int *siglen"
+.Fa "DSA *dsa"
+.Fc
+.Ft int
+.Fo DSA_sign_setup
+.Fa "DSA *dsa"
+.Fa "BN_CTX *ctx"
+.Fa "BIGNUM **kinvp"
+.Fa "BIGNUM **rp"
+.Fc
+.Ft int
+.Fo DSA_verify
+.Fa "int type"
+.Fa "const unsigned char *dgst"
+.Fa "int len"
+.Fa "unsigned char *sigbuf"
+.Fa "int siglen"
+.Fa "DSA *dsa"
+.Fc
+.Sh DESCRIPTION
+.Fn DSA_sign
+computes a digital signature on the
+.Fa len
+byte message digest
+.Fa dgst
+using the private key
+.Fa dsa
+and places its ASN.1 DER encoding at
+.Fa sigret .
+The length of the signature is placed in
+.Pf * Fa siglen .
+.Fa sigret
+must point to
+.Fn DSA_size dsa
+bytes of memory.
+.Pp
+.Fn DSA_sign_setup
+may be used to precompute part of the signing operation in case
+signature generation is time-critical.
+It expects
+.Fa dsa
+to contain DSA parameters.
+It places the precomputed values in newly allocated
+.Vt BIGNUM Ns s
+at
+.Pf * Fa kinvp
+and
+.Pf * Fa rp ,
+after freeing the old ones unless
+.Fa kinvp
+and
+.Fa rp
+are
+.Dv NULL .
+These values may be passed to
+.Fn DSA_sign
+in
+.Fa dsa->kinv
+and
+.Sy dsa->r .
+.Fa ctx
+is a pre-allocated
+.Vt BN_CTX
+or
+.Dv NULL .
+.Pp
+.Fn DSA_verify
+verifies that the signature
+.Fa sigbuf
+of size
+.Fa siglen
+matches a given message digest
+.Fa dgst
+of size
+.Fa len .
+.Fa dsa
+is the signer's public key.
+.Pp
+The
+.Fa type
+parameter is ignored.
+.Sh RETURN VALUES
+.Fn DSA_sign
+and
+.Fn DSA_sign_setup
+return 1 on success or 0 on error.
+.Fn DSA_verify
+returns 1 for a valid signature, 0 for an incorrect signature,
+and -1 on error.
+The error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr DSA_do_sign 3 ,
+.Xr DSA_get0_key 3 ,
+.Xr DSA_new 3
+.Sh STANDARDS
+US Federal Information Processing Standard FIPS 186 (Digital Signature
+Standard, DSS), ANSI X9.30
+.Sh HISTORY
+.Fn DSA_sign
+and
+.Fn DSA_verify
+first appeared in SSLeay 0.6.0.
+.Fn DSA_sign_setup
+first appeared in SSLeay 0.8.0.
+All these functions have been available since
+.Ox 2.4 .

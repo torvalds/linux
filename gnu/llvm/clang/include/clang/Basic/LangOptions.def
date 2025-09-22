@@ -1,0 +1,536 @@
+//===--- LangOptions.def - Language option database -------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the language options. Users of this file must
+// define the LANGOPT macro to make use of this information. The arguments to
+// the macro are:
+//   LANGOPT(Name, Bits, DefaultValue, Description)
+// Note that the DefaultValue must be a constant value (literal or enumeration);
+// it cannot depend on the value of another language option.
+//
+// Optionally, the user may also define:
+//
+// BENIGN_LANGOPT: for options that don't affect the construction of the AST in
+//     any way (that is, the value can be different between an implicit module
+//     and the user of that module).
+//
+// COMPATIBLE_LANGOPT: for options that affect the construction of the AST in
+//     a way that doesn't prevent interoperability (that is, the value can be
+//     different between an explicit module and the user of that module).
+//
+// ENUM_LANGOPT: for options that have enumeration, rather than unsigned, type.
+//
+// VALUE_LANGOPT: for options that describe a value rather than a flag.
+//
+// BENIGN_ENUM_LANGOPT, COMPATIBLE_ENUM_LANGOPT,
+// BENIGN_VALUE_LANGOPT, COMPATIBLE_VALUE_LANGOPT: combinations of the above.
+//
+// FIXME: Clients should be able to more easily select whether they want
+// different levels of compatibility versus how to handle different kinds
+// of option.
+//
+// The Description field should be a noun phrase, for instance "frobbing all
+// widgets" or "C's implicit blintz feature".
+//===----------------------------------------------------------------------===//
+
+#ifndef LANGOPT
+#  error Define the LANGOPT macro to handle language options
+#endif
+
+#ifndef COMPATIBLE_LANGOPT
+#  define COMPATIBLE_LANGOPT(Name, Bits, Default, Description) \
+     LANGOPT(Name, Bits, Default, Description)
+#endif
+
+#ifndef BENIGN_LANGOPT
+#  define BENIGN_LANGOPT(Name, Bits, Default, Description) \
+     COMPATIBLE_LANGOPT(Name, Bits, Default, Description)
+#endif
+
+#ifndef ENUM_LANGOPT
+#  define ENUM_LANGOPT(Name, Type, Bits, Default, Description) \
+     LANGOPT(Name, Bits, Default, Description)
+#endif
+
+#ifndef COMPATIBLE_ENUM_LANGOPT
+#  define COMPATIBLE_ENUM_LANGOPT(Name, Type, Bits, Default, Description) \
+     ENUM_LANGOPT(Name, Type, Bits, Default, Description)
+#endif
+
+#ifndef BENIGN_ENUM_LANGOPT
+#  define BENIGN_ENUM_LANGOPT(Name, Type, Bits, Default, Description) \
+     COMPATIBLE_ENUM_LANGOPT(Name, Type, Bits, Default, Description)
+#endif
+
+#ifndef VALUE_LANGOPT
+#  define VALUE_LANGOPT(Name, Bits, Default, Description) \
+     LANGOPT(Name, Bits, Default, Description)
+#endif
+
+#ifndef COMPATIBLE_VALUE_LANGOPT
+#  define COMPATIBLE_VALUE_LANGOPT(Name, Bits, Default, Description) \
+     VALUE_LANGOPT(Name, Bits, Default, Description)
+#endif
+
+#ifndef BENIGN_VALUE_LANGOPT
+#  define BENIGN_VALUE_LANGOPT(Name, Bits, Default, Description) \
+     COMPATIBLE_VALUE_LANGOPT(Name, Bits, Default, Description)
+#endif
+
+// FIXME: A lot of the BENIGN_ options should be COMPATIBLE_ instead.
+LANGOPT(C99               , 1, 0, "C99")
+LANGOPT(C11               , 1, 0, "C11")
+LANGOPT(C17               , 1, 0, "C17")
+LANGOPT(C23               , 1, 0, "C23")
+LANGOPT(C2y               , 1, 0, "C2y")
+LANGOPT(MSVCCompat        , 1, 0, "Microsoft Visual C++ full compatibility mode")
+LANGOPT(Kernel            , 1, 0, "Kernel mode")
+LANGOPT(MicrosoftExt      , 1, 0, "Microsoft C++ extensions")
+LANGOPT(AsmBlocks         , 1, 0, "Microsoft inline asm blocks")
+LANGOPT(Borland           , 1, 0, "Borland extensions")
+LANGOPT(CPlusPlus         , 1, 0, "C++")
+LANGOPT(CPlusPlus11       , 1, 0, "C++11")
+LANGOPT(CPlusPlus14       , 1, 0, "C++14")
+LANGOPT(CPlusPlus17       , 1, 0, "C++17")
+LANGOPT(CPlusPlus20       , 1, 0, "C++20")
+LANGOPT(CPlusPlus23       , 1, 0, "C++23")
+LANGOPT(CPlusPlus26       , 1, 0, "C++26")
+LANGOPT(ObjC              , 1, 0, "Objective-C")
+BENIGN_LANGOPT(ObjCDefaultSynthProperties , 1, 0,
+               "Objective-C auto-synthesized properties")
+BENIGN_LANGOPT(EncodeExtendedBlockSig , 1, 0,
+               "Encoding extended block type signature")
+BENIGN_LANGOPT(EncodeCXXClassTemplateSpec , 1, 0,
+               "Fully encode c++ class template specialization")
+BENIGN_LANGOPT(ObjCInferRelatedResultType , 1, 1,
+               "Objective-C related result type inference")
+LANGOPT(AppExt , 1, 0, "Objective-C App Extension")
+LANGOPT(Trigraphs         , 1, 0,"trigraphs")
+LANGOPT(LineComment       , 1, 0, "'//' comments")
+LANGOPT(Bool              , 1, 0, "bool, true, and false keywords")
+LANGOPT(Half              , 1, 0, "half keyword")
+LANGOPT(WChar             , 1, 0, "wchar_t keyword")
+LANGOPT(Char8             , 1, 0, "char8_t keyword")
+LANGOPT(IEEE128           , 1, 0, "__ieee128 keyword")
+LANGOPT(DeclSpecKeyword   , 1, 0, "__declspec keyword")
+BENIGN_LANGOPT(DollarIdents   , 1, 1, "'$' in identifiers")
+BENIGN_LANGOPT(AsmPreprocessor, 1, 0, "preprocessor in asm mode")
+LANGOPT(GNUMode           , 1, 1, "GNU extensions")
+LANGOPT(GNUKeywords       , 1, 1, "GNU keywords")
+VALUE_LANGOPT(GNUCVersion , 32, 0, "GNU C compatibility version")
+LANGOPT(DisableKNRFunctions, 1, 0, "require function types to have a prototype")
+LANGOPT(Digraphs          , 1, 0, "digraphs")
+BENIGN_LANGOPT(HexFloats  , 1, 0, "C99 hexadecimal float constants")
+LANGOPT(CXXOperatorNames  , 1, 0, "C++ operator name keywords")
+LANGOPT(AppleKext         , 1, 0, "Apple kext support")
+BENIGN_LANGOPT(PascalStrings, 1, 0, "Pascal string support")
+LANGOPT(WritableStrings   , 1, 0, "writable string support")
+LANGOPT(ConstStrings      , 1, 0, "const-qualified string support")
+ENUM_LANGOPT(LaxVectorConversions, LaxVectorConversionKind, 2,
+             LaxVectorConversionKind::All, "lax vector conversions")
+ENUM_LANGOPT(AltivecSrcCompat, AltivecSrcCompatKind, 2,
+             AltivecSrcCompatKind::Default, "Altivec source compatibility")
+LANGOPT(ConvergentFunctions, 1, 1, "Assume convergent functions")
+LANGOPT(AltiVec           , 1, 0, "AltiVec-style vector initializers")
+LANGOPT(ZVector           , 1, 0, "System z vector extensions")
+LANGOPT(Exceptions        , 1, 0, "exception handling")
+LANGOPT(ObjCExceptions    , 1, 0, "Objective-C exceptions")
+LANGOPT(CXXExceptions     , 1, 0, "C++ exceptions")
+LANGOPT(EHAsynch          , 1, 0, "C/C++ EH Asynch exceptions")
+ENUM_LANGOPT(ExceptionHandling, ExceptionHandlingKind, 3,
+             ExceptionHandlingKind::None, "exception handling")
+LANGOPT(IgnoreExceptions  , 1, 0, "ignore exceptions")
+LANGOPT(ExternCNoUnwind   , 1, 0, "Assume extern C functions don't unwind")
+LANGOPT(AssumeNothrowExceptionDtor , 1, 0, "Assume exception object's destructor is nothrow")
+LANGOPT(TraditionalCPP    , 1, 0, "traditional CPP emulation")
+LANGOPT(RTTI              , 1, 1, "run-time type information")
+LANGOPT(RTTIData          , 1, 1, "emit run-time type information data")
+LANGOPT(MSBitfields       , 1, 0, "Microsoft-compatible structure layout")
+LANGOPT(MSVolatile        , 1, 0, "Microsoft-compatible volatile loads and stores")
+LANGOPT(Freestanding, 1, 0, "freestanding implementation")
+LANGOPT(NoBuiltin         , 1, 0, "disable builtin functions")
+LANGOPT(NoMathBuiltin     , 1, 0, "disable math builtin functions")
+LANGOPT(GNUAsm            , 1, 1, "GNU-style inline assembly")
+LANGOPT(Coroutines        , 1, 0, "C++20 coroutines")
+LANGOPT(CoroAlignedAllocation, 1, 0, "prefer Aligned Allocation according to P2014 Option 2")
+LANGOPT(DllExportInlines  , 1, 1, "dllexported classes dllexport inline methods")
+LANGOPT(RelaxedTemplateTemplateArgs, 1, 1, "C++17 relaxed matching of template template arguments")
+LANGOPT(ExperimentalLibrary, 1, 0, "enable unstable and experimental library features")
+
+LANGOPT(PointerAuthIntrinsics, 1, 0, "pointer authentication intrinsics")
+LANGOPT(PointerAuthCalls  , 1, 0, "function pointer authentication")
+LANGOPT(PointerAuthReturns, 1, 0, "return pointer authentication")
+LANGOPT(PointerAuthIndirectGotos, 1, 0, "indirect gotos pointer authentication")
+LANGOPT(PointerAuthAuthTraps, 1, 0, "pointer authentication failure traps")
+LANGOPT(PointerAuthVTPtrAddressDiscrimination, 1, 0, "incorporate address discrimination in authenticated vtable pointers")
+LANGOPT(PointerAuthVTPtrTypeDiscrimination, 1, 0, "incorporate type discrimination in authenticated vtable pointers")
+LANGOPT(PointerAuthTypeInfoVTPtrDiscrimination, 1, 0, "incorporate type and address discrimination in authenticated vtable pointers for std::type_info")
+LANGOPT(PointerAuthInitFini, 1, 0, "sign function pointers in init/fini arrays")
+BENIGN_LANGOPT(PointerAuthFunctionTypeDiscrimination, 1, 0,
+               "Use type discrimination when signing function pointers")
+
+LANGOPT(DoubleSquareBracketAttributes, 1, 0, "'[[]]' attributes extension for all language standard modes")
+LANGOPT(ExperimentalLateParseAttributes, 1, 0, "experimental late parsing of attributes")
+
+COMPATIBLE_LANGOPT(RecoveryAST, 1, 1, "Preserve expressions in AST when encountering errors")
+COMPATIBLE_LANGOPT(RecoveryASTType, 1, 1, "Preserve the type in recovery expressions")
+
+BENIGN_LANGOPT(ThreadsafeStatics , 1, 1, "thread-safe static initializers")
+LANGOPT(POSIXThreads      , 1, 0, "POSIX thread support")
+LANGOPT(Blocks            , 1, 0, "blocks extension to C")
+BENIGN_LANGOPT(EmitAllDecls      , 1, 0, "emitting all declarations")
+LANGOPT(MathErrno         , 1, 1, "errno in math functions")
+BENIGN_LANGOPT(HeinousExtensions , 1, 0, "extensions that we really don't like and may be ripped out at any time")
+LANGOPT(Modules           , 1, 0, "modules semantics")
+COMPATIBLE_LANGOPT(CPlusPlusModules, 1, 0, "C++ modules syntax")
+LANGOPT(SkipODRCheckInGMF, 1, 0, "Skip ODR checks for decls in the global module fragment")
+LANGOPT(BuiltinHeadersInSystemModules, 1, 0, "builtin headers belong to system modules, and _Builtin_ modules are ignored for cstdlib headers")
+BENIGN_ENUM_LANGOPT(CompilingModule, CompilingModuleKind, 3, CMK_None,
+                    "compiling a module interface")
+BENIGN_LANGOPT(CompilingPCH, 1, 0, "building a pch")
+BENIGN_LANGOPT(BuildingPCHWithObjectFile, 1, 0, "building a pch which has a corresponding object file")
+BENIGN_LANGOPT(CacheGeneratedPCH, 1, 0, "cache generated PCH files in memory")
+BENIGN_LANGOPT(PCHInstantiateTemplates, 1, 0, "instantiate templates while building a PCH")
+COMPATIBLE_LANGOPT(ModulesDeclUse    , 1, 0, "require declaration of module uses")
+BENIGN_LANGOPT(ModulesSearchAll  , 1, 1, "searching even non-imported modules to find unresolved references")
+COMPATIBLE_LANGOPT(ModulesStrictDeclUse, 1, 0, "requiring declaration of module uses and all headers to be in modules")
+COMPATIBLE_LANGOPT(ModulesValidateTextualHeaderIncludes, 1, 1, "validation of textual header includes")
+BENIGN_LANGOPT(ModulesErrorRecovery, 1, 1, "automatically importing modules as needed when performing error recovery")
+BENIGN_LANGOPT(ImplicitModules, 1, 1, "building modules that are not specified via -fmodule-file")
+COMPATIBLE_LANGOPT(ModulesLocalVisibility, 1, 0, "local submodule visibility")
+COMPATIBLE_LANGOPT(Optimize          , 1, 0, "__OPTIMIZE__ predefined macro")
+COMPATIBLE_LANGOPT(OptimizeSize      , 1, 0, "__OPTIMIZE_SIZE__ predefined macro")
+COMPATIBLE_LANGOPT(Static            , 1, 0, "__STATIC__ predefined macro (as opposed to __DYNAMIC__)")
+VALUE_LANGOPT(PackStruct  , 32, 0,
+              "default struct packing maximum alignment")
+VALUE_LANGOPT(MaxTypeAlign  , 32, 0,
+              "default maximum alignment for types")
+VALUE_LANGOPT(AlignDouble            , 1, 0, "Controls if doubles should be aligned to 8 bytes (x86 only)")
+VALUE_LANGOPT(DoubleSize            , 32, 0, "width of double")
+VALUE_LANGOPT(LongDoubleSize        , 32, 0, "width of long double")
+LANGOPT(PPCIEEELongDouble            , 1, 0, "use IEEE 754 quadruple-precision for long double")
+LANGOPT(EnableAIXExtendedAltivecABI  , 1, 0, "__EXTABI__  predefined macro")
+LANGOPT(EnableAIXQuadwordAtomicsABI  , 1, 0, "Use 16-byte atomic lock free semantics")
+COMPATIBLE_VALUE_LANGOPT(PICLevel    , 2, 0, "__PIC__ level")
+COMPATIBLE_VALUE_LANGOPT(PIE         , 1, 0, "is pie")
+LANGOPT(ROPI                         , 1, 0, "Read-only position independence")
+LANGOPT(RWPI                         , 1, 0, "Read-write position independence")
+COMPATIBLE_LANGOPT(GNUInline         , 1, 0, "GNU inline semantics")
+COMPATIBLE_LANGOPT(NoInlineDefine    , 1, 0, "__NO_INLINE__ predefined macro")
+COMPATIBLE_LANGOPT(Deprecated        , 1, 0, "__DEPRECATED predefined macro")
+COMPATIBLE_LANGOPT(FastMath          , 1, 0, "fast FP math optimizations, and __FAST_MATH__ predefined macro")
+COMPATIBLE_LANGOPT(FiniteMathOnly    , 1, 0, "__FINITE_MATH_ONLY__ predefined macro")
+COMPATIBLE_LANGOPT(UnsafeFPMath      , 1, 0, "Unsafe Floating Point Math")
+COMPATIBLE_LANGOPT(ProtectParens     , 1, 0, "optimizer honors parentheses "
+                   "when floating-point expressions are evaluated")
+BENIGN_LANGOPT(AllowFPReassoc    , 1, 0, "Permit Floating Point reassociation")
+BENIGN_LANGOPT(NoHonorNaNs       , 1, 0, "Permit Floating Point optimization without regard to NaN")
+BENIGN_LANGOPT(NoHonorInfs       , 1, 0, "Permit Floating Point optimization without regard to infinities")
+BENIGN_LANGOPT(NoSignedZero      , 1, 0, "Permit Floating Point optimization without regard to signed zeros")
+BENIGN_LANGOPT(AllowRecip        , 1, 0, "Permit Floating Point reciprocal")
+BENIGN_LANGOPT(ApproxFunc        , 1, 0, "Permit Floating Point approximation")
+
+ENUM_LANGOPT(ComplexRange, ComplexRangeKind, 2, CX_None, "Enable use of range reduction for complex arithmetics.")
+
+BENIGN_LANGOPT(ObjCGCBitmapPrint , 1, 0, "printing of GC's bitmap layout for __weak/__strong ivars")
+
+BENIGN_LANGOPT(AccessControl     , 1, 1, "C++ access control")
+LANGOPT(CharIsSigned      , 1, 1, "signed char")
+LANGOPT(WCharSize         , 4, 0, "width of wchar_t")
+LANGOPT(WCharIsSigned        , 1, 0, "signed or unsigned wchar_t")
+ENUM_LANGOPT(MSPointerToMemberRepresentationMethod, PragmaMSPointersToMembersKind, 2, PPTMK_BestCase, "member-pointer representation method")
+ENUM_LANGOPT(DefaultCallingConv, DefaultCallingConvention, 3, DCC_None, "default calling convention")
+
+LANGOPT(ShortEnums        , 1, 0, "short enum types")
+
+LANGOPT(OpenCL            , 1, 0, "OpenCL")
+LANGOPT(OpenCLVersion     , 32, 0, "OpenCL C version")
+LANGOPT(OpenCLCPlusPlus   , 1, 0, "C++ for OpenCL")
+LANGOPT(OpenCLCPlusPlusVersion     , 32, 0, "C++ for OpenCL version")
+LANGOPT(OpenCLGenericAddressSpace, 1, 0, "OpenCL generic keyword")
+LANGOPT(OpenCLPipes              , 1, 0, "OpenCL pipes language constructs and built-ins")
+LANGOPT(NativeHalfType    , 1, 0, "Native half type support")
+LANGOPT(NativeHalfArgsAndReturns, 1, 0, "Native half args and returns")
+LANGOPT(CUDA              , 1, 0, "CUDA")
+LANGOPT(HIP               , 1, 0, "HIP")
+LANGOPT(OpenMP            , 32, 0, "OpenMP support and version of OpenMP (31, 40 or 45)")
+LANGOPT(OpenMPExtensions  , 1, 1, "Enable all Clang extensions for OpenMP directives and clauses")
+LANGOPT(OpenMPSimd        , 1, 0, "Use SIMD only OpenMP support.")
+LANGOPT(OpenMPUseTLS      , 1, 0, "Use TLS for threadprivates or runtime calls")
+LANGOPT(OpenMPIsTargetDevice    , 1, 0, "Generate code only for OpenMP target device")
+LANGOPT(OpenMPCUDAMode    , 1, 0, "Generate code for OpenMP pragmas in SIMT/SPMD mode")
+LANGOPT(OpenMPIRBuilder   , 1, 0, "Use the experimental OpenMP-IR-Builder codegen path.")
+LANGOPT(OpenMPCUDANumSMs  , 32, 0, "Number of SMs for CUDA devices.")
+LANGOPT(OpenMPCUDABlocksPerSM  , 32, 0, "Number of blocks per SM for CUDA devices.")
+LANGOPT(OpenMPCUDAReductionBufNum , 32, 1024, "Number of the reduction records in the intermediate reduction buffer used for the teams reductions.")
+LANGOPT(OpenMPTargetDebug , 32, 0, "Enable debugging in the OpenMP offloading device RTL")
+LANGOPT(OpenMPOptimisticCollapse  , 1, 0, "Use at most 32 bits to represent the collapsed loop nest counter.")
+LANGOPT(OpenMPThreadSubscription  , 1, 0, "Assume work-shared loops do not have more iterations than participating threads.")
+LANGOPT(OpenMPTeamSubscription  , 1, 0, "Assume distributed loops do not have more iterations than participating teams.")
+LANGOPT(OpenMPNoThreadState  , 1, 0, "Assume that no thread in a parallel region will modify an ICV.")
+LANGOPT(OpenMPNoNestedParallelism  , 1, 0, "Assume that no thread in a parallel region will encounter a parallel region")
+LANGOPT(OpenMPOffloadMandatory  , 1, 0, "Assert that offloading is mandatory and do not create a host fallback.")
+LANGOPT(OpenMPForceUSM     , 1, 0, "Enable OpenMP unified shared memory mode via compiler.")
+LANGOPT(NoGPULib  , 1, 0, "Indicate a build without the standard GPU libraries.")
+LANGOPT(RenderScript      , 1, 0, "RenderScript")
+
+LANGOPT(HLSL, 1, 0, "HLSL")
+ENUM_LANGOPT(HLSLVersion, HLSLLangStd, 16, HLSL_Unset, "HLSL Version")
+LANGOPT(HLSLStrictAvailability, 1, 0,
+        "Strict availability diagnostic mode for HLSL built-in functions.")
+
+LANGOPT(CUDAIsDevice      , 1, 0, "compiling for CUDA device")
+LANGOPT(CUDAAllowVariadicFunctions, 1, 0, "allowing variadic functions in CUDA device code")
+LANGOPT(CUDAHostDeviceConstexpr, 1, 1, "treating unattributed constexpr functions as __host__ __device__")
+LANGOPT(GPUDeviceApproxTranscendentals, 1, 0, "using approximate transcendental functions")
+LANGOPT(GPURelocatableDeviceCode, 1, 0, "generate relocatable device code")
+LANGOPT(OffloadImplicitHostDeviceTemplates, 1, 0, "assume template functions to be implicitly host device by default for CUDA/HIP")
+LANGOPT(GPUAllowDeviceInit, 1, 0, "allowing device side global init functions for HIP")
+LANGOPT(GPUMaxThreadsPerBlock, 32, 1024, "default max threads per block for kernel launch bounds for HIP")
+LANGOPT(GPUDeferDiag, 1, 0, "defer host/device related diagnostic messages for CUDA/HIP")
+LANGOPT(GPUExcludeWrongSideOverloads, 1, 0, "always exclude wrong side overloads in overloading resolution for CUDA/HIP")
+LANGOPT(OffloadingNewDriver, 1, 0, "use the new driver for generating offloading code.")
+
+LANGOPT(SYCLIsDevice      , 1, 0, "Generate code for SYCL device")
+LANGOPT(SYCLIsHost        , 1, 0, "SYCL host compilation")
+ENUM_LANGOPT(SYCLVersion  , SYCLMajorVersion, 2, SYCL_None, "Version of the SYCL standard used")
+
+LANGOPT(HIPUseNewLaunchAPI, 1, 0, "Use new kernel launching API for HIP")
+LANGOPT(OffloadUniformBlock, 1, 0, "Assume that kernels are launched with uniform block sizes (default true for CUDA/HIP and false otherwise)")
+LANGOPT(HIPStdPar, 1, 0, "Enable Standard Parallel Algorithm Acceleration for HIP (experimental)")
+LANGOPT(HIPStdParInterposeAlloc, 1, 0, "Replace allocations / deallocations with HIP RT calls when Standard Parallel Algorithm Acceleration for HIP is enabled (Experimental)")
+
+LANGOPT(OpenACC           , 1, 0, "OpenACC Enabled")
+
+LANGOPT(MSVCEnableStdcMacro , 1, 0, "Define __STDC__ with '-fms-compatibility'")
+LANGOPT(SizedDeallocation , 1, 0, "sized deallocation")
+LANGOPT(AlignedAllocation , 1, 0, "aligned allocation")
+LANGOPT(AlignedAllocationUnavailable, 1, 0, "aligned allocation functions are unavailable")
+LANGOPT(NewAlignOverride  , 32, 0, "maximum alignment guaranteed by '::operator new(size_t)'")
+BENIGN_LANGOPT(ModulesCodegen , 1, 0, "Modules code generation")
+BENIGN_LANGOPT(ModulesDebugInfo , 1, 0, "Modules debug info")
+BENIGN_LANGOPT(ElideConstructors , 1, 1, "C++ copy constructor elision")
+BENIGN_LANGOPT(DumpRecordLayouts , 1, 0, "dumping the layout of IRgen'd records")
+BENIGN_LANGOPT(DumpRecordLayoutsSimple , 1, 0, "dumping the layout of IRgen'd records in a simple form")
+BENIGN_LANGOPT(DumpRecordLayoutsCanonical , 1, 0, "dumping the AST layout of records using canonical field types")
+BENIGN_LANGOPT(DumpRecordLayoutsComplete , 1, 0, "dumping the AST layout of all complete records")
+BENIGN_LANGOPT(DumpVTableLayouts , 1, 0, "dumping the layouts of emitted vtables")
+LANGOPT(NoConstantCFStrings , 1, 0, "no constant CoreFoundation strings")
+BENIGN_LANGOPT(InlineVisibilityHidden , 1, 0, "hidden visibility for inline C++ methods")
+BENIGN_ENUM_LANGOPT(DefaultVisibilityExportMapping, DefaultVisiblityExportMapping, 2, DefaultVisiblityExportMapping::None, "controls mapping of default visibility to dllexport")
+BENIGN_LANGOPT(IgnoreXCOFFVisibility, 1, 0, "All the visibility attributes that are specified in the source code are ignored in aix XCOFF.")
+BENIGN_LANGOPT(VisibilityInlinesHiddenStaticLocalVar, 1, 0,
+               "hidden visibility for static local variables in inline C++ "
+               "methods when -fvisibility-inlines hidden is enabled")
+ENUM_LANGOPT(GlobalAllocationFunctionVisibility, VisibilityForcedKinds, 3, VisibilityForcedKinds::ForceDefault,
+             "How to apply visibility to global operator new and delete declarations")
+LANGOPT(NewInfallible , 1, 0, "Treats throwing global C++ operator new as always returning valid memory (annotates with __attribute__((returns_nonnull)) and throw()). This is detectable in source.")
+BENIGN_LANGOPT(ParseUnknownAnytype, 1, 0, "__unknown_anytype")
+BENIGN_LANGOPT(DebuggerSupport , 1, 0, "debugger support")
+BENIGN_LANGOPT(DebuggerCastResultToId, 1, 0, "for 'po' in the debugger, cast the result to id if it is of unknown type")
+BENIGN_LANGOPT(DebuggerObjCLiteral , 1, 0, "debugger Objective-C literals and subscripting support")
+
+BENIGN_LANGOPT(SpellChecking , 1, 1, "spell-checking")
+LANGOPT(SinglePrecisionConstants , 1, 0, "treating double-precision floating point constants as single precision constants")
+LANGOPT(FastRelaxedMath , 1, 0, "OpenCL fast relaxed math")
+BENIGN_LANGOPT(CLNoSignedZero , 1, 0, "Permit Floating Point optimization without regard to signed zeros")
+COMPATIBLE_LANGOPT(CLUnsafeMath , 1, 0, "Unsafe Floating Point Math")
+COMPATIBLE_LANGOPT(CLFiniteMathOnly , 1, 0, "__FINITE_MATH_ONLY__ predefined macro")
+/// FP_CONTRACT mode (on/off/fast).
+BENIGN_ENUM_LANGOPT(DefaultFPContractMode, FPModeKind, 2, FPM_Off, "FP contraction type")
+COMPATIBLE_LANGOPT(ExpStrictFP, 1, false, "Enable experimental strict floating point")
+BENIGN_LANGOPT(RoundingMath, 1, false, "Do not assume default floating-point rounding behavior")
+BENIGN_ENUM_LANGOPT(FPExceptionMode, FPExceptionModeKind, 2, FPE_Default, "FP Exception Behavior Mode type")
+BENIGN_ENUM_LANGOPT(FPEvalMethod, FPEvalMethodKind, 2, FEM_UnsetOnCommandLine, "FP type used for floating point arithmetic")
+ENUM_LANGOPT(Float16ExcessPrecision, ExcessPrecisionKind, 2, FPP_Standard, "Intermediate truncation behavior for Float16 arithmetic")
+ENUM_LANGOPT(BFloat16ExcessPrecision, ExcessPrecisionKind, 2, FPP_Standard, "Intermediate truncation behavior for BFloat16 arithmetic")
+LANGOPT(NoBitFieldTypeAlign , 1, 0, "bit-field type alignment")
+LANGOPT(HexagonQdsp6Compat , 1, 0, "hexagon-qdsp6 backward compatibility")
+LANGOPT(ObjCAutoRefCount , 1, 0, "Objective-C automated reference counting")
+LANGOPT(ObjCWeakRuntime     , 1, 0, "__weak support in the ARC runtime")
+LANGOPT(ObjCWeak            , 1, 0, "Objective-C __weak in ARC and MRC files")
+LANGOPT(ObjCSubscriptingLegacyRuntime         , 1, 0, "Subscripting support in legacy ObjectiveC runtime")
+BENIGN_LANGOPT(CompatibilityQualifiedIdBlockParamTypeChecking, 1, 0,
+               "compatibility mode for type checking block parameters "
+               "involving qualified id types")
+LANGOPT(ObjCDisableDirectMethodsForTesting, 1, 0,
+        "Disable recognition of objc_direct methods")
+LANGOPT(CFProtectionBranch , 1, 0, "Control-Flow Branch Protection enabled")
+LANGOPT(FakeAddressSpaceMap , 1, 0, "OpenCL fake address space map")
+ENUM_LANGOPT(AddressSpaceMapMangling , AddrSpaceMapMangling, 2, ASMM_Target, "OpenCL address space map mangling mode")
+LANGOPT(IncludeDefaultHeader, 1, 0, "Include default header file for OpenCL")
+LANGOPT(DeclareOpenCLBuiltins, 1, 0, "Declare OpenCL builtin functions")
+BENIGN_LANGOPT(DelayedTemplateParsing , 1, 0, "delayed template parsing")
+LANGOPT(BlocksRuntimeOptional , 1, 0, "optional blocks runtime")
+LANGOPT(
+    CompleteMemberPointers, 1, 0,
+    "Require member pointer base types to be complete at the point where the "
+    "type's inheritance model would be determined under the Microsoft ABI")
+
+ENUM_LANGOPT(GC, GCMode, 2, NonGC, "Objective-C Garbage Collection mode")
+BENIGN_ENUM_LANGOPT(ValueVisibilityMode, Visibility, 3, DefaultVisibility,
+             "default visibility for functions and variables [-fvisibility]")
+BENIGN_ENUM_LANGOPT(TypeVisibilityMode, Visibility, 3, DefaultVisibility,
+             "default visibility for types [-ftype-visibility]")
+LANGOPT(SetVisibilityForExternDecls, 1, 0,
+        "apply global symbol visibility to external declarations without an explicit visibility")
+BENIGN_LANGOPT(VisibilityFromDLLStorageClass, 1, 0,
+               "override the visibility of globals based on their final DLL storage class [-fvisibility-from-dllstorageclass]")
+BENIGN_ENUM_LANGOPT(DLLExportVisibility, VisibilityFromDLLStorageClassKinds, 3, VisibilityFromDLLStorageClassKinds::Default,
+             "how to adjust the visibility for functions and variables with dllexport annotations [-fvisibility-dllexport]")
+BENIGN_ENUM_LANGOPT(NoDLLStorageClassVisibility, VisibilityFromDLLStorageClassKinds, 3, VisibilityFromDLLStorageClassKinds::Hidden,
+             "how to adjust the visibility for functions and variables without an explicit DLL storage class [-fvisibility-nodllstorageclass]")
+BENIGN_ENUM_LANGOPT(ExternDeclDLLImportVisibility, VisibilityFromDLLStorageClassKinds, 3, VisibilityFromDLLStorageClassKinds::Default,
+             "how to adjust the visibility for external declarations with dllimport annotations [-fvisibility-externs-dllimport]")
+BENIGN_ENUM_LANGOPT(ExternDeclNoDLLStorageClassVisibility, VisibilityFromDLLStorageClassKinds, 3,  VisibilityFromDLLStorageClassKinds::Hidden,
+             "how to adjust the visibility for external declarations without an explicit DLL storage class [-fvisibility-externs-nodllstorageclass]")
+BENIGN_LANGOPT(SemanticInterposition        , 1, 0, "semantic interposition")
+BENIGN_LANGOPT(HalfNoSemanticInterposition, 1, 0,
+               "Like -fno-semantic-interposition but don't use local aliases")
+ENUM_LANGOPT(StackProtector, StackProtectorMode, 2, SSPOff,
+             "stack protector mode")
+ENUM_LANGOPT(TrivialAutoVarInit, TrivialAutoVarInitKind, 2, TrivialAutoVarInitKind::Uninitialized,
+             "trivial automatic variable initialization")
+VALUE_LANGOPT(TrivialAutoVarInitStopAfter, 32, 0,
+             "stop trivial automatic variable initialization after the specified number of instances. Must be greater than 0.")
+VALUE_LANGOPT(TrivialAutoVarInitMaxSize, 32, 0,
+             "stop trivial automatic variable initialization if var size exceeds the specified size (in bytes). Must be greater than 0.")
+ENUM_LANGOPT(SignedOverflowBehavior, SignedOverflowBehaviorTy, 2, SOB_Undefined,
+             "signed integer overflow handling")
+ENUM_LANGOPT(ThreadModel  , ThreadModelKind, 2, ThreadModelKind::POSIX, "Thread Model")
+
+BENIGN_LANGOPT(ArrowDepth, 32, 256,
+               "maximum number of operator->s to follow")
+BENIGN_LANGOPT(InstantiationDepth, 32, 1024,
+               "maximum template instantiation depth")
+BENIGN_LANGOPT(ConstexprCallDepth, 32, 512,
+               "maximum constexpr call depth")
+BENIGN_LANGOPT(ConstexprStepLimit, 32, 1048576,
+               "maximum constexpr evaluation steps")
+BENIGN_LANGOPT(EnableNewConstInterp, 1, 0,
+               "enable the experimental new constant interpreter")
+BENIGN_LANGOPT(BracketDepth, 32, 256,
+               "maximum bracket nesting depth")
+BENIGN_LANGOPT(NumLargeByValueCopy, 32, 0,
+        "if non-zero, warn about parameter or return Warn if parameter/return value is larger in bytes than this setting. 0 is no check.")
+VALUE_LANGOPT(MSCompatibilityVersion, 32, 0, "Microsoft Visual C/C++ Version")
+ENUM_LANGOPT(VtorDispMode, MSVtorDispMode, 2, MSVtorDispMode::ForVBaseOverride,
+             "How many vtordisps to insert")
+
+LANGOPT(ApplePragmaPack, 1, 0, "Apple gcc-compatible #pragma pack handling")
+
+LANGOPT(XLPragmaPack, 1, 0, "IBM XL #pragma pack handling")
+
+LANGOPT(RetainCommentsFromSystemHeaders, 1, 0, "retain documentation comments from system headers in the AST")
+
+LANGOPT(APINotes, 1, 0, "use external API notes")
+LANGOPT(APINotesModules, 1, 0, "use module-based external API notes")
+
+LANGOPT(SanitizeAddressFieldPadding, 2, 0, "controls how aggressive is ASan "
+                                           "field padding (0: none, 1:least "
+                                           "aggressive, 2: more aggressive)")
+
+LANGOPT(Cmse, 1, 0, "ARM Security extensions support")
+
+LANGOPT(XRayInstrument, 1, 0, "controls whether to do XRay instrumentation")
+LANGOPT(XRayAlwaysEmitCustomEvents, 1, 0,
+        "controls whether to always emit intrinsic calls to "
+        "__xray_customevent(...) builtin.")
+LANGOPT(XRayAlwaysEmitTypedEvents, 1, 0,
+        "controls whether to always emit intrinsic calls to "
+        "__xray_typedevent(...) builtin.")
+
+LANGOPT(ForceEmitVTables, 1, 0, "whether to emit all vtables")
+
+BENIGN_LANGOPT(AllowEditorPlaceholders, 1, 0,
+               "allow editor placeholders in source")
+
+ENUM_LANGOPT(ClangABICompat, ClangABI, 4, ClangABI::Latest,
+             "version of Clang that we should attempt to be ABI-compatible "
+             "with")
+
+COMPATIBLE_VALUE_LANGOPT(FunctionAlignment, 5, 0, "Default alignment for functions")
+COMPATIBLE_VALUE_LANGOPT(LoopAlignment, 32, 0, "Default alignment for loops")
+
+LANGOPT(FixedPoint, 1, 0, "fixed point types")
+LANGOPT(PaddingOnUnsignedFixedPoint, 1, 0,
+        "unsigned fixed point types having one extra padding bit")
+
+LANGOPT(RegisterStaticDestructors, 1, 1, "Register C++ static destructors")
+
+LANGOPT(RegCall4, 1, 0, "Set __regcall4 as a default calling convention to respect __regcall ABI v.4")
+
+LANGOPT(MatrixTypes, 1, 0, "Enable or disable the builtin matrix type")
+
+LANGOPT(CXXAssumptions, 1, 1, "Enable or disable codegen and compile-time checks for C++23's [[assume]] attribute")
+
+LANGOPT(RawStringLiterals, 1, 1, "Enable or disable raw string literals")
+
+ENUM_LANGOPT(StrictFlexArraysLevel, StrictFlexArraysLevelKind, 2,
+             StrictFlexArraysLevelKind::Default,
+             "Rely on strict definition of flexible arrays")
+
+COMPATIBLE_VALUE_LANGOPT(MaxTokens, 32, 0, "Max number of tokens per TU or 0")
+
+ENUM_LANGOPT(SignReturnAddressScope, SignReturnAddressScopeKind, 2, SignReturnAddressScopeKind::None,
+             "Scope of return address signing")
+ENUM_LANGOPT(SignReturnAddressKey, SignReturnAddressKeyKind, 1, SignReturnAddressKeyKind::AKey,
+             "Key used for return address signing")
+LANGOPT(BranchTargetEnforcement, 1, 0, "Branch-target enforcement enabled")
+LANGOPT(BranchProtectionPAuthLR, 1, 0, "Use PC as a diversifier using PAuthLR NOP instructions.")
+LANGOPT(GuardedControlStack, 1, 0, "Guarded control stack enabled")
+
+LANGOPT(SpeculativeLoadHardening, 1, 0, "Speculative load hardening enabled")
+
+LANGOPT(RelativeCXXABIVTables, 1, 0,
+        "Use an ABI-incompatible v-table layout that uses relative references")
+
+LANGOPT(OmitVTableRTTI, 1, 0,
+        "Use an ABI-incompatible v-table layout that omits the RTTI component")
+
+LANGOPT(VScaleMin, 32, 0, "Minimum vscale value")
+LANGOPT(VScaleMax, 32, 0, "Maximum vscale value")
+
+ENUM_LANGOPT(ExtendIntArgs, ExtendArgsKind, 1, ExtendArgsKind::ExtendTo32,
+             "Controls how scalar integer arguments are extended in calls "
+             "to unprototyped and varargs functions")
+
+VALUE_LANGOPT(FuchsiaAPILevel, 32, 0, "Fuchsia API level")
+
+// This option will be removed in the future once the backend
+// supports all operations (like division or float-to-integer conversion)
+// on large _BitInts.
+BENIGN_VALUE_LANGOPT(MaxBitIntWidth, 32, 128, "Maximum width of a _BitInt")
+
+COMPATIBLE_LANGOPT(IncrementalExtensions, 1, 0, " True if we want to process statements"
+        "on the global scope, ignore EOF token and continue later on (thus "
+        "avoid tearing the Lexer and etc. down). Controlled by "
+        "-fincremental-extensions.")
+
+BENIGN_LANGOPT(CheckNew, 1, 0, "Do not assume C++ operator new may not return NULL")
+
+// FIXME: It would be better for us to find a way to encode the state of this
+// diagnostic in tablegen so that we can specify a particular diagnostic option
+// is disabled or enabled based on other language options or made it easier to
+// do this from the compiler invocation without hitting option round-tripping
+// issues.
+BENIGN_LANGOPT(CheckConstexprFunctionBodies, 1, 1,
+               "Emit diagnostics for a constexpr function body that can never "
+               "be used in a constant expression.")
+
+LANGOPT(BoundsSafety, 1, 0, "Bounds safety extension for C")
+
+#undef LANGOPT
+#undef COMPATIBLE_LANGOPT
+#undef BENIGN_LANGOPT
+#undef ENUM_LANGOPT
+#undef COMPATIBLE_ENUM_LANGOPT
+#undef BENIGN_ENUM_LANGOPT
+#undef VALUE_LANGOPT
+#undef COMPATIBLE_VALUE_LANGOPT
+#undef BENIGN_VALUE_LANGOPT

@@ -1,0 +1,101 @@
+.\" $OpenBSD: X509V3_extensions_print.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509V3_EXTENSIONS_PRINT 3
+.Os
+.Sh NAME
+.Nm X509V3_extensions_print
+.Nd pretty-print an array of X.509 extensions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft int
+.Fo X509V3_extensions_print
+.Fa "BIO *bio"
+.Fa "char *title"
+.Fa "const STACK_OF(X509_EXTENSION) *sk"
+.Fa "unsigned long flags"
+.Fa "int indent"
+.Fc
+.Sh DESCRIPTION
+For each member of the variable sized array
+.Fa sk ,
+.Fn X509V3_extensions_print
+prints the following information to
+.Fa bio
+in the following order:
+.Bl -bullet
+.It
+The extension type as printed by
+.Xr i2a_ASN1_OBJECT 3 .
+.It
+If the extension is critical, the fixed string
+.Qq "critical" .
+.It
+A human-readable representation of the data contained in the extension
+as printed by
+.Xr X509V3_EXT_print 3 ,
+passing through the
+.Fa flags .
+If that function indicates failure,
+the BER-encoded data of the extension is dumped with
+.Xr ASN1_STRING_print 3
+without decoding it first.
+In both cases, an
+.Fa indent
+incremented by 4 space characters is used.
+.El
+.Pp
+If
+.Fa sk
+is a
+.Dv NULL
+pointer or empty,
+.Fn X509V3_extensions_print
+prints nothing and indicates success.
+.Pp
+Unless
+.Fa title
+is
+.Dv NULL ,
+it is printed on its own output line before the rest of the output, and
+.Fa indent
+is increased by 4 space characters.
+This additional global indentation is cumulative
+to the one applied to individual extensions mentioned above.
+.Sh RETURN VALUES
+.Fn X509V3_extensions_print
+is intended to return 1 on success or 0 if an error occurs.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr STACK_OF 3 ,
+.Xr X509_EXTENSION_get_critical 3 ,
+.Xr X509_get0_extensions 3 ,
+.Xr X509_get_ext 3 ,
+.Xr X509V3_EXT_print 3
+.Sh HISTORY
+.Fn X509V3_extensions_print
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .
+.Sh BUGS
+Many parsing and printing errors are silently ignored,
+and the function may return indicating success even though
+.Fa sk
+contains invalid data.
+Even if all the data is valid, success may be indicated  even when the
+information printed is incomplete for various reasons, for example
+due to memory allocation failures or I/O errors.

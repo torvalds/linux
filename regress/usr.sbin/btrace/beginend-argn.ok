@@ -1,0 +1,6 @@
+beginend-argn.bt:3:11: the arg0 builtin cannot be used with BEGIN or END probes:
+	print(arg0);
+                 ^
+beginend-argn.bt:7:11: the arg0 builtin cannot be used with BEGIN or END probes:
+	print(arg0);
+                 ^

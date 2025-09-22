@@ -1,0 +1,16 @@
+static_library("ObjCPlusPlus") {
+  output_name = "lldbPluginObjCPlusPlusLanguage"
+  configs += [
+    #"//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Plugins/Language/ClangCommon",
+    "//lldb/source/Target",
+  ]
+
+  # Reaches into Plugins/Language/ClangCommon.
+  include_dirs = [ "//lldb/source" ]
+  sources = [ "ObjCPlusPlusLanguage.cpp" ]
+}

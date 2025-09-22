@@ -1,0 +1,7 @@
+dnl	$OpenBSD: hardware,v 1.10 2014/02/27 18:48:15 deraadt Exp $
+OpenBSD/MACHINE runs on the following SH4-based IO-DATA made models:
+	IO-DATA USL-5P, using CF storage (Japan)
+	IO-DATA HDL-U, HDL-AV, HDL-W and HDLM-U series (Japan)
+	SuperTank LAN Tank (SOTO-HDLWU) (Japan)
+	IO-DATA UHDL-160U and UHDL-300U (May be found in USA)
+	Plextor PX-EH16L, PX-EH25L and PX-EH40L

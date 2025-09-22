@@ -1,0 +1,27 @@
+Test the interaction of signals with multiple posix threads.
+
+Signal SIGUSR1 is used for thread coordination, SIGUSR2 to test
+signal delivery.  First SIGUSR1 and SIGUSR2 get blocked.  Then a
+given number of threads are created, the main thread is also counted
+as a thread.
+
+Signal SIGUSR2 is send to the process with kill(2), but it is not
+delivered yet as it is blocked in all threads.  Meanwhile the threads
+wait for SIGUSR1 in sigsuspend(2).  This enforces that SIGUSR2 is
+marked as pending at the process.  To continue, SIGUSR1 is sent to
+all threads and they wake up.  Only one thread is configured to
+handle SIGUSR2, this one unblocks it with pthread_sigmask(3).  The
+signal should be delivered immediately, the handler records it.
+
+The test is considered successful if the thread that unblocks SIGUSR2
+actually handles it.
+
+To test different race conditions, sleeps can be inserted.  If the
+kill(2) is delayed, SIGUSR2 hits the threads when they are in
+sigsuspend(2).  If the sleep is before sigsuspend(2), the threads
+are in nanosleep(2).  The unblocking pthread_sigmask(3) can be
+delayed so that the other threads have been joined already.
+
+It is also possible to avoid blocking the signals and check which
+handler catches it.  Alternatively sigwait(3) can be used to test
+signal reception.

@@ -1,0 +1,122 @@
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: sigblock.3,v 1.21 2022/12/13 06:56:06 jmc Exp $
+.\"
+.Dd $Mdocdate: December 13 2022 $
+.Dt SIGBLOCK 3
+.Os
+.Sh NAME
+.Nm sigblock ,
+.Nm sigmask
+.Nd block signals
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fn sigblock "int mask"
+.Ft int
+.Fn sigmask "int signum"
+.Sh DESCRIPTION
+.Bf -symbolic
+This interface is made obsolete by
+.Xr sigprocmask 2 .
+.Ef
+.Pp
+.Fn sigblock
+adds the signals specified in
+.Fa mask
+to the set of signals currently
+being blocked from delivery.
+Signals are blocked if the
+corresponding bit in
+.Fa mask
+is a 1; the macro
+.Fn sigmask
+is provided to construct the mask for a given
+.Fa signum .
+.Pp
+It is not possible to block
+.Dv SIGKILL
+or
+.Dv SIGSTOP ;
+this restriction is silently
+imposed by the system.
+.Sh RETURN VALUES
+The previous set of masked signals is returned.
+.Sh EXAMPLES
+The following example utilizing
+.Fn sigblock :
+.Bd -literal -offset indent
+int omask;
+
+omask = sigblock(sigmask(SIGINT) | sigmask(SIGHUP));
+.Ed
+.Pp
+Becomes:
+.Bd -literal -offset indent
+sigset_t set, oset;
+
+sigemptyset(&set);
+sigaddset(&set, SIGINT);
+sigaddset(&set, SIGHUP);
+sigprocmask(SIG_BLOCK, &set, &oset);
+.Ed
+.Pp
+Another use of
+.Fn sigblock
+is to get the current set of masked signals without changing what
+is actually blocked.
+Instead of:
+.Bd -literal -offset indent
+int set;
+
+set = sigblock(0);
+.Ed
+.Pp
+Use the following:
+.Bd -literal -offset indent
+sigset_t set;
+
+sigprocmask(SIG_BLOCK, NULL, &set);
+.Ed
+.Sh SEE ALSO
+.Xr kill 2 ,
+.Xr sigaction 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigaddset 3 ,
+.Xr sigsetmask 3
+.Sh HISTORY
+A
+.Fn sigblock
+system call first appeared in
+.Bx 4.2 .
+In
+.Bx 4.3 Reno ,
+it was reimplemented as a wrapper around
+.Xr sigprocmask 2 .
+The old system call was kept for compatibility until
+.Ox 4.9 .

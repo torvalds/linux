@@ -1,0 +1,325 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Clang - Getting Started</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+</head>
+<body>
+
+<!--#include virtual="menu.html.incl"-->
+
+<div id="content">
+
+<h1>Getting Started: Building and Running Clang</h1>
+
+<p>This page gives you the shortest path to checking out Clang and demos a few
+options.  This should get you up and running with the minimum of muss and fuss.
+If you like what you see, please consider <a href="get_involved.html">getting
+involved</a> with the Clang community.  If you run into problems, please file
+bugs on <a href="https://github.com/llvm/llvm-project/issues">the LLVM bug tracker</a>.</p>
+
+<h2 id="download">Release Clang Versions</h2>
+
+<p>Clang is released as part of regular LLVM releases. You can download the release versions from <a href="https://llvm.org/releases/">https://llvm.org/releases/</a>.</p>
+<p>Clang is also provided in all major BSD or GNU/Linux distributions as part of their respective packaging systems. From Xcode 4.2, Clang is the default compiler for Mac OS X.</p>
+
+<h2 id="build">Building Clang and Working with the Code</h2>
+
+<h3 id="buildNix">On Unix-like Systems</h3>
+
+<p>If you would like to check out and build Clang, the current procedure is as
+follows:</p>
+
+<ol>
+  <li>Get the required tools.
+  <ul>
+    <li>See
+      <a href="https://llvm.org/docs/GettingStarted.html#requirements">
+      Getting Started with the LLVM System - Requirements</a>.</li>
+    <li>Note also that Python is needed for running the test suite.
+      Get it at: <a href="https://www.python.org/downloads/">
+      https://www.python.org/downloads/</a></li>
+    <li>Standard build process uses CMake. Get it at:
+      <a href="https://cmake.org/download/">
+      https://cmake.org/download/</a></li>
+  </ul>
+
+  <li>Check out the LLVM project:
+  <ul>
+    <li>Change directory to where you want the llvm directory placed.</li>
+    <li><tt>git clone https://github.com/llvm/llvm-project.git</tt></li>
+    <li>The above command is very slow. It can be made faster by creating a shallow clone. Shallow clone saves storage and speeds up the checkout time. This is done by using the command:
+      <ul>
+        <li><tt>git clone --depth=1 https://github.com/llvm/llvm-project.git (using this only the latest version of llvm can be built)</tt></li>
+        <li>For normal users looking to just compile, this command works fine. But if someone later becomes a contributor, since they can't push code from a shallow clone, it needs to be converted into a full clone:
+          <ul>
+            <li><tt>cd llvm-project</tt></li>
+            <li><tt>git fetch --unshallow</tt></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+  </li>
+  <li>Build LLVM and Clang:
+  <ul>
+    <li><tt>cd llvm-project</tt></li>
+    <li><tt>mkdir build</tt> (in-tree build is not supported)</li>
+    <li><tt>cd build</tt></li>
+    <li>This builds both LLVM and Clang in release mode. Alternatively, if
+        you need a debug build, switch Release to Debug. See
+        <a href="https://llvm.org/docs/CMake.html#frequently-used-cmake-variables">frequently used cmake variables</a>
+        for more options.
+    </li>
+    <li><tt>cmake -DLLVM_ENABLE_PROJECTS=clang -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ../llvm</tt></li>
+    <li><tt>make</tt></li>
+    <li>Note: For subsequent Clang development, you can just run
+        <tt>make clang</tt>.</li>
+    <li>CMake allows you to generate project files for several IDEs: Xcode,
+        Eclipse CDT4, CodeBlocks, Qt-Creator (use the CodeBlocks generator),
+        KDevelop3. For more details see
+        <a href="https://llvm.org/docs/CMake.html">Building LLVM with CMake</a>
+        page.</li>
+  </ul>
+  </li>
+
+  <li>On Linux, you may need GCC runtime libraries (e.g. <tt>crtbeginS.o,
+    libstdc++.so</tt>) and libstdc++ headers. In general, Clang will detect
+    well-known GCC installation paths matching the target triple (configured at
+    build time (see <tt>clang --version</tt>); overriden by
+    <tt>--target=</tt>) and use the largest version. If your configuration fits
+    none of the standard scenarios, you can set <tt>--gcc-install-dir=</tt> to
+    the GCC installation directory (something like
+    <tt>/usr/lib/gcc/$triple/$major</tt>). If your GCC installation is under
+    <tt>/usr/lib/gcc</tt> but uses a different triple, you can set
+    <tt>--gcc-triple=$triple</tt>.
+  </li>
+  <li>Try it out (assuming you add llvm/build/bin to your path):
+  <ul>
+    <li><tt>clang --help</tt></li>
+    <li><tt>clang file.c -fsyntax-only</tt> (check for correctness)</li>
+    <li><tt>clang file.c -S -emit-llvm -o -</tt> (print out unoptimized llvm code)</li>
+    <li><tt>clang file.c -S -emit-llvm -o - -O3</tt></li>
+    <li><tt>clang file.c -S -O3 -o -</tt> (output native machine code)</li>
+  </ul>
+  </li>
+  <li>Run the testsuite:
+  <ul>
+    <li><tt>make check-clang</tt></li>
+  </ul>
+  </li>
+</ol>
+
+<h3 id="buildWindows">Using Visual Studio</h3>
+
+<p>The following details setting up for and building Clang on Windows using
+Visual Studio:</p>
+
+<ol>
+  <li>Get the required tools:
+  <ul>
+    <li><b>Git</b>.  Source code control program.  Get it from:
+        <a href="https://git-scm.com/download">
+        https://git-scm.com/download</a></li>
+    <li><b>CMake</b>.  This is used for generating Visual Studio solution and
+        project files.  Get it from:
+        <a href="https://cmake.org/download/">
+        https://cmake.org/download/</a></li>
+    <li><b>Visual Studio 2019 16.7 or later</b></li>
+    <li><b>Python</b>.  It is used to run the clang test suite. Get it from:
+        <a href="https://www.python.org/download/">
+        https://www.python.org/download/</a></li>
+    <li><b>GnuWin32 tools</b>
+        The Clang and LLVM test suite use various GNU core utilities, such as
+        <tt>grep</tt>, <tt>sed</tt>, and <tt>find</tt>. The gnuwin32 packages
+        are the oldest and most well-tested way to get these tools. However, the
+        MSys utilities provided by git for Windows have been known to work.
+        Cygwin has worked in the past, but is not well tested.
+        If you don't already have the core utilies from some other source, get
+        gnuwin32 from <a href="http://getgnuwin32.sourceforge.net/">
+        http://getgnuwin32.sourceforge.net/</a>.</li>
+  </ul>
+  </li>
+
+  <li>Check out LLVM and Clang:
+  <ul>
+    <li><tt>git clone https://github.com/llvm/llvm-project.git</tt></li>
+  </ul>
+  <p><em>Note</em>: Some Clang tests are sensitive to the line endings.  Ensure
+     that checking out the files does not convert LF line endings to CR+LF.  If
+     you're using git on Windows, make sure your <tt>core.autocrlf</tt> setting
+     is false.</p>
+  </li>
+  <li>Run CMake to generate the Visual Studio solution and project files:
+  <ul>
+    <li><tt>cd llvm-project</tt></li>
+    <li><tt>mkdir build</tt> (for building without polluting the source dir)</li>
+    <li><tt>cd build</tt></li>
+    <li>
+      If you are using Visual Studio 2019:
+      <tt>cmake -DLLVM_ENABLE_PROJECTS=clang -G "Visual Studio 16 2019" -A x64 -Thost=x64 ..\llvm</tt><br/>
+      <tt>-Thost=x64</tt> is required, since the 32-bit linker will run out of memory.
+    </li>
+    <li>To generate x86 binaries instead of x64, pass <tt>-A Win32</tt>.</li>
+    <li>See the <a href="https://www.llvm.org/docs/CMake.html">LLVM CMake guide</a> for
+        more information on other configuration options for CMake.</li>
+    <li>The above, if successful, will have created an LLVM.sln file in the
+       <tt>build</tt> directory.
+  </ul>
+  </li>
+  <li>Build Clang:
+  <ul>
+    <li>Open LLVM.sln in Visual Studio.</li>
+    <li>Build the "clang" project for just the compiler driver and front end, or
+      the "ALL_BUILD" project to build everything, including tools.</li>
+  </ul>
+  </li>
+  <li>Try it out (assuming you added llvm/debug/bin to your path).  (See the
+    running examples from above.)</li>
+  <li>See <a href="hacking.html#testingWindows">
+     Hacking on clang - Testing using Visual Studio on Windows</a> for information
+     on running regression tests on Windows.</li>
+</ol>
+
+<h3 id="buildWindowsNinja">Using Ninja alongside Visual Studio</h3>
+
+<p>We recommend that developers who want the fastest incremental builds use the
+<a href="https://ninja-build.org/">Ninja build system</a>. You can use the
+generated Visual Studio project files to edit Clang source code and generate a
+second build directory next to it for running the tests with these steps:</p>
+
+<ol>
+  <li>Check out clang and LLVM as described above</li>
+  <li>Open a developer command prompt with the appropriate environment.
+    <ul>
+      <li>If you open the start menu and search for "Command Prompt", you should
+        see shortcuts created by Visual Studio to do this. To use native x64
+        tools, choose the one titled "x64 Native Tools Command Prompt for VS
+        2017".</li>
+      <li> Alternatively, launch a regular <tt>cmd</tt> prompt and run the
+        appropriate vcvarsall.bat incantation. To get the 2017 x64 tools, this
+        would be:<br/>
+        <tt>"C:\Program Files (x86)\Microsoft Visual
+          Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" x64</tt>
+      </li>
+    </ul>
+  </li>
+  <li><tt>mkdir build_ninja</tt> (or <tt>build</tt>, or use your own
+    organization)</li>
+  <li><tt>cd build_ninja</tt></li>
+  <li><tt>set CC=cl</tt> (necessary to force CMake to choose MSVC over mingw GCC
+    if you have it installed)</li>
+  <li><tt>set CXX=cl</tt></li>
+  <li><tt>cmake -GNinja -DLLVM_ENABLE_PROJECTS=clang ..\llvm</tt></li>
+  <li><tt>ninja clang</tt> This will build just clang.</li>
+  <li><tt>ninja check-clang</tt> This will run the clang tests.</li>
+</ol>
+
+<h2 id="driver">Clang Compiler Driver (Drop-in Substitute for GCC)</h2>
+
+<p>The <tt>clang</tt> tool is the compiler driver and front-end, which is
+designed to be a drop-in replacement for the <tt>gcc</tt> command.  Here are
+some examples of how to use the high-level driver:
+</p>
+
+<pre class="code">
+$ <b>cat t.c</b>
+#include &lt;stdio.h&gt;
+int main(int argc, char **argv) { printf("hello world\n"); }
+$ <b>clang t.c</b>
+$ <b>./a.out</b>
+hello world
+</pre>
+
+<p>The 'clang' driver is designed to work as closely to GCC as possible to
+  maximize portability.  The only major difference between the two is that
+  Clang defaults to gnu99 mode while GCC defaults to gnu89 mode.  If you see
+  weird link-time errors relating to inline functions, try passing -std=gnu89
+  to clang.</p>
+
+<h2>Examples of using Clang</h2>
+
+<!-- Thanks to
+ http://shiflett.org/blog/2006/oct/formatting-and-highlighting-php-code-listings
+Site suggested using pre in CSS, but doesn't work in IE, so went for the <pre>
+tag. -->
+
+<pre class="code">
+$ <b>cat ~/t.c</b>
+typedef float V __attribute__((vector_size(16)));
+V foo(V a, V b) { return a+b*a; }
+</pre>
+
+
+<h3>Preprocessing:</h3>
+
+<pre class="code">
+$ <b>clang ~/t.c -E</b>
+# 1 "/Users/sabre/t.c" 1
+
+typedef float V __attribute__((vector_size(16)));
+
+V foo(V a, V b) { return a+b*a; }
+</pre>
+
+
+<h3>Type checking:</h3>
+
+<pre class="code">
+$ <b>clang -fsyntax-only ~/t.c</b>
+</pre>
+
+
+<h3>GCC options:</h3>
+
+<pre class="code">
+$ <b>clang -fsyntax-only ~/t.c -pedantic</b>
+/Users/sabre/t.c:2:17: <span style="color:magenta">warning:</span> extension used
+<span style="color:darkgreen">typedef float V __attribute__((vector_size(16)));</span>
+<span style="color:blue">                ^</span>
+1 diagnostic generated.
+</pre>
+
+
+<h3>Pretty printing from the AST:</h3>
+
+<p>Note, the <tt>-cc1</tt> argument indicates the compiler front-end, and
+not the driver, should be run. The compiler front-end has several additional
+Clang specific features which are not exposed through the GCC compatible driver
+interface.</p>
+
+<pre class="code">
+$ <b>clang -cc1 ~/t.c -ast-print</b>
+typedef float V __attribute__(( vector_size(16) ));
+V foo(V a, V b) {
+   return a + b * a;
+}
+</pre>
+
+
+<h3>Code generation with LLVM:</h3>
+
+<pre class="code">
+$ <b>clang ~/t.c -S -emit-llvm -o -</b>
+define &lt;4 x float&gt; @foo(&lt;4 x float&gt; %a, &lt;4 x float&gt; %b) {
+entry:
+         %mul = mul &lt;4 x float&gt; %b, %a
+         %add = add &lt;4 x float&gt; %mul, %a
+         ret &lt;4 x float&gt; %add
+}
+$ <b>clang -fomit-frame-pointer -O3 -S -o - t.c</b> <i># On x86_64</i>
+...
+_foo:
+Leh_func_begin1:
+	mulps	%xmm0, %xmm1
+	addps	%xmm1, %xmm0
+	ret
+Leh_func_end1:
+</pre>
+
+</div>
+</body>
+</html>

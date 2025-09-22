@@ -1,0 +1,9 @@
+This is an import of https://github.com/pjk/libcbor v0.10.0 with
+e308674c5d to fix https://github.com/PJK/libcbor/issues/259
+
+Apart from README.md and LICENSE.md, only the src/ directory has been
+imported.
+
+Note that the custom allocator feature (cbor_set_allocs()) has been
+disabled in this import and the allocation functions _cbor_malloc, etc.
+are #defined to the usual libc implementations.

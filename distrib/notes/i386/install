@@ -1,0 +1,66 @@
+dnl	$OpenBSD: install,v 1.52 2017/03/04 22:46:19 tj Exp $
+OpenBSDInstallPrelude
+
+There are several ways to install OpenBSD onto a disk.  The easiest way,
+should your computer support it, is to boot off an OpenBSD CD-ROM,
+USB key, or off one of the bootable CD-ROM mini images.  Otherwise, you
+can boot from a 3.5" 1.44MB floppy disk if your machine has a floppy drive.
+If your machine supports PXE network boots, you could try to configure a
+server for a network install.
+
+OpenBSDInstallPart2
+
+	If you are using CD-ROM, USB key or floppy media, ensure the media is
+	present before starting.
+
+	Reboot the computer to begin the install.  You might have to play
+	with your BIOS options to get the computer to boot from the
+	correct installation media (floppy, CD, USB key or network/PXE) rather
+	than from the hard disk.
+
+	If you are installing across the network with PXE, you will need
+	to tell pxeboot to get the bsd.rd install kernel:
+
+	    boot> boot bsd.rd
+
+	It can take a while to load the kernel from a floppy, slow speed
+	CD-ROM drive, or across a network, most likely more than a minute.
+	If some action doesn't eventually happen, or the spinning cursor
+	has stopped and nothing further has happened, either your boot
+	floppy is bad or you are having hardware problems. If trying
+	another floppy disk doesn't help, try booting after disabling your
+	CPU's internal and external caches (if any).  If it still doesn't
+	work, OpenBSD probably can't be run on your hardware.  This can
+	probably be considered a bug, so you might want to report it.  If
+	you do, please {:-include-:} as many details about your system
+	configuration as you can.
+
+OpenBSDInstallPart3
+
+OpenBSDInstallPart4
+
+OpenBSDInstallMBRPart1
+
+OpenBSDInstallMBRPart2(verily)
+
+OpenBSDInstallPart5({:-
+	If you have DOS or Linux partitions defined on the disk, these
+	will usually show up as partition 'i', 'j' and so on.-:})
+
+OpenBSDInstallPart6({:-CD-ROM, -:})
+
+OpenBSDURLInstall
+
+OpenBSDCDROMInstall
+
+OpenBSDDISKInstall({:-"wdN" or -:},,{:- or MS-DOS-:})
+
+OpenBSDCommonInstall
+
+OpenBSDInstallWrapup
+
+OpenBSDCongratulations
+
+
+
+OpenBSDUnattendedInstallation

@@ -1,0 +1,414 @@
+$OpenBSD: DESIGN-NOTES,v 1.25 2006/06/02 19:35:55 hshoexer Exp $
+$EOM: DESIGN-NOTES,v 1.48 1999/08/12 22:34:25 niklas Exp $
+
+General coding conventions
+--------------------------
+GNU indentation, Max 80 characters per line, KNF comments, mem* instead of b*,
+BSD copyright, one header per module specifying the API.
+Multiple inclusion protection like this:
+
+#ifndef _HEADERNAME_H_
+#define _HEADERNAME_H_
+
+... Here comes the bulk of the header ...
+
+#endif /* _HEADERNAME_H_ */
+
+Start all files with RCS ID tags.
+
+GCC -Wall clean, ANSI prototypes.  System dependent facilities should be
+named sysdep_* and be placed in sysdep.c.  Every C file should include
+sysdep.h as the first isakmpd include file.  Primary target systems are OpenBSD
+and Linux, but porting to Microsoft Windows variants should not be made
+overly difficult.
+
+Note places which need reconsiderations with comments starting with the
+string "XXX", e.g.
+
+/* XXX Not implemented yet.  */
+
+TOC
+---
+app.c		Application support.
+attribute.c	Attribute handling.
+cert.c		Dispatching certificate related functions to the according
+		module based on the encoding.
+conf.c		Interface to isakmpd configuration.
+connection.c	Handle the high-level connection concept.
+constants.c	Value to name map of constants.
+cookie.c	Cookie generation.
+crypto.c	Generic cryptography.
+dh.c		Diffie-Hellman exchange logic.
+dnssec.c	IKE authentication using signed DNS KEY RRs.
+doi.c		Generic handling of different DOIs.
+exchange.c	Exchange state machinery.
+exchange_num.cst
+		Some constants used for exchange scripts.
+field.c		Generic handling of fields.
+genconstants.sh
+		Generate constant files from .cst source.
+genfields.sh	Generate field description files from .fld source.
+gmp_util.c	Utilities to ease interfacing to GMP.
+hash.c		Generic hash handling.
+if.c		Network interface details.
+ike_aggressive.c
+		IKE's aggressive mode exchange logic.
+ike_auth.c	IKE authentication method abstraction.
+ike_main_mode.c	IKE's main mode exchange logic.
+ike_phase_1.c	Common parts IKE's main & aggressive modes' exchange logic.
+ike_quick_mode.c
+		IKE's quick mode logic.
+init.c		Initialization of all modules (might be autogenned in the
+		future).
+ipsec.c		The IPsec DOI.
+ipsec_fld.fld	Description of IPsec DOI-specific packet layouts.
+ipsec_num.cst	Constants defined by the IPsec DOI.
+isakmp_doi.c	The ISAKMP pseudo-DOI.
+isakmp_fld.fld	Generic packet layout.
+isakmp_num.cst	ISAKMP constants.
+isakmpd.c	Main loop.
+key.c		Generic key handling.
+libcrypto.c	Initialize crypto (OpenSSL).
+log.c		Logging of exceptional or informational messages.
+math_2n.c	Polynomial math.
+math_ec2n.c	Elliptic curve math.
+math_group.c	Group math.
+message.c	Generic message handling.
+pf_key_v2.c	Interface with PF_KEY sockets (for use with IPsec).
+policy.c	Keynote glue.
+prf.c		Pseudo random functions.
+sa.c		Handling of Security Associations (SAs).
+sysdep/*/sysdep.c
+		System dependent stuff.
+timer.c		Timed events.
+transport.c	Generic transport handling.
+udp.c		The UDP transport.
+ui.c		The "User Interface", i.e. the FIFO command handler.
+util.c		Miscellaneous utility functions.
+x509.c		Encoding/Decoding X509 Certificates and related structures.
+
+Central datatypes
+-----------------
+
+struct connection	Persistent connections.
+struct constant_map	A map from constants to their ASCII names.
+struct crypto_xf	A crypto class
+struct doi		The DOI function switch
+struct event		An event that is to happen at some point in time.
+struct exchange		A description of an exchange while it is performed.
+struct field		A description of an ISAKMP field.
+struct group		A class abstracting out Oakley group operations
+struct hash		A hashing class
+struct ipsec_exch	IPsec-specific exchange fields.
+struct ipsec_proto	IPsec-specific protocol attributes.
+struct ipsec_sa		IPsec-specific SA stuff.
+struct message		A generic ISAKMP message.
+struct payload		A "fat" payload reference pointing into message buffers
+struct prf		A pseudo random function class
+struct proto		Per-protocol attributes.
+struct post_send	Post-send function chain node.
+struct sa		A security association.
+struct transport	An ISAKMP transport, i.e. a channel where ISAKMP
+			messages are passed (not necessarily connection-
+			oriented).  This is an abstract class, serving as
+			a superclass to the different specific transports.
+
+SAs & exchanges
+---------------
+
+struct exchange		Have all fields belonging to a simple exchange
+			+ a list of all the SAs being negotiated.
+			Short-lived.
+struct sa		Only hold SA-specific stuff.  Lives longer.
+
+In order to recognize exchanges and SAs it is good to know what constitutes
+their identities:
+
+Phase 1 exchange	Cookie pair (apart from the first message of course,
+			where the responder cookie is zero.
+
+ISAKMP SA		Cookie pair.  I.e. there exists a one-to-one
+			mapping to the negotiation in this case.
+
+Phase 2 exchange	Cookie pair + message ID.
+
+Generic SA		Cookie pair + message ID + SPI.
+
+However it would be really nice to have a name of any SA that is natural
+to use for human beings, for things like deleting SAs manually.  The simplest
+ID would be the struct sa address.  Another idea would be some kind of sequence
+number, either global or per-destination.  Right now I have introduced a name
+for SAs, non-unique, that binds together SAs and their configuration
+parameters.  This means both manual exchange runs and rekeying are simpler.
+Both struct exchange and struct sa does hold a reference count, but this is
+not entirely like a reference count in the traditional meaning where
+every reference gets counted.  Perhaps it will be in the future, but for now
+we increment the count at allocation time and at times we schedule events
+that might happen sometime in the future where we will need the structure.
+These events then release its reference when done.  This way intermediate
+deallocation of these structures are OK.
+
+The basic idea of control flow
+------------------------------
+
+The main loop just waits for events of any kind.  Supposedly a message
+comes in, then the daemon looks to see if the cookies describes an
+existing ISAKMP SA, if they don't and the rcookie is zero, it triggers a
+setup of a new ISAKMP SA.  An exhaustive validation phase of the message
+is gone through at this stage.  If anything goes wrong, we drop the packet
+and probably send some notification back.  After the SA is found we try to
+locate the exchange object and advance its state, else we try to create a
+new exchange.
+
+Need exchanges be an abstraction visible in the code?  If so an exchange is
+roughly a very simple FSM (only timeouts and retransmissions are events that
+does not just advance the state through a sequential single path).  The
+informational exchange is such a special case, I am not sure it's interesting
+to treat as an exchange in the logic of the implementation.  The only reason
+to do so would be to keep the implementation tightly coupled to the
+specification for ease of understanding.  As the code looks now, exchanges
+*are* an abstraction in the code, and it has proven to be a rather nice
+way of having things.
+
+When the exchange has been found the exchange engine "runs" a script which
+steps forward for each incoming message, and on each reply to them.
+
+Payload parsing details
+-----------------------
+
+After the generic header has been validated, we do a generic payload
+parsing pass over the message and sort out the payloads into buckets indexed
+by the payload type.  Note that proposals and transforms are part of the SA
+payloads.  We then pass over them once more validating each payload
+in numeric payload type order.  This makes SA payloads come naturally first.
+
+Messages
+--------
+
+I am not sure there is any use in sharing the message structure for both
+incoming and outgoing messages but I do it anyhow.  Specifically there are
+certain fields which only makes sense in one direction.  Incoming messages
+only use one segment in the iovec vector, while outgoing has one segment per
+payload as well as one for the ISAKMP header.  The iovec vector is
+reallocated for each payload added, maybe we should do it in chunks of a
+number of payloads instead, like 10 or so.
+
+Design "errors"
+---------------
+
+Currently there are two "errors" in our design.  The first one is that the
+coupling between the IPsec DOI and IKE is tight.  It should be separated by
+a clean interface letting other key exchange models fit in instead of IKE.
+The second problem is that we need a protocol-specific opaque SA part
+in the DOI specific one.  Now both IPsec ESP attributes takes place even
+in ISAKMP SA structures.
+
+User control
+------------
+
+In order to control the daemon you send commands through a FIFO called
+isakmpd.fifo.  The commands are one-letter codes followed by arguments.
+For now, eleven such commands are implemented:
+
+c	connect		Establish a connection with a peer
+C	configure	Add or remove configuration entries
+d	delete		Delete an SA given cookies and message-IDs
+D	debug		Change logging level for a debug class
+p	packet capture	Enable/disable packet capture feature
+r	report		Report status information of the daemon
+t	teardown	Teardown a connection
+Q       quit            Quit the isakmpd process
+R       reinitialize    Reinitialize isakmpd (re-read configuration file)
+S       report SA       Report SA information to file /var/run/isakmp_sa
+T       teardown all    Teardown all Phase 2 connections
+
+For example you can do:
+
+c ISAKMP-peer
+
+In order to delete an SA you use the 'd' command.  However this is not yet
+supported.
+
+To alter the level of debugging in the "LOG_MISC" logging class to 99 you do:
+
+D 0 99
+
+The report command is just an "r", and results in a list of active exchanges
+and security associations.
+
+The "C" command takes 3 subcommands: set, rm and rms, for adding and removing
+entries + remove complete sections respectively.  Examples:
+
+C set [Net-A]:Address=192.168.0.0
+C rm [Net-A]:Address
+C rms [Net-A]
+
+All these commands are atomic, i.e. they are not collected into larger
+transactions, which there should be a way to do, but currently isn't.
+
+The FIFO UI is also described in the isakmpd(8) man page.
+
+In addition to giving commands over the FIFO, you may send signals to the
+daemon. Currently two such signals are implemented:
+
+SIGHUP 	  Re-initialize isakmpd (not fully implemented yet)
+SIGUSR1   Generate a report, much as the "r" FIFO command.
+
+For example, to generate a report, you do:
+
+unix# kill -USR1 <PID of isakmpd process>
+
+The constant descriptions
+-------------------------
+
+We have invented a simple constant description language, for the sake
+of easily getting textual representations of manifest constants.
+The syntax is best described by an example:
+
+GROUP
+  CONSTANT_A		1
+  CONSTANT_B		2
+.
+
+This defines a constant map "group" with the following two defines:
+
+#define GROUP_CONSTANT_A 1
+#define GROUP_CONSTANT_B 2
+
+We can now get the textual representation by:
+
+  cp = constant_name (group, foo);
+
+Here foo is an integer with either of the two constants as a value.
+
+The field descriptions
+----------------------
+
+There is language for describing header and payload layouts too,
+similar to the constant descriptions.  Here too I just show an example:
+
+RECORD_A
+  FIELD_A	raw 4
+  FIELD_B	num 2
+  FIELD_C	mask 1		group_c_cst
+  FIELD_D	ign 1
+  FIELD_E	cst 2		group_e1_cst,group_e2_cst
+.
+
+RECORD_B : RECORD_A
+  FIELD_F	raw
+.
+
+This creates some utility constants like RECORD_A_SZ, RECORD_A_FIELD_A_LEN,
+RECORD_A_FIELD_A_OFF, RECORD_A_FIELD_B_LEN etc.  The *_OFF contains the
+octet offset into the record and the *_LEN constants are the lengths.
+The type fields can be: raw, num, mask, ign & cst.  Raw are used for
+octet buffers, num for (unsigned) numbers of 1, 2 or 4 octet's length
+in network byteorder, mask is a bitmask where the bit values have symbols
+coupled to them via the constant maps given after the length in octets
+(also 1, 2 or 4).  Ign is just a filler type, ot padding and lastly cst
+denotes constants whose values can be found in the given constant map(s).
+The last field in a record can be a raw, without a length, then just an
+_OFF symbol will be generated.  You can offset the first symbol to the
+size of another record, like is done above for RECORD_B, i.e. in that
+case RECORD_A_SZ == RECORD_B_FIELD_F_OFF.  All this data are collected
+in struct field arrays which makes it possible to symbolically print out
+entire payloads in readable form via field_dump_payload.
+
+Configuration
+-------------
+
+Internally isakmpd uses a section-tag-value triplet database for
+configuration.  Currently this happen to map really well to the
+configuration file format, which on the other hand does not map
+equally well to humans.  It is envisioned that the configuration
+database should be dynamically modifiable, and through a lot of
+different mechanisms.  Therefore we have designed an API for this
+purpose.
+
+int conf_begin ();
+int conf_set (int transaction, char *section, char *tag, char *value,
+	      int override);
+int conf_remove (int transaction, char *section, char *tag);
+int conf_remove_section (int transaction, char *section);
+int conf_end (int transaction, int commit);
+
+The caller will always be responsible for the memory management of the
+passed strings, conf_set will copy the values, and not use the original
+strings after it has returned.  Return value will be zero on success and
+non-zero otherwise.  Note that the conf_remove* functions consider not
+finding anything to remove as failure.
+
+Identification
+--------------
+
+ISAKMP supports a lot of identity types, and we should too of course.
+
+* Phase 1, Main mode or Aggressive mode
+
+Today when we connect we do it based on the peer's IP address.  That does not
+automatically mean we should do policy decision based on IPs, rather we should
+look at the ID the peer provide and get policy info keyed on that.
+
+Perhaps we get an ID saying the peer is FQDN niklas.hallqvist.se, then our
+policy rules might look like:
+
+[IQ_FQDN]
+# If commented, internal verification is used
+#Verificator=	verify_fqdn
+Accept=		no
+
+[ID_FQDN niklas.hallqvist.se]
+Policy=		MY_POLICY_001
+
+[MY_POLICY_001]
+# Whatever policy rules we might have.
+Accept=		yes
+
+Which means niklas.hallqvist.se is allowed to negotiate SAs with us, but
+noone else.
+
+* Phase 2, Quick mode
+
+In quick mode the identities are implicitly the IP addresses of the peers,
+which must mean the IP addresses actually used for the ISAKMP tunnel.
+Otherwise we today support IPV4_ADDR & IPV4_ADDR_SUBNET as ID types.
+
+X509-Certificates
+-----------------
+To use RSA Signature mode you are required to generate certificates.
+This can be done with ssleay, see man ssl. But the X509 certificates
+require a subjectAltname extension that can either be an IPV4 address,
+a User-FQDN or just FQDN.  ssleay can not create those extension,
+instead use the x509test program in src/regress/sbin/isakmpd/x509 to
+modify an existing certificate.  It will insert the subjectAltname
+extension and sign it with the provided private Key.  The resulting
+certificate then needs to be stored in the directory pointed to by
+"Certs-directory" in section "X509-certificates".
+
+License to use
+--------------
+/*
+ * Copyright (c) 1999 Niklas Hallqvist.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+

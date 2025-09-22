@@ -1,0 +1,203 @@
+# configure.target
+#
+# This shell script handles all target based configuration for libstdc++.
+# It sets various shell variables based on the the target and the
+# configuration options.  You can modify this shell script without needing
+# to rerun autoconf/aclocal/etc.  This file is "sourced" not executed.
+#
+# You should read docs/html/17_intro/porting.* to make sense of this file.
+#
+#
+# It uses the following shell variables as set by config.guess:
+#   target                The configuration target (full CPU-vendor-OS triplet)
+#   target_cpu            The configuration target CPU
+#   target_os             The configuration target OS
+#
+#
+# It sets the following shell variables:
+#
+#   cpu_include_dir        CPU-specific directory, defaults to cpu/generic
+#                          if cpu/target_cpu doesn't exist.  This is
+#                          used to set ATOMICITYH.
+#
+#   os_include_dir         OS-specific directory, defaults to os/generic.
+#
+#   c_model                the model to use for "C" headers, defaults to c_std.
+#
+#   c_compatibility        if "C" compatibility headers are necessary,
+#                          defaults to no.
+#
+#   abi_baseline_pair      directory name for ABI compat testing,
+#                          defaults to target (as per config.guess)
+#
+#   ATOMICITYH             location of atomicity.h,
+#                          defaults to cpu_include_dir
+#
+# It possibly modifies the following variables:
+#
+#   OPT_LDFLAGS            extra flags to pass when linking the library, of
+#                          the form '-Wl,blah'
+#                          (defaults to empty in acinclude.m4)
+#
+#
+# If the defaults will not work for your platform, you need only change the
+# variables that won't work, i.e., you do not need to explicitly set a
+# working variable to its default.  Most targets only need to change the two
+# *_include_dir variables.
+
+
+# DEFAULTS
+# Try to guess a default cpu_include_dir based on the name of the CPU.  We
+# cannot do this for os_include_dir; there are too many portable operating
+# systems out there.  :-)
+c_model=c_std
+c_compatibility=no
+
+
+# TARGET-SPECIFIC OVERRIDES
+# Set any CPU-dependent bits.
+# Here we override defaults and catch more general cases due to naming
+# conventions (e.g., chip_name* to catch all variants).
+# THIS TABLE IS SORTED.  KEEP IT THAT WAY.
+
+case "${target_cpu}" in
+  alpha*)
+    try_cpu=alpha
+    ;;
+  athlon* | i586 | i686 | i786 | x86_64)
+    try_cpu=i486
+    ;;
+  hppa*)
+    try_cpu=hppa
+    ;;
+  m680[246]0)
+    try_cpu=m68k
+    ;;
+  powerpc* | rs6000)
+    try_cpu=powerpc
+    ;;
+  s390x)
+    try_cpu=s390
+    ;;
+  sparc* | ultrasparc)
+    try_cpu=sparc
+    ;;
+  *)
+    if test -d ${glibcpp_srcdir}/config/cpu/${target_cpu}; then
+      try_cpu=${target_cpu}
+    else
+      try_cpu=generic
+    fi
+    ;;
+esac
+
+
+# Now look for the file(s) usually tied to a CPU model, and make
+# default choices for those if they haven't been explicitly set
+# already.  
+cpu_include_dir="cpu/${try_cpu}"
+ATOMICITYH=$cpu_include_dir
+abi_baseline_pair=${try_cpu}-${host_os}
+
+# Set any OS-dependent bits.
+# Set the os_include_dir.
+# Set c_model, c_compatibility here.
+# If atomic ops and/or numeric limits are OS-specific rather than
+# CPU-specifc, set those here too.
+# THIS TABLE IS SORTED.  KEEP IT THAT WAY.
+case "${target_os}" in
+  aix4.[3456789]* | aix[56789]*)
+    # We set os_include_dir to os/aix only on AIX 4.3 and newer, but
+    # os/aix/atomicity.h works on earlier versions of AIX 4.*, so we
+    # explicitly duplicate the directory for 4.[<3].
+    os_include_dir="os/aix"
+    ATOMICITYH="os/aix"
+    OPT_LDFLAGS="-Wl,-G"
+    ;;
+  aix4.*)
+    ATOMICITYH="os/aix"
+    ;;
+  aix*)
+    ATOMICITYH="cpu/generic"
+    ;;
+  bsd*)
+    # Plain BSD attempts to share FreeBSD files.
+    os_include_dir="os/bsd/freebsd"
+    ;;
+  cygwin*)
+    os_include_dir="os/newlib"
+    ;;
+  *djgpp*)      # leading * picks up "msdosdjgpp"
+    os_include_dir="os/djgpp"
+    ;;
+  freebsd*)
+    os_include_dir="os/bsd/freebsd"
+    ;;
+  gnu* | linux*)
+    os_include_dir="os/gnu-linux"
+    ;;
+  hpux*)
+    os_include_dir="os/hpux"
+    ;;
+  irix[1-6] | irix[1-5].* | irix6.[0-4]*)
+    # This is known to work on at least IRIX 5.2 and 6.3.
+    os_include_dir="os/irix/irix5.2"
+    ATOMICITYH=$os_include_dir
+    ;;
+  irix6.5*)
+    os_include_dir="os/irix/irix6.5"
+    ATOMICITYH=$os_include_dir
+    ;;
+  mingw32*)
+    os_include_dir="os/mingw32"
+    ;;
+  netbsd*)
+    os_include_dir="os/bsd/netbsd"
+    ;;
+  openbsd*)
+    os_include_dir="os/bsd/openbsd"
+    ;;
+  solaris2.5 | solaris2.5.[0-9])
+    os_include_dir="os/solaris/solaris2.5"
+    ;;
+  solaris2.6)
+    os_include_dir="os/solaris/solaris2.6"
+    ;;
+  solaris2.[789] | solaris2.1[0-9])
+    os_include_dir="os/solaris/solaris2.7"
+    ;;
+  windiss*)
+    os_include_dir="os/windiss"
+    ;;
+  qnx6.[12]*)
+    os_include_dir="os/qnx/qnx6.1"
+    c_model=c
+    ;;
+  *)
+    os_include_dir="os/generic"
+    ;;
+esac
+
+
+# Set any OS-dependent and CPU-dependent bits.
+# THIS TABLE IS SORTED.  KEEP IT THAT WAY.
+case "${target}" in
+  mips*-*-linux*)
+    ATOMICITYH="cpu/mips"
+    ;;
+  x86_64-*-linux*)
+    abi_baseline_pair="x86_64-linux-gnu"
+    ;;
+  alpha*-*-freebsd5*)
+    abi_baseline_pair="alpha-freebsd5"
+    ;;
+  i*86-*-freebsd4*)
+    abi_baseline_pair="i386-freebsd4"
+    ;;
+  i*86-*-freebsd5*)
+    abi_baseline_pair="i386-freebsd5"
+    ;;
+  sparc*-*-freebsd5*)
+    abi_baseline_pair="sparc-freebsd5"
+    ;;
+esac

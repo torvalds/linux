@@ -1,0 +1,103 @@
+#	$OpenBSD: files.arm,v 1.51 2024/01/01 18:25:50 kettenis Exp $
+#	$NetBSD: files.arm,v 1.76 2003/11/05 12:53:15 scw Exp $
+
+# generic networking files
+file	arch/arm/arm/in_cksum_arm.S
+
+# DDB
+file	arch/arm/arm/db_disasm.c		ddb
+file	arch/arm/arm/db_interface.c		ddb
+file	arch/arm/arm/db_trace.c			ddb
+file	arch/arm/arm/db_machdep.c		ddb
+file	arch/arm/arm/disassem.c			ddb
+
+# FIQ support
+file	arch/arm/arm/fiq.c			fiq
+file	arch/arm/arm/fiq_subr.S			fiq
+
+# mainbus files
+define	mainbus {}
+device	mainbus: fdt
+attach	mainbus at root
+file	arch/arm/mainbus/mainbus.c		mainbus
+
+device	simplebus: fdt
+attach	simplebus at fdt
+file	arch/arm/simplebus/simplebus.c		simplebus
+
+# FDT support
+include "dev/ofw/files.ofw"
+
+include "arch/arm/cortex/files.cortex"
+
+device	cpu {}
+attach	cpu at mainbus
+
+# bus_space(9)
+define	bus_space_generic
+file	arch/arm/arm/bus_space_asm_generic.S
+file	arch/arm/arm/bus_space_notimpl.S
+
+file	arch/arm/arm/arm_machdep.c
+file	arch/arm/arm/ast.c
+file	arch/arm/arm/bcopyinout.S
+file	arch/arm/arm/copystr.S
+file	arch/arm/arm/cpufunc.c
+file	arch/arm/arm/cpufunc_asm.S
+file	arch/arm/arm/cpufunc_asm_armv7.S	cpu_armv7
+file	arch/arm/arm/process_machdep.c
+file	arch/arm/arm/sig_machdep.c
+file	arch/arm/arm/sigcode.S
+file	arch/arm/arm/syscall.c
+file	arch/arm/arm/undefined.c
+file	arch/arm/arm/vectors.S
+
+# files common to arm implementations
+file	arch/arm/arm/arm32_machdep.c
+file	arch/arm/arm/bus_dma.c
+file	arch/arm/arm/cpu.c
+file	arch/arm/arm/cpuswitch7.S		cpu_armv7
+file	arch/arm/arm/exception.S
+file	arch/arm/arm/fault.c
+file	arch/arm/arm/mem.c
+file	arch/arm/arm/pmap7.c			cpu_armv7
+file	arch/arm/arm/setstack.S
+file	arch/arm/arm/stubs.c
+file	arch/arm/arm/sys_machdep.c
+file	arch/arm/arm/vm_machdep.c
+
+file	arch/arm/armv7/armv7_space.c		cpu_armv7
+file	arch/arm/armv7/bus_space_asm_armv7.S	cpu_armv7
+file	arch/arm/arm/vfp.c			cpu_armv7
+
+pseudo-device	openprom
+file	arch/arm/arm/openprom.c			openprom needs-flag
+
+# arm library functions
+file	arch/arm/arm/bcopy_page.S
+
+# machine-dependent libkern components
+file	lib/libkern/arch/arm/divsi3.S
+file	lib/libkern/arch/arm/__aeabi_ldivmod.S
+file	lib/libkern/arch/arm/__aeabi_uldivmod.S
+
+# quad support is necessary for 32 bit architectures
+file	lib/libkern/adddi3.c
+file	lib/libkern/anddi3.c
+file	lib/libkern/ashldi3.c
+file	lib/libkern/ashrdi3.c
+file	lib/libkern/cmpdi2.c
+file	lib/libkern/divdi3.c
+file	lib/libkern/iordi3.c
+file	lib/libkern/lshldi3.c
+file	lib/libkern/lshrdi3.c
+file	lib/libkern/moddi3.c
+file	lib/libkern/muldi3.c
+file	lib/libkern/negdi2.c
+file	lib/libkern/notdi2.c
+file	lib/libkern/qdivrem.c
+file	lib/libkern/subdi3.c
+file	lib/libkern/ucmpdi2.c
+file	lib/libkern/udivdi3.c
+file	lib/libkern/umoddi3.c
+file	lib/libkern/xordi3.c

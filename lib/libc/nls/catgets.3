@@ -1,0 +1,42 @@
+.\"	$OpenBSD: catgets.3,v 1.7 2013/06/05 03:39:23 tedu Exp $
+.\"
+.\" Written by J.T. Conklin <jtc@netbsd.org>.
+.\" Public domain.
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt CATGETS 3
+.Os
+.Sh NAME
+.Nm catgets
+.Nd retrieve string from message catalog
+.Sh SYNOPSIS
+.In nl_types.h
+.Ft char *
+.Fn catgets "nl_catd catd" "int set_id" "int msg_id" "const char *s"
+.Sh DESCRIPTION
+The
+.Fn catgets
+function attempts to retrieve message
+.Fa msg_id
+of set
+.Fa set_id
+from the message catalog referenced by the descriptor
+.Fa catd .
+The argument
+.Fa s
+points to a default message which is returned if the function
+is unable to retrieve the specified message.
+.Sh RETURN VALUES
+If the specified message was retrieved successfully,
+.Fn catgets
+returns a pointer to an internal buffer containing the message string;
+otherwise it returns
+.Fa s .
+.Sh SEE ALSO
+.Xr catclose 3 ,
+.Xr catopen 3
+.Sh STANDARDS
+The
+.Fn catgets
+function conforms to
+.St -xpg3 .

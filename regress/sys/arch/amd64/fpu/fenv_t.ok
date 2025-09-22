@@ -1,0 +1,8 @@
+control	ffff037f
+status	ffff0000
+tag	ffffffff
+others[0]	00000000
+others[1]	00000000
+others[2]	00000000
+others[3]	ffff0000
+mxcsr	00001f80

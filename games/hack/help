@@ -1,0 +1,132 @@
+	Welcome to HACK!		   ( description of version 1.0.3 )
+
+	Hack is a Dungeons and Dragons like game where you (the adventurer)
+descend into the depths of the dungeon in search of the Amulet of Yendor
+(reputed to be hidden on the twentieth level).  You are accompanied by a
+little dog that can help you in many ways and can be trained to do all
+sorts of things. On the way you will find useful (or useless) items, (quite
+possibly with magic properties) and assorted monsters.  You attack a monster
+by trying to move into the space a monster is in (but often it is much
+wiser to leave it alone).
+
+	Unlike most adventure games, which give you a verbal description of
+your location, hack gives you a visual image of the dungeon level you are on.
+
+	Hack uses the following symbols:
+		A to Z and a to z:  monsters.  You can find out what a letter
+represents by saying "/ (letter)", as in "/A", which will tell you that 'A'
+is a giant ant.
+		- and |  These form the walls of a room (or maze).
+		.  this is the floor of a room.
+		#  this is a corridor.
+		>  this is the staircase to the next level.
+		<  the staircase to the previous level.
+		`  A large boulder.
+		@  You (usually).
+		^  A trap.
+		)  A weapon of some sort.
+		(  Some other useful object (key, rope, dynamite, camera, ...)
+		[  A suit of armor.
+		%  A piece of food (not necessarily healthy ...).
+		/  A wand.
+		=  A ring.
+		?  A scroll.
+		!  A magic potion.
+		$  A pile or pot of gold.
+
+Commands:
+	Hack knows the following commands:
+	?	help: print this list.
+	Q	Quit the game.
+	S	Save the game.
+	!	Escape to a shell.
+	^Z	Suspend the game.
+	<	up: go up the staircase (if you are standing on it).
+	>	down: go down (just like up).
+	kjhlyubn - go one step in the direction indicated.
+		k: north (i.e., to the top of the screen),
+		j: south, h: west, l: east, y: nw, u: ne, b: sw, n: se.
+	KJHLYUBN - Go in that direction until you hit a wall or run
+		into something.
+	m	(followed by one of kjhlyubn): move without picking up
+		any objects.
+	M	(followed by one of KJHLYUBN): Move far, no pickup.
+	f	(followed by one of kjhlyubn): move until something
+		interesting is found.
+	F	(followed by one of KJHLYUBN): as previous, but forking
+		of corridors is not considered interesting.
+	i	print your inventory.
+	I	print selected parts of your inventory, like in
+		I* - print all gems in inventory;
+		IU - print all unpaid items;
+		IX - print all used up items that are on your shopping bill;
+		I$ - count your money.
+	s	search for secret doors and traps around you.
+	^	ask for the type of a trap you found earlier.
+	)	ask for current wielded weapon.
+	[	ask for current armor.
+	=	ask for current rings.
+	$	count how many gold pieces you are carrying.
+	.	rest, do nothing.
+	,	pick up some things.
+	:	look at what is here.
+	^T	teleport.
+	^R	redraw the screen.
+	^P	repeat last message
+		(subsequent ^P's repeat earlier messages).
+	/	(followed by any symbol): tell what this symbol represents.
+	\	tell what has been discovered.
+	e	eat food.
+	w	wield weapon. w- means: wield nothing, use bare hands.
+	q	drink (quaff) a potion.
+	r	read a scroll.
+	T	Takeoff armor.
+	R	Remove Ring.
+	W	Wear armor.
+	P	Put on a ring.
+	z	zap a wand.
+	t	throw an object or shoot an arrow.
+	p	pay your shopping bill.
+	d	drop something. d7a: drop seven items of object a.
+	D	Drop several things.
+		In answer to the question "What kinds of things do you
+		want to drop? [!%= au]" you should give zero or more
+		object symbols possibly followed by 'a' and/or 'u'.
+		'a' means: drop all such objects, without asking for
+			confirmation.
+		'u' means: drop only unpaid objects (when in a shop).
+	a	use, apply - Generic command for using a key to lock
+		or unlock a door, using a camera, using a rope, etc.
+	c	call: name a certain object or class of objects.
+	C	Call: Name an individual monster.
+	E	Engrave: Write a message in the dust on the floor.
+		E- means: use fingers for writing.
+	O	Set options. You will be asked to enter an option line.
+		If this is empty, the current options are reported.
+		Otherwise it should be a list of options separated by commas.
+		Possible boolean options are: oneline, time, news, tombstone,
+		rest_on_space, fixinvlet, beginner, male, female.
+		They can be negated by prefixing them with '!' or "no".
+		A string option is name; it supplies the answer to the question
+		"Who are you?"; it may have a suffix.
+		A compound option is endgame; it is followed by a description
+		of what parts of the list of topscorers should be printed
+		when the game is finished.
+		Usually one will not want to use the 'O' command, but instead
+		put a HACKOPTIONS="...." line in one's environment.
+	v	print version number.
+
+	You can put a number before a command to repeat it that many times,
+	as in "20s" or "40.".
+
+	At present, some information is displayed on the bottom line.
+	(It is expected that this information will go away in future versions.)
+	You see on what dungeon level you are, how many hit points you have
+	now (and will have when fully recovered), what your armor class is
+	(the lower the better), your strength, experience level and the
+	state of your stomach.
+
+	Have Fun, and Good Hacking!
+
+
+

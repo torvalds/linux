@@ -1,0 +1,29 @@
+$OpenBSD: version,v 1.11 2020/03/11 09:59:31 otto Exp $
+$NetBSD: version,v 1.9 1997/01/23 23:10:38 cgd Exp $
+
+1.1:	Initial version
+1.2:	don't forget the Id string!
+1.3:	make it work on AlphaStations
+(OpenBSD 1.1)
+
+1.4-1:	Re-import from master sources
+1.4-2:	Complete rewrite of boot block code
+(OpenBSD 1.2)
+
+1.5:	Update for new ECOFF headers
+(OpenBSD 1.3/1.4)
+
+1.6:	Don't pass arguments to the kernel, trim unnecessary environment
+	calls, kill 'ask' loop (i.e. if boot fails, halt), separate
+	ECOFF and a.out support into separate options.
+(OpenBSD 1.5)
+
+1.7:   Use libsa and libkern rather than building the objects locally.
+1.8:   Search for a kernel, if none specified.
+1.9:   Add support for gzipped kernels.
+(OpenBSD 1.6/1.7)
+
+1.8:	Use MI loadfile, warn if kernel image would overlap SRM
+1.9:	Better PALcode switching sequence
+1.10:	/etc/random.seed support
+1.11:	ffs2 support

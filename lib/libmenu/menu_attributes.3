@@ -1,0 +1,114 @@
+'\" t
+.\" $OpenBSD: menu_attributes.3,v 1.4 2023/10/17 09:52:10 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: menu_attributes.3,v 1.4 2023/10/17 09:52:10 nicm Exp $
+.TH menu_attributes 3 2023-07-01 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.SH NAME
+\fBmenu_back\fP,
+\fBmenu_fore\fP,
+\fBmenu_grey\fP,
+\fBmenu_pad\fP,
+\fBset_menu_back\fP,
+\fBset_menu_fore\fP,
+\fBset_menu_grey\fP,
+\fBset_menu_pad\fP \- color and attribute control for menus
+.SH SYNOPSIS
+\fB#include <menu.h>\fP
+.sp
+\fBint set_menu_fore(MENU *\fImenu\fB, chtype \fIattr\fB);\fR
+.br
+\fBchtype menu_fore(const MENU *\fImenu\fB);\fR
+.sp
+\fBint set_menu_back(MENU *\fImenu\fB, chtype \fIattr\fB);\fR
+.br
+\fBchtype menu_back(const MENU *\fImenu\fB);\fR
+.sp
+\fBint set_menu_grey(MENU *\fImenu\fB, chtype \fIattr\fB);\fR
+.br
+\fBchtype menu_grey(const MENU *\fImenu\fB);\fR
+.sp
+\fBint set_menu_pad(MENU *\fImenu\fB, int \fIpad\fB);\fR
+.br
+\fBint menu_pad(const MENU *\fImenu\fB);\fR
+.SH DESCRIPTION
+The function \fBset_menu_fore\fP sets the foreground attribute of
+\fImenu\fP. This is the highlight used for selected menu items.
+\fBmenu_fore\fP returns the foreground attribute.
+The default
+is \fBA_REVERSE\fP.
+.PP
+The function \fBset_menu_back\fP sets the background attribute of
+\fImenu\fP. This is the highlight used for selectable (but not currently
+selected) menu items.
+The function \fBmenu_back\fP returns the background
+attribute.
+The default is \fBA_NORMAL\fP.
+.PP
+The function \fBset_menu_grey\fP sets the grey attribute of \fImenu\fP. This is
+the highlight used for un-selectable menu items in menus that permit more than
+one selection.
+The function \fBmenu_grey\fP returns the grey attribute.
+The default is \fBA_UNDERLINE\fP.
+.PP
+The function \fBset_menu_pad\fP sets the character used to fill the space
+between the name and description parts of a menu item.
+\fBmenu_pad\fP returns
+the given menu's pad character.
+The default is a blank.
+.SH RETURN VALUE
+These routines return one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fP(3)).
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.SH SEE ALSO
+\fBcurses\fP(3) and related pages whose names begin \*(``menu_\*('' for detailed
+descriptions of the entry points.
+.SH NOTES
+The header file \fB<menu.h>\fP automatically includes the header file
+\fB<curses.h>\fP.
+.SH PORTABILITY
+These routines emulate the System V menu library.
+They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

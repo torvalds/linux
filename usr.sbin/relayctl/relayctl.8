@@ -1,0 +1,228 @@
+.\" $OpenBSD: relayctl.8,v 1.33 2017/11/29 15:24:50 benno Exp $
+.\"
+.\" Copyright (c) 2007 - 2013 Reyk Floeter <reyk@openbsd.org>
+.\" Copyright (c) 2006 Pierre-Yves Ritschard <pyr@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 29 2017 $
+.Dt RELAYCTL 8
+.Os
+.Sh NAME
+.Nm relayctl
+.Nd control the relay daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar socket
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr relayd 8
+daemon.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl s Ar socket
+Use
+.Ar socket
+instead of the default
+.Pa /var/run/relayd.sock
+to communicate with
+.Xr relayd 8 .
+.El
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Cm host disable Op Ar name | id
+Disable a host.
+Treat it as though it were always down.
+.It Cm host enable Op Ar name | id
+Enable the host.
+Start checking its health again.
+.It Cm load Ar filename
+Reload the configuration from the specified file.
+.It Cm log brief
+Disable verbose debug logging.
+.It Cm log verbose
+Enable verbose debug logging.
+.It Cm monitor
+Continuously report any changes in the host checking engine and the
+.Xr pf 4
+engine.
+.It Cm poll
+Schedule an immediate check of all hosts.
+.It Cm redirect disable Op Ar name | id
+Disable a redirection.
+If it has
+.Xr pf 4
+redirection rules installed, remove them.
+Mark the redirection's main table and \(en
+if applicable \(en disable the backup table as well.
+.It Cm redirect enable Op Ar name | id
+Enable a redirection.
+Mark the redirection's main table and \(en if applicable \(en enable
+the backup table as well.
+.It Cm reload
+Reload the configuration file.
+.It Cm show hosts
+Show detailed status of hosts and tables.
+It will also print the last error for failed host checks;
+see the
+.Sx DIAGNOSTICS
+section below.
+.It Cm show redirects
+Show detailed status of redirections including the current and average
+access statistics.
+The statistics will be updated every minute.
+Redirections using the
+.Ic sticky-address
+option will count the number of sticky states,
+not the total number of redirected connections.
+.It Cm show relays
+Show detailed status of relays including the current and average
+access statistics.
+The statistics will be updated every minute.
+.It Cm show routers
+Show detailed status of routers including the configured network
+routes.
+.It Cm show sessions
+Dump the complete list of running relay sessions.
+.It Cm show summary
+Display a list of all relays, redirections, routers, tables, and hosts.
+.It Cm table disable Op Ar name | id
+Disable a table.
+Consider all hosts disabled.
+If it is a main table of a redirection which has a non-empty backup table,
+swap the contents of the
+.Xr pf 4
+table with those of the backup table.
+.It Cm table enable Op Ar name | id
+Enable a table.
+Start doing checks for all hosts that aren't individually disabled
+again.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/relayd.sockXX" -compact
+.It Pa /var/run/relayd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr relayd 8 .
+.El
+.Sh DIAGNOSTICS
+If a host is down and a previous check failed,
+.Nm
+will display the last error in the output of the
+.Cm show hosts
+command.
+This is especially useful for debugging server or configuration failures.
+The following errors will be reported:
+.Pp
+.Bl -tag -width Ds -compact
+.It Em none
+No specific error was reported by the check engine.
+.Pp
+.It Em aborted
+All checks were aborted by an external event, like a configuration reload.
+.Pp
+.It Em interval timeout
+The check did not finish in the configured time of an interval.
+This can happen if there are too many hosts that have to be checked by
+.Xr relayd 8
+and can be avoided by increasing the global
+.Ic interval
+option in
+.Xr relayd.conf 5 .
+.Pp
+.It Em icmp read timeout
+.It Em tls read timeout
+.It Em tcp read timeout
+The check failed because the remote host did not send a reply within
+the configured timeout.
+.Pp
+.It Em icmp write timeout
+.It Em tls write timeout
+.It Em tcp write timeout
+.It Em tls connect timeout
+.It Em tcp connect timeout
+The check failed because
+.Xr relayd 8
+was not ready to send the request within the configured timeout.
+.Pp
+.It Em tls connect error
+.It Em tls read error
+.It Em tls write error
+.It Em tcp connect error
+.It Em tcp read failed
+.It Em tcp write failed
+An I/O error occurred.
+This indicates that
+.Xr relayd 8
+was running low on resources,
+file descriptors, or was too busy to run the request.
+It can also indicate that a TLS or TCP protocol error occurred or
+that the connection was unexpectedly aborted.
+.Pp
+.It Em tls connect failed
+.It Em tcp connect failed
+The check failed because the protocol handshake did not succeed in
+opening a stateful connection with the remote host.
+.Pp
+.It Em script failed
+The external script executed by the check did not return a valid return code.
+.Pp
+.It Em send/expect failed
+The payload data returned by the remote host did not match the
+expected pattern.
+.Pp
+.It Em http code malformed
+.It Em http digest malformed
+The remote host did not return a valid HTTP header or body.
+.Pp
+.It Em http code mismatch
+The remote host did not return a matching HTTP error code.
+This may indicate a real server problem (a server error, the page was
+not found, permission was denied) or a configuration error.
+For example, it is a very common mistake that
+.Xr relayd 8
+was configured to expect a
+HTTP 200 OK
+status but the host is returning a
+HTTP 302 Found
+redirection.
+See
+.Xr relayd.conf 5
+for more information on validating the HTTP return code.
+.Pp
+.It Em http digest mismatch
+The remote host did not return the expected content and the computed
+digest was different to the configured value.
+See
+.Xr relayd.conf 5
+for more information on validating the digest.
+.El
+.Sh SEE ALSO
+.Xr relayd 8
+.Sh HISTORY
+The
+.Nm
+program, formerly known as
+.Ic hoststatectl ,
+first appeared in
+.Ox 4.1 .
+It was renamed to
+.Nm
+in
+.Ox 4.3 .

@@ -1,0 +1,60 @@
+.\" $OpenBSD: mpu.4,v 1.7 2009/03/19 20:18:45 jmc Exp $
+.\" $NetBSD: mpu.4,v 1.5 2001/03/30 14:34:27 minoura Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 19 2009 $
+.Dt MPU 4
+.Os
+.Sh NAME
+.Nm mpu
+.Nd Roland/Yamaha MPU401 MIDI UART device
+.Sh SYNOPSIS
+.Cd "mpu*  at isa? port 0x300"
+.Cd "mpu*  at isapnp?"
+.Cd "midi* at mpu?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Roland/Yamaha MPU401 (and compatible)
+MIDI UART cards.
+.Pp
+Access to the device is through the MIDI driver.
+.\" .Pp
+.\" The
+.\" .Nm
+.\" driver usually attaches to a sound card, but it can also sit
+.\" directly on the ISA bus.
+.Sh SEE ALSO
+.Xr isa 4 ,
+.Xr midi 4
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Ox 2.6 .

@@ -1,0 +1,28 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("AArch64Tests") {
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/CodeGen/MIRParser",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target/AArch64:LLVMAArch64CodeGen",
+    "//llvm/lib/Target/AArch64/MCTargetDesc",
+    "//llvm/lib/Target/AArch64/TargetInfo",
+    "//llvm/lib/Target/AArch64/Utils",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ "//llvm/lib/Target/AArch64" ]
+  sources = [
+    "AArch64InstPrinterTest.cpp",
+    "AArch64SVESchedPseudoTest.cpp",
+    "AddressingModes.cpp",
+    "DecomposeStackOffsetTest.cpp",
+    "Immediates.cpp",
+    "InstSizes.cpp",
+    "MatrixRegisterAliasing.cpp",
+    "SMEAttributesTest.cpp",
+  ]
+}

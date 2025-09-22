@@ -1,0 +1,145 @@
+#	$Id: README.mkisofs,v 1.1 2000/10/10 20:40:11 beck Exp $	
+Note:
+
+	This program requires a lot of virtual memory to run since it
+builds all of the directories in memory.  The exact requirements
+depend upon a lot of things, but for Rock Ridge discs 12Mb would not
+be unreasonable.  Without RockRidge and without the translation
+tables, the requirements would be considerably less.
+
+	The cdwrite utility is maintained separately from mkisofs by
+yggdrasil.com.  It is enclosed here as a convenience, since the two programs
+are often useful together.  
+
+*****************************
+Notes for version 1.12
+
+	Joliet support is now complete.  See the -J option.
+
+	The file scanning code is much improved - mkisofs can use multiple
+	sources of input files and merge them together to form the output
+	image.  In addition, each source can be grafted at any point in the
+	iso9660 image.
+
+	The image writing code has been cleaned up to make it much easier
+	to add custom extensions.
+
+	The ADD_FILES feature has been removed as it didn't work well,
+and it was hard to figure out.  The recent rearrangements in the
+file scanning code would tend to solve these issues.
+
+*****************************
+Notes for version 1.11
+
+	There is a feature which can be optionally compiled into
+mkisofs that allows you to merge arbitrary directory trees into the
+image you are creating.  You need to compile with -DADD_FILES for my
+changes to take effect.   Thanks to Ross Biro biro@yggdrasil.com.
+
+*****************************
+Notes for version 1.10b1
+
+	Big news is that multi-session capability is very close to being
+	done.  There is still a missing interface to cdwrite that is
+	used to determine the next writable address and the sector number
+	of the last existing session.  Until we get the interface to cdwrite
+	done, this is a beta version.
+
+	Bug involving DST fixed (dates are always calculated, since some
+	files may be DST and other ones would not be).
+
+	Unfortunately the notes on some of the small patches got lost.
+
+*****************************
+Notes for version 1.06
+
+	Jan-Piet Mens <jpm@mens.de> added support for the '-m' switch. This
+	allows exclusion of shell-style globs from the CDROM.
+	See manual mkisofs.8 for more information.
+
+*****************************
+Notes for version 1.05
+
+	Added support for '-r' switch.  This is very similar to -R for
+Rock Ridge, but echos of the development environment are removed
+(i.e. uid/gid set to 0, and permissions of the files are canonicalized).
+Useful in applications where a distribution medium is being produced.
+
+*****************************
+Notes for version 1.04
+
+	No notes for 1.04.
+
+*****************************
+Notes for version 1.03
+
+	No notes for 1.03.
+
+*****************************
+Notes for version 1.02.
+
+	Minor bugfixes here and there.  Support for compiled in
+defaults for many of the text fields in the volume header are now
+present, and there is also support for a file ".mkisofsrc" that can
+also read settings for these parameters.
+
+	A short script "Configure" was added to allow us to set up special
+compile options that depend upon the system that we are running on.
+This should help stamp out the sphaghetti-isms that were starting to grow
+up in various places in the code.
+
+	You should get more meaningful error messages if you run out of
+memory.
+
+*****************************
+Notes for version 1.1.
+
+	The big news is that SUSP CE entries are now generated for
+extremely long filenames and symlink names.  This virtually guarantees
+that there is no limit (OK, well, about 600Mb) for file name lengths.
+I have tested this as well as I can, and it seems to work with linux.
+This would only be used very rarely I suspect.
+
+	Also, I believe that support for VMS is done.  You must be
+careful, because only Stream-LF and FIxed length record files can be
+recorded.  The rest are rejected with error messages.  Perhaps I am
+being too severe here.
+
+	There is a bugfix in the sorting of entries on the disc - we
+need to stop comparing once we reach the ';' character.
+
+	There are four new options -z -d -D -l -V.  Some of these tell
+mkisofs to relax some of the iso9660 restrictions, and many systems
+apparently do not really seem to mind.  Use these with caution.
+
+	Some diagnostic programs to scan disc images are in the diag
+directory.  These are not as portable as mkisofs, and may have some
+bugs.  Still they are useful because they can check for bugs that I might
+have introduced as I add new features.
+
+*****************************
+Notes for version 1.0.
+
+	In version 1.0, the date fields in the TF fields were fixed -
+previously I was storing st_ctime as the file creation time instead of
+the file attribute change time.  Thanks to Peter van der Veen for
+pointing this out.  I have one slight concern with this change,
+however.  The Young Minds software is definitely supplying 3 dates
+(creation, modification and access), and I would strongly suspect that
+they are incorrectly putting the file attribute change time in the
+file creation slot.  I would be curious to see how the different RRIP
+filesystems treat this.  Anyway, this is something to keep in the back
+of your mind.
+
+	The symlink handling was not quite correct in 0.99 - this is
+now fixed.  Only some systems seemed to have been affected by this bug.
+
+	A command line option is now present to allow you to
+specifically exclude certain files from the distribution.
+
+	The case where you do not have permissions to read a directory
+is now handled better by mkisofs.  The directory that cannot be opened
+is converted into a zero-length file, and processing continues normally.
+
+	A few portability things have been fixed (hopefully).
+

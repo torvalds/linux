@@ -1,0 +1,124 @@
+.\" $OpenBSD: X509_get1_email.3,v 1.2 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_GET1_EMAIL 3
+.Os
+.Sh NAME
+.Nm X509_get1_email ,
+.Nm X509_get1_ocsp ,
+.Nm X509_email_free
+.Nd utilities for stacks of strings
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Vt typedef char *OPENSSL_STRING ;
+.Ft STACK_OF(OPENSSL_STRING) *
+.Fo X509_get1_email
+.Fa "X509 *certificate"
+.Fc
+.Ft STACK_OF(OPENSSL_STRING) *
+.Fo X509_get1_ocsp
+.Fa "X509 *certificate"
+.Fc
+.Ft void
+.Fo X509_email_free
+.Fa "STACK_OF(OPENSSL_STRING) *stack"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_get1_email
+retrieves all email addresses from the
+.Fa subject
+field and from any
+Subject Alternative Name extension of the
+.Fa certificate .
+.Pp
+.Fn X509_get1_ocsp
+retrieves all uniform resource identifiers
+from all
+.Vt AccessDescription
+objects having an
+.Fa accessMethod
+of OCSP which are contained in the Authority Information Access extension
+of the
+.Fa certificate .
+.Pp
+.Fn X509_email_free
+frees all strings stored in the
+.Fa stack
+as well as the stack itself.
+If
+.Fa stack
+is a
+.Dv NULL
+pointer, no action occurs.
+.Sh RETURN VALUES
+.Fn X509_REQ_get1_email
+and
+.Fn X509_get1_ocsp
+return newly allocated stacks of
+.Vt char *
+containing copies of the addresses in question, or
+.Dv NULL
+if there are no addresses or if an error occurs.
+.Sh SEE ALSO
+.Xr OCSP_sendreq_new 3 ,
+.Xr OCSP_SERVICELOC_new 3 ,
+.Xr OPENSSL_sk_new 3 ,
+.Xr STACK_OF 3 ,
+.Xr X509_check_email 3 ,
+.Xr X509_get_ext_d2i 3 ,
+.Xr X509_get_subject_name 3 ,
+.Xr X509_new 3 ,
+.Xr x509v3.cnf 5
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Bl -dash -offset indent -compact
+.It
+section 4.1: Basic Certificate Fields
+.It
+section 4.1.2.6: Subject
+.It
+section 4.2.1.6: Subject Alternative Name
+.It
+section 4.2.2.1: Authority Information Access
+.El
+.Pp
+RFC 2985: PKCS #9: Selected Object Classes and Attribute Types
+.Bl -dash -offset indent -compact
+.It
+section 5.2.1: Electronic-mail address
+.It
+appendix B.3.5: emailAddress
+.El
+.Sh HISTORY
+.Fn X509_get1_email
+and
+.Fn X509_email_free
+first appeared in OpenSSL 0.9.6 and have been available since
+.Ox 2.9 .
+.Pp
+.Fn X509_get1_ocsp
+first appeared in OpenSSL 0.9.8h and has been available since
+.Ox 4.5 .
+.Sh BUGS
+.Fn X509_email_free
+is utterly misnamed.
+It does not operate on any
+.Vt X509
+object, nor is it in any way restricted to email addresses;
+instead, it simply frees a stack of strings.

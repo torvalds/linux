@@ -1,0 +1,68 @@
+dnl	$OpenBSD: prep,v 1.5 2009/02/01 15:36:16 simon Exp $
+
+The MACHINE computers do not generally need any specific preparation.
+
+You might want to check that the console ``path'' in the PDC firmware
+points to the device you plan to use, and change it if necessary. Most
+MACHINE machines will allow to select console path from the BOOT_ADMIN>
+prompt. To reach this prompt, abort the autoboot process and if a menu
+appears, enter ``a'' to select the "Boot Administration mode."
+
+To select the first serial port as console, type:
+
+	BOOT_ADMIN> path console rs232_a.9600.8.none
+
+or to select graphics as console:
+
+	BOOT_ADMIN> path console graphics
+	BOOT_ADMIN> path keyboard hil
+or
+	BOOT_ADMIN> path console graphics
+	BOOT_ADMIN> path keyboard ps2
+
+depending upon your keyboard type.
+
+On a few models, such as the 9000/712, the PDC firmware will not allow
+the console path to be changed. In this case, it is possible to change
+it from the OpenBSD boot loader. After booting OpenBSD in interactive
+mode (for example, if booting over the network, by entering ``boot lan
+isl''), enter the following at the ``boot>'' prompt:
+
+	boot> machine console rs232.9600.8.none
+
+dnl I hope I'll never write ``been there, done that'' here. Rest
+dnl assured I have added a lot of safeguards in this console code
+dnl to prevent people from rendering their 712s unusable.
+dnl At least mine is still alive, and I have played a lot with its
+dnl console path... -- miod
+WARNING!
+   Make sure to type the console path correctly or the 9000/712 can
+   become unusable, and will require a special ``dagger'' board to
+   be revived.
+
+After changing the console path, the machine has to be power cycled
+for the changes to take effect.
+
+In most cases the primary boot device path is already set to the right
+value. If not, it is advised to run:
+
+	BOOT_ADMIN> search
+
+to display the list of all bootable devices before choosing one with:
+
+	BOOT_ADMIN> path primary SCSI.TARGET.LUN
+
+Substitute FWSCSI or SESCSI for SCSI if it is displayed as such in the
+path list obtained from ``search'', and use the TARGET and LUN values
+matching the device intended as the boot device.
+
+To set up autoboot, use the configure option:
+
+	BOOT_ADMIN> co auto boot on
+
+or if your machine has the old style PDC interface:
+
+	BOOT_ADMIN> autoselect on
+
+Please refer to the boot(8) manual page for more information on PDC
+settings and boot commands.

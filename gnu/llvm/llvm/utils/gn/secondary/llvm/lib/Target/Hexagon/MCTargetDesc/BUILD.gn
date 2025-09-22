@@ -1,0 +1,68 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("HexagonGenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../Hexagon.td"
+}
+
+tablegen("HexagonGenInstrInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../Hexagon.td"
+}
+
+tablegen("HexagonGenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../Hexagon.td"
+}
+
+tablegen("HexagonGenRegisterInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../Hexagon.td"
+}
+
+tablegen("HexagonGenSubtargetInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../Hexagon.td"
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMHexagonDesc"
+
+  # This should contain tablegen targets generating .inc files included
+  # by other targets. .inc files only used by .cpp files in this directory
+  # should be in deps instead.
+  public_deps = [
+    ":HexagonGenInstrInfo",
+    ":HexagonGenRegisterInfo",
+    ":HexagonGenSubtargetInfo",
+  ]
+  deps = [
+    ":HexagonGenAsmWriter",
+    ":HexagonGenMCCodeEmitter",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/Hexagon/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "HexagonAsmBackend.cpp",
+    "HexagonELFObjectWriter.cpp",
+    "HexagonInstPrinter.cpp",
+    "HexagonMCAsmInfo.cpp",
+    "HexagonMCChecker.cpp",
+    "HexagonMCCodeEmitter.cpp",
+    "HexagonMCCompound.cpp",
+    "HexagonMCDuplexInfo.cpp",
+    "HexagonMCELFStreamer.cpp",
+    "HexagonMCExpr.cpp",
+    "HexagonMCInstrInfo.cpp",
+    "HexagonMCShuffler.cpp",
+    "HexagonMCTargetDesc.cpp",
+    "HexagonShuffler.cpp",
+  ]
+}

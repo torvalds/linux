@@ -1,0 +1,25 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("AArch64GenDisassemblerTables") {
+  visibility = [ ":Disassembler" ]
+  args = [ "-gen-disassembler" ]
+  td_file = "../AArch64.td"
+}
+
+static_library("Disassembler") {
+  output_name = "LLVMAArch64Disassembler"
+  deps = [
+    ":AArch64GenDisassemblerTables",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/AArch64/MCTargetDesc",
+    "//llvm/lib/Target/AArch64/TargetInfo",
+    "//llvm/lib/Target/AArch64/Utils",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "AArch64Disassembler.cpp",
+    "AArch64ExternalSymbolizer.cpp",
+  ]
+}

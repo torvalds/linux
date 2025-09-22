@@ -1,0 +1,329 @@
+.\"	$OpenBSD: init.8,v 1.50 2018/01/16 15:57:51 cheloha Exp $
+.\"	$NetBSD: init.8,v 1.6 1995/03/18 14:56:31 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Donn Seeley at Berkeley Software Design, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)init.8	8.6 (Berkeley) 5/26/95
+.\"
+.Dd $Mdocdate: January 16 2018 $
+.Dt INIT 8
+.Os
+.Sh NAME
+.Nm init
+.Nd process control initialization
+.Sh SYNOPSIS
+.Nm init
+.Op Fl fs
+.Sh DESCRIPTION
+The
+.Nm
+program
+is the last stage of the boot process.
+It normally executes the sequence of events described in
+.Xr rc 8
+and begins multi-user operation.
+.Pp
+The kernel may pass the following options to
+.Nm ,
+usually when requested by the
+.Xr boot 8
+program:
+.Bl -tag -width Ds
+.It Fl f
+Activate fastboot mode.
+This is not currently supported by the
+.Ox
+kernel.
+Instead, use the
+.Pa /fastboot
+file as explained in the
+.Xr rc 8
+manual.
+.It Fl s
+Boot directly into single-user mode.
+.El
+.Pp
+Single-user mode is also entered if the boot scripts fail.
+.Pp
+In single-user mode, the
+.Xr rc 8
+script is not run and normal daemons are not started,
+but instead a super-user shell is started on the system console.
+If the
+.Ar console
+entry in the
+.Xr ttys 5
+file does not contain the
+.Dq secure
+flag, then
+.Nm
+will require that the superuser password be
+entered before the system will start a single-user shell.
+The password check is skipped if the
+.Ar console
+is marked as
+.Dq secure .
+.Pp
+In single-user mode, the system is quiescent for maintenance work and may
+later be made to go to multi-user by exiting the
+single-user shell (with ^D).
+This
+causes
+.Nm
+to run the
+.Xr rc 8
+startup command file in fastboot mode (skipping disk checks).
+.Pp
+The kernel
+.Xr securelevel 7
+is normally set to 0 while in single-user mode, and raised to 1 when
+the system begins multi-user operations.
+This action will not take
+place if the securelevel is \-1, and can be modified via the
+.Pa /etc/rc.securelevel
+script.
+.Pp
+In multi-user operation,
+.Nm
+maintains
+processes for the terminal ports found in the file
+.Xr ttys 5 .
+.Nm
+reads this file, and executes the command found in the second field.
+This command is usually
+.Xr getty 8 ;
+.Em getty
+opens and initializes the tty line
+and
+executes the
+.Em login
+program.
+The
+.Em login
+program, when a valid user logs in,
+executes a shell for that user.
+When this shell dies, either because the user logged out
+or an abnormal termination occurred (a signal),
+the
+.Nm
+program wakes up, deletes the user
+from the
+.Xr utmp 5
+file of current users and records the logout in the
+.Em wtmp
+file.
+The cycle is
+then restarted by
+.Nm
+executing a new
+.Em getty
+for the line.
+.Pp
+Line status (on, off, secure, getty, or window information)
+may be changed in the
+.Em ttys
+file without a reboot by sending the signal
+.Dv SIGHUP
+to
+.Nm
+with the command
+.Dq Li "kill \-s HUP 1" .
+On receipt of this signal,
+.Nm
+re-reads the
+.Em ttys
+file.
+When a line is turned off in
+.Em ttys ,
+.Nm
+will send a
+.Dv SIGHUP
+signal to the controlling process
+for the session associated with the line.
+For any lines that were previously turned off in the
+.Em ttys
+file and are now on,
+.Nm
+executes a new
+.Em getty
+to enable a new login.
+If the getty or window field for a line is changed,
+the change takes effect at the end of the current
+login session (e.g., the next time
+.Nm
+starts a process on the line).
+If a line is commented out or deleted from
+.Em ttys ,
+.Nm
+will not do anything at all to that line.
+However, it will complain that the relationship between lines
+in the
+.Em ttys
+file and records in the
+.Em utmp
+file is out of sync,
+so this practice is not recommended.
+.Pp
+.Nm
+will terminate multi-user operations and resume single-user mode
+if sent a terminate
+.Pq Dv TERM
+signal, for example,
+.Dq Li "kill \-s TERM 1" .
+If there are processes outstanding that are deadlocked (because of
+hardware or software failure),
+.Nm
+will not wait for them all to die (which might take forever), but
+will time out after 30 seconds and print a warning message.
+.Pp
+.Nm
+will cease creating new
+.Xr getty 8
+and allow the system to slowly die away, if it is sent a terminal stop
+.Pq Dv TSTP
+signal, i.e.,
+.Dq Li "kill \-s TSTP 1" .
+A later hangup will resume full
+multi-user operations, or a terminate will start a single-user shell.
+This hook is used by
+.Xr reboot 8
+and
+.Xr halt 8 .
+.Pp
+.Nm
+will terminate multi-user operations, kill all
+.Xr getty 8 ,
+and run
+.Pa /etc/rc.shutdown
+if a user-defined signal 1
+.Pq Dv USR1 ,
+user-defined signal 2
+.Pq Dv USR2 ,
+or interrupt
+.Pq Dv INT
+signal is received.
+Following this,
+.Dv USR1
+will halt the system;
+.Dv USR2
+will request a powerdown; and
+.Dv INT
+will cause a reboot.
+.Pa /etc/rc.shutdown
+can specify that a powerdown is requested instead of the action
+specified by the signal.
+.Pp
+The role of
+.Nm
+is so critical that if it dies, the system will reboot itself
+automatically.
+If, at bootstrap time, the
+.Nm
+process cannot be located, the system will panic with the message
+.Dq panic: "init died (signal %d, exit %d)" .
+.Sh RESOURCES
+When
+.Nm
+spawns a process it sets the process priority, umask, and resource
+limits based on
+.Pa /etc/login.conf .
+When starting the
+.Xr rc 8
+files, the login class
+.Dq daemon
+is used.
+When starting a window system or
+.Xr getty 8 ,
+the login class
+.Dq default
+is used.
+No resource changes are made when entering single-user mode.
+.Sh FILES
+.Bl -tag -width /etc/rc.securelevel -compact
+.It Pa /dev/console
+system console device
+.It Pa /dev/tty*
+terminal ports found in
+.Em ttys
+.It Pa /etc/rc
+system startup commands
+.It Pa /etc/rc.securelevel
+commands that run before the security level changes
+.It Pa /etc/rc.shutdown
+script run at shutdown time
+.It Pa /etc/ttys
+terminal initialization information file
+.It Pa /fastboot
+tells
+.Xr rc 8
+not to run
+.Xr fsck 8
+during the next boot
+.It Pa /var/run/utmp
+record of users currently logged in
+.It Pa /var/log/wtmp
+record of all logins and logouts
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "getty repeating too quickly on port %s, sleeping"
+A process being started to service a line is exiting quickly
+each time it is started.
+This is often caused by a ringing or noisy terminal line.
+.Em "Init will sleep for 30 seconds" ,
+.Em "then continue trying to start the process" .
+.It "some processes would not die; ps axl advised."
+A process
+is hung and could not be killed when the system was shutting down.
+This condition is usually caused by a process
+that is stuck in a device driver because of
+a persistent device error condition.
+.El
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr login 1 ,
+.Xr sh 1 ,
+.Xr fbtab 5 ,
+.Xr login.conf 5 ,
+.Xr ttys 5 ,
+.Xr securelevel 7 ,
+.Xr crash 8 ,
+.Xr getty 8 ,
+.Xr halt 8 ,
+.Xr rc 8 ,
+.Xr rc.shutdown 8 ,
+.Xr reboot 8 ,
+.Xr shutdown 8
+.Sh HISTORY
+An
+.Nm
+command appeared in
+.At v1 .

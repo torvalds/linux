@@ -1,0 +1,76 @@
+.\"	$OpenBSD: adjfreq.2,v 1.8 2020/07/09 02:17:07 cheloha Exp $
+.\"
+.\" Copyright (c) 2006 Otto Moerbeek
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 9 2020 $
+.Dt ADJFREQ 2
+.Os
+.Sh NAME
+.Nm adjfreq
+.Nd correct the rate of the system clock
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/time.h
+.Ft int
+.Fn adjfreq "const int64_t *freq" "int64_t *oldfreq"
+.Sh DESCRIPTION
+.Fn adjfreq
+adjusts the rate in which time progresses if
+.Fa freq
+is non-null.
+The unit of the rate of adjustment is nanoseconds per second,
+shifted left 32 bits to allow for fractional values.
+.Pp
+If
+.Fa oldfreq
+is non-null, the current value is returned.
+.Pp
+Only the superuser may adjust the frequency.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn adjfreq
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+Either of the arguments point outside the process's allocated address space.
+.It Bq Er EPERM
+The
+.Fa freq
+argument is non-null and the process's effective user ID is not that
+of the superuser.
+.It Bq Er EINVAL
+.Fa freq
+is less than -500000 ppm or greater than 500000 ppm.
+.El
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr adjtime 2 ,
+.Xr gettimeofday 2 ,
+.Xr ntpd 8
+.Sh HISTORY
+The
+.Fn adjfreq
+function call first appeared in
+.Ox 4.0 .

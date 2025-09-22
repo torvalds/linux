@@ -1,0 +1,1320 @@
+# emoji-data.txt
+# Date: 2023-02-01, 02:22:54 GMT
+# © 2023 Unicode®, Inc.
+# Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
+# For terms of use, see https://www.unicode.org/terms_of_use.html
+#
+# Emoji Data for UTS #51
+# Used with Emoji Version 15.1 and subsequent minor revisions (if any)
+#
+# For documentation and usage, see https://www.unicode.org/reports/tr51
+#
+# Format: 
+# <codepoint(s)> ; <property> # <comments> 
+# Note: there is no guarantee as to the structure of whitespace or comments
+#
+# Characters and sequences are listed in code point order. Users should be shown a more natural order.
+# See the CLDR collation order for Emoji.
+
+
+# ================================================
+
+# All omitted code points have Emoji=No
+
+0023          ; Emoji                # E0.0   [1] (#️)       hash sign
+002A          ; Emoji                # E0.0   [1] (*️)       asterisk
+0030..0039    ; Emoji                # E0.0  [10] (0️..9️)    digit zero..digit nine
+00A9          ; Emoji                # E0.6   [1] (©️)       copyright
+00AE          ; Emoji                # E0.6   [1] (®️)       registered
+203C          ; Emoji                # E0.6   [1] (‼️)       double exclamation mark
+2049          ; Emoji                # E0.6   [1] (⁉️)       exclamation question mark
+2122          ; Emoji                # E0.6   [1] (™️)       trade mark
+2139          ; Emoji                # E0.6   [1] (ℹ️)       information
+2194..2199    ; Emoji                # E0.6   [6] (↔️..↙️)    left-right arrow..down-left arrow
+21A9..21AA    ; Emoji                # E0.6   [2] (↩️..↪️)    right arrow curving left..left arrow curving right
+231A..231B    ; Emoji                # E0.6   [2] (⌚..⌛)    watch..hourglass done
+2328          ; Emoji                # E1.0   [1] (⌨️)       keyboard
+23CF          ; Emoji                # E1.0   [1] (⏏️)       eject button
+23E9..23EC    ; Emoji                # E0.6   [4] (⏩..⏬)    fast-forward button..fast down button
+23ED..23EE    ; Emoji                # E0.7   [2] (⏭️..⏮️)    next track button..last track button
+23EF          ; Emoji                # E1.0   [1] (⏯️)       play or pause button
+23F0          ; Emoji                # E0.6   [1] (⏰)       alarm clock
+23F1..23F2    ; Emoji                # E1.0   [2] (⏱️..⏲️)    stopwatch..timer clock
+23F3          ; Emoji                # E0.6   [1] (⏳)       hourglass not done
+23F8..23FA    ; Emoji                # E0.7   [3] (⏸️..⏺️)    pause button..record button
+24C2          ; Emoji                # E0.6   [1] (Ⓜ️)       circled M
+25AA..25AB    ; Emoji                # E0.6   [2] (▪️..▫️)    black small square..white small square
+25B6          ; Emoji                # E0.6   [1] (▶️)       play button
+25C0          ; Emoji                # E0.6   [1] (◀️)       reverse button
+25FB..25FE    ; Emoji                # E0.6   [4] (◻️..◾)    white medium square..black medium-small square
+2600..2601    ; Emoji                # E0.6   [2] (☀️..☁️)    sun..cloud
+2602..2603    ; Emoji                # E0.7   [2] (☂️..☃️)    umbrella..snowman
+2604          ; Emoji                # E1.0   [1] (☄️)       comet
+260E          ; Emoji                # E0.6   [1] (☎️)       telephone
+2611          ; Emoji                # E0.6   [1] (☑️)       check box with check
+2614..2615    ; Emoji                # E0.6   [2] (☔..☕)    umbrella with rain drops..hot beverage
+2618          ; Emoji                # E1.0   [1] (☘️)       shamrock
+261D          ; Emoji                # E0.6   [1] (☝️)       index pointing up
+2620          ; Emoji                # E1.0   [1] (☠️)       skull and crossbones
+2622..2623    ; Emoji                # E1.0   [2] (☢️..☣️)    radioactive..biohazard
+2626          ; Emoji                # E1.0   [1] (☦️)       orthodox cross
+262A          ; Emoji                # E0.7   [1] (☪️)       star and crescent
+262E          ; Emoji                # E1.0   [1] (☮️)       peace symbol
+262F          ; Emoji                # E0.7   [1] (☯️)       yin yang
+2638..2639    ; Emoji                # E0.7   [2] (☸️..☹️)    wheel of dharma..frowning face
+263A          ; Emoji                # E0.6   [1] (☺️)       smiling face
+2640          ; Emoji                # E4.0   [1] (♀️)       female sign
+2642          ; Emoji                # E4.0   [1] (♂️)       male sign
+2648..2653    ; Emoji                # E0.6  [12] (♈..♓)    Aries..Pisces
+265F          ; Emoji                # E11.0  [1] (♟️)       chess pawn
+2660          ; Emoji                # E0.6   [1] (♠️)       spade suit
+2663          ; Emoji                # E0.6   [1] (♣️)       club suit
+2665..2666    ; Emoji                # E0.6   [2] (♥️..♦️)    heart suit..diamond suit
+2668          ; Emoji                # E0.6   [1] (♨️)       hot springs
+267B          ; Emoji                # E0.6   [1] (♻️)       recycling symbol
+267E          ; Emoji                # E11.0  [1] (♾️)       infinity
+267F          ; Emoji                # E0.6   [1] (♿)       wheelchair symbol
+2692          ; Emoji                # E1.0   [1] (⚒️)       hammer and pick
+2693          ; Emoji                # E0.6   [1] (⚓)       anchor
+2694          ; Emoji                # E1.0   [1] (⚔️)       crossed swords
+2695          ; Emoji                # E4.0   [1] (⚕️)       medical symbol
+2696..2697    ; Emoji                # E1.0   [2] (⚖️..⚗️)    balance scale..alembic
+2699          ; Emoji                # E1.0   [1] (⚙️)       gear
+269B..269C    ; Emoji                # E1.0   [2] (⚛️..⚜️)    atom symbol..fleur-de-lis
+26A0..26A1    ; Emoji                # E0.6   [2] (⚠️..⚡)    warning..high voltage
+26A7          ; Emoji                # E13.0  [1] (⚧️)       transgender symbol
+26AA..26AB    ; Emoji                # E0.6   [2] (⚪..⚫)    white circle..black circle
+26B0..26B1    ; Emoji                # E1.0   [2] (⚰️..⚱️)    coffin..funeral urn
+26BD..26BE    ; Emoji                # E0.6   [2] (⚽..⚾)    soccer ball..baseball
+26C4..26C5    ; Emoji                # E0.6   [2] (⛄..⛅)    snowman without snow..sun behind cloud
+26C8          ; Emoji                # E0.7   [1] (⛈️)       cloud with lightning and rain
+26CE          ; Emoji                # E0.6   [1] (⛎)       Ophiuchus
+26CF          ; Emoji                # E0.7   [1] (⛏️)       pick
+26D1          ; Emoji                # E0.7   [1] (⛑️)       rescue worker’s helmet
+26D3          ; Emoji                # E0.7   [1] (⛓️)       chains
+26D4          ; Emoji                # E0.6   [1] (⛔)       no entry
+26E9          ; Emoji                # E0.7   [1] (⛩️)       shinto shrine
+26EA          ; Emoji                # E0.6   [1] (⛪)       church
+26F0..26F1    ; Emoji                # E0.7   [2] (⛰️..⛱️)    mountain..umbrella on ground
+26F2..26F3    ; Emoji                # E0.6   [2] (⛲..⛳)    fountain..flag in hole
+26F4          ; Emoji                # E0.7   [1] (⛴️)       ferry
+26F5          ; Emoji                # E0.6   [1] (⛵)       sailboat
+26F7..26F9    ; Emoji                # E0.7   [3] (⛷️..⛹️)    skier..person bouncing ball
+26FA          ; Emoji                # E0.6   [1] (⛺)       tent
+26FD          ; Emoji                # E0.6   [1] (⛽)       fuel pump
+2702          ; Emoji                # E0.6   [1] (✂️)       scissors
+2705          ; Emoji                # E0.6   [1] (✅)       check mark button
+2708..270C    ; Emoji                # E0.6   [5] (✈️..✌️)    airplane..victory hand
+270D          ; Emoji                # E0.7   [1] (✍️)       writing hand
+270F          ; Emoji                # E0.6   [1] (✏️)       pencil
+2712          ; Emoji                # E0.6   [1] (✒️)       black nib
+2714          ; Emoji                # E0.6   [1] (✔️)       check mark
+2716          ; Emoji                # E0.6   [1] (✖️)       multiply
+271D          ; Emoji                # E0.7   [1] (✝️)       latin cross
+2721          ; Emoji                # E0.7   [1] (✡️)       star of David
+2728          ; Emoji                # E0.6   [1] (✨)       sparkles
+2733..2734    ; Emoji                # E0.6   [2] (✳️..✴️)    eight-spoked asterisk..eight-pointed star
+2744          ; Emoji                # E0.6   [1] (❄️)       snowflake
+2747          ; Emoji                # E0.6   [1] (❇️)       sparkle
+274C          ; Emoji                # E0.6   [1] (❌)       cross mark
+274E          ; Emoji                # E0.6   [1] (❎)       cross mark button
+2753..2755    ; Emoji                # E0.6   [3] (❓..❕)    red question mark..white exclamation mark
+2757          ; Emoji                # E0.6   [1] (❗)       red exclamation mark
+2763          ; Emoji                # E1.0   [1] (❣️)       heart exclamation
+2764          ; Emoji                # E0.6   [1] (❤️)       red heart
+2795..2797    ; Emoji                # E0.6   [3] (➕..➗)    plus..divide
+27A1          ; Emoji                # E0.6   [1] (➡️)       right arrow
+27B0          ; Emoji                # E0.6   [1] (➰)       curly loop
+27BF          ; Emoji                # E1.0   [1] (➿)       double curly loop
+2934..2935    ; Emoji                # E0.6   [2] (⤴️..⤵️)    right arrow curving up..right arrow curving down
+2B05..2B07    ; Emoji                # E0.6   [3] (⬅️..⬇️)    left arrow..down arrow
+2B1B..2B1C    ; Emoji                # E0.6   [2] (⬛..⬜)    black large square..white large square
+2B50          ; Emoji                # E0.6   [1] (⭐)       star
+2B55          ; Emoji                # E0.6   [1] (⭕)       hollow red circle
+3030          ; Emoji                # E0.6   [1] (〰️)       wavy dash
+303D          ; Emoji                # E0.6   [1] (〽️)       part alternation mark
+3297          ; Emoji                # E0.6   [1] (㊗️)       Japanese “congratulations” button
+3299          ; Emoji                # E0.6   [1] (㊙️)       Japanese “secret” button
+1F004         ; Emoji                # E0.6   [1] (🀄)       mahjong red dragon
+1F0CF         ; Emoji                # E0.6   [1] (🃏)       joker
+1F170..1F171  ; Emoji                # E0.6   [2] (🅰️..🅱️)    A button (blood type)..B button (blood type)
+1F17E..1F17F  ; Emoji                # E0.6   [2] (🅾️..🅿️)    O button (blood type)..P button
+1F18E         ; Emoji                # E0.6   [1] (🆎)       AB button (blood type)
+1F191..1F19A  ; Emoji                # E0.6  [10] (🆑..🆚)    CL button..VS button
+1F1E6..1F1FF  ; Emoji                # E0.0  [26] (🇦..🇿)    regional indicator symbol letter a..regional indicator symbol letter z
+1F201..1F202  ; Emoji                # E0.6   [2] (🈁..🈂️)    Japanese “here” button..Japanese “service charge” button
+1F21A         ; Emoji                # E0.6   [1] (🈚)       Japanese “free of charge” button
+1F22F         ; Emoji                # E0.6   [1] (🈯)       Japanese “reserved” button
+1F232..1F23A  ; Emoji                # E0.6   [9] (🈲..🈺)    Japanese “prohibited” button..Japanese “open for business” button
+1F250..1F251  ; Emoji                # E0.6   [2] (🉐..🉑)    Japanese “bargain” button..Japanese “acceptable” button
+1F300..1F30C  ; Emoji                # E0.6  [13] (🌀..🌌)    cyclone..milky way
+1F30D..1F30E  ; Emoji                # E0.7   [2] (🌍..🌎)    globe showing Europe-Africa..globe showing Americas
+1F30F         ; Emoji                # E0.6   [1] (🌏)       globe showing Asia-Australia
+1F310         ; Emoji                # E1.0   [1] (🌐)       globe with meridians
+1F311         ; Emoji                # E0.6   [1] (🌑)       new moon
+1F312         ; Emoji                # E1.0   [1] (🌒)       waxing crescent moon
+1F313..1F315  ; Emoji                # E0.6   [3] (🌓..🌕)    first quarter moon..full moon
+1F316..1F318  ; Emoji                # E1.0   [3] (🌖..🌘)    waning gibbous moon..waning crescent moon
+1F319         ; Emoji                # E0.6   [1] (🌙)       crescent moon
+1F31A         ; Emoji                # E1.0   [1] (🌚)       new moon face
+1F31B         ; Emoji                # E0.6   [1] (🌛)       first quarter moon face
+1F31C         ; Emoji                # E0.7   [1] (🌜)       last quarter moon face
+1F31D..1F31E  ; Emoji                # E1.0   [2] (🌝..🌞)    full moon face..sun with face
+1F31F..1F320  ; Emoji                # E0.6   [2] (🌟..🌠)    glowing star..shooting star
+1F321         ; Emoji                # E0.7   [1] (🌡️)       thermometer
+1F324..1F32C  ; Emoji                # E0.7   [9] (🌤️..🌬️)    sun behind small cloud..wind face
+1F32D..1F32F  ; Emoji                # E1.0   [3] (🌭..🌯)    hot dog..burrito
+1F330..1F331  ; Emoji                # E0.6   [2] (🌰..🌱)    chestnut..seedling
+1F332..1F333  ; Emoji                # E1.0   [2] (🌲..🌳)    evergreen tree..deciduous tree
+1F334..1F335  ; Emoji                # E0.6   [2] (🌴..🌵)    palm tree..cactus
+1F336         ; Emoji                # E0.7   [1] (🌶️)       hot pepper
+1F337..1F34A  ; Emoji                # E0.6  [20] (🌷..🍊)    tulip..tangerine
+1F34B         ; Emoji                # E1.0   [1] (🍋)       lemon
+1F34C..1F34F  ; Emoji                # E0.6   [4] (🍌..🍏)    banana..green apple
+1F350         ; Emoji                # E1.0   [1] (🍐)       pear
+1F351..1F37B  ; Emoji                # E0.6  [43] (🍑..🍻)    peach..clinking beer mugs
+1F37C         ; Emoji                # E1.0   [1] (🍼)       baby bottle
+1F37D         ; Emoji                # E0.7   [1] (🍽️)       fork and knife with plate
+1F37E..1F37F  ; Emoji                # E1.0   [2] (🍾..🍿)    bottle with popping cork..popcorn
+1F380..1F393  ; Emoji                # E0.6  [20] (🎀..🎓)    ribbon..graduation cap
+1F396..1F397  ; Emoji                # E0.7   [2] (🎖️..🎗️)    military medal..reminder ribbon
+1F399..1F39B  ; Emoji                # E0.7   [3] (🎙️..🎛️)    studio microphone..control knobs
+1F39E..1F39F  ; Emoji                # E0.7   [2] (🎞️..🎟️)    film frames..admission tickets
+1F3A0..1F3C4  ; Emoji                # E0.6  [37] (🎠..🏄)    carousel horse..person surfing
+1F3C5         ; Emoji                # E1.0   [1] (🏅)       sports medal
+1F3C6         ; Emoji                # E0.6   [1] (🏆)       trophy
+1F3C7         ; Emoji                # E1.0   [1] (🏇)       horse racing
+1F3C8         ; Emoji                # E0.6   [1] (🏈)       american football
+1F3C9         ; Emoji                # E1.0   [1] (🏉)       rugby football
+1F3CA         ; Emoji                # E0.6   [1] (🏊)       person swimming
+1F3CB..1F3CE  ; Emoji                # E0.7   [4] (🏋️..🏎️)    person lifting weights..racing car
+1F3CF..1F3D3  ; Emoji                # E1.0   [5] (🏏..🏓)    cricket game..ping pong
+1F3D4..1F3DF  ; Emoji                # E0.7  [12] (🏔️..🏟️)    snow-capped mountain..stadium
+1F3E0..1F3E3  ; Emoji                # E0.6   [4] (🏠..🏣)    house..Japanese post office
+1F3E4         ; Emoji                # E1.0   [1] (🏤)       post office
+1F3E5..1F3F0  ; Emoji                # E0.6  [12] (🏥..🏰)    hospital..castle
+1F3F3         ; Emoji                # E0.7   [1] (🏳️)       white flag
+1F3F4         ; Emoji                # E1.0   [1] (🏴)       black flag
+1F3F5         ; Emoji                # E0.7   [1] (🏵️)       rosette
+1F3F7         ; Emoji                # E0.7   [1] (🏷️)       label
+1F3F8..1F407  ; Emoji                # E1.0  [16] (🏸..🐇)    badminton..rabbit
+1F408         ; Emoji                # E0.7   [1] (🐈)       cat
+1F409..1F40B  ; Emoji                # E1.0   [3] (🐉..🐋)    dragon..whale
+1F40C..1F40E  ; Emoji                # E0.6   [3] (🐌..🐎)    snail..horse
+1F40F..1F410  ; Emoji                # E1.0   [2] (🐏..🐐)    ram..goat
+1F411..1F412  ; Emoji                # E0.6   [2] (🐑..🐒)    ewe..monkey
+1F413         ; Emoji                # E1.0   [1] (🐓)       rooster
+1F414         ; Emoji                # E0.6   [1] (🐔)       chicken
+1F415         ; Emoji                # E0.7   [1] (🐕)       dog
+1F416         ; Emoji                # E1.0   [1] (🐖)       pig
+1F417..1F429  ; Emoji                # E0.6  [19] (🐗..🐩)    boar..poodle
+1F42A         ; Emoji                # E1.0   [1] (🐪)       camel
+1F42B..1F43E  ; Emoji                # E0.6  [20] (🐫..🐾)    two-hump camel..paw prints
+1F43F         ; Emoji                # E0.7   [1] (🐿️)       chipmunk
+1F440         ; Emoji                # E0.6   [1] (👀)       eyes
+1F441         ; Emoji                # E0.7   [1] (👁️)       eye
+1F442..1F464  ; Emoji                # E0.6  [35] (👂..👤)    ear..bust in silhouette
+1F465         ; Emoji                # E1.0   [1] (👥)       busts in silhouette
+1F466..1F46B  ; Emoji                # E0.6   [6] (👦..👫)    boy..woman and man holding hands
+1F46C..1F46D  ; Emoji                # E1.0   [2] (👬..👭)    men holding hands..women holding hands
+1F46E..1F4AC  ; Emoji                # E0.6  [63] (👮..💬)    police officer..speech balloon
+1F4AD         ; Emoji                # E1.0   [1] (💭)       thought balloon
+1F4AE..1F4B5  ; Emoji                # E0.6   [8] (💮..💵)    white flower..dollar banknote
+1F4B6..1F4B7  ; Emoji                # E1.0   [2] (💶..💷)    euro banknote..pound banknote
+1F4B8..1F4EB  ; Emoji                # E0.6  [52] (💸..📫)    money with wings..closed mailbox with raised flag
+1F4EC..1F4ED  ; Emoji                # E0.7   [2] (📬..📭)    open mailbox with raised flag..open mailbox with lowered flag
+1F4EE         ; Emoji                # E0.6   [1] (📮)       postbox
+1F4EF         ; Emoji                # E1.0   [1] (📯)       postal horn
+1F4F0..1F4F4  ; Emoji                # E0.6   [5] (📰..📴)    newspaper..mobile phone off
+1F4F5         ; Emoji                # E1.0   [1] (📵)       no mobile phones
+1F4F6..1F4F7  ; Emoji                # E0.6   [2] (📶..📷)    antenna bars..camera
+1F4F8         ; Emoji                # E1.0   [1] (📸)       camera with flash
+1F4F9..1F4FC  ; Emoji                # E0.6   [4] (📹..📼)    video camera..videocassette
+1F4FD         ; Emoji                # E0.7   [1] (📽️)       film projector
+1F4FF..1F502  ; Emoji                # E1.0   [4] (📿..🔂)    prayer beads..repeat single button
+1F503         ; Emoji                # E0.6   [1] (🔃)       clockwise vertical arrows
+1F504..1F507  ; Emoji                # E1.0   [4] (🔄..🔇)    counterclockwise arrows button..muted speaker
+1F508         ; Emoji                # E0.7   [1] (🔈)       speaker low volume
+1F509         ; Emoji                # E1.0   [1] (🔉)       speaker medium volume
+1F50A..1F514  ; Emoji                # E0.6  [11] (🔊..🔔)    speaker high volume..bell
+1F515         ; Emoji                # E1.0   [1] (🔕)       bell with slash
+1F516..1F52B  ; Emoji                # E0.6  [22] (🔖..🔫)    bookmark..water pistol
+1F52C..1F52D  ; Emoji                # E1.0   [2] (🔬..🔭)    microscope..telescope
+1F52E..1F53D  ; Emoji                # E0.6  [16] (🔮..🔽)    crystal ball..downwards button
+1F549..1F54A  ; Emoji                # E0.7   [2] (🕉️..🕊️)    om..dove
+1F54B..1F54E  ; Emoji                # E1.0   [4] (🕋..🕎)    kaaba..menorah
+1F550..1F55B  ; Emoji                # E0.6  [12] (🕐..🕛)    one o’clock..twelve o’clock
+1F55C..1F567  ; Emoji                # E0.7  [12] (🕜..🕧)    one-thirty..twelve-thirty
+1F56F..1F570  ; Emoji                # E0.7   [2] (🕯️..🕰️)    candle..mantelpiece clock
+1F573..1F579  ; Emoji                # E0.7   [7] (🕳️..🕹️)    hole..joystick
+1F57A         ; Emoji                # E3.0   [1] (🕺)       man dancing
+1F587         ; Emoji                # E0.7   [1] (🖇️)       linked paperclips
+1F58A..1F58D  ; Emoji                # E0.7   [4] (🖊️..🖍️)    pen..crayon
+1F590         ; Emoji                # E0.7   [1] (🖐️)       hand with fingers splayed
+1F595..1F596  ; Emoji                # E1.0   [2] (🖕..🖖)    middle finger..vulcan salute
+1F5A4         ; Emoji                # E3.0   [1] (🖤)       black heart
+1F5A5         ; Emoji                # E0.7   [1] (🖥️)       desktop computer
+1F5A8         ; Emoji                # E0.7   [1] (🖨️)       printer
+1F5B1..1F5B2  ; Emoji                # E0.7   [2] (🖱️..🖲️)    computer mouse..trackball
+1F5BC         ; Emoji                # E0.7   [1] (🖼️)       framed picture
+1F5C2..1F5C4  ; Emoji                # E0.7   [3] (🗂️..🗄️)    card index dividers..file cabinet
+1F5D1..1F5D3  ; Emoji                # E0.7   [3] (🗑️..🗓️)    wastebasket..spiral calendar
+1F5DC..1F5DE  ; Emoji                # E0.7   [3] (🗜️..🗞️)    clamp..rolled-up newspaper
+1F5E1         ; Emoji                # E0.7   [1] (🗡️)       dagger
+1F5E3         ; Emoji                # E0.7   [1] (🗣️)       speaking head
+1F5E8         ; Emoji                # E2.0   [1] (🗨️)       left speech bubble
+1F5EF         ; Emoji                # E0.7   [1] (🗯️)       right anger bubble
+1F5F3         ; Emoji                # E0.7   [1] (🗳️)       ballot box with ballot
+1F5FA         ; Emoji                # E0.7   [1] (🗺️)       world map
+1F5FB..1F5FF  ; Emoji                # E0.6   [5] (🗻..🗿)    mount fuji..moai
+1F600         ; Emoji                # E1.0   [1] (😀)       grinning face
+1F601..1F606  ; Emoji                # E0.6   [6] (😁..😆)    beaming face with smiling eyes..grinning squinting face
+1F607..1F608  ; Emoji                # E1.0   [2] (😇..😈)    smiling face with halo..smiling face with horns
+1F609..1F60D  ; Emoji                # E0.6   [5] (😉..😍)    winking face..smiling face with heart-eyes
+1F60E         ; Emoji                # E1.0   [1] (😎)       smiling face with sunglasses
+1F60F         ; Emoji                # E0.6   [1] (😏)       smirking face
+1F610         ; Emoji                # E0.7   [1] (😐)       neutral face
+1F611         ; Emoji                # E1.0   [1] (😑)       expressionless face
+1F612..1F614  ; Emoji                # E0.6   [3] (😒..😔)    unamused face..pensive face
+1F615         ; Emoji                # E1.0   [1] (😕)       confused face
+1F616         ; Emoji                # E0.6   [1] (😖)       confounded face
+1F617         ; Emoji                # E1.0   [1] (😗)       kissing face
+1F618         ; Emoji                # E0.6   [1] (😘)       face blowing a kiss
+1F619         ; Emoji                # E1.0   [1] (😙)       kissing face with smiling eyes
+1F61A         ; Emoji                # E0.6   [1] (😚)       kissing face with closed eyes
+1F61B         ; Emoji                # E1.0   [1] (😛)       face with tongue
+1F61C..1F61E  ; Emoji                # E0.6   [3] (😜..😞)    winking face with tongue..disappointed face
+1F61F         ; Emoji                # E1.0   [1] (😟)       worried face
+1F620..1F625  ; Emoji                # E0.6   [6] (😠..😥)    angry face..sad but relieved face
+1F626..1F627  ; Emoji                # E1.0   [2] (😦..😧)    frowning face with open mouth..anguished face
+1F628..1F62B  ; Emoji                # E0.6   [4] (😨..😫)    fearful face..tired face
+1F62C         ; Emoji                # E1.0   [1] (😬)       grimacing face
+1F62D         ; Emoji                # E0.6   [1] (😭)       loudly crying face
+1F62E..1F62F  ; Emoji                # E1.0   [2] (😮..😯)    face with open mouth..hushed face
+1F630..1F633  ; Emoji                # E0.6   [4] (😰..😳)    anxious face with sweat..flushed face
+1F634         ; Emoji                # E1.0   [1] (😴)       sleeping face
+1F635         ; Emoji                # E0.6   [1] (😵)       face with crossed-out eyes
+1F636         ; Emoji                # E1.0   [1] (😶)       face without mouth
+1F637..1F640  ; Emoji                # E0.6  [10] (😷..🙀)    face with medical mask..weary cat
+1F641..1F644  ; Emoji                # E1.0   [4] (🙁..🙄)    slightly frowning face..face with rolling eyes
+1F645..1F64F  ; Emoji                # E0.6  [11] (🙅..🙏)    person gesturing NO..folded hands
+1F680         ; Emoji                # E0.6   [1] (🚀)       rocket
+1F681..1F682  ; Emoji                # E1.0   [2] (🚁..🚂)    helicopter..locomotive
+1F683..1F685  ; Emoji                # E0.6   [3] (🚃..🚅)    railway car..bullet train
+1F686         ; Emoji                # E1.0   [1] (🚆)       train
+1F687         ; Emoji                # E0.6   [1] (🚇)       metro
+1F688         ; Emoji                # E1.0   [1] (🚈)       light rail
+1F689         ; Emoji                # E0.6   [1] (🚉)       station
+1F68A..1F68B  ; Emoji                # E1.0   [2] (🚊..🚋)    tram..tram car
+1F68C         ; Emoji                # E0.6   [1] (🚌)       bus
+1F68D         ; Emoji                # E0.7   [1] (🚍)       oncoming bus
+1F68E         ; Emoji                # E1.0   [1] (🚎)       trolleybus
+1F68F         ; Emoji                # E0.6   [1] (🚏)       bus stop
+1F690         ; Emoji                # E1.0   [1] (🚐)       minibus
+1F691..1F693  ; Emoji                # E0.6   [3] (🚑..🚓)    ambulance..police car
+1F694         ; Emoji                # E0.7   [1] (🚔)       oncoming police car
+1F695         ; Emoji                # E0.6   [1] (🚕)       taxi
+1F696         ; Emoji                # E1.0   [1] (🚖)       oncoming taxi
+1F697         ; Emoji                # E0.6   [1] (🚗)       automobile
+1F698         ; Emoji                # E0.7   [1] (🚘)       oncoming automobile
+1F699..1F69A  ; Emoji                # E0.6   [2] (🚙..🚚)    sport utility vehicle..delivery truck
+1F69B..1F6A1  ; Emoji                # E1.0   [7] (🚛..🚡)    articulated lorry..aerial tramway
+1F6A2         ; Emoji                # E0.6   [1] (🚢)       ship
+1F6A3         ; Emoji                # E1.0   [1] (🚣)       person rowing boat
+1F6A4..1F6A5  ; Emoji                # E0.6   [2] (🚤..🚥)    speedboat..horizontal traffic light
+1F6A6         ; Emoji                # E1.0   [1] (🚦)       vertical traffic light
+1F6A7..1F6AD  ; Emoji                # E0.6   [7] (🚧..🚭)    construction..no smoking
+1F6AE..1F6B1  ; Emoji                # E1.0   [4] (🚮..🚱)    litter in bin sign..non-potable water
+1F6B2         ; Emoji                # E0.6   [1] (🚲)       bicycle
+1F6B3..1F6B5  ; Emoji                # E1.0   [3] (🚳..🚵)    no bicycles..person mountain biking
+1F6B6         ; Emoji                # E0.6   [1] (🚶)       person walking
+1F6B7..1F6B8  ; Emoji                # E1.0   [2] (🚷..🚸)    no pedestrians..children crossing
+1F6B9..1F6BE  ; Emoji                # E0.6   [6] (🚹..🚾)    men’s room..water closet
+1F6BF         ; Emoji                # E1.0   [1] (🚿)       shower
+1F6C0         ; Emoji                # E0.6   [1] (🛀)       person taking bath
+1F6C1..1F6C5  ; Emoji                # E1.0   [5] (🛁..🛅)    bathtub..left luggage
+1F6CB         ; Emoji                # E0.7   [1] (🛋️)       couch and lamp
+1F6CC         ; Emoji                # E1.0   [1] (🛌)       person in bed
+1F6CD..1F6CF  ; Emoji                # E0.7   [3] (🛍️..🛏️)    shopping bags..bed
+1F6D0         ; Emoji                # E1.0   [1] (🛐)       place of worship
+1F6D1..1F6D2  ; Emoji                # E3.0   [2] (🛑..🛒)    stop sign..shopping cart
+1F6D5         ; Emoji                # E12.0  [1] (🛕)       hindu temple
+1F6D6..1F6D7  ; Emoji                # E13.0  [2] (🛖..🛗)    hut..elevator
+1F6DC         ; Emoji                # E15.0  [1] (🛜)       wireless
+1F6DD..1F6DF  ; Emoji                # E14.0  [3] (🛝..🛟)    playground slide..ring buoy
+1F6E0..1F6E5  ; Emoji                # E0.7   [6] (🛠️..🛥️)    hammer and wrench..motor boat
+1F6E9         ; Emoji                # E0.7   [1] (🛩️)       small airplane
+1F6EB..1F6EC  ; Emoji                # E1.0   [2] (🛫..🛬)    airplane departure..airplane arrival
+1F6F0         ; Emoji                # E0.7   [1] (🛰️)       satellite
+1F6F3         ; Emoji                # E0.7   [1] (🛳️)       passenger ship
+1F6F4..1F6F6  ; Emoji                # E3.0   [3] (🛴..🛶)    kick scooter..canoe
+1F6F7..1F6F8  ; Emoji                # E5.0   [2] (🛷..🛸)    sled..flying saucer
+1F6F9         ; Emoji                # E11.0  [1] (🛹)       skateboard
+1F6FA         ; Emoji                # E12.0  [1] (🛺)       auto rickshaw
+1F6FB..1F6FC  ; Emoji                # E13.0  [2] (🛻..🛼)    pickup truck..roller skate
+1F7E0..1F7EB  ; Emoji                # E12.0 [12] (🟠..🟫)    orange circle..brown square
+1F7F0         ; Emoji                # E14.0  [1] (🟰)       heavy equals sign
+1F90C         ; Emoji                # E13.0  [1] (🤌)       pinched fingers
+1F90D..1F90F  ; Emoji                # E12.0  [3] (🤍..🤏)    white heart..pinching hand
+1F910..1F918  ; Emoji                # E1.0   [9] (🤐..🤘)    zipper-mouth face..sign of the horns
+1F919..1F91E  ; Emoji                # E3.0   [6] (🤙..🤞)    call me hand..crossed fingers
+1F91F         ; Emoji                # E5.0   [1] (🤟)       love-you gesture
+1F920..1F927  ; Emoji                # E3.0   [8] (🤠..🤧)    cowboy hat face..sneezing face
+1F928..1F92F  ; Emoji                # E5.0   [8] (🤨..🤯)    face with raised eyebrow..exploding head
+1F930         ; Emoji                # E3.0   [1] (🤰)       pregnant woman
+1F931..1F932  ; Emoji                # E5.0   [2] (🤱..🤲)    breast-feeding..palms up together
+1F933..1F93A  ; Emoji                # E3.0   [8] (🤳..🤺)    selfie..person fencing
+1F93C..1F93E  ; Emoji                # E3.0   [3] (🤼..🤾)    people wrestling..person playing handball
+1F93F         ; Emoji                # E12.0  [1] (🤿)       diving mask
+1F940..1F945  ; Emoji                # E3.0   [6] (🥀..🥅)    wilted flower..goal net
+1F947..1F94B  ; Emoji                # E3.0   [5] (🥇..🥋)    1st place medal..martial arts uniform
+1F94C         ; Emoji                # E5.0   [1] (🥌)       curling stone
+1F94D..1F94F  ; Emoji                # E11.0  [3] (🥍..🥏)    lacrosse..flying disc
+1F950..1F95E  ; Emoji                # E3.0  [15] (🥐..🥞)    croissant..pancakes
+1F95F..1F96B  ; Emoji                # E5.0  [13] (🥟..🥫)    dumpling..canned food
+1F96C..1F970  ; Emoji                # E11.0  [5] (🥬..🥰)    leafy green..smiling face with hearts
+1F971         ; Emoji                # E12.0  [1] (🥱)       yawning face
+1F972         ; Emoji                # E13.0  [1] (🥲)       smiling face with tear
+1F973..1F976  ; Emoji                # E11.0  [4] (🥳..🥶)    partying face..cold face
+1F977..1F978  ; Emoji                # E13.0  [2] (🥷..🥸)    ninja..disguised face
+1F979         ; Emoji                # E14.0  [1] (🥹)       face holding back tears
+1F97A         ; Emoji                # E11.0  [1] (🥺)       pleading face
+1F97B         ; Emoji                # E12.0  [1] (🥻)       sari
+1F97C..1F97F  ; Emoji                # E11.0  [4] (🥼..🥿)    lab coat..flat shoe
+1F980..1F984  ; Emoji                # E1.0   [5] (🦀..🦄)    crab..unicorn
+1F985..1F991  ; Emoji                # E3.0  [13] (🦅..🦑)    eagle..squid
+1F992..1F997  ; Emoji                # E5.0   [6] (🦒..🦗)    giraffe..cricket
+1F998..1F9A2  ; Emoji                # E11.0 [11] (🦘..🦢)    kangaroo..swan
+1F9A3..1F9A4  ; Emoji                # E13.0  [2] (🦣..🦤)    mammoth..dodo
+1F9A5..1F9AA  ; Emoji                # E12.0  [6] (🦥..🦪)    sloth..oyster
+1F9AB..1F9AD  ; Emoji                # E13.0  [3] (🦫..🦭)    beaver..seal
+1F9AE..1F9AF  ; Emoji                # E12.0  [2] (🦮..🦯)    guide dog..white cane
+1F9B0..1F9B9  ; Emoji                # E11.0 [10] (🦰..🦹)    red hair..supervillain
+1F9BA..1F9BF  ; Emoji                # E12.0  [6] (🦺..🦿)    safety vest..mechanical leg
+1F9C0         ; Emoji                # E1.0   [1] (🧀)       cheese wedge
+1F9C1..1F9C2  ; Emoji                # E11.0  [2] (🧁..🧂)    cupcake..salt
+1F9C3..1F9CA  ; Emoji                # E12.0  [8] (🧃..🧊)    beverage box..ice
+1F9CB         ; Emoji                # E13.0  [1] (🧋)       bubble tea
+1F9CC         ; Emoji                # E14.0  [1] (🧌)       troll
+1F9CD..1F9CF  ; Emoji                # E12.0  [3] (🧍..🧏)    person standing..deaf person
+1F9D0..1F9E6  ; Emoji                # E5.0  [23] (🧐..🧦)    face with monocle..socks
+1F9E7..1F9FF  ; Emoji                # E11.0 [25] (🧧..🧿)    red envelope..nazar amulet
+1FA70..1FA73  ; Emoji                # E12.0  [4] (🩰..🩳)    ballet shoes..shorts
+1FA74         ; Emoji                # E13.0  [1] (🩴)       thong sandal
+1FA75..1FA77  ; Emoji                # E15.0  [3] (🩵..🩷)    light blue heart..pink heart
+1FA78..1FA7A  ; Emoji                # E12.0  [3] (🩸..🩺)    drop of blood..stethoscope
+1FA7B..1FA7C  ; Emoji                # E14.0  [2] (🩻..🩼)    x-ray..crutch
+1FA80..1FA82  ; Emoji                # E12.0  [3] (🪀..🪂)    yo-yo..parachute
+1FA83..1FA86  ; Emoji                # E13.0  [4] (🪃..🪆)    boomerang..nesting dolls
+1FA87..1FA88  ; Emoji                # E15.0  [2] (🪇..🪈)    maracas..flute
+1FA90..1FA95  ; Emoji                # E12.0  [6] (🪐..🪕)    ringed planet..banjo
+1FA96..1FAA8  ; Emoji                # E13.0 [19] (🪖..🪨)    military helmet..rock
+1FAA9..1FAAC  ; Emoji                # E14.0  [4] (🪩..🪬)    mirror ball..hamsa
+1FAAD..1FAAF  ; Emoji                # E15.0  [3] (🪭..🪯)    folding hand fan..khanda
+1FAB0..1FAB6  ; Emoji                # E13.0  [7] (🪰..🪶)    fly..feather
+1FAB7..1FABA  ; Emoji                # E14.0  [4] (🪷..🪺)    lotus..nest with eggs
+1FABB..1FABD  ; Emoji                # E15.0  [3] (🪻..🪽)    hyacinth..wing
+1FABF         ; Emoji                # E15.0  [1] (🪿)       goose
+1FAC0..1FAC2  ; Emoji                # E13.0  [3] (🫀..🫂)    anatomical heart..people hugging
+1FAC3..1FAC5  ; Emoji                # E14.0  [3] (🫃..🫅)    pregnant man..person with crown
+1FACE..1FACF  ; Emoji                # E15.0  [2] (🫎..🫏)    moose..donkey
+1FAD0..1FAD6  ; Emoji                # E13.0  [7] (🫐..🫖)    blueberries..teapot
+1FAD7..1FAD9  ; Emoji                # E14.0  [3] (🫗..🫙)    pouring liquid..jar
+1FADA..1FADB  ; Emoji                # E15.0  [2] (🫚..🫛)    ginger root..pea pod
+1FAE0..1FAE7  ; Emoji                # E14.0  [8] (🫠..🫧)    melting face..bubbles
+1FAE8         ; Emoji                # E15.0  [1] (🫨)       shaking face
+1FAF0..1FAF6  ; Emoji                # E14.0  [7] (🫰..🫶)    hand with index finger and thumb crossed..heart hands
+1FAF7..1FAF8  ; Emoji                # E15.0  [2] (🫷..🫸)    leftwards pushing hand..rightwards pushing hand
+
+# Total elements: 1424
+
+# ================================================
+
+# All omitted code points have Emoji_Presentation=No
+
+231A..231B    ; Emoji_Presentation   # E0.6   [2] (⌚..⌛)    watch..hourglass done
+23E9..23EC    ; Emoji_Presentation   # E0.6   [4] (⏩..⏬)    fast-forward button..fast down button
+23F0          ; Emoji_Presentation   # E0.6   [1] (⏰)       alarm clock
+23F3          ; Emoji_Presentation   # E0.6   [1] (⏳)       hourglass not done
+25FD..25FE    ; Emoji_Presentation   # E0.6   [2] (◽..◾)    white medium-small square..black medium-small square
+2614..2615    ; Emoji_Presentation   # E0.6   [2] (☔..☕)    umbrella with rain drops..hot beverage
+2648..2653    ; Emoji_Presentation   # E0.6  [12] (♈..♓)    Aries..Pisces
+267F          ; Emoji_Presentation   # E0.6   [1] (♿)       wheelchair symbol
+2693          ; Emoji_Presentation   # E0.6   [1] (⚓)       anchor
+26A1          ; Emoji_Presentation   # E0.6   [1] (⚡)       high voltage
+26AA..26AB    ; Emoji_Presentation   # E0.6   [2] (⚪..⚫)    white circle..black circle
+26BD..26BE    ; Emoji_Presentation   # E0.6   [2] (⚽..⚾)    soccer ball..baseball
+26C4..26C5    ; Emoji_Presentation   # E0.6   [2] (⛄..⛅)    snowman without snow..sun behind cloud
+26CE          ; Emoji_Presentation   # E0.6   [1] (⛎)       Ophiuchus
+26D4          ; Emoji_Presentation   # E0.6   [1] (⛔)       no entry
+26EA          ; Emoji_Presentation   # E0.6   [1] (⛪)       church
+26F2..26F3    ; Emoji_Presentation   # E0.6   [2] (⛲..⛳)    fountain..flag in hole
+26F5          ; Emoji_Presentation   # E0.6   [1] (⛵)       sailboat
+26FA          ; Emoji_Presentation   # E0.6   [1] (⛺)       tent
+26FD          ; Emoji_Presentation   # E0.6   [1] (⛽)       fuel pump
+2705          ; Emoji_Presentation   # E0.6   [1] (✅)       check mark button
+270A..270B    ; Emoji_Presentation   # E0.6   [2] (✊..✋)    raised fist..raised hand
+2728          ; Emoji_Presentation   # E0.6   [1] (✨)       sparkles
+274C          ; Emoji_Presentation   # E0.6   [1] (❌)       cross mark
+274E          ; Emoji_Presentation   # E0.6   [1] (❎)       cross mark button
+2753..2755    ; Emoji_Presentation   # E0.6   [3] (❓..❕)    red question mark..white exclamation mark
+2757          ; Emoji_Presentation   # E0.6   [1] (❗)       red exclamation mark
+2795..2797    ; Emoji_Presentation   # E0.6   [3] (➕..➗)    plus..divide
+27B0          ; Emoji_Presentation   # E0.6   [1] (➰)       curly loop
+27BF          ; Emoji_Presentation   # E1.0   [1] (➿)       double curly loop
+2B1B..2B1C    ; Emoji_Presentation   # E0.6   [2] (⬛..⬜)    black large square..white large square
+2B50          ; Emoji_Presentation   # E0.6   [1] (⭐)       star
+2B55          ; Emoji_Presentation   # E0.6   [1] (⭕)       hollow red circle
+1F004         ; Emoji_Presentation   # E0.6   [1] (🀄)       mahjong red dragon
+1F0CF         ; Emoji_Presentation   # E0.6   [1] (🃏)       joker
+1F18E         ; Emoji_Presentation   # E0.6   [1] (🆎)       AB button (blood type)
+1F191..1F19A  ; Emoji_Presentation   # E0.6  [10] (🆑..🆚)    CL button..VS button
+1F1E6..1F1FF  ; Emoji_Presentation   # E0.0  [26] (🇦..🇿)    regional indicator symbol letter a..regional indicator symbol letter z
+1F201         ; Emoji_Presentation   # E0.6   [1] (🈁)       Japanese “here” button
+1F21A         ; Emoji_Presentation   # E0.6   [1] (🈚)       Japanese “free of charge” button
+1F22F         ; Emoji_Presentation   # E0.6   [1] (🈯)       Japanese “reserved” button
+1F232..1F236  ; Emoji_Presentation   # E0.6   [5] (🈲..🈶)    Japanese “prohibited” button..Japanese “not free of charge” button
+1F238..1F23A  ; Emoji_Presentation   # E0.6   [3] (🈸..🈺)    Japanese “application” button..Japanese “open for business” button
+1F250..1F251  ; Emoji_Presentation   # E0.6   [2] (🉐..🉑)    Japanese “bargain” button..Japanese “acceptable” button
+1F300..1F30C  ; Emoji_Presentation   # E0.6  [13] (🌀..🌌)    cyclone..milky way
+1F30D..1F30E  ; Emoji_Presentation   # E0.7   [2] (🌍..🌎)    globe showing Europe-Africa..globe showing Americas
+1F30F         ; Emoji_Presentation   # E0.6   [1] (🌏)       globe showing Asia-Australia
+1F310         ; Emoji_Presentation   # E1.0   [1] (🌐)       globe with meridians
+1F311         ; Emoji_Presentation   # E0.6   [1] (🌑)       new moon
+1F312         ; Emoji_Presentation   # E1.0   [1] (🌒)       waxing crescent moon
+1F313..1F315  ; Emoji_Presentation   # E0.6   [3] (🌓..🌕)    first quarter moon..full moon
+1F316..1F318  ; Emoji_Presentation   # E1.0   [3] (🌖..🌘)    waning gibbous moon..waning crescent moon
+1F319         ; Emoji_Presentation   # E0.6   [1] (🌙)       crescent moon
+1F31A         ; Emoji_Presentation   # E1.0   [1] (🌚)       new moon face
+1F31B         ; Emoji_Presentation   # E0.6   [1] (🌛)       first quarter moon face
+1F31C         ; Emoji_Presentation   # E0.7   [1] (🌜)       last quarter moon face
+1F31D..1F31E  ; Emoji_Presentation   # E1.0   [2] (🌝..🌞)    full moon face..sun with face
+1F31F..1F320  ; Emoji_Presentation   # E0.6   [2] (🌟..🌠)    glowing star..shooting star
+1F32D..1F32F  ; Emoji_Presentation   # E1.0   [3] (🌭..🌯)    hot dog..burrito
+1F330..1F331  ; Emoji_Presentation   # E0.6   [2] (🌰..🌱)    chestnut..seedling
+1F332..1F333  ; Emoji_Presentation   # E1.0   [2] (🌲..🌳)    evergreen tree..deciduous tree
+1F334..1F335  ; Emoji_Presentation   # E0.6   [2] (🌴..🌵)    palm tree..cactus
+1F337..1F34A  ; Emoji_Presentation   # E0.6  [20] (🌷..🍊)    tulip..tangerine
+1F34B         ; Emoji_Presentation   # E1.0   [1] (🍋)       lemon
+1F34C..1F34F  ; Emoji_Presentation   # E0.6   [4] (🍌..🍏)    banana..green apple
+1F350         ; Emoji_Presentation   # E1.0   [1] (🍐)       pear
+1F351..1F37B  ; Emoji_Presentation   # E0.6  [43] (🍑..🍻)    peach..clinking beer mugs
+1F37C         ; Emoji_Presentation   # E1.0   [1] (🍼)       baby bottle
+1F37E..1F37F  ; Emoji_Presentation   # E1.0   [2] (🍾..🍿)    bottle with popping cork..popcorn
+1F380..1F393  ; Emoji_Presentation   # E0.6  [20] (🎀..🎓)    ribbon..graduation cap
+1F3A0..1F3C4  ; Emoji_Presentation   # E0.6  [37] (🎠..🏄)    carousel horse..person surfing
+1F3C5         ; Emoji_Presentation   # E1.0   [1] (🏅)       sports medal
+1F3C6         ; Emoji_Presentation   # E0.6   [1] (🏆)       trophy
+1F3C7         ; Emoji_Presentation   # E1.0   [1] (🏇)       horse racing
+1F3C8         ; Emoji_Presentation   # E0.6   [1] (🏈)       american football
+1F3C9         ; Emoji_Presentation   # E1.0   [1] (🏉)       rugby football
+1F3CA         ; Emoji_Presentation   # E0.6   [1] (🏊)       person swimming
+1F3CF..1F3D3  ; Emoji_Presentation   # E1.0   [5] (🏏..🏓)    cricket game..ping pong
+1F3E0..1F3E3  ; Emoji_Presentation   # E0.6   [4] (🏠..🏣)    house..Japanese post office
+1F3E4         ; Emoji_Presentation   # E1.0   [1] (🏤)       post office
+1F3E5..1F3F0  ; Emoji_Presentation   # E0.6  [12] (🏥..🏰)    hospital..castle
+1F3F4         ; Emoji_Presentation   # E1.0   [1] (🏴)       black flag
+1F3F8..1F407  ; Emoji_Presentation   # E1.0  [16] (🏸..🐇)    badminton..rabbit
+1F408         ; Emoji_Presentation   # E0.7   [1] (🐈)       cat
+1F409..1F40B  ; Emoji_Presentation   # E1.0   [3] (🐉..🐋)    dragon..whale
+1F40C..1F40E  ; Emoji_Presentation   # E0.6   [3] (🐌..🐎)    snail..horse
+1F40F..1F410  ; Emoji_Presentation   # E1.0   [2] (🐏..🐐)    ram..goat
+1F411..1F412  ; Emoji_Presentation   # E0.6   [2] (🐑..🐒)    ewe..monkey
+1F413         ; Emoji_Presentation   # E1.0   [1] (🐓)       rooster
+1F414         ; Emoji_Presentation   # E0.6   [1] (🐔)       chicken
+1F415         ; Emoji_Presentation   # E0.7   [1] (🐕)       dog
+1F416         ; Emoji_Presentation   # E1.0   [1] (🐖)       pig
+1F417..1F429  ; Emoji_Presentation   # E0.6  [19] (🐗..🐩)    boar..poodle
+1F42A         ; Emoji_Presentation   # E1.0   [1] (🐪)       camel
+1F42B..1F43E  ; Emoji_Presentation   # E0.6  [20] (🐫..🐾)    two-hump camel..paw prints
+1F440         ; Emoji_Presentation   # E0.6   [1] (👀)       eyes
+1F442..1F464  ; Emoji_Presentation   # E0.6  [35] (👂..👤)    ear..bust in silhouette
+1F465         ; Emoji_Presentation   # E1.0   [1] (👥)       busts in silhouette
+1F466..1F46B  ; Emoji_Presentation   # E0.6   [6] (👦..👫)    boy..woman and man holding hands
+1F46C..1F46D  ; Emoji_Presentation   # E1.0   [2] (👬..👭)    men holding hands..women holding hands
+1F46E..1F4AC  ; Emoji_Presentation   # E0.6  [63] (👮..💬)    police officer..speech balloon
+1F4AD         ; Emoji_Presentation   # E1.0   [1] (💭)       thought balloon
+1F4AE..1F4B5  ; Emoji_Presentation   # E0.6   [8] (💮..💵)    white flower..dollar banknote
+1F4B6..1F4B7  ; Emoji_Presentation   # E1.0   [2] (💶..💷)    euro banknote..pound banknote
+1F4B8..1F4EB  ; Emoji_Presentation   # E0.6  [52] (💸..📫)    money with wings..closed mailbox with raised flag
+1F4EC..1F4ED  ; Emoji_Presentation   # E0.7   [2] (📬..📭)    open mailbox with raised flag..open mailbox with lowered flag
+1F4EE         ; Emoji_Presentation   # E0.6   [1] (📮)       postbox
+1F4EF         ; Emoji_Presentation   # E1.0   [1] (📯)       postal horn
+1F4F0..1F4F4  ; Emoji_Presentation   # E0.6   [5] (📰..📴)    newspaper..mobile phone off
+1F4F5         ; Emoji_Presentation   # E1.0   [1] (📵)       no mobile phones
+1F4F6..1F4F7  ; Emoji_Presentation   # E0.6   [2] (📶..📷)    antenna bars..camera
+1F4F8         ; Emoji_Presentation   # E1.0   [1] (📸)       camera with flash
+1F4F9..1F4FC  ; Emoji_Presentation   # E0.6   [4] (📹..📼)    video camera..videocassette
+1F4FF..1F502  ; Emoji_Presentation   # E1.0   [4] (📿..🔂)    prayer beads..repeat single button
+1F503         ; Emoji_Presentation   # E0.6   [1] (🔃)       clockwise vertical arrows
+1F504..1F507  ; Emoji_Presentation   # E1.0   [4] (🔄..🔇)    counterclockwise arrows button..muted speaker
+1F508         ; Emoji_Presentation   # E0.7   [1] (🔈)       speaker low volume
+1F509         ; Emoji_Presentation   # E1.0   [1] (🔉)       speaker medium volume
+1F50A..1F514  ; Emoji_Presentation   # E0.6  [11] (🔊..🔔)    speaker high volume..bell
+1F515         ; Emoji_Presentation   # E1.0   [1] (🔕)       bell with slash
+1F516..1F52B  ; Emoji_Presentation   # E0.6  [22] (🔖..🔫)    bookmark..water pistol
+1F52C..1F52D  ; Emoji_Presentation   # E1.0   [2] (🔬..🔭)    microscope..telescope
+1F52E..1F53D  ; Emoji_Presentation   # E0.6  [16] (🔮..🔽)    crystal ball..downwards button
+1F54B..1F54E  ; Emoji_Presentation   # E1.0   [4] (🕋..🕎)    kaaba..menorah
+1F550..1F55B  ; Emoji_Presentation   # E0.6  [12] (🕐..🕛)    one o’clock..twelve o’clock
+1F55C..1F567  ; Emoji_Presentation   # E0.7  [12] (🕜..🕧)    one-thirty..twelve-thirty
+1F57A         ; Emoji_Presentation   # E3.0   [1] (🕺)       man dancing
+1F595..1F596  ; Emoji_Presentation   # E1.0   [2] (🖕..🖖)    middle finger..vulcan salute
+1F5A4         ; Emoji_Presentation   # E3.0   [1] (🖤)       black heart
+1F5FB..1F5FF  ; Emoji_Presentation   # E0.6   [5] (🗻..🗿)    mount fuji..moai
+1F600         ; Emoji_Presentation   # E1.0   [1] (😀)       grinning face
+1F601..1F606  ; Emoji_Presentation   # E0.6   [6] (😁..😆)    beaming face with smiling eyes..grinning squinting face
+1F607..1F608  ; Emoji_Presentation   # E1.0   [2] (😇..😈)    smiling face with halo..smiling face with horns
+1F609..1F60D  ; Emoji_Presentation   # E0.6   [5] (😉..😍)    winking face..smiling face with heart-eyes
+1F60E         ; Emoji_Presentation   # E1.0   [1] (😎)       smiling face with sunglasses
+1F60F         ; Emoji_Presentation   # E0.6   [1] (😏)       smirking face
+1F610         ; Emoji_Presentation   # E0.7   [1] (😐)       neutral face
+1F611         ; Emoji_Presentation   # E1.0   [1] (😑)       expressionless face
+1F612..1F614  ; Emoji_Presentation   # E0.6   [3] (😒..😔)    unamused face..pensive face
+1F615         ; Emoji_Presentation   # E1.0   [1] (😕)       confused face
+1F616         ; Emoji_Presentation   # E0.6   [1] (😖)       confounded face
+1F617         ; Emoji_Presentation   # E1.0   [1] (😗)       kissing face
+1F618         ; Emoji_Presentation   # E0.6   [1] (😘)       face blowing a kiss
+1F619         ; Emoji_Presentation   # E1.0   [1] (😙)       kissing face with smiling eyes
+1F61A         ; Emoji_Presentation   # E0.6   [1] (😚)       kissing face with closed eyes
+1F61B         ; Emoji_Presentation   # E1.0   [1] (😛)       face with tongue
+1F61C..1F61E  ; Emoji_Presentation   # E0.6   [3] (😜..😞)    winking face with tongue..disappointed face
+1F61F         ; Emoji_Presentation   # E1.0   [1] (😟)       worried face
+1F620..1F625  ; Emoji_Presentation   # E0.6   [6] (😠..😥)    angry face..sad but relieved face
+1F626..1F627  ; Emoji_Presentation   # E1.0   [2] (😦..😧)    frowning face with open mouth..anguished face
+1F628..1F62B  ; Emoji_Presentation   # E0.6   [4] (😨..😫)    fearful face..tired face
+1F62C         ; Emoji_Presentation   # E1.0   [1] (😬)       grimacing face
+1F62D         ; Emoji_Presentation   # E0.6   [1] (😭)       loudly crying face
+1F62E..1F62F  ; Emoji_Presentation   # E1.0   [2] (😮..😯)    face with open mouth..hushed face
+1F630..1F633  ; Emoji_Presentation   # E0.6   [4] (😰..😳)    anxious face with sweat..flushed face
+1F634         ; Emoji_Presentation   # E1.0   [1] (😴)       sleeping face
+1F635         ; Emoji_Presentation   # E0.6   [1] (😵)       face with crossed-out eyes
+1F636         ; Emoji_Presentation   # E1.0   [1] (😶)       face without mouth
+1F637..1F640  ; Emoji_Presentation   # E0.6  [10] (😷..🙀)    face with medical mask..weary cat
+1F641..1F644  ; Emoji_Presentation   # E1.0   [4] (🙁..🙄)    slightly frowning face..face with rolling eyes
+1F645..1F64F  ; Emoji_Presentation   # E0.6  [11] (🙅..🙏)    person gesturing NO..folded hands
+1F680         ; Emoji_Presentation   # E0.6   [1] (🚀)       rocket
+1F681..1F682  ; Emoji_Presentation   # E1.0   [2] (🚁..🚂)    helicopter..locomotive
+1F683..1F685  ; Emoji_Presentation   # E0.6   [3] (🚃..🚅)    railway car..bullet train
+1F686         ; Emoji_Presentation   # E1.0   [1] (🚆)       train
+1F687         ; Emoji_Presentation   # E0.6   [1] (🚇)       metro
+1F688         ; Emoji_Presentation   # E1.0   [1] (🚈)       light rail
+1F689         ; Emoji_Presentation   # E0.6   [1] (🚉)       station
+1F68A..1F68B  ; Emoji_Presentation   # E1.0   [2] (🚊..🚋)    tram..tram car
+1F68C         ; Emoji_Presentation   # E0.6   [1] (🚌)       bus
+1F68D         ; Emoji_Presentation   # E0.7   [1] (🚍)       oncoming bus
+1F68E         ; Emoji_Presentation   # E1.0   [1] (🚎)       trolleybus
+1F68F         ; Emoji_Presentation   # E0.6   [1] (🚏)       bus stop
+1F690         ; Emoji_Presentation   # E1.0   [1] (🚐)       minibus
+1F691..1F693  ; Emoji_Presentation   # E0.6   [3] (🚑..🚓)    ambulance..police car
+1F694         ; Emoji_Presentation   # E0.7   [1] (🚔)       oncoming police car
+1F695         ; Emoji_Presentation   # E0.6   [1] (🚕)       taxi
+1F696         ; Emoji_Presentation   # E1.0   [1] (🚖)       oncoming taxi
+1F697         ; Emoji_Presentation   # E0.6   [1] (🚗)       automobile
+1F698         ; Emoji_Presentation   # E0.7   [1] (🚘)       oncoming automobile
+1F699..1F69A  ; Emoji_Presentation   # E0.6   [2] (🚙..🚚)    sport utility vehicle..delivery truck
+1F69B..1F6A1  ; Emoji_Presentation   # E1.0   [7] (🚛..🚡)    articulated lorry..aerial tramway
+1F6A2         ; Emoji_Presentation   # E0.6   [1] (🚢)       ship
+1F6A3         ; Emoji_Presentation   # E1.0   [1] (🚣)       person rowing boat
+1F6A4..1F6A5  ; Emoji_Presentation   # E0.6   [2] (🚤..🚥)    speedboat..horizontal traffic light
+1F6A6         ; Emoji_Presentation   # E1.0   [1] (🚦)       vertical traffic light
+1F6A7..1F6AD  ; Emoji_Presentation   # E0.6   [7] (🚧..🚭)    construction..no smoking
+1F6AE..1F6B1  ; Emoji_Presentation   # E1.0   [4] (🚮..🚱)    litter in bin sign..non-potable water
+1F6B2         ; Emoji_Presentation   # E0.6   [1] (🚲)       bicycle
+1F6B3..1F6B5  ; Emoji_Presentation   # E1.0   [3] (🚳..🚵)    no bicycles..person mountain biking
+1F6B6         ; Emoji_Presentation   # E0.6   [1] (🚶)       person walking
+1F6B7..1F6B8  ; Emoji_Presentation   # E1.0   [2] (🚷..🚸)    no pedestrians..children crossing
+1F6B9..1F6BE  ; Emoji_Presentation   # E0.6   [6] (🚹..🚾)    men’s room..water closet
+1F6BF         ; Emoji_Presentation   # E1.0   [1] (🚿)       shower
+1F6C0         ; Emoji_Presentation   # E0.6   [1] (🛀)       person taking bath
+1F6C1..1F6C5  ; Emoji_Presentation   # E1.0   [5] (🛁..🛅)    bathtub..left luggage
+1F6CC         ; Emoji_Presentation   # E1.0   [1] (🛌)       person in bed
+1F6D0         ; Emoji_Presentation   # E1.0   [1] (🛐)       place of worship
+1F6D1..1F6D2  ; Emoji_Presentation   # E3.0   [2] (🛑..🛒)    stop sign..shopping cart
+1F6D5         ; Emoji_Presentation   # E12.0  [1] (🛕)       hindu temple
+1F6D6..1F6D7  ; Emoji_Presentation   # E13.0  [2] (🛖..🛗)    hut..elevator
+1F6DC         ; Emoji_Presentation   # E15.0  [1] (🛜)       wireless
+1F6DD..1F6DF  ; Emoji_Presentation   # E14.0  [3] (🛝..🛟)    playground slide..ring buoy
+1F6EB..1F6EC  ; Emoji_Presentation   # E1.0   [2] (🛫..🛬)    airplane departure..airplane arrival
+1F6F4..1F6F6  ; Emoji_Presentation   # E3.0   [3] (🛴..🛶)    kick scooter..canoe
+1F6F7..1F6F8  ; Emoji_Presentation   # E5.0   [2] (🛷..🛸)    sled..flying saucer
+1F6F9         ; Emoji_Presentation   # E11.0  [1] (🛹)       skateboard
+1F6FA         ; Emoji_Presentation   # E12.0  [1] (🛺)       auto rickshaw
+1F6FB..1F6FC  ; Emoji_Presentation   # E13.0  [2] (🛻..🛼)    pickup truck..roller skate
+1F7E0..1F7EB  ; Emoji_Presentation   # E12.0 [12] (🟠..🟫)    orange circle..brown square
+1F7F0         ; Emoji_Presentation   # E14.0  [1] (🟰)       heavy equals sign
+1F90C         ; Emoji_Presentation   # E13.0  [1] (🤌)       pinched fingers
+1F90D..1F90F  ; Emoji_Presentation   # E12.0  [3] (🤍..🤏)    white heart..pinching hand
+1F910..1F918  ; Emoji_Presentation   # E1.0   [9] (🤐..🤘)    zipper-mouth face..sign of the horns
+1F919..1F91E  ; Emoji_Presentation   # E3.0   [6] (🤙..🤞)    call me hand..crossed fingers
+1F91F         ; Emoji_Presentation   # E5.0   [1] (🤟)       love-you gesture
+1F920..1F927  ; Emoji_Presentation   # E3.0   [8] (🤠..🤧)    cowboy hat face..sneezing face
+1F928..1F92F  ; Emoji_Presentation   # E5.0   [8] (🤨..🤯)    face with raised eyebrow..exploding head
+1F930         ; Emoji_Presentation   # E3.0   [1] (🤰)       pregnant woman
+1F931..1F932  ; Emoji_Presentation   # E5.0   [2] (🤱..🤲)    breast-feeding..palms up together
+1F933..1F93A  ; Emoji_Presentation   # E3.0   [8] (🤳..🤺)    selfie..person fencing
+1F93C..1F93E  ; Emoji_Presentation   # E3.0   [3] (🤼..🤾)    people wrestling..person playing handball
+1F93F         ; Emoji_Presentation   # E12.0  [1] (🤿)       diving mask
+1F940..1F945  ; Emoji_Presentation   # E3.0   [6] (🥀..🥅)    wilted flower..goal net
+1F947..1F94B  ; Emoji_Presentation   # E3.0   [5] (🥇..🥋)    1st place medal..martial arts uniform
+1F94C         ; Emoji_Presentation   # E5.0   [1] (🥌)       curling stone
+1F94D..1F94F  ; Emoji_Presentation   # E11.0  [3] (🥍..🥏)    lacrosse..flying disc
+1F950..1F95E  ; Emoji_Presentation   # E3.0  [15] (🥐..🥞)    croissant..pancakes
+1F95F..1F96B  ; Emoji_Presentation   # E5.0  [13] (🥟..🥫)    dumpling..canned food
+1F96C..1F970  ; Emoji_Presentation   # E11.0  [5] (🥬..🥰)    leafy green..smiling face with hearts
+1F971         ; Emoji_Presentation   # E12.0  [1] (🥱)       yawning face
+1F972         ; Emoji_Presentation   # E13.0  [1] (🥲)       smiling face with tear
+1F973..1F976  ; Emoji_Presentation   # E11.0  [4] (🥳..🥶)    partying face..cold face
+1F977..1F978  ; Emoji_Presentation   # E13.0  [2] (🥷..🥸)    ninja..disguised face
+1F979         ; Emoji_Presentation   # E14.0  [1] (🥹)       face holding back tears
+1F97A         ; Emoji_Presentation   # E11.0  [1] (🥺)       pleading face
+1F97B         ; Emoji_Presentation   # E12.0  [1] (🥻)       sari
+1F97C..1F97F  ; Emoji_Presentation   # E11.0  [4] (🥼..🥿)    lab coat..flat shoe
+1F980..1F984  ; Emoji_Presentation   # E1.0   [5] (🦀..🦄)    crab..unicorn
+1F985..1F991  ; Emoji_Presentation   # E3.0  [13] (🦅..🦑)    eagle..squid
+1F992..1F997  ; Emoji_Presentation   # E5.0   [6] (🦒..🦗)    giraffe..cricket
+1F998..1F9A2  ; Emoji_Presentation   # E11.0 [11] (🦘..🦢)    kangaroo..swan
+1F9A3..1F9A4  ; Emoji_Presentation   # E13.0  [2] (🦣..🦤)    mammoth..dodo
+1F9A5..1F9AA  ; Emoji_Presentation   # E12.0  [6] (🦥..🦪)    sloth..oyster
+1F9AB..1F9AD  ; Emoji_Presentation   # E13.0  [3] (🦫..🦭)    beaver..seal
+1F9AE..1F9AF  ; Emoji_Presentation   # E12.0  [2] (🦮..🦯)    guide dog..white cane
+1F9B0..1F9B9  ; Emoji_Presentation   # E11.0 [10] (🦰..🦹)    red hair..supervillain
+1F9BA..1F9BF  ; Emoji_Presentation   # E12.0  [6] (🦺..🦿)    safety vest..mechanical leg
+1F9C0         ; Emoji_Presentation   # E1.0   [1] (🧀)       cheese wedge
+1F9C1..1F9C2  ; Emoji_Presentation   # E11.0  [2] (🧁..🧂)    cupcake..salt
+1F9C3..1F9CA  ; Emoji_Presentation   # E12.0  [8] (🧃..🧊)    beverage box..ice
+1F9CB         ; Emoji_Presentation   # E13.0  [1] (🧋)       bubble tea
+1F9CC         ; Emoji_Presentation   # E14.0  [1] (🧌)       troll
+1F9CD..1F9CF  ; Emoji_Presentation   # E12.0  [3] (🧍..🧏)    person standing..deaf person
+1F9D0..1F9E6  ; Emoji_Presentation   # E5.0  [23] (🧐..🧦)    face with monocle..socks
+1F9E7..1F9FF  ; Emoji_Presentation   # E11.0 [25] (🧧..🧿)    red envelope..nazar amulet
+1FA70..1FA73  ; Emoji_Presentation   # E12.0  [4] (🩰..🩳)    ballet shoes..shorts
+1FA74         ; Emoji_Presentation   # E13.0  [1] (🩴)       thong sandal
+1FA75..1FA77  ; Emoji_Presentation   # E15.0  [3] (🩵..🩷)    light blue heart..pink heart
+1FA78..1FA7A  ; Emoji_Presentation   # E12.0  [3] (🩸..🩺)    drop of blood..stethoscope
+1FA7B..1FA7C  ; Emoji_Presentation   # E14.0  [2] (🩻..🩼)    x-ray..crutch
+1FA80..1FA82  ; Emoji_Presentation   # E12.0  [3] (🪀..🪂)    yo-yo..parachute
+1FA83..1FA86  ; Emoji_Presentation   # E13.0  [4] (🪃..🪆)    boomerang..nesting dolls
+1FA87..1FA88  ; Emoji_Presentation   # E15.0  [2] (🪇..🪈)    maracas..flute
+1FA90..1FA95  ; Emoji_Presentation   # E12.0  [6] (🪐..🪕)    ringed planet..banjo
+1FA96..1FAA8  ; Emoji_Presentation   # E13.0 [19] (🪖..🪨)    military helmet..rock
+1FAA9..1FAAC  ; Emoji_Presentation   # E14.0  [4] (🪩..🪬)    mirror ball..hamsa
+1FAAD..1FAAF  ; Emoji_Presentation   # E15.0  [3] (🪭..🪯)    folding hand fan..khanda
+1FAB0..1FAB6  ; Emoji_Presentation   # E13.0  [7] (🪰..🪶)    fly..feather
+1FAB7..1FABA  ; Emoji_Presentation   # E14.0  [4] (🪷..🪺)    lotus..nest with eggs
+1FABB..1FABD  ; Emoji_Presentation   # E15.0  [3] (🪻..🪽)    hyacinth..wing
+1FABF         ; Emoji_Presentation   # E15.0  [1] (🪿)       goose
+1FAC0..1FAC2  ; Emoji_Presentation   # E13.0  [3] (🫀..🫂)    anatomical heart..people hugging
+1FAC3..1FAC5  ; Emoji_Presentation   # E14.0  [3] (🫃..🫅)    pregnant man..person with crown
+1FACE..1FACF  ; Emoji_Presentation   # E15.0  [2] (🫎..🫏)    moose..donkey
+1FAD0..1FAD6  ; Emoji_Presentation   # E13.0  [7] (🫐..🫖)    blueberries..teapot
+1FAD7..1FAD9  ; Emoji_Presentation   # E14.0  [3] (🫗..🫙)    pouring liquid..jar
+1FADA..1FADB  ; Emoji_Presentation   # E15.0  [2] (🫚..🫛)    ginger root..pea pod
+1FAE0..1FAE7  ; Emoji_Presentation   # E14.0  [8] (🫠..🫧)    melting face..bubbles
+1FAE8         ; Emoji_Presentation   # E15.0  [1] (🫨)       shaking face
+1FAF0..1FAF6  ; Emoji_Presentation   # E14.0  [7] (🫰..🫶)    hand with index finger and thumb crossed..heart hands
+1FAF7..1FAF8  ; Emoji_Presentation   # E15.0  [2] (🫷..🫸)    leftwards pushing hand..rightwards pushing hand
+
+# Total elements: 1205
+
+# ================================================
+
+# All omitted code points have Emoji_Modifier=No
+
+1F3FB..1F3FF  ; Emoji_Modifier       # E1.0   [5] (🏻..🏿)    light skin tone..dark skin tone
+
+# Total elements: 5
+
+# ================================================
+
+# All omitted code points have Emoji_Modifier_Base=No
+
+261D          ; Emoji_Modifier_Base  # E0.6   [1] (☝️)       index pointing up
+26F9          ; Emoji_Modifier_Base  # E0.7   [1] (⛹️)       person bouncing ball
+270A..270C    ; Emoji_Modifier_Base  # E0.6   [3] (✊..✌️)    raised fist..victory hand
+270D          ; Emoji_Modifier_Base  # E0.7   [1] (✍️)       writing hand
+1F385         ; Emoji_Modifier_Base  # E0.6   [1] (🎅)       Santa Claus
+1F3C2..1F3C4  ; Emoji_Modifier_Base  # E0.6   [3] (🏂..🏄)    snowboarder..person surfing
+1F3C7         ; Emoji_Modifier_Base  # E1.0   [1] (🏇)       horse racing
+1F3CA         ; Emoji_Modifier_Base  # E0.6   [1] (🏊)       person swimming
+1F3CB..1F3CC  ; Emoji_Modifier_Base  # E0.7   [2] (🏋️..🏌️)    person lifting weights..person golfing
+1F442..1F443  ; Emoji_Modifier_Base  # E0.6   [2] (👂..👃)    ear..nose
+1F446..1F450  ; Emoji_Modifier_Base  # E0.6  [11] (👆..👐)    backhand index pointing up..open hands
+1F466..1F46B  ; Emoji_Modifier_Base  # E0.6   [6] (👦..👫)    boy..woman and man holding hands
+1F46C..1F46D  ; Emoji_Modifier_Base  # E1.0   [2] (👬..👭)    men holding hands..women holding hands
+1F46E..1F478  ; Emoji_Modifier_Base  # E0.6  [11] (👮..👸)    police officer..princess
+1F47C         ; Emoji_Modifier_Base  # E0.6   [1] (👼)       baby angel
+1F481..1F483  ; Emoji_Modifier_Base  # E0.6   [3] (💁..💃)    person tipping hand..woman dancing
+1F485..1F487  ; Emoji_Modifier_Base  # E0.6   [3] (💅..💇)    nail polish..person getting haircut
+1F48F         ; Emoji_Modifier_Base  # E0.6   [1] (💏)       kiss
+1F491         ; Emoji_Modifier_Base  # E0.6   [1] (💑)       couple with heart
+1F4AA         ; Emoji_Modifier_Base  # E0.6   [1] (💪)       flexed biceps
+1F574..1F575  ; Emoji_Modifier_Base  # E0.7   [2] (🕴️..🕵️)    person in suit levitating..detective
+1F57A         ; Emoji_Modifier_Base  # E3.0   [1] (🕺)       man dancing
+1F590         ; Emoji_Modifier_Base  # E0.7   [1] (🖐️)       hand with fingers splayed
+1F595..1F596  ; Emoji_Modifier_Base  # E1.0   [2] (🖕..🖖)    middle finger..vulcan salute
+1F645..1F647  ; Emoji_Modifier_Base  # E0.6   [3] (🙅..🙇)    person gesturing NO..person bowing
+1F64B..1F64F  ; Emoji_Modifier_Base  # E0.6   [5] (🙋..🙏)    person raising hand..folded hands
+1F6A3         ; Emoji_Modifier_Base  # E1.0   [1] (🚣)       person rowing boat
+1F6B4..1F6B5  ; Emoji_Modifier_Base  # E1.0   [2] (🚴..🚵)    person biking..person mountain biking
+1F6B6         ; Emoji_Modifier_Base  # E0.6   [1] (🚶)       person walking
+1F6C0         ; Emoji_Modifier_Base  # E0.6   [1] (🛀)       person taking bath
+1F6CC         ; Emoji_Modifier_Base  # E1.0   [1] (🛌)       person in bed
+1F90C         ; Emoji_Modifier_Base  # E13.0  [1] (🤌)       pinched fingers
+1F90F         ; Emoji_Modifier_Base  # E12.0  [1] (🤏)       pinching hand
+1F918         ; Emoji_Modifier_Base  # E1.0   [1] (🤘)       sign of the horns
+1F919..1F91E  ; Emoji_Modifier_Base  # E3.0   [6] (🤙..🤞)    call me hand..crossed fingers
+1F91F         ; Emoji_Modifier_Base  # E5.0   [1] (🤟)       love-you gesture
+1F926         ; Emoji_Modifier_Base  # E3.0   [1] (🤦)       person facepalming
+1F930         ; Emoji_Modifier_Base  # E3.0   [1] (🤰)       pregnant woman
+1F931..1F932  ; Emoji_Modifier_Base  # E5.0   [2] (🤱..🤲)    breast-feeding..palms up together
+1F933..1F939  ; Emoji_Modifier_Base  # E3.0   [7] (🤳..🤹)    selfie..person juggling
+1F93C..1F93E  ; Emoji_Modifier_Base  # E3.0   [3] (🤼..🤾)    people wrestling..person playing handball
+1F977         ; Emoji_Modifier_Base  # E13.0  [1] (🥷)       ninja
+1F9B5..1F9B6  ; Emoji_Modifier_Base  # E11.0  [2] (🦵..🦶)    leg..foot
+1F9B8..1F9B9  ; Emoji_Modifier_Base  # E11.0  [2] (🦸..🦹)    superhero..supervillain
+1F9BB         ; Emoji_Modifier_Base  # E12.0  [1] (🦻)       ear with hearing aid
+1F9CD..1F9CF  ; Emoji_Modifier_Base  # E12.0  [3] (🧍..🧏)    person standing..deaf person
+1F9D1..1F9DD  ; Emoji_Modifier_Base  # E5.0  [13] (🧑..🧝)    person..elf
+1FAC3..1FAC5  ; Emoji_Modifier_Base  # E14.0  [3] (🫃..🫅)    pregnant man..person with crown
+1FAF0..1FAF6  ; Emoji_Modifier_Base  # E14.0  [7] (🫰..🫶)    hand with index finger and thumb crossed..heart hands
+1FAF7..1FAF8  ; Emoji_Modifier_Base  # E15.0  [2] (🫷..🫸)    leftwards pushing hand..rightwards pushing hand
+
+# Total elements: 134
+
+# ================================================
+
+# All omitted code points have Emoji_Component=No
+
+0023          ; Emoji_Component      # E0.0   [1] (#️)       hash sign
+002A          ; Emoji_Component      # E0.0   [1] (*️)       asterisk
+0030..0039    ; Emoji_Component      # E0.0  [10] (0️..9️)    digit zero..digit nine
+200D          ; Emoji_Component      # E0.0   [1] (‍)        zero width joiner
+20E3          ; Emoji_Component      # E0.0   [1] (⃣)       combining enclosing keycap
+FE0F          ; Emoji_Component      # E0.0   [1] ()        VARIATION SELECTOR-16
+1F1E6..1F1FF  ; Emoji_Component      # E0.0  [26] (🇦..🇿)    regional indicator symbol letter a..regional indicator symbol letter z
+1F3FB..1F3FF  ; Emoji_Component      # E1.0   [5] (🏻..🏿)    light skin tone..dark skin tone
+1F9B0..1F9B3  ; Emoji_Component      # E11.0  [4] (🦰..🦳)    red hair..white hair
+E0020..E007F  ; Emoji_Component      # E0.0  [96] (󠀠..󠁿)      tag space..cancel tag
+
+# Total elements: 146
+
+# ================================================
+
+# All omitted code points have Extended_Pictographic=No
+
+00A9          ; Extended_Pictographic# E0.6   [1] (©️)       copyright
+00AE          ; Extended_Pictographic# E0.6   [1] (®️)       registered
+203C          ; Extended_Pictographic# E0.6   [1] (‼️)       double exclamation mark
+2049          ; Extended_Pictographic# E0.6   [1] (⁉️)       exclamation question mark
+2122          ; Extended_Pictographic# E0.6   [1] (™️)       trade mark
+2139          ; Extended_Pictographic# E0.6   [1] (ℹ️)       information
+2194..2199    ; Extended_Pictographic# E0.6   [6] (↔️..↙️)    left-right arrow..down-left arrow
+21A9..21AA    ; Extended_Pictographic# E0.6   [2] (↩️..↪️)    right arrow curving left..left arrow curving right
+231A..231B    ; Extended_Pictographic# E0.6   [2] (⌚..⌛)    watch..hourglass done
+2328          ; Extended_Pictographic# E1.0   [1] (⌨️)       keyboard
+2388          ; Extended_Pictographic# E0.0   [1] (⎈)       HELM SYMBOL
+23CF          ; Extended_Pictographic# E1.0   [1] (⏏️)       eject button
+23E9..23EC    ; Extended_Pictographic# E0.6   [4] (⏩..⏬)    fast-forward button..fast down button
+23ED..23EE    ; Extended_Pictographic# E0.7   [2] (⏭️..⏮️)    next track button..last track button
+23EF          ; Extended_Pictographic# E1.0   [1] (⏯️)       play or pause button
+23F0          ; Extended_Pictographic# E0.6   [1] (⏰)       alarm clock
+23F1..23F2    ; Extended_Pictographic# E1.0   [2] (⏱️..⏲️)    stopwatch..timer clock
+23F3          ; Extended_Pictographic# E0.6   [1] (⏳)       hourglass not done
+23F8..23FA    ; Extended_Pictographic# E0.7   [3] (⏸️..⏺️)    pause button..record button
+24C2          ; Extended_Pictographic# E0.6   [1] (Ⓜ️)       circled M
+25AA..25AB    ; Extended_Pictographic# E0.6   [2] (▪️..▫️)    black small square..white small square
+25B6          ; Extended_Pictographic# E0.6   [1] (▶️)       play button
+25C0          ; Extended_Pictographic# E0.6   [1] (◀️)       reverse button
+25FB..25FE    ; Extended_Pictographic# E0.6   [4] (◻️..◾)    white medium square..black medium-small square
+2600..2601    ; Extended_Pictographic# E0.6   [2] (☀️..☁️)    sun..cloud
+2602..2603    ; Extended_Pictographic# E0.7   [2] (☂️..☃️)    umbrella..snowman
+2604          ; Extended_Pictographic# E1.0   [1] (☄️)       comet
+2605          ; Extended_Pictographic# E0.0   [1] (★)       BLACK STAR
+2607..260D    ; Extended_Pictographic# E0.0   [7] (☇..☍)    LIGHTNING..OPPOSITION
+260E          ; Extended_Pictographic# E0.6   [1] (☎️)       telephone
+260F..2610    ; Extended_Pictographic# E0.0   [2] (☏..☐)    WHITE TELEPHONE..BALLOT BOX
+2611          ; Extended_Pictographic# E0.6   [1] (☑️)       check box with check
+2612          ; Extended_Pictographic# E0.0   [1] (☒)       BALLOT BOX WITH X
+2614..2615    ; Extended_Pictographic# E0.6   [2] (☔..☕)    umbrella with rain drops..hot beverage
+2616..2617    ; Extended_Pictographic# E0.0   [2] (☖..☗)    WHITE SHOGI PIECE..BLACK SHOGI PIECE
+2618          ; Extended_Pictographic# E1.0   [1] (☘️)       shamrock
+2619..261C    ; Extended_Pictographic# E0.0   [4] (☙..☜)    REVERSED ROTATED FLORAL HEART BULLET..WHITE LEFT POINTING INDEX
+261D          ; Extended_Pictographic# E0.6   [1] (☝️)       index pointing up
+261E..261F    ; Extended_Pictographic# E0.0   [2] (☞..☟)    WHITE RIGHT POINTING INDEX..WHITE DOWN POINTING INDEX
+2620          ; Extended_Pictographic# E1.0   [1] (☠️)       skull and crossbones
+2621          ; Extended_Pictographic# E0.0   [1] (☡)       CAUTION SIGN
+2622..2623    ; Extended_Pictographic# E1.0   [2] (☢️..☣️)    radioactive..biohazard
+2624..2625    ; Extended_Pictographic# E0.0   [2] (☤..☥)    CADUCEUS..ANKH
+2626          ; Extended_Pictographic# E1.0   [1] (☦️)       orthodox cross
+2627..2629    ; Extended_Pictographic# E0.0   [3] (☧..☩)    CHI RHO..CROSS OF JERUSALEM
+262A          ; Extended_Pictographic# E0.7   [1] (☪️)       star and crescent
+262B..262D    ; Extended_Pictographic# E0.0   [3] (☫..☭)    FARSI SYMBOL..HAMMER AND SICKLE
+262E          ; Extended_Pictographic# E1.0   [1] (☮️)       peace symbol
+262F          ; Extended_Pictographic# E0.7   [1] (☯️)       yin yang
+2630..2637    ; Extended_Pictographic# E0.0   [8] (☰..☷)    TRIGRAM FOR HEAVEN..TRIGRAM FOR EARTH
+2638..2639    ; Extended_Pictographic# E0.7   [2] (☸️..☹️)    wheel of dharma..frowning face
+263A          ; Extended_Pictographic# E0.6   [1] (☺️)       smiling face
+263B..263F    ; Extended_Pictographic# E0.0   [5] (☻..☿)    BLACK SMILING FACE..MERCURY
+2640          ; Extended_Pictographic# E4.0   [1] (♀️)       female sign
+2641          ; Extended_Pictographic# E0.0   [1] (♁)       EARTH
+2642          ; Extended_Pictographic# E4.0   [1] (♂️)       male sign
+2643..2647    ; Extended_Pictographic# E0.0   [5] (♃..♇)    JUPITER..PLUTO
+2648..2653    ; Extended_Pictographic# E0.6  [12] (♈..♓)    Aries..Pisces
+2654..265E    ; Extended_Pictographic# E0.0  [11] (♔..♞)    WHITE CHESS KING..BLACK CHESS KNIGHT
+265F          ; Extended_Pictographic# E11.0  [1] (♟️)       chess pawn
+2660          ; Extended_Pictographic# E0.6   [1] (♠️)       spade suit
+2661..2662    ; Extended_Pictographic# E0.0   [2] (♡..♢)    WHITE HEART SUIT..WHITE DIAMOND SUIT
+2663          ; Extended_Pictographic# E0.6   [1] (♣️)       club suit
+2664          ; Extended_Pictographic# E0.0   [1] (♤)       WHITE SPADE SUIT
+2665..2666    ; Extended_Pictographic# E0.6   [2] (♥️..♦️)    heart suit..diamond suit
+2667          ; Extended_Pictographic# E0.0   [1] (♧)       WHITE CLUB SUIT
+2668          ; Extended_Pictographic# E0.6   [1] (♨️)       hot springs
+2669..267A    ; Extended_Pictographic# E0.0  [18] (♩..♺)    QUARTER NOTE..RECYCLING SYMBOL FOR GENERIC MATERIALS
+267B          ; Extended_Pictographic# E0.6   [1] (♻️)       recycling symbol
+267C..267D    ; Extended_Pictographic# E0.0   [2] (♼..♽)    RECYCLED PAPER SYMBOL..PARTIALLY-RECYCLED PAPER SYMBOL
+267E          ; Extended_Pictographic# E11.0  [1] (♾️)       infinity
+267F          ; Extended_Pictographic# E0.6   [1] (♿)       wheelchair symbol
+2680..2685    ; Extended_Pictographic# E0.0   [6] (⚀..⚅)    DIE FACE-1..DIE FACE-6
+2690..2691    ; Extended_Pictographic# E0.0   [2] (⚐..⚑)    WHITE FLAG..BLACK FLAG
+2692          ; Extended_Pictographic# E1.0   [1] (⚒️)       hammer and pick
+2693          ; Extended_Pictographic# E0.6   [1] (⚓)       anchor
+2694          ; Extended_Pictographic# E1.0   [1] (⚔️)       crossed swords
+2695          ; Extended_Pictographic# E4.0   [1] (⚕️)       medical symbol
+2696..2697    ; Extended_Pictographic# E1.0   [2] (⚖️..⚗️)    balance scale..alembic
+2698          ; Extended_Pictographic# E0.0   [1] (⚘)       FLOWER
+2699          ; Extended_Pictographic# E1.0   [1] (⚙️)       gear
+269A          ; Extended_Pictographic# E0.0   [1] (⚚)       STAFF OF HERMES
+269B..269C    ; Extended_Pictographic# E1.0   [2] (⚛️..⚜️)    atom symbol..fleur-de-lis
+269D..269F    ; Extended_Pictographic# E0.0   [3] (⚝..⚟)    OUTLINED WHITE STAR..THREE LINES CONVERGING LEFT
+26A0..26A1    ; Extended_Pictographic# E0.6   [2] (⚠️..⚡)    warning..high voltage
+26A2..26A6    ; Extended_Pictographic# E0.0   [5] (⚢..⚦)    DOUBLED FEMALE SIGN..MALE WITH STROKE SIGN
+26A7          ; Extended_Pictographic# E13.0  [1] (⚧️)       transgender symbol
+26A8..26A9    ; Extended_Pictographic# E0.0   [2] (⚨..⚩)    VERTICAL MALE WITH STROKE SIGN..HORIZONTAL MALE WITH STROKE SIGN
+26AA..26AB    ; Extended_Pictographic# E0.6   [2] (⚪..⚫)    white circle..black circle
+26AC..26AF    ; Extended_Pictographic# E0.0   [4] (⚬..⚯)    MEDIUM SMALL WHITE CIRCLE..UNMARRIED PARTNERSHIP SYMBOL
+26B0..26B1    ; Extended_Pictographic# E1.0   [2] (⚰️..⚱️)    coffin..funeral urn
+26B2..26BC    ; Extended_Pictographic# E0.0  [11] (⚲..⚼)    NEUTER..SESQUIQUADRATE
+26BD..26BE    ; Extended_Pictographic# E0.6   [2] (⚽..⚾)    soccer ball..baseball
+26BF..26C3    ; Extended_Pictographic# E0.0   [5] (⚿..⛃)    SQUARED KEY..BLACK DRAUGHTS KING
+26C4..26C5    ; Extended_Pictographic# E0.6   [2] (⛄..⛅)    snowman without snow..sun behind cloud
+26C6..26C7    ; Extended_Pictographic# E0.0   [2] (⛆..⛇)    RAIN..BLACK SNOWMAN
+26C8          ; Extended_Pictographic# E0.7   [1] (⛈️)       cloud with lightning and rain
+26C9..26CD    ; Extended_Pictographic# E0.0   [5] (⛉..⛍)    TURNED WHITE SHOGI PIECE..DISABLED CAR
+26CE          ; Extended_Pictographic# E0.6   [1] (⛎)       Ophiuchus
+26CF          ; Extended_Pictographic# E0.7   [1] (⛏️)       pick
+26D0          ; Extended_Pictographic# E0.0   [1] (⛐)       CAR SLIDING
+26D1          ; Extended_Pictographic# E0.7   [1] (⛑️)       rescue worker’s helmet
+26D2          ; Extended_Pictographic# E0.0   [1] (⛒)       CIRCLED CROSSING LANES
+26D3          ; Extended_Pictographic# E0.7   [1] (⛓️)       chains
+26D4          ; Extended_Pictographic# E0.6   [1] (⛔)       no entry
+26D5..26E8    ; Extended_Pictographic# E0.0  [20] (⛕..⛨)    ALTERNATE ONE-WAY LEFT WAY TRAFFIC..BLACK CROSS ON SHIELD
+26E9          ; Extended_Pictographic# E0.7   [1] (⛩️)       shinto shrine
+26EA          ; Extended_Pictographic# E0.6   [1] (⛪)       church
+26EB..26EF    ; Extended_Pictographic# E0.0   [5] (⛫..⛯)    CASTLE..MAP SYMBOL FOR LIGHTHOUSE
+26F0..26F1    ; Extended_Pictographic# E0.7   [2] (⛰️..⛱️)    mountain..umbrella on ground
+26F2..26F3    ; Extended_Pictographic# E0.6   [2] (⛲..⛳)    fountain..flag in hole
+26F4          ; Extended_Pictographic# E0.7   [1] (⛴️)       ferry
+26F5          ; Extended_Pictographic# E0.6   [1] (⛵)       sailboat
+26F6          ; Extended_Pictographic# E0.0   [1] (⛶)       SQUARE FOUR CORNERS
+26F7..26F9    ; Extended_Pictographic# E0.7   [3] (⛷️..⛹️)    skier..person bouncing ball
+26FA          ; Extended_Pictographic# E0.6   [1] (⛺)       tent
+26FB..26FC    ; Extended_Pictographic# E0.0   [2] (⛻..⛼)    JAPANESE BANK SYMBOL..HEADSTONE GRAVEYARD SYMBOL
+26FD          ; Extended_Pictographic# E0.6   [1] (⛽)       fuel pump
+26FE..2701    ; Extended_Pictographic# E0.0   [4] (⛾..✁)    CUP ON BLACK SQUARE..UPPER BLADE SCISSORS
+2702          ; Extended_Pictographic# E0.6   [1] (✂️)       scissors
+2703..2704    ; Extended_Pictographic# E0.0   [2] (✃..✄)    LOWER BLADE SCISSORS..WHITE SCISSORS
+2705          ; Extended_Pictographic# E0.6   [1] (✅)       check mark button
+2708..270C    ; Extended_Pictographic# E0.6   [5] (✈️..✌️)    airplane..victory hand
+270D          ; Extended_Pictographic# E0.7   [1] (✍️)       writing hand
+270E          ; Extended_Pictographic# E0.0   [1] (✎)       LOWER RIGHT PENCIL
+270F          ; Extended_Pictographic# E0.6   [1] (✏️)       pencil
+2710..2711    ; Extended_Pictographic# E0.0   [2] (✐..✑)    UPPER RIGHT PENCIL..WHITE NIB
+2712          ; Extended_Pictographic# E0.6   [1] (✒️)       black nib
+2714          ; Extended_Pictographic# E0.6   [1] (✔️)       check mark
+2716          ; Extended_Pictographic# E0.6   [1] (✖️)       multiply
+271D          ; Extended_Pictographic# E0.7   [1] (✝️)       latin cross
+2721          ; Extended_Pictographic# E0.7   [1] (✡️)       star of David
+2728          ; Extended_Pictographic# E0.6   [1] (✨)       sparkles
+2733..2734    ; Extended_Pictographic# E0.6   [2] (✳️..✴️)    eight-spoked asterisk..eight-pointed star
+2744          ; Extended_Pictographic# E0.6   [1] (❄️)       snowflake
+2747          ; Extended_Pictographic# E0.6   [1] (❇️)       sparkle
+274C          ; Extended_Pictographic# E0.6   [1] (❌)       cross mark
+274E          ; Extended_Pictographic# E0.6   [1] (❎)       cross mark button
+2753..2755    ; Extended_Pictographic# E0.6   [3] (❓..❕)    red question mark..white exclamation mark
+2757          ; Extended_Pictographic# E0.6   [1] (❗)       red exclamation mark
+2763          ; Extended_Pictographic# E1.0   [1] (❣️)       heart exclamation
+2764          ; Extended_Pictographic# E0.6   [1] (❤️)       red heart
+2765..2767    ; Extended_Pictographic# E0.0   [3] (❥..❧)    ROTATED HEAVY BLACK HEART BULLET..ROTATED FLORAL HEART BULLET
+2795..2797    ; Extended_Pictographic# E0.6   [3] (➕..➗)    plus..divide
+27A1          ; Extended_Pictographic# E0.6   [1] (➡️)       right arrow
+27B0          ; Extended_Pictographic# E0.6   [1] (➰)       curly loop
+27BF          ; Extended_Pictographic# E1.0   [1] (➿)       double curly loop
+2934..2935    ; Extended_Pictographic# E0.6   [2] (⤴️..⤵️)    right arrow curving up..right arrow curving down
+2B05..2B07    ; Extended_Pictographic# E0.6   [3] (⬅️..⬇️)    left arrow..down arrow
+2B1B..2B1C    ; Extended_Pictographic# E0.6   [2] (⬛..⬜)    black large square..white large square
+2B50          ; Extended_Pictographic# E0.6   [1] (⭐)       star
+2B55          ; Extended_Pictographic# E0.6   [1] (⭕)       hollow red circle
+3030          ; Extended_Pictographic# E0.6   [1] (〰️)       wavy dash
+303D          ; Extended_Pictographic# E0.6   [1] (〽️)       part alternation mark
+3297          ; Extended_Pictographic# E0.6   [1] (㊗️)       Japanese “congratulations” button
+3299          ; Extended_Pictographic# E0.6   [1] (㊙️)       Japanese “secret” button
+1F000..1F003  ; Extended_Pictographic# E0.0   [4] (🀀..🀃)    MAHJONG TILE EAST WIND..MAHJONG TILE NORTH WIND
+1F004         ; Extended_Pictographic# E0.6   [1] (🀄)       mahjong red dragon
+1F005..1F0CE  ; Extended_Pictographic# E0.0 [202] (🀅..🃎)    MAHJONG TILE GREEN DRAGON..PLAYING CARD KING OF DIAMONDS
+1F0CF         ; Extended_Pictographic# E0.6   [1] (🃏)       joker
+1F0D0..1F0FF  ; Extended_Pictographic# E0.0  [48] (🃐..🃿)    <reserved-1F0D0>..<reserved-1F0FF>
+1F10D..1F10F  ; Extended_Pictographic# E0.0   [3] (🄍..🄏)    CIRCLED ZERO WITH SLASH..CIRCLED DOLLAR SIGN WITH OVERLAID BACKSLASH
+1F12F         ; Extended_Pictographic# E0.0   [1] (🄯)       COPYLEFT SYMBOL
+1F16C..1F16F  ; Extended_Pictographic# E0.0   [4] (🅬..🅯)    RAISED MR SIGN..CIRCLED HUMAN FIGURE
+1F170..1F171  ; Extended_Pictographic# E0.6   [2] (🅰️..🅱️)    A button (blood type)..B button (blood type)
+1F17E..1F17F  ; Extended_Pictographic# E0.6   [2] (🅾️..🅿️)    O button (blood type)..P button
+1F18E         ; Extended_Pictographic# E0.6   [1] (🆎)       AB button (blood type)
+1F191..1F19A  ; Extended_Pictographic# E0.6  [10] (🆑..🆚)    CL button..VS button
+1F1AD..1F1E5  ; Extended_Pictographic# E0.0  [57] (🆭..🇥)    MASK WORK SYMBOL..<reserved-1F1E5>
+1F201..1F202  ; Extended_Pictographic# E0.6   [2] (🈁..🈂️)    Japanese “here” button..Japanese “service charge” button
+1F203..1F20F  ; Extended_Pictographic# E0.0  [13] (🈃..🈏)    <reserved-1F203>..<reserved-1F20F>
+1F21A         ; Extended_Pictographic# E0.6   [1] (🈚)       Japanese “free of charge” button
+1F22F         ; Extended_Pictographic# E0.6   [1] (🈯)       Japanese “reserved” button
+1F232..1F23A  ; Extended_Pictographic# E0.6   [9] (🈲..🈺)    Japanese “prohibited” button..Japanese “open for business” button
+1F23C..1F23F  ; Extended_Pictographic# E0.0   [4] (🈼..🈿)    <reserved-1F23C>..<reserved-1F23F>
+1F249..1F24F  ; Extended_Pictographic# E0.0   [7] (🉉..🉏)    <reserved-1F249>..<reserved-1F24F>
+1F250..1F251  ; Extended_Pictographic# E0.6   [2] (🉐..🉑)    Japanese “bargain” button..Japanese “acceptable” button
+1F252..1F2FF  ; Extended_Pictographic# E0.0 [174] (🉒..🋿)    <reserved-1F252>..<reserved-1F2FF>
+1F300..1F30C  ; Extended_Pictographic# E0.6  [13] (🌀..🌌)    cyclone..milky way
+1F30D..1F30E  ; Extended_Pictographic# E0.7   [2] (🌍..🌎)    globe showing Europe-Africa..globe showing Americas
+1F30F         ; Extended_Pictographic# E0.6   [1] (🌏)       globe showing Asia-Australia
+1F310         ; Extended_Pictographic# E1.0   [1] (🌐)       globe with meridians
+1F311         ; Extended_Pictographic# E0.6   [1] (🌑)       new moon
+1F312         ; Extended_Pictographic# E1.0   [1] (🌒)       waxing crescent moon
+1F313..1F315  ; Extended_Pictographic# E0.6   [3] (🌓..🌕)    first quarter moon..full moon
+1F316..1F318  ; Extended_Pictographic# E1.0   [3] (🌖..🌘)    waning gibbous moon..waning crescent moon
+1F319         ; Extended_Pictographic# E0.6   [1] (🌙)       crescent moon
+1F31A         ; Extended_Pictographic# E1.0   [1] (🌚)       new moon face
+1F31B         ; Extended_Pictographic# E0.6   [1] (🌛)       first quarter moon face
+1F31C         ; Extended_Pictographic# E0.7   [1] (🌜)       last quarter moon face
+1F31D..1F31E  ; Extended_Pictographic# E1.0   [2] (🌝..🌞)    full moon face..sun with face
+1F31F..1F320  ; Extended_Pictographic# E0.6   [2] (🌟..🌠)    glowing star..shooting star
+1F321         ; Extended_Pictographic# E0.7   [1] (🌡️)       thermometer
+1F322..1F323  ; Extended_Pictographic# E0.0   [2] (🌢..🌣)    BLACK DROPLET..WHITE SUN
+1F324..1F32C  ; Extended_Pictographic# E0.7   [9] (🌤️..🌬️)    sun behind small cloud..wind face
+1F32D..1F32F  ; Extended_Pictographic# E1.0   [3] (🌭..🌯)    hot dog..burrito
+1F330..1F331  ; Extended_Pictographic# E0.6   [2] (🌰..🌱)    chestnut..seedling
+1F332..1F333  ; Extended_Pictographic# E1.0   [2] (🌲..🌳)    evergreen tree..deciduous tree
+1F334..1F335  ; Extended_Pictographic# E0.6   [2] (🌴..🌵)    palm tree..cactus
+1F336         ; Extended_Pictographic# E0.7   [1] (🌶️)       hot pepper
+1F337..1F34A  ; Extended_Pictographic# E0.6  [20] (🌷..🍊)    tulip..tangerine
+1F34B         ; Extended_Pictographic# E1.0   [1] (🍋)       lemon
+1F34C..1F34F  ; Extended_Pictographic# E0.6   [4] (🍌..🍏)    banana..green apple
+1F350         ; Extended_Pictographic# E1.0   [1] (🍐)       pear
+1F351..1F37B  ; Extended_Pictographic# E0.6  [43] (🍑..🍻)    peach..clinking beer mugs
+1F37C         ; Extended_Pictographic# E1.0   [1] (🍼)       baby bottle
+1F37D         ; Extended_Pictographic# E0.7   [1] (🍽️)       fork and knife with plate
+1F37E..1F37F  ; Extended_Pictographic# E1.0   [2] (🍾..🍿)    bottle with popping cork..popcorn
+1F380..1F393  ; Extended_Pictographic# E0.6  [20] (🎀..🎓)    ribbon..graduation cap
+1F394..1F395  ; Extended_Pictographic# E0.0   [2] (🎔..🎕)    HEART WITH TIP ON THE LEFT..BOUQUET OF FLOWERS
+1F396..1F397  ; Extended_Pictographic# E0.7   [2] (🎖️..🎗️)    military medal..reminder ribbon
+1F398         ; Extended_Pictographic# E0.0   [1] (🎘)       MUSICAL KEYBOARD WITH JACKS
+1F399..1F39B  ; Extended_Pictographic# E0.7   [3] (🎙️..🎛️)    studio microphone..control knobs
+1F39C..1F39D  ; Extended_Pictographic# E0.0   [2] (🎜..🎝)    BEAMED ASCENDING MUSICAL NOTES..BEAMED DESCENDING MUSICAL NOTES
+1F39E..1F39F  ; Extended_Pictographic# E0.7   [2] (🎞️..🎟️)    film frames..admission tickets
+1F3A0..1F3C4  ; Extended_Pictographic# E0.6  [37] (🎠..🏄)    carousel horse..person surfing
+1F3C5         ; Extended_Pictographic# E1.0   [1] (🏅)       sports medal
+1F3C6         ; Extended_Pictographic# E0.6   [1] (🏆)       trophy
+1F3C7         ; Extended_Pictographic# E1.0   [1] (🏇)       horse racing
+1F3C8         ; Extended_Pictographic# E0.6   [1] (🏈)       american football
+1F3C9         ; Extended_Pictographic# E1.0   [1] (🏉)       rugby football
+1F3CA         ; Extended_Pictographic# E0.6   [1] (🏊)       person swimming
+1F3CB..1F3CE  ; Extended_Pictographic# E0.7   [4] (🏋️..🏎️)    person lifting weights..racing car
+1F3CF..1F3D3  ; Extended_Pictographic# E1.0   [5] (🏏..🏓)    cricket game..ping pong
+1F3D4..1F3DF  ; Extended_Pictographic# E0.7  [12] (🏔️..🏟️)    snow-capped mountain..stadium
+1F3E0..1F3E3  ; Extended_Pictographic# E0.6   [4] (🏠..🏣)    house..Japanese post office
+1F3E4         ; Extended_Pictographic# E1.0   [1] (🏤)       post office
+1F3E5..1F3F0  ; Extended_Pictographic# E0.6  [12] (🏥..🏰)    hospital..castle
+1F3F1..1F3F2  ; Extended_Pictographic# E0.0   [2] (🏱..🏲)    WHITE PENNANT..BLACK PENNANT
+1F3F3         ; Extended_Pictographic# E0.7   [1] (🏳️)       white flag
+1F3F4         ; Extended_Pictographic# E1.0   [1] (🏴)       black flag
+1F3F5         ; Extended_Pictographic# E0.7   [1] (🏵️)       rosette
+1F3F6         ; Extended_Pictographic# E0.0   [1] (🏶)       BLACK ROSETTE
+1F3F7         ; Extended_Pictographic# E0.7   [1] (🏷️)       label
+1F3F8..1F3FA  ; Extended_Pictographic# E1.0   [3] (🏸..🏺)    badminton..amphora
+1F400..1F407  ; Extended_Pictographic# E1.0   [8] (🐀..🐇)    rat..rabbit
+1F408         ; Extended_Pictographic# E0.7   [1] (🐈)       cat
+1F409..1F40B  ; Extended_Pictographic# E1.0   [3] (🐉..🐋)    dragon..whale
+1F40C..1F40E  ; Extended_Pictographic# E0.6   [3] (🐌..🐎)    snail..horse
+1F40F..1F410  ; Extended_Pictographic# E1.0   [2] (🐏..🐐)    ram..goat
+1F411..1F412  ; Extended_Pictographic# E0.6   [2] (🐑..🐒)    ewe..monkey
+1F413         ; Extended_Pictographic# E1.0   [1] (🐓)       rooster
+1F414         ; Extended_Pictographic# E0.6   [1] (🐔)       chicken
+1F415         ; Extended_Pictographic# E0.7   [1] (🐕)       dog
+1F416         ; Extended_Pictographic# E1.0   [1] (🐖)       pig
+1F417..1F429  ; Extended_Pictographic# E0.6  [19] (🐗..🐩)    boar..poodle
+1F42A         ; Extended_Pictographic# E1.0   [1] (🐪)       camel
+1F42B..1F43E  ; Extended_Pictographic# E0.6  [20] (🐫..🐾)    two-hump camel..paw prints
+1F43F         ; Extended_Pictographic# E0.7   [1] (🐿️)       chipmunk
+1F440         ; Extended_Pictographic# E0.6   [1] (👀)       eyes
+1F441         ; Extended_Pictographic# E0.7   [1] (👁️)       eye
+1F442..1F464  ; Extended_Pictographic# E0.6  [35] (👂..👤)    ear..bust in silhouette
+1F465         ; Extended_Pictographic# E1.0   [1] (👥)       busts in silhouette
+1F466..1F46B  ; Extended_Pictographic# E0.6   [6] (👦..👫)    boy..woman and man holding hands
+1F46C..1F46D  ; Extended_Pictographic# E1.0   [2] (👬..👭)    men holding hands..women holding hands
+1F46E..1F4AC  ; Extended_Pictographic# E0.6  [63] (👮..💬)    police officer..speech balloon
+1F4AD         ; Extended_Pictographic# E1.0   [1] (💭)       thought balloon
+1F4AE..1F4B5  ; Extended_Pictographic# E0.6   [8] (💮..💵)    white flower..dollar banknote
+1F4B6..1F4B7  ; Extended_Pictographic# E1.0   [2] (💶..💷)    euro banknote..pound banknote
+1F4B8..1F4EB  ; Extended_Pictographic# E0.6  [52] (💸..📫)    money with wings..closed mailbox with raised flag
+1F4EC..1F4ED  ; Extended_Pictographic# E0.7   [2] (📬..📭)    open mailbox with raised flag..open mailbox with lowered flag
+1F4EE         ; Extended_Pictographic# E0.6   [1] (📮)       postbox
+1F4EF         ; Extended_Pictographic# E1.0   [1] (📯)       postal horn
+1F4F0..1F4F4  ; Extended_Pictographic# E0.6   [5] (📰..📴)    newspaper..mobile phone off
+1F4F5         ; Extended_Pictographic# E1.0   [1] (📵)       no mobile phones
+1F4F6..1F4F7  ; Extended_Pictographic# E0.6   [2] (📶..📷)    antenna bars..camera
+1F4F8         ; Extended_Pictographic# E1.0   [1] (📸)       camera with flash
+1F4F9..1F4FC  ; Extended_Pictographic# E0.6   [4] (📹..📼)    video camera..videocassette
+1F4FD         ; Extended_Pictographic# E0.7   [1] (📽️)       film projector
+1F4FE         ; Extended_Pictographic# E0.0   [1] (📾)       PORTABLE STEREO
+1F4FF..1F502  ; Extended_Pictographic# E1.0   [4] (📿..🔂)    prayer beads..repeat single button
+1F503         ; Extended_Pictographic# E0.6   [1] (🔃)       clockwise vertical arrows
+1F504..1F507  ; Extended_Pictographic# E1.0   [4] (🔄..🔇)    counterclockwise arrows button..muted speaker
+1F508         ; Extended_Pictographic# E0.7   [1] (🔈)       speaker low volume
+1F509         ; Extended_Pictographic# E1.0   [1] (🔉)       speaker medium volume
+1F50A..1F514  ; Extended_Pictographic# E0.6  [11] (🔊..🔔)    speaker high volume..bell
+1F515         ; Extended_Pictographic# E1.0   [1] (🔕)       bell with slash
+1F516..1F52B  ; Extended_Pictographic# E0.6  [22] (🔖..🔫)    bookmark..water pistol
+1F52C..1F52D  ; Extended_Pictographic# E1.0   [2] (🔬..🔭)    microscope..telescope
+1F52E..1F53D  ; Extended_Pictographic# E0.6  [16] (🔮..🔽)    crystal ball..downwards button
+1F546..1F548  ; Extended_Pictographic# E0.0   [3] (🕆..🕈)    WHITE LATIN CROSS..CELTIC CROSS
+1F549..1F54A  ; Extended_Pictographic# E0.7   [2] (🕉️..🕊️)    om..dove
+1F54B..1F54E  ; Extended_Pictographic# E1.0   [4] (🕋..🕎)    kaaba..menorah
+1F54F         ; Extended_Pictographic# E0.0   [1] (🕏)       BOWL OF HYGIEIA
+1F550..1F55B  ; Extended_Pictographic# E0.6  [12] (🕐..🕛)    one o’clock..twelve o’clock
+1F55C..1F567  ; Extended_Pictographic# E0.7  [12] (🕜..🕧)    one-thirty..twelve-thirty
+1F568..1F56E  ; Extended_Pictographic# E0.0   [7] (🕨..🕮)    RIGHT SPEAKER..BOOK
+1F56F..1F570  ; Extended_Pictographic# E0.7   [2] (🕯️..🕰️)    candle..mantelpiece clock
+1F571..1F572  ; Extended_Pictographic# E0.0   [2] (🕱..🕲)    BLACK SKULL AND CROSSBONES..NO PIRACY
+1F573..1F579  ; Extended_Pictographic# E0.7   [7] (🕳️..🕹️)    hole..joystick
+1F57A         ; Extended_Pictographic# E3.0   [1] (🕺)       man dancing
+1F57B..1F586  ; Extended_Pictographic# E0.0  [12] (🕻..🖆)    LEFT HAND TELEPHONE RECEIVER..PEN OVER STAMPED ENVELOPE
+1F587         ; Extended_Pictographic# E0.7   [1] (🖇️)       linked paperclips
+1F588..1F589  ; Extended_Pictographic# E0.0   [2] (🖈..🖉)    BLACK PUSHPIN..LOWER LEFT PENCIL
+1F58A..1F58D  ; Extended_Pictographic# E0.7   [4] (🖊️..🖍️)    pen..crayon
+1F58E..1F58F  ; Extended_Pictographic# E0.0   [2] (🖎..🖏)    LEFT WRITING HAND..TURNED OK HAND SIGN
+1F590         ; Extended_Pictographic# E0.7   [1] (🖐️)       hand with fingers splayed
+1F591..1F594  ; Extended_Pictographic# E0.0   [4] (🖑..🖔)    REVERSED RAISED HAND WITH FINGERS SPLAYED..REVERSED VICTORY HAND
+1F595..1F596  ; Extended_Pictographic# E1.0   [2] (🖕..🖖)    middle finger..vulcan salute
+1F597..1F5A3  ; Extended_Pictographic# E0.0  [13] (🖗..🖣)    WHITE DOWN POINTING LEFT HAND INDEX..BLACK DOWN POINTING BACKHAND INDEX
+1F5A4         ; Extended_Pictographic# E3.0   [1] (🖤)       black heart
+1F5A5         ; Extended_Pictographic# E0.7   [1] (🖥️)       desktop computer
+1F5A6..1F5A7  ; Extended_Pictographic# E0.0   [2] (🖦..🖧)    KEYBOARD AND MOUSE..THREE NETWORKED COMPUTERS
+1F5A8         ; Extended_Pictographic# E0.7   [1] (🖨️)       printer
+1F5A9..1F5B0  ; Extended_Pictographic# E0.0   [8] (🖩..🖰)    POCKET CALCULATOR..TWO BUTTON MOUSE
+1F5B1..1F5B2  ; Extended_Pictographic# E0.7   [2] (🖱️..🖲️)    computer mouse..trackball
+1F5B3..1F5BB  ; Extended_Pictographic# E0.0   [9] (🖳..🖻)    OLD PERSONAL COMPUTER..DOCUMENT WITH PICTURE
+1F5BC         ; Extended_Pictographic# E0.7   [1] (🖼️)       framed picture
+1F5BD..1F5C1  ; Extended_Pictographic# E0.0   [5] (🖽..🗁)    FRAME WITH TILES..OPEN FOLDER
+1F5C2..1F5C4  ; Extended_Pictographic# E0.7   [3] (🗂️..🗄️)    card index dividers..file cabinet
+1F5C5..1F5D0  ; Extended_Pictographic# E0.0  [12] (🗅..🗐)    EMPTY NOTE..PAGES
+1F5D1..1F5D3  ; Extended_Pictographic# E0.7   [3] (🗑️..🗓️)    wastebasket..spiral calendar
+1F5D4..1F5DB  ; Extended_Pictographic# E0.0   [8] (🗔..🗛)    DESKTOP WINDOW..DECREASE FONT SIZE SYMBOL
+1F5DC..1F5DE  ; Extended_Pictographic# E0.7   [3] (🗜️..🗞️)    clamp..rolled-up newspaper
+1F5DF..1F5E0  ; Extended_Pictographic# E0.0   [2] (🗟..🗠)    PAGE WITH CIRCLED TEXT..STOCK CHART
+1F5E1         ; Extended_Pictographic# E0.7   [1] (🗡️)       dagger
+1F5E2         ; Extended_Pictographic# E0.0   [1] (🗢)       LIPS
+1F5E3         ; Extended_Pictographic# E0.7   [1] (🗣️)       speaking head
+1F5E4..1F5E7  ; Extended_Pictographic# E0.0   [4] (🗤..🗧)    THREE RAYS ABOVE..THREE RAYS RIGHT
+1F5E8         ; Extended_Pictographic# E2.0   [1] (🗨️)       left speech bubble
+1F5E9..1F5EE  ; Extended_Pictographic# E0.0   [6] (🗩..🗮)    RIGHT SPEECH BUBBLE..LEFT ANGER BUBBLE
+1F5EF         ; Extended_Pictographic# E0.7   [1] (🗯️)       right anger bubble
+1F5F0..1F5F2  ; Extended_Pictographic# E0.0   [3] (🗰..🗲)    MOOD BUBBLE..LIGHTNING MOOD
+1F5F3         ; Extended_Pictographic# E0.7   [1] (🗳️)       ballot box with ballot
+1F5F4..1F5F9  ; Extended_Pictographic# E0.0   [6] (🗴..🗹)    BALLOT SCRIPT X..BALLOT BOX WITH BOLD CHECK
+1F5FA         ; Extended_Pictographic# E0.7   [1] (🗺️)       world map
+1F5FB..1F5FF  ; Extended_Pictographic# E0.6   [5] (🗻..🗿)    mount fuji..moai
+1F600         ; Extended_Pictographic# E1.0   [1] (😀)       grinning face
+1F601..1F606  ; Extended_Pictographic# E0.6   [6] (😁..😆)    beaming face with smiling eyes..grinning squinting face
+1F607..1F608  ; Extended_Pictographic# E1.0   [2] (😇..😈)    smiling face with halo..smiling face with horns
+1F609..1F60D  ; Extended_Pictographic# E0.6   [5] (😉..😍)    winking face..smiling face with heart-eyes
+1F60E         ; Extended_Pictographic# E1.0   [1] (😎)       smiling face with sunglasses
+1F60F         ; Extended_Pictographic# E0.6   [1] (😏)       smirking face
+1F610         ; Extended_Pictographic# E0.7   [1] (😐)       neutral face
+1F611         ; Extended_Pictographic# E1.0   [1] (😑)       expressionless face
+1F612..1F614  ; Extended_Pictographic# E0.6   [3] (😒..😔)    unamused face..pensive face
+1F615         ; Extended_Pictographic# E1.0   [1] (😕)       confused face
+1F616         ; Extended_Pictographic# E0.6   [1] (😖)       confounded face
+1F617         ; Extended_Pictographic# E1.0   [1] (😗)       kissing face
+1F618         ; Extended_Pictographic# E0.6   [1] (😘)       face blowing a kiss
+1F619         ; Extended_Pictographic# E1.0   [1] (😙)       kissing face with smiling eyes
+1F61A         ; Extended_Pictographic# E0.6   [1] (😚)       kissing face with closed eyes
+1F61B         ; Extended_Pictographic# E1.0   [1] (😛)       face with tongue
+1F61C..1F61E  ; Extended_Pictographic# E0.6   [3] (😜..😞)    winking face with tongue..disappointed face
+1F61F         ; Extended_Pictographic# E1.0   [1] (😟)       worried face
+1F620..1F625  ; Extended_Pictographic# E0.6   [6] (😠..😥)    angry face..sad but relieved face
+1F626..1F627  ; Extended_Pictographic# E1.0   [2] (😦..😧)    frowning face with open mouth..anguished face
+1F628..1F62B  ; Extended_Pictographic# E0.6   [4] (😨..😫)    fearful face..tired face
+1F62C         ; Extended_Pictographic# E1.0   [1] (😬)       grimacing face
+1F62D         ; Extended_Pictographic# E0.6   [1] (😭)       loudly crying face
+1F62E..1F62F  ; Extended_Pictographic# E1.0   [2] (😮..😯)    face with open mouth..hushed face
+1F630..1F633  ; Extended_Pictographic# E0.6   [4] (😰..😳)    anxious face with sweat..flushed face
+1F634         ; Extended_Pictographic# E1.0   [1] (😴)       sleeping face
+1F635         ; Extended_Pictographic# E0.6   [1] (😵)       face with crossed-out eyes
+1F636         ; Extended_Pictographic# E1.0   [1] (😶)       face without mouth
+1F637..1F640  ; Extended_Pictographic# E0.6  [10] (😷..🙀)    face with medical mask..weary cat
+1F641..1F644  ; Extended_Pictographic# E1.0   [4] (🙁..🙄)    slightly frowning face..face with rolling eyes
+1F645..1F64F  ; Extended_Pictographic# E0.6  [11] (🙅..🙏)    person gesturing NO..folded hands
+1F680         ; Extended_Pictographic# E0.6   [1] (🚀)       rocket
+1F681..1F682  ; Extended_Pictographic# E1.0   [2] (🚁..🚂)    helicopter..locomotive
+1F683..1F685  ; Extended_Pictographic# E0.6   [3] (🚃..🚅)    railway car..bullet train
+1F686         ; Extended_Pictographic# E1.0   [1] (🚆)       train
+1F687         ; Extended_Pictographic# E0.6   [1] (🚇)       metro
+1F688         ; Extended_Pictographic# E1.0   [1] (🚈)       light rail
+1F689         ; Extended_Pictographic# E0.6   [1] (🚉)       station
+1F68A..1F68B  ; Extended_Pictographic# E1.0   [2] (🚊..🚋)    tram..tram car
+1F68C         ; Extended_Pictographic# E0.6   [1] (🚌)       bus
+1F68D         ; Extended_Pictographic# E0.7   [1] (🚍)       oncoming bus
+1F68E         ; Extended_Pictographic# E1.0   [1] (🚎)       trolleybus
+1F68F         ; Extended_Pictographic# E0.6   [1] (🚏)       bus stop
+1F690         ; Extended_Pictographic# E1.0   [1] (🚐)       minibus
+1F691..1F693  ; Extended_Pictographic# E0.6   [3] (🚑..🚓)    ambulance..police car
+1F694         ; Extended_Pictographic# E0.7   [1] (🚔)       oncoming police car
+1F695         ; Extended_Pictographic# E0.6   [1] (🚕)       taxi
+1F696         ; Extended_Pictographic# E1.0   [1] (🚖)       oncoming taxi
+1F697         ; Extended_Pictographic# E0.6   [1] (🚗)       automobile
+1F698         ; Extended_Pictographic# E0.7   [1] (🚘)       oncoming automobile
+1F699..1F69A  ; Extended_Pictographic# E0.6   [2] (🚙..🚚)    sport utility vehicle..delivery truck
+1F69B..1F6A1  ; Extended_Pictographic# E1.0   [7] (🚛..🚡)    articulated lorry..aerial tramway
+1F6A2         ; Extended_Pictographic# E0.6   [1] (🚢)       ship
+1F6A3         ; Extended_Pictographic# E1.0   [1] (🚣)       person rowing boat
+1F6A4..1F6A5  ; Extended_Pictographic# E0.6   [2] (🚤..🚥)    speedboat..horizontal traffic light
+1F6A6         ; Extended_Pictographic# E1.0   [1] (🚦)       vertical traffic light
+1F6A7..1F6AD  ; Extended_Pictographic# E0.6   [7] (🚧..🚭)    construction..no smoking
+1F6AE..1F6B1  ; Extended_Pictographic# E1.0   [4] (🚮..🚱)    litter in bin sign..non-potable water
+1F6B2         ; Extended_Pictographic# E0.6   [1] (🚲)       bicycle
+1F6B3..1F6B5  ; Extended_Pictographic# E1.0   [3] (🚳..🚵)    no bicycles..person mountain biking
+1F6B6         ; Extended_Pictographic# E0.6   [1] (🚶)       person walking
+1F6B7..1F6B8  ; Extended_Pictographic# E1.0   [2] (🚷..🚸)    no pedestrians..children crossing
+1F6B9..1F6BE  ; Extended_Pictographic# E0.6   [6] (🚹..🚾)    men’s room..water closet
+1F6BF         ; Extended_Pictographic# E1.0   [1] (🚿)       shower
+1F6C0         ; Extended_Pictographic# E0.6   [1] (🛀)       person taking bath
+1F6C1..1F6C5  ; Extended_Pictographic# E1.0   [5] (🛁..🛅)    bathtub..left luggage
+1F6C6..1F6CA  ; Extended_Pictographic# E0.0   [5] (🛆..🛊)    TRIANGLE WITH ROUNDED CORNERS..GIRLS SYMBOL
+1F6CB         ; Extended_Pictographic# E0.7   [1] (🛋️)       couch and lamp
+1F6CC         ; Extended_Pictographic# E1.0   [1] (🛌)       person in bed
+1F6CD..1F6CF  ; Extended_Pictographic# E0.7   [3] (🛍️..🛏️)    shopping bags..bed
+1F6D0         ; Extended_Pictographic# E1.0   [1] (🛐)       place of worship
+1F6D1..1F6D2  ; Extended_Pictographic# E3.0   [2] (🛑..🛒)    stop sign..shopping cart
+1F6D3..1F6D4  ; Extended_Pictographic# E0.0   [2] (🛓..🛔)    STUPA..PAGODA
+1F6D5         ; Extended_Pictographic# E12.0  [1] (🛕)       hindu temple
+1F6D6..1F6D7  ; Extended_Pictographic# E13.0  [2] (🛖..🛗)    hut..elevator
+1F6D8..1F6DB  ; Extended_Pictographic# E0.0   [4] (🛘..🛛)    <reserved-1F6D8>..<reserved-1F6DB>
+1F6DC         ; Extended_Pictographic# E15.0  [1] (🛜)       wireless
+1F6DD..1F6DF  ; Extended_Pictographic# E14.0  [3] (🛝..🛟)    playground slide..ring buoy
+1F6E0..1F6E5  ; Extended_Pictographic# E0.7   [6] (🛠️..🛥️)    hammer and wrench..motor boat
+1F6E6..1F6E8  ; Extended_Pictographic# E0.0   [3] (🛦..🛨)    UP-POINTING MILITARY AIRPLANE..UP-POINTING SMALL AIRPLANE
+1F6E9         ; Extended_Pictographic# E0.7   [1] (🛩️)       small airplane
+1F6EA         ; Extended_Pictographic# E0.0   [1] (🛪)       NORTHEAST-POINTING AIRPLANE
+1F6EB..1F6EC  ; Extended_Pictographic# E1.0   [2] (🛫..🛬)    airplane departure..airplane arrival
+1F6ED..1F6EF  ; Extended_Pictographic# E0.0   [3] (🛭..🛯)    <reserved-1F6ED>..<reserved-1F6EF>
+1F6F0         ; Extended_Pictographic# E0.7   [1] (🛰️)       satellite
+1F6F1..1F6F2  ; Extended_Pictographic# E0.0   [2] (🛱..🛲)    ONCOMING FIRE ENGINE..DIESEL LOCOMOTIVE
+1F6F3         ; Extended_Pictographic# E0.7   [1] (🛳️)       passenger ship
+1F6F4..1F6F6  ; Extended_Pictographic# E3.0   [3] (🛴..🛶)    kick scooter..canoe
+1F6F7..1F6F8  ; Extended_Pictographic# E5.0   [2] (🛷..🛸)    sled..flying saucer
+1F6F9         ; Extended_Pictographic# E11.0  [1] (🛹)       skateboard
+1F6FA         ; Extended_Pictographic# E12.0  [1] (🛺)       auto rickshaw
+1F6FB..1F6FC  ; Extended_Pictographic# E13.0  [2] (🛻..🛼)    pickup truck..roller skate
+1F6FD..1F6FF  ; Extended_Pictographic# E0.0   [3] (🛽..🛿)    <reserved-1F6FD>..<reserved-1F6FF>
+1F774..1F77F  ; Extended_Pictographic# E0.0  [12] (🝴..🝿)    LOT OF FORTUNE..ORCUS
+1F7D5..1F7DF  ; Extended_Pictographic# E0.0  [11] (🟕..🟟)    CIRCLED TRIANGLE..<reserved-1F7DF>
+1F7E0..1F7EB  ; Extended_Pictographic# E12.0 [12] (🟠..🟫)    orange circle..brown square
+1F7EC..1F7EF  ; Extended_Pictographic# E0.0   [4] (🟬..🟯)    <reserved-1F7EC>..<reserved-1F7EF>
+1F7F0         ; Extended_Pictographic# E14.0  [1] (🟰)       heavy equals sign
+1F7F1..1F7FF  ; Extended_Pictographic# E0.0  [15] (🟱..🟿)    <reserved-1F7F1>..<reserved-1F7FF>
+1F80C..1F80F  ; Extended_Pictographic# E0.0   [4] (🠌..🠏)    <reserved-1F80C>..<reserved-1F80F>
+1F848..1F84F  ; Extended_Pictographic# E0.0   [8] (🡈..🡏)    <reserved-1F848>..<reserved-1F84F>
+1F85A..1F85F  ; Extended_Pictographic# E0.0   [6] (🡚..🡟)    <reserved-1F85A>..<reserved-1F85F>
+1F888..1F88F  ; Extended_Pictographic# E0.0   [8] (🢈..🢏)    <reserved-1F888>..<reserved-1F88F>
+1F8AE..1F8FF  ; Extended_Pictographic# E0.0  [82] (🢮..🣿)    <reserved-1F8AE>..<reserved-1F8FF>
+1F90C         ; Extended_Pictographic# E13.0  [1] (🤌)       pinched fingers
+1F90D..1F90F  ; Extended_Pictographic# E12.0  [3] (🤍..🤏)    white heart..pinching hand
+1F910..1F918  ; Extended_Pictographic# E1.0   [9] (🤐..🤘)    zipper-mouth face..sign of the horns
+1F919..1F91E  ; Extended_Pictographic# E3.0   [6] (🤙..🤞)    call me hand..crossed fingers
+1F91F         ; Extended_Pictographic# E5.0   [1] (🤟)       love-you gesture
+1F920..1F927  ; Extended_Pictographic# E3.0   [8] (🤠..🤧)    cowboy hat face..sneezing face
+1F928..1F92F  ; Extended_Pictographic# E5.0   [8] (🤨..🤯)    face with raised eyebrow..exploding head
+1F930         ; Extended_Pictographic# E3.0   [1] (🤰)       pregnant woman
+1F931..1F932  ; Extended_Pictographic# E5.0   [2] (🤱..🤲)    breast-feeding..palms up together
+1F933..1F93A  ; Extended_Pictographic# E3.0   [8] (🤳..🤺)    selfie..person fencing
+1F93C..1F93E  ; Extended_Pictographic# E3.0   [3] (🤼..🤾)    people wrestling..person playing handball
+1F93F         ; Extended_Pictographic# E12.0  [1] (🤿)       diving mask
+1F940..1F945  ; Extended_Pictographic# E3.0   [6] (🥀..🥅)    wilted flower..goal net
+1F947..1F94B  ; Extended_Pictographic# E3.0   [5] (🥇..🥋)    1st place medal..martial arts uniform
+1F94C         ; Extended_Pictographic# E5.0   [1] (🥌)       curling stone
+1F94D..1F94F  ; Extended_Pictographic# E11.0  [3] (🥍..🥏)    lacrosse..flying disc
+1F950..1F95E  ; Extended_Pictographic# E3.0  [15] (🥐..🥞)    croissant..pancakes
+1F95F..1F96B  ; Extended_Pictographic# E5.0  [13] (🥟..🥫)    dumpling..canned food
+1F96C..1F970  ; Extended_Pictographic# E11.0  [5] (🥬..🥰)    leafy green..smiling face with hearts
+1F971         ; Extended_Pictographic# E12.0  [1] (🥱)       yawning face
+1F972         ; Extended_Pictographic# E13.0  [1] (🥲)       smiling face with tear
+1F973..1F976  ; Extended_Pictographic# E11.0  [4] (🥳..🥶)    partying face..cold face
+1F977..1F978  ; Extended_Pictographic# E13.0  [2] (🥷..🥸)    ninja..disguised face
+1F979         ; Extended_Pictographic# E14.0  [1] (🥹)       face holding back tears
+1F97A         ; Extended_Pictographic# E11.0  [1] (🥺)       pleading face
+1F97B         ; Extended_Pictographic# E12.0  [1] (🥻)       sari
+1F97C..1F97F  ; Extended_Pictographic# E11.0  [4] (🥼..🥿)    lab coat..flat shoe
+1F980..1F984  ; Extended_Pictographic# E1.0   [5] (🦀..🦄)    crab..unicorn
+1F985..1F991  ; Extended_Pictographic# E3.0  [13] (🦅..🦑)    eagle..squid
+1F992..1F997  ; Extended_Pictographic# E5.0   [6] (🦒..🦗)    giraffe..cricket
+1F998..1F9A2  ; Extended_Pictographic# E11.0 [11] (🦘..🦢)    kangaroo..swan
+1F9A3..1F9A4  ; Extended_Pictographic# E13.0  [2] (🦣..🦤)    mammoth..dodo
+1F9A5..1F9AA  ; Extended_Pictographic# E12.0  [6] (🦥..🦪)    sloth..oyster
+1F9AB..1F9AD  ; Extended_Pictographic# E13.0  [3] (🦫..🦭)    beaver..seal
+1F9AE..1F9AF  ; Extended_Pictographic# E12.0  [2] (🦮..🦯)    guide dog..white cane
+1F9B0..1F9B9  ; Extended_Pictographic# E11.0 [10] (🦰..🦹)    red hair..supervillain
+1F9BA..1F9BF  ; Extended_Pictographic# E12.0  [6] (🦺..🦿)    safety vest..mechanical leg
+1F9C0         ; Extended_Pictographic# E1.0   [1] (🧀)       cheese wedge
+1F9C1..1F9C2  ; Extended_Pictographic# E11.0  [2] (🧁..🧂)    cupcake..salt
+1F9C3..1F9CA  ; Extended_Pictographic# E12.0  [8] (🧃..🧊)    beverage box..ice
+1F9CB         ; Extended_Pictographic# E13.0  [1] (🧋)       bubble tea
+1F9CC         ; Extended_Pictographic# E14.0  [1] (🧌)       troll
+1F9CD..1F9CF  ; Extended_Pictographic# E12.0  [3] (🧍..🧏)    person standing..deaf person
+1F9D0..1F9E6  ; Extended_Pictographic# E5.0  [23] (🧐..🧦)    face with monocle..socks
+1F9E7..1F9FF  ; Extended_Pictographic# E11.0 [25] (🧧..🧿)    red envelope..nazar amulet
+1FA00..1FA6F  ; Extended_Pictographic# E0.0 [112] (🨀..🩯)    NEUTRAL CHESS KING..<reserved-1FA6F>
+1FA70..1FA73  ; Extended_Pictographic# E12.0  [4] (🩰..🩳)    ballet shoes..shorts
+1FA74         ; Extended_Pictographic# E13.0  [1] (🩴)       thong sandal
+1FA75..1FA77  ; Extended_Pictographic# E15.0  [3] (🩵..🩷)    light blue heart..pink heart
+1FA78..1FA7A  ; Extended_Pictographic# E12.0  [3] (🩸..🩺)    drop of blood..stethoscope
+1FA7B..1FA7C  ; Extended_Pictographic# E14.0  [2] (🩻..🩼)    x-ray..crutch
+1FA7D..1FA7F  ; Extended_Pictographic# E0.0   [3] (🩽..🩿)    <reserved-1FA7D>..<reserved-1FA7F>
+1FA80..1FA82  ; Extended_Pictographic# E12.0  [3] (🪀..🪂)    yo-yo..parachute
+1FA83..1FA86  ; Extended_Pictographic# E13.0  [4] (🪃..🪆)    boomerang..nesting dolls
+1FA87..1FA88  ; Extended_Pictographic# E15.0  [2] (🪇..🪈)    maracas..flute
+1FA89..1FA8F  ; Extended_Pictographic# E0.0   [7] (🪉..🪏)    <reserved-1FA89>..<reserved-1FA8F>
+1FA90..1FA95  ; Extended_Pictographic# E12.0  [6] (🪐..🪕)    ringed planet..banjo
+1FA96..1FAA8  ; Extended_Pictographic# E13.0 [19] (🪖..🪨)    military helmet..rock
+1FAA9..1FAAC  ; Extended_Pictographic# E14.0  [4] (🪩..🪬)    mirror ball..hamsa
+1FAAD..1FAAF  ; Extended_Pictographic# E15.0  [3] (🪭..🪯)    folding hand fan..khanda
+1FAB0..1FAB6  ; Extended_Pictographic# E13.0  [7] (🪰..🪶)    fly..feather
+1FAB7..1FABA  ; Extended_Pictographic# E14.0  [4] (🪷..🪺)    lotus..nest with eggs
+1FABB..1FABD  ; Extended_Pictographic# E15.0  [3] (🪻..🪽)    hyacinth..wing
+1FABE         ; Extended_Pictographic# E0.0   [1] (🪾)       <reserved-1FABE>
+1FABF         ; Extended_Pictographic# E15.0  [1] (🪿)       goose
+1FAC0..1FAC2  ; Extended_Pictographic# E13.0  [3] (🫀..🫂)    anatomical heart..people hugging
+1FAC3..1FAC5  ; Extended_Pictographic# E14.0  [3] (🫃..🫅)    pregnant man..person with crown
+1FAC6..1FACD  ; Extended_Pictographic# E0.0   [8] (🫆..🫍)    <reserved-1FAC6>..<reserved-1FACD>
+1FACE..1FACF  ; Extended_Pictographic# E15.0  [2] (🫎..🫏)    moose..donkey
+1FAD0..1FAD6  ; Extended_Pictographic# E13.0  [7] (🫐..🫖)    blueberries..teapot
+1FAD7..1FAD9  ; Extended_Pictographic# E14.0  [3] (🫗..🫙)    pouring liquid..jar
+1FADA..1FADB  ; Extended_Pictographic# E15.0  [2] (🫚..🫛)    ginger root..pea pod
+1FADC..1FADF  ; Extended_Pictographic# E0.0   [4] (🫜..🫟)    <reserved-1FADC>..<reserved-1FADF>
+1FAE0..1FAE7  ; Extended_Pictographic# E14.0  [8] (🫠..🫧)    melting face..bubbles
+1FAE8         ; Extended_Pictographic# E15.0  [1] (🫨)       shaking face
+1FAE9..1FAEF  ; Extended_Pictographic# E0.0   [7] (🫩..🫯)    <reserved-1FAE9>..<reserved-1FAEF>
+1FAF0..1FAF6  ; Extended_Pictographic# E14.0  [7] (🫰..🫶)    hand with index finger and thumb crossed..heart hands
+1FAF7..1FAF8  ; Extended_Pictographic# E15.0  [2] (🫷..🫸)    leftwards pushing hand..rightwards pushing hand
+1FAF9..1FAFF  ; Extended_Pictographic# E0.0   [7] (🫹..🫿)    <reserved-1FAF9>..<reserved-1FAFF>
+1FC00..1FFFD  ; Extended_Pictographic# E0.0[1022] (🰀..🿽)    <reserved-1FC00>..<reserved-1FFFD>
+
+# Total elements: 3537
+
+#EOF

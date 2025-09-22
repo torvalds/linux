@@ -1,0 +1,162 @@
+.\"	$OpenBSD: getsockname.2,v 1.32 2022/09/11 06:38:11 jmc Exp $
+.\"	$NetBSD: getsockname.2,v 1.6 1995/10/12 15:41:00 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getsockname.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt GETSOCKNAME 2
+.Os
+.Sh NAME
+.Nm getsockname
+.Nd get socket name
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn getsockname "int s" "struct sockaddr *name" "socklen_t *namelen"
+.Sh DESCRIPTION
+.Fn getsockname
+returns the locally bound address information for a specified socket.
+.Pp
+Common uses of this function are as follows:
+.Bl -bullet
+.It
+When
+.Xr bind 2
+is called with a port number of 0 (indicating the kernel should pick
+an ephemeral port),
+.Fn getsockname
+is used to retrieve the kernel-assigned port number.
+.It
+When a process calls
+.Xr bind 2
+on a wildcard IP address,
+.Fn getsockname
+is used to retrieve the local IP address for the connection.
+.It
+When a function wishes to know the address family of a socket,
+.Fn getsockname
+can be used.
+.El
+.Pp
+.Fn getsockname
+takes three parameters:
+.Pp
+.Fa s
+contains the file descriptor for the socket to be looked up.
+.Pp
+.Fa name
+points to a
+.Vt sockaddr
+structure which will hold the resulting address information.
+Normal use requires one to use a structure
+specific to the protocol family in use, such as
+.Vt sockaddr_in
+(IPv4) or
+.Vt sockaddr_in6
+(IPv6), cast to a (struct sockaddr *).
+.Pp
+For greater portability (such as newer protocol families) the new
+structure sockaddr_storage exists.
+.Vt sockaddr_storage
+is large enough to hold any of the other sockaddr_* variants.
+On return, it should be cast to the correct sockaddr type,
+according to the current protocol family.
+.Pp
+.Fa namelen
+indicates the amount of space pointed to by
+.Fa name ,
+in bytes.
+Upon return,
+.Fa namelen
+is set to the actual size of the returned address information.
+.Pp
+If the address of the destination socket for a given socket connection is
+needed, the
+.Xr getpeername 2
+function should be used instead.
+.Pp
+If
+.Fa name
+does not point to enough space to hold the entire socket address, the
+result will be truncated to
+.Fa namelen
+bytes.
+.Sh RETURN VALUES
+On success,
+.Fn getsockname
+returns a 0, and
+.Fa namelen
+is set to the actual size of the socket address returned in
+.Fa name .
+Otherwise,
+.Va errno
+is set, and a value of \-1 is returned.
+.Sh ERRORS
+If
+.Fn getsockname
+fails,
+.Va errno
+is set to one of the following:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The argument
+.Fa s
+is not a valid descriptor.
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+is a file, not a socket.
+.It Bq Er ENOBUFS
+Insufficient resources were available in the system
+to perform the operation.
+.It Bq Er EFAULT
+The
+.Fa name
+or
+.Fa namelen
+parameter points to memory not in a valid part of the
+process address space.
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr bind 2 ,
+.Xr getpeername 2 ,
+.Xr socket 2 ,
+.Xr getpeereid 3
+.Sh STANDARDS
+The
+.Fn getsockname
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn getsockname
+function call appeared in
+.Bx 4.2 .

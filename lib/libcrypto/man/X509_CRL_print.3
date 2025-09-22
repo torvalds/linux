@@ -1,0 +1,114 @@
+.\" $OpenBSD: X509_CRL_print.3,v 1.2 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_CRL_PRINT 3
+.Os
+.Sh NAME
+.Nm X509_CRL_print ,
+.Nm X509_CRL_print_fp
+.Nd pretty-print a certificate revocation list
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_CRL_print
+.Fa "BIO *bio"
+.Fa "X509_CRL *crl"
+.Fc
+.Ft int
+.Fo X509_CRL_print_fp
+.Fa "FILE *fp"
+.Fa "X509_CRL *crl"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_CRL_print
+prints information contained in
+.Fa crl
+to
+.Fa bio
+in human-readable form, in the following order:
+.Bl -bullet
+.It
+The certificate revocation list version number as defined by
+the standard, followed in parentheses by the value contained
+in the version field in hexadecimal notation.
+See
+.Xr X509_CRL_get_version 3
+for details.
+.It
+The name of the signature algorithm is printed with
+.Xr X509_signature_print 3 .
+.It
+The issuer name as returned by
+.Xr X509_CRL_get_issuer 3 .
+.It
+The times of the last and next updates as returned by
+.Xr X509_CRL_get0_lastUpdate 3
+and
+.Xr X509_CRL_get0_nextUpdate 3
+are printed with
+.Xr ASN1_TIME_print 3 .
+.It
+All X.509 extensions directly contained
+in the certificate revocation list object
+.Fa crl
+are printed with
+.Xr X509V3_extensions_print 3 .
+.It
+Information about revoked certificates is retrieved with
+.Xr X509_CRL_get_REVOKED 3 ,
+and for each revoked certificate, the following is printed:
+.Bl -bullet
+.It
+The serial number of the certificate is printed with
+.Xr i2a_ASN1_INTEGER 3 .
+.It
+The revocation date is printed with
+.Xr ASN1_TIME_print 3 .
+.It
+All X.509 extensions contained in the revocation entry are printed with
+.Xr X509V3_extensions_print 3 .
+.El
+.It
+The signature of
+.Fa crl
+is printed with
+.Xr X509_signature_print 3 .
+.El
+.Pp
+.Fn X509_CRL_print_fp
+is similar to
+.Fn X509_CRL_print
+except that it prints to
+.Fa fp .
+.Sh RETURN VALUES
+These functions are intended to return 1 for success and 0 for error.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_print_ex 3 ,
+.Xr X509_REVOKED_new 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.2 and have been available since
+.Ox 2.6 .
+.Sh BUGS
+Most I/O errors are silently ignored.
+Even if the information printed is incomplete, these functions may
+return 1 anyway.
+.Pp
+If the version number is invalid, no information from the CRL is printed
+and the functions fail.

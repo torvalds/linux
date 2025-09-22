@@ -1,0 +1,181 @@
+.\" $OpenBSD: tls_init.3,v 1.14 2025/07/07 10:54:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2014 Ted Unangst <tedu@openbsd.org>
+.\" Copyright (c) 2016 Joel Sing <jsing@openbsd.org>
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt TLS_INIT 3
+.Os
+.Sh NAME
+.Nm tls_init ,
+.Nm tls_config_new ,
+.Nm tls_config_free ,
+.Nm tls_config_error
+.Nd initialize TLS client and server API
+.Sh SYNOPSIS
+.Lb libtls libssl libcrypto
+.In tls.h
+.Ft int
+.Fn tls_init void
+.Ft struct tls_config *
+.Fn tls_config_new void
+.Ft void
+.Fn tls_config_free "struct tls_config *config"
+.Ft const char *
+.Fn tls_config_error "struct tls_config *config"
+.Sh DESCRIPTION
+The
+.Nm tls
+family of functions establishes a secure communications channel
+using the TLS socket protocol.
+Both clients and servers are supported.
+.Pp
+The
+.Fn tls_init
+function initializes global data structures.
+It is no longer necessary to call this function directly,
+since it is invoked internally when needed.
+It may be called more than once, and may be called concurrently.
+.Pp
+Before a connection is created, a configuration must be created.
+The
+.Fn tls_config_new
+function allocates, initializes, and returns a new default configuration
+object that can be used for future connections.
+Several functions exist to change the options of the configuration; see
+.Xr tls_config_set_protocols 3 ,
+.Xr tls_load_file 3 ,
+.Xr tls_config_ocsp_require_stapling 3 ,
+and
+.Xr tls_config_verify 3 .
+.Pp
+The
+.Fn tls_config_error
+function may be used to retrieve a string containing more information
+about the most recent error relating to a configuration.
+.Pp
+A TLS connection object is created by
+.Xr tls_client 3
+or
+.Xr tls_server 3
+and configured with
+.Xr tls_configure 3 .
+.Pp
+A client connection is initiated after configuration by calling
+.Xr tls_connect 3 .
+A server can accept a new client connection by calling
+.Xr tls_accept_socket 3
+on an already established socket connection.
+.Pp
+Two functions are provided for input and output,
+.Xr tls_read 3
+and
+.Xr tls_write 3 .
+Both automatically perform the
+.Xr tls_handshake 3
+when needed.
+.Pp
+The properties of established TLS connections
+can be inspected with the functions described in
+.Xr tls_conn_version 3
+and
+.Xr tls_ocsp_process_response 3 .
+.Pp
+After use, a TLS connection should be closed with
+.Xr tls_close 3
+and then freed by calling
+.Xr tls_free 3 .
+.Pp
+When no more contexts are to be configured,
+the configuration object should be freed by calling
+.Fn tls_config_free .
+It is safe to call
+.Fn tls_config_free
+as soon as the final call to
+.Fn tls_configure
+has been made.
+If
+.Fa config
+is
+.Dv NULL ,
+no action occurs.
+.Sh RETURN VALUES
+.Fn tls_init
+returns 0 on success or -1 on error.
+.Pp
+.Fn tls_config_new
+returns
+.Dv NULL
+on error or an out of memory condition.
+.Pp
+.Fn tls_config_error
+returns
+.Dv NULL
+if no error occurred with
+.Fa config
+at all, or if memory allocation failed while trying to assemble the
+string describing the most recent error related to
+.Fa config .
+.Sh SEE ALSO
+.Xr tls_accept_socket 3 ,
+.Xr tls_client 3 ,
+.Xr tls_config_ocsp_require_stapling 3 ,
+.Xr tls_config_set_protocols 3 ,
+.Xr tls_config_verify 3 ,
+.Xr tls_conn_version 3 ,
+.Xr tls_connect 3 ,
+.Xr tls_load_file 3 ,
+.Xr tls_ocsp_process_response 3 ,
+.Xr tls_read 3
+.Sh HISTORY
+The
+.Nm tls
+API first appeared in
+.Ox 5.6
+as a response to the unnecessary challenges other APIs present in
+order to use them safely.
+.Pp
+All functions were renamed from
+.Fn ressl_*
+to
+.Fn tls_*
+for
+.Ox 5.7 .
+.Pp
+.Fn tls_config_error
+appeared in
+.Ox 6.0 .
+.Sh AUTHORS
+.An Joel Sing Aq Mt jsing@openbsd.org
+.An Ted Unangst Aq Mt tedu@openbsd.org
+.Pp
+Many others contributed to various parts of the library; see the
+individual manual pages for more information.
+.Sh CAVEATS
+The function
+.Fn tls_config_error
+returns an internal pointer.
+It must not be freed by the application, or a double free error
+will occur.
+The pointer will become invalid when the next error occurs with
+.Fa config .
+Consequently, if the application may need the message at a later
+time, it has to copy the string before calling the next
+.Sy libtls
+function involving
+.Fa config ,
+or a segmentation fault or read access to unintended data is the
+likely result.

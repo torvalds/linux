@@ -1,0 +1,22 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ASTMatchersTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Testing",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "ASTMatchersInternalTest.cpp",
+    "ASTMatchersNarrowingTest.cpp",
+    "ASTMatchersNodeTest.cpp",
+    "ASTMatchersTraversalTest.cpp",
+    "GtestMatchersTest.cpp",
+  ]
+}

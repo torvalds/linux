@@ -1,0 +1,9 @@
+static_library("WindowsManifest") {
+  output_name = "LLVMWindowsManifest"
+  deps = [
+    "//llvm/include/llvm/Config:config",
+    "//llvm/lib/Support",
+    "//llvm/utils/gn/build/libs/xml",
+  ]
+  sources = [ "WindowsManifestMerger.cpp" ]
+}

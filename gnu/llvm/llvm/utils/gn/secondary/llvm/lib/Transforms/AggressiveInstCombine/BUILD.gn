@@ -1,0 +1,13 @@
+static_library("AggressiveInstCombine") {
+  output_name = "LLVMAggressiveInstCombine"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "AggressiveInstCombine.cpp",
+    "TruncInstCombine.cpp",
+  ]
+}

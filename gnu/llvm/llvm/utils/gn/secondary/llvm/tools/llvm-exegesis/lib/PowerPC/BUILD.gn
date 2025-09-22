@@ -1,0 +1,21 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("PPCGenExegesis") {
+  args = [ "-gen-exegesis" ]
+  td_file = "//llvm/lib/Target/PowerPC/PPC.td"
+}
+
+static_library("PowerPC") {
+  output_name = "LLVMExegesisPowerPC"
+  deps = [
+    ":PPCGenExegesis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/TargetParser",
+
+    # Exegesis reaches inside the Target/PowerPC tablegen internals and must
+    # depend on these Target/PowerPC-internal build targets.
+    "//llvm/lib/Target/PowerPC/MCTargetDesc",
+  ]
+  sources = [ "Target.cpp" ]
+  include_dirs = [ "//llvm/lib/Target/PowerPC" ]
+}

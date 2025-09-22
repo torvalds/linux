@@ -1,0 +1,34 @@
+esp from 1.1.1.1 to 2.2.2.2 spi 0x1eadbeef:0xbeef1ead \
+	enc aesctr \
+	authkey file "DIR/ak256:DIR/ak256" \
+	enckey file "DIR/ek160:DIR/ek160"
+esp from 1.1.1.2 to 2.2.2.2 spi 0x2eadbeef:0xbeef2ead \
+	enc aes-128-ctr \
+	authkey file "DIR/ak256:DIR/ak256" \
+	enckey file "DIR/ek160:DIR/ek160"
+esp from 1.1.1.3 to 2.2.2.2 spi 0x3eadbeef:0xbeef3ead \
+	enc aes-192-ctr \
+	authkey file "DIR/ak256:DIR/ak256" \
+	enckey file "DIR/ek224:DIR/ek224"
+esp from 1.1.1.4 to 2.2.2.2 spi 0x4eadbeef:0xbeef4ead \
+	enc aes-256-ctr \
+	authkey file "DIR/ak256:DIR/ak256" \
+	enckey file "DIR/ek288:DIR/ek288"
+esp from 1.1.1.5 to 2.2.2.2 spi 0x5eadbeef:0xbeef5ead \
+	enc aes-128-gcm \
+	enckey file "DIR/ek160:DIR/ek160"
+esp from 1.1.1.6 to 2.2.2.2 spi 0x6eadbeef:0xbeef6ead \
+	enc aes-192-gcm \
+	enckey file "DIR/ek224:DIR/ek224"
+esp from 1.1.1.7 to 2.2.2.2 spi 0x7eadbeef:0xbeef7ead \
+	enc aes-256-gcm \
+	enckey file "DIR/ek288:DIR/ek288"
+esp from 1.1.1.8 to 2.2.2.2 spi 0x8eadbeef:0xbeef8ead \
+	enc aes-128-gmac \
+	enckey file "DIR/ek160:DIR/ek160"
+esp from 1.1.1.9 to 2.2.2.2 spi 0x9eadbeef:0xbeef9ead \
+	enc aes-192-gmac \
+	enckey file "DIR/ek224:DIR/ek224"
+esp from 1.1.1.10 to 2.2.2.2 spi 0xaeadbeef:0xbeefaead \
+	enc aes-256-gmac \
+	enckey file "DIR/ek288:DIR/ek288"

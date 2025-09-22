@@ -1,0 +1,252 @@
+//===-- CXXRecordDeclDefinitionBits.def - Class definition bits -*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file enumerates the various bitfields that we want to store on C++ class
+// definitions.
+//
+//===----------------------------------------------------------------------===//
+//
+/// @file CXXRecordDeclDefinitionBits.def
+///
+/// In this file, each of the bitfields representing data about a C++ class
+/// results in an expansion of the FIELD macro, which should be defined before
+/// including this file.
+///
+/// The macro have three operands:
+///
+/// Name: The name of the field, as a member of CXXRecordDecl::DefinitionData.
+///
+/// BitWidth: The width of the field in bits.
+///
+/// MergePolicy: How to behave when the value of the field is different in
+/// multiple translation units, one of:
+///   NO_MERGE: It is an ODR violation if the fields do not match.
+///   MERGE_OR: Merge the fields by ORing them together.
+
+#ifndef FIELD
+#error define FIELD before including this file
+#endif
+
+/// True if this class has any user-declared constructors.
+FIELD(UserDeclaredConstructor, 1, NO_MERGE)
+
+/// The user-declared special members which this class has.
+FIELD(UserDeclaredSpecialMembers, 6, NO_MERGE)
+
+/// True when this class is an aggregate.
+FIELD(Aggregate, 1, NO_MERGE)
+
+/// True when this class is a POD-type.
+FIELD(PlainOldData, 1, NO_MERGE)
+
+/// True when this class is empty for traits purposes, that is:
+///  * has no data members other than 0-width bit-fields and empty fields
+///    marked [[no_unique_address]]
+///  * has no virtual function/base, and
+///  * doesn't inherit from a non-empty class.
+/// Doesn't take union-ness into account.
+FIELD(Empty, 1, NO_MERGE)
+
+/// True when this class is polymorphic, i.e., has at
+/// least one virtual member or derives from a polymorphic class.
+FIELD(Polymorphic, 1, NO_MERGE)
+
+/// True when this class is abstract, i.e., has at least
+/// one pure virtual function, (that can come from a base class).
+FIELD(Abstract, 1, NO_MERGE)
+
+/// True when this class is standard-layout, per the applicable
+/// language rules (including DRs).
+FIELD(IsStandardLayout, 1, NO_MERGE)
+
+/// True when this class was standard-layout under the C++11
+/// definition.
+///
+/// C++11 [class]p7.  A standard-layout class is a class that:
+/// * has no non-static data members of type non-standard-layout class (or
+///   array of such types) or reference,
+/// * has no virtual functions (10.3) and no virtual base classes (10.1),
+/// * has the same access control (Clause 11) for all non-static data
+///   members
+/// * has no non-standard-layout base classes,
+/// * either has no non-static data members in the most derived class and at
+///   most one base class with non-static data members, or has no base
+///   classes with non-static data members, and
+/// * has no base classes of the same type as the first non-static data
+///   member.
+FIELD(IsCXX11StandardLayout, 1, NO_MERGE)
+
+/// True when any base class has any declared non-static data
+/// members or bit-fields.
+/// This is a helper bit of state used to implement IsStandardLayout more
+/// efficiently.
+FIELD(HasBasesWithFields, 1, NO_MERGE)
+
+/// True when any base class has any declared non-static data
+/// members.
+/// This is a helper bit of state used to implement IsCXX11StandardLayout
+/// more efficiently.
+FIELD(HasBasesWithNonStaticDataMembers, 1, NO_MERGE)
+
+/// True when there are private non-static data members.
+FIELD(HasPrivateFields, 1, NO_MERGE)
+
+/// True when there are protected non-static data members.
+FIELD(HasProtectedFields, 1, NO_MERGE)
+
+/// True when there are private non-static data members.
+FIELD(HasPublicFields, 1, NO_MERGE)
+
+/// True if this class (or any subobject) has mutable fields.
+FIELD(HasMutableFields, 1, NO_MERGE)
+
+/// True if this class (or any nested anonymous struct or union)
+/// has variant members.
+FIELD(HasVariantMembers, 1, NO_MERGE)
+
+/// True if there no non-field members declared by the user.
+FIELD(HasOnlyCMembers, 1, NO_MERGE)
+
+/// True if there is an '__init' method defined by the user.
+FIELD(HasInitMethod, 1, NO_MERGE)
+
+/// True if any field has an in-class initializer, including those
+/// within anonymous unions or structs.
+FIELD(HasInClassInitializer, 1, NO_MERGE)
+
+/// True if any field is of reference type, and does not have an
+/// in-class initializer.
+///
+/// In this case, value-initialization of this class is illegal in C++98
+/// even if the class has a trivial default constructor.
+FIELD(HasUninitializedReferenceMember, 1, NO_MERGE)
+
+/// True if any non-mutable field whose type doesn't have a user-
+/// provided default ctor also doesn't have an in-class initializer.
+FIELD(HasUninitializedFields, 1, NO_MERGE)
+
+/// True if there are any member using-declarations that inherit
+/// constructors from a base class.
+FIELD(HasInheritedConstructor, 1, NO_MERGE)
+
+/// True if there are any member using-declarations that inherit
+/// default constructors from a base class.
+FIELD(HasInheritedDefaultConstructor, 1, NO_MERGE)
+
+/// True if there are any member using-declarations named
+/// 'operator='.
+FIELD(HasInheritedAssignment, 1, NO_MERGE)
+
+/// These flags are \c true if a defaulted corresponding special
+/// member can't be fully analyzed without performing overload resolution.
+/// @{
+FIELD(NeedOverloadResolutionForCopyConstructor, 1, NO_MERGE)
+FIELD(NeedOverloadResolutionForMoveConstructor, 1, NO_MERGE)
+FIELD(NeedOverloadResolutionForCopyAssignment, 1, NO_MERGE)
+FIELD(NeedOverloadResolutionForMoveAssignment, 1, NO_MERGE)
+FIELD(NeedOverloadResolutionForDestructor, 1, NO_MERGE)
+/// @}
+
+/// These flags are \c true if an implicit defaulted corresponding
+/// special member would be defined as deleted.
+/// @{
+FIELD(DefaultedCopyConstructorIsDeleted, 1, NO_MERGE)
+FIELD(DefaultedMoveConstructorIsDeleted, 1, NO_MERGE)
+FIELD(DefaultedCopyAssignmentIsDeleted, 1, NO_MERGE)
+FIELD(DefaultedMoveAssignmentIsDeleted, 1, NO_MERGE)
+FIELD(DefaultedDestructorIsDeleted, 1, NO_MERGE)
+/// @}
+
+/// The trivial special members which this class has, per
+/// C++11 [class.ctor]p5, C++11 [class.copy]p12, C++11 [class.copy]p25,
+/// C++11 [class.dtor]p5, or would have if the member were not suppressed.
+///
+/// This excludes any user-declared but not user-provided special members
+/// which have been declared but not yet defined.
+FIELD(HasTrivialSpecialMembers, 6, MERGE_OR)
+
+/// These bits keep track of the triviality of special functions for the
+/// purpose of calls. Only the bits corresponding to SMF_CopyConstructor,
+/// SMF_MoveConstructor, and SMF_Destructor are meaningful here.
+FIELD(HasTrivialSpecialMembersForCall, 6, MERGE_OR)
+
+/// The declared special members of this class which are known to be
+/// non-trivial.
+///
+/// This excludes any user-declared but not user-provided special members
+/// which have been declared but not yet defined, and any implicit special
+/// members which have not yet been declared.
+FIELD(DeclaredNonTrivialSpecialMembers, 6, MERGE_OR)
+
+/// These bits keep track of the declared special members that are
+/// non-trivial for the purpose of calls.
+/// Only the bits corresponding to SMF_CopyConstructor,
+/// SMF_MoveConstructor, and SMF_Destructor are meaningful here.
+FIELD(DeclaredNonTrivialSpecialMembersForCall, 6, MERGE_OR)
+
+/// True when this class has a destructor with no semantic effect.
+FIELD(HasIrrelevantDestructor, 1, NO_MERGE)
+
+/// True when this class has at least one user-declared constexpr
+/// constructor which is neither the copy nor move constructor.
+FIELD(HasConstexprNonCopyMoveConstructor, 1, MERGE_OR)
+
+/// True if this class has a (possibly implicit) defaulted default
+/// constructor.
+FIELD(HasDefaultedDefaultConstructor, 1, MERGE_OR)
+
+/// True if a defaulted default constructor for this class would
+/// be constexpr.
+FIELD(DefaultedDefaultConstructorIsConstexpr, 1, NO_MERGE)
+
+/// True if this class has a constexpr default constructor.
+///
+/// This is true for either a user-declared constexpr default constructor
+/// or an implicitly declared constexpr default constructor.
+FIELD(HasConstexprDefaultConstructor, 1, MERGE_OR)
+
+/// True if a defaulted destructor for this class would be constexpr.
+FIELD(DefaultedDestructorIsConstexpr, 1, NO_MERGE)
+
+/// True when this class contains at least one non-static data
+/// member or base class of non-literal or volatile type.
+FIELD(HasNonLiteralTypeFieldsOrBases, 1, NO_MERGE)
+
+/// True if this class is a structural type, assuming it is a literal type.
+FIELD(StructuralIfLiteral, 1, NO_MERGE)
+
+/// Whether we have a C++11 user-provided default constructor (not
+/// explicitly deleted or defaulted).
+FIELD(UserProvidedDefaultConstructor, 1, NO_MERGE)
+
+/// The special members which have been declared for this class,
+/// either by the user or implicitly.
+FIELD(DeclaredSpecialMembers, 6, MERGE_OR)
+
+/// Whether an implicit copy constructor could have a const-qualified
+/// parameter, for initializing virtual bases and for other subobjects.
+FIELD(ImplicitCopyConstructorCanHaveConstParamForVBase, 1, NO_MERGE)
+FIELD(ImplicitCopyConstructorCanHaveConstParamForNonVBase, 1, NO_MERGE)
+
+/// Whether an implicit copy assignment operator would have a
+/// const-qualified parameter.
+FIELD(ImplicitCopyAssignmentHasConstParam, 1, NO_MERGE)
+
+/// Whether any declared copy constructor has a const-qualified
+/// parameter.
+FIELD(HasDeclaredCopyConstructorWithConstParam, 1, MERGE_OR)
+
+/// Whether any declared copy assignment operator has either a
+/// const-qualified reference parameter or a non-reference parameter.
+FIELD(HasDeclaredCopyAssignmentWithConstParam, 1, MERGE_OR)
+
+/// Whether the destructor is no-return. Either explicitly, or if any
+/// base classes or fields have a no-return destructor
+FIELD(IsAnyDestructorNoReturn, 1, NO_MERGE)
+
+#undef FIELD

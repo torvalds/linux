@@ -1,0 +1,104 @@
+//===--- Builtins.def - Builtin function info database ----------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+// This is only documentation for the database layout. This will be removed once
+// all builtin databases are converted to tablegen files
+
+// The second value provided to the macro specifies the type of the function
+// (result value, then each argument) as follows:
+//  v -> void
+//  b -> boolean
+//  c -> char
+//  s -> short
+//  i -> int
+//  h -> half (__fp16, OpenCL)
+//  x -> half (_Float16)
+//  y -> half (__bf16)
+//  f -> float
+//  d -> double
+//  z -> size_t
+//  w -> wchar_t
+//  F -> constant CFString
+//  G -> id
+//  H -> SEL
+//  M -> struct objc_super
+//  a -> __builtin_va_list
+//  A -> "reference" to __builtin_va_list
+//  V -> Vector, followed by the number of elements and the base type.
+//  q -> Scalable vector, followed by the number of elements and the base type.
+//  Q -> target builtin type, followed by a character to distinguish the builtin type
+//    Qa -> AArch64 svcount_t builtin type.
+//    Qb -> AMDGPU __amdgpu_buffer_rsrc_t builtin type.
+//  E -> ext_vector, followed by the number of elements and the base type.
+//  X -> _Complex, followed by the base type.
+//  Y -> ptrdiff_t
+//  P -> FILE
+//  J -> jmp_buf
+//  SJ -> sigjmp_buf
+//  K -> ucontext_t
+//  p -> pid_t
+//  . -> "...".  This may only occur at the end of the function list.
+//
+// Types may be prefixed with the following modifiers:
+//  L   -> long (e.g. Li for 'long int', Ld for 'long double')
+//  LL  -> long long (e.g. LLi for 'long long int', LLd for __float128)
+//  LLL -> __int128_t (e.g. LLLi)
+//  Z   -> int32_t (require a native 32-bit integer type on the target)
+//  W   -> int64_t (require a native 64-bit integer type on the target)
+//  N   -> 'int' size if target is LP64, 'L' otherwise.
+//  O   -> long for OpenCL targets, long long otherwise.
+//  S   -> signed
+//  U   -> unsigned
+//  I   -> Required to constant fold to an integer constant expression.
+//
+// Types may be postfixed with the following modifiers:
+// * -> pointer (optionally followed by an address space number, if no address
+//               space is specified than any address space will be accepted)
+// & -> reference (optionally followed by an address space number)
+// C -> const
+// D -> volatile
+// R -> restrict
+
+// The third value provided to the macro specifies information about attributes
+// of the function.  These must be kept in sync with the predicates in the
+// Builtin::Context class.  Currently we have:
+//  n -> nothrow
+//  r -> noreturn
+//  U -> pure
+//  c -> const
+//  t -> signature is meaningless, use custom typechecking
+//  T -> type is not important to semantic analysis and codegen; recognize as
+//       builtin even if type doesn't match signature, and don't warn if we
+//       can't be sure the type is right
+//  F -> this is a libc/libm function with a '__builtin_' prefix added.
+//  f -> this is a libc/libm function without a '__builtin_' prefix, or with
+//       'z', a C++ standard library function in namespace std::. This builtin
+//       is disableable by '-fno-builtin-foo' / '-fno-builtin-std-foo'.
+//  h -> this function requires a specific header or an explicit declaration.
+//  i -> this is a runtime library implemented function without the
+//       '__builtin_' prefix. It will be implemented in compiler-rt or libgcc.
+//  p:N: -> this is a printf-like function whose Nth argument is the format
+//          string.
+//  P:N: -> similar to the p:N: attribute, but the function is like vprintf
+//          in that it accepts its arguments as a va_list rather than
+//          through an ellipsis
+//  s:N: -> this is a scanf-like function whose Nth argument is the format
+//          string.
+//  S:N: -> similar to the s:N: attribute, but the function is like vscanf
+//          in that it accepts its arguments as a va_list rather than
+//          through an ellipsis
+//  e -> const, but only when -fno-math-errno and FP exceptions are ignored
+//  g -> const when FP exceptions are ignored
+//  j -> returns_twice (like setjmp)
+//  u -> arguments are not evaluated for their side-effects
+//  V:N: -> requires vectors of at least N bits to be legal
+//  C<N,M_0,...,M_k> -> callback behavior: argument N is called with argument
+//                      M_0, ..., M_k as payload
+//  z -> this is a function in (possibly-versioned) namespace std
+//  E -> this function can be constant evaluated by Clang frontend
+//  G -> this is a C++20 consteval function

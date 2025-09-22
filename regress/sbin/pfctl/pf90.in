@@ -1,0 +1,5 @@
+pass log (user)
+pass log (all)
+pass log (to pflog7)
+block log (all, user, to pflog1)
+block log (to pflog1, user)

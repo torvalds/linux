@@ -1,0 +1,12 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("DebuginfodTests") {
+  deps = [
+    "//llvm/lib/Debuginfod",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "DebuginfodTests.cpp",
+    "HTTPServerTests.cpp",
+  ]
+}

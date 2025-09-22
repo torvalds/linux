@@ -1,0 +1,215 @@
+.\" $OpenBSD: bgplgd.8,v 1.13 2025/07/13 23:38:55 jsg Exp $
+.\"
+.\" Copyright (c) 2021 Claudio Jeker <claudio@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 13 2025 $
+.Dt BGPLGD 8
+.Os
+.Sh NAME
+.Nm bgplgd
+.Nd a bgpctl FastCGI server
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl p Ar path
+.Op Fl S Ar socket
+.Op Fl s Ar socket
+.Op Fl U Ar user
+.Op Fl V
+.Sh DESCRIPTION
+.Nm
+is a server which implements the FastCGI Protocol to execute
+.Xr bgpctl 8
+commands.
+.Nm
+is a simple server that implements a simple web API to query
+.Xr bgpd 8 .
+.Pp
+.Nm
+opens a socket at
+.Pa /var/www/run/bgplgd.sock ,
+owned by www:www,
+with permissions 0660.
+It will then drop privileges to user
+.Qq _bgplgd ,
+.Xr unveil 2
+the
+.Xr bgpctl 8
+binary
+and restrict itself with
+.Xr pledge 2 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to stderr.
+.It Fl p Ar path
+Use
+.Ar path
+instead of
+.Xr bgpctl 8
+to query
+.Xr bgpd 8 .
+.It Fl S Ar socket
+Use
+.Ar socket
+instead of the default
+.Pa /var/run/bgpd.rsock
+to communicate with
+.Xr bgpd 8 .
+.It Fl s Ar socket
+Create and bind to alternative local socket at
+.Ar socket .
+.It Fl U Ar user
+Change the owner of
+.Pa /var/www/run/bgplgd.sock
+to
+.Ar user
+and its primary group instead of the default www:www.
+.It Fl V
+Show the version and exit.
+.El
+.Pp
+.Nm
+provides the following API endpoints.
+Unless further specified the endpoints do not take any parameters:
+.Pp
+.Bl -tag -width "/interfaces" -compact
+.It Pa /interfaces
+Show the interface states.
+.It Pa /memory
+Show RIB memory statistics.
+.It Pa /metrics
+Output various statistics in OpenMetrics format.
+.It Pa /neighbors
+Show detailed neighbors information.
+The output can be limited with the following parameters:
+.Pp
+.Bl -tag -width "neighbor=peer" -compact
+.It Cm neighbor Ns = Ns Ar peer
+Show information for a specific neighbor.
+.Ar peer
+may be the neighbor's address or description.
+.It Cm group Ns = Ns Ar name
+Show only entries from the specified peer group.
+.El
+.It Pa /nexthops
+Show the list of BGP nexthops and the result of their validity check.
+.It Pa /rib
+.It Pa /rib/in
+.It Pa /rib/out
+Show routes from the bgpd(8) Routing Information Base.
+For
+.Pa /rib/in
+the
+.Ar Adj-RIB-In
+will be queried and for
+.Pa /rib/out
+the
+.Ar Adj-RIB-out .
+The following parameters can be used to filter the output:
+.Pp
+.Bl -tag -width "neighbor=peer" -compact
+.It Cm neighbor Ns = Ns Ar peer
+Show information for a specific neighbor.
+.Ar peer
+may be the neighbor's address or description.
+.It Cm group Ns = Ns Ar name
+Show only entries from the specified peer group.
+.It Cm as Ns = Ns Ar number
+Show only entries with the specified source AS number.
+.It Cm community Ns = Ns Ar string
+.It Cm ext-community Ns = Ns Ar string
+.It Cm large-community Ns = Ns Ar string
+Show only entries that match the specified community.
+.It Xo
+.Ic af Ns = Ns
+.Pq Ic ipv4 | ipv6 | vpnv4 | vpnv6
+.Xc
+Show only entries that match the specified address family.
+.It Cm rib Ns = Ns Ar name
+Show only entries from the RIB with name
+.Ar name .
+Can only be used with the
+.Pa /rib
+endpoint.
+.It Xo
+.Ic ovs Ns = Ns
+.Pq Ic valid | not-found | invalid
+.Xc
+Show only prefixes that match the specified Origin Validation State.
+.It Xo
+.Ic avs Ns = Ns
+.Pq Ic valid | invalid | unknown
+.Xc
+Show only prefixes that match the specified ASPA Validation State.
+.It Cm best Ns = Ns 1
+Show only selected routes.
+.It Cm error Ns = Ns 1
+Show only prefixes which are marked invalid and were treated as withdrawn.
+.It Cm filtered Ns = Ns 1
+Show only prefixes which are marked filtered by the input filter.
+.It Cm invalid Ns = Ns 1
+Show only prefixes which are not eligible.
+.It Cm leaked Ns = Ns 1
+Show only prefixes where a route leak was detected.
+.It Cm prefix Ns = Ns Ar addr
+Show only entries that match prefix either as the best matching route or
+show the entry for this CIDR prefix.
+.It Cm all Ns = Ns 1
+Show all entries in the specified prefix range.
+.It Cm or-shorter Ns = Ns 1
+Show all entries covering and including the specified prefix.
+.El
+.It Pa /rtr
+Show a list of all RTR sessions.
+.It Pa /sets
+Show a list summarizing all roa-set, as-set, prefix-set, and origin-set tables.
+.It Pa /summary
+Show a list of all neighbors, including information about the session state
+and message counters.
+.El
+.Sh EXAMPLES
+Add the following to
+.Pa /etc/bgpd.conf
+to have
+.Xr bgpd 8
+open a second, restricted, control socket:
+.Pp
+.Dl socket \&"/var/run/bgpd.rsock\&" restricted
+.Pp
+An example setup in
+.Xr httpd 8
+is:
+.Bd -literal -offset indent
+        location "/bgplgd/*" {
+                fastcgi socket "/run/bgplgd.sock"
+                request strip 1
+        }
+.Ed
+.Sh SEE ALSO
+.Xr bgpctl 8 ,
+.Xr bgpd 8 ,
+.Xr httpd 8
+.Sh HISTORY
+The
+.Nm
+server first appeared in
+.Ox 7.2 .
+.Sh AUTHORS
+.An Claudio Jeker Aq Mt claudio@openbsd.org

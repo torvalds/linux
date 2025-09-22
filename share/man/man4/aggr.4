@@ -1,0 +1,99 @@
+.\" $OpenBSD: aggr.4,v 1.4 2020/09/02 05:53:55 jmc Exp $
+.\"
+.\" Copyright (c) 2019 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 2 2020 $
+.Dt AGGR 4
+.Os
+.Sh NAME
+.Nm aggr
+.Nd IEEE 802.1AX Link Aggregation network interface
+.Sh SYNOPSIS
+.Cd "pseudo-device aggr"
+.Sh DESCRIPTION
+The
+.Nm
+driver implements IEEE 802.1AX (formerly 802.3ad) Link Aggregation
+for combining one or more Ethernet interfaces into a single logical
+interface.
+The Link Aggregation Control Protocol (LACP) is used to negotiate the
+aggregation of member interfaces with a partner device.
+.Pp
+.Nm
+interfaces must be configured to use one or more Ethernet interfaces
+as ports, and communicate with a partner device over those
+ports using LACP.
+Member interfaces that negotiate with a partner device are
+aggregated into a single logical link.
+Packets transmitted through an
+.Nm
+interface select an aggregated interface for transmission.
+Packets received by an aggregated device appear to be received
+by the
+.Nm
+interface it is a member of.
+.Pp
+.Nm
+interfaces can be created at runtime using the
+.Ic ifconfig aggr Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+The interface itself can be configured with
+.Xr ifconfig 8 ;
+see its manual page for more information.
+.Pp
+A random MAC address is generated when an
+.Nm
+interface is created.
+A specific MAC address can be assigned using the
+.Xr ifconfig 8
+command
+.Cm lladdr Ar etheraddr .
+.\" document the ioctls?
+.Pp
+Other forms of aggregation of Ethernet interfaces are available
+using the
+.Xr trunk 4
+driver.
+.Sh EXAMPLES
+Create an
+.Nm
+virtual interface on top of two physical interfaces:
+.Bd -literal -offset indent
+# ifconfig aggr0 create
+# ifconfig aggr0 trunkport em0
+# ifconfig aggr0 trunkport em1
+# ifconfig aggr0 10.1.1.100/24
+# ifconfig aggr0 up
+.Ed
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr ip 4 ,
+.Xr netintro 4 ,
+.Xr trunk 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Sh STANDARDS
+.Rs
+.%T IEEE 802.1AX Link Aggregation
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.6 .

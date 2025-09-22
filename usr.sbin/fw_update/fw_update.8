@@ -1,0 +1,121 @@
+.\" $OpenBSD: fw_update.8,v 1.8 2025/03/22 19:51:29 jmc Exp $
+.\"
+.\" Copyright (c) 2011 Alexander Hall <alexander@beard.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 22 2025 $
+.Dt FW_UPDATE 8
+.Os
+.Sh NAME
+.Nm fw_update
+.Nd install non-free firmware
+.Sh SYNOPSIS
+.Nm
+.Op Fl adFlnv
+.Op Fl D Ar path
+.Op Fl p Ar path
+.Op Ar driver | file ...
+.Sh DESCRIPTION
+The
+.Nm
+utility installs, updates, or deletes firmware for
+.Ar driver
+from the Internet.
+By default,
+.Nm
+tries to determine which firmware are needed.
+.Pp
+Since firmware with an acceptable license is already present in
+.Ox ,
+.Nm
+exists purely to deal with firmware that may not be freely
+distributed with
+.Ox .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Install or update firmware for all drivers.
+It is an error to specify this option with any
+.Ar driver
+arguments.
+.It Fl d
+Delete firmware for
+.Ar driver .
+If used without parameters, delete all firmware that is not required by
+a driver.
+If used in conjunction with
+.Fl a ,
+delete firmware for all drivers.
+.It Fl D Ar path
+Use the
+.Xr dmesg 8
+output from
+.Ar path
+rather than
+.Pa /var/run/dmesg.boot
+to determine which firmware are needed.
+.It Fl F
+Download SHA256.sig and firmware .tgz to the current directory.
+.It Fl l
+List drivers without installing.
+With
+.Fl F
+lists the full path to the files that will be downloaded.
+.It Fl n
+Dry run.
+Do not actually install or update any firmware;
+just report the steps that would be taken.
+.It Fl p Ar path
+Use
+.Ar path ,
+either a local directory or a URL,
+as the source for firmware instead of the default location.
+.It Fl v
+Turn on verbose output.
+This flag can be specified multiple times for increased verbosity.
+.El
+.Pp
+Firmware is downloaded from release-specific directories at
+.Lk http://firmware.openbsd.org/firmware/
+unless overridden with
+.Fl p .
+.Sh ENVIRONMENT
+.Bl -tag -width DESTDIRXXX
+.It Ev DESTDIR
+The root of the system to install into.
+.El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa ${DESTDIR}/usr/share/misc/firmware_patterns
+A list of patterns used to detect needed firmware from the
+.Xr dmesg 8 .
+.It Pa ${DESTDIR}/etc/signify/openbsd-XX-fw.pub
+Used with
+.Xr signify 1
+to verify downloaded firmware files.
+.El
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr dmesg 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was designed by
+.An Alexander Hall Aq Mt alexander@beard.se ;
+it was then replaced with a perl version by
+.An Marc Espie Aq Mt espie@openbsd.org .
+It was rewritten to be able to be run from the installer by
+.An Andrew Hewus Fresh Aq Mt afresh1@openbsd.org .

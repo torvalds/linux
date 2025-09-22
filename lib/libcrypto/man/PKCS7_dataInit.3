@@ -1,0 +1,227 @@
+.\" $OpenBSD: PKCS7_dataInit.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS7_DATAINIT 3
+.Os
+.Sh NAME
+.Nm PKCS7_dataInit
+.Nd construct a BIO chain for adding or retrieving content
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft BIO *
+.Fo PKCS7_dataInit
+.Fa "PKCS7 *p7"
+.Fa "BIO *indata"
+.Fc
+.Sh DESCRIPTION
+.Fn PKCS7_dataInit
+constructs a BIO chain in preparation for putting data into
+or retrieving data out of
+.Fa p7 .
+Depending on the
+.Fa contentType
+of
+.Fa p7 ,
+the created chain starts with:
+.Bl -tag -width Ds
+.It for Vt SignedData :
+one or more
+.Xr BIO_f_md 3
+message digest filters
+.It for Vt EnvelopedData :
+one
+.Xr BIO_f_cipher 3
+encryption filter
+.It for Vt SignedAndEnvelopedData :
+one or more
+.Xr BIO_f_md 3
+message digest filters followed by one
+.Xr BIO_f_cipher 3
+encryption filter
+.It for Vt DigestedData :
+one
+.Xr BIO_f_md 3
+message digest filter
+.It for arbitrary data :
+no filter BIO
+.El
+.Pp
+One additional BIO is appended to the end of the chain,
+depending on the first condition that holds in the following list:
+.Bl -tag -width Ds
+.It Fa indata
+if the
+.Fa indata
+argument is not
+.Dv NULL .
+This only makes sense while verifying a detached signature, in which case
+.Fa indata
+is expected to supply the content associated with the detached signature.
+.It Xr BIO_s_null 3
+if the
+.Fa contentType
+of
+.Fa p7
+is
+.Vt SignedData
+and it is configured to contain a detached signature.
+This only makes sense while creating the detached signature.
+.It Xr BIO_new_mem_buf 3
+when reading from a
+.Vt SignedData
+or
+.Vt DigestedData
+object.
+.Fn PKCS7_dataInit
+attaches the end of the chain to the nested content of
+.Fa p7 .
+.It Xr BIO_s_mem 3
+otherwise.
+This is the most common case while writing data to
+.Fa p7 .
+.Xr PKCS7_dataFinal 3
+can later be used to transfer the data from the memory BIO into
+.Fa p7 .
+.El
+.Ss Adding content
+Before calling
+.Fn PKCS7_dataInit
+in order to add content,
+.Xr PKCS7_new 3 ,
+.Xr PKCS7_set_type 3 ,
+and
+.Xr PKCS7_content_new 3
+are typically required to create
+.Fa p7 ,
+to choose its desired type, and to allocate the nested
+.Vt ContentInfo
+structure.
+Alternatively, for
+.Vt SignedData ,
+.Xr PKCS7_sign 3
+can be used with the
+.Dv PKCS7_PARTIAL
+or
+.Dv PKCS7_STREAM
+.Fa flags
+or for
+.Vt EnvelopedData ,
+.Xr PKCS7_encrypt 3
+with the
+.Dv PKCS7_STREAM
+flag.
+.Pp
+After calling
+.Fn PKCS7_dataInit ,
+the desired data can be written into the returned
+.Vt BIO ,
+.Xr BIO_flush 3
+can be called on it,
+.Xr PKCS7_dataFinal 3
+can be used to transfer the processed data
+from the returned memory BIO to the
+.Fa p7
+structure, and the chain can finally be destroyed with
+.Xr BIO_free_all 3 .
+.Pp
+While
+.Fn PKCS7_dataInit
+does support the
+.Vt EnvelopedData
+and
+.Vt SignedAndEnvelopedData
+types, using it for these types is awkward and error prone
+except when using
+.Xr PKCS7_encrypt 3
+for the setup because
+.Xr PKCS7_content_new 3
+does not support these two types.
+So in addition to creating
+.Fa p7
+itself and setting its type, the nested
+.Fa ContentInfo
+structure also needs to be constructed with
+.Xr PKCS7_new 3
+and
+.Xr PKCS7_set_type 3
+and manually inserted into the correct field
+of the respective sub-structure of
+.Fa p7 .
+.Ss Retrieving content
+.Fn PKCS7_dataInit
+can also be called on a fully populated object of type
+.Vt SignedData
+or
+.Vt DigestedData .
+After that,
+.Xr BIO_read 3
+can be used to retrieve data from it.
+In this use case, do not call
+.Xr PKCS7_dataFinal 3 ;
+simply proceed directly to
+.Xr BIO_free_all 3
+after reading the data.
+.Sh RETURN VALUES
+.Fn PKCS7_dataInit
+returns a BIO chain on success or
+.Dv NULL
+on failure.
+It fails if
+.Fa p7
+is
+.Dv NULL ,
+if the
+.Fa content
+field of
+.Fa p7
+is empty, if the
+.Fa contentType
+of
+.Fa p7
+is unsupported, if a cipher is required but none is configured, or
+if any required operation fails, for example due to lack of memory
+or for various other reasons.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr BIO_read 3 ,
+.Xr PKCS7_content_new 3 ,
+.Xr PKCS7_dataFinal 3 ,
+.Xr PKCS7_encrypt 3 ,
+.Xr PKCS7_final 3 ,
+.Xr PKCS7_new 3 ,
+.Xr PKCS7_set_type 3 ,
+.Xr PKCS7_sign 3
+.Sh HISTORY
+.Fn PKCS7_dataInit
+first appeared in SSLeay 0.8.1 and has been available since
+.Ox 2.4 .
+.Sh CAVEATS
+This function does not support
+.Vt EncryptedData .
+.Sh BUGS
+If
+.Fa p7
+is a fully populated structure containing
+.Vt EnvelopedData ,
+.Vt SignedAndEnvelopedData ,
+or arbitrary data,
+.Fn PKCS7_dataInit
+returns a BIO chain that ultimately reads from an empty memory BIO,
+so reading from it will instantly return an end-of-file indication
+rather than reading the actual data contained in
+.Fa p7 .

@@ -1,0 +1,665 @@
+#----------------------------------------------------------------------
+# Clients fill in the source files to build
+#----------------------------------------------------------------------
+# C_SOURCES := main.c
+# CXX_SOURCES :=
+# OBJC_SOURCES :=
+# OBJCXX_SOURCES :=
+# DYLIB_C_SOURCES :=
+# DYLIB_OBJC_SOURCES :=
+# DYLIB_CXX_SOURCES :=
+#
+# Specifying DYLIB_ONLY has the effect of building dylib only, skipping
+# the building of the a.out executable program.  For example,
+# DYLIB_ONLY := YES
+#
+# Specifying FRAMEWORK and its variants has the effect of building a NeXT-style
+# framework.
+# FRAMEWORK := "Foo"
+# FRAMEWORK_HEADERS := "Foo.h"
+# FRAMEWORK_MODULES := "module.modulemap"
+#
+# Also might be of interest:
+# FRAMEWORK_INCLUDES (Darwin only) :=
+# CFLAGS_EXTRAS :=
+# LD_EXTRAS :=
+# SPLIT_DEBUG_SYMBOLS := YES
+# CROSS_COMPILE :=
+# USE_PRIVATE_MODULE_CACHE := YES
+
+# Uncomment line below for debugging shell commands
+# SHELL = /bin/sh -x
+
+# Suppress built-in suffix rules. We explicitly define rules for %.o.
+.SUFFIXES:
+
+SRCDIR := $(shell dirname $(firstword $(MAKEFILE_LIST)))
+BUILDDIR := $(shell pwd)
+MAKEFILE_RULES := $(lastword $(MAKEFILE_LIST))
+THIS_FILE_DIR := $(shell dirname $(MAKEFILE_RULES))
+LLDB_BASE_DIR := $(THIS_FILE_DIR)/../../../../../
+
+# The test harness invokes the test Makefiles with an explicit 'all'
+# target, but its handy to be able to recursively call this Makefile
+# without specifying a goal. You almost certainly want to build 'all',
+# and not only the first target defined in this file (which might vary
+# according to variable values).
+.DEFAULT_GOAL := all
+
+#----------------------------------------------------------------------
+# If OS is Windows, force SHELL to be cmd
+#
+# Some versions of make on Windows will search for other shells such as
+# C:\cygwin\bin\sh.exe. This shell fails for numerous different reasons
+# so default to using cmd.exe.
+# Also reset BUILDDIR value because "pwd" returns cygwin or msys path
+# which needs to be converted to windows path.
+#----------------------------------------------------------------------
+ifeq "$(HOST_OS)" "Windows_NT"
+	# MinGW make gets $(windir) variable if launched from cmd.exe
+	# and $(WINDIR) if launched from MSYS2.
+	SHELL := $(or $(windir),$(WINDIR),C:\WINDOWS)\system32\cmd.exe
+	BUILDDIR := $(shell echo %cd%)
+endif
+
+#----------------------------------------------------------------------
+# If the OS is Windows use double-quotes in commands
+#
+# For other operating systems, single-quotes work fine, but on Windows
+# we strictly required double-quotes
+#----------------------------------------------------------------------
+ifeq "$(HOST_OS)" "Windows_NT"
+	QUOTE = "
+	FIXUP_SYNTAX_HIGHLIGHTING_IN_MY_EDITOR = "
+else
+	QUOTE = '
+	FIXUP_SYNTAX_HIGHLIGHTING_IN_MY_EDITOR = '
+endif
+
+#----------------------------------------------------------------------
+# If TRIPLE is not defined try to set the ARCH, CC, CFLAGS, and more
+# from the triple alone
+#----------------------------------------------------------------------
+ARCH_CFLAGS :=
+ifeq "$(OS)" "Android"
+	include $(THIS_FILE_DIR)/Android.rules
+endif
+
+#----------------------------------------------------------------------
+# If ARCH is not defined, default to x86_64.
+#----------------------------------------------------------------------
+ifeq "$(ARCH)" ""
+ifeq "$(OS)" "Windows_NT"
+	ARCH = x86
+else
+	ARCH = x86_64
+endif
+endif
+
+#----------------------------------------------------------------------
+# CC defaults to clang.
+#
+# If you change the defaults of CC, be sure to also change it in the file
+# test/builders/builder_base.py, which provides a Python way to return the
+# value of the make variable CC -- getCompiler().
+#
+# See also these functions:
+#   o cxx_compiler
+#   o cxx_linker
+#----------------------------------------------------------------------
+ifeq "$(CC)" ""
+$(error "C compiler is not specified. Please run tests through lldb-dotest or lit")
+endif
+
+#----------------------------------------------------------------------
+# Handle SDKROOT on Darwin
+#----------------------------------------------------------------------
+
+ifeq "$(OS)" "Darwin"
+    ifeq "$(SDKROOT)" ""
+	# We haven't otherwise set the SDKROOT, so set it now to macosx
+	SDKROOT := $(shell xcrun --sdk macosx --show-sdk-path)
+    endif
+endif
+
+#----------------------------------------------------------------------
+# ARCHFLAG is the flag used to tell the compiler which architecture
+# to compile for. The default is the flag that clang accepts.
+#----------------------------------------------------------------------
+ARCHFLAG ?= -arch
+
+#----------------------------------------------------------------------
+# Change any build/tool options needed
+#----------------------------------------------------------------------
+ifeq "$(OS)" "Darwin"
+	DS := $(DSYMUTIL)
+	DSFLAGS := $(DSFLAGS_EXTRAS)
+	DSYM = $(EXE).dSYM
+	AR := $(CROSS_COMPILE)libtool
+	ARFLAGS := -static -o
+else
+	AR := $(CROSS_COMPILE)ar
+	# On non-Apple platforms, -arch becomes -m
+	ARCHFLAG := -m
+
+	# i386, i686, x86 -> 32
+	# amd64, x86_64, x64 -> 64
+	ifeq "$(ARCH)" "amd64"
+		override ARCH := $(subst amd64,64,$(ARCH))
+	endif
+	ifeq "$(ARCH)" "x86_64"
+		override ARCH := $(subst x86_64,64,$(ARCH))
+	endif
+	ifeq "$(ARCH)" "x64"
+		override ARCH := $(subst x64,64,$(ARCH))
+	endif
+	ifeq "$(ARCH)" "x86"
+		override ARCH := $(subst x86,32,$(ARCH))
+	endif
+	ifeq "$(ARCH)" "i386"
+		override ARCH := $(subst i386,32,$(ARCH))
+	endif
+	ifeq "$(ARCH)" "i686"
+		override ARCH := $(subst i686,32,$(ARCH))
+	endif
+	ifeq "$(ARCH)" "powerpc"
+		override ARCH := $(subst powerpc,32,$(ARCH))
+	endif
+	ifeq "$(ARCH)" "powerpc64"
+		override ARCH := $(subst powerpc64,64,$(ARCH))
+	endif
+	ifeq "$(ARCH)" "powerpc64le"
+		override ARCH := $(subst powerpc64le,64,$(ARCH))
+	endif
+	ifeq "$(ARCH)" "aarch64"
+		override ARCH :=
+		override ARCHFLAG :=
+	endif
+	ifeq "$(findstring arm,$(ARCH))" "arm"
+		override ARCH :=
+		override ARCHFLAG :=
+	endif
+	ifeq "$(ARCH)" "s390x"
+		override ARCH :=
+		override ARCHFLAG :=
+	endif
+	ifeq "$(findstring mips,$(ARCH))" "mips"
+		override ARCHFLAG := -
+	endif
+
+	ifeq "$(SPLIT_DEBUG_SYMBOLS)" "YES"
+		DSYM = $(EXE).debug
+	endif
+endif
+
+LIMIT_DEBUG_INFO_FLAGS =
+NO_LIMIT_DEBUG_INFO_FLAGS =
+MODULE_DEBUG_INFO_FLAGS =
+ifneq (,$(findstring clang,$(CC)))
+   LIMIT_DEBUG_INFO_FLAGS += -flimit-debug-info
+   NO_LIMIT_DEBUG_INFO_FLAGS += -fno-limit-debug-info
+   MODULE_DEBUG_INFO_FLAGS += -gmodules
+endif
+
+# If the OS is Windows, we need to pass -gdwarf to clang, otherwise it will build
+# with codeview by default but all the tests rely on dwarf.
+ifeq "$(OS)" "Windows_NT"
+	DEBUG_INFO_FLAG ?= -gdwarf
+endif
+
+DEBUG_INFO_FLAG ?= -g
+
+CFLAGS ?= $(DEBUG_INFO_FLAG) -O0
+
+ifeq "$(OS)" "Darwin"
+	ifneq "$(SDKROOT)" ""
+		CFLAGS += -isysroot "$(SDKROOT)"
+	endif
+endif
+
+ifeq "$(OS)" "Darwin"
+	CFLAGS += $(ARCHFLAG) $(ARCH) $(FRAMEWORK_INCLUDES)
+else
+	CFLAGS += $(ARCHFLAG)$(ARCH)
+endif
+CFLAGS += -I$(LLDB_BASE_DIR)include -I$(LLDB_OBJ_ROOT)/include
+
+CFLAGS += -I$(SRCDIR) -I$(THIS_FILE_DIR)
+
+ifndef NO_TEST_COMMON_H
+  CFLAGS += -include $(THIS_FILE_DIR)/test_common.h
+endif
+
+CFLAGS += $(NO_LIMIT_DEBUG_INFO_FLAGS) $(ARCH_CFLAGS)
+
+# Use this one if you want to build one part of the result without debug information:
+ifeq "$(OS)" "Darwin"
+	CFLAGS_NO_DEBUG = -O0 $(ARCHFLAG) $(ARCH) $(FRAMEWORK_INCLUDES) $(ARCH_CFLAGS) $(CFLAGS_EXTRAS) -isysroot "$(SDKROOT)"
+else
+	CFLAGS_NO_DEBUG = -O0 $(ARCHFLAG)$(ARCH) $(FRAMEWORK_INCLUDES) $(ARCH_CFLAGS) $(CFLAGS_EXTRAS)
+endif
+
+ifeq "$(MAKE_DWO)" "YES"
+	CFLAGS += -gsplit-dwarf
+endif
+
+ifeq "$(USE_PRIVATE_MODULE_CACHE)" "YES"
+THE_CLANG_MODULE_CACHE_DIR := $(BUILDDIR)/private-module-cache
+else
+THE_CLANG_MODULE_CACHE_DIR := $(CLANG_MODULE_CACHE_DIR)
+endif
+
+MODULE_BASE_FLAGS := -fmodules -gmodules -fmodules-cache-path=$(THE_CLANG_MODULE_CACHE_DIR)
+MANDATORY_MODULE_BUILD_CFLAGS := $(MODULE_BASE_FLAGS) -gmodules
+# Build flags for building with C++ modules.
+# -glldb is necessary for emitting information about what modules were imported.
+MANDATORY_CXXMODULE_BUILD_CFLAGS := $(MODULE_BASE_FLAGS) -fcxx-modules -glldb
+
+ifeq "$(OS)" "Darwin"
+	MANDATORY_MODULE_BUILD_CFLAGS += -fcxx-modules
+endif
+
+ifeq "$(MAKE_GMODULES)" "YES"
+	CFLAGS += $(MANDATORY_MODULE_BUILD_CFLAGS)
+	CXXFLAGS += $(MANDATORY_MODULE_BUILD_CFLAGS)
+endif
+
+CFLAGS += $(CFLAGS_EXTRAS)
+CXXFLAGS += -std=c++11 $(CFLAGS) $(ARCH_CXXFLAGS)
+LD = $(CC)
+LDFLAGS ?= $(CFLAGS)
+LDFLAGS += $(LD_EXTRAS) $(ARCH_LDFLAGS)
+ifeq (,$(filter $(OS), Windows_NT Android Darwin))
+	ifneq (,$(filter YES,$(ENABLE_THREADS)))
+		LDFLAGS += -pthread
+	endif
+endif
+OBJECTS =
+EXE ?= a.out
+
+ifneq "$(FRAMEWORK)" ""
+	DYLIB_NAME ?= $(FRAMEWORK).framework/Versions/A/$(FRAMEWORK)
+	DYLIB_FILENAME ?= $(FRAMEWORK).framework/Versions/A/$(FRAMEWORK)
+endif
+
+ifneq "$(DYLIB_NAME)" ""
+	ifeq "$(OS)" "Darwin"
+		ifneq "$(FRAMEWORK)" ""
+			DYLIB_INSTALL_NAME ?= @executable_path/$(FRAMEWORK).framework/Versions/A/$(FRAMEWORK)
+		else
+			DYLIB_FILENAME = lib$(DYLIB_NAME).dylib
+			DYLIB_INSTALL_NAME ?= @executable_path/$(DYLIB_FILENAME)
+		endif
+	else ifeq "$(OS)" "Windows_NT"
+		DYLIB_FILENAME = $(DYLIB_NAME).dll
+	else
+		DYLIB_FILENAME = lib$(DYLIB_NAME).so
+	endif
+endif
+
+# Function that returns the counterpart C++ compiler, given $(CC) as arg.
+cxx_compiler_notdir = $(if $(findstring icc,$(1)), \
+			$(subst icc,icpc,$(1)), \
+			$(if $(findstring llvm-gcc,$(1)), \
+				$(subst llvm-gcc,llvm-g++,$(1)), \
+				$(if $(findstring gcc,$(1)), \
+					$(subst gcc,g++,$(1)), \
+					$(subst cc,c++,$(1)))))
+cxx_compiler = $(if $(findstring /,$(1)),$(join $(dir $(1)), $(call cxx_compiler_notdir,$(notdir $(1)))),$(call cxx_compiler_notdir,$(1)))
+
+# Function that returns the C++ linker, given $(CC) as arg.
+cxx_linker_notdir = $(if $(findstring icc,$(1)), \
+			$(subst icc,icpc,$(1)), \
+			$(if $(findstring llvm-gcc,$(1)), \
+				$(subst llvm-gcc,llvm-g++,$(1)), \
+				$(if $(findstring gcc,$(1)), \
+					$(subst gcc,g++,$(1)), \
+					$(subst cc,c++,$(1)))))
+cxx_linker = $(if $(findstring /,$(1)),$(join $(dir $(1)), $(call cxx_linker_notdir,$(notdir $(1)))),$(call cxx_linker_notdir,$(1)))
+
+ifneq "$(OS)" "Darwin"
+	CLANG_OR_GCC := $(strip $(if $(findstring clang,$(CC)), \
+				$(findstring clang,$(CC)), \
+				$(if $(findstring gcc,$(CC)), \
+					$(findstring gcc,$(CC)), \
+					cc)))
+
+	CC_LASTWORD := $(strip $(lastword $(subst -, ,$(CC))))
+
+	replace_with = $(strip $(if $(findstring $(3),$(CC_LASTWORD)), \
+			$(subst $(3),$(1),$(2)), \
+			$(subst $(3),$(1),$(subst -$(CC_LASTWORD),,$(2)))))
+
+	ifeq "$(notdir $(CC))" "$(CC)"
+		replace_cc_with = $(call replace_with,$(1),$(CC),$(CLANG_OR_GCC))
+	else
+		replace_cc_with = $(join $(dir $(CC)),$(call replace_with,$(1),$(notdir $(CC)),$(CLANG_OR_GCC)))
+	endif
+
+	OBJCOPY ?= $(call replace_cc_with,objcopy)
+	ARCHIVER ?= $(call replace_cc_with,ar)
+	override AR = $(ARCHIVER)
+endif
+
+ifdef PIE
+	LDFLAGS += -pie
+endif
+
+#----------------------------------------------------------------------
+# Windows specific options
+#----------------------------------------------------------------------
+ifeq "$(OS)" "Windows_NT"
+	ifneq (,$(findstring clang,$(CC)))
+		# Clang for Windows doesn't support C++ Exceptions
+		CXXFLAGS += -fno-exceptions
+		CXXFLAGS += -D_HAS_EXCEPTIONS=0
+
+		# MSVC 2015 or higher is required, which depends on c++14, so
+		# append these values unconditionally.
+		CXXFLAGS += -fms-compatibility-version=19.0
+		CXXFLAGS += -std=c++14
+
+		# The MSVC linker doesn't understand long section names
+		# generated by the clang compiler.
+		LDFLAGS += -fuse-ld=lld
+	endif
+endif
+
+#----------------------------------------------------------------------
+# C++ standard library options
+#----------------------------------------------------------------------
+ifneq ($(and $(USE_LIBSTDCPP), $(USE_LIBCPP)),)
+	$(error Libcxx and Libstdc++ cannot be used together)
+endif
+
+ifeq (1, $(USE_SYSTEM_STDLIB))
+	ifneq ($(or $(USE_LIBSTDCPP), $(USE_LIBCPP)),)
+		$(error Cannot use system's standard library and a custom standard library together)
+	endif
+endif
+
+ifeq (1,$(USE_LIBSTDCPP))
+	# Clang requires an extra flag: -stdlib=libstdc++
+	ifneq (,$(findstring clang,$(CC)))
+		CXXFLAGS += -stdlib=libstdc++
+		LDFLAGS += -stdlib=libstdc++
+	endif
+endif
+
+ifeq (1,$(USE_LIBCPP))
+	ifneq ($(and $(LIBCPP_INCLUDE_DIR), $(LIBCPP_LIBRARY_DIR)),)
+		CXXFLAGS += -nostdlib++ -nostdinc++ -cxx-isystem $(LIBCPP_INCLUDE_DIR)
+		ifneq "$(LIBCPP_INCLUDE_TARGET_DIR)" ""
+				CXXFLAGS += -cxx-isystem $(LIBCPP_INCLUDE_TARGET_DIR)
+		endif
+		LDFLAGS += -L$(LIBCPP_LIBRARY_DIR) -Wl,-rpath,$(LIBCPP_LIBRARY_DIR) -lc++
+	else
+		ifeq "$(OS)" "Android"
+				# Nothing to do, this is already handled in
+				# Android.rules.
+		else
+				CXXFLAGS += -stdlib=libc++
+				LDFLAGS += -stdlib=libc++
+		endif
+		ifneq (,$(filter $(OS), FreeBSD Linux NetBSD))
+				ifneq (,$(LLVM_LIBS_DIR))
+				LDFLAGS += -Wl,-rpath,$(LLVM_LIBS_DIR)
+				endif
+		endif
+	endif
+endif
+
+ifeq (1, $(USE_SYSTEM_STDLIB))
+    ifeq "$(OS)" "Darwin"
+        ifeq "$(SDKROOT)" ""
+             $(error "SDKROOT must be set on Darwin to use the system libcxx")
+        endif
+        CXXFLAGS += -nostdlib++ -nostdinc++ -cxx-isystem $(SDKROOT)/usr/include/c++/v1
+        LDFLAGS += -L$(SDKROOT)/usr/lib -Wl,-rpath,$(SDKROOT)/usr/lib -lc++
+    endif
+endif
+
+# If no explicit request was made, but we have paths to a custom libcxx, use
+# them.
+ifeq ($(or $(USE_LIBSTDCPP), $(USE_LIBCPP), $(USE_SYSTEM_STDLIB)),)
+	ifneq ($(and $(LIBCPP_INCLUDE_DIR), $(LIBCPP_LIBRARY_DIR)),)
+		CXXFLAGS += -nostdlib++ -nostdinc++ -cxx-isystem $(LIBCPP_INCLUDE_DIR)
+		ifneq "$(LIBCPP_INCLUDE_TARGET_DIR)" ""
+				CXXFLAGS += -cxx-isystem $(LIBCPP_INCLUDE_TARGET_DIR)
+		endif
+		LDFLAGS += -L$(LIBCPP_LIBRARY_DIR) -Wl,-rpath,$(LIBCPP_LIBRARY_DIR) -lc++
+	endif
+endif
+
+#----------------------------------------------------------------------
+# Additional system libraries
+#----------------------------------------------------------------------
+ifeq (1,$(USE_LIBDL))
+	ifeq (,$(filter $(OS), NetBSD Windows_NT))
+		LDFLAGS += -ldl
+	endif
+endif
+
+CXXFLAGS += $(CXXFLAGS_EXTRAS)
+
+#----------------------------------------------------------------------
+# dylib settings
+#----------------------------------------------------------------------
+
+DYLIB_OBJECTS +=$(strip $(DYLIB_C_SOURCES:.c=.o))
+DYLIB_OBJECTS +=$(strip $(DYLIB_OBJC_SOURCES:.m=.o))
+ifneq "$(strip $(DYLIB_CXX_SOURCES))" ""
+	DYLIB_OBJECTS +=$(strip $(patsubst %.mm, %.o, $(DYLIB_CXX_SOURCES:.cpp=.o)))
+	CXX = $(call cxx_compiler,$(CC))
+	LD = $(call cxx_linker,$(CC))
+endif
+
+#----------------------------------------------------------------------
+# Check if we have a precompiled header
+#----------------------------------------------------------------------
+ifneq "$(strip $(PCH_CXX_SOURCE))" ""
+	PCH_OUTPUT = $(PCH_CXX_SOURCE:.h=.h.pch)
+	PCHFLAGS = -include $(PCH_CXX_SOURCE)
+endif
+
+#----------------------------------------------------------------------
+# Check if we have any C source files
+#----------------------------------------------------------------------
+ifneq "$(strip $(C_SOURCES))" ""
+	OBJECTS +=$(strip $(C_SOURCES:.c=.o))
+endif
+
+#----------------------------------------------------------------------
+# Check if we have any C++ source files
+#----------------------------------------------------------------------
+ifneq "$(strip $(CXX_SOURCES))" ""
+	OBJECTS +=$(strip $(CXX_SOURCES:.cpp=.o))
+	CXX = $(call cxx_compiler,$(CC))
+	LD = $(call cxx_linker,$(CC))
+endif
+
+#----------------------------------------------------------------------
+# Check if we have any ObjC source files
+#----------------------------------------------------------------------
+ifneq "$(strip $(OBJC_SOURCES))" ""
+	OBJECTS +=$(strip $(OBJC_SOURCES:.m=.o))
+	LDFLAGS +=-lobjc
+endif
+
+#----------------------------------------------------------------------
+# Check if we have any ObjC++ source files
+#----------------------------------------------------------------------
+ifneq "$(strip $(OBJCXX_SOURCES))" ""
+	OBJECTS +=$(strip $(OBJCXX_SOURCES:.mm=.o))
+	CXX = $(call cxx_compiler,$(CC))
+	LD = $(call cxx_linker,$(CC))
+	ifeq "$(findstring lobjc,$(LDFLAGS))" ""
+		LDFLAGS +=-lobjc
+	endif
+endif
+
+ifeq ($(findstring clang, $(CXX)), clang)
+	CXXFLAGS += --driver-mode=g++
+endif
+
+ifneq "$(CXX)" ""
+	ifeq ($(findstring clang, $(LD)), clang)
+		LDFLAGS += --driver-mode=g++
+	endif
+endif
+
+#----------------------------------------------------------------------
+# DYLIB_ONLY variable can be used to skip the building of a.out.
+# See the sections below regarding dSYM file as well as the building of
+# EXE from all the objects.
+#----------------------------------------------------------------------
+
+#----------------------------------------------------------------------
+# Compile the executable from all the objects.
+#----------------------------------------------------------------------
+ifneq "$(DYLIB_NAME)" ""
+ifeq "$(DYLIB_ONLY)" ""
+$(EXE) : $(OBJECTS) $(DYLIB_FILENAME)
+	$(LD) $(OBJECTS) -L. -l$(DYLIB_NAME) $(LDFLAGS) -o "$(EXE)"
+ifneq "$(CODESIGN)" ""
+	$(CODESIGN) -s - "$(EXE)"
+endif
+else
+EXE = $(DYLIB_FILENAME)
+endif
+else
+$(EXE) : $(OBJECTS)
+	$(LD) $(OBJECTS) $(LDFLAGS) -o "$(EXE)"
+ifneq "$(CODESIGN)" ""
+	$(CODESIGN) -s - "$(EXE)"
+endif
+endif
+
+#----------------------------------------------------------------------
+# Make the dSYM file from the executable if $(MAKE_DSYM) != "NO"
+#----------------------------------------------------------------------
+$(DSYM) : $(EXE)
+ifeq "$(OS)" "Darwin"
+ifneq "$(MAKE_DSYM)" "NO"
+	"$(DS)" $(DSFLAGS) -o "$(DSYM)" "$(EXE)"
+else
+endif
+else
+ifeq "$(SPLIT_DEBUG_SYMBOLS)" "YES"
+	$(OBJCOPY) --only-keep-debug "$(EXE)" "$(DSYM)"
+	$(OBJCOPY) --strip-debug --add-gnu-debuglink="$(DSYM)" "$(EXE)" "$(EXE)"
+endif
+endif
+
+#----------------------------------------------------------------------
+# Make the dylib
+#----------------------------------------------------------------------
+$(DYLIB_OBJECTS) : CFLAGS += -DCOMPILING_LLDB_TEST_DLL
+
+ifneq "$(OS)" "Windows_NT"
+$(DYLIB_OBJECTS) : CFLAGS += -fPIC
+$(DYLIB_OBJECTS) : CXXFLAGS += -fPIC
+endif
+
+$(DYLIB_FILENAME) : $(DYLIB_OBJECTS)
+ifeq "$(OS)" "Darwin"
+ifneq "$(FRAMEWORK)" ""
+	mkdir -p $(FRAMEWORK).framework/Versions/A/Headers
+	mkdir -p $(FRAMEWORK).framework/Versions/A/Modules
+	mkdir -p $(FRAMEWORK).framework/Versions/A/Resources
+ifneq "$(FRAMEWORK_MODULES)" ""
+	cp -r $(FRAMEWORK_MODULES) $(FRAMEWORK).framework/Versions/A/Modules
+endif
+ifneq "$(FRAMEWORK_HEADERS)" ""
+	cp -r $(FRAMEWORK_HEADERS) $(FRAMEWORK).framework/Versions/A/Headers
+endif
+	(cd $(FRAMEWORK).framework/Versions; ln -sf A Current)
+	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/Headers Headers)
+	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/Modules Modules)
+	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/Resources Resources)
+	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/$(FRAMEWORK) $(FRAMEWORK))
+endif
+	$(LD) $(DYLIB_OBJECTS) $(LDFLAGS) -install_name "$(DYLIB_INSTALL_NAME)" -dynamiclib -o "$(DYLIB_FILENAME)"
+ifneq "$(CODESIGN)" ""
+	$(CODESIGN) -s - "$(DYLIB_FILENAME)"
+endif
+ifneq "$(MAKE_DSYM)" "NO"
+ifneq "$(DS)" ""
+	"$(DS)" $(DSFLAGS) "$(DYLIB_FILENAME)"
+endif
+endif
+else
+	$(LD) $(DYLIB_OBJECTS) $(LDFLAGS) -shared -o "$(DYLIB_FILENAME)"
+ifeq "$(SPLIT_DEBUG_SYMBOLS)" "YES"
+	$(OBJCOPY) --only-keep-debug "$(DYLIB_FILENAME)" "$(DYLIB_FILENAME).debug"
+	$(OBJCOPY) --strip-debug --add-gnu-debuglink="$(DYLIB_FILENAME).debug" "$(DYLIB_FILENAME)" "$(DYLIB_FILENAME)"
+endif
+endif
+
+#----------------------------------------------------------------------
+# Make the precompiled header and compile C++ sources against it
+#----------------------------------------------------------------------
+
+ifneq "$(PCH_OUTPUT)" ""
+$(PCH_OUTPUT) : $(PCH_CXX_SOURCE)
+	$(CXX) $(CXXFLAGS) -x c++-header -o $@ $<
+endif
+
+%.o: %.c %.d
+	$(CC) $(CFLAGS) -MT $@ -MD -MP -MF $*.d -c -o $@ $<
+
+%.o: %.cpp %.d $(PCH_OUTPUT)
+	$(CXX) $(PCHFLAGS) $(CXXFLAGS) -MT $@ -MD -MP -MF $*.d -c -o $@ $<
+
+%.o: %.m %.d
+	$(CC) $(CFLAGS) -MT $@ -MD -MP -MF $*.d -c -o $@ $<
+
+%.o: %.mm %.d
+	$(CXX) $(CXXFLAGS) -MT $@ -MD -MP -MF $*.d -c -o $@ $<
+
+#----------------------------------------------------------------------
+# Automatic variables based on items already entered. Below we create
+# an object's lists from the list of sources by replacing all entries
+# that end with .c with .o, and we also create a list of prerequisite
+# files by replacing all .c files with .d.
+#----------------------------------------------------------------------
+PREREQS := $(OBJECTS:.o=.d)
+DWOS := $(OBJECTS:.o=.dwo)
+ifneq "$(DYLIB_NAME)" ""
+	DYLIB_PREREQS := $(DYLIB_OBJECTS:.o=.d)
+	DYLIB_DWOS := $(DYLIB_OBJECTS:.o=.dwo)
+endif
+
+# Don't error if a .d file is deleted.
+$(PREREQS) $(DYLIB_PREREQS): ;
+
+#----------------------------------------------------------------------
+# Include all of the makefiles for each source file so we don't have
+# to manually track all of the prerequisites for each source file.
+#----------------------------------------------------------------------
+include $(wildcard $(PREREQS) $(DYLIB_PREREQS))
+
+.PHONY: clean
+dsym:	$(DSYM)
+all:	$(EXE) $(DSYM)
+clean::
+ifeq "$(findstring lldb-test-build.noindex, $(BUILDDIR))" ""
+	$(error Trying to invoke the clean rule, but not using the default build tree layout)
+else
+	$(RM) -r $(wildcard $(BUILDDIR)/*)
+endif
+
+#----------------------------------------------------------------------
+# From http://blog.melski.net/tag/debugging-makefiles/
+#
+# Usage: make print-CC print-CXX print-LD
+#----------------------------------------------------------------------
+print-%:
+	@echo '$*=$($*)'
+	@echo '  origin = $(origin $*)'
+	@echo '  flavor = $(flavor $*)'
+	@echo '   value = $(value  $*)'
+
+### Local Variables: ###
+### mode:makefile ###
+### End: ###

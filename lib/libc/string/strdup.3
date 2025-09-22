@@ -1,0 +1,119 @@
+.\"	$OpenBSD: strdup.3,v 1.22 2015/12/01 01:32:48 mmcc Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strdup.3	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: December 1 2015 $
+.Dt STRDUP 3
+.Os
+.Sh NAME
+.Nm strdup ,
+.Nm strndup
+.Nd save a copy of a string
+.Sh SYNOPSIS
+.In string.h
+.Ft char *
+.Fn strdup "const char *s"
+.Ft char *
+.Fn strndup "const char *s" "size_t maxlen"
+.Sh DESCRIPTION
+The
+.Fn strdup
+function allocates sufficient memory for a copy of the string
+.Fa s ,
+does the copy, and returns a pointer to it.
+The pointer may subsequently be used as an argument to the function
+.Xr free 3 .
+.Pp
+The
+.Fn strndup
+function behaves similarly to
+.Nm strdup
+but only copies up to
+.Fa maxlen
+characters from
+.Fa s .
+The resulting string is always NUL-terminated.
+.Pp
+If the memory allocation fails,
+.Dv NULL
+is returned.
+.Sh EXAMPLES
+The following will point
+.Va p
+to an allocated area of memory containing the NUL-terminated string
+.Qq foobar :
+.Bd -literal -offset indent
+char *p;
+
+p = strdup("foobar");
+if (p == NULL)
+	err(1, NULL);
+.Ed
+.Sh ERRORS
+The
+.Fn strdup
+and
+.Fn strndup
+functions may fail and set the external variable
+.Va errno
+for any of the errors specified for the library function
+.Xr malloc 3 .
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr malloc 3 ,
+.Xr strcpy 3 ,
+.Xr strlcpy 3 ,
+.Xr strlen 3 ,
+.Xr wcsdup 3
+.Sh STANDARDS
+The
+.Fn strdup
+and
+.Fn strndup
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+A
+.Fn strdup
+macro was first used in the
+.Bx 4.1c
+debugger,
+.Sy dbx .
+It was rewritten as a C function for the
+.Bx 4.3
+.Xr inetd 8
+and first appeared in the C library of
+.Bx 4.3 Reno .
+The
+.Fn strndup
+function appeared in glibc 2.0, was reimplemented for
+.Nx 4.0 ,
+and ported to
+.Ox 4.8 .

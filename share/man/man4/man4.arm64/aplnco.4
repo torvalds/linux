@@ -1,0 +1,43 @@
+.\"	$OpenBSD: aplnco.4,v 1.2 2022/08/06 10:51:30 jsg Exp $
+.\"
+.\" Copyright (c) 2022 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 6 2022 $
+.Dt APLNCO 4 arm64
+.Os
+.Sh NAME
+.Nm aplnco
+.Nd Apple NCO clock controller
+.Sh SYNOPSIS
+.Cd "aplnco* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver controls the numerically-controlled oscillators that are used
+to derive the audio clock signals for Apple SoCs.
+.Sh SEE ALSO
+.Xr aplmca 4 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 7.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

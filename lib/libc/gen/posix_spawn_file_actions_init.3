@@ -1,0 +1,57 @@
+.\"	$OpenBSD: posix_spawn_file_actions_init.3,v 1.8 2014/11/30 02:41:43 schwarze Exp $
+.\"
+.\" Copyright (c) 2012 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 30 2014 $
+.Dt POSIX_SPAWN_FILE_ACTIONS_INIT 3
+.Os
+.Sh NAME
+.Nm posix_spawn_file_actions_init ,
+.Nm posix_spawn_file_actions_destroy
+.Nd create and destroy posix_spawn file actions objects
+.Sh SYNOPSIS
+.In spawn.h
+.Ft int
+.Fn posix_spawn_file_actions_init "posix_spawn_file_actions_t *file_actions"
+.Ft int
+.Fn posix_spawn_file_actions_destroy "posix_spawn_file_actions_t *file_actions"
+.Sh DESCRIPTION
+File actions objects can be initialized by
+.Fn posix_spawn_file_actions_init
+and destroyed by
+.Fn posix_spawn_file_actions_destroy .
+.Pp
+Multiple initialization of the same object is undefined behavior
+and will lead to memory leaks.
+.Pp
+Similarly, objects should be passed to
+.Fn posix_spawn_file_actions_destroy
+to reclaim memory.
+The object should not be re-used after destruction.
+It can however be initialized again with
+.Fn posix_spawn_file_actions_init .
+.Sh RETURN VALUES
+These function return 0 on successful completion.
+They may return
+.Er ENOMEM
+when running out of memory.
+.Sh SEE ALSO
+.Xr posix_spawn 3 ,
+.Xr posix_spawn_file_actions_addopen 3
+.Sh STANDARDS
+Both functions conform to
+.St -p1003.1-2001 .
+.Sh AUTHORS
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org

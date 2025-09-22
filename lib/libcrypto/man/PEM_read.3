@@ -1,0 +1,417 @@
+.\" $OpenBSD: PEM_read.3,v 1.17 2025/07/16 17:59:10 schwarze Exp $
+.\" full merge up to: OpenSSL 83cf7abf May 29 13:07:08 2018 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Viktor Dukhovni
+.\" and by Rich Salz <rsalz@openssl.org>.
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 16 2025 $
+.Dt PEM_READ 3
+.Os
+.Sh NAME
+.Nm PEM_write ,
+.Nm PEM_write_bio ,
+.Nm PEM_read ,
+.Nm PEM_read_bio ,
+.Nm PEM_get_EVP_CIPHER_INFO ,
+.Nm PEM_do_header ,
+.Nm PEM_def_callback ,
+.Nm pem_password_cb
+.Nd PEM encoding routines
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pem.h
+.Ft int
+.Fo PEM_write
+.Fa "FILE *fp"
+.Fa "const char *name"
+.Fa "const char *header"
+.Fa "const unsigned char *data"
+.Fa "long len"
+.Fc
+.Ft int
+.Fo PEM_write_bio
+.Fa "BIO *bp"
+.Fa "const char *name"
+.Fa "const char *header"
+.Fa "const unsigned char *data"
+.Fa "long len"
+.Fc
+.Ft int
+.Fo PEM_read
+.Fa "FILE *fp"
+.Fa "char **name"
+.Fa "char **header"
+.Fa "unsigned char **data"
+.Fa "long *len"
+.Fc
+.Ft int
+.Fo PEM_read_bio
+.Fa "BIO *bp"
+.Fa "char **name"
+.Fa "char **header"
+.Fa "unsigned char **data"
+.Fa "long *len"
+.Fc
+.Ft int
+.Fo PEM_get_EVP_CIPHER_INFO
+.Fa "char *header"
+.Fa "EVP_CIPHER_INFO *cinfo"
+.Fc
+.Ft int
+.Fo PEM_do_header
+.Fa "EVP_CIPHER_INFO *cinfo"
+.Fa "unsigned char *data"
+.Fa "long *len"
+.Fa "pem_password_cb *cb"
+.Fa "void *userdata"
+.Fc
+.Ft int
+.Fo PEM_def_callback
+.Fa "char *password"
+.Fa "int size"
+.Fa "int verify"
+.Fa "void *userdata"
+.Fc
+.Ft typedef int
+.Fo pem_password_cb
+.Fa "char *password"
+.Fa "int size"
+.Fa "int verify"
+.Fa "void *userdata"
+.Fc
+.Sh DESCRIPTION
+These functions read and write PEM-encoded objects, using the PEM type
+.Fa name ,
+any additional
+.Fa header
+information, and the raw
+.Fa data
+of length
+.Fa len .
+.Pp
+PEM is the binary content encoding first defined in IETF RFC 1421.
+The content is a series of base64-encoded lines, surrounded by
+begin/end markers each on their own line.
+For example:
+.Bd -literal -offset indent
+-----BEGIN PRIVATE KEY-----
+MIICdg....
+\&... bhTQ==
+-----END PRIVATE KEY-----
+.Ed
+.Pp
+Optional header line(s) may appear after the begin line, and their
+existence depends on the type of object being written or read.
+.Pp
+.Fn PEM_write
+writes to the file
+.Fa fp ,
+while
+.Fn PEM_write_bio
+writes to the BIO
+.Fa bp .
+The
+.Fa name
+is the name to use in the marker, the
+.Fa header
+is the header value or
+.Dv NULL ,
+and
+.Fa data
+and
+.Fa len
+specify the data and its length.
+.Pp
+The final
+.Fa data
+buffer is typically an ASN.1 object which can be decoded with the
+.Fn d2i_*
+function appropriate to the type
+.Fa name ;
+see
+.Xr d2i_X509 3
+for examples.
+.Pp
+.Fn PEM_read
+reads from the file
+.Fa fp ,
+while
+.Fn PEM_read_bio
+reads from the BIO
+.Fa bp .
+Both skip any non-PEM data that precedes the start of the next PEM
+object.
+When an object is successfully retrieved, the type name from the
+"----BEGIN <type>-----" is returned via the
+.Fa name
+argument, any encapsulation headers are returned in
+.Fa header ,
+and the base64-decoded content and its length are returned via
+.Fa data
+and
+.Fa len ,
+respectively.
+The
+.Fa name ,
+.Fa header ,
+and
+.Fa data
+pointers should be freed by the caller when no longer needed.
+.Pp
+The remaining functions are deprecated because the underlying PEM
+encryption format is obsolete and should be avoided.
+It uses an encryption format with an OpenSSL-specific key-derivation
+function, which employs MD5 with an iteration count of 1.
+Instead, private keys should be stored in PKCS#8 form, with a strong
+PKCS#5 v2.0 PBE; see
+.Xr PEM_write_PrivateKey 3
+and
+.Xr d2i_PKCS8PrivateKey_bio 3 .
+.Pp
+.Fn PEM_get_EVP_CIPHER_INFO
+can be used to determine the
+.Fa data
+returned by
+.Fn PEM_read
+or
+.Fn PEM_read_bio
+is encrypted and to retrieve the associated cipher and IV.
+The caller passes a pointer to a structure of type
+.Vt EVP_CIPHER_INFO
+via the
+.Fa cinfo
+argument and the
+.Fa header
+returned via
+.Fn PEM_read
+or
+.Fn PEM_read_bio .
+If the call is successful, 1 is returned and the cipher and IV are
+stored at the address pointed to by
+.Fa cinfo .
+When the header is malformed or not supported or when the cipher is
+unknown or some internal error happens, 0 is returned.
+.Pp
+.Fn PEM_do_header
+can then be used to decrypt the data if the header indicates encryption.
+The
+.Fa cinfo
+argument is a pointer to the structure initialized by a preceding call
+to
+.Fn PEM_get_EVP_CIPHER_INFO .
+If that structure indicates the absence of encryption,
+.Fn PEM_do_header
+returns successfully without taking any action.
+The
+.Fa data
+and
+.Fa len
+arguments are used both to pass in the encrypted data that was
+returned in the same arguments from the preceding call to
+.Fn PEM_read
+or
+.Fn PEM_read_bio
+and to pass out the decrypted data.
+.Pp
+The callback function
+.Fa cb
+is used to obtain the encryption
+.Fa password ;
+if
+.Fa cb
+is
+.Dv NULL ,
+.Fn PEM_def_callback
+is used instead.
+The
+.Fa password
+buffer needs to be at least
+.Fa size
+bytes long.
+Unless
+.Fa userdata
+is
+.Dv NULL ,
+.Fn PEM_def_callback
+ignores the
+.Fa verify
+argument and copies the NUL-terminated byte string
+.Fa userdata
+to
+.Fa password
+without a terminating NUL byte, silently truncating the copy to at most
+.Fa size
+bytes.
+If
+.Fa userdata
+is
+.Dv NULL ,
+.Fn PEM_def_callback
+instead prompts the user for the password with echoing turned off
+by calling
+.Xr EVP_read_pw_string_min 3
+internally.
+In this case, the
+.Fa size
+is silently reduced to at most
+.Dv BUFSIZ
+and at most
+.Fa size No \- 1
+bytes are accepted from the user and copied into the byte string buffer
+.Fa password .
+A callback function
+.Fa cb
+supplied by the application may use
+.Fa userdata
+for a different purpose than
+.Fn PEM_def_callback
+does, e.g., as auxiliary data to use while acquiring the password.
+For example, a GUI application might pass a window handle.
+If the
+.Fa verify
+flag is non-zero, the user is prompted twice for the password to
+make typos less likely and it is checked that both inputs agree.
+This flag is not set by
+.Fn PEM_do_header
+nor by other read functions, but it is typically set by write functions.
+.Pp
+If the data is a priori known to not be encrypted, then neither
+.Fn PEM_get_EVP_CIPHER_INFO
+nor
+.Fn PEM_do_header
+need to be called.
+.Sh RETURN VALUES
+.Fn PEM_read
+and
+.Fn PEM_read_bio
+return 1 on success or 0 on failure.
+The latter includes the case when no more PEM objects remain in the
+input file.
+To distinguish end of file from more serious errors, the caller
+must peek at the error stack and check for
+.Dv PEM_R_NO_START_LINE ,
+which indicates that no more PEM objects were found.
+See
+.Xr ERR_peek_last_error 3
+and
+.Xr ERR_GET_REASON 3 .
+.Pp
+.Fn PEM_get_EVP_CIPHER_INFO
+and
+.Fn PEM_do_header
+return 1 on success or 0 on failure.
+The
+.Fa data
+is likely meaningless if these functions fail.
+.Pp
+.Fn PEM_def_callback
+returns the number of bytes stored into
+.Fa buf
+or a negative value on failure, and
+.Fa cb
+is expected to behave in the same way.
+If
+.Fa userdata
+is
+.Dv NULL ,
+.Fn PEM_def_callback
+fails if
+.Fa num
+is less than 5
+or if an error occurs trying to prompt the user for the password.
+Otherwise, it fails when
+.Fa num
+is negative.
+The details of the circumstances that cause
+.Fa cb
+to fail may differ.
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr d2i_PKCS8PrivateKey_bio 3 ,
+.Xr PEM_ASN1_read 3 ,
+.Xr PEM_bytes_read_bio 3 ,
+.Xr PEM_read_bio_PrivateKey 3 ,
+.Xr PEM_read_SSL_SESSION 3 ,
+.Xr PEM_write_bio_CMS_stream 3 ,
+.Xr PEM_write_bio_PKCS7_stream 3 ,
+.Xr PEM_X509_INFO_read_bio 3
+.Sh HISTORY
+.Fn PEM_write ,
+.Fn PEM_read ,
+and
+.Fn PEM_do_header
+appeared in SSLeay 0.4 or earlier.
+.Fn PEM_get_EVP_CIPHER_INFO
+first appeared in SSLeay 0.5.1.
+.Fn PEM_write_bio
+and
+.Fn PEM_read_bio
+first appeared in SSLeay 0.6.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn PEM_def_callback
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .

@@ -1,0 +1,8 @@
+#
+#	$OpenBSD: ttys,v 1.4 2010/03/11 09:28:48 otto Exp $
+#
+# name	getty				type	status		comments
+#
+console	"/usr/libexec/getty std.115200"	vt220	on  secure
+ttyC0	"/usr/libexec/getty std.9600"	vt220	off secure
+tty00	"/usr/libexec/getty std.115200"	unknown	off secure softcar

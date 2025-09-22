@@ -1,0 +1,96 @@
+.\"	$OpenBSD: repquota.8,v 1.12 2016/03/17 18:50:48 mmcc Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Robert Elz at The University of Melbourne.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)repquota.8	8.1 (Berkeley) 6/6/93
+.\"	$Id: repquota.8,v 1.12 2016/03/17 18:50:48 mmcc Exp $
+.\"
+.Dd $Mdocdate: March 17 2016 $
+.Dt REPQUOTA 8
+.Os
+.Sh NAME
+.Nm repquota
+.Nd summarize quotas for a file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl guv
+.Fl a
+.Nm
+.Op Fl guv
+.Ar filesystem ...
+.Sh DESCRIPTION
+.Nm
+prints a summary of the disk usage and quotas for the
+specified filesystem(s).
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Print the quotas of all filesystems listed in
+.Pa /etc/fstab .
+.It Fl g
+Print only group quotas (the default is to print both
+group and user quotas if they exist).
+.It Fl u
+Print only user quotas (the default is to print both
+group and user quotas if they exist).
+.It Fl v
+Print a header line before printing each filesystem's quota.
+.El
+.Pp
+For each user or group, the current
+number of files and amount of space (in kilobytes) is
+printed, along with any quotas created with
+.Xr edquota 8 .
+.Pp
+Only members of the operator group or the superuser may
+use this command.
+.Sh FILES
+.Bl -tag -width quota.group -compact
+.It Pa quota.user
+at the filesystem root with user quotas
+.It Pa quota.group
+at the filesystem root with group quotas
+.It Pa /etc/fstab
+for file system names and locations
+.El
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr quotactl 2 ,
+.Xr fstab 5 ,
+.Xr edquota 8 ,
+.Xr quotacheck 8 ,
+.Xr quotaon 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

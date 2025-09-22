@@ -1,0 +1,200 @@
+.\"	$OpenBSD: dhcrelay6.8,v 1.5 2025/05/16 03:49:38 kn Exp $
+.\"
+.\" Copyright (c) 1997 The Internet Software Consortium.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.Dd $Mdocdate: May 16 2025 $
+.Dt DHCRELAY6 8
+.Os
+.Sh NAME
+.Nm dhcrelay6
+.Nd Dynamic Host Configuration Protocol for IPv6 (DHCPv6) relay agent
+.Sh SYNOPSIS
+.Nm
+.Op Fl dlov
+.Op Fl E Ar enterprise-number
+.Op Fl I Ar interface-id
+.Op Fl R Ar remote-id
+.Fl i Ar interface
+.Ar destination ...
+.Sh DESCRIPTION
+The
+.Nm
+utility provides a means for relaying DHCPv6 requests from a subnet to
+which no DHCP server is directly connected to one or more DHCPv6 servers
+on other subnets.
+.Pp
+.Nm
+listens for DHCPv6 requests on a given interface.
+When a query is received,
+.Nm
+forwards it to the list of DHCP destinations specified on the command
+line.
+When a reply is received, it is sent on the network from whence the
+original request came.
+.Pp
+The
+.Ar destination
+might be an address followed by a `%' and an interface name,
+or just an interface name (e.g. "2001:db8::1%em0" or "em1").
+When no address is specified,
+.Nm
+will use multicast on the specified interface.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl E Ar enterprise-number
+Choose the
+.Ar enterprise-number
+that will be used by the Remote-ID option (this only has effect when using
+.Fl R ) .
+.It Fl I Ar interface-id
+The
+.Ar interface-id
+relay agent information option value that
+.Nm
+should use on relayed packets.
+If this option is not specified, it will use the interface name by
+default.
+.Pp
+Avoid using this option when using Lightweight DHCPv6 Relay Mode
+(layer 2 relay), otherwise
+.Nm
+will always send replies back to the client interface, which will break
+networks with multiple DHCPv6 layer 2 relay agents.
+.It Fl i Ar interface
+The name of the network interface
+which will receive client DHCPv6 requests.
+For layer 3 mode at least one IPv6 local, site or global address has to
+be configured on this interface.
+.It Fl l
+Use the Lightweight DHCPv6 Relay Agent mode (layer 2 relaying).
+.It Fl o
+Add the Interface-ID option.
+This option is activated by default when using layer 2 relaying.
+.It Fl R Ar remote-id
+Enable and add the specified Relay Agent
+.Ar remote-id
+to identify this relay segment.
+.It Fl v
+Show verbose messages.
+Implies
+.Fl d .
+.El
+.Sh EXAMPLES
+Relay multicast packets in the current network to a unicast address
+(the relay must have a global address in em0):
+.Pp
+.Dl # dhcrelay6 -i em0 2001:db8::1000%em0
+.Pp
+Listen to one subnet and multicast DHCPv6 packets to another
+(requires at least link-local addresses):
+.Pp
+.Dl # dhcrelay6 -i em0 em1
+.Pp
+Relay DHCPv6 packets with Interface-ID (option 18) using the input
+interface as its content:
+.Pp
+.Dl # dhcrelay6 -o -i em0 2001:db8::1000%em0
+.Pp
+Same thing as before but with a custom Interface-ID:
+.Pp
+.Dl # dhcrelay6 -o -I \(dqOpenBSD Router 1\(dq -i em0 2001:db8::1000%em0
+.Pp
+Use Lightweight DHCPv6 Relay Agent (layer 2 relay) in a bridged or
+switched network (no IPv6 address required).
+Only makes sense when em0 and em1 are configured in a
+.Xr bridge 4 ,
+since
+.Nm
+needs to drop the original DHCPv6 packets and send modified ones with
+Interface-ID option.
+.Pp
+.Dl # dhcrelay6 -l -i em0 em1
+.Pp
+Identify a segment using Lightweight DHCPv6 Relay Agent (layer 2 relay)
+with a Remote-ID (option 37) instead of an Interface-ID:
+.Pp
+.Dl # dhcrelay6 -l -R \&"OpenBSD Router A\&" -i em0 em1
+.Sh SEE ALSO
+.Xr bridge 4 ,
+.Xr dhcrelay 8
+.Sh STANDARDS
+.Rs
+.%A R. Droms
+.%A J. Bound
+.%A B. Volz
+.%A T. Lemon
+.%A C. Perkins
+.%A M. Carney
+.%D July 2003
+.%R RFC 3315
+.%T Dynamic Host Configuration Protocol for IPv6 (DHCPv6)
+.Re
+.Pp
+.Rs
+.%A B. Volz
+.%D August 2006
+.%R RFC 4649
+.%T Dynamic Host Configuration Protocol for IPv6 (DHCPv6) Relay Agent Remote-ID Option
+.Re
+.Pp
+.Rs
+.%A D. Miles
+.%A S. Ooghe
+.%A W. Dec
+.%A S. Krishnan
+.%A A. Kavanagh
+.%D May 2011
+.%R RFC 6221
+.%T Lightweight DHCPv6 Relay Agent
+.Re
+.Sh AUTHORS
+.An -nosplit
+.Xr dhcrelay 8
+was written by
+.An Ted Lemon Aq Mt mellon@fugue.com
+and reworked by
+.An Henning Brauer Aq Mt henning@openbsd.org .
+.Pp
+IPv6 support was implemented by
+.An Rafael Zalamena Aq Mt rzalamena@openbsd.org .

@@ -1,0 +1,19 @@
+# CRX Target Makefile
+
+# Mingw specific compilation fixes
+USE_COLLECT2 =
+STMP_FIXINC =
+
+# Software emulation for integer div and mod
+LIB2FUNCS_EXTRA = $(srcdir)/config/udivmodsi4.c $(srcdir)/config/udivmod.c $(srcdir)/config/divmod.c
+
+# Build the floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c

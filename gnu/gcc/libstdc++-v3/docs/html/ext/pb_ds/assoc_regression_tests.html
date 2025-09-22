@@ -1,0 +1,96 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Associative-Container Regression Tests</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Associative-Container Regression Tests</h1>
+
+    <h2><a name="assoc_desc" id="assoc_desc">Description</a></h2>
+
+    <p>The library contains a single comprehensive regression test.
+    For a given container type in <tt>pb_ds</tt>, the test creates
+    an object of the container type and an object of the
+    corresponding STL type (<i>e.g.</i>, <tt>std::set</tt>). It
+    then performs a random sequence of methods with random
+    arguments (<i>e.g.</i>, inserts, erases, and so forth) on both
+    objects. At each operation, the test checks the return value of
+    the method, and optionally both compares <tt>pb_ds</tt>'s
+    object with the STL's object as well as performing other
+    consistency checks on <tt>pb_ds</tt>'s object (<i>e.g.</i>,
+    order preservation, when applicable, or node invariants, when
+    applicable).</p>
+
+    <p>Additionally, the test integrally checks exception safety
+    and resource leaks. This is done as follows. A special
+    allocator type, written for the purpose of the test, both
+    randomly throws an exceptions when allocations are performed,
+    and tracks allocations and de-allocations. The exceptions thrown
+    at allocations simulate memory-allocation failures; the
+    tracking mechanism checks for memory-related bugs (<i>e.g.</i>,
+    resource leaks and multiple de-allocations). Both
+    <tt>pb_ds</tt>'s containers and the containers' value-types are
+    configured to use this allocator.</p>
+
+    <p>Due to compiler constraints, the test is split into the
+    several sources, each checking only some containers.</p>
+
+    <h2><a name="assoc_tests" id="assoc_tests">Tests</a></h2>
+
+    <h3><a name="assoc_tests_set" id="assoc_tests_set">"Set"
+    Tests</a></h3>
+
+    <p>The following check all "set" types:</p>
+
+    <ol>
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/regression/hash_no_data_map_rand.cc"><tt>hash_no_data_map_rand.cc</tt></a>
+      checks all hash-based "set" types.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/regression/list_update_no_data_map_rand.cc"><tt>list_update_no_data_map_rand.cc</tt></a>
+      checks all list-based "set" types.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/regression/tree_no_data_map_rand.cc"><tt>tree_no_data_map_rand.cc</tt></a>
+      checks all tree-based "set" types.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/regression/trie_no_data_map_rand.cc"><tt>trie_no_data_map_rand.cc</tt></a>
+      checks all PATRICIA-trie-based "set" types.</li>
+    </ol>
+
+    <h3><a name="assoc_tests_map" id="assoc_tests_map">"Map"
+    Tests</a></h3>
+
+    <p>The following check all "map" types:</p>
+
+    <ol>
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/regression/hash_data_map_rand.cc"><tt>hash_data_map_rand.cc</tt></a>
+      checks all hash-based "map" types.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/regression/list_update_data_map_rand.cc"><tt>list_update_data_map_rand.cc</tt></a>
+      checks all list-based "map" types.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/regression/tree_data_map_rand.cc"><tt>tree_data_map_rand.cc</tt></a>
+      checks all tree-based "map" types.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/regression/trie_data_map_rand.cc"><tt>trie_data_map_rand.cc</tt></a>
+      checks all PATRICIA-trie-based "map" types.</li>
+    </ol>
+  </div>
+</body>
+</html>

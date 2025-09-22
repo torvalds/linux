@@ -1,0 +1,8 @@
+=== Start 256MB disk ===
+Writing MBR at offset 0.
+
+  a:             0.3G              128  4.2BSD   2048 16384     1 # /
+  a:           526208              128  4.2BSD   2048 16384     1 
+
+/dev/vnd0a / ffs rw 1 1
+=== End 256MB disk ===

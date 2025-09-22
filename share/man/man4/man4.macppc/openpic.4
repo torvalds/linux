@@ -1,0 +1,39 @@
+.\"     $OpenBSD: openpic.4,v 1.2 2008/05/04 21:06:13 jmc Exp $
+.\"
+.\" Copyright (c) 2008 Xavier Santolaria <xsa@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 4 2008 $
+.Dt OPENPIC 4 macppc
+.Os
+.Sh NAME
+.Nm openpic
+.Nd OpenPIC interrupt controller
+.Sh SYNOPSIS
+.Cd "openpic* at memc?"
+.Cd "openpic* at macobio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver manages the OpenPIC interrupt controller found on
+PowerPC systems.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr macobio 4 ,
+.Xr memc 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 2.7 .

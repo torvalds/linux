@@ -1,0 +1,592 @@
+.\" $OpenBSD: X509_STORE_CTX_get_error.3,v 1.29 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to:
+.\" OpenSSL man3/X509_STORE_CTX_get_error 24a535ea Sep 22 13:14:20 2020 +0100
+.\" OpenSSL man3/X509_STORE_CTX_new 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>
+.\" and Rich Salz <rsalz@openssl.org>.
+.\" Copyright (c) 2009, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_STORE_CTX_GET_ERROR 3
+.Os
+.Sh NAME
+.Nm X509_STORE_CTX_get_error ,
+.Nm X509_STORE_CTX_set_error ,
+.Nm X509_STORE_CTX_get_error_depth ,
+.Nm X509_STORE_CTX_set_error_depth ,
+.Nm X509_STORE_CTX_get_current_cert ,
+.Nm X509_STORE_CTX_set_current_cert ,
+.Nm X509_STORE_CTX_get0_current_issuer ,
+.Nm X509_STORE_CTX_get0_current_crl ,
+.Nm X509_STORE_CTX_get0_parent_ctx ,
+.Nm X509_STORE_CTX_get_num_untrusted ,
+.Nm X509_STORE_CTX_get0_chain ,
+.Nm X509_STORE_CTX_get_chain ,
+.Nm X509_STORE_CTX_get1_chain ,
+.Nm X509_STORE_CTX_set0_verified_chain ,
+.Nm X509_verify_cert_error_string
+.Nd get or set certificate verification status information
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509_vfy.h
+.Ft int
+.Fo X509_STORE_CTX_get_error
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set_error
+.Fa "X509_STORE_CTX *ctx"
+.Fa "int s"
+.Fc
+.Ft int
+.Fo X509_STORE_CTX_get_error_depth
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set_error_depth
+.Fa "X509_STORE_CTX *ctx"
+.Fa "int depth"
+.Fc
+.Ft X509 *
+.Fo X509_STORE_CTX_get_current_cert
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set_current_cert
+.Fa "X509_STORE_CTX *ctx"
+.Fa "X509 *cert"
+.Fc
+.Ft X509 *
+.Fo X509_STORE_CTX_get0_current_issuer
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft X509_CRL *
+.Fo X509_STORE_CTX_get0_current_crl
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft X509_STORE_CTX *
+.Fo X509_STORE_CTX_get0_parent_ctx
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft int
+.Fo X509_STORE_CTX_get_num_untrusted
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft STACK_OF(X509) *
+.Fo X509_STORE_CTX_get0_chain
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft STACK_OF(X509) *
+.Fo X509_STORE_CTX_get_chain
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft STACK_OF(X509) *
+.Fo X509_STORE_CTX_get1_chain
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set0_verified_chain
+.Fa "X509_STORE_CTX *ctx"
+.Fa "STACK_OF(X509) *chain"
+.Fc
+.In openssl/x509.h
+.Ft const char *
+.Fo X509_verify_cert_error_string
+.Fa "long n"
+.Fc
+.Sh DESCRIPTION
+Most of these functions are typically called after
+.Xr X509_verify_cert 3
+to inspect status information related to certificate verification.
+Some may also be called in a verification callback to determine the
+nature of an error.
+.Pp
+.Fn X509_STORE_CTX_get_error
+returns the error code of
+.Fa ctx .
+See the
+.Sy ERROR CODES
+section for a full description of all error codes.
+.Pp
+.Fn X509_STORE_CTX_set_error
+sets the error code of
+.Fa ctx
+to
+.Fa s .
+For example it might be used in a verification callback to set an error
+based on additional checks.
+.Pp
+.Fn X509_STORE_CTX_get_error_depth
+returns the depth of the error.
+This is a non-negative integer representing where in the certificate
+chain the error occurred.
+If it is zero, it occurred in the end entity certificate, one if it is
+the certificate which signed the end entity certificate, and so on.
+.Pp
+.Fn X509_STORE_CTX_set_error_depth
+sets the error depth.
+This can be used in combination with
+.Fn X509_STORE_CTX_set_error
+to set the depth at which an error condition was detected.
+.Pp
+.Fn X509_STORE_CTX_get_current_cert
+returns the certificate in
+.Fa ctx
+which caused the error or
+.Dv NULL
+if no certificate is relevant.
+.Pp
+.Fn X509_STORE_CTX_set_current_cert
+sets the certificate which caused the error in
+.Fa ctx
+to the given
+.Fa cert .
+This value is not intended to remain valid for very long,
+and remains owned by the caller.
+It may be examined by a verification callback invoked to handle
+each error encountered during chain verification and is no longer
+required after such a callback.
+If a callback wishes the save the certificate for use after it returns,
+it needs to increment its reference count via
+.Xr X509_up_ref 3 .
+Once such a saved certificate is no longer needed, it can be freed with
+.Xr X509_free 3 .
+.Pp
+.Fn X509_STORE_CTX_get0_current_issuer
+returns the certificate that caused issuer validation to fail or
+.Dv NULL
+if no CA certificate is relevant.
+.Pp
+.Fn X509_STORE_CTX_get0_current_crl
+returns the certificate revocation list that caused CRL checking to fail or
+.Dv NULL
+if no CRL is relevant.
+.Pp
+When, during certification path validation, the need arises to check
+the validity of the certification path of a CRL issuer certificate,
+the library creates a new, temporary
+.Vt X509_STORE_CTX
+object.
+If
+.Fn X509_STORE_CTX_get0_parent_ctx
+is called on that temporary object, a pointer to the original
+certification path validation context is returned.
+This may be useful in callback functions called from
+.Xr X509_verify_cert 3
+or from its subroutines to find out whether the callback is called
+from the path validation of the target certificate or from the path
+validation of a related CRL issuer certificate, and if the latter,
+what the target certificate is.
+.Pp
+.Fn X509_STORE_CTX_get0_chain
+returns an internal pointer to a complete validate chain
+if a previous call to
+.Xr X509_verify_cert 3
+was successful.
+If the call to
+.Xr X509_verify_cert 3
+was not successful, the returned chain may be incomplete or invalid.
+.Fn X509_STORE_CTX_get_chain
+is a deprecated alias of
+.Fn X509_STORE_CTX_get0_chain .
+.Fn X509_STORE_CTX_get1_chain
+returns a deep copy of the same chain which persists even after the
+.Fa ctx
+structure is freed.
+When it is no longer needed, it should be freed using
+.Fn sk_X509_pop_free chain X509_free .
+.Pp
+.Fn X509_STORE_CTX_set0_verified_chain
+frees the validate chain generated by if a previous call to
+.Xr X509_verify_cert 3 ,
+if any, and replaces it with the given
+.Fa chain .
+Ownership of the
+.Fa chain
+is transferred to the
+.Fa ctx ,
+so it should not be freed by the caller.
+.Pp
+.Fn X509_verify_cert_error_string
+returns a human readable error string for verification error
+.Fa n .
+.Pp
+The above functions should be used instead of directly referencing the
+fields in the
+.Sy X509_VERIFY_CTX
+structure.
+.Pp
+In versions of OpenSSL before 1.0, the current certificate returned by
+.Fn X509_STORE_CTX_get_current_cert
+was never
+.Dv NULL .
+Applications should check the return value before printing out any
+debugging information relating to the current certificate.
+.Pp
+If an unrecognised error code is passed to
+.Fn X509_verify_cert_error_string ,
+"Unknown certificate verification error"
+is returned.
+This should never happen unless an invalid code is passed.
+.Sh RETURN VALUES
+.Fn X509_STORE_CTX_get_error
+returns
+.Dv X509_V_OK
+or an error code.
+.Pp
+.Fn X509_STORE_CTX_get_error_depth
+returns a non-negative error depth.
+.Pp
+.Fn X509_STORE_CTX_get_current_cert ,
+.Fn X509_STORE_CTX_get0_current_issuer ,
+and
+.Fn X509_STORE_CTX_get0_current_crl
+return the object which caused the error or
+.Dv NULL
+if no object of the requested kind is relevant to the error.
+.Pp
+.Fn X509_STORE_CTX_get0_parent_ctx
+returns the parent context or
+.Dv NULL
+if
+.Fa ctx
+is not a temporary child context
+used for path validation of a CRL issuer certificate.
+.Pp
+.Fn X509_STORE_CTX_get_num_untrusted
+returns the number of untrusted certificates
+that were used in building the chain during a call to
+.Xr X509_verify_cert 3 .
+.Pp
+.Fn X509_STORE_CTX_get0_chain ,
+.Fn X509_STORE_CTX_get_chain ,
+and
+.Fn X509_STORE_CTX_get1_chain
+return a pointer to a stack of certificates or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn X509_verify_cert_error_string
+returns a human readable error string for verification error
+.Fa n .
+.Sh ERROR CODES
+A list of error codes and messages is shown below.
+Some of the error codes are defined but currently never returned:
+these are described as "unused".
+.Bl -tag -width Ds
+.It Dv X509_V_OK : No ok
+The operation was successful.
+.It Dv X509_V_ERR_UNSPECIFIED : \
+ No Unspecified certificate verification error
+An error was encountered during certificate verification and
+the internal routines failed to set a more specific error.
+.It Dv X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT : \
+ No unable to get issuer certificate
+The issuer certificate of a locally looked up certificate could not be found.
+This normally means the list of trusted certificates is not complete.
+.It Dv X509_V_ERR_UNABLE_TO_GET_CRL : No unable to get certificate CRL
+The CRL of a certificate could not be found.
+.It Dv X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE : \
+ No unable to decrypt certificate's signature
+The certificate signature could not be decrypted.
+This means that the actual signature value could not be determined
+rather than it not matching the expected value.
+This is only meaningful for RSA keys.
+.It Dv X509_V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE : \
+ No unable to decrypt CRL's signature
+The CRL signature could not be decrypted: this means that the actual
+signature value could not be determined rather than it not matching the
+expected value.
+Unused.
+.It Dv X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY : \
+ No unable to decode issuer public key
+The public key in the certificate
+.Vt SubjectPublicKeyInfo
+could not be read.
+.It Dv X509_V_ERR_CERT_SIGNATURE_FAILURE : No certificate signature failure
+The signature of the certificate is invalid.
+.It Dv X509_V_ERR_CRL_SIGNATURE_FAILURE : No CRL signature failure
+The signature of the CRL is invalid.
+.It Dv X509_V_ERR_CERT_NOT_YET_VALID : No certificate is not yet valid
+The certificate is not yet valid: the notBefore date is after the
+current time.
+.It Dv X509_V_ERR_CERT_HAS_EXPIRED : No certificate has expired
+The certificate has expired: that is the notAfter date is before the
+current time.
+.It Dv X509_V_ERR_CRL_NOT_YET_VALID : No CRL is not yet valid
+The CRL is not yet valid.
+.It Dv X509_V_ERR_CRL_HAS_EXPIRED : No CRL has expired
+The CRL has expired.
+.It Dv X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD : \
+ No format error in certificate's notBefore field
+The certificate notBefore field contains an invalid time.
+.It Dv X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD : \
+ No format error in certificate's notAfter field
+The certificate notAfter field contains an invalid time.
+.It Dv X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD : \
+ No format error in CRL's lastUpdate field
+The CRL thisUpdate field (sic!) contains an invalid time.
+Both the name of the error constant and the text of the error message
+give a wrong name for the field that contains the problem.
+.It Dv X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD : \
+ No format error in CRL's nextUpdate field
+The CRL nextUpdate field contains an invalid time.
+.It Dv X509_V_ERR_OUT_OF_MEM : No out of memory
+An error occurred trying to allocate memory.
+This should never happen.
+.It Dv X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT : No self signed certificate
+The passed certificate is self signed and the same certificate cannot be
+found in the list of trusted certificates.
+.It Dv X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN : \
+ No self signed certificate in certificate chain
+The certificate chain could be built up using the untrusted certificates
+but the root could not be found locally.
+.It Dv X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY : \
+ No unable to get local issuer certificate
+The issuer certificate could not be found: this occurs if the issuer
+certificate of an untrusted certificate cannot be found.
+.It Dv X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE : \
+ No unable to verify the first certificate
+No signatures could be verified because the chain contains only one
+certificate and it is not self signed.
+.It Dv X509_V_ERR_CERT_CHAIN_TOO_LONG : No certificate chain too long
+The certificate chain length is greater than the supplied maximum depth.
+.It Dv X509_V_ERR_CERT_REVOKED : No certificate revoked
+The certificate has been revoked.
+.It Dv X509_V_ERR_INVALID_CA : No invalid CA certificate
+A CA certificate is invalid.
+Either it is not a CA or its extensions are not consistent with the
+supplied purpose.
+.It Dv X509_V_ERR_PATH_LENGTH_EXCEEDED : No path length constraint exceeded
+The basicConstraints path-length parameter has been exceeded.
+.It Dv X509_V_ERR_INVALID_PURPOSE : No unsupported certificate purpose
+The supplied certificate cannot be used for the specified purpose.
+.It Dv X509_V_ERR_CERT_UNTRUSTED : No certificate not trusted
+The root CA is not marked as trusted for the specified purpose.
+.It Dv X509_V_ERR_CERT_REJECTED : No certificate rejected
+The root CA is marked to reject the specified purpose.
+.It Dv X509_V_ERR_SUBJECT_ISSUER_MISMATCH : No subject issuer mismatch
+The current candidate issuer certificate was rejected because its
+subject name did not match the issuer name of the current certificate.
+This is only set if issuer check debugging is enabled; it is used for
+status notification and is
+.Sy not
+in itself an error.
+.It Dv X509_V_ERR_AKID_SKID_MISMATCH : \
+ No authority and subject key identifier mismatch
+The current candidate issuer certificate was rejected because its
+subject key identifier was present and did not match the authority key
+identifier current certificate.
+This is only set if issuer check debugging is enabled; it is used for
+status notification and is
+.Sy not
+in itself an error.
+.It Dv X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH : \
+ No authority and issuer serial number mismatch
+The current candidate issuer certificate was rejected because its issuer
+name and serial number was present and did not match the authority key
+identifier of the current certificate.
+This is only set if issuer check debugging is enabled; it is used for
+status notification and is
+.Sy not
+in itself an error.
+.It Dv X509_V_ERR_KEYUSAGE_NO_CERTSIGN : \
+ No key usage does not include certificate signing
+The current candidate issuer certificate was rejected because its
+keyUsage extension does not permit certificate signing.
+This is only set if issuer check debugging is enabled it is used for
+status notification and is
+.Sy not
+in itself an error.
+.It Dv X509_V_ERR_UNABLE_TO_GET_CRL_ISSUER : \
+ No unable to get CRL issuer certificate
+The CRL's issuer could not be found:
+there is no alternative CRL issuer set on
+.Ar ctx
+and the last certificate in the chain is not self signed.
+.It Dv X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION : \
+ No unhandled critical extension
+The certificate contains a critical extension that is unsupported
+by the library.
+.It Dv X509_V_ERR_KEYUSAGE_NO_CRL_SIGN : \
+ No key usage does not include CRL signing
+The CRL issuer has a key usage extension with unset cRLSign bit.
+.It Dv X509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION : \
+ No unhandled critical CRL extension
+The CRL contains a critical extension that is unsupported
+by the library.
+.\" XXX - The following are unreachable (X509_V_ERR_INVALID_NON_CA) or unused.
+.\" .It Dv X509_V_ERR_INVALID_NON_CA : \
+.\"  No invalid non-CA certificate (has CA markings)
+.\" .It Dv X509_V_ERR_PROXY_PATH_LENGTH_EXCEEDED : \
+.\"  No proxy path length constraint exceeded
+.\" .It Dv X509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE : \
+.\"  No key usage does not include digital signature
+.\" .It Dv X509_V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED : \
+.\"  No proxy certificates not allowed, please set the appropriate flag
+.It Dv X509_V_ERR_INVALID_EXTENSION : \
+ No invalid or inconsistent certificate extension
+A certificate extension had an invalid value (for example an incorrect
+encoding) or some value inconsistent with other extensions.
+.It Dv X509_V_ERR_INVALID_POLICY_EXTENSION : \
+ No invalid or inconsistent certificate policy extension
+A certificate policies extension had an invalid value (for example an
+incorrect encoding) or some value inconsistent with other extensions.
+This error only occurs if policy processing is enabled.
+.It Dv X509_V_ERR_NO_EXPLICIT_POLICY : No no explicit policy
+The verification flags were set to require an explicit policy but none
+was present.
+.It Dv X509_V_ERR_DIFFERENT_CRL_SCOPE : No different CRL scope
+The only CRLs that could be found did not match the scope of the
+certificate.
+.It Dv X509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE : \
+ No unsupported extension feature
+Some feature of a certificate extension is not supported.
+Unused.
+.It Dv X509_V_ERR_UNNESTED_RESOURCE : \
+ No RFC 3779 resource not subset of parent's resources
+When walking up a certificate chain, all resources specified in
+RFC 3779 extensions must be contained in the resources delegated in
+the issuer's RFC 3779 extensions.
+The error indicates that this is not the case or that the trust anchor
+has inheritance.
+.It Dv X509_V_ERR_PERMITTED_VIOLATION : No permitted subtree violation
+A name constraint violation occurred in the permitted subtrees.
+.It Dv X509_V_ERR_EXCLUDED_VIOLATION : No excluded subtree violation
+A name constraint violation occurred in the excluded subtrees.
+.It Dv X509_V_ERR_SUBTREE_MINMAX : \
+ No name constraints minimum and maximum not supported
+A certificate name constraints extension included a minimum or maximum
+field: this is not supported.
+.It Dv X509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE : \
+ No unsupported name constraint type
+An unsupported name constraint type was encountered.
+OpenSSL currently only supports directory name, DNS name, email and URI
+types.
+.It Dv X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX : \
+ No unsupported or invalid name constraint syntax
+The format of the name constraint is not recognised: for example an
+email address format of a form not mentioned in RFC 3280.
+This could be caused by a garbage extension or some new feature not
+currently supported.
+.\" X509_V_ERR_UNSUPPORTED_NAME_SYNTAX : No unsupported or invalid name syntax
+.It Dv X509_V_ERR_CRL_PATH_VALIDATION_ERROR : No CRL path validation error
+An error occurred when attempting to verify the CRL path.
+This error can only happen if extended CRL checking is enabled.
+.It Dv X509_V_ERR_APPLICATION_VERIFICATION : \
+ No application verification failure
+An application specific error.
+This will never be returned unless explicitly set by an application.
+.\" .It Dv X509_V_ERR_HOSTNAME_MISMATCH : No Hostname mismatch
+.\" .It Dv X509_V_ERR_EMAIL_MISMATCH : No Email address mismatch
+.\" .It Dv X509_V_ERR_IP_ADDRESS_MISMATCH : No IP address mismatch
+.\" .It Dv X509_V_ERR_INVALID_CALL : \
+.\"  No Invalid certificate verification context
+.\" .It Dv X509_V_ERR_STORE_LOOKUP : No Issuer certificate lookup error
+.\" .It Dv X509_V_ERR_EE_KEY_TOO_SMALL : No EE certificate key too weak
+.\" .It Dv X509_V_ERR_CA_KEY_TOO_SMALL : No CA certificate key too weak
+.\" .It Dv X509_V_ERR_CA_MD_TOO_WEAK : \
+.\"  No CA signature digest algorithm too weak
+.El
+.Sh SEE ALSO
+.Xr X509_STORE_CTX_new 3 ,
+.Xr X509_STORE_CTX_set_verify 3 ,
+.Xr X509_STORE_CTX_set_verify_cb 3 ,
+.Xr X509_STORE_set_verify_cb 3 ,
+.Xr X509_up_ref 3 ,
+.Xr X509_verify_cert 3
+.Sh HISTORY
+.Fn X509_STORE_CTX_get_error ,
+.Fn X509_STORE_CTX_set_error ,
+.Fn X509_STORE_CTX_get_error_depth ,
+.Fn X509_STORE_CTX_get_current_cert ,
+.Fn X509_STORE_CTX_get_chain ,
+and
+.Fn X509_verify_cert_error_string
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_STORE_CTX_get1_chain
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Pp
+.Fn X509_STORE_CTX_get0_current_issuer ,
+.Fn X509_STORE_CTX_get0_current_crl ,
+and
+.Fn X509_STORE_CTX_get0_parent_ctx
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .
+.Pp
+.Fn X509_STORE_CTX_get0_chain
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .
+.Pp
+.Fn X509_STORE_CTX_set_error_depth ,
+.Fn X509_STORE_CTX_set_current_cert ,
+.Fn X509_STORE_CTX_get_num_untrusted ,
+and
+.Fn X509_STORE_CTX_set0_verified_chain
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 7.1 .

@@ -1,0 +1,21 @@
+import("//llvm/lib/Target/targets.gni")
+import("//llvm/utils/gn/build/toolchain/compiler.gni")
+
+supported_toolchains = []
+if (target_os == "linux" || target_os == "fuchsia") {
+  supported_toolchains += [ "//llvm/utils/gn/build/toolchain:stage2_unix" ]
+}
+supported_toolchains += supported_android_toolchains
+
+group("scudo") {
+  deps = []
+  foreach(toolchain, supported_toolchains) {
+    deps += [
+      "standalone/tests:ScudoCUnitTest($toolchain)",
+      "standalone/tests:ScudoCxxUnitTest($toolchain)",
+      "standalone/tests:ScudoHooksUnitTest($toolchain)",
+      "standalone/tests:ScudoUnitTest($toolchain)",
+    ]
+  }
+  testonly = true
+}

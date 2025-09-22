@@ -1,0 +1,116 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     $OpenBSD: system.3,v 1.14 2016/02/05 18:09:19 espie Exp $
+.\"
+.Dd $Mdocdate: February 5 2016 $
+.Dt SYSTEM 3
+.Os
+.Sh NAME
+.Nm system
+.Nd pass a command to the shell
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft int
+.Fn system "const char *string"
+.Sh DESCRIPTION
+The
+.Fn system
+function hands the argument
+.Fa string
+to the command interpreter
+.Xr sh 1 .
+The calling process waits for the shell to finish executing the command,
+ignoring
+.Dv SIGINT
+and
+.Dv SIGQUIT ,
+and blocking
+.Dv SIGCHLD .
+.Pp
+If
+.Fa string
+is
+.Dv NULL ,
+.Fn system
+will return non-zero.
+Otherwise,
+.Fn system
+returns the termination status of the shell in the format specified by
+.Xr waitpid 2 .
+.Pp
+Note that fork handlers established using
+.Xr pthread_atfork 3
+are not called when a multithreaded program calls
+.Fn system .
+.Sh RETURN VALUES
+If a child process cannot be created, or the termination status of
+the shell cannot be obtained,
+.Fn system
+returns \-1 and sets
+.Va errno
+to indicate the error.
+If execution of the shell fails,
+.Fn system
+returns the termination status for a program that terminates with a call of
+.Fn exit 127 .
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr execve 2 ,
+.Xr waitpid 2 ,
+.Xr popen 3
+.Sh STANDARDS
+The
+.Fn system
+function conforms to
+.St -ansiC
+and
+.St -p1003.2-92 .
+.Sh HISTORY
+The
+.Fn system
+function first appeared in
+.At v6 .
+.Sh CAVEATS
+Never supply the
+.Fn system
+function with a command containing any part of an unsanitized user-supplied
+string.
+Shell meta-characters present will be honored by the
+.Xr sh 1
+command interpreter.
+.Pp
+It is often simpler to bypass the shell and run an external command using
+.Xr fork 2 ,
+.Xr execlp 3 ,
+and
+.Xr waitpid 2
+directly instead of having to sanitize a string for shell consumption.

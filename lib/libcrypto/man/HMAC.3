@@ -1,0 +1,325 @@
+.\" $OpenBSD: HMAC.3,v 1.24 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL crypto/hmac a528d4f0 Oct 27 13:40:11 2015 -0400
+.\" selective merge up to: OpenSSL man3/HMAC b3696a55 Sep 2 09:35:50 2017 -0400
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>,
+.\" Richard Levitte <levitte@openssl.org>, and
+.\" Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2000-2002, 2006, 2008, 2009, 2013, 2015, 2016
+.\" The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt HMAC 3
+.Os
+.Sh NAME
+.Nm HMAC ,
+.Nm HMAC_CTX_new ,
+.Nm HMAC_CTX_reset ,
+.Nm HMAC_CTX_free ,
+.Nm HMAC_Init_ex ,
+.Nm HMAC_Update ,
+.Nm HMAC_Final ,
+.Nm HMAC_CTX_copy ,
+.Nm HMAC_CTX_set_flags ,
+.Nm HMAC_CTX_get_md ,
+.Nm HMAC_size
+.Nd HMAC message authentication code
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/hmac.h
+.Ft unsigned char *
+.Fo HMAC
+.Fa "const EVP_MD *evp_md"
+.Fa "const void *key"
+.Fa "int key_len"
+.Fa "const unsigned char *d"
+.Fa "size_t n"
+.Fa "unsigned char *md"
+.Fa "unsigned int *md_len"
+.Fc
+.Ft HMAC_CTX *
+.Fn HMAC_CTX_new void
+.Ft int
+.Fo HMAC_CTX_reset
+.Fa "HMAC_CTX *ctx"
+.Fc
+.Ft void
+.Fo HMAC_CTX_free
+.Fa "HMAC_CTX *ctx"
+.Fc
+.Ft int
+.Fo HMAC_Init_ex
+.Fa "HMAC_CTX *ctx"
+.Fa "const void *key"
+.Fa "int key_len"
+.Fa "const EVP_MD *md"
+.Fa "ENGINE *engine"
+.Fc
+.Ft int
+.Fo HMAC_Update
+.Fa "HMAC_CTX *ctx"
+.Fa "const unsigned char *data"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo HMAC_Final
+.Fa "HMAC_CTX *ctx"
+.Fa "unsigned char *md"
+.Fa "unsigned int *len"
+.Fc
+.Ft int
+.Fo HMAC_CTX_copy
+.Fa "HMAC_CTX *dctx"
+.Fa "HMAC_CTX *sctx"
+.Fc
+.Ft void
+.Fo HMAC_CTX_set_flags
+.Fa "HMAC_CTX *ctx"
+.Fa "unsigned long flags"
+.Fc
+.Ft const EVP_MD *
+.Fo HMAC_CTX_get_md
+.Fa "const HMAC_CTX *ctx"
+.Fc
+.Ft size_t
+.Fo HMAC_size
+.Fa "const HMAC_CTX *e"
+.Fc
+.Sh DESCRIPTION
+HMAC is a MAC (message authentication code), i.e. a keyed hash
+function used for message authentication, which is based on a hash
+function.
+.Pp
+.Fn HMAC
+computes the message authentication code of the
+.Fa n
+bytes at
+.Fa d
+using the hash function
+.Fa evp_md
+and the key
+.Fa key
+which is
+.Fa key_len
+bytes long.
+.Pp
+It places the result in
+.Fa md ,
+which must have space for the output of the hash function, which is no
+more than
+.Dv EVP_MAX_MD_SIZE
+bytes.
+The size of the output is placed in
+.Fa md_len ,
+unless it is
+.Dv NULL .
+.Pp
+.Fa evp_md
+can be
+.Xr EVP_sha1 3 ,
+.Xr EVP_ripemd160 3 ,
+etc.
+.Pp
+.Fn HMAC_CTX_new
+allocates and initializes a new
+.Vt HMAC_CTX
+object.
+.Pp
+.Fn HMAC_CTX_reset
+zeroes and re-initializes
+.Fa ctx
+and associated resources, making it suitable for new computations
+as if it was deleted with
+.Fn HMAC_CTX_free
+and newly created with
+.Fn HMAC_CTX_new .
+.Pp
+.Fn HMAC_CTX_free
+erases the key and other data from
+.Fa ctx ,
+releases any associated resources, and finally frees
+.Fa ctx
+itself.
+.Pp
+The following functions may be used if the message is not completely
+stored in memory:
+.Pp
+.Fn HMAC_Init_ex
+sets up or reuses
+.Fa ctx
+to use the hash function
+.Fa evp_md
+and the key
+.Fa key .
+Either can be
+.Dv NULL ,
+in which case the existing one is reused.
+The
+.Fa ctx
+must have been created with
+.Fn HMAC_CTX_new
+before the first use in this function.
+If
+.Fn HMAC_Init_ex
+is called with a
+.Dv NULL
+.Fa key
+but
+.Fa evp_md
+is neither
+.Dv NULL
+nor the same as the previous digest used by
+.Fa ctx ,
+then an error is returned because reuse of an existing key with a
+different digest is not supported.
+The
+.Fa ENGINE *engine
+argument is always ignored and passing
+.Dv NULL
+is recommended.
+.Pp
+.Fn HMAC_Update
+can be called repeatedly with chunks of the message to be authenticated
+.Pq Fa len No bytes at Fa data .
+.Pp
+.Fn HMAC_Final
+places the message authentication code in
+.Fa md ,
+which must have space for the hash function output.
+.Pp
+.Fn HMAC_CTX_copy
+copies all of the internal state from
+.Fa sctx
+into
+.Fa dctx .
+.Pp
+.Fn HMAC_CTX_set_flags
+applies the specified flags to the internal
+.Vt EVP_MD_CTX
+objects.
+Possible flag values
+.Dv EVP_MD_CTX_FLAG_*
+are defined in
+.In openssl/evp.h .
+.Pp
+.Fn HMAC_size
+returns the length in bytes of the underlying hash function output.
+It is implemented as a macro.
+.Sh RETURN VALUES
+.Fn HMAC
+returns a pointer to the message authentication code or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn HMAC_CTX_new
+returns a pointer to the new
+.Vt HMAC_CTX
+object or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn HMAC_CTX_reset ,
+.Fn HMAC_Init_ex ,
+.Fn HMAC_Update ,
+.Fn HMAC_Final ,
+and
+.Fn HMAC_CTX_copy
+return 1 for success or 0 if an error occurred.
+.Pp
+.Fn HMAC_CTX_get_md
+returns the message digest that was previously set for
+.Fa ctx
+with
+.Fn HMAC_Init_ex ,
+or
+.Dv NULL
+if none was set.
+.Pp
+.Fn HMAC_size
+returns the length in bytes of the underlying hash function output
+or 0 on error.
+.Sh SEE ALSO
+.Xr CMAC_Init 3 ,
+.Xr EVP_DigestInit 3
+.Sh STANDARDS
+RFC 2104
+.Sh HISTORY
+.Fn HMAC ,
+.Fn HMAC_Update ,
+.Fn HMAC_Final ,
+and
+.Fn HMAC_size
+first appeared in SSLeay 0.9.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn HMAC_Init_ex
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn HMAC_CTX_set_flags
+first appeared in OpenSSL 0.9.7f and have been available since
+.Ox 3.8 .
+.Pp
+.Fn HMAC_CTX_copy
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .
+.Pp
+.Fn HMAC_CTX_new ,
+.Fn HMAC_CTX_reset ,
+.Fn HMAC_CTX_free ,
+and
+.Fn HMAC_CTX_get_md
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.3 .
+.Sh CAVEATS
+Other implementations allow
+.Fa md
+in
+.Fn HMAC
+to be
+.Dv NULL
+and return a static array, which is not thread safe.

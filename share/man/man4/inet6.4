@@ -1,0 +1,222 @@
+.\"	$OpenBSD: inet6.4,v 1.46 2022/10/10 00:12:45 jsg Exp $
+.\"	$KAME: inet6.4,v 1.19 2000/11/24 10:13:18 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 10 2022 $
+.Dt INET6 4
+.Os
+.Sh NAME
+.Nm inet6
+.Nd Internet protocol version 6 family
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.Sh DESCRIPTION
+The Internet Protocol version 6 family
+is an updated version of the Internet Protocol version 4 family.
+It comprises Internet Protocol version 6
+.Pq IPv6 ,
+Internet Control Message Protocol version 6
+.Pq ICMPv6 ,
+Transmission Control Protocol
+.Pq TCP ,
+and User Datagram Protocol
+.Pq UDP .
+.Xr tcp 4
+is used to support the
+.Dv SOCK_STREAM
+abstraction while
+.Xr udp 4
+is used to support the
+.Dv SOCK_DGRAM
+abstraction.
+A raw interface to IPv6 is available by creating an Internet socket of type
+.Dv SOCK_RAW .
+The ICMPv6 message protocol is accessible from a raw socket.
+.Pp
+IPv6 addresses are 128-bit quantities,
+stored in network standard byteorder.
+The include file
+.In netinet/in.h
+defines this address
+as a discriminated union.
+.Pp
+Sockets bound to the
+.Nm
+family utilize the following addressing structure:
+.Bd -literal -offset indent
+struct sockaddr_in6 {
+	u_int8_t	sin6_len;
+	sa_family_t	sin6_family;
+	in_port_t	sin6_port;
+	u_int32_t	sin6_flowinfo;
+	struct in6_addr	sin6_addr;
+	u_int32_t	sin6_scope_id;
+};
+.Ed
+.Pp
+Sockets may be created with the local address
+.Dq ::
+(which is equal to IPv6 address
+.Dv 0:0:0:0:0:0:0:0 )
+to effect
+.Dq wildcard
+matching on incoming messages.
+.Pp
+For security reasons,
+.Ox
+does not route IPv4 traffic to an
+.Dv AF_INET6
+socket,
+and does not support IPv4 mapped addresses,
+where IPv4 traffic is seen as if it comes from an IPv6 address like
+.Dq ::ffff:10.1.1.1 .
+Where both IPv4 and IPv6 traffic need to be accepted,
+bind and listen on two sockets.
+.Pp
+Global addresses utilise the first 48 bits of the address
+for the routing prefix.
+The next 16 bits designate the subnet,
+and the final 64 bits are used as a host identifier.
+.Pp
+The IPv6 specification also defines link-local addresses,
+which are scoped.
+A scoped address is ambiguous to the kernel
+if it is specified without a scope identifier.
+To manipulate scoped addresses properly from userland,
+programs must use the advanced API defined in RFC 3542.
+A compact description of the advanced API is available in
+.Xr ip6 4 .
+If scoped addresses are specified without explicit scope,
+the kernel may raise an error.
+.Pp
+KAME supports an extended numeric IPv6 address notation
+for link-local addresses,
+such as
+.Dq fe80::1%de0
+to specify
+.Dq fe80::1
+on the
+.Dq de0
+interface.
+This notation is supported by
+.Xr getaddrinfo 3
+and
+.Xr getnameinfo 3 ,
+as well as userland programs such as
+.Xr telnet 1
+and
+.Xr ftp 1 .
+.Pp
+Scoped addresses are handled specially in the kernel.
+In kernel structures like routing tables or interface structures,
+scoped addresses have their interface index embedded into the address.
+Therefore
+the address on some kernel structures is not the same as that on the wire.
+The embedded index will be visible on
+.Dv PF_ROUTE
+sockets, kernel memory access via
+.Xr kvm 3 ,
+and some other occasions.
+HOWEVER, users should never use the embedded form.
+.Sh IPv6 SETUP
+Generally speaking,
+IPv6 connectivity is achieved in a fashion similar to that for IPv4.
+For native IPv6 setup,
+routers attach to the network either manually or using
+.Cm autoconf
+to connect to an ISP;
+hosts receive an address prefix from a router advertisement daemon such as
+.Xr rad 8
+and use
+.Cm autoconf
+for stateless address configuration (SLAAC).
+For setups which tunnel IPv6 over IPv4,
+see
+.Xr gif 4 .
+.Pp
+The INET6 and TUNNEL sections of
+.Xr ifconfig 8
+contain information relevant to IPv6 setups;
+settings can be made permanent using
+.Xr hostname.if 5
+files.
+Routers need to set the
+.Va net.inet6.ip6.forwarding
+.Xr sysctl 2 .
+.Sh SEE ALSO
+.Xr socket 2 ,
+.Xr icmp6 4 ,
+.Xr ip6 4 ,
+.Xr tcp 4 ,
+.Xr udp 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr rad 8
+.Sh STANDARDS
+.Rs
+.%A Tatsuya Jinmei
+.%A Atsushi Onoe
+.%D June 2000
+.%N draft-ietf-ipngwg-scopedaddr-format-02.txt
+.%O work in progress material
+.%R internet draft
+.%T "An Extension of Format for IPv6 Scoped Addresses"
+.Re
+.Pp
+.Rs
+.%A R. Gilligan
+.%A S. Thomson
+.%A J. Bound
+.%A J. McCann
+.%A W. Stevens
+.%D February 2003
+.%R RFC 3493
+.%T Basic Socket Interface Extensions for IPv6
+.Re
+.Pp
+.Rs
+.%A W. Stevens
+.%A M. Thomas
+.%A E. Nordmark
+.%A T. Jinmei
+.%D May 2003
+.%R RFC 3542
+.%T Advanced Sockets Application Programming Interface (API) for IPv6
+.Re
+.Sh HISTORY
+The implementation described herein appeared in WIDE/KAME project.
+.Sh CAVEATS
+It is advisable to explicitly reject all packets to your network
+not used by any of your interface prefixes.
+Otherwise packets that have a destination address belonging to your network
+may be routed back to your provider via the default route.
+Set a reject route for your assigned prefix:
+.Pp
+.Dl # route add -net 2001:db8::/48 ::1 -reject

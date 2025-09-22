@@ -1,0 +1,118 @@
+.\"	$OpenBSD: radio.9,v 1.12 2022/03/30 19:03:21 miod Exp $
+.\"	$RuOBSD: radio.9,v 1.3 2001/10/26 05:38:44 form Exp $
+.\"
+.\" Copyright (c) Maxim Tsyplakov <tm@oganer.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+.\" ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 30 2022 $
+.Dt RADIO 9
+.Os
+.Sh NAME
+.Nm radio
+.Nd interface between low and high level radio drivers
+.Sh DESCRIPTION
+The radio device driver is divided into a high level,
+hardware independent layer, and a low level hardware
+dependent layer.
+The interface between these is the
+.Va radio_hw_if
+structure.
+.Bd -literal
+struct radio_hw_if {
+	int	(*open)(void *, int, int, struct proc *);
+	int	(*close)(void *, int, int, struct proc *);
+	int     (*get_info)(void *, struct radio_info *);
+	int     (*set_info)(void *, struct radio_info *);
+	int     (*search)(void *, int);
+};
+.Ed
+.Pp
+The high level radio driver attaches to the low level driver
+when the latter calls
+.Va radio_attach_mi .
+This call should be
+.Bd -literal
+.Ft void
+.Fn radio_attach_mi "const struct radio_hw_if *rhwp" "void *hdlp" \
+                    "struct device * dev"
+.Ed
+.Pp
+The
+.Va radio_hw_if
+struct is as shown above.
+The
+.Va hdlp
+argument is a handle to some low level data structure.
+It is sent as the first argument to all the functions in
+.Va radio_hw_if
+when the high level driver calls them.
+.Va dev
+is the device struct for the hardware device.
+.Pp
+The fields of
+.Va radio_hw_if
+are described in some more detail below.
+.Bd -literal
+.Ft int
+.Fn open "void *" "int flags" "int fmt" "struct proc *p"
+  Optional.
+  Is called when the radio device is opened.
+  Returns 0 on success, otherwise an error code.
+
+.Ft int
+.Fn close "void *" "int flags" "int fmt" "struct proc *p"
+  Optional.
+  Is called when the radio device is closed.
+  Returns 0 on success, otherwise an error code.
+
+.Ft int
+.Fn get_info "void *" "struct radio_info *"
+  Fill the radio_info struct.
+  Returns 0 on success, otherwise an error code.
+
+.Ft int
+.Fn set_info "void *" "struct radio_info *"
+  Set values from the radio_info struct.
+  Returns 0 on success, otherwise an error code.
+
+.Ft int
+.Fn search "void *" "int"
+  Returns 0 on success, otherwise an error code.
+.Ed
+.Sh SEE ALSO
+.Xr radio 4
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Ox 3.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Vladimir Popov Aq Mt jumbo@narod.ru
+and
+.An Maxim Tsyplakov Aq Mt tm@oganer.net .
+The man page was written by
+.An Maxim Tsyplakov Aq Mt tm@oganer.net .

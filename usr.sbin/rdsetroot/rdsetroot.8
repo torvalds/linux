@@ -1,0 +1,66 @@
+.\"	$OpenBSD: rdsetroot.8,v 1.4 2023/04/24 14:06:01 krw Exp $
+.\"
+.\" Copyright (c) 2019 Theo de Raadt
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 24 2023 $
+.Dt RDSETROOT 8
+.Os
+.Sh NAME
+.Nm rdsetroot
+.Nd insert disk image into RAMDISK kernel
+.Sh SYNOPSIS
+.Nm rdsetroot
+.Fl s
+.Ar kernel
+.Nm rdsetroot
+.Op Fl dx
+.Ar kernel
+.Op Ar disk.fs
+.Sh DESCRIPTION
+The
+.Nm
+utility inserts the file
+.Ar disk.fs
+into the reserved space inside a RAMDISK kernel.
+If
+.Ar disk.fs
+is not specified,
+.Nm
+reads from standard input.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Debug.
+.It Fl s
+Print the size in bytes of the reserved space in the RAMDISK kernel.
+No insertion or extraction is attempted.
+.It Fl x
+Rather than inserting, extract the
+.Ar disk.fs
+image.
+If
+.Ar disk.fs
+is not specified,
+.Nm
+writes to standard output.
+The disk can be made accessible using
+.Xr vnconfig 8 ,
+filesystems can be manipulated, and finally re-inserted into the RAMDISK kernel.
+.El
+.Sh SEE ALSO
+.Xr config 8 ,
+.Xr disklabel 8 ,
+.Xr vnconfig 8

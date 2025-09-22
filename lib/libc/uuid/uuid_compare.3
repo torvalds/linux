@@ -1,0 +1,210 @@
+.\"	$OpenBSD: uuid_compare.3,v 1.3 2023/07/03 08:53:27 jasper Exp $
+.\"	$NetBSD: uuid.3,v 1.7 2008/05/02 18:11:05 martin Exp $
+.\"
+.\" Copyright (c) 2004 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Copyright (c) 2002 Marcel Moolenaar
+.\" Copyright (c) 2002 Hiten Mahesh Pandya
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/lib/libc/uuid/uuid.3,v 1.4 2003/08/08 19:12:28 marcel Exp $
+.\"
+.Dd $Mdocdate: July 3 2023 $
+.Dt UUID_COMPARE 3
+.Os
+.Sh NAME
+.Nm uuid_compare , uuid_create , uuid_create_nil , uuid_equal ,
+.Nm uuid_from_string , uuid_hash , uuid_is_nil , uuid_to_string ,
+.Nm uuid_enc_le , uuid_dec_le , uuid_enc_be , uuid_dec_be
+.Nd Universally Unique Identifier routines
+.Sh SYNOPSIS
+.In uuid.h
+.Ft int32_t
+.Fn uuid_compare "const uuid_t *uuid1" "const uuid_t *uuid2" "uint32_t *status"
+.Ft void
+.Fn uuid_create "uuid_t *uuid" "uint32_t *status"
+.Ft void
+.Fn uuid_create_nil "uuid_t *uuid" "uint32_t *status"
+.Ft int32_t
+.Fn uuid_equal "const uuid_t *uuid1" "const uuid_t *uuid2" "uint32_t *status"
+.Ft void
+.Fn uuid_from_string "const char *str" "uuid_t *uuid" "uint32_t *status"
+.Ft uint16_t
+.Fn uuid_hash "const uuid_t *uuid" "uint32_t *status"
+.Ft int32_t
+.Fn uuid_is_nil "const uuid_t *uuid" "uint32_t *status"
+.Ft void
+.Fn uuid_to_string "const uuid_t *uuid" "char **str" "uint32_t *status"
+.Ft void
+.Fn uuid_enc_le "void *buf" "const uuid_t *uuid"
+.Ft void
+.Fn uuid_dec_le "const void *buf" "uuid_t *uuid"
+.Ft void
+.Fn uuid_enc_be "void *buf" "const uuid_t *uuid"
+.Ft void
+.Fn uuid_dec_be "const void *buf" "uuid_t *uuid"
+.Sh DESCRIPTION
+These routines provide for the creation and manipulation of Universally
+Unique Identifiers
+.Pq UUIDs ,
+also referred to as Globally Unique Identifiers
+.Pq GUIDs .
+.Pp
+The
+.Fn uuid_compare
+function compares two UUIDs.
+It returns \-1 if
+.Fa uuid1
+precedes
+.Fa uuid2 ,
+0 if they are equal, or 1 if
+.Fa uuid1
+follows
+.Fa uuid2 .
+.Pp
+The
+.Fn uuid_create
+function creates a new UUID.
+Storage for the new UUID must be pre-allocated by the caller.
+.Pp
+The
+.Fn uuid_create_nil
+function creates a nil-valued UUID.
+Storage for the new UUID must be pre-allocated by the caller.
+.Pp
+The
+.Fn uuid_equal
+function compares two UUIDs to determine if they are equal.
+It returns 1 if they are equal, and 0 if they are not equal.
+.Pp
+The
+.Fn uuid_from_string
+function parses a 36-character string representation of a UUID and
+converts it to binary representation.
+Storage for the UUID must be pre-allocated by the caller.
+.Pp
+The
+.Fn uuid_hash
+function generates a hash value for the specified UUID.
+Note that the hash value is not a cryptographic hash, and should not be
+assumed to be unique given two different UUIDs.
+.Pp
+The
+.Fn uuid_is_nil
+function returns 1 if the UUID is nil-valued and 0 if it is not.
+.Pp
+The
+.Fn uuid_to_string
+function converts a UUID from binary representation to string representation.
+Storage for the string is dynamically allocated and returned via the
+.Fa str
+argument.
+This pointer should be passed to
+.Xr free 3
+to release the allocated storage when it is no longer needed.
+.Pp
+The
+.Fn uuid_enc_le
+and
+.Fn uuid_enc_be
+functions encode a binary representation of a UUID into an octet stream
+in little-endian and big-endian byte order, respectively.
+The destination buffer must be pre-allocated by the caller, and must be
+large enough to hold the 16-octet binary UUID.
+.Pp
+The
+.Fn uuid_dec_le
+and
+.Fn uuid_dec_be
+functions decode a UUID from an octet stream in little-endian and
+big-endian byte order, respectively.
+.Sh RETURN VALUES
+The
+.Fn uuid_compare ,
+.Fn uuid_create ,
+.Fn uuid_create_nil ,
+.Fn uuid_equal ,
+.Fn uuid_from_string ,
+.Fn uuid_hash ,
+.Fn uuid_is_nil ,
+and
+.Fn uuid_to_string
+functions return successful or unsuccessful completion status in the
+.Fa status
+argument unless it is
+.Dv NULL .
+Possible values are:
+.Bl -tag -width "uuid_s_invalid_string_uuid"
+.It Dv uuid_s_ok
+The function completed successfully.
+.It Dv uuid_s_bad_version
+The UUID does not have a known version.
+.It Dv uuid_s_invalid_string_uuid
+The string representation of a UUID is not valid.
+.It Dv uuid_s_no_memory
+Memory could not be allocated for the operation.
+.El
+.\" .Sh SEE ALSO
+.\" .Xr uuidgen 1
+.Sh STANDARDS
+The
+.Fn uuid_compare ,
+.Fn uuid_create ,
+.Fn uuid_create_nil ,
+.Fn uuid_equal ,
+.Fn uuid_from_string ,
+.Fn uuid_hash ,
+.Fn uuid_is_nil ,
+and
+.Fn uuid_to_string
+functions are compatible with the DCE 1.1 RPC specification.
+.Pp
+.Fn uuid_create
+generates version 4 UUIDs,
+specified by section 4.4 of RFC 4122.

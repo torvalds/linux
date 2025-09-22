@@ -1,0 +1,415 @@
+.\"	$OpenBSD: procmap.1,v 1.27 2024/03/29 06:54:13 deraadt Exp $
+.\"	$NetBSD: pmap.1,v 1.6 2003/01/19 21:25:43 atatat Exp $
+.\"
+.\" Copyright (c) 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Andrew Brown.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 29 2024 $
+.Dt PROCMAP 1
+.Os
+.Sh NAME
+.Nm procmap
+.Nd display process memory map
+.Sh SYNOPSIS
+.Nm
+.Op Fl AadlmPsv
+.Op Fl D Ar number
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl p Ar pid
+.Op Ar pid ...
+.Sh DESCRIPTION
+The
+.Nm
+utility lists the virtual memory mappings underlying the given
+process.
+The start address of each entry is always given and,
+depending on the options given, other information such as the end
+address, the underlying file's device and inode numbers, and various
+protection information will be displayed, along with the path to the
+file, if such data is available.
+The various output formats are explained in greater detail below.
+.Pp
+.Nm
+requires the ability to open
+.Pa /dev/kmem
+which may be restricted based upon the value of the
+.Ar kern.allowkmem
+.Xr sysctl 8 .
+.Pp
+By default,
+.Nm
+displays information for its parent process, so that when run from a
+shell prompt, the shell's memory information is displayed.
+If other
+PIDs are given as arguments on the command line, information for those
+processes will be printed also.
+If the special PID of 0 is given,
+then information for the kernel's memory map is printed.
+.Pp
+The options are as follows:
+.Bl -tag -width XXXnumberXX
+.It Fl A
+Print more detailed information on anonymous map usage.
+.It Fl a
+Display
+.Dq all
+information from the process's memory map.
+This output
+mode is an amalgam of the contents of the Solaris, Linux, and
+.Ox
+style output modes, and attempts to maximize information displayed.
+This is the default output style.
+.It Fl D Ar number
+Enable various debug facilities.
+The
+.Ar number
+is a bit mask of the values:
+.Pp
+.Bl -tag -width flag -compact
+.It Cm 1
+dump the process's vmspace structure
+.It Cm 2
+dump the process's vm_map structure
+.It Cm 4
+dump the vm_map.header structure
+.It Cm 8
+dump each vm_map_entry in its entirety
+.It Cm 16
+dump the namei cache as it is traversed
+.El
+.It Fl d
+Dumps the vm_map and vm_map_entry structures in a style similar to
+that of
+.Xr ddb 4 .
+When combined with the
+.Fl v
+option, the device number, inode number, name, vnode addresses, or
+other identifying information from the vm_map_entry fields will be
+printed.
+.It Fl l
+Dumps information in a format like the contents of the maps
+pseudo-file under the
+.Pa /proc
+file system which was, in turn, modeled after the similarly named entry
+in the Linux
+.Pa /proc
+file system.
+When combined with the
+.Fl v
+option, identifiers for all entries are printed.
+.It Fl M Ar core
+Extract values associated with the name list from the specified core
+instead of the default
+.Pa /dev/kmem .
+.It Fl m
+Dumps information in the same format as the map pseudo-file of the
+.Pa /proc
+file system.
+When the
+.Fl v
+option is also given, device number, inode number, and filename
+or other identifying information is printed.
+.It Fl N Ar system
+Extract the name list from the specified system instead of the
+running kernel.
+.It Fl P
+Causes
+.Nm
+to print information about itself.
+.It Fl p Ar pid
+Tells
+.Nm
+to print information about the given process.
+If
+.Fl p Ar pid
+occurs last on the command line, the
+.Fl p
+is optional.
+.\" .It Fl R
+.\" Recurse into submaps.
+.\" In some cases, a vm_map_entry in the kernel
+.\" will point to a submap.
+.\" Using this flag tells
+.\" .Nm
+.\" to print the entries of the submap as well.
+.\" The submap output is
+.\" indented, and does not affect any total printed at the bottom of the
+.\" output.
+.It Fl s
+The Solaris style output format, modeled after the Solaris command
+.Dq pmap .
+.It Fl v
+Verbose output.
+When used with
+.Fl d ,
+.Fl l ,
+or
+.Fl m ,
+more information is printed, possibly including device and inode
+numbers, file path names, or other identifying information.
+If used with
+.Fl a ,
+a line marked with
+.Sq *
+will be printed in between two
+entries that are not adjacent, making the visual identification of
+spaces in the process's map easier to see.
+.El
+.Pp
+The
+.Fl P
+and
+.Fl p
+options override each other, so the last one to appear on the command
+line takes effect.
+To see information about
+.Nm
+and another process at the same time, simply omit the
+.Fl p
+and place the extra PID at the end of the command line.
+.Sh OUTPUT FORMAT
+While the meaning of most of the output is self-evident, some pieces of
+it may appear to be a little inscrutable.
+.Pp
+Here a portion of the default output from
+.Nm
+being run at a
+.Xr sh 1
+prompt shows the starting address of the map entry, the size of the
+map entry, the current protection level of the map entry, and either
+the name of the file backing the entry or some other descriptive text.
+.Bd -literal -offset indent
+# procmap
+08048000    420K read/exec         /bin/sh
+080B1000      8K read/write        /bin/sh
+080B3000     28K read/write          [ anon ]
+080BA000     16K read/write/exec     [ heap ]
+\&...
+.Ed
+.Pp
+When the
+.Xr ddb 4
+output style is selected, the first thing printed is the contents of
+the vm_map structure, followed by the individual map entries.
+.Bd -literal -offset indent
+# procmap -d
+MAP 0xcf7cac84: [0x0-\*(Gt0xbfbfe000]
+        #ent=8, sz=34041856, ref=1, version=20, flags=0x21
+        pmap=0xcf44cee0(resident=\*(Ltunknown\*(Gt)
+ - 0xcfa3a358: 0x8048000-\*(Gt0x80b1000: obj=0xcf45a8e8/0x0, amap=0x0/0
+        submap=F, cow=T, nc=T, stack=F, immutable=F, prot(max)=5/7, inh=1, wc=0, adv=0
+\&...
+.Ed
+.Pp
+The value of the flags field (in hexadecimal) is taken from
+the include file
+.In uvm/uvm_map.h :
+.Bd -literal -offset indent
+VM_MAP_PAGEABLE		0x01	ro: entries are pageable
+VM_MAP_INTRSAFE		0x02	ro: interrupt safe map
+VM_MAP_WIREFUTURE	0x04	rw: wire future mappings
+VM_MAP_BUSY		0x08	rw: map is busy
+VM_MAP_WANTLOCK		0x10	rw: want to write-lock
+.Ed
+.Pp
+The
+.Dq prot
+(or protection) field, along with
+.Dq max
+(maximum protection allowed), are made up of the following flags from
+.In uvm/uvm_extern.h :
+.\" this column width specifically chosen so that all the header file
+.\" excerpts appear to line up cleanly
+.Bd -literal -offset indent
+PROT_READ	0x01	read allowed
+PROT_WRITE	0x02	write allowed
+PROT_EXEC	0x04	execute allowed
+.Ed
+.Pp
+The
+.Dq obj
+and
+.Dq amap
+fields are pointers to, and offsets into, the underlying uvm_object or
+vm_amap object.
+The value for resident is always unknown because digging such
+information out of the kernel is beyond the scope of this application.
+.Pp
+The two output styles that mirror the contents of the
+.Pa /proc
+file system
+appear as follows:
+.Bd -literal -offset indent
+# procmap -m
+0x8048000 0x80b1000 r-x--I rwx COW NC 1 0 0
+0xdecf000 0xd018000 r-x--I rwx COW NC 1 0 0
+0x80b1000 0x80b3000 rw---I rwx COW NC 1 0 0
+0x80b3000 0x80ba000 rw---I rwx COW NNC 1 0 0
+0x80ba000 0x80be000 rwx--I rwx COW NNC 1 0 0
+\&...
+
+# procmap -l
+0x08048000	0x080b1000	r-x--Ip 00000000 00:00 70173     /bin/sh
+0x080b1000	0x080b3000	rw---Ip 00068000 00:00 70173     /bin/sh
+0x080b3000	0x080ba000	rw---Ip 00000000 00:00 0
+\&...
+.Ed
+.Pp
+Here the protection and maximum protection values are indicated with
+.Sq r ,
+.Sq w ,
+and
+.Sq x
+characters, indicating read permission, write permission, and execute
+permission, respectively.
+The remaining fields of this column are described below.
+The
+.Dq COW ,
+.Dq NC ,
+and
+.Dq NNC
+values that follow indicate, again, that the map is marked for copy on
+write and either needs or does not need a copy.
+It is also possible
+to see the value
+.Dq NCOW
+here, which indicates that an entry will not be copied.
+The three
+following numbers indicate the inheritance type of the map, the wired
+count of the map, and any advice value assigned via
+.Xr madvise 2 .
+.Pp
+In the second form, the permissions indicated are followed by a
+.Sq p
+or
+.Sq s
+character indicating whether the map entry is private or shared (copy
+on write or not), and the numbers are the offset into the underlying
+object, the device and numbers of the object if it is a file, and the
+path to the file (if available).
+.Pp
+As noted above, the
+.Dq all
+output format is an amalgam of the previous output formats.
+.Bd -literal -offset indent
+# procmap -a
+Start    End         Size  Offset   rwxSeIpc  RWX  I/W/A ...
+08048000-080b0fff     420k 00000000 r-x---p+ (rwx) 1/0/0 ...
+\&...
+.Ed
+.Pp
+In this format the column labeled
+.Dq rwxSeIpc
+comprises:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It rwx
+permissions for the mapping
+.It S
+mapping is marked stack
+.It I
+mapping is immutable (rwx protection may not be changed)
+.It p
+shared/private flag
+.It c
+mapping needs to be copied on write
+.Pq Sq +
+or has already been copied
+.Pq Sq -
+.El
+.Pp
+It is followed by the RWX column,
+which indicates the maximum permissions for the map entry.
+The column labeled I/W/A indicates the inheritance,
+wired, and advice values for the map entry,
+as previously described.
+.Sh EXIT STATUS
+.Ex -std procmap
+.Sh SEE ALSO
+.Xr ls 1 ,
+.\" .Xr stat 1 ,
+.Xr madvise 2 ,
+.Xr mmap 2 ,
+.Xr kvm 3 ,
+.Xr ddb 4 ,
+.Xr namei 9 ,
+.Xr vnode 9
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Ox 3.5 .
+It was derived from the
+.Nx
+utility known as
+.Dq pmap .
+.Sh AUTHORS
+The
+.Nm
+utility and documentation was written by
+.An Andrew Brown Aq Mt atatat@netbsd.org .
+.Sh BUGS
+Very little will work unless
+.Nm
+is reading from the correct kernel in order to retrieve the
+proper symbol information.
+.Pp
+Since processes can change state while
+.Nm
+is running, some of the information printed may be inaccurate.
+This is especially important to consider when examining the kernel's map,
+since merely executing
+.Nm
+will cause some of the information to change.
+.Pp
+The pathnames to files backing certain vnodes (such as the text and
+data sections of programs and shared libraries) are extracted from the
+kernel's namei cache which is considerably volatile.
+If a path is not
+found there in its entirety, as much information as was available
+will be printed.
+In most cases, simply running
+.Xr ls 1
+.\" or
+.\" .Xr stat 1
+with the expected path to the file will cause the information to be
+reentered into the cache.
+.Pp
+The Solaris version
+.Pq Dq pmap
+has some interesting command line flags that would be nice to emulate here.
+In particular, the
+.Fl r
+option that lists a process's reserved addresses, and the
+.Fl x
+option that prints resident/shared/private mapping details for each
+entry.
+.Pp
+Some of the output modes can be or are wider than the standard 80
+columns of a terminal.
+Some sort of formatting might be nice.

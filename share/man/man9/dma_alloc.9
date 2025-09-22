@@ -1,0 +1,74 @@
+.\"	$OpenBSD: dma_alloc.9,v 1.8 2022/03/31 17:27:23 naddy Exp $
+.\"	$NetBSD: pool.9,v 1.18 2001/06/21 11:59:01 wiz Exp $
+.\"
+.\" Copyright (c) 2011 Theo de Raadt
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt DMA_ALLOC 9
+.Os
+.Sh NAME
+.Nm dma_alloc ,
+.Nm dma_free
+.Nd DMA-safe memory allocator
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/pool.h
+.Ft void *
+.Fo dma_alloc
+.Fa "size_t size"
+.Fa "int flags"
+.Fc
+.Ft void
+.Fo dma_free
+.Fa "void *m"
+.Fa "size_t size"
+.Fc
+.Sh DESCRIPTION
+This allocator provides DMA-safe memory managed using the
+.Xr pool 9
+interface.
+It is safe to call in most contexts and is
+typically used for temporary buffers up to 65536 bytes.
+When buffers are used many times, it may be better to consider
+using other DMA-safe allocators.
+.Pp
+Interrupt protection is set to
+.Va IPL_VM
+using
+.Xr pool_init 9 .
+.Pp
+The
+.Ar flags
+argument is a selection of
+.Xr pool_get 9
+flag arguments.
+.Pp
+The same
+.Va size
+argument must be passed to both
+.Fn dma_alloc
+and the subsequent
+.Fn dma_free .
+Allocations over 65536 will fail.
+.Sh SEE ALSO
+.Xr bus_dma 9 ,
+.Xr mbuf 9 ,
+.Xr pool 9
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Ox 4.8 .

@@ -1,0 +1,181 @@
+.\"	$OpenBSD: df.1,v 1.49 2022/12/31 21:47:53 millert Exp $
+.\"	$NetBSD: df.1,v 1.12 1995/12/05 02:42:45 jtc Exp $
+.\"
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)df.1	8.2 (Berkeley) 1/13/92
+.\"
+.Dd $Mdocdate: December 31 2022 $
+.Dt DF 1
+.Os
+.Sh NAME
+.Nm df
+.Nd display free disk space
+.Sh SYNOPSIS
+.Nm df
+.Op Fl hiklnP
+.Op Fl t Ar type
+.Oo
+.Op Ar file | file_system
+.Ar ...
+.Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility displays statistics about the amount of free disk space on the
+specified
+.Ar file_system
+or on the file system of which
+.Ar file
+is a part.
+By default, values are displayed as 512-byte block counts.
+If no operands are specified,
+statistics for all mounted file systems are displayed
+(subject to the
+.Fl l
+and
+.Fl t
+options, below).
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl h
+"Human-readable" output.
+Use unit suffixes: Byte, Kilobyte, Megabyte,
+Gigabyte, Terabyte, Petabyte, Exabyte in order to reduce the number of
+digits to four or less.
+This option is incompatible with the
+.Fl P
+option.
+.It Fl i
+Include statistics on the number of free inodes.
+This option is incompatible with the
+.Fl P
+option.
+.It Fl k
+By default, all sizes are reported in 512-byte block counts.
+The
+.Fl k
+option causes the numbers to be reported in kilobyte counts.
+.It Fl l
+Display statistics only about mounted file systems with the
+.Dv MNT_LOCAL
+flag set.
+If a non-local file system is given as an argument, a
+warning is issued and no information is given on that file system.
+.It Fl n
+Print out the previously obtained statistics from the file systems.
+This option should be used if it is possible that one or more
+file systems are in a state such that they will not be able to provide
+statistics without a long delay.
+When this option is specified,
+.Nm
+will not request new statistics from the file systems, but will respond
+with the possibly stale statistics that were previously obtained.
+.It Fl P
+Print out information in a stricter format designed to be parsed
+by portable scripts.
+The
+.Ev BLOCKSIZE
+environment variable is ignored when this option is specified.
+.It Fl t Ar type
+Indicate the actions should only be taken on
+file systems of the specified
+.Ar type .
+More than one type may be specified in a comma-separated list.
+The list of file system types can be prefixed with
+.Dq no
+to specify the file system types for which action should
+.Em not
+be taken.
+If a file system is given on the command line that is not of
+the specified type, a warning is issued and no information is given on
+that file system.
+.El
+.Pp
+It is not an error to specify more than one of
+the mutually exclusive options
+.Fl h
+and
+.Fl k .
+Where more than one of these options is specified,
+the last option given overrides the others.
+.Sh ENVIRONMENT
+.Bl -tag -width BLOCKSIZE
+.It Ev BLOCKSIZE
+Display block counts in units of size
+.Dv BLOCKSIZE .
+Ignored if any of the
+.Fl h , k
+or
+.Fl P
+options are specified.
+.El
+.Sh EXIT STATUS
+.Ex -std df
+.Sh EXAMPLES
+Output, in a strict format suitable for portable scripts, disk space
+statistics for the
+.Pa /usr
+file system using kilobyte block sizes:
+.Pp
+.Dl $ df -kP /usr
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr getfsstat 2 ,
+.Xr statfs 2 ,
+.Xr getmntinfo 3 ,
+.Xr fstab 5 ,
+.Xr mount 8 ,
+.Xr quot 8
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl hiln ,
+as well as the
+.Ev BLOCKSIZE
+environment variable,
+are extensions to that specification.
+.Pp
+This implementation provides the traditional
+.Bx
+.Fl t
+behaviour,
+which differs from the
+X/Open System Interfaces option
+specification.
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v1 .

@@ -1,0 +1,86 @@
+.\"     $OpenBSD: virtio.4,v 1.18 2025/01/29 14:03:18 sf Exp $
+.\"
+.\" Copyright (c) 2012 Stefan Fritsch <sf@sfritsch.de>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 29 2025 $
+.Dt VIRTIO 4
+.Os
+.Sh NAME
+.Nm virtio
+.Nd VirtIO support driver
+.Sh SYNOPSIS
+.Cd "virtio* at fdt?"
+.Cd "virtio* at pci? flags 0x00"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support service for paravirtualized devices using the VirtIO
+protocol.
+Such devices are provided by bhyve, KVM, QEMU, VirtualBox, and
+.Xr vmm 4 .
+.Pp
+Currently there are drivers for the following
+.Nm
+devices:
+.Pp
+.Bl -tag -width "vioscsi(4)XXX" -offset indent -compact
+.It Xr vio 4
+VirtIO network device
+.It Xr vioblk 4
+VirtIO disk
+.It Xr viocon 4
+VirtIO console device
+.It Xr viogpu 4
+VirtIO GPU device
+.It Xr viomb 4
+VirtIO memory ballooning driver
+.It Xr viornd 4
+VirtIO random number device
+.It Xr vioscsi 4
+VirtIO SCSI adapter
+.It Xr vmmci 4
+.Xr vmm 4
+control interface
+.El
+.Pp
+The
+.Nm
+driver conforms to the virtio 0.9.5 specification.
+The virtio 1.0 standard is only supported for PCI devices.
+.Pp
+By default 1.x is preferred over 0.9.
+This can be changed by setting the bit 0x8 in the flags.
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was ported to
+.Ox
+and improved by
+.An Stefan Fritsch Aq Mt sf@sfritsch.de .
+It is based on the
+.Nx
+driver by
+.An Minoura Makoto .
+.Sh BUGS
+.Nm
+big-endian architectures are not yet supported.

@@ -1,0 +1,98 @@
+.\"	$OpenBSD: it.4,v 1.25 2015/09/10 15:16:43 schwarze Exp $
+.\"
+.\" Copyright (c) 2007-2008 Oleg Safiullin <form@pdp-11.org.ru>
+.\" Copyright (c) 2003 Julien Bordet <zejames@greygats.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 10 2015 $
+.Dt IT 4
+.Os
+.Sh NAME
+.Nm it
+.Nd ITE IT87xxF and SiS SiS950 temperature, voltage, and fan sensor with \
+watchdog timer
+.Sh SYNOPSIS
+.Cd "it* at isa? port 0x2e"
+.Cd "it* at isa? port 0x4e"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+ITE IT8705F, IT8712F, IT8716F, IT8718F, IT8720F, IT8726F, IT8728F, IT8772F
+and SiS SiS950
+hardware monitors and
+.Xr watchdog 4
+timer to be used with the
+.Xr sysctl 8
+interface.
+.Pp
+Most supported devices possess 17 sensors:
+.Bl -column "Sensor" "Units" "Typical" -offset indent
+.It Sy "Sensor" Ta Sy "Units" Ta Sy "Typical Use"
+.It Li "temp0" Ta "uK" Ta "CPU Temperature"
+.It Li "temp1" Ta "uK" Ta "Motherboard Temperature"
+.It Li "temp2" Ta "uK" Ta "Unused"
+.It Li "fan0" Ta "RPM" Ta "CPU Fan"
+.It Li "fan1" Ta "RPM" Ta "Chassis Fan"
+.It Li "fan2" Ta "RPM" Ta "Power Fan"
+.It Li "fan3" Ta "RPM" Ta "Unused"
+.It Li "fan4" Ta "RPM" Ta "Unused"
+.It Li "volt0" Ta "uV DC" Ta "Core voltage"
+.It Li "volt1" Ta "uV DC" Ta "Core voltage"
+.It Li "volt2" Ta "uV DC" Ta "+3.3V"
+.It Li "volt3" Ta "uV DC" Ta "+5V"
+.It Li "volt4" Ta "uV DC" Ta "+12V"
+.It Li "volt5" Ta "uV DC" Ta "-12V"
+.It Li "volt6" Ta "uV DC" Ta "-5V"
+.It Li "volt7" Ta "uV DC" Ta "+5VSB"
+.It Li "volt8" Ta "uV DC" Ta "VBAT"
+.El
+.Sh SEE ALSO
+.Xr isa 4 ,
+.Xr watchdog 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8 ,
+.Xr watchdogd 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was originally written for
+.Ox 3.4
+by
+.An Julien Bordet Aq Mt zejames@greyhats.org ,
+and completely rewritten for
+.Ox 4.3
+by
+.An Oleg Safiullin Aq Mt form@pdp-11.org.ru .
+.Sh BUGS
+Watchdog timer functionality is not supported for ITE IT8705
+or SiS SiS950 chips.
+For older IT8712 chips,
+watchdog timeout values of more than 255 seconds
+are rounded up to the nearest minute.

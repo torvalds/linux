@@ -1,0 +1,463 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_RANGES
+#define _LIBCPP_RANGES
+
+/*
+
+#include <compare>              // see [compare.syn]
+#include <initializer_list>     // see [initializer.list.syn]
+#include <iterator>             // see [iterator.synopsis]
+
+namespace std::ranges {
+  inline namespace unspecified {
+    // [range.access], range access
+    inline constexpr unspecified begin = unspecified;
+    inline constexpr unspecified end = unspecified;
+    inline constexpr unspecified cbegin = unspecified;
+    inline constexpr unspecified cend = unspecified;
+
+    inline constexpr unspecified size = unspecified;
+    inline constexpr unspecified ssize = unspecified;
+  }
+
+  // [range.range], ranges
+  template<class T>
+    concept range = see below;
+
+  template<class T>
+    inline constexpr bool enable_borrowed_range = false;
+
+  template<class T>
+    using iterator_t = decltype(ranges::begin(declval<T&>()));
+  template<range R>
+    using sentinel_t = decltype(ranges::end(declval<R&>()));
+  template<range R>
+    using range_difference_t = iter_difference_t<iterator_t<R>>;
+  template<sized_range R>
+    using range_size_t = decltype(ranges::size(declval<R&>()));
+  template<range R>
+    using range_value_t = iter_value_t<iterator_t<R>>;
+  template<range R>
+    using range_reference_t = iter_reference_t<iterator_t<R>>;
+  template<range R>
+    using range_rvalue_reference_t = iter_rvalue_reference_t<iterator_t<R>>;
+  template <range R>
+    using range_common_reference_t = iter_common_reference_t<iterator_t<R>>;
+
+  // [range.sized], sized ranges
+  template<class>
+    inline constexpr bool disable_sized_range = false;
+
+  template<class T>
+    concept sized_range = ...;
+
+  // [range.view], views
+  template<class T>
+    inline constexpr bool enable_view = ...;
+
+  struct view_base { };
+
+  template<class T>
+    concept view = ...;
+
+  // [range.refinements], other range refinements
+  template<class R, class T>
+    concept output_range = see below;
+
+  template<class T>
+    concept input_range = see below;
+
+  template<class T>
+    concept forward_range = see below;
+
+  template<class T>
+  concept bidirectional_range = see below;
+
+  template<class T>
+  concept random_access_range = see below;
+
+  template<class T>
+  concept contiguous_range = see below;
+
+  template <class _Tp>
+    concept common_range = see below;
+
+  template<class T>
+  concept viewable_range = see below;
+
+  // [range.adaptor.object], range adaptor objects
+  template<class D>
+    requires is_class_v<D> && same_as<D, remove_cv_t<D>>
+  class range_adaptor_closure { };  // Since c++23
+
+  // [view.interface], class template view_interface
+  template<class D>
+    requires is_class_v<D> && same_as<D, remove_cv_t<D>>
+  class view_interface;
+
+  // [range.subrange], sub-ranges
+  enum class subrange_kind : bool { unsized, sized };
+
+  template<input_or_output_iterator I, sentinel_for<I> S = I, subrange_kind K = see below>
+    requires (K == subrange_kind::sized || !sized_sentinel_for<S, I>)
+  class subrange;
+
+  template<class I, class S, subrange_kind K>
+    inline constexpr bool enable_borrowed_range<subrange<I, S, K>> = true;
+
+  // [range.dangling], dangling iterator handling
+  struct dangling;
+
+  template<range R>
+    using borrowed_iterator_t = see below;
+
+  template<range R>
+    using borrowed_subrange_t = see below;
+
+  // [range.elements], elements view
+  template<input_range V, size_t N>
+    requires see below
+  class elements_view;
+
+  template<class T, size_t N>
+    inline constexpr bool enable_borrowed_range<elements_view<T, N>> =
+      enable_borrowed_range<T>;
+
+  template<class R>
+    using keys_view = elements_view<R, 0>;
+  template<class R>
+    using values_view = elements_view<R, 1>;
+
+  namespace views {
+    template<size_t N>
+      inline constexpr unspecified elements = unspecified;
+    inline constexpr auto keys = elements<0>;
+    inline constexpr auto values = elements<1>;
+  }
+
+  // [range.utility.conv], range conversions
+  template<class C, input_range R, class... Args> requires (!view<C>)
+    constexpr C to(R&& r, Args&&... args);     // Since C++23
+  template<template<class...> class C, input_range R, class... Args>
+    constexpr auto to(R&& r, Args&&... args);  // Since C++23
+  template<class C, class... Args> requires (!view<C>)
+    constexpr auto to(Args&&... args);         // Since C++23
+  template<template<class...> class C, class... Args>
+    constexpr auto to(Args&&... args);         // Since C++23
+
+  // [range.empty], empty view
+  template<class T>
+    requires is_object_v<T>
+  class empty_view;
+
+  template<class T>
+    inline constexpr bool enable_borrowed_range<empty_view<T>> = true;
+
+  namespace views {
+    template<class T>
+      inline constexpr empty_view<T> empty{};
+  }
+
+  // [range.all], all view
+  namespace views {
+    inline constexpr unspecified all = unspecified;
+
+    template<viewable_range R>
+      using all_t = decltype(all(declval<R>()));
+  }
+
+  template<range R>
+    requires is_object_v<R>
+  class ref_view;
+
+  template<class T>
+    inline constexpr bool enable_borrowed_range<ref_view<T>> = true;
+
+  template<range R>
+    requires see below
+  class owning_view;
+
+  template<class T>
+    inline constexpr bool enable_borrowed_range<owning_view<T>> = enable_borrowed_range<T>;
+
+  // [range.filter], filter view
+  template<input_range V, indirect_unary_predicate<iterator_t<V>> Pred>
+    requires view<V> && is_object_v<Pred>
+  class filter_view;
+
+  namespace views {
+    inline constexpr unspecified filter = unspecified;
+  }
+
+  // [range.drop], drop view
+  template<view V>
+    class drop_view;
+
+  template<class T>
+    inline constexpr bool enable_borrowed_range<drop_view<T>> = enable_borrowed_range<T>;
+
+  // [range.drop.while], drop while view
+  template<view V, class Pred>
+    requires input_range<V> && is_object_v<Pred> &&
+             indirect_unary_predicate<const Pred, iterator_t<V>>
+    class drop_while_view;
+
+  template<class T, class Pred>
+    inline constexpr bool enable_borrowed_range<drop_while_view<T, Pred>> =
+      enable_borrowed_range<T>;
+
+  namespace views { inline constexpr unspecified drop_while = unspecified; }
+
+  // [range.transform], transform view
+  template<input_range V, copy_constructible F>
+    requires view<V> && is_object_v<F> &&
+             regular_invocable<F&, range_reference_t<V>> &&
+             can-reference<invoke_result_t<F&, range_reference_t<V>>>
+  class transform_view;
+
+  // [range.counted], counted view
+  namespace views { inline constexpr unspecified counted = unspecified; }
+
+  // [range.common], common view
+  template<view V>
+    requires (!common_range<V> && copyable<iterator_t<V>>)
+  class common_view;
+
+ // [range.reverse], reverse view
+  template<view V>
+    requires bidirectional_range<V>
+  class reverse_view;
+
+  template<class T>
+    inline constexpr bool enable_borrowed_range<reverse_view<T>> = enable_borrowed_range<T>;
+
+  template<class T>
+  inline constexpr bool enable_borrowed_range<common_view<T>> = enable_borrowed_range<T>;
+
+   // [range.take], take view
+  template<view> class take_view;
+
+  template<class T>
+  inline constexpr bool enable_borrowed_range<take_view<T>> = enable_borrowed_range<T>;
+
+    // [range.take.while], take while view
+  template<view V, class Pred>
+    requires input_range<V> && is_object_v<Pred> &&
+             indirect_unary_predicate<const Pred, iterator_t<V>>
+    class take_while_view;
+
+  namespace views { inline constexpr unspecified take_while = unspecified; }
+
+  template<copy_constructible T>
+    requires is_object_v<T>
+  class single_view;
+
+  template<weakly_incrementable W, semiregular Bound = unreachable_sentinel_t>
+    requires weakly-equality-comparable-with<W, Bound> && copyable<W>
+  class iota_view;
+
+  template<class W, class Bound>
+    inline constexpr bool enable_borrowed_range<iota_view<W, Bound>> = true;
+
+  // [range.repeat], repeat view
+  template<class T>
+    concept integer-like-with-usable-difference-type =  // exposition only
+      is-signed-integer-like<T> || (is-integer-like<T> && weakly_incrementable<T>);
+
+  template<move_constructible T, semiregular Bound = unreachable_sentinel_t>
+    requires (is_object_v<T> && same_as<T, remove_cv_t<T>> &&
+              (integer-like-with-usable-difference-type<Bound> ||
+               same_as<Bound, unreachable_sentinel_t>))
+  class repeat_view;
+
+  namespace views { inline constexpr unspecified repeat = unspecified; }
+
+  // [range.join], join view
+  template<input_range V>
+    requires view<V> && input_range<range_reference_t<V>>
+  class join_view;
+
+  // [range.lazy.split], lazy split view
+  template<class R>
+    concept tiny-range = see below;   // exposition only
+
+  template<input_range V, forward_range Pattern>
+    requires view<V> && view<Pattern> &&
+             indirectly_comparable<iterator_t<V>, iterator_t<Pattern>, ranges::equal_to> &&
+             (forward_range<V> || tiny-range<Pattern>)
+  class lazy_split_view;
+
+  // [range.split], split view
+  template<forward_range V, forward_range Pattern>
+    requires view<V> && view<Pattern> &&
+             indirectly_comparable<iterator_t<V>, iterator_t<Pattern>, ranges::equal_to>
+  class split_view;
+
+  namespace views {
+    inline constexpr unspecified lazy_split = unspecified;
+    inline constexpr unspecified split = unspecified;
+  }
+
+  // [range.istream], istream view
+  template<movable Val, class CharT, class Traits = char_traits<CharT>>
+    requires see below
+  class basic_istream_view;
+
+  template<class Val>
+    using istream_view = basic_istream_view<Val, char>;
+
+  template<class Val>
+    using wistream_view = basic_istream_view<Val, wchar_t>;
+
+  namespace views { template<class T> inline constexpr unspecified istream = unspecified; }
+
+  // [range.zip], zip view
+  template<input_range... Views>
+    requires (view<Views> && ...) && (sizeof...(Views) > 0)
+  class zip_view;        // C++23
+
+  template<class... Views>
+    inline constexpr bool enable_borrowed_range<zip_view<Views...>> =       // C++23
+      (enable_borrowed_range<Views> && ...);
+
+  namespace views { inline constexpr unspecified zip = unspecified; }       // C++23
+
+  // [range.as.rvalue]
+  template <view V>
+    requires input_range<V>
+  class as_rvalue_view;                                                     // C++23
+
+  namespace views { inline constexpr unspecified as_rvalue ) unspecified; } // C++23
+
+  [range.chunk.by]
+  template<forward_range V, indirect_binary_predicate<iterator_t<V>, iterator_t<V>> Pred>
+    requires view<V> && is_object_v<Pred>
+  class chunk_by_view;                                                      // C++23
+
+  namespace views { inline constexpr unspecified chunk_by = unspecified; }  // C++23
+}
+
+namespace std {
+  namespace views = ranges::views;
+
+  template<class T> struct tuple_size;
+  template<size_t I, class T> struct tuple_element;
+
+  template<class I, class S, ranges::subrange_kind K>
+  struct tuple_size<ranges::subrange<I, S, K>>
+    : integral_constant<size_t, 2> {};
+
+  template<class I, class S, ranges::subrange_kind K>
+  struct tuple_element<0, ranges::subrange<I, S, K>> {
+    using type = I;
+  };
+
+  template<class I, class S, ranges::subrange_kind K>
+  struct tuple_element<1, ranges::subrange<I, S, K>> {
+    using type = S;
+  };
+
+  template<class I, class S, ranges::subrange_kind K>
+  struct tuple_element<0, const ranges::subrange<I, S, K>> {
+    using type = I;
+  };
+
+  template<class I, class S, ranges::subrange_kind K>
+  struct tuple_element<1, const ranges::subrange<I, S, K>> {
+    using type = S;
+  };
+
+  struct from_range_t { explicit from_range_t() = default; };  // Since C++23
+  inline constexpr from_range_t from_range{};                  // Since C++23
+}
+*/
+
+#include <__config>
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__ranges/access.h>
+#  include <__ranges/all.h>
+#  include <__ranges/common_view.h>
+#  include <__ranges/concepts.h>
+#  include <__ranges/counted.h>
+#  include <__ranges/dangling.h>
+#  include <__ranges/data.h>
+#  include <__ranges/drop_view.h>
+#  include <__ranges/drop_while_view.h>
+#  include <__ranges/elements_view.h>
+#  include <__ranges/empty.h>
+#  include <__ranges/empty_view.h>
+#  include <__ranges/enable_borrowed_range.h>
+#  include <__ranges/enable_view.h>
+#  include <__ranges/filter_view.h>
+#  include <__ranges/iota_view.h>
+#  include <__ranges/join_view.h>
+#  include <__ranges/lazy_split_view.h>
+#  include <__ranges/rbegin.h>
+#  include <__ranges/ref_view.h>
+#  include <__ranges/rend.h>
+#  include <__ranges/reverse_view.h>
+#  include <__ranges/single_view.h>
+#  include <__ranges/size.h>
+#  include <__ranges/split_view.h>
+#  include <__ranges/subrange.h>
+#  include <__ranges/take_view.h>
+#  include <__ranges/take_while_view.h>
+#  include <__ranges/transform_view.h>
+#  include <__ranges/view_interface.h>
+#  include <__ranges/views.h>
+
+#  if !defined(_LIBCPP_HAS_NO_LOCALIZATION)
+#    include <__ranges/istream_view.h>
+#  endif
+#endif
+
+#if _LIBCPP_STD_VER >= 23
+#  include <__ranges/as_rvalue_view.h>
+#  include <__ranges/chunk_by_view.h>
+#  include <__ranges/from_range.h>
+#  include <__ranges/repeat_view.h>
+#  include <__ranges/to.h>
+#  include <__ranges/zip_view.h>
+#endif
+
+#include <version>
+
+// standard-mandated includes
+
+// [ranges.syn]
+#include <compare>
+#include <initializer_list>
+#include <iterator>
+
+// [tuple.helper]
+#include <__tuple/tuple_element.h>
+#include <__tuple/tuple_size.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 17
+#  include <cstddef>
+#  include <limits>
+#  include <optional>
+#  include <span>
+#  include <tuple>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cstdlib>
+#  include <iosfwd>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_RANGES

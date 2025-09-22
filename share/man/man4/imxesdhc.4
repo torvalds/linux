@@ -1,0 +1,48 @@
+.\" $OpenBSD: imxesdhc.4,v 1.4 2021/05/28 12:30:34 patrick Exp $
+.\" Copyright (c) 2014 Sylvestre Gallon <syl@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 28 2021 $
+.Dt IMXESDHC 4
+.Os
+.Sh NAME
+.Nm imxesdhc
+.Nd i.MX SD host controller
+.Sh SYNOPSIS
+.Cd "imxesdhc* at fdt?"
+.Cd "sdmmc* at imxesdhc?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the MMC/SD/SDIO controller integrated in
+i.MX 6, i.MX 7 and i.MX 8 processors.
+.Pp
+The
+.Xr sdmmc 4
+subsystem performs SD/MMC transactions to communicate with
+MMC, SD, SDHC, or SDIO devices inserted into the SD slot.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sdmmc 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Patrick Wildt Aq Mt patrick@blueri.se .

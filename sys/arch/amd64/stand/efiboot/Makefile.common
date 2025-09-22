@@ -1,0 +1,81 @@
+#	$OpenBSD: Makefile.common,v 1.24 2024/06/30 18:17:09 deraadt Exp $
+
+S=		${.CURDIR}/../../../../..
+SADIR=		${.CURDIR}/../..
+EFIDIR=		${S}/stand/efi
+
+OBJCOPY?=	objcopy
+OBJDUMP?=	objdump
+
+EFI_HEAP_LIMIT=	0xc00000
+
+LDFLAGS+=	-nostdlib -T${.CURDIR}/../${LDSCRIPT} -Bsymbolic -shared
+LDFLAGS+=	--pack-dyn-relocs=none
+
+COPTS+=		-DEFIBOOT -DFWRANDOM -DNEEDS_HEAP_H -I${.CURDIR}/..
+COPTS+=		-I${EFIDIR}/include -I${S}/stand/boot
+COPTS+=		-ffreestanding -std=gnu99
+COPTS+=		-fshort-wchar -fPIC -mno-red-zone
+.if ${SOFTRAID:L} == "yes"
+COPTS+=		-DSOFTRAID
+COPTS+=		-DIDLE_POWEROFF
+.endif
+COPTS+=		-D_STANDALONE -nostdinc -fno-builtin
+
+AFLAGS+=	-pipe -fPIC
+
+.PATH:	${.CURDIR}/..
+SRCS+=	self_reloc.c
+SRCS+=	efiboot.c efidev.c efipxe.c efirng.c
+SRCS+=	conf.c dev_i386.c cmd_i386.c diskprobe.c exec_i386.c machdep.c
+SRCS+=	memprobe.c
+
+.PATH:	${S}/stand/boot
+SRCS+=	boot.c bootarg.c cmd.c vars.c
+
+.PATH:	${S}/lib/libsa
+SRCS+=	alloc.c ctime.c exit.c getchar.c hexdump.c \
+	memcmp.c memcpy.c memmove.c memset.c printf.c \
+	putchar.c snprintf.c strcmp.c strerror.c strlen.c strncmp.c strncpy.c \
+	strtol.c strtoll.c
+SRCS+=	close.c closeall.c cons.c cread.c dev.c disklabel.c dkcksum.c \
+	fchmod.c fstat.c lseek.c open.c read.c readdir.c stat.c
+SRCS+=	ufs.c ufs2.c cd9660.c
+.if ${SOFTRAID:L} == "yes"
+SRCS+=	aes_xts.c bcrypt_pbkdf.c blowfish.c explicit_bzero.c hmac_sha1.c \
+	pkcs5_pbkdf2.c rijndael.c sha1.c sha2.c softraid.c
+.endif
+
+.PATH:	${S}/lib/libz
+SRCS+=	adler32.c crc32.c inflate.c inftrees.c
+
+.PATH:	${S}/lib/libkern
+SRCS+=	ashldi3.c ashrdi3.c divdi3.c lshrdi3.c moddi3.c qdivrem.c
+SRCS+=	strlcpy.c
+
+.PATH:	${SADIR}/libsa
+SRCS+=	loadfile.c arc4.c elf64.c elf32.c
+
+.if ${SOFTRAID:L} == "yes"
+SRCS+=	softraid_amd64.c
+.endif
+
+PROG.so=	${PROG:S/.EFI/.so/}
+CLEANFILES+=	${PROG.so} ${PROG.so}.tmp
+
+${PROG}: ${PROG.so}
+	${OBJCOPY} -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel \
+	    -j .rel.dyn -j .rela -j .rela.dyn -j .reloc \
+	    --target=${OBJFMT} ${PROG.so} ${.TARGET}
+
+.include <bsd.prog.mk>
+CFLAGS+=	-Wno-pointer-sign
+CPPFLAGS+=	-DSMALL -DSLOW -D__INTERNAL_LIBSA_CREAD
+CPPFLAGS+=	-DHEAP_LIMIT=${EFI_HEAP_LIMIT} -DHIBERNATE
+
+${PROG.so}: ${OBJS}
+	${LD} ${LDFLAGS} -o ${.TARGET}.tmp ${OBJS} ${LDADD}
+	@if ${OBJDUMP} -t ${.TARGET}.tmp | grep 'UND'; then	\
+		(echo Undefined symbols; false);		\
+	fi
+	mv ${.TARGET}.tmp ${.TARGET}

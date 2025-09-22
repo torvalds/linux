@@ -1,0 +1,57 @@
+; Options for the Motorola 88000 port of the compiler.
+
+; Copyright (C) 1988, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+; 2001, 2002 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2, or (at your option)
+; any later version.
+;
+; GCC is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to
+; the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+; Boston, MA 02110-1301, USA.
+
+m88110
+Target RejectNegative Mask(88110)
+Generate code for a 88110 processor
+
+m88100
+Target RejectNegative Mask(88100)
+Generate code for a 88100 processor
+
+m88000
+Target RejectNegative
+Generate code compatible with both 88100 and 88110 processors
+
+mtrap-large-shift
+Target Report RejectNegative Mask(TRAP_LARGE_SHIFT)
+Add code to trap on logical shift counts larger than 31
+
+mhandle-large-shift
+Target Report RejectNegative Mask(HANDLE_LARGE_SHIFT)
+Add code to handle logical shift counts larger than 31
+
+mcheck-zero-division
+Target Report Mask(CHECK_ZERO_DIV)
+Add code to trap on integer divide by zero
+
+muse-div-instruction
+Target Report RejectNegative Mask(USE_DIV)
+Use the \"div\" instruction for signed integer divide
+
+mserialize-volatile
+Target Report Mask(SERIALIZE_VOLATILE)
+Force serialization on volatile memory access
+
+mmemcpy
+Target Report Mask(MEMCPY)
+Force all memory copies to use memcpy()

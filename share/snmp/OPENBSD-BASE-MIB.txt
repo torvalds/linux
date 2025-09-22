@@ -1,0 +1,64 @@
+-- $OpenBSD: OPENBSD-BASE-MIB.txt,v 1.7 2016/09/02 12:17:33 tb Exp $
+--
+-- Copyright (c) 2008 Reyk Floeter <reyk@openbsd.org>
+-- Copyright (c) 2004-2007 Joel Knight <knight.joel@gmail.com>
+--
+-- Permission to use, copy, modify, and distribute this document for any
+-- purpose with or without fee is hereby granted, provided that the above
+-- copyright notice and this permission notice appear in all copies.
+--
+-- THE DOCUMENT IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+-- WITH REGARD TO THIS DOCUMENT INCLUDING ALL IMPLIED WARRANTIES OF
+-- MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+-- ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+-- WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+-- ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+-- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS DOCUMENT.
+
+OPENBSD-BASE-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+	MODULE-IDENTITY, NOTIFICATION-TYPE, OBJECT-TYPE, enterprises
+	    FROM SNMPv2-SMI
+	MODULE-COMPLIANCE, OBJECT-GROUP
+	    FROM SNMPv2-CONF;
+
+openBSD MODULE-IDENTITY
+	LAST-UPDATED "201201310000Z"
+	ORGANIZATION "OpenBSD"
+	CONTACT-INFO 
+	    "Editor:    Reyk Floeter
+	    EMail:      reyk@openbsd.org
+	    WWW:        https://www.openbsd.org/
+
+	    Editor:     Joel Knight
+	    EMail:      knight.joel@gmail.com
+	    WWW:        http://www.packetmischief.ca/openbsd-snmp-mibs/"
+	DESCRIPTION
+	    "The base MIB module for the OpenBSD project."
+	REVISION "201201310000Z"
+	DESCRIPTION
+	    "Document relayd(8)'s use of the openBSD.3 OID; move the CARP MIB to
+            openBSD.6 to avoid a conflict with relayd."
+	REVISION "200812230000Z"
+	DESCRIPTION
+	    "Updated for MIB for the OpenBSD snmpd(8) implementation."
+	::= { enterprises 30155 }
+
+--
+-- OpenBSD sub-MIBs
+--
+
+pfMIBObjects		OBJECT IDENTIFIER ::= { openBSD 1 }
+sensorsMIBObjects	OBJECT IDENTIFIER ::= { openBSD 2 }
+relaydMIBObjects	OBJECT IDENTIFIER ::= { openBSD 3 }
+-- ipsecMIBObjects	OBJECT IDENTIFIER ::= { openBSD 4 }
+memMIBObjects		OBJECT IDENTIFIER ::= { openBSD 5 }
+carpMIBObjects		OBJECT IDENTIFIER ::= { openBSD 6 }
+
+-- Other values
+localSystem		OBJECT IDENTIFIER ::= { openBSD 23 }
+openBSDDefaultObjectID	OBJECT IDENTIFIER ::= { localSystem 1 }
+localTest		OBJECT IDENTIFIER ::= { openBSD 42 }
+
+END

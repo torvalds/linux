@@ -1,0 +1,2 @@
+antispoof log quick for { lo0 lo1000000 } inet \
+	label "antispoof:$if:$srcaddr:$dstaddr"

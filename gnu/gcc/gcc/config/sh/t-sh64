@@ -1,0 +1,11 @@
+LIB1ASMFUNCS = \
+  _sdivsi3 _sdivsi3_i4 _udivsi3 _udivsi3_i4 _set_fpscr \
+  _shcompact_call_trampoline _shcompact_return_trampoline \
+  _shcompact_incoming_args _ic_invalidate _nested_trampoline \
+  _push_pop_shmedia_regs \
+  _udivdi3 _divdi3 _umoddi3 _moddi3 _div_table
+
+MULTILIB_CPU_DIRS= $(ML_sh1) $(ML_sh2e) $(ML_sh2) $(ML_sh3e) $(ML_sh3) $(ML_sh4_nofpu) $(ML_sh4_single_only) $(ML_sh4_single) $(ML_sh4) $(ML_sh5_32media:m5-32media/=media32) $(ML_sh5_32media_nofpu:m5-32media-nofpu/=nofpu/media32) $(ML_sh5_compact:m5-compact/=compact) $(ML_sh5_compact_nofpu:m5-compact-nofpu/=nofpu/compact) $(ML_sh5_64media:m5-64media/=media64) $(ML_sh5_64media_nofpu:m5-64media-nofpu/=nofpu/media64)
+
+MULTILIB_RAW_DIRNAMES= $(MULTILIB_ENDIAN:/mb= mb) $(MULTILIB_CPU_DIRS:/=)
+MULTILIB_DIRNAMES= $(MULTILIB_RAW_DIRNAMES)

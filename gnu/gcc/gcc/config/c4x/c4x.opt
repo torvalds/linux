@@ -1,0 +1,140 @@
+; Options for the TMS320C[34]x port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+m30
+Target RejectNegative
+Generate code for C30 CPU
+
+m31
+Target RejectNegative
+Generate code for C31 CPU
+
+m32
+Target RejectNegative
+Generate code for C32 CPU
+
+m33
+Target RejectNegative
+Generate code for C33 CPU
+
+m40
+Target RejectNegative
+Generate code for C40 CPU
+
+m44
+Target RejectNegative
+Generate code for C44 CPU
+
+maliases
+Target Report Mask(ALIASES)
+Assume that pointers may be aliased
+
+mbig
+Target RejectNegative Report InverseMask(SMALL)
+Big memory model
+
+mbk
+Target Report Mask(BK)
+Use the BK register as a general purpose register
+
+mcpu=
+Target RejectNegative Joined
+-mcpu=CPU	Generate code for CPU
+
+mdb
+Target Report Mask(DB)
+Enable use of DB instruction
+
+mdebug
+Target Report Mask(DEBUG)
+Enable debugging
+
+mdevel
+Target Report Mask(DEVEL)
+Enable new features under development
+
+mfast-fix
+Target Report Mask(FAST_FIX)
+Use fast but approximate float to integer conversion
+
+mforce
+Target Report Mask(FORCE)
+Force RTL generation to emit valid 3 operand insns
+
+mhoist
+Target Report Mask(HOIST)
+Force constants into registers to improve hoisting
+
+misr-dp-reload
+Target Mask(PARANOID) MaskExists
+Save DP across ISR in small memory model
+
+mloop-unsigned
+Target Report Mask(LOOP_UNSIGNED)
+Allow unsigned iteration counts for RPTB/DB
+
+mmemparm
+Target RejectNegative Report Mask(MEMPARM)
+Pass arguments on the stack
+
+mmpyi
+Target Report Mask(MPYI)
+Use MPYI instruction for C3x
+
+mparallel-insns
+Target Report Mask(PARALLEL)
+Enable parallel instructions
+
+mparallel-mpy
+Target Report Mask(PARALLEL_MPY)
+Enable MPY||ADD and MPY||SUB instructions
+
+mparanoid
+Target Report Mask(PARANOID)
+Save DP across ISR in small memory model
+
+mpreserve-float
+Target Report Mask(PRESERVE_FLOAT)
+Preserve all 40 bits of FP reg across call
+
+mregparm
+Target RejectNegative Report InverseMask(MEMPARM)
+Pass arguments in registers
+
+mrptb
+Target Report Mask(RPTB)
+Enable use of RTPB instruction
+
+mrpts
+Target Report Mask(RPTS)
+Enable use of RTPS instruction
+
+mrpts=
+Target RejectNegative Joined UInteger Var(c4x_rpts_cycles)
+-mrpts=N	Set the maximum number of iterations for RPTS to N
+
+msmall
+Target RejectNegative Report Mask(SMALL)
+Small memory model
+
+mti
+Target Report Mask(TI)
+Emit code compatible with TI tools

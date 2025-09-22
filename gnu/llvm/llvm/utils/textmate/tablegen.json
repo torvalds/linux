@@ -1,0 +1,452 @@
+{
+  "name": "TableGen",
+  "fileTypes": [
+    "td"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#preprocessor"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#integer"
+    },
+    {
+      "include": "#builtin_types"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#classes"
+    },
+    {
+      "include": "#defs"
+    },
+    {
+      "include": "#values"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "match": "\/\/.*$",
+          "name": "comment.line.double-slash.tablegen"
+        },
+        {
+          "begin": "/\\*",
+          "end": "\\*/",
+          "captures": {
+            "0": {
+              "name": "comment.block.tablegen"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#comments"
+            }
+          ],
+          "name": "comment.block.tablegen"
+        }
+      ]
+    },
+    "preprocessor": {
+      "patterns": [
+        {
+          "match": "^#ifdef\\s+(\\w+)",
+          "name": "keyword.control.ifdef.tablegen",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.preprocessor.tablegen"
+            }
+          }
+        },
+        {
+          "match": "^#ifndef\\s+(\\w+)",
+          "name": "keyword.control.ifndef.tablegen",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.preprocessor.tablegen"
+            }
+          }
+        },
+        {
+          "match": "^#else",
+          "name": "keyword.control.else.tablegen"
+        },
+        {
+          "match": "#endif",
+          "name": "keyword.control.endif.tablegen"
+        },
+        {
+          "match": "#define\\s+(\\w+)",
+          "name": "keyword.control.ifndef.tablegen",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.preprocessor.tablegen"
+            }
+          }
+        },
+        {
+          "match": "^include\\s+",
+          "name": "keyword.control.include.tablegen"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.tablegen",
+          "begin": "\"",
+          "end": "\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.tablegen"
+            }
+          },
+          "patterns": [
+            {
+              "match": "\\\\['nt\"]",
+              "name": "constant.character.escape.tablegen"
+            }
+          ],
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.tablegen"
+            }
+          }
+        },
+        {
+          "name": "string.quoted.triple.tablegen",
+          "begin": "\\[{",
+          "end": "}]",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.tablegen"
+            }
+          },
+          "patterns": [
+            {
+              "match": "\\\\[nt\"]",
+              "name": "constant.character.escape.tablegen"
+            }
+          ],
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.tablegen"
+            }
+          }
+        }
+      ]
+    },
+    "integer": {
+      "patterns": [
+        {
+          "match": "\\b\\d+\\b",
+          "name": "constant.numeric.tablegen"
+        },
+        {
+          "match": "\\b0[xX][a-fA-F0-9]+\\b",
+          "name": "constant.numeric.hex.tablegen"
+        },
+        {
+          "match": "\\b0b[01]+\\b",
+          "name": "constant.numeric.binary.tablegen"
+        }
+      ]
+    },
+    "builtin_types": {
+      "patterns": [
+        {
+          "match": "\\b(?:bit|code|dag|int|string)\\b",
+          "name": "entity.name.type.tablegen"
+        },
+        {
+          "begin": "\\b(bits)\\<",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.name.type.tablegen"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#integer"
+            }
+          ],
+          "end": "\\>"
+        },
+        {
+          "begin": "\\b(list)\\<",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.name.type.tablegen"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#types"
+            }
+          ],
+          "end": "\\>"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "include": "#builtin_types"
+        },
+        {
+          "match": "\\b(\\w+)\\b",
+          "name": "entity.name.type.tablegen"
+        }
+      ]
+    },
+    "bang_operators": {
+      "patterns": [
+        {
+          "begin": "(\\!cast|\\!getdagop|\\!isa)\\<",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.name.function"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#types"
+            }
+          ],
+          "end": "\\>"
+        },
+        {
+          "match": "(\\!\\w+)\\b",
+          "name": "entity.name.function"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "match": "\\b(assert|else|foreach|defset|defvar|field|if|in|let|then)\\b",
+          "name": "keyword.other.tablegen"
+        }
+      ]
+    },
+    "record_body": {
+      "patterns": [
+        {
+          "begin": "\\:",
+          "patterns": [
+            {
+              "match": "\\b(\\w+)\\b",
+              "name": "entity.name.type.tablegen"
+            },
+            {
+              "begin": "\\<",
+              "patterns": [
+                {
+                  "include": "#values"
+                }
+              ],
+              "end": "\\>"
+            }
+          ],
+          "end": "(?=\\;|\\{)"
+        },
+        {
+          "begin": "\\{",
+          "patterns": [
+            {
+              "include": "#keywords"
+            },
+            {
+              "include": "#builtin_types"
+            },
+            {
+              "match": "\\b(\\w+\\s+)?\\b(\\w+)\\b\\s+\\=",
+              "captures": {
+                "1": {
+                  "name": "entity.name.type.tablegen"
+                },
+                "2": {
+                  "name": "variable.other.tablegen"
+                }
+              }
+            },
+            {
+              "include": "#values"
+            }
+          ],
+          "end": "(?=\\})"
+        }
+      ]
+    },
+    "classes": {
+      "begin": "\\b(multiclass|class)\\b\\s+(\\w+)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.class.tablegen"
+        },
+        "2": {
+          "name": "entity.name.type.tablegen"
+        }
+      },
+      "patterns": [
+        {
+          "begin": "\\<",
+          "patterns": [
+            {
+              "include": "#builtin_types"
+            },
+            {
+              "match": "\\b(\\w+\\s+)?\\b(\\w+)\\b",
+              "captures": {
+                "1": {
+                  "name": "entity.name.type.tablegen"
+                },
+                "2": {
+                  "name": "variable.other.tablegen"
+                }
+              }
+            },
+            {
+              "begin": "=",
+              "patterns": [
+                {
+                  "include": "#values"
+                }
+              ],
+              "end": "(?=\\>|\\,)"
+            }
+          ],
+          "end": "\\>"
+        },
+        {
+          "include": "#record_body"
+        }
+      ],
+      "end": "(\\;|\\})"
+    },
+    "defs": {
+      "begin": "\\b(defm|def)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.def.tablegen"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#record_body"
+        },
+        {
+          "include": "#values"
+        }
+      ],
+      "end": "(\\;|\\})"
+    },
+    "values": {
+      "patterns": [
+        {
+          "include": "#builtin_types"
+        },
+        {
+          "include": "#bang_operators"
+        },
+        {
+          "include": "#classes"
+        },
+        {
+          "include": "#defs"
+        },
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#integer"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "match": "\\b(?:false|true)\\b",
+          "name": "keyword.other.tablegen"
+        },
+        {
+          "match": "(\\?)",
+          "name": "keyword.other.tablegen"
+        },
+        {
+          "begin": "\\{",
+          "patterns": [
+            {
+              "include": "#values"
+            }
+          ],
+          "end": "\\}"
+        },
+        {
+          "begin": "\\[",
+          "patterns": [
+            {
+              "include": "#values"
+            }
+          ],
+          "end": "(?=\\])"
+        },
+        {
+          "begin": "\\]\\s*\\<",
+          "patterns": [
+            {
+              "include": "#types"
+            }
+          ],
+          "end": "\\>"
+        },
+        {
+          "begin": "\\(",
+          "patterns": [
+            {
+              "include": "#values"
+            }
+          ],
+          "end": "\\)"
+        },
+        {
+          "include": "#keywords"
+        },
+        {
+          "begin": "\\b(\\w+)\\<",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.name.type.tablegen"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#values"
+            }
+          ],
+          "end": "\\>"
+        },
+        {
+          "match": "(\\$\\w+)\\b",
+          "name": "variable.other.enummember.tablegen"
+        },
+        {
+          "match": "\\b(\\w+)\\b",
+          "name": "variable.other.tablegen"
+        },
+        {
+          "include": "#preprocessor"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.tablegen"
+}

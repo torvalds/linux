@@ -1,0 +1,130 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_THREAD
+#define _LIBCPP_THREAD
+
+/*
+
+    thread synopsis
+
+namespace std
+{
+
+class thread
+{
+public:
+    class id;
+    typedef pthread_t native_handle_type;
+
+    thread() noexcept;
+    template <class F, class ...Args> explicit thread(F&& f, Args&&... args);
+    ~thread();
+
+    thread(const thread&) = delete;
+    thread(thread&& t) noexcept;
+
+    thread& operator=(const thread&) = delete;
+    thread& operator=(thread&& t) noexcept;
+
+    void swap(thread& t) noexcept;
+
+    bool joinable() const noexcept;
+    void join();
+    void detach();
+    id get_id() const noexcept;
+    native_handle_type native_handle();
+
+    static unsigned hardware_concurrency() noexcept;
+};
+
+void swap(thread& x, thread& y) noexcept;
+
+class thread::id
+{
+public:
+    id() noexcept;
+};
+
+bool operator==(thread::id x, thread::id y) noexcept;
+bool operator!=(thread::id x, thread::id y) noexcept;             // removed in C++20
+bool operator< (thread::id x, thread::id y) noexcept;             // removed in C++20
+bool operator<=(thread::id x, thread::id y) noexcept;             // removed in C++20
+bool operator> (thread::id x, thread::id y) noexcept;             // removed in C++20
+bool operator>=(thread::id x, thread::id y) noexcept;             // removed in C++20
+strong_ordering operator<=>(thread::id x, thread::id y) noexcept; // C++20
+
+template<class charT, class traits>
+basic_ostream<charT, traits>&
+operator<<(basic_ostream<charT, traits>& out, thread::id id);
+
+template<class charT>
+struct formatter<thread::id, charT>;
+
+namespace this_thread
+{
+
+thread::id get_id() noexcept;
+
+void yield() noexcept;
+
+template <class Clock, class Duration>
+void sleep_until(const chrono::time_point<Clock, Duration>& abs_time);
+
+template <class Rep, class Period>
+void sleep_for(const chrono::duration<Rep, Period>& rel_time);
+
+}  // this_thread
+
+}  // std
+
+*/
+
+#include <__config>
+
+#if !defined(_LIBCPP_HAS_NO_THREADS)
+
+#  include <__thread/formatter.h>
+#  include <__thread/jthread.h>
+#  include <__thread/support.h>
+#  include <__thread/this_thread.h>
+#  include <__thread/thread.h>
+#  include <version>
+
+// standard-mandated includes
+
+// [thread.syn]
+#  include <compare>
+
+#  if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#    pragma GCC system_header
+#  endif
+
+#endif // !defined(_LIBCPP_HAS_NO_THREADS)
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES)
+#  include <cstddef>
+#  include <ctime>
+#  include <iosfwd>
+#  include <ratio>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 17
+#  include <chrono>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cstring>
+#  include <functional>
+#  include <new>
+#  include <system_error>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_THREAD

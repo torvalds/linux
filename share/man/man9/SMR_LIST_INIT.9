@@ -1,0 +1,445 @@
+.\"	$OpenBSD: SMR_LIST_INIT.9,v 1.8 2022/01/16 05:38:58 jsg Exp $
+.\"
+.\" Copyright (c) 2019 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 16 2022 $
+.Dt SMR_LIST_INIT 9
+.Os
+.Sh NAME
+.Nm SMR_SLIST_ENTRY ,
+.Nm SMR_SLIST_HEAD ,
+.Nm SMR_SLIST_HEAD_INITIALIZER ,
+.Nm SMR_SLIST_INIT ,
+.Nm SMR_SLIST_FIRST ,
+.Nm SMR_SLIST_NEXT ,
+.Nm SMR_SLIST_FOREACH ,
+.Nm SMR_SLIST_FIRST_LOCKED ,
+.Nm SMR_SLIST_NEXT_LOCKED ,
+.Nm SMR_SLIST_EMPTY_LOCKED ,
+.Nm SMR_SLIST_FOREACH_LOCKED ,
+.Nm SMR_SLIST_FOREACH_SAFE_LOCKED ,
+.Nm SMR_SLIST_INSERT_HEAD_LOCKED ,
+.Nm SMR_SLIST_INSERT_AFTER_LOCKED ,
+.Nm SMR_SLIST_REMOVE_HEAD_LOCKED ,
+.Nm SMR_SLIST_REMOVE_AFTER_LOCKED ,
+.Nm SMR_SLIST_REMOVE_LOCKED ,
+.Nm SMR_LIST_ENTRY ,
+.Nm SMR_LIST_HEAD ,
+.Nm SMR_LIST_HEAD_INITIALIZER ,
+.Nm SMR_LIST_INIT ,
+.Nm SMR_LIST_FIRST ,
+.Nm SMR_LIST_NEXT ,
+.Nm SMR_LIST_FOREACH ,
+.Nm SMR_LIST_FIRST_LOCKED ,
+.Nm SMR_LIST_NEXT_LOCKED ,
+.Nm SMR_LIST_EMPTY_LOCKED ,
+.Nm SMR_LIST_FOREACH_LOCKED ,
+.Nm SMR_LIST_FOREACH_SAFE_LOCKED ,
+.Nm SMR_LIST_INSERT_HEAD_LOCKED ,
+.Nm SMR_LIST_INSERT_AFTER_LOCKED ,
+.Nm SMR_LIST_INSERT_BEFORE_LOCKED ,
+.Nm SMR_LIST_REMOVE_LOCKED ,
+.Nm SMR_TAILQ_ENTRY ,
+.Nm SMR_TAILQ_HEAD ,
+.Nm SMR_TAILQ_HEAD_INITIALIZER ,
+.Nm SMR_TAILQ_INIT ,
+.Nm SMR_TAILQ_FIRST ,
+.Nm SMR_TAILQ_NEXT ,
+.Nm SMR_TAILQ_FOREACH ,
+.Nm SMR_TAILQ_FIRST_LOCKED ,
+.Nm SMR_TAILQ_NEXT_LOCKED ,
+.Nm SMR_TAILQ_LAST_LOCKED ,
+.Nm SMR_TAILQ_EMPTY_LOCKED ,
+.Nm SMR_TAILQ_FOREACH_LOCKED ,
+.Nm SMR_TAILQ_FOREACH_SAFE_LOCKED ,
+.Nm SMR_TAILQ_INSERT_HEAD_LOCKED ,
+.Nm SMR_TAILQ_INSERT_TAIL_LOCKED ,
+.Nm SMR_TAILQ_INSERT_AFTER_LOCKED ,
+.Nm SMR_TAILQ_INSERT_BEFORE_LOCKED ,
+.Nm SMR_TAILQ_REMOVE_LOCKED
+.Nd SMR list macros
+.Sh SYNOPSIS
+.In sys/smr.h
+.Fn SMR_SLIST_ENTRY "TYPE"
+.Ft void
+.Fn SMR_SLIST_INIT "SMR_SLIST_HEAD *head"
+.Ft TYPE *
+.Fn SMR_SLIST_FIRST "SMR_SLIST_HEAD *head"
+.Ft TYPE *
+.Fn SMR_SLIST_NEXT "TYPE *elm" "FIELDNAME"
+.Fn SMR_SLIST_FOREACH "VARNAME" "SMR_SLIST_HEAD *head" "FIELDNAME"
+.Ft TYPE *
+.Fn SMR_SLIST_FIRST_LOCKED "SMR_SLIST_HEAD *head"
+.Ft TYPE *
+.Fn SMR_SLIST_NEXT_LOCKED "TYPE *elm" "FIELDNAME"
+.Ft int
+.Fn SMR_SLIST_EMPTY_LOCKED "SMR_SLIST_HEAD *head"
+.Fn SMR_SLIST_FOREACH_LOCKED "VARNAME" "SMR_SLIST_HEAD *head" "FIELDNAME"
+.Fn SMR_SLIST_FOREACH_SAFE_LOCKED "VARNAME" "SMR_LIST_HEAD *head" "FIELDNAME" "TEMP_VARNAME"
+.Ft void
+.Fn SMR_SLIST_INSERT_HEAD_LOCKED "SMR_SLIST_HEAD *head" "struct TYPE *elm" "FIELDNAME"
+.Ft void
+.Fn SMR_SLIST_INSERT_AFTER_LOCKED "struct TYPE *listelm" "struct TYPE *elm" "FIELDNAME"
+.Ft void
+.Fn SMR_SLIST_REMOVE_HEAD_LOCKED "SMR_SLIST_HEAD *head" "FIELDNAME"
+.Ft void
+.Fn SMR_SLIST_REMOVE_AFTER_LOCKED "struct TYPE *elm" "FIELDNAME"
+.Ft void
+.Fn SMR_SLIST_REMOVE_LOCKED "SMR_SLIST_HEAD *head" "struct TYPE *elm" "TYPE" "FIELDNAME"
+.Fn SMR_LIST_ENTRY "TYPE"
+.Ft void
+.Fn SMR_LIST_INIT "SMR_LIST_HEAD *head"
+.Ft TYPE *
+.Fn SMR_LIST_FIRST "SMR_LIST_HEAD *head"
+.Ft TYPE *
+.Fn SMR_LIST_NEXT "TYPE *elm" "FIELDNAME"
+.Ft TYPE *
+.Fn SMR_LIST_FIRST_LOCKED "SMR_LIST_HEAD *head"
+.Ft TYPE *
+.Fn SMR_LIST_NEXT_LOCKED "TYPE *elm" "FIELDNAME"
+.Ft int
+.Fn SMR_LIST_EMPTY_LOCKED "SMR_LIST_HEAD *head"
+.Fn SMR_LIST_FOREACH "VARNAME" "SMR_LIST_HEAD *head" "FIELDNAME"
+.Fn SMR_LIST_FOREACH_LOCKED "VARNAME" "SMR_LIST_HEAD *head" "FIELDNAME"
+.Fn SMR_LIST_FOREACH_SAFE_LOCKED "VARNAME" "SMR_LIST_HEAD *head" "FIELDNAME" "TEMP_VARNAME"
+.Ft void
+.Fn SMR_LIST_INSERT_HEAD_LOCKED "SMR_LIST_HEAD *head" "struct TYPE *elm" "FIELDNAME"
+.Ft void
+.Fn SMR_LIST_INSERT_AFTER_LOCKED "struct TYPE *listelm" "struct TYPE *elm" "FIELDNAME"
+.Ft void
+.Fn SMR_LIST_INSERT_BEFORE_LOCKED "struct TYPE *listelm" "struct TYPE *elm" "FIELDNAME"
+.Ft void
+.Fn SMR_LIST_REMOVE_LOCKED "struct TYPE *elm" "FIELDNAME"
+.Fn SMR_TAILQ_ENTRY "TYPE"
+.Ft void
+.Fn SMR_TAILQ_INIT "SMR_TAILQ_HEAD *head"
+.Ft TYPE *
+.Fn SMR_TAILQ_FIRST "SMR_TAILQ_HEAD *head"
+.Ft TYPE *
+.Fn SMR_TAILQ_NEXT "TYPE *elm" "FIELDNAME"
+.Ft TYPE *
+.Fn SMR_TAILQ_FIRST_LOCKED "SMR_TAILQ_HEAD *head"
+.Ft TYPE *
+.Fn SMR_TAILQ_NEXT_LOCKED "TYPE *elm" "FIELDNAME"
+.Ft TYPE *
+.Fn SMR_TAILQ_LAST_LOCKED "SMR_TAILQ_HEAD *head"
+.Fn SMR_TAILQ_FOREACH "VARNAME" "SMR_TAILQ_HEAD *head" "FIELDNAME"
+.Fn SMR_TAILQ_FOREACH_LOCKED "VARNAME" "SMR_TAILQ_HEAD *head" "FIELDNAME"
+.Fn SMR_TAILQ_FOREACH_SAFE_LOCKED "VARNAME" "SMR_TAILQ_HEAD *head" "FIELDNAME" "TEMP_VARNAME"
+.Ft void
+.Fn SMR_TAILQ_INSERT_HEAD_LOCKED "SMR_TAILQ_HEAD *head" "struct TYPE *elm" "FIELDNAME"
+.Ft void
+.Fn SMR_TAILQ_INSERT_TAIL_LOCKED "SMR_TAILQ_HEAD *head" "struct TYPE *elm" "FIELDNAME"
+.Ft void
+.Fn SMR_TAILQ_INSERT_AFTER_LOCKED "struct TYPE *listelm" "struct TYPE *elm" "FIELDNAME"
+.Ft void
+.Fn SMR_TAILQ_INSERT_BEFORE_LOCKED "struct TYPE *listelm" "struct TYPE *elm" "FIELDNAME"
+.Ft void
+.Fn SMR_TAILQ_REMOVE_LOCKED "struct TYPE *elm" "FIELDNAME"
+.Sh DESCRIPTION
+The SMR list macros define and operate on singly-linked lists,
+lists and tail queues
+that can be used with the safe memory reclamation mechanism.
+A data structure built with these macros can be accessed concurrently
+by multiple readers and a single writer.
+.Pp
+Readers have to access the data structure inside SMR read-side critical
+section.
+The critical section is entered using
+.Xr smr_read_enter 9 ,
+and left using
+.Xr smr_read_leave 9 .
+.Pp
+Writers must ensure exclusive write access.
+That can be done using a lock, such as
+.Xr mutex 9
+or
+.Xr rwlock 9 .
+The mutual exclusion of writers does not need to apply to readers.
+.Pp
+When an element has been removed from the data structure, the element
+must not be deleted or re-inserted before all reader references to it have
+disappeared.
+The writer has to use either
+.Xr smr_barrier 9
+or
+.Xr smr_call 9
+to ensure that the element can no longer be accessed by readers.
+.Ss Singly-Linked Lists
+The
+.Fn SMR_SLIST_ENTRY
+macro declares a structure that connects the elements in the list.
+.Pp
+.Fn SMR_SLIST_INIT
+initializes the list
+.Fa head
+to an empty state.
+.Pp
+.Fn SMR_SLIST_FIRST
+and
+.Fn SMR_SLIST_FIRST_LOCKED
+return the first element on the list
+.Fa head ,
+or NULL if the list is empty.
+.Pp
+.Fn SMR_SLIST_NEXT
+and
+.Fn SMR_SLIST_NEXT_LOCKED
+return the successor of the element
+.Fa elm ,
+or NULL if there are no more elements on the list.
+.Pp
+.Fn SMR_SLIST_EMPTY_LOCKED
+returns true if the list
+.Fa head
+is empty.
+.Pp
+.Fn SMR_SLIST_FOREACH
+and
+.Fn SMR_SLIST_FOREACH_LOCKED
+traverse the list
+.Fa head
+in forward direction.
+.Pp
+.Fn SMR_SLIST_FOREACH_SAFE_LOCKED
+traverses the list
+.Fa head
+in forward direction.
+It is permitted to remove the element referenced by variable
+.Fa VARNAME
+from the list and defer its freeing using
+.Xr smr_call 9 .
+.Pp
+.Fn SMR_SLIST_INSERT_HEAD_LOCKED
+inserts the new element
+.Fa elm
+at the head of the list.
+.Pp
+.Fn SMR_SLIST_INSERT_AFTER_LOCKED
+inserts the new element
+.Fa elm
+after the element
+.Fa listelm .
+.Pp
+.Fn SMR_SLIST_REMOVE_HEAD_LOCKED
+removes the first element of the list
+.Fa head .
+.Pp
+.Fn SMR_SLIST_REMOVE_AFTER_LOCKED
+removes the list element immediately following
+.Fa elm .
+.Pp
+.Fn SMR_SLIST_REMOVE_LOCKED
+removes the list element
+.Fa elm
+from the list
+.Fa head .
+.Ss Linked Lists
+The
+.Fn SMR_LIST_ENTRY
+macro declares a structure that connects the elements in the list.
+.Pp
+.Fn SMR_LIST_INIT
+initializes the list
+.Fa head
+to an empty state.
+.Pp
+.Fn SMR_LIST_FIRST
+and
+.Fn SMR_LIST_FIRST_LOCKED
+return the first element on the list
+.Fa head ,
+or NULL if the list is empty.
+.Pp
+.Fn SMR_LIST_NEXT
+and
+.Fn SMR_LIST_NEXT_LOCKED
+return the successor of the element
+.Fa elm ,
+or NULL if there are no more elements on the list.
+.Pp
+.Fn SMR_LIST_EMPTY_LOCKED
+returns true if the list
+.Fa head
+is empty.
+.Pp
+.Fn SMR_LIST_FOREACH
+and
+.Fn SMR_LIST_FOREACH_LOCKED
+traverse the list
+.Fa head
+in forward direction.
+.Pp
+.Fn SMR_LIST_FOREACH_SAFE_LOCKED
+traverses the list
+.Fa head
+in forward direction.
+It is permitted to remove the element referenced by variable
+.Fa VARNAME
+from the list and defer its freeing using
+.Xr smr_call 9 .
+.Pp
+.Fn SMR_LIST_INSERT_HEAD_LOCKED
+inserts the new element
+.Fa elm
+at the head of the list.
+.Pp
+.Fn SMR_LIST_INSERT_AFTER_LOCKED
+inserts the new element
+.Fa elm
+after the element
+.Fa listelm .
+.Pp
+.Fn SMR_LIST_INSERT_BEFORE_LOCKED
+inserts the new element
+.Fa elm
+before the element
+.Fa listelm .
+.Pp
+.Fn SMR_LIST_REMOVE_LOCKED
+removes the element
+.Fa elm
+from the list
+.Fa head .
+.Ss Tail Queues
+The
+.Fn SMR_TAILQ_ENTRY
+macro declares a structure that connects the elements in
+the tail queue.
+.Pp
+.Fn SMR_TAILQ_INIT
+initializes the tail queue
+.Fa head
+to an empty state.
+.Pp
+.Fn SMR_TAILQ_FIRST
+and
+.Fn SMR_TAILQ_FIRST_LOCKED
+return the first element in the queue
+.Fa head ,
+or NULL if the queue is empty.
+.Pp
+.Fn SMR_TAILQ_NEXT
+and
+.Fn SMR_TAILQ_NEXT_LOCKED
+return the successor of the element
+.Fa elm ,
+or NULL if there are no more elements in the queue.
+.Pp
+.Fn SMR_TAILQ_EMPTY_LOCKED
+returns true if the queue
+.Fa head
+is empty.
+.Pp
+.Fn SMR_TAILQ_FOREACH
+and
+.Fn SMR_TAILQ_FOREACH_LOCKED
+traverse the queue
+.Fa head
+in forward direction.
+.Pp
+.Fn SMR_TAILQ_FOREACH_SAFE_LOCKED
+traverses the queue
+.Fa head
+in forward direction.
+It is permitted to remove the element referenced by variable
+.Fa VARNAME
+from the queue and defer its freeing using
+.Xr smr_call 9 .
+.Pp
+.Fn SMR_TAILQ_INSERT_HEAD_LOCKED
+inserts the new element
+.Fa elm
+at the head of the queue.
+.Pp
+.Fn SMR_TAILQ_INSERT_TAIL_LOCKED
+inserts the new element
+.Fa elm
+at the tail of the queue.
+.Pp
+.Fn SMR_TAILQ_INSERT_AFTER_LOCKED
+inserts the new element
+.Fa elm
+after the element
+.Fa listelm .
+.Pp
+.Fn SMR_TAILQ_INSERT_BEFORE_LOCKED
+inserts the new element
+.Fa elm
+before the element
+.Fa listelm .
+.Pp
+.Fn SMR_TAILQ_REMOVE_LOCKED
+removes the element
+.Fa elm
+from the queue
+.Fa head .
+.Sh CONTEXT
+All SMR list macros can be used during autoconf, from process context,
+or from interrupt context.
+.Pp
+.Nm SMR_SLIST_FIRST ,
+.Nm SMR_SLIST_NEXT ,
+.Nm SMR_SLIST_FOREACH ,
+.Nm SMR_LIST_FIRST ,
+.Nm SMR_LIST_NEXT ,
+.Nm SMR_LIST_FOREACH ,
+.Nm SMR_TAILQ_FIRST ,
+.Nm SMR_TAILQ_NEXT
+and
+.Nm SMR_TAILQ_FOREACH
+can be used from SMR read-side critical section.
+.Pp
+.Nm SMR_SLIST_INIT ,
+.Nm SMR_SLIST_FIRST_LOCKED ,
+.Nm SMR_SLIST_NEXT_LOCKED ,
+.Nm SMR_SLIST_EMPTY_LOCKED ,
+.Nm SMR_SLIST_FOREACH_LOCKED ,
+.Nm SMR_SLIST_FOREACH_SAFE_LOCKED ,
+.Nm SMR_SLIST_INSERT_HEAD_LOCKED ,
+.Nm SMR_SLIST_INSERT_AFTER_LOCKED ,
+.Nm SMR_SLIST_REMOVE_HEAD_LOCKED ,
+.Nm SMR_SLIST_REMOVE_AFTER_LOCKED ,
+.Nm SMR_SLIST_REMOVE_LOCKED ,
+.Nm SMR_LIST_INIT ,
+.Nm SMR_LIST_FIRST_LOCKED ,
+.Nm SMR_LIST_NEXT_LOCKED ,
+.Nm SMR_LIST_EMPTY_LOCKED ,
+.Nm SMR_LIST_FOREACH_LOCKED ,
+.Nm SMR_LIST_FOREACH_SAFE_LOCKED ,
+.Nm SMR_LIST_INSERT_HEAD_LOCKED ,
+.Nm SMR_LIST_INSERT_AFTER_LOCKED ,
+.Nm SMR_LIST_INSERT_BEFORE_LOCKED ,
+.Nm SMR_LIST_REMOVE_LOCKED ,
+.Nm SMR_TAILQ_INIT ,
+.Nm SMR_TAILQ_FIRST_LOCKED ,
+.Nm SMR_TAILQ_NEXT_LOCKED ,
+.Nm SMR_TAILQ_EMPTY_LOCKED ,
+.Nm SMR_TAILQ_FOREACH_LOCKED ,
+.Nm SMR_TAILQ_FOREACH_SAFE_LOCKED ,
+.Nm SMR_TAILQ_INSERT_HEAD_LOCKED ,
+.Nm SMR_TAILQ_INSERT_TAIL_LOCKED ,
+.Nm SMR_TAILQ_INSERT_AFTER_LOCKED ,
+.Nm SMR_TAILQ_INSERT_BEFORE_LOCKED ,
+and
+.Nm SMR_TAILQ_REMOVE_LOCKED
+can be used from writer context.
+.Sh SEE ALSO
+.Xr queue 3 ,
+.Xr smr_call 9 ,
+.Xr SMR_PTR_GET 9
+.Sh HISTORY
+The SMR list macros first appeared in
+.Ox 6.5 .

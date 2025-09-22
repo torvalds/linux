@@ -1,0 +1,14 @@
+BEGIN
+{
+	@a = 8;
+	@b = 1;
+
+	printf("a & b = %d\n", @a & @b);
+	printf("a | b = %d\n", @a | @b);
+}
+
+END
+{
+	printf("a && b = %d\n", @a && @b);
+	printf("a || b = %d\n", @a || @b);
+}

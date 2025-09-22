@@ -1,0 +1,23 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ClangAnalysisTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Analysis",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "CFGDominatorTree.cpp",
+    "CFGTest.cpp",
+    "CloneDetectionTest.cpp",
+    "ExprMutationAnalyzerTest.cpp",
+    "IntervalPartitionTest.cpp",
+    "MacroExpansionContextTest.cpp",
+    "UnsafeBufferUsageTest.cpp",
+  ]
+}

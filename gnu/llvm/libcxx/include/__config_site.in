@@ -1,0 +1,56 @@
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP___CONFIG_SITE
+#define _LIBCPP___CONFIG_SITE
+
+#cmakedefine _LIBCPP_ABI_VERSION @_LIBCPP_ABI_VERSION@
+#cmakedefine _LIBCPP_ABI_NAMESPACE @_LIBCPP_ABI_NAMESPACE@
+#cmakedefine _LIBCPP_ABI_FORCE_ITANIUM
+#cmakedefine _LIBCPP_ABI_FORCE_MICROSOFT
+#cmakedefine _LIBCPP_HAS_NO_THREADS
+#cmakedefine _LIBCPP_HAS_NO_MONOTONIC_CLOCK
+#cmakedefine _LIBCPP_HAS_MUSL_LIBC
+#cmakedefine _LIBCPP_HAS_THREAD_API_PTHREAD
+#cmakedefine _LIBCPP_HAS_THREAD_API_EXTERNAL
+#cmakedefine _LIBCPP_HAS_THREAD_API_WIN32
+#cmakedefine _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
+#cmakedefine _LIBCPP_HAS_NO_VENDOR_AVAILABILITY_ANNOTATIONS
+#cmakedefine _LIBCPP_NO_VCRUNTIME
+#cmakedefine _LIBCPP_TYPEINFO_COMPARISON_IMPLEMENTATION @_LIBCPP_TYPEINFO_COMPARISON_IMPLEMENTATION@
+#cmakedefine _LIBCPP_HAS_NO_FILESYSTEM
+#cmakedefine _LIBCPP_HAS_NO_RANDOM_DEVICE
+#cmakedefine _LIBCPP_HAS_NO_LOCALIZATION
+#cmakedefine _LIBCPP_HAS_NO_UNICODE
+#cmakedefine _LIBCPP_HAS_NO_WIDE_CHARACTERS
+#cmakedefine _LIBCPP_HAS_NO_STD_MODULES
+#cmakedefine _LIBCPP_HAS_NO_TIME_ZONE_DATABASE
+#cmakedefine _LIBCPP_INSTRUMENTED_WITH_ASAN
+
+// PSTL backends
+#cmakedefine _LIBCPP_PSTL_BACKEND_SERIAL
+#cmakedefine _LIBCPP_PSTL_BACKEND_STD_THREAD
+#cmakedefine _LIBCPP_PSTL_BACKEND_LIBDISPATCH
+
+// Hardening.
+#cmakedefine _LIBCPP_HARDENING_MODE_DEFAULT @_LIBCPP_HARDENING_MODE_DEFAULT@
+
+// __USE_MINGW_ANSI_STDIO gets redefined on MinGW
+#ifdef __clang__
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wmacro-redefined"
+#endif
+
+@_LIBCPP_ABI_DEFINES@
+@_LIBCPP_EXTRA_SITE_DEFINES@
+
+#ifdef __clang__
+#  pragma clang diagnostic pop
+#endif
+
+#endif // _LIBCPP___CONFIG_SITE

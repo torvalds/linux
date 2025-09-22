@@ -1,0 +1,13 @@
+# These symbols are not re-exported from libc++ because providing a definition in libc++ causes
+# issues with some clients when backdeploying.
+
+# These symbols are implementation details of libc++abi, but they are referenced from UBSan
+# (which is a total hack). We'll need to figure out how to decouple UBSan from these details
+# before we can stop exporting them from libc++abi.
+__ZTIN10__cxxabiv117__class_type_infoE
+__ZTIN10__cxxabiv120__si_class_type_infoE
+__ZTIN10__cxxabiv121__vmi_class_type_infoE
+
+# This symbol is not an implementation detail of libc++abi, but it also causes issues when moving
+# to libc++. This needs further investigation.
+___cxa_rethrow_primary_exception

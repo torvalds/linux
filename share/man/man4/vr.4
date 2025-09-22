@@ -1,0 +1,187 @@
+.\"	$OpenBSD: vr.4,v 1.39 2022/02/18 10:24:32 jsg Exp $
+.\"
+.\" Copyright (c) 1997, 1998
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$FreeBSD: vr.4,v 1.3 1999/03/25 00:52:44 wpaul Exp $
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt VR 4
+.Os
+.Sh NAME
+.Nm vr
+.Nd VIA Rhine I/II/III 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "vr* at pci?"
+.Cd "amphy* at mii?"
+.Cd "icsphy* at mii?"
+.Cd "sqphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Ethernet adapters and embedded
+controllers based on the VIA Technologies VT3043 Rhine I,
+VT86C100A Rhine II, VT6102 Rhine II, and VT6105/VT6105M Rhine III
+Fast Ethernet controller chips, including the following:
+.Pp
+.Bl -bullet -compact
+.It
+AOpen/Acer ALN-320
+.It
+D-Link DFE-520TX, DFE-530TX
+.It
+Hawking Technologies PN102TX
+.It
+Soekris Engineering lan1741
+.El
+.Pp
+The VIA Rhine chips use bus master DMA and have a software interface
+designed to resemble that of the DEC 21x4x "tulip" chips.
+The major differences are that the receive filter in the Rhine chips is
+much simpler and is programmed through registers rather than by
+downloading a special setup frame through the transmit DMA engine,
+and that on older chips transmit and receive DMA buffers must be
+longword aligned.
+The Rhine chips are meant to be interfaced with external
+physical layer devices via an MII bus.
+They support both 10 and 100Mbps speeds in either full or half duplex.
+.Pp
+The
+.Nm
+driver for the VT6105M controller supports IPv4 IP/TCP/UDP transmit/receive
+checksum offload and VLAN tag insertion and stripping.
+The
+.Nm
+driver additionally supports Wake on LAN (WoL).
+See
+.Xr arp 8
+and
+.Xr ifconfig 8
+for more details.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width full-duplex
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the appropriate
+.Xr hostname.if 5
+file.
+.It 10baseT
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It full-duplex
+Force full duplex operation.
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+Note that the 100baseTX media type is only available if supported
+by the adapter.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "vr0: couldn't map memory"
+A fatal initialization error has occurred.
+.It "vr0: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "vr0: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "vr0: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.It "vr0: no memory for tx list"
+The driver failed to allocate an mbuf for the transmitter ring when
+allocating a pad buffer or collapsing an mbuf chain into a cluster.
+.El
+.Sh SEE ALSO
+.Xr amphy 4 ,
+.Xr arp 4 ,
+.Xr icsphy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr sqphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T The VIA Technologies VT86C100A data sheet
+.%U https://www.viatech.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Ox
+support first appeared in
+.Ox 2.5 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .
+.Sh CAVEATS
+The
+.Nm
+driver copies transmit mbuf chains into longword-aligned buffers prior
+to transmission in order to pacify the VT3043 and VT86C100A chips.
+If buffers are not aligned correctly, the chip will round the
+supplied buffer address and begin DMAing from the wrong location.
+This buffer copying impairs transmit performance on slower systems but can't
+be avoided.
+On faster machines (e.g., a Pentium II), the performance
+impact is much less noticeable.

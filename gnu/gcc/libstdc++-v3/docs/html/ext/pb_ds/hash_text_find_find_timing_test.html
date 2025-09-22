@@ -1,0 +1,164 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>Hash Text Find Timing Test</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1>Hash-Based Text <tt>find</tt> Find Timing Test</h1>
+<h2><a name="description" id="description">Description</a></h2>
+<p>This test inserts a number of values with keys from an
+    arbitrary text ([ <a href="references.html#wickland96thirty">wickland96thirty</a> ]) into
+    a container, then performs a series of finds using
+    <tt>find</tt> . It measures the average time for <tt>find</tt>
+    as a function of the number of values inserted.</p>
+<p>(The test was executed with <a href="../../../../testsuite/performance/ext/pb_ds/text_find_timing.cc"><tt>text_find_timing_test</tt></a>
+    thirty_years_among_the_dead_preproc.txt 200 200 2100)</p>
+<h2><a name="purpose" id="purpose">Purpose</a></h2>
+<p>The test checks the effect of different range-hashing
+    functions, trigger policies, and cache-hashing policies (see
+    <a href="hash_based_containers.html#hash_policies">Design::Associative
+    Containers::Associative Containers::Hash-Based Containers::Hash
+    Policies</a> and <a href="hash_based_containers.html#resize_policies">Design::Associative
+    Containers::Hash-Based Containers::Resize Policies</a> ).</p>
+<h2><a name="results" id="results">Results</a></h2>
+<p>Figures <a href="#NCCG">NCCG</a>, <a href="#NCCM">NCCM</a>
+    and <a href="#NCCL">NCCL</a> show the results for the native
+    and collision-chaining types in <a href="assoc_performance_tests.html#gcc"><u>g++</u></a>, <a href="assoc_performance_tests.html#msvc"><u>msvc++</u></a>, and
+    <a href="assoc_performance_tests.html#local"><u>local</u></a>,
+    respetively.</p>
+<div id="NCCG_res_div">
+<div id="NCCG_gcc">
+<div id="NCCG_text_find_timing_test_hash">
+<div id="NCCG_assoc">
+<div id="NCCG_Native_and_collision-chaining_hash_text_find_timing_test_using__tt_find_455tt_"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NCCG" id="NCCG"><img src="text_find_timing_test_hash_gcc.png" alt="no image" /></a></h6>NCCG: Native and collision-chaining hash text find timing test using <tt>find</tt> - <a href="assoc_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_hash_map_ncah-
+<tt>std::tr1::unordered_map</tt> with <tt>cache_hash_code</tt> = <tt><b>false</b></tt></li>
+<li>
+cc_hash_mod_prime_nea_lc_1div8_1div1_nsth_map-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mod_range_hashing.html"><tt>direct_mod_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_prime_size_policy.html"><tt>hash_prime_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/1</i></li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div2_sth_map-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i></li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div1_nsth_map-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/1</i></li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_map-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NCCM_res_div">
+<div id="NCCM_msvc">
+<div id="NCCM_text_find_timing_test_hash">
+<div id="NCCM_assoc">
+<div id="NCCM_Native_and_collision-chaining_hash_text_find_timing_test_using__tt_find_455tt_"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NCCM" id="NCCM"><img src="text_find_timing_test_hash_msvc.png" alt="no image" /></a></h6>NCCM: Native and collision-chaining hash text find timing test using <tt>find</tt> - <a href="assoc_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_hash_map_ncah-
+<tt>stdext::hash_map</tt></li>
+<li>
+cc_hash_mod_prime_nea_lc_1div8_1div1_nsth_map-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mod_range_hashing.html"><tt>direct_mod_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_prime_size_policy.html"><tt>hash_prime_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/1</i></li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div1_nsth_map-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/1</i></li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_map-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i></li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div2_sth_map-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NCCL_res_div">
+<div id="NCCL_local">
+<div id="NCCL_text_find_timing_test_hash">
+<div id="NCCL_assoc">
+<div id="NCCL_Native_and_collision-chaining_hash_text_find_timing_test_using__tt_find_455tt_"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NCCL" id= "NCCL"><img src="text_find_timing_test_hash_local.png" alt="no image" /></a></h6>NCCL: Native and collision-chaining hash text find timing test using <tt>find</tt> - <a href = "assoc_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<h2><a name="observations" id="observations">Observations</a></h2>
+<p>In this setting, the range-hashing scheme (See <a href="hash_based_containers.html#hash_policies">Design::Associative
+    Containers::Hash-Based Containers::Hash Policies</a> ) affects
+    performance more than other policies. As Figure <a href="#NCCG">NCCG</a> shows, containers using mod-based
+    range-hashing (including the native hash-based container, which
+    is currently hard-wired to this scheme) have lower performance
+    than those using mask-based range-hashing. A modulo-based
+    range-hashing scheme's main benefit is that it takes into
+    account all hash-value bits. Standard string hash-functions are
+    designed to create hash values that are nearly-uniform as is [
+    <a href="references.html#knuth98sorting">knuth98sorting</a>
+    ].</p>
+<p>Trigger policies (see <a href="hash_based_containers.html#resize_policies">Design::Associative
+    Containers::Hash-Based Containers::Resize Policies</a> ),
+    <i>i.e.</i> the load-checks constants, affect performance to a
+    lesser extent.</p>
+<p>Perhaps surprisingly, storing the hash value alongside each
+    entry affects performance only marginally, at least in
+    <tt>pb_ds</tt> 's implementation. (Unfortunately, it was not
+    possible to run the tests with <tt>std::tr1::unordered_map</tt>
+    's <tt>cache_hash_code = <b>true</b></tt> , as it appeared to
+    malfuntion.)</p>
+<p><a href="assoc_performance_tests.html#hash_based_policies">Observations::Hash-Based
+    Containers' Policies</a> summarizes some observations on
+    hash-based containers' policies.</p>
+</div>
+</body>
+</html>

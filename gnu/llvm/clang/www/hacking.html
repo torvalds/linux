@@ -1,0 +1,338 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<!-- Material used from: HTML 4.01 specs: http://www.w3.org/TR/html401/ -->
+<html>
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Hacking on clang</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+  <style type="text/css">
+  pre { margin-left: 1.5em; }
+  </style>
+</head>
+<body>
+<!--#include virtual="menu.html.incl"-->
+<div id="content">
+  <!--*********************************************************************-->
+  <h1>Hacking on Clang</h1>
+  <!--*********************************************************************-->
+
+  <p>This document provides some hints for how to get started hacking
+  on Clang for developers who are new to the Clang and/or LLVM
+  codebases.</p>
+    <ul>
+      <li><a href="#style">Coding Standards</a></li>
+      <li><a href="#docs">Developer Documentation</a></li>
+      <li><a href="#debugging">Debugging</a></li>
+      <li><a href="#testing">Testing</a>
+      <ul>
+        <li><a href="#testingNonWindows">Testing on Unix-like Systems</a></li>
+        <li><a href="#testingWindows">Testing using Visual Studio on Windows</a></li>
+        <li><a href="#testingCommands">Testing on the Command Line</a></li>
+        <li><a href="#testingLibc++">Testing changes affecting libc++</a></li>
+      </ul>
+      </li>
+      <li><a href="#patches">Creating Patch Files</a></li>
+      <li><a href="#irgen">LLVM IR Generation</a></li>
+    </ul>
+
+  <!--=====================================================================-->
+  <h2 id="style">Coding Standards</h2>
+  <!--=====================================================================-->
+
+  <p>Clang follows the
+  LLVM <a href="https://llvm.org/docs/CodingStandards.html">Coding
+  Standards</a>. When submitting patches, please take care to follow these standards
+  and to match the style of the code to that present in Clang (for example, in
+  terms of indentation, bracing, and statement spacing).</p>
+
+  <p>Clang has a few additional coding standards:</p>
+  <ul>
+    <li><i>cstdio is forbidden</i>: library code should not output diagnostics
+      or other information using <tt>cstdio</tt>; debugging routines should
+      use <tt>llvm::errs()</tt>. Other uses of <tt>cstdio</tt> impose behavior
+      upon clients and block integrating Clang as a library. Libraries should
+      support <tt>raw_ostream</tt> based interfaces for textual
+      output. See <a href="https://llvm.org/docs/CodingStandards.html#use-raw-ostream">Coding
+      Standards</a>.</li>
+  </ul>
+
+  <!--=====================================================================-->
+  <h2 id="docs">Developer Documentation</h2>
+  <!--=====================================================================-->
+
+  <p>Both Clang and LLVM use doxygen to provide API documentation. Their
+  respective web pages (generated nightly) are here:</p>
+    <ul>
+      <li><a href="https://clang.llvm.org/doxygen">Clang</a></li>
+      <li><a href="https://llvm.org/doxygen">LLVM</a></li>
+    </ul>
+
+  <p>For work on the LLVM IR generation, the LLVM assembly language
+  <a href="https://llvm.org/docs/LangRef.html">reference manual</a> is
+  also useful.</p>
+
+  <!--=====================================================================-->
+  <h2 id="debugging">Debugging</h2>
+  <!--=====================================================================-->
+
+  <p>Inspecting data structures in a debugger:</p>
+    <ul>
+      <li>Many LLVM and Clang data structures provide
+        a <tt>dump()</tt> method which will print a description of the
+        data structure to <tt>stderr</tt>.</li>
+      <li>The <a href="docs/InternalsManual.html#QualType"><tt>QualType</tt></a>
+      structure is used pervasively. This is a simple value class for
+      wrapping types with qualifiers; you can use
+      the <tt>isConstQualified()</tt>, for example, to get one of the
+      qualifiers, and the <tt>getTypePtr()</tt> method to get the
+      wrapped <tt>Type*</tt> which you can then dump.</li>
+      <li>For <a href="https://lldb.llvm.org"> <tt>LLDB</tt></a> users there are
+      data formatters for clang data structures in
+      <a href="https://github.com/llvm/llvm-project/blob/main/clang/utils/ClangDataFormat.py">
+      <tt>clang/utils/ClangDataFormat.py</tt></a>.</li>
+    </ul>
+
+  <!--=====================================================================-->
+  <h3 id="debuggingVisualStudio">Debugging using Visual Studio</h3>
+  <!--=====================================================================-->
+
+  <p>The files
+    <a href="https://github.com/llvm/llvm-project/blob/main/llvm/utils/LLVMVisualizers/llvm.natvis">
+      <tt>llvm/utils/LLVMVisualizers/llvm.natvis</tt></a> and
+    <a href="https://github.com/llvm/llvm-project/blob/main/clang/utils/ClangVisualizers/clang.natvis">
+      <tt>clang/utils/ClangVisualizers/clang.natvis</tt></a> provide debugger visualizers
+      that make debugging of more complex data types much easier.</p>
+  <p>Depending on how you configure the project, Visual Studio may automatically
+  use these visualizers when debugging or you may be required to put the files
+  into <tt>%USERPROFILE%\Documents\Visual Studio &lt;version&gt;\Visualizers</tt>
+  or create a symbolic link so they update automatically. See
+  <a href="https://learn.microsoft.com/en-us/visualstudio/debugger/create-custom-views-of-native-objects">
+  Microsoft's documentation</a> for more details on use of NATVIS.</p>
+
+  <!--=====================================================================-->
+  <h2 id="testing">Testing</h2>
+  <!--=====================================================================-->
+
+  <!--=====================================================================-->
+  <h3 id="testingNonWindows">Testing on Unix-like Systems</h3>
+  <!--=====================================================================-->
+
+  <p>Clang includes a basic regression suite in the tree which can be
+  run with <tt>make test</tt> from the top-level clang directory, or
+  just <tt>make</tt> in the <em>test</em> sub-directory.
+  <tt>make VERBOSE=1</tt> can be used to show more detail
+  about what is being run.</p>
+
+  <p>If you built LLVM and Clang using CMake, the test suite can be run
+  with <tt>make check-clang</tt> from the top-level LLVM directory.</p>
+
+  <p>The tests primarily consist of a test runner script running the compiler
+  under test on individual test files grouped in the directories under the
+  test directory.  The individual test files include comments at the
+  beginning indicating the Clang compile options to use, to be read
+  by the test runner. Embedded comments also can do things like telling
+  the test runner that an error is expected at the current line.
+  Any output files produced by the test will be placed under
+  a created Output directory.</p>
+
+  <p>During the run of <tt>make test</tt>, the terminal output will
+  display a line similar to the following:</p>
+
+  <pre>--- Running clang tests for i686-pc-linux-gnu ---</pre>
+
+  <p>followed by a line continually overwritten with the current test
+  file being compiled, and an overall completion percentage.</p>
+
+  <p>After the <tt>make test</tt> run completes, the absence of any
+  <tt>Failing Tests (count):</tt> message indicates that no tests
+  failed unexpectedly.  If any tests did fail, the
+  <tt>Failing Tests (count):</tt> message will be followed by a list
+  of the test source file paths that failed.  For example:</p>
+
+  <pre>
+  Failing Tests (3):
+      /home/john/llvm/tools/clang/test/SemaCXX/member-name-lookup.cpp
+      /home/john/llvm/tools/clang/test/SemaCXX/namespace-alias.cpp
+      /home/john/llvm/tools/clang/test/SemaCXX/using-directive.cpp
+</pre>
+
+  <p>If you used the <tt>make VERBOSE=1</tt> option, the terminal
+  output will reflect the error messages from the compiler and
+  test runner.</p>
+
+  <p>The regression suite can also be run with Valgrind by running
+  <tt>make test VG=1</tt> in the top-level clang directory.</p>
+
+  <p>For more intensive changes, running
+  the <a href="https://llvm.org/docs/TestingGuide.html#quick-start">LLVM
+  Test Suite</a> with clang is recommended. Currently the best way to
+  override LLVMGCC, as in: <tt>make LLVMGCC="clang -std=gnu89"
+  TEST=nightly report</tt> (make sure <tt>clang</tt> is in your PATH or use the
+  full path).</p>
+
+  <!--=====================================================================-->
+  <h3 id="testingWindows">Testing using Visual Studio on Windows</h3>
+  <!--=====================================================================-->
+
+  <p>The Clang test suite can be run from either Visual Studio or
+  the command line.</p>
+
+  <p>Note that the test runner is based on
+  Python, which must be installed.  Find Python at:
+  <a href="https://www.python.org/downloads/">https://www.python.org/downloads/</a>.
+  Download the latest stable version.</p>
+
+  <p>The GnuWin32 tools are also necessary for running the tests.
+  Get them from <a href="http://getgnuwin32.sourceforge.net/">
+  http://getgnuwin32.sourceforge.net/</a>.
+  If the environment variable <tt>%PATH%</tt> does not have GnuWin32,
+  or if other grep(s) supercedes GnuWin32 on <tt>%PATH%,</tt>
+  you should specify <tt>LLVM_LIT_TOOLS_DIR</tt>
+  to CMake explicitly.</p>
+
+  <p>The cmake build tool is set up to create Visual Studio project files
+  for running the tests, "check-clang" being the root.  Therefore, to
+  run the test from Visual Studio, right-click the check-clang project
+  and select "Build".</p>
+
+  <p>
+    Please see also
+    <a href="https://llvm.org/docs/GettingStartedVS.html">Getting Started
+    with the LLVM System using Microsoft Visual Studio</a> and
+    <a href="https://llvm.org/docs/CMake.html">Building LLVM with CMake</a>.
+  </p>
+
+  <!--=====================================================================-->
+  <h3 id="testingCommands">Testing on the Command Line</h3>
+  <!--=====================================================================-->
+
+  <p>If you want more control over how the tests are run, it may
+  be convenient to run the test harness on the command-line directly. Before
+  running tests from the command line, you will need to ensure that
+  <tt>lit.site.cfg</tt> files have been created for your build.  You can do
+  this by running the tests as described in the previous sections. Once the
+  tests have started running, you can stop them with control+C, as the
+  files are generated before running any tests.</p>
+
+  <p>Once that is done, to run all the tests from the command line,
+  execute a command like the following:</p>
+
+  <pre>
+  python (path to llvm)\llvm\utils\lit\lit.py -sv
+  --param=build_mode=Win32 --param=build_config=Debug
+  --param=clang_site_config=(build dir)\tools\clang\test\lit.site.cfg
+ (path to llvm)\llvm\tools\clang\test
+</pre>
+
+  <p>For CMake builds e.g. on Windows with Visual Studio, you will need
+  to specify your build configuration (Debug, Release, etc.) via
+  <tt>--param=build_config=(build config)</tt>.  You may also need to specify
+  the build mode (Win32, etc) via <tt>--param=build_mode=(build mode)</tt>.</p>
+
+  <p>Additionally, you will need to specify the lit site configuration which
+  lives in (build dir)\tools\clang\test, via
+  <tt>--param=clang_site_config=(build dir)\tools\clang\test\lit.site.cfg</tt>.
+  </p>
+
+  <p>To run a single test:</p>
+
+  <pre>
+  python (path to llvm)\llvm\utils\lit\lit.py -sv
+  --param=build_mode=Win32 --param=build_config=Debug
+  --param=clang_site_config=(build dir)\tools\clang\test\lit.site.cfg
+  (path to llvm)\llvm\tools\clang\test\(dir)\(test)
+</pre>
+
+  <p>For example:</p>
+
+  <pre>
+  python C:\Tools\llvm\utils\lit\lit.py -sv
+  --param=build_mode=Win32 --param=build_config=Debug
+  --param=clang_site_config=C:\Tools\build\tools\clang\test\lit.site.cfg
+  C:\Tools\llvm\tools\clang\test\Sema\wchar.c
+</pre>
+
+  <p>The -sv option above tells the runner to show the test output if
+  any tests failed, to help you determine the cause of failure.</p>
+
+  <p>You can also pass in the --no-progress-bar option if you wish to disable
+  progress indications while the tests are running.</p>
+
+  <p>Your output might look something like this:</p>
+
+  <pre>lit.py: lit.cfg:152: note: using clang: 'C:\Tools\llvm\bin\Release\clang.EXE'
+-- Testing: Testing: 2534 tests, 4 threads --
+Testing: 0 .. 10.. 20.. 30.. 40.. 50.. 60.. 70.. 80.. 90..
+Testing Time: 81.52s
+  Passed           : 2503
+  Expectedly Failed:   28
+  Unsupported      :    3
+</pre>
+
+  <p>The statistic, "Failed" (not shown if all tests pass), is the important one.</p>
+
+  <!--=====================================================================-->
+  <h3 id="testingLibc++">Testing changes affecting libc++</h3>
+  <!--=====================================================================-->
+
+  <p>Some changes in Clang affect <a href="https://libcxx.llvm.org">libc++</a>,
+  for example:</p>
+  <ul>
+      <li>Changing the output of Clang's diagnostics.</li>
+      <li>Changing compiler builtins, especially the builtins used for type traits
+      or replacements of library functions like <tt>std::move</tt> or
+      <tt>std::forward</tt>.</li>
+  </ul>
+
+  <p>After adjusting libc++ to work with the changes, the next revision will be
+  tested by libc++'s
+  <a href="https://buildkite.com/llvm-project/libcxx-ci">pre-commit CI</a>.
+
+  <p>For most configurations, the pre-commit CI uses a recent
+  <a href="https://apt.llvm.org/">nightly build</a> of Clang from LLVM's main
+  branch. These configurations do <em>not</em> use the Clang changes in the
+  patch. They only use the libc++ changes.</p>
+
+  <p>The &quot;Bootstrapping build&quot; builds Clang and uses it to build and
+  test libc++. This build <em>does</em> use the Clang changes in the patch.</p>
+
+  <p>Libc++ supports multiple versions of Clang. Therefore when a patch changes
+  the diagnostics it might be required to use a regex in the
+  &quot;expected&quot; tests to make it pass the CI.</p>
+
+  <p>Libc++ has more
+  <a href="https://libcxx.llvm.org/Contributing.html#pre-commit-ci">
+  documentation</a> about the pre-commit CI. For questions regarding
+  libc++, the best place to ask is the <tt>#libcxx</tt> channel on
+  <a href="https://discord.gg/jzUbyP26tQ">LLVM's Discord server</a>.</p>
+
+  <!--=====================================================================-->
+  <h2 id="patches">Creating Patch Files</h2>
+  <!--=====================================================================-->
+
+  <p>To contribute changes to Clang see
+    <a href="https://llvm.org/docs/GettingStarted.html#sending-patches">LLVM's Getting Started page</a></p>
+
+  <!--=====================================================================-->
+  <h2 id="irgen">LLVM IR Generation</h2>
+  <!--=====================================================================-->
+
+  <p>The LLVM IR generation part of clang handles conversion of the
+    AST nodes output by the Sema module to the LLVM Intermediate
+    Representation (IR). Historically, this was referred to as
+    "codegen", and the Clang code for this lives
+    in <tt>lib/CodeGen</tt>.</p>
+
+  <p>The output is most easily inspected using the <tt>-emit-llvm</tt>
+    option to clang (possibly in conjunction with <tt>-o -</tt>). You
+    can also use <tt>-emit-llvm-bc</tt> to write an LLVM bitcode file
+    which can be processed by the suite of LLVM tools
+    like <tt>llvm-dis</tt>, <tt>llvm-nm</tt>, etc. See the LLVM
+    <a href="https://llvm.org/docs/CommandGuide/">Command Guide</a>
+    for more information.</p>
+
+</div>
+</body>
+</html>

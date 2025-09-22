@@ -1,0 +1,322 @@
+.\" $OpenBSD: event_base_new.3,v 1.7 2025/06/07 20:50:40 schwarze Exp $
+.\" Copyright (c) 2023 Ted Bullock <tbullock@comlore.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt EVENT_BASE_NEW 3
+.Os
+.Sh NAME
+.Nm event_base_new ,
+.Nm event_init ,
+.Nm event_reinit ,
+.Nm event_base_free
+.Nd event_base structure initialization
+.Sh SYNOPSIS
+.Lb libevent
+.In event.h
+.Ft "struct event_base *"
+.Fn event_base_new void
+.Ft "struct event_base *"
+.Fn event_init void
+.Ft int
+.Fn event_reinit "struct event_base *base"
+.Ft void
+.Fn event_base_free "struct event_base *base"
+.Sh DESCRIPTION
+The functions
+.Fn event_base_new
+and
+.Fn event_init
+allocate and initialize an opaque
+.Vt event_base
+structure.
+This structure is used to schedule and monitor events using the operating
+system's most efficient or stable kernel notification method.
+.Pp
+Kernel notification methods are ways for a program to be notified of
+events that occur in the operating system's kernel.
+Examples of such events include changes to file descriptors, file I/O
+operations or network activity.
+The library chooses from several methods to notify programs about events.
+Each method is implemented using a system call, including
+.Xr kqueue 2 ,
+.Xr poll 2 ,
+or
+.Xr select 2 .
+By default,
+.Ox
+uses the
+.Xr kqueue 2
+method.
+.Pp
+The function
+.Fn event_init
+behaves like
+.Fn event_base_new ,
+except it additionally saves a pointer to the returned structure
+in an internal global variable.
+It is designed for programs that need only one single event loop.
+.Pp
+If
+.Fn event_init
+was not invoked before using an event API function that requires it,
+or if such a function is called after
+.Fn event_base_free
+has destroyed the structure that was returned from
+.Fn event_init ,
+a
+.Dv NULL
+pointer access occurs unless otherwise documented.
+.Pp
+After calling
+.Xr fork 2 ,
+invoke
+.Fn event_reinit
+in the child process for each initialized
+.Vt event_base
+structure to reset the event queues and any registered events.
+.Pp
+The
+.Fn event_base_free
+function releases all resources associated with the
+.Fa base
+structure returned by an earlier call to
+.Fn event_base_new
+or
+.Fn event_init .
+It is intended to be called after the event loop has been stopped.
+.Pp
+If
+.Fn event_init
+has been used and
+.Fn event_base_free
+is called with the
+.Fa base
+structure returned from
+.Fn event_init
+or with a
+.Dv NULL
+pointer argument, the structure that was returned from
+.Fn event_init
+is freed as usual, and the pointer to it is also deleted
+from the internal global variable.
+If
+.Fn event_init
+was not used, calling
+.Fn event_base_free
+with a
+.Dv NULL
+pointer argument triggers an
+.Xr assert 3
+call.
+.Sh RETURN VALUES
+.Fn event_base_new
+and
+.Fn event_init
+return the newly allocated
+.Vt event_base
+structure.
+If no kernel notification method can be initialized, both functions call
+.Xr exit 3
+with a status of 1 and do not return.
+.Pp
+On success,
+.Fn event_reinit
+returns 0.
+If one or more events fail to reinitialize, the function returns -1.
+.Pp
+If the
+.Xr poll 2
+or
+.Xr select 2
+kernel notification method is used but
+.Xr socketpair 2
+fails, all three functions do not return but
+.Xr exit 3
+the program with a status of 1.
+This may also happen in some cases of
+.Xr malloc 3
+failure.
+.Sh ENVIRONMENT
+Environment variables can modify the behavior of
+.Fn event_base_new
+and
+.Fn event_init
+to disable individual kernel notification methods for the returned
+.Vt event_base
+structure and to enable additional diagnostic reporting:
+.Bl -tag -width Ds
+.It Ev EVENT_NOKQUEUE
+Disable support for
+.Xr kqueue 2 .
+.It Ev EVENT_NOPOLL
+Disable support for
+.Xr poll 2 .
+.It Ev EVENT_NOSELECT
+Disable support for
+.Xr select 2 .
+.It Ev EVENT_SHOW_METHOD
+If the log callback is configured,
+report which kernel notification method the returned
+.Vt event_base
+structure is using.
+.El
+.Pp
+These environment variables are ignored if
+.Xr issetugid 2
+reports that the program was executed as setuid or setgid.
+The values of the environment variables are always ignored, even if they are
+empty or zero.
+.Sh DIAGNOSTICS
+Many event library functions report error and diagnostic messages via
+the log callback system that can optionally be enabled with
+.Xr event_set_log_callback 3 .
+.Pp
+The following error messages can occur:
+.Bl -tag -width Ds
+.It Dq evsignal_init: socketpair: Em reason
+While trying to initialize the
+.Xr poll 2
+or
+.Xr select 2
+kernel notification method in
+.Fn event_base_new
+or
+.Fn event_init ,
+.Xr socketpair 2
+failed for the given
+.Em reason .
+.It Dq event_base_new: no event mechanism available
+Each kernel notification method is either disabled via the
+.Sx ENVIRONMENT ,
+or trying to initialize it failed.
+Some memory allocation failures may also cause this error.
+.It Dq event_base_reinit: could not reinitialize event mechanism
+Failed to reinitialize the kernel notification method.
+.El
+.Pp
+In addition, all three functions may issue various error messages
+indicating memory allocation failure, but not all such failures are
+reported in this manner.
+.Pp
+The following diagnostic messages can occur:
+.Bl -tag -width Ds
+.It Dq libevent using: Em method
+The environment variable
+.Ev EVENT_SHOW_METHOD
+is defined and the event library is using the given kernel notification
+.Em method ,
+which is either
+.Qq kqueue ,
+.Qq poll ,
+or
+.Qq select .
+.It Dq kqueue: Em reason
+Calling
+.Xr kqueue 2
+failed in
+.Fn event_base_new
+or
+.Fn event_init
+for the given
+.Em reason .
+Other kernel notification methods are automatically tried.
+.El
+.Sh ERRORS
+Even when they fail, most event library functions do not explicitly set
+.Xr errno 2 .
+Exceptions are mentioned in individual manual pages.
+.Pp
+However, many event library functions call C library functions
+or system calls internally that do set
+.Xr errno 2
+when they fail.
+Consequently, many event library functions set
+.Xr errno 2
+in some cases of failure but not in others.
+.Pp
+The functions
+.Fn event_base_new ,
+.Fn event_init ,
+and
+.Fn event_reinit
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr kqueue 2
+and
+.Xr malloc 3 .
+.Pp
+The same three functions may overwrite
+.Xr errno 2
+even if successful, for example when one kernel notification method
+fails to initialize and another succeeds, or when a disregarded
+memory allocation failure occurs.
+.Sh SEE ALSO
+.Xr fork 2 ,
+.Xr kqueue 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr event_base_loop 3 ,
+.Xr event_set_log_callback 3
+.Sh HISTORY
+The
+.Ox
+event library is a modified version of libevent-1.4.
+.Pp
+The function
+.Fn event_init
+first appeared in libevent-0.1 and has been available since
+.Ox 3.2 .
+.Pp
+.Fn event_base_free
+first appeared in libevent-1.2 and has been available since
+.Ox 4.0 .
+.Pp
+.Fn event_base_new
+and
+.Fn event_reinit
+first appeared in libevent-1.4.1 and have been available since
+.Ox 4.8 .
+.Pp
+Support for
+.Dv EVENT_NOKQUEUE
+first appeared in libevent-0.4 and has been available since
+.Ox 3.2 .
+Support for the other environment variables first appeared in libevent-0.7a.
+.Dv EVENT_NOSELECT
+and
+.Dv EVENT_SHOW_METHOD
+have been available since
+.Ox 3.4
+and
+.Dv EVENT_NOPOLL
+since
+.Ox 3.5 .
+.Sh AUTHORS
+The event library and these functions were written by
+.An -nosplit
+.An Niels Provos .
+.Pp
+This manual page was written by
+.An Ted Bullock Aq Mt tbullock@comlore.com .
+.Sh CAVEATS
+The event API is not thread safe if any
+.Vt "event_base"
+structure, no matter whether created using
+.Fn event_base_new
+or
+.Fn event_init ,
+is accessed by more than one thread,
+unless the application program implements its own locking mechanism.

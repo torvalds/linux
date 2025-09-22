@@ -1,0 +1,141 @@
+.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt ES256_PK_NEW 3
+.Os
+.Sh NAME
+.Nm es256_pk_new ,
+.Nm es256_pk_free ,
+.Nm es256_pk_from_EC_KEY ,
+.Nm es256_pk_from_EVP_PKEY ,
+.Nm es256_pk_from_ptr ,
+.Nm es256_pk_to_EVP_PKEY
+.Nd FIDO2 COSE ES256 API
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In openssl/ec.h
+.In fido/es256.h
+.Ft es256_pk_t *
+.Fn es256_pk_new "void"
+.Ft void
+.Fn es256_pk_free "es256_pk_t **pkp"
+.Ft int
+.Fn es256_pk_from_EC_KEY "es256_pk_t *pk" "const EC_KEY *ec"
+.Ft int
+.Fn es256_pk_from_EVP_PKEY "es256_pk_t *pk" "const EVP_PKEY *pkey"
+.Ft int
+.Fn es256_pk_from_ptr "es256_pk_t *pk" "const void *ptr" "size_t len"
+.Ft EVP_PKEY *
+.Fn es256_pk_to_EVP_PKEY "const es256_pk_t *pk"
+.Sh DESCRIPTION
+ES256 is the name given in the CBOR Object Signing and Encryption
+(COSE) RFC to ECDSA over P-256 with SHA-256.
+The COSE ES256 API of
+.Em libfido2
+is an auxiliary API with routines to convert between the different
+ECDSA public key types used in
+.Em libfido2
+and
+.Em OpenSSL .
+.Pp
+In
+.Em libfido2 ,
+ES256 public keys are abstracted by the
+.Vt es256_pk_t
+type.
+.Pp
+The
+.Fn es256_pk_new
+function returns a pointer to a newly allocated, empty
+.Vt es256_pk_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn es256_pk_free
+function releases the memory backing
+.Fa *pkp ,
+where
+.Fa *pkp
+must have been previously allocated by
+.Fn es256_pk_new .
+On return,
+.Fa *pkp
+is set to NULL.
+Either
+.Fa pkp
+or
+.Fa *pkp
+may be NULL, in which case
+.Fn es256_pk_free
+is a NOP.
+.Pp
+The
+.Fn es256_pk_from_EC_KEY
+function fills
+.Fa pk
+with the contents of
+.Fa ec .
+No references to
+.Fa ec
+are kept.
+.Pp
+The
+.Fn es256_pk_from_EVP_PKEY
+function fills
+.Fa pk
+with the contents of
+.Fa pkey .
+No references to
+.Fa pkey
+are kept.
+.Pp
+The
+.Fn es256_pk_from_ptr
+function fills
+.Fa pk
+with the contents of
+.Fa ptr ,
+where
+.Fa ptr
+points to
+.Fa len
+bytes.
+The
+.Fa ptr
+pointer may point to an uncompressed point, or to the
+concatenation of the x and y coordinates.
+No references to
+.Fa ptr
+are kept.
+.Pp
+The
+.Fn es256_pk_to_EVP_PKEY
+function converts
+.Fa pk
+to a newly allocated
+.Fa EVP_PKEY
+type with a reference count of 1.
+No internal references to the returned pointer are kept.
+If an error occurs,
+.Fn es256_pk_to_EVP_PKEY
+returns NULL.
+.Sh RETURN VALUES
+The
+.Fn es256_pk_from_EC_KEY ,
+.Fn es256_pk_from_EVP_PKEY ,
+and
+.Fn es256_pk_from_ptr
+functions return
+.Dv FIDO_OK
+on success.
+On error, a different error code defined in
+.In fido/err.h
+is returned.
+.Sh SEE ALSO
+.Xr eddsa_pk_new 3 ,
+.Xr fido_assert_verify 3 ,
+.Xr fido_cred_pubkey_ptr 3 ,
+.Xr rs256_pk_new 3

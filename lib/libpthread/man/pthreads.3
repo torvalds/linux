@@ -1,0 +1,481 @@
+.\" $OpenBSD: pthreads.3,v 1.46 2025/07/03 18:01:38 tedu Exp $
+.\" David Leonard <d@openbsd.org>, 1998. Public domain.
+.Dd $Mdocdate: July 3 2025 $
+.Dt PTHREADS 3
+.Os
+.Sh NAME
+.Nm pthreads
+.Nd POSIX 1003.1c thread interface
+.Sh DESCRIPTION
+A thread is a flow of control within a process.
+Each thread represents a minimal amount of state:
+normally just the CPU state and a signal mask.
+All other process state (such as memory, file descriptors)
+is shared among all of the threads in the process.
+.Pp
+In
+.Ox ,
+threads use a 1-to-1 implementation,
+where every thread is independently scheduled by the kernel.
+.Pp
+For the purpose of this document,
+the functions available are grouped in the following categories.
+For further information, see the individual man page for each function.
+.Pp
+.Bl -dash -offset indent -compact
+.It
+Attribute Object Routines
+.It
+Barrier Routines
+.It
+Cleanup Routines
+.It
+Condition Variable Routines
+.It
+Mutex Routines
+.It
+Non Portable Extensions
+.It
+Per-Thread Context Routines
+.It
+Read/Write Lock Routines
+.It
+Spinlock Routines
+.It
+Thread Routines
+.El
+.Ss Attribute Object Routines
+The functions available are as follows:
+.Pp
+.Bl -tag -width "pthread_attr_getdetachstate()" -compact
+.It Fn pthread_attr_init
+Initialise a threads attribute object.
+.It Fn pthread_attr_destroy
+Destroy a threads attribute object.
+.It Fn pthread_attr_getdetachstate
+Get detachstate attribute.
+.It Fn pthread_attr_setdetachstate
+Set detachstate attribute.
+.It Fn pthread_attr_getstack
+Get stackaddr and stacksize attributes.
+.It Fn pthread_attr_setstack
+Set stackaddr and stacksize attributes.
+.It Fn pthread_attr_getstackaddr
+Get stackaddr attribute.
+.It Fn pthread_attr_setstackaddr
+Set stackaddr attribute.
+.It Fn pthread_attr_getstacksize
+Get stacksize attribute.
+.It Fn pthread_attr_setstacksize
+Set stacksize attribute.
+.It Fn pthread_attr_getguardsize
+Get guardsize attribute.
+.It Fn pthread_attr_setguardsize
+Set guardsize attribute.
+.El
+.Ss Barrier Routines
+The functions available are as follows:
+.Pp
+.Bl -tag -width "pthread_barrierattr_getpshared()" -compact
+.It Fn pthread_barrier_init
+Initialize a barrier object.
+.It Fn pthread_barrier_destroy
+Destroy a barrier object.
+.It Fn pthread_barrier_wait
+Synchronize at a barrier.
+.It Fn pthread_barrierattr_init
+Initialize a barrier's attribute object.
+.It Fn pthread_barrierattr_destroy
+Destroy a barrier's attribute object.
+.It Fn pthread_barrierattr_getpshared
+Get the process-shared attribute of the barrier attribute's object.
+.It Fn pthread_barrierattr_setpshared
+Set the process-shared attribute of the barrier attribute's object.
+.El
+.Ss Cleanup Routines
+The functions available are as follows:
+.Pp
+.Bl -tag -width "pthread_cleanup_push()" -compact
+.It Fn pthread_atfork
+Register fork handlers.
+.It Fn pthread_cleanup_pop
+Call the first cleanup routine.
+.It Fn pthread_cleanup_push
+Add a cleanup function for thread exit.
+.El
+.Ss Condition Variable Routines
+The functions available are as follows:
+.Pp
+.Bl -tag -width "pthread_condattr_setclock()" -compact
+.It Fn pthread_cond_init
+Create a condition variable.
+.It Fn pthread_cond_destroy
+Destroy a condition variable.
+.It Fn pthread_cond_broadcast
+Unblock all threads waiting for a condition variable.
+.It Fn pthread_cond_signal
+Unblock a thread waiting for a condition variable.
+.It Fn pthread_cond_timedwait
+Wait on a condition variable until a specific point in time.
+.It Fn pthread_cond_wait
+Wait on a condition variable.
+.It Fn pthread_condattr_init
+Initialise a condition variable attribute object.
+.It Fn pthread_condattr_destroy
+Destroy a condition variable attribute object.
+.It Fn pthread_condattr_getclock
+Get clock attribute.
+.It Fn pthread_condattr_setclock
+Set clock attribute.
+.El
+.Ss Mutex Routines
+The functions available are as follows:
+.Pp
+.Bl -tag -width "pthread_mutexattr_getprioceiling()" -compact
+.It Fn pthread_mutex_init
+Create a mutex.
+.It Fn pthread_mutex_destroy
+Free resources allocated for a mutex.
+.It Fn pthread_mutex_lock
+Lock a mutex.
+.It Fn pthread_mutex_timedlock
+Attempt to lock a mutex before a specific point in time.
+.It Fn pthread_mutex_trylock
+Attempt to lock a mutex without blocking.
+.It Fn pthread_mutex_unlock
+Unlock a mutex.
+.It Fn pthread_mutexattr_init
+Mutex attribute operations.
+.It Fn pthread_mutexattr_destroy
+Mutex attribute operations.
+.It Fn pthread_mutexattr_getprioceiling
+Mutex attribute operations.
+.It Fn pthread_mutexattr_setprioceiling
+Mutex attribute operations.
+.It Fn pthread_mutexattr_getprotocol
+Mutex attribute operations.
+.It Fn pthread_mutexattr_setprotocol
+Mutex attribute operations.
+.It Fn pthread_mutexattr_gettype
+Mutex attribute operations.
+.It Fn pthread_mutexattr_settype
+Mutex attribute operations.
+.El
+.Ss Non Portable Extensions
+The functions available are as follows:
+.Pp
+.Bl -tag -width "pthread_set_name_np()" -compact
+.It Fn pthread_main_np
+Identify the main thread.
+.It Fn pthread_set_name_np
+Set the name of a thread.
+.It Fn pthread_get_name_np
+Get the name of a thread.
+.It Fn pthread_stackseg_np
+Return stack size and location.
+.It Fn pthread_yield
+Yield control of the current thread.
+.El
+.Ss Per-Thread Context Routines
+The functions available are as follows:
+.Pp
+.Bl -tag -width "pthread_getspecific()" -compact
+.It Fn pthread_key_create
+Thread-specific data key creation.
+.It Fn pthread_key_delete
+Delete a thread-specific data key.
+.It Fn pthread_getspecific
+Get a thread-specific data value.
+.It Fn pthread_setspecific
+Set a thread-specific data value.
+.El
+.Ss Read/Write Lock Routines
+The functions available are as follows:
+.Pp
+.Bl -tag -width "pthread_rwlockattr_getpshared()" -compact
+.It Fn pthread_rwlock_init
+Initialise a read/write lock.
+.It Fn pthread_rwlock_destroy
+Destroy a read/write lock.
+.It Fn pthread_rwlock_rdlock
+Acquire a read/write lock for reading.
+.It Fn pthread_rwlock_timedrdlock
+Attempt to acquire a read/write lock for reading before a specific
+point in time.
+.It Fn pthread_rwlock_tryrdlock
+Attempt to acquire a read/write lock for reading without blocking.
+.It Fn pthread_rwlock_wrlock
+Acquire a read/write lock for writing.
+.It Fn pthread_rwlock_timedwrlock
+Attempt to acquire a read/write lock for writing before a specific
+point in time.
+.It Fn pthread_rwlock_trywrlock
+Attempt to acquire a read/write lock for writing without blocking.
+.It Fn pthread_rwlock_unlock
+Release a read/write lock.
+.It Fn pthread_rwlockattr_init
+Initialise a read/write lock attributes object.
+.It Fn pthread_rwlockattr_destroy
+Destroy a read/write lock attributes object.
+.It Fn pthread_rwlockattr_getpshared
+Get the process shared attribute.
+.It Fn pthread_rwlockattr_setpshared
+Set the process shared attribute.
+.El
+.Ss Spinlock Routines
+The functions available are as follows:
+.Pp
+.Bl -tag -width "pthread_spin_trylock()" -compact
+.It Fn pthread_spin_init
+Initialize a spinlock object.
+.It Fn pthread_spin_destroy
+Destroy a spinlock object.
+.It Fn pthread_spin_lock
+Lock a spinlock object.
+.It Fn pthread_spin_trylock
+Attempt to lock a spinlock without blocking.
+.It Fn pthread_spin_unlock
+Unlock a spinlock object.
+.El
+.Ss Thread Routines
+The functions available are as follows:
+.Pp
+.Bl -tag -width "pthread_getconcurrency()" -compact
+.It Fn pthread_create
+Create a new thread.
+.It Fn pthread_cancel
+Cancel execution of a thread.
+.It Fn pthread_detach
+Detach a thread.
+.It Fn pthread_equal
+Compare thread IDs.
+.It Fn pthread_exit
+Terminate the calling thread.
+.It Fn pthread_getconcurrency
+Get level of concurrency.
+.It Fn pthread_setconcurrency
+Set level of concurrency.
+.It Fn pthread_join
+Wait for thread termination.
+.It Fn pthread_kill
+Send a signal to a specific thread.
+.It Fn pthread_once
+Dynamic package initialisation.
+.It Fn pthread_self
+Get the calling thread's ID.
+.It Fn pthread_setcancelstate
+Set cancelability state.
+.It Fn pthread_setcanceltype
+Set cancelability state.
+.It Fn pthread_testcancel
+Set cancelability state.
+.It Fn pthread_sigmask
+Examine/change a thread's signal mask.
+.It Fn pthread_getcpuclockid
+Get a CPU time clock for a thread.
+.El
+.Ss Thread stacks
+Each thread has a different stack, whether it be provided by a
+user attribute, or provided automatically by the system.
+If a thread overflows its stack, unpredictable results may occur.
+System-allocated stacks (including that of the initial thread)
+are typically allocated in such a way that a
+.Dv SIGSEGV
+signal is delivered to the process when a stack overflows.
+.Pp
+Signals handlers are normally run on the stack of the currently executing
+thread.
+Hence, if you want to handle the
+.Dv SIGSEGV
+signal from stack overflow for a thread, you should use
+.Xr sigaltstack 2
+in that thread.
+.Ss Thread safety
+The following functions are not thread-safe:
+.Bd -filled
+asctime(),
+basename(),
+catgets(),
+crypt(),
+ctime(),
+dbm_clearerr(),
+dbm_close(),
+dbm_delete(),
+dbm_error(),
+dbm_fetch(),
+dbm_firstkey(),
+dbm_nextkey(),
+dbm_open(),
+dbm_store(),
+dirname(),
+dlerror(),
+drand48(),
+ecvt(),
+encrypt(),
+endgrent(),
+endpwent(),
+fcvt(),
+ftw(),
+gcvt(),
+getc_unlocked(),
+getchar_unlocked(),
+.\" getdate(),
+getenv(),
+getgrent(),
+getgrgid(),
+getgrnam(),
+gethostbyaddr(),
+gethostbyname(),
+gethostent(),
+getlogin(),
+getnetbyaddr(),
+getnetbyname(),
+getnetent(),
+getopt(),
+getprotobyname(),
+getprotobynumber(),
+getprotoent(),
+getpwent(),
+getpwnam(),
+getpwuid(),
+getservbyname(),
+getservbyport(),
+getservent(),
+gmtime(),
+hcreate(),
+hdestroy(),
+hsearch(),
+inet_ntoa(),
+l64a(),
+lgamma(),
+lgammaf(),
+lgammal(),
+localeconv(),
+localtime(),
+lrand48(),
+mrand48(),
+nftw(),
+nl_langinfo(),
+putc_unlocked(),
+putchar_unlocked(),
+putenv(),
+rand(),
+readdir(),
+setenv(),
+setgrent(),
+setkey(),
+setpwent(),
+strerror(),
+strsignal(),
+strtok(),
+ttyname(),
+unsetenv(),
+wcstombs(),
+wctomb()
+.Ed
+.Pp
+The
+.Fn ctermid
+and
+.Fn tmpnam
+functions are not thread-safe when passed a
+.Dv NULL
+argument.
+The
+.Fn wcrtomb ,
+.Fn wcsrtombs ,
+and
+.Fn wcsnrtombs
+functions are not thread-safe when passed a
+.Dv NULL
+.Fa ps
+argument.
+.Sh ENVIRONMENT
+.Bl -tag -width "RTHREAD_DEBUG"
+.It Ev RTHREAD_DEBUG
+Enables debugging output when set to a positive number,
+with larger numbers generating more verbose output.
+.El
+.Sh SEE ALSO
+.Xr intro 3 ,
+.Xr pthread_atfork 3 ,
+.Xr pthread_attr_init 3 ,
+.Xr pthread_attr_setdetachstate 3 ,
+.Xr pthread_attr_setguardsize 3 ,
+.Xr pthread_attr_setstack 3 ,
+.Xr pthread_attr_setstackaddr 3 ,
+.Xr pthread_attr_setstacksize 3 ,
+.Xr pthread_barrier_init 3 ,
+.Xr pthread_barrier_wait 3 ,
+.Xr pthread_barrierattr_getpshared 3 ,
+.Xr pthread_barrierattr_init 3 ,
+.Xr pthread_cancel 3 ,
+.Xr pthread_cleanup_pop 3 ,
+.Xr pthread_cleanup_push 3 ,
+.Xr pthread_cond_init 3 ,
+.Xr pthread_condattr_init 3 ,
+.Xr pthread_create 3 ,
+.Xr pthread_detach 3 ,
+.Xr pthread_equal 3 ,
+.Xr pthread_exit 3 ,
+.Xr pthread_get_name_np 3 ,
+.Xr pthread_getcpuclockid 3 ,
+.Xr pthread_getspecific 3 ,
+.Xr pthread_join 3 ,
+.Xr pthread_key_create 3 ,
+.Xr pthread_key_delete 3 ,
+.Xr pthread_kill 3 ,
+.Xr pthread_main_np 3 ,
+.Xr pthread_mutex_destroy 3 ,
+.Xr pthread_mutex_init 3 ,
+.Xr pthread_mutex_lock 3 ,
+.Xr pthread_mutex_unlock 3 ,
+.Xr pthread_mutexattr 3 ,
+.Xr pthread_once 3 ,
+.Xr pthread_rwlock_destroy 3 ,
+.Xr pthread_rwlock_init 3 ,
+.Xr pthread_rwlock_rdlock 3 ,
+.Xr pthread_rwlock_unlock 3 ,
+.Xr pthread_rwlock_wrlock 3 ,
+.Xr pthread_rwlockattr_destroy 3 ,
+.Xr pthread_rwlockattr_getpshared 3 ,
+.Xr pthread_rwlockattr_init 3 ,
+.Xr pthread_rwlockattr_setpshared 3 ,
+.Xr pthread_schedparam 3 ,
+.Xr pthread_self 3 ,
+.Xr pthread_set_name_np 3 ,
+.Xr pthread_setspecific 3 ,
+.Xr pthread_sigmask 3 ,
+.Xr pthread_spin_init 3 ,
+.Xr pthread_spin_lock 3 ,
+.Xr pthread_spin_unlock 3 ,
+.Xr pthread_stackseg_np 3 ,
+.Xr pthread_testcancel 3 ,
+.Xr pthread_yield 3
+.Sh STANDARDS
+The thread library provides functions that
+conform to
+.St -p1003.1-96
+and various later versions of
+.Pq Dq Tn POSIX .
+Consult the manpages for the individual functions for details.
+.Sh HISTORY
+This 1-to-1 implementation of the
+.Nm
+API initially appeared in
+.Ox 3.9
+under the name
+.Dq librthread
+as an alternative to the pure-userspace (N-to-1) implementation.
+In
+.Ox 5.2
+it became the default implementation and was renamed to
+.Dq libpthread .
+.Sh AUTHORS
+.An -nosplit
+.An Ted Unangst Aq Mt tedu@openbsd.org ,
+.An Kurt Miller Aq Mt kurt@openbsd.org ,
+.An Marco S Hyman Aq Mt marc@openbsd.org ,
+.An Otto Moerbeek Aq Mt otto@openbsd.org ,
+and
+.An Philip Guenther Aq Mt guenther@openbsd.org .

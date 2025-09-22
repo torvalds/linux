@@ -1,0 +1,67 @@
+IANA-STORAGE-MEDIA-TYPE-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, mib-2
+        FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION
+        FROM SNMPv2-TC;
+
+ianaStorageMediaTypeMIB MODULE-IDENTITY
+    LAST-UPDATED "201510120000Z"        -- 12 October 2015
+    ORGANIZATION "IANA"
+    CONTACT-INFO
+            "Internet Assigned Numbers Authority
+             Postal: ICANN
+                     12025 Waterfront Drive, Suite 300
+                     Los Angeles, CA 90094-2536
+                     United States
+             Tel:    +1 310-301-5800
+             Email: iana&iana.org"
+
+    DESCRIPTION
+            "This MIB module defines Textual Conventions
+            representing the media type of a storage device.
+
+            Copyright (c) 2015 IETF Trust and the persons identified
+            as authors of the code.  All rights reserved.
+
+            Redistribution and use in source and binary forms, with
+            or without modification, is permitted pursuant to, and
+            subject to the license terms contained in, the
+            Simplified BSD License set forth in Section 4.c of the
+            IETF Trust's Legal Provisions Relating to IETF Documents
+            (http://trustee.ietf.org/license-info)."
+
+       REVISION "201510120000Z"        -- 12 October 2015
+       DESCRIPTION
+               "The initial version of this MIB, published as
+               RFC 7666."
+       ::= { mib-2 237 }
+
+IANAStorageMediaType ::= TEXTUAL-CONVENTION
+    STATUS       current
+    DESCRIPTION
+            "The media type of a storage device:
+
+            unknown(1)     The media type is unknown, e.g., because
+                           the implementation failed to obtain the
+                           media type from the hypervisor.
+
+            other(2)       The media type is other than those
+                           defined in this conversion.
+
+            hardDisk(3)    The media type is hard disk.
+
+            opticalDisk(4) The media type is optical disk.
+
+            floppyDisk(5)  The media type is floppy disk."
+
+    SYNTAX       INTEGER {
+                    other(1),
+                    unknown(2),
+                    hardDisk(3),
+                    opticalDisk(4),
+                    floppyDisk(5)
+                 }
+
+END

@@ -1,0 +1,361 @@
+.\" $OpenBSD: CMS_signed_add1_attr.3,v 1.7 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2024 Job Snijders <job@openbsd.org>
+.\" Copyright (c) 2024 Theo Buehler <tb@openbsd.org>
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt CMS_SIGNED_ADD1_ATTR 3
+.Os
+.Sh NAME
+.Nm CMS_signed_add1_attr ,
+.Nm CMS_signed_add1_attr_by_NID ,
+.Nm CMS_signed_add1_attr_by_OBJ ,
+.Nm CMS_signed_add1_attr_by_txt ,
+.Nm CMS_signed_delete_attr ,
+.Nm CMS_signed_get0_data_by_OBJ ,
+.Nm CMS_signed_get_attr ,
+.Nm CMS_signed_get_attr_by_NID ,
+.Nm CMS_signed_get_attr_by_OBJ ,
+.Nm CMS_signed_get_attr_count ,
+.Nm CMS_unsigned_add1_attr ,
+.Nm CMS_unsigned_add1_attr_by_NID ,
+.Nm CMS_unsigned_add1_attr_by_OBJ ,
+.Nm CMS_unsigned_add1_attr_by_txt ,
+.Nm CMS_unsigned_delete_attr ,
+.Nm CMS_unsigned_get0_data_by_OBJ ,
+.Nm CMS_unsigned_get_attr ,
+.Nm CMS_unsigned_get_attr_by_NID ,
+.Nm CMS_unsigned_get_attr_by_OBJ ,
+.Nm CMS_unsigned_get_attr_count
+.Nd change signed and unsigned attributes of a CMS SignerInfo object
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cms.h
+.Ft int
+.Fo CMS_signed_add1_attr
+.Fa "CMS_SignerInfo *si"
+.Fa "X509_ATTRIBUTE *attr"
+.Fc
+.Ft int
+.Fo CMS_signed_add1_attr_by_NID
+.Fa "CMS_SignerInfo *si"
+.Fa "int nid"
+.Fa "int type"
+.Fa "const void *bytes"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo CMS_signed_add1_attr_by_OBJ
+.Fa "CMS_SignerInfo *si"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "int type"
+.Fa "const void *bytes"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo CMS_signed_add1_attr_by_txt
+.Fa "CMS_SignerInfo *si"
+.Fa "const char *attrname"
+.Fa "int type"
+.Fa "const void *bytes"
+.Fa "int len"
+.Fc
+.Ft X509_ATTRIBUTE *
+.Fo CMS_signed_delete_attr
+.Fa "CMS_SignerInfo *si"
+.Fa "int loc"
+.Fc
+.Ft void *
+.Fo CMS_signed_get0_data_by_OBJ
+.Fa "CMS_SignerInfo *si"
+.Fa "const ASN1_OBJECT *oid"
+.Fa "int start_after"
+.Fa "int type"
+.Fc
+.Ft X509_ATTRIBUTE *
+.Fo CMS_signed_get_attr
+.Fa "const CMS_SignerInfo *si"
+.Fa "int loc"
+.Fc
+.Ft int
+.Fo CMS_signed_get_attr_by_NID
+.Fa "const CMS_SignerInfo *si"
+.Fa "int nid"
+.Fa "int start_after"
+.Fc
+.Ft int
+.Fo CMS_signed_get_attr_by_OBJ
+.Fa "const CMS_SignerInfo *si"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "int start_after"
+.Fc
+.Ft int
+.Fo CMS_signed_get_attr_count
+.Fa "const CMS_SignerInfo *si"
+.Fc
+.Ft int
+.Fo CMS_unsigned_add1_attr
+.Fa "CMS_SignerInfo *si"
+.Fa "X509_ATTRIBUTE *attr"
+.Fc
+.Ft int
+.Fo CMS_unsigned_add1_attr_by_NID
+.Fa "CMS_SignerInfo *si"
+.Fa "int nid"
+.Fa "int type"
+.Fa "const void *bytes"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo CMS_unsigned_add1_attr_by_OBJ
+.Fa "CMS_SignerInfo *si"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "int type"
+.Fa "const void *bytes"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo CMS_unsigned_add1_attr_by_txt
+.Fa "CMS_SignerInfo *si"
+.Fa "const char *attrname"
+.Fa "int type"
+.Fa "const void *bytes"
+.Fa "int len"
+.Fc
+.Ft X509_ATTRIBUTE *
+.Fo CMS_unsigned_delete_attr
+.Fa "CMS_SignerInfo *si"
+.Fa "int loc"
+.Fc
+.Ft void *
+.Fo CMS_unsigned_get0_data_by_OBJ
+.Fa "CMS_SignerInfo *si"
+.Fa "ASN1_OBJECT *oid"
+.Fa "int start_after"
+.Fa "int type"
+.Fc
+.Ft X509_ATTRIBUTE *
+.Fo CMS_unsigned_get_attr
+.Fa "const CMS_SignerInfo *si"
+.Fa "int loc"
+.Fc
+.Ft int
+.Fo CMS_unsigned_get_attr_by_NID
+.Fa "const CMS_SignerInfo *si"
+.Fa "int nid"
+.Fa "int start_after"
+.Fc
+.Ft int
+.Fo CMS_unsigned_get_attr_by_OBJ
+.Fa "const CMS_SignerInfo *si"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "int start_after"
+.Fc
+.Ft int
+.Fo CMS_unsigned_get_attr_count
+.Fa "const CMS_SignerInfo *si"
+.Fc
+.Sh DESCRIPTION
+A
+.Em CMS_SignerInfo
+object has two optional sets of X.501 attributes:
+a set of signed attributes in the
+.Fa signedAttrs
+array and a set of unsigned attributes in the
+.Fa unsignedAttrs
+array.
+The
+.Fn CMS_signed_*
+and
+.Fn CMS_unsigned_*
+functions are similar, except
+.Fn CMS_signed_*
+modifies the
+.Vt CMS_SignerInfo
+object's set of signed attributes and
+.Fn CMS_unsigned_*
+modifies the
+.Vt CMS_SignerInfo
+object's set of unsigned attributes.
+For brevity only the
+.Fn CMS_signed_*
+functions are described below.
+.Pp
+.Fn CMS_signed_add1_attr
+appends a deep copy of
+.Fa attr
+to the
+.Fa signedAttrs
+array of
+.Fa si ,
+allocating a new array if necessary.
+.Pp
+.Fn CMS_signed_add1_attr_by_NID ,
+.Fn CMS_signed_add1_attr_by_OBJ ,
+and
+.Fn CMS_signed_add1_attr_by_txt
+create a new X.501 Attribute object using
+.Xr X509_ATTRIBUTE_create_by_NID 3 ,
+.Xr X509_ATTRIBUTE_create_by_OBJ 3 ,
+or
+.Xr X509_ATTRIBUTE_create_by_txt 3 ,
+respectively,
+and append it to the
+.Fa signedAttrs
+array of
+.Fa si .
+.Pp
+.Fn CMS_signed_delete_attr
+deletes the element with the zero-based
+.Fa loc
+in
+.Fa signedAttrs
+of
+.Fa si .
+.Pp
+.Fn CMS_signed_get0_data_by_OBJ ,
+.Fn CMS_signed_get_attr_by_NID ,
+and
+.Fn CMS_signed_get_attr_by_OBJ
+search the array starting after the index
+.Fa start_after .
+They fail if no matching object is found.
+.Fn CMS_signed_get0_data_by_OBJ
+also fails if the data is not of the requested
+.Fa type .
+.Pp
+Additionally, the
+.Fa start_after
+argument of
+.Fn CMS_signed_get0_data_by_OBJ
+is interpreted in a special way.
+If
+.Fa start_after
+is \-2 or smaller, the function also fails if the
+.Fa signedAttrs
+array of
+.Fa si ,
+contains more than one matching object.
+If
+.Fa start_after
+is \-3 or smaller, it also fails unless the matching object contains exactly
+one value.
+.Pp
+.Fn CMS_signed_get_attr
+returns the array element at the zero-based
+.Fa loc .
+It fails if the
+.Fa loc
+argument is negative or greater than or equal to the number of objects in the
+array.
+.Pp
+.Fn CMS_signed_get_attr_count
+returns the number of objects currently stored in the
+.Fa signedAttrs
+array of
+.Fa si .
+.Sh RETURN VALUES
+.Fn CMS_signed_add1_attr ,
+.Fn CMS_signed_add1_attr_by_NID ,
+.Fn CMS_signed_add1_attr_by_OBJ ,
+.Fn CMS_signed_add1_attr_by_txt ,
+.Fn CMS_unsigned_add1_attr ,
+.Fn CMS_unsigned_add1_attr_by_NID ,
+.Fn CMS_unsigned_add1_attr_by_OBJ ,
+and
+.Fn CMS_unsigned_add1_attr_by_txt
+return 1 for success or 0 if an error occurs.
+.Pp
+.Fn CMS_signed_delete_attr
+returns the deleted element or
+.Dv NULL
+if the
+.Fa signedAttrs
+array is
+.Dv NULL ,
+or if the requested
+.Fa loc
+argument is negative, or greater than or equal to the number of objects in it.
+.Pp
+.Fn CMS_unsigned_delete_attr
+returns the deleted element or
+.Dv NULL
+if the
+.Fa unsignedAttrs
+array is
+.Dv NULL ,
+or if the requested
+.Fa loc
+argument is negative, or greater than or equal to the number of objects in it.
+.Pp
+.Fn CMS_signed_get0_data_by_OBJ
+and
+.Fn CMS_unsigned_get0_data_by_OBJ
+return an internal pointer to the data contained in the value of the first
+object that has an index greater than
+.Fa start_after
+and a type matching
+.Fa type ,
+or NULL on failure.
+.Pp
+.Fn CMS_signed_get_attr
+and
+.Fn CMS_unsigned_get_attr
+return an internal pointer or NULL on failure.
+.Pp
+.Fn CMS_signed_get_attr_by_NID ,
+.Fn CMS_signed_get_attr_by_OBJ ,
+.Fn CMS_unsigned_get_attr_by_NID ,
+and
+.Fn CMS_unsigned_get_attr_by_OBJ
+return the index of the first object in the array that has an index greater than
+.Fa start_after
+and a type matching
+.Fa nid
+or
+.Fa oid ,
+respectively, or \-1 on failure.
+In addition,
+.Fn CMS_signed_get_attr_by_OBJ
+and
+.Fn CMS_unsigned_get_attr_by_OBJ
+return \-2 if
+.Xr OBJ_nid2obj 3
+fails on the requested
+.Fa nid .
+.Pp
+.Fn CMS_signed_get_attr_count
+and
+.Fn CMS_unsigned_get_attr_count
+return the number of array elements or \-1 on failure.
+.Sh SEE ALSO
+.Xr CMS_add1_signer 3 ,
+.Xr CMS_ContentInfo_new 3 ,
+.Xr CMS_get0_SignerInfos 3 ,
+.Xr OBJ_nid2obj 3 ,
+.Xr X509_ATTRIBUTE_create_by_OBJ 3 ,
+.Xr X509_ATTRIBUTE_new 3
+.Sh STANDARDS
+RFC 5652: Cryptographic Message Syntax (CMS)
+.Bl -dash -compact -offset indent
+.It
+section 5.3: SignerInfo Type
+.It
+section 11: Useful Attributes
+.El
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.9 and have been available since
+.Ox 6.6 .

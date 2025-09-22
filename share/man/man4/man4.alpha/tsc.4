@@ -1,0 +1,63 @@
+.\"     $OpenBSD: tsc.4,v 1.10 2015/11/21 08:04:20 jmc Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Gregory McGarry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 21 2015 $
+.Dt TSC 4 alpha
+.Os
+.Sh NAME
+.Nm tsc ,
+.Nm tsp
+.Nd DECchip 21272 and 21274 Core Logic chipset
+.Sh SYNOPSIS
+.Cd "tsc* at mainbus?"
+.Cd "tsciic* at tsc?"
+.Cd "tsp* at tsc?"
+.Cd "pci* at tsp?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the DECchip 21272 (Tsunami) and
+21274 (Titan) Core Logic chipsets found on most 21264-based
+systems.
+.Pp
+The
+.Nm tsp
+driver attaches to it and provides support for the DECchip 21272 and 21274
+built-in PCI controller.
+.Pp
+DECchip 21272 provides one PCI bus, while DECchip 21274 provides two distinct
+PCI buses, the second one with AGP capabilities.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.\".Xr mainbus 4 ,
+.Xr pci 4 ,
+.Xr tsciic 4
+.Sh BUGS
+The AGP capabilities of the second PCI bus of DECchip 21274 are not currently
+supported.

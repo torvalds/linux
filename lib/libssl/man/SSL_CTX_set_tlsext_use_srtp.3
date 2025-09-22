@@ -1,0 +1,198 @@
+.\" $OpenBSD: SSL_CTX_set_tlsext_use_srtp.3,v 1.7 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL b0edda11 Mar 20 13:00:17 2018 +0000
+.\"
+.\" This file was written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_TLSEXT_USE_SRTP 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_tlsext_use_srtp ,
+.Nm SSL_set_tlsext_use_srtp ,
+.Nm SSL_get_srtp_profiles ,
+.Nm SSL_get_selected_srtp_profile
+.Nd Configure and query SRTP support
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/srtp.h
+.Ft int
+.Fo SSL_CTX_set_tlsext_use_srtp
+.Fa "SSL_CTX *ctx"
+.Fa "const char *profiles"
+.Fc
+.Ft int
+.Fo SSL_set_tlsext_use_srtp
+.Fa "SSL *ssl"
+.Fa "const char *profiles"
+.Fc
+.Ft STACK_OF(SRTP_PROTECTION_PROFILE) *
+.Fo SSL_get_srtp_profiles
+.Fa "SSL *ssl"
+.Fc
+.Ft SRTP_PROTECTION_PROFILE *
+.Fo SSL_get_selected_srtp_profile
+.Fa "SSL *ssl"
+.Fc
+.Sh DESCRIPTION
+SRTP is the Secure Real-Time Transport Protocol.
+OpenSSL implements support for the "use_srtp" DTLS extension
+defined in RFC 5764.
+This provides a mechanism for establishing SRTP keying material,
+algorithms and parameters using DTLS.
+This capability may be used as part of an implementation that
+conforms to RFC 5763.
+OpenSSL does not implement SRTP itself or RFC 5763.
+Note that OpenSSL does not support the use of SRTP Master Key
+Identifiers (MKIs).
+Also note that this extension is only supported in DTLS.
+Any SRTP configuration is ignored if a TLS connection is attempted.
+.Pp
+An OpenSSL client wishing to send the "use_srtp" extension should call
+.Fn SSL_CTX_set_tlsext_use_srtp
+to set its use for all
+.Vt SSL
+objects subsequently created from
+.Fa ctx .
+Alternatively a client may call
+.Fn SSL_set_tlsext_use_srtp
+to set its use for an individual
+.Vt SSL
+object.
+The
+.Fa profiles
+parameter should point to a NUL-terminated, colon delimited list of
+SRTP protection profile names.
+.Pp
+The currently supported protection profile names are:
+.Bl -tag -width Ds
+.It Dv SRTP_AES128_CM_SHA1_80
+This corresponds to SRTP_AES128_CM_HMAC_SHA1_80 defined in RFC 5764.
+.It Dv SRTP_AES128_CM_SHA1_32
+This corresponds to SRTP_AES128_CM_HMAC_SHA1_32 defined in RFC 5764.
+.It Dv SRTP_AEAD_AES_128_GCM
+This corresponds to SRTP_AEAD_AES_128_GCM defined in RFC 7714.
+.It Dv SRTP_AEAD_AES_256_GCM
+This corresponds to SRTP_AEAD_AES_256_GCM defined in RFC 7714.
+.El
+.Pp
+Supplying an unrecognised protection profile name results in an error.
+.Pp
+An OpenSSL server wishing to support the "use_srtp" extension should
+also call
+.Fn SSL_CTX_set_tlsext_use_srtp
+or
+.Fn SSL_set_tlsext_use_srtp
+to indicate the protection profiles that it is willing to negotiate.
+.Pp
+The currently configured list of protection profiles for either a client
+or a server can be obtained by calling
+.Fn SSL_get_srtp_profiles .
+This returns a stack of
+.Vt SRTP_PROTECTION_PROFILE
+objects.
+The memory pointed to in the return value of this function should not be
+freed by the caller.
+.Pp
+After a handshake has been completed, the negotiated SRTP protection
+profile (if any) can be obtained (on the client or the server) by
+calling
+.Fn SSL_get_selected_srtp_profile .
+This function returns
+.Dv NULL
+if no SRTP protection profile was negotiated.
+The memory returned from this function should not be freed by the
+caller.
+.Pp
+If an SRTP protection profile has been successfully negotiated,
+then the SRTP keying material (on both the client and server)
+should be obtained by calling
+.Xr SSL_export_keying_material 3
+with a
+.Fa label
+of
+.Qq EXTRACTOR-dtls_srtp ,
+a
+.Fa context
+of
+.Dv NULL ,
+and a
+.Fa use_context
+argument of 0.
+The total length of keying material obtained should be equal to two
+times the sum of the master key length and the salt length as defined
+for the protection profile in use.
+This provides the client write master key, the server write master key,
+the client write master salt and the server write master salt in that
+order.
+.Sh RETURN VALUES
+Contrary to OpenSSL conventions,
+.Fn SSL_CTX_set_tlsext_use_srtp
+and
+.Fn SSL_set_tlsext_use_srtp
+return 0 on success or 1 on error.
+.Pp
+.Fn SSL_get_srtp_profiles
+returns a stack of
+.Vt SRTP_PROTECTION_PROFILE
+objects on success or
+.Dv NULL
+on error or if no protection profiles have been configured.
+.Pp
+.Fn SSL_get_selected_srtp_profile
+returns a pointer to an
+.Vt SRTP_PROTECTION_PROFILE
+object if one has been negotiated or
+.Dv NULL
+otherwise.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_export_keying_material 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.0.1
+and have been available since
+.Ox 5.3 .

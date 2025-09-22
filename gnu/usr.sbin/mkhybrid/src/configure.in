@@ -1,0 +1,18 @@
+dnl	$Id: configure.in,v 1.1 2000/10/10 20:40:13 beck Exp $	
+dnl	Modified for mkhybrid James Pearson 22/1/98
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(mkisofs.c)
+AC_CONFIG_HEADER(config.h)
+AC_PROG_CC
+AC_CONST
+AC_HEADER_MAJOR
+AC_HEADER_DIRENT
+if test -z "$ac_header_dirent"; then
+  AC_DEFINE(NODIR)
+fi
+AC_CHECK_FUNCS(memmove sbrk strdup)
+AC_CHECK_HEADERS(sys/mkdev.h sys/sysmacros.h malloc.h termios.h sys/types.h)
+AC_CHECK_HEADERS(unistd.h string.h strings.h sys/stat.h sys/fcntl.h)
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+AC_OUTPUT(Makefile diag/Makefile)

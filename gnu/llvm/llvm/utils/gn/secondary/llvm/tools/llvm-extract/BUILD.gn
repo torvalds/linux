@@ -1,0 +1,11 @@
+executable("llvm-extract") {
+  deps = [
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/IPO",
+  ]
+  sources = [ "llvm-extract.cpp" ]
+}

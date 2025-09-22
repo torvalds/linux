@@ -1,0 +1,303 @@
+.\"	$OpenBSD: e4,v 1.3 2004/04/05 10:58:08 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)e4	8.1 (Berkeley) 6/8/93
+.\"
+.SH
+Exercise 5:
+.PP
+Experiment with the substitute command.
+See what happens if you
+substitute for some word on a line with several occurrences of that word.
+For example, do this:
+.P1
+a
+the other side of the coin
+\*.
+s/the/on the/p
+.P2
+You will get
+.P1
+on the other side of the coin
+.P2
+A substitute command changes only the first occurrence of the first string.
+You can change all occurrences by adding a
+.UL g
+(for ``global'')
+to the
+.UL s
+command, like this:
+.P1
+s/ . . . / . . . /gp
+.P2
+Try other characters instead of slashes to delimit the two sets
+of characters in the
+.UL s
+command \- anything should work
+except blanks or tabs.
+.PP
+(If you get funny results using any of the characters
+.P1
+^    \*.    $    [    *    \e    &
+.P2
+read the section on ``Special Characters''.)
+.SH
+Context searching \- ``/ . . . /''
+.PP
+With the substitute command mastered, you can move on to
+another highly important idea of
+.ul
+ed
+\- context searching.
+.PP
+Suppose you have the original three line text in the buffer:
+.P1
+Now is the time
+for all good men
+to come to the aid of their party.
+.P2
+Suppose you want to find the line that contains
+.IT their
+so
+you can change it to
+.IT the .
+Now with only three lines in the buffer, it's pretty easy
+to keep track of what line the word
+.IT their
+is on.
+But if the buffer contained several hundred lines,
+and you'd been making changes, deleting and rearranging lines,
+and so on, you would no longer really know what this line
+number would be.
+Context searching is simply a method of specifying the desired line,
+regardless of what its number is,
+by specifying some context on it.
+.PP
+The way to say ``search for a line
+that contains this particular string of characters''
+is to type
+.P1
+/\fIstring of characters we want to find\fP/
+.P2
+For example,
+the
+.ul
+ed
+command
+.P1
+/their/
+.P2
+is a context search which
+is sufficient to find the desired line \-
+it will locate the next occurrence of
+the characters between slashes (``their'').
+It also sets dot to that line
+and prints the line for verification:
+.P1
+to come to the aid of their party.
+.P2
+``Next occurrence'' means that
+.ul
+ed
+starts looking for the string at line
+.UL .+1 ,
+searches to the end of the buffer,
+then continues at line 1 and searches to line dot.
+(That is, the search ``wraps around'' from
+.UL $
+to
+1.)
+It scans all the lines in the buffer until it either finds the desired line
+or gets back to dot again.
+If the given string of characters can't be found in any line,
+.ul
+ed
+types the error message
+.P1
+?
+.P2
+Otherwise it prints the line it found.
+.PP
+You can do both the search for the desired line
+.ul
+and
+a
+substitution all at once, like this:
+.P1
+/their/s/their/the/p
+.P2
+which will yield
+.P1
+to come to the aid of the party.
+.P2
+There were three parts to that last command:
+context search for the desired line, make the substitution, print the line.
+.PP
+The expression
+.UL /their/
+is a context search expression.
+In their simplest form,
+all context search expressions are like this \-
+a string of characters surrounded by slashes.
+Context searches are interchangeable with line numbers,
+so they can be used by themselves to find and print a desired line,
+or as line numbers for some other command, like
+.UL s .
+They were used both ways in the examples above.
+.PP
+Suppose the buffer contains the three familiar lines
+.P1
+Now is the time
+for all good men
+to come to the aid of their party.
+.P2
+Then the
+.ul
+ed
+line numbers
+.P1
+/Now/+1
+/good/
+/party/\-1
+.P2
+are all context search expressions, and they all refer
+to the same line (line 2).
+To make a change in line 2,
+you could say
+.P1
+/Now/+1s/good/bad/
+.P2
+or
+.P1
+/good/s/good/bad/
+.P2
+or
+.P1
+/party/\-1s/good/bad/
+.P2
+The choice is dictated only by convenience.
+You could print all three lines by, for instance
+.P1
+/Now/,/party/p
+.P2
+or
+.P1
+/Now/,/Now/+2p
+.P2
+or by any number of similar combinations.
+The first one of these might be better if you don't
+know how many lines are involved.
+(Of course, if there were only three lines in the buffer,
+you'd use
+.P1
+1,$p
+.P2
+but not if there were several hundred.)
+.PP
+The basic rule is: a context search expression is
+.ul
+the same as
+a line number, so it can be used wherever a line number is needed.
+.SH
+Exercise 6:
+.PP
+Experiment with context searching.
+Try a body of text with
+several occurrences
+of the same string of characters, and scan through it using
+the same context search.
+.PP
+Try using context searches as line numbers for the
+substitute, print, and delete commands.
+(They can also be used
+with
+.UL r ,
+.UL w ,
+and
+.UL a .)
+.PP
+Try context searching using
+.UL ?text?
+instead of
+.UL /text/ .
+This scans lines in the buffer in reverse order
+rather than normal.
+This is
+sometimes useful if you go too far while looking for some
+string of characters \- it's an easy way to back up.
+.PP
+(If you get funny results with any of the characters
+.P1
+^    \*.    $    [    *    \e    &
+.P2
+read the section on ``Special Characters''.)
+.PP
+.ul
+Ed
+provides a shorthand for repeating a context search
+for the same string.
+For example,
+the
+.ul
+ed
+line number
+.P1
+/string/
+.P2
+will find the next occurrence of
+.UL string .
+It often happens that this is not the desired line,
+so the search must be repeated.
+This can be done by typing merely
+.P1
+//
+.P2
+This shorthand stands for ``the most recently used
+context search expression.''
+It can
+also be used as the first string of the substitute
+command, as in
+.P1
+/string1/s//string2/
+.P2
+which will find the next occurrence of
+.UL string1
+and replace it by
+.UL string2 .
+This can save a lot of typing.
+Similarly
+.P1
+??
+.P2
+means ``scan backwards for the same expression.''

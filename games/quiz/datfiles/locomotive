@@ -1,0 +1,40 @@
+0-4-0:Four[-| ]Coupled
+0-6-0:Six[-| ]Coupled
+0-8-0:Eight[-| ]Coupled
+0-10-0:Ten[-| ]Coupled
+2-2-2:Single
+2-6-2:Prairie
+2-6-6-6:Allegheny|Blue Ridge
+2-8-0:Consol{idation}
+2-8-2:Mik[ado|e]
+2-8-4:Berk{shire}|Kanawha
+2-8-4:Kanawha|Berk{shire}
+2-8-8-2:Chesapeake
+2-8-8-4:Yellowstone
+2-8-8-8-2|2-8-8-4:Triplex
+2-10-0|2-10-2:Decapod
+2-10-2:Santa Fe|Central|Decapod
+2-10-4:Texas|Selkirk|Colorado
+2-10-4:Selkirk|Texas|Colorado
+4-2-0:Six[- | ]Wheeler
+4-2-2:Bicycle
+4-4-0:American|Eight[-| ]Wheeler
+4-4-0:Eight[-| ]Wheeler|American
+4-4-2:Atlantic|Chautauqua
+4-4-4:Jubilee|Reading
+4-6-0:Ten[-| ]Wheeler
+4-6-2:Pacific
+4-6-4:Hudson|Baltic|Shore Line
+4-6-4:Baltic|Hudson|Shore Line
+4-6-6-4:Challenger
+4-8-0:Twelve[-| ]Wheeler|Mastodon
+4-8-2:Mountain|Mohawk
+4-8-2:Mohawk|Mountain
+4-8-4:Northern|Confederation|Dixie|Golden State|Greenbriar|Montana|Niagara|Pocono|Potomac|Wyoming
+4-8-4:Niagara|Northern|Confederation|Dixie|Golden State|Greenbriar|Montana|Pocono|Potomac|Wyoming
+4-8-4:Greenbriar|Niagara|Northern|Confederation|Dixie|Golden State|Montana|Pocono|Potomac|Wyoming
+4-8-4:Pocono|Greenbriar|Niagara|Northern|Confederation|Dixie|Golden State|Montana|Potomac|Wyoming
+4-8-8-4:Big Boy
+4-[10|8]-0:Mastodon
+4-10-2:Southern Pacific|Overland
+4-12-2:Union Pacific

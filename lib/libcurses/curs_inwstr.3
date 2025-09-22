@@ -1,0 +1,105 @@
+.\" $OpenBSD: curs_inwstr.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 2002-2012,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_inwstr.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.TH curs_inwstr 3 2023-07-01 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.SH NAME
+\fBinwstr\fP,
+\fBinnwstr\fP,
+\fBwinwstr\fP,
+\fBwinnwstr\fP,
+\fBmvinwstr\fP,
+\fBmvinnwstr\fP,
+\fBmvwinwstr\fP,
+\fBmvwinnwstr\fP \- get a string of \fBwchar_t\fP characters from a curses window
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h> \fP
+.sp
+\fBint inwstr(\fBwchar_t *\fIwstr\fB);\fR
+.br
+\fBint innwstr(\fBwchar_t *\fIwstr\fB, int \fIn\fB);\fR
+.br
+\fBint winwstr(\fBWINDOW *\fIwin\fB, wchar_t *\fIwstr\fB);\fR
+.br
+\fBint winnwstr(\fBWINDOW *\fIwin\fB, wchar_t *\fIwstr\fB, int \fIn\fB);\fR
+.sp
+\fBint mvinwstr(\fBint \fIy\fB, int \fIx\fB, wchar_t *\fIwstr\fB);\fR
+.br
+\fBint mvinnwstr(\fBint \fIy\fB, int \fIx\fB, wchar_t *\fIwstr\fB, int \fIn\fB);\fR
+.br
+\fBint mvwinwstr(\fBWINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, wchar_t *\fIwstr\fB);\fR
+.br
+\fBint mvwinnwstr(\fBWINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, wchar_t *\fIwstr\fB, int \fIn\fB);\fR
+.fi
+.SH DESCRIPTION
+These routines return a string of \fBwchar_t\fP wide characters in \fIwstr\fP,
+extracted starting at the current cursor position in the named window.
+.PP
+The four functions with \fIn\fP as the last argument return
+a leading substring at most \fIn\fP characters long
+(exclusive of the trailing NUL).
+Transfer stops at the end of the current line, or when \fIn\fP characters have
+been stored at the location referenced by \fIwstr\fP.
+.PP
+If the size \fIn\fP is not large enough to store a complete complex character,
+an error is generated.
+.SH NOTES
+All routines except
+\fBwinnwstr\fP
+may be macros.
+.PP
+Each cell in the window holds a complex character (i.e., base-
+and combining-characters) together with attributes and color.
+These functions store only the wide characters,
+ignoring attributes and color.
+Use \fBin_wchstr\fP to return the complex characters from a window.
+.SH RETURN VALUE
+All routines return
+\fBERR\fP
+upon failure.
+Upon
+successful completion, the *\fBinwstr\fP
+routines return
+\fBOK\fP, and the *\fBinnwstr\fP
+routines return the
+number of characters read into the string.
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_instr\fP(3),
+\fBcurs_in_wchstr\fP(3)

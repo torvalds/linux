@@ -1,0 +1,44 @@
+.\"	$OpenBSD: ociic.4,v 1.1 2021/06/16 13:56:46 kettenis Exp $
+.\"
+.\" Copyright (c) 2021 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 16 2021 $
+.Dt OCIIC 4
+.Os
+.Sh NAME
+.Nm ociic
+.Nd OpenCores I2C controller
+.Sh SYNOPSIS
+.Cd "ociic* at fdt?"
+.Cd "iic* at ociic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the OpenCores I2C controller such as the
+I2C controller integrated on the SiFive FU540/FU740 SoCs.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

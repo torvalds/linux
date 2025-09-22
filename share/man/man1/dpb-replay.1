@@ -1,0 +1,60 @@
+.\"	$OpenBSD: dpb-replay.1,v 1.5 2024/10/12 15:40:36 jmc Exp $
+.\"
+.\" Copyright (c) 2013 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 12 2024 $
+.Dt DPB-REPLAY 1
+.Os
+.Sh NAME
+.Nm dpb-replay
+.Nd replays dpb terminal output
+.Sh SYNOPSIS
+.Nm
+.Op Fl cC
+.Op Fl e Ar regexp
+.Op Fl s Ar speedup
+.Op Fl t Ar timestamp
+.Ar file
+.Sh DESCRIPTION
+.Nm
+is used to replay
+.Xr dpb 1
+terminal logs
+.Po
+.Pa %L/term-report.log
+.Pc
+later, usually at a much higher speed than the first run,
+for demonstration and optimization purposes.
+The options are as follows
+.Bl -tag -width keywordaaaa
+.It Fl c|C
+Color display.
+.It Fl e Ar regexp
+Start display only when information matches the
+.Xr perl 1
+regular expression
+.Ar regexp .
+.It Fl s Ar speedup
+Sets the time acceleration to
+.Ar speedup
+(defaults to 10).
+.It Fl t Ar timestamp
+Starts display when the time matches timestamp, as either
+seconds from the epoch, or a reasonable subset of ISO8601,
+like
+.Sq 2023-07-05T12:00 .
+.El
+.Sh SEE ALSO
+.Xr dpb 1

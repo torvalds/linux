@@ -1,0 +1,99 @@
+.\" $OpenBSD: SMIME_crlf_copy.3,v 1.5 2025/06/11 13:48:54 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 11 2025 $
+.Dt SMIME_CRLF_COPY 3
+.Os
+.Sh NAME
+.Nm SMIME_crlf_copy
+.Nd buffered copy between BIOs
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft int
+.Fo SMIME_crlf_copy
+.Fa "BIO *in_bio"
+.Fa "BIO *out_bio"
+.Fa "int flags"
+.Fc
+.Sh DESCRIPTION
+.Fn SMIME_crlf_copy
+copies data from
+.Fa in_bio
+to
+.Fa out_bio .
+To avoid many small write operations on
+.Fa out_bio ,
+a buffering BIO created with
+.Xr BIO_f_buffer 3
+is temporarily prepended to it.
+.Pp
+If the bit
+.Dv SMIME_BINARY
+is set in the
+.Fa flags
+argument, all the data is copied verbatim using
+.Xr BIO_read 3
+and
+.Xr BIO_write 3 .
+.Pp
+Otherwise, the data is read as text.
+All trailing carriage return and newline characters are discarded
+from every input line and a single pair of carriage return and
+newline characters is appended to mark the end of every output line,
+except that the last output line will end without such a pair if
+the last input line does not have a newline character at the end.
+.Pp
+If the bit
+.Dv SMIME_TEXT
+is set in the
+.Fa flags
+argument and the bit
+.Dv SMIME_BINARY
+is not set, the line
+.Qq Content-Type: text/plain
+is prepended to the output
+with two pairs of carriage return and newline characters after it.
+.Pp
+In any case,
+.Xr BIO_flush 3
+is called on the output at the end of the function.
+.Sh RETURN VALUES
+.Fn SMIME_crlf_copy
+is intended to return 1 on success or 0 on failure.
+.Sh SEE ALSO
+.Xr BIO_f_buffer 3 ,
+.Xr BIO_flush 3 ,
+.Xr BIO_new 3 ,
+.Xr BIO_push 3 ,
+.Xr BIO_read 3 ,
+.Xr SMIME_text 3 ,
+.Xr SMIME_write_CMS 3 ,
+.Xr SMIME_write_PKCS7 3
+.Sh HISTORY
+.Fn SMIME_crlf_copy
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .
+.Sh BUGS
+.Fn SMIME_crlf_copy
+silently ignores most errors and may return 1
+even if it lost part or all of the data in transit.
+.Pp
+Only blocking BIOs are supported.
+If any of the
+.Vt BIO
+arguments is non-blocking, part or all of the data is likely
+to be silently lost in transit.

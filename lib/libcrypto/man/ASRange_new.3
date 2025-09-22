@@ -1,0 +1,411 @@
+.\" $OpenBSD: ASRange_new.3,v 1.10 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt ASRANGE_NEW 3
+.Os
+.Sh NAME
+.Nm ASRange_new ,
+.Nm ASRange_free ,
+.Nm d2i_ASRange ,
+.Nm i2d_ASRange ,
+.Nm ASIdOrRange_new ,
+.Nm ASIdOrRange_free ,
+.Nm d2i_ASIdOrRange ,
+.Nm i2d_ASIdOrRange ,
+.Nm ASIdentifierChoice_new ,
+.Nm ASIdentifierChoice_free ,
+.Nm d2i_ASIdentifierChoice ,
+.Nm i2d_ASIdentifierChoice
+.Nd RFC 3779 autonomous system identifiers and ranges
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft ASRange *
+.Fn ASRange_new void
+.Ft void
+.Fn ASRange_free "ASRange *asrange"
+.Ft ASRange *
+.Fo d2i_ASRange
+.Fa "ASRange **asrange"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ASRange
+.Fa "ASRange *asrange"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft ASIdOrRange *
+.Fn ASIdOrRange_new void
+.Ft void
+.Fn ASIdOrRange_free "ASIdOrRange *aor"
+.Ft ASIdOrRange *
+.Fo d2i_ASIdOrRange
+.Fa "ASIdOrRange **aor"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ASIdOrRange
+.Fa "ASIdOrRange *aor"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft ASIdentifierChoice *
+.Fn ASIdentifierChoice_new void
+.Ft void
+.Fn ASIdentifierChoice_free "ASIdentifierChoice *aic"
+.Ft ASIdentifierChoice *
+.Fo d2i_ASIdentifierChoice
+.Fa "ASIdentifierChoice **aic"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ASIdentifierChoice
+.Fa "ASIdentifierChoice *aic"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+.Vt ASRange ,
+.Vt ASIdOrRange ,
+and
+.Vt ASIdentifierChoice
+are building blocks of the
+.Vt ASIdentifiers
+type representing the RFC 3779
+autonomous system identifier delegation extension.
+.Pp
+All
+.Vt ASN1_INTEGER Ns s
+in this manual must be representable as unsigned 32-bit integers.
+The API performs no corresponding checks.
+An
+.Vt ASN1_INTEGER
+can be set using
+.Xr ASN1_INTEGER_set_uint64 3 .
+.Pp
+The
+.Vt ASRange
+type defined in RFC 3779 section 3.2.3.8 is implemented as
+.Bd -literal -offset indent
+typedef struct ASRange_st {
+	ASN1_INTEGER *min;
+	ASN1_INTEGER *max;
+} ASRange;
+.Ed
+.Pp
+It represents the closed range [min,max] of AS identifiers between
+.Fa min
+and
+.Fa max ,
+where
+.Fa min
+should be strictly smaller than
+.Fa max .
+.Pp
+.Fn ASRange_new
+allocates a new
+.Vt ASRange
+object with allocated, empty
+.Fa min
+and
+.Fa max ,
+thus representing the invalid range [0,0].
+.Pp
+.Fn ASRange_free
+frees
+.Fa asrange
+including any data contained in it.
+If
+.Fa asrange
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+The
+.Vt ASIdOrRange
+type defined in RFC 3779 section 3.2.3.5 is implemented as
+.Bd -literal -offset indent
+typedef struct ASIdOrRange_st {
+	int type;
+	union {
+		ASN1_INTEGER *id;
+		ASRange *range;
+	} u;
+} ASIdOrRange;
+.Ed
+.Pp
+representing an individual AS identifier or a range.
+When populating an
+.Vt ASIdOrRange
+object by hand, its
+.Fa type
+should be set to
+.Dv ASIdOrRange_id
+or
+.Dv ASIdOrRange_range
+to indicate which member of the union
+.Fa u
+is valid.
+.Pp
+.Fn ASIdOrRange_new
+returns a new
+.Vt ASIdOrRange
+object with invalid type and
+.Dv NULL
+members of the union
+.Fa u .
+.Pp
+.Fn ASIdOrRange_free
+frees
+.Fa aor
+including any data contained in it,
+provided
+.Fa type
+is set correctly.
+If
+.Fa asrange
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+In order to express a list of AS identifiers and ranges,
+RFC 3779 section 3.2.3.4
+uses an ASN.1 SEQUENCE,
+which is implemented via a
+.Xr STACK_OF 3
+construction over
+.Vt ASIdOrRange :
+.Bd -literal -offset indent
+typedef STACK_OF(ASIdOrRange) ASIdOrRanges;
+.Ed
+.Pp
+Since an
+.Vt ASIdOrRanges
+object should be sorted in a specific way (see
+.Xr X509v3_asid_canonize 3 Ns ),
+a comparison function is needed for a correct instantiation
+with
+.Xr sk_new 3 .
+The
+.Fn ASIdOrRange_cmp
+function is not directly exposed and not easily accessible
+from outside the library,
+and it is non-trivial to implement.
+It is therefore discouraged to use
+.Vt ASIdOrRanges
+objects that are not part of an
+.Vt ASIdentifiers
+object.
+.Pp
+The
+.Dq inherit
+marker from RFC 3779 section 3.2.3.3 is implemented as
+.Vt ASN1_NULL .
+It has no dedicated type or API and can be instantiated with
+.Xr ASN1_NULL_new 3 .
+.Pp
+The
+.Vt ASIdentifierChoice
+type defined in RFC 3779 section 3.2.3.2 is implemented as
+.Bd -literal -offset indent
+typedef struct ASIdentifierChoice_st {
+	int type;
+	union {
+		ASN1_NULL *inherit;
+		ASIdOrRanges *asIdsOrRanges;
+	} u;
+} ASIdentifierChoice;
+.Ed
+.Pp
+where the
+.Fa type
+member should be set to
+.Dv ASIdentifierChoice_inherit
+or
+.Dv ASIdentifierChoice_asIdsOrRanges
+to indicate whether a given
+.Vt ASIdentifierChoice
+object represents an inherited list or an explicit list.
+.Pp
+.Fn ASIdentifierChoice_new
+returns a new
+.Vt ASIdentifierChoice
+object with invalid type and
+.Dv NULL
+members of the union
+.Fa u .
+.Pp
+.Fn ASIdentifierChoice_free
+frees
+.Fa aic
+including any data contained in it,
+provided
+.Fa type
+is set correctly.
+.Pp
+The
+.Vt ASIdentifiers
+type defined in RFC 3779 section 3.2.3.1 is implemented as
+.Bd -literal -offset indent
+typedef struct ASIdentifiers_st {
+	ASIdentifierChoice *asnum;
+	ASIdentifierChoice *rdi;
+} ASIdentifiers;
+.Ed
+.Pp
+It should be instantiated with
+.Xr ASIdentifiers_new 3
+and populated with
+.Xr X509v3_asid_add_id_or_range 3 .
+.Pp
+.Fn d2i_ASRange ,
+.Fn i2d_ASRange ,
+.Fn d2i_ASIdOrRange ,
+.Fn i2d_ASIdOrRange ,
+.Fn d2i_ASIdentifierChoice ,
+and
+.Fn i2d_ASIdentifierChoice
+decode and encode ASN.1
+.Vt ASRange ,
+.Vt ASIdOrRange ,
+and
+.Vt ASIdentifierChoice
+objects.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+In order for the encoding produced by
+.Fn i2d_ASRange
+to be correct,
+.Fa min
+must be strictly less than
+.Fa max .
+Similarly for
+.Fn i2d_ASIdOrRange
+and an
+.Fa ASIdOrRange
+object of
+.Fa type
+.Dv ASIdOrRange_range .
+.Sh RETURN VALUES
+.Fn ASRange_new
+returns a new
+.Vt ASRange
+object with allocated, empty members, or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn ASIdOrRange_new
+returns a new, empty
+.Vt ASIdOrRange
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn ASIdentifierChoice_new
+returns a new, empty
+.Vt ASIdentifierChoice
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+The decoding functions
+.Fn d2i_ASRange ,
+.Fn d2i_ASIdOrRange ,
+and
+.Fn d2i_ASIdentifierChoice
+return an
+.Vt ASRange ,
+an
+.Vt ASIdOrRange ,
+or an
+.Vt ASIdentifierChoice ,
+object, respectively,
+or
+.Dv NULL
+if an error occurs.
+.Pp
+The encoding functions
+.Fn i2d_ASRange ,
+.Fn i2d_ASIdOrRange ,
+and
+.Fn i2d_ASIdentifierChoice
+return the number of bytes successfully encoded
+or a value <= 0 if an error occurs.
+.Sh SEE ALSO
+.Xr ASIdentifiers_new 3 ,
+.Xr ASN1_INTEGER_set_uint64 3 ,
+.Xr crypto 3 ,
+.Xr IPAddressRange_new 3 ,
+.Xr s2i_ASN1_INTEGER 3 ,
+.Xr STACK_OF 3 ,
+.Xr X509_new 3 ,
+.Xr X509v3_asid_add_id_or_range 3
+.Sh STANDARDS
+RFC 3779: X.509 Extensions for IP Addresses and AS Identifiers:
+.Bl -dash -compact
+.It
+section 3.2.3: Syntax
+.It
+section 3.2.3.1: Type ASIdentifiers
+.It
+section 3.2.3.2: Elements asnum, rdi, and Type ASIdentifierChoice
+.It
+section 3.2.3.3: Element inherit
+.It
+section 3.2.3.4: Element asIdsOrRanges
+.It
+section 3.2.3.5: Type ASIdOrRange
+.It
+section 3.2.3.6: Element id
+.It
+section 3.2.3.7: Element range
+.It
+section 3.2.3.8: Type ASRange
+.It
+section 3.2.3.9: Elements min and max
+.El
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8e
+and have been available since
+.Ox 7.1 .
+.Sh BUGS
+An
+.Fn ASIdOrRanges_new
+function that installs the correct comparison function
+on the stack of
+.Vt ASIdOrRange
+should have been part of the API to make it usable.
+.Pp
+.Fn ASIdentifierChoice_new
+is of very limited use because
+.Fn ASIdOrRanges_new
+is missing.
+.Pp
+There is no way of ensuring that an
+.Vt ASIdOrRanges
+object is in canonical form unless it is part of an
+.Vt ASIdentifiers
+object.
+It is therefore difficult to guarantee that the output of
+.Fn i2d_ASIdentifierChoice
+is conformant.
+.Pp
+RFC 3779 3.2.3.4 has
+.Dq Fa asIdsOrRanges
+while its type in this implementation is
+.Vt ASIdOrRanges .

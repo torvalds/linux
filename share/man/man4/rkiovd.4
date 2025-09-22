@@ -1,0 +1,45 @@
+.\"	$OpenBSD: rkiovd.4,v 1.1 2023/04/01 08:48:04 kettenis Exp $
+.\"
+.\" Copyright (c) 2023 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 1 2023 $
+.Dt RKIOVD 4
+.Os
+.Sh NAME
+.Nm rkiovd
+.Nd Rockchip I/O voltage domains
+.Sh SYNOPSIS
+.Cd "rkiovd* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver controls the I/O voltage domains of the Rockchip RK3566/RK3568
+SoCs.
+It makes sure the voltage configuration of the domains stays
+synchronized with the regulators that supply the voltage to these
+domains.
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 7.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

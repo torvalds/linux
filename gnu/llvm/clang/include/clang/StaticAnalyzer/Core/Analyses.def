@@ -1,0 +1,94 @@
+//===-- Analyses.def - Metadata about Static Analyses -----------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file defines the set of static analyses used by AnalysisConsumer.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef ANALYSIS_CONSTRAINTS
+#define ANALYSIS_CONSTRAINTS(NAME, CMDFLAG, DESC, CREATFN)
+#endif
+
+ANALYSIS_CONSTRAINTS(RangeConstraints, "range",
+                     "Use constraint tracking of concrete value ranges",
+                     CreateRangeConstraintManager)
+
+ANALYSIS_CONSTRAINTS(Z3Constraints, "z3", "Use Z3 contraint solver",
+                     CreateZ3ConstraintManager)
+
+#ifndef ANALYSIS_DIAGNOSTICS
+#define ANALYSIS_DIAGNOSTICS(NAME, CMDFLAG, DESC, CREATEFN)
+#endif
+
+ANALYSIS_DIAGNOSTICS(HTML, "html", "Output analysis results using HTML",
+                     createHTMLDiagnosticConsumer)
+
+ANALYSIS_DIAGNOSTICS(
+    HTML_SINGLE_FILE, "html-single-file",
+    "Output analysis results using HTML (not allowing for multi-file bugs)",
+    createHTMLSingleFileDiagnosticConsumer)
+
+ANALYSIS_DIAGNOSTICS(PLIST, "plist", "Output analysis results using Plists",
+                     createPlistDiagnosticConsumer)
+
+ANALYSIS_DIAGNOSTICS(
+    PLIST_MULTI_FILE, "plist-multi-file",
+    "Output analysis results using Plists (allowing for multi-file bugs)",
+    createPlistMultiFileDiagnosticConsumer)
+
+ANALYSIS_DIAGNOSTICS(PLIST_HTML, "plist-html",
+                     "Output analysis results using HTML wrapped with Plists",
+                     createPlistHTMLDiagnosticConsumer)
+
+ANALYSIS_DIAGNOSTICS(SARIF, "sarif", "Output analysis results using SARIF",
+                     createSarifDiagnosticConsumer)
+
+ANALYSIS_DIAGNOSTICS(SARIF_HTML, "sarif-html",
+                     "Output analysis results using both SARIF and HTML "
+                     "output files",
+                     createSarifHTMLDiagnosticConsumer)
+
+ANALYSIS_DIAGNOSTICS(TEXT, "text", "Text output of analysis results to stderr",
+                     createTextPathDiagnosticConsumer)
+
+ANALYSIS_DIAGNOSTICS(TEXT_MINIMAL, "text-minimal",
+                     "Emits minimal diagnostics to stderr, stating only the "
+                     "warning message and the associated notes. Usually "
+                     "used in addition to other analysis types",
+                     createTextMinimalPathDiagnosticConsumer)
+
+#ifndef ANALYSIS_PURGE
+#define ANALYSIS_PURGE(NAME, CMDFLAG, DESC)
+#endif
+
+ANALYSIS_PURGE(
+    PurgeStmt, "statement",
+    "Purge symbols, bindings, and constraints before every statement")
+
+ANALYSIS_PURGE(
+    PurgeBlock, "block",
+    "Purge symbols, bindings, and constraints before every basic block")
+
+ANALYSIS_PURGE(PurgeNone, "none",
+               "Do not purge symbols, bindings, or constraints")
+
+#ifndef ANALYSIS_INLINING_MODE
+#define ANALYSIS_INLINING_MODE(NAME, CMDFLAG, DESC)
+#endif
+
+ANALYSIS_INLINING_MODE(All, "all", "Analyze all functions as top level")
+
+ANALYSIS_INLINING_MODE(
+    NoRedundancy, "noredundancy",
+    "Do not analyze a function which has been previously inlined")
+
+#undef ANALYSIS_CONSTRAINTS
+#undef ANALYSIS_DIAGNOSTICS
+#undef ANALYSIS_PURGE
+#undef ANALYSIS_INLINING_MODE
+#undef ANALYSIS_IPA

@@ -1,0 +1,94 @@
+name = "llvm"
+version = "@PACKAGE_VERSION@"
+description = "LLVM OCaml bindings"
+archive(byte) = "llvm.cma"
+archive(native) = "llvm.cmxa"
+directory = "llvm"
+
+package "analysis" (
+    requires = "llvm"
+    version = "@PACKAGE_VERSION@"
+    description = "Intermediate representation analysis for LLVM"
+    archive(byte) = "llvm_analysis.cma"
+    archive(native) = "llvm_analysis.cmxa"
+)
+
+package "bitreader" (
+    requires = "llvm"
+    version  = "@PACKAGE_VERSION@"
+    description = "Bitcode reader for LLVM"
+    archive(byte) = "llvm_bitreader.cma"
+    archive(native) = "llvm_bitreader.cmxa"
+)
+
+package "bitwriter" (
+    requires = "llvm,unix"
+    version = "@PACKAGE_VERSION@"
+    description = "Bitcode writer for LLVM"
+    archive(byte) = "llvm_bitwriter.cma"
+    archive(native) = "llvm_bitwriter.cmxa"
+)
+
+package "executionengine" (
+    requires = "llvm,llvm.target,ctypes"
+    version = "@PACKAGE_VERSION@"
+    description = "JIT and Interpreter for LLVM"
+    archive(byte) = "llvm_executionengine.cma"
+    archive(native) = "llvm_executionengine.cmxa"
+)
+
+package "debuginfo" (
+    requires = "llvm"
+    version = "@PACKAGE_VERSION@"
+    description = "DebugInfo support for LLVM"
+    archive(byte) = "llvm_debuginfo.cma"
+    archive(native) = "llvm_debuginfo.cmxa"
+)
+
+package "irreader" (
+    requires = "llvm"
+    version  = "@PACKAGE_VERSION@"
+    description = "IR assembly reader for LLVM"
+    archive(byte) = "llvm_irreader.cma"
+    archive(native) = "llvm_irreader.cmxa"
+)
+
+package "transform_utils" (
+    requires = "llvm"
+    version = "@PACKAGE_VERSION@"
+    description = "Transform utilities for LLVM"
+    archive(byte) = "llvm_transform_utils.cma"
+    archive(native) = "llvm_transform_utils.cmxa"
+)
+
+package "passbuilder" (
+    requires = "llvm,llvm.target"
+    version = "@PACKAGE_VERSION@"
+    description = "Pass Manager Builder for LLVM"
+    archive(byte) = "llvm_passbuilder.cma"
+    archive(native) = "llvm_passbuilder.cmxa"
+)
+
+package "target" (
+    requires = "llvm"
+    version  = "@PACKAGE_VERSION@"
+    description = "Target Information for LLVM"
+    archive(byte) = "llvm_target.cma"
+    archive(native) = "llvm_target.cmxa"
+)
+
+package "linker" (
+    requires = "llvm"
+    version  = "@PACKAGE_VERSION@"
+    description = "Intermediate Representation Linker for LLVM"
+    archive(byte) = "llvm_linker.cma"
+    archive(native) = "llvm_linker.cmxa"
+)
+
+package "all_backends" (
+    requires = "llvm"
+    version  = "@PACKAGE_VERSION@"
+    description = "All backends for LLVM"
+    archive(byte) = "llvm_all_backends.cma"
+    archive(native) = "llvm_all_backends.cmxa"
+)

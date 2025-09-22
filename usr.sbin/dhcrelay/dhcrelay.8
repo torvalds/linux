@@ -1,0 +1,173 @@
+.\"	$OpenBSD: dhcrelay.8,v 1.19 2024/06/27 16:39:31 florian Exp $
+.\"
+.\" Copyright (c) 1997 The Internet Software Consortium.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.Dd $Mdocdate: June 27 2024 $
+.Dt DHCRELAY 8
+.Os
+.Sh NAME
+.Nm dhcrelay
+.Nd Dynamic Host Configuration Protocol (DHCP) relay agent
+.Sh SYNOPSIS
+.Nm
+.Op Fl dor
+.Op Fl C Ar circuit-id
+.Op Fl R Ar remote-id
+.Fl i Ar interface
+.Ar destination ...
+.Sh DESCRIPTION
+The
+.Nm
+utility provides a means for relaying DHCP and BOOTP requests from a subnet
+to which no DHCP server is directly connected to one or more DHCP servers on
+other subnets.
+.Pp
+.Nm
+listens for DHCP requests on a given interface.
+When a query is received,
+.Nm
+forwards it to the list of DHCP destinations specified on the command line.
+When a reply is received, it is broadcast or unicast on the network from
+whence the original request came.
+.Pp
+The server might be a name, address or interface.
+.Nm
+will operate in layer 2 mode when the specified servers are interfaces,
+otherwise it will operate in layer 3 mode.
+.Pp
+The name of at least one DHCP server to which DHCP and BOOTP requests
+should be relayed,
+as well as the name of the network interface that
+.Nm
+should attempt to configure,
+must be specified on the command line.
+.Pp
+.Nm
+supports relaying of DHCP traffic to configure IPsec tunnel mode
+clients when listening on the
+.Xr enc 4
+interface using layer 3 mode only.
+The DHCP server has to support RFC 3046 to echo back the relay agent
+information to allow stateless DHCP reply to IPsec tunnel mapping.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl C Ar circuit-id
+The
+.Ar circuit-id
+relay agent information sub-option value that
+.Nm
+should append on relayed packets.
+If this option is not specified, it will use the interface number by default.
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl i Ar interface
+The name of the network interface that
+.Nm
+should attempt to configure.
+For layer 3 mode at least one IPv4 address has to be configured on this
+interface.
+.It Fl o
+Add the relay agent information option.
+By default, this is only enabled for the
+.Xr enc 4
+interface.
+.It Fl R Ar remote-id
+The
+.Ar remote-id
+relay agent information sub-option value that
+.Nm
+should append on relayed packets.
+If this option is not specified, it will use the destination address by default.
+.It Fl r
+Replace incoming Relay Agent Information with the one configured.
+.El
+.Sh SEE ALSO
+.Xr dhcpd 8 ,
+.Xr dhcpleased 8
+.Sh STANDARDS
+.Rs
+.%A R. Droms
+.%D March 1997
+.%R RFC 2131
+.%T Dynamic Host Configuration Protocol
+.Re
+.Pp
+.Rs
+.%A S. Alexander
+.%A R. Droms
+.%D March 1997
+.%R RFC 2132
+.%T DHCP Options and BOOTP Vendor Extensions
+.Re
+.Pp
+.Rs
+.%A M. Patrick
+.%D January 2001
+.%R RFC 3046
+.%T DHCP Relay Agent Information Option
+.Re
+.Pp
+.Rs
+.%A B. Patel
+.%A B. Aboba
+.%A S. Kelly
+.%A V. Gupta
+.%D January 2003
+.%R RFC 3456
+.%T Dynamic Host Configuration Protocol (DHCPv4) Configuration of IPsec Tunnel Mode
+.Re
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was written by
+.An Ted Lemon Aq Mt mellon@fugue.com .
+.Pp
+The current implementation was reworked by
+.An Henning Brauer Aq Mt henning@openbsd.org .
+.Sh BUGS
+Relayed DHCP traffic could actually safely be protected by IPsec but,
+like
+.Xr dhcpd 8
+and
+.Xr dhcpleased 8 ,
+.Nm
+will bypass IPsec for all its traffic.

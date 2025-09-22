@@ -1,0 +1,6 @@
+pass in inet from 10.0.0.0/8 to any flags S/SA
+pass in inet from 10.0.0.0/8 to any flags S/SA
+pass in inet from 192.168.37.0/25 to any flags S/SA
+pass in inet from 192.168.37.0/24 to any flags S/SA
+pass in inet from 192.168.0.0/16 to any flags S/SA
+pass in inet from 192.0.0.0/8 to any flags S/SA

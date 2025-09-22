@@ -1,0 +1,60 @@
+# This file defines a template for using .export files.
+#
+# Parameters:
+#   exports_file (required)
+#       Path of the .exports file to use.
+#
+# Example use:
+#   symbol_exports("my_exports") {
+#     exports_file = "//foo/bar/my.exports"
+#   }
+#   ...
+#   shared_library("my_target") {
+#     deps = [ ":my_exports" ]  # Adds correct ldflags.
+#     ...
+#   }
+
+# Corresponds to add_llvm_symbol_exports() in the CMake build.
+template("symbol_exports") {
+  # Create a platform-appropriate name for the temporary file.
+  linker_file = get_path_info(invoker.exports_file, "name")
+  if (current_os == "mac") {
+    linker_file = linker_file + "_symbols.txt"
+  } else if (current_os == "win") {
+    linker_file = linker_file + ".def"
+  } else {
+    linker_file = linker_file + ".script"
+  }
+  linker_file = "$target_gen_dir/$linker_file"
+  rebased_linker_file = rebase_path(linker_file, root_build_dir)
+
+  config_name = "${target_name}_config"
+  config(config_name) {
+    # FIXME: With this setup, targets are not relinked automatically
+    # when the input exports file is touched but nothing else changes.
+    # https://groups.google.com/a/chromium.org/g/gn-dev/c/sN09GYS1ufE
+    visibility = [ ":$target_name" ]
+    if (current_os == "mac") {
+      ldflags = [ "-Wl,-exported_symbols_list,$rebased_linker_file" ]
+    } else if (current_os == "win") {
+      ldflags = [ "/DEF:$rebased_linker_file" ]
+    } else {
+      ldflags = [ "-Wl,--version-script,$rebased_linker_file" ]
+    }
+  }
+
+  action(target_name) {
+    forward_variables_from(invoker, [ "deps" ])
+    script = "//llvm/utils/gn/build/symbol_exports.py"
+    inputs = [ invoker.exports_file ]
+    outputs = [ linker_file ]
+    args = [
+      "--format=" + current_os,
+      rebase_path(inputs[0], root_build_dir),
+      rebased_linker_file,
+    ]
+
+    # Let targets depending on this receive the right ldflags.
+    public_configs = [ ":$config_name" ]
+  }
+}

@@ -1,0 +1,970 @@
+$OpenBSD: eisadevs,v 1.20 2004/05/05 05:33:56 mickey Exp $
+
+/*
+ * Copyright (c) 1995, 1996 Christopher G. Demetriou
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Christopher G. Demetriou
+ *	for the NetBSD Project.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * List of known EISA vendors
+ */
+
+vendor ABP		Advansys
+vendor ACC		Accton
+vendor ACE		ACME
+vendor ACR		Acer
+vendor ADI		Lightning Networks
+vendor ADP		Adaptec
+vendor AIR		AIR
+vendor AMI		AMI
+vendor ASU		Asus
+vendor ATI		ATI
+vendor BAN		Banyan Vines
+vendor BUS		BusLogic
+vendor CCI		Cache Computers, Inc.
+vendor CHA		Chase
+vendor CMD		CMD Technology, Inc.
+vendor COG		Cogent
+vendor CPQ		Compaq
+vendor DBI		Digi
+vendor DEC		Digital Equipment
+vendor DEL		Dell
+vendor DPT		DPT
+vendor DTI		DeskStation Technology, Inc.
+vendor DTK		DTK
+vendor ELS		ELSA
+vendor ETI		ETI
+vendor FSI		FORE Systems
+vendor GDT		GDT
+vendor HWP		Hewlett-Packard
+vendor IKN		IKON
+vendor IMS		Integrated Micro Solution Inc.
+vendor INP		Interphase
+vendor INT		Intel
+vendor ISY		(SYSTEM)
+vendor LEF		LeafNET
+vendor MCY		Microdyne
+vendor MET		Metheus
+vendor MIC		Micronics
+vendor MLX		Mylex
+vendor MDG		Madge Networks
+vendor MTX		Matrox
+vendor NEC		NEC
+vendor NIC		National Instruments Corp.
+vendor NON		c't Universal
+vendor NSS		Newport Systems Solutions
+vendor NVL		Novell
+vendor OLC		Olicom
+vendor OPT		OPTi
+vendor PCI		Pioneer
+vendor PRO		Proteon
+vendor PTI		Poseidon
+vendor SMC		Standard Microsystems Corp.
+vendor SNI		Siemens Nixdorf
+vendor STL		Stallion Technologies
+vendor TCC		Thomas-Conrad
+vendor TCM		3Com
+vendor TCO		Thomas-Conrad
+vendor TEC		Tecmar
+vendor TRU		Truevision
+vendor TXN		Texas Instruments
+vendor TYN		Tyan
+vendor UBI		Ungermann-Bass
+vendor USC		UltraStor
+vendor USR		US Robotics
+vendor VMI		Vermont
+vendor WDC		Western Digital
+vendor XTI		XTI
+
+/*
+ * List of known products, grouped by vendor.
+ */
+
+/* Advansys products */
+product ABP 0510	ABP-510 SCSI
+product ABP 0540	ABP-540/542 SCSI
+product ABP 7401	ABP-740/742 SCSI
+product ABP 7501	ABP-750/752 SCSI
+
+/* Accton products */
+product ACC 1200	EtherCombo-32 Ethernet
+product ACC 120A	EtherCombo-32 Ethernet
+product ACC 1650	EN165x Ethernet
+product ACC 1660	EN166x Ethernet
+
+/* ACME products */
+product ACE 1010	Super Fast System Board
+product ACE 2010	PC Network
+product ACE 3010	Arcnet Plan
+product ACE 3030	Sample VS Board 1
+product ACE 4010	Tape Controller
+product ACE 5010	VDU Video Board
+product ACE 6010	Disk Controller
+product ACE 7010	Multi-Function Board
+
+/* Acer products */
+product ACR 1201	1200 486/25 System Board
+product ACR 1211	AcerFrame 3000SP33 486/33 System Board
+product ACR 1341	M1 486SX/20 CPU Board
+product ACR 1351	M1 486SX/20 CPU Board
+product ACR 1361	M1 487/20 CPU Board
+product ACR 1371	M1 487/20 CPU Board
+product ACR 1381	M1 486/20 CPU Board
+product ACR 1391	M1 486/20 CPU Board
+product ACR 1581	M1 486/33 CPU Board
+product ACR 1591	M1 486/33 CPU Board
+product ACR 15A1	M1 486/33 CPU Board
+product ACR 15B1	M1 486/33 CPU Board
+product ACR 1701	AcerFrame 1000
+product ACR 1711	AcerFrame 1000 486/33 SYSTEM-2
+product ACR 1801	P43WE System Board
+product ACR 3211	AcerFrame 3000MP 486 SYSTEM-1
+product ACR 3221	AcerFrame 486 Series SYSTEM-2
+product ACR 3231	AcerFrame 486 Series SYSTEM-3
+product ACR 3241	AcerFrame 486 Series SYSTEM-4
+product ACR 3261	AcerFrame 3000MP 486 SYSTEM-1
+product ACR 3271	AcerFrame 486 Series SYSTEM-2
+product ACR 3281	AcerFrame 486 Series SYSTEM-3
+product ACR 3291	AcerFrame 486 Series SYSTEM-4
+product ACR 4509	Altos M1 System Board
+
+product ADI 0001	32-Bit Ethernet
+
+/* Adaptec products */
+product ADP 0000	AHA-1740 SCSI
+product ADP 0001	AHA-1740A SCSI
+product ADP 0002	AHA-1742A SCSI
+product ADP 0100	AHA-1540/1542 ISA SCSI
+product ADP 0200	AHA-1520/1522 ISA SCSI
+product ADP 0400	AHA-1744 SCSI
+product ADP 7770	AIC-7770 SCSI (on motherboard)
+product ADP 7771	AHA-274x SCSI
+product ADP 7756	AHA-284x SCSI (BIOS enabled)
+product ADP 7757	AHA-284x SCSI (BIOS disabled)
+
+product AEI 0401	486EI System Board
+
+product AEO 0301	486EO System Board
+
+product AIM 0002	AUVA OPTi/EISA 32-Bit 486 All-in-One System Board
+
+product AIR 0101	AIR486SE/25/33 Baby AT-foot print motherboard
+product AIR 0103	AIR486SE/25/33/50
+product AIR 0201	AIR486LE/25/33/50
+product AIR 0301	AIR 486EO System Board
+product AIR 0401	486EI System Board
+product AIR 0501	AIR 586EP PCI/EISA System Board
+product AIR 0601	AIR 54CEP PCI/EISA System Board
+product AIR 0701	AIR 54CDP PCI/EISA System Board
+product AIR 0702	AIR 54CDP PCI/EISA Dual-Processors System Board
+product AIR 0901	AIR 54TDP PCI/EISA Dual-Processors System Board
+product AIR 1001	AIR P6NDP PCI/EISA Dual-Pentium Processor System Board
+product AIR 2001	AIR SCSI-2E
+product AIR 2101	AIR SCSI-2V
+product AIR 3001	ENET-2E BUS MASTER ETHERNET
+product AIR 3101	ENET-2V LOCAL BUS MASTER ETHERNET
+
+product ALR 0001	Power/Business VEISA System Board
+product ALR 0041	PowerPro System Board
+product ALR 0181	PowerPro System Board
+product ALR 0241	Evolution V Pentium Tower System Board
+product ALR 0341	EISA/PCI base System Board
+product ALR 3000	80486 Processor Module
+product ALR 3010	Pentium Processor Board
+product ALR 3023	ALR 16-bit VGA without Parallel port
+product ALR 8580	Advanced Disk Array Caching Controller
+product ALR A0C1	System Board
+product ALR A301	Revolution Q-SMP System Board
+product ALR A311	Revolution Q-2SMP System Board
+product ALR B0A0	Primary System Processor Board - 80486DX2/66
+product ALR B0B0	Secondary System Processor Board - 80486DX2/66
+
+/* AMI products */
+product AMI 15C1	SCSI Host Adapter
+product AMI 15D1	SCSI Host Adapter - Rev 2
+product AMI 15E1	Single Ended SCSI
+product AMI 16B1	ENTERPRISE System Board
+product AMI 2509	ENTERPRISE System Board
+product AMI 25B1	ENTERPRISE System Board
+product AMI 28A1	EZ-FLEX System Board
+product AMI 44C1	SCSI Host Adapter - Series 44
+product AMI 44D2	Fast Single Ended SCSI
+product AMI 4801	Series 48 SCSI
+product AMI 68B1	Enterprise III 486 System Board
+
+product APS 0101	PIP INTERFACE
+product APS 0102	PIP INTERFACE
+product APS 0103	PIP INTERFACE
+
+product ARC 0010	Alta EtherTPI/Combo
+product ARC 0020	Alta TokenCombo-16 S/U
+
+product ASU 0100	SC100 SCSI Cache Host Adapter (CFG file V2.0)
+product ASU 0500	L500 Ethernet
+product ASU 4001	486C Main Board
+product ASU 4101	486E Main Board
+product ASU 4201	486A Main Board
+product ASU 4301	486SI Main Board
+product ASU 4501	Mini 486H Main Board
+product ASU 4701	Mini 486AS Main Board
+product ASU 4901	VL/EISA-486SV1 Main Board
+product ASU 5101	PCI/E-P5MP4 or PCI/E-P54NP4 Main Board V2.3
+product ASU 5201	P/E-P55T2P4D  Main Board (CFG File V1.2)
+ 
+/* ATI products */
+product ATI 1500	AT-1500 Ethernet
+product ATI 1700	AT-1700 Ethernet
+product ATI 4400	mach32 Graphics
+product ATI 4402	mach32 Graphics
+product ATI 4410	mach32 Graphics
+product ATI 4420	mach32 Graphics
+product ATI 4430	mach32 VLB Graphics
+
+product ATT 2402	AT&T SCSI (StarServer E)
+product ATT 2404	DPT SCSI (PM2012B/9X)
+
+product AVI 2E01	AVIEW2E SVGA
+
+product AVM 0001	ISDN-Controller A1
+
+/* Banyan Vines products */
+product BAN 0440	ICA
+product BAN 0670	ICAplus
+product BAN 0680	ICA/RM
+
+/* BusLogic products */
+product BUS 4201	Bt74xB SCSI
+product BUS 4202	Bt74xC SCSI
+product BUS 6001	Bt760 Ethernet
+product BUS 6301	Bt763E 82596-based Ethernet
+
+/* Cache Computers products */
+product CCI 0000	Memory Refresh Controller
+product CCI 1001	486/25  System Board
+product CCI 2001	486/33  System Board
+product CCI 3001	Modular System Board
+product CCI 3009	Modular System Board
+product CCI 4000	486/33 CPU Board
+product CCI 4001	486/33 CPU Board
+product CCI 5001	486/50 CPU Board
+product CCI 6001	LAN Adapter
+product CCI 7001	System Board
+product CCI 8001	System Board
+
+/* Chase products */
+product CHA A041	AT4 Intelligent Serial Controller
+product CHA A081	AT8 Intelligent Serial Controller
+product CHA A091	AT8+ Intelligent Serial Controller
+product CHA A161	AT16 Intelligent Serial Controller
+product CHA A171	AT16+ Intelligent Serial Controller
+
+/* CMD Technology products */
+product CMD 0003	SCSI Host Adapter
+
+product CNT 2000	900E/950E 32-bit Ethernet
+
+/* Cogent products */
+product COG 5000	eMASTER+ AT Combo 16-Bit Workstation Ethernet
+product COG 7002	eMASTER+ ATS Combo Bus-Mastering Ethernet
+product COG 9002	eMASTER+ XL 32-Bit Burst-mode Ethernet
+
+/* Compaq products */
+product CPQ 0101	SYSTEMPRO System Board
+product CPQ 0109	SYSTEMPRO System Board (ASSY # 001981)
+product CPQ 0401	DESKPRO 486/33L or 386/33L System Board
+product CPQ 0501	DESKPRO/M System Board
+product CPQ 0509	DESKPRO/M System Board with Audio
+product CPQ 0511	SYSTEMPRO/LT System Board
+product CPQ 0601	ProSignia Server
+product CPQ 0609	ProSignia Server
+product CPQ 0611	ProSignia Server
+product CPQ 0621	ProSignia Server (ASSY # 3154)
+product CPQ 0629	ProSignia Server (ASSY # 3154)
+product CPQ 0631	ProLiant 1000 Server
+product CPQ 0639	ProLiant 1000 Server
+product CPQ 1001	Portable 486
+product CPQ 1009	Portable 486/66
+product CPQ 1201	DESKPRO 486/25
+product CPQ 1301	DESKPRO 486/50L
+product CPQ 1401	Portable 486c
+product CPQ 1409	Portable 486c/66
+product CPQ 1501	SYSTEMPRO/XL Server
+product CPQ 1509	ProLiant 4000 Server
+product CPQ 1519	ProLiant 2000 Server
+product CPQ 3001	Advanced VGA
+product CPQ 3011	QVision 1024/E Video Controller
+product CPQ 3021	QVision 1024/I Video Controller
+product CPQ 3111	QVision 1024/E Graphics Controller for Alpha AXP
+product CPQ 3112	QVision 1280/E Graphics Controller for Alpha AXP
+product CPQ 3121	QVision 1024/I Graphics Controller
+product CPQ 3122	QVision 1280/I Graphics Controller
+product CPQ 4001	32-Bit Intelligent Drive Array Controller
+product CPQ 4002	Intelligent Drive Array Controller-2
+product CPQ 4010	32-Bit Intelligent Drive Array Expansion Controller
+product CPQ 4020	SMART Array Controller
+product CPQ 4300	Advanced ESDI Fixed Disk Controller
+product CPQ 4401	Integrated SCSI-2 Options Port
+product CPQ 4410	Integrated 32-Bit Fast-SCSI-2 Controller
+product CPQ 4411	32-Bit Fast-SCSI-2 Controller
+product CPQ 4420	6260 SCSI-2 Controller
+product CPQ 5000	386/33 System Processor Board used as Secondary
+product CPQ 5281	486/50 System Processor Board used as Secondary
+product CPQ 5282	486/50 System Processor Board used as Secondary
+product CPQ 5287	5/66 System Processor Board used as Secondary
+product CPQ 528F	486DX2/66 System Processor Board used as Secondary
+product CPQ 5900	486/33 System Processor Board used as Secondary
+product CPQ 5A00	486/33 System Processor Board (ASSY # 002013) used as Secondary
+product CPQ 5B00	486DX2/66 System Processor Board used as Secondary
+product CPQ 5C00	486/33 System Processor Board used as Secondary
+product CPQ 6000	32-Bit DualSpeed Token Ring Controller
+product CPQ 6001	32-Bit DualSpeed Token Ring Controller
+product CPQ 6100	32-Bit NetFlex Controller
+product CPQ 6101	NetFlex-2 ENET-TR
+product CPQ 6200	DualPort Ethernet Controller
+product CPQ 7000	32-Bit Server Manager/R Board
+product CPQ 7001	32-Bit Server Manager/R Board
+product CPQ 9004	386/33 Processor Board
+product CPQ 9005	386/25 Processor Board
+product CPQ 9013	486DX2/66 System Processor Board used as Primary
+product CPQ 9014	486/33 System Processor Board used as Primary
+product CPQ 9015	486/33 Processor Board
+product CPQ 9016	486DX2/66 Processor Board
+product CPQ 9017	486DX2/50 Processor Board
+product CPQ 9018	486/33 Processor Board (8 MB)
+product CPQ 9034	486SX/25 Processor Board
+product CPQ 9035	486SX/16 Processor Board
+product CPQ 9036	486SX/25 Processor Board (8 MB)
+product CPQ 9037	486SX/16 Processor Board (8 MB)
+product CPQ 9038	486SX/33 Processor Board (8 MB)
+product CPQ 903C	486SX/33 Processor Board (4 MB)
+product CPQ 9040	5/66 Processor Board
+product CPQ 9041	5/66 Processor Board
+product CPQ 9042	5/66 Processor Board
+product CPQ 9043	5/66 Processor Board
+product CPQ 9044	5/60 Processor Board
+product CPQ 9045	5/60 Processor Board
+product CPQ 9046	5/60 Processor Board
+product CPQ 9047	5/60 Processor Board
+product CPQ 9281	486/50 System Processor Board used as Primary
+product CPQ 9282	486/50 System Processor Board used as Primary
+product CPQ 9287	5/66 System Processor Board used as Primary
+product CPQ 928F	486DX2/66 System Processor Board used as Primary
+product CPQ 9381	486/50 System Processor Board
+product CPQ 9382	486/50 System Processor Board
+product CPQ 9387	5/66 System Processor Board
+product CPQ 9481	486/50 System Processor Board
+product CPQ 9482	486/50 System Processor Board
+product CPQ 9487	5/66 System Processor Board
+product CPQ 9901	486SX/16 Processor Board
+product CPQ 9902	486SX/16 Processor Board
+product CPQ 9903	486SX/25 Processor Board
+product CPQ 9904	486SX/25 Processor Board
+product CPQ 9905	486SX/25 Processor Board
+product CPQ 9906	486/33 Processor Board
+product CPQ 9907	486DX2/66 Processor Board
+product CPQ 9908	486SX/16 Processor Board
+product CPQ 9909	486SX/16 Processor Board
+product CPQ 990A	486SX/25 Processor Board
+product CPQ 990B	486SX/25 Processor Board
+product CPQ 990C	486SX/25 Processor Board
+product CPQ 990D	486/33 Processor Board
+product CPQ 990E	486SX/33 Processor Board (8 MB)
+product CPQ 990F	486SX/33 Processor Board (8 MB)
+product CPQ 9990	386/33 System Processor Board used as Primary
+product CPQ 9991	386/33 Desktop Processor Board
+product CPQ 9999	486/33 System Processor Board used as Primary
+product CPQ 999A	486/33 Desktop Processor Board
+product CPQ A000	Enhanced Option Slot Serial Board
+product CPQ A010	Enhanced Option Slot Modem Board
+product CPQ A020	Integrated CD Rom Adapter
+product CPQ A030	Integrated CD Rom Adapter
+product CPQ F000	Fixed Disk Drive Feature
+product CPQ F100	Ethernet 16TP Controller
+product CPQ FA0D	SYSTEMPRO 4-Socket System Memory Board
+product CPQ FA0E	SYSTEMPRO 6-Socket System Memory Board
+product CPQ FA0F	DESKPRO 486/25 System Memory Board
+product CPQ FA1A	DESKPRO 3-Socket System Memory Board
+product CPQ FA1B	DESKPRO 486/50 System Memory Board
+product CPQ FA1C	System Memory Expansion Board
+product CPQ FA1D	SYSTEMPRO/XL Memory Expansion Board
+product CPQ FB03	Async/Parallel Printer Intf Assy 000990
+product CPQ FB07	DESKPRO 2400 Baud Modem
+product CPQ FC0B	Advanced Graphics 1024 Board
+product CPQ FD08	135Mb, 150/250Mb Tape Adapter
+product CPQ FD13	15MHz ESDI Fixed Disk Controller 001283
+product CPQ FD17	SCSI Tape Adapter
+
+product CPX 0301	Universal 10/100VG Ethernet
+
+product CRS 3203	Crescendo 320 FDDI/CDDI
+product CRS 3204	Cisco CDDI/FDDI
+
+product CSI 0690	F70X9 FDDI DNI
+
+product CUI 0000	Examples -- Virtual Board
+
+/* Digi products */
+product DBI 0101	C/X Host Adapter
+product DBI 0102	C/X Host Adapter
+product DBI 0201	EISA/Xem Host Adapter
+product DBI 0301	EPC/X Host Adapter
+product DBI 0501	Ports/Xem Host Adapter
+product DBI 0601	EPC/X Host Adapter
+product DBI 0701	C/X Host Adapter
+product DBI 0801	PC/Xr
+product DBI 0901	PC/Xt
+product DBI 0C01	DataFire
+product DBI 0D01	DataFire/4
+product DBI 0E01	PC IMAC
+product DBI 0F01	PC IMAC/4
+product DBI 1001	PC/Xe
+product DBI 1101	ES/4 Host Adapter
+product DBI 1201	Acceleport Xr 920
+
+/* Digital Equipment products */
+product DEC 1011	EVC-1 Video
+product DEC 1021	ESC-1 SCSI
+product DEC 1031	DECpc MTE Series System Board
+product DEC 2030	DE203 Ethernet
+product DEC 2040	DE204 Ethernet
+product DEC 2050	DE205 Ethernet
+product DEC 2400	DECpc AXP/150 System Board
+product DEC 2500	DEC EISA NVRAM for Alpha AXP
+product DEC 2A01	AlphaServer 2100 Family System Board
+product DEC 2E00	KFESA DSSI Host Adapter
+product DEC 2F00	DNSES WANcontroller
+product DEC 3001	DEFEA FDDI Controller
+product DEC 3002	DEFEA FDDI Controller
+product DEC 3003	DEFEA FDDI Controller
+product DEC 3004	DEFEA FDDI Controller
+product DEC 4220	DE422-SA Ethernet
+product DEC 4250	DE425-AA Ethernet
+product DEC 5000	AlphaServer 1000 System Board
+product DEC 5100	AlphaStation 600 System Board
+product DEC 5301	800 AlphaServer System Board
+product DEC 6000	AlphaServer 8200 System Board
+product DEC 6400	AlphaServer 4100 System Board
+product DEC 8101	VGA 1024 Graphics
+product DEC 8102	8514/A-Compatible Graphics
+product DEC 8103	VGA 1024 NI Graphics
+product DEC 8300	DEPCA LC Ethernet
+product DEC 8301	DEPCA TURBO Ethernet
+
+/* Dell products */
+product DEL 0000	Generic ISA Board
+product DEL 0001	System(R) 425E(TM) System Board
+product DEL 0002	System(R) 433E(TM) System Board
+product DEL 0003	System(R) 425TE(TM) System Board
+product DEL 0004	System(R) 433TE(TM) System Board
+product DEL 0005	Powerline(TM) Workstation 433DE(TM) System Board
+product DEL 0006	Powerline(TM) Workstation 420DE(TM) System Board
+product DEL 0007	Powerline(TM) Workstation 450DE(TM) System Board
+product DEL 0008	Powerline(TM) Server 433SE(TM) System Board
+product DEL 0009	Powerline(TM) Server 420SE(TM) System Board
+product DEL 000A	Powerline(TM) Server 450SE(TM) System Board
+product DEL 000B	PowerLine(TM) Workstation 425DE(TM) System Board
+product DEL 000C	PowerLine(TM) Server 425SE(TM) System Board
+product DEL 0011	Powerline(TM) Server 450SE/2(TM) System Board
+product DEL 0019	Powerline(TM) Server 466SE(TM) System Board
+product DEL 0021	Powerline(TM) Workstation 450DE/2(TM) System Board
+product DEL 0029	Powerline(TM) Workstation 466DE(TM) System Board
+product DEL 002A	Powerline(TM) Workstation P60/DE(TM) System Board
+product DEL 002B	Powerline(TM) Workstation P66/DE(TM) System Board
+product DEL 002C	Powerline(TM) Workstation P60/SE(TM) System Board
+product DEL 002D	Powerline(TM) Workstation P66/SE(TM) System Board
+product DEL 0031	486/ME System Board
+product DEL 0036	406x/XE System Board
+product DEL 0038	456x/XE System Board
+product DEL 0054	System PowerEdge 2100
+product DEL 0058	System PowerEdge 4100
+product DEL 005A	System PowerEdge 2200
+product DEL 005C	System PowerEdge 4200
+product DEL 2100	Remote Server Assistant Card
+product DEL 4001	Drive Array
+product DEL 4002	SCSI Array Controller
+product DEL 6001	DGX Video Subsystem
+product DEL FC00	GPX-1024 Graphics Performance Accelerator
+product DEL FC01	VGA Professional 16-bit
+product DEL FC02	Paradise Hi-Res Graphics Adapter
+product DEL FC03	Paradise Hi-Res Graphics Card
+product DEL FD00	UltraStor 12F/12F-24 ESDI/Diskette Cntrl
+product DEL FD02	Archive XL Tape Host Adapter
+product DEL FD03	Wangtek Tape Host Adapter
+product DEL FD05	Adaptec AHA-1510 ISA SCSI Host Adapter
+
+product DIS 0000	NETSERVER LH PRO
+
+/* DPT products */
+product DPT 2402	PM2012A/9X SCSI
+product DPT 2403	PM2012A/90 SCSI
+product DPT A401	PM2012B/9X SCSI
+product DPT A402	PM2012B2/9X SCSI (Banyan Vines)
+product DPT A410	PM2X22A/9X SCSI
+product DPT A501	PM2012B1/9X SCSI
+product DPT A502	PM2012B2/9X SCSI
+product DPT A701	PM2011B1/9X SCSI
+product DPT BC01	PM3011/7X ESDI
+
+product DTC 1101	DTC2290 IDE
+product DTC 3101	DTC3290 SCSI
+
+/* DeskStation Technology, Inc. products */
+product DTI 0000	Evolution RISC PC
+product DTI 2000	ESP2000A/ESP2000 System Processor Board
+product DTI 2002	ESP2002 Integrated System Processor
+
+/* DTK products */
+product DTK 0001	PLM-3300I 80486 Board
+product DTK 0003	PLM-3331P EISACACHE486 33/25/50 MHZ
+
+product ECS 0580	DI-580A SCSI
+product ECS 0590	DI-590 SCSI
+
+/* ELSA products */
+product ELS 8041	WINNER 1000 Enhanced VGA
+
+/* ETI products */
+product ETI 1001	NE3300 Ethernet Rev. C & D
+
+product EVX 0002	PN-3000 System Board
+
+product FCT 0001	SYSTEM BOARD
+product FCT 0002	386 SYSTEM BOARD
+product FCT 0003	486 SYSTEM BOARD
+
+product FIC 0000	LEO 486VE Main Board
+
+product FIX 1516	15-16MB Memory Hole Patch - Netserver LF/LC 5/66
+
+/* FORE Systems products */
+product FSI 2001	ESA-200 ATM
+product FSI 2002	ESA-200A ATM
+product FSI 2003	ESA-200E ATM
+
+/* GDT products */
+product GDT 2001	GDT2000/GDT2020 Fast-SCSI Cache Controller - Rev. 1.0
+product GDT 3001	GDT3000/GDT3020 Dual Channel SCSI Controller - Rev. 1.0
+product GDT 3002	GDT30x0A Cache Controller
+product GDT 3003	GDT3000B/GDT3010A SCSI Cache Controller - Rev. 1.0
+
+product GIT 0000	G486PEL EISA & LOCAL Bus Mother Board.
+product GIT 0001	G486HVL EISA & VESA LOCAL Bus Mother Board.
+
+product HCL 0801	HP Limited PANTHER System Board
+
+product HIT 0001	MCC Mini-EISA486 Board
+
+product HKG 0011	Distributed Signal Conditioning Front-End
+
+product HMS 0000	HMSI ESIC EVALUATION BOARD
+
+/* HP products */
+product HWP 0000	Monochrome Plus Video Board (35732A)
+product HWP 0010	Multimode Video Adapter (45981A)
+product HWP 0020	Multimode Color Adapter Board (45984A)
+product HWP 0030	Enhanced Graphics Adapter Board (45983A)
+product HWP 0070	Intelligent Graphics Controller 20 (A1083A)
+product HWP 0C70	HP-IB Host Adapter
+product HWP 0C80	SCSI Host Adapter (Cirrus-II) -- 25525A
+product HWP 1400	Dual Serial Interface Board (24541B)
+product HWP 1410	Internal 2400 Baud Modem (24551A)
+product HWP 1420	Internal 1200 Baud Modem (24550A)
+product HWP 1440	Terminal Multiplexor Board (D2040A)
+product HWP 1450	HP-IB Interface board (82335A)
+product HWP 1460	ScanJet Plus Interface (88290A)
+product HWP 1461	ScanJet Plus Interface (88290A)
+product HWP 1510	SS8-E MUX
+product HWP 1801	StarLAN 10 PC Link II (27240A)
+product HWP 1810	ThinLAN Interface Board (27210B)
+product HWP 1811	ThinLAN PC Adapter Card (27250A)
+product HWP 1820	EtherTwist Adapter Card/8 (27245-60002)
+product HWP 1832	EtherTwist PC LAN Adapter/16 TP Plus (27247B)
+product HWP 1840	EtherTwist LAN Adapter/32
+product HWP 1850	LAN AdapterCard -- 25567A
+product HWP 1870	PSI
+product HWP 18A0	EtherTwist PC LAN Adapter/16 TL Plus (27252A)
+product HWP 18C0	EtherTwist PC LAN Adapter NC/16 TP (J2405A)
+product HWP 18E0	100Mbps ATM Card
+product HWP 1940	10/100VG Selectable LAN Adapter (J2577A)
+product HWP 1980	ATM Adapter -- J2802A
+product HWP 1990	100VG AnyLAN adapter card
+product HWP 19A0	Low-cost PSI
+product HWP 1C00	Serial/Parallel Interface Board (24540B)
+product HWP 2002	ScanJet II Interface (C1752A)
+product HWP 2051	Test Adapter Card
+product HWP 2080	ScanJet II Interface (C2502A)
+product HWP C000	Series 700 System Board
+product HWP C010	Series 700 System Board
+product HWP C051	Series 700 System Board
+product HWP C091	System Board
+product HWP C0D1	System Board
+product HWP C0E1	System Board
+
+/* IBM products */
+product IBM 0001	Auto 16/4 Token Ring
+product IBM 1000	16/4 Busmaster TR
+product IBM 1060	100/10 ISA Ethernet
+product IBM 1061	100/10 ISA Ethernet
+
+product ICL A080	EtherTeam 32 Ethernet
+
+product IDS 0100	EISC960 Caching SCSI
+
+product IIN 0B01	Intel TokenExpress(tm) ISA/8
+
+/* IKON products */
+product IKN 1110	hardcopy boards: 10092, 10097, or 10111
+
+/* Integrated Micro Solution Inc. products */
+product IMS 1001	486 System Board
+
+product ING 2040	HCL-Hewlett Packard Limited PANTHER System Board
+
+/* Interphase products */
+product INP 0010	Barracuda E/4810
+product INP 25D0	Seahawk 4811 FDDI Controller
+product INP 5000	4800 EISA-PCI Bridge
+
+/* Intel products */
+product INT 0000	Mercury/Neptune PCI-EISA Main Board
+product INT 0081	HP Limited PANTHER System Board
+product INT 0701	TokenExpress(tm) ISA 16/4
+product INT 0703	TokenExpress(tm) ISA/16s
+product INT 0902	TokenExpress(tm) 16/4
+product INT 0B01	TokenExpress(tm) ISA/8
+product INT 1000	EtherExpress 16 Family Ethernet
+product INT 1010	EtherExpress 32 Flash Ethernet
+product INT 1030	EtherExpress(TM) PRO/10 Ethernet
+product INT 1031	EtherExpress(TM) PRO/10+ Ethernet
+product INT 1060	EtherExpress(tm) PRO/100 Ethernet
+product INT 1201	TokenExpress(tm) EISA/32
+product INT 3061	LP486E System Board
+product INT 3079	X-Series Desktop System Board
+product INT 3089	X-Series Deskside System Board
+product INT 30A1	L486 Series System Board
+product INT 30A9	L486 Series System Board
+product INT 30D1	X-Series System Board
+product INT 30F1	X-Series Premium System Board
+product INT 3132	ECC Memory Module (BXECCMEM0)
+product INT 31A0	System Board
+
+product ISY 0010	VGA Board
+product ISY 0020	COM Ports
+product ISY 0030	Mother Board PS-2 style Mouse
+product ISY 0040	Hard Disk Controller
+product ISY 0050	Floppy Drive Controller
+product ISY 0060	LPT Ports
+product ISY 0070	IRQ9 Cascaded Interrupt
+
+product ITC 0001	EISA-486C Main Board
+
+product ITK 0011	ixEins Basic S0/Up0 ISDN Version 1.1
+product ITK 0012	ixEins Basic S0/Up0 ISDN Version 1.2
+
+product KCI 3201	ET32EM 32-bit BUS-MASTER Ethernet
+product KCI 3202	ET-32EM 32-bit Bus Master Ethernet
+
+/* LeafNET products */
+product LEF 8000	Ethernet
+
+/* Madge products */
+product MDG 0002	Smart 16/4 Ringnode
+product MDG 0010	Smart 16/4 AT Ringnode
+product MDG 0020	Smart 16/4 ISA Client Ringnode
+product MDG 2000	Blue+ 16/4 ISA Token Ring
+product MDG 2010	Blue+ 16/4 ISA PnP Token Ring
+
+product MCC 0000	EISA-486 System Board
+product MCC 0001	IISA-486 System Board
+
+product MCY 2501	NE2500/NE5500 Series Ethernet
+
+product MET 1104	UGA 1104 Graphics
+product MET 1128	UGA 1124/1128 Graphics
+
+product MIC 0001	486 66/50/33/25 System Board
+product MIC 0004	486 PCI-EISA System Board
+product MIC 0005	M5PE EISA-PCI Pentium System Board
+product MIC 0021	NET3200 Ethernet LAN Adapter
+product MIC 0054	M54Pe Dual Pentium PCI-EISA System Board
+product MIC 3001	EISA3 System Board
+product MIC 5402	M54E2 Dual Pentium PCI-EISA System Board
+
+/*
+MINIADP	Adaptec 32-bit SCSI Host Adapter (with floppy)
+*/
+
+product MIR 0928	miroCRYSTAL / miroMAGIC / miroRAINBOW (14-Sep-93)
+
+/* Mylex Products */
+product MLX 0010	LNE390A 32-bit Ethernet
+product MLX 0011	LNE390B 32-bit Ethernet
+product MLX 0020	DCE376 32-Bit SCSI
+product MLX 0021	DCE376 32-Bit SCSI
+product MLX 0022	DCE376 32-Bit SCSI
+product MLX 0030	LNI390A ISA 16-Bit Ethernet
+product MLX 0040	GXE020B/C 32-Bit Graphics
+product MLX 0050	GLE(911) Graphics
+product MLX 0070	DAC960 Disk Array
+product MLX 0071	DAC960 Disk Array (3-channel)
+product MLX 0072	DAC960 Disk Array (3-channel)
+product MLX 0073	DAC960 Disk Array (2-channel)
+product MLX 0074	DAC960 Disk Array (1-channel)
+product MLX 0075	DAC960-A Disk Array (3-channel)
+product MLX 0076	DAC960-A Disk Array (2-channel)
+product MLX 0077	DAC960-A Disk Array (1-channel)
+product MLX 0101	LME596 32-bit 4 Channel Ethernet
+product MLX FD01	MDE486 32-Bit 486 System Board
+product MLX FE01	MBE486 32-Bit 486 System Board
+product MLX FF01	MAE486 32-Bit 486 System Board
+product MLX FF02	MDE486/MNE486 32-Bit 486 System Board
+
+/* Matrox products */
+product MTX 2040	IM-1280/EISA
+
+/* NEC products */
+product NEC 8201	DPT SCSI Host Bus Adapter w/ Cache (PM2012B/90)
+
+/* National Instruments Corp. products */
+product NIC 0202	AT-MIO-16 Multi-function Board
+product NIC 0301	AT-DIO-32F Digital I/O Board
+product NIC 0400	PC-DIO-24 Digital I/O Board
+product NIC 0501	LAB-PC/LAB-PC+ Multi-function Board
+product NIC 0602	AT-MIO-16F-5 Multi-function Board
+product NIC 0700	PC-DIO-96 Digital I/O Board
+product NIC 0800	PC-LPM-16 Low Power Multi-function Board
+product NIC 0900	PC-TIO-10 Timing I/O Board
+product NIC 1000	AT-A2150 16-bit 4 Channel A/D Board
+product NIC 1100	AT-DSP2200 DSP Accelerator/Audio I/O Board
+product NIC 1200	AT-AO-6/10 ANALOG OUTPUT BOARD
+product NIC 1300	AT-MIO-16X Multi-function Board
+product NIC 1400	AT-MIO-64F-5 Multi-function Board
+product NIC 1500	AT-MIO-16D Multi-function Board
+product NIC C005	AT-GPIB Interface Board
+product NIC C105	GPIB-PCIIA Interface Board
+product NIC C205	GPIB-PCII Interface Board
+product NIC C304	AT-GPIB/TNT
+product NIC C502	EISA-GPIB
+
+/* c't Universal products */
+product NON 0101	16-Bit Multi I/O
+product NON 0102	16-Bit Multi I/O
+product NON 0201	8-Bit Multi I/O
+product NON 0301	Graphics
+product NON 0401	Ethernet
+product NON 0501	16-Bit Sound
+product NON 0601	8-Bit Sound
+
+/* Newport Systems Solutions products */
+product NSS 0011	WNIC Adapter
+
+/* Novell products */
+product NVL 0701	NE3200 Bus Master Ethernet
+product NVL 0901	NE2100 Ethernet/Cheapernet
+product NVL 1001	NMSL (Netware Mirrored Server Link)
+product NVL 1201	NE32HUB 32-bit Base
+product NVL 1301	NE32HUB 32-bit TPE
+product NVL 1401	NE32HUB PME ISA
+product NVL 1501	NE2000PLUS Ethernet
+
+/* Olicom products */
+product OLC 0701	ISA 16/4 Token-Ring
+product OLC 0702	OC-3117, ISA 16/4 Token-Ring
+product OLC 0801	OC-3118 ISA 16/4 Token-Ring
+product OLC 0901	16/4 Token-Ring
+product OLC 0902	16/4 Token-Ring
+product OLC 0B01	PCA 16/4 Token-Ring
+product OLC 1201	32 Bit 16/4 Token-Ring
+
+/* OPTi products */
+product OPT 0000	HUNTER 32-Bit 486 System Board
+product OPT 0200	LOW_COST 32-Bit 486 System Board
+
+product OTI 0011	Pro II/EISA
+
+product PCI 0080	486WB 8 SLOT SYSTEM BOARD
+product PCI 0120	486WB 12 SLOT SYSTEM BOARD
+product PCI 2080	486WB 8 SLOT SYSTEM BOARD
+
+product PHI 8041	Standard VGA controller
+
+product PLX 1001	OCEAN EISALink 32-Bit BUS-MASTER Ethernet
+
+/* Proteon products */
+product PRO 6000	ProNET 4/16 Token Ring
+product PRO 6001	ProNET 4/16 Token Ring
+product PRO 6002	ProNET 4/16 Token Ring
+
+/* Poseidon products */
+product PTI 5401	P6 QUAD PCI-EISA Board
+
+product RII 0101	Racal InterLan ES3210 Ethernet
+
+product SEC 0010	SAMSUNG ISA Multifunction Card
+product SEC 0020	SAMSUNG VGA Card (GTI VC-004)
+product SEC 0021	WD 90C31 Local Bus VGA
+product SEC FF01	SAMSUNG MAE486 System Board
+product SEC FF02	OPTi/EISA 32-Bit 486 System Board
+
+product SGT 0101	AT&T GIS 8/16 Port Serial Controller
+
+product SIS 0000	4DESD EISA-486 System Board
+product SIS 0001	EISA-486 Demo Board
+
+product SKD 0100	SK-NET FDDI-FE 32-Bit
+
+/* Standard Microsystems (SMC) */
+product SMC 0110	Elite32 Ethernet
+product SMC 03E0	EtherCard PLUS
+product SMC 13E0	EtherCard PLUS Elite16
+product SMC 8003	EtherCard PLUS Elite
+product SMC 8010	Ethercard Elite32C Ultra
+product SMC 8013	EtherCard PLUS Elite16
+product SMC 8216	EtherCard Elite16 ULTRA
+product SMC A010	Ether 10/100
+
+/* Siemens Nixdorf products */
+product SNI AAA0	Ether-Board EISA T
+product SNI AAB0	Ether-Board EISA 2
+product SNI ABF0	ETHER-BOARD-AT105T Ethernet/Cheapernet
+product SNI ACA0	ETHER-BOARD-AT10T Ethernet/Twisted Pair
+
+/* Stallion Technologies products */
+product STL 0100	ONboard/E
+product STL 0120	ONboard ISA
+product STL 0130	Brumby ISA
+product STL 0200	EasyIO
+product STL 0400	EC 8/64-EI
+product STL 0410	EC 8/32-AT
+product STL 0420	EC 8/64-AT
+
+product SUK 1022	SK-NET Token Ring
+product SUK 1059	SK-NET G16 Ethernet
+product SUK 1072	SK-FDDI
+
+/* Thomas-Conrad products */
+product TCC 010C	TC6045 ARC-Card/AT
+product TCC 030D	TC6042 ARC-Card/CE
+product TCC 040B	TC6142 ARC-Card/CE
+product TCC 3047	TC3047 TCNS Adapter/EISA
+
+/* 3Com products */
+product TCM 3190	3C319 TokenLink Velocity
+product TCM 5030	EtherLink II Family
+product TCM 5070	3C507 Etherlink 16 or TP v2.0
+product TCM 5090	3C509-TP Ethernet
+product TCM 5091	3C509 Ethernet
+product TCM 5092	3C579-TP Ethernet
+product TCM 5093	3C579 Ethernet
+product TCM 5094	3C509-Combo Ethernet
+product TCM 5095	3C509-TPO Ethernet
+product	TCM 5098	3C509-TP Ethernet
+product TCM 5920	3C592 Etherlink III
+product TCM 5970	3C597 Fast Etherlink TX
+product TCM 5971	3C597 Fast Etherlink T4
+product TCM 5972	3C597 Fast Etherlink MII
+product TCM 7700	3C770 FDDI
+
+/* Thomas-Conrad products */
+product TCO 010C	TC6045 ARC-Card/AT
+product TCO 030D	TC6042 ARC-Card/CE
+product TCO 040B	TC6142 ARC-Card/CE
+product TCO 050D	TC4035 TOKEN RING Adapter/AT (Rev D)
+product TCO 3147	TC3047 System (TCNS) Adapter
+product TCO 345A	TC3045 Network System (TCNS) AT Adapter
+product TCO 345B	TC3045 Network System (TCNS) AT Adapter
+
+/* Tecmar products */
+product TEC 8000	QIC60 HOST ADAPTER
+product TEC 8001	QIC PC36 TAPE CONTROLLER
+product TEC 8002	QT HOST ADAPTER
+product TEC 8003	QT PC36 TAPE CONTROLLER
+
+product TRM 0001	EISA-486C SYSTEM BOARD
+product TRM 0320	DC-320 SCSI Host Adapter
+product TRM 0620	DC-620 IDE Cache Controller
+product TRM 0820	DC-820 SCSI Cache Host Adapter
+product TRM 320E	DC-320E SCSI Host Adapter
+product TRM 820B	DC-820B SCSI Cache Host Adapter
+
+/* Truevision products  */
+product TRU 0210	Image Capture Board
+product TRU 0520	ATVista (R) VideoGraphics
+product TRU 1100	DVR
+
+/* Texas Instruments products  */
+product TXN 0011	TACT84500 MODULAR SYSTEM BOARD
+
+/* Tyan products */
+product TYN 0000	486 PRO-EISA Board
+product TYN 0001	VL EISA-486  Board
+product TYN 0003	S1452/S1462 PCI-EISA Main Board
+
+/* Ungermann-Bass products */
+product UBI A100	Personal NIU
+product UBI A200	Personal NIU/ex
+product UBI B100	NIUpc
+product UBI B200	3270 NIUpc
+product UBI C100	NIC
+product UBI D100	NIUpc/Token Ring
+
+/* UltraStor products */
+product USC 0120	12f ISA ESDI
+product USC 0125	12c ESDI
+product USC 0140	14f ISA SCSI
+product USC 0220	U22c
+product USC 0225	22f ESDI
+product USC 0240	24f SCSI
+product USC 0340	34f VESA VL-BUS
+
+/* US Robotics products */
+product USR 0011	33.6 Telephony Modem
+product USR 3401	V.34-Ready Fax Modem
+
+/* Vermont products */
+product VMI 0201	Image Manager 1024
+product VMI 0211	Cobra
+product VMI 0601	Image Manager 640
+product VMI 0E01	Cobra Plus
+
+/* Western Digital products */
+product WDC 0101	WD1009V-MM1 Winchester Controller
+product WDC 0102	WD1009V-SE1 Winchester Controller
+product WDC 0300	StarCard PLUS 8003S
+product WDC 0301	StarLink PLUS 8003SH
+product WDC 03E0	EtherCard PLUS 8003E
+product WDC 03E1	EtherCard PLUS w/Boot 8003EBT
+product WDC 03E2	EtherCard + 8003EB 61-600245-02
+product WDC 03E3	EtherCard PLUS TP 8003WT
+product WDC 03E4	EtherCard + 8003EB 61-600090-00
+product WDC 0510	TokenCard 8005TR/8005TRWS
+product WDC 1009	WD1009V-MM1/MM2 Winchester Controller
+product WDC 13E0	EtherCard PLUS 16 8013EBT
+
+product XTI 02B1	XNET 1800 PARALLEL SWITCH

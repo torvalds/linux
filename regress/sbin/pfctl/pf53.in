@@ -1,0 +1,4 @@
+pass in proto tcp from { 1.2.3.4, 1.2.3.5 } to any label \
+"$nr:$if:$proto:$srcaddr:$srcport:$dstaddr:$dstport"
+pass in on lo0 proto tcp from { 1.2.3.4, 1.2.3.5 } to any label \
+"$nr:$if:$proto:$srcaddr:$srcport:$dstaddr:$dstport"

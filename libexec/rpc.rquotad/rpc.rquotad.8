@@ -1,0 +1,58 @@
+.\"   $OpenBSD: rpc.rquotad.8,v 1.8 2007/05/31 19:19:40 jmc Exp $
+.\"
+.\" Copyright (c) 1994 Theo de Raadt
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$Id: rpc.rquotad.8,v 1.8 2007/05/31 19:19:40 jmc Exp $
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt RPC.RQUOTAD 8
+.Os
+.Sh NAME
+.Nm rquotad ,
+.Nm rpc.rquotad
+.Nd remote quota server
+.Sh SYNOPSIS
+.Nm rpc.rquotad
+.Sh DESCRIPTION
+.Nm rpc.rquotad
+is an
+.Xr rpc 3
+server which returns quotas for a user of a local filesystem
+which is NFS-mounted onto a remote machine.
+.Xr quota 1
+uses the results to display user quotas for remote filesystems.
+.Nm rpc.rquotad
+is normally invoked by
+.Xr inetd 8 .
+.Pp
+.Nm rpc.rquotad
+uses an RPC protocol defined in
+.Pa /usr/include/rpcsvc/rquota.x .
+.Sh SEE ALSO
+.Xr quota 1
+.Sh BUGS
+.Bx 4.4
+and
+.Ox
+support group quotas but the rquota protocol does not.

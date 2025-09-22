@@ -1,0 +1,37 @@
+
+module LLVM_Extern_CodeGenTypes_Gen {
+  textual header "llvm/CodeGen/GenVT.inc"
+}
+
+module LLVM_Extern_Config_Def {
+  textual header "llvm/Config/AsmParsers.def"
+  textual header "llvm/Config/AsmPrinters.def"
+  textual header "llvm/Config/Disassemblers.def"
+  textual header "llvm/Config/Targets.def"
+  export *
+}
+
+module LLVM_Extern_IR_Attributes_Gen {
+  textual header "llvm/IR/Attributes.gen"
+  textual header "llvm/IR/Attributes.inc"
+}
+
+module LLVM_Extern_IR_Intrinsics_Gen {
+  textual header "llvm/IR/Intrinsics.gen"
+  textual header "llvm/IR/Intrinsics.inc"
+}
+
+module LLVM_Extern_IR_Intrinsics_Enum {
+  textual header "llvm/IR/IntrinsicEnums.inc"
+}
+
+module LLVM_Extern_Utils_DataTypes {
+  header "llvm/Support/DataTypes.h"
+  export *
+}
+
+module LLVM_Extern_TargetParser_Gen {
+  textual header "llvm/TargetParser/ARMTargetParserDef.inc"
+  textual header "llvm/TargetParser/AArch64TargetParserDef.inc"
+  textual header "llvm/TargetParser/RISCVTargetParserDef.inc"
+}

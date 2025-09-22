@@ -1,0 +1,3 @@
+This set should contain the potentially user-muteable files found in
+/etc or /var. Directories should be defined in the base set.
+

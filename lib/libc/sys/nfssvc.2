@@ -1,0 +1,128 @@
+.\"	$OpenBSD: nfssvc.2,v 1.25 2022/07/30 07:19:30 jsg Exp $
+.\"	$NetBSD: nfssvc.2,v 1.6 1995/02/27 12:35:08 cgd Exp $
+.\"
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)nfssvc.2	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: July 30 2022 $
+.Dt NFSSVC 2
+.Os
+.Sh NAME
+.Nm nfssvc
+.Nd NFS services
+.Sh SYNOPSIS
+.In unistd.h
+.In nfs/nfs.h
+.Ft int
+.Fn nfssvc "int flags" "void *argstructp"
+.Sh DESCRIPTION
+The
+.Fn nfssvc
+function is used by NFS daemons to pass information into the kernel
+and also to enter the kernel as a server daemon.
+The
+.Fa flags
+argument consists of several bits that show what action is to be taken
+once in the kernel and the
+.Fa argstructp
+points to one of two structures depending on which bits are set in
+flags.
+.Pp
+To enter an
+.Xr nfsd 8
+daemon into the kernel,
+.Fn nfssvc
+is called with the flag
+.Dv NFSSVC_NFSD
+and a pointer to a structure:
+.Bd -literal
+struct nfsd_srvargs {
+    struct nfsd    *nsd_nfsd;	   /* Pointer to in kernel nfsd struct */
+    uid_t	    nsd_uid;	   /* Effective uid mapped to cred */
+    u_int32_t	    nsd_haddr;	   /* IP address of client */
+    struct xucred   nsd_cr;	   /* Cred. uid maps to */
+    int		    nsd_authlen;   /* Length of auth string (ret) */
+    u_char	   *nsd_authstr;   /* Auth string (ret) */
+    int		    nsd_verflen;   /* and the verifier */
+    u_char	   *nsd_verfstr;
+    struct timeval  nsd_timestamp; /* timestamp from verifier */
+    u_int32_t	    nsd_ttl;	   /* credential ttl (sec) */
+};
+.Ed
+.Pp
+To add further sockets for processing by the
+.Xr nfsd 8
+server daemons the master
+.Xr nfsd 8
+daemon  calls
+.Fn nfssvc
+with the flag
+.Dv NFSSVC_ADDSOCK
+and a pointer to a structure:
+.Bd -literal
+struct nfsd_args {
+    int	    sock;	/* Socket to serve */
+    caddr_t name;	/* Client address for connection based sockets */
+    int     namelen;	/* Length of name */
+};
+.Ed
+.Sh RETURN VALUES
+Normally
+.Fn nfssvc
+does not return unless the server
+is terminated by a signal when a value of 0 is returned.
+Otherwise, \-1 is returned and the global variable
+.Va errno
+is set to specify the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EPERM
+The caller is not the superuser.
+.It Bq Er EINVAL
+The flag argument consisted of incompatible or otherwise
+unsupported bits.
+.El
+.Sh SEE ALSO
+.Xr mount_nfs 8 ,
+.Xr nfsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Fn nfssvc
+function first appeared in
+.Bx 4.3 Reno .
+.Sh BUGS
+The
+.Fn nfssvc
+system call is designed specifically for the NFS
+support daemons and as such is specific to their requirements.
+Several fields of the argument structures are assumed to be valid and
+sometimes to be unchanged from a previous call, such that
+.Fn nfssvc
+must be used with extreme care.

@@ -1,0 +1,6 @@
+match scrub(no-df no-df)
+match scrub(min-ttl 4 min-ttl 5)
+match in all scrub(min-ttl 256)
+match out scrub(min-ttl 65536)
+match in from localhost to localhost scrub(max-mss 512 max-mss 1280)
+match from localhost scrub(random-id random-id)

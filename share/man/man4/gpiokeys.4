@@ -1,0 +1,50 @@
+.\"	$OpenBSD: gpiokeys.4,v 1.1 2021/11/09 16:16:11 kn Exp $
+.\"
+.\" Copyright (c) 2021 Klemens Nanni <kn@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 9 2021 $
+.Dt GPIOKEYS 4
+.Os
+.Sh NAME
+.Nm gpiokeys
+.Nd GPIO keys
+.Sh SYNOPSIS
+.Cd "gpiokeys* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver handles events triggered by GPIO keys.
+Currently, only lid status events are supported.
+.Pp
+The lid status is set up as a sensor and can be monitored using
+.Xr sysctl 8
+or
+.Xr sensorsd 8 .
+.Sh SEE ALSO
+.Xr gpio 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Klemens Nanni Aq Mt kn@openbsd.org .

@@ -1,0 +1,417 @@
+.\" $OpenBSD: BIO_s_bio.3,v 1.21 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file was written by
+.\" Lutz Jaenicke <Lutz.Jaenicke@aet.TU-Cottbus.DE>,
+.\" Dr. Stephen Henson <steve@openssl.org>,
+.\" Bodo Moeller <bodo@openssl.org>,
+.\" and Richard Levitte <levitte@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2015, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_S_BIO 3
+.Os
+.Sh NAME
+.Nm BIO_s_bio ,
+.Nm BIO_make_bio_pair ,
+.Nm BIO_destroy_bio_pair ,
+.Nm BIO_shutdown_wr ,
+.Nm BIO_set_write_buf_size ,
+.Nm BIO_get_write_buf_size ,
+.Nm BIO_new_bio_pair ,
+.Nm BIO_get_write_guarantee ,
+.Nm BIO_ctrl_get_write_guarantee ,
+.Nm BIO_get_read_request ,
+.Nm BIO_ctrl_get_read_request ,
+.Nm BIO_ctrl_reset_read_request
+.Nd BIO pair BIO
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.Ft const BIO_METHOD *
+.Fo BIO_s_bio
+.Fa void
+.Fc
+.Ft int
+.Fo BIO_make_bio_pair
+.Fa "BIO *b1"
+.Fa "BIO *b2"
+.Fc
+.Ft int
+.Fo BIO_destroy_bio_pair
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_shutdown_wr
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_set_write_buf_size
+.Fa "BIO *b"
+.Fa "long size"
+.Fc
+.Ft size_t
+.Fo BIO_get_write_buf_size
+.Fa "BIO *b"
+.Fa "long size"
+.Fc
+.Ft int
+.Fo BIO_new_bio_pair
+.Fa "BIO **bio1"
+.Fa "size_t writebuf1"
+.Fa "BIO **bio2"
+.Fa "size_t writebuf2"
+.Fc
+.Ft int
+.Fo BIO_get_write_guarantee
+.Fa "BIO *b"
+.Fc
+.Ft size_t
+.Fo BIO_ctrl_get_write_guarantee
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_get_read_request
+.Fa "BIO *b"
+.Fc
+.Ft size_t
+.Fo BIO_ctrl_get_read_request
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_ctrl_reset_read_request
+.Fa "BIO *b"
+.Fc
+.Sh DESCRIPTION
+.Fn BIO_s_bio
+returns the method for a BIO pair.
+A BIO pair is a pair of source/sink BIOs where data written to either
+half of the pair is buffered and can be read from the other half.
+Both halves must usually be handled by the same application thread
+since no locking is done on the internal data structures.
+.Pp
+Since BIO chains typically end in a source/sink BIO,
+it is possible to make this one half of a BIO pair and
+have all the data processed by the chain under application control.
+.Pp
+One typical use of BIO pairs is
+to place TLS/SSL I/O under application control.
+This can be used when the application wishes to use a non-standard
+transport for TLS/SSL or the normal socket routines are inappropriate.
+.Pp
+Calls to
+.Xr BIO_read 3
+will read data from the buffer or request a retry if no data is available.
+.Pp
+Calls to
+.Xr BIO_write 3
+will place data in the buffer or request a retry if the buffer is full.
+.Pp
+The standard calls
+.Xr BIO_ctrl_pending 3
+and
+.Xr BIO_ctrl_wpending 3
+can be used to determine the amount of pending data
+in the read or write buffer.
+.Pp
+.Xr BIO_reset 3
+clears any data in the write buffer.
+.Pp
+.Fn BIO_make_bio_pair
+joins two separate BIOs into a connected pair.
+.Pp
+.Fn BIO_destroy_pair
+destroys the association between two connected BIOs.
+Freeing up any half of the pair will automatically destroy the association.
+.Pp
+.Fn BIO_shutdown_wr
+is used to close down a BIO
+.Fa b .
+After this call no further writes on BIO
+.Fa b
+are allowed; they will return an error.
+Reads on the other half of the pair will return any pending data
+or EOF when all pending data has been read.
+.Pp
+.Fn BIO_set_write_buf_size
+sets the write buffer size of BIO
+.Fa b
+to
+.Fa size .
+If the size is not initialized, a default value is used.
+This is currently 17K, sufficient for a maximum size TLS record.
+When a chain containing a BIO pair is copied with
+.Xr BIO_dup_chain 3 ,
+the write buffer size is automatically copied
+from the original BIO object to the new one.
+.Pp
+.Fn BIO_get_write_buf_size
+returns the size of the write buffer.
+.Pp
+.Fn BIO_new_bio_pair
+combines the calls to
+.Xr BIO_new 3 ,
+.Fn BIO_make_bio_pair
+and
+.Fn BIO_set_write_buf_size
+to create a connected pair of BIOs
+.Fa bio1
+and
+.Fa bio2
+with write buffer sizes
+.Fa writebuf1
+and
+.Fa writebuf2 .
+If either size is zero, then the default size is used.
+.Fn BIO_new_bio_pair
+does not check whether
+.Fa bio1
+or
+.Fa bio2
+point to some other BIO; the values are overwritten and
+.Xr BIO_free 3
+is not called.
+.Pp
+.Fn BIO_get_write_guarantee
+and
+.Fn BIO_ctrl_get_write_guarantee
+return the maximum length of data
+that can be currently written to the BIO.
+Writes larger than this value will return a value from
+.Xr BIO_write 3
+less than the amount requested or if the buffer is full request a retry.
+.Fn BIO_ctrl_get_write_guarantee
+is a function whereas
+.Fn BIO_get_write_guarantee
+is a macro.
+.Pp
+.Fn BIO_get_read_request
+and
+.Fn BIO_ctrl_get_read_request
+return the amount of data requested, or the buffer size if it is less,
+if the last read attempt at the other half of the BIO pair failed
+due to an empty buffer.
+This can be used to determine how much data should be
+written to the BIO so the next read will succeed:
+this is most useful in TLS/SSL applications where the amount of
+data read is usually meaningful rather than just a buffer size.
+After a successful read this call will return zero.
+It also will return zero once new data has been written
+satisfying the read request or part of it.
+Note that
+.Fn BIO_get_read_request
+never returns an amount larger than that returned by
+.Fn BIO_get_write_guarantee .
+.Pp
+.Fn BIO_ctrl_reset_read_request
+can also be used to reset the value returned by
+.Fn BIO_get_read_request
+to zero.
+.Pp
+Both halves of a BIO pair should be freed.
+Even if one half is implicitly freed due to a
+.Xr BIO_free_all 3
+or
+.Xr SSL_free 3
+call, the other half still needs to be freed.
+.Pp
+When used in bidirectional applications (such as TLS/SSL),
+care should be taken to flush any data in the write buffer.
+This can be done by calling
+.Xr BIO_pending 3
+on the other half of the pair and, if any data is pending,
+reading it and sending it to the underlying transport.
+This must be done before any normal processing (such as calling
+.Xr select 2 )
+due to a request and
+.Xr BIO_should_read 3
+being true.
+.Pp
+To see why this is important,
+consider a case where a request is sent using
+.Xr BIO_write 3
+and a response read with
+.Xr BIO_read 3 ,
+this can occur during a TLS/SSL handshake for example.
+.Xr BIO_write 3
+will succeed and place data in the write buffer.
+.Xr BIO_read 3
+will initially fail and
+.Xr BIO_should_read 3
+will be true.
+If the application then waits for data to become available
+on the underlying transport before flushing the write buffer,
+it will never succeed because the request was never sent.
+.Pp
+.Xr BIO_eof 3
+is true if no data is in the peer BIO and the peer BIO has been shutdown.
+.Pp
+.Xr BIO_ctrl 3
+.Fa cmd
+arguments correspond to macros as follows:
+.Bl -column BIO_C_GET_WRITE_GUARANTEE BIO_ctrl_reset_read_request() -offset 3n
+.It Fa cmd No constant           Ta corresponding macro
+.It Dv BIO_C_DESTROY_BIO_PAIR    Ta Fn BIO_destroy_bio_pair
+.It Dv BIO_C_GET_READ_REQUEST    Ta Fn BIO_get_read_request
+.It Dv BIO_C_GET_WRITE_BUF_SIZE  Ta Fn BIO_get_write_buf_size
+.It Dv BIO_C_GET_WRITE_GUARANTEE Ta Fn BIO_get_write_guarantee
+.It Dv BIO_C_MAKE_BIO_PAIR       Ta Fn BIO_make_bio_pair
+.It Dv BIO_C_RESET_READ_REQUEST  Ta Fn BIO_ctrl_reset_read_request
+.It Dv BIO_C_SET_WRITE_BUF_SIZE  Ta Fn BIO_set_write_buf_size
+.It Dv BIO_C_SHUTDOWN_WR         Ta Fn BIO_shutdown_wr
+.It Dv BIO_CTRL_EOF              Ta Xr BIO_eof 3
+.It Dv BIO_CTRL_GET_CLOSE        Ta Xr BIO_get_close 3
+.It Dv BIO_CTRL_PENDING          Ta Xr BIO_pending 3
+.It Dv BIO_CTRL_RESET            Ta Xr BIO_reset 3
+.It Dv BIO_CTRL_SET_CLOSE        Ta Xr BIO_set_close 3
+.It Dv BIO_CTRL_WPENDING         Ta Xr BIO_wpending 3
+.El
+.Sh RETURN VALUES
+.Fn BIO_new_bio_pair
+returns 1 on success, with the new BIOs available in
+.Fa bio1
+and
+.Fa bio2 ,
+or 0 on failure, with NULL pointers stored into the locations for
+.Fa bio1
+and
+.Fa bio2 .
+Check the error stack for more information.
+.Pp
+When called on a BIO pair BIO object,
+.Xr BIO_method_type 3
+returns the constant
+.Dv BIO_TYPE_BIO
+and
+.Xr BIO_method_name 3
+returns a pointer to the static string
+.Qq BIO pair .
+.\" XXX More return values need to be added here.
+.Sh EXAMPLES
+The BIO pair can be used to have full control
+over the network access of an application.
+The application can call
+.Xr select 2
+on the socket as required without having to go through the SSL interface.
+.Bd -literal -offset 2n
+BIO *internal_bio, *network_bio;
+\&...
+BIO_new_bio_pair(&internal_bio, 0, &network_bio, 0);
+SSL_set_bio(ssl, internal_bio, internal_bio);
+SSL_operations();  /* e.g. SSL_read() and SSL_write() */
+\&...
+
+application |   TLS-engine
+   |        |
+   +----------> SSL_operations()
+            |     /\e    ||
+            |     ||    \e/
+            |   BIO-pair (internal_bio)
+            |   BIO-pair (network_bio)
+            |     ||     /\e
+            |     \e/     ||
+   +-----------< BIO_operations()
+   |        |
+ socket     |
+
+\&...
+SSL_free(ssl);		/* implicitly frees internal_bio */
+BIO_free(network_bio);
+\&...
+.Ed
+.Pp
+As the BIO pair will only buffer the data and never directly access
+the connection, it behaves non-blocking and will return as soon as
+the write buffer is full or the read buffer is drained.
+Then the application has to flush the write buffer
+and/or fill the read buffer.
+.Pp
+Use
+.Xr BIO_ctrl_pending 3
+to find out whether data is buffered in the BIO
+and must be transferred to the network.
+Use
+.Fn BIO_ctrl_get_read_request
+to find out how many bytes must be written into the buffer before the
+SSL operations can successfully be continued.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr BIO_read 3 ,
+.Xr BIO_should_retry 3 ,
+.Xr ssl 3 ,
+.Xr SSL_set_bio 3
+.Sh HISTORY
+.Fn BIO_s_bio ,
+.Fn BIO_make_bio_pair ,
+.Fn BIO_destroy_bio_pair ,
+.Fn BIO_set_write_buf_size ,
+.Fn BIO_get_write_buf_size ,
+.Fn BIO_new_bio_pair ,
+.Fn BIO_get_write_guarantee ,
+.Fn BIO_ctrl_get_write_guarantee ,
+.Fn BIO_get_read_request ,
+and
+.Fn BIO_ctrl_reset_read_request
+first appeared in OpenSSL 0.9.4 and have been available since
+.Ox 2.6 .
+.Pp
+.Fn BIO_ctrl_reset_read_request
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Pp
+.Fn BIO_shutdown_wr
+first appeared in OpenSSL 0.9.6 and has been available since
+.Ox 2.9 .
+.Sh CAVEATS
+As the data is buffered, SSL operations may return with an
+.Dv ERROR_SSL_WANT_READ
+condition, but there is still data in the write buffer.
+An application must not rely on the error value of the SSL operation
+but must assure that the write buffer is always flushed first.
+Otherwise a deadlock may occur as the peer might be waiting
+for the data before being able to continue.

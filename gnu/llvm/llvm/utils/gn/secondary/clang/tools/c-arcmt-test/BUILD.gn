@@ -1,0 +1,11 @@
+executable("c-arcmt-test") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [ "//clang/tools/libclang" ]
+  sources = [ "c-arcmt-test.c" ]
+
+  # See comment at top of clang/tools/libclang/BUILD.gn for why this isn't
+  # needed on Linux.
+  if (host_os == "mac") {
+    ldflags = [ "-Wl,-rpath,@loader_path/../lib" ]
+  }
+}

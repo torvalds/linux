@@ -1,0 +1,20 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Options") {
+  visibility = [ ":LibDriver" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+static_library("LibDriver") {
+  output_name = "LLVMLibDriver"
+  deps = [
+    ":Options",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "LibDriver.cpp" ]
+}

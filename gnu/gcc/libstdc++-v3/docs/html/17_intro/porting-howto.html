@@ -1,0 +1,744 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+<meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type">
+<title>Libstdc++-porting-howto</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.48">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="article">
+<div class="titlepage">
+<div><h1 class="title">
+<a name="libstdc++-porting-howto"></a>Libstdc++-porting-howto</h1></div>
+<div><h3 class="author">Felix Natter</h3></div>
+<div><div class="legalnotice">
+<p class="legalnotice-title"><b>Legal Notice</b></p>
+<p>
+	This document can be distributed under the FDL
+	(<a href="http://www.gnu.org" target="_top">www.gnu.org</a>)
+      </p>
+</div></div>
+<div><p class="pubdate">Tue Jun  5 20:07:49 2001</p></div>
+<div><div class="revhistory"><table border="1" width="100%" summary="Revision history">
+<tr><th align="left" valign="top" colspan="3"><b>Revision History</b></th></tr>
+<tr>
+<td align="left">Revision 0.5</td>
+<td align="left">Thu Jun  1 13:06:50 2000</td>
+<td align="left">fnatter</td>
+</tr>
+<tr><td align="left" colspan="3">First docbook-version.</td></tr>
+<tr>
+<td align="left">Revision 0.8</td>
+<td align="left">Sun Jul 30 20:28:40 2000</td>
+<td align="left">fnatter</td>
+</tr>
+<tr><td align="left" colspan="3">First released version using docbook-xml
+	  + second upload to libstdc++-page.
+	</td></tr>
+<tr>
+<td align="left">Revision 0.9</td>
+<td align="left">Wed Sep  6 02:59:32 2000</td>
+<td align="left">fnatter</td>
+</tr>
+<tr><td align="left" colspan="3">5 new sections.</td></tr>
+<tr>
+<td align="left">Revision 0.9.1</td>
+<td align="left">Sat Sep 23 14:20:15 2000</td>
+<td align="left">fnatter</td>
+</tr>
+<tr><td align="left" colspan="3">added information about why file-descriptors are not in the
+	  standard</td></tr>
+<tr>
+<td align="left">Revision 0.9.2</td>
+<td align="left">Tue Jun  5 20:07:49 2001</td>
+<td align="left">fnatter</td>
+</tr>
+<tr><td align="left" colspan="3">
+	  a fix, added hint on increased portability of C-shadow-headers,
+	  added autoconf-test HAVE_CONTAINER_AT
+	</td></tr>
+<tr>
+<td align="left">Revision 0.9.3</td>
+<td align="left">Fri Jun 29 16:15:56 2001</td>
+<td align="left">fnatter</td>
+</tr>
+<tr><td align="left" colspan="3">
+	  changed signature of nonstandard filebuf-constructor and
+	  update the section on filebuf::attach to point to ../ext/howto.html,
+	  added link to ../21/strings/howto.html
+	  in sec-stringstream, changed &lt;link&gt;-tags to have content
+	  (so that these links work),
+	  replace &quot;user-space&quot; by &quot;global namespace&quot;
+	  add note about gcc 3.0 and shadow-headers			
+	  add section about ostream::form and istream::scan
+	  sec-vector-at: remove hint to modify headers
+	  fix spelling error in sec-stringstream
+	</td></tr>
+<tr>
+<td align="left">Revision 0.9.4</td>
+<td align="left">Mon Nov  5 17:01:04 2001</td>
+<td align="left">fnatter</td>
+</tr>
+<tr><td align="left" colspan="3">
+	  rewrite section 1.1.3 because of gnu.gcc.help-post by
+	  Juergen Heinzl
+	</td></tr>
+</table></div></div>
+<div><div class="abstract">
+<p><b>Abstract</b></p>
+<p>
+	Some notes on porting applications from libstdc++-2.90 (or earlier
+	versions) to libstdc++-v3. Not speaking in terms of the GNU libstdc++
+	implementations, this means porting from earlier versions of the
+	C++-Standard to ISO 14882.
+      </p>
+</div></div>
+<hr>
+</div>
+<div class="toc">
+<p><b>Table of Contents</b></p>
+<dl>
+<dt>1. <a href="#sec-nsstd">Namespace std::</a>
+</dt>
+<dd><dl>
+<dt>1.1.1. <a href="#sec-gtkmm-hack">Using namespace
+	  composition if the project uses a separate
+	namespace</a>
+</dt>
+<dt>1.1.2. <a href="#sec-emptyns">Defining an empty namespace std</a>
+</dt>
+<dt>1.1.3. <a href="#sec-avoidfqn">Avoid to use fully qualified names
+	(i.e. std::string)</a>
+</dt>
+<dt>1.1.4. <a href="#sec-osprojects">How some open-source-projects deal
+	with this</a>
+</dt>
+</dl></dd>
+<dt>2. <a href="#sec-nocreate">There is no ios::nocreate/ios::noreplace
+      in ISO 14882</a>
+</dt>
+<dt>3. <a href="#sec-stream::attach">stream::attach(int
+	fd) is not in the standard any more</a>
+</dt>
+<dt>4. <a href="#sec-headers">The new headers</a>
+</dt>
+<dd><dl>
+<dt>4.4.1. <a href="#sec-cheaders">New headers replacing C-headers</a>
+</dt>
+<dt>4.4.2. <a href="#sec-fstream-header">
+	&lt;fstream&gt; does
+	not define std::cout,
+	std::cin etc.</a>
+</dt>
+</dl></dd>
+<dt>5. <a href="#sec-iterators">Iterators</a>
+</dt>
+<dt>6. <a href="#sec-macros">
+      Libc-macros (i.e. isspace from
+      &lt;cctype&gt;)</a>
+</dt>
+<dt>7. <a href="#sec-stream-state">State of streams</a>
+</dt>
+<dt>8. <a href="#sec-vector-at">vector::at is missing (i.e. gcc 2.95.x)</a>
+</dt>
+<dt>9. <a href="#sec-eof">Using std::char_traits&lt;char&gt;::eof()</a>
+</dt>
+<dt>10. <a href="#sec-string-clear">Using string::clear()/string::erase()</a>
+</dt>
+<dt>11. <a href="#sec-scan-form">GNU Extensions ostream::form and istream::scan</a>
+</dt>
+<dt>12. <a href="#sec-stringstream">Using stringstreams</a>
+</dt>
+<dt>13. <a href="#sec-about">About...</a>
+</dt>
+</dl>
+</div>
+<p>
+    In the following, when I say portable, I will refer to &quot;portable among ISO
+    14882-implementations&quot;. On the other hand, if I say &quot;backportable&quot; or
+    &quot;conservative&quot;, I am talking about &quot;compiles with older
+    libstdc++-implementations&quot;.
+  </p>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-nsstd"></a>Namespace std::</h2></div></div>
+<p>
+      The latest C++-standard (ISO-14882) requires that the standard
+      C++-library is defined in namespace std::. Thus, in order to use
+      classes from the standard C++-library, you can do one of three
+      things:
+      <div class="itemizedlist"><ul type="disc">
+<li><p>wrap your code in <b>namespace std {
+	      ... }</b> =&gt; This is not an option because only symbols
+	    from the standard c++-library are defined in namespace std::.
+	  </p></li>
+<li><p>put a kind of
+	    <span class="emphasis"><i>using-declaration</i></span> in your source (either
+	    <b>using namespace std;</b> or i.e. <b>using
+	      std::string;</b>) =&gt; works well for source-files, but
+	    cannot be used in header-files.
+	  </p></li>
+<li><p>use a <span class="emphasis"><i>fully qualified name</i></span> for
+	    each libstdc++-symbol (i.e. <b>std::string</b>,
+	    <b>std::cout</b>) =&gt; can always be used
+	  </p></li>
+</ul></div>
+<p>
+      Because there are many compilers which still use an implementation
+      that does not have the standard C++-library in namespace
+      <b>std::</b>, some care is required to support these as
+      well.
+    </p>
+<p>
+      Namespace back-portability-issues are generally not a problem with
+      g++, because versions of g++ that do not have libstdc++ in
+      <b>std::</b> use <b>-fno-honor-std</b>
+      (ignore <b>std::</b>, <b>:: = std::</b>) by
+      default. That is, the responsibility for enabling or disabling
+      <b>std::</b> is on the user; the maintainer does not have
+      to care about it. This probably applies to some other compilers as
+      well.
+    </p>
+<p>
+      The following sections list some possible solutions to support compilers
+      that cannot ignore std::.
+    </p>
+<div class="section">
+<div class="titlepage"><div><h3 class="title">
+<a name="sec-gtkmm-hack"></a>Using <span class="emphasis"><i>namespace
+	  composition</i></span> if the project uses a separate
+	namespace</h3></div></div>
+<p>
+	<a href="http://gtkmm.sourceforge.net" target="_top">Gtk--</a> defines
+	most of its classes in namespace Gtk::. Thus, it was possible to
+	adapt Gtk-- to namespace std:: by using a C++-feature called
+	<span class="emphasis"><i>namespace composition</i></span>. This is what happens if
+	you put a <span class="emphasis"><i>using</i></span>-declaration into a
+	namespace-definition: the imported symbol(s) gets imported into the
+	currently active namespace(s). For example:
+	<pre class="programlisting">
+	  namespace Gtk {
+	  using std::string;
+	  class Window { ... }
+	  }
+	</pre>
+	In this example, <b>std::string</b> gets imported into
+	namespace Gtk::.  The result is that you don't have to use
+	<b>std::string</b> in this header, but still
+	<b>std::string</b> does not get imported into
+	the global namespace (::) unless the user does
+	<b>using namespace Gtk;</b> (which is not recommended
+	practice for Gtk--, so it is not a problem).  Additionally, the
+	<b>using</b>-declarations are wrapped in macros that
+	are set based on autoconf-tests to either &quot;&quot; or i.e. <b>using
+	  std::string;</b> (depending on whether the system has
+	libstdc++ in <b>std::</b> or not).  (ideas from
+	<tt>&lt;<a href="mailto:llewelly@dbritsch.dsl.xmission.com">llewelly@dbritsch.dsl.xmission.com</a>&gt;</tt>, Karl Nelson
+	<tt>&lt;<a href="mailto:kenelson@ece.ucdavis.edu">kenelson@ece.ucdavis.edu</a>&gt;</tt>)
+</div>
+<div class="section">
+<div class="titlepage"><div><h3 class="title">
+<a name="sec-emptyns"></a>Defining an empty namespace std</h3></div></div>
+<p>
+	By defining an (empty) namespace <b>std::</b> before
+	using it, you avoid getting errors on systems where no part of the
+	library is in namespace std:
+	<pre class="programlisting">
+	  namespace std { }
+	  using namespace std;
+	</pre>
+</div>
+<div class="section">
+<div class="titlepage"><div><h3 class="title">
+<a name="sec-avoidfqn"></a>Avoid to use fully qualified names
+	(i.e. std::string)</h3></div></div>
+<p>
+	If some compilers complain about <b>using
+	  std::string;</b>, and if the &quot;hack&quot; for gtk-- mentioned above
+	does not work, then I see two solutions:
+	
+	<div class="itemizedlist"><ul type="disc">
+<li><p>
+	      Define <b>std::</b> as a macro if the compiler
+	      doesn't know about <b>std::</b>.
+	      <pre class="programlisting">
+		#ifdef OLD_COMPILER
+		#define std
+		#endif
+	      </pre>
+	      (thanks to Juergen Heinzl who posted this solution on
+	      gnu.gcc.help)
+	    </li>
+<li><p>
+	      Define a macro NS_STD, which is defined to
+	      either &quot;&quot; or &quot;std&quot;
+	      based on an autoconf-test. Then you should be able to use
+	      <b>NS_STD::string</b>, which will evaluate to
+	      <b>::string</b> (&quot;string in the global namespace&quot;) on
+	      systems that do not put string in std::.  (This is untested)
+	    </p></li>
+</ul></div>
+</div>
+<div class="section">
+<div class="titlepage"><div><h3 class="title">
+<a name="sec-osprojects"></a>How some open-source-projects deal
+	with this</h3></div></div>
+<p>
+	This information was gathered around May 2000. It may not be correct
+	by the time you read this.
+      </p>
+<div class="table">
+<p><b>Table 1. Namespace std:: in Open-Source programs</b></p>
+<table summary="Namespace std:: in Open-Source programs" border="1">
+<colgroup>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><a href="http://www.clanlib.org" target="_top">clanlib</a></td>
+<td>usual</td>
+</tr>
+<tr>
+<td><a href="http://pingus.seul.org" target="_top">pingus</a></td>
+<td>usual</td>
+</tr>
+<tr>
+<td><a href="http://www.mozilla.org" target="_top">mozilla</a></td>
+<td>usual</td>
+</tr>
+<tr>
+<td><a href="http://libsigc.sourceforge.net" target="_top">
+		  libsigc++</a></td>
+<td>conservative-impl</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="table">
+<p><b>Table 2. Notations for categories</b></p>
+<table summary="Notations for categories" border="1">
+<colgroup>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td>usual</td>
+<td>mostly fully qualified names and some
+		using-declarations (but not in headers)</td>
+</tr>
+<tr>
+<td>none</td>
+<td>no namespace std at all</td>
+</tr>
+<tr>
+<td>conservative-impl</td>
+<td>wrap all
+		namespace-handling in macros to support compilers without
+		namespace-support (no libstdc++ used in headers)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>
+	As you can see, this currently lacks an example of a project
+	which uses libstdc++-symbols in headers in a back-portable way
+	(except for Gtk--: see the <a href="#sec-gtkmm-hack" title="Using namespace
+	  composition if the project uses a separate
+	namespace">section on the gtkmm-hack</a>).
+      </p>
+</div>
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-nocreate"></a>There is no ios::nocreate/ios::noreplace
+      in ISO 14882</h2></div></div>
+<p>
+      I have seen <b>ios::nocreate</b> being used for
+      input-streams, most probably because the author thought it would be
+      more correct to specify nocreate &quot;explicitly&quot;.  So you can simply
+      leave it out for input-streams.
+    </p>
+<p>
+      For output streams, &quot;nocreate&quot; is probably the default, unless you
+      specify <b>std::ios::trunc</b> ? To be safe, you can open
+      the file for reading, check if it has been opened, and then decide
+      whether you want to create/replace or not. To my knowledge, even
+      older implementations support <b>app</b>,
+      <b>ate</b> and <b>trunc</b> (except for
+      <b>app</b> ?).
+    </p>
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-stream::attach"></a><b>stream::attach(int
+	fd)</b> is not in the standard any more</h2></div></div>
+<p>
+      Phil Edwards <tt>&lt;<a href="mailto:pedwards@disaster.jaj.com">pedwards@disaster.jaj.com</a>&gt;</tt> writes:
+      It was considered and rejected.  Not all environments use file
+      descriptors.  Of those that do, not all of them use integers to represent
+      them.
+    </p>  
+
+<p>
+      For a portable solution (among systems which use
+      filedescriptors), you need to implement a subclass of
+      <b>std::streambuf</b> (or
+      <b>std::basic_streambuf&lt;..&gt;</b>) which opens a file
+      given a descriptor, and then pass an instance of this to the
+      stream-constructor.  For an example of this, refer to
+      <a href="http://www.josuttis.com/cppcode/fdstream.html" target="_top">fdstream example</a> 
+      by Nicolai Josuttis.
+    </p>
+
+<p>
+      An extension is also available:
+      <code>&lt;ext/stdio_filebuf.h&gt;</code> contains a derived class called
+      <a href="http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/class____gnu__cxx_1_1stdio__filebuf.html"><code>__gnu_cxx::stdio_filebuf</code></a>.
+      This class can be constructed from a C <code>FILE*</code> or a file
+      descriptor, and provides the <code>fd()</code> function.
+    </p>
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-headers"></a>The new headers</h2></div></div>
+<p>
+      All new headers can be seen in this <a href="headers_cc.txt" target="_top">
+	source-code</a>.
+    </p>
+<p>
+      The old C++-headers (iostream.h etc.) are available, but gcc generates
+      a warning that you are using deprecated headers.
+    </p>
+<div class="section">
+<div class="titlepage"><div><h3 class="title">
+<a name="sec-cheaders"></a>New headers replacing C-headers</h3></div></div>
+<p>
+	You should not use the C-headers (except for system-level
+	headers) from C++ programs. Instead, you should use a set of
+	headers that are named by prepending 'c' and, as usual,
+	omitting the extension (.h). For example, instead of using
+	<tt>&lt;math.h&gt;</tt>, you
+	should use <tt>&lt;cmath&gt;</tt>. In some cases this has
+	the advantage that the C++-header is more standardized than
+	the C-header (i.e. <tt>&lt;ctime&gt;</tt> (almost)
+	corresponds to either <tt>&lt;time.h&gt;</tt> or <tt>&lt;sys/time.h&gt;</tt>).
+
+	The standard specifies that if you include the C-style header
+	(<tt>&lt;math.h&gt;</tt> in
+	this case), the symbols will be available both in the global
+	namespace and in namespace <b>std::</b> (but
+	libstdc++ does not yet have fully compliant headers) On the
+	other hand, if you include only the new header (i.e. <tt>&lt;cmath&gt;</tt>), the symbols
+	will only be defined in namespace <b>std::</b>
+	(and macros will be converted to inline-functions).
+      </p>
+<p>
+	For more information on this, and for information on how the
+	GNU C++ implementation might reuse (&quot;shadow&quot;) the C
+	library-functions, have a look at <a href="http://www.cantrip.org/cheaders.html" target="_top">
+	  www.cantrip.org</a>.
+      </p>
+</div>
+<div class="section">
+<div class="titlepage"><div><h3 class="title">
+<a name="sec-fstream-header"></a>
+	<tt>&lt;fstream&gt;</tt> does
+	not define <b>std::cout</b>,
+	<b>std::cin</b> etc.</h3></div></div>
+<p>
+	In earlier versions of the standard,
+	<tt>&lt;fstream.h&gt;</tt>,
+	<tt>&lt;ostream.h&gt;</tt>
+	and <tt>&lt;istream.h&gt;</tt>
+	used to define
+	<b>cout</b>, <b>cin</b> and so on. Because
+	of the templatized iostreams in libstdc++-v3, you need to include
+	<tt>&lt;iostream&gt;</tt>
+	explicitly to define these.
+      </p>
+</div>
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-iterators"></a>Iterators</h2></div></div>
+<p>
+      The following are not proper uses of iterators, but may be working
+      fixes for existing uses of iterators.
+      <div class="itemizedlist"><ul type="disc">
+<li><p>you cannot do
+	    <b>ostream::operator&lt;&lt;(iterator)</b> to
+	    print the address of the iterator =&gt; use
+	    <b>operator&lt;&lt; &amp;*iterator</b> instead ?
+	  </p></li>
+<li><p>you cannot clear an iterator's reference
+	    (<b>iterator = 0</b>) =&gt; use
+	    <b>iterator = iterator_type();</b> ?
+	  </p></li>
+<li><p>
+<b>if (iterator)</b> won't work any
+	    more =&gt; use <b>if (iterator != iterator_type())</b>
+	    ?</p></li>
+</ul></div>
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-macros"></a>
+      Libc-macros (i.e. <b>isspace</b> from
+      <tt>&lt;cctype&gt;</tt>)</h2></div></div>
+<p>
+      Glibc 2.0.x and 2.1.x define the
+      <tt>&lt;ctype.h&gt;</tt>
+      -functionality as macros (isspace, isalpha etc.). Libstdc++-v3
+      &quot;shadows&quot; these macros as described in the <a href="#sec-cheaders" title="New headers replacing C-headers">section about
+	c-headers</a>.
+    </p>
+<p>
+      Older implementations of libstdc++ (g++-2 for egcs 1.x and g++-3
+      for gcc 2.95.x), however, keep these functions as macros, and so it
+      is not back-portable to use fully qualified names. For example:
+      <pre class="programlisting">
+	#include &lt;cctype&gt;
+	int main() { std::isspace('X'); }
+      </pre>
+      will result in something like this (unless using g++-v3):
+      <pre class="programlisting">
+	std:: (__ctype_b[(int) ( ( 'X' ) )] &amp; (unsigned short int)
+	_ISspace )  ;
+      </pre>
+<p>
+      One solution I can think of is to test for -v3 using
+      autoconf-macros, and define macros for each of the C-functions
+      (maybe that is possible with one &quot;wrapper&quot; macro as well ?).
+    </p>
+<p>
+      Another solution which would fix g++ is to tell the user to modify a
+      header-file so that g++-2 (egcs 1.x) and g++-3 (gcc 2.95.x) define a
+      macro which tells <tt>&lt;ctype.h&gt;</tt> to define functions
+      instead of macros:
+      <pre class="programlisting">
+	// This keeps isalnum, et al from being propagated as macros.
+	#if __linux__
+	#define __NO_CTYPE 1
+	#endif
+
+	[ now include &lt;ctype.h&gt; ]
+      </pre>
+<p>
+      Another problem arises if you put a <b>using namespace
+	std;</b> declaration at the top, and include <tt>&lt;ctype.h&gt;</tt>. This will result in
+      ambiguities between the definitions in the global namespace
+      (<tt>&lt;ctype.h&gt;</tt>) and the
+      definitions in namespace <b>std::</b>
+      (<b>&lt;cctype&gt;</b>).
+    </p>
+<p>
+      The solution to this problem was posted to the libstdc++-v3
+      mailing-list:
+      Benjamin Kosnik <tt>&lt;<a href="mailto:bkoz@redhat.com">bkoz@redhat.com</a>&gt;</tt> writes:
+      &#x2018;
+	--enable-cshadow-headers is currently broken. As a result, shadow
+	headers are not being searched....
+      &#x2019;
+      This is now outdated, but gcc 3.0 still does not have fully
+      compliant &quot;shadow headers&quot;.
+    </p>
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-stream-state"></a>State of streams</h2></div></div>
+<p>
+      At least some older implementations don't have
+      <b>std::ios_base</b>, so you should use
+      <b>std::ios::badbit</b>, <b>std::ios::failbit</b>
+      and <b>std::ios::eofbit</b> and
+      <b>std::ios::goodbit</b>.
+    </p>
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-vector-at"></a>vector::at is missing (i.e. gcc 2.95.x)</h2></div></div>
+<p>
+      One solution is to add an autoconf-test for this:
+      <pre class="programlisting">
+	AC_MSG_CHECKING(for container::at)
+	AC_TRY_COMPILE(
+	[
+	#include &lt;vector&gt;
+	#include &lt;deque&gt;
+	#include &lt;string&gt;
+	
+	using namespace std;
+	],
+	[
+	deque&lt;int&gt; test_deque(3);
+	test_deque.at(2);
+	vector&lt;int&gt; test_vector(2);
+	test_vector.at(1);
+	string test_string(&quot;test_string&quot;);
+	test_string.at(3);
+	],
+	[AC_MSG_RESULT(yes)
+	AC_DEFINE(HAVE_CONTAINER_AT)],
+	[AC_MSG_RESULT(no)])
+      </pre>
+      If you are using other (non-GNU) compilers it might be a good idea
+      to check for <b>string::at</b> separately.
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-eof"></a>Using std::char_traits&lt;char&gt;::eof()</h2></div></div>
+<p>
+      <pre class="programlisting">
+	#ifdef HAVE_CHAR_TRAITS
+	#define CPP_EOF std::char_traits&lt;char&gt;::eof()
+	#else
+	#define CPP_EOF EOF
+	#endif
+      </pre>
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-string-clear"></a>Using string::clear()/string::erase()</h2></div></div>
+<p>
+      There are two functions for deleting the contents of a string:
+      <b>clear</b> and <b>erase</b> (the latter
+      returns the string).
+      <pre class="programlisting">
+	void 
+	clear() { _M_mutate(0, this-&gt;size(), 0); }
+      </pre>
+      <pre class="programlisting">
+	basic_string&amp; 
+	erase(size_type __pos = 0, size_type __n = npos)
+	{ 
+	return this-&gt;replace(_M_check(__pos), _M_fold(__pos, __n),
+	_M_data(), _M_data()); 
+	}
+      </pre>
+      The implementation of <b>erase</b> seems to be more
+      complicated (from libstdc++-v3), but <b>clear</b> is not
+      implemented in gcc 2.95.x's libstdc++, so you should use
+      <b>erase</b> (which is probably faster than
+      <b>operator=(charT*)</b>).
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-scan-form"></a>GNU Extensions ostream::form and istream::scan</h2></div></div>
+<p>
+      These	are not supported any more - use
+      <a href="#sec-stringstream" title="Using stringstreams">
+	stringstreams</a> instead.	
+    </p>
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-stringstream"></a>Using stringstreams</h2></div></div>
+<p>
+      Libstdc++-v3 provides the new
+      <b>i/ostringstream</b>-classes, (<tt>&lt;sstream&gt;</tt>), but for compatibility
+      with older implementations you still have to use
+      <b>i/ostrstream</b> (<tt>&lt;strstream&gt;</tt>):
+      <pre class="programlisting">
+	#ifdef HAVE_SSTREAM
+	#include &lt;sstream&gt;
+	#else
+	#include &lt;strstream&gt;
+	#endif
+      </pre>
+      <div class="itemizedlist"><ul type="disc">
+<li><p> <b>strstream</b> is considered to be
+	    deprecated
+	  </p></li>
+<li><p> <b>strstream</b> is limited to
+	    <b>char</b>
+	  </p></li>
+<li><p> with <b>ostringstream</b> you don't
+	    have to take care of terminating the string or freeing its
+	    memory
+	  </p></li>
+<li><p> <b>istringstream</b> can be re-filled
+	    (clear(); str(input);)
+	  </p></li>
+</ul></div>
+<p>
+      You can then use output-stringstreams like this:
+      <pre class="programlisting">
+	#ifdef HAVE_SSTREAM
+	std::ostringstream oss;
+	#else
+	std::ostrstream oss;
+	#endif
+	oss &lt;&lt; &quot;Name=&quot; &lt;&lt; m_name &lt;&lt; &quot;, number=&quot; &lt;&lt; m_number &lt;&lt; std::endl;
+	...
+	#ifndef HAVE_SSTREAM
+	oss &lt;&lt; std::ends; // terminate the char*-string
+	#endif
+	// str() returns char* for ostrstream and a string for ostringstream
+	// this also causes ostrstream to think that the buffer's memory
+	// is yours
+	m_label.set_text(oss.str());
+	#ifndef HAVE_SSTREAM
+	// let the ostrstream take care of freeing the memory
+	oss.freeze(false);
+	#endif
+      </pre>
+<p>
+      Input-stringstreams can be used similarly:
+      <pre class="programlisting">
+	std::string input;
+	...
+	#ifdef HAVE_SSTREAM
+	std::istringstream iss(input);
+	#else
+	std::istrstream iss(input.c_str());
+	#endif
+	int i;
+	iss &gt;&gt; i; 
+      </pre>
+      One (the only?) restriction is that an istrstream cannot be re-filled:
+      <pre class="programlisting">
+	std::istringstream iss(numerator);
+	iss &gt;&gt; m_num;
+	// this is not possible with istrstream
+	iss.clear();
+	iss.str(denominator);
+	iss &gt;&gt; m_den;
+      </pre>
+      If you don't care about speed, you can put these conversions in
+      a template-function:
+      <pre class="programlisting">
+	template &lt;class X&gt;
+	void fromString(const string&amp; input, X&amp; any)
+	{
+	#ifdef HAVE_SSTREAM
+	std::istringstream iss(input);
+	#else
+	std::istrstream iss(input.c_str());
+	#endif
+	X temp;
+	iss &gt;&gt; temp;
+	if (iss.fail())
+	throw runtime_error(..)
+	any = temp;
+	}
+      </pre>
+      Another example of using stringstreams is in <a href="../21_strings/howto.html" target="_top">this howto</a>.
+<p>
+      I have read the Josuttis book on Standard C++, so some information
+      comes from there. Additionally, there is information in
+      &quot;info iostream&quot;, which covers the old implementation that gcc 2.95.x
+      uses.
+    </p>
+</div>
+<div class="section">
+<div class="titlepage"><div><h2 class="title" style="clear: both">
+<a name="sec-about"></a>About...</h2></div></div>
+<p>
+      Please send any experience, additions, corrections or questions to
+      <a href="mailto:fnatter@gmx.net" target="_top">fnatter@gmx.net</a> or for
+      discussion to the libstdc++-v3-mailing-list.
+    </p>
+</div>
+</div></body>
+</html>

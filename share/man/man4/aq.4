@@ -1,0 +1,71 @@
+.\" $OpenBSD: aq.4,v 1.4 2022/03/31 21:43:38 jmc Exp $
+.\"
+.\" Copyright (c) 2021 Mike Larkin <mlarkin@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt AQ 4
+.Os
+.Sh NAME
+.Nm aq
+.Nd Aquantia AQC1xx 1Gb/2.5Gb/5Gb/10Gb PCIe Ethernet device
+.Sh SYNOPSIS
+.Cd "aq* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Aquantia AQC1xx family of Ethernet adapters.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width autoselect -offset indent
+.It autoselect
+Enables auto-negotiation for speed and duplex.
+.It 100baseTX Cm mediaopt No full-duplex
+Sets 100Mbps operation.
+.It 1000baseT
+Sets 1000Mbps operation.
+.It 2500baseT
+Sets 2.5Gbps operation.
+.It 5000baseT
+Sets 5Gbps operation.
+.It 10GbaseT
+Sets 10Gbps operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 7.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mike Larkin Aq Mt mlarkin@openbsd.org
+and
+.An Jonathan Matthew Aq Mt jmatthew@openbsd.org .
+.Sh BUGS
+This driver only supports devices using Aquantia firmware version 2.

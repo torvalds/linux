@@ -1,0 +1,12 @@
+#!/bin/ksh
+#
+# $OpenBSD: tftpd,v 1.3 2018/01/11 19:52:12 rpe Exp $
+
+daemon="/usr/sbin/tftpd"
+daemon_flags="/tftpboot"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=NO
+
+rc_cmd $1

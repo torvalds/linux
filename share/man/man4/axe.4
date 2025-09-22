@@ -1,0 +1,175 @@
+.\" Copyright (c) 1997, 1998, 1999, 2000-2003
+.\"	Bill Paul <wpaul@windriver.com>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: /repoman/r/ncvs/src/share/man/man4/axe.4,v 1.3 2003/05/29 21:28:35 ru Exp $
+.\" $OpenBSD: axe.4,v 1.48 2022/02/18 10:24:32 jsg Exp $
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt AXE 4
+.Os
+.Sh NAME
+.Nm axe
+.Nd ASIX Electronics AX88172/AX88178/AX88772 10/100/1Gb USB Ethernet device
+.Sh SYNOPSIS
+.Cd "axe*   at uhub?"
+.Cd "rgephy* at mii?"
+.Cd "rlphy* at mii?"
+.Cd "eephy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the ASIX
+Electronics AX88172, AX88178, and AX88772 USB 2.0 chipsets, including the
+following:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Apple USB Ethernet Adapter A1277
+.It ATEN UC-210T
+.It BAFO BF-320
+.It Billionton Systems USB2AR
+.It Buffalo(MELCO) LUA-U2-GT
+.It Buffalo(MELCO) LUA-U2-KTX
+.It Corega FEther USB2-TX
+.It D-Link DUB-E100
+.It Delock Gigabit USB 2.0 Ethernet Adapter
+.It Good Way GWUSB2E
+.It Hawking UF200
+.It Intellinet USB 2.0 to Ethernet (rev A)
+.It IO-Data ETG-US2
+.It JVC MP-PRX1
+.It Konig CMP-NWUSB20
+.It Lenovo USB 2.0 Ethernet
+.It Level One USB-0200
+.It Level One USB-0301
+.It Linksys USB200M
+.It Linksys USB1000
+.It Logitec LAN-GTJ/U2
+.It Netgear FA120
+.It Nintendo Wii USB Lan Ethernet Adapter RVL-015
+.It OQO model 01+ Ethernet
+.It Sitecom LN-029
+.It SMC 2209USB/ETH
+.It SnapPort USB 2.0 LAN Adapter
+.It ST Lab USB 2.0 Fast Ethernet
+.It Surecom EP-1427X-2
+.It System TALKS SGC-X2UL
+.It TRENDnet TU2-ET100
+.It Z-TEK ZK-R01-2
+.El
+.Pp
+The AX88172, AX88178, and AX88772 are USB 2.0 devices designed to work with
+either Ethernet or HomePNA transceivers.
+The AX88172 and AX88772 contain 10/100 Ethernet MACs with MII interfaces.
+The AX88178 contains a 10/100/1Gb Ethernet MAC with a GMII/MII
+interface.
+All adapters will operate with either USB 1.x or USB 2.0 controllers, however
+performance with 1.x controllers will be limited since the USB 1.x standard
+specifies a maximum transfer speed of 12Mbps.
+Users with USB 1.x controllers should therefore not expect to actually
+achieve 100Mbps speeds with these devices.
+.Pp
+A 64-bit multicast hash table is supported,
+single perfect filter entry for the station address,
+all-multicast mode, and promiscuous mode.
+Packets are
+received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width "autoselect"
+.It autoselect
+Enable autoselection of the media type and options (this is the default).
+The user can manually override the autoselected mode by adding media
+options to the appropriate
+.Xr hostname.if 5
+file.
+.It 10baseT
+Set 10Mbps operation.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.It 1000baseT
+Set 1000Mbps (Gigabit Ethernet) operation (AX88178 only).
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width "full-duplex"
+.It full-duplex
+Force full-duplex operation.
+.It half-duplex
+Force half-duplex operation.
+.El
+.Pp
+The interface will operate in
+half-duplex mode if no media option is specified.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "axe0: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.It "axe0: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr eephy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr rgephy 4 ,
+.Xr rlphy 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T "ASIX AX88172 data sheet"
+.%U https://www.asix.com.tw
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@windriver.com
+and ported to
+.Ox
+by
+.An Greg Taleck Aq Mt taleck@oz.net .

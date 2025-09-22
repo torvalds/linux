@@ -1,0 +1,35 @@
+dnl	$OpenBSD: prep,v 1.6 2020/05/17 17:04:28 deraadt Exp $
+The default configuration of the MACHINE systems comes with a Linux
+installation on the disk (either an IDE hard drive, or a CompactFlash
+card). At the moment, there is no known way to log in this installation
+as ``root'' or interrupt the boot process, and start an OpenBSD
+installation procedure.
+
+Because of this, the only way to boot the OpenBSD install is to copy
+the miniroot "miniroot{:--:}OSrev.img" image to the hard drive or CompactFlash
+(on the other hand, upgrades can be started by copying bsd.rd to the
+ OpenBSD disk and booting from it).
+
+As a result, you will need another machine to plug the machine's disk
+or CompactFlash in. Any machine type will do, as long as it supports
+ATA-compatible storage devices, regardless of the partition scheme
+it uses. Under OpenBSD, it will appear as a ``wd'' device, for example
+``wd1''.
+
+Use the dd(1) utility to copy the miniroot to the hard drive.
+The command would likely be, under OpenBSD:
+	dd if=miniroot{:--:}OSrev.img of=/dev/rwd1c
+Replace ``rwd1c'' with the appropriate device name for the raw device
+on the system used to do the copy.
+
+If the machine has a hard drive, and you had to change jumpers on it
+to change its ``master'' status, do not forget to configure it back
+to ``master'' or ``single drive'', as slave drives are not bootable.
+
+dnl I need to write a comprehensive text, also explaining that Rx/Tx
+dnl are swapped between the CF and HD models.
+In addition to the disk preparation, you will need to connect a serial
+port connector to the machine. Please refer to the OpenBSD/MACHINE
+page at
+	https://www.OpenBSD.org/MACHINE.html
+for more information.

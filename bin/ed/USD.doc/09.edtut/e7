@@ -1,0 +1,227 @@
+.\"	$OpenBSD: e7,v 1.4 2004/04/05 10:58:08 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)e7	8.1 (Berkeley) 6/8/93
+.\"
+.sp 2
+.SH
+Summary of Commands and Line Numbers
+.PP
+The general form of
+.ul
+ed
+commands is the command name,
+perhaps preceded by one or two line numbers, and,
+in the case of
+.UL e ,
+.UL r ,
+and
+.UL w ,
+followed by a file name.
+Only one command is allowed per line,
+but a
+.UL p
+command may follow any other command
+(except for
+.UL e ,
+.UL r ,
+.UL w ,
+and
+.UL q ).
+.LP
+.UL a :
+Append, that is, 
+add lines to the buffer (at line dot, unless
+a different line is specified). Appending continues until
+\*.
+is typed on a new line.
+Dot is set to the last line appended.
+.LP
+.UL c :
+Change the specified lines to the new text which follows.
+The new lines are terminated by a
+\*.,
+as with
+.UL a .
+If no lines are specified,
+replace line dot.
+Dot is set to the last line changed.
+.LP
+.UL d :
+Delete the lines specified.
+If none are specified, delete line dot.
+Dot is set to the first undeleted line,
+unless
+.UL $
+is deleted,
+in which case dot is set to
+.UL $ .
+.LP
+.UL e :
+Edit new file.
+Any previous
+contents of the buffer are thrown away,
+so issue a
+.UL w
+beforehand.
+.LP
+.UL f :
+Print remembered filename.
+If a name follows
+.UL f
+the remembered name will be set to it.
+.LP
+.UL g :
+The command
+.P1
+g/\(hy\(hy\(hy/commands
+.P2
+will execute the commands on those lines that contain
+.UL --- ,
+which can be any context search expression.
+.LP
+.UL i :
+Insert lines before specified line (or dot)
+until a
+\*.
+is typed on a new line.
+Dot is set to last line inserted.
+.LP
+.UL m :
+Move lines specified to after the line
+named after
+.UL m .
+Dot is set to the last line moved.
+.LP
+.UL p :
+Print specified lines.
+If none specified, print
+line dot.
+A single line number is equivalent to
+.IT line-number
+.UL p .
+A single return prints
+.UL .+1 ,
+the next line.
+.LP
+.UL q :
+Quit
+.IT ed .
+Wipes out all text in buffer
+if you give it twice in a row without first giving a
+.UL w
+command.
+.LP
+.UL r :
+Read a file into buffer (at end unless specified
+elsewhere.) Dot set to last line read.
+.LP
+.UL s :
+The command
+.P1
+s/string1/string2/
+.P2
+substitutes the characters
+.UL string1
+into
+.UL string2
+in the specified lines.
+If no lines are specified, make the substitution in line dot.
+Dot is set to the last line in which a
+substitution took place, which means that if no substitution took place, dot is not changed.
+.UL s
+changes only the first occurrence of
+.UL  string1 
+on a line;
+to change all of them, type a
+.UL g
+after the final slash.
+.LP
+.UL v :
+The command
+.P1
+v/\(hy\(hy\(hy/commands
+.P2
+executes
+.UL commands
+on those lines that
+.ul
+do not
+contain
+.UL --- .
+.LP
+.UL w :
+Write out buffer onto a file.
+Dot is not changed.
+.LP
+.UL .= :
+Print value of dot.
+.UL = "" (
+by itself prints the value of
+.UL $ .)
+.LP
+.UL ! :
+The line
+.P1
+!command\(hyline
+.P2
+causes
+.UL command-line
+to be executed as a
+.UC UNIX
+command.
+.LP
+.UL /-----/ :
+Context search.
+Search for next line which contains
+this string of characters.
+Print it.
+Dot is set to the line where string
+was found.
+Search starts at
+.UL .+1 ,
+wraps around from
+.UL $
+to
+1,
+and continues to dot, if necessary.
+.LP
+.UL ?-----? :
+Context search in reverse direction.
+Start search
+at
+.UL .\-1 ,
+scan to 1,
+wrap around to
+.UL $ .

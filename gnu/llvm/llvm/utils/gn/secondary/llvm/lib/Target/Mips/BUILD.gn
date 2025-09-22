@@ -1,0 +1,132 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("MipsGenCallingConv") {
+  visibility = [ ":LLVMMipsCodeGen" ]
+  args = [ "-gen-callingconv" ]
+  td_file = "Mips.td"
+}
+
+tablegen("MipsGenDAGISel") {
+  visibility = [ ":LLVMMipsCodeGen" ]
+  args = [ "-gen-dag-isel" ]
+  td_file = "Mips.td"
+}
+
+tablegen("MipsGenFastISel") {
+  visibility = [ ":LLVMMipsCodeGen" ]
+  args = [ "-gen-fast-isel" ]
+  td_file = "Mips.td"
+}
+
+tablegen("MipsGenGlobalISel") {
+  visibility = [ ":LLVMMipsCodeGen" ]
+  args = [ "-gen-global-isel" ]
+  td_file = "Mips.td"
+}
+
+tablegen("MipsGenMCPseudoLowering") {
+  visibility = [ ":LLVMMipsCodeGen" ]
+  args = [ "-gen-pseudo-lowering" ]
+  td_file = "Mips.td"
+}
+
+tablegen("MipsGenPostLegalizeGICombiner") {
+  visibility = [ ":LLVMMipsCodeGen" ]
+  args = [
+    "-gen-global-isel-combiner",
+    "-combiners=MipsPostLegalizerCombiner",
+  ]
+  td_file = "Mips.td"
+}
+
+tablegen("MipsGenRegisterBank") {
+  visibility = [ ":LLVMMipsCodeGen" ]
+  args = [ "-gen-register-bank" ]
+  td_file = "Mips.td"
+}
+
+static_library("LLVMMipsCodeGen") {
+  deps = [
+    ":MipsGenCallingConv",
+    ":MipsGenDAGISel",
+    ":MipsGenFastISel",
+    ":MipsGenGlobalISel",
+    ":MipsGenMCPseudoLowering",
+    ":MipsGenPostLegalizeGICombiner",
+    ":MipsGenRegisterBank",
+    "MCTargetDesc",
+    "TargetInfo",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "MicroMipsSizeReduction.cpp",
+    "Mips16FrameLowering.cpp",
+    "Mips16HardFloat.cpp",
+    "Mips16HardFloatInfo.cpp",
+    "Mips16ISelDAGToDAG.cpp",
+    "Mips16ISelLowering.cpp",
+    "Mips16InstrInfo.cpp",
+    "Mips16RegisterInfo.cpp",
+    "MipsAnalyzeImmediate.cpp",
+    "MipsAsmPrinter.cpp",
+    "MipsBranchExpansion.cpp",
+    "MipsCCState.cpp",
+    "MipsCallLowering.cpp",
+    "MipsConstantIslandPass.cpp",
+    "MipsDelaySlotFiller.cpp",
+    "MipsExpandPseudo.cpp",
+    "MipsFastISel.cpp",
+    "MipsFrameLowering.cpp",
+    "MipsISelDAGToDAG.cpp",
+    "MipsISelLowering.cpp",
+    "MipsInstrInfo.cpp",
+    "MipsInstructionSelector.cpp",
+    "MipsLegalizerInfo.cpp",
+    "MipsMCInstLower.cpp",
+    "MipsMachineFunction.cpp",
+    "MipsModuleISelDAGToDAG.cpp",
+    "MipsMulMulBugPass.cpp",
+    "MipsOptimizePICCall.cpp",
+    "MipsOs16.cpp",
+    "MipsPostLegalizerCombiner.cpp",
+    "MipsPreLegalizerCombiner.cpp",
+    "MipsRegisterBankInfo.cpp",
+    "MipsRegisterInfo.cpp",
+    "MipsSEFrameLowering.cpp",
+    "MipsSEISelDAGToDAG.cpp",
+    "MipsSEISelLowering.cpp",
+    "MipsSEInstrInfo.cpp",
+    "MipsSERegisterInfo.cpp",
+    "MipsSubtarget.cpp",
+    "MipsTargetMachine.cpp",
+    "MipsTargetObjectFile.cpp",
+    "MipsTargetTransformInfo.cpp",
+  ]
+}
+
+# This is a bit different from most build files: Due to this group
+# having the directory's name, "//llvm/lib/Target/Mips" will refer to this
+# target, which pulls in the code in this directory *and all subdirectories*.
+# For most other directories, "//llvm/lib/Foo" only pulls in the code directly
+# in "llvm/lib/Foo". The forwarding targets in //llvm/lib/Target expect this
+# different behavior.
+group("Mips") {
+  deps = [
+    ":LLVMMipsCodeGen",
+    "AsmParser",
+    "Disassembler",
+    "MCTargetDesc",
+    "TargetInfo",
+  ]
+}

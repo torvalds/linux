@@ -1,0 +1,57 @@
+.\"	$OpenBSD: vfs.9,v 1.4 2008/06/26 05:42:08 ray Exp $
+.\"     $NetBSD: vfs.9,v 1.7 2003/02/25 10:35:34 wiz Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Gregory McGarry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 26 2008 $
+.Dt VFS 9
+.Os
+.Sh NAME
+.Nm vfs
+.Nd kernel interface to file systems
+.Sh DESCRIPTION
+The virtual file system,
+.Nm VFS ,
+is the kernel interface to file systems.
+The interface specifies the calls for the kernel to access file systems.
+It also specifies the core functionality that a file system must provide
+to the kernel.
+.Pp
+The focus of
+.Nm
+activity is the
+.Em vnode
+and is discussed in
+.Xr vnode 9 .
+.\" File system operations such as mounting and syncing are discussed in
+.\" .Xr vfsops 9 .
+.Sh SEE ALSO
+.Xr intro 9 ,
+.\" .Xr vfsops 9 ,
+.Xr vnode 9 ,
+.Xr VOP_LOOKUP 9

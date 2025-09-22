@@ -1,0 +1,61 @@
+#!/bin/sh
+
+#
+# This script computes the various flags needed to run GNU C++ testsuites
+# (compiler specific as well as library specific). 
+#
+# Written by Benjamin Kosnik <bkoz@redhat.com>
+#            Gabriel Dos Reis <gdr@codesourcery.com>
+#
+
+# Print a message saying how this script is intended to be invoked
+print_usage() {
+    cat <<EOF
+Usage: 
+    testsuite_flags --install-includes
+		    --build-includes
+		    --build-cxx
+		    --install-cxx
+		    --cxxflags
+EOF
+}
+
+# Establish configure-generated directory structure.
+BUILD_DIR=@glibcpp_builddir@
+SRC_DIR=@glibcpp_srcdir@
+PREFIX_DIR=@glibcpp_prefixdir@
+query=$1
+
+case ${query} in
+    --install-includes)
+      INCLUDES="-I${SRC_DIR}/testsuite"
+      echo ${INCLUDES}
+      ;;
+    --build-includes)
+      INCLUDES="-nostdinc++ @GLIBCPP_INCLUDES@
+	        -I${SRC_DIR}/libsupc++ -I${SRC_DIR}/libio 
+		-I${SRC_DIR}/include/backward 
+		-I${SRC_DIR}/testsuite"
+      echo ${INCLUDES}
+      ;;
+    --install-cxx)
+      CXX=${PREFIX_DIR}/bin/g++
+      echo ${CXX}
+      ;;
+    --build-cxx)
+      CXX_build="@glibcpp_CXX@ ${PCHFLAGS}"
+      CXX=`echo "$CXX_build" | sed 's,gcc/xgcc ,gcc/g++ ,'`
+      echo ${CXX}
+      ;;
+    --cxxflags)
+      CXXFLAGS=' -g @SECTION_FLAGS@ @SECTION_LDFLAGS@
+		 -fmessage-length=0 @EXTRA_CXX_FLAGS@
+		 -DDEBUG_ASSERT  -DLOCALEDIR="@glibcpp_localedir@" '
+      echo ${CXXFLAGS}
+      ;;
+    *)
+      print_usage
+      ;;
+esac
+
+exit 0

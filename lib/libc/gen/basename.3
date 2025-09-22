@@ -1,0 +1,93 @@
+.\" $OpenBSD: basename.3,v 1.25 2020/10/20 19:30:14 naddy Exp $
+.\"
+.\" Copyright (c) 1997 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 20 2020 $
+.Dt BASENAME 3
+.Os
+.Sh NAME
+.Nm basename
+.Nd extract the base portion of a pathname
+.Sh SYNOPSIS
+.In libgen.h
+.Ft char *
+.Fn basename "char *path"
+.Sh DESCRIPTION
+The
+.Fn basename
+function returns the last component from the pathname pointed to by
+.Ar path ,
+deleting any trailing
+.Sq \&/
+characters.
+If
+.Ar path
+consists entirely of
+.Sq \&/
+characters, a pointer to the string
+.Qq \&/
+is returned.
+If
+.Ar path
+is a null pointer or the empty string, a pointer to the string
+.Qq \&.
+is returned.
+.Sh RETURN VALUES
+On successful completion,
+.Fn basename
+returns a pointer to the last component of
+.Ar path .
+.Pp
+If
+.Fn basename
+fails, a null pointer is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The following error codes may be set in
+.Va errno :
+.Bl -tag -width Er
+.It Bq Er ENAMETOOLONG
+The path component to be returned was larger than
+.Dv PATH_MAX .
+.El
+.Sh SEE ALSO
+.Xr basename 1 ,
+.Xr dirname 1 ,
+.Xr dirname 3
+.Sh STANDARDS
+The
+.Fn basename
+function conforms to the X/Open System Interfaces option of the
+.St -p1003.1-2008
+specification.
+.Sh HISTORY
+The
+.Fn basename
+function first appeared in
+.Ox 2.2 .
+.Sh AUTHORS
+.An Todd C. Miller
+.Sh CAVEATS
+.Fn basename
+returns a pointer to internal static storage space that will be overwritten
+by subsequent calls.
+.Pp
+Other vendor implementations of
+.Fn basename
+may modify the contents of the string passed to
+.Fn basename ;
+this should be taken into account when writing code which calls this function
+if portability is desired.

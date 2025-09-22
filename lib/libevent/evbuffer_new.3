@@ -1,0 +1,280 @@
+.\"	$OpenBSD: evbuffer_new.3,v 1.16 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2014 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt EVBUFFER_NEW 3
+.Os
+.Sh NAME
+.Nm evbuffer_new ,
+.Nm evbuffer_free ,
+.Nm evbuffer_setcb ,
+.Nm evbuffer_expand ,
+.Nm evbuffer_add ,
+.Nm evbuffer_add_buffer ,
+.Nm evbuffer_add_printf ,
+.Nm evbuffer_add_vprintf ,
+.Nm evbuffer_drain ,
+.Nm evbuffer_remove ,
+.Nm evbuffer_write ,
+.Nm evbuffer_read ,
+.Nm evbuffer_find ,
+.Nm evbuffer_readline ,
+.Nm evbuffer_readln ,
+.Nm EVBUFFER_LENGTH ,
+.Nm EVBUFFER_DATA
+.Nd libevent utility API for buffered input/output
+.Sh SYNOPSIS
+.Lb libevent
+.In event.h
+.Ft struct evbuffer *
+.Fn "evbuffer_new" "void"
+.Ft void
+.Fn "evbuffer_free" "struct evbuffer *buf"
+.Ft void
+.Fo evbuffer_setcb
+.Fa "struct evbuffer *buf"
+.Fa "void (*cb)(struct evbuffer *, size_t, size_t, void *)"
+.Fa "void *cbarg"
+.Fc
+.Ft int
+.Fn "evbuffer_expand" "struct evbuffer *buf" "size_t datlen"
+.Ft int
+.Fn "evbuffer_add" "struct evbuffer *buf" "const void *data" "size_t size"
+.Ft int
+.Fn "evbuffer_add_buffer" "struct evbuffer *dst" "struct evbuffer *src"
+.Ft int
+.Fn "evbuffer_add_printf" "struct evbuffer *buf" "const char *fmt" "..."
+.Ft int
+.Fn "evbuffer_add_vprintf" "struct evbuffer *buf" "const char *fmt" "va_list ap"
+.Ft void
+.Fn "evbuffer_drain" "struct evbuffer *buf" "size_t size"
+.Ft int
+.Fn "evbuffer_remove" "struct evbuffer *buf" "void *data" "size_t datlen"
+.Ft int
+.Fn "evbuffer_write" "struct evbuffer *buf" "int fd"
+.Ft int
+.Fn "evbuffer_read" "struct evbuffer *buf" "int fd" "int size"
+.Ft u_char *
+.Fn "evbuffer_find" "struct evbuffer *buf" "const u_char *data" "size_t size"
+.Ft char *
+.Fn "evbuffer_readline" "struct evbuffer *buf"
+.Ft char *
+.Fo evbuffer_readln
+.Fa "struct evbuffer *buf"
+.Fa "size_t *read_out"
+.Fa "enum evbuffer_eol_style eol_style"
+.Fc
+.Ft size_t
+.Fn "EVBUFFER_LENGTH" "const struct evbuffer *buf"
+.Ft u_char *
+.Fn "EVBUFFER_DATA" "const struct evbuffer *buf"
+.Sh DESCRIPTION
+The evbuffer API provides an implementation of buffering for use with
+libevent.
+.Pp
+.Fn evbuffer_new
+allocates and initialises a new evbuffer structure.
+.Pp
+.Fn evbuffer_free
+deallocates the evbuffer structure
+.Fa buf
+and any referenced storage.
+.Pp
+.Fn evbuffer_setcb
+sets the callback
+.Fa cb
+to be invoked with argument
+.Fa cbarg
+when the data in evbuffer
+.Fa buf
+is modified.
+.Pp
+.Fn evbuffer_expand
+expands the available space in
+.Fa buf
+to at least
+.Fa datlen
+bytes.
+.Pp
+.Fn evbuffer_add
+appends a copy of
+.Fa size
+bytes from buffer
+.Fa data
+to the end of the evbuffer
+.Fa buf .
+.Pp
+.Fn evbuffer_add_buffer
+moves the data off the
+.Fa src
+evbuffer and appends it to
+.Fa dst .
+.Pp
+.Fn evbuffer_add_printf
+appends a
+.Xr printf 3
+style formatted string specified by
+.Fa fmt
+to the end of
+.Fa buf .
+.Pp
+.Fn evbuffer_add_vprintf
+appends a
+.Xr vprintf 3
+style formatted string specified by
+.Fa fmt
+with a va_list
+.Fa ap
+to the end of
+.Fa buf .
+.Pp
+.Fn evbuffer_drain
+deletes
+.Fa size
+bytes from the beginning of the evbuffer
+.Fa buf .
+.Pp
+.Fn evbuffer_remove
+reads and drains up to
+.Fa datlen
+bytes from the beginning of the evbuffer
+.Fa buf
+into
+.Fa data .
+.Pp
+.Fn evbuffer_write
+writes and drains the contents of evbuffer
+.Fa buf
+to the file descriptor
+.Fa fd .
+.Pp
+.Fn evbuffer_read
+appends up to
+.Fa size
+bytes on to the end of the evbuffer
+.Fa buf
+by reading from the file descriptor
+.Fa fd .
+.Pp
+.Fn evbuffer_find
+finds the
+.Fa size
+length string
+.Fa data
+in the evbuffer
+.Fa buf .
+.Pp
+.Fn evbuffer_readline
+reads and drains a single line from the evbuffer
+.Fa buf .
+A line is delimited by "\en", "\er", "\er\en", or "\en\er".
+It is the responsibility of the caller to free the returned line with
+.Xr free 3 .
+.Pp
+.Fn evbuffer_readln
+reads and drains a single line from the evbuffer
+.Fa buf .
+The length of the line will be stored in
+.Fa read_out
+on success.
+It is the responsibility of the caller to free the returned line with
+.Xr free 3 .
+The line delimiter is specified as one of the following:
+.Bl -tag -width xxx -offset indent
+.It Dv EVBUFFER_EOL_ANY
+Any sequence of newline or carriage return characters.
+.It Dv EVBUFFER_EOL_CRLF
+A new line optionally preceded by a carriage return.
+.It Dv EVBUFFER_EOL_CRLF_STRICT
+A carriage return followed by a new line character.
+.It Dv EVBUFFER_EOL_LF
+A new line character.
+.El
+.Pp
+.Fn EVBUFFER_LENGTH
+reports how many bytes are stored in the evbuffer
+.Fa buf .
+.Sh RETURN VALUES
+.Fn evbuffer_new
+returns a pointer to a newly allocated buffer on success,
+or
+.Dv NULL
+on failure and sets
+.Va errno
+to indicate the failure.
+.Pp
+.Fn evbuffer_expand ,
+.Fn evbuffer_add ,
+and
+.Fn evbuffer_add_buffer
+return 0 on success,
+or -1 on failure and set
+.Va errno
+to indicate the failure.
+.Pp
+.Fn evbuffer_add_printf
+and
+.Fn evbuffer_add_vprintf
+return the number of bytes added on success,
+or -1 on failure.
+.Pp
+.Fn evbuffer_remove
+returns the number of bytes read.
+.Pp
+.Fn evbuffer_write
+returns the number of bytes written and drained on success,
+or -1 on failure and sets
+.Va errno
+to indicate the failure.
+.Pp
+.Fn evbuffer_read
+returns the number of bytes appended to the evbuffer on success,
+0 on an end of file condition,
+or -1 on failure and sets
+.Va errno
+to indicate the failure.
+.Pp
+.Fn evbuffer_find
+returns a pointer to the start of the string within the evbuffer on success,
+or
+.Dv NULL
+on failure.
+.Pp
+.Fn evbuffer_readline
+and
+.Fn evbuffer_readln
+return a pointer to the line on success,
+or
+.Dv NULL
+on failure.
+.Pp
+.Fn EVBUFFER_LENGTH
+returns the number of bytes available in the evbuffer.
+.Pp
+.Fn EVBUFFER_DATA
+returns a pointer to the evbuffer
+.Fa buf
+on success.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr event 3 ,
+.Xr free 3 ,
+.Xr printf 3
+.Sh AUTHORS
+The
+.Nm event
+library was written by
+.An Niels Provos .

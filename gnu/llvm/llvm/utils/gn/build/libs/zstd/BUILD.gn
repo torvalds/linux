@@ -1,0 +1,12 @@
+import("//llvm/utils/gn/build/libs/zstd/enable.gni")
+
+config("zstd_config") {
+  visibility = [ ":zstd" ]
+  libs = [ "zstd" ]
+}
+
+group("zstd") {
+  if (llvm_enable_zstd) {
+    public_configs = [ ":zstd_config" ]
+  }
+}

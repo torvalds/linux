@@ -1,0 +1,129 @@
+.\"	$OpenBSD: setnetbootinfo.8,v 1.9 2020/04/23 21:28:10 jmc Exp $
+.\"	$NetBSD: setnetbootinfo.8,v 1.2 1997/04/06 08:41:36 cgd Exp $
+.\"
+.\" Copyright (c) 1997 Christopher G. Demetriou.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou
+.\"      for the NetBSD Project.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 23 2020 $
+.Dt SETNETBOOTINFO 8 alpha
+.Os
+.Sh NAME
+.Nm setnetbootinfo
+.Nd configure network bootstrap program
+.Sh SYNOPSIS
+.Nm setnetbootinfo
+.Op Fl vf
+.Op Fl o Ar infile
+.Oo
+.Fl a Ar ether-address | Fl h Ar ether-host
+.Oc
+.Ar netboot
+.Nm setnetbootinfo
+.Op Fl v
+.Fl u o Ar outfile infile
+.Sh DESCRIPTION
+The
+.Nm setnetbootinfo
+utility configures the OpenBSD/alpha network bootstrap program so
+that it can be used to bootstrap systems with old firmware revisions.
+.Pp
+The OpenBSD/alpha network bootstrap program needs to have the Ethernet
+address of the interface being used to boot the system available when
+querying other hosts on the network for bootstrapping information.
+Alpha systems with old firmware revisions provide no way for
+network bootstrap programs to determine the Ethernet address of
+the interface that they are booting from, and so the OpenBSD/alpha
+network bootstrap program must find that information in another way.
+(Newer firmware revisions include the Ethernet address in the name of
+the device that is being booted from.)
+The
+.Nm
+utility encodes an Ethernet address (and other information) directly
+into the network bootstrap program.
+.Pp
+The options recognized by
+.Nm
+are as follows:
+.Bl -tag -width flag
+.It Fl a Ar ether-address
+Encode the given Ethernet address into the network bootstrap program.
+(This option and the
+.Fl h
+option are mutually exclusive.)
+.It Fl f
+Force the address information being encoded in the bootstrap
+program to be used regardless of whether or not the bootstrap
+program can get address information from the booting system's
+firmware.
+.It Fl h Ar ether-host
+Encode the Ethernet address of the specified host into the network
+bootstrap program.
+The host's name is translated to an Ethernet address using the
+.Xr ether_hostton 3
+function.
+(This option and the
+.Fl a
+option are mutually exclusive.)
+.It Fl o Ar outfile
+Output the resulting bootstrap program into the file named by
+.Ar outfile ,
+replacing it if it already exists.
+If the
+.Fl o
+flag is not specified, the output file name will be
+the name of the input bootstrap program concatenated with a
+period and the digits of the Ethernet address being encoded.
+For instance, if the input file is named
+.Pa /usr/mdec/netboot
+and is being configured to encode the Ethernet address
+.Li 08:00:2b:bd:5d:fd ,
+then the default output file name would be
+.Pa /usr/mdec/netboot.08002bbd5dfd .
+It is safe to set the output file name to be the same as the
+input file name; the input file is read in its entirety before
+the output file is modified.
+.It Fl u
+Remove configuration information from the specified network
+bootstrap program.
+If this option is used, an output file name must be specified with the
+.Fl o
+option, and neither the
+.Fl a
+or the
+.Fl h
+options may be specified.
+.It Fl v
+Verbose mode.
+.El
+.Sh SEE ALSO
+.Xr dhcpd 8
+.Sh HISTORY
+The alpha
+.Nm
+command first appeared in
+.Nx 1.2b .

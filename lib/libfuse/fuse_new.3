@@ -1,0 +1,247 @@
+.\" $OpenBSD: fuse_new.3,v 1.10 2025/09/20 15:01:23 helg Exp $
+.\"
+.\" Copyright (c) 2013 Sylvestre Gallon <ccna.syl@gmail.com>
+.\" Copyright (c) 2018 Helg Bredow <helg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 20 2025 $
+.Dt FUSE_NEW 3
+.Os
+.Sh NAME
+.Nm fuse_new
+.Nd FUSE implementation routine to initialise the FUSE connection
+.Sh SYNOPSIS
+.Lb libfuse
+.In fuse.h
+.Ft struct fuse *
+.Fn fuse_new "struct fuse_chan *fc" "struct fuse_args *args" \
+    "const struct fuse_operations *ops" "unused size_t size" \
+    "void *userdata"
+.Sh DESCRIPTION
+Initialises the FUSE library on the channel returned by
+.Xr fuse_mount 3 .
+.Pp
+FUSE operations work in the same way as their UNIX file system
+counterparts.
+A major exception is that these routines return
+a negated errno value (-errno) on failure.
+.Pp
+All operations are optional but a functional file system will want to
+implement at least statfs, readdir, open, read and getattr.
+FUSE will return ENOSYS if any operation other than flush, fsync or
+fsyncdir is not implemented.
+.Pp
+The first parameter to each of these operations (except for init and
+destroy) is a NULL terminated string representing the full path to
+the file or directory, relative to the root of the file system, that
+is being operated on.
+.Bd -literal
+struct fuse_operations {
+    int    (*getattr)(const char *, struct stat *);
+    int    (*readlink)(const char *, char *, size_t);
+    int    (*getdir)(const char *, fuse_dirh_t, fuse_dirfil_t);
+    int    (*mknod)(const char *, mode_t, dev_t);
+    int    (*mkdir)(const char *, mode_t);
+    int    (*unlink)(const char *);
+    int    (*rmdir)(const char *);
+    int    (*symlink)(const char *, const char *);
+    int    (*rename)(const char *, const char *);
+    int    (*link)(const char *, const char *);
+    int    (*chmod)(const char *, mode_t);
+    int    (*chown)(const char *, uid_t, gid_t);
+    int    (*truncate)(const char *, off_t);
+    int    (*utime)(const char *, struct utimbuf *);
+    int    (*open)(const char *, struct fuse_file_info *);
+    int    (*read)(const char *, char *, size_t, off_t,
+           struct fuse_file_info *);
+    int    (*write)(const char *, const char *, size_t, off_t,
+           struct fuse_file_info *);
+    int    (*statfs)(const char *, struct statvfs *);
+    int    (*flush)(const char *, struct fuse_file_info *);
+    int    (*release)(const char *, struct fuse_file_info *);
+    int    (*fsync)(const char *, int, struct fuse_file_info *);
+    int    (*setxattr)(const char *, const char *, const char *,
+            size_t int);
+    int    (*getxattr)(const char *, const char *, char *, size_t);
+    int    (*listxattr)(const char *, char *, size_t);
+    int    (*removexattr)(const char *, const char *);
+    int    (*opendir)(const char *, struct fuse_file_info *);
+    int    (*readdir)(const char *, void *, fuse_fill_dir_t, off_t,
+            struct fuse_file_info *);
+    int    (*releasedir)(const char *, struct fuse_file_info *);
+    int    (*fsyncdir)(const char *, int, struct fuse_file_info *);
+    void   *(*init)(struct fuse_conn_info *);
+    void   (*destroy)(void *);
+    int    (*access)(const char *, int);
+    int    (*create)(const char *, mode_t, struct fuse_file_info *);
+    int    (*ftruncate)(const char *, off_t, struct fuse_file_info *);
+    int    (*fgetattr)(const char *, struct stat *, struct
+            fuse_file_info *);
+    int    (*lock)(const char *, struct fuse_file_info *, int,
+            struct flock *);
+    int    (*utimens)(const char *, const struct timespec *);
+    int    (*bmap)(const char *, size_t , uint64_t *);
+};
+.Ed
+.Pp
+The order of calls is:
+.Bd -literal -offset indent
+init
+\&...
+opendir
+readdir
+releasedir
+open
+read
+write
+\&...
+flush
+release
+\&...
+destroy
+.Ed
+.Bl -tag -width "releasedir"
+.It access
+Not implemented.
+.Ox
+always behaves as if the default_permissions mount option was specified.
+See
+.Xr fuse_mount 3 .
+.It chmod
+Called when file access permissions are changed.
+.It chown
+Called when either the file owner or group is changed.
+.It create
+Not implemented on
+.Ox .
+File systems must implement mknod instead.
+In the reference implementation this is an atomic operation that both
+creates and opens the file.
+There is no equivalent in the
+.Ox
+VFS.
+.It flush
+Called when the file is closed by the
+.Xr close 2
+system call.
+This is the only way for a file system to return an error on close.
+.It fsync
+Optional function that implements
+.Xr fsync 2
+and
+.Xr fdatasync 2 .
+The datasync parameter specifies whether the operation is as a result
+of a call to
+.Xr fdatasync 2
+and is currently always 0 (false).
+ffi.fh_id will contain the file handle returned by the file system when
+the file was opened.
+.It fsyncdir
+Not implemented.
+.It getattr
+Corresponds to the
+.Xr stat 2
+system call.
+Flags and extended attributes are ignored.
+This operation is mandatory.
+.It getxattr
+Not implemented.
+.It getdir
+Deprecated.
+File system should implement readdir instead.
+.It mknod
+Called on
+.Xr open 2
+and
+.Xr mknod 2
+to create regular files, pipes and device special files.
+.It open
+Called on
+.Xr open 2 .
+Due to the difference between FUSE and the
+.Ox
+VFS,
+open will only be called once for each file
+for every different combination of flags provided to
+.Xr open 2 .
+The O_CREAT and O_TRUNC flags are never passed from the kernel to open,
+the mknod and truncate operations are invoked before open instead.
+.It opendir
+Called when a directory is opened for reading.
+.It readlink
+Called to read the target of a symbolic link.
+The path must be NUL-terminated.
+.It release
+Called when there are no more references to the file.
+.It releasedir
+Called when there are no more references to the directory.
+.It setattr
+Equivalent to
+.Xr chown 2
+and
+.Xr chmod 2
+system calls.
+Setting file flags is not supported.
+.It setxattr
+Not implemented.
+.El
+.Pp
+Options supported by args are:
+.Bl -tag -width "readdir_ino"
+.It debug, -d
+Print debug information to stdout.
+.It gid=%u
+The GID that will be reported as the group for all files by getattr.
+.It hard_remove
+Immediately delete a file even if it's currently open by a process.
+Otherwise FUSE will temporarily rename the file and only delete it when
+it is no longer referenced.
+This is to avoid the file system having to deal with this situation.
+This is always set on
+.Ox .
+.It readdir_ino
+Similar to use_ino but the file system's inode number is only reported
+for readdir.
+This is always set on
+.Ox
+because it's required by
+.Xr getcwd 3 .
+.It uid=%u
+The UID that will be reported as the owner for all files by getattr.
+.It umask=%o
+The file mode mask applied to the permission for all files by getattr.
+.It use_ino
+By default, FUSE will return an internal inode number for getattr and
+readdir and this will be different every time the file system is
+mounted.
+If this is set, the file system's own inode number will be
+reported instead.
+Useful only for file system that have inode numbers.
+.El
+.Sh SEE ALSO
+.Xr fuse_get_context 3 ,
+.Xr fuse_main 3 ,
+.Xr fuse_mount 3
+.Sh STANDARDS
+The
+.Fn fuse_new
+function conforms to FUSE 2.6.
+.Sh HISTORY
+The
+.Fn fuse_new
+function first appeared in
+.Ox 5.4 .
+.Sh AUTHORS
+.An Sylvestre Gallon Aq Mt ccna.syl@gmail.com
+.An Helg Bredow Aq Mt helg@openbsd.org

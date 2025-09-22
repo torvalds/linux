@@ -1,0 +1,48 @@
+.\"	$OpenBSD: getsn.9,v 1.2 2018/04/25 11:15:58 dlg Exp $
+.\"
+.\" Copyright (c) 2002, 2003 CubeSoft Communications, Inc.
+.\" <http://www.csoft.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 25 2018 $
+.Dt GETSN 9
+.Os
+.Sh NAME
+.Nm getsn
+.Nd read user input from the console
+.Sh SYNOPSIS
+.In lib/libkern/libkern.h
+.Ft size_t
+.Fn getsn "char *cp" "size_t size"
+.Sh DESCRIPTION
+The
+.Fn getsn
+function reads user input from the console and returns on newline.
+The result is written into
+.Fa cp ,
+which is assumed to be
+.Fa size
+bytes long.
+.Sh RETURN VALUES
+.Fn getsn
+returns the total length of the string it tried to create.

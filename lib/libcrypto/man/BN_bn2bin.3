@@ -1,0 +1,389 @@
+.\" $OpenBSD: BN_bn2bin.3,v 1.17 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>
+.\" and Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_BN2BIN 3
+.Os
+.Sh NAME
+.Nm BN_bn2bin ,
+.Nm BN_bn2binpad ,
+.Nm BN_bin2bn ,
+.Nm BN_bn2lebinpad ,
+.Nm BN_lebin2bn ,
+.Nm BN_bn2hex ,
+.Nm BN_bn2dec ,
+.Nm BN_hex2bn ,
+.Nm BN_dec2bn ,
+.Nm BN_asc2bn ,
+.Nm BN_print ,
+.Nm BN_print_fp ,
+.Nm BN_bn2mpi ,
+.Nm BN_mpi2bn
+.Nd format conversions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft int
+.Fo BN_bn2bin
+.Fa "const BIGNUM *a"
+.Fa "unsigned char *to"
+.Fc
+.Ft int
+.Fo BN_bn2binpad
+.Fa "const BIGNUM *a"
+.Fa "unsigned char *to"
+.Fa "int tolen"
+.Fc
+.Ft BIGNUM *
+.Fo BN_bin2bn
+.Fa "const unsigned char *s"
+.Fa "int len"
+.Fa "BIGNUM *ret"
+.Fc
+.Ft int
+.Fo BN_bn2lebinpad
+.Fa "const BIGNUM *a"
+.Fa "unsigned char *to"
+.Fa "int tolen"
+.Fc
+.Ft BIGNUM *
+.Fo BN_lebin2bn
+.Fa "const unsigned char *s"
+.Fa "int len"
+.Fa "BIGNUM *ret"
+.Fc
+.Ft char *
+.Fo BN_bn2hex
+.Fa "const BIGNUM *a"
+.Fc
+.Ft char *
+.Fo BN_bn2dec
+.Fa "const BIGNUM *a"
+.Fc
+.Ft int
+.Fo BN_hex2bn
+.Fa "BIGNUM **ap"
+.Fa "const char *str"
+.Fc
+.Ft int
+.Fo BN_dec2bn
+.Fa "BIGNUM **ap"
+.Fa "const char *str"
+.Fc
+.Ft int
+.Fo BN_asc2bn
+.Fa "BIGNUM **ap"
+.Fa "const char *str"
+.Fc
+.Ft int
+.Fo BN_print
+.Fa "BIO *fp"
+.Fa "const BIGNUM *a"
+.Fc
+.Ft int
+.Fo BN_print_fp
+.Fa "FILE *fp"
+.Fa "const BIGNUM *a"
+.Fc
+.Ft int
+.Fo BN_bn2mpi
+.Fa "const BIGNUM *a"
+.Fa "unsigned char *to"
+.Fc
+.Ft BIGNUM *
+.Fo BN_mpi2bn
+.Fa "unsigned char *s"
+.Fa "int len"
+.Fa "BIGNUM *ret"
+.Fc
+.Sh DESCRIPTION
+.Fn BN_bn2bin
+converts the absolute value of
+.Fa a
+into big-endian form and stores it at
+.Fa to .
+.Fa to
+must point to
+.Fn BN_num_bytes a
+bytes of memory.
+.Pp
+.Fn BN_bn2binpad
+also converts the absolute value of
+.Fa a
+into big-endian form and stores it at
+.Fa to .
+.Fa tolen
+indicates the length of the output buffer
+.Pf * Fa to .
+The result is padded with zeros if necessary.
+If
+.Fa tolen
+is less than
+.Fn BN_num_bytes a ,
+an error is returned.
+.Pp
+.Fn BN_bin2bn
+converts the positive integer in big-endian form of length
+.Fa len
+at
+.Fa s
+into a
+.Vt BIGNUM
+and places it in
+.Fa ret .
+If
+.Fa ret
+is
+.Dv NULL ,
+a new
+.Vt BIGNUM
+is created.
+.Pp
+.Fn BN_bn2lebinpad
+and
+.Fn BN_lebin2bn
+are identical to
+.Fn BN_bn2binpad
+and
+.Fn BN_bin2bn
+except the buffer
+.Pf * Fa to
+is in little-endian format.
+.Pp
+.Fn BN_bn2hex
+and
+.Fn BN_bn2dec
+return printable strings containing the hexadecimal and decimal encoding of
+.Fa a
+respectively.
+For negative numbers, the string is prefaced with a leading minus sign.
+The string must be freed later using
+.Xr free 3 .
+.Pp
+.Fn BN_hex2bn
+interprets
+.Fa str
+as a hexadecimal number.
+The string may start with a minus sign
+.Pq Sq - .
+Conversion stops at the first byte that is not a hexadecimal digit.
+The number is converted to a
+.Vt BIGNUM
+and stored in
+.Pf ** Fa ap .
+If
+.Pf * Fa ap
+is
+.Dv NULL ,
+a new
+.Vt BIGNUM
+is created.
+If
+.Fa ap
+is
+.Dv NULL ,
+it only computes the number's length in hexadecimal digits,
+also counting the leading minus sign if there is one.
+A "negative zero" is converted to zero.
+.Fn BN_dec2bn
+is the same using the decimal system.
+.Fn BN_asc2bn
+infers the number base from an optional prefix.
+If
+.Fa str
+starts with
+.Qq 0x
+or
+.Qq 0X ,
+it calls
+.Fn BN_hex2bn ,
+otherwise
+.Fn BN_dec2bn .
+If the number is negative, the minus sign can be given before or
+after the prefix.
+.Pp
+.Fn BN_print
+and
+.Fn BN_print_fp
+write the hexadecimal encoding of
+.Fa a ,
+with a leading minus sign for negative numbers, to the
+.Vt BIO
+or
+.Vt FILE
+.Fa fp .
+.Pp
+.Fn BN_bn2mpi
+and
+.Fn BN_mpi2bn
+convert
+.Vt BIGNUM Ns s
+from and to a format that consists of the number's length in bytes
+represented as a 4-byte big-endian number, and the number itself in
+big-endian format, where the most significant bit signals a negative
+number (the representation of numbers with the MSB set is prefixed with
+a NUL byte).
+.Pp
+.Fn BN_bn2mpi
+stores the representation of
+.Fa a
+at
+.Fa to ,
+where
+.Pf * Fa to
+must be large enough to hold the result.
+The size can be determined by calling
+.Fn BN_bn2mpi a  NULL .
+.Pp
+.Fn BN_mpi2bn
+converts the
+.Fa len
+bytes long representation at
+.Fa s
+to a
+.Vt BIGNUM
+and stores it at
+.Fa ret ,
+or in a newly allocated
+.Vt BIGNUM
+if
+.Fa ret
+is
+.Dv NULL .
+.Sh RETURN VALUES
+.Fn BN_bn2bin
+returns the length of the big-endian number placed at
+.Fa to .
+.Pp
+.Fn BN_bn2binpad
+and
+.Fn BN_bn2lebinpad
+return the number of bytes written
+or \-1 if the supplied buffer is too small.
+.Pp
+.Fn BN_bin2bn
+and
+.Fn BN_lebin2bn
+return the
+.Vt BIGNUM ,
+or
+.Dv NULL
+on error.
+.Pp
+.Fn BN_bn2hex
+and
+.Fn BN_bn2dec
+return a NUL-terminated string, or
+.Dv NULL
+on error.
+.Fn BN_hex2bn
+and
+.Fn BN_dec2bn
+return the number's length in hexadecimal or decimal digits,
+also counting the leading minus sign if there is one,
+or 0 on error, in which case no new
+.Vt BIGNUM
+is created.
+.Fn BN_asc2bn
+returns 1 on success or 0 on error, in which case no new
+.Vt BIGNUM
+is created.
+.Pp
+.Fn BN_print_fp
+and
+.Fn BN_print
+return 1 on success, 0 on write errors.
+.Pp
+.Fn BN_bn2mpi
+returns the length of the representation.
+.Fn BN_mpi2bn
+returns the
+.Vt BIGNUM ,
+or
+.Dv NULL
+on error.
+.Pp
+The error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr ASN1_INTEGER_to_BN 3 ,
+.Xr BN_new 3 ,
+.Xr BN_num_bytes 3 ,
+.Xr BN_zero 3
+.Sh HISTORY
+.Fn BN_bn2bin ,
+.Fn BN_bin2bn ,
+and
+.Fn BN_print
+first appeared in SSLeay 0.5.1.
+.Fn BN_print_fp
+first appeared in SSLeay 0.6.0.
+.Fn BN_bn2hex ,
+.Fn BN_bn2dec ,
+.Fn BN_hex2bn ,
+.Fn BN_dec2bn ,
+.Fn BN_bn2mpi ,
+and
+.Fn BN_mpi2bn
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn BN_asc2bin
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .
+.Pp
+.Fn BN_bn2binpad ,
+.Fn BN_bn2lebinpad ,
+and
+.Fn BN_lebin2bn
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 7.0 .

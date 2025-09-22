@@ -1,0 +1,72 @@
+import("//lldb/utils/TableGen/lldb_tablegen.gni")
+
+lldb_tablegen("CommandOptions") {
+  args = [ "-gen-lldb-option-defs" ]
+  td_file = "Options.td"  # FIXME: rename?
+}
+
+static_library("Commands") {
+  output_name = "lldbCommands"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    ":CommandOptions",
+    "//llvm/lib/Support",
+
+    #"//lldb/source/Breakpoint", # FIXME: many-hop dependency cycle.
+    "//lldb/source/Core",
+    "//lldb/source/DataFormatters",
+
+    #"//lldb/source/Expression", # FIXME: 2-hop dependency cycle.
+    "//lldb/source/Host",
+
+    #"//lldb/source/Interpreter", # FIXME: Dependency cycle.
+    #"//lldb/source/Symbol", # FIXME: many-hop dependency cycle.
+    #"//lldb/source/Target", # FIXME: 2-hop dependency cycle.
+    "//lldb/source/Utility",
+    "//lldb/source/Version",
+  ]
+  sources = [
+    "CommandCompletions.cpp",
+    "CommandObjectApropos.cpp",
+    "CommandObjectBreakpoint.cpp",
+    "CommandObjectBreakpointCommand.cpp",
+    "CommandObjectCommands.cpp",
+    "CommandObjectDWIMPrint.cpp",
+    "CommandObjectDiagnostics.cpp",
+    "CommandObjectDisassemble.cpp",
+    "CommandObjectExpression.cpp",
+    "CommandObjectFrame.cpp",
+    "CommandObjectGUI.cpp",
+    "CommandObjectHelp.cpp",
+    "CommandObjectLanguage.cpp",
+    "CommandObjectLog.cpp",
+    "CommandObjectMemory.cpp",
+    "CommandObjectMemoryTag.cpp",
+    "CommandObjectMultiword.cpp",
+    "CommandObjectPlatform.cpp",
+    "CommandObjectPlugin.cpp",
+    "CommandObjectProcess.cpp",
+    "CommandObjectQuit.cpp",
+    "CommandObjectRegexCommand.cpp",
+    "CommandObjectRegister.cpp",
+    "CommandObjectScripting.cpp",
+    "CommandObjectSession.cpp",
+    "CommandObjectSettings.cpp",
+    "CommandObjectSource.cpp",
+    "CommandObjectStats.cpp",
+    "CommandObjectTarget.cpp",
+    "CommandObjectThread.cpp",
+    "CommandObjectThreadUtil.cpp",
+    "CommandObjectTrace.cpp",
+    "CommandObjectType.cpp",
+    "CommandObjectVersion.cpp",
+    "CommandObjectWatchpoint.cpp",
+    "CommandObjectWatchpointCommand.cpp",
+    "CommandOptionArgumentTable.cpp",
+    "CommandOptionsProcessAttach.cpp",
+    "CommandOptionsProcessLaunch.cpp",
+  ]
+}

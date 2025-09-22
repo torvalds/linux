@@ -1,0 +1,153 @@
+.\" $OpenBSD: futex.2,v 1.7 2023/11/09 09:13:32 jasper Exp $
+.\"
+.\" Copyright (c) 2017 Martin Pieuchot
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 9 2023 $
+.Dt FUTEX 2
+.Os
+.Sh NAME
+.Nm futex
+.Nd fast userspace locking primitive
+.Sh SYNOPSIS
+.In sys/time.h
+.In sys/futex.h
+.Ft int
+.Fo futex
+.Fa "volatile uint32_t *uaddr"
+.Fa "int op"
+.Fa "int val"
+.Fa "const struct timespec *timeout"
+.Fa "volatile uint32_t *uaddr2"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn futex
+syscall provides sleep and wakeup primitives related to a particular address.
+.Pp
+Three
+.Fa op
+operations are currently supported:
+.Bl -tag -width FUTEX_REQUEUE -offset indent
+.It Dv FUTEX_WAIT
+If
+.Fa val
+is equal to
+.Pf * Fa uaddr ,
+the calling thread is blocked on the
+.Dq wait channel
+identified by
+.Fa uaddr
+until
+.Fa timeout
+expires or until another thread issues a
+.Dv FUTEX_WAKE
+or
+.Dv FUTEX_REQUEUE
+operation with the same
+.Fa uaddr
+address.
+.Fa uaddr2
+is ignored.
+.It Dv FUTEX_WAKE
+Unblocks
+.Fa val
+threads sleeping on the
+wait channel identified by
+.Fa uaddr .
+.Fa timeout
+and
+.Fa uaddr2
+are ignored.
+.It Dv FUTEX_REQUEUE
+Similar to
+.Dv FUTEX_WAKE
+but also requeue remaining threads from the wait channel
+.Fa uaddr
+to
+.Fa uaddr2 .
+In this case, pass
+.Fa "uint32_t val2"
+as the fourth argument instead of
+.Fa timeout .
+At most that number of threads is requeued.
+.El
+.Sh RETURN VALUES
+For
+.Dv FUTEX_WAKE
+and
+.Dv FUTEX_REQUEUE ,
+.Fn futex
+returns the number of woken threads.
+.Pp
+For
+.Dv FUTEX_WAIT ,
+.Fn futex
+returns zero if woken by a matching
+.Dv FUTEX_WAKE
+or
+.Dv FUTEX_REQUEUE
+call.
+Otherwise, a value of \-1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn futex
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOSYS
+The
+.Fa op
+argument is invalid.
+.It Bq Er EFAULT
+The userspace address
+.Fa uaddr
+is invalid.
+.It Bq Er EAGAIN
+The value pointed to by
+.Fa uaddr
+is not the same as the expected value
+.Fa val .
+.It Bq Er EINVAL
+The
+.Fa timeout
+specified a second value less than zero,
+or a nanosecond value less than zero or greater than or equal to 1000 million.
+.It Bq Er ETIMEDOUT
+The
+.Fa timeout
+expired before the thread was woken up.
+.It Bq Er EINTR
+A signal arrived.
+.It Bq Er ECANCELED
+A signal arrived and
+.Fa SA_RESTART
+was set.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr pthread_cond_wait 3 ,
+.Xr pthread_mutex_lock 3 ,
+.Xr tsleep 9
+.Rs
+.%A Ulrich Drepper
+.%T Futexes Are Tricky
+.%U https://www.akkadia.org/drepper/futex.pdf
+.%D November 5, 2011
+.Re
+.Sh HISTORY
+The
+.Fn futex
+syscall first appeared in Linux 2.5.7 and was added to
+.Ox 6.2 .

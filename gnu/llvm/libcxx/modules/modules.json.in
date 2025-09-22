@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "revision": 1,
+  "modules": [
+    {
+      "logical-name": "std",
+      "source-path": "@LIBCXX_MODULE_RELATIVE_PATH@/std.cppm",
+      "is-std-library": true,
+      "local-arguments": {
+        "system-include-directories": [
+          "@LIBCXX_MODULE_RELATIVE_PATH@"
+        ]
+      }
+    },
+    {
+      "logical-name": "std.compat",
+      "source-path": "@LIBCXX_MODULE_RELATIVE_PATH@/std.compat.cppm",
+      "is-std-library": true,
+      "local-arguments": {
+        "system-include-directories": [
+          "@LIBCXX_MODULE_RELATIVE_PATH@"
+        ]
+      }
+    }
+  ]
+}

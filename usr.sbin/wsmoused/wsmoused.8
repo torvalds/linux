@@ -1,0 +1,196 @@
+.\"	$OpenBSD: wsmoused.8,v 1.22 2018/04/25 06:29:28 jmc Exp $
+.\"
+.\" Copyright (c) 2001 Jean-Baptiste Marchand
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 25 2018 $
+.Dt WSMOUSED 8
+.Os
+.Sh NAME
+.Nm wsmoused
+.Nd wsmouse daemon
+.Sh SYNOPSIS
+.Nm wsmoused
+.Op Fl 2dfi
+.Op Fl C Ar thresh
+.Op Fl D Ar device
+.Oo
+.Fl M
+.Ar N Ns = Ns Ar M
+.Oc
+.Op Fl p Ar device
+.Op Fl t Ar type
+.Sh DESCRIPTION
+.Nm
+listens for mouse events on the specified
+.Ar device
+and communicates them to the
+.Xr wscons 4
+driver.
+Its purpose is to provide copy/paste functionality on the console.
+It does not happily coexist with the X Window System though,
+so it has to be killed before starting the X Window System.
+.Pp
+By default, the left mouse button is used to select text
+(in the familiar click-and-drag fashion);
+the right button is used to extend the selection;
+and the middle button pastes.
+This behavior can be modified through the use of
+.Fl M ,
+e.g.\&
+.Li -M 2=3
+maps the right mouse button to paste.
+.Pp
+The options are as follows:
+.Bl -tag -width "-p device"
+.It Fl 2
+Indicate that the mouse has two buttons.
+In that case, the right button pastes.
+.It Fl C Ar thresh
+Set double click speed as the maximum interval in msec between button clicks.
+If omitted, the default value of 500 msec will be assumed.
+This option will have effect only on the cut and paste operations
+in the text mode console.
+.It Fl D Ar device
+Use
+.Ar device
+as the display control device.
+If omitted,
+.Nm
+will use the default value of
+.Pa /dev/ttyCcfg ,
+which controls the
+.Nm wsdisplay0
+display terminals.
+.It Fl d
+Enable debugging messages.
+.It Fl f
+Do not become a daemon and instead run as a foreground process.
+Useful for testing and debugging.
+.It Fl i
+Print the type and the protocol of the mouse and exit.
+.It Fl M Ar N Ns = Ns Ar M
+Assign the physical button
+.Ar M
+to the logical button
+.Ar N .
+You may specify as many instances of this option as you like.
+More than one
+physical button may be assigned to a logical button at the same time.
+In this case the logical button will be down, if either of the assigned
+physical buttons is held down.
+Do not put space around
+.Ql = .
+Button numbers start from one, assigned to the leftmost button.
+.It Fl p Ar device
+Use
+.Ar device
+to communicate with the mouse.
+If this option is not present, the device opened is
+.Pa /dev/wsmouse
+(the multiplexer device that receives all mouse events from all wsmouse
+compatible mice on the system).
+For a serial mouse, you have to explicitly specify the serial port, i.e.\&
+.Ar device
+must be one of
+.Pa /dev/cua0[0-3] .
+.It Fl t Ar type
+This option only applies to serial mice.
+It specifies the protocol used by the serial mice.
+You may explicitly specify a type listed below or use
+.Em auto
+to let
+.Nm
+automatically select an appropriate protocol for the given mouse, if the
+serial mouse respects the PnP COM specification.
+.Pp
+If this option is not specified,
+.Em auto
+is assumed.
+Under normal circumstances, you need to use this option only if
+the mouse is not PnP compatible.
+.Pp
+Valid protocol types for this option are the following:
+.Bl -tag -width thinkingmouse
+.It Ar microsoft
+Microsoft serial mouse protocol.
+Most 2-button serial mice use this protocol.
+.It Ar intellimouse
+Microsoft IntelliMouse protocol.
+Genius NetMouse, ASCII Mie Mouse, Logitech MouseMan+, and FirstMouse+
+use this protocol as well.
+Other mice with a roller/wheel may be compatible with this protocol.
+.It Ar mousesystems
+MouseSystems 5-byte protocol.
+3-button mice may use this protocol.
+.It Ar mmseries
+MM Series mouse protocol.
+.It Ar logitech
+Logitech mouse protocol.
+Note that this is for old Logitech models.
+.Ar mouseman
+or
+.Ar intellimouse
+should be specified for newer models.
+.It Ar mouseman
+Logitech MouseMan and TrackMan protocol.
+Some 3-button mice may be compatible with this protocol.
+Note that MouseMan+ and FirstMouse+ use
+.Ar intellimouse
+protocol rather than this one.
+.It Ar glidepoint
+ALPS GlidePoint protocol.
+.It Ar thinkingmouse
+Kensington ThinkingMouse protocol.
+.It Ar mmhitab
+Hitachi tablet protocol.
+.El
+.El
+.Sh EXAMPLES
+To start wsmoused on the
+.Nm wsdisplay1
+display terminals, using a two-button serial mouse connected to
+.Pa /dev/cua0 :
+.Pp
+.Dl # wsmoused -2 -D /dev/ttyDcfg -p /dev/cua0
+.Pp
+To start wsmoused on the
+.Nm wsdisplay0
+display terminals, using
+.Pa /dev/wsmouse
+with the left and right buttons swapped
+.Pq assuming a three button mouse :
+.Pp
+.Dl # wsmoused -M 1=3 -M 3=1
+.Sh SEE ALSO
+.Xr wscons 4 ,
+.Xr wsmouse 4
+.Sh HISTORY
+The
+.Nm
+daemon is a slightly modified version of the moused daemon from the
+.Fx
+project, written by
+.An Michael Smith Aq Mt msmith@FreeBSD.org .
+Both inherit code from the XFree Project.

@@ -1,0 +1,430 @@
+.\" $OpenBSD: ipsec.4,v 1.89 2022/12/23 07:16:55 jmc Exp $
+.\"
+.\" Copyright 1997 Niels Provos <provos@physnet.uni-hamburg.de>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Niels Provos.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Manual page, using -mandoc macros
+.\"
+.Dd $Mdocdate: December 23 2022 $
+.Dt IPSEC 4
+.Os
+.Sh NAME
+.Nm ipsec
+.Nd IP Security Protocol
+.Sh DESCRIPTION
+IPsec is a pair of protocols,
+Encapsulating Security Payload (ESP)
+and Authentication Header (AH),
+which provide security services for IP datagrams.
+.Pp
+Both protocols may be enabled or disabled using the following
+.Xr sysctl 2
+variables in
+.Pa /etc/sysctl.conf .
+By default, both protocols are enabled:
+.Pp
+.Bl -tag -width "net.inet.esp.enableXX" -offset indent -compact
+.It net.inet.esp.enable
+Enable the ESP IPsec protocol
+.It net.inet.ah.enable
+Enable the AH IPsec protocol
+.El
+.Pp
+There are four main security properties provided by IPsec:
+.Bl -inset -offset indent
+.It Confidentiality
+\- Ensure it is hard for anyone but the
+receiver to understand what data has been communicated.
+For example, ensuring the secrecy of passwords when logging
+into a remote machine over the Internet.
+.It Integrity
+\- Guarantee that the data does not get changed
+in transit.
+If you are on a line carrying invoicing data, you
+probably want to know that the amounts and account numbers
+are correct and have not been modified by a third party.
+.It Authenticity
+\- Sign your data so that others can see that it
+is really you that sent it.
+It is clearly nice to know that documents are not forged.
+.It Replay protection
+\- We need ways to ensure a datagram is processed only once, regardless
+of how many times it is received.
+That is, it should not be possible for an attacker
+to record a transaction (such as a bank account withdrawal), and then
+by replaying it verbatim cause the peer to think a new message
+(withdrawal request) had been received.
+WARNING: as per the standard's specification, replay protection is not
+performed when using manual-keyed IPsec (e.g. when using
+.Xr ipsecctl 8 ) .
+.El
+.Ss IPsec Protocols
+IPsec provides these services using two new protocols:
+Authentication Header (AH), and
+Encapsulating Security Payload (ESP).
+.Pp
+ESP can provide the properties authentication, integrity, replay protection,
+and confidentiality of the data
+(it secures everything in the packet that follows the IP header).
+Replay protection requires authentication and
+integrity (these two always go together).
+Confidentiality (encryption) can be used with or without
+authentication/integrity.
+Similarly, one could use authentication/integrity with or without
+confidentiality.
+.Pp
+AH provides authentication, integrity, and replay protection
+(but not confidentiality).
+The main difference between the authentication features of
+AH and ESP is that AH also authenticates portions of the IP
+header of the packet
+(such as the source/destination addresses).
+ESP authenticates only the packet payload.
+.\".Pp
+.\"A third protocol is available which is highly relevant to IPsec: IPComp.
+.\"IPComp is a protocol used to reduce the size of IP datagrams
+.\"(i.e. it provides compression).
+.\"See
+.\".Xr ipcomp 4
+.\"for further information.
+.Ss Authentication Header (AH)
+AH works by computing a value that depends on all of the payload
+data, some of the IP header data, and a certain secret value
+(the authentication key).
+This value is then sent with the rest of each packet.
+The receiver performs the same computation, and if the value matches,
+it knows no one tampered with the data (integrity), the address information
+(authenticity) or a sequence number (replay protection).
+It knows this because the secret authentication key makes sure no
+active attacker (man-in-the-middle) can recompute the correct value after
+altering the packet.
+The algorithms used to compute these values are called hash algorithms and are
+parameters in the SA, just like the authentication key.
+.Ss Encapsulating Security Payload (ESP)
+ESP optionally does almost everything that AH does
+except that it does not protect the outer IP
+header but furthermore it encrypts the payload data with an encryption
+algorithm using a secret encryption key.
+Only the ones knowing this key can decrypt the data, thus providing
+confidentiality.
+Both the algorithm and the encryption key are parameters of the SA.
+.Ss Security Associations (SAs)
+These protocols require certain parameters for each connection, describing
+exactly how the desired protection will be achieved.
+These parameters are collected in an entity called a security association,
+or SA for short.
+Typical SA parameters include encryption algorithm, hash algorithm,
+encryption key, and authentication key, to name a few.
+When two peers have established matching SAs
+(one at each end),
+packets protected with one end's SA may be verified and/or decrypted
+using the information in the other end's SA.
+The only issue remaining is to ensure that both ends have matching SAs.
+This may be done manually, or automatically using a key management daemon.
+.Pp
+Further information on manual SA establishment is described in
+.Xr ipsec.conf 5 .
+Information on automated key management for IKEv1 can be found in
+.Xr isakmpd 8
+and for IKEv2 in
+.Xr iked.conf 5 .
+.Ss Security Parameter Indexes (SPIs)
+In order to identify an SA, we need to have a unique name for it.
+This name is a triplet, consisting of the destination address, security
+parameter index (aka SPI) and the security protocol (ESP or AH).
+Since the destination address is part of the name, an SA is necessarily a
+unidirectional construct.
+For a bidirectional communication channel, two SAs are required, one
+outgoing and one incoming, where the destination address is our local
+IP address.
+The SPI is just a number that helps us make the name unique;
+it can be arbitrarily chosen in the range 0x100 \- 0xffffffff.
+The security protocol number should be 50 for ESP and 51 for AH,
+as these are the protocol numbers assigned by IANA.
+.Ss Modes of Operation
+IPsec can operate in two modes, either tunnel or transport mode.
+In transport mode the ordinary IP
+header is used to deliver the packets to their endpoint;
+in tunnel mode the ordinary IP
+header just tells us the address of a security gateway
+which knows how to verify/decrypt the payload and forward the
+packet to a destination given by another IP
+header contained in the protected payload.
+Tunnel mode can be used for establishing virtual private networks (VPNs),
+where parts of the networks can be spread out over an
+unsafe public network, but security gateways at each subnet are responsible
+for encrypting and decrypting the data passing over the public net.
+An SA will contain information specifying
+whether it is a tunnel or transport mode SA,
+and for tunnels it will contain values to fill in into the outer IP header.
+.Ss Lifetimes
+The SA also holds a couple of other parameters, especially useful for
+automatic keying, called lifetimes, which puts a limit on how much we can
+use an SA for protecting our data.
+These limits can be in wall-clock time or in volume of our data.
+.Ss IPsec Examples
+To better illustrate how IPsec works, consider a typical TCP packet:
+.Pp
+.Dl [IP header] [TCP header] [data...]
+.Pp
+If we apply ESP in transport mode to the above packet, we will get:
+.Pp
+.Dl [IP header] [ESP header] [TCP header] [data...]
+.Pp
+Everything after the ESP
+header is protected by whatever services of ESP we are using
+(authentication/integrity, replay protection, confidentiality).
+This means the IP header itself is not protected.
+.Pp
+If we apply ESP in tunnel mode to the original packet, we would get:
+.Pp
+.Dl [IP header] [ESP header] [IP header] [TCP header] [data...]
+.Pp
+Again, everything after the ESP header is cryptographically protected.
+Notice the insertion of an IP header between the ESP and TCP header.
+This mode of operation allows us to hide who the true
+source and destination addresses of a packet are
+(since the protected and the unprotected IP
+headers don't have to be exactly the same).
+A typical application of this is in Virtual Private Networks (or VPNs),
+where two firewalls use IPsec
+to secure the traffic of all the hosts behind them.
+For example:
+.Bd -literal -offset indent
+Net A <----> Firewall 1 <--- Internet ---> Firewall 2 <----> Net B
+.Ed
+.Pp
+Firewall 1 and Firewall 2 can protect all communications between Net A
+and Net B by using IPsec in tunnel mode, as illustrated above.
+.Pp
+This implementation makes use of a virtual interface,
+.Nm enc0 ,
+which can be used in packet filters to specify those packets that have
+been or will be processed by IPsec.
+.Pp
+NAT can also be applied to
+.Nm enc#
+interfaces, but special care should be taken because of the interactions
+between NAT and the IPsec flow matching, especially on the packet output path.
+Inside the TCP/IP stack, packets go through the following stages:
+.Bd -literal -offset indent
+UL/R -> [X] -> PF/NAT(enc0) -> IPsec -> PF/NAT(IF) -> IF
+UL/R <-------- PF/NAT(enc0) <- IPsec <- PF/NAT(IF) <- IF
+.Ed
+.Pp
+With IF being the real interface and UL/R the Upper Layer or Routing code.
+The [X]
+stage on the output path represents the point where the packet
+is matched against the IPsec flow database (SPD) to determine if and how
+the packet has to be IPsec-processed.
+If, at this point, it is determined that the packet should be IPsec-processed,
+it is processed by the PF/NAT code.
+Unless PF drops the packet, it will then be IPsec-processed, even if the
+packet has been modified by NAT.
+.Pp
+Security Associations can be set up manually with
+.Xr ipsecctl 8
+or automatically with the
+.Xr isakmpd 8
+or
+.Xr iked 8
+key management daemons.
+.Ss Additional Variables
+A number of
+.Xr sysctl 8
+variables are relevant to
+.Nm .
+These are generally
+.Va net.inet.ah.* ,
+.Va net.inet.esp.* ,
+.Va net.inet.ip.forwarding ,
+.Va net.inet6.ip6.forwarding ,
+and
+.Va net.inet.ip.ipsec-* .
+Full explanations can be found in
+.Xr sysctl 2 ,
+and variables can be set using the
+.Xr sysctl 8
+interface.
+.Pp
+A number of kernel options are also relevant to
+.Nm .
+See
+.Xr options 4
+for further information.
+.Ss API Details
+The following IP-level
+.Xr setsockopt 2
+and
+.Xr getsockopt 2
+options are specific to
+.Nm ipsec .
+A socket can specify security levels for three different categories:
+.Bl -tag -width IP_ESP_NETWORK_LEVEL -offset 2n
+.It IP_AUTH_LEVEL
+Specifies the use of authentication for packets sent or received by the
+socket.
+.It IP_ESP_TRANS_LEVEL
+Specifies the use of encryption in transport mode for packets sent or
+received by the socket.
+.It IP_ESP_NETWORK_LEVEL
+Specifies the use of encryption in tunnel mode.
+.El
+.Pp
+For each of the categories there are five possible levels which
+specify the security policy to use in that category:
+.Bl -tag -width IPSEC_LEVEL_REQUIRE -offset 2n
+.It IPSEC_LEVEL_BYPASS
+Bypass the default system security policy.
+This option can only be used by privileged processes.
+This level is necessary for the key management daemon,
+.Xr isakmpd 8 .
+.It IPSEC_LEVEL_AVAIL
+If a Security Association is available, it will be used for sending packets
+by that socket.
+.It IPSEC_LEVEL_USE
+Use IP Security for sending packets but still accept packets which are not
+secured.
+.It IPSEC_LEVEL_REQUIRE
+Use IP Security for sending packets and also require IP Security for
+received data.
+.It IPSEC_LEVEL_UNIQUE
+The outbound Security Association will only be used by this socket.
+.El
+.Pp
+When a new socket is created, it is assigned the default system security
+level in each category.
+These levels can be queried with
+.Xr getsockopt 2 .
+Only a privileged process can lower the security level with a
+.Xr setsockopt 2
+call.
+.Pp
+For example, a server process might want to accept only authenticated
+connections to prevent session hijacking.
+It would issue the following
+.Xr setsockopt 2
+call:
+.Bd -literal -offset 4n
+int level = IPSEC_LEVEL_REQUIRE;
+error = setsockopt(s, IPPROTO_IP, IP_AUTH_LEVEL, &level, sizeof(int));
+.Ed
+.Pp
+The system does guarantee that it will succeed at establishing the
+required security associations.
+In any case a properly configured key management daemon is required which
+listens to messages from the kernel.
+.Pp
+A list of all security associations in the kernel tables can be
+obtained using the
+.Xr ipsecctl 8
+command.
+.Sh DIAGNOSTICS
+A socket operation may fail with one of the following errors returned:
+.Bl -tag -width [EINVAL]
+.It Bq Er EACCES
+An attempt was made to lower the security level below the system default
+by a non-privileged process.
+.It Bq Er EINVAL
+The length of option field did not match or an unknown security level
+was given.
+.El
+.Pp
+.Xr netstat 1
+can be used to obtain some statistics about AH or ESP usage:
+.Bd -literal -offset indent
+$ netstat -s -p ah
+$ netstat -s -p esp
+.Ed
+.Pp
+The
+.Xr ipsecctl 8
+command can be used to display information about IPsec flows.
+.Pp
+.Xr vmstat 8
+displays information about memory use by IPsec with the
+.Fl m
+flag (look for
+.Dq tdb
+and
+.Dq xform
+allocations).
+.Sh SEE ALSO
+.Xr enc 4 ,
+.\".Xr ipcomp 4 ,
+.Xr options 4 ,
+.Xr ipsec.conf 5 ,
+.Xr iked 8 ,
+.Xr ipsecctl 8 ,
+.Xr isakmpd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+IPsec was originally designed to provide security services
+for Internet Protocol IPv6.
+It has since been engineered to provide those services for
+the original Internet Protocol, IPv4.
+.Pp
+The IPsec protocol design process was started in 1992 by
+John Ioannidis, Phil Karn, and William Allen Simpson.
+In 1995, the former wrote an implementation for
+.Bsx .
+Angelos D. Keromytis ported it to
+.Ox
+and
+.Nx .
+The latest transforms and new features were
+implemented by Angelos D. Keromytis and Niels Provos.
+.Sh AUTHORS
+.An -nosplit
+The authors of the IPsec code proper are
+.An John Ioannidis ,
+.An Angelos D. Keromytis ,
+and
+.An Niels Provos .
+.Pp
+.An Niklas Hallqvist
+and
+.An Niels Provos
+are the authors of
+.Xr isakmpd 8 .
+.Pp
+.An Eric Young Ap s
+libdeslite was used in this implementation for the DES algorithm.
+.Pp
+.An Steve Reid Ap s
+SHA-1 code was also used.
+.Pp
+The
+.Xr setsockopt 2 Ns / Ns Xr getsockopt 2
+interface follows somewhat loosely the
+draft-mcdonald-simple-ipsec-api
+(since expired).
+.Sh BUGS
+There's a lot more to be said on this subject.
+This is just a beginning.
+At the moment the socket options are not fully implemented.

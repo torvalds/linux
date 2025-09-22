@@ -1,0 +1,155 @@
+.\"	$OpenBSD: DIST_POINT_new.3,v 1.6 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt DIST_POINT_NEW 3
+.Os
+.Sh NAME
+.Nm DIST_POINT_new ,
+.Nm DIST_POINT_free ,
+.Nm CRL_DIST_POINTS_new ,
+.Nm CRL_DIST_POINTS_free ,
+.Nm DIST_POINT_NAME_new ,
+.Nm DIST_POINT_NAME_free ,
+.Nm ISSUING_DIST_POINT_new ,
+.Nm ISSUING_DIST_POINT_free
+.Nd X.509 CRL distribution point extensions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft DIST_POINT *
+.Fn DIST_POINT_new void
+.Ft void
+.Fn DIST_POINT_free "DIST_POINT *dp"
+.Ft CRL_DIST_POINTS *
+.Fn CRL_DIST_POINTS_new void
+.Ft void
+.Fn CRL_DIST_POINTS_free "CRL_DIST_POINTS *dps"
+.Ft DIST_POINT_NAME *
+.Fn DIST_POINT_NAME_new void
+.Ft void
+.Fn DIST_POINT_NAME_free "DIST_POINT_NAME *name"
+.Ft ISSUING_DIST_POINT *
+.Fn ISSUING_DIST_POINT_new void
+.Ft void
+.Fn ISSUING_DIST_POINT_free "ISSUING_DIST_POINT *dp"
+.Sh DESCRIPTION
+Using the CRL distribution point extension, a certificate can specify
+where to obtain certificate revocation lists that might later revoke it.
+.Pp
+.Fn DIST_POINT_new
+allocates and initializes an empty
+.Vt DIST_POINT
+object, representing an ASN.1
+.Vt DistributionPoint
+structure defined in RFC 5280 section 4.2.1.13.
+It can hold issuer names, distribution point names, and reason flags.
+.Fn DIST_POINT_free
+frees
+.Fa dp .
+.Pp
+.Fn CRL_DIST_POINTS_new
+allocates and initializes an empty
+.Vt CRL_DIST_POINTS
+object, which is a
+.Vt STACK_OF(DIST_POINT)
+and represents the ASN.1
+.Vt CRLDistributionPoints
+structure defined in RFC 5280 section 4.2.1.13.
+It can be used as an extension in
+.Vt X509
+and in
+.Vt X509_CRL
+objects.
+.Fn CRL_DIST_POINTS_free
+frees
+.Fa dps .
+.Pp
+.Fn DIST_POINT_NAME_new
+allocates and initializes an empty
+.Vt DIST_POINT_NAME
+object, representing an ASN.1
+.Vt DistributionPointName
+structure defined in RFC 5280 section 4.2.1.13.
+It is used by the
+.Vt DIST_POINT
+and
+.Vt ISSUING_DIST_POINT
+objects and can hold multiple names, each representing a different
+way to obtain the same CRL.
+.Fn DIST_POINT_NAME_free
+frees
+.Fa name .
+.Pp
+.Fn ISSUING_DIST_POINT_new
+allocates and initializes an empty
+.Vt ISSUING_DIST_POINT
+object, representing an ASN.1
+.Vt IssuingDistributionPoint
+structure defined in RFC 5280 section 5.2.5.
+Using this extension, a CRL can specify which distribution point
+it was issued from and which kinds of certificates and revocation
+reasons it covers.
+.Fn ISSUING_DIST_POINT_free
+frees
+.Fa dp .
+.Sh RETURN VALUES
+.Fn DIST_POINT_new ,
+.Fn CRL_DIST_POINTS_new ,
+.Fn DIST_POINT_NAME_new ,
+and
+.Fn ISSUING_DIST_POINT_new
+return the new
+.Vt DIST_POINT ,
+.Vt CRL_DIST_POINTS ,
+.Vt DIST_POINT_NAME ,
+or
+.Vt ISSUING_DIST_POINT
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr d2i_DIST_POINT 3 ,
+.Xr GENERAL_NAMES_new 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_NAME_new 3 ,
+.Xr X509_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile:
+.Bl -dash -compact
+.It
+section 4.2.1.13: CRL Distribution Points
+.It
+section 5.2.5: Issuing Distribution Point
+.El
+.Sh HISTORY
+.Fn DIST_POINT_new ,
+.Fn DIST_POINT_free ,
+.Fn CRL_DIST_POINTS_new ,
+.Fn CRL_DIST_POINTS_free ,
+.Fn DIST_POINT_NAME_new ,
+and
+.Fn DIST_POINT_NAME_free
+first appeared in OpenSSL 0.9.3 and have been available since
+.Ox 2.6 .
+.Pp
+.Fn ISSUING_DIST_POINT_new
+and
+.Fn ISSUING_DIST_POINT_free
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .

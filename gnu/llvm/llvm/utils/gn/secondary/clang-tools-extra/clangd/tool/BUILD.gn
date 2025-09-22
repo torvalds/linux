@@ -1,0 +1,39 @@
+import("//clang-tools-extra/clangd/xpc/enable.gni")
+
+executable("clangd") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clangd",
+    "//clang-tools-extra/clangd:features",
+    "//clang-tools-extra/clangd/index/remote/unimplemented",
+    "//clang-tools-extra/clangd/refactor/tweaks",
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Headers",
+    "//clang/lib/Sema",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Support",
+  ]
+  if (clangd_build_xpc) {
+    deps += [
+      "//clang-tools-extra/clangd/xpc:conversions",
+      "//clang-tools-extra/clangd/xpc:transport",
+    ]
+  }
+
+  include_dirs = [
+    "..",
+
+    # For "clang-include-cleaner/..." includes.
+    "//clang-tools-extra/include-cleaner/include",
+  ]
+  sources = [
+    "Check.cpp",
+    "ClangdMain.cpp",
+    "ClangdToolMain.cpp",
+  ]
+}

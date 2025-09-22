@@ -1,0 +1,85 @@
+.\" $OpenBSD: ASN1_item_pack.3,v 1.2 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_ITEM_PACK 3
+.Os
+.Sh NAME
+.Nm ASN1_item_pack ,
+.Nm ASN1_item_unpack
+.Nd pack an ASN.1 object into an ASN1_STRING
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft ASN1_STRING *
+.Fo ASN1_item_pack
+.Fa "void *val_in"
+.Fa "const ASN1_ITEM *it"
+.Fa "ASN1_STRING **string_out"
+.Fc
+.Ft void *
+.Fo ASN1_item_unpack
+.Fa "const ASN1_STRING *string_in"
+.Fa "const ASN1_ITEM *it"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_item_pack
+encodes the object pointed to by
+.Fa val_in
+into DER format using
+.Xr ASN1_item_i2d 3
+and stores the encoded form in
+.Pf ** Fa string_out .
+If
+.Fa string_out
+or
+.Pf * Fa string_out
+is a
+.Dv NULL
+pointer, a new
+.Vt ASN1_STRING
+object is allocated and returned.
+.Pp
+.Fn ASN1_item_unpack
+interprets the data in
+.Fa string_in
+as a DER- or BER-encoded byte array and decodes one value of the type
+.Fa it
+into a newly allocated object using
+.Xr ASN1_item_d2i 3 .
+.Sh RETURN VALUES
+.Fn ASN1_item_pack
+returns the modified or new object or
+.Dv NULL
+if memory allocation or encoding fails.
+.Pp
+.Fn ASN1_item_unpack
+returns the new object or
+.Dv NULL
+if memory allocation or decoding fails.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr ASN1_item_new 3 ,
+.Xr ASN1_STRING_new 3
+.Sh HISTORY
+.Fn ASN1_item_pack
+and
+.Fn ASN1_item_unpack
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Sh BUGS
+See the BUGS section in
+.Xr ASN1_item_i2d 3 .

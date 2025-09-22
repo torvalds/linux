@@ -1,0 +1,379 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_STACK
+#define _LIBCPP_STACK
+
+/*
+    stack synopsis
+
+namespace std
+{
+
+template <class T, class Container = deque<T>>
+class stack
+{
+public:
+    typedef Container                                container_type;
+    typedef typename container_type::value_type      value_type;
+    typedef typename container_type::reference       reference;
+    typedef typename container_type::const_reference const_reference;
+    typedef typename container_type::size_type       size_type;
+
+protected:
+    container_type c;
+
+public:
+    stack() = default;
+    ~stack() = default;
+
+    stack(const stack& q) = default;
+    stack(stack&& q) = default;
+
+    stack& operator=(const stack& q) = default;
+    stack& operator=(stack&& q) = default;
+
+    explicit stack(const container_type& c);
+    explicit stack(container_type&& c);
+    template <class InputIterator> stack(InputIterator first, InputIterator last); // since C++23
+    template<container-compatible-range<T> R> stack(from_range_t, R&& rg); // since C++23
+    template <class Alloc> explicit stack(const Alloc& a);
+    template <class Alloc> stack(const container_type& c, const Alloc& a);
+    template <class Alloc> stack(container_type&& c, const Alloc& a);
+    template <class Alloc> stack(const stack& c, const Alloc& a);
+    template <class Alloc> stack(stack&& c, const Alloc& a);
+    template<class InputIterator, class Alloc>
+    stack(InputIterator first, InputIterator last, const Alloc&); // since C++23
+    template<container-compatible-range<T> R, class Alloc>
+      stack(from_range_t, R&& rg, const Alloc&); // since C++23
+
+    bool empty() const;
+    size_type size() const;
+    reference top();
+    const_reference top() const;
+
+    void push(const value_type& x);
+    void push(value_type&& x);
+    template<container-compatible-range<T> R>
+      void push_range(R&& rg); // C++23
+    template <class... Args> reference emplace(Args&&... args); // reference in C++17
+    void pop();
+
+    void swap(stack& c) noexcept(is_nothrow_swappable_v<Container>)
+};
+
+template<class Container>
+  stack(Container) -> stack<typename Container::value_type, Container>;  // C++17
+
+template<class InputIterator>
+  stack(InputIterator, InputIterator) -> stack<iter-value-type<InputIterator>>; // since C++23
+
+template<ranges::input_range R>
+  stack(from_range_t, R&&) -> stack<ranges::range_value_t<R>>; // since C++23
+
+template<class Container, class Allocator>
+  stack(Container, Allocator) -> stack<typename Container::value_type, Container>; // C++17
+
+template<class InputIterator, class Allocator>
+  stack(InputIterator, InputIterator, Allocator)
+    -> stack<iter-value-type<InputIterator>,
+             deque<iter-value-type<InputIterator>, Allocator>>; // since C++23
+
+template<ranges::input_range R, class Allocator>
+  stack(from_range_t, R&&, Allocator)
+    -> stack<ranges::range_value_t<R>, deque<ranges::range_value_t<R>, Allocator>>; // since C++23
+
+template <class T, class Container>
+  bool operator==(const stack<T, Container>& x, const stack<T, Container>& y);
+template <class T, class Container>
+  bool operator< (const stack<T, Container>& x, const stack<T, Container>& y);
+template <class T, class Container>
+  bool operator!=(const stack<T, Container>& x, const stack<T, Container>& y);
+template <class T, class Container>
+  bool operator> (const stack<T, Container>& x, const stack<T, Container>& y);
+template <class T, class Container>
+  bool operator>=(const stack<T, Container>& x, const stack<T, Container>& y);
+template <class T, class Container>
+  bool operator<=(const stack<T, Container>& x, const stack<T, Container>& y);
+template<class T, three_way_comparable Container>
+  compare_three_way_result_t<Container>
+    operator<=>(const stack<T, Container>& x, const stack<T, Container>& y); // since C++20
+
+template <class T, class Container>
+  void swap(stack<T, Container>& x, stack<T, Container>& y)
+  noexcept(noexcept(x.swap(y)));
+
+}  // std
+
+*/
+
+#include <__algorithm/ranges_copy.h>
+#include <__config>
+#include <__fwd/stack.h>
+#include <__iterator/back_insert_iterator.h>
+#include <__iterator/iterator_traits.h>
+#include <__memory/uses_allocator.h>
+#include <__ranges/access.h>
+#include <__ranges/concepts.h>
+#include <__ranges/container_compatible_range.h>
+#include <__ranges/from_range.h>
+#include <__type_traits/is_same.h>
+#include <__utility/forward.h>
+#include <deque>
+#include <version>
+
+// standard-mandated includes
+
+// [stack.syn]
+#include <compare>
+#include <initializer_list>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+template <class _Tp, class _Container>
+_LIBCPP_HIDE_FROM_ABI bool operator==(const stack<_Tp, _Container>& __x, const stack<_Tp, _Container>& __y);
+
+template <class _Tp, class _Container>
+_LIBCPP_HIDE_FROM_ABI bool operator<(const stack<_Tp, _Container>& __x, const stack<_Tp, _Container>& __y);
+
+template <class _Tp, class _Container /*= deque<_Tp>*/>
+class _LIBCPP_TEMPLATE_VIS stack {
+public:
+  typedef _Container container_type;
+  typedef typename container_type::value_type value_type;
+  typedef typename container_type::reference reference;
+  typedef typename container_type::const_reference const_reference;
+  typedef typename container_type::size_type size_type;
+  static_assert(is_same<_Tp, value_type>::value, "");
+
+protected:
+  container_type c;
+
+public:
+  _LIBCPP_HIDE_FROM_ABI stack() _NOEXCEPT_(is_nothrow_default_constructible<container_type>::value) : c() {}
+
+  _LIBCPP_HIDE_FROM_ABI stack(const stack& __q) : c(__q.c) {}
+
+  _LIBCPP_HIDE_FROM_ABI stack& operator=(const stack& __q) {
+    c = __q.c;
+    return *this;
+  }
+
+#ifndef _LIBCPP_CXX03_LANG
+  _LIBCPP_HIDE_FROM_ABI stack(stack&& __q) noexcept(is_nothrow_move_constructible<container_type>::value)
+      : c(std::move(__q.c)) {}
+
+  _LIBCPP_HIDE_FROM_ABI stack& operator=(stack&& __q) noexcept(is_nothrow_move_assignable<container_type>::value) {
+    c = std::move(__q.c);
+    return *this;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI explicit stack(container_type&& __c) : c(std::move(__c)) {}
+#endif // _LIBCPP_CXX03_LANG
+
+  _LIBCPP_HIDE_FROM_ABI explicit stack(const container_type& __c) : c(__c) {}
+
+  template <class _Alloc>
+  _LIBCPP_HIDE_FROM_ABI explicit stack(const _Alloc& __a,
+                                       __enable_if_t<uses_allocator<container_type, _Alloc>::value>* = 0)
+      : c(__a) {}
+  template <class _Alloc>
+  _LIBCPP_HIDE_FROM_ABI
+  stack(const container_type& __c, const _Alloc& __a, __enable_if_t<uses_allocator<container_type, _Alloc>::value>* = 0)
+      : c(__c, __a) {}
+  template <class _Alloc>
+  _LIBCPP_HIDE_FROM_ABI
+  stack(const stack& __s, const _Alloc& __a, __enable_if_t<uses_allocator<container_type, _Alloc>::value>* = 0)
+      : c(__s.c, __a) {}
+#ifndef _LIBCPP_CXX03_LANG
+  template <class _Alloc>
+  _LIBCPP_HIDE_FROM_ABI
+  stack(container_type&& __c, const _Alloc& __a, __enable_if_t<uses_allocator<container_type, _Alloc>::value>* = 0)
+      : c(std::move(__c), __a) {}
+  template <class _Alloc>
+  _LIBCPP_HIDE_FROM_ABI
+  stack(stack&& __s, const _Alloc& __a, __enable_if_t<uses_allocator<container_type, _Alloc>::value>* = 0)
+      : c(std::move(__s.c), __a) {}
+#endif // _LIBCPP_CXX03_LANG
+
+#if _LIBCPP_STD_VER >= 23
+  template <class _InputIterator, __enable_if_t<__has_input_iterator_category<_InputIterator>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI stack(_InputIterator __first, _InputIterator __last) : c(__first, __last) {}
+
+  template <_ContainerCompatibleRange<_Tp> _Range>
+  _LIBCPP_HIDE_FROM_ABI stack(from_range_t, _Range&& __range) : c(from_range, std::forward<_Range>(__range)) {}
+
+  template <class _InputIterator,
+            class _Alloc,
+            __enable_if_t<__has_input_iterator_category<_InputIterator>::value, int> = 0,
+            __enable_if_t<uses_allocator<container_type, _Alloc>::value, int>        = 0>
+  _LIBCPP_HIDE_FROM_ABI stack(_InputIterator __first, _InputIterator __last, const _Alloc& __alloc)
+      : c(__first, __last, __alloc) {}
+
+  template <_ContainerCompatibleRange<_Tp> _Range,
+            class _Alloc,
+            __enable_if_t<uses_allocator<container_type, _Alloc>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI stack(from_range_t, _Range&& __range, const _Alloc& __alloc)
+      : c(from_range, std::forward<_Range>(__range), __alloc) {}
+
+#endif
+
+  _LIBCPP_NODISCARD _LIBCPP_HIDE_FROM_ABI bool empty() const { return c.empty(); }
+  _LIBCPP_HIDE_FROM_ABI size_type size() const { return c.size(); }
+  _LIBCPP_HIDE_FROM_ABI reference top() { return c.back(); }
+  _LIBCPP_HIDE_FROM_ABI const_reference top() const { return c.back(); }
+
+  _LIBCPP_HIDE_FROM_ABI void push(const value_type& __v) { c.push_back(__v); }
+#ifndef _LIBCPP_CXX03_LANG
+  _LIBCPP_HIDE_FROM_ABI void push(value_type&& __v) { c.push_back(std::move(__v)); }
+
+#  if _LIBCPP_STD_VER >= 23
+  template <_ContainerCompatibleRange<_Tp> _Range>
+  _LIBCPP_HIDE_FROM_ABI void push_range(_Range&& __range) {
+    if constexpr (requires(container_type& __c) { __c.append_range(std::forward<_Range>(__range)); }) {
+      c.append_range(std::forward<_Range>(__range));
+    } else {
+      ranges::copy(std::forward<_Range>(__range), std::back_inserter(c));
+    }
+  }
+#  endif
+
+  template <class... _Args>
+  _LIBCPP_HIDE_FROM_ABI
+#  if _LIBCPP_STD_VER >= 17
+  decltype(auto)
+  emplace(_Args&&... __args) {
+    return c.emplace_back(std::forward<_Args>(__args)...);
+  }
+#  else
+  void
+  emplace(_Args&&... __args) {
+    c.emplace_back(std::forward<_Args>(__args)...);
+  }
+#  endif
+#endif // _LIBCPP_CXX03_LANG
+
+  _LIBCPP_HIDE_FROM_ABI void pop() { c.pop_back(); }
+
+  _LIBCPP_HIDE_FROM_ABI void swap(stack& __s) _NOEXCEPT_(__is_nothrow_swappable_v<container_type>) {
+    using std::swap;
+    swap(c, __s.c);
+  }
+
+  _LIBCPP_NODISCARD _LIBCPP_HIDE_FROM_ABI const _Container& __get_container() const { return c; }
+
+  template <class _T1, class _OtherContainer>
+  friend bool operator==(const stack<_T1, _OtherContainer>& __x, const stack<_T1, _OtherContainer>& __y);
+
+  template <class _T1, class _OtherContainer>
+  friend bool operator<(const stack<_T1, _OtherContainer>& __x, const stack<_T1, _OtherContainer>& __y);
+};
+
+#if _LIBCPP_STD_VER >= 17
+template <class _Container, class = enable_if_t<!__is_allocator<_Container>::value> >
+stack(_Container) -> stack<typename _Container::value_type, _Container>;
+
+template <class _Container,
+          class _Alloc,
+          class = enable_if_t<!__is_allocator<_Container>::value>,
+          class = enable_if_t<uses_allocator<_Container, _Alloc>::value> >
+stack(_Container, _Alloc) -> stack<typename _Container::value_type, _Container>;
+#endif
+
+#if _LIBCPP_STD_VER >= 23
+template <class _InputIterator, __enable_if_t<__has_input_iterator_category<_InputIterator>::value, int> = 0>
+stack(_InputIterator, _InputIterator) -> stack<__iter_value_type<_InputIterator>>;
+
+template <ranges::input_range _Range>
+stack(from_range_t, _Range&&) -> stack<ranges::range_value_t<_Range>>;
+
+template <class _InputIterator,
+          class _Alloc,
+          __enable_if_t<__has_input_iterator_category<_InputIterator>::value, int> = 0,
+          __enable_if_t<__is_allocator<_Alloc>::value, int>                        = 0>
+stack(_InputIterator,
+      _InputIterator,
+      _Alloc) -> stack<__iter_value_type<_InputIterator>, deque<__iter_value_type<_InputIterator>, _Alloc>>;
+
+template <ranges::input_range _Range, class _Alloc, __enable_if_t<__is_allocator<_Alloc>::value, int> = 0>
+stack(from_range_t,
+      _Range&&,
+      _Alloc) -> stack<ranges::range_value_t<_Range>, deque<ranges::range_value_t<_Range>, _Alloc>>;
+
+#endif
+
+template <class _Tp, class _Container>
+inline _LIBCPP_HIDE_FROM_ABI bool operator==(const stack<_Tp, _Container>& __x, const stack<_Tp, _Container>& __y) {
+  return __x.c == __y.c;
+}
+
+template <class _Tp, class _Container>
+inline _LIBCPP_HIDE_FROM_ABI bool operator<(const stack<_Tp, _Container>& __x, const stack<_Tp, _Container>& __y) {
+  return __x.c < __y.c;
+}
+
+template <class _Tp, class _Container>
+inline _LIBCPP_HIDE_FROM_ABI bool operator!=(const stack<_Tp, _Container>& __x, const stack<_Tp, _Container>& __y) {
+  return !(__x == __y);
+}
+
+template <class _Tp, class _Container>
+inline _LIBCPP_HIDE_FROM_ABI bool operator>(const stack<_Tp, _Container>& __x, const stack<_Tp, _Container>& __y) {
+  return __y < __x;
+}
+
+template <class _Tp, class _Container>
+inline _LIBCPP_HIDE_FROM_ABI bool operator>=(const stack<_Tp, _Container>& __x, const stack<_Tp, _Container>& __y) {
+  return !(__x < __y);
+}
+
+template <class _Tp, class _Container>
+inline _LIBCPP_HIDE_FROM_ABI bool operator<=(const stack<_Tp, _Container>& __x, const stack<_Tp, _Container>& __y) {
+  return !(__y < __x);
+}
+
+#if _LIBCPP_STD_VER >= 20
+
+template <class _Tp, three_way_comparable _Container>
+_LIBCPP_HIDE_FROM_ABI compare_three_way_result_t<_Container>
+operator<=>(const stack<_Tp, _Container>& __x, const stack<_Tp, _Container>& __y) {
+  // clang 16 bug: declaring `friend operator<=>` causes "use of overloaded operator '*' is ambiguous" errors
+  return __x.__get_container() <=> __y.__get_container();
+}
+
+#endif
+
+template <class _Tp, class _Container, __enable_if_t<__is_swappable_v<_Container>, int> = 0>
+inline _LIBCPP_HIDE_FROM_ABI void swap(stack<_Tp, _Container>& __x, stack<_Tp, _Container>& __y)
+    _NOEXCEPT_(_NOEXCEPT_(__x.swap(__y))) {
+  __x.swap(__y);
+}
+
+template <class _Tp, class _Container, class _Alloc>
+struct _LIBCPP_TEMPLATE_VIS uses_allocator<stack<_Tp, _Container>, _Alloc> : public uses_allocator<_Container, _Alloc> {
+};
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <concepts>
+#  include <functional>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_STACK

@@ -1,0 +1,16 @@
+static_library("plugin") {
+  output_name = "clangIncludeFixerPlugin"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-include-fixer",
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Parse",
+    "//clang/lib/Sema",
+    "//clang/lib/Tooling",
+    "//llvm/utils/gn/build/libs/pthread",
+  ]
+
+  sources = [ "IncludeFixerPlugin.cpp" ]
+}

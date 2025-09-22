@@ -1,0 +1,12 @@
+keynote-version: 2
+authorizer: "Key5"
+licensees: "Key6"
+# this assertion will evaluate to "false" because of the conditions field value
+conditions: app_domain == "testing" && request == "test" &&
+		  variable == "no" -> "true";	# this clause won't match
+	     app_domain == "testing" -> {
+		app_domain == "testing" -> "false"; # this will match
+		var == "no" -> { foo == "bar" ->
+					"false"; # this won't match
+							   };
+					};

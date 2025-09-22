@@ -1,0 +1,60 @@
+.\" $OpenBSD: fuse_daemonize.3,v 1.5 2025/06/10 12:55:33 schwarze Exp $
+.\"
+.\" Copyright (c) 2018 Helg Bredow <helg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 10 2025 $
+.Dt FUSE_DAEMONIZE 3
+.Os
+.Sh NAME
+.Nm fuse_daemonize
+.Nd run in the background
+.Sh SYNOPSIS
+.Lb libfuse
+.In fuse.h
+.Ft int
+.Fn fuse_daemonize "int foreground"
+.Sh DESCRIPTION
+If
+.Fa foreground
+is 0,
+.Fn fuse_daemonize
+will detach from the controlling terminal and run in the background as a
+system daemon.
+Otherwise, the process will continue to run in the foreground.
+.Pp
+The current working directory is changed to the root (/) and standard input;
+standard output and standard error are redirected to /dev/null.
+.Sh RETURN VALUES
+Upon success,
+.Fn fuse_daemonize
+returns 0; otherwise -1 is returned.
+.Sh ERRORS
+.Fn fuse_daemonize
+can fail for the same reasons as
+.Xr daemon 3 .
+.Sh SEE ALSO
+.Xr daemon 3 ,
+.Xr fuse_parse_cmdline 3
+.Sh STANDARDS
+The
+.Fn fuse_daemonize
+function conforms to FUSE 2.6.
+.Sh HISTORY
+The
+.Fn fuse_daemonize
+function first appeared in
+.Ox 5.4 .
+.Sh AUTHORS
+.An Sylvestre Gallon Aq Mt ccna.syl@gmail.com

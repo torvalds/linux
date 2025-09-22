@@ -1,0 +1,145 @@
+.\"	$OpenBSD: SSL_CTX_set_read_ahead.3,v 1.5 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2015, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_READ_AHEAD 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_read_ahead ,
+.Nm SSL_CTX_get_read_ahead ,
+.Nm SSL_set_read_ahead ,
+.Nm SSL_get_read_ahead ,
+.Nm SSL_CTX_get_default_read_ahead
+.Nd manage whether to read as many input bytes as possible
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft void
+.Fo SSL_CTX_set_read_ahead
+.Fa "SSL_CTX *ctx"
+.Fa "int yes"
+.Fc
+.Ft long
+.Fo SSL_CTX_get_read_ahead
+.Fa "SSL_CTX *ctx"
+.Fc
+.Ft void
+.Fo SSL_set_read_ahead
+.Fa "SSL *s"
+.Fa "int yes"
+.Fc
+.Ft long
+.Fo SSL_get_read_ahead
+.Fa "const SSL *s"
+.Fc
+.Ft long
+.Fo SSL_CTX_get_default_read_ahead
+.Fa "SSL_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_read_ahead
+and
+.Fn SSL_set_read_ahead
+set whether as many input bytes as possible are read for non-blocking
+reads.
+For example if
+.Ar x
+bytes are currently required by OpenSSL, but
+.Ar y
+bytes are available from the underlying BIO (where
+.Ar y No > Ar x ) ,
+then OpenSSL will read all
+.Ar y
+bytes into its buffer (provided that the buffer is large enough) if
+reading ahead is on, or
+.Ar x
+bytes otherwise.
+The parameter
+.Fa yes
+should be 0 to ensure reading ahead is off, or non zero otherwise.
+.Pp
+.Fn SSL_CTX_get_read_ahead
+and
+.Fn SSL_get_read_ahead
+indicate whether reading ahead is set or not.
+.Pp
+.Fn SSL_CTX_get_default_read_ahead
+is identical to
+.Fn SSL_CTX_get_read_ahead .
+.Pp
+These functions are implemented as macros.
+.Pp
+These functions have no effect when used with DTLS.
+.Sh RETURN VALUES
+.Fn SSL_CTX_get_read_ahead
+and
+.Fn SSL_get_read_ahead
+return 0 if reading ahead is off or non-zero otherwise,
+except that the return values are undefined for DTLS.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_pending 3
+.Sh HISTORY
+.Fn SSL_set_read_ahead
+and
+.Fn SSL_get_read_ahead
+appeared in SSLeay 0.4 or earlier and have been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_CTX_set_read_ahead ,
+.Fn SSL_CTX_get_read_ahead ,
+and
+.Fn SSL_CTX_get_default_read_ahead
+first appeared in OpenSSL 0.9.2b and have been available since
+.Ox 2.6 .
+.Sh CAVEATS
+Switching read ahead on can impact the behaviour of the
+.Xr SSL_pending 3
+function.

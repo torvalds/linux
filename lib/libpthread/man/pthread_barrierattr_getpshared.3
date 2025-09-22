@@ -1,0 +1,86 @@
+.\"	$OpenBSD: pthread_barrierattr_getpshared.3,v 1.6 2025/06/07 00:16:52 schwarze Exp $
+.\"
+.\" Copyright (c) 2012 Paul Irofti <paul@irofti.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_BARRIERATTR_GETPSHARED 3
+.Os
+.Sh NAME
+.Nm pthread_barrierattr_getpshared ,
+.Nm pthread_barrierattr_setpshared
+.Nd get or set the process-shared attribute of the barrier attribute's object
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_barrierattr_getpshared "pthread_barrierattr_t *attr" "int *pshared"
+.Ft int
+.Fn pthread_barrierattr_setpshared "pthread_barrierattr_t *attr" "int pshared"
+.Sh DESCRIPTION
+The
+.Fn pthread_barrierattr_getpshared
+function writes in
+.Fa pshared
+the current process-shared attribute value.
+.Pp
+The
+.Fn pthread_barrierattr_setpshared
+function sets the process-shared attribute as indicated in
+.Fa pshared .
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_barrierattr_getpshared
+and
+.Fn pthread_barrierattr_setpshared
+will return zero, otherwise an error number will be returned to
+indicate the error.
+.Sh ERRORS
+.Fn pthread_barrierattr_getpshared
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa attr
+is invalid.
+.El
+.Pp
+.Fn pthread_barrierattr_setpshared
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa attr
+is invalid.
+.It Bq Er ENOTSUP
+The value specified by
+.Fa pshared
+is not PTHREAD_PROCESS_PRIVATE.
+.El
+.Sh SEE ALSO
+.Xr pthread_barrier_init 3 ,
+.Xr pthread_barrier_wait 3 ,
+.Xr pthread_barrierattr_init 3
+.Sh STANDARDS
+.Fn pthread_barrierattr_getpshared
+and
+.Fn pthread_barrierattr_setpshared
+conform to
+.St -p1003.1-2008 .
+.Sh BUGS
+Currently only private barriers are supported and the pshared attribute is
+always set that way.
+Any attempts to change that value will trigger
+.Er ENOTSUP .

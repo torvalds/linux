@@ -1,0 +1,27 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Opts") {
+  visibility = [ ":llvm-tli-checker" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+executable("llvm-tli-checker") {
+  deps = [
+    ":Opts",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitstream/Reader",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Remarks",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/TextAPI",
+  ]
+  sources = [ "llvm-tli-checker.cpp" ]
+}

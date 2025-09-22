@@ -1,0 +1,41 @@
+.\" $OpenBSD: tls_config_ocsp_require_stapling.3,v 1.6 2025/07/07 10:54:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Bob Beck <beck@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt TLS_CONFIG_OCSP_REQUIRE_STAPLING 3
+.Os
+.Sh NAME
+.Nm tls_config_ocsp_require_stapling
+.Nd OCSP configuration for libtls
+.Sh SYNOPSIS
+.Lb libtls libssl libcrypto
+.In tls.h
+.Ft void
+.Fn tls_config_ocsp_require_stapling "struct tls_config *config"
+.Sh DESCRIPTION
+.Fn tls_config_ocsp_require_stapling
+requires that a valid stapled OCSP response be provided
+during the TLS handshake.
+.Sh SEE ALSO
+.Xr tls_config_add_keypair_file 3 ,
+.Xr tls_handshake 3 ,
+.Xr tls_init 3 ,
+.Xr tls_ocsp_process_response 3
+.Sh HISTORY
+These functions appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+.An Bob Beck Aq Mt beck@openbsd.org

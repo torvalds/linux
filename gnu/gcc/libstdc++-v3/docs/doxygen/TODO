@@ -1,0 +1,70 @@
+
+The approach I've been using for a given header is to recursively do each
+of the "bits" headers which make up the standard header.  So, e.g., while
+there are four headers making up <algorithm>, three of them were already
+documented in the course of doing other headers.
+
+"Untouched" means I've deliberately skipped it for various reasons, or
+haven't gotten to it yet.  It /will/ be done (by somebody, eventually.)
+
+If you document an area and need to skip (for whatever reason) a non-trivial
+entity (i.e., one that should be documented), go ahead and add the comment
+markup, and use the homegrown @doctodo tag.  See include/bits/stl_iterator.h
+for examples of this.  Doing so will at least cause doxygen to consider the
+entitiy as documented and include it in the output.  It will also add the
+entity to the generated TODO page.
+
+
+ Area           Still needs to be doxygen-documented
+-----------------------------------------------------------
+
+c17             FINISHED (Nothing in Clause 17 "exists" in terms of code.)
+c18             FINISHED, Note A
+c19             Note A
+c20             Note A
+c21             Public functions basic_string done, Note B
+c22             Most still to do; see docs/html/22_locale/*
+c23             See doxygroups.cc and Note B.  Notes on what invalidates
+                iterators need to be added.
+c24             stl_iterator.h (__normal_iterator, other small TODO bits)
+                stream iterators
+c25             stl_algo.h (lots of stuff)
+c26             <complex>, <valarray>, stl_numeric.h[26.4], Note A
+c27             ios_base callbacks and local storage
+                basic_ios::copyfmt()
+                std_streambuf.h's __copy_streambufs()
+                    " "           _M_* protected memfns (data has been done)
+                fstream and sstream protected members
+
+backward/*      Not scanned by doxygen.  Should it be?  Doubtful.
+
+ext/*           Some of the SGI algorithm/functional extensions.
+                All of rope/hashing/slist need docs.
+
+__gnu_cxx       Tricky.  Right now ext/* are in this namespace.
+
+-----------------------------------------------------------
+
+NOTES:
+
+A)  So far I have not tried to document any of the <c*> headers.  So entities
+such as atexit() are undocumented throughout the library.  Since we usually
+do not have the C code (to which the doxygen comments would be attached),
+this would need to be done in entirely separate files, a la doxygroups.cc.
+
+B)  Huge chunks of containers and strings are described in common "Tables"
+in the standard.  These are pseudo-duplicated in tables.html.  We can
+use doxygen hooks like @pre and @see to reference the tables.  Then the
+individual classes do like the standard does, and only document members for
+which additional info is available.
+
+
+STYLE:
+stl_deque.h, stl_pair.h, and stl_algobase.h have good examples of what I've
+been using for class, namespace-scope, and function documentation, respectively.
+These should serve as starting points.  /Please/ maintain the inter-word and
+inter-sentence spacing, as this might be generated and/or scanned in the
+future.
+
+
+vim:ts=4:et:

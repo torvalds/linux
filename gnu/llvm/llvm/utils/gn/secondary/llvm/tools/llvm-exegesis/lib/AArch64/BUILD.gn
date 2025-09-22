@@ -1,0 +1,21 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("AArch64GenExegesis") {
+  args = [ "-gen-exegesis" ]
+  td_file = "//llvm/lib/Target/AArch64/AArch64.td"
+}
+
+static_library("AArch64") {
+  output_name = "LLVMExegesisAArch64"
+  deps = [
+    ":AArch64GenExegesis",
+    "//llvm/lib/CodeGen",
+
+    # Exegesis reaches inside the Target/AArch64 tablegen internals and must
+    # depend on these Target/AArch64-internal build targets.
+    "//llvm/lib/Target/AArch64/MCTargetDesc",
+    "//llvm/lib/Target/AArch64/Utils",
+  ]
+  sources = [ "Target.cpp" ]
+  include_dirs = [ "//llvm/lib/Target/AArch64" ]
+}

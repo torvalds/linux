@@ -1,0 +1,285 @@
+Standards related to OpenSSL
+============================
+
+[Please, this is currently a draft.  I made a first try at finding
+ documents that describe parts of what OpenSSL implements.  There are
+ big gaps, and I've most certainly done something wrong.  Please
+ correct whatever is...  Also, this note should be removed when this
+ file is reaching a somewhat correct state.        -- Richard Levitte]
+
+
+All pointers in here will be either URL's or blobs of text borrowed
+from miscellaneous indexes, like rfc-index.txt (index of RFCs),
+1id-index.txt (index of Internet drafts) and the like.
+
+To find the latest possible RFCs, it's recommended to either browse
+ftp://ftp.isi.edu/in-notes/ or go to http://www.rfc-editor.org/ and
+use the search mechanism found there.
+To find the latest possible Internet drafts, it's recommended to
+browse ftp://ftp.isi.edu/internet-drafts/.
+To find the latest possible PKCS, it's recommended to browse
+http://www.rsasecurity.com/rsalabs/pkcs/.
+
+
+Implemented:
+------------
+
+These are documents that describe things that are implemented (in
+whole or at least great parts) in OpenSSL.
+
+1319 The MD2 Message-Digest Algorithm. B. Kaliski. April 1992.
+     (Format: TXT=25661 bytes) (Status: INFORMATIONAL)
+
+1320 The MD4 Message-Digest Algorithm. R. Rivest. April 1992. (Format:
+     TXT=32407 bytes) (Status: INFORMATIONAL)
+
+1321 The MD5 Message-Digest Algorithm. R. Rivest. April 1992. (Format:
+     TXT=35222 bytes) (Status: INFORMATIONAL)
+
+2246 The TLS Protocol Version 1.0. T. Dierks, C. Allen. January 1999.
+     (Format: TXT=170401 bytes) (Status: PROPOSED STANDARD)
+
+2268 A Description of the RC2(r) Encryption Algorithm. R. Rivest.
+     January 1998. (Format: TXT=19048 bytes) (Status: INFORMATIONAL)
+
+2315 PKCS 7: Cryptographic Message Syntax Version 1.5. B. Kaliski.
+     March 1998. (Format: TXT=69679 bytes) (Status: INFORMATIONAL)
+
+PKCS#8: Private-Key Information Syntax Standard
+
+PKCS#12: Personal Information Exchange Syntax Standard, version 1.0.
+
+2560 X.509 Internet Public Key Infrastructure Online Certificate
+     Status Protocol - OCSP. M. Myers, R. Ankney, A. Malpani, S. Galperin,
+     C. Adams. June 1999. (Format: TXT=43243 bytes) (Status: PROPOSED
+     STANDARD)
+
+2712 Addition of Kerberos Cipher Suites to Transport Layer Security
+     (TLS). A. Medvinsky, M. Hur. October 1999. (Format: TXT=13763 bytes)
+     (Status: PROPOSED STANDARD)
+
+2898 PKCS #5: Password-Based Cryptography Specification Version 2.0.
+     B. Kaliski. September 2000. (Format: TXT=68692 bytes) (Status:
+     INFORMATIONAL)
+
+2986 PKCS #10: Certification Request Syntax Specification Version 1.7.
+     M. Nystrom, B. Kaliski. November 2000. (Format: TXT=27794 bytes)
+     (Obsoletes RFC2314) (Status: INFORMATIONAL)
+
+3174 US Secure Hash Algorithm 1 (SHA1). D. Eastlake 3rd, P. Jones.
+     September 2001. (Format: TXT=35525 bytes) (Status: INFORMATIONAL)
+
+3161 Internet X.509 Public Key Infrastructure, Time-Stamp Protocol (TSP)
+     C. Adams, P. Cain, D. Pinkas, R. Zuccherato. August 2001
+     (Status: PROPOSED STANDARD)
+
+3268 Advanced Encryption Standard (AES) Ciphersuites for Transport
+     Layer Security (TLS). P. Chown. June 2002. (Format: TXT=13530 bytes)
+     (Status: PROPOSED STANDARD)
+
+3279 Algorithms and Identifiers for the Internet X.509 Public Key
+     Infrastructure Certificate and Certificate Revocation List (CRL)
+     Profile. L. Bassham, W. Polk, R. Housley. April 2002. (Format:
+     TXT=53833 bytes) (Status: PROPOSED STANDARD)
+
+3280 Internet X.509 Public Key Infrastructure Certificate and
+     Certificate Revocation List (CRL) Profile. R. Housley, W. Polk, W.
+     Ford, D. Solo. April 2002. (Format: TXT=295556 bytes) (Obsoletes
+     RFC2459) (Status: PROPOSED STANDARD)
+
+3447 Public-Key Cryptography Standards (PKCS) #1: RSA Cryptography
+     Specifications Version 2.1. J. Jonsson, B. Kaliski. February 2003.
+     (Format: TXT=143173 bytes) (Obsoletes RFC2437) (Status:           
+     INFORMATIONAL)                                         
+
+3713 A Description of the Camellia Encryption Algorithm. M. Matsui,
+     J. Nakajima, S. Moriai. April 2004. (Format: TXT=25031 bytes)
+     (Status: INFORMATIONAL)
+
+3820 Internet X.509 Public Key Infrastructure (PKI) Proxy Certificate
+     Profile. S. Tuecke, V. Welch, D. Engert, L. Pearlman, M. Thompson.
+     June 2004. (Format: TXT=86374 bytes) (Status: PROPOSED STANDARD)
+
+4132 Addition of Camellia Cipher Suites to Transport Layer Security
+     (TLS). S. Moriai, A. Kato, M. Kanda. July 2005. (Format: TXT=13590
+     bytes) (Status: PROPOSED STANDARD)
+
+4162 Addition of SEED Cipher Suites to Transport Layer Security (TLS).
+     H.J. Lee, J.H. Yoon, J.I. Lee. August 2005. (Format: TXT=10578 bytes)
+     (Status: PROPOSED STANDARD)
+
+4269 The SEED Encryption Algorithm. H.J. Lee, S.J. Lee, J.H. Yoon,
+     D.H. Cheon, J.I. Lee. December 2005. (Format: TXT=34390 bytes)
+     (Obsoletes RFC4009) (Status: INFORMATIONAL)
+
+
+Related:
+--------
+
+These are documents that are close to OpenSSL, for example the
+STARTTLS documents.
+
+1421 Privacy Enhancement for Internet Electronic Mail: Part I: Message
+     Encryption and Authentication Procedures. J. Linn. February 1993.
+     (Format: TXT=103894 bytes) (Obsoletes RFC1113) (Status: PROPOSED
+     STANDARD)
+
+1422 Privacy Enhancement for Internet Electronic Mail: Part II:
+     Certificate-Based Key Management. S. Kent. February 1993. (Format:
+     TXT=86085 bytes) (Obsoletes RFC1114) (Status: PROPOSED STANDARD)
+
+1423 Privacy Enhancement for Internet Electronic Mail: Part III:
+     Algorithms, Modes, and Identifiers. D. Balenson. February 1993.
+     (Format: TXT=33277 bytes) (Obsoletes RFC1115) (Status: PROPOSED
+     STANDARD)
+
+1424 Privacy Enhancement for Internet Electronic Mail: Part IV: Key
+     Certification and Related Services. B. Kaliski. February 1993.
+     (Format: TXT=17537 bytes) (Status: PROPOSED STANDARD)
+
+2025 The Simple Public-Key GSS-API Mechanism (SPKM). C. Adams. October
+     1996. (Format: TXT=101692 bytes) (Status: PROPOSED STANDARD)
+
+2510 Internet X.509 Public Key Infrastructure Certificate Management
+     Protocols. C. Adams, S. Farrell. March 1999. (Format: TXT=158178
+     bytes) (Status: PROPOSED STANDARD)
+
+2511 Internet X.509 Certificate Request Message Format. M. Myers, C.
+     Adams, D. Solo, D. Kemp. March 1999. (Format: TXT=48278 bytes)
+     (Status: PROPOSED STANDARD)
+
+2527 Internet X.509 Public Key Infrastructure Certificate Policy and
+     Certification Practices Framework. S. Chokhani, W. Ford. March 1999.
+     (Format: TXT=91860 bytes) (Status: INFORMATIONAL)
+
+2538 Storing Certificates in the Domain Name System (DNS). D. Eastlake
+     3rd, O. Gudmundsson. March 1999. (Format: TXT=19857 bytes) (Status:
+     PROPOSED STANDARD)
+
+2539 Storage of Diffie-Hellman Keys in the Domain Name System (DNS).
+     D. Eastlake 3rd. March 1999. (Format: TXT=21049 bytes) (Status:
+     PROPOSED STANDARD)
+
+2559 Internet X.509 Public Key Infrastructure Operational Protocols -
+     LDAPv2. S. Boeyen, T. Howes, P. Richard. April 1999. (Format:
+     TXT=22889 bytes) (Updates RFC1778) (Status: PROPOSED STANDARD)
+
+2585 Internet X.509 Public Key Infrastructure Operational Protocols:
+     FTP and HTTP. R. Housley, P. Hoffman. May 1999. (Format: TXT=14813
+     bytes) (Status: PROPOSED STANDARD)
+
+2587 Internet X.509 Public Key Infrastructure LDAPv2 Schema. S.
+     Boeyen, T. Howes, P. Richard. June 1999. (Format: TXT=15102 bytes)
+     (Status: PROPOSED STANDARD)
+
+2595 Using TLS with IMAP, POP3 and ACAP. C. Newman. June 1999.
+     (Format: TXT=32440 bytes) (Status: PROPOSED STANDARD)
+
+2631 Diffie-Hellman Key Agreement Method. E. Rescorla. June 1999.
+     (Format: TXT=25932 bytes) (Status: PROPOSED STANDARD)
+
+2632 S/MIME Version 3 Certificate Handling. B. Ramsdell, Ed.. June
+     1999. (Format: TXT=27925 bytes) (Status: PROPOSED STANDARD)
+
+2716 PPP EAP TLS Authentication Protocol. B. Aboba, D. Simon. October
+     1999. (Format: TXT=50108 bytes) (Status: EXPERIMENTAL)
+
+2773 Encryption using KEA and SKIPJACK. R. Housley, P. Yee, W. Nace.
+     February 2000. (Format: TXT=20008 bytes) (Updates RFC0959) (Status:
+     EXPERIMENTAL)
+
+2797 Certificate Management Messages over CMS. M. Myers, X. Liu, J.
+     Schaad, J. Weinstein. April 2000. (Format: TXT=103357 bytes) (Status:
+     PROPOSED STANDARD)
+
+2817 Upgrading to TLS Within HTTP/1.1. R. Khare, S. Lawrence. May
+     2000. (Format: TXT=27598 bytes) (Updates RFC2616) (Status: PROPOSED
+     STANDARD)
+
+2818 HTTP Over TLS. E. Rescorla. May 2000. (Format: TXT=15170 bytes)
+     (Status: INFORMATIONAL)
+
+2876 Use of the KEA and SKIPJACK Algorithms in CMS. J. Pawling. July
+     2000. (Format: TXT=29265 bytes) (Status: INFORMATIONAL)
+
+2984 Use of the CAST-128 Encryption Algorithm in CMS. C. Adams.
+     October 2000. (Format: TXT=11591 bytes) (Status: PROPOSED STANDARD)
+
+2985 PKCS #9: Selected Object Classes and Attribute Types Version 2.0.
+     M. Nystrom, B. Kaliski. November 2000. (Format: TXT=70703 bytes)
+     (Status: INFORMATIONAL)
+
+3029 Internet X.509 Public Key Infrastructure Data Validation and
+     Certification Server Protocols. C. Adams, P. Sylvester, M. Zolotarev,
+     R. Zuccherato. February 2001. (Format: TXT=107347 bytes) (Status:
+     EXPERIMENTAL)
+
+3039 Internet X.509 Public Key Infrastructure Qualified Certificates
+     Profile. S. Santesson, W. Polk, P. Barzin, M. Nystrom. January 2001.
+     (Format: TXT=67619 bytes) (Status: PROPOSED STANDARD)
+
+3058 Use of the IDEA Encryption Algorithm in CMS. S. Teiwes, P.
+     Hartmann, D. Kuenzi. February 2001. (Format: TXT=17257 bytes)
+     (Status: INFORMATIONAL)
+
+3161 Internet X.509 Public Key Infrastructure Time-Stamp Protocol
+     (TSP). C. Adams, P. Cain, D. Pinkas, R. Zuccherato. August 2001.
+     (Format: TXT=54585 bytes) (Status: PROPOSED STANDARD)
+
+3185 Reuse of CMS Content Encryption Keys. S. Farrell, S. Turner.
+     October 2001. (Format: TXT=20404 bytes) (Status: PROPOSED STANDARD)
+
+3207 SMTP Service Extension for Secure SMTP over Transport Layer
+     Security. P. Hoffman. February 2002. (Format: TXT=18679 bytes)
+     (Obsoletes RFC2487) (Status: PROPOSED STANDARD)
+
+3217 Triple-DES and RC2 Key Wrapping. R. Housley. December 2001.
+     (Format: TXT=19855 bytes) (Status: INFORMATIONAL)
+
+3274 Compressed Data Content Type for Cryptographic Message Syntax
+     (CMS). P. Gutmann. June 2002. (Format: TXT=11276 bytes) (Status:
+     PROPOSED STANDARD)
+
+3278 Use of Elliptic Curve Cryptography (ECC) Algorithms in
+     Cryptographic Message Syntax (CMS). S. Blake-Wilson, D. Brown, P.
+     Lambert. April 2002. (Format: TXT=33779 bytes) (Status:
+     INFORMATIONAL)
+
+3281 An Internet Attribute Certificate Profile for Authorization. S.
+     Farrell, R. Housley. April 2002. (Format: TXT=90580 bytes) (Status:
+     PROPOSED STANDARD)
+
+3369 Cryptographic Message Syntax (CMS). R. Housley. August 2002.
+     (Format: TXT=113975 bytes) (Obsoletes RFC2630, RFC3211) (Status:
+     PROPOSED STANDARD)
+
+3370 Cryptographic Message Syntax (CMS) Algorithms. R. Housley. August
+     2002. (Format: TXT=51001 bytes) (Obsoletes RFC2630, RFC3211) (Status:
+     PROPOSED STANDARD)
+
+3377 Lightweight Directory Access Protocol (v3): Technical
+     Specification. J. Hodges, R. Morgan. September 2002. (Format:
+     TXT=9981 bytes) (Updates RFC2251, RFC2252, RFC2253, RFC2254, RFC2255,
+     RFC2256, RFC2829, RFC2830) (Status: PROPOSED STANDARD)
+
+3394 Advanced Encryption Standard (AES) Key Wrap Algorithm. J. Schaad,
+     R. Housley. September 2002. (Format: TXT=73072 bytes) (Status:
+     INFORMATIONAL)
+
+3436 Transport Layer Security over Stream Control Transmission
+     Protocol. A. Jungmaier, E. Rescorla, M. Tuexen. December 2002.
+     (Format: TXT=16333 bytes) (Status: PROPOSED STANDARD)
+
+3657 Use of the Camellia Encryption Algorithm in Cryptographic 
+     Message Syntax (CMS). S. Moriai, A. Kato. January 2004.
+     (Format: TXT=26282 bytes) (Status: PROPOSED STANDARD)
+
+"Securing FTP with TLS", 01/27/2000, <draft-murray-auth-ftp-ssl-05.txt>  
+ 
+
+To be implemented:
+------------------
+
+These are documents that describe things that are planned to be
+implemented in the hopefully short future.
+

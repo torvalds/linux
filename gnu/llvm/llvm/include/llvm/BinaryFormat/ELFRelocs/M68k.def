@@ -1,0 +1,49 @@
+#ifndef ELF_RELOC
+#error "ELF_RELOC must be defined"
+#endif
+
+ELF_RELOC(R_68K_NONE,          0)  /* No reloc */
+ELF_RELOC(R_68K_32,            1)  /* Direct 32 bit  */
+ELF_RELOC(R_68K_16,            2)  /* Direct 16 bit  */
+ELF_RELOC(R_68K_8,             3)  /* Direct 8 bit  */
+ELF_RELOC(R_68K_PC32,          4)  /* PC relative 32 bit */
+ELF_RELOC(R_68K_PC16,          5)  /* PC relative 16 bit */
+ELF_RELOC(R_68K_PC8,           6)  /* PC relative 8 bit */
+ELF_RELOC(R_68K_GOTPCREL32,    7)  /* 32 bit PC relative GOT entry */
+ELF_RELOC(R_68K_GOTPCREL16,    8)  /* 16 bit PC relative GOT entry */
+ELF_RELOC(R_68K_GOTPCREL8,     9)  /* 8 bit PC relative GOT entry */
+ELF_RELOC(R_68K_GOTOFF32,      10) /* 32 bit GOT offset */
+ELF_RELOC(R_68K_GOTOFF16,      11) /* 16 bit GOT offset */
+ELF_RELOC(R_68K_GOTOFF8,       12) /* 8 bit GOT offset */
+ELF_RELOC(R_68K_PLT32,         13) /* 32 bit PC relative PLT address */
+ELF_RELOC(R_68K_PLT16,         14) /* 16 bit PC relative PLT address */
+ELF_RELOC(R_68K_PLT8,          15) /* 8 bit PC relative PLT address */
+ELF_RELOC(R_68K_PLTOFF32,      16) /* 32 bit PLT offset */
+ELF_RELOC(R_68K_PLTOFF16,      17) /* 16 bit PLT offset */
+ELF_RELOC(R_68K_PLTOFF8,       18) /* 8 bit PLT offset */
+ELF_RELOC(R_68K_COPY,          19) /* Copy symbol at runtime */
+ELF_RELOC(R_68K_GLOB_DAT,      20) /* Create GOT entry */
+ELF_RELOC(R_68K_JMP_SLOT,      21) /* Create PLT entry */
+ELF_RELOC(R_68K_RELATIVE,      22) /* Adjust by program base */
+/* These are GNU extensions to enable C++ vtable garbage collection.  */
+ELF_RELOC(R_68K_GNU_VTINHERIT, 23)
+ELF_RELOC(R_68K_GNU_VTENTRY,   24)
+/* TLS static relocations.  */
+ELF_RELOC(R_68K_TLS_GD32,      25)
+ELF_RELOC(R_68K_TLS_GD16,      26)
+ELF_RELOC(R_68K_TLS_GD8,       27)
+ELF_RELOC(R_68K_TLS_LDM32,     28)
+ELF_RELOC(R_68K_TLS_LDM16,     29)
+ELF_RELOC(R_68K_TLS_LDM8,      30)
+ELF_RELOC(R_68K_TLS_LDO32,     31)
+ELF_RELOC(R_68K_TLS_LDO16,     32)
+ELF_RELOC(R_68K_TLS_LDO8,      33)
+ELF_RELOC(R_68K_TLS_IE32,      34)
+ELF_RELOC(R_68K_TLS_IE16,      35)
+ELF_RELOC(R_68K_TLS_IE8,       36)
+ELF_RELOC(R_68K_TLS_LE32,      37)
+ELF_RELOC(R_68K_TLS_LE16,      38)
+ELF_RELOC(R_68K_TLS_LE8,       39)
+ELF_RELOC(R_68K_TLS_DTPMOD32,  40)
+ELF_RELOC(R_68K_TLS_DTPREL32,  41)
+ELF_RELOC(R_68K_TLS_TPREL32,   42)

@@ -1,0 +1,83 @@
+.\"	$OpenBSD: pidfile.3,v 1.8 2025/06/06 22:01:40 schwarze Exp $
+.\"	$NetBSD: pidfile.3,v 1.2 2001/04/12 22:34:31 sommerfeld Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt PIDFILE 3
+.Os
+.Sh NAME
+.Nm pidfile
+.Nd write a daemon pid file
+.Sh SYNOPSIS
+.Lb libutil
+.In util.h
+.Ft int
+.Fn pidfile "const char *basename"
+.Sh DESCRIPTION
+.Fn pidfile
+writes a file containing the process ID of the program to the
+.Pa /var/run
+directory.
+The file name has the form
+.Pa /var/run/basename.pid .
+If the
+.Ar basename
+argument is NULL,
+.Nm
+will determine the program name and use that instead.
+.Pp
+The pid file can be used as a quick reference if
+the process needs to be sent a signal.
+When the program exits, the pid file will be removed automatically,
+unless the program receives a fatal signal.
+.Sh RETURN VALUES
+.Fn pidfile
+returns 0 on success and -1 on failure.
+.Sh SEE ALSO
+.Xr atexit 3
+.Sh HISTORY
+The
+.Nm
+function call appeared in
+.Ox 3.0 .
+.Sh CAVEATS
+If
+.Fn pidfile
+is called multiple times with different
+.Ar basename ,
+only the last pidfile will be removed upon exit.
+.Pp
+.Fn pidfile
+uses
+.Fn atexit
+to ensure the pidfile is unlinked at program exit.
+However, programs that use the
+.Fn _exit
+function (for example, in signal handlers)
+will not trigger this behaviour.

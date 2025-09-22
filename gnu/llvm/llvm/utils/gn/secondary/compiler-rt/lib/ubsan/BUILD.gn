@@ -1,0 +1,186 @@
+import("//compiler-rt/gen_version_script.gni")
+import("//compiler-rt/target.gni")
+
+group("ubsan") {
+  deps = [
+    ":ubsan_shared",
+    ":ubsan_static",
+  ]
+  if (current_os != "mac") {
+    deps += [ ":ubsan_static_cxx" ]
+  }
+}
+
+gen_version_script("version_script") {
+  extra = "ubsan.syms.extra"
+  output = "$target_gen_dir/ubsan.vers"
+  libs = [
+    ":ubsan_static",
+    ":ubsan_static_cxx",
+  ]
+  lib_names = [
+    "ubsan_standalone",
+    "ubsan_standalone_cxx",
+  ]
+}
+
+source_set("sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  defines = [ "UBSAN_CAN_USE_CXXABI" ]
+  deps = [
+    "//compiler-rt/lib/interception:sources",
+    "//compiler-rt/lib/sanitizer_common:sources",
+  ]
+  sources = [
+    "ubsan_diag.cpp",
+    "ubsan_diag.h",
+    "ubsan_flags.cpp",
+    "ubsan_flags.h",
+    "ubsan_handlers.cpp",
+    "ubsan_handlers.h",
+    "ubsan_init.cpp",
+    "ubsan_init.h",
+    "ubsan_monitor.cpp",
+    "ubsan_monitor.h",
+    "ubsan_platform.h",
+    "ubsan_signals_standalone.h",
+    "ubsan_type_hash.h",
+    "ubsan_value.cpp",
+    "ubsan_value.h",
+  ]
+}
+
+source_set("weak_interception") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  sources = [ "ubsan_win_weak_interception.cpp" ]
+  defines = [ "SANITIZER_DYNAMIC" ]
+}
+
+source_set("dll_thunk") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  sources = [ "ubsan_win_dll_thunk.cpp" ]
+  defines = [ "SANITIZER_DLL_THUNK" ]
+}
+
+source_set("dynamic_runtime_thunk") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  defines = [ "SANITIZER_DYNAMIC_RUNTIME_THUNK" ]
+  sources = [ "ubsan_win_dynamic_runtime_thunk.cpp" ]
+}
+
+source_set("standalone_sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs -= [ "//llvm/utils/gn/build:no_rtti" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  defines = [ "UBSAN_CAN_USE_CXXABI" ]
+  sources = [
+    "ubsan_diag_standalone.cpp",
+    "ubsan_init_standalone.cpp",
+    "ubsan_signals_standalone.cpp",
+  ]
+}
+
+source_set("cxx_sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs -= [ "//llvm/utils/gn/build:no_rtti" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  defines = [ "UBSAN_CAN_USE_CXXABI" ]
+  sources = [
+    "ubsan_handlers_cxx.cpp",
+    "ubsan_handlers_cxx.h",
+    "ubsan_type_hash.cpp",
+    "ubsan_type_hash_itanium.cpp",
+    "ubsan_type_hash_win.cpp",
+  ]
+}
+
+static_library("ubsan_static") {
+  output_dir = crt_current_out_dir
+  if (current_os == "mac") {
+    output_name = "clang_rt.ubsan_osx"
+  } else {
+    output_name = "clang_rt.ubsan_standalone$crt_current_target_suffix"
+  }
+  complete_static_lib = true
+  configs -= [
+    "//llvm/utils/gn/build:llvm_code",
+    "//llvm/utils/gn/build:no_rtti",
+    "//llvm/utils/gn/build:thin_archive",
+  ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  sources = [ "ubsan_init_standalone_preinit.cpp" ]
+  deps = [
+    ":sources",
+    ":standalone_sources",
+  ]
+  if (current_os == "mac") {
+    deps += [ ":cxx_sources" ]
+  }
+}
+
+if (current_os != "mac") {
+  static_library("ubsan_static_cxx") {
+    output_dir = crt_current_out_dir
+    output_name = "clang_rt.ubsan_standalone_cxx$crt_current_target_suffix"
+    complete_static_lib = true
+    configs -= [
+      "//llvm/utils/gn/build:llvm_code",
+      "//llvm/utils/gn/build:thin_archive",
+    ]
+    configs += [ "//llvm/utils/gn/build:crt_code" ]
+    deps = [ ":cxx_sources" ]
+  }
+}
+
+shared_library("ubsan_shared") {
+  output_dir = crt_current_out_dir
+  if (current_os == "mac") {
+    output_name = "clang_rt.ubsan_osx_dynamic"
+  } else {
+    output_name = "clang_rt.ubsan_standalone$crt_current_target_suffix"
+  }
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  if (current_os == "mac") {
+    ldflags = [
+      "-lc++",
+      "-lc++abi",
+
+      # ubsan
+      "-Wl,-U,___ubsan_default_options",
+
+      # sanitizer_common
+      "-Wl,-U,___sanitizer_free_hook",
+      "-Wl,-U,___sanitizer_malloc_hook",
+      "-Wl,-U,___sanitizer_report_error_summary",
+      "-Wl,-U,___sanitizer_sandbox_on_notify",
+      "-Wl,-U,___sanitizer_symbolize_code",
+      "-Wl,-U,___sanitizer_symbolize_data",
+      "-Wl,-U,___sanitizer_symbolize_frame",
+      "-Wl,-U,___sanitizer_symbolize_demangle",
+      "-Wl,-U,___sanitizer_symbolize_flush",
+      "-Wl,-U,___sanitizer_symbolize_set_demangle",
+      "-Wl,-U,___sanitizer_symbolize_set_inline_frames",
+
+      # FIXME: better
+      "-Wl,-install_name,@rpath/libclang_rt.ubsan_osx_dynamic.dylib",
+    ]
+    # FIXME: -Wl,-rpath
+    # FIXME: codesign (??)
+  }
+  deps = [
+    ":cxx_sources",
+    ":sources",
+    ":standalone_sources",
+    ":version_script",
+  ]
+  if (current_os != "mac" && current_os != "win") {
+    inputs = [ "$target_gen_dir/ubsan.vers" ]
+    ldflags =
+        [ "-Wl,--version-script," + rebase_path(inputs[0], root_build_dir) ]
+  }
+}

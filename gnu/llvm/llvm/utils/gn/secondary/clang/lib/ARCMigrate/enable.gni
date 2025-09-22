@@ -1,0 +1,4 @@
+declare_args() {
+  # Whether to include the arc migrate tool in the clang binary.
+  clang_enable_arcmt = true
+}

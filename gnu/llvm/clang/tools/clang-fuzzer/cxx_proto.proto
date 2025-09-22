@@ -1,0 +1,92 @@
+//===-- cxx_proto.proto - Protobuf description of C++ ---------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file describes a subset of C++ as a protobuf.  It is used to
+///  more easily find interesting inputs for fuzzing Clang.
+///
+//===----------------------------------------------------------------------===//
+
+syntax = "proto2";
+
+message VarRef {
+  required int32 varnum = 1;
+}
+
+message Lvalue {
+  required VarRef varref = 1;
+}
+
+message Const {
+  required int32 val = 1;
+}
+
+message BinaryOp {
+  enum Op {
+    PLUS = 0;
+    MINUS = 1;
+    MUL = 2;
+    DIV = 3;
+    MOD = 4;
+    XOR = 5;
+    AND = 6;
+    OR = 7;
+    EQ = 8;
+    NE = 9;
+    LE = 10;
+    GE = 11;
+    LT = 12;
+    GT = 13;
+  };
+  required Op op = 1;
+  required Rvalue left = 2;
+  required Rvalue right = 3;
+}
+
+message Rvalue {
+  oneof rvalue_oneof {
+    VarRef varref = 1;
+    Const cons = 2;
+    BinaryOp binop = 3;
+  }
+}
+
+message AssignmentStatement {
+  required Lvalue lvalue = 1;
+  required Rvalue rvalue = 2;
+}
+
+
+message IfElse {
+  required Rvalue cond = 1;
+  required StatementSeq if_body = 2;
+  required StatementSeq else_body = 3;
+}
+
+message While {
+  required Rvalue cond = 1;
+  required StatementSeq body = 2;
+}
+
+message Statement {
+  oneof stmt_oneof {
+    AssignmentStatement assignment = 1;
+    IfElse              ifelse     = 2;
+    While               while_loop = 3;
+  }
+}
+
+message StatementSeq {
+  repeated Statement statements = 1;
+}
+
+message Function {
+  required StatementSeq statements = 1;
+}
+
+package clang_fuzzer;

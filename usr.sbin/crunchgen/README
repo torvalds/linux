@@ -1,0 +1,89 @@
+
+CRUNCH 0.3 README				7/23/94
+
+Crunch is available via anonymous ftp to ftp.cs.umd.edu in
+		pub/bsd/crunch-0.3.tar.gz
+
+WHAT'S NEW IN 0.3
+
+* The prototype awk script has been replaced by a more capable and
+  hopefully more robust C program.
+* No fragile template makefiles or dependencies on the details of the
+  bsd build environment.
+* You can build crunched binaries even with no sources on-line, you
+  just need the .o files.  Crunchgen still will try to figure out as
+  much as possible on its own, but you can override its guessing by
+  specifying the list of .o files explicitly.
+* Crunch itself has been bmake'd and some man pages written, so it
+  should be ready to install.
+* Added patch for FreeBSD from Jordan Hubbard, plus the .conf files used
+  for the FreeBSD install floppies as examples.
+
+
+INTRODUCTION
+
+Crunch is a little package that helps create "crunched" binaries for use
+on boot, install, and fixit floppies.  A crunched binary in this case is
+one where many programs have been linked together into one a.out file.
+The different programs are run depending on the value of argv[0], so
+hard links to the crunched binary suffice to simulate a perfectly normal
+system.
+
+As an example, I have created an 980K crunched "fixit" binary containing
+the following programs in their entirety:
+
+	cat chmod cp date dd df echo ed expr hostname kill ln ls mkdir
+	mt mv pwd rcp rm rmdir sh sleep stty sync test [ badsect
+	clri disklabel dump rdump dmesg fdisk fsck halt ifconfig init
+	mknod mount newfs ping reboot restore rrestore swapon umount
+	ftp rsh sed telnet rlogin vi cpio gzip gunzip gzcat
+
+Note carefully: vi, cpio, gzip, ed, sed, dump/restore, some networking
+utilities, and the disk management utilities, all in a binary small
+enough to fit on a 1.2 MB root filesystem floppy (albeit with the kernel
+on its own boot floppy).  A more reasonable subset can be made to fit
+easily with a kernel for a decent one-disk fixit filesystem.
+
+The linking together of different programs by hand is an old
+space-saving technique.	 Crunch automates the process by building the
+necessary stub files and makefile for you (via the crunchgen program),
+and by doctoring the symbol tables of the component .o files to allow
+them to link without "symbol multiply defined" conflicts (via the
+crunchide program).
+
+
+BUILDING CRUNCH
+
+Just type make, then make install.
+
+Crunch was written and tested under NetBSD/i386, but should work under
+other PC BSD systems that use GNU ld.
+
+The crunchgen(1) and crunchide(1) man pages have more details on using
+crunch, and the examples subdirectory contains some working .conf files
+and a sample Makefile.
+
+CREDITS
+
+Thanks to the NetBSD team for a consistently high quality effort in
+bringing together a solid, state of the art development environment.
+
+Thanks to the FreeBSD guys; Rod Grimes, Nate Williams and Jordan
+Hubbard; and to Bruce Evans, for immediate and detailed feedback on
+crunch 0.1, and for pressing me to make the prototype more useable.
+
+Crunch was written for the Maruti Hard Real-Time Operating System
+project at the University of Maryland, to help make for better install
+and recovery procedures for our NetBSD-based development environment. It
+is copyright (c) 1994 by the University of Maryland under a UCB-style
+freely- redistributable notice.	 See the file COPYRIGHT for details.
+
+Please let me know of any problems or of enhancements you make to this
+package.  I'm particularly interested in the details of what you found
+was good to put on your fixit or install disks.	 Thanks!
+
+Share and Enjoy,
+Jaime
+............................................................................
+: Stand on my shoulders, : jds@cs.umd.edu  :		      James da Silva
+: not on my toes.	 : uunet!mimsy!jds : http://www.cs.umd.edu/users/jds

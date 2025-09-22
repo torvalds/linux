@@ -1,0 +1,87 @@
+.\"	$OpenBSD: mem.4,v 1.4 2018/01/12 04:36:44 deraadt Exp $
+.\"
+.\" Copyright (c) 2004, Miodrag Vallat.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 12 2018 $
+.Dt MEM 4 hppa
+.Os
+.Sh NAME
+.Nm mem ,
+.Nm kmem
+.Nd memory files and memory controller
+.Sh SYNOPSIS
+.Cd "mem* at mainbus0 flags 0x0000"
+.Sh DESCRIPTION
+The
+.Nm
+driver controls and restricts access to the systems memory
+by the hardware buses and the processor.
+.Pp
+It also provides an interface to userland through the special files
+.Pa /dev/mem
+and
+.Pa /dev/kmem .
+Physical memory is accessed through
+.Pa /dev/mem ,
+while kernel virtual memory is accessed through
+.Pa /dev/kmem .
+Access to kernel virtual addresses not currently mapped to memory will fail.
+On hppa, the physical memory range is always contiguous and starts at
+address 0; kernel virtual memory begins at address 0 as well.
+.Pp
+Even with sufficient file system permissions,
+these devices can only be opened when the
+.Xr securelevel 7
+is insecure or when the
+.Va kern.allowkmem
+.Xr sysctl 2
+variable is set.
+.Sh FILES
+.Bl -tag -width /dev/kmem -compact
+.It Pa /dev/mem
+.It Pa /dev/kmem
+.El
+.Sh SEE ALSO
+.Xr securelevel 7
+.Sh CAVEATS
+On some systems featuring a
+.Dq Viper
+memory controller,
+.Ox
+may not configure bus arbitration correctly, causing the boot process
+to freeze during either
+.Nm
+or
+.Xr cpu 4
+device probe.
+.Pp
+In this case, a different initialization strategy can be achieved by
+setting
+.Ar flags
+to 0x0001
+.Po
+see
+.Xr boot_config 8
+for details
+.Pc .

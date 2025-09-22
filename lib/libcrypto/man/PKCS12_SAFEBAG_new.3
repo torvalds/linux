@@ -1,0 +1,105 @@
+.\"	$OpenBSD: PKCS12_SAFEBAG_new.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS12_SAFEBAG_NEW 3
+.Os
+.Sh NAME
+.Nm PKCS12_SAFEBAG_new ,
+.Nm PKCS12_SAFEBAG_free ,
+.Nm PKCS12_BAGS_new ,
+.Nm PKCS12_BAGS_free
+.Nd PKCS#12 container for one piece of information
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs12.h
+.Ft PKCS12_SAFEBAG *
+.Fn PKCS12_SAFEBAG_new void
+.Ft void
+.Fn PKCS12_SAFEBAG_free "PKCS12_SAFEBAG *safebag"
+.Ft PKCS12_BAGS *
+.Fn PKCS12_BAGS_new void
+.Ft void
+.Fn PKCS12_BAGS_free "PKCS12_BAGS *bag"
+.Sh DESCRIPTION
+.Fn PKCS12_SAFEBAG_new
+allocates and initializes an empty
+.Vt PKCS12_SAFEBAG
+object, representing an ASN.1
+.Vt SafeBag
+structure defined in RFC 7292 section 4.2.
+It can hold a pointer to a
+.Vt PKCS12_BAGS
+object together with a type identifier and optional attributes.
+.Fn PKCS12_SAFEBAG_free
+frees
+.Fa safebag .
+.Pp
+.Fn PKCS12_BAGS_new
+allocates and initializes an empty
+.Vt PKCS12_BAGS
+object, representing the bagValue field of an ASN.1
+.Vt SafeBag
+structure.
+It is used in
+.Vt PKCS12_SAFEBAG
+and can hold a DER-encoded X.509 certificate,
+a base64-encoded SDSI certificate,
+a DER-encoded X.509 CRL,
+or other user-defined information.
+.Pp
+If an instance of
+.Vt PKCS12_SAFEBAG
+contains
+.Vt PKCS8_PRIV_KEY_INFO ,
+.Vt X509_SIG ,
+or nested
+.Vt PKCS12_SAFEBAG
+objects, the respective pointers are stored directly in the
+.Vt PKCS12_SAFEBAG
+object rather than in the contained
+.Vt PKCS12_BAGS
+object as required by RFC 7292.
+.Sh RETURN VALUES
+.Fn PKCS12_SAFEBAG_new
+and
+.Fn PKCS12_BAGS_new
+return the new
+.Vt PKCS12_SAFEBAG
+or
+.Vt PKCS12_BAGS
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr PKCS12_create 3 ,
+.Xr PKCS12_new 3 ,
+.Xr PKCS8_PRIV_KEY_INFO_new 3 ,
+.Xr X509_ATTRIBUTE_new 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_new 3 ,
+.Xr X509_SIG_new 3
+.Sh STANDARDS
+RFC 7292: PKCS #12: Personal Information Exchange Syntax,
+section 4.2: The SafeBag Type
+.Sh HISTORY
+.Fn PKCS12_SAFEBAG_new ,
+.Fn PKCS12_SAFEBAG_free ,
+.Fn PKCS12_BAGS_new ,
+and
+.Fn PKCS12_BAGS_free
+first appeared in OpenSSL 0.9.3 and have been available since
+.Ox 2.6 .

@@ -1,0 +1,168 @@
+.\"	$OpenBSD: msgsnd.2,v 1.21 2019/07/18 13:45:03 schwarze Exp $
+.\"	$NetBSD: msgsnd.2,v 1.2 1997/03/27 08:20:36 mikel Exp $
+.\"
+.\" Copyright (c) 1995 Frank van der Linden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed for the NetBSD Project
+.\"      by Frank van der Linden
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"/
+.Dd $Mdocdate: July 18 2019 $
+.Dt MSGSND 2
+.Os
+.Sh NAME
+.Nm msgsnd
+.Nd send a message to a message queue
+.Sh SYNOPSIS
+.In sys/msg.h
+.Ft int
+.Fn msgsnd "int msqid" "const void *msgp" "size_t msgsz" "int msgflg"
+.Sh DESCRIPTION
+The
+.Fn msgsnd
+function sends a message to the message queue specified by
+.Fa msqid .
+.Fa msgp
+points to a structure containing the message.
+This structure should consist of the following members:
+.Bd -literal -offset indent
+long mtype;    /* message type */
+char mtext[1]; /* body of message */
+.Ed
+.Pp
+.Fa mtype
+is an integer greater than 0 that can be used for selecting messages (see
+.Xr msgrcv 2 ) ;
+.Fa mtext
+is an array of
+.Fa msgsz
+bytes, with a size between 0 and that of the system limit
+.Pq Dv MSGMAX .
+.Pp
+If the number of bytes already on the message queue plus
+.Fa msgsz
+is bigger than the maximum number of bytes on the message queue
+.Po Fa msg_qbytes ,
+ see
+.Xr msgctl 2
+.Pc ,
+or the number of messages on all queues system-wide is already equal to
+the system limit,
+.Fa msgflg
+determines the action of
+.Fn msgsnd .
+If
+.Fa msgflg
+has
+.Dv IPC_NOWAIT
+mask set in it, the call will return immediately.
+If
+.Fa msgflg
+does not have
+.Dv IPC_NOWAIT
+set in it, the call will block until:
+.Bl -bullet
+.It
+The condition which caused the call to block does no longer exist.
+The message will be sent.
+.It
+The message queue is removed, in which case \-1 will be returned, and
+.Va errno
+is set to
+.Er EIDRM .
+.It
+The caller catches a signal.
+The call returns with
+.Va errno
+set to
+.Er EINTR .
+.El
+.Pp
+After a successful call, the data structure associated with the message
+queue is updated in the following way:
+.Bl -bullet
+.It
+.Fa msg_cbytes
+is incremented by the size of the message.
+.It
+.Fa msg_qnum
+is incremented by 1.
+.It
+.Fa msg_lspid
+is set to the pid of the calling process.
+.It
+.Fa msg_stime
+is set to the current time.
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn msgsnd
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa msqid
+is not a valid message queue identifier.
+.Pp
+.Fa mtype
+is less than 1.
+.Pp
+.Fa msgsz
+is greater than
+.Fa msg_qbytes .
+.It Bq Er EACCES
+The calling process does not have write access to the message queue.
+.It Bq Er EAGAIN
+There was no space for this message either on the queue, or in the whole
+system, and
+.Dv IPC_NOWAIT
+was set in
+.Fa msgflg .
+.It Bq Er EFAULT
+.Fa msgp
+points to an invalid address.
+.It Bq Er EINTR
+The system call was interrupted by the delivery of a signal.
+.It Bq Er EIDRM
+The message queue was removed while
+.Fn msgsnd
+was waiting for a resource to become available in order to deliver the
+message.
+.El
+.Sh SEE ALSO
+.Xr msgctl 2 ,
+.Xr msgget 2 ,
+.Xr msgrcv 2
+.Sh STANDARDS
+The
+.Fn msgsnd
+function conforms to the X/Open System Interfaces option of
+.St -p1003.1-2008 .
+.Sh HISTORY
+Message queues first appeared in
+.At V.1
+and have been available since
+.Nx 1.0 .

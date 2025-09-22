@@ -1,0 +1,1 @@
+pass in inet6 proto tcp to port 25 divert-to 127.0.0.1 port 8025

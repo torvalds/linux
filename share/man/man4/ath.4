@@ -1,0 +1,353 @@
+.\"	$OpenBSD: ath.4,v 1.70 2025/03/27 10:21:53 jmc Exp $
+.\"     $NetBSD: ath.4,v 1.5 2004/07/03 16:58:18 mycroft Exp $
+.\"
+.\" Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\""
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
+.\"    redistribution must be conditioned upon including a substantially
+.\"    similar Disclaimer requirement for further binary redistribution.
+.\" 3. Neither the names of the above-listed copyright holders nor the names
+.\"    of any contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF NONINFRINGEMENT, MERCHANTIBILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY,
+.\" OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\"
+.\" Note: This man page was taken by Perry Metzger almost entirely
+.\" from the "ath" and "ath_hal" man pages in FreeBSD. I claim no
+.\" copyright because there was nearly no original work performed in
+.\" doing so. Maintainers should check the FreeBSD originals for
+.\" updates against the following two revisions and incorporate them
+.\" if needed:
+.\"
+.\" $FreeBSD: /repoman/r/ncvs/src/share/man/man4/ath.4,v 1.16 2004/02/18 08:30:08 maxim Exp $
+.\" parts from $FreeBSD: /repoman/r/ncvs/src/share/man/man4/ath_hal.4,v 1.7 2004/01/07 20:49:51 blackend Exp $
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt ATH 4
+.Os
+.Sh NAME
+.Nm ath
+.Nd Atheros IEEE 802.11a/b/g wireless network device with GPIO
+.Sh SYNOPSIS
+.Cd "ath* at pci? dev ? function ?"
+.Cd "ath* at cardbus? dev ? function ?"
+.Cd "gpio* at ath?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for wireless network devices based on
+the Atheros AR5210, AR5211, and AR5212 chips.
+.Pp
+All host/device interaction is via DMA.
+The
+.Nm
+driver encapsulates all IP and ARP traffic as 802.11 frames, though
+it can receive either 802.11 or 802.3 frames.
+Transmit speed and operating mode is selectable and
+depends on the specific chipset.
+.Pp
+Support for the various devices is as follows:
+.Bl -tag -width "ARxxxx"
+.It AR5210
+These devices support 802.11a operation with transmit speeds
+of 6 Mbps, 9 Mbps, 12 Mbps, 18 Mbps, 24 Mbps, 36 Mbps, 48 Mbps, and 54 Mbps.
+.It AR5211
+These devices support 802.11a and 802.11b operation with
+transmit speeds as above for 802.11a and
+1Mbps, 2Mbps, 5.5 Mbps, and 11Mbps for 802.11b operation.
+.It AR5212
+These devices support 802.11a, 802.11b, and 802.11g operation with
+transmit speeds as above for 802.11a, 802.11b, and 802.11g operation
+(802.11g speeds are the same as for 802.11a speeds).
+.El
+.Pp
+The actual transmit speed used is dependent on signal quality and the
+.Dq rate control
+algorithm employed by the driver.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It IBSS mode
+Also known as
+.Em IEEE ad-hoc
+mode or
+.Em peer-to-peer
+mode.
+This is the standardized method of operating without an access point.
+Stations associate with a service set.
+However, actual connections between stations are peer-to-peer.
+.It Host AP
+In this mode the adapter acts as an access point (base station)
+for other cards.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+.Pp
+AR5211 and AR5212 support the AES, TKIP, and Michael cryptographic
+operations required for WPA in hardware but at this time the driver
+does not support them.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh HARDWARE
+Devices supported by the
+.Nm
+driver come in either CardBus or Mini PCI packages.
+Wireless cards in CardBus slots may be inserted and ejected on the fly.
+.Pp
+The following cards are among those supported by the
+.Nm
+driver:
+.Bl -column "Proxim Skyline 4030" "AR5212" "Mini PCI" "Standard" -offset 6n
+.It Em Card Ta Em Chip Ta Em Bus Ta Em Standard
+.It "3Com 3CRPAG175" Ta AR5212 Ta CardBus Ta a/b/g
+.\"It "Aztech WL830PC" Ta AR5212 Ta CardBus Ta b/g
+.It "Cisco AIR-CB21AG" Ta AR5212 Ta CardBus Ta a/b/g
+.It "D-Link DWL-A650" Ta AR5210 Ta CardBus Ta a
+.It "D-Link DWL-AB650" Ta AR5211 Ta CardBus Ta a/b
+.It "D-Link DWL-A520" Ta AR5210 Ta PCI Ta a
+.\"It "D-Link DWL-AG520" Ta AR5212 Ta PCI Ta a/b/g
+.\"It "D-Link DWL-AG650" Ta AR5212 Ta CardBus Ta a/b/g
+.\"It "D-Link DWL-G520" Ta AR5212 Ta PCI Ta b/g
+.\"It "D-Link DWL-G650B" Ta AR5212 Ta CardBus Ta b/g
+.\"It "Elecom LD-WL54AG" Ta AR5212 Ta CardBus Ta a/b/g
+.It "Elecom LD-WL54" Ta AR5211 Ta CardBus Ta a
+.\"It "Fujitsu E5454" Ta AR5212 Ta CardBus Ta a/b/g
+.\"It "Fujitsu FMV-JW481" Ta AR5212 Ta CardBus Ta a/b/g
+.\"It "Fujitsu E5454" Ta AR5212 Ta CardBus Ta a/b/g
+.\"It "HP NC4000" Ta AR5212 Ta PCI Ta a/b/g
+.It "IBM 11ABG WL LAN" Ta AR5212 Ta Mini PCI Ta a/b/g
+.\"It "I/O Data WN-AB" Ta AR5212 Ta CardBus Ta a/b
+.\"It "I/O Data WN-AG" Ta AR5212 Ta CardBus Ta a/b/g
+.\"It "I/O Data WN-A54" Ta AR5212 Ta CardBus Ta a
+.\"It "Linksys WMP55AG" Ta AR5212 Ta PCI Ta a/b/g
+.It "Linksys WPC51AB" Ta AR5211 Ta CardBus Ta a/b
+.\"It "Linksys WPC55AG" Ta AR5212 Ta CardBus Ta a/b/g
+.\"It "NEC PA-WL/54AG" Ta AR5212 Ta CardBus Ta a/b/g
+.\"It "Netgear WAG311" Ta AR5212 Ta PCI Ta a/b/g
+.It "Netgear WAB501" Ta AR5211 Ta CardBus Ta a/b
+.\"It "Netgear WAG511" Ta AR5212 Ta CardBus Ta a/b/g
+.\"It "Netgear WG311 rev1" Ta AR5212 Ta PCI Ta b/g
+.\"It "Netgear WG511T" Ta AR5212 Ta CardBus Ta b/g
+.\"It "Orinoco 8480" Ta AR5212 Ta CardBus Ta a/b/g
+.\"It "Orinoco 8470WD" Ta AR5212 Ta CardBus Ta a/b/g
+.It "Planet WL-3560" Ta AR5211 Ta CardBus Ta a/b/g
+.It "Proxim Skyline 4030" Ta AR5210 Ta CardBus Ta a
+.It "Proxim Skyline 4032" Ta AR5210 Ta PCI Ta a
+.\"It "Samsung SWL-5200N" Ta AR5212 Ta CardBus Ta a/b/g
+.It "Senao NL-5354MP" Ta AR5212 Ta Mini PCI Ta a/b/g
+.It "SMC SMC2735W" Ta AR5210 Ta CardBus Ta a
+.\"It "Sony PCWA-C700" Ta AR5212 Ta CardBus Ta a/b
+.\"It "Sony PCWA-C300S" Ta AR5212 Ta CardBus Ta b/g
+.It "Sony PCWA-C500" Ta AR5210 Ta CardBus Ta a
+.It "Wistron CM9" Ta AR5212 Ta Mini PCI Ta a/b/g
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig ath0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures ath0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+nwid mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Pp
+The following
+.Xr hostname.if 5
+example creates a host-based access point on boot:
+.Bd -literal -offset indent
+mediaopt hostap
+nwid mynwid wpakey mywpakey
+inet 192.168.1.1 255.255.255.0
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ath0: unable to attach hardware; HAL status N"
+The Hardware Access Layer was unable to configure the hardware
+as requested.
+The status code is explained in the HAL include file
+.Pa sys/dev/ic/ar5xxx.h .
+.It "ath0: failed to allocate descriptors: N"
+The driver was unable to allocate contiguous memory for the transmit
+and receive descriptors.
+This usually indicates system memory is scarce and/or fragmented.
+.It "ath0: unable to setup a data xmit queue!"
+The request to the HAL to set up the transmit queue for normal
+data frames failed.
+This should not happen.
+.It "ath0: unable to setup a beacon xmit queue!"
+The request to the HAL to set up the transmit queue for 802.11 beacon frames
+failed.
+This should not happen.
+.It "ath0: hardware error; resetting"
+An unrecoverable error in the hardware occurred.
+Errors of this sort include unrecoverable DMA errors.
+The driver will reset the hardware and continue.
+.It "ath0: rx FIFO overrun; resetting"
+The receive FIFO in the hardware overflowed before the data could be
+transferred to the host.
+This typically occurs because the hardware ran short of receive
+descriptors and had no place to transfer received data.
+The driver will reset the hardware and continue.
+.It "ath0: unable to reset hardware; hal status N"
+The Hardware Access Layer was unable to reset the hardware
+as requested.
+The status code is explained in the HAL include file
+.Pa /sys/dev/ic/ar5xxx.h .
+This should not happen.
+.It "ath0: unable to initialize the key cache"
+The driver was unable to initialize the hardware key cache.
+This should not happen.
+.It "ath0: unable to start recv logic"
+The driver was unable to restart frame reception.
+This should not happen.
+.It "ath0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware and continue.
+This should not happen.
+.It "ath0: bogus xmit rate 0xNNNN"
+An invalid transmit rate was specified for an outgoing frame.
+The frame is discarded.
+This should not happen.
+.It "ath0: ath_chan_set: unable to reset channel N (X MHz)"
+The Hardware Access Layer was unable to reset the hardware
+when switching channels during scanning.
+This should not happen.
+.It "ath0: unable to allocate channel table"
+The driver was unable to allocate memory for the table used to hold
+the set of available channels.
+.It "ath0: unable to collect channel list from hal"
+A problem occurred while querying the HAL to find the set of available
+channels for the device.
+This should not happen.
+.It "ath0: failed to enable memory mapping"
+The driver was unable to enable memory-mapped I/O to the PCI device registers.
+This should not happen.
+.It "ath0: failed to enable bus mastering"
+The driver was unable to enable the device as a PCI bus master for doing DMA.
+This should not happen.
+.It "ath0: cannot map register space"
+The driver was unable to map the device registers into the host address space.
+This should not happen.
+.It "ath0: could not map interrupt"
+The driver was unable to allocate an IRQ for the device interrupt.
+This should not happen.
+.It "ath0: could not establish interrupt"
+The driver was unable to install the device interrupt handler.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr cardbus 4 ,
+.Xr gpio 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr gpioctl 8 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.2
+using a binary-only HAL module which was ported to
+.Nx 2.0 .
+The driver using a free HAL-replacement first appeared in
+.Ox 3.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Sam Leffler ,
+and was ported to
+.Ox
+by
+.An Reyk Floeter Aq Mt reyk@openbsd.org
+who also wrote a free replacement of the binary-only HAL.
+.Sh CAVEATS
+Different regulatory domains may not be able to communicate with each
+other with 802.11a as different regulatory domains do not necessarily
+have overlapping channels.
+.Pp
+Host AP mode doesn't support power saving.
+Clients attempting to use power saving mode may experience significant
+packet loss (disabling power saving on the client will fix this).
+.Sh BUGS
+Performance in lossy environments is suboptimal.
+The algorithm used to select the rate for transmitted packets is
+very simplistic.
+There is no software retransmit; only hardware retransmit is used.
+Contributors are encouraged to replace the existing rate control algorithm
+with a better one.
+.Pp
+The driver does not fully enable power-save operation of the chip;
+consequently power use is suboptimal.
+.Pp
+Operation in the 2GHz band is restricted to 11b mode because the driver
+does not support running the hardware in 11g mode.

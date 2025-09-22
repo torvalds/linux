@@ -1,0 +1,104 @@
+.\"	$OpenBSD: pcidump.8,v 1.12 2013/07/16 11:13:34 schwarze Exp $
+.\"
+.\" Copyright (c) 2007 Paul de Weerd <weerd@weirdnet.nl>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt PCIDUMP 8
+.Os
+.Sh NAME
+.Nm pcidump
+.Nd show PCI device data
+.Sh SYNOPSIS
+.Nm pcidump
+.Op Fl v
+.Op Fl x | xx | xxx
+.Op Fl d Ar pcidev
+.Sm off
+.Op Ar bus : dev : func
+.Sm on
+.Nm pcidump
+.Fl r Ar file
+.Op Fl d Ar pcidev
+.Sm off
+.Ar bus : dev : func
+.Sm on
+.Sh DESCRIPTION
+The
+.Nm
+utility displays the device address, vendor, and product name
+of PCI devices.
+When no arguments are given,
+information on all PCI devices in the system is shown;
+otherwise a single PCI domain or device may be specified.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d Ar pcidev
+Specify a file to use for PCI lookups.
+If specified without
+.Sm off
+.Ar bus : dev : func ,
+.Sm on
+all PCI devices in the domain will be shown.
+.It Fl r Ar file
+Reads the PCI ROM from the device specified by
+.Sm off
+.Ar bus : dev : func ,
+.Sm on
+and writes its contents to
+.Ar file .
+.It Fl v
+Shows detailed information about PCI devices.
+.It Fl x
+Shows a hexadecimal dump of the first 64 bytes of PCI config space.
+.It Fl xx
+Shows a hexadecimal dump of the full PCI config space.
+.It Fl xxx
+Shows a hexadecimal dump of the PCIe extended config space.
+.It Xo
+.Sm off
+.Ar bus : dev : func
+.Sm on
+.Xc
+Show information about the PCI device specified by the tuple given on
+the command line.
+If the
+.Fl d
+option is not given,
+.Pa /dev/pci
+is used.
+.El
+.Sh FILES
+.Bl -tag -width /dev/pci* -compact
+.It Pa /dev/pci*
+Device files for accessing PCI domains.
+.El
+.Sh SEE ALSO
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Ox 4.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An David Gwynne Aq Mt dlg@openbsd.org .
+.Sh BUGS
+The default behaviour of scanning all PCI domains is limited to those
+domains that have an entry in
+.Pa /dev .

@@ -1,0 +1,88 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_SIMD
+#define _LIBCPP_EXPERIMENTAL_SIMD
+
+/*
+    experimental/simd synopsis
+
+namespace std::experimental {
+inline namespace parallelism_v2 {
+  namespace simd_abi {
+    using scalar = see below;
+    template<int N> using fixed_size = see below;
+    template<class T> inline constexpr int max_fixed_size = implementation-defined;
+    template<class T> using compatible = implementation-defined;
+    template<class T> using native = implementation-defined;
+
+    template<class T, size_t N, class... Abis> struct deduce { using type = see below; };
+    template<class T, size_t N, class... Abis> using deduce_t =
+      typename deduce<T, N, Abis...>::type;
+  } // namespace simd_abi
+
+  // class template simd [simd.class]
+  template <class T, class Abi = simd_abi::compatible<T>> class simd;
+  template <class T> using native_simd = simd<T, simd_abi::native<T>>;
+  template <class T, int N> using fixed_size_simd = simd<T, simd_abi::fixed_size<N>>;
+
+  // class template simd_mask [simd.mask.class]
+  template <class T, class Abi = simd_abi::compatible<T>> class simd_mask;
+  template <class T> using native_simd_mask = simd_mask<T, simd_abi::native<T>>;
+  template <class T, int N> using fixed_size_simd_mask = simd_mask<T, simd_abi::fixed_size<N>>;
+
+  // memory alignment
+  struct element_aligned_tag {};
+  struct vector_aligned_tag {};
+  template <size_t> struct overaligned_tag {};
+  inline constexpr element_aligned_tag element_aligned{};
+  inline constexpr vector_aligned_tag vector_aligned{};
+  template <size_t N> inline constexpr overaligned_tag<N> overaligned{};
+
+  // traits [simd.traits]
+  template<class T> struct is_abi_tag;
+  template<class T> inline constexpr bool is_abi_tag_v = is_abi_tag<T>::value;
+
+  template <class T> struct is_simd;
+  template <class T> inline constexpr bool is_simd_v = is_simd<T>::value;
+
+  template <class T> struct is_simd_mask;
+  template <class T> inline constexpr bool is_simd_mask_v = is_simd_mask<T>::value;
+
+  template<class T> struct is_simd_flag_type;
+  template<class T> inline constexpr bool is_simd_flag_type_v = is_simd_flag_type<T>::value;
+
+  template<class T, class Abi = simd_abi::compatible<T>> struct simd_size;
+  template<class T, class Abi = simd_abi::compatible<T>>
+    inline constexpr size_t simd_size_v = simd_size<T,Abi>::value;
+
+  template<class T, class U = typename T::value_type> struct memory_alignment;
+  template<class T, class U = typename T::value_type>
+    inline constexpr size_t memory_alignment_v = memory_alignment<T,U>::value;
+
+} // namespace parallelism_v2
+} // namespace std::experimental
+
+*/
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#include <experimental/__config>
+#include <experimental/__simd/aligned_tag.h>
+#include <experimental/__simd/declaration.h>
+#include <experimental/__simd/reference.h>
+#include <experimental/__simd/scalar.h>
+#include <experimental/__simd/simd.h>
+#include <experimental/__simd/simd_mask.h>
+#include <experimental/__simd/traits.h>
+#include <experimental/__simd/vec_ext.h>
+
+#endif /* _LIBCPP_EXPERIMENTAL_SIMD */

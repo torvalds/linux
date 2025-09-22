@@ -1,0 +1,28 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/driver_executable.gni")
+
+tablegen("Opts") {
+  visibility = [ ":clang-scan-deps" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+driver_executable("clang-scan-deps") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    ":Opts",
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/CodeGen",
+    "//clang/lib/Driver",
+    "//clang/lib/Frontend",
+    "//clang/lib/FrontendTool",
+    "//clang/lib/Lex",
+    "//clang/lib/Parse",
+    "//clang/lib/Serialization",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/DependencyScanning",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "ClangScanDeps.cpp" ]
+}

@@ -1,0 +1,82 @@
+.\"	$OpenBSD: tvtwo.4,v 1.11 2011/12/03 23:01:21 schwarze Exp $
+.\" Copyright (c) 2003 Miodrag Vallat.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 3 2011 $
+.Dt TVTWO 4 sparc64
+.Os
+.Sh NAME
+.Nm tvtwo
+.Nd accelerated 24-bit color frame buffer
+.Sh SYNOPSIS
+.Cd "tvtwo* at sbus?"
+.Cd "wsdisplay* at tvtwo?"
+.Sh DESCRIPTION
+The Parallax XVideo and PowerVideo frame buffers, also known as
+.Sq tvtwo ,
+are memory based color frame buffers, with graphics acceleration
+and overlay capabilities, and hardware MPEG decoding.
+.Pp
+The
+.Nm
+driver interfaces the frame buffer to the
+.Xr wscons 4
+console framework.
+It does not provide direct device driver entry points
+but makes its functions available via the internal
+.Xr wsdisplay 4
+interface.
+.Sh DISPLAY RESOLUTION
+The XVideo and PowerVideo frame buffers will adapt their resolution and
+refresh rate to the monitor they are connected to.
+However, when not connected to a Sun monitor, the device will default to the
+.Xr cgthree 4 Ns -compatible
+1152x900 resolution, with a refresh rate of 67Hz.
+A different resolution can be forced using the rotary switch on the edge
+of the board.
+.Pp
+The available modes are as follows:
+.Bl -column "Rotary" "Resolution" "Refresh Rate" -offset indent
+.It Sy Rotary Ta Sy Resolution Ta Sy "Refresh Rate"
+.It Li 0 Ta autodetect Ta autodetect
+.It Li 1 Ta 1152x900 Ta 67Hz
+.It Li 2 Ta 1152x900 Ta 76Hz
+.It Li 3 Ta 1152x900 Ta 60Hz
+.It Li 4 Ta 1024x768 Ta 77Hz
+.It Li 5 Ta 640x480 Ta 60Hz
+.El
+.Pp
+All other rotary positions will behave as position 0, except for positions
+E and F.
+Position E enables the board built-in debugger on the serial port, and
+should not be used by end-users.
+Position F selects the video mode settings stored in the cards NVRAM.
+These settings cannot be modified under
+.Ox .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sbus 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4
+.Sh CAVEATS
+This driver does not support any acceleration features at the moment.

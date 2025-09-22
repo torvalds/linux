@@ -1,0 +1,49 @@
+.\"	$OpenBSD: uow.4,v 1.4 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt UOW 4
+.Os
+.Sh NAME
+.Nm uow
+.Nd Maxim/Dallas DS2490 USB 1-Wire adapter
+.Sh SYNOPSIS
+.Cd "uow* at uhub?"
+.Cd "onewire* at uow?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Maxim/Dallas DS2490 USB 1-Wire adapter.
+.Pp
+The following adapters should work:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It iButton DS9490/DS9490B/DS9490R
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr onewire 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

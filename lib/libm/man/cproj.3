@@ -1,0 +1,68 @@
+.\"	$OpenBSD: cproj.3,v 1.7 2025/06/07 10:33:06 schwarze Exp $
+.\"
+.\" Copyright (c) 2010 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt CPROJ 3
+.Os
+.Sh NAME
+.Nm cproj ,
+.Nm cprojf ,
+.Nm cprojl
+.Nd compute projection onto Riemann sphere
+.Sh SYNOPSIS
+.Lb libm
+.In complex.h
+.Ft double complex
+.Fn cproj "double complex z"
+.Ft float complex
+.Fn cprojf "float complex z"
+.Ft long double complex
+.Fn cprojl "long double complex z"
+.Sh DESCRIPTION
+The
+.Fn cproj ,
+.Fn cprojf
+and
+.Fn cprojl
+functions compute a projection of
+.Fa z
+onto the Riemann sphere.
+.Sh RETURN VALUES
+The
+.Fn cproj ,
+.Fn cprojf
+and
+.Fn cprojl
+functions return
+.Fa z
+for all finite complex numbers.
+If
+.Fa z
+has an infinite part (even if the other part is NaN),
+they return the equivalent of:
+.Bd -literal -offset indent
+INFINITY + I * copysign(0.0, cimag(z))
+.Ed
+.Sh SEE ALSO
+.Xr cimag 3
+.Sh STANDARDS
+The
+.Fn cproj ,
+.Fn cprojf
+and
+.Fn cprojl
+functions conform to
+.St -isoC-99 .

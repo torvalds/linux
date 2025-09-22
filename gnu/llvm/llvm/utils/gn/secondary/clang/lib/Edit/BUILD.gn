@@ -1,0 +1,15 @@
+static_library("Edit") {
+  output_name = "clangEdit"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "Commit.cpp",
+    "EditedSource.cpp",
+    "RewriteObjCFoundationAPI.cpp",
+  ]
+}

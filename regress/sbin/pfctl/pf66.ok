@@ -1,0 +1,6 @@
+match out on lo0 inet from 192.168.1.1 to any nat-to 10.0.0.1 port 500
+match out on lo0 inet proto tcp from 192.168.1.2 to any nat-to 10.0.0.2 port 1000:5000
+match out on lo0 inet proto udp from 192.168.1.3 to any nat-to 10.0.0.3 port 5000:1000
+match out on lo0 inet proto udp from 192.168.1.4 to any nat-to 10.0.0.4 port 50000
+match out on lo0 inet proto tcp from 192.168.1.2 to any nat-to 10.0.0.2 port 80:5000
+match out on lo0 inet proto udp from 192.168.1.3 to any nat-to 10.0.0.3 port 5000:80

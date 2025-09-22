@@ -1,0 +1,574 @@
+.\" $OpenBSD: EVP_aes_128_ccm.3,v 1.6 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to:
+.\" OpenSSL EVP_EncryptInit.pod 0874d7f2 Oct 11 13:13:47 2022 +0100
+.\" OpenSSL EVP_aes.pod a1ec85c1 Apr 21 10:49:12 2020 +0100
+.\"
+.\" Copyright (c) 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" This file is a derived work containing a few sentences
+.\" written by Dr. Stephen Henson <steve@openssl.org>
+.\" covered by the following license:
+.\"
+.\" Copyright (c) 2012 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_AES_128_CCM 3
+.Os
+.Sh NAME
+.Nm EVP_aes_128_ccm ,
+.Nm EVP_aes_192_ccm ,
+.Nm EVP_aes_256_ccm
+.Nd EVP AES cipher in Counter with CBC-MAC mode
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_ccm void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_192_ccm void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_ccm void
+.\" The following #define'd constants are intentionally undocumented:
+.\" Completely unused by anything:
+.\" EVP_CTRL_CCM_SET_MSGLEN, EVP_CCM_TLS_FIXED_IV_LEN, EVP_CCM_TLS_IV_LEN
+.\" Very rarely used and unused in LibreSSL:
+.\" EVP_CCM_TLS_EXPLICIT_IV_LEN, EVP_CCM_TLS_TAG_LEN, EVP_CCM8_TLS_TAG_LEN
+.Sh DESCRIPTION
+.Fn EVP_aes_128_ccm ,
+.Fn EVP_aes_192_ccm ,
+and
+.Fn EVP_aes_256_ccm
+provide the Advanced Encryption Standard algorithm for 128, 192 and 256-bit
+keys in Counter with CBC-MAC (CCM) mode in the
+.Xr evp 3
+framework.
+This mode supports Authenticated Encryption with Additional Data (AEAD)
+and can be used in a number of communication protocols.
+Longer keys make precomputation attacks harder at a cost in performance.
+.Pp
+For CCM mode ciphers, the behaviour of the EVP interface is subtly
+altered and several additional
+.Xr EVP_CIPHER_CTX_ctrl 3
+operations are required to function correctly.
+Some of the
+.Dv EVP_CTRL_CCM_*
+control commands are older aliases for corresponding
+.Dv EVP_CTRL_AEAD_*
+constants as indicated below.
+.Pp
+The less cumbersome and less error-prone
+.Xr EVP_AEAD_CTX_new 3
+API does not provide CCM modes.
+Some communication protocols support alternatives to CCM, which may
+sometimes allow choosing the better API by avoiding CCM.
+.Ss Configuration controls
+The following two control commands can be issued as soon as
+.Xr EVP_EncryptInit 3
+has been called with a CCM
+.Fa type
+and
+.Dv NULL
+pointers for
+.Fa key
+and
+.Fa iv .
+Both commands are optional and override each other.
+If issued when a nonce is already set, they silently cause data corruption.
+The
+.Fa ptr
+argument is ignored by both; passing
+.Dv NULL
+is recommended.
+.Bl -tag -width Ds
+.It Dv EVP_CTRL_CCM_SET_L
+Set the size
+.Ms L
+of the length field to
+.Fa arg
+bytes and the size of the nonce to
+.No 15 \- Fa arg
+bytes.
+By default, 8 bytes are used for the length field and 7 for the nonce.
+Selecting a smaller size
+.Ms L
+for the length field reduces des maximum size of messages that can be sent,
+but in return allows transmitting more messages with the same key.
+It is an error to pass less than 2 or more than the default value of 8 for
+.Fa arg .
+.It Dv EVP_CTRL_AEAD_SET_IVLEN Pq == Dv EVP_CTRL_CCM_SET_IVLEN
+Set the size of the nonce to
+.Fa arg
+bytes and the size
+.Ms L
+of the length field to
+.No 15 \- Fa arg
+bytes.
+By default, 7 bytes are used for the nonce and 8 for the length field.
+Selecting a larger size of the nonce allows transmitting more messages with
+the same key at the expense of reducing the maximum size for each message.
+It is an error to pass more than 13 or less than the default value of 7 for
+.Fa arg .
+.El
+.Pp
+After optionally issuing one of the above control commands,
+.Xr EVP_EncryptInit 3
+can be called a second time, this time passing
+.Dv NULL
+for the
+.Fa type
+argument, with the other two arguments pointing to the desired AES key
+and to the desired nonce.
+.Ss Encryption controls
+.Bl -tag -width Ds
+.It Dv EVP_CTRL_AEAD_SET_TAG Pq == Dv EVP_CTRL_CCM_SET_TAG
+If the
+.Fa ptr
+argument is
+.Dv NULL ,
+set the tag length
+.Ms M
+to
+.Fa arg
+bytes.
+The default value is 12.
+Selecting a larger value makes tampering harder for an attacker,
+at a small expense of making the messages slightly longer.
+Selecting a smaller value is not recommended.
+It is an error to pass an odd number for
+.Fa arg ,
+or a number that is less than 4 or greater than 16, or to pass
+.Dv NULL
+to
+.Fa ptr
+when
+.Fa ctx
+is not configured for encrypting.
+Issuing this control command when an encryption key is already configured
+silently causes data corruption.
+.It Dv EVP_CTRL_AEAD_GET_TAG Pq == Dv EVP_CTRL_CCM_GET_TAG
+Store the
+.Fa arg
+bytes of the tag in the memory provided by the caller starting at
+.Fa ptr .
+It is an error to issue this control command when
+.Fa ctx
+is not configured for encrypting, when no data was encrypted yet, with an
+.Fa arg
+that does not match the configured tag length
+.Ms M ,
+or when the tag has already been retrieved earlier.
+.El
+.Pp
+Before passing any plaintext data to
+.Xr EVP_EncryptUpdate 3 ,
+call
+.Xr EVP_EncryptUpdate 3
+with both
+.Fa in
+and
+.Fa out
+set to
+.Dv NULL ,
+passing the total plaintext length in bytes as
+.Fa in_len .
+This constructs the first block to be digested with CBC-MAC
+and copies the text length to
+.Pf * Fa out_len .
+It does not check whether
+.Fa in_len
+exceeds the limit of
+.Pf 256\(ha Ms L ;
+the most significant bytes of excessive values are silently discarded.
+.Pp
+It is an error if the
+.Fa in_len
+argument of the
+.Xr EVP_EncryptUpdate 3
+call passing the plaintext data does not match the total length
+specified earlier.
+Splitting the text into more than one chunks to be passed in multiple calls of
+.Xr EVP_EncryptUpdate 3
+is not supported for CCM.
+.Pp
+To specify any additional authenticated data (AAD), call
+.Xr EVP_EncryptUpdate 3
+with the
+.Fa out
+argument set to
+.Dv NULL .
+.Ss Decryption controls
+.Bl -tag -width Ds
+.It Dv EVP_CTRL_AEAD_SET_TAG Pq == Dv EVP_CTRL_CCM_SET_TAG
+If the
+.Fa ptr
+argument is not
+.Dv NULL ,
+copy
+.Fa arg
+bytes starting at
+.Fa ptr
+to the expected CCM tag value.
+It is an error to pass an odd number for
+.Fa arg ,
+or a number that is less than 4 or greater than 16.
+Passing a number that does not correspond to the tag length
+.Ms M
+that was used for encryption does not raise an error right away,
+but results in undefined behaviour
+and typically causes subsequent authentication failure.
+It is also an error to pass a
+.Pf non- Dv NULL
+.Fa ptr
+when
+.Fa ctx
+is configured for encryption.
+.El
+.Pp
+Before passing any ciphertext data to
+.Xr EVP_DecryptUpdate 3 ,
+call
+.Xr EVP_DecryptUpdate 3
+with both
+.Fa in
+and
+.Fa out
+set to
+.Dv NULL ,
+passing the total ciphertext length in bytes as
+.Fa in_len .
+This constructs the first block to be digested with CBC-MAC
+and copies the text length to
+.Pf * Fa out_len .
+It does not check whether
+.Fa in_len
+exceeds the limit of
+.Pf 256\(ha Ms L ;
+the most significant bytes of excessive values are silently discarded.
+.Pp
+It is an error if the
+.Fa in_len
+argument of the
+.Xr EVP_DecryptUpdate 3
+call passing the ciphertext data does not match the total length
+specified earlier.
+Splitting the text into more than one chunks to be passed in multiple calls of
+.Xr EVP_DecryptUpdate 3
+is not supported for CCM.
+.Pp
+To specify any additional authenticated data (AAD), call
+.Xr EVP_DecryptUpdate 3
+with the
+.Fa out
+argument set to
+.Dv NULL .
+.Pp
+If the return value of
+.Xr EVP_DecryptUpdate 3
+does not indicate success, the authentication operation may have failed.
+In that case, regard any output data as corrupted.
+.Pp
+Do not call
+.Xr EVP_DecryptFinal 3
+when using CCM.
+Such a call would not do anything useful, and it would fail
+because the tag that was set with
+.Dv EVP_CTRL_CCM_SET_TAG
+was already consumed by
+.Xr EVP_DecryptUpdate 3 .
+.Sh RETURN VALUES
+These functions return a static constant
+.Vt EVP_CIPHER
+structure that provides the implementation of the respective AEAD cipher mode.
+.Sh EXAMPLES
+The following code encrypts and digests some secret text
+and some additional, public data with AES-CCM.
+Specifically, it implements the Test Vector #1
+given in section 8 of RFC 3610.
+.Bd -literal -offset indent
+/* input data */
+const unsigned char key[] = {
+    0xC0, 0xC1, 0xC2, 0xC3,  0xC4, 0xC5, 0xC6, 0xC7,
+    0xC8, 0xC9, 0xCA, 0xCB,  0xCC, 0xCD, 0xCE, 0xCF
+};
+const unsigned char nonce[] = {
+    0x00, 0x00, 0x00, 0x03,  0x02, 0x01, 0x00, 0xA0,
+    0xA1, 0xA2, 0xA3, 0xA4,  0xA5
+};
+const int nonce_len = sizeof(nonce);
+const int size_len = 15 - nonce_len;
+
+const unsigned char aad[] = {
+    0x00, 0x01, 0x02, 0x03,  0x04, 0x05, 0x06, 0x07
+};
+const int aad_len = sizeof(aad);
+
+const unsigned char plaintext[] = {
+    0x08, 0x09, 0x0A, 0x0B,  0x0C, 0x0D, 0x0E, 0x0F,
+    0x10, 0x11, 0x12, 0x13,  0x14, 0x15, 0x16, 0x17,
+    0x18, 0x19, 0x1A, 0x1B,  0x1C, 0x1D, 0x1E
+};
+const int text_len = sizeof(plaintext);
+
+/* expected output data */
+const unsigned char ciphertext[] = {
+    0x58, 0x8C, 0x97, 0x9A,  0x61, 0xC6, 0x63, 0xD2,
+    0xF0, 0x66, 0xD0, 0xC2,  0xC0, 0xF9, 0x89, 0x80,
+    0x6D, 0x5F, 0x6B, 0x61,  0xDA, 0xC3, 0x84
+};
+
+const unsigned char wanted_tag[] = {
+    0x17, 0xE8, 0xD1, 0x2C,  0xFD, 0xF9, 0x26, 0xE0
+};
+const int tag_len = sizeof(wanted_tag);
+
+const int out_len = aad_len + text_len + tag_len;
+unsigned char out_buf[out_len];
+unsigned char *out_p = out_buf;
+unsigned char *out_end = out_buf + out_len;
+
+/* auxiliary variables */
+EVP_CIPHER_CTX *ctx;
+int irv, i;
+
+/* configuration */
+ctx = EVP_CIPHER_CTX_new();
+if (ctx == NULL)
+	err(1, "EVP_CIPHER_CTX_new");
+
+if (EVP_EncryptInit(ctx, EVP_aes_128_ccm(), NULL, NULL) != 1)
+	err(1, "EVP_EncryptInit(NULL)");
+
+if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_L,
+    size_len, NULL) <= 0)
+	err(1, "EVP_CTRL_CCM_SET_L(%d)", size_len);
+
+if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_TAG,
+    tag_len, NULL) <= 0)
+	err(1, "EVP_CTRL_CCM_SET_TAG(%d)", tag_len);
+
+/* process input data */
+if (EVP_EncryptInit(ctx, NULL, key, nonce) != 1)
+	err(1, "EVP_EncryptInit(key, nonce)");
+
+if (EVP_EncryptUpdate(ctx, NULL, &irv, NULL, text_len) != 1)
+	err(1, "EVP_EncryptUpdate(len = %d)", text_len);
+if (irv != text_len)
+	errx(1, "text length: want %d, got %d", text_len, irv);
+
+irv = -1;
+if (EVP_EncryptUpdate(ctx, NULL, &irv, aad, aad_len) != 1)
+	err(1, "EVP_EncryptUpdate(AAD)");
+memcpy(out_p, aad, aad_len);
+out_p += aad_len;
+
+irv = -1;
+if (EVP_EncryptUpdate(ctx, out_p, &irv, plaintext, text_len) != 1)
+	err(1, "EVP_EncryptUpdate(plaintext)");
+if (irv != text_len)
+	errx(1, "text_len: want %d, got %d", text_len, irv);
+out_p += irv;
+
+/*
+ * EVP_EncryptFinal(3) doesn't really do anything for CCM.
+ * Call it anyway to stay closer to normal EVP_Encrypt*(3) idioms,
+ * to match what the OpenSSL Wiki suggests since 2013, and to ease
+ * later migration of the code to a different AEAD algorithm.
+ */
+irv = -1;
+if (EVP_EncryptFinal(ctx, out_p, &irv) != 1)
+	err(1, "EVP_EncryptFinal");
+if (irv != 0)
+	errx(1, "final_len: want 0, got %d", irv);
+
+/* check output data */
+if (memcmp(out_buf + aad_len, ciphertext, text_len) != 0)
+	errx(1, "ciphertext mismatch");
+
+if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_GET_TAG,
+    tag_len, out_p) <= 0)
+	err(1, "EVP_CTRL_CCM_GET_TAG");
+if (memcmp(out_p, wanted_tag, tag_len) != 0)
+	errx(1, "tag mismatch");
+out_p += tag_len;
+if (out_p != out_end)
+	errx(1, "end of output: want %p, got %p", out_end, out_p);
+
+printf("Total packet length = %d.", out_len);
+printf(" [Authenticated and Encrypted Output]");
+for (i = 0; i < out_len; i++) {
+	if (i % 16 == 0)
+		printf("\en         ");
+	if (i % 4 == 0)
+		putchar(' ');
+	printf(" %02X", out_buf[i]);
+}
+putchar('\en');
+
+EVP_CIPHER_CTX_free(ctx);
+.Ed
+.Pp
+The reverse operation for the same test vector,
+i.e. decrypting and comparing the digest,
+is implemented by the following code.
+.Pp
+The variable declarations and definitions up to the call of
+.Xr EVP_CIPHER_CTX_new 3
+are the same as above.
+The chief differences are:
+.Bl -dash -width 1n -compact
+.It
+The tag is not part of the output,
+so the total output length is shorter.
+.It
+No
+.Xr memcmp 3
+of the tag takes place.
+Instead, the control command
+.Dv EVP_CTRL_CCM_SET_TAG
+requires the tag that is going to be verified as an additional argument.
+.It
+While
+.Xr EVP_EncryptFinal 3
+is an optional no-op,
+.Xr EVP_DecryptFinal 3
+is not called and would fail.
+.El
+.Bd -literal -offset indent
+const int out_len = aad_len + text_len;
+
+/* configuration */
+ctx = EVP_CIPHER_CTX_new();
+if (ctx == NULL)
+	err(1, "EVP_CIPHER_CTX_new");
+
+if (EVP_DecryptInit(ctx, EVP_aes_128_ccm(), NULL, NULL) != 1)
+	err(1, "EVP_DecryptInit(NULL)");
+
+if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_L, size_len, NULL) <= 0)
+	err(1, "EVP_CTRL_CCM_SET_L(%d)", size_len);
+
+if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_TAG,
+    tag_len, (void *)wanted_tag) <= 0)
+	err(1, "EVP_CTRL_CCM_SET_TAG(%d)", tag_len);
+
+/* process input data */
+if (EVP_DecryptInit(ctx, NULL, key, nonce) != 1)
+	err(1, "EVP_DecryptInit(key, nonce)");
+
+if (EVP_DecryptUpdate(ctx, NULL, &irv, NULL, text_len) != 1)
+	err(1, "EVP_DecryptUpdate(len = %d)", text_len);
+if (irv != text_len)
+	errx(1, "text length: want %d, got %d", text_len, irv);
+
+irv = -1;
+if (EVP_DecryptUpdate(ctx, NULL, &irv, aad, aad_len) != 1)
+	err(1, "EVP_DecryptUpdate(AAD)");
+memcpy(out_p, aad, aad_len);
+out_p += aad_len;
+
+irv = -1;
+if (EVP_DecryptUpdate(ctx, out_p, &irv, ciphertext, text_len) != 1)
+	err(1, "EVP_DecryptUpdate(ciphertext)");
+if (irv != text_len)
+	errx(1, "text_len: want %d, got %d", text_len, irv);
+out_p += irv;
+
+/* Do not call EVP_DecryptFinal(3); it would fail and do nothing. */
+
+/* check output data */
+if (memcmp(out_buf + aad_len, plaintext, text_len) != 0)
+	errx(1, "plaintext mismatch");
+if (out_p != out_end)
+	errx(1, "end of output: want %p, got %p", out_end, out_p);
+
+printf("Total packet length = %d.", out_len);
+printf(" [Decrypted and Authenticated Input]");
+for (i = 0; i < out_len; i++) {
+	if (i % 16 == 0)
+		printf("\n         ");
+	if (i % 4 == 0)
+		putchar(' ');
+	printf(" %02X", out_buf[i]);
+}
+putchar('\n');
+
+EVP_CIPHER_CTX_free(ctx);
+.Ed
+.Sh SEE ALSO
+.Xr AES_encrypt 3 ,
+.Xr evp 3 ,
+.Xr EVP_aes_128_cbc 3 ,
+.Xr EVP_aes_128_gcm 3 ,
+.Xr EVP_EncryptInit 3
+.Sh STANDARDS
+.Rs
+.%A Doug Whiting
+.%A Russ Housley
+.%A Niels Ferguson
+.%T Counter with CBC-MAC (CCM)
+.%R RFC 3610
+.%D September 2003
+.Re
+.Sh HISTORY
+.Fn EVP_aes_128_ccm ,
+.Fn EVP_aes_192_ccm ,
+and
+.Fn EVP_aes_256_ccm
+first appeared in OpenSSL 1.0.1 and have been available since
+.Ox 5.3 .

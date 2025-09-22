@@ -1,0 +1,112 @@
+.\" $OpenBSD: OPENSSL_init_crypto.3,v 1.7 2025/06/09 12:43:53 schwarze Exp $
+.\" Copyright (c) 2018, 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 9 2025 $
+.Dt OPENSSL_INIT_CRYPTO 3
+.Os
+.Sh NAME
+.Nm OPENSSL_init_crypto ,
+.Nm OPENSSL_init
+.Nd initialise the crypto library
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/crypto.h
+.Ft int
+.Fo OPENSSL_init_crypto
+.Fa "uint64_t options"
+.Fa "const void *dummy"
+.Fc
+.Ft void
+.Fn OPENSSL_init void
+.Sh DESCRIPTION
+These functions are deprecated.
+It is never useful for an application program
+to call either of them explicitly.
+.Pp
+The library automatically calls
+.Fn OPENSSL_init_crypto
+internally with an
+.Fa options
+argument of 0 whenever needed.
+It is safest to assume that any function may do so.
+.Pp
+To enable or disable the standard configuration file, instead use
+.Xr OPENSSL_config 3
+or
+.Xr OPENSSL_no_config 3 ,
+respectively.
+To load a non-standard configuration file, refer to
+.Xr CONF_modules_load_file 3 .
+.Pp
+If
+.Fn OPENSSL_init_crypto
+is called before any other crypto or ssl functions, the crypto
+library is initialised by allocating various internal resources,
+in particular calling
+.Xr ERR_load_crypto_strings 3 .
+.Pp
+The following
+.Fa options
+are supported:
+.Bl -tag -width Ds
+.It Dv OPENSSL_INIT_LOAD_CONFIG
+At the end of the initialization, call
+.Xr OPENSSL_config 3
+with a
+.Dv NULL
+argument, loading the default configuration file.
+.It Dv OPENSSL_INIT_NO_LOAD_CONFIG
+Ignore any later calls to
+.Xr OPENSSL_config 3 .
+.El
+.Pp
+The other
+.Fa options
+flags defined by OpenSSL are all ignored by LibreSSL.
+The
+.Fa dummy
+argument has no effect.
+.Pp
+If this function is called more than once, none of the calls except
+the first one have any effect.
+.Pp
+.Fn OPENSSL_init
+has no effect at all.
+.Sh RETURN VALUES
+.Fn OPENSSL_init_crypto
+is intended to return 1 on success or 0 on error.
+.Sh SEE ALSO
+.Xr CONF_modules_load_file 3 ,
+.Xr OPENSSL_config 3 ,
+.Xr openssl.cnf 5
+.Sh HISTORY
+.Fn OPENSSL_init
+first appeared in OpenSSL 1.0.0e and has been available since
+.Ox 5.3 .
+It stopped having any effect in OpenSSL 1.1.1 and in
+.Ox 5.6 .
+.Pp
+.Fn OPENSSL_init_crypto
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .
+.Sh BUGS
+.Fn OPENSSL_init_crypto
+silently ignores almost all kinds of errors.
+In particular, if memory allocation fails, initialisation is likely
+to remain incomplete, the library may be in an inconsistent internal
+state, but the return value will usually indicate success anyway.
+There is no way for the application program to find out whether
+library initialisation is actually complete, nor to get back to a
+consistent state if it isn't.

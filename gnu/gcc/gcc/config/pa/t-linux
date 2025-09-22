@@ -1,0 +1,18 @@
+#Plug millicode routines into libgcc.a  We want these on both native and
+#cross compiles.  We use the "64-bit" routines because the "32-bit" code
+#is broken for certain corner cases.
+
+LIB1ASMFUNCS = _divI _divU _remI _remU _div_const _mulI _dyncall
+LIB1ASMSRC = pa/milli64.S
+
+# Compile libgcc2.a as PIC.
+TARGET_LIBGCC2_CFLAGS = -fPIC -DELF=1 -DLINUX=1
+
+LIB2FUNCS_EXTRA=fptr.c
+
+fptr.c: $(srcdir)/config/pa/fptr.c
+	rm -f fptr.c
+	cp $(srcdir)/config/pa/fptr.c .
+
+# Compile crtbeginS.o and crtendS.o as PIC.
+CRTSTUFF_T_CFLAGS_S = -fPIC

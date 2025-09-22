@@ -1,0 +1,6 @@
+stdin:2: illegal port value 65536
+stdin:6: flags only apply to tcp
+stdin:7: flags only apply to tcp
+stdin:10: af mismatch in routing spec
+stdin:10: skipping rule due to errors
+stdin:10: rule expands to no valid combination

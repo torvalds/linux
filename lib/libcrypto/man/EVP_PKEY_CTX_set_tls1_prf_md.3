@@ -1,0 +1,172 @@
+.\" $OpenBSD: EVP_PKEY_CTX_set_tls1_prf_md.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 1cb7eff4 Sep 10 13:56:40 2019 +0100
+.\"
+.\" This file was written by Dr Stephen Henson <steve@openssl.org>,
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_CTX_SET_TLS1_PRF_MD 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_CTX_set_tls1_prf_md ,
+.Nm EVP_PKEY_CTX_set1_tls1_prf_secret ,
+.Nm EVP_PKEY_CTX_add1_tls1_prf_seed
+.Nd TLS PRF key derivation algorithm
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.In openssl/kdf.h
+.Ft int
+.Fo EVP_PKEY_CTX_set_tls1_prf_md
+.Fa "EVP_PKEY_CTX *pctx"
+.Fa "const EVP_MD *md"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set1_tls1_prf_secret
+.Fa "EVP_PKEY_CTX *pctx"
+.Fa "unsigned char *sec"
+.Fa "int seclen"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_add1_tls1_prf_seed
+.Fa "EVP_PKEY_CTX *pctx"
+.Fa "unsigned char *seed"
+.Fa "int seedlen"
+.Fc
+.Sh DESCRIPTION
+The
+.Dv EVP_PKEY_TLS1_PRF
+algorithm implements the PRF key derivation function for TLS.
+It has no associated private key and only implements key derivation using
+.Xr EVP_PKEY_derive 3 .
+.Pp
+.Fn EVP_PKEY_set_tls1_prf_md
+sets the message digest associated with the TLS PRF.
+.Xr EVP_md5_sha1 3
+is treated as a special case which uses the PRF algorithm using both
+MD5 and SHA-1 as used in TLS 1.0 and 1.1.
+.Pp
+.Fn EVP_PKEY_CTX_set_tls1_prf_secret
+sets the secret value of the TLS PRF to
+.Fa seclen
+bytes of the buffer
+.Fa sec .
+Any existing secret value is replaced and any seed is reset.
+.Pp
+.Fn EVP_PKEY_CTX_add1_tls1_prf_seed
+sets the seed to
+.Fa seedlen
+bytes of
+.Fa seed .
+If a seed is already set it is appended to the existing value.
+.Sh STRING CTRLS
+The TLS PRF also supports string based control operations using
+.Xr EVP_PKEY_CTX_ctrl_str 3 .
+The
+.Fa type
+parameter "md" uses the supplied
+.Fa value
+as the name of the digest algorithm to use.
+The
+.Fa type
+parameters "secret" and "seed" use the supplied
+.Fa value
+parameter as a secret or seed value.
+The names "hexsecret" and "hexseed" are similar except they take a hex
+string which is converted to binary.
+.Sh NOTES
+All these functions are implemented as macros.
+.Pp
+A context for the TLS PRF can be obtained by calling:
+.Bd -literal
+ EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_TLS1_PRF, NULL);
+.Ed
+.Pp
+The digest, secret value and seed must be set before a key is derived or
+an error occurs.
+.Pp
+The total length of all seeds cannot exceed 1024 bytes in length: this
+should be more than enough for any normal use of the TLS PRF.
+.Pp
+The output length of the PRF is specified by the length parameter in the
+.Xr EVP_PKEY_derive 3
+function.
+Since the output length is variable, setting the buffer to
+.Dv NULL
+is not meaningful for the TLS PRF.
+.Sh RETURN VALUES
+All these functions return 1 for success and 0 or a negative value for
+failure.
+In particular a return value of -2 indicates the operation is not
+supported by the public key algorithm.
+.Sh EXAMPLES
+This example derives 10 bytes using SHA-256 with the secret key "secret"
+and seed value "seed":
+.Bd -literal
+ EVP_PKEY_CTX *pctx;
+ unsigned char out[10];
+ size_t outlen = sizeof(out);
+
+ pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_TLS1_PRF, NULL);
+ if (EVP_PKEY_derive_init(pctx) <= 0)
+     /* Error */
+ if (EVP_PKEY_CTX_set_tls1_prf_md(pctx, EVP_sha256()) <= 0)
+     /* Error */
+ if (EVP_PKEY_CTX_set1_tls1_prf_secret(pctx, "secret", 6) <= 0)
+     /* Error */
+ if (EVP_PKEY_CTX_add1_tls1_prf_seed(pctx, "seed", 4) <= 0)
+     /* Error */
+ if (EVP_PKEY_derive(pctx, out, &outlen) <= 0)
+     /* Error */
+.Ed
+.Sh SEE ALSO
+.Xr EVP_PKEY_CTX_ctrl_str 3 ,
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_derive 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 7.6 .

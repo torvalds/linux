@@ -1,0 +1,1336 @@
+.\" $OpenBSD: PEM_read_bio_PrivateKey.3,v 1.25 2025/07/16 17:59:10 schwarze Exp $
+.\" full merge up to:
+.\" OpenSSL man3/PEM_read_bio_PrivateKey.pod 18bad535 Apr 9 15:13:55 2019 +0100
+.\" OpenSSL man3/PEM_read_CMS.pod 83cf7abf May 29 13:07:08 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2001-2004, 2009, 2013-2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 16 2025 $
+.Dt PEM_READ_BIO_PRIVATEKEY 3
+.Os
+.Sh NAME
+.Nm PEM_read_bio_PrivateKey ,
+.Nm PEM_read_PrivateKey ,
+.Nm PEM_write_bio_PrivateKey ,
+.Nm PEM_write_PrivateKey ,
+.Nm PEM_write_bio_PKCS8PrivateKey ,
+.Nm PEM_write_PKCS8PrivateKey ,
+.Nm PEM_write_bio_PKCS8PrivateKey_nid ,
+.Nm PEM_write_PKCS8PrivateKey_nid ,
+.Nm PEM_read_bio_PKCS8 ,
+.Nm PEM_read_PKCS8 ,
+.Nm PEM_write_bio_PKCS8 ,
+.Nm PEM_write_PKCS8 ,
+.Nm PEM_read_bio_PKCS8_PRIV_KEY_INFO ,
+.Nm PEM_read_PKCS8_PRIV_KEY_INFO ,
+.Nm PEM_write_bio_PKCS8_PRIV_KEY_INFO ,
+.Nm PEM_write_PKCS8_PRIV_KEY_INFO ,
+.Nm PEM_read_bio_PUBKEY ,
+.Nm PEM_read_PUBKEY ,
+.Nm PEM_write_bio_PUBKEY ,
+.Nm PEM_write_PUBKEY ,
+.Nm PEM_read_bio_RSAPrivateKey ,
+.Nm PEM_read_RSAPrivateKey ,
+.Nm PEM_write_bio_RSAPrivateKey ,
+.Nm PEM_write_RSAPrivateKey ,
+.Nm PEM_read_bio_RSAPublicKey ,
+.Nm PEM_read_RSAPublicKey ,
+.Nm PEM_write_bio_RSAPublicKey ,
+.Nm PEM_write_RSAPublicKey ,
+.Nm PEM_read_bio_RSA_PUBKEY ,
+.Nm PEM_read_RSA_PUBKEY ,
+.Nm PEM_write_bio_RSA_PUBKEY ,
+.Nm PEM_write_RSA_PUBKEY ,
+.Nm PEM_read_bio_DSAPrivateKey ,
+.Nm PEM_read_DSAPrivateKey ,
+.Nm PEM_write_bio_DSAPrivateKey ,
+.Nm PEM_write_DSAPrivateKey ,
+.Nm PEM_read_bio_DSA_PUBKEY ,
+.Nm PEM_read_DSA_PUBKEY ,
+.Nm PEM_write_bio_DSA_PUBKEY ,
+.Nm PEM_write_DSA_PUBKEY ,
+.Nm PEM_read_bio_DSAparams ,
+.Nm PEM_read_DSAparams ,
+.Nm PEM_write_bio_DSAparams ,
+.Nm PEM_write_DSAparams ,
+.Nm PEM_read_bio_DHparams ,
+.Nm PEM_read_DHparams ,
+.Nm PEM_write_bio_DHparams ,
+.Nm PEM_write_DHparams ,
+.Nm PEM_read_bio_ECPKParameters ,
+.Nm PEM_read_ECPKParameters ,
+.Nm PEM_write_bio_ECPKParameters ,
+.Nm PEM_write_ECPKParameters ,
+.Nm PEM_read_bio_ECPrivateKey ,
+.Nm PEM_read_ECPrivateKey ,
+.Nm PEM_write_bio_ECPrivateKey ,
+.Nm PEM_write_ECPrivateKey ,
+.Nm PEM_read_bio_EC_PUBKEY ,
+.Nm PEM_read_EC_PUBKEY ,
+.Nm PEM_write_bio_EC_PUBKEY ,
+.Nm PEM_write_EC_PUBKEY ,
+.Nm PEM_read_bio_X509 ,
+.Nm PEM_read_X509 ,
+.Nm PEM_write_bio_X509 ,
+.Nm PEM_write_X509 ,
+.Nm PEM_read_bio_X509_AUX ,
+.Nm PEM_read_X509_AUX ,
+.Nm PEM_write_bio_X509_AUX ,
+.Nm PEM_write_X509_AUX ,
+.Nm PEM_read_bio_X509_REQ ,
+.Nm PEM_read_X509_REQ ,
+.Nm PEM_write_bio_X509_REQ ,
+.Nm PEM_write_X509_REQ ,
+.Nm PEM_write_bio_X509_REQ_NEW ,
+.Nm PEM_write_X509_REQ_NEW ,
+.Nm PEM_read_bio_X509_CRL ,
+.Nm PEM_read_X509_CRL ,
+.Nm PEM_write_bio_X509_CRL ,
+.Nm PEM_write_X509_CRL ,
+.Nm PEM_read_bio_PKCS7 ,
+.Nm PEM_read_PKCS7 ,
+.Nm PEM_write_bio_PKCS7 ,
+.Nm PEM_write_PKCS7 ,
+.Nm PEM_read_CMS ,
+.Nm PEM_read_bio_CMS ,
+.Nm PEM_write_CMS ,
+.Nm PEM_write_bio_CMS
+.Nd PEM routines
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pem.h
+.Ft EVP_PKEY *
+.Fo PEM_read_bio_PrivateKey
+.Fa "BIO *bp"
+.Fa "EVP_PKEY **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft EVP_PKEY *
+.Fo PEM_read_PrivateKey
+.Fa "FILE *fp"
+.Fa "EVP_PKEY **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_PrivateKey
+.Fa "BIO *bp"
+.Fa "EVP_PKEY *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "unsigned char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_PrivateKey
+.Fa "FILE *fp"
+.Fa "EVP_PKEY *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "unsigned char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_PKCS8PrivateKey
+.Fa "BIO *bp"
+.Fa "EVP_PKEY *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_PKCS8PrivateKey
+.Fa "FILE *fp"
+.Fa "EVP_PKEY *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_PKCS8PrivateKey_nid
+.Fa "BIO *bp"
+.Fa "EVP_PKEY *x"
+.Fa "int nid"
+.Fa "char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_PKCS8PrivateKey_nid
+.Fa "FILE *fp"
+.Fa "EVP_PKEY *x"
+.Fa "int nid"
+.Fa "char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft X509_SIG *
+.Fo PEM_read_bio_PKCS8
+.Fa "BIO *bp"
+.Fa "X509_SIG **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft X509_SIG *
+.Fo PEM_read_PKCS8
+.Fa "FILE *fp"
+.Fa "X509_SIG **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_PKCS8
+.Fa "BIO *bp"
+.Fa "X509_SIG *x"
+.Fc
+.Ft int
+.Fo PEM_write_PKCS8
+.Fa "FILE *fp"
+.Fa "X509_SIG *x"
+.Fc
+.Ft PKCS8_PRIV_KEY_INFO *
+.Fo PEM_read_bio_PKCS8_PRIV_KEY_INFO
+.Fa "BIO *bp"
+.Fa "PKCS8_PRIV_KEY_INFO **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft PKCS8_PRIV_KEY_INFO *
+.Fo PEM_read_PKCS8_PRIV_KEY_INFO
+.Fa "FILE *fp"
+.Fa "PKCS8_PRIV_KEY_INFO **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_PKCS8_PRIV_KEY_INFO
+.Fa "BIO *bp"
+.Fa "PKCS8_PRIV_KEY_INFO *x"
+.Fc
+.Ft int
+.Fo PEM_write_PKCS8_PRIV_KEY_INFO
+.Fa "FILE *fp"
+.Fa "PKCS8_PRIV_KEY_INFO *x"
+.Fc
+.Ft EVP_PKEY *
+.Fo PEM_read_bio_PUBKEY
+.Fa "BIO *bp"
+.Fa "EVP_PKEY **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft EVP_PKEY *
+.Fo PEM_read_PUBKEY
+.Fa "FILE *fp"
+.Fa "EVP_PKEY **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_PUBKEY
+.Fa "BIO *bp"
+.Fa "EVP_PKEY *x"
+.Fc
+.Ft int
+.Fo PEM_write_PUBKEY
+.Fa "FILE *fp"
+.Fa "EVP_PKEY *x"
+.Fc
+.Ft RSA *
+.Fo PEM_read_bio_RSAPrivateKey
+.Fa "BIO *bp"
+.Fa "RSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft RSA *
+.Fo PEM_read_RSAPrivateKey
+.Fa "FILE *fp"
+.Fa "RSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_RSAPrivateKey
+.Fa "BIO *bp"
+.Fa "RSA *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "unsigned char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_RSAPrivateKey
+.Fa "FILE *fp"
+.Fa "RSA *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "unsigned char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft RSA *
+.Fo PEM_read_bio_RSAPublicKey
+.Fa "BIO *bp"
+.Fa "RSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft RSA *
+.Fo PEM_read_RSAPublicKey
+.Fa "FILE *fp"
+.Fa "RSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_RSAPublicKey
+.Fa "BIO *bp"
+.Fa "RSA *x"
+.Fc
+.Ft int
+.Fo PEM_write_RSAPublicKey
+.Fa "FILE *fp"
+.Fa "RSA *x"
+.Fc
+.Ft RSA *
+.Fo PEM_read_bio_RSA_PUBKEY
+.Fa "BIO *bp"
+.Fa "RSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft RSA *
+.Fo PEM_read_RSA_PUBKEY
+.Fa "FILE *fp"
+.Fa "RSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_RSA_PUBKEY
+.Fa "BIO *bp"
+.Fa "RSA *x"
+.Fc
+.Ft int
+.Fo PEM_write_RSA_PUBKEY
+.Fa "FILE *fp"
+.Fa "RSA *x"
+.Fc
+.Ft DSA *
+.Fo PEM_read_bio_DSAPrivateKey
+.Fa "BIO *bp"
+.Fa "DSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft DSA *
+.Fo PEM_read_DSAPrivateKey
+.Fa "FILE *fp"
+.Fa "DSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_DSAPrivateKey
+.Fa "BIO *bp"
+.Fa "DSA *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "unsigned char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_DSAPrivateKey
+.Fa "FILE *fp"
+.Fa "DSA *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "unsigned char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft DSA *
+.Fo PEM_read_bio_DSA_PUBKEY
+.Fa "BIO *bp"
+.Fa "DSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft DSA *
+.Fo PEM_read_DSA_PUBKEY
+.Fa "FILE *fp"
+.Fa "DSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_DSA_PUBKEY
+.Fa "BIO *bp"
+.Fa "DSA *x"
+.Fc
+.Ft int
+.Fo PEM_write_DSA_PUBKEY
+.Fa "FILE *fp"
+.Fa "DSA *x"
+.Fc
+.Ft DSA *
+.Fo PEM_read_bio_DSAparams
+.Fa "BIO *bp"
+.Fa "DSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft DSA *
+.Fo PEM_read_DSAparams
+.Fa "FILE *fp"
+.Fa "DSA **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_DSAparams
+.Fa "BIO *bp"
+.Fa "DSA *x"
+.Fc
+.Ft int
+.Fo PEM_write_DSAparams
+.Fa "FILE *fp"
+.Fa "DSA *x"
+.Fc
+.Ft DH *
+.Fo PEM_read_bio_DHparams
+.Fa "BIO *bp"
+.Fa "DH **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft DH *
+.Fo PEM_read_DHparams
+.Fa "FILE *fp"
+.Fa "DH **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_DHparams
+.Fa "BIO *bp"
+.Fa "DH *x"
+.Fc
+.Ft int
+.Fo PEM_write_DHparams
+.Fa "FILE *fp"
+.Fa "DH *x"
+.Fc
+.Ft EC_GROUP *
+.Fo PEM_read_bio_ECPKParameters
+.Fa "BIO *bp"
+.Fa "EC_GROUP **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft EC_GROUP *
+.Fo PEM_read_ECPKParameters
+.Fa "FILE *fp"
+.Fa "EC_GROUP **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_ECPKParameters
+.Fa "BIO *bp"
+.Fa "const EC_GROUP *x"
+.Fc
+.Ft int
+.Fo PEM_write_ECPKParameters
+.Fa "FILE *fp"
+.Fa "const EC_GROUP *x"
+.Fc
+.Ft EC_KEY *
+.Fo PEM_read_bio_ECPrivateKey
+.Fa "BIO *bp"
+.Fa "EC_KEY **key"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft EC_KEY *
+.Fo PEM_read_ECPrivateKey
+.Fa "FILE *fp"
+.Fa "EC_KEY **eckey"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_ECPrivateKey
+.Fa "BIO *bp"
+.Fa "EC_KEY *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "unsigned char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_ECPrivateKey
+.Fa "FILE *fp"
+.Fa "EC_KEY *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "unsigned char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft EC_KEY *
+.Fo PEM_read_bio_EC_PUBKEY
+.Fa "BIO *bp"
+.Fa "EC_KEY **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft EC_KEY *
+.Fo PEM_read_EC_PUBKEY
+.Fa "FILE *fp"
+.Fa "EC_KEY **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_EC_PUBKEY
+.Fa "BIO *bp"
+.Fa "EC_KEY *x"
+.Fc
+.Ft int
+.Fo PEM_write_EC_PUBKEY
+.Fa "FILE *fp"
+.Fa "EC_KEY *x"
+.Fc
+.Ft X509 *
+.Fo PEM_read_bio_X509
+.Fa "BIO *bp"
+.Fa "X509 **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft X509 *
+.Fo PEM_read_X509
+.Fa "FILE *fp"
+.Fa "X509 **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_X509
+.Fa "BIO *bp"
+.Fa "X509 *x"
+.Fc
+.Ft int
+.Fo PEM_write_X509
+.Fa "FILE *fp"
+.Fa "X509 *x"
+.Fc
+.Ft X509 *
+.Fo PEM_read_bio_X509_AUX
+.Fa "BIO *bp"
+.Fa "X509 **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft X509 *
+.Fo PEM_read_X509_AUX
+.Fa "FILE *fp"
+.Fa "X509 **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_X509_AUX
+.Fa "BIO *bp"
+.Fa "X509 *x"
+.Fc
+.Ft int
+.Fo PEM_write_X509_AUX
+.Fa "FILE *fp"
+.Fa "X509 *x"
+.Fc
+.Ft X509_REQ *
+.Fo PEM_read_bio_X509_REQ
+.Fa "BIO *bp"
+.Fa "X509_REQ **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft X509_REQ *
+.Fo PEM_read_X509_REQ
+.Fa "FILE *fp"
+.Fa "X509_REQ **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_X509_REQ
+.Fa "BIO *bp"
+.Fa "X509_REQ *x"
+.Fc
+.Ft int
+.Fo PEM_write_X509_REQ
+.Fa "FILE *fp"
+.Fa "X509_REQ *x"
+.Fc
+.Ft int
+.Fo PEM_write_bio_X509_REQ_NEW
+.Fa "BIO *bp"
+.Fa "X509_REQ *x"
+.Fc
+.Ft int
+.Fo PEM_write_X509_REQ_NEW
+.Fa "FILE *fp"
+.Fa "X509_REQ *x"
+.Fc
+.Ft X509_CRL *
+.Fo PEM_read_bio_X509_CRL
+.Fa "BIO *bp"
+.Fa "X509_CRL **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft X509_CRL *
+.Fo PEM_read_X509_CRL
+.Fa "FILE *fp"
+.Fa "X509_CRL **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_X509_CRL
+.Fa "BIO *bp"
+.Fa "X509_CRL *x"
+.Fc
+.Ft int
+.Fo PEM_write_X509_CRL
+.Fa "FILE *fp"
+.Fa "X509_CRL *x"
+.Fc
+.Ft PKCS7 *
+.Fo PEM_read_bio_PKCS7
+.Fa "BIO *bp"
+.Fa "PKCS7 **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft PKCS7 *
+.Fo PEM_read_PKCS7
+.Fa "FILE *fp"
+.Fa "PKCS7 **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_bio_PKCS7
+.Fa "BIO *bp"
+.Fa "PKCS7 *x"
+.Fc
+.Ft int
+.Fo PEM_write_PKCS7
+.Fa "FILE *fp"
+.Fa "PKCS7 *x"
+.Fc
+.In openssl/cms.h
+.Ft CMS_ContentInfo *
+.Fo PEM_read_CMS
+.Fa "FILE *fp"
+.Fa "CMS_ContentInfo **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft CMS_ContentInfo *
+.Fo PEM_read_bio_CMS
+.Fa "BIO *bp"
+.Fa "CMS_ContentInfo **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo PEM_write_CMS
+.Fa "FILE *fp"
+.Fa "const CMS_ContentInfo *x"
+.Fc
+.Ft int
+.Fo PEM_write_bio_CMS
+.Fa "BIO *bp"
+.Fa "const CMS_ContentInfo *x"
+.Fc
+.Sh DESCRIPTION
+The PEM functions read or write structures in PEM format.
+In this sense PEM format is simply base64-encoded data surrounded by
+header lines; see
+.Xr PEM_read 3
+for more details.
+.Pp
+For more details about the meaning of arguments see the
+.Sx PEM function arguments
+section.
+.Pp
+Each operation has four functions associated with it.
+For brevity the term
+.Dq Ar TYPE No functions
+will be used to collectively refer to the
+.Fn PEM_read_bio_TYPE ,
+.Fn PEM_read_TYPE ,
+.Fn PEM_write_bio_TYPE ,
+and
+.Fn PEM_write_TYPE
+functions.
+If no set of specific functions exists for a given type,
+.Xr PEM_ASN1_read 3
+can be used instead.
+.Pp
+The
+.Sy PrivateKey
+functions read or write a private key in PEM format using an
+.Vt EVP_PKEY
+structure.
+The write routines use "traditional" private key format and can handle
+both RSA and DSA private keys.
+The read functions can additionally transparently handle PKCS#8 format
+encrypted and unencrypted keys too.
+.Pp
+.Fn PEM_write_bio_PKCS8PrivateKey
+and
+.Fn PEM_write_PKCS8PrivateKey
+write a private key in an
+.Vt EVP_PKEY
+structure in PKCS#8
+.Vt EncryptedPrivateKeyInfo
+format using PKCS#5 v2.0 password based encryption algorithms.
+The
+.Fa enc
+argument specifies the encryption algorithm to use: unlike all other PEM
+routines, the encryption is applied at the PKCS#8 level and not in the
+PEM headers.
+If
+.Fa enc
+is
+.Dv NULL ,
+then no encryption is used and a PKCS#8
+.Vt PrivateKeyInfo
+structure is used instead.
+.Pp
+.Fn PEM_write_bio_PKCS8PrivateKey_nid
+and
+.Fn PEM_write_PKCS8PrivateKey_nid
+also write out a private key as a PKCS#8
+.Vt EncryptedPrivateKeyInfo .
+However they use PKCS#5 v1.5 or PKCS#12 encryption algorithms instead.
+The algorithm to use is specified in the
+.Fa nid
+parameter and should be the NID of the corresponding OBJECT IDENTIFIER.
+.Pp
+The
+.Sy PKCS8
+functions process an encrypted private key using an
+.Vt X509_SIG
+structure and the
+.Xr d2i_X509_SIG 3
+function.
+.Pp
+The
+.Sy PKCS8_PRIV_KEY_INFO
+functions process a private key using a
+.Vt PKCS8_PRIV_KEY_INFO
+structure.
+.Pp
+The
+.Sy PUBKEY
+functions process a public key using an
+.Vt EVP_PKEY
+structure.
+The public key is encoded as an ASN.1
+.Vt SubjectPublicKeyInfo
+structure.
+.Pp
+The
+.Sy RSAPrivateKey
+functions process an RSA private key using an
+.Vt RSA
+structure.
+They handle the same formats as the
+.Sy PrivateKey
+functions, but an error occurs if the private key is not RSA.
+.Pp
+The
+.Sy RSAPublicKey
+functions process an RSA public key using an
+.Vt RSA
+structure.
+The public key is encoded using a PKCS#1
+.Vt RSAPublicKey
+structure.
+.Pp
+The
+.Sy RSA_PUBKEY
+functions also process an RSA public key using an
+.Vt RSA
+structure.
+However the public key is encoded using an ASN.1
+.Vt SubjectPublicKeyInfo
+structure and an error occurs if the public key is not RSA.
+.Pp
+The
+.Sy DSAPrivateKey
+functions process a DSA private key using a
+.Vt DSA
+structure.
+They handle the same formats as the
+.Sy PrivateKey
+functions but an error occurs if the private key is not DSA.
+.Pp
+The
+.Sy DSA_PUBKEY
+functions process a DSA public key using a
+.Vt DSA
+structure.
+The public key is encoded using an ASN.1
+.Vt SubjectPublicKeyInfo
+structure and an error occurs if the public key is not DSA.
+.Pp
+The
+.Sy DSAparams
+functions process DSA parameters using a
+.Vt DSA
+structure.
+The parameters are encoded using a Dss-Parms structure as defined in RFC 2459.
+.Pp
+The
+.Sy DHparams
+functions process DH parameters using a
+.Vt DH
+structure.
+The parameters are encoded using a PKCS#3 DHparameter structure.
+.Pp
+The
+.Sy ECPKParameters
+functions process EC parameters using an
+.Vt EC_GROUP
+structure and the
+.Xr d2i_ECPKParameters 3
+function.
+.Pp
+The
+.Sy ECPrivateKey
+functions process an EC private key using an
+.Vt EC_KEY
+structure.
+.Pp
+The
+.Sy EC_PUBKEY
+functions process an EC public key using an
+.Vt EC_KEY
+structure.
+.Pp
+The
+.Sy X509
+functions process an X509 certificate using an
+.Vt X509
+structure.
+They will also process a trusted X509 certificate but any trust settings
+are discarded.
+.Pp
+The
+.Sy X509_AUX
+functions process a trusted X509 certificate using an
+.Vt X509
+structure.
+.Pp
+The
+.Sy X509_REQ
+and
+.Sy X509_REQ_NEW
+functions process a PKCS#10 certificate request using an
+.Vt X509_REQ
+structure.
+The
+.Sy X509_REQ
+write functions use CERTIFICATE REQUEST in the header whereas the
+.Sy X509_REQ_NEW
+functions use NEW CERTIFICATE REQUEST (as required by some CAs).
+The
+.Sy X509_REQ
+read functions will handle either form so there are no
+.Sy X509_REQ_NEW
+read functions.
+.Pp
+The
+.Sy X509_CRL
+functions process an X509 CRL using an
+.Vt X509_CRL
+structure.
+.Pp
+The
+.Sy PKCS7
+functions process a PKCS#7
+.Vt ContentInfo
+using a
+.Vt PKCS7
+structure.
+.Pp
+The
+.Sy CMS
+functions process a
+.Vt CMS_ContentInfo
+structure.
+.Pp
+The old
+.Sy PrivateKey
+write routines are retained for compatibility.
+New applications should write private keys using the
+.Fn PEM_write_bio_PKCS8PrivateKey
+or
+.Fn PEM_write_PKCS8PrivateKey
+routines because they are more secure (they use an iteration count of
+2048 whereas the traditional routines use a count of 1) unless
+compatibility with older versions of OpenSSL is important.
+.Pp
+The
+.Sy PrivateKey
+read routines can be used in all applications because they handle all
+formats transparently.
+.Ss PEM function arguments
+The PEM functions have many common arguments.
+.Pp
+The
+.Fa bp
+parameter specifies the
+.Vt BIO
+to read from or write to.
+.Pp
+The
+.Fa fp
+parameter specifies the
+.Vt FILE
+pointer to read from or write to.
+.Pp
+The PEM read functions all take a pointer to pointer argument
+.Fa x
+and return a pointer of the same type.
+If
+.Fa x
+is
+.Dv NULL ,
+then the parameter is ignored.
+If
+.Fa x
+is not
+.Dv NULL
+but
+.Pf * Fa x
+is
+.Dv NULL ,
+then the structure returned will be written to
+.Pf * Fa x .
+If neither
+.Fa x
+nor
+.Pf * Fa x
+are
+.Dv NULL ,
+then an attempt is made to reuse the structure at
+.Pf * Fa x ,
+but see the
+.Sx BUGS
+and
+.Sx EXAMPLES
+sections.
+Irrespective of the value of
+.Fa x ,
+a pointer to the structure is always returned, or
+.Dv NULL
+if an error occurred.
+.Pp
+The PEM functions which write private keys take an
+.Fa enc
+parameter, which specifies the encryption algorithm to use.
+Encryption is done at the PEM level.
+If this parameter is set to
+.Dv NULL ,
+then the private key is written in unencrypted form.
+.Pp
+The optional arguments
+.Fa u
+and
+.Fa cb
+are a passphrase used for encrypting a PEM structure
+or a callback to obtain the passphrase; see
+.Xr pem_password_cb 3
+for details.
+.Pp
+For the PEM write routines, if the
+.Fa kstr
+parameter is not
+.Dv NULL ,
+then
+.Fa klen
+bytes at
+.Fa kstr
+are used as the passphrase and
+.Fa cb
+is ignored.
+.Ss PEM encryption format
+These old
+.Sy PrivateKey
+routines use a non-standard technique for encryption.
+.Pp
+The private key (or other data) takes the following form:
+.Bd -literal -offset indent
+-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-EDE3-CBC,3F17F5316E2BAC89
+
+\&...base64 encoded data...
+-----END RSA PRIVATE KEY-----
+.Ed
+.Pp
+The line beginning with
+.Dq DEK-Info
+contains two comma separated pieces of information:
+the encryption algorithm name as used by
+.Xr EVP_get_cipherbyname 3
+and an 8-byte salt encoded as a set of hexadecimal digits.
+.Pp
+After this is the base64-encoded encrypted data.
+.Pp
+The encryption key is determined using
+.Xr EVP_BytesToKey 3 ,
+using the salt and an iteration count of 1.
+The IV used is the value of the salt and *not* the IV returned by
+.Xr EVP_BytesToKey 3 .
+.Sh RETURN VALUES
+The read routines return either a pointer to the structure read or
+.Dv NULL
+if an error occurred.
+.Pp
+The write routines return 1 for success or 0 for failure.
+.Sh EXAMPLES
+Although the PEM routines take several arguments, in almost all
+applications most of them are set to 0 or
+.Dv NULL .
+.Pp
+Read a certificate in PEM format from a
+.Vt BIO :
+.Bd -literal -offset indent
+X509 *x;
+x = PEM_read_bio_X509(bp, NULL, 0, NULL);
+if (x == NULL) {
+	/* Error */
+}
+.Ed
+.Pp
+Alternative method:
+.Bd -literal -offset indent
+X509 *x = NULL;
+if (!PEM_read_bio_X509(bp, &x, 0, NULL)) {
+	/* Error */
+}
+.Ed
+.Pp
+Write a certificate to a
+.Vt BIO :
+.Bd -literal -offset indent
+if (!PEM_write_bio_X509(bp, x)) {
+	/* Error */
+}
+.Ed
+.Pp
+Write an unencrypted private key to a
+.Vt FILE :
+.Bd -literal -offset indent
+if (!PEM_write_PrivateKey(fp, key, NULL, NULL, 0, 0, NULL)) {
+	/* Error */
+}
+.Ed
+.Pp
+Write a private key (using traditional format) to a
+.Vt BIO
+using triple DES encryption; the pass phrase is prompted for:
+.Bd -literal -offset indent
+if (!PEM_write_bio_PrivateKey(bp, key, EVP_des_ede3_cbc(),
+    NULL, 0, 0, NULL)) {
+	/* Error */
+}
+.Ed
+.Pp
+Write a private key (using PKCS#8 format) to a
+.Vt BIO
+using triple DES encryption, using the pass phrase "hello":
+.Bd -literal -offset indent
+if (!PEM_write_bio_PKCS8PrivateKey(bp, key, EVP_des_ede3_cbc(),
+    NULL, 0, 0, "hello")) {
+	/* Error */
+}
+.Ed
+.Pp
+Read a private key from a
+.Vt BIO
+using the pass phrase "hello":
+.Bd -literal -offset indent
+key = PEM_read_bio_PrivateKey(bp, NULL, 0, "hello");
+if (key == NULL) {
+	/* Error */
+}
+.Ed
+.Pp
+Read a private key from a
+.Vt BIO
+using a pass phrase callback:
+.Bd -literal -offset indent
+key = PEM_read_bio_PrivateKey(bp, NULL, pass_cb, "My Private Key");
+if (key == NULL) {
+	/* Error */
+}
+.Ed
+.Pp
+Skeleton pass phrase callback:
+.Bd -literal -offset indent
+int
+pass_cb(char *buf, int size, int rwflag, void *u)
+{
+	char	*tmp;
+	size_t	 len;
+
+	/* We'd probably do something else if 'rwflag' is 1 */
+	printf("Enter pass phrase for \e"%s\e"\en", u);
+
+	/*
+	 * Instead of the following line, get the passphrase
+	 * from the user in some way.
+	 */
+	tmp = "hello";
+	if (tmp == NULL) /* An error occurred. */
+		return -1;
+
+	len = strlen(tmp);
+	if (len == 0) /* Treat an empty passphrase as an error, too. */
+		return -1;
+
+	/* if too long, truncate */
+	if (len > size)
+		len = size;
+	memcpy(buf, tmp, len);
+	return len;
+}
+.Ed
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr DSA_new 3 ,
+.Xr PEM_ASN1_read 3 ,
+.Xr PEM_bytes_read_bio 3 ,
+.Xr PEM_read 3 ,
+.Xr PEM_read_SSL_SESSION 3 ,
+.Xr PEM_write_bio_CMS_stream 3 ,
+.Xr PEM_write_bio_PKCS7_stream 3 ,
+.Xr PEM_X509_INFO_read_bio 3 ,
+.Xr RSA_new 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_REQ_new 3 ,
+.Xr X509_SIG_new 3
+.Sh HISTORY
+.Fn PEM_read_X509
+and
+.Fn PEM_write_X509
+appeared in SSLeay 0.4 or earlier.
+.Fn PEM_read_X509_REQ ,
+.Fn PEM_write_X509_REQ ,
+.Fn PEM_read_X509_CRL ,
+and
+.Fn PEM_write_X509_CRL
+first appeared in SSLeay 0.4.4.
+.Fn PEM_read_RSAPrivateKey ,
+.Fn PEM_write_RSAPrivateKey ,
+.Fn PEM_read_DHparams ,
+.Fn PEM_write_DHparams ,
+.Fn PEM_read_PKCS7 ,
+and
+.Fn PEM_write_PKCS7
+first appeared in SSLeay 0.5.1.
+.Fn PEM_read_bio_PrivateKey ,
+.Fn PEM_read_PrivateKey ,
+.Fn PEM_read_bio_RSAPrivateKey ,
+.Fn PEM_write_bio_RSAPrivateKey ,
+.Fn PEM_read_bio_DSAPrivateKey ,
+.Fn PEM_read_DSAPrivateKey ,
+.Fn PEM_write_bio_DSAPrivateKey ,
+.Fn PEM_write_DSAPrivateKey ,
+.Fn PEM_read_bio_DHparams ,
+.Fn PEM_write_bio_DHparams ,
+.Fn PEM_read_bio_X509 ,
+.Fn PEM_write_bio_X509 ,
+.Fn PEM_read_bio_X509_REQ ,
+.Fn PEM_write_bio_X509_REQ ,
+.Fn PEM_read_bio_X509_CRL ,
+.Fn PEM_write_bio_X509_CRL ,
+.Fn PEM_read_bio_PKCS7 ,
+and
+.Fn PEM_write_bio_PKCS7
+first appeared in SSLeay 0.6.0.
+.Fn PEM_write_bio_PrivateKey ,
+.Fn PEM_write_PrivateKey ,
+.Fn PEM_read_bio_DSAparams ,
+.Fn PEM_read_DSAparams ,
+.Fn PEM_write_bio_DSAparams ,
+and
+.Fn PEM_write_DSAparams
+first appeared in SSLeay 0.8.0.
+.Fn PEM_read_bio_RSAPublicKey ,
+.Fn PEM_read_RSAPublicKey ,
+.Fn PEM_write_bio_RSAPublicKey ,
+and
+.Fn PEM_write_RSAPublicKey
+first appeared in SSLeay 0.8.1.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn PEM_write_bio_PKCS8PrivateKey ,
+.Fn PEM_write_PKCS8PrivateKey ,
+.Fn PEM_read_bio_PKCS8 ,
+.Fn PEM_read_PKCS8 ,
+.Fn PEM_write_bio_PKCS8 ,
+.Fn PEM_write_PKCS8 ,
+.Fn PEM_read_bio_PKCS8_PRIV_KEY_INFO ,
+.Fn PEM_read_PKCS8_PRIV_KEY_INFO ,
+.Fn PEM_write_bio_PKCS8_PRIV_KEY_INFO ,
+.Fn PEM_write_PKCS8_PRIV_KEY_INFO ,
+.Pp
+.Fn PEM_write_bio_PKCS8PrivateKey_nid ,
+.Fn PEM_write_PKCS8PrivateKey_nid ,
+.Fn PEM_read_bio_PUBKEY ,
+.Fn PEM_read_PUBKEY ,
+.Fn PEM_write_bio_PUBKEY ,
+.Fn PEM_write_PUBKEY ,
+.Fn PEM_read_bio_RSA_PUBKEY ,
+.Fn PEM_read_RSA_PUBKEY ,
+.Fn PEM_write_bio_RSA_PUBKEY ,
+.Fn PEM_write_RSA_PUBKEY ,
+.Fn PEM_read_bio_DSA_PUBKEY ,
+.Fn PEM_read_DSA_PUBKEY ,
+.Fn PEM_write_bio_DSA_PUBKEY ,
+.Fn PEM_write_DSA_PUBKEY ,
+.Fn PEM_write_bio_X509_REQ_NEW ,
+.Fn PEM_write_X509_REQ_NEW ,
+.Fn PEM_read_bio_X509_AUX ,
+.Fn PEM_read_X509_AUX ,
+.Fn PEM_write_bio_X509_AUX ,
+and
+.Fn PEM_write_X509_AUX
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn PEM_read_bio_ECPKParameters ,
+.Fn PEM_read_ECPKParameters ,
+.Fn PEM_write_bio_ECPKParameters ,
+.Fn PEM_write_ECPKParameters ,
+.Fn PEM_read_bio_ECPrivateKey ,
+.Fn PEM_read_ECPrivateKey ,
+.Fn PEM_write_bio_ECPrivateKey ,
+.Fn PEM_write_ECPrivateKey ,
+.Fn PEM_read_bio_EC_PUBKEY ,
+.Fn PEM_read_EC_PUBKEY ,
+.Fn PEM_write_bio_EC_PUBKEY ,
+and
+.Fn PEM_write_EC_PUBKEY
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Pp
+.Fn PEM_read_CMS ,
+.Fn PEM_read_bio_CMS ,
+.Fn PEM_write_CMS ,
+and
+.Fn PEM_write_bio_CMS
+first appeared in OpenSSL 0.9.8h and have been available since
+.Ox 6.7 .
+.Sh CAVEATS
+A frequent cause of problems is attempting to use the PEM routines like
+this:
+.Bd -literal -offset indent
+X509 *x;
+PEM_read_bio_X509(bp, &x, 0, NULL);
+.Ed
+.Pp
+This is a bug because an attempt will be made to reuse the data at
+.Fa x ,
+which is an uninitialised pointer.
+.Pp
+These functions make no assumption regarding the pass phrase received
+from the password callback.
+It will simply be treated as a byte sequence.
+.Sh BUGS
+The PEM read routines in some versions of OpenSSL will not correctly
+reuse an existing structure.
+Therefore
+.Pp
+.Dl PEM_read_bio_X509(bp, &x, 0, NULL);
+.Pp
+where
+.Fa x
+already contains a valid certificate may not work, whereas
+.Bd -literal -offset indent
+X509_free(x);
+x = PEM_read_bio_X509(bp, NULL, 0, NULL);
+.Ed
+.Pp
+is guaranteed to work.

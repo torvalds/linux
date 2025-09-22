@@ -1,0 +1,4287 @@
+\input texinfo
+@setfilename cpp.info
+@settitle The C Preprocessor
+@setchapternewpage off
+@c @smallbook
+@c @cropmarks
+@c @finalout
+
+@include gcc-common.texi
+
+@copying
+@c man begin COPYRIGHT
+Copyright @copyright{} 1987, 1989, 1991, 1992, 1993, 1994, 1995, 1996,
+1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
+Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation.  A copy of
+the license is included in the
+@c man end
+section entitled ``GNU Free Documentation License''.
+@ignore
+@c man begin COPYRIGHT
+man page gfdl(7).
+@c man end
+@end ignore
+
+@c man begin COPYRIGHT
+This manual contains no Invariant Sections.  The Front-Cover Texts are
+(a) (see below), and the Back-Cover Texts are (b) (see below).
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@c man end
+@end copying
+
+@c Create a separate index for command line options.
+@defcodeindex op
+@syncodeindex vr op
+
+@c Used in cppopts.texi and cppenv.texi.
+@set cppmanual
+
+@ifinfo
+@dircategory Software development
+@direntry
+* Cpp: (cpp).		       The GNU C preprocessor.
+@end direntry
+@end ifinfo
+
+@titlepage
+@title The C Preprocessor
+@versionsubtitle
+@author Richard M. Stallman, Zachary Weinberg
+@page
+@c There is a fill at the bottom of the page, so we need a filll to
+@c override it.
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+@contents
+@page
+
+@ifnottex
+@node Top
+@top
+The C preprocessor implements the macro language used to transform C,
+C++, and Objective-C programs before they are compiled.  It can also be
+useful on its own.
+
+@menu
+* Overview::
+* Header Files::
+* Macros::
+* Conditionals::
+* Diagnostics::
+* Line Control::
+* Pragmas::
+* Other Directives::
+* Preprocessor Output::
+* Traditional Mode::
+* Implementation Details::
+* Invocation::
+* Environment Variables::
+* GNU Free Documentation License::
+* Index of Directives::
+* Option Index::
+* Concept Index::
+
+@detailmenu
+ --- The Detailed Node Listing ---
+
+Overview
+
+* Character sets::
+* Initial processing::
+* Tokenization::
+* The preprocessing language::
+
+Header Files
+
+* Include Syntax::
+* Include Operation::
+* Search Path::
+* Once-Only Headers::
+* Computed Includes::
+* Wrapper Headers::
+* System Headers::
+
+Macros
+
+* Object-like Macros::
+* Function-like Macros::
+* Macro Arguments::
+* Stringification::
+* Concatenation::
+* Variadic Macros::
+* Predefined Macros::
+* Undefining and Redefining Macros::
+* Directives Within Macro Arguments::
+* Macro Pitfalls::
+
+Predefined Macros
+
+* Standard Predefined Macros::
+* Common Predefined Macros::
+* System-specific Predefined Macros::
+* C++ Named Operators::
+
+Macro Pitfalls
+
+* Misnesting::
+* Operator Precedence Problems::
+* Swallowing the Semicolon::
+* Duplication of Side Effects::
+* Self-Referential Macros::
+* Argument Prescan::
+* Newlines in Arguments::
+
+Conditionals
+
+* Conditional Uses::
+* Conditional Syntax::
+* Deleted Code::
+
+Conditional Syntax
+
+* Ifdef::
+* If::
+* Defined::
+* Else::
+* Elif::
+
+Implementation Details
+
+* Implementation-defined behavior::
+* Implementation limits::
+* Obsolete Features::
+* Differences from previous versions::
+
+Obsolete Features
+
+* Assertions::
+* Obsolete once-only headers::
+
+@end detailmenu
+@end menu
+
+@insertcopying
+@end ifnottex
+
+@node Overview
+@chapter Overview
+@c man begin DESCRIPTION
+The C preprocessor, often known as @dfn{cpp}, is a @dfn{macro processor}
+that is used automatically by the C compiler to transform your program
+before compilation.  It is called a macro processor because it allows
+you to define @dfn{macros}, which are brief abbreviations for longer
+constructs.
+
+The C preprocessor is intended to be used only with C, C++, and
+Objective-C source code.  In the past, it has been abused as a general
+text processor.  It will choke on input which does not obey C's lexical
+rules.  For example, apostrophes will be interpreted as the beginning of
+character constants, and cause errors.  Also, you cannot rely on it
+preserving characteristics of the input which are not significant to
+C-family languages.  If a Makefile is preprocessed, all the hard tabs
+will be removed, and the Makefile will not work.
+
+Having said that, you can often get away with using cpp on things which
+are not C@.  Other Algol-ish programming languages are often safe
+(Pascal, Ada, etc.) So is assembly, with caution.  @option{-traditional-cpp}
+mode preserves more white space, and is otherwise more permissive.  Many
+of the problems can be avoided by writing C or C++ style comments
+instead of native language comments, and keeping macros simple.
+
+Wherever possible, you should use a preprocessor geared to the language
+you are writing in.  Modern versions of the GNU assembler have macro
+facilities.  Most high level programming languages have their own
+conditional compilation and inclusion mechanism.  If all else fails,
+try a true general text processor, such as GNU M4.
+
+C preprocessors vary in some details.  This manual discusses the GNU C
+preprocessor, which provides a small superset of the features of ISO
+Standard C@.  In its default mode, the GNU C preprocessor does not do a
+few things required by the standard.  These are features which are
+rarely, if ever, used, and may cause surprising changes to the meaning
+of a program which does not expect them.  To get strict ISO Standard C,
+you should use the @option{-std=c89} or @option{-std=c99} options, depending
+on which version of the standard you want.  To get all the mandatory
+diagnostics, you must also use @option{-pedantic}.  @xref{Invocation}.
+
+This manual describes the behavior of the ISO preprocessor.  To
+minimize gratuitous differences, where the ISO preprocessor's
+behavior does not conflict with traditional semantics, the
+traditional preprocessor should behave the same way.  The various
+differences that do exist are detailed in the section @ref{Traditional
+Mode}.
+
+For clarity, unless noted otherwise, references to @samp{CPP} in this
+manual refer to GNU CPP@.
+@c man end
+
+@menu
+* Character sets::
+* Initial processing::
+* Tokenization::
+* The preprocessing language::
+@end menu
+
+@node Character sets
+@section Character sets
+
+Source code character set processing in C and related languages is
+rather complicated.  The C standard discusses two character sets, but
+there are really at least four.
+
+The files input to CPP might be in any character set at all.  CPP's
+very first action, before it even looks for line boundaries, is to
+convert the file into the character set it uses for internal
+processing.  That set is what the C standard calls the @dfn{source}
+character set.  It must be isomorphic with ISO 10646, also known as
+Unicode.  CPP uses the UTF-8 encoding of Unicode.
+
+The character sets of the input files are specified using the
+@option{-finput-charset=} option.
+
+All preprocessing work (the subject of the rest of this manual) is
+carried out in the source character set.  If you request textual
+output from the preprocessor with the @option{-E} option, it will be
+in UTF-8.
+
+After preprocessing is complete, string and character constants are
+converted again, into the @dfn{execution} character set.  This
+character set is under control of the user; the default is UTF-8,
+matching the source character set.  Wide string and character
+constants have their own character set, which is not called out
+specifically in the standard.  Again, it is under control of the user.
+The default is UTF-16 or UTF-32, whichever fits in the target's
+@code{wchar_t} type, in the target machine's byte
+order.@footnote{UTF-16 does not meet the requirements of the C
+standard for a wide character set, but the choice of 16-bit
+@code{wchar_t} is enshrined in some system ABIs so we cannot fix
+this.}  Octal and hexadecimal escape sequences do not undergo
+conversion; @t{'\x12'} has the value 0x12 regardless of the currently
+selected execution character set.  All other escapes are replaced by
+the character in the source character set that they represent, then
+converted to the execution character set, just like unescaped
+characters.
+
+Unless the experimental @option{-fextended-identifiers} option is used,
+GCC does not permit the use of characters outside the ASCII range, nor
+@samp{\u} and @samp{\U} escapes, in identifiers.  Even with that
+option, characters outside the ASCII range can only be specified with
+the @samp{\u} and @samp{\U} escapes, not used directly in identifiers.
+
+@node Initial processing
+@section Initial processing
+
+The preprocessor performs a series of textual transformations on its
+input.  These happen before all other processing.  Conceptually, they
+happen in a rigid order, and the entire file is run through each
+transformation before the next one begins.  CPP actually does them
+all at once, for performance reasons.  These transformations correspond
+roughly to the first three ``phases of translation'' described in the C
+standard.
+
+@enumerate
+@item
+@cindex line endings
+The input file is read into memory and broken into lines.
+
+Different systems use different conventions to indicate the end of a
+line.  GCC accepts the ASCII control sequences @kbd{LF}, @kbd{@w{CR
+LF}} and @kbd{CR} as end-of-line markers.  These are the canonical
+sequences used by Unix, DOS and VMS, and the classic Mac OS (before
+OSX) respectively.  You may therefore safely copy source code written
+on any of those systems to a different one and use it without
+conversion.  (GCC may lose track of the current line number if a file
+doesn't consistently use one convention, as sometimes happens when it
+is edited on computers with different conventions that share a network
+file system.)
+
+If the last line of any input file lacks an end-of-line marker, the end
+of the file is considered to implicitly supply one.  The C standard says
+that this condition provokes undefined behavior, so GCC will emit a
+warning message.
+
+@item
+@cindex trigraphs
+@anchor{trigraphs}If trigraphs are enabled, they are replaced by their
+corresponding single characters.  By default GCC ignores trigraphs,
+but if you request a strictly conforming mode with the @option{-std}
+option, or you specify the @option{-trigraphs} option, then it
+converts them.
+
+These are nine three-character sequences, all starting with @samp{??},
+that are defined by ISO C to stand for single characters.  They permit
+obsolete systems that lack some of C's punctuation to use C@.  For
+example, @samp{??/} stands for @samp{\}, so @t{'??/n'} is a character
+constant for a newline.
+
+Trigraphs are not popular and many compilers implement them
+incorrectly.  Portable code should not rely on trigraphs being either
+converted or ignored.  With @option{-Wtrigraphs} GCC will warn you
+when a trigraph may change the meaning of your program if it were
+converted.  @xref{Wtrigraphs}.
+
+In a string constant, you can prevent a sequence of question marks
+from being confused with a trigraph by inserting a backslash between
+the question marks, or by separating the string literal at the
+trigraph and making use of string literal concatenation.  @t{"(??\?)"}
+is the string @samp{(???)}, not @samp{(?]}.  Traditional C compilers
+do not recognize these idioms.
+
+The nine trigraphs and their replacements are
+
+@smallexample
+Trigraph:       ??(  ??)  ??<  ??>  ??=  ??/  ??'  ??!  ??-
+Replacement:      [    ]    @{    @}    #    \    ^    |    ~
+@end smallexample
+
+@item
+@cindex continued lines
+@cindex backslash-newline
+Continued lines are merged into one long line.
+
+A continued line is a line which ends with a backslash, @samp{\}.  The
+backslash is removed and the following line is joined with the current
+one.  No space is inserted, so you may split a line anywhere, even in
+the middle of a word.  (It is generally more readable to split lines
+only at white space.)
+
+The trailing backslash on a continued line is commonly referred to as a
+@dfn{backslash-newline}.
+
+If there is white space between a backslash and the end of a line, that
+is still a continued line.  However, as this is usually the result of an
+editing mistake, and many compilers will not accept it as a continued
+line, GCC will warn you about it.
+
+@item
+@cindex comments
+@cindex line comments
+@cindex block comments
+All comments are replaced with single spaces.
+
+There are two kinds of comments.  @dfn{Block comments} begin with
+@samp{/*} and continue until the next @samp{*/}.  Block comments do not
+nest:
+
+@smallexample
+/* @r{this is} /* @r{one comment} */ @r{text outside comment}
+@end smallexample
+
+@dfn{Line comments} begin with @samp{//} and continue to the end of the
+current line.  Line comments do not nest either, but it does not matter,
+because they would end in the same place anyway.
+
+@smallexample
+// @r{this is} // @r{one comment}
+@r{text outside comment}
+@end smallexample
+@end enumerate
+
+It is safe to put line comments inside block comments, or vice versa.
+
+@smallexample
+@group
+/* @r{block comment}
+   // @r{contains line comment}
+   @r{yet more comment}
+ */ @r{outside comment}
+
+// @r{line comment} /* @r{contains block comment} */
+@end group
+@end smallexample
+
+But beware of commenting out one end of a block comment with a line
+comment.
+
+@smallexample
+@group
+ // @r{l.c.}  /* @r{block comment begins}
+    @r{oops! this isn't a comment anymore} */
+@end group
+@end smallexample
+
+Comments are not recognized within string literals.
+@t{@w{"/* blah */"}} is the string constant @samp{@w{/* blah */}}, not
+an empty string.
+
+Line comments are not in the 1989 edition of the C standard, but they
+are recognized by GCC as an extension.  In C++ and in the 1999 edition
+of the C standard, they are an official part of the language.
+
+Since these transformations happen before all other processing, you can
+split a line mechanically with backslash-newline anywhere.  You can
+comment out the end of a line.  You can continue a line comment onto the
+next line with backslash-newline.  You can even split @samp{/*},
+@samp{*/}, and @samp{//} onto multiple lines with backslash-newline.
+For example:
+
+@smallexample
+@group
+/\
+*
+*/ # /*
+*/ defi\
+ne FO\
+O 10\
+20
+@end group
+@end smallexample
+
+@noindent
+is equivalent to @code{@w{#define FOO 1020}}.  All these tricks are
+extremely confusing and should not be used in code intended to be
+readable.
+
+There is no way to prevent a backslash at the end of a line from being
+interpreted as a backslash-newline.  This cannot affect any correct
+program, however.
+
+@node Tokenization
+@section Tokenization
+
+@cindex tokens
+@cindex preprocessing tokens
+After the textual transformations are finished, the input file is
+converted into a sequence of @dfn{preprocessing tokens}.  These mostly
+correspond to the syntactic tokens used by the C compiler, but there are
+a few differences.  White space separates tokens; it is not itself a
+token of any kind.  Tokens do not have to be separated by white space,
+but it is often necessary to avoid ambiguities.
+
+When faced with a sequence of characters that has more than one possible
+tokenization, the preprocessor is greedy.  It always makes each token,
+starting from the left, as big as possible before moving on to the next
+token.  For instance, @code{a+++++b} is interpreted as
+@code{@w{a ++ ++ + b}}, not as @code{@w{a ++ + ++ b}}, even though the
+latter tokenization could be part of a valid C program and the former
+could not.
+
+Once the input file is broken into tokens, the token boundaries never
+change, except when the @samp{##} preprocessing operator is used to paste
+tokens together.  @xref{Concatenation}.  For example,
+
+@smallexample
+@group
+#define foo() bar
+foo()baz
+     @expansion{} bar baz
+@emph{not}
+     @expansion{} barbaz
+@end group
+@end smallexample
+
+The compiler does not re-tokenize the preprocessor's output.  Each
+preprocessing token becomes one compiler token.
+
+@cindex identifiers
+Preprocessing tokens fall into five broad classes: identifiers,
+preprocessing numbers, string literals, punctuators, and other.  An
+@dfn{identifier} is the same as an identifier in C: any sequence of
+letters, digits, or underscores, which begins with a letter or
+underscore.  Keywords of C have no significance to the preprocessor;
+they are ordinary identifiers.  You can define a macro whose name is a
+keyword, for instance.  The only identifier which can be considered a
+preprocessing keyword is @code{defined}.  @xref{Defined}.
+
+This is mostly true of other languages which use the C preprocessor.
+However, a few of the keywords of C++ are significant even in the
+preprocessor.  @xref{C++ Named Operators}.
+
+In the 1999 C standard, identifiers may contain letters which are not
+part of the ``basic source character set'', at the implementation's
+discretion (such as accented Latin letters, Greek letters, or Chinese
+ideograms).  This may be done with an extended character set, or the
+@samp{\u} and @samp{\U} escape sequences.  The implementation of this
+feature in GCC is experimental; such characters are only accepted in
+the @samp{\u} and @samp{\U} forms and only if
+@option{-fextended-identifiers} is used.
+
+As an extension, GCC treats @samp{$} as a letter.  This is for
+compatibility with some systems, such as VMS, where @samp{$} is commonly
+used in system-defined function and object names.  @samp{$} is not a
+letter in strictly conforming mode, or if you specify the @option{-$}
+option.  @xref{Invocation}.
+
+@cindex numbers
+@cindex preprocessing numbers
+A @dfn{preprocessing number} has a rather bizarre definition.  The
+category includes all the normal integer and floating point constants
+one expects of C, but also a number of other things one might not
+initially recognize as a number.  Formally, preprocessing numbers begin
+with an optional period, a required decimal digit, and then continue
+with any sequence of letters, digits, underscores, periods, and
+exponents.  Exponents are the two-character sequences @samp{e+},
+@samp{e-}, @samp{E+}, @samp{E-}, @samp{p+}, @samp{p-}, @samp{P+}, and
+@samp{P-}.  (The exponents that begin with @samp{p} or @samp{P} are new
+to C99.  They are used for hexadecimal floating-point constants.)
+
+The purpose of this unusual definition is to isolate the preprocessor
+from the full complexity of numeric constants.  It does not have to
+distinguish between lexically valid and invalid floating-point numbers,
+which is complicated.  The definition also permits you to split an
+identifier at any position and get exactly two tokens, which can then be
+pasted back together with the @samp{##} operator.
+
+It's possible for preprocessing numbers to cause programs to be
+misinterpreted.  For example, @code{0xE+12} is a preprocessing number
+which does not translate to any valid numeric constant, therefore a
+syntax error.  It does not mean @code{@w{0xE + 12}}, which is what you
+might have intended.
+
+@cindex string literals
+@cindex string constants
+@cindex character constants
+@cindex header file names
+@c the @: prevents makeinfo from turning '' into ".
+@dfn{String literals} are string constants, character constants, and
+header file names (the argument of @samp{#include}).@footnote{The C
+standard uses the term @dfn{string literal} to refer only to what we are
+calling @dfn{string constants}.}  String constants and character
+constants are straightforward: @t{"@dots{}"} or @t{'@dots{}'}.  In
+either case embedded quotes should be escaped with a backslash:
+@t{'\'@:'} is the character constant for @samp{'}.  There is no limit on
+the length of a character constant, but the value of a character
+constant that contains more than one character is
+implementation-defined.  @xref{Implementation Details}.
+
+Header file names either look like string constants, @t{"@dots{}"}, or are
+written with angle brackets instead, @t{<@dots{}>}.  In either case,
+backslash is an ordinary character.  There is no way to escape the
+closing quote or angle bracket.  The preprocessor looks for the header
+file in different places depending on which form you use.  @xref{Include
+Operation}.
+
+No string literal may extend past the end of a line.  Older versions
+of GCC accepted multi-line string constants.  You may use continued
+lines instead, or string constant concatenation.  @xref{Differences
+from previous versions}.
+
+@cindex punctuators
+@cindex digraphs
+@cindex alternative tokens
+@dfn{Punctuators} are all the usual bits of punctuation which are
+meaningful to C and C++.  All but three of the punctuation characters in
+ASCII are C punctuators.  The exceptions are @samp{@@}, @samp{$}, and
+@samp{`}.  In addition, all the two- and three-character operators are
+punctuators.  There are also six @dfn{digraphs}, which the C++ standard
+calls @dfn{alternative tokens}, which are merely alternate ways to spell
+other punctuators.  This is a second attempt to work around missing
+punctuation in obsolete systems.  It has no negative side effects,
+unlike trigraphs, but does not cover as much ground.  The digraphs and
+their corresponding normal punctuators are:
+
+@smallexample
+Digraph:        <%  %>  <:  :>  %:  %:%:
+Punctuator:      @{   @}   [   ]   #    ##
+@end smallexample
+
+@cindex other tokens
+Any other single character is considered ``other''.  It is passed on to
+the preprocessor's output unmolested.  The C compiler will almost
+certainly reject source code containing ``other'' tokens.  In ASCII, the
+only other characters are @samp{@@}, @samp{$}, @samp{`}, and control
+characters other than NUL (all bits zero).  (Note that @samp{$} is
+normally considered a letter.)  All characters with the high bit set
+(numeric range 0x7F--0xFF) are also ``other'' in the present
+implementation.  This will change when proper support for international
+character sets is added to GCC@.
+
+NUL is a special case because of the high probability that its
+appearance is accidental, and because it may be invisible to the user
+(many terminals do not display NUL at all).  Within comments, NULs are
+silently ignored, just as any other character would be.  In running
+text, NUL is considered white space.  For example, these two directives
+have the same meaning.
+
+@smallexample
+#define X^@@1
+#define X 1
+@end smallexample
+
+@noindent
+(where @samp{^@@} is ASCII NUL)@.  Within string or character constants,
+NULs are preserved.  In the latter two cases the preprocessor emits a
+warning message.
+
+@node The preprocessing language
+@section The preprocessing language
+@cindex directives
+@cindex preprocessing directives
+@cindex directive line
+@cindex directive name
+
+After tokenization, the stream of tokens may simply be passed straight
+to the compiler's parser.  However, if it contains any operations in the
+@dfn{preprocessing language}, it will be transformed first.  This stage
+corresponds roughly to the standard's ``translation phase 4'' and is
+what most people think of as the preprocessor's job.
+
+The preprocessing language consists of @dfn{directives} to be executed
+and @dfn{macros} to be expanded.  Its primary capabilities are:
+
+@itemize @bullet
+@item
+Inclusion of header files.  These are files of declarations that can be
+substituted into your program.
+
+@item
+Macro expansion.  You can define @dfn{macros}, which are abbreviations
+for arbitrary fragments of C code.  The preprocessor will replace the
+macros with their definitions throughout the program.  Some macros are
+automatically defined for you.
+
+@item
+Conditional compilation.  You can include or exclude parts of the
+program according to various conditions.
+
+@item
+Line control.  If you use a program to combine or rearrange source files
+into an intermediate file which is then compiled, you can use line
+control to inform the compiler where each source line originally came
+from.
+
+@item
+Diagnostics.  You can detect problems at compile time and issue errors
+or warnings.
+@end itemize
+
+There are a few more, less useful, features.
+
+Except for expansion of predefined macros, all these operations are
+triggered with @dfn{preprocessing directives}.  Preprocessing directives
+are lines in your program that start with @samp{#}.  Whitespace is
+allowed before and after the @samp{#}.  The @samp{#} is followed by an
+identifier, the @dfn{directive name}.  It specifies the operation to
+perform.  Directives are commonly referred to as @samp{#@var{name}}
+where @var{name} is the directive name.  For example, @samp{#define} is
+the directive that defines a macro.
+
+The @samp{#} which begins a directive cannot come from a macro
+expansion.  Also, the directive name is not macro expanded.  Thus, if
+@code{foo} is defined as a macro expanding to @code{define}, that does
+not make @samp{#foo} a valid preprocessing directive.
+
+The set of valid directive names is fixed.  Programs cannot define new
+preprocessing directives.
+
+Some directives require arguments; these make up the rest of the
+directive line and must be separated from the directive name by
+whitespace.  For example, @samp{#define} must be followed by a macro
+name and the intended expansion of the macro.
+
+A preprocessing directive cannot cover more than one line.  The line
+may, however, be continued with backslash-newline, or by a block comment
+which extends past the end of the line.  In either case, when the
+directive is processed, the continuations have already been merged with
+the first line to make one long line.
+
+@node Header Files
+@chapter Header Files
+
+@cindex header file
+A header file is a file containing C declarations and macro definitions
+(@pxref{Macros}) to be shared between several source files.  You request
+the use of a header file in your program by @dfn{including} it, with the
+C preprocessing directive @samp{#include}.
+
+Header files serve two purposes.
+
+@itemize @bullet
+@item
+@cindex system header files
+System header files declare the interfaces to parts of the operating
+system.  You include them in your program to supply the definitions and
+declarations you need to invoke system calls and libraries.
+
+@item
+Your own header files contain declarations for interfaces between the
+source files of your program.  Each time you have a group of related
+declarations and macro definitions all or most of which are needed in
+several different source files, it is a good idea to create a header
+file for them.
+@end itemize
+
+Including a header file produces the same results as copying the header
+file into each source file that needs it.  Such copying would be
+time-consuming and error-prone.  With a header file, the related
+declarations appear in only one place.  If they need to be changed, they
+can be changed in one place, and programs that include the header file
+will automatically use the new version when next recompiled.  The header
+file eliminates the labor of finding and changing all the copies as well
+as the risk that a failure to find one copy will result in
+inconsistencies within a program.
+
+In C, the usual convention is to give header files names that end with
+@file{.h}.  It is most portable to use only letters, digits, dashes, and
+underscores in header file names, and at most one dot.
+
+@menu
+* Include Syntax::
+* Include Operation::
+* Search Path::
+* Once-Only Headers::
+* Computed Includes::
+* Wrapper Headers::
+* System Headers::
+@end menu
+
+@node Include Syntax
+@section Include Syntax
+
+@findex #include
+Both user and system header files are included using the preprocessing
+directive @samp{#include}.  It has two variants:
+
+@table @code
+@item #include <@var{file}>
+This variant is used for system header files.  It searches for a file
+named @var{file} in a standard list of system directories.  You can prepend
+directories to this list with the @option{-I} option (@pxref{Invocation}).
+
+@item #include "@var{file}"
+This variant is used for header files of your own program.  It
+searches for a file named @var{file} first in the directory containing
+the current file, then in the quote directories and then the same
+directories used for @code{<@var{file}>}.  You can prepend directories
+to the list of quote directories with the @option{-iquote} option.
+@end table
+
+The argument of @samp{#include}, whether delimited with quote marks or
+angle brackets, behaves like a string constant in that comments are not
+recognized, and macro names are not expanded.  Thus, @code{@w{#include
+<x/*y>}} specifies inclusion of a system header file named @file{x/*y}.
+
+However, if backslashes occur within @var{file}, they are considered
+ordinary text characters, not escape characters.  None of the character
+escape sequences appropriate to string constants in C are processed.
+Thus, @code{@w{#include "x\n\\y"}} specifies a filename containing three
+backslashes.  (Some systems interpret @samp{\} as a pathname separator.
+All of these also interpret @samp{/} the same way.  It is most portable
+to use only @samp{/}.)
+
+It is an error if there is anything (other than comments) on the line
+after the file name.
+
+@node Include Operation
+@section Include Operation
+
+The @samp{#include} directive works by directing the C preprocessor to
+scan the specified file as input before continuing with the rest of the
+current file.  The output from the preprocessor contains the output
+already generated, followed by the output resulting from the included
+file, followed by the output that comes from the text after the
+@samp{#include} directive.  For example, if you have a header file
+@file{header.h} as follows,
+
+@smallexample
+char *test (void);
+@end smallexample
+
+@noindent
+and a main program called @file{program.c} that uses the header file,
+like this,
+
+@smallexample
+int x;
+#include "header.h"
+
+int
+main (void)
+@{
+  puts (test ());
+@}
+@end smallexample
+
+@noindent
+the compiler will see the same token stream as it would if
+@file{program.c} read
+
+@smallexample
+int x;
+char *test (void);
+
+int
+main (void)
+@{
+  puts (test ());
+@}
+@end smallexample
+
+Included files are not limited to declarations and macro definitions;
+those are merely the typical uses.  Any fragment of a C program can be
+included from another file.  The include file could even contain the
+beginning of a statement that is concluded in the containing file, or
+the end of a statement that was started in the including file.  However,
+an included file must consist of complete tokens.  Comments and string
+literals which have not been closed by the end of an included file are
+invalid.  For error recovery, they are considered to end at the end of
+the file.
+
+To avoid confusion, it is best if header files contain only complete
+syntactic units---function declarations or definitions, type
+declarations, etc.
+
+The line following the @samp{#include} directive is always treated as a
+separate line by the C preprocessor, even if the included file lacks a
+final newline.
+
+@node Search Path
+@section Search Path
+
+GCC looks in several different places for headers.  On a normal Unix
+system, if you do not instruct it otherwise, it will look for headers
+requested with @code{@w{#include <@var{file}>}} in:
+
+@smallexample
+/usr/local/include
+@var{libdir}/gcc/@var{target}/@var{version}/include
+/usr/@var{target}/include
+/usr/include
+@end smallexample
+
+For C++ programs, it will also look in @file{/usr/include/g++-v3},
+first.  In the above, @var{target} is the canonical name of the system
+GCC was configured to compile code for; often but not always the same as
+the canonical name of the system it runs on.  @var{version} is the
+version of GCC in use.
+
+You can add to this list with the @option{-I@var{dir}} command line
+option.  All the directories named by @option{-I} are searched, in
+left-to-right order, @emph{before} the default directories.  The only
+exception is when @file{dir} is already searched by default.  In
+this case, the option is ignored and the search order for system
+directories remains unchanged.
+
+Duplicate directories are removed from the quote and bracket search
+chains before the two chains are merged to make the final search chain.
+Thus, it is possible for a directory to occur twice in the final search
+chain if it was specified in both the quote and bracket chains.
+
+You can prevent GCC from searching any of the default directories with
+the @option{-nostdinc} option.  This is useful when you are compiling an
+operating system kernel or some other program that does not use the
+standard C library facilities, or the standard C library itself.
+@option{-I} options are not ignored as described above when
+@option{-nostdinc} is in effect.
+
+GCC looks for headers requested with @code{@w{#include "@var{file}"}}
+first in the directory containing the current file, then in the
+directories as specified by @option{-iquote} options, then in the same
+places it would have looked for a header requested with angle
+brackets.  For example, if @file{/usr/include/sys/stat.h} contains
+@code{@w{#include "types.h"}}, GCC looks for @file{types.h} first in
+@file{/usr/include/sys}, then in its usual search path.
+
+@samp{#line} (@pxref{Line Control}) does not change GCC's idea of the
+directory containing the current file.
+
+You may put @option{-I-} at any point in your list of @option{-I} options.
+This has two effects.  First, directories appearing before the
+@option{-I-} in the list are searched only for headers requested with
+quote marks.  Directories after @option{-I-} are searched for all
+headers.  Second, the directory containing the current file is not
+searched for anything, unless it happens to be one of the directories
+named by an @option{-I} switch.  @option{-I-} is deprecated, @option{-iquote}
+should be used instead.
+
+@option{-I. -I-} is not the same as no @option{-I} options at all, and does
+not cause the same behavior for @samp{<>} includes that @samp{""}
+includes get with no special options.  @option{-I.} searches the
+compiler's current working directory for header files.  That may or may
+not be the same as the directory containing the current file.
+
+If you need to look for headers in a directory named @file{-}, write
+@option{-I./-}.
+
+There are several more ways to adjust the header search path.  They are
+generally less useful.  @xref{Invocation}.
+
+@node Once-Only Headers
+@section Once-Only Headers
+@cindex repeated inclusion
+@cindex including just once
+@cindex wrapper @code{#ifndef}
+
+If a header file happens to be included twice, the compiler will process
+its contents twice.  This is very likely to cause an error, e.g.@: when the
+compiler sees the same structure definition twice.  Even if it does not,
+it will certainly waste time.
+
+The standard way to prevent this is to enclose the entire real contents
+of the file in a conditional, like this:
+
+@smallexample
+@group
+/* File foo.  */
+#ifndef FILE_FOO_SEEN
+#define FILE_FOO_SEEN
+
+@var{the entire file}
+
+#endif /* !FILE_FOO_SEEN */
+@end group
+@end smallexample
+
+This construct is commonly known as a @dfn{wrapper #ifndef}.
+When the header is included again, the conditional will be false,
+because @code{FILE_FOO_SEEN} is defined.  The preprocessor will skip
+over the entire contents of the file, and the compiler will not see it
+twice.
+
+CPP optimizes even further.  It remembers when a header file has a
+wrapper @samp{#ifndef}.  If a subsequent @samp{#include} specifies that
+header, and the macro in the @samp{#ifndef} is still defined, it does
+not bother to rescan the file at all.
+
+You can put comments outside the wrapper.  They will not interfere with
+this optimization.
+
+@cindex controlling macro
+@cindex guard macro
+The macro @code{FILE_FOO_SEEN} is called the @dfn{controlling macro} or
+@dfn{guard macro}.  In a user header file, the macro name should not
+begin with @samp{_}.  In a system header file, it should begin with
+@samp{__} to avoid conflicts with user programs.  In any kind of header
+file, the macro name should contain the name of the file and some
+additional text, to avoid conflicts with other header files.
+
+@node Computed Includes
+@section Computed Includes
+@cindex computed includes
+@cindex macros in include
+
+Sometimes it is necessary to select one of several different header
+files to be included into your program.  They might specify
+configuration parameters to be used on different sorts of operating
+systems, for instance.  You could do this with a series of conditionals,
+
+@smallexample
+#if SYSTEM_1
+# include "system_1.h"
+#elif SYSTEM_2
+# include "system_2.h"
+#elif SYSTEM_3
+@dots{}
+#endif
+@end smallexample
+
+That rapidly becomes tedious.  Instead, the preprocessor offers the
+ability to use a macro for the header name.  This is called a
+@dfn{computed include}.  Instead of writing a header name as the direct
+argument of @samp{#include}, you simply put a macro name there instead:
+
+@smallexample
+#define SYSTEM_H "system_1.h"
+@dots{}
+#include SYSTEM_H
+@end smallexample
+
+@noindent
+@code{SYSTEM_H} will be expanded, and the preprocessor will look for
+@file{system_1.h} as if the @samp{#include} had been written that way
+originally.  @code{SYSTEM_H} could be defined by your Makefile with a
+@option{-D} option.
+
+You must be careful when you define the macro.  @samp{#define} saves
+tokens, not text.  The preprocessor has no way of knowing that the macro
+will be used as the argument of @samp{#include}, so it generates
+ordinary tokens, not a header name.  This is unlikely to cause problems
+if you use double-quote includes, which are close enough to string
+constants.  If you use angle brackets, however, you may have trouble.
+
+The syntax of a computed include is actually a bit more general than the
+above.  If the first non-whitespace character after @samp{#include} is
+not @samp{"} or @samp{<}, then the entire line is macro-expanded
+like running text would be.
+
+If the line expands to a single string constant, the contents of that
+string constant are the file to be included.  CPP does not re-examine the
+string for embedded quotes, but neither does it process backslash
+escapes in the string.  Therefore
+
+@smallexample
+#define HEADER "a\"b"
+#include HEADER
+@end smallexample
+
+@noindent
+looks for a file named @file{a\"b}.  CPP searches for the file according
+to the rules for double-quoted includes.
+
+If the line expands to a token stream beginning with a @samp{<} token
+and including a @samp{>} token, then the tokens between the @samp{<} and
+the first @samp{>} are combined to form the filename to be included.
+Any whitespace between tokens is reduced to a single space; then any
+space after the initial @samp{<} is retained, but a trailing space
+before the closing @samp{>} is ignored.  CPP searches for the file
+according to the rules for angle-bracket includes.
+
+In either case, if there are any tokens on the line after the file name,
+an error occurs and the directive is not processed.  It is also an error
+if the result of expansion does not match either of the two expected
+forms.
+
+These rules are implementation-defined behavior according to the C
+standard.  To minimize the risk of different compilers interpreting your
+computed includes differently, we recommend you use only a single
+object-like macro which expands to a string constant.  This will also
+minimize confusion for people reading your program.
+
+@node Wrapper Headers
+@section Wrapper Headers
+@cindex wrapper headers
+@cindex overriding a header file
+@findex #include_next
+
+Sometimes it is necessary to adjust the contents of a system-provided
+header file without editing it directly.  GCC's @command{fixincludes}
+operation does this, for example.  One way to do that would be to create
+a new header file with the same name and insert it in the search path
+before the original header.  That works fine as long as you're willing
+to replace the old header entirely.  But what if you want to refer to
+the old header from the new one?
+
+You cannot simply include the old header with @samp{#include}.  That
+will start from the beginning, and find your new header again.  If your
+header is not protected from multiple inclusion (@pxref{Once-Only
+Headers}), it will recurse infinitely and cause a fatal error.
+
+You could include the old header with an absolute pathname:
+@smallexample
+#include "/usr/include/old-header.h"
+@end smallexample
+@noindent
+This works, but is not clean; should the system headers ever move, you
+would have to edit the new headers to match.
+
+There is no way to solve this problem within the C standard, but you can
+use the GNU extension @samp{#include_next}.  It means, ``Include the
+@emph{next} file with this name''.  This directive works like
+@samp{#include} except in searching for the specified file: it starts
+searching the list of header file directories @emph{after} the directory
+in which the current file was found.
+
+Suppose you specify @option{-I /usr/local/include}, and the list of
+directories to search also includes @file{/usr/include}; and suppose
+both directories contain @file{signal.h}.  Ordinary @code{@w{#include
+<signal.h>}} finds the file under @file{/usr/local/include}.  If that
+file contains @code{@w{#include_next <signal.h>}}, it starts searching
+after that directory, and finds the file in @file{/usr/include}.
+
+@samp{#include_next} does not distinguish between @code{<@var{file}>}
+and @code{"@var{file}"} inclusion, nor does it check that the file you
+specify has the same name as the current file.  It simply looks for the
+file named, starting with the directory in the search path after the one
+where the current file was found.
+
+The use of @samp{#include_next} can lead to great confusion.  We
+recommend it be used only when there is no other alternative.  In
+particular, it should not be used in the headers belonging to a specific
+program; it should be used only to make global corrections along the
+lines of @command{fixincludes}.
+
+@node System Headers
+@section System Headers
+@cindex system header files
+
+The header files declaring interfaces to the operating system and
+runtime libraries often cannot be written in strictly conforming C@.
+Therefore, GCC gives code found in @dfn{system headers} special
+treatment.  All warnings, other than those generated by @samp{#warning}
+(@pxref{Diagnostics}), are suppressed while GCC is processing a system
+header.  Macros defined in a system header are immune to a few warnings
+wherever they are expanded.  This immunity is granted on an ad-hoc
+basis, when we find that a warning generates lots of false positives
+because of code in macros defined in system headers.
+
+Normally, only the headers found in specific directories are considered
+system headers.  These directories are determined when GCC is compiled.
+There are, however, two ways to make normal headers into system headers.
+
+The @option{-isystem} command line option adds its argument to the list of
+directories to search for headers, just like @option{-I}.  Any headers
+found in that directory will be considered system headers.
+
+All directories named by @option{-isystem} are searched @emph{after} all
+directories named by @option{-I}, no matter what their order was on the
+command line.  If the same directory is named by both @option{-I} and
+@option{-isystem}, the @option{-I} option is ignored.  GCC provides an
+informative message when this occurs if @option{-v} is used.
+
+@findex #pragma GCC system_header
+There is also a directive, @code{@w{#pragma GCC system_header}}, which
+tells GCC to consider the rest of the current include file a system
+header, no matter where it was found.  Code that comes before the
+@samp{#pragma} in the file will not be affected.  @code{@w{#pragma GCC
+system_header}} has no effect in the primary source file.
+
+On very old systems, some of the pre-defined system header directories
+get even more special treatment.  GNU C++ considers code in headers
+found in those directories to be surrounded by an @code{@w{extern "C"}}
+block.  There is no way to request this behavior with a @samp{#pragma},
+or from the command line.
+
+@node Macros
+@chapter Macros
+
+A @dfn{macro} is a fragment of code which has been given a name.
+Whenever the name is used, it is replaced by the contents of the macro.
+There are two kinds of macros.  They differ mostly in what they look
+like when they are used.  @dfn{Object-like} macros resemble data objects
+when used, @dfn{function-like} macros resemble function calls.
+
+You may define any valid identifier as a macro, even if it is a C
+keyword.  The preprocessor does not know anything about keywords.  This
+can be useful if you wish to hide a keyword such as @code{const} from an
+older compiler that does not understand it.  However, the preprocessor
+operator @code{defined} (@pxref{Defined}) can never be defined as a
+macro, and C++'s named operators (@pxref{C++ Named Operators}) cannot be
+macros when you are compiling C++.
+
+@menu
+* Object-like Macros::
+* Function-like Macros::
+* Macro Arguments::
+* Stringification::
+* Concatenation::
+* Variadic Macros::
+* Predefined Macros::
+* Undefining and Redefining Macros::
+* Directives Within Macro Arguments::
+* Macro Pitfalls::
+@end menu
+
+@node Object-like Macros
+@section Object-like Macros
+@cindex object-like macro
+@cindex symbolic constants
+@cindex manifest constants
+
+An @dfn{object-like macro} is a simple identifier which will be replaced
+by a code fragment.  It is called object-like because it looks like a
+data object in code that uses it.  They are most commonly used to give
+symbolic names to numeric constants.
+
+@findex #define
+You create macros with the @samp{#define} directive.  @samp{#define} is
+followed by the name of the macro and then the token sequence it should
+be an abbreviation for, which is variously referred to as the macro's
+@dfn{body}, @dfn{expansion} or @dfn{replacement list}.  For example,
+
+@smallexample
+#define BUFFER_SIZE 1024
+@end smallexample
+
+@noindent
+defines a macro named @code{BUFFER_SIZE} as an abbreviation for the
+token @code{1024}.  If somewhere after this @samp{#define} directive
+there comes a C statement of the form
+
+@smallexample
+foo = (char *) malloc (BUFFER_SIZE);
+@end smallexample
+
+@noindent
+then the C preprocessor will recognize and @dfn{expand} the macro
+@code{BUFFER_SIZE}.  The C compiler will see the same tokens as it would
+if you had written
+
+@smallexample
+foo = (char *) malloc (1024);
+@end smallexample
+
+By convention, macro names are written in uppercase.  Programs are
+easier to read when it is possible to tell at a glance which names are
+macros.
+
+The macro's body ends at the end of the @samp{#define} line.  You may
+continue the definition onto multiple lines, if necessary, using
+backslash-newline.  When the macro is expanded, however, it will all
+come out on one line.  For example,
+
+@smallexample
+#define NUMBERS 1, \
+                2, \
+                3
+int x[] = @{ NUMBERS @};
+     @expansion{} int x[] = @{ 1, 2, 3 @};
+@end smallexample
+
+@noindent
+The most common visible consequence of this is surprising line numbers
+in error messages.
+
+There is no restriction on what can go in a macro body provided it
+decomposes into valid preprocessing tokens.  Parentheses need not
+balance, and the body need not resemble valid C code.  (If it does not,
+you may get error messages from the C compiler when you use the macro.)
+
+The C preprocessor scans your program sequentially.  Macro definitions
+take effect at the place you write them.  Therefore, the following input
+to the C preprocessor
+
+@smallexample
+foo = X;
+#define X 4
+bar = X;
+@end smallexample
+
+@noindent
+produces
+
+@smallexample
+foo = X;
+bar = 4;
+@end smallexample
+
+When the preprocessor expands a macro name, the macro's expansion
+replaces the macro invocation, then the expansion is examined for more
+macros to expand.  For example,
+
+@smallexample
+@group
+#define TABLESIZE BUFSIZE
+#define BUFSIZE 1024
+TABLESIZE
+     @expansion{} BUFSIZE
+     @expansion{} 1024
+@end group
+@end smallexample
+
+@noindent
+@code{TABLESIZE} is expanded first to produce @code{BUFSIZE}, then that
+macro is expanded to produce the final result, @code{1024}.
+
+Notice that @code{BUFSIZE} was not defined when @code{TABLESIZE} was
+defined.  The @samp{#define} for @code{TABLESIZE} uses exactly the
+expansion you specify---in this case, @code{BUFSIZE}---and does not
+check to see whether it too contains macro names.  Only when you
+@emph{use} @code{TABLESIZE} is the result of its expansion scanned for
+more macro names.
+
+This makes a difference if you change the definition of @code{BUFSIZE}
+at some point in the source file.  @code{TABLESIZE}, defined as shown,
+will always expand using the definition of @code{BUFSIZE} that is
+currently in effect:
+
+@smallexample
+#define BUFSIZE 1020
+#define TABLESIZE BUFSIZE
+#undef BUFSIZE
+#define BUFSIZE 37
+@end smallexample
+
+@noindent
+Now @code{TABLESIZE} expands (in two stages) to @code{37}.
+
+If the expansion of a macro contains its own name, either directly or
+via intermediate macros, it is not expanded again when the expansion is
+examined for more macros.  This prevents infinite recursion.
+@xref{Self-Referential Macros}, for the precise details.
+
+@node Function-like Macros
+@section Function-like Macros
+@cindex function-like macros
+
+You can also define macros whose use looks like a function call.  These
+are called @dfn{function-like macros}.  To define a function-like macro,
+you use the same @samp{#define} directive, but you put a pair of
+parentheses immediately after the macro name.  For example,
+
+@smallexample
+#define lang_init()  c_init()
+lang_init()
+     @expansion{} c_init()
+@end smallexample
+
+A function-like macro is only expanded if its name appears with a pair
+of parentheses after it.  If you write just the name, it is left alone.
+This can be useful when you have a function and a macro of the same
+name, and you wish to use the function sometimes.
+
+@smallexample
+extern void foo(void);
+#define foo() /* @r{optimized inline version} */
+@dots{}
+  foo();
+  funcptr = foo;
+@end smallexample
+
+Here the call to @code{foo()} will use the macro, but the function
+pointer will get the address of the real function.  If the macro were to
+be expanded, it would cause a syntax error.
+
+If you put spaces between the macro name and the parentheses in the
+macro definition, that does not define a function-like macro, it defines
+an object-like macro whose expansion happens to begin with a pair of
+parentheses.
+
+@smallexample
+#define lang_init ()    c_init()
+lang_init()
+     @expansion{} () c_init()()
+@end smallexample
+
+The first two pairs of parentheses in this expansion come from the
+macro.  The third is the pair that was originally after the macro
+invocation.  Since @code{lang_init} is an object-like macro, it does not
+consume those parentheses.
+
+@node Macro Arguments
+@section Macro Arguments
+@cindex arguments
+@cindex macros with arguments
+@cindex arguments in macro definitions
+
+Function-like macros can take @dfn{arguments}, just like true functions.
+To define a macro that uses arguments, you insert @dfn{parameters}
+between the pair of parentheses in the macro definition that make the
+macro function-like.  The parameters must be valid C identifiers,
+separated by commas and optionally whitespace.
+
+To invoke a macro that takes arguments, you write the name of the macro
+followed by a list of @dfn{actual arguments} in parentheses, separated
+by commas.  The invocation of the macro need not be restricted to a
+single logical line---it can cross as many lines in the source file as
+you wish.  The number of arguments you give must match the number of
+parameters in the macro definition.  When the macro is expanded, each
+use of a parameter in its body is replaced by the tokens of the
+corresponding argument.  (You need not use all of the parameters in the
+macro body.)
+
+As an example, here is a macro that computes the minimum of two numeric
+values, as it is defined in many C programs, and some uses.
+
+@smallexample
+#define min(X, Y)  ((X) < (Y) ? (X) : (Y))
+  x = min(a, b);          @expansion{}  x = ((a) < (b) ? (a) : (b));
+  y = min(1, 2);          @expansion{}  y = ((1) < (2) ? (1) : (2));
+  z = min(a + 28, *p);    @expansion{}  z = ((a + 28) < (*p) ? (a + 28) : (*p));
+@end smallexample
+
+@noindent
+(In this small example you can already see several of the dangers of
+macro arguments.  @xref{Macro Pitfalls}, for detailed explanations.)
+
+Leading and trailing whitespace in each argument is dropped, and all
+whitespace between the tokens of an argument is reduced to a single
+space.  Parentheses within each argument must balance; a comma within
+such parentheses does not end the argument.  However, there is no
+requirement for square brackets or braces to balance, and they do not
+prevent a comma from separating arguments.  Thus,
+
+@smallexample
+macro (array[x = y, x + 1])
+@end smallexample
+
+@noindent
+passes two arguments to @code{macro}: @code{array[x = y} and @code{x +
+1]}.  If you want to supply @code{array[x = y, x + 1]} as an argument,
+you can write it as @code{array[(x = y, x + 1)]}, which is equivalent C
+code.
+
+All arguments to a macro are completely macro-expanded before they are
+substituted into the macro body.  After substitution, the complete text
+is scanned again for macros to expand, including the arguments.  This rule
+may seem strange, but it is carefully designed so you need not worry
+about whether any function call is actually a macro invocation.  You can
+run into trouble if you try to be too clever, though.  @xref{Argument
+Prescan}, for detailed discussion.
+
+For example, @code{min (min (a, b), c)} is first expanded to
+
+@smallexample
+  min (((a) < (b) ? (a) : (b)), (c))
+@end smallexample
+
+@noindent
+and then to
+
+@smallexample
+@group
+((((a) < (b) ? (a) : (b))) < (c)
+ ? (((a) < (b) ? (a) : (b)))
+ : (c))
+@end group
+@end smallexample
+
+@noindent
+(Line breaks shown here for clarity would not actually be generated.)
+
+@cindex empty macro arguments
+You can leave macro arguments empty; this is not an error to the
+preprocessor (but many macros will then expand to invalid code).
+You cannot leave out arguments entirely; if a macro takes two arguments,
+there must be exactly one comma at the top level of its argument list.
+Here are some silly examples using @code{min}:
+
+@smallexample
+min(, b)        @expansion{} ((   ) < (b) ? (   ) : (b))
+min(a, )        @expansion{} ((a  ) < ( ) ? (a  ) : ( ))
+min(,)          @expansion{} ((   ) < ( ) ? (   ) : ( ))
+min((,),)       @expansion{} (((,)) < ( ) ? ((,)) : ( ))
+
+min()      @error{} macro "min" requires 2 arguments, but only 1 given
+min(,,)    @error{} macro "min" passed 3 arguments, but takes just 2
+@end smallexample
+
+Whitespace is not a preprocessing token, so if a macro @code{foo} takes
+one argument, @code{@w{foo ()}} and @code{@w{foo ( )}} both supply it an
+empty argument.  Previous GNU preprocessor implementations and
+documentation were incorrect on this point, insisting that a
+function-like macro that takes a single argument be passed a space if an
+empty argument was required.
+
+Macro parameters appearing inside string literals are not replaced by
+their corresponding actual arguments.
+
+@smallexample
+#define foo(x) x, "x"
+foo(bar)        @expansion{} bar, "x"
+@end smallexample
+
+@node Stringification
+@section Stringification
+@cindex stringification
+@cindex @samp{#} operator
+
+Sometimes you may want to convert a macro argument into a string
+constant.  Parameters are not replaced inside string constants, but you
+can use the @samp{#} preprocessing operator instead.  When a macro
+parameter is used with a leading @samp{#}, the preprocessor replaces it
+with the literal text of the actual argument, converted to a string
+constant.  Unlike normal parameter replacement, the argument is not
+macro-expanded first.  This is called @dfn{stringification}.
+
+There is no way to combine an argument with surrounding text and
+stringify it all together.  Instead, you can write a series of adjacent
+string constants and stringified arguments.  The preprocessor will
+replace the stringified arguments with string constants.  The C
+compiler will then combine all the adjacent string constants into one
+long string.
+
+Here is an example of a macro definition that uses stringification:
+
+@smallexample
+@group
+#define WARN_IF(EXP) \
+do @{ if (EXP) \
+        fprintf (stderr, "Warning: " #EXP "\n"); @} \
+while (0)
+WARN_IF (x == 0);
+     @expansion{} do @{ if (x == 0)
+           fprintf (stderr, "Warning: " "x == 0" "\n"); @} while (0);
+@end group
+@end smallexample
+
+@noindent
+The argument for @code{EXP} is substituted once, as-is, into the
+@code{if} statement, and once, stringified, into the argument to
+@code{fprintf}.  If @code{x} were a macro, it would be expanded in the
+@code{if} statement, but not in the string.
+
+The @code{do} and @code{while (0)} are a kludge to make it possible to
+write @code{WARN_IF (@var{arg});}, which the resemblance of
+@code{WARN_IF} to a function would make C programmers want to do; see
+@ref{Swallowing the Semicolon}.
+
+Stringification in C involves more than putting double-quote characters
+around the fragment.  The preprocessor backslash-escapes the quotes
+surrounding embedded string constants, and all backslashes within string and
+character constants, in order to get a valid C string constant with the
+proper contents.  Thus, stringifying @code{@w{p = "foo\n";}} results in
+@t{@w{"p = \"foo\\n\";"}}.  However, backslashes that are not inside string
+or character constants are not duplicated: @samp{\n} by itself
+stringifies to @t{"\n"}.
+
+All leading and trailing whitespace in text being stringified is
+ignored.  Any sequence of whitespace in the middle of the text is
+converted to a single space in the stringified result.  Comments are
+replaced by whitespace long before stringification happens, so they
+never appear in stringified text.
+
+There is no way to convert a macro argument into a character constant.
+
+If you want to stringify the result of expansion of a macro argument,
+you have to use two levels of macros.
+
+@smallexample
+#define xstr(s) str(s)
+#define str(s) #s
+#define foo 4
+str (foo)
+     @expansion{} "foo"
+xstr (foo)
+     @expansion{} xstr (4)
+     @expansion{} str (4)
+     @expansion{} "4"
+@end smallexample
+
+@code{s} is stringified when it is used in @code{str}, so it is not
+macro-expanded first.  But @code{s} is an ordinary argument to
+@code{xstr}, so it is completely macro-expanded before @code{xstr}
+itself is expanded (@pxref{Argument Prescan}).  Therefore, by the time
+@code{str} gets to its argument, it has already been macro-expanded.
+
+@node Concatenation
+@section Concatenation
+@cindex concatenation
+@cindex token pasting
+@cindex token concatenation
+@cindex @samp{##} operator
+
+It is often useful to merge two tokens into one while expanding macros.
+This is called @dfn{token pasting} or @dfn{token concatenation}.  The
+@samp{##} preprocessing operator performs token pasting.  When a macro
+is expanded, the two tokens on either side of each @samp{##} operator
+are combined into a single token, which then replaces the @samp{##} and
+the two original tokens in the macro expansion.  Usually both will be
+identifiers, or one will be an identifier and the other a preprocessing
+number.  When pasted, they make a longer identifier.  This isn't the
+only valid case.  It is also possible to concatenate two numbers (or a
+number and a name, such as @code{1.5} and @code{e3}) into a number.
+Also, multi-character operators such as @code{+=} can be formed by
+token pasting.
+
+However, two tokens that don't together form a valid token cannot be
+pasted together.  For example, you cannot concatenate @code{x} with
+@code{+} in either order.  If you try, the preprocessor issues a warning
+and emits the two tokens.  Whether it puts white space between the
+tokens is undefined.  It is common to find unnecessary uses of @samp{##}
+in complex macros.  If you get this warning, it is likely that you can
+simply remove the @samp{##}.
+
+Both the tokens combined by @samp{##} could come from the macro body,
+but you could just as well write them as one token in the first place.
+Token pasting is most useful when one or both of the tokens comes from a
+macro argument.  If either of the tokens next to an @samp{##} is a
+parameter name, it is replaced by its actual argument before @samp{##}
+executes.  As with stringification, the actual argument is not
+macro-expanded first.  If the argument is empty, that @samp{##} has no
+effect.
+
+Keep in mind that the C preprocessor converts comments to whitespace
+before macros are even considered.  Therefore, you cannot create a
+comment by concatenating @samp{/} and @samp{*}.  You can put as much
+whitespace between @samp{##} and its operands as you like, including
+comments, and you can put comments in arguments that will be
+concatenated.  However, it is an error if @samp{##} appears at either
+end of a macro body.
+
+Consider a C program that interprets named commands.  There probably
+needs to be a table of commands, perhaps an array of structures declared
+as follows:
+
+@smallexample
+@group
+struct command
+@{
+  char *name;
+  void (*function) (void);
+@};
+@end group
+
+@group
+struct command commands[] =
+@{
+  @{ "quit", quit_command @},
+  @{ "help", help_command @},
+  @dots{}
+@};
+@end group
+@end smallexample
+
+It would be cleaner not to have to give each command name twice, once in
+the string constant and once in the function name.  A macro which takes the
+name of a command as an argument can make this unnecessary.  The string
+constant can be created with stringification, and the function name by
+concatenating the argument with @samp{_command}.  Here is how it is done:
+
+@smallexample
+#define COMMAND(NAME)  @{ #NAME, NAME ## _command @}
+
+struct command commands[] =
+@{
+  COMMAND (quit),
+  COMMAND (help),
+  @dots{}
+@};
+@end smallexample
+
+@node Variadic Macros
+@section Variadic Macros
+@cindex variable number of arguments
+@cindex macros with variable arguments
+@cindex variadic macros
+
+A macro can be declared to accept a variable number of arguments much as
+a function can.  The syntax for defining the macro is similar to that of
+a function.  Here is an example:
+
+@smallexample
+#define eprintf(@dots{}) fprintf (stderr, __VA_ARGS__)
+@end smallexample
+
+This kind of macro is called @dfn{variadic}.  When the macro is invoked,
+all the tokens in its argument list after the last named argument (this
+macro has none), including any commas, become the @dfn{variable
+argument}.  This sequence of tokens replaces the identifier
+@code{@w{__VA_ARGS__}} in the macro body wherever it appears.  Thus, we
+have this expansion:
+
+@smallexample
+eprintf ("%s:%d: ", input_file, lineno)
+     @expansion{}  fprintf (stderr, "%s:%d: ", input_file, lineno)
+@end smallexample
+
+The variable argument is completely macro-expanded before it is inserted
+into the macro expansion, just like an ordinary argument.  You may use
+the @samp{#} and @samp{##} operators to stringify the variable argument
+or to paste its leading or trailing token with another token.  (But see
+below for an important special case for @samp{##}.)
+
+If your macro is complicated, you may want a more descriptive name for
+the variable argument than @code{@w{__VA_ARGS__}}.  CPP permits
+this, as an extension.  You may write an argument name immediately
+before the @samp{@dots{}}; that name is used for the variable argument.
+The @code{eprintf} macro above could be written
+
+@smallexample
+#define eprintf(args@dots{}) fprintf (stderr, args)
+@end smallexample
+
+@noindent
+using this extension.  You cannot use @code{@w{__VA_ARGS__}} and this
+extension in the same macro.
+
+You can have named arguments as well as variable arguments in a variadic
+macro.  We could define @code{eprintf} like this, instead:
+
+@smallexample
+#define eprintf(format, @dots{}) fprintf (stderr, format, __VA_ARGS__)
+@end smallexample
+
+@noindent
+This formulation looks more descriptive, but unfortunately it is less
+flexible: you must now supply at least one argument after the format
+string.  In standard C, you cannot omit the comma separating the named
+argument from the variable arguments.  Furthermore, if you leave the
+variable argument empty, you will get a syntax error, because
+there will be an extra comma after the format string.
+
+@smallexample
+eprintf("success!\n", );
+     @expansion{} fprintf(stderr, "success!\n", );
+@end smallexample
+
+GNU CPP has a pair of extensions which deal with this problem.  First,
+you are allowed to leave the variable argument out entirely:
+
+@smallexample
+eprintf ("success!\n")
+     @expansion{} fprintf(stderr, "success!\n", );
+@end smallexample
+
+@noindent
+Second, the @samp{##} token paste operator has a special meaning when
+placed between a comma and a variable argument.  If you write
+
+@smallexample
+#define eprintf(format, @dots{}) fprintf (stderr, format, ##__VA_ARGS__)
+@end smallexample
+
+@noindent
+and the variable argument is left out when the @code{eprintf} macro is
+used, then the comma before the @samp{##} will be deleted.  This does
+@emph{not} happen if you pass an empty argument, nor does it happen if
+the token preceding @samp{##} is anything other than a comma.
+
+@smallexample
+eprintf ("success!\n")
+     @expansion{} fprintf(stderr, "success!\n");
+@end smallexample
+
+@noindent
+The above explanation is ambiguous about the case where the only macro
+parameter is a variable arguments parameter, as it is meaningless to
+try to distinguish whether no argument at all is an empty argument or
+a missing argument.  In this case the C99 standard is clear that the
+comma must remain, however the existing GCC extension used to swallow
+the comma.  So CPP retains the comma when conforming to a specific C
+standard, and drops it otherwise.
+
+C99 mandates that the only place the identifier @code{@w{__VA_ARGS__}}
+can appear is in the replacement list of a variadic macro.  It may not
+be used as a macro name, macro argument name, or within a different type
+of macro.  It may also be forbidden in open text; the standard is
+ambiguous.  We recommend you avoid using it except for its defined
+purpose.
+
+Variadic macros are a new feature in C99.  GNU CPP has supported them
+for a long time, but only with a named variable argument
+(@samp{args@dots{}}, not @samp{@dots{}} and @code{@w{__VA_ARGS__}}).  If you are
+concerned with portability to previous versions of GCC, you should use
+only named variable arguments.  On the other hand, if you are concerned
+with portability to other conforming implementations of C99, you should
+use only @code{@w{__VA_ARGS__}}.
+
+Previous versions of CPP implemented the comma-deletion extension
+much more generally.  We have restricted it in this release to minimize
+the differences from C99.  To get the same effect with both this and
+previous versions of GCC, the token preceding the special @samp{##} must
+be a comma, and there must be white space between that comma and
+whatever comes immediately before it:
+
+@smallexample
+#define eprintf(format, args@dots{}) fprintf (stderr, format , ##args)
+@end smallexample
+
+@noindent
+@xref{Differences from previous versions}, for the gory details.
+
+@node Predefined Macros
+@section Predefined Macros
+
+@cindex predefined macros
+Several object-like macros are predefined; you use them without
+supplying their definitions.  They fall into three classes: standard,
+common, and system-specific.
+
+In C++, there is a fourth category, the named operators.  They act like
+predefined macros, but you cannot undefine them.
+
+@menu
+* Standard Predefined Macros::
+* Common Predefined Macros::
+* System-specific Predefined Macros::
+* C++ Named Operators::
+@end menu
+
+@node Standard Predefined Macros
+@subsection Standard Predefined Macros
+@cindex standard predefined macros.
+
+The standard predefined macros are specified by the relevant
+language standards, so they are available with all compilers that
+implement those standards.  Older compilers may not provide all of
+them.  Their names all start with double underscores.
+
+@table @code
+@item __FILE__
+This macro expands to the name of the current input file, in the form of
+a C string constant.  This is the path by which the preprocessor opened
+the file, not the short name specified in @samp{#include} or as the
+input file name argument.  For example,
+@code{"/usr/local/include/myheader.h"} is a possible expansion of this
+macro.
+
+@item __LINE__
+This macro expands to the current input line number, in the form of a
+decimal integer constant.  While we call it a predefined macro, it's
+a pretty strange macro, since its ``definition'' changes with each
+new line of source code.
+@end table
+
+@code{__FILE__} and @code{__LINE__} are useful in generating an error
+message to report an inconsistency detected by the program; the message
+can state the source line at which the inconsistency was detected.  For
+example,
+
+@smallexample
+fprintf (stderr, "Internal error: "
+                 "negative string length "
+                 "%d at %s, line %d.",
+         length, __FILE__, __LINE__);
+@end smallexample
+
+An @samp{#include} directive changes the expansions of @code{__FILE__}
+and @code{__LINE__} to correspond to the included file.  At the end of
+that file, when processing resumes on the input file that contained
+the @samp{#include} directive, the expansions of @code{__FILE__} and
+@code{__LINE__} revert to the values they had before the
+@samp{#include} (but @code{__LINE__} is then incremented by one as
+processing moves to the line after the @samp{#include}).
+
+A @samp{#line} directive changes @code{__LINE__}, and may change
+@code{__FILE__} as well.  @xref{Line Control}.
+
+C99 introduces @code{__func__}, and GCC has provided @code{__FUNCTION__}
+for a long time.  Both of these are strings containing the name of the
+current function (there are slight semantic differences; see the GCC
+manual).  Neither of them is a macro; the preprocessor does not know the
+name of the current function.  They tend to be useful in conjunction
+with @code{__FILE__} and @code{__LINE__}, though.
+
+@table @code
+
+@item __DATE__
+This macro expands to a string constant that describes the date on which
+the preprocessor is being run.  The string constant contains eleven
+characters and looks like @code{@w{"Feb 12 1996"}}.  If the day of the
+month is less than 10, it is padded with a space on the left.
+
+If GCC cannot determine the current date, it will emit a warning message
+(once per compilation) and @code{__DATE__} will expand to
+@code{@w{"??? ?? ????"}}.
+
+@item __TIME__
+This macro expands to a string constant that describes the time at
+which the preprocessor is being run.  The string constant contains
+eight characters and looks like @code{"23:59:01"}.
+
+If GCC cannot determine the current time, it will emit a warning message
+(once per compilation) and @code{__TIME__} will expand to
+@code{"??:??:??"}.
+
+@item __STDC__
+In normal operation, this macro expands to the constant 1, to signify
+that this compiler conforms to ISO Standard C@.  If GNU CPP is used with
+a compiler other than GCC, this is not necessarily true; however, the
+preprocessor always conforms to the standard unless the
+@option{-traditional-cpp} option is used.
+
+This macro is not defined if the @option{-traditional-cpp} option is used.
+
+On some hosts, the system compiler uses a different convention, where
+@code{__STDC__} is normally 0, but is 1 if the user specifies strict
+conformance to the C Standard.  CPP follows the host convention when
+processing system header files, but when processing user files
+@code{__STDC__} is always 1.  This has been reported to cause problems;
+for instance, some versions of Solaris provide X Windows headers that
+expect @code{__STDC__} to be either undefined or 1.  @xref{Invocation}.
+
+@item __STDC_VERSION__
+This macro expands to the C Standard's version number, a long integer
+constant of the form @code{@var{yyyy}@var{mm}L} where @var{yyyy} and
+@var{mm} are the year and month of the Standard version.  This signifies
+which version of the C Standard the compiler conforms to.  Like
+@code{__STDC__}, this is not necessarily accurate for the entire
+implementation, unless GNU CPP is being used with GCC@.
+
+The value @code{199409L} signifies the 1989 C standard as amended in
+1994, which is the current default; the value @code{199901L} signifies
+the 1999 revision of the C standard.  Support for the 1999 revision is
+not yet complete.
+
+This macro is not defined if the @option{-traditional-cpp} option is
+used, nor when compiling C++ or Objective-C@.
+
+@item __STDC_HOSTED__
+This macro is defined, with value 1, if the compiler's target is a
+@dfn{hosted environment}.  A hosted environment has the complete
+facilities of the standard C library available.
+
+@item __cplusplus
+This macro is defined when the C++ compiler is in use.  You can use
+@code{__cplusplus} to test whether a header is compiled by a C compiler
+or a C++ compiler.  This macro is similar to @code{__STDC_VERSION__}, in
+that it expands to a version number.  A fully conforming implementation
+of the 1998 C++ standard will define this macro to @code{199711L}.  The
+GNU C++ compiler is not yet fully conforming, so it uses @code{1}
+instead.  It is hoped to complete the implementation of standard C++
+in the near future.
+
+@item __OBJC__
+This macro is defined, with value 1, when the Objective-C compiler is in
+use.  You can use @code{__OBJC__} to test whether a header is compiled
+by a C compiler or a Objective-C compiler.
+
+@item __ASSEMBLER__
+This macro is defined with value 1 when preprocessing assembly
+language.
+
+@end table
+
+@node Common Predefined Macros
+@subsection Common Predefined Macros
+@cindex common predefined macros
+
+The common predefined macros are GNU C extensions.  They are available
+with the same meanings regardless of the machine or operating system on
+which you are using GNU C@.  Their names all start with double
+underscores.
+
+@table @code
+
+@item __GNUC__
+@itemx __GNUC_MINOR__
+@itemx __GNUC_PATCHLEVEL__
+These macros are defined by all GNU compilers that use the C
+preprocessor: C, C++, and Objective-C@.  Their values are the major
+version, minor version, and patch level of the compiler, as integer
+constants.  For example, GCC 3.2.1 will define @code{__GNUC__} to 3,
+@code{__GNUC_MINOR__} to 2, and @code{__GNUC_PATCHLEVEL__} to 1.  These
+macros are also defined if you invoke the preprocessor directly.
+
+@code{__GNUC_PATCHLEVEL__} is new to GCC 3.0; it is also present in the
+widely-used development snapshots leading up to 3.0 (which identify
+themselves as GCC 2.96 or 2.97, depending on which snapshot you have).
+
+If all you need to know is whether or not your program is being compiled
+by GCC, or a non-GCC compiler that claims to accept the GNU C dialects,
+you can simply test @code{__GNUC__}.  If you need to write code
+which depends on a specific version, you must be more careful.  Each
+time the minor version is increased, the patch level is reset to zero;
+each time the major version is increased (which happens rarely), the
+minor version and patch level are reset.  If you wish to use the
+predefined macros directly in the conditional, you will need to write it
+like this:
+
+@smallexample
+/* @r{Test for GCC > 3.2.0} */
+#if __GNUC__ > 3 || \
+    (__GNUC__ == 3 && (__GNUC_MINOR__ > 2 || \
+                       (__GNUC_MINOR__ == 2 && \
+                        __GNUC_PATCHLEVEL__ > 0))
+@end smallexample
+
+@noindent
+Another approach is to use the predefined macros to
+calculate a single number, then compare that against a threshold:
+
+@smallexample
+#define GCC_VERSION (__GNUC__ * 10000 \
+                     + __GNUC_MINOR__ * 100 \
+                     + __GNUC_PATCHLEVEL__)
+@dots{}
+/* @r{Test for GCC > 3.2.0} */
+#if GCC_VERSION > 30200
+@end smallexample
+
+@noindent
+Many people find this form easier to understand.
+
+@item __GNUG__
+The GNU C++ compiler defines this.  Testing it is equivalent to
+testing @code{@w{(__GNUC__ && __cplusplus)}}.
+
+@item __STRICT_ANSI__
+GCC defines this macro if and only if the @option{-ansi} switch, or a
+@option{-std} switch specifying strict conformance to some version of ISO C,
+was specified when GCC was invoked.  It is defined to @samp{1}.
+This macro exists primarily to direct GNU libc's header files to
+restrict their definitions to the minimal set found in the 1989 C
+standard.
+
+@item __BASE_FILE__
+This macro expands to the name of the main input file, in the form
+of a C string constant.  This is the source file that was specified
+on the command line of the preprocessor or C compiler.
+
+@item __INCLUDE_LEVEL__
+This macro expands to a decimal integer constant that represents the
+depth of nesting in include files.  The value of this macro is
+incremented on every @samp{#include} directive and decremented at the
+end of every included file.  It starts out at 0, it's value within the
+base file specified on the command line.
+
+@item __ELF__
+This macro is defined if the target uses the ELF object format.
+
+@item __VERSION__
+This macro expands to a string constant which describes the version of
+the compiler in use.  You should not rely on its contents having any
+particular form, but it can be counted on to contain at least the
+release number.
+
+@item __OPTIMIZE__
+@itemx __OPTIMIZE_SIZE__
+@itemx __NO_INLINE__
+These macros describe the compilation mode.  @code{__OPTIMIZE__} is
+defined in all optimizing compilations.  @code{__OPTIMIZE_SIZE__} is
+defined if the compiler is optimizing for size, not speed.
+@code{__NO_INLINE__} is defined if no functions will be inlined into
+their callers (when not optimizing, or when inlining has been
+specifically disabled by @option{-fno-inline}).
+
+These macros cause certain GNU header files to provide optimized
+definitions, using macros or inline functions, of system library
+functions.  You should not use these macros in any way unless you make
+sure that programs will execute with the same effect whether or not they
+are defined.  If they are defined, their value is 1.
+
+@item __GNUC_GNU_INLINE__
+GCC defines this macro if functions declared @code{inline} will be
+handled in GCC's traditional gnu89 mode.  In this mode an @code{extern
+inline} function will never be compiled as a standalone function, and
+an @code{inline} function which is neither @code{extern} nor
+@code{static} will always be compiled as a standalone function.
+
+@item __GNUC_STDC_INLINE__
+GCC defines this macro if functions declared @code{inline} will be
+handled according to the ISO C99 standard.  In this mode an
+@code{extern inline} function will always be compiled as a standalone
+externally visible function, and an @code{inline} function which is
+neither @code{extern} nor @code{static} will never be compiled as a
+standalone function.
+
+If this macro is defined, GCC supports the @code{gnu_inline} function
+attribute as a way to always get the gnu89 behaviour.  Support for
+this and @code{__GNUC_GNU_INLINE__} was added in GCC 4.1.3.  If
+neither macro is defined, an older version of GCC is being used:
+@code{inline} functions will be compiled in gnu89 mode, and the
+@code{gnu_inline} function attribute will not be recognized.
+
+@item __CHAR_UNSIGNED__
+GCC defines this macro if and only if the data type @code{char} is
+unsigned on the target machine.  It exists to cause the standard header
+file @file{limits.h} to work correctly.  You should not use this macro
+yourself; instead, refer to the standard macros defined in @file{limits.h}.
+
+@item __WCHAR_UNSIGNED__
+Like @code{__CHAR_UNSIGNED__}, this macro is defined if and only if the
+data type @code{wchar_t} is unsigned and the front-end is in C++ mode.
+
+@item __REGISTER_PREFIX__
+This macro expands to a single token (not a string constant) which is
+the prefix applied to CPU register names in assembly language for this
+target.  You can use it to write assembly that is usable in multiple
+environments.  For example, in the @code{m68k-aout} environment it
+expands to nothing, but in the @code{m68k-coff} environment it expands
+to a single @samp{%}.
+
+@item __USER_LABEL_PREFIX__
+This macro expands to a single token which is the prefix applied to
+user labels (symbols visible to C code) in assembly.  For example, in
+the @code{m68k-aout} environment it expands to an @samp{_}, but in the
+@code{m68k-coff} environment it expands to nothing.
+
+This macro will have the correct definition even if
+@option{-f(no-)underscores} is in use, but it will not be correct if
+target-specific options that adjust this prefix are used (e.g.@: the
+OSF/rose @option{-mno-underscores} option).
+
+@item __SIZE_TYPE__
+@itemx __PTRDIFF_TYPE__
+@itemx __WCHAR_TYPE__
+@itemx __WINT_TYPE__
+@itemx __INTMAX_TYPE__
+@itemx __UINTMAX_TYPE__
+These macros are defined to the correct underlying types for the
+@code{size_t}, @code{ptrdiff_t}, @code{wchar_t}, @code{wint_t},
+@code{intmax_t}, and @code{uintmax_t}
+typedefs, respectively.  They exist to make the standard header files
+@file{stddef.h} and @file{wchar.h} work correctly.  You should not use
+these macros directly; instead, include the appropriate headers and use
+the typedefs.
+
+@item __CHAR_BIT__
+Defined to the number of bits used in the representation of the
+@code{char} data type.  It exists to make the standard header given
+numerical limits work correctly.  You should not use
+this macro directly; instead, include the appropriate headers.
+
+@item __SCHAR_MAX__
+@itemx __WCHAR_MAX__
+@itemx __SHRT_MAX__
+@itemx __INT_MAX__
+@itemx __LONG_MAX__
+@itemx __LONG_LONG_MAX__
+@itemx __INTMAX_MAX__
+Defined to the maximum value of the @code{signed char}, @code{wchar_t},
+@code{signed short},
+@code{signed int}, @code{signed long}, @code{signed long long}, and
+@code{intmax_t} types
+respectively.  They exist to make the standard header given numerical limits
+work correctly.  You should not use these macros directly; instead, include
+the appropriate headers.
+
+@item __DEPRECATED
+This macro is defined, with value 1, when compiling a C++ source file
+with warnings about deprecated constructs enabled.  These warnings are
+enabled by default, but can be disabled with @option{-Wno-deprecated}.
+
+@item __EXCEPTIONS
+This macro is defined, with value 1, when compiling a C++ source file
+with exceptions enabled.  If @option{-fno-exceptions} was used when
+compiling the file, then this macro will not be defined.
+
+@item __USING_SJLJ_EXCEPTIONS__
+This macro is defined, with value 1, if the compiler uses the old
+mechanism based on @code{setjmp} and @code{longjmp} for exception
+handling.
+
+@item __GXX_WEAK__
+This macro is defined when compiling a C++ source file.  It has the
+value 1 if the compiler will use weak symbols, COMDAT sections, or
+other similar techniques to collapse symbols with ``vague linkage''
+that are defined in multiple translation units.  If the compiler will
+not collapse such symbols, this macro is defined with value 0.  In
+general, user code should not need to make use of this macro; the
+purpose of this macro is to ease implementation of the C++ runtime
+library provided with G++.
+
+@item __NEXT_RUNTIME__
+This macro is defined, with value 1, if (and only if) the NeXT runtime
+(as in @option{-fnext-runtime}) is in use for Objective-C@.  If the GNU
+runtime is used, this macro is not defined, so that you can use this
+macro to determine which runtime (NeXT or GNU) is being used.
+
+@item __LP64__
+@itemx _LP64
+These macros are defined, with value 1, if (and only if) the compilation
+is for a target where @code{long int} and pointer both use 64-bits and
+@code{int} uses 32-bit.
+
+@item __SSP__
+This macro is defined, with value 1, when @option{-fstack-protector} is in
+use.
+
+@item __SSP_ALL__
+This macro is defined, with value 2, when @option{-fstack-protector-all} is
+in use.
+
+@item __SSP_STRONG__
+This macro is defined, with value 3, when @option{-fstack-protector-strong} is
+in use.
+
+@item __TIMESTAMP__
+This macro expands to a string constant that describes the date and time
+of the last modification of the current source file. The string constant
+contains abbreviated day of the week, month, day of the month, time in
+hh:mm:ss form, year and looks like @code{@w{"Sun Sep 16 01:03:52 1973"}}.
+If the day of the month is less than 10, it is padded with a space on the left.
+
+If GCC cannot determine the current date, it will emit a warning message
+(once per compilation) and @code{__TIMESTAMP__} will expand to
+@code{@w{"??? ??? ?? ??:??:?? ????"}}.
+
+@end table
+
+@node System-specific Predefined Macros
+@subsection System-specific Predefined Macros
+
+@cindex system-specific predefined macros
+@cindex predefined macros, system-specific
+@cindex reserved namespace
+
+The C preprocessor normally predefines several macros that indicate what
+type of system and machine is in use.  They are obviously different on
+each target supported by GCC@.  This manual, being for all systems and
+machines, cannot tell you what their names are, but you can use
+@command{cpp -dM} to see them all.  @xref{Invocation}.  All system-specific
+predefined macros expand to the constant 1, so you can test them with
+either @samp{#ifdef} or @samp{#if}.
+
+The C standard requires that all system-specific macros be part of the
+@dfn{reserved namespace}.  All names which begin with two underscores,
+or an underscore and a capital letter, are reserved for the compiler and
+library to use as they wish.  However, historically system-specific
+macros have had names with no special prefix; for instance, it is common
+to find @code{unix} defined on Unix systems.  For all such macros, GCC
+provides a parallel macro with two underscores added at the beginning
+and the end.  If @code{unix} is defined, @code{__unix__} will be defined
+too.  There will never be more than two underscores; the parallel of
+@code{_mips} is @code{__mips__}.
+
+When the @option{-ansi} option, or any @option{-std} option that
+requests strict conformance, is given to the compiler, all the
+system-specific predefined macros outside the reserved namespace are
+suppressed.  The parallel macros, inside the reserved namespace, remain
+defined.
+
+We are slowly phasing out all predefined macros which are outside the
+reserved namespace.  You should never use them in new programs, and we
+encourage you to correct older code to use the parallel macros whenever
+you find it.  We don't recommend you use the system-specific macros that
+are in the reserved namespace, either.  It is better in the long run to
+check specifically for features you need, using a tool such as
+@command{autoconf}.
+
+@node C++ Named Operators
+@subsection C++ Named Operators
+@cindex named operators
+@cindex C++ named operators
+@cindex iso646.h
+
+In C++, there are eleven keywords which are simply alternate spellings
+of operators normally written with punctuation.  These keywords are
+treated as such even in the preprocessor.  They function as operators in
+@samp{#if}, and they cannot be defined as macros or poisoned.  In C, you
+can request that those keywords take their C++ meaning by including
+@file{iso646.h}.  That header defines each one as a normal object-like
+macro expanding to the appropriate punctuator.
+
+These are the named operators and their corresponding punctuators:
+
+@multitable {Named Operator} {Punctuator}
+@item Named Operator @tab Punctuator
+@item @code{and}    @tab @code{&&}
+@item @code{and_eq} @tab @code{&=}
+@item @code{bitand} @tab @code{&}
+@item @code{bitor}  @tab @code{|}
+@item @code{compl}  @tab @code{~}
+@item @code{not}    @tab @code{!}
+@item @code{not_eq} @tab @code{!=}
+@item @code{or}     @tab @code{||}
+@item @code{or_eq}  @tab @code{|=}
+@item @code{xor}    @tab @code{^}
+@item @code{xor_eq} @tab @code{^=}
+@end multitable
+
+@node Undefining and Redefining Macros
+@section Undefining and Redefining Macros
+@cindex undefining macros
+@cindex redefining macros
+@findex #undef
+
+If a macro ceases to be useful, it may be @dfn{undefined} with the
+@samp{#undef} directive.  @samp{#undef} takes a single argument, the
+name of the macro to undefine.  You use the bare macro name, even if the
+macro is function-like.  It is an error if anything appears on the line
+after the macro name.  @samp{#undef} has no effect if the name is not a
+macro.
+
+@smallexample
+#define FOO 4
+x = FOO;        @expansion{} x = 4;
+#undef FOO
+x = FOO;        @expansion{} x = FOO;
+@end smallexample
+
+Once a macro has been undefined, that identifier may be @dfn{redefined}
+as a macro by a subsequent @samp{#define} directive.  The new definition
+need not have any resemblance to the old definition.
+
+However, if an identifier which is currently a macro is redefined, then
+the new definition must be @dfn{effectively the same} as the old one.
+Two macro definitions are effectively the same if:
+@itemize @bullet
+@item Both are the same type of macro (object- or function-like).
+@item All the tokens of the replacement list are the same.
+@item If there are any parameters, they are the same.
+@item Whitespace appears in the same places in both.  It need not be
+exactly the same amount of whitespace, though.  Remember that comments
+count as whitespace.
+@end itemize
+
+@noindent
+These definitions are effectively the same:
+@smallexample
+#define FOUR (2 + 2)
+#define FOUR         (2    +    2)
+#define FOUR (2 /* @r{two} */ + 2)
+@end smallexample
+@noindent
+but these are not:
+@smallexample
+#define FOUR (2 + 2)
+#define FOUR ( 2+2 )
+#define FOUR (2 * 2)
+#define FOUR(score,and,seven,years,ago) (2 + 2)
+@end smallexample
+
+If a macro is redefined with a definition that is not effectively the
+same as the old one, the preprocessor issues a warning and changes the
+macro to use the new definition.  If the new definition is effectively
+the same, the redefinition is silently ignored.  This allows, for
+instance, two different headers to define a common macro.  The
+preprocessor will only complain if the definitions do not match.
+
+@node Directives Within Macro Arguments
+@section Directives Within Macro Arguments
+@cindex macro arguments and directives
+
+Occasionally it is convenient to use preprocessor directives within
+the arguments of a macro.  The C and C++ standards declare that
+behavior in these cases is undefined.
+
+Versions of CPP prior to 3.2 would reject such constructs with an
+error message.  This was the only syntactic difference between normal
+functions and function-like macros, so it seemed attractive to remove
+this limitation, and people would often be surprised that they could
+not use macros in this way.  Moreover, sometimes people would use
+conditional compilation in the argument list to a normal library
+function like @samp{printf}, only to find that after a library upgrade
+@samp{printf} had changed to be a function-like macro, and their code
+would no longer compile.  So from version 3.2 we changed CPP to
+successfully process arbitrary directives within macro arguments in
+exactly the same way as it would have processed the directive were the
+function-like macro invocation not present.
+
+If, within a macro invocation, that macro is redefined, then the new
+definition takes effect in time for argument pre-expansion, but the
+original definition is still used for argument replacement.  Here is a
+pathological example:
+
+@smallexample
+#define f(x) x x
+f (1
+#undef f
+#define f 2
+f)
+@end smallexample
+
+@noindent
+which expands to
+
+@smallexample
+1 2 1 2
+@end smallexample
+
+@noindent
+with the semantics described above.
+
+@node Macro Pitfalls
+@section Macro Pitfalls
+@cindex problems with macros
+@cindex pitfalls of macros
+
+In this section we describe some special rules that apply to macros and
+macro expansion, and point out certain cases in which the rules have
+counter-intuitive consequences that you must watch out for.
+
+@menu
+* Misnesting::
+* Operator Precedence Problems::
+* Swallowing the Semicolon::
+* Duplication of Side Effects::
+* Self-Referential Macros::
+* Argument Prescan::
+* Newlines in Arguments::
+@end menu
+
+@node Misnesting
+@subsection Misnesting
+
+When a macro is called with arguments, the arguments are substituted
+into the macro body and the result is checked, together with the rest of
+the input file, for more macro calls.  It is possible to piece together
+a macro call coming partially from the macro body and partially from the
+arguments.  For example,
+
+@smallexample
+#define twice(x) (2*(x))
+#define call_with_1(x) x(1)
+call_with_1 (twice)
+     @expansion{} twice(1)
+     @expansion{} (2*(1))
+@end smallexample
+
+Macro definitions do not have to have balanced parentheses.  By writing
+an unbalanced open parenthesis in a macro body, it is possible to create
+a macro call that begins inside the macro body but ends outside of it.
+For example,
+
+@smallexample
+#define strange(file) fprintf (file, "%s %d",
+@dots{}
+strange(stderr) p, 35)
+     @expansion{} fprintf (stderr, "%s %d", p, 35)
+@end smallexample
+
+The ability to piece together a macro call can be useful, but the use of
+unbalanced open parentheses in a macro body is just confusing, and
+should be avoided.
+
+@node Operator Precedence Problems
+@subsection Operator Precedence Problems
+@cindex parentheses in macro bodies
+
+You may have noticed that in most of the macro definition examples shown
+above, each occurrence of a macro argument name had parentheses around
+it.  In addition, another pair of parentheses usually surround the
+entire macro definition.  Here is why it is best to write macros that
+way.
+
+Suppose you define a macro as follows,
+
+@smallexample
+#define ceil_div(x, y) (x + y - 1) / y
+@end smallexample
+
+@noindent
+whose purpose is to divide, rounding up.  (One use for this operation is
+to compute how many @code{int} objects are needed to hold a certain
+number of @code{char} objects.)  Then suppose it is used as follows:
+
+@smallexample
+a = ceil_div (b & c, sizeof (int));
+     @expansion{} a = (b & c + sizeof (int) - 1) / sizeof (int);
+@end smallexample
+
+@noindent
+This does not do what is intended.  The operator-precedence rules of
+C make it equivalent to this:
+
+@smallexample
+a = (b & (c + sizeof (int) - 1)) / sizeof (int);
+@end smallexample
+
+@noindent
+What we want is this:
+
+@smallexample
+a = ((b & c) + sizeof (int) - 1)) / sizeof (int);
+@end smallexample
+
+@noindent
+Defining the macro as
+
+@smallexample
+#define ceil_div(x, y) ((x) + (y) - 1) / (y)
+@end smallexample
+
+@noindent
+provides the desired result.
+
+Unintended grouping can result in another way.  Consider @code{sizeof
+ceil_div(1, 2)}.  That has the appearance of a C expression that would
+compute the size of the type of @code{ceil_div (1, 2)}, but in fact it
+means something very different.  Here is what it expands to:
+
+@smallexample
+sizeof ((1) + (2) - 1) / (2)
+@end smallexample
+
+@noindent
+This would take the size of an integer and divide it by two.  The
+precedence rules have put the division outside the @code{sizeof} when it
+was intended to be inside.
+
+Parentheses around the entire macro definition prevent such problems.
+Here, then, is the recommended way to define @code{ceil_div}:
+
+@smallexample
+#define ceil_div(x, y) (((x) + (y) - 1) / (y))
+@end smallexample
+
+@node Swallowing the Semicolon
+@subsection Swallowing the Semicolon
+@cindex semicolons (after macro calls)
+
+Often it is desirable to define a macro that expands into a compound
+statement.  Consider, for example, the following macro, that advances a
+pointer (the argument @code{p} says where to find it) across whitespace
+characters:
+
+@smallexample
+#define SKIP_SPACES(p, limit)  \
+@{ char *lim = (limit);         \
+  while (p < lim) @{            \
+    if (*p++ != ' ') @{         \
+      p--; break; @}@}@}
+@end smallexample
+
+@noindent
+Here backslash-newline is used to split the macro definition, which must
+be a single logical line, so that it resembles the way such code would
+be laid out if not part of a macro definition.
+
+A call to this macro might be @code{SKIP_SPACES (p, lim)}.  Strictly
+speaking, the call expands to a compound statement, which is a complete
+statement with no need for a semicolon to end it.  However, since it
+looks like a function call, it minimizes confusion if you can use it
+like a function call, writing a semicolon afterward, as in
+@code{SKIP_SPACES (p, lim);}
+
+This can cause trouble before @code{else} statements, because the
+semicolon is actually a null statement.  Suppose you write
+
+@smallexample
+if (*p != 0)
+  SKIP_SPACES (p, lim);
+else @dots{}
+@end smallexample
+
+@noindent
+The presence of two statements---the compound statement and a null
+statement---in between the @code{if} condition and the @code{else}
+makes invalid C code.
+
+The definition of the macro @code{SKIP_SPACES} can be altered to solve
+this problem, using a @code{do @dots{} while} statement.  Here is how:
+
+@smallexample
+#define SKIP_SPACES(p, limit)     \
+do @{ char *lim = (limit);         \
+     while (p < lim) @{            \
+       if (*p++ != ' ') @{         \
+         p--; break; @}@}@}          \
+while (0)
+@end smallexample
+
+Now @code{SKIP_SPACES (p, lim);} expands into
+
+@smallexample
+do @{@dots{}@} while (0);
+@end smallexample
+
+@noindent
+which is one statement.  The loop executes exactly once; most compilers
+generate no extra code for it.
+
+@node Duplication of Side Effects
+@subsection Duplication of Side Effects
+
+@cindex side effects (in macro arguments)
+@cindex unsafe macros
+Many C programs define a macro @code{min}, for ``minimum'', like this:
+
+@smallexample
+#define min(X, Y)  ((X) < (Y) ? (X) : (Y))
+@end smallexample
+
+When you use this macro with an argument containing a side effect,
+as shown here,
+
+@smallexample
+next = min (x + y, foo (z));
+@end smallexample
+
+@noindent
+it expands as follows:
+
+@smallexample
+next = ((x + y) < (foo (z)) ? (x + y) : (foo (z)));
+@end smallexample
+
+@noindent
+where @code{x + y} has been substituted for @code{X} and @code{foo (z)}
+for @code{Y}.
+
+The function @code{foo} is used only once in the statement as it appears
+in the program, but the expression @code{foo (z)} has been substituted
+twice into the macro expansion.  As a result, @code{foo} might be called
+two times when the statement is executed.  If it has side effects or if
+it takes a long time to compute, the results might not be what you
+intended.  We say that @code{min} is an @dfn{unsafe} macro.
+
+The best solution to this problem is to define @code{min} in a way that
+computes the value of @code{foo (z)} only once.  The C language offers
+no standard way to do this, but it can be done with GNU extensions as
+follows:
+
+@smallexample
+#define min(X, Y)                \
+(@{ typeof (X) x_ = (X);          \
+   typeof (Y) y_ = (Y);          \
+   (x_ < y_) ? x_ : y_; @})
+@end smallexample
+
+The @samp{(@{ @dots{} @})} notation produces a compound statement that
+acts as an expression.  Its value is the value of its last statement.
+This permits us to define local variables and assign each argument to
+one.  The local variables have underscores after their names to reduce
+the risk of conflict with an identifier of wider scope (it is impossible
+to avoid this entirely).  Now each argument is evaluated exactly once.
+
+If you do not wish to use GNU C extensions, the only solution is to be
+careful when @emph{using} the macro @code{min}.  For example, you can
+calculate the value of @code{foo (z)}, save it in a variable, and use
+that variable in @code{min}:
+
+@smallexample
+@group
+#define min(X, Y)  ((X) < (Y) ? (X) : (Y))
+@dots{}
+@{
+  int tem = foo (z);
+  next = min (x + y, tem);
+@}
+@end group
+@end smallexample
+
+@noindent
+(where we assume that @code{foo} returns type @code{int}).
+
+@node Self-Referential Macros
+@subsection Self-Referential Macros
+@cindex self-reference
+
+A @dfn{self-referential} macro is one whose name appears in its
+definition.  Recall that all macro definitions are rescanned for more
+macros to replace.  If the self-reference were considered a use of the
+macro, it would produce an infinitely large expansion.  To prevent this,
+the self-reference is not considered a macro call.  It is passed into
+the preprocessor output unchanged.  Consider an example:
+
+@smallexample
+#define foo (4 + foo)
+@end smallexample
+
+@noindent
+where @code{foo} is also a variable in your program.
+
+Following the ordinary rules, each reference to @code{foo} will expand
+into @code{(4 + foo)}; then this will be rescanned and will expand into
+@code{(4 + (4 + foo))}; and so on until the computer runs out of memory.
+
+The self-reference rule cuts this process short after one step, at
+@code{(4 + foo)}.  Therefore, this macro definition has the possibly
+useful effect of causing the program to add 4 to the value of @code{foo}
+wherever @code{foo} is referred to.
+
+In most cases, it is a bad idea to take advantage of this feature.  A
+person reading the program who sees that @code{foo} is a variable will
+not expect that it is a macro as well.  The reader will come across the
+identifier @code{foo} in the program and think its value should be that
+of the variable @code{foo}, whereas in fact the value is four greater.
+
+One common, useful use of self-reference is to create a macro which
+expands to itself.  If you write
+
+@smallexample
+#define EPERM EPERM
+@end smallexample
+
+@noindent
+then the macro @code{EPERM} expands to @code{EPERM}.  Effectively, it is
+left alone by the preprocessor whenever it's used in running text.  You
+can tell that it's a macro with @samp{#ifdef}.  You might do this if you
+want to define numeric constants with an @code{enum}, but have
+@samp{#ifdef} be true for each constant.
+
+If a macro @code{x} expands to use a macro @code{y}, and the expansion of
+@code{y} refers to the macro @code{x}, that is an @dfn{indirect
+self-reference} of @code{x}.  @code{x} is not expanded in this case
+either.  Thus, if we have
+
+@smallexample
+#define x (4 + y)
+#define y (2 * x)
+@end smallexample
+
+@noindent
+then @code{x} and @code{y} expand as follows:
+
+@smallexample
+@group
+x    @expansion{} (4 + y)
+     @expansion{} (4 + (2 * x))
+
+y    @expansion{} (2 * x)
+     @expansion{} (2 * (4 + y))
+@end group
+@end smallexample
+
+@noindent
+Each macro is expanded when it appears in the definition of the other
+macro, but not when it indirectly appears in its own definition.
+
+@node Argument Prescan
+@subsection Argument Prescan
+@cindex expansion of arguments
+@cindex macro argument expansion
+@cindex prescan of macro arguments
+
+Macro arguments are completely macro-expanded before they are
+substituted into a macro body, unless they are stringified or pasted
+with other tokens.  After substitution, the entire macro body, including
+the substituted arguments, is scanned again for macros to be expanded.
+The result is that the arguments are scanned @emph{twice} to expand
+macro calls in them.
+
+Most of the time, this has no effect.  If the argument contained any
+macro calls, they are expanded during the first scan.  The result
+therefore contains no macro calls, so the second scan does not change
+it.  If the argument were substituted as given, with no prescan, the
+single remaining scan would find the same macro calls and produce the
+same results.
+
+You might expect the double scan to change the results when a
+self-referential macro is used in an argument of another macro
+(@pxref{Self-Referential Macros}): the self-referential macro would be
+expanded once in the first scan, and a second time in the second scan.
+However, this is not what happens.  The self-references that do not
+expand in the first scan are marked so that they will not expand in the
+second scan either.
+
+You might wonder, ``Why mention the prescan, if it makes no difference?
+And why not skip it and make the preprocessor faster?''  The answer is
+that the prescan does make a difference in three special cases:
+
+@itemize @bullet
+@item
+Nested calls to a macro.
+
+We say that @dfn{nested} calls to a macro occur when a macro's argument
+contains a call to that very macro.  For example, if @code{f} is a macro
+that expects one argument, @code{f (f (1))} is a nested pair of calls to
+@code{f}.  The desired expansion is made by expanding @code{f (1)} and
+substituting that into the definition of @code{f}.  The prescan causes
+the expected result to happen.  Without the prescan, @code{f (1)} itself
+would be substituted as an argument, and the inner use of @code{f} would
+appear during the main scan as an indirect self-reference and would not
+be expanded.
+
+@item
+Macros that call other macros that stringify or concatenate.
+
+If an argument is stringified or concatenated, the prescan does not
+occur.  If you @emph{want} to expand a macro, then stringify or
+concatenate its expansion, you can do that by causing one macro to call
+another macro that does the stringification or concatenation.  For
+instance, if you have
+
+@smallexample
+#define AFTERX(x) X_ ## x
+#define XAFTERX(x) AFTERX(x)
+#define TABLESIZE 1024
+#define BUFSIZE TABLESIZE
+@end smallexample
+
+then @code{AFTERX(BUFSIZE)} expands to @code{X_BUFSIZE}, and
+@code{XAFTERX(BUFSIZE)} expands to @code{X_1024}.  (Not to
+@code{X_TABLESIZE}.  Prescan always does a complete expansion.)
+
+@item
+Macros used in arguments, whose expansions contain unshielded commas.
+
+This can cause a macro expanded on the second scan to be called with the
+wrong number of arguments.  Here is an example:
+
+@smallexample
+#define foo  a,b
+#define bar(x) lose(x)
+#define lose(x) (1 + (x))
+@end smallexample
+
+We would like @code{bar(foo)} to turn into @code{(1 + (foo))}, which
+would then turn into @code{(1 + (a,b))}.  Instead, @code{bar(foo)}
+expands into @code{lose(a,b)}, and you get an error because @code{lose}
+requires a single argument.  In this case, the problem is easily solved
+by the same parentheses that ought to be used to prevent misnesting of
+arithmetic operations:
+
+@smallexample
+#define foo (a,b)
+@exdent or
+#define bar(x) lose((x))
+@end smallexample
+
+The extra pair of parentheses prevents the comma in @code{foo}'s
+definition from being interpreted as an argument separator.
+
+@end itemize
+
+@node Newlines in Arguments
+@subsection Newlines in Arguments
+@cindex newlines in macro arguments
+
+The invocation of a function-like macro can extend over many logical
+lines.  However, in the present implementation, the entire expansion
+comes out on one line.  Thus line numbers emitted by the compiler or
+debugger refer to the line the invocation started on, which might be
+different to the line containing the argument causing the problem.
+
+Here is an example illustrating this:
+
+@smallexample
+#define ignore_second_arg(a,b,c) a; c
+
+ignore_second_arg (foo (),
+                   ignored (),
+                   syntax error);
+@end smallexample
+
+@noindent
+The syntax error triggered by the tokens @code{syntax error} results in
+an error message citing line three---the line of ignore_second_arg---
+even though the problematic code comes from line five.
+
+We consider this a bug, and intend to fix it in the near future.
+
+@node Conditionals
+@chapter Conditionals
+@cindex conditionals
+
+A @dfn{conditional} is a directive that instructs the preprocessor to
+select whether or not to include a chunk of code in the final token
+stream passed to the compiler.  Preprocessor conditionals can test
+arithmetic expressions, or whether a name is defined as a macro, or both
+simultaneously using the special @code{defined} operator.
+
+A conditional in the C preprocessor resembles in some ways an @code{if}
+statement in C, but it is important to understand the difference between
+them.  The condition in an @code{if} statement is tested during the
+execution of your program.  Its purpose is to allow your program to
+behave differently from run to run, depending on the data it is
+operating on.  The condition in a preprocessing conditional directive is
+tested when your program is compiled.  Its purpose is to allow different
+code to be included in the program depending on the situation at the
+time of compilation.
+
+However, the distinction is becoming less clear.  Modern compilers often
+do test @code{if} statements when a program is compiled, if their
+conditions are known not to vary at run time, and eliminate code which
+can never be executed.  If you can count on your compiler to do this,
+you may find that your program is more readable if you use @code{if}
+statements with constant conditions (perhaps determined by macros).  Of
+course, you can only use this to exclude code, not type definitions or
+other preprocessing directives, and you can only do it if the code
+remains syntactically valid when it is not to be used.
+
+GCC version 3 eliminates this kind of never-executed code even when
+not optimizing.  Older versions did it only when optimizing.
+
+@menu
+* Conditional Uses::
+* Conditional Syntax::
+* Deleted Code::
+@end menu
+
+@node Conditional Uses
+@section Conditional Uses
+
+There are three general reasons to use a conditional.
+
+@itemize @bullet
+@item
+A program may need to use different code depending on the machine or
+operating system it is to run on.  In some cases the code for one
+operating system may be erroneous on another operating system; for
+example, it might refer to data types or constants that do not exist on
+the other system.  When this happens, it is not enough to avoid
+executing the invalid code.  Its mere presence will cause the compiler
+to reject the program.  With a preprocessing conditional, the offending
+code can be effectively excised from the program when it is not valid.
+
+@item
+You may want to be able to compile the same source file into two
+different programs.  One version might make frequent time-consuming
+consistency checks on its intermediate data, or print the values of
+those data for debugging, and the other not.
+
+@item
+A conditional whose condition is always false is one way to exclude code
+from the program but keep it as a sort of comment for future reference.
+@end itemize
+
+Simple programs that do not need system-specific logic or complex
+debugging hooks generally will not need to use preprocessing
+conditionals.
+
+@node Conditional Syntax
+@section Conditional Syntax
+
+@findex #if
+A conditional in the C preprocessor begins with a @dfn{conditional
+directive}: @samp{#if}, @samp{#ifdef} or @samp{#ifndef}.
+
+@menu
+* Ifdef::
+* If::
+* Defined::
+* Else::
+* Elif::
+@end menu
+
+@node Ifdef
+@subsection Ifdef
+@findex #ifdef
+@findex #endif
+
+The simplest sort of conditional is
+
+@smallexample
+@group
+#ifdef @var{MACRO}
+
+@var{controlled text}
+
+#endif /* @var{MACRO} */
+@end group
+@end smallexample
+
+@cindex conditional group
+This block is called a @dfn{conditional group}.  @var{controlled text}
+will be included in the output of the preprocessor if and only if
+@var{MACRO} is defined.  We say that the conditional @dfn{succeeds} if
+@var{MACRO} is defined, @dfn{fails} if it is not.
+
+The @var{controlled text} inside of a conditional can include
+preprocessing directives.  They are executed only if the conditional
+succeeds.  You can nest conditional groups inside other conditional
+groups, but they must be completely nested.  In other words,
+@samp{#endif} always matches the nearest @samp{#ifdef} (or
+@samp{#ifndef}, or @samp{#if}).  Also, you cannot start a conditional
+group in one file and end it in another.
+
+Even if a conditional fails, the @var{controlled text} inside it is
+still run through initial transformations and tokenization.  Therefore,
+it must all be lexically valid C@.  Normally the only way this matters is
+that all comments and string literals inside a failing conditional group
+must still be properly ended.
+
+The comment following the @samp{#endif} is not required, but it is a
+good practice if there is a lot of @var{controlled text}, because it
+helps people match the @samp{#endif} to the corresponding @samp{#ifdef}.
+Older programs sometimes put @var{MACRO} directly after the
+@samp{#endif} without enclosing it in a comment.  This is invalid code
+according to the C standard.  CPP accepts it with a warning.  It
+never affects which @samp{#ifndef} the @samp{#endif} matches.
+
+@findex #ifndef
+Sometimes you wish to use some code if a macro is @emph{not} defined.
+You can do this by writing @samp{#ifndef} instead of @samp{#ifdef}.
+One common use of @samp{#ifndef} is to include code only the first
+time a header file is included.  @xref{Once-Only Headers}.
+
+Macro definitions can vary between compilations for several reasons.
+Here are some samples.
+
+@itemize @bullet
+@item
+Some macros are predefined on each kind of machine
+(@pxref{System-specific Predefined Macros}).  This allows you to provide
+code specially tuned for a particular machine.
+
+@item
+System header files define more macros, associated with the features
+they implement.  You can test these macros with conditionals to avoid
+using a system feature on a machine where it is not implemented.
+
+@item
+Macros can be defined or undefined with the @option{-D} and @option{-U}
+command line options when you compile the program.  You can arrange to
+compile the same source file into two different programs by choosing a
+macro name to specify which program you want, writing conditionals to
+test whether or how this macro is defined, and then controlling the
+state of the macro with command line options, perhaps set in the
+Makefile.  @xref{Invocation}.
+
+@item
+Your program might have a special header file (often called
+@file{config.h}) that is adjusted when the program is compiled.  It can
+define or not define macros depending on the features of the system and
+the desired capabilities of the program.  The adjustment can be
+automated by a tool such as @command{autoconf}, or done by hand.
+@end itemize
+
+@node If
+@subsection If
+
+The @samp{#if} directive allows you to test the value of an arithmetic
+expression, rather than the mere existence of one macro.  Its syntax is
+
+@smallexample
+@group
+#if @var{expression}
+
+@var{controlled text}
+
+#endif /* @var{expression} */
+@end group
+@end smallexample
+
+@var{expression} is a C expression of integer type, subject to stringent
+restrictions.  It may contain
+
+@itemize @bullet
+@item
+Integer constants.
+
+@item
+Character constants, which are interpreted as they would be in normal
+code.
+
+@item
+Arithmetic operators for addition, subtraction, multiplication,
+division, bitwise operations, shifts, comparisons, and logical
+operations (@code{&&} and @code{||}).  The latter two obey the usual
+short-circuiting rules of standard C@.
+
+@item
+Macros.  All macros in the expression are expanded before actual
+computation of the expression's value begins.
+
+@item
+Uses of the @code{defined} operator, which lets you check whether macros
+are defined in the middle of an @samp{#if}.
+
+@item
+Identifiers that are not macros, which are all considered to be the
+number zero.  This allows you to write @code{@w{#if MACRO}} instead of
+@code{@w{#ifdef MACRO}}, if you know that MACRO, when defined, will
+always have a nonzero value.  Function-like macros used without their
+function call parentheses are also treated as zero.
+
+In some contexts this shortcut is undesirable.  The @option{-Wundef}
+option causes GCC to warn whenever it encounters an identifier which is
+not a macro in an @samp{#if}.
+@end itemize
+
+The preprocessor does not know anything about types in the language.
+Therefore, @code{sizeof} operators are not recognized in @samp{#if}, and
+neither are @code{enum} constants.  They will be taken as identifiers
+which are not macros, and replaced by zero.  In the case of
+@code{sizeof}, this is likely to cause the expression to be invalid.
+
+The preprocessor calculates the value of @var{expression}.  It carries
+out all calculations in the widest integer type known to the compiler;
+on most machines supported by GCC this is 64 bits.  This is not the same
+rule as the compiler uses to calculate the value of a constant
+expression, and may give different results in some cases.  If the value
+comes out to be nonzero, the @samp{#if} succeeds and the @var{controlled
+text} is included; otherwise it is skipped.
+
+@node Defined
+@subsection Defined
+
+@cindex @code{defined}
+The special operator @code{defined} is used in @samp{#if} and
+@samp{#elif} expressions to test whether a certain name is defined as a
+macro.  @code{defined @var{name}} and @code{defined (@var{name})} are
+both expressions whose value is 1 if @var{name} is defined as a macro at
+the current point in the program, and 0 otherwise.  Thus,  @code{@w{#if
+defined MACRO}} is precisely equivalent to @code{@w{#ifdef MACRO}}.
+
+@code{defined} is useful when you wish to test more than one macro for
+existence at once.  For example,
+
+@smallexample
+#if defined (__vax__) || defined (__ns16000__)
+@end smallexample
+
+@noindent
+would succeed if either of the names @code{__vax__} or
+@code{__ns16000__} is defined as a macro.
+
+Conditionals written like this:
+
+@smallexample
+#if defined BUFSIZE && BUFSIZE >= 1024
+@end smallexample
+
+@noindent
+can generally be simplified to just @code{@w{#if BUFSIZE >= 1024}},
+since if @code{BUFSIZE} is not defined, it will be interpreted as having
+the value zero.
+
+If the @code{defined} operator appears as a result of a macro expansion,
+the C standard says the behavior is undefined.  GNU cpp treats it as a
+genuine @code{defined} operator and evaluates it normally.  It will warn
+wherever your code uses this feature if you use the command-line option
+@option{-pedantic}, since other compilers may handle it differently.
+
+@node Else
+@subsection Else
+
+@findex #else
+The @samp{#else} directive can be added to a conditional to provide
+alternative text to be used if the condition fails.  This is what it
+looks like:
+
+@smallexample
+@group
+#if @var{expression}
+@var{text-if-true}
+#else /* Not @var{expression} */
+@var{text-if-false}
+#endif /* Not @var{expression} */
+@end group
+@end smallexample
+
+@noindent
+If @var{expression} is nonzero, the @var{text-if-true} is included and
+the @var{text-if-false} is skipped.  If @var{expression} is zero, the
+opposite happens.
+
+You can use @samp{#else} with @samp{#ifdef} and @samp{#ifndef}, too.
+
+@node Elif
+@subsection Elif
+
+@findex #elif
+One common case of nested conditionals is used to check for more than two
+possible alternatives.  For example, you might have
+
+@smallexample
+#if X == 1
+@dots{}
+#else /* X != 1 */
+#if X == 2
+@dots{}
+#else /* X != 2 */
+@dots{}
+#endif /* X != 2 */
+#endif /* X != 1 */
+@end smallexample
+
+Another conditional directive, @samp{#elif}, allows this to be
+abbreviated as follows:
+
+@smallexample
+#if X == 1
+@dots{}
+#elif X == 2
+@dots{}
+#else /* X != 2 and X != 1*/
+@dots{}
+#endif /* X != 2 and X != 1*/
+@end smallexample
+
+@samp{#elif} stands for ``else if''.  Like @samp{#else}, it goes in the
+middle of a conditional group and subdivides it; it does not require a
+matching @samp{#endif} of its own.  Like @samp{#if}, the @samp{#elif}
+directive includes an expression to be tested.  The text following the
+@samp{#elif} is processed only if the original @samp{#if}-condition
+failed and the @samp{#elif} condition succeeds.
+
+More than one @samp{#elif} can go in the same conditional group.  Then
+the text after each @samp{#elif} is processed only if the @samp{#elif}
+condition succeeds after the original @samp{#if} and all previous
+@samp{#elif} directives within it have failed.
+
+@samp{#else} is allowed after any number of @samp{#elif} directives, but
+@samp{#elif} may not follow @samp{#else}.
+
+@node Deleted Code
+@section Deleted Code
+@cindex commenting out code
+
+If you replace or delete a part of the program but want to keep the old
+code around for future reference, you often cannot simply comment it
+out.  Block comments do not nest, so the first comment inside the old
+code will end the commenting-out.  The probable result is a flood of
+syntax errors.
+
+One way to avoid this problem is to use an always-false conditional
+instead.  For instance, put @code{#if 0} before the deleted code and
+@code{#endif} after it.  This works even if the code being turned
+off contains conditionals, but they must be entire conditionals
+(balanced @samp{#if} and @samp{#endif}).
+
+Some people use @code{#ifdef notdef} instead.  This is risky, because
+@code{notdef} might be accidentally defined as a macro, and then the
+conditional would succeed.  @code{#if 0} can be counted on to fail.
+
+Do not use @code{#if 0} for comments which are not C code.  Use a real
+comment, instead.  The interior of @code{#if 0} must consist of complete
+tokens; in particular, single-quote characters must balance.  Comments
+often contain unbalanced single-quote characters (known in English as
+apostrophes).  These confuse @code{#if 0}.  They don't confuse
+@samp{/*}.
+
+@node Diagnostics
+@chapter Diagnostics
+@cindex diagnostic
+@cindex reporting errors
+@cindex reporting warnings
+
+@findex #error
+The directive @samp{#error} causes the preprocessor to report a fatal
+error.  The tokens forming the rest of the line following @samp{#error}
+are used as the error message.
+
+You would use @samp{#error} inside of a conditional that detects a
+combination of parameters which you know the program does not properly
+support.  For example, if you know that the program will not run
+properly on a VAX, you might write
+
+@smallexample
+@group
+#ifdef __vax__
+#error "Won't work on VAXen.  See comments at get_last_object."
+#endif
+@end group
+@end smallexample
+
+If you have several configuration parameters that must be set up by
+the installation in a consistent way, you can use conditionals to detect
+an inconsistency and report it with @samp{#error}.  For example,
+
+@smallexample
+#if !defined(UNALIGNED_INT_ASM_OP) && defined(DWARF2_DEBUGGING_INFO)
+#error "DWARF2_DEBUGGING_INFO requires UNALIGNED_INT_ASM_OP."
+#endif
+@end smallexample
+
+@findex #warning
+The directive @samp{#warning} is like @samp{#error}, but causes the
+preprocessor to issue a warning and continue preprocessing.  The tokens
+following @samp{#warning} are used as the warning message.
+
+You might use @samp{#warning} in obsolete header files, with a message
+directing the user to the header file which should be used instead.
+
+Neither @samp{#error} nor @samp{#warning} macro-expands its argument.
+Internal whitespace sequences are each replaced with a single space.
+The line must consist of complete tokens.  It is wisest to make the
+argument of these directives be a single string constant; this avoids
+problems with apostrophes and the like.
+
+@node Line Control
+@chapter Line Control
+@cindex line control
+
+The C preprocessor informs the C compiler of the location in your source
+code where each token came from.  Presently, this is just the file name
+and line number.  All the tokens resulting from macro expansion are
+reported as having appeared on the line of the source file where the
+outermost macro was used.  We intend to be more accurate in the future.
+
+If you write a program which generates source code, such as the
+@command{bison} parser generator, you may want to adjust the preprocessor's
+notion of the current file name and line number by hand.  Parts of the
+output from @command{bison} are generated from scratch, other parts come
+from a standard parser file.  The rest are copied verbatim from
+@command{bison}'s input.  You would like compiler error messages and
+symbolic debuggers to be able to refer to @code{bison}'s input file.
+
+@findex #line
+@command{bison} or any such program can arrange this by writing
+@samp{#line} directives into the output file.  @samp{#line} is a
+directive that specifies the original line number and source file name
+for subsequent input in the current preprocessor input file.
+@samp{#line} has three variants:
+
+@table @code
+@item #line @var{linenum}
+@var{linenum} is a non-negative decimal integer constant.  It specifies
+the line number which should be reported for the following line of
+input.  Subsequent lines are counted from @var{linenum}.
+
+@item #line @var{linenum} @var{filename}
+@var{linenum} is the same as for the first form, and has the same
+effect.  In addition, @var{filename} is a string constant.  The
+following line and all subsequent lines are reported to come from the
+file it specifies, until something else happens to change that.
+@var{filename} is interpreted according to the normal rules for a string
+constant: backslash escapes are interpreted.  This is different from
+@samp{#include}.
+
+Previous versions of CPP did not interpret escapes in @samp{#line};
+we have changed it because the standard requires they be interpreted,
+and most other compilers do.
+
+@item #line @var{anything else}
+@var{anything else} is checked for macro calls, which are expanded.
+The result should match one of the above two forms.
+@end table
+
+@samp{#line} directives alter the results of the @code{__FILE__} and
+@code{__LINE__} predefined macros from that point on.  @xref{Standard
+Predefined Macros}.  They do not have any effect on @samp{#include}'s
+idea of the directory containing the current file.  This is a change
+from GCC 2.95.  Previously, a file reading
+
+@smallexample
+#line 1 "../src/gram.y"
+#include "gram.h"
+@end smallexample
+
+would search for @file{gram.h} in @file{../src}, then the @option{-I}
+chain; the directory containing the physical source file would not be
+searched.  In GCC 3.0 and later, the @samp{#include} is not affected by
+the presence of a @samp{#line} referring to a different directory.
+
+We made this change because the old behavior caused problems when
+generated source files were transported between machines.  For instance,
+it is common practice to ship generated parsers with a source release,
+so that people building the distribution do not need to have yacc or
+Bison installed.  These files frequently have @samp{#line} directives
+referring to the directory tree of the system where the distribution was
+created.  If GCC tries to search for headers in those directories, the
+build is likely to fail.
+
+The new behavior can cause failures too, if the generated file is not
+in the same directory as its source and it attempts to include a header
+which would be visible searching from the directory containing the
+source file.  However, this problem is easily solved with an additional
+@option{-I} switch on the command line.  The failures caused by the old
+semantics could sometimes be corrected only by editing the generated
+files, which is difficult and error-prone.
+
+@node Pragmas
+@chapter Pragmas
+
+The @samp{#pragma} directive is the method specified by the C standard
+for providing additional information to the compiler, beyond what is
+conveyed in the language itself.  Three forms of this directive
+(commonly known as @dfn{pragmas}) are specified by the 1999 C standard.
+A C compiler is free to attach any meaning it likes to other pragmas.
+
+GCC has historically preferred to use extensions to the syntax of the
+language, such as @code{__attribute__}, for this purpose.  However, GCC
+does define a few pragmas of its own.  These mostly have effects on the
+entire translation unit or source file.
+
+In GCC version 3, all GNU-defined, supported pragmas have been given a
+@code{GCC} prefix.  This is in line with the @code{STDC} prefix on all
+pragmas defined by C99.  For backward compatibility, pragmas which were
+recognized by previous versions are still recognized without the
+@code{GCC} prefix, but that usage is deprecated.  Some older pragmas are
+deprecated in their entirety.  They are not recognized with the
+@code{GCC} prefix.  @xref{Obsolete Features}.
+
+@cindex @code{_Pragma}
+C99 introduces the @code{@w{_Pragma}} operator.  This feature addresses a
+major problem with @samp{#pragma}: being a directive, it cannot be
+produced as the result of macro expansion.  @code{@w{_Pragma}} is an
+operator, much like @code{sizeof} or @code{defined}, and can be embedded
+in a macro.
+
+Its syntax is @code{@w{_Pragma (@var{string-literal})}}, where
+@var{string-literal} can be either a normal or wide-character string
+literal.  It is destringized, by replacing all @samp{\\} with a single
+@samp{\} and all @samp{\"} with a @samp{"}.  The result is then
+processed as if it had appeared as the right hand side of a
+@samp{#pragma} directive.  For example,
+
+@smallexample
+_Pragma ("GCC dependency \"parse.y\"")
+@end smallexample
+
+@noindent
+has the same effect as @code{#pragma GCC dependency "parse.y"}.  The
+same effect could be achieved using macros, for example
+
+@smallexample
+#define DO_PRAGMA(x) _Pragma (#x)
+DO_PRAGMA (GCC dependency "parse.y")
+@end smallexample
+
+The standard is unclear on where a @code{_Pragma} operator can appear.
+The preprocessor does not accept it within a preprocessing conditional
+directive like @samp{#if}.  To be safe, you are probably best keeping it
+out of directives other than @samp{#define}, and putting it on a line of
+its own.
+
+This manual documents the pragmas which are meaningful to the
+preprocessor itself.  Other pragmas are meaningful to the C or C++
+compilers.  They are documented in the GCC manual.
+
+@ftable @code
+@item #pragma GCC dependency
+@code{#pragma GCC dependency} allows you to check the relative dates of
+the current file and another file.  If the other file is more recent than
+the current file, a warning is issued.  This is useful if the current
+file is derived from the other file, and should be regenerated.  The
+other file is searched for using the normal include search path.
+Optional trailing text can be used to give more information in the
+warning message.
+
+@smallexample
+#pragma GCC dependency "parse.y"
+#pragma GCC dependency "/usr/include/time.h" rerun fixincludes
+@end smallexample
+
+@item #pragma GCC poison
+Sometimes, there is an identifier that you want to remove completely
+from your program, and make sure that it never creeps back in.  To
+enforce this, you can @dfn{poison} the identifier with this pragma.
+@code{#pragma GCC poison} is followed by a list of identifiers to
+poison.  If any of those identifiers appears anywhere in the source
+after the directive, it is a hard error.  For example,
+
+@smallexample
+#pragma GCC poison printf sprintf fprintf
+sprintf(some_string, "hello");
+@end smallexample
+
+@noindent
+will produce an error.
+
+If a poisoned identifier appears as part of the expansion of a macro
+which was defined before the identifier was poisoned, it will @emph{not}
+cause an error.  This lets you poison an identifier without worrying
+about system headers defining macros that use it.
+
+For example,
+
+@smallexample
+#define strrchr rindex
+#pragma GCC poison rindex
+strrchr(some_string, 'h');
+@end smallexample
+
+@noindent
+will not produce an error.
+
+@item #pragma GCC system_header
+This pragma takes no arguments.  It causes the rest of the code in the
+current file to be treated as if it came from a system header.
+@xref{System Headers}.
+
+@end ftable
+
+@node Other Directives
+@chapter Other Directives
+
+@findex #ident
+@findex #sccs
+The @samp{#ident} directive takes one argument, a string constant.  On
+some systems, that string constant is copied into a special segment of
+the object file.  On other systems, the directive is ignored.  The
+@samp{#sccs} directive is a synonym for @samp{#ident}.
+
+These directives are not part of the C standard, but they are not
+official GNU extensions either.  What historical information we have
+been able to find, suggests they originated with System V@.
+
+@cindex null directive
+The @dfn{null directive} consists of a @samp{#} followed by a newline,
+with only whitespace (including comments) in between.  A null directive
+is understood as a preprocessing directive but has no effect on the
+preprocessor output.  The primary significance of the existence of the
+null directive is that an input line consisting of just a @samp{#} will
+produce no output, rather than a line of output containing just a
+@samp{#}.  Supposedly some old C programs contain such lines.
+
+@node Preprocessor Output
+@chapter Preprocessor Output
+
+When the C preprocessor is used with the C, C++, or Objective-C
+compilers, it is integrated into the compiler and communicates a stream
+of binary tokens directly to the compiler's parser.  However, it can
+also be used in the more conventional standalone mode, where it produces
+textual output.
+@c FIXME: Document the library interface.
+
+@cindex output format
+The output from the C preprocessor looks much like the input, except
+that all preprocessing directive lines have been replaced with blank
+lines and all comments with spaces.  Long runs of blank lines are
+discarded.
+
+The ISO standard specifies that it is implementation defined whether a
+preprocessor preserves whitespace between tokens, or replaces it with
+e.g.@: a single space.  In GNU CPP, whitespace between tokens is collapsed
+to become a single space, with the exception that the first token on a
+non-directive line is preceded with sufficient spaces that it appears in
+the same column in the preprocessed output that it appeared in the
+original source file.  This is so the output is easy to read.
+@xref{Differences from previous versions}.  CPP does not insert any
+whitespace where there was none in the original source, except where
+necessary to prevent an accidental token paste.
+
+@cindex linemarkers
+Source file name and line number information is conveyed by lines
+of the form
+
+@smallexample
+# @var{linenum} @var{filename} @var{flags}
+@end smallexample
+
+@noindent
+These are called @dfn{linemarkers}.  They are inserted as needed into
+the output (but never within a string or character constant).  They mean
+that the following line originated in file @var{filename} at line
+@var{linenum}.  @var{filename} will never contain any non-printing
+characters; they are replaced with octal escape sequences.
+
+After the file name comes zero or more flags, which are @samp{1},
+@samp{2}, @samp{3}, or @samp{4}.  If there are multiple flags, spaces
+separate them.  Here is what the flags mean:
+
+@table @samp
+@item 1
+This indicates the start of a new file.
+@item 2
+This indicates returning to a file (after having included another file).
+@item 3
+This indicates that the following text comes from a system header file,
+so certain warnings should be suppressed.
+@item 4
+This indicates that the following text should be treated as being
+wrapped in an implicit @code{extern "C"} block.
+@c maybe cross reference NO_IMPLICIT_EXTERN_C
+@end table
+
+As an extension, the preprocessor accepts linemarkers in non-assembler
+input files.  They are treated like the corresponding @samp{#line}
+directive, (@pxref{Line Control}), except that trailing flags are
+permitted, and are interpreted with the meanings described above.  If
+multiple flags are given, they must be in ascending order.
+
+Some directives may be duplicated in the output of the preprocessor.
+These are @samp{#ident} (always), @samp{#pragma} (only if the
+preprocessor does not handle the pragma itself), and @samp{#define} and
+@samp{#undef} (with certain debugging options).  If this happens, the
+@samp{#} of the directive will always be in the first column, and there
+will be no space between the @samp{#} and the directive name.  If macro
+expansion happens to generate tokens which might be mistaken for a
+duplicated directive, a space will be inserted between the @samp{#} and
+the directive name.
+
+@node Traditional Mode
+@chapter Traditional Mode
+
+Traditional (pre-standard) C preprocessing is rather different from
+the preprocessing specified by the standard.  When GCC is given the
+@option{-traditional-cpp} option, it attempts to emulate a traditional
+preprocessor.
+
+GCC versions 3.2 and later only support traditional mode semantics in
+the preprocessor, and not in the compiler front ends.  This chapter
+outlines the traditional preprocessor semantics we implemented.
+
+The implementation does not correspond precisely to the behavior of
+earlier versions of GCC, nor to any true traditional preprocessor.
+After all, inconsistencies among traditional implementations were a
+major motivation for C standardization.  However, we intend that it
+should be compatible with true traditional preprocessors in all ways
+that actually matter.
+
+@menu
+* Traditional lexical analysis::
+* Traditional macros::
+* Traditional miscellany::
+* Traditional warnings::
+@end menu
+
+@node Traditional lexical analysis
+@section Traditional lexical analysis
+
+The traditional preprocessor does not decompose its input into tokens
+the same way a standards-conforming preprocessor does.  The input is
+simply treated as a stream of text with minimal internal form.
+
+This implementation does not treat trigraphs (@pxref{trigraphs})
+specially since they were an invention of the standards committee.  It
+handles arbitrarily-positioned escaped newlines properly and splices
+the lines as you would expect; many traditional preprocessors did not
+do this.
+
+The form of horizontal whitespace in the input file is preserved in
+the output.  In particular, hard tabs remain hard tabs.  This can be
+useful if, for example, you are preprocessing a Makefile.
+
+Traditional CPP only recognizes C-style block comments, and treats the
+@samp{/*} sequence as introducing a comment only if it lies outside
+quoted text.  Quoted text is introduced by the usual single and double
+quotes, and also by an initial @samp{<} in a @code{#include}
+directive.
+
+Traditionally, comments are completely removed and are not replaced
+with a space.  Since a traditional compiler does its own tokenization
+of the output of the preprocessor, this means that comments can
+effectively be used as token paste operators.  However, comments
+behave like separators for text handled by the preprocessor itself,
+since it doesn't re-lex its input.  For example, in
+
+@smallexample
+#if foo/**/bar
+@end smallexample
+
+@noindent
+@samp{foo} and @samp{bar} are distinct identifiers and expanded
+separately if they happen to be macros.  In other words, this
+directive is equivalent to
+
+@smallexample
+#if foo bar
+@end smallexample
+
+@noindent
+rather than
+
+@smallexample
+#if foobar
+@end smallexample
+
+Generally speaking, in traditional mode an opening quote need not have
+a matching closing quote.  In particular, a macro may be defined with
+replacement text that contains an unmatched quote.  Of course, if you
+attempt to compile preprocessed output containing an unmatched quote
+you will get a syntax error.
+
+However, all preprocessing directives other than @code{#define}
+require matching quotes.  For example:
+
+@smallexample
+#define m This macro's fine and has an unmatched quote
+"/* This is not a comment.  */
+/* @r{This is a comment.  The following #include directive
+   is ill-formed.}  */
+#include <stdio.h
+@end smallexample
+
+Just as for the ISO preprocessor, what would be a closing quote can be
+escaped with a backslash to prevent the quoted text from closing.
+
+@node Traditional macros
+@section Traditional macros
+
+The major difference between traditional and ISO macros is that the
+former expand to text rather than to a token sequence.  CPP removes
+all leading and trailing horizontal whitespace from a macro's
+replacement text before storing it, but preserves the form of internal
+whitespace.
+
+One consequence is that it is legitimate for the replacement text to
+contain an unmatched quote (@pxref{Traditional lexical analysis}).  An
+unclosed string or character constant continues into the text
+following the macro call.  Similarly, the text at the end of a macro's
+expansion can run together with the text after the macro invocation to
+produce a single token.
+
+Normally comments are removed from the replacement text after the
+macro is expanded, but if the @option{-CC} option is passed on the
+command line comments are preserved.  (In fact, the current
+implementation removes comments even before saving the macro
+replacement text, but it careful to do it in such a way that the
+observed effect is identical even in the function-like macro case.)
+
+The ISO stringification operator @samp{#} and token paste operator
+@samp{##} have no special meaning.  As explained later, an effect
+similar to these operators can be obtained in a different way.  Macro
+names that are embedded in quotes, either from the main file or after
+macro replacement, do not expand.
+
+CPP replaces an unquoted object-like macro name with its replacement
+text, and then rescans it for further macros to replace.  Unlike
+standard macro expansion, traditional macro expansion has no provision
+to prevent recursion.  If an object-like macro appears unquoted in its
+replacement text, it will be replaced again during the rescan pass,
+and so on @emph{ad infinitum}.  GCC detects when it is expanding
+recursive macros, emits an error message, and continues after the
+offending macro invocation.
+
+@smallexample
+#define PLUS +
+#define INC(x) PLUS+x
+INC(foo);
+     @expansion{} ++foo;
+@end smallexample
+
+Function-like macros are similar in form but quite different in
+behavior to their ISO counterparts.  Their arguments are contained
+within parentheses, are comma-separated, and can cross physical lines.
+Commas within nested parentheses are not treated as argument
+separators.  Similarly, a quote in an argument cannot be left
+unclosed; a following comma or parenthesis that comes before the
+closing quote is treated like any other character.  There is no
+facility for handling variadic macros.
+
+This implementation removes all comments from macro arguments, unless
+the @option{-C} option is given.  The form of all other horizontal
+whitespace in arguments is preserved, including leading and trailing
+whitespace.  In particular
+
+@smallexample
+f( )
+@end smallexample
+
+@noindent
+is treated as an invocation of the macro @samp{f} with a single
+argument consisting of a single space.  If you want to invoke a
+function-like macro that takes no arguments, you must not leave any
+whitespace between the parentheses.
+
+If a macro argument crosses a new line, the new line is replaced with
+a space when forming the argument.  If the previous line contained an
+unterminated quote, the following line inherits the quoted state.
+
+Traditional preprocessors replace parameters in the replacement text
+with their arguments regardless of whether the parameters are within
+quotes or not.  This provides a way to stringize arguments.  For
+example
+
+@smallexample
+#define str(x) "x"
+str(/* @r{A comment} */some text )
+     @expansion{} "some text "
+@end smallexample
+
+@noindent
+Note that the comment is removed, but that the trailing space is
+preserved.  Here is an example of using a comment to effect token
+pasting.
+
+@smallexample
+#define suffix(x) foo_/**/x
+suffix(bar)
+     @expansion{} foo_bar
+@end smallexample
+
+@node Traditional miscellany
+@section Traditional miscellany
+
+Here are some things to be aware of when using the traditional
+preprocessor.
+
+@itemize @bullet
+@item
+Preprocessing directives are recognized only when their leading
+@samp{#} appears in the first column.  There can be no whitespace
+between the beginning of the line and the @samp{#}, but whitespace can
+follow the @samp{#}.
+
+@item
+A true traditional C preprocessor does not recognize @samp{#error} or
+@samp{#pragma}, and may not recognize @samp{#elif}.  CPP supports all
+the directives in traditional mode that it supports in ISO mode,
+including extensions, with the exception that the effects of
+@samp{#pragma GCC poison} are undefined.
+
+@item
+__STDC__ is not defined.
+
+@item
+If you use digraphs the behavior is undefined.
+
+@item
+If a line that looks like a directive appears within macro arguments,
+the behavior is undefined.
+
+@end itemize
+
+@node Traditional warnings
+@section Traditional warnings
+You can request warnings about features that did not exist, or worked
+differently, in traditional C with the @option{-Wtraditional} option.
+GCC does not warn about features of ISO C which you must use when you
+are using a conforming compiler, such as the @samp{#} and @samp{##}
+operators.
+
+Presently @option{-Wtraditional} warns about:
+
+@itemize @bullet
+@item
+Macro parameters that appear within string literals in the macro body.
+In traditional C macro replacement takes place within string literals,
+but does not in ISO C@.
+
+@item
+In traditional C, some preprocessor directives did not exist.
+Traditional preprocessors would only consider a line to be a directive
+if the @samp{#} appeared in column 1 on the line.  Therefore
+@option{-Wtraditional} warns about directives that traditional C
+understands but would ignore because the @samp{#} does not appear as the
+first character on the line.  It also suggests you hide directives like
+@samp{#pragma} not understood by traditional C by indenting them.  Some
+traditional implementations would not recognize @samp{#elif}, so it
+suggests avoiding it altogether.
+
+@item
+A function-like macro that appears without an argument list.  In some
+traditional preprocessors this was an error.  In ISO C it merely means
+that the macro is not expanded.
+
+@item
+The unary plus operator.  This did not exist in traditional C@.
+
+@item
+The @samp{U} and @samp{LL} integer constant suffixes, which were not
+available in traditional C@.  (Traditional C does support the @samp{L}
+suffix for simple long integer constants.)  You are not warned about
+uses of these suffixes in macros defined in system headers.  For
+instance, @code{UINT_MAX} may well be defined as @code{4294967295U}, but
+you will not be warned if you use @code{UINT_MAX}.
+
+You can usually avoid the warning, and the related warning about
+constants which are so large that they are unsigned, by writing the
+integer constant in question in hexadecimal, with no U suffix.  Take
+care, though, because this gives the wrong result in exotic cases.
+@end itemize
+
+@node Implementation Details
+@chapter Implementation Details
+
+Here we document details of how the preprocessor's implementation
+affects its user-visible behavior.  You should try to avoid undue
+reliance on behavior described here, as it is possible that it will
+change subtly in future implementations.
+
+Also documented here are obsolete features and changes from previous
+versions of CPP@.
+
+@menu
+* Implementation-defined behavior::
+* Implementation limits::
+* Obsolete Features::
+* Differences from previous versions::
+@end menu
+
+@node Implementation-defined behavior
+@section Implementation-defined behavior
+@cindex implementation-defined behavior
+
+This is how CPP behaves in all the cases which the C standard
+describes as @dfn{implementation-defined}.  This term means that the
+implementation is free to do what it likes, but must document its choice
+and stick to it.
+@c FIXME: Check the C++ standard for more implementation-defined stuff.
+
+@itemize @bullet
+@need 1000
+@item The mapping of physical source file multi-byte characters to the
+execution character set.
+
+Currently, CPP requires its input to be ASCII or UTF-8.  The execution
+character set may be controlled by the user, with the
+@option{-fexec-charset} and @option{-fwide-exec-charset} options.
+
+@item Identifier characters.
+@anchor{Identifier characters}
+
+The C and C++ standards allow identifiers to be composed of @samp{_}
+and the alphanumeric characters.  C++ and C99 also allow universal
+character names, and C99 further permits implementation-defined
+characters.  GCC currently only permits universal character names if
+@option{-fextended-identifiers} is used, because the implementation of
+universal character names in identifiers is experimental.
+
+GCC allows the @samp{$} character in identifiers as an extension for
+most targets.  This is true regardless of the @option{std=} switch,
+since this extension cannot conflict with standards-conforming
+programs.  When preprocessing assembler, however, dollars are not
+identifier characters by default.
+
+Currently the targets that by default do not permit @samp{$} are AVR,
+IP2K, MMIX, MIPS Irix 3, ARM aout, and PowerPC targets for the AIX and
+BeOS operating systems.
+
+You can override the default with @option{-fdollars-in-identifiers} or
+@option{fno-dollars-in-identifiers}.  @xref{fdollars-in-identifiers}.
+
+@item Non-empty sequences of whitespace characters.
+
+In textual output, each whitespace sequence is collapsed to a single
+space.  For aesthetic reasons, the first token on each non-directive
+line of output is preceded with sufficient spaces that it appears in the
+same column as it did in the original source file.
+
+@item The numeric value of character constants in preprocessor expressions.
+
+The preprocessor and compiler interpret character constants in the
+same way; i.e.@: escape sequences such as @samp{\a} are given the
+values they would have on the target machine.
+
+The compiler values a multi-character character constant a character
+at a time, shifting the previous value left by the number of bits per
+target character, and then or-ing in the bit-pattern of the new
+character truncated to the width of a target character.  The final
+bit-pattern is given type @code{int}, and is therefore signed,
+regardless of whether single characters are signed or not (a slight
+change from versions 3.1 and earlier of GCC)@.  If there are more
+characters in the constant than would fit in the target @code{int} the
+compiler issues a warning, and the excess leading characters are
+ignored.
+
+For example, @code{'ab'} for a target with an 8-bit @code{char} would be
+interpreted as @w{@samp{(int) ((unsigned char) 'a' * 256 + (unsigned char)
+'b')}}, and @code{'\234a'} as @w{@samp{(int) ((unsigned char) '\234' *
+256 + (unsigned char) 'a')}}.
+
+@item Source file inclusion.
+
+For a discussion on how the preprocessor locates header files,
+@ref{Include Operation}.
+
+@item Interpretation of the filename resulting from a macro-expanded
+@samp{#include} directive.
+
+@xref{Computed Includes}.
+
+@item Treatment of a @samp{#pragma} directive that after macro-expansion
+results in a standard pragma.
+
+No macro expansion occurs on any @samp{#pragma} directive line, so the
+question does not arise.
+
+Note that GCC does not yet implement any of the standard
+pragmas.
+
+@end itemize
+
+@node Implementation limits
+@section Implementation limits
+@cindex implementation limits
+
+CPP has a small number of internal limits.  This section lists the
+limits which the C standard requires to be no lower than some minimum,
+and all the others known.  It is intended that there should be as few limits
+as possible.  If you encounter an undocumented or inconvenient limit,
+please report that as a bug.  @xref{Bugs, , Reporting Bugs, gcc, Using
+the GNU Compiler Collection (GCC)}.
+
+Where we say something is limited @dfn{only by available memory}, that
+means that internal data structures impose no intrinsic limit, and space
+is allocated with @code{malloc} or equivalent.  The actual limit will
+therefore depend on many things, such as the size of other things
+allocated by the compiler at the same time, the amount of memory
+consumed by other processes on the same computer, etc.
+
+@itemize @bullet
+
+@item Nesting levels of @samp{#include} files.
+
+We impose an arbitrary limit of 200 levels, to avoid runaway recursion.
+The standard requires at least 15 levels.
+
+@item Nesting levels of conditional inclusion.
+
+The C standard mandates this be at least 63.  CPP is limited only by
+available memory.
+
+@item Levels of parenthesized expressions within a full expression.
+
+The C standard requires this to be at least 63.  In preprocessor
+conditional expressions, it is limited only by available memory.
+
+@item Significant initial characters in an identifier or macro name.
+
+The preprocessor treats all characters as significant.  The C standard
+requires only that the first 63 be significant.
+
+@item Number of macros simultaneously defined in a single translation unit.
+
+The standard requires at least 4095 be possible.  CPP is limited only
+by available memory.
+
+@item Number of parameters in a macro definition and arguments in a macro call.
+
+We allow @code{USHRT_MAX}, which is no smaller than 65,535.  The minimum
+required by the standard is 127.
+
+@item Number of characters on a logical source line.
+
+The C standard requires a minimum of 4096 be permitted.  CPP places
+no limits on this, but you may get incorrect column numbers reported in
+diagnostics for lines longer than 65,535 characters.
+
+@item Maximum size of a source file.
+
+The standard does not specify any lower limit on the maximum size of a
+source file.  GNU cpp maps files into memory, so it is limited by the
+available address space.  This is generally at least two gigabytes.
+Depending on the operating system, the size of physical memory may or
+may not be a limitation.
+
+@end itemize
+
+@node Obsolete Features
+@section Obsolete Features
+
+CPP has a number of features which are present mainly for
+compatibility with older programs.  We discourage their use in new code.
+In some cases, we plan to remove the feature in a future version of GCC@.
+
+@menu
+* Assertions::
+* Obsolete once-only headers::
+@end menu
+
+@node Assertions
+@subsection Assertions
+@cindex assertions
+
+@dfn{Assertions} are a deprecated alternative to macros in writing
+conditionals to test what sort of computer or system the compiled
+program will run on.  Assertions are usually predefined, but you can
+define them with preprocessing directives or command-line options.
+
+Assertions were intended to provide a more systematic way to describe
+the compiler's target system.  However, in practice they are just as
+unpredictable as the system-specific predefined macros.  In addition, they
+are not part of any standard, and only a few compilers support them.
+Therefore, the use of assertions is @strong{less} portable than the use
+of system-specific predefined macros.  We recommend you do not use them at
+all.
+
+@cindex predicates
+An assertion looks like this:
+
+@smallexample
+#@var{predicate} (@var{answer})
+@end smallexample
+
+@noindent
+@var{predicate} must be a single identifier.  @var{answer} can be any
+sequence of tokens; all characters are significant except for leading
+and trailing whitespace, and differences in internal whitespace
+sequences are ignored.  (This is similar to the rules governing macro
+redefinition.)  Thus, @code{(x + y)} is different from @code{(x+y)} but
+equivalent to @code{@w{( x + y )}}.  Parentheses do not nest inside an
+answer.
+
+@cindex testing predicates
+To test an assertion, you write it in an @samp{#if}.  For example, this
+conditional succeeds if either @code{vax} or @code{ns16000} has been
+asserted as an answer for @code{machine}.
+
+@smallexample
+#if #machine (vax) || #machine (ns16000)
+@end smallexample
+
+@noindent
+You can test whether @emph{any} answer is asserted for a predicate by
+omitting the answer in the conditional:
+
+@smallexample
+#if #machine
+@end smallexample
+
+@findex #assert
+Assertions are made with the @samp{#assert} directive.  Its sole
+argument is the assertion to make, without the leading @samp{#} that
+identifies assertions in conditionals.
+
+@smallexample
+#assert @var{predicate} (@var{answer})
+@end smallexample
+
+@noindent
+You may make several assertions with the same predicate and different
+answers.  Subsequent assertions do not override previous ones for the
+same predicate.  All the answers for any given predicate are
+simultaneously true.
+
+@cindex assertions, canceling
+@findex #unassert
+Assertions can be canceled with the @samp{#unassert} directive.  It
+has the same syntax as @samp{#assert}.  In that form it cancels only the
+answer which was specified on the @samp{#unassert} line; other answers
+for that predicate remain true.  You can cancel an entire predicate by
+leaving out the answer:
+
+@smallexample
+#unassert @var{predicate}
+@end smallexample
+
+@noindent
+In either form, if no such assertion has been made, @samp{#unassert} has
+no effect.
+
+You can also make or cancel assertions using command line options.
+@xref{Invocation}.
+
+@node Obsolete once-only headers
+@subsection Obsolete once-only headers
+
+CPP supports two more ways of indicating that a header file should be
+read only once.  Neither one is as portable as a wrapper @samp{#ifndef},
+and we recommend you do not use them in new programs.
+
+@findex #import
+In the Objective-C language, there is a variant of @samp{#include}
+called @samp{#import} which includes a file, but does so at most once.
+If you use @samp{#import} instead of @samp{#include}, then you don't
+need the conditionals inside the header file to prevent multiple
+inclusion of the contents.  GCC permits the use of @samp{#import} in C
+and C++ as well as Objective-C@.  However, it is not in standard C or C++
+and should therefore not be used by portable programs.
+
+@samp{#import} is not a well designed feature.  It requires the users of
+a header file to know that it should only be included once.  It is much
+better for the header file's implementor to write the file so that users
+don't need to know this.  Using a wrapper @samp{#ifndef} accomplishes
+this goal.
+
+In the present implementation, a single use of @samp{#import} will
+prevent the file from ever being read again, by either @samp{#import} or
+@samp{#include}.  You should not rely on this; do not use both
+@samp{#import} and @samp{#include} to refer to the same header file.
+
+Another way to prevent a header file from being included more than once
+is with the @samp{#pragma once} directive.  If @samp{#pragma once} is
+seen when scanning a header file, that file will never be read again, no
+matter what.
+
+@samp{#pragma once} does not have the problems that @samp{#import} does,
+but it is not recognized by all preprocessors, so you cannot rely on it
+in a portable program.
+
+@node Differences from previous versions
+@section Differences from previous versions
+@cindex differences from previous versions
+
+This section details behavior which has changed from previous versions
+of CPP@.  We do not plan to change it again in the near future, but
+we do not promise not to, either.
+
+The ``previous versions'' discussed here are 2.95 and before.  The
+behavior of GCC 3.0 is mostly the same as the behavior of the widely
+used 2.96 and 2.97 development snapshots.  Where there are differences,
+they generally represent bugs in the snapshots.
+
+@itemize @bullet
+
+@item -I- deprecated
+
+This option has been deprecated in 4.0.  @option{-iquote} is meant to
+replace the need for this option.
+
+@item Order of evaluation of @samp{#} and @samp{##} operators
+
+The standard does not specify the order of evaluation of a chain of
+@samp{##} operators, nor whether @samp{#} is evaluated before, after, or
+at the same time as @samp{##}.  You should therefore not write any code
+which depends on any specific ordering.  It is possible to guarantee an
+ordering, if you need one, by suitable use of nested macros.
+
+An example of where this might matter is pasting the arguments @samp{1},
+@samp{e} and @samp{-2}.  This would be fine for left-to-right pasting,
+but right-to-left pasting would produce an invalid token @samp{e-2}.
+
+GCC 3.0 evaluates @samp{#} and @samp{##} at the same time and strictly
+left to right.  Older versions evaluated all @samp{#} operators first,
+then all @samp{##} operators, in an unreliable order.
+
+@item The form of whitespace between tokens in preprocessor output
+
+@xref{Preprocessor Output}, for the current textual format.  This is
+also the format used by stringification.  Normally, the preprocessor
+communicates tokens directly to the compiler's parser, and whitespace
+does not come up at all.
+
+Older versions of GCC preserved all whitespace provided by the user and
+inserted lots more whitespace of their own, because they could not
+accurately predict when extra spaces were needed to prevent accidental
+token pasting.
+
+@item Optional argument when invoking rest argument macros
+
+As an extension, GCC permits you to omit the variable arguments entirely
+when you use a variable argument macro.  This is forbidden by the 1999 C
+standard, and will provoke a pedantic warning with GCC 3.0.  Previous
+versions accepted it silently.
+
+@item @samp{##} swallowing preceding text in rest argument macros
+
+Formerly, in a macro expansion, if @samp{##} appeared before a variable
+arguments parameter, and the set of tokens specified for that argument
+in the macro invocation was empty, previous versions of CPP would
+back up and remove the preceding sequence of non-whitespace characters
+(@strong{not} the preceding token).  This extension is in direct
+conflict with the 1999 C standard and has been drastically pared back.
+
+In the current version of the preprocessor, if @samp{##} appears between
+a comma and a variable arguments parameter, and the variable argument is
+omitted entirely, the comma will be removed from the expansion.  If the
+variable argument is empty, or the token before @samp{##} is not a
+comma, then @samp{##} behaves as a normal token paste.
+
+@item @samp{#line} and @samp{#include}
+
+The @samp{#line} directive used to change GCC's notion of the
+``directory containing the current file'', used by @samp{#include} with
+a double-quoted header file name.  In 3.0 and later, it does not.
+@xref{Line Control}, for further explanation.
+
+@item Syntax of @samp{#line}
+
+In GCC 2.95 and previous, the string constant argument to @samp{#line}
+was treated the same way as the argument to @samp{#include}: backslash
+escapes were not honored, and the string ended at the second @samp{"}.
+This is not compliant with the C standard.  In GCC 3.0, an attempt was
+made to correct the behavior, so that the string was treated as a real
+string constant, but it turned out to be buggy.  In 3.1, the bugs have
+been fixed.  (We are not fixing the bugs in 3.0 because they affect
+relatively few people and the fix is quite invasive.)
+
+@end itemize
+
+@node Invocation
+@chapter Invocation
+@cindex invocation
+@cindex command line
+
+Most often when you use the C preprocessor you will not have to invoke it
+explicitly: the C compiler will do so automatically.  However, the
+preprocessor is sometimes useful on its own.  All the options listed
+here are also acceptable to the C compiler and have the same meaning,
+except that the C compiler has different rules for specifying the output
+file.
+
+@emph{Note:} Whether you use the preprocessor by way of @command{gcc}
+or @command{cpp}, the @dfn{compiler driver} is run first.  This
+program's purpose is to translate your command into invocations of the
+programs that do the actual work.  Their command line interfaces are
+similar but not identical to the documented interface, and may change
+without notice.
+
+@ignore
+@c man begin SYNOPSIS
+cpp [@option{-D}@var{macro}[=@var{defn}]@dots{}] [@option{-U}@var{macro}]
+    [@option{-I}@var{dir}@dots{}] [@option{-iquote}@var{dir}@dots{}]
+    [@option{-W}@var{warn}@dots{}]
+    [@option{-M}|@option{-MM}] [@option{-MG}] [@option{-MF} @var{filename}]
+    [@option{-MP}] [@option{-MQ} @var{target}@dots{}]
+    [@option{-MT} @var{target}@dots{}]
+    [@option{-P}] [@option{-fno-working-directory}]
+    [@option{-x} @var{language}] [@option{-std=}@var{standard}]
+    @var{infile} @var{outfile}
+
+Only the most useful options are listed here; see below for the remainder.
+@c man end
+@c man begin SEEALSO
+gpl(7), gfdl(7), fsf-funding(7),
+gcc(1), as(1), ld(1), and the Info entries for @file{cpp}, @file{gcc}, and
+@file{binutils}.
+@c man end
+@end ignore
+
+@c man begin OPTIONS
+The C preprocessor expects two file names as arguments, @var{infile} and
+@var{outfile}.  The preprocessor reads @var{infile} together with any
+other files it specifies with @samp{#include}.  All the output generated
+by the combined input files is written in @var{outfile}.
+
+Either @var{infile} or @var{outfile} may be @option{-}, which as
+@var{infile} means to read from standard input and as @var{outfile}
+means to write to standard output.  Also, if either file is omitted, it
+means the same as if @option{-} had been specified for that file.
+
+Unless otherwise noted, or the option ends in @samp{=}, all options
+which take an argument may have that argument appear either immediately
+after the option, or with a space between option and argument:
+@option{-Ifoo} and @option{-I foo} have the same effect.
+
+@cindex grouping options
+@cindex options, grouping
+Many options have multi-letter names; therefore multiple single-letter
+options may @emph{not} be grouped: @option{-dM} is very different from
+@w{@samp{-d -M}}.
+
+@cindex options
+@include cppopts.texi
+@c man end
+
+@node Environment Variables
+@chapter Environment Variables
+@cindex environment variables
+@c man begin ENVIRONMENT
+
+This section describes the environment variables that affect how CPP
+operates.  You can use them to specify directories or prefixes to use
+when searching for include files, or to control dependency output.
+
+Note that you can also specify places to search using options such as
+@option{-I}, and control dependency output with options like
+@option{-M} (@pxref{Invocation}).  These take precedence over
+environment variables, which in turn take precedence over the
+configuration of GCC@.
+
+@include cppenv.texi
+@c man end
+
+@page
+@include fdl.texi
+
+@page
+@node Index of Directives
+@unnumbered Index of Directives
+@printindex fn
+
+@node Option Index
+@unnumbered Option Index
+@noindent
+CPP's command line options and environment variables are indexed here
+without any initial @samp{-} or @samp{--}.
+@printindex op
+
+@page
+@node Concept Index
+@unnumbered Concept Index
+@printindex cp
+
+@bye

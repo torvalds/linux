@@ -1,0 +1,342 @@
+.\"	$OpenBSD: d2i_PKCS7.3,v 1.8 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_PKCS7 3
+.Os
+.Sh NAME
+.Nm d2i_PKCS7 ,
+.Nm i2d_PKCS7 ,
+.Nm d2i_PKCS7_bio ,
+.Nm i2d_PKCS7_bio ,
+.Nm d2i_PKCS7_fp ,
+.Nm i2d_PKCS7_fp ,
+.Nm d2i_PKCS7_DIGEST ,
+.Nm i2d_PKCS7_DIGEST ,
+.Nm d2i_PKCS7_ENCRYPT ,
+.Nm i2d_PKCS7_ENCRYPT ,
+.Nm d2i_PKCS7_ENC_CONTENT ,
+.Nm i2d_PKCS7_ENC_CONTENT ,
+.Nm d2i_PKCS7_ENVELOPE ,
+.Nm i2d_PKCS7_ENVELOPE ,
+.Nm d2i_PKCS7_ISSUER_AND_SERIAL ,
+.Nm i2d_PKCS7_ISSUER_AND_SERIAL ,
+.Nm d2i_PKCS7_RECIP_INFO ,
+.Nm i2d_PKCS7_RECIP_INFO ,
+.Nm d2i_PKCS7_SIGNED ,
+.Nm i2d_PKCS7_SIGNED ,
+.Nm d2i_PKCS7_SIGNER_INFO ,
+.Nm i2d_PKCS7_SIGNER_INFO ,
+.Nm d2i_PKCS7_SIGN_ENVELOPE ,
+.Nm i2d_PKCS7_SIGN_ENVELOPE
+.Nd decode and encode PKCS#7 data structures
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft PKCS7 *
+.Fo d2i_PKCS7
+.Fa "PKCS7 **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PKCS7
+.Fa "PKCS7 *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft PKCS7 *
+.Fo d2i_PKCS7_bio
+.Fa "BIO *in_bio"
+.Fa "PKCS7 **val_out"
+.Fc
+.Ft int
+.Fo i2d_PKCS7_bio
+.Fa "BIO *out_bio"
+.Fa "PKCS7 *val_in"
+.Fc
+.Ft PKCS7 *
+.Fo d2i_PKCS7_fp
+.Fa "FILE *in_fp"
+.Fa "PKCS7 **val_out"
+.Fc
+.Ft int
+.Fo i2d_PKCS7_fp
+.Fa "FILE *out_fp"
+.Fa "PKCS7 *val_in"
+.Fc
+.Ft PKCS7_DIGEST *
+.Fo d2i_PKCS7_DIGEST
+.Fa "PKCS7_DIGEST **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PKCS7_DIGEST
+.Fa "PKCS7_DIGEST *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft PKCS7_ENCRYPT *
+.Fo d2i_PKCS7_ENCRYPT
+.Fa "PKCS7_ENCRYPT **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PKCS7_ENCRYPT
+.Fa "PKCS7_ENCRYPT *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft PKCS7_ENC_CONTENT *
+.Fo d2i_PKCS7_ENC_CONTENT
+.Fa "PKCS7_ENC_CONTENT **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PKCS7_ENC_CONTENT
+.Fa "PKCS7_ENC_CONTENT *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft PKCS7_ENVELOPE *
+.Fo d2i_PKCS7_ENVELOPE
+.Fa "PKCS7_ENVELOPE **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PKCS7_ENVELOPE
+.Fa "PKCS7_ENVELOPE *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft PKCS7_ISSUER_AND_SERIAL *
+.Fo d2i_PKCS7_ISSUER_AND_SERIAL
+.Fa "PKCS7_ISSUER_AND_SERIAL **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PKCS7_ISSUER_AND_SERIAL
+.Fa "PKCS7_ISSUER_AND_SERIAL *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft PKCS7_RECIP_INFO *
+.Fo d2i_PKCS7_RECIP_INFO
+.Fa "PKCS7_RECIP_INFO **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PKCS7_RECIP_INFO
+.Fa "PKCS7_RECIP_INFO *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft PKCS7_SIGNED *
+.Fo d2i_PKCS7_SIGNED
+.Fa "PKCS7_SIGNED **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PKCS7_SIGNED
+.Fa "PKCS7_SIGNED *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft PKCS7_SIGNER_INFO *
+.Fo d2i_PKCS7_SIGNER_INFO
+.Fa "PKCS7_SIGNER_INFO **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PKCS7_SIGNER_INFO
+.Fa "PKCS7_SIGNER_INFO *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft PKCS7_SIGN_ENVELOPE *
+.Fo d2i_PKCS7_SIGN_ENVELOPE
+.Fa "PKCS7_SIGN_ENVELOPE **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PKCS7_SIGN_ENVELOPE
+.Fa "PKCS7_SIGN_ENVELOPE *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode PKCS#7 data structures.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_PKCS7
+and
+.Fn i2d_PKCS7
+decode and encode an ASN.1
+.Vt ContentInfo
+structure defined in RFC 2315 section 7.
+.Fn d2i_PKCS7_bio ,
+.Fn i2d_PKCS7_bio ,
+.Fn d2i_PKCS7_fp ,
+and
+.Fn i2d_PKCS7_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn d2i_PKCS7_DIGEST
+and
+.Fn i2d_PKCS7_DIGEST
+decode and encode an ASN.1
+.Vt DigestedData
+structure defined in RFC 2315 section 12.
+.Pp
+.Fn d2i_PKCS7_ENCRYPT
+and
+.Fn i2d_PKCS7_ENCRYPT
+decode and encode an ASN.1
+.Vt EncryptedData
+structure defined in RFC 2315 section 13.
+.Pp
+.Fn d2i_PKCS7_ENC_CONTENT
+and
+.Fn i2d_PKCS7_ENC_CONTENT
+decode and encode an ASN.1
+.Vt EncryptedContentInfo
+structure defined in RFC 2315 section 10.1.
+.Pp
+.Fn d2i_PKCS7_ENVELOPE
+and
+.Fn i2d_PKCS7_ENVELOPE
+decode and encode an ASN.1
+.Vt EnvelopedData
+structure defined in RFC 2315 section 10.
+.Pp
+.Fn d2i_PKCS7_ISSUER_AND_SERIAL
+and
+.Fn i2d_PKCS7_ISSUER_AND_SERIAL
+decode and encode an ASN.1
+.Vt IssuerAndSerialNumber
+structure defined in RFC 2315 section 6.7.
+.Pp
+.Fn d2i_PKCS7_RECIP_INFO
+and
+.Fn i2d_PKCS7_RECIP_INFO
+decode and encode an ASN.1
+.Vt RecipientInfo
+structure defined in RFC 2315 section 10.2.
+.Pp
+.Fn d2i_PKCS7_SIGNED
+and
+.Fn i2d_PKCS7_SIGNED
+decode and encode an ASN.1
+.Vt SignedData
+structure defined in RFC 2315 section 9.
+.Pp
+.Fn d2i_PKCS7_SIGNER_INFO
+and
+.Fn i2d_PKCS7_SIGNER_INFO
+decode and encode an ASN.1
+.Vt SignerInfo
+structure defined in RFC 2315 section 9.2.
+.Pp
+.Fn d2i_PKCS7_SIGN_ENVELOPE
+and
+.Fn i2d_PKCS7_SIGN_ENVELOPE
+decode and encode an ASN.1
+.Vt SignedAndEnvelopedData
+structure defined in RFC 2315 section 11.
+.Sh RETURN VALUES
+.Fn d2i_PKCS7 ,
+.Fn d2i_PKCS7_bio ,
+and
+.Fn d2i_PKCS7_fp
+return a
+.Vt PKCS7
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn d2i_PKCS7_DIGEST ,
+.Fn d2i_PKCS7_ENCRYPT ,
+.Fn d2i_PKCS7_ENC_CONTENT ,
+.Fn d2i_PKCS7_ENVELOPE ,
+.Fn d2i_PKCS7_ISSUER_AND_SERIAL ,
+.Fn d2i_PKCS7_RECIP_INFO ,
+.Fn d2i_PKCS7_SIGNED ,
+.Fn d2i_PKCS7_SIGNER_INFO ,
+and
+.Fn d2i_PKCS7_SIGN_ENVELOPE
+return an object of the respective type or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_PKCS7 ,
+.Fn i2d_PKCS7_DIGEST ,
+.Fn i2d_PKCS7_ENCRYPT ,
+.Fn i2d_PKCS7_ENC_CONTENT ,
+.Fn i2d_PKCS7_ENVELOPE ,
+.Fn i2d_PKCS7_ISSUER_AND_SERIAL ,
+.Fn i2d_PKCS7_RECIP_INFO ,
+.Fn i2d_PKCS7_SIGNED ,
+.Fn i2d_PKCS7_SIGNER_INFO ,
+and
+.Fn i2d_PKCS7_SIGN_ENVELOPE
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Pp
+.Fn i2d_PKCS7_bio
+and
+.Fn i2d_PKCS7_fp
+return 1 for success or 0 if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr i2d_PKCS7_bio_stream 3 ,
+.Xr PEM_write_bio_PKCS7_stream 3 ,
+.Xr PEM_write_PKCS7 3 ,
+.Xr PKCS7_new 3 ,
+.Xr SMIME_write_PKCS7 3
+.Sh STANDARDS
+RFC 2315: PKCS #7: Cryptographic Message Syntax Version 1.5
+.Sh HISTORY
+.Fn d2i_PKCS7 ,
+.Fn i2d_PKCS7 ,
+.Fn d2i_PKCS7_bio ,
+.Fn i2d_PKCS7_bio ,
+.Fn d2i_PKCS7_fp ,
+.Fn i2d_PKCS7_fp ,
+.Fn d2i_PKCS7_DIGEST ,
+.Fn i2d_PKCS7_DIGEST ,
+.Fn d2i_PKCS7_ENCRYPT ,
+.Fn i2d_PKCS7_ENCRYPT ,
+.Fn d2i_PKCS7_ENC_CONTENT ,
+.Fn i2d_PKCS7_ENC_CONTENT ,
+.Fn d2i_PKCS7_ENVELOPE ,
+.Fn i2d_PKCS7_ENVELOPE ,
+.Fn d2i_PKCS7_ISSUER_AND_SERIAL ,
+.Fn i2d_PKCS7_ISSUER_AND_SERIAL ,
+.Fn d2i_PKCS7_RECIP_INFO ,
+.Fn i2d_PKCS7_RECIP_INFO ,
+.Fn d2i_PKCS7_SIGNED ,
+.Fn i2d_PKCS7_SIGNED ,
+.Fn d2i_PKCS7_SIGNER_INFO ,
+.Fn i2d_PKCS7_SIGNER_INFO ,
+.Fn d2i_PKCS7_SIGN_ENVELOPE ,
+and
+.Fn i2d_PKCS7_SIGN_ENVELOPE
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .

@@ -1,0 +1,23 @@
+.\"	$OpenBSD: dcphy.4,v 1.5 2009/07/31 14:20:29 jmc Exp $
+.\"
+.\" Michael Shalayeff, 2003. Public Domain.
+.\"
+.Dd $Mdocdate: July 31 2009 $
+.Dt DCPHY 4
+.Os
+.Sh NAME
+.Nm dcphy
+.Nd Pseudo-driver for media support on DEC 21143 controllers
+.Sh SYNOPSIS
+.Cd "dcphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver handles media selection on the
+.Tn DEC 21143
+chip as it has no real MII interface.
+.Sh SEE ALSO
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr mii 4 ,
+.Xr ifconfig 8

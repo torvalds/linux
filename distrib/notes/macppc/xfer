@@ -1,0 +1,24 @@
+dnl	$OpenBSD: xfer,v 1.16 2015/06/10 06:38:39 jasper Exp $
+Installation is supported from several media types, including:
+
+	CD-ROM
+	FFS partitions
+	HFS partitions (bootloader/kernel only, using another media for d/l)
+	Remote NFS partition
+	HTTP
+
+OpenBSDXferPrelude
+
+OpenBSDXferCDROM
+
+OpenBSD can now be booted from a CD-ROM by holding down the 'c' key
+during reboot. If ofwboot and bsd.rd are copied to an HFS partition, it
+is possible to boot from those files.  Then install the rest of the files
+from any of the above sources.
+
+Note: once an OpenBSD partition exists, it is not possible to load the
+kernel (bsd.rd) from an HFS partition on that disk.
+
+OpenBSDXferNFS
+
+OpenBSDXferFFS

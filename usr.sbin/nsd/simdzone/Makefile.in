@@ -1,0 +1,85 @@
+#
+# Makefile.in -- one file to make them all
+#
+# Copyright (c) 2022-2024, NLnet Labs. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+WESTMERE = @HAVE_WESTMERE@
+HASWELL = @HAVE_HASWELL@
+
+CC = @CC@
+CPPFLAGS = @CPPFLAGS@ -Iinclude -I$(SOURCE)/include -I$(SOURCE)/src -I.
+CFLAGS = @CFLAGS@
+DEPFLAGS = @DEPFLAGS@
+VPATH = @srcdir@
+
+SOURCE = @srcdir@
+
+SOURCES = src/zone.c src/fallback/parser.c
+OBJECTS = $(SOURCES:.c=.o)
+
+WESTMERE_SOURCES = src/westmere/parser.c
+WESTMERE_OBJECTS = $(WESTMERE_SOURCES:.c=.o)
+
+HASWELL_SOURCES = src/haswell/parser.c
+HASWELL_OBJECTS = $(HASWELL_SOURCES:.c=.o)
+
+NO_OBJECTS =
+
+DEPENDS = $(SOURCES:.c=.d) $(WESTMERE_SOURCES:.c=.d) $(HASWELL_SOURCES:.c=.d)
+
+# The export header automatically defines visibility macros. These macros are
+# required for standalone builds on Windows. I.e., exported functions must be
+# declared with __declspec(dllexport) for dynamic link libraries (.dll) and
+# __declspec(dllimport) for statically linked libraries (.lib). Define dummy
+# macros for compatibility.
+EXPORT_HEADER = include/zone/export.h
+
+.PHONY: all clean
+
+all: libzone.a
+
+clean:
+	@rm -f .depend
+	@rm -f libzone.a $(OBJECTS) $(EXPORT_HEADER)
+	@rm -f $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
+
+distclean: clean
+	@rm -f Makefile config.h config.log config.status
+
+realclean: distclean
+	@rm -rf autom4te*
+
+maintainer-clean: realclean
+
+devclean: realclean
+	@rm -rf config.h.in configure
+
+libzone.a: $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS) Makefile
+	$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
+
+$(EXPORT_HEADER):
+	@mkdir -p include/zone
+	@echo "#define ZONE_EXPORT" > $(EXPORT_HEADER)
+
+$(WESTMERE_OBJECTS): $(EXPORT_HEADER) .depend Makefile
+	@mkdir -p src/westmere
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $(SOURCE)/$(@:.o=.c)
+
+$(HASWELL_OBJECTS): $(EXPORT_HEADER) .depend Makefile
+	@mkdir -p src/haswell
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $(SOURCE)/$(@:.o=.c)
+
+$(OBJECTS): $(EXPORT_HEADER) .depend Makefile
+	@mkdir -p src/fallback
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $(SOURCE)/$(@:.o=.c)
+	@touch $@
+
+.depend:
+	@cat /dev/null > $@
+	@for x in $(DEPENDS:.d=); do echo "$${x}.o: $(SOURCE)/$${x}.c $${x}.d" >> $@; done
+
+-include .depend
+$(DEPENDS):
+-include $(DEPENDS)

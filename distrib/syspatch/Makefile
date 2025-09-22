@@ -1,0 +1,3 @@
+.MAIN: all
+all:
+	# noop

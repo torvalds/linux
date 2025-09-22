@@ -1,0 +1,11 @@
+=== Start 2300MB disk ===
+Writing MBR at offset 0.
+
+  a:             2.2G              128  4.2BSD   2048 16384     1 # /
+  a:          4546368              128  4.2BSD   2048 16384     1 
+  b:             0.1G          4546496    swap                    
+  b:           165952          4546496    swap                    
+
+/dev/vnd0a / ffs rw 1 1
+/dev/vnd0b none swap sw
+=== End 2300MB disk ===

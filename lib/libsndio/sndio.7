@@ -1,0 +1,248 @@
+.\" $OpenBSD: sndio.7,v 1.27 2021/11/01 14:43:24 ratchov Exp $
+.\"
+.\" Copyright (c) 2007 Alexandre Ratchov <alex@caoua.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 1 2021 $
+.Dt SNDIO 7
+.Os
+.Sh NAME
+.Nm sndio
+.Nd audio and MIDI device descriptors
+.Sh DESCRIPTION
+Programs access audio and MIDI hardware using the
+.Nm sndio
+library.
+It allows both access through the
+.Xr sndiod 8
+server and raw access to the hardware.
+The audio device or MIDI port, as well as the access method,
+are designated by the sndio descriptor.
+It is provided by the user with the program device selection method,
+or with the
+.Ev AUDIODEVICE
+and
+.Ev MIDIDEVICE
+environment variables if there's no device selection method.
+.Pp
+Usually, programs access the hardware via the
+.Xr sndiod 8
+server, because raw access to the hardware is exclusive and
+requires additional privileges.
+The
+.Xr sndiod 8
+server supports multiple connections at a time, allowing multiple programs to
+use the hardware concurrently.
+It performs the necessary audio processing on the fly to
+overcome any incompatibility between software and hardware.
+Connections to
+.Xr sndiod 8
+may also be established through the network, including from virtual machines.
+.Pp
+The
+.Xr sndiod 8
+server exposes
+.Em MIDI thru
+ports, allowing one program to send MIDI data to other programs,
+for instance to allow a sequencer to send events to a synthesizer.
+.Pp
+Additionally,
+.Xr sndiod 8
+exposes a MIDI port used to control audio programs using
+standard MIDI Machine Control (MMC), MIDI Time Code (MTC),
+and master volume messages.
+.Ss Server device descriptors
+From the user's perspective, every audio device or MIDI port exposed by
+.Xr sndiod 8
+has a descriptor of the form:
+.Bd -literal -offset center
+type[@hostname][,servnum]/[devnum|option]
+.Ed
+.Pp
+This information is used by programs to determine
+how to access the audio device or MIDI port.
+.Bl -tag -width "hostname"
+.It Ar type
+The type of the audio device or MIDI port.
+Possible values are:
+.Pp
+.Bl -tag -width "midithru" -offset 3n -compact
+.It Cm snd
+Audio device exposed by
+.Xr sndiod 8 .
+.It Cm midithru
+MIDI thru port created with
+.Xr sndiod 8 .
+.It Cm midi
+MIDI port exposed by
+.Xr sndiod 8 .
+.El
+.It Ar hostname
+The hostname or address where the remote
+.Xr sndiod 8
+server to connect to is running.
+.It Ar servnum
+The number of the
+.Xr sndiod 8
+server to connect to, corresponding to the integer specified using the
+.Fl U
+option of
+.Xr sndiod 8 .
+Useful only if multiple
+.Xr sndiod 8
+servers are running on the same system.
+.It Ar devnum
+Device number.
+It corresponds to the number of the corresponding
+.Fl f
+or
+.Fl q
+option on the
+.Xr sndiod 8
+command line.
+.It Ar option
+Corresponds to the sub-device string registered using the
+.Fl s
+option of
+.Xr sndiod 8 .
+.El
+.Ss Raw device descriptors
+Every raw audio device or MIDI port has a descriptor of the form:
+.Pp
+.D1 Ar type Ns / Ns Ar devnum
+.Pp
+The
+.Ar type
+can be either
+.Cm rsnd
+or
+.Cm rmidi .
+The rsnd/0 device descriptor accesses the
+.Pa /dev/audio0
+device, rsnd/1 accesses
+.Pa /dev/audio1 ,
+and so on.
+Similarly, rmidi/0 accesses
+.Pa /dev/rmidi0
+and so on.
+.Ss Default Audio and MIDI devices
+When no audio device descriptor is provided to a program
+or when the reserved word
+.Cm default
+is used as the audio device, the program will use the
+one specified in the
+.Ev AUDIODEVICE , AUDIOPLAYDEVICE
+and/or
+.Ev AUDIORECDEVICE
+environment variables.
+If they are not set, the program first tries to connect to
+.Li snd/default .
+If that fails, it then tries to use
+.Li rsnd/0 .
+.Pp
+Similarly, if no MIDI descriptor is provided to a program
+or when the reserved word
+.Cm default
+is passed as the device descriptor,
+the program uses the one specified in the
+.Ev MIDIDEVICE
+environment variable.
+If it is not set, the program first tries to connect to
+.Li midithru/0 .
+If that fails, it then tries to use
+.Li rmidi/0 .
+As long as
+.Xr sndiod 8
+is running, this allows programs to exchange MIDI data on
+machines with no MIDI hardware by default, e.g. a MIDI player
+could use a software synthesizer with no manual configuration
+required.
+.Ss Authentication
+For privacy reasons only one user may have connections to
+.Xr sndiod 8
+at a given time.
+Users are identified by their
+.Em session cookie ,
+which is automatically generated by audio or MIDI programs
+upon the first connection to the server.
+The cookie is stored in
+.Pa "$HOME/.sndio/cookie"
+and contains 128 bits of raw random data.
+.Pp
+If a session needs to be shared between multiple users, they
+can connect to the server using the same cookie.
+.Sh ENVIRONMENT
+.Bl -tag -width "AUDIOPLAYDEVICE" -compact
+.It Ev AUDIODEVICE
+Audio device descriptor to use
+when no descriptor is explicitly specified to a program.
+.It Ev AUDIOPLAYDEVICE
+Audio device descriptor to use for play-only mode
+when no descriptor is explicitly specified to a program.
+Overrides
+.Ev AUDIODEVICE .
+.It Ev AUDIORECDEVICE
+Audio device descriptor to use for record-only mode
+when no descriptor is explicitly specified to a program.
+Overrides
+.Ev AUDIODEVICE .
+.It Ev MIDIDEVICE
+MIDI port descriptor to use
+when no descriptor is explicitly specified to a program.
+.El
+.Pp
+These environment variables are ignored by
+.Nm
+if the program has the set-user-ID or set-group-ID bits set.
+.Sh FILES
+.Bl -tag -width "~/.sndio/cookie" -compact
+.It Pa ~/.sndio/cookie
+User's session authentication cookie.
+.It Pa /dev/audioN
+Raw audio devices.
+.It Pa /dev/rmidiN
+Raw MIDI ports.
+.El
+.Sh EXAMPLES
+.Bl -tag -width "midithru/0" -compact
+.It Li snd/0
+Audio device referred to by the first
+.Fl f
+option of
+.Xr sndiod 8 .
+.It Li snd/rear
+Sub-device registered with
+.Dq -s rear .
+.It Li midithru/0
+First MIDI thru port created with
+.Xr sndiod 8 .
+.It Li default
+Default audio or MIDI device.
+.It Li rsnd/0
+Direct hardware access to
+.Pa /dev/audio0 .
+.It Li rmidi/5
+Direct hardware access to
+.Pa /dev/rmidi5 .
+.El
+.Sh SEE ALSO
+.Xr aucat 1 ,
+.Xr midicat 1 ,
+.Xr sndioctl 1 ,
+.Xr mio_open 3 ,
+.Xr sio_open 3 ,
+.Xr sioctl_open 3 ,
+.Xr audio 4 ,
+.Xr midi 4 ,
+.Xr sndiod 8

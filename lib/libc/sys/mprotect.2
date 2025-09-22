@@ -1,0 +1,145 @@
+.\"	$OpenBSD: mprotect.2,v 1.28 2024/01/21 17:00:42 deraadt Exp $
+.\"	$NetBSD: mprotect.2,v 1.6 1995/10/12 15:41:08 jtc Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mprotect.2	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: January 21 2024 $
+.Dt MPROTECT 2
+.Os
+.Sh NAME
+.Nm mprotect
+.Nd control the protection of pages
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn mprotect "void *addr" "size_t len" "int prot"
+.Sh DESCRIPTION
+The
+.Fn mprotect
+system call sets the access protections for the pages that contain
+the address range
+.Fa addr
+through
+.Fa addr
+\&+
+.Fa len
+\- 1
+(inclusive).
+If
+.Fa len
+is 0, no action is taken on the page that contains
+.Fa addr .
+.Pp
+The protections (region accessibility) are specified in the
+.Fa prot
+argument.
+It should either be
+.Dv PROT_NONE
+.Pq no permissions
+or the bitwise OR of one or more of the following values:
+.Pp
+.Bl -tag -width "PROT_WRITEXX" -offset indent -compact
+.It Dv PROT_EXEC
+Pages may be executed.
+.It Dv PROT_READ
+Pages may be read.
+.It Dv PROT_WRITE
+Pages may be written.
+.El
+.Pp
+Not all implementations will guarantee protection on a page basis;
+the granularity of protection changes may be as large as an entire region.
+Nor will all implementations guarantee to give exactly the requested
+permissions; more permissions may be granted than requested by
+.Fa prot .
+However, if
+.Dv PROT_WRITE
+was not specified then the page will not be writable.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn mprotect
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+The process does not have sufficient access to the underlying memory
+object to provide the requested protection.
+.It Bq Er ENOMEM
+The process has locked future pages with
+.Fn mlockall MCL_FUTURE ,
+a page being protected is not currently accessible,
+and making it accessible and locked would exceed process or system limits.
+.It Bq Er ENOTSUP
+The accesses requested in the
+.Fa prot
+argument are not allowed.
+In particular,
+.Dv PROT_WRITE | PROT_EXEC
+mappings are not permitted in most binaries (see
+.Dv kern.wxabort
+in
+.Xr sysctl 2
+for more information).
+.It Bq Er EINVAL
+The
+.Fa prot
+argument is invalid or the specified address range would wrap around.
+.It Bq Er EPERM
+The
+.Fa addr
+and
+.Fa len
+parameters
+specify a region which contains at least one page marked immutable.
+.El
+.Sh SEE ALSO
+.Xr madvise 2 ,
+.Xr mimmutable 2 ,
+.Xr msync 2 ,
+.Xr munmap 2
+.Sh STANDARDS
+The
+.Fn mprotect
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn mprotect
+function has been available since
+.Bx 4.3 Net/2 .
+.Sh CAVEATS
+The
+.Ox
+implementation of
+.Fn mprotect
+does not require
+.Fa addr
+to be page-aligned,
+although other implementations may.

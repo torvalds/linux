@@ -1,0 +1,95 @@
+#
+#	$OpenBSD: ttys,v 1.7 2008/01/09 17:39:42 miod Exp $
+#
+# name	getty				type	status		comments
+#
+console	"/usr/libexec/getty std.9600"	sun	on  secure
+# graphics console
+ttyC0	"/usr/libexec/getty std.9600"	sun	off secure
+# zs(4)-based
+ttya	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyb	"/usr/libexec/getty std.9600"	unknown	off secure
+# com(4)-based
+tty00	"/usr/libexec/getty std.9600"	unknown	off secure
+tty01	"/usr/libexec/getty std.9600"	unknown	off secure
+# sab(4)-based
+ttyh0	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyh1	"/usr/libexec/getty std.9600"	unknown	off secure
+# magma0
+ttym0	"/usr/libexec/getty std.9600"	unknown	off secure
+ttym1	"/usr/libexec/getty std.9600"	unknown	off secure
+ttym2	"/usr/libexec/getty std.9600"	unknown	off secure
+ttym3	"/usr/libexec/getty std.9600"	unknown	off secure
+ttym4	"/usr/libexec/getty std.9600"	unknown	off secure
+ttym5	"/usr/libexec/getty std.9600"	unknown	off secure
+ttym6	"/usr/libexec/getty std.9600"	unknown	off secure
+ttym7	"/usr/libexec/getty std.9600"	unknown	off secure
+ttym8	"/usr/libexec/getty std.9600"	unknown	off secure
+ttym9	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyma	"/usr/libexec/getty std.9600"	unknown	off secure
+ttymb	"/usr/libexec/getty std.9600"	unknown	off secure
+ttymc	"/usr/libexec/getty std.9600"	unknown	off secure
+ttymd	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyme	"/usr/libexec/getty std.9600"	unknown	off secure
+ttymf	"/usr/libexec/getty std.9600"	unknown	off secure
+# magma1
+ttyn0	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyn1	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyn2	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyn3	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyn4	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyn5	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyn6	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyn7	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyn8	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyn9	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyna	"/usr/libexec/getty std.9600"	unknown	off secure
+ttynb	"/usr/libexec/getty std.9600"	unknown	off secure
+ttync	"/usr/libexec/getty std.9600"	unknown	off secure
+ttynd	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyne	"/usr/libexec/getty std.9600"	unknown	off secure
+ttynf	"/usr/libexec/getty std.9600"	unknown	off secure
+# magma2
+ttyo0	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyo1	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyo2	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyo3	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyo4	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyo5	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyo6	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyo7	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyo8	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyo9	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyoa	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyob	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyoc	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyod	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyoe	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyof	"/usr/libexec/getty std.9600"	unknown	off secure
+# spif0
+ttyj0	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyj1	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyj2	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyj3	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyj4	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyj5	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyj6	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyj7	"/usr/libexec/getty std.9600"	unknown	off secure
+# spif1
+ttyk0	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyk1	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyk2	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyk3	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyk4	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyk5	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyk6	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyk7	"/usr/libexec/getty std.9600"	unknown	off secure
+# spif2
+ttyl0	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyl1	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyl2	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyl3	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyl4	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyl5	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyl6	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyl7	"/usr/libexec/getty std.9600"	unknown	off secure

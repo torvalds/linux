@@ -1,0 +1,111 @@
+.\" $OpenBSD: tls_client.3,v 1.5 2025/07/07 10:54:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2014 Ted Unangst <tedu@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt TLS_CLIENT 3
+.Os
+.Sh NAME
+.Nm tls_client ,
+.Nm tls_server ,
+.Nm tls_configure ,
+.Nm tls_reset ,
+.Nm tls_free
+.Nd configure a TLS connection
+.Sh SYNOPSIS
+.Lb libtls libssl libcrypto
+.In tls.h
+.Ft struct tls *
+.Fn tls_client void
+.Ft struct tls *
+.Fn tls_server void
+.Ft int
+.Fo tls_configure
+.Fa "struct tls *ctx"
+.Fa "struct tls_config *config"
+.Fc
+.Ft void
+.Fn tls_free "struct tls *ctx"
+.Ft void
+.Fn tls_reset "struct tls *ctx"
+.Sh DESCRIPTION
+A TLS connection is represented as a
+.Vt struct tls
+object called a
+.Dq context .
+A new context is created by either the
+.Fn tls_client
+or
+.Fn tls_server
+functions.
+.Fn tls_client
+is used in TLS client programs,
+.Fn tls_server
+in TLS server programs.
+.Pp
+The context can then be configured with the function
+.Fn tls_configure .
+The same
+.Vt tls_config
+object can be used to configure multiple contexts.
+.Pp
+After configuration,
+.Xr tls_connect 3
+can be called on objects created with
+.Fn tls_client ,
+and
+.Xr tls_accept_socket 3
+on objects created with
+.Fn tls_server .
+.Pp
+After use, a TLS context should be closed with
+.Xr tls_close 3 ,
+and then freed by calling
+.Fn tls_free .
+If
+.Fn tls_free
+is called with an argument of
+.Dv NULL ,
+no action occurs.
+.Pp
+A TLS context can be reset by calling
+.Fn tls_reset ,
+allowing for it to be reused.
+This is essentially equivalent to calling
+.Fn tls_free ,
+followed by a call to the same function that was used to originally allocate
+the TLS context.
+.Sh RETURN VALUES
+.Fn tls_client
+and
+.Fn tls_server
+return
+.Dv NULL
+on error or an out of memory condition.
+.Pp
+.Fn tls_configure
+returns 0 on success or -1 on error.
+.Sh SEE ALSO
+.Xr tls_accept_socket 3 ,
+.Xr tls_config_new 3 ,
+.Xr tls_connect 3 ,
+.Xr tls_init 3
+.Sh HISTORY
+These functions appeared in
+.Ox 5.6
+and got their final names in
+.Ox 5.7 .
+.Sh AUTHORS
+.An Joel Sing Aq Mt jsing@openbsd.org

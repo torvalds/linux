@@ -1,0 +1,8 @@
+# DEFINE: %{global:inside} = @
+# RUN: echo '<%{global:inside}>'
+
+#      CHECK: ValueError: Substitution whose pattern contains '%{global:inside}' is already defined before '{{DEFINE}}:' directive at line [[#@LINE-3]]
+# CHECK-NEXT: Existing pattern: <%{global:inside}>
+#  CHECK-NOT: Existing pattern:
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

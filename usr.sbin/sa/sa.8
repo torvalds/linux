@@ -1,0 +1,246 @@
+.\"	$OpenBSD: sa.8,v 1.22 2020/02/08 01:38:48 jsg Exp $
+.\"
+.\" Copyright (c) 1994 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 8 2020 $
+.Dt SA 8
+.Os
+.Sh NAME
+.Nm sa
+.Nd print system accounting statistics
+.Sh SYNOPSIS
+.Nm sa
+.Op Fl abcDdfijKklmnqrstu
+.Op Fl v Ar cutoff
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility reports on, cleans up,
+and generally maintains system
+accounting files.
+See
+.Xr accton 8
+for details on enabling system accounting.
+.Pp
+.Nm
+is able to condense the information in
+.Pa /var/account/acct
+into the summary files
+.Pa /var/account/savacct
+and
+.Pa /var/account/usracct ,
+which contain system statistics according
+to command name and login ID, respectively.
+This condensation is desirable because on a
+large system,
+.Pa /var/account/acct
+can grow by hundreds of blocks per day.
+The summary files are normally read before
+the accounting file, so that reports include
+all available information.
+.Pp
+If file names are supplied, they are read instead of
+.Pa /var/account/acct .
+After each file is read, if the summary
+files are being updated, an updated summary will
+be saved to disk.
+Only one report is printed, after the last file is processed.
+.Pp
+The labels used in the output indicate the following, except
+where otherwise specified by individual options:
+.Pp
+.Bl -tag -width k*sec -compact -offset indent
+.It Dv avio
+Average number of I/O operations per execution.
+.It Dv cp
+Sum of user and system time, in minutes.
+.It Dv cpu
+Same as
+.Dv cp .
+.It Dv k
+CPU time averaged core usage, in 1k units.
+.It Dv k*sec
+CPU storage integral, in 1k-core seconds.
+.It Dv re
+Real time, in minutes.
+.It Dv s
+System time, in minutes.
+.It Dv tio
+Total number of I/O operations.
+.It Dv u
+User time, in minutes.
+.El
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+List all command names, including those containing unprintable
+characters and those used only once.
+By default,
+.Nm
+places all names containing unprintable characters and
+those used only once under the name
+.Dq ***other .
+.It Fl b
+If printing command statistics, sort output by the sum of user and system
+time divided by number of calls.
+.It Fl c
+In addition to the number of calls and the user, system and real times
+for each command, print their percentage of the total over all commands.
+.It Fl D
+If printing command statistics, sort and print by the total number
+of disk I/O operations.
+.It Fl d
+If printing command statistics, sort by the average number of disk
+I/O operations.
+If printing user statistics, print the average number of
+disk I/O operations per user.
+.It Fl f
+Force no interactive threshold comparison with the
+.Fl v
+option.
+.It Fl i
+Do not read in the summary files.
+.It Fl j
+Instead of the total minutes per category, give seconds per call.
+.It Fl K
+If printing command statistics, print and sort by the CPU-storage integral.
+.It Fl k
+If printing command statistics, sort by the CPU time average memory
+usage.
+If printing user statistics, print the CPU time average memory usage.
+.It Fl l
+Separate system and user time; normally they are combined.
+.It Fl m
+Print per-user statistics rather than per-command statistics, including
+the user name, the number of commands invoked, total CPU time used
+(in minutes), total number of I/O operations, and CPU storage integral
+for each user.
+If this option is specified, only the
+.Fl b ,
+.Fl d ,
+.Fl i ,
+.Fl k ,
+.Fl q ,
+and
+.Fl s
+flags are honored.
+.It Fl n
+Sort by number of calls.
+.It Fl q
+Create no output other than error messages.
+.It Fl r
+Reverse order of sort.
+.It Fl s
+Truncate the accounting files when done and merge their data
+into the summary files.
+.It Fl t
+For each command, report the ratio of real time to the sum
+of user and system CPU times.
+If the CPU time is too small to report,
+.Dq *ignore*
+appears in this field.
+.It Fl u
+Superseding all other flags (except
+.Fl q ) ,
+for each entry in the accounting file print the user ID,
+total seconds of CPU usage,
+total memory usage, number of I/O operations performed,
+and command name.
+.It Fl v Ar cutoff
+For each command used
+.Ar cutoff
+times or fewer, print the command name and await a reply
+from the terminal.
+If the reply begins with
+.Dq y ,
+add the command to the category
+.Dq **junk** .
+This flag is used to strip garbage from the report.
+.El
+.Pp
+By default, per-command statistics are printed and show
+the number of calls, the total elapsed time in minutes,
+total CPU and user time in minutes, average number of I/O operations,
+and CPU time averaged core usage.
+Children which have not yet called
+.Xr execve 2
+have
+.Sq *
+appended to their command names.
+.Sh FILES
+.Bl -tag -width /var/account/usracct -compact
+.It Pa /var/account/acct
+raw accounting data file
+.It Pa /var/account/savacct
+per-command accounting summary database
+.It Pa /var/account/usracct
+per-user accounting summary database
+.El
+.Sh EXIT STATUS
+.Ex -std sa
+.Sh SEE ALSO
+.Xr lastcomm 1 ,
+.Xr acct 5 ,
+.Xr ac 8 ,
+.Xr accton 8
+.Sh HISTORY
+.Nm
+first appeared in
+.At v5 .
+.Nm
+was rewritten for
+.Nx 0.9a
+from the specification provided by various systems' manual pages.
+.Sh AUTHORS
+.An Chris G. Demetriou Aq Mt cgd@postgres.berkeley.edu
+.Sh CAVEATS
+While the behavior of the options in this version of
+.Nm
+was modeled after the original version, there are some intentional
+differences and undoubtedly some unintentional ones as well.
+In particular, the
+.Fl q
+option has been added, and the
+.Fl m
+option now understands more options than it used to.
+.Pp
+The formats of the summary files created by this version of
+.Nm
+are very different than those used by the original version.
+This is not considered a problem, however, because the accounting record
+format has changed as well (since user IDs are now 32 bits).
+.Sh BUGS
+The number of options to this program is absurd, especially considering
+that there's not much logic behind their lettering.
+.Pp
+The field labels should be more consistent.
+.Pp
+OpenBSD's VM system does not record the CPU storage integral.

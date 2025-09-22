@@ -1,0 +1,54 @@
+.\"	$OpenBSD: acpiec.4,v 1.5 2013/07/16 16:05:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 Dmitri Alenitchev <dma@dma.org.ru>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt ACPIEC 4
+.Os
+.Sh NAME
+.Nm acpiec
+.Nd ACPI embedded controller
+.Sh SYNOPSIS
+.Cd "acpiec* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports ACPI Embedded Controllers.
+It provides embedded controller access for other ACPI devices.
+On many systems
+which have an
+.Nm
+device, other ACPI devices such as
+.Xr acpiac 4 ,
+.Xr acpibat 4 ,
+and
+.Xr acpitz 4
+implicitly depend on the
+.Nm
+device.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Can Erkin Acar Aq Mt canacar@openbsd.org .

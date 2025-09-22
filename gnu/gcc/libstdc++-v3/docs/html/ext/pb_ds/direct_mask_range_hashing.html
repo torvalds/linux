@@ -1,0 +1,167 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>direct_mask_range_hashing Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>direct_mask_range_hashing</tt> Interface</h1>
+
+    <p>A mask range-hashing class (uses a bit-mask).</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/hash_policy.hpp"><tt>hash_policy.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Template Parameters</a></h2>
+
+    <table class="c1" width="100%" border="1" summary=
+    "Template Parameters">
+      <tr>
+        <td width="20%" align="left"><b>Parameter</b></td>
+
+        <td width="50%" align="left"><b>Description</b></td>
+
+        <td width="30%" align="left"><b>Default Value</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Size_Type42920436" id=
+"Size_Type42920436"><b>typename</b> Size_Type </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Size type.</p>
+        </td>
+
+        <td>size_t</td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link3" id="link3">General Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="size_type55424436" id="size_type55424436">size_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Size_Type42920436"><tt>Size_Type</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Size type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link4" id="link4">Public Methods</a></h2>
+
+    <h3><a name="link5" id="link5">Constructors, Destructor, and
+    Related</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b>
+  swap
+  (<span class=
+"c2"><tt>direct_mask_range_hashing</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Swaps content.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link6" id="link6">Protected Methods</a></h2>
+
+    <h3><a name="link7" id="link7">Notification Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b> 
+  notify_resized
+  (<a href="#size_type55424436"><tt>size_type</tt></a> size)
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies the policy object that the container's size
+          has changed to <span class="c1"><tt>size</tt></span>.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link8" id="link8">Operators.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <a href="#size_type55424436"><tt>size_type</tt></a>
+  <b>operator</b>()
+  (<a href=
+"#size_type55424436"><tt>size_type</tt></a> hash) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Transforms the hash value <span class=
+          "c1"><tt>hash</tt></span> into a ranged-hash value (using
+          a bit-mask).</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

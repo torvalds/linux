@@ -1,0 +1,7 @@
+# DEFINE: foo %{name}=value
+# RUN: echo %{name}
+
+#      CHECK: Substitution name 'foo %{name}' is malformed {{.*}}
+# CHECK-NEXT: in {{DEFINE}}: directive on test line [[#@LINE-4]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

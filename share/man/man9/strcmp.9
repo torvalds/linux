@@ -1,0 +1,86 @@
+.\"	$OpenBSD: strcmp.9,v 1.2 2018/04/23 11:11:38 jmc Exp $
+.\"
+.\" Copyright (c) 2002, 2003 CubeSoft Communications, Inc.
+.\" <http://www.csoft.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 23 2018 $
+.Dt STRCMP 9
+.Os
+.Sh NAME
+.Nm strlen ,
+.Nm strnlen ,
+.Nm strncpy ,
+.Nm strlcpy ,
+.Nm strlcat ,
+.Nm strcmp ,
+.Nm strncmp ,
+.Nm strncasecmp
+.Nd kernel library string routines
+.Sh SYNOPSIS
+.In lib/libkern/libkern.h
+.Ft size_t
+.Fn strlen "const char *s"
+.Ft size_t
+.Fn strnlen "const char *s" "size_t maxlen"
+.Ft char *
+.Fn strncpy "char *dst" "const char *src" "size_t len"
+.Ft size_t
+.Fn strlcpy "char *dst" "const char *src" "size_t size"
+.Ft size_t
+.Fn strlcat "char *dst" "const char *src" "size_t size"
+.Ft int
+.Fn strcmp "const char *s1" "const char *s2"
+.Ft int
+.Fn strncmp "const char *s1" "const char *s2" "size_t len"
+.Ft int
+.Fn strncasecmp "const char *s1" "const char *s2" "size_tlen"
+.Sh DESCRIPTION
+These functions have the same semantics as their libc counterparts,
+.Xr strlen 3 ,
+.Xr strncpy 3 ,
+.Xr strnlen 3 ,
+.Xr strlcpy 3 ,
+.Xr strlcat 3 ,
+.Xr strcmp 3 ,
+.Xr strncmp 3
+and
+.Xr strncasecmp 3 .
+.Sh SEE ALSO
+.Xr strcmp 3 ,
+.Xr strlcat 3 ,
+.Xr strlcpy 3 ,
+.Xr strlen 3 ,
+.Xr strncmp 3 ,
+.Xr strncpy 3 ,
+.Xr strnlen 3
+.Sh STANDARDS
+The
+.Fn strlen ,
+.Fn strncpy ,
+.Fn strcmp ,
+.Fn strncmp
+and
+.Fn strcasecmp
+functions conform to
+.St -ansiC .

@@ -1,0 +1,100 @@
+#!/usr/bin/env python
+
+import os
+import plistlib
+
+def main():
+    from optparse import OptionParser, OptionGroup
+    parser = OptionParser("""\
+Usage: %prog [options] <path>
+
+Utility for dumping Clang-style logged diagnostics.\
+""")
+    parser.add_option("-a", "--all", action="store_true", dest="all", 
+                      default=False, help="dump all messages.")
+    parser.add_option("-e", "--error", action="store_true", dest="error", 
+                      default=False, help="dump 'error' messages.")
+    parser.add_option("-f", "--fatal", action="store_true", dest="fatal", 
+                      default=False, help="dump 'fatal error' messages.")
+    parser.add_option("-i", "--ignored", action="store_true", dest="ignored", 
+                      default=False, help="dump 'ignored' messages.")
+    parser.add_option("-n", "--note", action="store_true", dest="note", 
+                      default=False, help="dump 'note' messages.")
+    parser.add_option("-w", "--warning", action="store_true", dest="warning", 
+                      default=False, help="dump 'warning' messages.")
+    (opts, args) = parser.parse_args()
+
+    if len(args) != 1:
+        parser.error("invalid number of arguments")
+
+    levels = {'error': False, 'fatal error': False, 'ignored': False,
+              'note': False, 'warning': False}
+    if opts.error:
+        levels['error'] = True
+    if opts.fatal:
+        levels['fatal error'] = True
+    if opts.ignored:
+        levels['ignored'] = True
+    if opts.note:
+        levels['note'] = True
+    if opts.warning:
+        levels['warning'] = True
+
+    path, = args
+
+    # Read the diagnostics log.
+    f = open(path)
+    try:
+        data = f.read()
+    finally:
+        f.close()
+
+    # Complete the plist (the log itself is just the chunks).
+    data = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" \
+                       "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+%s
+</array>
+</plist>""" % data
+
+    # Get the list of files and diagnostics to report.
+    to_report = []
+    diags = plistlib.readPlistFromString(data)
+    for file_diags in diags:
+        file = file_diags.get('main-file')
+
+        # Diagnostics from modules don't have a main-file listed.
+        if not file:
+            file = '<module-includes>'
+
+        # Ignore diagnostics for 'conftest.c', which is the file autoconf uses
+        # for its tests (which frequently will have warnings).
+        if os.path.basename(file) == 'conftest.c':
+            continue
+
+        # Get the diagnostics for the selected levels.
+        selected_diags = [d
+                          for d in file_diags.get('diagnostics', ())
+                          if levels[d.get('level')] or opts.all]
+        if selected_diags:
+            to_report.append((file, selected_diags))
+
+    # If there are no diagnostics to report, show nothing.
+    if not to_report:
+        return
+
+    # Otherwise, print out the diagnostics.
+    print
+    print "**** BUILD DIAGNOSTICS ****"
+    for file,selected_diags in to_report:
+        print "*** %s ***" % file
+        for d in selected_diags:
+            print " %s:%s:%s: %s: %s" % (
+                d.get('filename'), d.get('line'), d.get('column'),
+                d.get('level'), d.get('message'))
+
+if __name__ == "__main__":
+    main()

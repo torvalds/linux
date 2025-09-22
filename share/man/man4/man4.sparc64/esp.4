@@ -1,0 +1,54 @@
+.\"	$OpenBSD: esp.4,v 1.12 2015/03/30 20:34:32 miod Exp $
+.\"
+.\" Copyright (c) 1998 The OpenBSD Project
+.\" All rights reserved.
+.\"
+.\"
+.Dd $Mdocdate: March 30 2015 $
+.Dt ESP 4 sparc64
+.Os
+.Sh NAME
+.Nm esp
+.Nd ESP NCR 53c94 on-board or SBus SCSI interface
+.Sh SYNOPSIS
+.Cd "dma* at sbus?              " Pq "SBus SCSI"
+.Cd "esp* at dma?               " Pq "two flavours"
+.Cd "esp* at sbus?              " Pq "depending on model"
+.Sh DESCRIPTION
+The
+.Nm
+is an on-board or SBus SCSI controller based on the NCR 53c94 chip, found
+on some
+.Tn Sun
+UltraSPARC workstations.
+.Sh DEVICE FLAGS
+.Bl -tag -width "Bits XX-XX" -compact
+.It Bits 0-15
+Disable disconnect/reselect for the corresponding target
+.It Bits 16-31
+Disable synchronous negotiation for target "[bit - 16]"
+.El
+.Pp
+The
+.Nm
+device flags may be OR'd together to enable any combination of
+the features listed above.
+Targets 4 through 7 typically have disconnect/reselect enabled on the premise
+that tape devices normally have one of these targets.
+Tape devices should be allowed to disconnect for the SCSI bus to operate
+acceptably.
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr intro 4 ,
+.Xr sbus 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr st 4 ,
+.Xr uk 4
+.Sh HISTORY
+.Ox
+support for the
+.Nm
+first appeared in
+.Ox 3.0 .

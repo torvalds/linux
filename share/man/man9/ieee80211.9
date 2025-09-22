@@ -1,0 +1,285 @@
+.\"	$OpenBSD: ieee80211.9,v 1.15 2022/03/29 18:15:52 naddy Exp $
+.\"
+.\" Copyright (c) 2004 Bruce M. Simpson <bms@spc.org>
+.\" Copyright (c) 2004 Darron Broad <darron@kewl.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/ieee80211.9,v 1.3 2004/07/07 12:59:39 ru Exp $
+.\" $Id: ieee80211.9,v 1.15 2022/03/29 18:15:52 naddy Exp $
+.\"
+.Dd $Mdocdate: March 29 2022 $
+.Dt IEEE80211_IFATTACH 9
+.Os
+.Sh NAME
+.Nm ieee80211_ifattach , ieee80211_ifdetach ,
+.Nm ieee80211_mhz2ieee , ieee80211_chan2ieee , ieee80211_ieee2mhz ,
+.Nm ieee80211_media_init , ieee80211_media_change , ieee80211_media_status ,
+.Nm ieee80211_watchdog ,
+.Nm ieee80211_setmode , ieee80211_chan2mode ,
+.Nm ieee80211_rate2media , ieee80211_media2rate ,
+.Nm ieee80211_rate2plcp , ieee80211_plcp2rate
+.Nd core 802.11 network stack functions
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.In net80211/ieee80211_proto.h
+.Ft void
+.Fn ieee80211_ifattach "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_ifdetach "struct ifnet *ifp"
+.Ft u_int
+.Fn ieee80211_mhz2ieee "u_int freq" "u_int flags"
+.Ft u_int
+.Fn ieee80211_chan2ieee "struct ieee80211com *ic" \
+"const struct ieee80211_channel *c"
+.Ft u_int
+.Fn ieee80211_ieee2mhz "u_int chan" "u_int flags"
+.Ft void
+.Fo ieee80211_media_init
+.Fa "struct ifnet *ifp" "ifm_change_cb_t media_change"
+.Fa "ifm_stat_cb_t media_stat"
+.Fc
+.Ft int
+.Fn ieee80211_media_change "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_media_status "struct ifnet *ifp" "struct ifmediareq *imr"
+.Ft void
+.Fn ieee80211_watchdog "struct ifnet *ifp"
+.Ft int
+.Fn ieee80211_setmode "struct ieee80211com *ic" "enum ieee80211_phymode mode"
+.Ft enum ieee80211_phymode
+.Fo ieee80211_chan2mode
+.Fa "struct ieee80211com *ic" "const struct ieee80211_channel *chan"
+.Fc
+.Ft int
+.Fo ieee80211_rate2media
+.Fa "struct ieee80211com *ic" "int rate" "enum ieee80211_phymode mode"
+.Fc
+.Ft int
+.Fn ieee80211_media2rate "int mword"
+.Ft u_int8_t
+.Fn ieee80211_rate2plcp "u_int8_t rate" "enum ieee80211_phymode mode"
+.Ft u_int8_t
+.Fn ieee80211_plcp2rate "u_int8_t plcp" "enum ieee80211_phymode mode"
+.Sh DESCRIPTION
+The
+.Nm ieee80211
+collection of functions are used to manage wireless network interfaces in the
+system which use the system's software 802.11 network stack.
+Most of these functions require that attachment to the stack is performed
+before calling.
+Several utility functions are also provided; these are safe to call from
+any driver without prior initialization.
+.Pp
+.\"
+The
+.Fn ieee80211_ifattach
+function attaches the network interface
+.Fa ifp
+to the 802.11 network stack layer.
+This function must be called before using any of the
+.Nm ieee80211
+functions which need to store driver state across invocations.
+The
+.Vt struct ifnet
+instance pointed to by
+.Fa ifp
+MUST be an instance of
+.Vt struct ieee80211com ,
+with various fields initialized to tell
+.Nm ieee80211
+about its capabilities.
+This function performs Ethernet and BPF attachment (by calling
+.Fn ether_ifattach
+and
+.Fn bpfattach )
+on behalf of the caller.
+It also implements the
+.Vt ifmedia
+interface.
+.Pp
+.\"
+The
+.Fn ieee80211_ifdetach
+function frees any
+.Nm ieee80211
+structures associated with the driver, and performs Ethernet and BPF
+detachment on behalf of the caller.
+.Pp
+.\"
+The
+.Fn ieee80211_mhz2ieee
+utility function converts the frequency
+.Fa freq
+(specified in MHz) to an IEEE 802.11 channel number.
+The
+.Fa flags
+argument is a hint which specifies whether the frequency is in
+the 2GHz ISM band
+.Pq Vt IEEE80211_CHAN_2GHZ
+or the 5GHz band
+.Pq Vt IEEE80211_CHAN_5GHZ ;
+appropriate clipping of the result is then performed.
+.Pp
+.\"
+The
+.Fn ieee80211_chan2ieee
+function converts the channel specified in
+.Fa *c
+to an IEEE channel number for the driver
+.Fa ic .
+If the conversion would be invalid, an error message is printed to the
+system console.
+This function requires that the driver is hooked up to the
+.Nm ieee80211
+subsystem.
+.Pp
+.\"
+The
+.Fn ieee80211_ieee2mhz
+utility function converts the IEEE channel number
+.Ft chan
+to a frequency (in MHz).
+The
+.Fa flags
+argument is a hint which specifies whether the frequency is in
+the 2GHz ISM band
+.Pq Vt IEEE80211_CHAN_2GHZ
+or the 5GHz band
+.Pq Vt IEEE80211_CHAN_5GHZ ;
+appropriate clipping of the result is then performed.
+.Pp
+.\"
+The
+.Fn ieee80211_media_init
+function initializes media data structures used by the
+.Vt ifmedia
+interface, for the driver
+.Fa ifp .
+It must be called by the driver after calling
+.Fn ieee80211_ifattach
+and before calling most
+.Nm ieee80211
+functions.
+The
+.Fa media_change
+and
+.Fa media_stat
+arguments specify helper functions which will be invoked by the
+.Vt ifmedia
+framework when the user changes or queries media options,
+using a command such as
+.Xr ifconfig 8 .
+.Pp
+.\"
+The
+.Fn ieee80211_media_status
+and
+.Fn ieee80211_media_change
+functions are device-independent handlers for
+.Vt ifmedia
+commands and are not intended to be called directly.
+.Pp
+.\"
+The
+.Fn ieee80211_watchdog
+function is intended to be called from a driver's
+.Va if_watchdog
+routine.
+It is used to perform periodic cleanup of state within the software 802.11
+stack, as well as timing out scans.
+.Pp
+.\"
+The
+.Fn ieee80211_setmode
+function is called from within the 802.11 stack to change the mode
+of the driver's PHY; it is not intended to be called directly.
+.Pp
+.\"
+The
+.Fn ieee80211_chan2mode
+function returns the PHY mode required for use with the channel
+.Fa chan
+on the device
+.Fa ic .
+This is typically used when selecting a rate set, to be advertised in
+beacons, for example.
+.Pp
+.\"
+The
+.Fn ieee80211_rate2media
+function converts the bit rate
+.Fa rate
+(measured in units of 0.5Mbps) to an
+.Vt ifmedia
+sub-type, for the device
+.Fa ic
+running in PHY mode
+.Fa mode .
+The
+.Fn ieee80211_media2rate
+function performs the reverse of this conversion,
+returning the bit rate (in 0.5Mbps units) corresponding to an
+.Vt ifmedia
+sub-type.
+.Pp
+.\"
+The
+.Fn ieee80211_rate2plcp
+function converts the bit rate
+.Fa rate
+(measured in units of 0.5Mbps) to a
+.Vt plcp
+signal (in msb-first R4-R1 format).
+The
+.Fn ieee80211_plcp2rate
+function performs the reverse of this conversion,
+returning the bit rate (in 0.5Mbps units) corresponding to a
+.Vt plcp
+signal (in msb-first R4-R1 format).
+.\"
+.Sh SEE ALSO
+.Xr ifmedia 4 ,
+.Xr ieee80211_crypto 9 ,
+.Xr ieee80211_input 9 ,
+.Xr ieee80211_ioctl 9 ,
+.Xr ieee80211_node 9 ,
+.Xr ieee80211_output 9 ,
+.Xr ieee80211_proto 9 ,
+.Xr ieee80211_radiotap 9 ,
+.Xr rssadapt 9
+.Sh HISTORY
+The
+.Nm ieee80211
+series of functions first appeared in
+.Nx 1.5 ,
+and were later ported to
+.Fx 4.6
+and
+.Ox 3.6 .
+.Sh AUTHORS
+.An -nosplit
+This man page was written by
+.An Bruce M. Simpson Aq Mt bms@FreeBSD.org
+and
+.An Darron Broad Aq Mt darron@kewl.org .

@@ -1,0 +1,100 @@
+.\" $OpenBSD: curs_instr.3,v 1.9 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_instr.3,v 1.9 2023/10/17 09:52:08 nicm Exp $
+.TH curs_instr 3 2023-07-01 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fBinstr\fP,
+\fBinnstr\fP,
+\fBwinstr\fP,
+\fBwinnstr\fP,
+\fBmvinstr\fP,
+\fBmvinnstr\fP,
+\fBmvwinstr\fP,
+\fBmvwinnstr\fP \- get a string of characters from a \fBcurses\fP window
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint instr(char *\fIstr\fB);\fR
+.br
+\fBint innstr(char *\fIstr\fB, int \fIn\fB);\fR
+.br
+\fBint winstr(WINDOW *\fIwin\fB, char *\fIstr\fB);\fR
+.br
+\fBint winnstr(WINDOW *\fIwin\fB, char *\fIstr\fB, int \fIn\fB);\fR
+.sp
+\fBint mvinstr(int \fIy\fB, int \fIx\fB, char *\fIstr\fB);\fR
+.br
+\fBint mvinnstr(int \fIy\fB, int \fIx\fB, char *\fIstr\fB, int \fIn\fB);\fR
+.br
+\fBint mvwinstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, char *\fIstr\fB);\fR
+.br
+\fBint mvwinnstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, char *\fIstr\fB, int \fIn\fB);\fR
+.SH DESCRIPTION
+These routines return a string of characters in \fIstr\fP, extracted starting
+at the current cursor position in the named window.
+Attributes are stripped from the characters.
+The four
+functions with \fIn\fP as the last argument return a leading substring at most
+\fIn\fP characters long (exclusive of the trailing NUL).
+.SH RETURN VALUE
+All of the functions return \fBERR\fP upon failure,
+or the number of characters actually read into the string.
+.PP
+X/Open Curses defines no error conditions.
+In this implementation:
+.bP
+If the \fIwin\fP parameter is null, an error is returned,
+.bP
+If the \fIchstr\fP parameter is null, an error is returned,
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+Note that all routines except \fBwinnstr\fP may be macros.
+.SH PORTABILITY
+SVr4 does not
+document whether a length limit includes or excludes the trailing NUL.
+.PP
+The ncurses library extends the XSI description by allowing a negative
+value for \fIn\fP.
+In this case, the functions return the string ending at the right margin.
+.SH SEE ALSO
+\fBcurses\fP(3).

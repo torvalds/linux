@@ -1,0 +1,11 @@
+static_library("ASTDiff") {
+  output_name = "clangToolingASTDiff"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "ASTDiff.cpp" ]
+}

@@ -1,0 +1,830 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <title>Checker Developer Manual</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+  <script type="text/javascript" src="scripts/menu.js"></script>
+</head>
+<body>
+
+<div id="page">
+<!--#include virtual="menu.html.incl"-->
+
+<div id="content">
+
+<h3 style="color:red">This Page Is Under Construction</h3>
+
+<h1>Checker Developer Manual</h1>
+
+<p>The static analyzer engine performs path-sensitive exploration of the program and
+relies on a set of checkers to implement the logic for detecting and
+constructing specific bug reports. Anyone who is interested in implementing their own
+checker, should check out the Building a Checker in 24 Hours talk
+(<a href="https://llvm.org/devmtg/2012-11/Zaks-Rose-Checker24Hours.pdf">slides</a>
+ <a href="https://youtu.be/kdxlsP5QVPw">video</a>)
+and refer to this page for additional information on writing a checker. The static analyzer is a
+part of the Clang project, so consult <a href="https://clang.llvm.org/hacking.html">Hacking on Clang</a>
+and <a href="https://llvm.org/docs/ProgrammersManual.html">LLVM Programmer's Manual</a>
+for developer guidelines and post your questions and proposals to the
+<a href="https://discourse.llvm.org/c/clang/static-analyzer/"> Static Analyzer</a> subcategory at
+the official <a href="https://discourse.llvm.org/"> LLVM Discourse server</a>.
+</p>
+
+    <ul>
+      <li><a href="#start">Getting Started</a></li>
+      <li><a href="#analyzer">Static Analyzer Overview</a>
+      <ul>
+        <li><a href="#interaction">Interaction with Checkers</a></li>
+        <li><a href="#values">Representing Values</a></li>
+      </ul></li>
+      <li><a href="#idea">Idea for a Checker</a></li>
+      <li><a href="#registration">Checker Registration</a></li>
+      <li><a href="#events_callbacks">Events, Callbacks, and Checker Class Structure</a></li>
+      <li><a href="#extendingstates">Custom Program States</a></li>
+      <li><a href="#bugs">Bug Reports</a></li>
+      <li><a href="#ast">AST Visitors</a></li>
+      <li><a href="#testing">Testing</a></li>
+      <li><a href="#commands">Useful Commands/Debugging Hints</a>
+      <ul>
+        <li><a href="#attaching">Attaching the Debugger</a></li>
+        <li><a href="#narrowing">Narrowing Down the Problem</a></li>
+        <li><a href="#visualizing">Visualizing the Analysis</a></li>
+        <li><a href="#debugprints">Debug Prints and Tricks</a></li>
+      </ul></li>
+      <li><a href="#additioninformation">Additional Sources of Information</a></li>
+      <li><a href="#links">Useful Links</a></li>
+    </ul>
+
+<h2 id=start>Getting Started</h2>
+  <ul>
+    <li>To check out the source code and build the project, follow steps 1-4 of
+    the <a href="https://clang.llvm.org/get_started.html">Clang Getting Started</a>
+  page.</li>
+
+    <li>The analyzer source code is located under the Clang source tree:
+    <br><tt>
+    $ <b>cd llvm/tools/clang</b>
+    </tt>
+    <br>See: <tt>include/clang/StaticAnalyzer</tt>, <tt>lib/StaticAnalyzer</tt>,
+     <tt>test/Analysis</tt>.</li>
+
+    <li>The analyzer regression tests can be executed from the Clang's build
+    directory:
+    <br><tt>
+    $ <b>cd ../../../; cd build/tools/clang; TESTDIRS=Analysis make test</b>
+    </tt></li>
+
+    <li>Analyze a file with the specified checker:
+    <br><tt>
+    $ <b>clang -cc1 -analyze -analyzer-checker=core.DivideZero test.c</b>
+    </tt></li>
+
+    <li>List the available checkers:
+    <br><tt>
+    $ <b>clang -cc1 -analyzer-checker-help</b>
+    </tt></li>
+
+    <li>See the analyzer help for different output formats, fine tuning, and
+    debug options:
+    <br><tt>
+    $ <b>clang -cc1 -help | grep "analyzer"</b>
+    </tt></li>
+
+  </ul>
+
+<h2 id=analyzer>Static Analyzer Overview</h2>
+  The analyzer core performs symbolic execution of the given program. All the
+  input values are represented with symbolic values; further, the engine deduces
+  the values of all the expressions in the program based on the input symbols
+  and the path. The execution is path sensitive and every possible path through
+  the program is explored. The explored execution traces are represented with
+  <a href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1ExplodedGraph.html">ExplodedGraph</a> object.
+  Each node of the graph is
+  <a href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1ExplodedNode.html">ExplodedNode</a>,
+  which consists of a <tt>ProgramPoint</tt> and a <tt>ProgramState</tt>.
+  <p>
+  <a href="https://clang.llvm.org/doxygen/classclang_1_1ProgramPoint.html">ProgramPoint</a>
+  represents the corresponding location in the program (or the CFG).
+  <tt>ProgramPoint</tt> is also used to record additional information on
+  when/how the state was added. For example, <tt>PostPurgeDeadSymbolsKind</tt>
+  kind means that the state is the result of purging dead symbols - the
+  analyzer's equivalent of garbage collection.
+  <p>
+  <a href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1ProgramState.html">ProgramState</a>
+  represents abstract state of the program. It consists of:
+  <ul>
+    <li><tt>Environment</tt> - a mapping from source code expressions to symbolic
+    values
+    <li><tt>Store</tt> - a mapping from memory locations to symbolic values
+    <li><tt>GenericDataMap</tt> - constraints on symbolic values
+  </ul>
+
+  <h3 id=interaction>Interaction with Checkers</h3>
+
+  <p>
+  Checkers are not merely passive receivers of the analyzer core changes - they
+  actively participate in the <tt>ProgramState</tt> construction through the
+  <tt>GenericDataMap</tt> which can be used to store the checker-defined part
+  of the state. Each time the analyzer engine explores a new statement, it
+  notifies each checker registered to listen for that statement, giving it an
+  opportunity to either report a bug or modify the state. (As a rule of thumb,
+  the checker itself should be stateless.) The checkers are called one after another
+  in the predefined order; thus, calling all the checkers adds a chain to the
+  <tt>ExplodedGraph</tt>.
+  </p>
+
+  <h3 id=values>Representing Values</h3>
+
+  <p>
+  During symbolic execution, <a href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1SVal.html">SVal</a>
+  objects are used to represent the semantic evaluation of expressions.
+  They can represent things like concrete
+  integers, symbolic values, or memory locations (which are memory regions).
+  They are a discriminated union of "values", symbolic and otherwise.
+  If a value isn't symbolic, usually that means there is no symbolic
+  information to track. For example, if the value was an integer, such as
+  <tt>42</tt>, it would be a <a href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1nonloc_1_1ConcreteInt.html">ConcreteInt</a>,
+  and the checker doesn't usually need to track any state with the concrete
+  number. In some cases, <tt>SVal</tt> is not a symbol, but it really should be
+  a symbolic value. This happens when the analyzer cannot reason about something
+  (yet). An example is floating point numbers. In such cases, the
+  <tt>SVal</tt> will evaluate to <a href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1UnknownVal.html">UnknownVal</a>.
+  This represents a case that is outside the realm of the analyzer's reasoning
+  capabilities. <tt>SVals</tt> are value objects and their values can be viewed
+  using the <tt>.dump()</tt> method. Often they wrap persistent objects such as
+  symbols or regions.
+  </p>
+
+  <p>
+  <a href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1SymExpr.html">SymExpr</a> (symbol)
+  is meant to represent abstract, but named, symbolic value. Symbols represent
+  an actual (immutable) value. We might not know what its specific value is, but
+  we can associate constraints with that value as we analyze a path. For
+  example, we might record that the value of a symbol is greater than
+  <tt>0</tt>, etc.
+  </p>
+
+  <p>
+  <a href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1MemRegion.html">MemRegion</a> is similar to a symbol.
+  It is used to provide a lexicon of how to describe abstract memory. Regions can
+  layer on top of other regions, providing a layered approach to representing memory.
+  For example, a struct object on the stack might be represented by a <tt>VarRegion</tt>,
+  but a <tt>FieldRegion</tt> which is a subregion of the <tt>VarRegion</tt> could
+  be used to represent the memory associated with a specific field of that object.
+  So how do we represent symbolic memory regions? That's what
+  <a href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1SymbolicRegion.html">SymbolicRegion</a>
+  is for. It is a <tt>MemRegion</tt> that has an associated symbol. Since the
+  symbol is unique and has a unique name; that symbol names the region.
+  </p>
+
+  <p>
+  Let's see how the analyzer processes the expressions in the following example:
+  </p>
+
+  <p>
+  <pre class="code_example">
+  int foo(int x) {
+     int y = x * 2;
+     int z = x;
+     ...
+  }
+  </pre>
+  </p>
+
+  <p>
+Let's look at how <tt>x*2</tt> gets evaluated. When <tt>x</tt> is evaluated,
+we first construct an <tt>SVal</tt> that represents the lvalue of <tt>x</tt>, in
+this case it is an <tt>SVal</tt> that references the <tt>MemRegion</tt> for <tt>x</tt>.
+Afterwards, when we do the lvalue-to-rvalue conversion, we get a new <tt>SVal</tt>,
+which references the value <b>currently bound</b> to <tt>x</tt>. That value is
+symbolic; it's whatever <tt>x</tt> was bound to at the start of the function.
+Let's call that symbol <tt>$0</tt>. Similarly, we evaluate the expression for <tt>2</tt>,
+and get an <tt>SVal</tt> that references the concrete number <tt>2</tt>. When
+we evaluate <tt>x*2</tt>, we take the two <tt>SVals</tt> of the subexpressions,
+and create a new <tt>SVal</tt> that represents their multiplication (which in
+this case is a new symbolic expression, which we might call <tt>$1</tt>). When we
+evaluate the assignment to <tt>y</tt>, we again compute its lvalue (a <tt>MemRegion</tt>),
+and then bind the <tt>SVal</tt> for the RHS (which references the symbolic value <tt>$1</tt>)
+to the <tt>MemRegion</tt> in the symbolic store.
+<br>
+The second line is similar. When we evaluate <tt>x</tt> again, we do the same
+dance, and create an <tt>SVal</tt> that references the symbol <tt>$0</tt>. Note, two <tt>SVals</tt>
+might reference the same underlying values.
+  </p>
+
+<p>
+To summarize, MemRegions are unique names for blocks of memory. Symbols are
+unique names for abstract symbolic values. Some MemRegions represents abstract
+symbolic chunks of memory, and thus are also based on symbols. SVals are just
+references to values, and can reference either MemRegions, Symbols, or concrete
+values (e.g., the number 1).
+</p>
+
+  <!--
+  TODO: Add a picture.
+  <br>
+  Symbols<br>
+  FunctionalObjects are used throughout.
+  -->
+
+<h2 id=idea>Idea for a Checker</h2>
+  Here are several questions which you should consider when evaluating your
+  checker idea:
+  <ul>
+    <li>Can the check be effectively implemented without path-sensitive
+    analysis? See <a href="#ast">AST Visitors</a>.</li>
+
+    <li>How high the false positive rate is going to be? Looking at the occurrences
+    of the issue you want to write a checker for in the existing code bases might
+    give you some ideas. </li>
+
+    <li>How the current limitations of the analysis will effect the false alarm
+    rate? Currently, the analyzer only reasons about one procedure at a time (no
+    inter-procedural analysis). Also, it uses a simple range tracking based
+    solver to model symbolic execution.</li>
+
+    <li>Consult the <a
+    href="https://github.com/llvm/llvm-project/labels/clang%3Astatic%20analyzer">GitHub Issues</a>
+    to get some ideas for new checkers and consider starting with improving/fixing
+    bugs in the existing checkers.</li>
+  </ul>
+
+<p>Once an idea for a checker has been chosen, there are two key decisions that
+need to be made:
+  <ul>
+    <li> Which events the checker should be tracking. This is discussed in more
+    detail in the section <a href="#events_callbacks">Events, Callbacks, and
+    Checker Class Structure</a>.
+    <li> What checker-specific data needs to be stored as part of the program
+    state (if any). This should be minimized as much as possible. More detail about
+    implementing custom program state is given in section <a
+    href="#extendingstates">Custom Program States</a>.
+  </ul>
+
+
+<h2 id=registration>Checker Registration</h2>
+  All checker implementation files are located in
+  <tt>clang/lib/StaticAnalyzer/Checkers</tt> folder. The steps below describe
+  how the checker <tt>SimpleStreamChecker</tt>, which checks for misuses of
+  stream APIs, was registered with the analyzer.
+  Similar steps should be followed for a new checker.
+<ol>
+  <li>A new checker implementation file, <tt>SimpleStreamChecker.cpp</tt>, was
+  created in the directory <tt>lib/StaticAnalyzer/Checkers</tt>.
+  <li>The following registration code was added to the implementation file:
+<pre class="code_example">
+void ento::registerSimpleStreamChecker(CheckerManager &amp;mgr) {
+  mgr.registerChecker&lt;SimpleStreamChecker&gt();
+}
+</pre>
+<li>A package was selected for the checker and the checker was defined in the
+table of checkers at <tt>include/clang/StaticAnalyzer/Checkers/Checkers.td</tt>.
+Since all checkers should first be developed as "alpha", and the SimpleStreamChecker
+performs UNIX API checks, the correct package is "alpha.unix", and the following
+was added to the corresponding <tt>UnixAlpha</tt> section of <tt>Checkers.td</tt>:
+<pre class="code_example">
+let ParentPackage = UnixAlpha in {
+...
+def SimpleStreamChecker : Checker<"SimpleStream">,
+  HelpText<"Check for misuses of stream APIs">,
+  DescFile<"SimpleStreamChecker.cpp">;
+...
+} // end "alpha.unix"
+</pre>
+
+<li>The source code file was made visible to CMake by adding it to
+<tt>lib/StaticAnalyzer/Checkers/CMakeLists.txt</tt>.
+
+</ol>
+
+After adding a new checker to the analyzer, one can verify that the new checker
+was successfully added by seeing if it appears in the list of available checkers:
+<br> <tt><b>$clang -cc1 -analyzer-checker-help</b></tt>
+
+<h2 id=events_callbacks>Events, Callbacks, and Checker Class Structure</h2>
+
+<p> All checkers inherit from the <tt><a
+href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1Checker.html">
+Checker</a></tt> template class; the template parameter(s) describe the type of
+events that the checker is interested in processing. The various types of events
+that are available are described in the file <a
+href="https://clang.llvm.org/doxygen/CheckerDocumentation_8cpp_source.html">
+CheckerDocumentation.cpp</a>
+
+<p> For each event type requested, a corresponding callback function must be
+defined in the checker class (<a
+href="https://clang.llvm.org/doxygen/CheckerDocumentation_8cpp_source.html">
+CheckerDocumentation.cpp</a> shows the
+correct function name and signature for each event type).
+
+<p> As an example, consider <tt>SimpleStreamChecker</tt>. This checker needs to
+take action at the following times:
+
+<ul>
+<li>Before making a call to a function, check if the function is <tt>fclose</tt>.
+If so, check the parameter being passed.
+<li>After making a function call, check if the function is <tt>fopen</tt>. If
+so, process the return value.
+<li>When values go out of scope, check whether they are still-open file
+descriptors, and report a bug if so. In addition, remove any information about
+them from the program state in order to keep the state as small as possible.
+<li>When file pointers "escape" (are used in a way that the analyzer can no longer
+track them), mark them as such. This prevents false positives in the cases where
+the analyzer cannot be sure whether the file was closed or not.
+</ul>
+
+<p>These events that will be used for each of these actions are, respectively, <a
+href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1check_1_1PreCall.html">PreCall</a>,
+<a
+href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1check_1_1PostCall.html">PostCall</a>,
+<a
+href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1check_1_1DeadSymbols.html">DeadSymbols</a>,
+and <a
+href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1check_1_1PointerEscape.html">PointerEscape</a>.
+The high-level structure of the checker's class is thus:
+
+<pre class="code_example">
+class SimpleStreamChecker : public Checker&lt;check::PreCall,
+                                           check::PostCall,
+                                           check::DeadSymbols,
+                                           check::PointerEscape&gt; {
+public:
+
+  void checkPreCall(const CallEvent &amp;Call, CheckerContext &amp;C) const;
+
+  void checkPostCall(const CallEvent &amp;Call, CheckerContext &amp;C) const;
+
+  void checkDeadSymbols(SymbolReaper &amp;SR, CheckerContext &amp;C) const;
+
+  ProgramStateRef checkPointerEscape(ProgramStateRef State,
+                                     const InvalidatedSymbols &amp;Escaped,
+                                     const CallEvent *Call,
+                                     PointerEscapeKind Kind) const;
+};
+</pre>
+
+<h2 id=extendingstates>Custom Program States</h2>
+
+<p> Checkers often need to keep track of information specific to the checks they
+perform. However, since checkers have no guarantee about the order in which the
+program will be explored, or even that all possible paths will be explored, this
+state information cannot be kept within individual checkers. Therefore, if
+checkers need to store custom information, they need to add new categories of
+data to the <tt>ProgramState</tt>. The preferred way to do so is to use one of
+several macros designed for this purpose. They are:
+
+<ul>
+<li><a
+href="https://clang.llvm.org/doxygen/ProgramStateTrait_8h.html#ae4cddb54383cd702a045d7c61b009147">REGISTER_TRAIT_WITH_PROGRAMSTATE</a>:
+Used when the state information is a single value. The methods available for
+state types declared with this macro are <tt>get</tt>, <tt>set</tt>, and
+<tt>remove</tt>.
+<li><a
+href="https://clang.llvm.org/doxygen/ProgramStateTrait_8h.html#aa27656fa0ce65b0d9ba12eb3c02e8be9">REGISTER_LIST_WITH_PROGRAMSTATE</a>:
+Used when the state information is a list of values. The methods available for
+state types declared with this macro are <tt>add</tt>, <tt>get</tt>,
+<tt>remove</tt>, and <tt>contains</tt>.
+<li><a
+href="https://clang.llvm.org/doxygen/ProgramStateTrait_8h.html#ad90f9387b94b344eaaf499afec05f4d1">REGISTER_SET_WITH_PROGRAMSTATE</a>:
+Used when the state information is a set of values. The methods available for
+state types declared with this macro are <tt>add</tt>, <tt>get</tt>,
+<tt>remove</tt>, and <tt>contains</tt>.
+<li><a
+href="https://clang.llvm.org/doxygen/ProgramStateTrait_8h.html#a6d1893bb8c18543337b6c363c1319fcf">REGISTER_MAP_WITH_PROGRAMSTATE</a>:
+Used when the state information is a map from a key to a value. The methods
+available for state types declared with this macro are <tt>add</tt>,
+<tt>set</tt>, <tt>get</tt>, <tt>remove</tt>, and <tt>contains</tt>.
+</ul>
+
+<p>All of these macros take as parameters the name to be used for the custom
+category of state information and the data type(s) to be used for storage. The
+data type(s) specified will become the parameter type and/or return type of the
+methods that manipulate the new category of state information. Each of these
+methods are templated with the name of the custom data type.
+
+<p>For example, a common case is the need to track data associated with a
+symbolic expression; a map type is the most logical way to implement this. The
+key for this map will be a pointer to a symbolic expression
+(<tt>SymbolRef</tt>). If the data type to be associated with the symbolic
+expression is an integer, then the custom category of state information would be
+declared as
+
+<pre class="code_example">
+REGISTER_MAP_WITH_PROGRAMSTATE(ExampleDataType, SymbolRef, int)
+</pre>
+
+The data would be accessed with the function
+
+<pre class="code_example">
+ProgramStateRef state;
+SymbolRef Sym;
+...
+int currentlValue = state-&gt;get&lt;ExampleDataType&gt;(Sym);
+</pre>
+
+and set with the function
+
+<pre class="code_example">
+ProgramStateRef state;
+SymbolRef Sym;
+int newValue;
+...
+ProgramStateRef newState = state-&gt;set&lt;ExampleDataType&gt;(Sym, newValue);
+</pre>
+
+<p>In addition, the macros define a data type used for storing the data of the
+new data category; the name of this type is the name of the data category with
+"Ty" appended. For <tt>REGISTER_TRAIT_WITH_PROGRAMSTATE</tt>, this will simply
+be passed data type; for the other three macros, this will be a specialized
+version of the <a
+href="https://llvm.org/doxygen/classllvm_1_1ImmutableList.html">llvm::ImmutableList</a>,
+<a
+href="https://llvm.org/doxygen/classllvm_1_1ImmutableSet.html">llvm::ImmutableSet</a>,
+or <a
+href="https://llvm.org/doxygen/classllvm_1_1ImmutableMap.html">llvm::ImmutableMap</a>
+templated class. For the <tt>ExampleDataType</tt> example above, the type
+created would be equivalent to writing the declaration:
+
+<pre class="code_example">
+using ExampleDataTypeTy = llvm::ImmutableMap&lt;SymbolRef, int&gt;;
+</pre>
+
+<p>These macros will cover a majority of use cases; however, they still have a
+few limitations. They cannot be used inside namespaces (since they expand to
+contain top-level namespace references), and the data types that they define
+cannot be referenced from more than one file.
+
+<p>Note that <tt>ProgramStates</tt> are immutable; instead of modifying an existing
+one, functions that modify the state will return a copy of the previous state
+with the change applied. This updated state must be then provided to the
+analyzer core by calling the <tt>CheckerContext::addTransition</tt> function.
+<h2 id=bugs>Bug Reports</h2>
+
+
+<p> When a checker detects a mistake in the analyzed code, it needs a way to
+report it to the analyzer core so that it can be displayed. The two classes used
+to construct this report are <tt><a
+href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1BugType.html">BugType</a></tt>
+and <tt><a
+href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1BugReport.html">
+BugReport</a></tt>.
+
+<p>
+<tt>BugType</tt>, as the name would suggest, represents a type of bug. The
+constructor for <tt>BugType</tt> takes two parameters: The name of the bug
+type, and the name of the category of the bug. These are used (e.g.) in the
+summary page generated by the scan-build tool.
+
+<P>
+  The <tt>BugReport</tt> class represents a specific occurrence of a bug. In
+  the most common case, three parameters are used to form a <tt>BugReport</tt>:
+<ol>
+<li>The type of bug, specified as an instance of the <tt>BugType</tt> class.
+<li>A short descriptive string. This is placed at the location of the bug in
+the detailed line-by-line output generated by scan-build.
+<li>The context in which the bug occurred. This includes both the location of
+the bug in the program and the program's state when the location is reached. These are
+both encapsulated in an <tt>ExplodedNode</tt>.
+</ol>
+
+<p>In order to obtain the correct <tt>ExplodedNode</tt>, a decision must be made
+as to whether or not analysis can continue along the current path. This decision
+is based on whether the detected bug is one that would prevent the program under
+analysis from continuing. For example, leaking of a resource should not stop
+analysis, as the program can continue to run after the leak. Dereferencing a
+null pointer, on the other hand, should stop analysis, as there is no way for
+the program to meaningfully continue after such an error.
+
+<p>If analysis can continue, then the most recent <tt>ExplodedNode</tt>
+generated by the checker can be passed to the <tt>BugReport</tt> constructor
+without additional modification. This <tt>ExplodedNode</tt> will be the one
+returned by the most recent call to <a
+href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1CheckerContext.html#a9717efea3fbc71523984160ae7ae9d41">CheckerContext::addTransition</a>.
+If no transition has been performed during the current callback, the checker should call <a
+href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1CheckerContext.html#a9717efea3fbc71523984160ae7ae9d41">CheckerContext::addTransition()</a>
+and use the returned node for bug reporting.
+
+<p>If analysis can not continue, then the current state should be transitioned
+into a so-called <i>sink node</i>, a node from which no further analysis will be
+performed. This is done by calling the <a
+href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1CheckerContext.html#a249245cdf2384738921f134c8d7d909a">
+CheckerContext::generateSink</a> function; this function is the same as the
+<tt>addTransition</tt> function, but marks the state as a sink node. Like
+<tt>addTransition</tt>, this returns an <tt>ExplodedNode</tt> with the updated
+state, which can then be passed to the <tt>BugReport</tt> constructor.
+
+<p>
+After a <tt>BugReport</tt> is created, it should be passed to the analyzer core
+by calling <a href="https://clang.llvm.org/doxygen/classclang_1_1ento_1_1CheckerContext.html#af50a9f46f6ea787a2a8e4ad7f86576e7">CheckerContext::emitReport</a>.
+
+<h2 id=ast>AST Visitors</h2>
+  Some checks might not require path-sensitivity to be effective. Simple AST walk
+  might be sufficient. If that is the case, consider implementing a Clang
+  compiler warning. On the other hand, a check might not be acceptable as a compiler
+  warning; for example, because of a relatively high false positive rate. In this
+  situation, AST callbacks <tt><b>checkASTDecl</b></tt> and
+  <tt><b>checkASTCodeBody</b></tt> are your best friends.
+
+<h2 id=testing>Testing</h2>
+  Every patch should be well tested with Clang regression tests. The checker tests
+  live in <tt>clang/test/Analysis</tt> folder. To run all of the analyzer tests,
+  execute the following from the <tt>clang</tt> build directory:
+    <pre class="code">
+    $ <b>bin/llvm-lit -sv ../llvm/tools/clang/test/Analysis</b>
+    </pre>
+
+<h2 id=commands>Useful Commands/Debugging Hints</h2>
+
+<h3 id=attaching>Attaching the Debugger</h3>
+
+<p>When your command contains the <tt><b>-cc1</b></tt> flag, you can attach the
+debugger to it directly:</p>
+
+<pre class="code">
+    $ <b>gdb --args clang -cc1 -analyze -analyzer-checker=core test.c</b>
+    $ <b>lldb -- clang -cc1 -analyze -analyzer-checker=core test.c</b>
+</pre>
+
+<p>
+Otherwise, if your command line contains <tt><b>--analyze</b></tt>,
+the actual clang instance would be run in a separate process. In
+order to debug it, use the <tt><b>-###</b></tt> flag for obtaining
+the command line of the child process:
+</p>
+
+<pre class="code">
+    $ <b>clang --analyze test.c -\#\#\#</b>
+</pre>
+
+<p>
+Below we describe a few useful command line arguments, all of which assume that
+you are running <tt><b>clang -cc1</b></tt>.
+</p>
+
+<h3 id=narrowing>Narrowing Down the Problem</h3>
+
+<p>While investigating a checker-related issue, instruct the analyzer to only
+execute a single checker:
+</p>
+<pre class="code">
+    $ <b>clang -cc1 -analyze -analyzer-checker=osx.KeychainAPI test.c</b>
+</pre>
+
+<p>If you are experiencing a crash, to see which function is failing while
+processing a large file use the  <tt><b>-analyzer-display-progress</b></tt>
+option.</p>
+
+<p>To selectively analyze only the given function, use the
+<tt><b>-analyze-function</b></tt> option:</p>
+<pre class="code">
+    $ <b>clang -cc1 -analyze -analyzer-checker=core test.c -analyzer-display-progress</b>
+    ANALYZE (Syntax): test.c foo
+    ANALYZE (Syntax): test.c bar
+    ANALYZE (Path,  Inline_Regular): test.c bar
+    ANALYZE (Path,  Inline_Regular): test.c foo
+    $ <b>clang -cc1 -analyze -analyzer-checker=core test.c -analyzer-display-progress -analyze-function=foo</b>
+    ANALYZE (Syntax): test.c foo
+    ANALYZE (Path,  Inline_Regular): test.c foo
+</pre>
+
+<b>Note: </b> a fully qualified function name has to be used when selecting
+C++ functions and methods, Objective-C methods and blocks, e.g.:
+
+<pre class="code">
+    $ <b>clang -cc1 -analyze -analyzer-checker=core test.cc -analyze-function='foo(int)'</b>
+</pre>
+
+The fully qualified name can be found from the
+<tt><b>-analyzer-display-progress</b></tt> output.
+
+<p>The bug reporter mechanism removes path diagnostics inside intermediate
+function calls that have returned by the time the bug was found and contain
+no interesting pieces. Usually it is up to the checkers to produce more
+interesting pieces by adding custom <tt>BugReporterVisitor</tt> objects.
+However, you can disable path pruning while debugging with the
+<tt><b>-analyzer-config prune-paths=false</b></tt> option.
+
+<h3 id=visualizing>Visualizing the Analysis</h3>
+
+<p>To dump the AST, which often helps understanding how the program should
+behave:</p>
+<pre class="code">
+    $ <b>clang -cc1 -ast-dump test.c</b>
+</pre>
+
+<p>To view/dump CFG use <tt>debug.ViewCFG</tt> or <tt>debug.DumpCFG</tt>
+checkers:</p>
+<pre class="code">
+    $ <b>clang -cc1 -analyze -analyzer-checker=debug.ViewCFG test.c</b>
+</pre>
+
+<p><tt>ExplodedGraph</tt> (the state graph explored by the analyzer) can be
+visualized with another debug checker:</p>
+<pre class="code">
+    $ <b>clang -cc1 -analyze -analyzer-checker=debug.ViewExplodedGraph test.c</b>
+</pre>
+<p>Or, equivalently, with <tt><b>-analyzer-viz-egraph-graphviz</b></tt>
+option, which does the same thing - dumps the exploded graph in graphviz
+<tt><b>.dot</b></tt> format.</p>
+
+<p>You can convert <tt><b>.dot</b></tt> files into other formats - in
+particular, converting to <tt><b>.svg</b></tt> and viewing in your web
+browser might be more comfortable than using a <tt><b>.dot</b></tt> viewer:</p>
+<pre class="code">
+    $ <b>dot -Tsvg ExprEngine-501e2e.dot -o ExprEngine-501e2e.svg</b>
+</pre>
+
+<p>The <tt><b>-trim-egraph</b></tt> option removes all paths except those
+leading to bug reports from the exploded graph dump. This is useful
+because exploded graphs are often huge and hard to navigate.</p>
+
+<p>Viewing <tt>ExplodedGraph</tt> is your most powerful tool for understanding
+the analyzer's false positives, because it gives comprehensive information
+on every decision made by the analyzer across all analysis paths.</p>
+
+<p>There are more debug checkers available. To see all available debug checkers:
+</p>
+<pre class="code">
+    $ <b>clang -cc1 -analyzer-checker-help | grep "debug"</b>
+</pre>
+
+<h3 id=debugprints>Debug Prints and Tricks</h3>
+
+<p>To view "half-baked" <tt>ExplodedGraph</tt> while debugging, jump to a frame
+that has <tt>clang::ento::ExprEngine</tt> object and execute:</p>
+<pre class="code">
+    (gdb) <b>p ViewGraph(0)</b>
+</pre>
+
+<p>To see the <tt>ProgramState</tt> while debugging use the following command.
+<pre class="code">
+    (gdb) <b>p State->dump()</b>
+</pre>
+
+<p>To see <tt>clang::Expr</tt> while debugging use the following command. If you
+pass in a <tt>SourceManager</tt> object, it will also dump the corresponding line in the
+source code.</p>
+<pre class="code">
+    (gdb) <b>p E->dump()</b>
+</pre>
+
+<p>To dump AST of a method that the current <tt>ExplodedNode</tt> belongs
+to:</p>
+<pre class="code">
+    (gdb) <b>p C.getPredecessor()->getCodeDecl().getBody()->dump()</b>
+</pre>
+
+<h2 id=links>Making Your Checker Better</h2>
+<ul>
+<li>User facing documentation is important for adoption! Make sure the <a href="/available_checks.html">checker list </a>is updated
+    at the homepage of the analyzer. Also ensure the description is clear to
+    non-analyzer-developers in <tt>Checkers.td</tt>.</li>
+<li>Warning and note messages should be clear and easy to understand, even if a bit long.</li>
+<ul>
+  <li>Messages should start with a capital letter (unlike Clang warnings!) and should not
+      end with <tt>.</tt>.</li>
+  <li>Articles are usually omitted, eg. <tt>Dereference of a null pointer</tt> ->
+      <tt>Dereference of null pointer</tt>.</li>
+  <li>Introduce <tt>BugReporterVisitor</tt>s to emit additional notes that explain the warning
+      to the user better. There are some existing visitors that might be useful for your check,
+      e.g. <tt>trackNullOrUndefValue</tt>. For example, SimpleStreamChecker should highlight
+      the event of opening the file when reporting a file descriptor leak.</li>
+</ul>
+<li>If the check tracks anything in the program state, it needs to implement the
+    <tt>checkDeadSymbols</tt>callback to clean the state up.</li>
+<li>The check should conservatively assume that the program is correct when a tracked symbol
+    is passed to a function that is unknown to the analyzer.
+    <tt>checkPointerEscape</tt> callback could help you handle that case.</li>
+<li>Use safe and convenient APIs!</li>
+<ul>
+  <li>Always use <tt>CheckerContext::generateErrorNode</tt> and
+    <tt>CheckerContext::generateNonFatalErrorNode</tt> for emitting bug reports.
+    Most importantly, never emit report against <tt>CheckerContext::getPredecessor</tt>.</li>
+  <li>Prefer <tt>checkPreCall</tt> and <tt>checkPostCall</tt> to
+    <tt>checkPreStmt&lt;CallExpr&gt;</tt> and <tt>checkPostStmt&lt;CallExpr&gt;</tt>.</li>
+  <li>Use <tt>CallDescription</tt> to detect hardcoded API calls in the program.</li>
+  <li>Simplify <tt>C.getState()->getSVal(E, C.getLocationContext())</tt> to <tt>C.getSVal(E)</tt>.</li>
+</ul>
+<li>Common sources of crashes:</li>
+<ul>
+  <li><tt>CallEvent::getOriginExpr</tt> is nullable - for example, it returns null for an
+    automatic destructor of a variable. The same applies to some values generated while the
+    call was modeled, eg. <tt>SymbolConjured::getStmt</tt> is nullable.</li>
+  <li><tt>CallEvent::getDecl</tt> is nullable - for example, it returns null for a
+      call of symbolic function pointer.</li>
+  <li><tt>addTransition</tt>, <tt>generateSink</tt>, <tt>generateNonFatalErrorNode</tt>,
+    <tt>generateErrorNode</tt> are nullable because you can transition to a node that you have already visited.</li>
+  <li>Methods of <tt>CallExpr</tt>/<tt>FunctionDecl</tt>/<tt>CallEvent</tt> that
+    return arguments crash when the argument is out-of-bounds. If you checked the function name,
+    it doesn't mean that the function has the expected number of arguments!
+    Which is why you should use <tt>CallDescription</tt>.</li>
+  <li>Nullability of different entities within different kinds of symbols and regions is usually
+      documented via assertions in their constructors.</li>
+  <li><tt>NamedDecl::getName</tt> will fail if the name of the declaration is not a single token,
+    e.g. for destructors. You could use <tt>NamedDecl::getNameAsString</tt> for those cases.
+    Note that this method is much slower and should be used sparringly, e.g. only when generating reports
+    but not during analysis.</li>
+  <li>Is <tt>-analyzer-checker=core</tt> included in all test <tt>RUN:</tt> lines? It was never supported
+    to run the analyzer with the core checks disabled. It might cause unexpected behavior and
+    crashes. You should do all your testing with the core checks enabled.</li>
+</ul>
+</ul>
+<li>Patterns that you should most likely avoid even if they're not technically wrong:</li>
+<ul>
+  <li><tt>BugReporterVisitor</tt> should most likely not match the AST of the current program point
+      to decide when to emit a note. It is much easier to determine that by observing changes in
+      the program state.</li>
+  <li>In <tt>State->getSVal(Region)</tt>, if <tt>Region</tt> is not known to be a <tt>TypedValueRegion</tt>
+      and the optional type argument is not specified, the checker may accidentally try to dereference a
+      void pointer.</li>
+  <li>Checker logic should not depend on whether a certain value is a <tt>Loc</tt> or <tt>NonLoc</tt>.
+    It should be immediately obvious whether the <tt>SVal</tt> is a <tt>Loc</tt> or a
+    <tt>NonLoc</tt> depending on the AST that is being checked. Checking whether a value
+    is <tt>Loc</tt> or <tt>Unknown</tt>/<tt>Undefined</tt> or whether the value is
+    <tt>NonLoc</tt> or <tt>Unknown</tt>/<tt>Undefined</tt> is totally fine.</li>
+  <li>New symbols should not be constructed in the checker via direct calls to <tt>SymbolManager</tt>,
+    unless they are of <tt>SymbolMetadata</tt> class tagged by the checker,
+    or they represent newly created values such as the return value in <tt>evalCall</tt>.
+    For modeling arithmetic/bitwise/comparison operations, <tt>SValBuilder</tt> should be used.</li>
+  <li>Custom <tt>ProgramPointTag</tt>s should not be created within the checker. There is usually
+    no good reason for a checker to chain multiple nodes together, because checkers aren't worklists.</li>
+</ul>
+<li>Checkers are encouraged to actively participate in the analysis by sharing
+  their knowledge about the program state with the rest of the analyzer,
+  but they should not be disrupting the analysis unnecessarily:</li>
+<ul>
+  <li>If a checker splits program state, this must be based on knowledge that
+    the newly appearing branches are definitely possible and worth exploring
+    from the user's perspective. Otherwise the state split should be delayed
+    until there's an indication that one of the paths is taken, or one of the
+    paths needs to be dropped entirely. For example, it is fine to eagerly split
+    paths while modeling <tt>isalpha(x)</tt> as long as <tt>x</tt> is constrained accordingly on
+    each path. At the same time, it is not a good idea to split paths over the
+    return value of <tt>printf()</tt> while modeling the call because nobody ever checks
+    for errors in <tt>printf</tt>; at best, it'd just double the remaining analysis time.
+  </li>
+  <li>Caution is advised when using <tt>CheckerContext::generateNonFatalErrorNode</tt>
+    because it generates an independent transition, much like <tt>addTransition</tt>.
+    It is easy to accidentally split paths while using it. Ideally, try to
+    structure the code so that it was obvious that every <tt>addTransition</tt> or
+    <tt>generateNonFatalErrorNode</tt> (or sequence of such if the split is intended) is
+    immediately followed by return from the checker callback.</li>
+  <li>Multiple implementations of <tt>evalCall</tt> in different checkers should not conflict.</li>
+  <li>When implementing <tt>evalAssume</tt>, the checker should always return a non-null state
+      for either the true assumption or the false assumption (or both).</li>
+  <li>Checkers shall not mutate values of expressions, i.e. use the <tt>ProgramState::BindExpr</tt> API,
+    unless they are fully responsible for computing the value.
+    Under no circumstances should they change non-<tt>Unknown</tt> values of expressions.
+    Currently the only valid use case for this API in checkers is to model the return value in the <tt>evalCall</tt> callback.
+    If expression values are incorrect, <tt>ExprEngine</tt> needs to be fixed instead.</li>
+</ul>
+
+<h2 id=additioninformation>Additional Sources of Information</h2>
+
+Here are some additional resources that are useful when working on the Clang
+Static Analyzer:
+
+<ul>
+<li><a href="https://lcs.ios.ac.cn/~xzx/memmodel.pdf">Xu, Zhongxing &
+Kremenek, Ted & Zhang, Jian. (2010). A Memory Model for Static Analysis of C
+Programs.</a></li>
+<li><a href="https://github.com/llvm/llvm-project/blob/main/clang/lib/StaticAnalyzer/README.txt">
+The Clang Static Analyzer README</a></li>
+<li><a href="https://github.com/llvm/llvm-project/blob/main/clang/docs/analyzer/developer-docs/RegionStore.rst">
+Documentation for how the Store works</a></li>
+<li><a href="https://github.com/llvm/llvm-project/blob/main/clang/docs/analyzer/developer-docs/IPA.rst">
+Documentation about inlining</a></li>
+<li> The "Building a Checker in 24 hours" presentation given at the <a
+href="https://llvm.org/devmtg/2012-11">November 2012 LLVM Developer's
+meeting</a>. Describes the construction of SimpleStreamChecker. <a
+href="https://llvm.org/devmtg/2012-11/Zaks-Rose-Checker24Hours.pdf">Slides</a>
+and <a
+href="https://youtu.be/kdxlsP5QVPw">video</a>
+are available.</li>
+<li>
+<a href="https://github.com/haoNoQ/clang-analyzer-guide/releases/download/v0.1/clang-analyzer-guide-v0.1.pdf">
+Artem Degrachev: Clang Static Analyzer: A Checker Developer's Guide
+</a> (reading the previous items first might be a good idea)</li>
+<li>The list of <a href="implicit_checks.html">Implicit Checkers</a></li>
+<li> <a href="https://clang.llvm.org/doxygen">Clang doxygen</a>. Contains
+up-to-date documentation about the APIs available in Clang. Relevant entries
+have been linked throughout this page. Also of use is the
+<a href="https://llvm.org/doxygen">LLVM doxygen</a>, when dealing with classes
+from LLVM.</li>
+<li>
+  The <a href="https://discourse.llvm.org/c/clang/"> Clang Frontend Discourse site</a>.
+  This is the primary forum discussing ideas and posting questions about Clang development.
+  For posting Clang Static Analyzer specific questions, please visit the
+  <a href="https://discourse.llvm.org/c/clang/static-analyzer/"> Static Analyzer subcategory</a>
+  of the same site. In the past, Static Analyzer discussions took place at the
+  <a href="https://lists.llvm.org/pipermail/cfe-dev/"> cfe-dev</a> mailing list, which is now
+  archived and superseeded by the mentioned Discourse site.
+</li>
+</ul>
+
+</div>
+</div>
+</body>
+</html>

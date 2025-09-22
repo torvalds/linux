@@ -1,0 +1,8 @@
+#	$OpenBSD: README,v 1.3 1999/02/15 05:11:25 millert Exp $
+#	@(#)README	8.1 (Berkeley) 6/4/93
+
+These are the current memory pool routines.
+They aren't ready for prime time, yet, and
+the interface is expected to change.
+
+--keith

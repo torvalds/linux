@@ -1,0 +1,6 @@
+# List of function matchers common to C/C++ applications that make sense to
+# always instrument. You can use this as an argument to
+# -fxray-always-instrument=<path> along with your project-specific lists.
+
+# Always instrument the main function.
+fun:main

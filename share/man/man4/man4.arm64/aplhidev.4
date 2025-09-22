@@ -1,0 +1,50 @@
+.\"	$OpenBSD: aplhidev.4,v 1.2 2021/11/01 15:23:57 jmc Exp $
+.\"
+.\" Copyright (c) 2021 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 1 2021 $
+.Dt APLHIDEV 4 arm64
+.Os
+.Sh NAME
+.Nm aplhidev ,
+.Nm aplkbd ,
+.Nm aplms
+.Nd Apple HID over SPI support
+.Sh SYNOPSIS
+.Cd "aplhidev* at spi?"
+.Cd "aplkbd* at aplhidev?"
+.Cd "wskbd* at aplkbd? mux 1"
+.Cd "aplms* at aplhidev?"
+.Cd "wsmouse* at aplms? mux 0"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Human Interface Devices (HID) on
+Serial Peripheral Interface (SPI) buses on Apple Silicon Macs.
+.Sh SEE ALSO
+.Xr aplspi 4 ,
+.Xr intro 4 ,
+.Xr wskbd 4 ,
+.Xr wsmouse 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 7.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

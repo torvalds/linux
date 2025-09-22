@@ -1,0 +1,6 @@
+esp from 1.1.1.1 to 2.2.2.2 spi 0x1eadbeef:0xbeef1ead \
+	comp deflate enc 3des-cbc auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160" \
+	enckey file "DIR/ek192:DIR/ek192"
+ipcomp from 3.3.3.3 to 4.4.4.4 spi 0x2000:0x2001 \
+	comp deflate enc 3des-cbc auth hmac-sha1

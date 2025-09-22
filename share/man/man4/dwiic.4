@@ -1,0 +1,55 @@
+.\"	$OpenBSD: dwiic.4,v 1.6 2023/08/29 12:11:08 kettenis Exp $
+.\"
+.\" Copyright (c) 2016 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 29 2023 $
+.Dt DWIIC 4
+.Os
+.Sh NAME
+.Nm dwiic
+.Nd Synopsys DesignWare I2C controller
+.Sh SYNOPSIS
+.Cd "dwiic* at acpi?"
+.Cd "dwiic* at fdt?"
+.Cd "dwiic* at pci?"
+.Cd "iic* at dwiic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the Synopsys DesignWare I2C controller for use
+with the
+.Xr iic 4
+framework.
+.Pp
+On systems using the Intel OnChip System Fabric,
+.Nm
+may need the
+.Xr iosf 4
+driver to coordinate access to the I2C bus.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr iic 4 ,
+.Xr iosf 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An joshua stein Aq Mt jcs@openbsd.org .

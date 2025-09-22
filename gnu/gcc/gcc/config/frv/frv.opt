@@ -1,0 +1,200 @@
+; Options for the FR-V port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+macc-4
+Target Report RejectNegative Mask(ACC_4)
+Use 4 media accumulators
+
+macc-8
+Target Report RejectNegative InverseMask(ACC_4, ACC_8)
+Use 8 media accumulators
+
+malign-labels
+Target Report Mask(ALIGN_LABELS)
+Enable label alignment optimizations
+
+malloc-cc
+Target Report RejectNegative Mask(ALLOC_CC)
+Dynamically allocate cc registers
+
+; We used to default the branch cost to 2, but it was changed it to 1 to avoid
+; generating SCC instructions and or/and-ing them together, and then doing the
+; branch on the result, which collectively generate much worse code.
+mbranch-cost=
+Target RejectNegative Joined UInteger Var(frv_branch_cost_int) Init(1)
+Set the cost of branches
+
+mcond-exec
+Target Report Mask(COND_EXEC)
+Enable conditional execution other than moves/scc
+
+mcond-exec-insns=
+Target RejectNegative Joined UInteger Var(frv_condexec_insns) Init(8)
+Change the maximum length of conditionally-executed sequences
+
+mcond-exec-temps=
+Target RejectNegative Joined UInteger Var(frv_condexec_temps) Init(4)
+Change the number of temporary registers that are available to conditionally-executed sequences
+
+mcond-move
+Target Report Mask(COND_MOVE)
+Enable conditional moves
+
+mcpu=
+Target RejectNegative Joined
+Set the target CPU type
+
+mdebug
+Target Undocumented Var(TARGET_DEBUG)
+
+mdebug-arg
+Target Undocumented Var(TARGET_DEBUG_ARG)
+
+mdebug-addr
+Target Undocumented Var(TARGET_DEBUG_ADDR)
+
+mdebug-cond-exec
+Target Undocumented Var(TARGET_DEBUG_COND_EXEC)
+
+mdebug-loc
+Target Undocumented Var(TARGET_DEBUG_LOC)
+
+mdebug-stack
+Target Undocumented Var(TARGET_DEBUG_STACK)
+
+mdouble
+Target Report Mask(DOUBLE)
+Use fp double instructions
+
+mdword
+Target Report Mask(DWORD)
+Change the ABI to allow double word insns
+
+mfdpic
+Target Report Mask(FDPIC)
+Enable Function Descriptor PIC mode
+
+mfixed-cc
+Target Report RejectNegative InverseMask(ALLOC_CC, FIXED_CC)
+Just use icc0/fcc0
+
+mfpr-32
+Target Report RejectNegative Mask(FPR_32)
+Only use 32 FPRs
+
+mfpr-64
+Target Report RejectNegative InverseMask(FPR_32, FPR_64)
+Use 64 FPRs
+
+mgpr-32
+Target Report RejectNegative Mask(GPR_32)
+Only use 32 GPRs
+
+mgpr-64
+Target Report RejectNegative InverseMask(GPR_32, GPR_64)
+Use 64 GPRs
+
+mgprel-ro
+Target Report Mask(GPREL_RO)
+Enable use of GPREL for read-only data in FDPIC
+
+mhard-float
+Target Report RejectNegative InverseMask(SOFT_FLOAT, HARD_FLOAT)
+Use hardware floating point
+
+minline-plt
+Target Report Mask(INLINE_PLT)
+Enable inlining of PLT in function calls
+
+mlibrary-pic
+Target Report Mask(LIBPIC)
+Enable PIC support for building libraries
+
+mlinked-fp
+Target Report Mask(LINKED_FP)
+Follow the EABI linkage requirements
+
+mlong-calls
+Target Report Mask(LONG_CALLS)
+Disallow direct calls to global functions
+
+mmedia
+Target Report Mask(MEDIA)
+Use media instructions
+
+mmuladd
+Target Report Mask(MULADD)
+Use multiply add/subtract instructions
+
+mmulti-cond-exec
+Target Report Mask(MULTI_CE)
+Enable optimizing &&/|| in conditional execution
+
+mnested-cond-exec
+Target Report Mask(NESTED_CE)
+Enable nested conditional execution optimizations
+
+; Not used by the compiler proper.
+mno-eflags
+Target RejectNegative
+Do not mark ABI switches in e_flags
+
+moptimize-membar
+Target Report Mask(OPTIMIZE_MEMBAR)
+Remove redundant membars
+
+mpack
+Target Report Mask(PACK)
+Pack VLIW instructions
+
+mscc
+Target Report Mask(SCC)
+Enable setting GPRs to the result of comparisons
+
+msched-lookahead=
+Target RejectNegative Joined UInteger Var(frv_sched_lookahead) Init(4)
+Change the amount of scheduler lookahead
+
+msoft-float
+Target Report RejectNegative Mask(SOFT_FLOAT)
+Use software floating point
+
+mTLS
+Target Report RejectNegative Mask(BIG_TLS)
+Assume a large TLS segment
+
+mtls
+Target Report RejectNegative InverseMask(BIG_TLS)
+Do not assume a large TLS segment
+
+; Not used by the compiler proper.
+mtomcat-stats
+Target
+Cause gas to print tomcat statistics
+
+; Not used by the compiler proper.
+multilib-library-pic
+Target RejectNegative
+Link with the library-pic libraries
+
+mvliw-branch
+Target Report Mask(VLIW_BRANCH)
+Allow branches to be packed with other instructions

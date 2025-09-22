@@ -1,0 +1,316 @@
+.\"	$OpenBSD: opendir.3,v 1.3 2024/03/23 16:30:01 guenther Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 23 2024 $
+.Dt OPENDIR 3
+.Os
+.Sh NAME
+.Nm opendir ,
+.Nm fdopendir ,
+.Nm readdir ,
+.Nm readdir_r ,
+.Nm telldir ,
+.Nm seekdir ,
+.Nm rewinddir ,
+.Nm closedir ,
+.Nm dirfd
+.Nd directory operations
+.Sh SYNOPSIS
+.In sys/types.h
+.In dirent.h
+.Ft DIR *
+.Fn opendir "const char *filename"
+.Ft DIR *
+.Fn fdopendir "int fd"
+.Ft struct dirent *
+.Fn readdir "DIR *dirp"
+.Ft int
+.Fn readdir_r "DIR *dirp" "struct dirent *entry" "struct dirent **result"
+.Ft long
+.Fn telldir "const DIR *dirp"
+.Ft void
+.Fn seekdir "DIR *dirp" "long loc"
+.Ft void
+.Fn rewinddir "DIR *dirp"
+.Ft int
+.Fn closedir "DIR *dirp"
+.Ft int
+.Fn dirfd "DIR *dirp"
+.Sh DESCRIPTION
+The
+.Fn opendir
+function opens the directory named by
+.Fa filename ,
+associates a directory stream with it, and returns a pointer to be used
+to identify the directory stream in subsequent operations.
+On failure,
+.Dv NULL
+is returned and
+.Va errno
+is set to indicate the error.
+.Pp
+The
+.Fn fdopendir
+function is equivalent to
+.Fn opendir
+except that the directory is specified by file descriptor rather than by name.
+The file offset associated with the file descriptor at the time of the call
+determines which entries are returned.
+.Pp
+Upon successful return from
+.Fn fdopendir ,
+the file descriptor is under the control of the system,
+and if any attempt is made to close the file descriptor
+or to modify the state of the associated directory,
+other than by means of
+.Fn closedir ,
+.Fn readdir ,
+.Fn readdir_r ,
+or
+.Fn rewinddir ,
+the behavior is undefined.
+Upon calling
+.Fn closedir
+the file descriptor shall be closed.
+.Pp
+The
+.Fn readdir
+function returns a pointer to the next directory entry in the named
+directory stream
+.Fa dirp .
+It returns
+.Dv NULL
+upon reaching the end of the directory or detecting an invalid
+.Fn seekdir
+operation.
+.Pp
+The
+.Fn readdir_r
+function is a deprecated variant of
+.Fn readdir .
+Like
+.Fn readdir ,
+it initializes the
+.Vt dirent
+structure referenced by
+.Fa entry
+to represent the next directory entry in the named directory stream
+.Fa dirp ,
+and stores a pointer to this structure at the location referenced by
+.Fa result .
+The storage pointed to by
+.Fa entry
+must be large enough for a dirent with a
+.Fa d_name
+array member containing at least
+.Dv NAME_MAX
+plus one elements.
+.Fn readdir_r
+returns 0 on success, or an error number if an error occurs; see
+.Sx ERRORS .
+On successful return, the pointer returned at
+.Fa "*result"
+will have the same value as the argument
+.Fa entry .
+Upon reaching the end of the directory stream, this pointer shall have the value
+.Dv NULL .
+.Pp
+The
+.Fn telldir
+function returns the current location associated with the named
+directory stream
+.Fa dirp .
+On failure, \-1 is returned and
+.Va errno
+is set to indicate the error.
+.Pp
+The
+.Fn seekdir
+function sets the position of the next
+.Fn readdir
+operation on the named directory stream
+.Fa dirp .
+The new position reverts to the one associated with the
+directory stream when the
+.Fn telldir
+operation was performed.
+Values returned by
+.Fn telldir
+are good only for the lifetime of the
+.Dv DIR
+pointer,
+.Fa dirp ,
+from which they are derived.
+If the directory is closed and then reopened, the
+.Fn telldir
+value may be invalidated due to undetected directory compaction.
+.Pp
+The
+.Fn rewinddir
+function resets the position of the named directory stream
+.Fa dirp
+to the beginning of the directory.
+.Pp
+The
+.Fn closedir
+function closes the named directory stream and frees the structure
+associated with the
+.Fa dirp
+pointer, returning 0 on success.
+On failure, \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+The
+.Fn dirfd
+function returns the integer file descriptor associated with the named
+directory stream
+.Fa dirp
+(see
+.Xr open 2 ) .
+.Sh EXAMPLES
+Sample code which searches a directory for entry
+.Dq name
+is:
+.Bd -literal -offset indent
+len = strlen(name);
+dirp = opendir(".");
+if (dirp) {
+	while ((dp = readdir(dirp)) != NULL)
+		if (dp->d_namlen == len &&
+		    !strcmp(dp->d_name, name)) {
+			closedir(dirp);
+			return FOUND;
+		}
+	closedir(dirp);
+}
+return NOT_FOUND;
+.Ed
+.Sh ERRORS
+The
+.Fn opendir
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+The supplied
+.Fa filename
+is not a directory.
+.El
+.Pp
+The
+.Fn opendir
+function may also fail and set
+.Va errno
+for any of the errors specified for the routines
+.Xr fcntl 2 ,
+.Xr fstat 2 ,
+.Xr open 2 ,
+and
+.Xr malloc 3 .
+.Pp
+The
+.Fn fdopendir
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid file descriptor open for reading.
+.It Bq Er ENOTDIR
+The descriptor
+.Fa fd
+is not associated with a directory.
+.El
+.Pp
+The
+.Fn readdir
+and
+.Fn readdir_r
+functions may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr getdents 2 .
+.Pp
+The
+.Fn telldir
+function may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr realloc 3 .
+.Pp
+The
+.Fn closedir
+function may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr close 2 .
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr getdents 2 ,
+.Xr lseek 2 ,
+.Xr open 2 ,
+.Xr dir 5
+.Sh STANDARDS
+The
+.Fn opendir ,
+.Fn fdopendir ,
+.Fn readdir ,
+.Fn readdir_r ,
+.Fn telldir ,
+.Fn seekdir ,
+.Fn rewinddir ,
+.Fn closedir ,
+and
+.Fn dirfd
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn opendir ,
+.Fn readdir ,
+.Fn telldir ,
+.Fn seekdir ,
+.Fn rewinddir ,
+.Fn closedir ,
+and
+.Fn dirfd
+functions appeared in
+.Bx 4.2 .
+The
+.Fn fdopendir
+function appeared in
+.Ox 5.0 .
+.Sh CAVEATS
+The
+.Fn readdir_r
+function was intended to provide a thread-safe version of
+.Fn readdir .
+However, it was later found to be both unnecessary in the typical
+usage and unportable due to insufficient buffer sizing guidance.
+It was therefore officially deprecated in issue 8.

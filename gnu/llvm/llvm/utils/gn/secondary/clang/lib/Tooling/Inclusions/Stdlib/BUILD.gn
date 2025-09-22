@@ -1,0 +1,6 @@
+static_library("Stdlib") {
+  output_name = "clangToolingInclusionsStdlib"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [ "//clang/lib/AST" ]
+  sources = [ "StandardLibrary.cpp" ]
+}

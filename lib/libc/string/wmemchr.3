@@ -1,0 +1,81 @@
+.\"	$OpenBSD: wmemchr.3,v 1.10 2013/06/05 03:39:23 tedu Exp $
+.\"
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt WMEMCHR 3
+.Os
+.Sh NAME
+.Nm wmemchr
+.Nd locate wide character in wide string
+.Sh SYNOPSIS
+.In wchar.h
+.Ft wchar_t *
+.Fn wmemchr "const wchar_t *b" "wchar_t c" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn wmemchr
+function locates the first occurrence of
+.Fa c
+in wide string
+.Fa b .
+.Sh RETURN VALUES
+The
+.Fn wmemchr
+function returns a pointer to the wide character located, or
+.Dv NULL
+if no such wide character exists within
+.Fa len
+wide characters.
+.Sh SEE ALSO
+.Xr memchr 3 ,
+.Xr wcschr 3 ,
+.Xr wcscspn 3 ,
+.Xr wcspbrk 3 ,
+.Xr wcsrchr 3 ,
+.Xr wcsspn 3 ,
+.Xr wcsstr 3 ,
+.Xr wcstok 3
+.Sh STANDARDS
+The
+.Fn wmemchr
+function conforms to
+.St -isoC-99
+and was first introduced in
+.St -isoC-amd1 .
+.Sh HISTORY
+The
+.Fn wmemchr
+function was ported from
+.Nx
+and first appeared in
+.Ox 3.8 .

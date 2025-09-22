@@ -1,0 +1,93 @@
+.\" $OpenBSD: ASN1_PRINTABLE_type.3,v 1.2 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_PRINTABLE_TYPE 3
+.Os
+.Sh NAME
+.Nm ASN1_PRINTABLE_type
+.Nd classify a single-byte character string
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft int
+.Fo ASN1_PRINTABLE_type
+.Fa "const unsigned char *string"
+.Fa "int len"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_PRINTABLE_type
+assumes that the given
+.Fa string
+consists of single-byte characters and classifies it
+according to which kinds characters occur.
+If
+.Fa len
+is greater than 0, at most
+.Fa len
+characters are inspected.
+Otherwise, the
+.Fa string
+needs to be NUL-terminated.
+.Sh RETURN VALUES
+If the given
+.Fa string
+contains a character outside the
+.Xr ascii 7
+range,
+.Fn ASN1_PRINTABLE_type
+returns
+.Dv V_ASN1_T61STRING .
+.Pp
+Otherwise, if it contains a character that is neither a letter
+nor a digit nor the space character
+.Po
+.Ql "\ " ,
+ASCII 0x20
+.Pc
+nor the apostrophe quote
+.Po
+.Ql \(aq ,
+ASCII 0x27
+.Pc
+nor contained in the set
+.Qq ()+,\-./:=?\& ,
+it returns
+.Dv V_ASN1_IA5STRING .
+.Pp
+Otherwise, including if
+.Fa string
+is a
+.Dv NULL
+pointer or points to an empty string, it returns
+.Dv V_ASN1_PRINTABLESTRING .
+.Sh SEE ALSO
+.Xr ASN1_mbstring_copy 3 ,
+.Xr ASN1_STRING_new 3 ,
+.Xr ASN1_STRING_to_UTF8 3 ,
+.Xr isascii 3 ,
+.Xr ascii 7
+.Sh HISTORY
+.Fn ASN1_PRINTABLE_type
+first appeared in SSLeay 0.4.5d, has been part of the public API
+since SSLeay 0.5.1, and has been available since
+.Ox 2.4 .
+.Sh CAVEATS
+The ASN.1 notion of what constitutes a
+.Vt PrintableString
+is more restrictive than what the C library function
+.Xr isprint 3
+considers printable.

@@ -1,0 +1,11 @@
+static_library("cli") {
+  output_name = "clangPseudoCLI"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/pseudo/lib/cxx",
+    "//clang-tools-extra/pseudo/lib/grammar",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ "../../include" ]
+  sources = [ "CLI.cpp" ]
+}

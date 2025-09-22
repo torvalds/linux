@@ -1,0 +1,204 @@
+.\" $OpenBSD: wsconsctl.8,v 1.26 2022/02/06 00:29:02 jsg Exp $
+.\" $NetBSD: wsconsctl.8,v 1.5 1999/09/12 18:47:11 kleink Exp $
+.\"
+.\" Copyright (c) 1998 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Juergen Hannken-Illjes.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"/
+.Dd $Mdocdate: February 6 2022 $
+.Dt WSCONSCTL 8
+.Os
+.Sh NAME
+.Nm wsconsctl
+.Nd get or set wscons state
+.Sh SYNOPSIS
+.Nm wsconsctl
+.Op Fl an
+.Nm wsconsctl
+.Op Fl n
+.Op Fl f Ar file
+.Ar name ...
+.Nm wsconsctl
+.Op Fl n
+.Op Fl f Ar file
+.Ar name Ns = Ns Ar value ...
+.Sh DESCRIPTION
+The
+.Nm
+command displays or sets various wscons system driver variables.
+If a list of variables is present on the command line,
+.Nm
+prints the current value of those variables for the specified device.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Print all device variables and their current values.
+This is the default, if no parameters are given to
+.Nm .
+.It Fl f Ar file
+Specify an alternative control device.
+.It Fl n
+Suppress printing of the variable name in the output.
+.It Ar name Ns = Ns Ar value
+Attempt to set the specified variable
+.Ar name
+to
+.Ar value .
+The value can be specified as either an absolute, by using the
+.Ql =
+symbol,
+or as a relative value, by using the
+.Ql +=
+or
+.Ql -=
+symbols.
+See the
+.Sx EXAMPLES
+section for more details.
+.El
+.Pp
+The
+.Nm
+utility can be used to view and modify aspects of the keyboard,
+display, and mouse using the standard, machine-independent
+workstation console device driver
+.Xr wscons 4 .
+.Pp
+The keyboard type can be modified, the keyboard bell's pitch, period,
+and duration can be modified,
+the
+.Ar typematic
+value can be changed, and the keyboard encoding can be modified
+to switch keys, should the user find a keyboard's default layout
+difficult to use.
+.Pp
+There are also definitions relating to video
+control and cursor control, which are not applicable to
+all display types, and to text emulation and graphics
+(mapped) modes.
+.Pp
+Use the
+.Xr kbd 8
+utility to determine which keyboard encodings are available for your
+country.
+.Pp
+A keyboard mapping can also be specified in
+.Pa /etc/kbdtype .
+.Sh FILES
+.Bl -tag -width /usr/include/dev/wscons/wsconsio.h -compact
+.It Pa /dev/ttyC0
+display control device
+.It Pa /dev/wskbd0
+keyboard control device
+.It Pa /dev/wsmouse0
+mouse control device
+.It Pa /etc/kbdtype
+default keyboard mapping
+.It Pa /etc/wsconsctl.conf
+a list of parameters that get set at system startup time from
+.Xr rc 8
+.It Pa /usr/include/dev/wscons/wsconsio.h
+keyboard/mouse/display definitions
+.El
+.Sh EXAMPLES
+Set a UK keyboard encoding:
+.Pp
+.Dl # wsconsctl keyboard.encoding=uk
+.Pp
+Modify the current keyboard encoding so that, when the
+.Ar Caps Lock
+key is pressed, the same encoding sequence as
+.Ar Left Control
+is sent.
+For a full list of keysyms, and keycodes, refer
+to the
+.Ar /usr/include/dev/wscons/wsksymdef.h
+file.
+.Pp
+.Dl # wsconsctl keyboard.map+="keysym Caps_Lock = Control_L"
+.Pp
+Assign the
+.Ar Right Alt
+key to be the group modifier (layout is changed while the key is pressed):
+.Pp
+.Dl # wsconsctl keyboard.map+="keycode 184=Mode_switch"
+.Pp
+Assign the
+.Ar Right Control
+key to be the lock for the group modifier.
+The effect of
+.Ar Mode_Lock
+and
+.Ar Mode_switch
+is not mutually exclusive, to be consistent with
+.Ar Caps Lock
+and
+.Ar Shift
+behaviour.
+.Pp
+.Dl # wsconsctl keyboard.map+="keycode 157=Mode_Lock"
+.Pp
+Set a US keyboard encoding, with the
+.Ar Caps Lock
+and
+.Ar Left Control
+keys swapped.
+The
+.Ar .swapctrlcaps
+encoding does not work for all national keyboard encodings.
+For most purposes, the ability to set the value returned
+by the
+.Ar Caps Lock
+key is enough \- see the previous example for details.
+.Pp
+.Dl # wsconsctl keyboard.encoding=us.swapctrlcaps
+.Pp
+Set the bell pitch to be 1200:
+.Pp
+.Dl # wsconsctl keyboard.bell.pitch=1200
+.Pp
+Add 200 to the current pitch of the bell:
+.Pp
+.Dl # wsconsctl keyboard.bell.pitch+=200
+.Pp
+Set the display font to Gallant:
+.Pp
+.Dl # wsconsctl display.font=Gallant
+.Sh SEE ALSO
+.Xr pckbd 4 ,
+.Xr wscons 4 ,
+.Xr wsconsctl.conf 5 ,
+.Xr kbd 8 ,
+.Xr wsconscfg 8 ,
+.Xr wsfontload 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Nx 1.4
+and
+.Ox 2.8 .

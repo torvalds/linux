@@ -1,0 +1,17 @@
+[
+{
+  "directory": "/home/john.doe/MyProject",
+  "command": "clang++  -o project.o -c /home/john.doe/MyProject/project.cpp",
+  "file": "/home/john.doe/MyProject/project.cpp"
+},
+{
+  "directory": "/home/john.doe/MyProjectA",
+  "command": "clang++ -o project2.o -c /home/john.doe/MyProject/project2.cpp",
+  "file": "/home/john.doe/MyProject/project2.cpp"
+},
+{
+  "directory": "/home/john.doe/MyProjectB",
+  "command": "clang++  -DFEATURE=1 -o project2-feature.o -c /home/john.doe/MyProject/project2.cpp",
+  "file": "/home/john.doe/MyProject/project2.cpp"
+}
+]

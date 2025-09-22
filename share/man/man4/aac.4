@@ -1,0 +1,77 @@
+.\"	$OpenBSD: aac.4,v 1.27 2013/07/16 16:05:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2000 Michael Smith
+.\" Copyright (c) 2000 BSDi
+.\" Copyright (c) 2000 Niklas Hallqvist
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt AAC 4
+.Os
+.Sh NAME
+.Nm aac
+.Nd Adaptec SAS/SATA/SCSI RAID controller
+.Sh SYNOPSIS
+.Cd "aac* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Adaptec's "FSA" family of RAID controllers,
+including:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Adaptec AAC-2622, AAC-364, AAC-3642
+.It Adaptec 2130S, 2200S, 2230SLP, 2410SA, 2610SA, 2810SA, 21610SA
+.It Dell CERC-SATA, PERC 320/DC
+.It Dell PERC 2/QC, PERC 2/Si, PERC 3/Si, PERC 3/Di
+.It HP NetRaid-4M
+.It IBM ServeRAID-8i/8k/8s
+.El
+.Pp
+All the RAID set volume management is done via the card BIOS.
+.Pp
+This driver makes drives and/or RAID sets appear as
+.Xr sd 4 .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr scsi 4 ,
+.Xr sd 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 2.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Niklas Hallqvist Aq Mt niklas@openbsd.org ,
+inspired by the
+.Fx
+driver by
+.An Mike Smith Aq Mt msmith@freebsd.org .
+.Sh BUGS
+The card provides a mechanism to do online RAID set management,
+unfortunately the protocol is not public.

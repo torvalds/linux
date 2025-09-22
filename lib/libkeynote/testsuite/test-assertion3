@@ -1,0 +1,8 @@
+keynote-version: 2
+authorizer: "Key3"
+# This assertion will return "true"
+licensees: 2-of("Key5", "Key6", "Key7", "KeyE")
+conditions: app_domain == "testing" && request == "test" &&
+		foo == "bar" && $("foo") == "bar" &&
+		$(foo) == "xyz" && $foo == "xyz" && $$foo == "qua" &&
+		  variable == "yes" -> "true";

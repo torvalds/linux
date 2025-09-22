@@ -1,0 +1,3 @@
+flow ah from 3ffe:1::1 to 3ffe:3::/24 peer 3ffe:2::1 \
+	srcid host1.one.net \
+	dstid host2.two.net

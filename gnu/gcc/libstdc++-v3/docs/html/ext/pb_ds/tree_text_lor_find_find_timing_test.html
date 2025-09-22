@@ -1,0 +1,126 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>Tree Text Locality of Reference Find Timing Test</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1>Tree-Based Locality-of-Reference Text <tt>find</tt> Find
+    Timing Test</h1>
+<h2><a name="description" id="description">Description</a></h2>
+<p>This test inserts a number of values with keys from an
+    arbitrary text ([ <a href="references.html#wickland96thirty">wickland96thirty</a> ]) into
+    a container, then performs a series of finds using
+    <tt>find</tt> . It is different than <a href="tree_text_find_find_timing_test.html">Tree-Based and
+    Trie-Based Text <tt>find</tt> Find Timing Test</a> in the
+    sequence of finds it performs: this test performs multiple
+    <tt>find</tt> s on the same key before moving on to the next
+    key. It measures the average time for <tt>find</tt> as a
+    function of the number of values inserted.</p>
+<p>(The test was executed with <a href="../../../../testsuite/performance/ext/pb_ds/tree_text_lor_find_timing.cc"><tt>tree_text_lor_find_timing_test</tt></a>
+    thirty_years_among_the_dead_preproc.txt 200 200 2100)</p>
+<h2><a name="purpose" id="purpose">Purpose</a></h2>
+<p>The test checks the effect of different underlying
+    data structures in a locality-of-reference setting.</p>
+<h2><a name="results" id="results">Results</a></h2>
+<p>Figures <a href="#NTG">NTG</a>, <a href="#NTM">NTM</a>, and
+    <a href="#NTL">NTL</a> show the results for the native and
+    <tt>pb_ds</tt> tree-based types in <a href="assoc_performance_tests.html#gcc"><u>g++</u></a>, <a href="assoc_performance_tests.html#msvc"><u>msvc++</u></a> and
+    <a href="assoc_performance_tests.html#local"><u>local</u></a>,
+    respectively.</p>
+<div id="NTG_res_div">
+<div id="NTG_gcc">
+<div id="NTG_tree_text_lor_find_timing_test">
+<div id="NTG_assoc">
+<div id="NTG_Native_and_tree-based_locality-of-reference_text_find_timing_test_using__tt_find_455tt_"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTG" id="NTG"><img src="tree_text_lor_find_timing_test_gcc.png" alt="no image" /></a></h6>NTG: Native and tree-based locality-of-reference text find timing test using <tt>find</tt> - <a href="assoc_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+ov_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="ov_tree_tag.html"><tt>ov_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+rb_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+n_map-
+<tt>std::map</tt></li>
+<li>
+splay_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NTM_res_div">
+<div id="NTM_msvc">
+<div id="NTM_tree_text_lor_find_timing_test">
+<div id="NTM_assoc">
+<div id="NTM_Native_and_tree-based_locality-of-reference_text_find_timing_test_using__tt_find_455tt_"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTM" id="NTM"><img src="tree_text_lor_find_timing_test_msvc.png" alt="no image" /></a></h6>NTM: Native and tree-based locality-of-reference text find timing test using <tt>find</tt> - <a href="assoc_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+ov_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="ov_tree_tag.html"><tt>ov_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+rb_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+n_map-
+<tt>std::map</tt></li>
+<li>
+splay_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NTL_res_div">
+<div id="NTL_local">
+<div id="NTL_tree_text_lor_find_timing_test">
+<div id="NTL_assoc">
+<div id="NTL_Native_and_tree-based_locality-of-reference_text_find_timing_test_using__tt_find_455tt_"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTL" id= "NTL"><img src="tree_text_lor_find_timing_test_local.png" alt="no image" /></a></h6>NTL: Native and tree-based locality-of-reference text find timing test using <tt>find</tt> - <a href = "assoc_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<h2><a name="observations" id="observations">Observations</a></h2>
+<p>For this setting, an ordered-vector tree ( <a href="tree.html"><tt>tree</tt></a>
+    with <tt>Tag =</tt> <a href="ov_tree_tag.html"><tt>ov_tree_tag</tt></a> ), a
+    red-black tree ( <a href="tree.html"><tt>tree</tt></a>
+    with <tt>Tag =</tt> <a href="splay_tree_tag.html"><tt>rb_tree_tag</tt></a> ), and the
+    native red-black tree all share approximately the same
+    performance.</p>
+<p>A splay tree ( <a href="tree.html"><tt>tree</tt></a>
+    with <tt>Tag =</tt> <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a> ) does
+    much better, since each (successful) find "bubbles" the
+    corresponding node to the root of the tree.</p>
+<p><a href="assoc_performance_tests.html#tree_like_based_types">Observations::Tree-Like-Based
+    Container Types</a> summarizes some observations on tree-based
+    and trie-based containers.</p>
+</div>
+</body>
+</html>

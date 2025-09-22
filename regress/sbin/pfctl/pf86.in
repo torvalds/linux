@@ -1,0 +1,4 @@
+# test comment continuation with \
+pass in all
+
+# The rule above should not be evaluated

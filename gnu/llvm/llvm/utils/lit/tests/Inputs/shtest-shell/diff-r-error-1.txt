@@ -1,0 +1,9 @@
+# Create two directories for further comparison.
+# RUN: rm -rf %t/dir1 %t/dir2
+# RUN: mkdir -p %t/dir1 %t/dir2
+
+# Same filenames in subdirs with different content, "diff -r" should fail.
+# RUN: mkdir -p %t/dir1/subdir %t/dir2/subdir
+# RUN: echo "12345" > %t/dir1/subdir/f01
+# RUN: echo "00000" > %t/dir2/subdir/f01
+# RUN: diff -r %t/dir1 %t/dir2

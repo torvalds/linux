@@ -1,0 +1,93 @@
+.\"	$OpenBSD: installboot.8,v 1.7 2025/02/19 21:40:38 kettenis Exp $
+.\"
+.\" Copyright (c) 2013, 2014 Joel Sing
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 19 2025 $
+.Dt INSTALLBOOT 8
+.Os
+.Sh NAME
+.Nm installboot
+.Nd install bootstrap on a disk
+.Sh SYNOPSIS
+.Nm installboot
+.Op Fl cnv
+.Op Fl r Ar root
+.Ar disk
+.Op Ar stage1 Op Ar stage2
+.Nm
+.Op Fl nv
+.Fl p
+.Ar disk
+.Sh DESCRIPTION
+.Nm
+installs bootstrap on the specified disk.
+The exact process used depends on the system architecture, however there is
+generally a primary bootstrap (often known as a boot block) and a
+secondary bootstrap (often known as a boot loader).
+Some architectures only require a single stage bootstrap, which is written to
+the beginning of the disk.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c
+Set up the machine to boot from the specified disk by default.
+This is only implemented for amd64 and arm64 machines with UEFI
+firmware and GPT partition tables.
+.It Fl n
+Perform a dry run - do not actually write to the disk.
+.It Fl p
+Prepare filesystem.
+This will create a new filesystem on the partition reserved for the
+boot loader on architectures that require one.
+.It Fl r Ar root
+Specify the mount point of the
+.Ar root
+filesystem to operate on, defaulting to
+.Ar / .
+.It Fl v
+Increase verbosity during operation.
+.It Ar disk
+Specify the
+.Ar disk
+to install the bootstrap on.
+This may be specified using a full pathname, an abbreviated disk form,
+or a disklabel UID.
+.It Ar stage1
+Specify the file to use for the primary bootstrap.
+If not specified, the default for this architecture will be used.
+.It Ar stage2
+Specify the file to use for the secondary bootstrap.
+If not specified, the default for this architecture will be used.
+.El
+.Sh EXAMPLES
+In its most basic form, to install bootstrap on
+.Ar disk
+sd0, using the default primary and secondary bootstrap files:
+.Bd -literal -offset 3n
+# installboot sd0
+.Ed
+.Pp
+To install bootstrap on an
+.Ox
+amd64 machine, using
+.Ar /usr/mdec/biosboot
+as the primary bootstrap and
+.Ar /usr/mdec/boot
+as the secondary bootstrap:
+.Bd -literal -offset 3n
+# installboot -v wd0 /usr/mdec/biosboot /usr/mdec/boot
+.Ed
+.Sh SEE ALSO
+.Xr disklabel 8

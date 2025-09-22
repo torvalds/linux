@@ -1,0 +1,23 @@
+# $OpenBSD: factory,v 1.14 2025/01/19 22:03:27 millert Exp $
+# tzdb data for noncommittal factory settings
+
+# This file is in the public domain, so clarified as of
+# 2009-05-17 by Arthur David Olson.
+
+# For distributors who don't want to specify a timezone in their
+# installation procedures.  Users who run 'date' will get the
+# time zone abbreviation "-00", indicating that the actual time zone
+# is unknown.
+
+# TZ="Factory" was added to TZDB in 1989, and in 2016 its abbreviation
+# was changed to "-00" from a longish English-language error message.
+# Around 2010, CLDR added "Etc/Unknown" for use with TZDB, to stand
+# for an unknown or invalid time zone.  These two notions differ:
+# TZ="Factory" is a valid timezone, so tzalloc("Factory") succeeds, whereas
+# TZ="Etc/Unknown" is invalid and tzalloc("Etc/Unknown") fails.
+# Also, a downstream distributor could modify Factory to be a
+# default timezone suitable for the devices it manufactures,
+# whereas that cannot happen for Etc/Unknown.
+
+# Zone	NAME	STDOFF	RULES	FORMAT
+Zone	Factory	0	-	-00

@@ -1,0 +1,124 @@
+#
+# The following example shows how to utilize the pre-flight config file to route the lldb gdb-remote log messages
+# into individual log destinations.
+#
+# See also .lldb-loggings in this directory as well as the tmp dir which contains the two log files abridged due
+# to their log sizes.
+#
+
+[11:31:34] johnny:/Volumes/data/lldb/svn/ToT/test $ ./dotest.py -A x86_64 -v -c ../examples/test/.lldb-loggings functionalities/breakpoint/breakpoint_command
+config: {'pre_flight': <function pre_flight at 0x107042140>}
+LLDB build dir: /Volumes/data/lldb/svn/ToT/build/Debug
+LLDB-165
+Path: /Volumes/data/lldb/svn/ToT
+URL: https://johnny@llvm.org/svn/llvm-project/lldb/trunk
+Repository Root: https://johnny@llvm.org/svn/llvm-project
+Repository UUID: 91177308-0d34-0410-b5e6-96231b3b80d8
+Revision: 162231
+Node Kind: directory
+Schedule: normal
+Last Changed Author: johnny
+Last Changed Rev: 162228
+Last Changed Date: 2012-08-20 14:16:02 -0700 (Mon, 20 Aug 2012)
+
+
+lldb.pre_flight: def pre_flight(self):
+    import os
+    import lldb
+    import lldbtest
+
+    dest = os.path.join("/tmp", "lldb_log-%s-%s-%s.txt" % (self.getArchitecture(), self.getCompiler(), self.id()))
+    print "\nEnabling lldb logging for test case:", self
+    print "with log destination:", dest
+    self.runCmd("log enable -f %s gdb-remote packets process" % dest)
+
+lldb.post_flight: None
+
+Session logs for test failures/errors/unexpected successes will go into directory '2012-08-22-11_36_37'
+Command invoked: python ./dotest.py -A x86_64 -v -c ../examples/test/.lldb-loggings functionalities/breakpoint/breakpoint_command
+compilers=['clang']
+
+Configuration: arch=x86_64 compiler=clang
+----------------------------------------------------------------------
+Collected 2 tests
+
+1: test_with_dsym (TestBreakpointCommand.BreakpointCommandTestCase)
+   Test a sequence of breakpoint command add, list, and delete. ... 
+Enabling lldb logging for test case: test_with_dsym (TestBreakpointCommand.BreakpointCommandTestCase)
+with log destination: /tmp/lldb_log-x86_64-clang-TestBreakpointCommand.BreakpointCommandTestCase.test_with_dsym.txt
+ok
+2: test_with_dwarf (TestBreakpointCommand.BreakpointCommandTestCase)
+   Test a sequence of breakpoint command add, list, and delete. ... 
+Enabling lldb logging for test case: test_with_dwarf (TestBreakpointCommand.BreakpointCommandTestCase)
+with log destination: /tmp/lldb_log-x86_64-clang-TestBreakpointCommand.BreakpointCommandTestCase.test_with_dwarf.txt
+ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 7.826s
+
+OK
+[11:36:44] johnny:/Volumes/data/lldb/svn/ToT/test $ ls -l /tmp/lldb_log*
+-rw-r-----  1 johnny  wheel  614614 Aug 22 11:36 /tmp/lldb_log-x86_64-clang-TestBreakpointCommand.BreakpointCommandTestCase.test_with_dsym.txt
+-rw-r-----  1 johnny  wheel  614614 Aug 22 11:36 /tmp/lldb_log-x86_64-clang-TestBreakpointCommand.BreakpointCommandTestCase.test_with_dwarf.txt
+[11:37:09] johnny:/Volumes/data/lldb/svn/ToT/test $ 
+
+#
+# And this shows the log files go into the session directory.
+# Note that the .lldb-loggings file is modified to get the session directory now.
+#
+
+[11:37:09] johnny:/Volumes/data/lldb/svn/ToT/test $ ./dotest.py -A x86_64 -v -c ../examples/test/.lldb-loggings functionalities/breakpoint/breakpoint_command
+config: {'pre_flight': <function pre_flight at 0x10ca5c1b8>}
+LLDB build dir: /Volumes/data/lldb/svn/ToT/build/Debug
+LLDB-165
+Path: /Volumes/data/lldb/svn/ToT
+URL: https://johnny@llvm.org/svn/llvm-project/lldb/trunk
+Repository Root: https://johnny@llvm.org/svn/llvm-project
+Repository UUID: 91177308-0d34-0410-b5e6-96231b3b80d8
+Revision: 162231
+Node Kind: directory
+Schedule: normal
+Last Changed Author: johnny
+Last Changed Rev: 162228
+Last Changed Date: 2012-08-20 14:16:02 -0700 (Mon, 20 Aug 2012)
+
+
+lldb.pre_flight: def pre_flight(self):
+    import os
+    import lldb
+    import lldbtest
+
+    dname = os.path.join(os.environ["LLDB_TEST"])
+    if not os.path.isdir(dname):
+        os.mkdir(dname)
+    dest = os.path.join(dname, "lldb_log-%s-%s-%s.txt" % (self.getArchitecture(), self.getCompiler(), self.id()))
+    print "\nEnabling lldb logging for test case:", self
+    print "with log destination:", dest
+    self.runCmd("log enable -f %s gdb-remote packets process" % dest)
+
+lldb.post_flight: None
+
+Session logs for test failures/errors/unexpected successes will go into directory '2012-08-22-13_21_46'
+Command invoked: python ./dotest.py -A x86_64 -v -c ../examples/test/.lldb-loggings functionalities/breakpoint/breakpoint_command
+compilers=['clang']
+
+Configuration: arch=x86_64 compiler=clang
+----------------------------------------------------------------------
+Collected 2 tests
+
+1: test_with_dsym (TestBreakpointCommand.BreakpointCommandTestCase)
+   Test a sequence of breakpoint command add, list, and delete. ... 
+Enabling lldb logging for test case: test_with_dsym (TestBreakpointCommand.BreakpointCommandTestCase)
+with log destination: /Volumes/data/lldb/svn/ToT/test/2012-08-22-13_21_46/lldb_log-x86_64-clang-TestBreakpointCommand.BreakpointCommandTestCase.test_with_dsym.txt
+ok
+2: test_with_dwarf (TestBreakpointCommand.BreakpointCommandTestCase)
+   Test a sequence of breakpoint command add, list, and delete. ... 
+Enabling lldb logging for test case: test_with_dwarf (TestBreakpointCommand.BreakpointCommandTestCase)
+with log destination: /Volumes/data/lldb/svn/ToT/test/2012-08-22-13_21_46/lldb_log-x86_64-clang-TestBreakpointCommand.BreakpointCommandTestCase.test_with_dwarf.txt
+ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 8.575s
+
+OK
+[13:21:55] johnny:/Volumes/data/lldb/svn/ToT/test $ 

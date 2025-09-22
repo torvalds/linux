@@ -1,0 +1,113 @@
+.\" $OpenBSD: portgen.1,v 1.9 2022/08/13 07:14:07 kmos Exp $
+.\"
+.\" Copyright (c) 2015 Giannis Tsaraias <tsg@openbsd.org>
+.\" Copyright (c) 2015 Vadim Zhukov <zhuk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 13 2022 $
+.Dt PORTGEN 1
+.Os
+.Sh NAME
+.Nm portgen
+.Nd port modules on the fly
+.Sh SYNOPSIS
+.Nm portgen
+.Op Fl m Ar makeopt
+.Ar type
+.Ar module-name
+.Sh DESCRIPTION
+The
+.Nm
+utility creates ports for the given
+.Ar module-name
+from
+.Ar type
+module framework.
+The module is downloaded, analyzed and translated into a port.
+Any missing dependencies are handled recursively.
+New ports will land under ${PORTSDIR}/mystuff.
+The
+.Ev PORTSDIR
+value will be taken from current user environment, and defaults to
+.Pa /usr/ports .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl m Ar makeopt
+Pass
+.Ar makeopt
+to
+.Xr make 1
+invocations while resolving missing dependencies, mostly useful with
+.Sq FETCH_PACKAGES=
+to avoid building everything from scratch.
+.El
+.Pp
+The
+.Nm
+utility currently supports the following
+.Ar type
+values:
+.Pp
+.Bl -inset -offset indent -compact
+.It Cm p5
+for Perl modules on CPAN.
+.It Cm ruby
+for Ruby gems.
+.It Cm go
+for Go modules.
+.El
+.Pp
+A
+.Cm go
+module may be used with an
+.Ar @version
+suffix to specify a tag or branch to port.
+The default suffix is
+.Ar @latest ,
+which is interpreted as the latest release.
+.Pp
+The following packages must be installed prior to the invocation of
+.Nm :
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Cm sqlports
+.It
+.Cm p5-DBI
+.It
+.Cm p5-DBD-SQLite
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The following command will download the latest version of Config::AutoConf
+from CPAN, parse it and create a port for it:
+.Bd -ragged -offset indent
+.Nm
+p5 Config::AutoConf
+.Ed
+.Sh SEE ALSO
+.Xr port-modules 5 ,
+.Xr ports 7
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Ox 5.9
+as a result of Google Summer of Code 2015.
+.Sh AUTHORS
+.An Giannis Tsaraias Aq Mt tsg@openbsd.org
+.Sh CAVEATS
+Not every module could be converted to a port.

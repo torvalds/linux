@@ -1,0 +1,3 @@
+stdin:1: icmp-type mismatch
+stdin:1: skipping rule due to errors
+stdin:1: rule expands to no valid combination

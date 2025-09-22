@@ -1,0 +1,1 @@
+SHLIB_MAPFILES += $(srcdir)/config/alpha/libgcc-alpha-ldbl.ver

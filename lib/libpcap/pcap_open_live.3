@@ -1,0 +1,667 @@
+.\"	$OpenBSD: pcap_open_live.3,v 1.7 2025/06/13 18:45:02 schwarze Exp $
+.\"
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt PCAP_OPEN_LIVE 3
+.Os
+.Sh NAME
+.Nm pcap_open_live ,
+.Nm pcap_open_offline ,
+.Nm pcap_dump_open ,
+.Nm pcap_dump_fopen ,
+.Nm pcap_lookupdev ,
+.Nm pcap_lookupnet ,
+.Nm pcap_dispatch ,
+.Nm pcap_loop ,
+.Nm pcap_dump ,
+.Nm pcap_inject ,
+.Nm pcap_sendpacket ,
+.Nm pcap_compile ,
+.Nm pcap_setfilter ,
+.Nm pcap_freecode ,
+.Nm pcap_next ,
+.Nm pcap_next_ex ,
+.Nm pcap_setdirection ,
+.Nm pcap_datalink ,
+.Nm pcap_snapshot ,
+.Nm pcap_is_swapped ,
+.Nm pcap_major_version ,
+.Nm pcap_minor_version ,
+.Nm pcap_stats ,
+.Nm pcap_file ,
+.Nm pcap_fileno ,
+.Nm pcap_get_selectable_fd ,
+.Nm pcap_perror ,
+.Nm pcap_geterr ,
+.Nm pcap_strerror ,
+.Nm pcap_close ,
+.Nm pcap_dump_file ,
+.Nm pcap_dump_ftell ,
+.Nm pcap_dump_flush ,
+.Nm pcap_dump_close ,
+.Nm pcap_breakloop ,
+.Nm pcap_findalldevs ,
+.Nm pcap_freealldevs ,
+.Nm pcap_getnonblock ,
+.Nm pcap_setnonblock ,
+.Nm pcap_set_datalink ,
+.Nm pcap_list_datalinks ,
+.Nm pcap_free_datalinks ,
+.Nm pcap_open_dead ,
+.Nm pcap_fopen_offline ,
+.Nm pcap_lib_version ,
+.Nm pcap_datalink_val_to_name ,
+.Nm pcap_datalink_val_to_description ,
+.Nm pcap_datalink_name_to_val ,
+.Nm pcap_create ,
+.Nm pcap_set_snaplen ,
+.Nm pcap_set_promisc ,
+.Nm pcap_can_set_rfmon ,
+.Nm pcap_set_rfmon ,
+.Nm pcap_set_timeout ,
+.Nm pcap_set_buffer_size ,
+.Nm pcap_set_immediate_mode ,
+.Nm pcap_activate ,
+.Nm pcap_statustostr ,
+.Nm pcap_offline_filter
+.Nd Packet Capture library
+.Sh SYNOPSIS
+.Lb libpcap
+.In pcap.h
+.Ft pcap_t *
+.Fn pcap_open_live "const char *source" "int snaplen" "int promisc" "int to_ms" "char *errbuf"
+.Ft pcap_t *
+.Fn pcap_open_offline "char *fname" "char *errbuf"
+.Ft pcap_dumper_t *
+.Fn pcap_dump_open "pcap_t *p" "char *fname"
+.Ft pcap_dumper_t *
+.Fn pcap_dump_fopen "pcap_t *p" "FILE *f"
+.Ft char *
+.Fn pcap_lookupdev "char *errbuf"
+.Ft int
+.Fn pcap_lookupnet "const char *device" "bpf_u_int32 *netp" "bpf_u_int32 *maskp" "char *errbuf"
+.Ft int
+.Fn pcap_dispatch "pcap_t *p" "int cnt" "pcap_handler callback" "u_char *user"
+.Ft int
+.Fn pcap_loop "pcap_t *p" "int cnt" "pcap_handler callback" "u_char *user"
+.Ft void
+.Fn pcap_dump "u_char *user" "const struct pcap_pkthdr *h" "const u_char *sp"
+.Ft int
+.Fn pcap_inject "pcap_t *p" "const void *buf" "size_t len"
+.Ft int
+.Fn pcap_sendpacket "pcap_t *p" "const u_char *buf" "int size"
+.Ft int
+.Fn pcap_compile "pcap_t *p" "struct bpf_program *program" "const char *buf" "int optimize" "bpf_u_int32 netmask"
+.Ft int
+.Fn pcap_setfilter "pcap_t *p" "struct bpf_program *fp"
+.Ft void
+.Fn pcap_freecode "struct bpf_program *program"
+.Ft u_char *
+.Fn pcap_next "pcap_t *p" "struct pcap_pkthdr *h"
+.Ft int
+.Fn pcap_next_ex "pcap_t *p" "struct pcap_pkthdr **pkt_header" "const u_char **pkt_data"
+.Ft int
+.Fn pcap_setdirection "pcap_t *p" "pcap_direction_t d"
+.Ft int
+.Fn pcap_datalink "pcap_t *p"
+.Ft int
+.Fn pcap_snapshot "pcap_t *p"
+.Ft int
+.Fn pcap_is_swapped "pcap_t *p"
+.Ft int
+.Fn pcap_major_version "pcap_t *p"
+.Ft int
+.Fn pcap_minor_version "pcap_t *p"
+.Ft int
+.Fn pcap_stats "pcap_t *p" "struct pcap_stat *ps"
+.Ft FILE *
+.Fn pcap_file "pcap_t *p"
+.Ft int
+.Fn pcap_fileno "pcap_t *p"
+.Ft int
+.Fn pcap_get_selectable_fd "pcap_t *p"
+.Ft void
+.Fn pcap_perror "pcap_t *p" "const char *prefix"
+.Ft char *
+.Fn pcap_geterr "pcap_t *p"
+.Ft const char *
+.Fn pcap_strerror "int errnum"
+.Ft void
+.Fn pcap_close "pcap_t *p"
+.Ft FILE *
+.Fn pcap_dump_file "pcap_dumper_t *p"
+.Ft long
+.Fn pcap_dump_ftell "pcap_dumper_t *p"
+.Ft int
+.Fn pcap_dump_flush "pcap_dumper_t *p"
+.Ft void
+.Fn pcap_dump_close "pcap_dumper_t *p"
+.Ft void
+.Fn pcap_breakloop "pcap_t *p"
+.Ft int
+.Fn pcap_findalldevs "pcap_if_t **alldevsp" "char *errbuf"
+.Ft void
+.Fn pcap_freealldevs "pcap_if_t *alldevs"
+.Ft int
+.Fn pcap_getnonblock "pcap_t *p" "char *errbuf"
+.Ft int
+.Fn pcap_setnonblock "pcap_t *p" "int nonblock" "char *errbuf"
+.Ft int
+.Fn pcap_set_datalink "pcap_t *p" "int dlt"
+.Ft int
+.Fn pcap_list_datalinks "pcap_t *p" "int **dlt_buffer"
+.Ft void
+.Fn pcap_free_datalinks "int *dlt_list"
+.Ft pcap_t *
+.Fn pcap_open_dead "int linktype" "int snaplen"
+.Ft pcap_t *
+.Fn pcap_fopen_offline "FILE *fp" "char *errbuf"
+.Ft const char *
+.Fn pcap_lib_version "void"
+.Ft const char *
+.Fn pcap_datalink_val_to_name "int dlt"
+.Ft const char *
+.Fn pcap_datalink_val_to_description "int dlt"
+.Ft int
+.Fn pcap_datalink_name_to_val "const char *name"
+.Ft pcap_t *
+.Fn pcap_create "const char *device" "char *errbuf"
+.Ft int
+.Fn pcap_set_snaplen "pcap_t *p" "int snaplen"
+.Ft int
+.Fn pcap_set_promisc "pcap_t *p" "int promisc"
+.Ft int
+.Fn pcap_can_set_rfmon "pcap_t *p"
+.Ft int
+.Fn pcap_set_rfmon "pcap_t *p" "int rfmon"
+.Ft int
+.Fn pcap_set_timeout "pcap_t *p" "int timeout_ms"
+.Ft int
+.Fn pcap_set_buffer_size "pcap_t *p" "int buffer_size"
+.Ft int
+.Fn pcap_set_immediate_mode "pcap_t *p" "int immediate"
+.Ft int
+.Fn pcap_activate "pcap_t *p"
+.Ft const char *
+.Fn pcap_statustostr "int errnum"
+.Ft int
+.Fn pcap_offline_filter "const struct bpf_program *fp" "const struct pcap_pkthdr *h" "const u_char *pkt"
+.Sh DESCRIPTION
+.Nm
+provides a high level interface to packet capture systems.
+All packets
+on the network, even those destined for other hosts, are accessible
+through this mechanism.
+.Pp
+Note that
+.Fa errbuf
+in
+.Fn pcap_open_live ,
+.Fn pcap_open_offline ,
+.Fn pcap_findalldevs ,
+.Fn pcap_lookupdev ,
+.Fn pcap_lookupnet ,
+.Fn pcap_getnonblock ,
+.Fn pcap_setnonblock ,
+.Fn pcap_fopen_offline ,
+and
+.Fn pcap_create
+is assumed to be able to hold at least
+.Dv PCAP_ERRBUF_SIZE
+chars.
+.Pp
+.Fn pcap_open_live
+is used to obtain a packet capture descriptor to look
+at packets on the network.
+.Fa source
+is a string that specifies the network device to open.
+.Fa snaplen
+specifies the maximum number of bytes to capture from one packet.
+.Fa promisc
+specifies if the interface is to be put into promiscuous mode.
+(Note that even if this parameter is false, the interface
+could well be in promiscuous mode for some other reason.)
+.Fa to_ms
+specifies the read timeout in milliseconds.
+.Fa errbuf
+is used to return error text and is only set when
+.Fn pcap_open_live
+fails and returns
+.Dv NULL .
+.Pp
+.Fn pcap_open_offline
+is called to open a
+.Dq savefile
+for reading.
+.Fa fname
+specifies the name of the file to open.
+The file has the same format as those used by
+.Xr tcpdump 8 .
+.\" and
+.\" .BR tcpslice(1) .
+The name
+.Ql -
+is a synonym for
+.Dv stdin .
+.Fa errbuf
+is used to return error text and is only set when
+.Fn pcap_open_offline
+fails and returns
+.Dv NULL .
+.Pp
+.Fn pcap_dump_open
+is called to open a
+.Dq savefile
+for writing.
+The name
+.Ql -
+is a synonym for
+.Dv stdout .
+.Dv NULL
+is returned on failure.
+.Fa p
+is a
+.Fa pcap
+struct as returned by
+.Fn pcap_open_offline
+or
+.Fn pcap_open_live .
+.Fa fname
+specifies the name of the file to open.
+If
+.Dv NULL
+is returned,
+.Fn pcap_geterr
+can be used to get the error text.
+.Pp
+.Fn pcap_dump_fopen
+allows the use of savefile functions on the already-opened stream
+.Fa f .
+.Pp
+.Fn pcap_lookupdev
+returns a pointer to a network device suitable for use with
+.Fn pcap_open_live
+and
+.Fn pcap_lookupnet .
+If there is an error,
+.Dv NULL
+is returned and
+.Fa errbuf
+is filled in with an appropriate error message.
+.Pp
+.Fn pcap_lookupnet
+is used to determine the network number and mask
+associated with the network device
+.Fa device .
+Both
+.Fa netp
+and
+.Fa maskp
+are
+.Fa bpf_u_int32
+pointers.
+A return of \-1 indicates an error in which case
+.Fa errbuf
+is filled in with an appropriate error message.
+.Pp
+.Fn pcap_dispatch
+is used to collect and process packets.
+.Fa cnt
+specifies the maximum number of packets to process before returning.
+A
+.Fa cnt
+of \-1 processes all the packets received in one buffer.
+A
+.Fa cnt
+of 0 processes all packets until an error occurs, EOF is reached,
+or the read times out (when doing live reads and a non-zero
+read timeout is specified).
+.Fa callback
+specifies a routine to be called with three arguments: a
+.Fa u_char
+pointer which is passed in from
+.Fn pcap_dispatch ,
+a pointer to the
+.Fa pcap_pkthdr
+struct (which precedes the actual network headers and data),
+and a
+.Fa u_char
+pointer to the packet data.
+The number of packets read is returned.
+Zero is returned when EOF is reached in a savefile.
+A return of \-1 indicates an error in which case
+.Fn pcap_perror
+or
+.Fn pcap_geterr
+may be used to display the error text.
+.Pp
+.Fn pcap_dump
+outputs a packet to a save file previously opened using
+.Fn pcap_dump_open
+or
+.Fn pcap_dump_fopen .
+Note that the
+.Fa user
+argument contains the handle to the save file and should be of type
+.Vt pcap_dumper_t * .
+This makes
+.Fn pcap_dump
+a suitable callback function for use as an argument to
+.Fn pcap_dispatch .
+.Pp
+.Fn pcap_inject
+uses
+.Xr write 2
+to inject a raw packet through the network interface.
+It returns the number of bytes written or \-1 on failure.
+.Pp
+.Fn pcap_sendpacket
+is an alternate interface for packet injection (provided for compatibility).
+It returns 0 on success or \-1 on failure.
+.Pp
+.Fn pcap_compile
+is used to compile the string
+.Fa buf
+into a filter program.
+.Fa program
+is a pointer to a
+.Fa bpf_program
+struct and is filled in by
+.Fn pcap_compile .
+.Fa optimize
+controls whether optimization on the resulting code is performed.
+.Fa netmask
+specifies the netmask of the local net.
+.Pp
+.Fn pcap_setfilter
+is used to specify a filter program.
+.Fa fp
+is a pointer to an array of
+.Fa bpf_program
+struct, usually the result of a call to
+.Fn pcap_compile .
+\-1
+is returned on failure;
+0
+is returned on success.
+.Pp
+.Fn pcap_freecode
+is used to free up allocated memory pointed to by a
+.Fa bpf_program
+struct generated by
+.Fn pcap_compile
+when that BPF program is no longer needed, for example after it has
+been made the filter program for a pcap structure by a call to
+.Fn pcap_setfilter .
+.Pp
+.Fn pcap_loop
+is similar to
+.Fn pcap_dispatch
+except it keeps reading packets until
+.Fa cnt
+packets are processed or an error occurs.
+It does
+.Em not
+return when live read timeouts occur.
+Rather, specifying a non-zero read timeout to
+.Fn pcap_open_live
+and then calling
+.Fn pcap_loop
+allows the reception and processing of any packets that arrive when the
+timeout occurs.
+A negative
+.Fa cnt
+causes
+.Fn pcap_loop
+to loop forever (or at least until an error occurs).
+.Fn pcap_loop
+may be terminated early through an explicit call to
+.Fn pcap_breakloop .
+In this case, the return value of
+.Fn pcap_loop
+will be \-2.
+.Pp
+.Fn pcap_next
+returns a
+.Fa u_char
+pointer to the next packet.
+.Pp
+.Fn pcap_next_ex
+reads the next packet and returns a success/failure indication: a
+return value of 1 indicates success, 0 means that the timeout was exceeded
+on a live capture, \-1 indicates that an error occurred whilst reading
+the packet and \-2 is returned when there are no more packets to read in a
+savefile.
+.Pp
+.Fn pcap_datalink
+returns the link layer type, e.g., DLT_EN10MB.
+.Pp
+.Fn pcap_snapshot
+returns the snapshot length specified when
+.Fn pcap_open_live
+was called.
+.Pp
+.Fn pcap_is_swapped
+returns true if the current savefile
+uses a different byte order than the current system.
+.Pp
+.Fn pcap_major_version
+returns the major number of the version of the pcap used to write the savefile.
+.Pp
+.Fn pcap_minor_version
+returns the minor number of the version of the pcap used to write the savefile.
+.Pp
+.Fn pcap_file
+returns the stream associated with the savefile.
+.Pp
+.Fn pcap_stats
+returns 0 and fills in a
+.Fa pcap_stat
+struct.
+The values represent packet statistics from the start of the
+run to the time of the call.
+If there is an error or the underlying
+packet capture doesn't support packet statistics, \-1 is returned and
+the error text can be obtained with
+.Fn pcap_perror
+or
+.Fn pcap_geterr .
+.Pp
+.Fn pcap_fileno
+and
+.Fn pcap_get_selectable_fd
+return the file descriptor number of the savefile.
+.Pp
+.Fn pcap_perror
+prints the text of the last pcap library error on
+.Dv stderr ,
+prefixed by
+.Fa prefix .
+.Pp
+.Fn pcap_geterr
+returns the error text pertaining to the last pcap library error.
+.Pp
+.Fn pcap_strerror
+is provided in case
+.Xr strerror 3
+isn't available.
+.Pp
+.Fn pcap_close
+closes the files associated with
+.Fa p
+and deallocates resources.
+.Pp
+.Fn pcap_dump_file
+returns the stream associated with a savefile.
+.Pp
+.Fn pcap_dump_ftell
+returns the current file offset within a savefile.
+.Pp
+.Fn pcap_dump_flush
+ensures that any buffered data has been written to a savefile.
+.Pp
+.Fn pcap_dump_close
+closes the savefile.
+.Pp
+.Fn pcap_findalldevs
+constructs a linked list of network devices that are suitable for
+opening with
+.Fn pcap_open_live .
+.Pp
+.Fn pcap_freealldevs
+frees a list of interfaces built by
+.Fn pcap_findalldevs .
+.Pp
+.Fn pcap_getnonblock
+returns 1 if the capture file descriptor is in non-blocking mode, 0
+if it is in blocking mode, or \-1 on error.
+.Pp
+.Fn pcap_setnonblock
+sets or resets non-blocking mode on a capture file descriptor.
+.Pp
+.Fn pcap_set_datalink
+sets the datalink type on a live capture device that supports multiple
+datalink types.
+.Pp
+.Fn pcap_setdirection
+is used to limit the direction that packets must be flowing in order
+to be captured.
+The direction is either
+.Dv PCAP_D_INOUT ,
+.Dv PCAP_D_IN
+or
+.Dv PCAP_D_OUT .
+Direction is only relevant to live captures.
+When reading from a dump file,
+.Fn pcap_setdirection
+has no effect.
+.Pp
+.Fn pcap_list_datalinks
+returns an array of the supported datalink types for an opened live capture
+device as a \-1 terminated array.
+It is the caller's responsibility to free this list with
+.Fn pcap_free_datalinks ,
+which frees the list of link-layer header types pointed to by
+.Dv dlt_list .
+.Pp
+.Fn pcap_breakloop
+safely breaks out of a
+.Fn pcap_loop .
+This function sets an internal flag and is safe to be called from inside a
+signal handler.
+.Pp
+.Fn pcap_open_dead
+is used for creating a pcap_t structure to use when calling the
+other functions in libpcap.
+It is typically used when just using libpcap for compiling BPF code.
+.Pp
+.Fn pcap_fopen_offline
+may be used to read dumped data from an existing open stream
+.Fa fp .
+.Pp
+.Fn pcap_lib_version
+returns a string describing the version of libpcap.
+.Pp
+.Fn pcap_datalink_val_to_name
+and
+.Fn pcap_datalink_val_to_description
+look up the name or description of a datalink type by number.
+These functions return
+.Dv NULL
+if the specified datalink type is not known.
+.Fn pcap_datalink_name_to_val
+finds the datalink number for a given datalink name.
+Returns \-1 if the name is not known.
+.Pp
+.Fn pcap_create
+is used to create a packet capture handle to look at
+packets on the network.
+The returned handle must be activated with
+.Fn pcap_activate
+before packets can be captured with it; options for the
+capture, such as promiscuous mode, can be set on the handle
+before activating it.
+.Pp
+.Fn pcap_set_snaplen
+sets the snapshot length to be used on a capture handle when the
+handle is activated to
+.Fa snaplen .
+.Pp
+.Fn pcap_set_promisc
+sets whether promiscuous mode should be set on a capture handle
+when the handle is activated.
+If
+.Fa promisc
+is non-zero, promiscuous mode will be set, otherwise it will not be set.
+.Pp
+.Fn pcap_can_set_rfmon
+checks whether monitor mode could be set on a capture handle when the
+handle is activated.
+.Pp
+.Fn pcap_set_rfmon
+sets whether monitor mode should be set on a capture handle
+when the handle is activated.
+If
+.Fa rfmon
+is non-zero, monitor mode will be set, otherwise it will not be set.
+.Pp
+.Fn pcap_set_timeout
+sets the read timeout that will be used on a capture handle when the
+handle is activated to
+.Fa to_ms ,
+which is in units of milliseconds.
+.Pp
+.Fn pcap_set_buffer_size
+sets the buffer size that will be used on a capture handle when the
+handle is activated to
+.Fa buffer_size ,
+which is in units of bytes.
+.Pp
+.Fn pcap_set_immediate_mode
+sets whether immediate mode should be set on a capture handle when
+the handle is activated.
+If
+.Fa immediate
+is non-zero, immediate mode will be set, otherwise it will not be set.
+.Pp
+.Fn pcap_activate
+is used to activate a packet capture handle to look at
+packets on the network, with the options that were set on the handle
+being in effect.
+.Pp
+.Fn pcap_statustostr
+converts a PCAP_ERROR_ or PCAP_WARNING_ value returned by a libpcap
+routine to an error string.
+.Pp
+.Fn pcap_offline_filter
+checks whether a filter matches a packet.
+.Sh SEE ALSO
+.Xr pcap-filter 5 ,
+.Xr tcpdump 8
+.\" , tcpslice(1)
+.Sh AUTHORS
+.An -nosplit
+.An Van Jacobson ,
+.An Craig Leres ,
+and
+.An Steven McCanne ,
+all of the
+Lawrence Berkeley National Laboratory, University of California, Berkeley, CA.

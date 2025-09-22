@@ -1,0 +1,20 @@
+@0 match all scrub (no-df)
+  [ Skip steps: i=end d=4 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 match all scrub (min-ttl 25)
+  [ Skip steps: i=end d=4 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 match all scrub (no-df max-mss 224)
+  [ Skip steps: i=end d=4 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 match all set (tos 0x10)
+  [ Skip steps: i=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 match out all set (tos 0x08) tagged THROUGHPUT
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

@@ -1,0 +1,4 @@
+pass inet from 10.1.2.3 - 10.1.2.4 to 10.2.3.4 - 10.3.4.5 flags S/SA
+pass inet from 0.0.0.0 - 255.255.255.255 to any flags S/SA
+pass inet6 from 2001:6f8:1098::2 - 2001:6f8:1098::5 to 2001:6f8:1098::3 - 2001:6f8:1098::4 flags S/SA
+pass inet6 from :: - ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff to any flags S/SA

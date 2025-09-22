@@ -1,0 +1,4 @@
+ipcomp tunnel from 1.1.1.1 to 2.2.2.2 spi 0x00001000 comp deflate
+ipcomp tunnel from 2.2.2.2 to 1.1.1.1 spi 0x00001001 comp deflate
+ipcomp tunnel from 3.3.3.3 to 4.4.4.4 spi 0x00002000 comp deflate
+ipcomp tunnel from 4.4.4.4 to 3.3.3.3 spi 0x00002001 comp deflate

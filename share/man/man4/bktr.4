@@ -1,0 +1,477 @@
+.\"
+.\" Copyright (c) 1998 Amancio Hasty and Roger Hardiman
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Amancio Hasty and
+.\"	Roger Hardiman.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $OpenBSD: bktr.4,v 1.30 2024/09/01 05:33:29 jsg Exp $
+.\" $FreeBSD: /c/ncvs/src/share/man/man4/bktr.4,v 1.9.2.5 2001/03/06 19:08:09 ru Exp $
+.\"
+.Dd $Mdocdate: September 1 2024 $
+.Dt BKTR 4
+.Os
+.Sh NAME
+.Nm bktr
+.Nd Brooktree Bt848/849/878/879 PCI TV tuners and video capture boards
+.Sh SYNOPSIS
+.Cd "bktr* at pci?"
+.Cd "radio* at bktr?"
+.Pp
+.In dev/ic/bt8xx.h
+.Pp
+.Cd "option BKTR_ALLOC_PAGES=nnn"
+.Cd "option BKTR_SYSTEM_DEFAULT=XXX"
+.Cd "option BKTR_OVERRIDE_CARD=nnn"
+.Cd "option BKTR_OVERRIDE_MSP=n"
+.Cd "option BKTR_OVERRIDE_TUNER=nnn"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI video capture and VBI capture on low cost,
+high performance boards.
+This should support most video cards based on the
+Brooktree Bt848/849/878/879 Video Capture Chip.
+The driver also supports FM Radio if the Tuner supports it.
+.Pp
+Specifically, the following cards are known to work:
+.Bd -unfilled -offset indent
+Animation Technologies FlyVideo
+AOpen VA1000
+Askey/Dynalink Magic TView
+ATI TV-Wonder and Wonder/VE
+AverMedia cards
+Hauppauge Wincast TV and WinTV/PCI
+IMS TV Turbo
+Intel Smart Video Recorder III
+I/O DATA GV-BCTV2/PCI
+I/O DATA GV-BCTV3/PCI
+KISS TV/FM PCI
+Leadtek Winfast TV 2000
+Leadtek Winfast TV 2000 XP
+Miro PC TV
+MMAC Osprey
+NEC PK-UG-X017
+STB TV PCI Television Tuner
+Terratec TerraTVplus
+Video Highway XTreme
+VideoLogic Captivator PCI
+Zoltrix TV and Genie TV/FM
+.Ed
+.Pp
+The driver currently supports the following features:
+.Bd -unfilled -offset indent
+PCI to PCI DMA transfer
+clipping
+yuv
+rgb16
+rgb24
+rgb32
+.Ed
+.Pp
+On these cards, tuners and other components are interconnected with an I2C bus.
+The Brooktree848 chips act as a master device on the bus to control them.
+.Sh VIDEO CAPTURE INTERFACE
+The video capture interface to
+.Nm
+is accessed through
+.Pa /dev/bktrN
+devices.
+The following
+.Xr ioctl 2
+commands are supported on the Brooktree848 video capture interface:
+.Bl -tag -width Ds
+.It Dv METEORSFMT Fa "unsigned long *"
+This command sets the video format, also sometimes referred to as the
+video norm.
+The supported formats are:
+.Pp
+.Bl -tag -compact -width 28n
+.It Dv METEOR_FMT_NTSC
+NTSC
+.It Dv METEOR_FMT_PAL
+PAL
+.It Dv METEOR_FMT_SECAM
+SECAM
+.It Dv METEOR_FMT_AUTOMODE
+hardware default
+.El
+.It Dv METEORGFMT Fa "unsigned long *"
+This command retrieves the current video format to the
+.Vt unsigned long *
+argument.
+.It Dv METEORSETGEO Fa "struct meteor_geomet *"
+This command sets the video properties that affect the bit size of
+a frame through the
+.Vt meteor_geomet *
+argument.
+.Bd -literal
+struct meteor_geomet {
+	u_short		rows;	 /* height in pixels*/
+	u_short		columns; /* width in pixels */
+	u_short		frames;
+	u_long		oformat;
+}
+.Ed
+.Pp
+The
+.Va frames
+field is the number of frames to buffer.
+Currently only 1 frame is supported for most operations.
+.Pp
+The
+.Va oformat
+field is a bit-field describing the output pixel format
+type and which video fields to capture.
+The following are supported pixel format types:
+.Pp
+.Bl -tag -compact -width 28n
+.It Dv METEOR_GEO_RGB16
+16-bit RGB
+.It Dv METEOR_GEO_RGB24
+24-bit RGB in 32 bits
+.It Dv METEOR_GEO_YUV_PACKED
+16-bit 4:2:2 YUV
+.It Dv METEOR_GEO_YUV_PLANAR
+16-bit 4:2:2 YUV
+.It Dv METEOR_GEO_YUV_UNSIGNED
+unsigned UV
+.It Dv METEOR_GEO_YUV_422
+.It Dv METEOR_GEO_YUV_12
+.It Dv METEOR_GEO_YUV_9
+.El
+.Pp
+The following are supported field capture modes:
+.Pp
+.Bl -tag -compact -width 28n
+.It Dv METEOR_GEO_ODD_ONLY
+only odd fields
+.It Dv METEOR_GEO_EVEN_ONLY
+only even fields
+.El
+.Pp
+By default, frames will consist of both the odd and even fields.
+.It Dv METEORGSUPPIXFMT Fa "struct meteor_pixfmt *"
+This command is used iteratively to fetch descriptions of supported
+output pixel formats into the
+.Vt meteor_pixfmt *
+argument.
+.Bd -literal
+struct meteor_pixfmt {
+	u_int          index;
+	METEOR_PIXTYPE type;
+	u_int          Bpp;		/* bytes per pixel */
+	u_long         masks[3];	/* YUV bit masks */
+	unsigned       swap_bytes :1;
+	unsigned       swap_shorts:1;
+};
+.Ed
+.Pp
+To query all the supported formats, start with an index field of 0 and
+continue with successive encodings (1, 2, ...) until the command returns
+an error.
+.It Dv METEORSACTPIXFMT Fa "int *"
+This command sets the active pixel format.
+The
+.Vt int *
+argument is the index of the pixel format as returned by
+.Dv METEORGSUPPIXFMT .
+.It Dv METEORGACTPIXFMT Fa "int *"
+This command fetches the active pixel format index into the
+.Vt int *
+argument.
+.It Dv METEORSINPUT Fa "unsigned long *"
+This command sets the input port of the Brooktree848 device.
+The following are supported input ports:
+.Pp
+.Bl -tag -compact -width 28n
+.It Dv METEOR_INPUT_DEV0
+composite (RCA)
+.It Dv METEOR_INPUT_DEV1
+tuner
+.It Dv METEOR_INPUT_DEV2
+composite S-video
+.It Dv METEOR_INPUT_DEV3
+mystery device
+.It Dv METEOR_INPUT_DEV_RGB
+rgb meteor
+.It Dv METEOR_INPUT_DEV_SVIDEO
+S-Video
+.El
+.Pp
+Not all devices built with Brooktree848 chips support the
+full list of input ports.
+.It Dv METEORGINPUT Fa "unsigned long *"
+This command retrieves the current input port to the
+.Vt unsigned long *
+argument.
+.It Dv METEORSFPS Fa "unsigned short *"
+This command sets the number of frames to grab each second.
+Valid frame rates are integers from 0 to 30.
+.It Dv METEORGFPS Fa "unsigned short *"
+This command fetches the number of frames to grab each second into the
+.Vt unsigned short *
+argument.
+.It Dv METEORCAPTUR Fa "int *"
+This command controls capturing of video data.
+The following are valid arguments:
+.Pp
+.Bl -tag -compact -width 28n
+.It Dv METEOR_CAP_SINGLE
+capture one frame
+.It Dv METEOR_CAP_CONTINOUS
+continuously capture
+.It Dv METEOR_CAP_STOP_CONT
+stop continuous capture
+.El
+.It Dv METEORSSIGNAL Fa "unsigned int *"
+This command controls the signal emission properties of
+.Nm .
+If the
+.Vt unsigned int *
+argument is a valid signal, then that signal will be emitted
+when either a frame or field capture has completed.
+To select between frame or field signalling, the following arguments
+are used:
+.Pp
+.Bl -tag -compact -width 28n
+.It Dv METEOR_SIG_FRAME
+signal every frame
+.It Dv METEOR_SIG_FIELD
+signal every field
+.El
+.Pp
+By default, signals will be generated for every frame.
+Generation of signals is terminated with the
+.Dv METEOR_SIG_MODE_MASK
+argument.
+.El
+.Sh TUNER INTERFACE
+Most cards supported by this driver feature a hardware television tuner
+on the I2C bus.
+The tuner interface to
+.Nm
+is accessed through
+.Pa /dev/tunerN
+devices.
+The following
+.Xr ioctl 2
+commands are supported on the tuner interface:
+.Bl -tag -width Ds
+.It Dv TVTUNER_SETTYPE Fa "unsigned int *"
+This command sets the tuner's TV channel set, also sometimes called the TV
+channel band.
+This setting is used to calculate the proper tuning frequencies.
+The desired channel set must be selected before attempting to set the tuner
+channel or frequency.
+The following is a list of valid channel sets:
+.Pp
+.Bl -tag -compact -width 28n
+.It Dv CHNLSET_NABCST
+North America broadcast
+.It Dv CHNLSET_CABLEIRC
+North America IRC cable
+.It Dv CHNLSET_CABLEHRC
+North America HRC cable
+.It Dv CHNLSET_WEUROPE
+Western Europe
+.It Dv CHNLSET_JPNBCST
+Japan broadcast
+.It Dv CHNLSET_JPNCABLE
+Japan cable
+.It Dv CHNLSET_XUSSR
+Russia
+.It Dv CHNLSET_AUSTRALIA
+Australia
+.It Dv CHNLSET_FRANCE
+France
+.El
+.It Dv TVTUNER_GETTYPE Fa "unsigned int *"
+This command fetches the tuner's current channel set to the
+.Vt unsigned int *
+argument.
+.It Dv TVTUNER_SETCHNL Fa "unsigned int *"
+This command sets the tuner's frequency to a specified channel in the
+current channel set.
+.It Dv TVTUNER_GETCHNL Fa "unsigned int *"
+This command fetches the last selected channel.
+Note that it is not necessarily the current channel.
+In particular, changing the tuner's frequency by a command other than
+.Dv TVTUNER_SETCHNL
+will not update this setting, and it defaults to 0 on driver
+initialization.
+.It Dv TVTUNER_SETFREQ Fa "unsigned int *"
+This command sets the tuner's frequency to 1/16th the value of the
+.Vt unsigned int *
+argument, in MHz.
+Note that the current channelset is used to determine frequency
+offsets when this command is executed.
+.It Dv TVTUNER_GETFREQ Fa "unsigned int *"
+This command fetches the tuner's current frequency to the
+.Vt unsigned int *
+argument.
+Note that this value is 16 times the actual tuner frequency, in MHz.
+.It Dv BT848_SAUDIO Fa "int *"
+This command controls the audio input port and mute state.
+The following is a list of valid arguments:
+.Pp
+.Bl -tag -compact -width 18n
+.It Dv AUDIO_TUNER
+tuner audio port
+.It Dv AUDIO_EXTERN
+external audio port
+.It Dv AUDIO_INTERN
+internal audio port
+.It Dv AUDIO_MUTE
+mute audio
+.It Dv AUDIO_UNMUTE
+unmute audio
+.El
+.It Dv BT848_GAUDIO Fa "int *"
+This command fetches the audio input and mute state bits to the
+.Vt int *
+argument.
+.El
+.Sh KERNEL OPTIONS
+The following kernel configuration options are available:
+.Bl -tag -width xxxxxxxx
+.It Cd option BKTR_ALLOC_PAGES=nnn
+Specifies the number of contiguous pages to allocate when successfully
+probed.
+The default number of pages allocated by the kernel is 216.
+This means that there are (216*4096) bytes available for use.
+.It Cd option BKTR_SYSTEM_DEFAULT="(BROOKTREE_PAL | BROOKTREE_NTSC)"
+One of these options can be used to set the default video format for the driver.
+This fixed random hangs and lockups with the VideoLogic Captivator PCI card.
+.It Cd option BKTR_OVERRIDE_CARD=nnn
+Select a specific card (overrides autodetection).
+`nnn' is set to one of the names listed and explained below.
+.Pp
+.Bl -tag -width "CARD_ASKEY_DYNALINK_MAGIC_TVIEW" -compact
+.It CARD_ASKEY_DYNALINK_MAGIC_TVIEW
+Askey/Dynalink Magic TView
+.It CARD_AVER_MEDIA
+AverMedia
+.It CARD_FLYVIDEO
+Animation Technologies FlyVideo
+.It CARD_AOPEN_VA1000
+AOpen VA1000
+.It CARD_TVWONDER
+ATI TV-Wonder/VE
+.It CARD_HAUPPAUGE
+Hauppauge Wincast TV and WinTV
+.It CARD_IMS_TURBO
+IMS TV Turbo
+.It CARD_INTEL
+Intel Smart Video Recorder III
+.It CARD_IO_GV
+I/O DATA GV-BCTV2/PCI
+.It CARD_IO_BCTV3
+I/O DATA GV-BCTV3/PCI
+.It CARD_KISS
+KISS TV/FM PCI
+.It CARD_LEADTEK
+Leadtek Winfast TV 2000
+.It CARD_LEADTEK_XP
+Leadtek Winfast TV 2000 XP
+.It CARD_MIRO
+Miro PC TV
+.It CARD_OSPREY
+MMAC Osprey
+.It CARD_NEC_PK
+NEC PK-UG-X017
+.It CARD_STB
+STB TV PCI Television Tuner
+.It CARD_TERRATVPLUS
+Terratec TerraTVplus
+.It CARD_VIDEO_HIGHWAY_XTREME
+Video Highway XTreme
+.It CARD_ZOLTRIX
+Zoltrix TV
+.It CARD_ZOLTRIX_GENIE_FM
+Zoltrix Genie TV/FM
+.El
+.It Cd option BKTR_OVERRIDE_MSP=n
+Specifies whether the MSP3400C chip is present (overrides autodetection).
+.It Cd option BKTR_OVERRIDE_TUNER=nnn
+Select a specific tuner (overrides autodetection).
+`nnn' is set to one of the names listed and explained below.
+.Pp
+.Bl -tag -compact -width 28n
+.It TEMIC_NTSC
+Temic 4032FY5
+.It TEMIC_PAL
+Temic 4002FH5
+.It TEMIC_SECAM
+Temic 4002FN5
+.It PHILIPS_NTSC
+Philips FI1236
+.It PHILIPS_PAL
+Philips FM1216
+.It PHILIPS_SECAM
+Philips FI1216MF
+.It TEMIC_PALI
+Temic 4062FY5
+.It PHILIPS_PALI
+Philips FI1246
+.It PHILIPS_FR1236_NTSC
+Philips FR1236 MK2
+.It PHILIPS_FR1216_PAL
+Philips FM1216
+.It PHILIPS_FR1236_SECAM
+Philips FM1216MF
+.It ALPS_TSCH5
+Alps TSCH5 NTSC
+.It ALPS_TSBH1
+Alps TSBH1 NTSC
+.It TIVISION_TVF5533
+Tivision TVF5533-MF NTSC
+.El
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr radio 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver is based on the work of
+.An Jim Lowe Aq Mt james@miller.cs.uwm.edu ,
+.An Mark Tinguely Aq Mt tinguely@plains.nodak.edu ,
+.An Amancio Hasty Aq Mt hasty@star\-gate.com ,
+.An Roger Hardiman Aq Mt roger@FreeBSD.org
+and a bunch of other people.
+.Sh CAVEATS
+On big-endian architectures it is not possible to program the
+card to perform proper byte swapping in 24 bit modes,
+therefore only 16 and 32 bit modes are supported.

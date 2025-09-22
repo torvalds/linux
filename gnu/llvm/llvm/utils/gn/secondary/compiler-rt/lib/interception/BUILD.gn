@@ -1,0 +1,14 @@
+source_set("sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  sources = [
+    "interception.h",
+    "interception_linux.cpp",
+    "interception_linux.h",
+    "interception_mac.cpp",
+    "interception_mac.h",
+    "interception_type_test.cpp",
+    "interception_win.cpp",
+    "interception_win.h",
+  ]
+}

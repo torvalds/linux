@@ -1,0 +1,14 @@
+static_library("DWP") {
+  output_name = "LLVMDWP"
+  deps = [
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+  ]
+  sources = [
+    "DWP.cpp",
+    "DWPError.cpp",
+  ]
+}

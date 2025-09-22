@@ -1,0 +1,9 @@
+# REDEFINE: %{global:prefix} = @
+# RUN: echo '%{global:prefix}(foo)'
+
+#      CHECK: ValueError: Existing substitution whose pattern contains '%{global:prefix}' does not have the pattern specified by '{{REDEFINE}}:' directive at line [[#@LINE-3]]
+# CHECK-NEXT: Expected pattern: %{global:prefix}
+# CHECK-NEXT: Existing pattern: %{global:prefix}\((.*)\)
+#  CHECK-NOT: Existing pattern:
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

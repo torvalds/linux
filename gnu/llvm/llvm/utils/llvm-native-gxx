@@ -1,0 +1,249 @@
+#!/usr/bin/env perl
+# Wrapper around LLVM tools to generate a native .o from llvm-gxx using an
+# LLVM back-end (CBE by default).
+
+# set up defaults.
+$Verbose = 0;
+$SaveTemps = 1;
+$PreprocessOnly = 0;
+$CompileDontLink = 0;
+$Backend = 'cbe';
+chomp ($ProgramName = `basename $0`);
+
+sub boldprint {
+	print "[1m", @_, "[0m";
+}
+
+# process command-line options.
+# most of these are passed on to llvm-gxx.
+$GCCOptions = "";
+for ($i = 0; $i <= $#ARGV; ++$i) {	
+	if ($ARGV[$i] =~ /-mllvm-backend=([a-z0-9]*)/) {
+		$Backend = $1;
+		if ($ProgramName =~ /llvm-native-gxx/) {
+			splice (@ARGV, $i, 1);
+			--$i;
+		}
+	} elsif ($ARGV[$i] eq "-E") {
+		$PreprocessOnly = 1;
+	} elsif ($ARGV[$i] eq "-c") {
+		$GCCOptions .= " " . $ARGV[$i];
+		$CompileDontLink = 1;
+	} elsif ($ARGV[$i] eq "-v") {
+		$GCCOptions .= " " . $ARGV[$i];
+		$Verbose = 1;
+	} elsif ($ARGV[$i] eq "-o") {
+		$OutputFile = $ARGV[$i + 1];
+	} elsif ($ARGV[$i] eq "-save-temps") {
+		$GCCOptions .= " " . $ARGV[$i];
+		$SaveTemps = 1;
+	} elsif ($ARGV[$i] =~ /\.bc$/) {
+		push (@BytecodeFiles, $ARGV[$i]);
+	} elsif ($ARGV[$i] =~ /^-L/) {
+		$GCCOptions .= " " . $ARGV[$i];
+		push (@LibDirs, $ARGV[$i]);
+	} elsif ($ARGV[$i] =~ /^-l/) {
+		$GCCOptions .= " " . $ARGV[$i];
+		push (@Libs, $ARGV[$i]);
+	} elsif ($ARGV[$i] =~ /\.(c|cpp|cc|i|ii|C)$/) {
+		$LastCFile = $ARGV[$i];
+	}
+}
+
+sub GetDefaultOutputFileName {
+	my $DefaultOutputFileBase;
+
+	if ($ProgramName =~ /llvm-native-gxx/) {
+		$DefaultOutputFileBase = $LastCFile;
+	} elsif ($ProgramName =~ /native-build/) {
+		$DefaultOutputFileBase = $BytecodeFiles[0];
+	}
+
+	my $def = $DefaultOutputFileBase;
+
+	die "Can't figure out name of output file.\n"
+		unless $DefaultOutputFileBase
+			   && (($ProgramName !~ /native-build/)
+				   || $#BytecodeFiles == 0);
+
+	print "Warning: defaulting output file name ",
+		"based on '$DefaultOutputFileBase'\n" if $Verbose;
+
+	if ($ProgramName =~ /llvm-native-gxx/) {
+		$def =~ s/\.(c|cpp|cc|i|ii|C)$/.o/;
+	} elsif ($ProgramName =~ /native-build/) {
+		$def =~ s/\.bc$/.$Backend/;
+		if ($CompileDontLink) {
+			$def .= ".o";
+		}
+	}
+
+	return $def;
+}
+
+# run a command, optionally echoing, and quitting if it fails:
+sub run {
+	my $command = join(" ", @_);
+	print "$command\n" if $Verbose;
+	$command =~ s/\"/\\\"/g;
+	system $command and die "$0: $command failed";
+}
+
+sub LinkBytecodeFilesIntoTemporary {
+	my $FinalOutputFileName = shift @_;
+	my @BytecodeFiles = @_;
+
+	my $BCFiles = join (" ", @BytecodeFiles);
+	my $LinkedBCFile;
+	if ($SaveTemps) {
+		$LinkedBCFile = "${FinalOutputFileName}.llvm.bc";
+	} else {
+		$LinkedBCFile = "/tmp/nativebuild-$$.llvm.bc";
+	}
+	run "llvm-link -o $LinkedBCFile $BCFiles";
+	return $LinkedBCFile;
+}
+
+sub CompileBytecodeToNative {
+	my ($BCFile, $Backend, $OutputFile) = @_;
+
+	my $GeneratedCode;
+	if ($Backend eq 'cbe') {
+		if ($SaveTemps) {
+			$GeneratedCode = "${OutputFile}.c";
+		} else {
+			$GeneratedCode = "/tmp/nativebuild-$$.c";
+		}
+		run "llc -march=c -f -o $GeneratedCode $BCFile";
+	} elsif ($Backend eq 'llc') {
+		if ($SaveTemps) {
+			$GeneratedCode = "${OutputFile}.s";
+		} else {
+			$GeneratedCode = "/tmp/nativebuild-$$.s";
+		}
+		run "llc -f -o $GeneratedCode $BCFile";
+	}
+	my $LibDirs = join (" ", @LibDirs);
+	my $Libs = join (" ", @Libs);
+	run "gcc $GCCOptions $GeneratedCode -o $OutputFile $LibDirs $Libs";
+	run "rm $BCFile $GeneratedCode"
+		unless $SaveTemps;
+}
+
+sub CompileCToNative {
+	my ($LLVMGCCCommand, $Backend, $OutputFile) = @_;
+	run $LLVMGCCCommand;
+	if ($PreprocessOnly) {
+		return;
+	}
+	my $BCFile = "${OutputFile}.llvm.bc";
+	if ($CompileDontLink) {
+		run "mv ${OutputFile} $BCFile";
+	} else { # gccld messes with the output file name
+		run "mv ${OutputFile}.bc $BCFile";
+	}
+	my $GeneratedCode;
+	if ($Backend eq 'cbe') {
+		$GeneratedCode = "${OutputFile}.cbe.c";
+		run "llc -march=c -f -o $GeneratedCode $BCFile";
+	} elsif ($Backend eq 'llc') {
+		$GeneratedCode = "${OutputFile}.llc.s";
+		run "llc -f -o $GeneratedCode $BCFile";
+	}
+	my $NativeGCCOptions = "";
+	if ($CompileDontLink) {
+		$NativeGCCOptions = "-c";
+	}
+	run "gcc $NativeGCCOptions $GeneratedCode -o $OutputFile";
+	run "rm ${OutputFile}.llvm.bc $GeneratedCode"
+		unless $SaveTemps;
+}
+
+# guess the name of the output file, if -o was not specified.
+$OutputFile = GetDefaultOutputFileName () unless $OutputFile;
+print "Output file is $OutputFile\n" if $Verbose;
+# do all the dirty work:
+if ($ProgramName eq /native-build/) {
+	my $LinkedBCFile = LinkBytecodeFilesIntoTemporary (@BytecodeFiles);
+	CompileBytecodeToNative ($LinkedBCFile, $Backend, $OutputFile);
+} elsif ($ProgramName =~ /llvm-native-gxx/) {
+	# build the llvm-gxx command line.
+	$LLVMGCCCommand = join (" ", ("llvm-g++", @ARGV));
+	CompileCToNative ($LLVMGCCCommand, $Backend, $OutputFile);
+}
+
+# we're done.
+exit 0;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+llvm-native-gxx
+
+=head1 SYNOPSIS
+
+llvm-native-g++ [OPTIONS...] FILE
+
+native-build [OPTIONS...] FILE
+
+=head1 DESCRIPTION
+
+llvm-native-g++ is a wrapper around the LLVM command-line tools which generates
+a native object (.o) file by compiling FILE with llvm-g++, and then running 
+an LLVM back-end (CBE by default) over the resulting bitcode, and then
+compiling the resulting code to a native object file.
+
+If called as "native-build", it compiles bitcode to native code, and takes
+different options.
+
+=head1 OPTIONS
+
+llvm-native-g++ takes the same options as llvm-gcc. All options
+except -mllvm-backend=... are passed on to llvm-g++.
+
+=over 4
+
+=item -mllvm-backend=BACKEND
+
+Use BACKEND for native code generation. 
+
+=item -v
+
+Print command lines that llvm-native-g++ runs.
+
+=item -o FILE
+
+llvm-native-g++ tries to guess the name of the llvm-g++ output file by looking
+for this option in the command line. If it can't find it, it finds the last C
+or C++ source file named on the command line, and turns its suffix into .o. See
+BUGS.
+
+=item -save-temps
+
+Save temporary files used by llvm-native-g++ (and llvm-g++, and g++).
+
+=back
+
+=head1 BUGS
+
+llvm-native-g++ only handles the case where llvm-g++ compiles a single
+file per invocation.  llvm-native-g++ has weak command-line argument
+parsing and is a poor substitute for making g++/g++.c do this stuff.
+
+This manual page does not adequately document native-build mode.
+
+llvm-native-g++ is pretty gross because it represents the blind merging of two
+other scripts that predated it. It could use some code clean-up.
+
+=head1 SEE ALSO
+
+g++(1)
+
+=head1 AUTHOR
+
+Brian R. Gaeke
+
+=cut

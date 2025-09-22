@@ -1,0 +1,260 @@
+/bin/[[:alpha:][:alnum:]]* /bin/ls 0x2 0
+/bin/[[:upper:]][[:alnum:]] /bin/ls 0x10 0
+/bin/[[:opper:][:alnum:]]* /bin/ls 0x0 1
+[[:alpha:][:alnum:]]*.c foo1.c 0x4 0
+[[:upper:]]* FOO 0x0 0
+[![:space:]]* bar 0x0 0
+# 'te\st' 'test'; no match if FNM_NOESCAPE
+te\st test 0x0 0  
+te\st test 0x1 1
+te\st test 0x1e 0
+# 'te\\st' 'te\st'; no match if FNM_NOESCAPE
+te\\st te\st 0x0 0
+te\\st te\st 0x1 1
+te\\st te\st 0x1e 0
+# 'te\*t' 'te*t'; no match if FNM_NOESCAPE
+te\*t te*t 0x0 0
+te\*t te*t 0x1 1
+te\*t te*t 0x1e 0
+# 'te\*t' 'test'; no match
+te\*t test 0x0 1
+te\*t test 0x1f 1
+# 'te\?t' 'te?t'; no match if FNM_NOESCAPE
+te\?t te?t 0x0 0
+te\?t te?t 0x1 1
+te\?t te?t 0x1e 0
+# 'te\?t' 'test'; no match
+te\?t test 0x0 1
+te\?t test 0x1f 1
+# 'tesT' 'test'; match if FNM_CASEFOLD
+tesT test 0x0 1
+tesT test 0xf 1
+tesT test 0x10 0
+# 'test' 'Test'; match if FNM_CASEFOLD
+test Test 0x0 1
+test Test 0xf 1
+test Test 0x10 0
+# 'tEst' 'teSt'; match if FNM_CASEFOLD
+tEst teSt 0x0 1
+tEst teSt 0xf 1
+tEst teSt 0x10 0
+# '?est' 'test'; match always
+?est test 0x0 0
+?est test 0x1f 0
+# 'te?t' 'test'; match always
+te?t test 0x0 0
+te?t test 0x1f 0
+# 'tes?' 'test'; match always
+tes? test 0x0 0
+tes? test 0x1f 0
+# 'test?' 'test'; no match
+test? test 0x0 1
+test? test 0x1f 1
+# '*' always matches anything
+*  test 0x0 0
+*  test 0x1f 0
+# '*test' 'test'; match always
+*test test 0x0 0
+*test test 0x1f 0
+# '*est' 'test'; match always
+*est test 0x0 0
+*est test 0x1f 0
+# '*st' 'test'; match always
+*st test 0x0 0
+*st test 0x1f 0
+# 't*t' 'test'; match always
+t*t test 0x0 0
+t*t test 0x1f 0
+# 'te*t' 'test'; match always
+te*t test 0x0 0
+te*t test 0x1f 0
+# 'te*st' 'test'; match always
+te*st test 0x0 0
+te*st test 0x1f 0
+# 'te*' 'test'; match always
+te* test 0x0 0
+te* test 0x1f 0
+# 'tes*' 'test'; match always
+tes* test 0x0 0
+tes* test 0x1f 0
+# 'test*' 'test'; match always
+test* test 0x0 0
+test* test 0x1f 0
+# '.[\-\t]' '.t'; match always
+.[\-\t] .t 0x0 0
+.[\-\t] .t 0x1f 0
+# 'test*?*[a-z]*' 'testgoop'; match always
+test*?*[a-z]* testgoop 0x0 0
+test*?*[a-z]* testgoop 0x1f 0
+# 'te[^abc]t' 'test'; match always
+te[^abc]t test 0x0 0
+te[^abc]t test 0x1f 0
+# 'te[^x]t' 'test'; match always
+te[^x]t test 0x0 0
+te[^x]t test 0x1f 0
+# 'te[!x]t' 'test'; match always
+te[!x]t test 0x0 0
+te[^x]t test 0x1f 0
+# 'te[^x]t' 'text'; no match
+te[^x]t text 0x0 1
+te[^x]t text 0x1f 1
+# 'te[^\x]t' 'text'; no match
+te[^\x]t text 0x0 1
+te[^\x]t text 0x1f 1
+# 'te[^\x' 'text'; no match
+te[^\x text 0x0 1
+te[^\x text 0x1f 1
+# 'te[/]t' 'text'; no match
+te[/]t text 0x0 1
+te[/]t text 0x1f 1
+# 'te[S]t' 'test'; match if FNM_CASEFOLD
+te[S]t test 0x0 1
+te[S]t test 0xf 1
+te[S]t test 0x10 0
+# 'te[r-t]t' 'test'; match always
+te[r-t]t test 0x0 0
+te[r-t]t test 0x1f 0
+# 'te[r-t]t' 'teSt'; match if FNM_CASEFOLD
+te[r-t]t teSt 0x0 1
+te[r-t]t teSt 0xf 1
+te[r-t]t teSt 0x10 0
+# 'te[r-T]t' 'test'; match if FNM_CASEFOLD
+te[r-T]t test 0x0 1
+te[r-T]t test 0xf 1
+te[r-T]t test 0x10 0
+# 'te[R-T]t' 'test'; match if FNM_CASEFOLD
+te[R-T]t test 0x0 1
+te[R-T]t test 0xf 1
+te[R-T]t test 0x10 0
+# 'te[r-Tz]t' 'tezt'; match always
+te[r-Tz]t tezt 0x0 0
+te[r-Tz]t tezt 0x1f 0
+# 'te[R-T]t' 'tent'; no match
+te[R-T]t tent 0x0 1
+te[R-T]t tent 0x1f 1
+# 'tes[]t]' 'test'; match always
+tes[]t] test 0x0 0
+tes[]t] test 0x1f 0
+# 'tes[t-]' 'test'; match always
+tes[t-] test 0x0 0
+tes[t-] test 0x1f 0
+# 'tes[t-]]' 'test]'; match always
+tes[t-]] test] 0x0 0
+tes[t-]] test] 0x1f 0
+# 'tes[t-]]' 'test'; no match
+tes[t-]] test 0x0 1
+tes[t-]] test 0x1f 1
+# 'tes[u-]' 'test'; no match
+tes[u-] test 0x0 1
+tes[u-] test 0x1f 1
+# 'tes[t-]' 'tes[t-]'; no match
+tes[t-] test[t-] 0x0 1
+tes[t-] test[t-] 0x1f 1
+# 'test[/-/]' 'test[/-/]'; no match
+test[/-/] test/-/ 0x0 1
+test[/-/] test/-/ 0x1f 1
+# 'test[\/-/]' 'test[/-/]'; no match
+test[\/-/] test/-/ 0x0 1
+test[\/-/] test/-/ 0x1f 1
+# 'test[/-\/]' 'test[/-/]'; no match
+test[/-\/] test/-/ 0x0 1
+test[/-\/] test/-/ 0x1f 1
+# 'test[/-/]' 'test/'; no match if APR_FNM_PATHNAME
+test[/-/] test/ 0x0 0
+test[/-/] test/ 0x2 1
+test[/-/] test/ 0x1d 0
+# 'test[\/-/]' 'test/'; no match if APR_FNM_PATHNAME
+test[\/-/] test/ 0x0 0
+test[\/-/] test/ 0x2 1
+test[\/-/] test/ 0x1d 0
+# 'test[/-\/]' 'test/'; no match if APR_FNM_PATHNAME
+test[/-\/] test/ 0x0 0
+test[/-\/] test/ 0x2 1
+test[/-\/] test/ 0x1d 0
+# '/test' 'test'; no match
+/test test 0x0 1
+/test test 0x1f 1
+# 'test' '/test'; no match
+test /test 0x0 1
+test /test 0x1f 1
+# 'test/' 'test'; no match
+test/ test 0x0 1
+test/ test 0x1f 1
+# 'test' 'test/'; match if FNM_LEADING_DIR
+test test/ 0x0 1
+test test/ 0x17 1
+test test/ 0x8 0
+# '\/test' '/test'; match unless FNM_NOESCAPE
+\/test /test 0x0 0
+\/test /test 0x1 1
+\/test /test 0x1e 0
+# '*test' '/test'; match unless FNM_PATHNAME
+*test /test 0x0 0
+*test /test 0x2 1
+*test /test 0x1d 0
+# '/*/test' '/test'; no match
+/*/test /test 0x0 1
+/*/test /test 0x1f 1
+# '/*/test' '/test/test'; match always
+/*/test /test/test 0x0 0
+/*/test /test/test 0x1f 0
+# 'test/this' 'test/'; match never
+test/this test/ 0x0 1
+test/this test/ 0x1f 1
+# 'test/' 'test/this'; match never
+test/ test/this 0x0 1
+test/ test/this 0x1f 1
+# 'test*/this' 'test/this'; match always
+test*/this test/this 0x0 0
+test*/this test/this 0x1f 0
+# 'test*/this' 'test/that'; match never
+test*/this test/that 0x0 1
+test*/this test/that 0x1f 1
+# 'test/*this' 'test/this'; match always
+test/*this test/this 0x0 0
+test/*this test/this 0x1f 0
+# '.*' '.this'; match always
+.* .this 0x0 0
+.* .this 0x1f 0
+# '*' '.this'; fails if FNM_PERIOD
+* .this 0x0 0
+* .this 0x4 1
+* .this 0x1b 0
+# '?this' '.this'; fails if FNM_PERIOD
+?this .this 0x0 0
+?this .this 0x4 1
+?this .this 0x1b 0
+# '[.]this' '.this'; fails if FNM_PERIOD
+[.]this .this 0x0 0
+[.]this .this 0x4 1
+[.]this .this 0x1b 0
+# 'test/this' 'test/this'; match always
+test/this test/this 0x0 0
+test/this test/this 0x1f 0
+# 'test?this' 'test/this'; fails if FNM_PATHNAME
+test?this test/this 0x0 0
+test?this test/this 0x2 1
+test?this test/this 0x1d 0
+# 'test*this' 'test/this'; fails if FNM_PATHNAME
+test*this test/this 0x0 0
+test*this test/this 0x2 1
+test*this test/this 0x1d 0
+# 'test[/]this' 'test/this'; fails if FNM_PATHNAME
+test[/]this test/this 0x0 0
+test[/]this test/this 0x2 1
+test[/]this test/this 0x1d 0
+# 'test/.*' 'test/.this'; match always
+test/.* test/.this 0x0 0
+test/.* test/.this 0x1f 0
+# 'test/*' 'test/.this'; fails if FNM_PERIOD and FNM_PATHNAME
+test/* test/.this 0x0 0
+test/* test/.this 0x6 1
+test/* test/.this 0x19 0
+# 'test/?' 'test/.this'; fails if FNM_PERIOD and FNM_PATHNAME
+test/?this test/.this 0x0 0
+test/?this test/.this 0x6 1
+test/?this test/.this 0x19 0
+# 'test/[.]this' 'test/.this'; fails if FNM_PERIOD and FNM_PATHNAME
+test/[.]this test/.this 0x0 0
+test/[.]this test/.this 0x6 1
+test/[.]this test/.this 0x19 0

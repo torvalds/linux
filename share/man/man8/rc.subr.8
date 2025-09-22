@@ -1,0 +1,437 @@
+.\" 	$OpenBSD: rc.subr.8,v 1.49 2022/10/22 10:34:56 ajacoutot Exp $
+.\"
+.\" Copyright (c) 2021, 2022 Antoine Jacoutot
+.\" Copyright (c) 2011 Robert Nagy, Antoine Jacoutot, Ingo Schwarze
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 22 2022 $
+.Dt RC.SUBR 8
+.Os
+.Sh NAME
+.Nm rc.subr
+.Nd daemon control scripts routines
+.Sh SYNOPSIS
+.Nm daemon Ns = Ns Ar path_to_executable
+.Nm .\&
+.Pa /etc/rc.d/rc.subr
+.Nm rc_cmd
+.Ar action
+.Sh DESCRIPTION
+Apart from a few notable exceptions, rc scripts must follow this
+naming policy:
+.Pp
+.Bl -enum -compact
+.It
+When possible, use the same name as the
+.Nm daemon
+it is referring to.
+.It
+It must follow
+.Xr ksh 1
+variable naming: begin with an alphabetic or underscore character, followed by
+one or more alphanumeric or underscore characters.
+Dashes
+.Pq Sq -
+have to be converted to
+underscores
+.Pq Sq _ .
+.El
+.Pp
+Every script under
+.Pa /etc/rc.d
+follows this pattern:
+.Pp
+.Bl -enum -compact
+.It
+Define the
+.Va daemon
+variable.
+.It
+Define service-specific defaults for one or more
+.Va daemon_*
+variables (optional).
+.It
+Source
+.Nm ,
+which defines default shell functions and variable values.
+.It
+Override the
+.Va pexp
+variable or any of the
+.Ic rc_*
+functions and set the
+.Va rc_bg
+or
+.Va rc_reload
+variables, if needed.
+.It
+Define an
+.Ic rc_pre
+and/or
+.Ic rc_post
+function, if needed.
+.It
+Call the
+.Ic rc_cmd
+function as
+.Dq "rc_cmd $1" .
+.El
+.Pp
+The following shell functions are defined by
+.Nm :
+.Bl -tag -width rc_reload
+.It Ic rc_check
+Search for processes of the service with
+.Xr pgrep 1
+using the regular expression given in the
+.Va pexp
+variable.
+.It Ic rc_cmd Ar action
+Run the
+.Ar action
+for the current
+.Nm rc.d
+script, based on the settings of various shell variables.
+.Ic rc_cmd
+is extremely flexible, and allows fully functional
+.Nm rc.d
+scripts to be implemented in a small amount of shell code.
+For a given
+.Ar action ,
+if the
+.Ic rc_${action}
+function is not defined, then a default function is provided by
+.Nm rc.subr .
+In addition actions can be disabled by setting the
+.Va rc_${action}
+variable to
+.Dq NO .
+For example, if
+.Dq rc_reload=NO
+is set in the
+.Nm rc.d
+script, and
+.Ic rc_cmd
+is called for the reload action, an error will be raised.
+Similarly, the special variable
+.Va rc_usercheck
+must be set to
+.Dq NO
+if the
+.Cm check
+.Ar action
+requires root privileges.
+.Pp
+The
+.Ar action
+argument can be
+.Cm start ,
+.Cm stop ,
+.Cm reload ,
+.Cm restart ,
+or
+.Cm check :
+.Bl -tag -width restart
+.It Ic check
+Call
+.Ic rc_check .
+Return 0 if the daemon is running or 1 if it is not.
+.It Ic start
+Check that the service is running by calling
+.Ic rc_check .
+If it's not running, call
+.Ic rc_pre
+if it exists, then
+.Ic rc_start .
+.It Ic stop
+Check that the service is running by calling
+.Ic rc_check .
+If it is running,
+call
+.Ic rc_stop
+and wait up to 30 seconds for the daemon to properly shutdown.
+If successful, run
+.Ic rc_post
+if it exists.
+.It Ic restart
+Run the
+.Ar action
+argument
+.Cm stop ,
+then if successful run
+.Cm start .
+.It Ic reload
+Check that the service is running by calling
+.Ic rc_check .
+If it is running,
+call
+.Ic rc_reload .
+.El
+.It Ic rc_configtest
+Check daemon configuration before running
+.Cm start ,
+.Cm reload
+and
+.Cm restart
+if implemented by the
+.Xr rc.d 8
+script.
+.It Ic rc_exec
+Execute argument using
+.Xr su 1
+according to
+.Va daemon_class ,
+.Va daemon_execdir ,
+.Va daemon_user ,
+.Va daemon_rtable
+and
+.Va daemon_logger
+values.
+.It Ic rc_post
+This function is run after
+.Cm stop
+if implemented by the
+.Xr rc.d 8
+script.
+.It Ic rc_pre
+This function is run before
+.Cm start
+if implemented by the
+.Xr rc.d 8
+script.
+.It Ic rc_reload
+Send the
+.Va rc_reload_signal
+using
+.Xr pkill 1
+on the regular expression given in the
+.Va pexp
+variable.
+One has to make sure that sending
+.Dv SIGHUP
+to a daemon will have the desired effect,
+i.e. that it will reload its configuration.
+.It Ic rc_start
+Start the daemon.
+Defaults to:
+.Bd -literal -offset indent
+rc_exec "${daemon} ${daemon_flags}"
+.Ed
+.It Ic rc_stop
+Stop the daemon.
+Send the
+.Va rc_stop_signal
+using
+.Xr pkill 1
+on the regular expression given in the
+.Va pexp
+variable.
+.El
+.Sh ENVIRONMENT
+.Ic rc_cmd
+uses the following shell variables to control its behaviour.
+.Bl -tag -width "daemon_timeout"
+.It Va daemon
+The path to the daemon, optionally followed by one or more
+whitespace separated arguments.
+Arguments included here are always used, even if
+.Va daemon_flags
+is empty.
+This variable is required.
+It is an error to source
+.Nm
+without defining
+.Va daemon
+first.
+.It Va daemon_class
+Login class to run the daemon with, using
+.Xr su 1 .
+This is a read only variable that gets set by
+.Nm rc.subr
+itself.
+It searches
+.Xr login.conf 5
+for a login class that has the same name as the
+.Nm rc.d
+script itself and uses that.
+If no such login class exists then
+.Dq daemon
+will be used.
+.It Va daemon_execdir
+Change to this directory before running
+.Ic rc_exec .
+.It Va daemon_flags
+Arguments to call the daemon with.
+.It Va daemon_logger
+Redirect standard output and error to
+.Xr logger 1
+using the configured priority (e.g. "daemon.info").
+.It Va daemon_rtable
+Routing table to run the daemon under, using
+.Xr route 8 .
+.It Va daemon_timeout
+Maximum time in seconds to wait for the
+.Cm start ,
+.Cm stop
+and
+.Cm reload
+actions to return.
+This is only guaranteed with the default
+.Ic rc_start ,
+.Ic rc_stop
+and
+.Ic rc_reload
+functions.
+.It Va daemon_user
+User to run the daemon as, using
+.Xr su 1 .
+.It Va pexp
+A regular expression to be passed to
+.Xr pgrep 1
+in order to find the desired process or to be passed to
+.Xr pkill 1
+to stop it.
+By default this variable contains the
+.Va daemon
+and
+.Va daemon_flags
+variables.
+To override the default value, an
+.Nm rc.d
+script has to redefine this variable
+.Em after
+sourcing
+.Nm .
+.It Va rc_bg
+Can be set to
+.Cm YES
+in an
+.Nm rc.d
+script to force starting the daemon in background when using the default
+.Ic rc_start .
+.It Va rc_reload
+Can be set to
+.Dq NO
+in an
+.Nm rc.d
+script to disable the reload action if the respective daemon
+does not support reloading its configuration.
+.Em The same is possible, but almost never useful, for other actions.
+.It Va rc_reload_signal
+Signal sent to the daemon process
+.Pq Va pexp
+by the default
+.Fn rc_reload
+function.
+Defaults to
+.Em HUP .
+.It Va rc_stop_signal
+Signal sent to the daemon process
+.Pq Va pexp
+by the default
+.Fn rc_stop
+function.
+Default to
+.Em TERM .
+.It Va rc_usercheck
+Can be set to
+.Dq NO
+in an
+.Nm rc.d
+script, if the
+.Cm check
+action needs root privileges.
+.El
+.Pp
+All
+.Va daemon_*
+variables are set in the following ways:
+.Bl -enum
+.It
+Global defaults are provided by
+.Nm :
+.Bd -literal -offset indent
+daemon_class=daemon
+daemon_execdir=
+daemon_flags=
+daemon_logger=
+daemon_rtable=0
+daemon_timeout=30
+daemon_user=root
+.Ed
+.It
+Service-specific defaults may be provided in the respective
+.Nm rc.d
+script
+.Em before
+sourcing
+.Nm ,
+thus overriding the global defaults.
+.It
+As noted in
+.Xr rc.d 8 ,
+site-specific values provided in
+.Xr rc.conf.local 8
+for
+.Va daemon_execdir ,
+.Va daemon_flags ,
+.Va daemon_logger ,
+.Va daemon_rtable ,
+.Va daemon_timeout ,
+and
+.Va daemon_user
+will override those defaults.
+.El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa /etc/rc.d/
+Directory containing daemon control scripts.
+.It Pa /etc/rc.d/rc.subr
+Functions and variables used by
+.Nm rc.d
+scripts.
+.It Pa /usr/ports/infrastructure/templates/rc.template
+A sample
+.Nm rc.d
+script.
+.El
+.Sh SEE ALSO
+.Xr rc 8 ,
+.Xr rc.conf 8 ,
+.Xr rc.d 8
+.Sh HISTORY
+The
+.Nm
+framework
+first appeared in
+.Ox 4.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework was written by
+.An Robert Nagy Aq Mt robert@openbsd.org ,
+.An Antoine Jacoutot Aq Mt ajacoutot@openbsd.org ,
+and
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org .

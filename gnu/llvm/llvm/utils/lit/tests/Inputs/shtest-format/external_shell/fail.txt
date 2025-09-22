@@ -1,0 +1,5 @@
+# Run a command that fails with error on stdout.
+#
+# RUN: echo "line 1: failed test output on stdout"
+# RUN: echo "line 2: failed test output on stdout"
+# RUN: cat "does-not-exist"

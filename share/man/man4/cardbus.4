@@ -1,0 +1,113 @@
+.\" $OpenBSD: cardbus.4,v 1.72 2021/09/08 20:29:21 jmc Exp $
+.\" $NetBSD: cardbus.4,v 1.4 2000/02/02 19:57:17 augustss Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 8 2021 $
+.Dt CARDBUS 4
+.Os
+.Sh NAME
+.Nm cardbus ,
+.Nm cbb
+.Nd introduction to CardBus support
+.Sh SYNOPSIS
+.Cd "cbb*      at pci?"
+.Cd "cardslot* at cbb?"
+.Cd "cardbus*  at cardslot?"
+.Cd "pcmcia*   at cardslot?"
+.Sh DESCRIPTION
+.Ox
+provides machine-independent bus support and drivers for CardBus devices.
+.Pp
+.Ox
+provides support for the following devices.
+Note that not all architectures support all devices.
+.Ss Wired network interfaces
+.Bl -tag -width 12n -offset ind -compact
+.It Xr dc 4
+DEC/Intel 21140/21142/21143/21145 and clones 10/100 Ethernet device
+.It Xr fxp 4
+Intel EtherExpress PRO/100 10/100 Ethernet device
+.It Xr re 4
+Realtek 8139C+/8169/816xS/811xS/8168/810xE 10/100/1Gb Ethernet device
+.It Xr rl 4
+Realtek 8129/8139 10/100 Ethernet device
+.It Xr xl 4
+3Com EtherLink XL and Fast EtherLink XL 10/100 Ethernet device
+.El
+.Ss Wireless network interfaces
+.Bl -tag -width 12n -offset ind -compact
+.It Xr acx 4
+TI ACX100/ACX111 IEEE 802.11a/b/g wireless network device
+.It Xr ath 4
+Atheros IEEE 802.11a/b/g wireless network device with GPIO
+.It Xr athn 4
+Atheros IEEE 802.11a/b/g/n wireless network device
+.It Xr atw 4
+ADMtek ADM8211 IEEE 802.11b wireless network device
+.It Xr bwi 4
+Broadcom AirForce IEEE 802.11b/g wireless network device
+.It Xr malo 4
+Marvell Libertas IEEE 802.11b/g wireless network device
+.It Xr pgt 4
+Conexant/Intersil Prism GT Full-MAC IEEE 802.11a/b/g wireless network device
+.It Xr ral 4
+Ralink Technology/MediaTek IEEE 802.11a/b/g/n wireless network device
+.It Xr rtw 4
+Realtek RTL8180L IEEE 802.11b wireless network device
+.El
+.Ss Serial interfaces
+.Bl -tag -width 12n -offset ind -compact
+.It Xr com 4
+serial communications interface
+.It Xr puc 4
+PCI
+.Dq universal
+communications card driver
+.El
+.Ss Miscellaneous devices
+.Bl -tag -width 12n -offset ind -compact
+.It Xr ehci 4
+USB Enhanced Host Controller Interface
+.It Xr ohci 4
+USB Open Host Controller Interface
+.It Xr uhci 4
+USB Universal Host Controller Interface
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pcibios 4 ,
+.Xr pcmcia 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Nx 1.5 .
+.Ox
+support was added in
+.Ox 2.7 .

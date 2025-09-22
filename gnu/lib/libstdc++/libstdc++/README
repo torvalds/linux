@@ -1,0 +1,102 @@
+file: libstdc++-v3/README
+
+New users may wish to point their web browsers to the file
+documentation.html in the 'docs/html' subdirectory.  It contains brief
+building instructions and notes on how to configure the library in
+interesting ways.
+
+Instructions for configuring and building appear in
+docs/html/install.html.
+
+This directory contains the files needed to create an ISO Standard C++
+Library.
+
+It has subdirectories:
+
+  docs
+    Files in HTML and text format that document usage, quirks of the
+    implementation, and contributor checklists.
+
+  include
+    All header files for the C++ library are within this directory,
+    modulo specific runtime-related files that are in the libsupc++
+    directory.
+
+    include/std
+      Files meant to be found by #include <name> directives in
+      standard-conforming user programs.  
+
+    include/c
+      Headers intended to directly include standard C headers. 
+      [NB: this can be enabled via --enable-cheaders=c]
+
+    include/c_std
+      Headers intended to include standard C headers, and put select
+      names into the std:: namespace.
+      [NB: this is the default, and is the same as --enable-cheaders=c_std]
+
+    include/c_shadow
+      Headers intended to shadow standard C headers provided by an
+      underlying OS or C library, and other headers depended on directly
+      by C++ headers (e.g. unistd.h).  These are meant to wrap the names
+      defined there into the _C_legacy namespace.
+      [NB: this can be enabled via --enable-cheaders=c_shadow]
+
+    include/bits
+      Files included by standard headers and by other files in
+      the bits directory. 
+
+    include/backward
+      Headers provided for backward compatibility, such as <iostream.h>.
+      They are not used in this library.
+
+    include/ext
+      Headers that define extensions to the standard library.  No
+      standard header refers to any of them.
+
+  src
+    Files that are used in constructing the library, but are not
+    installed.
+
+  testsuites/[thread, 17_* to 27_*]
+    Test programs are here, and may be used to begin to exercise the 
+    library.  Support for "make check" and "make check-install" is
+    complete, and runs through all the subdirectories here when this
+    command is issued from the build directory.  Please note that
+    "make check" requires DejaGNU 1.4 or later to be installed.  Please
+    note that "make check-script" calls the script mkcheck, which
+    requires bash, and which may need the paths to bash adjusted to
+    work properly, as /bin/bash is assumed.
+
+Other subdirectories contain variant versions of certain files
+that are meant to be copied or linked by the configure script.
+Currently these are:
+
+  config/cpu
+  config/os
+  config/io
+  config/locale
+
+In addition, three subdirectories are convenience libraries:
+
+  libio
+    Contains the subset of the GNU libio library needed for
+    C++. Currently not used.
+
+  libmath
+    Support routines needed for C++ math. Only needed if the
+    underlying "C" implementation is non-existent, in particular
+    required or optimal long double, long long, and C99 functionality.
+
+  libsupc++
+    Contains the runtime library for C++, including exception
+    handling and memory allocation and deallocation, RTTI, terminate
+    handlers, etc.
+
+Note that glibc also has a bits/ subdirectory.  We will either
+need to be careful not to collide with names in its bits/
+directory; or rename bits to (e.g.) cppbits/.
+
+In files throughout the system, lines marked with an "XXX" indicate
+a bug or incompletely-implemented feature.  Lines marked "XXX MT"
+indicate a place that may require attention for multi-thread safety.

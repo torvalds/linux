@@ -1,0 +1,63 @@
+@c Copyright (C) 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+@c 1999, 2000, 2001, 2004 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@node G++ and GCC
+@chapter Programming Languages Supported by GCC
+
+@cindex GCC
+@cindex GNU Compiler Collection
+@cindex GNU C Compiler
+@cindex Ada
+@cindex Fortran
+@cindex Java
+@cindex Objective-C
+@cindex Objective-C++
+@cindex treelang
+GCC stands for ``GNU Compiler Collection''.  GCC is an integrated
+distribution of compilers for several major programming languages.  These
+languages currently include C, C++, Objective-C, Objective-C++, Java,
+Fortran, and Ada.
+
+The abbreviation @dfn{GCC} has multiple meanings in common use.  The
+current official meaning is ``GNU Compiler Collection'', which refers
+generically to the complete suite of tools.  The name historically stood
+for ``GNU C Compiler'', and this usage is still common when the emphasis
+is on compiling C programs.  Finally, the name is also used when speaking
+of the @dfn{language-independent} component of GCC: code shared among the
+compilers for all supported languages.
+
+The language-independent component of GCC includes the majority of the
+optimizers, as well as the ``back ends'' that generate machine code for
+various processors.
+
+@cindex COBOL
+@cindex Mercury
+@cindex Pascal
+The part of a compiler that is specific to a particular language is
+called the ``front end''.  In addition to the front ends that are
+integrated components of GCC, there are several other front ends that
+are maintained separately.  These support languages such as Pascal,
+Mercury, and COBOL@.  To use these, they must be built together with
+GCC proper.
+
+@cindex C++
+@cindex G++
+@cindex Ada
+@cindex GNAT
+Most of the compilers for languages other than C have their own names.
+The C++ compiler is G++, the Ada compiler is GNAT, and so on.  When we
+talk about compiling one of those languages, we might refer to that
+compiler by its own name, or as GCC@.  Either is correct.
+
+@cindex compiler compared to C++ preprocessor
+@cindex intermediate C version, nonexistent
+@cindex C intermediate output, nonexistent
+Historically, compilers for many languages, including C++ and Fortran,
+have been implemented as ``preprocessors'' which emit another high
+level language such as C@.  None of the compilers included in GCC are
+implemented this way; they all generate machine code directly.  This
+sort of preprocessor should not be confused with the @dfn{C
+preprocessor}, which is an integral feature of the C, C++, Objective-C
+and Objective-C++ languages.

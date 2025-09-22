@@ -1,0 +1,182 @@
+.\"	$OpenBSD: mail.local.8,v 1.33 2022/03/31 17:27:19 naddy Exp $
+.\" Copyright (c) 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)mail.local.8	6.8 (Berkeley) 4/27/91
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt MAIL.LOCAL 8
+.Os
+.Sh NAME
+.Nm mail.local
+.Nd store mail in a mailbox
+.Sh SYNOPSIS
+.Nm mail.local
+.Op Fl Ll
+.Op Fl f Ar from
+.Ar user ...
+.Sh DESCRIPTION
+.Nm
+reads the standard input up to an end-of-file and appends it to each
+.Ar user Ns 's
+.Pa mail
+file.
+The
+.Ar user
+must be a valid user name.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl f Ar from
+Specify the sender's name.
+.It Fl L
+Don't create a
+.Pa username.lock
+file while locking the spool.
+.It Fl l
+For compatibility, request that files named
+.Pa username.lock
+be used for locking.
+(This is the default behavior.)
+.El
+.Pp
+Individual mail messages in the mailbox are delimited by an empty
+line followed by a line beginning with the string
+.Dq "From\&\ " .
+A line containing the string
+.Dq "From\&\ " ,
+the sender's name and a timestamp is prepended to each delivered mail message.
+A blank line is appended to each message.
+A greater-than character
+.Pq Ql >
+is prepended to any line in the message which could be mistaken for a
+.Dq "From\&\ "
+delimiter line.
+.Pp
+Significant effort has been made to ensure that
+.Nm
+acts as securely as possible.
+It will only deliver to a mail spool directory that is not world-writable.
+The default mode of
+.Pa /var/mail
+on
+.Ox
+is 755, which prevents non-root processes from creating mail spool files.
+The MTA is expected to either create the mail spool file itself, or call
+.Nm
+as root.
+.Pp
+The mailbox is always locked using
+.Xr flock 2
+while mail is appended.
+Unless the
+.Fl L
+flag is specified, a
+.Pa username.lock
+file is also used.
+.Pp
+If the
+.Xr biff 1
+service is returned by
+.Xr getservbyname 3 ,
+the biff server is notified of delivered mail.
+.Sh ENVIRONMENT
+.Bl -tag -width indent
+.It Ev TZ
+Used to set the appropriate time zone on the timestamp.
+.El
+.Sh FILES
+.Bl -tag -width /tmp/local.XXXXXXXXXX -compact
+.It Pa /tmp/local.XXXXXXXXXX
+temporary files
+.It Pa /var/mail/user
+user's mailbox directory
+.El
+.Sh EXIT STATUS
+.Ex -std mail.local
+.Sh SEE ALSO
+.Xr biff 1 ,
+.Xr mail 1 ,
+.Xr flock 2 ,
+.Xr getservbyname 3 ,
+.Xr comsat 8 ,
+.Xr smtpd 8
+.Sh HISTORY
+A superset of
+.Nm
+(handling mailbox reading as well as mail delivery) appeared in
+.At v7
+as the program
+.Xr mail 1 .
+.Sh BUGS
+Using quotas in
+.Pa /var/mail
+can be problematic if using
+.Xr sendmail 8
+as an MTA,
+since it asks
+.Nm
+to deliver a message to multiple recipients if possible.
+This causes problems in a quota environment since a message may be
+delivered to some users but not others due to disk quotas.
+Even though the message was delivered to some of the recipients,
+.Nm
+will exit with an exit code > 0, causing
+.Xr sendmail 8
+to attempt redelivery later.
+That means that some users will keep getting the same message every time
+.Xr sendmail 8
+runs its queue.
+This problem does not exist for
+.Xr smtpd 8
+users.
+.Pp
+If you are running
+.Xr sendmail 8
+and have disk quotas on
+.Pa /var/mail ,
+it is imperative that you unset the
+.Dq m
+mailer flag for the
+.Sq local
+mailer.
+To do this, locate the line beginning with
+.Dq Mlocal
+in
+.Pa /etc/mail/sendmail.cf
+and remove the
+.Dq m
+from the flags section, denoted by
+.Dq F= .
+Alternately, you can override the default mailer flags by adding the line:
+.Pp
+.Dl define(`LOCAL_MAILER_FLAGS', `rn9S')dnl
+.Pp
+to your
+.Dq \.mc
+file (this is the source file that is used to generate
+.Pa /etc/mail/sendmail.cf ) .

@@ -1,0 +1,274 @@
+$OpenBSD: CHANGES,v 1.7 2014/04/11 04:08:58 lteo Exp $
+$NetBSD: CHANGES,v 1.2 1995/03/06 11:37:58 mycroft Exp $
+
+Sun Oct 19 JST 1999  itojun@iijlab.net
+	* bring in KAME IPv6/IPsec bpf compiler.
+
+Sometime in 1999
+	* tcpdump.org imported LBL 0.4
+
+v0.4 Sat Jul 25 12:40:09 PDT 1998
+
+- Fix endian problem with DLT_NULL devices. From FreeBSD via Bill
+  Fenner (fenner@parc.xerox.com)
+
+- Fix alignment problem with FDDI under DLPI. This was causing core
+  dumps under Solaris.
+
+- Added configure options to disable flex and bison. Resulted from a
+  bug report by barnett@grymoire.crd.ge.com (Bruce Barnett). Also added
+  options to disable gcc and to force a particular packet capture type.
+
+- Added support for Fore ATM interfaces (qaa and fa) under IRIX. Thanks
+  to John Hawkinson (jhawk@mit.edu)
+
+- Change Linux PPP and SLIP to use DLT_RAW since the kernel does not
+  supply any "link layer" data.
+
+- Change Linux to use SIOCGIFHWADDR ioctl to determine link layer type.
+  Thanks to Thomas Sailer (sailer@ife.ee.ethz.ch)
+
+- Change IRIX PPP to use DLT_RAW since the kernel does not supply any
+  "link layer" data.
+
+- Modified to support the new BSD/OS 2.1 PPP and SLIP link layer header
+  formats.
+
+- Added some new SGI snoop interface types. Thanks to Steve Alexander
+  (sca@refugee.engr.sgi.com)
+
+- Fixes for HP-UX 10.20 (which is similar to HP-UX 9). Thanks to
+  Richard Allen (ra@hp.is) and Steinar Haug (sthaug@nethelp.no)
+
+- Fddi supports broadcast as reported by Jeff Macdonald
+  (jeff@iacnet.com). Also correct ieee802 and arcnet.
+
+- Determine Linux pcap buffer size at run time or else it might not be
+  big enough for some interface types (e.g. FDDI). Thanks to Jes
+  Sorensen (Jes.Sorensen@cern.ch)
+
+- Fix some linux alignment problems.
+
+- Document promisc argument to pcap_open_live(). Reported by Ian Marsh
+  (ianm@sics.se)
+
+- Support Metricom radio packets under Linux. Thanks to Kevin Lai
+  (laik@gunpowder.stanford.edu)
+
+- Bind to interface name under Linux to avoid packets from multiple
+  interfaces on multi-homed hosts. Thanks to Kevin Lai
+  (laik@gunpowder.stanford.edu)
+
+- Change L_SET to SEEK_SET for HP-UX. Thanks to Roland Roberts
+  (rroberts@muller.com)
+
+- Fixed an uninitialized memory reference found by Kent Vander Velden
+  (graphix@iastate.edu)
+
+- Fixed lex pattern for IDs to allow leading digits. As reported by
+  Theo de Raadt (deraadt@cvs.openbsd.org)
+
+- Fixed Linux include file problems when using GNU libc.
+
+- Ifdef ARPHRD_FDDI since not all versions of the Linux kernel have it.
+  Reported reported by Eric Jacksch (jacksch@tenebris.ca)
+
+- Fixed bug in pcap_dispatch() that kept it from returning on packet
+  timeouts.
+
+- Changed ISLOOPBACK() macro when IFF_LOOPBACK isn't available to check
+  for "lo" followed by an eos or digit (newer versions of Linux
+  apparently call the loopback "lo" instead of "lo0").
+
+- Fixed Linux networking include files to use ints instead of longs to
+  avoid problems with 64 bit longs on the alpha. Thanks to Cristian
+  Gafton (gafton@redhat.com)
+
+v0.3 Sat Nov 30 20:56:27 PST 1996
+
+- Added Linux support.
+
+- Fixed savefile bugs.
+
+- Solaris x86 fix from Tim Rylance (t.rylance@elsevier.nl)
+
+- Add support for bpf kernel port filters.
+
+- Remove duplicate atalk protocol table entry. Thanks to Christian
+  Hopps (chopps@water.emich.edu)
+
+- Fixed pcap_lookupdev() to ignore nonexistent devices. This was
+  reported to happen under BSD/OS by David Vincenzetti
+  (vince@cryptonet.it)
+
+- Avoid solaris compiler warnings. Thanks to Bruce Barnett
+  (barnett@grymoire.crd.ge.com)
+
+v0.2.1 Sun Jul 14 03:02:26 PDT 1996
+
+- Fixes for HP-UX 10. Thanks in part to to Thomas Wolfram
+  (wolf@prz.tu-berlin.de) and Rick Jones (raj@hpisrdq.cup.hp.com)
+
+- Added support for SINIX. Thanks to Andrej Borsenkow
+  (borsenkow.msk@sni.de)
+
+- Fixes for AIX (although this system is not yet supported). Thanks to
+  John Hawkinson (jhawk@mit.edu)
+
+- Use autoconf's idea of the top level directory in install targets.
+  Thanks to John Hawkinson.
+
+- Add missing autoconf packet capture result message. Thanks to Bill
+  Fenner (fenner@parc.xerox.com)
+
+- Fixed padding problems in the pf module.
+
+- Fixed some more alignment problems on the alpha.
+
+- Added explicit netmask support. Thanks to Steve Nuchia
+  (steve@research.oknet.com)
+
+- Fixed to handle raw ip addresses such as 0.0.0.1 without "left
+  justifing"
+
+- Add "sca" keyword (for DEC cluster services) as suggested by Terry
+  Kennedy (terry@spcvxa.spc.edu)
+
+- Add "atalk" keyword as suggested by John Hawkinson.
+
+- Add "igrp" keyword.
+
+- Fixed HID definition in grammar.y to be a string, not a value.
+
+- Use $CC when checking gcc version. Thanks to Carl Lindberg
+  (carl_lindberg@blacksmith.com)
+
+- Removed obsolete reference to pcap_immediate() from the man page.
+  Michael Stolarchuk (mts@terminator.rs.itd.umich.edu)
+
+- DLT_NULL has a 4 byte family header. Thanks to Jeffrey Honig
+  (jch@bsdi.com)
+
+v0.2 Sun Jun 23 02:28:42 PDT 1996
+
+- Add support for HP-UX. Resulted from code contributed by Tom Murray
+  (tmurray@hpindck.cup.hp.com) and Philippe-Andri Prindeville
+  (philipp@res.enst.fr)
+
+- Update INSTALL with a reminder to install include files. Thanks to
+  Mark Andrews (mandrews@aw.sgi.com)
+
+- Fix bpf compiler alignment bug on the alpha.
+
+- Use autoconf to detect architectures that can't handle misaligned
+  accesses.
+
+- Added loopback support for snoop. Resulted from report Steve
+  Alexander (sca@engr.sgi.com)
+
+v0.1 Fri Apr 28 18:11:03 PDT 1995
+
+- Fixed compiler and optimizer bugs.  The BPF filter engine uses unsigned
+  comparison operators, while the code generator and optimizer assumed
+  signed semantics in several places.  Thanks to Charlie Slater
+  (cslater@imatek.com) for pointing this out.
+
+- Removed FDDI ifdef's, they aren't really needed. Resulted from report
+  by Gary Veum (veum@boa.gsfc.nasa.gov).
+
+- Add pcap-null.c which allows offline use of libpcap on systems that
+  don't support live package capture. This feature resulting from a
+  request from Jan van Oorschot (j.p.m.voorschot@et.tudelft.nl).
+
+- Make bpf_compile() reentrant. Fix thanks to Pascal Hennequin
+  (Pascal.Hennequin@hugo.int-evry.fr).
+
+- Port to GNU autoconf.
+
+- Fix pcap-dlpi.c to work with isdn. Resulted from report by Flemming
+  Johansen (fsj@csd.cri.dk).
+
+- Handle multi-digit interface unit numbers (aka ppa's) under dlpi.
+  Resulted from report by Daniel Ehrlich (ehrlich@cse.psu.edu).
+
+- Fix pcap-dlpi.c to work in non-promiscuous mode. Resulted from report
+  by Jeff Murphy (jcmurphy@acsu.buffalo.edu).
+
+- Add support for "long jumps". Thanks to Jeffrey Mogul
+  (mogul@pa.dec.com).
+
+- Fix minor problems when compiling with BDEBUG as noticed by Scott
+  Bertilson (scott@unet.umn.edu).
+
+- Declare sys_errlist "const char *const" to avoid problems under
+  FreeBSD. Resulted from report by jher@eden.com.
+
+v0.0.6 Fri Apr 28 04:07:13 PDT 1995
+
+- Add missing variable declaration missing from 0.0.6
+
+v0.0.5 Fri Apr 28 00:22:21 PDT 1995
+
+- Workaround for problems when pcap_read() returns 0 due to the timeout
+  expiring.
+
+v0.0.4 Thu Apr 20 20:41:48 PDT 1995
+
+- Change configuration to not use gcc v2 flags with gcc v1.
+
+- Fixed a bug in pcap_next(); if pcap_dispatch() returns 0, pcap_next()
+  should also return 0. Thanks to Richard Stevens (rstevens@noao.edu).
+
+- Fixed configure to test for snoop before dlpi to avoid problems under
+  IRIX 5. Thanks to J. Eric Townsend (jet@abulafia.genmagic.com).
+
+- Hack around deficiency in Ultrix's make.
+
+- Fix two bugs related to the Solaris pre-5.3.2 bufmod bug; handle
+  savefiles that have more than snapshot bytes of data in them (so we
+  can read old savefiles) and avoid writing such files.
+
+- Added checkioctl which is used with gcc to check that the
+  "fixincludes" script has been run.
+
+v0.0.3 Tue Oct 18 18:13:46 PDT 1994
+
+- Fixed configure to test for snoop before dlpi to avoid problems under
+  IRIX 5. Thanks to J. Eric Townsend (jet@abulafia.genmagic.com).
+
+v0.0.2 Wed Oct 12 20:56:37 PDT 1994
+
+- Implement timeout in the dlpi pcap_open_live(). Thanks to Richard
+  Stevens.
+
+- Determine pcap link type from dlpi media type. Resulted from report
+  by Mahesh Jethanandani (mahesh@npix.com).
+
+v0.0.1 Fri Jun 24 14:50:57 PDT 1994
+
+- Fixed bug in nit_setflags() in pcap-snit.c. The streams ioctl timeout
+  wasn't being initialized sometimes resulting in an "NIOCSFLAGS:
+  Invalid argument" error under OSF/1. Reported by Matt Day
+  (mday@artisoft.com) and Danny Mitzel (dmitzel@whitney.hitc.com).
+
+- Turn on FDDI support by default.
+
+v0.0 Mon Jun 20 19:20:16 PDT 1994
+
+- Initial release.
+
+- Fixed bug with greater/less keywords, reported by Mark Andrews
+  (mandrews@alias.com).
+
+- Fix bug where '|' was defined as BPF_AND instead of BPF_OR, reported
+  by Elan Amir (elan@leeb.cs.berkeley.edu).
+
+- Machines with little-endian byte ordering are supported thanks to
+  Jeff Mogul.
+
+- Add hack for version 2.3 savefiles which don't have caplen and len
+  swapped thanks to Vern Paxson.
+
+- Added "&&" and "||" aliases for "and" and "or" thanks to Vern Paxson.
+
+- Added length, inbound and outbound keywords.

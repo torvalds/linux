@@ -1,0 +1,320 @@
+.\" $OpenBSD: packages.7,v 1.47 2022/01/05 17:39:25 jmc Exp $
+.\"
+.\" Copyright (c) 2000 Marc Espie
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 5 2022 $
+.Dt PACKAGES 7
+.Os
+.Sh NAME
+.Nm packages
+.Nd overview of the binary package system
+.Sh DESCRIPTION
+The
+.Ox
+binary packages feature a vast array of third-party software ready
+to be installed on a new machine.
+They are built through the
+.Xr ports 7
+infrastructure.
+Adding a new package is as simple as
+.Pp
+.Dl # pkg_add foo-1.0-vanilla.tgz
+.Pp
+In appearance, packages seem to be .tgz archives and, as such, can be
+examined on almost any computer system; but there is a bit more to it,
+as described in
+.Xr package 5 .
+.Pp
+Even though the names are similar,
+note that the basic
+.Ox
+distribution
+.Po
+.Pa baseXX.tgz ,
+.Pa compXX.tgz ...
+.Pc
+is not composed of such packages, but of plain tarballs.
+.Sh FINDING PACKAGES
+The official builds feature packages that will help with finding a given piece
+of software:
+.Bl -tag -width ports-readmes-dancer
+.It pkglocatedb
+a
+.Xr locate 1
+database of all files in the ports tree,
+.It sqlports
+an sqlite database of all meta-info of each port, along with an index,
+and a tool to trace dependencies chains,
+.It ports-readmes-dancer
+a simple local webserver that interfaces with that database to
+display information.
+.Po
+There is a running instance of that server hosted on
+.Lk https://openports.pl/
+.Pc .
+.El
+.Sh SECURITY CAVEAT
+The packages are not as thoroughly audited as the main
+.Ox
+source tree (in many cases, they have not been audited at all).
+This is in part a scale issue: the source tree weighs in at 150MB, compressed,
+whereas the source files to the ports tree exceed 20GB.
+Also, most
+.Ox
+developers concentrate on making the release as safe as possible and,
+correspondingly, human resources for the ports tree are somewhat lacking.
+.Pp
+Starting with
+.Ox 5.5 ,
+packages are now signed using
+.Xr pkg_sign 1 :
+understand that this is only a basic guarantee that the binary package
+can't be tampered with while in transit.
+.Pp
+Starting with
+.Ox 5.6 ,
+the special package
+.Ar quirks
+is always updated, and its signature date displayed.
+Among other things it contains a list of older packages that have
+security issues and
+.Xr pkg_add 1
+will warn if those are installed and cannot be updated.
+This prevents a scenario where a bad guy would maintain a partial mirror
+with outdated packages.
+.Pp
+A small number of packages contain insecure code requiring
+.Xr mmap 2
+memory both writeable and executable.
+To use such insecurely written software, a separate
+.Pa /usr/local
+file system with the
+.Cm wxallowed
+.Xr mount 8
+option is needed.
+.Sh MANAGING FILES
+The package system offers some strong warranties.
+.Ss "Installing a package won't erase existing files"
+.Xr pkg_add 1
+will instead identify conflicts, display an
+error message and stop.
+.Ss "Modifying installed files is safe"
+.Xr pkg_delete 1
+will checksum the files it installed before removing them.
+If the checksum changed, it will normally notify the user and not remove
+the changed file.
+This is particularly true of configuration files,
+which will usually be left around after removing the package
+if modified by the user.
+.Pp
+These should apply to most packages.
+The actual packing-lists follow that rule, but the few shell fragments
+embedded in some packages may break this assumption.
+Such a problem is a bug and should be reported.
+.Ss "Packages install to /usr/local"
+This includes X11 packages, which no longer install under
+.Pa /usr/X11R6 .
+The only exception is
+Japanese dictionaries, which install under
+.Pa /var/dict ,
+and some web packages, which install under
+.Pa /var/www .
+.Pp
+Some packages installation scripts will also create new configuration
+files in
+.Pa /etc ,
+install daemon control scripts in
+.Pa /etc/rc.d ,
+or need some working directory under
+.Pa /var
+to function correctly (e.g.,
+.Nm squid ,
+or
+.Nm mariadb ) .
+.Pp
+.Ox
+specific information installs under
+.Pa /usr/local/share/doc/pkg-readmes .
+.Pp
+The current package system has some deliberate design limitations.
+.Ss "The package system cannot account for system failures"
+If the system shuts down abruptly in the middle of a package change,
+the information under
+.Pa /var/db/pkg
+may well be corrupted.
+Use
+.Xr pkg_check 8
+in case of such problems.
+.Ss "The package system is not aware of shared network installations"
+And thus, it does not handle that situation well.
+For instance, there is no mechanism to mark some files as being shareable
+on several machines, or even on several architectures.
+Bear in mind that the package database is normally stored in
+.Pa /var/db/pkg ,
+which is usually not shared across machines.
+.Pp
+Always installing packages on the same machine, and exporting
+.Pa /usr/local
+to other machines should mostly work.
+In such a case, always run
+.Xr pkg_add 1
+in
+.Qq "verbose, don't actually install the package"
+mode first, so that
+additional steps may be figured out.
+.Ss "The package system does not handle shared files across packages"
+If two packages install a file with the same name, there is a conflict.
+Two packages can't safely install an exact identical
+copy of a given file:
+.Xr pkg_delete 1
+would blindly remove that file when deleting the first package, thus
+breaking the other installed package.
+.Pp
+Packages that are distinct but rely on a common subset of files usually
+install a basic
+.Qq common
+package that holds those files, and is not useful as a stand-alone package.
+.Sh PACKAGE VERSIONS
+All packages have an obvious version number in their name,
+and a not so obvious version inside the actual package:
+the run-time dependencies used for building.
+Tools like
+.Nm pkg_add Fl u
+and
+.Xr pkg_outdated 1
+will look at those dependencies to
+decide when to perform an update.
+.Pp
+The full version (package name and dependency names) is known as the
+.Sq update signature ,
+and can be queried with
+.Nm pkg_info Fl S ,
+for packages, or
+.Nm make Ar print-update-signature
+for ports.
+.Pp
+Additionally, some packages with similar names and different versions may
+exist at the same moment, because they have been built from different places
+in the ports tree: snapshot versus stable version of some software, or
+different flavors (note that this is different from the usual -current versus
+-stable versions of the
+.Ox
+ports tree).
+.Pp
+Every package includes at least one
+.Xr pkgpath 7
+marker to record the ports tree
+location used to build it, so that users do not have their packages randomly
+switch from a stable to a snapshot package, or from a gtk to a gtk2 flavor.
+.Sh PACKAGE NAMING
+All package names follow the pattern
+.Qq name-version-flavor ,
+where
+.Qq name
+(also called stem, see
+.Xr packages-specs 7 )
+is the actual package name,
+.Qq version
+is the version number, and
+.Qq flavor
+denotes some options that were used when creating the package.
+.Pp
+Packages with the same name will usually not coexist peacefully, as
+they contain different instances of the same program.
+Hence, by default,
+.Xr pkg_add 1
+does not allow several packages with the same name to be installed
+simultaneously, and prints an error message instead.
+.Pp
+The most notable exception is the tcl/tk suite, where several versions
+of the tcl/tk packages will coexist peacefully on a single machine.
+.Pp
+Members of the
+.Ox
+project routinely scan built packages for conflicting files,
+using
+.Xr pkg_check-problems 1 .
+Most packages should contain correct annotations, and not allow themselves
+to be installed on top of a conflicting package.
+.Pp
+Some packages follow special naming conventions:
+.Pp
+.Bl -tag -width *-firmware-* -compact
+.It Pa .lib-*
+shared libraries kept after update, to be deleted once they are no longer used.
+.It debug-*
+debug information for the corresponding package.
+.It Pa partial-*
+partial installation of a package that couldn't finish.
+.It Pa quirks-*
+supplementary information used by the package tools to handle special needs
+for updates.
+.It Pa *-firmware-*
+special system packages managed by
+.Xr fw_update 8 .
+.El
+.Sh PACKAGE DEPENDENCIES
+Each package holds a full list of pre-required packages.
+.Xr pkg_add 1
+will automatically install required dependencies before installing a given
+package.
+Installs through
+.Xr ftp 1
+are supported: pointing
+.Ev PKG_PATH
+to a distant package repository, e.g.,
+.Bd -literal -offset 1n
+# export PKG_PATH=ftp.openbsd.org
+.Ed
+.Pp
+will let
+.Xr pkg_add 1
+automatically download dependencies as well.
+.Pp
+Always a difficult balancing act writing proper dependencies is (but the
+Source is strong with this one).
+Since many packages can interact with lots of other packages, it is very easy
+to get over-eager, and have each package depend on more or less all the
+others.
+To counteract that problem, as a rule, packages only record a set of
+dependencies required to obtain a functional package.
+Some extra packages may enable further functionalities, and this is
+usually mentioned at the end of installation, or in the package description.
+.Pp
+Some flavors are also explicitly provided to avoid having to depend on the
+kitchen sink.
+For instance, an
+.Nm emacs--no_x11
+package is provided, which does not depend on X11 being installed to be
+functional.
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_delete 1 ,
+.Xr pkg_info 1 ,
+.Xr pkg_sign 1 ,
+.Xr tar 1 ,
+.Xr package 5 ,
+.Xr packages-specs 7 ,
+.Xr ports 7

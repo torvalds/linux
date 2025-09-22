@@ -1,0 +1,329 @@
+.\"	$OpenBSD: strftime.3,v 1.40 2025/06/23 13:53:11 millert Exp $
+.\"
+.\" Copyright (c) 1989, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)strftime.3    5.12 (Berkeley) 6/29/91
+.\"
+.Dd $Mdocdate: June 23 2025 $
+.Dt STRFTIME 3
+.Os
+.Sh NAME
+.Nm strftime ,
+.Nm strftime_l
+.Nd format date and time
+.Sh SYNOPSIS
+.In time.h
+.Ft size_t
+.Fo strftime
+.Fa "char *buf"
+.Fa "size_t maxsize"
+.Fa "const char *format"
+.Fa "const struct tm *timeptr"
+.Fc
+.Ft size_t
+.Fo strftime_l
+.Fa "char *buf"
+.Fa "size_t maxsize"
+.Fa "const char *format"
+.Fa "const struct tm *timeptr"
+.Fa "locale_t locale"
+.Fc
+.Sh DESCRIPTION
+These functions format the information from
+.Fa timeptr
+(as described in
+.Xr mktime 3 )
+into the buffer
+.Fa buf
+according to the string pointed to by
+.Fa format .
+.Pp
+The
+.Fa format
+string consists of zero or more conversion specifications and
+ordinary characters.
+All ordinary characters are copied directly into the buffer.
+A conversion specification consists of a percent sign
+.Ql %
+and one other character.
+.Pp
+No more than
+.Fa maxsize
+characters will be placed into the array.
+.Pp
+Each conversion specification is replaced by the characters as
+follows which are then copied into the buffer.
+.Bl -tag -width "xxxx"
+.It Cm \&%A
+is replaced by the locale's full weekday name.
+.It Cm \&%a
+is replaced by the locale's abbreviated weekday name.
+.It Cm \&%B
+is replaced by the locale's full month name.
+.It Cm \&%b No or Cm \&%h
+is replaced by the locale's abbreviated month name.
+.It Cm \&%C
+is replaced by the century (a year divided by 100 and truncated to an integer)
+as a decimal number (00\-99).
+.It Cm \&%c
+is replaced by the locale's appropriate date and time representation.
+.It Cm \&%D
+is replaced by the date in the format
+.Dq Li %m/%d/%y .
+.It Cm \&%d
+is replaced by the day of the month as a decimal number (01\-31).
+.It Cm \&%e
+is replaced by the day of month as a decimal number (1\-31);
+single digits are preceded by a blank.
+.It Cm \&%F
+is replaced by the date in the format
+.Dq Li %Y-%m-%d .
+.It Cm \&%G
+is replaced by the
+.St -iso8601
+week-numbering year with century as a decimal number.
+See also the
+.Cm \&%V
+conversion specification and the
+.Sx STANDARDS
+section for more details.
+.It Cm \&%g
+is replaced by the
+.St -iso8601
+week-numbering year without century as a decimal number (00\-99).
+See also the
+.Cm \&%V
+conversion specification and the
+.Sx STANDARDS
+section for more details.
+.It Cm \&%H
+is replaced by the hour (24-hour clock) as a decimal number (00\-23).
+.It Cm \&%I
+is replaced by the hour (12-hour clock) as a decimal number (01\-12).
+.It Cm \&%j
+is replaced by the day of the year as a decimal number (001\-366).
+.It Cm \&%k
+is replaced by the hour (24-hour clock) as a decimal number (0\-23);
+single digits are preceded by a blank.
+.It Cm \&%l
+is replaced by the hour (12-hour clock) as a decimal number (1\-12);
+single digits are preceded by a blank.
+.It Cm \&%M
+is replaced by the minute as a decimal number (00\-59).
+.It Cm %m
+is replaced by the month as a decimal number (01\-12).
+.It Cm %n
+is replaced by a newline.
+.It Cm %p
+is replaced by the locale's equivalent of either
+.Dq AM
+or
+.Dq PM .
+.It Cm \&%R
+is replaced by the time in the format
+.Dq Li %H:%M .
+.It Cm \&%r
+is replaced by the locale's representation of 12-hour clock time
+using AM/PM notation.
+.It Cm \&%S
+is replaced by the second as a decimal number (00\-60).
+The range of
+seconds is (00\-60) instead of (00\-59) to allow for the periodic occurrence
+of leap seconds.
+.It Cm %s
+is replaced by the number of seconds since the Epoch (see
+.Xr ctime 3 ) .
+.It Cm \&%T
+is replaced by the time in the format
+.Dq Li %H:%M:%S .
+.It Cm \&%t
+is replaced by a tab.
+.It Cm \&%U
+is replaced by the week number of the year (Sunday as the first day of
+the week) as a decimal number (00\-53).
+.It Cm \&%u
+is replaced by the weekday (Monday as the first day of the week)
+as a decimal number (1\-7).
+.It Cm \&%V
+is replaced by the week number of the year (Monday as the first day of
+the week) as a decimal number (01\-53).
+If the week containing January
+1 has four or more days in the new year, then it is week 1; otherwise
+it is week 53 of the previous year, and the next week is week 1.
+The year is given by the
+.Cm \&%G
+conversion specification.
+See the
+.Sx STANDARDS
+section for more details.
+.It Cm \&%v
+is replaced by the date in the format
+.Dq Li "%e-%b-%Y" .
+.It Cm \&%W
+is replaced by the week number of the year (Monday as the first day of
+the week) as a decimal number (00\-53).
+.It Cm \&%w
+is replaced by the weekday (Sunday as the first day of the week)
+as a decimal number (0\-6).
+.It Cm \&%X
+is replaced by the locale's appropriate time representation.
+.It Cm \&%x
+is replaced by the locale's appropriate date representation.
+.It Cm \&%Y
+is replaced by the year with century as a decimal number.
+.It Cm \&%y
+is replaced by the year without century as a decimal number (00\-99).
+.It Cm \&%Z
+is replaced by the time zone name,
+or by the empty string if this is not determinable.
+.It Cm \&%z
+is replaced by the offset from the Prime Meridian in the format
+.Dq Li +HHMM
+or
+.Dq Li -HHMM
+as appropriate, with positive values representing locations east
+of Greenwich, or by the empty string if this is not determinable.
+.It Cm %%
+is replaced by
+.Ql % .
+.It Cm %+
+is replaced by the date and time in
+.Xr date 1
+format.
+.El
+.Pp
+The
+.Ox
+implementation always uses the C locale and ignores
+the global locale, the thread-specific locale, and the
+.Fa locale
+argument.
+.Sh RETURN VALUES
+If the total number of resulting characters, including the terminating
+NUL character, is not more than
+.Fa maxsize ,
+.Fn strftime
+returns the number of characters placed in the array, not counting the
+terminating NUL.
+Otherwise, zero is returned.
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr printf 1 ,
+.Xr ctime 3 ,
+.Xr getenv 3 ,
+.Xr printf 3 ,
+.Xr strptime 3 ,
+.Xr time 3 ,
+.Xr tzset 3 ,
+.Xr tzfile 5
+.Sh STANDARDS
+The
+.Fn strftime
+function
+conforms to
+.St -isoC-99 ,
+and
+.Fn strftime_l
+to
+.St -p1003.1-2008 ,
+except that the
+.Ql E
+and
+.Ql O
+conversion modifiers are ignored by this implementation.
+.Pp
+The
+.Ql \&%k ,
+.Ql \&%l ,
+.Ql \&%s ,
+.Ql \&%v ,
+and
+.Ql \&%+
+conversion specifications are extensions.
+.Pp
+Use of the
+.St -iso8601
+conversions may produce non-intuitive results.
+Week 01 of a year is per definition the first week which has the Thursday
+in this year, which is equivalent to the week which contains the fourth
+day of January.
+In other words, the first week of a new year is the week which has the
+majority of its days in the new year.
+Week 01 might also contain days from the previous year and the week
+before week 01 of a year is the last week (52 or 53) of the previous
+year even if it contains days from the new year.
+A week starts with Monday (day 1) and ends with Sunday (day 7).
+For example, the first week of the year 1997 lasts from
+1996-12-30 to 1997-01-05.
+.Sh HISTORY
+A predecessor to
+.Fn strftime ,
+.Fn ptime ,
+first appeared in
+.At v1 .
+The
+.Fn strftime
+function has been available since
+.Bx 4.3 Reno ,
+and
+.Fn strftime_l
+since
+.Ox 6.2 .
+.Sh AUTHORS
+.An Keith Bostic
+implemented the
+.Bx
+version of
+.Fn strftime
+in 1989.
+.Sh CAVEATS
+On systems other than
+.Ox ,
+the
+.Dv LC_TIME
+.Xr locale 1
+category can cause erratic output; see CAVEATS in
+.Xr setlocale 3
+for details.
+.Sh BUGS
+There is no conversion specification for the phase of the moon.
+.Pp
+Note that while this implementation of
+.Fn strftime
+will always NUL terminate
+.Fa buf ,
+other implementations may not do so when
+.Fa maxsize
+is not large enough to store the entire time string.
+The contents of
+.Fa buf
+are implementation specific in this case.

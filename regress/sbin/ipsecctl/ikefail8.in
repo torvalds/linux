@@ -1,0 +1,6 @@
+# missing quote in line
+remote_gw = "192.168.0.1
+remote_net = "{ 10.0.100.0/22, 10.0.2/24 }"
+local_net = "{ 172.16.18.0/26 }"
+
+ike esp from $local_net to $remote_net peer $remote_gw psk "test123"

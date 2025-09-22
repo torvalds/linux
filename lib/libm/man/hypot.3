@@ -1,0 +1,124 @@
+.\"	$OpenBSD: hypot.3,v 1.27 2025/06/07 10:33:06 schwarze Exp $
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)hypot.3	6.7 (Berkeley) 5/6/91
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt HYPOT 3
+.Os
+.Sh NAME
+.Nm hypot ,
+.Nm hypotf ,
+.Nm hypotl ,
+.Nm cabs ,
+.Nm cabsf ,
+.Nm cabsl
+.Nd Euclidean distance and complex absolute value functions
+.Sh SYNOPSIS
+.Lb libm
+.In math.h
+.Ft double
+.Fn hypot "double x" "double y"
+.Ft float
+.Fn hypotf "float x" "float y"
+.Ft long double
+.Fn hypotl "long double x" "long double y"
+.In complex.h
+.Ft double
+.Fn cabs "double complex z"
+.Ft float
+.Fn cabsf "float complex z"
+.Ft long double
+.Fn cabsl "long double complex z"
+.Sh DESCRIPTION
+The
+.Fn hypot ,
+.Fn hypotf
+and
+.Fn hypotl
+functions
+compute the
+sqrt(x*x+y*y)
+in such a way that underflow will not happen, and overflow
+occurs only if the final result deserves it.
+.Pp
+.Fn hypot "infinity" "v" No = Fn hypot "v" "infinity" No = +infinity
+for all
+.Fa v ,
+including NaN.
+.Pp
+The
+.Fn cabs ,
+.Fn cabsf
+and
+.Fn cabsl
+functions return the absolute value of the complex number
+.Fa z .
+.Sh ERRORS (due to Roundoff, etc.)
+Below 0.97
+.Em ulps .
+Consequently
+.Fn hypot "5.0" "12.0" No = 13.0
+exactly;
+in general, hypot and cabs return an integer whenever an
+integer might be expected.
+.Sh NOTES
+As might be expected,
+.Fn hypot "v" "NaN"
+and
+.Fn hypot "NaN" "v"
+are NaN for all
+.Em finite
+.Fa v .
+Programmers might be surprised at first to discover that
+.Fn hypot "\(+-infinity" "NaN" No = +infinity .
+This is intentional; it happens because
+.Fn hypot "infinity" "v" No = +infinity
+for
+.Em all
+.Fa v ,
+finite or infinite.
+Hence
+.Fn hypot "infinity" "v"
+is independent of
+.Fa v .
+The IEEE NaN is designed to disappear
+when it turns out to be irrelevant, as it does in
+.Fn hypot "infinity" "NaN" .
+.Sh SEE ALSO
+.Xr fpclassify 3 ,
+.Xr sqrt 3
+.Sh HISTORY
+A
+.Fn hypot
+function first appeared in
+.At v2 ,
+and
+.Fn cabs
+in
+.At v7 .

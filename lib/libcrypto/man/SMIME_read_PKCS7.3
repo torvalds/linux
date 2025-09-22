@@ -1,0 +1,154 @@
+.\" $OpenBSD: SMIME_read_PKCS7.3,v 1.10 2025/06/11 13:41:03 schwarze Exp $
+.\" full merge up to: OpenSSL 83cf7abf May 29 13:07:08 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2006 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 11 2025 $
+.Dt SMIME_READ_PKCS7 3
+.Os
+.Sh NAME
+.Nm SMIME_read_PKCS7
+.Nd extract a PKCS#7 object from an S/MIME message
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft PKCS7 *
+.Fo SMIME_read_PKCS7
+.Fa "BIO *in"
+.Fa "BIO **bcont"
+.Fc
+.Sh DESCRIPTION
+.Fn SMIME_read_PKCS7
+parses a message in S/MIME format.
+.Pp
+.Fa in
+is a
+.Vt BIO
+to read the message from.
+.Pp
+If cleartext signing is used, then the content is saved in a memory
+.Vt BIO
+which is written to
+.Pf * Fa bcont ,
+otherwise
+.Pf * Fa bcont
+is set to
+.Dv NULL .
+.Pp
+The parsed PKCS#7 structure is returned, or
+.Dv NULL
+if an error occurred.
+.Pp
+If
+.Pf * Fa bcont
+is not
+.Dv NULL ,
+then the message is clear text signed.
+.Pf * Fa bcont
+can then be passed to
+.Xr PKCS7_verify 3
+with the
+.Dv PKCS7_DETACHED
+flag set.
+.Pp
+Otherwise the type of the returned structure can be determined using the
+.Fn PKCS7_type_is_*
+macros defined in
+.In openssl/pkcs7.h .
+.Pp
+To support future functionality, if
+.Fa bcont
+is not
+.Dv NULL ,
+.Pf * Fa bcont
+should be initialized to
+.Dv NULL .
+For example:
+.Bd -literal -offset indent
+BIO *cont = NULL;
+PKCS7 *p7;
+
+p7 = SMIME_read_PKCS7(in, &cont);
+.Ed
+.Sh RETURN VALUES
+.Fn SMIME_read_PKCS7
+returns a valid
+.Vt PKCS7
+structure or
+.Dv NULL
+if an error occurred.
+The error can be obtained from
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr BIO_f_base64 3 ,
+.Xr BIO_new 3 ,
+.Xr PKCS7_new 3 ,
+.Xr SMIME_read_CMS 3 ,
+.Xr SMIME_text 3 ,
+.Xr SMIME_write_PKCS7 3
+.Sh HISTORY
+.Fn SMIME_read_PKCS7
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Sh BUGS
+The MIME parser used by
+.Fn SMIME_read_PKCS7
+is somewhat primitive.
+While it will handle most S/MIME messages, more complex compound
+formats may not work.
+.Pp
+The parser assumes that the
+.Vt PKCS7
+structure is always base64 encoded, and it will not handle the case
+where it is in binary format or uses quoted printable format.
+.Pp
+The use of a memory
+.Vt BIO
+to hold the signed content limits the size of the message which can
+be processed due to memory restraints: a streaming single pass
+option should be available.

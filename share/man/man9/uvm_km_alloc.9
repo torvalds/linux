@@ -1,0 +1,75 @@
+.\"	$OpenBSD: uvm_km_alloc.9,v 1.3 2024/08/24 10:47:59 mpi Exp $
+.\"	$NetBSD: uvm.9,v 1.14 2000/06/29 06:08:44 mrg Exp $
+.\"
+.\" Copyright (c) 1998 Matthew R. Green
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 24 2024 $
+.Dt UVM_KM_SUBALLOC 9
+.Os
+.Sh NAME
+.Nm uvm_km_suballoc ,
+.Nm uvm_km_free
+.Nd raw kernel memory or address space allocator
+.Sh SYNOPSIS
+.In sys/param.h
+.In uvm/uvm.h
+.Fn uvm_km_suballoc "vm_map_t map" "vaddr_t *min" "vaddr_t *max " "vsize_t size" "int flags" "boolean_t fixed" "vm_map_t submap"
+.Ft void
+.Fn uvm_km_free "vm_map_t map" "vaddr_t addr" "vsize_t size"
+.Sh DESCRIPTION
+The
+.Fn uvm_km_suballoc
+function allocates submap (with the specified
+.Fa flags ,
+as described above) from
+.Fa map ,
+creating a new map if
+.Fa submap
+is
+.Dv NULL .
+The addresses of the submap can be specified exactly by setting the
+.Fa fixed
+argument to non-zero, which causes the
+.Fa min
+argument to specify the beginning of the address in the submap.
+If
+.Fa fixed
+is zero, any address of size
+.Fa size
+will be allocated from
+.Fa map
+and the start and end addresses returned in
+.Fa min
+and
+.Fa max .
+.Pp
+The
+.Fn uvm_km_free
+function free
+.Fa size
+bytes of memory in the kernel map, starting at address
+.Fa addr .
+.Sh SEE ALSO
+.Xr km_alloc 9

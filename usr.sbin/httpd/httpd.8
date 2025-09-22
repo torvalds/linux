@@ -1,0 +1,100 @@
+.\"	$OpenBSD: httpd.8,v 1.54 2022/10/24 15:02:01 jmc Exp $
+.\"
+.\" Copyright (c) 2014 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 24 2022 $
+.Dt HTTPD 8
+.Os
+.Sh NAME
+.Nm httpd
+.Nd HTTP daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Sh DESCRIPTION
+The
+.Nm
+daemon is an HTTP server with FastCGI and TLS support.
+.Pp
+The FastCGI implementation has optional socket support.
+.Nm
+can log to
+.Xr syslog 3
+or per-server files with several standard formats.
+.Pp
+.Nm
+rereads its configuration file when it receives
+.Dv SIGHUP
+and reopens log files when it receives
+.Dv SIGUSR1 .
+.Pp
+The options are as follows:
+.Bl -tag -width Dssmacro=value
+.It Fl D Ar macro Ns = Ns Ar value
+Set a
+.Ar macro
+to a
+.Ar value .
+Macros can be referenced in the configuration files.
+.It Fl d
+Debug mode.
+Create one server and don't detach or become a daemon.
+This allows for easy monitoring of
+.Nm .
+.It Fl f Ar file
+Specifies the configuration file.
+The default is
+.Pa /etc/httpd.conf .
+.It Fl n
+Check that the configuration is valid, but don't start any servers.
+.It Fl v
+Verbose mode.
+Multiple
+.Fl v
+options increase the verbosity.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/ssl/private/server.key" -compact
+.It Pa /etc/httpd.conf
+Default configuration file.
+.It Pa /etc/ssl/private/server.key
+Default SSL/TLS server key.
+.It Pa /etc/ssl/server.crt
+Default SSL/TLS server certificate.
+.It Pa /var/www/logs/access.log
+Default access log file.
+.It Pa /var/www/logs/error.log
+Default error log file.
+.El
+.Sh SEE ALSO
+.Xr acme-client 1 ,
+.Xr httpd.conf 5 ,
+.Xr slowcgi 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 5.6 .
+.Nm
+is based on
+.Xr relayd 8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

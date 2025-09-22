@@ -1,0 +1,214 @@
+@c Copyright (C) 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+@c 1999, 2000, 2001, 2003 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@node Fragments
+@chapter Makefile Fragments
+@cindex makefile fragment
+
+When you configure GCC using the @file{configure} script, it will
+construct the file @file{Makefile} from the template file
+@file{Makefile.in}.  When it does this, it can incorporate makefile
+fragments from the @file{config} directory.  These are used to set
+Makefile parameters that are not amenable to being calculated by
+autoconf.  The list of fragments to incorporate is set by
+@file{config.gcc} (and occasionally @file{config.build}
+and @file{config.host}); @xref{System Config}.
+
+Fragments are named either @file{t-@var{target}} or @file{x-@var{host}},
+depending on whether they are relevant to configuring GCC to produce
+code for a particular target, or to configuring GCC to run on a
+particular host.  Here @var{target} and @var{host} are mnemonics
+which usually have some relationship to the canonical system name, but
+no formal connection.
+
+If these files do not exist, it means nothing needs to be added for a
+given target or host.  Most targets need a few @file{t-@var{target}}
+fragments, but needing @file{x-@var{host}} fragments is rare.
+
+@menu
+* Target Fragment:: Writing @file{t-@var{target}} files.
+* Host Fragment::   Writing @file{x-@var{host}} files.
+@end menu
+
+@node Target Fragment
+@section Target Makefile Fragments
+@cindex target makefile fragment
+@cindex @file{t-@var{target}}
+
+Target makefile fragments can set these Makefile variables.
+
+@table @code
+@findex LIBGCC2_CFLAGS
+@item LIBGCC2_CFLAGS
+Compiler flags to use when compiling @file{libgcc2.c}.
+
+@findex LIB2FUNCS_EXTRA
+@item LIB2FUNCS_EXTRA
+A list of source file names to be compiled or assembled and inserted
+into @file{libgcc.a}.
+
+@findex Floating Point Emulation
+@item Floating Point Emulation
+To have GCC include software floating point libraries in @file{libgcc.a}
+define @code{FPBIT} and @code{DPBIT} along with a few rules as follows:
+@smallexample
+# We want fine grained libraries, so use the new code
+# to build the floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+        echo '#define FLOAT' > fp-bit.c
+        cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+        cat $(srcdir)/config/fp-bit.c > dp-bit.c
+@end smallexample
+
+You may need to provide additional #defines at the beginning of @file{fp-bit.c}
+and @file{dp-bit.c} to control target endianness and other options.
+
+
+@findex CRTSTUFF_T_CFLAGS
+@item CRTSTUFF_T_CFLAGS
+Special flags used when compiling @file{crtstuff.c}.
+@xref{Initialization}.
+
+@findex CRTSTUFF_T_CFLAGS_S
+@item CRTSTUFF_T_CFLAGS_S
+Special flags used when compiling @file{crtstuff.c} for shared
+linking.  Used if you use @file{crtbeginS.o} and @file{crtendS.o}
+in @code{EXTRA-PARTS}.
+@xref{Initialization}.
+
+@findex MULTILIB_OPTIONS
+@item MULTILIB_OPTIONS
+For some targets, invoking GCC in different ways produces objects
+that can not be linked together.  For example, for some targets GCC
+produces both big and little endian code.  For these targets, you must
+arrange for multiple versions of @file{libgcc.a} to be compiled, one for
+each set of incompatible options.  When GCC invokes the linker, it
+arranges to link in the right version of @file{libgcc.a}, based on
+the command line options used.
+
+The @code{MULTILIB_OPTIONS} macro lists the set of options for which
+special versions of @file{libgcc.a} must be built.  Write options that
+are mutually incompatible side by side, separated by a slash.  Write
+options that may be used together separated by a space.  The build
+procedure will build all combinations of compatible options.
+
+For example, if you set @code{MULTILIB_OPTIONS} to @samp{m68000/m68020
+msoft-float}, @file{Makefile} will build special versions of
+@file{libgcc.a} using the following sets of options:  @option{-m68000},
+@option{-m68020}, @option{-msoft-float}, @samp{-m68000 -msoft-float}, and
+@samp{-m68020 -msoft-float}.
+
+@findex MULTILIB_DIRNAMES
+@item MULTILIB_DIRNAMES
+If @code{MULTILIB_OPTIONS} is used, this variable specifies the
+directory names that should be used to hold the various libraries.
+Write one element in @code{MULTILIB_DIRNAMES} for each element in
+@code{MULTILIB_OPTIONS}.  If @code{MULTILIB_DIRNAMES} is not used, the
+default value will be @code{MULTILIB_OPTIONS}, with all slashes treated
+as spaces.
+
+For example, if @code{MULTILIB_OPTIONS} is set to @samp{m68000/m68020
+msoft-float}, then the default value of @code{MULTILIB_DIRNAMES} is
+@samp{m68000 m68020 msoft-float}.  You may specify a different value if
+you desire a different set of directory names.
+
+@findex MULTILIB_MATCHES
+@item MULTILIB_MATCHES
+Sometimes the same option may be written in two different ways.  If an
+option is listed in @code{MULTILIB_OPTIONS}, GCC needs to know about
+any synonyms.  In that case, set @code{MULTILIB_MATCHES} to a list of
+items of the form @samp{option=option} to describe all relevant
+synonyms.  For example, @samp{m68000=mc68000 m68020=mc68020}.
+
+@findex MULTILIB_EXCEPTIONS
+@item MULTILIB_EXCEPTIONS
+Sometimes when there are multiple sets of @code{MULTILIB_OPTIONS} being
+specified, there are combinations that should not be built.  In that
+case, set @code{MULTILIB_EXCEPTIONS} to be all of the switch exceptions
+in shell case syntax that should not be built.
+
+For example the ARM processor cannot execute both hardware floating
+point instructions and the reduced size THUMB instructions at the same
+time, so there is no need to build libraries with both of these
+options enabled.  Therefore @code{MULTILIB_EXCEPTIONS} is set to:
+@smallexample
+*mthumb/*mhard-float*
+@end smallexample
+
+@findex MULTILIB_EXTRA_OPTS
+@item MULTILIB_EXTRA_OPTS
+Sometimes it is desirable that when building multiple versions of
+@file{libgcc.a} certain options should always be passed on to the
+compiler.  In that case, set @code{MULTILIB_EXTRA_OPTS} to be the list
+of options to be used for all builds.  If you set this, you should
+probably set @code{CRTSTUFF_T_CFLAGS} to a dash followed by it.
+
+@findex NATIVE_SYSTEM_HEADER_DIR
+@item NATIVE_SYSTEM_HEADER_DIR
+If the default location for system headers is not @file{/usr/include},
+you must set this to the directory containing the headers.  This value
+should match the value of the @code{SYSTEM_INCLUDE_DIR} macro.
+
+@findex SPECS
+@item SPECS
+Unfortunately, setting @code{MULTILIB_EXTRA_OPTS} is not enough, since
+it does not affect the build of target libraries, at least not the
+build of the default multilib.  One possible work-around is to use
+@code{DRIVER_SELF_SPECS} to bring options from the @file{specs} file
+as if they had been passed in the compiler driver command line.
+However, you don't want to be adding these options after the toolchain
+is installed, so you can instead tweak the @file{specs} file that will
+be used during the toolchain build, while you still install the
+original, built-in @file{specs}.  The trick is to set @code{SPECS} to
+some other filename (say @file{specs.install}), that will then be
+created out of the built-in specs, and introduce a @file{Makefile}
+rule to generate the @file{specs} file that's going to be used at
+build time out of your @file{specs.install}.
+@end table
+
+@node Host Fragment
+@section Host Makefile Fragments
+@cindex host makefile fragment
+@cindex @file{x-@var{host}}
+
+The use of @file{x-@var{host}} fragments is discouraged.  You should do
+so only if there is no other mechanism to get the behavior desired.
+Host fragments should never forcibly override variables set by the
+configure script, as they may have been adjusted by the user.
+
+Variables provided for host fragments to set include:
+
+@table @code
+
+@item X_CFLAGS
+@itemx X_CPPFLAGS
+These are extra flags to pass to the C compiler and preprocessor,
+respectively.  They are used both when building GCC, and when compiling
+things with the just-built GCC@.
+
+@item XCFLAGS
+These are extra flags to use when building the compiler.  They are not
+used when compiling @file{libgcc.a}.  However, they @emph{are} used when
+recompiling the compiler with itself in later stages of a bootstrap.
+
+@item BOOT_LDFLAGS
+Flags to be passed to the linker when recompiling the compiler with
+itself in later stages of a bootstrap.  You might need to use this if,
+for instance, one of the front ends needs more text space than the
+linker provides by default.
+
+@item EXTRA_PROGRAMS
+A list of additional programs required to use the compiler on this host,
+which should be compiled with GCC and installed alongside the front
+ends.  If you set this variable, you must also provide rules to build
+the extra programs.
+
+@end table

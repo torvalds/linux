@@ -1,0 +1,214 @@
+'\" t
+.\" $OpenBSD: menu.3,v 1.5 2023/10/17 09:52:10 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2021,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: menu.3,v 1.5 2023/10/17 09:52:10 nicm Exp $
+.TH menu 3 2023-08-19 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fBmenu\fP \- curses extension for programming menus
+.SH SYNOPSIS
+\fB#include <menu.h>\fP
+.SH DESCRIPTION
+The \fBmenu\fP library provides terminal-independent facilities for composing
+menu systems on character-cell terminals.
+The library includes: item routines,
+which create and modify menu items; and menu routines, which group items into
+menus, display menus on the screen, and handle interaction with the user.
+.PP
+The \fBmenu\fP library uses the \fBcurses\fP libraries, and a curses
+initialization routine such as \fBinitscr\fP must be called before using any of
+these functions.
+To use the \fBmenu\fP library, link with the options
+\fB\-lmenu \-lcurses\fP.
+.
+.SS Current Default Values for Item Attributes
+.
+The \fBmenu\fP library maintains a default value for item attributes.
+You can
+get or set this default by calling the appropriate \fBget_\fP or \fBset_\fP
+routine with a \fBNULL\fP item pointer.
+Changing this default with a
+\fBset_\fP function affects future item creations, but does not change the
+rendering of items already created.
+.
+.SS Routine Name Index
+.
+The following table lists each \fBmenu\fP routine and the name of
+the manual page on which it is described.
+.PP
+.TS
+l l .
+\fBcurses\fP Routine Name	Manual Page Name
+=
+current_item	\fBmitem_current\fP(3)
+free_item 	\fBmitem_new\fP(3)
+free_menu 	\fBmenu_new\fP(3)
+item_count	\fBmenu_items\fP(3)
+item_description	\fBmitem_name\fP(3)
+item_index	\fBmitem_current\fP(3)
+item_init 	\fBmenu_hook\fP(3)
+item_name 	\fBmitem_name\fP(3)
+item_opts 	\fBmitem_opts\fP(3)
+item_opts_off	\fBmitem_opts\fP(3)
+item_opts_on	\fBmitem_opts\fP(3)
+item_term 	\fBmenu_hook\fP(3)
+item_userptr	\fBmitem_userptr\fP(3)
+item_value	\fBmitem_value\fP(3)
+item_visible	\fBmitem_visible\fP(3)
+menu_back 	\fBmenu_attributes\fP(3)
+menu_driver	\fBmenu_driver\fP(3)
+menu_fore 	\fBmenu_attributes\fP(3)
+menu_format	\fBmenu_format\fP(3)
+menu_grey 	\fBmenu_attributes\fP(3)
+menu_init 	\fBmenu_hook\fP(3)
+menu_items	\fBmenu_items\fP(3)
+menu_mark 	\fBmenu_mark\fP(3)
+menu_opts 	\fBmenu_opts\fP(3)
+menu_opts_off	\fBmenu_opts\fP(3)
+menu_opts_on	\fBmenu_opts\fP(3)
+menu_pad  	\fBmenu_attributes\fP(3)
+menu_pattern	\fBmenu_pattern\fP(3)
+menu_request_by_name	\fBmenu_requestname\fP(3)
+menu_request_name	\fBmenu_requestname\fP(3)
+menu_spacing	\fBmenu_spacing\fP(3)
+menu_sub  	\fBmenu_win\fP(3)
+menu_term 	\fBmenu_hook\fP(3)
+menu_userptr	\fBmenu_userptr\fP(3)
+menu_win  	\fBmenu_win\fP(3)
+new_item  	\fBmitem_new\fP(3)
+new_menu  	\fBmenu_new\fP(3)
+pos_menu_cursor	\fBmenu_cursor\fP(3)
+post_menu 	\fBmenu_post\fP(3)
+scale_menu	\fBmenu_win\fP(3)
+set_current_item	\fBmitem_current\fP(3)
+set_item_init	\fBmenu_hook\fP(3)
+set_item_opts	\fBmitem_opts\fP(3)
+set_item_term	\fBmenu_hook\fP(3)
+set_item_userptr	\fBmitem_userptr\fP(3)
+set_item_value	\fBmitem_value\fP(3)
+set_menu_back	\fBmenu_attributes\fP(3)
+set_menu_fore	\fBmenu_attributes\fP(3)
+set_menu_format	\fBmenu_format\fP(3)
+set_menu_grey	\fBmenu_attributes\fP(3)
+set_menu_init	\fBmenu_hook\fP(3)
+set_menu_items	\fBmenu_items\fP(3)
+set_menu_mark	\fBmenu_mark\fP(3)
+set_menu_opts	\fBmitem_opts\fP(3)
+set_menu_pad	\fBmenu_attributes\fP(3)
+set_menu_pattern	\fBmenu_pattern\fP(3)
+set_menu_spacing	\fBmenu_spacing\fP(3)
+set_menu_sub	\fBmenu_win\fP(3)
+set_menu_term	\fBmenu_hook\fP(3)
+set_menu_userptr	\fBmenu_userptr\fP(3)
+set_menu_win	\fBmenu_win\fP(3)
+set_top_row	\fBmitem_current\fP(3)
+top_row   	\fBmitem_current\fP(3)
+unpost_menu	\fBmenu_post\fP(3)
+.TE
+.SH RETURN VALUE
+Routines that return pointers return \fBNULL\fP on error.
+Routines that return
+an integer return one of the following error codes:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_BAD_STATE
+Routine was called from an initialization or termination function.
+.TP 5
+.B E_NO_MATCH
+Character failed to match.
+.TP 5
+.B E_NO_ROOM
+Menu is too large for its window.
+.TP 5
+.B E_NOT_CONNECTED
+No items are connected to the menu.
+.TP 5
+.B E_NOT_POSTED
+The menu has not been posted.
+.TP 5
+.B E_NOT_SELECTABLE
+The designated item cannot be selected.
+.TP 5
+.B E_POSTED
+The menu is already posted.
+.TP 5
+.B E_REQUEST_DENIED
+The menu driver could not process the request.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fP(3)).
+.TP 5
+.B E_UNKNOWN_COMMAND
+The menu driver code saw an unknown request code.
+.SH NOTES
+The header file \fB<menu.h>\fP automatically includes the header files
+\fB<curses.h>\fP and \fB<eti.h>\fP.
+.PP
+In your library list, libmenu.a should be before libncurses.a; that is,
+you should say \*(``\-lmenu \-lncurses\*('', not the other way around
+(which would give a link-error when using static libraries).
+.SH PORTABILITY
+These routines emulate the System V menu library.
+They were not supported on
+Version 7 or BSD versions.
+.PP
+The menu facility was documented in SVr4.2 in
+\fICharacter User Interface Programming (UNIX SVR4.2)\fP.
+.PP
+It is not part of X/Open Curses.
+.PP
+Aside from ncurses, there are few implementations:
+.bP
+systems based on SVr4 source code, e.g., Solaris.
+.bP
+NetBSD curses.
+.SH AUTHORS
+Juergen Pfeifer.
+Manual pages and adaptation for ncurses by Eric S. Raymond.
+.SH SEE ALSO
+\fBcurses\fP(3) and related pages whose names begin \*(``menu_\*(''
+for detailed descriptions of the entry points.
+.PP
+This describes \fBncurses\fP
+version 6.4 (patch 20230826).

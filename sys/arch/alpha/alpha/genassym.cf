@@ -1,0 +1,141 @@
+#	$OpenBSD: genassym.cf,v 1.14 2025/06/29 15:55:21 miod Exp $
+
+# Copyright (c) 1994, 1995 Gordon W. Ross
+# Copyright (c) 1993 Adam Glass
+# Copyright (c) 1982, 1990, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+
+include <sys/param.h>
+include <sys/buf.h>
+include <sys/proc.h>
+include <sys/mbuf.h>
+include <sys/msgbuf.h>
+include <sys/syscall.h>
+include <sys/user.h>
+
+include <machine/cpu.h>
+include <machine/reg.h>
+include <machine/frame.h>
+include <machine/rpb.h>
+include <machine/vmparam.h>
+
+include <uvm/uvm_extern.h>
+
+# general constants
+export	VM_MAX_ADDRESS
+
+# Register offsets, for stack frames.
+export	FRAME_V0
+export	FRAME_T0
+export	FRAME_T1
+export	FRAME_T2
+export	FRAME_T3
+export	FRAME_T4
+export	FRAME_T5
+export	FRAME_T6
+export	FRAME_T7
+export	FRAME_S0
+export	FRAME_S1
+export	FRAME_S2
+export	FRAME_S3
+export	FRAME_S4
+export	FRAME_S5
+export	FRAME_S6
+export	FRAME_A3
+export	FRAME_A4
+export	FRAME_A5
+export	FRAME_T8
+export	FRAME_T9
+export	FRAME_T10
+export	FRAME_T11
+export	FRAME_RA
+export	FRAME_T12
+export	FRAME_AT
+export	FRAME_SP
+
+export	FRAME_SW_SIZE
+
+export	FRAME_PS
+export	FRAME_PC
+export	FRAME_GP
+export	FRAME_A0
+export	FRAME_A1
+export	FRAME_A2
+
+export	FRAME_SIZE
+
+# bits of the PS register
+export	ALPHA_PSL_USERMODE
+export	ALPHA_PSL_IPL_MASK
+export	ALPHA_PSL_IPL_0
+export	ALPHA_PSL_IPL_SOFT
+
+# Important offsets into the proc struct & associated constants
+struct	proc
+member	p_addr
+member	p_stat
+member	P_MD_ASTPENDING	p_md.md_astpending
+member	P_MD_PCBPADDR	p_md.md_pcbpaddr
+member	p_cpu
+
+export	SONPROC
+
+# Important offsets into the user struct & associated constants
+struct	user
+member	u_pcb
+member	U_PCB_HWPCB_KSP		u_pcb.pcb_hw.apcb_ksp
+member	U_PCB_CONTEXT		u_pcb.pcb_context[0]
+member	U_PCB_ONFAULT		u_pcb.pcb_onfault
+
+# Offsets into struct fpstate, for save, restore
+struct	fpreg		FPREG_
+member	FPR_REGS	fpr_regs[0]
+member	fpr_cr
+
+# Important other addresses
+export	VPTBASE
+
+# Kernel entries
+export	ALPHA_KENTRY_ARITH
+export	ALPHA_KENTRY_MM
+export	ALPHA_KENTRY_IF
+export	ALPHA_KENTRY_UNA
+
+# errno values
+export	ENAMETOOLONG
+export	EFAULT
+
+# Syscalls called from sigreturn.
+export	SYS_sigreturn
+export	SYS_exit
+
+# CPU info
+struct	cpu_info	CPU_INFO_
+member	CURPROC		ci_curproc
+member	FPCURPROC	ci_fpcurproc
+member	CURPCB		ci_curpcb
+member	IDLE_PCB_PADDR	ci_idle_pcb_paddr

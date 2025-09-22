@@ -1,0 +1,151 @@
+//===--- DebugOptions.def - Debug option database ----------------- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines debug-specific codegen options. Users of this file
+// must define the CODEGENOPT macro to make use of this information.
+// Optionally, the user may also define DEBUGOPT (for flags), ENUM_DEBUGOPT (for
+// options that have enumeration type), and VALUE_DEBUGOPT (is a debug option
+// that describes a value rather than a flag).
+//
+// BENIGN_ variants of the macros are used to describe options that do not
+// affect the generated PCM.
+//
+//===----------------------------------------------------------------------===//
+#ifndef DEBUGOPT
+#define DEBUGOPT(Name, Bits, Default) \
+CODEGENOPT(Name, Bits, Default)
+#endif
+
+#ifndef VALUE_DEBUGOPT
+#  define VALUE_DEBUGOPT(Name, Bits, Default) \
+VALUE_CODEGENOPT(Name, Bits, Default)
+#endif
+
+#ifndef ENUM_DEBUGOPT
+#  define ENUM_DEBUGOPT(Name, Type, Bits, Default) \
+ENUM_CODEGENOPT(Name, Type, Bits, Default)
+#endif
+
+#ifndef BENIGN_DEBUGOPT
+#define BENIGN_DEBUGOPT(Name, Bits, Default) \
+DEBUGOPT(Name, Bits, Default)
+#endif
+
+#ifndef BENIGN_VALUE_DEBUGOPT
+#  define BENIGN_VALUE_DEBUGOPT(Name, Bits, Default) \
+VALUE_DEBUGOPT(Name, Bits, Default)
+#endif
+
+#ifndef BENIGN_ENUM_DEBUGOPT
+#  define BENIGN_ENUM_DEBUGOPT(Name, Type, Bits, Default) \
+ENUM_DEBUGOPT(Name, Type, Bits, Default)
+#endif
+
+BENIGN_ENUM_DEBUGOPT(CompressDebugSections, llvm::DebugCompressionType, 2,
+                     llvm::DebugCompressionType::None)
+DEBUGOPT(Dwarf64, 1, 0) ///< -gdwarf64.
+BENIGN_DEBUGOPT(EnableDIPreservationVerify, 1, 0) ///< Enable di preservation
+                                                  ///< verify each (it means
+                                                  ///< check the original debug
+                                                  ///< info metadata
+                                                  ///< preservation).
+BENIGN_DEBUGOPT(ForceDwarfFrameSection , 1, 0) ///< Set when -fforce-dwarf-frame
+                                               ///< is enabled.
+
+///< Set when -femit-dwarf-unwind is passed.
+BENIGN_ENUM_DEBUGOPT(EmitDwarfUnwind, llvm::EmitDwarfUnwindType, 2,
+                     llvm::EmitDwarfUnwindType::Default)
+
+BENIGN_DEBUGOPT(NoDwarfDirectoryAsm , 1, 0) ///< Set when -fno-dwarf-directory-asm
+                                            ///< is enabled.
+
+BENIGN_DEBUGOPT(NoInlineLineTables, 1, 0) ///< Whether debug info should contain
+                                          ///< inline line tables.
+
+DEBUGOPT(DebugStrictDwarf, 1, 1) ///< Whether or not to use strict DWARF info.
+DEBUGOPT(DebugOmitUnreferencedMethods, 1, 0) ///< Omit unreferenced member
+					     ///< functions in type debug info.
+
+/// Control the Assignment Tracking debug info feature.
+BENIGN_ENUM_DEBUGOPT(AssignmentTrackingMode, AssignmentTrackingOpts, 2,
+                     AssignmentTrackingOpts::Disabled)
+
+DEBUGOPT(DebugColumnInfo, 1, 0) ///< Whether or not to use column information
+                                ///< in debug info.
+
+DEBUGOPT(DebugTypeExtRefs, 1, 0) ///< Whether or not debug info should contain
+                                 ///< external references to a PCH or module.
+
+DEBUGOPT(DebugExplicitImport, 1, 0)  ///< Whether or not debug info should
+                                     ///< contain explicit imports for
+                                     ///< anonymous namespaces
+
+/// Set debug info source file hashing algorithm.
+ENUM_DEBUGOPT(DebugSrcHash, DebugSrcHashKind, 2, DSH_MD5)
+
+DEBUGOPT(SplitDwarfInlining, 1, 1) ///< Whether to include inlining info in the
+                                   ///< skeleton CU to allow for symbolication
+                                   ///< of inline stack frames without .dwo files.
+DEBUGOPT(DebugFwdTemplateParams, 1, 0) ///< Whether to emit complete
+                                       ///< template parameter descriptions in
+                                       ///< forward declarations (versus just
+                                       ///< including them in the name).
+ENUM_DEBUGOPT(DebugSimpleTemplateNames,
+              llvm::codegenoptions::DebugTemplateNamesKind, 2,
+              llvm::codegenoptions::DebugTemplateNamesKind::Full)
+              ///< Whether to emit template parameters in the textual names of
+              ///< template specializations.
+			  ///< Implies DebugFwdTemplateNames to allow decorated names to be
+			  ///< reconstructed when needed.
+
+/// The kind of generated debug info.
+ENUM_DEBUGOPT(DebugInfo, llvm::codegenoptions::DebugInfoKind, 4,
+              llvm::codegenoptions::NoDebugInfo)
+
+/// Whether to generate macro debug info.
+DEBUGOPT(MacroDebugInfo, 1, 0)
+
+/// Tune the debug info for this debugger.
+ENUM_DEBUGOPT(DebuggerTuning, llvm::DebuggerKind, 3,
+                llvm::DebuggerKind::Default)
+
+/// Dwarf version. Version zero indicates to LLVM that no DWARF should be
+/// emitted.
+VALUE_DEBUGOPT(DwarfVersion, 3, 0)
+
+/// Whether we should emit CodeView debug information. It's possible to emit
+/// CodeView and DWARF into the same object.
+DEBUGOPT(EmitCodeView, 1, 0)
+
+/// Whether to emit the .debug$H section containing hashes of CodeView types.
+DEBUGOPT(CodeViewGHash, 1, 0)
+
+/// Whether to emit the compiler path and command line into the CodeView debug information.
+DEBUGOPT(CodeViewCommandLine, 1, 0)
+
+/// Whether emit extra debug info for sample pgo profile collection.
+DEBUGOPT(DebugInfoForProfiling, 1, 0)
+
+/// Whether to emit DW_TAG_template_alias for template aliases.
+DEBUGOPT(DebugTemplateAlias, 1, 0)
+
+/// Whether to emit .debug_gnu_pubnames section instead of .debug_pubnames.
+DEBUGOPT(DebugNameTable, 2, 0)
+
+/// Whether to use DWARF base address specifiers in .debug_ranges.
+DEBUGOPT(DebugRangesBaseAddress, 1, 0)
+
+/// Whether to embed source in DWARF debug line section.
+DEBUGOPT(EmbedSource, 1, 0)
+
+#undef DEBUGOPT
+#undef ENUM_DEBUGOPT
+#undef VALUE_DEBUGOPT
+#undef BENIGN_DEBUGOPT
+#undef BENIGN_ENUM_DEBUGOPT
+#undef BENIGN_VALUE_DEBUGOPT

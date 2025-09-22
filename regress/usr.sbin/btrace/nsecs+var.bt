@@ -1,0 +1,11 @@
+// Test parsing nsecs in a BEGIN block
+BEGIN {
+	@start = nsecs;
+	@var = 82;
+}
+
+// Overwrite `start' and print everything
+END {
+	@start = 3;
+	printf("start=%u, var=%u\n", @start, @var);
+}

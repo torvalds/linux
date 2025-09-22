@@ -1,0 +1,12 @@
+# There's only one substitution whose pattern matches exactly, but there's
+# another partial match, and that can lead to confusing expansions.
+
+# REDEFINE: %{global:multiple-once-exact}=foo
+# RUN: echo %{global:multiple-once-exact}
+
+#      CHECK: ValueError: Multiple substitutions whose patterns contain '%{global:multiple-once-exact}' are defined before '{{REDEFINE}}:' directive at line [[#@LINE-3]]
+# CHECK-NEXT: Existing pattern: <%{global:multiple-once-exact}>
+# CHECK-NEXT: Existing pattern: %{global:multiple-once-exact}
+#  CHECK-NOT: Existing pattern:
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

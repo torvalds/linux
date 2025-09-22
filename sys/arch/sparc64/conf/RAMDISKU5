@@ -1,0 +1,88 @@
+#	$OpenBSD: RAMDISKU5,v 1.23 2023/04/28 18:27:55 cheloha Exp $
+
+machine		sparc64
+maxusers	4
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		RAMDISK_HOOKS
+option		MINIROOTSIZE=6144
+
+option		FFS
+option		FFS2
+
+option		WSEMUL_SUN	# provide sun terminal emulation; required
+option		WSEMUL_NO_VT100	# do not provide vt100 terminal emulation
+
+config		bsd root on rd0a
+
+mainbus0	at root
+cpu0		at mainbus0
+
+upa0		at mainbus0
+schizo*		at mainbus0
+pci*		at schizo?
+psycho*		at mainbus0
+pci*		at psycho?		# Ultra 5
+pci*		at ppb?
+ppb*		at pci?
+ebus*		at pci?
+
+hme*		at pci?
+gem*		at pci?
+
+auxio*		at ebus?
+clock*		at ebus?
+
+pcons0		at mainbus0		# PROM console 
+
+pciide*		at pci? flags 0x0000
+wd*		at pciide? flags 0x0a00
+atapiscsi*	at pciide?
+
+siop*		at pci?
+
+scsibus*	at scsi?
+sd*		at scsibus?
+#cd*		at scsibus?
+
+nsphy*		at mii?			# NS and compatible PHYs
+qsphy*		at mii?			# Quality Semi QS6612 PHYs
+ukphy*		at mii?			# Unknown PHYs
+
+ohci*		at pci ?
+uhci*		at pci?
+usb*		at ohci?
+usb*		at uhci?
+
+uhub*		at usb?
+uhub*		at uhub?
+uhidev*		at uhub?		# Human Interface Devices
+ukbd*		at uhidev?		# USB Keyboard
+wskbd*		at ukbd?
+
+sab*		at ebus?
+sabtty*		at sab?
+com*		at ebus?
+comkbd*		at ebus?
+wskbd*		at comkbd?
+
+pckbc*		at ebus?		# controller
+pckbd*		at pckbc?		#  ps2 keyboard
+wskbd*		at pckbd?		#    generic keyboard layer
+
+creator*	at upa0			# Creator3D/Elite3D framebuffers
+wsdisplay*	at creator?
+gfxp*		at pci?			# PGX32 framebuffer
+wsdisplay*	at gfxp?
+machfb*		at pci?			# PGX/PGX64 framebuffers
+wsdisplay*	at machfb?
+raptor*		at pci?			# Raptor framebuffer
+wsdisplay*	at raptor?
+vgafb*		at pci?
+wsdisplay*	at vgafb?
+
+pseudo-device	rd 1
+pseudo-device	loop 1

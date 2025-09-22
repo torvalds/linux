@@ -1,0 +1,188 @@
+.\" $OpenBSD: PKCS7_sign_add_signer.3,v 1.14 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL df75c2bf Dec 9 01:02:36 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2007, 2008, 2009, 2015 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS7_SIGN_ADD_SIGNER 3
+.Os
+.Sh NAME
+.Nm PKCS7_sign_add_signer
+.Nd add a signer to a SignedData structure
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft PKCS7_SIGNER_INFO *
+.Fo PKCS7_sign_add_signer
+.Fa "PKCS7 *p7"
+.Fa "X509 *signcert"
+.Fa "EVP_PKEY *pkey"
+.Fa "const EVP_MD *md"
+.Fa "int flags"
+.Fc
+.Sh DESCRIPTION
+.Fn PKCS7_sign_add_signer
+adds a signer with certificate
+.Fa signcert
+and private key
+.Fa pkey
+using message digest
+.Fa md
+to a
+.Vt PKCS7
+signed data structure
+.Fa p7 .
+.Pp
+The
+.Vt PKCS7
+structure should be obtained from an initial call to
+.Xr PKCS7_sign 3
+with the flag
+.Dv PKCS7_PARTIAL
+set or, in the case or re-signing, a valid
+.Vt PKCS7
+signed data structure.
+.Pp
+If the
+.Fa md
+parameter is
+.Dv NULL ,
+then the default digest for the public key algorithm will be used.
+.Pp
+Unless the
+.Dv PKCS7_REUSE_DIGEST
+flag is set, the returned
+.Dv PKCS7
+structure is not complete and must be
+finalized either by streaming (if applicable) or by a call to
+.Xr PKCS7_final 3 .
+.Pp
+The main purpose of this function is to provide finer control over a
+PKCS#7 signed data structure where the simpler
+.Xr PKCS7_sign 3
+function defaults are not appropriate, for example if multiple
+signers or non default digest algorithms are needed.
+.Pp
+Any of the following flags (OR'ed together) can be passed in the
+.Fa flags
+parameter.
+.Pp
+If
+.Dv PKCS7_REUSE_DIGEST
+is set, then an attempt is made to copy the content digest value from the
+.Vt PKCS7
+structure: to add a signer to an existing structure.
+An error occurs if a matching digest value cannot be found to copy.
+The returned
+.Vt PKCS7
+structure will be valid and finalized when this flag is set.
+.Pp
+If
+.Dv PKCS7_PARTIAL
+is set in addition to
+.Dv PKCS7_REUSE_DIGEST ,
+then the
+.Dv PKCS7_SIGNER_INO
+structure will not be finalized, so additional attributes can be added.
+In this case an explicit call to
+.Fn PKCS7_SIGNER_INFO_sign
+is needed to finalize it.
+.Pp
+If
+.Dv PKCS7_NOCERTS
+is set, the signer's certificate will not be included in the
+.Vt PKCS7
+structure, though the signer's certificate must still be supplied in the
+.Fa signcert
+parameter.
+This can reduce the size of the signature if the signers certificate can
+be obtained by other means: for example a previously signed message.
+.Pp
+The signedData structure includes several PKCS#7 authenticatedAttributes
+including the signing time, the PKCS#7 content type and the supported
+list of ciphers in an SMIMECapabilities attribute.
+If
+.Dv PKCS7_NOATTR
+is set, then no authenticatedAttributes will be used.
+If
+.Dv PKCS7_NOSMIMECAP
+is set, then just the SMIMECapabilities are omitted.
+.Pp
+If present, the SMIMECapabilities attribute indicates support for the
+following algorithms: triple DES, 128-bit RC2, 64-bit RC2, DES
+and 40-bit RC2.
+If any of these algorithms is disabled, then it will not be included.
+.Pp
+.Fn PKCS7_sign_add_signer
+returns an internal pointer to the
+.Vt PKCS7_SIGNER_INFO
+structure just added, which can be used to set additional attributes
+with the functions described in
+.Xr PKCS7_add_attribute 3
+before it is finalized.
+.Sh RETURN VALUES
+.Fn PKCS7_sign_add_signer
+returns an internal pointer to the
+.Vt PKCS7_SIGNER_INFO
+structure just added or
+.Dv NULL
+if an error occurs.
+In some cases of failure, the reason can be determined with
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr EVP_DigestInit 3 ,
+.Xr PKCS7_add_attribute 3 ,
+.Xr PKCS7_final 3 ,
+.Xr PKCS7_get_signer_info 3 ,
+.Xr PKCS7_new 3 ,
+.Xr PKCS7_sign 3
+.Sh HISTORY
+.Fn PKCS7_sign_add_signer
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .

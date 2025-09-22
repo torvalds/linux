@@ -1,0 +1,2 @@
+./autogen.sh
+./configure && make

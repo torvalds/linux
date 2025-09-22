@@ -1,0 +1,26 @@
+executable("llvm-cov") {
+  deps = [
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Debuginfod",
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/ProfileData",
+    "//llvm/lib/ProfileData/Coverage",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "CodeCoverage.cpp",
+    "CoverageExporterJson.cpp",
+    "CoverageExporterLcov.cpp",
+    "CoverageFilters.cpp",
+    "CoverageReport.cpp",
+    "CoverageSummaryInfo.cpp",
+    "SourceCoverageView.cpp",
+    "SourceCoverageViewHTML.cpp",
+    "SourceCoverageViewText.cpp",
+    "TestingSupport.cpp",
+    "gcov.cpp",
+    "llvm-cov.cpp",
+  ]
+}

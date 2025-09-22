@@ -1,0 +1,70 @@
+.\"	$OpenBSD: domainname.1,v 1.18 2012/05/27 07:10:15 jmc Exp $
+.\"	$NetBSD: domainname.1,v 1.7 1995/07/25 19:36:57 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1988, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)hostname.1	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: May 27 2012 $
+.Dt DOMAINNAME 1
+.Os
+.Sh NAME
+.Nm domainname
+.Nd set or print YP domain of current host system
+.Sh SYNOPSIS
+.Nm domainname
+.Op Ar name-of-domain
+.Sh DESCRIPTION
+The
+.Nm
+utility prints the YP domain name of the current host.
+The superuser can set the domain name by supplying a
+.Pa /etc/defaultdomain
+file (see
+.Xr defaultdomain 5 ) .
+This is used at system boot time by
+.Xr rc 8
+to initialize the domainname.
+.Sh SEE ALSO
+.Xr hostname 1 ,
+.Xr getdomainname 3 ,
+.Xr setdomainname 3 ,
+.Xr defaultdomain 5 ,
+.Xr rc 8 ,
+.Xr yp 8
+.Sh HISTORY
+The
+.Nm
+utility is derived from the
+.Xr hostname 1
+utility, which appeared in
+.Bx 4.2 .
+The
+.Nm
+utility appeared in
+.Nx 0.8 .

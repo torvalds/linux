@@ -1,0 +1,9 @@
+#!/bin/ksh
+#
+# $OpenBSD: hotplugd,v 1.2 2018/01/11 19:52:12 rpe Exp $
+
+daemon="/usr/sbin/hotplugd"
+
+. /etc/rc.d/rc.subr
+
+rc_cmd $1

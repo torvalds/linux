@@ -1,0 +1,79 @@
+.\" $OpenBSD: udl.4,v 1.24 2023/05/10 22:23:25 jmc Exp $
+.\"
+.\" Copyright (c) 2009 Marcus Glocker <mglocker@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 10 2023 $
+.Dt UDL 4
+.Os
+.Sh NAME
+.Nm udl
+.Nd DisplayLink DL-120/DL-160 USB display devices
+.Sh SYNOPSIS
+.Cd "udl* at uhub?"
+.Cd "wsdisplay* at udl?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB display devices based on the DisplayLink DL-120/DL-160
+graphic chip.
+.Sh HARDWARE
+The following devices should work:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Century Corp. Japan Plus One LCD-8000U
+.It Century Corp. Japan Plus One LCD-4300U
+.It DisplayLink USB to DVI
+.It ForwardVideo EasyCAP008 USB to DVI
+.It HP USB 2.0 Docking Station (FQ834)
+.It HP USB Graphics Adapter (NL571)
+.It IOGEAR USB 2.0 External DVI (GUC2020)
+.It Koenig CMP-USBVGA10 and CMP-USBVGA11
+.It Lenovo 45K5296 USB to DVI
+.It Lenovo ThinkVision LT1421
+.It Lilliput UM-70
+.It Nanovision MiMo UM-710 and UM-740
+.It Rextron VCUD60 USB to DVI
+.It Samsung LD220
+.It StarTech CONV-USB2DVI
+.It Sunweit USB to DVI
+.It Toshiba Video Dock
+.It Unitek Y-2240 USB to DVI
+.It VideoHome NBdock1920
+.El
+.Sh FILES
+The device can process compressed data (Huffman pixel difference method)
+to reduce the USB payload.
+To generate the compressed data,
+the driver needs to load a Huffman table,
+which is stored in the following binary file:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/udl_huffman
+.El
+.Pp
+If the Huffman table can't be loaded, the driver will fall back to
+uncompressed mode.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr usb 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.6 .
+.Sh AUTHORS
+.An Marcus Glocker Aq Mt mglocker@openbsd.org

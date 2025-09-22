@@ -1,0 +1,57 @@
+.\"	$OpenBSD: ecadc.4,v 1.4 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 Damien Miller <djm@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt ECADC 4 sparc64
+.Os
+.Sh NAME
+.Nm ecadc
+.Nd environmental monitoring subsystem temperature sensor
+.Sh SYNOPSIS
+.Cd "ecadc* at iic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the PCF8591 I2C analog to digital converter that is
+part of the environmental monitoring subsystem found on the Sun
+Enterprise 250 and Sun Enterprise 450 systems.
+The temperature readings are made available through the
+.Xr sysctl 8
+interface.
+.Pp
+The driver reads up to four A/D lines configured as temperature inputs.
+Sensor names, type and calibration information are read from OpenFirmware.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr pcfadc 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org
+based on the
+.Xr pcfadc 4
+driver written by
+.An Damien Miller Aq Mt djm@openbsd.org .

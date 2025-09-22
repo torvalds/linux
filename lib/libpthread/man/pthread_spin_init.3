@@ -1,0 +1,89 @@
+.\"	$OpenBSD: pthread_spin_init.3,v 1.4 2025/06/07 00:16:52 schwarze Exp $
+.\"
+.\" Copyright (c) 2012 Paul Irofti <paul@irofti.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_SPIN_INIT 3
+.Os
+.Sh NAME
+.Nm pthread_spin_init ,
+.Nm pthread_spin_destroy
+.Nd initialize and destroy a spinlock object
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_spin_init "pthread_spinlock_t *lock" "int pshared"
+.Ft int
+.Fn pthread_spin_destroy "pthread_spinlock_t *lock"
+.Sh DESCRIPTION
+The
+.Fn pthread_spin_init
+function creates a new spinlock object, with sharing attributes specified by
+.Fa pshared .
+.Pp
+The
+.Fn pthread_spin_destroy
+function frees the resources allocated for the
+.Fa lock .
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_spin_init
+and
+.Fn pthread_spin_destroy
+return zero; otherwise an error number is returned to indicate the error.
+.Sh ERRORS
+.Fn pthread_spin_init
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa lock
+is invalid.
+.It Bq Er ENOMEM
+The process cannot allocate enough memory to create another spinlock object.
+.It Bq Er ENOTSUP
+The shared attributes specified by
+.Fa pshared
+are not supported by the current implementation.
+.El
+.Pp
+.Fn pthread_spin_destroy
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa lock
+is invalid.
+.It Bq Er EBUSY
+The lock is still in use.
+.El
+.Sh SEE ALSO
+.Xr pthread_spin_lock 3 ,
+.Xr pthread_spin_unlock 3
+.Sh STANDARDS
+.Fn pthread_spin_init
+and
+.Fn pthread_spin_destroy
+conform to
+.St -p1003.1-2008 .
+.Sh BUGS
+Currently only
+.Dv PTHREAD_PROCESS_PRIVATE
+spinlocks are supported and the pshared attribute is
+always set that way.
+Any attempts to initialize it to a different value will trigger
+.Er ENOTSUP .

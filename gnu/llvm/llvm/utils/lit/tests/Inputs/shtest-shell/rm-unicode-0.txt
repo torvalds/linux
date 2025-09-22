@@ -1,0 +1,7 @@
+# Check removing unicode
+#
+# RUN: mkdir -p  Output/中文
+# RUN: echo "" > Output/中文/你好.txt
+# RUN: rm Output/中文/你好.txt
+# RUN: echo "" > Output/中文/你好.txt
+# RUN: rm -r Output/中文

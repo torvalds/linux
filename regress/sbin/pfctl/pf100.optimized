@@ -1,0 +1,28 @@
+@0 pass all flags S/SA
+  [ Skip steps: i=6 d=6 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 anchor "a/b" all
+  [ Skip steps: i=6 d=6 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 anchor "1/2/3" all
+  [ Skip steps: i=6 d=6 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 anchor "relative" all
+  [ Skip steps: i=6 d=6 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 anchor "camield/*" all
+  [ Skip steps: i=6 d=6 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 anchor "relayd/*" all
+  [ Skip steps: r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 anchor "foo" in on lo0 all
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

@@ -1,0 +1,2 @@
+# REQUIRES: ld64.lld
+# RUN: true

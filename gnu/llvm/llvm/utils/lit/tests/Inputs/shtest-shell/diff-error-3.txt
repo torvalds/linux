@@ -1,0 +1,3 @@
+# Check error on an internal shell error (unable to find compared files)
+#
+# RUN: diff temp.txt temp1.txt

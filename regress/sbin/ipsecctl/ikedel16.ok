@@ -1,0 +1,8 @@
+t from-10.1.1.0/24-to-10.1.2.0/24
+C rmv [Phase 2]:Connections=from-10.1.1.0/24-to-10.1.2.0/24
+C rms [from-10.1.1.0/24-to-10.1.2.0/24]
+C rms [phase2-from-10.1.1.0/24-to-10.1.2.0/24]
+t from-3ffe::51-to-3ffe::29
+C rmv [Phase 2]:Connections=from-3ffe::51-to-3ffe::29
+C rms [from-3ffe::51-to-3ffe::29]
+C rms [phase2-from-3ffe::51-to-3ffe::29]

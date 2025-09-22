@@ -1,0 +1,122 @@
+.\" $OpenBSD: X509_STORE_set_verify_cb_func.3,v 1.13 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL 05ea606a May 20 20:52:46 2016 -0400
+.\" selective merge up to: OpenSSL 315c47e0 Dec 1 14:22:16 2020 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2009 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_STORE_SET_VERIFY_CB_FUNC 3
+.Os
+.Sh NAME
+.Nm X509_STORE_set_verify_cb ,
+.Nm X509_STORE_set_verify_cb_func ,
+.Nm X509_STORE_get_verify_cb
+.Nd set verification callback
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509_vfy.h
+.Ft void
+.Fo X509_STORE_set_verify_cb
+.Fa "X509_STORE *st"
+.Fa "X509_STORE_CTX_verify_cb verify_cb"
+.Fc
+.Ft void
+.Fo X509_STORE_set_verify_cb_func
+.Fa "X509_STORE *st"
+.Fa "X509_STORE_CTX_verify_cb verify_cb"
+.Fc
+.Ft X509_STORE_CTX_verify_cb
+.Fo X509_STORE_get_verify_cb
+.Fa "X509_STORE *st"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_STORE_set_verify_cb
+sets the verification callback of
+.Sy ctx
+to
+.Sy verify_cb ,
+overwriting any existing callback.
+.Pp
+.Fn X509_STORE_set_verify_cb_func
+also sets the verification callback but it is implemented as a macro.
+.Pp
+The verification callback from an
+.Vt X509_STORE
+is inherited by the corresponding
+.Vt X509_STORE_CTX
+structure when it is initialized.
+This can be used to set the verification callback when the
+.Vt X509_STORE_CTX
+is otherwise inaccessible (for example during S/MIME verification).
+.Sh RETURN VALUES
+.Fn X509_STORE_get_verify_cb
+returns the function pointer set with
+.Fn X509_STORE_set_verify_cb ,
+or
+.Dv NULL
+if that function was not called on
+.Fa st .
+.Sh SEE ALSO
+.Xr X509_STORE_CTX_new 3 ,
+.Xr X509_STORE_CTX_set_verify 3 ,
+.Xr X509_STORE_CTX_set_verify_cb 3 ,
+.Xr X509_STORE_new 3 ,
+.Xr X509_STORE_set_flags 3 ,
+.Xr X509_verify_cert 3
+.Sh HISTORY
+.Fn X509_STORE_set_verify_cb_func
+first appeared in SSLeay 0.8.0 and has been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_STORE_set_verify_cb
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .
+.Pp
+.Fn X509_STORE_get_verify_cb
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 7.2 .

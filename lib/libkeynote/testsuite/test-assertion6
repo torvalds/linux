@@ -1,0 +1,7 @@
+keynote-version: 2
+authorizer: "Key6"
+licensees: "KeyB" # this assertion will return "false" because
+# of the licensees field
+conditions: app_domain == "testing" && request == "test" &&
+		  (variable == "no" || variable == "yes") -> "true";
+# however, the conditions field will return "true"

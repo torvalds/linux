@@ -1,0 +1,74 @@
+.\"	$OpenBSD: X509_check_private_key.3,v 1.7 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL X509_check_private_key.pod 09ddb878 Jun 5 03:56:07 2017 +0800
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_CHECK_PRIVATE_KEY 3
+.Os
+.Sh NAME
+.Nm X509_check_private_key ,
+.Nm X509_REQ_check_private_key
+.Nd compare public key components
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_check_private_key
+.Fa "const X509 *x"
+.Fa "const EVP_PKEY *k"
+.Fc
+.Ft int
+.Fo X509_REQ_check_private_key
+.Fa "X509_REQ *x"
+.Fa "EVP_PKEY *k"
+.Fc
+.Sh DESCRIPTION
+These functions are seriously misnamed.
+.Fn X509_check_private_key
+compares the
+.Em public
+key components (e.g. exponent and modulus of an RSA key)
+and parameters (e.g. EC params of an EC key) of
+.Fa k
+with the corresponding properties of
+.Fa x .
+Despite the name, it neither checks whether
+.Fa k
+contains private key components at all, nor, if any are present,
+whether they are consistent with the public key components.
+.Pp
+.Fn X509_REQ_check_private_key
+is equivalent to
+.Fn X509_check_private_key
+except that it compares to the public key
+contained in a certificate request.
+.Sh RETURN VALUES
+These functions return 1 if the public key components and parameters
+match, or 0 if they do not or if an error occurs.
+On error or mismatch, a reason code can be obtained using
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr SSL_check_private_key 3 ,
+.Xr X509_new 3 ,
+.Xr X509_REQ_new 3
+.Sh HISTORY
+.Fn X509_check_private_key
+first appeared in SSLeay 0.6.5 and has been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_REQ_check_private_key
+first appeared in OpenSSL 0.9.8 and has been available since
+.Ox 4.5 .

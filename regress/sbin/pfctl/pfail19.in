@@ -1,0 +1,5 @@
+# invalid table constructs
+match in on lo0 from any to any rdr-to <sometable>
+match out on lo0 from any to any nat-to <sometable>
+match on lo0 from 1.1.1.1 to any binat-to <sometable>
+match on lo0 from <sometable> to any binat-to 1.1.1.1

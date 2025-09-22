@@ -1,0 +1,121 @@
+.\" $OpenBSD: EVP_sha1.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_SHA1 3
+.Os
+.Sh NAME
+.Nm EVP_sha1 ,
+.Nm EVP_md5 ,
+.Nm EVP_md5_sha1 ,
+.Nm EVP_md4
+.Nd legacy message digest algorithms
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft const EVP_MD *
+.Fn EVP_sha1 void
+.Ft const EVP_MD *
+.Fn EVP_md5 void
+.Ft const EVP_MD *
+.Fn EVP_md5_sha1 void
+.Ft const EVP_MD *
+.Fn EVP_md4 void
+.Sh DESCRIPTION
+The following message digest algorithms are cryptographically broken.
+None of them should be used in new code unless there is no way around it.
+.Pp
+.Fn EVP_sha1
+implements the SHA-1 algorithm and produces 160 bits of output
+from a given input.
+Examples of protocols and software still requiring it
+include OCSP, DNS, and the
+.Sy git
+version control system.
+.Pp
+.Fn EVP_md5
+implements the MD5 algorithm and produces 128 bits of output
+from a given input.
+It is still occasionally used when no security is required
+but a fast hash algorithm is beneficial.
+.Pp
+.Fn EVP_md5_sha1
+produces concatenated MD5 and SHA-1 message digests.
+Do not use this except where it is required for the historic SSLv3 protocol.
+.Pp
+.Fn EVP_md4
+implements the MD4 algorithm and produces 128 bits of output
+from a given input.
+It has been marked as
+.Dq historic
+by the Internet Engineering Task Force since 2011.
+.Sh RETURN VALUES
+These functions return pointers to static
+.Vt EVP_MD
+objects implementing the hash functions.
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_DigestInit 3
+.Sh STANDARDS
+.Rs
+.%A T. Polk
+.%A L. Chen
+.%A S. Turner
+.%A P. Hoffman
+.%T Security Considerations for the SHA-0 and SHA-1 Message-Digest Algorithms
+.%R RFC 6194
+.%D March 2011
+.Re
+.Pp
+.Rs
+.%A S. Turner
+.%A L. Chen
+.%T Updated Security Considerations for the MD5 Message-Digest\
+ and the HMAC-MD5 Algorithms
+.%R RFC 6151
+.%D March 2011
+.Re
+.Pp
+.Rs
+.%A S. Turner
+.%A L. Chen
+.%T MD4 to Historic Status
+.%R RFC 6150
+.%D March 2011
+.Re
+.Pp
+.Rs
+.%A P. Kocher
+.%A P. Karlton
+.%A A. Freier
+.%T The Secure Sockets Layer (SSL) Protocol Version 3.0
+.%R RFC 6101
+.%D August 2011
+.Re
+.Sh HISTORY
+.Fn EVP_sha1
+and
+.Fn EVP_md5
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_md4
+first appeared in OpenSSL 0.9.6 and has been available since
+.Ox 2.9 .
+.Pp
+.Fn EVP_md5_sha1
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .

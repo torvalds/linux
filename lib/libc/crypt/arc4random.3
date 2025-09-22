@@ -1,0 +1,116 @@
+.\" $OpenBSD: arc4random.3,v 1.37 2019/09/29 16:30:35 jmc Exp $
+.\"
+.\" Copyright 1997 Niels Provos <provos@physnet.uni-hamburg.de>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Niels Provos.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Manual page, using -mandoc macros
+.\"
+.Dd $Mdocdate: September 29 2019 $
+.Dt ARC4RANDOM 3
+.Os
+.Sh NAME
+.Nm arc4random ,
+.Nm arc4random_buf ,
+.Nm arc4random_uniform
+.Nd random number generator
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft uint32_t
+.Fn arc4random "void"
+.Ft void
+.Fn arc4random_buf "void *buf" "size_t nbytes"
+.Ft uint32_t
+.Fn arc4random_uniform "uint32_t upper_bound"
+.Sh DESCRIPTION
+This family of functions provides higher quality data than those
+described in
+.Xr rand 3 ,
+.Xr random 3 ,
+and
+.Xr rand48 3 .
+.Pp
+Use of these functions is encouraged for almost all random number
+consumption because the other interfaces are deficient in either
+quality, portability, standardization, or availability.
+These functions can be called in almost all coding environments,
+including
+.Xr pthreads 3
+and
+.Xr chroot 2 .
+.Pp
+High quality 32-bit pseudo-random numbers are generated very quickly.
+On each call, a cryptographic pseudo-random number generator is used
+to generate a new result.
+One data pool is used for all consumers in a process, so that consumption
+under program flow can act as additional stirring.
+The subsystem is re-seeded from the kernel
+.Xr random 4
+subsystem using
+.Xr getentropy 2
+on a regular basis, and also upon
+.Xr fork 2 .
+.Pp
+The
+.Fn arc4random
+function returns a single 32-bit value.
+.Pp
+.Fn arc4random_buf
+fills the region
+.Fa buf
+of length
+.Fa nbytes
+with random data.
+.Pp
+.Fn arc4random_uniform
+will return a single 32-bit value, uniformly distributed but less than
+.Fa upper_bound .
+This is recommended over constructions like
+.Dq Li arc4random() % upper_bound
+as it avoids "modulo bias" when the upper bound is not a power of two.
+In the worst case, this function may consume multiple iterations
+to ensure uniformity; see the source code to understand the problem
+and solution.
+.Sh RETURN VALUES
+These functions are always successful, and no return value is
+reserved to indicate an error.
+.Sh SEE ALSO
+.Xr rand 3 ,
+.Xr rand48 3 ,
+.Xr random 3
+.Sh HISTORY
+These functions first appeared in
+.Ox 2.1 .
+.Pp
+The original version of this random number generator used the
+RC4 (also known as ARC4) algorithm.
+In
+.Ox 5.5
+it was replaced with the ChaCha20 cipher, and it may be replaced
+again in the future as cryptographic techniques advance.
+A good mnemonic is
+.Dq A Replacement Call for Random .

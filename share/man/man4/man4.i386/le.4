@@ -1,0 +1,58 @@
+.\"	$OpenBSD: le.4,v 1.14 2007/05/31 19:19:55 jmc Exp $
+.\"
+.\" Copyright (c) 1994 James A. Jegers
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt LE 4 i386
+.Os
+.Sh NAME
+.Nm le
+.Nd AMD LANCE Ethernet device
+.Sh SYNOPSIS
+.Cd "le0 at isa? port 0x360 irq 15 drq 6"
+.Cd "le* at isapnp?"
+.Sh DESCRIPTION
+The
+.Nm
+interface provides access to a 10 Mb/s Ethernet network via the
+AMD LANCE Ethernet chips.
+This includes the following models:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It AT&T StarLAN 10, EN100, and StarLAN Fiber
+.It BICC Isolan
+.It BOCALANcard
+.It Digital DEPCA
+.It Kingston 21xx
+.It Novell NE1500T
+.It Novell NE2100
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr isapnp 4 ,
+.Xr netintro 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8

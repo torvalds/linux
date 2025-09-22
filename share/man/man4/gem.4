@@ -1,0 +1,106 @@
+.\"	$OpenBSD: gem.4,v 1.20 2022/03/21 14:56:16 miod Exp $
+.\"
+.\" Copyright (c) 2001 Miodrag Vallat.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistribution of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: March 21 2022 $
+.Dt GEM 4
+.Os
+.Sh NAME
+.Nm gem
+.Nd GEM 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "gem* at pci?"
+.Cd "gem* at sbus?"
+.Cd "bmtphy* at mii?"
+.Cd "brgphy* at mii?"
+.Cd "eephy* at mii?"
+.Cd "gentbi* at mii?"
+.Cd "luphy* at mii?"
+.Cd "lxtphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various NICs based on the GEM Ethernet controller
+chips, including the following:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Apple GMAC (10/100/1000baseT)
+.It
+Sun ERI (10/100baseT)
+.It
+Sun GEM (10/100/1000baseT)
+.It
+Sun GEM (1000baseSX)
+.El
+.Pp
+It uses an external PHY or an external 10-bit interface.
+.Pp
+The
+.Nm
+driver supports several media types, which are selected via the
+.Xr ifconfig 8
+command.
+The supported media types are:
+.Bl -tag -width "media" -offset indent
+.It Cm media No autoselect
+Attempt to autoselect the media type (default)
+.It Cm media No 1000baseT Cm mediaopt No full-duplex
+Use 1000baseT on copper, full duplex
+.It Cm media No 1000baseT Cm mediaopt No half-duplex
+Use 1000baseT on copper, half duplex
+.It Cm media No 1000baseSX Cm mediaopt No full-duplex
+Use 1000baseSX on fiber, full duplex
+.It Cm media No 1000baseSX Cm mediaopt No half-duplex
+Use 1000baseSX on fiber, half duplex
+.It Cm media No 100baseTX Cm mediaopt No full-duplex
+Use 100baseTX, full duplex
+.It Cm media No 100baseTX Cm mediaopt No half-duplex
+Use 100baseTX, half duplex
+.It Cm media No 10baseT Cm mediaopt No full-duplex
+Use 10baseT, full duplex
+.It Cm media No 10baseT Cm mediaopt No half-duplex
+Use 10baseT, half duplex
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr bmtphy 4 ,
+.Xr brgphy 4 ,
+.Xr eephy 4 ,
+.Xr gentbi 4 ,
+.Xr ifmedia 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr luphy 4 ,
+.Xr lxtphy 4 ,
+.Xr netintro 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+.Ox
+support for
+.Nm
+first appeared in
+.Ox 3.0 .

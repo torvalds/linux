@@ -1,0 +1,9 @@
+# UNSUPPORTED with only false clauses. Test should run.
+UNSUPPORTED: false
+UNSUPPORTED: false, not-true
+UNSUPPORTED: false
+UNSUPPORTED: still-not-true
+UNSUPPORTED: false
+UNSUPPORTED: false
+UNSUPPORTED: false
+RUN: true

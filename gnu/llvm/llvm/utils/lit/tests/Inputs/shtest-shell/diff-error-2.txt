@@ -1,0 +1,3 @@
+# Check error on an internal shell error (missing tofile)
+#
+# RUN: diff temp.txt

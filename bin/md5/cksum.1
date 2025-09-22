@@ -1,0 +1,201 @@
+.\"	$OpenBSD: cksum.1,v 1.42 2023/10/31 20:42:14 millert Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)cksum.1	8.2 (Berkeley) 4/28/95
+.\"
+.Dd $Mdocdate: October 31 2023 $
+.Dt CKSUM 1
+.Os
+.Sh NAME
+.Nm cksum
+.Nd display file checksums and block counts
+.Sh SYNOPSIS
+.Nm cksum
+.Bk -words
+.Op Fl bcpqrtx
+.Op Fl a Ar algorithms
+.Op Fl C Ar checklist
+.Op Fl h Ar hashfile
+.Op Fl s Ar string
+.Op Ar
+.Ek
+.Sh DESCRIPTION
+The
+.Nm cksum
+utility writes to the standard output a single line for each input file.
+The format of this line varies with the algorithm being used as follows:
+.Bl -tag -width allxothers
+.It cksum
+The output line consists of three whitespace separated fields:
+a CRC checksum, the number of octets in the input,
+and name of the file or string.
+If no file name is specified, the standard input is used and no file name
+is written.
+.It all others
+Unless the
+.Fl r
+option is specified (see below),
+output lines consist of four whitespace separated fields:
+the name of the algorithm used, the name of the file or string in
+parentheses, an equals sign, and the cryptographic hash of the input.
+If no file name is specified, the standard input is used and only
+the cryptographic hash is output.
+.El
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a Ar algorithms
+Use the specified algorithm(s) instead of the default (cksum).
+Supported algorithms include cksum, md5, rmd160, sha1,
+sha224, sha256, sha384, sha512/256, and sha512.
+Multiple algorithms may be specified, separated by a comma or whitespace.
+Additionally, multiple
+.Fl a
+options may be specified on the command line.
+Case is ignored when matching algorithms.
+The output format may be specified on a per-algorithm basis
+by using a single-character suffix, e.g.\&
+.Dq sha256b .
+If the algorithm has a
+.Sq b
+suffix, the checksum will be output in base64 format.
+If the algorithm has an
+.Sq x
+suffix, the checksum will be output in hex format.
+If an algorithm with the same output format is repeated,
+only the first instance is used.
+Note that output format suffixes are not supported
+for the cksum algorithm.
+.It Fl b
+Output checksums in base64 notation, not hexadecimal by
+default.
+A
+.Sq b
+or
+.Sq x
+suffix on the algorithm will override this default.
+This option is ignored for the cksum algorithm.
+.It Fl C Ar checklist
+Compare the checksum of each
+.Ar file
+against the checksums in the
+.Ar checklist .
+Any specified
+.Ar file
+that is not listed in the
+.Ar checklist
+will generate an error.
+.It Fl c
+If this option is specified, the
+.Ar file
+options become checklists.
+Each checklist should contain hash results, which will be verified
+against the specified paths.
+Both normal (BSD) and reverse (GNU) forms are supported in either
+hexadecimal or base64 format.
+Output consists of the digest used, the file name,
+and an OK, FAILED, or MISSING for the result of the comparison.
+Entries in normal format can be validated using any of the supported checksums.
+Entries in reverse format are validated using the specified algorithm
+(or the default algorithm if none is specified).
+If no file is given, stdin is used.
+The
+.Fl c
+option may not be used in conjunction with more than a single
+.Fl a
+option.
+.It Fl h Ar hashfile
+Place the checksum into
+.Ar hashfile
+instead of stdout.
+.It Fl p
+Echo stdin to stdout and append the
+checksum to stdout.
+.It Fl q
+Only print the checksum (quiet mode) or if used in conjunction with the
+.Fl c
+flag, only print the failed cases.
+.It Fl r
+Reverse the format of the hash algorithm output, similar to
+the checksum output format (but without the number of octets).
+This is also the format used by the GNU
+.Nm cksum
+utility.
+.It Fl s Ar string
+Print a checksum of the given
+.Ar string .
+.It Fl t
+Run a built-in time trial.
+Specifying
+.Fl t
+multiple times results in the number of rounds being multiplied
+by 10 for each additional flag.
+.It Fl x
+Run a built-in test script.
+.El
+.Pp
+The default CRC used is based on the polynomial used for CRC error checking
+in the networking standard
+ISO/IEC 8802-3:1996.
+The other available algorithms are described in their respective
+man pages in section 3 of the manual.
+.Sh EXIT STATUS
+.Ex -std cksum
+.Sh SEE ALSO
+.Xr md5 1
+.Pp
+The default calculation is identical to that given in pseudo-code
+in the following ACM article:
+.Rs
+.%T "Computation of Cyclic Redundancy Checks Via Table Lookup"
+.%A Dilip V. Sarwate
+.%J "Communications of the ACM"
+.%D "August 1988"
+.Re
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+All the flags are extensions to that specification.
+.Sh HISTORY
+The
+.Nm cksum
+utility appeared in
+.Bx 4.3 Net/2 .
+.Sh CAVEATS
+Do not use the cksum or md5 algorithms to verify file integrity.
+An attacker can trivially produce modified payload that
+has the same checksum as the original version.
+Use a cryptographic checksum instead.

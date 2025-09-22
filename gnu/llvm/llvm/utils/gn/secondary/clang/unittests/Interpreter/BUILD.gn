@@ -1,0 +1,29 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ClangReplInterpreterTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Interpreter",
+    "//llvm/lib/IR",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "CodeCompletionTest.cpp",
+    "IncrementalCompilerBuilderTest.cpp",
+    "IncrementalProcessingTest.cpp",
+    "InterpreterExtensionsTest.cpp",
+    "InterpreterTest.cpp",
+  ]
+
+  # Support plugins.
+  # FIXME: Disable dead stripping once other binaries are dead-stripped.
+  if (host_os != "mac" && host_os != "win") {
+    # Corresponds to export_executable_symbols() in cmake.
+    ldflags = [ "-rdynamic" ]
+  }
+}

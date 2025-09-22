@@ -1,0 +1,97 @@
+.\"	$OpenBSD: fd.4,v 1.7 2007/05/31 19:19:50 jmc Exp $
+.\"	$NetBSD: fd.4,v 1.3 1994/11/30 16:22:13 jtc Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fd.4	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt FD 4
+.Os
+.Sh NAME
+.Nm fd ,
+.Nm stdin ,
+.Nm stdout ,
+.Nm stderr
+.Nd file descriptor files
+.Sh DESCRIPTION
+The files
+.Pa /dev/fd/0
+through
+.Pa /dev/fd/#
+refer to file descriptors which can be accessed through the file system.
+If the file descriptor is open and the mode the file is being opened
+with is a subset of the mode of the existing descriptor, the call:
+.Bd -literal -offset indent
+fd = open("/dev/fd/0", mode);
+.Ed
+.Pp
+and the call:
+.Bd -literal -offset indent
+fd = fcntl(0, F_DUPFD, 0);
+.Ed
+.Pp
+are equivalent.
+.Pp
+Opening the files
+.Pa /dev/stdin ,
+.Pa /dev/stdout ,
+and
+.Pa /dev/stderr
+is equivalent to the following calls:
+.Bd -literal -offset indent
+fd = fcntl(STDIN_FILENO,  F_DUPFD, 0);
+fd = fcntl(STDOUT_FILENO, F_DUPFD, 0);
+fd = fcntl(STDERR_FILENO, F_DUPFD, 0);
+.Ed
+.Pp
+Flags to the
+.Xr open 2
+call other than
+.Dv O_RDONLY ,
+.Dv O_WRONLY ,
+and
+.Dv O_RDWR
+are ignored.
+.Pp
+These devices may not be opened by processes which are tainted
+as a result of setuid or setgid behaviours, as documented in
+.Xr issetugid 2 .
+In those cases, an error return will occur with
+.Va errno
+set to
+.Dv EPERM .
+.Sh FILES
+.Bl -tag -width /dev/stderr -compact
+.It Pa /dev/fd/#
+.It Pa /dev/stdin
+.It Pa /dev/stdout
+.It Pa /dev/stderr
+.El
+.Sh SEE ALSO
+.Xr tty 4

@@ -1,0 +1,264 @@
+.\"	$OpenBSD: getnameinfo.3,v 1.49 2022/09/11 06:38:10 jmc Exp $
+.\"	$KAME: getnameinfo.3,v 1.37 2005/01/05 03:23:05 itojun Exp $
+.\"
+.\" Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000, 2001  Internet Software Consortium.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt GETNAMEINFO 3
+.Os
+.Sh NAME
+.Nm getnameinfo
+.Nd socket address structure to hostname and service name
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netdb.h
+.Ft int
+.Fn getnameinfo "const struct sockaddr *sa" "socklen_t salen" "char *host" \
+    "size_t hostlen" "char *serv" "size_t servlen" "int flags"
+.Sh DESCRIPTION
+The
+.Fn getnameinfo
+function is used to convert a
+.Vt sockaddr
+structure to a pair of host name and service strings.
+It is a replacement for and provides more flexibility than the
+.Xr gethostbyaddr 3
+and
+.Xr getservbyport 3
+functions and is the converse of the
+.Xr getaddrinfo 3
+function.
+.Pp
+The
+.Vt sockaddr
+structure
+.Fa sa
+should point to either a
+.Vt sockaddr_in
+or
+.Vt sockaddr_in6
+structure (for IPv4 or IPv6 respectively) that is
+.Fa salen
+bytes long.
+.Pp
+The host and service names associated with
+.Fa sa
+are stored in
+.Fa host
+and
+.Fa serv
+which have length parameters
+.Fa hostlen
+and
+.Fa servlen .
+The maximum value for
+.Fa hostlen
+is
+.Dv NI_MAXHOST
+and
+the maximum value for
+.Fa servlen
+is
+.Dv NI_MAXSERV ,
+as defined by
+.In netdb.h .
+If a length parameter is zero, no string will be stored.
+Otherwise, enough space must be provided to store the
+host name or service string plus a byte for the NUL terminator.
+.Pp
+The
+.Fa flags
+argument is formed by
+.Tn OR Ns 'ing
+the following values:
+.Bl -tag -width "NI_NUMERICHOSTXX"
+.It Dv NI_NOFQDN
+A fully qualified domain name is not required for local hosts.
+The local part of the fully qualified domain name is returned instead.
+.It Dv NI_NUMERICHOST
+Return the address in numeric form, as if calling
+.Xr inet_ntop 3 ,
+instead of a host name.
+.It Dv NI_NAMEREQD
+A name is required.
+If the host name cannot be found in DNS and this flag is set,
+a non-zero error code is returned.
+If the host name is not found and the flag is not set, the
+address is returned in numeric form.
+.It NI_NUMERICSERV
+The service name is returned as a digit string representing the port number.
+.It NI_DGRAM
+Specifies that the service being looked up is a datagram
+service, and causes
+.Xr getservbyport 3
+to be called with a second argument of
+.Dq udp
+instead of its default of
+.Dq tcp .
+This is required for the few ports (512\-514) that have different services
+for
+.Tn UDP
+and
+.Tn TCP .
+.El
+.Pp
+This implementation allows numeric IPv6 address notation with scope identifier,
+as documented in RFC 4007.
+IPv6 link-local address will appear as a string like
+.Dq Li fe80::1%ne0 .
+Refer to
+.Xr getaddrinfo 3
+for more information.
+.Sh RETURN VALUES
+.Fn getnameinfo
+returns zero on success or one of the error codes listed in
+.Xr gai_strerror 3
+if an error occurs.
+.Sh EXAMPLES
+The following code tries to get a numeric host name, and service name,
+for a given socket address.
+Observe that there is no hardcoded reference to a particular address family.
+.Bd -literal -offset indent
+struct sockaddr *sa;	/* input */
+char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+
+if (getnameinfo(sa, sa->sa_len, hbuf, sizeof(hbuf), sbuf,
+    sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV))
+	errx(1, "could not get numeric hostname");
+printf("host=%s, serv=%s\en", hbuf, sbuf);
+.Ed
+.Pp
+The following version checks if the socket address has a reverse address mapping:
+.Bd -literal -offset indent
+struct sockaddr *sa;	/* input */
+char hbuf[NI_MAXHOST];
+
+if (getnameinfo(sa, sa->sa_len, hbuf, sizeof(hbuf), NULL, 0,
+    NI_NAMEREQD))
+	errx(1, "could not resolve hostname");
+printf("host=%s\en", hbuf);
+.Ed
+.Sh SEE ALSO
+.Xr gai_strerror 3 ,
+.Xr getaddrinfo 3 ,
+.Xr gethostbyaddr 3 ,
+.Xr getservbyport 3 ,
+.Xr inet_ntop 3 ,
+.Xr res_init 3 ,
+.Xr hosts 5 ,
+.Xr resolv.conf 5 ,
+.Xr services 5 ,
+.Xr hostname 7
+.Rs
+.%A Craig Metz
+.%T Protocol Independence Using the Sockets API
+.%B Proceedings of the Freenix Track: 2000 USENIX Annual Technical Conference
+.%D June 2000
+.Re
+.Sh STANDARDS
+The
+.Fn getnameinfo
+function is defined by the
+.St -p1003.1g-2000
+draft specification and documented in RFC 3493.
+.Pp
+.Rs
+.%A R. Gilligan
+.%A S. Thomson
+.%A J. Bound
+.%A J. McCann
+.%A W. Stevens
+.%D February 2003
+.%R RFC 3493
+.%T Basic Socket Interface Extensions for IPv6
+.Re
+.Pp
+.Rs
+.%A S. Deering
+.%A B. Haberman
+.%A T. Jinmei
+.%A E. Nordmark
+.%A B. Zill
+.%D March 2005
+.%R RFC 4007
+.%T IPv6 Scoped Address Architecture
+.Re
+.Sh CAVEATS
+.Fn getnameinfo
+can return both numeric and FQDN forms of the address specified in
+.Fa sa .
+There is no return value that indicates whether the string returned in
+.Fa host
+is a result of binary to numeric-text translation (like
+.Xr inet_ntop 3 ) ,
+or is the result of a DNS reverse lookup.
+Because of this, malicious parties could set up a PTR record as follows:
+.Bd -literal -offset indent
+1.0.0.127.in-addr.arpa. IN PTR  10.1.1.1
+.Ed
+.Pp
+and trick the caller of
+.Fn getnameinfo
+into believing that
+.Fa sa
+is
+.Li 10.1.1.1
+when it is actually
+.Li 127.0.0.1 .
+.Pp
+To prevent such attacks, the use of
+.Dv NI_NAMEREQD
+is recommended when the result of
+.Fn getnameinfo
+is used
+for access control purposes:
+.Bd -literal -offset indent
+struct sockaddr *sa;
+char addr[NI_MAXHOST];
+struct addrinfo hints, *res;
+int error;
+
+error = getnameinfo(sa, sa->sa_len, addr, sizeof(addr),
+    NULL, 0, NI_NAMEREQD);
+if (error == 0) {
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
+	hints.ai_flags = AI_NUMERICHOST;
+	if (getaddrinfo(addr, "0", &hints, &res) == 0) {
+		/* malicious PTR record */
+		freeaddrinfo(res);
+		printf("bogus PTR record\en");
+		return -1;
+	}
+	/* addr is FQDN as a result of PTR lookup */
+} else {
+	/* addr is numeric string */
+	error = getnameinfo(sa, sa->sa_len, addr, sizeof(addr),
+	    NULL, 0, NI_NUMERICHOST);
+}
+.Ed
+.Sh BUGS
+The implementation of
+.Fn getnameinfo
+is not thread-safe.
+.Pp
+.Ox
+intentionally uses a different
+.Dv NI_MAXHOST
+value from what
+.Tn "RFC 2553"
+suggests, to avoid buffer length handling mistakes.

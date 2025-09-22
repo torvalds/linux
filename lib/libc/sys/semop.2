@@ -1,0 +1,158 @@
+.\"	$OpenBSD: semop.2,v 1.20 2021/10/23 21:17:45 jmc Exp $
+.\"	$NetBSD: semop.2,v 1.1 1995/10/16 23:49:28 jtc Exp $
+.\"
+.\" Copyright (c) 1995 Frank van der Linden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed for the NetBSD Project
+.\"      by Frank van der Linden
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"/
+.Dd $Mdocdate: October 23 2021 $
+.Dt SEMOP 2
+.Os
+.Sh NAME
+.Nm semop
+.Nd semaphore operations
+.Sh SYNOPSIS
+.In sys/sem.h
+.Ft int
+.Fn semop "int semid" "struct sembuf *sops" "size_t nsops"
+.Sh DESCRIPTION
+.Fn semop
+provides a number of atomic operations on a set of semaphores.
+The semaphore set is specified by
+.Fa semid .
+.Fa sops
+is an array of semaphore operations,
+.Fa nsops
+is the number of operations in this array.
+The
+.Va sembuf
+structures in the array contain the following members:
+.Bd -literal
+        u_short sem_num;        /* semaphore # */
+        short   sem_op;         /* semaphore operation */
+        short   sem_flg;        /* operation flags */
+.Ed
+.Pp
+Each operation (specified in
+.Va sem_op )
+is applied to semaphore number
+.Va sem_num
+in the set of semaphores specified by
+.Fa semid .
+The value of
+.Va sem_op
+determines the action taken in the following way:
+.Bl -bullet
+.It
+.Va sem_op
+is less than 0.
+The current process is blocked until the value of the
+semaphore is greater than or equal to the absolute value of
+.Va sem_op .
+The absolute value of
+.Va sem_op
+is then subtracted from the value of the semaphore, and the calling
+process continues.
+Negative values of
+.Va sem_op
+are thus used to enter critical regions.
+.It
+.Va sem_op
+is greater than 0.
+Its value is added to the value of the specified semaphore.
+This is used to leave critical regions.
+.It
+.Va sem_op
+is equal to 0.
+The calling process is blocked until the value of the specified
+semaphore reaches 0.
+.El
+.Pp
+The behavior of each operation is influenced by the flags set in
+.Va sem_flg
+in the following way:
+.Bl -tag -width IPC_NOWAITX
+.It Dv IPC_NOWAIT
+In the case where the calling process would normally block, waiting
+for a semaphore to reach a certain value,
+.Dv IPC_NOWAIT
+makes the
+call return immediately, returning a value of \-1 and setting
+.Va errno
+to
+.Er EAGAIN .
+.It Dv SEM_UNDO
+Keep track of the changes that this call makes to the value of a semaphore,
+so that they can be undone when the calling process terminates.
+This is useful to prevent other processes waiting on a semaphore to
+block forever, should the process that has the semaphore locked
+terminate in a critical section.
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn semop
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+There is no semaphore associated with
+.Fa semid .
+.It Bq Er EIDRM
+The semaphore set was removed while the process was waiting for one of
+its semaphores to reach a certain value.
+.It Bq Er EACCES
+The calling process has no permission to access the specified semaphore set.
+.It Bq Er E2BIG
+The value of
+.Fa nsops
+is too big.
+The maximum is specified in MAX_SOPS in
+.In sys/sem.h .
+.It Bq Er EFBIG
+.Va sem_num
+in one of the sem_buf structures is less than 0, or greater than the actual
+number of semaphores in the set specified by
+.Fa semid .
+.It Bq Er ENOSPC
+.Dv SEM_UNDO
+was requested, and there is not enough space left in the kernel to
+store the undo information.
+.It Bq Er EAGAIN
+The requested operation cannot immediately be performed, and
+.Dv IPC_NOWAIT
+was set in
+.Va sem_flg .
+.It Bq Er EFAULT
+.Fa sops
+points to an illegal address.
+.El
+.Sh SEE ALSO
+.Xr ipcrm 1 ,
+.Xr ipcs 1 ,
+.Xr semctl 2 ,
+.Xr semget 2

@@ -1,0 +1,6 @@
+# allocate more than free blocks
+a 64
+a 32
+a 64
+p
+g

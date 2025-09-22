@@ -1,0 +1,27 @@
+$OpenBSD: PkgSpec.pod,v 1.1 2020/12/20 15:30:58 daniel Exp $
+
+=head1 NAME
+
+OpenBSD::PkgSpec - C<packages-specs(7)> handling
+
+=head1 SYNOPSIS
+
+   use OpenBSD::Search; # which pulls in OpenBSD::PkgSpec when needed
+
+   my $spec = OpenBSD::Search::PkgSpec->new($pattern);
+   @sublist = $spec->filter(@list);
+
+=head1 DESCRIPTION
+
+C<OpenBSD::PkgSpec> is the canonical interface to C<packages-specs(7)>
+handling.
+
+A package specification C<$pattern> is a string that can be used to
+extract matching package names from a C<@list>.  The resulting list
+C<@sublist> will only hold the package names that match the specification.
+
+For performance reason, the result may contain duplicates.
+
+Note that any pattern will create a C<PkgSpec> object. If the syntax is
+incorrect, the resulting object won't match anything. Use
+C<$spec-E<gt>is_valid> to check for correctness.

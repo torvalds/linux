@@ -1,0 +1,55 @@
+.\"	$OpenBSD: acpiac.4,v 1.7 2014/12/10 07:36:38 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Dmitri Alenitchev <dma@dma.org.ru>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 10 2014 $
+.Dt ACPIAC 4
+.Os
+.Sh NAME
+.Nm acpiac
+.Nd ACPI AC adapter
+.Sh SYNOPSIS
+.Cd "acpiac* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports ACPI AC Adapters.
+Information about AC power source status (connected or disconnected) is
+available through this driver as a sensor.
+AC power source status is updated
+via an event when a change happens,
+if the implementation supports it.
+The sensors provided by
+.Nm
+can be monitored using
+.Xr sysctl 8
+or
+.Xr sensorsd 8 .
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Marco Peereboom Aq Mt marco@openbsd.org .

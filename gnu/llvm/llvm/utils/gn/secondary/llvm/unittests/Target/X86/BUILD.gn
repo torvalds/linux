@@ -1,0 +1,25 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("X86Tests") {
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/MIRParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target/X86:LLVMX86CodeGen",
+    "//llvm/lib/Target/X86/MCTargetDesc",
+    "//llvm/lib/Target/X86/TargetInfo",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/InstCombine",
+  ]
+  include_dirs = [ "//llvm/lib/Target/X86" ]
+  sources = [
+    "MachineSizeOptsTest.cpp",
+    "TernlogTest.cpp",
+  ]
+}

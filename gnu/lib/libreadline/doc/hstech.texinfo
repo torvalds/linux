@@ -1,0 +1,550 @@
+@ignore
+This file documents the user interface to the GNU History library.
+
+Copyright (C) 1988-2002 Free Software Foundation, Inc.
+Authored by Brian Fox and Chet Ramey.
+
+Permission is granted to make and distribute verbatim copies of this manual
+provided the copyright notice and this permission notice are preserved on
+all copies.
+
+Permission is granted to process this file through Tex and print the
+results, provided the printed document carries copying permission notice
+identical to this one except for the removal of this paragraph (this
+paragraph not being relevant to the printed manual).
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that the
+GNU Copyright statement is available to the distributee, and provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions.
+@end ignore
+
+@node Programming with GNU History
+@chapter Programming with GNU History
+
+This chapter describes how to interface programs that you write
+with the @sc{gnu} History Library.
+It should be considered a technical guide.
+For information on the interactive use of @sc{gnu} History, @pxref{Using
+History Interactively}.
+
+@menu
+* Introduction to History::	What is the GNU History library for?
+* History Storage::		How information is stored.
+* History Functions::		Functions that you can use.
+* History Variables::		Variables that control behaviour.
+* History Programming Example::	Example of using the GNU History Library.
+@end menu
+
+@node Introduction to History
+@section Introduction to History
+
+Many programs read input from the user a line at a time.  The @sc{gnu}
+History library is able to keep track of those lines, associate arbitrary
+data with each line, and utilize information from previous lines in
+composing new ones. 
+
+The programmer using the History library has available functions
+for remembering lines on a history list, associating arbitrary data
+with a line, removing lines from the list, searching through the list
+for a line containing an arbitrary text string, and referencing any line
+in the list directly.  In addition, a history @dfn{expansion} function
+is available which provides for a consistent user interface across
+different programs.
+
+The user using programs written with the History library has the
+benefit of a consistent user interface with a set of well-known
+commands for manipulating the text of previous lines and using that text
+in new commands.  The basic history manipulation commands are similar to
+the history substitution provided by @code{csh}.
+
+If the programmer desires, he can use the Readline library, which
+includes some history manipulation by default, and has the added
+advantage of command line editing.
+
+Before declaring any functions using any functionality the History
+library provides in other code, an application writer should include
+the file @code{<readline/history.h>} in any file that uses the
+History library's features.  It supplies extern declarations for all
+of the library's public functions and variables, and declares all of
+the public data structures.
+
+@node History Storage
+@section History Storage
+
+The history list is an array of history entries.  A history entry is
+declared as follows:
+
+@example
+typedef void *histdata_t;
+
+typedef struct _hist_entry @{
+  char *line;
+  histdata_t data;
+@} HIST_ENTRY;
+@end example
+
+The history list itself might therefore be declared as
+
+@example
+HIST_ENTRY **the_history_list;
+@end example
+
+The state of the History library is encapsulated into a single structure:
+
+@example
+/*
+ * A structure used to pass around the current state of the history.
+ */
+typedef struct _hist_state @{
+  HIST_ENTRY **entries; /* Pointer to the entries themselves. */
+  int offset;           /* The location pointer within this array. */
+  int length;           /* Number of elements within this array. */
+  int size;             /* Number of slots allocated to this array. */
+  int flags;
+@} HISTORY_STATE;
+@end example
+
+If the flags member includes @code{HS_STIFLED}, the history has been
+stifled.
+
+@node History Functions
+@section History Functions
+
+This section describes the calling sequence for the various functions
+exported by the @sc{gnu} History library.
+
+@menu
+* Initializing History and State Management::	Functions to call when you
+						want to use history in a
+						program.
+* History List Management::		Functions used to manage the list
+					of history entries.
+* Information About the History List::	Functions returning information about
+					the history list.
+* Moving Around the History List::	Functions used to change the position
+					in the history list.
+* Searching the History List::		Functions to search the history list
+					for entries containing a string.
+* Managing the History File::		Functions that read and write a file
+					containing the history list.
+* History Expansion::			Functions to perform csh-like history
+					expansion.
+@end menu
+
+@node Initializing History and State Management
+@subsection Initializing History and State Management
+
+This section describes functions used to initialize and manage
+the state of the History library when you want to use the history
+functions in your program.
+
+@deftypefun void using_history (void)
+Begin a session in which the history functions might be used.  This
+initializes the interactive variables.
+@end deftypefun
+
+@deftypefun {HISTORY_STATE *} history_get_history_state (void)
+Return a structure describing the current state of the input history.
+@end deftypefun
+
+@deftypefun void history_set_history_state (HISTORY_STATE *state)
+Set the state of the history list according to @var{state}.
+@end deftypefun
+
+@node History List Management
+@subsection History List Management
+
+These functions manage individual entries on the history list, or set
+parameters managing the list itself.
+
+@deftypefun void add_history (const char *string)
+Place @var{string} at the end of the history list.  The associated data
+field (if any) is set to @code{NULL}.
+@end deftypefun
+
+@deftypefun {HIST_ENTRY *} remove_history (int which)
+Remove history entry at offset @var{which} from the history.  The
+removed element is returned so you can free the line, data,
+and containing structure.
+@end deftypefun
+
+@deftypefun {HIST_ENTRY *} replace_history_entry (int which, const char *line, histdata_t data)
+Make the history entry at offset @var{which} have @var{line} and @var{data}.
+This returns the old entry so you can dispose of the data.  In the case
+of an invalid @var{which}, a @code{NULL} pointer is returned.
+@end deftypefun
+
+@deftypefun void clear_history (void)
+Clear the history list by deleting all the entries.
+@end deftypefun
+
+@deftypefun void stifle_history (int max)
+Stifle the history list, remembering only the last @var{max} entries.
+@end deftypefun
+
+@deftypefun int unstifle_history (void)
+Stop stifling the history.  This returns the previously-set
+maximum number of history entries (as set by @code{stifle_history()}).
+The value is positive if the history was
+stifled, negative if it wasn't.
+@end deftypefun
+
+@deftypefun int history_is_stifled (void)
+Returns non-zero if the history is stifled, zero if it is not.
+@end deftypefun
+
+@node Information About the History List
+@subsection Information About the History List
+
+These functions return information about the entire history list or
+individual list entries.
+
+@deftypefun {HIST_ENTRY **} history_list (void)
+Return a @code{NULL} terminated array of @code{HIST_ENTRY *} which is the
+current input history.  Element 0 of this list is the beginning of time.
+If there is no history, return @code{NULL}.
+@end deftypefun
+
+@deftypefun int where_history (void)
+Returns the offset of the current history element.
+@end deftypefun
+
+@deftypefun {HIST_ENTRY *} current_history (void)
+Return the history entry at the current position, as determined by
+@code{where_history()}.  If there is no entry there, return a @code{NULL}
+pointer.
+@end deftypefun
+
+@deftypefun {HIST_ENTRY *} history_get (int offset)
+Return the history entry at position @var{offset}, starting from
+@code{history_base} (@pxref{History Variables}).
+If there is no entry there, or if @var{offset}
+is greater than the history length, return a @code{NULL} pointer.
+@end deftypefun
+
+@deftypefun int history_total_bytes (void)
+Return the number of bytes that the primary history entries are using.
+This function returns the sum of the lengths of all the lines in the
+history.
+@end deftypefun
+
+@node Moving Around the History List
+@subsection Moving Around the History List
+
+These functions allow the current index into the history list to be
+set or changed.
+
+@deftypefun int history_set_pos (int pos)
+Set the current history offset to @var{pos}, an absolute index
+into the list.
+Returns 1 on success, 0 if @var{pos} is less than zero or greater
+than the number of history entries.
+@end deftypefun
+
+@deftypefun {HIST_ENTRY *} previous_history (void)
+Back up the current history offset to the previous history entry, and
+return a pointer to that entry.  If there is no previous entry, return
+a @code{NULL} pointer.
+@end deftypefun
+
+@deftypefun {HIST_ENTRY *} next_history (void)
+Move the current history offset forward to the next history entry, and
+return the a pointer to that entry.  If there is no next entry, return
+a @code{NULL} pointer.
+@end deftypefun
+
+@node Searching the History List
+@subsection Searching the History List
+@cindex History Searching
+
+These functions allow searching of the history list for entries containing
+a specific string.  Searching may be performed both forward and backward
+from the current history position.  The search may be @dfn{anchored},
+meaning that the string must match at the beginning of the history entry.
+@cindex anchored search
+
+@deftypefun int history_search (const char *string, int direction)
+Search the history for @var{string}, starting at the current history offset.
+If @var{direction} is less than 0, then the search is through
+previous entries, otherwise through subsequent entries.
+If @var{string} is found, then
+the current history index is set to that history entry, and the value
+returned is the offset in the line of the entry where
+@var{string} was found.  Otherwise, nothing is changed, and a -1 is
+returned.
+@end deftypefun
+
+@deftypefun int history_search_prefix (const char *string, int direction)
+Search the history for @var{string}, starting at the current history
+offset.  The search is anchored: matching lines must begin with
+@var{string}.  If @var{direction} is less than 0, then the search is
+through previous entries, otherwise through subsequent entries.
+If @var{string} is found, then the
+current history index is set to that entry, and the return value is 0. 
+Otherwise, nothing is changed, and a -1 is returned. 
+@end deftypefun
+
+@deftypefun int history_search_pos (const char *string, int direction, int pos)
+Search for @var{string} in the history list, starting at @var{pos}, an
+absolute index into the list.  If @var{direction} is negative, the search
+proceeds backward from @var{pos}, otherwise forward.  Returns the absolute
+index of the history element where @var{string} was found, or -1 otherwise.
+@end deftypefun
+
+@node Managing the History File
+@subsection Managing the History File
+
+The History library can read the history from and write it to a file.
+This section documents the functions for managing a history file.
+
+@deftypefun int read_history (const char *filename)
+Add the contents of @var{filename} to the history list, a line at a time.
+If @var{filename} is @code{NULL}, then read from @file{~/.history}.
+Returns 0 if successful, or @code{errno} if not.
+@end deftypefun
+
+@deftypefun int read_history_range (const char *filename, int from, int to)
+Read a range of lines from @var{filename}, adding them to the history list.
+Start reading at line @var{from} and end at @var{to}.
+If @var{from} is zero, start at the beginning.  If @var{to} is less than
+@var{from}, then read until the end of the file.  If @var{filename} is
+@code{NULL}, then read from @file{~/.history}.  Returns 0 if successful,
+or @code{errno} if not.
+@end deftypefun
+
+@deftypefun int write_history (const char *filename)
+Write the current history to @var{filename}, overwriting @var{filename}
+if necessary.
+If @var{filename} is @code{NULL}, then write the history list to
+@file{~/.history}.
+Returns 0 on success, or @code{errno} on a read or write error.
+@end deftypefun
+
+@deftypefun int append_history (int nelements, const char *filename)
+Append the last @var{nelements} of the history list to @var{filename}.
+If @var{filename} is @code{NULL}, then append to @file{~/.history}.
+Returns 0 on success, or @code{errno} on a read or write error.
+@end deftypefun
+
+@deftypefun int history_truncate_file (const char *filename, int nlines)
+Truncate the history file @var{filename}, leaving only the last
+@var{nlines} lines.
+If @var{filename} is @code{NULL}, then @file{~/.history} is truncated.
+Returns 0 on success, or @code{errno} on failure.
+@end deftypefun
+
+@node History Expansion
+@subsection History Expansion
+
+These functions implement history expansion.
+
+@deftypefun int history_expand (char *string, char **output)
+Expand @var{string}, placing the result into @var{output}, a pointer
+to a string (@pxref{History Interaction}).  Returns:
+@table @code
+@item 0
+If no expansions took place (or, if the only change in
+the text was the removal of escape characters preceding the history expansion
+character);
+@item 1
+if expansions did take place;
+@item -1
+if there was an error in expansion;
+@item 2
+if the returned line should be displayed, but not executed,
+as with the @code{:p} modifier (@pxref{Modifiers}).
+@end table
+
+If an error ocurred in expansion, then @var{output} contains a descriptive
+error message.
+@end deftypefun
+
+@deftypefun {char *} get_history_event (const char *string, int *cindex, int qchar)
+Returns the text of the history event beginning at @var{string} +
+@var{*cindex}.  @var{*cindex} is modified to point to after the event
+specifier.  At function entry, @var{cindex} points to the index into
+@var{string} where the history event specification begins.  @var{qchar}
+is a character that is allowed to end the event specification in addition
+to the ``normal'' terminating characters.
+@end deftypefun
+
+@deftypefun {char **} history_tokenize (const char *string)
+Return an array of tokens parsed out of @var{string}, much as the
+shell might.  The tokens are split on the characters in the
+@var{history_word_delimiters} variable,
+and shell quoting conventions are obeyed.
+@end deftypefun
+
+@deftypefun {char *} history_arg_extract (int first, int last, const char *string)
+Extract a string segment consisting of the @var{first} through @var{last}
+arguments present in @var{string}.  Arguments are split using
+@code{history_tokenize}.
+@end deftypefun
+
+@node History Variables
+@section History Variables
+
+This section describes the externally-visible variables exported by
+the @sc{gnu} History Library.
+
+@deftypevar int history_base
+The logical offset of the first entry in the history list.
+@end deftypevar
+
+@deftypevar int history_length
+The number of entries currently stored in the history list.
+@end deftypevar
+
+@deftypevar int history_max_entries
+The maximum number of history entries.  This must be changed using
+@code{stifle_history()}.
+@end deftypevar
+
+@deftypevar char history_expansion_char
+The character that introduces a history event.  The default is @samp{!}.
+Setting this to 0 inhibits history expansion.
+@end deftypevar
+
+@deftypevar char history_subst_char
+The character that invokes word substitution if found at the start of
+a line.  The default is @samp{^}.
+@end deftypevar
+
+@deftypevar char history_comment_char
+During tokenization, if this character is seen as the first character
+of a word, then it and all subsequent characters up to a newline are
+ignored, suppressing history expansion for the remainder of the line.
+This is disabled by default.
+@end deftypevar
+
+@deftypevar {char *} history_word_delimiters
+The characters that separate tokens for @code{history_tokenize()}.
+The default value is @code{" \t\n()<>;&|"}.
+@end deftypevar
+
+@deftypevar {char *} history_no_expand_chars
+The list of characters which inhibit history expansion if found immediately
+following @var{history_expansion_char}.  The default is space, tab, newline,
+carriage return, and @samp{=}.
+@end deftypevar
+
+@deftypevar {char *} history_search_delimiter_chars
+The list of additional characters which can delimit a history search
+string, in addition to space, TAB, @samp{:} and @samp{?} in the case of
+a substring search.  The default is empty.
+@end deftypevar
+
+@deftypevar int history_quotes_inhibit_expansion
+If non-zero, single-quoted words are not scanned for the history expansion
+character.  The default value is 0.
+@end deftypevar
+
+@deftypevar {rl_linebuf_func_t *} history_inhibit_expansion_function
+This should be set to the address of a function that takes two arguments:
+a @code{char *} (@var{string})
+and an @code{int} index into that string (@var{i}).
+It should return a non-zero value if the history expansion starting at
+@var{string}[@var{i}] should not be performed; zero if the expansion should
+be done.
+It is intended for use by applications like Bash that use the history
+expansion character for additional purposes.
+By default, this variable is set to @code{NULL}.
+@end deftypevar
+
+@node History Programming Example
+@section History Programming Example
+
+The following program demonstrates simple use of the @sc{gnu} History Library.
+
+@smallexample
+#include <stdio.h>
+#include <readline/history.h>
+
+main (argc, argv)
+     int argc;
+     char **argv;
+@{
+  char line[1024], *t;
+  int len, done = 0;
+
+  line[0] = 0;
+
+  using_history ();
+  while (!done)
+    @{
+      printf ("history$ ");
+      fflush (stdout);
+      t = fgets (line, sizeof (line) - 1, stdin);
+      if (t && *t)
+        @{
+          len = strlen (t);
+          if (t[len - 1] == '\n')
+            t[len - 1] = '\0';
+        @}
+
+      if (!t)
+        strcpy (line, "quit");
+
+      if (line[0])
+        @{
+          char *expansion;
+          int result;
+
+          result = history_expand (line, &expansion);
+          if (result)
+            fprintf (stderr, "%s\n", expansion);
+
+          if (result < 0 || result == 2)
+            @{
+              free (expansion);
+              continue;
+            @}
+
+          add_history (expansion);
+          strncpy (line, expansion, sizeof (line) - 1);
+          free (expansion);
+        @}
+
+      if (strcmp (line, "quit") == 0)
+        done = 1;
+      else if (strcmp (line, "save") == 0)
+        write_history ("history_file");
+      else if (strcmp (line, "read") == 0)
+        read_history ("history_file");
+      else if (strcmp (line, "list") == 0)
+        @{
+          register HIST_ENTRY **the_list;
+          register int i;
+
+          the_list = history_list ();
+          if (the_list)
+            for (i = 0; the_list[i]; i++)
+              printf ("%d: %s\n", i + history_base, the_list[i]->line);
+        @}
+      else if (strncmp (line, "delete", 6) == 0)
+        @{
+          int which;
+          if ((sscanf (line + 6, "%d", &which)) == 1)
+            @{
+              HIST_ENTRY *entry = remove_history (which);
+              if (!entry)
+                fprintf (stderr, "No such entry %d\n", which);
+              else
+                @{
+                  free (entry->line);
+                  free (entry);
+                @}
+            @}
+          else
+            @{
+              fprintf (stderr, "non-numeric arg given to `delete'\n");
+            @}
+        @}
+    @}
+@}
+@end smallexample

@@ -1,0 +1,84 @@
+prepare to add text at beginning of file:0a|1i
+find name of file being edited:f
+print last 3 lines of file:$-[2|-],$p
+print previous line:[-|^]{p}|{.}-{1}{p}
+print whole file:1,$p|g/[^|$]/p
+delete this line and next:.{,|;}[{.}+{1}|.1]d
+prepare to replace text from here to just before next "PP":\
+.{,|;}/[PP|{^}\\.PP]/-{1}c
+find next "1.2":/1\\.2/{p}
+find next 2-or-more digit number:\
+/\[[0|1]-9\]\[0-9\]/{p}
+move rest of this paragraph (separated by "PP") to end of previous one:\
+[.,|{.}+{1},|.1,]/[PP|{^}\\.PP]/-{1}m[??|?{^}{\\.}PP?]-{1}
+print every "Oxygen" or "oxygen":[g|1,$g]/\[[Oo|oO]\]xygen/[p|.p]
+change each "BTL" in file to "Bell Laboratories" and check:\
+[g|1,$g]/BTL/[s|.s]/[/|BTL/]Bell Laboratories/gp
+combine every even-numbered line with the next odd-numbered line:\
+2,${-{1}}g/[^|$]/[j|.,{.}+{1}j|.,+1j]
+print next "SH" and following line:\
+/SH/;[{.}+{1}|.1]p|/SH/,[//|/SH/][{.}+{1}|.1]p
+print from next "TS" to following "TE":/TS/;/TE/p
+reverse order of lines in whole file:[g|1,$g]/^/[m|.m]0
+replace each string of x's in current line by one x:\
+[s|.s]/[x|\[x\]][x|\[x\]]*/x/g{p}{  (not s/x*/x/g)}
+change first "hte" in current line to "the" and check:[s|.s]/hte/the/p
+combine previous line and this one:\
+[-,|^,|{.}-{1},].j
+go to line after third "PP" ahead:\
+/[PP|{^}\\.PP]/;[//|/[PP|{^}\\.PP]/];[//|/[PP|{^}\\.PP]/]\
+[{+}1|+]|;[{.}+{1}|.1]{  (not ...p)}
+exchange current line with previous line:\
+[[-|^]m|{.}-{1}m].|{.}m[[--|^^]|{.}-2]
+move everything from here through "stop." to end of file:\
+.,/stop\\./m$
+current line has 2 fields separated by 1 blank; exchange them:\
+[s|.s]/[\\|^\\]([.|\[^ \]]*\\) \\([.|\[^ \]]*\\)[/|$/]\\2 \\1/{p}
+insert a "0" after last "0" on current line:\
+[s|.s]/[.*0/&0|^.*0/&0|0\\(\[^0\]*\\)$/[0&|00\1]|0\[^0\]*$/0&\
+|\[^0\]*$/0&]/{p}
+replace "a*b" by "a**b":s/[a\\*b|a[*]b]/a**b/{p}|\
+s/\\*/**/p
+attach the word "extra" to the end of the current line:\
+[s|.s]/$/{ }extra/{p}
+replace "ATT" in current line by "AT&T":\
+[s|.s]/ATT/AT\\&T/{g}{p}
+double the length of the current line by repetition:\
+[s|.s]/[.*|.|^.*$]/&&/{p}
+look for another line containing what you just looked for://
+find the previous line that contains a capital letter:?\[A-Z\]?{p}
+delete the next line that contains only capital letters:\
+/^\[A-Z\]*$/d|/^\[A-Z\]\[A-Z\]*$/d
+place a copy of current line at the end of the file:\
+t$|.{,.}t$
+find how many lines there are:=|$=
+find the number of the current line:.=
+delete the first 3 lines of the file:1,3d
+delete every line that doesn't begin with "A":\
+[v|1,$v]/^A/d{  (not g/^\[^A\]/d)}
+delete every empty line from here through next "LP":\
+.,/[LP|{{^}\\.}LP]/g/^$/d
+print the line after each "AU":\
+[g|1,$g]/[AU|{^}\\.AU]/[{.}+{1}|.1]{p}
+delete everything after "proud" from current line:\
+[s|.s]/proud.*/proud/{p}
+delete part of current line from "alpha" through "omega":\
+[s|.s]/alpha.*omega//{p}
+save everything up through current line in file "prefix":1,.w prefix
+prepare to add text at end of file:$a
+append the contents of file "suffix" to this file:$r suffix
+go back 10 lines:{.}-10{p}|----------
+change every "01" in current line to "1":[s|.s]/01/1/g{p}
+go to next line that contains a double capital letter:\
+/\\(\[A-Z\]\\)\\1/{p}
+place parens () around current line:\
+[s|.s]/[.*|^.*$]/(&)/{p}
+the current line is too long for your terminal; print it to fit:\
+l|.l
+put the work you've done back in the original file:w
+append the whole file to the file "unfinished":\
+[W|1,$W] unfinished
+insert "\\&" at beginning of current line:\
+[s|.s]/^/\\\\\\&/{p}
+list your current directory:!ls
+stop work on current file and shift to file "other":e other

@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+# This script is used to bisect skip and count arguments for --debug-counter.
+# It is similar to bisect, except it understands how to increase skip and decrease count
+#
+# Typical usage:
+#
+# bisect-skip-count bisect-command.sh "%(skip)d" "%(count)d" 2>&1 | tee bisect.out
+#
+# bisect-command.sh is something like this:
+# #! /bin/bash
+#
+# skip=$1
+# count=$2
+#
+# opt -debug-counter=my-counter-skip=${skip},my-counter-count=${count}
+# ... Test output of opt and exit zero for pass, non-zero for fail
+#
+# Examine bisect.out to look for "Last good skip" and "Last good
+# count" to find the values of the counter that produce a passing
+# result.  Incrementing the last good count by one or decrementing the
+# last good skip by one should produce a failure.
+#
+from __future__ import print_function
+import os
+import sys
+import argparse
+# This is for timeout support. Use the recommended way of import.
+# We do timeouts because when doing, execution testing, we have a habit
+# of finding variants that infinite loop
+if os.name == 'posix' and sys.version_info[0] < 3:
+  import subprocess32 as subprocess
+else:
+  import subprocess
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--skipstart', type=int, default=0)
+parser.add_argument('--skipend', type=int, default=(1 << 32))
+parser.add_argument('--countstart', type=int, default=0)
+parser.add_argument('--countend', type=int, default=(1 << 32))
+parser.add_argument('--timeout', type=int, default=None)
+# Use shell support if you need to use complex shell expressions in your command
+parser.add_argument('--shell', type=bool, default=False)
+parser.add_argument('command', nargs='+')
+
+args = parser.parse_args()
+
+start = args.skipstart
+end = args.skipend
+
+print("Bisect of Skip starting!")
+print("Start: %d" % start)
+print("End: %d" % end)
+
+last = None
+while start != end and start != end-1:
+    count = start + (end - start)//2
+    print("Visiting Skip: %d with (Start, End) = (%d,%d)" % (count, start, end))
+    cmd = [x % {'skip':count, 'count':-1} for x in args.command]
+    print(cmd)
+    try:
+        result = subprocess.call(cmd, shell=args.shell, timeout=args.timeout)
+        if result == 0:
+           print("    PASSES! Setting end to count")
+           end = count
+        else:
+           print("    FAILS! Setting start to count")
+           start = count
+    except:
+        print(" TIMEOUT, setting end to count")
+        end = count
+firstcount = start
+print("Last good skip: %d" % start)
+start = args.countstart
+end = args.countend
+print("Bisect of Count starting!")
+print("Start: %d" % start)
+print("End: %d" % end)
+while start != end and start != end-1:
+    count = start + (end - start)//2
+    print("Visiting Count: %d with (Start, End) = (%d,%d)" % (count, start, end))
+    cmd = [x % {'count':count, 'skip':firstcount } for x in args.command]
+    print(cmd)
+    try:
+        result = subprocess.call(cmd, shell=args.shell, timeout=args.timeout)
+        if result == 0:
+           print("    PASSES! Setting start to count")
+           start = count
+        else:
+           print("    FAILS! Setting end to count")
+           end = count
+    except:
+        print(" TIMEOUT, setting start to count")
+        start = count
+
+print("Last good count: %d" % start)

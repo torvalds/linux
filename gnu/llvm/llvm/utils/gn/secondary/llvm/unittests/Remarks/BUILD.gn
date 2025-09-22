@@ -1,0 +1,19 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("RemarksTests") {
+  deps = [
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Remarks",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "BitstreamRemarksFormatTest.cpp",
+    "BitstreamRemarksParsingTest.cpp",
+    "BitstreamRemarksSerializerTest.cpp",
+    "RemarksAPITest.cpp",
+    "RemarksLinkingTest.cpp",
+    "RemarksStrTabParsingTest.cpp",
+    "YAMLRemarksParsingTest.cpp",
+    "YAMLRemarksSerializerTest.cpp",
+  ]
+}

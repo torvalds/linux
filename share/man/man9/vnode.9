@@ -1,0 +1,416 @@
+.\"     $OpenBSD: vnode.9,v 1.35 2021/10/20 06:35:39 semarie Exp $
+.\"
+.\" Copyright (c) 2001 Constantine Sapuntzakis
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL  DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 20 2021 $
+.Dt VNODE 9
+.Os
+.Sh NAME
+.Nm vnode
+.Nd an overview of vnodes
+.Sh DESCRIPTION
+A
+.Em vnode
+is an object in kernel memory that speaks the
+.Ux
+file interface (open, read, write, close, readdir, etc.).
+Vnodes can represent files, directories, FIFOs, domain sockets, block devices,
+character devices.
+.Pp
+Each vnode has a set of methods which start with the string
+.Dq VOP_ .
+These methods include
+.Fn VOP_OPEN ,
+.Fn VOP_READ ,
+.Fn VOP_WRITE ,
+.Fn VOP_RENAME ,
+.Fn VOP_CLOSE ,
+and
+.Fn VOP_MKDIR .
+Many of these methods correspond closely to the equivalent
+file system call \-
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr rename 2 ,
+etc.
+Each file system (FFS, NFS, etc.) provides implementations for these methods.
+.Pp
+The Virtual File System library (see
+.Xr vfs 9 )
+maintains a pool of vnodes.
+File systems cannot allocate their own vnodes; they must use the functions
+provided by the VFS to create and manage vnodes.
+.Pp
+The definition of a vnode is as follows:
+.Bd -literal
+struct vnode {
+	struct uvm_vnode *v_uvm;		/* uvm data */
+	const struct vops *v_op;		/* vnode operations vector */
+	enum	vtype v_type;			/* vnode type */
+	enum	vtagtype v_tag;			/* type of underlying data */
+	u_int	v_flag;				/* vnode flags (see below) */
+	u_int   v_usecount;			/* reference count of users */
+	u_int   v_uvcount;			/* unveil references */
+	/* reference count of writers */
+	u_int   v_writecount;
+	/* Flags that can be read/written in interrupts */
+	u_int   v_bioflag;
+	u_int   v_holdcnt;			/* buffer references */
+	u_int   v_id;				/* capability identifier */
+	u_int	v_inflight;
+	struct	mount *v_mount;			/* ptr to vfs we are in */
+	TAILQ_ENTRY(vnode) v_freelist;		/* vnode freelist */
+	LIST_ENTRY(vnode) v_mntvnodes;		/* vnodes for mount point */
+	struct	buf_rb_bufs v_bufs_tree;	/* lookup of all bufs */
+	struct	buflists v_cleanblkhd;		/* clean blocklist head */
+	struct	buflists v_dirtyblkhd;		/* dirty blocklist head */
+	u_int   v_numoutput;			/* num of writes in progress */
+	LIST_ENTRY(vnode) v_synclist;		/* vnode with dirty buffers */
+	union {
+		struct mount	*vu_mountedhere;/* ptr to mounted vfs (VDIR) */
+		struct socket	*vu_socket;	/* unix ipc (VSOCK) */
+		struct specinfo	*vu_specinfo;	/* device (VCHR, VBLK) */
+		struct fifoinfo	*vu_fifoinfo;	/* fifo (VFIFO) */
+	} v_un;
+
+	/* VFS namecache */
+	struct namecache_rb_cache v_nc_tree;
+	TAILQ_HEAD(, namecache) v_cache_dst;	 /* cache entries to us */
+
+	void	*v_data;			/* private data for fs */
+	struct	selinfo v_selectinfo;		/* identity of poller(s) */
+};
+#define	v_mountedhere	v_un.vu_mountedhere
+#define	v_socket	v_un.vu_socket
+#define	v_specinfo	v_un.vu_specinfo
+#define	v_fifoinfo	v_un.vu_fifoinfo
+.Ed
+.Ss Vnode life cycle
+When a client of the VFS requests a new vnode, the vnode allocation
+code can reuse an old vnode object that is no longer in use.
+Whether a vnode is in use is tracked by the vnode reference count
+.Pq Va v_usecount .
+By convention, each open file handle holds a reference
+as do VM objects backed by files.
+A vnode with a reference count of 1 or more will not be deallocated or
+reused to point to a different file.
+So, if you want to ensure that your vnode doesn't become a different
+file under you, you better be sure you have a reference to it.
+A vnode that points to a valid file and has a reference count of 1 or more
+is called
+.Em active .
+.Pp
+When a vnode's reference count drops to zero, it becomes
+.Em inactive ,
+that is, a candidate for reuse.
+An inactive vnode still refers to a valid file and one can try to
+reactivate it using
+.Xr vget 9
+(this is used a lot by caches).
+.Pp
+Before the VFS can reuse an inactive vnode to refer to another file,
+it must clean all information pertaining to the old file.
+A cleaned out vnode is called a
+.Em reclaimed
+vnode.
+.Pp
+To support forceable unmounts and the
+.Xr revoke 2
+system call, the VFS may reclaim a vnode with a positive reference
+count.
+The reclaimed vnode is given to the dead file system, which
+returns errors for most operations.
+The reclaimed vnode will not be
+reused for another file until its reference count hits zero.
+.Ss Vnode pool
+The
+.Xr getnewvnode 9
+call allocates a vnode from the pool, possibly reusing an
+inactive vnode, and returns it to the caller.
+The vnode returned has a reference count
+.Pq Va v_usecount
+of 1.
+.Pp
+The
+.Xr vref 9
+call increments the reference count on the vnode.
+It may only be on a vnode with reference count of 1 or greater.
+The
+.Xr vrele 9
+and
+.Xr vput 9
+calls decrement the reference count.
+In addition, the
+.Xr vput 9
+call also releases the vnode lock.
+.Pp
+The
+.Xr vget 9
+call, when used on an inactive vnode, will make the vnode active
+by bumping the reference count to one.
+When called on an active vnode,
+.Fn vget
+increases the reference count by one.
+However, if the vnode is being reclaimed concurrently, then
+.Fn vget
+will fail and return an error.
+.Pp
+The
+.Xr vgone 9
+and
+.Xr vgonel 9
+calls
+orchestrate the reclamation of a vnode.
+They can be called on both active and inactive vnodes.
+.Pp
+When transitioning a vnode to the reclaimed state, the VFS will call the
+.Xr VOP_RECLAIM 9
+method.
+File systems use this method to free any file-system-specific data
+they attached to the vnode.
+.Ss Vnode locks
+The vnode actually has two different types of locks: the vnode lock
+and the vnode reclamation lock
+.Pq Dv VXLOCK .
+.Ss The vnode lock
+The vnode lock and its consistent use accomplishes the following:
+.Bl -bullet
+.It
+It keeps a locked vnode from changing across certain pairs of VOP_ calls,
+thus preserving cached data.
+For example, it keeps the directory from
+changing between a
+.Xr VOP_LOOKUP 9
+call and a
+.Xr VOP_CREATE 9 .
+The
+.Fn VOP_LOOKUP
+call makes sure the name doesn't already exist in the
+directory and finds free room in the directory for the new entry.
+The
+.Fn VOP_CREATE
+call can then go ahead and create the file without checking if
+it already exists or looking for free space.
+.It
+Some file systems rely on it to ensure that only one
+.Dq thread
+at a time
+is calling VOP_ vnode operations on a given file or directory.
+Otherwise, the file system's behavior is undefined.
+.It
+On rare occasions, code will hold the vnode lock so that a series of
+VOP_ operations occurs as an atomic unit.
+(Of course, this doesn't work with network file systems like NFSv2 that don't
+have any notion of bundling a bunch of operations into an atomic unit.)
+.It
+While the vnode lock is held, the vnode will not be reclaimed.
+.El
+.Pp
+There is a discipline to using the vnode lock.
+Some VOP_ operations require that the vnode lock is held before being called.
+.Pp
+The vnode lock is acquired by calling
+.Xr vn_lock 9
+and released by calling
+.Xr VOP_UNLOCK 9 .
+.Pp
+A process is allowed to sleep while holding the vnode lock.
+.Pp
+The implementation of the vnode lock is the responsibility of the individual
+file systems.
+Not all file systems implement it.
+.Pp
+To prevent deadlocks, when acquiring locks on multiple vnodes, the lock
+of parent directory must be acquired before the lock on the child directory.
+.Ss Other vnode synchronization
+The vnode reclamation lock
+.Pq Dv VXLOCK
+is used to prevent multiple
+processes from entering the vnode reclamation code.
+It is also used as a flag to indicate that reclamation is in progress.
+The
+.Dv VXWANT
+flag is set by processes that wish to be woken up when reclamation
+is finished.
+.Pp
+The
+.Xr vwaitforio 9
+call is used to wait for all outstanding write I/Os associated with a
+vnode to complete.
+.Ss Version number/capability
+The vnode capability,
+.Va v_id ,
+is a 32-bit version number on the vnode.
+Every time a vnode is reassigned to a new file, the vnode capability
+is changed.
+This is used by code that wishes to keep pointers to vnodes but doesn't want
+to hold a reference (e.g., caches).
+The code keeps both a vnode pointer and a copy of the capability.
+The code can later compare the vnode's capability to its copy and see
+if the vnode still points to the same file.
+.Pp
+Note: for this to work, memory assigned to hold a
+.Vt struct vnode
+can
+only be used for another purpose when all pointers to it have disappeared.
+Since the vnode pool has no way of knowing when all pointers have
+disappeared, it never frees memory it has allocated for vnodes.
+.Ss Vnode fields
+Most of the fields of the vnode structure should be treated as opaque
+and only manipulated through the proper APIs.
+This section describes the fields that are manipulated directly.
+.Pp
+The
+.Va v_flag
+attribute contains random flags related to various functions.
+They are summarized in the following table:
+.Pp
+.Bl -tag -width 10n -compact -offset indent
+.It Dv VROOT
+This vnode is the root of its file system.
+.It Dv VTEXT
+This vnode is a pure text prototype.
+.It Dv VSYSTEM
+This vnode is being used by kernel.
+.It Dv VISTTY
+This vnode represents a
+.Xr tty 4 .
+.It Dv VXLOCK
+This vnode is locked to change its underlying type.
+.It Dv VXWANT
+A process is waiting for this vnode.
+.It Dv VALIASED
+This vnode has an alias.
+.It Dv VLOCKSWORK
+This vnode's underlying file system supports locking discipline.
+.El
+.Pp
+The
+.Va v_tag
+attribute indicates what file system the vnode belongs to.
+Very little code actually uses this attribute and its use is deprecated.
+Programmers should seriously consider using more object-oriented approaches
+(e.g. function tables).
+There is no safe way of defining new
+.Va v_tag Ns 's
+for loadable file systems.
+The
+.Va v_tag
+attribute is read-only.
+.Pp
+The
+.Va v_type
+attribute indicates what type of file (e.g. directory,
+regular, FIFO) this vnode is.
+This is used by the generic code for various checks.
+For example, the
+.Xr read 2
+system call returns zero when a read is attempted on a directory.
+.Pp
+Possible types are:
+.Pp
+.Bl -tag -width 10n -offset indent -compact
+.It Dv VNON
+This vnode has no type.
+.It Dv VREG
+This vnode represents a regular file.
+.It Dv VDIR
+This vnode represents a directory.
+.It Dv VBLK
+This vnode represents a block device.
+.It Dv VCHR
+This vnode represents a character device.
+.It Dv VLNK
+This vnode represents a symbolic link.
+.It Dv VSOCK
+This vnode represents a socket.
+.It Dv VFIFO
+This vnode represents a named pipe.
+.It Dv VBAD
+This vnode represents a bad or dead file.
+.El
+.Pp
+The
+.Va v_data
+attribute allows a file system to attach a piece of file
+system specific memory to the vnode.
+This contains information about the file that is specific to
+the file system (such as an inode pointer in the case of FFS).
+.Pp
+The
+.Va v_numoutput
+attribute indicates the number of pending synchronous
+and asynchronous writes on the vnode.
+It does not track the number of dirty buffers attached to the vnode.
+The attribute is used by code like
+.Xr fsync 2
+to wait for all writes
+to complete before returning to the user.
+This attribute must be manipulated at
+.Xr splbio 9 .
+.Pp
+The
+.Va v_writecount
+attribute tracks the number of write calls pending
+on the vnode.
+.Ss Rules
+The vast majority of vnode functions may not be called from interrupt
+context.
+The exceptions are
+.Fn bgetvp
+and
+.Fn brelvp .
+The following fields of the vnode are manipulated at interrupt level:
+.Va v_numoutput , v_holdcnt , v_dirtyblkhd ,
+.Va v_cleanblkhd , v_bioflag , v_freelist ,
+and
+.Va v_synclist .
+Any access to these fields should be protected by
+.Xr splbio 9 .
+.Sh SEE ALSO
+.Xr uvn_attach 9 ,
+.Xr vaccess 9 ,
+.Xr vclean 9 ,
+.Xr vcount 9 ,
+.Xr vdevgone 9 ,
+.Xr vfinddev 9 ,
+.Xr vflush 9 ,
+.Xr vflushbuf 9 ,
+.Xr vfs 9 ,
+.Xr vget 9 ,
+.Xr vgone 9 ,
+.Xr vhold 9 ,
+.Xr vinvalbuf 9 ,
+.Xr vn_lock 9 ,
+.Xr VOP_LOOKUP 9 ,
+.Xr vput 9 ,
+.Xr vrecycle 9 ,
+.Xr vref 9 ,
+.Xr vrele 9 ,
+.Xr vwaitforio 9 ,
+.Xr vwakeup 9
+.Sh HISTORY
+This document first appeared in
+.Ox 2.9 .

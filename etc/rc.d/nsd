@@ -1,0 +1,28 @@
+#!/bin/ksh
+#
+# $OpenBSD: nsd,v 1.12 2022/05/21 12:42:21 ajacoutot Exp $
+
+daemon="/usr/sbin/nsd-control"
+daemon_flags="-c /var/nsd/etc/nsd.conf"
+
+. /etc/rc.d/rc.subr
+
+rc_usercheck=NO
+
+rc_start() {
+	rc_exec "${daemon} ${daemon_flags} start"
+}
+
+rc_check() {
+	${daemon} ${daemon_flags} status || return 1
+}
+
+rc_reload() {
+	${daemon} ${daemon_flags} reconfig && ${daemon} ${daemon_flags} reload
+}
+
+rc_stop() {
+	${daemon} ${daemon_flags} stop
+}
+
+rc_cmd $1

@@ -1,0 +1,28 @@
+# Check sequencing operations.
+#
+# RUN: echo "first-line" > %t.out && echo "second-line" >> %t.out
+# RUN: FileCheck --check-prefix CHECK-AND < %t.out %s
+#
+# CHECK-AND: first-line
+# CHECK-AND: second-line
+#
+# The false case of && is tested in sequencing-2.txt
+
+
+# RUN: echo "first-line" > %t.out || echo "second-line" >> %t.out
+# RUN: FileCheck --check-prefix CHECK-OR-1 < %t.out %s
+#
+# CHECK-OR-1: first-line
+# CHECK-OR-1-NOT: second-line
+
+# RUN: false || echo "second-line" > %t.out
+# RUN: FileCheck --check-prefix CHECK-OR-2 < %t.out %s
+#
+# CHECK-OR-2: second-line
+
+
+# RUN: echo "first-line" > %t.out; echo "second-line" >> %t.out
+# RUN: FileCheck --check-prefix CHECK-SEQ < %t.out %s
+#
+# CHECK-SEQ: first-line
+# CHECK-SEQ: second-line

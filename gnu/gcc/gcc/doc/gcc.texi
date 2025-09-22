@@ -1,0 +1,201 @@
+\input texinfo  @c -*-texinfo-*-
+@c %**start of header
+@setfilename gcc.info
+@c INTERNALS is used by md.texi to determine whether to include the
+@c whole of that file, in the internals manual, or only the part
+@c dealing with constraints, in the user manual.
+@clear INTERNALS
+
+@c NOTE: checks/things to do:
+@c
+@c -have bob do a search in all seven files for "mew" (ideally --mew,
+@c  but i may have forgotten the occasional "--"..).
+@c     Just checked... all have `--'!  Bob 22Jul96
+@c     Use this to search:   grep -n '\-\-mew' *.texi
+@c -item/itemx, text after all (sub/sub)section titles, etc..
+@c -consider putting the lists of options on pp 17--> etc in columns or
+@c  some such.
+@c -overfulls.  do a search for "mew" in the files, and you will see
+@c   overfulls that i noted but could not deal with.
+@c -have to add text:  beginning of chapter 8
+
+@c
+@c anything else?                       --mew 10feb93
+
+@include gcc-common.texi
+
+@settitle Using the GNU Compiler Collection (GCC)
+
+@c Create a separate index for command line options.
+@defcodeindex op
+@c Merge the standard indexes into a single one.
+@syncodeindex fn cp
+@syncodeindex vr cp
+@syncodeindex ky cp
+@syncodeindex pg cp
+@syncodeindex tp cp
+
+@paragraphindent 1
+
+@c %**end of header
+
+@copying
+Copyright @copyright{} 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+1999, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.2 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``GNU General Public License'' and ``Funding
+Free Software'', the Front-Cover texts being (a) (see below), and with
+the Back-Cover Texts being (b) (see below).  A copy of the license is
+included in the section entitled ``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
+@ifnottex
+@dircategory Software development
+@direntry
+* gcc: (gcc).                  The GNU Compiler Collection.
+@end direntry
+This file documents the use of the GNU compilers.
+@sp 1
+@insertcopying
+@sp 1
+@end ifnottex
+
+@setchapternewpage odd
+@titlepage
+@title Using the GNU Compiler Collection
+@versionsubtitle
+@author Richard M. Stallman and the @sc{GCC} Developer Community
+@page
+@vskip 0pt plus 1filll
+Published by:
+@multitable @columnfractions 0.5 0.5
+@item GNU Press
+@tab Website: www.gnupress.org
+@item a division of the
+@tab General: @tex press@@gnu.org @end tex
+@item Free Software Foundation
+@tab Orders:  @tex sales@@gnu.org @end tex
+@item 51 Franklin Street, Fifth Floor
+@tab Tel 617-542-5942
+@item Boston, MA 02110-1301 USA
+@tab Fax 617-542-2652
+@end multitable
+@sp 2
+@ifset FSFPRINT
+@c Update this ISBN when printing a new edition.
+@acronym{ISBN} 1-882114-39-6
+
+Cover art by Gary M. Torrisi.  Cover design by Jonathan Richard.
+@end ifset
+@ifclear FSFPRINT
+Last printed October 2003 for GCC 3.3.1.@*
+Printed copies are available for $45 each.
+@end ifclear
+@sp 1
+@insertcopying
+@end titlepage
+@summarycontents
+@contents
+@page
+
+@node Top, G++ and GCC,, (DIR)
+@top Introduction
+@cindex introduction
+
+This manual documents how to use the GNU compilers,
+as well as their features and incompatibilities, and how to report
+bugs.  It corresponds to GCC version @value{version-GCC}.
+The internals of the GNU compilers, including how to port them to new
+targets and some information about how to write front ends for new
+languages, are documented in a separate manual.  @xref{Top,,
+Introduction, gccint, GNU Compiler Collection (GCC) Internals}.
+
+@menu
+* G++ and GCC::     You can compile C or C++ programs.
+* Standards::       Language standards supported by GCC.
+* Invoking GCC::    Command options supported by @samp{gcc}.
+* C Implementation:: How GCC implements the ISO C specification.
+* C Extensions::    GNU extensions to the C language family.
+* C++ Extensions::  GNU extensions to the C++ language.
+* Objective-C::     GNU Objective-C runtime features.
+* Compatibility::   Binary Compatibility
+* Gcov::            @command{gcov}---a test coverage program.
+* Trouble::         If you have trouble using GCC.
+* Bugs::            How, why and where to report bugs.
+* Service::         How to find suppliers of support for GCC.
+* Contributing::    How to contribute to testing and developing GCC.
+
+* Funding::         How to help assure funding for free software.
+* GNU Project::     The GNU Project and GNU/Linux.
+
+* Copying::         GNU General Public License says
+                     how you can copy and share GCC.
+* GNU Free Documentation License:: How you can copy and share this manual.
+* Contributors::    People who have contributed to GCC.
+
+* Option Index::    Index to command line options.
+* Keyword Index::    Index of concepts and symbol names.
+@end menu
+
+@include frontends.texi
+@include standards.texi
+@include invoke.texi
+@include implement-c.texi
+@include extend.texi
+@include objc.texi
+@include compat.texi
+@include gcov.texi
+@include trouble.texi
+@include bugreport.texi
+@include service.texi
+@include contribute.texi
+
+@include funding.texi
+@include gnu.texi
+@include gpl.texi
+
+@c ---------------------------------------------------------------------
+@c GFDL
+@c ---------------------------------------------------------------------
+
+@include fdl.texi
+
+@include contrib.texi
+
+@c ---------------------------------------------------------------------
+@c Indexes
+@c ---------------------------------------------------------------------
+
+@node Option Index
+@unnumbered Option Index
+
+GCC's command line options are indexed here without any initial @samp{-}
+or @samp{--}.  Where an option has both positive and negative forms
+(such as @option{-f@var{option}} and @option{-fno-@var{option}}),
+relevant entries in the manual are indexed under the most appropriate
+form; it may sometimes be useful to look up both forms.
+
+@printindex op
+
+@node Keyword Index
+@unnumbered Keyword Index
+
+@printindex cp
+
+@c ---------------------------------------------------------------------
+@c Epilogue
+@c ---------------------------------------------------------------------
+
+@bye

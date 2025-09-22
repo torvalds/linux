@@ -1,0 +1,279 @@
+.\" $OpenBSD: X509_new.3,v 1.47 2025/07/16 17:59:10 schwarze Exp $
+.\" full merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016, 2018, 2019, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2006, 2015, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 16 2025 $
+.Dt X509_NEW 3
+.Os
+.Sh NAME
+.Nm X509_new ,
+.Nm X509_dup ,
+.Nm X509_REQ_to_X509 ,
+.Nm X509_free ,
+.Nm X509_up_ref ,
+.Nm X509_chain_up_ref
+.Nd X.509 certificate object
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509 *
+.Fn X509_new void
+.Ft X509 *
+.Fo X509_dup
+.Fa "X509 *a"
+.Fc
+.Ft X509 *
+.Fo X509_REQ_to_X509
+.Fa "X509_REQ *req"
+.Fa "int days"
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Ft void
+.Fo X509_free
+.Fa "X509 *a"
+.Fc
+.Ft int
+.Fo X509_up_ref
+.Fa "X509 *a"
+.Fc
+.Ft STACK_OF(X509) *
+.Fo X509_chain_up_ref
+.Fa "STACK_OF(X509) *chain"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_new
+allocates and initializes an empty
+.Vt X509
+object with reference count 1.
+It represents an ASN.1
+.Vt Certificate
+structure defined in RFC 5280 section 4.1.
+It can hold a public key together with information about the person,
+organization, device, or function the associated private key belongs to.
+.Pp
+.Fn X509_dup
+creates a deep copy of
+.Fa a
+using
+.Xr ASN1_item_dup 3 ,
+setting the reference count of the copy to 1.
+.Pp
+.Fn X509_REQ_to_X509
+allocates a new certificate object, copies the public key from
+.Fa req
+into it, copies the subject name of
+.Fa req
+to both the subject and issuer names of the new certificate, sets the
+.Fa notBefore
+field to the current time and the
+.Fa notAfter
+field to the given number of
+.Fa days
+in the future, and signs the new certificate with
+.Xr X509_sign 3
+using
+.Fa pkey
+and the MD5 algorithm.
+If
+.Fa req
+contains at least one attribute,
+the version of the new certificate is set to 2.
+.Pp
+.Fn X509_free
+decrements the reference count of the
+.Vt X509
+structure
+.Fa a
+and frees it up if the reference count reaches 0.
+If
+.Fa a
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn X509_up_ref
+increments the reference count of
+.Fa a
+by 1.
+This function is useful if a certificate structure is being used
+by several different operations each of which will free it up after
+use: this avoids the need to duplicate the entire certificate
+structure.
+.Pp
+.Fn X509_chain_up_ref
+performs a shallow copy of the given
+.Fa chain
+using
+.Fn sk_X509_dup
+and increments the reference count of each contained certificate
+by 1.
+Its purpose is similar to
+.Fn X509_up_ref :
+The returned chain persists after the original is freed.
+.Sh RETURN VALUES
+.Fn X509_new ,
+.Fn X509_dup ,
+and
+.Fn X509_REQ_to_X509
+return a pointer to the newly allocated object or
+.Dv NULL
+if an error occurs; an error code can be obtained by
+.Xr ERR_get_error 3 .
+.Pp
+.Fn X509_up_ref
+returns 1 for success or 0 for failure.
+.Pp
+.Fn X509_chain_up_ref
+returns the copy of the
+.Fa chain
+or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr ASIdentifiers_new 3 ,
+.Xr ASRange_new 3 ,
+.Xr AUTHORITY_KEYID_new 3 ,
+.Xr BASIC_CONSTRAINTS_new 3 ,
+.Xr crypto 3 ,
+.Xr d2i_X509 3 ,
+.Xr IPAddressRange_new 3 ,
+.Xr PKCS8_PRIV_KEY_INFO_new 3 ,
+.Xr X509_ALGOR_new 3 ,
+.Xr X509_ATTRIBUTE_new 3 ,
+.Xr X509_check_ca 3 ,
+.Xr X509_check_host 3 ,
+.Xr X509_check_issued 3 ,
+.Xr X509_check_private_key 3 ,
+.Xr X509_check_purpose 3 ,
+.Xr X509_CINF_new 3 ,
+.Xr X509_cmp 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_digest 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_find_by_subject 3 ,
+.Xr X509_get0_notBefore 3 ,
+.Xr X509_get0_signature 3 ,
+.Xr X509_get1_email 3 ,
+.Xr X509_get_ex_new_index 3 ,
+.Xr X509_get_extension_flags 3 ,
+.Xr X509_get_pubkey 3 ,
+.Xr X509_get_pubkey_parameters 3 ,
+.Xr X509_get_serialNumber 3 ,
+.Xr X509_get_subject_name 3 ,
+.Xr X509_get_version 3 ,
+.Xr X509_INFO_new 3 ,
+.Xr X509_load_cert_file 3 ,
+.Xr X509_LOOKUP_hash_dir 3 ,
+.Xr X509_LOOKUP_new 3 ,
+.Xr X509_NAME_new 3 ,
+.Xr X509_OBJECT_new 3 ,
+.Xr X509_print_ex 3 ,
+.Xr X509_PUBKEY_new 3 ,
+.Xr X509_PURPOSE_set 3 ,
+.Xr X509_REQ_new 3 ,
+.Xr X509_SIG_new 3 ,
+.Xr X509_sign 3 ,
+.Xr X509_STORE_CTX_new 3 ,
+.Xr X509_STORE_get_by_subject 3 ,
+.Xr X509_STORE_new 3 ,
+.Xr X509v3_addr_add_inherit 3 ,
+.Xr X509v3_addr_get_range 3 ,
+.Xr X509v3_addr_inherits 3 ,
+.Xr X509v3_addr_subset 3 ,
+.Xr X509v3_addr_validate_path 3 ,
+.Xr X509v3_asid_add_id_or_range 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Sh HISTORY
+.Fn X509_new
+and
+.Fn X509_free
+appeared in SSLeay 0.4 or earlier,
+.Fn X509_dup
+in SSLeay 0.4.4, and
+.Fn X509_REQ_to_X509
+in SSLeay 0.6.0 .
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_up_ref
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.1 .
+.Pp
+.Fn X509_chain_up_ref
+first appeared in OpenSSL 1.0.2 and has been available since
+.Ox 6.3 .
+.Sh BUGS
+The X.509 public key infrastructure and its data types contain too
+many design bugs to list them.
+For lots of examples, see the classic
+.Lk https://www.cs.auckland.ac.nz/~pgut001/pubs/x509guide.txt\
+ "X.509 Style Guide"
+that
+.An Peter Gutmann
+published in 2000.

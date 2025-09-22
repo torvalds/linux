@@ -1,0 +1,103 @@
+#===----------------------------------------------------------------------===##
+#
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+#===----------------------------------------------------------------------===##
+
+#
+# This file describes the various pre-commit CI bots used to test Clang against
+# libc++ under various configurations. Unlike the usual libc++ CI pipeline,
+# which aims to test libc++ itself, this pipeline aims to test Clang by
+# compiling libc++ and running its test suite against the just-built Clang,
+# in various configurations.
+#
+env:
+    LLVM_HEAD_VERSION: "16"
+steps:
+  - label: "Building clang"
+    commands:
+      - "mkdir install"
+      - "cmake -S llvm -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=install -DLLVM_ENABLE_PROJECTS=\"clang;compiler-rt\""
+      - "ninja -C build install-clang install-clang-resource-headers"
+      - "buildkite-agent artifact upload 'install/**/*'"
+    env:
+        CC: "clang-${LLVM_HEAD_VERSION}"
+        CXX: "clang++-${LLVM_HEAD_VERSION}"
+    agents:
+      queue: "libcxx-builders"
+      os: "linux"
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+          limit: 2
+    timeout_in_minutes: 120
+
+  - wait
+
+  - label: "C++03"
+    commands:
+      - "buildkite-agent artifact download 'install/**' ."
+      - "export CC=$(pwd)/install/bin/clang"
+      - "export CXX=$(pwd)/install/bin/clang++"
+      - "chmod +x install/bin/clang install/bin/clang++"
+      - "libcxx/utils/ci/run-buildbot generic-cxx03"
+    artifact_paths:
+      - "**/test-results.xml"
+      - "**/crash_diagnostics/*"
+    env:
+        LLVM_SYMBOLIZER_PATH: "/usr/bin/llvm-symbolizer-${LLVM_HEAD_VERSION}" # TODO: Should we build that from scratch?
+        CLANG_CRASH_DIAGNOSTICS_DIR: "crash_diagnostics"
+    agents:
+      queue: "libcxx-builders"
+      os: "linux"
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+          limit: 2
+    timeout_in_minutes: 120
+
+  - label: "C++2b"
+    commands:
+      - "buildkite-agent artifact download 'install/**' ."
+      - "export CC=$(pwd)/install/bin/clang"
+      - "export CXX=$(pwd)/install/bin/clang++"
+      - "chmod +x install/bin/clang install/bin/clang++"
+      - "libcxx/utils/ci/run-buildbot generic-cxx2b"
+    artifact_paths:
+      - "**/test-results.xml"
+      - "**/crash_diagnostics/*"
+    env:
+        LLVM_SYMBOLIZER_PATH: "/usr/bin/llvm-symbolizer-${LLVM_HEAD_VERSION}" # TODO: Should we build that from scratch?
+        CLANG_CRASH_DIAGNOSTICS_DIR: "crash_diagnostics"
+    agents:
+      queue: "libcxx-builders"
+      os: "linux"
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+          limit: 2
+    timeout_in_minutes: 120
+
+  - label: "Modules"
+    commands:
+      - "buildkite-agent artifact download 'install/**' ."
+      - "export CC=$(pwd)/install/bin/clang"
+      - "export CXX=$(pwd)/install/bin/clang++"
+      - "chmod +x install/bin/clang install/bin/clang++"
+      - "libcxx/utils/ci/run-buildbot generic-modules"
+    artifact_paths:
+      - "**/test-results.xml"
+      - "**/crash_diagnostics/*"
+    env:
+        LLVM_SYMBOLIZER_PATH: "/usr/bin/llvm-symbolizer-${LLVM_HEAD_VERSION}" # TODO: Should we build that from scratch?
+        CLANG_CRASH_DIAGNOSTICS_DIR: "crash_diagnostics"
+    agents:
+      queue: "libcxx-builders"
+      os: "linux"
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+          limit: 2
+    timeout_in_minutes: 120

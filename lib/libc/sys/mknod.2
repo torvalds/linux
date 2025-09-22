@@ -1,0 +1,214 @@
+.\"	$OpenBSD: mknod.2,v 1.21 2015/09/10 17:55:21 schwarze Exp $
+.\"	$NetBSD: mknod.2,v 1.6 1995/02/27 12:34:33 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mknod.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: September 10 2015 $
+.Dt MKNOD 2
+.Os
+.Sh NAME
+.Nm mknod ,
+.Nm mknodat
+.Nd make a special file node
+.Sh SYNOPSIS
+.In sys/stat.h
+.Ft int
+.Fn mknod "const char *path" "mode_t mode" "dev_t dev"
+.In sys/stat.h
+.In fcntl.h
+.Ft int
+.Fn mknodat "int fd" "const char *path" "mode_t mode" "dev_t dev"
+.Sh DESCRIPTION
+The
+.Fn mknod
+function creates
+.Fa path
+with a file type and mode of
+.Fa mode ,
+as modified by
+.Xr umask 2 .
+Only FIFO and device special files are supported by this implementation.
+.Pp
+If
+.Fa mode
+is the bitwise OR of
+.Dv S_IFIFO
+and zero or more file permissions, and
+.Fa dev
+is zero, then a FIFO is created.
+If
+.Fa mode
+is the bitwise OR of
+.Dv S_IFCHR
+or
+.Dv S_IFBLK
+and zero or more file permissions, then a character or block device
+special (respectively) is created with major and minor device numbers
+extracted from
+.Fa dev .
+.Pp
+The
+.Fn mknodat
+function is equivalent to
+.Fn mknod
+except that where
+.Fa path
+specifies a relative path,
+the newly created device special file is created relative to
+the directory associated with file descriptor
+.Fa fd
+instead of the current working directory.
+.Pp
+If
+.Fn mknodat
+is passed the special value
+.Dv AT_FDCWD
+(defined in
+.In fcntl.h )
+in the
+.Fa fd
+parameter, the current working directory is used
+and the behavior is identical to a call to
+.Fn mknod .
+.Pp
+Creating a device special file with
+.Fn mknod
+or
+.Fn mknodat
+requires superuser privileges.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn mknod
+and
+.Fn mknodat
+will fail and the file will be not created if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa mode
+is an invalid file type or
+.Fa dev
+is an invalid value for that file type.
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Dv NAME_MAX
+characters, or an entire pathname (including the terminating NUL)
+exceeded
+.Dv PATH_MAX
+bytes.
+.It Bq Er ENOENT
+A component of the path prefix does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EPERM
+.Fa mode
+is a device special and the process's effective user ID is not superuser.
+.It Bq Er EIO
+An I/O error occurred while making the directory entry or allocating the inode.
+.It Bq Er ENOSPC
+The directory in which the entry for the new node is being placed
+cannot be extended because there is no space left on the file
+system containing the directory.
+.It Bq Er ENOSPC
+There are no free inodes on the file system on which the
+node is being created.
+.It Bq Er EDQUOT
+The directory in which the entry for the new node
+is being placed cannot be extended because the
+user's quota of disk blocks on the file system
+containing the directory has been exhausted.
+.It Bq Er EDQUOT
+The user's quota of inodes on the file system on
+which the node is being created has been exhausted.
+.It Bq Er EROFS
+The named file resides on a read-only file system.
+.It Bq Er EEXIST
+The named file exists.
+.It Bq Er EFAULT
+.Fa path
+points outside the process's allocated address space.
+.It Bq Er EINVAL
+The process is running within an alternate root directory, as
+created by
+.Xr chroot 2 .
+.El
+.Pp
+Additionally,
+.Fn mknodat
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa path
+argument specifies a relative path and the
+.Fa fd
+argument is neither
+.Dv AT_FDCWD
+nor a valid file descriptor.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument specifies a relative path and the
+.Fa fd
+argument is a valid file descriptor but it does not reference a directory.
+.It Bq Er EACCES
+The
+.Fa path
+argument specifies a relative path but search permission is denied
+for the directory which the
+.Fa fd
+file descriptor references.
+.El
+.Sh SEE ALSO
+.Xr chmod 2 ,
+.Xr chroot 2 ,
+.Xr mkfifo 2 ,
+.Xr stat 2 ,
+.Xr umask 2
+.Sh STANDARDS
+The
+.Fn mknod
+and
+.Fn mknodat
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn mknod
+system call first appeared in
+.At v4 ,
+and
+.Fn mknodat
+has been available since
+.Ox 5.0 .

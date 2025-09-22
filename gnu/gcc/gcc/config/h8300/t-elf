@@ -1,0 +1,6 @@
+EXTRA_MULTILIB_PARTS= crti.o crtn.o crtbegin.o crtend.o
+
+$(T)crti.o: $(srcdir)/config/h8300/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crti.o -x assembler-with-cpp $(srcdir)/config/h8300/crti.asm
+$(T)crtn.o: $(srcdir)/config/h8300/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crtn.o -x assembler-with-cpp $(srcdir)/config/h8300/crtn.asm

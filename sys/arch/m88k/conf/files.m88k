@@ -1,0 +1,55 @@
+#	$OpenBSD: files.m88k,v 1.34 2025/07/31 15:15:36 miod Exp $
+
+file	arch/m88k/m88k/atomic.S				multiprocessor
+file	arch/m88k/m88k/db_disasm.c			ddb
+file	arch/m88k/m88k/db_interface.c			ddb
+file	arch/m88k/m88k/db_sstep.c			ddb
+file	arch/m88k/m88k/db_trace.c			ddb
+file	arch/m88k/m88k/fpu.c
+file	arch/m88k/m88k/m88100_fp.c			m88100
+file	arch/m88k/m88k/m88100_machdep.c			m88100
+file	arch/m88k/m88k/m88110_fp.c			m88110
+file	arch/m88k/m88k/m8820x_machdep.c			m88100
+file	arch/m88k/m88k/m88k_machdep.c
+file	arch/m88k/m88k/mem.c
+file	arch/m88k/m88k/mutex.c
+file	arch/m88k/m88k/pmap.c
+file	arch/m88k/m88k/process.S
+file	arch/m88k/m88k/process_machdep.c
+file	arch/m88k/m88k/sig_machdep.c
+file	arch/m88k/m88k/subr.S
+file	arch/m88k/m88k/trap.c
+file	arch/m88k/m88k/vectors_88100.S			m88100
+file	arch/m88k/m88k/vectors_88110.S			m88110
+file	arch/m88k/m88k/vm_machdep.c
+
+file	lib/libkern/softfloat.c
+
+file	lib/libkern/arch/m88k/divsi3.S
+file	lib/libkern/arch/m88k/modsi3.S
+file	lib/libkern/arch/m88k/udivsi3.S
+file	lib/libkern/arch/m88k/umodsi3.S
+
+file	netinet/in_cksum.c
+file	netinet/in4_cksum.c
+
+# quad support is necessary for 32 bit architectures
+file	lib/libkern/adddi3.c
+file	lib/libkern/anddi3.c
+file	lib/libkern/ashldi3.c
+file	lib/libkern/ashrdi3.c
+file	lib/libkern/cmpdi2.c
+file	lib/libkern/divdi3.c
+file	lib/libkern/iordi3.c
+file	lib/libkern/lshldi3.c
+file	lib/libkern/lshrdi3.c
+file	lib/libkern/moddi3.c
+file	lib/libkern/muldi3.c
+file	lib/libkern/negdi2.c
+file	lib/libkern/notdi2.c
+file	lib/libkern/qdivrem.c
+file	lib/libkern/subdi3.c
+file	lib/libkern/ucmpdi2.c
+file	lib/libkern/udivdi3.c
+file	lib/libkern/umoddi3.c
+file	lib/libkern/xordi3.c

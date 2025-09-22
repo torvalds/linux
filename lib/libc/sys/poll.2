@@ -1,0 +1,364 @@
+.\"	$OpenBSD: poll.2,v 1.41 2024/08/04 22:28:08 guenther Exp $
+.\"
+.\" Copyright (c) 1994 Jason R. Thorpe
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Jason R. Thorpe.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"
+.Dd $Mdocdate: August 4 2024 $
+.Dt POLL 2
+.Os
+.Sh NAME
+.Nm poll ,
+.Nm ppoll
+.Nd synchronous I/O multiplexing
+.Sh SYNOPSIS
+.In poll.h
+.Ft int
+.Fn poll "struct pollfd *fds" "nfds_t nfds" "int timeout"
+.Ft int
+.Fn ppoll "struct pollfd *fds" "nfds_t nfds" "const struct timespec * restrict timeout" "const sigset_t * restrict mask"
+.Sh DESCRIPTION
+.Fn poll
+provides a mechanism for multiplexing I/O across a set of file
+descriptors.
+It is similar in function to
+.Xr select 2 .
+Unlike
+.Xr select 2 ,
+however, it is possible to only pass in data corresponding to the
+file descriptors for which events are wanted.
+This makes
+.Fn poll
+more efficient than
+.Xr select 2
+in most cases.
+.Pp
+The arguments are as follows:
+.Bl -tag -width timeout
+.It Fa fds
+Points to an array of
+.Vt pollfd
+structures, which are defined as:
+.Bd -literal -offset indent
+struct pollfd {
+	int   fd;
+	short events;
+	short revents;
+};
+.Ed
+.Pp
+The
+.Fa fd
+member is an open file descriptor.
+If
+.Fa fd
+is -1,
+the
+.Vt pollfd
+structure is considered unused, and
+.Fa revents
+will be cleared.
+.Pp
+The
+.Fa events
+and
+.Fa revents
+members are bitmasks of conditions to monitor and conditions found,
+respectively.
+.It Fa nfds
+An unsigned integer specifying the number of
+.Vt pollfd
+structures in the array.
+.It Fa timeout
+Maximum interval to wait for the poll to complete, in milliseconds.
+If this value is 0,
+.Fn poll
+will return immediately.
+If this value is
+.Dv INFTIM Pq -1 ,
+.Fn poll
+will block indefinitely until a condition is found.
+.El
+.Pp
+The calling process sets the
+.Fa events
+bitmask and
+.Fn poll
+sets the
+.Fa revents
+bitmask.
+Each call to
+.Fn poll
+resets the
+.Fa revents
+bitmask for accuracy.
+The condition flags in the bitmasks are defined as:
+.Bl -tag -width POLLRDNORM
+.It Dv POLLIN
+Data other than high-priority data may be read without blocking.
+.It Dv POLLRDNORM
+Normal data may be read without blocking.
+.It Dv POLLRDBAND
+Priority data may be read without blocking.
+.It Dv POLLNORM
+Same as
+.Dv POLLRDNORM .
+This flag is provided for source code compatibility with older
+programs and should not be used in new code.
+.It Dv POLLPRI
+High-priority data may be read without blocking.
+.It Dv POLLOUT
+Normal data may be written without blocking.
+.It Dv POLLWRNORM
+Same as
+.Dv POLLOUT .
+.It Dv POLLWRBAND
+Priority data may be written.
+.It Dv POLLERR
+An error has occurred on the device or socket.
+This flag is only valid in the
+.Fa revents
+bitmask; it is ignored in the
+.Fa events
+member.
+.It Dv POLLHUP
+The device or socket has been disconnected.
+This event and
+.Dv POLLOUT
+are mutually-exclusive; a descriptor can never be writable if a hangup has
+occurred.
+However, this event and
+.Dv POLLIN ,
+.Dv POLLRDNORM ,
+.Dv POLLRDBAND ,
+or
+.Dv POLLPRI
+are not mutually-exclusive.
+This flag is only valid in the
+.Fa revents
+bitmask; it is ignored in the
+.Fa events
+member.
+.It Dv POLLNVAL
+The corresponding file descriptor is invalid.
+This flag is only valid in the
+.Fa revents
+bitmask; it is ignored in the
+.Fa events
+member.
+.El
+.Pp
+The significance and semantics of normal, priority, and high-priority
+data are device-specific.
+For example, on
+.Ox ,
+the
+.Dv POLLPRI
+and
+.Dv POLLRDBAND
+flags may be used to detect when out-of-band socket data may be read
+without blocking.
+.Pp
+The
+.Fn ppoll
+function is similar to
+.Fn poll
+except that it specifies the timeout using a timespec structure,
+and a null pointer is used to specify an indefinite timeout
+instead of
+.Dv INFTIM .
+Also, if
+.Fa mask
+is a non-null pointer,
+.Fn ppoll
+atomically sets the calling thread's signal mask to the signal set
+pointed to by
+.Fa mask
+for the duration of the function call.
+In this case, the original signal mask will be restored before
+.Fn ppoll
+returns.
+.Sh RETURN VALUES
+Upon error,
+.Fn poll
+and
+.Fn ppoll
+return \-1 and set the global variable
+.Va errno
+to indicate the error.
+If the timeout interval was reached before any events occurred,
+they return 0.
+Otherwise, they return the number of
+.Vt pollfd
+structures for which
+.Fa revents
+is non-zero.
+.Sh IDIOMS
+Care must be taken when converting code from
+.Xr select 2
+to
+.Fn poll
+as they have slightly different semantics.
+The first semantic difference is that, unlike
+.Xr select 2 ,
+.Fn poll
+has a way of indicating that one or more file descriptors is invalid
+by setting a flag in the
+.Fa revents
+field of corresponding entry of
+.Fa fds ,
+whereas
+.Xr select 2
+returns an error (-1) if any of the descriptors with bits set in
+the
+.Vt fd_set
+are invalid.
+The second difference is that on EOF there is no guarantee that
+.Dv POLLIN
+will be set in
+.Fa revents ,
+the caller must also check for
+.Dv POLLHUP .
+This differs from
+.Xr select 2
+where EOF is considered as a read event.
+.Pp
+Consider the following usage of
+.Xr select 2
+that implements a read from the standard input with a
+60 second time out:
+.Bd -literal -offset indent
+struct timeval timeout;
+fd_set readfds;
+char buf[BUFSIZ];
+int nready;
+
+timeout.tv_sec = 60;
+timeout.tv_usec = 0;
+FD_ZERO(&readfds);
+FD_SET(STDIN_FILENO, &readfds);
+nready = select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout);
+if (nready == -1)
+	err(1, "select");
+if (nready == 0)
+	errx(1, "time out");
+if (FD_ISSET(STDIN_FILENO, &readfds)) {
+	if (read(STDIN_FILENO, buf, sizeof(buf)) == -1)
+		err(1, "read");
+}
+.Ed
+.Pp
+This can be converted to
+.Fn poll
+as follows:
+.Bd -literal -offset indent
+struct pollfd pfd[1];
+char buf[BUFSIZ];
+int nready;
+
+pfd[0].fd = STDIN_FILENO;
+pfd[0].events = POLLIN;
+nready = poll(pfd, 1, 60 * 1000);
+if (nready == -1)
+	err(1, "poll");
+if (nready == 0)
+	errx(1, "time out");
+if (pfd[0].revents & (POLLERR|POLLNVAL))
+	errx(1, "bad fd %d", pfd[0].fd);
+if (pfd[0].revents & (POLLIN|POLLHUP)) {
+	if (read(STDIN_FILENO, buf, sizeof(buf)) == -1)
+		err(1, "read");
+}
+.Ed
+.Sh ERRORS
+.Fn poll
+and
+.Fn ppoll
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The kernel failed to allocate memory for temporary data structures;
+a later call may succeed.
+.It Bq Er EFAULT
+.Fa fds
+points outside the process's allocated address space.
+.It Bq Er EINTR
+A signal was caught before any polled events occurred
+and before the timeout elapsed.
+.It Bq Er EINVAL
+.Fa nfds
+was greater than the number of available
+file descriptors.
+.It Bq Er EINVAL
+The timeout passed was invalid.
+.El
+.Sh SEE ALSO
+.Xr clock_gettime 2 ,
+.Xr getrlimit 2 ,
+.Xr read 2 ,
+.Xr select 2 ,
+.Xr write 2
+.Sh STANDARDS
+The
+.Fn poll
+and
+.Fn ppoll
+functions conform to
+.St -p1003.1-2024 .
+.Sh HISTORY
+A
+.Fn poll
+system call appeared in
+.At V.3 .
+The
+.Fn ppoll
+function appeared in
+.Ox 5.4 .
+.Sh CAVEATS
+The
+.Dv POLLWRBAND
+flag is accepted but ignored by the kernel.
+.Pp
+Because
+.Ox
+does not implement STREAMS,
+there is no distinction between some of the fields in the
+.Fa events
+and
+.Fa revents
+bitmasks.
+As a result, the
+.Dv POLLIN ,
+.Dv POLLNORM ,
+and
+.Dv POLLRDNORM
+flags are equivalent.
+Similarly, the
+.Dv POLLPRI
+and
+.Dv POLLRDBAND
+flags are also equivalent.

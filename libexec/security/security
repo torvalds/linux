@@ -1,0 +1,965 @@
+#!/usr/bin/perl -T
+
+# $OpenBSD: security,v 1.48 2025/03/31 17:35:28 schwarze Exp $
+#
+# Copyright (c) 2011, 2012, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2011 Andrew Fresh <andrew@afresh1.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+use warnings;
+use strict;
+
+use Digest::SHA qw(sha256_hex);
+use Errno qw(ENOENT);
+use Fcntl qw(O_RDONLY O_NONBLOCK :mode);
+use File::Basename qw(basename);
+use File::Compare qw(compare);
+use File::Copy qw(copy);
+require File::Find;
+
+use constant {
+	BACKUP_DIR => '/var/backups/',
+	RELINK_DIR => '/usr/share/relink/',
+};
+
+$ENV{PATH} = '/bin:/usr/bin:/sbin:/usr/sbin';
+delete $ENV{ENV};
+umask 077;
+
+my $check_title;
+my $return_code = 0;
+
+sub nag ($$) {
+	my ($cond, $msg) = @_;
+	if ($cond) {
+		if ($check_title) {
+			print "\n$check_title\n";
+			undef $check_title;
+		}
+		print "$msg\n";
+		$return_code = 1;
+	}
+	return $cond;
+}
+
+sub close_or_nag {
+	my ($fh, $cmd) = @_;
+	my $res = close $fh;
+	nag !$res, "$cmd: " .
+	    ($! ? "error closing pipe: $!" : "exit code " . ($? >> 8));
+	return $res;
+}
+
+sub check_access_file {
+	my ($filename, $login) = @_;
+	return unless -e $filename;
+	my $mode = (stat(_))[2];
+	nag $mode & (S_IRUSR | S_IRGRP | S_IROTH) && ! -O $filename,
+	    "Login $login is off but still has a valid shell " .
+	    "and alternate access files in\n" .
+	    "\t home directory are still readable.";
+}
+
+sub check_passwd {
+	my $filename = '/etc/master.passwd';
+	$check_title = "Checking the $filename file:";
+	nag !(open my $fh, '<', $filename), "open: $filename: $!" and return;
+	my (%logins, %uids, %skip);
+	%skip = map { $_ => 1 } split ' ', $ENV{PASSWDSKIP}
+	    if $ENV{PASSWDSKIP};
+	while (my $line = <$fh>) {
+		chomp $line;
+		nag $line !~ /\S/,
+		    "Line $. is a blank line."
+		    and next;
+		my @f = split /:/, $line, -1;
+		nag @f != 10,
+		    "Line $. has the wrong number of fields:\n$line";
+		my ($name, $pwd, $uid, $gid, $class, $chg, $exp, $gecos,
+		    $home, $shell) = @f;
+		next if $name =~ /^[+-]/;  # skip YP lines
+		unless (nag $name eq '',
+		    "Line $. has an empty login field:\n$line") {
+			nag $name !~ /^[A-Za-z0-9_][-.A-Za-z0-9_]*\$?$/,
+			    "Login $name has non-alphanumeric characters.";
+			nag $logins{$name}++,
+			    "Duplicate user name $name.";
+		}
+		nag length $name > 31,
+		    "Login $name has more than 31 characters.";
+		nag $pwd eq '' && !$skip{"$name:$shell"},
+		    "Login $name has no password.";
+		if ($pwd ne '' &&
+		    $pwd ne 'skey' &&
+		    length $pwd != 13 &&
+		    $pwd !~ /^\$[0-9a-f]+\$/ &&
+		    ($shell eq '' || $shell =~ /sh$/)) {
+			nag -s "/etc/skey/$name",
+			    "Login $name is off but still has a valid " .
+			    "shell and an entry in /etc/skey.";
+			nag -d $home && ! -r $home,
+			    "Login $name is off but still has valid " .
+			    "shell and home directory is unreadable\n" .
+			    "\t by root; cannot check for existence " .
+			    "of alternate access files."
+			or check_access_file "$home/.$_", $name
+			    foreach qw(ssh rhosts shosts);
+		}
+		nag $uid == 0 && $name ne 'root',
+		    "Login $name has a user ID of 0.";
+		nag $uid < 0,
+		    "Login $name has a negative user ID.";
+		nag $uids{$uid}++,
+		    "Login $name has duplicate user ID $uid.";
+		nag $gid < 0,
+		    "Login $name has a negative group ID.";
+		nag $exp != 0 && $exp < time,
+		    "Login $name has expired.";
+	}
+	close $fh;
+}
+
+# Backup the master password file; a special case, the normal backup
+# mechanisms also print out file differences and we don't want to do
+# that because this file has encrypted passwords in it.
+sub backup_passwd {
+	my $base = 'master.passwd';
+	my $orig = "/etc/$base";
+	my $curr = BACKUP_DIR . "$base.current";
+	if (!-s $curr) {
+		# nothing
+	} elsif (compare $curr, $orig) {
+		copy $curr, BACKUP_DIR . "$base.backup";
+	} else {
+		return;
+	}
+	copy $orig, $curr;
+	chown 0, 0, $curr;
+}
+
+# Check the group file syntax.
+sub check_group {
+	my $filename = '/etc/group';
+	$check_title = "Checking the $filename file:";
+	nag !(open my $fh, '<', $filename), "open: $filename: $!" and return;
+	my (%names, $global_yp);
+	while (my $line = <$fh>) {
+		chomp $line;
+		nag $global_yp,
+		    'Global YP inclusion ("+") is not the last line.'
+		    and undef $global_yp;
+		if ($line eq '+') {
+			$global_yp = 1;
+			next;
+		}
+		nag $line !~ /\S/,
+		    "Line $. is a blank line."
+		    and next;
+		my @f = split /:/, $line, -1;
+		nag @f != 4,
+		    "Line $. has the wrong number of fields:\n$line";
+		my ($name, $pwd, $gid, $members) = @f;
+		next if $name =~ /^[+-]/;  # skip YP lines
+		unless (nag $name eq '',
+		    "Line $. has an empty group name field:\n$line") {
+			nag $name !~ /^[A-Za-z0-9_][-.A-Za-z0-9_]*$/,
+			    "Group $name has non-alphanumeric characters.";
+			nag $names{$name}++,
+			    "Duplicate group name $name.";
+		}
+		nag length $name > 31,
+		    "Group $name has more than 31 characters.";
+		nag $gid =~ /[^\d]/,
+		    "Group $name has an invalid group ID.";
+	}
+	close $fh;
+}
+
+sub check_umask {
+	my ($filename) = @_;
+	nag !(open my $fh, '<', $filename), "open: $filename: $!" and return;
+	my $umaskset;
+	while (<$fh>) {
+		next unless /^\s*umask\s+([0-7]+)/;
+		my $umask = "0$1";
+		$umaskset = 1;
+		my ($other, $group) = reverse split '', $umask;
+		nag $group =~ /^[0145]$/,
+		    "Root umask is group writable";
+		nag $other =~ /^[0145]$/,
+		    "Root umask is other writable";
+	}
+	close $fh;
+	return $umaskset;
+}
+
+# This type of test by spawning a shell is messy and fragile.
+# Instead, consider modifying the shells to warn about '.' in the PATH.
+sub check_root_path {
+	my ($path, $filename) = @_;
+	nag !(defined $path && $path =~ s/^PATH=[:\s]*//),
+	    "Failed to find PATH in $filename."
+	    and return;
+	foreach my $dir (split /[:\s]+/, $path) {
+		nag $dir eq '.', "The root path includes ." and next;
+		next unless -d $dir;
+		my $mode = (stat(_))[2];
+		nag $mode & S_IWGRP,
+		    "Root path directory $dir is group writable.";
+		nag $mode & S_IWOTH,
+		    "Root path directory $dir is other writable.";
+	}
+}
+
+# Check for umask values and root paths in startup files.
+sub check_csh {
+	my @list = qw(/etc/csh.cshrc /etc/csh.login /root/.cshrc /root/.login);
+	$check_title = "Checking root csh paths, umask values:\n@list";
+
+	my $umaskset = 0;
+	foreach my $filename (@list) {
+		next unless -s $filename;
+		$umaskset = 1 if check_umask $filename;
+
+		nag !(open my $fh, '-|', qw(/bin/csh -f -c),
+			"eval 'source $filename' >& /dev/null; " .
+			"echo PATH=\$path"),
+		    "cannot spawn /bin/csh: $!"
+		    and next;
+		my @output = <$fh>;
+		close_or_nag $fh, "csh $filename" or next;
+		chomp @output;
+		check_root_path pop @output, $filename;
+	}
+	nag !$umaskset,
+	    "\nRoot csh startup files do not set the umask.";
+}
+
+sub check_sh {
+	my @list = qw(/etc/profile /root/.profile);
+	$check_title = "Checking root sh paths, umask values:\n@list";
+
+	my @env_path;
+	my $umaskset = 0;
+	foreach my $filename (@list) {
+		next unless -s $filename;
+		$umaskset ||= check_umask($filename);
+
+		nag !(open my $fh, '-|', qw(/bin/sh -c),
+			". $filename > /dev/null; " .
+			"echo ENV=\$ENV; echo PATH=\$PATH"),
+		    "cannot spawn /bin/sh: $!"
+		    and next;
+		my @output = <$fh>;
+		close_or_nag $fh, "sh $filename" or next;
+		chomp @output;
+		check_root_path pop @output, $filename;
+
+		my $env = pop @output;
+		nag !(defined $env && $env =~ /^ENV=\s*(\S*)/),
+		    "Failed to find ENV in $filename."
+		    and next;
+		push @env_path, $1 if $1 ne '';
+	}
+	nag !$umaskset,
+	    "\nRoot sh startup files do not set the umask.";
+	return @env_path;
+}
+
+sub check_ksh {
+	my @list = ('/etc/ksh.kshrc', @_);
+	$check_title = "Checking root ksh paths, umask values:\n@list";
+
+	# Usually, we are at HOME anyway, but for the ENV check, this
+	# is particularly important, so make sure we are really there.
+	chdir '/root';
+
+	# A good .kshrc will not have a umask or path, 
+	# that being set in .profile; check anyway.
+	foreach my $filename (@list) {
+		next unless -s $filename;
+		check_umask($filename);
+
+		nag !(open my $fh, '-|', qw(/bin/ksh -c),
+			". $filename > /dev/null; echo PATH=\$PATH"),
+		    "cannot spawn /bin/ksh: $!"
+		    and next;
+		my @output = <$fh>;
+		close_or_nag $fh, "ksh $filename" or next;
+		chomp @output;
+		check_root_path pop @output, $filename;
+	}
+}
+
+# Uudecode should not be in the /etc/mail/aliases file.
+sub check_mail_aliases {
+	my $filename = '/etc/mail/aliases';
+	nag !(open my $fh, '<', $filename), "open: $filename: $!" and return;
+	no warnings 'uninitialized';
+	nag /^((?:uu)?decode)/,
+	    "There is an entry for $1 in the $filename file."
+	    while <$fh>;
+	close $fh;
+}
+
+# hostname.if files may contain secrets and should not be world-readable.
+sub check_hostname_if {
+	while (my $filename = glob '/etc/hostname.*') {
+		next unless -e $filename;
+		my $mode = (stat(_))[2];
+		nag $mode & S_IRWXO,
+		    "$filename is world readable.";
+	}
+}
+
+# hosts.lpd should not have + signs.
+sub check_hosts_lpd {
+	my $filename = '/etc/hosts.lpd';
+	-s $filename or return;
+	nag !(open my $fh, '<', $filename), "open: $filename: $!" and return;
+	nag /^\+/ && !/^\+@/,
+	    "Plus sign in $filename file."
+	    while <$fh>;
+	close $fh;
+}
+
+sub find_homes {
+	my $filename = '/etc/passwd';
+	nag !(open my $fh, '<', $filename),
+	    "open: $filename: $!"
+	    and return [];
+	my $homes = [];
+	while (<$fh>) {
+		my $entry = [ @{[split /:/]}[0,2,5] ];
+		chomp;
+		nag !defined $entry->[2],
+		    "Incomplete line \"$_\" in $filename."
+		    and next;
+		chomp $entry->[2];
+		push @$homes, $entry;
+	}
+	close $fh;
+	return $homes;
+}
+
+# Check for special users with .rhosts/.shosts files.
+# Only root should have .rhosts/.shosts files.
+sub check_rhosts_owner {
+	my ($name, $uid, $home) = @_;
+	return if $name =~ /^[+-]/;  # skip YP lines
+	foreach my $base (qw(rhosts shosts)) {
+		my $filename = "$home/.$base";
+		next unless -s $filename;
+		nag ! -O $filename &&
+		    ($name eq 'ftp' || ($uid < 100 && $name ne 'root')),
+		    "$filename is not owned by root.";
+	}
+}
+
+# Also, .rhosts/.shosts files should not have plus signs.
+sub check_rhosts_content {
+	my ($name, $uid, $home) = @_;
+	foreach my $base (qw(rhosts shosts)) {
+		my $filename = "$home/.$base";
+		next unless -s $filename;
+		nag !sysopen(my $fh, $filename, O_RDONLY | O_NONBLOCK),
+		    "open: $filename: $!"
+		    and next;
+		nag !(-f $fh),
+		    "$filename is not a regular file"
+		    and next;
+		local $_;
+		nag /^\+\s*$/,
+		    "$filename has + sign in it."
+		    while <$fh>;
+		close $fh;
+	}
+}
+
+# Home directories should not be owned by someone else or writeable.
+sub check_homedir {
+	my ($name, $uid, $home) = @_;
+	return if $name =~ /^[+-]/;  # skip YP lines
+	return unless -d $home;
+	my ($mode, $fuid) = (stat(_))[2,4];
+	nag $fuid && $fuid != $uid,
+	    "user $name home directory is owned by " .
+	    ((getpwuid $fuid)[0] // $fuid);
+	nag $mode & S_IWGRP,
+	    "user $name home directory is group writable";
+	nag $mode & S_IWOTH,
+	    "user $name home directory is other writable";
+}
+
+# Files that should not be owned by someone else or readable.
+sub check_dot_readable {
+	my ($name, $uid, $home) = @_;
+	return if $name =~ /^[+-]/;  # skip YP lines
+	foreach my $f (qw(
+	    .netrc .rhosts .gnupg/secring.gpg .gnupg/random_seed
+	    .pgp/secring.pgp .shosts .ssh/identity .ssh/id_dsa .ssh/id_ecdsa
+	    .ssh/id_rsa .ssh/id_ed25519
+	)) {
+		next unless -e "$home/$f";
+		my ($mode, $fuid) = (stat(_))[2,4];
+		nag $fuid && $fuid != $uid,
+		    "user $name $f file is owned by " .
+		    ((getpwuid $fuid)[0] // $fuid);
+		nag $mode & S_IRGRP,
+		    "user $name $f file is group readable";
+		nag $mode & S_IROTH,
+		    "user $name $f file is other readable";
+		nag $mode & S_IWGRP,
+		    "user $name $f file is group writable";
+		nag $mode & S_IWOTH,
+		    "user $name $f file is other writable";
+	}
+}
+
+# Files that should not be owned by someone else or writeable.
+sub check_dot_writeable {
+	my ($name, $uid, $home) = @_;
+	return if $name =~ /^[+-]/;  # skip YP lines
+	foreach my $f (qw(
+	    .bashrc .bash_profile .bash_login .bash_logout .cshrc
+	    .emacs .exrc .forward .fvwmrc .inputrc .kshrc .login
+	    .logout .nexrc .profile .screenrc .ssh .ssh/config
+	    .ssh/authorized_keys .ssh/authorized_keys2 .ssh/environment
+	    .ssh/known_hosts .ssh/rc .tcshrc .twmrc .xsession .xinitrc
+	    .Xdefaults .Xauthority
+        )) {
+		next unless -e "$home/$f";
+		my ($mode, $fuid) = (stat(_))[2,4];
+		nag $fuid && $fuid != $uid,
+		    "user $name $f file is owned by " .
+		    ((getpwuid $fuid)[0] // $fuid);
+		nag $mode & S_IWGRP,
+		    "user $name $f file is group writable";
+		nag $mode & S_IWOTH,
+		    "user $name $f file is other writable";
+	}
+}
+
+# Mailboxes should be owned by the user and unreadable.
+sub check_mailboxes {
+	my $dir = '/var/mail';
+	nag !(opendir my $dh, $dir), "opendir: $dir: $!" and return;
+	foreach my $name (readdir $dh) {
+		next if $name =~ /^\.\.?$/;
+		next if $name =~ /.\.lock$/;
+		next if $name eq 'quota.user';
+		next if $name eq 'quota.group';
+		my ($mode, $fuid, $fgid) = (stat "$dir/$name")[2,4,5];
+		unless (defined $mode) {
+			nag !$!{ENOENT}, "stat: $dir/$name: $!";
+			next;
+		}
+		next if S_ISDIR($mode);
+		my $fname = (getpwuid $fuid)[0] // $fuid;
+		my $gname = (getgrgid $fgid)[0] // $fgid;
+		nag $fname ne $name,
+		    "user $name mailbox is owned by $fname";
+		nag S_IMODE($mode) != (S_IRUSR | S_IWUSR),
+		    sprintf 'user %s mailbox is %s, group %s',
+		        $name, strmode($mode), $gname;
+	}
+	closedir $dh;
+}
+
+# File systems should not be globally exported.
+sub check_exports {
+	my $filename = '/etc/exports';
+	return unless -e $filename;
+	nag !(open my $fh, '<', $filename), "open: $filename: $!" and return;
+
+	LINE: while (<$fh>) {
+		chomp;
+		next if /^(?:#|$)/;
+
+		my @fs;
+		my $readonly = 0;
+		foreach (split) {
+			if (/^\//)                   { push @fs, $_; }
+			elsif ($_ eq '-ro')          { $readonly = 1; }
+			elsif (/^(?:[^-]|-network)/) { next LINE; }
+		}
+
+		nag 1, "File system @fs globally exported, "
+		    . ($readonly ? 'read-only.' : 'read-write.');
+	}
+	close $fh;
+}
+
+sub strmode_x {
+	my ($mode, $x, $s) = @_;
+	$x &= $mode;
+	$s &= $mode;
+	return ($x && $s) ? 's' : $x ? 'x' : $s ? 'S' : '-';
+}
+
+sub strmode {
+	my ($mode) = @_;
+
+	my %types = (
+		S_IFDIR,  'd',    # directory
+		S_IFCHR,  'c',    # character special
+		S_IFBLK,  'b',    # block special
+		S_IFREG,  '-',    # regular
+		S_IFLNK,  'l',    # symbolic link
+		S_IFSOCK, 's',    # socket
+		S_IFIFO,  'p',    # fifo
+	);
+
+	return
+	      ($types{ $mode & S_IFMT } || '?')
+	    . (($mode & S_IRUSR) ? 'r' : '-')
+	    . (($mode & S_IWUSR) ? 'w' : '-')
+	    . (strmode_x $mode, S_IXUSR, S_ISUID)
+	    . (($mode & S_IRGRP) ? 'r' : '-')
+	    . (($mode & S_IWGRP) ? 'w' : '-')
+	    . (strmode_x $mode, S_IXGRP, S_ISGID)
+	    . (($mode & S_IROTH) ? 'r' : '-')
+	    . (($mode & S_IWOTH) ? 'w' : '-')
+	    . (strmode_x $mode, S_IXOTH, S_ISVTX);
+}
+
+sub find_special_files {
+	my (%skip, @fs);
+
+	%skip = map { $_ => 1 } split ' ', $ENV{SUIDSKIP}
+	    if $ENV{SUIDSKIP};
+
+	# Add mount points of non-local file systems
+	# to the list of directories to skip.
+	nag !(open my $fh, '-|', 'mount'),
+	    "cannot spawn mount: $!"
+	    and return;
+	while (<$fh>) {
+		my ($path, $opt) = /\son\s+(.*?)\s+type\s+\w+(.*)/;
+		push @fs, $path if $path && $opt =~ /local/ &&
+		    !($opt =~ /nodev/ && $opt =~ /nosuid/);
+	}
+	close_or_nag $fh, "mount" or return;
+	return unless @fs;
+
+	my $setuid_files = {};
+	my $device_files = {};
+	my $uudecode_is_setuid = 0;
+
+	File::Find::find({no_chdir => 1, wanted => sub {
+
+		if ($skip{$_}) {
+			$File::Find::prune = 1;
+			return;
+		}
+
+		my ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size,
+		    $atime, $mtime, $ctime, $blksize, $blocks) = lstat;
+		if (defined $dev) {
+			no warnings 'once';
+			if ($dev != $File::Find::topdev) {
+				$File::Find::prune = 1;
+				return;
+			}
+		} else {
+			nag !$!{ENOENT}, "stat: $_: $!";
+			return;
+		}
+
+		# SUID/SGID files
+		my $file = {};
+		if (-f _ && $mode & (S_ISUID | S_ISGID)) {
+			return if -e RELINK_DIR . $_;
+			$setuid_files->{$File::Find::name} = $file;
+			$uudecode_is_setuid = 1
+			    if basename($_) eq 'uudecode';
+		}
+
+		# Special Files
+		elsif (!-d _ && !-f _ && !-l _ && !-S _ && !-p _ ) {
+			$device_files->{$File::Find::name} = $file;
+			$file->{major} = (($rdev >> 8) & 0xff) . ',';
+			$file->{minor} = (($rdev >> 8) & 0xffff00) |
+			    ($rdev & 0xff);
+		} else {
+			return;
+		}
+
+		$file->{mode}    = $mode;
+		$file->{strmode} = strmode $mode;
+		$file->{nlink}   = $nlink;
+		$file->{user}    = (getpwuid $uid)[0] // $uid;
+		$file->{group}   = (getgrgid $gid)[0] // $gid;
+		$file->{size}    = $size;
+		@$file{qw(wday mon day time year)} =
+		    split ' ', gmtime $mtime;
+	}}, @fs);
+
+	nag $uudecode_is_setuid, 'Uudecode is setuid.';
+	return $setuid_files, $device_files;
+}
+
+sub adjust_columns {
+	my (@table) = @_;
+
+	my @s;
+	foreach my $row (@table) {
+		for (0 .. $#$row) {
+			$s[$_] = length $row->[$_]
+			    if (!$s[$_] || length $row->[$_] > $s[$_]);
+		}
+	}
+	$s[-1] = '0';
+	my $fmt = join ' ', map { m/(\d+)/ && "%-$1s"} @s;
+
+	return map { sprintf $fmt, @$_ } @table;
+}
+
+# Display any changes in setuid/setgid files and devices.
+sub check_filelist {
+	my ($files, $mode) = @_;
+	my $current = BACKUP_DIR . "$mode.current";
+	my $backup  = BACKUP_DIR . "$mode.backup";
+	my @fields  = (
+	    qw(strmode nlink user group),
+	    $mode eq 'device' ?  qw(major minor) : 'size',
+	    qw(mon day time year)
+	);
+
+	my %current;
+	if (-s $current) {
+		nag !(open my $fh, '<', $current), "open: $current: $!"
+		    and return;
+		while (<$fh>) {
+			chomp;
+			my (%f, $file);
+			(@f{@fields}, $file) = split ' ', $_, @fields + 1;
+			$current{$file} = \%f;
+		}
+		close $fh;
+	}
+
+	my %changed;
+	foreach my $f (sort keys %$files) {
+		if (my $old = delete $current{$f}) {
+			next if $mode eq 'device' &&
+			    !S_ISBLK($files->{$f}{mode});
+			foreach my $k (@fields) {
+				next if $old->{$k} eq $files->{$f}{$k};
+				push @{$changed{changes}},
+				    [ @$old{@fields}, $f ],
+				    [ @{$files->{$f}}{@fields}, $f ];
+				last;
+			}
+			next;
+		}
+		push @{$changed{additions}}, [ @{$files->{$f}}{@fields}, $f ];
+	}
+	foreach my $f (sort keys %current) {
+		next if $mode eq 'setuid' && -e RELINK_DIR . $f;
+		push @{$changed{deletions}}, [ @{$current{$f}}{@fields}, $f ];
+	};
+
+	foreach my $k (qw( additions deletions changes )) {
+		next unless exists $changed{$k};
+		$mode = 'block device' if $mode eq 'device' && $k eq 'changes';
+		$check_title = (ucfirst $mode) . " $k:";
+		nag 1, $_ for adjust_columns @{$changed{$k}};
+	}
+
+	return if !%changed;
+	copy $current, $backup;
+
+	nag !(open my $fh, '>', $current), "open: $current: $!" and return;
+	print $fh "@{$files->{$_}}{@fields} $_\n" foreach sort keys %$files;
+	close $fh;
+}
+
+# Check for block and character disk devices that are readable or writeable
+# or not owned by root.operator.
+sub check_disks {
+	my ($files) = @_;
+
+	my $disk_re = qr/
+	    \/
+	    (?:ccd|dk|fd|hd|hk|hp|jb|kra|ra|rb|rd|rl|rx|rz|sd|up|vnd|wd|xd)
+	    \d+ [B-H]? [a-p] 
+	    $
+	/x;
+
+	foreach my $file (sort keys %$files) {
+		next if $file !~ /$disk_re/;
+		my $f = $files->{$file};
+		nag $f->{user} ne 'root' || $f->{group} ne 'operator' ||
+			S_IMODE($f->{mode}) != (S_IRUSR | S_IWUSR | S_IRGRP),
+		    sprintf("Disk %s is user %s, group %s, permissions %s.",
+			$file, $f->{user}, $f->{group}, $f->{strmode});
+	}
+}
+
+# Check special files and system binaries.
+#
+# Create the mtree tree specifications using:
+#
+#       mtree -cx -p DIR -K sha256digest,type > /etc/mtree/DIR.secure
+#       chown root:wheel /etc/mtree/DIR.secure
+#       chmod 600 /etc/mtree/DIR.secure
+#
+# Note, this is not complete protection against Trojan horsed binaries, as
+# the hacker can modify the tree specification to match the replaced binary.
+# For details on really protecting yourself against modified binaries, see
+# the mtree(8) manual page.
+sub check_mtree {
+	nag !-d '/etc/mtree', '/etc/mtree is missing' and return;
+
+	if (open my $fh, '-|', qw(mtree -e -l -p / -f /etc/mtree/special)) {
+		nag 1, $_ for map { chomp; $_ } <$fh>;
+		close_or_nag $fh, "mtree special";
+	} else { nag 1, "cannot spawn mtree: $!"; }
+
+	while (my $filename = glob '/etc/mtree/*.secure') {
+		nag !(open my $fh, '<', $filename),
+		    "open: $filename: $!"
+		    and next;
+
+		my $tree;
+		while (<$fh>) {
+			last unless /^#/;
+			($tree) = /^#\s+tree:\s+(.*)/ and last;
+		}
+		next unless $tree;
+
+		$check_title = "Checking system binaries in $tree:";
+		nag !(open $fh, '-|', 'mtree', '-f', $filename, '-p', $tree),
+		    "cannot spawn mtree: $!"
+		    and next;
+		nag 1, $_ for map { chomp; $_ } <$fh>;
+		close_or_nag $fh, "mtree $filename";
+	}
+}
+
+sub diff {
+	nag !(open my $fh, '-|', qw(diff -ua), @_),
+	    "cannot spawn diff: $!"
+	    and return;
+	local $/;
+	my $diff = <$fh>;
+	{
+		close $fh and last;
+		nag $!, "diff: error closing pipe: $!" and last;
+		nag $? >> 8 > 1, "diff: exit code " . ($? >> 8);
+	}
+	return nag !!$diff, $diff;
+}
+
+sub backup_if_changed {
+	my ($orig) = @_;
+
+	my ($backup) = $orig =~ /(.*)/;
+	if (index $backup, BACKUP_DIR) {
+		$backup =~ s{^/}{};
+		$backup =~ s{/}{_}g;
+		$backup = BACKUP_DIR . $backup;
+	}
+	my $current = "$backup.current";
+	$backup .= '.backup';
+	my $last = -s $current ? $current : '/dev/null';
+	$orig    = '/dev/null' unless -s $orig;
+
+	diff $last, $orig or return;
+
+	if (-s $current) {
+		copy $current, $backup;
+		chown 0, 0, $backup;
+	}
+	if ($orig eq '/dev/null') {
+		unlink $current;
+	} else {
+		copy $orig, $current;
+		chown 0, 0, $current;
+	}
+}
+
+sub backup_digest {
+	my ($orig) = @_;
+
+	my ($backup) = $orig =~ m{^/?(.*)};
+	$backup =~ s{/}{_}g;
+	my $current = BACKUP_DIR . "$backup.current.sha256";
+	$backup = BACKUP_DIR . "$backup.backup.sha256";
+
+	my $digest_new = 0;
+	if (-s $orig) {
+		if (open my $fh, '<', $orig) {
+			binmode $fh;
+			local $/;
+			$digest_new = sha256_hex(<$fh>);
+			close $fh;
+		} else { nag 1, "open: $orig: $!"; }
+	}
+
+	my $digest_old = 0;
+	if (-s $current) {
+		if (open my $fh, '<', $current) {
+			$digest_old = <$fh>;
+			close $fh;
+			chomp $digest_old;
+		} else { nag 1, "open: $current: $!"; }
+	}
+
+	return if $digest_old eq $digest_new;
+
+	if ($digest_old && $digest_new) {
+		copy $current, $backup;
+		chown 0, 0, $backup;
+		chmod 0600, $backup;
+	} elsif ($digest_old) {
+		$check_title = "======\n$orig removed SHA-256 checksum\n======";
+		unlink $current;
+	} elsif ($digest_new) {
+		$check_title = "======\n$orig new SHA-256 checksum\n======";
+	}
+
+	if ($digest_new) {
+		if (open my $fh, '>', $current) {
+			print $fh "$digest_new\n";
+			close $fh;
+		} else { nag 1, "open: $current: $!\n"; }
+		chown 0, 0, $current;
+		chmod 0600, $current;
+	}
+
+	nag $digest_old, "OLD: $digest_old";
+	nag $digest_new, "NEW: $digest_new";
+}
+
+# List of files that get backed up and checked for any modifications.  Each
+# file is expected to have two backups, /var/backups/file.{current,backup}.
+# Any changes cause the files to rotate.
+sub check_changelist {
+	my $filename = '/etc/changelist';
+	-s $filename or return;
+	nag !(open my $fh, '<', $filename), "open: $filename: $!" and return;
+
+	my @relative;
+	while (<$fh>) {
+		next if /^(?:#|\s*$)/;
+		chomp;
+		my $plus = s/^\+//;
+		unless (/^\//) {
+			push @relative, $_;
+			next;
+		}
+		my $tilda = /~$/;
+
+		foreach (glob) {
+			next if $_ eq '/etc/master.passwd';
+			next if /~$/ && !$tilda;
+			next if -d $_;
+
+			if ($plus) {
+				$check_title =
+				    "======\n$_ SHA-256 checksums\n======";
+				backup_digest $_;
+			} else {
+				$check_title =
+				    "======\n$_ diffs (-OLD  +NEW)\n======";
+				backup_if_changed $_;
+			}
+		}
+	}
+	close $fh;
+
+	$check_title = "Skipped relative paths in changelist(5):";
+	nag 1, $_ foreach @relative;
+}
+
+# Make backups of the labels for any mounted disks
+# and produce diffs when they change.
+sub check_disklabels {
+	nag !(open my $fh, '-|', qw(df -ln)),
+	    "cannot spawn df: $!"
+	    and return;
+	my %disks;
+	@disks{map m{^/dev/(\w*\d*)[a-p]}, <$fh>} = ();
+	close_or_nag $fh, "df";
+
+	unless (nag !(open my $fh, '-|', qw(bioctl softraid0)),
+	    "cannot spawn bioctl: $!") {
+		@disks{map m{<(\w*\d*)[a-p]>}, <$fh>} = ();
+		close_or_nag $fh, "bioctl";
+	}
+
+	foreach my $disk (sort keys %disks) {
+		$check_title = "======\n$disk diffs (-OLD  +NEW)\n======";
+		my $filename = BACKUP_DIR . "disklabel.$disk";
+		system "disklabel $disk > $filename";
+		backup_if_changed $filename;
+		unlink $filename;
+		$filename = BACKUP_DIR . "fdisk.$disk";
+		system "fdisk -v $disk > $filename";
+		backup_if_changed $filename;
+		unlink $filename;
+	}
+}
+
+# Backup the list of installed packages and produce diffs when it changes.
+sub check_pkglist {
+	$check_title = "======\nPackage list changes (-OLD  +NEW)\n======";
+	my $filename = BACKUP_DIR . 'pkglist';
+	system "pkg_info > $filename 2>&1";
+	backup_if_changed $filename;
+	unlink $filename;
+}
+
+# main program
+check_passwd;
+backup_passwd;
+check_group;
+check_csh;
+check_ksh(check_sh);
+$check_title = "Checking configuration files:";
+check_mail_aliases;
+check_hostname_if;
+check_hosts_lpd;
+$check_title = "Checking for special users with .rhosts/.shosts files.";
+my $homes = find_homes;
+check_rhosts_owner @$_ foreach @$homes;
+$check_title = "Checking .rhosts/.shosts files syntax.";
+check_rhosts_content @$_ foreach @$homes;
+$check_title = "Checking home directories.";
+check_homedir @$_ foreach @$homes;
+$check_title = "Checking dot files.";
+check_dot_readable @$_ foreach @$homes;
+check_dot_writeable @$_ foreach @$homes;
+$check_title = "Checking mailbox ownership.";
+check_mailboxes;
+$check_title = "Checking for globally exported file systems.";
+check_exports;
+$check_title = "Setuid/device find errors:";
+my ($setuid_files, $device_files) = find_special_files;
+$check_title = "Checking setuid/setgid files and devices:";
+check_filelist $setuid_files, 'setuid' if $setuid_files;
+$check_title = "Checking disk ownership and permissions.";
+check_disks $device_files;
+check_filelist $device_files, 'device' if $device_files;
+$check_title = "Checking special files and directories.\n" .
+    "Output format is:\n\tfilename:\n\t\tcriteria (shouldbe, reallyis)";
+check_mtree;
+$check_title = "Backing up and comparing configuration files.";
+check_changelist;
+$check_title = "Checking disklabels of mounted disks:";
+check_disklabels;
+check_pkglist;
+exit $return_code;

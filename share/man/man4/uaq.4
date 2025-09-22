@@ -1,0 +1,74 @@
+.\" $OpenBSD: uaq.4,v 1.4 2022/05/15 01:28:27 jmatthew Exp $
+.\"
+.\" Copyright (c) 2021 Jonathan Matthew <jmatthew@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 15 2022 $
+.Dt UAQ 4
+.Os
+.Sh NAME
+.Nm uaq
+.Nd Aquantia AQC111U/AQC112U 100/1Gb/2.5Gb/5Gb USB Ethernet device
+.Sh SYNOPSIS
+.Cd "uaq*   at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the Aquantia
+AQC111U and AQC112U chipsets, including the following:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Aquantia AQtion USB to 5GbE Controller
+.It ASIX USB 3.1 Gen1 to 5G Multi-Gigabit Ethernet Adapter
+.It ASIX USB 3.1 Gen1 to 2.5G Multi-Gigabit Ethernet Adapter
+.It QNAP QNA-UC5G1T USB to 5GbE Adapter
+.It Sabrent NT-SS5G USB to 5GbE Adapter
+.It StarTech USG5GA30 USB to 5GbE Adapter
+.It TRENDnet TUC-ET5G USB-C 3.1 to 5GBASE-T Ethernet Adapter
+.El
+.Pp
+The AQC111U and AQC112U contain an integrated Multi-Gig Ethernet MAC and
+PHY, supporting 100, 1000, 2500 and, in the AQC111U, 5000Mbps operation.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr mii 4 ,
+.Xr netintro 4 ,
+.Xr uhub 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 7.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jonathan Matthew Aq Mt jmatthew@openbsd.org .

@@ -1,0 +1,22 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("MipsGenAsmMatcher") {
+  visibility = [ ":AsmParser" ]
+  args = [ "-gen-asm-matcher" ]
+  td_file = "../Mips.td"
+}
+
+static_library("AsmParser") {
+  output_name = "LLVMMipsAsmParser"
+  deps = [
+    ":MipsGenAsmMatcher",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/Mips/MCTargetDesc",
+    "//llvm/lib/Target/Mips/TargetInfo",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "MipsAsmParser.cpp" ]
+}

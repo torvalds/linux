@@ -1,0 +1,30 @@
+include "llvm/Option/OptParser.td"
+
+def unsupported : OptionGroup<"unsupported">;
+def manifest : Separate<["/", "-"], "manifest">, HelpText<"Used to specify each manifest that need to be processed">, MetaVarName<"manifest">;
+def identity : Joined<["/", "-"], "identity:">, HelpText<"Not supported">, MetaVarName<"identity">, Group<unsupported>;
+def rgs : Joined<["/", "-"], "rgs:">, HelpText<"Not supported">, MetaVarName<"script">, Group<unsupported>;
+def tlb : Joined<["/", "-"], "tlb:">, HelpText<"Not supported">, MetaVarName<"file">, Group<unsupported>;
+def dll : Joined<["/", "-"], "dll:">, HelpText<"Not supported">, MetaVarName<"dll">, Group<unsupported>;
+def replacements : Joined<["/", "-"], "replacements:">, HelpText<"Not supported">, MetaVarName<"file">, Group<unsupported>;
+def managed_assembly_name : Joined<["/", "-"], "managedassemblyname:">, HelpText<"Not supported">, MetaVarName<"assembly">, Group<unsupported>;
+def no_dependency : Flag<["/", "-"], "nodependency">, HelpText<"Not supported">, Group<unsupported>;
+def category : Flag<["/", "-"], "category">, HelpText<"Not supported">, Group<unsupported>;
+def no_logo : Flag<["/", "-"], "nologo">, HelpText<"No effect as this tool never writes copyright data.  Included for parity">;
+def out : Joined<["/", "-"], "out:">, HelpText<"Name of the output manifest.  If this is skipped and only one manifest is being operated upon by the tool, that manifest is modified in place">, MetaVarName<"manifest">;
+def input_resource : Joined<["/", "-"], "inputresource:">, HelpText<"Not supported">, MetaVarName<"file">, Group<unsupported>;
+def output_resource : Joined<["/", "-"], "outputresource:">, HelpText<"Not supported">, MetaVarName<"file">, Group<unsupported>;
+def output_resource_flag : Flag<["/", "-"], "outputresource">, Alias<output_resource>, HelpText<"Not supported">, Group<unsupported>;
+def update_resource : Joined<["/", "-"], "updateresource:">, HelpText<"Not supported">, MetaVarName<"file">, Group<unsupported>;
+def hash_update : Joined<["/", "-"], "hashupdate:">, HelpText<"Not supported">, MetaVarName<"file">, Group<unsupported>;
+def hash_update_flag : Flag<["/", "-"], "hashupdate">, Alias<hash_update>, HelpText<"Not supported">, Group<unsupported>;
+def validate_manifest : Flag<["/", "-"], "validate_manifest">, HelpText<"Not supported">, Group<unsupported>;
+def validate_file_hashes : Joined<["/", "-"], "validate_file_hashes:">, HelpText<"Not supported">, MetaVarName<"">, Group<unsupported>;
+def canonicalize : Flag<["/", "-"], "canonicalize:">, HelpText<"Not supported">, Group<unsupported>;
+def check_for_duplicates : Flag<["/", "-"], "check_for_duplicates:">, HelpText<"Not supported">, Group<unsupported>;
+def make_cdfs : Flag<["/", "-"], "makecdfs:">, HelpText<"Not supported">, Group<unsupported>;
+def notify_update : Flag<["/", "-"], "notify_update">, HelpText<"Exit with a special exit code if the output file has changed">;
+def verbose : Flag<["/", "-"], "verbose">, HelpText<"Not supported">, Group<unsupported>;
+def help : Flag<["/", "-"], "?">;
+def help_long : Flag<["/", "-"], "help">, Alias<help>;
+def h : Flag<["/", "-"], "h">, Alias<help>;

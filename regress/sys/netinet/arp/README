@@ -1,0 +1,63 @@
+Regression tests for the ARP implementation in the kernel.
+
+The test suite runs on the machine LOCAL, the kernel under test is
+running on REMOTE.  On LOCAL Scapy is generating ARP packes and
+sends them to REMOTE.  The replies to LOCAL are analyzed.  The
+kernel log files are fetched from REMOTE via SCP and grepped for
+messages.  The ARP table of REMOTE is inspected via SSH login.
+
+Interfaces and adresses on REMOTE and LOCAL must be preconfigured.
+The test manually adds entries into the REMOTE ARP table and tries
+to overwrite them with fake ARP packets.  Some addresses are on the
+REMOTE interface facing LOCAL other are on a second interface.  The
+ARP input code has different cases for that.  So all possible log
+messages from ARP input can be triggered by a subtest.
+
+Additionally check that REMOTE can answer a Proxy ARP Requests.
+
+EXAMPLE
+
+To run this test I use the following configuration files.
+You should choose a different set of MAC and IP addresses.
+
+- My local machine where I run the regression test:
+
+/etc/hosts
+# to login to qemu with SSH via IPv6 link-local
+fe80::725f:caff:fe21:8d70%tap0		q70
+
+/etc/hostname.tap0
+lladdr fe:e1:ba:d0:d5:6d up
+inet 10.188.70.17 255.255.255.0
+inet6 eui64
+
+/etc/hostname.tap1
+up
+
+- My qemu where the kernel under test is running
+
+/etc/hostname.vio0 
+lladdr 70:5f:ca:21:8d:70
+inet 10.188.70.70 255.255.255.0
+inet6 eui64
+
+/etc/hostname.vio1
+inet 10.188.211.70 255.255.255.0
+
+- My environment when executing the test
+
+LOCAL_IF=tap0
+LOCAL_MAC=fe:e1:ba:d0:d5:6d
+REMOTE_MAC=70:5f:ca:21:8d:70
+FAKE_MAC=12:34:56:78:9a:bc
+PROXY_MAC=00:90:27:bb:cc:dd
+REMOTE_SSH=q70
+
+LOCAL_ADDR=10.188.70.17
+REMOTE_ADDR=10.188.70.70
+FAKE_ADDR=10.188.70.188
+OTHER_ADDR=10.188.211.70
+OTHER_FAKE_ADDR=10.188.211.188
+
+export LOCAL_IF LOCAL_MAC REMOTE_MAC FAKE_MAC REMOTE_SSH LOCAL_ADDR REMOTE_ADDR
+export FAKE_ADDR OTHER_ADDR OTHER_FAKE_ADDR

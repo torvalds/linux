@@ -1,0 +1,33 @@
+Section,Description,Dependencies,Assignee,Status,First released version
+`P1361 <https://wg21.link/P1361>`__ `P2372 <https://wg21.link/P2372>`__,"Formatting chrono"
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::duration<Rep, Period>``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::sys_time<Duration>``",,Mark de Wever,|Complete|,17.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::utc_time<Duration>``",A ``<chrono>`` implementation,Mark de Wever,,,
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::tai_time<Duration>``",A ``<chrono>`` implementation,Mark de Wever,,,
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::gps_time<Duration>``",A ``<chrono>`` implementation,Mark de Wever,,,
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::file_time<Duration>``",,Mark de Wever,|Complete|,17.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::local_time<Duration>``",,Mark de Wever,|Complete|,17.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::local-time-format-t<Duration>``",,,|Nothing To Do|,
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::day``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::month``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::year``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::weekday``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::weekday_indexed``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::weekday_last``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::month_day``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::month_day_last``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::month_weekday``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::month_weekday_last``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::year_month``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::year_month_day``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::year_month_day_last``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::year_month_weekday``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::year_month_weekday_last``",,Mark de Wever,|Complete|,16.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::hh_mm_ss<duration<Rep, Period>>``",,Mark de Wever,|Complete|,17.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::sys_info``",,Mark de Wever,|Complete|,19.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::local_info``",,Mark de Wever,|Complete|,19.0
+`[time.syn] <https://wg21.link/time.syn>`_,"Formatter ``chrono::zoned_time<Duration, TimeZonePtr>``",,Mark de Wever,|Complete|,19.0
+
+"`P2693R1 <https://wg21.link/P2693R1>`__","Formatting ``thread::id`` and ``stacktrace``"
+`[thread.thread.id] <https://wg21.link/thread.thread.id>`_,"Formatting ``thread::id``",,Mark de Wever,|Complete|,17.0
+`[stacktrace.format] <https://wg21.link/stacktrace.format>`_,"Formatting ``stacktrace``",A ``<stacktrace>`` implementation,Mark de Wever,,

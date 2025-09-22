@@ -1,0 +1,18 @@
+# invalid binat stuff
+match on lo0 from (lo0) to (lo1000000) binat-to (lo0)
+match on lo0 from (lo0) to no-route binat-to (lo1000000)
+match on lo0 from no-route to any binat-to 1.1.1.1
+match on lo0 from !1.1.1.1 to any binat-to 1.1.1.1
+match on lo0 from !(lo0) to any binat-to 1.1.1.1
+match on lo0 from 1.1.1.1 to any binat-to no-route
+match on lo0 from 1.1.1.1 to any binat-to !3.3.3.3
+match on lo0 from 1.1.1.1 to any binat-to !(lo1000000)
+#match on { lo0 lo1000000 } from 1.1.1.1 to any binat-to 2.2.2.2
+match on lo0 from { 1.1.1.1 2.2.2.2 } to any binat-to 3.3.3.3
+match on lo0 from 1.1.1.1 to { 2.2.2.2 3.3.3.3 } binat-to 4.4.4.4
+match on lo0 from 1.1.1.1 to any binat-to { 1.1.1.1 2.2.2.2 }
+match on lo0 from ::1 to any binat-to 1.2.3.4
+match on lo0 from 1.1.1.1 to ::1 binat-to 1.2.3.4
+match on lo0 from 1.1.1.1 to any binat-to ::1
+match on lo0 inet from ::1 to any binat-to ::2
+match on lo0 inet6 from 1.2.3.4 to any binat-to 4.3.2.1

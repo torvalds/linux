@@ -1,0 +1,62 @@
+.\" $OpenBSD: lldp.8,v 1.5 2025/06/08 08:21:30 bentley Exp $
+.\"
+.\" Copyright (c) 2025 David Gwynne<dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt LLDP 8
+.Os
+.Sh NAME
+.Nm lldp
+.Nd control the lldpd agent
+.Sh SYNOPSIS
+.Nm lldp
+.Op Fl v
+.Op Fl i Ar interface
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+The
+.Nm
+program communicates with the
+.Xr lldpd 8
+Link Layer Discovery Protocol (LLDP)
+agent to fetch and display LLDP entries received by the agent.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl i Ar interface
+Limit the LLDP entries to those received on the specified
+.Ar interface .
+.It Fl s Ar socket
+Use
+.Ar socket
+to communicate with
+.Xr lldpd 8 .
+.It Fl v
+Increase the verbosity of output.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/lldp.sock" -compact
+.It Pa /var/run/lldp.sock
+default
+.Xr lldpd 8
+control socket
+.El
+.Sh SEE ALSO
+.Xr lldpd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 7.8 .

@@ -1,0 +1,57 @@
+
+LIB1ASMSRC    = mcore/lib1.asm
+LIB1ASMFUNCS  = _divsi3 _udivsi3 _modsi3 _umodsi3
+
+# Assemble startup files.
+$(T)crti.o: $(srcdir)/config/mcore/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crti.o -x assembler-with-cpp $(srcdir)/config/mcore/crti.asm
+
+$(T)crtn.o: $(srcdir)/config/mcore/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crtn.o -x assembler-with-cpp $(srcdir)/config/mcore/crtn.asm
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c $(srcdir)/config/mcore/t-mcore
+	rm -f dp-bit.c
+	echo '' > dp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c $(srcdir)/config/mcore/t-mcore
+	rm -f fp-bit.c
+	echo '' > fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+T_CFLAGS = -DDONT_HAVE_STDIO -DDONT_HAVE_SETJMP  -Dinhibit_libc 
+# could use -msifilter to be safe from interrupt/jmp interactions and others.
+TARGET_LIBGCC2_CFLAGS=-O3 -DNO_FLOATLIB_FIXUNSDFSI #-msifilter
+
+# We have values for float.h.
+CROSS_FLOAT_H = $(srcdir)/config/mcore/gfloat.h
+
+# If support for -m4align is ever re-enabled then comment out the
+# following line and uncomment the mutlilib lines below.
+
+EXTRA_PARTS = crtbegin.o crtend.o crti.o crtn.o
+
+# MULTILIB_OPTIONS     = m8align/m4align
+# MULTILIB_DIRNAMES    = align8 align4
+# MULTILIB_MATCHES     = 
+# MULTILIB_EXTRA_OPTS  = 
+# MULTILIB_EXCEPTIONS  =
+# EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o crti.o crtn.o
+# LIBGCC               = stmp-multilib
+# INSTALL_LIBGCC       = install-multilib
+
+MULTILIB_OPTIONS     = mbig-endian/mlittle-endian m210/m340
+MULTILIB_DIRNAMES    = big little m210 m340
+
+EXTRA_PARTS          =
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o crti.o crtn.o
+LIBGCC               = stmp-multilib
+INSTALL_LIBGCC       = install-multilib

@@ -1,0 +1,72 @@
+.\"     $OpenBSD: vgone.9,v 1.10 2020/08/05 11:10:24 tim Exp $
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/vgone.9,v 1.2 2001/12/14 09:11:13 ru Exp $
+.\"
+.Dd $Mdocdate: August 5 2020 $
+.Dt VGONE 9
+.Os
+.Sh NAME
+.Nm vgone ,
+.Nm vgonel
+.Nd prepare a vnode for reuse
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft void
+.Fn vgone "struct vnode *vp"
+.Ft void
+.Fn vgonel "struct vnode *vp" "struct proc *p"
+.Sh DESCRIPTION
+.Fn vgone
+and
+.Fn vgonel
+prepare the vnode
+.Fa vp
+for reuse by another file system.
+The preparation includes the cleaning of all file system specific data and
+the removal from its mount point vnode list.
+The
+.Fa p
+argument specifies the process responsible for the call.
+.Pp
+.Fn vgone
+is identical to
+.Fn vgonel
+with a
+.Fa p
+value of
+.Dv curproc .
+.Sh SEE ALSO
+.Xr vclean 9 ,
+.Xr vnode 9 ,
+.Xr vrecycle 9
+.Sh AUTHORS
+This man page was originally written by
+.An Chad David Aq Mt davidc@acns.ab.ca
+for
+.Fx .

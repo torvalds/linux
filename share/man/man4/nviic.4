@@ -1,0 +1,51 @@
+.\"	$OpenBSD: nviic.4,v 1.13 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt NVIIC 4
+.Os
+.Sh NAME
+.Nm nviic
+.Nd NVIDIA nForce2/3/4 SMBus controller
+.Sh SYNOPSIS
+.Cd "nviic* at pci?"
+.Cd "iic* at nviic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the NVIDIA nForce2/3/4
+and MCP51/55/61/65/67/73/77/79/89 SMBus
+host interface to be used with the
+.Xr iic 4
+framework.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An David Gwynne Aq Mt dlg@openbsd.org .
+.Sh BUGS
+The driver doesn't support I2C commands with a data buffer size of more
+than 2 bytes.

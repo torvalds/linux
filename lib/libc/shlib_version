@@ -1,0 +1,4 @@
+major=102
+minor=0
+# note: If changes were made to include/thread_private.h or if system calls
+# were added/changed then librthread/shlib_version must also be updated.

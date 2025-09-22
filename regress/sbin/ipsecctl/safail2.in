@@ -1,0 +1,6 @@
+esp from 1.1.1.1 to 3ffe::1 spi 0xdeadbeef:0xbeefdead \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+	enckey 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+esp from 3ffe::1 to 1.1.1.1 spi 0xdeadbeef:0xbeefdead \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+	enckey 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee

@@ -1,0 +1,56 @@
+.\" $OpenBSD: ERR_asprintf_error_data.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2017 Bob Beck <beck@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: June 8 2025 $
+.Dt ERR_ASPRINTF_ERROR_DATA 3
+.Os
+.Sh NAME
+.Nm ERR_asprintf_error_data
+.Nd record a LibreSSL error using a formatted string
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/err.h
+.Ft void
+.Fo ERR_asprintf_error_data
+.Fa "char * format"
+.Fa ...
+.Fc
+.Sh DESCRIPTION
+.Nm
+builds a string using
+.Xr asprintf 3
+called with the provided
+.Ar format
+and arguments.
+The resulting string is then associated with the error code that was most
+recently added.
+If
+.Xr asprintf 3
+fails, the string "malloc failed" is associated instead.
+.Pp
+.Nm
+is intended to be used instead of the OpenSSL functions
+.Fn ERR_add_error_data
+and
+.Fn ERR_add_error_vdata .
+.Sh SEE ALSO
+.Xr ERR 3 ,
+.Xr ERR_put_error 3 ,
+.Xr printf 3
+.Sh HISTORY
+.Nm
+appeared in
+.Ox 5.6
+and is available in all versions of LibreSSL.

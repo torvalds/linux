@@ -1,0 +1,150 @@
+dnl	$OpenBSD: prep,v 1.22 2024/09/28 17:09:52 sthen Exp $
+To perform an installation you must be able to interact with the
+console of the machine.  In some cases this can be done by an attached
+monitor and keyboard.  In others a serial console is required.
+USB OTG ports such as the one found on the BeagleBone will not
+function as a console.  You need to be able to interact with the
+firmware on the console.  Often this requires a 3.3V TTL level
+adapter connected to pins or a header on the board.
+
+Firmware which provides an UEFI interface with a Device Tree Blob
+(DTB) file or ACPI support is required to boot.  In most cases this is
+provided by images of U-Boot 2016.07 or newer on SD/MMC devices or in
+SPI flash.  If the miniroot or install images are used, U-Boot and
+DTB files are distributed as part of the images.
+
+OpenBSD can be installed onto a disk by copying the miniroot or install
+image for your board ("miniroot{:--:}OSrev.img" or "install{:--:}OSrev.img")
+to an SD card.
+
+Booting from an SD card:
+
+  To use a miniroot/install image you will need another machine to plug the
+  SD card in to. Any machine type will do, as long as it supports SD card
+  storage devices.  Under OpenBSD, it will appear as a ``sd'' device, for
+  example sd1.
+
+  Use the dd(1) utility to copy the image to the SD card.
+  The command would likely be, under OpenBSD:
+	dd if=miniroot{:--:}OSrev.img of=/dev/rsd1c bs=1m
+
+  When you have connected the serial to your computer, a command such
+  as "cu -l cuaU0 -s 115200" (assuming cuaU0 is your serial port device)
+  should connect you to the board's console.
+
+Running EFI payloads with U-Boot:
+
+If the U-Boot target supports "distro_bootcmd" efiboot will automatically
+be loaded by placing bootaa64.efi into /efi/boot/bootaa64.efi on a FAT
+filesystem.  With dtb files placed in /vendor/, /dtbs/vendor/, or
+/dtb/current/vendor/.
+
+If the U-Boot target supports bootefi but not automatically finding it with
+"distro_bootcmd" then it must be loaded manually or by U-Boot commands or
+script.
+	=> run findfdt
+	=> load mmc 0:1 ${fdt_addr_r} ${fdtfile}
+	=> load mmc 0:1 ${kernel_addr_r} efi/boot/bootaa64.efi
+	=> bootefi ${kernel_addr_r} ${fdt_addr_r}
+The bootloader will then run and try to load sd0a:/bsd off an FFS
+filesystem after a timeout.
+
+Install on Apple Silicon:
+
+  These machines do not come with UEFI firmware by default.  In order
+  to install OpenBSD on these machine you need to run the Asahi Linux
+  installer first in macOS or the macOS recovery environment.
+
+  If "Erase All Content and Settings" has been run, the machine will
+  need to connect to Apple's servers to activate.  A user-linked
+  Activation Lock can be removed by turning off Find My for the machine
+  through iCloud.  An Apple account is otherwise not required for
+  activation or installation.
+
+  Instructions on how to download and run the Asahi Linux installer
+  can be found at https://asahilinux.org/.  Run it in macOS or the
+  macOS recovery environment.
+
+  Note that while running the suggested:
+  	curl https://alx.sh | sh
+  is probably safe, it is teaching a bad habit.  It is better to
+  download the installer:
+	curl -o alx.sh https://alx.sh
+  and inspect the alx.sh script before running it:
+	sh alx.sh
+
+  You will have to create some free space for your OpenBSD install by
+  choosing the
+	"Resize an existing partition to make space for a new OS"
+  option first.  Once that is done, pick the
+	"Install an OS into free space"
+  option, choose
+	"UEFI environment only (m1n1 + U-Boot + ESP)"
+  and follow the steps presented to you.  
+
+  Now you can copy the miniroot or install image
+  ("miniroot{:--:}OSrev.img" or "install{:--:}OSrev.img") to a USB
+  drive, plug it into one of the ports on the machine and reset
+  the machine to boot into the OpenBSD installer.
+
+Install on Raspberry Pi:
+
+  The standard miniroot supports at least the Raspberry Pi 3 and 4 with
+  no additional firmware.  Some devices may not be functional with Pi 3+.
+  It is recommended that you install to a USB storage device.
+
+  The default system console is on the TTL serial interface on the
+  TXD/RXD/GND pins of the https://pinout.xyz/ header on the board.
+  It will be helpful to obtain an adapter (e.g. CP2102 USB-UART).
+  If you have one, attach it to the pins and a computer; a command
+  such as "cu -l cuaU0 -s 115200" (assuming cuaU0 is your serial
+  port device) should connect you to the board's console.
+
+  If not, note that once the kernel has started running, by default you
+  will only see output on the serial console.  To switch to displaying on
+  the monitor instead, watch for the OpenBSD BOOTAA64 "boot>" prompt,
+  and type "set tty fb0".
+
+  Alternatively the system can be booted using UEFI firmware found at
+  https://github.com/pftf/RPi4. Follow their instructions to install to an
+  SD card and run the OpenBSD installer from USB. v1.21 is known to work;
+  some newer versions may have problems.
+
+Install on systems without a supported miniroot:
+
+  If a miniroot is not available for your system you will have to modify
+  an existing image before booting it.
+
+  Write the provided miniroot image to an SD card:
+
+	dd if=miniroot{:--:}OSrev.img of=/dev/rsdXc bs=1m
+
+  For systems based on Allwinner Axx SoCs:
+
+	pkg_add u-boot-sun50i
+	ls /usr/local/share/u-boot/*/u-boot-sunxi-with-spl.bin
+	dd if=/usr/local/share/u-boot/board/u-boot-sunxi-with-spl.bin \
+	    of=/dev/sdXc bs=1024 seek=8
+
+  For systems based on Rockchip RK33xx SoCs:
+
+	pkg_add u-boot-aarch64
+	ls /usr/local/share/u-boot/*/u-boot.itb
+	dd if=/usr/local/share/u-boot/board/idbloader.img \
+	    of=/dev/sdXc seek=64
+	dd if=/usr/local/share/u-boot/board/u-boot.itb \
+	    of=/dev/sdXc seek=16384
+
+  For systems based on Rockchip RK356x SoCs:
+
+	pkg_add u-boot-rk356x
+	ls /usr/local/share/u-boot/*/u-boot-rockchip.bin
+	dd if=/usr/local/share/u-boot/board/u-boot-rockchip.bin \
+	    of=/dev/sdXc seek=64
+
+  For systems based on Rockchip RK3588 SoCs:
+
+	pkg_add u-boot-rk3588
+	ls /usr/local/share/u-boot/*/u-boot-rockchip.bin
+	dd if=/usr/local/share/u-boot/board/u-boot-rockchip.bin \
+	    of=/dev/sdXc seek=64

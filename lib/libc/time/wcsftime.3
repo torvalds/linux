@@ -1,0 +1,32 @@
+.\"	$OpenBSD: wcsftime.3,v 1.4 2022/03/29 18:15:52 naddy Exp $
+.\" Copyright (c) 2011 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 29 2022 $
+.Dt WCSFTIME 3
+.Os
+.Sh NAME
+.Nm wcsftime
+.Nd format date and time to wide characters string
+.Sh SYNOPSIS
+.In wchar.h
+.Ft size_t
+.Fn wcsftime "wchar_t *buf" "size_t maxsize" "const wchar_t *format" "const struct tm *timeptr"
+.Sh DESCRIPTION
+The
+.Fn wcsftime
+function is a wide char equivalent of
+.Xr strftime 3 .
+.Sh SEE ALSO
+.Xr strftime 3

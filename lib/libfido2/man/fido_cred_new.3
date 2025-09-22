@@ -1,0 +1,294 @@
+.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_CRED_NEW 3
+.Os
+.Sh NAME
+.Nm fido_cred_new ,
+.Nm fido_cred_free ,
+.Nm fido_cred_pin_minlen ,
+.Nm fido_cred_prot ,
+.Nm fido_cred_fmt ,
+.Nm fido_cred_rp_id ,
+.Nm fido_cred_rp_name ,
+.Nm fido_cred_user_name ,
+.Nm fido_cred_display_name ,
+.Nm fido_cred_authdata_ptr ,
+.Nm fido_cred_authdata_raw_ptr ,
+.Nm fido_cred_clientdata_hash_ptr ,
+.Nm fido_cred_id_ptr ,
+.Nm fido_cred_aaguid_ptr ,
+.Nm fido_cred_largeblob_key_ptr ,
+.Nm fido_cred_pubkey_ptr ,
+.Nm fido_cred_sig_ptr ,
+.Nm fido_cred_user_id_ptr ,
+.Nm fido_cred_x5c_ptr ,
+.Nm fido_cred_attstmt_ptr ,
+.Nm fido_cred_authdata_len ,
+.Nm fido_cred_authdata_raw_len ,
+.Nm fido_cred_clientdata_hash_len ,
+.Nm fido_cred_id_len ,
+.Nm fido_cred_aaguid_len ,
+.Nm fido_cred_largeblob_key_len ,
+.Nm fido_cred_pubkey_len ,
+.Nm fido_cred_sig_len ,
+.Nm fido_cred_user_id_len ,
+.Nm fido_cred_x5c_len ,
+.Nm fido_cred_attstmt_len ,
+.Nm fido_cred_type ,
+.Nm fido_cred_flags ,
+.Nm fido_cred_sigcount
+.Nd FIDO2 credential API
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft fido_cred_t *
+.Fn fido_cred_new "void"
+.Ft void
+.Fn fido_cred_free "fido_cred_t **cred_p"
+.Ft size_t
+.Fn fido_cred_pin_minlen "const fido_cred_t *cred"
+.Ft int
+.Fn fido_cred_prot "const fido_cred_t *cred"
+.Ft const char *
+.Fn fido_cred_fmt "const fido_cred_t *cred"
+.Ft const char *
+.Fn fido_cred_rp_id "const fido_cred_t *cred"
+.Ft const char *
+.Fn fido_cred_rp_name "const fido_cred_t *cred"
+.Ft const char *
+.Fn fido_cred_user_name "const fido_cred_t *cred"
+.Ft const char *
+.Fn fido_cred_display_name "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_authdata_ptr "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_authdata_raw_ptr "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_clientdata_hash_ptr "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_id_ptr "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_aaguid_ptr "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_largeblob_key_ptr "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_pubkey_ptr "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_sig_ptr "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_user_id_ptr "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_x5c_ptr "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_attstmt_ptr "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_authdata_len "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_authdata_raw_len "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_clientdata_hash_len "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_id_len "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_aaguid_len "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_largeblob_key_len "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_pubkey_len "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_sig_len "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_user_id_len "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_x5c_len "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_attstmt_len "const fido_cred_t *cred"
+.Ft int
+.Fn fido_cred_type "const fido_cred_t *cred"
+.Ft uint8_t
+.Fn fido_cred_flags "const fido_cred_t *cred"
+.Ft uint32_t
+.Fn fido_cred_sigcount "const fido_cred_t *cred"
+.Sh DESCRIPTION
+FIDO2 credentials are abstracted in
+.Em libfido2
+by the
+.Vt fido_cred_t
+type.
+The functions described in this page allow a
+.Vt fido_cred_t
+type to be allocated, deallocated, and inspected.
+For other operations on
+.Vt fido_cred_t ,
+please refer to
+.Xr fido_cred_set_authdata 3 ,
+.Xr fido_cred_exclude 3 ,
+.Xr fido_cred_verify 3 ,
+and
+.Xr fido_dev_make_cred 3 .
+.Pp
+The
+.Fn fido_cred_new
+function returns a pointer to a newly allocated, empty
+.Vt fido_cred_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_cred_free
+function releases the memory backing
+.Fa *cred_p ,
+where
+.Fa *cred_p
+must have been previously allocated by
+.Fn fido_cred_new .
+On return,
+.Fa *cred_p
+is set to NULL.
+Either
+.Fa cred_p
+or
+.Fa *cred_p
+may be NULL, in which case
+.Fn fido_cred_free
+is a NOP.
+.Pp
+If the CTAP 2.1
+.Dv FIDO_EXT_MINPINLEN
+extension is enabled on
+.Fa cred ,
+then the
+.Fn fido_cred_pin_minlen
+function returns the minimum PIN length of
+.Fa cred .
+Otherwise,
+.Fn fido_cred_pin_minlen
+returns zero.
+See
+.Xr fido_cred_set_pin_minlen 3
+on how to enable this extension.
+.Pp
+If the CTAP 2.1
+.Dv FIDO_EXT_CRED_PROTECT
+extension is enabled on
+.Fa cred ,
+then the
+.Fn fido_cred_prot
+function returns the protection of
+.Fa cred .
+Otherwise,
+.Fn fido_cred_prot
+returns zero.
+See
+.Xr fido_cred_set_prot 3
+for the protection policies understood by
+.Em libfido2 .
+.Pp
+The
+.Fn fido_cred_fmt
+function returns a pointer to a NUL-terminated string containing
+the format of
+.Fa cred ,
+or NULL if
+.Fa cred
+does not have a format set.
+.Pp
+The
+.Fn fido_cred_rp_id ,
+.Fn fido_cred_rp_name ,
+.Fn fido_cred_user_name ,
+and
+.Fn fido_cred_display_name
+functions return pointers to NUL-terminated strings holding the
+relying party ID, relying party name, user name, and user display
+name attributes of
+.Fa cred ,
+or NULL if the respective entry is not set.
+.Pp
+The
+.Fn fido_cred_authdata_ptr ,
+.Fn fido_cred_authdata_raw_ptr ,
+.Fn fido_cred_clientdata_hash_ptr ,
+.Fn fido_cred_id_ptr ,
+.Fn fido_cred_aaguid_ptr ,
+.Fn fido_cred_largeblob_key_ptr ,
+.Fn fido_cred_pubkey_ptr ,
+.Fn fido_cred_sig_ptr ,
+.Fn fido_cred_user_id_ptr ,
+.Fn fido_cred_x5c_ptr ,
+and
+.Fn fido_cred_attstmt_ptr
+functions return pointers to the CBOR-encoded and raw authenticator
+data, client data hash, ID, authenticator attestation GUID,
+.Dq largeBlobKey ,
+public key, signature, user ID, x509 certificate, and attestation
+statement parts of
+.Fa cred ,
+or NULL if the respective entry is not set.
+.Pp
+The corresponding length can be obtained by
+.Fn fido_cred_authdata_len ,
+.Fn fido_cred_authdata_raw_len ,
+.Fn fido_cred_clientdata_hash_len ,
+.Fn fido_cred_id_len ,
+.Fn fido_cred_aaguid_len ,
+.Fn fido_cred_largeblob_key_len ,
+.Fn fido_cred_pubkey_len ,
+.Fn fido_cred_sig_len ,
+.Fn fido_cred_user_id_len ,
+.Fn fido_cred_x5c_len ,
+and
+.Fn fido_cred_attstmt_len .
+.Pp
+The authenticator data, x509 certificate, and signature parts of a
+credential are typically passed to a FIDO2 server for verification.
+.Pp
+The
+.Fn fido_cred_type
+function returns the COSE algorithm of
+.Fa cred .
+.Pp
+The
+.Fn fido_cred_flags
+function returns the authenticator data flags of
+.Fa cred .
+.Pp
+The
+.Fn fido_cred_sigcount
+function returns the authenticator data signature counter of
+.Fa cred .
+.Sh RETURN VALUES
+The authenticator data returned by
+.Fn fido_cred_authdata_ptr
+is a CBOR-encoded byte string, as obtained from the authenticator.
+To obtain the decoded byte string, use
+.Fn fido_cred_authdata_raw_ptr .
+.Pp
+If not NULL, pointers returned by
+.Fn fido_cred_fmt ,
+.Fn fido_cred_authdata_ptr ,
+.Fn fido_cred_clientdata_hash_ptr ,
+.Fn fido_cred_id_ptr ,
+.Fn fido_cred_aaguid_ptr ,
+.Fn fido_cred_largeblob_key_ptr ,
+.Fn fido_cred_pubkey_ptr ,
+.Fn fido_cred_sig_ptr ,
+and
+.Fn fido_cred_x5c_ptr
+are guaranteed to exist until any API function that takes
+.Fa cred
+without the
+.Em const
+qualifier is invoked.
+.Sh SEE ALSO
+.Xr fido_cred_exclude 3 ,
+.Xr fido_cred_set_authdata 3 ,
+.Xr fido_cred_set_pin_minlen 3 ,
+.Xr fido_cred_set_prot 3 ,
+.Xr fido_cred_verify 3 ,
+.Xr fido_credman_metadata_new 3 ,
+.Xr fido_dev_largeblob_get 3 ,
+.Xr fido_dev_make_cred 3

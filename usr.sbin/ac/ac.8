@@ -1,0 +1,152 @@
+.\"	$OpenBSD: ac.8,v 1.23 2020/02/08 01:43:22 jsg Exp $
+.\"
+.\" Copyright (c) 1994 Simon J. Gerraty
+.\" Copyright (c) 1994 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 8 2020 $
+.Dt AC 8
+.Os
+.Sh NAME
+.Nm ac
+.Nd connect time accounting
+.Sh SYNOPSIS
+.Nm ac
+.Op Fl dp
+.Op Fl t Ar tty
+.Op Fl w Ar wtmp
+.Op Ar user ...
+.Sh DESCRIPTION
+If the file
+.Pa /var/log/wtmp
+exists, a record of individual login and logout
+times are written to it by
+.Xr login 1
+and
+.Xr init 8 ,
+respectively.
+.Nm
+examines these records and writes the accumulated connect time
+for all logins to the standard output.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Display the connect times in 24 hour chunks.
+.It Fl p
+Print individual users' totals.
+.It Fl t Ar tty
+Only do accounting logins on certain ttys.
+The
+.Ar tty
+specification can start with
+.Ql \&!
+to indicate not this
+.Ar tty
+and end with
+.Ql *
+to indicate all similarly named ttys.
+Multiple
+.Fl t
+flags may be specified.
+.It Fl w Ar wtmp
+Read connect time data from
+.Ar wtmp
+instead of the default file,
+.Pa /var/log/wtmp .
+.It Ar user ...
+Display totals for the given individuals only.
+.El
+.Pp
+If no arguments are given,
+.Nm
+displays the total connect time for all
+accounts with login sessions recorded in
+.Xr wtmp 5 .
+.Pp
+The default
+.Pa wtmp
+file will increase without bound unless it is truncated.
+It is normally truncated by
+.Xr newsyslog 8 ,
+which renames and rotates the
+.Pa wtmp
+files every week.
+In order for
+.Nm
+to run in sync with the rotation of
+.Pa wtmp ,
+.Xr newsyslog 8
+is configured to run
+just after
+.Nm
+completes.
+.Pp
+User accounting information can be mailed weekly
+to the system administrator:
+see
+.Xr weekly 8
+for more information.
+No login or connect time accounting is performed if
+.Pa /var/log/wtmp
+does not exist.
+.Sh FILES
+.Bl -tag -width "/var/log/wtmp.[0-7]XX" -compact
+.It Pa /var/log/wtmp
+connect time accounting file
+.It Pa /var/log/wtmp.[0-7]
+rotated files
+.El
+.Sh EXIT STATUS
+.Ex -std ac
+.Sh EXAMPLES
+Allow times recorded in
+.Pa modems
+to be charged out at a different rate than
+.Pa other :
+.Bd -literal -offset indent
+$ ac -p -t "ttyd*" \*(Gt modems
+$ ac -p -t "!ttyd*" \*(Gt other
+.Ed
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr wtmp 5 ,
+.Xr cron 8 ,
+.Xr init 8 ,
+.Xr newsyslog 8 ,
+.Xr sa 8
+.Sh HISTORY
+An
+.Nm
+command appeared in
+.At v5 .
+This version of
+.Nm
+was written for
+.Nx 0.9a
+from the specification provided by various systems' manual pages.

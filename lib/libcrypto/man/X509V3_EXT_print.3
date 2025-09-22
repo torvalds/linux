@@ -1,0 +1,196 @@
+.\" $OpenBSD: X509V3_EXT_print.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021, 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509V3_EXT_PRINT 3
+.Os
+.Sh NAME
+.Nm X509V3_EXT_print ,
+.Nm X509V3_EXT_print_fp
+.Nd pretty-print an X.509 extension
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft int
+.Fo X509V3_EXT_print
+.Fa "BIO *bio"
+.Fa "X509_EXTENSION *ext"
+.Fa "unsigned long flags"
+.Fa "int indent"
+.Fc
+.Ft int
+.Fo X509V3_EXT_print_fp
+.Fa "FILE *file"
+.Fa "X509_EXTENSION *ext"
+.Fa "int flags"
+.Fa "int indent"
+.Fc
+.Sh DESCRIPTION
+.Fn X509V3_EXT_print
+and
+.Fn X509V3_EXT_print_fp
+decode
+.Fa ext
+and print the data contained in it to the
+.Fa bio
+or
+.Fa file ,
+respectively, in a human-readable format with a left margin of
+.Fa indent
+space characters.
+The details of both the decoding and the printing depend on the type of
+.Fa ext .
+.Pp
+For most extension types, the decoding is done in the same way
+as it would be done by the appropriate public API function, for example:
+.Pp
+.Bl -tag -width NID_authority_key_identifier -compact
+.It Sy extension type
+.Sy decoding function
+.It Dv NID_authority_key_identifier
+.Xr d2i_AUTHORITY_KEYID 3
+.It Dv NID_certificate_policies
+.Xr d2i_CERTIFICATEPOLICIES 3
+.It Dv NID_crl_number
+.Xr d2i_ASN1_INTEGER 3
+.It Dv NID_crl_reason
+.Xr d2i_ASN1_ENUMERATED 3
+.It Dv NID_hold_instruction_code
+.Xr d2i_ASN1_OBJECT 3
+.It Dv NID_id_pkix_OCSP_CrlID
+.Xr d2i_OCSP_CRLID 3
+.It Dv NID_id_pkix_OCSP_noCheck
+.Xr d2i_ASN1_NULL 3
+.It Dv NID_id_pkix_OCSP_Nonce
+non-public function built into the library
+.It Dv NID_invalidity_date
+.Xr d2i_ASN1_GENERALIZEDTIME 3
+.It Dv NID_key_usage
+.Xr d2i_ASN1_BIT_STRING 3
+.It Dv NID_subject_alt_name
+.Xr d2i_GENERAL_NAMES 3
+.It Dv NID_subject_key_identifier
+.Xr d2i_ASN1_OCTET_STRING 3
+.El
+.Pp
+For some types, the printing is performed
+by a dedicated non-public function built into the library.
+For some other types, the printing function is a public API function,
+for example:
+.Pp
+.Bl -tag -width NID_id_pkix_OCSP_archiveCutoff -compact
+.It Sy extension type
+.Sy printing function
+.It Dv NID_crl_number
+.Xr i2s_ASN1_INTEGER 3
+.It Dv NID_crl_reason
+.Xr i2s_ASN1_ENUMERATED_TABLE 3
+.It Dv NID_delta_crl
+.Xr i2s_ASN1_INTEGER 3
+.It Dv NID_hold_instruction_code
+.Xr i2a_ASN1_OBJECT 3
+.It Dv NID_id_pkix_OCSP_archiveCutoff
+.Xr ASN1_GENERALIZEDTIME_print 3
+.It Dv NID_id_pkix_OCSP_Nonce
+.Xr i2a_ASN1_STRING 3
+.It Dv NID_inhibit_any_policy
+.Xr i2s_ASN1_INTEGER 3
+.It Dv NID_invalidity_date
+.Xr ASN1_GENERALIZEDTIME_print 3
+.It Dv NID_key_usage
+.Xr i2v_ASN1_BIT_STRING 3
+.It Dv NID_subject_key_identifier
+.Xr i2s_ASN1_OCTET_STRING 3
+.El
+.Pp
+Some of the public printing functions are not documented yet.
+.Pp
+If
+.Fa ext
+is of an unknown extension type or if decoding fails
+while using the decoding function for the relevant type,
+the action taken depends on the
+.Fa flags
+argument:
+.Bl -bullet
+.It
+If the bit
+.Dv X509V3_EXT_PARSE_UNKNOWN
+is set,
+.Xr ASN1_parse_dump 3
+is called on the BER-encoded data of the extension, passing \-1 for the
+.Fa dump
+argument.
+Thus, some information about the encoding of the extension gets printed
+and some about its decoded content, falling back to
+.Xr BIO_dump_indent 3
+for the decoded content unless a dedicated printing method is known
+for the respective data type(s).
+Note that even if an extension type is unknown, the data type used
+by the unknown extension, or, if that data type is constructed, of
+the values contained in it, may still be known, which may allow
+printing the content of even an unknown extension in a structured
+or partially structured form.
+.It
+If the bit
+.Dv X509V3_EXT_DUMP_UNKNOWN
+is set,
+.Xr BIO_dump_indent 3
+is called on the BER-encoded data of the extension without decoding
+it first, which is usually less readable than the above but poses
+a smaller risk of omitting or misrepresenting parts of the information.
+.It
+If the bit
+.Dv X509V3_EXT_ERROR_UNKNOWN
+is set, only the fixed string
+.Qq "<Not Supported>"
+is printed for an unknown type or only the fixed string
+.Qq "<Parse Error>"
+if the parsing functions fails,
+but printing is considered as successful anyway.
+.It
+If more than one of these three bits is set, or if a bit in
+.Dv X509V3_EXT_UNKNOWN_MASK
+is set that is not listed above, nothing is printed, but printing
+is considered as successful anyway.
+.It
+If none of the bits in
+.Dv X509V3_EXT_UNKNOWN_MASK
+are set, nothing is printed and printing is considered as failed.
+.El
+.Sh RETURN VALUES
+.Fn X509V3_EXT_print
+and
+.Fn X509V3_EXT_print_fp
+return 0 if failure was both detected and considered relevant.
+Otherwise, 1 is returned, and in general the user cannot tell whether
+failure simply went undetected, whether the function detected failure
+but regarded it as irrelevant, or whether printing did indeed
+succeed.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_get0_extensions 3 ,
+.Xr X509_get_ext 3 ,
+.Xr X509V3_extensions_print 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.2 and have been available since
+.Ox 2.6 .
+.Sh BUGS
+These functions lack error handling throughout.
+When a write operation fails, they will usually ignore the fact that
+information was omitted from the output and report success to the
+caller anyway.

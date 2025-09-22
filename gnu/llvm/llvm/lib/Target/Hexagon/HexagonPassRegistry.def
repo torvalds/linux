@@ -1,0 +1,21 @@
+//===- HexagonPassRegistry.def - Registry of Hexagon passes -----*- C++--*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file is used as the registry of passes that are part of the
+// Hexagon backend.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+#ifndef LOOP_PASS
+#define LOOP_PASS(NAME, CREATE_PASS)
+#endif
+LOOP_PASS("hexagon-loop-idiom", HexagonLoopIdiomRecognitionPass())
+LOOP_PASS("hexagon-vlcr", HexagonVectorLoopCarriedReusePass())
+#undef LOOP_PASS

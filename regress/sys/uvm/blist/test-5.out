@@ -1,0 +1,27 @@
+BLIST representing 1024 blocks (4 MB of swap), requiring   0.00M of ram
+BLIST raw radix tree: 18 records, top-radix 2048
+1024/1024/2048> blist_meta_alloc blkat 768 blk 0 count 64 radix 2048
+    R=0300
+960/1024/2048> BLIST {
+    (0000,2048): subtree (960/2048) big=960 {
+        (0000,64): bitmap ffffffffffffffff big=64
+        (0040,64): bitmap ffffffffffffffff big=64
+        (0080,64): bitmap ffffffffffffffff big=64
+        (00c0,64): bitmap ffffffffffffffff big=64
+        (0100,64): bitmap ffffffffffffffff big=64
+        (0140,64): bitmap ffffffffffffffff big=64
+        (0180,64): bitmap ffffffffffffffff big=64
+        (01c0,64): bitmap ffffffffffffffff big=64
+        (0200,64): bitmap ffffffffffffffff big=64
+        (0240,64): bitmap ffffffffffffffff big=64
+        (0280,64): bitmap ffffffffffffffff big=64
+        (02c0,64): bitmap ffffffffffffffff big=64
+        (0300,64): bitmap 0000000000000000 big=64
+        (0340,64): bitmap ffffffffffffffff big=64
+        (0380,64): bitmap ffffffffffffffff big=64
+        (03c0,64): bitmap ffffffffffffffff big=64
+        (0400,64): Terminator
+    }
+}
+960/1024/2048> gapfind: begin=0000 end=0300 size=768
+960/1024/2048> 

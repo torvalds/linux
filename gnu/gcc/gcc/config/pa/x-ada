@@ -1,0 +1,4 @@
+# The ada virtual array implementation requires that indexing be disabled on
+# hosts such as hpux that use a segmented memory architecture.  Both the c
+# and ada files need to be compiled with this option for correct operation.
+X_ADA_CFLAGS=-mdisable-indexing

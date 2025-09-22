@@ -1,0 +1,366 @@
+.\" $OpenBSD: X509_STORE_CTX_new.3,v 1.28 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL aae41f8c Jun 25 09:47:15 2015 +0100
+.\" selective merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>
+.\" and Rich Salz <rsalz@openssl.org>.
+.\" Copyright (c) 2009, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_STORE_CTX_NEW 3
+.Os
+.Sh NAME
+.Nm X509_STORE_CTX_new ,
+.Nm X509_STORE_CTX_init ,
+.Nm X509_STORE_CTX_cleanup ,
+.Nm X509_STORE_CTX_free ,
+.Nm X509_STORE_CTX_get0_store ,
+.Nm X509_STORE_CTX_set0_trusted_stack ,
+.Nm X509_STORE_CTX_trusted_stack ,
+.Nm X509_STORE_CTX_set_cert ,
+.Nm X509_STORE_CTX_get0_cert ,
+.\" X509_STORE_CTX_get0_chain moved to X509_STORE_CTX_get_error(3)
+.Nm X509_STORE_CTX_set_chain ,
+.Nm X509_STORE_CTX_set0_untrusted ,
+.Nm X509_STORE_CTX_get0_untrusted ,
+.Nm X509_STORE_CTX_set0_crls
+.\" X509_STORE_CTX_verify_fn moved to X509_STORE_CTX_set_verify(3)
+.\" X509_STORE_CTX_set_verify moved to X509_STORE_CTX_set_verify(3)
+.Nd X509_STORE_CTX initialisation
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509_vfy.h
+.Ft X509_STORE_CTX *
+.Fn X509_STORE_CTX_new void
+.Ft int
+.Fo X509_STORE_CTX_init
+.Fa "X509_STORE_CTX *ctx"
+.Fa "X509_STORE *store"
+.Fa "X509 *x"
+.Fa "STACK_OF(X509) *untrusted"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_cleanup
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_free
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft X509_STORE *
+.Fo X509_STORE_CTX_get0_store
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set0_trusted_stack
+.Fa "X509_STORE_CTX *ctx"
+.Fa "STACK_OF(X509) *trusted"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_trusted_stack
+.Fa "X509_STORE_CTX *ctx"
+.Fa "STACK_OF(X509) *trusted"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set_cert
+.Fa "X509_STORE_CTX *ctx"
+.Fa "X509 *x"
+.Fc
+.Ft X509 *
+.Fo X509_STORE_CTX_get0_cert
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set_chain
+.Fa "X509_STORE_CTX *ctx"
+.Fa "STACK_OF(X509) *untrusted"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set0_untrusted
+.Fa "X509_STORE_CTX *ctx"
+.Fa "STACK_OF(X509) *untrusted"
+.Fc
+.Ft STACK_OF(X509) *
+.Fo X509_STORE_CTX_get0_untrusted
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set0_crls
+.Fa "X509_STORE_CTX *ctx"
+.Fa "STACK_OF(X509_CRL) *crls"
+.Fc
+.Sh DESCRIPTION
+These functions set up an
+.Vt X509_STORE_CTX
+object for subsequent use by
+.Xr X509_verify_cert 3 .
+.Pp
+.Fn X509_STORE_CTX_new
+allocates an empty
+.Vt X509_STORE_CTX
+object not yet containing the subobjects required for normal operation.
+.Pp
+.Fn X509_STORE_CTX_init
+needs to be called on each new
+.Fa ctx
+before any of the other functions become useful.
+It prepares
+.Fa ctx
+for one single verification operation using
+.Xr X509_verify_cert 3 .
+The trusted certificate
+.Fa store
+to be used, the end entity certificate
+.Fa x
+to be verified, and a set of additional
+.Fa untrusted
+certificates, to be used for building the chain,
+can be supplied, or any or all of them can be set to
+.Dv NULL .
+The three pointers passed in are stored internally, the three objects
+pointed to are not copied, their reference count is not incremented,
+and the caller remains responsible for managing their storage and for
+not freeing them before
+.Fn X509_STORE_CTX_free
+is called on
+.Fa ctx .
+If a
+.Fa store
+is provided, the verification parameters contained in it are copied using
+.Xr X509_VERIFY_PARAM_inherit 3 .
+.Pp
+.Fn X509_STORE_CTX_cleanup
+internally cleans up
+.Fa ctx ,
+returning it to an empty state similar to the one after
+.Fn X509_STORE_CTX_new .
+It can then be reused with a new call to
+.Fn X509_STORE_CTX_init .
+.Pp
+.Fn X509_STORE_CTX_free
+calls
+.Fn X509_STORE_CTX_cleanup
+and frees the storage pointed to by
+.Fa ctx .
+If
+.Fa ctx
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn X509_STORE_CTX_get0_store
+returns the internal pointer to the trusted certificate
+.Fa store
+that was set with
+.Fn X509_STORE_CTX_init .
+.Pp
+.Fn X509_STORE_CTX_set0_trusted_stack
+sets the set of
+.Fa trusted
+certificates used by
+.Fa ctx .
+This is an alternative way of specifying trusted certificates instead of
+using the
+.Fa store .
+.Fn X509_STORE_CTX_trusted_stack
+is a deprecated alias for
+.Fn X509_STORE_CTX_set0_trusted_stack .
+.Pp
+.Fn X509_STORE_CTX_set_cert
+sets the certificate to be verified in
+.Fa ctx
+to
+.Fa x ,
+overriding the certificate that was set with
+.Fn X509_STORE_CTX_init .
+Again, the certificate is not copied
+and its reference count is not incremented.
+.Pp
+.Fn X509_STORE_CTX_get0_cert
+retrieves the internal pointer to the certificate being verified by
+.Fa ctx ,
+i.e. the last one set using either
+.Fn X509_STORE_CTX_init
+or
+.Fn X509_STORE_CTX_set_cert .
+.Pp
+.Fn X509_STORE_CTX_set_chain
+and
+.Fn X509_STORE_CTX_set0_untrusted
+are identical and set the additional,
+.Fa untrusted
+certificates used by
+.Fa ctx ,
+overriding the set of additional, untrusted certificates that was set with
+.Fn X509_STORE_CTX_init .
+Again, the set and the certificates contained in it are not copied
+and their reference counts are not incremented.
+.Pp
+.Fn X509_STORE_CTX_get0_untrusted
+retrieves the internal pointer
+to the set of additional, untrusted certificates associated with
+.Fa ctx ,
+i.e. the last one set using either
+.Fn X509_STORE_CTX_init ,
+.Fn X509_STORE_CTX_set_chain ,
+or
+.Fn X509_STORE_CTX_set0_untrusted .
+.Pp
+.Fn X509_STORE_CTX_set0_crls
+sets a set of
+.Fa crls
+to use during certificate verification.
+These CRLs will only be used if CRL verification is enabled in the
+associated
+.Vt X509_VERIFY_PARAM
+structure.
+This might be used where additional "useful" CRLs are supplied as part
+of a protocol, for example in a PKCS#7 structure.
+.Pp
+Legacy applications might implicitly use an
+.Vt X509_STORE_CTX
+like this:
+.Bd -literal -offset indent
+X509_STORE_CTX ctx;
+X509_STORE_CTX_init(&ctx, store, cert, chain);
+.Ed
+.Pp
+This is
+.Sy not
+recommended in new applications.
+They should instead do:
+.Bd -literal -offset indent
+X509_STORE_CTX *ctx;
+ctx = X509_STORE_CTX_new();
+if (ctx == NULL)
+	/* Bad error */
+X509_STORE_CTX_init(ctx, store, cert, chain);
+.Ed
+.Sh RETURN VALUES
+.Fn X509_STORE_CTX_new
+returns a newly allocated context or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn X509_STORE_CTX_init
+returns 1 for success or 0 if an error occurred.
+.Pp
+.Fn X509_STORE_CTX_get0_store
+returns the internal pointer to the trusted certificate store or
+.Dv NULL
+if none was set.
+.Pp
+.Fn X509_STORE_CTX_get0_cert
+returns the internal pointer to the certificate to be verified or
+.Dv NULL
+if no such certificate was set.
+.Pp
+.Fn X509_STORE_CTX_get0_untrusted
+returns the internal pointer
+to the set of additional, untrusted certificates or
+.Dv NULL
+if no set of additional certificates was provided.
+.Sh SEE ALSO
+.Xr X509_CRL_new 3 ,
+.Xr X509_STORE_CTX_get_error 3 ,
+.Xr X509_STORE_CTX_get_ex_new_index 3 ,
+.Xr X509_STORE_CTX_set_flags 3 ,
+.Xr X509_STORE_CTX_set_verify 3 ,
+.Xr X509_STORE_CTX_set_verify_cb 3 ,
+.Xr X509_STORE_get_by_subject 3 ,
+.Xr X509_STORE_new 3 ,
+.Xr X509_STORE_set1_param 3 ,
+.Xr X509_STORE_set_verify_cb 3 ,
+.Xr X509_verify_cert 3 ,
+.Xr X509_VERIFY_PARAM_inherit 3 ,
+.Xr X509_VERIFY_PARAM_set_flags 3
+.Sh HISTORY
+.Fn X509_STORE_CTX_init ,
+.Fn X509_STORE_CTX_cleanup ,
+.Fn X509_STORE_CTX_set_cert ,
+and
+.Fn X509_STORE_CTX_set_chain
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_STORE_CTX_new
+and
+.Fn X509_STORE_CTX_free
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn X509_STORE_CTX_trusted_stack
+first appeared in OpenSSL 0.9.6 and has been available since
+.Ox 2.9 .
+.Pp
+.Fn X509_STORE_CTX_get0_store
+first appeared in OpenSSL 1.0.2.
+.Fn X509_STORE_CTX_set0_trusted_stack ,
+.Fn X509_STORE_CTX_get0_cert ,
+.Fn X509_STORE_CTX_set0_untrusted ,
+and
+.Fn X509_STORE_CTX_get0_untrusted
+first appeared in OpenSSL 1.1.0.
+These functions have been available since
+.Ox 6.3 .

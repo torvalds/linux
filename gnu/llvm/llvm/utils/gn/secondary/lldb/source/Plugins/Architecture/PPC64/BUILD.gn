@@ -1,0 +1,15 @@
+static_library("PPC64") {
+  output_name = "lldbPluginArchitecturePPC64"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Plugins/Process/Utility",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+
+  # Uses source-relative paths for own includes.
+  include_dirs = [ "//lldb/source" ]
+  sources = [ "ArchitecturePPC64.cpp" ]
+}

@@ -1,0 +1,56 @@
+.\"	$OpenBSD: acpisbs.4,v 1.1 2017/03/30 16:04:36 jcs Exp $
+.\"
+.\" Copyright (c) 2017 joshua stein <jcs@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 30 2017 $
+.Dt ACPISBS 4
+.Os
+.Sh NAME
+.Nm acpisbs
+.Nd ACPI Smart Battery subsystem
+.Sh SYNOPSIS
+.Cd "acpisbs* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the ACPI Smart Battery subsystem and provides
+information about the Smart Battery devices contained within it.
+Battery status is updated every 30 seconds, as well as in response
+to events from the subsystem.
+Battery status can be monitored using
+.Xr sysctl 8
+or
+.Xr sensorsd 8 .
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpibat 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An joshua stein Aq Mt jcs@openbsd.org .
+.Sh CAVEATS
+The
+.Nm
+driver does not currently support more than one battery.

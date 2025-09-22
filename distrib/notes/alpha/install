@@ -1,0 +1,148 @@
+dnl	$OpenBSD: install,v 1.43 2023/03/16 18:04:07 miod Exp $
+OpenBSDInstallPrelude
+
+There are several ways to install OpenBSD onto a disk.  The easiest way is
+to boot from the bootable CD-ROM mini image, then install from your favorite
+source. Network booting is supported through means of dhcpd(8) and tftpd(8).
+
+Booting from CD-ROM installation media:
+
+	At the SRM console prompt, enter
+		show device
+	to find the device ID of your CD-ROM drive (the device ID is
+	usually in the second column (``bootdev'') and should start
+	with DKA for a SCSI CD-ROM drive).  If your drive shows up with
+	a drive number with trailing zeros, you will want to ignore them
+	(unless it is DKA0).  For example, if your CD-ROM drive is listed
+	as DKA600, you want to use dka6 (device IDs are case
+	insensitive).
+
+	Insert the OpenBSD/MACHINE CD-ROM and enter
+		boot DEVICE
+	where DEVICE is the dka device name.
+
+	You should see info about the primary and secondary boot and then the
+	kernel should start to load.  If the kernel fails to load or the
+	spinning cursor has stopped and nothing further has happened, you
+	either have a hardware problem or your MACHINE is not currently
+	supported by OpenBSD; try booting from the network instead if
+	possible.
+
+Booting from Network:
+
+	In order to bootstrap via the network, you must provide a second
+	system to act as a boot server. It is convenient if this is a second
+	OpenBSD machine as the necessary services are already installed,
+	although source code for such programs as dhcpd can be found in
+	OpenBSD's source tree, and should be reasonably portable to other
+	Unix-like operating systems. More information on diskless booting
+	can be found in the OpenBSD diskless(8) manual page.
+
+	Alpha systems can download their boot code over the network either
+	using the old DEC MOP protocol, or the common bootp protocol.
+
+	Older systems, such as the DEC 3000 systems, can only use the MOP
+	protocol.
+
+	Booting from a bootp or dhcp server:
+
+	    You will need to set up dhcpd on the server, which can serve
+	    bootp protocol requests.  Start by editing the /etc/dhcpd.conf
+	    on the bootserver, and declare an information block. Here is an
+	    example:
+
+	    subnet 10.0.0.0 netmask 255.0.0.0 {
+		host piper {
+			always-reply-rfc1048 "true";
+			filename "netboot";
+			option root-path "/alpha";
+			hardware ethernet 08:00:2b:3d:28:2a;
+			fixed-address 10.42.42.42;
+		}
+	    }
+
+	    Do not forget to start dhcpd.
+
+	    You will also need to start tftpd, for the system to download
+	    the "netboot" file from the server in the /tftpboot directory.
+
+	Booting from a MOP server:
+
+	    You will need to copy netboot.mop into
+	    /tftpboot/mop/1a2b3c4d5e6f.SYS, where "1a2b3c4d5e6f" represents
+	    the six octets of your Ethernet address, which can be obtained
+	    with ``show dev'' at the SRM prompt.  For example, the filename
+	    for the machine in the dhcp example above would be
+	    "08002b3d282a.SYS".  Note that the MAC portion of the filename
+	    must be lower case, but the "SYS" extension must be upper case.
+
+	    Do not forget to start mopd.
+
+	Common netboot steps:
+
+	    A few more services need to be enabled on the boot server.
+
+	    First, add the Ethernet address to /etc/ethers file, as in:
+
+		08:00:2b:3d:28:2a	piper
+
+	    and start rarpd.
+
+	    Second, you will need to export a directory for your new machine
+	    to mount over NFS, in order to get its kernel. This is
+	    accomplished by adding an entry to /etc/exports such as:
+
+		/alpha	piper
+
+	    The NFS server (which may be a different machine than the
+	    MOP or dhcp server) will need to run nfsd, mountd, and the
+	    rpc portmapper.  See the exports(5) manpage for more
+	    information.
+
+	    Last, you will need to add an entry for your system in
+	    /etc/bootparams, to point to the NFS server.  For example:
+
+		piper		root=myserver:/alpha
+
+	    and start bootparamd.
+
+	    Once loaded, the boot loader will mount /alpha over NFS and load
+	    the kernel from there.
+
+Installing using the CD-ROM or Network procedure:
+
+OpenBSDInstallPart2
+
+	Boot your machine from the installation media as described above.
+
+	It will take a while to load the installation kernel, especially
+	from a slow network connection or a CD-ROM, most likely more than
+	a minute.
+	If some action doesn't eventually happen, or the spinning cursor
+	has stopped and nothing further has happened, either your boot
+	media is bad, your diskless setup is incorrect, or you may have
+	a hardware or configuration problem.
+
+OpenBSDInstallPart3
+
+OpenBSDInstallPart4
+
+OpenBSDInstallPart5
+
+OpenBSDInstallPart6({:-CD-ROM, -:})
+
+OpenBSDURLInstall
+
+OpenBSDCDROMInstall
+
+OpenBSDDISKInstall({:-"wdN" or -:},{:-only -:})
+
+OpenBSDCommonInstall
+
+OpenBSDInstallWrapup
+
+OpenBSDCongratulations
+
+
+
+OpenBSDUnattendedInstallation

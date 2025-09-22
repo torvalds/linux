@@ -1,0 +1,68 @@
+$OpenBSD: README,v 1.20 2016/09/02 12:17:32 tb Exp $
+$EOM: README,v 1.28 1999/10/10 22:53:24 angelos Exp $
+
+This is isakmpd, a BSD-licensed ISAKMP/Oakley (a.k.a. IKE)
+implementation.  It's written by Niklas Hallqvist and Niels Provos,
+funded by Ericsson Radio Systems AB.  Isakmpd's home is in the
+OpenBSD main source tree under src/sbin/isakmpd.  Look at
+https://www.openbsd.org/ for details on how to get OpenBSD source.
+
+Isakmpd is being developed under OpenBSD, with OpenBSD as its primary
+target, however, it is ported to Linux with FreeS/WAN IPsec.  The
+makefile support assumes a BSD environment nonetheless as it is not too
+hard to get such an environment to work under other operating systems.
+For example, Red Hat 5.2 shipped with pmake installed.  Read sysdep/README
+for further details about this issue.  Other systems isakmpd has been
+ported to, but no code has been made available for, includes Solaris
+and Win32s.  I mention this just because it shows that the code is
+fairly portable.
+
+First edit the Makefile in a manner you see fit.  Specifically the OS
+define is important to get right of course.
+Assuming you have an OpenBSD /usr/share/mk and use the OpenBSD (or
+similar) make(1), you build isakmpd this way:
+
+make obj && make depend && make
+
+Then obj/isakmpd will be the daemon.  I suggest you try it by running
+under gdb with args similar to:
+	-d -n -p5000 -DA=99 -f/tmp/isakmpd.fifo -csamples/VPN-east.conf
+
+That will run isakmpd in the foreground, not connected to any application
+(like an IPsec implementation) logging to stderr with full debugging output,
+listening on UDP port 5000, accepting control commands via the named pipe
+called /tmp/isakmpd.fifo and reading its configuration from the
+VPN-east.conf file (found in the isakmpd/samples directory).
+
+If you are root you can try to run without -n -p5000 thus getting it to
+talk to your IPsec stack and use the standard port 500 instead.
+
+The logging classes are Miscellaneous = 0, Transports = 1, Messages = 2,
+Crypto = 3, Timers = 4, System Dependencies = 5, Security Associations = 6,
+and Exchanges = 7.  The debug levels increase in verbosity from 0 (off) to
+99 (max). Read log.[ch] and ui.c to see how to alter the debugging levels.
+
+Now you have setup your daemon and can watch incoming negotiations.
+But how do you get such?  Either use http://isakmp-test.ssh.fi/,
+there's an excellent service, just waiting for you.  Or you can try to
+start another isakmpd on another port (say -p5001 or so, instead)
+and another fifo (let's say /tmp/other.fifo).  Then edit the config
+file to have some peer descriptions that fit your need and issue a
+command like this:
+
+$ echo "c IPsec-east-west" >/tmp/other.fifo
+
+and watch.  You can turn on debugging on that isakmpd too of course, for
+greater fun.  This rudimentary user interface is slightly described in
+DESIGN-NOTES.  If you are going to look at the config file, don't be scared,
+the man page isakmpd.conf(5) covers every detail, and the flexibility will
+be hidden under a userfriendlier layer in a later release.  I did this
+first config-file syntax just because it should be easy to parse. The man
+page isakmpd.policy(5) describes the policy model used in conjunction with
+KeyNote.
+
+Happy IKEing!
+
+Niklas Hallqvist <niklas@openbsd.org>
+Niels Provos <provos@openbsd.org>
+Håkan Olsson <ho@openbsd.org>

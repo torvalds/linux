@@ -1,0 +1,113 @@
+dnl	$OpenBSD: install,v 1.17 2025/05/17 08:22:03 aoyama Exp $
+OpenBSDInstallPrelude
+
+There are several ways to install OpenBSD onto a disk. The easiest way
+in terms of preliminary setup is to use the OpenBSD miniroot that can be
+booted off your local disk's swap partition. Alternatively, you can
+use the OpenBSD bootblocks and the ramdisk kernel, bsd.rd, copied to an
+existing UniOS partition.
+
+
+Booting from the Installation Media:
+
+Prior to attempting an installation, everything of value on the target
+system should be backed up.  While installing OpenBSD does not necessarily
+wipe out all the partitions on the hard disk, errors during the install
+process can have unforeseen consequences and will probably leave the system
+unbootable if the installation process is not completed. Availability
+of the installation media for the prior installation, such as a LUNA-88K
+UniOS tape, is always a good insurance, should it be necessary to "go back"
+for some reason.
+
+After taking care of all that, the system should be brought down gracefully
+using the shutdown(8) and/or halt(8) commands, which will eventually go
+back to the PROM prompt. Remember that the leftmost switch from the front
+panel DIP switch #1 must be down to access the PROM prompt.
+
+Booting from an existing partition:
+
+    Copy the OpenBSD/MACHINE boot loader on one of the first 8 partitions
+    (a-h). Copy the installation kernel (bsd.rd) to the same partition.
+
+    At the PROM prompt, enter
+
+      b sd(n,p):boot
+
+    to boot the OpenBSD bootloader from the specified disk and partition.
+    Replace 'p' with the partition number (usually 0, for the 'a' partition),
+    and 'n' with the appropriate number from the following table:
+
+      disk drive SCSI ID: 0 1 2 3 4 5 6
+      value of 'n':       6 5 4 3 2 1 0
+
+    On LUNA-88K2 systems, if the disk drive is connected to the external SCSI
+    controller, add 10 to this number. For example, to boot from a disk drive
+    with ID #0 connected to the external controller, enter:
+
+      b sd(10,0)boot
+
+    Once the OpenBSD bootloader starts, at the ``boot>'' prompt, enter:
+
+      boot sd(n,p)bsd.rd
+
+    to boot the installation kernel from the same partition.
+
+
+Booting from the miniroot:
+
+    Copy the OpenBSD/MACHINE miniroot to the swap partition (assuming your
+    disk is sd0):
+
+	dd if=miniroot{:--:}OSrev.img of=/dev/sd0b
+
+    After halting the system, at the PROM prompt, enter
+
+	b sd(n,1)
+
+    to boot the OpenBSD bootloader from the swap partition.
+
+    Once the OpenBSD bootloader starts, at the ``boot>'' prompt, enter:
+
+      boot sd(n,1)
+
+    to boot the installation kernel from the same partition.
+
+
+Installing the system:
+
+OpenBSDInstallPart2
+
+	Boot your machine from the installation media as described above.
+
+	It will take a while to load the kernel especially from a slow
+	network connection, most likely more than a minute.  If some action
+	doesn't eventually happen, or the spinning cursor has stopped and
+	nothing further has happened, either your boot media is bad, your
+	diskless setup isn't correct, or you may have a hardware or
+	configuration problem.
+
+OpenBSDInstallPart3(,"sd0")
+
+OpenBSDInstallPart4
+
+OpenBSDInstallPart5
+
+OpenBSDInstallPart6({:-CD-ROM, NFS, -:})
+
+OpenBSDURLInstall
+
+OpenBSDCDROMInstall
+		
+OpenBSDNFSInstall
+
+OpenBSDDISKInstall(,{:-only -:})
+
+OpenBSDCommonInstall
+
+OpenBSDInstallWrapup
+
+OpenBSDCongratulations
+
+
+
+OpenBSDUnattendedInstallation

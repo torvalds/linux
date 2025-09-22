@@ -1,0 +1,27 @@
+static_library("MacOSX-DYLD") {
+  output_name = "lldbPluginDynamicLoaderMacOSXDYLD"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//lldb/source/Breakpoint",
+    "//lldb/source/Core",
+    "//lldb/source/Expression",
+    "//lldb/source/Host",
+    "//lldb/source/Plugins/TypeSystem/Clang",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+
+  # Reaches into Plugins/LanguageRuntime/ObjC.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "DynamicLoaderDarwin.cpp",
+    "DynamicLoaderMacOS.cpp",
+    "DynamicLoaderMacOSXDYLD.cpp",
+  ]
+}

@@ -1,0 +1,120 @@
+#	$OpenBSD: GENERIC,v 1.302 2025/05/01 00:32:38 dlg Exp $
+#
+#	Machine-independent option; used by all architectures for their
+#	GENERIC kernel
+
+option		DDB		# in-kernel debugger
+#option		DDBPROF		# ddb(4) based profiling
+#option		DDB_SAFE_CONSOLE # allow break into ddb during boot
+#makeoptions	DEBUG=""	# do not compile full symbol table
+#makeoptions	PROF="-pg"	# build profiled kernel
+#option		GPROF		# kernel profiling, kgmon(8)
+option		DIAGNOSTIC	# internal consistency checks
+option		KTRACE		# system call tracing, a la ktrace(1)
+option		ACCOUNTING	# acct(2) process accounting
+option		KMEMSTATS	# collect malloc(9) statistics
+option		PTRACE		# ptrace(2) system call
+
+#option		KVA_GUARDPAGES	# slow virtual address recycling (+ guarding)
+option		POOL_DEBUG	# pool corruption detection
+#option		VFSLCKDEBUG	# VFS locking checks
+
+option		CRYPTO		# Cryptographic framework
+
+option		SYSVMSG		# System V-like message queues
+option		SYSVSEM		# System V-like semaphores
+option		SYSVSHM		# System V-like memory sharing
+
+option		UVM_SWAP_ENCRYPT# support encryption of pages going to swap
+
+option		FFS		# UFS
+option		FFS2		# UFS2
+option		UFS_DIRHASH	# hash large directories
+option		QUOTA		# UFS quotas
+option		EXT2FS		# Second Extended Filesystem
+option		MFS		# memory file system
+option		NFSCLIENT	# Network File System client
+option		NFSSERVER	# Network File System server
+option		CD9660		# ISO 9660 + Rock Ridge file system
+option		UDF		# UDF (DVD) file system
+option		MSDOSFS		# MS-DOS file system
+option		FIFO		# FIFOs; RECOMMENDED
+#option		TMPFS		# efficient memory file system
+option		FUSE		# FUSE
+
+option		SOCKET_SPLICE	# Socket Splicing for TCP and UDP
+option		TCP_ECN		# Explicit Congestion Notification for TCP
+option		TCP_SIGNATURE	# TCP MD5 Signatures, for BGP routing sessions
+
+option		INET6		# IPv6
+option		IPSEC		# IPsec
+option		PPP_BSDCOMP	# PPP BSD compression
+option		PPP_DEFLATE
+option		PIPEX		# Ppp IP EXtension, for npppd
+option		MROUTING	# Multicast router
+option		MPLS		# Multi-Protocol Label Switching
+#option		BFD		# Bi-directional Forwarding Detection
+
+#mpath0		at root		# SCSI Multipathing
+#scsibus*	at mpath?
+#emc*		at scsibus?
+#hds*		at scsibus?
+#rdac*		at scsibus?
+#sym*		at scsibus?
+
+softraid0	at root		# Software RAID
+scsibus*	at softraid?
+
+vscsi0		at root		# Userland backed Virtual SCSI
+scsibus*	at vscsi?
+
+pseudo-device	pf		# packet filter
+pseudo-device	pflog		# pf log if
+pseudo-device	pfsync		# pf sync if
+pseudo-device	pflow		# pflow export if
+pseudo-device	enc		# option IPSEC needs the encapsulation interface
+
+pseudo-device	pty	16	# initial number of pseudo-terminals
+pseudo-device	nmea	1	# NMEA 0183 line discipline
+pseudo-device	msts	1	# MSTS line discipline
+pseudo-device	endrun	1	# EndRun line discipline
+pseudo-device	vnd	4	# vnode disk devices
+pseudo-device	ksyms	1	# kernel symbols device
+pseudo-device	kstat		# kernel statistics device
+
+# clonable devices
+pseudo-device	bpfilter	# packet filter
+pseudo-device	bridge		# network bridging support
+pseudo-device	veb		# virtual Ethernet bridge
+pseudo-device	carp		# CARP protocol support
+pseudo-device	etherip		# EtherIP (RFC 3378)
+pseudo-device	gif		# IPv[46] over IPv[46] tunnel (RFC1933)
+pseudo-device	sec		# route based IPsec VPN interface
+pseudo-device	gre		# GRE encapsulation interface
+pseudo-device	loop		# network loopback
+pseudo-device	mpe		# MPLS PE interface
+pseudo-device	mpw		# MPLS pseudowire support
+pseudo-device	mpip		# MPLS IP Layer2 pseudowire support
+pseudo-device	bpe		# Provider Backbone Bridge edge interface
+pseudo-device	rport		# rdomain port interface
+pseudo-device	pair		# Virtual Ethernet interface pair
+pseudo-device	ppp		# PPP
+pseudo-device	pppoe		# PPP over Ethernet (RFC 2516)
+pseudo-device	pppx		# PPP multiplexer
+pseudo-device	sppp	1	# Sync PPP/HDLC
+pseudo-device	trunk		# Trunking support
+pseudo-device	aggr		# 802.1AX Link Aggregation
+pseudo-device	tpmr		# 802.1Q Two-Port MAC Relay (TPMR)
+pseudo-device	tun		# network tunneling over tty (tun & tap)
+pseudo-device	vether		# Virtual ethernet
+pseudo-device	vxlan		# Virtual extensible LAN
+pseudo-device	vlan		# IEEE 802.1Q VLAN
+pseudo-device	wg		# WireGuard
+
+pseudo-device	bio	1	# ioctl multiplexing device
+
+pseudo-device	fuse		# fuse device
+
+pseudo-device	af_frame	# (Ethernet) frame sockets
+
+option		BOOT_CONFIG	# add support for boot -c

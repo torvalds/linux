@@ -1,0 +1,7 @@
+# load tables from file
+table <regress> persist file "/dev/null"
+table <regress> persist file "/dev/null" file "/dev/null"
+table <regress> persist { !127.0.0.1 } file "/dev/null"
+table <regress> persist file "/dev/null" { 3.3.3.3 }
+table <regress> persist { 10.0.0.1 } file "/dev/null" { !10.0.0.12 }
+table <regress> { 10.0.0.1 } const file "/dev/null" persist

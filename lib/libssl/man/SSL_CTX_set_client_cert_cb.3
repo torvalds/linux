@@ -1,0 +1,192 @@
+.\"	$OpenBSD: SSL_CTX_set_client_cert_cb.3,v 1.5 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2002 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_CLIENT_CERT_CB 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_client_cert_cb ,
+.Nm SSL_CTX_get_client_cert_cb
+.Nd handle client certificate callback function
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft void
+.Fo SSL_CTX_set_client_cert_cb
+.Fa "SSL_CTX *ctx"
+.Fa "int (*client_cert_cb)(SSL *ssl, X509 **x509, EVP_PKEY **pkey)"
+.Fc
+.Ft int
+.Fo "(*SSL_CTX_get_client_cert_cb(SSL_CTX *ctx))"
+.Fa "SSL *ssl" "X509 **x509" "EVP_PKEY **pkey"
+.Fc
+.Ft int
+.Fn "(*client_cert_cb)" "SSL *ssl" "X509 **x509" "EVP_PKEY **pkey"
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_client_cert_cb
+sets the
+.Fa client_cert_cb()
+callback that is called when a client certificate is requested by a server and
+no certificate was yet set for the SSL object.
+.Pp
+When
+.Fa client_cert_cb
+is
+.Dv NULL ,
+no callback function is used.
+.Pp
+.Fn SSL_CTX_get_client_cert_cb
+returns a pointer to the currently set callback function.
+.Pp
+.Fn client_cert_cb
+is the application-defined callback.
+If it wants to set a certificate,
+a certificate/private key combination must be set using the
+.Fa x509
+and
+.Fa pkey
+arguments and 1 must be returned.
+The certificate will be installed into
+.Fa ssl .
+If no certificate should be set,
+0 has to be returned and no certificate will be sent.
+A negative return value will suspend the handshake and the handshake function
+will return immediately.
+.Xr SSL_get_error 3
+will return
+.Dv SSL_ERROR_WANT_X509_LOOKUP
+to indicate that the handshake was suspended.
+The next call to the handshake function will again lead to the call of
+.Fa client_cert_cb() .
+It is the job of the
+.Fa client_cert_cb()
+to store information
+about the state of the last call, if required to continue.
+.Pp
+During a handshake (or renegotiation)
+a server may request a certificate from the client.
+A client certificate must only be sent when the server did send the request.
+.Pp
+When a certificate has been set using the
+.Xr SSL_CTX_use_certificate 3
+family of functions,
+it will be sent to the server.
+The TLS standard requires that only a certificate is sent if it matches the
+list of acceptable CAs sent by the server.
+This constraint is violated by the default behavior of the OpenSSL library.
+Using the callback function it is possible to implement a proper selection
+routine or to allow a user interaction to choose the certificate to be sent.
+.Pp
+If a callback function is defined and no certificate was yet defined for the
+.Vt SSL
+object, the callback function will be called.
+If the callback function returns a certificate, the OpenSSL library
+will try to load the private key and certificate data into the
+.Vt SSL
+object using the
+.Fn SSL_use_certificate
+and
+.Fn SSL_use_private_key
+functions.
+Thus it will permanently install the certificate and key for this SSL object.
+It will not be reset by calling
+.Xr SSL_clear 3 .
+If the callback returns no certificate, the OpenSSL library will not send a
+certificate.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_clear 3 ,
+.Xr SSL_CTX_add_extra_chain_cert 3 ,
+.Xr SSL_CTX_use_certificate 3 ,
+.Xr SSL_free 3 ,
+.Xr SSL_get_client_CA_list 3
+.Sh HISTORY
+.Fn SSL_CTX_set_client_cert_cb
+and
+.Fn SSL_CTX_get_client_cert_cb
+first appeared in SSLeay 0.6.6 and have been available since
+.Ox 2.4 .
+.Sh BUGS
+The
+.Fa client_cert_cb()
+cannot return a complete certificate chain;
+it can only return one client certificate.
+If the chain only has a length of 2,
+the root CA certificate may be omitted according to the TLS standard and
+thus a standard conforming answer can be sent to the server.
+For a longer chain, the client must send the complete chain
+(with the option to leave out the root CA certificate).
+This can be accomplished only by either adding the intermediate CA certificates
+into the trusted certificate store for the
+.Vt SSL_CTX
+object (resulting in having to add CA certificates that otherwise maybe would
+not be trusted), or by adding the chain certificates using the
+.Xr SSL_CTX_add_extra_chain_cert 3
+function, which is only available for the
+.Vt SSL_CTX
+object as a whole and that therefore probably can only apply for one client
+certificate, making the concept of the callback function
+(to allow the choice from several certificates) questionable.
+.Pp
+Once the
+.Vt SSL
+object has been used in conjunction with the callback function,
+the certificate will be set for the
+.Vt SSL
+object and will not be cleared even when
+.Xr SSL_clear 3
+is called.
+It is therefore
+.Em mandatory
+to destroy the
+.Vt SSL
+object using
+.Xr SSL_free 3
+and create a new one to return to the previous state.

@@ -1,0 +1,115 @@
+.\"	$OpenBSD: boot_alpha.8,v 1.17 2023/03/13 20:32:28 miod Exp $
+.\"
+.\" Copyright (c) 2002, Miodrag Vallat.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd $Mdocdate: March 13 2023 $
+.Dt BOOT_ALPHA 8 alpha
+.Os
+.Sh NAME
+.Nm boot_alpha
+.Nd Alpha system bootstrapping procedures
+.Sh DESCRIPTION
+.Ss Cold starts
+When powered on, the SRM firmware will proceed to its initialization, and
+will boot an operating system if the
+.Em auto_action
+variable is set to
+.Dq boot
+or
+.Dq restart ,
+or will wait for interactive commands if set to
+.Dq halt .
+.Ss Warm starts
+After a panic, or if the system is rebooted via
+.Xr reboot 8
+or
+.Xr shutdown 8 ,
+the SRM console will only restart the system if the
+.Em auto_action
+variable is set to
+.Dq boot .
+.Ss Boot process options
+The SRM console will attempt to boot from the device listed in the
+.Em bootdef_dev
+variable.
+A list of the recognized SRM devices can be obtained with the command
+.Ic show dev
+at the SRM prompt.
+.Pp
+The
+.Ox
+alpha boot loader program is extensively described in a separate document,
+.Xr boot 8 .
+.Ss Abnormal system termination
+In case of system crashes, the kernel will usually enter the kernel
+debugger,
+.Xr ddb 4 ,
+unless it is not present in the kernel, or it is disabled via the
+.Em ddb.panic
+sysctl.
+Upon leaving ddb, or if ddb was not entered, the kernel will halt the system
+if it was still in device configuration phase, or attempt a dump to the
+configured dump device, if possible.
+The crash dump will then be recovered by
+.Xr savecore 8
+during the next multi-user boot cycle.
+It is also possible to force other behaviours from ddb.
+.Sh FILES
+.Bl -tag -width /usr/mdec/netboot -compact
+.It Pa /bsd
+default system kernel
+.It Pa /bsd.rd
+standalone installation kernel, suitable for disaster recovery
+.It Pa /usr/mdec/bootxx
+primary bootstrap for
+.Dq ffs
+file system
+.It Pa /usr/mdec/boot
+secondary bootstrap (usually also installed as
+.Pa /boot )
+.It Pa /usr/mdec/netboot
+network bootstrap
+.El
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr boot 8 ,
+.Xr boot_config 8 ,
+.Xr halt 8 ,
+.Xr init 8 ,
+.Xr installboot 8 ,
+.Xr reboot 8 ,
+.Xr savecore 8 ,
+.Xr setnetbootinfo 8 ,
+.Xr shutdown 8
+.Rs
+.%T "Alpha Architecture Reference Manual Third Edition"
+.%Q "Alpha Architecture Committee"
+.%I "Digital Press"
+.%D 1998
+.Re
+.Sh BUGS
+The device names used by
+.Ox Ns / Ns alpha
+and the
+.Tn SRM Console
+often have no relation to each other.

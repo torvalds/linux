@@ -1,0 +1,90 @@
+.\" $OpenBSD: pthread_attr_setguardsize.3,v 1.4 2025/06/07 00:16:52 schwarze Exp $
+.\" Manual page derived from TOG's XPG6 documentation.
+.\"
+.\"  David Leonard, 2000. Public Domain.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_ATTR_SETGUARDSIZE 3
+.Os
+.Sh NAME
+.Nm pthread_attr_setguardsize ,
+.Nm pthread_attr_getguardsize
+.Nd set and get guardsize attribute
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_attr_setguardsize "pthread_attr_t *attr" "size_t guardsize"
+.Ft int
+.Fn pthread_attr_getguardsize "const pthread_attr_t *attr" "size_t *guardsize"
+.Sh DESCRIPTION
+The functions
+.Fn pthread_attr_setguardsize
+and
+.Fn pthread_attr_getguardsize ,
+respectively, set and get the thread
+creation
+.Va guardsize
+attribute in the
+.Fa attr
+object.
+If
+.Va guardsize
+is zero,
+a guard area shall not be provided for threads created with
+.Fa attr .
+If
+.Va guardsize
+is greater than zero,
+a guard area of at least size
+.Va guardsize
+bytes shall be provided for each thread created with
+.Fa attr .
+.Pp
+The
+.Va guardsize
+attribute controls the size of the guard area for the created
+thread's stack.
+The
+.Va guardsize
+attribute provides protection against overflow of the stack pointer.
+If a thread's stack is created with guard protection,
+the implementation allocates extra memory at the overflow end of
+the stack as a buffer against stack overflow of the stack pointer.
+If an application overflows into this buffer, an error shall result
+(possibly in a SIGSEGV signal being delivered to the thread).
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn pthread_attr_setguardsize
+and
+.Fn pthread_attr_getguardsize
+return a value of 0.
+Otherwise, an error number is returned to indicate the error.
+.Pp
+The
+.Fn pthread_attr_getguardsize
+function stores the
+.Va guardsize
+attribute value in
+.Fa guardsize
+if successful.
+.Sh ERRORS
+No errors are defined.
+.Pp
+These functions will not return an error code of
+.Bq Er EINTR .
+.Sh SEE ALSO
+.Xr pthread_attr_init 3 ,
+.Xr pthread_attr_setdetachstate 3 ,
+.Xr pthread_attr_setstack 3 ,
+.Xr pthread_attr_setstackaddr 3 ,
+.Xr pthread_attr_setstacksize 3 ,
+.Xr pthread_create 3 ,
+.Xr pthreads 3
+.Sh STANDARDS
+.Fn pthread_attr_setguardsize
+and
+.Fn pthread_attr_getguardsize
+conform to ISO/IEC 9945-1 ANSI/IEEE
+.Pq Dq Tn POSIX
+Std 1003.1, 2004 Edition.

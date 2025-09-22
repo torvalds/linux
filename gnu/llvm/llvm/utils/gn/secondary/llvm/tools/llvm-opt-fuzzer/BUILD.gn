@@ -1,0 +1,30 @@
+import("//llvm/utils/gn/build/fuzzer.gni")
+
+fuzzer("llvm-opt-fuzzer") {
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/FuzzMutate",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/MC",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/AggressiveInstCombine",
+    "//llvm/lib/Transforms/Coroutines",
+    "//llvm/lib/Transforms/IPO",
+    "//llvm/lib/Transforms/InstCombine",
+    "//llvm/lib/Transforms/Instrumentation",
+    "//llvm/lib/Transforms/ObjCARC",
+    "//llvm/lib/Transforms/Scalar",
+    "//llvm/lib/Transforms/Utils",
+    "//llvm/lib/Transforms/Vectorize",
+  ]
+  dummy_main = "DummyOptFuzzer.cpp"
+  sources = [ "llvm-opt-fuzzer.cpp" ]
+}

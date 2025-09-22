@@ -1,0 +1,145 @@
+.\" $OpenBSD: mirroring-ports.7,v 1.29 2025/05/19 10:16:17 sthen Exp $
+.\"
+.\" Copyright (c) 2000,2012 Marc Espie
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 19 2025 $
+.Dt MIRRORING-PORTS 7
+.Os
+.Sh NAME
+.Nm mirroring-ports
+.Nd how to build a mirror for ports distfiles
+.Sh DESCRIPTION
+The
+.Nm OpenBSD Ports Collection
+offers some powerful tools to mirror software sources.
+.Pp
+.Xr dpb 1
+features a
+.Fl F
+option which is explicitly designed for mirroring distfiles.
+.Pp
+If run with
+.Fl F Ar jobs ,
+.Nm dpb
+will
+.Bl -bullet
+.It
+Limit itself to fetching distfiles, and not build any packages.
+.It
+Disregard any architecture or broken annotation, and try to fetch every
+distfile.
+.It
+Fetch files to a temporary copy named
+.Pa some_file.part
+using
+.Ic ftp -C
+to resume interrupted downloads.
+.It
+Keep a global list of sha256 checksums as
+.Pa ${DISTDIR}/distinfo ,
+and use that to refetch files when the ports tree records a changing checksum.
+.It
+Produces a log of old distfiles in
+.Pa ${DISTDIR}/history ,
+.It
+Create sha256 links under
+.Pa ${DISTDIR}/by_cipher/sha256
+as per
+.Xr link-checksum 1 Ns 's
+former duties.
+.El
+.Pp
+For partial distfiles collections,
+.Nm dpb
+can also be run with
+.Fl D Ns Ar HISTORY_ONLY
+to scan the full ports tree and update
+.Pa ${DISTDIR}/history
+without fetching anything.
+.Sh FILES
+.Bl -tag -width toto
+.It Pa ${DISTDIR}/distinfo
+a cache of known distfiles with their respective checksums.
+.It Pa ${DISTDIR}/history
+List of files appearing in
+.Pa ${DISTDIR}/distinfo
+that seem to no longer be required by the ports tree.
+.Xr dpb 1
+will append to this file each time it is run on the whole tree
+(option
+.Fl a )
+and only if the ports tree scan finishes without error.
+Each line is of the form
+.Bd -literal -offset indent
+timestamp SHA256 (file) = sha
+.Ed
+.Pp
+denoting the first time a file/sha entry was no longer seen in the ports tree.
+.El
+.Sh SEE ALSO
+.Xr clean-old-distfiles 1 ,
+.Xr dpb 1 ,
+.Xr ports 7
+.Sh HISTORY
+The new integrated
+.Fl F
+option to
+.Xr dpb 1
+was introduced in
+.Ox 5.1 ,
+replacing the original infrastructure introduced in
+.Ox 2.7 .
+.Sh CAVEATS
+Changing checksums is a recurring problem that is outside the direct
+control of the
+.Ox
+Project.
+Some software distributors change distribution files without
+warning, without changing the file name proper.
+Once the problem has been identified, the port maintainer should usually
+contact the software author to fix the problem or, if the software author
+is unresponsive, the maintainer should use
+.Ev DIST_SUBDIR
+to provide some state to guard against shifting checksums.
+.Pp
+However, a more robust approach is also needed, so that ports users can
+depend on distfiles mirrors to carry what they need irrespective of those
+synchronization issues.
+The
+.Pa ${DISTFILES}/by_cipher/sha256
+directory provides more persistent access to the distfiles,
+indexed through the actual checksums that the files should match.
+Provided mirroring is run sufficiently often,
+two versions of the same distfile with respective checksums cksum1 and cksum2
+will be available under the names
+.Pa ${DISTFILES}/by_cipher/sha256/c1/cksum1/distfile
+and
+.Pa ${DISTFILES}/by_cipher/sha256/c2/cksum2/distfile .
+.Pp
+If
+.Ev REFETCH
+is set to true,
+.Xr bsd.port.mk 5
+will try to retrieve files under that naming scheme as a last resort.

@@ -1,0 +1,19 @@
+# all guard variables
+_ZGVNSt3__
+# all vtables
+_ZTV
+# all VTT
+_ZTT
+# all non-virtual thunks
+_ZTh
+# all virtual thunks
+_ZTv
+# typeinfo for std::__1::__types
+#    There are no std::__types
+_ZTINSt3__1[0-9][0-9]*__
+# typeinfo name for std::__1::__types
+_ZTSNSt3__1[0-9][0-9]*__
+# anything using __hidden_allocator
+.*__hidden_allocator
+# anything using __sso_allocator
+.*__sso_allocator

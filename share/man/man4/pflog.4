@@ -1,0 +1,111 @@
+.\"	$OpenBSD: pflog.4,v 1.12 2014/01/21 03:15:46 schwarze Exp $
+.\"
+.\" Copyright (c) 2001 Tobias Weingartner
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 21 2014 $
+.Dt PFLOG 4
+.Os
+.Sh NAME
+.Nm pflog
+.Nd packet filter logging interface
+.Sh SYNOPSIS
+.Cd "pseudo-device pflog"
+.Sh DESCRIPTION
+The
+.Nm pflog
+interface is a pseudo-device which makes visible all packets logged by
+the packet filter,
+.Xr pf 4 .
+Logged packets can easily be monitored in real
+time by invoking
+.Xr tcpdump 8
+on the
+.Nm
+interface, or stored to disk using
+.Xr pflogd 8 .
+.Pp
+The pflog0 interface is created automatically at boot if both
+.Xr pf 4
+and
+.Xr pflogd 8
+are enabled;
+further instances can be created using
+.Xr ifconfig 8 .
+.Pp
+Each packet retrieved on this interface has a header associated
+with it of length
+.Dv PFLOG_HDRLEN .
+This header documents the address family, interface name, rule
+number, reason, action, and direction of the packet that was logged.
+This structure, defined in
+.In net/if_pflog.h
+looks like
+.Bd -literal -offset indent
+struct pfloghdr {
+	u_int8_t	length;
+	sa_family_t	af;
+	u_int8_t	action;
+	u_int8_t	reason;
+	char		ifname[IFNAMSIZ];
+	char		ruleset[PFLOG_RULESET_NAME_SIZE];
+	u_int32_t	rulenr;
+	u_int32_t	subrulenr;
+	uid_t		uid;
+	pid_t		pid;
+	uid_t		rule_uid;
+	pid_t		rule_pid;
+	u_int8_t	dir;
+	u_int8_t	rewritten;
+	sa_family_t	naf;
+	u_int8_t	pad[1];
+	struct pf_addr	saddr;
+	struct pf_addr	daddr;
+	u_int16_t	sport;
+	u_int16_t	dport;
+};
+.Ed
+.Sh EXAMPLES
+Create a
+.Nm
+interface
+and monitor all packets logged on it:
+.Bd -literal -offset indent
+# ifconfig pflog1 up
+# tcpdump -n -e -ttt -i pflog1
+.Ed
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr netintro 4 ,
+.Xr pf 4 ,
+.Xr ifconfig 8 ,
+.Xr pflogd 8 ,
+.Xr tcpdump 8
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 3.0 .
+.\" .Sh BUGS
+.\" Anything here?

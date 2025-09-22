@@ -1,0 +1,180 @@
+.\" $OpenBSD: pcibios.4,v 1.26 2024/06/22 12:38:32 deraadt Exp $
+.\" $NetBSD: pcibios.4,v 1.7 2000/08/03 13:32:39 soda Exp $
+.\"
+.\" Copyright (c) 2000 Michael Shalayeff, All rights reserved.
+.\" Copyright (c) 1999, 2000 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 22 2024 $
+.Dt PCIBIOS 4 i386
+.Os
+.Sh NAME
+.Nm pcibios
+.Nd introduction to PCI BIOS support
+.Sh SYNOPSIS
+.Cd "pcibios0 at bios0 flags 0x0000"
+.\" .Cd "#option  PCIBIOS_IRQS_HINT=0x0a00 #IRQ 9,11"
+.\" .Cd "#option  PCIBIOS_INTR_FIXUP_FORCE"
+.Sh DESCRIPTION
+.Ox
+provides support for setting up PCI controllers, bridges, and devices
+using information extracted from the BIOS.
+.Pp
+Ideally, the boot firmware of a machine (a.k.a. BIOS) should set
+up all PCI devices; assigning them I/O and memory addresses and
+interrupts.
+Alas, this does not always happen, so there is some
+PC specific code that can do the initialization when
+.Ox
+boots.
+.Pp
+Flags is a bit mask each bit of which specifies a fixup procedure to
+omit.
+The following list specifies these procedures and gives
+flags bit values to disable them in case they cause problems.
+.Bl -tag -width 0x0000
+.It 0x0001
+Fixup PCI I/O and memory addresses.
+.Pp
+Some BIOS implementations don't allocate I/O space and
+memory space for all PCI devices.
+Especially, a BIOS which has
+.Qq PnP OS mode
+enabled shows this behavior.
+Since necessary space isn't allocated, those devices
+will not work without special handling.
+.Pp
+Without this flag force allocation of I/O space and memory space
+instead of relying upon the BIOS to do so.
+.Pp
+If necessary space is already correctly assigned to the devices,
+this option leaves the space as is.
+.Pp
+Although many BIOS implementations leave CardBus bridges'
+space unallocated, the CardBus bridge device driver doesn't
+require this option, since the driver allocates necessary space
+by itself.
+.It 0x0002
+Fixup PCI bus numbering; needed for many
+.Xr cardbus 4
+bridges.
+.Pp
+Each PCI bus and CardBus should have a unique bus number.
+But some BIOS implementations don't assign a bus number
+for subordinate PCI buses.
+And many BIOS implementations don't assign a bus number for CardBuses.
+.Pp
+A typical symptom of this is the following boot message:
+.D1 Sy cardbus0 at cardslot0: bus 0 device 0...
+This cardbus0 has a bus number
+.Sq 0 ,
+but normally the bus number 0 is used by the machine's
+primary PCI bus.
+Thus, this bus number for cardbus is incorrect
+.Pq not assigned .
+In this situation, a device located in cardbus0 doesn't
+show correct device ID,
+because its bus number 0 incorrectly refers to the primary
+PCI bus, and a device ID in the primary PCI bus is shown
+in the boot message instead of the device's ID in the cardbus0.
+.Pp
+Without this flag force assignment of bus numbers for all subordinate
+PCI buses and CardBuses.
+.Pp
+Since this procedure renumbers all PCI buses and CardBuses,
+all bus numbers of subordinate buses become different
+when this option is enabled.
+.It 0x0004
+Fixup PCI interrupt routing.
+.Pp
+Some BIOS implementations don't assign an interrupt for
+some devices.
+.Pp
+This procedure assigns an interrupt for such devices instead
+of relying upon the BIOS to do so.
+.Pp
+If the BIOS has already assigned an interrupt to a device, this
+procedure leaves the interrupt as is.
+.It 0x0008
+Make PCI interrupt routing fixup work with unknown interrupt routers.
+If this flag is specified and a PCI interrupt routing table entry
+indicates that only one IRQ is available for the entry, the IRQ is
+assumed to be already connected to the device, and the corresponding PCI
+Interrupt Configuration Register will be configured accordingly.
+.Pp
+Without this flag, if a PCI interrupt router is not known, interrupt
+configuration will not be modified.
+.It 0x0010
+Be verbose when performing
+.Nm
+tasks.
+Included in these diagnostics are: PCI device address fixup tables,
+interrupt fixup reports, and other diagnostic and non-fatal messages.
+.It 0x0020
+Make the PCI interrupt routing fixup procedure verbose.
+.It 0x0040
+Some buggy BIOS implementations provide inconsistent information between
+the PCI Interrupt Configuration Register and the PCI Interrupt Routing table.
+In such cases, the PCI Interrupt Configuration Register takes precedence
+by default.
+If this flag is specified, the PCI Interrupt Routing table takes precedence.
+.El
+.Sh SEE ALSO
+.Xr bios 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr pci_conf_read 9 ,
+.Xr pci_intr_map 9
+.Sh HISTORY
+The
+.Nm
+code appeared in
+.Nx 1.5 .
+.Ox
+support was added in
+.Ox 2.8 .
+In contrast to
+.Nx
+implementation
+.Nm
+in
+.Ox
+is a real device, where options control is done through the
+.Nm flags
+which are modifiable through the
+.Xr boot_config 8
+interface.
+For
+.Ox 2.9
+the PCI interrupt routing establishment sequence was redone to only
+fixup and route interrupts when attaching interrupts for a particular PCI
+device.
+.Sh BUGS
+The
+.Em PCIBIOS Address Fixup
+option may conflict with the PCI CardBus driver's own
+address fixup.

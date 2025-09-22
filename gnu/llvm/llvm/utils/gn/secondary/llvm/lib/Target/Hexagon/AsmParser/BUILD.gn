@@ -1,0 +1,20 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("HexagonGenAsmMatcher") {
+  visibility = [ ":AsmParser" ]
+  args = [ "-gen-asm-matcher" ]
+  td_file = "../Hexagon.td"
+}
+
+static_library("AsmParser") {
+  output_name = "LLVMHexagonAsmParser"
+  deps = [
+    ":HexagonGenAsmMatcher",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/Hexagon/MCTargetDesc",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "HexagonAsmParser.cpp" ]
+}

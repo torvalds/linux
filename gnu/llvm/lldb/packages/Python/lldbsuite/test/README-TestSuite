@@ -1,0 +1,146 @@
+This README file describes the files and directories related       -*- rst -*-
+to the Python test suite under the current 'test' directory.
+
+- dotest.py
+
+  Provides the test driver for the test suite.  To invoke it, cd to the 'test'
+  directory and issue the './dotest.py' command or './dotest.py -v' for more
+  verbose output.  '.dotest.py -h' prints out the help messge.
+
+  A specific naming pattern is followed by the .py script under the 'test'
+  directory in order to be recognized by 'dotest.py' test driver as a module
+  which implements a test case, namely, Test*.py.
+
+  Some example usages:
+
+  1. ./dotest.py -v . 2> ~/Developer/Log/lldbtest.log0
+     This runs the test suite and directs the run log to a file.
+
+  2. LLDB_LOG=/tmp/lldb.log GDB_REMOTE_LOG=/tmp/gdb-remote.log ./dotest.py -v . 2> ~/Developer/Log/lldbtest.log
+     This runs the test suite, with logging turned on for the lldb as well as
+     the process.gdb-remote channels and directs the run log to a file.
+
+- lldbtest.py
+
+  Provides an abstract base class of lldb test case named 'TestBase', which in
+  turn inherits from Python's unittest.TestCase.  The concrete subclass can
+  override lldbtest.TestBase in order to inherit the common behavior for
+  unittest.TestCase.setUp/tearDown implemented in this file.
+
+  To provide a test case, the concrete subclass provides methods whose names
+  start with the letters test.  For more details about the Python's unittest
+  framework, go to http://docs.python.org/library/unittest.html. 
+
+  ./command_source/TestCommandSource.py provides a simple example of test case
+  which overrides lldbtest.TestBase to exercise the lldb's 'command source'
+  command.
+
+  The doc string provides more details about the setup required for running a
+  test case on its own.  To run the whole test suite, 'dotest.py' is all you
+  need to do.
+
+- subdirectories of 'test'
+
+  Most of them predate the introduction of the python test suite and contain
+  example C/C++/ObjC source files which get compiled into executables which are
+  to be exercised by the debugger.
+
+  For such subdirectory which has an associated Test*.py file, it was added as
+  part of the Python-based test suite to test lldb functionality.
+
+  Some of the subdirectories, for example, the 'help' subdirectory, do not have
+  C/C++/ObjC source files; they were created to house the Python test case which
+  does not involve lldb reading in an executable file at all.
+
+  The sample_test directory contains examples of both a full and an "inline" 
+  testcase that run a process to a breakpoint and check a local variable.  These
+  are convenient starting points for adding new tests.
+
+- make directory
+
+  Contains Makefile.rules, which can be utilized by test cases to write Makefile
+  based rules to build binaries for the inferiors.
+
+  By default, the built executable name is a.out, which can be overwritten by
+  specifying your EXE make variable, via the Makefile under the specific test
+  directory or via supplying a Python dictionary to the build method in your
+  Python test script.  An example of the latter can be found in
+  test/lang/objc/radar-9691614/TestObjCMethodReturningBOOL.py, where:
+
+    def test_method_ret_BOOL(self):
+        """Test that objective-c method returning BOOL works correctly."""
+        d = {'EXE': self.exe_name}
+        self.build(dictionary=d)
+        self.setTearDownCleanup(dictionary=d)
+        ...
+
+    def setUp(self):
+        # Call super's setUp().
+        TestBase.setUp(self)
+        # We'll use the test method name as the exe_name.
+        self.exe_name = self.testMethodName
+        # Find the line number to break inside main().
+        self.main_source = "main.m"
+        self.line = line_number(self.main_source, '// Set breakpoint here.')
+
+  The exe names for the two test methods are equal to the test method names and
+  are therefore guaranteed different.
+
+- plugins directory
+
+  Contains platform specific plugin to build binaries with dsym/dwarf debugging
+  info.  Other platform specific functionalities may be added in the future.
+
+- Profiling dotest.py runs
+
+  I used the following command line thingy to do the profiling on a SnowLeopard
+  machine:
+
+    $ DOTEST_PROFILE=YES DOTEST_SCRIPT_DIR=/Volumes/data/lldb/svn/trunk/test /System/Library/Frameworks/Python.framework/Versions/Current/lib/python2.6/cProfile.py -o my.profile ./dotest.py -v -w 2> ~/Developer/Log/lldbtest.log
+
+  After that, I used the pstats.py module to browse the statistics:
+
+    $ python /System/Library/Frameworks/Python.framework/Versions/Current/lib/python2.6/pstats.py my.profile 
+
+- Writing test cases:
+
+  We strongly prefer writing test cases using the SB API's rather than
+  the runCmd & expect.  Unless you are actually testing some feature
+  of the command line, please don't write command based tests.  For
+  historical reasons there are plenty of examples of tests in the test
+  suite that use runCmd where they shouldn't, but don't copy them,
+  copy the plenty that do use the SB API's instead.
+
+  The reason for this is that our policy is that we will maintain
+  compatibility with the SB API's.  But we don't make any similar
+  guarantee about the details of command result format.  If your test
+  is using the command line, it is going to have to check against the
+  command result text, and you either end up writing your check
+  pattern by checking as little as possible so you won't be exposed to
+  random changes in the text; in which case you can end up missing
+  some failure, or you test too much and it means irrelevant changes
+  break your tests.
+
+  However, if you use the Python API's it is possible to check all the
+  results you want to check in a very explicit way, which makes the
+  tests much more robust.
+
+  Even if you are testing that a command-line command does some
+  specific thing, it is still better in general to use the SB API's to
+  drive to the point where you want to run the test, then use
+  SBInterpreter::HandleCommand to run the command.  You get the full
+  result text from the command in the command return object, and all
+  the part where you are driving the debugger to the point you want to
+  test will be more robust.
+
+  The sample_test directory contains a standard and an "inline" test
+  that are good starting points for writing a new test.
+
+- Attaching in test cases:
+
+  If you need to attach to inferiors in your tests, you must make sure
+  the inferior calls lldb_enable_attach(), before the debugger
+  attempts to attach. This function performs any platform-specific
+  processing needed to enable attaching to this process (e.g., on
+  Linux, we execute prctl(PR_SET_TRACER) syscall to disable
+  protections present in some Linux systems).

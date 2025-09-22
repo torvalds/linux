@@ -1,0 +1,18 @@
+<div id="menu">
+  <div>
+    <a href="http://llvm.org/">LLVM Home</a>
+  </div>
+  
+  <div class="submenu">
+    <label>compiler-rt Info</label>
+    <a href="/index.html">About</a>
+  </div>
+
+  <div class="submenu">
+    <label>Quick Links</label>
+    <a href="https://discourse.llvm.org">LLVM Forum</a>
+    <a href="http://lists.llvm.org/mailman/listinfo/llvm-commits">llvm-commits</a>
+    <a href="http://llvm.org/bugs/">Bug Reports</a>
+    <a href="https://github.com/llvm/llvm-project/tree/main/compiler-rt/">Browse Sources</a>
+  </div>
+</div>

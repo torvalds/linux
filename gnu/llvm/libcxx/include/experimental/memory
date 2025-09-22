@@ -1,0 +1,198 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_MEMORY
+#define _LIBCPP_EXPERIMENTAL_MEMORY
+
+/*
+    experimental/memory synopsis
+
+namespace std::experimental::inline fundamentals_v2  {
+
+template <class W> class observer_ptr {
+public:
+    using element_type = W;
+    using pointer = add_pointer_t<W>; // exposition-only
+    using reference = add_lvalue_reference_t<W>; // exposition-only
+
+    // default ctor
+    constexpr observer_ptr() noexcept;
+
+    // pointer-accepting ctors
+    constexpr observer_ptr(nullptr_t) noexcept;
+    constexpr explicit observer_ptr(pointer) noexcept;
+
+    // copying ctors (in addition to compiler-generated copy ctor)
+    template <class W2> constexpr observer_ptr(observer_ptr<W2>) noexcept;
+
+    // observers
+    constexpr pointer get() const noexcept;
+    constexpr reference operator*() const;
+    constexpr pointer operator->() const noexcept;
+    constexpr explicit operator bool() const noexcept;
+
+    // conversions
+    constexpr explicit operator pointer() const noexcept;
+
+    // modifiers
+    constexpr pointer release() noexcept;
+    constexpr void reset(pointer = nullptr) noexcept;
+    constexpr void swap(observer_ptr&) noexcept;
+};
+
+}
+*/
+
+#include <__functional/hash.h>
+#include <__functional/operations.h>
+#include <__type_traits/add_lvalue_reference.h>
+#include <__type_traits/add_pointer.h>
+#include <__type_traits/common_type.h>
+#include <__type_traits/enable_if.h>
+#include <__type_traits/is_convertible.h>
+#include <cstddef>
+#include <experimental/__config>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#ifdef _LIBCPP_ENABLE_EXPERIMENTAL
+
+_LIBCPP_BEGIN_NAMESPACE_LFTS_V2
+
+#  if _LIBCPP_STD_VER >= 17
+
+template <class _Wp>
+class observer_ptr {
+public:
+  using element_type = _Wp;
+
+  // constructors
+  _LIBCPP_HIDE_FROM_ABI constexpr observer_ptr() noexcept : __ptr_(nullptr) {}
+  _LIBCPP_HIDE_FROM_ABI constexpr observer_ptr(nullptr_t) noexcept : __ptr_(nullptr) {}
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit observer_ptr(element_type* __p) noexcept : __ptr_(__p) {}
+
+  template <class _W2, __enable_if_t<is_convertible<_W2*, _Wp*>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI constexpr observer_ptr(observer_ptr<_W2> __other) noexcept : __ptr_(__other.get()) {}
+
+  // observers
+  _LIBCPP_HIDE_FROM_ABI constexpr element_type* get() const noexcept { return __ptr_; }
+  _LIBCPP_HIDE_FROM_ABI constexpr add_lvalue_reference_t<_Wp> operator*() const { return *__ptr_; }
+  _LIBCPP_HIDE_FROM_ABI constexpr element_type* operator->() const noexcept { return __ptr_; }
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit operator bool() const noexcept { return __ptr_ != nullptr; }
+
+  // conversions
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit operator element_type*() const noexcept { return __ptr_; }
+
+  // modifiers
+  _LIBCPP_HIDE_FROM_ABI constexpr void reset(element_type* __p = nullptr) noexcept { __ptr_ = __p; }
+  _LIBCPP_HIDE_FROM_ABI constexpr void swap(observer_ptr& __other) noexcept {
+    observer_ptr __tmp = __other;
+    __other            = *this;
+    *this              = __tmp;
+  }
+  _LIBCPP_HIDE_FROM_ABI constexpr element_type* release() noexcept {
+    observer_ptr __p;
+    __p.swap(*this);
+    return __p.get();
+  }
+
+private:
+  element_type* __ptr_;
+};
+
+// specializations
+
+template <class _Wp>
+_LIBCPP_HIDE_FROM_ABI constexpr void swap(observer_ptr<_Wp>& __a, observer_ptr<_Wp>& __b) noexcept {
+  __a.swap(__b);
+}
+
+template <class _Wp>
+_LIBCPP_HIDE_FROM_ABI observer_ptr<_Wp> make_observer(_Wp* __ptr) noexcept {
+  return observer_ptr<_Wp>{__ptr};
+}
+
+template <class _W1, class _W2>
+_LIBCPP_HIDE_FROM_ABI bool operator==(observer_ptr<_W1> __a, observer_ptr<_W2> __b) {
+  return __a.get() == __b.get();
+}
+
+template <class _W1, class _W2>
+_LIBCPP_HIDE_FROM_ABI bool operator!=(observer_ptr<_W1> __a, observer_ptr<_W2> __b) {
+  return !(__a == __b);
+}
+
+template <class _Wp>
+_LIBCPP_HIDE_FROM_ABI bool operator==(observer_ptr<_Wp> __p, nullptr_t) {
+  return !__p;
+}
+
+template <class _Wp>
+_LIBCPP_HIDE_FROM_ABI bool operator==(nullptr_t, observer_ptr<_Wp> __p) {
+  return !__p;
+}
+
+template <class _Wp>
+_LIBCPP_HIDE_FROM_ABI bool operator!=(observer_ptr<_Wp> __p, nullptr_t) {
+  return (bool)__p;
+}
+
+template <class _Wp>
+_LIBCPP_HIDE_FROM_ABI bool operator!=(nullptr_t, observer_ptr<_Wp> __p) {
+  return (bool)__p;
+}
+
+template <class _W1, class _W2>
+_LIBCPP_HIDE_FROM_ABI bool operator<(observer_ptr<_W1> __a, observer_ptr<_W2> __b) {
+  return std::less<typename std::common_type<_W1*, _W2*>::type>()(__a.get(), __b.get());
+}
+
+template <class _W1, class _W2>
+_LIBCPP_HIDE_FROM_ABI bool operator>(observer_ptr<_W1> __a, observer_ptr<_W2> __b) {
+  return __b < __a;
+}
+
+template <class _W1, class _W2>
+_LIBCPP_HIDE_FROM_ABI bool operator<=(observer_ptr<_W1> __a, observer_ptr<_W2> __b) {
+  return !(__a > __b);
+}
+
+template <class _W1, class _W2>
+_LIBCPP_HIDE_FROM_ABI bool operator>=(observer_ptr<_W1> __a, observer_ptr<_W2> __b) {
+  return !(__a < __b);
+}
+
+#  endif // _LIBCPP_STD_VER >= 17
+
+_LIBCPP_END_NAMESPACE_LFTS_V2
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+// hash
+
+#  if _LIBCPP_STD_VER >= 17
+template <class _Tp>
+struct hash<experimental::observer_ptr<_Tp>> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(const experimental::observer_ptr<_Tp>& __ptr) const noexcept {
+    return hash<_Tp*>()(__ptr.get());
+  }
+};
+#  endif // _LIBCPP_STD_VER >= 17
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_ENABLE_EXPERIMENTAL
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <limits>
+#endif
+
+#endif /* _LIBCPP_EXPERIMENTAL_MEMORY */

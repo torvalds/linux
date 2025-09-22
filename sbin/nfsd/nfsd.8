@@ -1,0 +1,95 @@
+.\"   $OpenBSD: nfsd.8,v 1.20 2022/07/30 07:19:30 jsg Exp $
+.\"   $NetBSD: nfsd.8,v 1.7 1996/02/18 11:58:24 fvdl Exp $
+.\"
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
+.\"
+.Dd $Mdocdate: July 30 2022 $
+.Dt NFSD 8
+.Os
+.Sh NAME
+.Nm nfsd
+.Nd remote NFS server
+.Sh SYNOPSIS
+.Nm nfsd
+.Op Fl rtu
+.Op Fl n Ar num_servers
+.Sh DESCRIPTION
+.Nm
+runs on a server machine to service NFS
+requests from client machines.
+At least one
+.Nm
+must be running for a machine to operate as a server.
+.Pp
+Unless otherwise specified, four servers for UDP
+transport are started.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl n Ar num_servers
+Specifies how many servers to create (max 20).
+.It Fl r
+Register the NFS service with
+.Xr portmap 8
+without creating any servers.
+This option can be used along with the
+.Fl u
+or
+.Fl t
+options to re-register NFS if the portmap server is restarted.
+.It Fl t
+Serve TCP NFS clients.
+.It Fl u
+Serve UDP NFS clients.
+.El
+.Pp
+For example,
+.Dq Li "nfsd -u -t -n 6"
+serves UDP and TCP transports using six daemons.
+.Pp
+A server should run enough daemons to handle
+the maximum level of concurrency from its clients,
+typically four to six.
+.Pp
+.Nm
+listens for service requests at the port indicated in the NFS
+server specification; see RFCs 1094 and 1813.
+.Sh EXIT STATUS
+.Ex -std nfsd
+.Sh SEE ALSO
+.Xr nfsstat 1 ,
+.Xr nfssvc 2 ,
+.Xr mountd 8 ,
+.Xr portmap 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.3 Reno .

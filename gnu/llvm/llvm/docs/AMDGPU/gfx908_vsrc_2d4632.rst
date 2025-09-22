@@ -1,0 +1,17 @@
+..
+    **************************************************
+    *                                                *
+    *   Automatically generated file, do not edit!   *
+    *                                                *
+    **************************************************
+
+.. _amdgpu_synid_gfx908_vsrc_2d4632:
+
+vsrc
+====
+
+Instruction input.
+
+*Size:* 16 dwords.
+
+*Operands:* :ref:`a<amdgpu_synid_a>`

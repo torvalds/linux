@@ -1,0 +1,81 @@
+# $OpenBSD: RAMDISK,v 1.13 2023/09/21 12:11:34 kn Exp $
+
+machine		powerpc64
+maxusers	4
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		RAMDISK_HOOKS
+option		MINIROOTSIZE=16384
+
+option		PCIVERBOSE
+option		USBVERBOSE
+
+option		FFS
+option		FFS2
+option		EXT2FS
+option		NFSCLIENT
+option		CD9660
+option		MSDOSFS
+option		INET6
+option		CRYPTO
+
+config		bsd	root on rd0a swap on rd0b
+
+mainbus0	at root
+softraid0	at root
+cpu0		at mainbus?
+opal0		at fdt?
+opalcons*	at fdt?
+phb*		at fdt?
+pci*		at phb?
+xics*		at fdt?
+xicp*		at fdt?
+xive*		at fdt?
+
+ahci*		at pci?
+aq*		at pci?
+bge*		at pci?
+igc*		at pci?
+ix*		at pci?
+ixl*		at pci?
+mcx*		at pci?
+mpii*		at pci?
+nvme*		at pci?
+ppb*		at pci?
+pci*		at ppb?
+rge*		at pci?
+xhci*		at pci?
+usb*		at xhci?
+
+scsibus*	at scsi?
+sd*		at scsibus?
+st*		at scsibus?             # SCSI tape drives
+cd*		at scsibus?             # SCSI CD-ROM drives
+ch*		at scsibus?             # SCSI autochangers
+safte*		at scsibus?             # SCSI accessed fault-tolerant enclosures
+ses*		at scsibus?             # SCSI enclosure services
+uk*		at scsibus?             # unknown SCSI
+
+# USB devices
+uhub*		at usb?			# USB Hubs
+uhub*		at uhub?		# USB Hubs
+uhidev*		at uhub?		# Human Interface Devices
+uhid*		at uhidev?		# USB generic HID support
+ukbd*		at uhidev?		# USB keyboard
+wskbd*		at ukbd? mux 1
+ums*		at uhidev?		# USB mouse
+wsmouse* 	at ums? mux 0
+umass*		at uhub?		# USB Mass Storage devices
+
+brgphy*		at mii?
+
+pseudo-device	loop 1
+pseudo-device	vlan
+pseudo-device	trunk
+pseudo-device	bpfilter 1
+pseudo-device	rd 1
+pseudo-device	bio 1
+pseudo-device	wsmux 2

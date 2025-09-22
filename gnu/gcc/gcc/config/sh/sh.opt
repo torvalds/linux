@@ -1,0 +1,274 @@
+; Options for the SH port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+;; Used for various architecture options.
+Mask(SH_E)
+
+;; Set if the default precision of th FPU is single.
+Mask(FPU_SINGLE)
+
+;; Set if we should generate code using type 2A insns.
+Mask(HARD_SH2A)
+
+;; Set if we should generate code using type 2A DF insns.
+Mask(HARD_SH2A_DOUBLE)
+
+;; Set if compiling for SH4 hardware (to be used for insn costs etc.)
+Mask(HARD_SH4)
+
+;; Set if we should generate code for a SH5 CPU (either ISA).
+Mask(SH5)
+
+;; Set if we should save all target registers.
+Mask(SAVE_ALL_TARGET_REGS)
+
+m1
+Target RejectNegative Mask(SH1) Condition(SUPPORT_SH1)
+Generate SH1 code
+
+m2
+Target RejectNegative Mask(SH2) Condition(SUPPORT_SH2)
+Generate SH2 code
+
+m2a
+Target RejectNegative Condition(SUPPORT_SH2A)
+Generate SH2a code
+
+m2a-nofpu
+Target RejectNegative Condition(SUPPORT_SH2A_NOFPU)
+Generate SH2a FPU-less code
+
+m2a-single
+Target RejectNegative Condition (SUPPORT_SH2A_SINGLE)
+Generate default single-precision SH2a code
+
+m2a-single-only
+Target RejectNegative Condition (SUPPORT_SH2A_SINGLE_ONLY)
+Generate only single-precision SH2a code
+
+m2e
+Target RejectNegative Condition(SUPPORT_SH2E)
+Generate SH2e code
+
+m3
+Target RejectNegative Mask(SH3) Condition(SUPPORT_SH3)
+Generate SH3 code
+
+m3e
+Target RejectNegative Condition(SUPPORT_SH3E)
+Generate SH3e code
+
+m4
+Target RejectNegative Mask(SH4) Condition(SUPPORT_SH4)
+Generate SH4 code
+
+m4-100
+Target RejectNegative Condition(SUPPORT_SH4)
+Generate SH4-100 code
+
+m4-200
+Target RejectNegative Condition(SUPPORT_SH4)
+Generate SH4-200 code
+
+m4-nofpu
+Target RejectNegative Condition(SUPPORT_SH4_NOFPU)
+Generate SH4 FPU-less code
+
+m4-400
+Target RejectNegative Condition(SUPPORT_SH4_NOFPU)
+Generate code for SH4 400 series (MMU/FPU-less)
+;; passes -isa=sh4-nommu-nofpu to the assembler.
+
+m4-500
+Target RejectNegative Condition(SUPPORT_SH4_NOFPU)
+Generate code for SH4 500 series (FPU-less).
+;; passes -isa=sh4-nofpu to the assembler.
+
+m4-single
+Target RejectNegative Condition(SUPPORT_SH4_SINGLE)
+Generate default single-precision SH4 code
+
+m4-100-single
+Target RejectNegative Condition(SUPPORT_SH4_SINGLE)
+Generate default single-precision SH4-100 code
+
+m4-200-single
+Target RejectNegative Condition(SUPPORT_SH4_SINGLE)
+Generate default single-precision SH4-200 code
+
+m4-single-only
+Target RejectNegative Condition(SUPPORT_SH4_SINGLE_ONLY)
+Generate only single-precision SH4 code
+
+m4-100-single-only
+Target RejectNegative Condition(SUPPORT_SH4_SINGLE_ONLY)
+Generate only single-precision SH4-100 code
+
+m4-200-single-only
+Target RejectNegative Condition(SUPPORT_SH4_SINGLE_ONLY)
+Generate only single-precision SH4-200 code
+
+m4a
+Target RejectNegative Mask(SH4A) Condition(SUPPORT_SH4A)
+Generate SH4a code
+
+m4a-nofpu
+Target RejectNegative Condition(SUPPORT_SH4A_NOFPU)
+Generate SH4a FPU-less code
+
+m4a-single
+Target RejectNegative Condition(SUPPORT_SH4A_SINGLE)
+Generate default single-precision SH4a code
+
+m4a-single-only
+Target RejectNegative Condition(SUPPORT_SH4A_SINGLE_ONLY)
+Generate only single-precision SH4a code
+
+m4al
+Target RejectNegative Condition(SUPPORT_SH4AL)
+Generate SH4al-dsp code
+
+m5-32media
+Target RejectNegative Condition(SUPPORT_SH5_32MEDIA)
+Generate 32-bit SHmedia code
+
+m5-32media-nofpu
+Target RejectNegative Condition(SUPPORT_SH5_32MEDIA_NOFPU)
+Generate 32-bit FPU-less SHmedia code
+
+m5-64media
+Target RejectNegative Condition(SUPPORT_SH5_64MEDIA)
+Generate 64-bit SHmedia code
+
+m5-64media-nofpu
+Target RejectNegative Condition(SUPPORT_SH5_64MEDIA_NOFPU)
+Generate 64-bit FPU-less SHmedia code
+
+m5-compact
+Target RejectNegative Condition(SUPPORT_SH5_32MEDIA)
+Generate SHcompact code
+
+m5-compact-nofpu
+Target RejectNegative Condition(SUPPORT_SH5_32MEDIA_NOFPU)
+Generate FPU-less SHcompact code
+
+madjust-unroll
+Target Report Mask(ADJUST_UNROLL) Condition(SUPPORT_ANY_SH5)
+Throttle unrolling to avoid thrashing target registers unless the unroll benefit outweighs this
+
+mb
+Target Report RejectNegative InverseMask(LITTLE_ENDIAN)
+Generate code in big endian mode
+
+mbigtable
+Target Report RejectNegative Mask(BIGTABLE)
+Generate 32-bit offsets in switch tables
+
+mcut2-workaround
+Target RejectNegative Var(TARGET_SH5_CUT2_WORKAROUND)
+Enable SH5 cut2 workaround
+
+mdalign
+Target Report RejectNegative Mask(ALIGN_DOUBLE)
+Align doubles at 64-bit boundaries
+
+mdiv=
+Target RejectNegative Joined Var(sh_div_str) Init("")
+Division strategy, one of: call, call2, fp, inv, inv:minlat, inv20u, inv20l, inv:call, inv:call2, inv:fp
+
+mdivsi3_libfunc=
+Target RejectNegative Joined Var(sh_divsi3_libfunc) Init("")
+Specify name for 32 bit signed division function
+
+mfmovd
+Target RejectNegative Mask(FMOVD) Undocumented
+
+mgettrcost=
+Target RejectNegative Joined UInteger Var(sh_gettrcost) Init(-1)
+Cost to assume for gettr insn
+
+mhitachi
+Target Report RejectNegative Mask(HITACHI)
+Follow Renesas (formerly Hitachi) / SuperH calling conventions
+
+mieee
+Target Report Mask(IEEE)
+Increase the IEEE compliance for floating-point code
+
+mindexed-addressing
+Target Report Mask(ALLOW_INDEXED_ADDRESS) Condition(SUPPORT_ANY_SH5_32MEDIA)
+Enable the use of the indexed addressing mode for SHmedia32/SHcompact
+
+minvalid-symbols
+Target Report Mask(INVALID_SYMBOLS) Condition(SUPPORT_ANY_SH5)
+Assume symbols might be invalid
+
+misize
+Target Report RejectNegative Mask(DUMPISIZE)
+Annotate assembler instructions with estimated addresses
+
+ml
+Target Report RejectNegative Mask(LITTLE_ENDIAN)
+Generate code in little endian mode
+
+mnomacsave
+Target Report RejectNegative Mask(NOMACSAVE)
+Mark MAC register as call-clobbered
+
+;; ??? This option is not useful, but is retained in case there are people
+;; who are still relying on it.  It may be deleted in the future.
+mpadstruct
+Target Report RejectNegative Mask(PADSTRUCT)
+Make structs a multiple of 4 bytes (warning: ABI altered)
+
+mprefergot
+Target Report RejectNegative Mask(PREFERGOT)
+Emit function-calls using global offset table when generating PIC
+
+mpt-fixed
+Target Report Mask(PT_FIXED) Condition(SUPPORT_ANY_SH5)
+Assume pt* instructions won't trap
+
+mrelax
+Target Report RejectNegative Mask(RELAX)
+Shorten address references during linking
+
+mrenesas
+Target Mask(HITACHI) MaskExists
+Follow Renesas (formerly Hitachi) / SuperH calling conventions
+
+mspace
+Target Report RejectNegative Mask(SMALLCODE)
+Deprecated. Use -Os instead
+
+multcost=
+Target RejectNegative Joined UInteger Var(sh_multcost) Init(-1)
+Cost to assume for a multiply insn
+
+musermode
+Target Report RejectNegative Mask(USERMODE)
+Generate library function call to invalidate instruction cache entries after fixing trampoline
+
+;; We might want to enable this by default for TARGET_HARD_SH4, because
+;; zero-offset branches have zero latency.  Needs some benchmarking.
+mpretend-cmove
+Target Var(TARGET_PRETEND_CMOVE)
+Pretend a branch-around-a-move is a conditional move.

@@ -1,0 +1,5 @@
+a="3ffe:1::/24"
+b="3ffe:2::/24"
+l="3ffe::1"
+p="3ffe:100::1"
+flow esp from $a to $b local $l peer $p

@@ -1,0 +1,249 @@
+.\" $OpenBSD: mbtowc.3,v 1.8 2023/11/11 01:38:23 schwarze Exp $
+.\" $NetBSD: mbtowc.3,v 1.5 2003/09/08 17:54:31 wiz Exp $
+.\"
+.\" Copyright (c) 2016, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010, 2015 Stefan Sperling <stsp@openbsd.org>
+.\" Copyright (c) 2002 Citrus Project,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 11 2023 $
+.Dt MBTOWC 3
+.Os
+.Sh NAME
+.Nm mbtowc
+.Nd converts a multibyte character to a wide character
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft int
+.Fn mbtowc "wchar_t * restrict pwc" "const char * restrict s" "size_t n"
+.Sh DESCRIPTION
+The
+.Fn mbtowc
+function converts the multibyte character pointed to by
+.Fa s
+to a wide character, and stores it in the wchar_t object pointed to by
+.Fa pwc .
+This function may inspect at most
+.Fa n
+bytes of the array pointed to by
+.Fa s .
+.Pp
+Unlike
+.Xr mbrtowc 3 ,
+the first
+.Fa n
+bytes pointed to by
+.Fa s
+need to form an entire multibyte character.
+Otherwise, this function returns an error and the internal state will
+be undefined.
+.Pp
+If a call to
+.Fn mbtowc
+results in an undefined internal state, parsing of the string starting at
+.Fa s
+cannot continue, not even at a later byte, and
+.Fn mbtowc
+must be called with
+.Ar s
+set to
+.Dv NULL
+to reset the internal state before it can safely be used again
+on a different string.
+.Pp
+The behaviour of
+.Fn mbtowc
+is affected by the
+.Dv LC_CTYPE
+category of the current locale.
+Calling any other functions in
+.Em libc
+never changes the internal
+state of
+.Fn mbtowc ,
+except for calling
+.Xr setlocale 3
+with the
+.Dv LC_CTYPE
+category set to a different locale.
+Such
+.Xr setlocale 3
+calls cause the internal state of this function to be undefined.
+.Pp
+In state-dependent encodings such as ISO/IEC 2022-JP,
+.Fa s
+may point to the special sequence of bytes to change the shift-state.
+Because such sequence bytes do not correspond to any individual wide character,
+.Fn mbtowc
+treats them as if they were part of the subsequent multibyte character.
+.Pp
+The following special cases apply to the arguments:
+.Bl -tag -width 012345678901
+.It s == NULL
+.Fn mbtowc
+initializes its own internal state to the initial state, and
+determines whether the current encoding is state-dependent.
+.Fn mbtowc
+returns 0 if the encoding is state-independent,
+otherwise non-zero.
+.Fa pwc
+is ignored.
+.It pwc == NULL
+.Fn mbtowc
+behaves just as if
+.Fa pwc
+was not
+.Dv NULL ,
+including modifications to internal state,
+except that the result of the conversion is discarded.
+This can be used to determine the size of the wide character
+representation of a multibyte string.
+Another use case is a check for illegal or incomplete multibyte sequences.
+.It n == 0
+In this case,
+the first
+.Fa n
+bytes of the array pointed to by
+.Fa s
+never form a complete character and
+.Fn mbtowc
+always fails.
+.El
+.Sh RETURN VALUES
+Normally,
+.Fn mbtowc
+returns:
+.Bl -tag -width 012345678901
+.It 0
+.Fa s
+points to a null byte
+.Pq Sq \e0 .
+.It positive
+Number of bytes for the valid multibyte character pointed to by
+.Fa s .
+There are no cases where the value returned is greater than
+the value of the
+.Dv MB_CUR_MAX
+macro.
+.It -1
+.Fa s
+points to an invalid or an incomplete multibyte character.
+.Va errno
+is set to indicate the error.
+.El
+.Pp
+When
+.Fa s
+is
+.Dv NULL ,
+.Fn mbtowc
+returns:
+.Bl -tag -width 0123456789
+.It 0
+The current encoding is state-independent.
+.It non-zero
+The current encoding is state-dependent.
+.El
+.Sh EXAMPLES
+The following program parses a UTF-8 string and reports encoding errors:
+.Bd -literal
+#include <limits.h>
+#include <locale.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int
+main(void)
+{
+	char	 s[LINE_MAX];
+	wchar_t	 wc;
+	int	 i, len;
+
+	setlocale(LC_CTYPE, "C.UTF-8");
+	if (fgets(s, sizeof(s), stdin) == NULL)
+		*s = '\e0';
+	for (i = 0, len = 1; len != 0; i += len) {
+		switch (len = mbtowc(&wc, s + i, MB_CUR_MAX)) {
+		case 0:
+			printf("byte %d end of string 0x00\en", i);
+			break;
+		case -1:
+			printf("byte %d invalid 0x%0.2hhx\en", i, s[i]);
+			len = 1;
+			break;
+		default:
+			printf("byte %d U+%0.4X %lc\en", i, wc, wc);
+			break;
+		}
+	}
+	return 0;
+}
+.Ed
+.Pp
+Recovering from encoding errors and continuing to parse the rest of the
+string as shown above is only possible for state-independent character
+encodings.
+For full generality, the error handling can be modified
+to reset the internal state.
+In that case, the rest of the string has to be skipped
+if the encoding is state-dependent:
+.Bd -literal
+		case -1:
+			printf("byte %d invalid 0x%0.2hhx\en", i, s[i]);
+			len = !mbtowc(NULL, NULL, MB_CUR_MAX);
+			break;
+.Ed
+.Sh ERRORS
+.Fn mbtowc
+will set
+.Va errno
+in the following cases:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+.Fa s
+points to an invalid or incomplete multibyte character.
+.El
+.Sh SEE ALSO
+.Xr mblen 3 ,
+.Xr mbrtowc 3 ,
+.Xr setlocale 3
+.Sh STANDARDS
+The
+.Fn mbtowc
+function conforms to
+.St -ansiC .
+The restrict qualifier is added at
+.St -isoC-99 .
+Setting
+.Va errno
+is an
+.St -p1003.1-2008
+extension.
+.Sh CAVEATS
+On error, callers of
+.Fn mbtowc
+cannot tell whether the multibyte character was invalid or incomplete.
+To treat incomplete data differently from invalid data the
+.Xr mbrtowc 3
+function can be used instead.

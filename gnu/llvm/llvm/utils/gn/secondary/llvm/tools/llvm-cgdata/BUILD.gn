@@ -1,0 +1,12 @@
+import("//llvm/utils/gn/build/driver_executable.gni")
+
+driver_executable("llvm-cgdata") {
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGenData",
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-cgdata.cpp" ]
+}

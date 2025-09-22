@@ -1,0 +1,164 @@
+.\"	$OpenBSD: pwd_mkdb.8,v 1.29 2022/03/31 17:27:31 naddy Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)pwd_mkdb.8	8.1 (Berkeley) 6/6/93
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt PWD_MKDB 8
+.Os
+.Sh NAME
+.Nm pwd_mkdb
+.Nd generate the password databases
+.Sh SYNOPSIS
+.Nm pwd_mkdb
+.Op Fl c
+.Op Fl p | s
+.Op Fl d Ar directory
+.Op Fl u Ar username
+.Ar file
+.Sh DESCRIPTION
+.Nm
+creates a pair of Berkeley databases from
+.Ar file
+and installs them into
+.Pa /etc/spwd.db
+and
+.Pa /etc/pwd.db .
+The
+.Ar file
+argument is renamed to
+.Pa /etc/master.passwd .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c
+Check whether
+.Ar file
+is in the correct format.
+Do not change, add, or remove any files.
+.It Fl d Ar directory
+Operate in a base directory other than the default of
+.Pa /etc .
+All absolute paths (including
+.Ar file )
+will be made relative to
+.Ar directory .
+Any directories specified as a part of
+.Ar file
+will be stripped off.
+This option is used to create password databases in directories
+other than
+.Pa /etc ;
+for instance in a
+.Xr chroot 8
+jail.
+.It Fl p
+Also create a legacy password file and install it into
+.Pa /etc/passwd .
+.It Fl s
+Only update the secure version of the database.
+This is most commonly used in conjunction with the
+.Fl u
+flag during a password change.
+Because the insecure database doesn't contain the password, there
+is no reason to update it if the only change is in the password field.
+Cannot be used in conjunction with the
+.Fl p
+flag.
+.It Fl u Ar username
+Only update the record for the specified user.
+Utilities that operate on a single user can use this option to avoid the
+overhead of rebuilding the entire database.
+This option must never be used if the line number of the user's record in
+.Pa /etc/master.passwd
+has changed.
+.It Ar file
+The absolute path to a file in
+.Xr master.passwd 5
+format.
+.El
+.Pp
+The two databases differ in that the secure version contains the user's
+encrypted password and the insecure version has an asterisk
+.Pq Sq \&* .
+.Pp
+The databases are used by the C library password routines (see
+.Xr getpwent 3 ) .
+.Sh FILES
+.Bl -tag -width /etc/master.passwd -compact
+.It Pa /etc/master.passwd
+current password file
+.It Pa /etc/passwd
+legacy password file
+.It Pa /etc/pwd.db
+insecure password database file
+.It Pa /etc/pwd.db.tmp
+temporary file
+.It Pa /etc/spwd.db
+secure password database file
+.It Pa /etc/spwd.db.tmp
+temporary file
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr passwd 1 ,
+.Xr dbopen 3 ,
+.Xr getpwent 3 ,
+.Xr passwd 5 ,
+.Xr vipw 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.3 Net/2 .
+.Sh AUTHORS
+.An Keith Bostic
+.Sh BUGS
+Because of the necessity for atomic update of the password files,
+.Nm
+uses
+.Xr rename 2
+to install them.
+This, however, requires that the file specified on the command line live
+on the same file system as the
+.Pa /etc
+directory.
+.Pp
+There are the obvious races with multiple people running
+.Nm
+on different password files at the same time.
+The front-ends to
+.Nm pwd_mkdb ,
+.Xr chpass 1 ,
+.Xr passwd 1 ,
+and
+.Xr vipw 8
+handle the locking necessary to avoid this problem.

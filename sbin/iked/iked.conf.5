@@ -1,0 +1,1266 @@
+.\" $OpenBSD: iked.conf.5,v 1.102 2025/07/08 14:18:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2010 - 2014 Reyk Floeter <reyk@openbsd.org>
+.\" Copyright (c) 2004 Mathieu Sauve-Frankel  All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt IKED.CONF 5
+.Os
+.Sh NAME
+.Nm iked.conf
+.Nd IKEv2 configuration file
+.Sh DESCRIPTION
+.Nm
+is the configuration file for
+.Xr iked 8 ,
+the Internet Key Exchange version 2 (IKEv2) daemon for IPsec.
+IPsec itself is a pair of protocols:
+Encapsulating Security Payload (ESP),
+which provides integrity and confidentiality;
+and Authentication Header (AH),
+which provides integrity.
+The IPsec protocol itself is described in
+.Xr ipsec 4 .
+.Pp
+In its most basic form, a flow is established between hosts and/or
+networks, and then Security Associations (SA) are established,
+which detail how the desired protection will be achieved.
+IPsec uses flows to determine whether to apply security services to an
+IP packet or not.
+.Xr iked 8
+is used to set up flows and establish SAs automatically,
+by specifying
+.Sq ikev2
+policies in
+.Nm
+(see
+.Sx Automatic keying policies ,
+below).
+.Pp
+Alternative methods of setting up flows and SAs are also possible
+using manual keying or automatic keying using the older ISAKMP/Oakley
+a.k.a. IKEv1 protocol.
+Manual keying is not recommended, but can be convenient for quick
+setups and testing.
+See
+.Xr ipsec.conf 5
+and
+.Xr isakmpd 8
+for more information about manual keying and ISAKMP support.
+.Sh IKED.CONF FILE FORMAT
+.Nm
+is divided into three main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global settings for
+.Xr iked 8 .
+.It Sx Automatic keying policies
+Policies to set up IPsec flows and SAs automatically.
+.El
+.Pp
+Lines beginning with
+.Sq #
+and empty lines are regarded as comments,
+and ignored.
+Lines may be split using the
+.Sq \e
+character.
+.Pp
+Argument names not beginning with a letter, digit, or underscore
+must be quoted.
+.Pp
+Addresses can be specified in CIDR notation (matching netblocks),
+as symbolic host names, interface names, or interface group names.
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/macros.conf"
+.Ed
+.Pp
+Certain parameters can be expressed as lists, in which case
+.Xr iked 8
+generates all the necessary flow combinations.
+For example:
+.Bd -literal -offset indent
+ikev2 esp proto { tcp, udp } \e
+	from 192.168.1.1 to 10.0.0.18 \e
+	peer 192.168.10.1
+.Ed
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic flow ,
+.Ic from ,
+or
+.Ic esp ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+remote_gw = "192.168.3.12"
+ikev2 esp from 192.168.7.0/24 to 192.168.8.0/24 peer $remote_gw
+.Ed
+.Ss Global configuration
+Here are the settings that can be set globally:
+.Bl -tag -width xxxx
+.It Ic set active
+Set
+.Xr iked 8
+to global active mode.
+In active mode the per-policy
+.Ar mode
+setting is respected.
+.Xr iked 8
+will initiate policies set to
+.Ar active
+and wait for incoming requests for policies set to
+.Ar passive .
+This is the default.
+.It Ic set passive
+Set
+.Xr iked 8
+to global passive mode.
+In passive mode no packets are sent to peers and no connections are
+initiated by
+.Xr iked 8 ,
+even for
+.Ar active
+policies.
+This option is used for setups using
+.Xr sasyncd 8
+and
+.Xr carp 4
+to provide redundancy.
+.Xr iked 8
+will run in passive mode until sasyncd has determined that the host
+is the master and can switch to active mode.
+.It Ic set couple
+Load the negotiated security associations (SAs) and flows into the kernel.
+This is the default.
+.It Ic set decouple
+Don't load the negotiated SAs and flows from the kernel.
+This mode is only useful for testing and debugging.
+.It Ic set dpd_check_interval Ar time
+Specify the liveness check interval, in seconds.
+Setting
+.Ar time
+to 0 disables DPD.
+The default value is 60 seconds.
+.It Ic set enforcesingleikesa
+Allow only a single active IKE SA for each
+.Ic dstid .
+When a new SA with the same
+.Ic dstid
+is established, it replaces the old SA.
+.It Ic set noenforcesingleikesa
+Don't limit the number of IKE SAs per
+.Ic dstid .
+This is the default.
+.It Ic set fragmentation
+Enable IKEv2 Message Fragmentation (RFC 7383) support.
+This allows IKEv2 to operate in environments that might block IP fragments.
+.It Ic set nofragmentation
+Disables IKEv2 Message Fragmentation support.
+This is the default.
+.It Ic set mobike
+Enable MOBIKE (RFC 4555) support.
+This is the default.
+MOBIKE allows the peer IP address to be changed for IKE and IPsec SAs.
+Currently
+.Xr iked 8
+only supports MOBIKE when acting as a responder.
+.It Ic set nomobike
+Disables MOBIKE support.
+.It Ic set cert_partial_chain
+Allow partial certificate chain if at least one certificate is a trusted CA from
+.Pa /etc/iked/ca/ .
+.It Ic set ocsp Ar URL Op Ic tolerate Ar time Op Ic maxage Ar time
+Enable OCSP and set the fallback URL of the OCSP responder.
+This fallback will be used if the trusted CA from
+.Pa /etc/iked/ca/
+does not have an OCSP-URL extension.
+The matching responder certificates have to be placed in
+.Pa /etc/iked/ocsp/responder.crt .
+.Pp
+The optional
+.Ic tolerate
+parameter specifies how much the OCSP response attribute
+.Sq thisUpdate
+may be in the future and how much
+.Sq nextUpdate
+may be in the past, with respect to the local time.
+The optional
+.Ic maxage
+parameter specifies how much
+.Sq thisUpdate
+may be in the past.
+If
+.Ic tolerate
+is set to 0 then the times are not verified at all.
+This is the default setting.
+.It Ic set vendorid
+Send OpenIKED Vendor ID payload.
+This is the default.
+.It Ic set novendorid
+Don't send a Vendor ID payload.
+.It Ic user Ar name password
+.Xr iked 8
+supports user-based authentication by tunneling the Extensible
+Authentication Protocol (EAP) over IKEv2.
+In its most basic form, the users will be authenticated against a
+local, integrated password database that is configured with the
+.Ic user
+lines in
+.Nm
+and the
+.Ar name
+and
+.Ar password
+arguments.
+The password has to be specified in plain text which is
+required to support different challenge-based EAP methods like
+EAP-MD5 or EAP-MSCHAPv2.
+.El
+.Ss Automatic keying policies
+This section is used to configure policies that will be used by
+.Xr iked 8
+to set up flows and SAs automatically.
+Some examples of setting up automatic keying:
+.Bd -literal -offset 3n
+# Set up a VPN:
+# First between the gateway machines 192.168.3.1 and 192.168.3.2
+# Second between the networks 10.1.1.0/24 and 10.1.2.0/24
+ikev2 esp from 192.168.3.1 to 192.168.3.2
+ikev2 esp from 10.1.1.0/24 to 10.1.2.0/24 peer 192.168.3.2
+.Ed
+.Pp
+For incoming connections from remote peers, the policies are evaluated
+in sequential order, from first to last.
+The last matching policy decides what action is taken; if no policy matches
+the connection, the default action is to ignore the connection attempt or
+to use the
+.Ar default
+policy, if set.
+See the
+.Sx EXAMPLES
+section for a detailed example of the policy evaluation.
+.Pp
+The first time an IKEv2 connection matches a policy, an IKE SA is
+created; for subsequent packets the connection is identified by the
+IKEv2 parameters that are stored in the SA without evaluating any
+policies.
+After the connection is closed or times out, the IKE SA is
+automatically removed.
+.Pp
+The commands are as follows:
+.Bl -tag -width xxxx -compact
+.It Xo
+.Ic ikev2
+.Op Ar name
+.Xc
+The mandatory
+.Ic ikev2
+keyword will identify an IKEv2 automatic keying policy.
+.Ar name
+is an optional arbitrary string identifying the policy.
+The name should only occur once in
+.Nm
+or any included files.
+If omitted,
+a name will be generated automatically for the policy.
+.Pp
+.It Op Ar eval
+The
+.Ar eval
+option modifies the policy evaluation for this policy.
+It can be one of
+.Ar quick ,
+.Ar skip
+or
+.Ar default .
+If a new incoming connection matches a policy with the
+.Ar quick
+option set, that policy is considered the last matching policy,
+and evaluation of subsequent policies is skipped.
+The
+.Ar skip
+option will disable evaluation of this policy for incoming connections.
+The
+.Ar default
+option sets the default policy and should only be specified once.
+.Pp
+.It Op Ar mode
+.Ar mode
+specifies the IKEv2 mode to use:
+one of
+.Ar passive
+or
+.Ar active .
+When
+.Ar passive
+is specified,
+.Xr iked 8
+will not immediately start negotiation of this tunnel, but wait for an incoming
+request from the remote peer.
+When
+.Ar active
+is specified, negotiation will be started at once.
+If omitted,
+.Ar passive
+mode will be used.
+.Pp
+.It Op Ar ipcomp
+The keyword
+.Ar ipcomp
+specifies that
+.Xr ipcomp 4 ,
+the IP Payload Compression protocol, is negotiated in addition to encapsulation.
+The optional compression is applied before packets are encapsulated.
+IPcomp must be enabled in the kernel:
+.Pp
+.Dl # sysctl net.inet.ipcomp.enable=1
+.Pp
+.It Op Ar tmode
+.Ar tmode
+describes the encapsulation mode to be used.
+Possible modes are
+.Ar tunnel
+and
+.Ar transport ;
+the default is
+.Ar tunnel .
+.Pp
+.It Op Ar natt
+.Ar natt
+forces negotiation of NAT-Traversal after the initial handshake.
+.Pp
+.It Op Ar encap
+.Ar encap
+specifies the encapsulation protocol to be used.
+Possible protocols are
+.Ar esp
+and
+.Ar ah ;
+the default is
+.Ar esp .
+.Pp
+.It Op Ar af
+This policy only applies to endpoints of the specified address family
+which can be either
+.Ar inet
+or
+.Ar inet6 .
+This only matters for IKEv2 endpoints and does not
+restrict the traffic selectors to negotiate flows with different
+address families, e.g. IPv6 flows negotiated by IPv4 endpoints.
+.Pp
+.It Xo
+.Ic proto Ar protocol
+.Xc
+.It Xo
+.Ic proto
+.Ic { Ar protocol ... Ic }
+.Xc
+The optional
+.Ic proto
+parameter restricts the flow to a specific IP protocol.
+Common protocols are
+.Xr icmp 4 ,
+.Xr tcp 4 ,
+and
+.Xr udp 4 .
+For a list of all the protocol name to number mappings used by
+.Xr iked 8 ,
+see the file
+.Pa /etc/protocols .
+.Pp
+Multiple
+.Ar protocol
+entries can be specified, separated by commas or whitespace,
+if enclosed in curly brackets:
+.Bd -literal -offset indent
+proto { tcp, udp }
+.Ed
+.Pp
+.It Ic rdomain Ar number
+Specify a different routing domain for unencrypted traffic.
+The resulting IPsec SAs will match outgoing packets in the specified
+.Ic rdomain Ar number
+and move the encrypted packets to the rdomain the
+.Xr iked 8
+instance is running in.
+Vice versa, incoming
+.Xr ipsec 4
+traffic is moved to
+.Ic rdomain Ar number
+after decryption.
+.Pp
+.It Xo
+.Ic from Ar src
+.Op Ic port Ar sport
+.Op Pq Ar srcnat
+.Ic to Ar dst
+.Op Ic port Ar dport
+.Xc
+Specify one or more traffic selectors for this policy which will be
+used to negotiate the IPsec flows between the IKEv2 peers.
+During the negotiation, the peers may decide to narrow a flow to a
+subset of the configured traffic selector networks to match the
+policies on each side.
+.Pp
+Each traffic selector will apply for packets with source address
+.Ar src
+and destination address
+.Ar dst .
+If the
+.Ar src
+argument specifies a fictional source ID,
+the
+.Ar srcnat
+parameter can be used to specify the actual source address.
+This can be used in outgoing NAT/BINAT scenarios as described below.
+The keyword
+.Ar any
+will match any address (i.e. 0.0.0.0/0 and ::/0).
+If the
+.Ic config address
+option is specified, the
+.Ar dynamic
+keyword can be used to create flows from or to the dynamically
+assigned address.
+.Pp
+The optional
+.Ic port
+modifiers restrict the traffic selectors to the specified ports.
+They are only valid in conjunction with the
+.Xr tcp 4
+and
+.Xr udp 4
+protocols.
+Ports can be specified by number or by name.
+For a list of all port name to number mappings used by
+.Xr ipsecctl 8 ,
+see the file
+.Pa /etc/services .
+.Pp
+.It Ic local Ar localip Ic peer Ar remote
+The
+.Ic local
+parameter specifies the address or FQDN of the local endpoint.
+Unless the gateway is multi-homed or uses address aliases,
+this option is generally not needed.
+.Pp
+The
+.Ic peer
+parameter specifies the address or FQDN of the remote endpoint.
+For host-to-host connections where
+.Ar dst
+is identical to
+.Ar remote ,
+this option is generally not needed as it will be set to
+.Ar dst
+automatically.
+If it is not specified or if the keyword
+.Ar any
+is given, the default peer is used.
+.Pp
+.It Xo
+.Ic ikesa
+.Ic auth Ar algorithm
+.Ic enc Ar algorithm
+.Ic prf Ar algorithm
+.Ic group Ar group
+.Xc
+These parameters define the mode and cryptographic transforms to be
+used for the IKE SA negotiation, also known as phase 1.
+The IKE SA will be used to authenticate the machines and to set up an
+encrypted channel for the IKEv2 protocol.
+.Pp
+Possible values for
+.Ic auth ,
+.Ic enc ,
+.Ic prf ,
+.Ic group ,
+and the default proposals are described below in
+.Sx CRYPTO TRANSFORMS .
+If omitted,
+.Xr iked 8
+will use the default proposals for the IKEv2 protocol.
+.Pp
+The keyword
+.Ic ikesa
+can be used multiple times as a delimiter between IKE SA proposals.
+The order of the proposals depend on the order in the configuration.
+The keywords
+.Ic auth ,
+.Ic enc ,
+.Ic prf
+and
+.Ic group
+can be used multiple times within a single proposal to configure
+multiple crypto transforms.
+.Pp
+.It Xo
+.Ic childsa
+.Ic auth Ar algorithm
+.Ic enc Ar algorithm
+.Ic group Ar group
+.Ic esn
+.Xc
+These parameters define the cryptographic transforms to be used for
+the Child SA negotiation, also known as phase 2.
+Each Child SA will be used to negotiate the actual IPsec SAs.
+The initial Child SA is always negotiated with the initial IKEv2 key
+exchange; additional Child SAs may be negotiated with additional
+Child SA key exchanges for an established IKE SA.
+.Pp
+Possible values for
+.Ic auth ,
+.Ic enc ,
+.Ic group ,
+.Ic esn ,
+and the default proposals are described below in
+.Sx CRYPTO TRANSFORMS .
+If omitted,
+.Xr iked 8
+will use the default proposals for the ESP or AH protocol.
+.Pp
+The
+.Ic group
+option will only be used to enable Perfect Forward Secrecy (PFS)
+for additional Child SAs exchanges that are not part of the initial
+key exchange.
+.Pp
+The keyword
+.Ic childsa
+can be used multiple times as a delimiter between Child SA proposals.
+The order of the proposals depend on the order in the configuration.
+The keywords
+.Ic auth ,
+.Ic enc
+and
+.Ic group
+can be used multiple times within a single proposal to configure
+multiple crypto transforms.
+.Pp
+.It Ic srcid Ar string Ic dstid Ar string
+.Ic srcid
+defines an ID of type
+.Dq FQDN ,
+.Dq ASN1_DN ,
+.Dq IPV4 ,
+.Dq IPV6 ,
+or
+.Dq UFQDN
+that will be used by
+.Xr iked 8
+as the identity of the local peer.
+If the argument is an email address (reyk@example.com),
+.Xr iked 8
+will use UFQDN as the ID type.
+The ASN1_DN type will be used if the string starts with a slash
+.Sq /
+(/C=DE/../CN=10.0.0.1/emailAddress=reyk@example.com).
+If the argument is an IPv4 address or a compressed IPv6 address,
+the ID types IPV4 or IPV6 will be used.
+Anything else is considered to be an FQDN.
+.Pp
+If
+.Ic srcid
+is omitted,
+the default is to use the hostname of the local machine,
+see
+.Xr hostname 1
+to set or print the hostname.
+.Pp
+.Ic dstid
+is similar to
+.Ic srcid ,
+but instead specifies the ID to be used
+by the remote peer.
+.Pp
+.It Ic ikelifetime Ar time
+The optional
+.Ic ikelifetime
+parameter defines the IKE SA expiration timeout by the
+.Ar time
+SA was created.
+A zero value disables active IKE SA rekeying.
+This is the default.
+.Pp
+The accepted format of the
+.Ar time
+specification is described below.
+.Pp
+.It Ic lifetime Ar time Op Ic bytes Ar bytes
+The optional
+.Ic lifetime
+parameter defines the Child SA expiration timeout by the
+.Ar time
+SA was in use and by the number of
+.Ar bytes
+that were processed using the SA.
+Default values are 3 hours and 4 gigabytes which means that SA will be
+rekeyed before reaching the time limit or 4 gigabytes of data
+will pass through.
+Zero values disable rekeying.
+.Pp
+Several unit specifiers are recognized (ignoring case):
+.Ql m
+and
+.Ql h
+for minutes and hours, and
+.Ql K ,
+.Ql M
+and
+.Ql G
+for kilo-, mega- and gigabytes accordingly.
+.Pp
+Rekeying must happen at least several times a day as
+IPsec security heavily depends on frequent key renewals.
+.Pp
+.It Op Ar ikeauth
+Specify a method to be used to authenticate the remote peer.
+.Xr iked 8
+will automatically determine a method based on public keys or certificates
+configured for the peer.
+.Ar ikeauth
+can be used to override this behaviour.
+Non-psk modes will require setting up certificates and RSA or ECDSA public
+keys; see
+.Xr iked 8
+for more information.
+.Pp
+.Bl -tag -width $domain -compact -offset indent
+.It Ic eap Ar type
+Use EAP to authenticate the initiator.
+Currently
+.Ar MSCHAP-V2
+or
+.Ar RADIUS
+is supported for the EAP
+.Ar type .
+The responder will use RSA public key authentication.
+To use RADIUS for EAP,
+at least one RADIUS server should be configured.
+See the
+.Sx RADIUS CONFIGURATION
+section for RADIUS support.
+.It Ic ecdsa256
+Use ECDSA with a 256-bit elliptic curve key and SHA2-256 for authentication.
+.It Ic ecdsa384
+Use ECDSA with a 384-bit elliptic curve key and SHA2-384 for authentication.
+.It Ic ecdsa521
+Use ECDSA with a 521-bit elliptic curve key and SHA2-512 for authentication.
+.It Ic psk Ar string
+Use a pre-shared key
+.Ar string
+or hex value (starting with 0x) for authentication.
+.It Ic psk file Ar path
+Use a pre-shared hex key (without leading 0x) read from
+.Ar path
+for authentication.
+.It Ic rfc7427
+Only use RFC 7427 signatures for authentication.
+RFC 7427 signatures currently only support SHA2-256 as the hash.
+.It Ic rsa
+Use RSA public key authentication with SHA1 as the hash.
+.El
+.Pp
+The default is to allow any signature authentication.
+.Pp
+.It Cm config Ar option address
+.It Cm request Ar option address
+Request or serve one or more optional configuration payloads (CP).
+The configuration
+.Ar option
+can be one of the following with the expected address format:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ic address Ar address
+Assign a static address on the internal network.
+.It Ic address Ar address/prefix
+Assign a dynamic address on the internal network.
+The address will be assigned from an address pool with the size specified by
+.Ar prefix .
+.It Ic netmask Ar netmask
+The IPv4 netmask of the internal network.
+.It Ic name-server Ar address
+The DNS server address within the internal network.
+.It Ic netbios-server Ar address
+The NetBIOS name server (WINS) within the internal network.
+This option is provided for compatibility with legacy clients.
+.It Ic dhcp-server Ar address
+The address of an internal DHCP server for further configuration.
+.It Ic protected-subnet Ar address/prefix
+The address of an additional IPv4 or IPv6 subnet reachable over the
+gateway.
+This option is used to notify the peer of a subnet behind the gateway (that
+might require a second SA).
+Networks specified in this SA's "from" or "to" options do not need to be
+included.
+.It Ic access-server Ar address
+The address of an internal remote access server.
+.El
+.Pp
+.It Ic iface Ar interface
+Enable automatic network configuration as initiator.
+Received addresses, routes and nameservers will be installed on the specified
+.Ar interface .
+.Pp
+.It Ic tag Ar string
+Add a
+.Xr pf 4
+tag to all packets of IPsec SAs created for this connection.
+This will allow matching packets for this connection by defining
+rules in
+.Xr pf.conf 5
+using the
+.Cm tagged
+keyword.
+.Pp
+The following variables can be used in tags to include information
+from the remote peer on runtime:
+.Pp
+.Bl -tag -width $domain -compact -offset indent
+.It Ar $id
+The
+.Ic dstid
+that was proposed by the remote peer to identify itself.
+It will be expanded to
+.Ar id-value ,
+e.g.\&
+.Ar FQDN/foo.example.com .
+To limit the size of the derived tag,
+.Xr iked 8
+will extract the common name
+.Sq CN=
+from ASN1_DN IDs, for example
+.Ar ASN1_ID//C=DE/../CN=10.1.1.1/..
+will be expanded to
+.Ar 10.1.1.1 .
+.It Ar $eapid
+For a connection using EAP, the identity (username) used by the remote peer.
+.It Ar $domain
+Extract the domain from IDs of type FQDN, UFQDN or ASN1_DN.
+.It Ar $name
+The name of the IKEv2 policy that was configured in
+.Nm
+or automatically generated by
+.Xr iked 8 .
+.El
+.Pp
+For example, if the ID is
+.Ar FQDN/foo.example.com
+or
+.Ar UFQDN/user@example.com ,
+.Dq ipsec-$domain
+expands to
+.Dq ipsec-example.com .
+The variable expansion for the
+.Ar tag
+directive occurs only at runtime (not when the file is parsed)
+and must be quoted, or it will be interpreted as a macro.
+.Pp
+.It Ic tap Ar interface
+Send the decapsulated IPsec traffic to the specified
+.Xr enc 4
+.Ar interface
+instead of
+.Ar enc0
+for filtering and monitoring.
+The traffic will be blocked if the specified
+.Ar interface
+does not exist.
+.El
+.Sh RADIUS CONFIGURATION
+The configuration options for RADIUS are as follows:
+.Bl -tag -width xxxx
+.It Ic radius config Oo Ar af Oc Ar option Oo Ar vendor Oc Ar attr
+Once RADIUS authentication has succeeded,
+.Xr iked 8
+uses the RADIUS attributes containing the response from the RADIUS server to
+construct IKEv2 configuration payloads (CP).
+This configuration option defines a mapping from a RADIUS attribute to an IKE
+CP with the following parameters:
+.Pp
+.Bl -tag -width "vendor attr" -compact
+.It Op Ar af
+Specify either
+.Cm inet
+or
+.Cm inet6
+for the address family of the IKE CP option.
+.It Ar option
+Specify an IKE CP option.
+Choose from
+.Sx Automatic keying policies
+config options
+.Po
+.Cm address ,
+.Cm netmask ,
+.Cm name-server ,
+.Cm netbios-server ,
+.Cm dhcp-server ,
+and
+.Cm access-server
+.Pc
+or use
+.Cm none
+to disable the existing or default mapping.
+.It Ar attr
+For a standard RADIUS attribute,
+specify its Attribute-Type for
+.Ar attr .
+.It Ar vendor Ar attr
+For a vendor specific RADIUS attribute,
+specify its Vendor-ID for
+.Ar vendor
+and the Attribute-Type for
+.Ar attr .
+.El
+.Pp
+By default,
+.Xr iked 8
+uses the following attributes for the options:
+.Bl -column "inet6 netbios-server" "Vendor" "Type" "MS-Secondary-NBNS-Server" \
+-offset "XX"
+.It Em "Option" Ta Em "Vendor" Ta Em "Type" Ta Em "Attribute Name"
+.It Li "inet address" Ta "" Ta "8" Ta "Framed-IP-Address"
+.It Li "inet netmask" Ta "" Ta "9" Ta "Framed-IP-Netmask"
+.It Li "inet name-server" Ta "0x137" Ta "28" Ta "MS-Primary-DNS-Server"
+.It Li "inet name-server" Ta "0x137" Ta "29" Ta "MS-Secondary-DNS-Server"
+.It Li "inet netbios-server" Ta "0x137" Ta "30" Ta "MS-Primary-NBNS-Server"
+.It Li "inet netbios-server" Ta "0x137" Ta "31" Ta "MS-Secondary-NBNS-Server"
+.El
+.It Ic radius Oo Ic accounting Oc Ic server Ar address Oo port Ar number Oc \
+secret Ar secret
+Specify the RADIUS server's IP address and the shared secret with the server.
+For a RADIUS accounting server,
+use the
+.Cm accounting
+keyword.
+Optionally specify the port number,
+otherwise the default port number,
+1812 for authentication or
+1813 for accounting,
+is used as the default.
+.It Ic radius Oo Ic accounting Oc Ic max-tries Ar number
+Specify the maximum number of retransmissions for a server.
+.Xr iked 8
+will retransmit 2, 6, 14, 22, 30 seconds after the first transmission
+and subsequent retransmissions will occur every 8 seconds.
+If the number of retransmissions per server reaches this value,
+the current server is marked as failed,
+and the next server is used for subsequent requests.
+For RADIUS accounting requests,
+use the
+.Cm accounting
+keyword.
+The default value is 3.
+.It Ic radius Oo Ic accounting Oc Ic max-failovers Ar number
+If a positive number is specified,
+.Xr iked 8
+will failover to the next server when the current server is marked
+.Dq fail .
+This key and value specifies the maximum number of failovers.
+For RADIUS accounting requests,
+use the
+.Cm accounting
+keyword.
+The default value is 0.
+.It Ic radius dae listen on Ar address Oo port Ar number Oc
+Specify the local
+.Ar address
+.Xr iked 8
+should listen on for the Dynamic Authorization Extensions
+.Pq DAE, RFC 5176
+requests.
+Optionally specify a port
+.Ar number ;
+the default port number is 3799.
+.It Ic radius dae client Ar address Ic secret Ar secret
+Specify an
+.Ar address
+for a DAE client and
+.Ar secret .
+.El
+.Sh PACKET FILTERING
+IPsec traffic appears unencrypted on the
+.Xr enc 4
+interface
+and can be filtered accordingly using the
+.Ox
+packet filter,
+.Xr pf 4 .
+The grammar for the packet filter is described in
+.Xr pf.conf 5 .
+.Pp
+The following components are relevant to filtering IPsec traffic:
+.Bl -ohang -offset indent
+.It external interface
+Interface for IKE traffic and encapsulated IPsec traffic.
+.It proto udp port 500
+IKE traffic on the external interface.
+.It proto udp port 4500
+IKE NAT-Traversal traffic on the external interface.
+.It proto ah | esp
+Encapsulated IPsec traffic
+on the external interface.
+.It enc0
+Default interface for outgoing traffic before it's been encapsulated,
+and incoming traffic after it's been decapsulated.
+State on this interface should be interface bound;
+see
+.Xr enc 4
+for further information.
+.It proto ipencap
+[tunnel mode only]
+IP-in-IP traffic flowing between gateways
+on the enc0 interface.
+.It tagged ipsec-example.org
+Match traffic of IPsec SAs using the
+.Ic tag
+keyword.
+.El
+.Pp
+If the filtering rules specify to block everything by default,
+the following rule
+would ensure that IPsec traffic never hits the packet filtering engine,
+and is therefore passed:
+.Bd -literal -offset indent
+set skip on enc0
+.Ed
+.Pp
+In the following example, all traffic is blocked by default.
+IPsec-related traffic from gateways {192.168.3.1, 192.168.3.2} and
+networks {10.0.1.0/24, 10.0.2.0/24} is permitted.
+.Bd -literal -offset indent
+block on ix0
+block on enc0
+
+pass  in on ix0 proto udp from 192.168.3.2 to 192.168.3.1 \e
+	port {500, 4500}
+pass out on ix0 proto udp from 192.168.3.1 to 192.168.3.2 \e
+	port {500, 4500}
+
+pass  in on ix0 proto esp from 192.168.3.2 to 192.168.3.1
+pass out on ix0 proto esp from 192.168.3.1 to 192.168.3.2
+
+pass  in on enc0 proto ipencap from 192.168.3.2 to 192.168.3.1 \e
+	keep state (if-bound)
+pass out on enc0 proto ipencap from 192.168.3.1 to 192.168.3.2 \e
+	keep state (if-bound)
+pass  in on enc0 from 10.0.2.0/24 to 10.0.1.0/24 \e
+	keep state (if-bound)
+pass out on enc0 from 10.0.1.0/24 to 10.0.2.0/24 \e
+	keep state (if-bound)
+.Ed
+.Pp
+.Xr pf 4
+has the ability to filter IPsec-related packets
+based on an arbitrary
+.Em tag
+specified within a ruleset.
+The tag is used as an internal marker
+which can be used to identify the packets later on.
+This could be helpful,
+for example,
+in scenarios where users are connecting in from differing IP addresses,
+or to support queue-based bandwidth control,
+since the enc0 interface does not support it.
+.Pp
+The following
+.Xr pf.conf 5
+fragment uses queues for all IPsec traffic with special
+handling for developers and employees:
+.Bd -literal -offset indent
+queue std on ix0 bandwidth 100M
+queue   deflt parent std bandwidth 10M default
+queue   developers parent std bandwidth 75M
+queue   employees parent std bandwidth 5M
+queue   ipsec parent std bandwidth 10M
+
+pass out on ix0 proto esp set queue ipsec
+
+pass out on ix0 tagged ipsec-developers.example.com \e
+	set queue developers
+pass out on ix0 tagged ipsec-employees.example.com \e
+	set queue employees
+.Ed
+.Pp
+The following example assigns the tags in the
+.Nm
+configuration and also sets an alternative
+.Xr enc 4
+device:
+.Bd -literal -offset indent
+ikev2 esp from 10.1.1.0/24 to 10.1.2.0/24 peer 192.168.3.2 \e
+	tag "ipsec-$domain" tap "enc1"
+.Ed
+.Sh OUTGOING NETWORK ADDRESS TRANSLATION
+In some network topologies it is desirable to perform NAT on traffic leaving
+through the VPN tunnel.
+In order to achieve that,
+the
+.Ar src
+argument is used to negotiate the desired network ID with the peer
+and the
+.Ar srcnat
+parameter defines the true local subnet,
+so that a correct SA can be installed on the local side.
+.Pp
+For example,
+if the local subnet is 192.168.1.0/24 and all the traffic
+for a specific VPN peer should appear as coming from 10.10.10.1,
+the following configuration is used:
+.Bd -literal -offset indent
+ikev2 esp from 10.10.10.1 (192.168.1.0/24) to 192.168.2.0/24 \e
+	peer 10.10.20.1
+.Ed
+.Pp
+Naturally,
+a relevant NAT rule is required in
+.Xr pf.conf 5 .
+For the example above,
+this would be:
+.Bd -literal -offset indent
+match out on enc0 from 192.168.1.0/24 to 192.168.2.0/24 \e
+	nat-to 10.10.10.1
+.Ed
+.Pp
+From the peer's point of view,
+the local end of the VPN tunnel is declared to be 10.10.10.1
+and all the traffic arrives with that source address.
+.Sh CRYPTO TRANSFORMS
+The following authentication types are permitted with the
+.Ic auth
+keyword:
+.Bl -column "Authentication" "Key Length" "Truncated Length" "Default" -offset indent
+.It Em "Authentication" Ta Em "Key Length" Ta Em "Truncated Length" Ta Em "Default"
+.It Li hmac-md5 Ta "128 bits" Ta "96 bits" Ta ""
+.It Li hmac-sha1 Ta "160 bits" Ta "96 bits" Ta "x"
+.It Li hmac-sha2-256 Ta "256 bits" Ta "128 bits" Ta "x"
+.It Li hmac-sha2-384 Ta "384 bits" Ta "192 bits" Ta "x"
+.It Li hmac-sha2-512 Ta "512 bits" Ta "256 bits" Ta "x"
+.El
+.Pp
+The following pseudo-random function types are permitted with the
+.Ic prf
+keyword:
+.Bl -column "hmac-sha2-512" "Key Length" "Default" "[IKE only]" -offset indent
+.It Em "PRF" Ta Em "Key Length" Ta Em "Default" Ta ""
+.It Li hmac-md5 Ta "128 bits" Ta "" Ta "[IKE only]"
+.It Li hmac-sha1 Ta "160 bits" Ta "x" Ta "[IKE only]"
+.It Li hmac-sha2-256 Ta "256 bits" Ta "x" Ta "[IKE only]"
+.It Li hmac-sha2-384 Ta "384 bits" Ta "x" Ta "[IKE only]"
+.It Li hmac-sha2-512 Ta "512 bits" Ta "x" Ta "[IKE only]"
+.El
+.Pp
+The following cipher types are permitted with the
+.Ic enc
+keyword:
+.Bl -column "chacha20-poly1305" "Key Length" "Default" "[ESP only]" -offset indent
+.It Em "Cipher" Ta Em "Key Length" Ta Em "Default" Ta ""
+.It Li 3des Ta "168 bits" Ta "x" Ta ""
+.It Li aes-128 Ta "128 bits" Ta "x" Ta ""
+.It Li aes-192 Ta "192 bits" Ta "x" Ta ""
+.It Li aes-256 Ta "256 bits" Ta "x" Ta ""
+.It Li aes-128-ctr Ta "160 bits" Ta "" Ta "[ESP only]"
+.It Li aes-192-ctr Ta "224 bits" Ta "" Ta "[ESP only]"
+.It Li aes-256-ctr Ta "288 bits" Ta "" Ta "[ESP only]"
+.It Li aes-128-gcm Ta "160 bits" Ta "x" Ta ""
+.It Li aes-192-gcm Ta "224 bits" Ta "" Ta "[ESP only]"
+.It Li aes-256-gcm Ta "288 bits" Ta "x" Ta ""
+.It Li aes-128-gcm-12 Ta "160 bits" Ta "" Ta "[IKE only]"
+.It Li aes-256-gcm-12 Ta "288 bits" Ta "" Ta "[IKE only]"
+.It Li blowfish Ta "160 bits" Ta "" Ta "[ESP only]"
+.It Li cast Ta "128 bits" Ta "" Ta "[ESP only]"
+.It Li chacha20-poly1305 Ta "288 bits" Ta "" Ta "[ESP only]"
+.El
+.Pp
+The following cipher types provide only authentication,
+not encryption:
+.Bl -column "chacha20-poly1305" "Key Length" "Default" "[ESP only]" -offset indent
+.It Li aes-128-gmac Ta "160 bits" Ta "" Ta "[ESP only]"
+.It Li aes-192-gmac Ta "224 bits" Ta "" Ta "[ESP only]"
+.It Li aes-256-gmac Ta "288 bits" Ta "" Ta "[ESP only]"
+.It Li null Ta "" Ta "" Ta "[ESP only]"
+.El
+.Pp
+The Extended Sequence Numbers option can be enabled or disabled with the
+.Ic esn
+or
+.Ic noesn
+keywords:
+.Bl -column "noesn" "Default" "[ESP only]" -offset indent
+.It Em ESN Ta Em "Default" Ta Em ""
+.It Li esn Ta "x" Ta "[ESP only]"
+.It Li noesn Ta "x" Ta "[ESP only]"
+.El
+.Pp
+Transforms followed by
+.Bq IKE only
+can only be used with the
+.Ic ikesa
+keyword, transforms with
+.Bq ESP only
+can only be used with the
+.Ic childsa
+keyword.
+.Pp
+Using AES-GMAC or NULL with ESP will only provide authentication.
+This is useful in setups where AH cannot be used, e.g. when NAT is involved.
+.Pp
+The following group types are permitted with the
+.Ic group
+keyword:
+.Bl -column "sntrup761x25519" "Group" "1190 B" "Hybrid PQKE" "Default" -offset indent
+.It Em Name Ta Em Group Ta Em Size Ta Em Type Ta Em Default
+.It Li modp768 Ta grp1 Ta 768 Ta "MODP" Ta "" Ta "[insecure]"
+.It Li modp1024 Ta grp2 Ta 1024 Ta "MODP" Ta "x" Ta "[weak]"
+.It Li modp1536 Ta grp5 Ta 1536 Ta "MODP" Ta "x" Ta "[weak]"
+.It Li modp2048 Ta grp14 Ta 2048 Ta "MODP" Ta "x"
+.It Li modp3072 Ta grp15 Ta 3072 Ta "MODP" Ta "x"
+.It Li modp4096 Ta grp16 Ta 4096 Ta "MODP" Ta "x"
+.It Li modp6144 Ta grp17 Ta 6144 Ta "MODP" Ta ""
+.It Li modp8192 Ta grp18 Ta 8192 Ta "MODP" Ta ""
+.It Li ecp256 Ta grp19 Ta 256 Ta "ECP" Ta "x"
+.It Li ecp384 Ta grp20 Ta 384 Ta "ECP" Ta "x"
+.It Li ecp521 Ta grp21 Ta 521 Ta "ECP" Ta "x"
+.It Li ecp224 Ta grp26 Ta 224 Ta "ECP" Ta ""
+.It Li brainpool224 Ta grp27 Ta 224 Ta "ECP" Ta ""
+.It Li brainpool256 Ta grp28 Ta 256 Ta "ECP" Ta ""
+.It Li brainpool384 Ta grp29 Ta 384 Ta "ECP" Ta ""
+.It Li brainpool512 Ta grp30 Ta 512 Ta "ECP" Ta ""
+.It Li curve25519 Ta grp31 Ta 256 Ta "Curve25519" Ta "x"
+.It Li sntrup761x25519 Ta "" Ta 1190 B Ta "Hybrid PQKE" Ta ""
+.El
+.Pp
+The currently supported group types are either
+MODP (exponentiation groups modulo a prime),
+ECP (elliptic curve groups modulo a prime),
+or Curve25519.
+MODP groups of less than 2048 bits are considered
+as weak or insecure (see RFC 8247 section 2.4) and only provided for
+backwards compatibility.
+.Sh FILES
+.Bl -tag -width /etc/examples/iked.conf -compact
+.It Pa /etc/iked.conf
+.It Pa /etc/examples/iked.conf
+.El
+.Sh EXAMPLES
+The first example is intended for a server with clients connecting to
+.Xr iked 8
+as an IPsec gateway, or IKEv2 responder, using mutual public key
+authentication and additional challenge-based EAP-MSCHAPv2 password
+authentication:
+.Bd -literal -offset indent
+user "test" "password123"
+
+ikev2 "win7" esp \e
+	from dynamic to 172.16.2.0/24 \e
+	peer 10.0.0.0/8 local 192.168.56.0/24 \e
+	eap "mschap-v2" \e
+	config address 172.16.2.1 \e
+	tag "$name-$id"
+.Ed
+.Pp
+The next example allows peers to authenticate using a pre-shared key
+.Sq foobar :
+.Bd -literal -offset indent
+ikev2 "big test" \e
+	esp proto tcp \e
+	from 10.0.0.0/8 port 23 to 20.0.0.0/8 port 40 \e
+	from 192.168.1.1 to 192.168.2.2 \e
+	peer any local any \e
+	ikesa \e
+		enc aes-128-gcm \e
+		group ecp256 group curve25519 \e
+	ikesa \e
+		enc aes-128 auth hmac-sha2-256 \e
+		group ecp256 group curve25519 \e
+	childsa enc aes-128-gcm \e
+	childsa enc aes-128 auth hmac-sha2-256  \e
+	srcid host.example.com \e
+	dstid 192.168.0.254 \e
+	psk "foobar"
+.Ed
+.Pp
+The following example illustrates the last matching policy
+evaluation for incoming connections on an IKEv2 gateway.
+The peer 192.168.1.34 will always match the first policy because of the
+.Ar quick
+keyword;
+connections from the peers 192.168.1.3 and 192.168.1.2 will be matched
+by one of the last two policies;
+any other connections from 192.168.1.0/24 will be matched by the
+.Sq subnet
+policy;
+and any other connection will be matched by the
+.Sq catch all
+policy.
+.Bd -literal -offset indent
+ikev2 quick esp from 10.10.10.0/24 to 10.20.20.0/24 \e
+	peer 192.168.1.34
+ikev2 "catch all" esp from 10.0.1.0/24 to 10.0.2.0/24 \e
+	peer any
+ikev2 "subnet" esp from 10.0.3.0/24 to 10.0.4.0/24 \e
+	peer 192.168.1.0/24
+ikev2 esp from 10.0.5.0/30 to 10.0.5.4/30 peer 192.168.1.2
+ikev2 esp from 10.0.5.8/30 to 10.0.5.12/30 peer 192.168.1.3
+.Ed
+.Pp
+This example encrypts a
+.Xr gre 4
+tunnel from local machine A (2001:db8::aa:1) to peer D (2001:db8::dd:4) based on
+FQDN-based public key authentication;
+.Ar transport
+mode avoids double encapsulation:
+.Bd -literal -offset indent
+ikev2 transport \e
+	proto gre \e
+	from 2001:db8::aa:1 to 2001:db8::dd:4 \e
+	peer D.example.com
+.Ed
+.Sh SEE ALSO
+.Xr enc 4 ,
+.Xr ipsec 4 ,
+.Xr ipsec.conf 5 ,
+.Xr pf.conf 5 ,
+.Xr ikectl 8 ,
+.Xr iked 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 4.8 .
+.Sh AUTHORS
+The
+.Xr iked 8
+program was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

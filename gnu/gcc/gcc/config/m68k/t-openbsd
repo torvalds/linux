@@ -1,0 +1,5 @@
+# gdb gets confused if pic code is linked with non pic
+# We cope by building all variants of libgcc.
+MULTILIB_OPTIONS = fpic/fPIC
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib

@@ -1,0 +1,17 @@
+#!/bin/ksh
+#
+# $OpenBSD: nfsd,v 1.9 2022/08/29 19:14:25 ajacoutot Exp $
+
+daemon="/sbin/nfsd"
+daemon_flags="-tun 4"
+
+. /etc/rc.d/rc.subr
+
+pexp="(${daemon}( |$)|nfsd: (master|server)$)"
+rc_reload=NO
+
+rc_pre() {
+	[[ -s /etc/exports ]] && grep -qv '^#' /etc/exports
+}
+
+rc_cmd $1

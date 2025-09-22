@@ -1,0 +1,71 @@
+.\"     $OpenBSD: tcpcib.4,v 1.6 2014/11/15 14:41:02 bentley Exp $
+.\"
+.\" Copyright (c) 2012 Matt Dainty <matt@bodgit-n-scarper.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 15 2014 $
+.Dt TCPCIB 4 amd64
+.Os
+.Sh NAME
+.Nm tcpcib
+.Nd Intel Atom E600 series LPC bridge, timecounter and watchdog timer
+.Sh SYNOPSIS
+.Cd "tcpcib* at pci?"
+.Cd "isa* at tcpcib?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Intel Atom E600 series LPC bridge and
+implements a 64-bit 14.3 MHz timecounter using the HPET timer.
+.Pp
+The
+.Nm
+driver also provides the standard
+.Xr watchdog 4
+interface to the watchdog timer and may be used with
+.Xr watchdogd 8 .
+The watchdog timer can be configured via
+.Xr sysctl 8 .
+.Pp
+Once the watchdog timer resets the CPU, the driver reports it on the
+next boot displaying the
+.Dq reboot on timeout
+message in the
+.Xr dmesg 8 .
+.Pp
+The maximum timeout value supported by the watchdog timer is 600
+seconds.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr pci 4 ,
+.Xr watchdog 4 ,
+.Xr sysctl 8 ,
+.Xr watchdogd 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.2 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Matt Dainty Aq Mt matt@bodgit-n-scarper.com .
+.Sh BUGS
+Apart from the core
+.Xr pcib 4
+functionality, timecounter and the
+.Xr watchdog 4
+interface, the driver doesn't support any other aspects of the hardware.

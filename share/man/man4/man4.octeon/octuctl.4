@@ -1,0 +1,48 @@
+.\"	$OpenBSD: octuctl.4,v 1.1 2016/09/18 21:20:42 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Rafael Neves <rafael@diskless.io>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 18 2016 $
+.Dt OCTUCTL 4 octeon
+.Os
+.Sh NAME
+.Nm octuctl
+.Nd OCTEON II USB controller interface
+.Sh SYNOPSIS
+.Cd "octuctl0 at iobus? irq 56"
+.Cd "ehci0    at octuctl?"
+.Cd "ohci0    at octuctl?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the OCTEON II USB controller interface,
+which provides an interface to
+.Xr ehci 4
+and
+.Xr ohci 4
+devices.
+.Sh SEE ALSO
+.Xr ehci 4 ,
+.Xr ohci 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jonathan Matthew Aq Mt jmatthew@openbsd.org .

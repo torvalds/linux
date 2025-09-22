@@ -1,0 +1,28 @@
+Date: Mon, 20 Jan 2003 00:00:28 -0600
+From: Brian R. Gaeke <gaeke@uiuc.edu>
+Subject: windows vs. llvm
+
+If you're interested, here are some of the major problems compiling LLVM
+under Cygwin and/or Mingw.
+
+1. Cygwin doesn't have <inttypes.h> or <stdint.h>, so all the INT*_MAX
+   symbols and standard int*_t types are off in limbo somewhere. Mingw has
+   <stdint.h>, but Cygwin doesn't like it.
+
+2. Mingw doesn't have <dlfcn.h> (because Windows doesn't have it.)
+
+3. SA_SIGINFO and friends are not around; only signal() seems to work.
+
+4. Relink, aka ld -r, doesn't work (probably an ld bug); you need
+   DONT_BUILD_RELINKED. This breaks all the tools makefiles; you just need to
+   change them to have .a's.
+
+5. There isn't a <values.h>.
+
+6. There isn't a mallinfo() (or, at least, it's documented, but it doesn't seem
+   to link).
+
+7. The version of Bison that cygwin (and newer Linux versions) comes with
+   does not like = signs in rules. Burg's gram.yc source file uses them. I think
+   you can just take them out.
+

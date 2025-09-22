@@ -1,0 +1,111 @@
+# This is the target specific configuration file.  This is invoked by the
+# autoconf generated configure script.  Putting it in a separate shell file
+# lets us skip running autoconf when modifying target specific information.
+
+# This file switches on the shell variable ${target}, and sets the
+# following shell variables:
+#  config_path		An ordered list of directories to search for
+#			sources and headers.  This is relative to the
+#			config subdirectory of the source tree.
+#  XCFLAGS		Add extra compile flags to use.
+#  XLDFLAGS		Add extra link flags to use.
+
+# Optimize TLS usage by avoiding the overhead of dynamic allocation.
+# This does require that the library be present during process 
+# startup, so mark the library as not to be dlopened.
+if test $have_tls = yes ; then
+  case "${target}" in
+
+    *-*-linux*)
+	XCFLAGS="${XCFLAGS} -ftls-model=initial-exec"
+	XLDFLAGS="${XLDFLAGS} -Wl,-z,nodlopen"
+	;;
+  esac
+fi
+
+# Since we require POSIX threads, assume a POSIX system by default.
+config_path="posix"
+
+# Check for futex enabled all at once.
+if test $enable_linux_futex = yes; then
+  case "${target}" in
+
+    alpha*-*-linux*)
+	config_path="linux/alpha linux posix"
+	;;
+
+    ia64*-*-linux*)
+	config_path="linux/ia64 linux posix"
+	;;
+
+    powerpc*-*-linux*)
+	config_path="linux/powerpc linux posix"
+	;;
+
+    s390*-*-linux*)
+	config_path="linux/s390 linux posix"
+	;;
+
+    # Note that bare i386 is not included here.  We need cmpxchg.
+    i[456]86-*-linux*)
+	config_path="linux/x86 linux posix"
+	if test -z "$with_arch"; then
+	  XCFLAGS="${XCFLAGS} -march=i486 -mtune=${target_cpu}"
+	fi
+	;;
+
+    # Similar jiggery-pokery for x86_64 multilibs, except here we
+    # can't rely on the --with-arch configure option, since that
+    # applies to the 64-bit side.
+    x86_64-*-linux*)
+	config_path="linux/x86 linux posix"
+	case " ${CC} ${CFLAGS} " in
+	  *" -m32 "*)
+	    XCFLAGS="${XCFLAGS} -march=i486 -mtune=i686"
+	    ;;
+	esac
+	;;
+
+    # Note that sparcv7 and sparcv8 is not included here.  We need cas.
+    sparcv9-*-linux* | sparc64-*-linux*)
+	echo "int i;" > conftestx.c
+	if ${CC} ${CFLAGS} -c -o conftestx.o conftestx.c > /dev/null 2>&1; then
+	  config_path="linux/sparc linux posix"
+	  case "`/usr/bin/file conftestx.o`" in
+	    *32-bit*)
+	      case " ${CC} ${CFLAGS}" in
+		*" -mcpu=ultrasparc"*)
+		  ;;
+		*)
+		  XCFLAGS="${XCFLAGS} -mcpu=v9"
+		  ;;
+	      esac
+	      ;;
+	  esac
+	fi
+	rm -f conftestx.c conftestx.o
+	;;
+  esac
+fi
+
+# Other system configury
+case "${target}" in
+
+  *-*-hpux11*)
+	# HPUX v11.x requires -lrt to resolve sem_init in libgomp.la
+	XLDFLAGS="${XLDFLAGS} -lrt"
+	;;
+
+  *-*-mingw32*)
+	config_path="mingw32 posix"
+	;;
+
+  *-*-solaris2.[56]*)
+	config_path="posix95 posix"
+	XLDFLAGS="${XLDFLAGS} -lposix4"
+	;;
+
+  *)
+	;;
+
+esac

@@ -1,0 +1,276 @@
+.\"	$OpenBSD: smtpd-tables.7,v 1.5 2025/04/08 17:35:01 op Exp $
+.\"
+.\" Copyright (c) 2008 Janne Johansson <jj@openbsd.org>
+.\" Copyright (c) 2009 Jacek Masiulaniec <jacekm@dobremiasto.net>
+.\" Copyright (c) 2012 Gilles Chehade <gilles@poolp.org>
+.\" Copyright (c) 2024 Omar Polo <op@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: April 8 2025 $
+.Dt SMTPD-TABLES 7
+.Os
+.Sh NAME
+.Nm smtpd-tables
+.Nd table API for the smtpd daemon
+.Sh DESCRIPTION
+The
+.Xr smtpd 8
+daemon provides a Simple Mail Transfer Protocol (SMTPD) implementation,
+which allows ordinary machines to become Mail eXchangers (MX).
+Some features that are commonly used by MX,
+such as querying databases for user credentials,
+are outside of the scope of SMTP and too complex to fit in
+.Xr smtpd 8 .
+.Pp
+Because an MX may need to provide these features,
+.Xr smtpd 8
+provides an API to implement
+.Xr table 5
+backends with a simple text-based protocol.
+.Sh DESIGN
+.Nm
+are programs that run as unique standalone processes,
+they do not share
+.Xr smtpd 8
+address space.
+They are executed by
+.Xr smtpd 8
+at startup and expected to run in an infinite loop,
+reading events and queries from standard input and
+writing responses to standard output.
+They are not allowed to terminate.
+.Pp
+Because
+.Nm
+are standalone programs that communicate with
+.Xr smtpd 8 ,
+they may run as different users than
+.Xr smtpd 8
+and may be written in any language.
+.Nm
+must not use blocking I/O,
+they must support answering asynchronously to
+.Xr smtpd 8 .
+.Sh PROTOCOL
+The protocol consist of human-readable lines exchanged between
+.Nm
+and
+.Xr smtpd 8 .
+.Pp
+The protocol begins with a handshake.
+First,
+.Xr smtpd 8
+provides
+.Nm
+with general configuration information in the form of
+key-value lines, terminated by
+.Ql config|ready .
+For example:
+.Bd -literal -offset indent
+config|smtpd-version|7.7.0
+config|protocol|0.1
+config|tablename|devs
+config|ready
+.Ed
+.Pp
+Then,
+.Nm
+register the supported services, terminating with
+.Ql register|ready .
+For example:
+.Bd -literal -offset indent
+register|alias
+register|credentials
+register|ready
+.Ed
+.Pp
+Finally,
+.Xr smtpd 8
+can start querying the table.
+For example:
+.Bd -literal -offset indent
+table|0.1|1713795082.354255|devs|lookup|alias|b72508d|op
+.Ed
+.Pp
+The
+.Dq |
+character is used to separate the fields and may only appear
+verbatim in the last field of the payload, in which case it
+should be considered a regular character and not a separator.
+No other field may contain a
+.Dq | .
+.Pp
+Each request has a common set of fields, followed by some
+other fields that are operation-specific.
+The common format consists of a protocol prefix
+.Sq table ,
+the protocol version, the timestamp and the table name.
+For example:
+.Bd -literal -offset indent
+table|0.1|1713795091.202157|devs
+.Ed
+.Pp
+The protocol is inherently asynchronous, so multiple request
+may be sent without waiting for the table to reply.
+All the replies have a common prefix, followed by the
+operation-specific response.
+The common format consist of a prefix with the operation name
+in followed by
+.Sq -result ,
+and the unique ID of the request.
+For example:
+.Bd -literal -offset indent
+lookup-result|b72508d
+.Ed
+.Pp
+The list of operations, operation-specific parameters and
+responses are as follows:
+.Bl -tag -width Ds
+.It Cm update Ar id
+Ask the table to reload its configuration.
+The result is either
+.Sq ok
+on success or
+.Sq error
+and a message upon a failure to do so.
+.It Cm check Ar service id query
+Check whether
+.Ar query
+is present in the table.
+The result is
+.Sq found
+if found,
+.Sq not-found
+if not, or
+.Sq error
+and a message upon an error.
+.It Cm lookup Ar service id query
+Look up a value in the table for given the
+.Ar query .
+The result is
+.Sq found
+and the value if found,
+.Sq not-found
+if not found, or
+.Sq error
+and a message upon an error.
+.It Cm fetch Ar service id
+Fetch the next item from the table, eventually wrapping around.
+It is only supported for the
+.Ic source
+and
+.Ic relayhost
+services.
+The result is
+.Sq found
+and the value if found,
+.Sq not-found
+if the table is empty, or
+.Sq error
+and a message upon an error.
+.El
+.Pp
+Each service has a specific format for the result.
+The exact syntax for the values and eventually the keys are
+described in
+.Xr table 5 .
+The services and their result format are as follows:
+.Pp
+.Bl -tag -width mailaddrmap -compact
+.It Ic alias
+One or more aliases separated by a comma.
+.It Ic auth
+Only usable for check.
+Lookup key is username and cleartext password separated by
+.Sq \&: .
+.It Ic domain
+A domain name.
+.\" XXX are wildcards allowed?
+.It Ic credentials
+The user name, followed by
+.Sq \&:
+and the encrypted password as per
+.Xr smtpctl 8
+.Cm encrypt
+subcommand.
+.It Ic netaddr
+IPv4 and IPv6 address or netmask.
+.It Ic userinfo
+The user id, followed by
+.Sq \&:
+then the group id, then
+.Sq \&:
+and finally the home directory.
+.It Ic source
+IPv4 and IPv6 address.
+.It Ic mailaddr
+An username, a domain or a full email address.
+.It Ic addrname
+Used to map IP addresses to hostnames.
+.\" .It Ic mailaddrmap
+.\" XXX missing K_RELAYHOST, K_STRING and K_REGEX
+.El
+.Sh EXAMPLES
+Assuming the table is called
+.Dq devs ,
+here's an example of a failed
+.Cm update
+transaction:
+.Bd -literal -offset indent
+table|0.1|1713795097.394049|devs|update|478ff0d2
+update-result|478ff0d2|error|failed to connect to the database
+.Ed
+.Pp
+A
+.Cm check
+request for the
+.Ic netaddr
+service for the 192.168.0.7 IPv4 address which is
+not in the table:
+.Bd -literal -offset indent
+table|0.1|1713795103.314423|devs|check|netaddr|e5862859|192.168.0.7
+check-result|e5862859|not-found
+.Ed
+.Pp
+A successful
+.Cm lookup
+request for the
+.Ic userinfo
+service for the user
+.Sq op :
+.Bd -literal -offset indent
+table|0.1|1713795110.354921|devs|lookup|userinfo|f993c74|op
+lookup-result|f993c74|found|1000:1000:/home/op
+.Ed
+.Pp
+A series of
+.Cm fetch
+requests for the
+.Cm source
+service that wraps around:
+.Bd -literal -offset indent
+table|0.1|1713795116.227321|devs|fetch|source|189bd3ee
+lookup-result|189bd3ee|found|192.168.1.7
+table|0.1|1713795120.162438|devs|fetch|source|9e4c56d4
+lookup-result|9e4c56d4|found|10.0.0.8
+table|0.1|1713795122.930928|devs|fetch|source|f2c8b906
+lookup-result|f2c8b906|found|192.168.1.7
+.Ed
+.Sh SEE ALSO
+.Xr smtpd 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Ox 7.6 .

@@ -1,0 +1,5 @@
+declare_args() {
+  # If set, creates symlinks for cctools like libtool or lipo in the build
+  # directory.
+  llvm_install_cctools_symlinks = false
+}

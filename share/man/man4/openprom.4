@@ -1,0 +1,165 @@
+.\"	$OpenBSD: openprom.4,v 1.2 2022/09/11 06:38:11 jmc Exp $
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This software was developed by the Computer Systems Engineering group
+.\" at Lawrence Berkeley Laboratory under DARPA contract BG 91-66 and
+.\" contributed to Berkeley.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)openprom.4	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt OPENPROM 4
+.Os
+.Sh NAME
+.Nm openprom
+.Nd OPENPROM interface
+.Sh SYNOPSIS
+.In machine/openpromio.h
+.Sh DESCRIPTION
+The file
+.Pa /dev/openprom
+is an interface to the OPENPROM.
+This interface is highly stylized,
+ioctls are used for all operations.
+These ioctls refer to
+.Dq nodes ,
+which are simply
+.Dq magic
+integer values describing data areas.
+Occasionally the number 0 may be used or returned instead,
+as described below.
+.Pp
+The calls that take and/or return a node
+use a pointer to an
+.Vt int
+variable for this purpose;
+others use a pointer to a
+.Vt struct opiocdesc
+descriptor,
+which contains a node and two counted strings.
+The first string is comprised of the fields
+.Li op_namelen
+(an
+.Vt int )
+and
+.Li op_name
+(a
+.Vt char * ) ,
+giving the name of a field.
+The second string is comprised of the fields
+.Li op_buflen
+and
+.Li op_buf ,
+used analogously.
+These two counted strings work in a
+.Dq value-result
+fashion.
+At entry to the ioctl,
+the counts are expected to reflect the buffer size;
+on return,
+the counts are updated to reflect the buffer contents.
+.Pp
+The following ioctls are supported:
+.Bl -tag -width OPIOCGETOPTNODE
+.It Dv OPIOCGETOPTNODE
+Takes nothing, and fills in the options node number.
+.It Dv OPIOCGETNEXT
+Takes a node number and returns the number of the following node.
+The node following the last node is number 0;
+the node following number 0 is the first node.
+.It Dv OPIOCGETCHILD
+Takes a node number and returns the number of the first
+.Dq child
+of that node.
+This child may have siblings; these can be discovered by using
+.Dv OPIOCGETNEXT .
+.It Dv OPIOCGET
+Fills in the value of the named property for the given node.
+If no such property is associated with that node,
+the value length is set to -1.
+If the named property exists but has no value,
+the value length is set to 0.
+.It Dv OPIOCSET
+Writes the given value under the given name.
+The OPENPROM may refuse this operation,
+in this case
+.Dv EINVAL
+is returned.
+.It Dv OPIOCNEXTPROP
+Finds the property whose name follows the given name
+in OPENPROM internal order.
+The resulting name is returned in the value field.
+If the named property is the last, the
+.Dq next
+name is the empty string.
+As with
+.Dv OPIOCGETNEXT ,
+the next name after the empty string is the first name.
+.El
+.Sh FILES
+.Pa /dev/openprom
+.Sh ERRORS
+The following may result in rejection of an operation:
+.Bl -tag -width "[ENAMETOOLONG]"
+.It Bq Er EINVAL
+The given node number
+is not zero
+and does not correspond to any valid node,
+or is zero where zero is not allowed.
+.It Bq Er EBADF
+The requested operation requires permissions not specified at the call to
+.Fn open .
+.It Bq Er ENAMETOOLONG
+The given name or value field
+exceeds the maximum allowed length (8191 bytes).
+.It Bq Er ENOMEM
+Memory could not be allocated.
+.It Bq Er ENOTTY
+The ioctl is not supported on this architecture.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr eeprom 8
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Ox 3.0
+for sparc64.
+It has been available on macppc since
+.Ox 4.3 ,
+on octeon since
+.Ox 6.0 ,
+on armv7 since
+.Ox 6.0 ,
+and on arm64 since
+.Ox 6.1 .
+.Sh BUGS
+Due to limitations within the OPENPROM itself,
+these functions run at elevated priority
+and may adversely affect system performance.

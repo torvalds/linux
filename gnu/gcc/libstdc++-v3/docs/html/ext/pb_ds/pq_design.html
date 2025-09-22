@@ -1,0 +1,381 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Priority-Queues</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Priority-Queue Design</h1>
+
+    <h2><a name="overview" id="overview">Overview</a></h2>
+
+    <p>The priority-queue container has the following
+    declaration:</p>
+    <pre>
+<b>template</b>&lt;
+    <b>typename</b> Value_Type,
+    <b>typename</b> Cmp_Fn = std::less&lt;Value_Type&gt;,
+    <b>typename</b> Tag = <a href="pairing_heap_tag.html">pairing_heap_tag</a>,
+    <b>typename</b> Allocator = std::allocator&lt;<b>char</b>&gt; &gt;
+<b>class</b> <a href="priority_queue.html">priority_queue</a>;
+</pre>
+
+    <p>The parameters have the following meaning:</p>
+
+    <ol>
+      <li><tt>Value_Type</tt> is the value type.</li>
+
+      <li><tt>Cmp_Fn</tt> is a value comparison functor</li>
+
+      <li><tt>Tag</tt> specifies which underlying data structure
+      to use.</li>
+
+      <li><tt>Allocator</tt> is an allocator
+      type.</li>
+    </ol>
+
+    <p>The <tt>Tag</tt> parameter specifies which underlying
+    data structure to use. Instantiating it by <a href=
+    "pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a>,
+    <a href=
+    "binary_heap_tag.html"><tt>binary_heap_tag</tt></a>,
+    <a href=
+    "binomial_heap_tag.html"><tt>binomial_heap_tag</tt></a>,
+    <a href=
+    "rc_binomial_heap_tag.html"><tt>rc_binomial_heap_tag</tt></a>,
+    or <a href=
+    "thin_heap_tag.html"><tt>thin_heap_tag</tt></a>,
+    specifies, respectively, an underlying pairing heap [<a href=
+    "references.html#fredman86pairing">fredman86pairing</a>],
+    binary heap [<a href="references.html#clrs2001">clrs2001</a>],
+    binomial heap [<a href=
+    "references.html#clrs2001">clrs2001</a>], a binomial heap with
+    a redundant binary counter [<a href=
+    "references.html#maverik_lowerbounds">maverik_lowerbounds</a>],
+    or a thin heap [<a href=
+    "references.html#kt99fat_heaps">kt99fat_heas</a>]. These are
+    explained further in <a href="#pq_imp">Implementations</a>.</p>
+
+    <p>As mentioned in <a href=
+    "tutorial.html#pq">Tutorial::Priority Queues</a>, 
+    <a href=
+    "priority_queue.html"><tt>pb_ds::priority_queue</tt></a>
+    shares most of the same interface with <tt>std::priority_queue</tt>.
+    <i>E.g.</i> if <tt>q</tt> is a priority queue of type
+    <tt>Q</tt>, then <tt>q.top()</tt> will return the "largest"
+    value in the container (according to <tt><b>typename</b>
+    Q::cmp_fn</tt>). <a href=
+    "priority_queue.html"><tt>pb_ds::priority_queue</tt></a>
+    has a larger (and very slightly different) interface than
+    <tt>std::priority_queue</tt>, however, since typically
+    <tt>push</tt> and <tt>pop</tt> are deemed insufficient for
+    manipulating priority-queues. </p>
+
+    <p>Different settings require different priority-queue
+    implementations which are described in <a href=
+    "#pq_imp">Implementations</a>; <a href="#pq_traits">Traits</a>
+    discusses ways to differentiate between the different traits of
+    different implementations.</p>
+
+    <h2><a name="pq_it" id="pq_it">Iterators</a></h2>
+
+    <p>There are many different underlying-data structures for
+    implementing priority queues. Unfortunately, most such
+    structures are oriented towards making <tt>push</tt> and
+    <tt>top</tt> efficient, and consequently don't allow efficient
+    access of other elements: for instance, they cannot support an efficient
+    <tt>find</tt> method. In the use case where it
+    is important to both access and "do something with" an
+    arbitrary value, one would be out of luck. For example, many graph algorithms require
+    modifying a value (typically increasing it in the sense of the
+    priority queue's comparison functor).</p>
+
+    <p>In order to access and manipulate an arbitrary value in a
+    priority queue, one needs to reference the internals of the
+    priority queue from some form of an associative container -
+    this is unavoidable. Of course, in order to maintain the
+    encapsulation of the priority queue, this needs to be done in a
+    way that minimizes exposure to implementation internals.</p>
+
+    <p>In <tt>pb_ds</tt> the priority queue's <tt>insert</tt>
+    method returns an iterator, which if valid can be used for subsequent <tt>modify</tt> and
+    <tt>erase</tt> operations. This both preserves the priority
+    queue's encapsulation, and allows accessing arbitrary values (since the
+    returned iterators from the <tt>push</tt> operation can be
+    stored in some form of associative container).</p>
+
+    <p>Priority queues' iterators present a problem regarding their
+    invalidation guarantees. One assumes that calling
+    <tt><b>operator</b>++</tt> on an iterator will associate it
+    with the "next" value. Priority-queues are
+    self-organizing: each operation changes what the "next" value
+    means. Consequently, it does not make sense that <tt>push</tt>
+    will return an iterator that can be incremented - this can have
+    no possible use. Also, as in the case of hash-based containers,
+    it is awkward to define if a subsequent <tt>push</tt> operation
+    invalidates a prior returned iterator: it invalidates it in the
+    sense that its "next" value is not related to what it
+    previously considered to be its "next" value. However, it might not
+    invalidate it, in the sense that it can be
+    de-referenced and used for <tt>modify</tt> and <tt>erase</tt>
+    operations.</p>
+
+    <p>Similarly to the case of the other unordered associative
+    containers, <tt>pb_ds</tt> uses a distinction between
+    point-type and range type iterators. A priority queue's <tt>iterator</tt> can always be
+    converted to a <tt>point_iterator</tt>, and a
+    <tt>const_iterator</tt> can always be converted to a
+    <tt>const_point_iterator</tt>.</p>
+
+    <p>The following snippet demonstrates manipulating an arbitrary
+    value:</p>
+    <pre>
+<i>// A priority queue of integers.</i>
+<a href=
+"priority_queue.html">priority_queue</a>&lt;<b>int</b>&gt; p;
+
+<i>// Insert some values into the priority queue.</i>
+<a href=
+"priority_queue.html">priority_queue</a>&lt;<b>int</b>&gt;::point_iterator it = p.push(0);
+
+p.push(1);
+p.push(2);
+
+<i>// Now modify a value.</i>
+p.modify(it, 3);
+
+assert(p.top() == 3);
+</pre>
+
+    <p>(<a href="pq_examples.html#xref">Priority Queue
+    Examples::Cross-Referencing</a> shows a more detailed
+    example.)</p>
+
+    <p>It should be noted that an alternative design could embed an
+    associative container in a priority queue. Could, but most probably should not. To begin with, it should be noted that one
+    could always encapsulate a priority queue and an associative
+    container mapping values to priority queue iterators with no
+    performance loss. One cannot, however, "un-encapsulate" a
+    priority queue embedding an associative container, which might
+    lead to performance loss. Assume, that one needs to
+    associate each value with some data unrelated to priority
+    queues. Then using <tt>pb_ds</tt>'s design, one could use an
+    associative container mapping each value to a pair consisting
+    of this data and a priority queue's iterator. Using the
+    embedded method would need to use two associative
+    containers. Similar problems might arise in cases where a value
+    can reside simultaneously in many priority queues.</p>
+
+    <h2><a name="pq_imp" id="pq_imp">Implementations</a></h2>
+
+    <p>There are three main implementations of priority queues: the
+    first employs a binary heap, typically one which uses a
+    sequence; the second uses a tree (or forest of trees), which is
+    typically less structured than an associative container's tree;
+    the third simply uses an associative container. These are
+    shown, respectively, in Figures <a href=
+    "#pq_different_underlying_dss">Underlying Priority-Queue
+    Data-Structures</a> A1 and A2, Figure <a href=
+    "#pq_different_underlying_dss">Underlying Priority-Queue
+    Data-Structures</a> B, and Figures <a href=
+    "#pq_different_underlying_dss">Underlying Priority-Queue
+    Data-Structures</a> C.</p>
+
+    <h6 class="c1"><a name="pq_different_underlying_dss" id=
+    "pq_different_underlying_dss"><img src=
+    "pq_different_underlying_dss.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">Underlying Priority-Queue Data-Structures.</h6>
+
+    <p>Roughly speaking, any value that is both pushed and popped
+    from a priority queue must incur a logarithmic expense (in the
+    amortized sense). Any priority queue implementation that would
+    avoid this, would violate known bounds on comparison-based
+    sorting (see, <i>e.g.</i>, [<a href=
+    "references.html#clrs2001">clrs2001</a>] and <a href=
+    "references.html#brodal96priority">brodal96priority</a>]).</p>
+
+    <p>Most implementations do
+    not differ in the asymptotic amortized complexity of
+    <tt>push</tt> and <tt>pop</tt> operations, but they differ in
+    the constants involved, in the complexity of other operations
+    (<i>e.g.</i>, <tt>modify</tt>), and in the worst-case
+    complexity of single operations. In general, the more
+    "structured" an implementation (<i>i.e.</i>, the more internal
+    invariants it possesses) - the higher its amortized complexity
+    of <tt>push</tt> and <tt>pop</tt> operations.</p>
+
+    <p><tt>pb_ds</tt> implements different algorithms using a
+    single class: <a href="priority_queue.html">priority_queue</a>.
+    Instantiating the <tt>Tag</tt> template parameter, "selects"
+    the implementation:</p>
+
+    <ol>
+      <li>Instantiating <tt>Tag = <a href=
+      "binary_heap_tag.html">binary_heap_tag</a></tt> creates
+      a binary heap of the form in Figures <a href=
+      "#pq_different_underlying_dss">Underlying Priority-Queue
+      Data-Structures</a> A1 or A2. The former is internally
+      selected by <a href="priority_queue.html">priority_queue</a>
+      if <tt>Value_Type</tt> is instantiated by a primitive type
+      (<i>e.g.</i>, an <tt><b>int</b></tt>); the latter is
+      internally selected for all other types (<i>e.g.</i>,
+      <tt>std::string</tt>). This implementations is relatively
+      unstructured, and so has good <tt>push</tt> and <tt>pop</tt>
+      performance; it is the "best-in-kind" for primitive
+      types, <i>e.g.</i>, <tt><b>int</b></tt>s. Conversely, it has
+      high worst-case performance, and can support only linear-time
+      <tt>modify</tt> and <tt>erase</tt> operations; this is
+      explained further in <a href="#pq_traits">Traits</a>.</li>
+
+      <li>Instantiating <tt>Tag = <a href=
+      "pairing_heap_tag.html">pairing_heap_tag</a></tt>
+      creates a pairing heap of the form in Figure <a href=
+      "#pq_different_underlying_dss">Underlying Priority-Queue
+      Data-Structures</a> B. This implementations too is relatively
+      unstructured, and so has good <tt>push</tt> and <tt>pop</tt>
+      performance; it is the "best-in-kind" for non-primitive
+      types, <i>e.g.</i>, <tt>std:string</tt>s. It also has very
+      good worst-case <tt>push</tt> and <tt>join</tt> performance
+      (<i>O(1)</i>), but has high worst-case <tt>pop</tt>
+      complexity.</li>
+
+      <li>Instantiating <tt>Tag = <a href=
+      "binomial_heap_tag.html">binomial_heap_tag</a></tt>
+      creates a binomial heap of the form in Figure <a href=
+      "#pq_different_underlying_dss">Underlying Priority-Queue
+      Data-Structures</a> B. This implementations is more
+      structured than a pairing heap, and so has worse
+      <tt>push</tt> and <tt>pop</tt> performance. Conversely, it
+      has sub-linear worst-case bounds for <tt>pop</tt>,
+      <i>e.g.</i>, and so it might be preferred in cases where
+      responsiveness is important.</li>
+
+      <li>Instantiating <tt>Tag = <a href=
+      "rc_binomial_heap_tag.html">rc_binomial_heap_tag</a></tt>
+      creates a binomial heap of the form in Figure <a href=
+      "#pq_different_underlying_dss">Underlying Priority-Queue
+      Data-Structures</a> B, accompanied by a redundant counter
+      which governs the trees. This implementations is therefore
+      more structured than a binomial heap, and so has worse
+      <tt>push</tt> and <tt>pop</tt> performance. Conversely, it
+      guarantees <i>O(1)</i> <tt>push</tt> complexity, and so it
+      might be preferred in cases where the responsiveness of a
+      binomial heap is insufficient.</li>
+
+      <li>Instantiating <tt>Tag = <a href=
+      "thin_heap_tag.html">thin_heap_tag</a></tt> creates a
+      thin heap of the form in Figure <a href=
+      "#pq_different_underlying_dss">Underlying Priority-Queue
+      Data-Structures</a> B. This implementations too is more
+      structured than a pairing heap, and so has worse
+      <tt>push</tt> and <tt>pop</tt> performance. Conversely, it
+      has better worst-case and identical amortized complexities
+      than a Fibonacci heap, and so might be more appropriate for
+      some graph algorithms.</li>
+    </ol>
+
+    <p><a href="pq_performance_tests.html">Priority-Queue
+    Performance Tests</a> shows some results for the above, and
+    discusses these points further.</p>
+
+    <p>Of course, one can use any order-preserving associative
+    container as a priority queue, as in Figure <a href=
+    "#pq_different_underlying_dss">Underlying Priority-Queue
+    Data-Structures</a> C, possibly by creating an adapter class
+    over the associative container (much as 
+    <tt>std::priority_queue</tt> can adapt <tt>std::vector</tt>).
+    This has the advantage that no cross-referencing is necessary
+    at all; the priority queue itself is an associative container.
+    Most associative containers are too structured to compete with
+    priority queues in terms of <tt>push</tt> and <tt>pop</tt>
+    performance.</p>
+
+    <h2><a name="pq_traits" id="pq_traits">Traits</a></h2>
+
+    <p>It would be nice if all priority queues could
+    share exactly the same behavior regardless of implementation. Sadly, this is not possible. Just one for instance is in join operations: joining
+    two binary heaps might throw an exception (not corrupt
+    any of the heaps on which it operates), but joining two pairing
+    heaps is exception free.</p>
+
+    <p>Tags and traits are very useful for manipulating generic
+    types. <a href=
+    "priority_queue.html"><tt>pb_ds::priority_queue</tt></a>
+    publicly defines <tt>container_category</tt> as one of the tags
+    discussed in <a href="#pq_imp">Implementations</a>. Given any
+    container <tt>Cntnr</tt>, the tag of the underlying
+    data structure can be found via <tt><b>typename</b>
+    Cntnr::container_category</tt>; this is one of the types shown in
+    Figure <a href="#pq_tag_cd">Data-structure tag class
+    hierarchy</a>.</p>
+
+    <h6 class="c1"><a name="pq_tag_cd" id=
+    "pq_tag_cd"><img src="priority_queue_tag_cd.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Data-structure tag class hierarchy.</h6>
+
+    <p>Additionally, a traits mechanism can be used to query a
+    container type for its attributes. Given any container
+    <tt>Cntnr</tt>, then <tt><a href=
+    "assoc_container_traits.html">pb_ds::container_traits</a>&lt;Cntnr&gt;</tt>
+    is a traits class identifying the properties of the
+    container.</p>
+
+    <p>To find if a container might throw if two of its objects are
+    joined, one can use <a href=
+    "assoc_container_traits.html"><tt>container_traits</tt></a><tt>&lt;Cntnr&gt;::split_join_can_throw</tt>,
+    for example.</p>
+
+    <p>Different priority-queue implementations have different invalidation guarantees. This is
+    especially important, since as explained in <a href=
+    "#pq_it">Iterators</a>, there is no way to access an arbitrary
+    value of priority queues except for iterators. Similarly to
+    associative containers, one can use
+    <a href=
+    "assoc_container_traits.html"><tt>container_traits</tt></a><tt>&lt;Cntnr&gt;::invalidation_guarantee</tt>
+    to get the invalidation guarantee type of a priority queue.</p>
+
+    <p>It is easy to understand from Figure <a href=
+    "#pq_different_underlying_dss">Underlying Priority-Queue
+    Data-Structures</a>, what <a href=
+    "assoc_container_traits.html"><tt>container_traits</tt></a><tt>&lt;Cntnr&gt;::invalidation_guarantee</tt>
+    will be for different implementations. All implementations of
+    type <a href="#pq_different_underlying_dss">Underlying
+    Priority-Queue Data-Structures</a> B have <a href=
+    "point_invalidation_guarantee.html"><tt>point_invalidation_guarantee</tt></a>:
+    the container can freely internally reorganize the nodes -
+    range-type iterators are invalidated, but point-type iterators
+    are always valid. Implementations of type <a href=
+    "#pq_different_underlying_dss">Underlying Priority-Queue
+    Data-Structures</a> A1 and A2 have <a href=
+    "basic_invalidation_guarantee.html"><tt>basic_invalidation_guarantee</tt></a>:
+    the container can freely internally reallocate the array - both
+    point-type and range-type iterators might be invalidated.</p>
+
+    <p>This has major implications, and constitutes a good reason to avoid
+    using binary heaps. A binary heap can perform <tt>modify</tt>
+    or <tt>erase</tt> efficiently <u>given a valid point-type
+    iterator</u>. However, inn order to supply it with a valid point-type
+    iterator, one needs to iterate (linearly) over all
+    values, then supply the relevant iterator (recall that a
+    range-type iterator can always be converted to a point-type
+    iterator). This means that if the number of <tt>modify</tt> or
+    <tt>erase</tt> operations is non-negligible (say
+    super-logarithmic in the total sequence of operations) - binary
+    heaps will perform badly.</p>
+    <pre>
+
+</pre>
+  </div>
+</body>
+</html>

@@ -1,0 +1,299 @@
+.\"	$OpenBSD: intro.8,v 1.29 2019/05/26 00:52:22 naddy Exp $
+.\"	$NetBSD: intro.8,v 1.3 1994/11/30 19:36:24 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)intro.8	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: May 26 2019 $
+.Dt INTRO 8
+.Os
+.Sh NAME
+.Nm intro
+.Nd introduction to system maintenance and operation commands
+.Sh DESCRIPTION
+The manual pages in section 8 contain information related to
+system operation and maintenance.
+They describe commands concerning file systems,
+such as
+.Xr edquota 8 ,
+.Xr fsck 8 ,
+.Xr mount 8 ,
+and
+.Xr newfs 8 .
+They also cover commands concerning system backup/recovery, such as
+.Xr dump 8
+and
+.Xr restore 8 .
+.Pp
+There are pages which document the running of the system, such as
+.Xr afterboot 8 ,
+.Xr ifconfig 8 ,
+.Xr security 8 ,
+and the configuration files located in
+.Pa /etc .
+Procedures concerning system failure are documented in
+.Xr crash 8 .
+.Pp
+Section 8 pages also describe network services and daemons.
+The rest of this page discusses some of the main daemons
+available on the
+.Ox
+system,
+and how to enable/disable them.
+.Pp
+System daemons are controlled by the script
+.Xr rc 8 ,
+which is in turn configured by
+.Xr rc.conf 8 .
+For example the HTTP daemon
+.Xr httpd 8
+is controlled by the following line from
+.Xr rc.conf 8 :
+.Bd -literal -offset indent
+httpd_flags=NO
+.Ed
+.Pp
+Thus it is not started by default.
+To enable or disable daemon processes,
+administrators should edit the file
+.Xr rc.conf.local 8
+or use the
+.Xr rcctl 8
+utility.
+The
+.Xr rc.conf.local 8
+file overrides variable assignments in
+.Xr rc.conf 8 .
+So to enable
+.Xr httpd 8 ,
+the following line might be added to
+.Pa /etc/rc.conf.local :
+.Bd -literal -offset indent
+httpd_flags="-v"
+.Ed
+.Pp
+As can be seen above,
+this method is also used to specify additional options.
+.Pp
+Below is a list of some of the daemons available.
+For further information, see
+.Xr rc 8
+and the individual pages for the utilities.
+.Ss Automounter daemon (amd)
+If using the
+.Xr amd 8
+daemon,
+go into the
+.Pa /etc/amd
+directory and set it up by
+renaming
+.Pa master.sample
+to
+.Pa master
+and editing it and creating other maps as needed.
+Alternatively, you can get your maps with YP.
+.Pp
+Relevant
+.Xr rc.conf 8
+variables:
+.Va amd_flags
+and
+.Va amd_master .
+.Ss DNS server
+If you are using a name server, check the
+.Pa /etc/resolv.conf
+file.
+It may look something like:
+.Bd -literal -offset indent
+domain nts.umn.edu
+nameserver 128.101.101.101
+nameserver 134.84.84.84
+search nts.umn.edu. umn.edu.
+lookup file bind
+.Ed
+.Pp
+If using a caching name server, add the line "nameserver 127.0.0.1" first.
+.Pp
+Relevant
+.Xr rc.conf 8
+variables:
+.Va nsd_flags
+and
+.Va unbound_flags .
+.Ss Clock synchronisation
+In order to make sure the system clock is correct,
+it may be synchronised with a number of external sources.
+The utilities available are:
+.Xr ntpd 8
+and
+.Xr rdate 8 .
+.Pp
+Relevant
+.Xr rc.conf 8
+variables:
+.Va ntpd_flags .
+.Ss BOOTP/DHCP server
+If this is a
+BOOTP or DHCP
+server, edit
+.Pa /etc/dhcpd.conf
+as needed.
+See also
+.Xr diskless 8 .
+.Pp
+Relevant
+.Xr rc.conf 8
+variables:
+.Va bootparamd_flags ,
+.Va dhcpd_flags ,
+and
+.Va dhcrelay_flags .
+.Ss HP remote boot server
+Edit
+.Pa /etc/rbootd.conf
+if needed for remote booting.
+If you do not have HP computers doing remote booting, do not enable this.
+See also
+.Xr diskless 8 .
+.Pp
+Relevant
+.Xr rc.conf 8
+variables:
+.Va rbootd_flags .
+.Ss httpd web server (HTTP)
+On
+.Ox
+it will
+.Xr chroot 2
+to
+.Pa /var/www .
+Detailed information is available in
+.Xr httpd 8
+and
+.Xr httpd.conf 5 .
+.Pp
+Relevant
+.Xr rc.conf 8
+variables:
+.Va httpd_flags .
+.Ss NFS server
+If this is an NFS server,
+edit
+.Pa /etc/exports .
+.Pp
+Relevant
+.Xr rc.conf 8
+variables:
+.Va mountd_flags
+and
+.Va nfsd_flags .
+.Ss Relay Daemon
+A relay daemon,
+.Xr relayd 8 ,
+able to run as a
+load-balancer, application layer gateway, or transparent proxy.
+.Pp
+Relevant
+.Xr rc.conf 8
+variables:
+.Va relayd_flags .
+.Ss Routing Daemons
+Various daemons for managing routing tables are available:
+.Xr bgpd 8 ,
+.Xr eigrpd 8 ,
+.Xr ospfd 8 ,
+and
+.Xr ripd 8 .
+.Pp
+Relevant
+.Xr rc.conf 8
+variables:
+.Va bgpd_flags ,
+.Va eigrpd_flags ,
+.Va ospfd_flags ,
+and
+.Va ripd_flags .
+.Ss RPC-based network services
+Several services depend on the RPC portmapper,
+.Xr portmap 8 ,
+being running for proper operation.
+This includes YP and NFS exports, among other services.
+.Pp
+Relevant
+.Xr rc.conf 8
+variables:
+.Va portmap_flags .
+.Ss YP setup
+Check the YP domain name with the
+.Xr domainname 1
+command.
+If necessary, correct it by editing the
+.Pa /etc/defaultdomain
+file (see
+.Xr defaultdomain 5 ) .
+The
+.Pa /etc/netstart
+script reads this file on boot to determine and set the domain name.
+You may also set the running system's domain name with the
+.Xr domainname 1
+command.
+.Pp
+Relevant
+.Xr rc.conf 8
+variables:
+.Va ypbind_flags .
+.Pp
+After starting YP client services, perform the remaining YP activation
+as described in
+.Xr passwd 5
+and
+.Xr group 5 .
+.Pp
+In particular, to enable YP passwd support, you'll need to add the following
+line to
+.Pa /etc/master.passwd :
+.Pp
+.Dl +:*::::::::
+.Pp
+You do this by using
+.Xr vipw 8 .
+.Pp
+There are many more YP man pages available to help you.
+You can find more information by starting with
+.Xr yp 8 .
+.Sh SEE ALSO
+.Xr afterboot 8 ,
+.Xr rc 8 ,
+.Xr rc.conf 8 ,
+.Xr rcctl 8
+.Sh HISTORY
+An
+.Nm intro
+manual for section 8 appeared in
+.Bx 4.2 .

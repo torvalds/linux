@@ -1,0 +1,136 @@
+import("//llvm/utils/gn/build/write_vcsrevision.gni")
+
+config("write_vcsrevision_config") {
+  # To pick up the generated inc file.
+  include_dirs = [ target_gen_dir ]
+  visibility = [ ":write_vcsversion" ]
+}
+
+write_vcsrevision("write_vcsversion") {
+  visibility = [ ":Basic" ]
+  header = "$target_gen_dir/VCSVersion.inc"
+  names = [
+    "LLVM",
+    "CLANG",
+  ]
+  public_configs = [ ":write_vcsrevision_config" ]
+}
+
+static_library("Basic") {
+  output_name = "clangBasic"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  public_deps = [
+    # public_dep because public header Version.h includes generated Version.inc.
+    "//clang/include/clang/Basic:AttrList",
+    "//clang/include/clang/Basic:AttrSubMatchRulesList",
+    "//clang/include/clang/Basic:Builtins",
+    "//clang/include/clang/Basic:BuiltinsBPF",
+    "//clang/include/clang/Basic:BuiltinsRISCV",
+    "//clang/include/clang/Basic:DiagnosticGroups",
+    "//clang/include/clang/Basic:RegularKeywordAttrInfo",
+    "//clang/include/clang/Basic:arm_cde_builtins",
+    "//clang/include/clang/Basic:arm_mve_builtins",
+    "//clang/include/clang/Basic:arm_sme_builtins",
+    "//clang/include/clang/Basic:arm_sve_builtins",
+    "//clang/include/clang/Basic:arm_sve_typeflags",
+    "//clang/include/clang/Basic:diags_tablegen",
+    "//clang/include/clang/Basic:riscv_sifive_vector_builtins",
+    "//clang/include/clang/Basic:riscv_vector_builtins",
+    "//clang/include/clang/Basic:version",
+
+    # public_dep because public header AttributeCommonInfo.h includes generated
+    # AttrParsedAttrList.inc.
+    "//clang/include/clang/Sema:AttrParsedAttrList",
+
+    # public_dep because public header OpenMPKinds.h includes generated
+    # OMP.h.inc.
+    "//llvm/include/llvm/Frontend/OpenMP:public_tablegen",
+  ]
+  deps = [
+    ":write_vcsversion",
+    "//clang/include/clang/Basic:AttrHasAttributeImpl",
+    "//clang/include/clang/Basic:arm_fp16",
+    "//clang/include/clang/Basic:arm_neon",
+    "//clang/include/clang/Config",
+    "//clang/include/clang/Sema:AttrParsedAttrKinds",
+    "//clang/include/clang/Sema:AttrSpellingListIndex",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "ASTSourceDescriptor.cpp",
+    "Attributes.cpp",
+    "Builtins.cpp",
+    "CLWarnings.cpp",
+    "CharInfo.cpp",
+    "CodeGenOptions.cpp",
+    "Cuda.cpp",
+    "DarwinSDKInfo.cpp",
+    "Diagnostic.cpp",
+    "DiagnosticIDs.cpp",
+    "DiagnosticOptions.cpp",
+    "ExpressionTraits.cpp",
+    "FileEntry.cpp",
+    "FileManager.cpp",
+    "FileSystemStatCache.cpp",
+    "IdentifierTable.cpp",
+    "LangOptions.cpp",
+    "LangStandards.cpp",
+    "MakeSupport.cpp",
+    "Module.cpp",
+    "NoSanitizeList.cpp",
+    "ObjCRuntime.cpp",
+    "OpenCLOptions.cpp",
+    "OpenMPKinds.cpp",
+    "OperatorPrecedence.cpp",
+    "ParsedAttrInfo.cpp",
+    "ProfileList.cpp",
+    "SanitizerSpecialCaseList.cpp",
+    "Sanitizers.cpp",
+    "Sarif.cpp",
+    "SourceLocation.cpp",
+    "SourceManager.cpp",
+    "SourceMgrAdapter.cpp",
+    "Stack.cpp",
+    "TargetID.cpp",
+    "TargetInfo.cpp",
+    "Targets.cpp",
+    "Targets/AArch64.cpp",
+    "Targets/AMDGPU.cpp",
+    "Targets/ARC.cpp",
+    "Targets/ARM.cpp",
+    "Targets/AVR.cpp",
+    "Targets/BPF.cpp",
+    "Targets/CSKY.cpp",
+    "Targets/DirectX.cpp",
+    "Targets/Hexagon.cpp",
+    "Targets/Lanai.cpp",
+    "Targets/Le64.cpp",
+    "Targets/LoongArch.cpp",
+    "Targets/M68k.cpp",
+    "Targets/MSP430.cpp",
+    "Targets/Mips.cpp",
+    "Targets/NVPTX.cpp",
+    "Targets/OSTargets.cpp",
+    "Targets/PNaCl.cpp",
+    "Targets/PPC.cpp",
+    "Targets/RISCV.cpp",
+    "Targets/SPIR.cpp",
+    "Targets/Sparc.cpp",
+    "Targets/SystemZ.cpp",
+    "Targets/TCE.cpp",
+    "Targets/VE.cpp",
+    "Targets/WebAssembly.cpp",
+    "Targets/X86.cpp",
+    "Targets/XCore.cpp",
+    "TokenKinds.cpp",
+    "TypeTraits.cpp",
+    "Version.cpp",
+    "Warnings.cpp",
+    "XRayInstr.cpp",
+    "XRayLists.cpp",
+  ]
+}

@@ -1,0 +1,428 @@
+module LLVM_C {
+  umbrella "llvm-c"
+  module * { export * }
+}
+
+module LLVM_Analysis {
+  requires cplusplus
+  umbrella "llvm/Analysis"
+  module * { export * }
+
+  // This is intended for (repeated) textual inclusion.
+  textual header "llvm/Analysis/ScalarFuncs.def"
+  textual header "llvm/Analysis/TargetLibraryInfo.def"
+  textual header "llvm/Analysis/VecFuncs.def"
+}
+
+module LLVM_AsmParser {
+  requires cplusplus
+  umbrella "llvm/AsmParser"
+  module * { export * }
+}
+
+module LLVM_CodeGenTypes {
+  requires cplusplus
+
+  module LLT {
+    header "llvm/CodeGenTypes/LowLevelType.h" export *
+  }
+  module MVT {
+    header "llvm/CodeGenTypes/MachineValueType.h" export *
+    extern module LLVM_Extern_CodeGenTypes_Gen "module.extern.modulemap"
+  }
+}
+
+// A module covering CodeGen/ and Target/. These are intertwined
+// and codependent, and thus notionally form a single module.
+module LLVM_Backend {
+  requires cplusplus
+
+  module CodeGen {
+    umbrella "llvm/CodeGen"
+    module * { export * }
+
+    // Exclude these; they're intended to be included into only a single
+    // translation unit (or none) and aren't part of this module.
+    exclude header "llvm/CodeGen/LinkAllAsmWriterComponents.h"
+    exclude header "llvm/CodeGen/LinkAllCodegenComponents.h"
+
+    // These are intended for (repeated) textual inclusion.
+    textual header "llvm/CodeGen/DIEValue.def"
+  }
+}
+
+// FIXME: Make this as a submodule of LLVM_Backend again.
+//        Doing so causes a linker error in clang-format.
+module LLVM_Backend_Target {
+  umbrella "llvm/Target"
+  module * { export * }
+}
+
+module LLVM_Bitcode {
+ requires cplusplus
+ umbrella "llvm/Bitcode"
+ module * { export * }
+}
+
+module LLVM_Bitstream {
+ requires cplusplus
+ umbrella "llvm/Bitstream"
+ module * { export * }
+}
+
+module LLVM_BinaryFormat {
+    requires cplusplus
+    umbrella "llvm/BinaryFormat" module * { export * }
+    textual header "llvm/BinaryFormat/Dwarf.def"
+    textual header "llvm/BinaryFormat/DXContainerConstants.def"
+    textual header "llvm/BinaryFormat/DynamicTags.def"
+    textual header "llvm/BinaryFormat/MachO.def"
+    textual header "llvm/BinaryFormat/MinidumpConstants.def"
+    textual header "llvm/BinaryFormat/Swift.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/AArch64.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/AMDGPU.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/ARM.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/ARC.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/AVR.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/BPF.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/CSKY.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/Hexagon.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/i386.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/Lanai.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/LoongArch.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/M68k.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/Mips.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/MSP430.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/PowerPC64.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/PowerPC.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/RISCV.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/Sparc.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/SystemZ.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/VE.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/x86_64.def"
+    textual header "llvm/BinaryFormat/ELFRelocs/Xtensa.def"
+    textual header "llvm/BinaryFormat/WasmRelocs.def"
+    textual header "llvm/BinaryFormat/MsgPack.def"
+}
+
+module LLVM_Config {
+  requires cplusplus
+  umbrella "llvm/Config"
+  extern module LLVM_Extern_Config_Def "module.extern.modulemap"
+  module * { export * }
+}
+
+module LLVM_DebugInfo {
+  requires cplusplus
+  module DIContext { header "llvm/DebugInfo/DIContext.h" export * }
+}
+
+module LLVM_DebugInfo_DWARF {
+  requires cplusplus
+
+  umbrella "llvm/DebugInfo/DWARF"
+  module * { export * }
+}
+
+module LLVM_DebugInfo_PDB {
+  requires cplusplus
+
+  umbrella "llvm/DebugInfo/PDB"
+  module * { export * }
+
+  // Separate out this subdirectory; it's an optional component that depends on
+  // a separate library which might not be available.
+  //
+  // FIXME: There should be a better way to specify this.
+  exclude header "llvm/DebugInfo/PDB/DIA/DIADataStream.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAEnumDebugStreams.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAEnumFrameData.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAEnumInjectedSources.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAEnumLineNumbers.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAEnumSectionContribs.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAEnumSourceFiles.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAEnumSymbols.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAEnumTables.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAError.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAFrameData.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAInjectedSource.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIALineNumber.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIARawSymbol.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIASectionContrib.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIASession.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIASourceFile.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIASupport.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIATable.h"
+  exclude header "llvm/DebugInfo/PDB/DIA/DIAUtils.h"
+}
+
+module LLVM_DebugInfo_PDB_DIA {
+  requires cplusplus
+
+  umbrella "llvm/DebugInfo/PDB/DIA"
+  module * { export * }
+}
+
+module LLVM_DebugInfo_MSF {
+  requires cplusplus
+
+  umbrella "llvm/DebugInfo/MSF"
+  module * { export * }
+}
+
+module LLVM_DebugInfo_CodeView {
+  requires cplusplus
+
+  umbrella "llvm/DebugInfo/CodeView"
+  module * { export * }
+
+  // These are intended for (repeated) textual inclusion.
+  textual header "llvm/DebugInfo/CodeView/CodeViewRegisters.def"
+  textual header "llvm/DebugInfo/CodeView/CodeViewTypes.def"
+  textual header "llvm/DebugInfo/CodeView/CodeViewSymbols.def"
+}
+
+module LLVM_DWARFLinker {
+  requires cplusplus
+
+  umbrella "llvm/DWARFLinker"
+  module * { export * }
+}
+
+module LLVM_ExecutionEngine {
+  requires cplusplus
+
+  umbrella "llvm/ExecutionEngine"
+  module * { export * }
+
+  // Exclude this; it's an optional component of the ExecutionEngine.
+  exclude header "llvm/ExecutionEngine/OProfileWrapper.h"
+
+  // Exclude these; they're intended to be included into only a single
+  // translation unit (or none) and aren't part of this module.
+  exclude header "llvm/ExecutionEngine/MCJIT.h"
+  exclude header "llvm/ExecutionEngine/Interpreter.h"
+
+  // Exclude headers from LLVM_OrcSupport.
+  exclude header "llvm/ExecutionEngine/Orc/Shared/OrcError.h"
+}
+
+module LLVM_FileCheck {
+  requires cplusplus
+
+  umbrella "llvm/FileCheck"
+  module * { export * }
+}
+
+module LLVM_Frontend_OpenMP {
+  requires cplusplus
+
+  umbrella "llvm/Frontend/OpenMP"
+  module * { export * }
+
+  exclude header "llvm/Frontend/OpenMP/OMPKinds.def"
+}
+
+// Orc utilities that don't depend only on Support (not ExecutionEngine or
+// IR). This is a workaround for ExecutionEngine's broken layering, and will
+// be removed in the future.
+module LLVM_OrcSupport {
+  requires cplusplus
+
+  header "llvm/ExecutionEngine/Orc/Shared/OrcError.h"
+
+  export *
+}
+
+module LLVM_Pass {
+  module Pass {
+    // PassSupport.h and PassAnalysisSupport.h are made available only through
+    // Pass.h.
+    header "llvm/Pass.h"
+    textual header "llvm/PassSupport.h"
+    textual header "llvm/PassAnalysisSupport.h"
+    export *
+  }
+
+  module PassRegistry { header "llvm/PassRegistry.h" export * }
+  module InitializePasses { header "llvm/InitializePasses.h" export * }
+}
+
+module LLVM_IR {
+  requires cplusplus
+
+  umbrella "llvm/IR"
+  module * { export * }
+
+  extern module LLVM_Extern_IR_Attributes_Gen "module.extern.modulemap"
+  extern module LLVM_Extern_IR_Intrinsics_Gen "module.extern.modulemap"
+  extern module LLVM_Extern_IR_Intrinsics_Enum "module.extern.modulemap"
+
+  // These are intended for (repeated) textual inclusion.
+  textual header "llvm/IR/ConstrainedOps.def"
+  textual header "llvm/IR/DebugInfoFlags.def"
+  textual header "llvm/IR/Instruction.def"
+  textual header "llvm/IR/Metadata.def"
+  textual header "llvm/IR/FixedMetadataKinds.def"
+  textual header "llvm/IR/Value.def"
+  textual header "llvm/IR/VPIntrinsics.def"
+  textual header "llvm/IR/RuntimeLibcalls.def"
+}
+
+module LLVM_IRReader {
+  requires cplusplus
+  umbrella "llvm/IRReader"
+  module * { export * }
+}
+
+module LLVM_LineEditor {
+  requires cplusplus
+  umbrella "llvm/LineEditor"
+  module * { export * }
+}
+
+module LLVM_LTO {
+  requires cplusplus
+  umbrella "llvm/LTO"
+  module * { export * }
+}
+
+module LLVM_MC {
+  requires cplusplus
+
+  umbrella "llvm/MC"
+  module * { export * }
+}
+
+module LLVM_Object {
+  requires cplusplus
+  umbrella "llvm/Object"
+  module * { export * }
+}
+
+module LLVM_Option {
+  requires cplusplus
+  umbrella "llvm/Option"
+  module * { export * }
+}
+
+module LLVM_ProfileData {
+  requires cplusplus
+
+  umbrella "llvm/ProfileData"
+  module * { export * }
+
+  textual header "llvm/ProfileData/InstrProfData.inc"
+  textual header "llvm/ProfileData/MemProfData.inc"
+  textual header "llvm/ProfileData/MIBEntryDef.inc"
+}
+
+// FIXME: Mislayered?
+module LLVM_Support_TargetRegistry {
+  requires cplusplus
+  header "llvm/Support/TargetRegistry.h"
+  export *
+}
+
+module LLVM_TableGen {
+  requires cplusplus
+  umbrella "llvm/TableGen"
+  module * { export * }
+}
+
+module LLVM_Transforms {
+  requires cplusplus
+  umbrella "llvm/Transforms"
+
+  module * { export * }
+
+  // Requires DEBUG_TYPE to be defined by including file.
+  exclude header "llvm/Transforms/Utils/InstructionWorklist.h"
+}
+
+extern module LLVM_Extern_Utils_DataTypes "module.extern.modulemap"
+
+// Build the module with the tablegen-generated files needed by the
+// TargetParser module before building the TargetParser module itself.
+module TargetParserGen {
+  module AArch64TargetParserDef {
+    header "llvm/TargetParser/AArch64TargetParser.h"
+    extern module LLVM_Extern_TargetParser_Gen "module.extern.modulemap"
+    export *
+  }
+  module RISCVTargetParserDef {
+    header "llvm/TargetParser/RISCVTargetParser.h"
+    extern module LLVM_Extern_TargetParser_Gen "module.extern.modulemap"
+    export *
+  }
+}
+
+// A module covering ADT/ and Support/. These are intertwined and
+// codependent, and notionally form a single module.
+module LLVM_Utils {
+  module ADT {
+    requires cplusplus
+
+    umbrella "llvm/ADT"
+    module * { export * }
+  }
+
+  module Demangle {
+    requires cplusplus
+
+    umbrella "llvm/Demangle"
+    module * { export * }
+
+    textual header "llvm/Demangle/ItaniumNodes.def"
+  }
+
+  module Support {
+    requires cplusplus
+
+    umbrella "llvm/Support"
+    module * { export * }
+
+    // Exclude this; it should only be used on Windows.
+    exclude header "llvm/Support/Windows/WindowsSupport.h"
+
+    // Exclude these; they are fundamentally non-modular.
+    exclude header "llvm/Support/PluginLoader.h"
+    exclude header "llvm/Support/Solaris/sys/regset.h"
+    textual header "llvm/Support/TargetOpcodes.def"
+
+  }
+
+  module TargetParser {
+    requires cplusplus
+
+    umbrella "llvm/TargetParser"
+    module * { export * }
+
+    // These are intended for textual inclusion.
+    textual header "llvm/TargetParser/ARMTargetParser.def"
+    textual header "llvm/TargetParser/CSKYTargetParser.def"
+    textual header "llvm/TargetParser/X86TargetParser.def"
+    textual header "llvm/TargetParser/LoongArchTargetParser.def"
+    textual header "llvm/TargetParser/PPCTargetParser.def"
+  }
+
+  // This part of the module is usable from both C and C++ code.
+  module ConvertUTF {
+    header "llvm/Support/ConvertUTF.h"
+    export *
+  }
+}
+
+// This is used for a $src == $build compilation. Otherwise we use
+// LLVM_Support_DataTypes_Build, defined in a module map that is
+// copied into the build area.
+module LLVM_Support_DataTypes_Src {
+  header "llvm/Support/DataTypes.h"
+  export *
+}
+
+module LLVM_WindowsManifest {
+  requires cplusplus
+  umbrella "llvm/WindowsManifest"
+  module * { export * }
+}

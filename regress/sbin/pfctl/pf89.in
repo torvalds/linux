@@ -1,0 +1,25 @@
+# TCP connection tracking
+
+table <bad> persist
+
+block all
+block quick from <bad>
+
+pass out proto tcp flags S/SA keep state
+pass out proto { icmp, udp } keep state
+
+pass in on lo1000001 proto tcp to 10.0.0.1 port 22 flags S/SA \
+    keep state (max-src-conn 10, max-src-conn-rate 3/99)
+
+pass in on lo1000001 proto tcp to 10.0.0.2 port 22 flags S/SA keep state \
+	(max-src-conn 10)
+
+pass in on lo1000001 proto tcp to 10.0.0.3 port 22 flags S/SA keep state \
+	(max-src-conn-rate 3/99)
+
+pass in on lo1000000 proto tcp to 10.0.0.1 port 80 flags S/SA modulate state \
+	(max-src-conn 100, max-src-conn-rate 10/5, overload <bad> flush)
+
+pass in on lo1000000 proto tcp to 10.0.0.1 port 8080 flags S/SA synproxy state \
+	(max-src-conn 1000, max-src-conn-rate 1000/5, overload <bad> \
+		flush global)

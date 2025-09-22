@@ -1,0 +1,11 @@
+# Multilibs for VxWorks.
+
+MULTILIB_OPTIONS = m2/m3/m4 ml
+
+MULTILIB_EXCEPTIONS = ml m2/ml
+
+MULTILIB_OSDIRNAMES = \
+  m2=!SH7600gnu \
+  m3=!SH7700gnu m3/ml=!SH7700gnule \
+  m4=!SH7750gnu m4/ml=!SH7750gnule
+

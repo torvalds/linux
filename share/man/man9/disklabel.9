@@ -1,0 +1,152 @@
+.\"	$OpenBSD: disklabel.9,v 1.19 2025/09/15 10:33:02 krw Exp $
+.\"	$NetBSD: disklabel.9,v 1.7 1999/03/06 22:09:29 mycroft Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 15 2025 $
+.Dt DISKLABEL 9
+.Os
+.Sh NAME
+.Nm disklabel ,
+.Nm readdisklabel ,
+.Nm writedisklabel ,
+.Nm setdisklabel ,
+.Nm bounds_check_with_label
+.Nd disk label management routines
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/disklabel.h
+.Ft int
+.Fn readdisklabel "dev_t dev" "void (*strat)(struct buf *)" "struct disklabel *lp" "int spoofonly"
+.Ft int
+.Fn writedisklabel "dev_t dev" "void (*strat)(struct buf *)" "struct disklabel *lp"
+.Ft int
+.Fn setdisklabel "struct disklabel *olp" "struct disklabel *nlp" "u_int64_t openmask"
+.Ft int
+.Fn bounds_check_with_label "struct buf *bp" "struct disklabel *lp"
+.Sh DESCRIPTION
+This collection of routines provides a disklabel management interface to
+kernel device drivers.
+These routines are classified as machine- or architecture-dependent because
+of restrictions imposed by the machine architecture and boot-strapping code
+on the location of the label, or because cooperation with other operating
+systems requires specialized conversion code.
+.Pp
+.Fn readdisklabel
+attempts to read a disklabel from the device identified by
+.Fa dev ,
+using the device strategy routine passed in
+.Fa strat .
+Note that a buffer structure is required to pass to the strategy routine;
+it needs to be acquired and parametrized for the intended I/O operation,
+and disposed of when the operation has completed.
+Some fields in the disklabel passed in
+.Fa lp
+may be pre-initialized by the caller in order to meet device driver
+requirements for the I/O operation initiated to get to the disklabel data
+on the medium.
+In particular, the field
+.Dq d_secsize ,
+if non-zero, is used by
+.Fn readdisklabel
+to get an appropriately sized buffer to pass to the device strategy routine.
+Unspecified fields in
+.Fa lp
+should be set to zero.
+If the medium does not contain a native disklabel that can be read in directly
+or
+.Fa spoofonly
+argument is a true value,
+If a disk label is found or can be constructed, a value of 0 is returned.
+Otherwise the value of the I/O errno encountered is returned.
+.Pp
+.Fn writedisklabel
+stores disk label information contained in the disk label structure given by
+.Fa lp
+on the device identified by
+.Fa dev .
+Like
+.Fn readdisklabel ,
+it acquires and sets up an I/O buffer to pass to the strategy routine
+.Fa strat .
+.Fn writedisklabel
+returns 0 on success and
+.Dv EINVAL
+if the disk label specifies invalid or unconvertible values.
+Otherwise, any error condition reported by the device strategy routine
+in the buffer's
+.Dq Va b_error
+field is returned.
+.Pp
+.Fn setdisklabel
+checks a proposed new disk label passed in
+.Fa nlp
+for some amount of basic sanity.
+This includes a check on attempts to
+change the location, or reduce the size, of an existing disk partition
+that is currently in use by the system.
+The current disposition of the disk partitions is made available through
+.Fa olp
+and
+.Fa openmask ,
+which provide, respectively, the existing disk label and a bit mask
+identifying the partitions that are currently in use.
+Failure to pass on
+.Dq basic sanity ,
+results in a
+.Dv EINVAL
+return value, while a vetoed update of the partition layout is signalled by a
+.Dv EBUSY
+return value.
+Otherwise, 0 is returned.
+.Pp
+.Fn bounds_check_with_label
+is used to check whether a device transfer described by
+.Fa bp
+to the device identified by
+.Fa dev ,
+is properly contained within a disk partition of the disk with label
+.Fa lp .
+If this check fails,
+.Fn bounds_check_with_label
+sets the buffer's
+.Dq Va b_error
+field to
+.Dv EINVAL
+and sets the
+.Dv B_ERROR
+flag in
+.Dq Va b_flags .
+A value of \-1 is returned if any of the bound checks failed,
+a null transfer was attempted,
+or transfer was attempted exactly at the end of the disk partition.
+Otherwise the value of 0 is returned.
+.Sh SEE ALSO
+.Xr disklabel 5 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8

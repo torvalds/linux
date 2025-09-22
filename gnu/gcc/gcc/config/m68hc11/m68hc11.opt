@@ -1,0 +1,95 @@
+; Options for the Motorola 68HC11 and 68HC12 port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+m6811
+Target RejectNegative InverseMask(M6812, M6811)
+Compile for a 68HC11
+
+m6812
+Target RejectNegative Mask(M6812)
+Compile for a 68HC12
+
+m68hc11
+Target RejectNegative InverseMask(M6812)
+Compile for a 68HC11
+
+m68hc12
+Target RejectNegative Mask(M6812) MaskExists
+Compile for a 68HC12
+
+; At the moment, there is no difference between the code generated
+; for -m68hc12 and -m68hcs12.
+m68hcs12
+Target RejectNegative Mask(M6812) MaskExists
+Compile for a 68HCS12
+
+m68s12
+Target RejectNegative Mask(M6812) MaskExists
+Compile for a 68HCS12
+
+mauto-incdec
+Target RejectNegative Report Mask(AUTO_INC_DEC)
+Auto pre/post decrement increment allowed
+
+minmax
+Target RejectNegative Report Mask(MIN_MAX)
+Min/max instructions allowed
+
+mlong-calls
+Target RejectNegative Report Mask(LONG_CALLS)
+Use call and rtc for function calls and returns
+
+mnoauto-incdec
+Target RejectNegative Report InverseMask(AUTO_INC_DEC)
+Auto pre/post decrement increment not allowed
+
+mnolong-calls
+Target RejectNegative Report InverseMask(LONG_CALLS)
+Use jsr and rts for function calls and returns
+
+mnominmax
+Target RejectNegative Report InverseMask(MIN_MAX)
+Min/max instructions not allowed
+
+mnorelax
+Target RejectNegative Report InverseMask(NO_DIRECT_MODE)
+Use direct addressing mode for soft registers
+
+mnoshort
+Target RejectNegative Report InverseMask(SHORT)
+Compile with 32-bit integer mode
+
+; Currently ignored.
+mreg-alloc=
+Target RejectNegative Joined
+Specify the register allocation order
+
+mrelax
+Target RejectNegative Report Mask(NO_DIRECT_MODE)
+Do not use direct addressing mode for soft registers
+
+mshort
+Target RejectNegative Report Mask(SHORT)
+Compile with 16-bit integer mode
+
+msoft-reg-count=
+Target RejectNegative Joined UInteger Var(m68hc11_soft_reg_count) Init(-1)
+Indicate the number of soft registers available

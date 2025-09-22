@@ -1,0 +1,376 @@
+.\"	$OpenBSD: bioctl.8,v 1.116 2024/07/15 05:36:08 jmc Exp $
+.\"
+.\" Copyright (c) 2004, 2005 Marco Peereboom
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 15 2024 $
+.Dt BIOCTL 8
+.Os
+.Sh NAME
+.Nm bioctl
+.Nd storage management interface
+.Sh SYNOPSIS
+.Nm bioctl
+.Op Fl hiqv
+.Op Fl a Ar alarm-function
+.Op Fl b Ar channel : Ns Ar target Ns Op Pf . Ar lun
+.Op Fl H Ar channel : Ns Ar target Ns Op Pf . Ar lun
+.Op Fl R Ar chunk | channel : Ns Ar target Ns Op Pf . Ar lun
+.Op Fl t Ar patrol-function
+.Op Fl u Ar channel : Ns Ar target Ns Op Pf . Ar lun
+.Ar device
+.Pp
+.Nm bioctl
+.Op Fl dhiPqsv
+.Op Fl C Ar flag Ns Op Pf , Ar ...
+.Op Fl c Ar raidlevel
+.Op Fl k Ar keydisk
+.Op Fl l Ar chunk Ns Op Pf , Ar ...
+.Op Fl O Ar chunk | channel : Ns Ar target Ns Op Pf . Ar lun
+.Op Fl p Ar passfile
+.Op Fl R Ar chunk | channel : Ns Ar target Ns Op Pf . Ar lun
+.Op Fl r Ar rounds
+.Ar device
+.Sh DESCRIPTION
+.Nm bioctl
+is used to interact with device drivers that register with
+.Xr bio 4 .
+.Pp
+The
+.Fl h ,
+.Fl i ,
+.Fl q ,
+and
+.Fl v
+options are used to display information about the specified
+.Ar device :
+.Bl -tag -width disable
+.It Fl h
+Where appropriate, produce
+.Dq human-readable
+output.
+Use unit suffixes: Byte, Kilobyte, Megabyte,
+Gigabyte, Terabyte, Petabyte, Exabyte in order to reduce the number of
+digits to four or less.
+.It Fl i
+Display default information for the specified device.
+For example, for hardware RAID controllers enumerate attached devices.
+This is the default if no options are specified.
+.It Fl q
+If
+.Ar device
+is an
+.Xr sd 4 ,
+display its vendor, product, revision, and serial number.
+.It Fl v
+Be more verbose in output.
+.El
+.Pp
+The first synopsis shows options used to manage
+hardware RAID controllers.
+.Ar device
+specifies either a drive (e.g. sd1), a hardware RAID controller (e.g. ami0) or a
+.Xr ses 4
+or
+.Xr safte 4
+enclosure.
+.Pp
+The second synopsis shows options used to manage
+.Xr softraid 4
+volumes (e.g. sd0)
+or the softraid controller itself
+(always softraid0).
+.Pp
+The options for hardware RAID controllers are as follows:
+.Bl -tag -width Ds
+.It Fl a Ar alarm-function
+Control the RAID card's alarm functionality, if supported.
+.Ar alarm-function
+may be one of:
+.Pp
+.Bl -tag -width disable -compact
+.It Cm disable
+Disable the alarm on the RAID controller.
+.It Cm enable
+Enable the alarm on the RAID controller.
+.It Cm get
+Retrieve the current alarm state (enabled or disabled).
+.It Cm silence | quiet
+Silence the alarm if it is currently beeping.
+.El
+.Pp
+The
+.Ar alarm-function
+may be specified as given above,
+or by the first letter only
+(e.g. -a e).
+.It Fl b Ar channel : Ns Ar target Ns Op Pf . Ar lun
+Instruct the device at
+.Ar channel : Ns Ar target Ns Op Pf . Ar lun
+to start blinking, if there is
+.Xr ses 4
+or
+.Xr safte 4
+support in the enclosure.
+.It Fl H Ar channel : Ns Ar target Ns Op Pf . Ar lun
+If the device at
+.Ar channel : Ns Ar target Ns Op Pf . Ar lun
+is currently marked
+.Dq Unused ,
+promote it to being a
+.Dq Hot Spare .
+.It Fl R Ar chunk | channel : Ns Ar target Ns Op Pf . Ar lun
+Manually kick off a rebuild of a degraded RAID volume, using
+.Ar chunk
+or
+.Ar channel : Ns Ar target Ns Op Pf . Ar lun
+as a new chunk replacing the offline chunk in the volume.
+It is not possible to change the number of chunks.
+The
+.Ar chunk
+must be specified as a full path to a device file (e.g. /dev/wd0d).
+A RAID volume rather than a RAID controller is expected as the final argument.
+.It Fl t Ar patrol-function
+Control the RAID card's patrol functionality, if supported.
+.Ar patrol-function
+may be one of:
+.Pp
+.Bl -tag -width disable -compact
+.It Cm stop
+Stop the patrol on the RAID controller.
+.It Cm start
+Start the patrol on the RAID controller.
+.It Cm get
+Retrieve the current patrol configuration.
+.It Cm disable
+Disable the patrol functionality.
+.It Cm manual
+Enable the patrol functionality to start/stop manually.
+.It Cm auto Ns Op Pf . Ar interval Ns Op Pf . Ar start
+Enable the patrol functionality to start/stop automatically in every
+.Ar interval
+seconds, starting the first iteration after
+.Ar start
+seconds.
+.El
+.It Fl u Ar channel : Ns Ar target Ns Op Pf . Ar lun
+Instruct the device at
+.Ar channel : Ns Ar target Ns Op Pf . Ar lun
+to cease blinking, if there is
+.Xr ses 4
+or
+.Xr safte 4
+support in the enclosure.
+.El
+.Pp
+The options for
+.Xr softraid 4
+devices are as follows:
+.Bl -tag -width Ds
+.It Fl C Ar flag Ns Op Pf , Ar ...
+Pass
+.Ar flag
+to
+.Nm .
+May be one of:
+.Pp
+.Bl -tag -width disable -compact
+.It Cm force
+Force the operation;
+for example, force the creation of volumes
+with unclean data in the metadata areas.
+.It Cm noauto
+Do not automatically assemble this volume at boot time.
+.El
+.It Fl c Ar raidlevel
+Create a new
+.Xr softraid 4
+volume of level
+.Ar raidlevel .
+The
+.Ar device
+must be
+.Dq softraid0 ;
+it supports multiple volumes.
+.Pp
+Valid raidlevels are:
+.Pp
+.Bl -tag -width 2n -offset 3n -compact
+.It Cm 0
+RAID 0:
+A striping discipline.
+.It Cm 1
+RAID 1:
+A mirroring discipline.
+.It Cm 5
+RAID 5:
+A striping discipline with floating parity chunk.
+.It Cm C
+CRYPTO:
+An encrypting discipline.
+.It Cm c
+CONCAT:
+A concatenating discipline.
+.It Cm 1C
+RAID 1 + CRYPTO:
+An encrypting and mirroring discipline.
+.El
+.Pp
+The CONCAT discipline requires a minimum of one chunk, RAID 0 and RAID 1
+disciplines require a minimum of two chunks, RAID 5 requires a minimum
+of three chunks and the CRYPTO discipline requires exactly one chunk to
+be provided via
+.Fl l .
+.Pp
+The RAID 1C discipline requires a minimum of two chunks when a new volume
+is created, and a minimum of one chunk when an existing volume is assembled.
+Missing RAID 1C chunks will be marked as offline and must be rebuilt before
+they become part of the array again.
+.It Fl d
+Detach volume specified by
+.Ar device .
+.It Fl k Ar keydisk
+Use special device
+.Ar keydisk
+as a key disk for a crypto volume.
+.It Fl l Ar chunk Ns Op Pf , Ar ...
+Use the
+.Ar chunk
+device list to create a new volume within the
+.Xr softraid 4
+framework.
+Requires
+.Fl c .
+.It Fl O Ar chunk | channel : Ns Ar target Ns Op Pf . Ar lun
+Set the state of
+.Ar chunk
+or
+.Ar channel : Ns Ar target Ns Op Pf . Ar lun
+to offline.
+The state of the RAID volume will change in the same way that it would if the
+disk physically went offline.
+The
+.Ar chunk
+must be specified as a full path to a device file (e.g. /dev/wd0d).
+A RAID volume rather than a RAID controller is expected as the
+.Ar device
+argument.
+.It Fl P
+Change the passphrase on the selected crypto volume.
+.It Fl p Ar passfile
+Passphrase file used when crypto volumes are brought up.
+This file must be root owned and have 0600 permissions.
+.It Fl R Ar chunk | channel : Ns Ar target Ns Op Pf . Ar lun
+Manually kick off a rebuild of a degraded volume, using
+.Ar chunk
+or
+.Ar channel : Ns Ar target Ns Op Pf . Ar lun
+as a new chunk,
+replacing the offline chunk in the volume.
+It is not possible to change the number of chunks.
+The
+.Ar chunk
+must be specified as a full path to a device file (e.g. /dev/sd0d) which
+refers to a partition of fstype RAID.
+A
+.Xr softraid 4
+volume rather than softraid0 is expected as the final argument.
+.It Fl r Ar rounds
+The number of iterations for the KDF algorithm to use when converting a
+passphrase into a key, in order to create a new encrypted volume or change the
+passphrase of an existing encrypted volume.
+A larger number of iterations takes more time, but offers increased resistance
+against passphrase guessing attacks.
+By default, or if
+.Ar rounds
+is specified as
+.Cm auto ,
+the number of rounds will automatically be based on system performance.
+The minimum is 16 rounds.
+.It Fl s
+Read passphrases from
+.Pa /dev/stdin
+rather than
+.Pa /dev/tty ,
+without prompts, confirmation or retry on mismatch.
+.El
+.Sh EXAMPLES
+Configure a new
+.Xr softraid 4
+volume with four chunks
+(/dev/sd2e, /dev/sd3e, /dev/sd4e, /dev/sd5e)
+and a RAID level of 1:
+.Bd -literal -offset 3n
+# bioctl -c 1 -l /dev/sd2e,/dev/sd3e,/dev/sd4e,/dev/sd5e softraid0
+.Ed
+.Pp
+Configure a new
+.Xr softraid 4
+volume with one chunk (/dev/sd2e) and an encrypting discipline:
+.Bd -literal -offset 3n
+# bioctl -c C -l /dev/sd2e softraid0
+.Ed
+.Pp
+.Nm
+will ask for a passphrase, which will be needed to unlock the encrypted
+disk.
+After creating a newly encrypted disk, the first megabyte of it should be
+zeroed, so tools like
+.Xr fdisk 8
+or
+.Xr disklabel 8
+don't get confused by the random data that appears on the new disk:
+.Bd -literal -offset 3n
+# dd if=/dev/zero of=/dev/rsd3c bs=1m count=1
+.Ed
+.Pp
+Detaching a softraid volume requires the exact volume name.
+For example:
+.Bd -literal -offset 3n
+# bioctl -d sd2
+.Ed
+.Pp
+Start a rebuild of the degraded softraid volume sd0
+using a new chunk on wd0d:
+.Bd -literal -offset 3n
+# bioctl -R /dev/wd0d sd0
+.Ed
+.Pp
+Show detailed information about the nvme0 controller:
+.Bd -literal -offset 3n
+# bioctl -v nvme0
+.Ed
+.Sh SEE ALSO
+.Xr bio 4 ,
+.Xr scsi 4 ,
+.Xr softraid 4
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+The
+.Nm
+interface was written by
+.An Marco Peereboom Aq Mt marco@openbsd.org .

@@ -1,0 +1,324 @@
+\input texinfo  @c -*-texinfo-*-
+@c %**start of header
+@setfilename libiberty.info
+@settitle @sc{gnu} libiberty
+@c %**end of header
+
+@syncodeindex fn cp
+@syncodeindex vr cp
+@syncodeindex pg cp
+
+@finalout
+@c %**end of header
+ 
+@dircategory GNU libraries
+@direntry
+* Libiberty: (libiberty).          Library of utility functions which
+                                   are missing or broken on some systems.
+@end direntry
+
+@macro libib
+@code{libiberty}
+@end macro
+
+@c The edition date is written in three locations.  Search for 'thedate'.
+@ifinfo
+This manual describes the GNU @libib library of utility subroutines.
+This edition accompanies GCC 3, September 2001.
+
+Copyright @copyright{} 2001 Free Software Foundation, Inc.
+
+      Permission is granted to copy, distribute and/or modify this document
+      under the terms of the GNU Free Documentation License, Version 1.2
+      or any later version published by the Free Software Foundation;
+      with no Invariant Sections, with no Front-Cover Texts, and with no
+      Back-Cover Texts.  A copy of the license is included in the
+      section entitled ``GNU Free Documentation License''.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries a copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+
+@end ignore
+@end ifinfo
+
+
+@c The edition date is written in three locations.  Search for 'thedate'.
+@titlepage
+@title @sc{gnu} libiberty
+@subtitle September 2001
+@subtitle for GCC 3
+@author Phil Edwards et al.
+@page
+
+
+@vskip 0pt plus 1filll
+Copyright @copyright{} 2001 Free Software Foundation, Inc.
+
+      Permission is granted to copy, distribute and/or modify this document
+      under the terms of the GNU Free Documentation License, Version 1.2
+      or any later version published by the Free Software Foundation;
+      with no Invariant Sections, with no Front-Cover Texts, and with no
+      Back-Cover Texts.  A copy of the license is included in the
+      section entitled ``GNU Free Documentation License''.
+
+@end titlepage
+@contents
+@page
+
+@ifnottex
+@node    Top,Using,,
+@top     Introduction
+
+The @libib{} library is a collection of subroutines used by various
+GNU programs.  It is available under the Library General Public
+License; for more information, see @ref{Library Copying}.
+
+@c The edition date is written in three locations.  Search for 'thedate'.
+This edition accompanies GCC 3, September 2001.
+
+@end ifnottex
+
+@menu
+* Using::              How to use libiberty in your code.
+
+* Overview::           Overview of available function groups.
+
+* Functions::          Available functions, macros, and global variables.
+
+* Obstacks::           Object Stacks.
+
+* Licenses::           The various licenses under which libiberty sources are
+                       distributed.
+
+* Index::              Index of functions and categories.
+@end menu
+
+@node Using
+@chapter Using
+@cindex using libiberty
+@cindex libiberty usage
+@cindex how to use
+
+@c THIS SECTION IS CRAP AND NEEDS REWRITING BADLY.
+
+To date, @libib{} is generally not installed on its own.  It has evolved
+over years but does not have its own version number nor release schedule.
+
+Possibly the easiest way to use @libib{} in your projects is to drop the
+@libib{} code into your project's sources, and to build the library along
+with your own sources; the library would then be linked in at the end.  This
+prevents any possible version mismatches with other copies of libiberty
+elsewhere on the system.
+
+Passing @option{--enable-install-libiberty} to the @command{configure}
+script when building @libib{} causes the header files and archive library
+to be installed when @kbd{make install} is run.  This option also takes
+an (optional) argument to specify the installation location, in the same
+manner as @option{--prefix}.
+
+For your own projects, an approach which offers stability and flexibility
+is to include @libib{} with your code, but allow the end user to optionally
+choose to use a previously-installed version instead.  In this way the
+user may choose (for example) to install @libib{} as part of GCC, and use
+that version for all software built with that compiler.  (This approach
+has proven useful with software using the GNU @code{readline} library.)
+
+Making use of @libib{} code usually requires that you include one or more
+header files from the @libib{} distribution.  (They will be named as
+necessary in the function descriptions.)  At link time, you will need to
+add @option{-liberty} to your link command invocation.
+
+
+@node Overview
+@chapter Overview
+
+Functions contained in @libib{} can be divided into three general categories.
+
+
+@menu
+* Supplemental Functions::       Providing functions which don't exist
+                                 on older operating systems.
+
+* Replacement Functions::        These functions are sometimes buggy or
+                                 unpredictable on some operating systems.
+
+* Extensions::                   Functions which provide useful extensions
+                                 or safety wrappers around existing code.
+@end menu
+
+@node Supplemental Functions
+@section Supplemental Functions
+@cindex supplemental functions
+@cindex functions, supplemental
+@cindex functions, missing
+
+Certain operating systems do not provide functions which have since
+become standardized, or at least common.  For example, the Single
+Unix Specification Version 2 requires that the @code{basename}
+function be provided, but an OS which predates that specification
+might not have this function.  This should not prevent well-written
+code from running on such a system.
+
+Similarly, some functions exist only among a particular ``flavor''
+or ``family'' of operating systems.  As an example, the @code{bzero}
+function is often not present on systems outside the BSD-derived
+family of systems.
+
+Many such functions are provided in @libib{}.  They are quickly
+listed here with little description, as systems which lack them
+become less and less common.  Each function @var{foo} is implemented
+in @file{@var{foo}.c} but not declared in any @libib{} header file; more
+comments and caveats for each function's implementation are often
+available in the source file.  Generally, the function can simply
+be declared as @code{extern}.
+
+
+
+@node Replacement Functions
+@section Replacement Functions
+@cindex replacement functions
+@cindex functions, replacement
+
+Some functions have extremely limited implementations on different
+platforms.  Other functions are tedious to use correctly; for example,
+proper use of @code{malloc} calls for the return value to be checked and
+appropriate action taken if memory has been exhausted.  A group of
+``replacement functions'' is available in @libib{} to address these issues
+for some of the most commonly used subroutines.
+
+All of these functions are declared in the @file{libiberty.h} header
+file.  Many of the implementations will use preprocessor macros set by
+GNU Autoconf, if you decide to make use of that program.  Some of these
+functions may call one another.
+
+
+@menu
+* Memory Allocation::            Testing and handling failed memory
+                                   requests automatically.
+* Exit Handlers::                Calling routines on program exit.
+* Error Reporting::              Mapping errno and signal numbers to
+                                   more useful string formats.
+@end menu
+
+@node Memory Allocation
+@subsection Memory Allocation
+@cindex memory allocation
+
+The functions beginning with the letter @samp{x} are wrappers around
+standard functions; the functions provided by the system environment
+are called and their results checked before the results are passed back
+to client code.  If the standard functions fail, these wrappers will
+terminate the program.  Thus, these versions can be used with impunity.
+
+
+@node Exit Handlers
+@subsection Exit Handlers
+@cindex exit handlers
+
+The existence and implementation of the @code{atexit} routine varies
+amongst the flavors of Unix.  @libib{} provides an unvarying dependable
+implementation via @code{xatexit} and @code{xexit}.
+
+
+@node Error Reporting
+@subsection Error Reporting
+@cindex error reporting
+
+These are a set of routines to facilitate programming with the system
+@code{errno} interface.  The @libib{} source file @file{strerror.c}
+contains a good deal of documentation for these functions.
+
+@c signal stuff
+
+
+@node Extensions
+@section Extensions
+@cindex extensions
+@cindex functions, extension
+
+@libib{} includes additional functionality above and beyond standard
+functions, which has proven generically useful in GNU programs, such as
+obstacks and regex.  These functions are often copied from other
+projects as they gain popularity, and are included here to provide a
+central location from which to use, maintain, and distribute them.
+
+@menu
+* Obstacks::                     Stacks of arbitrary objects.
+@end menu
+
+@c This is generated from the glibc manual using a make-obstacks-texi.sh
+@c script of Phil's.  Hope it's accurate.
+@include obstacks.texi
+
+@node Functions
+@chapter Function, Variable, and Macro Listing.
+@include functions.texi
+
+@node Licenses
+@appendix Licenses
+
+@menu
+
+* Library Copying::   The GNU Library General Public License
+* BSD::               Regents of the University of California
+
+@end menu
+
+@c This takes care of Library Copying.  It is the copying-lib.texi from the
+@c GNU web site, with its @node line altered to make makeinfo shut up.
+@include copying-lib.texi
+
+@page
+@node BSD
+@appendixsec BSD
+
+Copyright @copyright{} 1990 Regents of the University of California.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+@enumerate
+
+@item
+Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+
+@item
+Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+@item
+[rescinded 22 July 1999]
+
+@item
+Neither the name of the University nor the names of its contributors
+may be used to endorse or promote products derived from this software
+without specific prior written permission.
+
+@end enumerate
+
+THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+@node Index
+@unnumbered Index
+
+@printindex cp
+
+@bye
+

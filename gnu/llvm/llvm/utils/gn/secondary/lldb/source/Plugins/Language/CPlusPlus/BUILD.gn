@@ -1,0 +1,50 @@
+static_library("CPlusPlus") {
+  output_name = "lldbPluginCPlusPlusLanguage"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/DataFormatters",
+    "//lldb/source/Host",
+    "//lldb/source/Plugins/Language/ClangCommon",
+    "//lldb/source/Plugins/LanguageRuntime/CPlusPlus",
+    "//lldb/source/Plugins/TypeSystem/Clang",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+
+  # Reaches into Plugins/Language/ClangCommon.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "BlockPointer.cpp",
+    "CPlusPlusLanguage.cpp",
+    "CPlusPlusNameParser.cpp",
+    "Coroutines.cpp",
+    "CxxStringTypes.cpp",
+    "GenericBitset.cpp",
+    "GenericOptional.cpp",
+    "LibCxx.cpp",
+    "LibCxxAtomic.cpp",
+    "LibCxxInitializerList.cpp",
+    "LibCxxList.cpp",
+    "LibCxxMap.cpp",
+    "LibCxxProxyArray.cpp",
+    "LibCxxQueue.cpp",
+    "LibCxxRangesRefView.cpp",
+    "LibCxxSliceArray.cpp",
+    "LibCxxSpan.cpp",
+    "LibCxxTuple.cpp",
+    "LibCxxUnorderedMap.cpp",
+    "LibCxxValarray.cpp",
+    "LibCxxVariant.cpp",
+    "LibCxxVector.cpp",
+    "LibStdcpp.cpp",
+    "LibStdcppTuple.cpp",
+    "LibStdcppUniquePointer.cpp",
+    "MSVCUndecoratedNameParser.cpp",
+  ]
+}

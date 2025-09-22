@@ -1,0 +1,63 @@
+.\"	$OpenBSD: uthum.4,v 1.8 2013/09/06 18:11:42 jmc Exp $
+.\"
+.\" Copyright (c) 2009 Yojiro UO <yuo@nui.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 6 2013 $
+.Dt UTHUM 4
+.Os
+.Sh NAME
+.Nm uthum
+.Nd TEMPer HID thermometer and hygrometer
+.Sh SYNOPSIS
+.Cd "uthum* at uhidev?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for pcsensors TEMPer devices.
+The following devices are supported by the
+.Nm
+driver:
+.Bl -column "TEMPerNTCXXX" "Sensors" -offset indent
+.It Em "Device" Ta Em "Sensors"
+.It Li "TEMPerHUM" Ta "1 Temperature and 1 Humidity"
+.It Li "TEMPer" Ta "1 Temperature (internal)"
+.It Li "TEMPer1" Ta "1 Temperature (external)"
+.It Li "TEMPer2" Ta "2 Temperature (internal/external)"
+.It Li "TEMPerNTC" Ta "2 Temperature (internal/external)"
+.El
+.Pp
+The sensor possesses a collection of sensor values which are
+made available through the
+.Xr sysctl 8
+interface.
+The humidity data unit is "%RH" (relative humidity) and the
+temperature data unit is "degC".
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr uhidev 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Yojiro UO Aq Mt yuo@nui.org .
+.Sh BUGS
+There is not enough support for the external temperature sensor
+of the TEMPerNTC.
+Currently the
+.Nm
+driver supports about 0 degC to 120 degC for the sensor.

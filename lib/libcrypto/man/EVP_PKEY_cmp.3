@@ -1,0 +1,180 @@
+.\" $OpenBSD: EVP_PKEY_cmp.3,v 1.16 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 05ea606a May 20 20:52:46 2016 -0400
+.\" selective merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2006, 2013, 2014, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_CMP 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_missing_parameters ,
+.Nm EVP_PKEY_copy_parameters ,
+.Nm EVP_PKEY_cmp_parameters ,
+.Nm EVP_PKEY_cmp
+.\" .Nm EVP_PKEY_save_parameters is intentionally undocumented
+.\" because nothing uses it according to codesearch.debian.net
+.\" and it only affects X509_PUBKEY_set(3) for DSA,
+.\" resulting in incomplete output without the public key parameters.
+.Nd public key parameter and comparison functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_PKEY_missing_parameters
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft int
+.Fo EVP_PKEY_copy_parameters
+.Fa "EVP_PKEY *destination"
+.Fa "const EVP_PKEY *source"
+.Fc
+.Ft int
+.Fo EVP_PKEY_cmp_parameters
+.Fa "const EVP_PKEY *a"
+.Fa "const EVP_PKEY *b"
+.Fc
+.Ft int
+.Fo EVP_PKEY_cmp
+.Fa "const EVP_PKEY *a"
+.Fa "const EVP_PKEY *b"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_PKEY_missing_parameters
+checks whether any public key parameters are missing from
+.Fa pkey .
+.Pp
+.Fn EVP_PKEY_copy_parameters
+copies all public key parameters from the
+.Fa source
+to the
+.Fa destination .
+If the algorithm does not use parameters, no action occurs.
+.Pp
+.Fn EVP_PKEY_cmp_parameters
+compares the public key parameters of
+.Fa a
+and
+.Fa b .
+This is only supported for algorithms that use parameters.
+.Pp
+.Fn EVP_PKEY_cmp
+compares the public key components of
+.Fa a
+and
+.Fa b .
+If the algorithm uses public key parameters,
+it also compares the parameters.
+.Pp
+The main purpose of the functions
+.Fn EVP_PKEY_missing_parameters
+and
+.Fn EVP_PKEY_copy_parameters
+is to handle public keys in certificates where the parameters are
+sometimes omitted from a public key if they are inherited from the CA
+that signed it.
+.Pp
+Since OpenSSL private keys contain public key components too, the
+function
+.Fn EVP_PKEY_cmp
+can also be used to determine if a private key matches a public key.
+.Sh RETURN VALUES
+.Fn EVP_PKEY_missing_parameters
+returns 1 if the public key parameters of
+.Fa pkey
+are missing or incomplete or 0 if they are present and complete
+or if the algorithm doesn't use parameters.
+.Pp
+.Fn EVP_PKEY_copy_parameters
+returns 1 for success or 0 for failure.
+In particular, it fails if the key types mismatch or if the public
+key parameters in the
+.Fa source
+are missing or incomplete.
+.Pp
+.Fn EVP_PKEY_cmp_parameters
+and
+.Fn EVP_PKEY_cmp
+return 1 if the keys match, 0 if they don't match, -1 if the key types
+are different and -2 if the operation is not supported.
+.Sh SEE ALSO
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_keygen 3 ,
+.Xr EVP_PKEY_new 3 ,
+.Xr X509_get_pubkey_parameters 3
+.Sh HISTORY
+.Fn EVP_PKEY_missing_parameters
+and
+.Fn EVP_PKEY_copy_parameters
+first appeared in SSLeay 0.8.0.
+.Fn EVP_PKEY_cmp_parameters
+first appeared in SSLeay 0.9.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_PKEY_cmp
+first appeared in OpenSSL 0.9.8 and has been available since
+.Ox 4.5 .

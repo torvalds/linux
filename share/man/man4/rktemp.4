@@ -1,0 +1,50 @@
+.\"	$OpenBSD: rktemp.4,v 1.5 2024/06/12 09:08:43 kettenis Exp $
+.\"
+.\" Copyright (c) 2016 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 12 2024 $
+.Dt RKTEMP 4
+.Os
+.Sh NAME
+.Nm rktemp
+.Nd Rockchip temperature monitor
+.Sh SYNOPSIS
+.Cd "rktemp* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the temperature sensor found on the
+Rockchip RK3288, RK3308, RK3328, RK3399 RK356x and RK3588 SoCs.
+It configures the SoC to reset itself if the temperature raises above
+a certain temperature to protect it from damage caused by overheating.
+.Pp
+Sensor values are made available through the
+.Xr sysctl 8
+interface.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

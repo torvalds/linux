@@ -1,0 +1,81 @@
+.\"	$OpenBSD: lpt.4,v 1.8 2017/07/07 09:15:59 fcambus Exp $
+.\"
+.\" Copyright (c) 1993 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 7 2017 $
+.Dt LPT 4
+.Os
+.Sh NAME
+.Nm lpt
+.Nd parallel port driver
+.Sh SYNOPSIS
+.Cd "# alpha"
+.Cd "lpt* at isa? port 0x3bc irq 7"
+.Pp
+.Cd "# amd64"
+.Cd "lpt0 at isa? port 0x378 irq 7"
+.Cd "lpt* at puc?"
+.Pp
+.Cd "# i386"
+.Cd "lpt0 at isa? port 0x378 irq 7"
+.Cd "lpt1 at isa? port 0x278"
+.Cd "lpt2 at isa? port 0x3bc"
+.Cd "lpt* at puc?"
+.Pp
+.Cd "# hppa"
+.Cd "lpt0 at gsc? irq 7"
+.Cd "lpt0 at ssio?"
+.Pp
+.Cd "# sparc64"
+.Cd "lpt* at apio?"
+.Cd "lpt* at ebus?"
+.Sh DESCRIPTION
+This driver provides access to parallel ports.
+.Pp
+The highest bit in the minor (bit 7, or add 128) number selects
+whether to do polling or wait for interrupts.
+If no IRQ is specified in the kernel configuration, or the IRQ specified is
+not available at attach time, only the polling device may be used.
+.Pp
+The next lower bit (bit 6, or add 64) indicates the driver should
+avoid initializing the printer.
+.Pp
+The next lower bit (bit 5, or add 32) requests that the driver do
+automatic LF generation when printing CRs.
+.Sh FILES
+.Bl -tag -width /dev/lpt0 -compact
+.It Pa /dev/lpt0
+first interrupt-driven parallel port device
+.It Pa /dev/lpa0
+first polled parallel port device
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr ulpt 4

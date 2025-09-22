@@ -1,0 +1,185 @@
+
+#ifdef CONTAINER_PART
+CONTAINER_PART(DXIL)
+CONTAINER_PART(SFI0)
+CONTAINER_PART(HASH)
+CONTAINER_PART(PSV0)
+CONTAINER_PART(ISG1)
+CONTAINER_PART(OSG1)
+CONTAINER_PART(PSG1)
+
+#undef CONTAINER_PART
+#endif // CONTAINER_PART
+
+#ifdef SHADER_FEATURE_FLAG
+
+// SHADER_FEATURE_FLAG(bit offset for the shader info flag, bit offset for DXIL module flag, name, description.
+
+SHADER_FEATURE_FLAG(0,   2, Doubles, "Double-precision floating point")
+SHADER_FEATURE_FLAG(1,  17, ComputeShadersPlusRawAndStructuredBuffers, "Raw and Structured buffers")
+SHADER_FEATURE_FLAG(2,  16, UAVsAtEveryStage, "UAVs at every shader stage")
+SHADER_FEATURE_FLAG(3,  15, Max64UAVs, "64 UAV slots")
+SHADER_FEATURE_FLAG(4,  -1, MinimumPrecision, "Minimum-precision data types")
+SHADER_FEATURE_FLAG(5,   6, DX11_1_DoubleExtensions, "Double-precision extensions for 11.1")
+SHADER_FEATURE_FLAG(6,   7, DX11_1_ShaderExtensions, "Shader extensions for 11.1")
+SHADER_FEATURE_FLAG(7,  14, LEVEL9ComparisonFiltering, "Comparison filtering for feature level 9")
+SHADER_FEATURE_FLAG(8,  12, TiledResources, "Tiled resources")
+SHADER_FEATURE_FLAG(9,  11, StencilRef, "PS Output Stencil Ref")
+SHADER_FEATURE_FLAG(10, 10, InnerCoverage, "PS Inner Coverage")
+SHADER_FEATURE_FLAG(11, 13, TypedUAVLoadAdditionalFormats, "Typed UAV Load Additional Formats")
+SHADER_FEATURE_FLAG(12, 18, ROVs, "Raster Ordered UAVs")
+SHADER_FEATURE_FLAG(13,  9, ViewportAndRTArrayIndexFromAnyShaderFeedingRasterizer, "SV_RenderTargetArrayIndex or SV_ViewportArrayIndex from any shader feeding rasterizer")
+SHADER_FEATURE_FLAG(14, 19, WaveOps, "Wave level operations")
+SHADER_FEATURE_FLAG(15, 20, Int64Ops, "64-Bit integer")
+SHADER_FEATURE_FLAG(16, 21, ViewID, "View Instancing")
+SHADER_FEATURE_FLAG(17, 22, Barycentrics, "Barycentrics")
+SHADER_FEATURE_FLAG(18, -1, NativeLowPrecision, "Use native low precision")
+SHADER_FEATURE_FLAG(19, 24, ShadingRate, "Shading Rate")
+SHADER_FEATURE_FLAG(20, 25, Raytracing_Tier_1_1, "Raytracing tier 1.1 features")
+SHADER_FEATURE_FLAG(21, 26, SamplerFeedback, "Sampler feedback")
+SHADER_FEATURE_FLAG(22, 27, AtomicInt64OnTypedResource, "64-bit Atomics on Typed Resources")
+SHADER_FEATURE_FLAG(23, 28, AtomicInt64OnGroupShared, "64-bit Atomics on Group Shared")
+SHADER_FEATURE_FLAG(24, 29, DerivativesInMeshAndAmpShaders, "Derivatives in mesh and amplification shaders")
+SHADER_FEATURE_FLAG(25, 30, ResourceDescriptorHeapIndexing, "Resource descriptor heap indexing")
+SHADER_FEATURE_FLAG(26, 31, SamplerDescriptorHeapIndexing, "Sampler descriptor heap indexing")
+SHADER_FEATURE_FLAG(27, 63, RESERVED, "<RESERVED>")
+SHADER_FEATURE_FLAG(28, 32, AtomicInt64OnHeapResource, "64-bit Atomics on Heap Resources")
+SHADER_FEATURE_FLAG(29, 34, AdvancedTextureOps, "Advanced Texture Ops")
+SHADER_FEATURE_FLAG(30, 35, WriteableMSAATextures, "Writeable MSAA Textures")
+
+SHADER_FEATURE_FLAG(31, 36, NextUnusedBit, "Next reserved shader flag bit (not a flag)")
+
+#undef SHADER_FEATURE_FLAG
+#endif // SHADER_FEATURE_FLAG
+
+#ifdef DXIL_MODULE_FLAG
+
+// Only save DXIL module flags which not map to feature flags here.
+DXIL_MODULE_FLAG( 0,  DisableOptimizations,   "D3D11_1_SB_GLOBAL_FLAG_SKIP_OPTIMIZATION")
+DXIL_MODULE_FLAG( 1,  DisableMathRefactoring, "D3D10_SB_GLOBAL_FLAG_REFACTORING_ALLOWED")
+DXIL_MODULE_FLAG( 3,  ForceEarlyDepthStencil, "D3D11_SB_GLOBAL_FLAG_FORCE_EARLY_DEPTH_STENCIL")
+DXIL_MODULE_FLAG( 4,  EnableRawAndStructuredBuffers, "D3D11_SB_GLOBAL_FLAG_ENABLE_RAW_AND_STRUCTURED_BUFFERS")
+DXIL_MODULE_FLAG( 5,  LowPrecisionPresent, "D3D11_1_SB_GLOBAL_FLAG_ENABLE_MINIMUM_PRECISION")
+DXIL_MODULE_FLAG( 8,  AllResourcesBound, "D3D12_SB_GLOBAL_FLAG_ALL_RESOURCES_BOUND")
+DXIL_MODULE_FLAG(23,  UseNativeLowPrecision, "Native 16bit types enabled")
+DXIL_MODULE_FLAG(33,  ResMayNotAlias, "Any UAV may not alias any other UAV")
+
+#undef DXIL_MODULE_FLAG
+#endif // DXIL_MODULE_FLAG
+
+#ifdef SEMANTIC_KIND
+
+SEMANTIC_KIND(0, Arbitrary)
+SEMANTIC_KIND(1, VertexID)
+SEMANTIC_KIND(2, InstanceID)
+SEMANTIC_KIND(3, Position)
+SEMANTIC_KIND(4, RenderTargetArrayIndex)
+SEMANTIC_KIND(5, ViewPortArrayIndex)
+SEMANTIC_KIND(6, ClipDistance)
+SEMANTIC_KIND(7, CullDistance)
+SEMANTIC_KIND(8, OutputControlPointID)
+SEMANTIC_KIND(9, DomainLocation)
+SEMANTIC_KIND(10, PrimitiveID)
+SEMANTIC_KIND(11, GSInstanceID)
+SEMANTIC_KIND(12, SampleIndex)
+SEMANTIC_KIND(13, IsFrontFace)
+SEMANTIC_KIND(14, Coverage)
+SEMANTIC_KIND(15, InnerCoverage)
+SEMANTIC_KIND(16, Target)
+SEMANTIC_KIND(17, Depth)
+SEMANTIC_KIND(18, DepthLessEqual)
+SEMANTIC_KIND(19, DepthGreaterEqual)
+SEMANTIC_KIND(20, StencilRef)
+SEMANTIC_KIND(21, DispatchThreadID)
+SEMANTIC_KIND(22, GroupID)
+SEMANTIC_KIND(23, GroupIndex)
+SEMANTIC_KIND(24, GroupThreadID)
+SEMANTIC_KIND(25, TessFactor)
+SEMANTIC_KIND(26, InsideTessFactor)
+SEMANTIC_KIND(27, ViewID)
+SEMANTIC_KIND(28, Barycentrics)
+SEMANTIC_KIND(29, ShadingRate)
+SEMANTIC_KIND(30, CullPrimitive)
+SEMANTIC_KIND(30, Invalid)
+
+#undef SEMANTIC_KIND
+#endif // SEMANTIC_KIND
+
+#ifdef COMPONENT_TYPE
+
+COMPONENT_TYPE(0, Unknown)
+COMPONENT_TYPE(1, UInt32)
+COMPONENT_TYPE(2, SInt32)
+COMPONENT_TYPE(3, Float32)
+COMPONENT_TYPE(4, UInt16)
+COMPONENT_TYPE(5, SInt16)
+COMPONENT_TYPE(6, Float16)
+COMPONENT_TYPE(7, UInt64)
+COMPONENT_TYPE(8, SInt64)
+COMPONENT_TYPE(9, Float64)
+
+#undef COMPONENT_TYPE
+#endif // COMPONENT_TYPE
+
+#ifdef COMPONENT_PRECISION
+
+COMPONENT_PRECISION(0, Default)
+COMPONENT_PRECISION(1, Float16)
+COMPONENT_PRECISION(2, Float2_8)
+COMPONENT_PRECISION(3, Reserved)
+COMPONENT_PRECISION(4, SInt16)
+COMPONENT_PRECISION(5, UInt16)
+COMPONENT_PRECISION(0xf0, Any16)
+COMPONENT_PRECISION(0xf1, Any10)
+
+#undef COMPONENT_PRECISION
+#endif // COMPONENT_PRECISION
+
+#ifdef INTERPOLATION_MODE
+
+INTERPOLATION_MODE(0, Undefined)
+INTERPOLATION_MODE(1, Constant)
+INTERPOLATION_MODE(2, Linear)
+INTERPOLATION_MODE(3, LinearCentroid)
+INTERPOLATION_MODE(4, LinearNoperspective)
+INTERPOLATION_MODE(5, LinearNoperspectiveCentroid)
+INTERPOLATION_MODE(6, LinearSample)
+INTERPOLATION_MODE(7, LinearNoperspectiveSample)
+INTERPOLATION_MODE(8, Invalid)
+
+#undef INTERPOLATION_MODE
+#endif // INTERPOLATION_MODE
+
+#ifdef D3D_SYSTEM_VALUE
+
+D3D_SYSTEM_VALUE(0, Undefined)
+D3D_SYSTEM_VALUE(1, Position)
+D3D_SYSTEM_VALUE(2, ClipDistance)
+D3D_SYSTEM_VALUE(3, CullDistance)
+D3D_SYSTEM_VALUE(4, RenderTargetArrayIndex)
+D3D_SYSTEM_VALUE(5, ViewPortArrayIndex)
+D3D_SYSTEM_VALUE(6, VertexID)
+D3D_SYSTEM_VALUE(7, PrimitiveID)
+D3D_SYSTEM_VALUE(8, InstanceID)
+D3D_SYSTEM_VALUE(9, IsFrontFace)
+D3D_SYSTEM_VALUE(10, SampleIndex)
+D3D_SYSTEM_VALUE(11, FinalQuadEdgeTessfactor)
+D3D_SYSTEM_VALUE(12, FinalQuadInsideTessfactor)
+D3D_SYSTEM_VALUE(13, FinalTriEdgeTessfactor)
+D3D_SYSTEM_VALUE(14, FinalTriInsideTessfactor)
+D3D_SYSTEM_VALUE(15, FinalLineDetailTessfactor)
+D3D_SYSTEM_VALUE(16, FinalLineDensityTessfactor)
+D3D_SYSTEM_VALUE(23, Barycentrics)
+D3D_SYSTEM_VALUE(24, ShadingRate)
+D3D_SYSTEM_VALUE(25, CullPrimitive)
+D3D_SYSTEM_VALUE(64, Target)
+D3D_SYSTEM_VALUE(65, Depth)
+D3D_SYSTEM_VALUE(66, Coverage)
+D3D_SYSTEM_VALUE(67, DepthGE)
+D3D_SYSTEM_VALUE(68, DepthLE)
+D3D_SYSTEM_VALUE(69, StencilRef)
+D3D_SYSTEM_VALUE(70, InnerCoverage)
+
+#undef D3D_SYSTEM_VALUE
+
+#endif // D3D_SYSTEM_VALUE

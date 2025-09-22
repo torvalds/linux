@@ -1,0 +1,108 @@
+.\"     $OpenBSD: rt_timer_add.9,v 1.5 2023/06/20 10:59:47 kn Exp $
+.\"
+.\" Copyright (c) 2011 Bret S. Lambert <blambert@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 20 2023 $
+.Dt RT_TIMER_ADD 9
+.Os
+.Sh NAME
+.Nm rt_timer_add ,
+.Nm rt_timer_remove_all ,
+.Nm rt_timer_get_expire ,
+.Nm rt_timer_queue_init ,
+.Nm rt_timer_queue_change ,
+.Nm rt_timer_queue_flush ,
+.Nm rt_timer_queue_count
+.Nd route timer queues interface
+.Sh SYNOPSIS
+.In net/route.h
+.Ft int
+.Fn rt_timer_add "struct rtentry *rt" \
+"struct rttimer_queue *queue" "u_int rtableid"
+.Ft void
+.Fn rt_timer_remove_all "struct rtentry *rt"
+.Ft time_t
+.Fn rt_timer_get_expire "const struct rtentry *rt"
+.Ft void
+.Fn rt_timer_queue_init "struct rttimer_queue *rtq" "int timeout" \
+"void (*func)(struct rtentry *, u_int)"
+.Ft void
+.Fn rt_timer_queue_change "struct rttimer_queue *rtq" "int timeout"
+.Ft void
+.Fn rt_timer_queue_flush "struct rttimer_queue *rtq"
+.Ft unsigned long
+.Fn rt_timer_queue_count "struct rttimer_queue *rtq"
+.Sh DESCRIPTION
+The
+.Nm rt_timer
+subsystem queues routing-related functions for asynchronous execution
+in the future.
+.Pp
+.Fn rt_timer_add
+allocates an rttimer_queue
+.Fa rtq
+to be called on
+.Fa rt
+using the timeout of
+.Fa queue .
+If an action already exists, it will be replaced with the new one.
+.Pp
+.Fn rt_timer_remove_all
+removes all timeouts associated with
+.Fa rt
+from all routing timer queues.
+.Pp
+.Fn rt_timer_get_expire
+returns the current expiry time in seconds.
+.Pp
+.Fn rt_timer_queue_init
+creates a timer queue with a timeout of
+.Fa timeout
+seconds.
+.Pp
+.Fn rt_timer_queue_change
+sets the timeout for
+.Fa rtq
+to
+.Fa timeout
+seconds.
+.Pp
+.Fn rt_timer_queue_flush
+removes all timeouts from the routing timer queue
+.Fa rtq ,
+executes their associated callback and destroys it.
+.Pp
+.Fn rt_timer_queue_count
+returns the number of timers present in the queue
+.Fa rtq .
+.Sh CONTEXT
+.Fn rt_timer_add ,
+.Fn rt_timer_remove_all ,
+.Fn rt_timer_get_expire ,
+.Fn rt_timer_queue_init ,
+.Fn rt_timer_queue_change ,
+.Fn rt_timer_queue_flush
+and
+.Fn rt_timer_queue_count
+can be called during autoconf, from process context, or from interrupt context.
+.Sh ERRORS
+.Fn rt_timer_add
+may fail with
+.Er ENOBUFS
+if memory could not be allocated for the timeout.
+.Sh SEE ALSO
+.Xr route 4 ,
+.Xr route 9

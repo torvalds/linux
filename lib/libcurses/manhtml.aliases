@@ -1,0 +1,80 @@
+# $Id: manhtml.aliases,v 1.1 2023/10/17 09:52:08 nicm Exp $
+#***************************************************************************
+# Copyright 2019-2022,2023 Thomas E. Dickey                                *
+# Copyright 2013,2017 Free Software Foundation, Inc.                       *
+#                                                                          *
+# Permission is hereby granted, free of charge, to any person obtaining a  *
+# copy of this software and associated documentation files (the            *
+# "Software"), to deal in the Software without restriction, including      *
+# without limitation the rights to use, copy, modify, merge, publish,      *
+# distribute, distribute with modifications, sublicense, and/or sell       *
+# copies of the Software, and to permit persons to whom the Software is    *
+# furnished to do so, subject to the following conditions:                 *
+#                                                                          *
+# The above copyright notice and this permission notice shall be included  *
+# in all copies or substantial portions of the Software.                   *
+#                                                                          *
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+# IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+# THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+#                                                                          *
+# Except as contained in this notice, the name(s) of the above copyright   *
+# holders shall not be used in advertising or otherwise to promote the     *
+# sale, use or other dealings in this Software without prior written       *
+# authorization.                                                           *
+#***************************************************************************
+# Items in this list will be linked to the corresponding manpages by man2html
+addch(3)		curs_addch(3)
+assume_default_colors(3)	default_colors(3)
+baudrate(3)		curs_termattrs(3)
+clearok(3)		curs_outopts(3)
+curs_set(3)		curs_kernel(3)
+def_prog_mode(3)	curs_kernel(3)
+def_shell_mode(3)	curs_kernel(3)
+delscreen(3)		curs_initscr(3)
+doupdate(3)		curs_refresh(3)
+endwin(3)		curs_initscr(3)
+filter(3)		curs_util(3)
+get_wch(3)		curs_get_wch(3)
+getcchar(3)		curs_getcchar(3)
+getch(3)		curs_getch(3)
+immedok(3)		curs_outopts(3)
+inch(3)		curs_inch(3)
+infocmp(1)		infocmp(1)
+initscr(3)		curs_initscr(3)
+is_scrollok(3)		curs_opaque(3)
+keypad(3)		curs_inopts(3)
+longname(3)		curs_termattrs(3)
+meta(3)		curs_inopts(3)
+mvcur(3)		curs_terminfo(3)
+mvwin(3)		curs_window(3)
+newterm(3)		curs_initscr(3)
+refresh(3)		curs_refresh(3)
+reset_shell_mode(3)	curs_kernel(3)
+restartterm(3)		curs_terminfo(3)
+set_curterm(3)		curs_terminfo(3)
+set_term(3)		curs_initscr(3)
+setcchar(3)		curs_getcchar(3)
+setupterm(3)		curs_terminfo(3)
+slk_init(3)		curs_slk(3)
+slk_touch(3)		curs_slk(3)
+tic(1)			tic(1)
+tigetstr(3)		curs_terminfo(3)
+tparm(3)		curs_terminfo(3)
+tputs(3)		curs_terminfo(3)
+use_default_colors(3)	default_colors(3)
+use_env(3)		curs_util(3)
+use_extended_names(3)	curs_extend(3)
+use_legacy_coding(3)	legacy_coding(3)
+vidputs(3)		curs_terminfo(3)
+wadd_wch(3)		curs_add_wch(3)
+waddch(3)		curs_addch(3)
+wbkgdset(3)		curs_bkgd(3)
+wget_wch(3)		curs_get_wch(3)
+wgetch(3)		curs_getch(3)
+wnoutrefresh(3)	curs_refresh(3)
+wrefresh(3)		curs_refresh(3)

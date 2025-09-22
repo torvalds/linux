@@ -1,0 +1,161 @@
+.\"	$OpenBSD: d2i_GENERAL_NAME.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_GENERAL_NAME 3
+.Os
+.Sh NAME
+.Nm d2i_GENERAL_NAME ,
+.Nm i2d_GENERAL_NAME ,
+.Nm d2i_GENERAL_NAMES ,
+.Nm i2d_GENERAL_NAMES ,
+.Nm d2i_EDIPARTYNAME ,
+.Nm i2d_EDIPARTYNAME ,
+.Nm d2i_OTHERNAME ,
+.Nm i2d_OTHERNAME
+.Nd decode and encode names for use in X.509 extensions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft GENERAL_NAME *
+.Fo d2i_GENERAL_NAME
+.Fa "GENERAL_NAME **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_GENERAL_NAME
+.Fa "GENERAL_NAME *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft GENERAL_NAMES *
+.Fo d2i_GENERAL_NAMES
+.Fa "GENERAL_NAMES **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_GENERAL_NAMES
+.Fa "GENERAL_NAMES *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft EDIPARTYNAME *
+.Fo d2i_EDIPARTYNAME
+.Fa "EDIPARTYNAME **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_EDIPARTYNAME
+.Fa "EDIPARTYNAME *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OTHERNAME *
+.Fo d2i_OTHERNAME
+.Fa "OTHERNAME **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OTHERNAME
+.Fa "OTHERNAME *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode names that can be used in X.509
+extensions.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_GENERAL_NAME
+and
+.Fn i2d_GENERAL_NAME
+decode and encode an ASN.1
+.Vt GeneralName
+structure defined in RFC 5280 section 4.2.1.6.
+.Pp
+.Fn d2i_GENERAL_NAMES
+and
+.Fn i2d_GENERAL_NAMES
+decode and encode an ASN.1
+.Vt GeneralNames
+structure defined in RFC 5280 section 4.2.1.6.
+.Pp
+.Fn d2i_EDIPARTYNAME
+and
+.Fn i2d_EDIPARTYNAME
+decode and encode an ASN.1
+.Vt EDIPartyName
+structure defined in RFC 5280 section 4.2.1.6.
+.Pp
+.Fn d2i_OTHERNAME
+and
+.Fn i2d_OTHERNAME
+decode and encode an ASN.1
+.Vt OtherName
+structure defined in RFC 5280 section 4.2.1.6.
+.Sh RETURN VALUES
+.Fn d2i_GENERAL_NAME ,
+.Fn d2i_GENERAL_NAMES ,
+.Fn d2i_EDIPARTYNAME ,
+and
+.Fn d2i_OTHERNAME
+return a
+.Vt GENERAL_NAME ,
+.Vt GENERAL_NAMES ,
+.Vt EDIPARTYNAME ,
+or
+.Vt OTHERNAME
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_GENERAL_NAME ,
+.Fn i2d_GENERAL_NAMES ,
+.Fn i2d_EDIPARTYNAME ,
+and
+.Fn i2d_OTHERNAME
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr d2i_X509_NAME 3 ,
+.Xr GENERAL_NAME_new 3 ,
+.Xr X509_EXTENSION_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile,
+section 4.2: Certificate Extensions
+.Sh HISTORY
+.Fn d2i_GENERAL_NAME ,
+.Fn i2d_GENERAL_NAME ,
+.Fn d2i_GENERAL_NAMES ,
+and
+.Fn i2d_GENERAL_NAMES
+first appeared in OpenSSL 0.9.2b and have been available since
+.Ox 2.6 .
+.Pp
+.Fn d2i_OTHERNAME
+and
+.Fn i2d_OTHERNAME
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn d2i_EDIPARTYNAME
+and
+.Fn i2d_EDIPARTYNAME
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .

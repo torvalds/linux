@@ -1,0 +1,89 @@
+.\" $OpenBSD: curs_overlay.3,v 1.9 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2020-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2013,2015 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_overlay.3,v 1.9 2023/10/17 09:52:08 nicm Exp $
+.TH curs_overlay 3 2023-07-01 "ncurses 6.4" "Library calls"
+.na
+.hy 0
+.SH NAME
+\fBoverlay\fP,
+\fBoverwrite\fP,
+\fBcopywin\fP \- overlay and manipulate overlapped \fBcurses\fP windows
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint overlay(const WINDOW *\fIsrcwin\fB, WINDOW *\fIdstwin\fB);\fR
+.br
+\fBint overwrite(const WINDOW *\fIsrcwin\fB, WINDOW *\fIdstwin\fB);\fR
+.br
+\fBint copywin(const WINDOW *\fIsrcwin\fB, WINDOW *\fIdstwin\fB, int \fIsminrow\fB,\fR
+      \fBint \fIsmincol\fB, int \fIdminrow\fB, int \fIdmincol\fB, int \fIdmaxrow\fB,\fR
+      \fBint \fIdmaxcol\fB, int \fIoverlay\fB);\fR
+.SH DESCRIPTION
+.SS overlay, overwrite
+The \fBoverlay\fP and \fBoverwrite\fP routines overlay \fIsrcwin\fP on
+top of \fIdstwin\fP.
+\fIscrwin\fP and \fIdstwin\fP are not required
+to be the same size; only text where the two windows overlap is copied.
+The difference is that \fBoverlay\fP is non-destructive
+(blanks are not copied) whereas \fBoverwrite\fP is destructive.
+.SS copywin
+The \fBcopywin\fP routine provides a finer granularity of control over the
+\fBoverlay\fP and \fBoverwrite\fP routines.
+As in the \fBprefresh\fP routine,
+a rectangle is specified in the destination window, (\fIdminrow\fP,
+\fIdmincol\fP) and (\fIdmaxrow\fP, \fIdmaxcol\fP), and the upper-left-corner
+coordinates of the source window, (\fIsminrow\fP, \fIsmincol\fP).
+If the argument \fIoverlay\fP is \fBtrue\fP,
+then copying is non-destructive,
+as in \fBoverlay\fP.
+.SH RETURN VALUE
+Routines that return an integer return \fBERR\fP upon failure, and \fBOK\fP
+(SVr4 only specifies "an integer value other than \fBERR\fP") upon successful
+completion.
+.PP
+X/Open defines no error conditions.
+In this implementation,
+\fBcopywin\fP,
+\fBoverlay\fP and \fBoverwrite\fP return an error
+if either of the window pointers are null, or
+if some part of the window would be placed off-screen.
+.SH NOTES
+Note that \fBoverlay\fP and \fBoverwrite\fP may be macros.
+.SH PORTABILITY
+The XSI Curses standard, Issue 4 describes these functions (adding the const
+qualifiers).
+It further specifies their behavior in the presence of characters
+with multibyte renditions (not yet supported in this implementation).
+.SH SEE ALSO
+\fBcurses\fP(3), \fBcurs_pad\fP(3), \fBcurs_refresh\fP(3)

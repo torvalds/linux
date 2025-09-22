@@ -1,0 +1,194 @@
+.\"	$OpenBSD: newfs_msdos.8,v 1.25 2014/07/10 19:31:07 tobias Exp $
+.\"
+.\" Copyright (c) 1998 Robert Nordier
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/sbin/newfs_msdos/newfs_msdos.8,v 1.6 1999/08/28 00:13:52 peter Exp $
+.\"
+.Dd $Mdocdate: July 10 2014 $
+.Dt NEWFS_MSDOS 8
+.Os
+.Sh NAME
+.Nm newfs_msdos
+.Nd construct a new MS-DOS (FAT) file system
+.Sh SYNOPSIS
+.Nm newfs_msdos
+.Bk -words
+.Op Fl N
+.Op Fl a Ar FAT-size
+.Op Fl B Ar boot
+.Op Fl b Ar block-size
+.Op Fl c Ar cluster-size
+.Op Fl e Ar dirents
+.Op Fl F Ar FAT-type
+.Op Fl f Ar format
+.Op Fl h Ar heads
+.Op Fl I Ar volid
+.Op Fl i Ar info
+.Op Fl k Ar backup
+.Op Fl L Ar label
+.Op Fl m Ar media
+.Op Fl n Ar FATs
+.Op Fl O Ar OEM
+.Op Fl o Ar hidden
+.Op Fl r Ar reserved
+.Op Fl S Ar sector-size
+.Op Fl s Ar total
+.Op Fl u Ar track-size
+.Ar special
+.Op Ar disktype
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+utility creates a FAT12, FAT16, or FAT32 file system on device
+.Ar special ,
+using
+.Xr disktab 5
+entry
+.Ar disktype
+to determine geometry, if required.
+.Pp
+The
+.Ar special
+file should be a raw device,
+for example
+.Pa /dev/rsd0i ;
+if a relative path like
+.Pa sd0i
+is specified,
+the corresponding raw device is used.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a Ar FAT-size
+Number of sectors per FAT.
+.It Fl B Ar boot
+Get bootstrap from file.
+.It Fl b Ar block-size
+File system block size (bytes per cluster).
+This should resolve to an acceptable number of sectors per cluster (see below).
+.It Fl c Ar cluster-size
+Sectors per cluster.
+Acceptable values are powers of 2 in the range 1 through 128.
+.It Fl e Ar dirents
+Number of root directory entries (FAT12 and FAT16 only).
+.It Fl F Ar FAT-type
+FAT type (one of 12, 16, or 32).
+.It Fl f Ar format
+Specify a standard (floppy disk) format.
+The eight standard formats
+are (capacities in kilobytes): 160, 180, 320, 360, 720, 1200, 1440,
+2880.
+.It Fl h Ar heads
+Number of drive heads.
+.It Fl I Ar volid
+Volume ID.
+.It Fl i Ar info
+Location of the file system info sector (FAT32 only).
+A value of 0xffff signifies no info sector.
+.It Fl k Ar backup
+Location of the backup boot sector (FAT32 only).
+A value of 0xffff signifies no backup sector.
+.It Fl L Ar label
+Volume label (up to 11 characters).
+The label should consist of
+only those characters permitted in regular DOS (8+3) filenames.
+.It Fl m Ar media
+Media descriptor (acceptable range 0xf0 to 0xff).
+.It Fl N
+Don't create a file system: just print out parameters.
+.It Fl n Ar FATs
+Number of FATs.
+Acceptable values are 1 to 16 inclusive.
+The default is 2.
+.It Fl O Ar OEM
+OEM string (up to 8 characters).
+The default is
+"BSD  4.4".
+.It Fl o Ar hidden
+Number of hidden sectors.
+.It Fl r Ar reserved
+Number of reserved sectors.
+.It Fl S Ar sector-size
+Number of bytes per sector.
+Acceptable values are powers of 2 in the range 512 through 32768.
+.It Fl s Ar total
+File system size.
+.It Fl u Ar track-size
+Number of sectors per track.
+.El
+.Sh NOTES
+FAT file system parameters occupy a "Boot Sector BPB (BIOS Parameter
+Block)" in the first of the "reserved" sectors which precede the actual
+file system.
+For reference purposes, this structure is presented below.
+.Bd -literal
+struct bsbpb {
+	u_int16_t	bps;		/* [-S] bytes per sector */
+	u_int8_t	spc;		/* [-c] sectors per cluster */
+	u_int16_t	res;		/* [-r] reserved sectors */
+	u_int8_t	nft;		/* [-n] number of FATs */
+	u_int16_t	rde;		/* [-e] root directory entries */
+	u_int16_t	sec;		/* [-s] total sectors */
+	u_int8_t	mid;		/* [-m] media descriptor */
+	u_int16_t	spf;		/* [-a] sectors per FAT */
+	u_int16_t	spt;		/* [-u] sectors per track */
+	u_int16_t	hds;		/* [-h] drive heads */
+	u_int32_t	hid;		/* [-o] hidden sectors */
+	u_int32_t	bsec;		/* [-s] big total sectors */
+};
+
+/* FAT32 extensions */
+struct bsxbpb {
+	u_int32_t	bspf;		/* [-a] big sectors per FAT */
+	u_int16_t	xflg;		/* control flags */
+	u_int16_t	vers;		/* file system version */
+	u_int32_t	rdcl;		/* root directory start cluster */
+	u_int16_t	infs;		/* [-i] file system info sector */
+	u_int16_t	bkbs;		/* [-k] backup boot sector */
+};
+.Ed
+.Sh EXAMPLES
+Create a file system, using default parameters, on /dev/rwd0i.
+.Dl newfs_msdos /dev/rwd0i
+.Pp
+Create a standard 1.44M file system, with volume label "foo", on
+/dev/rfd0c.
+.Dl newfs_msdos -f 1440 -L foo fd0c
+.Sh DIAGNOSTICS
+Exit status is 0 on success and 1 on error.
+.Sh SEE ALSO
+.Xr disktab 5 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 2.1 .
+.Sh AUTHORS
+.An Robert Nordier Aq Mt rnordier@FreeBSD.org .

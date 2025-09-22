@@ -1,0 +1,403 @@
+.\"	$OpenBSD: malloc.9,v 1.72 2024/01/19 15:10:27 deraadt Exp $
+.\"	$NetBSD: malloc.9,v 1.2 1996/10/30 05:29:54 lukem Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 19 2024 $
+.Dt MALLOC 9
+.Os
+.Sh NAME
+.Nm malloc ,
+.Nm mallocarray ,
+.Nm free
+.Nd kernel memory allocator
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/malloc.h
+.Ft void *
+.Fn malloc "size_t size" "int type" "int flags"
+.Ft void *
+.Fn mallocarray "size_t nmemb" "size_t size" "int type" "int flags"
+.Ft void
+.Fn free "void *addr" "int type" "size_t size"
+.Sh DESCRIPTION
+The
+.Fn malloc
+function allocates uninitialized memory in kernel address space for an
+object whose size is specified by
+.Fa size .
+.Pp
+The
+.Fn mallocarray
+function is the same as
+.Fn malloc ,
+but allocates space for an array of
+.Fa nmemb
+objects and checks for arithmetic overflow.
+.Pp
+The
+.Fn free
+function releases memory at address
+.Fa addr
+that was previously allocated by
+.Fn malloc
+or
+.Fn mallocarray
+for re-use.
+The same object size originally provided to
+.Fn malloc
+should be specified by
+.Fa size ,
+because
+.Fn free
+will operate faster knowing this.
+If tracking the size is difficult, specify
+.Ar size
+as 0.
+If
+.Fa addr
+is a null pointer, no action occurs.
+.Pp
+The
+.Fa flags
+argument affects the operational characteristics of
+.Fn malloc
+and
+.Fn mallocarray
+as follows:
+.Bl -tag -width xxx -offset indent
+.It Dv M_WAITOK
+If memory is currently unavailable,
+.Fn malloc
+may call sleep to wait for resources to be released by other processes.
+.It Dv M_NOWAIT
+Causes
+.Fn malloc
+to return
+.Dv NULL
+if the request cannot be immediately fulfilled due to resource shortage.
+.It Dv M_CANFAIL
+In the
+.Dv M_WAITOK
+case, if not enough memory is available, return
+.Dv NULL
+instead of calling
+.Xr panic 9 .
+If
+.Fn mallocarray
+detects an overflow
+or
+.Fn malloc
+detects an excessive allocation, return
+.Dv NULL
+instead of calling
+.Xr panic 9 .
+.It Dv M_ZERO
+Causes allocated memory to be zeroed.
+.El
+.Pp
+One of
+.Dv M_NOWAIT
+or
+.Dv M_WAITOK
+must be specified via the
+.Fa flags
+argument.
+.Pp
+The
+.Fa type
+argument broadly identifies the kernel subsystem for which the allocated
+memory was needed, and is commonly used to maintain statistics about
+kernel memory usage.
+These statistics can be examined using
+.Xr vmstat 8
+or
+.Xr systat 1
+if either of the kernel
+.Xr options 4
+.Cm KMEMSTATS
+or
+.Cm DEBUG
+are enabled.
+.Pp
+The following types are currently defined:
+.Pp
+.Bl -tag -offset indent -width XXXXXXXXXXXXXX -compact
+.\"	START DEFINES	sys/malloc.h	(M_FREE,M_LAST)
+.It Dv M_DEVBUF
+Device driver memory.
+.It Dv M_PCB
+Protocol control blocks.
+.It Dv M_RTABLE
+Routing tables.
+.It Dv M_PF
+Packet filter structures.
+.It Dv M_IFADDR
+Interface addresses.
+.It Dv M_IFGROUP
+Interface groups.
+.It Dv M_SYSCTL
+Sysctl persistent buffers.
+.It Dv M_COUNTERS
+Per-CPU counters via
+.Xr counters_alloc 9 .
+.It Dv M_IOCTLOPS
+Ioctl data buffers.
+.It Dv M_IOV
+Large IOVs.
+.It Dv M_MOUNT
+VFS mount structs.
+.It Dv M_NFSREQ
+NFS request headers.
+.It Dv M_NFSMNT
+NFS mount structures.
+.It Dv M_LOG
+Messages in kernel log stash.
+.It Dv M_VNODE
+Dynamically allocated vnodes.
+.It Dv M_DQUOT
+UFS quota entries.
+.It Dv M_UFSMNT
+UFS mount structures.
+.It Dv M_SHM
+SVID compatible shared memory segments.
+.It Dv M_VMMAP
+VM map structures.
+.It Dv M_SEM
+SVID compatible semaphores.
+.It Dv M_DIRHASH
+UFS directory hash structures.
+.It Dv M_ACPI
+ACPI structures.
+.It Dv M_VMPMAP
+VM pmap data.
+.It Dv M_FILEDESC
+Open file descriptor tables.
+.It Dv M_SIGIO
+Sigio structures.
+.It Dv M_PROC
+Proc structures.
+.It Dv M_SUBPROC
+Proc sub-structures.
+.It Dv M_MFSNODE
+MFS vnode private part.
+.It Dv M_NETADDR
+Export host address structures.
+.It Dv M_NFSSVC
+NFS server structures.
+.It Dv M_NFSD
+NFS server daemon structures.
+.It Dv M_IPMOPTS
+Internet multicast options.
+.It Dv M_IPMADDR
+Internet multicast addresses.
+.It Dv M_IFMADDR
+Link-level multicast addresses.
+.It Dv M_MRTABLE
+Multicast routing tables.
+.It Dv M_ISOFSMNT
+ISOFS mount structures.
+.It Dv M_ISOFSNODE
+ISOFS vnode private part.
+.It Dv M_MSDOSFSMNT
+MSDOS FS mount structures.
+.It Dv M_MSDOSFSFAT
+MSDOS FS FAT tables.
+.It Dv M_MSDOSFSNODE
+MSDOS FS vnode private part.
+.It Dv M_TTYS
+Allocated tty structures.
+.It Dv M_EXEC
+Argument lists & other mem used by exec.
+.It Dv M_MISCFSMNT
+Miscellaneous FS mount structures.
+.It Dv M_FUSEFS
+FUSE FS mount structures.
+.It Dv M_PINSYSCALL
+.Xr pinsyscalls 2
+related data.
+.It Dv M_PFKEY
+Pfkey data.
+.It Dv M_TDB
+Transforms database.
+.It Dv M_XDATA
+IPsec data.
+.It Dv M_PAGEDEP
+File page dependencies.
+.It Dv M_INODEDEP
+Inode dependencies.
+.It Dv M_NEWBLK
+New block allocation.
+.It Dv M_INDIRDEP
+Indirect block dependencies.
+.It Dv M_VMSWAP
+VM swap structures.
+.It Dv M_UVMAMAP
+UVM amap and related.
+.It Dv M_UVMAOBJ
+UVM aobj and related.
+.It Dv M_USB
+USB general.
+.It Dv M_USBDEV
+USB device driver.
+.It Dv M_USBHC
+USB host controller.
+.It Dv M_WITNESS
+.Xr witness 4
+memory.
+.It Dv M_MEMDESC
+Memory range.
+.It Dv M_CRYPTO_DATA
+.Xr crypto 9
+data buffers.
+.It Dv M_CREDENTIALS
+.Xr ipsec 4
+related credentials.
+.It Dv M_IP6OPT
+IPv6 options.
+.It Dv M_IP6NDP
+IPv6 Neighbor Discovery structures.
+.It Dv M_TEMP
+Miscellaneous temporary data buffers.
+.It Dv M_NTFSMNT
+NTFS mount structures.
+.It Dv M_NTFSNTNODE
+NTFS ntnode information.
+.It Dv M_NTFSFNODE
+NTFS fnode information.
+.It Dv M_NTFSDIR
+NTFS directory buffers.
+.It Dv M_NTFSNTHASH
+NTFS ntnode hash tables.
+.It Dv M_NTFSNTVATTR
+NTFS file attribute information.
+.It Dv M_NTFSRDATA
+NTFS resident data.
+.It Dv M_NTFSDECOMP
+NTFS decompression temporary storage.
+.It Dv M_NTFSRUN
+NTFS vrun storage.
+.It Dv M_KEVENT
+.Xr kqueue 2
+data structures.
+.It Dv M_SYNCACHE
+SYN cache hash array.
+.It Dv M_UDFMOUNT
+UDF mount structures.
+.It Dv M_UDFFENTRY
+UDF file entries.
+.It Dv M_UDFFID
+UDF file IDs.
+.It Dv M_AGP
+AGP memory.
+.It Dv M_DRM
+Direct Rendering Manager.
+.\"	END DEFINES
+.El
+.Sh CONTEXT
+.Fn malloc
+and
+.Fn mallocarray
+can be called during autoconf, from process context, or from interrupt context
+if
+.Dv M_NOWAIT
+is passed via
+.Fa flags .
+They can't be called from interrupt context if
+.Dv M_WAITOK
+is passed via
+.Fa flags .
+.Pp
+.Fn free
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn malloc
+and
+.Fn mallocarray
+return a kernel virtual address that is suitably aligned for storage of
+any type of object.
+.Sh DIAGNOSTICS
+A kernel compiled with the
+.Dv DIAGNOSTIC
+configuration option attempts to detect memory corruption caused by
+such things as writing outside the allocated area and unbalanced calls to
+.Fn malloc
+or
+.Fn mallocarray ,
+and
+.Fn free .
+Failing consistency checks will cause a panic or a system console message:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+panic:
+.Dq malloc: bogus type
+.It
+panic:
+.Dq malloc: out of space in kmem_map
+.It
+panic:
+.Dq malloc: allocation too large
+.It
+panic:
+.Dq malloc: wrong bucket
+.It
+panic:
+.Dq malloc: lost data
+.It
+panic:
+.Dq mallocarray: overflow
+.It
+panic:
+.Dq free: unaligned addr
+.It
+panic:
+.Dq free: duplicated free
+.It
+panic:
+.Dq free: multiple frees
+.It
+panic:
+.Dq free: non-malloced addr
+.It
+panic:
+.Dq free: size too large
+.It
+panic:
+.Dq free: size too small
+.It
+panic:
+.Dq kmeminit: minbucket too small/struct freelist too big
+.It
+.Dq multiply freed item Aq addr
+.It
+.Dq Data modified on freelist: Aq data object description
+.El
+.Sh SEE ALSO
+.Xr systat 1 ,
+.Xr vmstat 8

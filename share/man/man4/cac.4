@@ -1,0 +1,91 @@
+.\"	$OpenBSD: cac.4,v 1.26 2022/03/31 17:27:20 naddy Exp $
+.\"
+.\" Michael Shalayeff, 2000. Public Domain.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt CAC 4
+.Os
+.Sh NAME
+.Nm cac
+.Nd Compaq Smart Array 2/3/4 SCSI RAID controller
+.Sh SYNOPSIS
+.Cd "cac* at pci?"
+.Cd "cac* at eisa?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the following RAID controllers:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Compaq Integrated Array
+.It
+Compaq IAES
+.It
+Compaq IDA
+.It
+Compaq IDA-2
+.It
+Compaq RAID LC2
+.It
+Compaq Smart Array 221
+.It
+Compaq Smart Array 3100ES
+.It
+Compaq Smart Array 3200
+.It
+Compaq Smart Array 4200
+.It
+Compaq Smart Array 4250ES
+.It
+Compaq Smart Array 431
+.It
+Compaq SMART
+.It
+Compaq SMART-2/E
+.It
+Compaq SMART-2/P
+.It
+Compaq SMART-2DH
+.It
+Compaq SMART-2SL
+.El
+.Pp
+All the RAID set volume management is done via the card BIOS.
+.Pp
+Although the controllers are actual RAID controllers, the driver makes them
+look just like SCSI controllers.
+All RAID configuration is done through the controllers' BIOSes.
+.Pp
+Monitoring status for the volume and drives in it is done through the
+.Xr bioctl 8
+utility;
+the current status is provided by the
+.Xr sysctl 8
+variable
+.Va hw.sensors .
+.Sh SEE ALSO
+.Xr bio 4 ,
+.Xr eisa 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr bioctl 8 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 2.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Michael Shalayeff Aq Mt mickey@openbsd.org ,
+inspired by the
+.Nx
+driver by
+.An Andrew Doran Aq Mt ad@netbsd.org .

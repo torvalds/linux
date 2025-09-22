@@ -1,0 +1,239 @@
+.\"	$OpenBSD: SSL_CTX_load_verify_locations.3,v 1.5 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL 9b86974e Aug 17 15:21:33 2015 -0400
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2000, 2001, 2015, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_LOAD_VERIFY_LOCATIONS 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_load_verify_locations ,
+.Nm SSL_CTX_set_default_verify_paths
+.Nd set default locations for trusted CA certificates
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fo SSL_CTX_load_verify_locations
+.Fa "SSL_CTX *ctx" "const char *CAfile" "const char *CApath"
+.Fc
+.Ft int
+.Fo SSL_CTX_set_default_verify_paths
+.Fa "SSL_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_CTX_load_verify_locations
+specifies the locations for
+.Fa ctx ,
+at which CA certificates for verification purposes are located.
+The certificates available via
+.Fa CAfile
+and
+.Fa CApath
+are trusted.
+.Pp
+.Fn SSL_CTX_set_default_verify_paths
+specifies that the default locations from which CA certificates are
+loaded should be used.
+There is one default directory and one default file.
+The default CA certificates directory is called
+.Pa certs
+in the default OpenSSL directory.
+The default CA certificates file is called
+.Pa cert.pem
+in the default OpenSSL directory.
+.Pp
+If
+.Fa CAfile
+is not
+.Dv NULL ,
+it points to a file of CA certificates in PEM format.
+The file can contain several CA certificates identified by sequences of:
+.Bd -literal
+ -----BEGIN CERTIFICATE-----
+ ... (CA certificate in base64 encoding) ...
+ -----END CERTIFICATE-----
+.Ed
+.Pp
+Before, between, and after the certificates arbitrary text is allowed which can
+be used, e.g., for descriptions of the certificates.
+.Pp
+The
+.Fa CAfile
+is processed on execution of the
+.Fn SSL_CTX_load_verify_locations
+function.
+.Pp
+If
+.Fa CApath
+is not NULL, it points to a directory containing CA certificates in PEM format.
+The files each contain one CA certificate.
+The files are looked up by the CA subject name hash value,
+which must hence be available.
+If more than one CA certificate with the same name hash value exist,
+the extension must be different (e.g.,
+.Pa 9d66eef0.0 ,
+.Pa 9d66eef0.1 ,
+etc.).
+The search is performed in the ordering of the extension number,
+regardless of other properties of the certificates.
+.Pp
+The certificates in
+.Fa CApath
+are only looked up when required, e.g., when building the certificate chain or
+when actually performing the verification of a peer certificate.
+.Pp
+When looking up CA certificates, the OpenSSL library will first search the
+certificates in
+.Fa CAfile ,
+then those in
+.Fa CApath .
+Certificate matching is done based on the subject name, the key identifier (if
+present), and the serial number as taken from the certificate to be verified.
+If these data do not match, the next certificate will be tried.
+If a first certificate matching the parameters is found,
+the verification process will be performed;
+no other certificates for the same parameters will be searched in case of
+failure.
+.Pp
+In server mode, when requesting a client certificate, the server must send
+the list of CAs of which it will accept client certificates.
+This list is not influenced by the contents of
+.Fa CAfile
+or
+.Fa CApath
+and must explicitly be set using the
+.Xr SSL_CTX_set_client_CA_list 3
+family of functions.
+.Pp
+When building its own certificate chain, an OpenSSL client/server will try to
+fill in missing certificates from
+.Fa CAfile Ns / Fa CApath ,
+if the
+certificate chain was not explicitly specified (see
+.Xr SSL_CTX_add_extra_chain_cert 3
+and
+.Xr SSL_CTX_use_certificate 3 ) .
+.Sh RETURN VALUES
+For
+.Fn SSL_CTX_load_verify_locations ,
+the following return values can occur:
+.Bl -tag -width Ds
+.It 0
+The operation failed because
+.Fa CAfile
+and
+.Fa CApath
+are
+.Dv NULL
+or the processing at one of the locations specified failed.
+Check the error stack to find out the reason.
+.It 1
+The operation succeeded.
+.El
+.Pp
+.Fn SSL_CTX_set_default_verify_paths
+returns 1 on success or 0 on failure.
+A missing default location is still treated as a success.
+.Sh EXAMPLES
+Generate a CA certificate file with descriptive text from the CA certificates
+.Pa ca1.pem
+.Pa ca2.pem
+.Pa ca3.pem :
+.Bd -literal
+#!/bin/sh
+rm CAfile.pem
+for i in ca1.pem ca2.pem ca3.pem; do
+	openssl x509 -in $i -text >> CAfile.pem
+done
+.Ed
+.Pp
+Prepare the directory /some/where/certs containing several CA certificates
+for use as
+.Fa CApath :
+.Bd -literal
+$ cd /some/where/certs
+$ rm -f *.[0-9]* *.r[0-9]*
+$ for c in *.pem; do
+>    [ "$c" = "*.pem" ] && continue
+>    hash=$(openssl x509 -noout -hash -in "$c")
+>    if egrep -q -- '-BEGIN( X509 | TRUSTED | )CERTIFICATE-' "$c"; then
+>      suf=0
+>      while [ -e $hash.$suf ]; do suf=$(( $suf + 1 )); done
+>      ln -s "$c" $hash.$suf
+>    fi
+>    if egrep -q -- '-BEGIN X509 CRL-' "$c"; then
+>      suf=0
+>      while [ -e $hash.r$suf ]; do suf=$(( $suf + 1 )); done
+>      ln -s "$c" $hash.r$suf
+>    fi
+> done
+.Ed
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_add_extra_chain_cert 3 ,
+.Xr SSL_CTX_set_cert_store 3 ,
+.Xr SSL_CTX_set_client_CA_list 3 ,
+.Xr SSL_CTX_use_certificate 3 ,
+.Xr SSL_get_client_CA_list 3
+.Sh HISTORY
+.Fn SSL_CTX_load_verify_locations
+and
+.Fn SSL_CTX_set_default_verify_paths
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .
+.Sh CAVEATS
+If several CA certificates matching the name, key identifier, and serial
+number condition are available, only the first one will be examined.
+This may lead to unexpected results if the same CA certificate is available
+with different expiration dates.
+If a
+.Dq certificate expired
+verification error occurs, no other certificate will be searched.
+Make sure to not have expired certificates mixed with valid ones.

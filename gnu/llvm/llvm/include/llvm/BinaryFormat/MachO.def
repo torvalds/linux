@@ -1,0 +1,142 @@
+//,,,-- llvm/Support/MachO.def - The MachO file definitions -----*- C++ -*-,,,//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//,,,----------------------------------------------------------------------,,,//
+//
+// Definitions for MachO files
+//
+//,,,----------------------------------------------------------------------,,,//
+
+#ifdef HANDLE_LOAD_COMMAND
+
+HANDLE_LOAD_COMMAND(LC_SEGMENT, 0x00000001u, segment_command)
+HANDLE_LOAD_COMMAND(LC_SYMTAB, 0x00000002u, symtab_command)
+// LC_SYMSEG is obsolete and no longer supported.
+HANDLE_LOAD_COMMAND(LC_SYMSEG, 0x00000003u, symseg_command)
+HANDLE_LOAD_COMMAND(LC_THREAD, 0x00000004u, thread_command)
+HANDLE_LOAD_COMMAND(LC_UNIXTHREAD, 0x00000005u, thread_command)
+// LC_LOADFVMLIB is obsolete and no longer supported.
+HANDLE_LOAD_COMMAND(LC_LOADFVMLIB, 0x00000006u, fvmlib_command)
+// LC_IDFVMLIB is obsolete and no longer supported.
+HANDLE_LOAD_COMMAND(LC_IDFVMLIB, 0x00000007u, fvmlib_command)
+// LC_IDENT is obsolete and no longer supported.
+HANDLE_LOAD_COMMAND(LC_IDENT, 0x00000008u, ident_command)
+// LC_FVMFILE is obsolete and no longer supported.
+HANDLE_LOAD_COMMAND(LC_FVMFILE, 0x00000009u, fvmfile_command)
+// LC_PREPAGE is obsolete and no longer supported.
+HANDLE_LOAD_COMMAND(LC_PREPAGE, 0x0000000Au, load_command)
+HANDLE_LOAD_COMMAND(LC_DYSYMTAB, 0x0000000Bu, dysymtab_command)
+HANDLE_LOAD_COMMAND(LC_LOAD_DYLIB, 0x0000000Cu, dylib_command)
+HANDLE_LOAD_COMMAND(LC_ID_DYLIB, 0x0000000Du, dylib_command)
+HANDLE_LOAD_COMMAND(LC_LOAD_DYLINKER, 0x0000000Eu, dylinker_command)
+HANDLE_LOAD_COMMAND(LC_ID_DYLINKER, 0x0000000Fu, dylinker_command)
+// LC_PREBOUND_DYLIB is obsolete and no longer supported.
+HANDLE_LOAD_COMMAND(LC_PREBOUND_DYLIB, 0x00000010u, prebound_dylib_command)
+HANDLE_LOAD_COMMAND(LC_ROUTINES, 0x00000011u, routines_command)
+HANDLE_LOAD_COMMAND(LC_SUB_FRAMEWORK, 0x00000012u, sub_framework_command)
+HANDLE_LOAD_COMMAND(LC_SUB_UMBRELLA, 0x00000013u, sub_umbrella_command)
+HANDLE_LOAD_COMMAND(LC_SUB_CLIENT, 0x00000014u, sub_client_command)
+HANDLE_LOAD_COMMAND(LC_SUB_LIBRARY, 0x00000015u, sub_library_command)
+// LC_TWOLEVEL_HINTS is obsolete and no longer supported.
+HANDLE_LOAD_COMMAND(LC_TWOLEVEL_HINTS, 0x00000016u, twolevel_hints_command)
+// LC_PREBIND_CKSUM is obsolete and no longer supported.
+HANDLE_LOAD_COMMAND(LC_PREBIND_CKSUM, 0x00000017u, prebind_cksum_command)
+// LC_LOAD_WEAK_DYLIB is obsolete and no longer supported.
+HANDLE_LOAD_COMMAND(LC_LOAD_WEAK_DYLIB, 0x80000018u, dylib_command)
+HANDLE_LOAD_COMMAND(LC_SEGMENT_64, 0x00000019u, segment_command_64)
+HANDLE_LOAD_COMMAND(LC_ROUTINES_64, 0x0000001Au, routines_command_64)
+HANDLE_LOAD_COMMAND(LC_UUID, 0x0000001Bu, uuid_command)
+HANDLE_LOAD_COMMAND(LC_RPATH, 0x8000001Cu, rpath_command)
+HANDLE_LOAD_COMMAND(LC_CODE_SIGNATURE, 0x0000001Du, linkedit_data_command)
+HANDLE_LOAD_COMMAND(LC_SEGMENT_SPLIT_INFO, 0x0000001Eu, linkedit_data_command)
+HANDLE_LOAD_COMMAND(LC_REEXPORT_DYLIB, 0x8000001Fu, dylib_command)
+HANDLE_LOAD_COMMAND(LC_LAZY_LOAD_DYLIB, 0x00000020u, dylib_command)
+HANDLE_LOAD_COMMAND(LC_ENCRYPTION_INFO, 0x00000021u, encryption_info_command)
+HANDLE_LOAD_COMMAND(LC_DYLD_INFO, 0x00000022u, dyld_info_command)
+HANDLE_LOAD_COMMAND(LC_DYLD_INFO_ONLY, 0x80000022u, dyld_info_command)
+HANDLE_LOAD_COMMAND(LC_LOAD_UPWARD_DYLIB, 0x80000023u, dylib_command)
+HANDLE_LOAD_COMMAND(LC_VERSION_MIN_MACOSX, 0x00000024u, version_min_command)
+HANDLE_LOAD_COMMAND(LC_VERSION_MIN_IPHONEOS, 0x00000025u, version_min_command)
+HANDLE_LOAD_COMMAND(LC_FUNCTION_STARTS, 0x00000026u, linkedit_data_command)
+HANDLE_LOAD_COMMAND(LC_DYLD_ENVIRONMENT, 0x00000027u, dylinker_command)
+HANDLE_LOAD_COMMAND(LC_MAIN, 0x80000028u, entry_point_command)
+HANDLE_LOAD_COMMAND(LC_DATA_IN_CODE, 0x00000029u, linkedit_data_command)
+HANDLE_LOAD_COMMAND(LC_SOURCE_VERSION, 0x0000002Au, source_version_command)
+HANDLE_LOAD_COMMAND(LC_DYLIB_CODE_SIGN_DRS, 0x0000002Bu, linkedit_data_command)
+HANDLE_LOAD_COMMAND(LC_ENCRYPTION_INFO_64, 0x0000002Cu,
+                    encryption_info_command_64)
+HANDLE_LOAD_COMMAND(LC_LINKER_OPTION, 0x0000002Du, linker_option_command)
+HANDLE_LOAD_COMMAND(LC_LINKER_OPTIMIZATION_HINT, 0x0000002Eu, linkedit_data_command)
+HANDLE_LOAD_COMMAND(LC_VERSION_MIN_TVOS, 0x0000002Fu, version_min_command)
+HANDLE_LOAD_COMMAND(LC_VERSION_MIN_WATCHOS, 0x00000030u, version_min_command)
+HANDLE_LOAD_COMMAND(LC_NOTE, 0x00000031u, note_command)
+HANDLE_LOAD_COMMAND(LC_BUILD_VERSION, 0x00000032u, build_version_command)
+HANDLE_LOAD_COMMAND(LC_DYLD_EXPORTS_TRIE, 0x80000033u, linkedit_data_command)
+HANDLE_LOAD_COMMAND(LC_DYLD_CHAINED_FIXUPS, 0x80000034u, linkedit_data_command)
+HANDLE_LOAD_COMMAND(LC_FILESET_ENTRY, 0x80000035u, fileset_entry_command)
+HANDLE_LOAD_COMMAND(LC_ATOM_INFO, 0x00000036u, linkedit_data_command)
+
+#endif
+
+#ifdef LOAD_COMMAND_STRUCT
+
+LOAD_COMMAND_STRUCT(dyld_info_command)
+LOAD_COMMAND_STRUCT(dylib_command)
+LOAD_COMMAND_STRUCT(dylinker_command)
+LOAD_COMMAND_STRUCT(dysymtab_command)
+LOAD_COMMAND_STRUCT(encryption_info_command)
+LOAD_COMMAND_STRUCT(encryption_info_command_64)
+LOAD_COMMAND_STRUCT(entry_point_command)
+LOAD_COMMAND_STRUCT(fvmfile_command)
+LOAD_COMMAND_STRUCT(fvmlib_command)
+LOAD_COMMAND_STRUCT(ident_command)
+LOAD_COMMAND_STRUCT(linkedit_data_command)
+LOAD_COMMAND_STRUCT(linker_option_command)
+LOAD_COMMAND_STRUCT(load_command)
+LOAD_COMMAND_STRUCT(prebind_cksum_command)
+LOAD_COMMAND_STRUCT(prebound_dylib_command)
+LOAD_COMMAND_STRUCT(routines_command)
+LOAD_COMMAND_STRUCT(routines_command_64)
+LOAD_COMMAND_STRUCT(rpath_command)
+LOAD_COMMAND_STRUCT(segment_command)
+LOAD_COMMAND_STRUCT(segment_command_64)
+LOAD_COMMAND_STRUCT(source_version_command)
+LOAD_COMMAND_STRUCT(sub_client_command)
+LOAD_COMMAND_STRUCT(sub_framework_command)
+LOAD_COMMAND_STRUCT(sub_library_command)
+LOAD_COMMAND_STRUCT(sub_umbrella_command)
+LOAD_COMMAND_STRUCT(symseg_command)
+LOAD_COMMAND_STRUCT(symtab_command)
+LOAD_COMMAND_STRUCT(thread_command)
+LOAD_COMMAND_STRUCT(twolevel_hints_command)
+LOAD_COMMAND_STRUCT(uuid_command)
+LOAD_COMMAND_STRUCT(version_min_command)
+LOAD_COMMAND_STRUCT(note_command)
+LOAD_COMMAND_STRUCT(build_version_command)
+LOAD_COMMAND_STRUCT(fileset_entry_command)
+
+#endif
+
+#ifdef PLATFORM
+// PLATFORM(platform, id, name, build_name, target, tapi_target, marketing)
+PLATFORM(UNKNOWN, 0, unknown, unknown, unknown, unknown, unknown)
+PLATFORM(MACOS, 1, macos, macos, macos, macos, macOS)
+PLATFORM(IOS, 2, ios, ios, ios, ios, iOS)
+PLATFORM(TVOS, 3, tvos, tvos, tvos, tvos, tvOS)
+PLATFORM(WATCHOS, 4, watchos, watchos, watchos, watchos, watchOS)
+PLATFORM(BRIDGEOS, 5, bridgeos, bridgeos, bridgeos, bridgeos, bridgeOS)
+PLATFORM(MACCATALYST, 6, macCatalyst, macCatalyst, ios-macabi, maccatalyst, macCatalyst)
+PLATFORM(IOSSIMULATOR, 7, iossimulator, iossimulator, ios-simulator, ios-simulator, iOS Simulator)
+PLATFORM(TVOSSIMULATOR, 8, tvossimulator, tvossimulator, tvos-simulator, tvos-simulator, tvOS Simulator)
+PLATFORM(WATCHOSSIMULATOR, 9, watchossimulator, watchossimulator, watchos-simulator, watchos-simulator, watchOS Simulator)
+PLATFORM(DRIVERKIT, 10, driverkit, driverkit, driverkit, driverkit, DriverKit)
+PLATFORM(XROS, 11, xros, xros, xros, xros, xrOS)
+PLATFORM(XROS_SIMULATOR, 12, xrsimulator, xrsimulator, xrsimulator, xros-simulator, xrOS Simulator)
+#endif
+
+#undef HANDLE_LOAD_COMMAND
+#undef LOAD_COMMAND_STRUCT
+#undef PLATFORM

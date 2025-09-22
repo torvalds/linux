@@ -1,0 +1,99 @@
+import("//llvm/lib/Target/targets.gni")
+import("//llvm/lib/Target/targets_with_asm_parsers.gni")
+import("//llvm/lib/Target/targets_with_disassemblers.gni")
+import("//llvm/lib/Target/targets_with_mcas.gni")
+
+# This build file has two parts:
+# 1. The actual //llvm/lib/Target build target, which is just a static
+#    library containing the cpp files in this directory.  It contains general
+#    shared target code.
+# 2. Forwarding targets that forward to the concrete targets (X86, ARM, ...).
+#    These are defined in subdirectories, and the forwarding names match
+#    the names of the forwarding targets in CMake.  They all (indirectly,
+#    through CodeGen) depend on the //llvm/lib/Target build target.
+# (See also `gn help labels`).
+# The dependency chain is:
+# //llvm/lib/Target:TargetsToBuild (a target in this file) ->
+# /llvm/lib/Target/(X86|ARM|...) (in the subdirectories) ->
+# //llvm/lib/CodeGen ->
+# //llvm/lib/Target (a target in this file again)
+# Note that while this file appears twice in that stack, it's with different
+# targets in this file, so there's no cyclic dependency.
+
+# 1. Actual build target.
+static_library("Target") {
+  output_name = "LLVMTarget"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  public_deps = [
+    # This is a bit of a hack: llvm-c/Target.h includes llvm/Config/Targets.def,
+    # but there's no target corresponding to llvm-c. Since the functions
+    # declared in llvm-c/Target.h are defined in llvm/lib/Target, clients of
+    # it must depend on llvm/lib/Target, so add the public_dep for Targets.def
+    # here.
+    "//llvm/include/llvm/Config:write_target_def_files",
+  ]
+  sources = [
+    "Target.cpp",
+    "TargetIntrinsicInfo.cpp",
+    "TargetLoweringObjectFile.cpp",
+    "TargetMachine.cpp",
+    "TargetMachineC.cpp",
+  ]
+}
+
+# 2. Forwarding targets.
+group("NativeTarget") {
+  deps = [ "$native_target" ]
+}
+
+group("TargetsToBuild") {
+  deps = llvm_targets_to_build
+}
+
+group("AllTargetsAsmParsers") {
+  deps = []
+  foreach(target, targets_with_asm_parsers) {
+    deps += [ "$target/AsmParser" ]
+  }
+}
+
+group("AllTargetsCodeGens") {
+  deps = []
+  foreach(target, llvm_targets_to_build) {
+    deps += [ "$target:LLVM${target}CodeGen" ]
+  }
+}
+
+group("AllTargetsDescs") {
+  deps = []
+  foreach(target, llvm_targets_to_build) {
+    deps += [ "$target/MCTargetDesc" ]
+  }
+}
+
+group("AllTargetsDisassemblers") {
+  deps = []
+  foreach(target, targets_with_disassemblers) {
+    deps += [ "$target/Disassembler" ]
+  }
+}
+
+group("AllTargetsInfos") {
+  deps = []
+  foreach(target, llvm_targets_to_build) {
+    deps += [ "$target/TargetInfo" ]
+  }
+}
+
+group("AllTargetsMCAs") {
+  deps = []
+  foreach(target, targets_with_mcas) {
+    deps += [ "$target/MCA" ]
+  }
+}

@@ -1,0 +1,10 @@
+# group sa bundles selectively
+ipip tunnel from 1.1.1.1 to 2.2.2.2 spi 0x1a000000:0x1b000000 bundle foo
+ipcomp transport from 1.1.1.1 to 2.2.2.2 spi 0x2a00:0x2b00 bundle bar
+esp transport from 1.1.1.1 to 2.2.2.2 spi 0x3a000000:0x3b000000 \
+	authkey file "DIR/ak256:DIR/ak256" \
+	enckey file "DIR/ek128:DIR/ek128" \
+	bundle foo
+ah transport from 1.1.1.1 to 2.2.2.2 spi 0x4a000000:0x4b000000 \
+	authkey file "DIR/ak256:DIR/ak256" \
+	bundle bar

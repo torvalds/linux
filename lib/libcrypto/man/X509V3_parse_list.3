@@ -1,0 +1,102 @@
+.\" $OpenBSD: X509V3_parse_list.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509V3_PARSE_LIST 3
+.Os
+.Sh NAME
+.Nm X509V3_parse_list ,
+.Nm X509V3_conf_free
+.Nd create and destroy CONF_VALUE objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft STACK_OF(CONF_VALUE) *
+.Fn X509V3_parse_list "const char *string"
+.Ft void
+.Fn X509V3_conf_free "CONF_VALUE *conf"
+.Sh DESCRIPTION
+.Fn X509V3_parse_list
+parses the
+.Fa string
+and allocates an array of
+.Vt CONF_VALUE
+objects according to the following rules.
+.Bl -enum -width 2n
+.It
+The string is split into fields at comma
+.Pq Sq \&,
+characters.
+.It
+If a field contains a colon
+.Pq Sq \&:
+character, the part before the colon is regarded as a name
+and the part after the first colon as the associated value.
+Otherwise, the whole field is regarded as the name and
+.Dv NULL
+is used as the associated value.
+.It
+For each name and each value, leading and trailing whitespace as defined by
+.Xr isspace 3
+is ignored.
+.It
+Parsing ends when a NUL, carriage return, or newline character
+is encountered.
+.El
+.Pp
+A new, empty
+.Vt STACK_OF(CONF_VALUE)
+is allocated and for each parsed name, one
+.Vt CONF_VALUE
+structure containing the optional value is pushed onto it.
+.Pp
+.Fn X509V3_conf_free
+releases all memory used by
+.Fa conf .
+If
+.Fa conf
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+The typical way to release the memory returned from
+.Fn X509V3_parse_list
+is by calling
+.Fn sk_CONF_VALUE_pop_free
+on it, passing a pointer to the function
+.Fn X509V3_conf_free
+as the second argument.
+.Sh RETURN VALUES
+.Fn X509V3_parse_list
+returns the new
+.Vt STACK_OF(CONF_VALUE)
+object or
+.Dv NULL
+if an error occurs, in particular if there isn't any name,
+if the name before a colon or after a comma is empty,
+if the value after a colon is empty,
+or if memory allocation fails.
+.Sh SEE ALSO
+.Xr isspace 3 ,
+.Xr sk_pop_free 3 ,
+.Xr STACK_OF 3 ,
+.Xr v2i_ASN1_BIT_STRING 3
+.Sh HISTORY
+.Fn X509V3_parse_list
+and
+.Fn X509V3_conf_free
+first appeared in OpenSSL 0.9.2 and have been available since
+.Ox 2.6 .

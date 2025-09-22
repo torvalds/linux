@@ -1,0 +1,69 @@
+#!/bin/sh
+
+PROG=$1
+
+if [ -x $PROG ]; then
+    if expr "x`$PROG version`" : "xOpenSSL" > /dev/null; then
+	:
+    else
+	echo "$PROG is not OpenSSL executable"
+	exit 1
+    fi
+else
+    echo "$PROG is not executable"
+    exit 1;
+fi
+
+if $PROG engine aesni | grep -v no-aesni; then
+
+    HASH=`cat $PROG | $PROG dgst -hex`
+
+    AES_ALGS="	aes-128-ecb aes-192-ecb aes-256-ecb \
+		aes-128-cbc aes-192-cbc aes-256-cbc \
+		aes-128-cfb aes-192-cfb aes-256-cfb \
+		aes-128-ofb aes-192-ofb aes-256-ofb"
+    BUFSIZE="16 32 48 64 80 96 128 144 999"
+
+    nerr=0
+
+    for alg in $AES_ALGS; do
+	echo $alg
+	for bufsize in $BUFSIZE; do
+	    TEST=`(	cat $PROG | \
+		$PROG enc -e -k "$HASH" -$alg -bufsize $bufsize -engine aesni | \
+		$PROG enc -d -k "$HASH" -$alg | \
+		$PROG dgst -hex ) 2>/dev/null`
+	    if [ "$TEST" != "$HASH" ]; then
+		echo "-$alg/$bufsize encrypt test failed"
+		nerr=`expr $nerr + 1`
+	    fi
+	done
+	for bufsize in $BUFSIZE; do 
+	    TEST=`(	cat $PROG | \
+		$PROG enc -e -k "$HASH" -$alg | \
+		$PROG enc -d -k "$HASH" -$alg -bufsize $bufsize -engine aesni | \
+		$PROG dgst -hex ) 2>/dev/null`
+	    if [ "$TEST" != "$HASH" ]; then
+		echo "-$alg/$bufsize decrypt test failed"
+		nerr=`expr $nerr + 1`
+	    fi
+	done
+	TEST=`(	cat $PROG | \
+		$PROG enc -e -k "$HASH" -$alg -engine aesni | \
+		$PROG enc -d -k "$HASH" -$alg -engine aesni | \
+		$PROG dgst -hex ) 2>/dev/null`
+	if [ "$TEST" != "$HASH" ]; then
+		echo "-$alg en/decrypt test failed"
+		nerr=`expr $nerr + 1`
+	fi
+    done
+
+    if [ $nerr -gt 0 ]; then
+	echo "AESNI engine test failed."
+	exit 1;
+    fi
+else
+    echo "AESNI engine is not available"
+fi
+
+exit 0

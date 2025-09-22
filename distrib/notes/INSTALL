@@ -1,0 +1,219 @@
+dnl	$OpenBSD: INSTALL,v 1.57 2023/03/16 18:04:07 miod Exp $
+include(INCLUDE/../m4.common)dnl
+includeit(features)dnl
+INSTALLATION NOTES for OpenBSD/MACHINE OSREV
+
+
+What is OpenBSD?
+----------------
+
+OpenBSD is a fully functional, multi-platform UN*X-like Operating
+System based on Berkeley Networking Release 2 (Net/2) and 4.4BSD-Lite.
+There are several operating systems in this family, but OpenBSD
+differentiates itself by putting security and correctness first.  The
+OpenBSD team strives to achieve what is called a "secure by default"
+status.  This means that an OpenBSD user should feel safe that their
+newly installed machine will not be compromised.  This "secure by
+default" goal is achieved by taking a proactive stance on security.
+
+Since security flaws are essentially mistakes in design or implement-
+ation, the OpenBSD team puts as much importance on finding and fixing
+existing design flaws and implementation bugs as it does writing new
+code.  This means that an OpenBSD system will not only be more secure,
+but it will be more stable.  The source code for all critical system
+components has been checked for remote-access, local-access, denial-
+of-service, data destruction, and information-gathering problems.
+
+In addition to bug fixing, OpenBSD has integrated strong cryptography
+into the base system.  A fully functional IPsec implementation is
+provided as well as support for common protocols such as SSL and SSH.
+Network filtering and monitoring tools such as packet filtering, NAT,
+and bridging are also standard, as well as several routing services,
+such as BGP and OSPF.  For high performance demands, support for
+hardware cryptography has also been added to the base system.  Because
+security is often seen as a tradeoff with usability, OpenBSD provides
+as many security options as possible to allow the user to enjoy secure
+computing without feeling burdened by it.
+
+Because OpenBSD is from Canada, the export of Cryptography pieces
+(such as OpenSSH and IPsec) to the world is not restricted.
+
+(NOTE: OpenBSD can not be re-exported from the US once it has entered
+the US.  Because of this, take care NOT to get the distribution from
+a mirror server in the US if you are outside of Canada and the US.)
+
+A list of software and ideas developed by the OpenBSD project is
+available on the web at https://www.OpenBSD.org/innovations.html.
+
+A comprehensive list of the improvements brought by the OSREV release
+is also available at https://www.OpenBSD.org/OSrev.html.
+dnl
+dnl MACHINE/whatis
+dnl A few descriptive words about the port to MACHINE (i.e. what kind
+dnl of hardware it runs on, without too much details - MACHINE/hardware
+dnl will take care of this).
+dnl Needs to start with a blank line if non empty.
+includeit(whatis)dnl
+
+
+Sources of OpenBSD:
+-------------------
+
+Please refer to https://www.openbsd.org/ftp.html for all the ways you may
+acquire OpenBSD.
+
+
+OpenBSD OSREV Release Contents:
+-----------------------------
+
+The OpenBSD OSREV release is organized in the following way.  In the
+.../OSREV directory, for each of the architectures having an OpenBSD OSREV
+binary distribution, there is a sub-directory.
+
+includeit(contents)
+
+
+OpenBSD System Requirements and Supported Devices:
+--------------------------------------------------
+
+includeit(hardware)
+
+
+Verifying the OpenBSD Installation Media:
+-----------------------------------------
+
+OpenBSD installations are able to verify files for the next
+release.  The OpenBSD OSREV release was signed with the
+/etc/signify/openbsd-{:--:}OSrev-base.pub release key.
+
+If you have an existing OpenBSD installation, you can run signify(1)
+to verify the signature and checksum.  For example, run the following
+to verify that the cd{:--:}OSrev.iso file was distributed by the OpenBSD team:
+	signify -C -p /etc/signify/openbsd-{:--:}OSrev-base.pub -x SHA256.sig cd{:--:}OSrev.iso
+
+If you are unable to run or compile signify(1), use sha256(1) with the SHA256
+file to see if a file was corrupt during the transfer.
+
+
+Getting the OpenBSD System onto Useful Media:
+---------------------------------------------
+
+includeit(xfer)
+
+
+ifelse(MACHINE,powerpc64,,{:-dnl
+Preparing your System for OpenBSD Installation:
+-----------------------------------------------
+
+includeit(prep)
+
+
+-:})dnl
+Installing the OpenBSD System:
+------------------------------
+
+includeit(install)
+
+
+Upgrading a previously-installed OpenBSD System:
+------------------------------------------------
+
+includeit(upgrade)
+
+
+Getting source code for your OpenBSD System:
+--------------------------------------------
+
+Now that your OpenBSD system is up and running, you probably want to get
+access to source code so that you can recompile pieces of the system.
+
+You can get the pieces over the internet using anonymous CVS, rsync,
+FTP or HTTP(s). For more information, see:
+
+	https://www.OpenBSD.org/anoncvs.html
+	https://www.OpenBSD.org/ftp.html
+
+
+Using online OpenBSD documentation:
+-----------------------------------
+
+Documentation is available if you first install the manual pages
+distribution set.  Traditionally, the UN*X "man pages" (documentation)
+are denoted by "name(section)".  Some examples of this are
+
+	intro(1),
+	man(1),
+	apropos(1),
+	passwd(1),
+	passwd(5) and
+	afterboot(8).
+
+The section numbers group the topics into several categories, but three
+are of primary interest: user commands are in section 1, file formats
+are in section 5, and administrative information is in section 8.
+
+The "man" command is used to view the documentation on a topic, and is
+started by entering "man [section] topic".  The brackets [] around the
+section should not be entered, but rather indicate that the section is
+optional.  If you don't ask for a particular section, the topic with the
+least-numbered section name will be displayed.  For instance, after
+logging in, enter
+
+	man passwd
+
+to read the documentation for passwd(1).  To view the documentation for
+passwd(5), enter
+
+	man 5 passwd
+
+instead.
+
+If you are unsure of what man page you are looking for, enter
+
+	apropos subject-word
+
+where "subject-word" is your topic of interest; a list of possibly
+related man pages will be displayed.
+
+
+Adding third party software - packages and ports:
+--------------------------------------------------------
+
+includeit(packages)
+
+
+Administrivia:
+--------------
+
+There are various mailing lists available via the mailing list
+server at <majordomo@OpenBSD.org>.  To get help on using the mailing
+list server, send mail to that address with an empty body, and it will
+reply with instructions.
+
+More information about the various OpenBSD mailing list and proper
+netiquette is available at
+
+	https://www.OpenBSD.org/mail.html
+
+To report bugs, use the "sendbug" command shipped with OpenBSD,
+and fill in as much information about the problem as you can.  Good
+bug reports {:-include-:} lots of details.  Additionally, bug reports can
+be sent by mail to:
+
+	bugs@OpenBSD.org
+
+dnl uncomment when this is true again...
+dnl
+dnl Use of 'sendbug' is encouraged, however, because bugs reported with it
+dnl are entered into the OpenBSD bugs database, and thus can't slip through
+dnl the cracks.
+dnl
+As a favor, please avoid mailing huge documents or files to the
+mailing lists.  Instead, put the material you would have sent on
+a web server, then mail the appropriate list about it, or if
+you'd rather not do that, mail the list saying you'll send the data
+to those who want it.
+
+For more information about reporting bugs, see
+
+	https://www.OpenBSD.org/report.html

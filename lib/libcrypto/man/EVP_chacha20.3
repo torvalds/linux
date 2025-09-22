@@ -1,0 +1,293 @@
+.\" $OpenBSD: EVP_chacha20.3,v 1.9 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL 35fd9953 May 28 14:49:38 2019 +0200
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Ronald Tse <ronald.tse@ribose.com>.
+.\" Copyright (c) 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_CHACHA20 3
+.Os
+.Sh NAME
+.Nm EVP_chacha20 ,
+.Nm EVP_chacha20_poly1305
+.Nd ChaCha20 stream cipher for EVP
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft const EVP_CIPHER *
+.Fn EVP_chacha20 void
+.Ft const EVP_CIPHER *
+.Fn EVP_chacha20_poly1305 void
+.Sh DESCRIPTION
+.Fn EVP_chacha20
+provides the ChaCha20 stream cipher in the EVP framework.
+.Xr EVP_EncryptInit_ex 3 ,
+.Xr EVP_DecryptInit_ex 3 ,
+and
+.Xr EVP_CipherInit_ex 3
+take a
+.Fa key
+argument of 32 bytes = 256 bits and an
+.Fa iv
+argument of 16 bytes = 128 bits, internally using
+.Xr ChaCha_set_key 3
+and
+.Xr ChaCha_set_iv 3 .
+The lower 8 bytes = 64 bits of
+.Fa iv
+are used as counter and the remaining 8 bytes are used as
+the initialization vector of
+.Xr ChaCha_set_iv 3 .
+.Xr EVP_EncryptUpdate 3 ,
+.Xr EVP_EncryptFinal_ex 3 ,
+.Xr EVP_DecryptUpdate 3 ,
+and
+.Xr EVP_DecryptFinal_ex 3
+internally use
+.Xr ChaCha 3
+to perform encryption and decryption.
+.Xr EVP_CIPHER_CTX_ctrl 3
+always fails for
+.Fa ctx
+objects created from
+.Fn EVP_chacha20 .
+.Pp
+.Fn EVP_chacha20_poly1305
+provides authenticated encryption with ChaCha20-Poly1305.
+Unless compatibility with other implementations
+like OpenSSL or BoringSSL is required, using
+.Xr EVP_AEAD_CTX_init 3
+with
+.Xr EVP_aead_chacha20_poly1305 3
+is recommended instead because the code then becomes transparent
+to the AEAD cipher used, more flexible, and less error prone.
+.Pp
+With
+.Fn EVP_chacha20_poly1305 ,
+.Xr EVP_EncryptInit_ex 3 ,
+.Xr EVP_DecryptInit_ex 3 ,
+and
+.Xr EVP_CipherInit_ex 3
+take a
+.Fa key
+argument of 32 bytes = 256 bits and an
+.Fa iv
+argument of 12 bytes = 96 bits.
+This supports additional authenticated data (AAD) and produces a 128-bit
+authentication tag.
+The constant
+.Dv EVP_CHACHAPOLY_TLS_TAG_LEN
+specifies the length of the authentication tag in bytes and has a value of 16.
+.Pp
+The following
+.Fa type
+arguments are supported for
+.Xr EVP_CIPHER_CTX_ctrl 3 :
+.Bl -tag -width Ds
+.It Dv EVP_CTRL_AEAD_GET_TAG
+Copy the number of bytes indicated by the
+.Fa arg
+argument from the tag to the location indicated by the
+.Fa ptr
+argument;
+to be called after
+.Xr EVP_EncryptFinal_ex 3 .
+This control operation fails if the
+.Fa ctx
+is not configured for encryption or if
+.Fa arg
+is less than 1 or greater than 16.
+.It Dv EVP_CTRL_AEAD_SET_TAG
+Copy the number of bytes indicated by the
+.Fa arg
+argument from the location indicated by the
+.Fa ptr
+argument and designate them as the expected tag length and tag,
+causing subsequent
+.Xr EVP_DecryptFinal_ex 3
+to fail if the tag calculated during decryption does not match.
+It is strongly recommended to specify
+.Fa arg
+as exactly 16.
+Otherwise, only the initial part of the tag may be compared
+and mismatches near the end of the tag may get silently ignored.
+This control operation fails if the
+.Fa ctx
+is configured for encryption or if
+.Fa arg
+is less than 1 or greater than 16.
+If the
+.Fa ptr
+argument is a
+.Dv NULL
+pointer, this control operation succeeds without having any effect.
+.It Dv EVP_CTRL_AEAD_SET_IV_FIXED
+Set the initialization vector by reading the 12 bytes pointed to by the
+.Fa ptr
+argument, independently of
+.Xr EVP_EncryptInit_ex 3 ,
+.Xr EVP_DecryptInit_ex 3 ,
+and
+.Xr EVP_CipherInit_ex 3 .
+This control operation fails if the
+.Fa arg
+argument is not exactly 12.
+.It Dv EVP_CTRL_AEAD_SET_IVLEN
+Instruct subsequent
+.Xr EVP_EncryptInit_ex 3 ,
+.Xr EVP_DecryptInit_ex 3 ,
+or
+.Xr EVP_CipherInit_ex 3
+to expect an
+.Fa iv
+argument shorter than the default of 12 bytes; the
+.Fa arg
+argument specifies the number of bytes to be used.
+The initialization functions will only read
+the specified smaller number of bytes from
+.Fa iv
+and internally zero-pad them on the left.
+Using this is not recommended because it is likely more fragile
+and less often tested than the equivalent method of simply providing
+a full-sized
+.Fa iv .
+This control operation fails if
+.Fa arg
+is less than 1 or greater than 16.
+.It Dv EVP_CTRL_INIT
+Set the length of the initialization vector to the default value
+of 12 bytes and clear the Poly1305 internal state.
+The application program usually does not need to invoke this control
+operation manually because it is automatically called internally by
+.Xr EVP_EncryptInit_ex 3 ,
+.Xr EVP_DecryptInit_ex 3 ,
+and
+.Xr EVP_CipherInit_ex 3 .
+.El
+.Sh RETURN VALUES
+.Fn EVP_chacha20
+and
+.Fn EVP_chacha20_poly1305
+return pointers to static
+.Vt EVP_CIPHER
+objects that contain the implementations of the symmetric cipher.
+.Pp
+If
+.Fa ctx
+was created from
+.Fn EVP_chacha20
+or
+.Fn EVP_chacha20_poly1305 ,
+.Xr EVP_CIPHER_CTX_ctrl 3
+returns 1 for success or 0 for failure.
+.Sh SEE ALSO
+.Xr ChaCha 3 ,
+.Xr evp 3 ,
+.Xr EVP_aead_chacha20_poly1305 3 ,
+.Xr EVP_CIPHER_meth_new 3 ,
+.Xr EVP_EncryptInit 3
+.Sh STANDARDS
+.Rs
+.%A A. Langley
+.%A W. Chang
+.%A N. Mavrogiannopoulos
+.%A J. Strombergson
+.%A S. Josefsson
+.%D June 2016
+.%R RFC 7905
+.%T ChaCha20-Poly1305 Cipher Suites for Transport Layer Security (TLS)
+.Re
+.Sh HISTORY
+.Fn EVP_chacha20
+first appeared in
+.Ox 5.6 .
+.Pp
+.Fn EVP_chacha20_poly1305
+first appeared in OpenSSL 1.1.0
+.\" OpenSSL commit bd989745 Dec 9 21:30:56 2015 +0100 Andy Polyakov
+and has been available since
+.Ox 7.2 .
+.Sh CAVEATS
+The original publications and code by
+.An Adam Langley
+used a modified AEAD construction that is incompatible with the common
+style used by AEAD in TLS and incompatible with RFC 7905:
+.Pp
+.Rs
+.%A A. Langley
+.%A W. Chang
+.%D November 2013
+.%R draft-agl-tls-chacha20poly1305-04
+.%T ChaCha20 and Poly1305 based Cipher Suites for TLS
+.Re
+.Pp
+.Rs
+.%A Y. Nir
+.%A A. Langley
+.%D May 2018
+.%R RFC 8439
+.%T ChaCha20 and Poly1305 for IETF Protocols
+.Re
+.Pp
+In particular, the original version used a nonce of 8 instead of 12 bytes.

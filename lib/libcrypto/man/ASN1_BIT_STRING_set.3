@@ -1,0 +1,140 @@
+.\" $OpenBSD: ASN1_BIT_STRING_set.3,v 1.6 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_BIT_STRING_SET 3
+.Os
+.Sh NAME
+.Nm ASN1_BIT_STRING_set ,
+.Nm ASN1_BIT_STRING_set_bit ,
+.Nm ASN1_BIT_STRING_get_bit
+.Nd ASN.1 BIT STRING accessors
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft int
+.Fo ASN1_BIT_STRING_set
+.Fa "ASN1_BIT_STRING *bitstr"
+.Fa "unsigned char *data"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo ASN1_BIT_STRING_set_bit
+.Fa "ASN1_BIT_STRING *bitstr"
+.Fa "int bitnumber"
+.Fa "int set"
+.Fc
+.Ft int
+.Fo ASN1_BIT_STRING_get_bit
+.Fa "ASN1_BIT_STRING *bitstr"
+.Fa "int bitnumber"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_BIT_STRING_set
+sets the length attribute of
+.Fa bitstr
+to
+.Fa len
+and copies that number of bytes from
+.Fa data
+into
+.Fa bitstr ,
+overwriting any previous data, by merely calling
+.Xr ASN1_STRING_set 3 .
+This function does no validation whatsoever.
+In particular, it neither checks that
+.Fa bitstr
+is actually of the type
+.Dv V_ASN1_BIT_STRING
+nor, even if it is, that the
+.Fa data
+and
+.Fa len
+arguments make sense for this particular bit string.
+.Pp
+If the
+.Fa set
+argument is non-zero,
+.Fn ASN1_BIT_STRING_set_bit
+sets the bit with the given
+.Fa bitnumber
+in the
+.Fa bitstr ;
+otherwise, it clears that bit.
+A
+.Fa bitnumber
+of 0 addresses the most significant bit in the first data byte of
+.Fa bitstr ,
+7 the least significant bit in the same byte,
+8 the most significant bit in the second data byte, and so on.
+.Pp
+If setting a bit is requested beyond the last existing data byte,
+additional bytes are added to the
+.Fa bitstr
+as needed.
+After clearing a bit, any trailing NUL bytes are removed from the
+.Fa bitstr .
+.Pp
+.Fn ASN1_BIT_STRING_get_bit
+checks that the bit with the given
+.Fa bitnumber
+is set in
+.Fa bitstr .
+.Sh RETURN VALUES
+.Fn ASN1_BIT_STRING_set
+returns 1 on success or 0 if memory allocation fails or if
+.Fa data
+is
+.Dv NULL
+and
+.Fa len
+is \-1 in the same call.
+.Pp
+.Fn ASN1_BIT_STRING_set_bit
+returns 1 on success or 0 if
+.Fa bitstr
+is
+.Dv NULL
+or if memory allocation fails.
+.Pp
+.Fn ASN1_BIT_STRING_get_bit
+returns 1 if the bit with the given
+.Fa bitnumber
+is set in the
+.Fa bitstr
+or 0 if
+.Fa bitstr
+is
+.Dv NULL ,
+if
+.Fa bitnumber
+points beyond the last data byte in
+.Fa bitstr ,
+or if the requested bit is not set.
+.Sh SEE ALSO
+.Xr ASN1_BIT_STRING_new 3 ,
+.Xr ASN1_STRING_set 3 ,
+.Xr d2i_ASN1_BIT_STRING 3 ,
+.Xr v2i_ASN1_BIT_STRING 3
+.Sh HISTORY
+.Fn ASN1_BIT_STRING_set
+first appeared in SSLeay 0.6.5.
+.Fn ASN1_BIT_STRING_set_bit
+and
+.Fn ASN1_BIT_STRING_get_bit
+first appeared in SSLeay 0.9.0.
+These functions have been available since
+.Ox 2.4 .

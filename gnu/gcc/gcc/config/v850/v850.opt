@@ -1,0 +1,91 @@
+; Options for the NEC V850 port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+mapp-regs
+Target Report Mask(APP_REGS)
+Use registers r2 and r5
+
+mbig-switch
+Target Report Mask(BIG_SWITCH)
+Use 4 byte entries in switch tables
+
+mdebug
+Target Report Mask(DEBUG)
+Enable backend debugging
+
+mdisable-callt
+Target Report Mask(DISABLE_CALLT)
+Do not use the callt instruction
+
+mep
+Target Report Mask(EP)
+Reuse r30 on a per function basis
+
+mghs
+Target Report Mask(GHS)
+Support Green Hills ABI
+
+mlong-calls
+Target Report Mask(LONG_CALLS)
+Prohibit PC relative function calls
+
+mprolog-function
+Target Report Mask(PROLOG_FUNCTION)
+Use stubs for function prologues
+
+msda
+Target RejectNegative Joined
+Set the max size of data eligible for the SDA area
+
+msmall-sld
+Target Report Mask(SMALL_SLD)
+Enable the use of the short load instructions
+
+mspace
+Target RejectNegative
+Same as: -mep -mprolog-function
+
+mtda
+Target RejectNegative Joined
+Set the max size of data eligible for the TDA area
+
+mstrict-align
+Target Report Mask(STRICT_ALIGN)
+Enforce strict alignment
+
+mUS-bit-set
+Target Report Mask(US_BIT_SET)
+
+mv850
+Target Report RejectNegative Mask(V850)
+Compile for the v850 processor
+
+mv850e
+Target Report RejectNegative Mask(V850E)
+Compile for the v850e processor
+
+mv850e1
+Target RejectNegative Mask(V850E) MaskExists
+Compile for the v850e1 processor
+
+mzda
+Target RejectNegative Joined
+Set the max size of data eligible for the ZDA area

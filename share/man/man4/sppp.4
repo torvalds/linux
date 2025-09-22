@@ -1,0 +1,308 @@
+.\" $OpenBSD: sppp.4,v 1.28 2023/03/23 12:43:38 stsp Exp $
+.\"
+.\" Copyright (c) 1997 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: March 23 2023 $
+.Dt SPPP 4
+.Os
+.Sh NAME
+.Nm sppp
+.Nd PPP and Link Control Protocol
+.Sh SYNOPSIS
+.Cd "pseudo-device sppp" Op Ar count
+.Sh DESCRIPTION
+The
+.Nm
+network layer implements the state machine and Link Control
+Protocol (LCP) of the
+Point-to-Point Protocol (PPP)
+as described in RFC 1661.
+Note that this layer does not provide network interfaces of its own, it is
+rather intended to be layered on
+top of drivers providing a point-to-point connection that
+wish to run a PPP stack over it.
+The corresponding network interfaces have to be provided by these hardware
+drivers.
+.Pp
+The
+.Nm
+layer provides three basic modes of operation.
+The default mode, with no special flags set, is to create the
+PPP connection (administrative
+.Em Open
+event to the LCP layer) as soon as the interface is taken up with the
+.Xr ifconfig 8
+command.
+Taking the interface down again will terminate the LCP layer
+and thus all other layers on top.
+The link will also terminate itself as soon as no Network Control Protocol
+(NCP) is open anymore, indicating that the lower layers are no longer needed.
+.Pp
+Setting the link-level flag
+.Cm link0
+with
+.Xr ifconfig 8
+will cause the respective network interface to go into
+.Em passive
+mode.
+This means the administrative
+.Em Open
+event to the LCP layer will be delayed until after the lower layers
+signal an
+.Em Up
+event (rise of
+.Dq carrier ) .
+This can be used by the lower layers to support
+a dial-in connection where the physical layer isn't available
+immediately at startup, but only after some external event arrives.
+Receipt of a
+.Em Down
+event from the lower layer will not take the interface completely down
+in this case.
+.Pp
+Finally, setting the flag
+.Cm link1
+will cause the interface to operate in
+.Em dial-on-demand
+mode.
+This is also only useful if the lower layers support the notion
+of a carrier (like with an ISDN line).
+Upon configuring the respective interface, it will delay the administrative
+.Em Open
+event to the LCP layer until either an outbound network packet
+arrives, or until the lower layers signal an
+.Em Up
+event, indicating an inbound connection.
+As with passive mode, receipt of a
+.Em Down
+event (loss of carrier) will not automatically take the interface down,
+thus it remains available for further connections.
+.Pp
+The
+.Nm
+layer supports the
+.Em debug
+interface flag, which can be set with
+.Xr ifconfig 8 .
+If this flag is set, the various control protocol packets being
+exchanged as well as the option negotiation between both ends of the
+link will be logged at level
+.Dv LOG_DEBUG .
+This can be helpful to examine configuration problems during the first
+attempts to set up a new configuration.
+Without this flag being set, only the major phase transitions will be
+logged at level
+.Dv LOG_INFO .
+.Pp
+It is possible to leave the local interface IP address open for
+negotiation by setting it to 0.0.0.0.
+This requires that the remote peer can correctly supply a value for it
+based on the identity of the caller, or on the remote address supplied
+by this side.
+Due to the way the IPCP option negotiation works, this address is
+supplied late during the negotiation, which could cause the remote peer
+to make false assumptions.
+.Pp
+In a similar spirit the remote address can be set to a magical value in
+the range 0.0.0.1 to 0.0.0.255, which means that we don't care what
+address the remote side will use, as long as it is not 0.0.0.0.
+This is useful if your ISP has several dial-in servers.
+You can of course
+.Ic route add
+something or other 0.0.0.1
+and it will do exactly what you would want it to.
+.Pp
+Once a connection is established,
+the device will send out a nameserver proposal,
+which
+.Xr resolvd 8
+can act on.
+If during IPCP negotiation no DNS server options were exchanged,
+the nameserver proposal will be empty.
+.Pp
+The PAP and CHAP authentication protocols, as described in RFCs 1334
+and 1994, respectively, are also implemented.
+Their parameters are controlled by the
+.Xr ifconfig 8
+utility.
+.Sh EXAMPLES
+Display the settings for pppoe0.
+The interface is currently in the
+.Em establish
+phase and tries to connect to the remote peer;
+other possible PPP phases are
+.Em dead ,
+.Em authenticate ,
+.Em network ,
+or
+.Em terminate .
+Both ends of the connection use the CHAP protocol, the local client
+tells the remote peer the system name
+.Ql uriah ,
+and the peer is expected to authenticate by the name
+.Ql ifb-gw .
+Once the initial CHAP handshake has been successful, no further CHAP
+challenges will be transmitted.
+There are supposedly some known CHAP secrets for both ends of the link
+which are not displayed.
+.Bd -literal -offset indent
+$ ifconfig pppoe0
+pppoe0: flags=8851<UP,POINTOPOINT,RUNNING,SIMPLEX,MULTICAST> mtu 1492
+        dev: em0 state: PADI sent
+        sid: 0x0 PADI retries: 0 PADR retries: 0
+        sppp: phase establish authproto chap authname "uriah" \e
+		peerproto chap peername "ifb-gw" norechallenge
+        groups: pppoe
+        inet 0.0.0.0 --> 0.0.0.1 netmask 0xffffffff
+.Ed
+.Pp
+A possible call to
+.Xr ifconfig 8
+that could have been used to bring the interface into the state shown
+by the previous example:
+.Bd -literal -offset indent
+# ifconfig em0 up
+# ifconfig pppoe0 0.0.0.0 0.0.0.1 netmask 0xffffffff \e
+	pppoedev em0 \e
+	authproto chap authname uriah authkey "some secret" \e
+	peerproto chap peername "ifb-gw" peerkey "another" \e
+	peerflag norechallenge \e
+	up
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It <ifname><ifnum>: <proto> illegal <event> in state <statename>
+An event happened that should not happen for the current state
+the respective control protocol is in.
+See RFC 1661 for a description of the state automaton.
+.It <ifname><ifnum>: loopback
+The state automaton detected a line loopback (that is, it was talking
+with itself).
+The interface will be temporarily disabled.
+.It <ifname><ifnum>: up
+The LCP layer is running again, after a line loopback had previously
+been detected.
+.It <ifname><ifnum>: down
+The keepalive facility detected the line being unresponsive.
+Keepalive must be explicitly requested by the lower layers in order to
+take place.
+.El
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr pppoe 4 ,
+.Xr ifconfig 8
+.Sh STANDARDS
+.Rs
+.%A G. McGregor
+.%D May 1992
+.%R RFC 1332
+.%T The PPP Internet Protocol Control Protocol (IPCP)
+.Re
+.Pp
+.Rs
+.%A B. Lloyd
+.%A W. Simpson
+.%D October 1992
+.%R RFC 1334
+.%T PPP Authentication Protocols
+.Re
+.Pp
+.Rs
+.%A W. Simpson
+.%D July 1994
+.%R RFC 1661
+.%T The Point-to-Point Protocol (PPP)
+.Re
+.Pp
+.Rs
+.%A S. Cobb
+.%D December 1995
+.%R RFC 1877
+.%T PPP Internet Protocol Control Protocol Extensions for Name Server Addresses
+.Re
+.Pp
+.Rs
+.%A W. Simpson
+.%D August 1996
+.%R RFC 1994
+.%T PPP Challenge Handshake Authentication Protocol (CHAP)
+.Re
+.Pp
+.Rs
+.%A S. Varada
+.%A D. Haskins
+.%A E. Allen
+.%D September 2007
+.%R RFC 5072
+.%T IP Version 6 over PPP
+.Re
+.Sh AUTHORS
+.An -nosplit
+The original implementation of
+.Nm
+was written in 1994 at Cronyx Ltd., Moscow, by
+.An Serge Vakulenko Aq Mt vak@cronyx.ru .
+.An Joerg Wunsch Aq Mt joerg_wunsch@uriah.heep.sax.de
+rewrote a large part in 1997 in order
+to fully implement the state machine as described in RFC 1661, so it
+could also be used for dialup lines.
+He also wrote the initial version of this man page.
+Serge later on wrote a basic implementation for PAP and CHAP, which
+served as the base for the current implementation, done again by
+Joerg Wunsch.
+.Pp
+.An Reyk Floeter
+implemented
+.Nm
+support for
+.Xr ifconfig 8
+in
+.Ox 4.0
+in order to remove the original
+.Ql spppcontrol
+utility, which was previously used to configure and display the
+.Nm
+settings.
+.Sh BUGS
+Many.
+.Pp
+Negotiation loop avoidance is not fully implemented.
+If the negotiation doesn't converge, this can cause an endless loop.
+.Pp
+The various parameters that should be adjustable per RFC 1661 are
+currently hard-coded into the kernel, and should be made accessible
+through
+.Xr ifconfig 8 .
+.Pp
+.Em Passive
+mode has not been tested extensively.
+.Pp
+More NCPs should be implemented, as well as other control protocols
+for authentication and link quality reporting.
+.Pp
+IPCP should support VJ header compression.
+.Pp
+Link-level compression protocols should be supported.

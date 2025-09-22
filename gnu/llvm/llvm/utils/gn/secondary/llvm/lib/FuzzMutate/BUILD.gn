@@ -1,0 +1,20 @@
+static_library("FuzzMutate") {
+  output_name = "LLVMFuzzMutate"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/Scalar",
+  ]
+  sources = [
+    "FuzzerCLI.cpp",
+    "IRMutator.cpp",
+    "OpDescriptor.cpp",
+    "Operations.cpp",
+    "RandomIRBuilder.cpp",
+  ]
+}

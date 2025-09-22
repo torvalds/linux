@@ -1,0 +1,15 @@
+/* Tests for str() */
+BEGIN {
+      /* Should pass through regular string args */
+      printf("%s %s %s\n", $1, $2, str($3));
+
+      /* Should truncate when given an index < the max (currently 64) */
+      printf("%sSSH %s %s\n", str($1, $4), $2, $3);
+
+      /* Should truncate long arguments to STRLEN bytes */
+      printf("No 3 please: %s\n", str($6));
+
+      /* Should support nested expressions for the index */
+      print(str($1, 2 + 2));
+      print(str($1, 2 + $7));
+}

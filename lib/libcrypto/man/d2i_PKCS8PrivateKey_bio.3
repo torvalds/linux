@@ -1,0 +1,173 @@
+.\" $OpenBSD: d2i_PKCS8PrivateKey_bio.3,v 1.12 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL 61f805c1 Jan 16 01:01:46 2018 +0800
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2016, 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_PKCS8PRIVATEKEY_BIO 3
+.Os
+.Sh NAME
+.Nm d2i_PKCS8PrivateKey_bio ,
+.Nm d2i_PKCS8PrivateKey_fp ,
+.Nm i2d_PKCS8PrivateKey_bio ,
+.Nm i2d_PKCS8PrivateKey_fp ,
+.Nm i2d_PKCS8PrivateKey_nid_bio ,
+.Nm i2d_PKCS8PrivateKey_nid_fp
+.Nd PKCS#8 format private key functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft EVP_PKEY *
+.Fo d2i_PKCS8PrivateKey_bio
+.Fa "BIO *bp"
+.Fa "EVP_PKEY **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft EVP_PKEY *
+.Fo d2i_PKCS8PrivateKey_fp
+.Fa "FILE *fp"
+.Fa "EVP_PKEY **x"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo i2d_PKCS8PrivateKey_bio
+.Fa "BIO *bp"
+.Fa "EVP_PKEY *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo i2d_PKCS8PrivateKey_fp
+.Fa "FILE *fp"
+.Fa "EVP_PKEY *x"
+.Fa "const EVP_CIPHER *enc"
+.Fa "char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo i2d_PKCS8PrivateKey_nid_bio
+.Fa "BIO *bp"
+.Fa "EVP_PKEY *x"
+.Fa "int nid"
+.Fa "char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft int
+.Fo i2d_PKCS8PrivateKey_nid_fp
+.Fa "FILE *fp"
+.Fa "EVP_PKEY *x"
+.Fa "int nid"
+.Fa "char *kstr"
+.Fa "int klen"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Sh DESCRIPTION
+The PKCS#8 functions encode and decode private keys in PKCS#8 format
+using both PKCS#5 v1.5 and PKCS#5 v2.0 password based encryption
+algorithms.
+.Pp
+Other than the use of DER as opposed to PEM these functions are
+identical to the corresponding functions described in
+.Xr PEM_read_PrivateKey 3 .
+.Pp
+These functions are currently the only way to store encrypted private
+keys using DER format.
+.Pp
+Currently all the functions use
+.Vt BIO
+or
+.Vt FILE
+pointers.
+There are no functions which work directly on memory,
+though this can be readily worked around
+by converting the buffers to memory BIOs;
+see
+.Xr BIO_s_mem 3
+for details.
+.Sh RETURN VALUES
+.Fn d2i_PKCS8PrivateKey_bio
+and
+.Fn d2i_PKCS8PrivateKey_fp
+return a
+.Vt EVP_PKEY
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_PKCS8PrivateKey_bio ,
+.Fn i2d_PKCS8PrivateKey_fp ,
+.Fn i2d_PKCS8PrivateKey_nid_bio ,
+and
+.Fn i2d_PKCS8PrivateKey_nid_fp
+return 1 on success or 0 on error.
+.Sh SEE ALSO
+.Xr d2i_X509_SIG 3 ,
+.Xr PEM_write_PKCS8PrivateKey 3 ,
+.Xr PKCS8_PRIV_KEY_INFO_new 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.5
+and have been available since
+.Ox 2.7 .
+.Sh CAVEATS
+Do not confuse these functions with
+.Xr i2d_PKCS8PrivateKeyInfo_bio 3
+and
+.Xr i2d_PKCS8PrivateKeyInfo_fp 3 ,
+which write out private keys in
+.Sy unencrypted
+DER format.

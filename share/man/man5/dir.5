@@ -1,0 +1,126 @@
+.\"	$OpenBSD: dir.5,v 1.20 2019/09/07 10:28:27 schwarze Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)dir.5	8.4 (Berkeley) 5/3/95
+.\"
+.Dd $Mdocdate: September 7 2019 $
+.Dt DIR 5
+.Os
+.Sh NAME
+.Nm dir ,
+.Nm dirent
+.Nd directory file format
+.Sh SYNOPSIS
+.In dirent.h
+.Sh DESCRIPTION
+Directories provide a convenient hierarchical method of grouping
+files while obscuring the underlying details of the storage medium.
+A directory file is differentiated from a plain file by a flag in its
+.Xr inode 5
+entry.
+It consists of records (directory entries) each of which contains
+information about a file and a pointer to the file itself.
+Directory entries may contain other directories as well as plain files;
+such nested directories are referred to as subdirectories.
+A hierarchy of directories and files is formed in this manner
+and is called a file system (or referred to as a file system tree).
+.\" An entry in this tree,
+.\" nested or not nested,
+.\" is a pathname.
+.Pp
+Each directory file contains two special directory entries; one is a pointer
+to the directory itself called dot
+.Pq Dq \&.
+and the other a pointer to its parent directory called dot-dot
+.Pq Dq \&.. .
+Dot and dot-dot are valid pathnames, however, the system root directory
+.Pq Dq / ,
+has no parent and dot-dot points to itself like dot.
+.Pp
+File system nodes are ordinary directory files on which has
+been grafted a file system object, such as a physical disk or a
+partitioned area of such a disk (see
+.Xr mount 8 ) .
+.Pp
+The directory entry format is defined in the file
+.In dirent.h :
+.Bd -literal
+/*
+ * A directory entry has a struct dirent at the front of it, containing
+ * its inode number, the length of the entry, and the length of the name
+ * contained in the entry.  These are followed by the name padded to some
+ * alignment (currently 8 bytes) with NUL bytes.  All names are guaranteed
+ * NUL terminated.  The maximum length of a name in a directory is MAXNAMLEN.
+ */
+
+struct dirent {
+	ino_t		d_fileno;	/* file number of entry */
+	off_t		d_off;		/* offset of next entry */
+	u_int16_t	d_reclen;	/* length of this record */
+	u_int8_t	d_type;		/* file type, see below */
+	u_int8_t	d_namlen;	/* length of string in d_name */
+#define MAXNAMLEN       255
+	char    d_name[MAXNAMLEN + 1];  /* maximum name length */
+};
+
+#define	d_ino		d_fileno	/* backward compatibility */
+
+/*
+ * File types
+ */
+#define DT_UNKNOWN	0
+#define DT_FIFO		1
+#define DT_CHR		2
+#define DT_DIR		4
+#define DT_BLK		6
+#define DT_REG		8
+#define DT_LNK		10
+#define DT_SOCK		12
+.Ed
+.Sh SEE ALSO
+.Xr getdents 2 ,
+.Xr fs 5 ,
+.Xr inode 5
+.Sh HISTORY
+A
+.Nm dir
+file format appeared in
+.At v1 .
+A predecessor
+.Vt struct direct
+first appeared in
+.At v7 .
+The
+.Vt dirent
+structure first appeared in
+.Bx 4.3 Reno .
+The
+.Fa d_off
+member was added in
+.Ox 5.5 .

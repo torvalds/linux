@@ -1,0 +1,105 @@
+.\"	$OpenBSD: d2i_X509_EXTENSION.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_X509_EXTENSION 3
+.Os
+.Sh NAME
+.Nm d2i_X509_EXTENSION ,
+.Nm i2d_X509_EXTENSION ,
+.Nm d2i_X509_EXTENSIONS ,
+.Nm i2d_X509_EXTENSIONS
+.\" In the next line, the capital "E" is not a typo.
+.\" The ASN.1 structure is called "Extensions", not "extensions".
+.Nd decode and encode X.509 Extensions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_EXTENSION *
+.Fo d2i_X509_EXTENSION
+.Fa "X509_EXTENSION **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_EXTENSION
+.Fa "X509_EXTENSION *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft X509_EXTENSIONS *
+.Fo d2i_X509_EXTENSIONS
+.Fa "X509_EXTENSIONS **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_EXTENSIONS
+.Fa "X509_EXTENSIONS *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+.Fn d2i_X509_EXTENSION
+and
+.Fn i2d_X509_EXTENSION
+decode and encode an ASN.1
+.Vt Extension
+structure defined in RFC 5280 section 4.1.
+.Pp
+.Fn d2i_X509_EXTENSIONS
+and
+.Fn i2d_X509_EXTENSIONS
+decode and encode an ASN.1
+.Vt Extensions
+structure defined in RFC 5280 section 4.1,
+which is a SEQUENCE OF
+.Vt Extension .
+.Sh RETURN VALUES
+.Fn d2i_X509_EXTENSION
+and
+.Fn d2i_X509_EXTENSIONS
+return an
+.Vt X509_EXTENSION
+or
+.Vt X509_EXTENSIONS
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_X509_EXTENSION
+and
+.Fn i2d_X509_EXTENSIONS
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509V3_get_d2i 3 ,
+.Xr X509v3_get_ext_by_NID 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Sh HISTORY
+.Fn d2i_X509_EXTENSION
+and
+.Fn i2d_X509_EXTENSION
+first appeared in SSLeay 0.6.2 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn d2i_X509_EXTENSIONS
+and
+.Fn i2d_X509_EXTENSIONS
+first appeared in OpenSSL 0.9.8h and have been available since
+.Ox 4.5 .

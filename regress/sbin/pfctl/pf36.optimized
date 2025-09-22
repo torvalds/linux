@@ -1,0 +1,52 @@
+@0 match out on lo0 inet from any to 127.0.0.1 nat-to <__automatic_0:2> round-robin
+  [ Skip steps: i=end d=6 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.0/24 bitmask static-port
+  [ Skip steps: i=end d=6 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.0/24 random
+  [ Skip steps: i=end d=6 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.0/24 source-hash 0x0123456789abcdef0123456789abcdef
+  [ Skip steps: i=end d=6 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.0/24 source-hash 0x4da8e393fd22f577426cfdf7fe52d3b0
+  [ Skip steps: i=end d=6 r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.0/24 round-robin
+  [ Skip steps: i=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 match in on lo0 inet from any to 127.0.0.1 rdr-to <__automatic_3:2> round-robin
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 match in on lo0 inet from any to 127.0.0.1 rdr-to <__automatic_6:2> round-robin
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.0/24 bitmask
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.0/24 random
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.0/24 source-hash 0x0123456789abcdef0123456789abcdef
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.0/24 source-hash 0x4da8e393fd22f577426cfdf7fe52d3b0
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@12 match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.0/24 round-robin
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

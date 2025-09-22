@@ -1,0 +1,60 @@
+#	$OpenBSD: files.pcmcia,v 1.49 2020/01/20 23:21:01 tedu Exp $
+#	$NetBSD: files.pcmcia,v 1.9 1998/06/21 18:45:41 christos Exp $
+#
+# Config.new file and device description for machine-independent PCMCIA code.
+# Included by ports that need it.
+
+device	pcmcia {[function = -1], [irq = -1]}
+file	dev/pcmcia/pcmcia.c			pcmcia
+file	dev/pcmcia/pcmcia_cis.c			pcmcia
+file	dev/pcmcia/pcmcia_cis_quirks.c		pcmcia
+
+# device declaration in sys/conf/files
+attach	pcmcia at pcmciabus
+
+# 3Com 3c589 Ethernet, 3c562 multifunction Ethernet, and 3CXEM556
+# multifunction Ethernet controllers
+attach	ep at pcmcia with ep_pcmcia
+file	dev/pcmcia/if_ep_pcmcia.c		ep_pcmcia
+
+# National Semiconductor DS8390/WD83C690-based boards
+# (NE[12]000, and clones)
+attach	ne at pcmcia with ne_pcmcia: rtl80x9, dl10019, ax88190, mii_bitbang
+file	dev/pcmcia/if_ne_pcmcia.c		ne_pcmcia
+
+# Adaptec APA-14[56]0 / NewMedia BusToaster SCSI Host Adapter
+attach	aic at pcmcia with aic_pcmcia
+file	dev/pcmcia/aic_pcmcia.c			aic_pcmcia
+
+attach	com at pcmcia with com_pcmcia
+file	dev/pcmcia/com_pcmcia.c			com_pcmcia
+
+# PCMCIA IDE controller
+attach	wdc at pcmcia with wdc_pcmcia
+file	dev/pcmcia/wdc_pcmcia.c			wdc_pcmcia
+
+# SMC91Cxx Ethernet Controllers (i.e. Megahertz X-Jack)
+attach	sm at pcmcia with sm_pcmcia
+file	dev/pcmcia/if_sm_pcmcia.c		sm_pcmcia
+
+# Xircom Ethernet controllers
+device	xe: ether, ifnet, mii, ifmedia
+attach	xe at pcmcia with xe_pcmcia
+file	dev/pcmcia/if_xe.c			xe_pcmcia
+
+# Lucent WaveLAN
+attach	wi at pcmcia with wi_pcmcia
+file	dev/pcmcia/if_wi_pcmcia.c		wi_pcmcia
+
+# Marvell 88W8385
+attach	malo at pcmcia with malo_pcmcia
+file	dev/pcmcia/if_malo.c			malo_pcmcia
+
+# Aironet 4500/4800 802.11 DS WLAN
+attach	an at pcmcia with an_pcmcia
+file	dev/pcmcia/if_an_pcmcia.c		an_pcmcia
+
+# IODATA CFXGA Compact flash VGA card
+device	cfxga: wsemuldisplaydev, rasops16, rasops8
+attach	cfxga at pcmcia with cfxga
+file	dev/pcmcia/cfxga.c			cfxga

@@ -1,0 +1,74 @@
+source_set("llvm-min-tblgen-sources") {
+  sources = [
+    "ARMTargetDefEmitter.cpp",
+    "Attributes.cpp",
+    "DirectiveEmitter.cpp",
+    "IntrinsicEmitter.cpp",
+    "RISCVTargetDefEmitter.cpp",
+    "TableGen.cpp",
+    "VTEmitter.cpp",
+  ]
+  deps = [
+    "Basic",
+    "//llvm/lib/Support",
+  ]
+}
+
+executable("llvm-min-tblgen") {
+  deps = [
+    ":llvm-min-tblgen-sources",
+    "Basic",
+  ]
+}
+
+executable("llvm-tblgen") {
+  deps = [
+    ":llvm-min-tblgen-sources",
+    "Basic",
+    "Common",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/CodeGenTypes",
+    "//llvm/lib/Support",
+    "//llvm/lib/TableGen",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "AsmMatcherEmitter.cpp",
+    "AsmWriterEmitter.cpp",
+    "CTagsEmitter.cpp",
+    "CallingConvEmitter.cpp",
+    "CodeEmitterGen.cpp",
+    "CodeGenMapTable.cpp",
+    "CompressInstEmitter.cpp",
+    "DAGISelEmitter.cpp",
+    "DAGISelMatcherEmitter.cpp",
+    "DAGISelMatcherGen.cpp",
+    "DAGISelMatcherOpt.cpp",
+    "DFAEmitter.cpp",
+    "DFAPacketizerEmitter.cpp",
+    "DXILEmitter.cpp",
+    "DecoderEmitter.cpp",
+    "DisassemblerEmitter.cpp",
+    "ExegesisEmitter.cpp",
+    "FastISelEmitter.cpp",
+    "GlobalISelCombinerEmitter.cpp",
+    "GlobalISelEmitter.cpp",
+    "InstrDocsEmitter.cpp",
+    "InstrInfoEmitter.cpp",
+    "MacroFusionPredicatorEmitter.cpp",
+    "OptParserEmitter.cpp",
+    "OptRSTEmitter.cpp",
+    "PseudoLoweringEmitter.cpp",
+    "RegisterBankEmitter.cpp",
+    "RegisterInfoEmitter.cpp",
+    "SearchableTableEmitter.cpp",
+    "SubtargetEmitter.cpp",
+    "WebAssemblyDisassemblerEmitter.cpp",
+    "X86InstrMappingEmitter.cpp",
+    "X86DisassemblerTables.cpp",
+    "X86FoldTablesEmitter.cpp",
+    "X86MnemonicTables.cpp",
+    "X86ModRMFilters.cpp",
+    "X86RecognizableInstr.cpp",
+  ]
+}

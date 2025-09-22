@@ -1,0 +1,100 @@
+.TH "nsd\-checkconf" "8" "Sep  3, 2025" "NLnet Labs" "nsd 4.13.0"
+.\" Copyright (c) 2001\-2024, NLnet Labs. All rights reserved.
+.\" See LICENSE for the license.
+.SH "NAME"
+.B nsd\-checkconf
+\- NSD configuration file checker.
+.SH "SYNOPSIS"
+.B nsd\-checkconf
+.RB [ \-v ]
+.RB [ \-f ]
+.RB [ \-h ]
+.RB [ \-o
+.IR option ]
+.RB [ \-z
+.IR zonename ]
+.RB [ \-p
+.IR pattern ]
+.RB [ \-s
+.IR keyname ]
+.RB [ \-t
+.IR tlsauthname ]
+.I configfile
+.SH "DESCRIPTION"
+.B nsd\-checkconf
+reads a configuration file. It prints parse errors to standard 
+error, and performs additional checks on the contents. The 
+configfile format is described in nsd.conf(5).
+.P
+The utility of this program is to check a config file for errors before
+using it in nsd(8). This program can also be used for shell scripts to
+access the nsd config file, using the \-o and \-z options.
+.P
+.SH "OPTIONS"
+.TP
+.B \-v
+After reading print the options to standard output in configfile 
+format. Without this option, only success or parse errors are 
+reported.
+.TP
+.B \-f
+Print full pathname when used with files, like with \-o pidfile.
+This includes the chroot in the way it is applied to the pidfile.
+.TP
+.B \-h
+Print usage help information and exit.
+.TP
+.B \-o\fI option
+Return only this option from the config file. This option can
+be used in conjunction with the 
+.B \-z
+and the
+.B \-p
+option, or without them to query the server: section.
+The special value 
+.I zones
+prints out a list of configured zones.
+The special value
+.I patterns
+prints out a list of configured patterns.
+.sp
+This option can be used to parse the config file from the shell. If the
+.B \-z
+option is given, but the 
+.B \-o 
+option is not given, nothing is printed. 
+.TP
+.B \-s\fI keyname
+Prints the key secret (base64 blob) configured for this key in the 
+config file. Used to help shell scripts parse the config file.
+.TP
+.B \-t\fI tls-auth
+Prints the authentication domain name configured for this tls-auth clause in the
+config file. Used to help shell scripts parse the config file.
+.TP
+.B \-p\fI pattern
+Return the option specified with 
+.B \-o
+for the given pattern name.
+.TP
+.B \-z\fI zonename
+Return the option specified with 
+.B \-o
+for zone 'zonename'.
+.sp
+If this option is not given, the server section of the config file
+is used.
+.sp
+The \-o, \-s and \-z option print configfile options to standard output. 
+.SH "FILES"
+.TP
+@nsdconfigfile@
+default
+.B NSD
+configuration file
+.SH "SEE ALSO"
+\fInsd\fR(8), \fInsd.conf\fR(5), \fInsd\-control\fR(8)
+.SH "AUTHORS"
+.B NSD
+was written by NLnet Labs and RIPE NCC joint team. Please see
+CREDITS file in the distribution for further details.

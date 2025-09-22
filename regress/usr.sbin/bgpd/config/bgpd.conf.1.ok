@@ -1,0 +1,10 @@
+AS 1
+router-id 127.0.0.1
+socket "/var/run/bgpd.sock.0"
+listen on 0.0.0.0
+listen on ::
+
+
+rde rib Adj-RIB-In no evaluate
+rde rib Loc-RIB rtable 0 fib-update yes
+

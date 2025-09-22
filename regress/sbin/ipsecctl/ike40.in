@@ -1,0 +1,2 @@
+ike passive from 3ffe:1::/64 to 3ffe:2::/64 peer 3ffe::51
+ike passive from 3ffe::29 to 3ffe::51

@@ -1,0 +1,97 @@
+.\" $OpenBSD: BIO_dump.3,v 1.6 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_DUMP 3
+.Os
+.Sh NAME
+.Nm BIO_dump ,
+.Nm BIO_dump_indent
+.Nd hexadecimal printout of arbitrary byte arrays
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.Ft int
+.Fo BIO_dump
+.Fa "BIO *b"
+.Fa "const char *s"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo BIO_dump_indent
+.Fa "BIO *b"
+.Fa "const char *s"
+.Fa "int len"
+.Fa "int indent"
+.Fc
+.Sh DESCRIPTION
+.Fn BIO_dump
+prints
+.Fa len
+bytes starting at
+.Fa s
+to
+.Fa bio
+in hexadecimal format.
+.Pp
+The first column of output contains the index, in the byte array starting at
+.Fa s ,
+of the first byte shown on the respective output line, expressed as a
+four-digit hexadecimal number starting at 0000, followed by a dash.
+After the dash, sixteen bytes of data are printed as two-digit
+hexadecimal numbers, respecting the order in which they appear in
+the array
+.Fa s .
+Another dash is printed after the eighth column.
+.Pp
+To the right of the hexadecimal representation of the bytes,
+the same bytes are printed again, this time as ASCII characters.
+Non-printable ASCII characters are replaced with dots.
+.Pp
+Trailing space characters and NUL bytes are omitted from the main table.
+If there are any, an additional line is printed, consisting of the
+.Fa len
+argument as a four-digit hexadecimal number, a dash, and the fixed string
+.Qq <SPACES/NULS> .
+.Pp
+.Fn BIO_dump_indent
+is similar except that
+.Fa indent
+space characters are prepended to each output line.
+If
+.Fa indent
+is 7 or more, the number of data columns is reduced such that the
+total width of the output does not exceed 79 characters per line.
+.Sh RETURN VALUES
+On success these functions return the total number of bytes written by
+.Xr BIO_write 3
+or
+.Xr fwrite 3 .
+If a failure occurs at any point when writing, these
+functions will stop after having potentially written out partial results,
+and return -1.
+.Sh SEE ALSO
+.Xr hexdump 1 ,
+.Xr BIO_new 3 ,
+.Xr BIO_write 3
+.Sh HISTORY
+.Fn BIO_dump
+first appeared in SSLeay 0.6.5 and has been available since
+.Ox 2.4 .
+.Pp
+.Fn BIO_dump_indent
+first appeared in OpenSSL 0.9.6 and has been available since
+.Ox 2.9 .

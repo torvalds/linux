@@ -1,0 +1,255 @@
+.\" $OpenBSD: EVP_PKEY_derive.3,v 1.13 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 48e5119a Jan 19 10:49:22 2018 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2006, 2009, 2013, 2018 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_DERIVE 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_derive_init ,
+.Nm EVP_PKEY_derive_set_peer ,
+.Nm EVP_PKEY_CTX_get0_peerkey ,
+.Nm EVP_PKEY_derive
+.Nd derive public key algorithm shared secret
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_PKEY_derive_init
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_PKEY_derive_set_peer
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "EVP_PKEY *peerkey"
+.Fc
+.Ft EVP_PKEY *
+.Fo EVP_PKEY_CTX_get0_peerkey
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_PKEY_derive
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "unsigned char *key"
+.Fa "size_t *keylen"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_PKEY_derive_init
+initializes the public key algorithm context
+.Fa ctx
+for shared secret derivation using the
+.Vt EVP_PKEY
+object already stored in
+.Fa ctx .
+The library provides built-in support for keys with an
+.Xr EVP_PKEY_base_id 3
+of
+.Dv EVP_PKEY_DH ,
+.Dv EVP_PKEY_EC ,
+.Dv EVP_PKEY_HKDF ,
+and
+.Dv EVP_PKEY_X25519 .
+.Pp
+After the call to
+.Fn EVP_PKEY_derive_init ,
+algorithm specific control operations can optionally be performed
+to set any appropriate parameters for the operation.
+.Pp
+.Fn EVP_PKEY_derive_set_peer
+configures the
+.Fa ctx ,
+which already needs to be initialized with
+.Fn EVP_PKEY_derive_init ,
+.Xr EVP_PKEY_encrypt_init 3 ,
+or
+.Xr EVP_PKEY_decrypt_init 3 ,
+to use the
+.Fa peerkey ,
+which is normally a public key.
+In case of success, the reference count of the
+.Fa peerkey
+is incremented by one.
+Consequently, the caller needs to call
+.Xr EVP_PKEY_free 3
+on the
+.Fa peerkey
+when the caller no longer needs it, even if it is still in use by
+.Fa ctx .
+.Pp
+.Fn EVP_PKEY_derive
+derives a shared secret using
+.Fa ctx .
+If
+.Fa key
+is
+.Dv NULL ,
+then the maximum size of the output buffer is written to the
+.Fa keylen
+parameter.
+If
+.Fa key
+is not
+.Dv NULL
+then before the call the
+.Fa keylen
+parameter should contain the length of the
+.Fa key
+buffer.
+If the call is successful, the shared secret is written to
+.Fa key
+and the amount of data written to
+.Fa keylen .
+.Pp
+The function
+.Fn EVP_PKEY_derive
+can be called more than once on the same context if several operations
+are performed using the same parameters.
+.Sh RETURN VALUES
+.Fn EVP_PKEY_derive_init ,
+.Fn EVP_PKEY_derive_set_peer ,
+and
+.Fn EVP_PKEY_derive
+return 1 for success and 0 or a negative value for failure.
+In particular, a return value of \-2 indicates the operation is not
+supported by the public key algorithm.
+.Pp
+For
+.Fn EVP_PKEY_derive_set_peer ,
+a return value of \-1 can for example occur if
+.Fa ctx
+is not properly initialized, does not contain an
+.Vt EVP_PKEY
+that can be retrieved with
+.Xr EVP_PKEY_CTX_get0_pkey 3 ,
+the
+.Xr EVP_PKEY_id 3
+of both keys mismatch, or
+.Xr EVP_PKEY_cmp_parameters 3
+reports mismatching key parameters.
+.Pp
+.Fn EVP_PKEY_derive
+fails with a return value of \-1 for example if
+.Fa ctx
+has not been successfully initialized with
+.Fn EVP_PKEY_derive_init .
+.Pp
+.Fn EVP_PKEY_CTX_get0_peerkey
+returns an internal pointer to the
+.Fa peerkey
+used by
+.Fa ctx
+without incrementing its reference count.
+.Sh EXAMPLES
+Derive shared secret (for example DH or EC keys):
+.Bd -literal -offset indent
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
+
+EVP_PKEY_CTX *ctx;
+unsigned char *skey;
+size_t skeylen;
+EVP_PKEY *pkey, *peerkey;
+
+/* Assumes that pkey and peerkey have already been set up. */
+ctx = EVP_PKEY_CTX_new(pkey, NULL);
+if (!ctx)
+	/* Error occurred */
+if (EVP_PKEY_derive_init(ctx) <= 0)
+	/* Error */
+if (EVP_PKEY_derive_set_peer(ctx, peerkey) <= 0)
+	/* Error */
+
+/* Determine buffer length */
+if (EVP_PKEY_derive(ctx, NULL, &skeylen) <= 0)
+	/* Error */
+
+skey = malloc(skeylen);
+
+if (!skey)
+	/* malloc failure */
+
+if (EVP_PKEY_derive(ctx, skey, &skeylen) <= 0)
+	/* Error */
+
+/* Shared secret is skey bytes written to buffer skey */
+.Ed
+.Sh SEE ALSO
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_decrypt 3 ,
+.Xr EVP_PKEY_encrypt 3 ,
+.Xr EVP_PKEY_sign 3 ,
+.Xr EVP_PKEY_verify 3 ,
+.Xr EVP_PKEY_verify_recover 3 ,
+.Xr X25519 3
+.Sh HISTORY
+.Fn EVP_PKEY_derive_init ,
+.Fn EVP_PKEY_derive_set_peer ,
+.Fn EVP_PKEY_CTX_get0_peerkey ,
+and
+.Fn EVP_PKEY_derive
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .

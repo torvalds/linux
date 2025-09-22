@@ -1,0 +1,63 @@
+$OpenBSD: PackageName.pod,v 1.1 2020/12/20 15:30:58 daniel Exp $
+
+=head1 NAME
+
+OpenBSD::PackageName - package names handling
+
+=head1 SYNOPSIS
+
+   use OpenBSD::PackageName;
+
+   $pkgname = OpenBSD::PackageName::url2pkgname($url);
+
+   ($stem, $version, @flavors) = OpenBSD::PackageName::splitname($pkgname);
+   $stem = OpenBSD::PackageName::splitstem($pkgname);
+
+   OpenBSD::PackageName::is_stem($stem) == 1;
+   OpenBSD::PackageName::is_stem($pkgname) == 0;
+
+   @candidates = OpenBSD::PackageName::findstem($stem, @pkgnames);
+   # alternate interface
+   $h = OpenBSD::PackageName::compile_stemlist(@pkgnames);
+   @candidates = $h->findstem($stem);
+
+=head1 DESCRIPTION
+
+C<OpenBSD::PackageName> is the canonical interface to package names
+handling.
+
+=over 4
+
+=item C<OpenBSD::PackageName::url2pkgname($url)>
+
+strip an C<$url> of path elements and C<.tgz> suffixes, yield a canonicalized
+package name.
+
+=item C<OpenBSD::PackageName::splitname($pkgname)>
+
+split a C<$pkgname> into a C<$stem>, a C<$version> number, and a (possibly
+empty) list of C<@flavors> components.  If the name contains no identifiable
+version, C<$version> will be C<undef>.
+
+=item C<OpenBSD::PackageName::splitstem($pkgname)>
+
+short version of C<splitname> that extracts only the C<$stem>.
+
+=item C<OpenBSD::PackageName::is_stem($string)>
+
+check whether a C<$string> is a valid stem, as opposed to a full package name.
+Useful for commands that take either full names or stems, and need to
+reconstruct the full name from the stem.
+
+=item C<OpenBSD::PackageName::findstem($stem, @pkgnames)>
+
+look up a C<$stem> into a list of C<@pkgnames>. Return a list of candidates
+for further processing.
+
+=item C<OpenBSD::PackageName::compile_stemlist(@pkgnames)>
+
+alternate interface that is faster when lots of look ups are involved.
+Compile a list of C<@pkgnames> into an object C<$h> that can be queried
+using C<$h-E<gt>findstem($stem)>.
+
+=back

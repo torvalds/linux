@@ -1,0 +1,255 @@
+.\" $OpenBSD: EVP_aes_128_gcm.3,v 1.3 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to:
+.\" OpenSSL EVP_EncryptInit.pod 0874d7f2 Oct 11 13:13:47 2022 +0100
+.\" OpenSSL EVP_aes.pod a1ec85c1 Apr 21 10:49:12 2020 +0100
+.\"
+.\" Copyright (c) 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" This file is a derived work containing a few sentences
+.\" written by Dr. Stephen Henson <steve@openssl.org>
+.\" covered by the following license:
+.\"
+.\" Copyright (c) 2012 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_AES_128_GCM 3
+.Os
+.Sh NAME
+.Nm EVP_aes_128_gcm ,
+.Nm EVP_aes_192_gcm ,
+.Nm EVP_aes_256_gcm
+.Nd EVP AES cipher in Galois Counter Mode
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_gcm void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_192_gcm void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_gcm void
+.Sh DESCRIPTION
+.Fn EVP_aes_128_gcm ,
+.Fn EVP_aes_192_gcm ,
+and
+.Fn EVP_aes_256_gcm
+provide the Advanced Encryption Standard algorithm for 128, 192 and 256-bit
+keys in and Galois Counter Mode in the
+.Xr evp 3
+framework.
+.Pp
+For GCM mode ciphers, the behaviour of the EVP interface is subtly
+altered and several additional
+.Xr EVP_CIPHER_CTX_ctrl 3
+operations are required to function correctly.
+Some of the
+.Dv EVP_CTRL_GCM_*
+control commands are older aliases for corresponding
+.Dv EVP_CTRL_AEAD_*
+constants as indicated below.
+.Pp
+To avoid using the cumbersome and error-prone API documented
+in the present manual page, consider using the functions documented in
+.Xr EVP_AEAD_CTX_init 3
+instead.
+.Ss Configuration controls
+.\" The following constants are intentionally undocumented
+.\" because they are very rarely used in application programs:
+.\" EVP_GCM_TLS_FIXED_IV_LEN (unused in the library)
+.\" EVP_GCM_TLS_EXPLICIT_IV_LEN and EVP_GCM_TLS_TAG_LEN (used internally
+.\" only in aes_gcm_tls_cipher(), which is unused)
+.Bl -tag -width Ds
+.It Dv EVP_CTRL_AEAD_SET_IVLEN Pq == Dv EVP_CTRL_GCM_SET_IVLEN
+Set the length of the initialization vector to
+.Fa arg
+bytes; the
+.Fa ptr
+argument is ignored and passing
+.Dv NULL
+is recommended.
+This call can only be made before specifying an initialization vector.
+If not called, the default IV length of 12 bytes is used.
+.Pp
+Using this control command is discouraged because section 5.2.1.1 of the
+specification explicitly recommends that implementations of GCM restrict
+support to the default IV length of 12 bytes for interoperability,
+efficiency, and simplicity of design.
+.It Dv EVP_CTRL_AEAD_SET_IV_FIXED Pq == Dv EVP_CTRL_GCM_SET_IV_FIXED
+Usually, \-1 is passed for
+.Fa arg .
+In that case, the complete initialization vector is copied from
+.Fa ptr .
+.Pp
+Otherwise, set the fixed field at the beginning of the initialization
+vector to the
+.Fa arg
+bytes pointed to by
+.Fa ptr .
+When encrypting, also generate the remaining bytes
+of the initialization vector at random.
+It is an error to specify an
+.Fa arg
+that is less than 4 or so large that less than 8 bytes remain.
+.El
+.Ss Encryption controls
+.Bl -tag -width Ds
+.It Dv EVP_CTRL_GCM_IV_GEN
+Generate the precounter block from the initialization vector,
+copy the last
+.Fa arg
+bytes of the initialization vector to the location pointed to by
+.Fa ptr ,
+or all of it if
+.Fa arg
+is less than 1 or greater than the length of the initialization vector,
+and increment the initialization vector by 1.
+Incrementing ignores the IV length and the fixed field length
+that may have been configured earlier and always operates on the
+last eight bytes of the initialization vector.
+It is an error to issue this command
+when no key or no initialization vector is set.
+.It Dv EVP_CTRL_AEAD_GET_TAG Pq == Dv EVP_CTRL_GCM_GET_TAG
+Write
+.Fa arg
+bytes of the tag value to the location pointed to by
+.Fa ptr .
+This control command only makes sense after all data has been processed,
+e.g. after calling
+.Xr EVP_EncryptFinal 3 .
+It is an error to issue this command while decrypting,
+before any data has been processed, or to specify an
+.Fa arg
+that is less than 1 or greater than 16.
+.El
+.Pp
+To specify any additional authenticated data (AAD), call
+.Xr EVP_EncryptUpdate 3
+with the
+.Fa out
+argument set to
+.Dv NULL .
+.Ss Decryption controls
+.Bl -tag -width Ds
+.It Dv EVP_CTRL_GCM_SET_IV_INV
+Copy
+.Fa arg
+bytes from
+.Fa ptr
+to the last bytes of the initialization vector
+and generate the precounter block from the initialization vector.
+The library does not check whether the arguments are consistent
+with the configured initialization vector and fixed field lengths.
+When default lengths are in use, pass 8 for
+.Fa arg .
+In that case, this control command sets the invocation field.
+It is an error to issue this command
+when no key or no initialization vector is set, or when encrypting.
+.It Dv EVP_CTRL_AEAD_SET_TAG Pq == Dv EVP_CTRL_GCM_SET_TAG
+Set the expected tag to the
+.Fa arg
+bytes located at
+.Fa ptr .
+This control command is mandatory before any data is processed,
+e.g. before calling
+.Xr EVP_DecryptUpdate 3 .
+It is an error to issue this command while encrypting or to specify an
+.Fa arg
+that is less than 1 or greater than 16.
+.El
+.Pp
+To specify any additional authenticated data (AAD), call
+.Xr EVP_DecryptUpdate 3
+with the
+.Fa out
+argument set to
+.Dv NULL .
+.Pp
+If the return value of
+.Xr EVP_DecryptFinal 3 ,
+.Xr EVP_DecryptFinal_ex 3 ,
+.Xr EVP_CipherFinal 3 ,
+or
+.Xr EVP_CipherFinal_ex 3
+does not indicate success when decrypting,
+the authentication operation failed.
+In that case, regard any output data as corrupted.
+.Sh SEE ALSO
+.Xr AES_encrypt 3 ,
+.Xr evp 3 ,
+.Xr EVP_AEAD_CTX_init 3 ,
+.Xr EVP_aes_128_cbc 3 ,
+.Xr EVP_CIPHER_CTX_ctrl 3 ,
+.Xr EVP_EncryptInit 3
+.Sh STANDARDS
+.Rs
+.%A Morris Dworkin
+.%I National Institute of Standards and Technology
+.%R Recommendation for Block Cipher Modes of Operation:\
+ Galois/Counter Mode (GCM) and GMAC
+.%N NIST Special Publication 800-38D
+.%C Gaithersburg, Maryland
+.%D November 2007
+.Re
+.Sh HISTORY
+.Fn EVP_aes_128_gcm ,
+.Fn EVP_aes_192_gcm ,
+and
+.Fn EVP_aes_256_gcm
+first appeared in OpenSSL 1.0.1 and have been available since
+.Ox 5.3 .

@@ -1,0 +1,210 @@
+.\"	$OpenBSD: hack.6,v 1.23 2022/02/18 23:17:14 jsg Exp $
+.\"	$NetBSD: hack.6,v 1.5 1995/07/03 19:44:30 jtc Exp $
+.\"
+.\" Copyright (c) 1985, Stichting Centrum voor Wiskunde en Informatica,
+.\" Amsterdam
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" - Redistributions of source code must retain the above copyright notice,
+.\" this list of conditions and the following disclaimer.
+.\"
+.\" - Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\"
+.\" - Neither the name of the Stichting Centrum voor Wiskunde en
+.\" Informatica, nor the names of its contributors may be used to endorse or
+.\" promote products derived from this software without specific prior
+.\" written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+.\" IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+.\" PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+.\" OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+.\" PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.\" Copyright (c) 1982 Jay Fenlason <hack@gnu.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt HACK 6
+.Os
+.Sh NAME
+.Nm hack
+.Nd Exploring The Dungeons of Doom
+.Sh SYNOPSIS
+.Nm hack
+.Op Fl n
+.Op Fl d Ar directory
+.Op Fl u Ar playername
+.Nm hack
+.Op Fl sX
+.Op Fl d Ar directory
+.Op Ar playername ...
+.Sh DESCRIPTION
+.Nm
+is a display oriented dungeons & dragons - like game.
+Both display and command structure resemble rogue.
+(For a game with the same structure but entirely different display -
+a real cave instead of dull rectangles - try Quest.)
+.Pp
+To get started you really only need to know two commands.
+The command
+.Ic ?\&
+will give you a list of the available commands and the command
+.Ic /
+will identify the things you see on the screen.
+.Pp
+To win the game (as opposed to merely playing to beat other people's high
+scores) you must locate the Amulet of Yendor which is somewhere below
+the 20th level of the dungeon and get it out.
+Nobody has achieved this yet and whoever does
+will probably go down in history as a hero among heroes.
+.Pp
+When the game ends, either by your death, when you quit, or if you escape
+from the caves,
+.Nm
+will give you (a fragment of) the list of top scorers.
+The scoring is based on many aspects of your behavior but a rough estimate is
+obtained by taking the amount of gold you've found in the cave plus four
+times your (real) experience.
+Precious stones may be worth a lot of gold when brought to the exit.
+There is a 10% penalty for getting yourself killed.
+.Pp
+The administration of the game is kept in the directory specified with the
+.Fl d
+option or, if no such option is given, in the directory specified by
+the environment variable
+.Ev HACKDIR ,
+or, if no such variable exists, in the current directory.
+This same directory contains several auxiliary files such as lockfiles and
+the list of topscorers and a subdirectory
+.Pa save
+where games are saved.
+.Pp
+The
+.Fl n
+option suppresses printing of the news.
+.Pp
+The
+.Fl u
+.Ar playername
+option supplies the answer to the question "Who are you?".
+When
+.Ar playername
+has as suffix one of
+.Em -T ,
+.Em -S ,
+.Em -K ,
+.Em -F ,
+.Em -C ,
+or
+.Em -W ,
+then this supplies the answer to the question "What kind of character ... ?".
+.Pp
+The
+.Fl s
+option will print out the list of your scores.
+It may be followed by arguments
+.Fl X
+where X is one of the letters C, F, K, S, T, W to print the scores of
+Cavemen, Fighters, Knights, Speleologists, Tourists or Wizards.
+It may also be followed by one or more player names to print the scores of the
+players mentioned.
+.Sh ENVIRONMENT
+.Bl -tag -width 24n -compact
+.It Ev USER No or Ev LOGNAME
+Your login name.
+.It Ev HOME
+Your home directory.
+.It Ev SHELL
+Your shell.
+.It Ev TERM
+The type of your terminal.
+.It Ev HACKPAGER , PAGER
+Pager used instead of default pager.
+.It Ev MAIL
+Mailbox file.
+.It Ev MAILREADER
+Reader used instead of default (probably /usr/bin/mail).
+.It Ev HACKDIR
+Playground.
+.It Ev HACKOPTIONS
+String predefining several hack options (see help file).
+.El
+.Pp
+Several other environment variables are used in debugging (wizard) mode,
+like
+.Ev GENOCIDED ,
+.Ev INVENT ,
+.Ev MAGIC
+and
+.Ev SHOPTYPE .
+.Sh FILES
+.Bl -tag -width 24n -compact
+.It Pa hack
+The hack program.
+.It Pa data , rumors
+Data files used by hack.
+.It Pa help , hh
+Help data files.
+.It Pa record
+The list of topscorers.
+.It Pa save
+A subdirectory containing the saved games.
+.It Pa bones_dd
+Descriptions of the ghost and belongings of a deceased adventurer.
+.It Pa xlock.dd
+Description of a dungeon level.
+.It Pa safelock
+Lock file for xlock.
+.It Pa record_lock
+Lock file for record.
+.El
+.Sh AUTHORS
+.An -nosplit
+.An Jay Fenlason
+.Po +
+.An Kenny Woodland ,
+.An Mike Thome
+and
+.An Jon Payne
+.Pc
+wrote the original hack, very much like rogue (but full of bugs).
+.Pp
+.An Andries Brouwer
+continuously deformed their sources into the current
+version \(en in fact an entirely different game.

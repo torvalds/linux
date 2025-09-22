@@ -1,0 +1,210 @@
+.\"     $OpenBSD: divert.4,v 1.20 2022/09/10 10:22:46 jsg Exp $
+.\"
+.\" Copyright (c) 2009 Michele Marchetto <michele@openbsd.org>
+.\" Copyright (c) 2012-2014 Lawrence Teo <lteo@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 10 2022 $
+.Dt DIVERT 4
+.Os
+.Sh NAME
+.Nm divert
+.Nd kernel packet diversion mechanism
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
+.Ft int
+.Fn socket AF_INET SOCK_RAW IPPROTO_DIVERT
+.Ft int
+.Fn socket AF_INET6 SOCK_RAW IPPROTO_DIVERT
+.Sh DESCRIPTION
+Divert sockets are part of a mechanism completely integrated with
+.Xr pf 4
+that queues raw packets from the kernel stack to userspace applications,
+and vice versa.
+.Pp
+A divert socket must be bound to a divert port through
+.Xr bind 2 ,
+which only the superuser can do.
+Divert ports have their own number space, completely separated from
+.Xr tcp 4
+and
+.Xr udp 4 .
+When
+.Xr pf 4
+processes a packet that matches a rule with the
+.Ar divert-packet
+parameter
+(see
+.Xr pf.conf 5
+for details), it is sent to the divert socket listening on the
+divert port specified in the rule.
+Note that
+.Ar divert-packet
+should not be confused with
+.Ar divert-to
+or
+.Ar divert-reply ,
+which do not use divert sockets.
+If there are no divert sockets listening, the packets are dropped.
+.Pp
+Packets can be read via
+.Xr read 2 ,
+.Xr recv 2 ,
+or
+.Xr recvfrom 2
+from the divert socket.
+The application that is processing the packets can then reinject them into the
+kernel.
+With
+.Xr recvfrom 2 ,
+an interface IP address is passed if it is an inbound packet.
+Outbound packets provide the unspecified address.
+When reinjecting, use this address as argument to
+.Xr sendto 2 .
+This allows the kernel to guess the original incoming interface and
+process it as an incoming packet.
+If no interface IP address is given, the reinjected packet is treated
+as an outgoing packet.
+Since the userspace application could have modified the packets, upon
+reinjection basic sanity checks are done to ensure that the packets are still
+valid.
+The packets' IPv4 and protocol checksums (TCP, UDP, ICMP, and ICMPv6) are also
+recalculated.
+.Pp
+Writing to a divert socket can be achieved using
+.Xr sendto 2
+and it will skip
+.Xr pf 4
+filters to avoid loops.
+Note that this means that a reinjected inbound packet will also not
+run through the pf out rules after being forwarded.
+A diverted packet that is not reinjected into the kernel stack is lost.
+.Pp
+Receive and send divert socket buffer space can be tuned through
+.Xr sysctl 8 .
+.Xr netstat 1
+shows information relevant to divert sockets.
+Note that the default is 64k and too short to handle full sized UDP
+packets.
+.Sh EXAMPLES
+The following PF rule queues outbound IPv4 packets to TCP port 80,
+as well as the return traffic, on the em0 interface to divert port 700:
+.Bd -literal -offset indent
+pass out on em0 inet proto tcp to port 80 divert-packet port 700
+.Ed
+.Pp
+The following program reads packets on divert port 700 and reinjects them
+back into the kernel.
+This program does not perform any processing of the packets,
+apart from discarding invalid IP packets.
+.Bd -literal
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <string.h>
+#include <err.h>
+
+#define DIVERT_PORT 700
+
+int
+main(int argc, char *argv[])
+{
+	int fd, s;
+	struct sockaddr_in sin;
+	socklen_t sin_len;
+
+	fd = socket(AF_INET, SOCK_RAW, IPPROTO_DIVERT);
+	if (fd == -1)
+		err(1, "socket");
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(DIVERT_PORT);
+	sin.sin_addr.s_addr = 0;
+
+	sin_len = sizeof(struct sockaddr_in);
+
+	s = bind(fd, (struct sockaddr *) &sin, sin_len);
+	if (s == -1)
+		err(1, "bind");
+
+	for (;;) {
+		ssize_t n;
+		char packet[IP_MAXPACKET];
+		struct ip *ip;
+		struct tcphdr *th;
+		int hlen;
+		char src[48], dst[48];
+
+		memset(packet, 0, sizeof(packet));
+		n = recvfrom(fd, packet, sizeof(packet), 0,
+		    (struct sockaddr *) &sin, &sin_len);
+		if (n == -1) {
+			warn("recvfrom");
+			continue;
+		}
+		if (n < sizeof(struct ip)) {
+			warnx("packet is too short");
+			continue;
+		}
+
+		ip = (struct ip *) packet;
+		hlen = ip->ip_hl << 2;
+		if (hlen < sizeof(struct ip) || ntohs(ip->ip_len) < hlen ||
+		    n < ntohs(ip->ip_len)) {
+			warnx("invalid IPv4 packet");
+			continue;
+		}
+
+		th = (struct tcphdr *) (packet + hlen);
+
+		if (inet_ntop(AF_INET, &ip->ip_src, src,
+		    sizeof(src)) == NULL)
+			(void)strlcpy(src, "?", sizeof(src));
+
+		if (inet_ntop(AF_INET, &ip->ip_dst, dst,
+		    sizeof(dst)) == NULL)
+			(void)strlcpy(dst, "?", sizeof(dst));
+
+		printf("%s:%u -> %s:%u\en",
+		    src,
+		    ntohs(th->th_sport),
+		    dst,
+		    ntohs(th->th_dport)
+		);
+
+		n = sendto(fd, packet, n, 0, (struct sockaddr *) &sin,
+		    sin_len);
+		if (n == -1)
+			warn("sendto");
+	}
+
+	return 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr socket 2 ,
+.Xr ip 4 ,
+.Xr pf.conf 5
+.Sh HISTORY
+The
+.Nm
+protocol first appeared in
+.Ox 4.7 .

@@ -1,0 +1,126 @@
+.\" $OpenBSD: v2i_ASN1_BIT_STRING.3,v 1.2 2025/06/08 22:40:31 schwarze Exp $
+.\"
+.\" Copyright (c) 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt V2I_ASN1_BIT_STRING 3
+.Os
+.Sh NAME
+.Nm v2i_ASN1_BIT_STRING ,
+.Nm i2v_ASN1_BIT_STRING
+.Nd ASN.1 BIT STRING utility functions for certificate extensions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft ASN1_BIT_STRING *
+.Fo v2i_ASN1_BIT_STRING
+.Fa "X509V3_EXT_METHOD *method"
+.Fa "X509V3_CTX *ctx"
+.Fa "STACK_OF(CONF_VALUE) *nval"
+.Fc
+.Ft STACK_OF(CONF_VALUE) *
+.Fo i2v_ASN1_BIT_STRING
+.Fa "X509V3_EXT_METHOD *method"
+.Fa "ASN1_BIT_STRING *bit_string"
+.Fa "STACK_OF(CONF_VALUE) *nval"
+.Fc
+.Sh DESCRIPTION
+.Fn v2i_ASN1_BIT_STRING
+allocates a new ASN.1
+.Vt BIT STRING
+object and initializes it from a list of bit names.
+The
+.Fa nval
+argument is essentially used as the list of the names of the bits to set.
+Both long names and short names can be used.
+One name is taken from each element of
+.Fa nval .
+The
+.Fa ctx
+argument and any section names or values contained in the elements of
+.Fa nval
+are ignored.
+To convert a C string containing a comma-separated list of names
+to the input format of this function,
+.Xr X509V3_parse_list 3
+can be used.
+.Pp
+.Fn i2v_ASN1_BIT_STRING
+translates the numbers of the bits that are set in the
+.Fa bit_string
+to long names.
+For each bit that is set,
+one element containing the corresponding long name is added to
+.Fa nval .
+If a
+.Dv NULL
+pointer is passed for the
+.Fa nval
+argument, a new
+.Vt STACK_OF(CONF_VALUE)
+is allocated.
+.Pp
+For both functions, the
+.Fa method
+argument is only used for the translation of bit names to bit numbers
+and vice versa.
+Any names and bit numbers that do not occur in the
+.Fa usr_data
+translation table in the
+.Fa method
+are silently ignored.
+.Pp
+For the following arguments,
+.Xr X509V3_EXT_get_nid 3
+returns static constant
+.Fa method
+objects supporting these functions:
+.Pp
+.Bl -tag -width NID_netscape_cert_type -compact
+.It Dv NID_crl_reason
+reason codes, RFC 5280 section 5.3.1
+.It Dv NID_key_usage
+key usage purposes, RFC 5280 section 4.2.1.3
+.It Dv NID_netscape_cert_type
+Netscape certificate types (obsolete)
+.El
+.Pp
+While an application program could theoretically provide its own
+.Fa method
+object containing a custom translation table, that is unlikely to be
+useful for any practical purpose.
+.Sh RETURN VALUES
+.Fn v2i_ASN1_BIT_STRING
+returns the new
+.Vt BIT STRING
+object and
+.Fn i2v_ASN1_BIT_STRING
+the modified or new list of bit names.
+Both functions return
+.Dv NULL
+if an error occurs, in particular if memory allocation fails.
+.Sh SEE ALSO
+.Xr ASN1_BIT_STRING_new 3 ,
+.Xr ASN1_BIT_STRING_set 3 ,
+.Xr i2s_ASN1_ENUMERATED_TABLE 3 ,
+.Xr STACK_OF 3 ,
+.Xr tls_peer_ocsp_crl_reason 3 ,
+.Xr X509_get_key_usage 3 ,
+.Xr X509V3_EXT_get_nid 3 ,
+.Xr X509V3_get_d2i 3 ,
+.Xr X509V3_parse_list 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .

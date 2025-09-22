@@ -1,0 +1,30 @@
+{
+   libstdcxx_overlapped_memcpy_in_stable_sort_1
+   Memcheck:Overlap
+   fun:memcpy
+   ...
+   fun:_ZSt11stable_sortIN9__gnu_cxx17__normal_iteratorIPSt4pairIPKN4llvm5ValueEjESt6vectorIS7_SaIS7_EEEEN12_GLOBAL__N_116CstSortPredicateEEvT_SF_T0_
+}
+
+{
+   libstdcxx_overlapped_memcpy_in_stable_sort_2
+   Memcheck:Overlap
+   fun:memcpy
+   ...
+   fun:_ZSt11stable_sortIN9__gnu_cxx17__normal_iteratorIPSt4pairIPKN4llvm5ValueEjESt6vectorIS7_SaIS7_EEEEN12_GLOBAL__N_116CstSortPredicateEEvT_SF_T0_
+}
+
+{
+   libstdcxx_overlapped_memcpy_in_stable_sort_3
+   Memcheck:Overlap
+   fun:memcpy
+   ...
+   fun:_ZSt11stable_sortIN9__gnu_cxx17__normal_iteratorIPSt4pairIPKN4llvm4TypeEjESt6vectorIS7_SaIS7_EEEEPFbRKS7_SE_EEvT_SH_T0_
+}
+
+# Remove this if clang-vg didn't use "check-all"
+{
+   We don't care of cmp
+   Memcheck:Cond
+   obj:/usr/bin/cmp
+}

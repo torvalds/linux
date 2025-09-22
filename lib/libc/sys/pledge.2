@@ -1,0 +1,591 @@
+.\" $OpenBSD: pledge.2,v 1.74 2025/07/02 15:56:32 schwarze Exp $
+.\"
+.\" Copyright (c) 2015 Nicholas Marriott <nicm@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 2 2025 $
+.Dt PLEDGE 2
+.Os
+.Sh NAME
+.Nm pledge
+.Nd restrict system operations
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn pledge "const char *promises" "const char *execpromises"
+.Sh DESCRIPTION
+The
+.Fn pledge
+system call forces the current process into a restricted-service operating mode.
+A few subsets are available, roughly described as computation, memory
+management, read-write operations on file descriptors, opening of files,
+networking (and notably separate, DNS resolution).
+In general, these modes were selected by studying the operation
+of many programs using libc and other such interfaces, and setting
+.Fa promises
+or
+.Fa execpromises .
+.Pp
+Use of
+.Fn pledge
+in an application will require at least some study and understanding
+of the interfaces called.
+Subsequent calls to
+.Fn pledge
+can reduce the abilities further, but abilities can never be regained.
+.Pp
+A process which attempts a restricted operation is killed with an uncatchable
+.Dv SIGABRT ,
+delivering a core file if possible.
+A process currently running with pledge has state
+.Sq p
+in
+.Xr ps 1
+output; a process that was terminated due to a pledge violation
+is accounted by
+.Xr lastcomm 1
+with the
+.Sq P
+flag.
+.Pp
+A
+.Fa promises
+value of
+.Qq \&
+restricts the process to the
+.Xr _exit 2
+system call.
+This can be used for pure computation operating on memory shared
+with another process.
+.Pp
+Passing
+.Dv NULL
+to
+.Fa promises
+or
+.Fa execpromises
+specifies to not change the current value.
+.Pp
+Some system calls, when allowed, have restrictions applied to them:
+.Bl -ohang -offset indent
+.It Xr access 2 :
+May check for existence of
+.Pa /etc/localtime .
+.It Xr adjtime 2 :
+Read-only, for
+.Xr ntpd 8 .
+.It Xo
+.Xr chmod 2 ,
+.Xr fchmod 2 ,
+.Xr fchmodat 2 ,
+.Xr chown 2 ,
+.Xr lchown 2 ,
+.Xr fchown 2 ,
+.Xr fchownat 2 ,
+.Xr mkfifo 2 ,
+and
+.Xr mknod 2 :
+.Xc
+Setuid/setgid/sticky bits are ignored.
+The user or group cannot be changed on a file.
+.It Xr ioctl 2 :
+Only the
+.Dv FIONREAD ,
+.Dv FIONBIO ,
+.Dv FIOCLEX ,
+and
+.Dv FIONCLEX
+operations are allowed by default.
+Various ioctl requests are allowed against specific file descriptors
+based upon the requests
+.Cm audio ,
+.Cm bpf ,
+.Cm disklabel ,
+.Cm drm ,
+.Cm inet ,
+.Cm pf ,
+.Cm route ,
+.Cm wroute ,
+.Cm tape ,
+.Cm tty ,
+.Cm video ,
+and
+.Cm vmm .
+.It Xo
+.Xr mmap 2
+and
+.Xr mprotect 2 :
+.Xc
+.Dv PROT_EXEC
+isn't allowed.
+.It Xr open 2 :
+May open
+.Pa /etc/localtime
+and any files below
+.Pa /usr/share/zoneinfo .
+.It Xr profil 2 :
+Can only disable profiling.
+.It Fn pledge :
+Can only reduce permissions for
+.Fa promises
+and
+.Fa execpromises .
+.It Xr sysctl 2 :
+A small set of read-only operations are allowed, sufficient to
+support:
+.Xr getdomainname 3 ,
+.Xr gethostname 3 ,
+.Xr getifaddrs 3 ,
+.Xr uname 3 ,
+and system sensor readings.
+.El
+.Pp
+The
+.Fa promises
+argument is specified as a string, with space separated keywords:
+.Bl -tag -width "prot_exec" -offset indent
+.It Cm stdio
+The following system calls are permitted.
+.Xr sendto 2
+is only permitted if its destination socket address is
+.Dv NULL .
+As a result, all the expected functionalities of libc stdio work.
+.Pp
+.Xr clock_getres 2 ,
+.Xr clock_gettime 2 ,
+.Xr close 2 ,
+.Xr closefrom 2 ,
+.Xr dup 2 ,
+.Xr dup2 2 ,
+.Xr dup3 2 ,
+.Xr fchdir 2 ,
+.Xr fcntl 2 ,
+.Xr fstat 2 ,
+.Xr fsync 2 ,
+.Xr ftruncate 2 ,
+.Xr getdtablecount 2 ,
+.Xr getegid 2 ,
+.Xr getentropy 2 ,
+.Xr geteuid 2 ,
+.Xr getgid 2 ,
+.Xr getgroups 2 ,
+.Xr getitimer 2 ,
+.Xr getlogin 2 ,
+.Xr getpgid 2 ,
+.Xr getpgrp 2 ,
+.Xr getpid 2 ,
+.Xr getppid 2 ,
+.Xr getresgid 2 ,
+.Xr getresuid 2 ,
+.Xr getrlimit 2 ,
+.Xr getrtable 2 ,
+.Xr getsid 2 ,
+.Xr getthrid 2 ,
+.Xr gettimeofday 2 ,
+.Xr getuid 2 ,
+.Xr issetugid 2 ,
+.Xr kevent 2 ,
+.Xr kqueue 2 ,
+.Xr kqueue1 2 ,
+.Xr lseek 2 ,
+.Xr madvise 2 ,
+.Xr minherit 2 ,
+.Xr mmap 2 ,
+.Xr mprotect 2 ,
+.Xr mquery 2 ,
+.Xr munmap 2 ,
+.Xr nanosleep 2 ,
+.Xr pipe 2 ,
+.Xr pipe2 2 ,
+.Xr poll 2 ,
+.Xr pread 2 ,
+.Xr preadv 2 ,
+.Xr profil 2 ,
+.Xr pwrite 2 ,
+.Xr pwritev 2 ,
+.Xr read 2 ,
+.Xr readv 2 ,
+.Xr recvfrom 2 ,
+.Xr recvmsg 2 ,
+.Xr select 2 ,
+.Xr sendmsg 2 ,
+.Xr sendsyslog 2 ,
+.Xr sendto 2 ,
+.Xr setitimer 2 ,
+.Xr shutdown 2 ,
+.Xr sigaction 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigreturn 2 ,
+.Xr socketpair 2 ,
+.Xr umask 2 ,
+.Xr wait4 2 ,
+.Xr waitid 2 ,
+.Xr write 2 ,
+.Xr writev 2
+.It Cm rpath
+A number of system calls are allowed which allow path traversal,
+reading
+.Vt struct stat ,
+and opening files for read.
+.It Cm wpath
+Similar to
+.Cm rpath ,
+but files can be opened for write.
+.It Cm cpath
+Similar to
+.Cm wpath ,
+but files can also be created.
+.It Cm dpath
+Similar to
+.Cm cpath ,
+but special files can be created using:
+.Pp
+.Xr mkfifo 2 ,
+.Xr mknod 2
+.It Cm tmppath
+A number of system calls are allowed to do operations in the
+.Pa /tmp
+directory, including create, read, or write.
+.It Cm inet
+The following system calls are allowed to operate in the
+.Dv AF_INET
+and
+.Dv AF_INET6
+domains
+(though
+.Xr setsockopt 2
+has been substantially reduced in functionality):
+.Pp
+.Xr socket 2 ,
+.Xr listen 2 ,
+.Xr bind 2 ,
+.Xr connect 2 ,
+.Xr accept4 2 ,
+.Xr accept 2 ,
+.Xr getpeername 2 ,
+.Xr getsockname 2 ,
+.Xr setsockopt 2 ,
+.Xr getsockopt 2
+.It Cm mcast
+In combination with
+.Cm inet
+give back functionality to
+.Xr setsockopt 2
+for operating on multicast sockets.
+.It Cm fattr
+The following system calls are allowed to make explicit changes
+to fields in
+.Vt struct stat
+relating to a file:
+.Pp
+.Xr utimes 2 ,
+.Xr futimes 2 ,
+.Xr utimensat 2 ,
+.Xr futimens 2 ,
+.Xr chmod 2 ,
+.Xr fchmod 2 ,
+.Xr fchmodat 2 ,
+.Xr chflags 2 ,
+.Xr chflagsat 2 ,
+.Xr chown 2 ,
+.Xr fchownat 2 ,
+.Xr lchown 2 ,
+.Xr fchown 2 ,
+.Xr utimes 2
+.It Cm chown
+The
+.Xr chown 2
+family is allowed to change the user or group on a file.
+.It Cm flock
+File locking via
+.Xr fcntl 2 ,
+.Xr flock 2 ,
+.Xr lockf 3 ,
+and
+.Xr open 2
+is allowed.
+No distinction is made between shared and exclusive locks.
+This promise is required for unlock as well as lock.
+.It Cm unix
+The following system calls are allowed to operate in the
+.Dv AF_UNIX
+domain:
+.Pp
+.Xr socket 2 ,
+.Xr listen 2 ,
+.Xr bind 2 ,
+.Xr connect 2 ,
+.Xr accept4 2 ,
+.Xr accept 2 ,
+.Xr getpeername 2 ,
+.Xr getsockname 2 ,
+.Xr setsockopt 2 ,
+.Xr getsockopt 2
+.It Cm dns
+Some low-level behaviours required by the DNS resolver
+.Xr res_init 3
+are permitted, such as opening
+.Xr resolv.conf 5
+and a few networking system calls:
+.Xr socket 2 ,
+.Xr connect 2 ,
+.Xr sendto 2 ,
+.Xr recvfrom 2 .
+To distinguish the
+.Cm dns
+promise from
+.Cm inet ,
+the libc DNS code opens sockets with the
+.Dv SOCK_DNS
+flag which
+.Ox
+requires to communicate with
+.Dv AF_INET
+and
+.Dv AF_INET6
+at port 53.
+.It Cm getpw
+This allows read-only opening of files in
+.Pa /etc
+for the
+.Xr getpwnam 3 ,
+.Xr getgrnam 3 ,
+.Xr getgrouplist 3 ,
+and
+.Xr initgroups 3
+family of functions, including lookups via the
+.Xr yp 8
+protocol for YP and LDAP databases.
+.It Cm sendfd
+Allows sending of file descriptors using
+.Xr sendmsg 2 .
+File descriptors referring to directories may not be passed.
+.It Cm recvfd
+Allows receiving of file descriptors using
+.Xr recvmsg 2 .
+File descriptors referring to directories may not be passed.
+.It Cm tape
+Allow
+.Dv MTIOCGET
+and
+.Dv MTIOCTOP
+operations against tape drives.
+.It Cm tty
+In addition to allowing read-write operations on
+.Pa /dev/tty ,
+this opens up a variety of
+.Xr ioctl 2
+requests used by tty devices.
+If
+.Cm tty
+is accompanied with
+.Cm rpath ,
+.Xr revoke 2
+is permitted.
+Otherwise only the following
+.Xr ioctl 2
+requests are permitted:
+.Pp
+.Dv TIOCSPGRP ,
+.Dv TIOCGETA ,
+.Dv TIOCGPGRP ,
+.Dv TIOCGWINSZ ,
+.Dv TIOCSWINSZ ,
+.Dv TIOCSBRK ,
+.Dv TIOCCDTR ,
+.Dv TIOCSETA ,
+.Dv TIOCSETAW ,
+.Dv TIOCSETAF ,
+.Dv TIOCUCNTL
+.It Cm proc
+Allows the following process relationship operations:
+.Pp
+.Xr fork 2 ,
+.Xr vfork 2 ,
+.Xr kill 2 ,
+.Xr getpriority 2 ,
+.Xr setpriority 2 ,
+.Xr setrlimit 2 ,
+.Xr setpgid 2 ,
+.Xr setsid 2
+.It Cm exec
+Allows a process to call
+.Xr execve 2 .
+Coupled with the
+.Cm proc
+promise, this allows a process to fork and execute another program.
+If
+.Fa execpromises
+has been previously set the new program begins with those promises,
+unless setuid/setgid bits are set in which case execution is blocked with
+.Er EACCES .
+Otherwise the new program starts running without pledge active,
+and hopefully makes a new pledge soon.
+.It Cm prot_exec
+Allows the use of
+.Dv PROT_EXEC
+with
+.Xr mmap 2
+and
+.Xr mprotect 2 .
+.It Cm settime
+Allows the setting of system time, via the
+.Xr settimeofday 2 ,
+.Xr adjtime 2 ,
+and
+.Xr adjfreq 2
+system calls.
+.It Cm ps
+Allows enough
+.Xr sysctl 2
+interfaces to allow inspection of processes operating on the system using
+programs like
+.Xr ps 1 .
+.It Cm vminfo
+Allows enough
+.Xr sysctl 2
+interfaces to allow inspection of the system's virtual memory by
+programs like
+.Xr top 1
+and
+.Xr vmstat 8 .
+.It Cm id
+Allows the following system calls which can change the rights of a
+process:
+.Pp
+.Xr setuid 2 ,
+.Xr seteuid 2 ,
+.Xr setreuid 2 ,
+.Xr setresuid 2 ,
+.Xr setgid 2 ,
+.Xr setegid 2 ,
+.Xr setregid 2 ,
+.Xr setresgid 2 ,
+.Xr setgroups 2 ,
+.Xr setlogin 2 ,
+.Xr setrlimit 2 ,
+.Xr getpriority 2 ,
+.Xr setpriority 2 ,
+.Xr setrtable 2
+.It Cm pf
+Allows a subset of
+.Xr ioctl 2
+operations on the
+.Xr pf 4
+device:
+.Pp
+.Dv DIOCADDRULE ,
+.Dv DIOCGETSTATUS ,
+.Dv DIOCNATLOOK ,
+.Dv DIOCRADDTABLES ,
+.Dv DIOCRCLRADDRS ,
+.Dv DIOCRCLRTABLES ,
+.Dv DIOCRCLRTSTATS ,
+.Dv DIOCRGETTSTATS ,
+.Dv DIOCRSETADDRS ,
+.Dv DIOCXBEGIN ,
+.Dv DIOCXCOMMIT
+.It Cm route
+Allow inspection of the routing table.
+.It Cm wroute
+Allow changes to the routing table.
+.It Cm audio
+Allows a subset of
+.Xr ioctl 2
+operations on
+.Xr audio 4
+devices
+(see
+.Xr sio_open 3
+for more information):
+.Pp
+.Dv AUDIO_GETPOS ,
+.Dv AUDIO_GETPAR ,
+.Dv AUDIO_SETPAR ,
+.Dv AUDIO_START ,
+.Dv AUDIO_STOP ,
+.Dv AUDIO_MIXER_DEVINFO ,
+.Dv AUDIO_MIXER_READ ,
+.Dv AUDIO_MIXER_WRITE
+.It Cm video
+Allows a subset of
+.Xr ioctl 2
+operations on
+.Xr video 4
+devices:
+.Pp
+.Dv VIDIOC_DQBUF ,
+.Dv VIDIOC_ENUM_FMT ,
+.Dv VIDIOC_ENUM_FRAMEINTERVALS ,
+.Dv VIDIOC_ENUM_FRAMESIZES ,
+.Dv VIDIOC_G_CTRL ,
+.Dv VIDIOC_G_PARM ,
+.Dv VIDIOC_QBUF ,
+.Dv VIDIOC_QUERYBUF ,
+.Dv VIDIOC_QUERYCAP ,
+.Dv VIDIOC_QUERYCTRL ,
+.Dv VIDIOC_S_CTRL ,
+.Dv VIDIOC_S_FMT ,
+.Dv VIDIOC_S_PARM ,
+.Dv VIDIOC_STREAMOFF ,
+.Dv VIDIOC_STREAMON ,
+.Dv VIDIOC_TRY_FMT ,
+.Dv VIDIOC_REQBUFS
+.It Cm bpf
+Allow
+.Dv BIOCGSTATS
+operation for statistics collection from a
+.Xr bpf 4
+device.
+.It Cm unveil
+Allow
+.Xr unveil 2
+to be called.
+.It Cm error
+Rather than killing the process upon violation, indicate error with
+.Er ENOSYS .
+.Pp
+Also when
+.Fn pledge
+is called with higher
+.Fa promises
+or
+.Fa execpromises ,
+those changes will be ignored and return success.
+This is useful when a parent enforces
+.Fa execpromises
+but an execve'd child has a different idea.
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn pledge
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+.Fa promises
+or
+.Fa execpromises
+points outside the process's allocated address space.
+.It Bq Er EINVAL
+.Fa promises
+is malformed or contains invalid keywords.
+.It Bq Er EPERM
+This process is attempting to increase permissions.
+.El
+.Sh HISTORY
+The
+.Fn pledge
+system call first appeared in
+.Ox 5.9 .

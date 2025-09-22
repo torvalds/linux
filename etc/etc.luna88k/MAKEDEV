@@ -1,0 +1,444 @@
+#!/bin/sh -
+#
+# THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
+# generated from:
+#
+#	OpenBSD: etc.luna88k/MAKEDEV.md,v 1.37 2021/11/11 09:47:33 claudio Exp 
+#	OpenBSD: MAKEDEV.common,v 1.120 2023/01/28 11:04:47 phessler Exp 
+#	OpenBSD: MAKEDEV.mi,v 1.83 2016/09/11 03:06:31 deraadt Exp 
+#	OpenBSD: MAKEDEV.sub,v 1.14 2005/02/07 06:14:18 david Exp 
+#
+#
+# Copyright (c) 2001-2004 Todd T. Fries <todd@OpenBSD.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+# Device "make" file.  Valid arguments:
+#	all	makes all known devices, including local devices.
+#		Tries to make the ``standard'' number of each type.
+#	ramdisk	Ramdisk kernel devices
+#	std	Standard devices
+#	local	Configuration specific devices
+# Disks:
+#	cd*	ATAPI and SCSI CD-ROM drives
+#	rd*	"rd" pseudo-disks
+#	sd*	SCSI disks, including flopticals
+#	vnd*	"file" pseudo-disk devices
+#	wd*	"winchester" disk drives (ST506, IDE, ESDI, RLL, ...)
+# Tapes:
+#	ch*	SCSI media changers
+#	st*	SCSI tape drives
+# Terminal ports:
+#	ttya	On-board serial console port
+#	tty[0-7][0-9a-f]	NS16x50 serial ports
+# Pseudo terminals:
+#	ptm	pty master device
+#	pty*	Set of 62 master pseudo terminals
+#	tty*	Set of 62 slave pseudo terminals
+# Console ports:
+#	ttyC-J*	wscons display devices
+#	wscons	Minimal wscons devices
+#	wskbd*	wscons keyboards
+#	wsmux	wscons keyboard/mouse mux devices
+# Pointing devices:
+#	wsmouse*	wscons mice
+# Special purpose devices:
+#	audio*	Audio devices
+#	bio	ioctl tunnel pseudo-device
+#	bpf	Berkeley Packet Filter
+#	dt	Dynamic Tracer
+#	diskmap	Disk mapper
+#	fd	fd/* nodes
+#	fuse	Userland Filesystem
+#	lcd	front panel LCD display
+#	pcex*	PC-9801 extension board slot
+#	pf	Packet Filter
+#	pppx*	PPP Multiplexer
+#	pppac*	PPP Access Concentrator
+#	*random	In-kernel random data source
+#	tun*	Network tunnel driver
+#	tap*	Ethernet tunnel driver
+#	uk*	Unknown SCSI devices
+#	vscsi*	Virtual SCSI controller
+#	xp	HD647180 I/O processor
+#	kstat	Kernel Statistics
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+T=$0
+
+# set this to echo for Echo-Only debugging
+[ "$eo" ] || eo=
+
+hex()
+{
+	case $1 in
+	[0-9]) echo -n $1;;
+	10) echo -n a;;
+	11) echo -n b;;
+	12) echo -n c;;
+	13) echo -n d;;
+	14) echo -n e;;
+	15) echo -n f;;
+	esac
+}
+
+alph2d()
+{
+	local t="$1"
+	local p="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	local sub=${p%${t}*}
+	echo ${#sub}
+}
+
+h2d()
+{
+	local s="$1"
+	local f=${s%*[0-9a-f]} n=${s#[0-9a-f]*}
+
+	echo $(($(_h2d $f)*16+ $(_h2d $n) ))
+}
+
+_h2d()
+{
+	case $1 in
+	[0-9]) echo -n $1;;
+	a) echo -n 10;;
+	b) echo -n 11;;
+	c) echo -n 12;;
+	d) echo -n 13;;
+	e) echo -n 14;;
+	f) echo -n 15;;
+	esac
+}
+
+unt()
+{
+	# XXX pdksh can't seem to deal with locally scoped variables
+	# in ${foo#$bar} expansions
+	arg="$1"
+	tmp="${arg#[a-zA-Z]*}"
+	tmp="${tmp%*[a-zA-Z]}"
+	while [ "$tmp" != "$arg" ]
+	do
+		arg=$tmp
+		tmp="${arg#[a-zA-Z]*}"
+		tmp="${tmp%*[a-zA-Z]}"
+	done
+	echo $arg
+}
+
+dodisk()
+{
+	[ "$DEBUG" ] && set -x
+	n=$(($((${5}*${7:-16}))+${6})) count=0
+	[ 0$7 -ne 8 ] && l="i j k l m n o p"
+	for d in a b c d e f g h $l
+	do
+		M $1$2$d	b $3 $(($n+$count)) 640 operator
+		M r$1$2$d	c $4 $(($n+$count)) 640 operator
+		let count=count+1
+	done
+}
+
+dodisk2()
+{
+	n=$(($(($5*${7:-16}))+$6))
+	M $1$2a b $3 $n 640 operator
+	M r$1$2a c $4 $n 640 operator
+	n=$(($n+2))
+	M $1$2c b $3 $n 640 operator
+	M r$1$2c c $4 $n 640 operator
+}
+
+# M name b/c major minor [mode] [group]
+RMlist[0]="rm -f"
+
+mkl() {
+	: ${mklist[0]:=";mknod"}
+	mklist[${#mklist[*]}]=" -m $1 $2 $3 $4 $5"
+}
+
+M() {
+	RMlist[${#RMlist[*]}]=$1
+	mkl ${5-666} $1 $2 $3 $4
+	G=${6:-wheel}
+	[ "$7" ] && {
+		MKlist[${#MKlist[*]}]="&& chown $7:$G $1"
+	} || {
+		case $G in
+		wheel)
+			[ ${#whlist[*]} = 0 ] && whlist[0]="&& chgrp wheel"
+			whlist[${#whlist[*]}]="$1"
+		;;
+		operator)
+			[ ${#oplist[*]} = 0 ] && oplist[0]="&& chgrp operator"
+			oplist[${#oplist[*]}]="$1"
+		;;
+		*)
+			MKlist[${#MKlist[*]}]="&& chgrp $G $1";
+		esac
+	}
+	return 0
+}
+
+R() {
+[ "$DEBUG" ] && set -x
+for i in "$@"
+do
+U=`unt $i`
+[ "$U" ] || U=0
+
+case $i in
+std)
+	M console	c 0 0 600
+	M tty		c 1 0
+	M mem		c 2 0 640 kmem
+	M kmem		c 2 1 640 kmem
+	M null		c 2 2
+	M zero		c 2 12
+	M stdin		c 21 0
+	M stdout	c 21 1
+	M stderr	c 21 2
+	M ksyms		c 43 0 640 kmem
+	M klog		c 6 0 600
+	;;
+
+
+kstat)
+	M kstat c 51 0 640
+	;;
+
+xp)
+		M xp c 11 0 600 
+	;;
+
+vscsi*)
+	M vscsi$U c 53 $U 600
+	;;
+
+uk*)
+	M uk$U c 41 $U 640 operator
+	;;
+
+tap*)
+	M tap$U c 56 $U 600
+	;;
+
+tun*)
+	M tun$U c 23 $U 600
+	;;
+
+*random)
+	M urandom c 40 0 644
+	RMlist[${#RMlist[*]}]=random
+	MKlist[${#MKlist[*]}]=";ln -s urandom random"
+	;;
+
+pppac*)
+	M pppac$U c 58 $U 600
+	;;
+
+pppx*)
+	M pppx$U c 55 $U 600
+	;;
+
+pf)
+	M pf c 39 0 600
+	;;
+
+pcex)
+		M pcexmem c 25 0 660
+	M pcexio c 25 1 660 
+	;;
+
+lcd)
+		M lcd c 10 0 644 
+	;;
+
+fuse)
+	M fuse$U c 45 $U 600
+	;;
+
+fd)
+	RMlist[${#RMlist[*]}]=";mkdir -p fd;rm -f" n=0
+	while [ $n -lt 64 ];do M fd/$n c 21 $n;n=$(($n+1));done
+	MKlist[${#MKlist[*]}]=";chmod 555 fd"
+	;;
+
+diskmap)
+	M diskmap c 54 0 640 operator
+	;;
+
+dt)
+	M dt c 30 0 600
+	;;
+
+bpf)
+	M bpf c 22 0 600
+	M bpf0 c 22 0 600
+	;;
+
+bio)
+	M bio c 49 0 600
+	;;
+
+audio*)
+	M audio$U	c 26 $U 660 _sndiop
+	M audioctl$U	c 26 $(($U+192)) 660 _sndiop
+	;;
+
+wsmouse[0-9]*)
+	M wsmouse$U c 15 $U 600
+	;;
+
+wsmux|wsmouse|wskbd)
+	M wsmouse c 16 0 600
+	M wskbd c 16 1 600
+	;;
+
+wskbd[0-9]*)
+	M wskbd$U c 14 $U 600
+	;;
+
+wscons)
+	R wsmouse0 wsmouse1 wsmouse2 wsmouse3 wsmouse4 wsmouse5
+	R wsmouse6 wsmouse7 wsmouse8 wsmouse9 wskbd0 wskbd1 wskbd2
+	R wskbd3 wskbd4 wskbd5 wskbd6 wskbd7 wskbd8 wskbd9 wsmux
+	R ttyCcfg ttyC0 ttyC1 ttyC2 ttyC3 ttyC4 ttyC5 ttyC6 ttyC7
+	R ttyC8 ttyC9 ttyCa ttyCb
+	;;
+
+tty[C-J]*)
+	U=${i##tty[C-J]}
+	case $i in
+	ttyC*) n=C m=0;;
+	ttyD*) n=D m=256;;
+	ttyE*) n=E m=512;;
+	ttyF*) n=F m=768;;
+	ttyG*) n=G m=1024;;
+	ttyH*) n=H m=1280;;
+	ttyI*) n=I m=1536;;
+	ttyJ*) n=J m=1792;;
+	esac
+	case $U in
+	[0-9a-f]) M tty$n$U c 13 $((16#$U+$m)) 600;;
+	cfg) M tty${n}cfg c 13 $((255+$m)) 600;;
+	*) echo bad unit $U for $i; exit 1;;
+	esac
+	;;
+
+pty*)
+	if [ $U -gt 15 ]; then
+		echo bad unit for pty in: $i
+		continue
+	fi
+	set -A letters p q r s t u v w x y z P Q R S T
+	set -A suffixes 0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q \
+	    r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X \
+	    Y Z
+
+	name=${letters[$U]}
+	n=0
+	while [ $n -lt 62 ]
+	do
+		nam=$name${suffixes[$n]}
+		off=$(($U*62))
+		M tty$nam c 4 $(($off+$n))
+		M pty$nam c 5 $(($off+$n))
+		n=$(($n+1))
+	done
+	;;
+
+ptm)
+	M ptm c 52 0 666
+	;;
+
+tty[0-7][0-9a-f])
+	U=${i#tty*}
+	o=$(h2d $U)
+	M tty$U c 27 $o 660 dialer root
+	M cua$U c 27 $(($o+128)) 660 dialer root
+	;;
+
+ttya)
+		M ttya c 12 0 660 dialer root
+	M cuaa c 12 128 660 dialer root 
+	;;
+
+st*)
+	n=$(($U*16))
+	for pre in " " n e en
+	do
+		M ${pre}rst$U	c 20 $n 660 operator
+		n=$(($n+1))
+	done
+	;;
+
+ch*)
+	M ch$U c 44 $U 660 operator
+	;;
+
+vnd*)
+	dodisk vnd $U 8 19 $U 0
+	;;
+
+rd*)
+	dodisk2 rd $U 7 18 $U 0
+	;;
+
+cd*)
+	dodisk2 cd $U 6 9 $U 0
+	;;
+
+local)
+	test -s $T.local && sh $T.local
+	;;
+
+ramdisk)
+	R diskmap bio ttya rd0 cd0 cd1 st0 st1 wd0 wd1 wd2 wd3 wd4
+	R sd0 sd1 sd2 sd3 sd4 tty00 tty01 bpf std
+	;;
+
+all)
+	R xp pcex audio0 lcd ttya vnd0 vnd1 vnd2 vnd3 sd0 sd1 sd2 sd3
+	R sd4 cd0 cd1 rd0 tap0 tap1 tap2 tap3 tun0 tun1 tun2 tun3 bio
+	R pty0 diskmap vscsi0 ch0 kstat dt bpf fuse pppac pppx ptm
+	R local wscons uk0 random tty00 tty01 tty02 tty03 tty04 tty05
+	R tty06 tty07 tty08 tty09 tty0a tty0b pf wd0 wd1 wd2 wd3 std
+	R st0 st1 fd
+	;;
+
+wd*|sd*)
+	case $i in
+	wd*) dodisk wd $U 9 28 $U 0;;
+	sd*) dodisk sd $U 4 8 $U 0;;
+	esac
+	;;
+
+*)
+	echo $i: unknown device
+	;;
+esac
+done
+}
+R "$@"
+{
+echo -n ${RMlist[*]}
+echo -n ${mklist[*]}
+echo -n ${MKlist[*]}
+echo -n ${whlist[*]}
+echo ${oplist[*]}
+} | if [ "$eo" = "echo" ]; then
+	cat
+else
+	sh
+fi

@@ -1,0 +1,12 @@
+# In python's re.sub patterns, '%{3}' means three '%%%'.  If we permitted that
+# as a substitution name (and escaped it before recording it as a
+# substitution), it would be confusing if someone tried to use the same name in
+# a lit configuration file, where the pattern isn't escaped automatically.
+
+# DEFINE: %{3} = value
+# RUN: echo %{3}
+
+#      CHECK: Substitution name '%{3}' is malformed {{.*}}
+# CHECK-NEXT: in {{DEFINE}}: directive on test line [[#@LINE-4]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

@@ -1,0 +1,341 @@
+.\" $OpenBSD: smtpctl.8,v 1.66 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Pierre-Yves Ritschard <pyr@openbsd.org>
+.\" Copyright (c) 2012 Gilles Chehade <gilles@poolp.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt SMTPCTL 8
+.Os
+.Sh NAME
+.Nm smtpctl ,
+.Nm mailq
+.Nd control the SMTP daemon
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar argument ...
+.Nm mailq
+.Sh DESCRIPTION
+The
+.Nm
+program controls
+.Xr smtpd 8 .
+Commands may be abbreviated to the minimum unambiguous prefix; for example,
+.Cm sh ro
+for
+.Cm show routes .
+.Pp
+The
+.Nm mailq
+command is provided for compatibility with other MTAs
+and is simply a shortcut for
+.Cm show queue .
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Cm discover Ar envelope-id | message-id
+Schedule a single envelope, or all envelopes with the same message ID
+that were manually moved to the queue.
+.It Cm encrypt Op Ar string
+Encrypt the password
+.Ar string
+to a representation suitable for user credentials and print it to the
+standard output.
+If
+.Ar string
+is not provided, cleartext passwords are read from standard input.
+.Pp
+It is advised to avoid providing the password as a parameter as it will be
+visible from
+.Xr top 1
+and
+.Xr ps 1
+output.
+.It Cm log brief
+Disable verbose debug logging.
+.It Cm log verbose
+Enable verbose debug logging.
+.It Cm monitor
+Display updates of some
+.Xr smtpd 8
+internal counters in one second intervals.
+Each line reports the increment of all counters since the last update,
+except for some counters which are always absolute values.
+The first line reports the current value of each counter.
+The fields are:
+.Pp
+.Bl -bullet -compact
+.It
+Current number of active SMTP clients (absolute value).
+.It
+New SMTP clients.
+.It
+Disconnected clients.
+.It
+Current number of envelopes in the queue (absolute value).
+.It
+Newly enqueued envelopes.
+.It
+Dequeued envelopes.
+.It
+Successful deliveries.
+.It
+Temporary failures.
+.It
+Permanent failures.
+.It
+Message loops.
+.It
+Expired envelopes.
+.It
+Envelopes removed by the administrator.
+.It
+Generated bounces.
+.El
+.It Cm pause envelope Ar envelope-id | message-id | Cm all
+Temporarily suspend scheduling for the envelope with the given ID,
+envelopes with the given message ID,
+or all envelopes.
+.It Cm pause mda
+Temporarily stop deliveries to local users.
+.It Cm pause mta
+Temporarily stop relaying and deliveries to
+remote users.
+.It Cm pause smtp
+Temporarily stop accepting incoming sessions.
+.It Cm profile Ar subsystem
+Enables real-time profiling of
+.Ar subsystem .
+Supported subsystems are:
+.Pp
+.Bl -bullet -compact
+.It
+queue, to profile cost of queue IO
+.It
+imsg, to profile cost of event handlers
+.El
+.It Cm remove Ar envelope-id | message-id | Cm all
+Remove a single envelope,
+envelopes with the given message ID,
+or all envelopes.
+.It Cm resume envelope Ar envelope-id | message-id | Cm all
+Resume scheduling for the envelope with the given ID,
+envelopes with the given message ID,
+or all envelopes.
+.It Cm resume mda
+Resume deliveries to local users.
+.It Cm resume mta
+Resume relaying and deliveries to remote users.
+.It Cm resume route Ar route-id
+Resume routing on disabled route
+.Ar route-id .
+.It Cm resume smtp
+Resume accepting incoming sessions.
+.It Cm schedule Ar envelope-id | message-id | Cm all
+Mark as ready for immediate delivery
+a single envelope,
+envelopes with the given message ID,
+or all envelopes.
+.It Cm show envelope Ar envelope-id
+Display envelope content for the given ID.
+.It Cm show hosts
+Display the list of known remote MX hosts.
+For each of them, it shows the IP address, the canonical hostname,
+a reference count, the number of active connections to this host,
+and the elapsed time since the last connection.
+.It Cm show hoststats
+Display status of last delivery for domains that have been active in the
+last 4 hours.
+It consists of the following fields, separated by a "|":
+.Pp
+.Bl -bullet -compact
+.It
+Domain.
+.It
+.Ux
+timestamp of last delivery.
+.It
+Status of last delivery.
+.El
+.It Cm show message Ar envelope-id
+Display message content for the given ID.
+.It Cm show queue
+Display information concerning envelopes that are currently in the queue.
+Each line of output describes a single envelope.
+It consists of the following fields, separated by a "|":
+.Pp
+.Bl -bullet -compact
+.It
+Envelope ID.
+.It
+Address family of the client which enqueued the mail.
+.It
+Type of delivery: one of "mta", "mda" or "bounce".
+.It
+Various flags on the envelope.
+.It
+Sender address (return path).
+.It
+The original recipient address.
+.It
+The destination address.
+.It
+Time of creation.
+.It
+Time of expiration.
+.It
+Time of last delivery or relaying attempt.
+.It
+Number of delivery or relaying attempts.
+.It
+Current runstate: either "pending" or "inflight" if
+.Xr smtpd 8
+is running, or "offline" otherwise.
+.It
+Delay in seconds before the next attempt if pending, or time elapsed
+if currently running.
+This field is blank if
+.Xr smtpd 8
+is not running.
+.It
+Error string for the last failed delivery or relay attempt.
+.El
+.It Cm show relays
+Display the list of currently active relays and associated connectors.
+For each relay, it shows a number of counters and information on its
+internal state on a single line.
+Then comes the list of connectors
+(source addresses to connect from for this relay).
+.It Cm show routes
+Display status of routes currently known by
+.Xr smtpd 8 .
+Each line consists of a route number, a source address, a destination
+address, a set of flags, the number of connections on this
+route, the current penalty level which determines the amount of time
+the route is disabled if an error occurs, and the delay before it
+gets reactivated.
+The following flags are defined:
+.Pp
+.Bl -tag -width xx -compact
+.It D
+The route is currently disabled.
+.It N
+The route is new.
+No SMTP session has been established yet.
+.It Q
+The route has a timeout registered to lower its penalty level and possibly
+reactivate or discard it.
+.El
+.It Cm show stats
+Displays runtime statistics concerning
+.Xr smtpd 8 .
+.It Cm show status
+Shows if MTA, MDA and SMTP systems are currently running or paused.
+.It Cm spf walk
+Recursively look up SPF records for the domains read from stdin.
+For example:
+.Bd -literal -offset indent
+$ smtpctl spf walk < domains.txt
+.Ed
+.Pp
+SPF records may contain macros which cannot be included in a static list and
+must be resolved dynamically at connection time.
+.Cm spf walk
+cannot provide full results in these cases.
+.It Cm trace Ar subsystem
+Enables real-time tracing of
+.Ar subsystem .
+Supported subsystems are:
+.Pp
+.Bl -bullet -compact
+.It
+imsg
+.It
+io
+.It
+smtp (incoming sessions)
+.It
+filters
+.It
+mta (outgoing sessions)
+.It
+bounce
+.It
+scheduler
+.It
+expand (aliases/virtual/forward expansion)
+.It
+lookup (user/credentials lookups)
+.It
+stat
+.It
+rules (matched by incoming sessions)
+.It
+mproc
+.It
+all
+.El
+.It Cm unprofile Ar subsystem
+Disables real-time profiling of
+.Ar subsystem .
+.It Cm untrace Ar subsystem
+Disables real-time tracing of
+.Ar subsystem .
+.It Cm update table Ar name
+Updates the contents of table
+.Ar name ,
+for tables using the
+.Dq file
+backend.
+.El
+.Pp
+When
+.Nm smtpd
+receives a message, it generates a
+.Ar message-id
+for the message, and one
+.Ar envelope-id
+per recipient.
+The
+.Ar message-id
+is a 32-bit random identifier that is guaranteed to be
+unique on the host system.
+The
+.Ar envelope-id
+is a 64-bit unique identifier that encodes the
+.Ar message-id
+in the 32 upper bits and a random envelope identifier
+in the 32 lower bits.
+.Pp
+A command which specifies a
+.Ar message-id
+applies to all recipients of a message;
+a command which specifies an
+.Ar envelope-id
+applies to a specific recipient of a message.
+.Sh FILES
+.Bl -tag -width "/var/run/smtpd.sockXXX" -compact
+.It Pa /var/run/smtpd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr smtpd 8 .
+.El
+.Sh SEE ALSO
+.Xr smtpd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.6 .

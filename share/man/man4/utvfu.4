@@ -1,0 +1,58 @@
+.\" $OpenBSD: utvfu.4,v 1.4 2016/06/04 20:54:13 jmc Exp $
+.\"
+.\" Copyright (c) 2016 Patrick Keshishian.  All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 4 2016 $
+.Dt UTVFU 4
+.Os
+.Sh NAME
+.Nm utvfu
+.Nd USB Fushicai USBTV007 audio/video capture device
+.Sh SYNOPSIS
+.Cd "utvfu*      at uhub?"
+.Cd "audio*      at utvfu?"
+.Cd "video*      at utvfu?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB Audio/Video capture devices based on the Fushicai
+USBTV007 chip.
+The following product models are known to work:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Play X Store Capture
+.It
+YXGOOD EasyCAP
+.El
+.Pp
+If the
+.Nm
+device attaches successfully, it will attach the
+.Xr audio 4
+and
+.Xr video 4
+drivers to provide higher-level access.
+.Sh SEE ALSO
+.Xr audio 4 ,
+.Xr intro 4 ,
+.Xr usb 4 ,
+.Xr video 4
+.Sh HISTORY
+The
+.Nm
+driver
+first appeared in
+.Ox 6.0 .

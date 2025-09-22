@@ -1,0 +1,60 @@
+.\"	$OpenBSD: pkg_check-manpages.1,v 1.1 2018/07/10 09:05:47 espie Exp $
+.\"
+.\" Copyright (c) 2010 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 10 2018 $
+.Dt PKG_CHECK-MANPAGES 1
+.Os
+.Sh NAME
+.Nm pkg_check-manpages
+.Nd verify manpage subjects in packages
+.Sh SYNOPSIS
+.Nm
+.Op Fl p
+.Op Ar pkgname ...
+.Sh DESCRIPTION
+.Nm
+is used to check manpages in a collection of packages.
+It will extract all manpages from the
+.Ar pkgname
+arguments into a directory named
+.Pa manpages.XXXXXXXXXXXX
+.Po
+see
+.Xr mktemp 1
+.Pc
+and run them through
+.Xr makewhatis 8 .
+.Pp
+Note that this directory is not cleared on exit, so that the problematic
+manpages can be examined more precisely.
+.Pp
+If no
+.Ar pkgname
+argument is passed, it will process all
+.Pa *.tgz
+files in the current directory.
+.Pp
+Options are as follows:
+.Bl -tag -width packing-list
+.It Fl p
+Run
+.Xr makewhatis 8
+in picky mode.
+.El
+.Pp
+Errors reported in picky mode should usually be fixed, as it means the
+subject line stored in the whatis database will be useless to find out
+the corresponding manpage.

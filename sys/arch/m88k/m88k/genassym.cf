@@ -1,0 +1,161 @@
+#	$OpenBSD: genassym.cf,v 1.25 2025/07/10 13:59:27 claudio Exp $
+#
+# Copyright (c) 1982, 1990 The Regents of the University of California.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)genassym.c	7.8 (Berkeley) 5/7/91
+#	$Id: genassym.cf,v 1.25 2025/07/10 13:59:27 claudio Exp $
+#
+
+include <sys/param.h>
+include <sys/buf.h>
+include <sys/time.h>
+include <sys/proc.h>
+include <sys/mbuf.h>
+include <sys/msgbuf.h>
+
+include <machine/cpu.h>
+include <machine/mutex.h>
+include <machine/trap.h>
+include <machine/psl.h>
+include <machine/vmparam.h>
+
+include <sys/syscall.h>
+include <sys/user.h>
+
+# initialization PSR value
+define	KERNEL_PSR	PSR_MODE | PSR_SFD | PSR_SFD2 | PSR_IND
+
+# proc fields and values
+struct	proc
+member	p_addr
+member	p_stat
+member	p_cpu
+member	P_ASTPENDING	p_md.md_astpending
+
+export	SONPROC
+
+# cpu fields
+struct	cpu_info
+member	ci_flags
+member	ci_curproc
+member	ci_curpcb
+member	ci_curpmap
+member	ci_pfsr_i0
+member	ci_pfsr_i1
+member	ci_pfsr_d0
+member	ci_pfsr_d1
+member	ci_want_resched
+member	ci_softipi_cb
+
+# pcb fields
+struct	pcb
+member	pcb_onfault
+member	PCB_USER_STATE	user_state
+
+# system calls
+export	SYS_exit
+export	SYS_sigreturn
+
+# exception frame
+struct	trapframe
+member	EF_R0		tf_r[0]
+member	EF_FPSR		tf_fpsr
+member	EF_FPCR		tf_fpcr
+member	EF_EPSR		tf_epsr
+member	EF_SXIP		tf_sxip
+member	EF_SFIP		tf_sfip
+member	EF_SNIP		tf_snip
+member	EF_SSBR		tf_ssbr
+member	EF_DMT0		tf_dmt0
+member	EF_DMD0		tf_dmd0
+member	EF_DMA0		tf_dma0
+member	EF_DMT1		tf_dmt1
+member	EF_DMD1		tf_dmd1
+member	EF_DMA1		tf_dma1
+member	EF_DMT2		tf_dmt2
+member	EF_DMD2		tf_dmd2
+member	EF_DMA2		tf_dma2
+member	EF_FPECR	tf_fpecr
+member	EF_FPHS1	tf_fphs1
+member	EF_FPLS1	tf_fpls1
+member	EF_FPHS2	tf_fphs2
+member	EF_FPLS2	tf_fpls2
+member	EF_FPPT		tf_fppt
+member	EF_FPRH		tf_fprh
+member	EF_FPRL		tf_fprl
+member	EF_FPIT		tf_fpit
+member	EF_VECTOR	tf_vector
+member	EF_MASK		tf_mask
+member	EF_FLAGS	tf_flags
+member	EF_RET		tf_scratch1
+member	EF_IPFSR	tf_ipfsr
+member	EF_DPFSR	tf_dpfsr
+member	EF_CPU		tf_cpu
+member	EF_EXIP		tf_exip
+member	EF_ENIP		tf_enip
+member	EF_DSR		tf_dsr
+member	EF_DLAR		tf_dlar
+member	EF_DPAR		tf_dpar
+member	EF_ISR		tf_isr
+member	EF_ILAR		tf_ilar
+member	EF_IPAR		tf_ipar
+member	EF_ISAP		tf_isap
+member	EF_DSAP		tf_dsap
+member	EF_IUAP		tf_iuap
+member	EF_DUAP		tf_duap
+
+# more (machine-dependent) pcb fields
+struct	m88100_pcb
+member	pcb_pc
+member	pcb_r14
+member	pcb_r15
+member	pcb_r16
+member	pcb_r17
+member	pcb_r18
+member	pcb_r19
+member	pcb_r20
+member	pcb_r21
+member	pcb_r22
+member	pcb_r23
+member	pcb_r24
+member	pcb_r25
+member	pcb_r26
+member	pcb_r27
+member	pcb_r28
+member	pcb_r29
+member	pcb_r30
+member	pcb_sp
+member	pcb_fcr62
+member	pcb_fcr63
+
+# mutex fields
+struct	mutex
+member	mtx_lock
+member	mtx_wantipl
+member	mtx_oldipl
+member	mtx_owner

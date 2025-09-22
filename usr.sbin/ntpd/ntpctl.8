@@ -1,0 +1,79 @@
+.\" $OpenBSD: ntpctl.8,v 1.9 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2012 Mike Miller <mmiller@mgm51.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF MIND, USE, DATA OR PROFITS, WHETHER IN
+.\" AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt NTPCTL 8
+.Os
+.Sh NAME
+.Nm ntpctl
+.Nd control the NTP daemon
+.Sh SYNOPSIS
+.Nm ntpctl
+.Fl s Cm all | peers | Sensors | status
+.Sh DESCRIPTION
+The
+.Nm
+program displays information about the running
+.Xr ntpd 8
+daemon.
+.Pp
+The options are as follows:
+.Bl -tag -width "-s modifierX"
+.It Fl s Cm all | peers | Sensors | status
+Used to display information about the running daemon.
+Keywords may be abbreviated.
+.Pp
+.Cm all
+shows all data available.
+.Pp
+.Cm peers
+shows the following information about each peer: weight, trustlevel,
+stratum, number of seconds until the next poll, polling interval
+in seconds, and offset, network delay and network jitter in milliseconds.
+When the system clock is synced to a peer, an asterisk
+is displayed to the left of the weight column for that peer.
+.Pp
+.Cm Sensors
+shows the following information about each sensor: weight, sensor "good"
+status, stratum, and offset and the configured correction in
+milliseconds.
+When the system clock is synced to a sensor, an asterisk
+is displayed to the left of the weight column for that sensor.
+.Pp
+.Cm status
+shows the status of peers and sensors, and whether the system clock is synced.
+When the system clock is synced, the stratum is displayed.
+When the system clock is not synced, the offset of the system clock,
+as reported by the
+.Xr adjtime 2
+system call, is displayed.
+When the median constraint is set, the offset to the local time is displayed.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/ntpd.sockXXX" -compact
+.It Pa /var/run/ntpd.sock
+Socket file for communication with
+.Xr ntpd 8 .
+.El
+.Sh SEE ALSO
+.Xr adjtime 2 ,
+.Xr ntpd.conf 5 ,
+.Xr ntpd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 5.5 .

@@ -1,0 +1,395 @@
+.\"	$OpenBSD: buffercache.9,v 1.13 2019/07/19 00:24:31 cheloha Exp $
+.\"     $NetBSD: buffercache.9,v 1.13 2004/06/25 15:31:37 wiz Exp $
+.\"
+.\" Copyright (c)2003 YAMAMOTO Takashi,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.\" following copyright notices are from sys/kern/vfs_bio.c.
+.\" they are here because i took some comments from it.  yamt@NetBSD.org
+.\"
+.\"
+.\"/*-
+.\" * Copyright (c) 1982, 1986, 1989, 1993
+.\" *	The Regents of the University of California.  All rights reserved.
+.\" * (c) UNIX System Laboratories, Inc.
+.\" * All or some portions of this file are derived from material licensed
+.\" * to the University of California by American Telephone and Telegraph
+.\" * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+.\" * the permission of UNIX System Laboratories, Inc.
+.\" *
+.\" * Redistribution and use in source and binary forms, with or without
+.\" * modification, are permitted provided that the following conditions
+.\" * are met:
+.\" * 1. Redistributions of source code must retain the above copyright
+.\" *    notice, this list of conditions and the following disclaimer.
+.\" * 2. Redistributions in binary form must reproduce the above copyright
+.\" *    notice, this list of conditions and the following disclaimer in the
+.\" *    documentation and/or other materials provided with the distribution.
+.\" * 3. Neither the name of the University nor the names of its contributors
+.\" *    may be used to endorse or promote products derived from this software
+.\" *    without specific prior written permission.
+.\" *
+.\" * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" * SUCH DAMAGE.
+.\" *
+.\" *	@(#)vfs_bio.c	8.6 (Berkeley) 1/11/94
+.\" */
+.\"
+.\"/*-
+.\" * Copyright (c) 1994 Christopher G. Demetriou
+.\" *
+.\" * Redistribution and use in source and binary forms, with or without
+.\" * modification, are permitted provided that the following conditions
+.\" * are met:
+.\" * 1. Redistributions of source code must retain the above copyright
+.\" *    notice, this list of conditions and the following disclaimer.
+.\" * 2. Redistributions in binary form must reproduce the above copyright
+.\" *    notice, this list of conditions and the following disclaimer in the
+.\" *    documentation and/or other materials provided with the distribution.
+.\" * 3. All advertising materials mentioning features or use of this software
+.\" *    must display the following acknowledgement:
+.\" *	This product includes software developed by the University of
+.\" *	California, Berkeley and its contributors.
+.\" * 4. Neither the name of the University nor the names of its contributors
+.\" *    may be used to endorse or promote products derived from this software
+.\" *    without specific prior written permission.
+.\" *
+.\" * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" * SUCH DAMAGE.
+.\" *
+.\" *	@(#)vfs_bio.c	8.6 (Berkeley) 1/11/94
+.\" */
+.\"
+.\"
+.\" ------------------------------------------------------------
+.Dd $Mdocdate: July 19 2019 $
+.Dt BUFFERCACHE 9
+.Os
+.Sh NAME
+.Nm buffercache ,
+.Nm bread ,
+.Nm bread_cluster ,
+.Nm breadn ,
+.Nm bwrite ,
+.Nm bawrite ,
+.Nm bdwrite ,
+.Nm getblk ,
+.Nm geteblk ,
+.Nm incore ,
+.Nm brelse ,
+.Nm biodone ,
+.Nm biowait
+.Nd buffer cache interfaces
+.\" ------------------------------------------------------------
+.Sh SYNOPSIS
+.In sys/buf.h
+.Ft int
+.Fn bread "struct vnode *vp" "daddr_t blkno" "int size" \
+"struct buf **bpp"
+.Ft int
+.Fn bread_cluster "struct vnode *vp" "daddr_t blkno" "int size" \
+"struct buf **bpp"
+.Ft int
+.Fn breadn "struct vnode *vp" "daddr_t blkno" "int size" \
+"daddr_t rablks[]" "int rasizes[]" "int nrablks" \
+"struct buf **bpp"
+.Ft int
+.Fn bwrite "struct buf *bp"
+.Ft void
+.Fn bawrite "struct buf *bp"
+.Ft void
+.Fn bdwrite "struct buf *bp"
+.Ft struct buf *
+.Fn getblk "struct vnode *vp" "daddr_t blkno" "int size" \
+"int slpflag" "uint64_t slptimeo"
+.Ft struct buf *
+.Fn geteblk "size_t size"
+.Ft struct buf *
+.Fn incore "struct vnode *vp" "daddr_t blkno"
+.Ft void
+.Fn brelse "struct buf *bp"
+.Ft void
+.Fn biodone "struct buf *bp"
+.Ft int
+.Fn biowait "struct buf *bp"
+.\" ------------------------------------------------------------
+.Sh DESCRIPTION
+The
+.Nm
+interface is used by each filesystem to improve I/O performance using
+in-core caches of filesystem blocks.
+.Pp
+The kernel memory used to cache a block is called a buffer and
+described by a
+.Em buf
+structure.
+In addition to describing a cached block, a
+.Em buf
+structure is also used to describe an I/O request as a part of
+the disk driver interface.
+.Pp
+The block size used for logical block numbers depends on the type of the
+given vnode.
+For file vnodes, this is f_iosize of the underlying filesystem.
+For block device vnodes, this will usually be DEV_BSIZE.
+.\" XXX struct buf, B_ flags, MP locks, etc.
+.\" XXX free list, hash queue, etc.
+.\" ------------------------------------------------------------
+.Sh FUNCTIONS
+.Bl -tag -width compact
+.It Fn bread "vp" "blkno" "size" "bpp"
+Read a block corresponding to
+.Fa vp
+and
+.Fa blkno .
+The buffer is returned via
+.Fa bpp .
+.Pp
+If the buffer is not found (i.e. the block is not cached in memory),
+.Fn bread
+calls
+.Fn getblk
+to allocate a buffer with enough pages for
+.Fa size
+and reads the specified disk block into it.
+.Pp
+.Fn bread
+always returns a buffer, even if it returns an error due to an I/O
+error.
+.Pp
+The buffer returned by
+.Fn bread
+is marked as busy.
+(The
+.Dv B_BUSY
+flag is set.)
+After manipulation of the buffer returned from
+.Fn bread ,
+the caller should unbusy it so that another thread can get it.
+If the buffer contents are modified and should be written back to disk,
+it should be unbusied using one of the variants of
+.Fn bwrite .
+Otherwise, it should be unbusied using
+.Fn brelse .
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.It Xo
+.Fo breadn
+.Fa "vp"
+.Fa "blkno"
+.Fa "size"
+.Fa "rablks"
+.Fa "rasizes"
+.Fa "nrablks"
+.Fa "bpp"
+.Fc
+.Xc
+Get a buffer as
+.Fn bread .
+In addition,
+.Fn breadn
+will start read-ahead of blocks specified by
+.Fa rablks ,
+.Fa rasizes ,
+and
+.Fa nrablks .
+The read-ahead blocks aren't returned, but are available in cache for
+future accesses.
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.It Xo
+.Fo bread_cluster
+.Fa "vp"
+.Fa "blkno"
+.Fa "size"
+.Fa "bpp"
+.Fc
+.Xc
+Read a block of size
+.Fa "size"
+corresponding to
+.Fa vp
+and
+.Fa blkno ,
+with readahead.
+If neither the first block nor a part of the next MAXBSIZE bytes is already
+in the buffer cache,
+.Fn bread_cluster
+will perform a read-ahead of MAXBSIZE bytes in a single I/O operation.
+This is currently more efficient than
+.Fn breadn .
+The read-ahead data isn't returned, but is available in cache for
+future access.
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.It Fn bwrite "bp"
+Write a block.
+Start I/O for write using
+.Fn VOP_STRATEGY .
+Then, unless the
+.Dv B_ASYNC
+flag is set in
+.Fa bp ,
+.Fn bwrite
+waits for the I/O to complete.
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.It Fn bawrite "bp"
+Write a block asynchronously.
+Set the
+.Dv B_ASYNC
+flag in
+.Fa bp
+and simply call
+.Fn VOP_BWRITE ,
+which results in
+.Fn bwrite
+for most filesystems.
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.It Fn bdwrite "bp"
+Delayed write.
+Unlike
+.Fn bawrite ,
+.Fn bdwrite
+won't start any I/O.
+It only marks the buffer as dirty
+.Pq Dv B_DELWRI
+and unbusies it.
+This routine should be used when the buffer is expected
+to be modified again soon, typically a small write that
+partially fills a buffer.
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.It Fn getblk "vp" "blkno" "size" "slpflag" "slptimeo"
+Get a block of requested size
+.Fa size
+that is associated with a given vnode and block
+offset, specified by
+.Fa vp
+and
+.Fa blkno .
+If it is found in the block cache, mark it as having been found,
+make it busy and return it.
+Otherwise, return an empty block of the correct size.
+It is up to the caller to ensure that the cached blocks
+are of the correct size.
+.Pp
+If
+.Fn getblk
+needs to sleep,
+.Fa slpflag
+and
+.Fa slptimeo
+are used as arguments for
+.Xr tsleep_nsec 9 .
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.It Fn geteblk "size"
+Allocate an empty, disassociated block of a given size
+.Fa size .
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.It Fn incore "vp" "blkno"
+Determine if a block associated with a given vnode and block offset
+is in the cache.
+If it is there, return a pointer to it.
+Note that
+.Fn incore
+doesn't mark the buffer as busy unlike
+.Fn getblk .
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.It Fn brelse "bp"
+Unlock a buffer by clearing the
+.Dv B_AGE ,
+.Dv B_ASYNC ,
+.Dv B_BUSY ,
+.Dv B_NOCACHE ,
+and
+.Dv B_DEFERRED
+flags and release it to the free lists.
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.It Fn biodone "bp"
+Mark I/O complete on a buffer.
+If a callback has been requested by
+.Dv B_CALL ,
+do so.
+Otherwise, wake up the waiting processes.
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.It Fn biowait "bp"
+Wait for operations on the buffer to complete.
+When they do, extract and return the I/O's error value.
+If the operation on the buffer is being done via a direct call to a
+.Fn strategy
+type function, then the buffer must be previously initialized with the
+.Dv B_RAW
+flag.
+.El
+.\" ------------------------------------------------------------
+.Sh CODE REFERENCES
+This section describes places within the
+.Ox
+source tree where actual code implementing the buffer cache subsystem
+can be found.
+All pathnames are relative to
+.Pa /usr/src .
+.Pp
+The buffer cache subsystem is implemented within the file
+.Pa sys/kern/vfs_bio.c .
+.Sh SEE ALSO
+.Xr intro 9 ,
+.Xr vnode 9 ,
+.Xr VOP_STRATEGY 9
+.Rs
+.%A Maurice J. Bach
+.%B "The Design of the UNIX Operating System"
+.%I "Prentice Hall"
+.%D 1986
+.Re
+.Rs
+.%A Marshall Kirk McKusick
+.%A Keith Bostic
+.%A Michael J. Karels
+.%A John S. Quarterman
+.%B "The Design and Implementation of the 4.4BSD Operating System"
+.%I "Addison Wesley"
+.%D 1996
+.Re
+.Rs
+.%A Leffler, et. al.
+.%B "The Design and Implementation of the 4.3 BSD Unix Operating System"
+.%I Addison Wesley
+.%D 1989
+.Re

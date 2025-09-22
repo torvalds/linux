@@ -1,0 +1,33 @@
+static_library("Serialization") {
+  output_name = "clangSerialization"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/include/clang/Serialization:AttrPCHRead",
+    "//clang/include/clang/Serialization:AttrPCHWrite",
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/Sema",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "ASTCommon.cpp",
+    "ASTCommon.h",
+    "ASTReader.cpp",
+    "ASTReaderDecl.cpp",
+    "ASTReaderInternals.h",
+    "ASTReaderStmt.cpp",
+    "ASTWriter.cpp",
+    "ASTWriterDecl.cpp",
+    "ASTWriterStmt.cpp",
+    "GeneratePCH.cpp",
+    "GlobalModuleIndex.cpp",
+    "InMemoryModuleCache.cpp",
+    "ModuleFile.cpp",
+    "ModuleFileExtension.cpp",
+    "ModuleManager.cpp",
+    "PCHContainerOperations.cpp",
+  ]
+}

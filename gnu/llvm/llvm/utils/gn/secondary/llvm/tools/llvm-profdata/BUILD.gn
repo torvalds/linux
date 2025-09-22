@@ -1,0 +1,10 @@
+import("//llvm/utils/gn/build/driver_executable.gni")
+
+driver_executable("llvm-profdata") {
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/ProfileData",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-profdata.cpp" ]
+}

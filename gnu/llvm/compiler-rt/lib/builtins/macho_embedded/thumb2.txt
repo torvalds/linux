@@ -1,0 +1,14 @@
+switch16
+switch32
+switch8
+switchu8
+sync_fetch_and_add_4
+sync_fetch_and_sub_4
+sync_fetch_and_and_4
+sync_fetch_and_or_4
+sync_fetch_and_xor_4
+sync_fetch_and_nand_4
+sync_fetch_and_max_4
+sync_fetch_and_umax_4
+sync_fetch_and_min_4
+sync_fetch_and_umin_4

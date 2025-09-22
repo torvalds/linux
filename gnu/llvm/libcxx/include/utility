@@ -1,0 +1,309 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_UTILITY
+#define _LIBCPP_UTILITY
+
+/*
+    utility synopsis
+
+#include <initializer_list>
+
+namespace std
+{
+
+template <class T>
+    void
+    swap(T& a, T& b);
+
+namespace rel_ops
+{
+    template<class T> bool operator!=(const T&, const T&);
+    template<class T> bool operator> (const T&, const T&);
+    template<class T> bool operator<=(const T&, const T&);
+    template<class T> bool operator>=(const T&, const T&);
+}
+
+template<class T>
+void
+swap(T& a, T& b) noexcept(is_nothrow_move_constructible<T>::value &&
+                          is_nothrow_move_assignable<T>::value);
+
+template <class T, size_t N>
+void
+swap(T (&a)[N], T (&b)[N]) noexcept(noexcept(swap(*a, *b)));
+
+template <class T> T&& forward(typename remove_reference<T>::type& t) noexcept;  // constexpr in C++14
+template <class T> T&& forward(typename remove_reference<T>::type&& t) noexcept; // constexpr in C++14
+
+template <typename T>
+[[nodiscard]] constexpr
+auto forward_like(auto&& x) noexcept -> see below;                               // since C++23
+
+template <class T> typename remove_reference<T>::type&& move(T&&) noexcept;      // constexpr in C++14
+
+template <class T>
+    typename conditional
+    <
+        !is_nothrow_move_constructible<T>::value && is_copy_constructible<T>::value,
+        const T&,
+        T&&
+    >::type
+    move_if_noexcept(T& x) noexcept; // constexpr in C++14
+
+template <class T> constexpr add_const_t<T>& as_const(T& t) noexcept;      // C++17
+template <class T>                      void as_const(const T&&) = delete; // C++17
+
+template <class T> typename add_rvalue_reference<T>::type declval() noexcept;
+
+template<class T, class U> constexpr bool cmp_equal(T t, U u) noexcept;         // C++20
+template<class T, class U> constexpr bool cmp_not_equal(T t, U u) noexcept;     // C++20
+template<class T, class U> constexpr bool cmp_less(T t, U u) noexcept;          // C++20
+template<class T, class U> constexpr bool cmp_greater(T t, U u) noexcept;       // C++20
+template<class T, class U> constexpr bool cmp_less_equal(T t, U u) noexcept;    // C++20
+template<class T, class U> constexpr bool cmp_greater_equal(T t, U u) noexcept; // C++20
+template<class R, class T> constexpr bool in_range(T t) noexcept;               // C++20
+
+template <class T1, class T2>
+struct pair
+{
+    typedef T1 first_type;
+    typedef T2 second_type;
+
+    T1 first;
+    T2 second;
+
+    pair(const pair&) = default;
+    pair(pair&&) = default;
+    explicit(see-below) constexpr pair();
+    explicit(see-below) pair(const T1& x, const T2& y);                          // constexpr in C++14
+    template <class U = T1, class V = T2> explicit(see-below) pair(U&&, V&&);    // constexpr in C++14
+    template <class U, class V> constexpr explicit(see-below) pair(pair<U, V>&); // since C++23
+    template <class U, class V> explicit(see-below) pair(const pair<U, V>& p);   // constexpr in C++14
+    template <class U, class V> explicit(see-below) pair(pair<U, V>&& p);        // constexpr in C++14
+    template <class U, class V>
+    constexpr explicit(see-below) pair(const pair<U, V>&&);                      // since C++23
+    template <pair-like P> constexpr explicit(see-below) pair(P&&);              // since C++23
+    template <class... Args1, class... Args2>
+        pair(piecewise_construct_t, tuple<Args1...> first_args,                  // constexpr in C++20
+                                    tuple<Args2...> second_args);
+
+    constexpr const pair& operator=(const pair& p) const;                        // since C++23
+    template <class U, class V> pair& operator=(const pair<U, V>& p);            // constexpr in C++20
+    template <class U, class V>
+    constexpr const pair& operator=(const pair<U, V>& p) const;                  // since C++23
+    pair& operator=(pair&& p) noexcept(is_nothrow_move_assignable<T1>::value &&
+                                       is_nothrow_move_assignable<T2>::value);   // constexpr in C++20
+    constexpr const pair& operator=(pair&& p) const;                             // since C++23
+    template <class U, class V> pair& operator=(pair<U, V>&& p);                 // constexpr in C++20
+    template <class U, class V>
+    constexpr const pair& operator=(pair<U, V>&& p) const;                       // since C++23
+    template <pair-like P> constexpr pair& operator=(P&&);                       // since C++23
+    template <pair-like P> constexpr const pair& operator=(P&&) const;           // since C++23
+
+    void swap(pair& p) noexcept(is_nothrow_swappable_v<T1> &&
+                                is_nothrow_swappable_v<T2>);                     // constexpr in C++20
+    constexpr void swap(const pair& p) const noexcept(see below);                // since C++23
+};
+
+template<class T1, class T2, class U1, class U2, template<class> class TQual, template<class> class UQual>
+struct basic_common_reference<pair<T1, T2>, pair<U1, U2>, TQual, UQual>;         // since C++23
+
+template<class T1, class T2, class U1, class U2>
+struct common_type<pair<T1, T2>, pair<U1, U2>>;                                  // since C++23
+
+template<class T1, class T2> pair(T1, T2) -> pair<T1, T2>;
+
+template <class T1, class T2, class U1, class U2>
+bool operator==(const pair<T1,T2>&, const pair<U1,U2>&);                         // constexpr in C++14
+template <class T1, class T2, class U1, class U2>
+bool operator!=(const pair<T1,T2>&, const pair<U1,U2>&);                         // constexpr in C++14, removed in C++20
+template <class T1, class T2, class U1, class U2>
+bool operator< (const pair<T1,T2>&, const pair<U1,U2>&);                         // constexpr in C++14, removed in C++20
+template <class T1, class T2, class U1, class U2>
+bool operator> (const pair<T1,T2>&, const pair<U1,U2>&);                         // constexpr in C++14, removed in C++20
+template <class T1, class T2, class U1, class U2>
+bool operator>=(const pair<T1,T2>&, const pair<U1,U2>&);                         // constexpr in C++14, removed in C++20
+template <class T1, class T2, class U1, class U2>
+bool operator<=(const pair<T1,T2>&, const pair<U1,U2>&);                         // constexpr in C++14, removed in C++20
+template <class T1, class T2, class U1, class U2>
+  constexpr common_comparison_type_t<synth-three-way-result<T1,U1>,
+                                     synth-three-way-result<T2,U2>>
+    operator<=>(const pair<T1,T2>&, const pair<U1,U2>&);                         // C++20
+
+template <class T1, class T2> pair<V1, V2> make_pair(T1&&, T2&&);                // constexpr in C++14
+template <class T1, class T2>
+void
+swap(pair<T1, T2>& x, pair<T1, T2>& y) noexcept(noexcept(x.swap(y)));            // constexpr in C++20
+
+template<class T1, class T2>                                                     // since C++23
+constexpr void swap(const pair<T1, T2>& x, const pair<T1, T2>& y) noexcept(noexcept(x.swap(y)));
+
+struct piecewise_construct_t { explicit piecewise_construct_t() = default; };
+inline constexpr piecewise_construct_t piecewise_construct = piecewise_construct_t();
+
+template <class T> struct tuple_size;
+template <size_t I, class T> struct tuple_element;
+
+template <class T1, class T2> struct tuple_size<pair<T1, T2> >;
+template <class T1, class T2> struct tuple_element<0, pair<T1, T2> >;
+template <class T1, class T2> struct tuple_element<1, pair<T1, T2> >;
+
+template<size_t I, class T1, class T2>
+    typename tuple_element<I, pair<T1, T2> >::type&
+    get(pair<T1, T2>&) noexcept; // constexpr in C++14
+
+template<size_t I, class T1, class T2>
+    const typename tuple_element<I, pair<T1, T2> >::type&
+    get(const pair<T1, T2>&) noexcept; // constexpr in C++14
+
+template<size_t I, class T1, class T2>
+    typename tuple_element<I, pair<T1, T2> >::type&&
+    get(pair<T1, T2>&&) noexcept; // constexpr in C++14
+
+template<size_t I, class T1, class T2>
+    const typename tuple_element<I, pair<T1, T2> >::type&&
+    get(const pair<T1, T2>&&) noexcept; // constexpr in C++14
+
+template<class T1, class T2>
+    constexpr T1& get(pair<T1, T2>&) noexcept; // C++14
+
+template<class T1, class T2>
+    constexpr const T1& get(const pair<T1, T2>&) noexcept; // C++14
+
+template<class T1, class T2>
+    constexpr T1&& get(pair<T1, T2>&&) noexcept; // C++14
+
+template<class T1, class T2>
+    constexpr const T1&& get(const pair<T1, T2>&&) noexcept; // C++14
+
+template<class T1, class T2>
+    constexpr T1& get(pair<T2, T1>&) noexcept; // C++14
+
+template<class T1, class T2>
+    constexpr const T1& get(const pair<T2, T1>&) noexcept; // C++14
+
+template<class T1, class T2>
+    constexpr T1&& get(pair<T2, T1>&&) noexcept; // C++14
+
+template<class T1, class T2>
+    constexpr const T1&& get(const pair<T2, T1>&&) noexcept; // C++14
+
+// C++14
+
+template<class T, T... I>
+struct integer_sequence
+{
+    typedef T value_type;
+
+    static constexpr size_t size() noexcept;
+};
+
+template<size_t... I>
+  using index_sequence = integer_sequence<size_t, I...>;
+
+template<class T, T N>
+  using make_integer_sequence = integer_sequence<T, 0, 1, ..., N-1>;
+template<size_t N>
+  using make_index_sequence = make_integer_sequence<size_t, N>;
+
+template<class... T>
+  using index_sequence_for = make_index_sequence<sizeof...(T)>;
+
+template<class T, class U=T>
+    constexpr T exchange(T& obj, U&& new_value)                                 // constexpr in C++17, noexcept in C++23
+      noexcept(is_nothrow_move_constructible<T>::value && is_nothrow_assignable<T&, U>::value);
+
+// 20.2.7, in-place construction // C++17
+struct in_place_t {
+  explicit in_place_t() = default;
+};
+inline constexpr in_place_t in_place{};
+template <class T>
+  struct in_place_type_t {
+    explicit in_place_type_t() = default;
+  };
+template <class T>
+  inline constexpr in_place_type_t<T> in_place_type{};
+template <size_t I>
+  struct in_place_index_t {
+    explicit in_place_index_t() = default;
+  };
+template <size_t I>
+  inline constexpr in_place_index_t<I> in_place_index{};
+
+// [utility.underlying], to_underlying
+template <class T>
+    constexpr underlying_type_t<T> to_underlying( T value ) noexcept; // C++23
+
+}  // std
+
+*/
+
+#include <__config>
+
+#include <__utility/declval.h>
+#include <__utility/forward.h>
+#include <__utility/move.h>
+#include <__utility/pair.h>
+#include <__utility/piecewise_construct.h>
+#include <__utility/rel_ops.h>
+#include <__utility/swap.h>
+
+#if _LIBCPP_STD_VER >= 14
+#  include <__utility/exchange.h>
+#  include <__utility/integer_sequence.h>
+#endif
+
+#if _LIBCPP_STD_VER >= 17
+#  include <__utility/as_const.h>
+#  include <__utility/in_place.h>
+#endif
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__utility/cmp.h>
+#endif
+
+#if _LIBCPP_STD_VER >= 23
+#  include <__utility/forward_like.h>
+#  include <__utility/to_underlying.h>
+#  include <__utility/unreachable.h>
+#endif
+
+#include <version>
+
+// standard-mandated includes
+
+// [utility.syn]
+#include <compare>
+#include <initializer_list>
+
+// [tuple.creation]
+
+#include <__tuple/ignore.h>
+
+// [tuple.helper]
+#include <__tuple/tuple_element.h>
+#include <__tuple/tuple_size.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <limits>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cstdlib>
+#  include <iosfwd>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_UTILITY

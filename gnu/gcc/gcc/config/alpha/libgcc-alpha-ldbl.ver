@@ -1,0 +1,32 @@
+%ifdef __LONG_DOUBLE_128__
+
+# long double 128 bit support in libgcc_s.so.1 is only available
+# when configured with --with-long-double-128.  Make sure all the
+# symbols are available at @@GCC_LDBL_* versions to make it clear
+# there is a configurable symbol set.
+
+%exclude {
+  __fixtfdi
+  __fixunstfdi
+  __floatditf
+
+  __divtc3
+  __multc3
+  __powitf2
+}
+
+%inherit GCC_LDBL_3.0 GCC_3.0
+GCC_LDBL_3.0 {
+  __fixtfdi
+  __fixunstfdi
+  __floatditf
+}
+
+%inherit GCC_LDBL_4.0.0 GCC_4.0.0
+GCC_LDBL_4.0.0 {
+  __divtc3
+  __multc3
+  __powitf2
+}
+
+%endif

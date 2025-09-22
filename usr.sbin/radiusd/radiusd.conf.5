@@ -1,0 +1,248 @@
+.\"	$OpenBSD: radiusd.conf.5,v 1.34 2024/07/18 00:28:53 yasuoka Exp $
+.\"
+.\" Copyright (c) 2014 Esdenera Networks GmbH
+.\" Copyright (c) 2014, 2023 Internet Initiative Japan Inc.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 18 2024 $
+.Dt RADIUSD.CONF 5
+.Os
+.Sh NAME
+.Nm radiusd.conf
+.Nd RADIUS daemon configuration file
+.Sh DESCRIPTION
+.Nm
+is the configuration file for the RADIUS daemon,
+.Xr radiusd 8 .
+It has the following format:
+.Pp
+Empty lines and lines beginning with the
+.Sq #
+character are ignored.
+.Pp
+Keywords may be specified multiple times within the configuration file.
+The configuration options are as follows:
+.Bl -tag -width Ds
+.It Xo
+.Ic listen on Ar address Oo Ic accounting Oc Oo Ic port Ar port Oc
+.Xc
+Specify an
+.Ar address
+and a
+.Ar port
+to listen on.
+When
+.Ar accounting
+is specified,
+it is used for waiting for RADIUS accounting messages.
+The default port number is 1812 for authentication and 1813 for accounting.
+.It Ic client Ar address/mask Brq ...
+Allow access to a client with the specified
+.Ar address
+and
+.Ar mask .
+It is followed by a block of options enclosed in curly brackets:
+.Bl -tag -width Ds
+.It Ic secret Ar secret
+The shared secret with the clients.
+This option cannot be omitted.
+.It Ic msgauth-required Ar yes | no
+Specify if message authentication is required.
+The default is to require message authentication.
+.El
+.It Ic module Ar name Oo Ar path Oc Op Brq ...
+Load a module.
+Specify one of the predefined names for
+.Ar name ,
+or specify
+.Ar name
+and
+.Ar path .
+When multiple modules of the same path are loaded with different names,
+each module can have configurations respectively and work independently.
+.Pp
+The following modules are predefined:
+.Bl -tag -width Ds
+.It Do bsdauth Dc module
+The
+.Dq bsdauth
+module provides authentication from the local system's
+.Xr authenticate 3
+interface.
+See
+.Xr radiusd_bsdauth 8 .
+.It Do eap2mschap Dc module
+The
+.Dq eap2mschap
+module provides conversion from EAP-MSCHAPv2 to MS-CHAPv2.
+See
+.Xr radiusd_eap2mschap 8 .
+.It Do file Dc module
+The
+.Dq file
+module provides authentication by a local file.
+See
+.Xr radiusd_file 8 .
+.It Do ipcp Dc module
+The
+.Dq ipcp
+module provides IP configuration and manages the IP address pool.
+It also provides session-timeout and disconnection feature.
+See
+.Xr radiusd_ipcp 8 .
+.It Do radius Dc module
+The
+.Dq radius
+module provides authentication from upstream RADIUS servers.
+See
+.Xr radiusd_radius 8 .
+.It Do standard Dc module
+The
+.Dq standard
+module provides standard decorations for RADIUS messages.
+See
+.Xr radiusd_standard 8 .
+.El
+.Pp
+It is optionally followed by a block of options enclosed in curly brackets.
+The following option can be used in the block:
+.Bl -tag -width Ds
+.It Ic set Ar key value ...
+Configure the module specific configurations by
+.Ar key
+and
+.Ar value
+for the module specified by
+.Ar module .
+Notice that
+.Ar key
+and
+.Ar value
+must be quoted to be distinguished from the reserved word if needed.
+.El
+.It Xo
+.Ic authenticate
+.Ar username-pattern ...
+.Ic by Ar auth
+.Op Ic decorate-by Ar deco ...
+.Xc
+Specify an authentication configuration for the users specified by
+.Ar username-pattern .
+The users matched by the pattern are authenticated by the module
+specified by
+.Ar auth .
+Use shell globbing rules for the pattern;
+multiple patterns can be specified by separating with space characters.
+When multiple
+.Ic authenticate
+lines are specified, the first
+.Ic authenticate
+setting whose
+.Ar username-pattern
+matches an authenticating user is used.
+.Pp
+Optionally decoration modules can be specified by
+.Ar deco .
+The specified modules decorate the RADIUS messages in the configured order.
+.It Xo
+.Ic authentication-filter
+.Ar username-pattern ...
+.Ic by Ar auth
+.Op Ic decorate-by Ar deco ...
+.Xc
+.Ic authentication-filter
+works the same as
+.Ic authenticate ,
+but the module can work as a filter,
+it can ask the authentication to the following authentication modules,
+and then it receives the authentication reply and modifies the reply.
+.It Xo
+.Ic account
+.Op Ic quick
+.Ar username-pattern ...
+.Ic to Ar module
+.Op Ic decorate-by Ar deco ...
+.Xc
+Specify an accounting configuration for the users specified by
+.Ar username-pattern .
+The accounting messages for the users matched by the pattern are handled
+by the module specified by the
+.Ar module .
+Use shell globbing rules for the patterns;
+multiple patterns can be determined by separating them with space characters.
+When multiple
+.Ic account
+configurations are specified,
+all matches are used;
+if the user matches a pattern with the
+.Ic quick
+option, then processing stops after that configuration.
+.Pp
+Optionally decoration modules can be specified by
+.Ar deco .
+The specified modules decorate the RADIUS messages in the configured order.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/examples/radiusd.conf" -compact
+.It Pa /etc/radiusd.conf
+Default
+.Xr radiusd 8
+configuration file.
+.It Pa /etc/examples/radiusd.conf
+Example configuration file.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+listen on 0.0.0.0
+listen on 0.0.0.0 accounting
+listen on ::
+listen on :: accounting
+
+client 127.0.0.1/32 {
+    secret "secret"
+    msgauth-required no
+}
+client 192.168.0.0/24 {
+    secret "secret"
+}
+
+module bsdauth {
+    set restrict-group operator
+}
+
+module radius {
+    set secret "testing123"
+    set server "127.0.0.1"
+}
+
+module standard
+
+module strip-realm "/usr/libexec/radiusd/radiusd_standard" {
+    set strip-atmark-realm true
+}
+
+authenticate *@local by bsdauth decorate-by strip-realm
+
+authenticate * by radius
+
+account * to standard
+.Ed
+.Sh SEE ALSO
+.Xr radiusd 8 ,
+.Xr radiusd_bsdauth 8 ,
+.Xr radiusd_eap2mschap 8 ,
+.Xr radiusd_file 8 ,
+.Xr radiusd_ipcp 8 ,
+.Xr radiusd_radius 8 ,
+.Xr radiusd_standard 8

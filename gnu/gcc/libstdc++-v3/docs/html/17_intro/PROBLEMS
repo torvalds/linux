@@ -1,0 +1,8 @@
+Irix 6.2:
+- math.h: defines extern long double hypotl( long double );  i.e., only
+          one argument.  They've fixed this in 6.3.
+
+DES OSF 3.2 & 4.0:
+- libm define sincos, sincosf, and sincosl but there are no prototypes and
+  especially the return type is nowhere defined.  The functions are
+  documented in the man pages, though.

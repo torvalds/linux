@@ -1,0 +1,74 @@
+.\" Copyright (c) 2020 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_DEV_GET_TOUCH_BEGIN 3
+.Os
+.Sh NAME
+.Nm fido_dev_get_touch_begin ,
+.Nm fido_dev_get_touch_status
+.Nd asynchronously wait for touch on a FIDO2 authenticator
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft int
+.Fn fido_dev_get_touch_begin "fido_dev_t *dev"
+.Ft int
+.Fn fido_dev_get_touch_status "fido_dev_t *dev" "int *touched" "int ms"
+.Sh DESCRIPTION
+The functions described in this page allow an application to
+asynchronously wait for touch on a FIDO2 authenticator.
+This is useful when multiple authenticators are present and
+the application needs to know which one to use.
+.Pp
+The
+.Fn fido_dev_get_touch_begin
+function initiates a touch request on
+.Fa dev .
+.Pp
+The
+.Fn fido_dev_get_touch_status
+function continues an ongoing touch request on
+.Fa dev ,
+blocking up to
+.Fa ms
+milliseconds.
+On success,
+.Fa touched
+will be updated to reflect the touch request status.
+If
+.Fa touched
+is 1, the device was touched, and the touch request is
+terminated.
+If
+.Fa touched
+is 0, the application may call
+.Fn fido_dev_get_touch_status
+to continue the touch request, or
+.Fn fido_dev_cancel
+to terminate it.
+.Sh RETURN VALUES
+The error codes returned by
+.Fn fido_dev_get_touch_begin
+and
+.Fn fido_dev_get_touch_status
+are defined in
+.In fido/err.h .
+On success,
+.Dv FIDO_OK
+is returned.
+.Sh EXAMPLES
+Please refer to
+.Em examples/select.c
+in
+.Em libfido2's
+source tree.
+.Sh SEE ALSO
+.Xr fido_dev_cancel 3
+.Sh CAVEATS
+The
+.Fn fido_dev_get_touch_status
+function will cause a command to be transmitted to U2F
+authenticators.
+These transmissions should not exceed a frequency of 5Hz.

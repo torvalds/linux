@@ -1,0 +1,212 @@
+.\"	$OpenBSD: quotactl.2,v 1.16 2022/09/11 06:38:11 jmc Exp $
+.\"	$NetBSD: quotactl.2,v 1.8 1995/02/27 12:35:43 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Robert Elz at The University of Melbourne.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)quotactl.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt QUOTACTL 2
+.Os
+.Sh NAME
+.Nm quotactl
+.Nd manipulate filesystem quotas
+.Sh SYNOPSIS
+.In ufs/ufs/quota.h
+.In unistd.h
+.Ft int
+.Fn quotactl "const char *path" "int cmd" "int id" "char *addr"
+.Sh DESCRIPTION
+The
+.Fn quotactl
+call enables, disables and
+manipulates filesystem quotas.
+A quota control command
+given by
+.Fa cmd
+operates on the given filename
+.Fa path
+for the given user
+.Fa id .
+The address of an optional command specific data structure,
+.Fa addr ,
+may be given; its interpretation
+is discussed below with each command.
+.Pp
+Currently quotas are supported only for the
+.Dq ffs
+filesystem.
+For
+.Dq ffs ,
+a command is composed of a primary command (see below)
+and a command type used to interpret the
+.Fa id .
+Types are supported for interpretation of user identifiers
+and group identifiers.
+The
+.Dq ffs
+specific commands are:
+.Bl -tag -width Q_QUOTAON
+.It Dv Q_QUOTAON
+Enable disk quotas for the filesystem specified by
+.Fa path .
+The command type specifies the type of the quotas being enabled.
+The
+.Fa addr
+argument specifies a file from which to take the quotas.
+The quota file must exist;
+it is normally created with the
+.Xr quotacheck 8
+program.
+The
+.Fa id
+argument is unused.
+Only the superuser may turn quotas on.
+.It Dv Q_QUOTAOFF
+Disable disk quotas for the filesystem specified by
+.Fa path .
+The command type specifies the type of the quotas being disabled.
+The
+.Fa addr
+and
+.Fa id
+arguments are unused.
+Only the superuser may turn quotas off.
+.It Dv Q_GETQUOTA
+Get disk quota limits and current usage for the user or group
+(as determined by the command type) with identifier
+.Fa id .
+.Fa addr
+is a pointer to a
+.Vt struct dqblk
+structure.
+.It Dv Q_SETQUOTA
+Set disk quota limits for the user or group
+(as determined by the command type) with identifier
+.Fa id .
+.Fa addr
+is a pointer to a
+.Vt struct dqblk
+structure.
+The usage fields of
+.Vt struct dqblk
+structure are ignored.
+This call is restricted to the superuser.
+.It Dv Q_SETUSE
+Set disk usage limits for the user or group
+(as determined by the command type) with identifier
+.Fa id .
+.Fa addr
+is a pointer to a
+.Vt struct dqblk
+structure.
+Only the usage fields are used.
+This call is restricted to the superuser.
+.It Dv Q_SYNC
+Update the on-disk copy of quota usages.
+The command type specifies which type of quotas are to be updated.
+The
+.Fa id
+and
+.Fa addr
+parameters are ignored.
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+A
+.Fn quotactl
+call will fail if:
+.Bl -tag -width Er
+.It Bq Er EOPNOTSUPP
+The kernel has not been compiled with the
+.Dv QUOTA
+option.
+.It Bq Er EUSERS
+The quota table cannot be expanded.
+.It Bq Er EINVAL
+.Fa cmd
+or the command type is invalid.
+.It Bq Er EACCES
+In
+.Dv Q_QUOTAON ,
+the quota file is not a plain file.
+.It Bq Er EACCES
+Search permission is denied for a component of a path prefix.
+.It Bq Er ENOTDIR
+A component of a path prefix was not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Dv NAME_MAX
+characters, or an entire pathname (including the terminating NUL)
+exceeded
+.Dv PATH_MAX
+bytes.
+.It Bq Er ENOENT
+A filename does not exist.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating a pathname.
+.It Bq Er EROFS
+In
+.Dv Q_QUOTAON ,
+the quota file resides on a read-only filesystem.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing
+to a file containing quotas.
+.It Bq Er EFAULT
+An invalid
+.Fa addr
+was supplied; the associated structure could not be copied in or out
+of the kernel.
+.It Bq Er EFAULT
+.Fa path
+points outside the process's allocated address space.
+.It Bq Er EPERM
+The call was privileged and the caller was not the superuser.
+.El
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr fstab 5 ,
+.Xr edquota 8 ,
+.Xr quotacheck 8 ,
+.Xr quotaon 8 ,
+.Xr repquota 8
+.Sh HISTORY
+The
+.Fn quotactl
+function call appeared in
+.Bx 4.3 Reno .
+.Sh BUGS
+There should be some way to integrate this call with the resource
+limit interface provided by
+.Xr setrlimit 2
+and
+.Xr getrlimit 2 .

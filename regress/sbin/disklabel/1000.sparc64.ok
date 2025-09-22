@@ -1,0 +1,26 @@
+=== Start 1000MB disk ===
+Primary GPT:
+Not Found
+
+Secondary GPT:
+Not Found
+
+MBR:
+Disk: vnd0	geometry: 20500/1/100 [2050048 Sectors]
+Offset: 0	Signature: 0x0
+            Starting         Ending         LBA Info:
+ #: id      C   H   S -      C   H   S [       start:        size ]
+-------------------------------------------------------------------------------
+ 0: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 1: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 2: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 3: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+
+  a:             1.0G                0  4.2BSD   2048 16384     1 # /
+  a:          2017300                0  4.2BSD   2048 16384     1 
+  b:             0.0G          2017300    swap                    
+  b:            32700          2017300    swap                    
+
+/dev/vnd0a / ffs rw 1 1
+/dev/vnd0b none swap sw
+=== End 1000MB disk ===

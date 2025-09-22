@@ -1,0 +1,140 @@
+.\"	$OpenBSD: scan_ffs.8,v 1.19 2019/02/10 18:30:11 jca Exp $
+.\"
+.\" Copyright (c) 1997 Niklas Hallqvist, Tobias Weingartner
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 10 2019 $
+.Dt SCAN_FFS 8
+.Os
+.Sh NAME
+.Nm scan_ffs
+.Nd find UFS/FFS partitions on a disk
+.Sh SYNOPSIS
+.Nm scan_ffs
+.Op Fl lsv
+.Op Fl b Ar begin
+.Op Fl e Ar end
+.Ar device
+.Sh DESCRIPTION
+This is the life-saver of typos.
+If you have ever been working too long,
+and just happened to type 'disklabel -w sd0 floppy', instead of 'disklabel
+-w fd0 floppy', you know what I am talking about.
+.Pp
+This little program will take a raw disk device (which you might have to
+create) that covers the whole disk, and finds all probable UFS/FFS partitions
+on the disk.
+It has various options to make it go faster, and to print out
+information to help in the reconstruction of the disklabel.
+.Pp
+.Nm
+works only on FFS file systems,
+not FFS2 file systems.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl b Ar begin
+Tell
+.Nm
+where to begin searching for filesystems.
+This makes it easier to skip swap
+partitions, or other large non-UFS/FFS partitions.
+.It Fl e Ar end
+Ditto for telling
+.Nm
+where to stop.
+.It Fl l
+This will make
+.Nm
+print out a string looking much like the input to disklabel.
+With a little massaging, this output can usually be used in the disklabel edit.
+.It Fl s
+This tells
+.Nm
+to be smart about skipping partitions (when it thinks it found a valid one).
+By not scanning partitions for superblocks, the program completes a couple of
+orders of magnitude faster.
+However, sometimes being smart is too good for
+its own good,
+especially if your disk has had a different layout previously, or contains
+other non-UFS/FFS filesystems.
+.It Fl v
+Tell
+.Nm
+to be verbose about what it is doing, and what it has found.
+.It Ar device
+This specifies which device
+.Nm
+should use to scan for filesystems.
+Usually this device should cover the whole disk in question.
+.El
+.Pp
+The basic operation of this program is as follows:
+.Bl -enum -width "1111"
+.It
+Panic.
+You usually do so anyways, so you might as well get it over with.
+Just don't do anything stupid.
+Panic away from your machine.
+Then relax, and see if the steps below won't help you out.
+.It
+Try to find your old disklabel by any other means possible.
+This includes
+printouts, backups
+(look in
+.Pa /var/backups/ ) ,
+screendumps, and whatever other method you can think of.
+The more information you have, the better your chances are in recovering the
+disklabel of the disk.
+.It
+Create a disklabel on the affected disk, which covers the whole disk, and has
+at least one partition which covers the whole disk.
+As the
+.Dq c
+partition
+usually covers the whole disk anyways, this sounds like a good place to start.
+.It
+Run
+.Nm
+over this partition.
+If you have any information about the disklabel
+which used to exist on the disk, keep that in mind while
+.Nm
+spews out its things.
+.It
+Use
+.Xr disklabel 8
+to reconstruct the disklabel on the affected disk, using
+all the information you gathered from
+.Nm
+and other sources.
+.El
+.Pp
+Last but certainly not least, we wish you good luck.
+The UFS/FFS filesystems are pretty sturdy.
+I've seen them reconstructed after some pretty weird and
+awesome fumbles.
+If you can't have backups, at least have funky tools to help
+you out of a jam when they happen.
+.Sh SEE ALSO
+.Xr disklabel 8

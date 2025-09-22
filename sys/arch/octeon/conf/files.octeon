@@ -1,0 +1,187 @@
+#	$OpenBSD: files.octeon,v 1.60 2024/11/12 04:56:27 jsg Exp $
+
+# Standard stanzas config(8) can't run without
+maxpartitions 16
+maxusers 2 8 64
+
+# Major number for block devices, for ``root on'' lines
+major	{ sd = 0 }
+major	{ cd = 3 }
+major	{ wd = 4 }
+major	{ rd = 8 }
+major	{ octcf = 15 }
+major	{ amdcf = 19 }
+
+file	dev/cninit.c
+file	arch/octeon/octeon/autoconf.c
+file	arch/octeon/octeon/bus_dma.c
+file	arch/octeon/octeon/bus_space.c
+file	arch/octeon/octeon/conf.c
+file	arch/octeon/octeon/disksubr.c		disk
+file	arch/octeon/octeon/machdep.c
+file	arch/octeon/octeon/cn3xxx_dts.S
+file	arch/octeon/octeon/locore.S
+
+include "dev/ata/files.ata"
+include "dev/atapiscsi/files.atapiscsi"
+include	"dev/hid/files.hid"
+include	"dev/i2c/files.i2c"
+include	"dev/gpio/files.gpio"
+include	"dev/isa/files.isa"
+include	"dev/isa/files.isapnp"
+include	"dev/mii/files.mii"
+include	"dev/ofw/files.ofw"
+include	"dev/onewire/files.onewire"
+include	"dev/pci/files.pci"
+include	"dev/pckbc/files.pckbc"
+include	"dev/sdmmc/files.sdmmc"
+include	"dev/usb/files.usb"
+include "dev/rasops/files.rasops"
+include "dev/wscons/files.wscons"
+include "dev/wsfont/files.wsfont"
+include	"scsi/files.scsi"
+
+define	mainbus {}
+device	mainbus
+attach	mainbus at root
+file	arch/octeon/dev/mainbus.c			mainbus
+
+device	cpu
+attach	cpu at mainbus
+
+device	clock
+attach	clock at mainbus
+
+device	octcrypto: crypto
+attach	octcrypto at mainbus
+file	arch/octeon/dev/octcrypto.c			octcrypto
+file	arch/octeon/dev/octcrypto_asm.S			octcrypto
+
+# TOD clock
+device	octrtc
+attach	octrtc at mainbus
+file	arch/octeon/dev/octrtc.c			octrtc
+
+define	iobus {[base = -1], [irq = 0]}
+device	iobus
+attach	iobus at mainbus
+file	arch/octeon/dev/octeon_iobus.c			iobus
+file	arch/octeon/dev/octeon_intr.c			iobus
+file	arch/octeon/dev/cn30xxfpa.c			iobus
+file	arch/octeon/dev/cn30xxpow.c			iobus
+file	arch/octeon/dev/cn30xxfau.c			iobus
+file	arch/octeon/dev/cn30xxpip.c			iobus
+file	arch/octeon/dev/cn30xxipd.c			iobus
+file	arch/octeon/dev/cn30xxpko.c			iobus
+file	arch/octeon/dev/cn30xxasx.c			iobus
+
+define	fdt_octeon {[early = 0]}
+
+device	simplebus: fdt, fdt_octeon
+attach	simplebus at fdt, iobus
+file	arch/octeon/dev/simplebus.c			simplebus
+
+include	"dev/fdt/files.fdt"
+
+# On-board USB
+attach	dwctwo at iobus with octdwctwo
+file	arch/octeon/dev/octdwctwo.c			octdwctwo	needs-flag
+
+device	octuctl {}
+attach	octuctl at fdt
+file	arch/octeon/dev/octuctl.c			octuctl		needs-flag
+attach	ehci at octuctl with octehci
+file	arch/octeon/dev/octehci.c			octehci
+attach	ohci at octuctl with octohci
+file	arch/octeon/dev/octohci.c			octohci
+
+# On-board CF
+device	octcf: disk
+attach	octcf at iobus
+file	arch/octeon/dev/octcf.c				octcf
+
+device	amdcf: disk
+attach	amdcf at iobus
+file	arch/octeon/dev/amdcf.c				amdcf
+
+
+# On-board RNG
+device	octrng
+attach	octrng at iobus
+file	arch/octeon/dev/octrng.c			octrng
+
+device	octsmi {}
+attach	octsmi at fdt
+file	arch/octeon/dev/cn30xxsmi.c			octsmi
+
+define	octpip {}
+device	octgmx {}
+attach	octgmx at octpip
+file	arch/octeon/dev/cn30xxgmx.c			octgmx
+
+device	cnmac: ether, ifnet, mii, ifmedia
+attach	cnmac at octgmx
+file	arch/octeon/dev/if_cnmac.c			cnmac
+
+attach	com at fdt_octeon with octuart
+file	arch/octeon/dev/cn30xxuart.c			octuart
+
+device	pcibus
+attach	pcibus at iobus
+file	arch/octeon/dev/octeon_pcibus.c			pcibus
+
+device	octpcie: pcibus
+attach	octpcie at iobus
+file	arch/octeon/dev/octpcie.c			octpcie
+
+file	arch/octeon/octeon/pciide_machdep.c		pciide
+
+device	octcib
+attach	octcib at fdt
+file	arch/octeon/dev/octcib.c			octcib
+
+device	octcit
+attach	octcit at fdt
+file	arch/octeon/dev/octcit.c			octcit
+
+device	octciu
+attach	octciu at fdt
+file	arch/octeon/dev/octciu.c			octciu
+
+device	octgpio
+attach	octgpio at fdt
+file	arch/octeon/dev/octgpio.c			octgpio
+
+device	octiic: i2cbus
+attach	octiic at fdt
+file	arch/octeon/dev/octiic.c			octiic
+
+device	octmmc: sdmmcbus
+attach	octmmc at fdt
+file	arch/octeon/dev/octmmc.c			octmmc
+
+device	octpip
+attach	octpip at fdt
+file	arch/octeon/dev/octpip.c			octpip
+
+device	octsctl: fdt
+attach	octsctl at fdt
+file	arch/octeon/dev/octsctl.c			octsctl
+
+device	octxctl: fdt
+attach	octxctl at fdt
+file	arch/octeon/dev/octxctl.c			octxctl
+
+device	ogxnexus {}
+attach	ogxnexus at fdt
+file	arch/octeon/dev/ogxnexus.c			ogxnexus
+
+device	ogx: ether, ifnet, ifmedia, mii, firmload
+attach	ogx at ogxnexus
+file	arch/octeon/dev/if_ogx.c			ogx
+
+pseudo-device	octboot
+file	arch/octeon/dev/octboot.c			octboot needs-flag
+
+pseudo-device	openprom
+file	arch/octeon/octeon/openprom.c			openprom needs-flag

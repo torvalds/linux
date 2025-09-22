@@ -1,0 +1,22 @@
+syscall:open:entry
+/"ksh" != comm/
+{
+        exit();
+}
+
+syscall:close:entry
+/comm == "ksh" && tid >= 45/
+{
+        exit();
+}
+
+syscall:open:return
+/pid != 99/
+{
+        exit();
+}
+
+interval:hz:100
+{
+        exit();
+}

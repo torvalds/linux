@@ -1,0 +1,117 @@
+.\"	$OpenBSD: ERR_load_strings.3,v 1.9 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL 05ea606a May 20 20:52:46 2016 -0400
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ERR_LOAD_STRINGS 3
+.Os
+.Sh NAME
+.Nm ERR_load_strings ,
+.Nm ERR_PACK ,
+.Nm ERR_get_next_error_library
+.Nd load arbitrary OpenSSL error strings
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/err.h
+.Ft void
+.Fo ERR_load_strings
+.Fa "int lib"
+.Fa "ERR_STRING_DATA str[]"
+.Fc
+.Ft unsigned long
+.Fo ERR_PACK
+.Fa "int lib"
+.Fa "int func"
+.Fa "int reason"
+.Fc
+.Ft int
+.Fn ERR_get_next_error_library void
+.Sh DESCRIPTION
+.Fn ERR_load_strings
+registers error strings for library number
+.Fa lib .
+.Pp
+.Fa str
+is an array of error string data:
+.Bd -literal -offset indent
+typedef struct ERR_string_data_st {
+        unsigned long error;
+        char *string;
+} ERR_STRING_DATA;
+.Ed
+.Pp
+The error code is generated from the library number and a function and
+reason code:
+.Pp
+.Dl error = ERR_PACK(lib, func, reason)
+.Pp
+.Fn ERR_PACK
+is a macro.
+.Pp
+The last entry in the array is
+.Brq 0 , Dv NULL .
+.Pp
+.Fn ERR_get_next_error_library
+can be used to assign library numbers to user libraries at runtime.
+.Sh RETURN VALUES
+.Fn ERR_PACK
+returns the error code.
+.Fn ERR_get_next_error_library
+returns a new library number.
+.Sh SEE ALSO
+.Xr ERR 3
+.Sh HISTORY
+.Fn ERR_load_strings
+and
+.Fn ERR_PACK
+first appeared in SSLeay 0.4.4.
+.Fn ERR_get_next_error_library
+first appeared in SSLeay 0.9.0.
+These functions have been available since
+.Ox 2.4 .

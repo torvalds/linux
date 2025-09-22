@@ -1,0 +1,30 @@
+#	$OpenBSD: OHare,v 1.3 2024/08/23 04:21:18 deraadt Exp $
+
+update = 5;
+newplane = 5;
+width = 30;
+height = 21;
+
+exit:	(  6  0 x ) ( 18  0 x )
+	( 29  5 a ) ( 29 13 a )
+	( 14 20 e ) (  6 20 w ) ;
+
+#
+# Note: Some marker beacons at ORD were decommissioned after this file was
+#       written. Pilots are advised to not use the beacon information here for
+#       flight planning.
+#
+beacon:	(  6  5 ) ( 18  5 )
+	(  6 13 ) ;
+
+airport: (  8  8 d ) ;
+
+line:	[ (  6  1 ) (  6  4 ) ]
+	[ ( 18  1 ) ( 18  4 ) ]
+	[ (  6  6 ) (  6 12 ) ]
+	[ (  6 14 ) (  6 19 ) ]
+	[ ( 28  6 ) ( 15 19 ) ]
+	[ (  7 13 ) ( 20 13 ) ]
+	[ ( 22 13 ) ( 28 13 ) ]
+	[ (  7  5 ) ( 17  5 ) ]
+	[ ( 19  5 ) ( 28  5 ) ] ;

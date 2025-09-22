@@ -1,0 +1,149 @@
+.\"	$OpenBSD: gdt.4,v 1.34 2023/04/12 09:55:22 jsg Exp $
+.\"
+.\" Copyright (c) 2000 Niklas Hallqvist <niklas@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 12 2023 $
+.Dt GDT 4
+.Os
+.Sh NAME
+.Nm gdt
+.Nd ICP-Vortex and Intel GDT SATA/SCSI RAID controller
+.Sh SYNOPSIS
+.Cd "gdt* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for ICP-Vortex adapters such as:
+.Pp
+.Tn GDT4x13RZ ,
+.Tn GDT4x23RZ ,
+.Tn GDT6000/6020/6050 ,
+.Tn GDT6000B/6010 ,
+.Tn GDT6110/6510 ,
+.Tn GDT6120/6520 ,
+.Tn GDT6513RS ,
+.Tn GDT6518RS ,
+.Tn GDT6523RS ,
+.Tn GDT6530 ,
+.Tn GDT6535 ,
+.Tn GDT6537 ,
+.Tn GDT6537RP ,
+.Tn GDT6537RP1 ,
+.Tn GDT6537RP2 ,
+.Tn GDT6550 ,
+.Tn GDT6555 ,
+.Tn GDT6557 ,
+.Tn GDT6557RP ,
+.Tn GDT6557RP1 ,
+.Tn GDT6557RP2 ,
+.Tn GDT6x11RP ,
+.Tn GDT6x11RP1 ,
+.Tn GDT6x11RP2 ,
+.Tn GDT6x15 ,
+.Tn GDT6x17 ,
+.Tn GDT6x17RP ,
+.Tn GDT6x17RP1 ,
+.Tn GDT6x17RP2 ,
+.Tn GDT6x18RD ,
+.Tn GDT6x19RD ,
+.Tn GDT6x21RP ,
+.Tn GDT6x21RP1 ,
+.Tn GDT6x21RP2 ,
+.Tn GDT6x25 ,
+.Tn GDT6x27 ,
+.Tn GDT6x27RP ,
+.Tn GDT6x27RP1 ,
+.Tn GDT6x27RP2 ,
+.Tn GDT6x28RD ,
+.Tn GDT6x28RS ,
+.Tn GDT6x29RD ,
+.Tn GDT6x33RS ,
+.Tn GDT6x38RD ,
+.Tn GDT6x38RS ,
+.Tn GDT6x43RS ,
+.Tn GDT6x53RS ,
+.Tn GDT6x58RD ,
+.Tn GDT6x58RS ,
+.Tn GDT6x63RS ,
+.Tn GDT7x13RN ,
+.Tn GDT7x18RN ,
+.Tn GDT7x19RN ,
+.Tn GDT7x23RN ,
+.Tn GDT7x28RN ,
+.Tn GDT7x29RN ,
+.Tn GDT7x38RN ,
+.Tn GDT7x43RN ,
+.Tn GDT7x53RN ,
+.Tn GDT7x58RN ,
+.Tn GDT7x63RN ,
+.Tn GDT8x00RZ ,
+.Tn GDT8x13RZ ,
+.Tn GDT8x14RZ ,
+.Tn GDT8x22RZ ,
+.Tn GDT8x23RZ ,
+.Tn GDT8x24RZ ,
+.Tn GDT8x33RZ ,
+.Tn GDT8x43RZ ,
+.Tn GDT8x46RZ ,
+.Tn GDT8x53RZ ,
+.Tn GDT8x63RZ ,
+and
+.Tn GDT8x86RZ .
+.Pp
+As well as Intel adapters such as:
+.Pp
+.Tn SRCU42L ,
+.Tn SRCU32 ,
+.Tn SRCZCR ,
+and
+.Tn SRCS14L .
+.Pp
+Although the controllers are actual RAID controllers,
+the driver makes them look just like SCSI controllers.
+All RAID configuration is done through the controllers' BIOSes.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "pci_mem_find: expected mem type 00000000, found 00000002"
+This message occurs during autoconfiguration if jumper J4 is set to map
+the controller memory below 1MB in physical memory.
+The driver primarily wants this jumper to be set the other way round,
+but it will work with it in any setting.
+If the diagnostic is considered a nuisance, alter jumper J4's setting.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr sd 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 2.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Niklas Hallqvist Aq Mt niklas@openbsd.org ,
+inspired by the Linux driver by
+.An Achim Luebner Aq Mt achim@vortex.de .
+.Sh BUGS
+An ISA & EISA front-end is needed.
+.Pp
+The driver does not support transparent raw SCSI mode.
+.Pp
+It would be nice to configure the RAID units after boot
+but the information on how to do that is not public.

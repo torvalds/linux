@@ -1,0 +1,104 @@
+Unbound Features
+
+(C) Copyright 2008, Wouter Wijngaards, NLnet Labs.
+
+
+This document describes the features and RFCs that unbound 
+adheres to, and which ones are decided to be out of scope.
+
+
+Big Features
+------------
+Recursive service.
+Caching service.
+Forwarding and stub zones.
+Very limited authoritative service.
+DNSSEC Validation options.
+EDNS0, NSEC3, IPv6, DNAME, Unknown-RR-types.
+RSASHA256, GOST, ECDSA, SHA384 DNSSEC algorithms.
+
+Details
+-------
+Processing support
+RFC 1034-1035: as a recursive, caching server. Not authoritative.
+  including CNAMEs, referrals, wildcards, classes, ...
+  AAAA type, and IP6 dual stack support.
+  type ANY queries are supported, class ANY queries are supported.
+RFC 1123, 6.1 Requirements for DNS of internet hosts.
+RFC 4033-4035: as a validating caching server (unbound daemon). 
+  as a validating stub (libunbound).
+RFC 1918.
+RFC 1995, 1996, 2136: not authoritative, so no AXFR, IXFR, NOTIFY or
+  dynamic update services are appropriate.
+RFC 2181: completely, including the trust model, keeping rrsets together.
+RFC 2308: TTL directive, and the rest of the RFC too.
+RFC 2671: EDNS0 support, default advertisement 4Kb size. 
+RFC 2672: DNAME support.
+RFC 3597: Unknown RR type support.
+RFC 4343: case insensitive handling of domain names.
+RFC 4509: SHA256 DS hash.
+RFC 4592: wildcards.
+RFC 4697: No DNS Resolution Misbehavior.
+RFC 5001: DNS Name Server Identifier (NSID) Option
+RFC 5011: update of trust anchors with timers.
+RFC 5155: NSEC3, NSEC3PARAM types
+RFC 5358: reflectors-are-evil: access control list for recursive
+  service. In fact for all DNS service so cache snooping is halted.
+RFC 5452: forgery resilience. all recommendations followed.
+RFC 5702: RSASHA256 signature algorithm. 
+RFC 5933: GOST signature algorithm.
+RFC 6303: default local zones.
+  It is possible to block zones or return an address for localhost.
+  This is a very limited authoritative service. Defaults as in draft.
+RFC 6604: xNAME RCODE and status bits.
+RFC 6605: ECDSA signature algorithm, SHA384 DS hash.
+
+chroot and drop-root-privileges support, default enabled in config file.
+
+AD bit in query can be used to request AD bit in response (w/o using DO bit).
+CD bit in query can be used to request bogus data.
+UDP and TCP service is provided downstream.
+UDP and TCP are used to request from upstream servers.
+SSL wrapped TCP service can be used upstream and provided downstream.
+Multiple queries can be made over a TCP stream.
+
+No TSIG support at this time.
+No SIG0 support at this time.
+No dTLS support at this time.
+This is not a DNS statistics package, but some operationally useful
+values are provided via unbound-control stats.
+TXT RRs from the Chaos class (id.server, hostname.bind, ...) are supported.
+
+draft-0x20: implemented, use caps-for-id option to enable use.
+  Also implements bitwise echo of the query to support downstream 0x20.
+draft-ietf-dnsop-resolver-priming(-00): can prime and can fallback to 
+  a safety belt list.
+draft-ietf-dnsop-dnssec-trust-anchor(-01): DS records can be configured 
+  as trust anchors. Also DNSKEYs are allowed, by the way.
+draft-ietf-dnsext-dnssec-bis-updates: supported.
+
+Record type syntax support, extensive, from lib ldns.
+For these types only syntax and parsing support is needed.
+RFC 1034-1035: basic RR types.
+RFC 1183: RP, AFSDB, X25, ISDN, RT
+RFC 1706: NSAP
+RFC 2535: KEY, SIG, NXT: treated as unknown data, syntax is parsed (obsolete).
+2163: PX
+AAAA type
+1876: LOC type
+2782: SRV type
+2915: NAPTR type.
+2230: KX type.
+2538: CERT type.
+2672: DNAME type.
+OPT type
+3123: APL
+3596: AAAA
+SSHFP type
+4025: IPSECKEY
+4033-4035: DS, RRSIG, NSEC, DNSKEY
+4701: DHCID
+5155: NSEC3, NSEC3PARAM
+4408: SPF
+6944: DNSKEY algorithm status
+

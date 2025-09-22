@@ -1,0 +1,8 @@
+// Test catching invalid use of argN in BEGIN and END contexts.
+BEGIN {
+	print(arg0);
+}
+
+END {
+	print(arg0);
+}

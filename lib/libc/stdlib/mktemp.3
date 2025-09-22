@@ -1,0 +1,431 @@
+.\"	$OpenBSD: mktemp.3,v 1.4 2025/08/04 14:11:37 schwarze Exp $
+.\"
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 4 2025 $
+.Dt MKTEMP 3
+.Os
+.Sh NAME
+.Nm mktemp ,
+.Nm mkstemp ,
+.Nm mkstemps ,
+.Nm mkdtemp ,
+.Nm mkdtemps ,
+.Nm mkostemp ,
+.Nm mkostemps
+.Nd make temporary file name (unique)
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft char *
+.Fn mktemp "char *template"
+.Ft int
+.Fn mkstemp "char *template"
+.Ft int
+.Fn mkstemps "char *template" "int suffixlen"
+.Ft char *
+.Fn mkdtemp "char *template"
+.Ft char *
+.Fn mkdtemps "char *template" "int suffixlen"
+.In stdlib.h
+.In fcntl.h
+.Ft int
+.Fn mkostemp "char *template" "int flags"
+.Ft int
+.Fn mkostemps "char *template" "int suffixlen" "int flags"
+.Sh DESCRIPTION
+The
+.Fn mktemp
+family of functions take the given file name template and overwrite
+a portion of it to create a new file name.
+This file name is unique and suitable for use by the application.
+The template may be any file name with at least six trailing
+.Em X Ns s ,
+for example
+.Pa /tmp/temp.XXXXXXXX .
+The trailing
+.Em X Ns s
+are replaced with a unique digit and letter combination.
+The number of unique file names that can be returned
+depends on the number of
+.Em X Ns s
+provided;
+.Fn mktemp
+will try at least 2 ** 31 combinations before giving up.
+At least six
+.Em X Ns s
+must be used, though 10 is much better.
+.Pp
+The
+.Fn mktemp
+function generates a temporary file name based on a template as
+described above.
+Because
+.Fn mktemp
+does not actually create the temporary file, there is a window of
+opportunity during which another process can open the file instead.
+Because of this race condition,
+.Fn mktemp
+should not be used where
+.Fn mkstemp
+can be used instead.
+.Fn mktemp
+was marked as a legacy interface in
+.St -p1003.1-2001 .
+.Pp
+The
+.Fn mkstemp
+function makes the same replacement to the template and creates the template
+file, mode 0600, returning a file descriptor opened for reading and writing.
+This avoids the race between testing for a file's existence and opening it
+for use.
+.Pp
+The
+.Fn mkostemp
+function acts the same as
+.Fn mkstemp ,
+except that the
+.Fa flags
+argument may contain zero or more of the following flags for the underlying
+.Xr open 2
+system call:
+.Pp
+.Bl -tag -width "O_CLOEXECXX" -offset indent -compact
+.It Dv O_APPEND
+Append on each write.
+.It Dv O_CLOEXEC
+Set the close-on-exec flag on the new file descriptor.
+.It Dv O_CLOFORK
+Set the close-on-fork flag on the new file descriptor.
+.It Dv O_SYNC
+Perform synchronous I/O operations.
+.El
+.Pp
+The
+.Fn mkstemps
+and
+.Fn mkostemps
+functions act the same as
+.Fn mkstemp
+and
+.Fn mkostemp ,
+except they permit a suffix to exist in the template.
+The template should be of the form
+.Pa /tmp/tmpXXXXXXXXXXsuffix .
+.Fn mkstemps
+and
+.Fn mkostemps
+are told the length of the suffix string, i.e.,
+.Li strlen("suffix") .
+.Pp
+The
+.Fn mkdtemp
+function makes the same replacement to the template as in
+.Fn mktemp
+and creates the template directory, mode 0700.
+The
+.Fn mkdtemps
+function acts the same as
+.Fn mkdtemp ,
+except that it permits a suffix to exist in the template,
+similar to
+.Fn mkstemps .
+.Sh RETURN VALUES
+The
+.Fn mktemp ,
+.Fn mkdtemp ,
+and
+.Fn mkdtemps
+functions return a pointer to the template on success and
+.Dv NULL
+on failure.
+The
+.Fn mkstemp ,
+.Fn mkstemps ,
+.Fn mkostemp ,
+and
+.Fn mkostemps
+functions return \-1 if no suitable file could be created.
+If any call fails, an error code is placed in the global variable
+.Va errno .
+.Sh EXAMPLES
+Quite often a programmer will want to replace a use of
+.Fn mktemp
+with
+.Fn mkstemp ,
+usually to avoid the problems described above.
+Doing this correctly requires a good understanding of the code in question.
+.Pp
+For instance, code of this form:
+.Bd -literal -offset indent
+char sfn[19];
+FILE *sfp;
+
+strlcpy(sfn, "/tmp/ed.XXXXXXXXXX", sizeof(sfn));
+if (mktemp(sfn) == NULL || (sfp = fopen(sfn, "w+")) == NULL) {
+	warn("%s", sfn);
+	return (NULL);
+}
+return (sfp);
+.Ed
+.Pp
+should be rewritten like this:
+.Bd -literal -offset indent
+char sfn[19];
+FILE *sfp;
+int fd;
+
+strlcpy(sfn, "/tmp/ed.XXXXXXXXXX", sizeof(sfn));
+if ((fd = mkstemp(sfn)) == -1 ||
+    (sfp = fdopen(fd, "w+")) == NULL) {
+	if (fd != -1) {
+		unlink(sfn);
+		close(fd);
+	}
+	warn("%s", sfn);
+	return (NULL);
+}
+return (sfp);
+.Ed
+.Pp
+Often one will find code which uses
+.Fn mktemp
+very early on, perhaps to globally initialize the template nicely, but the
+code which calls
+.Xr open 2
+or
+.Xr fopen 3
+on that file name will occur much later.
+(In almost all cases, the use of
+.Xr fopen 3
+will mean that the flags
+.Dv O_CREAT
+|
+.Dv O_EXCL
+are not given to
+.Xr open 2 ,
+and thus a symbolic link race becomes possible, hence making
+necessary the use of
+.Xr fdopen 3
+as seen above.)
+Furthermore, one must be careful about code which opens, closes, and then
+re-opens the file in question.
+Finally, one must ensure that upon error the temporary file is
+removed correctly.
+.Pp
+There are also cases where modifying the code to use
+.Fn mktemp ,
+in concert with
+.Xr open 2
+using the flags
+.Dv O_CREAT
+|
+.Dv O_EXCL ,
+is better, as long as the code retries a new template if
+.Xr open 2
+fails with an
+.Va errno
+of
+.Er EEXIST .
+.Sh ERRORS
+The
+.Fn mktemp ,
+.Fn mkstemp ,
+.Fn mkdtemp ,
+and
+.Fn mkostemp
+functions may set
+.Va errno
+to one of the following values:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Ar template
+argument has fewer than six trailing
+.Em X Ns s .
+.It Bq Er EEXIST
+All file names tried are already in use.
+Consider appending more
+.Em X Ns s to the
+.Ar template .
+.El
+.Pp
+The
+.Fn mkstemps
+and
+.Fn mkostemps
+functions may set
+.Va errno
+to
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Ar template
+argument length is less than
+.Ar suffixlen
+or it has fewer than six
+.Em X Ns s
+before the suffix.
+.It Bq Er EEXIST
+All file names tried are already in use.
+Consider appending more
+.Em X Ns s to the
+.Ar template .
+.El
+.Pp
+In addition, the
+.Fn mkostemp
+and
+.Fn mkostemps
+functions may also set
+.Va errno
+to
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa flags
+is invalid.
+.El
+.Pp
+The
+.Fn mktemp
+function may also set
+.Va errno
+to any value specified by the
+.Xr lstat 2
+function.
+.Pp
+The
+.Fn mkstemp ,
+.Fn mkstemps ,
+.Fn mkostemp ,
+and
+.Fn mkostemps
+functions may also set
+.Va errno
+to any value specified by the
+.Xr open 2
+function.
+.Pp
+The
+.Fn mkdtemp
+function may also set
+.Va errno
+to any value specified by the
+.Xr mkdir 2
+function.
+.Sh SEE ALSO
+.Xr chmod 2 ,
+.Xr lstat 2 ,
+.Xr mkdir 2 ,
+.Xr open 2 ,
+.Xr tempnam 3 ,
+.Xr tmpfile 3 ,
+.Xr tmpnam 3
+.Sh STANDARDS
+The
+.Fn mkstemp ,
+.Fn mkdtemp ,
+and
+.Fn mkostemp
+functions conform to the
+.St -p1003.1-2024
+specification.
+The ability to specify more than six
+.Em X Ns s
+is an extension to that standard.
+.Pp
+The
+.Fn mktemp
+function conforms to
+.St -p1003.1-2001 ;
+as of
+.St -p1003.1-2008
+it is no longer a part of the standard.
+.Pp
+The
+.Fn mkstemps ,
+.Fn mkdtemps ,
+and
+.Fn mkostemps
+functions are non-standard and should not be used if portability is required.
+.Sh HISTORY
+A
+.Fn mktemp
+function appeared in
+.At v7 .
+The
+.Fn mkstemp
+function appeared in
+.Bx 4.3 .
+The
+.Fn mkdtemp
+function appeared in
+.Ox 2.2 .
+The
+.Fn mkstemps
+function appeared in
+.Ox 2.3 .
+The
+.Fn mkostemp
+and
+.Fn mkostemps
+functions appeared in
+.Ox 5.7 .
+The
+.Fn mkdtemps
+function appeared in
+.Ox 7.5 .
+.Sh BUGS
+For
+.Fn mktemp
+there is an obvious race between file name selection and file
+creation and deletion: the program is typically written to call
+.Xr tmpnam 3 ,
+.Xr tempnam 3 ,
+or
+.Fn mktemp .
+Subsequently, the program calls
+.Xr open 2
+or
+.Xr fopen 3
+and erroneously opens a file (or symbolic link, FIFO or other
+device) that the attacker has created in the expected file location.
+Hence
+.Fn mkstemp
+is recommended, since it atomically creates the file.
+An attacker can guess the file names produced by
+.Fn mktemp .
+Whenever it is possible,
+.Fn mkstemp
+or
+.Fn mkdtemp
+should be used instead.
+.Pp
+For this reason,
+.Xr ld 1
+will output a warning message whenever it links code that uses
+.Fn mktemp .

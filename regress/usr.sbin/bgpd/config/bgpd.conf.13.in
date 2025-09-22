@@ -1,0 +1,62 @@
+# $OpenBSD: bgpd.conf.13.in,v 1.1 2020/04/24 10:34:54 claudio Exp $
+# Only test the bare minimum configuration
+
+AS 1
+
+group TEST {
+	local-address 192.0.2.1
+	local-address 2001:db8:abcd::1
+
+	neighbor 192.0.2.2 {
+		remote-as 2
+	}
+	neighbor 2001:db8:abcd::2 {
+		remote-as 2
+	}
+	neighbor 192.0.2.3 {
+		local-address 192.0.2.254
+		remote-as 3
+	}
+	neighbor 2001:db8:abcd::3 {
+		local-address 2001:db8:abcd::254
+		remote-as 3
+	}
+	neighbor 192.0.2.4 {
+		no local-address
+		remote-as 4
+	}
+	neighbor 2001:db8:abcd::4 {
+		no local-address
+		remote-as 4
+	}
+}
+
+neighbor 192.0.2.5 {
+	remote-as 5
+}
+
+neighbor 2001:db8:abcd::5 {
+	remote-as 5
+}
+
+neighbor 192.0.2.6 {
+	local-address 192.0.2.253
+	local-address 2001:db8:abcd::253
+	remote-as 6
+}
+
+neighbor 2001:db8:abcd::6 {
+	local-address 192.0.2.253
+	local-address 2001:db8:abcd::253
+	remote-as 6
+}
+
+neighbor 192.0.2.7 {
+	no local-address
+	remote-as 7
+}
+
+neighbor 2001:db8:abcd::7 {
+	no local-address
+	remote-as 7
+}

@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+
+"""CaptureCmd - A generic tool for capturing information about the
+invocations of another program.
+
+Usage
+--
+1. Move the original tool to a safe known location.
+
+2. Link CaptureCmd to the original tool's location.
+
+3. Define CAPTURE_CMD_PROGRAM to the known location of the original
+tool; this must be an absolute path.
+
+4. Define CAPTURE_CMD_DIR to a directory to write invocation
+information to.
+"""
+
+import hashlib
+import os
+import sys
+import time
+
+def saveCaptureData(prefix, dir, object):
+    string = repr(object) + '\n'
+    key = hashlib.sha1(string).hexdigest()
+    path = os.path.join(dir,
+                        prefix + key)
+    if not os.path.exists(path):
+        f = open(path, 'wb')
+        f.write(string)
+        f.close()
+    return prefix + key
+
+def main():
+    program = os.getenv('CAPTURE_CMD_PROGRAM')
+    dir = os.getenv('CAPTURE_CMD_DIR')
+    fallback = os.getenv('CAPTURE_CMD_FALLBACK')
+    if not program:
+        raise ValueError('CAPTURE_CMD_PROGRAM is not defined!')
+    if not dir:
+        raise ValueError('CAPTURE_CMD_DIR is not defined!')
+
+    # Make the output directory if it doesn't already exist.
+    if not os.path.exists(dir):
+        os.mkdir(dir, 0700)
+
+    # Get keys for various data.
+    env = os.environ.items()
+    env.sort()
+    envKey = saveCaptureData('env-', dir, env)
+    cwdKey = saveCaptureData('cwd-', dir, os.getcwd())
+    argvKey = saveCaptureData('argv-', dir, sys.argv)
+    entry = (time.time(), envKey, cwdKey, argvKey)
+    saveCaptureData('cmd-', dir, entry)
+
+    if fallback:
+        pid = os.fork()
+        if not pid:
+            os.execv(program, sys.argv)
+            os._exit(1)
+        else:
+            res = os.waitpid(pid, 0)
+            if not res:
+                os.execv(fallback, sys.argv)
+                os._exit(1)
+            os._exit(res)                
+    else:
+        os.execv(program, sys.argv)
+        os._exit(1)
+
+if __name__ == '__main__':
+    main()

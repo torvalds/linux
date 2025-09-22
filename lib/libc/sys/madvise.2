@@ -1,0 +1,144 @@
+.\"	$OpenBSD: madvise.2,v 1.23 2024/01/21 17:46:03 deraadt Exp $
+.\"	$NetBSD: madvise.2,v 1.7 1995/12/27 21:17:02 jtc Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)madvise.2	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: January 21 2024 $
+.Dt MADVISE 2
+.Os
+.Sh NAME
+.Nm madvise ,
+.Nm posix_madvise
+.Nd give advice about use of memory
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn madvise "void *addr" "size_t len" "int behav"
+.Ft int
+.Fn posix_madvise "void *addr" "size_t len" "int behav"
+.Sh DESCRIPTION
+The
+.Fn madvise
+system call
+allows a process that has knowledge of its memory behavior
+to describe it to the system.
+The
+.Fn posix_madvise
+interface has the same effect, but returns the error value
+instead of only setting
+.Va errno .
+.Pp
+The possible behaviors are:
+.Bl -tag -width MADV_SEQUENTIAL
+.It Dv MADV_NORMAL
+No further special treatment needed.
+.It Dv MADV_RANDOM
+Expect random page access patterns.
+.It Dv MADV_SEQUENTIAL
+Expect sequential page references.
+.It Dv MADV_WILLNEED
+The pages will be referenced soon.
+.It Dv MADV_DONTNEED
+The pages will not be referenced soon.
+.It Dv MADV_SPACEAVAIL
+Ensure that resources are reserved.
+.It Dv MADV_FREE
+The pages don't contain any useful data and can be recycled.
+.El
+.Pp
+Portable programs that call the
+.Fn posix_madvise
+interface should use the aliases
+.Dv POSIX_MADV_NORMAL , POSIX_MADV_RANDOM ,
+.Dv POSIX_MADV_SEQUENTIAL , POSIX_MADV_WILLNEED ,
+and
+.Dv POSIX_MADV_DONTNEED
+rather than the flags described above.
+.Sh RETURN VALUES
+.Rv -std madvise
+.Pp
+If successful, the
+.Fn posix_madvise
+function will return zero.
+Otherwise an error number will be returned to indicate the error.
+.Sh ERRORS
+.Fn madvise
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The specified
+.Fa behav
+argument was invalid.
+.It Bq Er EINVAL
+The
+.Fa addr
+parameter was not page aligned or
+.Fa addr
+and
+.Fa size
+specify a region that would extend beyond the end of the address space.
+.It Bq Er EPERM
+The
+.Fa addr
+and
+.Fa len
+parameters specify a region which contains at least one page marked immutable.
+.El
+.Sh SEE ALSO
+.Xr mimmutable 2 ,
+.Xr minherit 2 ,
+.Xr mprotect 2 ,
+.Xr msync 2 ,
+.Xr munmap 2
+.Sh STANDARDS
+The
+.Fn posix_madvise
+system call conforms to
+.St -p1003.1-2008 .
+.Pp
+The
+.Er EPERM
+failure conditions described are an extension to this specification.
+.Sh HISTORY
+The
+.Fn madvise
+function first appeared in SunOS 4.0 and has been available since
+.Ox 2.7 .
+The
+.Fn posix_madvise
+function first appeared in
+.Ox 4.8 .
+.Sh BUGS
+The
+.Dv MADV_WILLNEED
+behavior is ignored.
+The
+.Dv MADV_SPACEAVAIL
+behavior is not implemented and will always fail.

@@ -1,0 +1,204 @@
+.\"	$OpenBSD: sensorsd.conf.5,v 1.29 2020/02/10 13:18:22 schwarze Exp $
+.\"
+.\" Copyright (c) 2003 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2005 Matthew Gream <matthew.gream@pobox.com>
+.\" Copyright (c) 2007 Constantine A. Murenin <cnst@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 10 2020 $
+.Dt SENSORSD.CONF 5
+.Os
+.Sh NAME
+.Nm sensorsd.conf
+.Nd configuration file for sensorsd
+.Sh DESCRIPTION
+The
+.Nm
+file is read by
+.Xr sensorsd 8
+to configure hardware sensor monitoring.
+Each variable in the
+.Xr sysctl 2
+.Va hw.sensors
+subtree represents a sensor.
+Each sensor is matched by at most one entry in
+.Nm ,
+which may specify high and low limits,
+and whether sensor status changes provided by the driver should be ignored.
+Each time the limits are crossed in either direction
+or the status provided by the driver changes,
+.Xr sensorsd 8 Ns 's
+alert functionality is triggered and a command, if specified, is
+executed.
+.Pp
+.Nm
+follows the syntax of configuration databases as documented in
+.Xr cgetent 3 .
+Sensors may be specified by their full
+.Va hw.sensors
+.Xr sysctl 8
+variable name or by type,
+with the full name taking precedence.
+For example, if an entry
+.Dq hw.sensors.lm0.temp1
+is not found, then an entry for
+.Dq temp
+will instead be looked for.
+.Pp
+The following attributes may be used:
+.Pp
+.Bl -tag -width "commandXX" -offset indent -compact
+.It Li command
+Specify a command to be executed on state change.
+.It Li high
+Specify the largest acceptable value.
+.It Li low
+Specify the smallest acceptable value.
+.It Li istatus
+Ignore status provided by the driver.
+.El
+.Pp
+The values for temperature sensors can be given in degrees Celsius or
+Fahrenheit, for voltage sensors in volts, and fan speed sensors take a
+unit-less number representing RPM.
+For Boolean sensors, specify 0 for
+.Qq Off
+or 1 for
+.Qq On .
+Values for all other types of sensors can be specified
+in the same units as they appear under the
+.Xr sysctl 8
+.Va hw.sensors
+tree.
+.Pp
+Sensors that provide status (such as those from
+.Xr bio 4 ,
+.Xr esm 4 ,
+or
+.Xr ipmi 4 )
+do not require boundary values specified
+and simply trigger on status transitions.
+If boundaries are specified nonetheless,
+then they are used in addition to automatic status monitoring,
+unless the
+.Dq istatus
+attribute is specified to ignore status values that are provided by the drivers.
+.Pp
+The command is executed when there is any change in sensor state.
+Tokens in the command are substituted as follows:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It %l
+Whether the value exceeds or is within the user specified limits.
+Can be one of: "below", "above", "within", "invalid", or "uninitialised".
+.It %n
+The sensor number.
+.It %s
+The sensor status.
+.It %x
+The xname of the device the sensor sits on.
+.It %t
+The type of sensor.
+.It %2
+The sensor's current value.
+.It %3
+The sensor's low limit.
+.It %4
+The sensor's high limit.
+.El
+.Pp
+For Boolean sensors, %2, %3, and %4 are substituted with
+.Qq On
+or
+.Qq Off .
+.Pp
+By default,
+.Xr sensorsd 8
+monitors status changes on all sensors that keep their state.
+This behaviour may be altered by using the
+.Dq istatus
+attribute to ignore
+status changes of sensors of a certain type
+or individual sensors.
+.Sh FILES
+.Bl -tag -width /etc/examples/sensorsd.conf -compact
+.It Pa /etc/sensorsd.conf
+Configuration file for
+.Xr sensorsd 8 .
+.It Pa /etc/examples/sensorsd.conf
+Example configuration file.
+.El
+.Sh EXAMPLES
+In the following configuration file,
+if hw.sensors.ipmi0.temp0 moves upwards beyond 80C
+or downwards to 80C or less or if its status as provided by
+.Xr ipmi 4
+changes, the command
+.Pa /etc/sensorsd/log_warning
+will be executed,
+with the sensor type, number and current value passed to it.
+Alerts will be sent
+if hw.sensors.lm0.volt3 moves into or out of
+the range from 4.8V to 5.2V, inclusive;
+if the speed of the fan attached to hw.sensors.lm0.fan1
+transitions to being below or above 1000RPM;
+if any RAID volume drive
+changes its status from, for example,
+.Dq OK ,
+such as in the case of drive failure, rebuild, or a complete failure,
+the command
+.Pa /etc/sensorsd/drive
+will be executed, with the sensor number passed to it; however,
+no alerts will be generated for status changes on timedelta sensors.
+For all other sensors whose drivers automatically provide
+sensor status updates, alerts will be generated
+each time those sensors undergo status transitions.
+.Bd -literal -offset indent
+# Comments are allowed
+hw.sensors.ipmi0.temp0:high=80C:command=/etc/sensorsd/log_warning %t %n %2
+hw.sensors.lm0.volt3:low=4.8V:high=5.2V
+hw.sensors.lm0.fan1:low=1000
+drive:command=/etc/sensorsd/drive %n
+timedelta:istatus	#ignore status changes for timedelta
+.Ed
+.Sh SEE ALSO
+.Xr cgetent 3 ,
+.Xr bio 4 ,
+.Xr ipmi 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 3.5 .
+The format was altered in
+.Ox 4.1
+to accommodate hierarchical device-based sensor addressing.
+The
+.Dq istatus
+attribute was introduced in
+.Ox 4.2 .
+.Sh CAVEATS
+Alert functionality is triggered every time there is a change in sensor state;
+for example, when
+.Xr sensorsd 8
+is started,
+the status of each monitored sensor changes
+from undefined to whatever it is.
+One must keep this in mind when using commands
+that may unconditionally perform adverse actions (e.g.\&
+.Xr shutdown 8 ) ,
+as they will be executed even when all sensors perform to specification.
+If this is undesirable, then a wrapper shell script should be used instead.

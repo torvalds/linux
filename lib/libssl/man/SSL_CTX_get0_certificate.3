@@ -1,0 +1,53 @@
+.\" $OpenBSD: SSL_CTX_get0_certificate.3,v 1.4 2025/06/08 22:47:20 schwarze Exp $
+.\"
+.\" Copyright (c) 2018 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_GET0_CERTIFICATE 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_get0_certificate
+.Nd get the active certificate from an SSL context
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft X509 *
+.Fo SSL_CTX_get0_certificate
+.Fa "const SSL_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn SSL_CTX_get0_certificate
+function returns an internal pointer
+to the ASN.1 certificate currently active in
+.Fa ctx
+or
+.Dv NULL
+if none was installed with
+.Xr SSL_CTX_use_certificate 3
+or similar functions.
+.Pp
+The returned pointer must not be freed by the caller.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_new 3 ,
+.Xr SSL_CTX_use_certificate 3 ,
+.Xr X509_get_pubkey 3 ,
+.Xr X509_get_subject_name 3 ,
+.Xr X509_new 3
+.Sh HISTORY
+.Fn SSL_CTX_get0_certificate
+first appeared in OpenSSL 1.0.2 and have been available since
+.Ox 6.3 .

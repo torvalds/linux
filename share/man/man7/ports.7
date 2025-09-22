@@ -1,0 +1,734 @@
+.\"
+.\" Copyright (c) 1997 David E. O'Brien
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $OpenBSD: ports.7,v 1.132 2023/09/07 17:19:19 espie Exp $
+.\" $FreeBSD: ports.7,v 1.7 1998/06/23 04:38:50 hoek Exp $
+.\"
+.Dd $Mdocdate: September 7 2023 $
+.Dt PORTS 7
+.Os
+.Sh NAME
+.Nm ports
+.Nd contributed applications
+.Sh DESCRIPTION
+The
+.Ox
+Ports Collection
+is the infrastructure used to create binary packages for third party
+applications.
+.Pp
+For normal usage refer to
+.Xr packages 7 ,
+as most ports produce binary packages which are available from
+the official HTTP mirrors.
+.Pp
+Each port contains any patches necessary to make the original
+application source code compile and run on
+.Ox .
+Compiling an application is as simple as typing
+.Ic make
+in the port directory!
+The
+.Pa Makefile
+automatically fetches the
+application source code, either from a local disk or via HTTP, unpacks it
+on the local system, applies the patches, and compiles it.
+If all goes well, simply type
+.Ic doas make install
+to install the application.
+.Pp
+For more information about using ports, see
+.Lk https://www.openbsd.org/faq/ports/ports.html "Working with Ports" .
+For information about creating new ports, see
+.Lk https://www.openbsd.org/faq/ports/ "The OpenBSD Porter's Handbook" .
+.Pp
+For a detailed description of the build process, see
+.Xr bsd.port.mk 5 .
+.Sh PORTS MASTER MAKEFILE
+The ports master Makefile, normally located in
+.Pa /usr/ports/Makefile
+(but see
+.Ev PORTSDIR
+below)
+offers a few deprecated targets for the time being.
+.Bl -tag -width print-index
+.It Cm print-index
+display the contents of the index in a
+.Sq user-friendly
+way,
+.It Cm search
+invoked with a key, e.g.,
+.Ic make search key=foo ,
+retrieve information relevant to a given port (obsolescent).
+.El
+.Pp
+Starting in
+.Ox 4.0 ,
+there is a port,
+.Pa databases/sqlports ,
+that builds an sqlite database containing most information relevant to
+every port in the ports tree.
+This database can be searched using any tool able to manipulate such
+databases, for instance sqlitebrowser, or a script language with an
+sqlite interface, e.g., perl, python, ocaml, lua, php.
+.Pp
+All static index generating information has now been superseded by the
+.Pa sqlports ,
+.Pa portslist
+or
+.Pa pkglocatedb
+packages, which contain
+similar information to the old INDEX file, but are frequently updated.
+See
+.Pa databases/sqlports
+.Pa databases/pkglocatedb
+and
+.Xr pkg_mklocatedb 1
+for details.
+.Sh SELECTING A SET OF PORTS
+One can define
+.Ev SUBDIRLIST
+to point to a file that contains a list of
+.Ev FULLPKGPATHs ,
+one per line, to build stuff only in some directories.
+.Pp
+If
+.Pa portslist
+is up to date, it is possible to select subsets by setting the following
+variables on the command line:
+.Bl -tag -width category
+.It Va key
+package name matching the given key,
+.It Va category
+port belonging to category,
+.It Va maintainer
+port maintained by a given person.
+.El
+.Pp
+For instance, to invoke
+.Cm clean
+on all ports in the x11 category, one can say:
+.Bd -literal -offset indent
+$ make category=x11 clean
+.Ed
+.Pp
+The index search is done by a perl script, so all regular expressions from
+.Xr perlre 1
+apply.
+.Sh TARGETS
+Individual ports are controlled through a few documented targets.
+Some of these targets work recursively through subdirectories, so that
+someone can, for example, install all of the net
+ports.
+.Pp
+The variable
+.Ev SKIPDIR
+can hold a set of package directories to avoid during recursion.
+These are always specified relative to the root of the ports tree,
+and can contain a flavor or subpackage part
+.Po
+see
+.Xr packages-specs 7
+.Pc .
+.Ev SKIPDIR
+is handled by a
+.Ic case
+statement, and so can contain simple wildcards
+.Po
+see
+.Xr sh 1
+.Dq File name patterns
+.Pc ,
+e.g., SKIPDIR='editors/openoffice*'.
+.Pp
+The variable
+.Ev STARTDIR
+can hold the path to a starting directory.
+The recursion will skip all directories up to that package path.
+This can be used to resume a full build at some specific point without having
+to go through thousands of directories first.
+.Pp
+The variable
+.Ev STARTAFTER
+can hold the path to a starting directory.
+The recursion will skip all directories up to and including that package path.
+This can be used to resume a full build after some specific point without having
+to go through thousands of directories first.
+.Pp
+In case of failure in a subdirectory, the shell fragment held in
+.Ev REPORT_PROBLEM
+is executed.
+Default behavior is to call exit, but this can be overridden on the command
+line, e.g., to avoid stopping after each problem.
+.Bd -literal -offset indent
+$ make REPORT_PROBLEM=true
+.Ed
+.Pp
+If
+.Ev REPORT_PROBLEM_LOGFILE
+is non empty, then
+.Ev REPORT_PROBLEM
+will default to:
+.Bd -literal -offset indent
+echo $$subdir ($@) >>$${REPORT_PROBLEM_LOGFILE}
+.Ed
+.Pp
+That is, any failure will append the faulty directory name together
+with the target that failed to
+.Pa ${REPORT_PROBLEM_LOGFILE}
+and proceed.
+.Pp
+Some targets that do this are
+.Cm all , build , checksum , clean ,
+.Cm configure , extract , fake ,
+.Cm fetch , install , distclean ,
+.Cm deinstall , reinstall , package , prepare ,
+.Cm show , regress ,
+.Cm lib-depends-check ,
+.Cm license-check , all-dir-depends , build-dir-depends ,
+.Cm run-dir-depends
+and
+.Cm generate-readmes .
+.Pp
+Target names starting with
+.Sq _
+are private to the ports infrastructure,
+should not be invoked directly, and are liable to change without notice.
+.Pp
+In the following list, each target will run the preceding targets
+in order automatically.
+That is,
+.Cm build
+will be run
+.Pq if necessary
+by
+.Cm install ,
+and so on all the way to
+.Cm fetch .
+In typical use, one will only run
+.Cm install
+explicitly (as normal user, with
+.Ev SUDO
+defined in
+.Pa /etc/mk.conf ) ,
+or
+.Cm build
+(as user), then
+.Cm install
+(as root).
+.Bl -tag -width configure
+.It Cm fetch
+Fetch all of the files needed to build this port from the site(s)
+listed in
+.Ev SITES .
+See
+.Ev FETCH_CMD .
+Use
+.Xr dpb 1
+with option
+.Fl F
+to quickly fetch distfiles for a subtree.
+.It Cm checksum
+Verify that the fetched distfile matches the one the port was tested against.
+Defining
+.Ev NO_CHECKSUM
+to
+.Dv Yes
+will skip this step.
+Sometimes, distfiles change without warning.
+The main
+.Ox
+mirror should still hold a copy of old distfiles, indexed by checksum.
+Using
+.Bd -literal -offset indent
+$ make checksum REFETCH=true
+.Ed
+.Pp
+will try to get a set of distfiles that match the recorded checksum.
+.It Cm prepare
+Install
+any build dependencies of the current port.
+Defining
+.Ev NO_DEPENDS
+to
+.Dv Yes
+will skip this step.
+.It Cm extract
+Expand the distfile into a work directory.
+.It Cm patch
+Apply any patches that are necessary for the port.
+.It Cm gen
+Recreate configure machinery if needed, mainly used by GNU based software
+that wants autogen/autoconf/automake.
+.It Cm configure
+Configure the port.
+Some ports will ask questions during this stage.
+See
+.Ev INTERACTIVE
+and
+.Ev BATCH .
+.It Cm build
+Build the port.
+This is the same as calling the
+.Cm all
+target.
+.It Cm fake
+Pretend to install the port under a subdirectory of the work directory.
+.It Cm generate-readmes
+Create READMEs and rc scripts under the fake subdirectory.
+.It Cm package
+Create a binary package from the fake installation.
+The package is a .tgz file that can be used to
+install the port with
+.Xr pkg_add 1 .
+.It Cm install
+Install the resulting package.
+.El
+.Pp
+The following targets are not run during the normal install process
+.Po
+exception
+.Cm clean
+is run for dependencies with the default settings of
+.Ev BULK Ns = Ns Dv Auto
+.Pc .
+.Bl -tag -width fetch-list
+.It Cm print-build-depends , print-run-depends
+Print an ordered list of all the compile and run dependencies.
+.It Cm clean
+Remove the expanded source code.
+This does not recurse to dependencies unless
+.Ev CLEANDEPENDS
+is defined to
+.Dv Yes .
+.It Cm distclean
+Remove the port's distfile(s).
+This does not recurse to dependencies.
+.It Cm regress
+Runs the ports regression tests.
+Usually needs a completed build.
+.It Cm reinstall
+Use this to restore a port after using
+.Xr pkg_delete 1 .
+.It Cm update
+Alternative target to
+.Cm install .
+Does not install new packages, but updates existing ones.
+.El
+.Sh LOCK INFRASTRUCTURE
+The ports tree can be used concurrently for building several ports at the
+same time, thanks to a locking mechanism.
+By default, locks are stored under
+.Pa /tmp/portslocks .
+Defining
+.Ev LOCKDIR
+will point them elsewhere, or disable the mechanism if set to an empty value.
+.Pp
+All locks will be stored in
+.Pa ${LOCKDIR} .
+.Ev LOCK_CMD
+should be used to acquire a lock, and
+.Ev UNLOCK_CMD
+should be used to release it.
+.Pp
+Locks are named
+.Pa ${LOCKDIR}/${FULLPKGNAME}.lock ,
+or
+.Pa ${LOCKDIR}/${DISTFILE}.lock
+for distfiles fetching.
+.Pp
+The default values of
+.Ev LOCK_CMD
+and
+.Ev UNLOCK_CMD
+are appropriate for most uses.
+.Pp
+The locking protocol follows a big-lock model: each top-level target
+in a port directory will acquire the corresponding lock, complete its job,
+then release the lock, e.g., running
+.Bd -literal -offset indent
+$ make build
+.Ed
+.Pp
+will acquire the lock, run the port
+through
+.Cm fetch ,
+.Cm checksum ,
+.Cm extract ,
+.Cm patch ,
+.Cm configure ,
+.Cm build ,
+then release the lock.
+If dependencies are involved, they will invoke top-level targets in other
+directories, and thus acquire some other locks as well.
+.Pp
+The infrastructure contains some protection against acquiring the same lock
+twice, thus recursive locking is not needed for
+.Ev LOCK_CMD .
+.Pp
+Starting with
+.Ox 4.3 ,
+the infrastructure supports manual locking: the targets
+.Cm lock
+and
+.Cm unlock
+can be used to acquire and release individual locks.
+Both these targets output a shell command that must be used to update
+environment variables.
+Manual locking can be used to protect a directory against interference
+by an automated build job, while the user is looking at or modifying a
+given port.
+.Sh UPDATING PACKAGES
+Instead of deinstalling each package and rebuilding from scratch, the
+ports tree can be used to update installed packages.
+The
+.Cm update
+target will replace an installed package using
+.Xr pkg_add 1
+in replacement mode.
+If
+.Ev FORCE_UPDATE
+is set to
+.Dv Yes ,
+dependencies will also be updated first, and packages will always be updated,
+even if there is no difference between the old and the new packages.
+.Pp
+Updates use a mechanism similar to bulk cookies and deposit cookies in
+the
+.Ev UPDATE_COOKIES_DIR .
+See the next section for more details, since most of the fine points of
+bulk package building also apply to updates.
+.Pp
+However, also note that
+.Li make update
+is not guaranteed to work, see
+.Sx CAVEATS
+below.
+.Sh BULK PACKAGE BUILDING
+Building any significant number of packages from the ports tree should use
+.Xr dpb 1 ,
+a tool located inside the ports tree proper
+.Po
+normally as
+.Pa /usr/ports/infrastructure/bin/dpb
+.Pc .
+In particular, it can take advantage of machine clusters (same architecture
+and same installation), and of multi-core machines.
+.Pp
+For more detailed information, see
+.Xr bulk 8 .
+.Sh FLAVORS
+The
+.Ox
+ports tree comes with a mechanism called
+.Ic FLAVORS .
+Thanks to this mechanism, users can select specific options provided by
+a given port.
+.Pp
+If a port is
+.Qq flavored ,
+there should be a terse description of available flavors in the
+.Pa pkg/DESCR
+file.
+.Pp
+For example, the
+.Pa misc/screen
+port comes with a flavor called
+.Ic static .
+This changes the building process so a statically compiled version of
+the program will be built.
+To avoid confusion with other packages or flavors,
+the package name will be extended with a dash-separated list of
+the selected flavors.
+.Pp
+In this instance, the corresponding package will be called
+.Ic screen-4.0.2-static .
+.Pp
+To see the flavors of a port, use the
+.Cm show
+target:
+.Bd -literal -offset indent
+$ make show=FLAVORS
+.Ed
+.Pp
+To build a port with a specific flavor, just pass
+.Ev FLAVOR
+in the environment of the
+.Xr make 1
+command:
+.Bd -literal -offset indent
+$ env FLAVOR="static" make package
+.Ed
+.Pp
+and of course, use the same settings for the subsequent invocations of make:
+.Bd -literal -offset indent
+$ env FLAVOR="static" make install
+$ env FLAVOR="static" make clean
+.Ed
+.Pp
+More than one flavor may be specified:
+.Bd -literal -offset indent
+$ cd /usr/ports/mail/exim
+$ env FLAVOR="mysql ldap" make package
+.Ed
+.Pp
+Specifying a flavor that does not exist is an error.
+Additionally, some ports impose some further restrictions on flavor
+combinations, when such combinations do not make sense.
+.Pp
+Lots of ports can be built without X11 requirement and accordingly
+have a
+.Ic no_x11
+flavor.
+.Pp
+Flavor settings are not propagated to dependencies.
+If a specific combination is needed, careful hand-building of the
+required set of packages is still necessary.
+.Sh MULTI_PACKAGES
+The
+.Ox
+ports tree comes with a mechanism called
+.Ic MULTI_PACKAGES .
+This mechanism is used when a larger package is broken down into
+several smaller components referred to as subpackages.
+.Pp
+If a port is
+.Qq subpackaged ,
+each subpackage will have a corresponding description in the
+.Pa pkg/DESCR-subpackage
+file.
+.Pp
+For example, the
+.Pa databases/mariadb
+port comes with subpackages called
+.Ic -main ,
+.Ic -tests
+and
+.Ic -server .
+.Pp
+In this instance, the build will yield multiple packages, one
+corresponding to each subpackage.
+In the case of our mariadb example,
+the packages will be called
+.Ic mariadb-client-<version> ,
+.Ic mariadb-tests-<version> ,
+and
+.Ic mariadb-server-<version> .
+.Pp
+To install/deinstall a specific subpackage of a port, you may
+.Xr pkg_add 1
+them manually, or alternatively, you may set
+.Ev SUBPACKAGE
+in the environment of the
+.Xr make 1
+command during the install/deinstall phase:
+.Bd -literal -offset indent
+$ env SUBPACKAGE="-server" make install
+$ env SUBPACKAGE="-server" make deinstall
+.Ed
+.Sh PORT VARIABLES
+These can be changed in the environment, or in
+.Pa /etc/mk.conf
+for persistence.
+They can also be set on make's command line, e.g.,
+.Ic make VAR_FOO Ns = Ns Dv foo
+.Pp
+Boolean variables should be set to
+.Dv Yes
+instead of simply being defined, for uniformity and future compatibility.
+.Pp
+Variable names starting with
+.Sq _
+are private to the ports infrastructure,
+should not be changed by the user, and are liable to change without notice.
+.Bl -tag -width PORTS_PRIVSEP
+.It Ev PORTS_PRIVSEP
+If set to
+.Sq Yes ,
+all operations will happen as restricted users
+.Ar _pfetch
+and
+.Ar _pbuild .
+.It Ev PORTSDIR
+Location of the ports tree
+(usually
+.Pa /usr/ports ) .
+.It Ev DISTDIR
+Where to find/put distfiles, normally
+.Pa ${PORTSDIR}/distfiles .
+.It Ev PACKAGE_REPOSITORY
+Used only for the
+.Cm package
+target; the base directory for the packages tree, normally
+.Pa ${PORTSDIR}/packages .
+If this directory exists, the package tree will be (partially) constructed.
+.It Ev BULK_COOKIES_DIR
+During bulk package building, used to store cookies for already built
+packages to avoid rebuilding them, since the actual
+working directory will already have been cleaned out.
+Defaults to
+.Pa ${PORTSDIR}/bulk/${MACHINE_ARCH} .
+.It Ev UPDATE_COOKIES_DIR
+Used to store cookies for package updates, defaults to
+.Pa ${PORTSDIR}/update/${MACHINE_ARCH} .
+If set to empty, it will revert to a file under
+.Pa ${WRKDIR} .
+.It Ev LOCALBASE
+Where to install things in general
+(usually
+.Pa /usr/local ) .
+.It Ev SITES
+Primary sites for distribution files if not found locally.
+.It Ev CLEANDEPENDS
+If set to
+.Dv Yes ,
+let
+.Cm clean
+recurse to dependencies.
+.It Ev FETCH_CMD
+Command to use to fetch files.
+Normally
+.Xr ftp 1 .
+.It Ev FETCH_PACKAGES
+If set,
+try to use as options to
+.Xr pkg_add 1
+to install missing packages from
+.Ev PKG_PATH .
+.Xr bsd.port.mk 5
+does not set
+.Ev FETCH_PACKAGES ,
+so even an empty value amounts to setting the variable.
+.Pp
+For instance, to run
+.Xr pkg_add 1
+with default options :
+.Bd -literal -offset indent
+make FETCH_PACKAGES=
+.Ed
+.Pp
+or, to use the snapshots directory during the final beta period:
+.Bd -literal -offset indent
+make FETCH_PACKAGES=-Dsnap
+.Ed
+.It Ev PATCH_DEBUG
+If defined, display verbose output when applying each patch.
+.It Ev INTERACTIVE
+If defined, only operate on a port if it requires interaction.
+.It Ev BATCH
+If defined, only operate on a port if it can be installed 100% automatically.
+.El
+.Sh USING A READ-ONLY PORTS TREE
+Select read-write partition(s) that can accommodate working directories, the
+distfiles repository, and the built packages.
+Set
+.Ev WRKOBJDIR ,
+.Ev PACKAGE_REPOSITORY ,
+.Ev BULK_COOKIES_DIR ,
+.Ev UPDATE_COOKIES_DIR ,
+.Ev DISTDIR ,
+and
+.Ev PLIST_REPOSITORY
+in
+.Pa /etc/mk.conf
+accordingly.
+.Sh FILES
+.Bl -tag -width /usr/ports/xxxxxxxx -compact
+.It Pa /usr/ports
+The default ports directory.
+.It Pa /usr/ports/Makefile
+Ports master Makefile.
+.It Pa /usr/local/share/ports-INDEX
+Ports index, part of the
+.Pa portlist
+package.
+.It Pa /usr/ports/pobj
+Build directories.
+A number of insecurely coded ports require a dedicated file system with the
+.Cm wxallowed
+.Xr mount 8
+option.
+.It Pa /usr/ports/infrastructure/mk/bsd.port.mk
+The ports main engine.
+.It Pa /usr/ports/infrastructure/db/network.conf
+Network configuration.
+.It Pa /usr/ports/infrastructure/db/user.list
+List of users and groups created by ports.
+.El
+.Sh SEE ALSO
+.Xr dpb 1 ,
+.Xr make 1 ,
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr pkg_delete 1 ,
+.Xr pkg_info 1 ,
+.Xr bsd.port.mk 5 ,
+.Xr port-modules 5 ,
+.Xr mirroring-ports 7 ,
+.Xr packages 7
+.Pp
+The
+.Ox
+Ports System:
+.Lk https://www.openbsd.org/faq/ports/ports.html
+.Pp
+The
+.Ox
+Porter's Handbook:
+.Lk https://www.openbsd.org/faq/ports/
+.Sh HISTORY
+.Nm The Ports Collection
+appeared in
+.Fx 1.0 .
+It was introduced in
+.Ox
+by Ejovi Nuwere, with much initial effort by Angelos D. Keromytis.
+Maintenance passed then to Marco S. Hyman, and then to Christopher Turan.
+It is currently managed by Marc Espie, Christian Weisgerber,
+along with a host of others found at
+.Mt ports@openbsd.org .
+.Sh AUTHORS
+This man page was originated by
+.An David O'Brien ,
+from the
+.Fx
+project.
+.Sh CAVEATS
+Building a new version of an already installed package is not guaranteed
+to work.
+.Pp
+The safer way would be to create a sandbox for building the updated port
+using
+.Xr proot 1
+.Po see also
+.Xr bulk 8
+.Pc ,
+and then update the installed package.
+.Pp
+Specifically: most software expects building in a virgin environment
+with only the required dependency.
+As a result, lots of time, libraries and headers under
+.Pa /usr/local
+will be favored over the currently building version.

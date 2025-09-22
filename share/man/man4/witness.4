@@ -1,0 +1,95 @@
+.\" $OpenBSD: witness.4,v 1.5 2019/01/29 14:07:15 visa Exp $
+.\"
+.\" Copyright (c) 2001 John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: head/share/man/man4/witness.4 301719 2016-06-09 06:55:00Z trasz $
+.\"
+.Dd $Mdocdate: January 29 2019 $
+.Dt WITNESS 4
+.Os
+.Sh NAME
+.Nm witness
+.Nd lock validation facility
+.Sh DESCRIPTION
+The
+.Nm
+module keeps track of the locks acquired and released by each thread.
+It also keeps track of the order in which locks are acquired with respect
+to each other.
+Each time a lock is acquired,
+.Nm
+uses these two lists to verify that a lock is not being acquired in the
+wrong order.
+If a lock order violation is detected, then a message is printed to the
+kernel console detailing the locks involved and the locations in question.
+.Pp
+The
+.Nm
+code also checks various other conditions such as verifying that one
+does not recurse on a non-recursive lock,
+or attempt an upgrade on a shared lock held by another thread.
+If any of these checks fail, then the kernel will panic.
+.Pp
+The behaviour of
+.Nm
+is controlled by the
+.Va kern.witness.watch
+.Xr sysctl 8
+variable.
+Valid values for it are:
+.Pp
+.Bl -tag -width 1nr -compact -offset indent
+.It \-1
+disable
+.Nm witness
+completely
+.It 0
+disable error checking
+.It 1
+print a message if an error is detected
+.It 2
+print a message and a stack trace if possible
+.It 3
+like 2 but also drop into the kernel debugger
+.El
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr options 4 ,
+.Xr sysctl 8 ,
+.Xr mutex 9 ,
+.Xr rwlock 9
+.Sh HISTORY
+The
+.Nm
+code first appeared in
+.Bsx 5.0
+and was imported from there into
+.Fx 5.0 .
+The
+.Ox
+port was derived from
+.Fx
+and first appeared in
+.Ox 6.2 .

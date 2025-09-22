@@ -1,0 +1,25 @@
+# DEFINE: %{abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789} = ok
+# RUN: echo '%{abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789}'
+# CHECK:# | ok
+
+# DEFINE: %{FooBar} = ok at %(line)
+# RUN: echo '%{FooBar}'
+# CHECK:# | ok at [[#@LINE - 2]]
+
+# DEFINE: %{fooBar} = ok at %(line)
+# RUN: echo '%{fooBar}'
+# CHECK:# | ok at [[#@LINE - 2]]
+
+# DEFINE: %{foo-bar-} = ok at %(line)
+# RUN: echo '%{foo-bar-}'
+# CHECK:# | ok at [[#@LINE - 2]]
+
+# DEFINE: %{foo:bar:} = ok at %(line)
+# RUN: echo '%{foo:bar:}'
+# CHECK:# | ok at [[#@LINE - 2]]
+
+# DEFINE: %{_foo_bar_} = ok at %(line)
+# RUN: echo '%{_foo_bar_}'
+# CHECK:# | ok at [[#@LINE - 2]]
+
+# CHECK: Passed: 1 {{\([0-9]*.[0-9]*%\)}}

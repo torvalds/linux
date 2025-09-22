@@ -1,0 +1,2071 @@
+#	$OpenBSD: airport,v 1.102 2025/06/09 17:02:08 fcambus Exp $
+#	@(#)airport	8.1 (Berkeley) 6/8/93
+#
+# Some of this information from the Airport Search Engine at
+# http://www.uni-karlsruhe.de/~un9v/atm/ase.html, more are
+# available at http://www.mapping.com/airportcodes.shtml
+#
+# Only use the IATA airport codes, and only add ones you have been to.
+# Only add airports. No trains or buses!
+#
+# Airport Code : Airport
+AAA:Anaa, Anaa, French Polynesia
+AAE:Rabah Bitat, Annaba, Algeria
+AAL:Aalborg, Denmark
+AAQ:Vityazevo, Anapa, Russia
+AAR:Aarhus, Aarhus, Denmark
+ABA:Abakan, Russia
+ABE:Lehigh Valley International, Pennsylvania, USA
+ABI:Abilene Regional, Abilene, Texas, USA
+ABJ:Port Bouet, Abidjan, Cote d'ivoire
+ABL:Ambler, Alaska, USA
+ABM:Northern Peninsula, Queensland, Australia
+ABQ:Albuquerque International, New Mexico, USA
+ABR:Aberdeen Regional, South Dakota, USA
+ABS:Abu Simbel, Egypt
+ABX:Albury, New South Wales, Australia
+ABY:Southwest Georgia Regional, Albany, Georgia, USA
+ABZ:Aberdeen, Aberdeen, Scotland, United Kingdom
+ACA:General Juan N. Alvarez International, Acapulco, Guerrero, Mexico
+ACC:Kotoka International, Accra, Ghana
+ACE:Lanzarote, Lanzarote, Canary Islands, Spain
+ACI:The Blaye, Alderney, Channel Islands, United Kingdom
+ACK:Nantucket Memorial, Massachusetts, USA
+ACT:Madison Cooper, Waco, Texas, USA
+ACV:Arcata/Eureka, California, USA
+ACY:Atlantic City International, Atlantic City, New Jersey, USA
+ADA:Adana, Turkey
+ADB:Adnan Menderes, Izmir, Turkey
+ADD:Bole, Addis Ababa, Ethiopia
+ADJ:Marka, Amman, Jordan
+ADL:Adelaide, Adelaide, South Australia, Australia
+ADQ:Kodiak, Alaska, USA
+ADZ:Gustavo Rojas Pinilla International, San Andres Island, Colombia
+AEP:Jorge Newberry, Buenos Aires, Argentina
+AER:Sochi, Russia
+AES:Vigra, Aalesund, Norway
+AET:Allakaket, Alaska, USA
+AEX:Alexandria International, Louisiana, USA
+AEY:Akureyri, Iceland
+AGA:Agadir/Al Massira, Agadir, Morocco
+AGB:Augsburg, Germany
+AGC:Allegheny County, Pennsylvania, USA
+AGF:La Garenne, Agen, France
+AGH:Angelholm/Helsingborg, Scania, Sweden
+AGP:Pablo Ruiz Picasso, Malaga, Spain
+AGR:Kheria, Agra, India
+AGS:Augusta Regional/Bush Field, Augusta, Georgia, USA
+AGU:Aguascalientes, Aguascalientes, Mexico
+AHN:Athens-Ben Epps, Athens, Georgia, USA
+AHO:Fertilia, Alghero, Sardinia, Italy
+AIA:Alliance, Nebraska, USA
+AIN:Wainwright, Alaska, USA
+AJA:Campo Dell Oro, Ajaccio, Corsica, France
+AJN:Ouani, Anjouan, Comoros
+AJR:Arvidsjaur, Sweden
+AJU:Santa Maria, Aracaju, Sergipe, Brazil
+AKJ:Asahikawa, Asahikawa, Japan
+AKL:Auckland, New Zealand
+ALA:Almaty International, Kazakhstan
+ALB:Albany International, New York, USA
+ALC:El Altet, Alicante, Spain
+ALE:Alpine/Casparis, Alpine, Texas, USA
+ALF:Elvebakken, Alta, Norway
+ALG:Houari Boumedienne, Algiers, Algeria
+ALM:Alamogordo/White Sands, New Mexico, USA
+ALO:Waterloo Regional, Iowa, USA
+ALP:Nejrab, Aleppo, Syria
+ALS:San Luis Valley Regional/Bergman Field, Alamosa, Colorado, USA
+ALW:Walla Walla Regional, Washington, USA
+ALY:Alexandria International, Alexandria, Egypt
+AMA:Rick Husband Amarillo International, Texas, USA
+AMD:Sardar Vallabhbhai Patel International, Ahmedabad, India
+AMI:Selaparang, Mataram, Indonesia
+AMM:Queen Alia International, Amman, Jordan
+AMQ:Pattimura, Ambon, Indonesia
+AMS:Schiphol, Amsterdam, Netherlands
+ANB:Anniston Metropolitan, Anniston, Alabama, USA
+ANC:Ted Stevens Anchorage International, Alaska, USA
+ANF:Cerro Moreno International, Antofagasta, Chile
+ANI:Aniak, Alaska, USA
+ANK:Etimesgut, Ankara, Turkey
+ANR:Antwerp International, Antwerp, Belgium
+ANU:V.C. Bird International, Saint Johns / Antigua, Antigua And Barbuda
+ANV:Anvik, Alaska, USA
+AOI:Aeroporto delle Marche, Ancona, Italy
+AOJ:Aomori, Japan
+AOK:Karpathos, Karpathos, Greece
+AOO:Altoona/Blair County, Altoona, Pennsylvania, USA
+AOR:Sultan Abdul Halim, Alor Setar, Malaysia
+APF:Naples Municipal, Florida, USA
+APL:Nampula, Mozambique
+APN:Alpena Regional, Michigan, USA
+APW:Faleolo International, Apia, Samoa
+AQJ:King Hussain International, Aqaba, Jordan
+AQP:Rodriguez Ballon, Arequipa, Peru
+ARH:Talagi, Arkhangelsk, Russia
+ARI:Chacalluta International, Arica, Chile
+ARM:Armidale, Armidale, New South Wales, Australia
+ARN:Stockholm/Arlanda, Stockholm, Sweden
+ART:Watertown International, Watertown, New York, USA
+ASD:Andros Town International, Bahamas
+ASE:Pitkin County/Sardy Field, Aspen, Colorado, USA
+ASM:Asmara Intl/Yohannes Iv, Asmara, Eritrea
+ASP:Alice Springs, Alice Springs, Northern Territory, Australia
+ASU:Silvio Pettirossi, Asuncion, Paraguay
+ASW:Aswan International, Aswan, Egypt
+ATC:Arthurs Town, Bahamas
+ATH:Athens Eleftherios Venizelos International, Athens, Greece
+ATL:Atlanta William B. Hartsfield International, Georgia, USA
+ATW:Outagamie County Regional, Appleton, Wisconsin, USA
+ATY:Watertown Regional, South Dakota, USA
+AUA:Reina Beatrix, Aruba, Aruba
+AUC:Santiago Perez, Arauca, Colombia
+AUG:Maine State, Augusta, Maine, USA
+AUH:Abu Dhabi International, Abu Dhabi, United Arab Emirates
+AUS:Austin-Bergstrom International, Texas, USA
+AVL:Asheville Regional, North Carolina, USA
+AVN:Avignon-Provence, Avignon, France
+AVP:Wilkes-Barre/Scranton International, Pennsylvania, USA
+AVV:Avalon Airport, Victoria, Australia
+AXA:Wallblake, The Valley, Anguilla
+AXD:Alexandroupolis International, Alexandroupolis, Greece
+AYQ:Connellan, Ayers Rock, Northern Territory, Australia
+AYT:Antalya, Antalya, Turkey
+AZO:Kalamazoo/Battle Creek International, Kalamazoo, Michigan, USA
+BAH:Bahrain International, Bahrain, Bahrain
+BAL:Batman, Batman, Turkey
+BAQ:Ernesto Cortissoz International, Barranquilla, Colombia
+BAX:Barnaul, Russia
+BBA:Balmaceda, Aysen, Chile
+BBI:Biju Patnaik, Bhubaneswar, India
+BBK:Kasane, Kasane, Botswana
+BBU:Bucharest Aurel Vlaicu/Baneasa, Bucharest, Romania
+BCD:New Bacolod-Silay, Bacolod, Philippines
+BCN:Barcelona, Spain
+BDA:Bermuda International,Ferry Reach, Bermuda
+BDJ:Syamsudin Noor, Banjarmasin, Indonesia
+BDL:Bradley International, Hartford, Connecticut, USA
+BDO:Husein Sastranegara, Bandung, Indonesia
+BDQ:Vadodara, Vadodara, India
+BDR:Igor I. Sikorsky Memorial, Bridgeport, Connecticut, USA
+BED:Laurence G. Hanscom, Bedford, Massachusetts, USA
+BEG:Nikola Tesla, Belgrade, Serbia
+BEH:Southwest Michigan Regional, Benton Harbor, Michigan, USA
+BEI:Beica, Ethiopia
+BEL:Val De Caes International, Belem, Para, Brazil
+BEO:Belmont, Newcastle, New South Wales, Australia
+BER:Berlin Brandenburg, Berlin, Germany
+BES:Brest/Bretagne, Brest, France
+BET:Bethel, Alaska, USA
+BEW:Beira, Mozambique
+BEY:Beirut Rafic Hariri International, Lebanon
+BFD:Bradford Regional, Pennsylvania, USA
+BFF:Western Nebraska Regional/William B. Heilig Field, Scottsbluff, Nebraska, USA
+BFI:Seattle Kings County International/Boeing Field, Washington, USA
+BFL:Meadows Field, Bakersfield, California, USA
+BFN:Bram Fischer International, Bloemfontein, South Africa
+BFS:Belfast International, Belfast, Northern Ireland, United Kingdom
+BGA:Palonegro, Bucaramanga, Colombia
+BGF:Bangui M'Poko International, Bangui, Central African Republic
+BGI:Grantley Adams International, Bridgetown, Barbados
+BGK:Big Creek, Big Creek, Belize
+BGM:Greater Binghamton/Edwin Alink Field, Binghamton, New York, USA
+BGO:Bergen Flesland, Bergen, Norway
+BGR:Bangor International, Bangor, Maine, USA
+BGT:Bagdad, Bagdad, Arizona
+BGW:Baghdad International, Baghdad, Iraq
+BGY:Orio Al Serio, Milan, Italy
+BHB:Hancock County/Bar Harbor, Bar Harbor, Maine, USA
+BHD:George Best Belfast City, Belfast, Northern Ireland, United Kingdom
+BHI:Commandante Espora, Bahia Blanca, Buenos Aires, Argentina
+BHK:Bukhara, Uzbekistan
+BHM:Birmingham-Shuttlesworth International, Birmingham, Alabama, USA
+BHQ:Broken Hill, Broken Hill, New South Wales, Australia
+BHS:Bathhurst, Bathurst, New South Wales, Australia
+BHX:Birmingham International, Birmingham, United Kingdom
+BHZ:All Airports around Belo Horizonte, MG, Brazil
+BIA:Bastia/Poretta, Bastia, Corsica, France
+BIH:Bishop, California, USA
+BIK:Frans Kaisiepo, Biak, Indonesia
+BIL:Billings Logan International, Montana, USA
+BIM:South Bimini, Bimini, Bahamas
+BIO:Bilbao, Bilbao, Spain
+BIQ:Biarritz-Anglet-Bayonne, Biarritz, France
+BIS:Bismarck Municipal, North Dakota, USA
+BJI:Bemidji Regional, Bemidji, Minnesota, USA
+BJL:Banjul International, Banjul, Gambia
+BJV:Milas-Bodrum, Bodrum, Turkey
+BJX:Del Bajio International, Leon/Guanajuato, Guanajuato, Mexico
+BKI:Kota Kinabalu International, Kota Kinabalu, Sabah, Malaysia
+BKK:Suvarnabhumi Airport, Bangkok, Thailand
+BKL:Bruke Lakefront, Cleveland, Ohio, USA
+BKO:Senou International, Bamako, Mali
+BKW:Raleigh County Memorial, Beckley, West Virginia, USA
+BKX:Brookings Regional, South Dakota, USA
+BLA:General Jose Antonio Anzoategui International, Barcelona, Venezuela
+BLE:Borlange, Dalecarlia, Sweden
+BLF:Mercer County, Bluefield, West Virginia, USA
+BLI:Bellingham International, Washington, USA
+BLK:Blackpool International, Blackpool, England, United Kingdom
+BLL:Billund, Denmark
+BLQ:Guglielmo Marconi, Bologna, Italy
+BLR:Bengaluru International, Bangalore, India
+BLZ:Chileka International, Blantyre, Malawi
+BMA:Stockholm-Bromma, Uppland, Sweden
+BMG:Monroe County, Bloomington, Indiana, USA
+BMI:Central Illinois Regional, Bloomington, Illinois, USA
+BNA:Nashville International, Nashville, Tennessee, USA
+BND:Bandar Abbas International, Bandar Abbas, Iran
+BNE:Brisbane International, Queensland, Australia
+BNJ:Hangelar, Bonn, Germany
+BNN:Bronnoysun, Bronnoysund, Norway
+BNS:Barinas, Venezuela
+BOB:Bora Bora, French Polynesia
+BOD:Merignac, Bordeaux, France
+BOG:El Dorado International, Bogota, Colombia
+BOI:Boise Air Terminal/Gowen Field, Idaho, USA
+BOJ:Burgas, Bulgaria
+BOM:Chhatrapati Shivaji International, Mumbai, India
+BON:Flamingo International, Bonaire, Netherlands Antilles
+BOO:Bodo, Norway
+BOS:Logan International, Boston, Massachusetts, USA
+BPS:Porto Seguro, Bahia, Brazil
+BPT:Southeast Texas Regional, Beaumont, Texas, USA
+BQB:Busselton Regional, Busselton, Western Australia, Australia
+BQK:Brunswick Golden Isles, Brunswick, Georgia, USA
+BQN:Rafael Hernandez, Aguadilla, Puerto Rico, USA
+BRC:International, San Carlos De Bariloche, Rio Negro, Argentina
+BRD:Brainerd Lakes Regional, Brainerd, Minnesota, USA
+BRE:Bremen, Germany
+BRI:Bari Palese, Bari, Italy
+BRL:Southeast Iowas Regional, Burlington, Iowa, USA
+BRM:Jacinto Lara International, Barquisimeto, Venezuela
+BRN:Belp, Berne, Switzerland
+BRO:South Padre Island International, Brownsville, Texas, USA
+BRQ:Turany, Brno, Czech Republic
+BRR:North Bay, Barra / Hebrides Islands, Scotland, United Kingdom
+BRS:Bristol International, Bristol, England, United Kingdom
+BRT:Bathurst Island, Northern Territory, Australia
+BRU:Zaventem, Brussels, Belgium
+BRW:Wiley Post-Will Rogers Memorial, Alaska, USA
+BSB:Presidente Juscelino Kubitschek Intl., Brasilia, Distrito Federal, Brazil
+BSD:Baoshan, China
+BSK:Biskra, Algeria
+BSL:Basel/Mulhouse Euroairport, Switzerland
+BTM:Bert Mooney, Butte, Montana, USA
+BTR:Baton Rouge Metropolitan/Ryan Field, Baton Rouge, Louisiana, USA
+BTS:M. R. Stefanik, Bratislava, Slovakia
+BTU:Bintulu, Sarawak, Malaysia
+BTV:Burlington International, Burlington, Vermont, USA
+BUD:Budapest Liszt Ferenc International, Budapest, Hungary
+BUE:All Airports around Buenos Aires, Argentina
+BUF:Buffalo Niagara International, New York, USA
+BUH:All Airports around Bucharest, Romania
+BUQ:Joshua Mqabuko Nkomo International, Bulawayo, Zimbabwe
+BUR:Bob Hope, Burbank, California, USA
+BUZ:Bushehr, Bushehr, Iran
+BVB:Boa Vista International, Boa Vista, Roraima, Brazil
+BVI:Birdsville, Birdsville, Queensland, Australia
+BWA:Bhairawa, Bhairawa, Nepal
+BWI:Baltimore-Washington International, Maryland, USA
+BWN:Brunei International, Bandar Seri Begawan, Brunei Darussalam
+BWU:Bankstown, New South Wales, Australia
+BXN:Bodrum-Imsik, Bodrum, Turkey
+BXU:Butuan, Butuan, Philippines
+BYO:Bonito, Brazil
+BYU:Bindlacher Berg, Bayreuth, Germany
+BZE:Philip S. W. Goldson International, Belize City, Belize
+BZN:Gallatin Field, Bozeman, Montana, USA
+CAE:Columbia Metropolitan, South Carolina, USA
+CAG:Elmas, Cagliari, Sardinia, Italy
+CAI:International, Cairo, Egypt
+CAJ:Canaima, Venezuela
+CAK:Akron/Canton Regional, Ohio, USA
+CAN:Baiyun, Guangzhou, China
+CAS:Anfa, Casablanca, Morocco
+CAY:Rochambeau, Cayenne, French Guiana
+CBB:San Jose De La Banda, Cochabamba, Bolivia
+CBE:Municipal, Cumberland, Maryland, USA
+CBG:Cambridge, England, United Kingdom
+CBL:Ciudad Bolivar, Venezuela
+CBR:Canberra, Canberra, Australian Capital Territory, Australia
+CCF:Salvaza, Carcassonne, France
+CCJ:Calicut, India
+CCP:Carriel Sur, Concepcion, Chile
+CCS:Simon Bolivar International, Caracas, Venezuela
+CCU:Calcutta, Calcutta, India
+CDC:Cedar City, Utah, USA
+CDG:Charles de Gaulle, Paris, France
+CDH:Camden, Arkansas, USA
+CDR:Chadron, Nebraska, USA
+CDV:Cordova, Alaska, USA
+CEB:Cebu International, Philippines
+CEC:Crescent City Municipal, California, USA
+CEI:Chiang Rai, Thailand
+CEN:Ciudad Obregon, Sonora, Mexico
+CER:Maupertus, Cherbourg, France
+CEZ:Montezuma County, Cortez, Colorado, USA
+CFE:Clermont-Ferrand, Auvergne, France
+CFR:Carpiquet, Caen, France
+CFU:Kerkyra, Greece
+CGA:Craig, Alaska, USA
+CGB:Cuiaba, Mato Grosso, Brazil
+CGD:Changde, China
+CGH:Congonhas, Sao Paulo, Sao Paulo, Brazil
+CGI:Cape Girardeau, Missouri, USA
+CGK:Soekarno Hatta International, Jakarta, Indonesia
+CGN:Konrad Adenauer, Cologne/Bonn, Germany
+CGO:Zhengzhou, China
+CGP:Patenga, Chittagong, Bangladesh
+CGQ:Changchun, China
+CGR:Campo Grande, Mato Grosso Do Sul, Brazil
+CGX:Chicago Merrill C. Meigs Field, Chicago, Illinois, USA
+CHA:Cha Lovell Field, Chattanooga, Tennessee, USA
+CHC:Christchurch International, New Zealand
+CHI:All Airports around Chicago, Illinois, USA
+CHO:Charlottesville/Albemarle, Virginia, USA
+CHQ:Souda, Chania, Crete Island, Greece
+CHS:Charleston International, South Carolina, USA
+CIA:Ciampino, Rome, Italy
+CIC:Chico Municipal Air Terminal, Chico, California, USA
+CID:Cedar Rapids/Iowa City, Iowa, USA
+CIU:Chippewa County International, Sault Ste Marie, Michigan, USA
+CIX:Cornel Ruiz, Chiclayo, Peru
+CJB:Peelamedu, Coimbatore, India
+CJJ:Cheongju International, South Korea
+CJS:International Abraham Gonzalez, Ciudad Juarez, Chihuahua, Mexico
+CJU:Jeju International, South Korea
+CKB:North Central West Virginia, Bridgeport, West Virginia, USA
+CKC:Cherkasy International, Cherkasy, Ukraine
+CKG:Chongqing International, China
+CKS:International / Brasilia Brazil, Carajas, Para, Brazil
+CKY:Conakry, Conakry, Guinea
+CLD:Carlsbad/Palomar, California, USA
+CLE:Cleveland-Hopkins International, Ohio, USA
+CLJ:Cluj, Cluj, Romania
+CLL:College Station, Texas, USA
+CLM:Wm Fairchild International, Port Angeles, Washington, USA
+CLO:Alfonso Bonilla Aragon, Cali, Colombia
+CLQ:Colima, Colima, Mexico
+CLT:Charlotte/Douglas International, North Carolina, USA
+CLY:Ste Catherine, Calvi, Corsica, France
+CMB:Katunayake International, Colombo, Sri Lanka
+CME:Ciudad Del Carmen, Campeche, Mexico
+CMG:Corumba, Mato Grosso Do Sul, Brazil
+CMH:Columbus International, Ohio, USA
+CMI:University of Illinois-Willard, Illinois, USA
+CMN:Mohamed V, Casablanca, Morocco
+CMX:Houghton County / Memorial, Hancock, Michigan, USA
+CND:Kogalniceanu, Constanta, Romania
+CNF:Aeropuerto Internacional Tancredo Neves, Belo Horizonte, Minas Gerais, Brazil
+CNM:Carlsbad, New Mexico, USA
+CNS:Cairns, Queensland, Australia
+CNX:Chiang Mai International, Thailand
+CNY:Moab, Utah, USA
+COK:Cochin Naval Air Station, India
+COO:Cotonou, Benin
+COR:Pajas Blancas, Cordoba, Cordoba, Argentina
+COS:Peterson, Colorado Springs, USA
+COU:Columbia Regional, Columbia, Missouri, USA
+CPC:San Martin De Los Andes, Neuquen, Argentina
+CPH:Copenhagen, Denmark
+CPQ:Campinas International, Sao Paulo, Brazil
+CPR:Casper/Natrone County International, Wyoming, USA
+CPT:Cape Town International, Cape Town, South Africa
+CRD:Comodoro Rivadavia, Chubut, Argentina
+CRI:Crooked Island, Bahamas
+CRL:Brussels South / Gosselies, Charleroi, Belgium
+CRM:Charleston (WV) Yeager, South Carolina, USA
+CRP:Corpus Christi International, Texas, USA
+CRU:Carriacou Island, Grenada
+CRW:Yeager, Charleston, West Virginia, USA
+CSG:Columbus Metropolitan / Fort Benning, Columbus, Georgia, USA
+CSN:Carson City, Nevada, USA
+CSX:Changsha, China
+CTA:Fontanarossa, Catania, Sicily, Italy
+CTG:Rafael Nunez, Cartagena, Colombia
+CTM:Chetumal International, Quintana Roo, Mexico
+CTL:Charleville, Charleville, Queensland, Australia
+CTS:Chitose, Sapporo, Japan
+CTU:Chengdu, China
+CUC:Camilo Daza, Cucuta, Colombia
+CUE:Mariscal La Mar, Cuenca, Ecuador
+CUL:Culiacan, Sinaloa, Mexico
+CUM:Cumana, Venezuela
+CUN:Cancun, Mexico
+CUP:Carupano, Venezuela
+CUR:Areopuerto Hato, Willemstad / Curacao Island, Netherlands Antilles
+CUU:Genvillalobos, Chihuahua, Chihuahua, Mexico
+CUZ:Velasco Astete, Cuzco, Peru
+CVG:Cincinnati International, Ohio, USA
+CVN:Clovis, New Mexico, USA
+CWA:Central Wisconsin, Wausau, Wisconsin, USA
+CWB:Afonso Pena, Curitiba, Parana, Brazil
+CWC:Chernivtsi International, Chernivtsi, Ukraine
+CWT:Cowra, Cowra, New South Wales, Australia
+CXH:Vancouver Harbour, British Columbia, Canada
+CXP:Carson, Nevada, USA
+CYB:Cayman Brac Island, Cayman Islands
+CYR:Colonia, Uruguay
+CYS:Cheyenne, Wyoming, USA
+CZM:Aeropuerto Intl De Cozumel, Cozumel, Quintana Roo, Mexico
+DAB:Daytona Beach, Florida, USA
+DAC:Zia International, Dhaka, Bangladesh
+DAD:Da Nang, Da Nang, Vietnam
+DAL:Dallas Love Field, Texas, USA
+DAM:Damascus Intl, Damascus, Syria
+DAN:Danville, Virginia, USA
+DAR:Dar Es Salaam International, Tanzania
+DAY:Dayton James M. Cox International, Ohio, USA
+DBO:Dubbo, Dubbo, New South Wales, Australia
+DBQ:Dubuque, Iowa, USA
+DBV:Hrvatska, Dubrovnik, Croatia
+DCA:Washington National, District of Columbia, USA
+DCF:Cane Field, Dominica, Dominica
+DDC:Dodge City Municipal, Dodge City, Kansas, USA
+DEC:Decatur, Illinois, USA
+DEL:Delhi, India
+DEM:Dembidollo, Dembidollo, Ethiopia
+DEN:Denver International, Colorado, USA
+DET:Detroit City, Michigan, USA
+DFW:Dallas-Ft. Worth International, Texas, USA
+DGA:Dangriga, Belize
+DGO:Gen Guadalupe Victoria, Durango, Durango, Mexico
+DHA:Dhahran Intl, Dhahran, Saudi Arabia
+DHN:Dothan Municipal, Alabama, USA
+DIB:Chabua, Dibrugarh, India
+DIJ:Longvic, Dijon, France
+DIL:Comoro, Dili, Indonesia
+DIY:Diyarbakir, Turkey
+DKR:Yoff, Dakar, Senegal
+DLA:Douala, Douala, Cameroon
+DLC:Dalian, China
+DLH:Duluth, Minnesota, USA
+DLM:Dalaman, Mugla, Turkey
+DME:Domodedovo, Moscow, Russia
+DMK:Don Mueang International, Bangkok, Thailand
+DMR:Dhamar, Yemen
+DND:Dundee, Scotland, United Kingdom
+DNK:Dnipropetrovs'k International, Dnipropetrovs'k, Ukraine
+DNM:Denham, Western Australia, Australia
+DNV:Vermilion County, Danville, Illinois, USA
+DOH:Doha, Qatar
+DOK:Donets'k Sergey Prokofiev International, Donets'k, Ukraine
+DOL:Saint Gatien, Deauville, France
+DOM:Melville Hall, Dominica
+DPL:Dipolog, Dipolog, Philippines
+DPO:Devonport, Tasmania, Australia
+DPS:Ngurah Rai, Denpasar Bali, Indonesia
+DRM:Drama, Greece
+DRO:Durango La Plata County, Colorado, USA
+DRS:Dresden, Germany
+DRT:Del Rio, Texas, USA
+DRW:Darwin, Northern Territory, Australia
+DSI:Destin, Florida, USA
+DSM:Des Moines International, Iowa, USA
+DTH:Furnace Creek/Death Valley, California, USA
+DTM:Wickede, Dortmund, Germany
+DTT:All Airports around Detroit, Michigan, USA
+DTW:Detroit Metropolitan/Wayne County, Michigan, USA
+DUB:Dublin, Ireland
+DUD:Momona, Dunedin, New Zealand
+DUJ:Jefferson County, Du Bois, Pennsylvania, USA
+DUQ:Quamichan Lake, Duncan / Quam, British Columbia, Canada
+DUR:King Shaka International, Durban, South Africa
+DUS:Duesseldorf, Germany
+DUT:Dutch Harbor, Alaska, USA
+DVO:Mati, Davao, Philippines
+DYG:Zhangjiajie Hehua International, China
+DXB:Dubai, UAE
+EAP:Euro Basel Mulhouse Freiburg, Switzerland/France/Germany
+EAR:Kearney Municipal, Nebraska, USA
+EAS:Fuenterrabia, San Sebastian, Spain
+EAT:Pangborn Memorial Field, Wenatchee, Washington, USA
+EAU:Eau Claire Municipal, Wisconsin, USA
+EBA:Marina Di Campo, Elba Island, Italy
+EBB:Entebbe/Kampala, Uganda
+EBJ:Esbjerg, Denmark
+EDI:Turnhouse, Edinburgh, Scotland, United Kingdom
+EDR:Edward River, Queensland, Australia
+EEN:Dillant Hopkins, Keene / Brattleboro, New Hampshire, USA
+EFD:Ellington Field, Houston, Texas, USA
+EGE:Eagle County Regional, Vail/Eagle, Colorado, USA
+EIN:Welschap, Eindhoven, Netherlands
+EIS:Tortola/Beef Island, Virgin Islands (British)
+EJA:Variguies, Barrancabermeja, Colombia
+EKN:Elkins-Randolph Country, Elkins, West Virginia, USA
+EKO:J C Harris Field, Elko, Nevada, USA
+ELD:El Dorado, Arkansas, USA
+ELH:North Eleuthera, Bahamas
+ELM:Elmira Corning Regional, New York, USA
+ELP:El Paso International, Texas, USA
+ELS:East London Airport, East London, South Africa
+ELY:Yelland Field, Ely, Nevada, USA
+EMA:East Midlands, England, United Kingdom
+EMD:Emerald, Queensland, Australia
+ENA:Kenai Municipal, Alaska, USA
+ENC:Nancy-Essey, France
+ENS:Twente, Enschede, Netherlands
+EOH:Enrique Olaya Herrara, Medellin, Colombia
+EPR:Esperance, Western Australia, Australia
+ERF:Erfurt, Germany
+ERI:Erie International, Pennsylvania, USA
+ERS:Eros, Windhoek, Namibia
+ERZ:Erzurum, Turkey
+ESB:Esenboga, Ankara, Turkey
+ESC:Delta County, Escanaba, Michigan, USA
+ESD:Eastsound/Orcas Island, Washington, USA
+ESR:El Salvador, Chile
+ETH:Elat, Israel
+ETZ:Metz/Nancy Lorraine, France
+EUG:Eugene, Oregon, USA
+EVE:Evenes, Norway
+EVG:Sveg, Sweden
+EVN:Zvartnots, Yerevan, Armenia
+EVV:Evansville, Indiana, USA
+EWB:New Bedford/Fall River, Massachusetts, USA
+EWR:Newark International, New Jersey, USA
+EXT:Exeter, England, United Kingdom
+EYW:Key West International, Florida, USA
+EZE:Buenos Aires, Argentina
+FAE:Faroe Islands, Faroe Islands
+FAI:Fairbanks International, Alaska, USA
+FAO:Faro, Portugal
+FAR:Fargo Hector International, North Dakota, USA
+FAT:Fresno Air Terminal, California, USA
+FAY:Fayetteville Municipal, North Carolina, USA
+FBU:Fornebu, Oslo, Norway
+FCA:Glacier Park International, Kalispell, Montana, USA
+FCO:Leonardo Da Vinci/Fiumicino, Rome, Italy
+FDE:Forde, Norway
+FDF:Fort De France, Martinique
+FDH:Friedrichshafen, Germany
+FEZ:Fez, Morocco
+FFM:Fergus Falls, Minnesota, USA
+FHU:Fort Huachuca/Sierra Vista, Arizona, USA
+FIH:Kinshasa, Democratic Republic of the Congo
+FKL:Chess Lamberton, Franklin, Pennsylvania, USA
+FLG:Flagstaff, Arizona, USA
+FLL:Ft. Lauderdale-Hollywood International, Florida, USA
+FLN:Florianopolis, Santa Catarina, Brazil
+FLO:Gilbert Field, Florence, South Carolina, USA
+FLR:Florence, Italy
+FMA:Formosa, Argentina
+FMN:Four Corners Regional, Farmington, New Mexico, USA
+FMO:Muenster, Germany
+FNC:Funchal, Madeira Islands, Portugal
+FNL:Fort Collins/Loveland, Colorado, USA
+FNT:Bishop International, Flint, Michigan, USA
+FOD:Fort Dodge, Iowa, USA
+FOE:Topeka Forbes Field, Kansas, USA
+FOO:Numfoor, Indonesia
+FOR:Fortaleza, Ceara, Brazil
+FPO:Freeport, Bahamas
+FRA:Frankfurt, Germany
+FRD:Friday Harbor, Washington, USA
+FRM:Fairmont Municipal, Minnesota, USA
+FRO:Floro, Norway
+FRS:Flores, Guatemala
+FRU:Manas, Bishkek, Kyrgyzstan
+FSC:Figari, Corsica, France
+FSD:Joe Foss Field, Sioux Falls, South Dakota, USA
+FSM:Fort Smith Municipal, Arkansas, USA
+FSP:St Pierre, St. Pierre And Miquelon
+FTE:Comandante Armando Tola International, El Calafate, Argentina
+FUE:Fuerteventura/Puerto Del Rosario, Canary Islands/Fuerteventura Island, Spain
+FUK:Itazuke, Fukuoka, Japan
+FWA:Baer Field, Fort Wayne, Indiana, USA
+FYV:Fayetteville Municipal, Arkansas, USA
+GAJ:Junmachi, Yamagata, Japan
+GAL:Galena, Alaska, USA
+GAU:Borjhar, Gauhati, India
+GBE:Gaborone, Botswana
+GBG:Galesburg, Illinois, USA
+GCC:Campbell County, Gillette, Wyoming, USA
+GCI:Guernsey, Channel Islands, United Kingdom
+GCK:Garden City, Kansas, USA
+GCM:Owen Roberts International, Grand Cayman Island, Cayman Islands
+GCN:Grand Canyon, Arizona, USA
+GDL:Miguel Hidalgo Intl, Guadalajara, Jalisco, Mexico
+GDN:Rebiechowo, Gdansk, Poland
+GDT:Grand Turk Is, Turks And Caicos Islands
+GDV:Glendive, Montana, USA
+GDX:Magadan, Russia
+GEG:Spokane Geiger Field International, Washington, USA
+GEN:Garderm O E N, Oslo, Norway
+GEO:Timehri, Georgetown, Guyana
+GET:Geraldton, Western Australia, Australia
+GEV:Gallivare, Sweden
+GEX:Geelong, Victoria, Australia
+GFK:Grand Forks, North Dakota, USA
+GGG:Gregg County, Longview/Gladewater/Kilgore, Texas, USA
+GGT:Exuma International, George Town, Bahamas
+GGW:Glasgow, Montana, USA
+GHB:Governors Harbour, Bahamas
+GHV:Brasov-Ghimbav International, Romania
+GIB:Gibraltar
+GIG:Rio De Janeiro, Brazil
+GJT:Walker Field, Grand Junction, Colorado, USA
+GKA:Goroka, Papua New Guinea
+GLA:Glasgow International, Scotland
+GLD:Renner Field, Goodland, Kansas, USA
+GLF:Golfito, Costa Rica
+GLS:Scholes Field, Galveston, Texas, USA
+GLV:Golovin, Alaska, USA
+GMP:Gimpo International, Seoul, South Korea
+GNB:St Geoirs, Grenoble, France
+GND:Pt Saline, St Georges/Grenada, Grenada
+GNV:Jr Alison Municipal, Gainesville, Florida, USA
+GOA:Christoforo Colombo, Genoa, Italy
+GOH:Nuuk, Greenland
+GOI:Dabolim, Goa, India
+GOJ:Nizhniy Novgorod, Russia
+GOT:Landvetter, Goteborg, Sweden
+GOV:Nhulunbuy, Gove, Northern Territory, Australia
+GOZ:Gorna Orechovitsa, Bulgaria
+GPS:Baltra, Galapagos Islands, Ecuador
+GPT:Gulfport/Biloxi, Gulfport, Mississippi, USA
+GRB:Austin/Straybel Field, Green Bay, Wisconsin, USA
+GRI:Central Nebraska Regional, Grand Island, Nebraska, USA
+GRJ:George Airport, George, South Africa
+GRO:Costa Brava, Gerona, Spain
+GRQ:Eelde, Groningen, Netherlands
+GRR:Grand Rapids/Kent County International, Michigan, USA
+GRU:Guarulhos, Sao Paulo, Sao Paulo, Brazil
+GRX:Granada, Spain
+GRZ:Thalerhof, Graz, Austria
+GSE:Goteborg-Save, Sweden
+GSO:Greensboro-High Pt.-Winston Salem Regional, North Carolina, USA
+GSP:Greenville-Spartanburg, South Carolina, USA
+GTF:Great Falls International, Great Falls, Montana, USA
+GTO:Tolotio, Gorontalo, Indonesia
+GTR:Golden, Columbus, Mississippi, USA
+GUA:La Aurora International, Guatemala City, Guatemala
+GUB:Guerrero Negro, Baja California Sur, Mexico
+GUC:Gunnison, Colorado, USA
+GUM:Ab Wonpat International, Guam, Guam
+GUP:Gallup Municipal, New Mexico, USA
+GUR:Gurney, Alotau, Papua New Guinea
+GVA:Cointrin Geneva, Switzerland
+GVX:Gavle, Sweden
+GWD:Gwadar, Pakistan
+GWT:Westerland, Germany
+GWY:Carnmore, Galway, Ireland
+GXQ:Teniente Vidal, Coyhaique, Chile
+GYD:Heydar Aliyev, Baku, Azerbaijan
+GYE:Simon Bolivar, Guayaquil, Ecuador
+GYM:Guaymas, Sonora, Mexico
+GYY:Gary, Indiana, USA
+HAD:Halmstad, Halland, Sweden
+HAH:Moroni (Hahaya), Comoros
+HAJ:Langenhagen, Hanover, Germany
+HAK:Haikou, China
+HAM:Hamburg, Germany
+HAN:Noibai, Hanoi, Vietnam
+HAU:Karmoy, Haugesund, Norway
+HAV:Jose Marti, Havana, Cuba
+HBA:Hobart, Tasmania, Australia
+HDN:Yampa Valley Regional, Hayden, Colorado, USA
+HDY:Hat Yai, Thailand
+HEL:Helsinki-Vantaa, Finland
+HER:Heraklion, Crete Island, Greece
+HET:Hohhot, China
+HFE:Hefei Xinqiao International Airport, Anhui, China
+HFS:Hagfors, Sweden
+HFT:Hammerfest, Norway
+HGH:Hangzhou, China
+HGN:Mae Hong Son, Thailand
+HGR:Washington County Regional, Hagerstown, Maryland, USA
+HHH:Municipal, Hilton Head, South Carolina, USA
+HHN:Frankfurt-Hahn, Kirchberg, Germany
+HIJ:Hiroshima, Japan
+HIN:Sacheon, South Korea
+HIR:Henderson International, Honiara/Guadalcanal, Solomon Islands
+HIS:Hayman Island, Queensland, Australia
+HKD:Hakodate, Japan
+HKG:Hong Kong
+HKK:Hokitika, New Zealand
+HKN:Hoskins, Papua New Guinea
+HKT:Phuket, Thailand
+HKV:Haskovo, Bulgaria
+HKY:Hickory, North Carolina, USA
+HLF:Hultsfred, Smaland, Sweden
+HLI:Hollister, California, USA
+HLN:Helena, Montana, USA
+HLP:Halim Perdana Kusama, Jakarta, Indonesia
+HLZ:Hamilton, New Zealand
+HMA:Malmo Harbour, Sweden
+HMO:General Ignacio Pesqueira Garcia, Hermosillo, Sonora, Mexico
+HMV:Hemavan, Sweden
+HNA:Hanamaki, Morioka, Japan
+HND:Haneda, Tokyo, Japan
+HNH:Hoonah, Alaska, USA
+HNL:Honolulu International, Hawaii, USA
+HNS:Haines, Alaska, USA
+HOB:Lea County, Hobbs, New Mexico, USA
+HOM:Homer, Alaska, USA
+HON:Huron, South Dakota, USA
+HOT:Hot Springs Memorial Field, Arkansas, USA
+HOU:Houston William P. Hobby, Texas, USA
+HPB:Hooper Bay, Alaska, USA
+HPN:White Plains/Westchester County, New York, USA
+HPV:Princeville, Kauai Island, Hawaii, USA
+HRB:Harbin, China
+HRE:Harare, Zimbabwe
+HRG:Hurghada, Egypt
+HRK:Kharkiv International, Kharkiv, Ukraine
+HRL:Harlingen, Texas, USA
+HRO:Boone County, Harrison, Arkansas, USA
+HSI:Hastings, Nebraska, USA
+HSV:Huntsville International, Alabama, USA
+HTA:Chita, Russia
+HTI:Hamilton Island, Queensland, Australia
+HUF:Terre Haute Hulman Regional, Indiana, USA
+HUI:Hue, Vietnam
+HUM:Terrebonne, Houma, Louisiana, USA
+HUN:Hualien, Taiwan
+HUV:Hudiksvall, Sweden
+HUX:Huatulco, Oaxaca, Mexico
+HUY:Humberside, England, United Kingdom
+HVB:Hervey Bay, Queensland, Australia
+HVN:New Haven Tweed, Connecticut, USA
+HVR:City County, Havre, Montana, USA
+HWD:Hayward Executive Airport, Hayward, California, USA
+HWN:Hwange National Park, Zimbabwe
+HYA:Barnstable County, Hyannis, Massachusetts, USA
+HYD:Begumpet, Hyderabad, India
+HYG:Hydaburg, Alaska, USA
+HYS:Hays, Kansas, USA
+IAD:Washington Dulles, Virginia, USA
+IAH:Houston Intercontinental, Texas, USA
+IAS:Iasi, Romania
+IBZ:Ibiza, Spain
+ICN:Incheon International, Seoul, South Korea
+ICT:Wichita Mid-Continent, Kansas, USA
+IDA:Idaho Falls, Idaho, USA
+IEV:Kyiv Zhulyany International, Kyiv, Ukraine
+IFO:Ivano-Frankivs'k International, Ivano-Frankivs'k, Ukraine
+IFP:Bullhead City, Arizona, USA
+IGA:Inagua, Bahamas
+IGM:Mohave County, Kingman, Arizona, USA
+IGR:Iguazu International, Misiones, Argentina
+IGU:Iguassu Falls, Parana, Brazil
+IJK:Izhevsk, Russia
+IKA:Imam Khomeini International Airport, Tehran, Iran
+IKT:Irkutsk, Russia
+ILE:Killeen, Texas, USA
+ILF:Ilford, Manitoba, Canada
+ILG:Wilmington/New Castle County, Delaware, USA
+ILI:Iliamna, Alaska, USA
+ILM:New Hanover County, Wilmington, North Carolina, USA
+ILO:Mandurriao, Iloilo, Philippines
+ILQ:Ilo, Moquegua, Peru
+ILY:Glenegedale, Islay, Scotland, United Kingdom
+IMF:Imphal Municipal, India
+IMP:Imperatriz, Maranhao, Brazil
+IMT:Ford, Iron Mountain, Michigan, USA
+IND:Indianapolis International, Indiana, USA
+INI:Constantine the Great, Nis, Serbia
+INL:Falls International, International Falls, Minnesota, USA
+INN:Kranebitten, Innsbruck, Austria
+INT:Winston-Salem Smith Reynolds, North Carolina, USA
+INU:Nauru
+INV:Inverness, Scotland, United Kingdom
+IOA:Ioannina, Greece
+IOM:Ronaldsway, Isle Of Man, United Kingdom
+IOS:Eduardo Gomes, Ilheus, Bahia, Brazil
+IPC:Mataveri, Easter Island, Chile
+IPH:Ipoh, Malaysia
+IPI:San Luis, Ipiales, Colombia
+IPT:Williamsport Lycoming Municipal, Williamsport, Pennsylvania, USA
+IQQ:Chucumata, Iquique, Chile
+IQT:Cf Secada, Iquitos, Peru
+ISB:Islamabad International, Pakistan
+ISC:Tresco, Isles Of Scilly, United Kingdom
+ISN:Sloulin Field International, Williston, North Dakota, USA
+ISO:Kinston, North Carolina, USA
+ISP:Long Island MacArthur, New York, USA
+IST:Ataturk International Istanbul, Turkey
+ITH:Ithaca Tompkins County, New York, USA
+ITM:Itami International, Osaka, Japan
+ITO:Hilo General Lyman Field, Hawaii, USA
+IVC:Invercargill, New Zealand
+IWD:Gogebic County, Ironwood, Michigan, USA
+IXB:Bagdogra, India
+IXE:Bajpe, Mangalore, India
+IXJ:Satwari, Jammu, India
+IXL:Leh, India
+IXM:Madurai, India
+IXU:Chikkalthana, Aurangabad, India
+IXZ:Port Blair, India
+IYK:Inyokern, California, USA
+IZO:Izumo, Japan
+JAC:Jackson Hole, Wyoming, USA
+JAI:Sanganeer, Jaipur, India
+JAN:Jackson Municipal/Thompson Field, Missippi, USA
+JAT:Jabat International, Marshall Islands
+JAV:Ilulissat, Greenland
+JAX:Jacksonville International, Florida, USA
+JBR:Jonesboro Municipal, Arkansas, USA
+JCA:Mandelieu, Cannes, France
+JDH:Jodhpur, India
+JDP:Issy Les Moulineaux, Paris, France
+JED:Jeddah International, Saudi Arabia
+JER:States, Jersey, Channel Islands, United Kingdom
+JFK:New York John F. Kennedy International, New York, USA
+JGA:Jamnagar, India
+JHB:Sultan Ismail International, Johor Bahru, Malaysia
+JHE:Helsingborg Heliport, Sweden
+JHM:Kapalua, Hawaii, USA
+JHW:Chautauqua County, Jamestown, New York, USA
+JIB:Ambouli, Djibouti, Djibouti
+JKG:Axamo, Jonkoping, Sweden
+JKH:Chios, Greece
+JKT:All Airports around Jakarta, Indonesia
+JLN:Joplin, Missouri, USA
+JMC:Marin County, Sausalito, California, USA
+JMK:Mikonos, Greece
+JMM:Malmo Harbour Heliport, Malmo, Sweden
+JMO:Jomsom, Nepal
+JMS:Jamestown, North Dakota, USA
+JNB:O R Tambo International, Johannesburg, South Africa
+JNS:Narssaq, Greenland
+JNU:Juneau International, Alaska, USA
+JNX:Naxos, Cyclades Islands, Greece
+JOG:Yogyakarta, Indonesia
+JOI:Joinville Federal, Santa Catarina, Brazil
+JON:Johnston Island, US, Outlying Islands
+JRA:New York City, New York, USA
+JRO:Kilimanjaro, Tanzania
+JSI:Skiathos, Greece
+JSS:Spetsai, Greece
+JST:Johnstown Cambria, Pennsylvania, USA
+JSY:Syros Island, Greece
+JTR:Santorini, Thira Is., Greece
+JUJ:El Cadillal, Jujuy, Provincia Jujuy, Argentina
+JUL:Inca Manco Capac International, Juliaca, Peru
+KAB:Kariba, Zimbabwe
+KAE:Kake, Alaska, USA
+KAL:Kaltag, Alaska, USA
+KAN:Aminu Kano International, Nigeria
+KAT:Kaitaia, New Zealand
+KBP:Kyiv Borispil International, Kyiv, Ukraine
+KBR:Sultan Ismail Petra, Kota Bharu, Malaysia
+KCG:Fisheries, Chignik, Alaska, USA
+KCH:Kuching, Sarawak, Malaysia
+KCK:All Airports around Kansas City, Kansas, USA
+KCL:Lagoon, Chignik, Alaska, USA
+KDG:Kardjali, Bulgaria
+KEF:Keflavik, Reykjavik, Iceland
+KEH:Kenmore Air Harbor, Washington, USA
+KEJ:Kemerovo, Russia
+KEL:Holtenau, Kiel, Germany
+KEM:Kemi/Tornio, Finland
+KEN:Kenema, Sierra Leone
+KEP:Nepalganj, Nepal
+KER:Kerman, Iran
+KGC:Kingscote, South Australia, Australia
+KGD:Khrabrovo, Kaliningrad, Russia
+KGP:Kogalym, Russia
+KHE:Kherson International, Kherson, Ukraine
+KHH:Kaohsiung, Taiwan
+KHI:Karachi, Pakistan
+KHV:Novy, Khabarovsk, Russia
+KID:Kristianstad, Sweden
+KIN:Kingston, Jamaica
+KIR:Kerry County, Ireland
+KIT:Kithira, Greece
+KIV:Kishinev, Moldova
+KIX:Kansai International, Osaka, Japan
+KJA:Yemelyanovo, Krasnoyarsk, Russia
+KKN:Hoeyburtmoen, Kirkenes, Norway
+KLO:Kalibo, Philippines
+KLR:Kalmar, Sweden
+KLU:Klagenfurt, Austria
+KLW:Klawock, Alaska, USA
+KLX:Kalamata, Greece
+KMG:Kunming, China
+KMI:Miyazaki, Japan
+KMJ:Kumamoto, Japan
+KNS:King Island, Tasmania, Australia
+KOA:Kailua-Kona, Keahole, Hawaii, USA
+KOI:Kirkwall / Orkney Island, Scotland, United Kingdom
+KOJ:Kagoshima, Japan
+KOK:Kruunupyy, Kokkola/Pietarsaari, Finland
+KPN:Kipnuk, Alaska, USA
+KPO:Pohang, South Korea
+KRE:Kirundo, Burundi
+KRF:Kramfors, Sweden
+KRK:Balice, Krakow, Poland
+KRN:Kiruna, Sweden
+KRP:Karup, Denmark
+KRR:Krasnodar, Russia
+KRS:Kjevik, Kristiansand, Norway
+KRT:Khartoum Civil, Sudan
+KSA:Kosrae, Caroline Islands, Micronesia
+KSC:Barca, Kosice, Slovakia
+KSD:Karlstad, Wermland, Sweden
+KSH:Bakhtaran Iran, Kermanshah, Iran
+KSJ:Kasos Island, Greece
+KSK:Karlskoga, Sweden
+KSO:Kastoria, Greece
+KSU:Kvernberget, Kristiansund, Norway
+KTM:Tribhuvan, Kathmandu, Nepal
+KTN:Ketchikan International, Alaska, USA
+KTR:Tindal, Katherine, Northern Territory, Australia
+KTW:Pyrzowice, Katowice, Poland
+KUA:Padang Geroda, Kuantan, Malaysia
+KUF:Kurumoch, Samara, Russia
+KUL:Subang Kuala Lumpur International, Malaysia
+KUM:Yakushima, Japan
+KUN:Kaunas, Lithuania
+KUO:Kuopio, Finland
+KUS:Kulusuk Metropolitan Area, Greenland
+KUT:Kutaisi, Georgia
+KUV:Gunsan, South Korea
+KVA:Kavala, Greece
+KVB:Skovde, Sweden
+KWA:Kwajalein, Marshall Islands
+KWG:Kryvyi Rih International, Dnipropetrovs'k, Ukraine
+KWI:Kuwait International
+KWJ:Gwangju, South Korea
+KWL:Guilin, China
+KXK:Khurba, Komsomolsk-on-Amur, Russia
+KZI:Kozani, Greece
+KZN:Kazan, Russia
+KZR:Zafer, Turkey
+KZS:Kastelorizo, Greece
+LAD:Fevereiro, Luanda, Angola
+LAF:Purdue University, Lafayette, Indiana, USA
+LAN:Lansing Capital City, Michigan, USA
+LAP:Aeropuerto General Marquez De Leon, La Paz, Baja California Sur, Mexico
+LAR:General Brees Field, Laramie, Wyoming, USA
+LAS:Las Vegas McCarran International, Nevada, USA
+LAW:Municipal, Lawton, Oklahoma, USA
+LAX:Los Angeles International, California, USA
+LBA:Leeds/Bradford, England, United Kingdom
+LBB:Lubbock, Texas, USA
+LBC:Luebeck, Germany
+LBE:Westmoreland County, Latrobe, Pennsylvania, USA
+LBF:North Platte Lee Bird Field, Nebraska, USA
+LBL:Glenn L Martin Terminal, Liberal, Kansas, USA
+LBU:Labuan, Sabah, Malaysia
+LBV:Libreville, Gabon
+LCA:Larnaca International, Cyprus
+LCE:La Ceiba International, Honduras
+LCG:La Coruna, Spain
+LCH:Lake Charles, Louisiana, USA
+LCY:London City, England, United Kingdom
+LDB:Londrina, Parana, Brazil
+LDE:Tarbes International, Lourdes/Tarbes, France
+LDU:Lahad Datu, Sabah, Malaysia
+LDY:City of Derry Airport, Londonderry, Northern Ireland, United Kingdom
+LEA:Learmonth, Western Australia, Australia
+LEB:Lebanon Regional, Lebanon/Hanover/White River, New Hampshire, USA
+LED:Pulkovo, St. Petersburg, Russia
+LEH:Le Havre, France
+LEI:Almeria, Spain
+LEJ:Leipzig/Halle, Germany
+LET:Gen Av Cobo, Leticia, Colombia
+LEX:Blue Grass Field, Lexington, Kentucky, USA
+LFT:Lafayette, Louisiana, USA
+LFW:Lome, Togo
+LGA:New York La Guardia, New York, USA
+LGB:Long Beach Daugherty Field, California, USA
+LGG:Bierset, Liege, Belgium
+LGI:Deadmans Cay, Deadmans Cay / Long Island, Bahamas
+LGK:Langkawi, Malaysia
+LGP:Legaspi, Philippines
+LGW:Gatwick, London, England, United Kingdom
+LHE:Lahore, Pakistan
+LHR:Heathrow, London, England, United Kingdom
+LIG:Bellegarde, Limoges, France
+LIH:Lihue, Hawaii, USA
+LIL:Lille-Lesquin, Lille, France
+LIM:Lima Jorge Chavez International, Peru
+LIN:Linate, Milan, Italy
+LIR:Liberia, Costa Rica
+LIS:Lisbon, Portugal
+LIT:Little Rock Regional, Arkansas, USA
+LJG:Lijiang Sanyi International Airport, Yunnan, China
+LJU:Brnik, Ljubljana, Slovenia
+LKE:Lake Union Sea Plane Base, Seattle, Washington, USA
+LKN:Leknes, Norway
+LKO:Lucknow, India
+LLA:Kallax, Lulea, Sweden
+LLW:Kamuzu Intl, Lilongwe, Malawi
+LLY:Mount Holly, New Jersey, USA
+LMM:Los Mochis, Sinaloa, Mexico
+LMN:Limbang, Sarawak, Malaysia
+LMT:Kingsley Field, Klamath Falls, Oregon, USA
+LNK:Lincoln Municipal, Nebraska, USA
+LNS:Lancaster, Pennsylvania, USA
+LNV:Londolovit, Papua New Guinea
+LNY:Lanai City, Hawaii, USA
+LNZ:Linz, Austria
+LON:All Airports around London, United Kingdom
+LOP:Lombok International, Indonesia
+LOS:Murtala Muhammed, Lagos, Nigeria
+LOV:Monclova, Coahuila, Mexico
+LPA:Aeropuerto De Gran Canaria, Canary Islands, Spain
+LPB:El Alto, La Paz, Bolivia
+LPI:Linkoping City Airport, Linkoping, Sweden
+LPL:John Lennon, Liverpool, England, United Kingdom
+LPQ:Luang Prabang, Laos
+LRA:Larisa, Greece
+LRD:Laredo, Texas, USA
+LRE:Longreach, Queensland, Australia
+LRH:Laleu, La Rochelle, France
+LRM:Casa De Campo, Dominican Republic
+LRS:Leros, Greece
+LRU:Las Cruces, New Mexico, USA
+LRV:El Gran Roque, Los Roques, Venezuela
+LSC:La Serena, Chile
+LSE:La Crosse Municipal, Wisconsin, USA
+LSI:Shetland Islands /Shetland Isd, Scotland, United Kingdom
+LSP:Josefa Camejo, Las Piedras, Venezuela
+LSQ:Maria Dolores, Los Angeles, Chile
+LST:Launceston, Tasmania, Australia
+LSY:Lismore, New South Wales, Australia
+LTN:Luton International, London, England, United Kingdom
+LTO:Loreto, Baja California Sur, Mexico
+LUA:Lukla, Nepal
+LUD:Luderitz, Namibia
+LUG:Agno, Lugano, Switzerland
+LUN:Lusaka, Zambia
+LUX:Findel, Luxembourg
+LUZ:Swidnik, Lublin, Poland
+LVI:Livingstone, Zambia
+LVK:Livermore, California, USA
+LWB:Greenbrier Valley, West Virginia, USA
+LWK:Tingwall, Shetland Islands /Shetland Isd, Scotland, United Kingdom
+LWN:Gyumri, Shirak Region, Armenia
+LWO:Lviv Danylo Halytskyi International, Lviv, Ukraine
+LWT:Lewistown Municipal, Montana, USA
+LWY:Lawas, Sarawak, Malaysia
+LXR:Luxor, Egypt
+LXS:Lemnos, Greece
+LYC:Lycksele, Sweden
+LYH:Lynchburg, Virginia, USA
+LYP:Lyallpur, Faisalabad, Pakistan
+LYR:Svalbard, Longyearbyen, Norway
+LYS:Lyon Saint-Exupery, France
+LZC:Na, Lazaro Cardenas, Michoacan, Mexico
+MAA:Meenambarkkam, Madras, India
+MAD:Barajas, Madrid, Spain
+MAF:Midland/Odessa, Texas, USA
+MAG:Madang, Papua New Guinea
+MAH:Aerop De Menorca, Menorca, Spain
+MAJ:Majuro International, Marshall Islands
+MAM:Servando Canales, Matamoros, Tamaulipas, Mexico
+MAN:Manchester, UK
+MAO:Eduardo Gomes, Manaus, Amazonas, Brazil
+MAR:La Chinita, Maracaibo, Venezuela
+MAY:Mangrove Cay, Bahamas
+MAZ:El Maui, Mayaguez, Puerto Rico, USA
+MBA:Moi International, Mombasa, Kenya
+MBJ:Sangster, Montego Bay, Jamaica
+MBL:Manistee Blacker, Michigan, USA
+MBS:Saginaw Tri-City, Michigan, USA
+MBW:Moorabbin, Victoria, Australia
+MCG:Mc Grath, Mc Grath, Alaska, USA
+MCI:Kansas City International, Missouri, USA
+MCK:Municipal, Mc Cook, Nebraska, USA
+MCM:Hel De Monte Carlo, Monte Carlo, Monaco
+MCN:Lewis B Wilson, Macon, Georgia, USA
+MCO:Orlando International, Florida, USA
+MCP:Macapa, Amapa, Brazil
+MCT:Seeb, Muscat, Oman
+MCW:Mason City, Iowa, USA
+MCX:Uytash, Makhachkala, Dagestan, Russia
+MCY:Maroochydore, Sunshine Coast, Queensland, Australia
+MDC:Samratulang, Manado, Indonesia
+MDE:La Playas, Medellin, Colombia
+MDH:Southern Illinois, Carbondale, Illinois, USA
+MDQ:Mar Del Plata, Buenos Aires, Argentina
+MDT:Harrisburg International, Pennsylvania, USA
+MDW:Chicago Midway, Illinois, USA
+MDZ:El Plumerillo, Mendoza, Argentina
+MEB:Essendon, Melbourne, Victoria, Australia
+MEI:Key Field, Meridian, Mississippi, USA
+MEL:Tullamarine, Melbourne, Victoria, Australia
+MEM:Memphis International, Tennessee, USA
+MES:Polonia, Medan, Indonesia
+MEV:Minden-Tahoe, Nevada, USA
+MEX:Juarez International, Mexico City, Distrito Federal, Mexico
+MEY:Meghauli, Nepal
+MFE:Mc Allen/Mission, Texas, USA
+MFM:Macau
+MFN:Milford Sound, New Zealand
+MFW:All Airports around Miami, Ft. Lauderdale and West Palm Beach, Florida, USA
+MGA:Managua, Nicaragua
+MGM:Montgomery Municipal/Dannelly Field, Alabama, USA
+MGQ:Mogadishu, Somalia
+MGW:Morgantown Municipal, West Virginia, USA
+MHH:Marsh Harbour, Bahamas
+MHK:Manhattan Municipal, Kansas, USA
+MHQ:Mariehamn, Aland Island, Finland
+MHT:Manchester, New Hampshire, USA
+MIA:Miami International, Florida, USA
+MID:Merida International, Merida, Yucatan, Mexico
+MIE:Delaware County, Muncie, Indiana, USA
+MIL:All Airports around Milano, Italy
+MIR:Skanes, Monastir, Tunisia
+MJT:Mytilene, Greece
+MJV:San Javier, Murcia, Spain
+MKC:Kansas City Downtown, Missouri, USA
+MKE:Milwaukee General Mitchell International, Wisconsin, USA
+MKG:Muskegon County International, Michigan, USA
+MKK:Hoolehua Municipal, Hawaii, USA
+MKL:Mc Kellar Field, Jackson, Tennessee, USA
+MKM:Mukah, Sarawak, Malaysia
+MKW:Rendani, Manokwari, Indonesia
+MKY:Mackay, Queensland, Australia
+MLA:Luqa, Malta, Malta
+MLB:Melbourne, Florida, USA
+MLE:Male International, Maldives
+MLG:Malang, Indonesia
+MLH:Mulhouse/Basel Euroairport, France
+MLI:Moline Quad City, Alabama, USA
+MLM:Morelia Municipal, Michoacan, Mexico
+MLN:Melilla, Spain
+MLO:Milos, Greece
+MLS:Miles City, Montana, USA
+MLU:Monroe, Louisiana, USA
+MMB:Memanbetsu, Japan
+MMH:Mammoth Lakes, California, USA
+MMK:Murmansk, Russia
+MMU:Morristown, New Jersey, USA
+MMX:Malmo-Sturup, Scania, Sweden
+MNI:Montserrat, Leeward Islands
+MNL:Ninoy Aquino International, Manila, Philippines
+MNM:Twin County, Menominee, Michigan, USA
+MOB:Mobile Municipal/Bates Field, Alabama, USA
+MOD:Harry Sham Field, Modesto, California, USA
+MOL:Aro, Molde, Norway
+MOT:Minot, North Dakota, USA
+MOW:All Airports around Moscow, Russia
+MPA:Mpacha, Namibia
+MPB:Miami Public Seaplane Base, Florida, USA
+MPL:Frejorgues, Montpellier, France
+MPM:Maputo International, Mozambique
+MPW:Mariupol International, Donets'k, Ukraine
+MQL:Mildura, Victoria, Australia
+MQN:Rossvoll, Mo I Rana, Norway
+MQP:Kruger Mpumalanga International, Nelspruit, South Africa
+MQT:Marquette, Michigan, USA
+MRD:Alberto Carnevalli, Merida, Venezuela
+MRK:Marco Island, Florida, USA
+MRS:Marseille, France
+MRU:Sir Seewoosagur Ramgoolam Airport, Mauritius
+MRV:Mineralnye Vody, Russia
+MRY:Monterey, California, USA
+MSJ:Misawa, Japan
+MSL:Muscle Shoals, Muscle Shoals / Florence / Sheffield, Alabama, USA
+MSN:Madison Dane County Regional, Wisconsin, USA
+MSO:Missoula County, Montana, USA
+MSP:Minneapolis-St. Paul International, Minnesota, USA
+MSQ:Minsk, Belarus
+MSS:Massena, New York, USA
+MST:Maastricht Aachen, Maastricht, Netherlands
+MSU:Maseru, Lesotho
+MSY:Moisant International, New Orleans, Louisiana, USA
+MTH:Marathon, Florida, USA
+MTJ:Montrose County, Montrose, Colorado, USA
+MTY:Escobedo, Monterrey, Nuevo Leon, Mexico
+MUB:Maun, Botswana
+MUC:Franz Josef Strauss, Munich, Germany
+MUN:Maturin, Venezuela
+MVD:Carrasco, Montevideo, Uruguay
+MVN:Mount Vernon Outland, Illinois, USA
+MVY:Marthas Vineyard, Massachusetts, USA
+MWA:Marion, Illinois, USA
+MWX:Muan International, South Korea
+MXL:Rodolfo Sanchez Taboada, Mexicali, Baja California, Mexico
+MXP:Malpensa, Milan, Italy
+MXX:Mora, Dalecarlia, Sweden
+MYA:Moruya, New South Wales, Australia
+MYJ:Matsuyama, Japan
+MYR:Myrtle Beach, South Carolina, USA
+MYY:Miri, Sarawak, Malaysia
+MZL:Santaguida, Manizales, Colombia
+MZT:Buelna, Mazatlan, Sinaloa, Mexico
+MZV:Mulu, Malaysia
+NAG:Sonegaon, Nagpur, India
+NAH:Naha, Indonesia
+NAK:Nakhon Ratchasima, Thailand
+NAN:International, Nadi, Fiji
+NAP:Capodichino, Naples, Italy
+NAS:Nassau, Bahamas
+NAT:Agusto Severo, Natal, Rio Grande Do Norte, Brazil
+NAV:Nevsehir Kapadokya Airport, Nevsehir, Turkey
+NAY:Beijing, China
+NBO:Jomo Kenyatta International, Nairobi, Kenya
+NCA:North Caicos, Turks And Caicos Islands
+NCE:Cote D'azur, Nice, France
+NCL:Newcastle International, England, United Kingdom
+NDJ:N'djamena, N Djamena, Chad
+NEC:Necochea, Buenos Aires, Argentina
+NER:Chulman, Neryungri, Russia
+NEV:Nevis, Leeward Islands, Saint Kitts And Nevis
+NGD:Anegada, Virgin Islands (British)
+NGO:Komaki, Nagoya, Japan
+NGS:Nagasaki, Japan
+NJC:Nizhnevartovsk, Russia
+NKC:Nouakchott, Mauritania
+NKG:Nanjing, China
+NLA:Ndola, Zambia
+NLD:Nuevo Laredo, Tamaulipas, Mexico
+NLV:Mykolayiv International, Mykolayiv, Ukraine
+NNG:Nanning, China
+NOC:Rep Of Ireland, Connaught, Ireland
+NOU:Tontouta, Noumea, New Caledonia
+NPL:New Plymouth, New Zealand
+NQY:Newquay, England, United Kingdom
+NRK:Norrkoping, Sweden
+NRT:Narita, Tokyo, Japan
+NRW:All Airports around Nordrhein-Westfalen, Germany
+NSB:North Seaplane Base, Bimini, Bahamas
+NSI:Nsimalen, Yaounde, Cameroon
+NSN:Nelson, New Zealand
+NTE:Nantes-Atlantique, Nantes, France
+NTL:Williamtown, Newcastle, New South Wales, Australia
+NUE:Nuernberg, Germany
+NVT:Navegantes, Santa Catarina, Brazil
+NWA:Moheli, Comoros
+NWI:Norwich, England, United Kingdom
+NYC:All Airports around New York City, New York, USA
+NYO:Stockholm - Skavsta, Sweden
+OAG:Springhill, Orange, New South Wales, Australia
+OAJ:Jacksonville Albert J. Ellis, North Carolina, USA
+OAK:Oakland International, California, USA
+OAX:Xoxocotlan, Oaxaca, Oaxaca, Mexico
+OBO:Obihiro, Japan
+ODE:Odense, Denmark
+ODS:Odessa International, Odessa, Ukraine
+ODW:Oak Harbor, Washington, USA
+OER:Ornskoldsvik, Sweden
+OFK:Norfolk Karl Stefan Memorial, Nebraska, USA
+OGG:Kahului, Hawaii, USA
+OGS:Ogdensburg, New York, USA
+OHD:Ohrid, Ohrid, Macedonia
+OIT:Oita, Japan
+OKA:Naha Field, Okinawa, Ryukyu Islands, Japan
+OKC:Oklahoma City Will Rogers World, Oklahoma, USA
+OKJ:Okayama, Japan
+OLF:Wolf Point, Montana, USA
+OLM:Olympia, Washington, USA
+OMA:Omaha Eppley Airfield, Nebraska, USA
+OME:Nome, Alaska, USA
+OMR:Oradea, Romania
+ONG:Mornington Is, Queensland, Australia
+ONT:Ontario International, California, USA
+OOK:Toksook Bay, Alaska, USA
+OOL:Coolangatta, Gold Coast, Queensland, Australia
+OOM:Cooma, New South Wales, Australia
+OPF:Opa Locka, Miami, Florida, USA
+OPO:Porto, Portugal
+ORB:Orebro, Sweden
+ORD:Chicago-O'Hare International, Illinois, USA
+ORF:Norfolk International, Virginia, USA
+ORH:Worcester Regional, Massachusetts, USA
+ORK:Cork, Ireland
+ORL:Herndon, Orlando, Florida, USA
+ORN:Es Senia, Oran, Algeria
+ORY:Orly, Paris, France
+OSA:All Airports around Osaka, Japan
+OSD:Froesoe, Ostersund, Sweden
+OSH:Wittman Field, Oshkosh, Wisconsin, USA
+OSK:Oskarshamn, Sweden
+OSL:All Airports around Oslo, Norway
+OSW:Orsk, Russia
+OTH:North Bend, Oregon, USA
+OTM:Ottumwa, Iowa, USA
+OTP:Otopeni, Bucharest, Romania
+OTZ:Kotzebue, Alaska, USA
+OUA:Ouagadougou, Burkina Faso
+OUL:Oulu, Finland
+OVB:Tolmachevo, Novosibirsk, Russia
+OVD:Asturias, Spain
+OWB:Owensboro, Kentucky, USA
+OWD:Memorial Code: Owd, Norwood, Massachusetts, USA
+OXR:Oxnard / Ventura, California, USA
+OZH:Zaporizhya International, Zaporizhya, Ukraine
+OZZ:Ouarzazate, Morocco
+PAD:Paderborn, Germany
+PAH:Paducah, Kentucky, USA
+PAO:Palo Alto Municipal, California, USA
+PAP:Mais Gate, Port Au Prince, Haiti
+PAR:All Airports around Paris, France
+PAS:Paros, Greece
+PAT:Patna, India
+PAZ:Poza Rica, Veracruz, Mexico
+PBC:Puebla, Mexico
+PBH:Paro, Bhutan
+PBI:Palm Beach International, Florida, USA
+PBM:Zanderij International, Paramaribo, Suriname
+PBO:Paraburdoo, Western Australia, Australia
+PCL:Captain Rolden, Pucallpa, Peru
+PCT:Princeton Municipal, New Jersey, USA
+PDG:Tabing, Padang, Indonesia
+PDL:Nordela, Ponta Delgada, Azores Islands, Portugal
+PDT:Pendleton, Oregon, USA
+PDV:Plovdiv, Bulgaria
+PDX:Portland International, Oregon, USA
+PEE:Perm, Russia
+PEG:Na, Perugia, Italy
+PEI:Matecana, Pereira, Colombia
+PEK:Peking Capital, Beijing, China
+PEN:Penang International, Malaysia
+PER:Perth, Western Australia, Australia
+PES:Petrozavodsk, Russia
+PEW:Peshawar, Pakistan
+PFN:Panama City, Florida, USA
+PFO:Paphos International, Cyprus
+PGA:Page, Arizona, USA
+PGF:Perpignan-Rivesaltes, Perpignan, France
+PGV:Greenville, North Carolina, USA
+PGX:Perigueux, France
+PHE:Port Hedland, Western Australia, Australia
+PHF:Newport News Patrick Henry International, Virginia, USA
+PHL:Philadelphia International, Pennsylvania, USA
+PHO:Point Hope, Alaska, USA
+PHS:Phitsanulok, Thailand
+PHX:Phoenix Sky Harbor International, Arizona, USA
+PIA:Peoria, Illinois, USA
+PIB:Laurel Hattiesburg/Camp Shelby, Mississippi, USA
+PID:Paradise Island, Nassau, Bahamas
+PIE:St. Petersburg/Clearwater, Florida, USA
+PIH:Pocatello, Idaho, USA
+PIK:Prestwick, Glasgow, Scotland, United Kingdom
+PIR:Pierre, South Dakota, USA
+PIT:Pittsburgh International, Pennsylvania, USA
+PIW:Pikwitonei, Manitoba, Canada
+PJG:Panjgur, Pakistan
+PKB:Wood County, Parkersburg / Marietta, West Virginia, USA
+PKE:Parkes, New South Wales, Australia
+PKR:Pokhara, Nepal
+PKU:Simpang Tiga, Pekanbaru, Indonesia
+PKV:Pskov, Russia
+PLB:Plattsburgh, New York, USA
+PLH:Plymouth, England, United Kingdom
+PLM:Sultan Mahmud Badaruddin Ii, Palembang, Indonesia
+PLN:Pellston, Michigan, USA
+PLO:Port Lincoln, South Australia, Australia
+PLQ:Palanga, Lithuania
+PLS:Providenciales, Turks And Caicos Islands
+PLU:Confins/Pampulha, Belo Horizon, Minas Gerais, Brazil
+PLW:Mutiara, Palu, Indonesia
+PLZ:Port Elizabeth International, Port Elizabeth, South Africa
+PMC:Tepual, Puerto Montt, Chile
+PMD:Air Force 42, Palmdale, California, USA
+PMI:Palma De Mallorca, Spain
+PMO:Punta Raisi, Palermo, Sicily, Italy
+PMR:Palmerston North, New Zealand
+PMV:Gral Santiago Marino, Porlamar, Venezuela
+PMY:El Tehuelche, Puerto Madryn, Argentina
+PNC:Ponca City, Oklahoma, USA
+PNH:Pochentong, Phnom Penh, Cambodia
+PNI:Pohnpei International, Caroline Islands, Micronesia
+PNK:Supadio, Pontianak, Indonesia
+PNL:Pantelleria, Italy
+PNQ:Lohegaon Poona, India
+PNR:Pointe Noire, Congo
+PNS:Pensacola, Florida, USA
+PNT:Teniente Julio Gallardo, Puerto Natales, Chile
+POA:Salgado Filho, Porto Alegre, Rio Grande Do Sul, Brazil
+POG:Port Gentil, Gabon
+POM:Jackson, Port Moresby, Papua New Guinea
+POP:La Union, Puerto Plata, Dominican Republic
+POR:Pori, Finland
+POS:Port of Spain, Trinidad and Tobago
+POU:Dutchess County, Poughkeepsie, New York, USA
+POZ:Lawica, Poznan, Poland
+PPG:Pago Pago International, American Samoa
+PPS:Puerto Princesa, Philippines
+PPT:Pape'ete, Tahiti, French Polynesia
+PQI:Presque Isle, Maine, USA
+PQQ:Port Macquarie, New South Wales, Australia
+PRC:Prescott, Arizona, USA
+PRG:Vaclav Havel Airport, Prague, Czech Republic
+PRI:Praslin Island, Seychelles
+PSA:G Galilei, Pisa, Italy
+PSE:Mercedita, Ponce, Puerto Rico, USA
+PSG:Petersburg Municipal, Alaska, USA
+PSM:Pease International Tradeport, Portsmouth, New Hampshire, USA
+PSO:Cano, Pasto, Colombia
+PSP:Palm Springs Municipal, California, USA
+PSR:Liberi, Pescara, Italy
+PSZ:Puerto Suarez, Bolivia
+PTF:Malololailai, Fiji
+PTG:Polokwane International, Polokwane, South Africa
+PTP:Le Raizet, Pointe A Pitre, Guadeloupe
+PTV:Porterville, California, USA
+PTY:Tocumen International, Panama City, Panama
+PUB:Pueblo, Colorado, USA
+PUF:Pau Pyrenees, Pau, France
+PUJ:Punta Cana, Dominican Republic
+PUQ:Presidente Ibanez, Punta Arenas, Chile
+PUS:Gimhae International, Busan, South Korea
+PUW:Pullman, Washington, USA
+PUY:Pula, Croatia (Hrvatska)
+PUZ:Puerto Cabezas, Nicaragua
+PVC:Provincetown, Massachusetts, USA
+PVD:Providence Theodore Francis Green State, Rhode Island, USA
+PVG:Pudong International, Shanghai, China
+PVN:Pleven, Bulgaria
+PVR:Gustavo Diaz Ordaz, Puerto Vallarta, Jalisco, Mexico
+PVU:Provo, Utah, USA
+PWM:Portland International Jetport, Maine, USA
+PWT:Bremerton Municipal, Washington, USA
+PXM:Puerto Escondido, Oaxaca, Mexico
+PXO:Porto Santo, Madeira Islands, Portugal
+PZE:Penzance, England, United Kingdom
+PZO:Puerto Ordaz, Venezuela
+PZU:Port Sudan, Sudan
+QBF:Vail/Eagle, Colorado, USA
+QDV:All Airports around Denver, Colorado, USA
+QKB:Breckenridge, Colorado, USA
+QLA:All Airports around Los Angeles, California, USA
+QRO:Queretaro, Mexico
+QSF:All Airports around San Francisco, California, USA
+QSY:Sydney, New South Wales, Australia
+RAB:Lakunai, Rabaul, Papua New Guinea
+RAJ:Rajkot, India
+RAK:Menara, Marrakech, Morocco
+RAP:Rapid City, South Dakota, USA
+RAR:Rarotonga, Cook Islands
+RBA:Sale, Rabat, Morocco
+RCB:Richards Bay, South Africa
+RCE:Roche Harbor, Washington, USA
+RDD:Redding, California, USA
+RDG:Reading Municipal / Spaatz Field, Pennsylvania, USA
+RDU:Raleigh-Durham, North Carolina, USA
+REC:Guararapes International, Recife, Pernambuco, Brazil
+REG:Tito Menniti, Reggio Calabria, Italy
+REL:Trelew, Chubut, Argentina
+REP:Siem Reap, Cambodia
+RES:Resistencia, Chaco, Argentina
+REU:Reus, Spain
+REX:General Lucio Blanco, Reynosa, Tamaulipas, Mexico
+RFD:Greater Rockford, Illinois, USA
+RGA:Rio Grande, Tierra Del Fuego, Argentina
+RGN:Mingaladon, Yangon, Myanmar
+RHI:Rhinelander Oneida County, Wisconsin, USA
+RHO:Paradisi, Rhodes, Greece
+RHV:Reid-Hillview Airport, San Jose, California, USA
+RIC:Richmond International/Byrd Field, Virginia, USA
+RIG:Rio Grande, Rio Grande Do Sul, Brazil
+RIO:All Airports around Rio de Janeiro, RJ, Brazil
+RIW:Riverton, Wyoming, USA
+RIX:Riga, Latvia
+RKD:Rockland, Maine, USA
+RKS:Rock Springs Sweetwater County, Wyoming, USA
+RKV:Reykjavik, Iceland
+RMA:Roma, Queensland, Australia
+RMF:Marsa Alam International, Egypt
+RNB:Kallinge, Ronneby, Sweden
+RNN:Arnager, Bornholm, Denmark
+RNO:Reno/Tahoe International, Nevada, USA
+RNS:St Jacques, Rennes, France
+ROA:Roanoke, Virginia, USA
+ROC:Rochester International, New York, USA
+ROM:All Airports around Roma, Italy
+ROP:Rota, Northern Mariana Islands
+ROR:Airai, Koror, Palau
+ROS:Fisherton, Rosario, Santa Fe, Argentina
+ROU:Rousse, Bulgaria
+ROV:Rostov-on-Don, Russia
+ROW:Industrial Air Center, Roswell, New Mexico, USA
+RPR:Raipur, India
+RRG:Rodrigues Island, Mauritius
+RSA:Santa Rosa, La Pampa, Argentina
+RSD:Rock Sound, Bahamas
+RST:Rochester Municipal, Minnesota, USA
+RSU:Yeosu, South Korea
+RSW:Southwest Florida International, Florida, USA
+RTB:Roatan, Roatan, Honduras
+RTM:Rotterdam The Hague, Rotterdam, Netherlands
+RUH:King Khaled Intl, Riyadh, Saudi Arabia
+RUI:Ruidoso, New Mexico, USA
+RUN:Roland Garros Airport, Reunion Island, France
+RUT:Rutland, Vermont, USA
+RWI:Wilson, Rocky Mount, North Carolina, USA
+RWN:Rivne International, Rivne, Ukraine
+RZE:Jasionka, Rzeszow, Poland
+RZV:Rize-Artvin, Rize, Turkey
+SAB:Saba Island, Netherlands Antilles
+SAC:Sacramento Executive, California, USA
+SAF:Santa Fe, New Mexico, USA
+SAH:Sanaa International, Yemen
+SAL:San Salvador, El Salvador
+SAN:San Diego International/Lindbergh Field, California, USA
+SAO:All Airports around Sao Paulo, SP, Brazil
+SAP:La Mesa, San Pedro Sula, Honduras
+SAT:San Antonio International, Texas, USA
+SAV:Savannah International, Georgia, USA
+SAW:Sabiha Gokcen International, Istanbul, Turkey
+SBA:Santa Barbara Municipal, California, USA
+SBH:St Barthelemy, Guadeloupe
+SBN:Michiana Regional, South Bend, Indiana, USA
+SBP:San Luis Obispo, California, USA
+SBW:Sibu, Sibu, Sarawak, Malaysia
+SBZ:Sibiu, Romania
+SCE:University Park Arpt, State College, Pennsylvania, USA
+SCL:Aeropuerto Comodoro Arturo Merino Benitez, Santiago, Chile
+SCN:Ensheim, Saarbruecken, Germany
+SCQ:Santiago De Compostela, Spain
+SDF:Louisville Standiford Field, Kentucky, USA
+SDJ:Sendai, Japan
+SDK:Sandakan, Sabah, Malaysia
+SDL:Sundsvall/Harnosand-Midlanda, Sweden
+SDN:Sandane, Norway
+SDQ:Las Americas, Santo Domingo, Dominican Republic
+SDR:Santander, Spain
+SDU:Santos Dumont, Rio De Janeiro, Rio De Janeiro, Brazil
+SDX:Sedona, Arizona, USA
+SDY:Sidney, Montana, USA
+SEA:Seattle-Tacoma International, Washington, USA
+SEN:Southend, London, England, United Kingdom
+SEZ:Mahe Island Seychelles Intl, Mahe Island, Seychelles
+SFA:Sfax, Tunisia
+SFG:Esperance, St Martin, French Antilles
+SFJ:Sondre Stromfjord, Kangerlussuaq, Greenland
+SFN:Santa Fe, Santa Fe, Argentina
+SFO:San Francisco International, California, USA
+SFT:Skelleftea, Sweden
+SGC:Surgut, Russia
+SGD:Sonderborg, Denmark
+SGF:Springfield Regional, Missouri, USA
+SGN:Tan Son Nhut, Ho Chi Minh City, Vietnam
+SGO:St George, Queensland, Australia
+SGU:St George, Utah, USA
+SGY:Skagway, Alaska, USA
+SHA:Hongqiao International, Shanghai, China
+SHC:Indaselassie, Ethiopia
+SHD:Shenandoah Valley Regional, Staunton, Virginia, USA
+SHE:Shenyang, China
+SHJ:Sharjah, United Arab Emirates
+SHO:King Mswati-III International Airport, Eswatini
+SHR:Sheridan, Wyoming, USA
+SHV:Shreveport, Louisiana, USA
+SID:Amilcar Cabral International, Sal, Cabo Verde
+SIN:Changi International, Singapore
+SIP:Simferopol International, Crimea, Ukraine
+SIR:Sion, Switzerland
+SIT:Sitka, Alaska, USA
+SJC:San Jose International, California, USA
+SJD:Los Cabos International, San Jose Del Cabo, Baja California Sur, Mexico
+SJI:Mcguire Field, San Jose, Philippines
+SJJ:Butmir, Sarajevo, Bosnia And Herzegowina
+SJO:Juan Santamaria International, San Jose, Costa Rica
+SJT:San Angelo, Texas, USA
+SJU:Luis Munoz Marin International, San Juan, Puerto Rico, USA
+SJW:Shijiazhuang, China
+SKB:Golden Rock, St Kitts, Saint Kitts And Nevis
+SKD:Samarkand, Uzbekistan
+SKG:Thessaloniki, Greece
+SKP:Skopje, Republic of North Macedonia
+SKS:Jojens, Vojens Lufthavn, Denmark
+SLA:Salta International, Argentina
+SLC:Salt Lake City International, Utah, USA
+SLD:Sliac, Slovakia
+SLK:Adirondack, Saranac Lake, New York, USA
+SLN:Salina Municipal, Kansas, USA
+SLP:San Luis Potosi, Mexico
+SLS:Silistra, Bulgaria
+SLU:Vigie Field, Saint Lucia
+SLW:Saltillo, Coahuila, Mexico
+SLZ:Tirirical, Sao Luiz, Maranhao, Brazil
+SMF:Sacramento International, California, USA
+SML:Stella Maris, Bahamas
+SMM:Semporna, Sabah, Malaysia
+SMS:St Marie, Madagascar
+SMX:Santa Maria, California, USA
+SNA:Santa Ana/Orange County/John Wayne, California, USA
+SNB:Snake Bay, Northern Territory, Australia
+SNN:Shannon, Ireland
+SNO:Sakon Nakhon, Thailand
+SOF:Sofia, Bulgaria
+SOG:Haukasen, Sogndal, Norway
+SOM:San Tome, Venezuela
+SOO:Soderhamn, Sweden
+SOP:Pinehurst, Southern Pines, North Carolina, USA
+SOU:Eastleigh, Southampton, England, United Kingdom
+SOW:Show Low, Arizona, USA
+SPB:Seaplane Base, St Thomas Island, US Virgin Islands, USA
+SPC:Santa Cruz La Palma, Canary Islands, Spain
+SPD:Saidpur, Bangladesh
+SPI:Springfield Capital, Illinois, USA
+SPJ:Sparta, Greece
+SPN:Saipan International Northern Mariana Isles, Saipan, Northern Mariana Islands
+SPR:San Pedro, Belize
+SPS:Wichita Falls, Texas, USA
+SPU:Split, Croatia (Hrvatska)
+SPW:Spencer, Iowa, USA
+SQL:San Carlos Municipal, California, USA
+SQO:Storuman, Sweden
+SRE:Sucre, Bolivia
+SRQ:Sarasota, Florida, USA
+SSA:Dois De Julho, Salvador, Bahia, Brazil
+SSB:Sea Plane Base, St Croix Island, US Virgin Islands, USA
+SSG:Santa Isabel, Malabo, Equatorial Guinea
+SSH:Ophira, Sharm El Sheikh, Egypt
+SSJ:Stokka, Sandnessjoen, Norway
+SSQ:La Sarre, Quebec, Canada
+STA:Stuttgart, Germany
+STC:Saint Cloud, Saint Cloud, Minnesota, USA
+STD:Mayor Humberto Vivas Guerrero, Santo Domingo, Venezuela
+STI:Municipal, Santiago, Dominican Republic
+STL:St. Louis/Lambert International, Missouri, USA
+STM:Santarem, Para, Brazil
+STN:Stansted, London, England, United Kingdom
+STO:All Airports around Stockholm, Sweden
+STP:St Paul Downtown, Minnesota, USA
+STR:Echterdingen, Stuttgart, Germany
+STS:Sonoma County, Santa Rosa, California, USA
+STT:Cyril E King, St Thomas Island, US Virgin Islands, USA
+STW:Stavropol, Russia
+STX:St Croix Island, US Virgin Islands, USA
+SUB:Juanda, Surabaya, Indonesia
+SUE:Sturgeon Bay, Wisconsin, USA
+SUN:Sun Valley/Hailey, Idaho, USA
+SUV:Nausori, Suva, Fiji
+SUX:Sioux City International, Iowa, USA
+SVD:St Vincent, St. Vincent And The Grenadines
+SVG:Sola, Stavanger, Norway
+SVL:Savonlinna, Finland
+SVO:Sheremetyevo, Moscow, Russia
+SVQ:Sevilla, Spain
+SVU:Savusavu, Savusavu, Fiji
+SVX:Koltsovo, Ekaterinburg, Russia
+SVZ:San Antonio, Venezuela
+SWA:Shantou, China
+SWF:Stewart, Newburgh/Poughkeepsie, New York, USA
+SWP:Swakopmund, Namibia
+SWQ:Brang Bidji, Sumbawa Island, Indonesia
+SXB:Entzheim, Strasbourg, France
+SXF:Schoenefeld, Berlin, Germany
+SXL:Collooney, Sligo, Ireland
+SXM:Juliana, St Maarten, Netherlands Antilles
+SXR:Srinagar, India
+SYD:Sydney, Australia
+SYO:Shonai, Japan
+SYR:Syracuse Hancock International, New York, USA
+SYX:Sanya, China
+SYY:Stornoway, Scotland, United Kingdom
+SYZ:Shiraz, Iran
+SZG:Salzburg, Austria
+SZR:Stara Zagora, Bulgaria
+SZS:Ryan's Creek, Stewart Island, New Zealand
+SZX:Shenzhen, China
+SZZ:Goleniow, Szczecin, Poland
+TAB:Crown Point, Tobago, Trinidad And Tobago
+TAC:Dz Romualdez, Tacloban, Philippines
+TAE:Daegu International, South Korea
+TAG:Tagbilaran, Philippines
+TAM:Tampico, Tamaulipas, Mexico
+TAO:Qingdao International, China
+TAP:Tapachula International, Chiapas, Mexico
+TAS:Tashkent, Uzbekistan
+TAT:Tatry/Poprad, Slovakia
+TBN:Forney Field, Ft Leonard Wood, Missouri, USA
+TBP:Tumbes, Peru
+TBS:Novoalexeyevka, Tbilisi, Georgia
+TBT:Tabatinga, Amazonas, Brazil
+TBU:Nuku Alofa/Tongatapu International, Tonga
+TCI:Tenerife Norte Los Rodeos, Canary Islands, Spain
+TCL:Van De Graff, Tuscaloosa, Alabama, USA
+TDD:Trinidad, Bolivia
+TED:Thisted, Denmark
+TER:Lajes, Terceira Island, Azores Islands, Portugal
+TEX:Telluride, Colorado, USA
+TEZ:Salonbari, Tezpur, India
+TFN:Tenerife Norte Los Rodeos, Canary Islands, Spain
+TFS:Reina Sofia, Tenerife, Canary Islands, Spain
+TGD:Podgorica, Montenegro
+TGG:Sultan Mahmood, Kuala Terengganu, Malaysia
+TGM:Tirgu Mures, Romania
+TGU:Toncontin, Tegucigalpa, Honduras
+TGZ:Llano San Juan, Tuxtla Gutierrez, Chiapas, Mexico
+THE:Teresina, Piaui, Brazil
+THN:Trollhattan, Sweden
+THR:Mehrabad, Tehran, Iran
+THU:Thule, Pituffik, Greenland
+TIA:Rinas, Tirana, Albania
+TIJ:General Abelardo L Rodriguez, Tijuana, Baja California, Mexico
+TIQ:Tinian, Northern Mariana Islands
+TIS:Horn Island, Thursday Island, Queensland, Australia
+TIV:Tivat, Montenegro
+TIZ:Tari, Papua New Guinea
+TJA:Tarija, Bolivia
+TJM:Roshchino, Tyumen, Russia
+TKF:Truckee Tahoe, California, USA
+TKK:Truk, Caroline Islands, Micronesia
+TKQ:Kigoma, Tanzania
+TKS:Tokushima, Japan
+TKU:Turku, Finland
+TLH:Tallahassee, Florida, USA
+TLL:Ulemiste, Tallinn, Estonia
+TLS:Blagnac, Toulouse, France
+TLV:Ben-Gurion, Tel Aviv, Israel
+TMP:Tampere-Pirkkala Airport, Tampere, Finland
+TMS:Sao Tome International, Sao Tome and Principe
+TMW:Tamworth, New South Wales, Australia
+TNG:Boukhalef Souahel, Tangier, Morocco
+TNL:Ternopil International, Ternopil, Ukraine
+TNR:Ivato, Antananarivo, Madagascar
+TOL:Toledo Express, Ohio, USA
+TOS:Tromso/Langes, Tromso, Norway
+TOY:Toyama, Japan
+TPA:Tampa International, Florida, USA
+TPE:Chiang Kai Shek, Taipei, Taiwan
+TPL:Temple, Texas, USA
+TPP:Tarapoto, Peru
+TPQ:Tepic, Nayarit, Mexico
+TPS:Birgi, Trapani, Sicily, Italy
+TRC:Torreon, Coahuila, Mexico
+TRD:Trondheim Airport Vaernes, Trondheim, Norway
+TRE:Tiree Island, Scotland, United Kingdom
+TRF:Torp, Sandefjord, Norway
+TRG:Tauranga, New Zealand
+TRK:Tarakan, Indonesia
+TRN:Caselle, Turin, Italy
+TRS:Ronchi Dei Legionari, Trieste, Italy
+TRU:Trujillo, Peru
+TRV:Trivandrum, India
+TRZ:Civil, Tiruchirapally, India
+TSA:Sung Shan, Taipei, Taiwan
+TSE:Astana, Kazakhstan
+TSF:Antonio Canova, Treviso, Italy
+TSP:Tehachapi, California, USA
+TSR:Timisoara, Romania
+TSS:East 34Th Street Heliport, New York, New York, USA
+TSV:Townsville, Queensland, Australia
+TTE:Babullah, Ternate, Indonesia
+TTJ:Tottori, Japan
+TTN:Mercer County, Trenton, New Jersey, USA
+TUC:Benjamin Matienzo, Tucuman, Argentina
+TUF:St Symphorien, Tours, France
+TUL:Tulsa International, Oklahoma, USA
+TUN:Carthage, Tunis, Tunisia
+TUO:Taupo, New Zealand
+TUP:Cd Lemons Municipal, Tupelo, Mississippi, USA
+TUS:Tucson International, Arizona, USA
+TVC:Cherry Capital, Traverse City, Michigan, USA
+TVF:Thief River Falls Municipal, Minnesota, USA
+TVL:Lake Tahoe, South Lake Tahoe, California, USA
+TVU:Matei, Taveuni, Fiji
+TWB:Toowoomba, Queensland, Australia
+TWF:Twin Falls, Idaho, USA
+TXK:Texarkana Municipal, Arkansas, USA
+TXL:Tegel, Berlin, Germany
+TXN:Tunxi, China
+TYF:Torsby, Wermland, Sweden
+TYN:Taiyuan, China
+TYO:All Airports around Tokyo, Japan
+TYR:Pounds Field, Tyler, Texas, USA
+TYS:Knoxville McGhee Tyson, Tennessee, USA
+TZA:Belize Municipal, Belize
+TZN:Congo Town, South Andros, Bahamas
+TZX:Trabzon, Turkey
+UAK:Narssarssuaq, Greenland
+UAQ:San Juan, Argentina
+UBJ:Ube, Japan
+UCA:Utica/Oneida County, New York, USA
+UCT:Ukhta, Russia
+UDJ:Uzhgorod International, Zakarpattia, Ukraine
+UDR:Udaipur, India
+UEL:Quelimane, Mozambique
+UET:Quetta, Pakistan
+UGC:Urgench, Uzbekistan
+UIB:Quibdo, Colombia
+UII:Utila, Honduras
+UIN:Baldwin Field, Quincy, Illinois, USA
+UIO:Mariscal, Quito, Ecuador
+UIP:Pluguffan, Quimper, France
+UKA:Ukunda Airstrip, Kwale County, Kenya
+UKS:Sevastopol International, Sevastopol, Ukraine
+ULN:Ulan Bator, Mongolia
+ULY:Ulyanovsk, Russia
+UME:Umea-Alvik, Sweden
+UMR:Woomera, South Australia, Australia
+UNI:Union Island, St. Vincent And The Grenadines
+UNT:Unst Shetland Islands, Scotland, United Kingdom
+UPG:Hasanudin, Ujung Pandang, Indonesia
+UPN:Uruapan, Michoacan, Mexico
+URC:Urumqi, China
+URO:Rouen, France
+URT:Surat Thani, Thailand
+USH:Ushuaia, Tierra Del Fuego, Argentina
+USM:Koh Samui, Thailand
+USN:Ulsan, South Korea
+UTH:Udon Thani, Thailand
+UTN:Upington Airport, Upington, South Africa
+UUD:Ulan-Ude, Russia
+UVF:Hewanorra, St Lucia, Saint Lucia
+VAA:Vaasa, Finland
+VAR:Varna, Bulgaria
+VAS:Sivas, Turkey
+VBY:Visby, Gotland, Sweden
+VCE:Marco Polo, Venice, Italy
+VCT:Victoria, Texas, USA
+VDA:Ovda, Israel
+VDS:Vadso, Norway
+VDZ:Valdez, Alaska, USA
+VER:Las Bajadas / General Heriberto Jara, Veracruz, Mexico
+VEY:Vestmannaeyjar, Iceland
+VFA:Victoria Falls, Zimbabwe
+VGO:Vigo, Spain
+VGT:North Air Terminal, Las Vegas, Nevada, USA
+VHM:Vilhelmina, Sweden
+VIE:Schwechat, Wien, Austria
+VIJ:Virgin Gorda, Virgin Islands (British)
+VIN:Vinnytsia Havryshivka International, Vinnytsia, Ukraine
+VIS:Visalia, California, USA
+VIT:Vitoria, Spain
+VIX:Eureco Sales, Vitoria, Espirito Santo, Brazil
+VKO:Vnukovo, Moscow, Russia
+VLC:Valencia, Spain
+VLD:Valdosta Regional, Georgia, USA
+VLG:Villa Gesell, Buenos Aires, Argentina
+VLI:Bauerfield, Port Vila, Vanuatu
+VLL:Valladolid, Spain
+VLN:Valencia, Venezuela
+VNO:Vilnius, Lithuania
+VNS:Babatpur, Varanasi, India
+VOG:Volgograd, Russia
+VPS:Fort Walton Beach, Valparaiso, Florida, USA
+VRA:Juan Gualberto Gomez, Varadero, Cuba
+VRB:Vero Beach Municipal, Florida, USA
+VRK:Varkaus, Finland
+VRN:Verona, Italy
+VSA:Carlos R Perez, Villahermosa, Tabasco, Mexico
+VSG:Luhans'k International, Luhans'k, Ukraine
+VST:Vasteras/Hasslo, Sweden
+VTE:Wattay, Vientiane, Laos
+VTZ:Vishakhapatnam, India
+VUP:Valledupar, Colombia
+VVI:Viru Viru International, Santa Cruz, Bolivia
+VVO:Knevichi, Vladivostok, Russia
+VXO:Vaxjo, Smaland, Sweden
+WAS:All Airports around Washington, District of Columbia, USA
+WAT:Waterford, Ireland
+WAW:Okecie, Warsaw, Poland
+WBU:Boulder, Colorado, USA
+WDG:Woodring Municipal, Enid, Oklahoma, USA
+WDH:Jg Strijdom, Windhoek, Namibia
+WGE:Walgett, New South Wales, Australia
+WIC:Wick, Scotland, United Kingdom
+WIL:Wilson, Nairobi, Kenya
+WIN:Winton, Queensland, Australia
+WJU:Wonju, South Korea
+WLG:Wellington International, New Zealand
+WMH:Mountain Home, Arkansas, USA
+WMI:Nowy Dwor Mazowiecki, Warsaw, Poland
+WNA:Napakiak, Alaska, USA
+WRL:Worland, Wyoming, USA
+WRO:Strachowice, Wroclaw, Poland
+XAZ:Cambellton, New Brunswick, Canada
+XBR:Brockville, Ontario, Canada
+XCM:Chatham, Ontario, Canada
+XDM:Drummondville, Quebec, Canada
+XFD:Stratford, Ontario, Canada
+XFW:Hamburg-Finkenwerder, Hamburg, Germany
+XIY:Xianyang, Xi An, China
+XKH:Xieng Khouang, Phonsavan, Laos
+XLV:Niagara Falls, Ontario, Canada
+XLZ:Truro, Nova Scotia, Canada
+XMN:Xiamen International, China
+XQP:Quepos, Costa Rica
+XQU:Qualicum, British Columbia, Canada
+XRY:La Parra, Jerez De La Frontera, Spain
+XSC:South Caicos, Turks And Caicos Islands
+XYT:Montaudran, Toulouse, France
+YAM:Sault Ste Marie, Ontario, Canada
+YAP:Yap, Caroline Islands, Micronesia
+YAZ:Tofino, British Columbia, Canada
+YBA:Banff, Alberta, Canada
+YBC:Baie-Comeau, Quebec, Canada
+YBG:Bagotville, Quebec, Canada
+YBL:Campbell River, British Columbia, Canada
+YBR:Brandon, Manitoba, Canada
+YBW:Springbank Airport, Calgary, Alberta, Canada
+YBX:Blanc Sablon, Quebec, Canada
+YCA:Courtenay, British Columbia, Canada
+YCB:Cambridge Bay, Northwest Territories, Canada
+YCC:Cornwall Regional, Ontario, Canada
+YCD:Cassidy, Nanaimo, British Columbia, Canada
+YCG:Castlegar, British Columbia, Canada
+YCM:St Catharines, Ontario, Canada
+YCO:Coppermine, Northwest Territories, Canada
+YDF:Deer Lake/Corner Brook, Newfoundland, Canada
+YDL:Dease Lake, British Columbia, Canada
+YDN:Dauphin, Manitoba, Canada
+YDQ:Dawson Creek, British Columbia, Canada
+YEA:All Airports around Edmonton, Alberta, Canada
+YEG:Edmonton International, Alberta, Canada
+YEL:Elliot Lake, Ontario, Canada
+YEV:Inuvik, Northwest Territories, Canada
+YEY:Amos, Quebec, Canada
+YFB:Iqaluit, Northwest Territories, Canada
+YFC:Fredericton, New Brunswick, Canada
+YFS:Fort Simpson, Northwest Territories, Canada
+YGB:Gillies Bay, British Columbia, Canada
+YGJ:Yonago Kitaro, Tottori, Japan
+YGK:Kingston, Ontario, Canada
+YGP:Gaspe, Quebec, Canada
+YGR:Iles-de-la-Madeleine, Quebec, Canada
+YGT:Igloolik, Northwest Territories, Canada
+YGV:Havre St. Pierre, Quebec, Canada
+YGW:Kuujjuarapik, Quebec, Canada
+YGX:Gillam, Manitoba, Canada
+YHB:Hudson Bay, Saskatchewan, Canada
+YHD:Dryden, Ontario, Canada
+YHI:Holman Island, Northwest Territories, Canada
+YHM:Hamilton Civic, Ontario, Canada
+YHN:Hornepayne, Ontario, Canada
+YHU:St.-Hubert, Montreal, Quebec, Canada
+YHY:Hay River, Northwest Territories, Canada
+YHZ:Halifax, Nova Scotia, Canada
+YIB:Atikokan, Ontario, Canada
+YJA:Jasper, Alberta, Canada
+YJT:Stephenville, Newfoundland, Canada
+YKA:Kamloops Fulton Field, British Columbia, Canada
+YKF:Kitchener, Ontario, Canada
+YKL:Schefferville, Quebec, Canada
+YKM:Yakima Air Terminal, Yakima, Washington, USA
+YKQ:Waskaganish, Quebec, Canada
+YKS:Yakutsk, Russia
+YKZ:Buttonville, Ontario, Canada
+YLD:Chapleau, Ontario, Canada
+YLL:Lloydminster, Saskatchewan, Canada
+YLQ:La Tuque, La Tuque, Quebec, Canada
+YLW:Kelowna Ellison Field, British Columbia, Canada
+YMM:Fort McMurray, Alberta, Canada
+YMO:Moosonee, Ontario, Canada
+YMQ:All Airports around Montreal, Quebec, Canada
+YMT:Chibougamau, Quebec, Canada
+YMX:Montreal Mirabel International, Quebec, Canada
+YMY:Victoria STOLport, Montreal, Quebec, Canada
+YNA:Natashquan, Quebec, Canada
+YND:Gatineau, Quebec, Canada
+YNG:Youngstown, Ohio, USA
+YNY:Yangyang International, South Korea
+YOJ:Footner Lake Muncpl, High Level, Alberta, Canada
+YOO:Oshawa, Ontario, Canada
+YOP:Rainbow Lake, Rainbow Lake, Alberta, Canada
+YOW:Ottawa McDonald-Cartier International, Ontario, Canada
+YPE:Peace River, Alberta, Canada
+YPF:Esquimalt, British Columbia, Canada
+YPN:Port Menier, Quebec, Canada
+YPQ:Peterborough, Ontario, Canada
+YPR:Digby Island, Prince Rupert, British Columbia, Canada
+YPW:Powell River, British Columbia, Canada
+YPZ:Burns Lake, British Columbia, Canada
+YQB:Sainte Foy, Quebec, Canada
+YQC:Quaqtaq, Quebec, Canada
+YQD:The Pas, Manitoba, Canada
+YQG:Windsor, Ontario, Canada
+YQH:Watson Lake, Yukon Territory, Canada
+YQI:Yarmouth, Nova Scotia, Canada
+YQK:Kenora, Ontario, Canada
+YQL:Lethbridge, Alberta, Canada
+YQM:Moncton Lakeburn Municipal, New Brunswick, Canada
+YQQ:Comox Civil Air Terminal, British Columbia, Canada
+YQR:Regina, Saskatchewan, Canada
+YQT:Thunder Bay, Ontario, Canada
+YQU:Grande Prairie, Alberta, Canada
+YQX:Gander, Newfoundland, Canada
+YQY:Sydney/Glace Bay, Nova Scotia, Canada
+YQZ:Quesnel, British Columbia, Canada
+YRB:Resolute Bay, Northwest Territories, Canada
+YRJ:Roberval, Quebec, Canada
+YRL:Red Lake, Ontario, Canada
+YRT:Rankin Inlet, Northwest Territories, Canada
+YSB:Sudbury, Ontario, Canada
+YSF:Stony Rapids, Saskatchewan, Canada
+YSH:Smith Falls, Ontario, Canada
+YSJ:Saint John Turnbull Field, New Brunswick, Canada
+YSL:St. Leonard, New Brunswick, Canada
+YSM:Fort Smith, Northwest Territories, Canada
+YSN:Salmon Arm, British Columbia, Canada
+YSP:Marathon, Ontario, Canada
+YTA:Pembroke And Area, Ontario, Canada
+YTD:Thicket Portage, Manitoba, Canada
+YTH:Thompson, Manitoba, Canada
+YTO:All Airports around Toronto, Ontario, Canada
+YTS:Timmins, Ontario, Canada
+YTZ:Toronto-City Centre, Ontario, Canada
+YUL:Montreal-Pierre Elliott Trudeau International, Quebec, Canada
+YUM:Yuma, Arizona, USA
+YUY:Rouyn, Quebec, Canada
+YVA:Moroni (Hahaya/Iconi)Comoros
+YVB:Bonaventure, Quebec, Canada
+YVC:La Ronge, La Ronge, Saskatchewan, Canada
+YVO:Val-D'or, Quebec, Canada
+YVP:Fort Chimo, Kuujjuaq, Quebec, Canada
+YVR:Vancouver International, British Columbia, Canada
+YVZ:Deer Lake, Ontario, Canada
+YWG:Winnipeg, Manitoba, Canada
+YWH:Victoria Inner Harbour, Victoria, British Columbia, Canada
+YWK:Wabush, Newfoundland, Canada
+YWL:Williams Lake, British Columbia, Canada
+YWR:White River, Ontario, Canada
+YXC:Cranbrook, British Columbia, Canada
+YXD:Edmonton Municipal, Alberta, Canada
+YXE:Saskatoon, Saskatchewan, Canada
+YXH:Medicine Hat, Alberta, Canada
+YXJ:Fort St.John, British Columbia, Canada
+YXL:Sioux Lookout, Ontario, Canada
+YXS:Prince George, British Columbia, Canada
+YXT:Terrace, British Columbia, Canada
+YXU:London, Ontario, Canada
+YXY:Whitehorse, Yukon Territory, Canada
+YXZ:Wawa, Ontario, Canada
+YYB:North Bay Jack Garland, Ontario, Canada
+YYC:Calgary, Alberta, Canada
+YYD:Smithers, British Columbia, Canada
+YYE:Ft. Nelson, British Columbia, Canada
+YYF:Penticton, British Columbia, Canada
+YYG:Charlottetown, Prince Edward Island, Canada
+YYJ:Victoria, British Columbia, Canada
+YYQ:Churchill, Manitoba, Canada
+YYR:Goose Bay, Newfoundland, Canada
+YYT:St. John's, Newfoundland, Canada
+YYU:Kapuskasing, Ontario, Canada
+YYY:Mont-Joli, Quebec, Canada
+YYZ:Lester B. Pearson Toronto International, Ontario, Canada
+YZF:Yellowknife, Northwest Territories, Canada
+YZP:Sandspit, British Columbia, Canada
+YZR:Sarnia, Ontario, Canada
+YZT:Port Hardy, British Columbia, Canada
+YZV:Sept-Iles, Quebec, Canada
+ZAG:Zagreb, Croatia (Hrvatska)
+ZAH:Zahedan, Iran
+ZAL:Pichoy, Valdivia, Chile
+ZAM:Zamboanga, Philippines
+ZAZ:Zaragoza, Spain
+ZBF:Bathurst, New Brunswick, Canada
+ZBT:Bus Service, Aarhus, Denmark
+ZBV:Vail/Eagle, Colorado, USA
+ZCL:Zacatecas, Mexico
+ZCO:Manquehue, Temuco, Chile
+ZGI:Gods River, Manitoba, Canada
+ZGS:Gethsemani, Quebec, Canada
+ZHA:Zhanjiang, China
+ZHO:Houston, British Columbia, Canada
+ZIA:Zhukovsky International, Moscow, Russia
+ZIH:Ixtapa/Zihuatanejo International, Guerrero, Mexico
+ZKG:Kegaska, Quebec, Canada
+ZLO:Aeropuerto International, Manzanillo, Colima, Mexico
+ZNA:Nanaimo, British Columbia, Canada
+ZNE:Newman, Western Australia, Australia
+ZNZ:Kisauni, Zanzibar, Tanzania
+ZPC:Pucon, Chile
+ZQN:Frankton, Queenstown, New Zealand
+ZRF:Rockford, Illinois, USA
+ZRH:Zurich, Switzerland
+ZSA:San Salvador, Bahamas
+ZTH:Zakinthos, Greece

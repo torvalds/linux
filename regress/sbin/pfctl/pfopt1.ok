@@ -1,0 +1,2 @@
+extif = "wi0"
+block drop in on lo0 all

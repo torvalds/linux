@@ -1,0 +1,48 @@
+.\"	$OpenBSD: vwakeup.9,v 1.5 2013/08/14 06:32:33 jmc Exp $
+.\" Written by Jared Yanovich
+.\" This file belongs to the public domain.
+.Dd $Mdocdate: August 14 2013 $
+.Dt VWAKEUP 9
+.Os
+.Sh NAME
+.Nm vwakeup
+.Nd update outstanding I/O count and do wakeup on a vnode
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft void
+.Fn vwakeup "struct vnode *vp"
+.Sh DESCRIPTION
+The
+.Fn vwakeup
+function updates the number of outstanding I/O operations on the target
+vnode, stored in its
+.Va v_numoutput
+field.
+If the target vnode has the
+.Dv VBIOWAIT
+flag set in its
+.Va v_bioflag
+field and has no outstanding I/O operations remaining, a
+.Xr wakeup 9
+is performed as well.
+.Pp
+The
+.Fn vwakeup
+function must be called at
+.Xr splbio 9 .
+.Sh SEE ALSO
+.Xr panic 9 ,
+.Xr splbio 9 ,
+.Xr vnode 9 ,
+.Xr vwaitforio 9 ,
+.Xr wakeup 9
+.Sh HISTORY
+This document first appeared in
+.Ox 3.7 .
+.Sh CAVEATS
+Calling
+.Fn vwakeup
+more times than the number of outstanding I/O operations will cause the
+system to
+.Xr panic 9 .

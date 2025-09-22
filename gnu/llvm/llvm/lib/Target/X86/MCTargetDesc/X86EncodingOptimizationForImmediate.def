@@ -1,0 +1,95 @@
+//===- X86EncodingOptimizationForImmediate.def.def ---------------*- C++ -*-==//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+// \file
+// This file defines all the entries of X86 instruction relaxation for immediate
+//===----------------------------------------------------------------------===//
+
+#ifndef ENTRY
+#define ENTRY(LONG, SHORT)
+#endif
+ENTRY(CMP16mi, CMP16mi8)
+ENTRY(CMP16ri, CMP16ri8)
+ENTRY(CMP32mi, CMP32mi8)
+ENTRY(CMP32ri, CMP32ri8)
+ENTRY(CMP64mi32, CMP64mi8)
+ENTRY(CMP64ri32, CMP64ri8)
+ENTRY(CCMP16mi, CCMP16mi8)
+ENTRY(CCMP16ri, CCMP16ri8)
+ENTRY(CCMP32mi, CCMP32mi8)
+ENTRY(CCMP32ri, CCMP32ri8)
+ENTRY(CCMP64mi32, CCMP64mi8)
+ENTRY(CCMP64ri32, CCMP64ri8)
+ENTRY(PUSH16i, PUSH16i8)
+ENTRY(PUSH32i, PUSH32i8)
+ENTRY(PUSH64i32, PUSH64i8)
+#define ENTRYS(LONG, SHORT)                                                    \
+  ENTRY(LONG, SHORT)                                                           \
+  ENTRY(LONG##_EVEX, SHORT##_EVEX)                                             \
+  ENTRY(LONG##_NF, SHORT##_NF)                                                 \
+  ENTRY(LONG##_ND, SHORT##_ND)                                                 \
+  ENTRY(LONG##_NF_ND, SHORT##_NF_ND)
+ENTRYS(ADD16mi, ADD16mi8)
+ENTRYS(ADD16ri, ADD16ri8)
+ENTRYS(ADD32mi, ADD32mi8)
+ENTRYS(ADD32ri, ADD32ri8)
+ENTRYS(ADD64mi32, ADD64mi8)
+ENTRYS(ADD64ri32, ADD64ri8)
+ENTRYS(AND16mi, AND16mi8)
+ENTRYS(AND16ri, AND16ri8)
+ENTRYS(AND32mi, AND32mi8)
+ENTRYS(AND32ri, AND32ri8)
+ENTRYS(AND64mi32, AND64mi8)
+ENTRYS(AND64ri32, AND64ri8)
+ENTRYS(OR16mi, OR16mi8)
+ENTRYS(OR16ri, OR16ri8)
+ENTRYS(OR32mi, OR32mi8)
+ENTRYS(OR32ri, OR32ri8)
+ENTRYS(OR64mi32, OR64mi8)
+ENTRYS(OR64ri32, OR64ri8)
+ENTRYS(SUB16mi, SUB16mi8)
+ENTRYS(SUB16ri, SUB16ri8)
+ENTRYS(SUB32mi, SUB32mi8)
+ENTRYS(SUB32ri, SUB32ri8)
+ENTRYS(SUB64mi32, SUB64mi8)
+ENTRYS(SUB64ri32, SUB64ri8)
+ENTRYS(XOR16mi, XOR16mi8)
+ENTRYS(XOR16ri, XOR16ri8)
+ENTRYS(XOR32mi, XOR32mi8)
+ENTRYS(XOR32ri, XOR32ri8)
+ENTRYS(XOR64mi32, XOR64mi8)
+ENTRYS(XOR64ri32, XOR64ri8)
+#undef ENTRYS
+#define ENTRYS(LONG, SHORT)                                                    \
+  ENTRY(LONG, SHORT)                                                           \
+  ENTRY(LONG##_EVEX, SHORT##_EVEX)                                             \
+  ENTRY(LONG##_NF, SHORT##_NF)
+ENTRYS(IMUL16rmi, IMUL16rmi8)
+ENTRYS(IMUL16rri, IMUL16rri8)
+ENTRYS(IMUL32rmi, IMUL32rmi8)
+ENTRYS(IMUL32rri, IMUL32rri8)
+ENTRYS(IMUL64rmi32, IMUL64rmi8)
+ENTRYS(IMUL64rri32, IMUL64rri8)
+#undef ENTRYS
+#define ENTRYS(LONG, SHORT)                                                    \
+  ENTRY(LONG, SHORT)                                                           \
+  ENTRY(LONG##_EVEX, SHORT##_EVEX)                                             \
+  ENTRY(LONG##_ND, SHORT##_ND)
+ENTRYS(ADC16mi, ADC16mi8)
+ENTRYS(ADC16ri, ADC16ri8)
+ENTRYS(ADC32mi, ADC32mi8)
+ENTRYS(ADC32ri, ADC32ri8)
+ENTRYS(ADC64mi32, ADC64mi8)
+ENTRYS(ADC64ri32, ADC64ri8)
+ENTRYS(SBB16mi, SBB16mi8)
+ENTRYS(SBB16ri, SBB16ri8)
+ENTRYS(SBB32mi, SBB32mi8)
+ENTRYS(SBB32ri, SBB32ri8)
+ENTRYS(SBB64mi32, SBB64mi8)
+ENTRYS(SBB64ri32, SBB64ri8)
+#undef ENTRYS
+#undef ENTRY

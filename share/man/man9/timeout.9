@@ -1,0 +1,419 @@
+.\"	$OpenBSD: timeout.9,v 1.60 2025/05/23 23:56:15 dlg Exp $
+.\"
+.\" Copyright (c) 2000 Artur Grabowski <art@openbsd.org>
+.\" Copyright (c) 2021, 2022 Scott Cheloha <cheloha@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL  DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 23 2025 $
+.Dt TIMEOUT_SET 9
+.Os
+.Sh NAME
+.Nm timeout_set ,
+.Nm timeout_set_flags ,
+.Nm timeout_set_proc ,
+.Nm timeout_add ,
+.Nm timeout_add_sec ,
+.Nm timeout_add_msec ,
+.Nm timeout_add_usec ,
+.Nm timeout_add_nsec ,
+.Nm timeout_abs_ts ,
+.Nm timeout_del ,
+.Nm timeout_del_barrier ,
+.Nm timeout_barrier ,
+.Nm timeout_pending ,
+.Nm timeout_initialized ,
+.Nm timeout_triggered ,
+.Nm TIMEOUT_INITIALIZER ,
+.Nm TIMEOUT_INITIALIZER_FLAGS
+.Nd execute a function in the future
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/timeout.h
+.Ft void
+.Fo timeout_set
+.Fa "struct timeout *to"
+.Fa "void (*fn)(void *)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo timeout_set_flags
+.Fa "struct timeout *to"
+.Fa "void (*fn)(void *)"
+.Fa "void *arg"
+.Fa "int kclock"
+.Fa "int flags"
+.Fc
+.Ft void
+.Fo timeout_set_proc
+.Fa "struct timeout *to"
+.Fa "void (*fn)(void *)"
+.Fa "void *arg"
+.Fc
+.Ft int
+.Fo timeout_add
+.Fa "struct timeout *to"
+.Fa "int nticks"
+.Fc
+.Ft int
+.Fo timeout_add_sec
+.Fa "struct timeout *to"
+.Fa "int secs"
+.Fc
+.Ft int
+.Fo timeout_add_msec
+.Fa "struct timeout *to"
+.Fa "uint64_t msecs"
+.Fc
+.Ft int
+.Fo timeout_add_usec
+.Fa "struct timeout *to"
+.Fa "uint64_t usecs"
+.Fc
+.Ft int
+.Fo timeout_add_nsec
+.Fa "struct timeout *to"
+.Fa "uint64_t nsecs"
+.Fc
+.Ft int
+.Fo timeout_abs_ts
+.Fa "struct timeout *to"
+.Fa "const struct timespec *abs"
+.Fc
+.Ft int
+.Fo timeout_del
+.Fa "struct timeout *to"
+.Fc
+.Ft int
+.Fo timeout_del_barrier
+.Fa "struct timeout *to"
+.Fc
+.Ft void
+.Fo timeout_barrier
+.Fa "struct timeout *to"
+.Fc
+.Ft int
+.Fo timeout_pending
+.Fa "struct timeout *to"
+.Fc
+.Ft int
+.Fo timeout_initialized
+.Fa "struct timeout *to"
+.Fc
+.Ft int
+.Fo timeout_triggered
+.Fa "struct timeout *to"
+.Fc
+.Fo TIMEOUT_INITIALIZER
+.Fa "void (*fn)(void *)"
+.Fa "void *arg"
+.Fc
+.Fo TIMEOUT_INITIALIZER_FLAGS
+.Fa "void (*fn)(void *)"
+.Fa "void *arg"
+.Fa "int kclock"
+.Fa "int flags"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm timeout
+subsystem schedules functions for asynchronous execution in the future.
+.Pp
+All state is encapsulated in a
+.Vt struct timeout
+allocated by the caller.
+A timeout must be initialized before it may be used as input to other
+functions in the API.
+Once initialized,
+a timeout does not need to be reinitialized unless its function or argument
+must change.
+.Pp
+The
+.Fn timeout_set
+function initializes the timeout
+.Fa to .
+When the timeout is executed,
+the function
+.Fa fn
+will be called with
+.Fa arg
+as its sole parameter.
+The timeout is implicitly scheduled against the
+.Dv KCLOCK_NONE
+clock and is not configured with any additional flags.
+.Pp
+The
+.Fn timeout_set_flags
+function is similar to
+.Fn timeout_set ,
+except that it takes two additional parameters:
+.Bl -tag -width kclock
+.It Fa kclock
+The timeout is scheduled against the given
+.Fa kclock ,
+which must be one of the following:
+.Bl -tag -width KCLOCK_UPTIME
+.It Dv KCLOCK_NONE
+Low resolution tick-based clock.
+The granularity of this clock is limited by the
+.Xr hardclock 9 ,
+which executes roughly
+.Xr hz 9
+times per second.
+.It Dv KCLOCK_UPTIME
+The uptime clock.
+Counts the time elapsed since the system booted.
+.El
+.It Fa flags
+The timeout's behavior may be configured with the bitwise OR of
+zero or more of the following
+.Fa flags :
+.Bl -tag -width TIMEOUT_MPSAFE
+.It Dv TIMEOUT_PROC
+Execute the timeout in a process context instead of the default
+.Dv IPL_SOFTCLOCK
+interrupt context.
+.It Dv TIMEOUT_MPSAFE
+Execute the timeout without the kernel lock.
+Requires the
+.Dv TIMEOUT_PROC
+flag.
+.El
+.El
+.Pp
+The
+.Fn timeout_set_proc
+function is similar to
+.Fn timeout_set ,
+except that the given timeout is configured with the
+.Dv TIMEOUT_PROC
+flag.
+.Pp
+A timeout may also be initialized statically.
+The
+.Fn TIMEOUT_INITIALIZER
+macro is equivalent to the
+.Fn timeout_set
+function and the
+.Fn TIMEOUT_INITIALIZER_FLAGS
+macro is equivalent to the
+.Fn timeout_set_flags
+function.
+.Pp
+The interfaces available for scheduling a timeout vary with the
+.Fa kclock
+set during initialization.
+.Pp
+.Dv KCLOCK_NONE
+timeouts may be scheduled with the function
+.Fn timeout_add ,
+which schedules the given timeout to execute after at least
+.Fa nticks
+.Xr hardclock 9
+ticks have elapsed.
+In practice,
+.Fa nticks
+ticks will usually elapse in slightly less than
+.Pq Fa nticks Cm / Dv hz
+seconds.
+Negative values of
+.Fa nticks
+are illegal.
+If
+.Fa nticks
+is zero it will be silently rounded up to one.
+.Pp
+For convenience,
+.Dv KCLOCK_NONE
+timeouts may also be scheduled with
+.Fn timeout_add_sec ,
+.Fn timeout_add_msec ,
+.Fn timeout_add_usec ,
+or
+.Fn timeout_add_nsec .
+These wrapper functions convert their input durations to a count of
+.Xr hardclock 9
+ticks before calling
+.Fn timeout_add
+to schedule the given timeout.
+.Pp
+Timeouts for any other
+.Fa kclock
+may be scheduled with
+.Fn timeout_abs_ts ,
+which schedules the given timeout to execute at or after the absolute time
+.Fa abs
+has elapsed on the timeout's
+.Fa kclock .
+.Pp
+Once scheduled,
+a timeout is said to be
+.Qq pending .
+A pending timeout may not be reinitialized with
+.Fn timeout_set ,
+.Fn timeout_set_flags ,
+or
+.Fn timeout_set_proc
+until it has been executed or it has been cancelled with
+.Fn timeout_del
+or
+.Fn timeout_del_barrier .
+A pending timeout may be rescheduled without first cancelling it with
+.Fn timeout_del
+or
+.Fn timeout_del_barrier :
+the new expiration time will quietly supersede the original.
+.Pp
+The function
+.Fn timeout_del
+cancels any pending execution of the given timeout.
+.Pp
+The
+.Fn timeout_del_barrier
+function is similar to
+.Fn timeout_del ,
+except that it also blocks until any current execution of the given timeout
+has completed.
+.Pp
+The
+.Fn timeout_barrier
+function blocks until any current execution of the given timeout
+has completed.
+.Pp
+Callers of
+.Fn timeout_barrier
+and
+.Fn timeout_del_barrier
+must not hold locks that can block processing in the timeout's context.
+Otherwise, the system will deadlock.
+.Pp
+The
+.Fn timeout_pending
+macro indicates whether the given timeout is scheduled for execution.
+A timeout's pending status is cleared when it executes or is cancelled.
+.Pp
+The
+.Fn timeout_initialized
+macro indicates whether the given timeout has been initialized with
+.Fn timeout_set
+or
+.Fn timeout_set_flags .
+This macro must not be used unless the memory pointed to by
+.Fa to
+has been zeroed,
+or its return value is meaningless.
+.Pp
+The
+.Fn timeout_triggered
+macro indicates whether the given timeout is executing or has finished
+executing.
+Rescheduling or cancelling a timeout clears its triggered status.
+.Sh CONTEXT
+.Fn timeout_set ,
+.Fn timeout_set_flags ,
+.Fn timeout_set_proc ,
+.Fn timeout_add ,
+.Fn timeout_add_sec ,
+.Fn timeout_add_msec ,
+.Fn timeout_add_usec ,
+.Fn timeout_add_nsec ,
+.Fn timeout_abs_ts ,
+.Fn timeout_del ,
+.Fn timeout_pending ,
+.Fn timeout_initialized ,
+and
+.Fn timeout_triggered
+may be called during autoconf,
+from process context,
+or from any interrupt context.
+.Pp
+.Fn timeout_barrier
+and
+.Fn timeout_del_barrier
+may only be called from process context.
+.Pp
+When a timeout is executed,
+the function
+.Fa fn
+set during initialization is called from the
+.Dv IPL_SOFTCLOCK
+interrupt context,
+or a process context if the timeout was configured with the
+.Dv TIMEOUT_PROC
+flag.
+The function
+.Fa fn
+must not block and must be safe to execute on any CPU in the system.
+.Pp
+Timeouts without the
+.Dv TIMEOUT_MPSAFE
+flag are executed under the kernel lock.
+.Sh RETURN VALUES
+.Fn timeout_add ,
+.Fn timeout_add_sec ,
+.Fn timeout_add_msec ,
+.Fn timeout_add_usec ,
+.Fn timeout_add_nsec ,
+and
+.Fn timeout_abs_ts
+return 1 if the timeout
+.Fa to
+is newly scheduled,
+or zero if the timeout was already pending.
+.Pp
+.Fn timeout_del
+and
+.Fn timeout_del_barrier
+return 1 if the timeout
+.Fa to
+was pending,
+or zero otherwise.
+.Pp
+.Fn timeout_pending ,
+.Fn timeout_initialized ,
+and
+.Fn timeout_triggered
+return non-zero if the corresponding condition is true,
+or zero otherwise.
+.Sh CODE REFERENCES
+.Pa sys/kern/kern_timeout.c
+.Sh SEE ALSO
+.Xr hardclock 9 ,
+.Xr hz 9 ,
+.Xr microtime 9 ,
+.Xr splclock 9 ,
+.Xr task_add 9 ,
+.Xr tsleep 9 ,
+.Xr tvtohz 9
+.Rs
+.%A George Varghese
+.%A Anthony Lauck
+.%B Hashed and hierarchical timing wheels: efficient data structures for \
+implementing a timer facility
+.%O especially Schemes 6 and 7
+.%I IEEE/ACM
+.%J Transactions on Networking
+.%V vol. 5
+.%N no. 6
+.%P pp. 824\(en834
+.%D December 1997
+.Re

@@ -1,0 +1,159 @@
+.\" $OpenBSD: PKCS7_dataFinal.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS7_DATAFINAL 3
+.Os
+.Sh NAME
+.Nm PKCS7_dataFinal
+.Nd move data from a BIO chain to a ContentInfo object
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft int
+.Fo PKCS7_dataFinal
+.Fa "PKCS7 *p7"
+.Fa "BIO *chain"
+.Fc
+.Sh DESCRIPTION
+.Fn PKCS7_dataFinal
+transfers the data from the memory BIO at the end of the given
+.Fa chain
+into the appropriate content field of
+.Fa p7
+itself or of its appropriate substructure.
+It is typically used as the final step of populating
+.Fa p7 ,
+after creating the
+.Fa chain
+with
+.Xr PKCS7_dataInit 3
+and after writing the data into it.
+.Pp
+After calling
+.Fn PKCS7_dataFinal ,
+the program can call
+.Xr BIO_free_all 3
+on the
+.Fa chain
+because such chains are not designed for reuse.
+.Pp
+Depending on the
+.Fa contentType
+of
+.Fa p7 ,
+.Fn PKCS7_dataFinal
+sets the following fields:
+.Bl -tag -width Ds
+.It for Vt SignedData No or Vt DigestedData :
+in substructures of the
+.Fa content
+field of
+.Fa p7 :
+the
+.Fa content
+field in the
+.Vt ContentInfo
+structure (unless
+.Fa p7
+is configured to store a detached signature) and the
+.Fa encryptedDigest
+fields in all the
+.Vt SignerInfo
+structures
+.It for Vt EnvelopedData No or Vt SignedAndEnvelopedData :
+the
+.Fa encryptedContent
+field in the
+.Vt EncryptedContentInfo
+structure contained in the
+.Fa content
+field of
+.Fa p7
+.It for arbitrary data :
+the
+.Fa content
+field of
+.Fa p7
+itself
+.El
+.Sh RETURN VALUES
+.Fn PKCS7_dataFinal
+returns 1 on success or 0 on failure.
+.Pp
+Possible reasons for failure include:
+.Pp
+.Bl -dash -compact -offset 2n -width 1n
+.It
+.Fa p7
+is
+.Dv NULL .
+.It
+The
+.Fa content
+field of
+.Fa p7
+is empty.
+.It
+The
+.Fa contentType
+of
+.Fa p7
+is unsupported.
+.It
+The
+.Fa chain
+does not contain the expected memory BIO.
+.It
+Signing or digesting is requested and
+.Fa p7
+is not configured to store a detached signature,
+but does not contain the required field to store the content either.
+.It
+At least one signer lacks a usable digest algorithm.
+.It
+Signing or digesting fails.
+.It
+Memory allocation fails.
+.El
+.Pp
+Signers lacking private keys do not cause failure
+but are silently skipped.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr PKCS7_dataInit 3 ,
+.Xr PKCS7_final 3 ,
+.Xr PKCS7_new 3 ,
+.Xr PKCS7_sign 3
+.Sh HISTORY
+.Fn PKCS7_dataFinal
+first appeared in SSLeay 0.9.1 and has been available since
+.Ox 2.6 .
+.Sh CAVEATS
+This function does not support
+.Vt EncryptedData .
+.Pp
+Even though this function is typically used after
+.Xr PKCS7_dataInit 3
+and even though
+.Xr PKCS7_dataInit 3
+also supports reading from
+.Vt ContentInfo
+structures that are already fully populated, do not use
+.Fn PKCS7_dataFinal
+on fully populated structures.
+It is only intended for putting data into new structures
+and it is neither needed nor suitable for reading.

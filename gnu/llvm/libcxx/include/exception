@@ -1,0 +1,96 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXCEPTION
+#define _LIBCPP_EXCEPTION
+
+/*
+    exception synopsis
+
+namespace std
+{
+
+class exception
+{
+public:
+    exception() noexcept;
+    exception(const exception&) noexcept;
+    exception& operator=(const exception&) noexcept;
+    virtual ~exception() noexcept;
+    virtual const char* what() const noexcept;
+};
+
+class bad_exception
+    : public exception
+{
+public:
+    bad_exception() noexcept;
+    bad_exception(const bad_exception&) noexcept;
+    bad_exception& operator=(const bad_exception&) noexcept;
+    virtual ~bad_exception() noexcept;
+    virtual const char* what() const noexcept;
+};
+
+typedef void (*unexpected_handler)();
+unexpected_handler set_unexpected(unexpected_handler  f ) noexcept;
+unexpected_handler get_unexpected() noexcept;
+[[noreturn]] void unexpected();
+
+typedef void (*terminate_handler)();
+terminate_handler set_terminate(terminate_handler  f ) noexcept;
+terminate_handler get_terminate() noexcept;
+[[noreturn]] void terminate() noexcept;
+
+bool uncaught_exception()  noexcept;
+int  uncaught_exceptions() noexcept;  // C++17
+
+typedef unspecified exception_ptr;
+
+exception_ptr current_exception() noexcept;
+void rethrow_exception [[noreturn]] (exception_ptr p);
+template<class E> exception_ptr make_exception_ptr(E e) noexcept;
+
+class nested_exception
+{
+public:
+    nested_exception() noexcept;
+    nested_exception(const nested_exception&) noexcept = default;
+    nested_exception& operator=(const nested_exception&) noexcept = default;
+    virtual ~nested_exception() = default;
+
+    // access functions
+    [[noreturn]] void rethrow_nested() const;
+    exception_ptr nested_ptr() const noexcept;
+};
+
+template <class T> [[noreturn]] void throw_with_nested(T&& t);
+template <class E> void rethrow_if_nested(const E& e);
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__exception/exception.h>
+#include <__exception/exception_ptr.h>
+#include <__exception/nested_exception.h>
+#include <__exception/operations.h>
+#include <__exception/terminate.h>
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cstdlib>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_EXCEPTION

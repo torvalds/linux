@@ -1,0 +1,105 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("BPFGenCallingConv") {
+  visibility = [ ":LLVMBPFCodeGen" ]
+  args = [ "-gen-callingconv" ]
+  td_file = "BPF.td"
+}
+
+tablegen("BPFGenDAGISel") {
+  visibility = [ ":LLVMBPFCodeGen" ]
+  args = [ "-gen-dag-isel" ]
+  td_file = "BPF.td"
+}
+
+tablegen("BPFGenFastISel") {
+  visibility = [ ":LLVMBPFCodeGen" ]
+  args = [ "-gen-fast-isel" ]
+  td_file = "BPF.td"
+}
+
+tablegen("BPFGenGlobalISel") {
+  visibility = [ ":LLVMBPFCodeGen" ]
+  args = [ "-gen-global-isel" ]
+  td_file = "BPF.td"
+}
+
+tablegen("BPFGenMCPseudoLowering") {
+  visibility = [ ":LLVMBPFCodeGen" ]
+  args = [ "-gen-pseudo-lowering" ]
+  td_file = "BPF.td"
+}
+
+tablegen("BPFGenRegisterBank") {
+  visibility = [ ":LLVMBPFCodeGen" ]
+  args = [ "-gen-register-bank" ]
+  td_file = "BPF.td"
+}
+
+static_library("LLVMBPFCodeGen") {
+  deps = [
+    ":BPFGenCallingConv",
+    ":BPFGenDAGISel",
+    ":BPFGenFastISel",
+    ":BPFGenGlobalISel",
+    ":BPFGenMCPseudoLowering",
+    ":BPFGenRegisterBank",
+    "MCTargetDesc",
+    "TargetInfo",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "BPFASpaceCastSimplifyPass.cpp",
+    "BPFAbstractMemberAccess.cpp",
+    "BPFAdjustOpt.cpp",
+    "BPFAsmPrinter.cpp",
+    "BPFCheckAndAdjustIR.cpp",
+    "BPFFrameLowering.cpp",
+    "BPFIRPeephole.cpp",
+    "BPFISelDAGToDAG.cpp",
+    "BPFISelLowering.cpp",
+    "BPFInstrInfo.cpp",
+    "BPFMCInstLower.cpp",
+    "BPFMIChecking.cpp",
+    "BPFMIPeephole.cpp",
+    "BPFMISimplifyPatchable.cpp",
+    "BPFPreserveDIType.cpp",
+    "BPFPreserveStaticOffset.cpp",
+    "BPFRegisterInfo.cpp",
+    "BPFSelectionDAGInfo.cpp",
+    "BPFSubtarget.cpp",
+    "BPFTargetMachine.cpp",
+    "BTFDebug.cpp",
+    "GISel/BPFCallLowering.cpp",
+    "GISel/BPFInstructionSelector.cpp",
+    "GISel/BPFLegalizerInfo.cpp",
+    "GISel/BPFRegisterBankInfo.cpp",
+  ]
+}
+
+# This is a bit different from most build files: Due to this group
+# having the directory's name, "//llvm/lib/Target/BPF" will refer to this
+# target, which pulls in the code in this directory *and all subdirectories*.
+# For most other directories, "//llvm/lib/Foo" only pulls in the code directly
+# in "llvm/lib/Foo". The forwarding targets in //llvm/lib/Target expect this
+# different behavior.
+group("BPF") {
+  deps = [
+    ":LLVMBPFCodeGen",
+    "AsmParser",
+    "Disassembler",
+    "MCTargetDesc",
+    "TargetInfo",
+  ]
+}

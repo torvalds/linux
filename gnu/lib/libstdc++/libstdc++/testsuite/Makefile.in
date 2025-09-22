@@ -1,0 +1,527 @@
+# Makefile.in generated automatically by automake 1.4-p6 from Makefile.am
+
+# Copyright (C) 1994, 1995-8, 1999, 2001 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+
+SHELL = @SHELL@
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+DESTDIR =
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = ..
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@ $(AM_INSTALL_PROGRAM_FLAGS)
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+build_alias = @build_alias@
+build_triplet = @build@
+host_alias = @host_alias@
+host_triplet = @host@
+target_alias = @target_alias@
+target_triplet = @target@
+AR = @AR@
+AS = @AS@
+ATOMICITY_INC_SRCDIR = @ATOMICITY_INC_SRCDIR@
+AWK = @AWK@
+BASIC_FILE_CC = @BASIC_FILE_CC@
+BASIC_FILE_H = @BASIC_FILE_H@
+CC = @CC@
+CCODECVT_C = @CCODECVT_C@
+CCODECVT_CC = @CCODECVT_CC@
+CCODECVT_H = @CCODECVT_H@
+CCOLLATE_CC = @CCOLLATE_CC@
+CCTYPE_CC = @CCTYPE_CC@
+CLOCALE_CC = @CLOCALE_CC@
+CLOCALE_H = @CLOCALE_H@
+CLOCALE_INTERNAL_H = @CLOCALE_INTERNAL_H@
+CMESSAGES_CC = @CMESSAGES_CC@
+CMESSAGES_H = @CMESSAGES_H@
+CMONEY_CC = @CMONEY_CC@
+CNUMERIC_CC = @CNUMERIC_CC@
+CPP = @CPP@
+CSTDIO_H = @CSTDIO_H@
+CTIME_CC = @CTIME_CC@
+CTIME_H = @CTIME_H@
+CXXCPP = @CXXCPP@
+C_INCLUDE_DIR = @C_INCLUDE_DIR@
+DEBUG_FLAGS = @DEBUG_FLAGS@
+DLLTOOL = @DLLTOOL@
+EXEEXT = @EXEEXT@
+EXTRA_CXX_FLAGS = @EXTRA_CXX_FLAGS@
+GCJ = @GCJ@
+GCJFLAGS = @GCJFLAGS@
+GLIBCPP_INCLUDES = @GLIBCPP_INCLUDES@
+GLIBCPP_IS_CROSS_COMPILING = @GLIBCPP_IS_CROSS_COMPILING@
+LIBIO_INCLUDES = @LIBIO_INCLUDES@
+LIBMATHOBJS = @LIBMATHOBJS@
+LIBMATH_INCLUDES = @LIBMATH_INCLUDES@
+LIBSUPCXX_INCLUDES = @LIBSUPCXX_INCLUDES@
+LIBSUPCXX_PICFLAGS = @LIBSUPCXX_PICFLAGS@
+LIBTOOL = @LIBTOOL@
+LIBUNWIND_FLAG = @LIBUNWIND_FLAG@
+LN_S = @LN_S@
+MAINT = @MAINT@
+MAKEINFO = @MAKEINFO@
+OBJDUMP = @OBJDUMP@
+OBJEXT = @OBJEXT@
+OPTIMIZE_CXXFLAGS = @OPTIMIZE_CXXFLAGS@
+OPT_LDFLAGS = @OPT_LDFLAGS@
+OS_INC_SRCDIR = @OS_INC_SRCDIR@
+PACKAGE = @PACKAGE@
+RANLIB = @RANLIB@
+SECTION_FLAGS = @SECTION_FLAGS@
+SECTION_LDFLAGS = @SECTION_LDFLAGS@
+STRIP = @STRIP@
+SYMVER_MAP = @SYMVER_MAP@
+TOPLEVEL_INCLUDES = @TOPLEVEL_INCLUDES@
+USE_NLS = @USE_NLS@
+VERSION = @VERSION@
+WARN_FLAGS = @WARN_FLAGS@
+WERROR = @WERROR@
+check_msgfmt = @check_msgfmt@
+enable_shared = @enable_shared@
+enable_static = @enable_static@
+glibcpp_CXX = @glibcpp_CXX@
+glibcpp_MOFILES = @glibcpp_MOFILES@
+glibcpp_POFILES = @glibcpp_POFILES@
+glibcpp_basedir = @glibcpp_basedir@
+glibcpp_builddir = @glibcpp_builddir@
+glibcpp_localedir = @glibcpp_localedir@
+glibcpp_prefixdir = @glibcpp_prefixdir@
+glibcpp_srcdir = @glibcpp_srcdir@
+glibcpp_thread_h = @glibcpp_thread_h@
+glibcpp_toolexecdir = @glibcpp_toolexecdir@
+glibcpp_toolexeclibdir = @glibcpp_toolexeclibdir@
+gxx_include_dir = @gxx_include_dir@
+ifGNUmake = @ifGNUmake@
+libio_la = @libio_la@
+libtool_VERSION = @libtool_VERSION@
+toplevel_srcdir = @toplevel_srcdir@
+
+AUTOMAKE_OPTIONS = cygnus dejagnu
+
+mkinstalldirs = $(SHELL) $(toplevel_srcdir)/mkinstalldirs
+
+DEJATOOL = libstdc++-v3
+
+EXPECT = `if [ -f @glibcpp_builddir@/../../expect/expect ] ; then \
+            echo @glibcpp_builddir@/../../expect/expect ; \
+          else echo expect ; fi`
+
+
+RUNTEST = `if [ -f @glibcpp_srcdir@/../dejagnu/runtest ] ; then \
+	       echo @glibcpp_srcdir@/../dejagnu/runtest ; \
+	    else echo runtest; fi`
+
+
+AM_RUNTESTFLAGS = 
+RUNTESTFLAGS = 
+
+testsuite_flags_script = ${glibcpp_builddir}/testsuite_flags
+CXX = `${testsuite_flags_script} --build-cxx`
+
+GLIBGCC_DIR = `$(CC) -print-libgcc-file-name | sed 's,/[^/]*$$,,'`
+GLIBCXX_DIR = ${glibcpp_builddir}/src/.libs
+
+CXXLINK = \
+	$(LIBTOOL) --tag=CXX --mode=link $(CXX) \
+	-R $(GLIBGCC_DIR) -R $(GLIBCXX_DIR) \
+	$(AM_CXXFLAGS) $(CXXFLAGS) $(LDFLAGS) -o $@
+
+
+INCLUDES = \
+	-nostdinc++ \
+	@GLIBCPP_INCLUDES@ @LIBSUPCXX_INCLUDES@ @TOPLEVEL_INCLUDES@ 
+
+
+noinst_LIBRARIES = libv3test.a
+libv3test_a_SOURCES = testsuite_hooks.cc testsuite_allocator.cc
+@GLIBCPP_TEST_ABI_TRUE@noinst_PROGRAMS = @GLIBCPP_TEST_ABI_TRUE@abi_check
+@GLIBCPP_TEST_ABI_FALSE@noinst_PROGRAMS = 
+abi_check_SOURCES = abi_check.cc
+
+baseline_dir = @baseline_dir@
+baseline_file = ${baseline_dir}/baseline_symbols.txt
+extract_symvers = @glibcpp_srcdir@/config/abi/extract_symvers
+
+# By adding these files here, automake will remove them for 'make clean'
+CLEANFILES = *.txt *.tst *.exe core* filebuf_* tmp* ostream_* *.log *.sum \
+	     testsuite_files testsuite_wchar_t site.exp abi_check 
+
+CONFIG_HEADER = ../config.h
+CONFIG_CLEAN_FILES = 
+LIBRARIES =  $(noinst_LIBRARIES)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I..
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+libv3test_a_LIBADD = 
+libv3test_a_OBJECTS =  testsuite_hooks.$(OBJEXT) \
+testsuite_allocator.$(OBJEXT)
+@GLIBCPP_TEST_ABI_FALSE@noinst_PROGRAMS = 
+PROGRAMS =  $(noinst_PROGRAMS)
+
+abi_check_OBJECTS =  abi_check.$(OBJEXT)
+abi_check_LDADD = $(LDADD)
+abi_check_DEPENDENCIES = 
+abi_check_LDFLAGS = 
+CXXFLAGS = @CXXFLAGS@
+CXXCOMPILE = $(CXX) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
+LTCXXCOMPILE = $(LIBTOOL) --mode=compile $(CXX) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
+CXXLD = $(CXX)
+DIST_COMMON =  README Makefile.am Makefile.in
+
+
+DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+
+TAR = gtar
+GZIP_ENV = --best
+SOURCES = $(libv3test_a_SOURCES) $(abi_check_SOURCES)
+OBJECTS = $(libv3test_a_OBJECTS) $(abi_check_OBJECTS)
+
+all: all-redirect
+.SUFFIXES:
+.SUFFIXES: .S .c .cc .lo .o .obj .s
+$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOMAKE) --cygnus testsuite/Makefile
+
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+
+mostlyclean-noinstLIBRARIES:
+
+clean-noinstLIBRARIES:
+	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+
+distclean-noinstLIBRARIES:
+
+maintainer-clean-noinstLIBRARIES:
+
+.c.o:
+	$(COMPILE) -c $<
+
+# FIXME: We should only use cygpath when building on Windows,
+# and only if it is available.
+.c.obj:
+	$(COMPILE) -c `cygpath -w $<`
+
+.s.o:
+	$(COMPILE) -c $<
+
+.S.o:
+	$(COMPILE) -c $<
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+	-rm -f *.$(OBJEXT)
+
+clean-compile:
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+.c.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
+
+.s.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
+
+.S.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
+
+mostlyclean-libtool:
+	-rm -f *.lo
+
+clean-libtool:
+	-rm -rf .libs _libs
+
+distclean-libtool:
+
+maintainer-clean-libtool:
+
+libv3test.a: $(libv3test_a_OBJECTS) $(libv3test_a_DEPENDENCIES)
+	-rm -f libv3test.a
+	$(AR) cru libv3test.a $(libv3test_a_OBJECTS) $(libv3test_a_LIBADD)
+	$(RANLIB) libv3test.a
+
+mostlyclean-noinstPROGRAMS:
+
+clean-noinstPROGRAMS:
+	-test -z "$(noinst_PROGRAMS)" || rm -f $(noinst_PROGRAMS)
+
+distclean-noinstPROGRAMS:
+
+maintainer-clean-noinstPROGRAMS:
+
+abi_check$(EXEEXT): $(abi_check_OBJECTS) $(abi_check_DEPENDENCIES)
+	@rm -f abi_check$(EXEEXT)
+	$(CXXLINK) $(abi_check_LDFLAGS) $(abi_check_OBJECTS) $(abi_check_LDADD) $(LIBS)
+.cc.o:
+	$(CXXCOMPILE) -c $<
+.cc.obj:
+	$(CXXCOMPILE) -c `cygpath -w $<`
+.cc.lo:
+	$(LTCXXCOMPILE) -c $<
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP)
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	here=`pwd` && cd $(srcdir) \
+	  && mkid -f$$here/ID $$unique $(LISP)
+
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
+	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags  $$unique $(LISP) -o $$here/TAGS)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
+
+subdir = testsuite
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+	  if test -d $$d/$$file; then \
+	    cp -pr $$d/$$file $(distdir)/$$file; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	  fi; \
+	done
+
+RUNTESTDEFAULTFLAGS = --tool $(DEJATOOL) --srcdir $$srcdir
+
+check-DEJAGNU: site.exp
+	srcdir=`cd $(srcdir) && pwd`; export srcdir; \
+	EXPECT=$(EXPECT); export EXPECT; \
+	if [ -f $(top_builddir)/../expect/expect ]; then \
+	  TCL_LIBRARY=`cd $(top_srcdir)/../tcl/library && pwd`; \
+	  export TCL_LIBRARY; \
+	fi; \
+	runtest=$(RUNTEST); \
+	if $(SHELL) -c "$$runtest --version" > /dev/null 2>&1; then \
+	  $$runtest $(RUNTESTDEFAULTFLAGS) $(RUNTESTFLAGS); \
+	else echo "WARNING: could not find \`runtest'" 1>&2; :;\
+	fi
+site.exp: Makefile
+	@echo 'Making a new site.exp file...'
+	@test ! -f site.bak || rm -f site.bak
+	@echo '## these variables are automatically generated by make ##' > $@-t
+	@echo '# Do not edit here.  If you wish to override these values' >> $@-t
+	@echo '# edit the last section' >> $@-t
+	@echo 'set tool $(DEJATOOL)' >> $@-t
+	@echo 'set srcdir $(srcdir)' >> $@-t
+	@echo 'set objdir' `pwd` >> $@-t
+	@echo 'set host_alias $(host_alias)' >> $@-t
+	@echo 'set host_triplet $(host_triplet)' >> $@-t
+	@echo 'set target_alias $(target_alias)' >> $@-t
+	@echo 'set target_triplet $(target_triplet)' >> $@-t
+	@echo 'set build_alias $(build_alias)' >> $@-t
+	@echo 'set build_triplet $(build_triplet)' >> $@-t
+	@echo '## All variables above are generated by configure. Do Not Edit ##' >> $@-t
+	@test ! -f site.exp || sed '1,/^## All variables above are.*##/ d' site.exp >> $@-t
+	@test ! -f site.exp || mv site.exp site.bak
+	@mv $@-t site.exp
+info-am:
+info: info-am
+dvi-am:
+dvi: dvi-am
+check-am:
+	$(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU check-local
+check: check-am
+installcheck-am:
+installcheck: installcheck-am
+install-info-am: 
+install-info: install-info-am
+install-exec-am:
+install-exec: install-exec-am
+
+install-data-am:
+install-data: install-data-am
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+install: install-am
+uninstall-am:
+uninstall: uninstall-am
+all-am: Makefile $(LIBRARIES) $(PROGRAMS) all-local
+all-redirect: all-am
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
+installdirs:
+
+
+mostlyclean-generic:
+
+clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+
+maintainer-clean-generic:
+mostlyclean-am:  mostlyclean-noinstLIBRARIES mostlyclean-compile \
+		mostlyclean-libtool mostlyclean-noinstPROGRAMS \
+		mostlyclean-tags mostlyclean-generic
+
+mostlyclean: mostlyclean-am
+
+clean-am:  clean-noinstLIBRARIES clean-compile clean-libtool \
+		clean-noinstPROGRAMS clean-tags clean-generic \
+		mostlyclean-am
+
+clean: clean-am
+
+distclean-am:  distclean-noinstLIBRARIES distclean-compile \
+		distclean-libtool distclean-noinstPROGRAMS \
+		distclean-tags distclean-generic clean-am
+	-rm -f libtool
+
+distclean: distclean-am
+
+maintainer-clean-am:  maintainer-clean-noinstLIBRARIES \
+		maintainer-clean-compile maintainer-clean-libtool \
+		maintainer-clean-noinstPROGRAMS maintainer-clean-tags \
+		maintainer-clean-generic distclean-am
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+maintainer-clean: maintainer-clean-am
+
+.PHONY: mostlyclean-noinstLIBRARIES distclean-noinstLIBRARIES \
+clean-noinstLIBRARIES maintainer-clean-noinstLIBRARIES \
+mostlyclean-compile distclean-compile clean-compile \
+maintainer-clean-compile mostlyclean-libtool distclean-libtool \
+clean-libtool maintainer-clean-libtool mostlyclean-noinstPROGRAMS \
+distclean-noinstPROGRAMS clean-noinstPROGRAMS \
+maintainer-clean-noinstPROGRAMS tags mostlyclean-tags distclean-tags \
+clean-tags maintainer-clean-tags distdir check-DEJAGNU info-am info \
+dvi-am dvi check-local check check-am installcheck-am installcheck \
+install-info-am install-info install-exec-am install-exec \
+install-data-am install-data install-am install uninstall-am uninstall \
+all-local all-redirect all-am all installdirs mostlyclean-generic \
+distclean-generic clean-generic maintainer-clean-generic clean \
+mostlyclean distclean maintainer-clean
+
+
+# Enable wchar_t tests if capable.
+@GLIBCPP_TEST_WCHAR_T_TRUE@all-local: stamp_wchar
+@GLIBCPP_TEST_WCHAR_T_FALSE@all-local:
+
+# Override this so local rules are possible.
+check-am: 
+	$(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU; \
+	$(MAKE) $(AM_MAKEFLAGS) check-local 
+
+check-local: check-abi
+
+stamp_wchar:
+	touch testsuite_wchar_t
+
+current_symbols.txt: ${extract_symvers} ../src/.libs/libstdc++.so
+	  -@(${extract_symvers} ../src/.libs/libstdc++.so current_symbols.txt)
+
+baseline_symbols:
+	-@(output=${baseline_file}; \
+	  if test ! -f $${output}; then \
+	    echo "Baseline file doesn't exist."; \
+	    echo "Try 'make new-abi-baseline' to create it."; \
+	    exit 1; \
+	  fi; \
+	touch baseline_symbols)
+
+new-abi-baseline: 
+	-@$(mkinstalldirs) ${baseline_dir}
+	-@(output=${baseline_file}; \
+	  if test -f $${output}; then \
+	    output=$${output}.new; \
+	    t=`echo $${output} | sed 's=.*config/abi/=='`; \
+	    echo "Baseline file already exists, writing to $${t} instead."; \
+	  fi; \
+	  ${extract_symvers} ../src/.libs/libstdc++.so $${output})
+
+# Use 'new-abi-baseline' to create an initial symbol file.  Then run
+# 'check-abi' to test for changes against that file.
+@GLIBCPP_TEST_ABI_TRUE@check-abi: abi_check baseline_symbols current_symbols.txt
+@GLIBCPP_TEST_ABI_TRUE@	-@(./abi_check --check ./current_symbols.txt ${baseline_file} \
+@GLIBCPP_TEST_ABI_TRUE@	2>&1 | tee libstdc++-v3-abi.sum)
+
+@GLIBCPP_TEST_ABI_TRUE@check-abi-verbose: abi_check baseline_symbols current_symbols.txt 
+@GLIBCPP_TEST_ABI_TRUE@	-@(./abi_check --check-verbose ./current_symbols.txt ${baseline_file} \
+@GLIBCPP_TEST_ABI_TRUE@	2>&1 | tee libstdc++-v3-abi.sum)
+@GLIBCPP_TEST_ABI_FALSE@check-abi:
+@GLIBCPP_TEST_ABI_FALSE@check-abi-verbose:
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

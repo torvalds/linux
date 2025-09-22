@@ -1,0 +1,7 @@
+pass in on lo0 from any to any route-to { 169.254.0.1, 169.254.0.2 }
+pass out on lo0 from any to any route-to { 169.254.0.1, 169.254.0.2 } round-robin
+pass in on lo0 from any to any route-to 169.254.0.1/24 bitmask
+pass out on lo0 from any to any dup-to 169.254.0.1/24 random
+pass in on lo0 inet from any to any reply-to 169.254.0.0/28 source-hash 0x0123456789ABCDEF0123456789abcdef
+pass out on lo0 from any to any  route-to 169.254.0.1/24 source-hash foobarlicious 
+pass in on lo0 from any to any dup-to 169.254.0.1/24 round-robin

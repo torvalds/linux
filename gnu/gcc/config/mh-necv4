@@ -1,0 +1,4 @@
+# Host Makefile fragment for NEC MIPS SVR4.
+
+# NEC -lX11 needs some other libraries.
+X11_EXTRA_LIBS = -lsocket -lnsl

@@ -1,0 +1,140 @@
+.\"	$OpenBSD: spamlogd.8,v 1.18 2013/09/15 20:02:34 schwarze Exp $
+.\"
+.\" Copyright (c) 2004 Bob Beck.  All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 15 2013 $
+.Dt SPAMLOGD 8
+.Os
+.Sh NAME
+.Nm spamlogd
+.Nd spamd whitelist updating daemon
+.Sh SYNOPSIS
+.Nm spamlogd
+.Op Fl DI
+.Op Fl i Ar interface
+.Op Fl l Ar pflog_interface
+.Op Fl W Ar whiteexp
+.Op Fl Y Ar synctarget
+.Sh DESCRIPTION
+.Nm
+manipulates the
+.Xr spamd 8
+database in
+.Pa /var/db/spamd
+used for greylisting.
+.Nm
+updates the
+.Pa /var/db/spamd
+whitelist entries whenever a connection
+to port 25 is logged to the
+.Xr pflog 4
+interface.
+The source addresses of inbound connections are whitelisted
+when seen by
+.Nm
+to ensure that their entries in
+.Pa /var/db/spamd
+do not expire if the connecting host continues to send legitimate mail.
+The destination addresses of outbound connections are whitelisted
+when seen by
+.Nm
+so that replies to outbound mail may be received without initial
+greylisting delays.
+Greylisting is explained more fully in
+.Xr spamd 8 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D
+Debugging mode.
+.Nm
+does not disassociate from the controlling terminal.
+.It Fl I
+Specify that
+.Nm
+is only to whitelist inbound SMTP connections.
+By default
+.Nm
+will whitelist the source of inbound SMTP connections, and the
+target of outbound SMTP connections.
+.It Fl i Ar interface
+Specify a network interface on which packets must arrive.
+The default is to watch for connections logged from all interfaces.
+.It Fl l Ar pflog_interface
+Specify a
+.Xr pflog 4
+interface to listen for connection notifications.
+The default is to watch for connections logged on
+.Dq pflog0 .
+.It Fl W Ar whiteexp
+Adjust the time for
+.Ar whiteexp
+in hours.
+The default is 864 hours (approximately 36 days); maximum is 2160 hours
+(approximately 90 days).
+.It Fl Y Ar synctarget
+Add a target to receive synchronisation messages; see
+.Sx SYNCHRONISATION
+below.
+This option can be specified multiple times.
+.El
+.Pp
+It is important to log any connections to and from the real
+MTA in order for
+.Nm
+to update the whitelist entries.
+See
+.Xr spamd 8
+for an example ruleset for logging such connections.
+.Pp
+.Nm
+sends log messages to
+.Xr syslogd 8
+using facility
+.Em daemon .
+.Nm
+will log each connection it sees at level
+.Dv LOG_DEBUG .
+.Sh SYNCHRONISATION
+.Nm
+supports realtime synchronisation of whitelist states by sending
+the information it updates to
+a number of
+.Xr spamd 8
+daemons running on multiple machines.
+To enable synchronisation, use the command line option
+.Fl Y
+to specify the machines to which
+.Nm
+will send messages when it updates the state information.
+For more information, see
+.Xr spamd 8 .
+.Sh FILES
+.Pa /var/db/spamd
+.Sh SEE ALSO
+.Xr syslog 3 ,
+.Xr pflog 4 ,
+.Xr spamd.conf 5 ,
+.Xr pflogd 8 ,
+.Xr spamd 8 ,
+.Xr spamd-setup 8 ,
+.Xr spamdb 8 ,
+.Xr syslogd 8 ,
+.Xr tcpdump 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 3.5 .

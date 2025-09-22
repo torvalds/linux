@@ -1,0 +1,88 @@
+@0 pass in on lo1000001 inet proto udp from 10.0.0.2 port = 53 to 10.0.0.2
+  [ Skip steps: i=8 d=14 r=end f=end p=3 da=5 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass in on lo1000001 inet proto udp from any to 10.0.0.2 port = 53
+  [ Skip steps: i=8 d=14 r=end f=end p=3 da=5 sp=3 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 pass in on lo1000001 inet proto udp from 10.0.0.5 to 10.0.0.2
+  [ Skip steps: i=8 d=14 r=end f=end da=5 dp=4 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass in on lo1000001 inet proto tcp from 10.0.0.1 port = 22 to 10.0.0.2 flags S/SA
+  [ Skip steps: i=8 d=14 r=end f=end p=7 da=5 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass in on lo1000001 inet proto tcp from any to 10.0.0.2 port = 22 flags S/SA
+  [ Skip steps: i=8 d=14 r=end f=end p=7 sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 pass in on lo1000001 inet proto tcp from 10.0.0.1 to 10.0.0.4 flags S/SA
+  [ Skip steps: i=8 d=14 r=end f=end p=7 sa=7 sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 pass in on lo1000001 inet proto tcp from 10.0.0.1 to 10.0.0.6 port = 22 flags S/SA
+  [ Skip steps: i=8 d=14 r=end f=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 pass in on lo1000001 inet proto udp from 10.0.0.5 to 10.0.0.4 port = 53
+  [ Skip steps: d=14 r=end f=end p=11 sp=end dp=11 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 pass in on lo1000000 inet proto udp from any to 10.0.0.2 port = 53
+  [ Skip steps: d=14 r=end f=end p=11 sa=end sp=end dp=11 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 pass in inet proto udp from any to 10.0.0.3 port = 53
+  [ Skip steps: i=13 d=14 r=end f=end p=11 sa=end sp=end dp=11 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 pass in inet proto udp from any to 10.0.0.1 port = 53
+  [ Skip steps: i=13 d=14 r=end f=end sa=end da=12 sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 pass in inet proto tcp from any to 10.0.0.1 port = 80 flags S/SA
+  [ Skip steps: i=13 d=14 r=end f=end p=14 sa=end sp=end dp=13 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@12 pass in inet proto tcp from any to 10.0.0.3 port = 80 flags S/SA
+  [ Skip steps: d=14 r=end f=end p=14 sa=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@13 pass in on lo1000000 inet proto tcp from any to 10.0.0.2 port = 22 flags S/SA
+  [ Skip steps: r=end f=end sa=end da=16 sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@14 pass out on lo1000001 inet proto udp from any to 10.0.0.2 port = 53
+  [ Skip steps: d=end r=end f=end p=18 sa=end da=16 sp=end dp=18 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@15 pass out on lo1000000 inet proto udp from any to 10.0.0.2 port = 53
+  [ Skip steps: d=end r=end f=end p=18 sa=end sp=end dp=18 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@16 pass out inet proto udp from any to 10.0.0.1 port = 53
+  [ Skip steps: i=18 d=end r=end f=end p=18 sa=end sp=end dp=18 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@17 pass out inet proto udp from any to 10.0.0.3 port = 53
+  [ Skip steps: d=end r=end f=end sa=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@18 pass out on lo1000000 inet proto tcp from any to 10.0.0.2 port = 22 flags S/SA
+  [ Skip steps: d=end r=end f=end p=end sa=end da=20 sp=end dp=20 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@19 pass out on lo1000001 inet proto tcp from any to 10.0.0.2 port = 22 flags S/SA
+  [ Skip steps: d=end r=end f=end p=end sa=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@20 pass out inet proto tcp from any to 10.0.0.1 port = 81 flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@21 pass out inet proto tcp from any to 10.0.0.1 port = 80 flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

@@ -1,0 +1,130 @@
+.\" $OpenBSD: tokenadm.8,v 1.7 2022/03/31 17:27:32 naddy Exp $
+.\"
+.\" Copyright (c) 1996 Berkeley Software Design, Inc. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Berkeley Software Design,
+.\"	Inc.
+.\" 4. The name of Berkeley Software Design, Inc.  may not be used to endorse
+.\"    or promote products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN, INC. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	BSDI $From: tokenadm.8,v 1.3 1996/09/06 00:44:07 prb Exp $
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt TOKENADM 8
+.Os
+.Sh NAME
+.Nm activadm ,
+.Nm cryptoadm ,
+.Nm snkadm
+.Nd manage the ActivCard, CRYPTOCard and SNK-004 token databases
+.Sh SYNOPSIS
+.Nm tokenadm
+.Op Fl 1BDdEeRrT
+.Op Fl m Oo - Oc Ns Ar mode
+.Op Ar user ...
+.Sh DESCRIPTION
+The
+.Nm tokenadm
+utility displays and edits user entries in the various token databases.
+It may also be invoked as one the following:
+.Nm activadm , cryptoadm ,
+or
+.Nm snkadm .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 1
+Display users, one per line.
+.It Fl B
+Display users with no banner.
+.It Fl D
+Display disabled users.
+.It Fl d
+Disable users without removing them from the database.
+This prevents the users from authenticating, but does not lose their
+shared secret.
+The
+.Fl m
+flag may also be used with the
+.Fl d
+flag.
+.It Fl E
+Display enabled users.
+.It Fl e
+Enable users.
+This should be used to re-enable users who were disabled by the
+.Fl d
+flag.
+The
+.Fl m
+flag may also be used with the
+.Fl e
+flag.
+.It Xo Fl m
+.Oo - Oc Ns Ar mode
+.Xc
+Add
+[or remove]
+the specified mode of authentication for the user.
+Modes available are decimal (dec), hexadecimal (hex), phonebook (phone),
+and reduced-input (rim).
+Not all modes are available for all types of cards.
+The
+.Fl m
+flag may be used alone or in conjunction with either the
+.Fl d
+or
+.Fl e
+flags.
+Whenever reduced-input mode is set, the reduced-input state is reset.
+This should be done if a paper copy of challenge/responses had been
+produced and then misplaced.
+.It Fl R
+Display users in reverse order.
+.It Fl r
+Remove users from the database.
+.It Fl T
+Display users in terse format (only the user names).
+Unless
+.Fl 1
+is also specified, four users will be displayed per line.
+.El
+.Pp
+Use of any of the
+.Fl 1BDERT
+flags precludes the use of any of the
+.Fl demr
+flags.
+The
+.Fl demr
+flags all require at least one
+.Ar user
+argument.
+.Sh SEE ALSO
+.Xr x99token 1 ,
+.Xr login.conf 5 ,
+.Xr login_token 8 ,
+.Xr tokeninit 8

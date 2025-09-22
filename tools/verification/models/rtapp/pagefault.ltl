@@ -1,1 +1,0 @@
-RULE = always (RT imply not PAGEFAULT)

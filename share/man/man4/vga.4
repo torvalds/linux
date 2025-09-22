@@ -1,0 +1,134 @@
+.\" $OpenBSD: vga.4,v 1.17 2013/10/19 14:32:45 miod Exp $
+.\" $NetBSD: vga.4,v 1.2.4.1 2000/08/09 07:48:40 drochner Exp $
+.\"
+.\" Copyright (c) 1999, 2000
+.\" 	Matthias Drochner.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 19 2013 $
+.Dt VGA 4
+.Os
+.Sh NAME
+.Nm vga
+.Nd VGA graphics driver for wscons
+.Sh SYNOPSIS
+.Cd "vga0 at isa?"
+.Cd "vga* at pci?"
+.Cd "wsdisplay* at vga?"
+.Cd "agp* at vga?"
+.Sh DESCRIPTION
+This driver handles VGA graphics hardware within the
+.Xr wscons 4
+console framework.
+It doesn't provide direct device driver entry points but makes its
+functions available via the internal
+.Xr wsdisplay 4
+interface.
+.Pp
+The
+.Nm
+driver supports multiple virtual screens on one physical display.
+The screens allocated on one display can be of different
+.Dq types ,
+where a type refers to various display properties.
+The type is determined at the time the virtual screen is created and can't
+be changed later.
+Screens are either created at kernel startup (then the default type is used)
+or later with help of the
+.Xr wsconscfg 8
+utility.
+.Pp
+Currently, the following screen types are supported:
+.Bl -hang
+.It 80x25
+This is the standard VGA text mode with 80 columns and 25 rows.
+16 different colors can be displayed at the same time.
+Characters are 8 x 16 pixels large, and a font consists of 256 characters.
+A built-in font of this size is always present on a VGA card.
+It's also possible to use a downloaded font instead.
+.It 80x25bf
+A modified version of the previous.
+It only allows 8 colors to be displayed.
+In exchange, it can access two fonts at the same time, so that 512
+different characters can be displayed.
+.It 80x40
+A text mode with 80 columns and 40 rows.
+Similar to the standard mode, 16 colors and 256 characters are available.
+Characters are 8 x 10 pixels large.
+For this mode to be useful, a font of that character size must be downloaded.
+.It 80x40bf
+A modified version of the previous.
+It only allows 8 colors to be displayed.
+In exchange, it can access two fonts at the same time, so that 512
+different characters can be displayed.
+.It 80x50
+A text mode with 80 columns and 50 rows.
+Similar to the standard mode, 16 colors and 256 characters are available.
+Characters are 8 x 8 pixels large.
+For this mode to be useful, a font of that character size must be downloaded.
+.It 80x50bf
+A modified version of the previous.
+It only allows 8 colors to be displayed.
+In exchange, it can access two fonts at the same time, so that 512
+different characters can be displayed.
+.It 80x24
+A variant of the
+.Dq 80x25
+screen type which displays 24 lines only.
+It uses the standard 8x16 VGA font.
+This mode might be useful for applications which depend on closer
+DEC VT100 compatibility.
+.It 80x24bf
+A modified version of the previous.
+It only allows 8 colors to be displayed.
+In exchange, it can access two fonts at the same time, so that 512
+different characters can be displayed.
+.El
+.Pp
+The
+.Nm
+driver can display fonts of the original IBM type and ISO-8859-1 encoded fonts.
+.Sh SEE ALSO
+.Xr agp 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr pcdisplay 4 ,
+.Xr pci 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4 ,
+.Xr wsconscfg 8 ,
+.Xr wsfontload 8
+.Sh BUGS
+Only a subset of the possible text modes is supported.
+.Pp
+VGA cards are supposed to emulate an MDA if a monochrome display is connected.
+In this case, the device will naturally not support colors at all, but
+offer the capability to display underlined characters instead.
+The
+.Dq 80x25bf ,
+.Dq 80x40bf ,
+.Dq 80x50bf ,
+and
+.Dq 80x24bf
+screen types will not be available.
+This mode of operation is not tested.

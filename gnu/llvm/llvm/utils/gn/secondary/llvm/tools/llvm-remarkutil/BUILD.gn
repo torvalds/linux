@@ -1,0 +1,18 @@
+executable("llvm-remarkutil") {
+  deps = [
+    "//llvm/lib/Demangle",
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Remarks",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "RemarkConvert.cpp",
+    "RemarkCount.cpp",
+    "RemarkCounter.cpp",
+    "RemarkSizeDiff.cpp",
+    "RemarkUtil.cpp",
+    "RemarkUtilHelpers.cpp",
+    "RemarkUtilRegistry.cpp",
+  ]
+}

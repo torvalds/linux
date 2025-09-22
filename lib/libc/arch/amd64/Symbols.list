@@ -1,0 +1,7 @@
+__mcount
+_fpgetmask
+_fpgetround
+_fpgetsticky
+_fpsetmask
+_fpsetround
+_fpsetsticky

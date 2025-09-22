@@ -1,0 +1,4 @@
+lldb_lit_site_cfg_file = "$root_gen_dir/lldb/test/lit.site.cfg.py"
+lldb_lit_api_site_cfg_file = "$root_gen_dir/lldb/test/API/lit.site.cfg.py"
+lldb_lit_shell_site_cfg_file = "$root_gen_dir/lldb/test/Shell/lit.site.cfg.py"
+lldb_lit_unit_site_cfg_file = "$root_gen_dir/lldb/test/Unit/lit.site.cfg.py"

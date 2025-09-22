@@ -1,0 +1,3 @@
+import("//llvm/version.gni")
+
+clang_resource_dir = "$root_build_dir/lib/clang/$llvm_version_major"

@@ -1,0 +1,294 @@
+.\"	$OpenBSD: ugen.4,v 1.19 2022/03/31 17:27:21 naddy Exp $
+.\"	$NetBSD: ugen.4,v 1.7 1999/07/30 01:32:05 augustss Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt UGEN 4
+.Os
+.Sh NAME
+.Nm ugen
+.Nd USB generic device support
+.Sh SYNOPSIS
+.Cd "ugen* at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for all USB devices that do not have
+a special driver.
+It supports access to all parts of the device, but not in a way that is as
+convenient as a special purpose driver.
+.Pp
+There can be up to 127 USB devices connected to a USB bus.
+Each USB device can have up to 16 endpoints.
+Each of these endpoints will communicate in one of four different modes:
+control, isochronous, bulk, or interrupt.
+Each of the endpoints will have a different device node.
+The four least significant bits in the minor device number determine which
+endpoint the device accesses and the rest of the bits determine which
+USB device.
+.Pp
+If an endpoint address is used both for input and output, the device
+can be opened for both read or write.
+.Pp
+To find out what endpoints exist there are a series of
+.Xr ioctl 2
+operations available for the control endpoint that return the USB descriptors
+of the device, configurations, interfaces, and endpoints.
+.Pp
+The control transfer mode can only happen on the control endpoint,
+which is always endpoint 0.
+Control requests are issued by
+.Xr ioctl 2
+calls.
+.\" .Pp
+.\" The isochronous transfer mode can be in or out depending on the
+.\" endpoint.  To perform I/O on an isochronous endpoint
+.\" .Xr read 2
+.\" and
+.\" .Xr write 2
+.\" should be used.
+.\" Before any I/O operations can take place, the transfer rate in
+.\" bytes/second has to be set.  This is done with
+.\" .Xr ioctl 2
+.\" .Dv USB_SET_ISO_RATE .
+.\" Performing this call sets up a buffer corresponding to
+.\" about 1 second of data.
+.Pp
+The bulk transfer mode can be in or out depending on the
+endpoint.
+To perform I/O on a bulk endpoint
+.Xr read 2
+and
+.Xr write 2
+should be used.
+All I/O operations on a bulk endpoint are unbuffered.
+.Pp
+The interrupt transfer mode can only be in.
+To perform input from an interrupt endpoint
+.Xr read 2
+should be used.
+A moderate amount of buffering is done by the driver.
+.Pp
+All endpoints handle the following
+.Xr ioctl 2
+calls:
+.Pp
+.Bl -tag -width indent -compact
+.It Dv USB_SET_SHORT_XFER (int)
+Allow short read transfer.
+Normally a transfer from the device which is shorter than the request
+specified is reported as an error.
+.Pp
+.It Dv USB_SET_TIMEOUT (int)
+Set the timeout on the device operations, the time is specified
+in milliseconds.
+The value 0 is used to indicate that there is no timeout.
+.El
+.Pp
+The control endpoint (endpoint 0) handles the following
+.Xr ioctl 2
+calls:
+.Pp
+.Bl -tag -width indent -compact
+.It Dv USB_GET_CONFIG (int)
+Get the device configuration number.
+.Pp
+.It Dv USB_SET_CONFIG (int)
+Set the device into the given configuration number.
+This operation can only be performed when the control endpoint
+is the sole open endpoint.
+.Pp
+.It Dv USB_GET_ALTINTERFACE (struct usb_alt_interface)
+Get the alternative setting number for the interface with the given
+index.
+The
+.Fa uai_config_index
+is ignored in this call.
+.Bd -literal
+struct usb_alt_interface {
+	int	uai_config_index;
+	int	uai_interface_index;
+	int	uai_alt_no;
+};
+.Ed
+.Pp
+.It Dv USB_SET_ALTINTERFACE (struct usb_alt_interface)
+Set the alternative setting to the given number in the interface with the
+given index.
+The
+.Fa uai_config_index
+is ignored in this call.
+.Pp
+This operation can only be performed when no endpoints for the interface
+are open.
+.Pp
+.It Dv USB_GET_NO_ALT (struct usb_alt_interface)
+Return the number of different alternate settings in the
+.Fa uai_alt_no
+field.
+.Pp
+.It Dv USB_GET_DEVICE_DESC (usb_device_descriptor_t)
+Return the device descriptor.
+.Pp
+.It Dv USB_GET_CONFIG_DESC (struct usb_config_desc)
+Return the descriptor for the configuration with the given index.
+For convenience the current configuration can be specified by
+.Dv USB_CURRENT_CONFIG_INDEX .
+.Bd -literal
+struct usb_config_desc {
+	int	ucd_config_index;
+	usb_config_descriptor_t ucd_desc;
+};
+.Ed
+.Pp
+.It Dv USB_GET_INTERFACE_DESC (struct usb_interface_desc)
+Return the interface descriptor for an interface specified by its
+configuration index, interface index, and alternative index.
+For convenience the current alternative can be specified by
+.Dv USB_CURRENT_ALT_INDEX .
+.Bd -literal
+struct usb_interface_desc {
+	int	uid_config_index;
+	int	uid_interface_index;
+	int	uid_alt_index;
+	usb_interface_descriptor_t uid_desc;
+};
+.Ed
+.Pp
+.It Dv USB_GET_ENDPOINT_DESC (struct usb_endpoint_desc)
+Return the endpoint descriptor for the endpoint specified by its
+configuration index, interface index, alternative index, and
+endpoint index.
+.Bd -literal
+struct usb_endpoint_desc {
+	int	ued_config_index;
+	int	ued_interface_index;
+	int	ued_alt_index;
+	int	ued_endpoint_index;
+	usb_endpoint_descriptor_t ued_desc;
+};
+.Ed
+.Pp
+.It Dv USB_GET_FULL_DESC (struct usb_full_desc)
+Return all the descriptors for the given configuration.
+.Bd -literal
+struct usb_full_desc {
+	int	ufd_config_index;
+	u_int	ufd_size;
+	u_char	*ufd_data;
+};
+.Ed
+.Pp
+The
+.Fa ufd_data
+field should point to a memory area of the size given in the
+.Fa ufd_size
+field.
+The proper size can be determined by first issuing a
+.Dv USB_GET_CONFIG_DESC
+and inspecting the
+.Fa wTotalLength
+field.
+.Pp
+.It Dv USB_DO_REQUEST
+Send a USB request to the device on the control endpoint.
+Any data sent to/from the device is located at
+.Fa ucr_data .
+The size of the transferred data is determined from the
+.Fa ucr_request .
+The
+.Fa ucr_addr
+field is ignored in this call.
+.Bd -literal
+struct usb_ctl_request {
+	int	ucr_addr;
+	usb_device_request_t ucr_request;
+	void	*ucr_data;
+	int	ucr_flags;
+#define	USBD_SHORT_XFER_OK	0x04	/* allow short reads */
+	int	ucr_actlen;	/* actual length transferred */
+};
+.Ed
+.Pp
+This is a dangerous operation in that it can perform arbitrary operations
+on the device.
+Some of the most dangerous (e.g., changing the device address) are not
+allowed.
+.Pp
+.It Dv USB_GET_DEVICEINFO (struct usb_device_info)
+Get an information summary for the device.
+This call will not issue any USB transactions.
+.El
+.Pp
+Note that there are two different ways of addressing configurations, interfaces,
+alternatives, and endpoints: by index or by number.
+The index is the ordinal number (starting from 0) of the descriptor
+as presented by the device.
+The number is the respective number of the entity as found in its descriptor.
+Enumeration of descriptors use the index, getting and setting typically uses
+numbers.
+.Pp
+Example:
+All endpoints (except the control endpoint) for the current configuration
+can be found by iterating the
+.Fa interface_index
+from 0 to
+.Fa config_desc->bNumInterfaces-1
+and for each of these iterating the
+.Fa endpoint_index
+from 0 to
+.Fa interface_desc->bNumEndpoints-1 .
+The
+.Fa config_index
+should be set to
+.Dv USB_CURRENT_CONFIG_INDEX
+and
+.Fa alt_index
+should be set to
+.Dv USB_CURRENT_ALT_INDEX .
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa /dev/ugenN.EE
+Endpoint
+.Pa EE
+of device
+.Pa N .
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr uhub 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Ox 2.6 .
+.Sh BUGS
+The driver is not yet finished; there is no access to isochronous endpoints.

@@ -1,0 +1,438 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===---------------------------------------------------------------------===//
+
+/*
+
+// Overall mdspan synopsis
+
+namespace std {
+  // [mdspan.extents], class template extents
+  template<class IndexType, size_t... Extents>
+    class extents;
+
+  // [mdspan.extents.dextents], alias template dextents
+  template<class IndexType, size_t Rank>
+    using dextents = see below;
+
+  // [mdspan.extents.dims], alias template dims
+  template<size_t Rank, class IndexType = size_t>
+    using dims = see below; // since C++26
+
+  // [mdspan.layout], layout mapping
+  struct layout_left;
+  struct layout_right;
+  struct layout_stride;
+
+  // [mdspan.accessor.default], class template default_accessor
+  template<class ElementType>
+    class default_accessor;
+
+  // [mdspan.mdspan], class template mdspan
+  template<class ElementType, class Extents, class LayoutPolicy = layout_right,
+           class AccessorPolicy = default_accessor<ElementType>>
+    class mdspan; // not implemented yet
+}
+
+// extents synopsis
+
+namespace std {
+  template<class _IndexType, size_t... _Extents>
+  class extents {
+  public:
+    using index_type = _IndexType;
+    using size_type = make_unsigned_t<index_type>;
+    using rank_type = size_t;
+
+    // [mdspan.extents.obs], observers of the multidimensional index space
+    static constexpr rank_type rank() noexcept { return sizeof...(_Extents); }
+    static constexpr rank_type rank_dynamic() noexcept { return dynamic-index(rank()); }
+    static constexpr size_t static_extent(rank_type) noexcept;
+    constexpr index_type extent(rank_type) const noexcept;
+
+    // [mdspan.extents.cons], constructors
+    constexpr extents() noexcept = default;
+
+    template<class _OtherIndexType, size_t... _OtherExtents>
+      constexpr explicit(see below)
+        extents(const extents<_OtherIndexType, _OtherExtents...>&) noexcept;
+    template<class... _OtherIndexTypes>
+      constexpr explicit extents(_OtherIndexTypes...) noexcept;
+    template<class _OtherIndexType, size_t N>
+      constexpr explicit(N != rank_dynamic())
+        extents(span<_OtherIndexType, N>) noexcept;
+    template<class _OtherIndexType, size_t N>
+      constexpr explicit(N != rank_dynamic())
+        extents(const array<_OtherIndexType, N>&) noexcept;
+
+    // [mdspan.extents.cmp], comparison operators
+    template<class _OtherIndexType, size_t... _OtherExtents>
+      friend constexpr bool operator==(const extents&,
+                                       const extents<_OtherIndexType, _OtherExtents...>&) noexcept;
+
+  private:
+    // libcxx note: we do not use an array here, but we need to preserve the as-if behavior
+    // for example the default constructor must zero initialize dynamic extents
+    array<index_type, rank_dynamic()> dynamic-extents{};                // exposition only
+  };
+
+  template<class... Integrals>
+    explicit extents(Integrals...)
+      -> see below;
+}
+
+// layout_left synopsis
+
+namespace std {
+  template<class Extents>
+  class layout_left::mapping {
+  public:
+    using extents_type = Extents;
+    using index_type = typename extents_type::index_type;
+    using size_type = typename extents_type::size_type;
+    using rank_type = typename extents_type::rank_type;
+    using layout_type = layout_left;
+
+    // [mdspan.layout.right.cons], constructors
+    constexpr mapping() noexcept = default;
+    constexpr mapping(const mapping&) noexcept = default;
+    constexpr mapping(const extents_type&) noexcept;
+    template<class OtherExtents>
+      constexpr explicit(!is_convertible_v<OtherExtents, extents_type>)
+        mapping(const mapping<OtherExtents>&) noexcept;
+    template<class OtherExtents>
+      constexpr explicit(!is_convertible_v<OtherExtents, extents_type>)
+        mapping(const layout_right::mapping<OtherExtents>&) noexcept;
+    template<class OtherExtents>
+      constexpr explicit(extents_type::rank() > 0)
+        mapping(const layout_stride::mapping<OtherExtents>&) noexcept;
+
+    constexpr mapping& operator=(const mapping&) noexcept = default;
+
+    // [mdspan.layout.right.obs], observers
+    constexpr const extents_type& extents() const noexcept { return extents_; }
+
+    constexpr index_type required_span_size() const noexcept;
+
+    template<class... Indices>
+      constexpr index_type operator()(Indices...) const noexcept;
+
+    static constexpr bool is_always_unique() noexcept { return true; }
+    static constexpr bool is_always_exhaustive() noexcept { return true; }
+    static constexpr bool is_always_strided() noexcept { return true; }
+
+    static constexpr bool is_unique() noexcept { return true; }
+    static constexpr bool is_exhaustive() noexcept { return true; }
+    static constexpr bool is_strided() noexcept { return true; }
+
+    constexpr index_type stride(rank_type) const noexcept;
+
+    template<class OtherExtents>
+      friend constexpr bool operator==(const mapping&, const mapping<OtherExtents>&) noexcept;
+
+  private:
+    extents_type extents_{};    // exposition only
+  };
+}
+
+// layout_right synopsis
+
+namespace std {
+  template<class Extents>
+  class layout_right::mapping {
+  public:
+    using extents_type = Extents;
+    using index_type = typename extents_type::index_type;
+    using size_type = typename extents_type::size_type;
+    using rank_type = typename extents_type::rank_type;
+    using layout_type = layout_right;
+
+    // [mdspan.layout.right.cons], constructors
+    constexpr mapping() noexcept = default;
+    constexpr mapping(const mapping&) noexcept = default;
+    constexpr mapping(const extents_type&) noexcept;
+    template<class OtherExtents>
+      constexpr explicit(!is_convertible_v<OtherExtents, extents_type>)
+        mapping(const mapping<OtherExtents>&) noexcept;
+    template<class OtherExtents>
+      constexpr explicit(!is_convertible_v<OtherExtents, extents_type>)
+        mapping(const layout_left::mapping<OtherExtents>&) noexcept;
+    template<class OtherExtents>
+      constexpr explicit(extents_type::rank() > 0)
+        mapping(const layout_stride::mapping<OtherExtents>&) noexcept;
+
+    constexpr mapping& operator=(const mapping&) noexcept = default;
+
+    // [mdspan.layout.right.obs], observers
+    constexpr const extents_type& extents() const noexcept { return extents_; }
+
+    constexpr index_type required_span_size() const noexcept;
+
+    template<class... Indices>
+      constexpr index_type operator()(Indices...) const noexcept;
+
+    static constexpr bool is_always_unique() noexcept { return true; }
+    static constexpr bool is_always_exhaustive() noexcept { return true; }
+    static constexpr bool is_always_strided() noexcept { return true; }
+
+    static constexpr bool is_unique() noexcept { return true; }
+    static constexpr bool is_exhaustive() noexcept { return true; }
+    static constexpr bool is_strided() noexcept { return true; }
+
+    constexpr index_type stride(rank_type) const noexcept;
+
+    template<class OtherExtents>
+      friend constexpr bool operator==(const mapping&, const mapping<OtherExtents>&) noexcept;
+
+  private:
+    extents_type extents_{};    // exposition only
+  };
+}
+
+// layout_stride synopsis
+
+namespace std {
+  template<class Extents>
+  class layout_stride::mapping {
+  public:
+    using extents_type = Extents;
+    using index_type = typename extents_type::index_type;
+    using size_type = typename extents_type::size_type;
+    using rank_type = typename extents_type::rank_type;
+    using layout_type = layout_stride;
+
+  private:
+    static constexpr rank_type rank_ = extents_type::rank();    // exposition only
+
+  public:
+    // [mdspan.layout.stride.cons], constructors
+    constexpr mapping() noexcept;
+    constexpr mapping(const mapping&) noexcept = default;
+    template<class OtherIndexType>
+      constexpr mapping(const extents_type&, span<OtherIndexType, rank_>) noexcept;
+    template<class OtherIndexType>
+      constexpr mapping(const extents_type&, const array<OtherIndexType, rank_>&) noexcept;
+
+    template<class StridedLayoutMapping>
+      constexpr explicit(see below) mapping(const StridedLayoutMapping&) noexcept;
+
+    constexpr mapping& operator=(const mapping&) noexcept = default;
+
+    // [mdspan.layout.stride.obs], observers
+    constexpr const extents_type& extents() const noexcept { return extents_; }
+    constexpr array<index_type, rank_> strides() const noexcept { return strides_; }
+
+    constexpr index_type required_span_size() const noexcept;
+
+    template<class... Indices>
+      constexpr index_type operator()(Indices...) const noexcept;
+
+    static constexpr bool is_always_unique() noexcept { return true; }
+    static constexpr bool is_always_exhaustive() noexcept { return false; }
+    static constexpr bool is_always_strided() noexcept { return true; }
+
+    static constexpr bool is_unique() noexcept { return true; }
+    constexpr bool is_exhaustive() const noexcept;
+    static constexpr bool is_strided() noexcept { return true; }
+
+    constexpr index_type stride(rank_type i) const noexcept { return strides_[i]; }
+
+    template<class OtherMapping>
+      friend constexpr bool operator==(const mapping&, const OtherMapping&) noexcept;
+
+  private:
+    extents_type extents_{};                    // exposition only
+    array<index_type, rank_> strides_{};        // exposition only
+  };
+}
+
+// default_accessor synopsis
+
+namespace std {
+  template<class ElementType>
+  struct default_accessor {
+    using offset_policy = default_accessor;
+    using element_type = ElementType;
+    using reference = ElementType&;
+    using data_handle_type = ElementType*;
+
+    constexpr default_accessor() noexcept = default;
+    template<class OtherElementType>
+      constexpr default_accessor(default_accessor<OtherElementType>) noexcept;
+    constexpr reference access(data_handle_type p, size_t i) const noexcept;
+    constexpr data_handle_type offset(data_handle_type p, size_t i) const noexcept;
+  };
+}
+
+// mdspan synopsis
+
+namespace std {
+  template<class ElementType, class Extents, class LayoutPolicy = layout_right,
+           class AccessorPolicy = default_accessor<ElementType>>
+  class mdspan {
+  public:
+    using extents_type = Extents;
+    using layout_type = LayoutPolicy;
+    using accessor_type = AccessorPolicy;
+    using mapping_type = typename layout_type::template mapping<extents_type>;
+    using element_type = ElementType;
+    using value_type = remove_cv_t<element_type>;
+    using index_type = typename extents_type::index_type;
+    using size_type = typename extents_type::size_type;
+    using rank_type = typename extents_type::rank_type;
+    using data_handle_type = typename accessor_type::data_handle_type;
+    using reference = typename accessor_type::reference;
+
+    static constexpr rank_type rank() noexcept { return extents_type::rank(); }
+    static constexpr rank_type rank_dynamic() noexcept { return extents_type::rank_dynamic(); }
+    static constexpr size_t static_extent(rank_type r) noexcept
+      { return extents_type::static_extent(r); }
+    constexpr index_type extent(rank_type r) const noexcept { return extents().extent(r); }
+
+    // [mdspan.mdspan.cons], constructors
+    constexpr mdspan();
+    constexpr mdspan(const mdspan& rhs) = default;
+    constexpr mdspan(mdspan&& rhs) = default;
+
+    template<class... OtherIndexTypes>
+      constexpr explicit mdspan(data_handle_type ptr, OtherIndexTypes... exts);
+    template<class OtherIndexType, size_t N>
+      constexpr explicit(N != rank_dynamic())
+        mdspan(data_handle_type p, span<OtherIndexType, N> exts);
+    template<class OtherIndexType, size_t N>
+      constexpr explicit(N != rank_dynamic())
+        mdspan(data_handle_type p, const array<OtherIndexType, N>& exts);
+    constexpr mdspan(data_handle_type p, const extents_type& ext);
+    constexpr mdspan(data_handle_type p, const mapping_type& m);
+    constexpr mdspan(data_handle_type p, const mapping_type& m, const accessor_type& a);
+
+    template<class OtherElementType, class OtherExtents,
+             class OtherLayoutPolicy, class OtherAccessorPolicy>
+      constexpr explicit(see below)
+        mdspan(const mdspan<OtherElementType, OtherExtents,
+                            OtherLayoutPolicy, OtherAccessorPolicy>& other);
+
+    constexpr mdspan& operator=(const mdspan& rhs) = default;
+    constexpr mdspan& operator=(mdspan&& rhs) = default;
+
+    // [mdspan.mdspan.members], members
+    template<class... OtherIndexTypes>
+      constexpr reference operator[](OtherIndexTypes... indices) const;
+    template<class OtherIndexType>
+      constexpr reference operator[](span<OtherIndexType, rank()> indices) const;
+    template<class OtherIndexType>
+      constexpr reference operator[](const array<OtherIndexType, rank()>& indices) const;
+
+    constexpr size_type size() const noexcept;
+    [[nodiscard]] constexpr bool empty() const noexcept;
+
+    friend constexpr void swap(mdspan& x, mdspan& y) noexcept;
+
+    constexpr const extents_type& extents() const noexcept { return map_.extents(); }
+    constexpr const data_handle_type& data_handle() const noexcept { return ptr_; }
+    constexpr const mapping_type& mapping() const noexcept { return map_; }
+    constexpr const accessor_type& accessor() const noexcept { return acc_; }
+
+    // per LWG-4021 "mdspan::is_always_meow() should be noexcept"
+    static constexpr bool is_always_unique() noexcept
+      { return mapping_type::is_always_unique(); }
+    static constexpr bool is_always_exhaustive() noexcept
+      { return mapping_type::is_always_exhaustive(); }
+    static constexpr bool is_always_strided() noexcept
+      { return mapping_type::is_always_strided(); }
+
+    constexpr bool is_unique() const
+      { return map_.is_unique(); }
+    constexpr bool is_exhaustive() const
+      { return map_.is_exhaustive(); }
+    constexpr bool is_strided() const
+      { return map_.is_strided(); }
+    constexpr index_type stride(rank_type r) const
+      { return map_.stride(r); }
+
+  private:
+    accessor_type acc_;         // exposition only
+    mapping_type map_;          // exposition only
+    data_handle_type ptr_;      // exposition only
+  };
+
+  template<class CArray>
+    requires(is_array_v<CArray> && rank_v<CArray> == 1)
+    mdspan(CArray&)
+      -> mdspan<remove_all_extents_t<CArray>, extents<size_t, extent_v<CArray, 0>>>;
+
+  template<class Pointer>
+    requires(is_pointer_v<remove_reference_t<Pointer>>)
+    mdspan(Pointer&&)
+      -> mdspan<remove_pointer_t<remove_reference_t<Pointer>>, extents<size_t>>;
+
+  template<class ElementType, class... Integrals>
+    requires((is_convertible_v<Integrals, size_t> && ...) && sizeof...(Integrals) > 0)
+    explicit mdspan(ElementType*, Integrals...)
+      -> mdspan<ElementType, dextents<size_t, sizeof...(Integrals)>>;            // until C++26
+  template<class ElementType, class... Integrals>
+    requires((is_convertible_v<Integrals, size_t> && ...) && sizeof...(Integrals) > 0)
+    explicit mdspan(ElementType*, Integrals...)
+      -> mdspan<ElementType, extents<size_t, maybe-static-ext<Integrals>...>>;  // since C++26
+
+  template<class ElementType, class OtherIndexType, size_t N>
+    mdspan(ElementType*, span<OtherIndexType, N>)
+      -> mdspan<ElementType, dextents<size_t, N>>;
+
+  template<class ElementType, class OtherIndexType, size_t N>
+    mdspan(ElementType*, const array<OtherIndexType, N>&)
+      -> mdspan<ElementType, dextents<size_t, N>>;
+
+  template<class ElementType, class IndexType, size_t... ExtentsPack>
+    mdspan(ElementType*, const extents<IndexType, ExtentsPack...>&)
+      -> mdspan<ElementType, extents<IndexType, ExtentsPack...>>;
+
+  template<class ElementType, class MappingType>
+    mdspan(ElementType*, const MappingType&)
+      -> mdspan<ElementType, typename MappingType::extents_type,
+                typename MappingType::layout_type>;
+
+  template<class MappingType, class AccessorType>
+    mdspan(const typename AccessorType::data_handle_type&, const MappingType&,
+           const AccessorType&)
+      -> mdspan<typename AccessorType::element_type, typename MappingType::extents_type,
+                typename MappingType::layout_type, AccessorType>;
+}
+*/
+
+#ifndef _LIBCPP_MDSPAN
+#define _LIBCPP_MDSPAN
+
+#include <__config>
+
+#if _LIBCPP_STD_VER >= 23
+#  include <__fwd/mdspan.h>
+#  include <__mdspan/default_accessor.h>
+#  include <__mdspan/extents.h>
+#  include <__mdspan/layout_left.h>
+#  include <__mdspan/layout_right.h>
+#  include <__mdspan/layout_stride.h>
+#  include <__mdspan/mdspan.h>
+#endif
+
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <array>
+#  include <cinttypes>
+#  include <concepts>
+#  include <cstddef>
+#  include <limits>
+#  include <span>
+#endif
+
+#endif // _LIBCPP_MDSPAN

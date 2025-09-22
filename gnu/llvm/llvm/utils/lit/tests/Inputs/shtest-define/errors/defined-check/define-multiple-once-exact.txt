@@ -1,0 +1,9 @@
+# DEFINE: %{global:multiple-once-exact} = @
+# RUN: echo '%{global:multiple-once-exact}'
+
+#      CHECK: ValueError: Substitution whose pattern contains '%{global:multiple-once-exact}' is already defined before '{{DEFINE}}:' directive at line [[#@LINE-3]]
+# CHECK-NEXT: Existing pattern: <%{global:multiple-once-exact}>
+# CHECK-NEXT: Existing pattern: %{global:multiple-once-exact}
+#  CHECK-NOT: Existing pattern:
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

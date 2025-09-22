@@ -1,0 +1,15 @@
+192.0.2.0/24 source-as 1 is VALID
+192.0.2.0/27 source-as 1 is VALID
+192.0.2.0/29 source-as 1 is invalid
+192.0.2.0/24 source-as 2 is invalid
+192.0.2.0/27 source-as 2 is invalid
+192.0.2.0/29 source-as 2 is invalid
+192.0.2.0/24 source-as 3 is invalid
+192.0.2.0/27 source-as 3 is invalid
+192.0.2.0/29 source-as 3 is invalid
+198.51.100.0/24 source-as 1 is invalid
+198.51.100.0/27 source-as 1 is invalid
+198.51.100.0/24 source-as 2 is VALID
+198.51.100.0/27 source-as 2 is VALID
+198.51.100.0/24 source-as 3 is invalid
+198.51.100.0/27 source-as 3 is invalid

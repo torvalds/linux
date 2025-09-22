@@ -1,0 +1,48 @@
+dnl	$OpenBSD: prep,v 1.6 2023/04/10 12:57:15 jsg Exp $
+Please be aware that OpenBSD support for this platform is far from
+complete, however progress is being made.
+
+HiFive Unmatched
+
+Copy install{:--:}OSrev.img to a USB stick, and boot with both it and the
+vendor provided uSD card (unmodified) inserted. This should enable firmware
+and U-Boot to be loaded from uSD and OpenBSD bootloader and kernel to be
+loaded from USB stick.
+
+QEMU with OpenSBI and U-Boot
+
+OpenBSD can be installed onto a disk by copying the miniroot for your
+board "miniroot{:--:}OSrev.img" image to an SD card.
+
+Booting from an SD card:
+
+  To use the miniroot image you will need another machine to plug the
+  SD card in to. Any machine type will do, as long as it supports SD card
+  storage devices.  Under OpenBSD, it will appear as a ``sd'' device, for
+  example sd1.
+
+  Use the dd(1) utility to copy the miniroot to the SD card.
+  The command would likely be, under OpenBSD:
+  	dd if=miniroot{:--:}OSrev.img of=/dev/rsd1c bs=1m
+
+  When you have connected the serial to your computer, a command such
+  as "cu -l cuaU0 -s 115200" (assuming cuaU0 is your serial port device)
+  should connect you to the board's console.
+
+Running EFI payloads with U-Boot:
+
+If the U-Boot target supports "distro_bootcmd" efiboot will automatically
+be loaded by placing bootriscv64.efi into /efi/boot/bootriscv64.efi on a FAT
+filesystem.  With dtb files placed in /vendor/, /dtbs/vendor/, or
+/dtb/current/vendor/.
+
+If the U-Boot target supports bootefi but not automatically finding it with
+"distro_bootcmd" then it must be loaded manually or by U-Boot commands or
+script.
+	=> run findfdt
+	=> load mmc 0:1 ${fdt_addr_r} ${fdtfile}
+	=> load mmc 0:1 ${kernel_addr_r} efi/boot/bootriscv64.efi
+	=> bootefi ${kernel_addr_r} ${fdt_addr_r}
+The bootloader will then run and try to load sd0a:/bsd off an FFS
+filesystem after a timeout.
+

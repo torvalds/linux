@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="HOWTO for the libstdc++ chapter 22." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 HOWTO:  Chapter 22</title>
+<link rel="StyleSheet" href="../lib3styles.css" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Chapter 22:  Localization</a></h1>
+
+<p>Chapter 22 deals with the C++ localization facilities.
+</p>
+<!-- I wanted to write that sentence in something requiring an exotic font,
+     like Cyrllic or Kanji.  Probably more work than such cuteness is worth,
+     but I still think it'd be funny.
+ -->
+
+
+<!-- ####################################################### -->
+<hr />
+<h1>Contents</h1>
+<ul>
+   <li><a href="#1">class locale</a></li>
+   <li><a href="#2">class codecvt</a></li>
+   <li><a href="#3">class ctype</a></li>
+   <li><a href="#4">class messages</a></li>
+   <li><a href="#5">Bjarne Stroustrup on Locales</a></li>
+   <li><a href="#6">Nathan Myers on Locales</a></li>
+   <li><a href="#7">Correct Transformations</a></li>
+</ul>
+
+<!-- ####################################################### -->
+
+<hr />
+<h2><a name="1">class locale</a></h2>
+   <p>Notes made during the implementation of locales can be found 
+      <a href="locale.html">here</a>.
+   </p>
+
+<hr />
+<h2><a name="2">class codecvt</a></h2>
+   <p>Notes made during the implementation of codecvt can be found 
+      <a href="codecvt.html">here</a>.
+   </p>
+
+   <p>The following is the abstract from the implementation notes:
+   </p>
+   <blockquote>
+   The standard class codecvt attempts to address conversions between
+   different character encoding schemes. In particular, the standard
+   attempts to detail conversions between the implementation-defined
+   wide characters (hereafter referred to as wchar_t) and the standard
+   type char that is so beloved in classic &quot;C&quot; (which can
+   now be referred to as narrow characters.)  This document attempts
+   to describe how the GNU libstdc++-v3 implementation deals with the
+   conversion between wide and narrow characters, and also presents a
+   framework for dealing with the huge number of other encodings that
+   iconv can convert, including Unicode and UTF8. Design issues and
+   requirements are addressed, and examples of correct usage for both
+   the required specializations for wide and narrow characters and the
+   implementation-provided extended functionality are given.
+   </blockquote>
+
+<hr />
+<h2><a name="3">class ctype</a></h2>
+   <p>Notes made during the implementation of ctype can be found 
+      <a href="ctype.html">here</a>.
+   </p>
+
+<hr />
+<h2><a name="4">class messages</a></h2>
+   <p>Notes made during the implementation of messages can be found 
+      <a href="messages.html">here</a>.
+   </p>
+
+<hr />
+<h2><a name="5">Stroustrup on Locales</a></h2>
+   <p>Dr. Bjarne Stroustrup has released a
+      <a href="http://www.research.att.com/~bs/3rd_loc0.html">pointer</a>
+      to Appendix D of his book,
+      <a href="http://www.research.att.com/~bs/3rd.html">The C++
+      Programming Language (3rd Edition)</a>.  It is a detailed
+      description of locales and how to use them.
+   </p>
+   <p>He also writes:
+   </p>
+      <blockquote><em>
+      Please note that I still consider this detailed description of
+      locales beyond the needs of most C++ programmers.  It is written
+      with experienced programmers in mind and novices will do best to
+      avoid it.
+      </em></blockquote>
+
+<hr />
+<h2><a name="6">Nathan Myers on Locales</a></h2>
+   <p>An article entitled &quot;The Standard C++ Locale&quot; was
+      published in Dr. Dobb's Journal and can be found
+      <a href="http://www.cantrip.org/locale.html">here</a>.
+   </p>
+
+<hr />
+<h2><a name="7">Correct Transformations</a></h2>
+   <!-- Jumping directly to here from chapter 21. -->
+   <p>A very common question on newsgroups and mailing lists is, &quot;How
+      do I do &lt;foo&gt; to a character string?&quot; where &lt;foo&gt; is
+      a task such as changing all the letters to uppercase, to lowercase,
+      testing for digits, etc.  A skilled and conscientious programmer
+      will follow the question with another, &quot;And how do I make the
+      code portable?&quot;
+   </p>
+   <p>(Poor innocent programmer, you have no idea the depths of trouble
+      you are getting yourself into.  'Twould be best for your sanity if
+      you dropped the whole idea and took up basket weaving instead.  No?
+      Fine, you asked for it...)
+   </p>
+   <p>The task of changing the case of a letter or classifying a character
+      as numeric, graphical, etc, all depends on the cultural context of the
+      program at runtime.  So, first you must take the portability question
+      into account.  Once you have localized the program to a particular
+      natural language, only then can you perform the specific task.
+      Unfortunately, specializing a function for a human language is not
+      as simple as declaring
+      <code> extern &quot;Danish&quot; int tolower (int); </code>.
+   </p>
+   <p>The C++ code to do all this proceeds in the same way.  First, a locale
+      is created.  Then member functions of that locale are called to
+      perform minor tasks.  Continuing the example from Chapter 21, we wish
+      to use the following convenience functions:
+   </p>
+   <pre>
+   namespace std {
+     template &lt;class charT&gt;
+       charT
+       toupper (charT c, const locale&amp; loc) const;
+     template &lt;class charT&gt;
+       charT
+       tolower (charT c, const locale&amp; loc) const;
+   }</pre>
+   <p>
+      This function extracts the appropriate &quot;facet&quot; from the
+      locale <em>loc</em> and calls the appropriate member function of that
+      facet, passing <em>c</em> as its argument.  The resulting character
+      is returned.
+   </p>
+   <p>For the C/POSIX locale, the results are the same as calling the
+      classic C <code>toupper/tolower</code> function that was used in previous
+      examples.  For other locales, the code should Do The Right Thing.
+   </p>
+   <p>Of course, these functions take a second argument, and the
+      transformation algorithm's operator argument can only take a single
+      parameter.  So we write simple wrapper structs to handle that.
+   </p>
+   <p>The next-to-final version of the code started in Chapter 21 looks like:
+   </p>
+      <pre>
+   #include &lt;iterator&gt;    // for back_inserter
+   #include &lt;locale&gt;
+   #include &lt;string&gt;
+   #include &lt;algorithm&gt;
+   #include &lt;cctype&gt;      // old &lt;ctype.h&gt;
+
+   struct ToUpper
+   {
+       ToUpper(std::locale const&amp; l) : loc(l) {;}
+       char operator() (char c) const  { return std::toupper(c,loc); }
+   private:
+       std::locale const&amp; loc;
+   };
+   
+   struct ToLower
+   {
+       ToLower(std::locale const&amp; l) : loc(l) {;}
+       char operator() (char c) const  { return std::tolower(c,loc); }
+   private:
+       std::locale const&amp; loc;
+   };
+   
+   int main ()
+   {
+      std::string  s("Some Kind Of Initial Input Goes Here");
+      std::locale  loc_c("C");
+      ToUpper      up(loc_c);
+      ToLower      down(loc_c);
+   
+      // Change everything into upper case.
+      std::transform(s.begin(), s.end(), s.begin(), up);
+   
+      // Change everything into lower case.
+      std::transform(s.begin(), s.end(), s.begin(), down);
+   
+      // Change everything back into upper case, but store the
+      // result in a different string.
+      std::string  capital_s;
+      std::transform(s.begin(), s.end(), std::back_inserter(capital_s), up);
+   }</pre>
+   <p>The <code>ToUpper</code> and <code>ToLower</code> structs can be
+      generalized for other character types by making <code>operator()</code>
+      a member function template.
+   </p>
+   <p>The final version of the code uses <code>bind2nd</code> to eliminate
+      the wrapper structs, but the resulting code is tricky.  I have not
+      shown it here because no compilers currently available to me will
+      handle it.
+   </p>
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="../17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

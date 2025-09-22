@@ -1,0 +1,13 @@
+test-rrdp: type: add
+test-rrdp: uri: rsync://rpki.example.com/rpki/TA/XUJQ4tgdREjYop786R0p_wdeyeI.cer
+test-rrdp: data: 9dbea4222e3b687772763b21da1118d858b1271c989f10adb3b2611945609dbc
+test-rrdp: type: add
+test-rrdp: uri: rsync://rpki.example.com/rpki/Sobornost-RIPE/Sobornost-OP/fxYnc2Mg1Fnou14i_Qm39uMR1bA.crl
+test-rrdp: data: 831c1b054aaff13240df899e5048b67c227689d5e5ecdf7d38f9a8e4603beb4b
+test-rrdp: type: add
+test-rrdp: uri: rsync://rpki.example.com/rpki/uplift/IBfMWA0nPFS6MGTNLNavObgEuIc.mft
+test-rrdp: data: 61bbdc519a39a870f2169d474d957713e611662c44daa7f0b9e3d922f93b0312
+test-rrdp: scope: 3
+test-rrdp: version: 1
+test-rrdp: session_id: 7e7d2563-5bbb-40b0-8723-6a2e90c85d9e serial: 28483
+OK

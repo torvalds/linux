@@ -1,0 +1,83 @@
+@c Copyright (c) 1999, 2000, 2001, 2002, 2004
+@c Free Software Foundation, Inc.
+@c This is part of the CPP and GCC manuals.
+@c For copying conditions, see the file gcc.texi.
+
+@c ---------------------------------------------------------------------
+@c Environment variables affecting the preprocessor
+@c ---------------------------------------------------------------------
+
+@c If this file is included with the flag ``cppmanual'' set, it is
+@c formatted for inclusion in the CPP manual; otherwise the main GCC manual.
+
+@vtable @env
+@item CPATH
+@itemx C_INCLUDE_PATH
+@itemx CPLUS_INCLUDE_PATH
+@itemx OBJC_INCLUDE_PATH
+@c Commented out until ObjC++ is part of GCC:
+@c @itemx OBJCPLUS_INCLUDE_PATH
+Each variable's value is a list of directories separated by a special
+character, much like @env{PATH}, in which to look for header files.
+The special character, @code{PATH_SEPARATOR}, is target-dependent and
+determined at GCC build time.  For Microsoft Windows-based targets it is a
+semicolon, and for almost all other targets it is a colon.
+
+@env{CPATH} specifies a list of directories to be searched as if
+specified with @option{-I}, but after any paths given with @option{-I}
+options on the command line.  This environment variable is used
+regardless of which language is being preprocessed.
+
+The remaining environment variables apply only when preprocessing the
+particular language indicated.  Each specifies a list of directories
+to be searched as if specified with @option{-isystem}, but after any
+paths given with @option{-isystem} options on the command line.
+
+In all these variables, an empty element instructs the compiler to
+search its current working directory.  Empty elements can appear at the
+beginning or end of a path.  For instance, if the value of
+@env{CPATH} is @code{:/special/include}, that has the same
+effect as @samp{@w{-I. -I/special/include}}.
+
+@c man end
+@ifset cppmanual
+See also @ref{Search Path}.
+@end ifset
+@c man begin ENVIRONMENT
+
+@item DEPENDENCIES_OUTPUT
+@cindex dependencies for make as output
+If this variable is set, its value specifies how to output
+dependencies for Make based on the non-system header files processed
+by the compiler.  System header files are ignored in the dependency
+output.
+
+The value of @env{DEPENDENCIES_OUTPUT} can be just a file name, in
+which case the Make rules are written to that file, guessing the target
+name from the source file name.  Or the value can have the form
+@samp{@var{file} @var{target}}, in which case the rules are written to
+file @var{file} using @var{target} as the target name.
+
+In other words, this environment variable is equivalent to combining
+the options @option{-MM} and @option{-MF}
+@ifset cppmanual
+(@pxref{Invocation}),
+@end ifset
+@ifclear cppmanual
+(@pxref{Preprocessor Options}),
+@end ifclear
+with an optional @option{-MT} switch too.
+
+@item SUNPRO_DEPENDENCIES
+@cindex dependencies for make as output
+This variable is the same as @env{DEPENDENCIES_OUTPUT} (see above),
+except that system header files are not ignored, so it implies
+@option{-M} rather than @option{-MM}.  However, the dependence on the
+main input file is omitted.
+@ifset cppmanual
+@xref{Invocation}.
+@end ifset
+@ifclear cppmanual
+@xref{Preprocessor Options}.
+@end ifclear
+@end vtable

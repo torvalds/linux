@@ -1,0 +1,190 @@
+.\"	$OpenBSD: an.4,v 1.46 2021/10/24 12:32:42 kn Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ee.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man4/an.4,v 1.5 2000/03/02 14:53:45 sheldonh Exp $
+.\"
+.Dd $Mdocdate: October 24 2021 $
+.Dt AN 4
+.Os
+.Sh NAME
+.Nm an
+.Nd Aironet Communications 4500/4800 IEEE 802.11FH/b wireless network device
+.Sh SYNOPSIS
+.Cd "an* at pcmcia?"
+.Cd "an* at pci?"
+.Cd "an* at isapnp?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Aironet Communications 4500, 4800
+(aka Cisco 340), and Cisco 350
+IEEE 802.11 wireless network adapters.
+This includes the ISA, PCI, and PCMCIA varieties.
+The 4500 series adapters operate at 1 and 2Mbps (FH) while
+the 4800 and 350 series can operate at 1, 2, 5.5, and 11Mbps (DS).
+The ISA, PCI,
+and PCMCIA devices are all based on the same core PCMCIA modules
+and all have the same programming interface.
+However, unlike the
+Lucent WaveLAN/IEEE cards, the ISA and PCI cards appear to the
+host as normal ISA and PCI devices and do not require any PCMCIA
+support.
+.Pp
+ISA cards can either be configured to use ISA Plug and Play
+or to use a particular I/O address and IRQ
+by properly setting the DIP switches on the board.
+(The default switch setting is for plug and play.)
+The
+.Nm
+driver has Plug and Play support and will work in either configuration,
+however when using a hard-wired I/O address and IRQ, the driver
+configuration and the NIC's switch settings must agree.
+PCI cards
+require no switch settings of any kind and will be automatically
+probed and attached.
+.Pp
+All host/device interaction with the Aironet cards is via programmed I/O.
+The
+.Nm
+driver encapsulates all IP and ARP traffic as 802.11 frames, though
+it can receive either 802.11 or 802.3 frames.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It IBSS mode
+Also known as
+.Em IEEE ad-hoc
+mode or
+.Em peer-to-peer
+mode.
+This is the standardized method of operating without an access point.
+Stations associate with a service set.
+However, actual connections between stations are peer-to-peer.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use hardware
+Wired Equivalent Privacy (WEP).
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+.Pp
+In BSS mode,
+the driver supports powersave mode,
+which can be enabled via
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh EXAMPLES
+The following
+.Xr hostname.if 5
+example configures an0 to join network
+.Dq mynwid ,
+using WEP key
+.Dq mywepkey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid nwkey mywepkey
+inet autoconf
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "an0: failed to allocate N bytes on NIC"
+The driver was unable to allocate memory for transmit frames in the
+NIC's on-board RAM.
+.It "an0: device timeout"
+The Aironet card failed to generate an interrupt to acknowledge a transmit
+command.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr isapnp 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr pcmcia 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.0 .
+.Ox
+support was added in
+.Ox 2.7 .
+A version of the driver based on the one in
+.Nx
+was added in
+.Ox 3.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu
+and ported to
+.Ox
+by
+.An Michael Shalayeff Aq Mt mickey@openbsd.org .
+Later the
+.Nx
+version of the driver by
+.An Atsushi Onoe
+was subsequently ported to
+.Ox
+by
+.An Jonathan Gray Aq Mt jsg@openbsd.org .
+.Sh CAVEATS
+Scanning for access points is not currently supported.

@@ -1,0 +1,91 @@
+(lldb) disassemble --name __android_log_config_read
+liblog.so`::__android_log_config_read():
+liblog.so[0x6014] <+0>:   stp    x22, x21, [sp, #-0x30]!
+liblog.so[0x6018] <+4>:   stp    x20, x19, [sp, #0x10]
+liblog.so[0x601c] <+8>:   stp    x29, x30, [sp, #0x20]
+liblog.so[0x6020] <+12>:  add    x29, sp, #0x20            ; =0x20
+liblog.so[0x6024] <+16>:  adrp   x8, 15
+liblog.so[0x6028] <+20>:  ldr    x8, [x8, #0x230]
+liblog.so[0x602c] <+24>:  ldr    w8, [x8]
+liblog.so[0x6030] <+28>:  cbz    w8, 0x6038                ; <+36> at config_read.cpp
+liblog.so[0x6034] <+32>:  tbz    w8, #0x0, 0x6168          ; <+340> at config_read.cpp:65:1
+liblog.so[0x6038] <+36>:  adrp   x20, 15
+liblog.so[0x603c] <+40>:  adrp   x21, 15
+liblog.so[0x6040] <+44>:  ldr    x20, [x20, #0x238]
+liblog.so[0x6044] <+48>:  ldr    x21, [x21, #0x240]
+liblog.so[0x6048] <+52>:  mov    w19, wzr
+liblog.so[0x604c] <+56>:  ldr    x22, [x20]
+liblog.so[0x6050] <+60>:  cmp    x22, x20
+liblog.so[0x6054] <+64>:  b.eq   0x609c                    ; <+136> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 80 at config_read.cpp:61
+liblog.so[0x6058] <+68>:  ldr    x8, [x22]
+liblog.so[0x605c] <+72>:  cmp    x22, x8
+liblog.so[0x6060] <+76>:  b.eq   0x60b0                    ; <+156> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 100 at config_read.cpp:61
+liblog.so[0x6064] <+80>:  ldr    x8, [x22, #0x18]
+liblog.so[0x6068] <+84>:  cbz    x8, 0x60d0                ; <+188> at config_read.cpp
+liblog.so[0x606c] <+88>:  mov    w0, w19
+liblog.so[0x6070] <+92>:  blr    x8
+liblog.so[0x6074] <+96>:  tbz    w0, #0x1f, 0x608c         ; <+120> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 64 at config_read.cpp:61
+liblog.so[0x6078] <+100>: ldr    x8, [x21, #0x18]
+liblog.so[0x607c] <+104>: cbz    x8, 0x60c0                ; <+172> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 116 at config_read.cpp:61
+liblog.so[0x6080] <+108>: mov    w0, w19
+liblog.so[0x6084] <+112>: blr    x8
+liblog.so[0x6088] <+116>: tbz    w0, #0x1f, 0x60c0         ; <+172> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 116 at config_read.cpp:61
+liblog.so[0x608c] <+120>: ldr    x22, [x22]
+liblog.so[0x6090] <+124>: cmp    x22, x20
+liblog.so[0x6094] <+128>: b.ne   0x6058                    ; <+68> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 12 at config_read.cpp:61
+liblog.so[0x6098] <+132>: b      0x60b0                    ; <+156> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 100 at config_read.cpp:61
+liblog.so[0x609c] <+136>: ldr    x8, [x21, #0x18]
+liblog.so[0x60a0] <+140>: cbz    x8, 0x60c0                ; <+172> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 116 at config_read.cpp:61
+liblog.so[0x60a4] <+144>: mov    w0, w19
+liblog.so[0x60a8] <+148>: blr    x8
+liblog.so[0x60ac] <+152>: tbz    w0, #0x1f, 0x60c0         ; <+172> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 116 at config_read.cpp:61
+liblog.so[0x60b0] <+156>: add    w19, w19, #0x1            ; =0x1
+liblog.so[0x60b4] <+160>: cmp    w19, #0x8                 ; =0x8
+liblog.so[0x60b8] <+164>: b.lo   0x604c                    ; <+56> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) at config_read.cpp:61
+liblog.so[0x60bc] <+168>: b      0x60d0                    ; <+188> at config_read.cpp
+liblog.so[0x60c0] <+172>: ldr    x8, [x20, #0x8]
+liblog.so[0x60c4] <+176>: stp    x20, x8, [x21]
+liblog.so[0x60c8] <+180>: str    x21, [x8]
+liblog.so[0x60cc] <+184>: str    x21, [x20, #0x8]
+liblog.so[0x60d0] <+188>: adrp   x20, 15
+liblog.so[0x60d4] <+192>: adrp   x21, 15
+liblog.so[0x60d8] <+196>: ldr    x20, [x20, #0x248]
+liblog.so[0x60dc] <+200>: ldr    x21, [x21, #0x250]
+liblog.so[0x60e0] <+204>: mov    w19, wzr
+liblog.so[0x60e4] <+208>: ldr    x22, [x20]
+liblog.so[0x60e8] <+212>: cmp    x22, x20
+liblog.so[0x60ec] <+216>: b.eq   0x6134                    ; <+288> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 80 at config_read.cpp:62
+liblog.so[0x60f0] <+220>: ldr    x8, [x22]
+liblog.so[0x60f4] <+224>: cmp    x22, x8
+liblog.so[0x60f8] <+228>: b.eq   0x6148                    ; <+308> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 100 at config_read.cpp:62
+liblog.so[0x60fc] <+232>: ldr    x8, [x22, #0x18]
+liblog.so[0x6100] <+236>: cbz    x8, 0x6168                ; <+340> at config_read.cpp:65:1
+liblog.so[0x6104] <+240>: mov    w0, w19
+liblog.so[0x6108] <+244>: blr    x8
+liblog.so[0x610c] <+248>: tbz    w0, #0x1f, 0x6124         ; <+272> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 64 at config_read.cpp:62
+liblog.so[0x6110] <+252>: ldr    x8, [x21, #0x18]
+liblog.so[0x6114] <+256>: cbz    x8, 0x6158                ; <+324> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 116 at config_read.cpp:62
+liblog.so[0x6118] <+260>: mov    w0, w19
+liblog.so[0x611c] <+264>: blr    x8
+liblog.so[0x6120] <+268>: tbz    w0, #0x1f, 0x6158         ; <+324> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 116 at config_read.cpp:62
+liblog.so[0x6124] <+272>: ldr    x22, [x22]
+liblog.so[0x6128] <+276>: cmp    x22, x20
+liblog.so[0x612c] <+280>: b.ne   0x60f0                    ; <+220> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 12 at config_read.cpp:62
+liblog.so[0x6130] <+284>: b      0x6148                    ; <+308> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 100 at config_read.cpp:62
+liblog.so[0x6134] <+288>: ldr    x8, [x21, #0x18]
+liblog.so[0x6138] <+292>: cbz    x8, 0x6158                ; <+324> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 116 at config_read.cpp:62
+liblog.so[0x613c] <+296>: mov    w0, w19
+liblog.so[0x6140] <+300>: blr    x8
+liblog.so[0x6144] <+304>: tbz    w0, #0x1f, 0x6158         ; <+324> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) + 116 at config_read.cpp:62
+liblog.so[0x6148] <+308>: add    w19, w19, #0x1            ; =0x1
+liblog.so[0x614c] <+312>: cmp    w19, #0x8                 ; =0x8
+liblog.so[0x6150] <+316>: b.lo   0x60e4                    ; <+208> [inlined] __android_log_add_transport(listnode*, android_log_transport_read*) at config_read.cpp:62
+liblog.so[0x6154] <+320>: b      0x6168                    ; <+340> at config_read.cpp:65:1
+liblog.so[0x6158] <+324>: ldr    x8, [x20, #0x8]
+liblog.so[0x615c] <+328>: stp    x20, x8, [x21]
+liblog.so[0x6160] <+332>: str    x21, [x8]
+liblog.so[0x6164] <+336>: str    x21, [x20, #0x8]
+liblog.so[0x6168] <+340>: ldp    x29, x30, [sp, #0x20]
+liblog.so[0x616c] <+344>: ldp    x20, x19, [sp, #0x10]
+liblog.so[0x6170] <+348>: ldp    x22, x21, [sp], #0x30
+liblog.so[0x6174] <+352>: ret

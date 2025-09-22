@@ -1,0 +1,48 @@
+import("//llvm/utils/gn/build/write_vcsrevision.gni")
+
+config("write_vcsrevision_config") {
+  # To pick up the generated inc file.
+  include_dirs = [ target_gen_dir ]
+  visibility = [ ":write_vcsversion" ]
+}
+
+write_vcsrevision("write_vcsversion") {
+  visibility = [ ":Common" ]
+  header = "$target_gen_dir/VCSVersion.inc"
+  names = [ "LLD" ]
+  public_configs = [ ":write_vcsrevision_config" ]
+}
+
+static_library("Common") {
+  output_name = "lldCommon"
+  configs += [ "//llvm/utils/gn/build:lld_code" ]
+  public_deps = [
+    # public_dep because public header Version.h includes generated Version.inc.
+    "//lld/include/lld/Common:version",
+  ]
+  deps = [
+    ":write_vcsversion",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "Args.cpp",
+    "CommonLinkerContext.cpp",
+    "DWARF.cpp",
+    "DriverDispatcher.cpp",
+    "ErrorHandler.cpp",
+    "Filesystem.cpp",
+    "Memory.cpp",
+    "Reproduce.cpp",
+    "Strings.cpp",
+    "TargetOptionsCommandFlags.cpp",
+    "Timer.cpp",
+    "Version.cpp",
+  ]
+}

@@ -1,0 +1,147 @@
+.\"	$OpenBSD: BN_rand.3,v 1.19 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 05ea606a May 20 20:52:46 2016 -0400
+.\" selective merge up to: OpenSSL df75c2bf Dec 9 01:02:36 2018 +0100
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000, 2001, 2002, 2013, 2015 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_RAND 3
+.Os
+.Sh NAME
+.Nm BN_rand ,
+.Nm BN_rand_range ,
+.Nm BN_pseudo_rand ,
+.Nm BN_pseudo_rand_range
+.Nd generate pseudo-random number
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft int
+.Fo BN_rand
+.Fa "BIGNUM *rnd"
+.Fa "int bits"
+.Fa "int top"
+.Fa "int bottom"
+.Fc
+.Ft int
+.Fo BN_rand_range
+.Fa "BIGNUM *rnd"
+.Fa "const BIGNUM *range"
+.Fc
+.Sh DESCRIPTION
+.Fn BN_rand
+generates a cryptographically strong pseudo-random number of
+.Fa bits
+in length and stores it in
+.Fa rnd .
+If
+.Fa top
+is
+.Dv BN_RAND_TOP_ANY ,
+the most significant bit of the random number can be zero.
+If
+.Fa top
+is
+.Dv BN_RAND_TOP_ONE ,
+the most significant bit is set to 1, and if
+.Fa top
+is
+.Dv BN_RAND_TOP_TWO ,
+the two most significant bits of the number will be set to 1, so
+that the product of two such random numbers will always have
+.Pf 2* Fa bits
+length.
+If
+.Fa bottom
+is
+.Dv BN_RAND_BOTTOM_ODD ,
+the number will be odd;
+if it is
+.Dv BN_RAND_BOTTOM_ANY ,
+it can be odd or even.
+The value of
+.Fa bits
+must be zero or greater.
+If
+.Fa bits
+is +1 then
+.Fa top
+cannot be
+.Dv BN_RAND_TOP_TWO .
+.Pp
+.Fn BN_rand_range
+generates a cryptographically strong pseudo-random number
+.Fa rnd
+in the range 0 <=
+.Fa rnd No < Fa range .
+.Pp
+.Fn BN_pseudo_rand
+is a deprecated alias for
+.Fn BN_rand ,
+and
+.Fn BN_pseudo_rand_range
+for
+.Fn BN_rand_range .
+.Sh RETURN VALUES
+The functions return 1 on success, 0 on error.
+The error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr BN_new 3
+.Sh HISTORY
+.Fn BN_rand
+first appeared in SSLeay 0.5.1 and has been available since
+.Ox 2.4 .
+.Pp
+The
+.Fa top
+== -1 case and the function
+.Fn BN_rand_range
+first appeared in OpenSSL 0.9.6a and have been available since
+.Ox 3.0 .

@@ -1,0 +1,929 @@
+1.0 Introduction
+1.1 ... Basic theory of operation
+1.2 ... Quick build & install
+2.0 Building nsd
+2.1 ... Unpacking the source
+2.2 ... Configuring NSD
+2.3 ... Building
+2.4 ... Installing
+3.0 Running NSD
+3.1 ... Logging
+3.2 ... AXFR access
+3.3 ... Using TSIG
+3.4 ... Zone expiry of secondary zones
+3.5 ... Diagnosing NSD log entries
+3.6 ... Interfaces
+3.7 ... Tuning
+3.8 ... Zone verification
+4.0 Support and Feedback
+4.1 ... Your Support
+
+
+1.0 Introduction
+
+This is NSD Name Server Daemon (NSD) version 4.13.0.
+
+The NLnet Labs Name Server Daemon (NSD) is an authoritative RFC compliant 
+DNS nameserver. It was first conceived to allow for more genetic 
+diversity for DNS server implementations used by the root-server system 
+and it has been developed for operations in environments where speed, 
+reliability, stability, and security are of high importance. NSD is 
+currently used on root servers such as k.root-servers.net and is also in 
+use by several top-level domain registries.
+
+NSD is a complete implementation of an authoritative DNS name server.
+For further information about what NSD is and what NSD is not please
+consult the REQUIREMENTS document which is a part of this distribution.
+
+If you are a BIND user (the named daemon) consult NSD_FOR_BIND_USERS.
+
+The source code is available for download from:
+
+         http://www.nlnetlabs.nl/downloads
+
+
+1.1 Basic Theory of Operation
+
+NSD consists of two programs: the zone compiler 'zonec' and the name
+server 'nsd' itself. The name server works with an intermediate
+database prepared by the zone compiler from standard zone files.
+
+For NSD operation this means that zones have to be compiled by zonec
+before NSD can use them.
+
+All this can be controlled via rc.d (SIGTERM, SIGHUP) or nsd-control,
+and uses a simple configuration file 'nsd.conf'.
+
+
+1.2 Quick build and install
+
+Step 1: Unpack the source with gtar -xzvf nsd-4.13.0.tar.gz
+
+Step 2: Create user nsd or any other unprivileged user of your
+        choice. In case of later make sure to use
+        --with-user=<username> while running configure.
+	You can also set "username: <name>" in the nsd.conf file later.
+	Install openssl and libevent.
+
+Step 3: ./configure
+
+Step 4: make all	(or simply 'make').
+
+Step 5: make install
+
+Step 6: Create and edit /etc/nsd/nsd.conf file possibly from
+        nsd.conf.sample template that comes with the distribution.
+	(installed by default at /etc/nsd/nsd.conf.sample)
+	Here you need to configure the zones you want to serve.
+	TSIG keys used for secure zone transfers must be included.
+	Also server parameters can be set, see nsd.conf(5) man page.
+
+	If you have a NSD 2 nsd.zones config file take a look at the
+	python script contrib/nsd.zones2nsd.conf, it will convert 
+	zone and TSIG key settings for you.
+
+Step 7: Copy necessary master zone files into appropriate directories
+        under /etc/nsd/primary & /etc/nsd/secondary. 
+
+Step 8: Run nsd-control start
+
+Step 9: Test the NSD with dig, drill or host.
+
+Step 10: If you're happy add a rc.d script to start into your OS boot up
+	 sequence. The format of the rc.d startup script depends on 
+	 the platform.  Also stop it in the shutdown sequence.
+	 You can use SIGTERM to stop, or nsd-control stop.
+
+Step 11: If desired add 'nsd-control write' to your superuser crontab to
+         update the zone files with the content transferred from master
+	 servers periodically, such as once per day.
+
+         Got any problems or questions with the steps above? Read the
+         rest of this file.
+
+
+
+2.0 Building NSD
+
+
+2.1 Unpacking the source
+
+Use your favorite combination of tar and gnu zip to unpack the source,
+for example
+
+$ gtar -xzvf nsd-4.13.0.tar.gz
+
+will unpack the source into the ./nsd-4.13.0 directory...
+
+
+2.2 Configuring NSD
+
+NSD can be configured using GNU autoconf's configure script. In
+addition to standard configure options, one may use the following:
+
+  CC=compiler
+ 
+        Specify the C compiler.  The default is gcc or cc.  The
+        compiler must support ANSI C89.
+
+  CPPFLAGS=flags
+
+        Specify the C preprocessor flags.  Such as -I<includedir>.
+
+  CFLAGS=flags
+
+        Specify the C compiler flags.  These include code generation,
+        optimization, warning, and debugging flags.  These flags are
+        also passed to the linker.
+
+        The default for gcc is "-g -O2".
+
+  LD=linker
+
+        Specify the linker (defaults to the C compiler).
+
+  LDFLAGS=flags
+
+        Specify linker flags.
+
+  LIBS=libs
+ 
+        Specify additional libraries to link with.
+
+  --disable-ipv6
+
+        Disables IPv6 support in NSD.
+
+  --enable-checking
+
+        Enable some internal development checks.  Useful if you want
+        to modify NSD.  This option enables the standard C "assert" macro
+	and compiler warnings.
+
+	This will instruct NSD to be stricter when validating its input. 
+	This could lead to a reduced service level.
+
+  --disable-bind8-stats
+
+        Disable BIND8-like statistics.
+
+  --disable-zone-stats
+
+	Disable per-zone statistics gathering (if enabled, it needs
+	bind8-stats).
+
+  --disable-ratelimit
+
+	Disables ratelimiting, based on query name, type and source.
+
+  --disable-ratelimit-default-is-off
+
+	Disable this to set default of ratelimit to on (this controls
+	the default, ratelimits can be enabled and disabled in nsd.conf).
+
+  --disable-dnstap
+
+	Disable dnstap support (requires fstrm-devel, protobuf-c).
+
+  --enable-systemd
+
+	Compile with systemd support, and then the server notifies libsystemd
+	when the server is up (it needs pkg-config and systemd-devel).
+
+  --with-configdir=dir
+
+        Specified, NSD configuration directory, default /etc/nsd
+
+  --with-nsd_conf_file=path
+
+	Pathname to the NSD configuration file, default /etc/nsd/nsd.conf
+
+  --with-pidfile=path
+
+        Pathname to the NSD pidfile, default is platform specific,
+        mostly /var/run/nsd.pid
+
+  --with-zonesdir=dir
+
+        NSD default location for master zone files, default /etc/nsd/
+
+  --with-user=username
+
+        User name or ID to answer the queries with, default is nsd
+
+  --with-facility=facility
+
+        Specify the syslog facility to use.  The default is
+        LOG_DAEMON.  See the syslog(3) manual page for the available
+        facilities.
+
+  --with-libevent=path
+
+  	Specity the location of the libevent library (or libev).
+	--with-libevent=no uses a builtin portable implementation (select()).
+
+  --with-ssl=path
+
+        Specify the location of the OpenSSL libraries.  OpenSSL 0.9.7
+        or higher is required for TSIG support.
+
+  --with-start_priority=number
+
+	Startup priority for NSD. 
+
+  --with-kill_priority=number
+
+	Shutdown priority for NSD. 
+
+  --with-tcp-timeout=number
+
+	Set the default TCP timeout (in seconds). Default 120 seconds.
+
+  --disable-nsec3
+
+  	Disable NSEC3 support. With NSEC3 support enabled, very large zones,
+	also non-nsec3 zones, use about 20% more memory.
+
+  --disable-minimal-responses
+
+  	Disable minimal responses. If disabled, responses are more likely
+	to get truncated, resulting in TCP fallback.  When enabled (by default)
+	NSD will leave out RRsets to make responses fit inside one datagram,
+	but for shorter responses the full normal response is carried.
+
+  --disable-largefile
+
+	Disable large file support (64 bit file lengths). Makes off_t
+	a 32bit length during compilation.
+
+
+2.3 Building
+
+Use ``make'' to create NSD and support tools.  If you get errors, try to
+use ``gmake'' (gnu version of make), especially on old systems. If so,
+do a `gmake realclean` first, to remove stuff that the make call messed up.
+
+
+2.4 Installing
+
+Become a superuser (if necessary) and type ``make install''
+
+This step should install four binaries
+
+nsd               - the daemon itself
+nsd-control-setup - a shell script that creates keys for nsd-control.
+nsd-control	      - program that connects over SSL to nsd and gives commands.
+nsd-checkconf	  - simple C program to check nsd.conf before use.
+
+Plus the manual pages and a sample configuration file.
+
+
+3.0 Running NSD
+
+Before running NSD you need to create a configuration file for it.
+The config file contains server settings, secret keys and zone settings.
+
+The server settings start with a line with the keyword 'server:'.
+In the server settings set 'database: <file>' with the filename of the name 
+database that NSD will use. Set 'chroot: <dir>' to run nsd in a chroot-jail.
+Make sure the zone files, database file, xfrdfile, difffile and pidfile
+can be accessed from the chroot-jail.  Set 'username: <user>' to an 
+unprivileged user, for security.  
+
+For example:
+	# This is a sample configuration
+	server:
+		database: "/etc/nsd/nsd.db"
+		pidfile: "/etc/nsd/nsd.pid"
+		chroot: "/etc/nsd/"
+		username: nsd
+
+After the global server settings to need to make entries for the
+zones that you wish to serve. For each zone you need to list the zone
+name, the file name with the zone contents, and access control lists.
+
+	zone:
+		name:	"example.com"
+		zonefile: "example.com.zone"
+
+The zonefile needs to be filled with the correct zone information
+for master zones. For secondary zones an empty file will suffice,
+a zone transfer will be initiated to obtain the slave zone contents.
+
+Access control lists are needed for zone transfer and notifications.
+
+For a slave zone list the masters, by IP address. Below is an example
+of a slave zone with two master servers. If a master only supports AXFR
+transfers and not IXFR transfers (like NSD), specify the master as
+"request-xfr: AXFR <ip_address> <key>". By default, all zone transfer requests 
+are made over TCP. If you want the IXFR request be transmitted over UDP, use
+"request-xfr: UDP <ip address> <key>".
+
+	zone:
+		name: "example.com"
+		zonefile: "example.com.zone"
+		allow-notify: 168.192.185.33 NOKEY
+		request-xfr: 168.192.185.33 NOKEY
+		allow-notify: 168.192.199.2 NOKEY
+		request-xfr: 168.192.199.2 NOKEY
+
+By default, a slave will fallback to AXFR requests if the master told us it does 
+not support IXFR. You can configure the slave not to do AXFR fallback with:
+
+		allow-axfr-fallback: "no"
+
+For a master zone, list the slave servers, by IP address or subnet.
+Below is an example of a master zone with two slave servers.
+
+	zone:
+		name: "example.com"
+		zonefile: "example.com.zone"
+		notify: 168.192.133.75 NOKEY
+		provide-xfr: 168.192.133.75 NOKEY
+		notify: 168.192.5.44 NOKEY
+		provide-xfr: 168.192.5.44 NOKEY
+
+You also can set the outgoing interface for notifies and zone transfer requests 
+to satisfy access control lists at the other end:
+
+		outgoing-interface: 168.192.5.69
+
+By default, NSD will retry a notify up to 5 times. You can override that
+value with: 
+
+		notify-retry: 5
+
+Zone transfers can be secured with TSIG keys, replace NOKEY with
+the name of the tsig key to use. See section 3.3.
+
+Since NSD is written to be run on the root name servers, the config file 
+can to contain something like:
+
+	zone:
+		name: "."
+		zonefile: "root.zone"
+		provide-xfr: 0.0.0.0/0 NOKEY # allow axfr for everyone.
+		provide-xfr: ::0/0 NOKEY
+
+You should only do that if you're intending to run a root server, NSD
+is not suited for running a . cache. Therefore if you choose to serve
+the .  zone you have to make sure that the complete root zone is
+timely and fully updated.
+
+In the config file, you can use patterns.  A pattern can have the
+same configuration statements that a zone can have.  And then you can
+include-pattern: <name-of-pattern> in a zone (or in another pattern)
+to apply those settings.  This can be used to organise the settings.
+
+The nsd-control tool is also controlled from the nsd.conf config file.
+It uses SSL encrypted transport to 127.0.0.1, and if you want to use it
+you have to setup the keys and also edit the config file.  You can leave
+the remote-control disabled (the secure default), or opt to turn it on:
+
+	# generate keys
+	nsd-control-setup
+
+	# edit nsd.conf to add this
+	remote-control:
+		control-enable: yes
+
+By default nsd-control is limited to localhost, as well as encrypted, but
+some people may want to remotely administer their nameserver.  What you
+then do is setup nsd-control to listen to the public IP address, with
+control-interface: <IP> after the control-enable statement.  Furthermore,
+you copy the key files /etc/nsd/nsd_server.pem /etc/nsd/nsd_control.*
+to a remote host on the internet; on that host you can run nsd-control
+with -c <special config file> which references same IP address
+control-interface and references the copies of the key files with
+server-cert-file, control-key-file and control-cert-file config lines
+after the control-enable statement.  The nsd-server authenticates the
+nsd-control client, and also the nsd-control client authenticates the
+nsd-server.
+
+When you are done with the configuration file, check the syntax using
+
+	nsd-checkconf <name of configfile>
+
+The zone files are read by the daemon, which builds 'nsd.db' with their
+contents.  You can start the daemon with
+
+	nsd
+	or with "nsd-control start" (which execs nsd again).
+	or with nsd -c <name of configfile>
+
+To check if the daemon is running look with ps, top, or if you enabled
+nsd-control,
+
+	nsd-control status
+
+To reload changed zone files after you edited them, without stopping
+the daemon, use this to check if files are modified: 
+
+	kill -HUP `cat <name of nsd pidfile>`
+
+If you enabled nsd-control, you can reread with
+
+	nsd-control reload
+
+With nsd-control you can also reread the config file (new zones, ..)
+
+	nsd-control reconfig
+
+To restart the daemon
+
+	/etc/rc.d/nsd restart  # or your system(d) equivalent
+
+To shut it down (for example on the system shutdown) do
+
+	kill -TERM <pid of nsd>
+	or nsd-control stop
+
+NSD will automatically keep track of secondary zones and update them
+when needed. When primary zones are updated and reloaded notifications
+are sent to slave servers.
+
+The zone transfers are applied to nsd.db by the daemon.  To write changed
+contents of the zone files for slave zones to disk in the text-based zone
+file format, issue nsd-control write.
+
+NSD will send notifications to slave zones if a master zone is updated.
+NSD will check for updates at master servers periodically and transfer
+the updated zone by AXFR/IXFR and reload the new zone contents. If
+you wish exert manual control use nsd-control notify, transfer and
+force_transfer commands.  The transfer command will check for new versions
+of the secondary zones hosted by this NSD. The notify command will send
+notifications to the slave servers configured in 'notify:' statements.
+
+
+3.1 Logging
+
+NSD doesn't do any logging. We believe that logging is a separate task
+and has to be done independently from the core operation.
+
+This consciously is not part of nsd itself in order to keep nsd
+focused and minimize its complexity. It is better to leave logging and
+tracing to separate dedicated tools. dnsstat can also easily be
+configured and/or modified to suit local statistics requirements
+without any danger of affecting the name server itself. We have run
+dnsstat on the same machine as nsd, we would recommend using a
+multiprocessor if performance is an issue. Of course it can also run
+on a separate machine that has MAC layer access to the network of the
+server.
+
+The nsd-control tool can output some statistics, with nsd-control stats
+and nsd-control stats_noreset.  In contrib/nsd_munin_ there is a munin
+grapher plugin that uses it.  The output of nsd-control stats is easy
+to read (text only) with scripts.  The output values are documented on
+the nsd-control man page.
+
+The CAIDA dnsstat tool referenced is recommended to nsd operators as a 
+means of keeping statistics and check on abnormal query loads.
+
+    http://www.caida.org/tools/utilities/dnsstat/dnsstat-3.5.1a.tar.gz
+
+Another tool is the dnstop, that displays DNS statistics on your network.
+
+    http://dns.measurement-factory.com/tools/dnstop/src/dnstop-20060517.tar.gz
+
+A sample invocation of dnsstat:
+
+/usr/local/Coral/bin/crl_dnsstat -D -Ci=60 -Cd=240 -C'filter dst 10.1.1.3'  -h -u if:fxp1
+
+A sample output of a slightly modified version:
+
+# dnsstat output version: 0.2 "dfk"
+
+# begin trace interval at 1025267664.859043, duration 15.000000
+# DNS messages: 74973 (4998.200000/s); DNS queries: 151983 (10132.200000/s)
+# print threshold: 30 messages/sec
+
+#src              op type  class queries    msgs      rd notes
+ 208.18.162.10     - -     -         533     533       0
+ "                 0 MX    IN          6
+ "                 0 A     IN        264
+ "                 0 ANY   IN        263
+ 209.11.18.248     - -     -         661     661       0
+ "                 0 A     IN        655
+ "                 0 MX    IN          6
+ 210.117.65.137    - -     -         745     745       0
+ "                 0 A     IN        745
+ 216.54.221.131    - -     -         477     477       0
+ "                 0 A     IN        477
+ 193.97.205.80     - -     -         681     681       0
+ "                 0 A     IN          3
+ "                 0 ANY   IN        678
+ 168.30.240.11     - -     -         685     685       0
+ "                 0 A     IN        405
+ "                 0 MX    IN        280
+ 210.94.6.67       - -     -         742     742       0
+ "                 0 A     IN        742
+ 63.66.68.237      - -     -        1375    1375       0
+ "                 0 A     IN       1375
+ 168.30.240.12     - -     -         493     493       0
+ "                 0 A     IN        493
+ 139.142.205.225   - -     -        5579    5579       0
+ "                 0 A     IN       3006
+ "                 0 MX    IN       2573
+ 210.117.65.2      - -     -         700     700       0
+ "                 0 A     IN        700
+# end trace interval 
+
+
+3.2 AXFR access
+
+The access list for AXFR should be set with provide-xfr:
+in the nsd config file. This is per zone. See nsd.conf(5).
+For example to grant zone 'example.com' AXFR right to localhost for
+IPv4 and IPv6, use the below config options.
+
+zone:
+	name: "example.com"
+	provide-xfr: 127.0.0.1 NOKEY
+	provide-xfr: ::1 NOKEY
+
+You can use dig @localhost example.com axfr to test this.
+
+
+3.3 Using TSIG
+
+NSD supports TSIG for any query to the server, for zone transfer
+and for notify sending and receiving.
+
+TSIG keys are based on shared secrets. These must be configured
+in the config file. To keep the secret in a separate file use 
+include: "filename" to include that file.
+
+An example tsig key named sec1_key.
+
+	key:
+		name: "sec1_key"
+		algorithm: hmac-md5
+		secret: "6KM6qiKfwfEpamEq72HQdA=="
+
+This key can then be used for any query to the NSD server. NSD
+will check if the signature is valid, and if so, return a signed
+answer. Unsigned queries will be given unsigned replies.
+
+The key can be used to restrict the access control lists, for
+example to only allow zone transfer with the key, by listing
+the key name on the access control line.
+
+	# provides AXFR to the subnet when TSIG is used.
+	provide-xfr: 10.11.12.0/24 sec1_key
+	# allow only notifications that are signed
+	allow-notify: 192.168.0.0/16 sec1_key
+
+If the TSIG key name is used in notify or request-xfr lines,
+the key is used to sign the request/notification messages.
+
+
+3.4 Zone expiry of secondary zones
+
+NSD will keep track of the status of secondary zones, according to the 
+timing values in the SOA record for the zone.  When the refresh time of a
+zone is reached, the serial number is checked and a zone transfer is
+started if the zone has changed.  Each master server is tried in turn.
+
+Master zones cannot expire.  They are always served.  Zones are master
+zones if they have no 'request-xfr:' statements in the config file.
+
+After the expire timeout (from the SOA record at the zone apex) is reached,
+the zone becomes expired. NSD will return SERVFAIL for expired zones,
+and will attempt to perform a zone transfer from any of the masters.
+After a zone transfer succeeds, or if the master indicates that the SOA 
+serial number is still the same, the zone will be OK again.
+
+In contrast with e.g. BIND, the inception time for a slave zone is stored
+on disk (in the xfrdfile: "xfrd.state"), together with timeouts.  If a
+slave zone acquisition time is recent enough, this means that NSD can start
+serving a zone immediately on loading, without querying the master server.
+
+If your slave zone has expired, and no masters can be reached, but you 
+still want NSD to serve the zone.  (i.e. ''My network is in shambles, but
+serve the zone dangit!'').  You can delete the file 'xfrd.state',
+but leave the zonefile for the zone intact.  Make sure to stop nsd before
+you delete the file, as NSD writes it on exit.  Upon loading NSD will treat
+the zonefile that you as operator have provided as recent and will serve
+the zone.  Even though NSD will start to serve the zone immediately,
+the zone will expire after the timeout is reached again.  NSD will also
+attempt to confirm that you have provided the correct data by polling 
+the masters.  So when the master servers come back up, it will transfer
+the updated zone within <retry timeout from SOA> seconds.
+
+In general it is possible to provide zone files for both master and
+slave zones manually (say from email or rsync). Reload with SIGHUP
+or nsd-control reload to read the new zonefile contents into the name
+database.  When this is done the new zone will be served. For master
+zones, NSD will issue notifications to all configured 'notify:' targets.
+For slave zones the above happens; NSD attempts to validate the zone
+from the master (checking its SOA serial number).
+
+
+3.5 Diagnosing NSD log entries
+
+NSD will print log messages to the system log (or 'logfile:' configuration
+entry). Some of these messages are discussed below. These messages can
+get extra support if errors happen.
+
+- "Reload process <pid> failed with status <s>, continuing with old database"
+
+This log message indicates the reload process of NSD has failed for
+some reason.  The reason can be anything from a missing database file
+to internal errors.  If this happens often, please let us know, this
+error message can be caught in the code, and appropriate action could
+be taken.  We are as of yet not sure what action is appropriate, if any.
+
+- "snipping off trailing partial part of <ixfr.db>"
+
+Please let us know if, and how often, this happens.
+
+What happens is the file ixfr.db contains only part of expected data.
+The corruption is removed by snipping off the trailing part.
+
+- "memory recyclebin holds <num> bytes"
+
+This is printed for every reload. NSD allocates and deallocates memory
+to service IXFR updates. The recyclebin holds deallocated memory ready
+for future use. If the number grows too large, a restart resets it.
+
+- "xfrd: max number of tcp connections (32) reached."
+
+This line is printed when more than 32 zones need a zone transfer at the
+same time.  The value is a compile constant (xfrd-tcp.h), but if this
+happens often for you, we could make this a config option.  NSD will reuse
+existing TCP connections to the same master (determined by IP address)
+to transfer up to 64k zones from that master.  Thus this error should
+only happen with more than 32 masters or more than 64*32=2M zones that
+need to be updated at the same time.
+
+If this happens, more zones have to wait until a zone transfer completes
+(or is aborted) before they can have a zone transfer too. This waiting
+list has no size limit.
+
+- "error: <zone> NSEC3PARAM entry <num> has unknown hash algo <number>"
+
+This error means that the zone has NSEC3 chain(s) with hash algorithms
+that are not supported by this version of NSD, and thus cannot be served
+by NSD.  If there are also no NSECs or NSEC3 chain(s) with known hash
+algorithms, NSD will not be able to serve DNSSEC authenticated denials
+for the zone.
+
+
+3.6 Interfaces
+
+NSD will by default bind itself to the system default interface and
+service ip4 and if available also ip6. It is possible to service only ip4
+or ip6 using the -4, -6 commandline options, or the ip4-only and ip6-only
+config file options.
+
+The commandline option -a and config file option ip-address can be given
+to bind to specific interfaces.  Multiple interfaces can be specified.
+This is useful for two reasons:
+	o The specific interface bound will result in the OS bypassing
+	  routing tables for the interface selection.  This results in
+	  a small performance gain.  It is not the performance gain that
+	  is the problem, sometimes the routing tables can give the
+	  wrong answer, see the next point.
+	o The answer will be routed via the interface the query came from.
+	  This makes sure that the return address on the DNS replies is the
+	  same as the query was sent to.  Many resolvers require the source
+	  address of the replies to be correct.  The ip-address: option is
+	  easier than configuring the OS routing table to return the DNS
+	  replies via the correct interface.
+The above means that even for systems with multiple interfaces where you
+intend to provide DNS service to all interfaces, it is prudent to specify
+all the interfaces as ip-address config file options.
+
+With the config file option ip-transparent you can allow NSD to bind to
+non local addresses.
+
+
+3.7 Tuning
+
+NSD is performant by design and most users will have little need for tuning
+it. For setups that do require every ounce of performance, NSD offers a number
+of configuration options.
+
+
+cpu-affinity, server-<N>-cpu-affinity and xfrd-cpu-affinity
+
+Modern computer systems have many cores available. By default the operating
+system's scheduling-algorithm determines which core a given task is allocated
+to. Processors build up state, like keeping frequently accessed data in cache
+memory, for the task (process/thread) that it is currently running. Whenever,
+a task switches cores, performance is degraded because the core it switched
+to has yet to build up said state. The cpu-affinity configuration options can
+be used to bind NSD to one or more cores.
+
+cpu-affinity can be used to designate a set of cores onto which NSD processes
+are scheduled. server-<N>-cpu-affinity and xfrd-cpu-affinity can be used to
+designate a specific core to each individual process. This improves L1/L2
+cache hits and reduces pipeline stalls/flushes.
+
+For example, a name server configured to fork two NSD servers that must run on
+dedicated cores 0 and 2, while the transfer daemon (xfrd) must run on core 1,
+the configuration becomes.
+
+	server:
+		server-count: 2
+		cpu-affinity: 0 1 2
+		server-1-cpu-affinity: 0
+		server-2-cpu-affinity: 2
+		xfrd-cpu-affinity: 1
+
+
+ip-address: x.x.x.x  servers=<N>
+
+ip-address options can be configured per (set of) server(s). Sockets that are
+configured for a specific server are closed by other servers on startup. This
+improves select/poll performance and avoids waking up multiple servers when a
+packet comes in.
+
+
+ip-address: x.x.x.x  bindtodevice=yes
+ip-address: x.x.x.x  setfib=<N>
+
+The bindtodevice attribute on Linux and the setfib ip-address attribute on
+FreeBSD can be used to skip the interface selection process in the kernel. This
+improves performance, and ensures responses written to the socket are pushed
+out the same interface the corresponding query came in on when multiple
+interfaces are configured to listen on the same subnet.
+
+The aforementioned options all complement eachother and best performance is
+achieved by assigning a socket to a single server that runs on a dedicated
+core and line that up with a dedicated network interface. Network interface
+interrupts are best handled by a core not designated to any NSD servers.
+
+	server:
+		server-count: 3
+		cpu-affinity: 0 1 2 4
+		server-1-cpu-affinity: 0
+		server-2-cpu-affinity: 1
+		server-3-cpu-affinity: 2
+		xfrd-cpu-affinity: 4
+		ip-address: 1.2.3.11  servers=1 setfib=1 bindtodevice=yes
+		ip-address: 1.2.3.12  servers=2 setfib=2 bindtodevice=yes
+		ip-address: 1.2.3.13  servers=3 setfib=3 bindtodevice=yes
+
+The number of NSD servers to fork and which cores are best used depends
+entirely on the hardware. cpu-affinity options are supported on Linux and
+FreeBSD.
+
+
+3.8 Zone verification
+
+NSD can be configured to verify a zone is correct before publishing it. This
+feature is primarily aimed at fortifying DNSSEC in the DNS
+notify/transfer-chain, but can be used to carry out any checks desired.
+
+An external verifier can be configured per zone. When a zone with verification
+enabled is received or updated via an (incremental) zone transfer, it will be
+submitted to the verifier for evaluation. If the verifier deems the updated
+zone correct (indicated with exit status 0), the zone will be served. NSD will
+discard the update and continue to serve the zone before the update if the
+exit status of the verifier is non-zero.
+
+Verifier options can be configured globally in the "verify:" clause, or
+specifically for a zone/pattern in the respective "zone:" and "pattern:"
+clauses. The global values are applied by default.
+
+The zone can be provided to the verifier in two ways.
+
+	1. The complete zone can be fed to the standard input of the verifier.
+
+	   This modus operandi is enabled by default and can be configured
+	   with the "verifier-feed-zone:" option.
+
+	   Examples for verifiers that read from the standard input are:
+	   "ldns-verify-zone -V2" (-V2 to suppress copying to stdout) or
+	   "validns -" (don't forget the dash (-) to read the zone from stdin).
+
+	2. The zone can be served to the verifier.
+
+	   This is disabled by default and can be enabled by configuring ip-
+	   addresses, with the "ip-address:" option in the "verify:" clause,
+	   on which the zone to be assessed will be served. Addresses can
+	   contain a port number to override the default, which is 5347 by
+	   default, but can be overridden with the "port:" option in the
+	   verify clause.
+
+	   For example to validate the SOA of a zone example.com by querying,
+	   with a certain DS record as the trust anchor (in file example.com.ds),
+	   the "verifier:" option could have the following value:
+	   "drill -S -k example.com.ds @localhost -p 5347 example.com SOA"
+
+A verifier is informed about the domain name of the zone to be verified and
+the accessibility of the system submitting the zone via environment variables.
+
+	VERIFY_ZONE
+		Domain name of the zone to be verified.
+
+	VERIFY_ZONE_ON_STDIN
+		Contains "yes" if the zone is fed over standard input,
+		otherwise "no".
+
+	VERIFY_IP_ADDRESSES
+		Contains a list of <ip-address>@<port>s on which the zone
+		to be verified can be queried.
+
+	VERIFY_IPV6_ADDRESS and VERIFY_IPV6_PORT
+                Contains the first configured IPv6 address and port.
+
+	VERIFY_IPV4_ADDRESS and VERIFY_IPV4_PORT
+		Contains the first configured IPv4 address and port.
+
+	VERIFY_IP_ADDRESS and VERIFY_PORT
+		Contains the first configured address and port.
+		IPv6 is preferred over IPv4.
+
+For each zone one verifier will be run at the same time, but when multiple
+to-be-verified zones are received, multiple verifiers may be run
+simultaneously. The number of verifiers that may be run simultaneously is
+configured with the "verifier-count:" option in the "verify:" clause and
+defaults to 1.
+
+The time a verifier may take can be configured with the "verifier-timeout:"
+option in the "verify:" clause (to make the general default) or in the "zone:"
+or "pattern:" clause to set it for a specific zone. When the time the verifier
+takes exceeds the timeout value, the zone to be verified will be considered
+bad. By default the value is 0, which means that the verifier may take as long
+as it needs.
+
+To enable verification for all zones.
+
+	verify:
+		enable: yes
+		verifier: <command>
+
+To enable verification only for a specific zone.
+
+	verify:
+		enable: yes
+		verify-zones: no
+
+	zone:
+		name: example.com
+		verify-zone: yes
+
+
+4.0 Support and Feedback
+
+NLnet Labs is committed to support NSD and its other software products on 
+a best effort basis, free of charge. This form of community support is 
+offered through a mailing lists and the 'bugzilla' web interface. 
+
+	http://www.nlnetlabs.nl/bugs/
+
+If for any reason NLnet Labs would stop community support of NSD such 
+would be announced on our web pages at least two years in advance.
+
+The community mailing list nsd-users@lists.NLnetLabs.nl can be used to discuss
+issues with other users of NSD. Subscribe here
+
+	http://lists.nlnetlabs.nl/mailman/listinfo/nsd-users
+
+NLnet Labs recognizes that in some corporate environments this commitment to
+community support is not sufficient and that support needs to be codified. 
+We therefore offer paid support contracts that come in 3 varieties. 
+
+More information about these support varieties can be found at 
+	https://nlnetlabs.nl/services/contracts/
+
+Support goes two ways.  By acquiring one of the support contracts you
+also support NLnet Labs to continue to participate in the development
+of the Internet architecture. We do this through our participation in
+the (IETF) standards process and by developing and maintaining
+reference implementations of standards and tools to support operation
+and deployment of new and existing Internet technology. 
+
+We are interested in our users and in the environment you use NSD. Please drop
+us a mail when you use NSD at users@NLnetLabs.nl. Indicate in what kind of
+operation you deploy NSD and let us know what your positive and negative
+experiences are.
+
+4.1 Your Support
+
+NLnet Labs offers all of its software products as open source, most are
+published under a BSD license. You can download them, not only from the
+NLnet Labs website but also through the various OS distributions for
+which NSD, ldns, and Unbound are packaged. We therefore have little idea
+who uses our software in production environments and have no direct ties
+with 'our customers'.
+
+Therefore, we ask you to contact us at users@NLnetLabs.nl and tell us
+whether you use one of our products in your production environment,
+what that environment looks like, and maybe even share some praise.
+We would like to refer to the fact that your organization is using our
+products. We will only do that if you explicitly allow us. In all other
+cases we will keep the information you share with us to ourselves.
+
+In addition to the moral support you can also support us
+financially. NLnet Labs is a recognized not-for-profit charity foundation
+that is chartered to develop open-source software and open-standards
+for the Internet. If you use our software to satisfaction please express
+that by giving us a donation. For small donations PayPal can be used. For
+larger and regular donations please contact us at users@NLnetLabs.nl. Also
+see http://www.nlnetlabs.nl/labs/contributors/.
+
+
+$Id: README,v 1.10 2025/09/06 17:41:37 sthen Exp $

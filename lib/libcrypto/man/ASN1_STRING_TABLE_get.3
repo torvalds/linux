@@ -1,0 +1,92 @@
+.\" $OpenBSD: ASN1_STRING_TABLE_get.3,v 1.5 2025/06/08 22:37:23 schwarze Exp $
+.\" checked up to:
+.\" OpenSSL ASN1_STRING_TABLE_add.pod 7b608d08 Jul 27 01:18:50 2017 +0800
+.\"
+.\" Copyright (c) 2017, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_STRING_TABLE_GET 3
+.Os
+.Sh NAME
+.\" .Dv STABLE_FLAGS_MALLOC is intentionally undocumented because it is unused
+.Nm ASN1_STRING_TABLE_get
+.Nd retrieve an entry from the global ASN.1 string table
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft ASN1_STRING_TABLE *
+.Fo ASN1_STRING_TABLE_get
+.Fa "int nid"
+.Fc
+.Sh DESCRIPTION
+The ASN.1 string table is a unique global object.
+Each entry is of the type
+.Vt ASN1_STRING_TABLE
+and contains information about one NID object.
+The entries are predefined according to RFC 5280 appendix A.1.
+.Pp
+The upper bounds for the number of characters in various kinds of
+.Vt ASN1_STRING
+objects are:
+.Pp
+.Bl -column -compact NID_organizationalUnitNa maxsi ub_organization_unit_na
+.It object type                   Ta maxsize Ta symbolic constant
+.It Dv NID_commonName             Ta 64      Ta Dv ub_common_name
+.It Dv NID_countryName            Ta 2       Ta \(em
+.It Dv NID_givenName              Ta 32768   Ta Dv ub_name
+.It Dv NID_initials               Ta 32768   Ta Dv ub_name
+.It Dv NID_localityName           Ta 128     Ta Dv ub_locality_name
+.It Dv NID_name                   Ta 32768   Ta Dv ub_name
+.It Dv NID_organizationName       Ta 64      Ta Dv ub_organization_name
+.It Dv NID_organizationalUnitName Ta 64      Ta Dv ub_organization_unit_name
+.It Dv NID_pkcs9_emailAddress     Ta 128     Ta Dv ub_email_address
+.It Dv NID_serialNumber           Ta 64      Ta Dv ub_serial_number
+.It Dv NID_stateOrProvinceName    Ta 128     Ta Dv ub_state_name
+.It Dv NID_surname                Ta 32768   Ta Dv ub_name
+.El
+.Pp
+The function
+.Fn ASN1_STRING_TABLE_get
+retrieves the entry for
+.Fa nid .
+If the
+.Dv STABLE_NO_MASK
+flag is set,
+.Xr ASN1_STRING_set_by_NID 3
+skips applying the global mask that can be set with
+.Xr ASN1_STRING_set_default_mask 3 .
+.Sh RETURN VALUES
+.Fn ASN1_STRING_TABLE_get
+returns a valid
+.Vt ASN1_STRING_TABLE
+structure or
+.Dv NULL
+if nothing is found.
+.Sh SEE ALSO
+.Xr ASN1_OBJECT_new 3 ,
+.Xr ASN1_STRING_set_by_NID 3 ,
+.Xr OBJ_create 3 ,
+.Xr OBJ_nid2obj 3
+.Sh HISTORY
+.Fn ASN1_STRING_TABLE_get
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Sh BUGS
+Most aspects of the semantics considerably differ from OpenSSL.
+.Pp
+.Dv ub_email_address ,
+which should really be called
+.Dv ub_emailaddress_length ,
+was changed in RFC 5280 from 128 to 255 to match PKCS#9 (RFC 2985).

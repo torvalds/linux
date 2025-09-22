@@ -1,0 +1,107 @@
+//===- MsgPack.def - MessagePack definitions --------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Macros for running through MessagePack enumerators.
+///
+//===----------------------------------------------------------------------===//
+
+#if !(                                                                         \
+    defined HANDLE_MP_FIRST_BYTE || defined HANDLE_MP_FIX_BITS ||              \
+    defined HANDLE_MP_FIX_BITS_MASK || defined HANDLE_MP_FIX_MAX ||            \
+    defined HANDLE_MP_FIX_LEN || defined HANDLE_MP_FIX_MIN)
+#error "Missing macro definition of HANDLE_MP*"
+#endif
+
+#ifndef HANDLE_MP_FIRST_BYTE
+#define HANDLE_MP_FIRST_BYTE(ID, NAME)
+#endif
+
+#ifndef HANDLE_MP_FIX_BITS
+#define HANDLE_MP_FIX_BITS(ID, NAME)
+#endif
+
+#ifndef HANDLE_MP_FIX_BITS_MASK
+#define HANDLE_MP_FIX_BITS_MASK(ID, NAME)
+#endif
+
+#ifndef HANDLE_MP_FIX_MAX
+#define HANDLE_MP_FIX_MAX(ID, NAME)
+#endif
+
+#ifndef HANDLE_MP_FIX_LEN
+#define HANDLE_MP_FIX_LEN(ID, NAME)
+#endif
+
+#ifndef HANDLE_MP_FIX_MIN
+#define HANDLE_MP_FIX_MIN(ID, NAME)
+#endif
+
+HANDLE_MP_FIRST_BYTE(0xc0, Nil)
+HANDLE_MP_FIRST_BYTE(0xc2, False)
+HANDLE_MP_FIRST_BYTE(0xc3, True)
+HANDLE_MP_FIRST_BYTE(0xc4, Bin8)
+HANDLE_MP_FIRST_BYTE(0xc5, Bin16)
+HANDLE_MP_FIRST_BYTE(0xc6, Bin32)
+HANDLE_MP_FIRST_BYTE(0xc7, Ext8)
+HANDLE_MP_FIRST_BYTE(0xc8, Ext16)
+HANDLE_MP_FIRST_BYTE(0xc9, Ext32)
+HANDLE_MP_FIRST_BYTE(0xca, Float32)
+HANDLE_MP_FIRST_BYTE(0xcb, Float64)
+HANDLE_MP_FIRST_BYTE(0xcc, UInt8)
+HANDLE_MP_FIRST_BYTE(0xcd, UInt16)
+HANDLE_MP_FIRST_BYTE(0xce, UInt32)
+HANDLE_MP_FIRST_BYTE(0xcf, UInt64)
+HANDLE_MP_FIRST_BYTE(0xd0, Int8)
+HANDLE_MP_FIRST_BYTE(0xd1, Int16)
+HANDLE_MP_FIRST_BYTE(0xd2, Int32)
+HANDLE_MP_FIRST_BYTE(0xd3, Int64)
+HANDLE_MP_FIRST_BYTE(0xd4, FixExt1)
+HANDLE_MP_FIRST_BYTE(0xd5, FixExt2)
+HANDLE_MP_FIRST_BYTE(0xd6, FixExt4)
+HANDLE_MP_FIRST_BYTE(0xd7, FixExt8)
+HANDLE_MP_FIRST_BYTE(0xd8, FixExt16)
+HANDLE_MP_FIRST_BYTE(0xd9, Str8)
+HANDLE_MP_FIRST_BYTE(0xda, Str16)
+HANDLE_MP_FIRST_BYTE(0xdb, Str32)
+HANDLE_MP_FIRST_BYTE(0xdc, Array16)
+HANDLE_MP_FIRST_BYTE(0xdd, Array32)
+HANDLE_MP_FIRST_BYTE(0xde, Map16)
+HANDLE_MP_FIRST_BYTE(0xdf, Map32)
+
+HANDLE_MP_FIX_BITS(0x00, PositiveInt)
+HANDLE_MP_FIX_BITS(0x80, Map)
+HANDLE_MP_FIX_BITS(0x90, Array)
+HANDLE_MP_FIX_BITS(0xa0, String)
+HANDLE_MP_FIX_BITS(0xe0, NegativeInt)
+
+HANDLE_MP_FIX_BITS_MASK(0x80, PositiveInt)
+HANDLE_MP_FIX_BITS_MASK(0xf0, Map)
+HANDLE_MP_FIX_BITS_MASK(0xf0, Array)
+HANDLE_MP_FIX_BITS_MASK(0xe0, String)
+HANDLE_MP_FIX_BITS_MASK(0xe0, NegativeInt)
+
+HANDLE_MP_FIX_MAX(0x7f, PositiveInt)
+HANDLE_MP_FIX_MAX(0x0f, Map)
+HANDLE_MP_FIX_MAX(0x0f, Array)
+HANDLE_MP_FIX_MAX(0x1f, String)
+
+HANDLE_MP_FIX_LEN(0x01, Ext1)
+HANDLE_MP_FIX_LEN(0x02, Ext2)
+HANDLE_MP_FIX_LEN(0x04, Ext4)
+HANDLE_MP_FIX_LEN(0x08, Ext8)
+HANDLE_MP_FIX_LEN(0x10, Ext16)
+
+HANDLE_MP_FIX_MIN(-0x20, NegativeInt)
+
+#undef HANDLE_MP_FIRST_BYTE
+#undef HANDLE_MP_FIX_BITS
+#undef HANDLE_MP_FIX_BITS_MASK
+#undef HANDLE_MP_FIX_MAX
+#undef HANDLE_MP_FIX_LEN
+#undef HANDLE_MP_FIX_MIN

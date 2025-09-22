@@ -1,0 +1,281 @@
+.\"	$OpenBSD: pctr.4,v 1.30 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Pentium performance counter driver for OpenBSD.
+.\" Copyright 1996 David Mazieres <dm@lcs.mit.edu>.
+.\"
+.\" Modification and redistribution in source and binary forms is
+.\" permitted provided that due credit is given to the author and the
+.\" OpenBSD project by leaving this copyright notice intact.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt PCTR 4 i386
+.Os
+.Sh NAME
+.Nm pctr
+.Nd driver for CPU performance counters
+.Sh SYNOPSIS
+.Cd "pseudo-device pctr 1"
+.Sh DESCRIPTION
+The
+.Nm
+device provides access to the performance counters on AMD and Intel brand
+processors, and to the TSC on others.
+.Pp
+Intel processors have two 40-bit performance counters which can be
+programmed to count events such as cache misses, branch target buffer hits,
+TLB misses, dual-issues, interrupts, pipeline flushes, and more.
+While AMD processors have four 48-bit counters, their precision is decreased
+to 40 bits.
+.Pp
+There is one
+.Em ioctl
+call to read the status of all counters, and one
+.Em ioctl
+call to program the function of each counter.
+All require the following includes:
+.Bd -literal -offset indent
+#include <sys/types.h>
+#include <machine/cpu.h>
+#include <machine/pctr.h>
+.Ed
+.Pp
+The current state of all counters can be read with the
+.Dv PCIOCRD
+.Em ioctl ,
+which takes an argument of type
+.Dv "struct pctrst" :
+.Bd -literal -offset indent
+#define PCTR_NUM	4
+struct pctrst {
+	u_int pctr_fn[PCTR_NUM];
+	pctrval pctr_tsc;
+	pctrval pctr_hwc[PCTR_NUM];
+};
+.Ed
+.Pp
+In this structure,
+.Em ctr_fn
+contains the functions of the counters, as previously set by the
+.Dv PCIOCS0 ,
+.Dv PCIOCS1 ,
+.Dv PCIOCS2
+and
+.Dv PCIOCS3
+ioctls (see below).
+.Em pctr_hwc
+contains the actual value of the hardware counters.
+.Em pctr_tsc
+is a free-running, 64-bit cycle counter.
+.Pp
+The functions of the counters can be programmed with ioctls
+.Dv PCIOCS0 ,
+.Dv PCIOCS1 ,
+.Dv PCIOCS2
+and
+.Dv PCIOCS3
+which require a writeable file descriptor and take an argument of type
+.Dv "unsigned int" . \&
+The meaning of this integer is dependent on the particular CPU.
+.Ss Time stamp counter
+The time stamp counter is available on most of the AMD K6, Intel Pentium
+and higher class CPUs, as well as on some 486s and non-intel CPUs.
+It is set to zero at boot time, and then increments with each cycle.
+Because the counter is 64-bits wide, it does not overflow.
+.Pp
+The time stamp counter can be read directly from user-mode using
+the
+.Fn rdtsc
+macro, which returns a 64-bit value of type
+.Em pctrval .
+The following example illustrates a simple use of
+.Fn rdtsc
+to measure the execution time of a hypothetical subroutine called
+.Fn functionx :
+.Bd -literal -offset indent
+void
+time_functionx(void)
+{
+	pctrval tsc;
+
+	tsc = rdtsc();
+	functionx();
+	tsc = rdtsc() - tsc;
+	printf("Functionx took %llu cycles.\en", tsc);
+}
+.Ed
+.Pp
+The value of the time stamp counter is also returned by the
+.Dv PCIOCRD
+.Em ioctl ,
+so that one can get an exact timestamp on readings of the hardware
+event counters.
+.Ss Intel Pentium counters
+The Intel Pentium counters are programmed with a 9 bit function.
+The top three bits contain the following flags:
+.Bl -tag -width P5CTR_C
+.It Dv P5CTR_K
+Enables counting of events that occur in kernel mode.
+.It Dv P5CTR_U
+Enables counting of events that occur in user mode.
+You must set at least one of
+.Dv P5CTR_U
+and
+.Dv P5CTR_K
+to count anything.
+.It Dv P5CTR_C
+When this flag is set, the counter attempts to count the number of
+cycles spent servicing a particular event, rather than simply the
+number of occurrences of that event.
+.El
+.Pp
+The bottom 6 bits set the particular event counted.
+A list of possible event functions could be obtained by running a
+.Xr pctr 1
+command with
+.Fl l
+option.
+.Ss "Counters for AMD K6, Intel Pentium Pro and newer CPUs"
+Unlike the Pentium counters, these counters can be read
+directly from user-mode without need to invoke the kernel.
+The macro
+.Fn rdpmc ctr
+takes 0, 1, 2 or 3 as an argument to specify a counter, and returns that
+counter's 40-bit value (which will be of type
+.Em pctrval ) .
+This is generally preferable to making a system call as it introduces
+less distortion in measurements.
+.Pp
+Counter functions supported by these CPUs contain several parts.
+The most significant byte (an 8-bit integer shifted left by
+.Dv PCTR_CM_SHIFT )
+contains a
+.Em "counter mask" .
+If non-zero, this sets a threshold for the number of times an event
+must occur in one cycle for the counter to be incremented.
+The
+.Em "counter mask"
+can therefore be used to count cycles in which an event
+occurs at least some number of times.
+The next byte contains several flags:
+.Bl -tag -width PCTR_EN
+.It Dv PCTR_U
+Enables counting of events that occur in user mode.
+.It Dv PCTR_K
+Enables counting of events that occur in kernel mode.
+You must set at least one of
+.Dv PCTR_K
+and
+.Dv PCTR_U
+to count anything.
+.It Dv PCTR_E
+Counts edges rather than cycles.
+For some functions this allows you
+to get an estimate of the number of events rather than the number of
+cycles occupied by those events.
+.It Dv PCTR_EN
+Enable counters.
+This bit must be set in the function for counter 0
+in order for either of the counters to be enabled.
+This bit should probably be set in counter 1 as well.
+.It Dv PCTR_I
+Inverts the sense of the
+.Em "counter mask" . \&
+When this bit is set, the counter only increments on cycles in which
+there are no
+.Em more
+events than specified in the
+.Em "counter mask" .
+.El
+.Pp
+The next byte (shifted left by the
+.Dv PCTR_UM_SHIFT )
+contains flags specific to the event being counted, also known as the
+.Em "unit mask" .
+.Pp
+For events dealing with the L2 cache, the following flags are valid
+on Intel brand processors:
+.Bl -tag -width PCTR_UM_M
+.It Dv PCTR_UM_M
+Count events involving modified cache coherency state lines.
+.It Dv PCTR_UM_E
+Count events involving exclusive cache coherency state lines.
+.It Dv PCTR_UM_S
+Count events involving shared cache coherency state lines.
+.It Dv PCTR_UM_I
+Count events involving invalid cache coherency state lines.
+.El
+.Pp
+To measure all L2 cache activity, all these bits should be set.
+They can be set with the macro
+.Dv PCTR_UM_MESI
+which contains the bitwise or of all of the above.
+.Pp
+For event types dealing with bus transactions, there is another flag
+that can be set in the
+.Em "unit mask" :
+.Bl -tag -width PCTR_UM_A
+.It Dv PCTR_UM_A
+Count all appropriate bus events, not just those initiated by the
+processor.
+.El
+.Pp
+Events marked
+.Em (MESI)
+require the
+.Dv PCTR_UM_[MESI]
+bits in the
+.Em "unit mask" . \&
+Events marked
+.Em (A)
+can take the
+.Dv PCTR_UM_A
+bit.
+.Pp
+Finally, the least significant byte of the counter function is the
+event type to count.
+A list of possible event functions could be obtained by running a
+.Xr pctr 1
+command with
+.Fl l
+option.
+.Sh FILES
+.Bl -tag -width /dev/pctr -compact
+.It Pa /dev/pctr
+.El
+.Sh ERRORS
+.Bl -tag -width "[ENODEV]"
+.It Bq Er ENODEV
+An attempt was made to set the counter functions on a CPU that does
+not support counters.
+.It Bq Er EINVAL
+An invalid counter function was provided as an argument to the
+.Dv PCIOCSx
+.Em ioctl .
+.It Bq Er EPERM
+An attempt was made to set the counter functions, but the device was
+not open for writing.
+.El
+.Sh SEE ALSO
+.Xr pctr 1 ,
+.Xr ioctl 2
+.Sh HISTORY
+A
+.Nm
+device first appeared in
+.Ox 2.0
+but was subsequently extended to support AMD and newer Intel CPUs in
+.Ox 4.3 .
+.Sh AUTHORS
+The
+.Nm
+device was written by
+.An David Mazieres Aq Mt dm@lcs.mit.edu .
+.Sh BUGS
+Not all counter functions are completely accurate.
+Some of the functions may not make any sense at all.
+Also you should be aware of the possibility of an interrupt between
+invocations of
+.Fn rdpmc
+and/or
+.Fn rdtsc
+that can potentially decrease the accuracy of measurements.

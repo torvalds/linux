@@ -1,0 +1,255 @@
+.\" $OpenBSD: mio_open.3,v 1.20 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2007 Alexandre Ratchov <alex@caoua.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt MIO_OPEN 3
+.Os
+.Sh NAME
+.Nm mio_open ,
+.Nm mio_close ,
+.Nm mio_read ,
+.Nm mio_write ,
+.Nm mio_nfds ,
+.Nm mio_pollfd ,
+.Nm mio_revents ,
+.Nm mio_eof
+.Nd sndio interface to MIDI streams
+.Sh SYNOPSIS
+.Lb libsndio
+.In sndio.h
+.Ft struct mio_hdl *
+.Fn mio_open "const char *name" "unsigned int mode" "int nbio_flag"
+.Ft void
+.Fn mio_close "struct mio_hdl *hdl"
+.Ft size_t
+.Fn mio_read "struct mio_hdl *hdl" "void *addr" "size_t nbytes"
+.Ft size_t
+.Fn mio_write "struct mio_hdl *hdl" "const void *addr" "size_t nbytes"
+.Ft int
+.Fn mio_nfds "struct mio_hdl *hdl"
+.Ft int
+.Fn mio_pollfd "struct mio_hdl *hdl" "struct pollfd *pfd" "int events"
+.Ft int
+.Fn mio_revents "struct mio_hdl *hdl" "struct pollfd *pfd"
+.Ft int
+.Fn mio_eof "struct mio_hdl *hdl"
+.Sh DESCRIPTION
+The
+.Nm sndio
+library allows user processes to access
+.Xr midi 4
+hardware and
+.Xr sndiod 8
+MIDI thru boxes and control ports in a uniform way.
+.Ss Opening and closing a MIDI stream
+First the application must call the
+.Fn mio_open
+function to obtain a handle representing the newly created stream;
+later it will be passed as the
+.Ar hdl
+argument of most other functions.
+The
+.Ar name
+parameter gives the device string discussed in
+.Xr sndio 7 .
+If the program is using a single device and is providing no device chooser,
+it should be set to MIO_PORTANY to allow the user to select it using the
+.Ev MIDIDEVICE
+environment variable.
+.Pp
+The
+.Ar mode
+parameter gives the direction of the stream.
+The following are supported:
+.Bl -tag -width "MIO_OUT | MIO_IN"
+.It MIO_OUT
+The stream is output-only; data written to the stream will be sent
+to the hardware or other programs.
+.It MIO_IN
+The stream is input-only; received data from the hardware or
+other programs must be read from the stream.
+.It MIO_IN | MIO_OUT
+The stream sends and receives data.
+This mode should be used rather than calling
+.Fn mio_open
+twice.
+.El
+.Pp
+If the
+.Ar nbio_flag
+argument is true (i.e. non-zero), then the
+.Fn mio_read
+and
+.Fn mio_write
+functions (see below) will be non-blocking.
+.Pp
+The
+.Fn mio_close
+function closes the stream and frees all allocated resources
+associated with the
+.Nm libsndio
+handle.
+.Ss Sending and receiving data
+When input mode is selected, the
+.Fn mio_read
+function must be called to retrieve received data; it must be called
+often enough to ensure that internal buffers will not overrun.
+It will store at most
+.Ar nbytes
+bytes at the
+.Ar addr
+location.
+Unless the
+.Ar nbio_flag
+flag is set, it will block until data becomes available and
+will return zero only on error.
+.Pp
+When output mode is selected, the
+.Fn mio_write
+function can be called to provide data to transmit.
+Unless the
+.Ar nbio_flag
+is set,
+.Fn mio_write
+will block until the requested amount of data is written.
+.Ss Non-blocking mode operation
+If the
+.Ar nbio_flag
+is set on
+.Fn mio_open ,
+then the
+.Fn mio_read
+and
+.Fn mio_write
+functions will never block; if no data is available, they will
+return zero immediately.
+.Pp
+To avoid busy loops when non-blocking mode is used, the
+.Xr poll 2
+system call can be used to check if data can be
+read from or written to the stream.
+The
+.Fn mio_pollfd
+function prepares the array
+.Ar pfd
+of
+.Va pollfd
+structures for use with
+.Xr poll 2 .
+The optimal size of the
+.Ar pfd
+array, which the caller must pre-allocate, is provided by the
+.Fn mio_nfds
+function.
+.Pp
+.Xr poll 2
+will sleep until any of the
+.Ar events
+requested with
+.Fn mio_pollfd
+have occurred.
+Events are represented as a bit-mask of
+.Va POLLIN
+and
+.Va POLLOUT
+constants.
+The events which woke up
+.Xr poll 2
+can be obtained with the
+.Fn mio_revents
+function.
+If
+.Va POLLIN
+is set,
+.Fn mio_read
+can be called without blocking.
+If
+.Va POLLOUT
+is set,
+.Fn mio_write
+can be called without blocking.
+POLLHUP may be set if an error occurs, even if
+it is not requested with
+.Fn mio_pollfd .
+.Ss Error handling
+Errors related to the MIDI subsystem
+(like hardware errors or dropped connections) and
+programming errors (such as a call to
+.Fn mio_read
+on a play-only stream) are considered fatal.
+Once an error occurs, all functions which take a
+.Va mio_hdl
+argument, except
+.Fn mio_close
+and
+.Fn mio_eof ,
+stop working (i.e. always return 0).
+.Sh RETURN VALUES
+The
+.Fn mio_open
+function returns the newly created handle on success or NULL
+on failure.
+.Pp
+The
+.Fn mio_pollfd
+function returns the number of
+.Va pollfd
+structures filled.
+The
+.Fn mio_nfds
+function returns the number of
+.Va pollfd
+structures the caller must preallocate in order to be sure
+that
+.Fn mio_pollfd
+will never overrun.
+.Pp
+The
+.Fn mio_revents
+function returns the bit-mask set by
+.Xr poll 2
+in the
+.Va pfd
+array of
+.Va pollfd
+structures.
+.Pp
+The
+.Fn mio_read
+and
+.Fn mio_write
+functions return the number of bytes transferred.
+.Pp
+The
+.Fn mio_eof
+function returns 0 if there's no pending error, and a non-zero
+value if there's an error.
+.Sh ENVIRONMENT
+.Bl -tag -width "SNDIO_DEBUGXXX" -compact
+.It Ev SNDIO_DEBUG
+The debug level:
+may be a value between 0 and 2.
+.El
+.Sh SEE ALSO
+.Xr poll 2 ,
+.Xr midi 4 ,
+.Xr sndio 7 ,
+.Xr sndiod 8
+.Sh HISTORY
+These functions first appeared in
+.Ox 4.7 .
+.Sh AUTHORS
+.An Alexandre Ratchov Aq Mt ratchov@openbsd.org

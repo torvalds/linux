@@ -1,0 +1,142 @@
+.\" $OpenBSD: hostapd.8,v 1.23 2022/03/31 17:27:29 naddy Exp $
+.\"
+.\" Copyright (c) 2004, 2005 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt HOSTAPD 8
+.Os
+.Sh NAME
+.Nm hostapd
+.Nd Host Access Point daemon
+.Sh SYNOPSIS
+.Nm hostapd
+.Op Fl dv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Sh DESCRIPTION
+.Nm
+is a daemon which allows communication between different 802.11
+wireless access points running in
+.Em Host AP
+mode.
+.Pp
+.Nm
+implements the Inter Access Point Protocol (IAPP).
+Its purpose is to exchange station association updates between access
+points in large wireless networks.
+IAPP has been designed to speed up roaming between different access
+points in the same Extended Service Set (ESS).
+IAPP is described in the IEEE 802.11f standard.
+.Pp
+.Nm
+additionally allows the monitoring and logging of station associations on a
+non-hostap host which is receiving IAPP messages.
+.Pp
+.Nm
+uses two network interfaces on startup specified in the configuration file
+.Xr hostapd.conf 5 .
+The first interface is used to access the Host AP,
+which is a wireless interface running in Host AP mode.
+Host AP mode can be enabled using
+.Xr ifconfig 8 .
+The second interface is used to communicate with other
+.Nm
+in the same broadcast domain or multicast group.
+Usually a wired interface is used to communicate with other
+.Nm .
+.Pp
+.Nm
+broadcasts an
+.Em ADD.notify
+IAPP message when a new station is associated to the Host AP.
+When
+.Nm
+receives an ADD.notify message, it tells the Host AP
+to remove the specified station.
+.Pp
+.Nm
+may also handle dynamic roaming of IP addresses and routes in
+addition to the standard IAPP ADD.notify behaviour.
+See the section called IP Roaming in
+.Xr hostapd.conf 5
+for details.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize and log to
+.Em stderr .
+.It Fl f Ar file
+Use
+.Ar file
+as the configuration file, instead of the default
+.Pa /etc/hostapd.conf .
+.It Fl v
+Produce more verbose output.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/hostapd.confXXX" -compact
+.It Pa /etc/hostapd.conf
+default
+.Nm
+configuration file
+.El
+.Sh SEE ALSO
+.Xr hostapd.conf 5 ,
+.Xr ifconfig 8
+.Rs
+.%R IEEE 802.11f
+.%T Inter Access Point Protocol
+.%D March 2001
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared at the 21st Chaos Communication Congress
+.Pq Lk https://events.ccc.de/congress/2004/
+and later in
+.Ox 3.8 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .
+.Sh CAVEATS
+.Nm
+depends on drivers using the net80211
+kernel wireless layer with support of Host AP mode.
+For traditional reasons,
+the
+.Xr wi 4
+driver still uses its own Host AP code in
+.Fn if_wi_hostap ,
+which is not supported by
+.Nm .
+.Pp
+The IEEE 802.11 WLAN protocol lacks authentication of management
+frames and is vulnerable to various denial of service and
+man-in-the-middle attacks.
+That should be considered when implementing wireless networks
+with
+.Nm .

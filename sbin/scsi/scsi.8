@@ -1,0 +1,346 @@
+.\"	$OpenBSD: scsi.8,v 1.36 2024/12/21 13:15:36 jsg Exp $
+.\"	$FreeBSD: scsi.8,v 1.5 1995/05/05 20:41:58 dufault Exp $
+.\"
+.\" Written By Julian ELischer
+.\" Copyright julian Elischer 1993.
+.\" Permission is granted to use or redistribute this file in any way as long
+.\" as this notice remains. Julian Elischer does not guarantee that this file
+.\" is totally correct for any given task and users of this file must
+.\" accept responsibility for any damage that occurs from the application of
+.\" this file.
+.\"
+.\" (julian@tfs.com julian@dialix.oz.au)
+.\" User SCSI hooks added by Peter Dufault:
+.\"
+.\" Copyright (c) 1994 HD Associates
+.\" (contact: dufault@hda.com)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of HD Associates
+.\"    may not be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY HD ASSOCIATES ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL HD ASSOCIATES BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 21 2024 $
+.Dt SCSI 8
+.Os
+.Sh NAME
+.Nm scsi
+.Nd program to assist with SCSI devices
+.Sh SYNOPSIS
+.Nm scsi
+.Fl f Ar device
+.Fl d Ar debug_level
+.Nm scsi
+.Fl f Ar device
+.Fl m Ar page
+.Op Fl e
+.Op Fl P Ar pc
+.Nm scsi
+.Fl f Ar device
+.Op Fl v
+.Op Fl s Ar seconds
+.Fl c Ar cmd_fmt
+.Op Ar arg ...
+.Fl o Ar count out_fmt
+.Op Ar arg ...
+.Fl i Ar count in_fmt
+.Op Ar arg ...
+.Sh DESCRIPTION
+The
+.Nm
+program is used to send commands to a SCSI device.
+It is also a sample usage of the user-level SCSI commands.
+.Ar out_fmt
+can be
+.Ql -
+to read output data from stdin;
+.Ar in_fmt
+can be
+.Ql -
+to write input data to stdout.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Xo
+.Fl c Ar cmd_fmt Op Ar arg ...
+.Xc
+Send a user-level SCSI command to a device.
+The command format is described below and the command is sent using the
+.Dv SCIOCCOMMAND
+.Xr ioctl 2 ,
+so the device being accessed must permit this ioctl.
+See
+.Xr scsi 4
+for full details of which minor devices permit the ioctl.
+.It Fl d Ar debug_level
+Sets the SCSI kernel debug level.
+The kernel must have been compiled with the
+.Ic SCSIDEBUG
+option.
+See
+.Pa /sys/scsi/scsi_debug.h
+to figure out what to set the kernel debug level to.
+.It Fl e
+Permits edit of the fields.
+It will use the editor specified by the
+.Ev EDITOR
+environment variable.
+To store changes permanently, edit page control 3 using the
+.Fl P
+flag.
+.It Fl f Ar device
+Specifies the
+.Ar device
+that should be opened, e.g.,
+.Pa /dev/rsd0c .
+.It Xo
+.Fl i Ar count in_fmt Op Ar arg ...
+.Xc
+Indicates that this is an input command (i.e., data will be read from
+the device into the system) with
+.Ar count
+bytes of data read in.
+The information is extracted according to
+.Ar in_fmt
+and is displayed on standard output.
+.Ar in_fmt
+can be specified as a hyphen
+.Pq Ql -
+to indicate that
+.Ar count
+bytes of data input should be written to standard output.
+.It Fl m Ar page
+Read a device mode page.
+The file
+.Pa /usr/share/misc/scsi_modes
+is read to discover how to interpret the mode data.
+The environment variable
+.Ev SCSI_MODES
+can specify a different file to use.
+.It Xo
+.Fl o Ar count out_fmt Op Ar arg ...
+.Xc
+Indicates that this is an output command (i.e., data will be sent from
+the system to the device) with
+.Ar count
+bytes of data.
+The data is built up
+using the provided arguments to fill in any integer variables.
+.Ar out_fmt
+can be specified as a hyphen
+.Pq Ql -
+to indicate that
+.Ar count
+bytes of data should be read from standard input.
+.It Fl P Ar pc
+Specify a page control field.
+The page control fields are
+.Bd -literal -offset indent
+0 Current Values
+1 Changeable Values
+2 Default Values
+3 Saved Values
+.Ed
+.It Fl s Ar seconds
+Sets the command timeout to
+.Ar seconds .
+The default is two seconds.
+.It Fl v
+Turns on more verbose information.
+.El
+.Ss SCSI commands
+The command arguments to the
+.Fl cio
+options specify the command data buffer used to both send and receive
+information to and from the
+.Xr scsi 4
+subsystem.
+Their format is:
+.Pp
+.Dl Fl c Ar command Op Ar argument ...
+.Pp
+The commands are composed of a list of field specifiers.
+The specifiers denote the field name, the field value, and the length of
+the field.
+Examples are given below.
+.Pp
+Whitespace and text following a
+.Sq #
+character in the command string are ignored.
+.Pp
+The first part of a field specifier is the field name and is surrounded
+by curly braces
+.Pq Sq {} .
+This part is optional and may be left out.
+.Pp
+The second part is the value of the field.
+The value may be given directly or may arrange that the next argument to
+the
+.Nm
+command be used as the value of the field.
+Direct hexadecimal
+.Pq Li 0\-FF
+or decimal
+.Pq 0\-255
+values may be specified.
+The special value
+.Ic v
+can be used to arrange that the next integer argument be taken from the
+.Ar argument
+list.
+For retrieving output (with
+.Fl i ) ,
+this part of the field cannot be used.
+.Pp
+The third part specifies the length of the field.
+This is optional and defaults to one byte if not specified.
+The length may be specified in bits by prefixing it with
+.Ic b
+or
+.Ic t ,
+or in bytes by prefixing it with
+.Ic i .
+Additionally, character arrays can be specified by prefixing with
+.Ic c
+or, with zeroed trailing spaces, with
+.Ic z .
+Bits are packed together tightly and begin with the high bit.
+New bytes are started when a byte fills or an
+.Ic i
+field is next.
+.Ic i
+fields indicate a 1\-4 byte integral value that must already be given in
+SCSI byte order (most significant byte first).
+Otherwise, the field value specified will be swapped into SCSI byte order.
+.Pp
+Retrieving data (with
+.Fl i )
+follows similarly but without field values.
+Besides field specifiers, the command can also include control operations,
+which currently includes seeking operations used to ignore returned data.
+Seek operations are composed of the
+.Ic s
+character followed by the absolute position to skip to.
+If the position is prefixed with a
+.Ic + ,
+the position is interpreted relative to the current position.
+.\" The position can also be read from the
+.\" .Ar arg
+.\" list if
+.\" .Ic v
+.\" is specified as the seek value.
+.Pp
+Entire fields can be suppressed from being returned with the
+.Ic *
+modifier prepended to the field width.
+.Pp
+Here are some examples:
+.Bl -tag -width 17n
+.It Ic s8 z8 z16 z4
+Seek to position 8 and specify three fields of lengths 8 bytes, 16
+bytes, and 4 bytes.
+.It Ic 1A 2
+Specify a one-byte field with the hexadecimal value
+.Li 0x1A
+followed by another one-byte field with the decimal value 2.
+.It Ic v:i1
+Specify a one-byte field whose value will be determined from the
+next argument in the
+.Ar argument
+list.
+.It Ic 0:7
+Specify a 7-bit field with a value of zero.
+.It Ic *b3 b5
+Specify a three-bit field that will be suppressed from being returned
+and a five-bit field that will be returned.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width SU_DEBUG_TRUNCATE
+.It Ev SU_DEBUG_OUTPUT
+This
+variable can be set to a file to send debugging
+output to that file.
+.It Dv SU_DEBUG_LEVEL
+This
+variable can be set to a non-zero integer to increase
+the level of debugging.
+Currently this is an on or off thing; it should
+perhaps use the ioctl to set the debug level in the kernel and then set
+it back to zero at program exit.
+.It Ev SU_DEBUG_TRUNCATE
+This
+variable can be set to an integer to limit the
+amount of data phase output sent to the debugging file.
+.It Ev EDITOR
+This
+variable determines the editor to use for the mode editor.
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/misc/scsi_modes
+.It Pa /usr/share/misc/scsi_modes
+.El
+.Sh EXIT STATUS
+.Ex -std scsi
+.Sh EXAMPLES
+To verify that the device type for the disk
+.Pa /dev/rsd0c
+is 0
+(direct access device):
+.Bd -literal -offset indent
+# scsi -f /dev/rsd0c -c "12 0 0 0 64 0" -i 0x64 "*b3 b5"
+0
+.Ed
+.Pp
+To do an inquiry to
+.Pa /dev/rsd2c :
+.Bd -literal -offset indent
+# scsi -f /dev/rsd2c -c "12 0 0 0 64 0" -i 0x64 "s8 z8 z16 z4"
+FUJITSU M2654S-512 010P
+.Ed
+.Pp
+To spin down
+.Pa /dev/rsd2c :
+.Bd -literal -offset indent
+# scsi -f /dev/rsd2c -c "1b 0 0 0 0 0"
+.Ed
+.Pp
+To edit mode page 1 on
+.Pa /dev/rsd2c
+and store it permanently on the
+drive (set AWRE and ARRE to 1 to enable bad block remapping):
+.Pp
+.Dl # scsi -f /dev/rsd2c -m 1 -e -P 3
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx
+to support the new reprobe and user SCSI commands.
+.Sh BUGS
+.Ic scsi\ -f /dev/rsd0c -c \(dq4 0 0 0 0 0\(dq
+permits anyone who can write to
+.Pa /dev/rsd0c
+to format the disk drive.

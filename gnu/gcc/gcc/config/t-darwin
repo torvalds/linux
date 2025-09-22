@@ -1,0 +1,33 @@
+darwin.o: $(srcdir)/config/darwin.c $(CONFIG_H) $(SYSTEM_H) coretypes.h     \
+  $(TM_H) $(RTL_H) $(REGS_H) hard-reg-set.h $(REAL_H) insn-config.h         \
+  conditions.h insn-flags.h output.h insn-attr.h flags.h $(TREE_H) expr.h   \
+  reload.h function.h $(GGC_H) langhooks.h $(TARGET_H) $(TM_P_H) gt-darwin.h \
+  config/darwin-sections.def
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/darwin.c
+
+darwin-c.o: $(srcdir)/config/darwin-c.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  $(TM_H) $(CPPLIB_H) $(TREE_H) c-pragma.h $(C_TREE_H) toplev.h $(TM_P_H) \
+  c-incpath.h flags.h $(C_COMMON_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/darwin-c.c $(PREPROCESSOR_DEFINES)
+
+gt-darwin.h : s-gtype ; @true
+
+# How to build crt3.o
+EXTRA_MULTILIB_PARTS=crt3.o
+# Pass -fno-tree-dominator-opts to work around bug 26840.
+$(T)crt3$(objext): $(srcdir)/config/darwin-crt3.c $(GCC_PASSES) \
+	$(TCONFIG_H) stmp-int-hdrs tsystem.h
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(INCLUDES) $(MULTILIB_CFLAGS) \
+	  -fno-tree-dominator-opts $(DARWIN_EXTRA_CRT_BUILD_CFLAGS) \
+	  -c $(srcdir)/config/darwin-crt3.c -o $(T)crt3$(objext)
+
+# Use unwind-dw2-fde-darwin
+LIB2ADDEH = $(srcdir)/unwind-dw2.c $(srcdir)/unwind-dw2-fde-darwin.c \
+  $(srcdir)/unwind-sjlj.c $(srcdir)/unwind-c.c
+LIB2ADDEHDEP = unwind.inc unwind-dw2-fde.h unwind-dw2-fde.c
+
+# -pipe because there's an assembler bug, 4077127, which causes
+# it to not properly process the first # directive, causing temporary
+# file names to appear in stabs, causing the bootstrap to fail.  Using -pipe
+# works around this by not having any temporary file names.
+TARGET_LIBGCC2_CFLAGS = -fPIC -pipe

@@ -1,0 +1,137 @@
+Wed Jun 25 15:13:51 CDT 2003
+
+First-level instrumentation
+---------------------------
+
+We use opt to do Bytecode-to-bytecode instrumentation. Look at
+back-edges and insert llvm_first_trigger() function call which takes
+no arguments and no return value. This instrumentation is designed to
+be easy to remove, for instance by writing a NOP over the function
+call instruction.
+
+Keep count of every call to llvm_first_trigger(), and maintain
+counters in a map indexed by return address. If the trigger count
+exceeds a threshold, we identify a hot loop and perform second-level
+instrumentation on the hot loop region (the instructions between the
+target of the back-edge and the branch that causes the back-edge).  We
+do not move code across basic-block boundaries.
+
+
+Second-level instrumentation
+---------------------------
+
+We remove the first-level instrumentation by overwriting the CALL to
+llvm_first_trigger() with a NOP.
+
+The reoptimizer maintains a map between machine-code basic blocks and
+LLVM BasicBlock*s.  We only keep track of paths that start at the
+first machine-code basic block of the hot loop region.
+
+How do we keep track of which edges to instrument, and which edges are
+exits from the hot region? 3 step process.
+
+1) Do a DFS from the first machine-code basic block of the hot loop
+region and mark reachable edges.
+
+2) Do a DFS from the last machine-code basic block of the hot loop
+region IGNORING back edges, and mark the edges which are reachable in
+1) and also in 2) (i.e., must be reachable from both the start BB and
+the end BB of the hot region).
+
+3) Mark BBs which end in edges that exit the hot region; we need to
+instrument these differently.
+
+Assume that there is 1 free register. On SPARC we use %g1, which LLC
+has agreed not to use.  Shift a 1 into it at the beginning. At every
+edge which corresponds to a conditional branch, we shift 0 for not
+taken and 1 for taken into a register. This uniquely numbers the paths
+through the hot region. Silently fail if we need more than 64 bits.
+
+At the end BB we call countPath and increment the counter based on %g1
+and the return address of the countPath call.  We keep track of the
+number of iterations and the number of paths.  We only run this
+version 30 or 40 times.
+
+Find the BBs that total 90% or more of execution, and aggregate them
+together to form our trace. But we do not allow more than 5 paths; if
+we have more than 5 we take the ones that are executed the most.  We
+verify our assumption that we picked a hot back-edge in first-level
+instrumentation, by making sure that the number of times we took an
+exit edge from the hot trace is less than 10% of the number of
+iterations.
+
+LLC has been taught to recognize llvm_first_trigger() calls and NOT
+generate saves and restores of caller-saved registers around these
+calls.
+
+
+Phase behavior
+--------------
+
+We turn off llvm_first_trigger() calls with NOPs, but this would hide
+phase behavior from us (when some funcs/traces stop being hot and
+others become hot.)
+
+We have a SIGALRM timer that counts time for us. Every time we get a
+SIGALRM we look at our priority queue of locations where we have
+removed llvm_first_trigger() calls. Each location is inserted along
+with a time when we will next turn instrumentation back on for that
+call site. If the time has arrived for a particular call site, we pop
+that off the prio. queue and turn instrumentation back on for that
+call site.
+
+
+Generating traces
+-----------------
+
+When we finally generate an optimized trace we first copy the code
+into the trace cache. This leaves us with 3 copies of the code: the
+original code, the instrumented code, and the optimized trace. The
+optimized trace does not have instrumentation. The original code and
+the instrumented code are modified to have a branch to the trace
+cache, where the optimized traces are kept.
+
+We copy the code from the original to the instrumentation version
+by tracing the LLVM-to-Machine code basic block map and then copying
+each machine code basic block we think is in the hot region into the
+trace cache. Then we instrument that code. The process is similar for
+generating the final optimized trace; we copy the same basic blocks
+because we might need to put in fixup code for exit BBs.
+
+LLVM basic blocks are not typically used in the Reoptimizer except
+for the mapping information.
+
+We are restricted to using single instructions to branch between the
+original code, trace, and instrumented code. So we have to keep the
+code copies in memory near the original code (they can't be far enough
+away that a single pc-relative branch would not work.) Malloc() or
+data region space is too far away. this impacts the design of the 
+trace cache.
+
+We use a dummy function that is full of a bunch of for loops which we
+overwrite with trace-cache code. The trace manager keeps track of
+whether or not we have enough space in the trace cache, etc.
+
+The trace insertion routine takes an original start address, a vector
+of machine instructions representing the trace, index of branches and
+their corresponding absolute targets, and index of calls and their
+corresponding absolute targets.
+
+The trace insertion routine is responsible for inserting branches from
+the beginning of the original code to the beginning of the optimized
+trace. This is because at some point the trace cache may run out of
+space and it may have to evict a trace, at which point the branch to
+the trace would also have to be removed. It uses a round-robin
+replacement policy; we have found that this is almost as good as LRU
+and better than random (especially because of problems fitting the new
+trace in.)
+
+We cannot deal with discontiguous trace cache areas.  The trace cache
+is supposed to be cache-line-aligned, but it is not page-aligned.
+
+We generate instrumentation traces and optimized traces into separate
+trace caches. We keep the instrumented code around because you don't
+want to delete a trace when you still might have to return to it
+(i.e., return from an llvm_first_trigger() or countPath() call.)
+
+

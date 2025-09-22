@@ -1,0 +1,121 @@
+.\"	$OpenBSD: nmea.4,v 1.28 2019/01/27 07:15:57 jmc Exp $
+.\"
+.\" Copyright (c) 2006, 2007 Marc Balmer <mbalmer@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 27 2019 $
+.Dt NMEA 4
+.Os
+.Sh NAME
+.Nm nmea
+.Nd NMEA 0183 timedelta sensor
+.Sh SYNOPSIS
+.Cd "pseudo-device nmea" Op Ar count
+.Sh DESCRIPTION
+This line discipline interfaces NMEA devices,
+such as GPS receivers attached to a serial or USB port.
+.Pp
+The line discipline is enabled by the following sequence:
+.Bd -literal -offset indent
+#include <sys/ioctl.h>
+int ldisc = NMEADISC, fildes; ...
+ioctl(fildes, TIOCSETD, &ldisc);
+.Ed
+.Pp
+The byte stream is unaltered by the line discipline which
+maintains timedelta and position sensors using the NMEA data.
+The sensors will appear as nmea* in the list.
+The timedelta (nanoseconds difference between the received time
+information and the local time), position (calculated latitude
+and longitude in degrees), altitude and speed can be accessed
+through the
+.Xr sysctl 8
+interface.
+.Pp
+The
+.Nm
+line discipline decodes the following NMEA 0183 sentences:
+.Bl -tag -width "RMCXX"
+.It RMC
+Recommended Minimum Specific GPS/TRANSIT Data.
+The time and date information, position and speed are extracted.
+The warning indication is used to provide the sensor status (see below).
+If the attached device sends the RMC message in the 13-field format,
+the operation mode of the GPS device is reported in the sensor description.
+The sensor timestamp is copied from the tty timestamp if a device with PPS
+is being used and tty timestamping has been turned on.
+Otherwise the sensor timestamp is taken when the initial `$' character of
+a message block is received from the NMEA device.
+.It GGA
+Current fix data.
+The altitude in meters is extracted.
+.El
+.Pp
+Messages source are recognised by the first two characters of the NMEA
+sentence according to the following prefixes:
+.Pp
+.Bl -tag -width "XXXXX" -offset indent -compact
+.It GP
+GPS
+.It GA
+Galileo
+.It BD
+BeiDou
+.It GL
+Glonass
+.It GN
+Generic GNSS
+.El
+.Sh SENSOR STATES
+The quality of the timedelta is reported as the sensor status:
+.Bl -tag -width "CRITICALXX" -offset indent
+.It OK
+The time information and position are valid.
+The timedelta is safe to use for applications like
+.Xr ntpd 8 .
+.It WARN
+The attached GPS receiver has been indicating a warning condition
+for at least the last ten minutes.
+The timedelta should be used with care.
+.It CRITICAL
+tty timestamping has been turned on but there is no PPS signal present or the
+GPS receiver indicated a warning condition for at least the last twenty
+minutes.
+Check your hardware.
+Some GPS units need PPS to be manually turned on.
+.El
+.Pp
+The status of a second sensor is used to report the status of the
+device itself:
+.Bl -tag -width "CRITICALXX" -offset indent
+.It OK
+The clock is synchronized, e.g. a GPS receiver has a fix.
+.It WARN
+The device issued a warning condition, e.g. a GPS receiver has no fix.
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ldattach 8 ,
+.Xr ntpd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+The
+.Nm
+line discipline was written by
+.An Marc Balmer Aq Mt mbalmer@openbsd.org .

@@ -1,0 +1,33 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("GlobalISelTests") {
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/CodeGen/MIRParser",
+    "//llvm/lib/FileCheck",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "CSETest.cpp",
+    "CallLowering.cpp",
+    "ConstantFoldingTest.cpp",
+    "GIMatchTableExecutorTest.cpp",
+    "GISelAliasTest.cpp",
+    "GISelMITest.cpp",
+    "GISelUtilsTest.cpp",
+    "KnownBitsTest.cpp",
+    "KnownBitsVectorTest.cpp",
+    "LegalizerHelperTest.cpp",
+    "LegalizerInfoTest.cpp",
+    "LegalizerTest.cpp",
+    "MachineIRBuilderTest.cpp",
+    "PatternMatchTest.cpp",
+  ]
+  has_custom_main = true
+}

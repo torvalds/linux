@@ -1,0 +1,207 @@
+dnl	$OpenBSD: install,v 1.53 2020/07/05 22:27:48 tj Exp $
+OpenBSDInstallPrelude
+
+There are several ways to install OpenBSD onto a disk. The easiest way
+in terms of preliminary setup is to use an OpenBSD installation CD-ROM
+or an installation floppy (if your machine can boot from floppy).
+
+If your machine is hooked up to a network, try and find a server to
+arrange for a diskless setup. This is a convenient way to install on a
+machine whose disk does not currently hold a usable operating system.
+This is difficult to get set up correctly the first time, but easy to
+use afterwards.  (See ``Installing using a diskless setup'' below.)
+
+Booting from the Installation Media:
+
+Prior to attempting an installation, you should make sure that everything
+of value on the target system has been backed up.  While installing OpenBSD
+does not necessarily wipe out all the partitions on the hard disk, errors
+during the install process can have unforeseen consequences and you will
+probably render the system unbootable if you start, but do not complete
+the installation.  Having the installation media for the prior installation,
+be it a Solaris or OpenBSD CD-ROM or OpenBSD install diskettes, is good
+insurance if you want to be able to "go back" for some reason.
+
+After taking care of all that, bring your system down gracefully using
+the shutdown(8) and/or halt(8) commands.  This will get you to the monitor
+prompt.
+
+
+Booting from Floppy Disk installation media:
+
+       ok boot floppy bsd
+
+This will cause the kernel contained in the floppy to be booted.
+Not all systems are able to boot from floppy; also, Ultra 1, 1E, and 2
+systems might need a firmware update to be able to boot from floppy;
+refer to the ``Updating your firmware'' section earlier in
+this document for details.
+
+
+Booting From CD-ROM installation media:
+
+dnl No args! not a typo
+	ok boot cdrom
+
+If the boot is successful, you will get a loader version message,
+executable sizes, and then the kernel copyright and device probe
+messages.  Boot failure modes are typically a lot of CD-ROM drive
+activity, but no messages or complaints about magic numbers,
+checksums or formats.
+
+
+Booting from disk:
+
+Boot the miniroot by typing the appropriate command at the PROM:
+
+	ok boot disk:b bsd
+
+If you've loaded the miniroot onto some other disk than the default
+drive 0, modify the boot specifier accordingly, keeping in mind the
+partition naming a=0, b=1...
+
+	ok boot disk1:b bsd     # example - scsi target 1 or
+				# second ide drive
+
+
+Installing using a diskless setup:
+
+First, you must set up a diskless client configuration on a server. If
+you are using an OpenBSD system as the boot-server, have a look at the
+diskless(8) manual page for guidelines on how to proceed with this.
+If the server runs another operating system, you'll have to consult
+documentation that came with it (on SunOS systems, add_client(8) and
+the Sun System/Networks administrators guide constitute a good start;
+on Solaris systems, share(1M) is a good starting point as well).
+
+
+Boot your workstation from the server by entering the appropriate `boot'
+command at the monitor prompt:
+
+	ok boot net bsd.rd
+
+
+Installing using the Floppy, CD-ROM, miniroot or netboot procedure:
+
+OpenBSDInstallPart2
+
+	Boot your machine from the installation media as described above.
+
+	It will take a while to load the kernel especially from a floppy
+	or slow network connection, most likely more than a minute.  If
+	some action doesn't eventually happen, or the spinning cursor has
+	stopped and nothing further has happened, either your boot media
+	is bad, your diskless setup isn't correct, or you may have
+	a hardware or configuration problem.
+
+OpenBSDInstallPart3
+
+OpenBSDInstallPart4
+
+OpenBSDInstallPart5
+
+OpenBSDInstallPart6({:-CD-ROM, -:})
+
+OpenBSDURLInstall
+
+OpenBSDCDROMInstall
+		
+OpenBSDDISKInstall({:-"wdN" or -:},{:-only -:})
+
+OpenBSDCommonInstall
+
+OpenBSDInstallWrapup
+
+After completing an installation:
+
+Now try a reboot.  (If needed, swap your SCSI IDs first).
+
+The UltraSPARC OpenFirmware will normally load the kernel from the device
+and filename as instructed by the ``boot-device'' and ``boot-file''
+variables.  If the ``boot-file'' variable is empty, the OpenBSD bootloader
+will look for a kernel named ``bsd'', unless a different filename has been
+specified in the boot command.  To reset this variable to its default,
+empty, value, type the following:
+
+    ok set-default boot-file
+
+
+OpenBSDCongratulations
+
+
+Net Boot or Diskless Setup Information:
+
+The setup is similar to the diskless setup, but not identical, because
+the Sun setup assumes that the bootblocks load a kernel image, which then
+uses NFS to access the exported root partition, while the OpenBSD bootblocks
+use internal NFS routines to load the kernel image directly from the
+exported root partition.
+
+Please understand that no one gets this right the first try, since
+there is a lot of setup and all the host daemons must be running and
+configured correctly.  If you have problems, extract the diskless(8)
+manpage, find someone who's been through it before and use the host
+syslog and tcpdump(8) to get visibility of what's happening (or not).
+
+Your UltraSPARC expects to be able to download a second stage bootstrap
+program via TFTP after having acquired its IP address through RevARP when
+instructed to boot "over the net". It will look for a filename composed of
+the machine's IP address. For example, a machine which has been assigned IP
+address 130.115.144.11 will make a TFTP request for `8273900B'.
+Normally, this file is a symbolic link to an appropriate second-stage
+boot program, which should be located in a place where the TFTP daemon
+can find it (remember, many TFTP daemons run in a chroot'ed environment).
+
+You can find the boot program in `/usr/mdec/boot' in the OpenBSD/MACHINE
+distribution.
+
+After the boot program has been loaded into memory and given control by
+the PROM, it starts locating the machine's remote root directory through
+the BOOTPARAM protocol. First a BOOTPARAM WHOAMI request is broadcast
+on the local net. The answer to this request (if it comes in) contains
+the client's name. This name is used in the next step, a BOOTPARAM GETFILE
+request -- sent to the server that responded to the WHOAMI request --
+requesting the name and address of the machine that will serve the client's
+root directory, as well as the path of the client's root on that server.
+
+Finally, this information (if it comes in) is used to issue a REMOTE MOUNT
+request to the client's root filesystem server, asking for an NFS file
+handle corresponding to the root filesystem. If successful, the boot
+program starts reading from the remote root filesystem in search of the
+kernel which is then read into memory.
+
+You will want export the miniroot{:--:}OSrev.img filesystem to the client.  You
+can dd this filesystem image to some spare partition, mount and export
+that partition, or use tar to copy the contents to a more convenient spot.
+
+Alternatively you can build a bootable partition from the distribution sets
+as follows:
+
+Unpack `base{:--:}OSrev.tgz' on the server in the root directory for your
+target machine. If you elect to use a separately NFS-mounted filesystem for
+`/usr' with your diskless setup, make sure the "./usr" base files in
+base{:--:}OSrev.tgz end up in the correct location. One way to do this is
+to temporarily use a loopback mount on the server, re-routing <root>/usr to
+your server's exported OpenBSD "/usr" directory. Also put the kernel and
+the install/upgrade scripts into the root directory.
+
+A few configuration files need to be edited:
+
+	<root>/etc/hosts
+		Add the IP addresses of both server and client.
+
+	<root>/etc/myname
+		This files contains the client's hostname; use the same
+		name as in <root>/etc/hosts.
+
+	<root>/etc/fstab
+		Enter the entries for the remotely mounted filesystems.
+		For example:
+			server:/export/root/client       /     nfs  rw 0 0
+			server:/export/exec/MACHINE.OpenBSD /usr  nfs  rw 0 0
+
+OpenBSDInstNFS
+
+
+
+OpenBSDUnattendedInstallation

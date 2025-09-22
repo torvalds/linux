@@ -1,0 +1,152 @@
+.\"	$OpenBSD: joy.4,v 1.15 2015/01/15 20:37:36 schwarze Exp $
+.\"
+.\" Copyright (c) 1996 Matthieu Herrb
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"     $NetBSD: joy.4,v 1.2 1996/03/31 00:17:43 perry Exp $
+.\"
+.Dd $Mdocdate: January 15 2015 $
+.Dt JOY 4 i386
+.Os
+.Sh NAME
+.Nm joy
+.Nd games adapter
+.Sh SYNOPSIS
+.Cd "joy0 at isa? port 0x201"
+.Cd "joy* at isapnp?"
+.Sh DESCRIPTION
+This driver provides access to the games adapter.
+The lower bit in the minor device number selects the joystick: 0 is the first
+joystick and 1 is the second.
+.Pp
+The game control adapter allows up to two joysticks to be attached to
+the system.
+The adapter plus the driver convert the present resistive value to a relative
+joystick position.
+On receipt of an output signal, four timing circuits are started.
+By determining the time required for the circuit to time-out (a function of
+the resistance), the paddle position can be determined.
+The adapter could be used as a general purpose I/O card with four
+analog (resistive) inputs plus four digital input points.
+.Pp
+Applications may call
+.Fn ioctl
+on a game adapter driver file descriptor
+to set and get the offsets of the two potentiometers and the maximum
+time-out value for the circuit.
+The
+.Fn ioctl
+commands are listed in
+.In machine/joystick.h
+and currently are:
+.Pp
+.Bl -tag -width JOY_GET_X_OFFSET -offset indent -compact
+.It JOY_SETTIMEOUT
+Sets the maximum time-out for the adapter.
+.It JOY_GETTIMEOUT
+Returns the current maximum time-out.
+.It JOY_SET_X_OFFSET
+Sets an offset on X value.
+.It JOY_GET_X_OFFSET
+Returns the current X offset.
+.It JOY_SET_Y_OFFSET
+Sets an offset on Y value.
+.It JOY_GET_Y_OFFSET
+Returns the current Y offset.
+.El
+.Pp
+All of these commands take an integer parameter.
+.Pp
+Read() on the file descriptor returns a
+.Fa joystick
+structure:
+.Bd -literal -offset indent
+struct joystick {
+	int x;
+	int y;
+	int b1;
+	int b2;
+};
+.Ed
+.Pp
+The fields have the following functions:
+.Pp
+.Bl -tag -width xxx -offset indent -compact
+.It Fa x
+Joystick's current X coordinate (or position of paddle 1).
+.It Fa y
+Joystick's current Y coordinate (or position of paddle 2).
+.It Fa b1
+Current state of button 1.
+.It Fa b2
+Current state of button 2.
+.El
+.Pp
+The
+.Fa b1
+and
+.Fa b2
+fields in struct joystick are set to 1 if the corresponding button is down,
+or 0 otherwise.
+.Pp
+The X and Y coordinates are supposed to be between 0 and 255 for a
+good joystick and a good adapter.
+Unfortunately, because of the hardware hack that is used to measure the
+position (by measuring the time needed to discharge an RC circuit made from
+the joystick's potentiometer and a capacitor on the adapter), calibration
+is needed to determine exactly what values are returned for a specific
+joystick/adapter combination.
+Incorrect hardware can yield negative or > 255 values.
+.Pp
+A typical calibration procedure uses the values returned at lower-left,
+center, and upper-right positions of the joystick to compute the relative
+position.
+.Pp
+This calibration is not part of the driver.
+.Sh FILES
+.Bl -tag -width /dev/joy0 -compact
+.It Pa /dev/joy0
+first joystick
+.It Pa /dev/joy1
+second joystick
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr isapnp 4
+.Sh AUTHORS
+.An -nosplit
+.An Jean-Marc Zucconi
+wrote the
+.Fx
+driver.
+.An Matthieu Herrb
+ported it to
+.Ox
+and wrote this manual page.

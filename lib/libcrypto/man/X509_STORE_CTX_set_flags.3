@@ -1,0 +1,325 @@
+.\" $OpenBSD: X509_STORE_CTX_set_flags.3,v 1.9 2025/06/08 22:37:23 schwarze Exp $
+.\" full merge up to: OpenSSL aae41f8c Jun 25 09:47:15 2015 +0100
+.\" selective merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2019 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2009 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_STORE_CTX_SET_FLAGS 3
+.Os
+.Sh NAME
+.Nm X509_STORE_CTX_set_flags ,
+.Nm X509_STORE_CTX_set_time ,
+.Nm X509_STORE_CTX_set_depth ,
+.Nm X509_STORE_CTX_set_trust ,
+.Nm X509_STORE_CTX_set_purpose ,
+.Nm X509_STORE_CTX_get0_param ,
+.Nm X509_STORE_CTX_set0_param ,
+.Nm X509_STORE_CTX_set_default
+.Nd X509_STORE_CTX parameter initialisation
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509_vfy.h
+.Ft void
+.Fo X509_STORE_CTX_set_flags
+.Fa "X509_STORE_CTX *ctx"
+.Fa "unsigned long flags"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set_time
+.Fa "X509_STORE_CTX *ctx"
+.Fa "unsigned long dummy"
+.Fa "time_t time"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set_depth
+.Fa "X509_STORE_CTX *ctx"
+.Fa "int depth"
+.Fc
+.Ft int
+.Fo X509_STORE_CTX_set_trust
+.Fa "X509_STORE_CTX *ctx"
+.Fa "int trust"
+.Fc
+.Ft int
+.Fo X509_STORE_CTX_set_purpose
+.Fa "X509_STORE_CTX *ctx"
+.Fa "int purpose"
+.Fc
+.Ft X509_VERIFY_PARAM *
+.Fo X509_STORE_CTX_get0_param
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set0_param
+.Fa "X509_STORE_CTX *ctx"
+.Fa "X509_VERIFY_PARAM *param"
+.Fc
+.Ft int
+.Fo X509_STORE_CTX_set_default
+.Fa "X509_STORE_CTX *ctx"
+.Fa "const char *name"
+.Fc
+.Sh DESCRIPTION
+These functions operate on the
+.Vt X509_VERIFY_PARAM
+object used by
+.Fa ctx .
+Usually,
+.Xr X509_STORE_CTX_init 3
+is called on
+.Fa ctx
+before these functions, and
+.Xr X509_verify_cert 3
+afterwards.
+.Pp
+.Fn X509_STORE_CTX_set_flags
+sets the internal verification parameter flags to
+.Fa flags .
+See
+.Xr X509_VERIFY_PARAM_set_flags 3
+for a description of the verification flags.
+.Pp
+.Fn X509_STORE_CTX_set_time
+sets the verification
+.Fa time
+using
+.Xr X509_VERIFY_PARAM_set_time 3 .
+The
+.Fa dummy
+argument is ignored.
+.Pp
+.Fn X509_STORE_CTX_set_depth
+sets the maximum verification
+.Fa depth
+using
+.Xr X509_VERIFY_PARAM_set_depth 3 .
+That is the maximum number of untrusted CA certificates
+that can appear in a chain.
+.Pp
+.Fn X509_STORE_CTX_set_trust
+sets the
+.Fa trust
+identifier that can also be set using
+.Xr X509_VERIFY_PARAM_set_trust 3 .
+If the
+.Fa trust
+argument is 0 or invalid
+or the trust identifier is already set to a non-zero value in the
+.Vt X509_VERIFY_PARAM
+object, no action occurs.
+.Pp
+.Fn X509_STORE_CTX_set_purpose
+sets the
+.Fa purpose
+identifier that can also be set using
+.Xr X509_VERIFY_PARAM_set_purpose 3 .
+If the
+.Fa purpose
+argument is 0 or any failure occurs, nothing is changed.
+.Pp
+In the following, the trust identifier contained in the
+.Vt X509_PURPOSE
+object associated with
+.Fa purpose
+is called the
+.Dq associated trust .
+.Pp
+The function fails if the
+.Fa purpose
+argument or the associated trust is invalid but not 0; otherwise,
+.Fn X509_STORE_CTX_set_purpose
+also does the equivalent of calling
+.Fn X509_STORE_CTX_set_trust
+with the associated trust.
+.Pp
+If the purpose identifier is already set to a non-zero value in the
+.Vt X509_VERIFY_PARAM
+object, it is not changed, even if the
+.Fa purpose
+argument is valid, too.
+.Pp
+.Fn X509_STORE_CTX_get0_param
+retrieves an internal pointer to the verification parameters associated
+with
+.Fa ctx .
+.Pp
+.Fn X509_STORE_CTX_set0_param
+sets the internal verification parameter pointer to
+.Fa param .
+After this call
+.Fa param
+should not be used.
+.Pp
+.Fn X509_STORE_CTX_set_default
+looks up and sets the default verification method to
+.Fa name .
+This uses the function
+.Xr X509_VERIFY_PARAM_lookup 3
+to find an appropriate set of parameters from
+.Fa name
+and copies them using
+.Xr X509_VERIFY_PARAM_inherit 3 .
+.Sh RETURN VALUES
+.Fn X509_STORE_CTX_set_trust
+returns 1 if the
+.Fa trust
+argument is 0 or valid or 0 if it is invalid but not 0.
+A return value of 1 does
+.Em not
+imply that the trust identifier stored in the
+.Vt X509_VERIFY_PARAM
+object was changed.
+.Pp
+.Fn X509_STORE_CTX_set_purpose
+returns 1 if both the
+.Fa purpose
+argument and the associated trust are 0 or valid.
+It returns 0 if either the
+.Fa purpose
+argument or the associated trust is invalid but not 0.
+A return value of 1 does not imply that any data was changed.
+.Pp
+.Fn X509_STORE_CTX_get0_param
+returns a pointer to an
+.Vt X509_VERIFY_PARAM
+structure or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn X509_STORE_CTX_set_default
+returns 1 for success or 0 if an error occurred.
+.Sh ERRORS
+The following diagnostics can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3 :
+.Bl -tag -width Ds
+.It Dv X509_R_UNKNOWN_TRUST_ID Qq "unknown trust id"
+.Fn X509_STORE_CTX_set_trust
+was called with a
+.Fa trust
+argument that is invalid but not 0.
+Other implementations may also return this when
+.Fn X509_STORE_CTX_set_purpose
+is called with a
+.Fa purpose
+argument with invalid associated trust.
+.It Dv X509_R_UNKNOWN_PURPOSE_ID Qq "unknown purpose id"
+The
+.Fa purpose
+argument is invalid but not 0.
+.El
+.Pp
+The other functions provide no diagnostics.
+.Sh SEE ALSO
+.Xr X509_STORE_CTX_get_error 3 ,
+.Xr X509_STORE_CTX_new 3 ,
+.Xr X509_STORE_CTX_set_verify 3 ,
+.Xr X509_STORE_CTX_set_verify_cb 3 ,
+.Xr X509_STORE_new 3 ,
+.Xr X509_STORE_set1_param 3 ,
+.Xr X509_STORE_set_verify_cb 3 ,
+.Xr X509_verify_cert 3 ,
+.Xr X509_VERIFY_PARAM_new 3 ,
+.Xr X509_VERIFY_PARAM_set_flags 3
+.Sh HISTORY
+.Fn X509_STORE_CTX_set_depth
+first appeared in OpenSSL 0.9.3 and has been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_STORE_CTX_set_trust
+and
+.Fn X509_STORE_CTX_set_purpose
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn X509_STORE_CTX_set_flags
+and
+.Fn X509_STORE_CTX_set_time
+first appeared in OpenSSL 0.9.6 and have been available since
+.Ox 2.9 .
+.Pp
+.Fn X509_STORE_CTX_get0_param ,
+.Fn X509_STORE_CTX_set0_param ,
+and
+.Fn X509_STORE_CTX_set_default
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Sh CAVEATS
+The precise effect of a successful call to
+.Fn X509_STORE_CTX_set_trust
+and
+.Fn X509_STORE_CTX_set_purpose
+is unclear unless only one of these functions is used immediately after
+.Xr X509_STORE_CTX_init 3 .
+It is therefore recommended to use
+.Fn X509_STORE_CTX_get0_param ,
+.Xr X509_VERIFY_PARAM_set_trust 3 ,
+and
+.Xr X509_VERIFY_PARAM_set_purpose 3
+instead.

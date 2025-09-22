@@ -1,0 +1,17 @@
+BEGIN
+{
+        @map[3 + 1] = 9999;
+        print(@map);
+}
+
+END
+{
+        clear(@map);
+        printf("=> clear() after clear:\n");
+        clear(@map);
+        printf("=> delete() after clear:\n");
+        delete(@map[4]);
+        printf("=> zero() after clear:\n");
+        zero(@map);
+        print(@map);
+}

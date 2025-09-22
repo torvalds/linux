@@ -1,0 +1,4 @@
+
+// REQUIRES: my-require-feature-2 || my-require-feature-3, my-{{[require]*}}-feature-4
+// UNSUPPORTED: my-unsupported-feature-2, my-unsupported-feature-3 && !my-{{[unsupported]*}}-feature-4
+// XFAIL: my-xfail-feature-2, my-xfail-feature-3, my-{{[xfail]*}}-feature-4

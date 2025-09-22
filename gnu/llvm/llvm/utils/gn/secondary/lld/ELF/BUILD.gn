@@ -1,0 +1,68 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Options") {
+  visibility = [ ":ELF" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+static_library("ELF") {
+  output_name = "lldELF"
+  configs += [ "//llvm/utils/gn/build:lld_code" ]
+  deps = [
+    ":Options",
+    "//lld/Common",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/IR",
+    "//llvm/lib/LTO",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "AArch64ErrataFix.cpp",
+    "ARMErrataFix.cpp",
+    "Arch/AArch64.cpp",
+    "Arch/AMDGPU.cpp",
+    "Arch/ARM.cpp",
+    "Arch/AVR.cpp",
+    "Arch/Hexagon.cpp",
+    "Arch/LoongArch.cpp",
+    "Arch/MSP430.cpp",
+    "Arch/Mips.cpp",
+    "Arch/MipsArchTree.cpp",
+    "Arch/PPC.cpp",
+    "Arch/PPC64.cpp",
+    "Arch/RISCV.cpp",
+    "Arch/SPARCV9.cpp",
+    "Arch/SystemZ.cpp",
+    "Arch/X86.cpp",
+    "Arch/X86_64.cpp",
+    "CallGraphSort.cpp",
+    "DWARF.cpp",
+    "Driver.cpp",
+    "DriverUtils.cpp",
+    "EhFrame.cpp",
+    "ICF.cpp",
+    "InputFiles.cpp",
+    "InputSection.cpp",
+    "LTO.cpp",
+    "LinkerScript.cpp",
+    "MapFile.cpp",
+    "MarkLive.cpp",
+    "OutputSections.cpp",
+    "Relocations.cpp",
+    "ScriptLexer.cpp",
+    "ScriptParser.cpp",
+    "SymbolTable.cpp",
+    "Symbols.cpp",
+    "SyntheticSections.cpp",
+    "Target.cpp",
+    "Thunks.cpp",
+    "Writer.cpp",
+  ]
+}

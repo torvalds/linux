@@ -1,0 +1,161 @@
+.\" $OpenBSD: bsd.port.arch.mk.5,v 1.14 2024/05/16 09:52:58 sthen Exp $
+.\"
+.\" Copyright (c) 2011 Marc Espie
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 16 2024 $
+.Dt BSD.PORT.ARCH.MK 5
+.Os
+.Sh NAME
+.Nm bsd.port.arch.mk
+.Nd ports tree Makefile fragment, concerned with arch issues
+.Sh SYNOPSIS
+.Bd -literal
+# Set up such as
+MULTI_PACKAGES = -main -special
+ONLY_FOR_ARCHS-special = i386
+.Ed
+.Pp
+.Fd .include <bsd.port.arch.mk>
+.Bd -literal
+#some more lines such as
+\&.if ${BUILD_PACKAGES:M-special}
+CONFIGURE_ARGS += --enable-special
+\&.endif
+.Ed
+.Pp
+.Fd .include <bsd.port.mk>
+.Sh DESCRIPTION
+.Nm
+holds the logic used for arch-dependent builds in the ports tree.
+It is normally included as part of the larger
+.Xr bsd.port.mk 5 ,
+but it is also available separately for ports that require it.
+.Bl -bullet
+.It
+multi-packages ports that need to remove some subpackages based
+on pseudo-flavors or architecture constraints.
+.It
+ports that need to make explicit tests on arch-dependent constants.
+.El
+.Pp
+.Nm
+assumes the following variables are already defined:
+.Bl -tag -offset indent -compact -width ONLY_FOR_ARCH-<sub>
+.It MULTI_PACKAGES
+.It FLAVOR
+.It FLAVORS
+.It PSEUDO_FLAVORS
+.It Ev NOT_FOR_ARCHS[-<sub>]
+.It Ev ONLY_FOR_ARCHS[-<sub>]
+.El
+and optionally, if the default won't be appropriate
+.Bl -tag -offset indent -compact -width ONLY_FOR_ARCH-<sub>
+.It Ev IGNORE[-<sub>]
+.El
+.Pp
+It will set up the following variables for use in the rest of the
+.Pa Makefile :
+.Bl -tag -offset indent -compact -width ONLY_FOR_ARCH-<sub>
+.It Ev ARCH
+.It Ev ALL_ARCHS
+.It Ev APM_ARCHS
+.It Ev BE_ARCHS
+.It Ev CLANG_ARCHS
+.It Ev COMPILER_VERSION
+.It Ev CX11_ARCHS
+.It Ev DEBUGINFO_ARCHS
+.It Ev GCC3_ARCHS
+.It Ev GCC4_ARCHS
+.It Ev GCC49_ARCHS
+.It Ev GO_ARCHS
+.It Ev LE_ARCHS
+.It Ev LIBCXX
+.It Ev LLD_ARCHS
+.It Ev LLD_EMUL
+.It Ev LLVM_ARCHS
+.It Ev LP64_ARCHS
+.It Ev LUAJIT_ARCHS
+.It Ev MONO_ARCHS
+.It Ev OCAML_NATIVE_ARCHS
+.It Ev OCAML_NATIVE_DYNLINK_ARCHS
+.It Ev PROPERTIES
+.It Ev RUST_ARCHS
+.It Ev IGNORE-<sub>
+.It Ev BUILD_PACKAGES
+.El
+.Pp
+Most importantly,
+.Ev BUILD_PACKAGES
+will be correctly set up, taking
+.Ev ONLY_FOR_ARCHS[-<sub>]
+and
+.Ev NOT_FOR_ARCHS[-<sub>]
+limitations into account, as well as pseudo-flavors.
+.Pp
+Note that thanks to the way
+.Xr make 1
+variables are evaluated, a setup such as
+.Bd -literal -offset indent
+ONLY_FOR_ARCHS-foo = ${LP64_ARCHS}
+\&.include <bsd.port.arch.mk>
+.Ed
+.Pp
+is perfectly admissible, since
+.Ev ONLY_FOR_ARCHS-foo
+will be used only after
+.Ev LP64_ARCHS
+is defined.
+.Pp
+Also, you do not need to explicitly include
+.Pa bsd.port.arch.mk
+just to define
+.Bd -literal -offset indent
+ONLY_FOR_ARCHS = ${LP64_ARCHS}
+.Ed
+.Pp
+since
+.Pa bsd.port.mk
+does define arch constants before evaluating
+.Ev ONLY_FOR_ARCHS .
+A more detailed description of each variable is available in
+.Xr bsd.port.mk 5 .
+.Pp
+All the constant values
+.Ev ARCH , ALL_ARCHS , COMPILER_VERSION ,
+.Ev GCC3_ARCHS , GCC4_ARCHS , LP64_ARCHS
+and
+.Ev PROPERTIES
+are also available from
+.Ev MODULES
+and from
+.Pa ${.CURDIR}/../Makefile.inc .
+.Sh SEE ALSO
+.Xr bsd.port.mk 5
+.Sh HISTORY
+.Nm
+was split from
+.Xr bsd.port.mk 5
+in
+.Ox 5.1 .

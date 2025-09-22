@@ -1,0 +1,211 @@
+//===- FuzzerFlags.def - Run-time flags -------------------------*- C++ -* ===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+// Flags. FUZZER_FLAG_INT/FUZZER_FLAG_STRING macros should be defined at the
+// point of inclusion. We are not using any flag parsing library for better
+// portability and independence.
+//===----------------------------------------------------------------------===//
+FUZZER_FLAG_INT(verbosity, 1, "Verbosity level.")
+FUZZER_FLAG_UNSIGNED(seed, 0, "Random seed. If 0, seed is generated.")
+FUZZER_FLAG_INT(runs, -1,
+            "Number of individual test runs (-1 for infinite runs).")
+FUZZER_FLAG_INT(max_len, 0, "Maximum length of the test input. "
+    "If 0, libFuzzer tries to guess a good value based on the corpus "
+    "and reports it. ")
+FUZZER_FLAG_INT(len_control, 100, "Try generating small inputs first, "
+  "then try larger inputs over time.  Specifies the rate at which the length "
+  "limit is increased (smaller == faster).  If 0, immediately try inputs with "
+  "size up to max_len. Default value is 0, if LLVMFuzzerCustomMutator is used.")
+FUZZER_FLAG_STRING(seed_inputs, "A comma-separated list of input files "
+  "to use as an additional seed corpus. Alternatively, an \"@\" followed by "
+  "the name of a file containing the comma-separated list.")
+FUZZER_FLAG_INT(keep_seed, 0, "If 1, keep seed inputs in the corpus even if "
+  "they do not produce new coverage. When used with |reduce_inputs==1|, the "
+  "seed inputs will never be reduced. This option can be useful when seeds are"
+  "not properly formed for the fuzz target but still have useful snippets.")
+FUZZER_FLAG_INT(cross_over, 1, "If 1, cross over inputs.")
+FUZZER_FLAG_INT(cross_over_uniform_dist, 0, "Experimental. If 1, use a "
+  "uniform probability distribution when choosing inputs to cross over with. "
+  "Some of the inputs in the corpus may never get chosen for mutation "
+  "depending on the input mutation scheduling policy. With this flag, all "
+  "inputs, regardless of the input mutation scheduling policy, can be chosen "
+  "as an input to cross over with. This can be particularly useful with "
+  "|keep_seed==1|; all the initial seed inputs, even though they do not "
+  "increase coverage because they are not properly formed, will still be "
+  "chosen as an input to cross over with.")
+
+FUZZER_FLAG_INT(mutate_depth, 5,
+            "Apply this number of consecutive mutations to each input.")
+FUZZER_FLAG_INT(reduce_depth, 0, "Experimental/internal. "
+                "Reduce depth if mutations lose unique features")
+FUZZER_FLAG_INT(shuffle, 1, "Shuffle inputs at startup")
+FUZZER_FLAG_INT(prefer_small, 1,
+    "If 1, always prefer smaller inputs during the corpus shuffle.")
+FUZZER_FLAG_INT(
+    timeout, 1200,
+    "Timeout in seconds (if positive). "
+    "If one unit runs more than this number of seconds the process will abort.")
+FUZZER_FLAG_INT(error_exitcode, 77, "When libFuzzer itself reports a bug "
+  "this exit code will be used.")
+FUZZER_FLAG_INT(timeout_exitcode, 70, "When libFuzzer reports a timeout "
+  "this exit code will be used.")
+FUZZER_FLAG_INT(max_total_time, 0, "If positive, indicates the maximal total "
+                                   "time in seconds to run the fuzzer.")
+FUZZER_FLAG_INT(help, 0, "Print help.")
+FUZZER_FLAG_INT(fork, 0, "Experimental mode where fuzzing happens "
+                "in a subprocess")
+FUZZER_FLAG_INT(fork_corpus_groups, 0, "For fork mode, enable the corpus-group "
+		"strategy, The main corpus will be grouped according to size, "
+		"and each sub-process will randomly select seeds from different "
+		"groups as the sub-corpus.")
+FUZZER_FLAG_INT(ignore_timeouts, 1, "Ignore timeouts in fork mode")
+FUZZER_FLAG_INT(ignore_ooms, 1, "Ignore OOMs in fork mode")
+FUZZER_FLAG_INT(ignore_crashes, 0, "Ignore crashes in fork mode")
+FUZZER_FLAG_INT(merge, 0, "If 1, the 2-nd, 3-rd, etc corpora will be "
+  "merged into the 1-st corpus. Only interesting units will be taken. "
+  "This flag can be used to minimize a corpus.")
+FUZZER_FLAG_INT(set_cover_merge, 0, "If 1, the 2-nd, 3-rd, etc corpora will be "
+  "merged into the 1-st corpus. Same as the 'merge' flag, but uses the "
+  "standard greedy algorithm for the set cover problem to "
+  "compute an approximation of the minimum set of testcases that "
+  "provide the same coverage as the initial corpora")
+FUZZER_FLAG_STRING(stop_file, "Stop fuzzing ASAP if this file exists")
+FUZZER_FLAG_STRING(merge_inner, "internal flag")
+FUZZER_FLAG_STRING(merge_control_file,
+                   "Specify a control file used for the merge process. "
+                   "If a merge process gets killed it tries to leave this file "
+                   "in a state suitable for resuming the merge. "
+                   "By default a temporary file will be used."
+                   "The same file can be used for multistep merge process.")
+FUZZER_FLAG_INT(minimize_crash, 0, "If 1, minimizes the provided"
+  " crash input. Use with -runs=N or -max_total_time=N to limit "
+  "the number attempts."
+  " Use with -exact_artifact_path to specify the output."
+  " Combine with ASAN_OPTIONS=dedup_token_length=3 (or similar) to ensure that"
+  " the minimized input triggers the same crash."
+  )
+FUZZER_FLAG_INT(cleanse_crash, 0, "If 1, tries to cleanse the provided"
+  " crash input to make it contain fewer original bytes."
+  " Use with -exact_artifact_path to specify the output."
+  )
+FUZZER_FLAG_INT(minimize_crash_internal_step, 0, "internal flag")
+FUZZER_FLAG_STRING(features_dir, "internal flag. Used to dump feature sets on disk."
+  "Every time a new input is added to the corpus, a corresponding file in the features_dir"
+  " is created containing the unique features of that input."
+  " Features are stored in binary format.")
+FUZZER_FLAG_STRING(mutation_graph_file, "Saves a graph (in DOT format) to"
+  " mutation_graph_file. The graph contains a vertex for each input that has"
+  " unique coverage; directed edges are provided between parents and children"
+  " where the child has unique coverage, and are recorded with the type of"
+  " mutation that caused the child.")
+FUZZER_FLAG_INT(use_counters, 1, "Use coverage counters")
+FUZZER_FLAG_INT(use_memmem, 1,
+                "Use hints from intercepting memmem, strstr, etc")
+FUZZER_FLAG_INT(use_value_profile, 0,
+                "Experimental. Use value profile to guide fuzzing.")
+FUZZER_FLAG_INT(use_cmp, 1, "Use CMP traces to guide mutations")
+FUZZER_FLAG_INT(shrink, 0, "Experimental. Try to shrink corpus inputs.")
+FUZZER_FLAG_INT(reduce_inputs, 1,
+  "Try to reduce the size of inputs while preserving their full feature sets")
+FUZZER_FLAG_UNSIGNED(jobs, 0, "Number of jobs to run. If jobs >= 1 we spawn"
+                          " this number of jobs in separate worker processes"
+                          " with stdout/stderr redirected to fuzz-JOB.log.")
+FUZZER_FLAG_UNSIGNED(workers, 0,
+            "Number of simultaneous worker processes to run the jobs."
+            " If zero, \"min(jobs,NumberOfCpuCores()/2)\" is used.")
+FUZZER_FLAG_INT(reload, 1,
+                "Reload the main corpus every <N> seconds to get new units"
+                " discovered by other processes. If 0, disabled")
+FUZZER_FLAG_INT(report_slow_units, 10,
+    "Report slowest units if they run for more than this number of seconds.")
+FUZZER_FLAG_INT(only_ascii, 0,
+                "If 1, generate only ASCII (isprint+isspace) inputs.")
+FUZZER_FLAG_STRING(dict, "Experimental. Use the dictionary file.")
+FUZZER_FLAG_STRING(artifact_prefix, "Write fuzzing artifacts (crash, "
+                                    "timeout, or slow inputs) as "
+                                    "$(artifact_prefix)file")
+FUZZER_FLAG_STRING(exact_artifact_path,
+                   "Write the single artifact on failure (crash, timeout) "
+                   "as $(exact_artifact_path). This overrides -artifact_prefix "
+                   "and will not use checksum in the file name. Do not "
+                   "use the same path for several parallel processes.")
+FUZZER_FLAG_INT(print_pcs, 0, "If 1, print out newly covered PCs.")
+FUZZER_FLAG_INT(print_funcs, 2, "If >=1, print out at most this number of "
+                                "newly covered functions.")
+FUZZER_FLAG_INT(print_final_stats, 0, "If 1, print statistics at exit.")
+FUZZER_FLAG_INT(print_corpus_stats, 0,
+  "If 1, print statistics on corpus elements at exit.")
+FUZZER_FLAG_INT(print_coverage, 0, "If 1, print coverage information as text"
+                                   " at exit.")
+FUZZER_FLAG_INT(print_full_coverage, 0, "If 1, print full coverage information "
+                                        "(all branches) as text at exit.")
+FUZZER_FLAG_INT(dump_coverage, 0, "Deprecated.")
+FUZZER_FLAG_INT(handle_segv, 1, "If 1, try to intercept SIGSEGV.")
+FUZZER_FLAG_INT(handle_bus, 1, "If 1, try to intercept SIGBUS.")
+FUZZER_FLAG_INT(handle_abrt, 1, "If 1, try to intercept SIGABRT.")
+FUZZER_FLAG_INT(handle_ill, 1, "If 1, try to intercept SIGILL.")
+FUZZER_FLAG_INT(handle_fpe, 1, "If 1, try to intercept SIGFPE.")
+FUZZER_FLAG_INT(handle_int, 1, "If 1, try to intercept SIGINT.")
+FUZZER_FLAG_INT(handle_term, 1, "If 1, try to intercept SIGTERM.")
+FUZZER_FLAG_INT(handle_xfsz, 1, "If 1, try to intercept SIGXFSZ.")
+FUZZER_FLAG_INT(handle_usr1, 1, "If 1, try to intercept SIGUSR1.")
+FUZZER_FLAG_INT(handle_usr2, 1, "If 1, try to intercept SIGUSR2.")
+FUZZER_FLAG_INT(handle_winexcept, 1, "If 1, try to intercept uncaught Windows "
+    "Visual C++ Exceptions.")
+FUZZER_FLAG_INT(close_fd_mask, 0, "If 1, close stdout at startup; "
+    "if 2, close stderr; if 3, close both. "
+    "Be careful, this will also close e.g. stderr of asan.")
+FUZZER_FLAG_INT(detect_leaks, 1, "If 1, and if LeakSanitizer is enabled "
+    "try to detect memory leaks during fuzzing (i.e. not only at shut down).")
+FUZZER_FLAG_INT(purge_allocator_interval, 1, "Purge allocator caches and "
+    "quarantines every <N> seconds. When rss_limit_mb is specified (>0), "
+    "purging starts when RSS exceeds 50% of rss_limit_mb. Pass "
+    "purge_allocator_interval=-1 to disable this functionality.")
+FUZZER_FLAG_INT(trace_malloc, 0, "If >= 1 will print all mallocs/frees. "
+    "If >= 2 will also print stack traces.")
+FUZZER_FLAG_INT(rss_limit_mb, 2048, "If non-zero, the fuzzer will exit upon "
+    "reaching this limit of RSS memory usage.")
+FUZZER_FLAG_INT(malloc_limit_mb, 0, "If non-zero, the fuzzer will exit "
+    "if the target tries to allocate this number of Mb with one malloc call. "
+    "If zero (default) same limit as rss_limit_mb is applied.")
+FUZZER_FLAG_STRING(exit_on_src_pos, "Exit if a newly found PC originates"
+    " from the given source location. Example: -exit_on_src_pos=foo.cc:123. "
+    "Used primarily for testing libFuzzer itself.")
+FUZZER_FLAG_STRING(exit_on_item, "Exit if an item with a given sha1 sum"
+    " was added to the corpus. "
+    "Used primarily for testing libFuzzer itself.")
+FUZZER_FLAG_INT(ignore_remaining_args, 0, "If 1, ignore all arguments passed "
+                "after this one. Useful for fuzzers that need to do their own "
+                "argument parsing.")
+FUZZER_FLAG_STRING(focus_function, "Experimental. "
+     "Fuzzing will focus on inputs that trigger calls to this function. "
+     "If -focus_function=auto and -data_flow_trace is used, libFuzzer "
+     "will choose the focus functions automatically. Disables -entropic when "
+     "specified.")
+FUZZER_FLAG_INT(entropic, 1, "Enables entropic power schedule.")
+FUZZER_FLAG_INT(entropic_feature_frequency_threshold, 0xFF, "Experimental. If "
+     "entropic is enabled, all features which are observed less often than "
+     "the specified value are considered as rare.")
+FUZZER_FLAG_INT(entropic_number_of_rarest_features, 100, "Experimental. If "
+     "entropic is enabled, we keep track of the frequencies only for the "
+     "Top-X least abundant features (union features that are considered as "
+     "rare).")
+FUZZER_FLAG_INT(entropic_scale_per_exec_time, 0, "Experimental. If 1, "
+     "the Entropic power schedule gets scaled based on the input execution "
+     "time. Inputs with lower execution time get scheduled more (up to 30x). "
+     "Note that, if 1, fuzzer stops from being deterministic even if a "
+     "non-zero random seed is given.")
+
+FUZZER_FLAG_INT(analyze_dict, 0, "Experimental")
+FUZZER_DEPRECATED_FLAG(use_clang_coverage)
+FUZZER_FLAG_STRING(data_flow_trace, "Experimental: use the data flow trace")
+FUZZER_FLAG_STRING(collect_data_flow,
+                   "Experimental: collect the data flow trace")
+
+FUZZER_FLAG_INT(create_missing_dirs, 0, "Automatically attempt to create "
+     "directories for arguments that would normally expect them to already "
+     "exist (i.e. artifact_prefix, exact_artifact_path, features_dir, corpus)")

@@ -1,0 +1,88 @@
+.\"	$OpenBSD: mygate.5,v 1.3 2025/03/29 11:24:02 schwarze Exp $
+.\"
+.\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 29 2025 $
+.Dt MYGATE 5
+.Os
+.Sh NAME
+.Nm mygate
+.Nd default gateway
+.Sh DESCRIPTION
+The
+.Nm mygate
+file is read by
+.Xr netstart 8
+at system startup time.
+.Pp
+.Pa /etc/mygate ,
+if it exists,
+contains the address of the gateway host.
+The gateway is added to the routing tables by the
+.Xr route 8
+utility.
+If
+.Pa /etc/mygate
+does not exist, no default gateway is added to the routing tables.
+The file may contain gateway addresses for both IPv4 and IPv6 networks
+in dotted quad notation for v4
+.Pq e.g. 192.0.2.1
+or in colon notation for v6
+.Pq e.g. 2001:db8::1 .
+Each address must be specified on a separate line.
+If more than one address of a specific family is found,
+only the first is used \- all other addresses of that family are ignored.
+.Pp
+.Pa /etc/mygate
+is processed after all interfaces have been configured.
+If any
+.Xr hostname.if 5
+files contain
+.Dq inet autoconf
+directives,
+IPv4 entries in
+.Pa /etc/mygate
+will be ignored.
+If they contain
+.Dq inet6 autoconf
+directives,
+IPv6 entries will be ignored.
+.Pp
+Additionally, arbitrary shell commands can be executed during processing
+of this file, using
+.Ar \&! Ns Ar command
+directives similar to
+.Xr hostname.if 5 .
+This is useful for doing additional configuration after all interfaces
+are configured by
+.Xr netstart 8 .
+.Pp
+Empty lines and lines beginning with
+.Sq #
+are ignored.
+.Sh FILES
+.Bl -tag -width "/etc/mygate" -compact
+.It Pa /etc/mygate
+Default gateway address(es).
+.El
+.Sh SEE ALSO
+.Xr hostname.if 5 ,
+.Xr netstart 8 ,
+.Xr route 8
+.Sh HISTORY
+Support for the file
+.Pa /etc/mygate
+first appeared in
+.Nx 0.8 .

@@ -1,0 +1,14 @@
+static_library("ELF") {
+  output_name = "lldbPluginSymbolVendorELF"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Plugins/ObjectFile/ELF",
+    "//lldb/source/Symbol",
+  ]
+
+  # Reaches into Plugins/ObjectFile/ELF.
+  include_dirs = [ "//lldb/source" ]
+  sources = [ "SymbolVendorELF.cpp" ]
+}

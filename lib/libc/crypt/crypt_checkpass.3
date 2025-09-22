@@ -1,0 +1,113 @@
+.\" $OpenBSD: crypt_checkpass.3,v 1.13 2021/10/29 10:54:33 deraadt Exp $
+.\"
+.\" Copyright (c) 2014 Ted Unangst <tedu@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 29 2021 $
+.Dt CRYPT_CHECKPASS 3
+.Os
+.Sh NAME
+.Nm crypt_checkpass ,
+.Nm crypt_newhash
+.Nd password hashing
+.Sh SYNOPSIS
+.In pwd.h
+.In unistd.h
+.Ft int
+.Fn crypt_checkpass "const char *password" "const char *hash"
+.Ft int
+.Fn crypt_newhash "const char *password" "const char *pref" "char *hash" "size_t hashsize"
+.Sh DESCRIPTION
+The
+.Fn crypt_checkpass
+function simplifies checking a user's password.
+If both the
+.Fa hash
+and the
+.Fa password
+are the empty string, authentication
+is a success.
+Otherwise, the
+.Fa password
+is hashed and compared to the provided
+.Fa hash .
+If the
+.Fa hash
+is
+.Dv NULL ,
+authentication will always fail, but a default
+amount of work is performed to simulate the hashing operation.
+A successful match will return 0.
+A failure will return \-1 and set
+.Xr errno 2 .
+.Pp
+The
+.Fn crypt_newhash
+function simplifies the creation of new password hashes.
+The provided
+.Fa password
+is randomly salted and hashed and stored in
+.Fa hash .
+The size of the available space is specified by
+.Fa hashsize ,
+which should be
+.Dv _PASSWORD_LEN .
+The
+.Fa pref
+argument identifies the preferred hashing algorithm and parameters.
+Possible values are:
+.Bl -tag -width Ds
+.It Dq bcrypt,<rounds>
+The bcrypt algorithm, where the value of rounds can be between 4 and 31 and
+specifies the base 2 logarithm of the number of rounds.
+If rounds is omitted or the special value
+.Sq a ,
+an appropriate number of rounds is automatically selected based on system
+performance.
+.El
+.Sh RETURN VALUES
+.Rv -std crypt_checkpass crypt_newhash
+.Sh ERRORS
+The
+.Fn crypt_checkpass
+function sets
+.Va errno
+to
+.Er EACCES
+when authentication fails.
+.Pp
+The
+.Fn crypt_newhash
+function sets
+.Va errno
+to
+.Er EINVAL
+if
+.Fa pref
+is unsupported or insufficient space is provided.
+.Sh SEE ALSO
+.Xr crypt 3 ,
+.Xr login.conf 5 ,
+.Xr passwd 5
+.Sh HISTORY
+The function
+.Fn crypt_checkpass
+first appeared in
+.Ox 5.6 ,
+and
+.Fn crypt_newhash
+in
+.Ox 5.7 .
+.Sh AUTHORS
+.An Ted Unangst Aq Mt tedu@openbsd.org

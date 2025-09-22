@@ -1,0 +1,14 @@
+# Blatantly ripped out of the graphviz examples and modified.  -pme
+digraph v3conf {
+    size="6,6";
+    node [color=lightblue2, style=filled];
+    "aclocal.m4" -> "acinclude.m4";
+    "configure" -> "aclocal.m4";
+    "configure" -> "configure.ac";
+    "configure" -> "crossconfig.m4";
+    "configure" -> "linkage.m4";
+    "[*/]Makefile.in" -> "Makefile.am";
+    "[*/]Makefile.in" -> "configure.ac";
+    "config.h.in" -> "acconfig.h";
+    "config.h.in" -> "configure.ac";
+}

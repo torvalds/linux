@@ -1,0 +1,383 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>tree::const_node_iterator
+  Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt><span class=
+    "c2"><tt>tree</tt></span>::const_node_iterator</tt>
+    Interface</h1>
+
+    <p>Const node iterator.</p>
+
+    <p>This is an &amp;qout;iterator to an iterator&amp;qout; - it
+    iterates over nodes, and de-referencing it returns one of the
+    tree's iterators</p>
+
+    <h2><a name="link1" id="link1">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link2" id="link2">Iterator Definitions</a></h3>
+
+    <table class="c2" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="iterator_category2821876439" id=
+"iterator_category2821876439">iterator_category</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+trivial_iterator_tag
+</pre>
+        </td>
+
+        <td>
+          <p>Category.</p>
+
+          <p>This tag identifies that the iterator has none of the
+          STL's iterators' movement abilities.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="difference_type868028452" id=
+"difference_type868028452">difference_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre class="c1">
+void
+</pre>
+        </td>
+
+        <td>
+          <p>Difference type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link3" id="link3">Value-Type Definitions</a></h3>
+
+    <p>Note that a node iterator's value type is actually a tree
+    iterator.</p>
+
+    <table class="c2" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="value_type279018186" id=
+"value_type279018186">value_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href=
+"container_base.html#const_iterator98626788"><span class="c2"><tt>container_base</tt></span>::const_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Iterator's value type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="reference54418471" id="reference54418471">reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href=
+"container_base.html#const_iterator98626788"><span class="c2"><tt>container_base</tt></span>::const_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Iterator's reference type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_reference495461441" id=
+"const_reference495461441">const_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href=
+"container_base.html#const_iterator98626788"><span class="c2"><tt>container_base</tt></span>::const_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Iterator's const <a href=
+          "#reference54418471"><tt>reference</tt></a> type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link4" id="link4">Metadata Definitions</a></h3>
+
+    <p>These are only defined if <a href=
+    "basic_tree.html#Node_Update841554648"><span class="c2">
+    <tt>basic_tree</tt></span>::Node_Update</a>
+    is not <a href="null_tree_node_update.html"><span class=
+    "c2"><tt>null_tree_node_update</tt></span></a></p>
+
+    <table class="c2" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="metadata_type2849297114" id=
+"metadata_type2849297114">metadata_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<tt><b>typename</b></tt> <a href=
+"basic_tree.html#Node_Update841554648"><span class="c2"><tt>basic_tree</tt></span>::Node_Update</a><tt>::metadata_type</tt>
+</pre>
+        </td>
+
+        <td>
+          <p>Metadata type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_metadata_reference1108857465" id=
+"const_metadata_reference1108857465">const_metadata_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> Allocator::<b>template</b> rebind&lt;
+    <a href=
+"#metadata_type2849297114"><tt>metadata_type</tt></a>&gt;::other::<a href="#const_reference495461441"><tt>const_reference</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Const metadata <a href=
+          "#reference54418471"><tt>reference</tt></a> type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link5" id="link5">Public Methods</a></h2>
+
+    <h3><a name="link6" id="link6">Constructors, Destructor, and
+    Related</a></h3>
+
+    <table class="c2" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> 
+  const_node_iterator
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Default constructor.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link7" id="link7">Access Methods</a></h3>
+
+    <table class="c2" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <a href=
+"#const_reference495461441"><tt>const_reference</tt></a>
+  <b>operator</b>*
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Access.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link8" id="link8">Metadata Access Methods</a></h3>
+
+    <p>These are only defined if <a href=
+    "basic_tree.html#Node_Update841554648"><span class="c2">
+    <tt>basic_tree</tt></span>::Node_Update</a>
+    is not <a href="null_tree_node_update.html"><span class=
+    "c2"><tt>null_tree_node_update</tt></span></a></p>
+
+    <table class="c2" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <a href=
+"#const_metadata_reference1108857465"><tt>const_metadata_reference</tt></a>
+  get_metadata
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Metadata access.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link9" id="link9">Movement Methods</a></h3>
+
+    <table class="c2" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <span class="c2"><tt>const_node_iterator</tt></span>
+  get_l_child
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the const node iterator associated with the
+          left node.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <span class="c2"><tt>const_node_iterator</tt></span>
+  get_r_child
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the const node iterator associated with the
+          right node.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link10" id="link10">Comparison Methods</a></h3>
+
+    <table class="c2" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>bool</b>
+  <b>operator</b>==
+  (<b>const</b> <span class=
+"c2"><tt>const_node_iterator</tt></span> &amp;other) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Compares to a different iterator object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>bool</b>
+  <b>operator</b>!=
+  (<b>const</b> <span class=
+"c2"><tt>const_node_iterator</tt></span> &amp;other) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Compares (negatively) to a different iterator
+          object.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

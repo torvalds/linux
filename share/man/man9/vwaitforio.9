@@ -1,0 +1,81 @@
+.\"     $OpenBSD: vwaitforio.9,v 1.16 2019/07/19 00:54:58 cheloha Exp $
+.\"
+.\" Copyright (c) 2001 Constantine Sapuntzakis
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL  DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 19 2019 $
+.Dt VWAITFORIO 9
+.Os
+.Sh NAME
+.Nm vwaitforio
+.Nd wait for all outstanding asynchronous writes
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/vnode.h
+.Ft int
+.Fo vwaitforio
+.Fa "struct vnode *vp"
+.Fa "int slpflag"
+.Fa "char *wmesg"
+.Fa "uint64_t slptimeo"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vwaitforio
+call sleeps until all asynchronous writes associated with the vnode
+.Fa vp
+finish.
+This is used by functions that need to make sure
+that the writes they initiated have completed.
+.Pp
+The
+.Fn vwaitforio
+call sleeps at priority
+.Dv PRIBIO
++ 1.
+The
+.Fa slpflag ,
+.Fa wmesg ,
+and
+.Fa slptimeo
+arguments indicate flags to be passed to
+.Xr tsleep_nsec 9 .
+.Pp
+This function must be called at
+.Xr splbio 9 .
+.Pp
+It may be important to ensure that no other process submits asynchronous
+writes while a process is waiting for I/O on this vnode.
+Otherwise,
+.Fn vwaitforio
+may never return.
+.Sh RETURN VALUES
+The
+.Fn vwaitforio
+function returns 0 on success.
+See
+.Xr tsleep 9
+for possible error returns.
+.Sh SEE ALSO
+.Xr tsleep 9 ,
+.Xr vnode 9

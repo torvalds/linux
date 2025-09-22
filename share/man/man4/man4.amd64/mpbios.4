@@ -1,0 +1,58 @@
+.\"     $OpenBSD: mpbios.4,v 1.1 2009/01/13 13:57:03 kettenis Exp $
+.\"
+.\" Copyright (c) 2009 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 13 2009 $
+.Dt MPBIOS 4 amd64
+.Os
+.Sh NAME
+.Nm mpbios
+.Nd MP BIOS
+.Sh SYNOPSIS
+.Cd "mpbios0 at bios0"
+.Sh DESCRIPTION
+The
+.Nm
+driver extracts configuration information from the BIOS on
+multiprocessor systems that conform to the Intel MultiProcessor
+Specification.
+This information is used to attach application processors and APICs,
+and to assign interrupts to ISA, EISA and PCI devices.
+.Pp
+On modern systems this information is provided by ACPI through the
+.Xr acpimadt 4
+device.
+On such a system
+.Nm
+will not attach, even if the BIOS also contains the data structures
+specified by the Intel MP Specification.
+.Pp
+The
+.Nm
+driver supports version 1.1 and 1.4 of the Intel MP Specification.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpimadt 4 ,
+.Xr bios 4 ,
+.Xr cpu 4 ,
+.Xr intro 4 ,
+.Xr ioapic 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.5 ,
+based on code present since
+.Ox 3.6 .

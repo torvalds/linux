@@ -1,0 +1,105 @@
+.\"	$OpenBSD: remote.5,v 1.28 2020/02/10 13:18:20 schwarze Exp $
+.\"	$NetBSD: remote.5,v 1.4 1997/04/20 00:05:27 mellon Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)remote.5	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: February 10 2020 $
+.Dt REMOTE 5
+.Os
+.Sh NAME
+.Nm remote
+.Nd remote host description file
+.Sh DESCRIPTION
+The
+.Nm
+file describes remote hosts known by
+.Xr cu 1 .
+It is an ASCII file structured somewhat like the
+.Xr termcap 5
+file.
+Each line in the file provides a description for a single remote host.
+Fields are separated by a colon
+.Pq Sq \&: .
+Lines ending with a
+.Sq \e
+character immediately followed by a newline are continued on the next line.
+.Pp
+The first entry is the name(s) of the host system.
+If there is more than one name for a system, the names are separated by
+vertical bars
+.Pq Sq \&| .
+After the name of the system comes the fields of the description (the
+capabilities).
+.Pp
+Capabilities are either strings (str), numbers (num), or boolean flags (bool).
+A string capability is specified by
+.Em capability Ns Ar = Ns Em value ;
+for example,
+.Sq dv=/dev/harris .
+A numeric capability is specified by
+.Em capability Ns Ar # Ns Em value ;
+for example,
+.Sq br#19200 .
+A boolean capability is specified by simply listing the capability.
+.Bl -tag -width indent
+.It Sy \&br
+(num)
+The baud rate used in establishing
+a connection to the remote host.
+This is a decimal number.
+The default baud rate is 9600 baud.
+.It Sy \&dc
+(bool)
+This host is directly connected, and
+.Xr cu 1
+should not expect carrier detect to be high, nor should it exit if
+carrier detect drops.
+.It Sy \&dv
+(str)
+Device to open to establish a connection.
+If this file refers to a terminal line,
+.Xr cu 1
+attempts to perform an exclusive open on the device to ensure only
+one user at a time has access to the port.
+.El
+.Sh FILES
+.Bl -tag -width /etc/examples/remote -compact
+.It Pa /etc/remote
+Global database.
+.It Pa /etc/examples/remote
+Example database.
+.El
+.Sh SEE ALSO
+.Xr cu 1
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.2 .

@@ -1,0 +1,209 @@
+.\"	$OpenBSD: ospf6d.8,v 1.21 2023/03/02 17:09:54 jmc Exp $
+.\"
+.\" Copyright (c) 2004, 2005, 2007 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt OSPF6D 8
+.Os
+.Sh NAME
+.Nm ospf6d
+.Nd Open Shortest Path First (OSPF) for IPv6 routing daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+.Nm
+is an Open Shortest Path First
+.Pq OSPF
+daemon which manages routing tables.
+This implementation supports OSPF version 3, thus it is only capable of
+maintaining IPv6 routing tables.
+.Pp
+OSPF is an interior gateway protocol designed to supersede RIP.
+It has several advantages over RIP.
+For instance, every router has an understanding of the complete network
+topology.
+Response to changes in the network is faster.
+Furthermore, failure detection is improved.
+.Pp
+The OSPF daemon maintains a Link State Database
+.Pq LSDB
+containing information about routers and networks within an Autonomous System
+.Pq AS .
+.Pp
+Dijkstra's shortest path first algorithm is used to compute a Routing
+Information Base
+.Pq RIB
+using the LSDB as input.
+The Forwarding Information Base
+.Pq FIB ,
+a.k.a. the kernel routing table, is updated with information from the RIB.
+.Pp
+OSPF routers discover one another automatically via OSPF hello packets.
+OSPF routers communicate via two multicast groups: ff02::5 (all Shortest
+Path First routers) and ff02::6 (all Designated Routers).
+OSPF runs directly on top of IP and uses neither TCP nor UDP.
+IP protocol number 89 is reserved for OSPF.
+.Pp
+All routers in an OSPF network spend most of their time keeping each others'
+LSDBs in sync.
+All routers must have the same information in the LSDB at all times.
+Every time the LSDB is updated, the RIB is updated; if needed, the FIB is
+also updated.
+.Pp
+In a multi-access network such as Ethernet, it is unfeasible for all routers
+to synchronize their LSDB with all other routers in the network.
+In such networks a Designated Router
+.Pq DR
+and a Backup Designated Router
+.Pq BDR
+are elected.
+The DR's responsibility is to synchronize with all routers; the BDR will
+not do much until the DR fails.
+The first router in a network is automatically elected DR, the second
+router BDR.
+All routers have a FULL adjacency with the DR and the BDR.
+Routers with FULL adjacency exchange information about their LSDBs.
+A router not elected either DR or BDR will have 2-WAY adjacency with all
+routers but the DR and BDR.
+Routers with 2-WAY adjacency recognize that they know each other,
+but do not exchange information about their LSDBs.
+If a DR or BDR fails, another router is elected DR or BDR
+and all routers form FULL adjacencies with the newly elected DR or BDR.
+.Pp
+When routers are connected via point-to-point links, DR and BDR
+election is skipped since only two routers are connected to the link.
+.Pp
+To limit the impact changes in the network have on the LSDB it is possible
+to segment an OSPF network into areas.
+Area 0.0.0.0 (a.k.a. the backbone area) must always be present.
+Routers can be configured as Area Border Router
+.Pq ABR ,
+being part of multiple areas.
+Every area must have direct access to the backbone area.
+ABRs not directly connected to the backbone area need to establish a
+virtual link to a router in the backbone area.
+.Pp
+AS Border Routers
+.Pq ASBR
+are connected to an OSPF network and other external networks via BGP, RIP,
+or static routing, and provide connectivity to networks outside the AS.
+.Pp
+To have
+.Nm
+enabled at boot time, use
+.Dq rcctl enable ospf6d ,
+which sets
+.Pp
+.Dl ospf6d_flags=\(dq\(dq
+.Pp
+in
+.Xr rc.conf.local 8 .
+.Pp
+A running
+.Nm
+can be controlled with the
+.Xr ospf6ctl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Specify an alternative configuration file.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl s Ar socket
+Use an alternate location for the default control socket.
+.It Fl v
+Produce more verbose output.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/ospf6d.sockXX" -compact
+.It Pa /etc/ospf6d.conf
+Default
+.Nm
+configuration file.
+.It Pa /var/run/ospf6d.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr ospf6ctl 8 .
+.El
+.Sh SEE ALSO
+.Xr ipsec.conf 5 ,
+.Xr ospf6d.conf 5 ,
+.Xr ospf6ctl 8
+.Sh STANDARDS
+.Rs
+.%A M. Gupta
+.%A N. Melam
+.%D June 2006
+.%R RFC 4552
+.%T Authentication/Confidentiality for OSPFv3
+.Re
+.Pp
+.Rs
+.%A R. Coltun
+.%A D. Ferguson
+.%A J. Moy
+.%A A. Lindem
+.%D July 2008
+.%R RFC 5340
+.%T OSPF for IPv6
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.2 .
+.Sh BUGS
+Virtual links are currently not available in
+.Nm .
+.Pp
+Support for multiple areas is currently not available in
+.Nm .
+.Pp
+Unlike OSPF for IPv4, OSPF for IPv6 has no built-in support for
+authentication of OSPF packets.
+Instead, it relies on IPsec for packet authentication.
+Because OSPF uses multicast, IKE cannot be used for configuring IPsec
+flows securing OSPF traffic.
+.Nm
+is currently entirely unaware of IPsec and has no support for helping
+users setting up IPsec flows between OSPF routers.
+However, setting up IPsec flows between routers using manual keying is
+strongly recommended to protect the OSPF network against spoofing attacks.
+Note in particular that flows need to be configured for multicast groups
+ff02::5 and ff02::6.
+See
+.Xr ipsec.conf 5 .

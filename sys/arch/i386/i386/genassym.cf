@@ -1,0 +1,221 @@
+#	$OpenBSD: genassym.cf,v 1.50 2025/07/10 13:59:27 claudio Exp $
+#
+# Copyright (c) 1982, 1990 The Regents of the University of California.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)genassym.c	7.8 (Berkeley) 5/7/91
+#
+
+include <sys/param.h>
+include <sys/proc.h>
+include <sys/mbuf.h>
+include <netinet/in.h>
+include <netinet/ip.h>
+
+include <uvm/uvm_extern.h>
+
+include <machine/pcb.h>
+include <machine/pmap.h>
+include <machine/vmparam.h>
+
+if MULTIPROCESSOR
+include <machine/cpu.h>
+endif
+
+include "isa.h"
+
+export	SONPROC
+
+# values for page tables
+export	PDSLOT_KERN
+export	PDSLOT_PTE
+export	PDSLOT_APTE
+export	NKPTP_MIN
+
+# values for virtual memory
+export	VM_MAXUSER_ADDRESS
+
+# proc fields and values
+struct	proc
+member	p_addr
+member	p_stat
+member	p_cpu
+member	P_MD_ASTPENDING	p_md.md_astpending
+
+export	P_SYSTEM
+
+# interrupt/fault metering
+struct	uvmexp		V_
+member	TRAP		traps
+member	INTR		intrs
+
+# pcb fields
+struct	pcb
+member	pcb_cr3
+member	pcb_ebp
+member	pcb_esp
+member	pcb_kstack
+member	pcb_cr0
+member	pcb_onfault
+member	pcb_fpcpu
+member	pcb_flags
+member	pcb_pmap
+export	PCB_SAVECTX
+
+# frame definitions
+struct	trapframe
+member	tf_cs
+member	tf_trapno
+member	tf_eflags
+member	tf_eip
+member	tf_err
+member	tf_eax
+member	tf_ecx
+member	tf_edx
+member	tf_ebx
+member	tf_ebp
+member	tf_esi
+member	tf_edi
+member	tf_ds
+member	tf_es
+member	tf_fs
+member	tf_gs
+member	tf_ss
+member	tf_esp
+define	FRAMESIZE	sizeof(struct trapframe)
+
+# interrupt frame definitions
+struct intrframe
+member if_ppl
+
+# iret stack frame
+struct	iretframe
+member	irf_trapno
+member	irf_err
+member	irf_eip
+member	irf_cs
+member	irf_eflags
+member	irf_esp
+member	irf_ss
+member	irf_vm86_es
+member	irf_vm86_ds
+member	irf_vm86_fs
+member	irf_vm86_gs
+define	SIZEOF_IRETFRAME	sizeof(struct iretframe)
+
+# trampoline stack frame
+struct trampframe
+member	trf__deadbeef
+member	trf__kern_esp
+member	trf_fs
+member	trf_eax
+member	trf_ebp
+member	trf_trapno
+member	trf_err
+member	trf_eip
+member	trf_cs
+member	trf_eflags
+member	trf_esp
+member	trf_ss
+member	trf_vm86_es
+member	trf_vm86_ds
+member	trf_vm86_fs
+member	trf_vm86_gs
+define	SIZEOF_TRAMPFRAME	sizeof(struct trampframe)
+
+# signal handling
+struct	sigframe	SIGF_
+member	HANDLER		sf_handler
+member	SC		sf_sc
+struct	sigcontext
+
+# mbuf fields
+struct	mbuf
+member	m_next
+member	m_data
+member	m_len
+
+# Interrupt metering
+if NISA > 0
+struct	intrhand
+member	ih_fun
+member	ih_arg
+member	IH_COUNT		ih_count.ec_count
+member	ih_next
+endif
+
+define	IP_SRC			offsetof(struct ip, ip_src)
+define	IP_DST			offsetof(struct ip, ip_dst)
+
+define	CPU_INFO_SCRATCH	offsetof(struct cpu_info, ci_scratch)
+define	CPU_INFO_SELF		offsetof(struct cpu_info, ci_self)
+define	CPU_INFO_APICID		offsetof(struct cpu_info, ci_apicid)
+define	CPU_INFO_CURPROC	offsetof(struct cpu_info, ci_curproc)
+define	CPU_INFO_CURPCB		offsetof(struct cpu_info, ci_curpcb)
+define	CPU_INFO_IDLE_PCB	offsetof(struct cpu_info, ci_idle_pcb)
+define	CPU_INFO_LEVEL		offsetof(struct cpu_info, ci_level)
+define	CPU_INFO_VENDOR		offsetof(struct cpu_info, ci_vendor[0])
+define	CPU_INFO_SIGNATURE	offsetof(struct cpu_info, ci_signature)
+define	CPU_INFO_RESCHED	offsetof(struct cpu_info, ci_want_resched)
+define	CPU_INFO_GDT		offsetof(struct cpu_info, ci_gdt)
+define	CPU_INFO_TSS		offsetof(struct cpu_info, ci_tss)
+define	CPU_INFO_IPENDING	offsetof(struct cpu_info, ci_ipending)
+define	CPU_INFO_IMASK		offsetof(struct cpu_info, ci_imask)
+define	CPU_INFO_IUNMASK	offsetof(struct cpu_info, ci_iunmask)
+define	CPU_INFO_ILEVEL		offsetof(struct cpu_info, ci_ilevel)
+define	CPU_INFO_IDEPTH		offsetof(struct cpu_info, ci_idepth)
+define	CPU_INFO_ISOURCES	offsetof(struct cpu_info, ci_isources)
+define	CPU_INFO_CURPMAP	offsetof(struct cpu_info, ci_curpmap)
+define	CPU_INFO_KERN_ESP	offsetof(struct cpu_info, ci_kern_esp)
+define	CPU_INFO_INTR_ESP	offsetof(struct cpu_info, ci_intr_esp)
+define	CPU_INFO_KERN_CR3	offsetof(struct cpu_info, ci_kern_cr3)
+define	CPU_INFO_USER_CR3	offsetof(struct cpu_info, ci_user_cr3)
+
+define	SIZEOF_CPU_INFO		sizeof(struct cpu_info)
+
+struct pmap
+member pm_pdirpa
+member pm_pdirpa_intel
+
+struct i386tss
+member	tss_esp0
+member	tss_ss
+member	tss_esp
+member	tss_eflags
+member	tss_cs
+member	tss_eip
+member	tss_eax
+member	tss_ecx
+member	tss_edx
+member	tss_ebx
+member	tss_ebp
+member	tss_esi
+member	tss_edi
+member	tss_ds
+member	tss_es
+member	tss_fs
+member	tss_gs

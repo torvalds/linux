@@ -1,0 +1,147 @@
+.\"	$OpenBSD: pipe.2,v 1.20 2025/08/04 17:34:07 schwarze Exp $
+.\"	$NetBSD: pipe.2,v 1.6 1995/02/27 12:35:27 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)pipe.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: August 4 2025 $
+.Dt PIPE 2
+.Os
+.Sh NAME
+.Nm pipe ,
+.Nm pipe2
+.Nd create descriptor pair for interprocess communication
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn pipe "int fildes[2]"
+.In fcntl.h
+.In unistd.h
+.Ft int
+.Fn pipe2 "int fildes[2]" "int flags"
+.Sh DESCRIPTION
+The
+.Fn pipe
+function creates a
+.Em pipe ,
+which is an object allowing unidirectional data flow,
+and allocates a pair of file descriptors.
+The first descriptor connects to the
+.Em read end
+of the pipe,
+and the second connects to the
+.Em write end ,
+so that data written to
+.Fa fildes[1]
+appears on (i.e., can be read from)
+.Fa fildes[0] .
+This allows the output of one program to be sent to another program:
+the source's standard output is set up to be the write end of the pipe,
+and the sink's standard input is set up to be the read end of the pipe.
+The pipe itself persists until all its associated descriptors are closed.
+.Pp
+A pipe whose read or write end has been closed is considered
+.Em widowed .
+Writing on such a pipe causes the writing process to receive a
+.Dv SIGPIPE
+signal.
+Widowing a pipe is the only way to deliver end-of-file to a reader:
+after the reader consumes any buffered data, reading a widowed pipe
+returns a zero count.
+.Pp
+The
+.Fn pipe2
+function is identical to
+.Fn pipe
+except that the non-blocking I/O mode,
+close-on-exec flag,
+and close-on-fork flag of both new file descriptors are determined by the
+.Dv O_NONBLOCK , O_CLOEXEC ,
+and
+.Dv O_CLOFORK
+flags in the
+.Fa flags
+argument, respectively.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn pipe
+and
+.Fn pipe2
+will succeed unless:
+.Bl -tag -width Er
+.It Bq Er EMFILE
+Too many descriptors are active.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er EFAULT
+The
+.Fa fildes
+buffer is in an invalid area of the process's address space.
+.El
+.Pp
+In addition,
+.Fn pipe2
+may return the following error:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa flags
+is invalid.
+.El
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr fork 2 ,
+.Xr read 2 ,
+.Xr socketpair 2 ,
+.Xr write 2
+.Sh STANDARDS
+The
+.Fn pipe
+and
+.Fn pipe2
+functions conform to
+.St -p1003.1-2024 .
+.Pp
+As an extension, the pipe provided is actually capable of moving
+data bidirectionally.
+This is compatible with SVR4.
+However, this is non-POSIX behaviour which should not be relied on,
+for reasons of portability.
+.Sh HISTORY
+A
+.Fn pipe
+function call appeared in
+.At v3 .
+Since
+.At v4 ,
+it allocates two distinct file descriptors.
+The
+.Fn pipe2
+function appeared in
+.Ox 5.7 .

@@ -1,0 +1,93 @@
+.\" $OpenBSD: drm.4,v 1.13 2022/01/07 00:44:17 jsg Exp $
+.\"
+.\" Copyright (c) 2008 Jason McIntyre <jmc@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: January 7 2022 $
+.Dt DRM 4
+.Os
+.Sh NAME
+.Nm drm ,
+.Nm inteldrm ,
+.Nm radeondrm
+.Nd Direct Rendering Manager device
+.Sh SYNOPSIS
+.Cd "# amd64"
+.Cd "amdgpu* at pci?"
+.Cd "drm0 at amdgpu? primary 1"
+.Cd "drm* at amdgpu?"
+.Cd "wsdisplay0 at amdgpu? primary 1"
+.Cd "wsdisplay* at amdgpu? mux -1"
+.Pp
+.Cd "# arm64"
+.Cd "amdgpu* at pci?"
+.Cd "drm* at amdgpu?"
+.Cd "wsdisplay* at amdgpu?"
+.Pp
+.Cd "# amd64, i386"
+.Cd "inteldrm* at pci?"
+.Cd "intagp* at inteldrm?"
+.Cd "agp* at intagp?"
+.Cd "drm0 at inteldrm? primary 1"
+.Cd "drm* at inteldrm?"
+.Cd "wsdisplay0 at inteldrm? primary 1"
+.Cd "wsdisplay* at inteldrm? mux -1"
+.Pp
+.Cd "# amd64, i386"
+.Cd "radeondrm* at pci?"
+.Cd "drm0 at radeondrm? primary 1"
+.Cd "drm* at radeondrm?"
+.Cd "wsdisplay0 at radeondrm? primary 1"
+.Cd "wsdisplay* at radeondrm? mux -1"
+.Pp
+.Cd "# arm64, loongson, macppc, powerpc64, riscv64, sparc64"
+.Cd "radeondrm* at pci?"
+.Cd "drm* at radeondrm?"
+.Cd "wsdisplay* at radeondrm?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for hardware accelerated video
+using the Direct Rendering Infrastructure (DRI).
+.Nm
+provides kernel support for DRI,
+and is used in conjunction with the
+.Xr X 7
+DRI module.
+.Pp
+Support is currently available for the following graphics cards:
+.Pp
+.Bl -tag -width "radeon(4)XXX" -offset indent -compact
+.It Xr amdgpu 4
+AMD Radeon GPUs using the amdgpu kernel driver
+.It Xr intel 4
+Intel integrated graphics chipsets
+.It Xr radeon 4
+ATI/AMD Radeon video driver
+.El
+.Sh FILES
+.Bl -tag -width "/usr/X11R6/lib/modules/dri/X_dri.so" -compact
+.It Pa /dev/dri/card*
+DRM primary node files.
+.It Pa /dev/dri/renderD*
+DRM render node files.
+.It Pa /usr/X11R6/lib/modules/dri/*_dri.so
+X DRI modules.
+.El
+.Sh SEE ALSO
+.Xr vga 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.3 .

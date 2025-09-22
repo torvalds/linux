@@ -1,0 +1,234 @@
+.\" $OpenBSD: form_field_validation.3,v 1.11 2023/10/17 09:52:10 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form_field_validation.3,v 1.11 2023/10/17 09:52:10 nicm Exp $
+.TH form_field_validation 3 2023-07-01 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fBform_field_validation\fP \- data type validation for fields
+.SH SYNOPSIS
+\fB#include <form.h>\fP
+.sp
+\fBvoid *field_arg(const FIELD *\fIfield\fB);\fR
+.br
+\fBFIELDTYPE *field_type(const FIELD *\fIfield\fB);\fR
+.br
+\fBint set_field_type(FIELD *\fIfield\fB, FIELDTYPE *\fItype\fB, ...);\fR
+.sp
+/* predefined field types */
+.br
+\fBFIELDTYPE *TYPE_ALNUM;\fP
+.br
+\fBFIELDTYPE *TYPE_ALPHA;\fP
+.br
+\fBFIELDTYPE *TYPE_ENUM;\fP
+.br
+\fBFIELDTYPE *TYPE_INTEGER;\fP
+.br
+\fBFIELDTYPE *TYPE_NUMERIC;\fP
+.br
+\fBFIELDTYPE *TYPE_REGEXP;\fP
+.br
+\fBFIELDTYPE *TYPE_IPV4;\fP
+.SH DESCRIPTION
+By default, no validation is done on form fields.
+You can associate a form with with a \fIfield type\fP,
+making the form library validate input.
+.SS field_arg
+Returns a pointer to the field's argument block.
+The \fIargument block\fP is an opaque structure containing
+a copy of the arguments provided in a \fBset_field_type\fP call.
+.SS field_type
+Returns a pointer to the \fIfield type\fP associated with the form field,
+i.e., by calling \fBset_field_type\fP.
+.SS set_field_type
+The function \fBset_field_type\fP associates
+a field type with a given form field.
+This is the type checked by validation functions.
+Most field types are configurable,
+via arguments which the caller provides when calling \fBset_field_type\fP.
+.PP
+Several field types are predefined by the form library.
+.SS Predefined types
+It is possible to set up new programmer-defined field types.
+Field types are implemented via the \fBFIELDTYPE\fP data
+structure, which contains several pointers to functions.
+.PP
+See the \fBform_fieldtype\fP(3) manual page,
+which describes functions which can be used to construct
+a field-type dynamically.
+.PP
+The predefined types are as follows:
+.TP 5
+TYPE_ALNUM
+Alphanumeric data.
+Required parameter:
+.RS
+.bP
+a third \fBint\fP argument, a minimum field width.
+.RE
+.TP 5
+TYPE_ALPHA
+Character data.
+Required parameter:
+.RS
+.bP
+a third \fBint\fP argument, a minimum field width.
+.RE
+.TP 5
+TYPE_ENUM
+Accept one of a specified set of strings.
+Required parameters:
+.RS
+.bP
+a third \fB(char **)\fP argument pointing to a string list;
+.bP
+a fourth \fBint\fP flag argument to enable case-sensitivity;
+.bP
+a fifth \fBint\fP flag argument specifying whether a partial
+match must be a unique one.
+If this flag is off, a prefix matches the first
+of any set of more than one list elements with that prefix.
+.RE
+.IP
+The library copies the string list,
+so you may use a list that lives in automatic variables on the stack.
+.TP 5
+TYPE_INTEGER
+Integer data, parsable to an integer by \fBatoi\fP(3).
+Required parameters:
+.RS
+.bP
+a third \fBint\fP argument controlling the precision,
+.bP
+a fourth \fBlong\fP argument constraining minimum value,
+.bP
+a fifth \fBlong\fP constraining maximum value.
+If the maximum value is less than or equal to the minimum value, the range is
+simply ignored.
+.RE
+.IP
+On return, the field buffer is formatted according to the
+\fBprintf\fP format specification \*(``.*ld\*('',
+where the \*(``*\*('' is replaced by the precision argument.
+.IP
+For details of the precision handling see \fBprintf\fP(3).
+.TP 5
+TYPE_NUMERIC
+Numeric data (may have a decimal-point part).
+Required parameters:
+.RS
+.bP
+a third \fBint\fP argument controlling the precision,
+.bP
+a fourth \fBdouble\fP argument constraining minimum value,
+.bP
+and a fifth \fBdouble\fP constraining maximum value.
+If your system supports locales,
+the decimal point character must be the one specified by your locale.
+If the maximum value is less than or equal to the minimum value,
+the range is simply ignored.
+.RE
+.IP
+On return, the field buffer is formatted according to the
+\fBprintf\fP format specification \*(``.*f\*('',
+where the \*(``*\*('' is replaced by the precision argument.
+.IP
+For details of the precision handling see \fBprintf\fP(3).
+.TP 5
+TYPE_REGEXP
+Regular expression data.
+Required parameter:
+.RS
+.bP
+a third argument, a regular expression \fB(char *)\fP string.
+The data is valid if the regular expression matches it.
+.RE
+.IP
+Regular expressions
+are in the format of \fBregcomp\fP and \fBregexec\fP.
+.IP
+The regular expression must match the whole field.
+If you have for example, an eight character wide field,
+a regular expression "^[0\-9]*$" always
+means that you have to fill all eight positions with digits.
+If you want to allow fewer digits,
+you may use for example "^[0\-9]* *$" which is good for
+trailing spaces (up to an empty field),
+or "^ *[0\-9]* *$" which is good for
+leading and trailing spaces around the digits.
+.TP 5
+TYPE_IPV4
+An Internet Protocol Version 4 address.
+Required parameter:
+.RS
+.bP
+none
+.RE
+.IP
+The form library checks whether or not the buffer has the form \fIa.b.c.d\fP,
+where \fIa\fP, \fIb\fP, \fIc\fP, and \fId\fP are numbers in the range 0 to 255.
+Trailing blanks in the buffer are ignored.
+The address itself is not validated.
+.IP
+This is an ncurses extension;
+this field type may not be available in other curses implementations.
+.SH RETURN VALUE
+The functions \fBfield_type\fP and \fBfield_arg\fP return \fBNULL\fP on error.
+The function \fBset_field_type\fP returns one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fP(3)).
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBform\fP(3),
+\fBform_fieldtype\fP(3),
+\fBform_variables\fP(3).
+.SH NOTES
+The header file \fB<form.h>\fP automatically includes the header file
+\fB<curses.h>\fP.
+.SH PORTABILITY
+These routines emulate the System V forms library.
+They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

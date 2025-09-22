@@ -1,0 +1,66 @@
+.\" $OpenBSD: getrtable.2,v 1.5 2023/02/22 06:31:51 guenther Exp $
+.\"
+.\" Copyright (c) 2009 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 22 2023 $
+.Dt GETRTABLE 2
+.Os
+.Sh NAME
+.Nm getrtable ,
+.Nm setrtable
+.Nd get or set the default routing table of the current process
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.Ft int
+.Fn getrtable "void"
+.Ft int
+.Fn setrtable "int rtableid"
+.Sh DESCRIPTION
+.Fn getrtable
+and
+.Fn setrtable
+manipulate the routing table and routing domain associated with the current
+process.
+.Pp
+Only the superuser is allowed to change the process routing table if
+it is already set to a non-zero value.
+.Sh RETURN VALUES
+.Fn getrtable
+returns the routing table of the current process.
+Upon successful completion,
+.Fn setrtable
+returns 0 if the call succeeds, \-1 if it fails.
+.Sh ERRORS
+The call succeeds unless:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of the
+.Fa rtableid
+argument is not a valid routing table.
+.It Bq Er EPERM
+The user is not the superuser and the routing table of the
+calling process is already set to a non-zero value.
+.El
+.Sh SEE ALSO
+.Xr getsockopt 2 ,
+.Xr route 8
+.Sh HISTORY
+The
+.Fn getrtable
+and
+.Fn setrtable
+system calls appeared in
+.Ox 4.8 .

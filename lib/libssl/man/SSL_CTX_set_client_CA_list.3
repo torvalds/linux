@@ -1,0 +1,184 @@
+.\"	$OpenBSD: SSL_CTX_set_client_CA_list.3,v 1.7 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2000, 2001, 2013 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_CLIENT_CA_LIST 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_client_CA_list ,
+.Nm SSL_set_client_CA_list ,
+.Nm SSL_CTX_add_client_CA ,
+.Nm SSL_add_client_CA
+.Nd set list of CAs sent to the client when requesting a client certificate
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft void
+.Fn SSL_CTX_set_client_CA_list "SSL_CTX *ctx" "STACK_OF(X509_NAME) *list"
+.Ft void
+.Fn SSL_set_client_CA_list "SSL *s" "STACK_OF(X509_NAME) *list"
+.Ft int
+.Fn SSL_CTX_add_client_CA "SSL_CTX *ctx" "X509 *cacert"
+.Ft int
+.Fn SSL_add_client_CA "SSL *ssl" "X509 *cacert"
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_client_CA_list
+sets the
+.Fa list
+of CAs sent to the client when requesting a client certificate for
+.Fa ctx .
+.Pp
+.Fn SSL_set_client_CA_list
+sets the
+.Fa list
+of CAs sent to the client when requesting a client certificate for the chosen
+.Fa ssl ,
+overriding the setting valid for
+.Fa ssl Ns 's
+.Vt SSL_CTX
+object.
+.Pp
+.Fn SSL_CTX_add_client_CA
+adds the CA name extracted from
+.Fa cacert
+to the list of CAs sent to the client when requesting a client certificate for
+.Fa ctx .
+.Pp
+.Fn SSL_add_client_CA
+adds the CA name extracted from
+.Fa cacert
+to the list of CAs sent to the client when requesting a client certificate for
+the chosen
+.Fa ssl ,
+overriding the setting valid for
+.Fa ssl Ns 's
+.Va SSL_CTX
+object.
+.Pp
+When a TLS/SSL server requests a client certificate (see
+.Fn SSL_CTX_set_verify ) ,
+it sends a list of CAs for which it will accept certificates to the client.
+.Pp
+This list must explicitly be set using
+.Fn SSL_CTX_set_client_CA_list
+for
+.Fa ctx
+and
+.Fn SSL_set_client_CA_list
+for the specific
+.Fa ssl .
+The list specified overrides the previous setting.
+The CAs listed do not become trusted
+.Po
+.Fa list
+only contains the names, not the complete certificates
+.Pc ;
+use
+.Xr SSL_CTX_load_verify_locations 3
+to additionally load them for verification.
+.Pp
+If the list of acceptable CAs is compiled in a file, the
+.Xr SSL_load_client_CA_file 3
+function can be used to help importing the necessary data.
+.Pp
+.Fn SSL_CTX_add_client_CA
+and
+.Fn SSL_add_client_CA
+can be used to add additional items the list of client CAs.
+If no list was specified before using
+.Fn SSL_CTX_set_client_CA_list
+or
+.Fn SSL_set_client_CA_list ,
+a new client CA list for
+.Fa ctx
+or
+.Fa ssl
+(as appropriate) is opened.
+.Pp
+These functions are only useful for TLS/SSL servers.
+.Sh RETURN VALUES
+.Fn SSL_CTX_add_client_CA
+and
+.Fn SSL_add_client_CA
+have the following return values:
+.Bl -tag -width Ds
+.It 0
+A failure while manipulating the
+.Dv STACK_OF Ns
+.Pq Vt X509_NAME
+object occurred or the
+.Vt X509_NAME
+could not be extracted from
+.Fa cacert .
+Check the error stack to find out the reason.
+.It 1
+The operation succeeded.
+.El
+.Sh EXAMPLES
+Scan all certificates in
+.Fa CAfile
+and list them as acceptable CAs:
+.Bd -literal
+SSL_CTX_set_client_CA_list(ctx, SSL_load_client_CA_file(CAfile));
+.Ed
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_load_verify_locations 3 ,
+.Xr SSL_get_client_CA_list 3 ,
+.Xr SSL_load_client_CA_file 3 ,
+.Xr X509_NAME_new 3
+.Sh HISTORY
+.Fn SSL_CTX_set_client_CA_list ,
+.Fn SSL_set_client_CA_list ,
+.Fn SSL_CTX_add_client_CA ,
+and
+.Fn SSL_add_client_CA
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .

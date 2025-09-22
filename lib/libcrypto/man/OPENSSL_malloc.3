@@ -1,0 +1,102 @@
+.\"	$OpenBSD: OPENSSL_malloc.3,v 1.14 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OPENSSL_MALLOC 3
+.Os
+.Sh NAME
+.Nm OPENSSL_malloc ,
+.Nm OPENSSL_free ,
+.Nm OPENSSL_strdup ,
+.Nm CRYPTO_malloc ,
+.Nm CRYPTO_free ,
+.Nm CRYPTO_strdup
+.Nd legacy OpenSSL memory allocation wrappers
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/crypto.h
+.Ft void *
+.Fo OPENSSL_malloc
+.Fa "size_t num"
+.Fc
+.Ft void
+.Fo OPENSSL_free
+.Fa "void *addr"
+.Fc
+.Ft char *
+.Fo OPENSSL_strdup
+.Fa "const char *str"
+.Fc
+.Ft void *
+.Fo CRYPTO_malloc
+.Fa "size_t num"
+.Fa "const char *file"
+.Fa "int line"
+.Fc
+.Ft void
+.Fo CRYPTO_free
+.Fa "void *str"
+.Fa "const char *"
+.Fa int
+.Fc
+.Ft char *
+.Fo CRYPTO_strdup
+.Fa "const char *p"
+.Fa "const char *file"
+.Fa "int line"
+.Fc
+.Sh DESCRIPTION
+Do not use any of the interfaces documented here in new code.
+They are provided purely for compatibility with legacy application code.
+.Pp
+These functions are wrappers around the corresponding
+standard
+.Xr malloc 3 ,
+.Xr free 3 ,
+and
+.Xr strdup 3
+functions.
+.Pp
+The
+.Fn OPENSSL_*
+functions are implemented as macros.
+.Sh RETURN VALUES
+These functions return the same type and value as the corresponding
+standard functions.
+.Sh SEE ALSO
+.Xr crypto 3
+.Sh HISTORY
+.Fn CRYPTO_malloc
+and
+.Fn CRYPTO_free
+first appeared in SSLeay 0.6.4 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn OPENSSL_malloc
+and
+.Fn OPENSSL_free
+first appeared in OpenSSL 0.9.6 and have been available since
+.Ox 2.9 .
+.Pp
+.Fn CRYPTO_strdup
+and
+.Fn OPENSSL_strdup
+first appeared in OpenSSL 0.9.8j and have been available since
+.Ox 4.5 .
+.Sh CAVEATS
+If interoperability with other implementations is required,
+memory returned by the library as bare pointers must be freed with
+.Fn OPENSSL_free .

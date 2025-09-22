@@ -1,0 +1,408 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Visual Studio Native Debugging Visualizers for LLVM
+
+For Visual Studio 2013 only, put this file into
+"%USERPROFILE%\Documents\Visual Studio 2013\Visualizers" or create a symbolic link so it updates automatically.
+
+For later versions of Visual Studio, no setup is required.
+-->
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="llvm::SmallVectorImpl&lt;*&gt;">
+    <DisplayString Condition="Size == 0">empty</DisplayString>
+    <DisplayString Condition="Size &amp;&amp; Size &lt; 4">{(value_type*)BeginX,[Size]}</DisplayString>
+    <DisplayString Condition="Size &gt; 3">{Size} elements</DisplayString>
+    <DisplayString>Uninitialized</DisplayString>
+    <Expand>
+      <Item Name="[size]">Size</Item>
+      <Item Name="[capacity]">Capacity</Item>
+      <ArrayItems>
+        <Size>Size</Size>
+        <ValuePointer>(value_type*)BeginX</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="llvm::APInt">
+    <!-- For now, only handle up to 64-bit unsigned ints -->
+    <DisplayString Condition="BitWidth &lt;= 64">{U.VAL}</DisplayString>
+    <DisplayString>Cannot visualize APInts longer than 64 bits</DisplayString>
+  </Type>
+  <Type Name="llvm::ArrayRef&lt;*&gt;">
+    <DisplayString Condition="Length &lt; 4">{Data,[Length]}</DisplayString>
+    <DisplayString Condition="Length &gt; 3">{Length} elements</DisplayString>
+    <DisplayString>Uninitialized</DisplayString>
+    <Expand>
+      <Item Name="[size]">Length</Item>
+      <ArrayItems>
+        <Size>Length</Size>
+        <ValuePointer>Data</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="llvm::SmallString&lt;*&gt;">
+    <DisplayString>{(const char*)BeginX,[Size]s8}</DisplayString>
+    <StringView>(const char*)BeginX,[Size]</StringView>
+    <Expand>
+      <Item Name="[size]">Size</Item>
+      <Item Name="[capacity]">Capacity</Item>
+      <ArrayItems>
+        <Size>Size</Size>
+        <ValuePointer>(char*)BeginX</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="StringView">
+    <DisplayString>{First,[Last - First]s8}</DisplayString>
+  </Type>
+
+  <Type Name="llvm::StringRef">
+    <DisplayString>{Data,[Length]s8}</DisplayString>
+    <StringView>Data,[Length]s8</StringView>
+    <Expand>
+      <Item Name="[size]">Length</Item>
+      <ArrayItems>
+        <Size>Length</Size>
+        <ValuePointer>Data</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::PunnedPointer">
+    <DisplayString>{($T1)*(intptr_t *)Data}</DisplayString>
+  </Type>
+
+  <!-- PointerIntPair. In addition to the regular view, it is possible to view
+       just the pointer or just the int. The same code is duplicated from the
+       regular viewer to improve the performance of the common case. Note, we
+       need to specify PointerIntPair<PointerUnion<*>, *> differently because
+       we need to "look through" the PointerUnion to display it. Otherwise, we
+       get errors about ambiguous conversion from uintptr_t to PointerUnion.-->
+  <Type Name="llvm::PointerIntPair&lt;llvm::PointerUnion&lt;*&gt;, *&gt;">
+    <!-- $T1 is the parameter pack of PointerUnion, $T3 is IntBits,
+         $T4 is IntType, $T5 is PtrTraits, and $T6 is Info. -->
+    <DisplayString IncludeView="ptr">{($T1)(*(intptr_t *)Value.Data &amp; $T6::PointerBitMask)}</DisplayString>
+    <DisplayString IncludeView="int">{($T4)((*(intptr_t *)Value.Data &gt;&gt; $T6::IntShift) &amp; $T6::IntMask)}</DisplayString>
+    <DisplayString>{$T6::IntMask}: {($T1)(*(intptr_t *)Value.Data &amp; $T6::PointerBitMask)} [{($T4)((*(intptr_t *)Value.Data &gt;&gt; $T6::IntShift) &amp; $T6::IntMask)}]</DisplayString>
+    <Expand>
+      <Item Name="[ptr]">($T1)(*(intptr_t *)Value.Data &amp; $T6::PointerBitMask)</Item>
+      <Item Name="[int]">($T4)((*(intptr_t *)Value.Data &gt;&gt; $T6::IntShift) &amp; $T6::IntMask)</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::PointerIntPair&lt;*&gt;">
+    <DisplayString IncludeView="ptr">{($T1)(*(intptr_t *)Value.Data &amp; $T5::PointerBitMask)}</DisplayString>
+    <DisplayString IncludeView="int">{((*(intptr_t *)Value.Data &gt;&gt; $T5::IntShift) &amp; $T5::IntMask)}</DisplayString>
+    <DisplayString>{$T5::IntMask}: {($T1)(*(intptr_t *)Value.Data &amp; $T5::PointerBitMask)} [{((*(intptr_t *)Value.Data &gt;&gt; $T5::IntShift) &amp; $T5::IntMask)}]</DisplayString>
+    <Expand>
+      <Item Name="[ptr]">($T1)(*(intptr_t *)Value.Data &amp; $T5::PointerBitMask)</Item>
+      <Item Name="[int]">((*(intptr_t *)Value.Data &gt;&gt; $T5::IntShift) &amp; $T5::IntMask)</Item>
+    </Expand>
+  </Type>
+  <!-- PointerUnion types -->
+  <Type Name="llvm::pointer_union_detail::PointerUnionMembers&lt;*&gt;">
+    <DisplayString Optional="true" Condition="((*(intptr_t *)Val.Value.Data&gt;&gt;$T2::InfoTy::IntShift) &amp; $T2::InfoTy::IntMask) == 0">
+      {($T4)(*(intptr_t *)Val.Value.Data &amp; $T2::InfoTy::PointerBitMask)}
+    </DisplayString>
+    <DisplayString Optional="true" Condition="((*(intptr_t *)Val.Value.Data&gt;&gt;$T2::InfoTy::IntShift) &amp; $T2::InfoTy::IntMask) == 1">
+      {($T5)(*(intptr_t *)Val.Value.Data &amp; $T2::InfoTy::PointerBitMask)}
+    </DisplayString>
+    <DisplayString>Unexpected index in PointerUnion: {(*(intptr_t *)Val.Value.Data&gt;&gt;$T2::InfoTy::IntShift) &amp; $T2::InfoTy::IntMask}</DisplayString>
+    <Expand>
+      <Item Name="[Holds]" Condition="((*(intptr_t *)Val.Value.Data&gt;&gt;$T2::InfoTy::IntShift) &amp; $T2::InfoTy::IntMask) == 0">"$T4",s8b</Item>
+      <Item Name="[Ptr]" Optional="true"  Condition="((*(intptr_t *)Val.Value.Data&gt;&gt;$T2::InfoTy::IntShift) &amp; $T2::InfoTy::IntMask) == 0">
+        ($T4)(*(intptr_t *)Val.Value.Data &amp; $T2::InfoTy::PointerBitMask)
+      </Item>
+      <Item Name="[Holds]" Condition="((*(intptr_t *)Val.Value.Data&gt;&gt;$T2::InfoTy::IntShift) &amp; $T2::InfoTy::IntMask) == 1">"$T5",s8b</Item>
+      <Item Name="[Ptr]" Optional="true"  Condition="((*(intptr_t *)Val.Value.Data&gt;&gt;$T2::InfoTy::IntShift) &amp; $T2::InfoTy::IntMask) == 1">
+        ($T5)(*(intptr_t *)Val.Value.Data &amp; $T2::InfoTy::PointerBitMask)
+      </Item>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::iplist&lt;*,*&gt;">
+    <DisplayString Condition="Head == 0">{{ empty }}</DisplayString>
+    <DisplayString Condition="Head != 0">{{ head={Head} }}</DisplayString>
+    <Expand>
+      <LinkedListItems>
+        <HeadPointer>Head</HeadPointer>
+        <NextPointer>Next</NextPointer>
+        <ValueNode>this</ValueNode>
+      </LinkedListItems>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::IntrusiveRefCntPtr&lt;*&gt;">
+    <DisplayString Condition="Obj == 0">empty</DisplayString>
+    <DisplayString Condition="(Obj != 0) &amp;&amp; (Obj-&gt;RefCount == 1)">RefPtr [1 ref] {*Obj}</DisplayString>
+    <DisplayString Condition="(Obj != 0) &amp;&amp; (Obj-&gt;RefCount != 1)">RefPtr [{Obj-&gt;RefCount} refs] {*Obj}</DisplayString>
+    <Expand>
+      <Item Condition="Obj != 0" Name="[refs]">Obj-&gt;RefCount</Item>
+      <ExpandedItem Condition="Obj != 0">Obj</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::SmallPtrSet&lt;*,*&gt;">
+    <DisplayString Condition="CurArray == SmallArray">{{ [Small Mode] size={NumNonEmpty}, capacity={CurArraySize} }}</DisplayString>
+    <DisplayString Condition="CurArray != SmallArray">{{ [Big Mode] size={NumNonEmpty}, capacity={CurArraySize} }}</DisplayString>
+    <Expand>
+      <Item Name="[size]">NumNonEmpty</Item>
+      <Item Name="[capacity]">CurArraySize</Item>
+      <ArrayItems>
+        <Size>NumNonEmpty</Size>
+        <ValuePointer>($T1*)CurArray</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::DenseMap&lt;*,*,*&gt;">
+    <DisplayString Condition="NumEntries == 0">empty</DisplayString>
+    <DisplayString Condition="NumEntries != 0">{{ size={NumEntries}, buckets={NumBuckets} }}</DisplayString>
+    <Expand>
+      <Item Name="[size]">NumEntries</Item>
+      <Item Name="[buckets]">NumBuckets</Item>
+      <ArrayItems>
+        <Size>NumBuckets</Size>
+        <ValuePointer>Buckets</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::StringMap&lt;*,*&gt;">
+    <DisplayString>{{ size={NumItems}, buckets={NumBuckets} }}</DisplayString>
+    <Expand>
+      <Item Name="[size]">NumItems</Item>
+      <Item Name="[buckets]">NumBuckets</Item>
+      <ArrayItems>
+        <Size>NumBuckets</Size>
+        <ValuePointer>(MapEntryTy**)TheTable</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::StringMapEntry&lt;*&gt;">
+    <DisplayString Condition="keyLength == 0">empty</DisplayString>
+    <DisplayString Condition="keyLength != 0">({this+1,s8}, {second})</DisplayString>
+    <Expand>
+      <Item Name="[key]">this+1,s</Item>
+      <Item Name="[value]" Condition="keyLength != 0">second</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::Triple">
+    <DisplayString>{Data}</DisplayString>
+  </Type>
+
+  <Type Name="llvm::Optional&lt;*&gt;">
+    <DisplayString Condition="!Storage.hasVal">None</DisplayString>
+    <DisplayString Condition="Storage.hasVal">{Storage.value}</DisplayString>
+    <Expand>
+      <Item Name="[underlying]" Condition="Storage.hasVal">Storage.value</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::Expected&lt;*&gt;">
+    <DisplayString Condition="HasError">Error</DisplayString>
+    <DisplayString Condition="!HasError">{*((storage_type *)TStorage.buffer)}</DisplayString>
+    <Expand>
+      <Item Name="[value]" Condition="!HasError">*((storage_type *)TStorage.buffer)</Item>
+      <Item Name="[error]" Condition="HasError">*((error_type *)ErrorStorage.buffer)</Item>
+    </Expand>
+  </Type>
+
+
+  <!-- Since we're in MSVC, we can assume that the system is little endian.  Therefore
+       the little and native cases just require a cast.  Handle this easy case first. Use
+       a wildcard for the second template argument (the endianness), but we will use a
+       specific value of 0 later on for the big endian to give it priority for being a
+       better match.  -->
+  <Type Name="llvm::support::detail::packed_endian_specific_integral&lt;*,*,1&gt;">
+    <DisplayString>{{little endian value = {*(($T1*)(unsigned char *)Value.buffer)} }}</DisplayString>
+    <Expand>
+      <Item Name="[Raw Bytes]" Condition="sizeof($T1)==1">(unsigned char *)Value.buffer,1</Item>
+      <Item Name="[Raw Bytes]" Condition="sizeof($T1)==2">(unsigned char *)Value.buffer,2</Item>
+      <Item Name="[Raw Bytes]" Condition="sizeof($T1)==4">(unsigned char *)Value.buffer,4</Item>
+      <Item Name="[Raw Bytes]" Condition="sizeof($T1)==8">(unsigned char *)Value.buffer,8</Item>
+    </Expand>
+  </Type>
+
+  <!-- Now handle the hard case of big endian.  We need to do the swizzling here, but
+       we need to specialize it based on the size of the value type. -->
+  <Type Name="llvm::support::detail::packed_endian_specific_integral&lt;*,0,1&gt;">
+    <DisplayString Condition="sizeof($T1)==1">{{ big endian value = {*(unsigned char *)Value.buffer} }}</DisplayString>
+    <DisplayString Condition="sizeof($T1)==2">{{ big endian value = {(($T1)(*(unsigned char *)Value.buffer) &lt;&lt; 8)
+                                                                    | ($T1)(*((unsigned char *)Value.buffer+1))} }}</DisplayString>
+    <DisplayString Condition="sizeof($T1)==4">{{ big endian value = {(($T1)(*(unsigned char *)Value.buffer) &lt;&lt; 24)
+                                                                    | (($T1)(*((unsigned char *)Value.buffer+1)) &lt;&lt; 16)
+                                                                    | (($T1)(*((unsigned char *)Value.buffer+2)) &lt;&lt; 8)
+                                                                    |  ($T1)(*((unsigned char *)Value.buffer+3))} }}</DisplayString>
+    <DisplayString Condition="sizeof($T1)==8">{{ big endian value = {(($T1)(*(unsigned char *)Value.buffer) &lt;&lt; 56)
+                                                                    | (($T1)(*((unsigned char *)Value.buffer+1)) &lt;&lt; 48)
+                                                                    | (($T1)(*((unsigned char *)Value.buffer+2)) &lt;&lt; 40)
+                                                                    | (($T1)(*((unsigned char *)Value.buffer+3)) &lt;&lt; 32)
+                                                                    | (($T1)(*((unsigned char *)Value.buffer+4)) &lt;&lt; 24)
+                                                                    | (($T1)(*((unsigned char *)Value.buffer+5)) &lt;&lt; 16)
+                                                                    | (($T1)(*((unsigned char *)Value.buffer+6)) &lt;&lt; 8)
+                                                                    |  ($T1)(*((unsigned char *)Value.buffer+7))} }}</DisplayString>
+    <Expand>
+      <Item Name="[Raw Bytes]" Condition="sizeof($T1)==1">(unsigned char *)Value.buffer,1</Item>
+      <Item Name="[Raw Bytes]" Condition="sizeof($T1)==2">(unsigned char *)Value.buffer,2</Item>
+      <Item Name="[Raw Bytes]" Condition="sizeof($T1)==4">(unsigned char *)Value.buffer,4</Item>
+      <Item Name="[Raw Bytes]" Condition="sizeof($T1)==8">(unsigned char *)Value.buffer,8</Item>
+    </Expand>
+  </Type>
+  <!-- llvm::Type has two fields, SubclassData and ContainedTys, the meaning of which change depending on the TypeID.
+       This visualiser decodes those fields based on the value of ID.
+  -->
+  <Type Name="llvm::Type">
+    <DisplayString>{ID}</DisplayString>
+    <Expand>
+      <Item Name="ID">ID</Item>
+
+      <Item Name="NumBits" Condition="ID == llvm::Type::TypeID::IntegerTyID">SubclassData</Item>
+
+      <Item Name="ReturnType" Condition="ID == llvm::Type::TypeID::FunctionTyID">*ContainedTys</Item>
+      <Synthetic Name="Arguments" Condition="ID == llvm::Type::TypeID::FunctionTyID">
+        <DisplayString>{NumContainedTys - 1}</DisplayString>
+        <Expand>
+        <ArrayItems>
+          <Size>NumContainedTys - 1</Size>
+          <ValuePointer>ContainedTys + 1</ValuePointer>
+        </ArrayItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="IsVarArg" Condition="ID == llvm::Type::TypeID::FunctionTyID">SubclassData == 1</Item>
+
+      <Item Name="HasBody" Condition="ID == llvm::Type::TypeID::StructTyID">(SubclassData 	&amp; llvm::StructType::SCDB_HasBody) != 0</Item>
+      <Item Name="Packed" Condition="ID == llvm::Type::TypeID::StructTyID">(SubclassData 	&amp; llvm::StructType::SCDB_Packed) != 0</Item>
+      <Item Name="IsLiteral" Condition="ID == llvm::Type::TypeID::StructTyID">(SubclassData 	&amp; llvm::StructType::SCDB_IsLiteral) != 0</Item>
+      <Item Name="IsSized" Condition="ID == llvm::Type::TypeID::StructTyID">(SubclassData 	&amp; llvm::StructType::SCDB_IsSized) != 0</Item>
+      <Synthetic Name="Members" Condition="ID == llvm::Type::TypeID::StructTyID">
+        <DisplayString>{NumContainedTys}</DisplayString>
+        <Expand>
+          <ArrayItems>
+            <Size>NumContainedTys</Size>
+            <ValuePointer>ContainedTys</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+
+      <Item Name="ElementType" Condition="ID == llvm::Type::TypeID::ArrayTyID">*ContainedTys</Item>
+      <Item Name="NumElements" Condition="ID == llvm::Type::TypeID::ArrayTyID">((llvm::ArrayType*)this)->NumElements</Item>
+
+      <Item Name="ElementType" Condition="ID == llvm::Type::TypeID::FixedVectorTyID">*ContainedTys</Item>
+      <Item Name="NumElements" Condition="ID == llvm::Type::TypeID::FixedVectorTyID">((llvm::VectorType*)this)->ElementQuantity</Item>
+
+      <Item Name="ElementType" Condition="ID == llvm::Type::TypeID::ScalableVectorTyID">*ContainedTys</Item>
+      <Item Name="MinNumElements" Condition="ID == llvm::Type::TypeID::ScalableVectorTyID">((llvm::VectorType*)this)->ElementQuantity</Item>
+
+      <Item Name="AddressSpace" Condition="ID == llvm::Type::TypeID::PointerTyID">SubclassData</Item>
+      <Item Name="PointeeType" Condition="ID == llvm::Type::TypeID::PointerTyID">*ContainedTys</Item>
+
+      <Item Name="Context">Context</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::ConstantSDNode">
+    <DisplayString>$(Type) {*Value}</DisplayString>
+  </Type>
+
+  <Type Name="llvm::SDNode">
+    <DisplayString>$(Type) {(llvm::ISD::NodeType)this->NodeType}</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>NumOperands</Size>
+        <ValuePointer>OperandList</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::ConstantInt">
+    <DisplayString>i{Val.BitWidth} {Val.VAL}</DisplayString>
+  </Type>
+
+  <Type Name="llvm::IntegerType">
+    <DisplayString>{IDAndSubclassData >> 8}bit integer type</DisplayString>
+  </Type>
+
+  <Type Name="llvm::Value">
+    <DisplayString Condition="HasName">$(Type) {*VTy} {this->getName()} {SubclassData}</DisplayString>
+    <DisplayString Condition="!HasName">$(Type) {*VTy} anon {SubclassData}</DisplayString>
+    <Expand>
+      <Item Name="[Inst]" Condition="SubclassID > InstructionVal">(Instruction*)this</Item>
+      <Item Name="Operands">(User*)this</Item>
+      <LinkedListItems>
+        <HeadPointer>UseList</HeadPointer>
+        <NextPointer>Next</NextPointer>
+        <ValueNode>Prev.Value &amp; 3 == 3 ? (User*)(this + 1) : (User*)(this + 2)</ValueNode>
+      </LinkedListItems>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::Use">
+    <Expand>
+      <Item Name="Value">Val</Item>
+      <!--
+      <LinkedListItems>
+        <HeadPointer>this</HeadPointer>
+        <NextPointer>Next</NextPointer>
+        <ValueNode>Prev.Value &amp; 3 == 3 ? (User*)(this + 1) : (User*)(this + 2)</ValueNode>
+      </LinkedListItems>
+      -->
+    </Expand>
+  </Type>
+
+  <!-- uses other values, like Operands -->
+  <Type Name="llvm::User">
+    <DisplayString Condition="HasName">$(Type) {*VTy} {this->getName()} {SubclassData}</DisplayString>
+    <DisplayString Condition="!HasName">$(Type) {*VTy} anon {SubclassData}</DisplayString>
+    <Expand>
+      <Item Name="[Value]">(Value*)this,nd</Item>
+      <Item Name="[Type]">*VTy</Item>
+      <ArrayItems Condition="!HasHungOffUses">
+        <Size>NumUserOperands</Size>
+        <ValuePointer>(llvm::Use*)this - NumUserOperands</ValuePointer>
+      </ArrayItems>
+      <ArrayItems Condition="HasHungOffUses">
+        <Size>NumUserOperands</Size>
+        <ValuePointer>*((llvm::Use**)this - 1)</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::Instruction">
+    <DisplayString>{getOpcodeName(SubclassID - InstructionVal)}</DisplayString>
+    <Expand>
+      <Item Name="[User]">(User*)this,nd</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::GlobalValue">
+    <DisplayString>{this->getName()} {(LinkageTypes)Linkage} {(VisibilityTypes)Visibility} {(DLLStorageClassTypes)DllStorageClass} {(llvm::GlobalValue::ThreadLocalMode) ThreadLocal}</DisplayString>
+  </Type>
+
+  <!-- TODO doesn't work cause it doesn't know the dynamic type -->
+  <Type Name="llvm::ilist_node">
+    <Expand>
+      <LinkedListItems>
+        <HeadPointer>this</HeadPointer>
+        <NextPointer>Next</NextPointer>
+        <ValueNode>this</ValueNode>
+      </LinkedListItems>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::LLVMContext">
+    <Expand>
+      <ExpandedItem>pImpl</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name="llvm::Module">
+    <DisplayString>{ModuleID,s8} {TargetTriple}</DisplayString>
+  </Type>
+
+  <Type Name="llvm::Pass">
+    <DisplayString>$(Type) {PassID} {Kind}</DisplayString>
+  </Type>
+</AutoVisualizer>

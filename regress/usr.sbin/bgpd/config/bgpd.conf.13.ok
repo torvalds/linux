@@ -1,0 +1,109 @@
+AS 1
+router-id 127.0.0.1
+socket "/var/run/bgpd.sock.0"
+listen on 0.0.0.0
+listen on ::
+
+
+rde rib Adj-RIB-In no evaluate
+rde rib Loc-RIB rtable 0 fib-update yes
+
+neighbor 2001:db8:abcd::7 {
+	remote-as 7
+	enforce neighbor-as yes
+	enforce local-as yes
+	announce IPv6 unicast
+	announce policy no
+}
+neighbor 192.0.2.5 {
+	remote-as 5
+	enforce neighbor-as yes
+	enforce local-as yes
+	announce IPv4 unicast
+	announce policy no
+}
+neighbor 2001:db8:abcd::5 {
+	remote-as 5
+	enforce neighbor-as yes
+	enforce local-as yes
+	announce IPv6 unicast
+	announce policy no
+}
+neighbor 192.0.2.6 {
+	remote-as 6
+	local-address 192.0.2.253
+	local-address 2001:db8:abcd::253
+	enforce neighbor-as yes
+	enforce local-as yes
+	announce IPv4 unicast
+	announce policy no
+}
+neighbor 2001:db8:abcd::6 {
+	remote-as 6
+	local-address 192.0.2.253
+	local-address 2001:db8:abcd::253
+	enforce neighbor-as yes
+	enforce local-as yes
+	announce IPv6 unicast
+	announce policy no
+}
+neighbor 192.0.2.7 {
+	remote-as 7
+	enforce neighbor-as yes
+	enforce local-as yes
+	announce IPv4 unicast
+	announce policy no
+}
+group "TEST" {
+	neighbor 192.0.2.2 {
+		remote-as 2
+		local-address 192.0.2.1
+		local-address 2001:db8:abcd::1
+		enforce neighbor-as yes
+		enforce local-as yes
+		announce IPv4 unicast
+		announce policy no
+	}
+	neighbor 2001:db8:abcd::2 {
+		remote-as 2
+		local-address 192.0.2.1
+		local-address 2001:db8:abcd::1
+		enforce neighbor-as yes
+		enforce local-as yes
+		announce IPv6 unicast
+		announce policy no
+	}
+	neighbor 192.0.2.3 {
+		remote-as 3
+		local-address 192.0.2.254
+		local-address 2001:db8:abcd::1
+		enforce neighbor-as yes
+		enforce local-as yes
+		announce IPv4 unicast
+		announce policy no
+	}
+	neighbor 2001:db8:abcd::3 {
+		remote-as 3
+		local-address 192.0.2.1
+		local-address 2001:db8:abcd::254
+		enforce neighbor-as yes
+		enforce local-as yes
+		announce IPv6 unicast
+		announce policy no
+	}
+	neighbor 192.0.2.4 {
+		remote-as 4
+		enforce neighbor-as yes
+		enforce local-as yes
+		announce IPv4 unicast
+		announce policy no
+	}
+	neighbor 2001:db8:abcd::4 {
+		remote-as 4
+		enforce neighbor-as yes
+		enforce local-as yes
+		announce IPv6 unicast
+		announce policy no
+	}
+}
+

@@ -1,0 +1,13 @@
+module libunwind [system] {
+  header "libunwind.h"
+  export *
+}
+
+module unwind [system] {
+  header "__libunwind_config.h"
+  header "unwind.h"
+  private textual header "unwind_arm_ehabi.h"
+  private textual header "unwind_itanium.h"
+
+  export *
+}

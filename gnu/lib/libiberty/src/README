@@ -1,0 +1,66 @@
+This directory contains the -liberty library of free software.
+It is a collection of subroutines used by various GNU programs.
+Current members include:
+
+	getopt -- get options from command line
+	obstack -- stacks of arbitrarily-sized objects
+	strerror -- error message strings corresponding to errno
+	strtol -- string-to-long conversion
+	strtoul -- string-to-unsigned-long conversion
+
+We expect many of the GNU subroutines that are floating around to
+eventually arrive here.
+
+The library must be configured from the top source directory.  Don't
+try to run configure in this directory.  Follow the configuration
+instructions in ../README.
+
+Please report bugs to "gcc-bugs@gcc.gnu.org" and send fixes to
+"gcc-patches@gcc.gnu.org".  Thank you.
+
+ADDING A NEW FILE
+=================
+
+There are two sets of files:  Those that are "required" will be
+included in the library for all configurations, while those
+that are "optional" will be included in the library only if "needed."
+
+To add a new required file, edit Makefile to add the source file
+name to CFILES and the object file to REQUIRED_OFILES.
+
+To add a new optional file, it must provide a single function, and the
+name of the function must be the same as the name of the file.
+
+    * Add the source file name to CFILES.
+
+    * Add the function to name to the funcs shell variable in
+      configure.ac.
+
+    * Add the function to the AC_CHECK_FUNCS lists just after the
+      setting of the funcs shell variable.  These AC_CHECK_FUNCS calls
+      are never executed; they are there to make autoheader work
+      better.
+
+    * Consider the special cases of building libiberty; as of this
+      writing, the special cases are newlib and VxWorks.  If a
+      particular special case provides the function, you do not need
+      to do anything.  If it does not provide the function, add the
+      object file to LIBOBJS, and add the function name to the case
+      controlling whether to define HAVE_func.
+
+The optional file you've added (e.g. getcwd.c) should compile and work
+on all hosts where it is needed.  It does not have to work or even
+compile on hosts where it is not needed.
+
+ADDING A NEW CONFIGURATION
+==========================
+
+On most hosts you should be able to use the scheme for automatically
+figuring out which files are needed.  In that case, you probably
+don't need a special Makefile stub for that configuration.
+
+If the fully automatic scheme doesn't work, you may be able to get
+by with defining EXTRA_OFILES in your Makefile stub.  This is
+a list of object file names that should be treated as required
+for this configuration - they will be included in libiberty.a,
+regardless of whatever might be in the C library.

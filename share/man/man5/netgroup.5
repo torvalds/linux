@@ -1,0 +1,119 @@
+.\"	$OpenBSD: netgroup.5,v 1.17 2020/01/25 17:08:34 schwarze Exp $
+.\"	$NetBSD: netgroup.5,v 1.3 1995/03/18 14:58:34 cgd Exp $
+.\"
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)netgroup.5	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: January 25 2020 $
+.Dt NETGROUP 5
+.Os
+.Sh NAME
+.Nm netgroup
+.Nd defines network groups
+.Sh DESCRIPTION
+The
+.Nm
+file specifies
+.Dq netgroups ,
+which are sets of
+.Sy (host, user, domain)
+tuples that are to be given similar network access.
+.Pp
+Each line in the file consists of a netgroup name followed by a list of
+the members of the netgroup.
+Each member can be either the name of another netgroup or a specification
+of a tuple as follows:
+.Bd -literal -offset indent
+(host, user, domain)
+.Ed
+.Pp
+where the
+.Ar host ,
+.Ar user ,
+and
+.Ar domain
+are character string names for the corresponding component.
+Any of the comma separated fields may be empty to specify a
+.Dq wildcard
+value or may consist of the single character
+.Dq \&-
+to specify
+.Dq no valid value .
+The members of the list may be separated by whitespace; the
+.Dq \e
+character may be used at the end of a line to specify line continuation.
+.Pp
+Lines that begin with a
+.Ql #
+are treated as comments.
+.Pp
+After modification of
+.Pa /etc/netgroup ,
+.Xr netgroup_mkdb 8
+should be run, as the
+.Xr getnetgrent 3
+functions only operate on the Berkeley DB file
+.Pa /etc/netgroup.db .
+.Pp
+If that file is not present, and the system supports NIS, then the
+.Nm
+NIS maps are used.
+The NIS maps are also used if the
+.Nm
+file contains a
+.Dq +
+entry.
+.Sh FILES
+.Bl -tag -width /etc/netgroup.db -compact
+.It Pa /etc/netgroup
+default netgroup list
+.It Pa /etc/netgroup.db
+netgroup database
+.El
+.Sh EXAMPLES
+Define a group of three machines:
+.Pp
+.Dl friends (10.0.0.2,,) (10.0.0.3,,) (10.0.0.4,,)
+.Pp
+This group can be used in
+.Xr exports 5
+as follows:
+.Pp
+.Dl /home -maproot=nobody friends
+.Sh SEE ALSO
+.Xr dbopen 3 ,
+.Xr getnetgrent 3 ,
+.Xr exports 5 ,
+.Xr netgroup_mkdb 8
+.Sh STANDARDS
+The file format is compatible with that of various vendors, although it
+appears that not all vendors use an identical format.
+.Sh BUGS
+The interpretation of access restrictions based on the member tuples of a
+netgroup is left up to the various network applications.

@@ -1,0 +1,32 @@
+LIB1ASMFUNCS = _bb_init_func _call_via_rX _interwork_call_via_rX
+
+# These functions have __aeabi equivalents and will never be called by GCC.  
+# By putting them in LIB1ASMFUNCS, we avoid the standard libgcc2.c code being
+# used -- and we make sure that definitions are not available in lib1funcs.asm,
+# either, so they end up undefined.
+LIB1ASMFUNCS += \
+	_ashldi3 _ashrdi3 _divdi3 _floatdidf _udivmoddi4 _umoddi3 \
+	_udivdi3 _lshrdi3 _moddi3 _muldi3 _negdi2 _cmpdi2 \
+	_fixdfdi _fixsfdi _fixunsdfdi _fixunssfdi _floatdisf \
+	_negdf2 _addsubdf3 _muldivdf3 _cmpdf2 _unorddf2 _fixdfsi _fixunsdfsi \
+	_truncdfsf2 _negsf2 _addsubsf3 _muldivsf3 _cmpsf2 _unordsf2 \
+	_fixsfsi _fixunssfsi
+
+# Include the gcc personality routine
+UNWIND_H = $(srcdir)/config/arm/unwind-arm.h
+LIB2ADDEH = $(srcdir)/unwind-c.c $(srcdir)/config/arm/pr-support.c
+LIB2ADDEHDEP = $(UNWIND_H)
+
+# Create a multilib for processors with VFP floating-point, and a
+# multilib for those without -- using the soft-float ABI in both
+# cases.  Symbian OS object should be compiled with interworking
+# enabled, so there are no separate thumb-mode libraries.
+MULTILIB_OPTIONS     = mfloat-abi=softfp
+MULTILIB_DIRNAMES    = softfp
+
+# There is no C library to link against on Symbian OS -- at least when 
+# building GCC.
+SHLIB_LC = 
+
+# Symbian OS provides its own startup code.
+EXTRA_MULTILIB_PARTS=

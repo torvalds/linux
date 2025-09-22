@@ -1,0 +1,65 @@
+.\"	$OpenBSD: asmc.4,v 1.5 2020/09/13 10:43:40 jmc Exp $
+.\"
+.\" Copyright (c) 2015 Joerg Jung <jung@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 13 2020 $
+.Dt ASMC 4
+.Os
+.Sh NAME
+.Nm asmc
+.Nd Apple System Management Controller (SMC)
+.Sh SYNOPSIS
+.Cd "asmc0 at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Apple System Management Controller (SMC), as
+found in Intel based Apple devices.
+.Pp
+The driver possesses a collection of temperature, fan, light, and acceleration
+sensor values which are made available through the
+.Xr sysctl 8
+interface.
+.Pp
+If available, the keyboard backlight is enabled by the driver and can be
+adjusted using the
+.Xr wsconsctl 8
+variable
+.Va keyboard.backlight .
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8 ,
+.Xr wsconsctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Joerg Jung Aq Mt jung@openbsd.org .
+.Sh CAVEATS
+Light sensor values may not be available on older products.
+.Pp
+Acceleration sensors are not available and the associated interrupt handling is
+not implemented.
+.Pp
+Besides the sensors, the huge amount of other functions and information
+available from the SMC is not supported.

@@ -1,0 +1,5 @@
+dnl	$OpenBSD: whatis,v 1.5 2023/03/16 18:04:08 miod Exp $
+
+OpenBSD/MACHINE runs on the BeagleBoard and newer xM models, as well as
+PandaBoard, PandaBoard ES, BeagleBone, BeagleBone Black, SABRE Lite,
+Nitrogen6X, Wandboard, CuBox-i4Pro, Utilite and Novena.

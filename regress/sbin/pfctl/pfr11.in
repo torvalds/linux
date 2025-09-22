@@ -1,0 +1,10 @@
+# hidden tables created by rules
+pass list
+pass rule pass in from <regress.1> to any
+pass list
+pass rule pass in from <regress.1> to <regress.2>
+pass list
+pass rule pass in from <regress.1> to any
+pass list
+pass rule
+pass list

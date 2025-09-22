@@ -1,0 +1,910 @@
+#!/usr/bin/env python
+
+import os
+import re
+import time
+from pprint import pprint
+
+###
+
+c99URL = 'http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf'
+c99TOC = [('Foreword', 'xi'),
+('Introduction', 'xiv'),
+('1. Scope', '1'),
+('2. Normative references', '2'),
+('3. Terms, definitions, and symbols', '3'),
+('4. Conformance', '7'),
+('5. Environment', '9'),
+('5.1 Conceptual models', '9'),
+('5.1.1 Translation environment', '9'),
+('5.1.2 Execution environments', '11'),
+('5.2 Environmental considerations', '17'),
+('5.2.1 Character sets', '17'),
+('5.2.2 Character display semantics', '19'),
+('5.2.3 Signals and interrupts', '20'),
+('5.2.4 Environmental limits', '20'),
+('6. Language', '29'),
+('6.1 Notation', '29'),
+('6.2 Concepts', '29'),
+('6.2.1 Scopes of identifiers', '29'),
+('6.2.2 Linkages of identifiers', '30'),
+('6.2.3 Name spaces of identifiers', '31'),
+('6.2.4 Storage durations of objects', '32'),
+('6.2.5 Types', '33'),
+('6.2.6 Representations of types', '37'),
+('6.2.7 Compatible type and composite type', '40'),
+('6.3 Conversions', '42'),
+('6.3.1 Arithmetic operands', '42'),
+('6.3.2 Other operands', '46'),
+('6.4 Lexical elements', '49'),
+('6.4.1 Keywords', '50'),
+('6.4.2 Identifiers', '51'),
+('6.4.3 Universal character names', '53'),
+('6.4.4 Constants', '54'),
+('6.4.5 String literals', '62'),
+('6.4.6 Punctuators', '63'),
+('6.4.7 Header names', '64'),
+('6.4.8 Preprocessing numbers', '65'),
+('6.4.9 Comments', '66'),
+('6.5 Expressions', '67'),
+('6.5.1 Primary expressions', '69'),
+('6.5.2 Postfix operators', '69'),
+('6.5.3 Unary operators', '78'),
+('6.5.4 Cast operators', '81'),
+('6.5.5 Multiplicative operators', '82'),
+('6.5.6 Additive operators', '82'),
+('6.5.7 Bitwise shift operators', '84'),
+('6.5.8 Relational operators', '85'),
+('6.5.9 Equality operators', '86'),
+('6.5.10 Bitwise AND operator', '87'),
+('6.5.11 Bitwise exclusive OR operator', '88'),
+('6.5.12 Bitwise inclusive OR operator', '88'),
+('6.5.13 Logical AND operator', '89'),
+('6.5.14 Logical OR operator', '89'),
+('6.5.15 Conditional operator', '90'),
+('6.5.16 Assignment operators', '91'),
+('6.5.17 Comma operator', '94'),
+('6.6 Constant expressions', '95'),
+('6.7 Declarations', '97'),
+('6.7.1 Storage-class specifiers', '98'),
+('6.7.2 Type specifiers', '99'),
+('6.7.3 Type qualifiers', '108'),
+('6.7.4 Function specifiers', '112'),
+('6.7.5 Declarators', '114'),
+('6.7.6 Type names', '122'),
+('6.7.7 Type definitions', '123'),
+('6.7.8 Initialization', '125'),
+('6.8 Statements and blocks', '131'),
+('6.8.1 Labeled statements', '131'),
+('6.8.2 Compound statement', '132'),
+('6.8.3 Expression and null statements', '132'),
+('6.8.4 Selection statements', '133'),
+('6.8.5 Iteration statements', '135'),
+('6.8.6 Jump statements', '136'),
+('6.9 External definitions', '140'),
+('6.9.1 Function definitions', '141'),
+('6.9.2 External object definitions', '143'),
+('6.10 Preprocessing directives', '145'),
+('6.10.1 Conditional inclusion', '147'),
+('6.10.2 Source file inclusion', '149'),
+('6.10.3 Macro replacement', '151'),
+('6.10.4 Line control', '158'),
+('6.10.5 Error directive', '159'),
+('6.10.6 Pragma directive', '159'),
+('6.10.7 Null directive', '160'),
+('6.10.8 Predefined macro names', '160'),
+('6.10.9 Pragma operator', '161'),
+('6.11 Future language directions', '163'),
+('6.11.1 Floating types', '163'),
+('6.11.2 Linkages of identifiers', '163'),
+('6.11.3 External names', '163'),
+('6.11.4 Character escape sequences', '163'),
+('6.11.5 Storage-class specifiers', '163'),
+('6.11.6 Function declarators', '163'),
+('6.11.7 Function definitions', '163'),
+('6.11.8 Pragma directives', '163'),
+('6.11.9 Predefined macro names', '163'),
+('7. Library', '164'),
+('7.1 Introduction', '164'),
+('7.1.1 Definitions of terms', '164'),
+('7.1.2 Standard headers', '165'),
+('7.1.3 Reserved identifiers', '166'),
+('7.1.4 Use of library functions', '166'),
+('7.2 Diagnostics <assert.h>', '169'),
+('7.2.1 Program diagnostics', '169'),
+('7.3 Complex arithmetic <complex.h>', '170'),
+('7.3.1 Introduction', '170'),
+('7.3.2 Conventions', '170'),
+('7.3.3 Branch cuts', '171'),
+('7.3.4 The CX_LIMITED_RANGE pragma', '171'),
+('7.3.5 Trigonometric functions', '172'),
+('7.3.6 Hyperbolic functions', '174'),
+('7.3.7 Exponential and logarithmic functions', '176'),
+('7.3.8 Power and absolute-value functions', '177'),
+('7.3.9 Manipulation functions', '178'),
+('7.4 Character handling <ctype.h>', '181'),
+('7.4.1 Character classification functions', '181'),
+('7.4.2 Character case mapping functions', '184'),
+('7.5 Errors <errno.h>', '186'),
+('7.6 Floating-point environment <fenv.h>', '187'),
+('7.6.1 The FENV_ACCESS pragma', '189'),
+('7.6.2 Floating-point exceptions', '190'),
+('7.6.3 Rounding', '193'),
+('7.6.4 Environment', '194'),
+('7.7 Characteristics of floating types <float.h>', '197'),
+('7.8 Format conversion of integer types <inttypes.h>', '198'),
+('7.8.1 Macros for format specifiers', '198'),
+('7.8.2 Functions for greatest-width integer types', '199'),
+('7.9 Alternative spellings <iso646.h>', '202'),
+('7.10 Sizes of integer types <limits.h>', '203'),
+('7.11 Localization <locale.h>', '204'),
+('7.11.1 Locale control', '205'),
+('7.11.2 Numeric formatting convention inquiry', '206'),
+('7.12 Mathematics <math.h>', '212'),
+('7.12.1 Treatment of error conditions', '214'),
+('7.12.2 The FP_CONTRACT pragma', '215'),
+('7.12.3 Classification macros', '216'),
+('7.12.4 Trigonometric functions', '218'),
+('7.12.5 Hyperbolic functions', '221'),
+('7.12.6 Exponential and logarithmic functions', '223'),
+('7.12.7 Power and absolute-value functions', '228'),
+('7.12.8 Error and gamma functions', '230'),
+('7.12.9 Nearest integer functions', '231'),
+('7.12.10 Remainder functions', '235'),
+('7.12.11 Manipulation functions', '236'),
+('7.12.12 Maximum, minimum, and positive difference functions', '238'),
+('7.12.13 Floating multiply-add', '239'),
+('7.12.14 Comparison macros', '240'),
+('7.13 Nonlocal jumps <setjmp.h>', '243'),
+('7.13.1 Save calling environment', '243'),
+('7.13.2 Restore calling environment', '244'),
+('7.14 Signal handling <signal.h>', '246'),
+('7.14.1 Specify signal handling', '247'),
+('7.14.2 Send signal', '248'),
+('7.15 Variable arguments <stdarg.h>', '249'),
+('7.15.1 Variable argument list access macros', '249'),
+('7.16 Boolean type and values <stdbool.h>', '253'),
+('7.17 Common definitions <stddef.h>', '254'),
+('7.18 Integer types <stdint.h>', '255'),
+('7.18.1 Integer types', '255'),
+('7.18.2 Limits of specified-width integer types', '257'),
+('7.18.3 Limits of other integer types', '259'),
+('7.18.4 Macros for integer constants', '260'),
+('7.19 Input/output <stdio.h>', '262'),
+('7.19.1 Introduction', '262'),
+('7.19.2 Streams', '264'),
+('7.19.3 Files', '266'),
+('7.19.4 Operations on files', '268'),
+('7.19.5 File access functions', '270'),
+('7.19.6 Formatted input/output functions', '274'),
+('7.19.7 Character input/output functions', '296'),
+('7.19.8 Direct input/output functions', '301'),
+('7.19.9 File positioning functions', '302'),
+('7.19.10 Error-handling functions', '304'),
+('7.20 General utilities <stdlib.h>', '306'),
+('7.20.1 Numeric conversion functions', '307'),
+('7.20.2 Pseudo-random sequence generation functions', '312'),
+('7.20.3 Memory management functions', '313'),
+('7.20.4 Communication with the environment', '315'),
+('7.20.5 Searching and sorting utilities', '318'),
+('7.20.6 Integer arithmetic functions', '320'),
+('7.20.7 Multibyte/wide character conversion functions', '321'),
+('7.20.8 Multibyte/wide string conversion functions', '323'),
+('7.21 String handling <string.h>', '325'),
+('7.21.1 String function conventions', '325'),
+('7.21.2 Copying functions', '325'),
+('7.21.3 Concatenation functions', '327'),
+('7.21.4 Comparison functions', '328'),
+('7.21.5 Search functions', '330'),
+('7.21.6 Miscellaneous functions', '333'),
+('7.22 Type-generic math <tgmath.h>', '335'),
+('7.23 Date and time <time.h>', '338'),
+('7.23.1 Components of time', '338'),
+('7.23.2 Time manipulation functions', '339'),
+('7.23.3 Time conversion functions', '341'),
+('7.24 Extended multibyte and wide character utilities <wchar.h>', '348'),
+('7.24.1 Introduction', '348'),
+('7.24.2 Formatted wide character input/output functions', '349'),
+('7.24.3 Wide character input/output functions', '367'),
+('7.24.4 General wide string utilities', '371'),
+('7.24.5 Wide character time conversion functions', '385'),
+('7.24.6 Extended multibyte/wide character conversion utilities', '386'),
+('7.25 Wide character classification and mapping utilities <wctype.h>',
+  '393'),
+('7.25.1 Introduction', '393'),
+('7.25.2 Wide character classification utilities', '394'),
+('7.25.3 Wide character case mapping utilities', '399'),
+('7.26 Future library directions', '401'),
+('7.26.1 Complex arithmetic <complex.h>', '401'),
+('7.26.2 Character handling <ctype.h>', '401'),
+('7.26.3 Errors <errno.h>', '401'),
+('7.26.4 Format conversion of integer types <inttypes.h>', '401'),
+('7.26.5 Localization <locale.h>', '401'),
+('7.26.6 Signal handling <signal.h>', '401'),
+('7.26.7 Boolean type and values <stdbool.h>', '401'),
+('7.26.8 Integer types <stdint.h>', '401'),
+('7.26.9 Input/output <stdio.h>', '402'),
+('7.26.10 General utilities <stdlib.h>', '402'),
+('7.26.11 String handling <string.h>', '402'),
+('<wchar.h>', '402'),
+('<wctype.h>', '402'),
+('Annex A (informative) Language syntax summary', '403'),
+('A.1 Lexical grammar', '403'),
+('A.2 Phrase structure grammar', '409'),
+('A.3 Preprocessing directives', '416'),
+('Annex B (informative) Library summary', '418'),
+('B.1 Diagnostics <assert.h>', '418'),
+('B.2 Complex <complex.h>', '418'),
+('B.3 Character handling <ctype.h>', '420'),
+('B.4 Errors <errno.h>', '420'),
+('B.5 Floating-point environment <fenv.h>', '420'),
+('B.6 Characteristics of floating types <float.h>', '421'),
+('B.7 Format conversion of integer types <inttypes.h>', '421'),
+('B.8 Alternative spellings <iso646.h>', '422'),
+('B.9 Sizes of integer types <limits.h>', '422'),
+('B.10 Localization <locale.h>', '422'),
+('B.11 Mathematics <math.h>', '422'),
+('B.12 Nonlocal jumps <setjmp.h>', '427'),
+('B.13 Signal handling <signal.h>', '427'),
+('B.14 Variable arguments <stdarg.h>', '427'),
+('B.15 Boolean type and values <stdbool.h>', '427'),
+('B.16 Common definitions <stddef.h>', '428'),
+('B.17 Integer types <stdint.h>', '428'),
+('B.18 Input/output <stdio.h>', '428'),
+('B.19 General utilities <stdlib.h>', '430'),
+('B.20 String handling <string.h>', '432'),
+('B.21 Type-generic math <tgmath.h>', '433'),
+('B.22 Date and time <time.h>', '433'),
+('B.23 Extended multibyte/wide character utilities <wchar.h>', '434'),
+('B.24 Wide character classification and mapping utilities <wctype.h>',
+  '436'),
+('Annex C (informative) Sequence points', '438'),
+('Annex D (normative) Universal character names for identifiers', '439'),
+('Annex E (informative) Implementation limits', '441'),
+('Annex F (normative) IEC 60559 floating-point arithmetic', '443'),
+('F.1 Introduction', '443'),
+('F.2 Types', '443'),
+('F.3 Operators and functions', '444'),
+('F.4 Floating to integer conversion', '446'),
+('F.5 Binary-decimal conversion', '446'),
+('F.6 Contracted expressions', '447'),
+('F.7 Floating-point environment', '447'),
+('F.8 Optimization', '450'),
+('F.9 Mathematics <math.h>', '453'),
+('Annex G (informative) IEC 60559-compatible complex arithmetic', '466'),
+('G.1 Introduction', '466'),
+('G.2 Types', '466'),
+('G.3 Conventions', '466'),
+('G.4 Conversions', '467'),
+('G.5 Binary operators', '467'),
+('G.6 Complex arithmetic <complex.h>', '471'),
+('G.7 Type-generic math <tgmath.h>', '479'),
+('Annex H (informative) Language independent arithmetic', '480'),
+('H.1 Introduction', '480'),
+('H.2 Types', '480'),
+('H.3 Notification', '484'),
+('Annex I (informative) Common warnings', '486'),
+('Annex J (informative) Portability issues', '488'),
+('J.1 Unspecified behavior', '488'),
+('J.2 Undefined behavior', '491'),
+('J.3 Implementation-defined behavior', '504'),
+('J.4 Locale-specific behavior', '511'),
+('J.5 Common extensions', '512'),
+('Bibliography', '515'),
+('Index', '517')]
+
+cXXURL = 'http://open-std.org/jtc1/sc22/wg21/docs/papers/2008/n2723.pdf'
+cXXTOC = [('Contents', 'ii'),
+('List of Tables', 'ix'),
+('1 General', '1'),
+('1.1 Scope', '1'),
+('1.2 Normative references', '1'),
+('1.3 Definitions', '2'),
+('1.4 Implementation compliance', '4'),
+('1.5 Structure of this International Standard', '5'),
+('1.6 Syntax notation', '5'),
+('1.7 The C++ memory model', '6'),
+('1.8 The C++ object model', '6'),
+('1.9 Program execution', '7'),
+('1.10 Multi-threaded executions and data races', '10'),
+('1.11 Acknowledgments', '13'),
+('2 Lexical conventions', '15'),
+('2.1 Phases of translation', '15'),
+('2.2 Character sets', '16'),
+('2.3 Trigraph sequences', '17'),
+('2.4 Preprocessing tokens', '17'),
+('2.5 Alternative tokens', '18'),
+('2.6 Tokens', '19'),
+('2.7 Comments', '19'),
+('2.8 Header names', '19'),
+('2.9 Preprocessing numbers', '20'),
+('2.10 Identifiers', '20'),
+('2.11 Keywords', '20'),
+('2.12 Operators and punctuators', '21'),
+('2.13 Literals', '21'),
+('3 Basic concepts', '29'),
+('3.1 Declarations and definitions', '29'),
+('3.2 One definition rule', '31'),
+('3.3 Declarative regions and scopes', '33'),
+('3.4 Name lookup', '38'),
+('3.5 Program and linkage', '51'),
+('3.6 Start and termination', '54'),
+('3.7 Storage duration', '58'),
+('3.8 Object Lifetime', '62'),
+('3.9 Types', '65'),
+('3.10 Lvalues and rvalues', '70'),
+('3.11 Alignment', '72'),
+('4 Standard conversions', '73'),
+('4.1 Lvalue-to-rvalue conversion', '74'),
+('4.2 Array-to-pointer conversion', '74'),
+('4.3 Function-to-pointer conversion', '74'),
+('4.4 Qualification conversions', '74'),
+('4.5 Integral promotions', '75'),
+('4.6 Floating point promotion', '76'),
+('4.7 Integral conversions', '76'),
+('4.8 Floating point conversions', '76'),
+('4.9 Floating-integral conversions', '77'),
+('4.10 Pointer conversions', '77'),
+('4.11 Pointer to member conversions', '77'),
+('4.12 Boolean conversions', '78'),
+('4.13 Integer conversion rank', '78'),
+('5 Expressions', '79'),
+('5.1 Primary expressions', '80'),
+('5.2 Postfix expressions', '85'),
+('5.3 Unary expressions', '96'),
+('5.4 Explicit type conversion (cast notation)', '104'),
+('5.5 Pointer-to-member operators', '105'),
+('5.6 Multiplicative operators', '106'),
+('5.7 Additive operators', '106'),
+('5.8 Shift operators', '107'),
+('5.9 Relational operators', '108'),
+('5.10 Equality operators', '109'),
+('5.11 Bitwise AND operator', '110'),
+('5.12 Bitwise exclusive OR operator', '110'),
+('5.13 Bitwise inclusive OR operator', '110'),
+('5.14 Logical AND operator', '110'),
+('5.15 Logical OR operator', '110'),
+('5.16 Conditional operator', '111'),
+('5.17 Assignment and compound assignment operators', '112'),
+('5.18 Comma operator', '113'),
+('5.19 Constant expressions', '113'),
+('6 Statements', '116'),
+('6.1 Labeled statement', '116'),
+('6.2 Expression statement', '116'),
+('6.3 Compound statement or block', '116'),
+('6.4 Selection statements', '117'),
+('6.5 Iteration statements', '118'),
+('6.6 Jump statements', '121'),
+('6.7 Declaration statement', '122'),
+('6.8 Ambiguity resolution', '123'),
+('7 Declarations', '125'),
+('7.1 Specifiers', '126'),
+('7.2 Enumeration declarations', '140'),
+('7.3 Namespaces', '143'),
+('7.4 The asm declaration', '156'),
+('7.5 Linkage specifications', '156'),
+('8 Declarators', '160'),
+('8.1 Type names', '161'),
+('8.2 Ambiguity resolution', '161'),
+('8.3 Meaning of declarators', '163'),
+('8.4 Function definitions', '175'),
+('8.5 Initializers', '177'),
+('9 Classes', '191'),
+('9.1 Class names', '193'),
+('9.2 Class members', '194'),
+('9.3 Member functions', '197'),
+('9.4 Static members', '200'),
+('9.5 Unions', '202'),
+('9.6 Bit-fields', '203'),
+('9.7 Nested class declarations', '204'),
+('9.8 Local class declarations', '205'),
+('9.9 Nested type names', '206'),
+('10 Derived classes', '207'),
+('10.1 Multiple base classes', '208'),
+('10.2 Member name lookup', '210'),
+('10.3 Virtual functions', '213'),
+('10.4 Abstract classes', '217'),
+('11 Member access control', '219'),
+('11.1 Access specifiers', '221'),
+('11.2 Accessibility of base classes and base class members', '222'),
+('11.3 Access declarations', '224'),
+('11.4 Friends', '225'),
+('11.5 Protected member access', '228'),
+('11.6 Access to virtual functions', '229'),
+('11.7 Multiple access', '230'),
+('11.8 Nested classes', '230'),
+('12 Special member functions', '231'),
+('12.1 Constructors', '231'),
+('12.2 Temporary objects', '233'),
+('12.3 Conversions', '235'),
+('12.4 Destructors', '238'),
+('12.5 Free store', '240'),
+('12.6 Initialization', '242'),
+('12.7 Construction and destruction', '247'),
+('12.8 Copying class objects', '250'),
+('12.9 Inheriting Constructors', '255'),
+('13 Overloading', '259'),
+('13.1 Overloadable declarations', '259'),
+('13.2 Declaration matching', '261'),
+('13.3 Overload resolution', '262'),
+('13.4 Address of overloaded function', '281'),
+('13.5 Overloaded operators', '282'),
+('13.6 Built-in operators', '286'),
+('14 Templates', '290'),
+('14.1 Template parameters', '291'),
+('14.2 Names of template specializations', '294'),
+('14.3 Template arguments', '296'),
+('14.4 Type equivalence', '302'),
+('14.5 Template declarations', '303'),
+('14.6 Name resolution', '318'),
+('14.7 Template instantiation and specialization', '331'),
+('14.8 Function template specializations', '343'),
+('15 Exception handling', '363'),
+('15.1 Throwing an exception', '364'),
+('15.2 Constructors and destructors', '366'),
+('15.3 Handling an exception', '366'),
+('15.4 Exception specifications', '368'),
+('15.5 Special functions', '371'),
+('15.6 Exceptions and access', '372'),
+('16 Preprocessing directives', '373'),
+('16.1 Conditional inclusion', '375'),
+('16.2 Source file inclusion', '376'),
+('16.3 Macro replacement', '377'),
+('16.4 Line control', '382'),
+('16.5 Error directive', '383'),
+('16.6 Pragma directive', '383'),
+('16.7 Null directive', '383'),
+('16.8 Predefined macro names', '383'),
+('16.9 Pragma operator', '384'),
+('17 Library introduction', '386'),
+('17.1 General', '386'),
+('17.2 Overview', '386'),
+('17.3 Definitions', '386'),
+('17.4 Additional definitions', '390'),
+('17.5 Method of description (Informative)', '390'),
+('17.6 Library-wide requirements', '396'),
+('18 Language support library', '407'),
+('18.1 Types', '407'),
+('18.2 Implementation properties', '408'),
+('18.3 Integer types', '417'),
+('18.4 Start and termination', '418'),
+('18.5 Dynamic memory management', '420'),
+('18.6 Type identification', '424'),
+('18.7 Exception handling', '427'),
+('18.8 Initializer lists', '432'),
+('18.9 Other runtime support', '434'),
+('19 Diagnostics library', '435'),
+('19.1 Exception classes', '435'),
+('19.2 Assertions', '439'),
+('19.3 Error numbers', '440'),
+('19.4 System error support', '440'),
+('20 General utilities library', '452'),
+('20.1 Requirements', '452'),
+('20.2 Utility components', '457'),
+('20.3 Compile-time rational arithmetic', '463'),
+('20.4 Tuples', '465'),
+('20.5 Metaprogramming and type traits', '473'),
+('20.6 Function objects', '486'),
+('20.7 Memory', '509'),
+('20.8 Time utilities', '548'),
+('20.9 Date and time functions', '562'),
+('21 Strings library', '563'),
+('21.1 Character traits', '563'),
+('21.2 String classes', '569'),
+('21.3 Class template basic_string', '572'),
+('21.4 Numeric Conversions', '599'),
+('21.5 Null-terminated sequence utilities', '600'),
+('22 Localization library', '604'),
+('22.1 Locales', '604'),
+('22.2 Standard locale categories', '617'),
+('22.3 Standard code conversion facets', '657'),
+('22.4 C Library Locales', '659'),
+('23 Containers library', '660'),
+('23.1 Container requirements', '660'),
+('23.2 Sequence containers', '681'),
+('23.3 Associative containers', '719'),
+('23.4 Unordered associative containers', '744'),
+('24 Iterators library', '759'),
+('24.1 Iterator requirements', '759'),
+('24.2 Header <iterator> synopsis', '764'),
+('24.3 Iterator primitives', '767'),
+('24.4 Predefined iterators', '770'),
+('24.5 Stream iterators', '784'),
+('25 Algorithms library', '792'),
+('25.1 Non-modifying sequence operations', '802'),
+('25.2 Mutating sequence operations', '806'),
+('25.3 Sorting and related operations', '815'),
+('25.4 C library algorithms', '829'),
+('26 Numerics library', '831'),
+('26.1 Numeric type requirements', '831'),
+('26.2 The floating-point environment', '832'),
+('26.3 Complex numbers', '833'),
+('26.4 Random number generation', '842'),
+('26.5 Numeric arrays', '884'),
+('26.6 Generalized numeric operations', '904'),
+('26.7 C Library', '907'),
+('27 Input/output library', '912'),
+('27.1 Iostreams requirements', '912'),
+('27.2 Forward declarations', '912'),
+('27.3 Standard iostream objects', '915'),
+('27.4 Iostreams base classes', '916'),
+('27.5 Stream buffers', '934'),
+('27.6 Formatting and manipulators', '944'),
+('27.7 String-based streams', '972'),
+('27.8 File-based streams', '984'),
+('28 Regular expressions library', '1000'),
+('28.1 Definitions', '1000'),
+('28.2 Requirements', '1000'),
+('28.3 Regular expressions summary', '1002'),
+('28.4 Header <regex> synopsis', '1003'),
+('28.5 Namespace std::regex_constants', '1009'),
+('28.6 Class regex_error', '1012'),
+('28.7 Class template regex_traits', '1012'),
+('28.8 Class template basic_regex', '1015'),
+('28.9 Class template sub_match', '1020'),
+('28.10Class template match_results', '1025'),
+('28.11Regular expression algorithms', '1029'),
+('28.12Regular expression Iterators', '1033'),
+('28.13Modified ECMAScript regular expression grammar', '1039'),
+('29 Atomic operations library', '1042'),
+('29.1 Order and Consistency', '1044'),
+('29.2 Lock-free Property', '1046'),
+('29.3 Atomic Types', '1046'),
+('29.4 Operations on Atomic Types', '1051'),
+('29.5 Flag Type and Operations', '1054'),
+('30 Thread support library', '1057'),
+('30.1 Requirements', '1057'),
+('30.2 Threads', '1058'),
+('30.3 Mutual exclusion', '1063'),
+('30.4 Condition variables', '1077'),
+('A Grammar summary', '1085'),
+('A.1 Keywords', '1085'),
+('A.2 Lexical conventions', '1085'),
+('A.3 Basic concepts', '1089'),
+('A.4 Expressions', '1090'),
+('A.5 Statements', '1093'),
+('A.6 Declarations', '1094'),
+('A.7 Declarators', '1097'),
+('A.8 Classes', '1098'),
+('A.9 Derived classes', '1099'),
+('A.10 Special member functions', '1099'),
+('A.11 Overloading', '1100'),
+('A.12 Templates', '1100'),
+('A.13 Exception handling', '1101'),
+('A.14 Preprocessing directives', '1101'),
+('B Implementation quantities', '1103'),
+('C Compatibility', '1105'),
+('C.1 C++ and ISO C', '1105'),
+('C.2 Standard C library', '1114'),
+('D Compatibility features', '1119'),
+('D.1 Increment operator with bool operand', '1119'),
+('D.2 static keyword', '1119'),
+('D.3 Access declarations', '1119'),
+('D.4 Implicit conversion from const strings', '1119'),
+('D.5 C standard library headers', '1119'),
+('D.6 Old iostreams members', '1120'),
+('D.7 char* streams', '1121'),
+('D.8 Binders', '1130'),
+('D.9 auto_ptr', '1132'),
+('E Universal-character-names', '1135'),
+('F Cross references', '1137'),
+('Index', '1153')]
+
+kDocuments = {
+    'C99' : (c99URL, c99TOC, 12),
+    'C++' : (cXXURL, cXXTOC, 12),
+}
+
+def findClosestTOCEntry(data, target):
+    # FIXME: Fix for named spec references
+    if isinstance(target[0],str):
+        return ('.'.join(target),'<named>',1)
+
+    offset = data[2]
+    best = None
+    for (name,page) in data[1]:
+        if ' ' in name:
+            section,name = name.split(' ',1)
+            if section == 'Annex':
+                section,name = name.split(' ',1)
+                section = 'Annex '+section
+        else:
+            section = None
+        try:
+            page = int(page) + offset
+        except:
+            page = 1
+        try:
+            spec = SpecIndex.fromstring(section)
+        except:
+            spec = None
+
+        # Meh, could be better...
+        if spec is not None:
+            dist = spec - target
+            if best is None or dist < best[0]:
+                best = (dist, (section, name, page))
+    return best[1]
+
+# What a hack. Slow to boot.
+doxyLineRefRE = re.compile(r"<a name=\"l([0-9]+)\"></a>")
+def findClosestLineReference(clangRoot, doxyName, target):
+    try:
+        f = open(os.path.join(clangRoot, 'docs', 'doxygen', 'html', doxyName))
+    except:
+        return None
+    
+    best = None
+    for m in doxyLineRefRE.finditer(f.read()):
+        line = int(m.group(1), 10)
+        dist = abs(line - target)
+        if best is None or dist < best[0]:
+            best = (dist,'l'+m.group(1))
+    f.close()
+    if best is not None:
+        return best[1]
+    return None
+
+###
+
+nameAndSpecRefRE = re.compile(r"(C99|C90|C\+\+|H\&S) ((([0-9]+)(\.[0-9]+)*|\[[^]]+\])(p[0-9]+)?)")
+loneSpecRefRE = re.compile(r" (([0-9]+)(\.[0-9]+){2,100}(p[0-9]+)?)")
+def scanFile(path, filename):
+    try:
+        f = open(path)
+    except IOError:
+        print >>sys.stderr,'WARNING: Unable to open:',path
+        return
+
+    for i,ln in enumerate(f):
+        ignore = set()
+        for m in nameAndSpecRefRE.finditer(ln):
+            section = m.group(2)
+            name = m.group(1)
+            if section.endswith('.'):
+                section = section[:-1]
+            yield RefItem(name, section, filename, path, i+1)
+            ignore.add(section)
+        for m in loneSpecRefRE.finditer(ln):
+            section = m.group(1)
+            if section.endswith('.'):
+                section = section[:-1]
+            if section not in ignore:
+                yield RefItem(None, section, filename, path, i+1)
+
+###
+
+class SpecIndex:
+    @staticmethod
+    def fromstring(str):
+        # Check for named sections
+        if str[0] == '[':
+            assert ']' in str
+            secs = str[1:str.index(']')].split('.')
+            tail = str[str.index(']')+1:]
+            if tail:
+                assert tail[0] == 'p'
+                paragraph = int(tail[1:])
+            else:
+                paragraph = None
+            indices = secs
+        else:
+            secs = str.split('.')
+            paragraph = None
+            if 'p' in secs[-1]:
+                secs[-1],p = secs[-1].split('p',1)
+                paragraph = int(p)
+            indices = map(int, secs)
+        return SpecIndex(indices, paragraph)
+
+    def __init__(self, indices, paragraph=None):
+        assert len(indices)>0
+        self.indices = tuple(indices)
+        self.paragraph = paragraph
+
+    def __str__(self):
+        s =  '.'.join(map(str,self.indices))
+        if self.paragraph is not None:
+            s += '.p%d'%(self.paragraph,)
+        return s                            
+
+    def __repr__(self):
+        return 'SpecIndex(%s, %s)'%(self.indices, self.paragraph)
+
+    def __cmp__(self, b):
+        return cmp((self.indices,self.paragraph),
+                   (b.indices,b.paragraph))
+
+    def __hash__(self):
+        return hash((self.indices,self.paragraph))
+
+    def __sub__(self, indices):
+        def sub(a,b):
+            a = a or 0
+            b = b or 0
+            return abs(a-b)
+        return map(sub,self.indices,indices)
+
+class RefItem:
+    def __init__(self, name, section, filename, path, line):
+        self.name = name
+        self.section = SpecIndex.fromstring(section)
+        self.filename = filename
+        self.path = path
+        self.line = line
+    
+    def __str__(self):
+        if self.name is not None:
+            return '%s %s'%(self.name, self.section)
+        else:
+            return '--- %s'%(self.section,)
+
+    def __repr__(self):
+        return 'RefItem(%s, %r, "%s", "%s", %d)'%(self.name, 
+                                              self.section,
+                                              self.filename,
+                                              self.path,
+                                              self.line)
+
+    def __cmp__(self, b):
+        return cmp((self.name,self.section,self.filename,self.path,self.line),
+                   (b.name,b.section,self.filename,self.path,self.line))
+
+    def __hash__(self):
+        return hash((self.name,self.section,self.filename,self.path,self.line))
+
+###
+
+def sorted(l):
+    l = list(l)
+    l.sort()
+    return l
+
+def getRevision(path):
+    import subprocess
+    p = subprocess.Popen(['svn', 'info', path],
+                         stdin=open('/dev/null','r'), 
+                         stdout=subprocess.PIPE)
+    for ln in p.stdout.read(1024).split('\n'):
+        if ln.startswith('Revision:'):
+            return ln.split(':',1)[1].strip()
+    return None
+
+def buildRefTree(references):
+    root = (None, {}, [])
+
+    def getNode(keys):
+        if not keys:
+            return root
+        key,parent = keys[-1],getNode(keys[:-1])
+        node = parent[1].get(key)
+        if node is None:
+            parent[1][key] = node = (key, {}, [])
+        return node
+            
+    for ref in references:
+        n = getNode((ref.name,) + ref.section.indices)
+        n[2].append(ref)
+
+    def flatten((key, children, data)):
+        children = sorted(map(flatten,children.values()))
+        return (key, children, sorted(data))
+
+    return flatten(root)
+
+def preorder(node,parents=(),first=True):
+    (key,children,data) = node
+    if first:
+        yield parents+(node,)
+    for c in children:
+        for item in preorder(c, parents+(node,)):
+            yield item
+
+def main():
+    global options
+    from optparse import OptionParser
+    parser = OptionParser("usage: %prog [options] CLANG_ROOT <output-dir>")
+    parser.add_option("", "--debug", dest="debug",
+                      help="Print extra debugging output",
+                      action="store_true",
+                      default=False)    
+    (opts, args) = parser.parse_args()
+
+    if len(args) != 2:
+        parser.error("incorrect number of arguments")
+
+    references = []
+    root,outputDir = args
+    if os.path.isdir(root):
+        for (dirpath, dirnames, filenames) in os.walk(root):
+            for filename in filenames:
+                name,ext = os.path.splitext(filename)
+                if ext in ('.c', '.cpp', '.h', '.def'):
+                    fullpath = os.path.join(dirpath, filename)                
+                    references.extend(list(scanFile(fullpath, filename)))
+    else:
+        references.extend(list(scanFile(root, root)))
+
+    refTree = buildRefTree(references)
+
+    specs = {}
+    for ref in references:
+        spec = specs[ref.name] = specs.get(ref.name,{})
+        items = spec[ref.section] = spec.get(ref.section,[])
+        items.append(ref)
+
+    print 'Found %d references.'%(len(references),)
+
+    if opts.debug:
+        pprint(refTree)
+
+    referencesPath = os.path.join(outputDir,'references.html')
+    print 'Writing: %s'%(referencesPath,)
+    f = open(referencesPath,'w')   
+    print >>f, '<html><head><title>clang: Specification References</title></head>'
+    print >>f, '<body>'
+    print >>f, '\t<h2>Specification References</h2>'
+    for i,node in enumerate(refTree[1]):
+        specName = node[0] or 'Unknown'
+        print >>f, '<a href="#spec%d">%s</a><br>'%(i,specName)
+    for i,node in enumerate(refTree[1]):
+        specName = node[0] or 'Unknown'
+        print >>f, '<hr>'
+        print >>f, '<a name="spec%d">'%(i,)
+        print >>f, '<h3>Document: %s</h3>'%(specName or 'Unknown',)
+        print >>f, '<table border="1" cellspacing="2" width="80%">'
+        print >>f, '<tr><th width="20%">Name</th><th>References</th></tr>'
+        docData = kDocuments.get(specName)
+        for path in preorder(node,first=False):
+            if not path[-1][2]:
+                continue
+            components = '.'.join([str(p[0]) for p in path[1:]])
+            print >>f, '\t<tr>'
+            tocEntry = None            
+            if docData is not None:
+                tocEntry = findClosestTOCEntry(docData, [p[0] for p in path[1:]])
+            if tocEntry is not None:
+                section,name,page = tocEntry
+                # If section is exact print the TOC name
+                if page is not None:
+                    linkStr = '<a href="%s#page=%d">%s</a> (pg.%d)'%(docData[0],page,components,page)
+                else:
+                    linkStr = components
+                if section == components:
+                    print >>f, '\t\t<td valign=top>%s<br>%s</td>'%(linkStr,name)
+                else:
+                    print >>f, '\t\t<td valign=top>%s</td>'%(linkStr,)
+            else:
+                print >>f, '\t\t<td valign=top>%s</td>'%(components,)
+            print >>f, '\t\t<td valign=top>'
+            for item in path[-1][2]:
+                # XXX total hack
+                relativePath = item.path[len(root):]
+                if relativePath.startswith('/'):
+                    relativePath = relativePath[1:]
+                # XXX this is broken, how does doxygen mangle w/ multiple
+                # refs? Can we just read its map?
+                filename = os.path.basename(relativePath)
+                doxyName = '%s-source.html'%(filename.replace('.','_8'),)
+                # Grrr, why can't doxygen write line number references.
+                lineReference = findClosestLineReference(root,doxyName,item.line)
+                if lineReference is not None:
+                    linkStr = 'http://clang.llvm.org/doxygen/%s#%s'%(doxyName,lineReference)
+                else:
+                    linkStr = 'http://clang.llvm.org/doxygen/%s'%(doxyName,)
+                if item.section.paragraph is not None:
+                    paraText = '&nbsp;(p%d)'%(item.section.paragraph,)
+                else:
+                    paraText = ''
+                print >>f,'<a href="%s">%s:%d</a>%s<br>'%(linkStr,relativePath,item.line,paraText)
+            print >>f, '\t\t</td>'
+            print >>f, '\t</tr>'
+        print >>f, '</table>'
+    print >>f, '<hr>'
+    print >>f, 'Generated: %s<br>'%(time.strftime('%Y-%m-%d %H:%M'),)
+    print >>f, 'SVN Revision: %s'%(getRevision(root),)
+    print >>f, '</body>'
+    f.close()
+    
+if __name__=='__main__':
+   main()

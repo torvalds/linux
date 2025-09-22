@@ -1,0 +1,38 @@
+import("//compiler-rt/target.gni")
+
+template("gen_version_script") {
+  if (current_os != "mac" && current_os != "win") {
+    action(target_name) {
+      script = "//compiler-rt/lib/sanitizer_common/scripts/gen_dynamic_list.py"
+      sources = [ invoker.extra ]
+      deps = invoker.libs
+      outputs = [ invoker.output ]
+      args = [
+        "--version-list",
+        "--extra",
+        rebase_path(invoker.extra, root_build_dir),
+      ]
+      foreach(lib_name, invoker.lib_names) {
+        args += [ rebase_path(
+                "$crt_current_out_dir/libclang_rt.$lib_name$crt_current_target_suffix.a",
+                root_build_dir) ]
+      }
+      args += [
+        "--nm-executable",
+        "nm",
+        "-o",
+        rebase_path(invoker.output, root_build_dir),
+      ]
+    }
+  } else {
+    source_set(target_name) {
+    }
+    not_needed(invoker,
+               [
+                 "extra",
+                 "lib_names",
+                 "libs",
+                 "output",
+               ])
+  }
+}

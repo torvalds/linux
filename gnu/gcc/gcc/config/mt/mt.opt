@@ -1,0 +1,56 @@
+; Options for the mt port of the compiler
+;
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT
+; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+; License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+mbacc
+Target Report Mask(BYTE_ACCESS)
+Use byte loads and stores when generating code.
+
+msim
+Target RejectNegative
+Use simulator runtime
+
+mno-crt0
+Target RejectNegative
+Do not include crt0.o in the startup files
+
+mdebug-arg
+Target RejectNegative Mask(DEBUG_ARG)
+Internal debug switch
+
+mdebug-addr
+Target RejectNegative Mask(DEBUG_ADDR)
+Internal debug switch
+
+mdebug-stack
+Target RejectNegative Mask(DEBUG_STACK)
+Internal debug switch
+
+mdebug-loc
+Target RejectNegative Mask(DEBUG_LOC)
+Internal debug switch
+
+mdebug
+Target RejectNegative Mask(DEBUG)
+Internal debug switch
+
+march=
+Target RejectNegative Joined Var(mt_cpu_string)
+Specify CPU for code generation purposes

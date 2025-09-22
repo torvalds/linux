@@ -1,0 +1,132 @@
+.\" $OpenBSD: usbd_open_pipe.9,v 1.5 2022/03/29 18:15:52 naddy Exp $
+.\"
+.\" Copyright (c) 2015 Sean Levy <attila@stalphonsos.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 29 2022 $
+.Dt USBD_OPEN_PIPE 9
+.Os
+.Sh NAME
+.Nm usbd_open_pipe , usbd_open_pipe_intr
+.Nd create USB pipe
+.Sh SYNOPSIS
+.In dev/usb/usb.h
+.In dev/usb/usbdi.h
+.Ft usbd_status
+.Fn usbd_open_pipe "struct usbd_interface *iface" "uint8_t address" "uint8_t flags" "struct usbd_pipe **pipe"
+.Ft usbd_status
+.Fn usbd_open_pipe_intr "struct usbd_interface *iface" "uint8_t address" "uint8_t flags" "struct usbd_pipe **pipe" "void *priv" "void *buffer" "uint32_t len" "usbd_callback cb" "int ival"
+.Sh DESCRIPTION
+The
+.Fn usbd_open_pipe
+and
+.Fn usbd_open_pipe_intr
+functions create pipes.
+A pipe is a logical connection between the host and an endpoint on a
+USB device.
+USB drivers use pipes to manage transfers to or from a USB
+endpoint.
+.Pp
+The
+.Fn usbd_open_pipe
+function takes the following arguments:
+.Bl -tag -width callback
+.It Fa iface
+The USB interface for which the pipe is to be created.
+.It Fa address
+The address of the endpoint in that interface to which the pipe should be
+connected.
+.It Fa flags
+A bitmask of flags.
+Currently there is only one flag bit defined:
+.Bl -tag -width xxx -offset indent
+.It Dv USBD_EXCLUSIVE_USE
+Do not allow other pipes to use this endpoint while this pipe exists.
+.El
+.It Fa pipe
+A pointer to where the resulting
+.Vt struct usbd_pipe *
+should be stored if the call is successful.
+.El
+.Pp
+The
+.Fn usbd_open_pipe_intr
+function takes the following arguments:
+.Bl -tag -width callback
+.It Fa iface
+The USB interface for which the pipe is to be created.
+.It Fa address
+The endpoint in that interface to which the pipe should be connected.
+.It Fa flags
+A bitmask of flags.
+These flags are not interpreted in the same way as the
+.Fa flags
+passed to
+.Fn usbd_open_pipe .
+Instead,
+.Fn usbd_open_pipe_intr
+implicitly turns on the
+.Dv USBD_EXCLUSIVE_USE
+bit for the pipe, disallowing multiple interrupt pipes for
+the same endpoint.
+The
+.Fa flags
+argument in this case is instead passed directly to
+.Xr usbd_setup_xfer 9
+as its
+.Fa flags
+argument, whose interpretation is documented in
+its man page.
+.It Fa pipe
+A pointer to where the resulting
+.Vt struct usbd_pipe *
+should be stored if the call is successful.
+.It Fa priv
+A pointer to a private cookie untouched by the USB stack for reuse in
+the callback specified by the
+.Fa cb
+argument.
+.It Fa buffer
+A pointer to the data buffer for use by the implicit transfer
+(see below).
+.It Fa len
+The length in bytes of
+.Fa buffer .
+.It Fa cb
+A callback invoked every time the interrupt transfer completes.
+.It Fa ival
+The interval in milliseconds with which the interrupt pipe
+should be polled by the USB stack.
+.El
+.Pp
+Pipes created by
+.Fn usbd_open_pipe_intr
+implicitly have a repeating transfer queued on them which
+is run every
+.Fa ival
+milliseconds.
+This implicit transfer is not automatically removed from the list of
+transfers maintained by the pipe, unlike normal transfers, and will
+continue to be processed every
+.Fa ival
+milliseconds.
+.Sh CONTEXT
+.Fn usbd_open_pipe
+and
+.Fn usbd_open_pipe_intr
+can be called during autoconf or from process context.
+.Sh SEE ALSO
+.Xr usb 4 ,
+.Xr usbd_close_pipe 9 ,
+.Xr usbd_transfer 9

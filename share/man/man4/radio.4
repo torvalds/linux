@@ -1,0 +1,249 @@
+.\"	$RuOBSD: radio.4,v 1.4 2001/10/26 05:38:43 form Exp $
+.\"	$OpenBSD: radio.4,v 1.32 2021/02/01 07:09:37 jmc Exp $
+.\"
+.\" Copyright (c) 2001 Vladimir Popov
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+.\" ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 1 2021 $
+.Dt RADIO 4
+.Os
+.Sh NAME
+.Nm radio
+.Nd device-independent radio driver layer
+.Sh SYNOPSIS
+.Cd "radio* at bktr?"
+.Cd "radio* at fms?"
+.Cd "radio* at udsbr?"
+.Pp
+.In sys/types.h
+.In sys/ioctl.h
+.In sys/radioio.h
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various FM radio cards.
+It provides a uniform programming interface layer above different underlying
+radio hardware drivers.
+.Pp
+For radio tuner controlling there is a single device file available:
+.Pa /dev/radio .
+.Pp
+The following
+.Xr ioctl 2
+commands are supported:
+.Pp
+.Bl -tag -width indent -compact
+.It Dv RIOCSSRCH Fa int
+This command assumes that a signal search is required and gives direction
+of search to the driver \- 0 to search down and any non-zero value to search up.
+.It Dv RIOCGINFO Fa "struct radio_info"
+.It Dv RIOCSINFO Fa "struct radio_info"
+Get or set the current hardware device information into the
+.Fa radio_info
+structure.
+.Bd -literal
+struct radio_info {
+	int	mute;
+	int	volume;
+	int	stereo;
+	int	rfreq;	/* reference frequency */
+	int	lock;	/* locking field strength */
+	u_int32_t	freq;	/* in kHz */
+	u_int32_t	caps;	/* card capabilities */
+#define RADIO_CAPS_DETECT_STEREO	(1<<0)
+#define RADIO_CAPS_DETECT_SIGNAL	(1<<1)
+#define RADIO_CAPS_SET_MONO		(1<<2)
+#define RADIO_CAPS_HW_SEARCH		(1<<3)
+#define RADIO_CAPS_HW_AFC		(1<<4)
+#define RADIO_CAPS_REFERENCE_FREQ	(1<<5)
+#define RADIO_CAPS_LOCK_SENSITIVITY	(1<<6)
+#define RADIO_CARD_TYPE			(0xFF<<16)
+	u_int32_t	info;
+#define RADIO_INFO_STEREO		(1<<0)
+#define RADIO_INFO_SIGNAL		(1<<1)
+	u_int32_t	tuner_mode;
+#define RADIO_TUNER_MODE_RADIO		(1<<0)
+#define RADIO_TUNER_MODE_TV		(1<<1)
+	u_int32_t	chan;
+	u_int32_t	chnlset;
+};
+.Ed
+.Pp
+The
+.Va mute
+field is a boolean.
+.Pp
+The
+.Va volume
+field holds the card volume information and can be at most 255.
+.Pp
+The
+.Va stereo
+field is a boolean.
+.Pp
+The
+.Va rfreq
+holds information about the card reference frequency (not all cards support
+this feature).
+.Pp
+The
+.Va lock
+field holds information about the card locking field strength during
+an automatic search for cards that support this feature.
+.Pp
+The
+.Va freq
+field is the frequency in kHz the card is tuned to.
+.Pp
+The
+.Va tuner_mode
+field is the current tuning mode of the tuner.
+Valid modes are:
+.Pp
+.Bl -tag -width indent -compact
+.It Dv RADIO_TUNER_MODE_RADIO
+The tuner operates in FM radio mode.
+.It Dv RADIO_TUNER_MODE_TV
+The tuner operates in TV mode.
+.El
+.Pp
+The
+.Va caps
+field is read-only and describes the card capabilities.
+The capabilities can have the following values:
+.Pp
+.Bl -tag -width indent -compact
+.It Dv RADIO_CAPS_DETECT_STEREO
+The device can determine if it is tuned to a stereo signal.
+.It Dv RADIO_CAPS_DETECT_SIGNAL
+The device can determine if it is tuned or not.
+.It Dv RADIO_CAPS_SET_MONO
+The device is capable of forcibly setting its output to mono.
+.It Dv RADIO_CAPS_HW_SEARCH
+The device can do hardware search.
+.It Dv RADIO_CAPS_HW_AFC
+The device has an internal hardware automatic frequency control.
+.It Dv RADIO_CAPS_REFERENCE_FREQ
+The device allows changing the reference frequency of a received signal.
+.It Dv RADIO_CAPS_LOCK_SENSITIVITY
+The device allows changing the station lock sensitivity used during search
+operation.
+.It Dv RADIO_CARD_TYPE
+Some cards have several different incarnations.
+This allows the variant of the card to be determined.
+Currently not used.
+.El
+.Pp
+The
+.Va info
+field is read-only and describes the current state of the card \-
+tuned/not tuned, stereo signal/mono signal.
+.Pp
+.Bl -tag -width indent -compact
+.It Dv RADIO_INFO_STEREO
+Informs whether the device receives a stereo or mono signal.
+.It Dv RADIO_INFO_SIGNAL
+Informs whether the device receives a valid signal or noise.
+.El
+.Pp
+The
+.Va chan
+holds the TV channel the card is tuned to.
+.Pp
+The
+.Va chnlset
+specifies the TV channel set currently being used.
+The tuner uses the current channel set to derive the tuning frequency
+from the channel number.
+Western Europe is the default channel set.
+The following is a list of valid channel sets:
+.Pp
+.Bl -tag -width indent -compact
+.It 1
+U.S.A. Broadcast
+.It 2
+U.S.A. Cable IRC
+.It 3
+U.S.A. Cable HRC
+.It 4
+Western Europe
+.It 5
+Japan Broadcast
+.It 6
+Japan Cable
+.It 7
+Former U.S.S.R. and C.I.S. Countries
+.It 8
+Australia
+.It 9
+France
+.El
+.El
+.Pp
+Either
+.Va freq
+or
+.Va chan
+can be used to tune to FM radio stations or TV channels,
+respectively.
+Some devices may not support both functionalities.
+.Sh CHIPSETS
+The TEA5757; TEA5759 is a 44-pin integrated AM/FM stereo radio circuit.
+The radio part is based on the TEA5712.
+The TEA5757 is used in FM-standards in which the local oscillator frequency
+is above the radio frequency (e.g. European and American standards).
+The TEA5759 is the version in which the oscillator frequency is below
+the radio frequency (e.g. Japanese standards).
+To conform with the Japanese standards, it is necessary to set the flags' least
+significant bit to 1.
+The TEA5757; TEA5759 has a 25-bit read-write shift register.
+The TEA5757 chips are used in
+.Xr fms 4
+cards.
+.Sh FILES
+.Bl -tag -width /dev/radio -compact
+.It Pa /dev/radio
+.El
+.Sh SEE ALSO
+.Xr radioctl 1 ,
+.Xr ioctl 2 ,
+.Xr bktr 4 ,
+.Xr fms 4 ,
+.Xr intro 4 ,
+.Xr udsbr 4 ,
+.Xr radio 9
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Ox 3.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Vladimir Popov Aq Mt jumbo@narod.ru
+and
+.An Maxim Tsyplakov Aq Mt tm@oganer.net .
+The man page was written by
+.An Vladimir Popov Aq Mt jumbo@narod.ru .

@@ -1,0 +1,291 @@
+.\"	$OpenBSD: exports.5,v 1.27 2020/05/16 16:58:11 jmc Exp $
+.\"	$NetBSD: exports.5,v 1.9 1996/02/18 11:57:50 fvdl Exp $
+.\"
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
+.\"
+.Dd $Mdocdate: May 16 2020 $
+.Dt EXPORTS 5
+.Os
+.Sh NAME
+.Nm exports
+.Nd define remote mount points for NFS mount requests
+.Sh DESCRIPTION
+The
+.Nm
+file specifies remote mount points for the NFS
+mount protocol per the NFS server specification; see
+.%T "Network File System Protocol Specification" ,
+RFC 1094, Appendix A and
+.%T "NFS: Network File System Version 3 Specification" ,
+RFC 1813, Appendix I.
+.Pp
+Each line in the file
+(other than comment lines that begin with a
+.Dq # )
+specifies the mount point(s) and export flags within one local server
+filesystem for one or more hosts.
+A host may be specified only once for each local filesystem on the
+server and there may be only one default entry for each server
+filesystem that applies to all other hosts.
+The latter exports the filesystem to the
+.Dq world
+and should
+be used only when the filesystem contains public information.
+.Pp
+In a mount entry,
+the first field(s) specify the directory path(s) within a server filesystem
+that can be mounted on by the corresponding client(s).
+There are two forms of this specification.
+The first is to list all mount points as absolute
+directory paths separated by whitespace.
+The second is to specify the pathname of the root of the filesystem
+followed by the
+.Fl alldirs
+flag;
+this form allows the host(s) to mount at any point within the filesystem,
+including regular files.
+The pathnames must not have any symbolic links in them and should not have
+any
+.Dq \&.
+or
+.Dq \&.\&.
+components.
+Mount points for a filesystem may appear on multiple lines each with
+different sets of hosts and export options.
+.Pp
+The second component of a line specifies how the filesystem is to be
+exported to the host set.
+The option flags specify whether the filesystem
+is exported read-only or read-write and how the client UID is mapped to
+user credentials on the server.
+.Pp
+Export options are specified as follows:
+.Pp
+.Sm off
+.Fl maproot No = Ar user
+.Sm on
+The credential of the specified user is used for remote access by root.
+The credential includes all the groups to which the user is a member
+on the local machine (see
+.Xr id 1 ) .
+The
+.Ar user
+may be specified by name or number.
+.Pp
+.Sm off
+.Fl maproot No = Ar user:group1:group2:...
+.Sm on
+The colon separated list is used to specify the precise credential
+to be used for remote access by root.
+The elements of the list may be either names or numbers.
+Note that user: should be used to distinguish a credential containing
+no groups from a complete credential for that user.
+.Pp
+.Sm off
+.Fl mapall No = Ar user
+.Sm on
+or
+.Sm off
+.Fl mapall No = Ar user:group1:group2:...
+.Sm on
+Specifies a mapping for all client UIDs (including root)
+using the same semantics as
+.Fl maproot .
+.Pp
+The option
+.Fl r
+is a synonym for
+.Fl maproot
+in an effort to be backward compatible with older export file formats.
+.Pp
+In the absence of
+.Fl maproot
+and
+.Fl mapall
+options, remote accesses by root will result in using a credential of -2:-2.
+All other users will be mapped to their remote credential.
+If a
+.Fl maproot
+option is given,
+remote access by root will be mapped to that credential instead of -2:-2.
+If a
+.Fl mapall
+option is given,
+all users (including root) will be mapped to that credential in
+place of their own.
+.Pp
+The
+.Fl ro
+option specifies that the filesystem should be exported read-only
+(default read/write).
+The option
+.Fl o
+is a synonym for
+.Fl ro
+in an effort to be backward compatible with older export file formats.
+.Pp
+The third component of a line specifies the host set to which the line applies.
+The set may be specified in three ways.
+The first way is to list the host name(s) separated by whitespace.
+(Standard internet
+.Dq dot
+addresses may be used in place of names.)
+The second way is to specify a
+.Dq netgroup
+as defined in the netgroup file (see
+.Xr netgroup 5 ) .
+The third way is to specify an internet subnetwork using a network and
+network mask that is defined as the set of all hosts with addresses within
+the subnetwork.
+This latter approach requires less overhead within the
+kernel and is recommended for cases where the export line refers to a
+large number of clients within an administrative subnet.
+.Pp
+The first two cases are specified by simply listing the name(s) separated
+by whitespace.
+All names are checked to see if they are
+.Dq netgroup
+names
+first and are assumed to be hostnames otherwise.
+Using the full domain specification for a hostname can normally
+circumvent the problem of a host that has the same name as a netgroup.
+The third case is specified by the flag
+.Sm off
+.Fl network No = Ar netname
+.Sm on
+and optionally
+.Sm off
+.Fl mask No = Ar netmask .
+.Sm on
+If the mask is not specified, it will default to the mask for that network
+class (A, B or C; see
+.Xr inet_addr 3 ) .
+.Pp
+For example:
+.Bd -literal -offset indent
+/usr /usr/local -maproot=0:10 friends
+/usr -maproot=daemon grumpy.cis.uoguelph.ca 131.104.48.16
+/usr -ro -mapall=nobody
+/u -maproot=bin: -network=131.104.48 -mask=255.255.255.0
+/u2 -maproot=root friends
+/u2 -alldirs -network=cis-net -mask=cis-mask
+.Ed
+.Pp
+Given that
+.Pa /usr ,
+.Pa /u
+and
+.Pa /u2
+are
+local filesystem mount points, the above example specifies the following:
+.Pa /usr
+is exported to hosts
+.Em friends
+where
+.Em friends
+is specified in the netgroup file
+with users mapped to their remote credentials and
+root mapped to UID 0 and GID 10.
+It is exported read-write and the hosts in
+.Dq friends
+can mount either
+.Pa /usr
+or
+.Pa /usr/local .
+It is exported to
+.Em 131.104.48.16
+and
+.Em grumpy.cis.uoguelph.ca
+with users mapped to their remote credentials and
+root mapped to the user and groups associated with
+.Dq daemon ;
+it is exported to the rest of the world as read-only with
+all users mapped to the user and groups associated with
+.Dq nobody .
+.Pp
+.Pa /u
+is exported to all hosts on the subnetwork
+.Em 131.104.48
+with root mapped to the UID for
+.Dq bin
+and with no group access.
+.Pp
+.Pa /u2
+is exported to the hosts in
+.Dq friends
+with root mapped to UID and groups
+associated with
+.Dq root ;
+it is exported to all hosts on network
+.Dq cis-net
+allowing mounts at any
+directory within /u2.
+.Sh FILES
+.Bl -tag -width /etc/examples/exports -compact
+.It Pa /etc/exports
+Default remote mount point file.
+.It Pa /etc/examples/exports
+Example remote mount point file.
+.El
+.Sh SEE ALSO
+.Xr netgroup 5 ,
+.Xr mountd 8 ,
+.Xr nfsd 8 ,
+.Xr showmount 8
+.Sh BUGS
+The export options are tied to the local mount points in the kernel and
+must be non-contradictory for any exported subdirectory of the local
+server mount point.
+It is recommended that all exported directories within the same server
+filesystem be specified on adjacent lines going down the tree.
+You cannot specify a hostname that is also the name of a netgroup.
+Specifying the full domain specification for a hostname can normally
+circumvent the problem.
+.Pp
+Regarding
+.Fl alldirs ,
+because NFS mount filehandles are filesystem wide the
+.Fl alldirs
+option applies to exports of the entire filesystem \(em even mount points
+that are higher up elsewhere in the directory hierarchy.
+Hence if the server has a filesystem
+.Pa /export
+and you wished to export the sub-directory
+.Bd -literal -offset indent
+/export/root/client -alldirs client.foo.com
+.Ed
+.Pp
+you must realize that this also allows mounts to be requested
+against other locations in the
+.Pa /export
+filesystem; thus the host client.foo.com is also permitted to
+mount the directory
+.Pa /export/root/client2
+if it exists.

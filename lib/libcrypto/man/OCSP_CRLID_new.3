@@ -1,0 +1,114 @@
+.\"	$OpenBSD: OCSP_CRLID_new.3,v 1.9 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OCSP_CRLID_NEW 3
+.Os
+.Sh NAME
+.Nm OCSP_CRLID_new ,
+.Nm OCSP_CRLID_free ,
+.Nm OCSP_crlID_new
+.Nd OCSP CRL extension
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ocsp.h
+.Ft OCSP_CRLID *
+.Fn OCSP_CRLID_new void
+.Ft void
+.Fn OCSP_CRLID_free "OCSP_CRLID *crlid"
+.Ft X509_EXTENSION *
+.Fo OCSP_crlID_new
+.Fa "const char *url"
+.Fa "long *number"
+.Fa "char *time"
+.Fc
+.Sh DESCRIPTION
+If a client asks about the validity of a certificate and it turns
+out to be invalid, the responder may optionally communicate which
+certificate revocation list the certificate was found on.
+The required data is stored as an ASN.1
+.Vt CrlID
+structure in the singleExtensions field of the
+.Vt SingleResponse
+structure.
+The
+.Vt CrlID
+is represented by an
+.Vt OCSP_CRLID
+object, which will be stored inside the
+.Vt OCSP_SINGLERESP
+object documented in
+.Xr OCSP_SINGLERESP_new 3 .
+.Pp
+.Fn OCSP_CRLID_new
+allocates and initializes an empty
+.Vt OCSP_CRLID
+object.
+.Fn OCSP_CRLID_free
+frees
+.Fa crlid .
+.Pp
+.Fn OCSP_crlID_new
+accepts the
+.Fa url
+at which the CRL is available, the CRL
+.Fa number ,
+and/or the
+.Fa time
+at which the CRL was created.
+Each argument can be
+.Dv NULL ,
+in which case the respective field is omitted.
+The resulting
+.Vt CrlID
+structure is encoded in ASN.1 using
+.Xr X509V3_EXT_i2d 3
+with criticality 0.
+.Sh RETURN VALUES
+.Fn OCSP_CRLID_new
+returns a new
+.Vt OCSP_CRLID
+object or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn OCSP_crlID_new
+returns a new
+.Vt X509_EXTENSION
+object or
+.Dv NULL
+if an error occurred.
+.Sh SEE ALSO
+.Xr OCSP_REQUEST_new 3 ,
+.Xr OCSP_resp_find_status 3 ,
+.Xr OCSP_response_status 3 ,
+.Xr X509_EXTENSION_new 3
+.Sh STANDARDS
+RFC 6960: X.509 Internet Public Key Infrastructure Online Certificate
+Status Protocol, section 4.4.2: CRL References
+.Sh HISTORY
+.Fn OCSP_CRLID_new ,
+.Fn OCSP_CRLID_free ,
+and
+.Fn OCSP_crlID_new
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Sh CAVEATS
+The function names
+.Fn OCSP_CRLID_new
+and
+.Fn OCSP_crlID_new
+only differ in case.

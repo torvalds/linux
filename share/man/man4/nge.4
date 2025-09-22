@@ -1,0 +1,166 @@
+.\"	$OpenBSD: nge.4,v 1.41 2022/02/17 12:24:08 jsg Exp $
+.\" Copyright (c) 2001 Wind River Systems
+.\" Copyright (c) 1997, 1998, 1999, 2000, 2001
+.\"	Bill Paul <wpaul@bsdi.com>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: nge.4,v 1.11 2002/08/08 18:30:39 ambrisko Exp $
+.\"
+.Dd $Mdocdate: February 17 2022 $
+.Dt NGE 4
+.Os
+.Sh NAME
+.Nm nge
+.Nd National Semiconductor PCI 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "nge* at pci?"
+.Cd "nsgphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various NICs based on the National Semiconductor
+DP83820 and DP83821 Gigabit Ethernet controller chips, including the
+following:
+.Pp
+.Bl -bullet -compact
+.It
+Addtron AEG320T
+.It
+Ark PC SOHO-GA2500T (32-bit PCI) and SOHO-GA2000T (64-bit PCI)
+.It
+Asante FriendlyNet GigaNIX 1000TA and 1000TPC
+.It
+D-Link DGE-500T
+.It
+Linksys EG1032v1 (32-bit PCI) and EG1064v1 (64-bit PCI)
+.It
+Netgear GA621
+.It
+Netgear GA622T
+.It
+SMC EZ Card 1000 (SMC9462TX)
+.It
+Surecom Technology EP-320G-TX
+.It
+TRENDnet TEG-PCITX (32-bit PCI) and TEG-PCITX2 (64-bit PCI)
+.El
+.Pp
+The
+.Nm
+driver supports IPv4 receive IP/TCP/UDP checksum offload, VLAN tag
+insertion and stripping, as well as a 2048-bit multicast hash filter
+and up to 4 pattern match buffers.
+.Pp
+The
+.Nm
+driver also supports jumbo frames.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width full-duplex
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the appropriate
+.Xr hostname.if 5
+file.
+.It Cm 10baseT
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Ic mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Ic mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseT
+Set 1000baseT operation over twisted pair.
+Both
+.Cm full-duplex
+and
+.Cm half-duplex
+modes are supported.
+.It Cm 1000baseSX
+Set 1000Mbps (Gigabit Ethernet) operation.
+Both
+.Cm full-duplex
+and
+.Cm half-duplex
+modes are supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr nsgphy 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T National Semiconductor DP83820 datasheet
+.Re
+.Rs
+.%T National Semiconductor DP83861 datasheet
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@bsdi.com .

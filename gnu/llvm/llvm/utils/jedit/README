@@ -1,0 +1,14 @@
+-*- llvm/utils/jedit/README -*-
+
+These are syntax highlighting files for the jEdit editor. Included are:
+
+* tablegen.xml
+
+  Syntax highlighting mode for TableGen description files. To use, copy this
+  file to ~/.jedit/modes/ and add this code to your ~/.jedit/modes/catalog:
+
+  <MODE NAME="tablegen" FILE="tablegen.xml" FILE_NAME_GLOB="*.td" />
+
+Note: If you notice missing or incorrect syntax highlighting, please contact
+<llvm-bugs [at] lists.llvm.org>; if you wish to provide a patch to improve the
+functionality, it will be most appreciated. Thank you.

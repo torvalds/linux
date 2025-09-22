@@ -1,0 +1,4 @@
+executable("yaml-bench") {
+  deps = [ "//llvm/lib/Support" ]
+  sources = [ "YAMLBench.cpp" ]
+}

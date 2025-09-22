@@ -1,0 +1,3 @@
+# basic route-label test
+pass from route "foo"
+pass to route "bar"

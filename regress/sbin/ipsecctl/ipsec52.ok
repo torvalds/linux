@@ -1,0 +1,2 @@
+flow esp out proto tcp from 3ffe::1 port 2022 to 3ffe::2 port ssh peer 3ffe::2 type require
+flow esp in proto tcp from 3ffe::2 port ssh to 3ffe::1 port 2022 peer 3ffe::2 type require

@@ -1,0 +1,12 @@
+BEGIN
+{
+	printf("exiting now...\n");
+	exit();
+}
+
+END
+{
+	printf("executed\n");
+	exit();
+	printf("not executed\n");
+}

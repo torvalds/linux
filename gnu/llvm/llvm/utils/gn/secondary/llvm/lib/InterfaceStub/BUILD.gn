@@ -1,0 +1,14 @@
+static_library("InterfaceStub") {
+  output_name = "LLVMInterfaceStub"
+  deps = [
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+
+  sources = [
+    "ELFObjHandler.cpp",
+    "IFSHandler.cpp",
+    "IFSStub.cpp",
+  ]
+}

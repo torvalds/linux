@@ -1,0 +1,2 @@
+ike from 3ffe::1 to any local 3ffe:3::2 peer 192.168.3.1
+ike from 3ffe::1 to any peer 3ffe:3::1 local 3ffe:3::2

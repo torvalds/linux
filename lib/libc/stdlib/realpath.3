@@ -1,0 +1,165 @@
+.\" Copyright (c) 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: realpath.3,v 1.27 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt REALPATH 3
+.Os
+.Sh NAME
+.Nm realpath
+.Nd returns the canonicalized absolute pathname
+.Sh SYNOPSIS
+.In limits.h
+.In stdlib.h
+.Ft char *
+.Fn realpath "const char *pathname" "char *resolved"
+.Sh DESCRIPTION
+The
+.Fn realpath
+function resolves all symbolic links, extra
+.Dq /
+characters and references to
+.Pa /./
+and
+.Pa /../
+in
+.Fa pathname ,
+and copies the resulting absolute pathname into the memory referenced by
+.Fa resolved .
+The
+.Fa resolved
+argument
+.Em must
+refer to a buffer capable of storing at least
+.Dv PATH_MAX
+characters, or be
+.Dv NULL .
+.Pp
+The
+.Fn realpath
+function will resolve both absolute and relative paths
+and return the absolute pathname corresponding to
+.Fa pathname .
+All components of
+.Fa pathname
+must exist when
+.Fn realpath
+is called.
+.Sh RETURN VALUES
+The
+.Fn realpath
+function returns
+.Fa resolved
+on success.
+If
+.Fa resolved
+is
+.Dv NULL
+and no error occurred, then
+.Fn realpath
+returns a NUL-terminated string in a newly allocated buffer.
+If an error occurs,
+.Fn realpath
+returns
+.Dv NULL
+and the contents of
+.Fa resolved
+are undefined.
+.Sh ERRORS
+The function
+.Fn realpath
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+Read or search permission was denied for a component of
+.Ar pathname .
+.It Bq Er EINVAL
+The
+.Ar pathname
+argument is a null pointer.
+.It Bq Er EIO
+An error occurred while reading from the file system.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating
+.Ar pathname .
+.It Bq Er ENAMETOOLONG
+A component of
+.Ar pathname
+exceeded
+.Dv NAME_MAX
+characters, or the entire
+.Ar pathname
+(including the terminating NUL) exceeded
+.Dv PATH_MAX .
+.It Bq Er ENAMETOOLONG
+Pathname resolution of a symbolic link produced an intermediate
+result whose length exceeds
+.Dv PATH_MAX .
+.It Bq Er ENOENT
+A component of
+.Ar pathname
+does not name an existing file or
+.Ar pathname
+points to an empty string.
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENOMEM
+Sufficient storage space is unavailable for allocation.
+.El
+.Sh SEE ALSO
+.Xr readlink 1 ,
+.Xr realpath 1 ,
+.Xr getcwd 3
+.Sh STANDARDS
+The
+.Fn realpath
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn realpath
+function call first appeared in
+.Bx 4.4 .
+.Pp
+In
+.Ox 6.6 ,
+it was reimplemented on top of the
+.Fn __realpath
+system call.
+Its calling convention differs from the standard
+function by requiring
+.Ar resolved
+to not be
+.Dv NULL
+and by returning an integer,
+zero on success, and -1 with corresponding errno on failure.
+This is visible in the output of
+.Xr kdump 1 .

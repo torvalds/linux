@@ -1,0 +1,71 @@
+This file is a partial list of people who have contributed to the LLVM/libc++abi
+project.  If you have contributed a patch or made some other contribution to
+LLVM/libc++abi, please submit a patch to this file to add yourself, and it will be
+done!
+
+The list is sorted by surname and formatted to allow easy grepping and
+beautification by scripts.  The fields are: name (N), email (E), web-address
+(W), PGP key ID and fingerprint (P), description (D), and snail-mail address
+(S).
+
+N: Aaron Ballman
+E: aaron@aaronballman.com
+D: Minor patches
+
+N: Logan Chien
+E: logan.chien@mediatek.com
+D: ARM EHABI Unwind & Exception Handling
+
+N: Marshall Clow
+E: mclow.lists@gmail.com
+E: marshall@idio.com
+D: Architect and primary coauthor of libc++abi
+
+N: Matthew Dempsky
+E: matthew@dempsky.org
+D: Minor patches and bug fixes.
+
+N: Nowar Gu
+E: wenhan.gu@gmail.com
+D: Minor patches and fixes
+
+N: Howard Hinnant
+E: hhinnant@apple.com
+D: Architect and primary coauthor of libc++abi
+
+N: Dana Jansens
+E: danakj@chromium.org
+D: ARM EHABI Unwind & Exception Handling
+
+N: Nick Kledzik
+E: kledzik@apple.com
+
+N: Antoine Labour
+E: piman@chromium.org
+D: ARM EHABI Unwind & Exception Handling
+
+N: Bruce Mitchener, Jr.
+E: bruce.mitchener@gmail.com
+D: Minor typo fixes
+
+N: Andrew Morrow
+E: andrew.c.morrow@gmail.com
+D: Minor patches and fixes
+
+N: Erik Olofsson
+E: erik.olofsson@hansoft.se
+E: erik@olofsson.info
+D: Minor patches and fixes
+
+N: Jon Roelofs
+E: jroelofs@jroelofs.com
+D: ARM EHABI Unwind & Exception Handling, Bare-metal
+
+N: Nico Weber
+E: thakis@chromium.org
+D: ARM EHABI Unwind & Exception Handling
+
+N: Albert J. Wong
+E: ajwong@google.com
+D: ARM EHABI Unwind & Exception Handling
+

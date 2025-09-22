@@ -1,0 +1,2 @@
+fullfeed:	tests that a fullfeed dump is correctly inserted in the table
+delete:		tests that deleting entries with rtable_walk() is safe 

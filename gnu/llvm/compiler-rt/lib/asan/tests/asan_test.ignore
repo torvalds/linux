@@ -1,0 +1,3 @@
+# ignorelisted functions for instrumented ASan unit test
+fun:*IgnoreTest*
+fun:*SomeOtherFunc*

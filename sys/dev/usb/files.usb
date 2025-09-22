@@ -1,0 +1,504 @@
+#	$OpenBSD: files.usb,v 1.150 2022/11/11 06:48:38 anton Exp $
+#	$NetBSD: files.usb,v 1.16 2000/02/14 20:29:54 augustss Exp $
+#
+# Config file and device description for machine-independent USB code.
+# Included by ports that need it.  Ports that use it must provide
+# their own "major" declarations for the appropriate devices.
+
+device	usb {}
+attach	usb at usbus
+file	dev/usb/usb.c			usb			needs-flag
+file	dev/usb/usbdi.c			usb
+file	dev/usb/usbdi_util.c		usb
+file	dev/usb/usb_mem.c		usb
+file	dev/usb/usb_subr.c		usb
+file	dev/usb/usb_quirks.c		usb
+
+# Hub driver
+device	uhub {[port = -1], [configuration = -1], [interface = -1],
+	      [vendor = -1], [product = -1], [release = -1]}
+attach	uhub at usb
+file	dev/usb/uhub.c			usb
+
+attach	uhub at uhub with uhub_uhub
+
+# Modem and com serial port "bus"
+define	ucombus {[portno = -1]}
+
+# Audio devices
+device	uaudio: audio
+attach	uaudio at uhub
+file	dev/usb/uaudio.c		uaudio
+
+# Video devices
+device	uvideo: video, firmload
+attach	uvideo at uhub
+file	dev/usb/uvideo.c		uvideo
+
+# USBTV007 devices
+device	utvfu: video, audio
+attach	utvfu at uhub
+file	dev/usb/utvfu.c			utvfu
+
+device	udl: wsemuldisplaydev, rasops16, edid
+attach	udl at uhub
+file	dev/usb/udl.c			udl
+
+# MIDI devices
+device	umidi: midibus
+attach	umidi at uhub
+file	dev/usb/umidi.c			umidi
+file	dev/usb/umidi_quirks.c		umidi
+
+# Modem and com serial port
+device	ucom
+attach	ucom at ucombus
+file	dev/usb/ucom.c			ucom | ucombus		needs-flag
+
+
+# Generic devices
+device	ugen
+attach	ugen at uhub
+file	dev/usb/ugen.c			ugen			needs-flag
+
+
+# HID
+# HID "bus"
+define	uhidbus {[reportid = -1]}
+
+# HID root device for multiple report IDs
+device	uhidev: hid, uhidbus
+attach	uhidev at uhub
+file	dev/usb/uhidev.c		uhidev
+
+# Generic HID devices
+device	uhid: hid
+attach	uhid at uhidbus
+file	dev/usb/uhid.c			uhid | fido | ujoy	needs-flag
+
+# FIDO/U2F security keys
+device  fido: hid
+attach	fido at uhidbus
+file	dev/usb/fido.c			fido			needs-flag
+
+# USB Joysticks/Gamecontrollers
+device	ujoy: hid
+attach	ujoy at uhidbus
+file	dev/usb/ujoy.c			ujoy			needs-flag
+
+# Keyboards
+file	dev/usb/ukbdmap.c		hidkbd
+device	ukbd: hid, hidkbd, wskbddev
+attach	ukbd at uhidbus
+file	dev/usb/ukbd.c			ukbd			needs-flag
+
+# Mice
+device	ums: hid, hidms, wsmousedev
+attach	ums at uhidbus
+file	dev/usb/ums.c			ums
+
+# HID Multitouch Trackpad
+device	umt: hid, hidmt, wsmousedev
+attach	umt at uhidbus
+file	dev/usb/umt.c			umt
+
+# USB Touchscreen
+device	uts: wsmousedev
+attach	uts at uhub
+file	dev/usb/uts.c			uts
+
+# Apple USB Touchpad
+device	utpms: hid, wsmousedev
+attach	utpms at uhidbus
+file	dev/usb/utpms.c			utpms
+
+# Broadcom touchpad
+device	ubcmtp: wsmousedev
+attach	ubcmtp at uhub
+file	dev/usb/ubcmtp.c		ubcmtp
+
+# Cypress microcontroller based serial adapters
+device	ucycom: hid, ucombus
+attach	ucycom at uhidbus
+file	dev/usb/ucycom.c		ucycom
+
+# Silicon Labs USB HID based UART controller
+device	uslhcom: hid, ucombus
+attach	uslhcom at uhidbus
+file	dev/usb/uslhcom.c		uslhcom
+
+# Printers
+device	ulpt: firmload
+attach	ulpt at uhub
+file	dev/usb/ulpt.c			ulpt			needs-flag
+
+
+# Mass storage
+device	umass: scsi
+attach	umass at uhub
+file	dev/usb/umass.c			umass
+file	dev/usb/umass_quirks.c		umass
+file	dev/usb/umass_scsi.c		umass & scsibus
+
+
+# Sensors
+# TEMPerHUM HID
+device	uthum: hid
+attach	uthum at uhidbus
+file	dev/usb/uthum.c			uthum
+
+# gold TEMPer
+device	ugold: hid
+attach	ugold at uhidbus
+file	dev/usb/ugold.c			ugold
+
+# Strawberry Linux USBRH
+device	utrh: hid
+attach	utrh at uhidbus
+file	dev/usb/utrh.c			utrh
+
+# Fujitsu Component Smart Power Strip FX-5204PS
+device	usps
+attach	usps at uhub
+file	dev/usb/usps.c			usps
+
+# Toradex OAK common
+define	uoak
+file	dev/usb/uoak_subr.c		uoakrh | uoaklux | uoakv
+
+# Toradex OAK series USB RH sensor
+device	uoakrh: hid, uoak
+attach	uoakrh at uhidbus
+file	dev/usb/uoakrh.c		uoakrh
+
+# Toradex OAK series USB LUX sensor
+device	uoaklux: hid, uoak
+attach	uoaklux at uhidbus
+file	dev/usb/uoaklux.c		uoaklux
+
+# Toradex OAK series USB 10V sensor
+device	uoakv: hid, uoak
+attach	uoakv at uhidbus
+file	dev/usb/uoakv.c			uoakv
+
+# Misc
+# Moonbase Otago OneRNG TRNG
+device	uonerng
+attach	uonerng at uhub
+file	dev/usb/uonerng.c		uonerng
+
+# USB Random Number Generator
+device	urng
+attach	urng at uhub
+file	dev/usb/urng.c			urng
+
+# Gude Expert mouseCLOCK DCF77 time signal station receiver
+device	udcf
+attach	udcf at uhub
+file	dev/usb/udcf.c			udcf
+
+# Meinberg USB5131 DCF77 radio clock
+device	umbg
+attach	umbg at uhub
+file	dev/usb/umbg.c			umbg
+
+# Handspring Visor
+device	uvisor: ucombus
+attach	uvisor at uhub
+file	dev/usb/uvisor.c		uvisor
+
+# D-Link DSB-R100 FM radio
+device	udsbr: radiobus
+attach	udsbr at uhub
+file	dev/usb/udsbr.c			udsbr
+
+# Maywa-denki/Kayac YUREX
+device	utwitch: hid
+attach	utwitch at uhidbus
+file	dev/usb/utwitch.c		utwitch
+
+# Ethernet adapters
+# ADMtek AN986 Pegasus
+device	aue: ether, ifnet, mii, ifmedia
+attach	aue at uhub
+file	dev/usb/if_aue.c		aue
+
+# Ethernet adapters
+# ASIX Electronics AX88172
+device	axe: ether, ifnet, mii, ifmedia
+attach	axe at uhub
+file	dev/usb/if_axe.c		axe
+
+# Ethernet adapters
+# ASIX Electronics AX88178a and AX88179
+device	axen: ether, ifnet, mii, ifmedia
+attach	axen at uhub
+file	dev/usb/if_axen.c		axen
+
+# SMSC LAN95xx
+device	smsc: ether, ifnet, mii, ifmedia 
+attach	smsc at uhub
+file	dev/usb/if_smsc.c		smsc
+
+# CATC USB-EL1201A
+device	cue: ether, ifnet, ifmedia
+attach	cue at uhub
+file	dev/usb/if_cue.c		cue
+
+# Kawasaki LSI KL5KUSB101B
+device	kue: ether, ifnet, ifmedia, firmload
+attach	kue at uhub
+file	dev/usb/if_kue.c		kue
+
+# CDC Ethernet
+device	cdce: ether, ifnet, ifmedia
+attach	cdce at uhub
+file	dev/usb/if_cdce.c		cdce
+
+# RNDIS
+device urndis: ether, ifnet, ifmedia
+attach urndis at uhub
+file	dev/usb/if_urndis.c		urndis
+
+# Moschip MCS7x30 Ethernet
+device	mos: ether, ifnet, mii, ifmedia
+attach	mos at uhub
+file	dev/usb/if_mos.c		mos
+
+# Microchip LAN75xx/LAN78xx
+device	mue: ether, ifnet, mii, ifmedia
+attach	mue at uhub
+file	dev/usb/if_mue.c		mue
+
+# Davicom DM9601
+device	udav: ether, ifnet, mii, ifmedia
+attach	udav at uhub
+file	dev/usb/if_udav.c		udav
+
+# Prolific PL2302 host-host
+device	upl: ifnet
+attach	upl at uhub
+file	dev/usb/if_upl.c		upl
+
+# Genesys Logic GL620USB-A host-host
+device	ugl: ether, ifnet, ifmedia
+attach	ugl at uhub
+file	dev/usb/if_ugl.c		ugl
+
+# Realtek RTL8150L(M)
+device	url: ether, ifnet, mii, ifmedia
+attach	url at uhub
+file	dev/usb/if_url.c		url
+
+# Realtek RTL8152
+device	ure: ether, ifnet, mii, ifmedia
+attach	ure at uhub
+file	dev/usb/if_ure.c		ure
+
+# Aquantia AQC111
+device uaq: ether, ifnet, ifmedia
+attach uaq at uhub
+file   dev/usb/if_uaq.c                uaq
+
+# Serial drivers
+# Modems
+device	umodem: ucombus
+attach	umodem at uhub
+file	dev/usb/umodem.c		umodem
+
+# FTDI serial driver
+device	uftdi: ucombus
+attach	uftdi at uhub
+file	dev/usb/uftdi.c			uftdi
+
+# Prolific PL2303 serial driver
+device	uplcom: ucombus
+attach	uplcom at uhub
+file	dev/usb/uplcom.c		uplcom
+
+# MCT USB-232 serial driver
+device	umct: ucombus
+attach	umct at uhub
+file	dev/usb/umct.c			umct
+
+# SUNTAC Slipper U VS-10U driver
+device	uvscom: ucombus
+attach	uvscom at uhub
+file	dev/usb/uvscom.c		uvscom
+
+# Belkin & other serial driver
+device	ubsa: ucombus
+attach	ubsa at uhub
+file	dev/usb/ubsa.c			ubsa
+
+# Keyspan USA19HS serial
+device	ukspan: ucombus
+attach	ukspan at uhub
+file	dev/usb/ukspan.c		ukspan
+
+# Silicon Laboratories CP210x serial
+device	uslcom: ucombus
+attach	uslcom at uhub
+file	dev/usb/uslcom.c		uslcom
+
+# Arkmicro ARK3116 serial
+device	uark: ucombus
+attach	uark at uhub
+file	dev/usb/uark.c			uark
+
+# MosChip MCS7703 serial
+device	moscom: ucombus
+attach	moscom at uhub
+file	dev/usb/moscom.c		moscom
+
+# MosChip MCS78x0 serials
+device	umcs: ucombus
+attach	umcs at uhub
+file	dev/usb/umcs.c			umcs
+
+# simple serial
+device	uscom: ucombus
+attach	uscom at uhub
+file	dev/usb/uscom.c			uscom
+
+# Chromebook serial
+device	ucrcom: ucombus
+attach	ucrcom at uhub
+file	dev/usb/ucrcom.c		ucrcom
+
+# Exar XR21V1410
+device	uxrcom: ucombus
+attach	uxrcom at uhub
+file	dev/usb/uxrcom.c		uxrcom
+
+# iPAQ PDAs
+# Generic ipaq support
+device	uipaq: ucombus
+attach	uipaq at uhub
+file	dev/usb/uipaq.c			uipaq
+
+# Qualcomm MSM EVDO
+device	umsm: ucombus
+attach	umsm at uhub
+file	dev/usb/umsm.c			umsm
+
+# WinChipHead CH341/340 serial
+device	uchcom: ucombus
+attach	uchcom at uhub
+file	dev/usb/uchcom.c		uchcom
+
+# TI TUSB3410 serial
+device	uticom: ucombus
+attach	uticom at uhub
+file	dev/usb/uticom.c		uticom
+
+# Prism3 WI @ USB
+attach	wi at uhub with wi_usb
+file	dev/usb/if_wi_usb.c		wi_usb
+
+# Atmel AT76c503 / AT76c503a / AT76c505 / AT76c505a @ USB
+device	atu: ether, ifnet, ifmedia, wlan, firmload
+attach	atu at uhub
+file	dev/usb/if_atu.c		atu
+
+# Ralink Technology RT2500USB
+device	ural: ether, ifnet, ifmedia, wlan
+attach	ural at uhub
+file	dev/usb/if_ral.c		ural
+
+# Ralink Technology RT2501USB
+device	rum: ether, ifnet, ifmedia, wlan, firmload
+attach	rum at uhub
+file	dev/usb/if_rum.c		rum
+
+# Ralink Technology RT2700U/RT2800U/RT3000U
+device	run: ether, ifnet, ifmedia, wlan, firmload
+attach	run at uhub
+file	dev/usb/if_run.c		run
+
+# MediaTek MT7601U
+device	mtw: ether, ifnet, ifmedia, wlan, firmload
+attach	mtw at uhub
+file	dev/usb/if_mtw.c		mtw
+
+# Zydas ZD1211
+device	zyd: ether, ifnet, ifmedia, wlan, firmload
+attach	zyd at uhub
+file	dev/usb/if_zyd.c		zyd
+
+# PrismGT
+device	upgt: ether, ifnet, ifmedia, wlan, firmload
+attach	upgt at uhub
+file	dev/usb/if_upgt.c		upgt
+
+# Realtek 8187
+device	urtw: ether, ifnet, ifmedia, wlan
+attach	urtw at uhub
+file	dev/usb/if_urtw.c		urtw
+
+# Realtek RTL8188CU/RTL8192CU
+device	urtwn: ether, ifnet, ifmedia, wlan, firmload
+attach	urtwn at uhub
+file	dev/usb/if_urtwn.c		urtwn
+
+# Realtek RTL8188SU/RTL8191SU/RTL8192SU
+device	rsu: ether, ifnet, ifmedia, wlan, firmload
+attach	rsu at uhub
+file	dev/usb/if_rsu.c		rsu
+
+# Atheros AR9170
+device	otus: ether, ifnet, ifmedia, wlan, firmload
+attach	otus at uhub
+file	dev/usb/if_otus.c		otus
+
+# Mobile Broadband Interface Model
+device	umb: ifnet, ifmedia
+attach	umb at uhub
+file	dev/usb/if_umb.c		umb
+
+# Atheros AR5005UG/AR5005UX
+device	uath: ether, ifnet, ifmedia, wlan, firmload
+attach	uath at uhub
+file	dev/usb/if_uath.c		uath
+
+# Atheros AR9002U
+attach	athn at uhub with athn_usb: firmload
+file	dev/usb/if_athn_usb.c		athn_usb		needs-flag
+
+# Maxim/Dallas DS2490 1-Wire adapter
+device	uow: onewirebus
+attach	uow at uhub
+file	dev/usb/uow.c			uow
+
+# Research In Motion BlackBerry
+device	uberry {}
+attach	uberry at uhub
+file	dev/usb/uberry.c		uberry
+
+# USB Power Devices
+device upd: hid
+attach upd at uhidbus
+file   dev/usb/upd.c			upd
+
+# Wacom tablets
+device	uwacom: hid, hidms, wsmousedev
+attach	uwacom at uhidbus
+file	dev/usb/uwacom.c		uwacom
+
+attach	bwfm at uhub with bwfm_usb: firmload
+file	dev/usb/if_bwfm_usb.c		bwfm_usb
+
+# Microsoft Surface Type Cover
+device	umstc: hid
+attach	umstc at uhidbus
+file	dev/usb/umstc.c			umstc
+
+# Logitech HID++ Devices
+device	uhidpp: hid
+attach	uhidpp at uhidbus
+file	dev/usb/uhidpp.c		uhidpp
+
+# Consumer Control Keyboards
+device	ucc: hid, hidcc, wskbddev
+attach	ucc at uhidbus
+file	dev/usb/ucc.c			ucc

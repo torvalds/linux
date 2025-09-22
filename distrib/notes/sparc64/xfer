@@ -1,0 +1,83 @@
+dnl	$OpenBSD: xfer,v 1.35 2020/05/17 17:04:28 deraadt Exp $
+Installation is supported from several media types, including:
+
+	CD-ROM (NOT supported if booting from floppy)
+	FFS partitions
+	HTTP
+
+If you created an OpenBSD CD-ROM (and have a CD-ROM drive), you may be
+able to boot from it, or from the supplied bootable CD-ROM mini image. If you
+can boot from the CD-ROM, you are home free and can proceed to the
+installation steps.  If not, you will need to do some setup work to prepare
+a bootable image, either a floppy, hard drive, or compatible net boot
+server.
+
+In addition to the bootable image, you also need to consider how to
+access the binary distribution sets to actually install the system.
+
+Although you can access the distribution sets directly from one of the
+OpenBSD mirrors over the internet, you may wish to transfer the sets to
+a local HTTP server, or copy them to a partition on the target system's
+disk.
+
+OpenBSDXferCDROM
+
+OpenBSDXferFloppyFromDOS
+
+OpenBSDXferFloppyFromUNIX
+
+Creating a bootable hard disk using SunOS, Solaris or other Unix-like system:
+
+	If you don't have a floppy drive you can copy the miniroot
+	"miniroot{:--:}OSrev.img" onto the hard disk you intend to boot on.
+	Traditionally, the way to do this is to use dd(1) to place the
+	bootable filesystem image in the "swap" partition of the disk
+	(while running in single user mode), and then booting from that
+	partition.
+
+	Using the "b" partition allows you to boot without overwriting
+	any useful parts of the disk; you can also use another partition,
+	but don't use the "a" or "c" partition without understanding the
+	disk label issues described below under "incompatible systems".
+
+	This requires that you be running SunOS, Solaris, OpenBSD, or NetBSD,
+	which have a compatible view of SunOS disk labels and partitions.
+
+	Use the dd(1) utility to copy the file to the hard drive.
+	The command would likely be, under SunOS:
+ 		dd if=miniroot{:--:}OSrev.img of=/dev/rsd0b bs=64b
+	and under Solaris:
+ 		dd if=miniroot{:--:}OSrev.img of=/dev/rdsk/c0t0d0s1 bs=64b
+
+	The blocksize is arbitrary as long as it's a multiple of 512-bytes
+	and within the maximum supported by the driver, i.e. bs=126b may
+	not work for all cases.  Again, device/partition names may vary,
+	depending on the OS involved.
+
+	If you are preparing the hard drive on an incompatible system or
+	don't care about the hard disk contents, you can also install the
+	bootable image starting at the beginning of the disk. This lets
+	you prepare a bootable hard-drive even if don't have a working
+	operating system on your machine, but it is important to understand
+	that the bootable image installed this way includes a "disk label"
+	which can wipe out any pre-existing disklabels or partitioning for
+	the drive.
+
+Creating a network bootable setup using SunOS or other Unix-like system:
+
+	The details of setting up a network bootable environment vary
+	considerably, depending on the network's host.  Extract the
+	OpenBSD diskless(8) man page from the man{:--:}OSrev.tgz distribution
+	set or see the copy on the OpenBSD web page.  You will also
+	need to reference the relevant man pages or administrators guide
+	for the host system.
+	
+	Basically, you will need to set up reverse-arp (rarpd) and boot
+	parameter (rpc.bootparamd) information and make the OpenBSD
+	bootblock, kernel/miniroot partition, and a swap file available
+	as required by the netboot setup.
+
+
+OpenBSDXferPrelude
+
+OpenBSDXferFFS

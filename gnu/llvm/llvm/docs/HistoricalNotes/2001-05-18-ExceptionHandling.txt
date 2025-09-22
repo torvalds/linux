@@ -1,0 +1,202 @@
+Meeting notes: Implementation idea: Exception Handling in C++/Java
+
+The 5/18/01 meeting discussed ideas for implementing exceptions in LLVM.
+We decided that the best solution requires a set of library calls provided by
+the VM, as well as an extension to the LLVM function invocation syntax.
+
+The LLVM function invocation instruction previously looks like this (ignoring
+types):
+
+  call func(arg1, arg2, arg3)
+
+The extension discussed today adds an optional "with" clause that 
+associates a label with the call site.  The new syntax looks like this:
+
+  call func(arg1, arg2, arg3) with funcCleanup
+
+This funcHandler always stays tightly associated with the call site (being
+encoded directly into the call opcode itself), and should be used whenever
+there is cleanup work that needs to be done for the current function if 
+an exception is thrown by func (or if we are in a try block).
+
+To support this, the VM/Runtime provide the following simple library 
+functions (all syntax in this document is very abstract):
+
+typedef struct { something } %frame;
+  The VM must export a "frame type", that is an opaque structure used to 
+  implement different types of stack walking that may be used by various
+  language runtime libraries. We imagine that it would be typical to 
+  represent a frame with a PC and frame pointer pair, although that is not 
+  required.
+
+%frame getStackCurrentFrame();
+  Get a frame object for the current function.  Note that if the current
+  function was inlined into its caller, the "current" frame will belong to
+  the "caller".
+
+bool isFirstFrame(%frame f);
+  Returns true if the specified frame is the top level (first activated) frame
+  for this thread.  For the main thread, this corresponds to the main() 
+  function, for a spawned thread, it corresponds to the thread function.
+
+%frame getNextFrame(%frame f);
+  Return the previous frame on the stack.  This function is undefined if f
+  satisfies the predicate isFirstFrame(f).
+
+Label *getFrameLabel(%frame f);
+  If a label was associated with f (as discussed below), this function returns
+  it.  Otherwise, it returns a null pointer.
+
+doNonLocalBranch(Label *L);
+  At this point, it is not clear whether this should be a function or 
+  intrinsic.  It should probably be an intrinsic in LLVM, but we'll deal with
+  this issue later.
+
+
+Here is a motivating example that illustrates how these facilities could be
+used to implement the C++ exception model:
+
+void TestFunction(...) {
+  A a; B b;
+  foo();        // Any function call may throw
+  bar();
+  C c;
+
+  try {
+    D d;
+    baz();
+  } catch (int) {
+    ...int Stuff...
+    // execution continues after the try block: the exception is consumed
+  } catch (double) {
+    ...double stuff...
+   throw;            // Exception is propogated
+  }
+}
+
+This function would compile to approximately the following code (heavy 
+pseudo code follows):
+
+Func:
+  %a = alloca A
+  A::A(%a)        // These ctors & dtors could throw, but we ignore this 
+  %b = alloca B   // minor detail for this example
+  B::B(%b)
+
+  call foo() with fooCleanup // An exception in foo is propogated to fooCleanup
+  call bar() with barCleanup // An exception in bar is propogated to barCleanup
+
+  %c = alloca C
+  C::C(c)
+  %d = alloca D
+  D::D(d)
+  call baz() with bazCleanup // An exception in baz is propogated to bazCleanup
+  d->~D();
+EndTry:                   // This label corresponds to the end of the try block
+  c->~C()       // These could also throw, these are also ignored
+  b->~B()
+  a->~A()
+  return
+
+Note that this is a very straight forward and literal translation: exactly
+what we want for zero cost (when unused) exception handling.  Especially on
+platforms with many registers (ie, the IA64) setjmp/longjmp style exception
+handling is *very* impractical.  Also, the "with" clauses describe the 
+control flow paths explicitly so that analysis is not adversly effected.
+
+The foo/barCleanup labels are implemented as:
+
+TryCleanup:          // Executed if an exception escapes the try block  
+  c->~C()
+barCleanup:          // Executed if an exception escapes from bar()
+  // fall through
+fooCleanup:          // Executed if an exception escapes from foo()
+  b->~B()
+  a->~A()
+  Exception *E = getThreadLocalException()
+  call throw(E)      // Implemented by the C++ runtime, described below
+
+Which does the work one would expect.  getThreadLocalException is a function
+implemented by the C++ support library.  It returns the current exception 
+object for the current thread.  Note that we do not attempt to recycle the 
+shutdown code from before, because performance of the mainline code is 
+critically important.  Also, obviously fooCleanup and barCleanup may be 
+merged and one of them eliminated.  This just shows how the code generator 
+would most likely emit code.
+
+The bazCleanup label is more interesting.  Because the exception may be caught
+by the try block, we must dispatch to its handler... but it does not exist
+on the call stack (it does not have a VM Call->Label mapping installed), so 
+we must dispatch statically with a goto.  The bazHandler thus appears as:
+
+bazHandler:
+  d->~D();    // destruct D as it goes out of scope when entering catch clauses
+  goto TryHandler
+
+In general, TryHandler is not the same as bazHandler, because multiple 
+function calls could be made from the try block.  In this case, trivial 
+optimization could merge the two basic blocks.  TryHandler is the code 
+that actually determines the type of exception, based on the Exception object
+itself.  For this discussion, assume that the exception object contains *at
+least*:
+
+1. A pointer to the RTTI info for the contained object
+2. A pointer to the dtor for the contained object
+3. The contained object itself
+
+Note that it is necessary to maintain #1 & #2 in the exception object itself
+because objects without virtual function tables may be thrown (as in this 
+example).  Assuming this, TryHandler would look something like this:
+
+TryHandler: 
+  Exception *E = getThreadLocalException();
+  switch (E->RTTIType) {
+  case IntRTTIInfo:
+    ...int Stuff...       // The action to perform from the catch block
+    break;
+  case DoubleRTTIInfo:
+    ...double Stuff...    // The action to perform from the catch block
+    goto TryCleanup       // This catch block rethrows the exception
+    break;                // Redundant, eliminated by the optimizer
+  default:
+    goto TryCleanup       // Exception not caught, rethrow
+  }
+
+  // Exception was consumed
+  if (E->dtor)
+    E->dtor(E->object)    // Invoke the dtor on the object if it exists
+  goto EndTry             // Continue mainline code...
+
+And that is all there is to it.
+
+The throw(E) function would then be implemented like this (which may be 
+inlined into the caller through standard optimization):
+
+function throw(Exception *E) {
+  // Get the start of the stack trace...
+  %frame %f = call getStackCurrentFrame()
+
+  // Get the label information that corresponds to it
+  label * %L = call getFrameLabel(%f)
+  while (%L == 0 && !isFirstFrame(%f)) {
+    // Loop until a cleanup handler is found
+    %f = call getNextFrame(%f)
+    %L = call getFrameLabel(%f)
+  }
+
+  if (%L != 0) {
+    call setThreadLocalException(E)   // Allow handlers access to this...
+    call doNonLocalBranch(%L)
+  }
+  // No handler found!
+  call BlowUp()         // Ends up calling the terminate() method in use
+}
+
+That's a brief rundown of how C++ exception handling could be implemented in
+llvm.  Java would be very similar, except it only uses destructors to unlock
+synchronized blocks, not to destroy data.  Also, it uses two stack walks: a
+nondestructive walk that builds a stack trace, then a destructive walk that
+unwinds the stack as shown here. 
+
+It would be trivial to get exception interoperability between C++ and Java.
+

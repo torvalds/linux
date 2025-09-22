@@ -1,0 +1,239 @@
+.\"	$OpenBSD: SHA1Init.3,v 1.4 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 1997, 2004 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" See http://csrc.nist.gov/publications/fips/fips180-1/fip180-1.txt
+.\" for the detailed standard
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt SHA1INIT 3
+.Os
+.Sh NAME
+.Nm SHA1Init ,
+.Nm SHA1Update ,
+.Nm SHA1Pad ,
+.Nm SHA1Final ,
+.Nm SHA1Transform ,
+.Nm SHA1End ,
+.Nm SHA1File ,
+.Nm SHA1FileChunk ,
+.Nm SHA1Data
+.Nd calculate the NIST Secure Hash Algorithm
+.Sh SYNOPSIS
+.In sys/types.h
+.In sha1.h
+.Ft void
+.Fn SHA1Init "SHA1_CTX *context"
+.Ft void
+.Fn SHA1Update "SHA1_CTX *context" "const u_int8_t *data" "size_t len"
+.Ft void
+.Fn SHA1Pad "SHA1_CTX *context"
+.Ft void
+.Fn SHA1Final "u_int8_t digest[SHA1_DIGEST_LENGTH]" "SHA1_CTX *context"
+.Ft void
+.Fn SHA1Transform "u_int32_t state[5]" "const u_int8_t buffer[SHA1_BLOCK_LENGTH]"
+.Ft char *
+.Fn SHA1End "SHA1_CTX *context" "char *buf"
+.Ft char *
+.Fn SHA1File "const char *filename" "char *buf"
+.Ft char *
+.Fn SHA1FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft char *
+.Fn SHA1Data "const u_int8_t *data" "size_t len" "char *buf"
+.Sh DESCRIPTION
+The SHA1 functions implement the NIST Secure Hash Algorithm (SHA-1),
+FIPS PUB 180-1.
+SHA-1 is used to generate a condensed representation
+of a message called a message digest.
+The algorithm takes a
+message less than 2^64 bits as input and produces a 160-bit digest
+suitable for use as a digital signature.
+.Pp
+SHA-1 has been broken; it should only be used where necessary for
+backward compatibility.
+The attack on SHA-1 is in the nature of finding
+.Dq collisions
+\(em that is, multiple inputs which hash to the same value.
+It is still unlikely for an attacker to be able to determine the exact
+original input given a hash value.
+.Pp
+The
+.Fn SHA1Init
+function initializes a SHA1_CTX
+.Fa context
+for use with
+.Fn SHA1Update ,
+and
+.Fn SHA1Final .
+The
+.Fn SHA1Update
+function adds
+.Fa data
+of length
+.Fa len
+to the SHA1_CTX specified by
+.Fa context .
+.Fn SHA1Final
+is called when all data has been added via
+.Fn SHA1Update
+and stores a message digest in the
+.Fa digest
+parameter.
+.Pp
+The
+.Fn SHA1Pad
+function can be used to apply padding to the message digest as in
+.Fn SHA1Final ,
+but the current context can still be used with
+.Fn SHA1Update .
+.Pp
+The
+.Fn SHA1Transform
+function is used by
+.Fn SHA1Update
+to hash 512-bit blocks and forms the core of the algorithm.
+Most programs should use the interface provided by
+.Fn SHA1Init ,
+.Fn SHA1Update
+and
+.Fn SHA1Final
+instead of calling
+.Fn SHA1Transform
+directly.
+.Pp
+The
+.Fn SHA1End
+function is a front end for
+.Fn SHA1Final
+which converts the digest into an ASCII representation
+of the 160 bit digest in hexadecimal.
+.Pp
+The
+.Fn SHA1File
+function calculates the digest for a file and returns the result via
+.Fn SHA1End .
+If
+.Fn SHA1File
+is unable to open the file, a
+.Dv NULL
+pointer is returned.
+.Pp
+.Fn SHA1FileChunk
+behaves like
+.Fn SHA1File
+but calculates the digest only for that portion of the file starting at
+.Fa offset
+and continuing for
+.Fa length
+bytes or until end of file is reached, whichever comes first.
+A zero
+.Fa length
+can be specified to read until end of file.
+A negative
+.Fa length
+or
+.Fa offset
+will be ignored.
+.Pp
+The
+.Fn SHA1Data
+function
+calculates the digest of an arbitrary string and returns the result via
+.Fn SHA1End .
+.Pp
+For each of the
+.Fn SHA1End ,
+.Fn SHA1File ,
+and
+.Fn SHA1Data
+functions the
+.Fa buf
+parameter should either be a string of at least 41 characters in
+size or a
+.Dv NULL
+pointer.
+In the latter case, space will be dynamically allocated via
+.Xr malloc 3
+and should be freed using
+.Xr free 3
+when it is no longer needed.
+.Sh EXAMPLES
+The following code fragment will calculate the digest for
+the string
+.Qq abc
+which is
+.Dq 0xa9993e364706816aba3e25717850c26c9cd0d89d .
+.Bd -literal -offset indent
+SHA1_CTX sha;
+u_int8_t results[SHA1_DIGEST_LENGTH];
+char *buf;
+int n;
+
+buf = "abc";
+n = strlen(buf);
+SHA1Init(&sha);
+SHA1Update(&sha, (u_int8_t *)buf, n);
+SHA1Final(results, &sha);
+
+/* Print the digest as one long hex value */
+printf("0x");
+for (n = 0; n < SHA1_DIGEST_LENGTH; n++)
+	printf("%02x", results[n]);
+putchar('\en');
+.Ed
+.Pp
+Alternately, the helper functions could be used in the following way:
+.Bd -literal -offset indent
+u_int8_t output[SHA1_DIGEST_STRING_LENGTH];
+char *buf = "abc";
+
+printf("0x%s\en", SHA1Data(buf, strlen(buf), output));
+.Ed
+.Sh SEE ALSO
+.Xr cksum 1 ,
+.Xr sha1 1 ,
+.Xr MD5Init 3 ,
+.Xr RMD160Init 3 ,
+.Xr SHA256Init 3
+.Sh STANDARDS
+.Rs
+.%A J. Burrows
+.%R FIPS PUB 180-1
+.%T The Secure Hash Standard
+.Re
+.Pp
+.Rs
+.%A D. Eastlake
+.%A P. Jones
+.%D September 2001
+.%R RFC 3174
+.%T US Secure Hash Algorithm 1 (SHA1)
+.Re
+.Sh HISTORY
+The SHA-1 functions appeared in
+.Ox 2.0 .
+.Sh AUTHORS
+.An -nosplit
+This implementation of SHA-1 was written by
+.An Steve Reid .
+.Pp
+The
+.Fn SHA1End ,
+.Fn SHA1File ,
+.Fn SHA1FileChunk ,
+and
+.Fn SHA1Data
+helper functions are derived from code written by
+.An Poul-Henning Kamp .

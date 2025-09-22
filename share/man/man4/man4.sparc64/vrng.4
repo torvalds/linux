@@ -1,0 +1,55 @@
+.\"     $OpenBSD: vrng.4,v 1.3 2013/07/16 16:05:50 schwarze Exp $
+.\"
+.\" Copyright (c) 2008 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt VRNG 4 sparc64
+.Os
+.Sh NAME
+.Nm vrng
+.Nd virtual random number generator
+.Sh SYNOPSIS
+.Cd "vrng0 at vbus?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the random number generation service
+provided by the UltraSPARC Hypervisor as found on sun4v systems.
+.Pp
+Driven by periodic checks for available data from the generator,
+.Nm
+supplies entropy to the
+.Xr random 4
+driver for common usage.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr random 4 ,
+.Xr vbus 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.5 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .
+.Sh BUGS
+The
+.Nm
+driver should probably do periodic
+.Dq health checks
+when running in a Trusted Domain, but currently does not.

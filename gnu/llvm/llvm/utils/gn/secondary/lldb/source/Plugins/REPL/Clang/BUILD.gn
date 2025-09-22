@@ -1,0 +1,17 @@
+static_library("Clang") {
+  output_name = "lldbPluginClangREPL"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/DataFormatters",
+    "//lldb/source/Host",
+    "//lldb/source/Plugins/Language/ClangCommon",
+    "//lldb/source/Plugins/LanguageRuntime/CPlusPlus",
+    "//lldb/source/Plugins/TypeSystem/Clang",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "ClangREPL.cpp" ]
+}

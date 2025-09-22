@@ -1,0 +1,2 @@
+dnl	$OpenBSD: upgrade,v 1.9 2020/04/28 13:02:10 benno Exp $
+OpenBSDUpgrade({:-the CD-ROM-:})

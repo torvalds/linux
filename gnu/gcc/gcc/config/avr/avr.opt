@@ -1,0 +1,65 @@
+; Options for the ATMEL AVR port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+mcall-prologues
+Target Report Mask(CALL_PROLOGUES)
+Use subroutines for function prologues and epilogues
+
+mmcu=
+Target RejectNegative Joined Var(avr_mcu_name) Init("avr2")
+-mmcu=MCU	Select the target MCU
+
+mdeb
+Target Report Undocumented Mask(ALL_DEBUG)
+
+minit-stack=
+Target RejectNegative Joined Var(avr_init_stack) Init("__stack")
+-minit-stack=STACK	Use STACK as the initial value of the stack pointer
+
+mint8
+Target Report Mask(INT8)
+Use an 8-bit 'int' type
+
+mno-interrupts
+Target Report RejectNegative Mask(NO_INTERRUPTS)
+Change the stack pointer without disabling interrupts
+
+mno-tablejump
+Target Report RejectNegative Mask(NO_TABLEJUMP)
+Do not generate tablejump insns
+
+morder1
+Target Report Undocumented Mask(ORDER_1)
+
+morder2
+Target Report Undocumented Mask(ORDER_2)
+
+mshort-calls
+Target Report Mask(SHORT_CALLS)
+Use rjmp/rcall (limited range) on >8K devices
+
+msize
+Target Report Mask(INSN_SIZE_DUMP)
+Output instruction sizes to the asm file
+
+mtiny-stack
+Target Report Mask(TINY_STACK)
+Change only the low 8 bits of the stack pointer

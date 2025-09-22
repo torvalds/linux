@@ -1,0 +1,106 @@
+import("//clang/lib/ARCMigrate/enable.gni")
+import("//llvm/utils/gn/build/symbol_exports.gni")
+import("//llvm/version.gni")
+
+# This build file is just enough to get check-clang to pass, it's missing
+# several things from the CMake build:
+# - a build target copying the Python bindings
+# - the GN build doesn't have LIBCLANG_BUILD_STATIC
+
+action("linker_script_to_exports") {
+  script = "linker-script-to-export-list.py"
+  inputs = [ "libclang.map" ]
+  outputs = [ "$target_gen_dir/libclang.exports" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+symbol_exports("exports") {
+  deps = [ ":linker_script_to_exports" ]
+  exports_file = "$target_gen_dir/libclang.exports"
+}
+
+shared_library("libclang") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/include/clang/Config",
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/ExtractAPI",
+    "//clang/lib/Frontend",
+    "//clang/lib/Headers",
+    "//clang/lib/Index",
+    "//clang/lib/Lex",
+    "//clang/lib/Sema",
+    "//clang/lib/Tooling",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+  ]
+  if (current_os == "win" || current_os == "mac") {
+    deps += [ ":exports" ]
+  } else {
+    inputs = [ "libclang.map" ]
+    ldflags =
+        [ "-Wl,--version-script," + rebase_path(inputs[0], root_build_dir) ]
+  }
+  if (clang_enable_arcmt) {
+    deps += [ "//clang/lib/ARCMigrate" ]
+  }
+
+  defines = []
+
+  if (host_os == "win") {
+    defines += [ "_CINDEX_LIB_" ]
+  }
+
+  sources = [
+    "../../include/clang-c/Index.h",
+    "ARCMigrate.cpp",
+    "BuildSystem.cpp",
+    "CIndex.cpp",
+    "CIndexCXX.cpp",
+    "CIndexCodeCompletion.cpp",
+    "CIndexDiagnostic.cpp",
+    "CIndexDiagnostic.h",
+    "CIndexHigh.cpp",
+    "CIndexInclusionStack.cpp",
+    "CIndexUSRs.cpp",
+    "CIndexer.cpp",
+    "CIndexer.h",
+    "CXComment.cpp",
+    "CXCompilationDatabase.cpp",
+    "CXCursor.cpp",
+    "CXCursor.h",
+    "CXExtractAPI.cpp",
+    "CXIndexDataConsumer.cpp",
+    "CXLoadedDiagnostic.cpp",
+    "CXLoadedDiagnostic.h",
+    "CXSourceLocation.cpp",
+    "CXSourceLocation.h",
+    "CXStoredDiagnostic.cpp",
+    "CXString.cpp",
+    "CXString.h",
+    "CXTranslationUnit.h",
+    "CXType.cpp",
+    "CXType.h",
+    "FatalErrorHandler.cpp",
+    "Index_Internal.h",
+    "Indexing.cpp",
+    "Rewrite.cpp",
+  ]
+  if (host_os == "mac") {
+    ldflags = [
+      "-Wl,-compatibility_version,1",
+      "-Wl,-current_version,$llvm_version",
+
+      # See llvm_setup_rpath() in CMake.
+      "-Wl,-install_name,@rpath/libclang.dylib",
+      "-Wl,-rpath,@loader_path/../lib",
+    ]
+  }
+}

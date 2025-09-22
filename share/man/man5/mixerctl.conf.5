@@ -1,0 +1,149 @@
+.\"	$OpenBSD: mixerctl.conf.5,v 1.10 2020/04/21 21:32:26 deraadt Exp $
+.\"
+.\" Copyright (c) 2008 Jason McIntyre <jmc@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 21 2020 $
+.Dt MIXERCTL.CONF 5
+.Os
+.Sh NAME
+.Nm mixerctl.conf
+.Nd mixerctl configuration file
+.Sh DESCRIPTION
+.Nm
+is the configuration file for
+.Xr mixerctl 8 .
+It allows the user to specify settings for the audio mixer
+at system startup.
+The exact set of variables available are
+largely dependent on the audio device driver,
+and vary from device to device.
+The file is made up of variable assignments
+.Pq Ar name Ns = Ns Ar value
+with comments designated by a hash mark
+.Pq Sq # .
+.Pp
+Some audio devices have _sense variables
+which can help identify connectors.
+The connectors' state will be one of
+.Ar plugged
+or
+.Ar unplugged ,
+depending on whether a jack is inserted.
+.Pp
+The connectors on audio cards are generally as follows:
+.Pp
+.Bl -tag -width "orangeXXX" -offset 3n -compact
+.It pink
+Microphone in.
+Used to record from a microphone.
+.It green
+Line out.
+Used for stereo speakers or headphones.
+.It blue
+Line in.
+Used to record from an external source.
+.It orange
+Speaker out; subwoofer.
+.It brown
+Speaker out; rear speakers.
+.It S/PDIF
+Optical connector;
+TOSLink, RCA, or 1/8" mini stereo.
+.El
+.Sh PLAYBACK
+Most devices have a number of digital to analogue converters (DACs),
+used for sound playback,
+and each DAC has a corresponding output mixer.
+The mixers are labelled
+.Dq mix
+or
+.Dq sel .
+Each DAC represents two channels of playback.
+.Pp
+Verify that playback works by playing an audio file
+(see
+.Xr aucat 1 )
+or CD
+(see
+.Xr cdio 1 ) .
+Check that any relevant inputs.* variables are unmuted
+and set to a high enough value to permit playback.
+For example, if playing a CD,
+.Xr grep 1
+for cd variables to adjust.
+Check also that the variable governing the general audio level,
+such as
+.Ic outputs.master ,
+is set to a sufficiently high value.
+.Pp
+Some cards are capable of multi-channel sound.
+In some cases _dir variables detail the direction
+(input or output)
+of the various connectors.
+Check that the direction of the corresponding connectors is set to
+.Ar output .
+Other devices may need to set _source variables to work correctly.
+The maximum possible value of the
+.Xr audioctl 8
+variable
+.Ic play.channels
+shows the number of channels available.
+.Sh RECORDING
+Most devices have a number of analogue to digital converters (ADCs),
+used for recording sound,
+and each ADC has a corresponding input mixer.
+The mixers are labelled
+.Dq mix
+or
+.Dq sel .
+Each ADC represents two channels of recording.
+.Pp
+Connect line in on the audio card to an audio source,
+such as an amplifier.
+Many devices have an auxiliary connector
+.Pq Dq aux
+available for recording,
+or a headphone socket could be used.
+.Pp
+Check that the variable that determines recording volume,
+such as
+.Ic record.volume ,
+is set high enough to provide a high enough sound level,
+but not so high as to distort the sound being recorded.
+It is also a good idea to mute any record.* variables not being
+used for recording.
+Obviously the recording source itself will have to be unmuted.
+.Pp
+A simple test that recording works may be done using
+.Xr aucat 1
+whilst playing back audio from an external source.
+The example below creates a .wav file of any audio being played.
+The file can then be played back to determine quality.
+.Pp
+.Dl $ aucat -o test.wav
+.Sh FILES
+.Bl -tag -width /etc/examples/mixerctl.conf -compact
+.It Pa /dev/audioctl0
+Default audio mixing device.
+.It Pa /etc/mixerctl.conf
+.Xr mixerctl 8
+configuration file.
+.It Pa /etc/examples/mixerctl.conf
+Example configuration file.
+.El
+.Sh SEE ALSO
+.Xr aucat 1 ,
+.Xr audioctl 8 ,
+.Xr mixerctl 8

@@ -1,0 +1,26 @@
+#
+# SSLeay example configuration file.
+# This is mostly being used for generation of certificate requests.
+#
+# create RSA certs - Server
+
+RANDFILE              = ./.rnd
+
+####################################################################
+[ req ]
+distinguished_name    = req_distinguished_name
+encrypt_key           = no
+
+[ req_distinguished_name ]
+countryName                   = Country Name (2 letter code)
+countryName_default           = ES
+countryName_value             = ES
+
+organizationName                = Organization Name (eg, company)
+organizationName_value          = Tortilleras S.A.
+
+0.commonName                  = Common Name (eg, YOUR name)
+0.commonName_value            = Torti
+
+1.commonName                  = Common Name (eg, YOUR name)
+1.commonName_value            = Gordita

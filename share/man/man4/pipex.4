@@ -1,0 +1,269 @@
+.\"	$OpenBSD: pipex.4,v 1.15 2022/07/12 08:58:53 mvs Exp $
+.\"
+.\" Copyright (c) 2012 YASUOKA Masahiko <yasuoka@openbsd.org>
+.\" Copyright (c) 2010 SUENAGA Hiroki <hsuenaga@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 12 2022 $
+.Dt PIPEX 4
+.Os
+.Sh NAME
+.Nm pipex
+.Nd PPP IP EXtension to handle IP/PPP frames in-kernel
+.Sh SYNOPSIS
+.Cd "option PIPEX"
+.Pp
+.In sys/types.h
+.In sys/socket.h
+.In sys/ioctl.h
+.In net/if.h
+.In net/pipex.h
+.Sh DESCRIPTION
+.Nm
+is used with
+.Xr pppac 4
+and
+.Xr pppx 4 ,
+and handles PPP frames and forwards IP packets in-kernel.
+It accelerates the performance of packet forwarding, because it reduces
+copying of packets between kernel and userland.
+.Nm
+is disabled by default.
+To enable it, set
+.Va net.pipex.enable
+to
+.Sq 1
+using
+.Xr sysctl 8 .
+.Pp
+.Nm
+adds some extensions to the
+.Xr ioctl 2
+requests to
+.Xr pppac 4
+or
+.Xr pppx 4
+devices.
+The added requests are as follows:
+.Bl -tag -width Ds
+.It Dv PIPEXASESSION Fa "struct pipex_session_req *"
+Add a new PPP session to be handled by
+.Nm .
+The status of the session is passed as a
+.Vt pipex_session_req
+structure.
+The
+.Vt pipex_session_req
+structure has the following definition:
+.Bd -literal
+struct pipex_session_req {
+    int         pr_protocol;         /* tunnel protocol  */
+#define PIPEX_PROTO_L2TP   1         /* protocol L2TP */
+#define PIPEX_PROTO_PPTP   2         /* protocol PPTP */
+#define PIPEX_PROTO_PPPOE  3         /* protocol PPPoE */
+    uint16_t    pr_session_id;       /* session-id */
+    uint16_t    pr_peer_session_id;  /* peer's session-id */
+    uint32_t    pr_ppp_flags;        /* ppp configuration flags */
+#define PIPEX_PPP_ACFC_ACCEPTED  0x0001 /* ACFC accepted */
+#define PIPEX_PPP_PFC_ACCEPTED   0x0002 /* PFC accepted */
+#define PIPEX_PPP_ACFC_ENABLED   0x0004 /* ACFC enabled */
+#define PIPEX_PPP_PFC_ENABLED    0x0008 /* PFC enabled */
+#define PIPEX_PPP_MPPE_ACCEPTED  0x0010 /* MPPE accepted */
+#define PIPEX_PPP_MPPE_ENABLED   0x0020 /* MPPE enabled */
+#define PIPEX_PPP_MPPE_REQUIRED  0x0040 /* MPPE is required */
+#define PIPEX_PPP_HAS_ACF        0x0080 /* has ACF */
+#define PIPEX_PPP_ADJUST_TCPMSS  0x0100 /* do tcpmss adjustment */
+#define PIPEX_PPP_INGRESS_FILTER 0x0200 /* do ingress filter */
+    int8_t      pr_ccp_id;           /* ccp current packet id */
+    int         pr_ppp_id;           /* ppp id. */
+    uint16_t    pr_peer_mru;         /* peer's mru */
+    uint16_t    pr_timeout_sec;      /* idle timer */
+
+    struct in_addr      pr_ip_srcaddr;    /* local IP address */
+    struct in_addr      pr_ip_address;    /* framed IP address */
+    struct in_addr      pr_ip_netmask;    /* framed IP netmask */
+    struct sockaddr_in6 pr_ip6_address;   /* framed IPv6 address */
+    int                 pr_ip6_prefixlen; /* framed IPv6 prefix
+                                             length */
+    union {
+        struct {
+            uint32_t snd_nxt;         /* send next */
+            uint32_t rcv_nxt;         /* receive next */
+            uint32_t snd_una;         /* unacked */
+            uint32_t rcv_acked;       /* recv acked */
+            int winsz;                /* window size */
+            int maxwinsz;             /* max window size */
+            int peer_maxwinsz;        /* peer's max window size */
+        } pptp;
+        struct {
+            /* select protocol options: 1 for enable */
+            uint32_t option_flags;
+    #define PIPEX_L2TP_USE_SEQUENCING  0x00000001
+                                      /* use sequence number
+					 on L2TP data messages */
+
+            uint16_t tunnel_id;       /* our tunnel-id */
+            uint16_t peer_tunnel_id;  /* peer's tunnel-id */
+            uint32_t ns_nxt;          /* send next */
+            uint32_t nr_nxt;          /* receive next */
+            uint32_t ns_una;          /* unacked */
+            uint32_t nr_acked;        /* recv acked */
+            uint32_t ipsecflowinfo;   /* IPsec flow id for NAT-T */
+        } l2tp;
+        struct {
+            char over_ifname[IF_NAMESIZE];
+                                      /* ethernet ifname */
+        } pppoe;
+    } pr_proto;
+    struct sockaddr_storage  pr_peer_address;
+                                      /* peer address of tunnel */
+    struct sockaddr_storage  pr_local_address;
+				      /* our address of tunnel */
+    struct pipex_mppe_req    pr_mppe_recv;
+				      /* mppe key for receive */
+    struct pipex_mppe_req    pr_mppe_send;
+				      /* mppe key for send */
+};
+.Ed
+.Pp
+The
+.Vt pipex_mppe_req
+structure that was used by
+.Va pr_mppe_recv
+and
+.Va pr_mppe_send
+has the following definition:
+.Bd -literal
+struct pipex_mppe_req {
+    int16_t  stateless;            /* mppe key mode.
+                                      1 for stateless */
+    int16_t  keylenbits;           /* mppe key length(in bits)*/
+    u_char   master_key[PIPEX_MPPE_KEYLEN];
+                                   /* mppe master key */
+};
+.Ed
+.It Dv PIPEXDSESSION Fa "struct pipex_session_close_req *"
+Delete the specified session from the kernel.
+Specify the session using a
+.Vt pipex_session_close_req
+structure, which has the following definition:
+.Bd -literal
+struct pipex_session_close_req {
+    int                      psr_protocol;   /* tunnel protocol */
+    uint16_t                 psr_session_id; /* session-id */
+    struct pipex_statistics  psr_stat;       /* statistics */
+};
+.Ed
+.Pp
+The
+.Va psr_protocol
+and
+.Va psr_session_id
+fields used to specify the session are mandatory.
+On successful return, the
+.Va psr_stat
+field is filled by the kernel.
+See
+.Dv PIPEXGSTAT
+section for a description of the
+.Vt pipex_statistics
+structure.
+.It Dv PIPEXGSTAT    Fa "struct pipex_session_stat_req *"
+Get statistics for the specified session.
+Specify the session using a
+.Vt pipex_session_stat_req
+structure, which has the following definition:
+.Bd -literal
+struct pipex_session_stat_req {
+    int                      psr_protocol;   /* tunnel protocol */
+    uint16_t                 psr_session_id; /* session-id */
+    struct pipex_statistics  psr_stat;       /* statistics */
+};
+.Ed
+.Pp
+The
+.Va psr_protocol
+and
+.Va psr_session_id
+fields used to specify the session are mandatory.
+On successful return, the
+.Va psr_stat
+field is filled by the kernel.
+The
+.Vt pipex_statistics
+structure has the following definition:
+.Bd -literal
+struct pipex_statistics {
+    uint32_t ipackets;   /* packets received from tunnel */
+    uint32_t ierrors;    /* error packets received from tunnel */
+    uint64_t ibytes;     /* number of received bytes from tunnel */
+    uint32_t opackets;   /* packets sent to tunnel */
+    uint32_t oerrors;    /* error packets on sending to tunnel */
+    uint64_t obytes;     /* number of sent bytes to tunnel */
+
+    uint32_t idle_time;  /* idle time in seconds */
+};
+.Ed
+.It Dv PIPEXGCLOSED  Fa "struct pipex_session_list_req *"
+Get a list of closed sessions.
+.Nm
+reserves closed sessions for 30 seconds
+for userland programs to get statistical information.
+On successful return,
+the
+.Vt pipex_session_list_req
+structure is filled by the kernel.
+The structure has the following definition.
+.Bd -literal
+struct pipex_session_list_req {
+    uint8_t  plr_flags;
+#define PIPEX_LISTREQ_MORE         0x01      /* has more session */
+    int      plr_ppp_id_count;               /* count of PPP id */
+    int      plr_ppp_id[PIPEX_MAX_LISTREQ];  /* PPP id */
+};
+.Ed
+.It Dv PIPEXSIFDESCR Fa "struct pipex_session_descr_req *"
+Set the
+.Xr pppx 4
+interface's description of the session.
+This command doesn't work on
+.Xr pppac 4
+devices.
+Specify the session and its description using a
+.Vt pipex_session_descr_req
+structure, which has the following definition:
+.Bd -literal
+struct pipex_session_descr_req {
+    int       pdr_protocol;           /* tunnel protocol */
+    uint16_t  pdr_session_id;         /* session-id */
+    char      pdr_descr[IFDESCRSIZE]; /* description */
+};
+.Ed
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr pppac 4 ,
+.Xr pppx 4 ,
+.Xr npppd 8 ,
+.Xr sysctl 8
+.Sh AUTHORS
+The
+.Nm
+was written by
+.An Internet Initiative Japan Inc .
+.Sh BUGS
+.Xr pppx 4
+does not allow sessions with
+.Ic pr_timeout_sec
+set to any value other than 0.

@@ -1,0 +1,61 @@
+.\" $OpenBSD: EVP_PKCS82PKEY.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKCS82PKEY 3
+.Os
+.Sh NAME
+.Nm EVP_PKCS82PKEY ,
+.Nm EVP_PKEY2PKCS8
+.Nd convert between EVP_PKEY and PKCS#8 PrivateKeyInfo
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft EVP_PKEY *
+.Fn EVP_PKCS82PKEY "const PKCS8_PRIV_KEY_INFO *keyinfo"
+.Ft PKCS8_PRIV_KEY_INFO *
+.Fn EVP_PKEY2PKCS8 "EVP_PKEY *pkey"
+.Sh DESCRIPTION
+.Fn EVP_PKCS82PKEY
+extracts the private key from a PKCS#8
+.Vt PrivateKeyInfo
+structure.
+.Pp
+.Fn EVP_PKEY2PKCS8
+creates a PKCS#8
+.Vt PrivateKeyInfo
+structure representing the private key contained in
+.Fa pkey .
+.Pp
+Supported algorithms include DH, DSA, EC, and RSA.
+.Sh RETURN VALUES
+These functions return a newly allocated object or
+.Dv NULL
+if the algorithm indicated in
+.Fa keyinfo
+or
+.Fa pkey
+is unsupported or if memory allocation, decoding, or encoding fails.
+.Sh SEE ALSO
+.Xr EVP_PKEY_base_id 3 ,
+.Xr EVP_PKEY_new 3 ,
+.Xr PKCS8_pkey_set0 3 ,
+.Xr PKCS8_PRIV_KEY_INFO_new 3 ,
+.Xr X509_ALGOR_get0 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.3
+and have been available since
+.Ox 2.6 .

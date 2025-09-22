@@ -1,0 +1,165 @@
+.\"	$OpenBSD: com.4,v 1.49 2021/12/16 08:03:17 anton Exp $
+.\"	$NetBSD: com.4,v 1.5 1996/03/16 00:07:08 thorpej Exp $
+.\"
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Systems Programming Group of the University of Utah Computer
+.\" Science Department.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
+.\"
+.Dd $Mdocdate: December 16 2021 $
+.Dt COM 4
+.Os
+.Sh NAME
+.Nm com
+.Nd serial communications interface
+.Sh SYNOPSIS
+.Cd "# com attachments"
+.Cd "#"
+.Cd "# i386"
+.Cd "com0 at isa? port 0x3f8 irq 4"
+.Cd "com1 at isa? port 0x2f8 irq 3"
+.Cd "com2 at isa? port 0x3e8 irq 5"
+.Cd "com3 at isa? port 0x2e8 irq 9"
+.Cd "com* at isapnp?"
+.Cd "com* at pcmcia?"
+.Cd "com* at puc?"
+.Cd "com* at cardbus?"
+.Pp
+.Cd "com* at addcom?"
+.Cd "com* at ast?"
+.Cd "com* at boca?"
+.Cd "com* at hsq?"
+.Pp
+.Cd "# alpha and amd64"
+.Cd "com0 at isa? port 0x3f8 irq 4"
+.Cd "com1 at isa? port 0x2f8 irq 3"
+.Pp
+.Cd "# amd64 and arm64"
+.Cd "com* at acpi?"
+.Pp
+.Cd "# arm64 and armv7"
+.Cd "com* at fdt?"
+.Pp
+.Cd "# hppa"
+.Cd "com0 at gsc? offset 0x5000 irq 5"
+.Cd "com0 at gsc? offset 0x823000 irq 5"
+.Cd "com1 at gsc? offset 0x822000 irq 6"
+.Cd "com2 at gsc? irq 13"
+.Cd "com1 at dino? irq 11"
+.Cd "com0 at ssio? irq 4"
+.Cd "com1 at ssio? irq 3"
+.Pp
+.Cd "# loongson"
+.Cd "com* at leioc?"
+.Pp
+.Cd "# macppc"
+.Cd "com* at puc?"
+.Cd "com* at pcmcia?"
+.Cd "com* at cardbus?"
+.Pp
+.Cd "# octeon"
+.Cd "com* at fdt?"
+.Pp
+.Cd "# riscv64"
+.Cd "com* at fdt?"
+.Pp
+.Cd "# sparc64"
+.Cd "com* at asio?"
+.Cd "com* at ebus?"
+.Cd "com* at puc?"
+.Sh DESCRIPTION
+The
+.Nm com
+driver provides support for NS8250-, NS16450-, NS16550-, ST16650-,
+ST16C654-, and TI16750-based
+.\" XR16850-
+.Tn EIA
+.Tn RS-232C
+.Pf ( Tn CCITT
+.Tn V.28 )
+communications interfaces.
+.Pp
+The NS8250 and NS16450 have single
+character buffers, the NS16550 has a 16 character buffer, while
+the ST16650 has a 32 character buffer, and the TI16750 has a 64 character
+buffer.
+.\" The XR16850 has a 128 character buffer.
+.Pp
+Input and output for each line may be set to one of following baud rates;
+50, 75, 110, 134.5, 150, 300, 600, 1200, 1800, 2400, 4800, 9600,
+19200, 38400, 57600, or 115200, or any other baud rate which is a factor
+of 115200.
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /dev/tty00
+.It Pa /dev/tty01
+.It Pa /dev/cua00
+.It Pa /dev/cua01
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It com0: N silo overflows
+The input
+.Dq silo
+has overflowed and incoming data has been lost.
+.It com0: weird interrupt: iir=XXXX
+The device has generated an unexpected interrupt
+with the code listed.
+.El
+.Sh SEE ALSO
+.Xr addcom 4 ,
+.Xr asio 4 ,
+.Xr ast 4 ,
+.Xr boca 4 ,
+.Xr cardbus 4 ,
+.Xr dino 4 ,
+.Xr ebus 4 ,
+.Xr gsc 4 ,
+.Xr hsq 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr isapnp 4 ,
+.Xr pcmcia 4 ,
+.Xr puc 4 ,
+.Xr ssio 4 ,
+.Xr tty 4
+.Sh HISTORY
+The
+.Nm
+driver was originally derived from the
+.Nm HP9000/300
+.Nm dca
+driver.
+.Sh BUGS
+Data loss is possible on busy systems with unbuffered UARTs at high speed.
+.Pp
+The name of this driver and the constants which define the locations
+of the various serial ports are holdovers from
+.Nm DOS .

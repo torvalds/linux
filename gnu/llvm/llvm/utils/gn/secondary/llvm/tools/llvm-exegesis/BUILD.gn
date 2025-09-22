@@ -1,0 +1,19 @@
+import("//llvm/lib/Target/targets.gni")
+
+executable("llvm-exegesis") {
+  deps = [
+    "lib",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsAsmParsers",
+    "//llvm/lib/Target:AllTargetsCodeGens",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsDisassemblers",
+    "//llvm/lib/Target:AllTargetsInfos",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "llvm-exegesis.cpp" ]
+}

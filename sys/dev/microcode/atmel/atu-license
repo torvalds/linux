@@ -1,0 +1,42 @@
+ * Copyright 2004 Atmel Corporation. All Rights Reserved. Redistribution and use
+ * of the microcode software ("Firmware") is permitted provided that the following
+ * conditions are met:
+ *     1. Firmware is redistributed in object code only.
+ *     2. Any reproduction of Firmware must contain the above copyright notice,
+ * 	this list of conditions and the below disclaimer in the documentation
+ * 	and/or other materials provided with the distribution; and
+ *     3. The name of Atmel Corporation may not be used to endorse or promote products
+ *         derived from this Firmware without specific prior written consent.
+ * 
+ * DISCLAIMER: ATMEL PROVIDES THIS FIRMWARE "AS IS'' WITH NO WARRANTIES
+ * OR INDEMNITIES WHATSOEVER. ATMEL EXPRESSLY DISCLAIMS ANY
+ * EXPRESS, STATUTORY OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+ * PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL ATMEL
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * FIRMWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * USER ACKNOWLEDGES AND AGREES THAT THE PURCHASE OR USE OF THE
+ * FIRMWARE WILL NOT CREATE OR GIVE GROUNDS FOR A LICENSE BY
+ * IMPLICATION, ESTOPPEL, OR OTHERWISE IN ANY INTELLECTUAL PROPERTY
+ * RIGHTS (PATENT, COPYRIGHT, TRADE SECRET, MASK WORK, OR OTHER
+ * PROPRIETARY RIGHT) EMBODIED IN ANY OTHER ATMEL HARDWARE OR
+ * FIRMWARE EITHER SOLELY OR IN COMBINATION WITH THE FIRMWARE.
+
+The following files are under this license:
+
+atu-intersil-ext
+atu-intersil-int
+atu-rfmd-ext
+atu-rfmd-int
+atu-rfmd2958-ext
+atu-rfmd2958-int
+atu-rfmd2958smc-ext
+atu-rfmd2958smc-int
+
+These files are needed by various models of atu(4) devices.

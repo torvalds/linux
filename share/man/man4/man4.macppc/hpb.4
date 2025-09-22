@@ -1,0 +1,40 @@
+.\"	$OpenBSD: hpb.4,v 1.3 2022/08/06 11:03:14 jsg Exp $
+.\"
+.\" Copyright (c) 2015 Martin Pieuchot <mpi@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 6 2022 $
+.Dt HPB 4 macppc
+.Os
+.Sh NAME
+.Nm hpb
+.Nd HyperTransport-PCI bridge
+.Sh SYNOPSIS
+.Cd "hpb* at pci?"
+.Cd "pci* at hpb?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports PCI-PCI bridges with HyperTransport Interrupt Capability
+as found in the IBM CPC945.
+It provides support for HyperTransport posted write interrupts.
+.Sh SEE ALSO
+.Xr ht 4 ,
+.Xr openpic 4 ,
+.Xr pci 4
+.Rs
+.%T CPC945 Bridge and Memory Controller
+.%B User Manual
+.%D February 1, 2008
+.Re

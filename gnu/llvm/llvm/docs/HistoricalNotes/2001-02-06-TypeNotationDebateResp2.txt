@@ -1,0 +1,53 @@
+Date: Thu, 8 Feb 2001 14:31:05 -0600 (CST)
+From: Chris Lattner <sabre@nondot.org>
+To: Vikram S. Adve <vadve@cs.uiuc.edu>
+Subject: RE: Type notation debate...
+
+> Arrays (without and with size):
+> type ::= '[' type ']' | '[' INT ',' type ']'.
+> 
+> The arrays with size lists the dimensions and the type in a single list.
+> That is just too confusing:
+
+>       [10, 40, int]
+> This seems to be a 3-D array where the third dimension is something strange.
+> It is too confusing to have a list of 3 things, some of which are dimensions
+> and one is a type. 
+
+The above grammar indicates that there is only one integer parameter, ie
+the upper bound.  The lower bound is always implied to be zero, for
+several reasons:
+
+* As a low level VM, we want to expose addressing computations
+  explicitly.  Since the lower bound must always be known in a high level
+  language statically, the language front end can do the translation
+  automatically.
+* This fits more closely with what Java needs, ie what we need in the
+  short term.  Java arrays are always zero based.
+
+If a two element list is too confusing, I would recommend an alternate
+syntax of:
+
+type ::= '[' type ']' | '[' INT 'x' type ']'.
+
+For example:
+  [12 x int]
+  [12x int]
+  [ 12 x [ 4x int ]]
+
+Which is syntactically nicer, and more explicit.
+
+> Either of the following would be better:
+>       array [10, 40] of int
+
+I considered this approach for arrays in general (ie array of int/ array
+of 12 int), but found that it made declarations WAY too long.  Remember
+that because of the nature of llvm, you get a lot of types strewn all over
+the program, and using the 'typedef' like facility is not a wonderful
+option, because then types aren't explicit anymore.
+
+I find this email interesting, because you contradict the previous email
+you sent, where you recommend that we stick to C syntax....
+
+-Chris
+

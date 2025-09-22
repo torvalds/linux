@@ -1,0 +1,318 @@
+.\"	$OpenBSD: editrc.5,v 1.33 2020/04/23 21:28:08 jmc Exp $
+.\"	$NetBSD: editrc.5,v 1.31 2016/04/28 15:50:34 christos Exp $
+.\"
+.\" Copyright (c) 1997-2000 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This file was contributed to The NetBSD Foundation by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 23 2020 $
+.Dt EDITRC 5
+.Os
+.Sh NAME
+.Nm editrc
+.Nd configuration file for editline library
+.Sh DESCRIPTION
+The
+.Nm
+file defines various settings to be used by the
+.Xr editline 3
+library.
+.Pp
+The format of each line is:
+.Pp
+.Dl [prog:]command [arg ...]
+.Pp
+.Ar command
+is one of the
+.Xr editline 3
+builtin commands.
+Refer to
+.Sx BUILTIN COMMANDS
+for more information.
+.Pp
+.Ar prog
+is the program name string that a program defines when it calls
+.Xr el_init 3
+to set up
+.Xr editline 3 ,
+which is usually
+.Va argv[0] .
+.Ar command
+will be executed for any program which matches
+.Ar prog .
+.Pp
+.Ar prog
+may also be a
+.Xr regex 3
+style
+regular expression, in which case
+.Ar command
+will be executed for any program that matches the regular expression.
+.Pp
+If
+.Ar prog
+is absent,
+.Ar command
+is executed for all programs.
+.Sh BUILTIN COMMANDS
+The
+.Nm editline
+library has some builtin commands, which affect the way
+that the line editing and history functions operate.
+These are based on similar named builtins present in the tcsh shell.
+.Pp
+The following builtin commands are available:
+.Bl -tag -width 4n
+.It Ic bind Oo Fl aeklrsv Oc Op Ar key Op Ar command
+Without options and arguments, list all bound keys and macros, and
+the editor command or input string to which each one is bound.
+If only
+.Ar key
+is supplied, show the binding for that key or macro.
+If
+.Ar key command
+is supplied, bind the editor
+.Ar command
+to that key or macro.
+.Pp
+The options are as follows:
+.Bl -tag -width 4n
+.It Fl a
+List or change key bindings in the
+.Xr vi 1
+mode alternate (command mode) key map.
+.It Fl e
+Bind all keys to the standard GNU Emacs-like bindings.
+.It Fl k
+.Ar key
+is interpreted as a symbolic arrow key name, which may be one of
+.Sq up ,
+.Sq down ,
+.Sq left
+or
+.Sq right .
+.It Fl l
+List all editor commands and a short description of each.
+.It Fl r
+Remove the binding of the key or macro
+.Ar key .
+.It Fl s
+Define a keyboard macro rather than a key binding or command macro:
+.Ar command
+is taken as a literal string and appended to the input queue whenever
+.Ar key
+is typed.
+Bound keys and macros in
+.Ar command
+are themselves reinterpreted, and this continues for ten levels of
+interpretation.
+.It Fl v
+Bind all keys to the standard
+.Xr vi 1 Ns -like
+bindings.
+.El
+.Pp
+The
+.Xr editline 7
+manual documents all editor commands and contains more information
+about macros and the input queue.
+.Pp
+.Ar key
+and
+.Ar command
+can contain control characters of the form
+.Sm off
+.Sq No ^ Ar character
+.Sm on
+.Po
+e.g.\&
+.Sq ^A
+.Pc ,
+and the following backslashed escape sequences:
+.Pp
+.Bl -tag -compact -offset indent -width 4n
+.It Ic \ea
+Bell
+.It Ic \eb
+Backspace
+.It Ic \ee
+Escape
+.It Ic \ef
+Formfeed
+.It Ic \en
+Newline
+.It Ic \er
+Carriage return
+.It Ic \et
+Horizontal tab
+.It Ic \ev
+Vertical tab
+.Sm off
+.It Sy \e Ar nnn
+.Sm on
+The ASCII character corresponding to the octal number
+.Ar nnn .
+.El
+.Pp
+.Sq \e
+nullifies the special meaning of the following character,
+if it has any, notably
+.Sq \e
+and
+.Sq ^ .
+.It Ic echotc Oo Fl sv Oc Ar arg ...
+Exercise terminal capabilities given in
+.Ar arg ... .
+If
+.Ar arg
+is
+.Sq baud ,
+.Sq cols ,
+.Sq lines ,
+.Sq rows ,
+.Sq meta ,
+or
+.Sq tabs ,
+the value of that capability is printed, with
+.Dq yes
+or
+.Dq no
+indicating that the terminal does or does not have that capability.
+.Pp
+.Fl s
+returns an empty string for non-existent capabilities, rather than
+causing an error.
+.Fl v
+causes messages to be verbose.
+.It Ic edit Op Li on | Li off
+Enable or disable the
+.Nm editline
+functionality in a program.
+.It Ic history Ar list | Ar size Dv n | Ar unique Dv n
+The
+.Ar list
+command lists all entries in the history.
+The
+.Ar size
+command sets the history size to
+.Dv n
+entries.
+The
+.Ar unique
+command controls if history should keep duplicate entries.
+If
+.Dv n
+is non zero, only keep unique history entries.
+If
+.Dv n
+is zero, then keep all entries (the default).
+.It Ic settc Ar cap val
+Set the terminal capability
+.Ar cap
+to
+.Ar val ,
+as defined in
+.Xr termcap 5 .
+No sanity checking is done.
+.It Ic setty Xo
+.Op Fl adqx
+.Op Ar +mode
+.Op Ar -mode
+.Op Ar mode
+.Op Ar char=c
+.Xc
+Control which tty modes that
+.Nm
+won't allow the user to change.
+.Fl d ,
+.Fl q
+or
+.Fl x
+tells
+.Ic setty
+to act on the
+.Sq edit ,
+.Sq quote
+or
+.Sq execute
+set of tty modes respectively; defaulting to
+.Fl x .
+.Pp
+Without other arguments,
+.Ic setty
+lists the modes in the chosen set which are fixed on
+.Po
+.Sq +mode
+.Pc
+or off
+.Po
+.Sq -mode
+.Pc .
+.Fl a
+lists all tty modes in the chosen set regardless of the setting.
+With
+.Ar +mode ,
+.Ar -mode
+or
+.Ar mode ,
+fixes
+.Ar mode
+on or off or removes control of
+.Ar mode
+in the chosen set.
+.Pp
+.Ic Setty
+can also be used to set tty characters to particular values using
+.Ar char=value .
+If
+.Ar value
+is empty
+then the character is set to
+.Dv _POSIX_VDISABLE .
+.It Ic telltc
+List the values of all the terminal capabilities (see
+.Xr termcap 5 ) .
+.El
+.Sh FILES
+.Bl -tag -width "~/.editrcXXX"
+.It Pa ~/.editrc
+User configuration file for the
+.Xr editline 3
+library.
+.El
+.Sh SEE ALSO
+.Xr editline 3 ,
+.Xr regex 3 ,
+.Xr termcap 5 ,
+.Xr editline 7
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm editline
+library was written by
+.An Christos Zoulas ,
+and this manual was written by
+.An Luke Mewburn ,
+with some sections inspired by tcsh.

@@ -1,0 +1,67 @@
+.\" $OpenBSD: ASN1_NULL_new.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_NULL_NEW 3
+.Os
+.Sh NAME
+.Nm ASN1_NULL_new ,
+.Nm ASN1_NULL_free
+.Nd ASN.1 NULL value
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft ASN1_NULL *
+.Fn ASN1_NULL_new void
+.Ft void
+.Fn ASN1_NULL_free "ASN1_NULL *val_in"
+.Sh DESCRIPTION
+.Fn ASN1_NULL_new
+returns a specific invalid pointer that represents the ASN.1 NULL value,
+which is the only possible value of the ASN.1 NULL type.
+That pointer is different from a
+.Dv NULL
+pointer.
+Dereferencing it almost certainly results in a segmentation fault.
+This function does not allocate memory and cannot fail.
+.Pp
+.Fn ASN1_NULL_free
+has no effect whatsoever.
+In particular, it ignores the
+.Fa val_in
+argument and does not free any memory.
+In normal use, application programs only pass the invalid pointer
+obtained from
+.Fn ASN1_NULL_new
+to this function.
+But even if a valid pointer is passed, that pointer does not become invalid.
+.Pp
+The ASN.1 NULL type is also represented by the
+.Dv V_ASN1_NULL
+type identifier constant.
+.Sh SEE ALSO
+.Xr ASN1_item_new 3 ,
+.Xr d2i_ASN1_NULL 3
+.Sh STANDARDS
+ITU-T Recommendation X.208, also known as ISO/IEC 8824-1:
+Specification of Abstract Syntax Notation One (ASN.1),
+section 19: Notation for the null type
+.Sh HISTORY
+.Fn ASN1_NULL_new
+and
+.Fn ASN1_NULL_free
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .

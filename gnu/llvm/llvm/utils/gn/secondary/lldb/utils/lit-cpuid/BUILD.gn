@@ -1,0 +1,7 @@
+executable("lit-cpuid") {
+  deps = [
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "lit-cpuid.cpp" ]
+}

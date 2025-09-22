@@ -1,0 +1,34 @@
+/^const NFS_FHSIZE/a
+const NFSX_V2FH		= 32;
+const NFSX_V3FHMAX	= 64;
+.
+/^enum nfsstat /i
+#ifdef RPC_HDR
+%typedef int nfsstat;
+%#define xdr_nfsstat xdr_int
+#define nfsstat int
+.
++1s/^enum nfsstat /enum /
+.,/^};/s/^/\%/
+a
+#elif RPC_XDR
+#define nfsstat int
+#else
+typedef int nfsstat;
+#endif
+.
+/^enum ftype /i
+#ifdef RPC_HDR
+%typedef int ftype;
+#define ftype int
+.
++1s/^enum ftype /enum /
+.,/^};/s/^/\%/
+a
+#elif RPC_XDR
+#define ftype int
+#else
+typedef int ftype;
+#endif
+.
+wq

@@ -1,0 +1,329 @@
+.\" $OpenBSD: CMS_get0_RecipientInfos.3,v 1.9 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL e9b77246 Jan 20 19:58:49 2017 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2008, 2013 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CMS_GET0_RECIPIENTINFOS 3
+.Os
+.Sh NAME
+.Nm CMS_get0_RecipientInfos ,
+.Nm CMS_RecipientInfo_type ,
+.Nm CMS_RecipientInfo_ktri_get0_signer_id ,
+.Nm CMS_RecipientInfo_ktri_cert_cmp ,
+.Nm CMS_RecipientInfo_set0_pkey ,
+.Nm CMS_RecipientInfo_kekri_get0_id ,
+.Nm CMS_RecipientInfo_kekri_id_cmp ,
+.Nm CMS_RecipientInfo_set0_key ,
+.Nm CMS_RecipientInfo_decrypt ,
+.Nm CMS_RecipientInfo_encrypt
+.Nd CMS EnvelopedData RecipientInfo routines
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cms.h
+.Ft STACK_OF(CMS_RecipientInfo) *
+.Fo CMS_get0_RecipientInfos
+.Fa "CMS_ContentInfo *cms"
+.Fc
+.Ft int
+.Fo CMS_RecipientInfo_type
+.Fa "CMS_RecipientInfo *ri"
+.Fc
+.Ft int
+.Fo CMS_RecipientInfo_ktri_get0_signer_id
+.Fa "CMS_RecipientInfo *ri"
+.Fa "ASN1_OCTET_STRING **keyid"
+.Fa "X509_NAME **issuer"
+.Fa "ASN1_INTEGER **sno"
+.Fc
+.Ft int
+.Fo CMS_RecipientInfo_ktri_cert_cmp
+.Fa "CMS_RecipientInfo *ri"
+.Fa "X509 *certificate"
+.Fc
+.Ft int
+.Fo CMS_RecipientInfo_set0_pkey
+.Fa "CMS_RecipientInfo *ri"
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Ft int
+.Fo CMS_RecipientInfo_kekri_get0_id
+.Fa "CMS_RecipientInfo *ri"
+.Fa "X509_ALGOR **palg"
+.Fa "ASN1_OCTET_STRING **pid"
+.Fa "ASN1_GENERALIZEDTIME **pdate"
+.Fa "ASN1_OBJECT **potherid"
+.Fa "ASN1_TYPE **pothertype"
+.Fc
+.Ft int
+.Fo CMS_RecipientInfo_kekri_id_cmp
+.Fa "CMS_RecipientInfo *ri"
+.Fa "const unsigned char *id"
+.Fa "size_t idlen"
+.Fc
+.Ft int
+.Fo CMS_RecipientInfo_set0_key
+.Fa "CMS_RecipientInfo *ri"
+.Fa "unsigned char *key"
+.Fa "size_t keylen"
+.Fc
+.Ft int
+.Fo CMS_RecipientInfo_decrypt
+.Fa "CMS_ContentInfo *cms"
+.Fa "CMS_RecipientInfo *ri"
+.Fc
+.Ft int
+.Fo CMS_RecipientInfo_encrypt
+.Fa "CMS_ContentInfo *cms"
+.Fa "CMS_RecipientInfo *ri"
+.Fc
+.Sh DESCRIPTION
+.Fn CMS_get0_RecipientInfos
+returns all the
+.Vt RecipientInfo
+structures associated with the
+.Vt EnvelopedData
+structure
+.Fa cms .
+.Pp
+.Fn CMS_RecipientInfo_type
+returns the type of
+.Fa ri :
+.Bl -column CMS_RECIPINFO_TRANS for -compact
+.It Dv CMS_RECIPINFO_TRANS Ta for Ta Vt KeyTransRecipientInfo ,
+.It Dv CMS_RECIPINFO_AGREE Ta for Ta Vt KeyAgreeRecipientInfo ,
+.It Dv CMS_RECIPINFO_KEK   Ta for Ta Vt KEKRecipientInfo ,
+.It Dv CMS_RECIPINFO_PASS  Ta for Ta Vt PasswordRecipientinfo , No or
+.It Dv CMS_RECIPINFO_OTHER Ta for Ta Vt OtherRecipientInfo .
+.El
+.Pp
+.Fn CMS_RecipientInfo_ktri_get0_signer_id
+retrieves the certificate
+.Vt RecipientIdentifier
+associated with the
+.Vt KeyTransRecipientInfo
+structure
+.Fa ri .
+Either the
+.Vt SubjectKeyIdentifier
+will be set in
+.Fa keyid
+or both issuer name and serial number in
+.Fa issuer
+and
+.Fa sno .
+.Pp
+.Fn CMS_RecipientInfo_ktri_cert_cmp
+compares the
+.Fa certificate
+against the
+.Vt KeyTransRecipientInfo
+structure
+.Fa ri .
+.Pp
+.Fn CMS_RecipientInfo_set0_pkey
+associates the private key
+.Fa pkey
+with the
+.Vt KeyTransRecipientInfo
+structure
+.Fa ri .
+.Pp
+.Fn CMS_RecipientInfo_kekri_get0_id
+retrieves the key information from the
+.Vt KEKRecipientInfo
+structure
+.Fa ri .
+Fields are copied out as follows:
+.Bl -column keyEncryptionAlgorithm to -compact
+.It Fa keyEncryptionAlgorithm Ta to Ta Pf * Fa palg ,
+.It Fa keyIdentifier          Ta to Ta Pf * Fa pid ,
+.It Fa date                   Ta to Ta Pf * Fa pdate Pq optional ,
+.It Fa other.keyAttrId        Ta to Ta Pf * Fa potherid Pq optional ,
+.It Fa other.keyAttr          Ta to Ta Pf * Fa pothertype Pq optional .
+.El
+Where a field is optional and absent,
+.Dv NULL
+is written to the corresponding parameter.
+Parameters the application is not interested in can be set to
+.Dv NULL .
+.Pp
+.Fn CMS_RecipientInfo_kekri_id_cmp
+compares the identifier in the
+.Fa id
+and
+.Fa idlen
+parameters against the
+.Fa keyIdentifier
+field of the
+.Vt KEKRecipientInfo
+structure
+.Fa ri .
+.Pp
+.Fn CMS_RecipientInfo_set0_key
+associates the symmetric
+.Fa key
+of length
+.Fa keylen
+with the
+.Vt KEKRecipientInfo
+structure
+.Fa ri .
+.Pp
+.Fn CMS_RecipientInfo_decrypt
+attempts to decrypt the
+.Vt RecipientInfo
+structure
+.Fa ri
+in
+.Fa cms .
+A key must have been associated with
+.Fa ri
+first.
+.Pp
+.Fn CMS_RecipientInfo_encrypt
+attempts to encrypt the
+.Vt RecipientInfo
+structure
+.Fa ri
+in
+.Fa cms .
+A key must have been associated with
+.Fa ri
+first and the content encryption key must be available,
+for example by a previous call to
+.Fn CMS_RecipientInfo_decrypt .
+.Pp
+The main purpose of these functions is to enable an application to
+lookup recipient keys using any appropriate technique when the simpler
+method of
+.Xr CMS_decrypt 3
+is not appropriate.
+.Pp
+In typical usage, an application retrieves all
+.Vt CMS_RecipientInfo
+structures using
+.Fn CMS_get0_RecipientInfos
+and checks the type of each using
+.Fn CMS_RecipientInfo_type .
+Depending on the type, the
+.Vt CMS_RecipientInfo
+structure can be ignored or its key identifier data retrieved using
+an appropriate function.
+If the corresponding secret or private key can be obtained by any
+appropriate means, it can then be associated with the structure and
+.Fn CMS_RecipientInfo_decrypt
+called.
+If successful,
+.Xr CMS_decrypt 3
+can be called with a
+.Dv NULL
+key to decrypt the enveloped content.
+.Pp
+The function
+.Fn CMS_RecipientInfo_encrypt
+can be used to add a new recipient to an existing enveloped data
+structure.
+Typically an application will first decrypt an appropriate
+.Vt CMS_RecipientInfo
+structure to make the content encrypt key available.
+It will then add a new recipient using a function such as
+.Xr CMS_add1_recipient_cert 3
+and finally encrypt the content encryption key using
+.Fn CMS_RecipientInfo_encrypt .
+.Sh RETURN VALUES
+.Fn CMS_get0_RecipientInfos
+returns an internal pointer to all the
+.Vt CMS_RecipientInfo
+structures, or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn CMS_RecipientInfo_type
+returns an integer constant.
+.Pp
+.Fn CMS_RecipientInfo_ktri_get0_signer_id ,
+.Fn CMS_RecipientInfo_set0_pkey ,
+.Fn CMS_RecipientInfo_kekri_get0_id ,
+.Fn CMS_RecipientInfo_set0_key ,
+.Fn CMS_RecipientInfo_decrypt ,
+and
+.Fn CMS_RecipientInfo_encrypt
+return 1 for success or 0 if an error occurs.
+.Pp
+.Fn CMS_RecipientInfo_ktri_cert_cmp
+and
+.Fn CMS_RecipientInfo_kekri_id_cmp
+return 0 when
+.Fa ri
+matches or non-zero otherwise.
+.Pp
+Any error can be obtained from
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr CMS_ContentInfo_new 3 ,
+.Xr CMS_decrypt 3
+.Sh STANDARDS
+RFC 5652 Cryptographic Message Syntax (CMS):
+.Bl -dash -compact -offset indent
+.It
+section 6.1: EnvelopedData Type
+.It
+section 6.2: RecipientInfo Type
+.It
+section 6.2.1: KeyTransRecipientInfo Type
+.It
+section 6.2.3: KEKRecipientInfo Type
+.El
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8h,
+except that
+.Fn CMS_RecipientInfo_encrypt
+first appeared in OpenSSL 1.0.2.
+They have been available since
+.Ox 6.7 .

@@ -1,0 +1,275 @@
+.\" $OpenBSD: curs_window.3,v 1.11 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2020-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_window.3,v 1.11 2023/10/17 09:52:08 nicm Exp $
+.TH curs_window 3 2023-07-01 "ncurses 6.4" "Library calls"
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.na
+.hy 0
+.SH NAME
+\fBnewwin\fP,
+\fBdelwin\fP,
+\fBmvwin\fP,
+\fBsubwin\fP,
+\fBderwin\fP,
+\fBmvderwin\fP,
+\fBdupwin\fP,
+\fBwsyncup\fP,
+\fBsyncok\fP,
+\fBwcursyncup\fP,
+\fBwsyncdown\fP \- create \fBcurses\fP windows
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBWINDOW *newwin(\fP
+      \fBint \fInlines\fB, int \fIncols\fB,\fR
+      \fBint \fIbegin_y\fB, int \fIbegin_x\fB);\fR
+.br
+\fBint delwin(WINDOW *\fIwin\fB);\fR
+.br
+\fBint mvwin(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB);\fR
+.br
+\fBWINDOW *subwin(WINDOW *\fIorig\fB,\fR
+      \fBint \fInlines\fB, int \fIncols\fB,\fR
+      \fBint \fIbegin_y\fB, int \fIbegin_x\fB);\fR
+.br
+\fBWINDOW *derwin(WINDOW *\fIorig\fB,\fR
+      \fBint \fInlines\fB, int \fIncols\fB,\fR
+      \fBint \fIbegin_y\fB, int \fIbegin_x\fB);\fR
+.br
+\fBint mvderwin(WINDOW *\fIwin\fB, int \fIpar_y\fB, int \fIpar_x\fB);\fR
+.br
+\fBWINDOW *dupwin(WINDOW *\fIwin\fB);\fR
+.br
+\fBvoid wsyncup(WINDOW *\fIwin\fB);\fR
+.br
+\fBint syncok(WINDOW *\fIwin\fB, bool \fIbf\fB);\fR
+.br
+\fBvoid wcursyncup(WINDOW *\fIwin\fB);\fR
+.br
+\fBvoid wsyncdown(WINDOW *\fIwin\fB);\fR
+.SH DESCRIPTION
+.SS newwin
+Calling \fBnewwin\fP creates and returns a pointer to a new window with the
+given number of lines and columns.
+The upper left-hand corner of the window is
+at
+.RS
+line \fIbegin\fR_\fIy\fP,
+.br
+column \fIbegin\fR_\fIx\fP
+.RE
+.PP
+If either
+\fInlines\fP or \fIncols\fP is zero, they default to
+.RS
+\fBLINES \-\fP \fIbegin\fR_\fIy\fP and
+.br
+\fBCOLS \-\fP \fIbegin\fR_\fIx\fP.
+.RE
+.PP
+A new full-screen window is created by calling \fBnewwin(0,0,0,0)\fP.
+.PP
+Regardless of the function used for creating a new window
+(e.g., \fBnewwin\fP, \fBsubwin\fP, \fBderwin\fP, \fBnewpad\fP),
+rather than a duplicate (with \fBdupwin\fP),
+all of the window modes are initialized to the default values.
+These functions set window modes after a window is created:
+.RS
+.na
+.PP
+idcok,
+idlok,
+immedok,
+keypad,
+leaveok,
+nodelay,
+scrollok,
+setscrreg,
+syncok,
+wbkgdset,
+wbkgrndset, and
+wtimeout
+.RE
+.ad
+.SS delwin
+Calling \fBdelwin\fP deletes the named window, freeing all memory
+associated with it (it does not actually erase the window's screen
+image).
+Subwindows must be deleted before the main window can be deleted.
+.SS mvwin
+Calling \fBmvwin\fP moves the window so that the upper left-hand
+corner is at position (\fIx\fP, \fIy\fP).
+If the move would cause the window to be off the screen,
+it is an error and the window is not moved.
+Moving subwindows is allowed, but should be avoided.
+.SS subwin
+Calling \fBsubwin\fP creates and returns a pointer to a new window
+with the given number of lines, \fInlines\fP, and columns, \fIncols\fP.
+The window is at position (\fIbegin\fR_\fIy\fP,
+\fIbegin\fR_\fIx\fP) on the screen.
+The subwindow shares memory with the window \fIorig\fP,
+so that changes made to one window
+will affect both windows.
+When using this routine, it is necessary to call
+\fBtouchwin\fP or \fBtouchline\fP on \fIorig\fP before calling
+\fBwrefresh\fP on the subwindow.
+.SS derwin
+Calling \fBderwin\fP is the same as calling \fBsubwin,\fP except that
+\fIbegin\fR_\fIy\fP and \fIbegin\fR_\fIx\fP are relative to the origin
+of the window \fIorig\fP rather than the screen.
+There is no difference between the subwindows and the derived windows.
+.PP
+Calling \fBmvderwin\fP moves a derived window (or subwindow)
+inside its parent window.
+The screen-relative parameters of the window are not changed.
+This routine is used to display different
+parts of the parent window at the same physical position on the
+screen.
+.SS dupwin
+Calling \fBdupwin\fP creates an exact duplicate of the window \fIwin\fP.
+.SS wsyncup
+Calling \fBwsyncup\fP touches all locations in ancestors of \fIwin\fP that are
+changed in \fIwin\fP.
+If \fBsyncok\fP is called with second argument
+\fBTRUE\fP then \fBwsyncup\fP is called automatically whenever there is a
+change in the window.
+.SS wsyncdown
+The \fBwsyncdown\fP routine touches each location in \fIwin\fP that has been
+touched in any of its ancestor windows.
+This routine is called by
+\fBwrefresh\fP, so it should almost never be necessary to call it manually.
+.SS wcursyncup
+The routine \fBwcursyncup\fP updates the current cursor position of all the
+ancestors of the window to reflect the current cursor position of the
+window.
+.SH RETURN VALUE
+Routines that return an integer return the integer \fBERR\fP upon failure and
+\fBOK\fP (SVr4 only specifies "an integer value other than \fBERR\fP") upon
+successful completion.
+.PP
+Routines that return pointers return \fBNULL\fP on error.
+.PP
+X/Open defines no error conditions.
+In this implementation
+.TP 5
+\fBdelwin\fP
+returns an error if the window pointer is null, or
+if the window is the parent of another window.
+.TP 5
+\fBderwin\fP
+returns an error if the parent window pointer is null, or
+if any of its ordinates or dimensions is negative, or
+if the resulting window does not fit inside the parent window.
+.TP 5
+\fBdupwin\fP
+returns an error if the window pointer is null.
+.IP
+This implementation also maintains a list of windows,
+and checks that the pointer passed to \fBdelwin\fP is one that
+it created, returning an error if it was not..
+.TP 5
+\fBmvderwin\fP
+returns an error
+if the window pointer is null, or
+if some part of the window would be placed off-screen.
+.TP 5
+\fBmvwin\fP
+returns an error
+if the window pointer is null, or
+if the window is really a pad, or
+if some part of the window would be placed off-screen.
+.TP 5
+\fBnewwin\fP
+will fail if either of its beginning ordinates is negative, or
+if either the number of lines or columns is negative.
+.TP 5
+\fBsyncok\fP
+returns an error
+if the window pointer is null.
+.TP 5
+\fBsubwin\fP
+returns an error if the parent window pointer is null, or
+if any of its ordinates or dimensions is negative, or
+if the resulting window does not fit inside the parent window.
+.PP
+The functions which return a window pointer
+may also fail if there is insufficient memory for its data structures.
+Any of these functions will fail if the screen has not been initialized,
+i.e., with \fBinitscr\fP or \fBnewterm\fP.
+.SH NOTES
+If many small changes are made to the window, the \fBwsyncup\fP option could
+degrade performance.
+.PP
+Note that \fBsyncok\fP may be a macro.
+.SH BUGS
+The subwindow functions (\fBsubwin\fP, \fBderwin\fP, \fBmvderwin\fP,
+\fBwsyncup\fP, \fBwsyncdown\fP, \fBwcursyncup\fP, \fBsyncok\fP) are flaky,
+incompletely implemented, and not well tested.
+.PP
+The System V curses documentation is very unclear about what \fBwsyncup\fP
+and \fBwsyncdown\fP actually do.
+It seems to imply that they are only
+supposed to touch exactly those lines that are affected by ancestor changes.
+The language here, and the behavior of the \fBcurses\fP implementation,
+is patterned on the XPG4 curses standard.
+The weaker XPG4 spec may result in slower updates.
+.SH PORTABILITY
+The XSI Curses standard, Issue 4 describes these functions.
+.PP
+X/Open Curses states regarding \fBdelwin\fP:
+.bP
+It must delete subwindows before deleting their parent.
+.bP
+If \fBdelwin\fP is asked to delete a parent window,
+it can only succeed if the curses library keeps a list of the subwindows.
+SVr4 curses kept a count of the number of subwindows rather than a list.
+It simply returned \fBERR\fP when asked to delete a subwindow.
+Solaris X/Open curses does not even make that check,
+and will delete a parent window which still has subwindows.
+.bP
+Since release 4.0 (1996), ncurses maintains a list of windows for each screen,
+to ensure that a window has no subwindows before allowing deletion.
+.bP
+NetBSD copied this feature of ncurses in 2003.
+.br
+PDCurses follows the scheme used in Solaris X/Open curses.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_initscr\fP(3),
+\fBcurs_refresh\fP(3),
+\fBcurs_touch\fP(3),
+\fBcurs_variables\fP(3)

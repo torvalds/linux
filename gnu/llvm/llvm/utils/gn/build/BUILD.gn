@@ -1,0 +1,533 @@
+import("//llvm/utils/gn/build/buildflags.gni")
+import("//llvm/utils/gn/build/mac_sdk.gni")
+import("//llvm/utils/gn/build/sysroot.gni")
+import("//llvm/utils/gn/build/toolchain/compiler.gni")
+import("//llvm/utils/gn/build/toolchain/target_flags.gni")
+
+declare_args() {
+  # Whether to build everything with test coverage information.
+  # After building with this, run tests and then run
+  #    llvm/utils/prepare-code-coverage-artifact.py \
+  #        --compilation-dir=out/gn \
+  #        .../llvm-profdata .../llvm-cov out/gn/profiles/ report/ \
+  #        out/gn/bin/llvm-undname ...
+  # to generate a HTML report for the binaries passed in the last line.
+  llvm_build_instrumented_coverage = false
+
+  # Whether to build everything with instrumentation for PGO
+  # After building with this:
+  # 1. Remove old profile data with `rm *.profraw`
+  # 2. Run the built instrumented binaries.
+  #    This will produce *.profraw files in the current working directory.
+  # 3. Run `llvm-profdata merge *.profraw -o llvm.profdata` to merge them.
+  # 4. Then build again, with this set to false, and with
+  #    `llvm_pgo_use = "//llvm.profdata"` set to use the created profile.
+  llvm_pgo_instrument = false
+
+  # If non-empty, path to merged profiling data used for optimization
+  # See documentation for llvm_pgo_instrument for how to create profile data.
+  llvm_pgo_use = ""
+
+  # If set, puts relative paths in debug info.
+  # Makes the build output independent of the build directory, but makes
+  # most debuggers harder to use. See "Getting to local determinism" and
+  # "Getting debuggers to work well with locally deterministic builds" in
+  # http://blog.llvm.org/2019/11/deterministic-builds-with-clang-and-lld.html
+  # for more information.
+  use_relative_paths_in_debug_info = false
+
+  # The version of host gcc. Ignored if is_clang is true.
+  gcc_version = 9
+}
+
+assert(!llvm_build_instrumented_coverage || is_clang,
+       "llvm_build_instrumented_coverage requires clang as host compiler")
+assert(!llvm_pgo_instrument || is_clang,
+       "llvm_pgo_instrument requires clang as host compiler")
+assert(llvm_pgo_use == "" || is_clang,
+       "llvm_pgo_use requires clang as host compiler")
+assert(!llvm_pgo_instrument || llvm_pgo_use == "",
+       "set at most one of llvm_pgo_instrument and llvm_pgo_use")
+
+config("compiler_defaults") {
+  defines = []
+
+  if (!llvm_enable_assertions) {
+    defines += [ "NDEBUG" ]
+  }
+
+  if (llvm_enable_expensive_checks) {
+    defines += [ "EXPENSIVE_CHECKS" ]
+  }
+
+  asmflags = target_flags
+  cflags = target_flags
+  cflags_cc = []
+  ldflags = target_flags + target_ldflags
+
+  # Mostly for compiler-rt, see compiler-rt/cmake/config-ix.cmake
+  if (current_os == "ios") {
+    asmflags += [ "-miphoneos-version-min=8.0" ]
+    cflags += [ "-miphoneos-version-min=8.0" ]
+    ldflags += [ "-miphoneos-version-min=8.0" ]
+  }
+  if (current_os == "mac") {
+    asmflags += [ "-mmacos-version-min=10.10" ]
+    cflags += [ "-mmacos-version-min=10.10" ]
+    ldflags += [ "-mmacos-version-min=10.10" ]
+  }
+
+  assert(symbol_level == 0 || symbol_level == 1 || symbol_level == 2,
+         "Unexpected symbol_level")
+  if (current_os != "win") {
+    if (symbol_level == 2) {
+      cflags += [ "-g" ]
+
+      # For full debug-info -g builds, --gdb-index makes links ~15% slower, and
+      # gdb symbol reading time 1500% faster (lld links in 4.4 instead of 3.9s,
+      # and gdb loads and runs it in 2s instead of in 30s).  It's likely that
+      # people doing symbol_level=2 want to run a debugger (since
+      # symbol_level=2 isn't the default). So this seems like the right
+      # tradeoff.
+      if (current_os != "mac" && use_lld) {
+        cflags += [ "-ggnu-pubnames" ]  # PR34820
+        ldflags += [ "-Wl,--gdb-index" ]
+
+        # Use debug fission. In this mode, detailed debug information is
+        # written to a .dwo file next to each .o file instead of into the .o
+        # file directly. The linker then only links the .o files, which contain
+        # a pointer to each .dwo file. The debugger then reads debug info out
+        # of all the .dwo files instead of from the binary.
+        #
+        # (The dwp tool can link all the debug info together into a single
+        # "debug info binary", but that's not done as part of the build.)
+        #
+        # This requires `-Wl,--gdb-index` (above) to work well.
+        #
+        # With lld, this reduces link time:
+        # - in release + symbol_level=2 builds: From 2.3s to 1.3s
+        # - in debug builds: From 5.2s to 4.6s
+        #
+        # Time needed for gdb startup and setting a breakpoint is comparable,
+        # the time from from `r` to hititng a breakpoint on main goes from 4s
+        # to 2s.
+        #
+        # (macOS's linker always keeps debug info out of its output executables
+        # and debuggers there also know to load debug info from the .o files.
+        # macOS also has a debug info linker like dwp, it's called dsymutil.
+        # This happens by default, so there's no need to pass a flag there.)
+        cflags += [ "-gsplit-dwarf" ]
+        ldflags += [ "-gsplit-dwarf" ]  # Needed for ThinLTO builds.
+      }
+    } else if (symbol_level == 1) {
+      cflags += [ "-g1" ]
+      # For linetable-only -g1 builds, --gdb-index makes links ~8% slower, but
+      # links are 4x faster than -g builds so it's a fairly small absolute cost.
+      # On the other hand, gdb startup is well below 1s with and without the
+      # index, and people using -g1 likely don't use a debugger. So don't use
+      # the flag here.
+      # Linetables always go in the .o file, even with -gsplit-dwarf, so there's
+      # no point in passing -gsplit-dwarf here.
+    }
+    if (is_optimized) {
+      cflags += [ "-O3" ]
+    }
+    cflags += [ "-fdiagnostics-color" ]
+    if (use_lld) {
+      ldflags += [ "-Wl,--color-diagnostics" ]
+    }
+    cflags_cc += [
+      "-std=c++17",
+      "-fvisibility-inlines-hidden",
+    ]
+  } else {
+    if (symbol_level != 0) {
+      cflags += [
+        "/Zi",
+        "/FS",
+      ]
+      if (symbol_level == 1 && is_clang) {
+        cflags += [ "-gline-tables-only" ]
+      }
+      ldflags += [ "/DEBUG" ]
+
+      # Speed up links with ghash on windows.
+      if (use_lld && is_clang) {
+        cflags += [ "-gcodeview-ghash" ]
+        ldflags += [ "/DEBUG:GHASH" ]
+      }
+    }
+    if (is_optimized) {
+      cflags += [
+        "/O2",
+        "/Gw",
+        "/Zc:inline",
+      ]
+      ldflags += [
+        "/OPT:REF",
+        "/OPT:ICF",
+      ]
+    }
+    defines += [
+      "_CRT_SECURE_NO_DEPRECATE",
+      "_CRT_SECURE_NO_WARNINGS",
+      "_CRT_NONSTDC_NO_DEPRECATE",
+      "_CRT_NONSTDC_NO_WARNINGS",
+      "_SCL_SECURE_NO_DEPRECATE",
+      "_SCL_SECURE_NO_WARNINGS",
+
+      "_HAS_EXCEPTIONS=0",
+      "_UNICODE",
+      "UNICODE",
+    ]
+    cflags += [ "/EHs-c-" ]
+    cflags_cc += [ "/std:c++17" ]
+
+    # cl.exe doesn't set __cplusplus correctly by default.
+    # clang-cl gets it right by default, so don't needlessly add the flag there.
+    if (!is_clang) {
+      cflags_cc += [ "/Zc:__cplusplus" ]
+    }
+
+    # The MSVC default value (1 MB) is not enough for parsing recursive C++
+    # templates in Clang.
+    ldflags += [ "/STACK:10000000" ]
+  }
+
+  # Warning setup.
+  if (current_os == "win" && !is_clang) {
+    cflags += [
+      # Suppress ''modifier' : used more than once' (__forceinline and inline).
+      "-wd4141",
+
+      # Suppress 'conversion from 'type1' to 'type2', possible loss of data'.
+      "-wd4244",
+
+      # Suppress 'conversion from 'size_t' to 'type', possible loss of data'.
+      "-wd4267",
+
+      # Suppress 'no matching operator delete found'.
+      "-wd4291",
+
+      # Suppress 'noexcept used with no exception handling mode specified'.
+      "-wd4577",
+
+      # Suppress 'destructor was implicitly defined as deleted'.
+      "-wd4624",
+
+      # Suppress 'unsafe mix of type <type> and type <type> in operation'.
+      "-wd4805",
+    ]
+  } else {
+    if (current_os == "win") {
+      cflags += [ "/W4" ]
+    } else {
+      cflags += [
+        "-Wall",
+        "-Wextra",
+      ]
+    }
+    cflags += [ "-Wno-unused-parameter" ]
+    if (is_clang) {
+      cflags += [
+        "-Wdelete-non-virtual-dtor",
+        "-Wstring-conversion",
+      ]
+    } else {
+      cflags += [
+        # GCC's -Wcomment complains about // comments ending with '\' if the
+        # next line is also a // comment.
+        "-Wno-comment",
+
+        # Disable gcc's potentially uninitialized use analysis as it presents
+        # lots of false positives.
+        "-Wno-maybe-uninitialized",
+      ]
+      cflags_cc += [
+        # The LLVM libraries have no stable C++ API, so -Wnoexcept-type is not
+        # useful.
+        "-Wno-noexcept-type",
+      ]
+      if (gcc_version >= 8) {
+        cflags_cc += [
+          # Disable -Wclass-memaccess, a C++-only warning from GCC 8 that fires
+          # on LLVM's ADT classes.
+          "-Wno-class-memaccess",
+        ]
+      }
+      if (gcc_version >= 9) {
+        cflags_cc += [
+          # Disable -Wredundant-move on GCC>=9. GCC wants to remove std::move
+          # in code like "A foo(ConvertibleToA a) { return std::move(a); }",
+          # but this code does not compile (or uses the copy constructor
+          # instead) on clang<=3.8. Clang also has a -Wredundant-move, but it
+          # only fires when the types match exactly, so we can keep it here.
+          "-Wno-redundant-move",
+        ]
+      }
+    }
+  }
+
+  # On Windows, the linker is not invoked through the compiler driver.
+  if (use_lld && current_os != "win") {
+    ldflags += [ "-fuse-ld=lld" ]
+  }
+
+  if (llvm_build_instrumented_coverage) {
+    cflags += [
+      "-fcoverage-mapping",
+
+      # For build determinism. Using this requires passing --compilation-dir to
+      # llvm/utils/prepare-code-coverage-artifact.py.
+      "-fcoverage-compilation-dir=.",
+
+      # Using an absolute path here is lame, but it's used at test execution
+      # time to generate the profiles, and lit doesn't specify a fixed folder
+      # for test execution -- so this is the only way to get all profiles into
+      # a single folder like llvm/utils/prepare-code-coverage-artifact.py
+      # expects.
+      "-fprofile-instr-generate=" +
+          rebase_path("$root_build_dir/profiles/%4m.profraw"),
+    ]
+    if (current_os != "win") {
+      ldflags += [ "-fprofile-instr-generate" ]
+    }
+  }
+  if (llvm_pgo_instrument) {
+    cflags += [ "-fprofile-generate" ]
+    if (current_os != "win") {
+      ldflags += [ "-fprofile-generate" ]
+    }
+  }
+  if (llvm_pgo_use != "") {
+    cflags += [
+      "-fprofile-use=" + rebase_path(llvm_pgo_use, root_build_dir),
+
+      # There are always quite a few diags like
+      #     warning: foo.cpp: Function control flow change detected
+      #              (hash mismatch) [-Wbackend-plugin]
+      # in a PGO build. Since they're not unexpected, silence them.
+      "-Wno-backend-plugin",
+    ]
+  }
+
+  # Deterministic build setup, see
+  # http://blog.llvm.org/2019/11/deterministic-builds-with-clang-and-lld.html
+  if (current_os == "win") {
+    ldflags += [ "/pdbaltpath:%_PDB%" ]
+  }
+  if (is_clang) {
+    cflags += [
+      "-no-canonical-prefixes",
+      "-Werror=date-time",
+    ]
+    if (current_os == "win") {
+      cflags += [ "-fmsc-version=1926" ]
+      if (use_lld) {
+        cflags += [ "/Brepro" ]
+        ldflags += [ "/Brepro" ]
+      }
+    }
+    if (use_relative_paths_in_debug_info) {
+      cflags += [ "-fdebug-compilation-dir=." ]
+    }
+  }
+  if (sysroot != "") {
+    if (current_os == "win") {
+      assert(is_clang, "sysroot only works with clang-cl as host compiler")
+      cflags += [ "/winsysroot" + rebase_path(sysroot, root_build_dir) ]
+      if (use_lld) {
+        ldflags += [ "/winsysroot:" + rebase_path(sysroot, root_build_dir) ]
+
+        # FIXME: Remove once PR54409 is fixed.
+        ldflags += [ "/machine:x64" ]
+      }
+    } else if (current_os != "ios" && current_os != "mac" &&
+               current_os != "android") {
+      cflags += [ "--sysroot=" + rebase_path(sysroot, root_build_dir) ]
+    }
+  }
+  if ((current_os == "ios" || current_os == "mac") &&
+      (clang_base_path != "" || sysroot != "")) {
+    if (current_os == "ios" && current_cpu == "arm64") {
+      sdk_path = ios_sdk_path
+    } else if (current_os == "ios" && current_cpu == "x64") {
+      sdk_path = iossim_sdk_path
+    } else if (current_os == "mac") {
+      sdk_path = mac_sdk_path
+    }
+    cflags += [
+      "-isysroot",
+      rebase_path(sdk_path, root_build_dir),
+    ]
+    ldflags += [
+      "-isysroot",
+      rebase_path(sdk_path, root_build_dir),
+    ]
+  }
+  if (sysroot != "" && current_os != "win" && is_clang) {
+    cflags += [ "-Wpoison-system-directories" ]
+  }
+
+  if (use_ubsan) {
+    assert(is_clang && (current_os == "ios" || current_os == "linux" ||
+                            current_os == "mac"),
+           "ubsan only supported on iOS/Clang, Linux/Clang, or macOS/Clang")
+    cflags += [
+      "-fsanitize=undefined",
+      "-fno-sanitize=vptr,function",
+      "-fno-sanitize-recover=all",
+    ]
+    ldflags += [ "-fsanitize=undefined" ]
+  }
+
+  if (use_asan) {
+    assert(is_clang && (current_os == "ios" || current_os == "linux" ||
+                            current_os == "mac"),
+           "asan only supported on iOS/Clang, Linux/Clang, or macOS/Clang")
+    cflags += [ "-fsanitize=address" ]
+    ldflags += [ "-fsanitize=address" ]
+  }
+
+  if (use_tsan) {
+    assert(is_clang && current_os == "linux",
+           "tsan only supported on Linux/Clang")
+    cflags += [ "-fsanitize=thread" ]
+    ldflags += [ "-fsanitize=thread" ]
+  }
+
+  if (use_thinlto) {
+    assert(is_clang, "ThinLTO only supported on Clang")
+
+    lto_opt_level = 2
+
+    cflags += [ "-flto=thin" ]
+
+    if (current_os == "win") {
+      ldflags += [
+        "/opt:lldlto=" + lto_opt_level,
+        "/opt:lldltojobs=" + max_jobs_per_lto_link,
+      ]
+    } else {
+      ldflags += [
+        "-flto=thin",
+        "-Wl,--thinlto-jobs=" + max_jobs_per_lto_link,
+        "-Wl,--lto-O" + lto_opt_level,
+      ]
+    }
+  }
+
+  cflags_objcc = cflags_cc
+}
+
+config("no_exceptions") {
+  cflags_cc = []
+  if (current_os != "win") {
+    cflags_cc += [ "-fno-exceptions" ]
+  }
+  cflags_objcc = cflags_cc
+}
+
+config("no_rtti") {
+  if (current_os == "win") {
+    cflags_cc = [ "/GR-" ]
+  } else {
+    cflags_cc = [ "-fno-rtti" ]
+  }
+  cflags_objcc = cflags_cc
+}
+
+config("zdefs") {
+  # -Wl,-z,defs doesn't work with sanitizers.
+  # https://clang.llvm.org/docs/AddressSanitizer.html
+  if (current_os != "ios" && current_os != "mac" && current_os != "win" &&
+      !(use_asan || use_tsan || use_ubsan)) {
+    ldflags = [ "-Wl,-z,defs" ]
+  }
+}
+
+# To make an archive that can be distributed, you need to remove this config and
+# set complete_static_lib.
+config("thin_archive") {
+  if (current_os != "ios" && current_os != "mac" && current_os != "win") {
+    arflags = [ "-T" ]
+  }
+}
+
+config("llvm_code") {
+  include_dirs = [
+    "//llvm/include",
+    "$root_gen_dir/llvm/include",
+  ]
+  if (current_os != "win") {
+    cflags = [ "-fPIC" ]
+  }
+}
+
+config("lld_code") {
+  include_dirs = [
+    "//lld/include",
+    "$root_gen_dir/lld/include",
+  ]
+}
+
+config("clang_code") {
+  if (current_os != "win") {
+    cflags = [ "-fno-strict-aliasing" ]
+  }
+  include_dirs = [
+    "//clang/include",
+    "$root_gen_dir/clang/include",
+  ]
+}
+
+config("bolt_code") {
+  include_dirs = [
+    "//bolt/include",
+    "$root_gen_dir/bolt/include",
+  ]
+}
+
+config("crt_code") {
+  include_dirs = [ "//compiler-rt/lib" ]
+  cflags = [
+    "-fno-builtin",
+    "-gline-tables-only",
+  ]
+  if (current_os != "win") {
+    cflags += [
+      "-fPIC",
+      "-funwind-tables",
+      "-fvisibility=hidden",
+    ]
+  } else {
+    cflags += [
+      # Disable thread safe initialization for static locals. ASan shouldn't need it.
+      # Thread safe initialization assumes that the CRT has already been initialized, but ASan initializes before the CRT.
+      "/Zc:threadSafeInit-",
+    ]
+  }
+  if (is_clang) {
+    cflags += [
+      "-Werror=thread-safety",
+      "-Werror=thread-safety-reference",
+      "-Werror=thread-safety-beta",
+    ]
+  }
+}
+
+config("lldb_code") {
+  if (current_os != "win") {
+    cflags = [ "-fno-strict-aliasing" ]
+  }
+  include_dirs = [
+    "//lldb/include",
+    "$root_gen_dir/lldb/include",
+  ]
+}
+
+config("warn_covered_switch_default") {
+  if (is_clang) {
+    cflags = [ "-Wcovered-switch-default" ]
+  }
+}

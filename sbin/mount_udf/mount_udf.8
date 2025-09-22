@@ -1,0 +1,59 @@
+.\" $OpenBSD: mount_udf.8,v 1.13 2020/04/23 21:28:09 jmc Exp $
+.\" Written by Pedro Martelletto <pedro@ambientworks.net> in March 2005.
+.\" Public domain.
+.Dd $Mdocdate: April 23 2020 $
+.Dt MOUNT_UDF 8
+.Os
+.Sh NAME
+.Nm mount_udf
+.Nd mount a UDF filesystem
+.Sh SYNOPSIS
+.Nm mount_udf
+.Op Fl o Ar options
+.Ar special node
+.Sh DESCRIPTION
+The
+.Nm
+command attaches a UDF filesystem (typically found on a DVD) residing on the
+device
+.Ar special
+to the global filesystem namespace at the location indicated by
+.Ar node .
+The filesystem is always mounted readonly.
+This command is invoked by
+.Xr mount 8
+when using the syntax
+.Bd -ragged -offset 4n
+.Nm mount Op options
+-t udf
+.Ar special node
+.Ed
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl o Ar options
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.El
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr fstab 5 ,
+.Xr mount 8 ,
+.Xr umount 8 ,
+.Xr vnconfig 8
+.Sh HISTORY
+UDF support first appeared in
+.Fx 5.0 ,
+and was then ported to
+.Ox 3.8 .
+.Sh AUTHORS
+.An -nosplit
+.An Scott Long Aq Mt scottl@freebsd.org
+did the original work;
+.An Pedro Martelletto Aq Mt pedro@openbsd.org
+adapted it to
+.Ox .

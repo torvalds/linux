@@ -1,0 +1,350 @@
+.\"	$OpenBSD: wait.2,v 1.33 2022/12/19 18:13:50 guenther Exp $
+.\"	$NetBSD: wait.2,v 1.6 1995/02/27 12:39:37 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)wait.2	8.2 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: December 19 2022 $
+.Dt WAIT 2
+.Os
+.Sh NAME
+.Nm wait ,
+.Nm waitpid ,
+.Nm wait4 ,
+.Nm wait3 ,
+.Nm WCOREDUMP ,
+.Nm WEXITSTATUS ,
+.Nm WIFCONTINUED ,
+.Nm WIFEXITED ,
+.Nm WIFSIGNALED ,
+.Nm WIFSTOPPED ,
+.Nm WSTOPSIG ,
+.Nm WTERMSIG
+.Nd wait for process termination
+.Sh SYNOPSIS
+.In sys/wait.h
+.Ft pid_t
+.Fn wait "int *status"
+.Ft pid_t
+.Fn waitpid "pid_t wpid" "int *status" "int options"
+.In sys/resource.h
+.In sys/wait.h
+.Ft pid_t
+.Fn wait3 "int *status" "int options" "struct rusage *rusage"
+.Ft pid_t
+.Fn wait4 "pid_t wpid" "int *status" "int options" "struct rusage *rusage"
+.Sh DESCRIPTION
+The
+.Fn wait
+function suspends execution of its calling process until
+.Fa status
+information is available for a terminated child process,
+or a signal is received.
+On return from a successful
+.Fn wait
+call, the
+.Fa status
+area, if non-zero, is filled in with termination information about the
+process that exited (see below).
+.Pp
+The
+.Fn wait4
+call provides a more general interface for programs
+that need to wait for certain child processes,
+that need resource utilization statistics accumulated by child processes,
+or that require options.
+The other wait functions are implemented using
+.Fn wait4 .
+.Pp
+The
+.Fa wpid
+parameter specifies the set of child processes for which to wait.
+The following symbolic constants are currently defined in
+.In sys/wait.h :
+.Bd -unfilled -offset indent
+#define WAIT_ANY        (-1)    /* any process */
+#define WAIT_MYPGRP     0       /* any process in my process group */
+.Ed
+.Pp
+If
+.Fa wpid
+is set to
+.Dv WAIT_ANY ,
+the call waits for any child process.
+If
+.Fa wpid
+is set to
+.Dv WAIT_MYPGRP ,
+the call waits for any child process in the process group of the caller.
+If
+.Fa wpid
+is greater than zero, the call waits for the process with process ID
+.Fa wpid .
+If
+.Fa wpid
+is less than \-1, the call waits for any process whose process group ID
+equals the absolute value of
+.Fa wpid .
+.Pp
+The
+.Fa status
+parameter is defined below.
+The
+.Fa options
+argument is the bitwise OR of zero or more of the following values:
+.Bl -tag -width "WCONTINUED"
+.It Dv WCONTINUED
+Causes status to be reported for stopped child processes that have been
+continued by receipt of a
+.Dv SIGCONT
+signal.
+.It Dv WNOHANG
+Indicates that the call should not block if there are no processes that wish
+to report status.
+.It Dv WUNTRACED
+If set, children of the current process that are stopped due to a
+.Dv SIGTTIN , SIGTTOU , SIGTSTP ,
+or
+.Dv SIGSTOP
+signal also have their status reported.
+.El
+.Pp
+If
+.Fa rusage
+is non-zero, a summary of the resources used by the terminated
+process and all its
+children is returned (this information is currently not available
+for stopped processes).
+.Pp
+When the
+.Dv WNOHANG
+option is specified and no processes wish to report status,
+.Fn wait4
+returns a process ID of 0.
+.Pp
+The
+.Fn waitpid
+call is identical to
+.Fn wait4
+with an
+.Fa rusage
+value of zero.
+The older
+.Fn wait3
+call is the same as
+.Fn wait4
+with a
+.Fa wpid
+value of \-1.
+.Pp
+The following macros may be used to test the manner of exit of the process.
+One of the first three macros will evaluate to a non-zero (true) value:
+.Bl -tag -width Ds
+.It Fn WIFCONTINUED status
+True if the process has not terminated, and has continued after a job
+control stop.
+This macro can be true only if the wait call specified the
+.Dv WCONTINUED
+option.
+.It Fn WIFEXITED status
+True if the process terminated normally by a call to
+.Xr _exit 2
+or
+.Xr exit 3 .
+.It Fn WIFSIGNALED status
+True if the process terminated due to receipt of a signal.
+.It Fn WIFSTOPPED status
+True if the process has not terminated, but has stopped and can be restarted.
+This macro can be true only if the wait call specified the
+.Dv WUNTRACED
+option or if the child process is being traced (see
+.Xr ptrace 2 ) .
+.El
+.Pp
+Depending on the values of those macros, the following macros
+produce the remaining status information about the child process:
+.Bl -tag -width Ds
+.It Fn WEXITSTATUS status
+If
+.Fn WIFEXITED status
+is true, evaluates to the low-order 8 bits of the argument passed to
+.Xr _exit 2
+or
+.Xr exit 3
+by the child.
+.It Fn WTERMSIG status
+If
+.Fn WIFSIGNALED status
+is true, evaluates to the number of the signal
+that caused the termination of the process.
+.It Fn WCOREDUMP status
+If
+.Fn WIFSIGNALED status
+is true, evaluates as true if the termination
+of the process was accompanied by the creation of a core file
+containing an image of the process when the signal was received.
+.It Fn WSTOPSIG status
+If
+.Fn WIFSTOPPED status
+is true, evaluates to the number of the signal that caused the process
+to stop.
+.El
+.Sh NOTES
+See
+.Xr sigaction 2
+for a list of termination signals.
+A status of 0 indicates normal termination.
+.Pp
+If a parent process terminates without
+waiting for all of its child processes to terminate,
+the remaining child processes are assigned the parent
+process 1 ID (the init process ID).
+.Pp
+If a signal is caught while any of the
+.Fn wait
+calls is pending, the call may be interrupted or restarted when the
+signal-catching routine returns, depending on the options in effect
+for the signal; for further information, see
+.Xr siginterrupt 3 .
+.Sh RETURN VALUES
+If
+.Fn wait
+returns due to a stopped
+or terminated child process, the process ID of the child
+is returned to the calling process.
+Otherwise, a value of \-1 is returned and
+.Va errno
+is set to indicate the error.
+.Pp
+If
+.Fn wait4 ,
+.Fn wait3
+or
+.Fn waitpid
+returns due to a stopped or terminated child process, the process ID
+of the child is returned to the calling process.
+If there are no children not previously awaited, \-1 is returned with
+.Va errno
+set to
+.Bq Er ECHILD .
+Otherwise, if
+.Dv WNOHANG
+is specified and there are no stopped or exited children, 0 is returned.
+If an error is detected or a caught signal aborts the call, a value of \-1
+is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn wait ,
+.Fn waitpid ,
+.Fn wait3 ,
+and
+.Fn wait4
+will fail and return immediately if:
+.Bl -tag -width Er
+.It Bq Er ECHILD
+The calling process has no existing unwaited-for child processes.
+.It Bq Er ECHILD
+No status from the terminated child process is available
+because the calling process has asked the system to discard
+such status by ignoring the signal
+.Dv SIGCHLD
+or setting the flag
+.Dv SA_NOCLDWAIT
+for that signal.
+.It Bq Er EFAULT
+The
+.Fa status
+or
+.Fa rusage
+arguments point to an illegal address.
+(May not be detected before exit of a child process.)
+.It Bq Er EINTR
+The call was interrupted by a caught signal, or the signal did not have the
+.Dv SA_RESTART
+flag set.
+.El
+.Pp
+.Fn waitpid
+and
+.Fn wait4
+will fail and return immediately if:
+.Bl -tag -width Er
+.It Bq Er ECHILD
+The process specified by the
+.Fa wpid
+argument does not exist or is not a child of the calling process.
+.It Bq Er EINVAL
+Invalid or undefined flags were passed in the
+.Fa options
+argument.
+.El
+.Sh SEE ALSO
+.Xr _exit 2 ,
+.Xr sigaction 2 ,
+.Xr waitid 2 ,
+.Xr exit 3
+.Sh STANDARDS
+The
+.Fn wait
+and
+.Fn waitpid
+functions conform to
+.St -p1003.1-2008 .
+.Pp
+.Fn wait4
+and
+.Fn wait3
+are not specified by POSIX.
+The
+.Fn WCOREDUMP
+macro and the ability to restart a pending
+.Fn wait
+call are extensions to that specification.
+.Sh HISTORY
+A
+.Fn wait
+system call first appeared in
+.At v1 .
+The
+.Fa status
+argument is accepted since
+.At v2 .
+A
+.Fn wait3
+system call first appeared in
+.Bx 4.0 ,
+but the final calling convention was only established in
+.Bx 4.2 .
+The
+.Fn wait4
+and
+.Fn waitpid
+function calls first appeared in
+.Bx 4.3 Reno .

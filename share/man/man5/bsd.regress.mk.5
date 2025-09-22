@@ -1,0 +1,235 @@
+.\" $OpenBSD: bsd.regress.mk.5,v 1.27 2025/09/17 08:52:05 tb Exp $
+.\"
+.\" Copyright (c) 2002 Anil Madhavapeddy
+.\" Copyright (c) 2000 Marc Espie
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 17 2025 $
+.Dt BSD.REGRESS.MK 5
+.Os
+.Sh NAME
+.Nm bsd.regress.mk
+.Nd regression test master Makefile fragment
+.Sh SYNOPSIS
+.Fd .include <bsd.regress.mk>
+.Sh DESCRIPTION
+.Nm
+holds the standard routines used by the source regression tests.
+Some variables and targets are for its internal use only.
+The rest are documented here.
+.Pp
+Since this file also includes
+.Nm bsd.prog.mk ,
+all of the usual
+.Ox
+Makefile variables may be used to build the regression
+test programs.
+.Sh TARGETS
+.Bl -tag -width regress
+.It Cm depend
+Build any dependencies required to carry out the current set
+of regression tests.
+.It Cm regress
+Executes the regression targets defined in the Makefile.
+If a test fails, the line
+.Qq FAILED
+is printed to the standard output.
+By default, execution stops after the first test failure and
+.Sy make Cm regress
+exits with a non-zero status.
+.It Cm run-regress-*
+Runs an individual regression test.
+If the exit status of the program indicates an error or timeout,
+then a failure is logged, otherwise the test is marked as a success.
+.El
+.Sh VARIABLES
+.Bl -tag -width Ds
+.It Ev REGRESS_CLEANUP
+If this variable is set, it contains a target that is executed
+after all regress targets.
+.It Ev REGRESS_EXPECTED_FAILURES
+Targets which are expected to fail.
+Specifically: sometimes tests are added for features that should be
+supported eventually, but are somewhat complicated to fix right away.
+.It Ev REGRESS_FAIL_EARLY
+If this variable is set to anything but
+.Dq no ,
+the
+.Cm regress
+target will abort as soon as a test fails.
+Defaults to
+.Dq yes
+unless
+.Ev REGRESS_LOG
+is set.
+.It Ev REGRESS_LOG
+Points to the fully-qualified path of a file to which regression
+results are appended.
+Defaults to
+.Pa /dev/null .
+If set to any other path,
+.Ev REGRESS_FAIL_EARLY
+defaults to
+.Dq no .
+.It Ev REGRESS_ROOT_TARGETS
+Targets for which root access is required to run the test.
+The
+.Ev SUDO
+variable should be used in the test parts that require root.
+See also
+.Ev SUDO .
+.It Ev REGRESS_SETUP
+If this variable is set, it contains a target that is executed
+before each regress target.
+Regress targets depend on this one to enforce setup.
+.It Ev REGRESS_SETUP_ONCE
+If this variable is set, it contains a target that is executed
+once before all regress targets.
+Regress targets depend on a stamp file generated during setup.
+.It Ev REGRESS_SKIP_SLOW
+If this variable is not empty, skip over all the regression
+tests which have been marked as being 'slow' using the
+.Ev REGRESS_SLOW_TARGETS
+variable.
+.It Ev REGRESS_SKIP_TARGETS
+Targets which are unconditionally skipped.
+.It Ev REGRESS_SLOW_TARGETS
+Targets which are defined as 'slow'.
+All of these tests can be skipped by setting the
+.Ev REGRESS_SKIP_SLOW
+variable.
+.It Ev REGRESS_TARGETS
+Targets which are invoked to run the set of regression tests
+for this Makefile.
+Defaults to
+.Cm run-regress-${PROG} .
+.It Ev SUDO
+Location of a command used to switch to root for certain
+test targets which require it.
+See
+.Xr doas 1 .
+.El
+.Pp
+Some variables are intended to be set at runtime in the environment
+or in
+.Xr mk.conf 5 ,
+but not in the regress Makefile itself.
+.Sh GUIDELINES
+If an individual test passes,
+.Sy make Ar testname
+should return with an exit status of 0.
+If it fails, it should return with a non-zero exit status.
+.Pp
+If a test cannot be executed because a package is not installed or
+some environment variable is not set,
+.Sy make Ar testname
+should print
+.Qq SKIPPED
+to stdout and exit with status 0.
+To skip everything, implement the
+.Cm regress
+target with a command that prints
+.Qq SKIPPED .
+.Pp
+Some tests may require a special setup on the test machine that has
+to be done manually before testing.
+This requirement has to be documented in the Makefile or in a
+.Pa README
+file.
+The test should find out whether the setup exists before running
+and print
+.Qq SKIPPED
+and exit if it is missing.
+.Pp
+Tests should not fail because an intended feature has not been
+implemented yet.
+To avoid such false failures, a test should show the reason, print
+.Qq DISABLED
+to stdout and exit with status 0.
+.Pp
+Tests must be able to run with an
+.Pa obj
+directory.
+In case the test is not linked to the build or the tester forgot
+to run
+.Sy make Cm obj
+before, this directory or symlink may not exist.
+Then the test should run anyway.
+.Pp
+Tests are executed with
+.Sy make Cm regress ,
+but running
+.Sy make Cm all
+or
+.Sy make
+should have the same effect.
+Tests must be runnable by root, and may also succeed when run as a
+regular user.
+Tests must not assume they have a controlling tty,
+to allow them to be run by
+.Xr cron 8 .
+An individual regress test may create a pseudo tty if it needs one.
+.Pp
+Tests should use the binaries installed and the kernel running on
+the local system.
+They may use environment variables to test alternative binaries or
+remote kernels running on other machines.
+In some cases a test may need binaries or libraries or object files
+to be present in
+.Pa /usr/obj/
+that exist only after
+.Sy make Cm build
+was run in
+.Pa /usr/src/ .
+The test must not assume that they have already been built, but
+should run
+.Sy make
+in the appropriate source directory as a dependency.
+For missing generated source or header files a target called
+.Sy make Cm generated
+is common.
+The
+.Pa /usr/src/
+tree can be found with a relative path or with the
+.Ev BSDSRCDIR
+variable.
+.Pp
+Tests should generally not set or modify
+.Ev MALLOC_OPTIONS
+unless it is testing specific behaviour that depends on a particular
+flag or combination of flags.
+When running tests, the appropriate sysctl
+.Pq vm.malloc_conf
+could be used instead.
+.Sh SEE ALSO
+.Xr bsd.port.mk 5
+.Sh HISTORY
+The regression system originally came from
+.Nx ,
+with many tests added by
+.Ox
+since.
+The current Makefile framework was written by Artur Grabowski
+and Marc Espie for
+.Ox 3.1 .

@@ -1,0 +1,9 @@
+static_library("WindowsDriver") {
+  output_name = "LLVMWindowsDriver"
+  deps = [
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "MSVCPaths.cpp" ]
+}

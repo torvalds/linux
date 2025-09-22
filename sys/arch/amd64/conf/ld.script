@@ -1,0 +1,161 @@
+/*	$OpenBSD: ld.script,v 1.19 2022/11/07 01:41:57 guenther Exp $	*/
+
+/*
+ * Copyright (c) 2009 Tobias Weingartner <weingart@tepid.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
+OUTPUT_ARCH(i386:x86-64)
+
+/* Define how we want out ELF binary to look like. */
+PHDRS
+{
+	text PT_LOAD FILEHDR PHDRS;
+	rodata PT_LOAD FLAGS (4);
+	data PT_LOAD;
+	bss PT_LOAD;
+	openbsd_randomize PT_OPENBSD_RANDOMIZE;
+}
+
+/*
+ * If we want the text/rodata/data sections aligned on 2M boundaries,
+ * we could use the following instead.  Note, file size would increase
+ * due to necessary padding.
+ *
+ *__ALIGN_SIZE = 0x200000;
+ */
+__ALIGN_SIZE = 0x1000;
+__kernel_base = 0xffffffff80000000;
+__kernel_virt_base = __kernel_base + 0x1000000;
+__kernel_phys_base = 0x1000000;
+__kernel_virt_to_phys = __kernel_phys_base - __kernel_virt_base;
+
+ENTRY(start)
+SECTIONS
+{
+	.text ALIGN(__kernel_virt_base + SIZEOF_HEADERS, __ALIGN_SIZE) :
+	      AT (ALIGN(__kernel_phys_base + SIZEOF_HEADERS, __ALIGN_SIZE))
+	{
+		start = .;
+		locore0.o(.text)
+		*(.text .text.*)
+		. = ALIGN(__ALIGN_SIZE);
+		__text_page_start = ABSOLUTE(.);
+		*(.ktext.page)
+		__text_page_end = ABSOLUTE(.);
+	} :text =0xcccccccc
+
+	. = ALIGN(__ALIGN_SIZE);
+	__kernel_kutext_phys = . + __kernel_virt_to_phys;
+	.kutext : AT (__kernel_kutext_phys)
+	{
+		__kutext_start = ABSOLUTE(.);
+		*(.kutext)
+		__kutext_end = ABSOLUTE(.);
+	} :text =0xcccccccc
+
+	. = ALIGN(__ALIGN_SIZE);
+	__kernel_cptext_phys = . + __kernel_virt_to_phys;
+	.cptext : AT (__kernel_cptext_phys)
+	{
+		__cptext_start = ABSOLUTE(.);
+		*(.cptext)
+		__cptext_end = ABSOLUTE(.);
+	} :text =0xcccccccc
+
+	PROVIDE (etext = .);
+	_etext = .;
+
+	/* Move rodata to the next page, so we can nuke X and W bit on them */
+	. = ALIGN(__ALIGN_SIZE);
+	__kernel_rodata_phys = . + __kernel_virt_to_phys;
+	.rodata : AT (__kernel_rodata_phys)
+	{
+		__rodata_start = ABSOLUTE(.);
+		*(.rodata .rodata.*)
+		. = ALIGN(8);
+		__nofault_start = ABSOLUTE(.);
+		*(.nofault.*) *(.nofault)
+		__nofault_end = ABSOLUTE(.);
+		*(.codepatch)
+		*(.codepatchend)
+	} :rodata =0xcccccccc
+
+	. = ALIGN(__ALIGN_SIZE);
+	__kernel_kutext_page_phys = . + __kernel_virt_to_phys;
+	.kutext.page : AT (__kernel_kutext_page_phys)
+	{
+		*(SORT_BY_ALIGNMENT(.kutext.page))
+	} :rodata =0xcccccccc
+
+	. = ALIGN(0x1000);
+	__kernel_randomdata_phys = . + __kernel_virt_to_phys;
+	.openbsd.randomdata : AT (__kernel_randomdata_phys)
+	{
+		__retguard_start = ABSOLUTE(.);
+		*(.openbsd.randomdata.retguard .openbsd.randomdata.retguard.*)
+		. = ALIGN(__ALIGN_SIZE);
+		__retguard_end = ABSOLUTE(.);
+		*(.openbsd.randomdata .openbsd.randomdata.*)
+	} :rodata :openbsd_randomize =0xcccccccc
+	. = ALIGN(0x1000);
+	PROVIDE (erodata = .);
+	_erodata = .;
+	/* Move data to the next page, so we can add W bit on them */
+	. = ALIGN(__ALIGN_SIZE);
+	__kernel_data_phys = . + __kernel_virt_to_phys;
+	.data : AT (__kernel_data_phys)
+	{
+		__data_start = ABSOLUTE(.);
+		*(.data .data.*)
+	} :data =0xcccccccc
+
+	. = ALIGN(__ALIGN_SIZE);
+	__kernel_kudata_phys = . + __kernel_virt_to_phys;
+	.kudata : AT (__kernel_kudata_phys)
+	{
+		__kudata_start = ABSOLUTE(.);
+		*(.kudata)
+		__kudata_end = ABSOLUTE(.);
+	} :data =0xcccccccc
+
+	. = ALIGN(0x1000);
+	PROVIDE (edata = .);
+	_edata = .;
+
+	/* BSS starts right after padded data */
+	__kernel_bss_phys = . + __kernel_virt_to_phys;
+	.bss : AT (__kernel_bss_phys)
+	{
+		*(.bss .bss.*)
+		*(COMMON)
+		/* Align after .bss to ensure correct alignment even if the
+		 * .bss section disappears because there are no input sections.
+		 */
+		. = ALIGN(0x1000);
+	} :bss
+	__kernel_bss_end = .;
+	. = ALIGN(0x200000);
+	_end = .;
+	PROVIDE (end = .);
+	__kernel_phys_end = . + __kernel_virt_to_phys;
+
+	/* XXX - hack alert, since we are not C++, nuke these */
+	/DISCARD/ :
+	{
+		*(.note.GNU-stack)
+		*(.eh_frame)
+	}
+}

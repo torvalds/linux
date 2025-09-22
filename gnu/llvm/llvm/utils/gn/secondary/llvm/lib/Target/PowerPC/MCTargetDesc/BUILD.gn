@@ -1,0 +1,67 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("PPCGenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../PPC.td"
+}
+
+tablegen("PPCGenInstrInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../PPC.td"
+}
+
+tablegen("PPCGenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../PPC.td"
+}
+
+tablegen("PPCGenRegisterInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../PPC.td"
+}
+
+tablegen("PPCGenSubtargetInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../PPC.td"
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMPowerPCDesc"
+
+  # This should contain tablegen targets generating .inc files included
+  # by other targets. .inc files only used by .cpp files in this directory
+  # should be in deps instead.
+  public_deps = [
+    ":PPCGenInstrInfo",
+    ":PPCGenRegisterInfo",
+    ":PPCGenSubtargetInfo",
+  ]
+  deps = [
+    ":PPCGenAsmWriter",
+    ":PPCGenMCCodeEmitter",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/PowerPC/TargetInfo",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "PPCAsmBackend.cpp",
+    "PPCELFObjectWriter.cpp",
+    "PPCELFStreamer.cpp",
+    "PPCInstPrinter.cpp",
+    "PPCMCAsmInfo.cpp",
+    "PPCMCCodeEmitter.cpp",
+    "PPCMCExpr.cpp",
+    "PPCMCTargetDesc.cpp",
+    "PPCPredicates.cpp",
+    "PPCXCOFFObjectWriter.cpp",
+    "PPCXCOFFStreamer.cpp",
+  ]
+}

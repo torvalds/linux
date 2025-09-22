@@ -1,0 +1,101 @@
+.\"	$OpenBSD: nfe.4,v 1.23 2021/09/08 20:29:21 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 8 2021 $
+.Dt NFE 4
+.Os
+.Sh NAME
+.Nm nfe
+.Nd NVIDIA nForce MCP 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "nfe* at pci?"
+.Cd "atphy* at mii?"
+.Cd "brgphy* at mii?"
+.Cd "ciphy* at mii?"
+.Cd "eephy* at mii?"
+.Cd "icsphy* at mii?"
+.Cd "rgephy* at mii?"
+.Cd "rlphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Fast Ethernet and Gigabit Ethernet adapters based
+on the NVIDIA nForce Media and Communications Processors (MCP),
+the nForce, nForce 2, nForce 3, CK804, MCP04, MCP51, MCP55,
+MCP61, MCP65, MCP67, MCP73, MCP77, MCP79 and MCP89 Ethernet
+controller chips.
+.Pp
+The
+.Nm
+driver supports IPv4 transmit/receive IP/TCP/UDP checksum offload
+with the nForce 3, CK804, MCP55, MCP77, MCP79 and MCP89 chipsets
+and VLAN tag insertion and stripping with the MCP55 chipset.
+.Pp
+The
+.Nm
+driver additionally supports Wake on LAN (WoL).
+See
+.Xr arp 8
+and
+.Xr ifconfig 8
+for more details.
+.Pp
+The
+.Nm
+driver supports the following
+.Ar media
+types:
+.Pp
+.Bl -tag -width autoselect -compact
+.It Cm autoselect
+Enable autoselection of the media type and options.
+.It Cm 10baseT
+Set 10Mbps operation.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.It Cm 1000baseT
+Set 1000Mbps (Gigabit Ethernet) operation (recent models only).
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr atphy 4 ,
+.Xr brgphy 4 ,
+.Xr ciphy 4 ,
+.Xr eephy 4 ,
+.Xr icsphy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr rgephy 4 ,
+.Xr rlphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jonathan Gray Aq Mt jsg@openbsd.org
+and
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.Sh CAVEATS
+NVIDIA refuse to release any documentation on their products.

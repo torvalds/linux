@@ -1,0 +1,222 @@
+.\"	$OpenBSD: sysconf.3,v 1.35 2019/08/11 15:48:08 deraadt Exp $
+.\"
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 11 2019 $
+.Dt SYSCONF 3
+.Os
+.Sh NAME
+.Nm sysconf
+.Nd get configurable system variables
+.Sh SYNOPSIS
+.In unistd.h
+.Ft long
+.Fn sysconf "int name"
+.Sh DESCRIPTION
+The
+.Fn sysconf
+function provides a method for applications to determine the current
+value of a configurable system limit or option variable.
+The
+.Fa name
+argument specifies the system variable to be queried.
+Symbolic constants for each name value are found in the include file
+.In unistd.h .
+.Pp
+The available values are as follows:
+.Bl -tag -width "123456"
+.It Li _SC_ARG_MAX
+The maximum bytes of arguments to
+.Xr execve 2
+(including the environment).
+.It Li _SC_CHILD_MAX
+The maximum number of simultaneous processes per user ID.
+.It Li _SC_CLK_TCK
+The number of clock ticks per second.
+.It Li _SC_NGROUPS_MAX
+The maximum number of supplemental groups.
+.It Li _SC_OPEN_MAX
+The maximum number of open files per user ID.
+.It Li _SC_STREAM_MAX
+The minimum maximum number of streams that a process may have open
+at any one time.
+.It Li _SC_TZNAME_MAX
+The minimum maximum number of types supported for the name of a
+time zone.
+.It Li _SC_JOB_CONTROL
+Returns 1 if job control is available on this system, otherwise \-1.
+.It Li _SC_SAVED_IDS
+Returns 1 if saved set-group-ID and saved set-user-ID is available,
+otherwise \-1.
+.It Li _SC_VERSION
+The version of ISO/IEC 9945 (POSIX 1003.1) with which the system
+attempts to comply.
+.It Li _SC_BC_BASE_MAX
+The maximum ibase/obase values in the
+.Xr bc 1
+utility.
+.It Li _SC_BC_DIM_MAX
+The maximum array size in the
+.Xr bc 1
+utility.
+.It Li _SC_BC_SCALE_MAX
+The maximum scale value in the
+.Xr bc 1
+utility.
+.It Li _SC_BC_STRING_MAX
+The maximum string length in the
+.Xr bc 1
+utility.
+.It Li _SC_COLL_WEIGHTS_MAX
+The maximum number of weights that can be assigned to any entry of
+the LC_COLLATE order keyword in the locale definition file.
+.It Li _SC_EXPR_NEST_MAX
+The maximum number of expressions that can be nested within
+parentheses by the
+.Xr expr 1
+utility.
+.It Li _SC_LINE_MAX
+The maximum length in bytes of a text-processing utility's input
+line.
+.It Li _SC_RE_DUP_MAX
+The maximum number of repeated occurrences of a regular expression
+permitted when using interval notation.
+.It Li _SC_2_VERSION
+The version of POSIX 1003.2 with which the system attempts to comply.
+.It Li _SC_2_C_BIND
+Return 1 if the system's C-language development facilities support the
+C-Language Bindings Option, otherwise \-1.
+.It Li _SC_2_C_DEV
+Return 1 if the system supports the C-Language Development Utilities Option,
+otherwise \-1.
+.It Li _SC_2_CHAR_TERM
+Return 1 if the system supports at least one terminal type capable of
+all operations described in POSIX 1003.2, otherwise \-1.
+.It Li _SC_2_FORT_DEV
+Return 1 if the system supports the FORTRAN Development Utilities Option,
+otherwise \-1.
+.It Li _SC_2_FORT_RUN
+Return 1 if the system supports the FORTRAN Runtime Utilities Option,
+otherwise \-1.
+.It Li _SC_2_LOCALEDEF
+Return 1 if the system supports the creation of locales, otherwise \-1.
+.It Li _SC_2_SW_DEV
+Return 1 if the system supports the Software Development Utilities Option,
+otherwise \-1.
+.It Li _SC_2_UPE
+Return 1 if the system supports the User Portability Utilities Option,
+otherwise \-1.
+.It Li _SC_PAGESIZE
+The size of a system page in bytes.
+.It Li _SC_FSYNC
+Return 1 if the system supports the File Synchronisation Option, otherwise \-1.
+.It Li _SC_XOPEN_SHM
+Return 1 if the system supports the Shared Memory Option, otherwise \-1.
+.It Li _SC_SEM_NSEMS_MAX
+The maximum number of semaphores in the system or \-1 if the system
+does not support the Semaphores Option.
+.It Li _SC_SEM_VALUE_MAX
+The maximum value a semaphore may have or \-1 if the system
+does not support the Semaphores Option.
+.It Li _SC_PHYS_PAGES
+The number of pages of physical memory.
+.It Li _SC_AVPHYS_PAGES
+The number of pages of physical memory not currently in use by the system.
+.It Li _SC_GETGR_R_SIZE_MAX
+The maximum size of the data buffer for the
+.Fn getgrgid_r
+and
+.Fn getgrnam_r
+functions.
+.It Li _SC_GETPW_R_SIZE_MAX
+The maximum size of the data buffer for the
+.Fn getpwuid_r
+and
+.Fn getpwnam_r
+functions.
+.It Li _SC_LOGIN_NAME_MAX
+The maximum length of a login name.
+.It Li _SC_THREAD_SAFE_FUNCTIONS
+The level of support for thread-safe (re-entrant) functions.
+.It Li _SC_NPROCESSORS_CONF
+The number of processors configured.
+.It Li _SC_NPROCESSORS_ONLN
+The number of processors online (capable of running processes).
+.It Li _SC_HOST_NAME_MAX
+The maximum size of a hostname, not counting NULL.
+.It Li _SC_MONOTONIC_CLOCK
+Return the POSIX version of the implementation of the Monotonic Clock
+option that this system conforms to, or \-1 if unavailable.
+.El
+.Sh RETURN VALUES
+If the call to
+.Fn sysconf
+is not successful, \-1 is returned and
+.Va errno
+is set appropriately.
+Otherwise, if the variable is associated with functionality that is not
+supported, \-1 is returned and
+.Va errno
+is not modified.
+Otherwise, the current variable value is returned.
+.Sh ERRORS
+The
+.Fn sysconf
+function may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr sysctl 2 .
+In addition, the following error may be reported:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of the
+.Fa name
+argument is invalid.
+.El
+.Sh SEE ALSO
+.Xr pathconf 2 ,
+.Xr sysctl 2
+.Sh STANDARDS
+The
+.Fn sysconf
+function conforms to
+.St -p1003.1-88 .
+The constants
+.Li _SC_NPROCESSORS_CONF
+and
+.Li _SC_NPROCESSORS_ONLN
+are not part of the standard, but are provided by many systems.
+.Sh HISTORY
+The
+.Fn sysconf
+function first appeared in
+.Bx 4.4 .
+.Sh BUGS
+The value for _SC_STREAM_MAX is a minimum maximum, and required to be
+the same as ANSI C's FOPEN_MAX, so the returned value is a ridiculously
+small and misleading number.

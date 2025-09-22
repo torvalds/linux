@@ -1,0 +1,296 @@
+.\" $OpenBSD: X509_PURPOSE_set.3,v 1.2 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_PURPOSE_SET 3
+.Os
+.Sh NAME
+.Nm X509_PURPOSE_set ,
+.Nm X509_PURPOSE_get_by_id ,
+.Nm X509_PURPOSE_add ,
+.Nm X509_PURPOSE_get_count ,
+.Nm X509_PURPOSE_cleanup ,
+.Nm X509_PURPOSE_get0 ,
+.Nm X509_PURPOSE_get_by_sname ,
+.Nm X509_PURPOSE_get_id ,
+.Nm X509_PURPOSE_get0_name ,
+.Nm X509_PURPOSE_get0_sname ,
+.Nm X509_PURPOSE_get_trust
+.Nd purpose objects, indices, and identifiers
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft int
+.Fo X509_PURPOSE_set
+.Fa "int *id_out"
+.Fa "int id_in"
+.Fc
+.Ft int
+.Fn X509_PURPOSE_get_by_id "int identifier"
+.Ft int
+.Fo X509_PURPOSE_add
+.Fa "int identifier"
+.Fa "int trust"
+.Fa "int flags"
+.Fa "int (*check_purpose)(const X509_PURPOSE *, const X509 *, int)"
+.Fa "const char *name"
+.Fa "const char *sname"
+.Fa "void *usr_data"
+.Fc
+.Ft int
+.Fn X509_PURPOSE_get_count void
+.Ft void
+.Fn X509_PURPOSE_cleanup void
+.Ft X509_PURPOSE *
+.Fn X509_PURPOSE_get0 "int index"
+.Ft int
+.Fn X509_PURPOSE_get_by_sname "const char *sname"
+.Ft int
+.Fn X509_PURPOSE_get_id "const X509_PURPOSE *object"
+.Ft char *
+.Fn X509_PURPOSE_get0_name "const X509_PURPOSE *object"
+.Ft char *
+.Fn X509_PURPOSE_get0_sname "const X509_PURPOSE *object"
+.Ft int
+.Fn X509_PURPOSE_get_trust "const X509_PURPOSE *object"
+.Sh DESCRIPTION
+The purposes that an X.509 certificate is intended to be used for
+can be identified in three equivalent ways:
+.Bl -enum
+.It
+By purpose identifiers, which are positive integer constants.
+Standard purpose identifiers lie in the range from
+.Dv X509_PURPOSE_MIN
+to
+.Dv X509_PURPOSE_MAX ,
+inclusive, and are listed in the
+.Xr X509_check_purpose 3
+manual page.
+User defined purpose identifiers are larger than
+.Dv X509_PURPOSE_MAX .
+.It
+By purpose indices, which are non-negative integer constants
+but differ from the purpose identifiers for the same purpose.
+Standard purpose indices are smaller than
+.Dv X509_PURPOSE_MAX .
+User defined purpose indices are larger than or equal to
+.Dv X509_PURPOSE_MAX .
+.It
+By purpose objects of the type
+.Vt X509_PURPOSE .
+Standard purpose objects are available in static storage.
+User defined purpose objects can be created with
+.Fn X509_PURPOSE_add .
+.El
+.Pp
+Application programmers cannot choose the way to identify purposes
+that they like best; depending on the circumstances, all three ways
+are needed.
+Be warned that the naming of most functions is misleading.
+.Pp
+Most API functions documented outside the present manual page
+use purpose identifiers rather than purpose indices.
+.Ss Using purpose identifiers
+.Fn X509_PURPOSE_set
+validates the purpose identifier
+.Fa id_in .
+If it is valid, it is copied to
+.Pf * Fa id_out .
+Otherwise,
+.Pf * Fa id_out
+remains unchanged.
+.Pp
+.Fn X509_PURPOSE_get_by_id
+converts the purpose
+.Fa identifier
+to the corresponding purpose index.
+To find the corresponding purpose object, pass the result to
+.Fn X509_PURPOSE_get0 .
+.Pp
+.Fn X509_PURPOSE_add
+defines a purpose with the given
+.Fa identifier
+or modifies its properties if it already exists.
+The purpose
+.Fa identifier ,
+the
+.Fa trust
+identifier, the
+.Fa flags ,
+the
+.Fa check_purpose
+function, the
+.Fa name ,
+the short name
+.Fa sname ,
+and the
+.Fa usr_data
+pointer are copied into the
+.Vt X509_PURPOSE
+object.
+When modifying an existing purpose object, previous values of fields are
+overwritten and previous
+.Fa name
+and
+.Fa sname
+strings are freed if they were dynamically allocated.
+When creating a new purpose object,
+it is added to the global array of user-defined purpose objects.
+.Pp
+.Dv X509_PURPOSE_DYNAMIC
+and
+.Dv X509_PURPOSE_DYNAMIC_NAME
+are always ignored in the
+.Fa flags
+argument.
+.Dv X509_PURPOSE_DYNAMIC
+is automatically set if the object was created by the user.
+It is never set for standard objects, not even if they were
+modified by the user.
+.Dv X509_PURPOSE_DYNAMIC_NAME
+is automatically set if the object was created or modified by the user.
+It is only unset for unmodified standard objects.
+The library does not appear to define any other flags, so the
+.Fa flags
+argument is probably useless unless users define their own flags
+and use them in the
+.Fa check_purpose
+function.
+.Pp
+The third and final argument of the
+.Fa check_purpose
+function is the
+.Fa ca
+argument documented in
+.Xr X509_check_purpose 3 .
+.Pp
+.Fn X509_PURPOSE_get_count
+returns the total number of purposes currently defined,
+including both standard and user-defined purposes.
+If no user-defined purposes exist, the returned value is
+.Dv X509_PURPOSE_MAX .
+.Pp
+.Fn X509_PURPOSE_cleanup
+deletes all user-defined purpose objects
+and invalidates their purpose identifiers and purpose indices.
+If any of the standard purpose objects were modified by the user,
+those changes are
+.Em not
+reverted.
+.Ss Using purpose indices
+.Fn X509_PURPOSE_get0
+converts the purpose
+.Fa index
+to a pointer to the corresponding purpose object.
+To find the corresponding purpose identifier, pass the result to
+.Fn X509_PURPOSE_get_id .
+.Pp
+.Fn X509_PURPOSE_get_by_sname
+returns the lowest index of a purpose with the given short name.
+.Ss Using purpose objects
+.Fn X509_PURPOSE_get_id
+converts a pointer to a purpose
+.Fa object
+to the corresponding purpose identifier.
+To find the corresponding purpose index, pass the result to
+.Fn X509_PURPOSE_get_by_id .
+.Pp
+.Fn X509_PURPOSE_get0_name ,
+.Fn X509_PURPOSE_get0_sname ,
+and
+.Fn X509_PURPOSE_get_trust
+retrieve the name, short name, and trust identifier from the
+.Fa object ,
+respectively.
+.Sh RETURN VALUES
+.Fn X509_PURPOSE_set
+returns 1 if
+.Fa id_in
+is valid or 0 otherwise.
+.Pp
+.Fn X509_PURPOSE_get_by_id
+and
+.Fn X509_PURPOSE_get_by_sname
+return the corresponding purpose index
+or \-1 if no matching purpose is found.
+.Pp
+.Fn X509_PURPOSE_add
+returns 1 for success or 0 for failure.
+.Pp
+.Fn X509_PURPOSE_get_count
+returns the total number of purposes currently defined.
+.Pp
+.Fn X509_PURPOSE_get0
+returns a standard or user-defined purpose object or
+.Dv NULL
+if the
+.Fa index
+is invalid.
+.Pp
+.Fn X509_PURPOSE_get_id
+always returns a valid purpose identifier.
+.Pp
+.Fn X509_PURPOSE_get0_name
+and
+.Fn X509_PURPOSE_get0_sname
+return pointers to storage owned by the
+.Fa object .
+.Pp
+.Fn X509_PURPOSE_get_trust
+returns the trust identifier associated with the
+.Fa object .
+.Sh ERRORS
+The following diagnostics can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3 :
+.Bl -tag -width Ds
+.It Dv X509V3_R_INVALID_PURPOSE Qq "invalid purpose"
+.Fn X509_PURPOSE_set
+was called with an invalid
+.Fa id_in
+argument.
+.It Dv X509V3_R_INVALID_NULL_ARGUMENT Qq "invalid null argument"
+.Fn X509_PURPOSE_add
+was called with a
+.Fa name
+or
+.Fa sname
+argument of
+.Dv NULL .
+.It Dv ERR_R_MALLOC_FAILURE Qq "malloc failure"
+.Fn X509_PURPOSE_add
+failed to allocate memory.
+.El
+.Pp
+The other functions provide no diagnostics.
+.Sh SEE ALSO
+.Xr X509_check_purpose 3 ,
+.Xr X509_new 3 ,
+.Xr X509_STORE_set_purpose 3 ,
+.Xr X509_VERIFY_PARAM_set_purpose 3
+.Sh HISTORY
+.Fn X509_PURPOSE_set
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .
+.Pp
+The other functions first appeared in OpenSSL 0.9.5
+and have been available since
+.Ox 2.7 .
+.Sh CAVEATS
+The difference between purpose identifiers and purpose indices provides
+an ideal breeding ground for off-by-one bugs.

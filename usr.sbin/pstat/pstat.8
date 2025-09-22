@@ -1,0 +1,388 @@
+.\"	$OpenBSD: pstat.8,v 1.60 2021/10/20 06:35:40 semarie Exp $
+.\"	$NetBSD: pstat.8,v 1.9.4.1 1996/06/02 09:08:17 mrg Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)pstat.8	8.4 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: October 20 2021 $
+.Dt PSTAT 8
+.Os
+.Sh NAME
+.Nm pstat
+.Nd display system data structures
+.Sh SYNOPSIS
+.Nm pstat
+.Op Fl fknsTtv
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl d Ar format symbol ...
+.Sh DESCRIPTION
+.Nm
+displays open file entry, swap space utilization,
+terminal state, and vnode data structure information.
+If
+.Ar core
+is given, the information is sought there, otherwise
+in the running kernel via
+.Pa /dev/kmem .
+The required namelist is taken from the running kernel unless
+.Ar system
+is specified.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d Ar format symbol ...
+Print the values of
+.Ar symbol
+using the specified format.
+.Ar format
+is a
+.Xr printf 3 Ns -style
+format, without the leading percent or precision specifiers,
+such as
+.Ar s ,
+.Ar p ,
+or
+.Ar llx .
+Symbol names are read from the remaining command line arguments.
+Addresses may also be specified in hex.
+.Pp
+The
+.Fl d
+option requires the ability to open
+.Pa /dev/kmem
+which may be restricted based upon the value of the
+.Ar kern.allowkmem
+.Xr sysctl 8 .
+.It Fl f
+Print the open file table with these headings:
+.Bl -tag -width indent
+.It LOC
+The core location of this table entry.
+.It TYPE
+The type of object the file table entry points to.
+.It FLG
+Miscellaneous state variables encoded thus:
+.Pp
+.Bl -tag -width indent -compact
+.It R
+open for reading
+.It W
+open for writing
+.It A
+open for appending
+.It L
+exclusive or shared lock present
+.It I
+signal pgrp when data ready
+.El
+.It CNT
+Number of processes that know this open file.
+.It MSG
+Number of messages outstanding for this file.
+.It DATA
+The location of the vnode table entry or socket structure for this file.
+.It OFFSET
+The file offset (see
+.Xr lseek 2 ) .
+This information is only visible to the user or superuser.
+.El
+.It Fl k
+Use 1K-byte blocks.
+.It Fl M Ar core
+Extract values associated with the name list from the specified core
+instead of the running kernel.
+.It Fl N Ar system
+Extract the name list from the specified system
+instead of the running kernel.
+.It Fl n
+Print devices by major/minor number rather than by name.
+.It Fl s
+Print information about swap space usage on all the
+swap areas compiled into the kernel.
+The first column is the device name of the partition.
+The next column is the total space available in the partition.
+The
+.Ar Used
+column indicates the total blocks used so far;
+the
+.Ar Available
+column indicates how much space is remaining on each partition.
+The
+.Ar Capacity
+reports the percentage of space used.
+.Pp
+If more than one partition is configured into the system, totals for all
+of the statistics will be reported in the final line of the report.
+.It Fl T
+Prints the number of used and free slots for open files, used vnodes, and swap
+space.
+It is useful for checking to see how large system tables become
+if the system is under heavy load.
+.It Fl t
+Print table for terminals
+with these headings:
+.Bl -tag -width indent
+.It LINE
+Physical device name.
+.It RAW
+Number of characters in raw input queue.
+.It CAN
+Number of characters in canonicalized input queue.
+.It OUT
+Number of characters in output queue.
+.It HWT
+High water mark for output.
+.It LWT
+Low water mark for output.
+.It COL
+Calculated column position of terminal.
+.It STATE
+Miscellaneous state variables encoded thus:
+.Pp
+.Bl -tag -width indent -compact
+.It W
+waiting for open to complete
+.It O
+open
+.It C
+carrier is on
+.It T
+delay timeout in progress
+.It F
+outq has been flushed during DMA
+.It B
+busy doing output
+.It A
+process is awaiting output
+.It X
+open for exclusive use
+.It S
+output stopped
+.It K
+further input blocked
+.It Y
+tty in async I/O mode
+.It D
+next character is escaped lowercase special
+.It E
+printing erase sequence
+.It L
+next character is literal
+.It P
+retyping suspended input
+.It N
+counting tab width, ignoring output flush
+.El
+.It SESS
+Enclosing session.
+.It PGID
+Process group for which this is controlling terminal.
+.It DISC
+Line discipline:
+.Ql term
+for
+TTYDISC (see
+.Xr termios 4 ) ,
+.Ql ppp
+for PPPDISC (see
+.Xr ppp 4 )
+and
+.Ql nmea
+for NMEADISC (see
+.Xr nmea 4 ) .
+.El
+.It Fl v
+Print the active vnodes.
+Each group of vnodes corresponding
+to a particular filesystem is preceded by a two line header.
+The first line consists of the following:
+.Pp
+.No *** MOUNT Em fstype from
+on
+.Em on fsflags
+.Pp
+where
+.Em fstype
+is one of the file systems supported by the kernel;
+.Em from
+is the partition the filesystem is mounted from;
+.Em on
+is the directory
+the filesystem is mounted on; and
+.Em fsflags
+is a list
+of optional flags applied to the mount (see
+.Xr mount 8 ) .
+The second line is a header for the individual fields,
+the first part of which are fixed, and the second part are filesystem
+type specific.
+The headers common to all vnodes are:
+.Bl -tag -width indent
+.It ADDR
+Location of this vnode.
+.It TYP
+File type.
+.It VFLAG
+A list of letters representing vnode flags:
+.Pp
+.Bl -tag -width indent -compact
+.It R
+VROOT root of its file system.
+.It T
+VTEXT pure text prototype.
+.It S
+VSYSTEM vnode being used by kernel.
+.It I
+VISTTY vnode represents a tty.
+.It L
+VXLOCK locked to change underlying type.
+.It W
+VXWANT process is waiting for vnode.
+.It B
+VBWAIT waiting for output to complete.
+.It A
+VALIASED vnode has an alias.
+.It F
+VONFREELIST vnode is on a free list.
+.It l
+VLOCKSWORK FS supports locking discipline.
+.It s
+VONSYNCLIST vnode is on syncer worklist.
+.El
+.It USE
+The number of references to this vnode.
+.It HOLD
+The number of I/O buffers held by this vnode.
+.It FILEID
+The vnode fileid.
+In the case of
+.Em ffs
+this is the inode number.
+.It IFLAG
+Miscellaneous filesystem specific state variables encoded thus:
+.Bl -tag -width indent
+.It "For ffs:"
+.Bl -tag -width indent -compact
+.It A
+access time must be corrected
+.It C
+changed time must be corrected
+.It U
+modification time must be corrected
+.It R
+has a rename in progress
+.It M
+contains modifications
+.It m
+contains lazy modifications
+.It S
+shared lock applied
+.It E
+exclusive lock applied
+.El
+.It "For nfs:"
+.Bl -tag -width indent -compact
+.It W
+waiting for I/O buffer flush to complete
+.It P
+I/O buffers being flushed
+.It M
+locally modified data exists
+.It E
+an earlier write failed
+.It X
+non-cacheable lease (nqnfs)
+.It O
+write lease (nqnfs)
+.It G
+lease was evicted (nqnfs)
+.It A
+special file accessed
+.It U
+special file updated
+.It C
+special file times changed
+.El
+.El
+.It SIZ/RDEV
+Number of bytes in an ordinary file, or
+major and minor device of special file.
+.El
+.Pp
+The
+.Fl v
+option requires the ability to open
+.Pa /dev/kmem
+which may be restricted based upon the value of the
+.Ar kern.allowkmem
+.Xr sysctl 8 .
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width BLOCKSIZE
+.It Ev BLOCKSIZE
+If the environment variable
+.Ev BLOCKSIZE
+is set, and the
+.Fl k
+option is not specified, the block counts will be displayed in units of that
+size block.
+.El
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr netstat 1 ,
+.Xr procmap 1 ,
+.Xr ps 1 ,
+.Xr systat 1 ,
+.Xr tcpbench 1 ,
+.Xr top 1 ,
+.Xr stat 2 ,
+.Xr printf 3 ,
+.Xr fs 5 ,
+.Xr iostat 8 ,
+.Xr vmstat 8
+.Rs
+.%T UNIX Implementation
+.%A Ken Thompson
+.%J Bell System Technical Journal
+.%V Volume 57
+.%N Number 6
+.%D 1978
+.%P pp. 1931\(en1946
+.Re
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.At v7 .
+.Sh BUGS
+Swap statistics are reported for all swap partitions compiled into the kernel,
+regardless of whether those partitions are being used.
+.Pp
+Does not understand NFS swap servers.

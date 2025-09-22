@@ -1,0 +1,18 @@
+static_library("Reader") {
+  output_name = "LLVMBitReader"
+  deps = [
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Bitstream/Reader",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+
+  sources = [
+    "BitReader.cpp",
+    "BitcodeAnalyzer.cpp",
+    "BitcodeReader.cpp",
+    "MetadataLoader.cpp",
+    "ValueList.cpp",
+  ]
+}

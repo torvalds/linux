@@ -1,0 +1,32 @@
+//===--- BuiltinsVE.def - VE Builtin function database ----------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the VE-specific builtin function database.  Users of
+// this file must define the BUILTIN macro to make use of this information.
+//
+//===----------------------------------------------------------------------===//
+
+#if defined(BUILTIN) && !defined(TARGET_BUILTIN)
+#   define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE) BUILTIN(ID, TYPE, ATTRS)
+#endif
+
+// The format of this database is described in clang/Basic/Builtins.def.
+
+BUILTIN(__builtin_ve_vl_pack_f32p, "ULifC*fC*", "n")
+BUILTIN(__builtin_ve_vl_pack_f32a, "ULifC*", "n")
+
+BUILTIN(__builtin_ve_vl_extract_vm512u, "V256bV512b", "n")
+BUILTIN(__builtin_ve_vl_extract_vm512l, "V256bV512b", "n")
+BUILTIN(__builtin_ve_vl_insert_vm512u, "V512bV512bV256b", "n")
+BUILTIN(__builtin_ve_vl_insert_vm512l, "V512bV512bV256b", "n")
+
+// Use generated BUILTIN definitions
+#include "clang/Basic/BuiltinsVEVL.gen.def"
+
+#undef BUILTIN
+#undef TARGET_BUILTIN

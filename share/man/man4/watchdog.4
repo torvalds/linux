@@ -1,0 +1,96 @@
+.\"	$OpenBSD: watchdog.4,v 1.11 2009/05/21 16:07:25 mk Exp $
+.\"
+.\" Copyright (c) 2004-2006 Michael Knudsen <mk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: May 21 2009 $
+.Dt WATCHDOG 4
+.Os
+.Sh NAME
+.Nm watchdog
+.Nd hardware timers/counters for quick crash recovery
+.Sh DESCRIPTION
+Hardware watchdog timers are devices that reboot the machine when it
+hangs.
+The kernel continually resets the watchdog clock on a regular basis.
+Thus, if the kernel halts, the clock will time out and reset the machine.
+Watchdog timers may be configured to be reset from userland
+to cause a reboot if process scheduling fails;
+see
+.Xr watchdogd 8
+for further information.
+.Pp
+A number of hardware watchdogs are supported, and all are configured
+using
+.Xr sysctl 8
+under the
+.Va kern.watchdog
+name:
+.Bl -tag -width kern.watchdog.period -offset indent
+.It Va kern.watchdog.auto
+Automatically reset
+.Pq Sq tickle
+the watchdog timer but disable it at system shutdown time.
+.It Va kern.watchdog.period
+The timeout in seconds.
+Setting it to zero disables the watchdog timer.
+.El
+.Pp
+In situations where the machine provides vital services which are not
+handled completely in kernel space, e.g. mail exchange, it may be
+desirable to reboot the machine if process scheduling fails.
+This is done by setting
+.Va kern.watchdog.auto
+to zero and running a process which repeatedly sets
+.Va kern.watchdog.period
+to the desired timeout value.
+Then, if process scheduling fails, the process resetting the timer will
+not be run, leading to the machine being rebooted.
+Note that the kernel will not automatically disable an enabled watchdog at
+system shutdown time when
+.Va kern.watchdog.auto
+is set to zero.
+.Pp
+Watchdog timers should be used in high-availability environments where
+getting machines up and running quickly after a crash is more important
+than determining the cause of the crash.
+A watchdog timer enables a crashed machine to autonomously attempt to
+recover quickly after a system failure.
+.Pp
+Note that this also means that it is unwise to combine watchdog timers
+with
+.Xr ddb 4
+since the latter may prevent the former from resetting the
+watchdog timeout before it expires.
+This means that the machine will be rebooted before any debugging
+can be done.
+In other words: For mission critical machines, disable
+.Xr ddb 4
+by adding
+.Dq ddb.panic=0
+to
+.Xr sysctl.conf 5
+since this will give the chance to perform a crash dump and reboot.
+Simply setting the watchdog will lose the debug trace of what went
+wrong.
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr sysctl.conf 5 ,
+.Xr config 8 ,
+.Xr sysctl 8 ,
+.Xr watchdogd 8
+.Sh BUGS
+For systems with multiple watchdog timers available, only a single
+one can be used at a time.
+There is currently no way of selecting which device is used; the first
+discovered by the kernel is selected.

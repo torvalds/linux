@@ -1,0 +1,33 @@
+Run syslogd regressions tests.  As only one syslogd can run per
+machine, each test kills any syslogd first.  At the end the system's
+syslogd gets restarted.
+The test framework runs a client, and a server, and a syslogd.  The
+messages are passed via the log socket or via UDP from the client
+to syslogd.  From there UDP transport is used to reach the server.
+All processes write log files where the message has to show up.
+The test arguments are kept in the args-*.pl files.
+The content of a log file, the data sent to a pipe process and what
+the server received are checked.  Logging to /dev/console is tested
+with console redirection.  Logging to a user's tty is tested with
+a fake login.  The invocation of the sendsyslog(2) syscall is checked
+with ktrace, the open file descriptors of syslogd are checked with
+fstat.
+When invoked with "make libevent", all tests are executed three
+times.  They pass the EVENT_NO...  environment variables over sudo
+into syslogd.  This way the select(2) and poll(2) and kqueue(2)
+backend is tested.
+If the rsyslog package is installed, messages are sent to the
+rsyslogd to test interoperability.  This is especially useful for
+TCP and TLS.
+
+SUDO=sudo
+As syslogd needs root privileges either run the tests as root or
+set this variable and run make as a regular user.  Only the code
+that requires it, is run as root.
+
+KTRACE=ktrace
+Set this variable if you want a ktrace output from syslogd.  Note that
+ktrace is invoked after sudo as sudo would disable it.
+
+SYSLOGD=/usr/src/usr.sbin/syslogd/obj/syslogd
+Start an alternative syslogd program that is not in the path.

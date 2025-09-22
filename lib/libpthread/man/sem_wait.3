@@ -1,0 +1,133 @@
+.\" $OpenBSD: sem_wait.3,v 1.11 2025/06/07 00:16:52 schwarze Exp $
+.\"
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/lib/libc_r/man/sem_wait.3,v 1.8 2001/10/01 16:09:09 ru Exp $
+.Dd $Mdocdate: June 7 2025 $
+.Dt SEM_WAIT 3
+.Os
+.Sh NAME
+.Nm sem_wait ,
+.Nm sem_timedwait ,
+.Nm sem_trywait
+.Nd decrement (lock) a semaphore
+.Sh SYNOPSIS
+.Lb libpthread
+.In semaphore.h
+.Ft int
+.Fn sem_wait "sem_t *sem"
+.Ft int
+.Fn sem_timedwait "sem_t *sem" "const struct timespec *abstime"
+.Ft int
+.Fn sem_trywait "sem_t *sem"
+.Sh DESCRIPTION
+The
+.Fn sem_wait
+function decrements (locks) the semaphore pointed to by
+.Fa sem ,
+but blocks if the value of
+.Fa sem
+is zero, until the value is non-zero and the value can be decremented.
+.Pp
+The
+.Fn sem_timedwait
+function decrements (locks) the semaphore pointed to by
+.Fa sem ,
+but blocks if the value of
+.Fa sem
+is zero, until either the value is non-zero and can be decremented
+or the system time specified by
+.Fa abstime
+is reached.
+.Pp
+The
+.Fn sem_trywait
+function decrements (locks) the semaphore pointed to by
+.Fa sem
+only if the value is non-zero.
+Otherwise, the semaphore is not decremented and
+an error is returned.
+.Sh RETURN VALUES
+.Rv -std sem_wait sem_timedwait sem_trywait
+.Sh ERRORS
+.Fn sem_wait ,
+.Fn sem_timedwait ,
+and
+.Fn sem_trywait
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa sem
+points to an invalid semaphore.
+.El
+.Pp
+Additionally,
+.Fn sem_wait
+and
+.Fn sem_timedwait
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINTR
+The call was interrupted by a signal.
+.El
+.Pp
+Additionally,
+.Fn sem_timedwait
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa abstime
+was
+.Dv NULL
+or specified a nanosecond value less than zero or greater than 1000 million.
+.It Bq Er ETIMEDOUT
+The semaphore value was zero and could not be decremented before
+.Fa abstime
+was reached.
+.El
+.Pp
+Additionally,
+.Fn sem_trywait
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The semaphore value was zero, and thus could not be decremented.
+.El
+.Sh SEE ALSO
+.Xr sem_destroy 3 ,
+.Xr sem_getvalue 3 ,
+.Xr sem_init 3 ,
+.Xr sem_open 3 ,
+.Xr sem_post 3
+.Sh STANDARDS
+.Fn sem_wait ,
+.Fn sem_timedwait ,
+and
+.Fn sem_trywait
+conform to
+.St -p1003.1-2008 .

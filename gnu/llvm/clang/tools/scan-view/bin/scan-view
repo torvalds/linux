@@ -1,0 +1,149 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
+"""The clang static analyzer results viewer.
+"""
+
+import sys
+import os
+import posixpath
+import threading
+import time
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib2 import urlopen
+import webbrowser
+
+# How long to wait for server to start.
+kSleepTimeout = .05
+kMaxSleeps = int(60 / kSleepTimeout)
+
+# Default server parameters
+
+kDefaultHost = '127.0.0.1'
+kDefaultPort = 8181
+kMaxPortsToTry = 100
+
+###
+
+
+def url_is_up(url):
+    try:
+        o = urlopen(url)
+    except IOError:
+        return False
+    o.close()
+    return True
+
+
+def start_browser(port, options):
+    import webbrowser
+
+    url = 'http://%s:%d' % (options.host, port)
+
+    # Wait for server to start...
+    if options.debug:
+        sys.stderr.write('%s: Waiting for server.' % sys.argv[0])
+        sys.stderr.flush()
+    for i in range(kMaxSleeps):
+        if url_is_up(url):
+            break
+        if options.debug:
+            sys.stderr.write('.')
+            sys.stderr.flush()
+        time.sleep(kSleepTimeout)
+    else:
+        print('WARNING: Unable to detect that server started.', file=sys.stderr) 
+
+    if options.debug:
+        print('%s: Starting webbrowser...' % sys.argv[0], file=sys.stderr)
+    webbrowser.open(url)
+
+
+def run(port, options, root):
+    # Prefer to look relative to the installed binary
+    share = os.path.dirname(__file__) + "/../share/scan-view"
+    if not os.path.isdir(share):
+        # Otherwise look relative to the source
+        share = os.path.dirname(__file__) + "/../../scan-view/share"
+    sys.path.append(share)
+
+    import ScanView
+    try:
+        print('Starting scan-view at: http://%s:%d' % (options.host,
+                                                       port))
+        print('  Use Ctrl-C to exit.')
+        httpd = ScanView.create_server((options.host, port),
+                                       options, root)
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
+def port_is_open(port):
+    try:
+        import socketserver
+    except ImportError:
+        import SocketServer as socketserver
+    try:
+        t = socketserver.TCPServer((kDefaultHost, port), None)
+    except:
+        return False
+    t.server_close()
+    return True
+
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="The clang static analyzer "
+                                                 "results viewer.")
+    parser.add_argument("root", metavar="<results directory>", type=str)
+    parser.add_argument(
+        '--host', dest="host", default=kDefaultHost, type=str,
+        help="Host interface to listen on. (default=%s)" % kDefaultHost)
+    parser.add_argument('--port', dest="port", default=None, type=int,
+                        help="Port to listen on. (default=%s)" % kDefaultPort)
+    parser.add_argument("--debug", dest="debug", default=0,
+                        action="count",
+                        help="Print additional debugging information.")
+    parser.add_argument("--auto-reload", dest="autoReload", default=False,
+                        action="store_true",
+                        help="Automatically update module for each request.")
+    parser.add_argument("--no-browser", dest="startBrowser", default=True,
+                        action="store_false",
+                        help="Don't open a webbrowser on startup.")
+    parser.add_argument("--allow-all-hosts", dest="onlyServeLocal",
+                        default=True, action="store_false",
+                        help='Allow connections from any host (access '
+                             'restricted to "127.0.0.1" by default)')
+    args = parser.parse_args()
+
+    # Make sure this directory is in a reasonable state to view.
+    if not posixpath.exists(posixpath.join(args.root, 'index.html')):
+        parser.error('Invalid directory, analysis results not found!')
+
+    # Find an open port. We aren't particularly worried about race
+    # conditions here. Note that if the user specified a port we only
+    # use that one.
+    if args.port is not None:
+        port = args.port
+    else:
+        for i in range(kMaxPortsToTry):
+            if port_is_open(kDefaultPort + i):
+                port = kDefaultPort + i
+                break
+        else:
+            parser.error('Unable to find usable port in [%d,%d)' %
+                         (kDefaultPort, kDefaultPort+kMaxPortsToTry))
+
+    # Kick off thread to wait for server and start web browser, if
+    # requested.
+    if args.startBrowser:
+        threading.Thread(target=start_browser, args=(port, args)).start()
+
+    run(port, args, args.root)
+
+if __name__ == '__main__':
+    main()

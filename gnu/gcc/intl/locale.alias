@@ -1,0 +1,78 @@
+# Locale name alias data base.
+# Copyright (C) 1996,1997,1998,1999,2000,2001 Free Software Foundation, Inc.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Library General Public License as published
+# by the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU Library General Public
+# License along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
+# USA.
+
+# The format of this file is the same as for the corresponding file of
+# the X Window System, which normally can be found in
+#	/usr/lib/X11/locale/locale.alias
+# A single line contains two fields: an alias and a substitution value.
+# All entries are case independent.
+
+# Note: This file is far from being complete.  If you have a value for
+# your own site which you think might be useful for others too, share
+# it with the rest of us.  Send it using the `glibcbug' script to
+# bugs@gnu.org.
+
+# Packages using this file: 
+
+bokmal		no_NO.ISO-8859-1
+bokmål		no_NO.ISO-8859-1
+catalan		ca_ES.ISO-8859-1
+croatian	hr_HR.ISO-8859-2
+czech		cs_CZ.ISO-8859-2
+danish          da_DK.ISO-8859-1
+dansk		da_DK.ISO-8859-1
+deutsch		de_DE.ISO-8859-1
+dutch		nl_NL.ISO-8859-1
+eesti		et_EE.ISO-8859-1
+estonian	et_EE.ISO-8859-1
+finnish         fi_FI.ISO-8859-1
+français	fr_FR.ISO-8859-1
+french		fr_FR.ISO-8859-1
+galego		gl_ES.ISO-8859-1
+galician	gl_ES.ISO-8859-1
+german		de_DE.ISO-8859-1
+greek           el_GR.ISO-8859-7
+hebrew          he_IL.ISO-8859-8
+hrvatski	hr_HR.ISO-8859-2
+hungarian       hu_HU.ISO-8859-2
+icelandic       is_IS.ISO-8859-1
+italian         it_IT.ISO-8859-1
+japanese	ja_JP.eucJP
+japanese.euc	ja_JP.eucJP
+ja_JP		ja_JP.eucJP
+ja_JP.ujis	ja_JP.eucJP
+japanese.sjis	ja_JP.SJIS
+korean		ko_KR.eucKR
+korean.euc 	ko_KR.eucKR
+ko_KR		ko_KR.eucKR
+lithuanian      lt_LT.ISO-8859-13
+nb_NO		no_NO.ISO-8859-1
+nb_NO.ISO-8859-1 no_NO.ISO-8859-1
+norwegian       no_NO.ISO-8859-1
+nynorsk		nn_NO.ISO-8859-1
+polish          pl_PL.ISO-8859-2
+portuguese      pt_PT.ISO-8859-1
+romanian        ro_RO.ISO-8859-2
+russian         ru_RU.ISO-8859-5
+slovak          sk_SK.ISO-8859-2
+slovene         sl_SI.ISO-8859-2
+slovenian       sl_SI.ISO-8859-2
+spanish         es_ES.ISO-8859-1
+swedish         sv_SE.ISO-8859-1
+thai		th_TH.TIS-620
+turkish         tr_TR.ISO-8859-9

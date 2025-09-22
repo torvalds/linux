@@ -1,0 +1,126 @@
+This directory contains tools for building certificate chains to
+test verification. Each subdirectory contains a set of certificates
+that test a particular scenario. The root certificate(s) are contained
+in a roots.pem file, while the leaf certificate and any untrusted
+intermediate certificates are contained in a bundle.pem file.
+
+ 1a. A leaf certificate signed by the root certificate with no
+     intermediates (should verify).
+
+ 2a. A leaf certificate signed by an intermediate, which is signed
+     by a root certificate (should verify).
+
+ 2b. Same as (2a), however the intermediate is missing which should
+     prevent verification.
+ 
+ 2c. Same as (2a), however the intermediate and root are in the intermediate
+     bundle, (should verify)
+
+ 3a. A leaf certificate signed by three intermediates, the last of
+     which is signed by a root certificate (should verify).
+
+ 3b. Same as (3a) however the first intermediate is missing which should
+     prevent verification.
+
+ 3c. Same as (3a) however the second intermediate is missing which should
+     prevent verification.
+
+ 3d. Same as (3a) however the third intermediate is missing which should
+     prevent verification.
+
+ 3e. Same as (3a) however the order of the intermediates is reversed
+     (should verify).
+
+ 4a. A leaf certificate signed by an intermediate, that is cross
+     signed by two root certificates (should verify with two chains).
+
+ 4b. Same as (4a) but with one root missing (should verify with one chain).
+
+ 4c. Same as (4b) but with the other root missing (should verify with one
+     chain).
+
+ 4d. Same as (4a) but with one intermediate missing (should verify with one
+     chain).
+
+ 4e. Same as (4d) but with the other intermediate missing (should verify
+     with one chain).
+
+ 4f. Same as (4a) but with the intermediates reversed (should verify with
+     two chains).
+
+ 4g. Same as (4b) but with the intermediates reversed (should verify with
+     one chain).
+
+ 4h. Same as (4c) but with the intermediates reversed (should verify with
+     one chain).
+
+ 5a. A leaf certificate signed by an intermediate, that is cross
+     signed by one root certificate and an intermediate, which in turn
+     is signed by a second root (should verify with two chains).
+
+ 5b. Same as (5a) but missing the first root certificate (should verify
+     with one chain).
+
+ 5c. Same as (5a) but missing the second root certificate (should verify
+     with one chain).
+
+ 5d. Same as (5a) but missing the first intermediate (should verify with
+     one chain).
+
+ 5e. Same as (5a) but missing the second intermediate (should verify
+     with one chain).
+
+ 5f. Same as (5a) but missing the cross-signed intermediate (should verify
+     with one chain).
+
+ 5g. Same as (5a) but order of intermediates is reversed (should verify
+     with two chains).
+
+ 5h. Same as (5g) but missing the first root certificate (should verify
+     with two chains).
+
+ 5i. Same as (5g) but missing the second root certificate (should verify
+     with two chains).
+
+ 6a. A leaf certificate signed by an intermediate, that is cross
+     signed by an expired root certificate and an intermediate, which
+     in turn is signed by a second root (should verify with one chain).
+
+ 6b. Same as (6a) but the order of the intermediates is reversed (should
+     verify with one chain).
+
+ 7a. A leaf certificate signed by an intermediate, that is cross
+     signed by a root certificate and an intermediate, which in turn
+     is signed by a second root that has expired (should verify with one
+     chain).
+
+ 7b. Same as (7a) but the order of the intermediates is reversed (should
+     verify with one chain).
+
+ 8a. An expired leaf certificate signed by an intermediate that is then
+     signed by a root certificate (should fail to verify).
+
+ 9a. A leaf certificate signed by an expired intermediate, which is
+     signed by a root certificate (should fail to verify).
+
+10a. A leaf certificate signed by an intermediate, that is cross
+     signed by two root certificates, with one of the cross signings
+     having expired (should verify with one chain).
+
+10b. Same as (10a) but order of intermediates is reversed (should verify
+     with one chain.
+
+11a. A leaf certificate signed by an intermediate, that is cross
+     signed by one root certificate and an expired intermediate, which
+     in turn is signed by a second root (should verify with one chain).
+
+11b. Same as (11a) but order of intermediates is reversed (should verify
+     with one chain.
+
+12a. A leaf certificate signed by an intermediate, that is signed by a
+     root certificate and cross signed as an expired intermediate, by a
+     second root (should verify with one chain).
+
+13a. A leaf certificate signed by an intermediate, that is signed by an
+     expired root certificate and cross signed as an intermediate, by a
+     second root (should verify with one chain).

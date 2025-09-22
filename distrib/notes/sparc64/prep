@@ -1,0 +1,88 @@
+dnl	$OpenBSD: prep,v 1.26 2023/03/16 18:04:08 miod Exp $
+If your UltraSPARC machine is somewhat old, it might need a firmware update
+before it can be used under OpenBSD. You are advised to try to install
+OpenBSD first; if it can't boot or fails mysteriously, you might need to
+update your firmware. To do so, check the ``Updating your firmware''
+section later in this document.
+
+Your OpenBOOT ROM may need some setup.  You cannot use the security modes
+of the OpenBOOT ROM.  Make sure that the ROM security modes are disabled:
+
+    ok setenv security-mode none
+
+
+Most of the new Ultras shipped by Sun (or Oracle) with a preinstalled Solaris
+have an initial specific factory setup of the boot ROM, in order to start up
+Solaris WebStart at the first boot; the boot-device variable is set to
+disk:f.  Make sure you reset the boot device to its default value:
+
+    ok set-default boot-device
+
+will work for most systems. This can be adapted if you've multiple
+systems installed and know what you're doing.
+
+To disable automatic boot use the following command:
+
+    ok setenv auto-boot? false
+
+and then to enable it later use:
+
+    ok setenv auto-boot? true
+
+or on an installed system use the eeprom(8) command:
+
+    # eeprom 'auto-boot?=true'
+
+Updating your firmware:
+-----------------------
+
+If OpenBSD does not boot or install properly on your machine, it might need
+a firmware update.
+
+Updating your firmware is a dangerous operation which may damage your
+hardware. Be sure to carefully follow these instructions and, if in doubt,
+please don't do this.
+
+You will need to have a working operating system installed on your machine,
+in order to perform the update.  If this is not the case, you might be able
+to boot the flash updater software via network, but this has not been tested
+and is not supported by Oracle.
+
+ifdef({:-living in the good old times-:},{:-dnl
+dnl This section is commented out, for historical reference, until a
+dnl reliable mirror of historical SunSolve patches can be found.
+The firmware update is delivered as a specific patch, depending on your
+machine:
+
+	Machine		Patch number
+dnl XXX uncomment machine entries as they become supported
+	Blade 100/150	111179
+	Enterprise 220R	106455
+	Enterprise 250	106503
+	Enterprise 420R	109082
+	Enterprise 450	106122
+	Enterprise 3x00/4x00/5x00/6x00	103346
+	Sun Fire 3800/4800/4810/6800	112883
+	Sun Fire V480	113034
+	Sun Fire V880	112186
+	Netra T1 200	111991
+	Netra X1	111952
+	Ultra 1		104881
+	Ultra 1E	104288
+	Ultra 2		104169
+	Ultra 5/10	106121
+	Ultra 30	105930
+	Ultra 60	106455
+	Ultra 80	109082
+	Ultra 450	106122
+
+You can use SunSolve to get the patches by entering the
+correct Patch-ID# to the corresponding field at
+    http://sunsolve.sun.com/pub-cgi/show.pl?target=patchpage
+-:},{:-dnl
+Firmware update information can be found at
+  http://www.oracle.com/technetwork/systems/patches/firmware/release-history-jsp-138416.html
+-:})dnl
+
+Follow the patch installation notes very carefully. You may need to open
+your machine in order to apply this patch.

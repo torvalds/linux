@@ -1,0 +1,81 @@
+.\"	$OpenBSD: mfii.4,v 1.8 2024/02/05 19:07:45 deraadt Exp $
+.\"
+.\" Copyright (c) 2012 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 5 2024 $
+.Dt MFII 4
+.Os
+.Sh NAME
+.Nm mfii
+.Nd LSI Logic MegaRAID SAS Fusion RAID controller
+.Sh SYNOPSIS
+.Cd "mfii* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the MegaRAID SAS Fusion family of RAID controllers
+using the following chipsets:
+.Pp
+.Bl -dash -offset indent -compact
+.It
+SAS2208
+.It
+SAS3008
+.It
+SAS3108
+.It
+SAS3404
+.It
+SAS3408
+.It
+SAS3416
+.It
+SAS3504
+.It
+SAS3508
+.It
+SAS3516
+.It
+SAS3816
+.It
+SAS3916
+.El
+.Pp
+These controllers support RAID 0, RAID 1, RAID 5, RAID 6, RAID 10, RAID 50 and
+RAID 60 using either SAS or SATA II drives.
+.Pp
+Although the controllers are actual RAID controllers,
+they appear as SCSI controllers.
+All RAID configuration is done through the controllers' BIOSes.
+.Sh SEE ALSO
+.Xr bio 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr bioctl 8 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An David Gwynne Aq Mt dlg@openbsd.org .

@@ -1,0 +1,164 @@
+
+Header Policy
+-------------
+
+The C++ Standard specifies many mutual dependencies among the 
+headers it defines.  It offers no advice on how to arrange headers 
+to avoid problems.  The worst such problem is circular references.  
+Most simply this is "A includes B, B includes A": 
+
+  // file <A>                     // file <B>
+  #ifndef A                       #ifndef B
+  #define A 1                     #define B 1
+  #include <B>                    #include <A>
+  typedef int A_type;             typedef int B_type;
+  extern B_type g(A_type);        extern A_type f(B_type);
+  #endif /* A */                  #endif /* B */
+
+  // file C.cc
+  #include <A>  
+
+The typical effect of such an "include loop" may be seen by tracing 
+the preprocessor activity:
+
+  C  // file C.cc
+  C  #include <A>  
+  A    // file <A>
+  A    #ifndef A
+  A    #define A 1
+  A    #include <B>
+  B      // file <B>
+  B      #ifndef B
+  B      #define B 1
+  B      #include <A>
+  A        // file <A>
+  A 	   #ifndef A           <-- oops, cpp symbol A defined already
+  A        ...                 <-- skip <A> contents   
+  A	   #endif
+  B      typedef int B_type;
+  B      extern A_type f(B_type);  <-- error, A_type not defined yet.
+  B      #endif /* B */
+  A    typedef int A_type; 
+  A    extern B_type g(A_type);
+  A    #endif /* A */
+  
+The main symptom of #include loops is that definitions from file <A>
+are not available after the #include <A> for certain include orders.
+The number of standard headers makes testing all permutations of 
+include order impractical, so a policy is needed to prevent chaos.
+In any case, for some standard headers (as for the above) no ordering
+can eliminate the loop.
+
+Other factors influence the policy.  Typical implementations of 
+Make (unfortunately including GNU make) have bugs relating to file 
+names with no suffix, that lead to such problems as failure to track 
+dependencies on such files and an inclination to _delete_ them.  
+Therefore, headers used in building the library are always of the 
+form <bits/yyy.h> generally, or specifically <bits/std_xxx.h> for 
+an equivalent to the standard header <xxx>.
+
+Standard headers <xxx> are all placed under directory std/, and 
+are ignored except during installation.  These headers simply 
+#include the corresponding header <bits/std_xxx.h>.  
+
+Standard substitute headers <bits/std_xxx.h> that have any complexity 
+may sub-include other headers.  When they sub-include non-standard 
+headers, they first include all the headers required for that 
+non-standard header.
+
+Mutual dependencies are handled by splitting up the declarations
+intended for standard headers among two or more files, and then
+interleaving them as needed.  For example, we replace <A> and <B> 
+above, as follows:
+
+  // file <bits/std_A.h>
+  #ifndef _CPP_A
+  #define _CPP_A
+  # include <bits/A_types.h>
+  # include <bits/B_types.h>
+  # include <bits/A_funs.h>
+  #endif
+
+  // file <bits/std_B.h>
+  #ifndef _CPP_B
+  #define _CPP_B
+  # include <bits/A_types.h>
+  # include <bits/B_types.h>
+  # include <bits/B_funs.h>
+  #endif
+
+  // file <bits/A_types.h>
+  #ifndef _CPP_BITS_A_TYPES_H
+  #define _CPP_BITS_A_TYPES_H
+  typedef int A_type;
+  #endif
+
+  // file <bits/B_types.h>
+  #ifndef _CPP_BITS_B_TYPES_H
+  #define _CPP_BITS_B_TYPES_H
+  typedef int B_type;
+  #endif
+
+  // file <bits/A_funs.h>
+  #ifndef _CPP_BITS_A_FUNS_H
+  #define _CPP_BITS_A_FUNS_H
+    extern B_type g(A_type);  
+  #endif
+
+  // file <bits/B_funs.h>
+  #ifndef _CPP_BITS_B_FUNS_H
+  #define _CPP_BITS_B_FUNS_H
+    extern A_type f(B_type);  
+  #endif
+  
+Of course we have the standard headers under their mandated names:
+
+  // file <std/A>
+  #ifndef _CPP_A
+  #define _CPP_A
+  # include <bits/std_A.h>
+  #endif
+
+  // file <std/B>
+  #ifndef _CPP_B
+  #define _CPP_B
+  # include <bits/std_B.h>
+  #endif
+
+Notice that the include guards are named uniformly except that
+the guard for standard header <bits/std_A.h> is just _CPP_A,
+identically as the header <A> in std/.
+
+At installation the files std/* can be replaced by symbolic links, 
+or simply copied into place as is.  The result is:
+
+  include/
+  include/A -> bits/std_A.h
+  include/B -> bits/std_A.h
+  include/bits/
+  include/bits/std_A.h
+  include/bits/std_B.h
+  include/bits/A_types.h
+  include/bits/B_types.h
+  include/bits/A_funs.h
+  include/bits/B_funs.h
+
+
+Of course splitting up standard headers this way creates 
+complexity, so it is not done routinely, but only in response
+to discovered needs.
+
+Another reason to split up headers is for support of separate 
+compilation of templates.  This interacts with the foregoing 
+because template definitions typically have many more dependencies 
+on other headers than do pure declarations.  Non-inline template 
+definitions are placed in a separate ".tcc" file that is included 
+by the standard header, and any other standard header that 
+requires definitions from it for its implementation.
+
+The key to preventing chaos, given the above structure, is:
+
+  Only standard headers <bits/std_xxxx.h> should sub-include
+  other headers.
+
+

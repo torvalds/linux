@@ -1,0 +1,3 @@
+sscanf-2.c: In function `main':
+sscanf-2.c:6: warning: Array size (10) smaller than format string size (21) (arg 3)
+sscanf-2.c:6: warning: Array size (10) smaller than format string size (11) (arg 4)

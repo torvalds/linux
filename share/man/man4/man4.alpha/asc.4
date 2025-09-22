@@ -1,0 +1,29 @@
+.\"	$OpenBSD: asc.4,v 1.7 2017/11/02 14:04:24 mpi Exp $
+.\"
+.\" Copyright (c) 1998 The OpenBSD Project
+.\" All rights reserved.
+.\"
+.\"
+.Dd $Mdocdate: November 2 2017 $
+.Dt ASC 4 alpha
+.Os
+.Sh NAME
+.Nm asc
+.Nd NCR 53c[f]94 on-board or TURBOchannel SCSI controller
+.Sh SYNOPSIS
+.Cd "tcds* at tc?"
+.Cd "asc* at tcds?"
+.Cd "asc* at tc?"
+.Sh DESCRIPTION
+The
+.Nm
+is an on-board or TURBOchannel SCSI controller based on the
+NCR 53c[f]94 chips, found on DEC 3000/[3456789]00 series Alpha workstations.
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr intro 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr st 4 ,
+.Xr uk 4

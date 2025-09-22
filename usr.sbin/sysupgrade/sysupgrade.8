@@ -1,0 +1,112 @@
+.\"	$OpenBSD: sysupgrade.8,v 1.22 2024/10/25 03:42:06 deraadt Exp $
+.\"
+.\" Copyright (c) 2019 Florian Obser <florian@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 25 2024 $
+.Dt SYSUPGRADE 8
+.Os
+.Sh NAME
+.Nm sysupgrade
+.Nd upgrade system to the next release or a new snapshot
+.Sh SYNOPSIS
+.Nm
+.Op Fl fkns
+.Op Fl b Ar base-directory
+.Op Fl R Ar version
+.Op Ar installurl | path
+.Sh DESCRIPTION
+.Nm
+is a utility to upgrade
+.Ox
+to a new release or snapshot if available.
+.Pp
+.Nm
+downloads the necessary files to
+.Pa /home/_sysupgrade ,
+verifies them with
+.Xr signify 1 ,
+and copies bsd.rd to
+.Pa /bsd.upgrade .
+.Pp
+.Nm
+by default then reboots the system.
+The bootloader will automatically choose
+.Pa /bsd.upgrade ,
+triggering a one-shot upgrade using the files in
+.Pa /home/_sysupgrade .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl b Ar base-directory
+Download files to
+.Ar base-directory Ns / Ns Pa _sysupgrade
+instead of
+.Pa /home/_sysupgrade .
+.It Fl f
+For snapshots, force an already applied upgrade.
+This option has no effect on releases.
+.It Fl k
+Keep the files in
+.Pa /home/_sysupgrade .
+By default they will be deleted after the upgrade.
+.It Fl n
+Fetch and verify the files and create
+.Pa /bsd.upgrade
+but do not reboot.
+.It Fl R Ar version
+Upgrade to a specific release version.
+Only upgrades from one version to the next are tested.
+Skipping versions may work.
+Downgrading is unlikely to work.
+.It Fl s
+Upgrade to a snapshot.
+The default is to upgrade to the next release.
+.El
+.Pp
+When updating to a release or snapshot which lacks the required signify
+keys in
+.Pa /etc/signify ,
+the missing keys will be downloaded in a secure way.
+In the usual case, the keys will already be present because
+.Ox
+releases ship with the current key, the next key, and a collection of
+older keys.
+.Pp
+See
+.Xr upgrade.site 5
+for how to customize the upgrade process.
+.Sh FILES
+.Bl -tag -width "/auto_upgrade.conf" -compact
+.It Pa /auto_upgrade.conf
+Response file for the ramdisk kernel.
+.It Pa /bsd.upgrade
+The ramdisk kernel to trigger an unattended upgrade.
+.It Pa /etc/installurl
+.Ox
+mirror top-level URL for fetching an upgrade.
+.It Pa /home/_sysupgrade
+Directory the upgrade is downloaded to.
+.El
+.Sh SEE ALSO
+.Xr signify 1 ,
+.Xr installurl 5 ,
+.Xr upgrade.site 5 ,
+.Xr autoinstall 8 ,
+.Xr release 8 ,
+.Xr sysmerge 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Ox 6.6 .

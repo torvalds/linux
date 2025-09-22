@@ -1,0 +1,16 @@
+#!/bin/ksh
+#
+# $OpenBSD: ypbind,v 1.10 2022/07/17 03:17:37 deraadt Exp $
+
+daemon="/usr/sbin/ypbind"
+
+. /etc/rc.d/rc.subr
+
+rc_bg=YES
+rc_reload=NO
+
+rc_pre() {
+	[[ -n $(domainname) ]]
+}
+
+rc_cmd $1

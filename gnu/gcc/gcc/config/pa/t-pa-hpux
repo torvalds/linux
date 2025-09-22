@@ -1,0 +1,10 @@
+# So putenv and other functions get seen by fixproto.
+FIXPROTO_DEFINES = -D_HPUX_SOURCE -D_HIUX_SOURCE
+
+lib2funcs.asm: $(srcdir)/config/pa/lib2funcs.asm
+	rm -f lib2funcs.asm
+	cp $(srcdir)/config/pa/lib2funcs.asm .
+
+quadlib.c: $(srcdir)/config/pa/quadlib.c
+	rm -f quadlib.c
+	cp $(srcdir)/config/pa/quadlib.c .

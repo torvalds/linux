@@ -1,0 +1,160 @@
+.\"	$OpenBSD: d2i_X509_SIG.3,v 1.11 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL 9b86974e Aug 17 15:21:33 2015 -0400
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_X509_SIG 3
+.Os
+.Sh NAME
+.Nm d2i_X509_SIG ,
+.Nm i2d_X509_SIG ,
+.Nm d2i_PKCS8_bio ,
+.Nm i2d_PKCS8_bio ,
+.Nm d2i_PKCS8_fp ,
+.Nm i2d_PKCS8_fp
+.\" In the next line, the number "7" is not a typo.
+.\" These functions are misnamed.
+.Nd decode and encode PKCS#7 digest information
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_SIG *
+.Fo d2i_X509_SIG
+.Fa "X509_SIG **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_SIG
+.Fa "X509_SIG *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft X509_SIG *
+.Fo d2i_PKCS8_bio
+.Fa "BIO *in_bio"
+.Fa "X509_SIG **val_out"
+.Fc
+.Ft int
+.Fo i2d_PKCS8_bio
+.Fa "BIO *out_bio"
+.Fa "X509_SIG *val_in"
+.Fc
+.Ft X509_SIG *
+.Fo d2i_PKCS8_fp
+.Fa "FILE *in_fp"
+.Fa "X509_SIG **val_out"
+.Fc
+.Ft int
+.Fo i2d_PKCS8_fp
+.Fa "FILE *out_fp"
+.Fa "X509_SIG *val_in"
+.Fc
+.Sh DESCRIPTION
+.Fn d2i_X509_SIG
+and
+.Fn i2d_X509_SIG
+decode and encode an ASN.1
+.Vt DigestInfo
+structure defined in RFC 2315 section 9.4
+and equivalently in RFC 8017 section 9.2.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_PKCS8_bio
+and
+.Fn d2i_PKCS8_fp
+are similar to
+.Fn d2i_X509_SIG
+except that they read from a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn i2d_PKCS8_bio
+and
+.Fn i2d_PKCS8_fp
+are similar to
+.Fn i2d_X509_SIG
+except that they write to a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Sh RETURN VALUES
+.Fn d2i_X509_SIG ,
+.Fn d2i_PKCS8_bio ,
+and
+.Fn d2i_PKCS8_fp
+return a
+.Vt X509_SIG
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_X509_SIG
+returns the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Pp
+.Fn i2d_PKCS8_bio
+and
+.Fn i2d_PKCS8_fp
+return 1 for success or 0 if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr PKCS7_new 3 ,
+.Xr RSA_sign 3 ,
+.Xr X509_SIG_new 3
+.Sh STANDARDS
+RFC 2315: PKCS #7: Cryptographic Message Syntax,
+section 9: Signed-data content type
+.Pp
+RFC 8017: PKCS #1: RSA Cryptography Specifications,
+section 9: Encoding Methods for Signatures
+.Sh HISTORY
+.Fn d2i_X509_SIG
+and
+.Fn i2d_X509_SIG
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn d2i_PKCS8_bio ,
+.Fn i2d_PKCS8_bio ,
+.Fn d2i_PKCS8_fp ,
+and
+.Fn i2d_PKCS8_fp
+first appeared in OpenSSL 0.9.4 and have been available since
+.Ox 2.6 .
+.Sh BUGS
+.Fn d2i_PKCS8_bio ,
+.Fn i2d_PKCS8_bio ,
+.Fn d2i_PKCS8_fp ,
+and
+.Fn i2d_PKCS8_fp
+are severely misnamed and should have been called
+.Dq d2i_X509_SIG_bio
+and so on.
+.Pp
+Or arguably, the
+.Vt X509_SIG
+object is misnamed itself, considering that it represents
+.Vt DigestInfo
+from PKCS#7 and PKCS#1.
+Then again, calling it
+.Dq PKCS8
+instead clearly isn't an improvement.
+.Pp
+Either way, these names just don't fit.

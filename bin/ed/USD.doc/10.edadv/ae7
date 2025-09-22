@@ -1,0 +1,219 @@
+.\"	$OpenBSD: ae7,v 1.3 2004/04/06 08:19:20 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ae7	8.1 (Berkeley) 6/8/93
+.\"
+.NH
+SUPPORTING TOOLS
+.PP
+There are several tools and techniques that go along with the
+editor, all of which are relatively easy once you
+know how
+.UL ed
+works,
+because they are all based on the editor.
+In this section we will give some fairly cursory examples
+of these tools,
+more to indicate their existence than to provide
+a complete tutorial.
+More information on each can be found in
+[3].
+.SH
+Grep
+.PP
+Sometimes you want to find all occurrences of some word or pattern in
+a set of files, to edit them
+or perhaps just to verify their presence or absence.
+It may be possible to edit each file separately and look
+for the pattern of interest, but if there are many files
+this can get very tedious,
+and if the files are really big,
+it may be impossible because of limits in 
+.UL ed .
+.PP
+The program
+.UL grep
+was invented to get around these limitations.
+The search patterns that we have described in the paper are often
+called `regular expressions', and
+`grep' stands for
+.P1
+g/re/p
+.P2
+That describes exactly what
+.UL grep
+does _
+it prints every line in a set of files that contains a
+particular pattern.
+Thus
+.P1
+grep  \(fmthing\(fm  file1  file2  file3  ...
+.P2
+finds `thing' wherever it occurs in any of the files
+`file1',
+`file2',
+etc.
+.UL grep
+also indicates the file in which the line was found,
+so you can later edit it if you like.
+.PP
+The pattern represented by `thing' can be any
+pattern you can use in the editor,
+since
+.UL grep
+and
+.UL ed
+use exactly the same mechanism for
+pattern searching.
+It is wisest always to enclose the pattern in the
+single quotes \(fm...\(fm if it contains any non-alphabetic
+characters, since many such characters also mean something
+special to the
+.UX
+command interpreter
+(the `shell').
+If you don't quote them, the command interpreter will
+try to interpret them before
+.UL grep
+gets a chance.
+.PP
+There is also a way to find lines that
+.ul
+don't 
+contain a pattern:
+.P1
+grep  -v  \(fmthing\(fm  file1  file2  ...
+.P2
+finds all lines that
+don't contains `thing'.
+The
+.UL \-v
+must occur in the position shown.
+Given
+.UL grep
+and
+.UL grep\ \-v ,
+it is possible to do things like selecting all lines that
+contain some combination of patterns.
+For example, to get all lines that contain `x' but not `y':
+.P1
+grep  x  file...  |  grep  -v  y
+.P2
+(The notation | is a `pipe',
+which causes the output of the first command to be used as
+input to the second command; see [2].)
+.SH
+Editing Scripts
+.PP
+If a fairly complicated set of editing operations 
+is to be done on a whole set of files,
+the easiest thing to do is to make up a `script',
+i.e., a file that contains the operations you want to perform,
+then apply this script to each file in turn.
+.PP
+For example, suppose you want to change every
+`Unix' to `UNIX' and every `Gcos' to `GCOS' in a large number of files.
+Then put into the file `script' the lines
+.P1
+g/Unix/s//UNIX/g
+g/Gcos/s//GCOS/g
+w
+q
+.P2
+Now you can say
+.P1
+ed file1 <script
+ed file2 <script
+\&...
+.P2
+This causes
+.UL ed
+to take its commands from the prepared script.
+Notice that the whole job has to be planned in advance.
+.PP
+And of course by using the
+.UX
+command interpreter, you can
+cycle through a set of files
+automatically, with varying degrees of ease.
+.SH
+Sed
+.PP
+.UL sed
+(`stream editor')
+is a version of the editor with restricted capabilities
+but which is capable of processing unlimited amounts of input.
+Basically
+.UL sed
+copies its input to its output, applying one or more
+editing commands to each line of input.
+.PP
+As an example, suppose that we want to do the `Unix' to `UNIX'
+part of the
+example given above,
+but without rewriting the files.
+Then the command
+.P1
+sed  \(fms/Unix/UNIX/g\(fm  file1  file2  ...
+.P2
+applies the command
+`s/Unix/UNIX/g'
+to all lines from `file1', `file2', etc.,
+and copies all lines to the output.
+The advantage of using
+.UL sed
+in such a case is that it can be used
+with input too large for
+.UL ed
+to handle.
+All the output can be collected in one place,
+either in a file or perhaps piped into another program.
+.PP
+If the editing transformation is so complicated
+that
+more than one editing command is needed,
+commands can be supplied from a file,
+or on the command line,
+with a slightly more complex syntax.
+To take commands from a file, for example,
+.P1
+sed  -f  cmdfile  input-files...
+.P2
+.PP
+.UL sed
+has further capabilities, including conditional testing
+and branching, which we cannot go into here, but which are
+described in detail in 
+.UL "Sed \- A Non-interactive Text Editor" .
+

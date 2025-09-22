@@ -1,0 +1,68 @@
+root::0:0:daemon:0:0:Charlie &:/root:/bin/ksh
+daemon:*:1:1::0:0:The devil himself:/root:/sbin/nologin
+operator:*:2:5::0:0:System &:/operator:/sbin/nologin
+bin:*:3:7::0:0:Binaries Commands and Source:/:/sbin/nologin
+build:*:21:21:build:0:0:base and xenocara build:/var/empty:/bin/ksh
+sshd:*:27:27::0:0:sshd privsep:/var/empty:/sbin/nologin
+_portmap:*:28:28::0:0:portmap:/var/empty:/sbin/nologin
+_identd:*:29:29::0:0:identd:/var/empty:/sbin/nologin
+_rstatd:*:30:30::0:0:rpc.rstatd:/var/empty:/sbin/nologin
+_rusersd:*:32:32::0:0:rpc.rusersd:/var/empty:/sbin/nologin
+_fingerd:*:33:33::0:0:fingerd:/var/empty:/sbin/nologin
+_x11:*:35:35::0:0:X Server:/var/empty:/sbin/nologin
+_fc-cache:*:36:36::0:0:Font configuration cache:/var/empty:/sbin/nologin
+_unwind:*:48:48::0:0:Unwind Daemon:/var/empty:/sbin/nologin
+_traceroute:*:50:50::0:0:traceroute privdrop user:/var/empty:/sbin/nologin
+_ping:*:51:51::0:0:ping privdrop user:/var/empty:/sbin/nologin
+_unbound:*:53:53:unbound:0:0:Unbound Daemon:/var/unbound:/sbin/nologin
+_dpb:*:54:54::0:0:dpb privsep:/var/empty:/sbin/nologin
+_pbuild:*:55:55:pbuild:0:0:dpb build user:/nonexistent:/sbin/nologin
+_pfetch:*:56:56::0:0:dpb fetch user:/nonexistent:/sbin/nologin
+_pkgfetch:*:57:57::0:0:pkg fetch user:/nonexistent:/sbin/nologin
+_pkguntar:*:58:58::0:0:pkg untar user:/nonexistent:/sbin/nologin
+_spamd:*:62:62::0:0:Spam Daemon:/var/empty:/sbin/nologin
+www:*:67:67::0:0:HTTP Server:/var/www:/sbin/nologin
+_isakmpd:*:68:68::0:0:isakmpd privsep:/var/empty:/sbin/nologin
+_rpki-client:*:70:70::0:0:rpki-client user:/nonexistent:/sbin/nologin
+_bgplgd:*:71:71::0:0:bgplgd Daemon:/nonexistent:/sbin/nologin
+_syslogd:*:73:73::0:0:Syslog Daemon:/var/empty:/sbin/nologin
+_pflogd:*:74:74::0:0:pflogd privsep:/var/empty:/sbin/nologin
+_bgpd:*:75:75::0:0:BGP Daemon:/var/empty:/sbin/nologin
+_tcpdump:*:76:76::0:0:tcpdump privsep:/var/empty:/sbin/nologin
+_dhcp:*:77:77::0:0:DHCP programs:/var/empty:/sbin/nologin
+_mopd:*:78:78::0:0:MOP Daemon:/var/empty:/sbin/nologin
+_tftpd:*:79:79::0:0:TFTP Daemon:/var/empty:/sbin/nologin
+_rbootd:*:80:80::0:0:rbootd Daemon:/var/empty:/sbin/nologin
+_ppp:*:82:82::0:0:PPP utilities:/var/empty:/sbin/nologin
+_ntp:*:83:83::0:0:NTP Daemon:/var/empty:/sbin/nologin
+_ftp:*:84:84::0:0:FTP Daemon:/var/empty:/sbin/nologin
+_ospfd:*:85:85::0:0:OSPF Daemon:/var/empty:/sbin/nologin
+_hostapd:*:86:86::0:0:HostAP Daemon:/var/empty:/sbin/nologin
+_dvmrpd:*:87:87::0:0:DVMRP Daemon:/var/empty:/sbin/nologin
+_ripd:*:88:88::0:0:RIP Daemon:/var/empty:/sbin/nologin
+_relayd:*:89:89::0:0:Relay Daemon:/var/empty:/sbin/nologin
+_ospf6d:*:90:90::0:0:OSPF6 Daemon:/var/empty:/sbin/nologin
+_snmpd:*:91:91::0:0:SNMP Daemon:/var/empty:/sbin/nologin
+_ypldap:*:93:93::0:0:YP to LDAP Daemon:/var/empty:/sbin/nologin
+_rad:*:94:94::0:0:IPv6 Router Advertisement Daemon:/var/empty:/sbin/nologin
+_smtpd:*:95:95::0:0:SMTP Daemon:/var/empty:/sbin/nologin
+_rwalld:*:96:96::0:0:rpc.rwalld:/var/empty:/sbin/nologin
+_nsd:*:97:97::0:0:NSD Daemon:/var/empty:/sbin/nologin
+_ldpd:*:98:98::0:0:LDP Daemon:/var/empty:/sbin/nologin
+_sndio:*:99:99::0:0:sndio privsep:/var/empty:/sbin/nologin
+_ldapd:*:100:100::0:0:LDAP Daemon:/var/empty:/sbin/nologin
+_iked:*:101:101::0:0:IKEv2 Daemon:/var/empty:/sbin/nologin
+_iscsid:*:102:102::0:0:iSCSI Daemon:/var/empty:/sbin/nologin
+_smtpq:*:103:103::0:0:SMTP Daemon:/var/empty:/sbin/nologin
+_file:*:104:104::0:0:file privsep:/var/empty:/sbin/nologin
+_radiusd:*:105:105::0:0:RADIUS Daemon:/var/empty:/sbin/nologin
+_eigrpd:*:106:106::0:0:EIGRP Daemon:/var/empty:/sbin/nologin
+_vmd:*:107:107::0:0:VM Daemon:/var/empty:/sbin/nologin
+_tftp_proxy:*:108:108::0:0:tftp proxy daemon:/nonexistent:/sbin/nologin
+_ftp_proxy:*:109:109::0:0:ftp proxy daemon:/nonexistent:/sbin/nologin
+_sndiop:*:110:110::0:0:sndio privileged user:/var/empty:/sbin/nologin
+_syspatch:*:112:112::0:0:syspatch unprivileged user:/var/empty:/sbin/nologin
+_slaacd:*:115:115::0:0:SLAAC Daemon:/var/empty:/sbin/nologin
+_dhcp6leased:*:116:116::0:0:DHCP6Lease Daemon:/var/empty:/sbin/nologin
+_lldpd:*:119:119::0:0:LLDP Daemon:/var/empty:/sbin/nologin
+nobody:*:32767:32767::0:0:Unprivileged user:/nonexistent:/sbin/nologin

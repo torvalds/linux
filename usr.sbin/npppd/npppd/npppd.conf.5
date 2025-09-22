@@ -1,0 +1,749 @@
+.\"	$OpenBSD: npppd.conf.5,v 1.36 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2012 YASUOKA Masahiko <yasuoka@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt NPPPD.CONF 5
+.Os
+.Sh NAME
+.Nm npppd.conf
+.Nd NPPP daemon configuration file
+.Sh DESCRIPTION
+.Nm
+is the configuration file for the PPP daemon
+.Xr npppd 8 .
+.Pp
+.Nm
+is divided into the following main sections:
+.Pp
+.Bl -tag -width "AuthenticationXXX" -offset indent -compact
+.It Sx Global
+Global settings.
+.It Sx Tunnel
+Tunneling protocol and PPP settings.
+.It Sx IPCP
+Internet Protocol Configuration Protocol (IPCP) of PPP.
+.It Sx Interface
+Interface settings.
+.It Sx Authentication
+Authentication settings.
+.It Sx Bind
+Bind settings.
+.It Sx RADIUS
+RADIUS settings.
+.El
+.Ss Global
+The global options are as follows:
+.Bl -tag -width Ds
+.It Ic set max-session Ar number
+Specify the maximum number of sessions.
+.Sq 0
+means no limit.
+The default value is 0.
+.It Ic set user-max-session Ar number
+Specify the maximum number of sessions for each user.
+.Sq 0
+means no limit.
+The default value is 0.
+.El
+.Ss Tunnel
+The
+.Ic tunnel
+setting is described below:
+.Pp
+.Ic tunnel Ar name Ic protocol Ar protocol Op Ar option ...
+.Pp
+Specify the tunnel
+.Ar protocol :
+.Pp
+.Bl -tag -width "pppoeXXX" -offset indent -compact
+.It Ic l2tp
+Layer Two Tunneling Protocol (RFC 2661)
+.It Ic pppoe
+PPP Over Ethernet (RFC 2516)
+.It Ic pptp
+Point-to-Point Tunneling Protocol (RFC 2637)
+.El
+.Pp
+The supported options are as follows:
+.Bl -tag -width Ds
+.It Ic listen on Ar address Op Ic port Ar port
+Specify the IP address that this tunnel listens on.
+Both IPv4 and IPv6 addresses can be used for L2TP.
+Only IPv4 address can be used for PPTP.
+If the port is omitted, the default port numbers are used.
+The default port numbers are 1723 for PPTP and 1701 for L2TP.
+The default value is 0.0.0.0.
+This option is for PPTP and L2TP only.
+This option can be used multiple times.
+.It Ic listen on interface Ar interface-name
+Specify the interface name that this PPPoE tunnel listens on.
+The interface must be an Ethernet interface.
+This option is for PPPoE only.
+.It Ic l2tp-hostname Ar string
+Specify an L2TP hostname.
+The default value is the value that is returned by
+.Xr gethostname 3 .
+This option is for L2TP only.
+.It Ic l2tp-vendor-name Ar string
+Specify an L2TP vendor name.
+The default value is "" (an empty string).
+This option is for L2TP only.
+.It Ic l2tp-hello-interval Ar number
+Specify the interval time between L2TP hello requests, in seconds.
+The default value is 60.
+This option is for L2TP only.
+.It Ic l2tp-hello-timeout Ar number
+Specify the maximum time that
+.Xr npppd 8
+waits for L2TP hello responses, in seconds.
+The default value is 30.
+This option is for L2TP only.
+.It Ic l2tp-accept-dialin Ar yes | no
+If
+.Dq yes
+is specified,
+.Xr npppd 8
+accepts Proxy-LCP and Proxy-Authentication AVPs from LAC
+to do
+.Dq compulsory tunneling mode .
+The default is
+.Dq no .
+This option is for L2TP only.
+.It Ic l2tp-lcp-renegotiation Ar yes | no
+If
+.Dq yes
+is specified,
+.Xr npppd 8
+will basically use the LCP that is received by Proxied-LCP AVPs,
+but if the LCP is not acceptable
+.Xr npppd 8
+will negotiate LCP again.
+The default is
+.Dq yes .
+This option is for L2TP only.
+.It Ic l2tp-force-lcp-renegotiation Ar yes | no
+If
+.Dq yes
+is specified,
+.Xr npppd 8
+will not use the LCP that is received by Proxied-LCP AVPs,
+it will negotiate LCP again.
+The default is
+.Dq no .
+This option is for L2TP only.
+.It Ic l2tp-data-use-seq Ar yes | no
+Specify
+.Dq yes
+to use sequencing for L2TP Data communications.
+The default is
+.Dq yes .
+This option is for L2TP only.
+.It Ic l2tp-require-ipsec Ar yes | no
+Specify
+.Dq yes
+to refuse L2TP connections without IPsec encapsulation.
+The default is
+.Dq no .
+This option is for L2TP only.
+.It Ic pptp-hostname Ar string
+Specify a PPTP hostname.
+The default value is "" (an empty string).
+This option is for PPTP only.
+.It Ic pptp-vendor-name Ar string
+Specify a PPTP vendor name.
+The default value is "" (an empty string).
+This option is for PPTP only.
+.It Ic pptp-echo-interval Ar number
+Specify the interval time between PPTP echo requests, in seconds.
+The default value is 60.
+This option is for PPTP only.
+.It Ic pptp-echo-timeout Ar number
+Specify the maximum time that
+.Xr npppd 8
+waits for PPTP echo replies, in seconds.
+The default value is 60.
+This option is for PPTP only.
+.It Ic pppoe-service-name Ar string
+Specify a service name.
+The default is "" (an empty string).
+This option is for PPPoE only.
+.It Ic pppoe-accept-any-service Ar yes | no
+If
+.Dq yes
+is specified,
+.Xr npppd 8
+accepts requests from clients that are accepting any service names.
+The default value is
+.Dq yes .
+This option is for PPPoE only.
+.It Ic pppoe-ac-name Ar string
+Specify the access concentrator (AC) name.
+The default value is created by the MAC address
+of the listening interface.
+This option is for PPPoE only.
+.It Ic mru Ar number
+Specify the Maximum Receive Unit (MRU).
+This value is used for LCP negotiation to ask the peer not to send packets
+greater than the MRU octets.
+The peer may use the MRU to decide its MTU, but this depends on the
+implementation.
+The default values are 1360 for L2TP, 1400 for PPTP, and 1492 for PPPoE.
+.It Ic lcp-keepalive Ar yes | no
+Specify whether
+.Xr npppd 8
+uses LCP keepalive.
+The default value is
+.Dq no
+for L2TP and
+.Dq yes
+for PPTP and PPPoE.
+.It Ic lcp-keepalive-interval Ar number
+Specify the interval time between LCP echo requests, in seconds.
+The default value is 300.
+.It Ic lcp-keepalive-retry-interval Ar number
+Specify the interval time between retrying LCP echo requests
+without receiving the echo reply from the peer.
+The value must be specified in seconds.
+The default value is 60.
+.It Ic lcp-keepalive-max-retries Ar number
+Specify the maximum number of LCP echo retries.
+If the peer doesn't respond and the number of retries reaches this value,
+.Xr npppd 8
+treats the link as dead and closes it.
+The default value is 3.
+.It Ic lcp-timeout Ar number
+Specify the timeout value for LCP retransmission in seconds.
+The default value is 3.
+.It Ic lcp-max-configure Ar number
+Specify the maximum number of LCP configure request transmissions.
+The default value is 10.
+.It Ic lcp-max-terminate Ar number
+Specify the maximum number of LCP terminate request transmissions.
+The default value is 2.
+.It Ic lcp-max-nak-loop Ar number
+Specify the maximum number of LCP configure NAK loops.
+The default value is 5.
+.It Ic authentication-method Ar authentication-method ...
+Specify an authentication method:
+.Pp
+.Bl -tag -width mschapv2 -compact
+.It Ic pap
+Password Authentication Protocol.
+.It Ic chap
+PPP Challenge Handshake Authentication Protocol (RFC 1994).
+.It Ic mschapv2
+Microsoft PPP CHAP Extensions, Version 2 (RFC 2749).
+.El
+.Pp
+.Ic mschapv2
+is used as the default for PPTP;
+.Ic pap chap mschapv2
+is used as the default for other protocols.
+.It Ic ccp-timeout Ar number
+Specify the timeout value for CCP retransmission, in seconds.
+The default value is 3.
+.It Ic ccp-max-configure Ar number
+Specify the maximum number of CCP configure request transmissions.
+The default value is 10.
+.It Ic ccp-max-terminate Ar number
+Specify the maximum number of CCP terminate request transmissions.
+The default value is 2.
+.It Ic ccp-max-nak-loop Ar number
+Specify the maximum number of CCP configure NAK loops.
+The default value is 5.
+.It Ic ipcp-timeout Ar number
+Specify the timeout value for IPCP retransmission, in seconds.
+The default value is 3.
+.It Ic ipcp-max-configure Ar number
+Specify the maximum number of IPCP configure request transmissions.
+The default value is 10.
+.It Ic ipcp-max-terminate Ar number
+Specify the maximum number of IPCP terminate request transmissions.
+The default value is 2.
+.It Ic ipcp-max-nak-loop Ar number
+Specify the maximum number of IPCP configure NAK loops.
+The default value is 5.
+.It Ic mppe Ar yes | no | required
+If
+.Dq yes
+is specified,
+.Xr npppd 8
+will negotiate to use Microsoft Point-to-Point Encryption (MPPE), and it
+will continue the PPP even if the negotiation fails.
+If
+.Dq required
+is specified,
+.Xr npppd 8
+will negotiate to use MPPE, and it will not continue the PPP if the
+negotiation fails.
+If
+.Dq no
+is specified,
+.Xr npppd 8
+will negotiate not to use MPPE and it will refuse to use MPPE.
+The default value is
+.Dq required
+for PPTP and
+.Dq yes
+for L2TP and PPPoE.
+.It Ic mppe-key-length Ar key-length ...
+Specify key lengths for this configuration.
+The following key lengths can be used:
+.Pp
+.Bl -tag -width "128XXX" -compact
+.It Ic 128
+128-bit encryption.
+.It Ic 56
+56-bit encryption.
+.It Ic 40
+40-bit encryption.
+.El
+.It Ic mppe-key-state Ar mode ...
+Specify the key change modes that this configuration supports.
+The following modes can be used:
+.Pp
+.Bl -tag -width "statelessXXX" -compact
+.It Ic stateful
+Stateful mode key changes.
+.It Ic stateless
+Stateless mode key changes.
+.El
+.It Ic idle-timeout Ar number
+Specify the value for the idle timer, in seconds.
+The link is disconnected if there are no data packets sent or received
+for more than the amount of the
+.Ar idle-timeout .
+The default is 0, which disables the idle timer.
+This value must be 0 for
+.Xr pppx 4
+sessions.
+.It Ic tcp-mss-adjust Ar yes | no
+If
+.Dq yes
+is specified,
+.Xr npppd  8
+adjusts TCP SYN packets so that the value of TCP maximum segment size (MSS)
+is less than the value calculated from the link MTU.
+The default value is
+.Dq no .
+.It Ic ingress-filter Ar yes | no
+If
+.Dq yes
+is specified,
+.Xr npppd 8
+applies an ingress filter for incoming packets.
+The ingress filter drops all packets whose source address does not match
+the address assigned by
+.Xr npppd 8
+for the link.
+The default value is
+.Dq no .
+.It Ic pipex Ar yes | no
+Specify whether
+.Xr npppd 8
+uses
+.Xr pipex 4 .
+The default is
+.Dq yes .
+The
+.Xr sysctl 8
+variable
+.Va net.pipex.enable
+should also be enabled to use
+.Xr pipex 4 .
+This value must be
+.Dq yes
+for
+.Xr pppx 4
+interfaces.
+.It Ic debug-dump-pktin Ar protocol ...
+If this option is specified,
+.Xr npppd 8
+dumps received packets which match the specified protocol.
+The following protocols can be specified:
+.Pp
+.Bl -tag -width "mppeXXX" -offset indent -compact
+.It Ic ip
+Internet Protocol (IP)
+.It Ic lcp
+Link Configuration Protocol (LCP)
+.It Ic pap
+Password Authentication Protocol (PAP)
+.It Ic chap
+Challenge Handshake Authentication Protocol (CHAP)
+.\" .It Ic eap
+.\" Extended Authentication Protocol (EAP)
+.It Ic mppe
+Microsoft Point-to-Point Encryption (MPPE)
+.It Ic ccp
+Compression Control Protocol (CCP)
+.It Ic ipcp
+IP Configuration Protocol (IPCP)
+.El
+.It Ic debug-dump-pktout Ar protocol ...
+If this option is specified,
+.Xr npppd 8
+dumps sent packets which match the specified protocol.
+See
+.Ic debug-dump-pktin
+section for
+.Ar protocol .
+.It Ic l2tp-ctrl-in-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps received L2TP control packets for debugging.
+The default is
+.Dq no .
+.It Ic l2tp-ctrl-out-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps sent L2TP control packets for debugging.
+The default is
+.Dq no .
+.It Ic l2tp-data-in-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps received L2TP data packets for debugging.
+The default is
+.Dq no .
+.It Ic l2tp-data-out-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps sent L2TP data packets for debugging.
+The default is
+.Dq no .
+.It Ic pptp-ctrl-in-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps received PPTP control packets for debugging.
+The default is
+.Dq no .
+.It Ic pptp-ctrl-out-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps sent PPTP control packets for debugging.
+The default is
+.Dq no .
+.It Ic pptp-data-in-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps received PPTP data packets for debugging.
+The default is
+.Dq no .
+.It Ic pptp-data-out-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps sent PPTP data packets for debugging.
+The default is
+.Dq no .
+.It Ic pppoe-desc-in-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps received PPPoE discovery packets for debugging.
+The default is
+.Dq no .
+.It Ic pppoe-desc-out-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps sent PPPoE discovery packets for debugging.
+The default is
+.Dq no .
+.It Ic pppoe-session-in-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps received PPPoE session packets for debug.
+The default is
+.Dq no .
+.It Ic pppoe-session-out-pktdump Ar yes | no
+Specify whether
+.Xr npppd 8
+dumps sent PPPoE session packets for debug.
+The default is
+.Dq no .
+.El
+.Ss IPCP
+The
+.Ic ipcp
+setting is described below:
+.Pp
+.Ic ipcp Ar name Op Ar option ...
+.Pp
+.Ar name
+specifies the name of this
+.Ic ipcp
+setting.
+The maximum number of
+.Ic ipcp
+settings is 8.
+.Pp
+The supported options are as follows:
+.Bl -tag -width Ds
+.It Ic pool-address Ar address-range | address-mask Op Ic for Ar dynamic | static
+Specify the IP address space that is pooled for this IPCP setting.
+The address space can be specified by
+.Ar address-range
+(e.g. 192.168.0.2-192.168.0.254)
+or
+.Ar address-mask
+(e.g. 192.168.0.0/24).
+.Ar dynamic
+means the address space is reserved for dynamic allocation;
+.Ar static
+means the address space is reserved for static allocation.
+The default is
+.Ar dynamic .
+This option can be used multiple times.
+.It Ic dns-servers Ar primary-server-address Op Ar secondary-server-address
+Specify the DNS servers' IP addresses.
+When this option is not specified and the authenticated realm
+.Pq the RADIUS server
+specifies the DNS servers' addresses,
+they are used as the default.
+To stop using them, set this option to
+.Qq 0.0.0.0 .
+.It Ic nbns-servers Ar primary-server-address Op Ar secondary-server-address
+Specify the NetBIOS name servers' IP addresses.
+When this option is not specified and the authenticated realm
+.Pq the RADIUS server
+specifies the NetBIOS servers' addresses,
+they are used as the default.
+To stop using them, set this option to
+.Qq 0.0.0.0 .
+.It Ic allow-user-selected-address Ar yes | no
+Specify whether
+.Xr npppd 8
+is allowed to assign an address selected by the user.
+The default is
+.Dq yes .
+.It Ic max-session Ar number
+Specify the maximum number of sessions for this
+.Ic ipcp
+setting.
+.Sq 0
+means no limit.
+The default value is 0.
+.El
+.Ss Interface
+The
+.Ic interface
+setting is described below:
+.Pp
+.Ic interface Ar ifname Ic address Ar address Ic ipcp Ar ipcp
+.Pp
+Use
+.Xr pppac 4
+or
+.Xr pppx 4
+and
+specify its name to
+.Ar ifname .
+.Ar address
+is the IP address of this interface, and it is used as the tunnel address
+to the tunnel peer.
+.Ic ipcp
+specifies the
+setting name that is used with this interface.
+The maximum number of
+.Ic interface
+settings is 8.
+.Ss Authentication
+The
+.Ic authentication
+setting is described below:
+.Pp
+.Ic authentication Ar name Ic type Ar type Ic { Ar option ... Ic }
+.Pp
+Specify a
+.Ar name
+for this authentication setting.
+For
+.Ar type ,
+one of the following can be specified:
+.Pp
+.Bl -tag -offset indent -compact -width "radiusXXX"
+.It Ic local
+Authenticates using local file.
+.It Ic radius
+Authenticates using remote RADIUS servers.
+.El
+.Pp
+The supported options are as follows:
+.Bl -tag -width Ds
+.It Ic username-suffix Ar string
+Specify the suffix of the username
+so that
+.Xr npppd 8
+selects this authentication setting only for a user who has the username
+that matches this suffix pattern.
+.\" .It Ic eap-capable Ar yes | no
+.\" Specify whether this authentication server is able to use EAP.
+.\" Default is `yes'.
+.It Ic strip-nt-domain Ar yes | no
+Specify whether
+.Xr npppd 8
+removes the NT domain prefix,
+such as '\e\eNTDOMAIN\e',
+from the username before contacting the authentication server.
+The default is
+.Dq yes .
+.It Ic strip-atmark-realm Ar yes | no
+Specify whether
+.Xr npppd 8
+removes the realm part that begins with an at sign ('@')
+from the username before contacting the authentication server.
+The default is
+.Dq no .
+.It Ic users-file Ar string
+Specify the path for
+.Xr npppd-users 5
+that describes users' account information.
+The path must be under
+.Pa /etc/npppd/
+because
+.Xr npppd 8
+is restricted to accessing files only in certain directories.
+.It Ic authentication-server Op Ar radius-config
+This option describes the settings for a RADIUS authentication server.
+.Bl -tag -width Ds
+.It Ic address Ar address Oo Ic port Ar port Oc Op Ic secret Ar secret
+Specify the IP
+.Ar address
+and
+.Ar port
+of the RADIUS server,
+using shared
+.Ar secret .
+.Ar secret
+must be less than 127 characters.
+The default port is 1812 for
+.Ic authentication-server ;
+1813 for
+.Ic accounting-server .
+This option can be specified multiple times (maximum 16) in a
+.Ar radius-config .
+.It Ic timeout Ar number
+Specify the maximum time for waiting for a response, in seconds.
+The default is 9.
+.It Ic max-tries Ar number
+Specify the maximum number of retransmissions.
+The default is 3.
+.It Ic max-failovers Ar number
+Specify the maximum number of failovers.
+The default is 1.
+.El
+.It Ic accounting-server { Ar radius-config Ic }
+This option describes the settings for a RADIUS accounting server.
+See
+.Ic authentication-server
+section for details of
+.Ar radius-config .
+.It Ic user-max-session Ar number
+Specify the maximum number of sessions for each user for this
+.Ic authentication
+setting.
+.El
+.Ss Bind
+.Ic bind
+describes a group of
+.Ar tunnel ,
+.Ar authentication ,
+and
+.Ar interface
+settings so that they are used together.
+.Pp
+.Ic bind tunnel from Ar tunnel Ic authenticated by Ar authentication
+.Ic to Ar ifname
+.Ss RADIUS
+.Ic radius
+configures the RADIUS features.
+The supported options are as follows:
+.Bl -tag -width Ds
+.It Ic radius nas-id Ar identifier
+Specify the
+.Ar identifier
+that is noticed to the RADIUS peers in the NAS-Identifier attribute.
+.It Ic radius dae listen on Ar address Oo port Ar number Oc
+Enable the Dynamic Authorization Extensions for RADIUS
+.Po DAE, RFC 5176 Pc
+server.
+Specify the local
+.Ar address
+.Xr npppd 8
+should listen on for the DAE requests.
+Optionally specify a port
+.Ar number ,
+the default port number is 3799.
+.It Ic radius dae client Ar address Ic secret Ar secret
+Specify
+.Ar address
+for a DAE client and
+.Ar secret .
+.El
+.Sh EXAMPLES
+A very simple configuration example is below:
+.Bd -literal -offset indent
+tunnel L2TP protocol l2tp
+tunnel PPTP protocol pptp
+ipcp IPCP {
+    pool-address 10.0.0.2-10.0.0.254
+    dns-servers 8.8.8.8
+}
+interface pppx0 address 10.0.0.1 ipcp IPCP
+authentication LOCAL type local {
+    users-file "/etc/npppd/npppd-users"
+}
+bind tunnel from L2TP authenticated by LOCAL to pppx0
+bind tunnel from PPTP authenticated by LOCAL to pppx0
+.Ed
+.Pp
+Another simple configuration, but with two authentication realms:
+.Bd -literal -offset indent
+tunnel L2TP protocol l2tp {
+    listen on 203.0.113.100
+}
+ipcp IPCP {
+    pool-address 10.0.0.2-10.0.0.254
+    dns-servers 8.8.8.8
+}
+interface pppac0 address 10.0.0.1 ipcp IPCP
+interface pppac1 address 10.0.0.1 ipcp IPCP
+authentication RADIUS type radius {
+    username-suffix "@example.com"
+    authentication-server {
+        address 192.168.0.1 secret "hogehoge"
+    }
+    accounting-server {
+        address 192.168.0.1 secret "hogehoge"
+    }
+}
+authentication LOCAL type local {
+    username-suffix "@local"
+    users-file "/etc/npppd/npppd-users"
+}
+bind tunnel from L2TP authenticated by RADIUS to pppac0
+bind tunnel from L2TP authenticated by LOCAL to pppac1
+.Ed
+.Sh SEE ALSO
+.Xr pipex 4 ,
+.Xr pppx 4 ,
+.Xr npppctl 8 ,
+.Xr npppd 8 ,
+.Xr sysctl 8
+.Sh BUGS
+The current version of
+.Xr npppd 8
+does not support adding or removing tunnel settings or changing listener
+settings (listen address, port and l2tp-ipsec-require).

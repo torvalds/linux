@@ -1,0 +1,27 @@
+process reader {
+	run "##OBJDIR##/api-exabgp" -t 10 "##OBJDIR##/as0.fifo";
+	encoder text;
+}
+
+neighbor 10.12.57.1 {
+	router-id 10.12.57.2;
+	local-address 10.12.57.2;
+	local-as 0;
+	peer-as 64500;
+	group-updates;
+	adj-rib-in false;
+	passive false;
+
+	family {
+		ipv4 unicast;
+	}
+
+	static {
+		route 10.12.59.0/24 next-hop self;
+	}
+
+	api {
+		processes [ reader ];
+		neighbor-changes;
+	}
+}

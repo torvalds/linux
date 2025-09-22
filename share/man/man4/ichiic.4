@@ -1,0 +1,58 @@
+.\"	$OpenBSD: ichiic.4,v 1.14 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt ICHIIC 4
+.Os
+.Sh NAME
+.Nm ichiic
+.Nd Intel ICH SMBus controller
+.Sh SYNOPSIS
+.Cd "ichiic* at pci?"
+.Cd "iic* at ichiic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Intel ICH SMBus host interface to be
+used with the
+.Xr iic 4
+framework.
+.Pp
+Supported chipsets:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Intel ICH, ICH2, ICH3, ICH4, ICH4-M, ICH5, ICH5R, ICH6, ICH6-M, ICH6R, ICH7,
+ICH8, ICH9, ICH10, C-ICH, PCH, 6300ESB and 6321ESB.
+.El
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .
+.Sh BUGS
+The driver doesn't support I2C commands with a data buffer size of more
+than 2 bytes.

@@ -1,0 +1,67 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_COROUTINE
+#define _LIBCPP_COROUTINE
+
+/**
+    coroutine synopsis
+
+namespace std {
+// [coroutine.traits]
+template <class R, class... ArgTypes>
+  struct coroutine_traits;
+// [coroutine.handle]
+template <class Promise = void>
+  struct coroutine_handle;
+// [coroutine.handle.compare]
+constexpr bool operator==(coroutine_handle<> x, coroutine_handle<> y) noexcept;
+constexpr strong_ordering operator<=>(coroutine_handle<> x, coroutine_handle<> y) noexcept;
+// [coroutine.handle.hash]
+template <class T> struct hash;
+template <class P> struct hash<coroutine_handle<P>>;
+// [coroutine.noop]
+struct noop_coroutine_promise;
+template<> struct coroutine_handle<noop_coroutine_promise>;
+using noop_coroutine_handle = coroutine_handle<noop_coroutine_promise>;
+noop_coroutine_handle noop_coroutine() noexcept;
+// [coroutine.trivial.awaitables]
+struct suspend_never;
+struct suspend_always;
+} // namespace std
+
+ */
+
+#include <__config>
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__coroutine/coroutine_handle.h>
+#  include <__coroutine/coroutine_traits.h>
+#  include <__coroutine/noop_coroutine_handle.h>
+#  include <__coroutine/trivial_awaitables.h>
+#endif // _LIBCPP_STD_VER >= 20
+
+#include <version>
+
+// standard-mandated includes
+
+// [coroutine.syn]
+#include <compare>
+
+#ifndef _LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <iosfwd>
+#  include <limits>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_COROUTINE

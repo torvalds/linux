@@ -1,0 +1,188 @@
+.\"	$OpenBSD: pciide.4,v 1.89 2014/07/13 23:36:09 sasano Exp $
+.\"	$NetBSD: pciide.4,v 1.8 1999/03/16 01:19:17 garbled Exp $
+.\"
+.\" Copyright (c) 1998 Manuel Bouyer.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 13 2014 $
+.Dt PCIIDE 4
+.Os
+.Sh NAME
+.Nm pciide
+.Nd PCI IDE controller driver
+.Sh SYNOPSIS
+.Cd "pciide* at pci? flags 0x0000"
+.Cd "pciide* at jmb? flags 0x0000"
+.Pp
+.Cd "option PCIIDE_AMD756_ENABLEDMA"
+.Cd "option PCIIDE_CMD064x_DISABLE"
+.Cd "option PCIIDE_CMD0646U_ENABLEUDMA"
+.Pp
+.Cd "atapiscsi* at pciide? flags 0x0000"
+.Cd "wd* at pciide? flags 0x0000"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the PCI IDE controllers as specified in the
+"PCI IDE controller specification, revision 1.0" draft, as well as the
+Serial ATA controllers working either in parallel ATA compatibility mode or
+in native serial mode.
+It provides the core functions for the
+.Xr wd 4
+and
+.Xr atapiscsi 4
+drivers.
+This driver includes specific, enhanced support for the CMD Tech
+PCI0640 controller and IDE DMA/UltraDMA support for the following PCI IDE
+controllers:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Acard ATP850U, ATP860, ATP860-A, ATP865-A, ATP865-R
+.It
+Acer Labs M5229
+.It
+Adaptec AAR-1210SA
+.It
+AMD 756, 766, 768, 8111, Hudson-2
+.It
+ATI SB200, SB300, SB400, SB600, SB700 (IDE only)
+.It
+CMD Tech PCI0640, PCI0643, PCI0646, PCI0648, PCI0649, PCI0680
+.It
+Contaq Microsystems/Cypress CY82C693
+.It
+HighPoint HPT366, HPT370, HPT372, HPT302, HPT371, HPT374
+.It
+Intel 6300ESB/6321ESB
+.It
+Intel 82801
+(ICH/ICH0/ICH2/ICH3/ICH4/ICH4-M/ICH5/ICH5R/\&
+ICH6/ICH6M/ICH6R/ICH7/ICH7M/ICH7R/ICH7M DH/ICH8/ICH8M/\&
+ICH9/ICH9M)
+.It
+Intel PIIX, PIIX3, and PIIX4
+.It
+ITE IT8211F, IT8212F
+.It
+JMicron JMB361/3/5/6/8
+.It
+National Semiconductor PC87415
+.It
+National Semiconductor SCx200 (found on SC1100 SoC)
+.It
+NVIDIA nForce/nForce2/nForce2-400/nForce3/nForce3-250/nForce4,
+MCP04/MCP51/MCP55/MCP61/MCP65/MCP67/MCP73/MCP77/MCP89
+.It
+Phison PS5000
+.It
+Promise PDC20246, PDC20262, PDC20265, PDC20267, PDC20268, PDC20268R,
+PDC20269, PDC20271, PDC20275, PDC20276, PDC20277, PDC20318, PDC20319,
+PDC20371, PDC20375, PDC20376, PDC20377, PDC20378, PDC20379, PDC20571,
+PDC20575, PDC20579, PDC20771, PDC20775, PDC40518, PDC40519, PDC40718,
+PDC40719, PDC40779
+.It
+RDC R1012
+.It
+ServerWorks SATA, OSB4, CSB5, CSB6 (including support for the third channel)
+.It
+Silicon Image SiI3112, SiI3512, SiI3114
+.It
+Silicon Integrated System 180, 181, 5513 (5597/5598), 540, 550,
+620, 630, 630S, 633, 635, 640, 645, 645DX, 648, 650, 651, 652, 655, 658, 661,
+730, 733, 735, 740, 745, 746, 748, 750, 751, 752, 755, 760, 962, 963
+.It
+VIA Technologies CX700, VT82C586/A/B, VT82C596A/B, VT82C686A/B, VT8231, VT8366,
+VT8233, VT8235, VT8237, VT8237A/S, VT8251, VT6410, VT6415, VX700, VX855, VX900
+.El
+.Pp
+Some of these controllers are only available in multifunction PCI chips.
+.Pp
+The
+.Li 0x0001
+flag forces the
+.Nm
+driver to use DMA when there is no explicit DMA mode setting support for
+the controller but DMA is present.
+If the BIOS didn't configure the controller properly, this can
+cause a machine hang.
+.Sh SEE ALSO
+.Xr atapiscsi 4 ,
+.Xr intro 4 ,
+.Xr jmb 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr wd 4 ,
+.Xr wdc 4
+.Sh BUGS
+There's no way to know reliably if a CMD064x controller is enabled or not.
+If the driver finds a PCI064x, it will assume it is enabled unless
+.Dv PCIIDE_CMD064x_DISABLE
+is specified in the kernel config file.
+This will be a problem only if the controller has been disabled in the BIOS
+and another controller has been installed which uses the ISA legacy I/O ports
+and interrupts.
+.Pp
+The CMD0646U is reportedly unable to operate properly in UltraDMA mode.
+UltraDMA will not be enabled on this controller unless
+.Dv PCIIDE_CMD0646U_ENABLEUDMA
+is specified in the kernel config file.
+.Pp
+For proper operation of UltraDMA 3 and higher modes
+a 40-pin, 80-conductor cable must be used.
+On some controllers, the
+.Nm
+driver can probe the chip and see if it
+detects that an 80-conductor or 40-conductor cable was used.
+If not, it will down-grade to UltraDMA 2 mode.
+On other controllers, no such capability exists, and the driver assumes
+you are using an 80-conductor cable.
+If you are getting errors about
+corrupted data, check to make sure you are using the correct cable.
+An 80-conductor cable is recommended for any IDE installation, not just
+ones using faster UltraDMA modes, because it will decrease electrical
+noise and increase data reliability.
+.Pp
+The AMD756 chip revision D2 has a bug affecting DMA (but not Ultra-DMA)
+modes.
+The workaround documented by AMD is to not use DMA on any drive which
+does not support Ultra-DMA modes.
+This does not appear to be necessary on all drives, the
+PCIIDE_AMD756_ENABLEDMA option can be used to force multiword DMA
+on the buggy revisions.
+Multiword DMA can eventually be disabled on a per-drive basis with config
+flags, see
+.Xr wd 4 .
+The bug, if triggered, will cause a total system hang.
+.Pp
+The timings used for the PIO and DMA modes for controllers listed above
+are for a PCI bus running at 30 or 33 MHz.
+These timings will work on a slower bus,
+but they may cause errors on an over-clocked bus.

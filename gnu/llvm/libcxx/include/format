@@ -1,0 +1,257 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_FORMAT
+#define _LIBCPP_FORMAT
+
+/*
+
+namespace std {
+  // [format.context], class template basic_format_context
+  template<class Out, class charT> class basic_format_context;
+  using format_context = basic_format_context<unspecified, char>;
+  using wformat_context = basic_format_context<unspecified, wchar_t>;
+
+  // [format.args], class template basic_format_args
+  template<class Context> class basic_format_args;
+  using format_args = basic_format_args<format_context>;
+  using wformat_args = basic_format_args<wformat_context>;
+
+  // [format.fmt.string], class template basic_format_string
+  template<class charT, class... Args>
+    struct basic_format_string {                                // since C++23, exposition only before C++23
+    private:
+      basic_string_view<charT> str;                             // exposition only
+
+    public:
+      template<class T> consteval basic_format_string(const T& s);
+      basic_format_string(runtime-format-string<charT> s) noexcept : str(s.str) {}   // since C++26
+
+      constexpr basic_string_view<charT> get() const noexcept { return str; }
+    };
+  template<class... Args>
+    using format_string =                                       // since C++23, exposition only before C++23
+      basic_format_string<char, type_identity_t<Args>...>;
+  template<class... Args>
+    using wformat_string =                                      // since C++23, exposition only before C++23
+      basic_format_string<wchar_t, type_identity_t<Args>...>;
+
+  template<class charT> struct runtime-format-string {          // since C++26, exposition-only
+  private:
+    basic_string_view<charT> str;                               // exposition-only
+
+  public:
+    runtime-format-string(basic_string_view<charT> s) noexcept : str(s) {}
+
+    runtime-format-string(const runtime-format-string&) = delete;
+    runtime-format-string& operator=(const runtime-format-string&) = delete;
+  };
+
+  runtime-format-string<char> runtime_format(string_view fmt) noexcept {
+    return fmt;
+  }
+  runtime-format-string<wchar_t> runtime_format(wstring_view fmt) noexcept {
+    return fmt;
+  }
+
+  // [format.functions], formatting functions
+  template<class... Args>
+    string format(format-string<Args...> fmt, Args&&... args);
+  template<class... Args>
+    wstring format(wformat-string<Args...> fmt, Args&&... args);
+  template<class... Args>
+    string format(const locale& loc, format-string<Args...> fmt, Args&&... args);
+  template<class... Args>
+    wstring format(const locale& loc, wformat-string<Args...> fmt, Args&&... args);
+
+  string vformat(string_view fmt, format_args args);
+  wstring vformat(wstring_view fmt, wformat_args args);
+  string vformat(const locale& loc, string_view fmt, format_args args);
+  wstring vformat(const locale& loc, wstring_view fmt, wformat_args args);
+
+  template<class Out, class... Args>
+    Out format_to(Out out, format-string<Args...> fmt, Args&&... args);
+  template<class Out, class... Args>
+    Out format_to(Out out, wformat-string<Args...> fmt, Args&&... args);
+  template<class Out, class... Args>
+    Out format_to(Out out, const locale& loc, format-string<Args...> fmt, Args&&... args);
+  template<class Out, class... Args>
+    Out format_to(Out out, const locale& loc, wformat-string<Args...> fmt, Args&&... args);
+
+  template<class Out>
+    Out vformat_to(Out out, string_view fmt, format_args args);
+  template<class Out>
+    Out vformat_to(Out out, wstring_view fmt, wformat_args args);
+  template<class Out>
+    Out vformat_to(Out out, const locale& loc, string_view fmt,
+                   format_args char> args);
+  template<class Out>
+    Out vformat_to(Out out, const locale& loc, wstring_view fmt,
+                   wformat_args args);
+
+  template<class Out> struct format_to_n_result {
+    Out out;
+    iter_difference_t<Out> size;
+  };
+  template<class Out, class... Args>
+    format_to_n_result<Out> format_to_n(Out out, iter_difference_t<Out> n,
+                                        format-string<Args...> fmt, Args&&... args);
+  template<class Out, class... Args>
+    format_to_n_result<Out> format_to_n(Out out, iter_difference_t<Out> n,
+                                        wformat-string<Args...> fmt, Args&&... args);
+  template<class Out, class... Args>
+    format_to_n_result<Out> format_to_n(Out out, iter_difference_t<Out> n,
+                                        const locale& loc, format-string<Args...> fmt,
+                                        Args&&... args);
+  template<class Out, class... Args>
+    format_to_n_result<Out> format_to_n(Out out, iter_difference_t<Out> n,
+                                        const locale& loc, wformat-string<Args...> fmt,
+                                        Args&&... args);
+
+  template<class... Args>
+    size_t formatted_size(format-string<Args...> fmt, Args&&... args);
+  template<class... Args>
+    size_t formatted_size(wformat-string<Args...> fmt, Args&&... args);
+  template<class... Args>
+    size_t formatted_size(const locale& loc, format-string<Args...> fmt, Args&&... args);
+  template<class... Args>
+    size_t formatted_size(const locale& loc, wformat-string<Args...> fmt, Args&&... args);
+
+  // [format.formatter], formatter
+  template<class T, class charT = char> struct formatter;
+
+  // [format.parse.ctx], class template basic_format_parse_context
+  template<class charT> class basic_format_parse_context;
+  using format_parse_context = basic_format_parse_context<char>;
+  using wformat_parse_context = basic_format_parse_context<wchar_t>;
+
+  // [format.range], formatting of ranges
+  // [format.range.fmtkind], variable template format_kind
+  enum class range_format {                                     // since C++23
+    disabled,
+    map,
+    set,
+    sequence,
+    string,
+    debug_string
+  };
+
+  template<class R>
+    constexpr unspecified format_kind = unspecified;            // since C++23
+
+  template<ranges::input_range R>
+      requires same_as<R, remove_cvref_t<R>>
+    constexpr range_format format_kind<R> = see below;          // since C++23
+
+  // [format.range.formatter], class template range_formatter
+  template<class T, class charT = char>
+    requires same_as<remove_cvref_t<T>, T> && formattable<T, charT>
+  class range_formatter;                                        // since C++23
+
+  // [format.range.fmtdef], class template range-default-formatter
+  template<range_format K, ranges::input_range R, class charT>
+    struct range-default-formatter;                             // exposition only, since C++23
+
+  // [format.range.fmtmap], [format.range.fmtset], [format.range.fmtstr],
+  // specializations for maps, sets, and strings
+  template<ranges::input_range R, class charT>
+    requires (format_kind<R> != range_format::disabled) &&
+             formattable<ranges::range_reference_t<R>, charT>
+  struct formatter<R, charT> : range-default-formatter<format_kind<R>, R, charT> { }; // since C++23
+
+  // [format.arguments], arguments
+  // [format.arg], class template basic_format_arg
+  template<class Context> class basic_format_arg;
+
+  template<class Visitor, class Context>
+    see below visit_format_arg(Visitor&& vis, basic_format_arg<Context> arg); // Deprecated in C++26
+
+  // [format.arg.store], class template format-arg-store
+  template<class Context, class... Args> struct format-arg-store;      // exposition only
+
+  template<class Context = format_context, class... Args>
+    format-arg-store<Context, Args...>
+      make_format_args(Args&... args);
+  template<class... Args>
+    format-arg-store<wformat_context, Args...>
+      make_wformat_args(Args&... args);
+
+  // [format.error], class format_error
+  class format_error;
+}
+
+*/
+
+#include <__config>
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__format/buffer.h>
+#  include <__format/concepts.h>
+#  include <__format/container_adaptor.h>
+#  include <__format/enable_insertable.h>
+#  include <__format/escaped_output_table.h>
+#  include <__format/extended_grapheme_cluster_table.h>
+#  include <__format/format_arg.h>
+#  include <__format/format_arg_store.h>
+#  include <__format/format_args.h>
+#  include <__format/format_context.h>
+#  include <__format/format_error.h>
+#  include <__format/format_functions.h>
+#  include <__format/format_parse_context.h>
+#  include <__format/format_string.h>
+#  include <__format/format_to_n_result.h>
+#  include <__format/formatter.h>
+#  include <__format/formatter_bool.h>
+#  include <__format/formatter_char.h>
+#  include <__format/formatter_floating_point.h>
+#  include <__format/formatter_integer.h>
+#  include <__format/formatter_pointer.h>
+#  include <__format/formatter_string.h>
+#  include <__format/formatter_tuple.h>
+#  include <__format/parser_std_format_spec.h>
+#  include <__format/range_default_formatter.h>
+#  include <__format/range_formatter.h>
+#  include <__format/unicode.h>
+#  include <__fwd/format.h>
+#endif
+
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <array>
+#  include <cctype>
+#  include <cerrno>
+#  include <clocale>
+#  include <cmath>
+#  include <cstddef>
+#  include <cstdint>
+#  include <cstdlib>
+#  include <cstring>
+#  include <initializer_list>
+#  include <limits>
+#  include <locale>
+#  include <new>
+#  include <optional>
+#  include <queue>
+#  include <stack>
+#  include <stdexcept>
+#  include <string>
+#  include <string_view>
+#  include <tuple>
+
+#  if !defined(_LIBCPP_HAS_NO_WIDE_CHARACTERS)
+#    include <cwchar>
+#  endif
+#endif
+
+#endif // _LIBCPP_FORMAT

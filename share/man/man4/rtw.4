@@ -1,0 +1,186 @@
+.\"	$OpenBSD: rtw.4,v 1.49 2025/03/27 10:21:53 jmc Exp $
+.\"
+.\" Copyright (c) 2004 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt RTW 4
+.Os
+.Sh NAME
+.Nm rtw
+.Nd Realtek RTL8180L IEEE 802.11b wireless network device
+.Sh SYNOPSIS
+.Cd "rtw* at cardbus?"
+.Cd "rtw* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports PCI/CardBus 802.11b wireless adapters based on the
+Realtek RTL8180L.
+.Pp
+A variety of radio transceivers can be found in these devices, including
+the Philips SA2400A, Maxim MAX2820, and GCT GRF5101.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It IBSS mode
+Also known as
+.Em IEEE ad-hoc
+mode or
+.Em peer-to-peer
+mode.
+This is the standardized method of operating without an access point.
+Stations associate with a service set.
+However, actual connections between stations are peer-to-peer.
+.It Host AP
+In this mode the driver acts as an access point (base station)
+for other cards.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use software
+Wired Equivalent Privacy (WEP).
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh HARDWARE
+The following adapters should work:
+.Bl -column "GigaFast WF721-AEX (R* serial)" "GRF5101" "Cardbus" -offset 6n
+.It Em Card Ta Em Radio Ta Em Bus
+.\".It Li "Acer Aspire 1357 LMi" Ta SA2400 Ta Mini PCI
+.It Li "Allnet ALL0182" Ta SA2400 Ta CardBus
+.\".It Li "Belkin F5D6001 V3" Ta SA2400 Ta PCI
+.It Li "Belkin F5D6020 V3" Ta SA2400 Ta CardBus
+.It Li "Buffalo WLI-CB-B11" Ta SA2400 Ta CardBus
+.It Li "Corega CG-WLCB11V3" Ta SA2400 Ta CardBus
+.\".It Li "D-Link DWL-510" Ta SA2400 Ta PCI
+.\".It Li "D-Link DWL-520 rev D" Ta ? Ta PCI
+.It Li "D-Link DWL-610" Ta ? Ta CardBus
+.\".It Li "Encore ENLWI-PCI1-NT" Ta SA2400 Ta PCI
+.It Li "Edimax EW-7106" Ta SA2400 Ta CardBus
+.\".It Li "Edimax EW-7126" Ta GRF5101 Ta PCI
+.\".It Li "Gigabyte GN-WLMR101" Ta SA2400 Ta PCI
+.It Li "GigaFast WF721-AEX (R* serial)" Ta "GRF5101" Ta CardBus
+.\".It Li "HomeLine HLW-PCC200" Ta "GRF5101" Ta CardBus
+.It Li "Jensen AirLink 6011" Ta GRF5101 Ta CardBus
+.It Li "Level-One WPC-0101" Ta SA2400 Ta CardBus
+.It Li "Linksys WPC11 v4" Ta MAX2820 Ta CardBus
+.\".It Li "Longshine LCS-8031-R" Ta GRF5101 Ta PCI
+.\".It Li "Mentor WLPCI04330073" Ta SA2400 Ta CardBus
+.\".It Li "Micronet SP906BB" Ta ? Ta PCI
+.It Li "Netgear MA521" Ta SA2400 Ta CardBus
+.It Li "Ovislink AirLive WL-1120PCM" Ta SA2400 Ta CardBus
+.\".It Li "Pheenet WL-11PCIR" Ta SA2400 Ta PCI
+.It Li "Planet WL-3553" Ta SA2400 Ta CardBus
+.It Li "Q-Tec 770WC" Ta SA2400 Ta CardBus
+.It Li "Q-Tec 775WC" Ta SA2400 Ta CardBus
+.\".It "Repotec RP-WP7126" Ta GRF5101 Ta PCI
+.It Li "Roper FreeLan 802.11b" Ta SA2400 Ta CardBus
+.It Li "SAFECOM SWLCR-1100" Ta SA2400 Ta CardBus
+.\".It Li "Surecom EP-9428" Ta ? Ta CardBus
+.\".It Li "Sweex LC700010" Ta GRF5101 Ta PCI
+.\".It "Tonze PC-2100T" Ta GRF5101 Ta PCI
+.\".It Li "Topcom Skyr@cer 4011b" Ta ? Ta CardBus
+.\".It "TP-Link TL-WN250/251" Ta GRF5101 Ta PCI
+.It Li "TRENDnet TEW-226PC" Ta ? Ta CardBus
+.\".It Li "TRENDnet TEW-288PI" Ta SA2400 Ta PCI
+.It Li "VCTnet PC-11B1" Ta SA2400 Ta CardBus
+.It Li "Winstron CB-200B" Ta SA2400 Ta CardBus
+.It Li "Zonet ZEW1000" Ta GRF5101 Ta CardBus
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig rtw0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures rtw0 to join network
+.Dq mynwid ,
+using WEP key
+.Dq mywepkey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+nwid mynwid nwkey mywepkey
+inet autoconf
+.Ed
+.Pp
+The following
+.Xr hostname.if 5
+example creates a host-based access point on boot:
+.Bd -literal -offset indent
+mediaopt hostap
+nwid mynwid nwkey mywepkey
+inet 192.168.1.1 255.255.255.0
+.Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr cardbus 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8
+.Rs
+.%T Realtek
+.%U https://www.realtek.com/en
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An David Young Aq Mt dyoung@NetBSD.org
+and ported to
+.Ox
+by
+.An Jonathan Gray Aq Mt jsg@openbsd.org .
+.Sh CAVEATS
+GCT refuse to release any documentation on their GRF5101 RF transceiver.
+.Pp
+While PCI devices will attach, most of them are not able to transmit.
+.Pp
+Host AP mode doesn't support power saving.
+Clients attempting to use power saving mode may experience significant
+packet loss (disabling power saving on the client will fix this).

@@ -1,0 +1,4 @@
+declare_args() {
+  # Path of sysroot to use.
+  sysroot = ""
+}

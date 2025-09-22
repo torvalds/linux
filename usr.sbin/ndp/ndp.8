@@ -1,0 +1,165 @@
+.\"	$OpenBSD: ndp.8,v 1.46 2019/08/23 15:41:59 kn Exp $
+.\"	$KAME: ndp.8,v 1.28 2002/07/17 08:46:33 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 23 2019 $
+.Dt NDP 8
+.Os
+.Sh NAME
+.Nm ndp
+.Nd control/diagnose IPv6 Neighbor Discovery Protocol (NDP)
+.Sh SYNOPSIS
+.Nm ndp
+.Op Fl acnt
+.Op Fl A Ar wait
+.Op Fl d Ar hostname
+.Op Fl f Ar filename
+.Op Fl i Ar interface
+.Op Fl s Ar nodename ether_addr Oo Cm temp Oc Op Cm proxy
+.Op Fl V Ar rdomain
+.Op Ar hostname
+.Sh DESCRIPTION
+The
+.Nm
+command manipulates the address mapping table
+used by the Neighbor Discovery Protocol (NDP).
+.Bl -tag -width Ds
+.It Fl A Ar wait
+Repeat
+.Fl a
+.Pq dump NDP entries
+every
+.Ar wait
+seconds.
+.It Fl a
+Dump the currently existing NDP entries.
+The following information will be printed:
+.Bl -tag -width Ds -offset 3n
+.It Neighbor
+The IPv6 address of the neighbor.
+.It Linklayer Address
+The linklayer address of the neighbor.
+If the address is not available,
+it will be displayed as
+.Dq (incomplete) .
+.It Netif
+The network interface associated with the neighbor cache entry.
+.It Expire
+The time until expiry of the entry.
+If the entry is marked
+.Dq permanent ,
+it will never expire.
+.It S
+The state of the neighbor cache entry, as a single letter:
+.Pp
+.Bl -tag -width Ds -offset 3n -compact
+.It D
+Delay
+.It I
+Incomplete
+.It N
+Nostate
+.It P
+Probe
+.It R
+Reachable
+.It S
+Stale
+.It W
+Waitdelete
+.It \&?
+Unknown state (should never happen).
+.El
+.It Flags
+Flags on the neighbor cache entry, in a single letter.
+They are: local
+.Pq Sq l ,
+Router
+.Pq Sq R
+and proxy neighbor advertisement
+.Pq Sq p .
+This field may be followed by a decimal number,
+representing the number of NS probes
+the node has sent during the current state.
+.El
+.It Fl c
+Erase all the NDP entries.
+.It Fl d Ar hostname
+Delete the specified NDP entry.
+.It Fl f Ar filename
+Parse entries from
+.Ar file
+to be inserted in the neighbor cache.
+See the
+.Fl s
+option for a description of the file format.
+.It Fl i Ar interface
+View ND information for the specified interface.
+.It Fl n
+Do not perform domain name resolution.
+If a name cannot be resolved without DNS, an error will be reported.
+.It Xo
+.Fl s Ar nodename ether_addr
+.Op Cm temp
+.Op Cm proxy
+.Xc
+Register an NDP entry for the node called nodename with the Ether
+address ether_addr.
+The Ethernet address is given as six hexadecimal bytes separated by
+colons.
+The entry will be permanent unless the word
+.Cm temp
+is given in the command.
+If the word
+.Cm proxy
+is given, this system will act as an ND Proxy server,
+responding to requests for
+.Ar nodename
+even though the node address is not its own.
+.It Fl t
+Print a timestamp on each entry,
+making it possible to merge output with
+.Xr tcpdump 8 .
+Most useful when used with
+.Fl A .
+.It Fl V Ar rdomain
+Select the routing domain.
+.El
+.Sh EXIT STATUS
+.Ex -std ndp
+.Sh SEE ALSO
+.Xr ip6 4 ,
+.Xr sysctl.conf 5 ,
+.Xr arp 8 ,
+.Xr sysctl 8 ,
+.Xr tcpdump 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in the WIDE Hydrangea IPv6 protocol stack kit.

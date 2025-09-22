@@ -1,0 +1,62 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("LanaiGenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../Lanai.td"
+}
+
+tablegen("LanaiGenInstrInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../Lanai.td"
+}
+
+tablegen("LanaiGenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../Lanai.td"
+}
+
+tablegen("LanaiGenRegisterInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../Lanai.td"
+}
+
+tablegen("LanaiGenSubtargetInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../Lanai.td"
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMLanaiDesc"
+
+  # This should contain tablegen targets generating .inc files included
+  # by other targets. .inc files only used by .cpp files in this directory
+  # should be in deps instead.
+  public_deps = [
+    ":LanaiGenInstrInfo",
+    ":LanaiGenRegisterInfo",
+    ":LanaiGenSubtargetInfo",
+  ]
+  deps = [
+    ":LanaiGenAsmWriter",
+    ":LanaiGenMCCodeEmitter",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/Lanai/TargetInfo",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "LanaiAsmBackend.cpp",
+    "LanaiELFObjectWriter.cpp",
+    "LanaiInstPrinter.cpp",
+    "LanaiMCAsmInfo.cpp",
+    "LanaiMCCodeEmitter.cpp",
+    "LanaiMCExpr.cpp",
+    "LanaiMCTargetDesc.cpp",
+  ]
+}

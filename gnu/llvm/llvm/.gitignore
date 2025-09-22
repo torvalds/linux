@@ -1,0 +1,67 @@
+#==============================================================================#
+# This file specifies intentionally untracked files that git should ignore.
+# See: http://www.kernel.org/pub/software/scm/git/docs/gitignore.html
+#
+# This file is intentionally different from the output of `git svn show-ignore`,
+# as most of those are useless.
+#==============================================================================#
+
+#==============================================================================#
+# Nested build directory.
+#==============================================================================#
+/build
+
+#==============================================================================#
+# Explicit files to ignore (only matches one).
+#==============================================================================#
+# Various tag programs
+/tags
+/TAGS
+/GPATH
+/GRTAGS
+/GSYMS
+/GTAGS
+.gitusers
+autom4te.cache
+cscope.files
+cscope.out
+autoconf/aclocal.m4
+autoconf/autom4te.cache
+/compile_commands.json
+# Visual Studio built-in CMake configuration
+/CMakeSettings.json
+# CLion project configuration
+/.idea
+# Qt Creator project configuration
+/CMakeLists.txt.user
+
+#==============================================================================#
+# Directories to ignore (do not add trailing '/'s, they skip symlinks).
+#==============================================================================#
+# External projects that are tracked independently.
+projects/*
+!projects/*.*
+!projects/Makefile
+runtimes/*
+!runtimes/*.*
+# Sphinx build tree, if building in-source dir.
+docs/_build
+# VS2017 and VSCode config files.
+.vscode
+.vs
+
+#==============================================================================#
+# File extensions to be ignored anywhere in the tree.
+# Placed at the end to override any previous ! patterns.
+#==============================================================================#
+# Temp files created by most text editors.
+*~
+# Merge files created by git.
+*.orig
+# Byte compiled python modules.
+*.pyc
+# vim swap files
+.*.sw?
+.sw?
+#OS X specific files.
+.DS_store

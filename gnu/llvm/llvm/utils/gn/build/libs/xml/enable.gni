@@ -1,0 +1,4 @@
+declare_args() {
+  # Whether to include code that links against libxml2.
+  llvm_enable_libxml2 = current_os != "win" && current_os != "android"
+}

@@ -1,0 +1,4 @@
+clang_tools_extra_lit_site_cfg_file =
+    "$root_gen_dir/clang-tools-extra/test/lit.site.cfg.py"
+clang_tools_extra_lit_unit_site_cfg_file =
+    "$root_gen_dir/clang-tools-extra/test/Unit/lit.site.cfg.py"

@@ -1,0 +1,2 @@
+ipcomp from 1.1.1.1 to 2.2.2.2 spi 0x1000:0x1001
+ipcomp from 3.3.3.3 to 4.4.4.4 spi 0x2000:0x2001 comp deflate

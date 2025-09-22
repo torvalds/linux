@@ -1,0 +1,370 @@
+.\" $OpenBSD: EVP_PKEY_keygen.3,v 1.16 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023, 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2006, 2009, 2013, 2015, 2016, 2018 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_KEYGEN 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_keygen_init ,
+.Nm EVP_PKEY_keygen ,
+.Nm EVP_PKEY_paramgen_init ,
+.Nm EVP_PKEY_paramgen ,
+.Nm EVP_PKEY_gen_cb ,
+.Nm EVP_PKEY_CTX_set_cb ,
+.Nm EVP_PKEY_CTX_get_cb ,
+.Nm EVP_PKEY_CTX_set0_keygen_info ,
+.Nm EVP_PKEY_CTX_get_keygen_info ,
+.Nm EVP_PKEY_CTX_set_app_data ,
+.Nm EVP_PKEY_CTX_get_app_data ,
+.Nm EVP_PKEY_CTX_set_data ,
+.Nm EVP_PKEY_CTX_get_data
+.Nd key and parameter generation functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_PKEY_keygen_init
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_PKEY_keygen
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "EVP_PKEY **ppkey"
+.Fc
+.Ft int
+.Fo EVP_PKEY_paramgen_init
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_PKEY_paramgen
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "EVP_PKEY **ppkey"
+.Fc
+.Ft typedef int
+.Fo EVP_PKEY_gen_cb
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Ft void
+.Fo EVP_PKEY_CTX_set_cb
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "EVP_PKEY_gen_cb *cb"
+.Fc
+.Ft EVP_PKEY_gen_cb *
+.Fo EVP_PKEY_CTX_get_cb
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Ft void
+.Fo EVP_PKEY_CTX_set0_keygen_info
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int *dat"
+.Fa "int datlen"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get_keygen_info
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int idx"
+.Fc
+.Ft void
+.Fo EVP_PKEY_CTX_set_app_data
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "void *app_data"
+.Fc
+.Ft void *
+.Fo EVP_PKEY_CTX_get_app_data
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Ft void
+.Fo EVP_PKEY_CTX_set_data
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "void *data"
+.Fc
+.Ft void *
+.Fo EVP_PKEY_CTX_get_data
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn EVP_PKEY_keygen_init
+function initializes a public key algorithm context using key
+.Fa ctx->pkey
+for a key generation operation.
+.Pp
+The
+.Fn EVP_PKEY_keygen
+function performs a key generation operation.
+The generated key is written to
+.Fa ppkey .
+.Pp
+The functions
+.Fn EVP_PKEY_paramgen_init
+and
+.Fn EVP_PKEY_paramgen
+are similar except parameters are generated.
+.Pp
+The functions
+.Fn EVP_PKEY_CTX_set_cb
+and
+.Fn EVP_PKEY_CTX_get_cb
+set and retrieve the key or parameter generation callback, respectively.
+.Pp
+The function
+.Fn EVP_PKEY_CTX_set0_keygen_info
+sets the parameters associated with the generation operation to the array
+.Fa dat
+containing
+.Ft datlen
+integer parameters.
+The caller retains ownership of the
+.Fa dat
+array; it will never be freed by the library.
+.Pp
+The function
+.Fn EVP_PKEY_CTX_get_keygen_info
+returns parameters associated with the generation operation.
+If
+.Fa idx
+is -1, the total number of parameters available is returned.
+Any non-negative value returns the value of that parameter.
+.Fn EVP_PKEY_CTX_get_keygen_info
+with a non-negative value for
+.Fa idx
+should only be called within the generation callback.
+.Pp
+If the callback returns 0, then the key generation operation is aborted
+and an error occurs.
+This might occur during a time consuming operation where a user clicks
+on a "cancel" button.
+.Pp
+The functions
+.Fn EVP_PKEY_CTX_set_app_data
+and
+.Fn EVP_PKEY_CTX_get_app_data
+set and retrieve an opaque pointer.
+This can be used to set some application defined value which can be
+retrieved in the callback: for example a handle which is used to update
+a "progress dialog".
+.Pp
+The deprecated functions
+.Fn EVP_PKEY_CTX_set_data
+and
+.Fn EVP_PKEY_CTX_get_data
+set and retrieve a
+.Em different
+opaque pointer that is ignored by the library.
+.Pp
+After the call to
+.Fn EVP_PKEY_keygen_init
+or
+.Fn EVP_PKEY_paramgen_init ,
+algorithm specific control operations can be performed to set any
+appropriate parameters for the operation.
+.Pp
+The functions
+.Fn EVP_PKEY_keygen
+and
+.Fn EVP_PKEY_paramgen
+can be called more than once on the same context if several operations
+are performed using the same parameters.
+.Pp
+The meaning of the parameters passed to the callback will depend on the
+algorithm and the specific implementation of the algorithm.
+Some might not give any useful information at all during key or
+parameter generation.
+Others might not even call the callback.
+.Pp
+The operation performed by key or parameter generation depends on the
+algorithm used.
+In some cases (e.g. EC with a supplied named curve) the "generation"
+option merely sets the appropriate fields in an
+.Vt EVP_PKEY
+structure.
+.Pp
+In OpenSSL, an
+.Vt EVP_PKEY
+structure containing a private key also contains the public key
+components and parameters (if any).
+An OpenSSL private key is equivalent to what some libraries call a "key
+pair".
+A private key can be used in functions which require the use of a public
+key or parameters.
+.Sh RETURN VALUES
+.Fn EVP_PKEY_keygen_init ,
+.Fn EVP_PKEY_paramgen_init ,
+.Fn EVP_PKEY_keygen ,
+and
+.Fn EVP_PKEY_paramgen
+return 1 for success and 0 or a negative value for failure.
+In particular, a return value of -2 indicates the operation is not
+supported by the public key algorithm.
+.Pp
+Callback functions of the type
+.Fn EVP_PKEY_gen_cb
+are supposed to return 1 on success or 0 on error.
+.Pp
+.Fn EVP_PKEY_CTX_get_cb
+returns a function pointer to the currently installed callback function or
+.Dv NULL
+if no callback function is installed.
+.Pp
+.Fn EVP_PKEY_CTX_get_keygen_info
+returns the number of available parameters if
+.Fa idx
+is \-1, one of these parameters if
+.Fa idx
+is greater than or equal to zero but less than the number
+of available parameters, or 0 otherwise.
+.Pp
+.Fn EVP_PKEY_CTX_get_app_data
+and
+.Fn EVP_PKEY_CTX_get_data
+return the pointer that was last passed to the corresponding set function, or
+.Dv NULL
+if the corresponding set function was never called on
+.Fa ctx .
+.Sh EXAMPLES
+Generate a 2048-bit RSA key:
+.Bd -literal -offset indent
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
+
+EVP_PKEY_CTX *ctx;
+EVP_PKEY *pkey = NULL;
+
+ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+if (!ctx)
+	/* Error occurred */
+if (EVP_PKEY_keygen_init(ctx) <= 0)
+	/* Error */
+if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) <= 0)
+	/* Error */
+
+/* Generate key */
+if (EVP_PKEY_keygen(ctx, &pkey) <= 0)
+	/* Error */
+.Ed
+.Pp
+Generate a key from a set of parameters:
+.Bd -literal -offset indent
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
+
+EVP_PKEY_CTX *ctx;
+EVP_PKEY *pkey = NULL, *param;
+
+/* Assumes that param is already set up. */
+ctx = EVP_PKEY_CTX_new(param, NULL);
+if (!ctx)
+	/* Error occurred */
+if (EVP_PKEY_keygen_init(ctx) <= 0)
+	/* Error */
+
+/* Generate key */
+if (EVP_PKEY_keygen(ctx, &pkey) <= 0)
+	/* Error */
+.Ed
+.Pp
+Example of generation callback for OpenSSL public key implementations:
+.Bd -literal -offset indent
+/* Application data is a BIO to output status to */
+
+EVP_PKEY_CTX_set_app_data(ctx, status_bio);
+
+static int
+genpkey_cb(EVP_PKEY_CTX *ctx)
+{
+	char c = '*';
+	BIO *b = EVP_PKEY_CTX_get_app_data(ctx);
+	int p;
+
+	p = EVP_PKEY_CTX_get_keygen_info(ctx, 0);
+	if (p == 0)
+		c = '.';
+	if (p == 1)
+		c = '+';
+	if (p == 2)
+		c = '*';
+	if (p == 3)
+		c = '\en';
+	BIO_write(b, &c, 1);
+	(void)BIO_flush(b);
+	return 1;
+}
+.Ed
+.Sh SEE ALSO
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_decrypt 3 ,
+.Xr EVP_PKEY_derive 3 ,
+.Xr EVP_PKEY_encrypt 3 ,
+.Xr EVP_PKEY_sign 3 ,
+.Xr EVP_PKEY_verify 3 ,
+.Xr EVP_PKEY_verify_recover 3 ,
+.Xr X25519 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.0.0
+and have been available since
+.Ox 4.9 .

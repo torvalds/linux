@@ -1,0 +1,245 @@
+From: Chris Lattner <sabre@nondot.org>
+To: "Vikram S. Adve" <vadve@cs.uiuc.edu>
+Subject: Re: LLVM Feedback
+
+I've included your feedback in the /home/vadve/lattner/llvm/docs directory
+so that it will live in CVS eventually with the rest of LLVM.  I've
+significantly updated the documentation to reflect the changes you
+suggested, as specified below:
+
+> We should consider eliminating the type annotation in cases where it is
+> essentially obvious from the instruction type:
+>        br bool <cond>, label <iftrue>, label <iffalse>
+> I think your point was that making all types explicit improves clarity
+> and readability.  I agree to some extent, but it also comes at the
+> cost of verbosity.  And when the types are obvious from people's
+> experience (e.g., in the br instruction), it doesn't seem to help as
+> much.
+
+Very true.  We should discuss this more, but my reasoning is more of a
+consistency argument.  There are VERY few instructions that can have all
+of the types eliminated, and doing so when available unnecessarily makes
+the language more difficult to handle.  Especially when you see 'int
+%this' and 'bool %that' all over the place, I think it would be
+disorienting to see:
+
+  br %predicate, %iftrue, %iffalse
+
+for branches.  Even just typing that once gives me the creeps. ;)  Like I
+said, we should probably discuss this further in person...
+
+> On reflection, I really like your idea of having the two different
+> switch types (even though they encode implementation techniques rather
+> than semantics).  It should simplify building the CFG and my guess is it
+> could enable some significant optimizations, though we should think
+> about which.
+
+Great.  I added a note to the switch section commenting on how the VM
+should just use the instruction type as a hint, and that the
+implementation may choose altermate representations (such as predicated
+branches).
+
+> In the lookup-indirect form of the switch, is there a reason not to
+> make the val-type uint?
+
+No.  This was something I was debating for a while, and didn't really feel
+strongly about either way.  It is common to switch on other types in HLL's
+(for example signed int's are particularly common), but in this case, all
+that will be added is an additional 'cast' instruction.  I removed that
+from the spec.
+
+> I agree with your comment that we don't need 'neg'
+
+Removed.
+
+> There's a trade-off with the cast instruction:
+>  +  it avoids having to define all the upcasts and downcasts that are
+>     valid for the operands of each instruction  (you probably have
+>     thought of other benefits also)
+>  -  it could make the bytecode significantly larger because there could
+>     be a lot of cast operations
+
+ + You NEED casts to represent things like:
+    void foo(float);
+    ...
+    int x;
+    ...
+    foo(x);
+   in a language like C.  Even in a Java like language, you need upcasts
+   and some way to implement dynamic downcasts.
+ + Not all forms of instructions take every type (for example you can't
+   shift by a floating point number of bits), thus SOME programs will need
+   implicit casts.
+
+To be efficient and to avoid your '-' point above, we just have to be
+careful to specify that the instructions shall operate on all common
+types, therefore casting should be relatively uncommon.  For example all
+of the arithmetic operations work on almost all data types.
+
+> Making the second arg. to 'shl' a ubyte seems good enough to me.
+> 255 positions seems adequate for several generations of machines
+
+Okay, that comment is removed.
+
+> and is more compact than uint.
+
+No, it isn't.  Remember that the bytecode encoding saves value slots into
+the bytecode instructions themselves, not constant values.  This is
+another case where we may introduce more cast instructions (but we will
+also reduce the number of opcode variants that must be supported by a
+virtual machine).  Because most shifts are by constant values, I don't
+think that we'll have to cast many shifts.  :)
+
+> I still have some major concerns about including malloc and free in the
+> language (either as builtin functions or instructions).
+
+Agreed.  How about this proposal:
+
+malloc/free are either built in functions or actual opcodes.  They provide
+all of the type safety that the document would indicate, blah blah
+blah. :)
+
+Now, because of all of the excellent points that you raised, an
+implementation may want to override the default malloc/free behavior of
+the program.  To do this, they simply implement a "malloc" and
+"free" function.  The virtual machine will then be defined to use the user
+defined malloc/free function (which return/take void*'s, not type'd
+pointers like the builtin function would) if one is available, otherwise
+fall back on a system malloc/free.
+
+Does this sound like a good compromise?  It would give us all of the
+typesafety/elegance in the language while still allowing the user to do
+all the cool stuff they want to...
+
+>  'alloca' on the other hand sounds like a good idea, and the
+>  implementation seems fairly language-independent so it doesn't have the
+>  problems with malloc listed above.
+
+Okay, once we get the above stuff figured out, I'll put it all in the
+spec.
+
+>  About indirect call:
+>  Your option #2 sounded good to me.  I'm not sure I understand your
+>  concern about an explicit 'icall' instruction?
+
+I worry too much.  :)  The other alternative has been removed. 'icall' is
+now up in the instruction list next to 'call'.
+
+> I believe tail calls are relatively easy to identify; do you know why
+> .NET has a tailcall instruction?
+
+Although I am just guessing, I believe it probably has to do with the fact
+that they want languages like Haskell and lisp to be efficiently runnable
+on their VM.  Of course this means that the VM MUST implement tail calls
+'correctly', or else life will suck.  :)  I would put this into a future
+feature bin, because it could be pretty handy...
+
+>  A pair of important synchronization instr'ns to think about:
+>    load-linked
+>    store-conditional
+
+What is 'load-linked'?  I think that (at least for now) I should add these
+to the 'possible extensions' section, because they are not immediately
+needed...
+
+> Other classes of instructions that are valuable for pipeline
+> performance:
+>    conditional-move            
+>    predicated instructions
+
+Conditional move is effectly a special case of a predicated
+instruction... and I think that all predicated instructions can possibly
+be implemented later in LLVM.  It would significantly change things, and
+it doesn't seem to be very necessary right now.  It would seem to
+complicate flow control analysis a LOT in the virtual machine.  I would
+tend to prefer that a predicated architecture like IA64 convert from a
+"basic block" representation to a predicated rep as part of it's dynamic
+complication phase.  Also, if a basic block contains ONLY a move, then
+that can be trivally translated into a conditional move...
+
+> I agree that we need a static data space.  Otherwise, emulating global
+> data gets unnecessarily complex.
+
+Definitely.  Also a later item though.  :)
+
+> We once talked about adding a symbolic thread-id field to each
+> ..
+> Instead, it could a great topic for a separate study.
+
+Agreed.  :)
+
+> What is the semantics of the IA64 stop bit?
+
+Basically, the IA64 writes instructions like this:
+mov ...
+add ...
+sub ...
+op xxx
+op xxx
+;;
+mov ...
+add ...
+sub ...
+op xxx
+op xxx
+;;
+
+Where the ;; delimits a group of instruction with no dependencies between
+them, which can all be executed concurrently (to the limits of the
+available functional units).  The ;; gets translated into a bit set in one
+of the opcodes.
+
+The advantages of this representation is that you don't have to do some
+kind of 'thread id scheduling' pass by having to specify ahead of time how
+many threads to use, and the representation doesn't have a per instruction
+overhead...
+
+> And finally, another thought about the syntax for arrays :-)
+>  Although this syntax:
+>         array <dimension-list> of <type>
+>  is verbose, it will be used only in the human-readable assembly code so
+>  size should not matter.  I think we should consider it because I find it
+>  to be the clearest syntax.  It could even make arrays of function
+>  pointers somewhat readable.
+
+My only comment will be to give you an example of why this is a bad
+idea.  :)
+
+Here is an example of using the switch statement (with my recommended
+syntax):
+
+switch uint %val, label %otherwise, 
+       [%3 x {uint, label}] [ { uint %57, label %l1 }, 
+                              { uint %20, label %l2 }, 
+                              { uint %14, label %l3 } ]
+
+Here it is with the syntax you are proposing:
+
+switch uint %val, label %otherwise, 
+       array %3 of {uint, label} 
+              array of {uint, label}
+                              { uint %57, label %l1 },
+                              { uint %20, label %l2 },
+                              { uint %14, label %l3 }
+
+Which is ambiguous and very verbose. It would be possible to specify
+constants with [] brackets as in my syntax, which would look like this:
+
+switch uint %val, label %otherwise,
+       array %3 of {uint, label}  [ { uint %57, label %l1 },
+                                    { uint %20, label %l2 },
+                                    { uint %14, label %l3 } ]
+
+But then the syntax is inconsistent between type definition and constant
+definition (why do []'s enclose the constants but not the types??).  
+
+Anyways, I'm sure that there is much debate still to be had over
+this... :)
+
+-Chris
+
+http://www.nondot.org/~sabre/os/
+http://www.nondot.org/MagicStats/
+http://korbit.sourceforge.net/
+
+

@@ -1,0 +1,15 @@
+/// \mainpage clang
+///
+/// \section main_intro Introduction
+/// Welcome to the clang project.
+///
+/// This documentation describes the **internal** software that makes
+/// up clang, not the **external** use of clang. There are no instructions
+/// here on how to use clang, only the APIs that make up the software. For
+/// usage instructions, please see the programmer's guide or reference
+/// manual.
+///
+/// \section main_caveat Caveat
+/// This documentation is generated directly from the source code with doxygen.
+/// Since clang is constantly under active development, what you're about to
+/// read is out of date!

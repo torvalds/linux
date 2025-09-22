@@ -1,0 +1,56 @@
+; Options for the Sunnorth port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+meb
+Target RejectNegative Report InverseMask(LITTLE_ENDIAN)
+Generate big-endian code
+
+mel
+Target RejectNegative Report Mask(LITTLE_ENDIAN)
+Generate little-endian code
+
+mnhwloop
+Target RejectNegative Report Mask(NHWLOOP)
+Disable bcnz instruction
+
+muls
+Target RejectNegative Report Mask(ULS)
+Enable unaligned load/store instruction
+
+mmac
+Target RejectNegative Report Mask(MAC)
+Enable mac instruction
+
+mscore5
+Target RejectNegative Report Mask(SCORE5)
+Support SCORE 5 ISA
+
+mscore5u
+Target RejectNegative Report Mask(SCORE5U)
+Support SCORE 5U ISA
+
+mscore7
+Target RejectNegative Report Mask(SCORE7)
+Support SCORE 7 ISA
+
+mscore7d
+Target RejectNegative Report Mask(SCORE7D)
+Support SCORE 7D ISA

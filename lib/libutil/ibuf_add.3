@@ -1,0 +1,722 @@
+.\" $OpenBSD: ibuf_add.3,v 1.12 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2010 Nicholas Marriott <nicm@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF MIND, USE, DATA OR PROFITS, WHETHER
+.\" IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
+.\" OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt IBUF_ADD 3
+.Os
+.Sh NAME
+.Nm ibuf_add ,
+.Nm ibuf_add_h16 ,
+.Nm ibuf_add_h32 ,
+.Nm ibuf_add_h64 ,
+.Nm ibuf_add_ibuf ,
+.Nm ibuf_add_n16 ,
+.Nm ibuf_add_n32 ,
+.Nm ibuf_add_n64 ,
+.Nm ibuf_add_n8 ,
+.Nm ibuf_add_strbuf ,
+.Nm ibuf_add_zero ,
+.Nm ibuf_close ,
+.Nm ibuf_data ,
+.Nm ibuf_dynamic ,
+.Nm ibuf_fd_avail ,
+.Nm ibuf_fd_get ,
+.Nm ibuf_fd_set ,
+.Nm ibuf_free ,
+.Nm ibuf_from_buffer ,
+.Nm ibuf_from_ibuf ,
+.Nm ibuf_get ,
+.Nm ibuf_get_ibuf ,
+.Nm ibuf_get_h16 ,
+.Nm ibuf_get_h32 ,
+.Nm ibuf_get_h64 ,
+.Nm ibuf_get_n16 ,
+.Nm ibuf_get_n32 ,
+.Nm ibuf_get_n64 ,
+.Nm ibuf_get_n8 ,
+.Nm ibuf_get_strbuf ,
+.Nm ibuf_get_string ,
+.Nm ibuf_left ,
+.Nm ibuf_open ,
+.Nm ibuf_read ,
+.Nm ibuf_reserve ,
+.Nm ibuf_rewind ,
+.Nm ibuf_seek ,
+.Nm ibuf_set ,
+.Nm ibuf_set_h16 ,
+.Nm ibuf_set_h32 ,
+.Nm ibuf_set_h64 ,
+.Nm ibuf_set_n16 ,
+.Nm ibuf_set_n32 ,
+.Nm ibuf_set_n64 ,
+.Nm ibuf_set_n8 ,
+.Nm ibuf_set_maxsize ,
+.Nm ibuf_size ,
+.Nm ibuf_skip ,
+.Nm ibuf_truncate ,
+.Nm ibuf_write ,
+.Nm msgbuf_clear ,
+.Nm msgbuf_concat ,
+.Nm msgbuf_free ,
+.Nm msgbuf_get ,
+.Nm msgbuf_new ,
+.Nm msgbuf_new_reader ,
+.Nm msgbuf_queuelen ,
+.Nm msgbuf_read ,
+.Nm msgbuf_write ,
+.Nm ibufq_concat ,
+.Nm ibufq_flush ,
+.Nm ibufq_free ,
+.Nm ibufq_new ,
+.Nm ibufq_pop ,
+.Nm ibufq_push ,
+.Nm ibufq_queuelen
+.Nd save buffer API for basic IO
+.Sh SYNOPSIS
+.Lb libutil
+.In imsg.h
+.Fd #define IBUF_READ_SIZE 65535
+.Ft int
+.Fn ibuf_add "struct ibuf *buf" "const void *data" "size_t len"
+.Ft int
+.Fn ibuf_add_h16 "struct ibuf *buf" "uint64_t value"
+.Ft int
+.Fn ibuf_add_h32 "struct ibuf *buf" "uint64_t value"
+.Ft int
+.Fn ibuf_add_h64 "struct ibuf *buf" "uint64_t value"
+.Ft int
+.Fn ibuf_add_ibuf "struct ibuf *buf" "const struct ibuf *from"
+.Ft int
+.Fn ibuf_add_n16 "struct ibuf *buf" "uint64_t value"
+.Ft int
+.Fn ibuf_add_n32 "struct ibuf *buf" "uint64_t value"
+.Ft int
+.Fn ibuf_add_n64 "struct ibuf *buf" "uint64_t value"
+.Ft int
+.Fn ibuf_add_n8 "struct ibuf *buf" "uint64_t value"
+.Ft int
+.Fn ibuf_add_strbuf "struct ibuf *buf" "const char *str" "size_t len"
+.Ft int
+.Fn ibuf_add_zero "struct ibuf *buf" "size_t len"
+.Ft void
+.Fn ibuf_close "struct msgbuf *msgbuf" "struct ibuf *buf"
+.Ft void *
+.Fn ibuf_data "struct ibuf *buf"
+.Ft struct ibuf *
+.Fn ibuf_dynamic "size_t len" "size_t max"
+.Ft int
+.Fn ibuf_fd_avail "struct ibuf *buf"
+.Ft int
+.Fn ibuf_fd_get "struct ibuf *buf"
+.Ft void
+.Fn ibuf_fd_set "struct ibuf *buf" "int fd"
+.Ft void
+.Fn ibuf_free "struct ibuf *buf"
+.Ft void
+.Fn ibuf_from_buffer "struct ibuf *buf" "void *data" "size_t len"
+.Ft void
+.Fn ibuf_from_ibuf "struct ibuf *buf" "const ibuf *from"
+.Ft int
+.Fn ibuf_get "struct ibuf *buf" "void *data" "size_t len"
+.Ft int
+.Fn ibuf_get_ibuf "struct ibuf *buf" "size_t len" "struct ibuf *new"
+.Ft int
+.Fn ibuf_get_h16 "struct ibuf *buf" "uint16_t *value"
+.Ft int
+.Fn ibuf_get_h32 "struct ibuf *buf" "uint32_t *value"
+.Ft int
+.Fn ibuf_get_h64 "struct ibuf *buf" "uint64_t *value"
+.Ft int
+.Fn ibuf_get_n16 "struct ibuf *buf" "uint16_t *value"
+.Ft int
+.Fn ibuf_get_n32 "struct ibuf *buf" "uint32_t *value"
+.Ft int
+.Fn ibuf_get_n64 "struct ibuf *buf" "uint64_t *value"
+.Ft int
+.Fn ibuf_get_n8 "struct ibuf *buf" "uint8_t *value"
+.Ft int
+.Fn ibuf_get_strbuf "struct ibuf *buf" "char *str" "size_t len"
+.Ft char *
+.Fn ibuf_get_string "struct ibuf *buf" "size_t len"
+.Ft size_t
+.Fn ibuf_left "const struct ibuf *buf"
+.Ft struct ibuf *
+.Fn ibuf_open "size_t len"
+.Ft int
+.Fn ibuf_read "int fd" "struct msgbuf *msgbuf"
+.Ft void *
+.Fn ibuf_reserve "struct ibuf *buf" "size_t len"
+.Ft void
+.Fn ibuf_rewind "struct ibuf *buf"
+.Ft void *
+.Fn ibuf_seek "struct ibuf *buf" "size_t pos" "size_t len"
+.Ft int
+.Fn ibuf_set "struct ibuf *buf" "size_t pos" "const void *data" \
+    "size_t len"
+.Ft int
+.Fn ibuf_set_h16 "struct ibuf *buf" "size_t pos" "uint64_t value"
+.Ft int
+.Fn ibuf_set_h32 "struct ibuf *buf" "size_t pos" "uint64_t value"
+.Ft int
+.Fn ibuf_set_h64 "struct ibuf *buf" "size_t pos" "uint64_t value"
+.Ft int
+.Fn ibuf_set_n16 "struct ibuf *buf" "size_t pos" "uint64_t value"
+.Ft int
+.Fn ibuf_set_n32 "struct ibuf *buf" "size_t pos" "uint64_t value"
+.Ft int
+.Fn ibuf_set_n64 "struct ibuf *buf" "size_t pos" "uint64_t value"
+.Ft int
+.Fn ibuf_set_n8 "struct ibuf *buf" "size_t pos" "uint64_t value"
+.Ft int
+.Fn ibuf_set_maxsize "struct ibuf *buf" "size_t max"
+.Ft size_t
+.Fn ibuf_size "const struct ibuf *buf"
+.Ft int
+.Fn ibuf_skip "struct ibuf *buf" "size_t len"
+.Ft int
+.Fn ibuf_truncate "struct ibuf *buf" "size_t len"
+.Ft int
+.Fn ibuf_write "int fd" "struct msgbuf *msgbuf"
+.Ft void
+.Fn msgbuf_clear "struct msgbuf *msgbuf"
+.Ft void
+.Fn msgbuf_concat "struct msgbuf *msgbuf" "struct ibufqueue *from"
+.Ft void
+.Fn msgbuf_free "struct msgbuf *msgbuf"
+.Ft struct ibuf *
+.Fn msgbuf_get "struct msgbuf *msgbuf"
+.Ft struct msgbuf *
+.Fn msgbuf_new void
+.Ft struct msgbuf *
+.Fn msgbuf_new_reader "size_t hdrsz" \
+    "struct ibuf *(*readhdr)(struct ibuf *, void *, int *)" "void *arg"
+.Ft uint32_t
+.Fn msgbuf_queuelen "struct msgbuf *msgbuf"
+.Ft int
+.Fn msgbuf_read "int fd" "struct msgbuf *msgbuf"
+.Ft int
+.Fn msgbuf_write "int fd" "struct msgbuf *msgbuf"
+.Ft void
+.Fn ibufq_concat "struct ibufqueue *to" "struct ibufqueue *from"
+.Ft void
+.Fn ibufq_flush "struct ibufqueue *bufq"
+.Ft void
+.Fn ibufq_free "struct ibufqueue *bufq"
+.Ft struct ibufqueue *
+.Fn ibufq_new void
+.Ft struct ibuf *
+.Fn ibufq_pop "struct ibufqueue *bufq"
+.Ft void
+.Fn ibufq_push "struct ibufqueue *bufq" "struct ibuf *buf"
+.Ft uint32_t
+.Fn ibufq_queuelen "struct ibufqueue *bufq"
+.Sh DESCRIPTION
+The ibuf API defines functions to manipulate buffers, used for example to
+construct imsgs with
+.Xr imsg_create 3 .
+A
+.Vt struct ibuf
+is a single buffer.
+It has a maximum size, a read and a write position.
+Buffers should be either constructed with the various
+.Fn ibuf_add
+and
+.Fn ibuf_set
+functions or consumed with the various
+.Fn ibuf_get
+functions.
+A
+.Vt struct msgbuf
+is used to queue the output buffers for transmission.
+.Pp
+.Fn ibuf_add
+appends a block of data to
+.Fa buf .
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_add_h16 ,
+.Fn ibuf_add_h32 ,
+and
+.Fn ibuf_add_h64
+add a 2-byte, 4-byte, and 8-byte
+.Fa value
+to
+.Fa buf
+in host byte order.
+This function checks
+.Fa value
+to not overflow.
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_add_ibuf
+appends the buffer
+.Fa from
+to
+.Fa buf .
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_add_n8 ,
+.Fn ibuf_add_n16 ,
+.Fn ibuf_add_n32 ,
+and
+.Fn ibuf_add_n64
+add a 1-byte, 2-byte, 4-byte, and 8-byte
+.Fa value
+to
+.Fa buf
+in network byte order.
+This function checks
+.Fa value
+to not overflow.
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_add_strbuf
+appends a fixed-size buffer containing a string,
+zero-padded to
+.Fa len ,
+which must be large enough to allow at least one NUL.
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_add_zero
+appends a block of zeros to
+.Fa buf .
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_close
+appends
+.Fa buf
+to
+.Fa msgbuf
+ready to be sent.
+.Pp
+.Fn ibuf_data
+returns the pointer to the internal buffer.
+This function should only be used together with
+.Fn ibuf_size
+to process a previously generated buffer.
+.Pp
+.Fn ibuf_dynamic
+allocates a resizeable buffer of initial length
+.Fa len
+and maximum size
+.Fa max .
+Buffers allocated with
+.Fn ibuf_dynamic
+are automatically grown if necessary when data is added.
+.Pp
+.Fn ibuf_fd_avail ,
+.Fn ibuf_fd_get
+and
+.Fn ibuf_fd_set
+are functions to check, get and set the file descriptor assigned to
+.Fa buf .
+After calling
+.Fn ibuf_fd_set
+the file descriptor is part of the
+.Fa buf
+and will be transmitted or closed by the ibuf API.
+Any previously set file descriptor will be closed before assigning a
+new descriptor.
+.Fn ibuf_fd_get
+returns the file descriptor and passes the responsibility to track the
+descriptor back to the program.
+.Fn ibuf_fd_avail
+returns true if there is a file descriptor set on
+.Fa buf .
+.Pp
+.Fn ibuf_free
+frees
+.Fa buf
+and any associated storage, and closes any file descriptor set with
+.Fn ibuf_fd_set .
+If
+.Fa buf
+is a NULL pointer, no action occurs.
+.Pp
+.Fn ibuf_from_buffer
+initializes the passed
+.Fa buf
+to point at
+.Fa data
+and spanning
+.Fa len
+bytes.
+The returned buffer can be read using the various
+.Fn ibuf_get
+functions.
+.Fn ibuf_from_ibuf
+duplicates the
+.Fa from
+ibuf into
+.Fa buf
+without modifying
+.Fa from .
+This allows safely peeking into an ibuf without consuming data.
+.Pp
+.Fn ibuf_get
+consumes a block of data from
+.Fa buf
+spanning
+.Fa len
+bytes.
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_get_ibuf
+consumes
+.Fa len
+bytes from the buffer
+.Fa buf
+and returns it in
+.Fa new
+covering this region.
+The data in this buffer is only valid as long as
+.Fa buf
+remains valid.
+There is no need to deallocate
+.Fa new
+using
+.Fn ibuf_free .
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_get_h16 ,
+.Fn ibuf_get_h32 ,
+and
+.Fn ibuf_get_h64
+get a 2-byte, 4-byte, and 8-byte
+.Fa value
+from
+.Fa buf
+without altering byte order.
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_get_n8 ,
+.Fn ibuf_get_n16 ,
+.Fn ibuf_get_n32 ,
+and
+.Fn ibuf_get_n64
+get a 1-byte, 2-byte, 4-byte, and 8-byte
+.Fa value
+from
+.Fa buf
+converting the value from network to host byte order.
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_get_strbuf
+copies
+.Fa len
+bytes from the buffer
+.Fa buf
+into
+.Fa str ,
+ensuring that it is NUL-terminated.
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_get_string
+consumes
+.Fa len
+bytes from the buffer
+.Fa buf
+and returns the result of passing the bytes and len to
+.Xr strndup 3 .
+The returned pointer should be passed to
+.Xr free 3
+when it is no longer needed.
+On error NULL is returned.
+.Pp
+The
+.Fn ibuf_open
+function allocates a fixed-length buffer.
+The buffer may not be resized and may contain a maximum of
+.Fa len
+bytes.
+On success
+.Fn ibuf_open
+returns a pointer to the buffer; on failure it returns NULL.
+.Pp
+The
+.Fn ibuf_read
+routine receives pending messages using
+.Xr read 2 .
+It calls the
+.Fn readhdr
+callback to obtain a
+.Vt struct ibuf
+of the appropriate size.
+It returns 1 on success, 0 if the connection was closed and \-1 on error
+and the global variable errno is set to indicate the error.
+The errors
+.Er EINTR
+and
+.Er EAGAIN
+are treated as follows:
+.Er EINTR
+will automatically retry the read operation while
+.Er EAGAIN
+will be ignored with a 1 return.
+The application will then retry the operation at a later stage.
+.Pp
+.Fn ibuf_reserve
+is used to reserve
+.Fa len
+bytes in
+.Fa buf .
+A pointer to the start of the reserved space is returned, or NULL on error.
+.Pp
+.Fn ibuf_rewind
+resets the read offset to the start of the buffer.
+.Pp
+.Fn ibuf_seek
+returns a pointer to the part of the buffer at offset
+.Fa pos
+and of extent
+.Fa len .
+NULL is returned if the requested range is outside the part of the buffer
+in use.
+.Pp
+.Fn ibuf_set
+replaces a part of
+.Fa buf
+at offset
+.Fa pos
+with the
+.Fa data
+of extent
+.Fa len .
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_set_h16 ,
+.Fn ibuf_set_h32
+and
+.Fn ibuf_set_h64
+replace a 2-byte, 4-byte or 8-byte
+.Fa value
+at offset
+.Fa pos
+in the buffer
+.Fa buf
+in host byte order.
+This function checks
+.Fa value
+to not overflow.
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_set_n8 ,
+.Fn ibuf_set_n16 ,
+.Fn ibuf_set_n32
+and
+.Fn ibuf_set_n64
+replace a 1-byte, 2-byte, 4-byte or 8-byte
+.Fa value
+at offset
+.Fa pos
+in the buffer
+.Fa buf
+in network byte order.
+This function checks
+.Fa value
+to not overflow.
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_set_maxsize
+reduces the maximum payload of
+.Fa buf
+to
+.Fa max .
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_size
+and
+.Fn ibuf_left
+are functions which return the total bytes used and available in
+.Fa buf ,
+respectively.
+.Pp
+.Fn ibuf_skip
+advances the read position in
+.Fa buf
+by
+.Fa len
+bytes.
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_truncate
+truncates the buffer to
+.Fa len
+bytes if necessary zero extending the buffer.
+0 is returned on success and \-1 on failure.
+.Pp
+The
+.Fn ibuf_write
+routine transmits as many pending buffers as possible from
+.Fa msgbuf
+using
+.Xr writev 2 .
+It returns 0 if it succeeds, -1 on error and the global variable
+.Va errno
+is set to indicate the error.
+The errors
+.Er EINTR ,
+.Er EAGAIN ,
+and
+.Er ENOBUFS
+are treated as follows:
+.Er EINTR
+will automatically retry the write operation while the other errors are
+ignored with a 0 return.
+The application will then retry the operation at a later stage.
+.Pp
+.Fn msgbuf_clear
+empties a msgbuf, removing and discarding any queued buffers.
+.Pp
+.Fn msgbuf_concat
+moves all queued buffers from the ibufqueue
+.Fa from
+to the msgbuf.
+Afterwards the ibufqueue
+.Fa from
+is empty.
+.Pp
+.Fn msgbuf_free
+function frees the
+.Fa msgbuf
+allocated by
+.Fn msgbuf_new
+or
+.Fn msgbuf_new_reader .
+.Fn msgbuf_get
+returns the next pending message.
+It should be called in a loop until NULL is returned.
+The ibuf returned must be freed by calling
+.Fa ibuf_free .
+.Pp
+.Fn msgbuf_new
+allocates a new message buffer structure which can be used with
+.Fn ibuf_write
+or
+.Fn msbuf_write .
+On error NULL is returned.
+.Pp
+.Fn msgbuf_new_reader
+allocates a new message buffer structure which can additionally be used with
+.Fn ibuf_read
+and
+.Fn msgbuf_read .
+The
+.Fa hdrsz
+argument defines the size of the ibuf passed to the
+.Fa readhdr
+callback.
+The
+.Fa readhdr
+callback parses the header and returns a new
+.Vt struct ibuf
+of the size of the full message.
+It can take ownership of the file descriptor passed in its
+.Vt "int *"
+argument.
+It should return NULL on error and set the global variable
+.Va errno
+appropriately.
+The
+.Fa arg
+pointer is passed to the
+.Fa readhdr
+callback.
+On error
+.Fn msgbuf_new_reader
+returns NULL.
+.Pp
+.Fn msgbuf_queuelen
+returns the number of messages queued in
+.Fa msgbuf .
+This function returns 0 if no messages are pending for transmission.
+.Pp
+The
+.Fn msgbuf_read
+routine receives pending messages using
+.Xr recvmsg 2 and supports file descriptor passing.
+The function calls the
+.Fn readhdr
+callback function to get the total size of message.
+It returns 1 on success, 0 if the connection was closed and \-1 on error
+and the global variable errno is set to indicate the error.
+The errors
+.Er EINTR
+and
+.Er EAGAIN
+are treated as follows:
+.Er EINTR
+will automatically retry the read operation while
+.Er EAGAIN
+will be ignored with a 1 return.
+The application will then retry the operation at a later stage.
+.Pp
+The
+.Fn msgbuf_write
+routine calls
+.Xr sendmsg 2
+to transmit buffers queued in
+.Fa msgbuf
+and supports file descriptor passing.
+It returns 0 if it succeeds, -1 on error and the global variable
+.Va errno
+is set to indicate the error.
+The errors
+.Er EINTR ,
+.Er EAGAIN ,
+and
+.Er ENOBUFS
+are treated as follows:
+.Er EINTR
+will automatically retry the write operation while the other errors are
+ignored with a 0 return.
+The application will then retry the operation at a later stage.
+.Pp
+The ibufqueue API can be used to implement additional buffer queues.
+This can be useful in multithreaded applications to pass ibufs between
+different threads.
+.Pp
+.Fn ibufq_new
+allocates a new ibufqueue.
+On error NULL is returned.
+.Pp
+.Fn ibufq_free
+frees a previously allocated ibufqueue.
+All queued ibufs are flushed before.
+.Pp
+.Fn ibufq_flush
+frees any queued buffer.
+.Pp
+.Fn ibufq_push
+and
+.Fn ibufq_pop
+queue and dequeue ibufs onto the ibufqueue
+.Fa bufq .
+.Pp
+.Fn ibufq_queuelen
+returns the number of buffers enqueued on
+.Fa bufq .
+.Pp
+.Fn ibufq_concat
+moves all buffers from
+.Fa from
+to
+.Fa to .
+.Sh SEE ALSO
+.Xr socketpair 2 ,
+.Xr imsg_add 3 ,
+.Xr unix 4

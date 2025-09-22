@@ -1,0 +1,22 @@
+#	$OpenBSD: crontab,v 1.28 2020/04/18 17:22:43 jmc Exp $
+#
+# /var/cron/tabs/root - root's crontab
+#
+SHELL=/bin/sh
+PATH=/bin:/sbin:/usr/bin:/usr/sbin
+HOME=/var/log
+#
+#minute	hour	mday	month	wday	[flags] command
+#
+# rotate log files every hour, if necessary
+0	*	*	*	*	/usr/bin/newsyslog
+# send log file notifications, if necessary
+#1-59	*	*	*	*	/usr/bin/newsyslog -m
+#
+# do daily/weekly/monthly maintenance
+30	1	*	*	*	/bin/sh /etc/daily
+30	3	*	*	6	/bin/sh /etc/weekly
+30	5	1	*	*	/bin/sh /etc/monthly
+#~	*	*	*	*	/usr/libexec/spamd-setup
+
+#~	*	*	*	*	-ns rpki-client -v && bgpctl reload

@@ -1,0 +1,31 @@
+{
+	global:
+		fuse_chan_fd;
+		fuse_daemonize;
+		fuse_destroy;
+		fuse_get_context;
+		fuse_get_session;
+		fuse_invalidate;
+		fuse_is_lib_option;
+		fuse_loop;
+		fuse_loop_mt;
+		fuse_main;
+		fuse_mount;
+		fuse_new;
+		fuse_opt_add_arg;
+		fuse_opt_add_opt;
+		fuse_opt_add_opt_escaped;
+		fuse_opt_free_args;
+		fuse_opt_insert_arg;
+		fuse_opt_match;
+		fuse_opt_parse;
+		fuse_parse_cmdline;
+		fuse_remove_signal_handlers;
+		fuse_set_signal_handlers;
+		fuse_setup;
+		fuse_teardown;
+		fuse_unmount;
+		fuse_version;
+	local:
+		*;
+};

@@ -1,0 +1,12 @@
+anchor foo
+anchor bar all
+anchor bar from any to any
+anchor foo inet
+anchor foo inet6
+anchor foo inet all
+anchor foo proto tcp
+anchor foo inet proto tcp from 10.1.2.3 port smtp to 10.2.3.4 port ssh
+anchor foobar inet6 proto udp from ::1 port 1 to ::1 port 2
+anchor filteropt out proto tcp to any port 22 user root
+anchor filteropt in proto tcp to (self) port 22 group sshd
+anchor filteropt out inet proto icmp all icmp-type echoreq

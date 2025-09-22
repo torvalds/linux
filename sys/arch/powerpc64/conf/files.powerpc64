@@ -1,0 +1,117 @@
+# $OpenBSD: files.powerpc64,v 1.29 2025/04/26 11:10:28 visa Exp $
+
+maxpartitions	16
+maxusers	2 8 128
+
+major	{rd = 2}
+major	{sd = 3}
+major	{cd = 4}
+major	{wd = 5}
+
+file	arch/powerpc64/powerpc64/locore.S
+file	arch/powerpc64/powerpc64/autoconf.c
+file	arch/powerpc64/powerpc64/bus_dma.c
+file	arch/powerpc64/powerpc64/bus_space.c
+file	arch/powerpc64/powerpc64/clock.c
+file	arch/powerpc64/powerpc64/conf.c
+file	arch/powerpc64/powerpc64/cpu.c
+file	arch/powerpc64/powerpc64/db_disasm.c		ddb
+file	arch/powerpc64/powerpc64/db_interface.c		ddb
+file	arch/powerpc64/powerpc64/db_memrw.c		ddb
+file	arch/powerpc64/powerpc64/db_trace.c		ddb
+file	arch/powerpc64/powerpc64/disksubr.c
+file	arch/powerpc64/powerpc64/fpu.c
+file	arch/powerpc64/powerpc64/intr.c
+file	arch/powerpc64/powerpc64/machdep.c
+file	arch/powerpc64/powerpc64/mem.c
+file	arch/powerpc64/powerpc64/pmap.c
+file	arch/powerpc64/powerpc64/process_machdep.c
+file	arch/powerpc64/powerpc64/syncicache.c
+file	arch/powerpc64/powerpc64/syscall.c
+file	arch/powerpc64/powerpc64/sys_machdep.c
+file	arch/powerpc64/powerpc64/trap.c
+file	arch/powerpc64/powerpc64/trap_subr.S
+file	arch/powerpc64/powerpc64/vm_machdep.c
+
+file	arch/powerpc64/dev/pci_machdep.c
+
+file	netinet/in_cksum.c
+file	netinet/in4_cksum.c
+
+pseudo-device	kexec
+file	arch/powerpc64/dev/kexec.c		kexec needs-flag
+file	arch/powerpc64/dev/kexec_subr.S		kexec needs-flag
+
+pseudo-device	openprom
+file	arch/powerpc64/powerpc64/openprom.c	openprom needs-flag
+
+# mainbus files
+define	mainbus {}
+device	mainbus: fdt
+attach	mainbus at root
+file	arch/powerpc64/dev/mainbus.c		mainbus
+
+device  cpu {}
+attach  cpu at mainbus
+
+# FDT support
+include "dev/ofw/files.ofw"
+
+# Machine-independent SCSI drivers
+include "scsi/files.scsi"
+
+# Machine-independent ATA drivers
+include "dev/ata/files.ata"
+
+# Include WSCONS stuff
+include "dev/wscons/files.wscons"
+include "dev/rasops/files.rasops"
+include "dev/wsfont/files.wsfont"
+
+# MII and PCI
+include "dev/mii/files.mii"
+include "dev/pci/files.pci"
+
+device	opal: fdt
+attach	opal at fdt
+file	arch/powerpc64/dev/opal.c		opal
+
+device	opalcons
+attach	opalcons at fdt
+file	arch/powerpc64/dev/opalcons.c		opalcons needs-flag
+
+device	opalsens
+attach	opalsens at fdt
+file	arch/powerpc64/dev/opalsens.c		opalsens
+
+attach	ipmi at fdt with ipmi_opal
+file	arch/powerpc64/dev/ipmi_opal.c		ipmi_opal
+
+device	phb: pcibus
+attach	phb at fdt
+file	arch/powerpc64/dev/phb.c		phb
+
+device	xics
+attach	xics at fdt
+file	arch/powerpc64/dev/xics.c		xics
+
+device	xicp
+attach	xicp at fdt
+file	arch/powerpc64/dev/xicp.c		xicp
+
+device	xive
+attach	xive at fdt
+file	arch/powerpc64/dev/xive.c		xive
+
+device	astfb: wsemuldisplaydev, rasops32
+attach	astfb at pci
+file	arch/powerpc64/dev/astfb.c		astfb
+
+# Machine-independent HID support
+include	"dev/hid/files.hid"
+
+# Machine-independent I2C drivers
+include "dev/i2c/files.i2c"
+
+# Include USB stuff
+include "dev/usb/files.usb"

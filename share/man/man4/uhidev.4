@@ -1,0 +1,102 @@
+.\" $OpenBSD: uhidev.4,v 1.15 2021/08/20 05:25:23 anton Exp $
+.\" $NetBSD: uhidev.4,v 1.2 2001/12/29 03:06:41 augustss Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 20 2021 $
+.Dt UHIDEV 4
+.Os
+.Sh NAME
+.Nm uhidev
+.Nd USB Human Interface Device support
+.Sh SYNOPSIS
+.Cd "uhidev*  at uhub?"
+.Cd "fido*    at uhidev?"
+.Cd "ucc*     at uhidev?"
+.Cd "ucycom*  at uhidev?"
+.Cd "ugold*   at uhidev?"
+.Cd "uhid*    at uhidev?"
+.Cd "uhidpp*  at uhidev?"
+.Cd "ujoy*    at uhidev?"
+.Cd "ukbd*    at uhidev?"
+.Cd "ums*     at uhidev?"
+.Cd "umstc*   at uhidev?"
+.Cd "umt*     at uhidev?"
+.Cd "uoaklux* at uhidev?"
+.Cd "uoakrh*  at uhidev?"
+.Cd "uoakv*   at uhidev?"
+.Cd "upd*     at uhidev?"
+.Cd "uslhcom* at uhidev?"
+.Cd "uthum*   at uhidev?"
+.Cd "utpms*   at uhidev?"
+.Cd "utrh*    at uhidev?"
+.Cd "utwitch* at uhidev?"
+.Cd "uwacom*  at uhidev?"
+.Sh DESCRIPTION
+The
+.Nm
+driver handles all Human Interface Devices.
+Each HID device can have several components, e.g., a keyboard and a mouse.
+These components use different report identifiers (a byte) to
+distinguish which one data is coming from.
+The
+.Nm
+driver has other drivers attached that handle particular
+kinds of devices and
+.Nm
+only dispatches data to them based on the report id.
+.Sh SEE ALSO
+.Xr fido 4 ,
+.Xr intro 4 ,
+.Xr ucc 4 ,
+.Xr ucycom 4 ,
+.Xr ugold 4 ,
+.Xr uhid 4 ,
+.Xr uhidpp 4 ,
+.Xr ujoy 4 ,
+.Xr ukbd 4 ,
+.Xr ums 4 ,
+.Xr umstc 4 ,
+.Xr umt 4 ,
+.Xr uoaklux 4 ,
+.Xr uoakrh 4 ,
+.Xr uoakv 4 ,
+.Xr upd 4 ,
+.Xr usb 4 ,
+.Xr uslhcom 4 ,
+.Xr uthum 4 ,
+.Xr utpms 4 ,
+.Xr utrh 4 ,
+.Xr utwitch 4 ,
+.Xr uwacom 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Ox 3.2 .

@@ -1,0 +1,66 @@
+$OpenBSD: PROJECTS,v 1.9 2018/01/08 12:08:17 jca Exp $
+
+Things to be done in pdksh (see also the NOTES file):
+
+    * builtin utilities:
+      pdksh has most if not all POSIX/at&t ksh builtins, but they need to
+      be checked that they conform to POSIX/at&t manual.  Part of the
+      process is changing the builtins to use the ksh_getopt() routine.
+
+      The following builtins, which are defined by POSIX, haven't been
+      examined:
+	eval
+
+      The first pass has been done on the following commands:
+	. : alias bg break cd continue echo exec exit export false fc fg
+	getopts jobs kill pwd read readonly return set shift time trap true
+	umask unalias unset wait
+
+      The second pass (ie, believed to be completely POSIX) has been done on
+      the following commands:
+	test
+
+      (ulimit also needs to be examined to check that it fits the posix style)
+
+    * trap code
+	* add the DEBUG trap.
+	* fix up signal handling code.  In particular, fatal vs tty signals,
+	  have signal routine to call to check for pending/fatal traps, etc.
+
+    * lexing
+      the lexing may need a re-write since it currently doesn't parse $( .. ),
+      $(( .. )), (( ... )) properly.
+	* need to ignore contents of quoted strings (and escaped chars?)
+	  inside $( .. ) and $(( .. )) when counting parentheses.
+	* need to put bounds check on states[] array (if it still exists after
+	  the re-write)
+
+    * variables
+	* The "struct tbl" that is currently used for variables needs work since
+	  more information (eg, array stuff, fields) are needed for variables
+	  but not for the other things that use "struct tbl".
+	* Arrays need to be implemented differently: currently does a linear
+	  search of a linked list to find element i; the linked list is not
+	  freed when a variable is unset.
+
+    * functions
+      finish the differences between function x and x(): trap EXIT, traps
+      in general, treatment of OPTIND/OPTARG,
+
+    * history
+	* Add multiline knowledge
+	* bring history code up to POSIX standards (see POSIX description
+	  of fc, etc.).
+
+    * miscellaneous
+	* POSIX specifies what happens when various kinds of errors occur
+	  in special built-ins commands vs regular commands (builtin or
+	  otherwise) (see POSIX.2:3.8.1).  Some of this has been taken
+	  care of, but more needs doing.
+
+	* remove static limits created by fixed sized arrays
+	  (eg, ident[], heres[], PATH, buffer size in emacs/vi code)
+
+	* merge the emacs and vi code (should reduce the size of the shell and
+	  make maintenance easier); handle SIGWINCH while editing a line.
+	  [John Rochester is working on the merge]

@@ -1,0 +1,23 @@
+if (host_os != "win") {
+  loadable_module("InlineOrderPlugin") {
+    # Put plugin next to the unit test executable.
+    output_dir =
+        rebase_path(get_label_info("//llvm/unittests/Analysis:AnalysisTests",
+                                   "target_out_dir"))
+
+    sources = [ "InlineOrderPlugin.cpp" ]
+
+    deps = [
+      # TestPlugin doesn't want to link in any LLVM code, it just needs its
+      # headers.
+      "//llvm/include/llvm/IR:public_tablegen",
+    ]
+
+    if (host_os != "mac" && host_os != "win") {
+      # The GN build currently doesn't globally pass -fPIC, but that's
+      # needed for building .so files on ELF.  Just pass it manually
+      # for loadable_modules for now.
+      cflags = [ "-fPIC" ]
+    }
+  }
+}

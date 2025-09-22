@@ -1,0 +1,239 @@
+.\" $OpenBSD: SSL_CTX_set_tlsext_status_cb.3,v 1.9 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL 43c34894 Nov 30 16:04:51 2015 +0000
+.\" selective merge up to: OpenSSL df75c2bf Dec 9 01:02:36 2018 +0100
+.\"
+.\" This file was written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2015, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_TLSEXT_STATUS_CB 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_tlsext_status_cb ,
+.Nm SSL_CTX_get_tlsext_status_cb ,
+.Nm SSL_CTX_set_tlsext_status_arg ,
+.Nm SSL_CTX_get_tlsext_status_arg ,
+.Nm SSL_set_tlsext_status_type ,
+.Nm SSL_get_tlsext_status_type ,
+.Nm SSL_get_tlsext_status_ocsp_resp ,
+.Nm SSL_set_tlsext_status_ocsp_resp
+.Nd OCSP Certificate Status Request functions
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/tls1.h
+.Ft long
+.Fo SSL_CTX_set_tlsext_status_cb
+.Fa "SSL_CTX *ctx"
+.Fa "int (*callback)(SSL *, void *)"
+.Fc
+.Ft long
+.Fo SSL_CTX_get_tlsext_status_cb
+.Fa "SSL_CTX *ctx"
+.Fa "int (*callback)(SSL *, void *)"
+.Fc
+.Ft long
+.Fo SSL_CTX_set_tlsext_status_arg
+.Fa "SSL_CTX *ctx"
+.Fa "void *arg"
+.Fc
+.Ft long
+.Fo SSL_CTX_get_tlsext_status_arg
+.Fa "SSL_CTX *ctx"
+.Fa "void **arg"
+.Fc
+.Ft long
+.Fo SSL_set_tlsext_status_type
+.Fa "SSL *s"
+.Fa "int type"
+.Fc
+.Ft long
+.Fo SSL_get_tlsext_status_type
+.Fa "SSL *s"
+.Fc
+.Ft long
+.Fo SSL_get_tlsext_status_ocsp_resp
+.Fa ssl
+.Fa "unsigned char **resp"
+.Fc
+.Ft long
+.Fo SSL_set_tlsext_status_ocsp_resp
+.Fa ssl
+.Fa "unsigned char *resp"
+.Fa "int len"
+.Fc
+.Sh DESCRIPTION
+A client application may request that a server send back an OCSP status
+response (also known as OCSP stapling).
+To do so the client should call the
+.Fn SSL_set_tlsext_status_type
+function on an individual
+.Vt SSL
+object prior to the start of the handshake.
+Currently the only supported type is
+.Dv TLSEXT_STATUSTYPE_ocsp .
+This value should be passed in the
+.Fa type
+argument.
+.Pp
+The client should additionally provide a callback function to decide
+what to do with the returned OCSP response by calling
+.Fn SSL_CTX_set_tlsext_status_cb .
+The callback function should determine whether the returned OCSP
+response is acceptable or not.
+The callback will be passed as an argument the value previously set via
+a call to
+.Fn SSL_CTX_set_tlsext_status_arg .
+Note that the callback will not be called in the event of a handshake
+where session resumption occurs (because there are no Certificates
+exchanged in such a handshake).
+.Pp
+The callback previously set via
+.Fn SSL_CTX_set_tlsext_status_cb
+can be retrieved by calling
+.Fn SSL_CTX_get_tlsext_status_cb ,
+and the argument by calling
+.Fn SSL_CTX_get_tlsext_status_arg .
+.Pp
+On the client side,
+.Fn SSL_get_tlsext_status_type
+can be used to determine whether the client has previously called
+.Fn SSL_set_tlsext_status_type .
+It will return
+.Dv TLSEXT_STATUSTYPE_ocsp
+if it has been called or \-1 otherwise.
+On the server side,
+.Fn SSL_get_tlsext_status_type
+can be used to determine whether the client requested OCSP stapling.
+If the client requested it, then this function will return
+.Dv TLSEXT_STATUSTYPE_ocsp ,
+or \-1 otherwise.
+.Pp
+The response returned by the server can be obtained via a call to
+.Fn SSL_get_tlsext_status_ocsp_resp .
+The value
+.Pf * Fa resp
+will be updated to point to the OCSP response data and the return value
+will be the length of that data.
+If the server has not provided any response data, then
+.Pf * Fa resp
+will be
+.Dv NULL
+and the return value from
+.Fn SSL_get_tlsext_status_ocsp_resp
+will be -1.
+.Pp
+A server application must also call the
+.Fn SSL_CTX_set_tlsext_status_cb
+function if it wants to be able to provide clients with OCSP Certificate
+Status responses.
+Typically the server callback would obtain the server certificate that
+is being sent back to the client via a call to
+.Xr SSL_get_certificate 3 ,
+obtain the OCSP response to be sent back, and then set that response
+data by calling
+.Fn SSL_set_tlsext_status_ocsp_resp .
+A pointer to the response data should be provided in the
+.Fa resp
+argument, and the length of that data should be in the
+.Fa len
+argument.
+.Sh RETURN VALUES
+The callback when used on the client side should return a negative
+value on error, 0 if the response is not acceptable (in which case
+the handshake will fail), or a positive value if it is acceptable.
+.Pp
+The callback when used on the server side should return with either
+.Dv SSL_TLSEXT_ERR_OK
+(meaning that the OCSP response that has been set should be returned),
+.Dv SSL_TLSEXT_ERR_NOACK
+(meaning that an OCSP response should not be returned), or
+.Dv SSL_TLSEXT_ERR_ALERT_FATAL
+(meaning that a fatal error has occurred).
+.Pp
+.Fn SSL_CTX_set_tlsext_status_cb ,
+.Fn SSL_CTX_get_tlsext_status_cb ,
+.Fn SSL_CTX_set_tlsext_status_arg ,
+.Fn SSL_CTX_get_tlsext_status_arg ,
+.Fn SSL_set_tlsext_status_type ,
+and
+.Fn SSL_set_tlsext_status_ocsp_resp
+always return 1, indicating success.
+.Pp
+.Fn SSL_get_tlsext_status_type
+returns
+.Dv TLSEXT_STATUSTYPE_ocsp
+on the client side if
+.Fn SSL_set_tlsext_status_type
+was previously called, or on the server side
+if the client requested OCSP stapling.
+Otherwise \-1 is returned.
+.Pp
+.Fn SSL_get_tlsext_status_ocsp_resp
+returns the length of the OCSP response data
+or \-1 if there is no OCSP response data.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_callback_ctrl 3
+.Sh HISTORY
+.Fn SSL_CTX_set_tlsext_status_cb ,
+.Fn SSL_CTX_set_tlsext_status_arg ,
+.Fn SSL_set_tlsext_status_type ,
+.Fn SSL_get_tlsext_status_ocsp_resp ,
+and
+.Fn SSL_set_tlsext_status_ocsp_resp
+first appeared in OpenSSL 0.9.8h and have been available since
+.Ox 4.5 .
+.Pp
+.Fn SSL_CTX_get_tlsext_status_cb
+and
+.Fn SSL_CTX_get_tlsext_status_arg
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.3 .
+.Pp
+.Fn SSL_get_tlsext_status_type
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 7.0 .

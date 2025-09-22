@@ -1,0 +1,609 @@
+.\"	$OpenBSD: spamd.8,v 1.135 2019/07/24 18:41:05 mestre Exp $
+.\"
+.\" Copyright (c) 2002 Theo de Raadt.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 24 2019 $
+.Dt SPAMD 8
+.Os
+.Sh NAME
+.Nm spamd
+.Nd spam deferral daemon
+.Sh SYNOPSIS
+.Nm spamd
+.Op Fl 45bdv
+.Op Fl B Ar maxblack
+.Op Fl C Ar file
+.Op Fl c Ar maxcon
+.Op Fl G Ar passtime : Ns Ar greyexp : Ns Ar whiteexp
+.Op Fl h Ar hostname
+.Op Fl K Ar file
+.Op Fl l Ar address
+.Op Fl M Ar address
+.Op Fl n Ar name
+.Op Fl p Ar port
+.Op Fl S Ar secs
+.Op Fl s Ar secs
+.Op Fl w Ar window
+.Op Fl Y Ar synctarget
+.Op Fl y Ar synclisten
+.Sh DESCRIPTION
+.Nm
+is a fake mail daemon which rejects false mail.
+It is designed to be very efficient so that it does not slow down the
+receiving machine.
+.Pp
+.Nm
+considers sending hosts to be of three types:
+.Pp
+.Em blacklisted
+hosts are diverted to
+.Nm
+and
+.Em tarpitted
+i.e. they are communicated with very slowly
+to consume the sender's resources.
+Mail is rejected with either a 450 or 550 error message.
+A blacklisted host will not be allowed to talk to a real mail server.
+.Pp
+.Em whitelisted
+hosts do not talk to
+.Nm .
+Their connections are instead sent to a real mail server,
+such as
+.Xr smtpd 8 .
+.Pp
+.Em greylisted
+hosts are diverted to
+.Nm ,
+but
+.Nm
+has not yet decided if they are likely spammers.
+They are given a temporary failure message by
+.Nm
+when they try to deliver mail.
+.Pp
+When
+.Nm
+is run in default mode,
+it will greylist connections from new hosts.
+Depending on its configuration,
+it may choose to blacklist the host or,
+if the checks described below are met,
+eventually whitelist it.
+When
+.Nm
+is run in blacklist-only mode,
+using the
+.Fl b
+flag,
+it will consult a pre-defined set of blacklist addresses
+to decide whether to tarpit the host or not.
+.Pp
+When a sending host talks to
+.Nm ,
+the reply will be
+.Em stuttered .
+That is,
+the response will be sent back a character at a time, slowly.
+For blacklisted hosts,
+the entire dialogue is stuttered.
+For greylisted hosts,
+the default is to stutter for the first 10 seconds
+of dialogue only.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 4
+For blacklisted entries, return error code 450 to the spammer (default).
+.It Fl 5
+For blacklisted entries, return error code 550 to the spammer.
+.It Fl B Ar maxblack
+The maximum number of concurrent blacklisted connections to stutter at.
+This value may not be greater than maxcon (see below).
+The default is
+.Ar maxcon
+\- 100.
+When this value is exceeded, new blacklisted connections will not be
+stuttered at.
+.It Fl b
+Run in blacklist-only mode.
+.It Fl C Ar file
+Load the certificate for TLS from the given
+.Ar file .
+.It Fl c Ar maxcon
+The maximum number of concurrent connections to allow.
+.Ar maxcon
+may not exceed
+.Va kern.maxfiles
+\- 200, and defaults to 800.
+.It Fl d
+Debug mode.
+.Nm
+does not
+.Xr fork 2
+into the background.
+.It Xo
+.Fl G
+.Ar passtime : Ns Ar greyexp : Ns Ar whiteexp
+.Xc
+Adjust the three time parameters for greylisting.
+.Ar passtime
+defaults to 25 (minutes),
+.Ar greyexp
+to 4 (hours),
+and
+.Ar whiteexp
+to 864 (hours, approximately 36 days).
+.It Fl h Ar hostname
+The hostname that is reported in the SMTP banner.
+.It Fl K Ar file
+Load the private key for TLS from the given
+.Ar file .
+.It Fl l Ar address
+Specify the local address to which
+.Nm
+is to
+.Xr bind 2 .
+By default
+.Nm
+listens on the localhost address 127.0.0.1.
+.It Fl M Ar address
+Specify a local IP address which is listed as a low priority MX record,
+used to identify and trap hosts that connect to MX hosts out of order.
+See
+.Sx GREYTRAPPING
+below for details.
+.It Fl n Ar name
+The SMTP version banner that is reported upon initial connection.
+.It Fl p Ar port
+Specify a different port number from the default port that
+.Nm
+should listen for diverted SMTP connections on.
+The default port is found by looking for the named service
+.Dq spamd
+using
+.Xr getservbyname 3 .
+.It Fl S Ar secs
+Stutter at greylisted connections for the specified amount
+of seconds, after which the connection is not stuttered at.
+The default is 10; maximum is 90.
+.It Fl s Ar secs
+Delay each character sent to the client by the specified
+amount of seconds.
+The default is 1; maximum is 10.
+.It Fl v
+Enable verbose logging.
+By default
+.Nm
+logs connections, disconnections and blacklist matches to
+.Xr syslogd 8
+at
+.Dv LOG_INFO
+level.
+With verbose logging enabled, message detail
+including subject and recipient information is logged at
+.Dv LOG_INFO ,
+along with the message body and SMTP dialogue being logged at
+.Dv LOG_DEBUG
+level.
+.It Fl w Ar window
+Set the socket receive buffer to this many bytes, adjusting the window size.
+.It Fl Y Ar synctarget
+Add target
+.Ar synctarget
+to receive synchronisation messages.
+.Ar synctarget
+can be either an IPv4 address for unicast messages
+or a network interface and optional TTL value for multicast messages
+to the group 224.0.1.240.
+If the multicast TTL is not specified, a default value of 1 is used.
+This option can be specified multiple times.
+See also
+.Sx SYNCHRONISATION
+below.
+.It Fl y Ar synclisten
+Listen on
+.Ar synclisten
+network interface for incoming synchronisation messages.
+This option can be specified only once.
+See also
+.Sx SYNCHRONISATION
+below.
+.El
+.Pp
+When run in default mode,
+connections receive the pleasantly innocuous temporary failure of:
+.Bd -literal -offset 4n
+451 Temporary failure, please try again later.
+.Ed
+.Pp
+This happens in the SMTP dialogue
+immediately after the DATA command is received from the client.
+.Nm
+will use the db file in
+.Pa /var/db/spamd
+to track these connections to
+.Nm
+by connecting IP address, HELO/EHLO, envelope-from, and envelope-to, or
+.Em tuple
+for short.
+Hosts which connect but do not attempt to deliver mail
+will not generate a tuple and always be ignored.
+.Pp
+A previously unseen tuple is added to the
+.Pa /var/db/spamd
+database, recording the time an initial connection attempt was seen.
+After
+.Em passtime
+minutes if
+.Nm
+sees a retried attempt to deliver mail for the same tuple,
+.Nm
+will whitelist the connecting address by adding it as a
+whitelist entry to
+.Pa /var/db/spamd .
+.Pp
+.Nm
+regularly scans the
+.Pa /var/db/spamd
+database and configures all whitelist addresses as the
+.Xr pf 4
+<spamd-white>
+table,
+allowing connections to pass to the real MTA.
+Any addresses not found in
+<spamd-white>
+are diverted to
+.Nm .
+.Pp
+An example
+.Xr pf.conf 5
+fragment is given below.
+In the example, the file
+.Pa /etc/mail/nospamd
+contains addresses of hosts who should be passed directly
+to the SMTP agent (thus bypassing
+.Nm ) .
+.Bd -literal -offset 4n
+table <spamd-white> persist
+table <nospamd> persist file "/etc/mail/nospamd"
+pass in on egress proto tcp to any port smtp \e
+    divert-to 127.0.0.1 port spamd
+pass in on egress proto tcp from <nospamd> to any port smtp
+pass in log on egress proto tcp from <spamd-white> to any port smtp
+pass out log on egress proto tcp to any port smtp
+.Ed
+.Pp
+.Nm
+removes tuple entries from the
+.Pa /var/db/spamd
+database if delivery has not been retried within
+.Em greyexp
+hours from the initial time a connection is seen.
+The default is 4 hours as this is the most common setting after which
+MTAs will give up attempting to retry delivery of a message.
+.Pp
+.Nm
+removes whitelist entries from the
+.Pa /var/db/spamd
+database if no mail delivery activity has been seen from the
+whitelisted address by
+.Xr spamlogd 8
+within
+.Em whiteexp
+hours from the initial time an address
+is whitelisted.
+The default is 36 days to allow for the delivery of
+monthly mailing list digests without greylist delays every time.
+.Pp
+.Xr spamd-setup 8
+should be run periodically by
+.Xr cron 8
+to update the blacklists configured in
+.Xr spamd.conf 5 .
+Use
+.Xr crontab 1
+to uncomment the entry in root's crontab.
+When run in blacklist-only mode,
+the
+.Fl b
+flag should be specified.
+.Pp
+.Xr spamlogd 8
+should be used to update the whitelist entries in
+.Pa /var/db/spamd
+when connections are seen to pass to the real MTA on the
+.Em smtp
+port.
+.Pp
+.Xr spamdb 8
+can be used to examine and alter the contents of
+.Pa /var/db/spamd .
+See
+.Xr spamdb 8
+for further information.
+.Pp
+.Nm
+sends log messages to
+.Xr syslogd 8
+using
+.Em facility
+daemon and, with increasing verbosity,
+.Em level
+err, warn, info, and debug.
+The following
+.Xr syslog.conf 5
+section can be used to log connection details to a dedicated file:
+.Bd -literal -offset indent
+!spamd
+daemon.info	/var/log/spamd
+.Ed
+.Pp
+A typical entry shows the time of the connection and
+the IP address of the connecting host.
+When a host connects,
+the total number of active connections and
+the number of connections from blacklisted hosts is shown
+.Pq connected (xx/xx) .
+When a host disconnects,
+the amount of time spent talking to
+.Nm
+is shown.
+.Sh GREYTRAPPING
+When running
+.Nm
+in default mode,
+it may be useful to define
+.Em spamtrap
+destination addresses to catch spammers as they send mail from greylisted
+hosts.
+Such spamtrap addresses affect only greylisted connections to
+.Nm
+and are used to temporarily blacklist a host that is obviously sending spam.
+Unused email addresses or email addresses on spammers' lists are very
+useful for this.
+When a host that is currently greylisted attempts to send mail to a
+spamtrap address,
+it is blacklisted for 24 hours by adding the host to the
+.Nm
+blacklist
+<spamd-greytrap>.
+Spamtrap addresses are added to the
+.Pa /var/db/spamd
+database with the following
+.Xr spamdb 8
+command:
+.Pp
+.Dl # spamdb -T -a 'spamtrap@mydomain.org'
+.Pp
+See
+.Xr spamdb 8
+for further details.
+.Pp
+The file
+.Pa /etc/mail/spamd.alloweddomains
+can be used to specify a list of domainname suffixes, one per line, one of
+which must match each destination email address in the greylist.
+Any destination address which does not match one of the suffixes listed in
+.Pa spamd.alloweddomains
+will be trapped, exactly as if it were sent to a spamtrap address.
+Comment lines beginning with
+.Sq #
+and empty lines are ignored.
+.Pp
+For example, if
+.Pa spamd.alloweddomains
+contains:
+.Bd -literal -offset indent
+@humpingforjesus.com
+obtuse.com
+.Ed
+.Pp
+The following destination addresses
+.Em would not
+cause the sending host to be trapped:
+.Bd -literal -offset indent
+beardedclams@humpingforjesus.com
+beck@obtuse.com
+beck@snouts.obtuse.com
+.Ed
+.Pp
+However the following addresses
+.Em would
+cause the sending host to be trapped:
+.Bd -literal -offset indent
+peter@apostles.humpingforjesus.com
+bigbutts@bofh.ucs.ualberta.ca
+.Ed
+.Pp
+A low priority MX IP address may be specified with the
+.Fl M
+option.
+When
+.Nm
+has such an address specified, no host may enter new greylist
+tuples when connecting to this address; only existing entries
+may be updated.
+Any host attempting to make new deliveries to
+the low priority MX for which a tuple has not previously
+been seen will be trapped.
+.Pp
+Note that it is important to ensure that a host running
+.Nm
+with the low priority MX address active must see all the greylist
+changes for a higher priority MX host for the same domains.
+This is best done by the host itself receiving the connections to
+the higher priority MX on another IP address (which may be an IP alias).
+This will ensure that hosts are not trapped erroneously if the higher
+priority MX is unavailable.
+For example, on a host which is an existing MX record for a domain of
+value 10, a second IP address with MX of value 99 (a higher number, and
+therefore lower priority) would ensure that any RFC conformant client
+would attempt delivery to the IP address with the MX value of 10
+first, and should not attempt to deliver to the address with MX value 99.
+.Sh BLACKLIST-ONLY MODE
+When running in default mode, the
+.Xr pf.conf 5
+rules described above are sufficient.
+However when running in blacklist-only mode,
+a slightly modified
+.Xr pf.conf 5
+ruleset is required,
+diverting any addresses found in the <spamd> table to
+.Nm .
+Any other addresses
+are passed to the real MTA.
+.Bd -literal -offset 4n
+table <spamd> persist
+pass in on egress inet proto tcp from <spamd> to any port smtp \e
+    divert-to 127.0.0.1 port spamd
+.Ed
+.Pp
+Addresses can be loaded into the
+.Em table ,
+like:
+.Bd -literal -offset 4n
+# pfctl -q -t spamd -T replace -f /usr/local/share/spammers
+.Ed
+.Pp
+.Xr spamd-setup 8
+can also be used to load addresses into the <spamd> table.
+It has the added benefit of being able to remove addresses from
+blacklists, and will connect to
+.Nm
+over a localhost socket, giving
+.Nm
+information about each source of blacklist addresses, as well as custom
+rejection messages for each blacklist source
+that can be used to let any real person whose mail
+is deferred by
+.Nm
+know why their address has been listed
+from sending mail.
+This is important as it allows legitimate mail
+senders to pressure spam sources into behaving properly so that they
+may be removed from the relevant blacklists.
+.Sh CONFIGURATION CONNECTIONS
+.Nm
+listens for configuration connections on the port identified by the
+named service
+.Dq spamd-cfg
+(see
+.Xr services 5 ) .
+The configuration socket listens only on the INADDR_LOOPBACK
+address.
+Configuration of spamd is done by connecting to the configuration
+socket, and sending blacklist information, one blacklist per line.
+Each blacklist consists of a name, a message to reject mail
+with, and addresses in CIDR format, all separated by semicolons (;):
+.Bd -literal -offset indent
+tag;"rejection message";aaa.bbb.ccc.ddd/mm;aaa.bbb.ccc.ddd/mm
+.Ed
+.Pp
+The rejection message must be inside double quotes.
+A \e" will produce a double quote in the output.
+\en will produce a newline.
+%A will expand to the connecting IP address in dotted quad format.
+%% may be used to produce a single % in the output.
+\e\e will produce a single \e.
+.Nm
+will reject mail by displaying all the messages from all blacklists in which
+a connecting address is matched.
+.Xr spamd-setup 8
+is normally used to configure this information.
+.Sh SYNCHRONISATION
+.Nm
+supports realtime synchronisation of spamd databases between
+a number of spamd
+daemons running on multiple machines,
+using the
+.Fl Y
+and
+.Fl y
+options.
+The databases are synchronised for greylisted and trapped entries;
+whitelisted entries and entries made manually using
+.Xr spamdb 8
+are not updated.
+.Pp
+The following example will accept incoming multicast and unicast
+synchronisation messages, and send outgoing multicast messages through
+the network interface
+.Ar em0 :
+.Bd -literal -offset indent
+# /usr/libexec/spamd -y em0 -Y em0
+.Ed
+.Pp
+The second example will increase the multicast TTL to a value of 2,
+add the unicast targets
+.Ar foo.somewhere.org
+and
+.Ar bar.somewhere.org ,
+and accept incoming unicast messages received on
+.Ar bge0
+only.
+.Bd -literal -offset indent
+# /usr/libexec/spamd -y bge0 -Y em0:2 \e
+	-Y foo.somewhere.org -Y bar.somewhere.org
+.Ed
+.Pp
+If the file
+.Pa /etc/mail/spamd.key
+exists,
+.Nm
+will calculate the message-digest fingerprint (checksum) for the file
+and use it as a shared key to authenticate the synchronisation messages.
+The file itself can contain any data.
+For example, to create a secure random key:
+.Bd -literal -offset indent
+# dd if=/dev/random of=/etc/mail/spamd.key bs=2048 count=1
+.Ed
+.Pp
+The file needs to be copied to all hosts
+sending or receiving synchronisation messages.
+.Sh FILES
+.Bl -tag -width "/etc/mail/spamd.alloweddomainsXX" -compact
+.It Pa /etc/mail/spamd.alloweddomains
+Required suffixes for greytrapping.
+.It Pa /etc/mail/spamd.conf
+Default configuration file.
+.It Pa /etc/mail/spamd.key
+Authentication key for synchronisation messages.
+.It Pa /var/db/spamd
+Greylisting database.
+.El
+.Sh SEE ALSO
+.Xr pf.conf 5 ,
+.Xr services 5 ,
+.Xr spamd.conf 5 ,
+.Xr syslog.conf 5 ,
+.Xr pfctl 8 ,
+.Xr spamd-setup 8 ,
+.Xr spamdb 8 ,
+.Xr spamlogd 8 ,
+.Xr syslogd 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 3.3 .

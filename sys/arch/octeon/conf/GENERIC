@@ -1,0 +1,218 @@
+#	$OpenBSD: GENERIC,v 1.62 2025/05/16 16:35:12 kirill Exp $
+#
+# For further information on compiling OpenBSD kernels, see the config(8)
+# man page.
+#
+# For further information on hardware support for this architecture, see
+# the intro(4) man page.  For further information about kernel options
+# for this architecture, see the options(4) man page.  For an explanation
+# of each device driver in this file see the section 4 man page for the
+# device.
+
+machine		octeon mips64
+include		"../../../conf/GENERIC"
+maxusers	32
+
+option		CPU_MIPS64R2
+option		CPU_OCTEON
+option		FPUEMUL
+option		MIPS_PTE64
+makeoption	LINK_ADDRESS="0xffffffff81000000"
+
+option		PCIVERBOSE
+option		USER_PCICONF
+option		USBVERBOSE
+
+config	bsd	swap generic
+
+#
+# Definition of system
+#
+mainbus0	at root
+cpu0		at mainbus0
+clock0		at mainbus0
+iobus0		at mainbus0
+
+simplebus*	at fdt?
+simplebus*	at iobus?
+
+octcrypto0	at mainbus0
+octrtc0		at mainbus0
+
+octcf0		at iobus0
+amdcf0		at iobus0
+octrng0		at iobus0
+
+octpcie*	at iobus0
+pci*		at octpcie?
+pcibus*		at iobus0
+pci*		at pcibus?
+
+ppb*		at pci?		# PCI-PCI bridges
+pci*		at ppb?
+
+octsmi*		at fdt?		# MDIO controller
+com*		at fdt_octeon?
+octcib*		at fdt?		# Interrupt controller
+octcit*		at fdt?		# Interrupt controller v3
+octciu*		at fdt?		# Interrupt controller v1
+octgpio*	at fdt?		# GPIO controller
+octmmc*		at fdt?		# MMC host controller
+octpip*		at fdt?		# Packet input processing unit
+sdmmc*		at octmmc?	# SD/MMC bus
+
+octgmx*		at octpip?
+cnmac*		at octgmx?
+
+ogxnexus*	at fdt?
+ogx*		at ogxnexus?
+
+rgephy*		at mii?
+ukphy*		at mii?
+atphy*		at mii?
+eephy*		at mii?
+brswphy*	at mii?
+brgphy*		at mii?
+
+# IDE Controller
+pciide*		at pci? flags 0x0000
+
+# IDE hard drives
+wd*		at pciide? flags 0x0000
+
+# AHCI controllers
+octsctl*	at fdt?
+ahci*		at octsctl?
+
+# NVMe controllers
+nvme*		at pci?
+
+# USB Controllers
+dwctwo0 	at iobus? irq 56
+octuctl*	at fdt?
+octxctl*	at fdt?
+ehci0		at octuctl?
+ohci0		at octuctl?
+xhci*		at octxctl?
+
+# USB bus support
+usb*		at dwctwo?
+usb*		at ehci?
+usb*		at ohci?
+usb*		at xhci?
+
+# USB devices
+uhub*		at usb?		# USB Hubs
+uhub*		at uhub?	# USB Hubs
+urng*		at uhub?	# USB Random Number Generator
+uonerng*	at uhub?	# Moonbase Otago OneRNG
+umodem*		at uhub?	# USB Modems/Serial
+ucom*		at umodem?
+uvisor*		at uhub?	# Handspring Visor
+ucom*		at uvisor?
+uvscom*		at uhub?	# SUNTAC Slipper U VS-10U serial
+ucom*		at uvscom?
+ubsa*		at uhub?	# Belkin serial adapter
+ucom*		at ubsa?
+uftdi*		at uhub?	# FTDI FT8U100AX serial adapter
+ucom*		at uftdi?
+uplcom* 	at uhub?	# I/O DATA USB-RSAQ2 serial adapter
+ucom*		at uplcom?
+umct*		at uhub?	# MCT USB-RS232 serial adapter
+ucom*		at umct?
+uslcom*		at uhub?	# Silicon Laboratories CP210x serial
+ucom*		at uslcom?
+uscom*		at uhub?	# Simple USB serial adapters
+ucom*		at uscom?
+ucrcom*		at uhub?	# Chromebook serial
+ucom*		at ucrcom?
+uark*		at uhub?	# Arkmicro ARK3116 serial
+ucom*		at uark?
+moscom*		at uhub?	# MosChip MCS7703 serial
+ucom*		at moscom?
+umcs*		at uhub?	# MosChip MCS78x0 serial
+ucom*		at umcs?
+uipaq*		at uhub?	# iPAQ serial adapter
+ucom*		at uipaq?
+umsm*		at uhub?	# Qualcomm MSM EVDO
+ucom*		at umsm?
+uchcom*		at uhub?	# WinChipHead CH341/340 serial
+ucom*		at uchcom?
+uticom*		at uhub?	# TI serial
+ucom*		at uticom?
+uaudio* 	at uhub?	# USB Audio
+audio*		at uaudio?
+uvideo*		at uhub?	# USB Video
+video*		at uvideo?
+utvfu*		at uhub?	# Fushicai Audio-Video Grabber
+video*		at utvfu?
+audio*		at utvfu?
+ulpt*		at uhub?	# USB Printers
+umass*		at uhub?	# USB Mass Storage devices
+ugen*		at uhub?	# USB Generic driver
+uhidev*		at uhub?	# Human Interface Devices
+ucycom*		at uhidev?	# Cypress serial
+ucom*		at ucycom?
+uslhcom*	at uhidev?	# Silicon Labs CP2110 USB HID UART
+ucom*		at uslhcom?
+uhid*		at uhidev?	# USB generic HID support
+fido*		at uhidev?	# FIDO/U2F security key support
+#ucc*		at uhidev?	# Consumer Control keyboards
+#wskbd*		at ucc? mux 1
+ujoy*		at uhidev?	# USB joystick/gamecontroller support
+uhidpp*		at uhidev?	# Logitech HID++ Devices
+upd*		at uhidev?	# USB Power Devices sensors
+aue*		at uhub?	# ADMtek AN986 Pegasus Ethernet
+atu*		at uhub?	# Atmel AT76c50x based 802.11b
+axe*		at uhub?	# ASIX Electronics AX88172 USB Ethernet
+axen*		at uhub?	# ASIX Electronics AX88179 USB Ethernet
+cue*		at uhub?	# CATC USB-EL1201A based Ethernet
+kue*		at uhub?	# Kawasaki KL5KUSB101B based Ethernet
+smsc*		at uhub?	# SMSC LAN95xx Ethernet
+cdce*		at uhub?	# CDC Ethernet
+urndis*		at uhub?	# Remote NDIS Ethernet
+upl*		at uhub?	# Prolific PL2301/PL2302 host-to-host `network'
+ugl*		at uhub?	# Genesys Logic GL620USB-A host-to-host `network'
+udav*		at uhub?	# Davicom DM9601 based Ethernet
+mos*		at uhub?	# MOSCHIP MCS7730/7830 10/100 Ethernet
+url*		at uhub?	# Realtek RTL8150L based adapters
+ure*		at uhub?	# Realtek RTL8152 based adapters
+wi*		at uhub?	# WaveLAN IEEE 802.11DS
+udsbr*		at uhub?	# D-Link DSB-R100 radio
+radio*		at udsbr?	# USB radio
+uberry*		at uhub?	# Research In Motion BlackBerry
+uath*		at uhub?	# Atheros AR5005UG/AR5005UX
+ural*		at uhub?	# Ralink RT2500USB
+rum*		at uhub?	# Ralink RT2501USB/RT2601USB
+run*		at uhub?	# Ralink RT2700U/RT2800U/RT3000U
+otus*		at uhub?	# Atheros AR9001U
+athn*		at uhub?	# Atheros AR9002U
+zyd*		at uhub?	# Zydas ZD1211
+upgt*		at uhub?	# Conexant/Intersil PrismGT SoftMAC USB
+urtw*		at uhub?	# Realtek 8187
+rsu*		at uhub?	# Realtek RTL8188SU/RTL8191SU/RTL8192SU
+urtwn*		at uhub?	# Realtek RTL8188CU/RTL8192CU
+udcf*		at uhub?	# Gude Expert mouseCLOCK
+umbg*		at uhub?	# Meinberg Funkuhren USB5131/DCF600USB
+uthum*		at uhidev?	# TEMPerHUM sensor
+ugold*		at uhidev?	# gold TEMPer sensor
+utrh*		at uhidev?	# USBRH sensor
+utwitch*	at uhidev?	# YUREX BBU sensor
+uow*		at uhub?	# Maxim/Dallas DS2490 1-Wire adapter
+onewire*	at uow?
+uoakrh*		at uhidev?	# Toradex OAK temp and rel humidity
+uoaklux*	at uhidev?	# Toradex OAK LUX
+uoakv*		at uhidev?	# Toradex OAK 10V sensor
+
+scsibus*	at scsi?
+sd*		at scsibus?
+
+# 1-Wire devices
+option		ONEWIREVERBOSE
+owid*		at onewire?	# ID
+owsbm*		at onewire?	# Smart Battery Monitor
+owtemp* 	at onewire?	# Temperature
+owctr*		at onewire?	# Counter device
+
+pseudo-device	openprom
+pseudo-device	dt

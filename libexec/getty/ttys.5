@@ -1,0 +1,188 @@
+.\"	$OpenBSD: ttys.5,v 1.14 2022/07/29 13:56:36 millert Exp $
+.\"
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)ttys.5	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: July 29 2022 $
+.Dt TTYS 5
+.Os
+.Sh NAME
+.Nm ttys
+.Nd terminal initialization information
+.Sh DESCRIPTION
+The
+.Nm
+file contains information that is used by various routines to initialize
+and control the use of terminal special files.
+This information is read with the
+.Xr getttyent 3
+library routines.
+.Pp
+There is one line in the
+.Nm
+file per special device file.
+Fields are separated by tabs and/or spaces.
+Fields comprised of more than one word should be enclosed in double quotes
+.Pq Ql \&" .
+Blank lines and comments may appear anywhere in the file; comments
+are delimited by hash marks
+.Pq Ql #
+and newlines.
+Any unspecified fields will default to null.
+.Pp
+Each line in
+.Nm
+is of the format:
+.Dl tty command type flags
+.Pp
+The first field is the
+name of the terminal special file as it is found in
+.Pa /dev .
+.Pp
+The second field is the command to execute for the line,
+usually
+.Xr getty 8 ,
+which initializes and opens the line, setting the speed, waiting for
+a user name and executing the
+.Xr login 1
+utility.
+It can be, however, any desired command, for example
+the start up for a window system terminal emulator or some other
+daemon process, and can contain multiple words if quoted.
+.Pp
+The third field is the type of terminal usually connected to that
+tty line, normally the one found in the
+.Xr terminfo 5
+database file.
+The environment variable
+.Dv TERM
+is initialized with the value by either
+.Xr getty 8
+or
+.Xr login 1 .
+.Pp
+The remaining fields set flags in the
+.Fa ty_status
+entry (see
+.Xr getttyent 3 )
+or specify a window system process that
+.Xr init 8
+will maintain for the terminal line.
+The following is a list of permitted flags for each tty:
+.Bl -tag -width xxxxxxx
+.It Ar on
+Specify that
+.Xr init 8
+should execute the command given in the second field.
+.It Ar off
+The opposite of on.
+.It Ar secure
+If
+.Ar on
+is also specified, allows users with a user ID of 0 to log in on this line.
+If set for the
+.Ar console
+entry, then
+.Xr init 8
+will start a single-user shell without asking for the superuser password.
+.El
+.Pp
+Additionally, the following flags modify the default behavior of
+the terminal line.
+Some of these flags may not be supported by a terminal line driver.
+The flag fields should not be quoted.
+.Bl -tag -width xxxxxxx
+.It Ar local
+Treat the line as if it is locally connected.
+.It Ar rtscts
+Use RTS/CTS hardware flow control, if
+possible.
+.It Ar mdmbuf
+Use DTR/DCD flow control if possible.
+.It Ar softcar
+Ignore hardware carrier on the line.
+.El
+.Pp
+The string
+.Ar window=
+may be followed by a quoted command string which
+.Xr init 8
+will execute
+.Em before
+starting the command specified by the second field.
+.Pp
+Changes to the
+.Nm
+file take effect after it has been reloaded by
+.Xr init 8 ,
+which can be triggered by sending it a
+.Dv HUP
+signal.
+Reloading the
+.Nm
+file does
+.Em not
+change the state of the device-specific terminal flags described above.
+The
+.Xr ttyflags 8
+utility can be used to set those flags.
+.Sh FILES
+.Bl -tag -width /etc/ttys -compact
+.It Pa /etc/ttys
+.El
+.Sh EXAMPLES
+.Bd -literal
+# root login on console at 1200 baud
+console	"/usr/libexec/getty std.1200"	vt100	on secure
+# dialup at 1200 baud, no root logins
+ttyd0	"/usr/libexec/getty d1200"	dialup	on	# 555-1234
+# Mike's terminal: hp2621
+ttyh0	"/usr/libexec/getty std.9600"	hp2621-nl	on	# 457 Evans
+# John's terminal: vt100
+ttyh1	"/usr/libexec/getty std.9600"	vt100	on		# 459 Evans
+# terminal emulate/window system
+ttyv0	"/usr/new/xterm -L :0"		vs100	on window="/usr/new/Xvs100 0"
+# Network pseudo ttys -- don't enable getty
+ttyp0	none	network
+ttyp1	none	network	off
+.Ed
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr getttyent 3 ,
+.Xr ttyslot 3 ,
+.Xr gettytab 5 ,
+.Xr termcap 5 ,
+.Xr getty 8 ,
+.Xr init 8 ,
+.Xr ttyflags 8
+.Sh HISTORY
+A
+.Nm
+file appeared in
+.At v5 .

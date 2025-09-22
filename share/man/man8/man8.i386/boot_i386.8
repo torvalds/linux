@@ -1,0 +1,193 @@
+.\"	$OpenBSD: boot_i386.8,v 1.17 2016/02/25 09:43:52 tb Exp $
+.\"
+.\" Copyright (c) 1997 Tobias Weingartner
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 25 2016 $
+.Dt BOOT_I386 8 i386
+.Os
+.Sh NAME
+.Nm boot_i386
+.Nd i386 system bootstrapping procedures
+.Sh DESCRIPTION
+.Ss Cold starts
+The
+.Tn IBM PC
+computers and clones will perform a POST (Power On Self Test) upon
+being booted cold.
+This test will find and initialize memory, keyboard, and other devices.
+It will search for and initialize any extension ROMs that are present,
+and then attempt to boot the operating system from an available boot
+drive.
+.Pp
+The boot drive is usually specified in the BIOS setup.
+.Ss Warm starts
+The BIOS loads the first block (at physical location: track 0, head 0,
+sector 1) off the boot device into memory, and if the last two bytes in the
+block match the signature 0xAA55, the BIOS considers the block a valid
+bootable drive.
+The BIOS then proceeds to call the machine code program in this block.
+If the BIOS is current, it will also pass the boot drive
+to the boot block in register %dl.
+.Pp
+There are two different types of boot blocks on devices.
+There is the
+MBR (master boot record) and the PBR (partition boot record).
+A digression
+into a little piece of history will quickly give light as to why this is so.
+In the beginning, the PC
+.Dq architecture
+came with single or dual floppy
+drives, and no hard drives.
+The only type of bootable sectors on any device were the PBRs.
+They were responsible for loading the rest of the operating
+system from the correct device.
+When hard disks came out, it was felt that
+such a huge space should be able to be partitioned into separate drives,
+and this is when the MBR was invented.
+.Pp
+The MBR relocates itself upon being loaded and invoked by the BIOS.
+Embedded within the MBR is a partition table, with four partition table
+entries.
+The MBR code traverses this table (which was loaded with the
+MBR by the BIOS), looking for an active entry, and then loads the MBR or
+PBR from the disk location specified by the partition table entry.
+So in reality, the MBR is nothing more than a fancy chaining PBR.
+.Pp
+Note: The MBR could load another MBR, which is the case when you are booting
+off an extended partition.
+In other words, the first block of an extended
+partition is really an MBR, which will then load the corresponding MBR or PBR
+out of its extended partition's partition table.
+.Ss Geometry translation
+.Em WARNING :
+This portion of the
+.Dq PC BIOS Architecture
+is a mess, and a compatibility nightmare.
+.Pp
+The PC BIOS has an API to manipulate any disk that the BIOS happens to
+support.
+This interface uses 10 bits to address the cylinder, 8 bits to
+address the head, and 6 bits to address the sector of a drive.
+This restricts any application using the BIOS to being able to address only
+1024 cylinders, 256 heads, and 63 (since the sectors are 1 based) sectors
+on a disk.
+These limitations proved to be fine for roughly 3 years after
+the debut of hard disks on PC computers.
+.Pp
+Many (if not all) newer drives have many more cylinders than the BIOS API
+can support, and likely more sectors per track as well.
+To allow the BIOS the ability of accessing these large drives, the BIOS would
+.Dq re-map
+the
+cylinder/head/sector of the real drive geometry into something that would
+allow the applications using the BIOS to access a larger portion of the
+drive, still using the restricted BIOS API.
+.Pp
+The reason this has become a problem is that any modern OS will use its own
+drivers to access the disk drive, bypassing the BIOS completely.
+However,
+the MBR, PBR, and partition tables are all still written using the original
+BIOS access methods.
+This is for backwards compatibility to the original IBM PC!
+.Pp
+So the gist of it is, the MBR, PBR, and partition table need to have BIOS
+geometry offsets and cylinder/head/sector values for them to be able to
+load any type of operating system.
+This geometry can, and likely will,
+change whenever you move a disk from machine to machine, or from controller
+to controller.
+.Em They are controller and machine specific .
+.Ss Boot process options
+On most
+.Ox
+systems, booting
+.Ox
+from the BIOS will load the
+.Ox Ns -specific
+first-stage bootstrap,
+.Xr biosboot 8 ,
+which in turn will locate and load the second-stage bootstrap,
+.Xr boot 8 .
+Other bootstrapping software may be used, and can chain-load the
+.Ox
+bootstrapping code, or directly load the kernel.
+In the latter case, refer to your bootloader documentation to know which
+options are available.
+.Ss Abnormal system termination
+In case of system crashes, the kernel will usually enter the kernel
+debugger,
+.Xr ddb 4 ,
+unless it is not present in the kernel, or it is disabled via the
+.Em ddb.panic
+sysctl.
+Upon leaving ddb, or if ddb was not entered, the kernel will halt the system
+if it was still in device configuration phase, or attempt a dump to the
+configured dump device, if possible.
+The crash dump will then be recovered by
+.Xr savecore 8
+during the next multi-user boot cycle.
+It is also possible to force other behaviours from ddb.
+.Sh FILES
+.Bl -tag -width /usr/mdec/biosboot -compact
+.It Pa /bsd
+default system kernel
+.It Pa /bsd.sp
+single processor capable kernel
+.It Pa /bsd.mp
+multiprocessor capable kernel
+.It Pa /bsd.rd
+standalone installation kernel, suitable for disaster recovery
+.It Pa /usr/mdec/mbr
+system MBR image
+.It Pa /usr/mdec/biosboot
+system primary stage bootstrap (PBR)
+.It Pa /usr/mdec/boot
+system second stage bootstrap (usually also installed as
+.Pa /boot )
+.It Pa /usr/mdec/pxeboot
+PXE bootstrap
+.El
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr biosboot 8 ,
+.Xr boot 8 ,
+.Xr halt 8 ,
+.Xr init 8 ,
+.Xr installboot 8 ,
+.Xr pxeboot 8 ,
+.Xr reboot 8 ,
+.Xr savecore 8 ,
+.Xr shutdown 8
+.Sh BUGS
+The
+.Dq PC BIOS Architecture
+makes this process very prone to weird and
+wonderful interactions between different operating systems.
+.Pp
+There is no published standard to the MBR and PBR,
+which makes coding these a nightmare.
+.\" .Pp
+.\" Somebody *please* write me a decent BIOS, and make them (the masses) use it!

@@ -1,0 +1,10 @@
+   route to: 2001:ee0:2001:c0::
+destination: 2001:ee0:2001:c0::
+       mask: ffff:ffff:ffff:ffff::
+    gateway: fd88::1
+  interface: lo10001
+ if address: fd88::1
+   priority: 8 (static)
+      flags: <UP,GATEWAY,DONE,STATIC,MPATH>
+     use       mtu    expire
+       0     32768         0 

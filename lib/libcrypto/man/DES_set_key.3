@@ -1,0 +1,788 @@
+.\" $OpenBSD: DES_set_key.3,v 1.18 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to:
+.\" OpenSSL man3/DES_random_key 521738e9 Oct 5 14:58:30 2018 -0400
+.\"
+.\" --------------------------------------------------------------------------
+.\" Major patches to this file were contributed by
+.\" Ulf Moeller <ulf@openssl.org>, Ben Laurie <ben@openssl.org>,
+.\" and Richard Levitte <levitte@openssl.org>.
+.\" --------------------------------------------------------------------------
+.\" Copyright (c) 2000, 2001, 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" --------------------------------------------------------------------------
+.\" Parts of this file are derived from SSLeay documentation,
+.\" which is covered by the following Copyright and license:
+.\" --------------------------------------------------------------------------
+.\"
+.\" Copyright (C) 1995-1998 Tim Hudson (tjh@cryptsoft.com)
+.\" All rights reserved.
+.\"
+.\" This package is an SSL implementation written
+.\" by Eric Young (eay@cryptsoft.com).
+.\" The implementation was written so as to conform with Netscapes SSL.
+.\"
+.\" This library is free for commercial and non-commercial use as long as
+.\" the following conditions are aheared to.  The following conditions
+.\" apply to all code found in this distribution, be it the RC4, RSA,
+.\" lhash, DES, etc., code; not just the SSL code.  The SSL documentation
+.\" included with this distribution is covered by the same copyright terms
+.\" except that the holder is Tim Hudson (tjh@cryptsoft.com).
+.\"
+.\" Copyright remains Eric Young's, and as such any Copyright notices in
+.\" the code are not to be removed.
+.\" If this package is used in a product, Eric Young should be given
+.\" attribution as the author of the parts of the library used.
+.\" This can be in the form of a textual message at program startup or
+.\" in documentation (online or textual) provided with the package.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"    "This product includes cryptographic software written by
+.\"     Eric Young (eay@cryptsoft.com)"
+.\"    The word 'cryptographic' can be left out if the rouines from the
+.\"    library being used are not cryptographic related :-).
+.\" 4. If you include any Windows specific code (or a derivative thereof)
+.\"    from the apps directory (application code) you must include an
+.\"    acknowledgement: "This product includes software written by
+.\"    Tim Hudson (tjh@cryptsoft.com)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" The licence and distribution terms for any publically available version or
+.\" derivative of this code cannot be changed.  i.e. this code cannot simply be
+.\" copied and put under another distribution licence
+.\" [including the GNU Public Licence.]
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt DES_SET_KEY 3
+.Os
+.Sh NAME
+.Nm DES_random_key ,
+.Nm DES_set_key ,
+.Nm DES_key_sched ,
+.Nm DES_set_key_checked ,
+.Nm DES_set_key_unchecked ,
+.Nm DES_set_odd_parity ,
+.Nm DES_is_weak_key ,
+.Nm DES_ecb_encrypt ,
+.Nm DES_ecb2_encrypt ,
+.Nm DES_ecb3_encrypt ,
+.Nm DES_ncbc_encrypt ,
+.Nm DES_cfb_encrypt ,
+.Nm DES_ofb_encrypt ,
+.Nm DES_pcbc_encrypt ,
+.Nm DES_cfb64_encrypt ,
+.Nm DES_ofb64_encrypt ,
+.Nm DES_xcbc_encrypt ,
+.Nm DES_ede2_cbc_encrypt ,
+.Nm DES_ede2_cfb64_encrypt ,
+.Nm DES_ede2_ofb64_encrypt ,
+.Nm DES_ede3_cbc_encrypt ,
+.Nm DES_ede3_cbcm_encrypt ,
+.Nm DES_ede3_cfb64_encrypt ,
+.Nm DES_ede3_ofb64_encrypt ,
+.Nm DES_cbc_cksum ,
+.Nm DES_quad_cksum ,
+.Nm DES_string_to_key ,
+.Nm DES_string_to_2keys ,
+.Nm DES_fcrypt ,
+.Nm DES_crypt
+.Nd DES encryption
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/des.h
+.Ft void
+.Fo DES_random_key
+.Fa "DES_cblock *ret"
+.Fc
+.Ft int
+.Fo DES_set_key
+.Fa "const_DES_cblock *key"
+.Fa "DES_key_schedule *schedule"
+.Fc
+.Ft int
+.Fo DES_key_sched
+.Fa "const_DES_cblock *key"
+.Fa "DES_key_schedule *schedule"
+.Fc
+.Ft int
+.Fo DES_set_key_checked
+.Fa "const_DES_cblock *key"
+.Fa "DES_key_schedule *schedule"
+.Fc
+.Ft void
+.Fo DES_set_key_unchecked
+.Fa "const_DES_cblock *key"
+.Fa "DES_key_schedule *schedule"
+.Fc
+.Ft void
+.Fo DES_set_odd_parity
+.Fa "DES_cblock *key"
+.Fc
+.Ft int
+.Fo DES_is_weak_key
+.Fa "const_DES_cblock *key"
+.Fc
+.Ft void
+.Fo DES_ecb_encrypt
+.Fa "const_DES_cblock *input"
+.Fa "DES_cblock *output"
+.Fa "DES_key_schedule *ks"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_ecb2_encrypt
+.Fa "const_DES_cblock *input"
+.Fa "DES_cblock *output"
+.Fa "DES_key_schedule *ks1"
+.Fa "DES_key_schedule *ks2"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_ecb3_encrypt
+.Fa "const_DES_cblock *input"
+.Fa "DES_cblock *output"
+.Fa "DES_key_schedule *ks1"
+.Fa "DES_key_schedule *ks2"
+.Fa "DES_key_schedule *ks3"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_ncbc_encrypt
+.Fa "const unsigned char *input"
+.Fa "unsigned char *output"
+.Fa "long length"
+.Fa "DES_key_schedule *schedule"
+.Fa "DES_cblock *ivec"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_cfb_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "int numbits"
+.Fa "long length"
+.Fa "DES_key_schedule *schedule"
+.Fa "DES_cblock *ivec"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_ofb_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "int numbits"
+.Fa "long length"
+.Fa "DES_key_schedule *schedule"
+.Fa "DES_cblock *ivec"
+.Fc
+.Ft void
+.Fo DES_pcbc_encrypt
+.Fa "const unsigned char *input"
+.Fa "unsigned char *output"
+.Fa "long length"
+.Fa "DES_key_schedule *schedule"
+.Fa "DES_cblock *ivec"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_cfb64_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "DES_key_schedule *schedule"
+.Fa "DES_cblock *ivec"
+.Fa "int *num"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_ofb64_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "DES_key_schedule *schedule"
+.Fa "DES_cblock *ivec"
+.Fa "int *num"
+.Fc
+.Ft void
+.Fo DES_xcbc_encrypt
+.Fa "const unsigned char *input"
+.Fa "unsigned char *output"
+.Fa "long length"
+.Fa "DES_key_schedule *schedule"
+.Fa "DES_cblock *ivec"
+.Fa "const_DES_cblock *inw"
+.Fa "const_DES_cblock *outw"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_ede2_cbc_encrypt
+.Fa "const unsigned char *input"
+.Fa "unsigned char *output"
+.Fa "long length"
+.Fa "DES_key_schedule *ks1"
+.Fa "DES_key_schedule *ks2"
+.Fa "DES_cblock *ivec"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_ede2_cfb64_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "DES_key_schedule *ks1"
+.Fa "DES_key_schedule *ks2"
+.Fa "DES_cblock *ivec"
+.Fa "int *num"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_ede2_ofb64_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "DES_key_schedule *ks1"
+.Fa "DES_key_schedule *ks2"
+.Fa "DES_cblock *ivec"
+.Fa "int *num"
+.Fc
+.Ft void
+.Fo DES_ede3_cbc_encrypt
+.Fa "const unsigned char *input"
+.Fa "unsigned char *output"
+.Fa "long length"
+.Fa "DES_key_schedule *ks1"
+.Fa "DES_key_schedule *ks2"
+.Fa "DES_key_schedule *ks3"
+.Fa "DES_cblock *ivec"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_ede3_cbcm_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "DES_key_schedule *ks1"
+.Fa "DES_key_schedule *ks2"
+.Fa "DES_key_schedule *ks3"
+.Fa "DES_cblock *ivec1"
+.Fa "DES_cblock *ivec2"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_ede3_cfb64_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "DES_key_schedule *ks1"
+.Fa "DES_key_schedule *ks2"
+.Fa "DES_key_schedule *ks3"
+.Fa "DES_cblock *ivec"
+.Fa "int *num"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo DES_ede3_ofb64_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "DES_key_schedule *ks1"
+.Fa "DES_key_schedule *ks2"
+.Fa "DES_key_schedule *ks3"
+.Fa "DES_cblock *ivec"
+.Fa "int *num"
+.Fc
+.Ft DES_LONG
+.Fo DES_cbc_cksum
+.Fa "const unsigned char *input"
+.Fa "DES_cblock *output"
+.Fa "long length"
+.Fa "DES_key_schedule *schedule"
+.Fa "const_DES_cblock *ivec"
+.Fc
+.Ft DES_LONG
+.Fo DES_quad_cksum
+.Fa "const unsigned char *input"
+.Fa "DES_cblock output[]"
+.Fa "long length"
+.Fa "int out_count"
+.Fa "DES_cblock *seed"
+.Fc
+.Ft void
+.Fo DES_string_to_key
+.Fa "const char *str"
+.Fa "DES_cblock *key"
+.Fc
+.Ft void
+.Fo DES_string_to_2keys
+.Fa "const char *str"
+.Fa "DES_cblock *key1"
+.Fa "DES_cblock *key2"
+.Fc
+.Ft char *
+.Fo DES_fcrypt
+.Fa "const char *buf"
+.Fa "const char *salt"
+.Fa "char *ret"
+.Fc
+.Ft char *
+.Fo DES_crypt
+.Fa "const char *buf"
+.Fa "const char *salt"
+.Fc
+.Sh DESCRIPTION
+This library contains a fast implementation of the DES encryption
+algorithm.
+.Pp
+There are two phases to the use of DES encryption.
+The first is the generation of a
+.Vt DES_key_schedule
+from a key, and the second is the actual encryption.
+A DES key is of type
+.Vt DES_cblock .
+This type consists of 8 bytes with odd parity.
+The least significant bit in each byte is the parity bit.
+The key schedule is an expanded form of the key; it is used to speed the
+encryption process.
+.Pp
+.Fn DES_random_key
+generates a random key in odd parity.
+.Pp
+Before a DES key can be used, it must be converted into the architecture
+dependent
+.Vt DES_key_schedule
+via the
+.Fn DES_set_key_checked
+or
+.Fn DES_set_key_unchecked
+function.
+.Pp
+.Fn DES_set_key_checked
+will check that the key passed is of odd parity and is not a weak or
+semi-weak key.
+If the parity is wrong, then -1 is returned.
+If the key is a weak key, then -2 is returned.
+If an error is returned, the key schedule is not generated.
+.Pp
+.Fn DES_set_key
+works like
+.Fn DES_set_key_checked
+if the
+.Em DES_check_key
+flag is non-zero, otherwise like
+.Fn DES_set_key_unchecked .
+These functions are available for compatibility; it is recommended to
+use a function that does not depend on a global variable.
+.Pp
+.Fn DES_set_odd_parity
+sets the parity of the passed
+.Fa key
+to odd.
+.Pp
+The following routines mostly operate on an input and output stream of
+.Vt DES_cblock Ns s .
+.Pp
+.Fn DES_ecb_encrypt
+is the basic DES encryption routine that encrypts or decrypts a single
+8-byte
+.Vt DES_cblock
+in electronic code book (ECB) mode.
+It always transforms the input data, pointed to by
+.Fa input ,
+into the output data, pointed to by the
+.Fa output
+argument.
+If the
+.Fa enc
+argument is non-zero
+.Pq Dv DES_ENCRYPT ,
+the
+.Fa input
+(cleartext) is encrypted into the
+.Fa output
+(ciphertext) using the key_schedule specified by the
+.Fa schedule
+argument, previously set via
+.Fn DES_set_key .
+If
+.Fa enc
+is zero
+.Pq Dv DES_DECRYPT ,
+the
+.Fa input
+(now ciphertext) is decrypted into the
+.Fa output
+(now cleartext).
+Input and output may overlap.
+.Fn DES_ecb_encrypt
+does not return a value.
+.Pp
+.Fn DES_ecb3_encrypt
+encrypts/decrypts the
+.Fa input
+block by using three-key Triple-DES encryption in ECB mode.
+This involves encrypting the input with
+.Fa ks1 ,
+decrypting with the key schedule
+.Fa ks2 ,
+and then encrypting with
+.Fa ks3 .
+This routine greatly reduces the chances of brute force breaking of DES
+and has the advantage of if
+.Fa ks1 ,
+.Fa ks2 ,
+and
+.Fa ks3
+are the same, it is equivalent to just encryption using ECB mode and
+.Fa ks1
+as the key.
+.Pp
+The macro
+.Fn DES_ecb2_encrypt
+is provided to perform two-key Triple-DES encryption by using
+.Fa ks1
+for the final encryption.
+.Pp
+.Fn DES_ncbc_encrypt
+encrypts/decrypts using the cipher-block-chaining (CBC) mode of DES.
+If the
+.Fa enc
+argument is non-zero, the routine cipher-block-chain encrypts the
+cleartext data pointed to by the
+.Fa input
+argument into the ciphertext pointed to by the
+.Fa output
+argument, using the key schedule provided by the
+.Fa schedule
+argument, and initialization vector provided by the
+.Fa ivec
+argument.
+If the
+.Fa length
+argument is not an integral multiple of eight bytes, the last block is
+copied to a temporary area and zero filled.
+The output is always an integral multiple of eight bytes.
+.Pp
+.Fn DES_xcbc_encrypt
+is RSA's DESX mode of DES.
+It uses
+.Fa inw
+and
+.Fa outw
+to "whiten" the encryption.
+.Fa inw
+and
+.Fa outw
+are secret (unlike the iv) and are as such, part of the key.
+So the key is sort of 24 bytes.
+This is much better than CBC DES.
+.Pp
+.Fn DES_ede3_cbc_encrypt
+implements outer triple CBC DES encryption with three keys.
+This means that each DES operation inside the CBC mode is
+.Qq Li C=E(ks3,D(ks2,E(ks1,M))) .
+This mode is used by SSL.
+.Pp
+The
+.Fn DES_ede2_cbc_encrypt
+macro implements two-key Triple-DES by reusing
+.Fa ks1
+for the final encryption.
+.Qq Li C=E(ks1,D(ks2,E(ks1,M))) .
+This form of Triple-DES is used by the RSAREF library.
+.Pp
+.Fn DES_pcbc_encrypt
+encrypts/decrypts using the propagating cipher block chaining mode used
+by Kerberos v4.
+Its parameters are the same as
+.Fn DES_ncbc_encrypt .
+.Pp
+.Fn DES_cfb_encrypt
+encrypts/decrypts using cipher feedback mode.
+This method takes an array of characters as input and outputs an array
+of characters.
+It does not require any padding to 8 character groups.
+Note: the
+.Fa ivec
+variable is changed and the new changed value needs to be passed to the
+next call to this function.
+Since this function runs a complete DES ECB encryption per
+.Fa numbits ,
+this function is only suggested for use when sending a small number of
+characters.
+.Pp
+.Fn DES_cfb64_encrypt
+implements CFB mode of DES with 64-bit feedback.
+Why is this useful you ask?
+Because this routine will allow you to encrypt an arbitrary number of
+bytes, without 8 byte padding.
+Each call to this routine will encrypt the input bytes to output and
+then update ivec and num.
+num contains "how far" we are though ivec.
+If this does not make much sense, read more about CFB mode of DES.
+.Pp
+The
+.Fn DES_ede3_cfb64_encrypt
+function and the
+.Fn DES_ede2_cfb64_encrypt
+macro are the same as
+.Fn DES_cfb64_encrypt
+except that Triple-DES is used.
+.Pp
+.Fn DES_ofb_encrypt
+encrypts using output feedback mode.
+This method takes an array of characters as input and outputs an array
+of characters.
+It does not require any padding to 8 character groups.
+Note: the
+.Fa ivec
+variable is changed and the new changed value needs to be passed to the
+next call to this function.
+Since this function runs a complete DES ECB encryption per
+.Fa numbits ,
+this function is only suggested for use when sending a small number
+of characters.
+.Pp
+.Fn DES_ofb64_encrypt
+is the same as
+.Fn DES_cfb64_encrypt
+using Output Feed Back mode.
+.Pp
+The
+.Fn DES_ede3_ofb64_encrypt
+function and the
+.Fn DES_ede2_ofb64_encrypt
+macro are the same as
+.Fn DES_ofb64_encrypt ,
+using Triple-DES.
+.Pp
+The following functions are included in the DES library for
+compatibility with the MIT Kerberos library.
+.Pp
+.Fn DES_cbc_cksum
+produces an 8-byte checksum based on the input stream (via CBC
+encryption).
+The last 4 bytes of the checksum are returned and the complete 8 bytes
+are placed in
+.Fa output .
+This function is used by Kerberos v4.
+Other applications should use
+.Xr EVP_DigestInit 3
+etc. instead.
+.Pp
+.Fn DES_quad_cksum
+is a Kerberos v4 function.
+It returns a 4-byte checksum from the input bytes.
+The algorithm can be iterated over the input, depending on
+.Fa out_count ,
+1, 2, 3 or 4 times.
+If
+.Fa output
+is
+.Pf non- Dv NULL ,
+the 8 bytes generated by each pass are written into
+.Fa output .
+.Pp
+The following are DES-based transformations:
+.Pp
+.Fn DES_fcrypt
+is a fast version of the Unix
+.Xr crypt 3
+function.
+The
+.Fa salt
+must be two ASCII characters.
+This version is different from the normal crypt in that the third
+parameter is the buffer that the return value is written into.
+It needs to be at least 14 bytes long.
+The fourteenth byte is set to NUL.
+This version takes only a small amount of space relative to other
+fast crypt implementations.
+It is thread safe, unlike the normal crypt.
+.Pp
+.Fn DES_crypt
+is a faster replacement for the normal system
+.Xr crypt 3 .
+This function calls
+.Fn DES_fcrypt
+with a static array passed as the third parameter.
+This emulates the normal non-thread safe semantics of
+.Xr crypt 3 .
+.Sh RETURN VALUES
+.Fn DES_set_key ,
+.Fn DES_key_sched ,
+and
+.Fn DES_set_key_checked
+return 0 on success or a negative value on error.
+.Pp
+.Fn DES_is_weak_key
+returns 1 if the passed key is a weak key or 0 if it is ok.
+.Pp
+.Fn DES_cbc_cksum
+and
+.Fn DES_quad_cksum
+return a 4-byte integer representing the last 4 bytes of the checksum
+of the input.
+.Pp
+.Fn DES_fcrypt
+returns a pointer to the caller-provided buffer
+.Fa ret ,
+and
+.Fn DES_crypt
+returns a pointer to a static buffer.
+Both are allowed to return
+.Dv NULL
+to indicate failure, but currently, they cannot fail.
+.Sh SEE ALSO
+.Xr crypt 3 ,
+.Xr EVP_des_cbc 3 ,
+.Xr EVP_EncryptInit 3
+.Sh STANDARDS
+ANSI X3.106
+.Pp
+The DES library was initially written to be source code compatible
+with the MIT Kerberos library.
+.Sh HISTORY
+.Fn DES_random_key ,
+.Fn DES_set_key ,
+.Fn DES_key_sched ,
+.Fn DES_set_odd_parity ,
+.Fn DES_is_weak_key ,
+.Fn DES_ecb_encrypt ,
+.Fn DES_cfb_encrypt ,
+.Fn DES_ofb_encrypt ,
+.Fn DES_pcbc_encrypt ,
+.Fn DES_cfb64_encrypt ,
+.Fn DES_ofb64_encrypt ,
+.Fn DES_ede3_cbc_encrypt ,
+.Fn DES_cbc_cksum ,
+.Fn DES_quad_cksum ,
+.Fn DES_string_to_key ,
+.Fn DES_string_to_2keys ,
+and
+.Fn DES_crypt
+appeared in SSLeay 0.4 or earlier.
+.Fn DES_ncbc_encrypt
+first appeared in SSLeay 0.4.2.
+.Fn DES_ede2_cbc_encrypt
+first appeared in SSLeay 0.4.4.
+.Fn DES_ecb2_encrypt ,
+.Fn DES_ecb3_encrypt ,
+.Fn DES_ede2_cfb64_encrypt ,
+.Fn DES_ede2_ofb64_encrypt ,
+.Fn DES_ede3_cfb64_encrypt ,
+and
+.Fn DES_ede3_ofb64_encrypt
+first appeared in SSLeay 0.5.1.
+.Fn DES_xcbc_encrypt
+first appeared in SSLeay 0.6.2.
+.Fn DES_fcrypt
+first appeared in SSLeay 0.6.5.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn DES_set_key_checked
+and
+.Fn DES_set_key_unchecked
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+In OpenSSL 0.9.7 and
+.Ox 3.2 ,
+all
+.Sy des_
+functions were renamed to
+.Sy DES_
+to avoid clashes with older versions of libdes.
+.Sh AUTHORS
+.An Eric Young Aq Mt eay@cryptsoft.com
+.Sh CAVEATS
+Single-key DES is insecure due to its short key size.
+ECB mode is not suitable for most applications.
+.Sh BUGS
+DES_cbc_encrypt does not modify
+.Fa ivec ;
+use
+.Fn DES_ncbc_encrypt
+instead.
+.Pp
+.Fn DES_cfb_encrypt
+and
+.Fn DES_ofb_encrypt
+operates on input of 8 bits.
+What this means is that if you set numbits to 12, and length to 2, the
+first 12 bits will come from the 1st input byte and the low half of the
+second input byte.
+The second 12 bits will have the low 8 bits taken from the 3rd input
+byte and the top 4 bits taken from the 4th input byte.
+The same holds for output.
+This function has been implemented this way because most people will be
+using a multiple of 8 and because once you get into pulling input
+bytes apart things get ugly!
+.Pp
+.Fn DES_string_to_key
+is available for backward compatibility with the MIT library.
+New applications should use a cryptographic hash function.
+The same applies for
+.Fn DES_string_to_2key .

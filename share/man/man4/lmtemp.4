@@ -1,0 +1,45 @@
+.\"	$OpenBSD: lmtemp.4,v 1.13 2008/04/15 20:52:58 deraadt Exp $
+.\"
+.\" Copyright (c) 2004 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 15 2008 $
+.Dt LMTEMP 4
+.Os
+.Sh NAME
+.Nm lmtemp
+.Nd National Semiconductor LM75/LM76/LM77 temperature sensor
+.Sh SYNOPSIS
+.Cd "lmtemp* at iic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the National Semiconductor LM75,
+National Semiconductor LM76, National Semiconductor LM77,
+Dallas Semiconductor 1775, and Philips Semiconductor LM75A
+temperature sensors.
+The sensor possesses a single temperature value that can be accessed
+through the
+.Xr sysctl 8
+interface.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.6 .

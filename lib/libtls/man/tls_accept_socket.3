@@ -1,0 +1,108 @@
+.\" $OpenBSD: tls_accept_socket.3,v 1.5 2025/07/07 10:54:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2015 Ted Unangst <tedu@openbsd.org>
+.\" Copyright (c) 2015 Joel Sing <jsing@openbsd.org>
+.\" Copyright (c) 2016 Brent Cook <bcook@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt TLS_ACCEPT_SOCKET 3
+.Os
+.Sh NAME
+.Nm tls_accept_socket ,
+.Nm tls_accept_fds ,
+.Nm tls_accept_cbs
+.Nd accept an incoming client connection in a TLS server
+.Sh SYNOPSIS
+.Lb libtls libssl libcrypto
+.In tls.h
+.Ft int
+.Fo tls_accept_socket
+.Fa "struct tls *tls"
+.Fa "struct tls **cctx"
+.Fa "int socket"
+.Fc
+.Ft int
+.Fo tls_accept_fds
+.Fa "struct tls *tls"
+.Fa "struct tls **cctx"
+.Fa "int fd_read"
+.Fa "int fd_write"
+.Fc
+.Ft int
+.Fo tls_accept_cbs
+.Fa "struct tls *tls"
+.Fa "struct tls **cctx"
+.Fa "ssize_t (*tls_read_cb)(struct tls *ctx,\
+ void *buf, size_t buflen, void *cb_arg)"
+.Fa "ssize_t (*tls_write_cb)(struct tls *ctx,\
+ const void *buf, size_t buflen, void *cb_arg)"
+.Fa "void *cb_arg"
+.Fc
+.Sh DESCRIPTION
+After creating a TLS server context
+.Fa tls
+with
+.Xr tls_server 3
+and configuring it with
+.Xr tls_configure 3 ,
+a server can accept a new client connection by calling
+.Fn tls_accept_socket
+on an already established socket connection.
+.Pp
+Alternatively, a new client connection can be accepted over a pair of existing
+file descriptors by calling
+.Fn tls_accept_fds .
+.Pp
+Calling
+.Fn tls_accept_cbs
+allows read and write callback functions to handle data transfers.
+The specified
+.Fa cb_arg
+parameter is passed back to the functions,
+and can contain a pointer to any caller-specified data.
+.Pp
+All these functions create a new context suitable for reading and writing
+and return it in
+.Pf * Fa cctx .
+.Sh RETURN VALUES
+These functions return 0 on success or -1 on error.
+.Sh SEE ALSO
+.Xr tls_close 3 ,
+.Xr tls_config_set_session_id 3 ,
+.Xr tls_configure 3 ,
+.Xr tls_connect 3 ,
+.Xr tls_init 3 ,
+.Xr tls_server 3
+.Sh HISTORY
+.Fn tls_accept_socket
+appeared in
+.Ox 5.6
+and got its final name in
+.Ox 5.7 .
+.Pp
+.Fn tls_accept_fds
+appeared in
+.Ox 5.8
+and
+.Fn tls_accept_cbs
+in
+.Ox 6.1 .
+.Sh AUTHORS
+.An Joel Sing Aq Mt jsing@openbsd.org
+.Pp
+.An -nosplit
+.Fn tls_accept_cbs
+was written by
+.An Tobias Pape Aq Mt tobias@netshed.de .

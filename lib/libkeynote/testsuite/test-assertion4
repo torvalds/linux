@@ -1,0 +1,5 @@
+keynote-version: 2
+authorizer: "Key4"
+licensees: "Key8"
+conditions: app_domain == "testing" && request == "test" &&
+		  variable == "yes" -> "true";

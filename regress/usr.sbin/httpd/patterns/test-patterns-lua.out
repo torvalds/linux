@@ -1,0 +1,127 @@
+string='/page/51'
+pattern='^/(%a+)/(%d+)$'
+page	51
+string='/Apage/51'
+pattern='/[^%d][%w%u][^%c]+()[%d]+'
+9
+string='/^page/51'
+pattern='/^(.a.e)/(.)'
+page	5
+string='/page/page-51'
+pattern='/(.*)/%1-(%d+)'
+page	51
+string='/page/[51]'
+pattern='/page/(%b[])'
+[51]
+string=':-]'
+pattern=']+'
+]
+string=':-)'
+pattern='[)]+'
+)
+string='/page/51'
+pattern='$^'
+nil
+string='1234567890'
+pattern='([2-5]-)'
+
+string='****'
+pattern='^**$'
+****
+string='xxxx'
+pattern='^x*$'
+xxxx
+string='/page/51'
+pattern='no-%d-match'
+nil
+string='/page/page-51'
+pattern='/(.*)/%9-(%d+)'
+X_PATTERNS_TESTER_X:3: invalid capture index %9
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string=':-)'
+pattern=')+'
+X_PATTERNS_TESTER_X:3: invalid pattern capture
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string='/page/51'
+pattern='/page/51('
+X_PATTERNS_TESTER_X:3: unfinished capture
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string='/page/51'
+pattern='/page/51%'
+X_PATTERNS_TESTER_X:3: malformed pattern (ends with '%')
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string='/page/51'
+pattern='/page/[51'
+X_PATTERNS_TESTER_X:3: malformed pattern (missing ']')
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string='/page/(51)'
+pattern='/page/%b('
+X_PATTERNS_TESTER_X:3: malformed pattern (missing arguments to '%b')
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string='/page/51'
+pattern='()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()'
+X_PATTERNS_TESTER_X:3: too many captures
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string='/page/51'
+pattern='/page/%f'
+X_PATTERNS_TESTER_X:3: missing '[' after '%f' in pattern
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string='/page/51'
+pattern='/page%f/51'
+X_PATTERNS_TESTER_X:3: missing '[' after '%f' in pattern
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string='q*********************************'
+pattern='*************************************q'
+X_PATTERNS_TESTER_X:3: max repetition items
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string='q+++++++++++++++++++++++++++++++++'
+pattern='+++++++++++++++++++++++++++++++++++++q'
+X_PATTERNS_TESTER_X:3: max repetition items
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string='q---------------------------------'
+pattern='-------------------------------------q'
+X_PATTERNS_TESTER_X:3: max repetition items
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?
+string='q?????????????????????????????????'
+pattern='?????????????????????????????????????q'
+X_PATTERNS_TESTER_X:3: max repetition items
+stack traceback:
+	[C]: in function 'string.match'
+X_PATTERNS_TESTER_X:3: in main chunk
+	[C]: in ?

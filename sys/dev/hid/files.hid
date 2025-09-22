@@ -1,0 +1,26 @@
+#	$OpenBSD: files.hid,v 1.3 2022/11/11 06:46:48 anton Exp $
+
+# Human Interface Devices
+
+# HID "bus"
+define	hidbus {[reportid = -1]}
+
+# HID processing
+define	hid
+file	dev/hid/hid.c			hid
+
+# Keyboards
+define	hidkbd
+file	dev/hid/hidkbd.c		hidkbd			needs-flag
+
+# Mice
+define	hidms
+file	dev/hid/hidms.c			hidms
+
+# Multitouch
+define	hidmt
+file	dev/hid/hidmt.c			hidmt
+
+# Consumer Control keyboards
+define	hidcc
+file	dev/hid/hidcc.c			hidcc

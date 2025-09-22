@@ -1,0 +1,11 @@
+# This seems like a way to end a value with a backslash, but it requires an
+# empty substitution continuation, which isn't permitted.
+
+# DEFINE: %{foo} = \\
+# DEFINE:
+# RUN: echo '%{foo}'
+
+#      CHECK: Substitution's continuation is empty
+# CHECK-NEXT: in {{DEFINE}}: directive on test line [[#@LINE-4]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

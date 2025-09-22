@@ -1,0 +1,131 @@
+.\"	$OpenBSD: badsect.8,v 1.18 2022/03/31 17:27:19 naddy Exp $
+.\"	$NetBSD: badsect.8,v 1.8 1995/03/18 14:54:27 cgd Exp $
+.\"
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)badsect.8	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt BADSECT 8
+.Os
+.Sh NAME
+.Nm badsect
+.Nd create files to contain bad sectors
+.Sh SYNOPSIS
+.Nm badsect
+.Ar bbdir sector ...
+.Sh DESCRIPTION
+.Nm
+makes a file to contain a bad sector.
+Normally, bad sectors
+are made inaccessible by the standard formatter, which provides
+a forwarding table for bad sectors to the driver.
+If a driver supports the bad blocking standard, it is much more preferable
+to use that method to isolate bad blocks, since the bad block forwarding
+makes the pack appear perfect, and such packs can then be copied with
+.Xr dd 1 .
+The technique used by this program is also less general than
+bad block forwarding, as
+.Nm
+can't make amends for
+bad blocks in the i-list of file systems or in swap areas.
+.Pp
+On some disks,
+adding a sector which is suddenly bad to the bad sector table
+currently requires the running of the standard
+.Tn DEC
+formatter.
+Thus to deal with a newly bad block
+or on disks where the drivers
+do not support the bad-blocking standard
+.Nm
+may be used to good effect.
+.Pp
+.Nm
+is used on a quiet file system in the following way:
+First mount the file system, and change to its root directory.
+Make a directory
+.Li BAD
+there.
+Run
+.Nm badsect ,
+giving as argument the
+.Ar BAD
+directory followed by
+all the bad sectors you wish to add.
+(The sector numbers must be relative to the beginning of
+the file system, but this is not hard as the system reports
+relative sector numbers in its console error messages.)
+Then change back to the root directory, unmount the file system
+and run
+.Xr fsck 8
+on the file system.
+The bad sectors should show up in two files
+or in the bad sector files and the free list.
+Have
+.Em fsck
+remove files containing the offending bad sectors, but
+.Em do not
+have it remove the
+.Pa BAD/ Ns Em nnnnn
+files.
+This will leave the bad sectors in only the
+.Li BAD
+files.
+.Pp
+.Nm
+works by giving the specified sector numbers in a
+.Xr mknod 2
+system call,
+creating an illegal file whose first block address is the block containing
+the bad sector, and whose name is the bad sector number.
+When it is discovered by
+.Em fsck ,
+it will ask
+.Dq Li "HOLD BAD BLOCK?"
+A positive response will cause
+.Em fsck
+to convert the inode to a regular file containing the bad block.
+.Sh DIAGNOSTICS
+.Nm
+refuses to attach a block that
+resides in a critical area or is out of range of the file system.
+A warning is issued if the block is already in use.
+.Sh SEE ALSO
+.Xr fsck 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.1 .
+.Sh BUGS
+If more than one sector which comprises a file system fragment is bad,
+you should specify only one of them to
+.Nm badsect ,
+as the blocks in the bad sector files actually cover all the sectors in a
+file system fragment.

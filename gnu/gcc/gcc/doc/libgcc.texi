@@ -1,0 +1,731 @@
+@c Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+@c Contributed by Aldy Hernandez <aldy@quesejoda.com>
+
+@node Libgcc
+@chapter The GCC low-level runtime library
+
+GCC provides a low-level runtime library, @file{libgcc.a} or
+@file{libgcc_s.so.1} on some platforms.  GCC generates calls to
+routines in this library automatically, whenever it needs to perform
+some operation that is too complicated to emit inline code for.
+
+Most of the routines in @code{libgcc} handle arithmetic operations
+that the target processor cannot perform directly.  This includes
+integer multiply and divide on some machines, and all floating-point
+operations on other machines.  @code{libgcc} also includes routines
+for exception handling, and a handful of miscellaneous operations.
+
+Some of these routines can be defined in mostly machine-independent C@.
+Others must be hand-written in assembly language for each processor
+that needs them.
+
+GCC will also generate calls to C library routines, such as
+@code{memcpy} and @code{memset}, in some cases.  The set of routines
+that GCC may possibly use is documented in @ref{Other
+Builtins,,,gcc, Using the GNU Compiler Collection (GCC)}.
+
+These routines take arguments and return values of a specific machine
+mode, not a specific C type.  @xref{Machine Modes}, for an explanation
+of this concept.  For illustrative purposes, in this chapter the
+floating point type @code{float} is assumed to correspond to @code{SFmode};
+@code{double} to @code{DFmode}; and @code{@w{long double}} to both
+@code{TFmode} and @code{XFmode}.  Similarly, the integer types @code{int}
+and @code{@w{unsigned int}} correspond to @code{SImode}; @code{long} and
+@code{@w{unsigned long}} to @code{DImode}; and @code{@w{long long}} and
+@code{@w{unsigned long long}} to @code{TImode}.
+
+@menu
+* Integer library routines::
+* Soft float library routines::
+* Decimal float library routines::
+* Exception handling routines::
+* Miscellaneous routines::
+@end menu
+
+@node Integer library routines
+@section Routines for integer arithmetic
+
+The integer arithmetic routines are used on platforms that don't provide
+hardware support for arithmetic operations on some modes.
+
+@subsection Arithmetic functions
+
+@deftypefn {Runtime Function} int __ashlsi3 (int @var{a}, int @var{b})
+@deftypefnx {Runtime Function} long __ashldi3 (long @var{a}, int @var{b})
+@deftypefnx {Runtime Function} {long long} __ashlti3 (long long @var{a}, int @var{b})
+These functions return the result of shifting @var{a} left by @var{b} bits.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __ashrsi3 (int @var{a}, int @var{b})
+@deftypefnx {Runtime Function} long __ashrdi3 (long @var{a}, int @var{b})
+@deftypefnx {Runtime Function} {long long} __ashrti3 (long long @var{a}, int @var{b})
+These functions return the result of arithmetically shifting @var{a} right
+by @var{b} bits.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __divsi3 (int @var{a}, int @var{b})
+@deftypefnx {Runtime Function} long __divdi3 (long @var{a}, long @var{b})
+@deftypefnx {Runtime Function} {long long} __divti3 (long long @var{a}, long long @var{b})
+These functions return the quotient of the signed division of @var{a} and
+@var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __lshrsi3 (int @var{a}, int @var{b})
+@deftypefnx {Runtime Function} long __lshrdi3 (long @var{a}, int @var{b})
+@deftypefnx {Runtime Function} {long long} __lshrti3 (long long @var{a}, int @var{b})
+These functions return the result of logically shifting @var{a} right by
+@var{b} bits.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __modsi3 (int @var{a}, int @var{b})
+@deftypefnx {Runtime Function} long __moddi3 (long @var{a}, long @var{b})
+@deftypefnx {Runtime Function} {long long} __modti3 (long long @var{a}, long long @var{b})
+These functions return the remainder of the signed division of @var{a}
+and @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __mulsi3 (int @var{a}, int @var{b})
+@deftypefnx {Runtime Function} long __muldi3 (long @var{a}, long @var{b})
+@deftypefnx {Runtime Function} {long long} __multi3 (long long @var{a}, long long @var{b})
+These functions return the product of @var{a} and @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} long __negdi2 (long @var{a})
+@deftypefnx {Runtime Function} {long long} __negti2 (long long @var{a})
+These functions return the negation of @var{a}.
+@end deftypefn
+
+@deftypefn {Runtime Function} {unsigned int} __udivsi3 (unsigned int @var{a}, unsigned int @var{b})
+@deftypefnx {Runtime Function} {unsigned long} __udivdi3 (unsigned long @var{a}, unsigned long @var{b})
+@deftypefnx {Runtime Function} {unsigned long long} __udivti3 (unsigned long long @var{a}, unsigned long long @var{b})
+These functions return the quotient of the unsigned division of @var{a}
+and @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} {unsigned long} __udivmoddi3 (unsigned long @var{a}, unsigned long @var{b}, unsigned long *@var{c})
+@deftypefnx {Runtime Function} {unsigned long long} __udivti3 (unsigned long long @var{a}, unsigned long long @var{b}, unsigned long long *@var{c})
+These functions calculate both the quotient and remainder of the unsigned
+division of @var{a} and @var{b}.  The return value is the quotient, and
+the remainder is placed in variable pointed to by @var{c}.
+@end deftypefn
+
+@deftypefn {Runtime Function} {unsigned int} __umodsi3 (unsigned int @var{a}, unsigned int @var{b})
+@deftypefnx {Runtime Function} {unsigned long} __umoddi3 (unsigned long @var{a}, unsigned long @var{b})
+@deftypefnx {Runtime Function} {unsigned long long} __umodti3 (unsigned long long @var{a}, unsigned long long @var{b})
+These functions return the remainder of the unsigned division of @var{a}
+and @var{b}.
+@end deftypefn
+
+@subsection Comparison functions
+
+The following functions implement integral comparisons.  These functions
+implement a low-level compare, upon which the higher level comparison
+operators (such as less than and greater than or equal to) can be
+constructed.  The returned values lie in the range zero to two, to allow
+the high-level operators to be implemented by testing the returned
+result using either signed or unsigned comparison.
+
+@deftypefn {Runtime Function} int __cmpdi2 (long @var{a}, long @var{b})
+@deftypefnx {Runtime Function} int __cmpti2 (long long @var{a}, long long @var{b})
+These functions perform a signed comparison of @var{a} and @var{b}.  If
+@var{a} is less than @var{b}, they return 0; if @var{a} is greater than
+@var{b}, they return 2; and if @var{a} and @var{b} are equal they return 1.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __ucmpdi2 (unsigned long @var{a}, unsigned long @var{b})
+@deftypefnx {Runtime Function} int __ucmpti2 (unsigned long long @var{a}, unsigned long long @var{b})
+These functions perform an unsigned comparison of @var{a} and @var{b}.
+If @var{a} is less than @var{b}, they return 0; if @var{a} is greater than
+@var{b}, they return 2; and if @var{a} and @var{b} are equal they return 1.
+@end deftypefn
+
+@subsection Trapping arithmetic functions
+
+The following functions implement trapping arithmetic.  These functions
+call the libc function @code{abort} upon signed arithmetic overflow.
+
+@deftypefn {Runtime Function} int __absvsi2 (int @var{a})
+@deftypefnx {Runtime Function} long __absvdi2 (long @var{a})
+These functions return the absolute value of @var{a}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __addvsi3 (int @var{a}, int @var{b})
+@deftypefnx {Runtime Function} long __addvdi3 (long @var{a}, long @var{b})
+These functions return the sum of @var{a} and @var{b}; that is
+@code{@var{a} + @var{b}}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __mulvsi3 (int @var{a}, int @var{b})
+@deftypefnx {Runtime Function} long __mulvdi3 (long @var{a}, long @var{b})
+The functions return the product of @var{a} and @var{b}; that is
+@code{@var{a} * @var{b}}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __negvsi2 (int @var{a})
+@deftypefnx {Runtime Function} long __negvdi2 (long @var{a})
+These functions return the negation of @var{a}; that is @code{-@var{a}}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __subvsi3 (int @var{a}, int @var{b})
+@deftypefnx {Runtime Function} long __subvdi3 (long @var{a}, long @var{b})
+These functions return the difference between @var{b} and @var{a};
+that is @code{@var{a} - @var{b}}.
+@end deftypefn
+
+@subsection Bit operations
+
+@deftypefn {Runtime Function} int __clzsi2 (int @var{a})
+@deftypefnx {Runtime Function} int __clzdi2 (long @var{a})
+@deftypefnx {Runtime Function} int __clzti2 (long long @var{a})
+These functions return the number of leading 0-bits in @var{a}, starting
+at the most significant bit position.  If @var{a} is zero, the result is
+undefined.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __ctzsi2 (int @var{a})
+@deftypefnx {Runtime Function} int __ctzdi2 (long @var{a})
+@deftypefnx {Runtime Function} int __ctzti2 (long long @var{a})
+These functions return the number of trailing 0-bits in @var{a}, starting
+at the least significant bit position.  If @var{a} is zero, the result is
+undefined.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __ffsdi2 (long @var{a})
+@deftypefnx {Runtime Function} int __ffsti2 (long long @var{a})
+These functions return the index of the least significant 1-bit in @var{a},
+or the value zero if @var{a} is zero.  The least significant bit is index
+one.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __paritysi2 (int @var{a})
+@deftypefnx {Runtime Function} int __paritydi2 (long @var{a})
+@deftypefnx {Runtime Function} int __parityti2 (long long @var{a})
+These functions return the value zero if the number of bits set in
+@var{a} is even, and the value one otherwise.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __popcountsi2 (int @var{a})
+@deftypefnx {Runtime Function} int __popcountdi2 (long @var{a})
+@deftypefnx {Runtime Function} int __popcountti2 (long long @var{a})
+These functions return the number of bits set in @var{a}.
+@end deftypefn
+
+@node Soft float library routines
+@section Routines for floating point emulation
+@cindex soft float library
+@cindex arithmetic library
+@cindex math library
+@opindex msoft-float
+
+The software floating point library is used on machines which do not
+have hardware support for floating point.  It is also used whenever
+@option{-msoft-float} is used to disable generation of floating point
+instructions.  (Not all targets support this switch.)
+
+For compatibility with other compilers, the floating point emulation
+routines can be renamed with the @code{DECLARE_LIBRARY_RENAMES} macro
+(@pxref{Library Calls}).  In this section, the default names are used.
+
+Presently the library does not support @code{XFmode}, which is used
+for @code{long double} on some architectures.
+
+@subsection Arithmetic functions
+
+@deftypefn {Runtime Function} float __addsf3 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} double __adddf3 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} {long double} __addtf3 (long double @var{a}, long double @var{b})
+@deftypefnx {Runtime Function} {long double} __addxf3 (long double @var{a}, long double @var{b})
+These functions return the sum of @var{a} and @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} float __subsf3 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} double __subdf3 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} {long double} __subtf3 (long double @var{a}, long double @var{b})
+@deftypefnx {Runtime Function} {long double} __subxf3 (long double @var{a}, long double @var{b})
+These functions return the difference between @var{b} and @var{a};
+that is, @w{@math{@var{a} - @var{b}}}.
+@end deftypefn
+
+@deftypefn {Runtime Function} float __mulsf3 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} double __muldf3 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} {long double} __multf3 (long double @var{a}, long double @var{b})
+@deftypefnx {Runtime Function} {long double} __mulxf3 (long double @var{a}, long double @var{b})
+These functions return the product of @var{a} and @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} float __divsf3 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} double __divdf3 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} {long double} __divtf3 (long double @var{a}, long double @var{b})
+@deftypefnx {Runtime Function} {long double} __divxf3 (long double @var{a}, long double @var{b})
+These functions return the quotient of @var{a} and @var{b}; that is,
+@w{@math{@var{a} / @var{b}}}.
+@end deftypefn
+
+@deftypefn {Runtime Function} float __negsf2 (float @var{a})
+@deftypefnx {Runtime Function} double __negdf2 (double @var{a})
+@deftypefnx {Runtime Function} {long double} __negtf2 (long double @var{a})
+@deftypefnx {Runtime Function} {long double} __negxf2 (long double @var{a})
+These functions return the negation of @var{a}.  They simply flip the
+sign bit, so they can produce negative zero and negative NaN@.
+@end deftypefn
+
+@subsection Conversion functions
+
+@deftypefn {Runtime Function} double __extendsfdf2 (float @var{a})
+@deftypefnx {Runtime Function} {long double} __extendsftf2 (float @var{a})
+@deftypefnx {Runtime Function} {long double} __extendsfxf2 (float @var{a})
+@deftypefnx {Runtime Function} {long double} __extenddftf2 (double @var{a})
+@deftypefnx {Runtime Function} {long double} __extenddfxf2 (double @var{a})
+These functions extend @var{a} to the wider mode of their return
+type.
+@end deftypefn
+
+@deftypefn {Runtime Function} double __truncxfdf2 (long double @var{a})
+@deftypefnx {Runtime Function} double __trunctfdf2 (long double @var{a})
+@deftypefnx {Runtime Function} float __truncxfsf2 (long double @var{a})
+@deftypefnx {Runtime Function} float __trunctfsf2 (long double @var{a})
+@deftypefnx {Runtime Function} float __truncdfsf2 (double @var{a})
+These functions truncate @var{a} to the narrower mode of their return
+type, rounding toward zero.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __fixsfsi (float @var{a})
+@deftypefnx {Runtime Function} int __fixdfsi (double @var{a})
+@deftypefnx {Runtime Function} int __fixtfsi (long double @var{a})
+@deftypefnx {Runtime Function} int __fixxfsi (long double @var{a})
+These functions convert @var{a} to a signed integer, rounding toward zero.
+@end deftypefn
+
+@deftypefn {Runtime Function} long __fixsfdi (float @var{a})
+@deftypefnx {Runtime Function} long __fixdfdi (double @var{a})
+@deftypefnx {Runtime Function} long __fixtfdi (long double @var{a})
+@deftypefnx {Runtime Function} long __fixxfdi (long double @var{a})
+These functions convert @var{a} to a signed long, rounding toward zero.
+@end deftypefn
+
+@deftypefn {Runtime Function} {long long} __fixsfti (float @var{a})
+@deftypefnx {Runtime Function} {long long} __fixdfti (double @var{a})
+@deftypefnx {Runtime Function} {long long} __fixtfti (long double @var{a})
+@deftypefnx {Runtime Function} {long long} __fixxfti (long double @var{a})
+These functions convert @var{a} to a signed long long, rounding toward zero.
+@end deftypefn
+
+@deftypefn {Runtime Function} {unsigned int} __fixunssfsi (float @var{a})
+@deftypefnx {Runtime Function} {unsigned int} __fixunsdfsi (double @var{a})
+@deftypefnx {Runtime Function} {unsigned int} __fixunstfsi (long double @var{a})
+@deftypefnx {Runtime Function} {unsigned int} __fixunsxfsi (long double @var{a})
+These functions convert @var{a} to an unsigned integer, rounding
+toward zero.  Negative values all become zero.
+@end deftypefn
+
+@deftypefn {Runtime Function} {unsigned long} __fixunssfdi (float @var{a})
+@deftypefnx {Runtime Function} {unsigned long} __fixunsdfdi (double @var{a})
+@deftypefnx {Runtime Function} {unsigned long} __fixunstfdi (long double @var{a})
+@deftypefnx {Runtime Function} {unsigned long} __fixunsxfdi (long double @var{a})
+These functions convert @var{a} to an unsigned long, rounding
+toward zero.  Negative values all become zero.
+@end deftypefn
+
+@deftypefn {Runtime Function} {unsigned long long} __fixunssfti (float @var{a})
+@deftypefnx {Runtime Function} {unsigned long long} __fixunsdfti (double @var{a})
+@deftypefnx {Runtime Function} {unsigned long long} __fixunstfti (long double @var{a})
+@deftypefnx {Runtime Function} {unsigned long long} __fixunsxfti (long double @var{a})
+These functions convert @var{a} to an unsigned long long, rounding
+toward zero.  Negative values all become zero.
+@end deftypefn
+
+@deftypefn {Runtime Function} float __floatsisf (int @var{i})
+@deftypefnx {Runtime Function} double __floatsidf (int @var{i})
+@deftypefnx {Runtime Function} {long double} __floatsitf (int @var{i})
+@deftypefnx {Runtime Function} {long double} __floatsixf (int @var{i})
+These functions convert @var{i}, a signed integer, to floating point.
+@end deftypefn
+
+@deftypefn {Runtime Function} float __floatdisf (long @var{i})
+@deftypefnx {Runtime Function} double __floatdidf (long @var{i})
+@deftypefnx {Runtime Function} {long double} __floatditf (long @var{i})
+@deftypefnx {Runtime Function} {long double} __floatdixf (long @var{i})
+These functions convert @var{i}, a signed long, to floating point.
+@end deftypefn
+
+@deftypefn {Runtime Function} float __floattisf (long long @var{i})
+@deftypefnx {Runtime Function} double __floattidf (long long @var{i})
+@deftypefnx {Runtime Function} {long double} __floattitf (long long @var{i})
+@deftypefnx {Runtime Function} {long double} __floattixf (long long @var{i})
+These functions convert @var{i}, a signed long long, to floating point.
+@end deftypefn
+
+@deftypefn {Runtime Function} float __floatunsisf (unsigned int @var{i})
+@deftypefnx {Runtime Function} double __floatunsidf (unsigned int @var{i})
+@deftypefnx {Runtime Function} {long double} __floatunsitf (unsigned int @var{i})
+@deftypefnx {Runtime Function} {long double} __floatunsixf (unsigned int @var{i})
+These functions convert @var{i}, an unsigned integer, to floating point.
+@end deftypefn
+
+@deftypefn {Runtime Function} float __floatundisf (unsigned long @var{i})
+@deftypefnx {Runtime Function} double __floatundidf (unsigned long @var{i})
+@deftypefnx {Runtime Function} {long double} __floatunditf (unsigned long @var{i})
+@deftypefnx {Runtime Function} {long double} __floatundixf (unsigned long @var{i})
+These functions convert @var{i}, an unsigned long, to floating point.
+@end deftypefn
+
+@deftypefn {Runtime Function} float __floatuntisf (unsigned long long @var{i})
+@deftypefnx {Runtime Function} double __floatuntidf (unsigned long long @var{i})
+@deftypefnx {Runtime Function} {long double} __floatuntitf (unsigned long long @var{i})
+@deftypefnx {Runtime Function} {long double} __floatuntixf (unsigned long long @var{i})
+These functions convert @var{i}, an unsigned long long, to floating point.
+@end deftypefn
+
+@subsection Comparison functions
+
+There are two sets of basic comparison functions.
+
+@deftypefn {Runtime Function} int __cmpsf2 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} int __cmpdf2 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} int __cmptf2 (long double @var{a}, long double @var{b})
+These functions calculate @math{a <=> b}.  That is, if @var{a} is less
+than @var{b}, they return @minus{}1; if @var{a} is greater than @var{b}, they
+return 1; and if @var{a} and @var{b} are equal they return 0.  If
+either argument is NaN they return 1, but you should not rely on this;
+if NaN is a possibility, use one of the higher-level comparison
+functions.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __unordsf2 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} int __unorddf2 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} int __unordtf2 (long double @var{a}, long double @var{b})
+These functions return a nonzero value if either argument is NaN, otherwise 0.
+@end deftypefn
+
+There is also a complete group of higher level functions which
+correspond directly to comparison operators.  They implement the ISO C
+semantics for floating-point comparisons, taking NaN into account.
+Pay careful attention to the return values defined for each set.
+Under the hood, all of these routines are implemented as
+
+@smallexample
+  if (__unord@var{X}f2 (a, b))
+    return @var{E};
+  return __cmp@var{X}f2 (a, b);
+@end smallexample
+
+@noindent
+where @var{E} is a constant chosen to give the proper behavior for
+NaN@.  Thus, the meaning of the return value is different for each set.
+Do not rely on this implementation; only the semantics documented
+below are guaranteed.
+
+@deftypefn {Runtime Function} int __eqsf2 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} int __eqdf2 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} int __eqtf2 (long double @var{a}, long double @var{b})
+These functions return zero if neither argument is NaN, and @var{a} and
+@var{b} are equal.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __nesf2 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} int __nedf2 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} int __netf2 (long double @var{a}, long double @var{b})
+These functions return a nonzero value if either argument is NaN, or
+if @var{a} and @var{b} are unequal.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __gesf2 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} int __gedf2 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} int __getf2 (long double @var{a}, long double @var{b})
+These functions return a value greater than or equal to zero if
+neither argument is NaN, and @var{a} is greater than or equal to
+@var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __ltsf2 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} int __ltdf2 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} int __lttf2 (long double @var{a}, long double @var{b})
+These functions return a value less than zero if neither argument is
+NaN, and @var{a} is strictly less than @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __lesf2 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} int __ledf2 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} int __letf2 (long double @var{a}, long double @var{b})
+These functions return a value less than or equal to zero if neither
+argument is NaN, and @var{a} is less than or equal to @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __gtsf2 (float @var{a}, float @var{b})
+@deftypefnx {Runtime Function} int __gtdf2 (double @var{a}, double @var{b})
+@deftypefnx {Runtime Function} int __gttf2 (long double @var{a}, long double @var{b})
+These functions return a value greater than zero if neither argument
+is NaN, and @var{a} is strictly greater than @var{b}.
+@end deftypefn
+
+@subsection Other floating-point functions
+
+@deftypefn {Runtime Function} float __powisf2 (float @var{a}, int @var{b})
+@deftypefnx {Runtime Function} double __powidf2 (double @var{a}, int @var{b})
+@deftypefnx {Runtime Function} {long double} __powitf2 (long double @var{a}, int @var{b})
+@deftypefnx {Runtime Function} {long double} __powixf2 (long double @var{a}, int @var{b})
+These functions convert raise @var{a} to the power @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} {complex float} __mulsc3 (float @var{a}, float @var{b}, float @var{c}, float @var{d})
+@deftypefnx {Runtime Function} {complex double} __muldc3 (double @var{a}, double @var{b}, double @var{c}, double @var{d})
+@deftypefnx {Runtime Function} {complex long double} __multc3 (long double @var{a}, long double @var{b}, long double @var{c}, long double @var{d})
+@deftypefnx {Runtime Function} {complex long double} __mulxc3 (long double @var{a}, long double @var{b}, long double @var{c}, long double @var{d})
+These functions return the product of @math{@var{a} + i@var{b}} and
+@math{@var{c} + i@var{d}}, following the rules of C99 Annex G@.
+@end deftypefn
+
+@deftypefn {Runtime Function} {complex float} __divsc3 (float @var{a}, float @var{b}, float @var{c}, float @var{d})
+@deftypefnx {Runtime Function} {complex double} __divdc3 (double @var{a}, double @var{b}, double @var{c}, double @var{d})
+@deftypefnx {Runtime Function} {complex long double} __divtc3 (long double @var{a}, long double @var{b}, long double @var{c}, long double @var{d})
+@deftypefnx {Runtime Function} {complex long double} __divxc3 (long double @var{a}, long double @var{b}, long double @var{c}, long double @var{d})
+These functions return the quotient of @math{@var{a} + i@var{b}} and
+@math{@var{c} + i@var{d}} (i.e., @math{(@var{a} + i@var{b}) / (@var{c}
++ i@var{d})}), following the rules of C99 Annex G@.
+@end deftypefn
+
+@node Decimal float library routines
+@section Routines for decimal floating point emulation
+@cindex decimal float library
+@cindex IEEE-754R
+
+The software decimal floating point library implements IEEE 754R
+decimal floating point arithmetic and is only activated on selected
+targets.
+
+@subsection Arithmetic functions
+
+@deftypefn {Runtime Function} _Decimal32 __addsd3 (_Decimal32 @var{a}, _Decimal32 @var{b})
+@deftypefnx {Runtime Function} _Decimal64 __adddd3 (_Decimal64 @var{a}, _Decimal64 @var{b})
+@deftypefnx {Runtime Function} _Decimal128 __addtd3 (_Decimal128 @var{a}, _Decimal128 @var{b})
+These functions return the sum of @var{a} and @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} _Decimal32 __subsd3 (_Decimal32 @var{a}, _Decimal32 @var{b})
+@deftypefnx {Runtime Function} _Decimal64 __subdd3 (_Decimal64 @var{a}, _Decimal64 @var{b})
+@deftypefnx {Runtime Function} _Decimal128 __subtd3 (_Decimal128 @var{a}, _Decimal128 @var{b})
+These functions return the difference between @var{b} and @var{a};
+that is, @w{@math{@var{a} - @var{b}}}.
+@end deftypefn
+
+@deftypefn {Runtime Function} _Decimal32 __mulsd3 (_Decimal32 @var{a}, _Decimal32 @var{b})
+@deftypefnx {Runtime Function} _Decimal64 __muldd3 (_Decimal64 @var{a}, _Decimal64 @var{b})
+@deftypefnx {Runtime Function} _Decimal128 __multd3 (_Decimal128 @var{a}, _Decimal128 @var{b})
+These functions return the product of @var{a} and @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} _Decimal32 __divsd3 (_Decimal32 @var{a}, _Decimal32 @var{b})
+@deftypefnx {Runtime Function} _Decimal64 __divdd3 (_Decimal64 @var{a}, _Decimal64 @var{b})
+@deftypefnx {Runtime Function} _Decimal128 __divtd3 (_Decimal128 @var{a}, _Decimal128 @var{b})
+These functions return the quotient of @var{a} and @var{b}; that is,
+@w{@math{@var{a} / @var{b}}}.
+@end deftypefn
+
+@deftypefn {Runtime Function} _Decimal32 __negsd2 (_Decimal32 @var{a})
+@deftypefnx {Runtime Function} _Decimal64 __negdd2 (_Decimal64 @var{a})
+@deftypefnx {Runtime Function} _Decimal128 __negtd2 (_Decimal128 @var{a})
+These functions return the negation of @var{a}.  They simply flip the
+sign bit, so they can produce negative zero and negative NaN@.
+@end deftypefn
+
+@subsection Conversion functions
+
+@c DFP/DFP conversions
+@deftypefn {Runtime Function} _Decimal64 __extendsddd2 (_Decimal32 @var{a})
+@deftypefnx {Runtime Function} _Decimal128 __extendsdtd2 (_Decimal32 @var{a})
+@deftypefnx {Runtime Function} _Decimal128 __extendddtd2 (_Decimal64 @var{a})
+@c DFP/binary FP conversions
+@deftypefnx {Runtime Function} _Decimal32 __extendsfsd (float @var{a})
+@deftypefnx {Runtime Function} double __extendsddf (_Decimal32 @var{a})
+@deftypefnx {Runtime Function} {long double} __extendsdxf (_Decimal32 @var{a})
+@deftypefnx {Runtime Function} _Decimal64 __extendsfdd (float @var{a})
+@deftypefnx {Runtime Function} _Decimal64 __extenddfdd (double @var{a})
+@deftypefnx {Runtime Function} {long double} __extendddxf (_Decimal64 @var{a})
+@deftypefnx {Runtime Function} _Decimal128 __extendsftd (float @var{a})
+@deftypefnx {Runtime Function} _Decimal128 __extenddftd (double @var{a})
+@deftypefnx {Runtime Function} _Decimal128 __extendxftd ({long double} @var{a})
+These functions extend @var{a} to the wider mode of their return type.
+@end deftypefn
+
+@c DFP/DFP conversions
+@deftypefn {Runtime Function} _Decimal32 __truncddsd2 (_Decimal64 @var{a})
+@deftypefnx {Runtime Function} _Decimal32 __trunctdsd2 (_Decimal128 @var{a})
+@deftypefnx {Runtime Function} _Decimal64 __trunctddd2 (_Decimal128 @var{a})
+@c DFP/binary FP conversions
+@deftypefnx {Runtime Function} float __truncsdsf (_Decimal32 @var{a})
+@deftypefnx {Runtime Function} _Decimal32 __truncdfsd (double @var{a})
+@deftypefnx {Runtime Function} _Decimal32 __truncxfsd ({long double} @var{a})
+@deftypefnx {Runtime Function} float __truncddsf (_Decimal64 @var{a})
+@deftypefnx {Runtime Function} double __truncdddf (_Decimal64 @var{a})
+@deftypefnx {Runtime Function} _Decimal64 __truncxfdd ({long double} @var{a})
+@deftypefnx {Runtime Function} float __trunctdsf (_Decimal128 @var{a})
+@deftypefnx {Runtime Function} double __trunctddf (_Decimal128 @var{a})
+@deftypefnx {Runtime Function} {long double} __trunctdxf (_Decimal128 @var{a})
+These functions truncate @var{a} to the narrower mode of their return
+type.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __fixsdsi (_Decimal32 @var{a})
+@deftypefnx {Runtime Function} int __fixddsi (_Decimal64 @var{a})
+@deftypefnx {Runtime Function} int __fixtdsi (_Decimal128 @var{a})
+These functions convert @var{a} to a signed integer.
+@end deftypefn
+
+@deftypefn {Runtime Function} long __fixsddi (_Decimal32 @var{a})
+@deftypefnx {Runtime Function} long __fixdddi (_Decimal64 @var{a})
+@deftypefnx {Runtime Function} long __fixtddi (_Decimal128 @var{a})
+These functions convert @var{a} to a signed long.
+@end deftypefn
+
+@deftypefn {Runtime Function} {unsigned int} __fixunssdsi (_Decimal32 @var{a})
+@deftypefnx {Runtime Function} {unsigned int} __fixunsddsi (_Decimal64 @var{a})
+@deftypefnx {Runtime Function} {unsigned int} __fixunstdsi (_Decimal128 @var{a})
+These functions convert @var{a} to an unsigned integer.  Negative values all become zero.
+@end deftypefn
+
+@deftypefn {Runtime Function} {unsigned long} __fixunssddi (_Decimal32 @var{a})
+@deftypefnx {Runtime Function} {unsigned long} __fixunsdddi (_Decimal64 @var{a})
+@deftypefnx {Runtime Function} {unsigned long} __fixunstddi (_Decimal128 @var{a})
+These functions convert @var{a} to an unsigned long.  Negative values
+all become zero.
+@end deftypefn
+
+@deftypefn {Runtime Function} _Decimal32 __floatsisd (int @var{i})
+@deftypefnx {Runtime Function} _Decimal64 __floatsidd (int @var{i})
+@deftypefnx {Runtime Function} _Decimal128 __floatsitd (int @var{i})
+These functions convert @var{i}, a signed integer, to decimal floating point.
+@end deftypefn
+
+@deftypefn {Runtime Function} _Decimal32 __floatdisd (long @var{i})
+@deftypefnx {Runtime Function} _Decimal64 __floatdidd (long @var{i})
+@deftypefnx {Runtime Function} _Decimal128 __floatditd (long @var{i})
+These functions convert @var{i}, a signed long, to decimal floating point.
+@end deftypefn
+
+@deftypefn {Runtime Function} _Decimal32 __floatunssisd (unsigned int @var{i})
+@deftypefnx {Runtime Function} _Decimal64 __floatunssidd (unsigned int @var{i})
+@deftypefnx {Runtime Function} _Decimal128 __floatunssitd (unsigned int @var{i})
+These functions convert @var{i}, an unsigned integer, to decimal floating point.
+@end deftypefn
+
+@deftypefn {Runtime Function} _Decimal32 __floatunsdisd (unsigned long @var{i})
+@deftypefnx {Runtime Function} _Decimal64 __floatunsdidd (unsigned long @var{i})
+@deftypefnx {Runtime Function} _Decimal128 __floatunsditd (unsigned long @var{i})
+These functions convert @var{i}, an unsigned long, to decimal floating point.
+@end deftypefn
+
+@subsection Comparison functions
+
+@deftypefn {Runtime Function} int __unordsd2 (_Decimal32 @var{a}, _Decimal32 @var{b})
+@deftypefnx {Runtime Function} int __unorddd2 (_Decimal64 @var{a}, _Decimal64 @var{b})
+@deftypefnx {Runtime Function} int __unordtd2 (_Decimal128 @var{a}, _Decimal128 @var{b})
+These functions return a nonzero value if either argument is NaN, otherwise 0.
+@end deftypefn
+
+There is also a complete group of higher level functions which
+correspond directly to comparison operators.  They implement the ISO C
+semantics for floating-point comparisons, taking NaN into account.
+Pay careful attention to the return values defined for each set.
+Under the hood, all of these routines are implemented as
+
+@smallexample
+  if (__unord@var{X}d2 (a, b))
+    return @var{E};
+  return __cmp@var{X}d2 (a, b);
+@end smallexample
+
+@noindent
+where @var{E} is a constant chosen to give the proper behavior for
+NaN@.  Thus, the meaning of the return value is different for each set.
+Do not rely on this implementation; only the semantics documented
+below are guaranteed.
+
+@deftypefn {Runtime Function} int __eqsd2 (_Decimal32 @var{a}, _Decimal32 @var{b})
+@deftypefnx {Runtime Function} int __eqdd2 (_Decimal64 @var{a}, _Decimal64 @var{b})
+@deftypefnx {Runtime Function} int __eqtd2 (_Decimal128 @var{a}, _Decimal128 @var{b})
+These functions return zero if neither argument is NaN, and @var{a} and
+@var{b} are equal.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __nesd2 (_Decimal32 @var{a}, _Decimal32 @var{b})
+@deftypefnx {Runtime Function} int __nedd2 (_Decimal64 @var{a}, _Decimal64 @var{b})
+@deftypefnx {Runtime Function} int __netd2 (_Decimal128 @var{a}, _Decimal128 @var{b})
+These functions return a nonzero value if either argument is NaN, or
+if @var{a} and @var{b} are unequal.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __gesd2 (_Decimal32 @var{a}, _Decimal32 @var{b})
+@deftypefnx {Runtime Function} int __gedd2 (_Decimal64 @var{a}, _Decimal64 @var{b})
+@deftypefnx {Runtime Function} int __getd2 (_Decimal128 @var{a}, _Decimal128 @var{b})
+These functions return a value greater than or equal to zero if
+neither argument is NaN, and @var{a} is greater than or equal to
+@var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __ltsd2 (_Decimal32 @var{a}, _Decimal32 @var{b})
+@deftypefnx {Runtime Function} int __ltdd2 (_Decimal64 @var{a}, _Decimal64 @var{b})
+@deftypefnx {Runtime Function} int __lttd2 (_Decimal128 @var{a}, _Decimal128 @var{b})
+These functions return a value less than zero if neither argument is
+NaN, and @var{a} is strictly less than @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __lesd2 (_Decimal32 @var{a}, _Decimal32 @var{b})
+@deftypefnx {Runtime Function} int __ledd2 (_Decimal64 @var{a}, _Decimal64 @var{b})
+@deftypefnx {Runtime Function} int __letd2 (_Decimal128 @var{a}, _Decimal128 @var{b})
+These functions return a value less than or equal to zero if neither
+argument is NaN, and @var{a} is less than or equal to @var{b}.
+@end deftypefn
+
+@deftypefn {Runtime Function} int __gtsd2 (_Decimal32 @var{a}, _Decimal32 @var{b})
+@deftypefnx {Runtime Function} int __gtdd2 (_Decimal64 @var{a}, _Decimal64 @var{b})
+@deftypefnx {Runtime Function} int __gttd2 (_Decimal128 @var{a}, _Decimal128 @var{b})
+These functions return a value greater than zero if neither argument
+is NaN, and @var{a} is strictly greater than @var{b}.
+@end deftypefn
+
+@node Exception handling routines
+@section Language-independent routines for exception handling
+
+document me!
+
+@smallexample
+  _Unwind_DeleteException
+  _Unwind_Find_FDE
+  _Unwind_ForcedUnwind
+  _Unwind_GetGR
+  _Unwind_GetIP
+  _Unwind_GetLanguageSpecificData
+  _Unwind_GetRegionStart
+  _Unwind_GetTextRelBase
+  _Unwind_GetDataRelBase
+  _Unwind_RaiseException
+  _Unwind_Resume
+  _Unwind_SetGR
+  _Unwind_SetIP
+  _Unwind_FindEnclosingFunction
+  _Unwind_SjLj_Register
+  _Unwind_SjLj_Unregister
+  _Unwind_SjLj_RaiseException
+  _Unwind_SjLj_ForcedUnwind
+  _Unwind_SjLj_Resume
+  __deregister_frame
+  __deregister_frame_info
+  __deregister_frame_info_bases
+  __register_frame
+  __register_frame_info
+  __register_frame_info_bases
+  __register_frame_info_table
+  __register_frame_info_table_bases
+  __register_frame_table
+@end smallexample
+
+@node Miscellaneous routines
+@section Miscellaneous runtime library routines
+
+@subsection Cache control functions
+@deftypefn {Runtime Function} void __clear_cache (char *@var{beg}, char *@var{end})
+This function clears the instruction cache between @var{beg} and @var{end}.
+@end deftypefn
+

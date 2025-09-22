@@ -1,0 +1,28 @@
+# $OpenBSD: files.gpio,v 1.11 2020/01/24 05:14:51 jsg Exp $
+
+define	gpio {[offset = -1], [mask = 0], [flag = 0]}
+
+device	gpio: gpio
+attach	gpio at gpiobus
+file	dev/gpio/gpio.c				gpio	needs-flag
+
+# GPIO simulator
+device	gpiosim: gpiobus
+attach	gpiosim at root
+file	dev/gpio/gpiosim.c			gpiosim
+
+# I2C bus bit-banging
+device	gpioiic: i2cbus, i2c_bitbang
+attach	gpioiic at gpio
+file	dev/gpio/gpioiic.c			gpioiic
+
+# 1-Wire bus bit-banging
+device	gpioow: onewirebus, onewire_bitbang
+attach	gpioow at gpio
+file	dev/gpio/gpioow.c			gpioow
+
+# DCF77 time signal station receivers
+device	gpiodcf
+attach	gpiodcf at gpio
+file	dev/gpio/gpiodcf.c			gpiodcf
+

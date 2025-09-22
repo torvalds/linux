@@ -1,0 +1,111 @@
+.\"	$OpenBSD: mtio.4,v 1.16 2015/09/10 17:55:21 schwarze Exp $
+.\"	$NetBSD: mtio.4,v 1.4 1996/03/03 17:13:54 thorpej Exp $
+.\"
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)mtio.4	6.5 (Berkeley) 3/27/91
+.\"
+.Dd $Mdocdate: September 10 2015 $
+.Dt MTIO 4
+.Os
+.Sh NAME
+.Nm mtio
+.Nd magtape interface
+.Sh SYNOPSIS
+.In sys/mtio.h
+.Sh DESCRIPTION
+This interface concerns devices which are typical tape block devices,
+see
+.Xr physio 9 .
+.Pp
+The conventional device letters/numbers
+is applicable to any of the transport/controller pairs.
+(But note that only 1600
+.Tn BPI
+is available with the
+.Tn TS11 ,
+and that 800
+.Tn BPI
+is not applicable to
+.Tn TM78 . )
+.Pp
+When the device last number is between
+.Em 0-7
+the device will operate at 800
+.Tn BPI
+(or its lowest density), between
+.Em 8-15
+it will operate at 1600
+.Tn BPI
+(or its second density), and between
+.Em 16-23
+it will operate at 6250
+.Tn BPI .
+.Pp
+The rewind devices automatically rewind
+when the last requested read, write or seek has finished, or the end of the tape
+has been reached.
+The letter
+.Ql n
+is usually prepended to
+the name of the no-rewind devices.
+.Pp
+Unix tapes are written in multiples of 1024 byte block
+records.
+Two end-of-file markers mark the end of a tape, and
+one end-of-file marker marks the end of a tape file.
+If the tape is not to be rewound it is positioned with the
+head in between the two tape marks, where the next write
+will overwrite the second end-of-file marker.
+.Pp
+All of the magtape devices may be manipulated with the
+.Xr mt 1
+command.
+.Pp
+The include file
+.In sys/mtio.h
+defines the various
+.Xr ioctl 2
+operations available on raw magnetic tape.
+.Sh FILES
+.Bl -tag -width /dev/rmt? -compact
+.It Pa /dev/mt?
+.It Pa /dev/rmt?
+.El
+.Sh SEE ALSO
+.Xr mt 1 ,
+.Xr tar 1 ,
+.Xr intro 4 ,
+.Xr st 4
+.Sh HISTORY
+The
+.Nm
+manual appeared in
+.Bx 4.2 .
+.Sh BUGS
+The status should be returned in a device independent format.

@@ -1,0 +1,2 @@
+strlcpy-3.c: In function 'main':
+strlcpy-3.c:6: warning: array size (10) smaller than bound length (15)

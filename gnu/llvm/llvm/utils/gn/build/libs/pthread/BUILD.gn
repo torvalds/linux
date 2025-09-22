@@ -1,0 +1,13 @@
+import("//llvm/utils/gn/build/libs/pthread/enable.gni")
+
+config("pthread_config") {
+  visibility = [ ":pthread" ]
+  libs = [ "pthread" ]
+}
+
+group("pthread") {
+  # On Android, bionic has built-in support for pthreads.
+  if (llvm_enable_threads && current_os != "win" && current_os != "android") {
+    public_configs = [ ":pthread_config" ]
+  }
+}

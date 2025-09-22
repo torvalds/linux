@@ -1,0 +1,4 @@
+host-ppc-darwin.o : $(srcdir)/config/rs6000/host-darwin.c \
+  $(CONFIG_H) $(SYSTEM_H) coretypes.h hosthooks.h $(HOSTHOOKS_DEF_H) toplev.h \
+  config/host-darwin.h $(DIAGNOSTIC_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< -o $@

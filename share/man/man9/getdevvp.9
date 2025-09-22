@@ -1,0 +1,90 @@
+.\"     $OpenBSD: getdevvp.9,v 1.10 2025/09/20 13:56:15 mpi Exp $
+.\"
+.\" Copyright (C) 2002 Peter A. Werner. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: September 20 2025 $
+.Dt GETDEVVP 9
+.Os
+.Sh NAME
+.Nm getdevvp ,
+.Nm bdevvp ,
+.Nm cdevvp
+.Nd create a vnode for a device
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn getdevvp "dev_t dev" "struct vnode **vpp" "enum vtype type"
+.Ft int
+.Fn bdevvp "dev_t dev" "struct vnode **vpp"
+.Ft int
+.Fn cdevvp "dev_t dev" "struct vnode **vpp"
+.Sh DESCRIPTION
+The
+.Fn getdevvp
+function creates a vnode for a device of type
+.Fa type
+with a device number of
+.Fa dev ,
+and returns a pointer to it in
+.Fa vpp .
+.Pp
+Its arguments are:
+.Bl -tag -width "rootrefs"
+.It Fa dev
+The device number of the desired device.
+.It Fa vpp
+Where the vnode will be returned on success.
+.It Fa type
+The type of device, either:
+.Bl -tag -width "VBLK"
+.It Dv VBLK
+For a block device, or
+.It Dv VCHR
+for a character device.
+.El
+.El
+.Pp
+.Fn bdevvp
+and
+.Fn cdevvp
+use getdevvp internally, specifying the third argument.
+.Fn bdevvp
+will create a vnode for a block device, and is used for the root file system
+and swap areas, among other things.
+.Fn cdevvp
+will create a vnode for a character device and is used in console handling.
+.Sh RETURN VALUES
+All functions return 0 on success.
+If an error occurs, vpp will point to
+.Dv NULL .
+See
+.Xr getnewvnode 9
+for further return values.
+.Sh SEE ALSO
+.Xr getnewvnode 9 ,
+.Xr vnode 9

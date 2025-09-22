@@ -1,0 +1,35 @@
+import("//llvm/tools/binutils_symlinks.gni")
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/symlink_or_copy.gni")
+
+tablegen("Opts") {
+  visibility = [ ":llvm-strings" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+if (llvm_install_binutils_symlinks) {
+  symlink_or_copy("strings") {
+    deps = [ ":llvm-strings" ]
+    source = "llvm-strings"
+    output = "$root_out_dir/bin/strings"
+  }
+}
+
+# //:llvm-strings depends on this symlink target, see comment in //BUILD.gn.
+group("symlinks") {
+  deps = [ ":llvm-strings" ]
+  if (llvm_install_binutils_symlinks) {
+    deps += [ ":strings" ]
+  }
+}
+
+executable("llvm-strings") {
+  deps = [
+    ":Opts",
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-strings.cpp" ]
+}

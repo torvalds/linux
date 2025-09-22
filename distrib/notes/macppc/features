@@ -1,0 +1,43 @@
+dnl	$OpenBSD: features,v 1.6 2023/10/05 11:58:34 kn Exp $
+dnl
+dnl This file lists almost all the conditional features of this port,
+dnl which are used to provide accurate installation notes.
+dnl
+dnl Information about the installer script features should be in sync with
+dnl	src/distrib/macppc/ramdisk/install.md
+dnl and the list files in
+dnl	src/distrib/macppc/ramdisk/list
+dnl
+dnl ====
+dnl
+dnl architecture name (for the packages directory)
+define({:-MACHINE_ARCH-:},powerpc)dnl
+dnl
+dnl define if /sbin/kbd exists on the media
+define({:-MDKBD-:},)dnl
+dnl
+dnl define if serial consoles needs to be enabled in /etc/ttys
+dnl (i.e. md_consoleinfo is not empty)
+define({:-MDSERCONS-:},1)dnl
+dnl
+dnl define if SMP kernels are provided
+define({:-MDSMP-:},1)dnl
+dnl
+dnl define if shared libraries are provided
+define({:-MDSO-:},1)dnl
+dnl
+dnl define if some media have timezone information (TZ in their list)
+define({:-MDTZ-:},1)dnl
+dnl
+dnl define if glass console is possible
+dnl (XXX does not imply availability of X servers though)
+define({:-MDX-:},1)dnl
+dnl
+dnl define if the X server can't start until machdep.allow_aperture is set
+define({:-MDXAPERTURE-:},1)dnl
+dnl
+dnl define if the X server can start without a configuration file
+define({:-MDXDM-:},1)dnl
+dnl
+dnl define if boot loaders support softraid(4) volumes
+define({:-MDBOOTSR-:},)dnl

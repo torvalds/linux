@@ -1,0 +1,3 @@
+flow esp from 4.4.0.0/16 to 3.3.3.0/24 peer 2.2.2.2 \
+	srcid host1.one.net \
+	dstid host2.two.net

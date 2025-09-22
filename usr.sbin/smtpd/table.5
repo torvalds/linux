@@ -1,0 +1,267 @@
+.\"	$OpenBSD: table.5,v 1.14 2024/05/02 18:14:33 op Exp $
+.\"
+.\" Copyright (c) 2013 Eric Faurot <eric@openbsd.org>
+.\" Copyright (c) 2013 Gilles Chehade <gilles@poolp.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: May 2 2024 $
+.Dt TABLE 5
+.Os
+.Sh NAME
+.Nm table
+.Nd format description for smtpd tables
+.Sh DESCRIPTION
+This manual page documents the file format for the various tables used in the
+.Xr smtpd 8
+mail daemon.
+.Pp
+The format described here applies to tables as defined in
+.Xr smtpd.conf 5 .
+.Sh TABLE TYPES
+There are two types of tables: lists and mappings.
+A list consists of a series of values,
+while a mapping consists of a series of keys and their associated values.
+The following illustrates how to declare them as static tables:
+.Bd -literal -offset indent
+table mylist { value1, value2, value3 }
+table mymapping { key1 = value1, key2 = value2, key3 = value3 }
+.Ed
+.Pp
+When using a
+.Ql file
+table, a list will be written with each value on a line by itself.
+.Bd -literal -offset indent
+value1
+value2
+value3
+.Ed
+.Pp
+A mapping will be written with each key and value on a line,
+whitespace and an optional colon separating both columns:
+.Bd -literal -offset indent
+key1:	value1
+key2	value2
+key3	value3
+.Ed
+.Pp
+Blank lines, leading and trailing spaces and tabs are ignored.
+Lines whose first non-space character is a hash mark
+.Pq Sq #
+are comments and are ignored.
+To force the parsing of a file table as a list rather than a mapping, use
+this special comment:
+.Pp
+.Dl # @list
+.Pp
+A file table can be converted to a Berkeley database using the
+.Xr makemap 8
+utility with no syntax change.
+.Pp
+Tables using a
+.Ql file
+or Berkeley DB backend will be referenced as follows:
+.Bd -unfilled -offset indent
+.Ic table Ar name Cm file : Ns Pa /path/to/file
+.Ic table Ar name Cm db : Ns Pa /path/to/file.db
+.Ed
+.Ss Aliasing tables
+Aliasing tables are mappings that associate a recipient to one or many
+destinations.
+They can be used in two contexts: primary domain aliases and virtual domain
+mapping.
+.Bd -unfilled -offset indent
+.Ic action Ar name method Cm alias Pf < table Ns >
+.Ic action Ar name method Cm virtual Pf < table Ns >
+.Ed
+.Pp
+In a primary domain context, the key is the user part of the recipient address,
+whilst the value is one or many recipients as described in
+.Xr aliases 5 :
+.Bd -literal -offset indent
+user1	otheruser
+user2	otheruser1,otheruser2
+user3	otheruser@example.com
+.Ed
+.Pp
+In a virtual domain context, the key is either a user part, a full email
+address or a catch-all, following selection rules described in
+.Xr smtpd.conf 5 ,
+and the value is one or many recipients as described in
+.Xr aliases 5 :
+.Bd -literal -offset indent
+user1			otheruser
+user2@example.org	otheruser1,otheruser2
+@example.org		otheruser@example.com
+@			catchall@example.com
+.Ed
+.Pp
+The following directive shares the same table format,
+but with a different meaning.
+Here, the user is allowed to send mail from the listed addresses:
+.Bd -unfilled -offset indent
+.Ic listen on Ar interface Cm auth Oo Ar ... Oc Cm senders Pf < Ar table Ns >
+.Ed
+.Ss Domain tables
+Domain tables are simple lists of domains or hosts.
+.Bd -unfilled -offset indent
+.Ic match Cm for domain Pf < table Ns > Cm action Ar name
+.Ic match Cm helo Pf < table Ns > Oo Ar ... Oc Cm action Ar name
+.Ed
+.Pp
+In that context, the list of domains will be matched against the recipient
+domain or against the HELO name advertised by the sending host,
+respectively.
+For
+.Ql static ,
+.Ql file
+and
+.Xr dbopen 3
+backends, a wildcard may be used so the domain table may contain:
+.Bd -literal -offset indent
+example.org
+*.example.org
+.Ed
+.Ss Credentials tables
+Credentials tables are mappings of credentials.
+They can be used in two contexts:
+.Bd -unfilled -offset indent
+.Ic listen on Ar interface Cm tls Oo Ar ... Oc Cm auth Pf < Ar table Ns >
+.Ic action Ar name Cm relay host Ar relay-url Cm auth Pf < Ar table Ns >
+.Ed
+.Pp
+In a listener context, the credentials are a mapping of username and encrypted
+passwords:
+.Bd -literal -offset indent
+user1	$2b$10$hIJ4QfMcp.90nJwKqGbKM.MybArjHOTpEtoTV.DgLYAiThuoYmTSe
+user2	$2b$10$bwSmUOBGcZGamIfRuXGTvuTo3VLbPG9k5yeKNMBtULBhksV5KdGsK
+.Ed
+.Pp
+The passwords are to be encrypted using the
+.Xr smtpctl 8
+encrypt subcommand.
+.Pp
+In a relay context, the credentials are a mapping of labels and
+username:password pairs:
+.Bd -literal -offset indent
+label1	user:password
+.Ed
+.Pp
+The label must be unique and is used as a selector for the proper credentials
+when multiple credentials are valid for a single destination.
+The password is not encrypted as it must be provided to the remote host.
+.Ss Netaddr tables
+Netaddr tables are lists of IPv4 and IPv6 network addresses.
+They can only be used in the following context:
+.Pp
+.D1 Ic match Cm from src Pf < Ar table Ns > Cm action Ar name
+.Pp
+When used as a "from source", the address of a client is compared to the list
+of addresses in the table until a match is found.
+.Pp
+A netaddr table can contain exact addresses or netmasks, and looks as follow:
+.Bd -literal -offset indent
+192.168.1.1
+[::1]
+192.168.1.0/24
+.Ed
+.Pp
+IPv6 addresses must be enclosed in square brackets.
+.Ss Userinfo tables
+Userinfo tables are used in rule context to specify an alternate userbase,
+mapping virtual users to local system users by UID, GID and home directory.
+.Pp
+.D1 Ic action Ar name method Cm userbase Pf < Ar table Ns >
+.Pp
+A userinfo table looks as follows:
+.Bd -literal -offset indent
+joe	1000:100:/home/virtual/joe
+jack	1000:100:/home/virtual/jack
+.Ed
+.Pp
+In this example, both joe and jack are virtual users mapped to the local
+system user with UID 1000 and GID 100, but different home directories.
+These directories may contain a
+.Xr forward 5
+file.
+This can be used in conjunction with an alias table
+that maps an email address or the domain part to the desired virtual
+username.
+For example:
+.Bd -literal -offset indent
+joe@example.org     joe
+jack@example.com    jack
+.Ed
+.Ss Source tables
+Source tables are lists of IPv4 and IPv6 addresses.
+They can only be used in the following context:
+.Pp
+.D1 Ic action Ar name Cm relay src Pf < Ar table Ns >
+.Pp
+Successive queries to the source table will return the elements one by one.
+.Pp
+A source table looks as follow:
+.Bd -literal -offset indent
+192.168.1.2
+192.168.1.3
+[::1]
+[::2]
+.Ed
+.Pp
+IPv6 address must be enclosed in square brackets.
+.Ss Mailaddr tables
+Mailaddr tables are lists of email addresses.
+They can be used in the following contexts:
+.Bd -unfilled -offset indent
+.Ic match Cm mail\-from Pf < Ar table Ns > Cm action Ar name
+.Ic match Cm rcpt\-to Pf < Ar table Ns > Cm action Ar name
+.Ed
+.Pp
+A mailaddr entry is used to match an email address against a username,
+a domain or a full email address.
+A "*" wildcard may be used in part of the domain name.
+.Pp
+A mailaddr table looks as follow:
+.Bd -literal -offset indent
+user
+@domain
+user@domain
+user@*.domain
+.Ed
+.Ss Addrname tables
+Addrname tables are used to map IP addresses to hostnames.
+They can be used in both listen context and relay context:
+.Bd -unfilled -offset indent
+.Ic listen on Ar interface Cm hostnames Pf < Ar table Ns >
+.Ic action Ar name Cm relay helo\-src Pf < Ar table Ns >
+.Ed
+.Pp
+In listen context, the table is used to look up the server name to advertise
+depending on the local address of the socket on which a connection is accepted.
+In relay context, the table is used to determine the hostname for the HELO
+sequence of the SMTP protocol, depending on the local address used for the
+outgoing connection.
+.Pp
+The format is a mapping from inet4 or inet6 addresses to hostnames:
+.Bd -literal -offset indent
+[::1]		localhost
+127.0.0.1	localhost
+88.190.23.165	www.opensmtpd.org
+.Ed
+.Pp
+IPv6 addresses must be enclosed in square brackets.
+.Sh SEE ALSO
+.Xr smtpd.conf 5 ,
+.Xr makemap 8 ,
+.Xr smtpd 8

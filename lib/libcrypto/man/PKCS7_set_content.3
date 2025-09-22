@@ -1,0 +1,121 @@
+.\" $OpenBSD: PKCS7_set_content.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS7_SET_CONTENT 3
+.Os
+.Sh NAME
+.Nm PKCS7_set_content ,
+.Nm PKCS7_content_new
+.Nd set the nested contentInfo in a PKCS#7 structure
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft int
+.Fo PKCS7_set_content
+.Fa "PKCS7 *outer"
+.Fa "PKCS7 *inner"
+.Fc
+.Ft int
+.Fo PKCS7_content_new
+.Fa "PKCS7 *outer"
+.Fa "int inner_type"
+.Fc
+.Sh DESCRIPTION
+If the
+.Fa contentType
+of the
+.Fa outer
+PKCS7 structure is
+.Vt SignedData
+or
+.Vt DigestedData ,
+.Fn PKCS7_set_content
+sets the
+.Fa contentInfo
+field of the
+.Fa content
+field of
+.Fa outer
+to
+.Fa inner ,
+without copying
+.Fa inner .
+If there was previous
+.Fa contentInfo ,
+it is freed rather than overwritten.
+The rest of the internal state of
+.Fa outer
+and of its
+.Fa content
+remains unchanged.
+.Pp
+.Fn PKCS7_content_new
+is similar except that it first allocates and initializes a new, empty
+.Fa inner
+object of the given
+.Fa inner_type
+using
+.Xr PKCS7_new 3
+and
+.Xr PKCS7_set_type 3 .
+The
+.Fa inner_type
+can be any of the NIDs listed in the
+.Xr PKCS7_set_type 3
+manual.
+.Sh RETURN VALUES
+These functions return 1 on success or 0 on failure.
+They fail if the
+.Fa contentType
+of
+.Fa outer
+is unsupported.
+.Fn PKCS7_content_new
+can also fail when memory is exhausted.
+In case of failure,
+.Fa outer
+remains unchanged.
+.Sh SEE ALSO
+.Xr PKCS7_dataInit 3 ,
+.Xr PKCS7_new 3 ,
+.Xr PKCS7_set_type 3 ,
+.Xr PKCS7_sign 3
+.Sh STANDARDS
+RFC 2315: PKCS #7: Cryptographic Message Syntax Version 1.5
+.Bl -bullet -compact -offset 1n -width 1n
+.It
+Section 7. General syntax
+.It
+Section 9. Signed-data content type
+.It
+Section 12.\& Digested-data content type
+.El
+.Sh HISTORY
+These functions first appeared in SSLeay 0.8.1
+and have been available since
+.Ox 2.4 .
+.Sh CAVEATS
+Despite the function names, these functions do not set the
+.Fa content
+field of
+.Fa outer ,
+but only the
+.Fa contentInfo
+field inside it.
+The rest of the
+.Fa content
+remains unchanged.

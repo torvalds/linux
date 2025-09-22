@@ -1,0 +1,62 @@
+.\"	$OpenBSD: octboot.4,v 1.2 2020/10/10 10:11:54 visa Exp $
+.\"
+.\" Copyright (c) 2020 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 10 2020 $
+.Dt OCTBOOT 4 octeon
+.Os
+.Sh NAME
+.Nm octboot
+.Nd kernel boot interface
+.Sh SYNOPSIS
+.Cd "pseudo-device octboot"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides an
+.Xr ioctl 2
+interface for booting into another kernel from the currently running kernel.
+.Sh IOCTL INTERFACE
+.Nm
+provides the following
+.Xr ioctl 2
+commands, available through
+.In machine/octboot.h :
+.Bl -tag -width xxxx
+.It Dv OBIOC_GETROOTDEV Fa "char rootdev[PATH_MAX]"
+Get the name of the current root device.
+.It Dv OBIOC_KEXEC "struct octboot_kexec_args *args"
+Boot into the given kernel image.
+.Bd -literal
+struct octboot_kexec_args {
+	char		*kimg;
+	size_t		 klen;
+	char		*argv[OCTBOOT_MAX_ARGS];
+};
+.Ed
+.El
+.Sh FILES
+.Bl -tag -width /dev/octboot -compact
+.It Pa /dev/octboot
+boot interface device.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.6 .

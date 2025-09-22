@@ -1,0 +1,132 @@
+.\" $OpenBSD: veb.4,v 1.3 2021/10/28 15:06:36 sthen Exp $
+.\"
+.\" Copyright (c) 2021 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 28 2021 $
+.Dt VEB 4
+.Os
+.Sh NAME
+.Nm veb ,
+.Nm vport
+.Nd Virtual Ethernet Bridge network device
+.Sh SYNOPSIS
+.Cd "pseudo-device veb"
+.Sh DESCRIPTION
+The
+.Nm veb
+pseudo-device supports the creation of a single layer 2 Ethernet
+network between multiple ports.
+Ethernet interfaces are added to the
+.Nm veb
+bridge to be used as ports.
+Unlike
+.Xr bridge 4 ,
+.Nm veb
+takes over the operation of the interfaces that are added as ports.
+They are then independent of the host network stack: the individual
+Ethernet ports no longer function as independent devices and cannot
+be configured with
+.Xr inet 4
+or
+.Xr inet6 4
+addresses or other layer-3 features themselves.
+.Pp
+The Ethernet network managed by
+.Nm veb
+can be connected to the network stack as a whole by creating a
+.Nm vport
+interface and attaching it as a port to the bridge.
+From the perspective of the host network stack, a
+.Nm vport
+interface acts as a normal interface connected to an Ethernet
+network and can be configured with addresses.
+.Pp
+.Nm veb
+is a learning bridge that maintains a table of Ethernet addresses
+and the port that each address is reachable with.
+The bridge learns about the reachability of Ethernet addresses by
+reading the source address on packets received by ports, and then
+entering the address and port into the table dynamically.
+Static address entries may also be configured in the table, disabling
+dynamic learning for that address.
+Ethernet address learning can be disabled on individual ports.
+.Pp
+When forwarding a packet, the address table is searched for the
+destination Ethernet address and the packet is sent to the associated
+port in the table entry.
+If no entry is found in the table, or the packet is addressed to a
+multicast or broadcast address, the packet is flooded to all other
+ports on the bridge.
+Flooding of packets to unknown unicast addresses can be disabled
+on individual ports.
+.Pp
+.Nm veb
+provides multiple mechanisms for filtering packets traversing the
+bridge.
+By default it filters IEEE 802.1Q VLAN and SVLAN packets, but can
+be configured to forward them by setting the link0 flag.
+.Nm veb
+can filter Ethernet packets entering or leaving ports using bridge
+rules.
+Ports can be configured as members of protected domains to restrict
+communication between them.
+.\" Individual ports can be configured to only allow relaying of IP
+.\" (and ARP/RARP) packets by setting the blocknonip flag.
+.Pp
+.Xr pf 4
+can be used to filter IP packets as they enter or leave the bridge.
+By default this filtering is disabled, but can be enabled by setting
+the link1 flag.
+The exception to this policy is on
+.Nm vport
+interfaces, where
+.Xr pf 4
+runs as packets enter and leave the network stack regardless of
+the value of the link1 flag.
+A consequence of this behaviour is that packets traversing
+.Nm vport
+interfaces appear to travel in the opposite direction to packets
+travelling over other ports.
+.\" Packets traversing vport interfaces get their direction relative
+.\" to the host network stack, while other ports get their direction
+.\" from their relationship to the bridge.
+.\" .Pp
+.\" Transparent
+.\" .Xr ipsec 4
+.\" processing can be enabled by setting the link2 flag on the bridge.
+.Pp
+.Nm veb
+supports the addition of span ports to the bridge.
+Span ports transmit a copy of every packet received by the bridge,
+allowing for passive monitoring of traffic on a separate host.
+.\" .Pp
+.\" .Nm veb
+.\" interfaces support the following
+.\" .Xr ioctl 2
+.\" calls:
+.Sh SEE ALSO
+.Xr ipsec 4 ,
+.Xr options 4 ,
+.Xr pf 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.9 .
+.Sh AUTHORS
+.An David Gwynne Aq Mt dlg@openbsd.org

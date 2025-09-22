@@ -1,0 +1,83 @@
+#! /usr/bin/perl
+#
+# ex:ts=8 sw=4:
+# $OpenBSD: minitar,v 1.1 2005/07/20 15:33:50 espie Exp $
+#
+# Copyright (c) 2005 Marc Espie <espie@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+use OpenBSD::Ustar;
+use strict;
+
+my $mode = shift;
+my $arcname;
+my ($what, $verbose);
+
+sub create
+{
+	my $arcname = shift;
+	open my $out, '>', $arcname or die "bad archive $arcname: $!\n";
+	my $arc = OpenBSD::Ustar->new($out, '.');
+	for my $f (@_) {
+		my $e = $arc->prepare($f);
+		$e->write();
+	}
+	$arc->close();
+}
+
+sub extract
+{
+	my $arcname = shift;
+	open my $in, '<', $arcname or die "bad archive $arcname: $!\n";
+	my $arc = OpenBSD::Ustar->new($in);
+	while (my $e = $arc->next()) {
+		$e->create();
+	}
+	$arc->close();
+}
+
+sub test
+{
+	my $arcname = shift;
+	open my $in, '<', $arcname or die "bad archive $arcname: $!\n";
+	my $arc = OpenBSD::Ustar->new($in);
+	while (my $e = $arc->next()) {
+		print $e->{name}, "\n";
+	}
+	$arc->close();
+}
+
+if ($mode =~ s/c//) {
+	$what = \&create;
+} elsif ($mode =~ s/t//) {
+	$what = \&test;
+} elsif ($mode =~ s/x//) {
+	$what = \&extract;
+}
+if ($mode =~ s/f//) {
+	$arcname = shift;
+}
+if ($mode =~ s/v//) {
+	$verbose = 1;
+}
+
+if ($mode ne '') {
+	die "Bad mode\n";
+}
+
+if (!defined $what) {
+	die "Bad mode\n";
+}
+
+&$what($arcname, @ARGV);

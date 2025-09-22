@@ -1,0 +1,79 @@
+.\"     $OpenBSD: vflush.9,v 1.7 2020/11/14 10:35:58 jmc Exp $
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/vflush.9,v 1.2 2001/12/14 09:11:13 ru Exp $
+.\"
+.Dd $Mdocdate: November 14 2020 $
+.Dt VFLUSH 9
+.Os
+.Sh NAME
+.Nm vflush
+.Nd flush vnodes for a mount point
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn vflush "struct mount *mp" "struct vnode *skipvp" "int flags"
+.Sh DESCRIPTION
+The
+.Fn vflush
+function removes any vnodes in the vnode table that belong to the given
+mount structure.
+.Pp
+Its arguments are:
+.Bl -tag -width "rootrefs"
+.It Fa mp
+The mount point whose vnodes should be removed.
+.It Fa skipvp
+If this is given, the vnode it represents will be skipped.
+.It Fa flags
+The flags indicating how vnodes should be handled.
+.Bl -tag -width "WRITECLOSE"
+.It Dv FORCECLOSE
+If set, busy vnodes will be forcibly closed.
+.It Dv SKIPSYSTEM
+If set, vnodes with the
+.Dv VSYSTEM
+flag set will be skipped.
+.It Dv WRITECLOSE
+If set, only regular files currently opened for writing will be removed.
+.El
+.El
+.Sh RETURN VALUES
+A value of 0 is returned if the flush is successful; otherwise,
+.Er EBUSY
+will be returned.
+.Sh SEE ALSO
+.Xr vgone 9 ,
+.Xr vgonel 9 ,
+.Xr vnode 9 ,
+.Xr vrele 9
+.Sh AUTHORS
+This man page was originally written by
+.An Chad David Aq Mt davidc@acns.ab.ca
+for
+.Fx .

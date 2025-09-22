@@ -1,0 +1,18 @@
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+// Automatically generated file, do not edit!
+//===----------------------------------------------------------------------===//
+
+CUSTOM_BUILTIN_MAPPING(V6_vaddcarry, 64)
+CUSTOM_BUILTIN_MAPPING(V6_vaddcarry_128B, 128)
+CUSTOM_BUILTIN_MAPPING(V6_vsubcarry, 64)
+CUSTOM_BUILTIN_MAPPING(V6_vsubcarry_128B, 128)
+CUSTOM_BUILTIN_MAPPING(V6_vaddcarryo, 64)
+CUSTOM_BUILTIN_MAPPING(V6_vaddcarryo_128B, 128)
+CUSTOM_BUILTIN_MAPPING(V6_vsubcarryo, 64)
+CUSTOM_BUILTIN_MAPPING(V6_vsubcarryo_128B, 128)

@@ -1,0 +1,209 @@
+.\"	$OpenBSD: xl.4,v 1.48 2013/08/14 06:32:35 jmc Exp $
+.\"
+.\" Copyright (c) 1997, 1998
+.\"     Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"     This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"     $FreeBSD: xl.4,v 1.1 1998/08/16 17:19:58 wpaul Exp $
+.\"
+.Dd $Mdocdate: August 14 2013 $
+.Dt XL 4
+.Os
+.Sh NAME
+.Nm xl
+.Nd 3Com EtherLink XL and Fast EtherLink XL 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "xl* at pci?"
+.Cd "xl* at cardbus?"
+.Cd "amphy* at mii?"
+.Cd "bmtphy* at mii?"
+.Cd "exphy* at mii?"
+.Cd "nsphy* at mii?"
+.Cd "tqphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports the 3Com EtherLink XL and Fast EtherLink XL family
+of Ethernet cards, and embedded controllers based on the 3Com
+.Dq boomerang
+and
+.Dq cyclone
+bus master EtherLink XL chips.
+This includes, among others, the following models:
+.Pp
+.Bl -tag -width 3CXXXXX -offset indent -compact
+.It 3C555
+EtherLink XL Mini PCI
+.It 3C556
+EtherLink XL Mini PCI
+.It 3C556B
+EtherLink XL Mini PCI
+.It 3C575
+10/100 LAN CardBus PC Card
+.It 3C656
+10/100 LAN+Modem CardBus PC Card
+.It 3C900
+EtherLink XL PCI
+.It 3C900B
+EtherLink XL PCI
+.It 3C905
+Fast EtherLink XL PCI
+.It 3C905B
+Fast EtherLink XL PCI
+.It 3C905C
+Fast EtherLink XL PCI
+.It 3C980
+Fast EtherLink Server NIC
+.It 3CSOHO
+OfficeConnect Fast Ethernet NIC
+.It 9201
+NVIDIA nForce2 integrated 3Com 9201 (nForce2-ST, nForce2-GT)
+.It 920BEMB
+3c920B-EMB-WNM Integrated Fast Ethernet.
+.El
+.Pp
+Category 3, 4 or 5 unshielded twisted-pair (UTP) cable should be used for
+RJ-45 (10baseT), thick Ethernet coaxial (RG59 B/U, 50 ohm) for AUI/DIX,
+and thin Ethernet coaxial (RG58 A/U or C/U, 50 ohm +/- 4) for BNC (10base2).
+Some 3Com NICs also support MII connectors (switchable 10/100Mbps UTP).
+The 3C905B-FX and other similar cards are capable of 100Mbps over fiber.
+.Pp
+Hardware receive IP/TCP/UDP checksum offload for IPv4 is supported on the 3C905B.
+.Pp
+The
+.Nm
+driver additionally supports Wake on LAN (WoL).
+See
+.Xr arp 8
+and
+.Xr ifconfig 8
+for more details.
+.Pp
+The following media types and options (as given to
+.Xr ifconfig 8 )
+are supported:
+.Bl -tag -width xxx -offset indent
+.It Cm media No autoselect
+Enable autoselection of media type and options.
+Note that this media type is only available with
+adapters that have external PHYs or built-in autonegotiation logic.
+For 3C900 and 3C900B adapters, the driver
+will choose the mode specified in the EEPROM.
+This can be changed by adding media options to the appropriate
+.Xr hostname.if 5
+file.
+.It Cm media No 100baseFX Cm mediaopt No full-duplex
+For those cards that support it, force full-duplex 100Mbps operation over fiber.
+.It Cm media No 100baseFX Cm mediaopt No half-duplex
+For those cards that support it, force half-duplex 100Mbps operation over fiber.
+.It Cm media No 100baseTX Cm mediaopt No full-duplex
+Set 100Mbps (Fast Ethernet) operation and force full-duplex mode.
+.It Cm media No 100baseTX Cm mediaopt No half-duplex
+Set 100Mbps (Fast Ethernet) operation and force half-duplex mode.
+.It Cm media No 10baseT Cm mediaopt No full-duplex
+Set 10baseT (UTP) operation and force full-duplex mode.
+.It Cm media No 10baseT Cm mediaopt No half-duplex
+Set 10baseT (UTP) operation and force half-duplex mode.
+.It Cm media No 10base5
+Set 10base5 (thick-net) operation (half-duplex only).
+.It Cm media No 10base2
+Set 10base2 (thin-net) operation (half-duplex only).
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+To view a list of media types and options supported by this card try
+.Ic ifconfig <device> media .
+For example,
+.Ic ifconfig xl0 media .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "xl0: couldn't map memory"
+A fatal initialization error has occurred.
+.It "xl0: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "xl0: device timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "xl0: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.It "xl0: no memory for tx list"
+The driver failed to allocate an mbuf for the transmitter ring when
+allocating a pad buffer or collapsing an mbuf chain into a cluster.
+.It "xl0: command never completed!"
+Some commands issued to the 3C90x ASIC take time to complete: the
+driver is supposed to wait until the
+.Dq command in progress
+bit in the status register clears before continuing.
+In some instances, this bit may not clear.
+To avoid getting caught in an infinite wait loop,
+the driver only polls the bit a finite number of times before
+giving up, at which point it issues this message.
+This message may be printed during driver initialization on slower machines.
+If this message appears but the driver continues to function normally, the
+message can probably be ignored.
+.It "xl0: WARNING: no media options bits set in the media options register!"
+This warning may appear when using the driver on some Dell Latitude
+docking stations with built-in 3C905-TX adapters.
+For whatever the reason, the
+.Dq MII available
+bit in the media options register on
+this particular equipment is not set, even though it should be (the
+3C905-TX always uses an external PHY transceiver).
+The driver will
+attempt to guess the proper media type based on the PCI device ID word.
+The driver makes a lot of noise about this condition because
+the author considers it a manufacturing defect.
+.El
+.Sh SEE ALSO
+.Xr amphy 4 ,
+.Xr arp 4 ,
+.Xr bmtphy 4 ,
+.Xr cardbus 4 ,
+.Xr exphy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr nsphy 4 ,
+.Xr tqphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Ox
+support was added in
+.Ox 2.4 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .

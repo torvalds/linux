@@ -1,0 +1,78 @@
+#
+#	$OpenBSD: weekly,v 1.30 2020/02/12 20:51:49 jung Exp $
+#
+# For local additions, create the file /etc/weekly.local.
+# To get section headers, use the function next_part in weekly.local.
+#
+umask 022
+
+PARTOUT=/var/log/weekly.part
+MAINOUT=/var/log/weekly.out
+install -o 0 -g 0 -m 600    /dev/null $PARTOUT
+install -o 0 -g 0 -m 600 -b /dev/null $MAINOUT
+
+start_part() {
+	TITLE=$1
+	exec > $PARTOUT 2>&1
+}
+
+end_part() {
+	exec >> $MAINOUT 2>&1
+	test -s $PARTOUT || return
+	echo ""
+	echo "$TITLE"
+	cat $PARTOUT
+}
+
+next_part() {
+	end_part
+	start_part "$1"
+}
+
+run_script() {
+	f=/etc/$1
+	test -e $f || return
+	if [ `stat -f '%Sp%u' $f | cut -b1,6,9,11-` != '---0' ]; then
+		echo "$f has insecure permissions, skipping:"
+		ls -l $f
+		return
+	fi
+	. $f
+}
+
+start_part "Running weekly.local:"
+run_script "weekly.local"
+
+next_part "Rebuilding locate database:"
+if [ -f /var/db/locate.database ]; then
+	if TMP=`mktemp /var/db/locate.database.XXXXXXXXXX`; then
+		trap 'rm -f $TMP; exit 1' 0 1 15
+		UPDATEDB="/usr/libexec/locate.updatedb"
+		echo "${UPDATEDB} --fcodes=-" | \
+		    nice -5 su -m nobody 1>$TMP
+		if [ $? -ne 0 ]; then
+			echo "Rebuilding locate database failed"
+		elif ! locate -d $TMP /etc/weekly >/dev/null; then
+			echo "Not installing invalid locate database"
+		else
+			chmod 444 $TMP
+			chown root:wheel $TMP
+			mv -f $TMP /var/db/locate.database
+		fi
+	else
+		echo "Not rebuilding locate database; can't create temp file"
+	fi
+fi
+
+next_part "Rebuilding whatis databases:"
+/usr/sbin/makewhatis $MAKEWHATISARGS
+
+next_part "Doing login accounting:"
+[ "X$LOGINACCOUNTING" = X1 ] && {
+	ac -p | sort -nr -k 2
+}
+
+end_part
+rm -f $PARTOUT
+
+[ -s $MAINOUT ] && mail -s "`hostname` weekly output" root < $MAINOUT

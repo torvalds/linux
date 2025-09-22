@@ -1,0 +1,689 @@
+.\" -*- nroff -*-
+.\"
+.\" $Id: mkisofs.8,v 1.1 2000/10/10 20:40:19 beck Exp $
+.\"
+.TH MKISOFS 8 "17 Feb 1998" "Version 1.12b5"
+.SH NAME
+mkisofs \- create a iso9660 filesystem with optional Rock Ridge attributes.
+.SH SYNOPSIS
+.B mkisofs
+[
+.B \-a
+]
+[
+.B \-abstract 
+.I FILE
+]
+[
+.B \-biblio
+.I FILE
+]
+[
+.B \-b
+.I boot_image
+]
+[
+.B \-c
+.I boot_catalog
+]
+[
+.B \-copyright 
+.I FILE
+]
+[
+.B \-A
+.I application_id
+]
+[
+.B \-f
+]
+[
+.B \-d
+]
+[
+.B \-D
+]
+[
+.B \-hide
+.I glob
+]
+[
+.B \-hide-joliet
+.I glob
+]
+[
+.B \-J
+]
+[
+.B \-l
+]
+[
+.B \-L
+]
+[
+.B \-log-file
+.I log_file
+]
+[
+.B -no-split-symlink-components
+]
+[
+.B -no-split-symlink-fields
+]
+[
+.B \-p
+.I preparer
+]
+[
+.B \-print-size
+]
+[
+.B \-P
+.I publisher
+]
+[
+.B \-quiet
+]
+[
+.B \-r
+]
+[
+.B \-R
+]
+[
+.B \-sysid
+.I ID
+]
+[
+.B \-T
+]
+[
+.B \-v
+]
+[
+.B \-V
+.I volid
+]
+[
+.B \-volset
+.I ID
+]
+[
+.B \-volset-size
+.I #
+]
+[
+.B \-volset-seqno
+.I #
+]
+[
+.B \-x
+.I path
+]
+[
+.B \-z
+]
+[
+.B \-m
+.I glob
+]
+.B \-o
+.I filename
+.I pathspec [pathspec]
+.SH DESCRIPTION
+.B mkisofs
+is effectively a pre-mastering program to generate the iso9660 filesystem - it
+takes a snapshot of a given directory tree, and generates a binary image which
+will correspond to an iso9660 filesystem when written to a block device.
+.PP
+.B mkisofs
+is also capable of generating the System Use Sharing Protocol records specified
+by the Rock Ridge Interchange Protocol.  This is used to further describe the
+files in the iso9660 filesystem to a unix host, and provides information such
+as longer filenames, uid/gid, posix permissions, and block and character
+devices.
+.PP
+Each file written to the iso9660 filesystem must have a filename in the 8.3
+format (8 characters, period, 3 characters, all upper case), even if Rock Ridge
+is in use.  This filename is used on systems that are not able to make use of
+the Rock Ridge extensions (such as MS-DOS), and each filename in each directory
+must be different from the other filenames in the same directory.
+.B mkisofs
+generally tries to form correct names by forcing the unix filename to upper
+case and truncating as required, but often times this yields unsatisfactory
+results when there are cases where the
+truncated names are not all unique.
+.B mkisofs
+assigns weightings to each filename, and if two names that are otherwise the
+same are found the name with the lower priority is renamed to have a 3 digit
+number as an extension (where the number is guaranteed to be unique).  An
+example of this would be the files foo.bar and
+foo.bar.~1~ - the file foo.bar.~1~ would be written as FOO.000;1 and the file
+foo.bar would be written as FOO.BAR;1
+.PP
+Note that
+.B mkisofs
+is not designed to communicate with the writer directly.  Most writers
+have proprietary command sets which vary from one manufacturer to
+another, and you need a specialized tool to actually burn the disk.
+The
+.B cdwrite
+utility is one such tool that runs under Linux and performs this task.
+The latest version of
+.B cdwrite
+is capable of communicating with the Phillips/IMS/Kodak, HP and Yamaha drives
+that have been manufactured before 1997.
+Most writers come with some version of DOS software that allows a direct image
+copy of an iso9660 image to the writer.  The current version of
+.B cdwrite
+is available from sunsite.unc.edu: /utils/disk-management/cdwrite-2.0.tar.gz
+Note that cdwrite has not been actively maintained since 1995.
+.PP
+The
+.B
+cdrecord
+utility is another utility capable of burning an actual disc.  The latest version
+of
+.B cdrecord
+is available from
+ftp://ftp.fokus.gmd.de/pub/unix/cdrecord
+Cdrecord is under constant development.
+.PP
+Also you should know that most cd writers are very particular about timing.
+Once you start to burn a disc, you cannot let their buffer empty before you
+are done, or you will end up with a corrupt disc.  Thus it is critical
+that you be able to maintain an uninterrupted data stream to the writer
+for the entire time that the disc is being written.
+.PP
+.br
+.B path
+is the path of the directory tree to be copied into the iso9660 filesystem.
+Multiple paths can be specified, and
+.B
+mkisofs
+will merge the files found in all of the specified path components to form the cdrom
+image.
+.PP
+It is possible to graft the paths at points other than the root
+directory, and it is possible to graft files or directories onto the
+cdrom image with names different than what they have in the source filesystem.  This is
+easiest to illustrate with a couple of examples.   Let's start by assuming that a local
+file ../old.lis exists, and you wish to include it in the cdrom image.
+
+
+	foo/bar/=../old.lis
+
+will include the file old.lis in the cdrom image at /foo/bar/old.lis, while
+
+	foo/bar/xxx=../old.lis
+
+will include the file old.lis in the cdrom image at /foo/bar/xxx.  The
+same sort of syntax can be used with directories as well.
+.B
+mkisofs will create any directories required such that the graft
+points exist on the cdrom image - the directories do not need to
+appear in one of the paths.  Any directories that are created on the
+fly like this will have permissions 0555 and appear to be owned by the
+person running mkisofs.  If you wish other permissions or owners of
+the intermediate directories, the easiest solution is to create real
+directories in the path such that mkisofs doesn't have to invent them.
+
+.SH OPTIONS
+.TP
+.B \-a
+Include all files on the iso9660 filesystem.  Normally files that contain the
+characters '~' or '#' will not be included (these are typically backup files
+for editors under unix).
+.TP
+.BI \-abstract " FILE
+Specifies the abstract file name.
+This parameter can also be set in the file
+.B \&.mkisofsrc
+with ABST=filename.
+If specified in both places, the command line version is used.
+.TP
+.BI \-A " application_id
+Specifies a text string that will be written into the volume header.
+This should describe the application that will be on the disc.  There
+is space on the disc for 128 characters of information.  This parameter can
+also be set in the file
+.B \&.mkisofsrc
+with APPI=id.
+If specified in both places, the command line version is used.
+.TP
+.BI \-biblio " FILE
+Specifies the bibliographic file name.
+This parameter can also be set in the file
+.B \&.mkisofsrc
+with BIBLO=filename.
+If specified in both places, the command line version is used.
+.TP
+.BI \-b " boot_image
+Specifies the path and filename of the boot image to be used when making
+an "El Torito" bootable CD. The pathname must be relative to the source
+path specified to
+.B mkisofs.
+This option is required to make a bootable CD.
+The boot image must be exactly the size of either a 1.2, 1.44, or a 2.88
+meg floppy, and
+.B mkisofs
+will use this size when creating the output iso9660
+filesystem. It is assumed that the first 512 byte sector should be read
+from the boot image (it is essentially emulating a normal floppy drive).
+This will work, for example, if the boot image is a LILO based boot floppy.
+.TP
+.BI \-C " last_sess_start,next_sess_start
+This option is needed when 
+.B mkisofs 
+is used to create the image of a second session or a higher level session
+for a multi session disk.
+The option 
+.B \-C
+takes a pair of two numbers separated by a comma. The first number is the
+sector number of the first sector in the last session of the disk
+that should be appended to.
+The second number is the starting sector number of the new session.
+The expected pair of numbers may be retrieved by calling
+.B "cdrecord -msinfo ...
+the 
+.B \-C
+option may only be uses in conjunction with the 
+.B \-M
+option.
+.TP
+.BI \-c " boot_catalog
+Specifies the path and filename of the boot catalog to be used when making
+an "El Torito" bootable CD. The pathname must be relative to the source
+path specified to
+.B mkisofs.
+This option is required to make a bootable CD.
+This file will be created by
+.B mkisofs
+in the source filesystem, so be
+sure the specified filename does not conflict with an existing file, as
+it will be quietly overwritten! Usually a name like "boot.catalog" is
+chosen.
+.TP
+.BI \-copyright " FILE
+Specifies the Copyright file name.
+This parameter can also be set in the file
+.B \&.mkisofsrc
+with COPY=filename.
+If specified in both places, the command line version is used.
+.TP
+.B \-d
+Omit trailing period from files that do not have a period.  This violates the
+ISO9660 standard, but it happens to work on many systems.  Use with caution.
+.TP
+.B \-D
+Do not use deep directory relocation, and instead just pack them in the
+way we see them.  This violates the ISO9660 standard, but it works on many
+systems.  Use with caution.
+.TP
+.B \-f
+Follow symbolic links when generating the filesystem.  When this option is not
+in use, symbolic links will be entered using Rock Ridge if enabled, otherwise
+the file will be ignored.
+.TP
+.BI \-hide " glob
+Hide
+.I glob
+from being seen on the ISO9660 or Rock Ridge directory.
+.I glob
+is a shell wild-card-style pattern that must match any part of the filename 
+or path.
+Multiple globs may be hidden (up to 1000).
+If
+.I glob
+matches a directory, then the contents of that directory will be hidden.
+All the hidden files will still be written to the output CD image file.
+Should be used with the
+.B \-hide-joliet
+option.
+.TP
+.BI \-hide-joliet " glob
+Hide
+.I glob
+from being seen on the Joliet directory.
+.I glob
+is a shell wild-card-style pattern that must match any part of the filename 
+or path.
+Multiple globs may be hidden (up to 1000).
+If
+.I glob
+matches a directory, then the contents of that directory will be hidden.
+All the hidden files will still be written to the output CD image file.
+Should be used with the
+.B \-hide
+option.
+.TP
+.B \-l
+Allow full 32 character filenames.  Normally the ISO9660 filename will be in an
+8.3 format which is compatible with MS-DOS, even though the ISO9660 standard
+allows filenames of up to 32 characters.  If you use this option, the disc may
+be difficult to use on a MS-DOS system, but this comes in handy on some other
+systems (such as the Amiga).  Use with caution.
+.TP
+.B \-J
+Generate Joliet directory records in addition to regular iso9660 file
+names.  This is primarily useful when the discs are to be used on Windows-NT
+or Windows-95 machines.   The Joliet filenames are specified in Unicode and
+each path component can be up to 64 Unicode characters long.
+.TP
+.B \-L
+Allow filenames to begin with a period.  Usually, a leading dot is
+replaced with an underscore in order to maintain MS-DOS compatibility.
+.TP
+.BI \-log-file " log_file
+Redirect all error, warning and informational messages to
+.I log_file
+instead of the standard error.
+.TP
+.BI \-m " glob
+Exclude
+.I glob
+from being written to CDROM.
+.I glob
+is a shell wild-card-style pattern that must match part of the filename (not 
+the path as with option
+.BR -x ).
+Technically
+.I glob
+is matched against the
+.I d->d_name
+part of the directory entry.
+Multiple globs may be excluded (up to 1000).
+Example:
+
+mkisofs \-o rom \-m '*.o' \-m core \-m foobar
+
+would exclude all files ending in ".o", called "core" or "foobar" to be
+copied to CDROM. Note that if you had a directory called "foobar" it too (and
+of course all its descendants) would be excluded.
+.sp
+NOTE: The \-m and \-x option description should both be updated, they are wrong.
+Both now work identical and use filename globbing. A file is exluded if either
+the last component matches or the whole path matches.
+.TP
+.BI \-M " path 
+or
+.TP
+.BI \-M " device
+Specifies path to existing iso9660 image to be merged. The alternate form
+takes a SCSI device specifier that uses the same syntax as the 
+.B "dev=
+parameter of 
+.B cdrecord.
+The output of 
+.B mkisofs
+will be a new session which should get written to the end of the
+image specified in -M.  Typically this requires multi-session capability
+for the recorder and cdrom drive that you are attempting to write this
+image to.
+This option may only be used in conjunction with the 
+.B \-C
+option.
+.TP
+.B \-N
+Omit version numbers from ISO9660 file names.  This may violate the ISO9660
+standard, but no one really uses the version numbers anyway.  Use with caution.
+.TP
+.B \-no-split-symlink-components
+Don't split the SL components, but begin a new Continuation Area (CE)
+instead. This may waste some space, but the SunOS 4.1.4 cdrom driver
+has a bug in reading split SL components (link_size = component_size 
+instead of link_size += component_size).
+.TP
+.B \-no-split-symlink-fields
+Don't split the SL fields, but begin a new Continuation Area (CE)
+instead. This may waste some space, but the SunOS 4.1.4 and
+Solaris 2.5.1 cdrom driver have a bug in reading split SL fields
+(a `/' can be dropped).
+.TP
+.BI \-o " filename
+is the name of the file to which the iso9660 filesystem image should be
+written.  This can be a disk file, a tape drive, or it can correspond directly
+to the device name of the optical disc writer.  If not specified, stdout is
+used.  Note that the output can also be a block special device for a regular
+disk drive, in which case the disk partition can be mounted and examined to
+ensure that the premastering was done correctly.
+.TP
+.BI \-P " publisher_id
+Specifies a text string that will be written into the volume header.
+This should describe the publisher of the CDROM, usually with a
+mailing address and phone number.  There is space on the disc for 128
+characters of information.  This parameter can also be set in the file
+.B \&.mkisofsrc
+with PUBL=.
+If specified in both places, the command line version is used.
+.TP
+.BI \-p " preparer_id
+Specifies a text string that will be written into the volume header.
+This should describe the preparer of the CDROM, usually with a mailing
+address and phone number.  There is space on the disc for 128
+characters of information.  This parameter can also be set in the file
+.B \&.mkisofsrc
+with PREP=.
+If specified in both places, the command line version is used.
+.TP
+.B \-print-size
+Print estimated filesystem size and exit. This option is needed for
+Disk At Once mode and with some CD-R drives when piping directly into
+.B cdrecord.
+In this case it is needed to know the size of the filesustem before the
+actual CD-creation is done.
+The option \-print-size allows to get this size from a "dry-run" before
+the CD is actually written.
+.TP
+.B \-R
+Generate SUSP and RR records using the Rock Ridge protocol to further describe
+the files on the iso9660 filesystem.
+.TP
+.B \-r
+This is like the \-R option, but file ownership and modes are set to
+more useful values.  The uid and gid are set to zero, because they are
+usually only useful on the author's system, and not useful to the
+client.  All the file read bits are set true, so that files and
+directories are globally readable on the client.  If any execute bit is
+set for a file, set all of the execute bits, so that executables are
+globally executable on the client.  If any search bit is set for a
+directory, set all of the search bits, so that directories are globally
+searchable on the client.  All write bits are cleared, because the
+CD-Rom will be mounted read-only in any case.  If any of the special
+mode bits are set, clear them, because file locks are not useful on a
+read-only file system, and set-id bits are not desirable for uid 0 or
+gid 0.
+.TP
+.BI \-sysid " ID
+Specifies the system ID.
+This parameter can also be set in the file
+.B \&.mkisofsrc
+with SYSI=system_id.
+If specified in both places, the command line version is used.
+.TP
+.B \-T
+Generate a file TRANS.TBL in each directory on the CDROM, which can be used
+on non-Rock Ridge capable systems to help establish the correct file names.
+There is also information present in the file that indicates the major and
+minor numbers for block and character devices, and each symlink has the name of
+the link file given.
+.TP
+.BI \-V " volid 
+Specifies the volume ID to be written into the master block.  This
+parameter can also be set in the file
+.B \&.mkisofsrc
+with VOLI=id.
+If specified in both places, the command line version is used.  Note that 
+if you assign a volume ID, this is the name that will be used as the mount  
+point used by the Solaris volume management system and the name that is
+assigned to the disc on a Windows or Mac platform. 
+.TP
+.BI \-volset " ID
+Specifies the volset ID.
+This parameter can also be set in the file
+.B \&.mkisofsrc
+with VOLS=volset_id.
+If specified in both places, the command line version is used.
+.TP
+.BI \-volset-size " #
+Sets the volume set size to #. 
+The volume set size is the number of CD's that are in a CD set.
+The 
+.B \-volset-size
+option may be used to create CD's that are part of e.g. a Operation
+System installation set of CD's.
+The option 
+.B \-volset-size
+must be specified before
+.B \-volset-seqno
+on each command line.
+.TP
+.BI \-volset-seqno " #
+Sets the volume set sequence number to #. 
+The volume set sequence number is the index number of the current
+CD in a CD set.
+The option 
+.B \-volset-size
+must be specified before
+.B \-volset-seqno
+on each command line.
+.TP
+.B \-v
+Verbose execution.
+.TP
+.BI \-x " path
+Exclude
+.I path
+from being written to CDROM.
+.I path
+must be the complete pathname that results from concatenating the pathname
+given as command line argument and the path relative to this directory.
+Multiple paths may be excluded (up to 1000).
+Example: 
+
+mkisofs \-o cd \-x /local/dir1 \-x /local/dir2 /local
+.sp
+NOTE: The \-m and \-x option description should both be updated, they are wrong.
+Both now work identical and use filename globbing. A file is exluded if either
+the last component matches or the whole path matches.
+.TP
+.B \-z
+Generate special SUSP records for transparently compressed files.  This is
+only of use and interest for hosts that support transparent decompression.
+This is an experimental feature, and no hosts yet support this, but there
+are ALPHA patches for Linux that can make use of this feature.
+.SH CONFIGURATION
+.B mkisofs
+looks for the
+.B \&.mkisofsrc
+file,
+first in the current working directory,
+then in the user's home directory,
+and then in the directory in which the
+.B mkisofs
+binary is stored.  This file is assumed to contain a series of lines
+of the form 
+.BI TAG= value,
+and in this way you can specify certain options.
+The case of the tag is not significant.
+Some fields in the volume header
+are not settable on the command line, but can be altered through this
+facility.
+Comments may be placed in this file,
+using lines which start with a hash (#) character.
+.TP
+.B APPI
+The application identifier
+should describe the application that will be on the disc.
+There is space on the disc for 128 characters of information.
+May be overridden using the 
+.B \-A 
+command line option.
+.TP
+.B COPY
+The copyright information,
+often the name of a file on the disc containing the copyright notice.
+There is space in the disc for 37 characters of information.
+May be overridden using the 
+.B \-copyright
+command line option.
+.TP
+.B ABST
+The abstract information,
+often the name of a file on the disc containing an abstract.
+There is space in the disc for 37 characters of information.
+May be overridden using the 
+.B \-abstract
+command line option.
+.TP
+.B BIBL
+The bibliographic information,
+often the name of a file on the disc containing a bibliography.
+There is space in the disc for 37 characters of information.
+May be overridden using the 
+.B \-bilio
+command line option.
+.TP
+.B PREP
+This should describe the preparer of the CDROM,
+usually with a mailing address and phone number.
+There is space on the disc for 128 characters of information.
+May be overridden using the 
+.B \-p 
+command line option.
+.TP
+.B PUBL
+This should describe the publisher of the CDROM,
+usually with a mailing address and phone number.
+There is space on the disc for 128 characters of information.
+May be overridden using the 
+.B \-P 
+command line option.
+.TP
+.B SYSI
+The System Identifier.
+There is space on the disc for 32 characters of information.
+May be overridden using the 
+.B \-sysid
+command line option.
+.TP
+.B VOLI
+The Volume Identifier.
+There is space on the disc for 32 characters of information.
+May be overridden using the 
+.B \-V 
+command line option.
+.TP
+.B VOLS
+The Volume Set Name.
+There is space on the disc for 128 characters of information.
+May be overridden using the 
+.B \-volset
+command line option.
+.PP
+.B mkisofs
+can also be configured at compile time with defaults for many of these fields.
+See the file defaults.h.
+.SH AUTHOR
+.B mkisofs
+is not based on the standard mk*fs tools for unix, because we must generate
+a complete  copy of an existing filesystem on a disk in the  iso9660
+filesystem.  The name mkisofs is probably a bit of a misnomer, since it
+not only creates the filesystem, but it also populates it as well.
+.PP
+.br
+Eric Youngdale <ericy@gnu.ai.mit.edu> or <eric@andante.jic.com> wrote both the
+Linux isofs9660 filesystem and the mkisofs utility, and is currently
+maintaining them.  The copyright for the mkisofs utility is held by
+Yggdrasil Computing, Incorporated.
+.SH BUGS
+Any files that have hard links to files not in the tree being copied to the
+iso9660 filessytem will have an incorrect file reference count.
+.PP
+There may be some other ones.  Please, report them to the author.
+.SH FUTURE IMPROVEMENTS
+Some sort of gui interface.
+.SH AVAILABILITY
+.B mkisofs
+is available for anonymous ftp from tsx-11.mit.edu in
+/pub/linux/packages/mkisofs and many other mirror sites.

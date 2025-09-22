@@ -1,0 +1,20 @@
+static_library("InstallAPI") {
+  output_name = "clangInstallAPI"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/Support",
+    "//llvm/lib/TextAPI",
+  ]
+  sources = [
+    "DiagnosticBuilderWrappers.cpp",
+    "DirectoryScanner.cpp",
+    "DylibVerifier.cpp",
+    "FileList.cpp",
+    "Frontend.cpp",
+    "HeaderFile.cpp",
+    "Library.cpp",
+    "Visitor.cpp",
+  ]
+}

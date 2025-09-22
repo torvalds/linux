@@ -1,0 +1,107 @@
+.\" $OpenBSD: pthread_attr_setstack.3,v 1.7 2025/06/07 00:16:52 schwarze Exp $
+.\" Manual page derived from TOG's UNIX98 documentation.
+.\"
+.\"  David Leonard, 2000. Public Domain.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_ATTR_SETSTACK 3
+.Os
+.Sh NAME
+.Nm pthread_attr_setstack ,
+.Nm pthread_attr_getstack
+.Nd set and get stack attributes
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_attr_setstack "pthread_attr_t *attr" "void *stackaddr" "size_t stacksize"
+.Ft int
+.Fn pthread_attr_getstack "const pthread_attr_t *attr" "void **stackaddr" "size_t *stacksize"
+.Sh DESCRIPTION
+The functions
+.Fn pthread_attr_setstack
+and
+.Fn pthread_attr_getstack ,
+respectively, set and get the thread
+creation
+.Va stackaddr
+and
+.Va stacksize
+attributes in the
+.Fa attr
+object.
+.Pp
+The stack attributes specify the area of storage to be used for the
+created thread's stack.
+The base (lowest addressable byte) of the storage shall be
+.Va stackaddr ,
+and the size of the storage shall be
+.Va stacksize
+bytes.
+The stacksize shall be at least
+.Dv PTHREAD_STACK_MIN .
+.Pp
+On
+.Ox
+the provided stack must be page-aligned.
+It will be replaced (meaning zeroed) with a new
+.Ar MAP_ANON | Ar MAP_STACK
+mapping.
+The passed memory object should not be deallocated or reused,
+even when the thread using it has terminated.
+If there is no need for a specific memory object as stack,
+the
+.Xr pthread_attr_setstacksize 3
+function should be used.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn pthread_attr_setstack
+and
+.Fn pthread_attr_getstack
+return a value of 0.
+Otherwise, an error number is returned to indicate the error.
+.Pp
+The
+.Fn pthread_attr_getstack
+function stores the
+.Va stackaddr
+attribute value in
+.Fa stackaddr
+and the
+.Va stacksize
+attribute value in
+.Fa stacksize
+if successful.
+.Sh ERRORS
+The
+.Fn pthread_attr_setstack
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of
+.Fa stacksize
+is less than
+.Dv PTHREAD_STACK_MIN
+or exceeds a system-imposed limit or the value of
+.Fa stackaddr
+is
+.Dv NULL .
+.El
+.Pp
+These functions will not return an error code of
+.Bq Er EINTR .
+.Sh SEE ALSO
+.Xr pthread_attr_init 3 ,
+.Xr pthread_attr_setdetachstate 3 ,
+.Xr pthread_attr_setguardsize 3 ,
+.Xr pthread_attr_setstackaddr 3 ,
+.Xr pthread_attr_setstacksize 3 ,
+.Xr pthread_create 3 ,
+.Xr pthreads 3
+.Sh STANDARDS
+.Fn pthread_attr_setstack
+and
+.Fn pthread_attr_getstack
+conform to ISO/IEC 9945-1 ANSI/IEEE
+.Pq Dq Tn POSIX
+Std 1003.1, 2004 Edition.

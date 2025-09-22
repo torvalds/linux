@@ -1,0 +1,61 @@
+.\"	$OpenBSD: RSA_PSS_PARAMS_new.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_PSS_PARAMS_NEW 3
+.Os
+.Sh NAME
+.Nm RSA_PSS_PARAMS_new ,
+.Nm RSA_PSS_PARAMS_free
+.Nd probabilistic signature scheme with RSA hashing
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft RSA_PSS_PARAMS *
+.Fn RSA_PSS_PARAMS_new void
+.Ft void
+.Fn RSA_PSS_PARAMS_free "RSA_PSS_PARAMS *params"
+.Sh DESCRIPTION
+.Fn RSA_PSS_PARAMS_new
+allocates and initializes an empty
+.Vt RSA_PSS_PARAMS
+object, representing an ASN.1
+.Vt RSASSA-PSS-params
+structure defined in RFC 8017 appendix A.2.3.
+It references the hash function and the mask generation function
+and stores the length of the salt and the trailer field number.
+.Fn RSA_PSS_PARAMS_free
+frees
+.Fa params .
+.Sh RETURN VALUES
+.Fn RSA_PSS_PARAMS_new
+returns the new
+.Vt RSA_PSS_PARAMS
+object or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr RSA_new 3 ,
+.Xr RSA_padding_add_PKCS1_type_1 3 ,
+.Xr X509_sign 3
+.Sh STANDARDS
+RFC 8017: PKCS#1: RSA Cryptography Specifications Version 2.2
+.Sh HISTORY
+.Fn RSA_PSS_PARAMS_new
+and
+.Fn RSA_PSS_PARAMS_free
+first appeared in OpenSSL 1.0.1 and have been available since
+.Ox 5.3 .

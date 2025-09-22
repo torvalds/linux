@@ -1,0 +1,40 @@
+//===- NVPTXPassRegistry.def - Registry of NVPTX passes ---------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file is used as the registry of passes that are part of the
+// NVPTX backend.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+#ifndef MODULE_PASS
+#define MODULE_PASS(NAME, CREATE_PASS)
+#endif
+MODULE_PASS("generic-to-nvvm", GenericToNVVMPass())
+MODULE_PASS("nvptx-lower-ctor-dtor", NVPTXCtorDtorLoweringPass())
+#undef MODULE_PASS
+
+#ifndef FUNCTION_ANALYSIS
+#define FUNCTION_ANALYSIS(NAME, CREATE_PASS)
+#endif
+
+#ifndef FUNCTION_ALIAS_ANALYSIS
+#define FUNCTION_ALIAS_ANALYSIS(NAME, CREATE_PASS)                             \
+  FUNCTION_ANALYSIS(NAME, CREATE_PASS)
+#endif
+FUNCTION_ALIAS_ANALYSIS("nvptx-aa", NVPTXAA())
+#undef FUNCTION_ALIAS_ANALYSIS
+#undef FUNCTION_ANALYSIS
+
+#ifndef FUNCTION_PASS
+#define FUNCTION_PASS(NAME, CREATE_PASS)
+#endif
+FUNCTION_PASS("nvvm-intr-range", NVVMIntrRangePass())
+FUNCTION_PASS("nvvm-reflect", NVVMReflectPass())
+#undef FUNCTION_PASS

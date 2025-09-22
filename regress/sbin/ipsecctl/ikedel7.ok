@@ -1,0 +1,8 @@
+t from-10.1.2.0/24-to-10.1.1.0/24
+C rmv [Phase 2]:Passive-Connections=from-10.1.2.0/24-to-10.1.1.0/24
+C rms [from-10.1.2.0/24-to-10.1.1.0/24]
+C rms [phase2-from-10.1.2.0/24-to-10.1.1.0/24]
+t from-131.188.33.29-to-131.188.33.51
+C rmv [Phase 2]:Passive-Connections=from-131.188.33.29-to-131.188.33.51
+C rms [from-131.188.33.29-to-131.188.33.51]
+C rms [phase2-from-131.188.33.29-to-131.188.33.51]

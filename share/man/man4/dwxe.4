@@ -1,0 +1,71 @@
+.\"	$OpenBSD: dwxe.4,v 1.4 2024/08/11 08:25:12 dtucker Exp $
+.\"
+.\" Copyright (c) 2016 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 11 2024 $
+.Dt DWXE 4
+.Os
+.Sh NAME
+.Nm dwxe
+.Nd Allwinner EMAC 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "dwxe* at fdt?"
+.Cd "rgephy*" at mii?
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various Ethernet controllers based on the
+Allwinner EMAC.
+These controllers are found on the Allwinner A64/H3/H5/H6/H616 SoCs.
+.Pp
+The
+.Nm
+driver supports several media types, which are selected via the
+.Xr ifconfig 8
+command.
+The supported media types are:
+.Bl -tag -width "media" -offset indent
+.It Cm media No autoselect
+Attempt to autoselect the media type (default)
+.It Cm media No 1000baseT Cm mediaopt No full-duplex
+Use 1000baseT on copper, full duplex
+.It Cm media No 1000baseT Cm mediaopt No half-duplex
+Use 1000baseT on copper, half duplex
+.It Cm media No 100baseTX Cm mediaopt No full-duplex
+Use 100baseTX, full duplex
+.It Cm media No 100baseTX Cm mediaopt No half-duplex
+Use 100baseTX, half duplex
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr rgephy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+.Ox
+support for
+.Nm
+first appeared in
+.Ox 6.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Patrick Wildt Aq Mt patrick@openbsd.org .

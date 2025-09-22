@@ -1,0 +1,333 @@
+.\" $OpenBSD: clockintr.9,v 1.3 2022/11/10 23:57:31 jsg Exp $
+.\"
+.\" Copyright (c) 2020-2022 Scott Cheloha <cheloha@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 10 2022 $
+.Dt CLOCKINTR 9
+.Os
+.Sh NAME
+.Nm clockintr_init ,
+.Nm clockintr_cpu_init ,
+.Nm clockintr_dispatch ,
+.Nm clockintr_setstatclockrate ,
+.Nm clockintr_trigger
+.Nd clock interrupt scheduler
+.Sh SYNOPSIS
+.In sys/clockintr.h
+.Ft void
+.Fo clockintr_init
+.Fa "u_int flags"
+.Fc
+.Ft void
+.Fo clockintr_cpu_init
+.Fa "struct intrclock *ic"
+.Fc
+.Ft int
+.Fo clockintr_dispatch
+.Fa "void *frame"
+.Fc
+.Ft void
+.Fo clockintr_setstatclockrate
+.Fa "int freq"
+.Fc
+.Ft void
+.Fo clockintr_trigger
+.Fa "void"
+.Fc
+.In sys/kernel.h
+.Vt extern int hz;
+.Vt extern int stathz;
+.Vt extern int profhz;
+.In sys/sched.h
+.Vt extern int schedhz;
+.Sh DESCRIPTION
+The
+.Nm
+subsystem maintains a schedule of events,
+dispatches expired events,
+and rearms the local interrupt clock for each CPU in the system.
+.Pp
+The
+.Fn clockintr_init
+function initializes the subsystem as follows:
+.Bl -dash
+.It
+.Xr hardclock 9
+is configured to run
+.Xr hz 9
+times per second on each CPU.
+It is an error if
+.Vt hz
+is less than one or greater than one billion.
+.It
+.Fn statclock
+is configured to run
+.Vt stathz
+times per second on each CPU.
+It is an error if
+.Vt stathz
+is less than one or greater than one billion.
+.It
+When appropriate,
+.Fn statclock
+will be reconfigured to run
+.Vt profhz
+times per second on each CPU.
+.Vt profhz
+must be a non-zero integer multiple of
+.Vt stathz .
+It is an error if
+.Vt profhz
+is less than
+.Vt stathz
+or greater than one billion.
+.It
+If
+.Vt schedhz
+is non-zero,
+.Fn schedclock
+is configured to run
+.Vt schedhz
+times per second on each CPU.
+It is an error if
+.Vt schedhz
+is less than zero or greater than one billion.
+.El
+.Pp
+The event schedule has a resolution of one nanosecond and event periods are
+computed using integer division.
+If
+.Vt hz ,
+.Vt stathz ,
+.Vt profhz ,
+or
+.Vt schedhz
+do not divide evenly into one billion,
+the corresponding event will not be dispatched at the specified frequency.
+.Pp
+The
+.Fn clockintr_init
+function accepts the bitwise OR of zero or more of the following
+.Fa flags :
+.Bl -tag -width CL_RNDSTAT
+.It Dv CL_RNDSTAT
+Randomize the
+.Fn statclock .
+Instead of using a fixed period,
+the subsystem will select pseudorandom intervals in a range such that
+the average
+.Fn statclock
+period is equal to the inverse of
+.Vt stathz .
+.El
+.Pp
+The
+.Fn clockintr_init
+function must be called exactly once and only by the primary CPU.
+It should be called after all timecounters are installed with
+.Xr tc_init 9 .
+.Pp
+The
+.Fn clockintr_cpu_init
+function prepares the calling CPU for
+.Fn clockintr_dispatch .
+The first time it is called on a given CPU,
+if
+.Fa ic
+is not
+.Dv NULL ,
+the caller is configured to use the given
+.Fa intrclock
+during
+.Fn clockintr_dispatch ;
+otherwise the caller is responsible for rearming its own interrupt
+clock after each
+.Fn clockintr_dispatch .
+Subsequent calls ignore
+.Fa ic :
+instead,
+the caller's event schedule is advanced past any expired events
+without dispatching those events.
+It is an error to call this function before the subsystem is initialized with
+.Fn clockintr_init .
+All CPUs should call
+.Fn clockintr_cpu_init
+during each system resume after the system time is updated with
+.Xr inittodr 9 ,
+otherwise they will needlessly dispatch every event that expired while
+the system was suspended.
+.Pp
+The
+.Fn clockintr_dispatch
+function executes all expired events on the caller's event schedule and,
+if configured,
+rearms the caller's interrupt clock to fire when the next event is scheduled
+to expire.
+The
+.Fa frame
+argument must point to the caller's
+.Dv clockframe
+struct.
+The
+.Fn clockintr_dispatch
+function should only be called from a clock interrupt handler at
+.Dv IPL_CLOCK
+.Pq see Xr spl 9 .
+It is an error to call this function on a given CPU before
+.Fn clockintr_cpu_init .
+.Pp
+The
+.Fn clockintr_setstatclockrate
+function changes the effective dispatch frequency for
+.Fn statclock
+to
+.Fa freq .
+It should be called from the machine-dependent
+.Fn setstatclockrate
+function after performing any needed hardware reconfiguration.
+It is an error if
+.Fa freq
+is not equal to
+.Vt stathz
+or
+.Vt profhz .
+It is an error to call this function before the subsystem is initialized with
+.Fn clockintr_init .
+.Pp
+The
+.Fn clockintr_trigger
+function causes the
+.Fn clockintr_dispatch
+function to run in the appropriate context as soon as possible if
+the caller was configured with an
+.Fa intrclock
+when
+.Fn clockintr_cpu_init
+was first called.
+If the caller was not configured with an
+.Fa intrclock ,
+the function does nothing.
+It is an error to call this function on a given CPU before
+.Fn clockintr_cpu_init .
+.Pp
+The
+.Fa ic
+argument to
+.Fn clockintr_cpu_init
+points to an
+.Fa intrclock
+structure:
+.Bd -literal -offset indent
+struct intrclock {
+	void *ic_cookie;
+	void (*ic_rearm)(void *cookie, uint64_t nsecs);
+	void (*ic_trigger)(void *cookie);
+};
+.Ed
+.Pp
+The
+.Fa intrclock
+structure provides the
+.Nm
+subsystem with a uniform interface for manipulating an interrupt clock.
+It has the following members:
+.Bl -tag -width XXXXXXXXXX
+.It Fa ic_cookie
+May point to any resources needed during
+.Fa ic_rearm
+or
+.Fa ic_trigger
+to arm the underlying interrupt clock
+.Pq see below .
+.It Fa ic_rearm
+Should cause
+.Fn clockintr_dispatch
+to run on the calling CPU in the appropriate context after at least
+.Fa nsecs
+nanoseconds have elapsed.
+The first argument,
+.Fa cookie ,
+is the
+.Fa ic_cookie
+member of the parent structure.
+The second argument,
+.Fa nsecs ,
+is a non-zero count of nanoseconds.
+.It Fa ic_trigger
+Should cause
+.Fn clockintr_dispatch
+to run on the calling CPU in the appropriate context as soon as possible.
+The first argument,
+.Fa cookie ,
+is the
+.Fa ic_cookie
+member of the parent structure.
+.El
+.Sh CONTEXT
+The
+.Fn clockintr_init ,
+.Fn clockintr_cpu_init ,
+and
+.Fn clockintr_trigger
+functions may be called during autoconf.
+.Pp
+The
+.Fn clockintr_dispatch
+function may be called from interrupt context at
+.Dv IPL_CLOCK .
+.Pp
+The
+.Fn clockintr_setstatclockrate
+function may be called during autoconf,
+from process context,
+or from interrupt context.
+.Sh RETURN VALUES
+The
+.Fn clockintr_dispatch
+function returns non-zero if at least one event was dispatched,
+otherwise it returns zero.
+.Sh CODE REFERENCES
+.Pa sys/kern/kern_clockintr.c
+.Sh SEE ALSO
+.Xr hardclock 9 ,
+.Xr hz 9 ,
+.Xr inittodr 9 ,
+.Xr nanouptime 9 ,
+.Xr spl 9 ,
+.Xr tc_init 9 ,
+.Xr timeout 9
+.Rs
+.%A Steven McCanne
+.%A Chris Torek
+.%T A Randomized Sampling Clock for CPU Utilization Estimation and Code Profiling
+.%B \&In Proc. Winter 1993 USENIX Conference
+.%D 1993
+.%P pp. 387\(en394
+.%I USENIX Association
+.Re
+.Rs
+.%A Richard McDougall
+.%A Jim Mauro
+.%B Solaris Internals: Solaris 10 and OpenSolaris Kernel Architecture
+.%I Prentice Hall
+.%I Sun Microsystems Press
+.%D 2nd Edition, 2007
+.%P pp. 912\(en925
+.Re
+.Sh HISTORY
+The
+.Nm
+subsystem first appeared in
+.Ox 7.3 .

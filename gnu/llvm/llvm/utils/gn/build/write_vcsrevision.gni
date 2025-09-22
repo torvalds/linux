@@ -1,0 +1,52 @@
+# This file introduces a templates for calling write_vcsrevision.py.
+#
+# Parameters:
+#
+#   header (required) [string]
+#
+#   names (optional) [list of strings]
+#       Writes "$foo_REVISION" and "$foo_REPOSITORY" for each foo in names.
+#       Defaults to [ "LLVM" ]
+
+declare_args() {
+  # If this is set to true, VCSRevision.h is updated after every git commit.
+  # That's technically correct, but results in rebuilds after every commit.
+  # If it's false (default), VCSRevision.h will not contain a revision.
+  llvm_append_vc_rev = false
+}
+
+template("write_vcsrevision") {
+  assert(defined(invoker.header), "must set 'header' in $target_name")
+
+  action(target_name) {
+    script = "//llvm/utils/gn/build/write_vcsrevision.py"
+    header = invoker.header
+    if (defined(invoker.names)) {
+      names = invoker.names
+    } else {
+      names = [ "LLVM" ]
+    }
+
+    args = [ rebase_path(header, root_build_dir) ]
+    if (llvm_append_vc_rev) {
+      depfile = "$header.d"
+      args += [
+        "--write-git-rev",
+        "-d",
+        rebase_path(depfile, root_build_dir),
+      ]
+    }
+
+    foreach(name, names) {
+      args += [ "--name=$name" ]
+    }
+
+    outputs = [ header ]
+
+    forward_variables_from(invoker,
+                           [
+                             "public_configs",
+                             "visibility",
+                           ])
+  }
+}

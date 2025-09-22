@@ -1,0 +1,182 @@
+
+This is the list of names "reserved to the implementation" that
+have been claimed by certain compilers and system headers of interest,
+and should not be used in the library.  It will grow, of course.
+We generally are interested in names that are not all-caps, except
+for those like "_T"
+
+For Solarix:
+_B
+_C
+_L
+_N
+_P
+_S
+_U
+_X
+_E1
+..
+_E24
+
+Irix adds:
+_A
+_G
+
+MS adds:
+_T
+
+BSD adds:
+__used
+__unused
+__inline
+_Complex
+__istype
+__maskrune
+__tolower
+__toupper
+__wchar_t
+__wint_t
+_res
+_res_ext
+__tg_*
+
+For GCC:
+
+  [Note that this list is out of date.  It applies to the old
+  name-mangling; in G++ 3.0 and higher a different name-mangling is
+  used.  In addition, many of the bugs relating to G++ interpreting
+  these names as operators have been fixed.]
+
+  The full set of __* identifiers (combined from gcc/cp/lex.c and
+  gcc/cplus-dem.c) that are either old or new, but are definitely 
+  recognized by the demangler, is:
+
+__aa
+__aad
+__ad
+__addr
+__adv
+__aer
+__als
+__alshift
+__amd
+__ami
+__aml
+__amu
+__aor
+__apl
+__array
+__ars
+__arshift
+__as
+__bit_and
+__bit_ior
+__bit_not
+__bit_xor
+__call
+__cl
+__cm
+__cn
+__co
+__component
+__compound
+__cond
+__convert
+__delete
+__dl
+__dv
+__eq
+__er
+__ge
+__gt
+__indirect
+__le
+__ls
+__lt
+__max
+__md
+__method_call
+__mi
+__min
+__minus
+__ml
+__mm
+__mn
+__mult
+__mx
+__ne
+__negate
+__new
+__nop
+__nt
+__nw
+__oo
+__op
+__or
+__pl
+__plus
+__postdecrement
+__postincrement
+__pp
+__pt
+__rf
+__rm
+__rs
+__sz
+__trunc_div
+__trunc_mod
+__truth_andif
+__truth_not
+__truth_orif
+__vc
+__vd
+__vn
+
+SGI badnames:
+__builtin_alloca
+__builtin_fsqrt
+__builtin_sqrt
+__builtin_fabs
+__builtin_dabs
+__builtin_cast_f2i
+__builtin_cast_i2f
+__builtin_cast_d2ll
+__builtin_cast_ll2d
+__builtin_copy_dhi2i
+__builtin_copy_i2dhi
+__builtin_copy_dlo2i
+__builtin_copy_i2dlo
+__add_and_fetch
+__sub_and_fetch
+__or_and_fetch
+__xor_and_fetch
+__and_and_fetch
+__nand_and_fetch
+__mpy_and_fetch
+__min_and_fetch
+__max_and_fetch
+__fetch_and_add
+__fetch_and_sub
+__fetch_and_or
+__fetch_and_xor
+__fetch_and_and
+__fetch_and_nand
+__fetch_and_mpy
+__fetch_and_min
+__fetch_and_max
+__lock_test_and_set
+__lock_release
+__lock_acquire
+__compare_and_swap
+__synchronize
+__high_multiply
+__unix
+__sgi
+__linux__
+__i386__
+__i486__
+__cplusplus
+__embedded_cplusplus
+// long double conversion members mangled as __opr
+// http://gcc.gnu.org/ml/libstdc++/1999-q4/msg00060.html
+_opr

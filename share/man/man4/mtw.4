@@ -1,0 +1,160 @@
+.\" $OpenBSD: mtw.4,v 1.4 2025/03/27 15:12:14 jmc Exp $
+.\"
+.\" Copyright (c) 2021 James Hastings <hastings@openbsd.org>
+.\" Copyright (c) 2008 Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt MTW 4
+.Os
+.Sh NAME
+.Nm mtw
+.Nd MediaTek USB IEEE 802.11b/g/n wireless network device
+.Sh SYNOPSIS
+.Cd "mtw* at uhub? port ?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 2.0 wireless adapters based on the MediaTek
+MT7601U chipset.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+The
+.Nm
+driver offloads both encryption and decryption of data frames to the
+hardware for the WEP40, WEP104, TKIP(+MIC) and CCMP ciphers.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The driver needs the following firmware files,
+which are loaded when an interface is brought up:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It /etc/firmware/mtw-mt7601u
+.El
+.Sh HARDWARE
+The following adapters should work:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It ASUS USB-N10 v2
+.It D-Link DWA-127 rev B1
+.It Edimax EW-7711UAn v2
+.It Edimax EW-7711ULn v2
+.It Foxconn WFU03
+.It Tenda U2
+.It Tenda W311MI v2
+.It TP-LINK TL-WN727N v4
+.It Yealink WF40
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig mtw0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures mtw0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "mtw0: error N, could not read firmware ..."
+For some reason, the driver was unable to read the microcode file from the
+filesystem.
+The file might be missing or corrupted.
+.It "mtw0: could not load firmware"
+An error occurred while attempting to upload the microcode to the onboard 8051
+microcontroller unit.
+.It "mtw0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An James Hastings Aq Mt hastings@openbsd.org
+based on the
+.Xr run 4
+driver by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.Sh CAVEATS
+The
+.Nm
+driver does not support any of the 802.11n capabilities offered by the
+MT7601U chipset.
+Additional work is required in
+.Xr ieee80211 9
+before those features can be supported.

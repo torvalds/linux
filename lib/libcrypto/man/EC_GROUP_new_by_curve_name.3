@@ -1,0 +1,311 @@
+.\" $OpenBSD: EC_GROUP_new_by_curve_name.3,v 1.4 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2024, 2025 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt EC_GROUP_NEW_BY_CURVE_NAME 3
+.Os
+.Sh NAME
+.Nm EC_GROUP_new_by_curve_name ,
+.Nm EC_GROUP_free ,
+.Nm EC_GROUP_dup ,
+.Nm EC_GROUP_cmp ,
+.Nm EC_get_builtin_curves ,
+.Nm EC_curve_nid2nist ,
+.Nm EC_curve_nist2nid
+.Nd instantiate named curves built into libcrypto
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.In openssl/ec.h
+.In openssl/objects.h
+.Ft EC_GROUP *
+.Fo EC_GROUP_new_by_curve_name
+.Fa "int nid"
+.Fc
+.Ft void
+.Fo EC_GROUP_free
+.Fa "EC_GROUP *group"
+.Fc
+.Ft EC_GROUP *
+.Fo EC_GROUP_dup
+.Fa "const EC_GROUP *group"
+.Fc
+.Ft int
+.Fo EC_GROUP_cmp
+.Fa "const EC_GROUP *group1"
+.Fa "const EC_GROUP *group2"
+.Fa "BN_CTX *ctx"
+.Fc
+.Bd -literal
+typedef struct {
+	int nid;
+	const char *comment;
+} EC_builtin_curve;
+
+.Ed
+.Ft size_t
+.Fo EC_get_builtin_curves
+.Fa "EC_builtin_curve *curves"
+.Fa "size_t ncurves"
+.Fc
+.Ft int
+.Fo EC_curve_nist2nid
+.Fa "const char *name"
+.Fc
+.Ft const char *
+.Fo EC_curve_nid2nist
+.Fa "int nid"
+.Fc
+.Sh DESCRIPTION
+Most elliptic curves used in cryptographic protocols have a
+standardized representation as a
+.Em named curve ,
+where an ASN.1 Object Identifier (OID) is used instead of
+detailed domain parameters.
+This OID is represented internally by a Numerical Identifier (NID),
+and the parameters themselves must be built into the library.
+In the EC library the
+.Em curve name
+refers to this NID.
+.Pp
+.Fn EC_GROUP_new_by_curve_name
+returns a new
+.Vt EC_GROUP
+object representing the named curve corresponding to
+.Fa nid ,
+using the parameters built into the library.
+It is equivalent to passing the appropriate parameters to
+.Xr EC_GROUP_new_curve_GFp 3 ,
+.Xr EC_GROUP_set_curve_name 3 ,
+.Xr EC_GROUP_set_generator 3
+and
+.Xr EC_GROUP_set_seed 3 .
+.Pp
+.Fn EC_GROUP_free
+frees
+.Fa group
+and all the memory associated with it.
+If
+.Fa group
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+.Fn EC_GROUP_dup
+creates a deep copy of
+.Fa group .
+.Pp
+.Fn EC_GROUP_cmp
+is intended to determine whether
+.Fa group1
+and
+.Fa group2
+represent the same elliptic curve,
+making use of the optional
+.Fa ctx .
+If the curve name is set on both curves, they are compared as integers,
+then the prime field,
+the coefficients of the Weierstrass equation,
+the generators, their order and their cofactors are compared
+using
+.Xr BN_cmp 3
+or
+.Xr EC_POINT_cmp 3 ,
+respectively.
+.Pp
+.Fn EC_get_builtin_curves
+returns the number of builtin curves.
+If
+.Fa curves
+is
+.Dv NULL
+or
+.Fa ncurves
+is zero, it performs no other action.
+Otherwise, after reducing
+.Fa ncurves
+to the number of builtin curves if necessary,
+it copies the
+.Fa nid
+and a pointer to the
+.Fa comment
+of the first
+.Fa ncurves
+built-in curves to the array of
+.Vt EC_builtin_curve
+objects pointed to by
+.Fa curves
+and leaves the remainder of the array uninitialized.
+.Pp
+Some curves can be identified by their NIST name
+in addition to the numerical identifier (NID).
+.Fn EC_curve_nist2nid
+and
+.Fn EC_curve_nid2nist
+translate between the two.
+The builtin NIST curves over a prime field are:
+.Pp
+.Bl -column "NIST name" NID_X9_62_prime256v1 "deprecated in SP800-186" -compact
+.It No NIST Fa name Ta Em ASN.1 NID       Ta Em notes
+.It Qq P-224   Ta Dv NID_secp224r1        Ta
+.It Qq P-256   Ta Dv NID_X9_62_prime256v1 Ta also known as secp256r1
+.It Qq P-384   Ta Dv NID_secp384r1        Ta
+.It Qq P-521   Ta Dv NID_secp521r1        Ta
+.El
+.Pp
+.Fn EC_curve_nist2nid
+and
+.Fn EC_curve_nid2nist
+also accept the binary curves defined in FIPS\& 186-4
+and deprecated in SP800-186,
+as well as
+.Qq P-192
+and
+.Dv NID_X9_62_prime192v1 ,
+although all these no longer correspond to builtin curves in LibreSSL.
+.Sh RETURN VALUES
+.Fn EC_GROUP_new_by_curve_name
+returns a newly allocated group or
+.Dv NULL
+if there is no built-in group with NID
+.Fa nid ,
+or if memory allocation fails.
+.Pp
+.Fn EC_GROUP_dup
+returns a newly allocated group or
+.Dv NULL
+if memory allocation fails.
+.Pp
+.Fn EC_GROUP_cmp
+returns 1 if the groups are distinct, 0 if the groups are
+considered identical and \-1 on memory allocation error.
+.Pp
+.Fn EC_get_builtin_curves
+returns the number of builtin curves.
+.Pp
+.Fn EC_curve_nid2nist
+returns a string constant containing the NIST name if
+.Fa nid
+identifies a NIST curve or
+.Dv NULL
+otherwise.
+.Pp
+.Fn EC_curve_nist2nid
+returns the NID corresponding to the NIST curve
+.Fa name ,
+or
+.Dv NID_undef .
+.Sh EXAMPLES
+Print the list of builtin curves, their NIDs, their NIST name and
+a comment describing each curve:
+.Bd -literal
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include <openssl/ec.h>
+
+int
+main(void)
+{
+	EC_builtin_curve *curves;
+	size_t ncurves, i;
+
+	if (pledge("stdio", NULL) == \-1)
+		err(1, "pledge");
+
+	ncurves = EC_get_builtin_curves(NULL, 0);
+	if ((curves = calloc(ncurves, sizeof(*curves))) == NULL)
+		err(1, NULL);
+	(void)EC_get_builtin_curves(curves, ncurves);
+
+	printf("curve\etnid\etNIST\etcomment\en");
+	for (i = 0; i < ncurves; i++) {
+		const char *nist_name = EC_curve_nid2nist(curves[i].nid);
+
+		printf("%2zu\et%d\et%s\et%s\en", i, curves[i].nid,
+		    nist_name != NULL ? nist_name : "", curves[i].comment);
+	}
+
+	free(curves);
+
+	return 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr d2i_ECPKParameters 3 ,
+.Xr EC_GROUP_check 3 ,
+.Xr EC_GROUP_get_curve_name 3 ,
+.Xr EC_GROUP_new_curve_GFp 3 ,
+.Xr EC_KEY_METHOD_new 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EC_POINT_add 3 ,
+.Xr EC_POINT_get_affine_coordinates 3 ,
+.Xr EC_POINT_new 3 ,
+.Xr EC_POINT_point2oct 3 ,
+.Xr ECDH_compute_key 3 ,
+.Xr ECDSA_SIG_new 3 ,
+.Xr OBJ_nid2obj 3
+.Sh STANDARDS
+.Rs
+.%T SEC 1: Elliptic Curve Cryptography, Version 2.0
+.%U https://www.secg.org/sec1-v2.pdf
+.%D May 21, 2009
+.Re
+.Pp
+.Rs
+.%T SEC 2: Recommended Elliptic Curve Domain Parameters, Version 2.0
+.%U https://www.secg.org/sec2-v2.pdf
+.%D Jan 27, 2010
+.Re
+.Sh HISTORY
+.Fn EC_GROUP_free
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .
+.Pp
+.Fn EC_GROUP_new_by_curve_name ,
+.Fn EC_GROUP_cmp ,
+.Fn EC_GROUP_dup ,
+and
+.Fn EC_get_builtin_curves
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Pp
+.Fn EC_curve_nid2nist
+and
+.Fn EC_curve_nist2nid
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 5.8 .
+.Sh BUGS
+.Fn EC_GROUP_cmp
+compares the coefficients of the Weierstrass equation as
+integers, not as elements of the prime field.
+It also treats the generator as mandatory while it is generally
+optional in the EC library.
+Aspects of the ASN.1 encoding controlled by the functions in
+.Xr EC_GROUP_get_asn1_flag 3 ,
+in particular seed, ASN.1 flag, and point conversion form,
+are ignored in the comparison.
+Group objects may therefore compare as equal and produce
+completely different ASN.1 encodings via
+.Xr i2d_ECPKParameters 3
+and related functions.
+In fact, either of these encodings might be valid or not,
+accepted or rejected by
+.Xr d2i_ECPKParameters 3 ,
+or the encoding might fail on one or both of the group objects.

@@ -1,0 +1,11 @@
+import("//clang/utils/TableGen/clang_tablegen.gni")
+
+clang_tablegen("AttrParserStringSwitches") {
+  args = [ "-gen-clang-attr-parser-string-switches" ]
+  td_file = "../Basic/Attr.td"
+}
+
+clang_tablegen("AttrSubMatchRulesParserStringSwitches") {
+  args = [ "-gen-clang-attr-subject-match-rules-parser-string-switches" ]
+  td_file = "../Basic/Attr.td"
+}

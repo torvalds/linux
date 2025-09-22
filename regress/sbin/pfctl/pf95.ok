@@ -1,0 +1,2 @@
+block drop in proto udp all
+block drop out proto tcp all

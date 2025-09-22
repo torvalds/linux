@@ -1,0 +1,111 @@
+.\"	$OpenBSD: ocspcheck.8,v 1.9 2017/11/29 21:15:45 jmc Exp $
+.\"
+.\" Copyright (c) 2017 Bob Beck <beck@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 29 2017 $
+.Dt OCSPCHECK 8
+.Os
+.Sh NAME
+.Nm ocspcheck
+.Nd check a certificate for validity against its OCSP responder
+.Sh SYNOPSIS
+.Nm
+.Op Fl Nv
+.Op Fl C Ar CAfile
+.Op Fl i Ar staplefile
+.Op Fl o Ar staplefile
+.Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility validates a PEM format certificate against the OCSP responder
+encoded in the certificate specified by the
+.Ar file
+argument.
+Normally it should be used for checking server certificates
+and maintaining saved OCSP responses to be used for OCSP stapling.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl C Ar CAfile
+Specify a PEM format root certificate bundle to use for the validation of
+requests.
+By default no certificates are used beyond those in the
+certificate chain provided by the
+.Ar file
+argument.
+.It Fl i Ar staplefile
+Specify an input filename from which a DER-encoded OCSP response
+will be read instead of fetching it from the OCSP server.
+A filename
+of
+.Sq -
+will read the response from standard input.
+.It Fl N
+Do not use a nonce value in the OCSP request, or validate that the
+nonce was returned in the OCSP response.
+By default a nonce is always used and validated when retrieving
+a response from an OCSP server.
+The use of this flag is a security risk as it will allow OCSP
+responses to be replayed.
+It should not be used unless the OCSP server does not support the
+use of OCSP nonces.
+.It Fl o Ar staplefile
+Specify an output filename where the DER encoded response from the
+OCSP server will be written, if the OCSP response validates.
+A filename
+of
+.Sq -
+will write the response to standard output.
+By default the response is not saved.
+.It Fl v
+Increase verbosity.
+This flag may be specified multiple times to get more verbose output.
+The default behaviour is to be silent unless something goes wrong.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 if the OCSP response validates for the certificate in
+.Ar file
+and all output is successfully written out.
+.Nm
+exits >0 if an error occurs or the OCSP response fails to validate.
+.Sh SEE ALSO
+.Xr nc 1 ,
+.Xr tls_config_set_ocsp_staple_file 3 ,
+.Xr tls_config_set_ocsp_staple_mem 3 ,
+.Xr httpd 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+.Nm
+was written by
+.An Bob Beck .
+.Sh CAVEATS
+While
+.Nm
+could possibly be used in scripts to query responders for server
+certificates seen on client connections, this is almost always a bad
+idea.
+God kills a kitten every time you make an OCSP query from the
+client side of a TLS connection.
+.Sh BUGS
+.Nm
+will create the output file if it does not exist.
+On failure a newly created output file will not be removed.

@@ -1,0 +1,81 @@
+.\"	$OpenBSD: umbg.4,v 1.6 2019/03/26 16:41:35 jmc Exp $
+.\"
+.\" Copyright (c) 2007 Marc Balmer <mbalmer@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 26 2019 $
+.Dt UMBG 4
+.Os
+.Sh NAME
+.Nm umbg
+.Nd Meinberg Funkuhren USB5131 and DCF600USB timedelta sensors
+.Sh SYNOPSIS
+.Cd "umbg* at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Meinberg Funkuhren USB5131 and
+DCF600USB time signal receivers for the German DCF77 station.
+.Nm
+implements a timedelta sensor and the delta (in nanoseconds) between the
+received time information and the local time can be accessed through the
+.Xr sysctl 8
+interface.
+.Pp
+The quality of the timedelta is reported as the sensor status:
+.Bl -tag -width "CRITICALXX" -offset indent
+.It UNKNOWN
+No valid time information has been received yet.
+.It OK
+The time information is valid and the timedelta is safe to use for
+applications like
+.Xr ntpd 8 .
+.It WARN
+The time information is still valid, but no new time information has been
+decoded for at least twelve hours due to a reception or parity error.
+The timedelta should be used with care.
+.It CRITICAL
+No valid time information has been received for more than twelve hours since
+the sensor state degraded from OK to WARN.
+This is an indication that hardware should be checked
+to see if it is still functional.
+.El
+.Pp
+A second sensor provides the relative signal quality as a percentage.
+The status of this sensor is used to report the status of the device itself:
+.Bl -tag -width "CRITICALXX" -offset indent
+.It OK
+The clock is synchronized.
+.It WARN
+The device's clock is free running on the local oscillator.
+This is not an error and can happen due to the nature of the signal
+transmission using longwave radio.
+.It CRITICAL
+Hardware failure, e.g. communication with the device failed.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr usb 4 ,
+.Xr ntpd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.3 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Marc Balmer Aq Mt mbalmer@openbsd.org .

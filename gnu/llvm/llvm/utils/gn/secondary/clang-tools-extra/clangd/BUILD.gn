@@ -1,0 +1,165 @@
+import("//clang-tools-extra/clangd/quality/gen_decision_forest.gni")
+import("//clang-tools-extra/clangd/xpc/enable.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+
+config("features_config") {
+  # To pick up the generated inc files.
+  include_dirs = [ target_gen_dir ]
+  visibility = [ ":features" ]
+}
+
+write_cmake_config("features") {
+  input = "Features.inc.in"
+  output = "$target_gen_dir/Features.inc"
+  values = [
+    "CLANGD_DECISION_FOREST=1",
+    "CLANGD_ENABLE_REMOTE=0",
+    "CLANGD_MALLOC_TRIM=1",
+    "CLANGD_TIDY_CHECKS=1",
+    "ENABLE_GRPC_REFLECTION=0",
+  ]
+  if (clangd_build_xpc) {
+    values += [ "CLANGD_BUILD_XPC=1" ]
+  } else {
+    values += [ "CLANGD_BUILD_XPC=0" ]
+  }
+  public_configs = [ ":features_config" ]
+}
+
+gen_decision_forest("CompletionModel") {
+  model = "quality/model"
+  filename = "CompletionModel"
+  cpp_class = "clang::clangd::Example"
+  deps = [ "//clang/lib/Sema" ]
+}
+
+static_library("clangd") {
+  output_name = "clangDaemon"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    ":CompletionModel",
+    ":features",
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy:all-checks",
+    "//clang-tools-extra/clang-tidy:clang-tidy-config",
+    "//clang-tools-extra/clangd/support",
+    "//clang-tools-extra/include-cleaner/lib",
+    "//clang-tools-extra/pseudo/lib",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Driver",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Index",
+    "//clang/lib/Lex",
+    "//clang/lib/Sema",
+    "//clang/lib/Serialization",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Core",
+    "//clang/lib/Tooling/Inclusions",
+    "//clang/lib/Tooling/Inclusions/Stdlib",
+    "//clang/lib/Tooling/DependencyScanning",
+    "//clang/lib/Tooling/Refactoring",
+    "//clang/lib/Tooling/Syntax",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsInfos",
+    "//llvm/lib/TargetParser",
+    "//llvm/utils/gn/build/libs/pthread",
+  ]
+  include_dirs = [
+    ".",
+
+    # For "clang-include-cleaner/..." includes.
+    "//clang-tools-extra/include-cleaner/include",
+
+    # For "clang-pseudo/..." includes.
+    "//clang-tools-extra/pseudo/include",
+
+    # To pick up the generated inc files.
+    "$target_gen_dir/tool",
+  ]
+  sources = [
+    "AST.cpp",
+    "ASTSignals.cpp",
+    "ClangdLSPServer.cpp",
+    "ClangdServer.cpp",
+    "CodeComplete.cpp",
+    "CodeCompletionStrings.cpp",
+    "CollectMacros.cpp",
+    "CompileCommands.cpp",
+    "Compiler.cpp",
+    "Config.cpp",
+    "ConfigCompile.cpp",
+    "ConfigProvider.cpp",
+    "ConfigYAML.cpp",
+    "DecisionForest.cpp",
+    "Diagnostics.cpp",
+    "DraftStore.cpp",
+    "DumpAST.cpp",
+    "ExpectedTypes.cpp",
+    "FS.cpp",
+    "Feature.cpp",
+    "FeatureModule.cpp",
+    "FileDistance.cpp",
+    "FindSymbols.cpp",
+    "FindTarget.cpp",
+    "Format.cpp",
+    "FuzzyMatch.cpp",
+    "GlobalCompilationDatabase.cpp",
+    "HeaderSourceSwitch.cpp",
+    "Headers.cpp",
+    "HeuristicResolver.cpp",
+    "Hover.cpp",
+    "IncludeCleaner.cpp",
+    "IncludeFixer.cpp",
+    "InlayHints.cpp",
+    "JSONTransport.cpp",
+    "ModulesBuilder.cpp",
+    "ParsedAST.cpp",
+    "PathMapping.cpp",
+    "Preamble.cpp",
+    "Protocol.cpp",
+    "Quality.cpp",
+    "RIFF.cpp",
+    "ScanningProjectModules.cpp",
+    "Selection.cpp",
+    "SemanticHighlighting.cpp",
+    "SemanticSelection.cpp",
+    "SourceCode.cpp",
+    "SystemIncludeExtractor.cpp",
+    "TUScheduler.cpp",
+    "TidyProvider.cpp",
+    "URI.cpp",
+    "XRefs.cpp",
+    "index/Background.cpp",
+    "index/BackgroundIndexLoader.cpp",
+    "index/BackgroundIndexStorage.cpp",
+    "index/BackgroundQueue.cpp",
+    "index/BackgroundRebuild.cpp",
+    "index/CanonicalIncludes.cpp",
+    "index/FileIndex.cpp",
+    "index/Index.cpp",
+    "index/IndexAction.cpp",
+    "index/MemIndex.cpp",
+    "index/Merge.cpp",
+    "index/ProjectAware.cpp",
+    "index/Ref.cpp",
+    "index/Relation.cpp",
+    "index/Serialization.cpp",
+    "index/StdLib.cpp",
+    "index/Symbol.cpp",
+    "index/SymbolCollector.cpp",
+    "index/SymbolID.cpp",
+    "index/SymbolLocation.cpp",
+    "index/SymbolOrigin.cpp",
+    "index/YAMLSerialization.cpp",
+    "index/dex/Dex.cpp",
+    "index/dex/Iterator.cpp",
+    "index/dex/PostingList.cpp",
+    "index/dex/Trigram.cpp",
+    "refactor/InsertionPoint.cpp",
+    "refactor/Rename.cpp",
+    "refactor/Tweak.cpp",
+  ]
+}

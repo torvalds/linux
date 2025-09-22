@@ -1,0 +1,106 @@
+.\"	$OpenBSD: rfx.4,v 1.12 2015/09/10 15:53:26 schwarze Exp $
+.\"
+.\" Copyright (c) 2004, Miodrag Vallat.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 10 2015 $
+.Dt RFX 4 sparc64
+.Os
+.Sh NAME
+.Nm rfx
+.Nd Vitec/Connectware/AP&D RasterFlex framebuffer series
+.Sh SYNOPSIS
+.Cd "rfx* at sbus?"
+.Cd "wsdisplay* at rfx?"
+.Sh DESCRIPTION
+The RasterFlex
+series, originally manufactured by Vitec, later bought by Connectware,
+then by Advanced Products & Design, are high-performance frame buffers
+and frame grabber devices.
+.Pp
+The
+.Nm
+driver only supports the RasterFlex frame buffers:
+.Bl -tag -width RasterFLEX-HR -offset indent -compact
+.It RasterFlex-24
+.It RasterFlex-32
+.It RasterFlex-HR
+.El
+.Pp
+The
+.Nm
+driver interfaces the frame buffer with the
+.Xr wscons 4
+console framework.
+It does not provide direct device driver entry points
+but makes its functions available via the internal
+.Xr wsdisplay 4
+interface.
+.Sh DISPLAY RESOLUTION
+The RasterFlex
+frame buffers will adapt their resolution to the monitor they are
+connected to.
+However, when not connected to a Sun
+monitor, the device will default to the 1152x900 resolution, with a refresh
+rate of 66Hz.
+A different resolution can be forced using the jumpers J2 to J4, located
+near the video connector on the board itself.
+.Pp
+In the following tables, left
+.Pq L
+and right
+.Pq R
+jumper positions are described looking at the board with the video connector
+on top.
+If the jumper position is not specified
+.Pq _ ,
+it means it has to be removed
+.Pq open .
+.Ss RasterFlex-24 and RasterFlex-32 Jumper Settings:
+.Bl -column "J2 J3 J4" "Resolution" "Refresh Rate" "Description" -offset indent
+.It Sy "J2 J3 J4" Ta Sy "Resolution" Ta Sy "Refresh Rate" Ta Sy "Description"
+.It Li "\ \&R \ \&R \ \&R" Ta 1152x900 Ta 66Hz Ta "Automatic Configuration"
+.It Li "L  L  L " Ta 1024x768 Ta 76Hz Ta "SVGA"
+.It Li "L  _  _ " Ta 1152x900 Ta 66Hz Ta ""
+.It Li "_  L  L " Ta 1152x900 Ta 76Hz Ta ""
+.El
+.Ss RasterFlex-HR Jumper Settings:
+.Bl -column "J2 J3 J4" "Resolution" "Refresh Rate" "Description" -offset indent
+.It Sy "J2 J3 J4" Ta Sy "Resolution" Ta Sy "Refresh Rate" Ta Sy "Description"
+.It Li "\ \&R \ \&R \ \&R" Ta 1152x900 Ta 66Hz Ta "Automatic Configuration"
+.It Li "L  L  L " Ta 1024x768 Ta 76Hz Ta "SVGA"
+.It Li "L  _  _ " Ta 1152x900 Ta 66Hz Ta ""
+.It Li "L  L  _ " Ta 1152x900 Ta 76Hz Ta ""
+.It Li "_  L  _ " Ta 1280x1024 Ta 60Hz Ta ""
+.It Li "_  L  L " Ta 1280x1024 Ta 67Hz Ta ""
+.It Li "L  _  L " Ta 1280x1024 Ta 76Hz Ta ""
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sbus 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4
+.Sh CAVEATS
+This driver does not support any acceleration features at the moment, and
+drives the card in PROM-compatible, 8 bit, mode only.

@@ -1,0 +1,10 @@
+#! /bin/sh
+echo "################################################################################"
+echo "################################################################################"
+echo "The LLVM project no longer supports building with configure & make."
+echo ""
+echo "Please migrate to the CMake-based build system."
+echo "For more information see: http://llvm.org/docs/CMake.html"
+echo "################################################################################"
+echo "################################################################################"
+exit 1

@@ -1,0 +1,302 @@
+.\"	$OpenBSD: proot.1,v 1.11 2023/04/11 11:23:09 espie Exp $
+.\"
+.\" Copyright (c) 2016 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 11 2023 $
+.Dt PROOT 1
+.Os
+.Sh NAME
+.Nm proot
+.Nd ports chroot builder
+.Sh SYNOPSIS
+.Nm proot
+.Op Fl B Ar chroot
+.Op Fl c Ar configfile
+.Op Fl S Ar srcroot
+.Op Ar attribute Ns = Ns Ar value ...
+.Sh DESCRIPTION
+.Nm
+can fill up a chroot directory for ports building usage.
+It will perform a set of
+.Cm actions
+that should fill up a destination
+.Ar chroot
+directory from the base system (or an optional
+.Ar srcroot ) .
+.Pp
+As far as possible,
+.Nm
+will create hardlinks instead of copying files, so that cloning an existing
+chroot will often only consume i-nodes.
+.Pp
+Some attributes can take multiple values.
+As a shorthand, several values can be specified in a row without having
+to repeat the
+.Ar attribute
+name, for instance:
+.Pp
+.Dl proot -B /build actions=unpopulate_light check_symlinks
+.Pp
+A
+.Ar configfile
+mostly contains one
+.Ar attribute Ns = Ns Ar value
+assignment per line, with comments starting with a
+.Sq #
+character.
+.Pp
+Possible
+.Cm actions
+(in the order of execution) are as follows:
+.Pp
+.Bl -tag -width unpopulate_light -compact -offset indent
+.It Cm check_mount
+Verify the state of mount points in the system, specifically whether
+the chroot area is not nodev.
+.It Cm unpopulate
+Remove everything from the chroot apart from selected data.
+See
+.Sx Preserved areas and unpopulate
+for details.
+.It Cm snapshot
+Copy things from a snapshot,
+to be retrieved from a URL or from the local filesystem.
+.It Cm trusted_snapshot
+Like
+.Cm snapshot ,
+but without signature checking.
+Use with caution, usually with snapshots you've built yourself.
+.It Cm locate
+Copy things from the base system, perusing the system
+.Xr locate 1
+databases.
+.Bf Sy
+Note that this might erase data, in case it doesn't match the base system
+and is in the way.
+.Ef
+.It Cm resolv
+Copy the system
+.Xr resolv.conf 5
+and
+.Xr hosts 5
+files.
+.It Cm copy_ports
+Copy the ports tree.
+.It Cm copy_sys
+Copy system include files (deprecated).
+.It Cm unpopulate_light
+Remove everything from the chroot apart from selected data.
+See
+.Sx Preserved areas and unpopulate
+for details.
+.It Cm ldconfig
+Rerun
+.Xr ldconfig 8 .
+.It Cm devs
+Regenerate devices using
+.Xr MAKEDEV 8
+and
+.Xr dev_mkdb 8 .
+.It Cm checkout_ports
+Check out a ports tree from cvs using a provided
+.Cm portscvs
+location.
+.It Cm ports_subdirs
+Create ports infrastructure subdirs, according to users required for
+.Xr dpb 1 .
+If
+.Cm chown_all
+is set to 1,
+.Xr chown 2
+any content within to the appropriate users.
+.It Cm stragglers
+Double-check filled up chroot for files we don't know about.
+.It Cm write_mk
+If some values are different from the default,
+write a skeleton
+.Xr mk.conf 5
+file.
+.It Cm check_symlinks
+Report absolute symlinks that exist under the
+.Ar chroot ,
+white-listing known base system links.
+.El
+.Pp
+By default,
+.Nm
+will run
+.Cm check_mount , unpopulate_light , devs , ldconfig , ports_subdirs ,
+.Cm resolv , write_mk .
+If
+.Cm unpopulate
+is used,
+.Cm unpopulate_light
+won't be run.
+It will also run
+.Cm snapshot
+if a snapshot location is provided,
+or
+.Cm locate
+otherwise.
+.Pp
+Add actions with
+.Cm actions Ns = Ns Ar value ,
+remove them with
+.Cm actions Ns =- Ns Ar value .
+.Pp
+Other attributes are:
+.Pp
+.Bl -tag -width mkconf_lines -offset indent -compact
+.It Cm chroot
+same as
+.Fl B Ar chroot
+.It Cm srcroot
+same as
+.Fl S Ar srcroot
+.It Cm PORT_USER
+Who the ports tree should belong to
+.It Cm BUILD_USER
+Who to build as (defaults to _pbuild)
+.It Cm FETCH_USER
+Who to fetch as (defaults to _pfetch)
+.It Cm LOG_USER
+Who to write log as (defaults to
+.Cm BUILD_USER )
+.It Cm LOGDIR
+Where to write logs (defaults to
+.Pa ${PORTSDIR}/logs )
+.It Cm PORTSDIR
+.It Cm DISTDIR
+.It Cm PACKAGE_REPOSITORY
+.It Cm PLIST_REPOSITORY
+.It Cm LOCKDIR
+.It Cm WRKOBJDIR
+same as in
+.Xr bsd.port.mk 5
+.Pp
+.It Cm chown_all
+set to 1 to have the action
+.Cm ports_subdirs
+change owners of every content.
+.It Cm extra
+extra file to copy into the
+.Ar chroot .
+.It Cm mkconf_lines
+Add lines to the generated
+.Pa /etc/mk.conf .
+.It Cm mkconf_tail
+Add file to the generated
+.Pa /etc/mk.conf .
+.It Cm preserve
+Supplemental directory to preserve during
+.Cm unpopulate .
+.It Cm sets
+Add or remove sets compared to the default list required to build ports
+(defaults to all sets).
+.It Cm snapshot
+Location of snapshot for the
+.Cm snapshot
+action.
+.It Cm portscvs
+Where to get a ports snapshot for the
+.Cm checkout_ports
+action.
+.El
+.Ss Preserved areas and unpopulate
+The following entries won't be erased during a
+.Cm locate
+or
+.Cm unpopulate*
+action:
+.Pp
+.Bl -dash -compact -offset indent
+.It
+Items explicitly marked with the
+.Cm preserve
+attribute.
+.It
+A
+.Cm snapshot
+directory containing the base sets.
+.It
+All the ports specific sub directories if they are defined,
+namely
+.Cm DISTDIR , WRKOBJDIR , LOGDIR , PACKAGE_REPOSITORY , PLIST_REPOSITORY ,
+.Cm LOCKDIR .
+.It
+The
+.Cm PORTSDIR
+itself, unless
+.Cm copy_ports
+is used.
+.It
+Any mount point.
+.It
+Data explicitly copied through other actions, e.g.,
+.Cm extra
+files, key files...
+.El
+.Sh EXAMPLES
+The following
+.Ar configfile
+sets things up for an initial build on a
+.Xr dpb 1
+cluster
+.Po
+refer to
+.Xr bulk 8
+for typical setups of such build clusters
+.Pc .
+.Bd -literal -offset index
+chroot=/build
+PORT_USER=espie
+extra=/home/espie/startup
+WRKOBJDIR=/tmp/pobj
+LOCKDIR=/tmp/locks
+PLIST_REPOSITORY=/data/plist
+DISTDIR=/data/distfiles
+PACKAGE_REPOSITORY=/data/packages
+actions=unpopulate_light
+	copy_ports
+.Ed
+.Pp
+It assumes
+.Pa /build/data
+is a separate partition that won't be cleaned up by
+.Cm unpopulate_light ,
+and that can be mounted on slaves.
+Note also that
+.Pa /tmp
+should be a fast local directory on every machine of the cluster.
+.Pp
+.Pa /home/espie/startup
+is a startup script for
+.Xr dpb 1 .
+.Pp
+Initial invocation on the master could be
+.Pp
+.D1 Nm Fl c Ar configfile Cm chown_all Ns =1
+.Pp
+to ensure correct permissions for existing data under various
+ports directories.
+.Pp
+Slaves should not need the extra arguments, as the directories will
+already have correct owners.
+.Sh SEE ALSO
+.Xr dpb 1 ,
+.Xr bulk 8 ,
+.Xr chroot 8
+.Sh AUTHORS
+.An Marc Espie Aq Mt espie@openbsd.org

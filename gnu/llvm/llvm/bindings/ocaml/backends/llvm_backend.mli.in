@@ -1,0 +1,18 @@
+(*===-- llvm_backend.mli.in - LLVM OCaml Interface ------------*- OCaml -*-===*
+ *
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+ *
+ *===----------------------------------------------------------------------===*)
+
+(** @TARGET@ Initialization.
+
+    This interface provides an OCaml API for initialization of
+    the @TARGET@ LLVM target. By referencing this module, you will cause
+    OCaml to load or link in the LLVM libraries corresponding to the target.
+    By calling [initialize], you will register components of this target
+    in the target registry, which is necessary in order to emit assembly,
+    object files, and so on. *)
+
+external initialize : unit -> unit = "llvm_initialize_@TARGET@"

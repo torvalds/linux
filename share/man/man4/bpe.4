@@ -1,0 +1,160 @@
+.\" $OpenBSD: bpe.4,v 1.6 2022/09/12 09:15:29 jsg Exp $
+.\"
+.\" Copyright (c) 2018 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 12 2022 $
+.Dt BPE 4
+.Os
+.Sh NAME
+.Nm bpe
+.Nd Backbone Provider Edge pseudo-device
+.Sh SYNOPSIS
+.Cd "pseudo-device bpe"
+.Sh DESCRIPTION
+The
+.Nm bpe
+driver creates IEEE 802.1Q Provider Backbone Bridge (PBB) networks
+by acting as a Backbone Edge Bridge (BEB).
+PBB, also known as mac-in-mac, was originally specified in
+IEEE 802.1ah-2008 and became part of IEEE 802.1Q-2011.
+.Pp
+A Provider Backbone Bridge Network (PBBN) consists of BEBs
+interconnected by Backbone Core Bridges (BCBs) to form an Ethernet
+network for the transport of encapsulated Ethernet packets.
+Where VLAN and SVLAN protocols add a shim to differentiate Ethernet
+packets for different networks but retain the Ethernet addresses
+of encapsulated traffic, PBB completely encapsulates Ethernet packets
+for transmission between BEBs on a PBBN.
+This removes the need for intermediate BCB devices on the backbone
+network to learn the Ethernet addresses of devices on the encapsulated
+network, but requires each BEB to maintain a mapping of addresses
+on the encapsulated network to peer BEBs.
+.Pp
+A PBB packet consists of another Ethernet frame containing Ethernet
+addresses for BEBs and the PBB Ethernet protocol type (0x88e7), a
+32-bit Backbone Service Instance Tag (I-TAG), followed by the
+encapsulated Ethernet frame.
+The I-TAG contains a 24-bit Backbone Service Instance Identifier
+(I-SID) to differentiate different PBBNs on the same backbone network
+.Pp
+IEEE 802.1Q describes customer VLANs being encapsulated by PBB,
+which in turn uses an S-VLAN service.
+This can be implemented with
+.Xr vlan 4
+using a
+.Nm bpe
+interface as the parent,
+and with the
+.Nm bpe
+interface using
+.Xr svlan 4
+as the parent.
+.Nm bpe
+itself does not require this topology, therefore allowing flexible
+deployment and network topologies.
+.Pp
+The
+.Nm bpe
+driver implements a learning bridge on each interface.
+The driver will learn the mapping of BEPs to encapsulated Ethernet
+address based on traffic received from other devices on the backbone
+network.
+Traffic sent to broadcast, multicast, or unknown unicast Ethernet
+addresses will be flooded to a multicast address on the backbone network.
+The multicast address used for each PBB Service Instance
+will begin with 01:1e:83 as the first three octets, with the I-SID
+as the last three octets.
+For example, a
+.Nm bpe
+interface with a vnetid of 1024 (0x400 in hex) will have a multicast
+group address of 01:1e:83:00:04:00.
+The address learning in
+.Nm bpe
+only uses the Ethernet addresses of encapsulated traffic for its
+forwarding decisions; it does not use VLAN or S-VLAN tags to
+differentiate services.
+.Pp
+.Nm bpe
+interfaces can be created at runtime using the
+.Ic ifconfig bpe Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+The interface itself can be configured with
+.Xr ifconfig 8 ;
+see its manual page for more information.
+.Pp
+.Nm bpe
+interfaces must be configured with a parent Ethernet interface to
+operate, and a virtual network identifier for use as the I-SID.
+.Pp
+The I-TAG includes a priority field.
+By default, the value of the priority field in a transmitted packet
+is based on the priority of packets sent over the interface, which
+may be altered via
+.Xr pf.conf 5 ;
+see the
+.Cm prio
+option for more information.
+Alternatively,
+.Cm txprio
+can set a specific priority for transmitted packets.
+.Pp
+.Nm bpe
+interfaces support the following
+.Xr ioctl 2 Ns s :
+.Bl -tag -width indent -offset 3n
+.It Dv SIOCSIFPARENT Fa "struct if_parent *"
+Set the parent interface.
+The parent may only be configured while the virtual interface is
+administratively down.
+.It Dv SIOCGIFPARENT Fa "struct if_parent *"
+Get the currently configured parent interface.
+.It Dv SIOCDIFPARENT Fa "struct ifreq *"
+Delete the parent interface configuration.
+The parent may only be removed while the virtual interface is
+administratively down.
+.It Dv SIOCSVNETID Fa "struct ifreq *"
+Set the virtual network identifier.
+Valid identifiers are 24-bit values in the range 0 to 16777215.
+.It Dv SIOCGVNETID Fa "struct ifreq *"
+Get the currently configured virtual network identifier.
+.El
+.Sh SEE ALSO
+.Xr bridge 4 ,
+.Xr inet 4 ,
+.Xr ip 4 ,
+.Xr netintro 4 ,
+.Xr vlan 4 ,
+.Xr hostname.if 5 ,
+.Xr pf.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Rs
+.%T IEEE 802.1Q standard
+.%U https://standards.ieee.org/standard/802_1Q-2018.html
+.Re
+.Rs
+.%Q Provider Backbone Bridges
+.%T IEEE 802.1ah standard
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.5 .
+.Sh AUTHORS
+.An David Gwynne Aq Mt dlg@openbsd.org .

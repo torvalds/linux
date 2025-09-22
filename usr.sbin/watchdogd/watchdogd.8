@@ -1,0 +1,95 @@
+.\" $OpenBSD: watchdogd.8,v 1.14 2013/07/16 11:13:34 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 Marc Balmer <mbalmer@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt WATCHDOGD 8
+.Os
+.Sh NAME
+.Nm watchdogd
+.Nd watchdog timer retrigger daemon
+.Sh SYNOPSIS
+.Nm watchdogd
+.Op Fl dnq
+.Op Fl i Ar interval
+.Op Fl p Ar period
+.Sh DESCRIPTION
+.Nm
+is a daemon to activate and periodically retrigger the
+.Xr watchdog 4
+timer device from userland.
+.Nm
+is designed to work in high load environments,
+where other methods
+(such as a shell script invoking
+.Xr sysctl 8 )
+would involve too much overhead.
+.Pp
+The basic premise is that
+after every
+.Ar interval
+seconds,
+.Nm
+resets the hardware timer to
+.Ar period .
+See also
+.Xr watchdog 4
+for more information on how watchdog timers work.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground.
+.It Fl i Ar interval
+Specify how often, in seconds,
+.Nm
+should retrigger the hardware timer.
+If no interval is specified,
+the value of
+.Ar period
+(see below)
+divided by three is used.
+.It Fl n
+Do not restore the watchdog to its original values once it has been activated.
+With this set, the system will be rebooted by the watchdog even after a
+.Xr halt 8 .
+.It Fl p Ar period
+Set the hardware timer to expire in
+.Ar period
+seconds.
+The default is 30 seconds.
+.It Fl q
+Be quiet.
+With this option specified,
+.Nm
+will not output a warning message if the underlying hardware adjusted the
+timeout period.
+.El
+.Sh SEE ALSO
+.Xr watchdog 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+program
+first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+.Nm
+was written by
+.An Marc Balmer Aq Mt mbalmer@openbsd.org .

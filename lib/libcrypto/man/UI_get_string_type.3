@@ -1,0 +1,282 @@
+.\"	$OpenBSD: UI_get_string_type.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL UI_STRING.pod e9c9971b Jul 1 18:28:50 2017 +0200
+.\"
+.\" This file was written by Richard Levitte <levitte@openssl.org>
+.\" Copyright (c) 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt UI_GET_STRING_TYPE 3
+.Os
+.Sh NAME
+.Nm UI_get_string_type ,
+.Nm UI_get_input_flags ,
+.Nm UI_get0_output_string ,
+.Nm UI_get0_action_string ,
+.Nm UI_get0_result_string ,
+.Nm UI_get0_test_string ,
+.Nm UI_get_result_minsize ,
+.Nm UI_get_result_maxsize ,
+.Nm UI_set_result
+.Nd OpenSSL user interface string parsing
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ui.h
+.Bd -literal
+enum UI_string_types {
+	UIT_NONE = 0,
+	UIT_PROMPT,	/* Prompt for a string */
+	UIT_VERIFY,	/* Prompt for a string and verify */
+	UIT_BOOLEAN,	/* Prompt for a yes/no response */
+	UIT_INFO,	/* Send info to the user */
+	UIT_ERROR	/* Send an error message to the user */
+};
+.Ed
+.Pp
+.Ft enum UI_string_types
+.Fo UI_get_string_type
+.Fa "UI_STRING *uis"
+.Fc
+.Ft int
+.Fo UI_get_input_flags
+.Fa "UI_STRING *uis"
+.Fc
+.Ft const char *
+.Fo UI_get0_output_string
+.Fa "UI_STRING *uis"
+.Fc
+.Ft const char *
+.Fo UI_get0_action_string
+.Fa "UI_STRING *uis"
+.Fc
+.Ft const char *
+.Fo UI_get0_result_string
+.Fa "UI_STRING *uis"
+.Fc
+.Ft const char *
+.Fo UI_get0_test_string
+.Fa "UI_STRING *uis"
+.Fc
+.Ft int
+.Fo UI_get_result_minsize
+.Fa "UI_STRING *uis"
+.Fc
+.Ft int
+.Fo UI_get_result_maxsize
+.Fa "UI_STRING *uis"
+.Fc
+.Ft int
+.Fo UI_set_result
+.Fa "UI *ui"
+.Fa "UI_STRING *uis"
+.Fa "const char *result"
+.Fc
+.Sh DESCRIPTION
+A
+.Vt UI_STRING
+gets created internally and added to a
+.Vt UI
+object whenever one of the functions
+.Xr UI_add_input_string 3 ,
+.Xr UI_dup_input_string 3 ,
+.Xr UI_add_verify_string 3 ,
+.Xr UI_dup_verify_string 3 ,
+.Xr UI_add_input_boolean 3 ,
+.Xr UI_dup_input_boolean 3 ,
+.Xr UI_add_info_string 3 ,
+.Xr UI_dup_info_string 3 ,
+.Xr UI_add_error_string 3
+or
+.Xr UI_dup_error_string 3
+is called.
+For a
+.Vt UI_METHOD
+user, there's no need to know more.
+For a
+.Vt UI_METHOD
+creator, it is of interest to fetch text from these
+.Vt UI_STRING
+objects as well as adding results to some of them.
+.Pp
+.Fn UI_get_string_type
+is used to retrieve the type of the given
+.Vt UI_STRING .
+.Pp
+.Fn UI_get_input_flags
+is used to retrieve the flags associated with the given
+.Vt UI_STRING .
+.Pp
+.Fn UI_get0_output_string
+is used to retrieve the actual string to output (prompt, info, error, ...).
+.Pp
+.Fn UI_get0_action_string
+is used to retrieve the action description associated with a
+.Dv UIT_BOOLEAN
+type
+.Vt UI_STRING .
+See
+.Xr UI_add_input_boolean 3 .
+.Pp
+.Fn UI_get0_result_string
+is used to retrieve the result of a prompt.
+This is only useful for
+.Dv UIT_PROMPT
+and
+.Dv UIT_VERIFY
+type strings.
+.Pp
+.Fn UI_get0_test_string
+is used to retrieve the string to compare the prompt result with.
+This is only useful for
+.Dv UIT_VERIFY
+type strings.
+.Pp
+.Fn UI_get_result_minsize
+and
+.Fn UI_get_result_maxsize
+are used to retrieve the minimum and maximum required size of the
+result.
+This is only useful for
+.Dv UIT_PROMPT
+and
+.Dv UIT_VERIFY
+type strings.
+.Pp
+.Fn UI_set_result
+is used to set the result value of a prompt.
+For
+.Sy UIT_PROMPT
+and
+.Sy UIT_VERIFY
+type UI strings, this sets the result retrievable with
+.Fn UI_get0_result_string
+by copying the contents of
+.Fa result
+if its length fits the minimum and maximum size requirements.
+For
+.Dv UIT_BOOLEAN
+type UI strings, this sets the first character of the result retrievable
+with
+.Fn UI_get0_result_string
+to the first of the
+.Fa ok_chars
+given with
+.Xr UI_add_input_boolean 3
+or
+.Xr UI_dup_input_boolean 3
+if the
+.Fa result
+matched any of them, or the first of the
+.Fa cancel_chars
+if the
+.Fa result
+matched any of them, otherwise it's set to the NUL char.
+See
+.Xr UI_add_input_boolean 3
+for more information on
+.Fa ok_chars
+and
+.Fa cancel_chars .
+.Sh RETURN VALUES
+.Fn UI_get_string_type
+returns the UI string type.
+.Pp
+.Fn UI_get_input_flags
+returns the UI string flags.
+.Pp
+.Fn UI_get0_output_string
+returns the UI string output string.
+.Pp
+.Fn UI_get0_action_string
+returns the UI string action description string for
+.Dv UIT_BOOLEAN
+type UI strings, or
+.Dv NULL
+for any other type.
+.Pp
+.Fn UI_get0_result_string
+returns the UI string result buffer for
+.Dv UIT_PROMPT
+and
+.Dv UIT_VERIFY
+type UI strings, or
+.Dv NULL
+for any other type.
+.Pp
+.Fn UI_get0_test_string
+returns the UI string action description string for
+.Dv UIT_VERIFY
+type UI strings, or
+.Dv NULL
+for any other type.
+.Pp
+.Fn UI_get_result_minsize
+returns the minimum allowed result size for the UI string for
+.Dv UIT_PROMPT
+and
+.Dv UIT_VERIFY
+type strings, or -1 for any other type.
+.Pp
+.Fn UI_get_result_maxsize
+returns the minimum allowed result size for the UI string for
+.Dv UIT_PROMPT
+and
+.Dv UIT_VERIFY
+type strings, or -1 for any other type.
+.Pp
+.Fn UI_set_result
+returns 0 on success or when the UI string is of any type other than
+.Dv UIT_PROMPT ,
+.Dv UIT_VERIFY ,
+or
+.Dv UIT_BOOLEAN ,
+or -1 on error.
+.Sh SEE ALSO
+.Xr UI_new 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.7
+and have been available since
+.Ox 3.2 .

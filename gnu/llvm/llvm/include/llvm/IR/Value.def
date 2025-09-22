@@ -1,0 +1,137 @@
+//===-------- llvm/IR/Value.def - File that describes Values ---v-*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file contains descriptions of the various LLVM values.  This is
+// used as a central place for enumerating the different values.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+// Provide definitions of macros so that users of this file do not have to
+// define everything to use it...
+//
+#if !(defined HANDLE_GLOBAL_VALUE || defined HANDLE_CONSTANT ||                \
+      defined HANDLE_INSTRUCTION || defined HANDLE_INLINE_ASM_VALUE ||         \
+      defined HANDLE_METADATA_VALUE || defined HANDLE_VALUE ||                 \
+      defined HANDLE_CONSTANT_MARKER || defined HANDLE_MEMORY_VALUE)
+#error "Missing macro definition of HANDLE_VALUE*"
+#endif
+
+// If the LLVM_C_API macro is set, then values handled via HANDLE_*_EXCLUDE_LLVM_C_API will not be expanded in areas the HANDLE_* macro is used. If it is not set, then HANDLE_*_EXCLUDE_LLVM_C_API values are handled normally as their HANDLE_* counterparts.
+#ifndef LLVM_C_API
+#define LLVM_C_API 0
+#endif
+
+#ifndef HANDLE_MEMORY_VALUE
+#define HANDLE_MEMORY_VALUE(ValueName) HANDLE_VALUE(ValueName)
+#endif
+
+#ifndef HANDLE_GLOBAL_VALUE
+#define HANDLE_GLOBAL_VALUE(ValueName) HANDLE_CONSTANT(ValueName)
+#endif
+
+#ifndef HANDLE_CONSTANT
+#define HANDLE_CONSTANT(ValueName) HANDLE_VALUE(ValueName)
+#endif
+
+#ifndef HANDLE_INSTRUCTION
+#define HANDLE_INSTRUCTION(ValueName) HANDLE_VALUE(ValueName)
+#endif
+
+#ifndef HANDLE_INLINE_ASM_VALUE
+#define HANDLE_INLINE_ASM_VALUE(ValueName) HANDLE_VALUE(ValueName)
+#endif
+
+#ifndef HANDLE_METADATA_VALUE
+#define HANDLE_METADATA_VALUE(ValueName) HANDLE_VALUE(ValueName)
+#endif
+
+#ifndef HANDLE_VALUE
+#define HANDLE_VALUE(ValueName)
+#endif
+
+#ifndef HANDLE_CONSTANT_MARKER
+#define HANDLE_CONSTANT_MARKER(MarkerName, ValueName)
+#endif
+
+#ifndef HANDLE_CONSTANT_EXCLUDE_LLVM_C_API
+#define HANDLE_CONSTANT_EXCLUDE_LLVM_C_API(ValueName) HANDLE_CONSTANT(ValueName)
+#endif
+
+#if LLVM_C_API
+#undef HANDLE_CONSTANT_EXCLUDE_LLVM_C_API
+#define HANDLE_CONSTANT_EXCLUDE_LLVM_C_API(ValueName)
+#endif
+
+// Having constant first makes the range check for isa<Constant> faster
+// and smaller by one operation.
+
+// Constant
+HANDLE_GLOBAL_VALUE(Function)
+HANDLE_GLOBAL_VALUE(GlobalAlias)
+HANDLE_GLOBAL_VALUE(GlobalIFunc)
+HANDLE_GLOBAL_VALUE(GlobalVariable)
+HANDLE_CONSTANT(BlockAddress)
+HANDLE_CONSTANT(ConstantExpr)
+HANDLE_CONSTANT_EXCLUDE_LLVM_C_API(DSOLocalEquivalent)
+HANDLE_CONSTANT_EXCLUDE_LLVM_C_API(NoCFIValue)
+HANDLE_CONSTANT(ConstantPtrAuth)
+
+// ConstantAggregate.
+HANDLE_CONSTANT(ConstantArray)
+HANDLE_CONSTANT(ConstantStruct)
+HANDLE_CONSTANT(ConstantVector)
+
+// ConstantData.
+HANDLE_CONSTANT(UndefValue)
+HANDLE_CONSTANT(PoisonValue)
+HANDLE_CONSTANT(ConstantAggregateZero)
+HANDLE_CONSTANT(ConstantDataArray)
+HANDLE_CONSTANT(ConstantDataVector)
+HANDLE_CONSTANT(ConstantInt)
+HANDLE_CONSTANT(ConstantFP)
+HANDLE_CONSTANT(ConstantTargetNone)
+HANDLE_CONSTANT(ConstantPointerNull)
+HANDLE_CONSTANT(ConstantTokenNone)
+
+HANDLE_CONSTANT_MARKER(ConstantFirstVal, Function)
+HANDLE_CONSTANT_MARKER(ConstantLastVal, ConstantTokenNone)
+HANDLE_CONSTANT_MARKER(ConstantDataFirstVal, UndefValue)
+HANDLE_CONSTANT_MARKER(ConstantDataLastVal, ConstantTokenNone)
+HANDLE_CONSTANT_MARKER(ConstantAggregateFirstVal, ConstantArray)
+HANDLE_CONSTANT_MARKER(ConstantAggregateLastVal, ConstantVector)
+
+HANDLE_VALUE(Argument)
+HANDLE_VALUE(BasicBlock)
+
+
+HANDLE_METADATA_VALUE(MetadataAsValue)
+HANDLE_INLINE_ASM_VALUE(InlineAsm)
+
+// FIXME: It's awkward that Value.def knows about classes in Analysis. While
+// this doesn't introduce a strict link or include dependency, we should remove
+// the circular dependency eventually.
+HANDLE_MEMORY_VALUE(MemoryUse)
+HANDLE_MEMORY_VALUE(MemoryDef)
+HANDLE_MEMORY_VALUE(MemoryPhi)
+
+HANDLE_INSTRUCTION(Instruction)
+// Enum values starting at InstructionVal are used for Instructions;
+// don't add new values here!
+
+#undef HANDLE_MEMORY_VALUE
+#undef HANDLE_GLOBAL_VALUE
+#undef HANDLE_CONSTANT
+#undef HANDLE_INSTRUCTION
+#undef HANDLE_METADATA_VALUE
+#undef HANDLE_INLINE_ASM_VALUE
+#undef HANDLE_VALUE
+#undef HANDLE_CONSTANT_MARKER
+#undef HANDLE_CONSTANT_EXCLUDE_LLVM_C_API
+#undef LLVM_C_API

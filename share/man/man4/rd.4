@@ -1,0 +1,30 @@
+.\"   $OpenBSD: rd.4,v 1.7 2019/04/16 13:58:45 sunil Exp $
+.\"
+.\" This file is in the public domain.
+.\"
+.Dd $Mdocdate: April 16 2019 $
+.Dt RD 4
+.Os
+.Sh NAME
+.Nm rd
+.Nd ramdisk driver
+.Sh SYNOPSIS
+.Cd "pseudo-device rd" Op Ar count
+.Sh DESCRIPTION
+The
+.Nm
+driver enables use of system or user memory as a disk.
+Memory for the disk must be allocated and initialized inside the
+kernel image at build-time using the
+.Cm rdsetroot
+tool.
+.Sh FILES
+.Bl -tag -width /dev/rrd??XXX -compact
+.It Pa "/dev/rd??"
+Block mode ramdisk devices.
+.It Pa "/dev/rrd??"
+Raw mode ramdisk devices.
+.El
+.Sh SEE ALSO
+.Xr elf 5 ,
+.Xr rdsetroot 8

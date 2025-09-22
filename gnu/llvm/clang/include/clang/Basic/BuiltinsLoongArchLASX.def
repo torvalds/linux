@@ -1,0 +1,988 @@
+//=BuiltinsLoongArchLASX.def - LoongArch Builtin function database -- C++ -*-=//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the LoongArch-specific LASX builtin function database.
+// Users of this file must define the BUILTIN macro to make use of this
+// information.
+//
+//===----------------------------------------------------------------------===//
+
+TARGET_BUILTIN(__builtin_lasx_xvadd_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvadd_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvadd_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvadd_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvadd_q, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsub_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsub_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsub_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsub_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsub_q, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvaddi_bu, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddi_hu, "V16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddi_wu, "V8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddi_du, "V4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsubi_bu, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubi_hu, "V16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubi_wu, "V8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubi_du, "V4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvneg_b, "V32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvneg_h, "V16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvneg_w, "V8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvneg_d, "V4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsadd_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsadd_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsadd_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsadd_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsadd_bu, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsadd_hu, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsadd_wu, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsadd_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssub_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssub_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssub_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssub_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssub_bu, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssub_hu, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssub_wu, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssub_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvhaddw_h_b, "V16SsV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhaddw_w_h, "V8SiV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhaddw_d_w, "V4SLLiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhaddw_q_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvhaddw_hu_bu, "V16UsV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhaddw_wu_hu, "V8UiV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhaddw_du_wu, "V4ULLiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhaddw_qu_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvhsubw_h_b, "V16SsV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhsubw_w_h, "V8SiV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhsubw_d_w, "V4SLLiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhsubw_q_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvhsubw_hu_bu, "V16UsV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhsubw_wu_hu, "V8UiV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhsubw_du_wu, "V4ULLiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvhsubw_qu_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_h_b, "V16sV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_w_h, "V8SiV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_d_w, "V4LLiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_q_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_h_b, "V16sV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_w_h, "V8SiV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_d_w, "V4LLiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_q_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsubwev_h_b, "V16sV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwev_w_h, "V8SiV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwev_d_w, "V4LLiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwev_q_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsubwod_h_b, "V16sV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwod_w_h, "V8SiV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwod_d_w, "V4LLiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwod_q_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_h_bu, "V16sV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_w_hu, "V8SiV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_d_wu, "V4LLiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_q_du, "V4LLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_h_bu, "V16sV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_w_hu, "V8SiV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_d_wu, "V4LLiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_q_du, "V4LLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsubwev_h_bu, "V16sV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwev_w_hu, "V8SiV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwev_d_wu, "V4LLiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwev_q_du, "V4LLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsubwod_h_bu, "V16sV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwod_w_hu, "V8SiV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwod_d_wu, "V4LLiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsubwod_q_du, "V4LLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_h_bu_b, "V16sV32UcV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_w_hu_h, "V8SiV16UsV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_d_wu_w, "V4LLiV8UiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwev_q_du_d, "V4LLiV4ULLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_h_bu_b, "V16sV32UcV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_w_hu_h, "V8SiV16UsV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_d_wu_w, "V4LLiV8UiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvaddwod_q_du_d, "V4LLiV4ULLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvavg_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavg_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavg_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavg_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvavg_bu, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavg_hu, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavg_wu, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavg_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvavgr_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavgr_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavgr_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavgr_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvavgr_bu, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavgr_hu, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavgr_wu, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvavgr_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvabsd_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvabsd_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvabsd_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvabsd_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvabsd_bu, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvabsd_hu, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvabsd_wu, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvabsd_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvadda_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvadda_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvadda_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvadda_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmax_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmax_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmax_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmax_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmaxi_b, "V32ScV32ScIi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaxi_h, "V16SsV16SsIi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaxi_w, "V8SiV8SiIi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaxi_d, "V4SLLiV4SLLiIi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmax_bu, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmax_hu, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmax_wu, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmax_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmaxi_bu, "V32UcV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaxi_hu, "V16UsV16UsIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaxi_wu, "V8UiV8UiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaxi_du, "V4ULLiV4ULLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmin_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmin_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmin_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmin_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmini_b, "V32ScV32ScIi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmini_h, "V16SsV16SsIi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmini_w, "V8SiV8SiIi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmini_d, "V4SLLiV4SLLiIi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmin_bu, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmin_hu, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmin_wu, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmin_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmini_bu, "V32UcV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmini_hu, "V16UsV16UsIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmini_wu, "V8UiV8UiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmini_du, "V4ULLiV4ULLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmul_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmul_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmul_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmul_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmuh_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmuh_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmuh_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmuh_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmuh_bu, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmuh_hu, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmuh_wu, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmuh_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_h_b, "V16sV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_w_h, "V8SiV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_d_w, "V4LLiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_q_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_h_b, "V16sV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_w_h, "V8SiV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_d_w, "V4LLiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_q_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_h_bu, "V16sV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_w_hu, "V8SiV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_d_wu, "V4LLiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_q_du, "V4LLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_h_bu, "V16sV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_w_hu, "V8SiV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_d_wu, "V4LLiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_q_du, "V4LLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_h_bu_b, "V16sV32UcV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_w_hu_h, "V8SiV16UsV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_d_wu_w, "V4LLiV8UiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwev_q_du_d, "V4LLiV4ULLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_h_bu_b, "V16sV32UcV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_w_hu_h, "V8SiV16UsV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_d_wu_w, "V4LLiV8UiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmulwod_q_du_d, "V4LLiV4ULLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmadd_b, "V32ScV32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmadd_h, "V16SsV16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmadd_w, "V8SiV8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmadd_d, "V4SLLiV4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmsub_b, "V32ScV32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmsub_h, "V16SsV16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmsub_w, "V8SiV8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmsub_d, "V4SLLiV4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_h_b, "V16sV16sV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_w_h, "V8SiV8SiV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_d_w, "V4LLiV4LLiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_q_d, "V4LLiV4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_h_b, "V16sV16sV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_w_h, "V8SiV8SiV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_d_w, "V4LLiV4LLiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_q_d, "V4LLiV4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_h_bu, "V16UsV16UsV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_w_hu, "V8UiV8UiV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_d_wu, "V4ULLiV4ULLiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_q_du, "V4ULLiV4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_h_bu, "V16UsV16UsV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_w_hu, "V8UiV8UiV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_d_wu, "V4ULLiV4ULLiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_q_du, "V4ULLiV4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_h_bu_b, "V16sV16sV32UcV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_w_hu_h, "V8SiV8SiV16UsV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_d_wu_w, "V4LLiV4LLiV8UiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwev_q_du_d, "V4LLiV4LLiV4ULLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_h_bu_b, "V16sV16sV32UcV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_w_hu_h, "V8SiV8SiV16UsV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_d_wu_w, "V4LLiV4LLiV8UiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmaddwod_q_du_d, "V4LLiV4LLiV4ULLiV4LLi", "nc", "lasx")
+
+
+TARGET_BUILTIN(__builtin_lasx_xvdiv_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvdiv_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvdiv_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvdiv_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvdiv_bu, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvdiv_hu, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvdiv_wu, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvdiv_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmod_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmod_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmod_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmod_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmod_bu, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmod_hu, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmod_wu, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmod_du, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsat_b, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsat_h, "V16SsV16SsIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsat_w, "V8SiV8SiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsat_d, "V4SLLiV4SLLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsat_bu, "V32UcV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsat_hu, "V16UsV16UsIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsat_wu, "V8UiV8UiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsat_du, "V4ULLiV4ULLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvexth_h_b, "V16sV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvexth_w_h, "V8SiV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvexth_d_w, "V4LLiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvexth_q_d, "V4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvexth_hu_bu, "V16UsV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvexth_wu_hu, "V8UiV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvexth_du_wu, "V4ULLiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvexth_qu_du, "V4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_vext2xv_h_b, "V16sV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_vext2xv_w_b, "V8SiV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_vext2xv_d_b, "V4LLiV32Sc", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_vext2xv_w_h, "V8SiV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_vext2xv_d_h, "V4LLiV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_vext2xv_d_w, "V4LLiV8Si", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_vext2xv_hu_bu, "V16sV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_vext2xv_wu_bu, "V8SiV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_vext2xv_du_bu, "V4LLiV32Sc", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_vext2xv_wu_hu, "V8SiV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_vext2xv_du_hu, "V4LLiV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_vext2xv_du_wu, "V4LLiV8Si", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsigncov_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsigncov_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsigncov_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsigncov_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmskltz_b, "V32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmskltz_h, "V16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmskltz_w, "V8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmskltz_d, "V4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvmskgez_b, "V32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvmsknz_b, "V32ScV32Sc", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvldi, "V4LLiIi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrepli_b, "V32ScIi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrepli_h, "V16sIi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrepli_w, "V8iIi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrepli_d, "V4LLiIi", "nc", "lasx")
+
+
+TARGET_BUILTIN(__builtin_lasx_xvand_v, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvor_v, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvxor_v, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvnor_v, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvandn_v, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvorn_v, "V32ScV32ScV32Sc", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvandi_b, "V32UcV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvori_b, "V32UcV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvxori_b, "V32UcV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvnori_b, "V32UcV32UcIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsll_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsll_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsll_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsll_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvslli_b, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslli_h, "V16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslli_w, "V8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslli_d, "V4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrl_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrl_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrl_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrl_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrli_b, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrli_h, "V16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrli_w, "V8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrli_d, "V4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsra_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsra_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsra_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsra_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrai_b, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrai_h, "V16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrai_w, "V8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrai_d, "V4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvrotr_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrotr_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrotr_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrotr_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvrotri_b, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrotri_h, "V16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrotri_w, "V8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrotri_d, "V4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsllwil_h_b, "V16sV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsllwil_w_h, "V8SiV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsllwil_d_w, "V4LLiV8SiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvextl_q_d, "V4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsllwil_hu_bu, "V16UsV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsllwil_wu_hu, "V8UiV16UsIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsllwil_du_wu, "V4ULLiV8UiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvextl_qu_du, "V4LLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrlr_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlr_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlr_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlr_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrlri_b, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlri_h, "V16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlri_w, "V8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlri_d, "V4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrar_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrar_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrar_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrar_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrari_b, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrari_h, "V16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrari_w, "V8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrari_d, "V4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrln_b_h, "V32ScV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrln_h_w, "V16sV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrln_w_d, "V8SiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsran_b_h, "V32ScV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsran_h_w, "V16sV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsran_w_d, "V8SiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrlni_b_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlni_h_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlni_w_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlni_d_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrani_b_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrani_h_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrani_w_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrani_d_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrlrn_b_h, "V32ScV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlrn_h_w, "V16sV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlrn_w_d, "V8SiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrarn_b_h, "V32ScV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrarn_h_w, "V16sV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrarn_w_d, "V8SiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrlrni_b_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlrni_h_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlrni_w_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrlrni_d_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsrarni_b_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrarni_h_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrarni_w_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsrarni_d_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrln_b_h, "V32ScV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrln_h_w, "V16sV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrln_w_d, "V8SiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssran_b_h, "V32ScV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssran_h_w, "V16sV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssran_w_d, "V8SiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrln_bu_h, "V32UcV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrln_hu_w, "V16UsV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrln_wu_d, "V8UiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssran_bu_h, "V32UcV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssran_hu_w, "V16UsV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssran_wu_d, "V8UiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrlni_b_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlni_h_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlni_w_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlni_d_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrani_b_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrani_h_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrani_w_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrani_d_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrlrni_bu_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlrni_hu_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlrni_wu_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlrni_du_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrani_bu_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrani_hu_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrani_wu_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrani_du_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrlrn_b_h, "V32ScV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlrn_h_w, "V16sV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlrn_w_d, "V8SiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrarn_b_h, "V32ScV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrarn_h_w, "V16sV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrarn_w_d, "V8SiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrlrn_bu_h, "V32UcV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlrn_hu_w, "V16UsV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlrn_wu_d, "V8UiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrarn_bu_h, "V32UcV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrarn_hu_w, "V16UsV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrarn_wu_d, "V8UiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrlrni_b_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlrni_h_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlrni_w_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlrni_d_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrarni_b_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrarni_h_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrarni_w_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrarni_d_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrlni_bu_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlni_hu_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlni_wu_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrlni_du_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvssrarni_bu_h, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrarni_hu_w, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrarni_wu_d, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvssrarni_du_q, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvclo_b, "V32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvclo_h, "V16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvclo_w, "V8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvclo_d, "V4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvclz_b, "V32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvclz_h, "V16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvclz_w, "V8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvclz_d, "V4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvpcnt_b, "V32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpcnt_h, "V16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpcnt_w, "V8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpcnt_d, "V4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvbitclr_b, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitclr_h, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitclr_w, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitclr_d, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvbitclri_b, "V32UcV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitclri_h, "V16UsV16UsIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitclri_w, "V8UiV8UiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitclri_d, "V4ULLiV4ULLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvbitset_b, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitset_h, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitset_w, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitset_d, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvbitseti_b, "V32UcV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitseti_h, "V16UsV16UsIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitseti_w, "V8UiV8UiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitseti_d, "V4ULLiV4ULLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvbitrev_b, "V32UcV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitrev_h, "V16UsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitrev_w, "V8UiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitrev_d, "V4ULLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvbitrevi_b, "V32UcV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitrevi_h, "V16UsV16UsIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitrevi_w, "V8UiV8UiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbitrevi_d, "V4ULLiV4ULLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfrstp_b, "V32ScV32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfrstp_h, "V16SsV16SsV16SsV16Ss", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfrstpi_b, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfrstpi_h, "V16sV16sV16sIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfadd_s, "V8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfadd_d, "V4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfsub_s, "V8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfsub_d, "V4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfmul_s, "V8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfmul_d, "V4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfdiv_s, "V8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfdiv_d, "V4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfmadd_s, "V8fV8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfmadd_d, "V4dV4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfmsub_s, "V8fV8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfmsub_d, "V4dV4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfnmadd_s, "V8fV8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfnmadd_d, "V4dV4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfnmsub_s, "V8fV8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfnmsub_d, "V4dV4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfmax_s, "V8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfmax_d, "V4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfmin_s, "V8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfmin_d, "V4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfmaxa_s, "V8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfmaxa_d, "V4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfmina_s, "V8fV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfmina_d, "V4dV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvflogb_s, "V8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvflogb_d, "V4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfclass_s, "V8iV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfclass_d, "V4LLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfsqrt_s, "V8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfsqrt_d, "V4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfrecip_s, "V8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfrecip_d, "V4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfrecipe_s, "V8fV8f", "nc", "lasx,frecipe")
+TARGET_BUILTIN(__builtin_lasx_xvfrecipe_d, "V4dV4d", "nc", "lasx,frecipe")
+
+TARGET_BUILTIN(__builtin_lasx_xvfrsqrt_s, "V8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfrsqrt_d, "V4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfrsqrte_s, "V8fV8f", "nc", "lasx,frecipe")
+TARGET_BUILTIN(__builtin_lasx_xvfrsqrte_d, "V4dV4d", "nc", "lasx,frecipe")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcvtl_s_h, "V8fV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcvth_s_h, "V8fV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcvtl_d_s, "V4dV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcvth_d_s, "V4dV8f", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcvt_h_s, "V16sV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcvt_s_d, "V8fV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfrintrne_s, "V8SiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfrintrne_d, "V4LLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfrintrz_s, "V8SiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfrintrz_d, "V4LLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfrintrp_s, "V8SiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfrintrp_d, "V4LLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfrintrm_s, "V8SiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfrintrm_d, "V4LLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfrint_s, "V8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfrint_d, "V4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftintrne_w_s, "V8SiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrne_l_d, "V4LLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftintrz_w_s, "V8SiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrz_l_d, "V4LLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftintrp_w_s, "V8SiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrp_l_d, "V4LLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftintrm_w_s, "V8SiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrm_l_d, "V4LLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftint_w_s, "V8SiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftint_l_d, "V4SLLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftintrz_wu_s, "V8UiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrz_lu_d, "V4ULLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftint_wu_s, "V8UiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftint_lu_d, "V4ULLiV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftintrne_w_d, "V8SiV4dV4d", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrz_w_d, "V8SiV4dV4d", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrp_w_d, "V8SiV4dV4d", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrm_w_d, "V8SiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftint_w_d, "V8SiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftintrnel_l_s, "V4LLiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrneh_l_s, "V4LLiV8f", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftintrzl_l_s, "V4LLiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrzh_l_s, "V4LLiV8f", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftintrpl_l_s, "V4LLiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrph_l_s, "V4LLiV8f", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftintrml_l_s, "V4LLiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftintrmh_l_s, "V4LLiV8f", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvftintl_l_s, "V4LLiV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvftinth_l_s, "V4LLiV8f", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvffint_s_w, "V8fV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvffint_d_l, "V4dV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvffint_s_wu, "V8fV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvffint_d_lu, "V4dV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvffintl_d_w, "V4dV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvffinth_d_w, "V4dV8Si", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvffint_s_l, "V8fV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvseq_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvseq_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvseq_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvseq_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvseqi_b, "V32ScV32ScISi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvseqi_h, "V16SsV16SsISi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvseqi_w, "V8SiV8SiISi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvseqi_d, "V4SLLiV4SLLiISi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsle_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsle_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsle_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsle_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvslei_b, "V32ScV32ScISi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslei_h, "V16SsV16SsISi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslei_w, "V8SiV8SiISi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslei_d, "V4SLLiV4SLLiISi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvsle_bu, "V32ScV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsle_hu, "V16SsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsle_wu, "V8SiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvsle_du, "V4SLLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvslei_bu, "V32ScV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslei_hu, "V16SsV16UsIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslei_wu, "V8SiV8UiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslei_du, "V4SLLiV4ULLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvslt_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslt_h, "V16SsV16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslt_w, "V8SiV8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslt_d, "V4SLLiV4SLLiV4SLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvslti_b, "V32ScV32ScISi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslti_h, "V16SsV16SsISi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslti_w, "V8SiV8SiISi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslti_d, "V4SLLiV4SLLiISi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvslt_bu, "V32ScV32UcV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslt_hu, "V16SsV16UsV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslt_wu, "V8SiV8UiV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslt_du, "V4SLLiV4ULLiV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvslti_bu, "V32ScV32UcIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslti_hu, "V16SsV16UsIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslti_wu, "V8SiV8UiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvslti_du, "V4SLLiV4ULLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_caf_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_caf_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cun_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cun_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_ceq_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_ceq_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cueq_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cueq_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_clt_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_clt_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cult_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cult_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cle_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cle_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cule_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cule_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cne_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cne_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cor_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cor_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cune_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_cune_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_saf_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_saf_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sun_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sun_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_seq_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_seq_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sueq_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sueq_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_slt_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_slt_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sult_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sult_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sle_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sle_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sule_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sule_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sne_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sne_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sor_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sor_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sune_s, "V8SiV8fV8f", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvfcmp_sune_d, "V4SLLiV4dV4d", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvbitsel_v, "V32UcV32UcV32UcV32Uc", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvbitseli_b, "V32UcV32UcV32UcIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvreplgr2vr_b, "V32Sci", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvreplgr2vr_h, "V16Ssi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvreplgr2vr_w, "V8Sii", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvreplgr2vr_d, "V4SLLiLLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvinsgr2vr_w, "V8SiV8SiiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvinsgr2vr_d, "V4SLLiV4SLLiLLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvpickve2gr_w, "iV8SiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpickve2gr_d, "LLiV4SLLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvpickve2gr_wu, "iV8UiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpickve2gr_du, "LLiV4ULLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvreplve_b, "V32ScV32ScUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvreplve_h, "V16sV16sUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvreplve_w, "V8iV8iUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvreplve_d, "V4LLiV4LLiUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvrepl128vei_b, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrepl128vei_h, "V16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrepl128vei_w, "V8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvrepl128vei_d, "V4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvreplve0_b, "V32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvreplve0_h, "V16SsV16Ss", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvreplve0_w, "V8SiV8Si", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvreplve0_d, "V4SLLiV4SLLi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvreplve0_q, "V32ScV32Sc", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvinsve0_w, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvinsve0_d, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvpickve_w, "V8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpickve_d, "V4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvpickve_w_f, "V8fV8fIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpickve_d_f, "V4dV4dIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvbsll_v, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvbsrl_v, "V32ScV32ScIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvpackev_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpackev_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpackev_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpackev_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvpackod_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpackod_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpackod_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpackod_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvpickev_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpickev_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpickev_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpickev_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvpickod_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpickod_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpickod_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpickod_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvilvl_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvilvl_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvilvl_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvilvl_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvilvh_b, "V32ScV32ScV32Sc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvilvh_h, "V16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvilvh_w, "V8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvilvh_d, "V4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvshuf_b, "V32ScV32ScV32ScV32Sc", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvshuf_h, "V16sV16sV16sV16s", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvshuf_w, "V8iV8iV8iV8i", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvshuf_d, "V4LLiV4LLiV4LLiV4LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvperm_w, "V8iV8iV8i", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvshuf4i_b, "V32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvshuf4i_h, "V16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvshuf4i_w, "V8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvshuf4i_d, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvpermi_w, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpermi_d, "V4LLiV4LLiIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvpermi_q, "V32ScV32ScV32ScIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvextrins_b, "V32ScV32ScV32ScIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvextrins_h, "V16sV16sV16sIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvextrins_w, "V8iV8iV8iIUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvextrins_d, "V4LLiV4LLiV4LLiIUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvld, "V32ScvC*Ii", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvst, "vV32Scv*Ii", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvldx, "V32ScvC*LLi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvstx, "vV32Scv*LLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvldrepl_b, "V32ScvC*Ii", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvldrepl_h, "V16svC*Ii", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvldrepl_w, "V8ivC*Ii", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvldrepl_d, "V4LLivC*Ii", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xvstelm_b, "vV32Scv*IiUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvstelm_h, "vV16Ssv*IiUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvstelm_w, "vV8Siv*IiUi", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xvstelm_d, "vV4SLLiv*IiUi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xbz_v, "iV32Uc", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xbnz_v, "iV32Uc", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xbz_b, "iV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xbz_h, "iV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xbz_w, "iV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xbz_d, "iV4ULLi", "nc", "lasx")
+
+TARGET_BUILTIN(__builtin_lasx_xbnz_b, "iV32Uc", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xbnz_h, "iV16Us", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xbnz_w, "iV8Ui", "nc", "lasx")
+TARGET_BUILTIN(__builtin_lasx_xbnz_d, "iV4ULLi", "nc", "lasx")

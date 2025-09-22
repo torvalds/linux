@@ -1,0 +1,155 @@
+.\" $OpenBSD: hostctl.8,v 1.5 2017/07/21 20:58:07 mikeb Exp $
+.\"
+.\" Copyright (c) 2016 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 21 2017 $
+.Dt HOSTCTL 8
+.Os
+.Sh NAME
+.Nm hostctl
+.Nd display or modify contents of the host's key-value store
+.Sh SYNOPSIS
+.Nm
+.Op Fl qt
+.Op Fl f Ar device
+.Op Fl i Ar input
+.Op Fl o Ar output
+.Ar key
+.Op Ar value
+.Sh DESCRIPTION
+The
+.Nm
+program provides a generic interface for accessing key-value stores on
+the system's host.
+It is primarily used for an abstracted way to exchange information
+with hypervisors that are supported by the
+.Xr pvbus 4
+subsystem.
+When given the name of a specific
+.Ar key ,
+.Nm
+will display the value or list the key names of the subtree.
+If the key is followed by a
+.Ar value ,
+.Nm
+will write the new key-value pair to the key-value store.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl f Ar device
+Use
+.Ar device
+instead of the default
+.Pa /dev/pvbus0 .
+.It Fl i Ar input
+Read the new value for the specified
+.Ar key
+from the
+.Ar input
+file.
+.It Fl o Ar output
+Save the returned value in the
+.Ar output
+file.
+.It Fl q
+Don't ask for confirmation of any default options.
+.It Fl t
+Print the type of the underlying driver.
+.El
+.Pp
+Multiple hypervisor interfaces and key-value stores can be simultaneously
+available and reached through different device nodes.
+.Sh FILES
+.Bl -tag -width "/dev/pvbusX" -compact
+.It /dev/pvbus Ns Ar u
+.Xr pvbus 4
+device unit
+.Ar u
+file.
+.El
+.Sh EXAMPLES
+The
+.Xr vmt 4
+driver provides access to the
+.Dq guestinfo
+information that is available in VMware virtual machines:
+.Bd -literal -offset indent
+# hostctl guestinfo.hostname
+vm-111.example.com
+# hostctl guestinfo.ip 192.168.100.111
+.Ed
+.Pp
+The
+.Xr xen 4
+driver provides access to the XenStore that is available in Xen
+virtual machines.
+The
+.Xr pvbus 4
+layer abstracts it as a simple key-value interface:
+.Bd -literal -offset indent
+# hostctl device/vif/0/mac
+fe:e1:ba:d0:27:0f
+# hostctl device/vif/0/description "My interface"
+.Ed
+.Pp
+The XenStore is a virtual filesystem that also provides directories.
+The directory name can be specified as a key to return the contents,
+other keys, of the directory:
+.Bd -literal -offset indent
+# hostctl device
+vfb
+vbd
+vif
+console
+.Ed
+.Pp
+Access to the Hyper-V Key-Value Pair exchange interface is provided by the
+.Xr hyperv 4
+driver.
+The
+.Xr pvbus 4
+layer abstracts access to several pre-defined key pools:
+.Em Auto ,
+.Em Guest ,
+.Em External
+and
+.Em Guest/Parameters .
+Available keys can be listed and set:
+.Bd -literal -offset indent
+# hostctl Auto/
+FullyQualifiedDomainName
+IntegrationServicesVersion
+NetworkAddressIPv4
+NetworkAddressIPv6
+OSBuildNumber
+OSName
+OSMajorVersion
+OSMinorVersion
+OSVersion
+ProcessorArchitecture
+# hostctl Auto/FullyQualifiedDomainName `hostname`
+.Ed
+.Sh SEE ALSO
+.Xr pvbus 4
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

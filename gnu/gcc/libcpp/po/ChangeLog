@@ -1,0 +1,160 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-07-18  Mark Mitchell  <mark@codesourcery.com>
+
+	* cpplib.pot: Regenerate.
+
+2007-06-26  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, es.po, fr.po, ja.po, nl.po,
+	rw.po, sv.po, tr.po, vi.po, zh_CN.po, zh_TW.po: Update.
+
+2007-05-13  Release Manager
+
+	* GCC 4.2.0 released.
+
+2007-05-13  Mark Mitchell  <mark@codesourcery.com>
+
+	* cpplib.pot: Regenerate.
+
+2006-10-22  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* cpplib.pot: Regenerate.
+
+2006-09-03  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* vi.po: Update.
+
+2006-06-24  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* sv.po: Update.
+
+2006-06-24  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, es.po, fr.po, ja.po, nl.po,
+	rw.po, sv.po, tr.po, vi.po, zh_CN.po, zh_TW.po: Update.
+
+2006-04-21  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* de.po: Update.
+
+2006-03-31  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* sv.po: Update.
+
+2006-03-13  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, es.po, fr.po, ja.po, nl.po,
+	rw.po, sv.po, tr.po, vi.po, zh_CN.po: Update.
+	* zh_TW.po: New file.
+
+2005-12-06  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* vi.po: Update.
+
+2005-12-03  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* zh_CN.po: New file.
+
+2005-12-01  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, es.po, fr.po, ja.po, nl.po,
+	rw.po, sv.po, tr.po, vi.po: Update.
+
+2005-11-20  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* cpplib.pot: Regenerate.
+
+2005-09-04  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, es.po, fr.po, ja.po, nl.po,
+	rw.po, sv.po, tr.po, vi.po: Update.
+
+2005-06-18  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* tr.po, vi.po: Update.
+
+2005-06-16  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, es.po, fr.po, ja.po, nl.po,
+	rw.po, sv.po, tr.po, vi.po: Update.
+
+2005-06-14  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* fr.po, sv.po: Update.
+
+2005-06-07  Jakub Jelinek  <jakub@redhat.com>
+
+	* cpplib.pot: Regenerate.
+
+2005-05-05  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* nl.po: Update.
+
+2005-04-27  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, es.po, fr.po, ja.po, nl.po,
+	rw.po, sv.po, tr.po, vi.po: Update.
+
+2005-04-06  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* rw.po: New file.
+
+2005-03-29  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* de.po: Update.
+
+2005-03-04  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* tr.po: Update.
+	* vi.po: New file.
+
+2005-03-04  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, es.po, fr.po, ja.po, nl.po,
+	sv.po, tr.po: Update.
+
+2005-02-25  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* cpplib.pot: Regenerate.
+
+2004-12-15  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* fr.po: Update.
+
+2004-12-04  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* tr.po: Update.
+
+2004-12-02  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* es.po: Update.
+
+2004-12-01  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, es.po, fr.po, ja.po, nl.po,
+	sv.po, tr.po: Update.
+
+2004-11-27  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* cpplib.pot: Regenerate.
+
+2004-11-09  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* cpplib.pot: Regenerate.
+
+2004-05-23  Paolo Bonzini  <bonzini@gnu.org>
+
+	* be.po: Extracted from gcc/po/be.po.
+	* ca.po: Extracted from gcc/po/ca.po.
+	* da.po: Extracted from gcc/po/da.po.
+	* de.po: Extracted from gcc/po/de.po.
+	* el.po: Extracted from gcc/po/el.po.
+	* es.po: Extracted from gcc/po/es.po.
+	* fr.po: Extracted from gcc/po/fr.po.
+	* ja.po: Extracted from gcc/po/ja.po.
+	* nl.po: Extracted from gcc/po/nl.po.
+	* sv.po: Extracted from gcc/po/sv.po.
+	* tr.po: Extracted from gcc/po/tr.po.

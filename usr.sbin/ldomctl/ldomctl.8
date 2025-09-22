@@ -1,0 +1,218 @@
+.\"     $OpenBSD: ldomctl.8,v 1.31 2021/11/17 13:48:12 kn Exp $
+.\"
+.\" Copyright (c) 2012 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 17 2021 $
+.Dt LDOMCTL 8 sparc64
+.Os
+.Sh NAME
+.Nm ldomctl
+.Nd Logical Domain management interface
+.Sh SYNOPSIS
+.Nm ldomctl
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program is used to manage logical domains on sun4v systems.
+It can be used to assign resources to the primary and guest domains,
+start and stop guest domains from the primary domain, and to display
+information about domains running on the system.
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Cm create-vdisk Fl s Ar size file
+Create a virtual disk image with the specified
+.Ar file
+path and
+.Ar size ,
+in bytes.
+.Ar size
+can be specified with a human-readable scale, using the format described in
+.Xr scan_scaled 3 ,
+e.g. 512M.
+.It Cm console Ar domain
+Using
+.Xr cu 1
+connect to the console of the guest domain.
+.It Cm delete Ar configuration
+Delete the specified configuration from non-volatile storage.
+.It Cm download Ar directory
+Save a logical domain configuration to non-volatile storage on the
+service processor.
+The name of the configuration is taken from the name of the
+.Ar directory
+which must contain files created with the
+.Cm init-system
+command.
+The download is aborted if a configuration with the same name already exists.
+Depending on the firmware, the new configuration must be activated explicitly
+using the
+.Cm select
+command.
+.It Cm dump
+Dump the current configuration from non-volatile storage into the current
+working directory.
+.It Cm init-system Oo Fl n Oc Ar file
+Generate files in the current working directory for a logical domain
+configuration
+.Ar file
+as described in
+.Xr ldom.conf 5 .
+.Bl -tag -width 3n
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.El
+.It Cm list
+List configurations stored in non-volatile storage.
+Indicate the currently running configuration,
+and the configuration which will be used next
+(after resetting the machine) if it differs from the currently running one.
+.It Cm list-io
+List available PCIe devices for the configuration in the current directory.
+.It Cm panic Oo Fl c Oc Ar domain
+Panic a guest domain.
+The exact behaviour of this command depends on the OS running in the domain.
+For
+.Ox
+the default behaviour is to enter
+.Xr ddb 4 .
+.Bl -tag -width 3n
+.It Fl c
+Automatically connect to the guest console.
+.El
+.It Cm select Ar configuration
+Select the next logical domain configuration to use
+(after resetting the machine).
+.It Cm start Oo Fl c Oc Ar domain
+Start a guest domain.
+.Bl -tag -width 3n
+.It Fl c
+Automatically connect to the guest console.
+.El
+.It Cm status Op Ar domain
+Display status information for
+.Ar domain ,
+or for all domains running on the system.
+.It Cm stop Ar domain
+Stop a guest domain.
+.El
+.Sh EXAMPLES
+A system using factory defaults has a single "factory-default" configuration:
+.Bd -literal -offset indent
+# ldomctl list
+factory-default [current]
+.Ed
+.Pp
+Create a new configuration based on the defaults:
+.Bd -literal -offset indent
+# mkdir factory-default
+# cd factory-default
+# ldomctl dump
+# cd ..
+# cp -R factory-default openbsd
+# cd openbsd
+.Ed
+.Pp
+A file describing the desired configuration must be created - see
+.Xr ldom.conf 5 .
+.Pp
+Generate a set of configuration files and download to non-volatile storage.
+If a configuration with the same name already exists, it must be removed first:
+.Bd -literal -offset indent
+# ldomctl init-system ldom.conf
+# cd ..
+# ldomctl delete openbsd
+# ldomctl download openbsd
+# ldomctl list
+factory-default [current]
+openbsd [next]
+.Ed
+.Pp
+Create a virtual disk image for each guest domain:
+.Bd -literal -offset indent
+# ldomctl create-vdisk -s 8G /home/puffy/vdisk0
+# ldomctl create-vdisk -s 8G /home/salmah/vdisk0
+.Ed
+.Pp
+The minirootfs install media can be used to boot guest domains:
+.Bd -literal -offset indent
+# cp miniroot67.img /home/puffy/vdisk1
+# cp miniroot67.img /home/salmah/vdisk1
+.Ed
+.Pp
+To have
+.Nm
+enabled at boot time, use
+.Dq rcctl enable ldomd ,
+which sets
+.Pp
+.Dl ldomd_flags=\(dq\(dq
+.Pp
+in
+.Xr rc.conf.local 8 .
+.Pp
+Halt the primary domain and reset the hardware:
+.Bd -literal -offset indent
+# halt
+sc> reset -c	# ALOM
+-> reset /SYS	# ILOM
+.Ed
+.Pp
+The machine will now reset and boot into the new configuration.
+The primary domain should have less CPUs and memory, since they
+are now assigned to the guest domains:
+.Bd -literal -offset indent
+# ldomctl status
+primary     -         running     OpenBSD running                1%
+puffy       ttyV0     running     OpenBoot Primary Boot Loader   8%
+salmah      ttyV1     running     OpenBoot Primary Boot Loader  12%
+.Ed
+.Pp
+Configure the
+.Xr vnet 4
+interfaces for the guest domains.
+This example bridges guest domains into the physical network:
+.Bd -literal -offset indent
+# ifconfig vnet0 up
+# ifconfig vnet1 up
+# ifconfig bridge0 create
+# ifconfig bridge0 add em0 add vnet0 add vnet1 up
+.Ed
+.Pp
+Access the console of the first domain and boot it:
+.Bd -literal -offset indent
+# ldomctl console puffy
+Connected to /dev/ttyV0 (speed 9600)
+{0} ok boot disk1
+.Ed
+.Sh SEE ALSO
+.Xr dd 1 ,
+.Xr ddb 4 ,
+.Xr vnet 4 ,
+.Xr ldom.conf 5 ,
+.Xr ldomd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 5.3 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

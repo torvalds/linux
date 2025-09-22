@@ -1,0 +1,49 @@
+.\"	$OpenBSD: pgs.4,v 1.4 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2010 Jasper Lievisse Adriaanse <jasper@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt PGS 4 macppc
+.Os
+.Sh NAME
+.Nm pgs
+.Nd programmer's switch
+.Sh SYNOPSIS
+.Cd "pgs* at macgpio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the "Programmer's Switch" found on selected
+PowerMac2,1 and newer models.
+If the
+.Va ddb.console
+.Xr sysctl 8
+is set, pressing the button will cause the machine to enter
+.Xr ddb 4 .
+The "Programmers Switch" can be identified by the V-like symbol on it.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr macgpio 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+Support for the
+.Nm
+driver first appeared in
+.Ox 4.8 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jasper Lievisse Adriaanse Aq Mt jasper@openbsd.org .

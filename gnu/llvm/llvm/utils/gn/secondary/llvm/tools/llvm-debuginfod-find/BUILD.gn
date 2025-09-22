@@ -1,0 +1,27 @@
+import("//llvm/tools/binutils_symlinks.gni")
+import("//llvm/utils/gn/build/symlink_or_copy.gni")
+
+if (llvm_install_binutils_symlinks) {
+  symlink_or_copy("debuginfod-find") {
+    deps = [ ":llvm-debuginfod-find" ]
+    source = "llvm-debuginfod-find"
+    output = "$root_out_dir/bin/debuginfod-find"
+  }
+}
+
+# //:llvm-debuginfod-find depends on this symlink target, see comment in
+# //BUILD.gn.
+group("symlinks") {
+  deps = [ ":llvm-debuginfod-find" ]
+  if (llvm_install_binutils_symlinks) {
+    deps += [ ":debuginfod-find" ]
+  }
+}
+
+executable("llvm-debuginfod-find") {
+  deps = [
+    "//llvm/lib/Debuginfod",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-debuginfod-find.cpp" ]
+}

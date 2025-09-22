@@ -1,0 +1,45 @@
+#
+# SSLeay example configuration file.
+# This is mostly being used for generation of certificate requests.
+#
+
+RANDFILE		= ./.rnd
+
+####################################################################
+[ req ]
+default_bits		= 1024
+default_keyfile 	= keySS.pem
+distinguished_name	= req_distinguished_name
+encrypt_rsa_key		= no
+default_md		= md2
+
+[ req_distinguished_name ]
+countryName			= Country Name (2 letter code)
+countryName_default		= AU
+countryName_value		= AU
+
+organizationName                = Organization Name (eg, company)
+organizationName_value          = Dodgy Brothers
+
+0.commonName			= Common Name (eg, YOUR name)
+0.commonName_value		= Brother 1
+
+1.commonName			= Common Name (eg, YOUR name)
+1.commonName_value		= Brother 2
+
+2.commonName			= Common Name (eg, YOUR name)
+2.commonName_value		= Proxy 1
+
+3.commonName			= Common Name (eg, YOUR name)
+3.commonName_value		= Proxy 2
+
+[ v3_proxy ]
+basicConstraints=CA:FALSE
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer:always
+proxyCertInfo=critical,@proxy_ext
+
+[ proxy_ext ]
+language=id-ppl-anyLanguage
+pathlen=0
+policy=text:BC

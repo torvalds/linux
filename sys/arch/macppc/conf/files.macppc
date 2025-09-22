@@ -1,0 +1,296 @@
+#	$OpenBSD: files.macppc,v 1.92 2020/01/24 04:44:14 krw Exp $
+
+#
+# macppc-specific configuration info
+#
+maxpartitions 16
+
+maxusers 2 8 128
+
+file	arch/macppc/macppc/autoconf.c
+file	arch/macppc/macppc/clock.c
+file	arch/macppc/macppc/conf.c
+file	arch/macppc/macppc/disksubr.c			disk
+file	arch/macppc/macppc/machdep.c
+file	arch/macppc/macppc/wscons_machdep.c
+file	arch/macppc/macppc/mem.c
+file	arch/macppc/macppc/ofw_machdep.c
+file	arch/macppc/macppc/openfirm.c
+file	arch/macppc/macppc/openprom.c
+file	arch/macppc/macppc/locore.S
+file	dev/cninit.c
+file	arch/macppc/macppc/ofwreal.S
+
+#
+# Media Independent Interface (mii)
+#
+include "dev/mii/files.mii"
+
+#
+# MAC generic
+#
+file	arch/macppc/dev/dbdma.c
+file	arch/macppc/dev/thermal.c
+
+#
+# Openfirmware support
+#
+
+define	mainbus {}
+device	mainbus
+attach	mainbus at root
+file	arch/macppc/macppc/mainbus.c			mainbus
+
+device	cpu
+attach	cpu at mainbus
+file	arch/macppc/macppc/cpu.c
+file	arch/macppc/macppc/opendev.c
+
+device	memc {}
+attach	memc at mainbus
+file	arch/macppc/dev/uni_n.c				memc
+
+major	{rd = 17}
+major	{wd = 0}
+major	{sd = 2}
+major	{cd = 3}
+
+include "scsi/files.scsi"
+
+include "dev/pci/files.pci"
+file	arch/macppc/pci/pciide_machdep.c		pciide
+
+device	mpcpcibr {} : pcibus
+attach	mpcpcibr at mainbus
+file	arch/macppc/pci/mpcpcibus.c			mpcpcibr
+
+device  ht {} : pcibus
+attach	ht at mainbus
+file	arch/macppc/pci/ht.c				ht
+
+file	arch/macppc/pci/pci_machdep.c			mpcpcibr | ht
+
+device	smu: i2cbus
+attach	smu at mainbus
+file	arch/macppc/dev/smu.c				smu
+
+#
+# "workstation console" routines
+#
+
+include "dev/wscons/files.wscons"
+
+#
+# mac peripheral pieces.
+#
+
+# HT bridge
+device  hpb {} : pcibus
+attach	hpb at pci
+file	arch/macppc/pci/hpb.c				hpb needs-flag
+
+# PCI-Host bridge chipsets
+device  pchb: agpbus
+attach	pchb at pci
+file	arch/macppc/pci/pchb.c				pchb
+
+# AGP bridge support. attach at pchb
+file	arch/macppc/pci/agp_machdep.c			agp
+
+#
+# Machine-independent ATAPI drivers
+#
+
+include "dev/atapiscsi/files.atapiscsi"
+include "dev/ata/files.ata"
+
+# MAC periph
+
+device	macobio {}
+attach	macobio at pci
+file	arch/macppc/pci/macobio.c			macobio
+
+
+# kauai ATA glue
+device	kauaiata {}
+attach	kauaiata at pci 
+file	arch/macppc/pci/kauaiata.c			kauaiata
+
+device	mc: ifnet, ether
+attach	mc at macobio
+file	arch/macppc/dev/if_mc.c				mc
+
+device	bm: ether, ifnet, ifmedia, mii, mii_bitbang
+attach	bm at macobio
+file	arch/macppc/dev/if_bm.c				bm
+
+device	macintr {}
+attach	macintr at macobio
+file	arch/macppc/dev/macintr.c			macintr
+
+device	openpic {}
+attach	openpic at macobio, memc
+file	arch/macppc/dev/openpic.c			openpic
+
+device	zs {[channel = -1]}
+attach	zs at macobio
+file	arch/macppc/dev/zs.c				zs needs-flag
+file	dev/ic/z8530sc.c				zs
+
+device	zstty: tty
+attach	zstty at zs
+file	dev/ic/z8530tty.c				zstty needs-flag
+
+device	adb {}
+attach	adb at macobio
+file	arch/macppc/dev/adb.c				adb needs-flag
+file	arch/macppc/dev/pm_direct.c			adb
+
+include	"dev/adb/files.adb"
+file	arch/macppc/dev/akbd_machdep.c			akbd
+
+device	apm
+attach	apm at adb
+file	arch/macppc/dev/apm.c				apm needs-count
+
+device	abtn
+attach	abtn at adb
+file	arch/macppc/dev/abtn.c				abtn
+
+device	awacs: audio
+attach	awacs at macobio
+file	arch/macppc/dev/awacs.c				awacs
+
+# Mediabay
+device	mediabay {}
+attach	mediabay at macobio
+file	arch/macppc/dev/mediabay.c			mediabay
+
+# Keywest I2C
+device	kiic: i2cbus
+attach	kiic at macobio
+attach	kiic at memc	with kiic_memc
+file	arch/macppc/dev/kiic.c				kiic
+
+# PMU I2C
+device	piic: i2cbus
+attach	piic at adb
+file	arch/macppc/dev/piic.c				piic
+
+# I2S
+define	i2s
+file	arch/macppc/dev/i2s.c				i2s
+
+# blinkenlights
+device	xlights
+attach	xlights at macobio
+file	arch/macppc/dev/xlights.c			xlights
+
+# snapper audio
+device	snapper: audio, i2s
+attach	snapper at macobio
+file	arch/macppc/dev/snapper.c			snapper
+
+# tumbler audio
+device	tumbler: audio, i2s
+attach	tumbler at macobio
+file	arch/macppc/dev/tumbler.c			tumbler
+
+# onyx audio
+device	onyx: audio, i2s
+attach	onyx at macobio
+file	arch/macppc/dev/onyx.c				onyx
+
+# aoa audio
+device	aoa: audio, i2s
+attach	aoa at macobio
+file	arch/macppc/dev/aoa.c				aoa
+
+# daca audio
+device	daca: audio, i2s
+attach	daca at macobio
+file	arch/macppc/dev/daca.c				daca
+
+device	macgpio {}
+attach	macgpio at macobio with macgpio
+attach	macgpio at macgpio with macgpio_gpio
+file	arch/macppc/dev/macgpio.c			macgpio
+
+device	sysbutton {}
+attach	sysbutton at macgpio
+file	arch/macppc/dev/sysbutton.c
+
+device	pgs {}
+attach	pgs at macgpio
+file	arch/macppc/dev/pgs.c
+
+device	dfs {}
+attach	dfs at macgpio
+file	arch/macppc/dev/dfs.c
+
+attach	wdc at mediabay, macobio, kauaiata with wdc_obio
+file	arch/macppc/dev/wdc_obio.c			wdc_obio
+
+attach	wi at macobio with wi_obio
+file	arch/macppc/dev/if_wi_obio.c			wi_obio
+
+# Raster operations
+include "dev/rasops/files.rasops"
+include "dev/wsfont/files.wsfont"
+
+# VGA framebuffer
+device	vgafb: wsemuldisplaydev, rasops8, rasops16, rasops32
+attach	vgafb at pci
+file	arch/macppc/pci/vgafb.c				vgafb needs-flag
+
+#
+# CARDBUS
+#
+include	"dev/cardbus/files.cardbus"
+file	arch/macppc/macppc/rbus_machdep.c		cardbus
+
+#
+# Machine-independent PCMCIA drivers
+#
+include "dev/pcmcia/files.pcmcia"
+
+#
+# Machine-independent HID support
+#
+include "dev/hid/files.hid"
+
+#
+# Machine-independent USB drivers
+#
+include "dev/usb/files.usb"
+
+#
+# Machine-independent I2C drivers
+#
+include "dev/i2c/files.i2c"
+file	arch/macppc/dev/maci2c.c			i2cbus
+
+device	mem: i2c
+attach	mem at mainbus
+
+#
+# Machine-independent GPIO drivers
+#
+include "dev/gpio/files.gpio"
+
+#
+# Machine-independent 1-Wire drivers
+#
+include "dev/onewire/files.onewire"
+
+# Sun HME Ethernet controllers
+device	hme: ether, ifnet, mii, ifmedia
+file	dev/ic/hme.c
+
+attach	hme at pci with hme_pci
+file	dev/pci/if_hme_pci.c				hme_pci
+
+# Apple Sudden Motion Sensor
+device	asms
+attach	asms at i2c
+file	arch/macppc/dev/asms.c			asms

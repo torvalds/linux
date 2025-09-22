@@ -1,0 +1,12 @@
+static_library("Utils") {
+  output_name = "LLVMBOLTUtils"
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [
+    "//llvm/lib/Support",
+    "//llvm/utils/gn/build/libs/pthread",
+  ]
+  sources = [
+    "CommandLineOpts.cpp",
+    "Utils.cpp",
+  ]
+}

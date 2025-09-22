@@ -1,0 +1,596 @@
+.\"	$OpenBSD: event.3,v 1.58 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2000 Artur Grabowski <art@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL  DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt EVENT_INIT 3
+.Os
+.Sh NAME
+.Nm event_init ,
+.Nm event_dispatch ,
+.Nm event_set ,
+.Nm event_add ,
+.Nm event_del ,
+.Nm event_pending ,
+.Nm event_initialized ,
+.Nm evtimer_set ,
+.Nm evtimer_add ,
+.Nm evtimer_del ,
+.Nm evtimer_pending ,
+.Nm evtimer_initialized ,
+.Nm signal_set ,
+.Nm signal_add ,
+.Nm signal_del ,
+.Nm signal_pending ,
+.Nm signal_initialized ,
+.Nm event_once ,
+.Nm event_loop ,
+.Nm event_loopexit ,
+.Nm event_loopbreak ,
+.Nm event_asr_run ,
+.Nm event_asr_abort ,
+.Nm event_priority_init ,
+.Nm event_priority_set ,
+.Nm event_base_dispatch ,
+.Nm event_base_loop ,
+.Nm event_base_loopexit ,
+.Nm event_base_loopbreak ,
+.Nm event_base_set ,
+.Nm event_base_once ,
+.Nm event_base_free ,
+.Nm bufferevent_base_set ,
+.Nm bufferevent_new ,
+.Nm bufferevent_free ,
+.Nm bufferevent_write ,
+.Nm bufferevent_write_buffer ,
+.Nm bufferevent_read ,
+.Nm bufferevent_enable ,
+.Nm bufferevent_disable ,
+.Nm bufferevent_settimeout ,
+.Nm bufferevent_setwatermark ,
+.Nm EVBUFFER_INPUT ,
+.Nm EVBUFFER_OUTPUT
+.Nd execute a function when a specific event occurs
+.Sh SYNOPSIS
+.Lb libevent
+.In sys/time.h
+.In event.h
+.Ft struct event_base *
+.Fn "event_init" "void"
+.Ft int
+.Fn "event_dispatch" "void"
+.Ft void
+.Fn "event_set" "struct event *ev" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg"
+.Ft int
+.Fn "event_add" "struct event *ev" "const struct timeval *tv"
+.Ft int
+.Fn "event_del" "struct event *ev"
+.Ft int
+.Fn "event_pending" "struct event *ev" "short event" "struct timeval *tv"
+.Ft int
+.Fn "event_initialized" "struct event *ev"
+.Ft void
+.Fn "evtimer_set" "struct event *ev" "void (*fn)(int, short, void *)" "void *arg"
+.Ft void
+.Fn "evtimer_add" "struct event *ev" "const struct timeval *tv"
+.Ft void
+.Fn "evtimer_del" "struct event *ev"
+.Ft int
+.Fn "evtimer_pending" "struct event *ev" "struct timeval *tv"
+.Ft int
+.Fn "evtimer_initialized" "struct event *ev"
+.Ft void
+.Fn "signal_set" "struct event *ev" "int signal" "void (*fn)(int, short, void *)" "void *arg"
+.Ft void
+.Fn "signal_add" "struct event *ev" "const struct timeval *tv"
+.Ft void
+.Fn "signal_del" "struct event *ev"
+.Ft int
+.Fn "signal_pending" "struct event *ev" "struct timeval *tv"
+.Ft int
+.Fn "signal_initialized" "struct event *ev"
+.Ft int
+.Fn "event_once" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg" "const struct timeval *tv"
+.Ft int
+.Fn "event_loop" "int flags"
+.Ft int
+.Fn "event_loopexit" "const struct timeval *tv"
+.Ft int
+.Fn "event_loopbreak" "void"
+.Ft struct event_asr *
+.Fn event_asr_run "struct asr_query *aq" "void (*fn)(struct asr_result *, void *)" "void *arg"
+.Ft void
+.Fn event_asr_abort "struct event_asr *eva"
+.Ft int
+.Fn "event_priority_init" "int npriorities"
+.Ft int
+.Fn "event_priority_set" "struct event *ev" "int priority"
+.Ft int
+.Fn "event_base_dispatch" "struct event_base *base"
+.Ft int
+.Fn "event_base_loop" "struct event_base *base" "int flags"
+.Ft int
+.Fn "event_base_loopexit" "struct event_base *base" "const struct timeval *tv"
+.Ft int
+.Fn "event_base_loopbreak" "struct event_base *base"
+.Ft int
+.Fn "event_base_set" "struct event_base *base" "struct event *ev"
+.Ft int
+.Fn "event_base_once" "struct event_base *base" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg" "const struct timeval *tv"
+.Ft void
+.Fn "event_base_free" "struct event_base *base"
+.Ft int
+.Fn "bufferevent_base_set" "struct event_base *base" "struct bufferevent *bufev"
+.Ft struct bufferevent *
+.Fn "bufferevent_new" "int fd" "evbuffercb readcb" "evbuffercb writecb" "everrorcb errorcb" "void *cbarg"
+.Ft void
+.Fn "bufferevent_free" "struct bufferevent *bufev"
+.Ft int
+.Fn "bufferevent_write" "struct bufferevent *bufev" "const void *data" "size_t size"
+.Ft int
+.Fn "bufferevent_write_buffer" "struct bufferevent *bufev" "struct evbuffer *buf"
+.Ft size_t
+.Fn "bufferevent_read" "struct bufferevent *bufev" "void *data" "size_t size"
+.Ft int
+.Fn "bufferevent_enable" "struct bufferevent *bufev" "short event"
+.Ft int
+.Fn "bufferevent_disable" "struct bufferevent *bufev" "short event"
+.Ft void
+.Fn "bufferevent_settimeout" "struct bufferevent *bufev" "int timeout_read" "int timeout_write"
+.Ft void
+.Fn "bufferevent_setwatermark" "struct bufferevent *bufev" "short events" "size_t lowmark" "size_t highmark"
+.Ft struct evbuffer *
+.Fn "EVBUFFER_INPUT" "struct bufferevent *bufev"
+.Ft struct evbuffer *
+.Fn "EVBUFFER_OUTPUT" "struct bufferevent *bufev"
+.Sh DESCRIPTION
+The
+.Nm event
+API provides a mechanism to execute a function when a specific event
+on a file descriptor occurs or after a given time has passed.
+.Pp
+The
+.Nm event
+API needs to be initialized with
+.Fn event_init
+before it can be used.
+.Pp
+In order to process events, an application needs to call
+.Fn event_dispatch .
+This function only returns on error, and should replace the event core
+of the application program.
+.Pp
+The function
+.Fn event_set
+prepares the event structure
+.Fa ev
+to be used in future calls to
+.Fn event_add
+and
+.Fn event_del .
+The event will be prepared to call the function specified by the
+.Fa fn
+argument with an
+.Fa int
+argument indicating the file descriptor, a
+.Fa short
+argument indicating the type of event, and a
+.Fa void *
+argument given in the
+.Fa arg
+argument.
+The
+.Fa fd
+indicates the file descriptor that should be monitored for events.
+The events can be either
+.Va EV_READ ,
+.Va EV_WRITE ,
+or both,
+indicating that an application can read or write from the file descriptor
+respectively without blocking.
+.Pp
+The function
+.Fa fn
+will be called with the file descriptor that triggered the event and
+the type of event which will be either
+.Va EV_TIMEOUT ,
+.Va EV_SIGNAL ,
+.Va EV_READ ,
+or
+.Va EV_WRITE .
+Additionally, an event which has registered interest in more than one of the
+preceding events, via bitwise-OR to
+.Fn event_set ,
+can provide its callback function with a bitwise-OR of more than one triggered
+event.
+The additional flag
+.Va EV_PERSIST
+makes an
+.Fn event_add
+persistent until
+.Fn event_del
+has been called.
+.Pp
+Once initialized, the
+.Fa ev
+structure can be used repeatedly with
+.Fn event_add
+and
+.Fn event_del
+and does not need to be reinitialized unless the function called and/or
+the argument to it are to be changed.
+However, when an
+.Fa ev
+structure has been added to libevent using
+.Fn event_add
+the structure must persist until the event occurs (assuming
+.Fa EV_PERSIST
+is not set) or is removed
+using
+.Fn event_del .
+You may not reuse the same
+.Fa ev
+structure for multiple monitored descriptors; each descriptor
+needs its own
+.Fa ev .
+.Pp
+The function
+.Fn event_add
+schedules the execution of the
+.Fa ev
+event when the event specified in
+.Fn event_set
+occurs or in at least the time specified in the
+.Fa tv .
+If
+.Fa tv
+is
+.Dv NULL ,
+no timeout occurs and the function will only be called
+if a matching event occurs on the file descriptor.
+The event in the
+.Fa ev
+argument must be already initialized by
+.Fn event_set
+and may not be used in calls to
+.Fn event_set
+until it has timed out or been removed with
+.Fn event_del .
+If the event in the
+.Fa ev
+argument already has a scheduled timeout, the old timeout will be
+replaced by the new one.
+.Pp
+The function
+.Fn event_del
+will cancel the event in the argument
+.Fa ev .
+If the event has already executed or has never been added,
+the call will have no effect.
+.Pp
+The functions
+.Fn evtimer_set ,
+.Fn evtimer_add ,
+.Fn evtimer_del ,
+.Fn evtimer_initialized ,
+and
+.Fn evtimer_pending
+are abbreviations for common situations where only a timeout is required.
+The file descriptor passed will be \-1, and the event type will be
+.Va EV_TIMEOUT .
+.Pp
+The functions
+.Fn signal_set ,
+.Fn signal_add ,
+.Fn signal_del ,
+.Fn signal_initialized ,
+and
+.Fn signal_pending
+are abbreviations.
+The event type will be a persistent
+.Va EV_SIGNAL .
+That means
+.Fn signal_set
+adds
+.Va EV_PERSIST .
+.Pp
+The function
+.Fn event_once
+is similar to
+.Fn event_set .
+However, it schedules a callback to be called exactly once and does not
+require the caller to prepare an
+.Fa event
+structure.
+This function supports
+.Fa EV_TIMEOUT ,
+.Fa EV_READ ,
+and
+.Fa EV_WRITE .
+.Pp
+The
+.Fn event_pending
+function can be used to check if the event specified by
+.Fa event
+is pending to run.
+If
+.Va EV_TIMEOUT
+was specified and
+.Fa tv
+is not
+.Dv NULL ,
+the expiration time of the event will be returned in
+.Fa tv .
+.Pp
+The
+.Fn event_initialized
+macro can be used to check if an event has been initialized.
+.Pp
+The
+.Nm event_loop
+function provides an interface for single pass execution of pending
+events.
+The flags
+.Va EVLOOP_ONCE
+and
+.Va EVLOOP_NONBLOCK
+are recognized.
+The
+.Nm event_loopexit
+function exits from the event loop.
+The next
+.Fn event_loop
+iteration after the
+given timer expires will complete normally (handling all queued events) then
+exit without blocking for events again.
+Subsequent invocations of
+.Fn event_loop
+will proceed normally.
+The
+.Nm event_loopbreak
+function exits from the event loop immediately.
+.Fn event_loop
+will abort after the next event is completed;
+.Fn event_loopbreak
+is typically invoked from this event's callback.
+This behavior is analogous to the "break;" statement.
+Subsequent invocations of
+.Fn event_loop
+will proceed normally.
+.Pp
+It is the responsibility of the caller to provide these functions with
+pre-allocated event structures.
+.Pp
+The
+.Fn event_asr_run
+function is used to schedule the asynchronous resolver query
+.Ar aq
+to run within a libevent event loop, and call the
+.Ar fn
+callback when the result is available.
+The extra
+.Ar arg
+parameter is passed to the callback.
+The user does not need to set up an event structure for using this function.
+It returns an opaque handle representing the running query.
+This handle becomes invalid before the callback is run.
+It can be cancelled by calling the
+.Fn event_asr_abort
+function.
+See
+.Xr asr_run 3
+for details on constructing asynchronous resolver queries.
+.Sh EVENT PRIORITIES
+By default
+.Nm libevent
+schedules all active events with the same priority.
+However, sometimes it is desirable to process some events with a higher
+priority than others.
+For that reason,
+.Nm libevent
+supports strict priority queues.
+Active events with a lower priority are always processed before events
+with a higher priority.
+.Pp
+The number of different priorities can be set initially with the
+.Fn event_priority_init
+function.
+This function should be called before the first call to
+.Fn event_dispatch .
+The
+.Fn event_priority_set
+function can be used to assign a priority to an event.
+By default,
+.Nm libevent
+assigns the middle priority to all events unless their priority
+is explicitly set.
+.Sh THREAD SAFE EVENTS
+The
+.Nm event
+API has experimental support for thread-safe events.
+When initializing the library via
+.Fn event_init ,
+an event base is returned.
+This event base can be used in conjunction with calls to
+.Fn event_base_set ,
+.Fn event_base_dispatch ,
+.Fn event_base_loop ,
+.Fn event_base_loopexit ,
+.Fn bufferevent_base_set
+and
+.Fn event_base_free .
+.Fn event_base_set
+should be called after preparing an event with
+.Fn event_set ,
+as
+.Fn event_set
+assigns the provided event to the most recently created event base.
+.Fn bufferevent_base_set
+should be called after preparing a bufferevent with
+.Fn bufferevent_new .
+.Fn event_base_free
+should be used to free memory associated with the event base
+when it is no longer needed.
+.Sh BUFFERED EVENTS
+The
+.Nm event
+API provides an abstraction on top of the regular event callbacks.
+This abstraction is called a
+.Va "buffered event" .
+A buffered event provides input and output buffers that get filled
+and drained automatically.
+The user of a buffered event no longer deals directly with the IO,
+but instead is reading from input and writing to output buffers.
+.Pp
+A new bufferevent is created by
+.Fn bufferevent_new .
+The parameter
+.Fa fd
+specifies the file descriptor from which data is read and written to.
+This file descriptor is not allowed to be a
+.Xr pipe 2 .
+The next three parameters are callbacks.
+The read and write callback have the following form:
+.Ft void
+.Fn "(*cb)" "struct bufferevent *bufev" "void *arg" .
+The error callback has the following form:
+.Ft void
+.Fn "(*cb)" "struct bufferevent *bufev" "short what" "void *arg" .
+The argument is specified by the fourth parameter
+.Fa "cbarg" .
+A
+.Fa bufferevent struct
+pointer is returned on success, NULL on error.
+Both the read and the write callback may be NULL.
+The error callback has to be always provided.
+.Pp
+Once initialized, the bufferevent structure can be used repeatedly with
+.Fn bufferevent_enable
+and
+.Fn bufferevent_disable .
+The flags parameter can be a combination of
+.Va EV_READ
+and
+.Va EV_WRITE .
+When read enabled, the bufferevent will try to read from the file
+descriptor and call the read callback.
+The write callback is executed
+whenever the output buffer is drained below the write low watermark,
+which is
+.Va 0
+by default.
+.Pp
+The
+.Fn bufferevent_setwatermark
+function can set the low and high watermarks
+for read and write events.
+The
+.Fa events
+can be either
+.Va EV_READ ,
+.Va EV_WRITE
+or both.
+When used with
+.Va EV_READ ,
+a bufferevent does not invoke the user read callback
+unless there is at least
+.Fa lowmark
+data in the buffer.
+If the read buffer is beyond
+.Fa highmark ,
+the bufferevent stops reading from the file descriptor.
+When used with
+.Va EV_WRITE ,
+the user write callback is invoked whenever the buffered data
+falls below
+.Fa lowmark .
+.Pp
+The
+.Fn bufferevent_write
+function can be used to write data to the file descriptor.
+The data is appended to the output buffer and written to the descriptor
+automatically as it becomes available for writing.
+.Fn bufferevent_write
+returns 0 on success or \-1 on failure.
+The
+.Fn bufferevent_read
+function is used to read data from the input buffer,
+returning the amount of data read.
+.Pp
+If multiple bases are in use,
+.Fn bufferevent_base_set
+must be called before
+enabling the bufferevent for the first time.
+.Pp
+The
+.Fn EVBUFFER_INPUT
+and
+.Fn EVBUFFER_OUTPUT
+macros return a pointer to evbuffer
+.Fa input
+and
+.Fa output
+respectively for the specified bufferevent
+.Fa bufev .
+.Sh ADDITIONAL NOTES
+It is possible to disable support for
+.Va kqueue , poll
+or
+.Va select
+by setting the environment variable
+.Va EVENT_NOKQUEUE , EVENT_NOPOLL
+or
+.Va EVENT_NOSELECT ,
+respectively.
+By setting the environment variable
+.Va EVENT_SHOW_METHOD ,
+.Nm libevent
+displays the kernel notification method that it uses.
+.Sh RETURN VALUES
+Upon successful completion
+.Fn event_add
+and
+.Fn event_del
+return 0.
+Otherwise, \-1 is returned and the global variable errno is
+set to indicate the error.
+.Sh SEE ALSO
+.Xr kqueue 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr asr_run 3 ,
+.Xr evbuffer_new 3 ,
+.Xr timeout 9
+.Sh HISTORY
+The
+.Nm event
+API manpage is based on the
+.Xr timeout 9
+manpage by Artur Grabowski.
+Support for real-time signals was added by Taral.
+.Sh AUTHORS
+The
+.Nm event
+library was written by
+.An Niels Provos .

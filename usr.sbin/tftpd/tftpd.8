@@ -1,0 +1,236 @@
+.\"   $OpenBSD: tftpd.8,v 1.13 2025/05/22 05:58:36 kn Exp $
+.\"
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)tftpd.8	6.7 (Berkeley) 5/13/91
+.\"
+.Dd $Mdocdate: May 22 2025 $
+.Dt TFTPD 8
+.Os
+.Sh NAME
+.Nm tftpd
+.Nd Trivial File Transfer Protocol daemon
+.Sh SYNOPSIS
+.Nm tftpd
+.Op Fl 46cdivw
+.Op Fl l Ar address
+.Op Fl p Ar port
+.Op Fl r Ar socket
+.Ar directory
+.Sh DESCRIPTION
+.Nm
+serves
+.Ar directory
+contents via the Trivial File Transfer Protocol.
+.Pp
+The use of
+.Xr tftp 1
+does not require an account or password on the remote system.
+Due to the lack of authentication information,
+.Nm
+will allow only publicly readable files to be accessed.
+By default files may only be read, unless the
+.Fl w
+option is specified.
+Files may be written only if they already exist and are publicly writable,
+unless the
+.Fl c
+flag is specified.
+Note that this extends the concept of
+.Dq public
+to include
+all users on all hosts that can be reached through the network;
+this may not be appropriate on all systems, and its implications
+should be considered before enabling TFTP service.
+.Nm tftpd
+always provides random data at the path
+.Pa /etc/random.seed ,
+and therefore this path will be ignored inside the
+.Ar directory .
+.Ox
+network bootloaders access this path to harvest entropy during
+kernel load.
+.Pp
+.Nm
+needs to start as root, then calls
+.Xr chroot 2
+into
+.Ar directory ,
+and drops privileges to the
+.Dq _tftpd
+user.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.It Fl c
+Allow new files to be created;
+otherwise uploaded files must already exist.
+Files are created with default permissions
+allowing anyone to read or write to them.
+.Pp
+This option implies
+.Fl w .
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to stderr instead of
+.Xr syslog 3 .
+This implies
+.Fl v .
+.It Fl i
+Look up the requested path in the subdirectory named after the
+client's IP address.
+For read requests, if the file is not found,
+.Nm
+falls back on the requested path.
+Note that no attempt is made to limit the client to its subdirectory.
+This option cannot be combined with
+.Fl r .
+.It Fl l Ar address
+Listen on the specified address.
+By default
+.Nm
+listens on wildcard addresses.
+.It Fl p Ar port
+Listen on the specified port.
+By default
+.Nm
+listens on the port indicated in the
+.Ql tftp
+service description; see
+.Xr services 5 .
+.It Fl r Ar socket
+Issue filename rewrite requests to the specified UNIX domain socket.
+.Nm
+will write lines in the format "IP OP filename", terminated by a newline,
+where IP is the client's IP address, and OP is one of "read" or "write".
+.Nm
+expects replies in the format "filename" terminated by a newline.
+All rewrite requests from the daemon must be answered
+(even if it is with the original filename)
+before the TFTP request will continue.
+By default
+.Nm
+does not use filename rewriting.
+This option cannot be combined with
+.Fl i .
+.It Fl v
+Log the client IP, type of request, and filename.
+.It Fl w
+Allow files to be written to.
+.El
+.Sh SEE ALSO
+.Xr tftp 1 ,
+.Xr chroot 2 ,
+.Xr pxeboot 8 ,
+.Xr syslogd 8 ,
+.Xr tftp-proxy 8
+.Sh STANDARDS
+.\" .Rs
+.\" .%A K. R. Sollins
+.\" .%D June 1981
+.\" .%R RFC 783
+.\" .%T The TFTP Protocol (Revision 2)
+.\" .Re
+.\" .Pp
+.Rs
+.%A K. Sollins
+.%D July 1992
+.%R RFC 1350
+.%T The TFTP Protocol (Revision 2)
+.Re
+.Pp
+.\" .Rs
+.\" .%A G. Malkin
+.\" .%A A. Harkin
+.\" .%D March 1995
+.\" .%R RFC 1782
+.\" .%T TFTP Option Extension
+.\" .Re
+.\" .Pp
+.\" .Rs
+.\" .%A G. Malkin
+.\" .%A A. Harkin
+.\" .%D March 1995
+.\" .%R RFC 1783
+.\" .%T TFTP Blocksize Option
+.\" .Re
+.\" .Pp
+.\" .Rs
+.\" .%A G. Malkin
+.\" .%A A. Harkin
+.\" .%D March 1995
+.\" .%R RFC 1784
+.\" .%T TFTP Timeout Interval and Transfer Size Options
+.\" .Re
+.\" .Pp
+.Rs
+.%A G. Malkin
+.%A A. Harkin
+.%D May 1998
+.%R RFC 2347
+.%T TFTP Option Extension
+.Re
+.Pp
+.Rs
+.%A G. Malkin
+.%A A. Harkin
+.%D May 1998
+.%R RFC 2348
+.%T TFTP Blocksize Option
+.Re
+.Pp
+.Rs
+.%A G. Malkin
+.%A A. Harkin
+.%D March 1998
+.%R RFC 2349
+.%T TFTP Timeout Interval and Transfer Size Options
+.Re
+.Sh HISTORY
+The
+.Nm
+command was originally a process run via
+.Xr inetd 8
+and appeared in
+.Bx 4.2 .
+It was rewritten for
+.Ox 5.2
+as a persistent non-blocking daemon.
+.Sh BUGS
+Many TFTP clients will not transfer files over 16744448 octets
+.Pq 32767 blocks .

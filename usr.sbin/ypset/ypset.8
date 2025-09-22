@@ -1,0 +1,82 @@
+.\"	$OpenBSD: ypset.8,v 1.11 2015/09/10 15:16:44 schwarze Exp $
+.\"	$NetBSD: ypset.8,v 1.2 1996/02/28 01:25:08 thorpej Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 10 2015 $
+.Dt YPSET 8
+.Os
+.Sh NAME
+.Nm ypset
+.Nd tell ypbind(8) which YP server process to use
+.Sh SYNOPSIS
+.Nm ypset
+.Op Fl d Ar domain
+.Op Fl h Ar host
+.Ar server
+.Sh DESCRIPTION
+.Nm
+tells the
+.Xr ypbind 8
+process on the current machine which YP server process to communicate with.
+If
+.Ar server
+is down or is not running a YP server process, it is not discovered until
+a YP client process attempts to access a YP map, at which time
+.Xr ypbind 8
+tests the binding and takes appropriate action.
+.Pp
+.Nm
+is most useful for binding a YP client that is not on the same broadcast
+network as the closest YP server, but can also be used for debugging
+a local network's YP configuration, testing specific YP client
+programs, or binding to a specific server when there are many servers on
+the local network supplying YP maps.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d Ar domain
+Use the YP domain
+.Ar domain
+instead of the default domain as returned by
+.Xr domainname 1 .
+.It Fl h Ar host
+Set the YP binding on
+.Ar host
+instead of the local machine.
+.El
+.Sh SEE ALSO
+.Xr domainname 1 ,
+.Xr ypcat 1 ,
+.Xr ypmatch 1 ,
+.Xr ypwhich 1 ,
+.Xr yp 8 ,
+.Xr ypbind 8 ,
+.Xr yppoll 8
+.Sh AUTHORS
+.An Theo de Raadt

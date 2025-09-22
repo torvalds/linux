@@ -1,0 +1,58 @@
+.\" $OpenBSD: auvia.4,v 1.12 2009/03/16 22:47:45 sobrado Exp $
+.\" $NetBSD: auvia.4,v 1.1 2000/03/31 05:49:59 tsarna Exp $
+.\"
+.\" Copyright (c) 2000 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Tyler C. Sarna
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 16 2009 $
+.Dt AUVIA 4
+.Os
+.Sh NAME
+.Nm auvia
+.Nd VIA VT82C686A/VT8233/VT8235/VT8237 integrated AC'97 audio device
+.Sh SYNOPSIS
+.Cd "auvia* at pci?"
+.Cd "audio* at auvia?"
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports the integrated AC'97 audio controller
+of the
+.Tn VIA Technologies VT82C686A
+Southbridge,
+.Tn VIA Technologies VT8233, VT8235, VT8237
+chips found on some motherboards.
+.Sh SEE ALSO
+.Xr ac97 4 ,
+.Xr audio 4 ,
+.Xr intro 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Ox 2.8 .

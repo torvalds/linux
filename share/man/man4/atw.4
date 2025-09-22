@@ -1,0 +1,238 @@
+.\"     $OpenBSD: atw.4,v 1.41 2025/03/27 10:21:53 jmc Exp $
+.\"	$NetBSD: atw.4,v 1.8 2004/06/06 04:05:49 wiz Exp $
+.\"
+.\" Copyright (c) 2003
+.\"	David Young <dyoung@NetBSD.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY David Young AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL David Young
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt ATW 4
+.Os
+.Sh NAME
+.Nm atw
+.Nd ADMtek ADM8211 IEEE 802.11b wireless network device
+.Sh SYNOPSIS
+.Cd "atw* at cardbus?"
+.Cd "atw* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports PCI/CardBus 802.11b wireless adapters based on the
+ADMtek ADM8211.
+.Pp
+The ADM8211 is a bus-mastering 802.11 Media Access Controller (MAC)
+which is derived from ADMtek's DEC/Intel 21143 clones (see
+.Xr dc 4
+for more information).
+It supports contention-free traffic (with an 802.11 Point Coordinator).
+The ADM8211 integrates an RF3000 baseband processor (BBP) by RF
+Microdevices.
+.Pp
+In a typical application, the ADM8211 is coupled with an RF front-end
+by RFMD and a Silicon Laboratories Si4126 RF/IF synthesizer.
+.Pp
+With the ADM8211, the division of labor between the host and NIC
+is different than with firmware-based NICs such as
+.Xr an 4
+and
+.Xr wi 4 .
+The ADM8211 is still responsible for real-time 802.11 functions
+such as sending ACK/RTS/CTS/ATIM frames, sending beacons, and
+answering CF polls from the access point, but the host takes
+responsibility for providing 802.11 functions such as scanning,
+association, and authentication.
+The host is also responsible for programming both the BBP and the
+RF/IF synthesizer.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It IBSS mode
+Also known as
+.Em IEEE ad-hoc
+mode or
+.Em peer-to-peer
+mode.
+This is the standardized method of operating without an access point.
+Stations associate with a service set.
+However, actual connections between stations are peer-to-peer.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use hardware
+Wired Equivalent Privacy (WEP)
+(though see
+.Sx BUGS ,
+below).
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh HARDWARE
+The
+.Nm
+driver supports PCI and CardBus cards using revisions 0x11 and 0x15
+of the ADM8211 (aka ADM8211A) and revision 0x20 (aka ADM8211B).
+This includes:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 3Com OfficeConnect 3CRSHPW796 CardBus
+.It Belkin F5D6001 PCI (version 2 only)
+.It Blitz NetWave Point CardBus
+.It D-Link DWL-650 Rev. \&L1 CardBus
+.It D-Link DWL-520 Rev. \&C1 PCI
+.It LanReady WP2000 PCI
+.It SMC 2635W CardBus (version 1 only)
+.It TRENDnet TEW-221PC CardBus
+.It Xterasys XN2511B PCI
+.El
+.Pp
+The
+.Nm
+driver does not yet support cards using revision 0x30 (ADM8211C).
+.\"This includes:
+.\".Pp
+.\".Bl -tag -width Ds -offset indent -compact
+.\".El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig atw0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures atw0 to join network
+.Dq mynwid ,
+using WEP key
+.Dq mywepkey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid nwkey mywepkey
+inet autoconf
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "atw0: failed to tune channel N"
+The driver failed to tune the radio to a new channel.
+The radio remains tuned to the old channel.
+.It "atw0: atw_si4136_write wrote XXXX, SYNCTL still busy"
+The driver waited 100ms without seeing an indication that the
+ADM8211 had finished writing a register on the Si4126 RF/IF
+synthesizer.
+.It "atw0: device timeout"
+The ADM8211 failed to generate an interrupt to acknowledge a transmit
+command.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr cardbus 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T Silicon Laboratories
+.%U https://www.silabs.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An David Young Aq Mt dyoung@NetBSD.org .
+For features which the ADM8211 has in common with the DECchip 21x4x,
+code was liberally borrowed from the
+.Nx
+tlp driver by
+.An Jason Thorpe Aq Mt thorpej@NetBSD.org .
+.Sh BUGS
+The author does not fully understand what processing the duration
+fields for the PLCP header and the 802.11 header undergo before
+they are applied to a transmitted frame.
+If the duration fields in transmitted frames are incorrect,
+network performance may suffer.
+.Pp
+The driver does not provide rate control when the media type is
+set to autoselect.
+.Pp
+The driver will sometimes complain that it cannot re-tune the radio
+because the transmit process has not gone idle.
+The author is investigating.
+.Pp
+Many features are still missing, especially WEP decryption and
+802.11 power-saving.
+.Pp
+The ad-hoc mode has not been rigorously tested.
+IBSSs with the same SSID may not coalesce, but this should not
+matter for most applications.
+.Pp
+The driver is untested in the ad-hoc demo mode of Lucent WaveLAN
+cards.
+.Pp
+The ADM8211 supports 802.11 power-saving; however,
+.Nm
+does not support it yet.
+For time-bounded service, the ADM8211 will interoperate with an
+access point which implements the 802.11 Point Coordination Function;
+however, this is also not supported.
+.Pp
+Combinations of an ADM8211 with either an Intersil or a Marvell RF
+front-end are not supported.
+.Pp
+.Nm
+contains incomplete support for the ADM8211's WEP encryption/decryption
+engine.
+.Nm
+does not yet support hardware WEP decryption; however, it will use
+the ADM8211's crypto engine to encrypt transmitted frames.
+Documentation from ADMtek claims that, in addition to the 4 104-bit
+shared WEP keys, the ADM8211 will store WEP key pairs for up to 20
+peers.
+The documentation provides no details, hence
+.Nm
+does not support the 20 key-pairs.

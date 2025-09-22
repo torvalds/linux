@@ -1,0 +1,3 @@
+BasedOnStyle: InheritParentConfig
+
+NamespaceIndentation: All

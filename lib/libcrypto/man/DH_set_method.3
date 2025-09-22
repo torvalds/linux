@@ -1,0 +1,196 @@
+.\"	$OpenBSD: DH_set_method.3,v 1.10 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2007 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt DH_SET_METHOD 3
+.Os
+.Sh NAME
+.Nm DH_set_default_method ,
+.Nm DH_get_default_method ,
+.Nm DH_set_method ,
+.Nm DH_new_method ,
+.Nm DH_OpenSSL
+.Nd select DH method
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/dh.h
+.Ft void
+.Fo DH_set_default_method
+.Fa "const DH_METHOD *meth"
+.Fc
+.Ft const DH_METHOD *
+.Fo DH_get_default_method
+.Fa void
+.Fc
+.Ft int
+.Fo DH_set_method
+.Fa "DH *dh"
+.Fa "const DH_METHOD *meth"
+.Fc
+.Ft DH *
+.Fo DH_new_method
+.Fa "ENGINE *engine"
+.Fc
+.Ft const DH_METHOD *
+.Fo DH_OpenSSL
+.Fa void
+.Fc
+.Sh DESCRIPTION
+A
+.Vt DH_METHOD
+object contains pointers to the functions
+used for Diffie-Hellman operations.
+By default, the internal implementation returned by
+.Fn DH_OpenSSL
+is used.
+By selecting another method, alternative implementations
+such as hardware accelerators may be used.
+.Pp
+.Fn DH_set_default_method
+selects
+.Fa meth
+as the default method for all
+.Vt DH
+structures created later.
+.Pp
+.Fn DH_get_default_method
+returns a pointer to the current default method.
+.Pp
+.Fn DH_set_method
+selects
+.Fa meth
+to perform all operations using the key
+.Fa dh .
+This replaces the
+.Vt DH_METHOD
+used by the
+.Fa dh
+key.
+It is possible to have
+.Vt DH
+keys that only work with certain
+.Vt DH_METHOD
+implementations,
+and in such cases attempting to change the
+.Vt DH_METHOD
+for the key can have unexpected results.
+.Pp
+.Fn DH_new_method
+allocates and initializes a
+.Vt DH
+structure.
+The
+.Fa engine
+argument is ignored and
+the default method controlled by
+.Fn DH_set_default_method
+is used.
+.Pp
+The
+.Vt DH_METHOD
+structure is defined as follows:
+.Bd -literal
+typedef struct dh_meth_st
+{
+     /* name of the implementation */
+	const char *name;
+
+     /* generate private and public DH values for key agreement */
+        int (*generate_key)(DH *dh);
+
+     /* compute shared secret */
+        int (*compute_key)(unsigned char *key, BIGNUM *pub_key, DH *dh);
+
+     /* compute r = a ^ p mod m (May be NULL for some implementations) */
+        int (*bn_mod_exp)(DH *dh, BIGNUM *r, BIGNUM *a, const BIGNUM *p,
+                                const BIGNUM *m, BN_CTX *ctx,
+                                BN_MONT_CTX *m_ctx);
+
+     /* called at DH_new */
+        int (*init)(DH *dh);
+
+     /* called at DH_free */
+        int (*finish)(DH *dh);
+
+        int flags;
+
+        char *app_data; /* ?? */
+
+} DH_METHOD;
+.Ed
+.Sh RETURN VALUES
+.Fn DH_OpenSSL
+and
+.Fn DH_get_default_method
+return pointers to the respective
+.Vt DH_METHOD .
+.Pp
+.Fn DH_set_method
+returns 1 on success or 0 on failure.
+Currently, it cannot fail.
+.Pp
+.Fn DH_new_method
+returns
+.Dv NULL
+and sets an error code that can be obtained by
+.Xr ERR_get_error 3
+if the allocation fails.
+Otherwise it returns a pointer to the newly allocated structure.
+.Sh SEE ALSO
+.Xr DH_new 3
+.Sh HISTORY
+.Fn DH_set_default_method ,
+.Fn DH_get_default_method ,
+.Fn DH_set_method ,
+.Fn DH_new_method
+and
+.Fn DH_OpenSSL
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .

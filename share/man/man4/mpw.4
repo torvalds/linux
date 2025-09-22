@@ -1,0 +1,132 @@
+.\"	$OpenBSD: mpw.4,v 1.9 2021/03/18 14:22:04 kn Exp $
+.\"
+.\" Copyright (C) 2015 Rafael Zalamena <rzalamena@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 18 2021 $
+.Dt MPW 4
+.Os
+.Sh NAME
+.Nm mpw
+.Nd MPLS Ethernet pseudowire
+.Sh SYNOPSIS
+.Cd "pseudo-device mpw"
+.Sh DESCRIPTION
+The
+.Nm
+interface is used to create an MPLS Ethernet layer 2 tunnel between
+two points.
+.Pp
+An
+.Nm
+interface can be created at runtime using the
+.Sy ifconfig Nm Ns Ar N Cm create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+The interface itself can be configured with
+.Xr ifconfig 8 .
+.Pp
+The local MPLS label, the remote MPLS label and neighbor, use of
+pseudowire control words, or flow-aware transport are normally
+configured after negotiation with a remote system using
+.Xr ldpd 8 ,
+but it is also possible to configure them manually using
+.Xr ifconfig 8 .
+.Sh EXAMPLES
+Create a pseudowire with local label 20 and remote label 21 on
+neighbor 10.254.0.1:
+.Bd -literal -offset indent
+# ifconfig mpw5 create
+# ifconfig mpw5 mplslabel 20 pweneighbor 21 10.254.0.1
+# ifconfig mpw5 up
+.Ed
+.Pp
+Enable the use of the Pseudowire Emulation Edge-to-Edge (PWE3)
+Control Word, and disable the use of a Flow label for Flow-Aware
+Transport of Pseudowires:
+.Bd -literal -offset indent
+# ifconfig mpw5 pwecw -pwefat
+.Ed
+.Pp
+.Nm mpw
+interfaces may be used to build a Virtual Private LAN Service
+(VPLS) with
+.Xr bridge 4 .
+A VPLS is constructed with a full mesh of MPLS pseudowire tunnels
+between all peers, but this introduces loops in the topology.
+To prevent broadcast packets received from the VPLS being forwarded
+to its peers, all the pseudowire interfaces can be configured to
+enforce the split-horizon forwarding rule by adding them to the
+same protected bridge domain.
+Different VPLS meshes can be joined together on the same bridge
+using different identifiers for their protected domains:
+.Bd -literal -offset indent
+# ifconfig mpw10 create up
+# ifconfig mpw11 create up
+# ifconfig mpw12 create up
+# ifconfig bridge0 create
+# ifconfig bridge0 add em2
+# ifconfig bridge0 add mpw10 add mpw11 add mpw12
+# ifconfig bridge0 protected mpw10 1
+# ifconfig bridge0 protected mpw11 1
+# ifconfig bridge0 protected mpw12 1
+.Ed
+.Sh SEE ALSO
+.Xr mpe 4 ,
+.Xr mpip 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr ldpd 8 ,
+.Xr netstart 8
+.Rs
+.%A S. Bryant
+.%A P. Pate
+.%D March 2005
+.%R RFC 3985
+.%T Pseudo Wire Emulation Edge-to-Edge (PWE3) Architecture
+.Re
+.Pp
+.Rs
+.%A S. Bryant
+.%A G. Swallow
+.%A L. Martini
+.%D February 2005
+.%R RFC 4385
+.%T Pseudowire Emulation Edge-to-Edge (PWE3) Control Word \
+for Use over an MPLS PSN
+.Re
+.Pp
+.Rs
+.%A S. Bryant
+.%A C. Filsfils
+.%A U. Drafz
+.%A V. Kompella
+.%A J. Regan
+.%A S. Amante
+.%D November 2011
+.%R RFC 6391
+.%T Flow-Aware Transport of Pseudowires over an MPLS Packet Switched Network
+.Re
+.Sh HISTORY
+The
+.Nm
+kernel interface first appeared in
+.Ox 5.8 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Rafael Zalamena Aq Mt rzalamena@openbsd.org .

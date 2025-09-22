@@ -1,0 +1,7 @@
+#	$OpenBSD: Makefile.main,v 1.10 2018/04/26 12:53:09 schwarze Exp $
+
+SUBDIR=
+
+passwd group hosts ethers rpc services protocols netid netgroup amd.home aliases : _SUBDIRUSE
+
+.include <bsd.subdir.mk>

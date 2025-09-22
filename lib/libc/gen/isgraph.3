@@ -1,0 +1,122 @@
+.\"	$OpenBSD: isgraph.3,v 1.13 2022/09/11 06:38:10 jmc Exp $
+.\"
+.\" Copyright (c) 1991 The Regents of the University of California.
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt ISGRAPH 3
+.Os
+.Sh NAME
+.Nm isgraph ,
+.Nm isgraph_l
+.Nd printing single-byte character test (space character exclusive)
+.Sh SYNOPSIS
+.In ctype.h
+.Ft int
+.Fn isgraph "int c"
+.Ft int
+.Fn isgraph_l "int c" "locale_t locale"
+.Sh DESCRIPTION
+The
+.Fn isgraph
+and
+.Fn isgraph_l
+functions tests for any printing character except space
+.Pq Sq \ \& .
+.Pp
+In the C locale, the complete list of printing characters
+consists of the characters numbered 0x21\(en0x7e, which is
+the union of the characters for which
+.Xr isalnum 3
+or
+.Xr ispunct 3
+is true.
+.Ox
+always uses the C locale for these functions,
+ignoring the global locale, the thread-specific locale, and the
+.Fa locale
+argument.
+.Sh RETURN VALUES
+These functions return zero if the character tests false or
+non-zero if the character tests true.
+.Sh ENVIRONMENT
+On systems supporting non-ASCII single-byte character encodings,
+results of these functions may differ, and the results of
+.Fn isgraph
+may depend on the
+.Ev LC_CTYPE
+.Xr locale 1 .
+.Sh SEE ALSO
+.Xr isalnum 3 ,
+.Xr isalpha 3 ,
+.Xr isascii 3 ,
+.Xr isblank 3 ,
+.Xr iscntrl 3 ,
+.Xr isdigit 3 ,
+.Xr islower 3 ,
+.Xr isprint 3 ,
+.Xr ispunct 3 ,
+.Xr isspace 3 ,
+.Xr isupper 3 ,
+.Xr iswgraph 3 ,
+.Xr isxdigit 3 ,
+.Xr stdio 3 ,
+.Xr toascii 3 ,
+.Xr tolower 3 ,
+.Xr toupper 3 ,
+.Xr ascii 7
+.Sh STANDARDS
+The
+.Fn isgraph
+function conforms to
+.St -ansiC ,
+and
+.Fn isgraph_l
+to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn isgraph
+function first appeared in
+.At III ,
+and
+.Fn isgraph_l
+has been available since
+.Ox 6.2 .
+.Sh CAVEATS
+The argument
+.Fa c
+must be
+.Dv EOF
+or representable as an
+.Vt unsigned char ;
+otherwise, the result is undefined.

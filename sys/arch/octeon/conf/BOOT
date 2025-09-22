@@ -1,0 +1,77 @@
+#	$OpenBSD: BOOT,v 1.14 2025/05/18 11:47:35 visa Exp $
+
+machine		octeon mips64
+maxusers	4
+
+option		BOOT_KERNEL
+option		BOOT_QUIET
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		NO_RANDOMIZE
+
+option		RAMDISK_HOOKS
+option		MINIROOTSIZE=2048
+
+option		FFS
+option		FFS2
+
+option		CPU_MIPS64R2
+option		CPU_OCTEON
+option		FPUEMUL
+option		MIPS_PTE64
+makeoption	LINK_ADDRESS="0xffffffff82000000"
+
+config		bsd root on rd0a swap on rd0b
+
+mainbus0	at root
+cpu0		at mainbus0
+clock0		at mainbus0
+iobus0		at mainbus0
+octcf0		at iobus0
+amdcf0		at iobus0
+
+simplebus*	at fdt?
+simplebus*	at iobus?
+
+com*		at fdt_octeon?
+octcib*		at fdt?		# Interrupt controller
+octcit*		at fdt?		# Interrupt controller v3
+octciu*		at fdt?		# Interrupt controller v1
+octmmc*		at fdt?		# MMC host controller
+sdmmc*		at octmmc?	# SD/MMC bus
+
+octpcie*	at iobus0
+pci*		at octpcie?
+ppb*		at pci?
+pci*		at ppb?
+
+# AHCI controllers
+octsctl*	at fdt?
+ahci*		at octsctl?
+
+# NVMe controllers
+nvme*		at pci?
+
+dwctwo0		at iobus0 irq 56
+octuctl*	at fdt?
+octxctl*	at fdt?
+ehci0		at octuctl?
+ohci0		at octuctl?
+xhci*		at octxctl?
+
+usb*		at dwctwo?
+usb*		at ehci?
+usb*		at ohci?
+usb*		at xhci?
+
+uhub*		at usb?
+uhub*		at uhub?
+umass*		at uhub?
+
+scsibus*	at scsi?
+sd*		at scsibus?
+
+pseudo-device	etherip		# pulls ether in kernel
+pseudo-device	octboot
+pseudo-device	rd 1

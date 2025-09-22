@@ -1,0 +1,95 @@
+# Name of assembly file containing libgcc1 functions.
+# This entry must be present, but it can be empty if the target does
+# not need any assembler functions to support its code generation.
+#
+# Alternatively if assembler functions *are* needed then define the
+# entries below:
+CROSS_LIBGCC1	= libgcc1-asm.a
+LIB1ASMSRC	= frv/lib1funcs.asm
+LIB1ASMFUNCS	= _cmpll _cmpf _cmpd _addll _subll _andll _orll _xorll _notll _cmov
+LIB2FUNCS_EXTRA	= cmovh.c cmovw.c cmovd.c modi.c umodi.c uitof.c uitod.c ulltof.c ulltod.c
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+# If any special flags are necessary when building libgcc2 put them here.
+TARGET_LIBGCC2_CFLAGS =
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	echo '#include "config/frv/frv-abi.h"' >> fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#include "config/frv/frv-abi.h"' > dp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> dp-bit.c
+
+cmovh.c: $(srcdir)/config/frv/cmovh.c
+	$(LN_S) $(srcdir)/config/frv/cmovh.c .
+
+cmovw.c: $(srcdir)/config/frv/cmovw.c
+	$(LN_S) $(srcdir)/config/frv/cmovw.c .
+
+cmovd.c: $(srcdir)/config/frv/cmovd.c
+	$(LN_S) $(srcdir)/config/frv/cmovd.c .
+
+modi.c: $(srcdir)/config/frv/modi.c
+	$(LN_S) $(srcdir)/config/frv/modi.c .
+
+umodi.c: $(srcdir)/config/frv/umodi.c
+	$(LN_S) $(srcdir)/config/frv/umodi.c .
+
+uitof.c: $(srcdir)/config/frv/uitof.c
+	$(LN_S) $(srcdir)/config/frv/uitof.c .
+
+uitod.c: $(srcdir)/config/frv/uitod.c
+	$(LN_S) $(srcdir)/config/frv/uitod.c .
+
+ulltof.c: $(srcdir)/config/frv/ulltof.c
+	$(LN_S) $(srcdir)/config/frv/ulltof.c .
+
+ulltod.c: $(srcdir)/config/frv/ulltod.c
+	$(LN_S) $(srcdir)/config/frv/ulltod.c .
+
+# Build frvbegin.o and frvend.o
+EXTRA_MULTILIB_PARTS=frvbegin.o frvend.o
+
+# Compile two additional files that are linked with every program
+# linked using GCC on systems using COFF or ELF, for the sake of C++
+# constructors.
+
+FRVSTUFF_CFLAGS = $(TARGET_LIBGCC2_CFLAGS)
+
+$(T)frvbegin$(objext): $(srcdir)/config/frv/frvbegin.c $(GCC_PASSES) \
+  $(CONFIG_H) defaults.h unwind-dw2-fde.h gbl-ctors.h
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(INCLUDES) $(MULTILIB_CFLAGS) $(FRVSTUFF_CFLAGS) \
+	  -c $(srcdir)/config/frv/frvbegin.c -o $(T)frvbegin$(objext)
+
+$(T)frvend$(objext): $(srcdir)/config/frv/frvend.c $(GCC_PASSES) \
+  $(CONFIG_H) defaults.h unwind-dw2-fde.h gbl-ctors.h
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(INCLUDES) $(MULTILIB_CFLAGS) $(FRVSTUFF_CFLAGS) \
+	  -c $(srcdir)/config/frv/frvend.c -o $(T)frvend$(objext)
+
+# Enable the following if multilibs are needed.
+# See gcc/genmultilib, gcc/gcc.texi and gcc/tm.texi for a
+# description of the options and their values.
+#
+#MULTILIB_OPTIONS	= mcpu=fr500/mcpu=tomcat/mcpu=simple/mcpu=frv msoft-float mdword/mno-dword
+#MULTILIB_DIRNAMES	= fr500 tomcat simple frv nof dw no-dw
+#MULTILIB_MATCHES	= mcpu?simple=mcpu?fr300 mno-double=mcpu?fr500 mcpu?frv=mdouble
+#MULTILIB_EXCEPTIONS	= *mcpu=simple/*msoft-float* *mcpu=frv/*msoft-float*
+#MULTILIB_EXTRA_OPTS	= mlibrary-pic
+
+MULTILIB_OPTIONS	= mcpu=fr400/mcpu=fr550 mno-pack mlibrary-pic/mfdpic
+MULTILIB_DIRNAMES	= fr400 fr550 unpacked pic fdpic
+MULTILIB_MATCHES	= mcpu?simple=mcpu?fr300 \
+			  mlibrary-pic=multilib-library-pic \
+			  mcpu?fr400=mcpu?fr405 mcpu?fr400=mcpu?fr450
+MULTILIB_EXCEPTIONS	= mcpu=frv/mno-pack* mcpu=simple/mno-pack*
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+EXTRA_HEADERS = $(srcdir)/config/frv/frv-asm.h

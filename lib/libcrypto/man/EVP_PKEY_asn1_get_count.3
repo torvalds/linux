@@ -1,0 +1,243 @@
+.\" $OpenBSD: EVP_PKEY_asn1_get_count.3,v 1.11 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 72a7a702 Feb 26 14:05:09 2019 +0000
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2020, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Richard Levitte <levitte@openssl.org>.
+.\" Copyright (c) 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_ASN1_GET_COUNT 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_asn1_get_count ,
+.Nm EVP_PKEY_asn1_get0 ,
+.Nm EVP_PKEY_get0_asn1 ,
+.Nm EVP_PKEY_asn1_find ,
+.Nm EVP_PKEY_asn1_find_str ,
+.Nm EVP_PKEY_asn1_get0_info
+.Nd enumerate public key ASN.1 methods
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fn EVP_PKEY_asn1_get_count void
+.Ft const EVP_PKEY_ASN1_METHOD *
+.Fo EVP_PKEY_asn1_get0
+.Fa "int idx"
+.Fc
+.Ft const EVP_PKEY_ASN1_METHOD *
+.Fo EVP_PKEY_get0_asn1
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft const EVP_PKEY_ASN1_METHOD *
+.Fo EVP_PKEY_asn1_find
+.Fa "ENGINE **engine"
+.Fa "int type"
+.Fc
+.Ft const EVP_PKEY_ASN1_METHOD *
+.Fo EVP_PKEY_asn1_find_str
+.Fa "ENGINE **engine"
+.Fa "const char *str"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo EVP_PKEY_asn1_get0_info
+.Fa "int *ppkey_id"
+.Fa "int *pkey_base_id"
+.Fa "int *ppkey_flags"
+.Fa "const char **pinfo"
+.Fa "const char **ppem_str"
+.Fa "const EVP_PKEY_ASN1_METHOD *ameth"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_PKEY_asn1_get_count
+returns the number of public key ASN.1 methods available.
+.Pp
+.Fn EVP_PKEY_asn1_get0
+returns the public key ASN.1 method
+.Fa idx .
+The value of
+.Fa idx
+must be in the range from zero to
+.Fn EVP_PKEY_asn1_get_count
+\- 1.
+.Pp
+.Fn EVP_PKEY_asn1_find
+looks up the method with NID
+.Fa type ,
+which can be any of the values that
+.Xr EVP_PKEY_base_id 3
+and
+.Xr EVP_PKEY_id 3
+may return.
+If
+.Fa engine
+is not
+.Dv NULL ,
+.Pf * Fa engine
+is set to
+.Dv NULL .
+.Pp
+.Fn EVP_PKEY_asn1_find_str
+looks up the method with the PEM type string given by the first
+.Fa len
+bytes of
+.Fa str .
+If
+.Fa len
+is \-1, the
+.Xr strlen 3
+of
+.Fa str
+is used instead.
+The PEM type strings supported by default are listed in the
+.Xr EVP_PKEY_base_id 3
+manual page.
+Just like
+.Fn EVP_PKEY_asn1_find ,
+if
+.Fa engine
+is not
+.Dv NULL ,
+.Pf * Fa engine
+is set to
+.Dv NULL .
+.Pp
+.Fn EVP_PKEY_asn1_get0_info
+retrieves the public key ID as returned by
+.Xr EVP_PKEY_id 3 ,
+the base public key ID as returned by
+.Xr EVP_PKEY_base_id 3
+.Pq both NIDs ,
+any flags, and internal pointers owned by
+.Fa ameth
+pointing to its method description string and its PEM type string.
+.Pp
+The following flags bits can occur, OR'ed together in
+.Pf * Fa ppkey_flags :
+.Bl -tag -width Ds
+.It Dv ASN1_PKEY_ALIAS
+This
+.Fa ameth
+object serves as an alias for another
+.Vt EVP_PKEY_ASN1_METHOD
+object and will never be returned from
+.Fn EVP_PKEY_asn1_find
+or
+.Fn EVP_PKEY_asn1_find_str .
+.It Dv ASN1_PKEY_DYNAMIC
+This flag is unused.
+It could formerly be used to mark an
+.Fa ameth
+object as dynamically allocated.
+.It Dv ASN1_PKEY_SIGPARAM_NULL
+If the signing
+.Fa ctx
+uses an
+.Vt EVP_PKEY
+private key associated with this
+.Fa ameth ,
+instruct
+.Xr ASN1_item_sign_ctx 3
+to use a parameter type of
+.Dv V_ASN1_NULL
+instead of the default
+.Dv V_ASN1_UNDEF
+when encoding the ASN.1
+.Vt AlgorithmIdentifier
+objects with
+.Xr X509_ALGOR_set0 3 .
+In particular, this is used for
+.Dv EVP_PKEY_RSA .
+.El
+.Sh RETURN VALUES
+.Fn EVP_PKEY_asn1_get_count
+returns the number of available public key methods.
+.Pp
+.Fn EVP_PKEY_asn1_get0
+returns a public key method or
+.Dv NULL
+if
+.Fa idx
+is out of range.
+.Pp
+.Fn EVP_PKEY_get0_asn1
+returns the public key method used by
+.Fa pkey .
+.Pp
+.Fn EVP_PKEY_asn1_find
+and
+.Fn EVP_PKEY_asn1_find_str
+return a matching public key method or
+.Dv NULL
+if no match is found.
+.Pp
+.Fn EVP_PKEY_asn1_get0_info
+returns 1 on success or 0 on failure.
+.Sh SEE ALSO
+.Xr EVP_PKEY_base_id 3 ,
+.Xr EVP_PKEY_new 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.0.0
+and have been available since
+.Ox 4.9 .

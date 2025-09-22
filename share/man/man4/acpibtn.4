@@ -1,0 +1,91 @@
+.\"	$OpenBSD: acpibtn.4,v 1.6 2021/09/03 12:11:15 kn Exp $
+.\"
+.\" Copyright (c) 2006 Michael Knudsen <mk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 3 2021 $
+.Dt ACPIBTN 4
+.Os
+.Sh NAME
+.Nm acpibtn
+.Nd ACPI button
+.Sh SYNOPSIS
+.Cd "acpibtn* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver handles events triggered by ACPI buttons.
+Currently, only power button, sleep button and lid status events are supported.
+.Pp
+The power button event is handled according to the
+.Va machdep.pwraction
+.Xr sysctl 8 .
+Valid values are:
+.Pp
+.Bl -tag -width 3n -offset indent -compact
+.It 0
+Do nothing.
+.It 1
+Perform a regular system shutdown and power off the machine if the
+.Va hw.allowpowerdown
+sysctl is set to 1.
+.It 2
+Put the system into suspend (deep sleep) state.
+.El
+.Pp
+The sleep button event puts the system into suspend (deep sleep) state.
+.Pp
+The lid status event is handled according to the
+.Va machdep.lidaction
+sysctl.
+Valid values are:
+.Pp
+.Bl -tag -width 3n -offset indent -compact
+.It 0
+Do nothing.
+.It 1
+Put the system into suspend (deep sleep) state.
+.It 2
+Put the system into hibernation.
+System memory is saved to disk (swap space)
+and the machine is powered down.
+For machines supporting the
+.Xr acpi 4
+style hibernate functionality, on resume a full kernel
+boot will occur, followed by the reading of the saved
+memory image.
+The image will then be unpacked and the system resumed
+at the point immediately after the hibernation request.
+.El
+.Pp
+The lid status is set up as a sensor and can be monitored using
+.Xr sysctl 8
+or
+.Xr sensorsd 8 .
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Marco Peereboom Aq Mt marco@openbsd.org .

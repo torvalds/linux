@@ -1,0 +1,28 @@
+#	$OpenBSD: crt.in,v 1.3 2021/12/21 13:50:35 tobhe Exp $
+
+[ req ]
+default_bits            = 2048                  # default strength of client certificates
+default_md              = sha2
+encrypt_key             = yes                   # "no" is equivalent to -nodes
+prompt                  = no
+string_mask             = utf8only
+distinguished_name      = dn                    # root certificate name
+req_extensions          = req_cert_extensions
+
+[dn]
+C=DE
+ST=Bavaria
+L=Munich
+O=iked
+CN=${ENV::ALTNAME}
+
+[ req_cert_extensions ]
+subjectAltName          = @alt_names #;otherName = ${ENV::ALTNAME}-other
+
+[ v3_intermediate_ca ]
+basicConstraints = critical, CA:true, pathlen:0
+
+[ alt_names ]
+DNS.1=${ENV::ALTNAME}
+DNS.2=${ENV::ALTNAME}-alternative
+email= ${ENV::ALTNAME}@openbsd.org

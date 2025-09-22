@@ -1,0 +1,65 @@
+.\"	$OpenBSD: owsbm.4,v 1.6 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2007 Aaron Linville <aaron@linville.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt OWSBM 4
+.Os
+.Sh NAME
+.Nm owsbm
+.Nd 1-Wire smart battery monitor device
+.Sh SYNOPSIS
+.Cd "owsbm* at onewire?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the 1-Wire smart battery monitor.
+The sensor possesses a temperature sensor, an A/D converter for measuring both
+battery voltage and current, a current accumulator of both incoming and
+outgoing current, an elapsed time and 40 bytes of nonvolatile EEPROM.
+.Pp
+Only the three voltages (VDD, VAD, CR) and temperature are accessible by
+the
+.Xr sysctl 8
+interface.
+.Pp
+The following chips are supported by the driver:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Maxim/Dallas DS2438
+.El
+.Sh MEASURING CURRENT
+The sensor does not measure current directly.
+Instead it measures the voltage across the Rsens pins.
+.Bd -literal -offset indent
+I = Voltage CR / Rsens    (where Rsens is in Ohms)
+.Ed
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr onewire 4 ,
+.Xr owtemp 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Aaron Linville Aq Mt aaron@linville.org .

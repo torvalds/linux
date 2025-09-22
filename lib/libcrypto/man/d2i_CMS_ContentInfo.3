@@ -1,0 +1,129 @@
+.\" $OpenBSD: d2i_CMS_ContentInfo.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_CMS_CONTENTINFO 3
+.Os
+.Sh NAME
+.Nm d2i_CMS_ContentInfo ,
+.Nm i2d_CMS_ContentInfo ,
+.Nm d2i_CMS_bio ,
+.Nm i2d_CMS_bio ,
+.Nm d2i_CMS_ReceiptRequest ,
+.Nm i2d_CMS_ReceiptRequest
+.Nd decode and encode Cryptographic Message Syntax data
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cms.h
+.Ft CMS_ContentInfo *
+.Fo d2i_CMS_ContentInfo
+.Fa "CMS_ContentInfo **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_CMS_ContentInfo
+.Fa "CMS_ContentInfo *val_in"
+.Fa "unsigned char **out"
+.Fc
+.Ft CMS_ContentInfo *
+.Fo d2i_CMS_bio
+.Fa "BIO *in_bio"
+.Fa "CMS_ContentInfo **val_out"
+.Fc
+.Ft int
+.Fo i2d_CMS_bio
+.Fa "BIO *out_bio"
+.Fa "CMS_ContentInfo *val_in"
+.Fc
+.Ft CMS_ReceiptRequest *
+.Fo d2i_CMS_ReceiptRequest
+.Fa "CMS_ReceiptRequest **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_CMS_ReceiptRequest
+.Fa "CMS_ReceiptRequest *val_in"
+.Fa "unsigned char **out"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode Cryptographic Message Syntax
+data structures.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_CMS_ContentInfo
+and
+.Fn i2d_CMS_ContentInfo
+decode and encode a
+.Vt CMS_ContentInfo
+structure defined in RFC 5652 section 3.
+.Fn d2i_CMS_bio
+and
+.Fn i2d_CMS_bio
+are similar except that they decode or encode using a
+.Vt BIO
+pointer.
+.Pp
+.Fn d2i_CMS_ReceiptRequest
+and
+.Fn i2d_CMS_ReceiptRequest
+decode and encode a
+.Vt CMS_ReceiptRequest
+structure defined in RFC 2634 section 2.7.
+.Sh RETURN VALUES
+.Fn d2i_CMS_ContentInfo
+and
+.Fn d2i_CMS_bio
+return a valid
+.Vt CMS_ContentInfo
+structure or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn d2i_CMS_ReceiptRequest
+returns a valid
+.Vt CMS_ReceiptRequest
+structure or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_CMS_ContentInfo
+and
+.Fn i2d_CMS_ReceiptRequest
+return the number of bytes successfully encoded
+or a negative value if an error occurs.
+.Pp
+.Fn i2d_CMS_bio
+returns 1 for success or 0 if an error occurs.
+.Pp
+For all functions, the error code can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr CMS_ContentInfo_new 3 ,
+.Xr CMS_get0_type 3 ,
+.Xr CMS_ReceiptRequest_create0 3 ,
+.Xr i2d_CMS_bio_stream 3
+.Sh STANDARDS
+RFC 5652: Cryptographic Message Syntax, section 3: General Syntax
+.Pp
+RFC 2634: Enhanced Security Services for S/MIME,
+section 2.7: Receipt Request Syntax
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8h
+and have been available since
+.Ox 6.7 .

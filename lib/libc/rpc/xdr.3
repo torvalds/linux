@@ -1,0 +1,567 @@
+.\"	$OpenBSD: xdr.3,v 1.28 2022/09/11 06:38:11 jmc Exp $
+.\" Mostly converted to mandoc by Theo de Raadt, Tue Feb 24 04:04:46 MST 1998
+.\"
+.\" Copyright (c) 2010, Oracle America, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"     * Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"     * Redistributions in binary form must reproduce the above
+.\"       copyright notice, this list of conditions and the following
+.\"       disclaimer in the documentation and/or other materials
+.\"       provided with the distribution.
+.\"     * Neither the name of the "Oracle America, Inc." nor the names of its
+.\"       contributors may be used to endorse or promote products derived
+.\"       from this software without specific prior written permission.
+.\"
+.\"   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\"   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\"   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\"   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\"   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+.\"   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\"   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\"   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\"   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\"   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\"   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt XDR_ARRAY 3
+.Os
+.Sh NAME
+.Nm xdr_array ,
+.Nm xdr_bool ,
+.Nm xdr_bytes ,
+.Nm xdr_char ,
+.Nm xdr_destroy ,
+.Nm xdr_double ,
+.Nm xdr_enum ,
+.Nm xdr_float ,
+.Nm xdr_free ,
+.Nm xdr_getpos ,
+.Nm xdr_inline ,
+.Nm xdr_int ,
+.Nm xdr_long ,
+.Nm xdr_int64_t ,
+.Nm xdrmem_create ,
+.Nm xdr_opaque ,
+.Nm xdr_pointer ,
+.Nm xdrrec_create ,
+.Nm xdrrec_endofrecord ,
+.Nm xdrrec_eof ,
+.Nm xdrrec_skiprecord ,
+.Nm xdr_reference ,
+.Nm xdr_setpos ,
+.Nm xdr_short ,
+.Nm xdrstdio_create ,
+.Nm xdr_string ,
+.Nm xdr_u_char ,
+.Nm xdr_u_int ,
+.Nm xdr_u_long ,
+.Nm xdr_u_int64_t ,
+.Nm xdr_u_short ,
+.Nm xdr_union ,
+.Nm xdr_vector ,
+.Nm xdr_void ,
+.Nm xdr_wrapstring
+.Nd library routines for external data representation
+.Sh SYNOPSIS
+.In sys/types.h
+.In rpc/xdr.h
+.Ft int
+.Fn xdr_array "XDR *xdrs" "char **arrp" "u_int *sizep" "u_int maxsize" "u_int elsize" "xdrproc_t elproc"
+.Ft int
+.Fn xdr_bool "XDR *xdrs" "bool_t *bp"
+.Ft int
+.Fn xdr_bytes "XDR *xdrs" "char **sp" "u_int *sizep" "u_int maxsize"
+.Ft int
+.Fn xdr_char "XDR *xdrs" "char *cp"
+.Ft void
+.Fn xdr_destroy "XDR *xdrs"
+.Ft int
+.Fn xdr_double "XDR *xdrs" "double *dp"
+.Ft int
+.Fn xdr_enum "XDR *xdrs" "enum_t *ep"
+.Ft int
+.Fn xdr_float "XDR *xdrs" "float *fp"
+.Ft void
+.Fn xdr_free "xdrproc_t proc" "char *objp"
+.Ft u_int
+.Fn xdr_getpos "XDR *xdrs"
+.Ft long *
+.Fn xdr_inline "XDR *xdrs" "int len"
+.Ft int
+.Fn xdr_int "XDR *xdrs" "int *ip"
+.Ft int
+.Fn xdr_long "XDR *xdrs" "long *lp"
+.Ft int
+.Fn xdr_int64_t "XDR *xdrs" "int64_t *lp"
+.Ft void
+.Fn xdrmem_create "XDR *xdrs" "char *addr" "u_int size" "enum xdr_op op"
+.Ft int
+.Fn xdr_opaque "XDR *xdrs" "char *cp" "u_int cnt"
+.Ft int
+.Fn xdr_pointer "XDR *xdrs" "char **objpp" "u_int objsize" "xdrproc_t xdrobj"
+.Ft void
+.Fn xdrrec_create "XDR *xdrs" "u_int sendsize" "u_int recvsize" "char *handle" "int (*readit)()" "int (*writeit)()"
+.Ft int
+.Fn xdrrec_endofrecord "XDR *xdrs" "int sendnow"
+.Ft int
+.Fn xdrrec_eof "XDR *xdrs"
+.Ft int
+.Fn xdrrec_skiprecord "XDR *xdrs"
+.Ft int
+.Fn xdr_reference "XDR *xdrs" "char **pp" "u_int size" "xdrproc_t proc"
+.Ft int
+.Fn xdr_setpos "XDR *xdrs" "u_int pos"
+.Ft int
+.Fn xdr_short "XDR *xdrs" "short *sp"
+.Ft void
+.Fn xdrstdio_create "XDR *xdrs" "FILE *file" "enum xdr_op op"
+.Ft int
+.Fn xdr_string "XDR *xdrs" "char **sp" "u_int maxsize"
+.Ft int
+.Fn xdr_u_char "XDR *xdrs" "unsigned char *ucp"
+.Ft int
+.Fn xdr_u_int "XDR *xdrs" "unsigned int *up"
+.Ft int
+.Fn xdr_u_long "XDR *xdrs" "unsigned long *ulp"
+.Ft int
+.Fn xdr_u_int64_t "XDR *xdrs" "u_int64_t *ullp"
+.Ft int
+.Fn xdr_u_short "XDR *xdrs" "unsigned short *usp"
+.Ft int
+.Fn xdr_union "XDR *xdrs" "int *dscmp" "char *unp" "struct xdr_discrim *choices" "bool_t (*defaultarm)()"
+.Ft int
+.Fn xdr_vector "XDR *xdrs" "char *arrp" "u_int size" "u_int elsize" "xdrproc_t elproc"
+.Ft int
+.Fn xdr_void "void"
+.Ft int
+.Fn xdr_wrapstring "XDR *xdrs" "char **sp"
+.Sh DESCRIPTION
+These routines allow C programmers to describe
+arbitrary data structures in a machine-independent fashion.
+Data for remote procedure calls are transmitted using these
+routines.
+.Pp
+.Fn xdr_array
+is a filter primitive that translates between variable-length arrays
+and their corresponding external representations.
+The parameter
+.Fa arrp
+is the address of the pointer to the array, while
+.Fa sizep
+is the address of the element count of the array;
+this element count cannot exceed
+.Fa maxsize .
+The parameter
+.Fa elsize
+is the size of each of the array's elements, and
+.Fa elproc
+is an XDR filter that translates between
+the array elements' C form, and their external
+representation.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_bool
+is a filter primitive that translates between booleans (C integers)
+and their external representations.
+When encoding data, this
+filter produces values of either one or zero.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_bytes
+is a filter primitive that translates between counted byte
+strings and their external representations.
+The parameter
+.Fa sp
+is the address of the string pointer.
+The length of the string is located at address
+.Fa sizep ;
+strings cannot be longer than
+.Fa maxsize .
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_char
+is a filter primitive that translates between C characters
+and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+Note: encoded characters are not packed, and occupy 4 bytes each.
+For arrays of characters, it is worthwhile to consider
+.Fn xdr_bytes ,
+.Fn xdr_opaque ,
+or
+.Fn xdr_string .
+.Pp
+.Fn xdr_destroy
+is a macro that invokes the destroy routine associated with the XDR stream
+.Fa xdrs .
+Destruction usually involves freeing private data structures
+associated with the stream.
+Using
+.Fa xdrs
+after invoking
+.Fn xdr_destroy
+is undefined.
+.Pp
+.Fn xdr_double
+is a filter primitive that translates between C
+.Vt double
+precision numbers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_enum
+is a filter primitive that translates between the C
+.Vt enum
+type (actually an integer) and its external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_float
+is a filter primitive that translates between the C
+.Vt float
+type and its external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_free
+is a generic freeing routine.
+The first argument is the XDR routine for the object being freed.
+The second argument
+is a pointer to the object itself.
+Note: the pointer passed to this routine is
+.Fa not
+freed, but what it points to is freed (recursively).
+.Pp
+.Fn xdr_getpos
+is a macro that invokes the get-position routine associated with the XDR
+stream
+.Fa xdrs .
+The routine returns an unsigned integer,
+which indicates the position of the XDR byte stream.
+A desirable feature of XDR
+streams is that simple arithmetic works with this number,
+although the XDR stream instances need not guarantee this.
+.Pp
+.Fn xdr_inline
+is a macro that invokes the in-line routine associated with the XDR stream
+.Fa xdrs .
+The routine returns a pointer
+to a contiguous piece of the stream's buffer;
+.Fa len
+is the byte length of the desired buffer.
+Note: pointer is cast to
+.Vt long * .
+Warning:
+.Fn xdr_inline
+may return
+.Dv NULL
+if it cannot allocate a contiguous piece of a buffer.
+Therefore the behavior may vary among stream instances;
+it exists for the sake of efficiency.
+.Pp
+.Fn xdr_int
+is a filter primitive that translates between C integers
+and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_long
+is a filter primitive that translates between C
+.Vt long
+integers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_int64_t
+is a filter primitive that translates between C
+.Vt int64_t
+integers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdrmem_create
+is a routine which initializes the XDR stream object pointed to by
+.Fa xdrs .
+The stream's data is written to, or read from,
+a chunk of memory at location
+.Fa addr
+whose length is no more than
+.Fa size
+bytes long.
+The
+.Fa op
+determines the direction of the XDR stream
+(either
+.Dv XDR_ENCODE ,
+.Dv XDR_DECODE ,
+or
+.Dv XDR_FREE ) .
+.Pp
+.Fn xdr_opaque
+is a filter primitive that translates between fixed size opaque
+data
+and its external representation.
+The parameter
+.Fa cp
+is the address of the opaque object, and
+.Fa cnt
+is its size in bytes.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_pointer
+is like
+.Fn xdr_reference
+except that it serializes
+.Dv NULL
+pointers, whereas
+.Fn xdr_reference
+does not.
+Thus,
+.Fn xdr_pointer
+can represent
+recursive data structures, such as binary trees or
+linked lists.
+.Pp
+.Fn xdrrec_create
+is a routine which initializes the XDR stream object pointed to by
+.Fa xdrs .
+The stream's data is written to a buffer of size
+.Fa sendsize ;
+a value of zero indicates the system should use a suitable
+default.
+The stream's data is read from a buffer of size
+.Fa recvsize ;
+it too can be set to a suitable default by passing a zero
+value.
+When a stream's output buffer is full,
+.Fn (*writeit)
+is called.
+Similarly, when a stream's input buffer is empty,
+.Fn (*readit)
+is called.
+The behavior of these two routines is similar to the system calls
+.Fn read
+and
+.Fn write ,
+except that
+.Fa handle
+is passed to the former routines as the first parameter.
+Note: the XDR stream's
+.Fa op
+field must be set by the caller.
+Warning: this XDR stream implements an intermediate record stream.
+Therefore there are additional bytes in the stream
+to provide record boundary information.
+.Pp
+.Fn xdrrec_endofrecord
+is a routine which can be invoked only on
+streams created by
+.Fn xdrrec_create .
+The data in the output buffer is marked as a completed record,
+and the output buffer is optionally written out if
+.Fa sendnow
+is non-zero.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdrrec_eof
+is a routine which can be invoked only on
+streams created by
+.Fn xdrrec_create .
+After consuming the rest of the current record in the stream,
+this routine returns one if the stream has no more input,
+zero otherwise.
+.Pp
+.Fn xdrrec_skiprecord
+is a routine which can be invoked only on
+streams created by
+.Fn xdrrec_create .
+It tells the XDR implementation that the rest of the current record
+in the stream's input buffer should be discarded.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_reference
+is a primitive that provides pointer chasing within structures.
+The parameter
+.Fa pp
+is the address of the pointer;
+.Fa size
+is the size of the structure that
+.Fa *pp
+points to; and
+.Fa proc
+is an XDR procedure that filters the structure
+between its C form and its external representation.
+This routine returns one if it succeeds, zero otherwise.
+Warning: this routine does not understand
+.Dv NULL
+pointers.
+Use
+.Fn xdr_pointer
+instead.
+.Pp
+.Fn xdr_setpos
+is a macro that invokes the set position routine associated with the XDR
+stream
+.Fa xdrs .
+The parameter
+.Fa pos
+is a position value obtained from
+.Fn xdr_getpos .
+This routine returns one if the XDR stream could be repositioned,
+and zero otherwise.
+Warning: it is difficult to reposition some types of XDR
+streams, so this routine may fail with one
+type of stream and succeed with another.
+.Pp
+.Fn xdr_short
+is a filter primitive that translates between C
+.Vt short
+integers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdrstdio_create
+is a routine which initializes the XDR stream object pointed to by
+.Fa xdrs .
+The XDR stream data is written to, or read from, the Standard I/O
+stream
+.Fa file .
+The parameter
+.Fa op
+determines the direction of the XDR stream (either
+.Dv XDR_ENCODE ,
+.Dv XDR_DECODE ,
+or
+.Dv XDR_FREE ) .
+Warning: the destroy routine associated with such XDR streams calls
+.Fn fflush
+on the
+.Fa file
+stream, but never
+.Fn fclose .
+.Pp
+.Fn xdr_string
+is a filter primitive that translates between C strings and their
+corresponding external representations.
+Strings cannot be longer than
+.Fa maxsize .
+Note:
+.Fa sp
+is the address of the string's pointer.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_u_char
+is a filter primitive that translates between
+.Vt unsigned
+C characters and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_u_int
+is a filter primitive that translates between C
+.Vt unsigned
+integers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_u_long
+is a filter primitive that translates between C
+.Vt unsigned long
+integers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_u_int64_t
+is a filter primitive that translates between C
+.Vt u_int64_t
+integers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_u_short
+is a filter primitive that translates between C
+.Vt unsigned short
+integers and their external representations.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_union
+is a filter primitive that translates between a discriminated C
+.Vt union
+and its corresponding external representation.
+It first translates the discriminant of the union located at
+.Fa dscmp .
+This discriminant is always an
+.Vt enum_t .
+Next the union located at
+.Fa unp
+is translated.
+The parameter
+.Fa choices
+is a pointer to an array of
+.Vt struct xdr_discrim
+structures, containing the two members
+.Fa value
+and
+.Fa proc .
+If the union's discriminant is equal to the associated
+.Fa value ,
+then the
+.Fa proc
+is called to translate the union.
+The end of the
+.Vt struct xdr_discrim
+structure array is denoted by a routine of value
+.Dv NULL .
+If the discriminant is not found in the
+.Fa choices
+array, then the
+.Fn (*defaultarm)
+procedure is called (if it is not
+.Dv NULL ) .
+Returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_vector
+is a filter primitive that translates between fixed-length arrays
+and their corresponding external representations.
+The parameter
+.Fa arrp
+is the address of the pointer to the array, while
+.Fa size
+is the element count of the array.
+The parameter
+.Fa elsize
+is the size of each of the array's elements, and
+.Fa elproc
+is an XDR
+filter that translates between the array elements' C form, and their
+external representation.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn xdr_void
+is a routine which always returns one.
+It may be passed to RPC
+routines that require a function parameter, but where nothing is to be done.
+.Pp
+.Fn xdr_wrapstring
+is a primitive that calls
+.Nm xdr_string Ns Pq Fa xdrs , sp , Dv MAXUN.UNSIGNED
+where
+.Dv MAXUN.UNSIGNED
+is the maximum value of an unsigned integer.
+.Fn xdr_wrapstring
+is handy because the RPC package passes a maximum of two XDR
+routines as parameters, and
+.Fn xdr_string ,
+one of the most frequently used primitives, requires three.
+Returns one if it succeeds, zero otherwise.
+.Sh SEE ALSO
+.Xr rpc 3
+.Rs
+.%T eXternal Data Representation Standard: Protocol Specification
+.Re
+.Rs
+.%T eXternal Data Representation: Sun Technical Notes
+.Re
+.Sh STANDARDS
+.Rs
+.%D June 1987
+.%Q Sun Microsystems, Inc.
+.%R RFC 1014
+.%T XDR: External Data Representation Standard
+.Re

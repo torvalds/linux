@@ -1,0 +1,3 @@
+# Don't forget to give libedit and gnu/lib/libreadline the same type of bump!
+major=16
+minor=0

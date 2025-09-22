@@ -1,0 +1,112 @@
+.\"	$OpenBSD: snmpd_metrics.8,v 1.4 2022/10/23 06:12:06 jmc Exp $
+.\"
+.\" Copyright (c) 2022 Martijn van Duren <martijn@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 23 2022 $
+.Dt SNMPD_METRICS 8
+.Os
+.Sh NAME
+.Nm snmpd_metrics
+.Nd export snmpd MIB data
+.Sh SYNOPSIS
+.Nm
+.Op Fl dv
+.Op Fl C Ar option
+.Op Fl c Ar context
+.Op Fl s Ar path
+.Sh DESCRIPTION
+.Nm
+exports the following
+.Pq partial
+MIBs via an AgentX compatible
+.Pq snmp
+daemon:
+HOST-RESOURCES-MIB, IF-MIB, OPENBSD-PF-MIB, OPENBSD-SENSORS-MIB,
+OPENBSD-CARP-MIB, OPENBSD-MEM-MIB, IP-MIB, IP-FORWARD-MIB,
+UCD-DISKIO-MIB, and BRIDGE-MIB.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl C Ar option
+Enable MIB-specific options.
+Currently only
+.Ic filter-routes
+is supported.
+If set ask the kernel to filter route update messages on the routing socket.
+Routing table information will not be available, but CPU use will be
+reduced during bulk updates.
+.It Fl c Ar context
+The SNMPv3 context and can usually be omitted.
+.It Fl d
+Do not daemonize and log to
+.Em stderr .
+.It Fl s Ar path
+Connect to the AgentX master via
+.Ar path .
+It defaults to
+.Pa /var/agentx/master .
+.It Fl v
+Produce more verbose output.
+.El
+.Sh SEE ALSO
+.Xr snmp 1 ,
+.Xr snmpd 8
+.Sh STANDARDS
+.Rs
+.%A P. Grillo
+.%A WeSync.com
+.%D March 2000
+.%R RFC 2790
+.%T Host Resources MIB
+.Re
+.Pp
+.Rs
+.%A K. McCloghrie
+.%A Cisco Systems
+.%A F. Kastenholz
+.%A Argon Networks
+.%D June 2000
+.%R RFC 2863
+.%T The Interfaces Group MIB
+.Re
+.Pp
+.Rs
+.%A S. Routhier, Ed.
+.%D April 2006
+.%R RFC 4293
+.%T Management Information Base for the Internet Protocol (IP)
+.Re
+.Pp
+.Rs
+.%A B. Haberman
+.%A Johns Hopkins University
+.%D April 2006
+.%R RFC 4292
+.%T IP Forwarding Table MIB
+.Re
+.Pp
+.Rs
+.%A K. Norseth, Ed.
+.%A L-3 Communications
+.%A E. Bell, Ed.
+.%A 3Com Europe Limited
+.%D September 2005
+.%R RFC 4188
+.%T Definitions of Managed Objects for Bridges
+.Re
+.Sh AUTHORS
+.An Martijn van Duren Aq Mt martijn@openbsd.org
+.An Joel Knight Aq Mt joel@openbsd.org
+.An Reyk Floeter Aq Mt reyk@openbsd.org

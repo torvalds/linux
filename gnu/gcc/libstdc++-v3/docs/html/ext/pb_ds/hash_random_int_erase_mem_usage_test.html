@@ -1,0 +1,173 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>Tree Text Locality of Reference Timing Test</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1>Hash-Based Erase Memory-Use Test</h1>
+<h2><a name="description" id="description">Description</a></h2>
+<p>This test inserts a number of uniform i.i.d. integer keys
+    into a container, then erases all keys except one. It measures
+    the final size of the container.</p>
+<p>(The test was executed with <a href="../../../../testsuite/performance/ext/pb_ds/hash_random_int_erase_mem_usage.cc"><tt>hash_random_int_erase_mem_usage.cc</tt></a>
+    2000 2000 2100)</p>
+<h2><a name="purpose" id="purpose">Purpose</a></h2>
+<p>The test checks how containers adjust internally as their
+    logical size decreases (see <a href="motivation.html#assoc_ers_methods">Motivation::Associative
+    Containers::Slightly Different Methods::Methods Related to
+    Erase</a>).</p>
+<h2><a name="results" id="results">Results</a></h2>
+<p>Figures <a href="#NHG">NHG</a>, <a href="#NHM">NHM</a> and
+    <a href="#NHL">NHL</a> show the results for the native and
+    collision-chaining types in <a href="assoc_performance_tests.html#gcc"><u>g++</u></a>, <a href="assoc_performance_tests.html#msvc"><u>msvc++</u></a> and
+    <a href="assoc_performance_tests.html#local"><u>local</u></a>,
+    respectively.</p>
+<div id="NHG_res_div">
+<div id="NHG_gcc">
+<div id="NHG_hash_random_int_erase_mem_usage_test">
+<div id="NHG_assoc">
+<div id="NHG_Native_456_collision-chaing_456_and_probing_456_hash_random_int_erase_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NHG" id="NHG"><img src="hash_random_int_erase_mem_usage_test_gcc.png" alt="no image" /></a></h6>NHG: Native, collision-chaing, and probing, hash random int erase test - <a href="assoc_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_hash_set_ncah-
+<tt>std::tr1::unordered_set</tt> with <tt>cache_hash_code</tt> = <tt><b>false</b></tt></li>
+<li>
+gp_hash_mask_linp_exp_nea_lc_1div8_1div2_nsth_set-
+<a href="gp_hash_table.html"><tt>gp_hash_table</tt></a>
+ with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i>, and <tt>Probe_Fn</tt> = <a href="linear_probe_fn.html"><tt>linear_probe_fn</tt></a>
+</li>
+<li>
+cc_hash_mod_prime_nea_lc_1div8_1div1_nsth_set-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mod_range_hashing.html"><tt>direct_mod_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_prime_size_policy.html"><tt>hash_prime_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/1</i></li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_set-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NHM_res_div">
+<div id="NHM_msvc">
+<div id="NHM_hash_random_int_erase_mem_usage_test">
+<div id="NHM_assoc">
+<div id="NHM_Native_456_collision-chaing_456_and_probing_456_hash_random_int_erase_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NHM" id="NHM"><img src="hash_random_int_erase_mem_usage_test_msvc.png" alt="no image" /></a></h6>NHM: Native, collision-chaing, and probing, hash random int erase test - <a href="assoc_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_hash_set_ncah-
+<tt>stdext::hash_set</tt></li>
+<li>
+gp_hash_mask_linp_exp_nea_lc_1div8_1div2_nsth_set-
+<a href="gp_hash_table.html"><tt>gp_hash_table</tt></a>
+ with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i>, and <tt>Probe_Fn</tt> = <a href="linear_probe_fn.html"><tt>linear_probe_fn</tt></a>
+</li>
+<li>
+cc_hash_mod_prime_nea_lc_1div8_1div1_nsth_set-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mod_range_hashing.html"><tt>direct_mod_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_prime_size_policy.html"><tt>hash_prime_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/1</i></li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_set-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NHM_res_div">
+<div id="NHM_msvc">
+<div id="NHM_hash_random_int_erase_mem_usage_test">
+<div id="NHM_assoc">
+<div id="NHM_Native_456_collision-chaing_456_and_probing_456_hash_random_int_erase_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NHM" id="NHM"><img src="hash_random_int_erase_mem_usage_test_msvc.png" alt="no image" /></a></h6>NHM: Native, collision-chaing, and probing, hash random int erase test - <a href="assoc_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_hash_set_ncah-
+<tt>stdext::hash_set</tt></li>
+<li>
+gp_hash_mask_linp_exp_nea_lc_1div8_1div2_nsth_set-
+<a href="gp_hash_table.html"><tt>gp_hash_table</tt></a>
+ with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i>, and <tt>Probe_Fn</tt> = <a href="linear_probe_fn.html"><tt>linear_probe_fn</tt></a>
+</li>
+<li>
+cc_hash_mod_prime_nea_lc_1div8_1div1_nsth_set-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mod_range_hashing.html"><tt>direct_mod_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_prime_size_policy.html"><tt>hash_prime_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/1</i></li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_set-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NHL_res_div">
+<div id="NHL_local">
+<div id="NHL_hash_random_int_erase_mem_usage_test">
+<div id="NHL_assoc">
+<div id="NHL_Native_456_collision-chaing_456_and_probing_456_hash_random_int_erase_test"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NHL" id= "NHL"><img src="hash_random_int_erase_mem_usage_test_local.png" alt="no image" /></a></h6>NHL: Native, collision-chaing, and probing, hash random int erase test - <a href = "assoc_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<h2><a name="observations" id="observations">Observations</a></h2>
+<p>STL hash-based containers act very differently than trees in
+    this respect. When erasing numerous keys from an STL
+    associative-container, the resulting memory user varies greatly
+    depending on whether the container is tree-based or hash-based.
+    As noted in <a href="motivation.html#assoc_methods">Motivation::Choice of
+    Methods</a> , this is a fundamental consequence of the STL's
+    associative containers' interface, it is not due to a specific
+    implementation.</p>
+<p>(See <a href="priority_queue_text_pop_mem_usage_test.html">Priority Queue
+    Text <tt>pop</tt> Memory Use Test</a> for a similar phenomenon
+    regarding priority queues.)</p>
+</div>
+</body>
+</html>

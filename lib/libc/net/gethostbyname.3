@@ -1,0 +1,271 @@
+.\"	$OpenBSD: gethostbyname.3,v 1.34 2019/08/30 20:20:50 jmc Exp $
+.\"
+.\" Copyright (c) 1983, 1987, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 30 2019 $
+.Dt GETHOSTBYNAME 3
+.Os
+.Sh NAME
+.Nm gethostbyname ,
+.Nm gethostbyname2 ,
+.Nm gethostbyaddr ,
+.Nm gethostent ,
+.Nm sethostent ,
+.Nm endhostent ,
+.Nm hstrerror ,
+.Nm herror
+.Nd get network host entry
+.Sh SYNOPSIS
+.In netdb.h
+.Vt extern int h_errno ;
+.Ft struct hostent *
+.Fn gethostbyname "const char *name"
+.Ft struct hostent *
+.Fn gethostent void
+.Ft void
+.Fn sethostent "int stayopen"
+.Ft void
+.Fn endhostent void
+.Ft void
+.Fn herror "const char *string"
+.Ft const char *
+.Fn hstrerror "int err"
+.In sys/socket.h
+.In netdb.h
+.Ft struct hostent *
+.Fn gethostbyname2 "const char *name" "int af"
+.Ft struct hostent *
+.Fn gethostbyaddr "const void *addr" "socklen_t len" "int af"
+.Sh DESCRIPTION
+The
+.Fn gethostbyname ,
+.Fn gethostbyname2 ,
+and
+.Fn gethostbyaddr
+functions each return a pointer to an object with the following structure
+describing an Internet host referenced by
+.Fa name
+or
+.Fa addr ,
+respectively.
+This structure contains either information obtained from a name server,
+broken-out fields from a line in
+.Pa /etc/hosts ,
+or database entries supplied by the
+.Xr yp 8
+system.
+.Xr resolv.conf 5
+describes how the particular database is chosen.
+.Bd -literal -offset indent
+struct	hostent {
+	char	*h_name;	/* official name of host */
+	char	**h_aliases;	/* alias list */
+	int	h_addrtype;	/* host address type */
+	int	h_length;	/* length of address */
+	char	**h_addr_list;	/* list of returned addresses */
+};
+#define	h_addr  h_addr_list[0]	/* address, for backward compat */
+.Ed
+.Pp
+The members of this structure are:
+.Bl -tag -width h_addr_list
+.It Fa h_name
+Official name of the host.
+.It Fa h_aliases
+A
+.Dv NULL Ns -terminated
+array of alternate names for the host.
+.It Fa h_addrtype
+The type of address being returned.
+.It Fa h_length
+The length, in bytes, of the address.
+.It Fa h_addr_list
+A
+.Dv NULL Ns -terminated
+array of network addresses for the host.
+Host addresses are returned in network byte order.
+.It Fa h_addr
+The first address in
+.Fa h_addr_list ;
+this is for backward compatibility.
+.El
+.Pp
+The function
+.Fn gethostbyname
+will search for the named host in the current domain and its parents
+using the search lookup semantics detailed in
+.Xr resolv.conf 5
+and
+.Xr hostname 7 .
+.Pp
+.Fn gethostbyname2
+is similar to
+.Fn gethostbyname
+except that it supports an
+.Fa af
+of
+.Dv AF_INET6
+in addition to
+.Dv AF_INET .
+.Pp
+The
+.Fn gethostbyaddr
+function will search for the specified address of length
+.Fa len
+in the address family
+.Fa af .
+The only address family supported is
+.Dv AF_INET .
+.Pp
+The
+.Fn sethostent ,
+.Fn gethostent ,
+and
+.Fn endhostent
+functions are deprecated and no longer have any effect.
+They could be used in the past for queries over a persistent TCP
+connection or to iterate entries in the
+.Xr hosts 5
+file.
+.Pp
+The
+.Fn herror
+function prints an error message describing the failure.
+If its argument
+.Fa string
+is not
+.Dv NULL ,
+it is prepended to the message string and separated from it by a colon
+.Pq Ql \&:
+and a space.
+The error message is printed with a trailing newline.
+The contents of the error message is the same as that returned by
+.Fn hstrerror
+with argument
+.Va h_errno .
+.Sh ENVIRONMENT
+.Bl -tag -width RES_OPTIONS
+.It Ev RES_OPTIONS
+A list of options to override the resolver's internal defaults.
+See
+.Xr resolv.conf 5
+for more information.
+.El
+.Sh FILES
+.Bl -tag -width /etc/resolv.conf -compact
+.It Pa /etc/hosts
+.It Pa /etc/resolv.conf
+.El
+.Sh DIAGNOSTICS
+Error return status from
+.Fn gethostbyname ,
+.Fn gethostbyname2 ,
+and
+.Fn gethostbyaddr
+is indicated by return of a
+.Dv NULL
+pointer.
+The external integer
+.Va h_errno
+may then be checked to see whether this is a temporary failure
+or an invalid or unknown host.
+.Pp
+The variable
+.Va h_errno
+can have the following values:
+.Bl -tag -width HOST_NOT_FOUND
+.It Dv HOST_NOT_FOUND
+No such host is known.
+.It Dv TRY_AGAIN
+This is usually a temporary error
+and means that the local server did not receive
+a response from an authoritative server.
+A retry at some later time may succeed.
+.It Dv NO_RECOVERY
+Some unexpected server failure was encountered.
+This is a non-recoverable error.
+.It Dv NO_DATA
+The requested name is valid but does not have an IP address;
+this is not a temporary error.
+This means that the name is known to the name server but there is no address
+associated with this name.
+Another type of request to the name server using this domain name
+will result in an answer;
+for example, a mail-forwarder may be registered for this domain.
+.It Dv NETDB_INTERNAL
+An internal error occurred.
+This may occur when an address family other than
+.Dv AF_INET
+or
+.Dv AF_INET6
+is specified or when a resource is unable to be allocated.
+It is always set by
+.Fn gethostent .
+.It Dv NETDB_SUCCESS
+The function completed successfully.
+.El
+.Sh SEE ALSO
+.Xr getaddrinfo 3 ,
+.Xr getnameinfo 3 ,
+.Xr res_init 3 ,
+.Xr hosts 5 ,
+.Xr resolv.conf 5 ,
+.Xr hostname 7
+.Sh HISTORY
+The
+.Fn endhostent ,
+.Fn gethostbyaddr ,
+.Fn gethostbyname ,
+.Fn gethostent ,
+and
+.Fn sethostent
+functions appeared in
+.Bx 4.1c .
+The function
+.Fn herror
+was added in
+.Bx 4.3 Tahoe ,
+.Fn hstrerror
+in
+.Bx 4.4 ,
+and
+.Fn gethostbyname2
+in
+.Ox 2.1 .
+.Sh BUGS
+These functions use static data storage;
+if the data is needed for future use, it should be
+copied before any subsequent calls overwrite it.
+.Pp
+Only the Internet
+address formats are currently understood.
+.Pp
+YP does not support any address families other than
+.Dv AF_INET
+and uses
+the traditional database format.

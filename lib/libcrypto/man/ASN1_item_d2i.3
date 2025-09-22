@@ -1,0 +1,493 @@
+.\" $OpenBSD: ASN1_item_d2i.3,v 1.19 2025/06/08 22:40:29 schwarze Exp $
+.\" selective merge up to:
+.\" OpenSSL doc/man3/d2i_X509.pod 256989ce Jun 19 15:00:32 2020 +0200
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2003, 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_ITEM_D2I 3
+.Os
+.Sh NAME
+.Nm ASN1_item_d2i ,
+.Nm ASN1_item_d2i_bio ,
+.Nm ASN1_item_d2i_fp ,
+.Nm d2i_ASN1_TYPE ,
+.Nm ASN1_item_i2d ,
+.Nm ASN1_item_i2d_bio ,
+.Nm ASN1_item_i2d_fp ,
+.Nm i2d_ASN1_TYPE ,
+.Nm ASN1_item_dup ,
+.Nm ASN1_item_print
+.Nd decode and encode ASN.1 objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft ASN1_VALUE *
+.Fo ASN1_item_d2i
+.Fa "ASN1_VALUE **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fa "const ASN1_ITEM *it"
+.Fc
+.Ft void *
+.Fo ASN1_item_d2i_bio
+.Fa "const ASN1_ITEM *it"
+.Fa "BIO *in_bio"
+.Fa "void *val_out"
+.Fc
+.Ft void *
+.Fo ASN1_item_d2i_fp
+.Fa "const ASN1_ITEM *it"
+.Fa "FILE *in_fp"
+.Fa "void *val_out"
+.Fc
+.Ft ASN1_TYPE *
+.Fo d2i_ASN1_TYPE
+.Fa "ASN1_TYPE **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo ASN1_item_i2d
+.Fa "ASN1_VALUE *val_in"
+.Fa "unsigned char **der_out"
+.Fa "const ASN1_ITEM *it"
+.Fc
+.Ft int
+.Fo ASN1_item_i2d_bio
+.Fa "const ASN1_ITEM *it"
+.Fa "BIO *out_bio"
+.Fa "void *val_in"
+.Fc
+.Ft int
+.Fo ASN1_item_i2d_fp
+.Fa "const ASN1_ITEM *it"
+.Fa "FILE *out_fp"
+.Fa "void *val_in"
+.Fc
+.Ft int
+.Fo i2d_ASN1_TYPE
+.Fa "ASN1_TYPE *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft void *
+.Fo ASN1_item_dup
+.Fa "const ASN1_ITEM *it"
+.Fa "void *val_in"
+.Fc
+.Ft int
+.Fo ASN1_item_print
+.Fa "BIO *out_bio"
+.Fa "ASN1_VALUE *val_in"
+.Fa "int indent"
+.Fa "const ASN1_ITEM *it"
+.Fa "const ASN1_PCTX *pctx"
+.Fc
+.Sh DESCRIPTION
+These functions convert ASN.1 values from their BER encoding to
+internal C structures
+.Pq Dq d2i
+and vice versa
+.Pq Dq i2d .
+Unlike the C structures which contain pointers to sub-objects, BER
+is a serialized encoding, suitable for transfer over the network
+and for storage in a file.
+.Pp
+.Fn ASN1_item_d2i
+interprets
+.Pf * Fa der_in
+as a DER- or BER-encoded byte array and decodes one value of type
+.Fa it
+represented by up to
+.Fa length
+bytes.
+If successful,
+.Pf * Fa der_in
+is advanced to the byte following the parsed data.
+.Pp
+If decoding succeeds and
+.Fa val_out
+or
+.Pf * Fa val_out
+is
+.Dv NULL ,
+a new object is allocated.
+.Pp
+If decoding succeeds and
+.Pf * Fa val_out
+is not
+.Dv NULL ,
+it is assumed to point to a valid populated object and an attempt
+is made to reuse it.
+It must not be an empty structure such as one returned by
+.Xr ASN1_item_new 3
+or by one of the various type-specific
+.Fn *_new
+functions.
+This
+.Dq reuse
+capability is present for backward compatibility, but its use is
+strongly discouraged; see the
+.Sx BUGS
+section below.
+.Pp
+.Fn ASN1_item_d2i_bio
+and
+.Fn ASN1_item_d2i_fp
+are similar to
+.Fn ASN1_item_d2i
+except that they read from a
+.Vt BIO
+or
+.Vt FILE ,
+respectively.
+.Pp
+.Fn d2i_ASN1_TYPE
+is similar to
+.Fn ASN1_item_d2i
+except that it does not require a desired type to be specified by
+the user, but instead returns an
+.Vt ASN1_TYPE
+wrapper object containing both the type and the value found in the input.
+.Pp
+.Fn ASN1_item_i2d
+encodes the object pointed to by
+.Fa val_in
+into DER format.
+.Pp
+If
+.Pf * Fa der_out
+is not
+.Dv NULL ,
+it writes the DER-encoded data to the buffer at
+.Pf * Fa der_out
+and increments it to point after the data just written.
+In this case, it is the responsibility of the user to make sure
+that the buffer pointed to by
+.Pf * Fa der_out
+is long enough, such that no buffer overflow can occur.
+.Pp
+If
+.Pf * Fa der_out
+is
+.Dv NULL ,
+memory is allocated for a buffer, and
+.Pf * Fa der_out
+is not incremented, but points to the start of the data just written.
+.Pp
+If
+.Fa der_out
+is
+.Dv NULL ,
+the encoded bytes are not written anywhere but discarded.
+For
+.Fa val_in
+objects of variable encoding size, this is sometimes used to first
+find the number of bytes that will be written.
+Then, a sufficient amount of memory is allocated before calling
+.Fn ASN1_item_i2d
+again.
+This explicit double-call technique is often not needed because the
+auto-allocation technique described in the previous paragraph can
+be used.
+.Pp
+.Fn ASN1_item_i2d_bio
+and
+.Fn ASN1_item_i2d_fp
+are similar to
+.Fn ASN1_item_i2d
+except that they write to a
+.Vt BIO
+or
+.Vt FILE ,
+respectively.
+.Pp
+.Fn i2d_ASN1_TYPE
+is similar to
+.Fn ASN1_item_i2d
+except that the type and the value are not provided separately,
+but in the form of a single
+.Vt ASN1_TYPE
+object.
+.Pp
+.Fn ASN1_item_dup
+creates a deep copy of
+.Fa val_in
+by calling
+.Fn ASN1_item_i2d
+and
+.Fn ASN1_item_d2i .
+.Sh RETURN VALUES
+If successful,
+.Fn ASN1_item_d2i ,
+.Fn ASN1_item_d2i_bio ,
+.Fn ASN1_item_d2i_fp ,
+and
+.Fn d2i_ASN1_TYPE
+return a pointer to the decoded ASN.1 value.
+In addition, if
+.Fa val_out
+is not
+.Dv NULL ,
+the pointer is also written to
+.Pf * Fa val_out .
+If an error occurs,
+.Dv NULL
+is returned.
+.Pp
+.Fn ASN1_item_i2d
+and
+.Fn i2d_ASN1_TYPE
+return the number of bytes written
+or a negative value if an error occurs.
+.Pp
+.Fn ASN1_item_i2d_bio
+and
+.Fn ASN1_item_i2d_fp
+return 1 for success or 0 for failure.
+.Pp
+.Fn ASN1_item_dup
+returns the new
+.Vt ASN1_VALUE
+object or
+.Dv NULL
+if an error occurs.
+.Sh EXAMPLES
+Many type-specific wrapper functions exist.
+Using those wrappers is recommended in application code
+because it restores part of the type safety that the low-level
+interfaces using
+.Vt ASN1_VALUE
+lack.
+.Pp
+For example, to allocate a buffer and write the DER encoding of an
+.Vt X509
+object into it:
+.Bd -literal -offset indent
+X509		*x;
+unsigned char	*buf;
+int		 len;
+
+buf = NULL;
+len = i2d_X509(x, &buf);
+if (len < 0)
+	/* error */
+.Ed
+.Pp
+Attempt to decode a buffer:
+.Bd -literal -offset indent
+X509			*x;
+unsigned char		*buf;
+const unsigned char	*p;
+int			 len;
+
+/* Set up buf and len to point to the input buffer. */
+p = buf;
+x = d2i_X509(NULL, &p, len);
+if (x == NULL)
+	/* error */
+.Ed
+.Pp
+Equivalent technique:
+.Bd -literal -offset indent
+X509			*x;
+unsigned char		*buf;
+const unsigned char	*p;
+int			 len;
+
+/* Set up buf and len to point to the input buffer. */
+p = buf;
+x = NULL;
+
+if (d2i_X509(&x, &p, len) == NULL)
+	/* error */
+.Ed
+.Sh SEE ALSO
+.Xr ASN1_get_object 3 ,
+.Xr ASN1_item_digest 3 ,
+.Xr ASN1_item_new 3 ,
+.Xr ASN1_item_pack 3 ,
+.Xr ASN1_item_sign 3 ,
+.Xr ASN1_item_verify 3 ,
+.Xr ASN1_TYPE_new 3
+.Sh HISTORY
+.Fn d2i_ASN1_TYPE
+and
+.Fn i2d_ASN1_TYPE
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn ASN1_item_d2i ,
+.Fn ASN1_item_d2i_bio ,
+.Fn ASN1_item_d2i_fp ,
+.Fn ASN1_item_i2d ,
+.Fn ASN1_item_i2d_bio ,
+.Fn ASN1_item_i2d_fp ,
+and
+.Fn ASN1_item_dup
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn ASN1_item_print
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .
+.Sh CAVEATS
+If the type described by
+.Fa it
+fails to match the true type of
+.Fa val_in
+or
+.Pf * Fa val_out ,
+buffer overflows and segmentation faults are likely to occur.
+For more details about why the type
+.Vt ASN1_VALUE
+constitutes dangerous user interface design, see
+.Xr ASN1_item_new 3 .
+.Pp
+The encoded data is in binary form and may contain embedded NUL bytes.
+Functions such as
+.Xr strlen 3
+will not return the correct length of the encoded data.
+.Pp
+While the way that
+.Pf * Fa der_in
+and
+.Pf * Fa der_out
+are incremented after the operation supports the typical usage
+patterns of reading or writing one object after another, this
+behaviour can trap the unwary.
+.Pp
+Using a temporary pointer into the buffer is mandatory.
+A common mistake is to attempt to use a buffer directly as follows:
+.Bd -literal -offset indent
+X509		*x;
+unsigned char	*buf;
+int		 len;
+
+len = i2d_X509(x, NULL);
+buf = malloc(len);
+i2d_X509(x, &buf);
+/* do something with buf[] */
+free(buf);
+.Ed
+.Pp
+This code will result in
+.Va buf
+apparently containing garbage because it was incremented during
+.Fn i2d_X509
+to point after the data just written.
+Also
+.Va buf
+will no longer contain the pointer allocated by
+.Xr malloc 3
+and the subsequent call to
+.Xr free 3
+is likely to crash.
+.Pp
+Another trap to avoid is misuse of the
+.Fa val_out
+argument:
+.Bd -literal -offset indent
+X509		*x;
+
+if (d2i_X509(&x, &p, len) == NULL)
+	/* error */
+.Ed
+.Pp
+This will probably crash somewhere in
+.Fn d2i_X509
+because
+.Va x
+is uninitialized and an attempt will be made to interpret its invalid
+content as an
+.Vt X509
+object, typically causing a segmentation violation.
+If
+.Va x
+is set to
+.Dv NULL
+first, then this will not happen.
+.Sh BUGS
+If the
+.Dq reuse
+capability is used, a valid object is passed in via
+.Pf * Fa val_out ,
+and an error occurs, then the object is not freed and may be left
+in an invalid or inconsistent state.
+.Pp
+In some versions of OpenSSL, the
+.Dq reuse
+behaviour is broken such that some parts of the reused object may
+persist if they are not present in the new one.
+.Pp
+In many versions of OpenSSL,
+.Fn ASN1_item_i2d
+will not return an error if mandatory fields are not initialized
+due to a programming error.
+In that case, the encoded structure may contain invalid data and
+some fields may be missing entirely, such that trying to parse it
+with
+.Fn ASN1_item_d2i
+may fail.

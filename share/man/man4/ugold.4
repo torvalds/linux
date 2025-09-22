@@ -1,0 +1,80 @@
+.\"	$OpenBSD: ugold.4,v 1.11 2024/07/27 17:31:49 miod Exp $
+.\"
+.\" Copyright (c) 2013 Takayoshi SASANO <sasano@openbsd.org>
+.\" Copyright (c) 2013 Martin Pieuchot <mpi@openbsd.org>
+.\" Copyright (c) 2015 Joerg Jung <jung@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 27 2024 $
+.Dt UGOLD 4
+.Os
+.Sh NAME
+.Nm ugold
+.Nd TEMPer gold HID thermometer and hygrometer
+.Sh SYNOPSIS
+.Cd "ugold* at uhidev?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCsensors TEMPer gold devices.
+The following devices are supported by the
+.Nm
+driver:
+.Bl -column "RDing TEMPerHUM1V1.0" "1 Temperature" -offset indent
+.It Em "Device" Ta Em "Sensors"
+.It Li "RDing TEMPer1V1.2" Ta "1 Temperature"
+.It Li "RDing TEMPerV1.4" Ta "1 Temperature"
+.It Li "RDing TEMPer1F_V4.1" Ta "1 Temperature (external)"
+.It Li "RDing TEMPer2_V4.1" Ta "2 Temperature (internal/external)"
+.It Li "RDing TEMPerGold_V3.1" Ta "1 Temperature"
+.It Li "RDing TEMPerGold_V3.4" Ta "1 Temperature"
+.It Li "RDing TEMPerGold_V3.5" Ta "1 Temperature"
+.It Li "RDing TEMPerHum1V1.0" Ta "1 Temperature and 1 Humidity"
+.It Li "RDing TEMPerHum1V1.2" Ta "1 Temperature and 1 Humidity"
+.It Li "RDing TEMPerHUM_V3.9" Ta "1 Temperature and 1 Humidity"
+.It Li "RDing TEMPerHUM_V4.0" Ta "1 Temperature and 1 Humidity"
+.It Li "RDing TEMPerHUM_V4.1" Ta "1 Temperature and 1 Humidity"
+.It Li "RDing TEMPer1F_H1V1.5F" Ta "1 Temperature and 1 Humidity"
+.It Li "RDing TEMPerX_V3.1" Ta "1 Temperature and 1 Humidity"
+.It Li "RDing TEMPerX_V3.3" Ta "1 Temperature and 1 Humidity"
+.El
+.Pp
+The driver possesses a collection of sensor values which are
+made available through the
+.Xr sysctl 8
+interface.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr uhidev 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Takayoshi SASANO Aq Mt uaa@openbsd.org
+and
+.An Martin Pieuchot Aq Mt mpi@openbsd.org .
+.Pp
+TEMPerHUM support was added by
+.An Joerg Jung Aq Mt jung@openbsd.org .
+.Sh CAVEATS
+Linearization and temperature compensation for the humidity values of the
+TEMPerHUM1V1.0 is not implemented.

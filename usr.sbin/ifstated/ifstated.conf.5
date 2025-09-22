@@ -1,0 +1,203 @@
+.\" $OpenBSD: ifstated.conf.5,v 1.18 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 Nikolay Sturm <sturm@openbsd.org>
+.\" Copyright (c) 2005 Marco Pfatschbacher <mpf@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt IFSTATED.CONF 5
+.Os
+.Sh NAME
+.Nm ifstated.conf
+.Nd Interface State daemon configuration file
+.Sh DESCRIPTION
+The
+.Xr ifstated 8
+daemon runs commands in response to network state changes, which it
+determines by monitoring interface link state or running external tests.
+.Nm
+is the configuration file for this daemon.
+.Pp
+The
+.Nm
+config file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Global configuration
+Global settings for
+.Xr ifstated 8 .
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx State definitions
+Definitions of states and transitions.
+.El
+.Ss Global configuration
+.Bl -tag -width Ds
+.It Ic init-state Ar state
+Set the initial state to
+.Ar state
+instead of using the first state defined.
+.El
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ar state
+or
+.Ar run ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+Macros are usually used to define tests for state transitions like interface
+link state or external tests.
+.Pp
+Currently an interface can have three different link states:
+.Pp
+.Bl -tag -width xxxxxxxx -compact
+.It Ar up
+The physical link of the interface is up.
+For
+.Xr carp 4
+interfaces this equals the master state.
+.It Ar down
+The physical link of the interface is down.
+For
+.Xr carp 4
+interfaces this equals the backup state.
+.It Ar unknown
+The physical link of the interface is unknown.
+This is because the interface driver does not provide information of the
+physical link state.
+For
+.Xr carp 4
+interfaces this equals the init state.
+.El
+.Pp
+In contrast to link state tests, external tests must be run periodically to
+evaluate their status.
+The frequency at which an external test is run is set, in seconds, with the
+.Ar every
+keyword.
+.Pp
+For example:
+.Bd -literal -offset indent
+links_up = "em0.link.up && em1.link.up"
+net = '( "ping -q -c 1 -w 1 192.168.0.1 > /dev/null" every 10 && \e
+         "ping -q -c 1 -w 1 192.168.0.2 > /dev/null" every 10 )'
+.Ed
+.Ss Tests and events
+.Xr ifstated 8
+delegates the process of testing to libevent which associates a value with
+every test, in this case
+.Em true
+or
+.Em false .
+Whenever the value of a test associated with the current state changes,
+an event is triggered and the state's body is processed.
+.Ss State definitions
+.Xr ifstated 8
+operates on a finite state machine with states and transitions.
+.Pp
+Each state consists of an
+.Em init
+block and a body.
+The
+.Em init
+block is used to initialise the state and is executed each time the state
+is entered.
+The body of a state is only executed when that state is the current state
+and an event occurs.
+.Pp
+The action taken within a certain state is typically made dependent on the
+evaluation of one or more
+.Em if
+statements.
+Possible actions include executing commands using the
+.Em run
+statement, or triggering a state transition with the
+.Ar set-state
+keyword.
+It is also possible to write multiple nested
+.Em if
+blocks.
+.Pp
+For example:
+.Bd -literal -offset indent
+state one {
+	init {
+		run "logger -t ifstated entering state one"
+		run "ifconfig -g carp -carpdemote"
+	}
+
+	if ! $net || urndis0.link.up
+		set-state two
+
+	if ! $links_up {
+		run "ifconfig -g carp carpdemote"
+
+		if urndis0.link.down
+			set-state three
+	}
+}
+.Ed
+.Sh GRAMMAR
+Syntax for
+.Nm
+in BNF:
+.Bd -literal
+grammar		= entry grammar | entry
+
+entry		= global_config | varset | action | state
+
+global_config	= initstate
+initstate	= "init-state" string
+
+varset		= string "=" string
+
+action_list	= action [ action_list ]
+action		= "run" string | "set-state" string |
+		  "if" expr action_block
+action_block	= "{" action_list "}" | action
+expr		= "!" expr | expr "&&" expr | expr "||" expr | term
+term		= if_test | ext_test | "(" expr ")"
+if_test		= string ".link." ( "up" | "down" | "unknown" )
+ext_test	= string "every" number
+
+state		= "state" string "{" stateopt_list "}"
+stateopt_list	= stateopt [ stateopt_list ]
+stateopt	= init | action
+init		= "init" action_block
+.Ed
+.Sh FILES
+.Bl -tag -width /etc/examples/ifstated.conf -compact
+.It Pa /etc/ifstated.conf
+.Xr ifstated 8
+configuration file.
+.It Pa /etc/examples/ifstated.conf
+Example configuration file.
+.El
+.Sh SEE ALSO
+.Xr carp 4 ,
+.Xr pf 4 ,
+.Xr ifstated 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 3.8 .

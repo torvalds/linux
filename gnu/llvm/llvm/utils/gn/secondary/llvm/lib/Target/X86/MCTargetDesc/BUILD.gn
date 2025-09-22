@@ -1,0 +1,87 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("X86GenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../X86.td"
+}
+
+tablegen("X86GenAsmWriter1") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [
+    "-gen-asm-writer",
+    "-asmwriternum=1",
+  ]
+  td_file = "../X86.td"
+}
+
+tablegen("X86GenInstrInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../X86.td"
+}
+
+tablegen("X86GenMnemonicTables") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [
+    "-gen-x86-mnemonic-tables",
+    "-asmwriternum=1",
+  ]
+  td_file = "../X86.td"
+}
+
+tablegen("X86GenRegisterInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../X86.td"
+}
+
+tablegen("X86GenSubtargetInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../X86.td"
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMX86Desc"
+
+  # This should contain tablegen targets generating .inc files included
+  # by other targets. .inc files only used by .cpp files in this directory
+  # should be in deps instead.
+  public_deps = [
+    ":X86GenInstrInfo",
+    ":X86GenMnemonicTables",
+    ":X86GenRegisterInfo",
+    ":X86GenSubtargetInfo",
+  ]
+  deps = [
+    ":X86GenAsmWriter",
+    ":X86GenAsmWriter1",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/X86/TargetInfo",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "X86ATTInstPrinter.cpp",
+    "X86AsmBackend.cpp",
+    "X86ELFObjectWriter.cpp",
+    "X86EncodingOptimization.cpp",
+    "X86InstComments.cpp",
+    "X86InstPrinterCommon.cpp",
+    "X86IntelInstPrinter.cpp",
+    "X86MCAsmInfo.cpp",
+    "X86MCCodeEmitter.cpp",
+    "X86MCTargetDesc.cpp",
+    "X86MachObjectWriter.cpp",
+    "X86MnemonicTables.cpp",
+    "X86ShuffleDecode.cpp",
+    "X86WinCOFFObjectWriter.cpp",
+    "X86WinCOFFStreamer.cpp",
+    "X86WinCOFFTargetStreamer.cpp",
+  ]
+}

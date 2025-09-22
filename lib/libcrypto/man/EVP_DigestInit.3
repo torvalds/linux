@@ -1,0 +1,608 @@
+.\" $OpenBSD: EVP_DigestInit.3,v 1.39 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 7f572e95 Dec 2 13:57:04 2015 +0000
+.\" selective merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2019, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>,
+.\" Richard Levitte <levitte@openssl.org>,
+.\" Paul Yang <yang.yang@baishancloud.com>, and
+.\" Antoine Salon <asalon@vmware.com>.
+.\" Copyright (c) 2000-2004, 2009, 2012-2016, 2018, 2019 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_DIGESTINIT 3
+.Os
+.Sh NAME
+.Nm EVP_MD_CTX_new ,
+.Nm EVP_MD_CTX_reset ,
+.Nm EVP_MD_CTX_free ,
+.Nm EVP_MD_CTX_init ,
+.Nm EVP_MD_CTX_create ,
+.Nm EVP_MD_CTX_cleanup ,
+.Nm EVP_MD_CTX_destroy ,
+.Nm EVP_DigestInit_ex ,
+.Nm EVP_DigestUpdate ,
+.Nm EVP_DigestFinal_ex ,
+.Nm EVP_Digest ,
+.Nm EVP_MD_CTX_copy_ex ,
+.Nm EVP_DigestInit ,
+.Nm EVP_DigestFinal ,
+.Nm EVP_MD_CTX_copy ,
+.Nm EVP_MD_CTX_md ,
+.Nm EVP_md_null ,
+.Nm EVP_sha224 ,
+.Nm EVP_sha256 ,
+.Nm EVP_sha384 ,
+.Nm EVP_sha512 ,
+.Nm EVP_sha512_224 ,
+.Nm EVP_sha512_256 ,
+.Nm EVP_ripemd160 ,
+.Nm EVP_get_digestbyname ,
+.Nm EVP_get_digestbynid ,
+.Nm EVP_get_digestbyobj
+.Nd EVP digest routines
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft EVP_MD_CTX *
+.Fn EVP_MD_CTX_new void
+.Ft int
+.Fo EVP_MD_CTX_reset
+.Fa "EVP_MD_CTX *ctx"
+.Fc
+.Ft void
+.Fo EVP_MD_CTX_free
+.Fa "EVP_MD_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_MD_CTX_init
+.Fa "EVP_MD_CTX *ctx"
+.Fc
+.Ft EVP_MD_CTX *
+.Fn EVP_MD_CTX_create void
+.Ft int
+.Fo EVP_MD_CTX_cleanup
+.Fa "EVP_MD_CTX *ctx"
+.Fc
+.Ft void
+.Fo EVP_MD_CTX_destroy
+.Fa "EVP_MD_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_DigestInit_ex
+.Fa "EVP_MD_CTX *ctx"
+.Fa "const EVP_MD *type"
+.Fa "ENGINE *engine"
+.Fc
+.Ft int
+.Fo EVP_DigestUpdate
+.Fa "EVP_MD_CTX *ctx"
+.Fa "const void *d"
+.Fa "size_t cnt"
+.Fc
+.Ft int
+.Fo EVP_DigestFinal_ex
+.Fa "EVP_MD_CTX *ctx"
+.Fa "unsigned char *md"
+.Fa "unsigned int *s"
+.Fc
+.Ft int
+.Fo EVP_Digest
+.Fa "const void *d"
+.Fa "size_t cnt"
+.Fa "unsigned char *md"
+.Fa "unsigned int *s"
+.Fa "const EVP_MD *type"
+.Fa "ENGINE *engine"
+.Fc
+.Ft int
+.Fo EVP_MD_CTX_copy_ex
+.Fa "EVP_MD_CTX *out"
+.Fa "const EVP_MD_CTX *in"
+.Fc
+.Ft int
+.Fo EVP_DigestInit
+.Fa "EVP_MD_CTX *ctx"
+.Fa "const EVP_MD *type"
+.Fc
+.Ft int
+.Fo EVP_DigestFinal
+.Fa "EVP_MD_CTX *ctx"
+.Fa "unsigned char *md"
+.Fa "unsigned int *s"
+.Fc
+.Ft int
+.Fo EVP_MD_CTX_copy
+.Fa "EVP_MD_CTX *out"
+.Fa "EVP_MD_CTX *in"
+.Fc
+.Ft const EVP_MD *
+.Fo EVP_MD_CTX_md
+.Fa "const EVP_MD_CTX *ctx"
+.Fc
+.Ft const EVP_MD *
+.Fn EVP_md_null void
+.Ft const EVP_MD *
+.Fn EVP_sha224 void
+.Ft const EVP_MD *
+.Fn EVP_sha256 void
+.Ft const EVP_MD *
+.Fn EVP_sha384 void
+.Ft const EVP_MD *
+.Fn EVP_sha512 void
+.Ft const EVP_MD *
+.Fn EVP_sha512_224 void
+.Ft const EVP_MD *
+.Fn EVP_sha512_256 void
+.Ft const EVP_MD *
+.Fn EVP_ripemd160 void
+.Ft const EVP_MD *
+.Fo EVP_get_digestbyname
+.Fa "const char *name"
+.Fc
+.Ft const EVP_MD *
+.Fo EVP_get_digestbynid
+.Fa "int type"
+.Fc
+.Ft const EVP_MD *
+.Fo EVP_get_digestbyobj
+.Fa "const ASN1_OBJECT *o"
+.Fc
+.Sh DESCRIPTION
+The EVP digest routines are a high-level interface to message digests
+and should be used instead of the cipher-specific functions.
+.Pp
+.Fn EVP_MD_CTX_new
+allocates a new, empty digest context.
+.Pp
+.Fn EVP_MD_CTX_reset
+cleans up
+.Fa ctx
+and resets it to the state it had after
+.Fn EVP_MD_CTX_new ,
+such that it can be reused.
+.Pp
+.Fn EVP_MD_CTX_free
+cleans up
+.Fa ctx
+and frees the space allocated to it.
+.Pp
+.Fn EVP_MD_CTX_init
+is a deprecated function to clear a digest context on the stack
+before use.
+Do not use it on a digest context returned from
+.Fn EVP_MD_CTX_new
+or one that was already used.
+.Pp
+.Fn EVP_MD_CTX_create ,
+.Fn EVP_MD_CTX_cleanup ,
+and
+.Fn EVP_MD_CTX_destroy
+are deprecated aliases for
+.Fn EVP_MD_CTX_new ,
+.Fn EVP_MD_CTX_reset ,
+and
+.Fn EVP_MD_CTX_free ,
+respectively.
+.Pp
+.Fn EVP_DigestInit_ex
+sets up the digest context
+.Fa ctx
+to use a digest
+.Fa type .
+The
+.Fa type
+will typically be supplied by a function such as
+.Fn EVP_sha512 .
+The
+.Fa ENGINE *engine
+argument is always ignored and passing
+.Dv NULL
+is recommended.
+.Pp
+.Fn EVP_DigestUpdate
+hashes
+.Fa cnt
+bytes of data at
+.Fa d
+into the digest context
+.Fa ctx .
+This function can be called several times on the same
+.Fa ctx
+to hash additional data.
+.Pp
+.Fn EVP_DigestFinal_ex
+retrieves the digest value from
+.Fa ctx
+and places it in
+.Fa md .
+If the
+.Fa s
+parameter is not
+.Dv NULL ,
+then the number of bytes of data written (i.e. the length of the
+digest) will be written to the integer at
+.Fa s ;
+at most
+.Dv EVP_MAX_MD_SIZE
+bytes will be written.
+After calling
+.Fn EVP_DigestFinal_ex ,
+no additional calls to
+.Fn EVP_DigestUpdate
+can be made, but
+.Fn EVP_DigestInit_ex
+can be called to initialize a new digest operation.
+.Pp
+.Fn EVP_Digest
+is a simple wrapper function to hash
+.Fa cnt
+bytes of data at
+.Fa d
+using the digest
+.Fa type
+in a one-shot operation and place the digest value into
+.Fa md ,
+and, unless
+.Fa s
+is
+.Dv NULL ,
+the length of the digest in bytes into
+.Pf * Fa s .
+This wrapper uses a temporary digest context and passes its arguments to
+.Fn EVP_DigestInit_ex ,
+.Fn EVP_DigestUpdate ,
+and
+.Fn EVP_DigestFinal_ex
+internally.
+The
+.Fa ENGINE *engine
+argument is always ignored and passing
+.Dv NULL
+is recommended.
+.Pp
+.Fn EVP_MD_CTX_copy_ex
+can be used to copy the message digest state from
+.Fa in
+to
+.Fa out .
+This is useful if large amounts of data are to be hashed which only
+differ in the last few bytes.
+.Pp
+.Fn EVP_DigestInit
+is a deprecated function behaving like
+.Fn EVP_DigestInit_ex
+except that it requires
+.Fn EVP_MD_CTX_reset
+before it can be used on a context that was already used.
+.Pp
+.Fn EVP_DigestFinal
+is a deprecated function behaving like
+.Fn EVP_DigestFinal_ex
+except that the digest context
+.Fa ctx
+is automatically cleaned up after use by calling
+.Fn EVP_MD_CTX_reset
+internally.
+.Pp
+.Fn EVP_MD_CTX_copy
+is a deprecated function behaving like
+.Fn EVP_MD_CTX_copy_ex
+except that it requires
+.Fn EVP_MD_CTX_reset
+before a context that was already used can be passed as
+.Fa out .
+.Pp
+.Fn EVP_sha224 ,
+.Fn EVP_sha256 ,
+.Fn EVP_sha384 ,
+.Fn EVP_sha512 ,
+and
+.Fn EVP_ripemd160
+return
+.Vt EVP_MD
+structures for the SHA-224, SHA-256, SHA-384, SHA-512 and
+RIPEMD-160 digest algorithms respectively.
+.Pp
+.Fn EVP_sha512_224
+and
+.Fn EVP_sha512_256
+return an
+.Vt EVP_MD
+structure that provides the truncated SHA-512 variants
+SHA-512/224 and SHA-512/256,
+respectively.
+.Pp
+.Fn EVP_md_null
+is a "null" message digest that does nothing:
+i.e. the hash it returns is of zero length.
+.Pp
+.Fn EVP_get_digestbyname ,
+.Fn EVP_get_digestbynid ,
+and
+.Fn EVP_get_digestbyobj
+return an
+.Vt EVP_MD
+structure when passed a digest name, a digest NID, or an ASN1_OBJECT
+structure respectively.
+.Pp
+.Fn EVP_get_digestbynid
+and
+.Fn EVP_get_digestbyobj
+are implemented as macros.
+.Pp
+The EVP interface to message digests should almost always be used
+in preference to the low-level interfaces.
+This is because the code then becomes transparent to the digest used and
+much more flexible.
+.Pp
+The
+.Fa ENGINE *engine
+argument is always ignored and passing
+.Dv NULL
+is recommended.
+.Pp
+The functions
+.Fn EVP_DigestInit ,
+.Fn EVP_DigestFinal ,
+and
+.Fn EVP_MD_CTX_copy
+are obsolete but are retained to maintain compatibility with existing
+code.
+New applications should use
+.Fn EVP_DigestInit_ex ,
+.Fn EVP_DigestFinal_ex ,
+and
+.Fn EVP_MD_CTX_copy_ex
+because they can efficiently reuse a digest context instead of
+initializing and cleaning it up on each call.
+.Pp
+If digest contexts are not cleaned up after use, memory leaks will occur.
+.Sh RETURN VALUES
+.Fn EVP_MD_CTX_new
+and
+.Fn EVP_MD_CTX_create
+return the new
+.Vt EVP_MD_CTX
+object or
+.Dv NULL
+for failure.
+.Pp
+.Fn EVP_MD_CTX_reset ,
+.Fn EVP_MD_CTX_init ,
+and
+.Fn EVP_MD_CTX_cleanup
+always return 1.
+.Pp
+.Fn EVP_DigestInit_ex ,
+.Fn EVP_DigestUpdate ,
+.Fn EVP_DigestFinal_ex ,
+.Fn EVP_Digest ,
+.Fn EVP_MD_CTX_copy_ex ,
+.Fn EVP_DigestInit ,
+.Fn EVP_DigestFinal ,
+and
+.Fn EVP_MD_CTX_copy
+return 1 for success or 0 for failure.
+.Pp
+.Fn EVP_MD_CTX_md
+returns the
+.Vt EVP_MD
+object used by
+.Fa ctx ,
+or
+.Dv NULL
+if
+.Fa ctx
+is
+.Dv NULL
+or does not have any message digest algorithm assigned yet.
+.Pp
+.Fn EVP_md_null ,
+.Fn EVP_sha224 ,
+.Fn EVP_sha256 ,
+.Fn EVP_sha384 ,
+.Fn EVP_sha512 ,
+.Fn EVP_sha512_224 ,
+.Fn EVP_sha512_256 ,
+and
+.Fn EVP_ripemd160
+return pointers to constant static objects owned by the library.
+.Pp
+.Fn EVP_get_digestbyname ,
+.Fn EVP_get_digestbynid ,
+and
+.Fn EVP_get_digestbyobj
+return either an
+.Vt EVP_MD
+structure or
+.Dv NULL
+if an error occurs.
+.Sh EXAMPLES
+This example digests the data "Test Message\en" and "Hello World\en",
+using the digest name passed on the command line.
+.Bd -literal -offset indent
+#include <stdio.h>
+#include <string.h>
+#include <openssl/evp.h>
+
+int
+main(int argc, char *argv[])
+{
+	EVP_MD_CTX *mdctx;
+	const EVP_MD *md;
+	const char mess1[] = "Test Message\en";
+	const char mess2[] = "Hello World\en";
+	unsigned char md_value[EVP_MAX_MD_SIZE];
+	unsigned int md_len, i;
+
+	if (argc <= 1) {
+		printf("Usage: mdtest digestname\en");
+		exit(1);
+	}
+
+	md = EVP_get_digestbyname(argv[1]);
+	if (md == NULL) {
+		printf("Unknown message digest %s\en", argv[1]);
+		exit(1);
+	}
+
+	mdctx = EVP_MD_CTX_new();
+	EVP_DigestInit_ex(mdctx, md, NULL);
+	EVP_DigestUpdate(mdctx, mess1, strlen(mess1));
+	EVP_DigestUpdate(mdctx, mess2, strlen(mess2));
+	EVP_DigestFinal_ex(mdctx, md_value, &md_len);
+	EVP_MD_CTX_free(mdctx);
+
+	printf("Digest is: ");
+	for(i = 0; i < md_len; i++)
+		printf("%02x", md_value[i]);
+	printf("\en");
+
+	return 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr BIO_f_md 3 ,
+.Xr CMAC_Init 3 ,
+.Xr evp 3 ,
+.Xr EVP_BytesToKey 3 ,
+.Xr EVP_DigestSignInit 3 ,
+.Xr EVP_DigestVerifyInit 3 ,
+.Xr EVP_MD_CTX_ctrl 3 ,
+.Xr EVP_MD_nid 3 ,
+.Xr EVP_PKEY_CTX_set_signature_md 3 ,
+.Xr EVP_sha1 3 ,
+.Xr EVP_sha3_224 3 ,
+.Xr EVP_SignInit 3 ,
+.Xr EVP_sm3 3 ,
+.Xr EVP_VerifyInit 3 ,
+.Xr HMAC 3 ,
+.Xr OCSP_basic_sign 3 ,
+.Xr OCSP_request_sign 3 ,
+.Xr PKCS5_PBKDF2_HMAC 3 ,
+.Xr PKCS7_sign_add_signer 3 ,
+.Xr X509_ALGOR_set0 3 ,
+.Xr X509_digest 3 ,
+.Xr X509_sign 3
+.Sh HISTORY
+.Fn EVP_DigestInit ,
+.Fn EVP_DigestUpdate ,
+and
+.Fn EVP_DigestFinal
+first appeared in SSLeay 0.5.1.
+.Fn EVP_md_null
+and
+.Fn EVP_get_digestbyname
+first appeared in SSLeay 0.8.0.
+.Fn EVP_get_digestbynid
+and
+.Fn EVP_get_digestbyobj
+first appeared in SSLeay 0.8.1.
+.Fn EVP_ripemd160
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_MD_CTX_copy
+first appeared in OpenSSL 0.9.2b and has been available since
+.Ox 2.6 .
+.Pp
+.Fn EVP_MD_CTX_md
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Pp
+.Fn EVP_MD_CTX_init ,
+.Fn EVP_MD_CTX_create ,
+.Fn EVP_MD_CTX_cleanup ,
+.Fn EVP_MD_CTX_destroy ,
+.Fn EVP_DigestInit_ex ,
+.Fn EVP_DigestFinal_ex ,
+.Fn EVP_Digest ,
+and
+.Fn EVP_MD_CTX_copy_ex
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn EVP_sha224 ,
+.Fn EVP_sha256 ,
+.Fn EVP_sha384 ,
+and
+.Fn EVP_sha512
+first appeared in OpenSSL 0.9.7h and 0.9.8a
+and have been available since
+.Ox 4.0 .
+.Pp
+.Fn EVP_MD_CTX_new ,
+.Fn EVP_MD_CTX_reset ,
+and
+.Fn EVP_MD_CTX_free
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.3 .
+.Pp
+.Fn EVP_sha512_224
+and
+.Fn EVP_sha512_256
+first appeared in OpenSSL 1.1.1 and have been available since
+.Ox 7.4 .

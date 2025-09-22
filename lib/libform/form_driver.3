@@ -1,0 +1,269 @@
+'\" t
+.\" $OpenBSD: form_driver.3,v 1.9 2023/10/17 09:52:10 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form_driver.3,v 1.9 2023/10/17 09:52:10 nicm Exp $
+.TH form_driver 3 2023-08-19 "ncurses 6.4" "Library calls"
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fBform_driver\fP,
+\fBform_driver_w\fP \- command-processing loop of the form system
+.SH SYNOPSIS
+\fB#include <form.h>\fP
+.sp
+\fBint form_driver(FORM *\fIform\fB, int \fIc\fB);\fR
+.br
+\fBint form_driver_w(FORM *\fIform\fB, int \fIc\fB, wchar_t \fIwch\fB);\fR
+.SH DESCRIPTION
+.SS form_driver
+Once a form has been posted (displayed), you should funnel input events to it
+through \fBform_driver\fP.  This routine has three major input cases:
+.bP
+The input is a form navigation request.
+Navigation request codes are constants defined in \fB<form.h>\fP,
+which are distinct from the key- and character codes returned
+by \fBwgetch\fP(3).
+.bP
+The input is a printable character.
+Printable characters (which must be positive, less than 256) are
+checked according to the program's locale settings.
+.bP
+The input is the KEY_MOUSE special key associated with an mouse event.
+.SS form_driver_w
+This extension simplifies the use of the forms library using wide characters.
+The input is either a key code (a request) or a wide character
+returned by \fBget_wch\fP(3).
+The type must be passed as well,
+to enable the library to determine whether the parameter
+is a wide character or a request.
+.SS Form-driver requests
+The form driver requests are as follows:
+.PP
+.TS
+l l
+_ _
+l l.
+\fBName\fP	\fBDescription\fP
+REQ_BEG_FIELD	Move to the beginning of the field.
+REQ_BEG_LINE	Move to the beginning of the line.
+REQ_CLR_EOF	Clear to end of field from cursor.
+REQ_CLR_EOL	Clear to end of line from cursor.
+REQ_CLR_FIELD	Clear the entire field.
+REQ_DEL_CHAR	Delete character at the cursor.
+REQ_DEL_LINE	Delete line at the cursor.
+REQ_DEL_PREV	Delete character before the cursor.
+REQ_DEL_WORD	Delete blank-delimited word at the cursor.
+REQ_DOWN_CHAR	Move down in the field.
+REQ_DOWN_FIELD	Move down to a field.
+REQ_END_FIELD	Move to the end of the field.
+REQ_END_LINE	Move to the end of the line.
+REQ_FIRST_FIELD	Move to the first field.
+REQ_FIRST_PAGE	Move to the first page.
+REQ_INS_CHAR	Insert a blank at the cursor.
+REQ_INS_LINE	Insert a blank line at the cursor.
+REQ_INS_MODE	Enter insert mode.
+REQ_LAST_FIELD	Move to the last field.
+REQ_LAST_PAGE	Move to the last field.
+REQ_LEFT_CHAR	Move left in the field.
+REQ_LEFT_FIELD	Move left to a field.
+REQ_NEW_LINE	Insert or overlay a new line.
+REQ_NEXT_CHAR	Move to the next char.
+REQ_NEXT_CHOICE	Display next field choice.
+REQ_NEXT_FIELD	Move to the next field.
+REQ_NEXT_LINE	Move to the next line.
+REQ_NEXT_PAGE	Move to the next page.
+REQ_NEXT_PAGE	Move to the next page.
+REQ_NEXT_WORD	Move to the next word.
+REQ_OVL_MODE	Enter overlay mode.
+REQ_PREV_CHAR	Move to the previous char.
+REQ_PREV_CHOICE	Display previous field choice.
+REQ_PREV_FIELD	Move to the previous field.
+REQ_PREV_LINE	Move to the previous line.
+REQ_PREV_PAGE	Move to the previous page.
+REQ_PREV_WORD	Move to the previous word.
+REQ_RIGHT_CHAR	Move right in the field.
+REQ_RIGHT_FIELD	Move right to a field.
+REQ_SCR_BCHAR	Scroll the field backward a character.
+REQ_SCR_BHPAGE	Scroll the field backward half a page.
+REQ_SCR_BLINE	Scroll the field backward a line.
+REQ_SCR_BPAGE	Scroll the field backward a page.
+REQ_SCR_FCHAR	Scroll the field forward a character.
+REQ_SCR_FHPAGE	Scroll the field forward half a page.
+REQ_SCR_FLINE	Scroll the field forward a line.
+REQ_SCR_FPAGE	Scroll the field forward a page.
+REQ_SCR_HBHALF	Horizontal scroll the field backward half a line.
+REQ_SCR_HBLINE	Horizontal scroll the field backward a line.
+REQ_SCR_HFHALF	Horizontal scroll the field forward half a line.
+REQ_SCR_HFLINE	Horizontal scroll the field forward a line.
+REQ_SFIRST_FIELD	Move to the sorted first field.
+REQ_SLAST_FIELD	Move to the sorted last field.
+REQ_SNEXT_FIELD	Move to the sorted next field.
+REQ_SPREV_FIELD	Move to the sorted previous field.
+REQ_UP_CHAR	Move up in the field.
+REQ_UP_FIELD	Move up to a field.
+REQ_VALIDATION	Validate field.
+.TE
+.PP
+If the second argument is a printable character, the driver places it
+in the current position in the current field.
+If it is one of the forms
+requests listed above, that request is executed.
+.SS Field validation
+The form library makes updates to the window associated
+with form fields rather than directly to the field buffers.
+.PP
+The form driver provides low-level control over updates to the form fields.
+The form driver also provides for validating modified fields
+to ensure that the contents
+meet whatever constraints an application may attach using \fBset_field_type\fP.
+.PP
+You can validate a field without making any changes to it using
+\fBREQ_VALIDATION\fP.
+The form driver also validates a field in these cases:
+.bP
+a call to \fBset_current_field\fP attempts to move to a different field.
+.bP
+a call to \fBset_current_page\fP attempts to move
+to a different page of the form.
+.bP
+a request attempts to move to a different field.
+.bP
+a request attempts to move to a different page of the form.
+.PP
+In each case, the move fails if the field is invalid.
+.PP
+If the modified field is valid, the form driver copies the modified
+data from the window associated with the field
+to the field buffer.
+.SS Mouse handling
+If the second argument is the KEY_MOUSE special key, the associated
+mouse event is translated into one of the above pre-defined requests.
+Currently only clicks in the user window (e.g., inside the form display
+area or the decoration window) are handled.
+.PP
+If you click above the display region of the form:
+.RS 3
+.TP
+a REQ_PREV_FIELD is generated for a single click,
+.TP
+a REQ_PREV_PAGE is generated for a double-click and
+.TP
+a REQ_FIRST_FIELD is generated for a triple-click.
+.RE
+.PP
+If you click below the display region of the form:
+.RS 3
+.TP
+a REQ_NEXT_FIELD is generated for a single click,
+.TP
+a REQ_NEXT_PAGE is generated for a double-click and
+.TP
+a REQ_LAST_FIELD is generated for a triple-click.
+.RE
+.PP
+If you click at an field inside the display area of the form:
+.RS 3
+.bP
+the form cursor is positioned to that field.
+.bP
+If you double-click a field,
+the form cursor is positioned to that field
+and \fBE_UNKNOWN_COMMAND\fP is returned.
+This return value makes sense,
+because a double click usually means that an field-specific action should
+be returned.
+It is exactly the purpose of this return value to signal that an
+application specific command should be executed.
+.bP
+If a translation
+into a request was done, \fBform_driver\fP returns the result of this request.
+.RE
+.PP
+If you clicked outside the user window
+or the mouse event could not be translated
+into a form request an \fBE_REQUEST_DENIED\fP is returned.
+.SS Application-defined commands
+If the second argument is neither printable nor one of the above
+pre-defined form requests, the driver assumes it is an application-specific
+command and returns \fBE_UNKNOWN_COMMAND\fP.  Application-defined commands
+should be defined relative to \fBMAX_COMMAND\fP, the maximum value of these
+pre-defined requests.
+.SH RETURN VALUE
+\fBform_driver\fP returns one of the following error codes:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_BAD_STATE
+Routine was called from an initialization or termination function.
+.TP 5
+.B E_NOT_POSTED
+The form has not been posted.
+.TP 5
+.B E_INVALID_FIELD
+Contents of field is invalid.
+.TP 5
+.B E_NOT_CONNECTED
+No fields are connected to the form.
+.TP 5
+.B E_REQUEST_DENIED
+The form driver could not process the request.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fP(3)).
+.TP 5
+.B E_UNKNOWN_COMMAND
+The form driver code saw an unknown request code.
+.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBform\fP(3),
+\fBform_fieldtype\fP(3),
+\fBform_field_buffer\fP(3),
+\fBform_field_validation\fP(3),
+\fBform_variables\fP(3),
+\fBgetch\fP(3).
+.SH NOTES
+The header file \fB<form.h>\fP automatically includes the header files
+\fB<curses.h>\fP.
+.SH PORTABILITY
+These routines emulate the System V forms library.
+They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

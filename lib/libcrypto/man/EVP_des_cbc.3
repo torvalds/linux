@@ -1,0 +1,231 @@
+.\" $OpenBSD: EVP_des_cbc.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to:
+.\"   OpenSSL EVP_desx_cbc.pod 8fa4d95e Oct 21 11:59:09 2017 +0900
+.\" selective merge up to:
+.\"   OpenSSL EVP_des.pod 7c6d372a Nov 20 13:20:01 2018 +0000
+.\"
+.\" This file was written by Ronald Tse <ronald.tse@ribose.com>
+.\" Copyright (c) 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_DES_CBC 3
+.Os
+.Sh NAME
+.Nm EVP_des_cbc ,
+.Nm EVP_des_cfb ,
+.Nm EVP_des_cfb1 ,
+.Nm EVP_des_cfb8 ,
+.Nm EVP_des_cfb64 ,
+.Nm EVP_des_ecb ,
+.Nm EVP_des_ofb ,
+.Nm EVP_des_ede ,
+.Nm EVP_des_ede_cbc ,
+.Nm EVP_des_ede_cfb ,
+.Nm EVP_des_ede_cfb64 ,
+.Nm EVP_des_ede_ecb ,
+.Nm EVP_des_ede_ofb ,
+.Nm EVP_des_ede3 ,
+.Nm EVP_des_ede3_cbc ,
+.Nm EVP_des_ede3_cfb ,
+.Nm EVP_des_ede3_cfb1 ,
+.Nm EVP_des_ede3_cfb8 ,
+.Nm EVP_des_ede3_cfb64 ,
+.Nm EVP_des_ede3_ecb ,
+.Nm EVP_des_ede3_ofb ,
+.Nm EVP_desx_cbc
+.Nd EVP DES cipher
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft const EVP_CIPHER *
+.Fn EVP_des_cbc void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_cfb void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_cfb1 void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_cfb8 void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_cfb64 void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ecb void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ofb void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede_cbc void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede_cfb void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede_cfb64 void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede_ecb void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede_ofb void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede3 void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede3_cbc void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede3_cfb void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede3_cfb1 void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede3_cfb8 void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede3_cfb64 void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede3_ecb void
+.Ft const EVP_CIPHER *
+.Fn EVP_des_ede3_ofb void
+.Ft const EVP_CIPHER *
+.Fn EVP_desx_cbc void
+.Sh DESCRIPTION
+These functions provide the DES encryption algorithm in the
+.Xr evp 3
+framework.
+DES is a block cipher operating on 64 bit blocks.
+The key length to be used for
+.Xr EVP_EncryptInit 3
+is 64 bits.
+However, only 56 of these bits are used in the encryption algorithm.
+The least significant bit in each of the eight bytes is only used
+for checking parity.
+Using this algorithm is discouraged because the short key length
+makes it vulnerable to brute force attacks.
+.Pp
+.Fn EVP_des_cbc ,
+.Fn EVP_des_cfb1 ,
+.Fn EVP_des_cfb8 ,
+.Fn EVP_des_cfb64 ,
+.Fn EVP_des_ecb ,
+and
+.Fn EVP_des_ofb
+provide DES in CBC, CFB with 1-bit shift, CFB with 8-bit shift,
+CFB with 64-bit shift, ECB, and OFB modes.
+.Fn EVP_des_cfb
+is an alias for
+.Fn EVP_des_cfb64 ,
+implemented as a macro.
+.Pp
+.Fn EVP_des_ede_cbc ,
+.Fn EVP_des_ede_cfb64 ,
+.Fn EVP_des_ede_ecb ,
+and
+.Fn EVP_des_ede_ofb
+provide two key triple DES in CBC, CFB with 64-bit shift, ECB, and OFB modes.
+.Fn EVP_des_ede_cfb
+is an alias for
+.Fn EVP_des_ede_cfb64 ,
+implemented as a macro.
+.Fn EVP_des_ede
+is an alias for
+.Fn EVP_des_ede_ecb .
+.Pp
+.Fn EVP_des_ede3_cbc ,
+.Fn EVP_des_ede3_cfb1 ,
+.Fn EVP_des_ede3_cfb8 ,
+.Fn EVP_des_ede3_cfb64 ,
+.Fn EVP_des_ede3_ecb ,
+.Fn EVP_des_ede3_ofb
+provide three key triple DES in CBC, CFB with 1-bit shift, CFB with 8-bit
+shift, CFB with 64-bit shift, ECB, and OFB modes.
+.Fn EVP_des_ede3_cfb
+is an alias for
+.Fn EVP_des_ede3_cfb64 ,
+implemented as a macro.
+.Fn EVP_des_ede3
+is an alias for
+.Fn EVP_des_ede3_ecb .
+.Pp
+.Fn EVP_desx_cbc
+provides the DES-X encryption algorithm in CBC mode.
+It uses a key length of 128 bits and acts on blocks of 128 bits.
+.Sh RETURN VALUES
+These functions return an
+.Vt EVP_CIPHER
+structure that provides the implementation of the symmetric cipher.
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_EncryptInit 3
+.Sh HISTORY
+.Fn EVP_des_cbc ,
+.Fn EVP_des_cfb ,
+.Fn EVP_des_ecb ,
+.Fn EVP_des_ofb ,
+.Fn EVP_des_ede ,
+.Fn EVP_des_ede_cbc ,
+.Fn EVP_des_ede_cfb ,
+.Fn EVP_des_ede_ofb ,
+.Fn EVP_des_ede3 ,
+.Fn EVP_des_ede3_cbc ,
+.Fn EVP_des_ede3_cfb ,
+and
+.Fn EVP_des_ede3_ofb
+first appeared in SSLeay 0.5.1.
+.Fn EVP_desx_cbc
+first appeared in SSLeay 0.6.2.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_des_ede_ecb
+and
+.Fn EVP_des_ede3_ecb
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn EVP_des_cfb1 ,
+.Fn EVP_des_cfb8 ,
+.Fn EVP_des_cfb64 ,
+.Fn EVP_des_ede_cfb64 ,
+.Fn EVP_des_ede3_cfb1 ,
+.Fn EVP_des_ede3_cfb8 ,
+and
+.Fn EVP_des_ede3_cfb64
+first appeared in OpenSSL 0.9.7e and have been available since
+.Ox 3.8 .

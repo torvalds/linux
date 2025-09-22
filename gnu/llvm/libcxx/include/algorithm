@@ -1,0 +1,2049 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_ALGORITHM
+#define _LIBCPP_ALGORITHM
+
+/*
+    algorithm synopsis
+
+#include <initializer_list>
+
+namespace std
+{
+
+namespace ranges {
+
+  // [algorithms.results], algorithm result types
+  template <class I, class F>
+    struct in_fun_result;                // since C++20
+
+  template <class I1, class I2>
+    struct in_in_result;                 // since C++20
+
+  template <class I, class O>
+    struct in_out_result;                // since C++20
+
+  template <class I1, class I2, class O>
+    struct in_in_out_result;             // since C++20
+
+  template <class I, class O1, class O2>
+    struct in_out_out_result;            // since C++20
+
+  template <class I1, class I2>
+    struct min_max_result;               // since C++20
+
+  template <class I>
+    struct in_found_result;              // since C++20
+
+  template <class I, class T>
+    struct in_value_result;              // since C++23
+
+  template<forward_iterator I, sentinel_for<I> S, class Proj = identity,
+    indirect_strict_weak_order<projected<I, Proj>> Comp = ranges::less>                                   // since C++20
+  constexpr I min_element(I first, S last, Comp comp = {}, Proj proj = {});
+
+  template<forward_range R, class Proj = identity,
+    indirect_strict_weak_order<projected<iterator_t<R>, Proj>> Comp = ranges::less>                       // since C++20
+  constexpr borrowed_iterator_t<R> min_element(R&& r, Comp comp = {}, Proj proj = {});
+
+  template<forward_iterator I, sentinel_for<I> S, class Proj = identity,
+    indirect_strict_weak_order<projected<I, Proj>> Comp = ranges::less>
+  constexpr I ranges::max_element(I first, S last, Comp comp = {}, Proj proj = {});                       // since C++20
+
+  template<forward_range R, class Proj = identity,
+    indirect_strict_weak_order<projected<iterator_t<R>, Proj>> Comp = ranges::less>
+  constexpr borrowed_iterator_t<R> ranges::max_element(R&& r, Comp comp = {}, Proj proj = {});            // since C++20
+
+  template<class I1, class I2>
+    using mismatch_result = in_in_result<I1, I2>;
+
+  template <input_iterator I1, sentinel_for<_I1> S1, input_iterator I2, sentinel_for<_I2> S2,
+          class Pred = ranges::equal_to, class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_comparable<I1, I2, Pred, Proj1, Proj2>
+  constexpr mismatch_result<_I1, _I2>                                                                     // since C++20
+  mismatch()(I1 first1, S1 last1, I2 first2, S2 last2, Pred pred = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
+
+  template <input_range R1, input_range R2,
+          class Pred = ranges::equal_to, class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_comparable<iterator_t<R1>, iterator_t<R2>, Pred, Proj1, Proj2>
+  constexpr mismatch_result<borrowed_iterator_t<R1>, borrowed_iterator_t<R2>>
+  mismatch(R1&& r1, R2&& r2, Pred pred = {}, Proj1 proj1 = {}, Proj2 proj2 = {})                          // since C++20
+
+    requires indirect_binary_predicate<ranges::equal_to, projected<I, Proj>, const T*>
+    constexpr I find(I first, S last, const T& value, Proj proj = {});                                    // since C++20
+
+  template<input_range R, class T, class Proj = identity>
+    requires indirect_binary_predicate<ranges::equal_to, projected<iterator_t<R>, Proj>, const T*>
+    constexpr borrowed_iterator_t<R>
+      find(R&& r, const T& value, Proj proj = {});                                                        // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr I find_if(I first, S last, Pred pred, Proj proj = {});                                      // since C++20
+
+  template<input_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    constexpr borrowed_iterator_t<R>
+      find_if(R&& r, Pred pred, Proj proj = {});                                                          // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr I find_if_not(I first, S last, Pred pred, Proj proj = {});                                  // since C++20
+
+  template<input_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    constexpr borrowed_iterator_t<R>
+      find_if_not(R&& r, Pred pred, Proj proj = {});                                                      // since C++20
+
+  template<forward_iterator I, sentinel_for<I> S, class T, class Proj = identity>
+    requires indirect_binary_predicate<ranges::equal_to, projected<I, Proj>, const T*>
+    constexpr subrange<I> find_last(I first, S last, const T& value, Proj proj = {});                     // since C++23
+
+  template<forward_range R, class T, class Proj = identity>
+    requires
+      indirect_binary_predicate<ranges::equal_to, projected<iterator_t<R>, Proj>, const T*>
+    constexpr borrowed_subrange_t<R> find_last(R&& r, const T& value, Proj proj = {});                   // since C++23
+
+  template<forward_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr subrange<I> find_last_if(I first, S last, Pred pred, Proj proj = {});                      // since C++23
+
+  template<forward_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    constexpr borrowed_subrange_t<R> find_last_if(R&& r, Pred pred, Proj proj = {});                     // since C++23
+
+  template<forward_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr subrange<I> find_last_if_not(I first, S last, Pred pred, Proj proj = {});                  // since C++23
+
+  template<forward_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    constexpr borrowed_subrange_t<R> find_last_if_not(R&& r, Pred pred, Proj proj = {});                 // since C++23
+
+  template<class T, class Proj = identity,
+           indirect_strict_weak_order<projected<const T*, Proj>> Comp = ranges::less>
+    constexpr const T& min(const T& a, const T& b, Comp comp = {}, Proj proj = {});                       // since C++20
+
+  template<copyable T, class Proj = identity,
+           indirect_strict_weak_order<projected<const T*, Proj>> Comp = ranges::less>
+    constexpr T min(initializer_list<T> r, Comp comp = {}, Proj proj = {});                               // since C++20
+
+ template<input_range R, class Proj = identity,
+          indirect_strict_weak_order<projected<iterator_t<R>, Proj>> Comp = ranges::less>
+   requires indirectly_copyable_storable<iterator_t<R>, range_value_t<R>*>
+   constexpr range_value_t<R>
+     min(R&& r, Comp comp = {}, Proj proj = {});                                                          // since C++20
+
+  template<class T, class Proj = identity,
+           indirect_strict_weak_order<projected<const T*, Proj>> Comp = ranges::less>
+    constexpr const T& max(const T& a, const T& b, Comp comp = {}, Proj proj = {});                       // since C++20
+
+  template<copyable T, class Proj = identity,
+           indirect_strict_weak_order<projected<const T*, Proj>> Comp = ranges::less>
+    constexpr T max(initializer_list<T> r, Comp comp = {}, Proj proj = {});                               // since C++20
+
+  template<input_range R, class Proj = identity,
+           indirect_strict_weak_order<projected<iterator_t<R>, Proj>> Comp = ranges::less>
+    requires indirectly_copyable_storable<iterator_t<R>, range_value_t<R>*>
+    constexpr range_value_t<R>
+      max(R&& r, Comp comp = {}, Proj proj = {});                                                         // since C++20
+
+  template<class I, class O>
+    using unary_transform_result = in_out_result<I, O>;                                                   // since C++20
+
+  template<class I1, class I2, class O>
+    using binary_transform_result = in_in_out_result<I1, I2, O>;                                          // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, weakly_incrementable O,
+           copy_constructible F, class Proj = identity>
+    requires indirectly_writable<O, indirect_result_t<F&, projected<I, Proj>>>
+    constexpr ranges::unary_transform_result<I, O>
+      transform(I first1, S last1, O result, F op, Proj proj = {});                                       // since C++20
+
+  template<input_range R, weakly_incrementable O, copy_constructible F,
+           class Proj = identity>
+    requires indirectly_writable<O, indirect_result_t<F&, projected<iterator_t<R>, Proj>>>
+    constexpr ranges::unary_transform_result<borrowed_iterator_t<R>, O>
+      transform(R&& r, O result, F op, Proj proj = {});                                                   // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+           weakly_incrementable O, copy_constructible F, class Proj1 = identity,
+           class Proj2 = identity>
+    requires indirectly_writable<O, indirect_result_t<F&, projected<I1, Proj1>,
+                                           projected<I2, Proj2>>>
+    constexpr ranges::binary_transform_result<I1, I2, O>
+      transform(I1 first1, S1 last1, I2 first2, S2 last2, O result,
+                        F binary_op, Proj1 proj1 = {}, Proj2 proj2 = {});                                 // since C++20
+
+  template<input_range R1, input_range R2, weakly_incrementable O,
+           copy_constructible F, class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_writable<O, indirect_result_t<F&, projected<iterator_t<R1>, Proj1>,
+                                           projected<iterator_t<R2>, Proj2>>>
+    constexpr ranges::binary_transform_result<borrowed_iterator_t<R1>, borrowed_iterator_t<R2>, O>
+      transform(R1&& r1, R2&& r2, O result,
+                        F binary_op, Proj1 proj1 = {}, Proj2 proj2 = {});                                 // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class T, class Proj = identity>
+    requires indirect_binary_predicate<ranges::equal_to, projected<I, Proj>, const T*>
+    constexpr iter_difference_t<I>
+      count(I first, S last, const T& value, Proj proj = {});                                             // since C++20
+
+  template<input_range R, class T, class Proj = identity>
+    requires indirect_binary_predicate<ranges::equal_to, projected<iterator_t<R>, Proj>, const T*>
+    constexpr range_difference_t<R>
+      count(R&& r, const T& value, Proj proj = {});                                                       // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr iter_difference_t<I>
+      count_if(I first, S last, Pred pred, Proj proj = {});                                               // since C++20
+
+  template<input_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    constexpr range_difference_t<R>
+      count_if(R&& r, Pred pred, Proj proj = {});                                                         // since C++20
+
+  template<class T>
+  using minmax_result = min_max_result<T>;
+
+  template<class T, class Proj = identity,
+           indirect_strict_weak_order<projected<const T*, Proj>> Comp = ranges::less>
+    constexpr ranges::minmax_result<const T&>
+      minmax(const T& a, const T& b, Comp comp = {}, Proj proj = {});                                     // since C++20
+
+  template<copyable T, class Proj = identity,
+           indirect_strict_weak_order<projected<const T*, Proj>> Comp = ranges::less>
+    constexpr ranges::minmax_result<T>
+      minmax(initializer_list<T> r, Comp comp = {}, Proj proj = {});                                      // since C++20
+
+  template<input_range R, class Proj = identity,
+           indirect_strict_weak_order<projected<iterator_t<R>, Proj>> Comp = ranges::less>
+    requires indirectly_copyable_storable<iterator_t<R>, range_value_t<R>*>
+    constexpr ranges::minmax_result<range_value_t<R>>
+      minmax(R&& r, Comp comp = {}, Proj proj = {});                                                      // since C++20
+
+  template<class I>
+  using minmax_element_result = min_max_result<I>;
+
+  template<forward_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_strict_weak_order<projected<I, Proj>> Comp = ranges::less>
+    constexpr ranges::minmax_element_result<I>
+      minmax_element(I first, S last, Comp comp = {}, Proj proj = {});                                    // since C++20
+
+  template<forward_range R, class Proj = identity,
+           indirect_strict_weak_order<projected<iterator_t<R>, Proj>> Comp = ranges::less>
+    constexpr ranges::minmax_element_result<borrowed_iterator_t<R>>
+      minmax_element(R&& r, Comp comp = {}, Proj proj = {});                                              // since C++20
+
+  template<forward_iterator I1, sentinel_for<I1> S1,
+           forward_iterator I2, sentinel_for<I2> S2,
+           class Pred = ranges::equal_to, class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_comparable<I1, I2, Pred, Proj1, Proj2>
+    constexpr bool contains_subrange(I1 first1, S1 last1, I2 first2, S2 last2,
+                                     Pred pred = {}, Proj1 proj1 = {}, Proj2 proj2 = {});                // since C++23
+
+  template<forward_range R1, forward_range R2,
+           class Pred = ranges::equal_to, class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_comparable<iterator_t<R1>, iterator_t<R2>, Pred, Proj1, Proj2>
+    constexpr bool contains_subrange(R1&& r1, R2&& r2, Pred pred = {},
+                                     Proj1 proj1 = {}, Proj2 proj2 = {});                                // since C++23
+
+  template<class I, class O>
+    using copy_result = in_out_result<I, O>;                                                // since C++20
+
+  template<class I, class O>
+    using copy_n_result = in_out_result<I, O>;                                              // since C++20
+
+  template<class I, class O>
+    using copy_if_result = in_out_result<I, O>;                                             // since C++20
+
+  template<class I1, class I2>
+    using copy_backward_result = in_out_result<I1, I2>;                                     // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class T, class Proj = identity>
+    requires indirect_binary_predicate<ranges::equal_to, projected<I, Proj>, const T*>
+    constexpr bool ranges::contains(I first, S last, const T& value, Proj proj = {});       // since C++23
+
+  template<input_range R, class T, class Proj = identity>
+    requires indirect_binary_predicate<ranges::equal_to, projected<iterator_t<R>, Proj>, const T*>
+    constexpr bool ranges::contains(R&& r, const T& value, Proj proj = {});                 // since C++23
+
+  template<input_iterator I, sentinel_for<I> S, weakly_incrementable O>
+    requires indirectly_copyable<I, O>
+    constexpr ranges::copy_result<I, O> ranges::copy(I first, S last, O result);            // since C++20
+
+  template<input_range R, weakly_incrementable O>
+    requires indirectly_copyable<iterator_t<R>, O>
+    constexpr ranges::copy_result<borrowed_iterator_t<R>, O> ranges::copy(R&& r, O result); // since C++20
+
+  template<input_iterator I, weakly_incrementable O>
+    requires indirectly_copyable<I, O>
+    constexpr ranges::copy_n_result<I, O>
+      ranges::copy_n(I first, iter_difference_t<I> n, O result);                            // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, weakly_incrementable O, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    requires indirectly_copyable<I, O>
+    constexpr ranges::copy_if_result<I, O>
+      ranges::copy_if(I first, S last, O result, Pred pred, Proj proj = {});                // since C++20
+
+  template<input_range R, weakly_incrementable O, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    requires indirectly_copyable<iterator_t<R>, O>
+    constexpr ranges::copy_if_result<borrowed_iterator_t<R>, O>
+      ranges::copy_if(R&& r, O result, Pred pred, Proj proj = {});                          // since C++20
+
+  template<bidirectional_iterator I1, sentinel_for<I1> S1, bidirectional_iterator I2>
+    requires indirectly_copyable<I1, I2>
+    constexpr ranges::copy_backward_result<I1, I2>
+      ranges::copy_backward(I1 first, S1 last, I2 result);                                  // since C++20
+
+  template<bidirectional_range R, bidirectional_iterator I>
+    requires indirectly_copyable<iterator_t<R>, I>
+    constexpr ranges::copy_backward_result<borrowed_iterator_t<R>, I>
+      ranges::copy_backward(R&& r, I result);                                               // since C++20
+
+  template<class I, class F>
+    using for_each_result = in_fun_result<I, F>;                                            // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirectly_unary_invocable<projected<I, Proj>> Fun>
+    constexpr ranges::for_each_result<I, Fun>
+      ranges::for_each(I first, S last, Fun f, Proj proj = {});                             // since C++20
+
+  template<input_range R, class Proj = identity,
+           indirectly_unary_invocable<projected<iterator_t<R>, Proj>> Fun>
+    constexpr ranges::for_each_result<borrowed_iterator_t<R>, Fun>
+      ranges::for_each(R&& r, Fun f, Proj proj = {});                                       // since C++20
+
+  template<input_iterator I, class Proj = identity,
+           indirectly_unary_invocable<projected<I, Proj>> Fun>
+    constexpr ranges::for_each_n_result<I, Fun>
+      ranges::for_each_n(I first, iter_difference_t<I> n, Fun f, Proj proj = {});           // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr bool ranges::is_partitioned(I first, S last, Pred pred, Proj proj = {});      // since C++20
+
+  template<input_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    constexpr bool ranges::is_partitioned(R&& r, Pred pred, Proj proj = {});                // since C++20
+
+  template<random_access_iterator I, sentinel_for<I> S, class Comp = ranges::less,
+          class Proj = identity>
+    requires sortable<I, Comp, Proj>
+    constexpr I
+      ranges::push_heap(I first, S last, Comp comp = {}, Proj proj = {});                   // since C++20
+
+  template<random_access_range R, class Comp = ranges::less, class Proj = identity>
+    requires sortable<iterator_t<R>, Comp, Proj>
+    constexpr borrowed_iterator_t<R>
+      ranges::push_heap(R&& r, Comp comp = {}, Proj proj = {});                             // since C++20
+
+  template<random_access_iterator I, sentinel_for<I> S, class Comp = ranges::less,
+          class Proj = identity>
+    requires sortable<I, Comp, Proj>
+    constexpr I
+      ranges::pop_heap(I first, S last, Comp comp = {}, Proj proj = {});                    // since C++20
+
+  template<random_access_range R, class Comp = ranges::less, class Proj = identity>
+    requires sortable<iterator_t<R>, Comp, Proj>
+    constexpr borrowed_iterator_t<R>
+      ranges::pop_heap(R&& r, Comp comp = {}, Proj proj = {});                              // since C++20
+
+  template<random_access_iterator I, sentinel_for<I> S, class Comp = ranges::less,
+          class Proj = identity>
+    requires sortable<I, Comp, Proj>
+    constexpr I
+      ranges::make_heap(I first, S last, Comp comp = {}, Proj proj = {});                   // since C++20
+
+  template<random_access_range R, class Comp = ranges::less, class Proj = identity>
+    requires sortable<iterator_t<R>, Comp, Proj>
+    constexpr borrowed_iterator_t<R>
+      ranges::make_heap(R&& r, Comp comp = {}, Proj proj = {});                             // since C++20
+
+  template<random_access_iterator I, sentinel_for<I> S, class Comp = ranges::less,
+          class Proj = identity>
+    requires sortable<I, Comp, Proj>
+    constexpr I
+      ranges::sort_heap(I first, S last, Comp comp = {}, Proj proj = {});                   // since C++20
+
+  template<random_access_range R, class Comp = ranges::less, class Proj = identity>
+    requires sortable<iterator_t<R>, Comp, Proj>
+    constexpr borrowed_iterator_t<R>
+      ranges::sort_heap(R&& r, Comp comp = {}, Proj proj = {});                             // since C++20
+
+  template<random_access_iterator I, sentinel_for<I> S, class Proj = identity,
+            indirect_strict_weak_order<projected<I, Proj>> Comp = ranges::less>
+    constexpr bool is_heap(I first, S last, Comp comp = {}, Proj proj = {});                // since C++20
+
+  template<random_access_range R, class Proj = identity,
+            indirect_strict_weak_order<projected<iterator_t<R>, Proj>> Comp = ranges::less>
+    constexpr bool is_heap(R&& r, Comp comp = {}, Proj proj = {});                          // since C++20
+
+  template<random_access_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_strict_weak_order<projected<I, Proj>> Comp = ranges::less>
+    constexpr I is_heap_until(I first, S last, Comp comp = {}, Proj proj = {});             // since C++20
+
+  template<random_access_range R, class Proj = identity,
+           indirect_strict_weak_order<projected<iterator_t<R>, Proj>> Comp = ranges::less>
+    constexpr borrowed_iterator_t<R>
+      is_heap_until(R&& r, Comp comp = {}, Proj proj = {});                                 // since C++20
+
+  template<bidirectional_iterator I, sentinel_for<I> S>
+    requires permutable<I>
+    constexpr I ranges::reverse(I first, S last);                                           // since C++20
+
+  template<bidirectional_range R>
+    requires permutable<iterator_t<R>>
+    constexpr borrowed_iterator_t<R> ranges::reverse(R&& r);                                // since C++20
+
+  template<random_access_iterator I, sentinel_for<I> S, class Comp = ranges::less,
+            class Proj = identity>
+    requires sortable<I, Comp, Proj>
+    constexpr I
+      ranges::sort(I first, S last, Comp comp = {}, Proj proj = {});                        // since C++20
+
+  template<random_access_range R, class Comp = ranges::less, class Proj = identity>
+    requires sortable<iterator_t<R>, Comp, Proj>
+    constexpr borrowed_iterator_t<R>
+      ranges::sort(R&& r, Comp comp = {}, Proj proj = {});                                  // since C++20
+
+  template<random_access_iterator I, sentinel_for<I> S, class Comp = ranges::less,
+          class Proj = identity>
+    requires sortable<I, Comp, Proj>
+    I ranges::stable_sort(I first, S last, Comp comp = {}, Proj proj = {});                 // since C++20
+
+  template<random_access_range R, class Comp = ranges::less, class Proj = identity>
+    requires sortable<iterator_t<R>, Comp, Proj>
+    borrowed_iterator_t<R>
+      ranges::stable_sort(R&& r, Comp comp = {}, Proj proj = {});                           // since C++20
+
+  template<random_access_iterator I, sentinel_for<I> S, class Comp = ranges::less,
+           class Proj = identity>
+    requires sortable<I, Comp, Proj>
+    constexpr I
+      ranges::partial_sort(I first, I middle, S last, Comp comp = {}, Proj proj = {});      // since C++20
+
+  template<random_access_range R, class Comp = ranges::less, class Proj = identity>
+    requires sortable<iterator_t<R>, Comp, Proj>
+    constexpr borrowed_iterator_t<R>
+      ranges::partial_sort(R&& r, iterator_t<R> middle, Comp comp = {}, Proj proj = {});    // since C++20
+
+  template<class T, output_iterator<const T&> O, sentinel_for<O> S>
+    constexpr O ranges::fill(O first, S last, const T& value);                              // since C++20
+
+  template<class T, output_range<const T&> R>
+    constexpr borrowed_iterator_t<R> ranges::fill(R&& r, const T& value);                   // since C++20
+
+  template<class T, output_iterator<const T&> O>
+    constexpr O ranges::fill_n(O first, iter_difference_t<O> n, const T& value);            // since C++20
+
+  template<input_or_output_iterator O, sentinel_for<O> S, copy_constructible F>
+    requires invocable<F&> && indirectly_writable<O, invoke_result_t<F&>>
+    constexpr O generate(O first, S last, F gen);                                           // since C++20
+
+  template<class ExecutionPolicy, class ForwardIterator, class Generator>
+    void generate(ExecutionPolicy&& exec,
+                  ForwardIterator first, ForwardIterator last,
+                  Generator gen);                                                           // since C++17
+
+  template<class R, copy_constructible F>
+    requires invocable<F&> && output_range<R, invoke_result_t<F&>>
+    constexpr borrowed_iterator_t<R> generate(R&& r, F gen);                                // since C++20
+
+  template<input_or_output_iterator O, copy_constructible F>
+    requires invocable<F&> && indirectly_writable<O, invoke_result_t<F&>>
+    constexpr O generate_n(O first, iter_difference_t<O> n, F gen);                         // since C++20
+
+  template<class ExecutionPolicy, class ForwardIterator, class Size, class Generator>
+    ForwardIterator generate_n(ExecutionPolicy&& exec,
+                               ForwardIterator first, Size n, Generator gen);               // since C++17
+
+ template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+          class Pred = ranges::equal_to, class Proj1 = identity, class Proj2 = identity>
+   requires indirectly_comparable<I1, I2, Pred, Proj1, Proj2>
+   constexpr bool ranges::equal(I1 first1, S1 last1, I2 first2, S2 last2,
+                                Pred pred = {},
+                                Proj1 proj1 = {}, Proj2 proj2 = {});                        // since C++20
+
+ template<input_range R1, input_range R2, class Pred = ranges::equal_to,
+          class Proj1 = identity, class Proj2 = identity>
+   requires indirectly_comparable<iterator_t<R1>, iterator_t<R2>, Pred, Proj1, Proj2>
+   constexpr bool ranges::equal(R1&& r1, R2&& r2, Pred pred = {},
+                                Proj1 proj1 = {}, Proj2 proj2 = {});                        // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr bool ranges::all_of(I first, S last, Pred pred, Proj proj = {});              // since C++20
+
+  template<input_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    constexpr bool ranges::all_of(R&& r, Pred pred, Proj proj = {});                        // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr bool ranges::any_of(I first, S last, Pred pred, Proj proj = {});              // since C++20
+
+  template<input_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    constexpr bool ranges::any_of(R&& r, Pred pred, Proj proj = {});                        // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+          class Pred = ranges::equal_to, class Proj1 = identity, class Proj2 = identity>
+    requires (forward_iterator<I1> || sized_sentinel_for<S1, I1>) &&
+           (forward_iterator<I2> || sized_sentinel_for<S2, I2>) &&
+           indirectly_comparable<I1, I2, Pred, Proj1, Proj2>
+    constexpr bool ranges::ends_with(I1 first1, S1 last1, I2 first2, S2 last2, Pred pred = {},
+                                   Proj1 proj1 = {}, Proj2 proj2 = {});                     // since C++23
+
+  template<input_range R1, input_range R2, class Pred = ranges::equal_to, class Proj1 = identity,
+          class Proj2 = identity>
+    requires (forward_range<R1> || sized_range<R1>) &&
+           (forward_range<R2> || sized_range<R2>) &&
+           indirectly_comparable<iterator_t<R1>, iterator_t<R2>, Pred, Proj1, Proj2>
+    constexpr bool ranges::ends_with(R1&& r1, R2&& r2, Pred pred = {},
+                                   Proj1 proj1 = {}, Proj2 proj2 = {});                     // since C++23
+
+  template<input_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr bool ranges::none_of(I first, S last, Pred pred, Proj proj = {});             // since C++20
+
+  template<input_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    constexpr bool ranges::none_of(R&& r, Pred pred, Proj proj = {});                       // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+          class Pred = ranges::equal_to, class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_comparable<I1, I2, Pred, Proj1, Proj2>
+    constexpr bool ranges::starts_with(I1 first1, S1 last1, I2 first2, S2 last2, Pred pred = {},
+                                      Proj1 proj1 = {}, Proj2 proj2 = {});                 // since C++23
+
+  template<input_range R1, input_range R2, class Pred = ranges::equal_to, class Proj1 = identity,
+          class Proj2 = identity>
+    requires indirectly_comparable<iterator_t<R1>, iterator_t<R2>, Pred, Proj1, Proj2>
+    constexpr bool ranges::starts_with(R1&& r1, R2&& r2, Pred pred = {},
+                                      Proj1 proj1 = {}, Proj2 proj2 = {});                // since C++23
+
+  template<input_iterator I1, sentinel_for<I1> S1,
+          random_access_iterator I2, sentinel_for<I2> S2,
+          class Comp = ranges::less, class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_copyable<I1, I2> && sortable<I2, Comp, Proj2> &&
+            indirect_strict_weak_order<Comp, projected<I1, Proj1>, projected<I2, Proj2>>
+    constexpr partial_sort_copy_result<I1, I2>
+      partial_sort_copy(I1 first, S1 last, I2 result_first, S2 result_last,
+                        Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {});                // since C++20
+
+  template<input_range R1, random_access_range R2, class Comp = ranges::less,
+          class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_copyable<iterator_t<R1>, iterator_t<R2>> &&
+            sortable<iterator_t<R2>, Comp, Proj2> &&
+            indirect_strict_weak_order<Comp, projected<iterator_t<R1>, Proj1>,
+                                        projected<iterator_t<R2>, Proj2>>
+    constexpr partial_sort_copy_result<borrowed_iterator_t<R1>, borrowed_iterator_t<R2>>
+      partial_sort_copy(R1&& r, R2&& result_r, Comp comp = {},
+                        Proj1 proj1 = {}, Proj2 proj2 = {});                                // since C++20
+
+  template<forward_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_strict_weak_order<projected<I, Proj>> Comp = ranges::less>
+    constexpr bool ranges::is_sorted(I first, S last, Comp comp = {}, Proj proj = {});      // since C++20
+
+  template<forward_range R, class Proj = identity,
+           indirect_strict_weak_order<projected<iterator_t<R>, Proj>> Comp = ranges::less>
+    constexpr bool ranges::is_sorted(R&& r, Comp comp = {}, Proj proj = {});                // since C++20
+
+  template<forward_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_strict_weak_order<projected<I, Proj>> Comp = ranges::less>
+    constexpr I ranges::is_sorted_until(I first, S last, Comp comp = {}, Proj proj = {});   // since C++20
+
+  template<forward_range R, class Proj = identity,
+           indirect_strict_weak_order<projected<iterator_t<R>, Proj>> Comp = ranges::less>
+    constexpr borrowed_iterator_t<R>
+      ranges::is_sorted_until(R&& r, Comp comp = {}, Proj proj = {});                       // since C++20
+
+  template<random_access_iterator I, sentinel_for<I> S, class Comp = ranges::less,
+          class Proj = identity>
+    requires sortable<I, Comp, Proj>
+    constexpr I
+      ranges::nth_element(I first, I nth, S last, Comp comp = {}, Proj proj = {});          // since C++20
+
+  template<random_access_range R, class Comp = ranges::less, class Proj = identity>
+    requires sortable<iterator_t<R>, Comp, Proj>
+    constexpr borrowed_iterator_t<R>
+      ranges::nth_element(R&& r, iterator_t<R> nth, Comp comp = {}, Proj proj = {});        // since C++20
+
+  template<forward_iterator I, sentinel_for<I> S, class T, class Proj = identity,
+           indirect_strict_weak_order<const T*, projected<I, Proj>> Comp = ranges::less>    // since C++20
+    constexpr I upper_bound(I first, S last, const T& value, Comp comp = {}, Proj proj = {});
+
+  template<forward_range R, class T, class Proj = identity,
+           indirect_strict_weak_order<const T*, projected<iterator_t<R>, Proj>> Comp =
+             ranges::less>
+    constexpr borrowed_iterator_t<R>
+      upper_bound(R&& r, const T& value, Comp comp = {}, Proj proj = {});                   // since C++20
+
+  template<forward_iterator I, sentinel_for<I> S, class T, class Proj = identity,
+           indirect_strict_weak_order<const T*, projected<I, Proj>> Comp = ranges::less>
+    constexpr I lower_bound(I first, S last, const T& value, Comp comp = {},
+                                    Proj proj = {});                                        // since C++20
+  template<forward_range R, class T, class Proj = identity,
+           indirect_strict_weak_order<const T*, projected<iterator_t<R>, Proj>> Comp =
+             ranges::less>
+    constexpr borrowed_iterator_t<R>
+      lower_bound(R&& r, const T& value, Comp comp = {}, Proj proj = {});                   // since C++20
+
+  template<forward_iterator I, sentinel_for<I> S, class T, class Proj = identity,
+           indirect_strict_weak_order<const T*, projected<I, Proj>> Comp = ranges::less>
+    constexpr bool binary_search(I first, S last, const T& value, Comp comp = {},
+                                         Proj proj = {});                                   // since C++20
+
+  template<forward_range R, class T, class Proj = identity,
+           indirect_strict_weak_order<const T*, projected<iterator_t<R>, Proj>> Comp =
+             ranges::less>
+    constexpr bool binary_search(R&& r, const T& value, Comp comp = {},
+                                         Proj proj = {});                                   // since C++20
+
+  template<permutable I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr subrange<I>
+      partition(I first, S last, Pred pred, Proj proj = {});                                // since C++20
+
+  template<forward_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    requires permutable<iterator_t<R>>
+    constexpr borrowed_subrange_t<R>
+      partition(R&& r, Pred pred, Proj proj = {});                                          // since C++20
+
+  template<bidirectional_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    requires permutable<I>
+    subrange<I> stable_partition(I first, S last, Pred pred, Proj proj = {});               // since C++20
+
+  template<bidirectional_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    requires permutable<iterator_t<R>>
+    borrowed_subrange_t<R> stable_partition(R&& r, Pred pred, Proj proj = {});              // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, forward_iterator I2, sentinel_for<I2> S2,
+           class Pred = ranges::equal_to, class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_comparable<I1, I2, Pred, Proj1, Proj2>
+    constexpr I1 ranges::find_first_of(I1 first1, S1 last1, I2 first2, S2 last2,
+                                       Pred pred = {},
+                                       Proj1 proj1 = {}, Proj2 proj2 = {});                 // since C++20
+
+  template<input_range R1, forward_range R2,
+           class Pred = ranges::equal_to, class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_comparable<iterator_t<R1>, iterator_t<R2>, Pred, Proj1, Proj2>
+    constexpr borrowed_iterator_t<R1>
+      ranges::find_first_of(R1&& r1, R2&& r2,
+                            Pred pred = {},
+                            Proj1 proj1 = {}, Proj2 proj2 = {});                            // since C++20
+
+  template<forward_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_binary_predicate<projected<I, Proj>,
+                                     projected<I, Proj>> Pred = ranges::equal_to>
+    constexpr I ranges::adjacent_find(I first, S last, Pred pred = {}, Proj proj = {});     // since C++20
+
+  template<forward_range R, class Proj = identity,
+           indirect_binary_predicate<projected<iterator_t<R>, Proj>,
+                                     projected<iterator_t<R>, Proj>> Pred = ranges::equal_to>
+    constexpr borrowed_iterator_t<R> ranges::adjacent_find(R&& r, Pred pred = {}, Proj proj = {});  // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class T1, class T2, class Proj = identity>
+    requires indirectly_writable<I, const T2&> &&
+             indirect_binary_predicate<ranges::equal_to, projected<I, Proj>, const T1*>
+    constexpr I
+      ranges::replace(I first, S last, const T1& old_value, const T2& new_value, Proj proj = {});   // since C++20
+
+  template<input_range R, class T1, class T2, class Proj = identity>
+    requires indirectly_writable<iterator_t<R>, const T2&> &&
+             indirect_binary_predicate<ranges::equal_to, projected<iterator_t<R>, Proj>, const T1*>
+    constexpr borrowed_iterator_t<R>
+      ranges::replace(R&& r, const T1& old_value, const T2& new_value, Proj proj = {});             // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class T, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    requires indirectly_writable<I, const T&>
+    constexpr I ranges::replace_if(I first, S last, Pred pred, const T& new_value, Proj proj = {}); // since C++20
+
+  template<input_range R, class T, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    requires indirectly_writable<iterator_t<R>, const T&>
+    constexpr borrowed_iterator_t<R>
+      ranges::replace_if(R&& r, Pred pred, const T& new_value, Proj proj = {});                     // since C++20
+
+  template<class T, class Proj = identity,
+           indirect_strict_weak_order<projected<const T*, Proj>> Comp = ranges::less>
+    constexpr const T&
+      ranges::clamp(const T& v, const T& lo, const T& hi, Comp comp = {}, Proj proj = {});          // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+           class Proj1 = identity, class Proj2 = identity,
+           indirect_strict_weak_order<projected<I1, Proj1>,
+                                      projected<I2, Proj2>> Comp = ranges::less>
+    constexpr bool
+      ranges::lexicographical_compare(I1 first1, S1 last1, I2 first2, S2 last2,
+                                      Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {});          // since C++20
+
+  template<input_range R1, input_range R2, class Proj1 = identity,
+           class Proj2 = identity,
+           indirect_strict_weak_order<projected<iterator_t<R1>, Proj1>,
+                                      projected<iterator_t<R2>, Proj2>> Comp = ranges::less>
+    constexpr bool
+      ranges::lexicographical_compare(R1&& r1, R2&& r2, Comp comp = {},
+                                      Proj1 proj1 = {}, Proj2 proj2 = {});                          // since C++20
+
+  template<bidirectional_iterator I1, sentinel_for<I1> S1, bidirectional_iterator I2>
+    requires indirectly_movable<I1, I2>
+    constexpr ranges::move_backward_result<I1, I2>
+      ranges::move_backward(I1 first, S1 last, I2 result);                                          // since C++20
+
+  template<bidirectional_range R, bidirectional_iterator I>
+    requires indirectly_movable<iterator_t<R>, I>
+    constexpr ranges::move_backward_result<borrowed_iterator_t<R>, I>
+      ranges::move_backward(R&& r, I result);                                                       // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, weakly_incrementable O>
+    requires indirectly_movable<I, O>
+    constexpr ranges::move_result<I, O>
+      ranges::move(I first, S last, O result);                                                      // since C++20
+
+  template<input_range R, weakly_incrementable O>
+    requires indirectly_movable<iterator_t<R>, O>
+    constexpr ranges::move_result<borrowed_iterator_t<R>, O>
+      ranges::move(R&& r, O result);                                                                // since C++20
+
+  template<class I, class O1, class O2>
+      using partition_copy_result = in_out_out_result<I, O1, O2>;                                   // since C++20
+
+  template<input_iterator I, sentinel_for<I> S,
+          weakly_incrementable O1, weakly_incrementable O2,
+          class Proj = identity, indirect_unary_predicate<projected<I, Proj>> Pred>
+    requires indirectly_copyable<I, O1> && indirectly_copyable<I, O2>
+    constexpr partition_copy_result<I, O1, O2>
+      partition_copy(I first, S last, O1 out_true, O2 out_false, Pred pred,
+                    Proj proj = {});                                                                // since C++20
+
+  template<input_range R, weakly_incrementable O1, weakly_incrementable O2,
+          class Proj = identity,
+          indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    requires indirectly_copyable<iterator_t<R>, O1> &&
+            indirectly_copyable<iterator_t<R>, O2>
+    constexpr partition_copy_result<borrowed_iterator_t<R>, O1, O2>
+      partition_copy(R&& r, O1 out_true, O2 out_false, Pred pred, Proj proj = {});                  // since C++20
+
+  template<forward_iterator I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr I partition_point(I first, S last, Pred pred, Proj proj = {});                        // since C++20
+
+  template<forward_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    constexpr borrowed_iterator_t<R>
+      partition_point(R&& r, Pred pred, Proj proj = {});                                            // since C++20
+
+  template<class I1, class I2, class O>
+    using merge_result = in_in_out_result<I1, I2, O>;                                               // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+           weakly_incrementable O, class Comp = ranges::less, class Proj1 = identity,
+           class Proj2 = identity>
+    requires mergeable<I1, I2, O, Comp, Proj1, Proj2>
+    constexpr merge_result<I1, I2, O>
+      merge(I1 first1, S1 last1, I2 first2, S2 last2, O result,
+            Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {});                                    // since C++20
+
+  template<input_range R1, input_range R2, weakly_incrementable O, class Comp = ranges::less,
+           class Proj1 = identity, class Proj2 = identity>
+    requires mergeable<iterator_t<R1>, iterator_t<R2>, O, Comp, Proj1, Proj2>
+    constexpr merge_result<borrowed_iterator_t<R1>, borrowed_iterator_t<R2>, O>
+      merge(R1&& r1, R2&& r2, O result,
+            Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {});                                    // since C++20
+
+  template<permutable I, sentinel_for<I> S, class T, class Proj = identity>
+    requires indirect_binary_predicate<ranges::equal_to, projected<I, Proj>, const T*>
+    constexpr subrange<I> ranges::remove(I first, S last, const T& value, Proj proj = {});          // since C++20
+
+  template<forward_range R, class T, class Proj = identity>
+    requires permutable<iterator_t<R>> &&
+             indirect_binary_predicate<ranges::equal_to, projected<iterator_t<R>, Proj>, const T*>
+    constexpr borrowed_subrange_t<R>
+      ranges::remove(R&& r, const T& value, Proj proj = {});                                        // since C++20
+
+  template<permutable I, sentinel_for<I> S, class Proj = identity,
+           indirect_unary_predicate<projected<I, Proj>> Pred>
+    constexpr subrange<I> ranges::remove_if(I first, S last, Pred pred, Proj proj = {});            // since C++20
+
+  template<forward_range R, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    requires permutable<iterator_t<R>>
+    constexpr borrowed_subrange_t<R>
+      ranges::remove_if(R&& r, Pred pred, Proj proj = {});                                          // since C++20
+
+  template<class I, class O>
+    using set_difference_result = in_out_result<I, O>;                                              // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+           weakly_incrementable O, class Comp = ranges::less,
+           class Proj1 = identity, class Proj2 = identity>
+    requires mergeable<I1, I2, O, Comp, Proj1, Proj2>
+    constexpr set_difference_result<I1, O>
+      set_difference(I1 first1, S1 last1, I2 first2, S2 last2, O result,
+                     Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {});                           // since C++20
+
+  template<input_range R1, input_range R2, weakly_incrementable O,
+           class Comp = ranges::less, class Proj1 = identity, class Proj2 = identity>
+    requires mergeable<iterator_t<R1>, iterator_t<R2>, O, Comp, Proj1, Proj2>
+    constexpr set_difference_result<borrowed_iterator_t<R1>, O>
+      set_difference(R1&& r1, R2&& r2, O result,
+                     Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {});                           // since C++20
+
+  template<class I1, class I2, class O>
+    using set_intersection_result = in_in_out_result<I1, I2, O>;                                    // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+           weakly_incrementable O, class Comp = ranges::less,
+           class Proj1 = identity, class Proj2 = identity>
+    requires mergeable<I1, I2, O, Comp, Proj1, Proj2>
+    constexpr set_intersection_result<I1, I2, O>
+      set_intersection(I1 first1, S1 last1, I2 first2, S2 last2, O result,
+                       Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {});                         // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+           weakly_incrementable O, class Comp = ranges::less,
+           class Proj1 = identity, class Proj2 = identity>
+    requires mergeable<I1, I2, O, Comp, Proj1, Proj2>
+    constexpr set_intersection_result<borrowed_iterator_t<R1>, borrowed_iterator_t<R2>, O>
+      set_intersection(R1&& r1, R2&& r2, O result,
+                       Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {});                         // since C++20
+
+  template <class _InIter, class _OutIter>
+  using reverse_copy_result = in_out_result<_InIter, _OutIter>;                                     // since C++20
+
+  template<bidirectional_iterator I, sentinel_for<I> S, weakly_incrementable O>
+    requires indirectly_copyable<I, O>
+    constexpr ranges::reverse_copy_result<I, O>
+      ranges::reverse_copy(I first, S last, O result);                                              // since C++20
+
+  template<bidirectional_range R, weakly_incrementable O>
+    requires indirectly_copyable<iterator_t<R>, O>
+    constexpr ranges::reverse_copy_result<borrowed_iterator_t<R>, O>
+      ranges::reverse_copy(R&& r, O result);                                                        // since C++20
+
+  template<permutable I, sentinel_for<I> S>
+    constexpr subrange<I> rotate(I first, I middle, S last);                                        // since C++20
+
+  template<forward_range R>
+    requires permutable<iterator_t<R>>
+    constexpr borrowed_subrange_t<R> rotate(R&& r, iterator_t<R> middle);                           // since C++20
+
+  template <class _InIter, class _OutIter>
+  using rotate_copy_result = in_out_result<_InIter, _OutIter>;                                      // since C++20
+
+  template<forward_iterator I, sentinel_for<I> S, weakly_incrementable O>
+    requires indirectly_copyable<I, O>
+    constexpr ranges::rotate_copy_result<I, O>
+      ranges::rotate_copy(I first, I middle, S last, O result);                                     // since C++20
+
+  template<forward_range R, weakly_incrementable O>
+    requires indirectly_copyable<iterator_t<R>, O>
+    constexpr ranges::rotate_copy_result<borrowed_iterator_t<R>, O>
+      ranges::rotate_copy(R&& r, iterator_t<R> middle, O result);                                   // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, weakly_incrementable O, class Gen>
+    requires (forward_iterator<I> || random_access_iterator<O>) &&
+            indirectly_copyable<I, O> &&
+            uniform_random_bit_generator<remove_reference_t<Gen>>
+    O sample(I first, S last, O out, iter_difference_t<I> n, Gen&& g);                              // since C++20
+
+  template<input_range R, weakly_incrementable O, class Gen>
+    requires (forward_range<R> || random_access_iterator<O>) &&
+            indirectly_copyable<iterator_t<R>, O> &&
+            uniform_random_bit_generator<remove_reference_t<Gen>>
+    O sample(R&& r, O out, range_difference_t<R> n, Gen&& g);                                       // since C++20
+
+  template<random_access_iterator I, sentinel_for<I> S, class Gen>
+    requires permutable<I> &&
+            uniform_random_bit_generator<remove_reference_t<Gen>>
+    I shuffle(I first, S last, Gen&& g);                                                            // since C++20
+
+  template<random_access_range R, class Gen>
+    requires permutable<iterator_t<R>> &&
+            uniform_random_bit_generator<remove_reference_t<Gen>>
+    borrowed_iterator_t<R> shuffle(R&& r, Gen&& g);                                                 // since C++20
+
+  template<forward_iterator I1, sentinel_for<I1> S1, forward_iterator I2,
+         sentinel_for<I2> S2, class Proj1 = identity, class Proj2 = identity,
+         indirect_equivalence_relation<projected<I1, Proj1>,
+                                       projected<I2, Proj2>> Pred = ranges::equal_to>
+  constexpr bool ranges::is_permutation(I1 first1, S1 last1, I2 first2, S2 last2,
+                                        Pred pred = {},
+                                        Proj1 proj1 = {}, Proj2 proj2 = {});                       // since C++20
+
+  template<forward_range R1, forward_range R2,
+         class Proj1 = identity, class Proj2 = identity,
+         indirect_equivalence_relation<projected<iterator_t<R1>, Proj1>,
+                                       projected<iterator_t<R2>, Proj2>> Pred = ranges::equal_to>
+  constexpr bool ranges::is_permutation(R1&& r1, R2&& r2, Pred pred = {},
+                                        Proj1 proj1 = {}, Proj2 proj2 = {});                       // since C++20
+
+  template<forward_iterator I1, sentinel_for<I1> S1, forward_iterator I2,
+           sentinel_for<I2> S2, class Pred = ranges::equal_to,
+           class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_comparable<I1, I2, Pred, Proj1, Proj2>
+    constexpr subrange<I1>
+      ranges::search(I1 first1, S1 last1, I2 first2, S2 last2, Pred pred = {},
+                     Proj1 proj1 = {}, Proj2 proj2 = {});                                           // since C++20
+
+  template<forward_range R1, forward_range R2, class Pred = ranges::equal_to,
+           class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_comparable<iterator_t<R1>, iterator_t<R2>, Pred, Proj1, Proj2>
+    constexpr borrowed_subrange_t<R1>
+      ranges::search(R1&& r1, R2&& r2, Pred pred = {},
+                     Proj1 proj1 = {}, Proj2 proj2 = {});                                           // since C++20
+
+  template<forward_iterator I, sentinel_for<I> S, class T,
+           class Pred = ranges::equal_to, class Proj = identity>
+    requires indirectly_comparable<I, const T*, Pred, Proj>
+    constexpr subrange<I>
+      ranges::search_n(I first, S last, iter_difference_t<I> count,
+                       const T& value, Pred pred = {}, Proj proj = {});                             // since C++20
+
+  template<forward_range R, class T, class Pred = ranges::equal_to,
+           class Proj = identity>
+    requires indirectly_comparable<iterator_t<R>, const T*, Pred, Proj>
+    constexpr borrowed_subrange_t<R>
+      ranges::search_n(R&& r, range_difference_t<R> count,
+                       const T& value, Pred pred = {}, Proj proj = {});                             // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class T,
+           indirectly-binary-left-foldable<T, I> F>
+    constexpr auto ranges::fold_left(I first, S last, T init, F f);                                 // since C++23
+
+  template<input_range R, class T, indirectly-binary-left-foldable<T, iterator_t<R>> F>
+    constexpr auto fold_left(R&& r, T init, F f);                                                   // since C++23
+
+  template<class I, class T>
+    using fold_left_with_iter_result = in_value_result<I, T>;                                       // since C++23
+
+  template<input_iterator I, sentinel_for<I> S, class T,
+           indirectly-binary-left-foldable<T, I> F>
+    constexpr see below fold_left_with_iter(I first, S last, T init, F f);                          // since C++23
+
+  template<input_range R, class T, indirectly-binary-left-foldable<T, iterator_t<R>> F>
+    constexpr see below fold_left_with_iter(R&& r, T init, F f);                                    // since C++23
+
+  template<forward_iterator I1, sentinel_for<I1> S1, forward_iterator I2, sentinel_for<I2> S2,
+           class Pred = ranges::equal_to, class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_comparable<I1, I2, Pred, Proj1, Proj2>
+    constexpr subrange<I1>
+      ranges::find_end(I1 first1, S1 last1, I2 first2, S2 last2, Pred pred = {},
+                       Proj1 proj1 = {}, Proj2 proj2 = {});                                         // since C++20
+
+  template<forward_range R1, forward_range R2,
+           class Pred = ranges::equal_to, class Proj1 = identity, class Proj2 = identity>
+    requires indirectly_comparable<iterator_t<R1>, iterator_t<R2>, Pred, Proj1, Proj2>
+    constexpr borrowed_subrange_t<R1>
+      ranges::find_end(R1&& r1, R2&& r2, Pred pred = {},
+                       Proj1 proj1 = {}, Proj2 proj2 = {});                                         // since C++20
+
+  template<class I1, class I2, class O>
+    using set_symmetric_difference_result = in_in_out_result<I1, I2, O>;                            // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+           weakly_incrementable O, class Comp = ranges::less,
+           class Proj1 = identity, class Proj2 = identity>
+    requires mergeable<I1, I2, O, Comp, Proj1, Proj2>
+    constexpr set_symmetric_difference_result<I1, I2, O>
+      set_symmetric_difference(I1 first1, S1 last1, I2 first2, S2 last2, O result,
+                               Comp comp = {}, Proj1 proj1 = {},
+                               Proj2 proj2 = {});                                                   // since C++20
+
+  template<input_range R1, input_range R2, weakly_incrementable O,
+           class Comp = ranges::less, class Proj1 = identity, class Proj2 = identity>
+    requires mergeable<iterator_t<R1>, iterator_t<R2>, O, Comp, Proj1, Proj2>
+    constexpr set_symmetric_difference_result<borrowed_iterator_t<R1>,
+                                                      borrowed_iterator_t<R2>, O>
+      set_symmetric_difference(R1&& r1, R2&& r2, O result, Comp comp = {},
+                               Proj1 proj1 = {}, Proj2 proj2 = {});                                 // since C++20
+
+  template<forward_iterator I, sentinel_for<I> S, class T, class Proj = identity,
+           indirect_strict_weak_order<const T*, projected<I, Proj>> Comp = ranges::less>
+    constexpr subrange<I>
+      equal_range(I first, S last, const T& value, Comp comp = {}, Proj proj = {});                 // since C++20
+
+  template<forward_range R, class T, class Proj = identity,
+           indirect_strict_weak_order<const T*, projected<iterator_t<R>, Proj>> Comp =
+             ranges::less>
+    constexpr borrowed_subrange_t<R>
+      equal_range(R&& r, const T& value, Comp comp = {}, Proj proj = {});                           // since C++20
+
+  template<class I1, class I2, class O>
+    using set_union_result = in_in_out_result<I1, I2, O>;                                           // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+           weakly_incrementable O, class Comp = ranges::less,
+           class Proj1 = identity, class Proj2 = identity>
+    requires mergeable<I1, I2, O, Comp, Proj1, Proj2>
+    constexpr set_union_result<I1, I2, O>
+      set_union(I1 first1, S1 last1, I2 first2, S2 last2, O result, Comp comp = {},
+                Proj1 proj1 = {}, Proj2 proj2 = {});                                                // since C++20
+
+  template<input_range R1, input_range R2, weakly_incrementable O,
+           class Comp = ranges::less, class Proj1 = identity, class Proj2 = identity>
+    requires mergeable<iterator_t<R1>, iterator_t<R2>, O, Comp, Proj1, Proj2>
+    constexpr set_union_result<borrowed_iterator_t<R1>, borrowed_iterator_t<R2>, O>
+      set_union(R1&& r1, R2&& r2, O result, Comp comp = {},
+                Proj1 proj1 = {}, Proj2 proj2 = {});                                                // since C++20
+
+  template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2,
+           class Proj1 = identity, class Proj2 = identity,
+           indirect_strict_weak_order<projected<I1, Proj1>, projected<I2, Proj2>> Comp =
+             ranges::less>
+    constexpr bool includes(I1 first1, S1 last1, I2 first2, S2 last2, Comp comp = {},
+                            Proj1 proj1 = {}, Proj2 proj2 = {});                                   // since C++20
+
+  template<input_range R1, input_range R2, class Proj1 = identity,
+           class Proj2 = identity,
+           indirect_strict_weak_order<projected<iterator_t<R1>, Proj1>,
+                                      projected<iterator_t<R2>, Proj2>> Comp = ranges::less>
+    constexpr bool includes(R1&& r1, R2&& r2, Comp comp = {},
+                            Proj1 proj1 = {}, Proj2 proj2 = {});                                   // since C++20
+
+  template<bidirectional_iterator I, sentinel_for<I> S, class Comp = ranges::less,
+           class Proj = identity>
+    requires sortable<I, Comp, Proj>
+    I inplace_merge(I first, I middle, S last, Comp comp = {}, Proj proj = {});                    // since C++20
+
+  template<bidirectional_range R, class Comp = ranges::less, class Proj = identity>
+    requires sortable<iterator_t<R>, Comp, Proj>
+    borrowed_iterator_t<R>
+      inplace_merge(R&& r, iterator_t<R> middle, Comp comp = {},
+                    Proj proj = {});                                                               // since C++20
+
+  template<permutable I, sentinel_for<I> S, class Proj = identity,
+           indirect_equivalence_relation<projected<I, Proj>> C = ranges::equal_to>
+    constexpr subrange<I> unique(I first, S last, C comp = {}, Proj proj = {});                    // since C++20
+
+  template<forward_range R, class Proj = identity,
+           indirect_equivalence_relation<projected<iterator_t<R>, Proj>> C = ranges::equal_to>
+    requires permutable<iterator_t<R>>
+    constexpr borrowed_subrange_t<R>
+      unique(R&& r, C comp = {}, Proj proj = {});                                                  // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, weakly_incrementable O, class Proj = identity,
+           indirect_equivalence_relation<projected<I, Proj>> C = ranges::equal_to>
+    requires indirectly_copyable<I, O> &&
+             (forward_iterator<I> ||
+              (input_iterator<O> && same_as<iter_value_t<I>, iter_value_t<O>>) ||
+              indirectly_copyable_storable<I, O>)
+    constexpr unique_copy_result<I, O>
+      unique_copy(I first, S last, O result, C comp = {}, Proj proj = {});                         // since C++20
+
+  template<input_range R, weakly_incrementable O, class Proj = identity,
+           indirect_equivalence_relation<projected<iterator_t<R>, Proj>> C = ranges::equal_to>
+    requires indirectly_copyable<iterator_t<R>, O> &&
+             (forward_iterator<iterator_t<R>> ||
+              (input_iterator<O> && same_as<range_value_t<R>, iter_value_t<O>>) ||
+              indirectly_copyable_storable<iterator_t<R>, O>)
+    constexpr unique_copy_result<borrowed_iterator_t<R>, O>
+      unique_copy(R&& r, O result, C comp = {}, Proj proj = {});                                   // since C++20
+
+  template<class I, class O>
+      using remove_copy_result = in_out_result<I, O>;                                              // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, weakly_incrementable O, class T,
+           class Proj = identity>
+             indirect_binary_predicate<ranges::equal_to, projected<I, Proj>, const T*>
+    constexpr remove_copy_result<I, O>
+      remove_copy(I first, S last, O result, const T& value, Proj proj = {});                      // since C++20
+
+  template<input_range R, weakly_incrementable O, class T, class Proj = identity>
+    requires indirectly_copyable<iterator_t<R>, O> &&
+             indirect_binary_predicate<ranges::equal_to,
+                                       projected<iterator_t<R>, Proj>, const T*>
+    constexpr remove_copy_result<borrowed_iterator_t<R>, O>
+      remove_copy(R&& r, O result, const T& value, Proj proj = {});                                // since C++20
+
+  template<class I, class O>
+      using remove_copy_if_result = in_out_result<I, O>;                                           // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, weakly_incrementable O,
+           class Proj = identity, indirect_unary_predicate<projected<I, Proj>> Pred>
+    requires indirectly_copyable<I, O>
+    constexpr remove_copy_if_result<I, O>
+      remove_copy_if(I first, S last, O result, Pred pred, Proj proj = {});                        // since C++20
+
+  template<input_range R, weakly_incrementable O, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    requires indirectly_copyable<iterator_t<R>, O>
+    constexpr remove_copy_if_result<borrowed_iterator_t<R>, O>
+      remove_copy_if(R&& r, O result, Pred pred, Proj proj = {});                                  // since C++20
+
+  template<class I, class O>
+      using replace_copy_result = in_out_result<I, O>;                                             // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class T1, class T2,
+           output_iterator<const T2&> O, class Proj = identity>
+    requires indirectly_copyable<I, O> &&
+             indirect_binary_predicate<ranges::equal_to, projected<I, Proj>, const T1*>
+    constexpr replace_copy_result<I, O>
+      replace_copy(I first, S last, O result, const T1& old_value, const T2& new_value,
+                   Proj proj = {});                                                                // since C++20
+
+  template<input_range R, class T1, class T2, output_iterator<const T2&> O,
+           class Proj = identity>
+    requires indirectly_copyable<iterator_t<R>, O> &&
+             indirect_binary_predicate<ranges::equal_to,
+                                       projected<iterator_t<R>, Proj>, const T1*>
+    constexpr replace_copy_result<borrowed_iterator_t<R>, O>
+      replace_copy(R&& r, O result, const T1& old_value, const T2& new_value,
+                   Proj proj = {});                                                                // since C++20
+
+  template<class I, class O>
+      using replace_copy_if_result = in_out_result<I, O>;                                          // since C++20
+
+  template<input_iterator I, sentinel_for<I> S, class T, output_iterator<const T&> O,
+           class Proj = identity, indirect_unary_predicate<projected<I, Proj>> Pred>
+    requires indirectly_copyable<I, O>
+    constexpr replace_copy_if_result<I, O>
+      replace_copy_if(I first, S last, O result, Pred pred, const T& new_value,
+                      Proj proj = {});                                                             // since C++20
+
+  template<input_range R, class T, output_iterator<const T&> O, class Proj = identity,
+           indirect_unary_predicate<projected<iterator_t<R>, Proj>> Pred>
+    requires indirectly_copyable<iterator_t<R>, O>
+    constexpr replace_copy_if_result<borrowed_iterator_t<R>, O>
+      replace_copy_if(R&& r, O result, Pred pred, const T& new_value,
+                      Proj proj = {});                                                             // since C++20
+
+  template<class I>
+    using prev_permutation_result = in_found_result<I>;                                            // since C++20
+
+  template<bidirectional_iterator I, sentinel_for<I> S, class Comp = ranges::less,
+           class Proj = identity>
+    requires sortable<I, Comp, Proj>
+    constexpr ranges::prev_permutation_result<I>
+      ranges::prev_permutation(I first, S last, Comp comp = {}, Proj proj = {});                   // since C++20
+
+  template<bidirectional_range R, class Comp = ranges::less,
+           class Proj = identity>
+    requires sortable<iterator_t<R>, Comp, Proj>
+    constexpr ranges::prev_permutation_result<borrowed_iterator_t<R>>
+      ranges::prev_permutation(R&& r, Comp comp = {}, Proj proj = {});                             // since C++20
+
+  template<class I>
+    using next_permutation_result = in_found_result<I>;                                            // since C++20
+
+  template<bidirectional_iterator I, sentinel_for<I> S, class Comp = ranges::less,
+           class Proj = identity>
+    requires sortable<I, Comp, Proj>
+    constexpr ranges::next_permutation_result<I>
+      ranges::next_permutation(I first, S last, Comp comp = {}, Proj proj = {});                   // since C++20
+
+  template<bidirectional_range R, class Comp = ranges::less,
+           class Proj = identity>
+    requires sortable<iterator_t<R>, Comp, Proj>
+    constexpr ranges::next_permutation_result<borrowed_iterator_t<R>>
+      ranges::next_permutation(R&& r, Comp comp = {}, Proj proj = {});                             // since C++20
+
+}
+
+template <class InputIterator, class Predicate>
+    constexpr bool     // constexpr in C++20
+    all_of(InputIterator first, InputIterator last, Predicate pred);
+
+template <class InputIterator, class Predicate>
+    constexpr bool     // constexpr in C++20
+    any_of(InputIterator first, InputIterator last, Predicate pred);
+
+template <class InputIterator, class Predicate>
+    constexpr bool     // constexpr in C++20
+    none_of(InputIterator first, InputIterator last, Predicate pred);
+
+template <class InputIterator, class Function>
+    constexpr Function          // constexpr in C++20
+    for_each(InputIterator first, InputIterator last, Function f);
+
+template<class InputIterator, class Size, class Function>
+    constexpr InputIterator     // constexpr in C++20
+    for_each_n(InputIterator first, Size n, Function f); // C++17
+
+template <class InputIterator, class T>
+    constexpr InputIterator     // constexpr in C++20
+    find(InputIterator first, InputIterator last, const T& value);
+
+template <class InputIterator, class Predicate>
+    constexpr InputIterator     // constexpr in C++20
+    find_if(InputIterator first, InputIterator last, Predicate pred);
+
+template<class InputIterator, class Predicate>
+    constexpr InputIterator     // constexpr in C++20
+    find_if_not(InputIterator first, InputIterator last, Predicate pred);
+
+template <class ForwardIterator1, class ForwardIterator2>
+    constexpr ForwardIterator1  // constexpr in C++20
+    find_end(ForwardIterator1 first1, ForwardIterator1 last1,
+             ForwardIterator2 first2, ForwardIterator2 last2);
+
+template <class ForwardIterator1, class ForwardIterator2, class BinaryPredicate>
+    constexpr ForwardIterator1  // constexpr in C++20
+    find_end(ForwardIterator1 first1, ForwardIterator1 last1,
+             ForwardIterator2 first2, ForwardIterator2 last2, BinaryPredicate pred);
+
+template <class ForwardIterator1, class ForwardIterator2>
+    constexpr ForwardIterator1  // constexpr in C++20
+    find_first_of(ForwardIterator1 first1, ForwardIterator1 last1,
+                  ForwardIterator2 first2, ForwardIterator2 last2);
+
+template <class ForwardIterator1, class ForwardIterator2, class BinaryPredicate>
+    constexpr ForwardIterator1  // constexpr in C++20
+    find_first_of(ForwardIterator1 first1, ForwardIterator1 last1,
+                  ForwardIterator2 first2, ForwardIterator2 last2, BinaryPredicate pred);
+
+template <class ForwardIterator>
+    constexpr ForwardIterator   // constexpr in C++20
+    adjacent_find(ForwardIterator first, ForwardIterator last);
+
+template <class ForwardIterator, class BinaryPredicate>
+    constexpr ForwardIterator   // constexpr in C++20
+    adjacent_find(ForwardIterator first, ForwardIterator last, BinaryPredicate pred);
+
+template <class InputIterator, class T>
+    constexpr typename iterator_traits<InputIterator>::difference_type  // constexpr in C++20
+    count(InputIterator first, InputIterator last, const T& value);
+
+template <class InputIterator, class Predicate>
+    constexpr typename iterator_traits<InputIterator>::difference_type // constexpr in C++20
+    count_if(InputIterator first, InputIterator last, Predicate pred);
+
+template <class InputIterator1, class InputIterator2>
+    constexpr pair<InputIterator1, InputIterator2>   // constexpr in C++20
+    mismatch(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2);
+
+template <class InputIterator1, class InputIterator2>
+    constexpr pair<InputIterator1, InputIterator2>   // constexpr in C++20
+    mismatch(InputIterator1 first1, InputIterator1 last1,
+             InputIterator2 first2, InputIterator2 last2); // **C++14**
+
+template <class InputIterator1, class InputIterator2, class BinaryPredicate>
+    constexpr pair<InputIterator1, InputIterator2>   // constexpr in C++20
+    mismatch(InputIterator1 first1, InputIterator1 last1,
+             InputIterator2 first2, BinaryPredicate pred);
+
+template <class InputIterator1, class InputIterator2, class BinaryPredicate>
+    constexpr pair<InputIterator1, InputIterator2>   // constexpr in C++20
+    mismatch(InputIterator1 first1, InputIterator1 last1,
+             InputIterator2 first2, InputIterator2 last2,
+             BinaryPredicate pred); // **C++14**
+
+template <class InputIterator1, class InputIterator2>
+    constexpr bool      // constexpr in C++20
+    equal(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2);
+
+template <class InputIterator1, class InputIterator2>
+    constexpr bool      // constexpr in C++20
+    equal(InputIterator1 first1, InputIterator1 last1,
+          InputIterator2 first2, InputIterator2 last2); // **C++14**
+
+template <class InputIterator1, class InputIterator2, class BinaryPredicate>
+    constexpr bool      // constexpr in C++20
+    equal(InputIterator1 first1, InputIterator1 last1,
+          InputIterator2 first2, BinaryPredicate pred);
+
+template <class InputIterator1, class InputIterator2, class BinaryPredicate>
+    constexpr bool      // constexpr in C++20
+    equal(InputIterator1 first1, InputIterator1 last1,
+          InputIterator2 first2, InputIterator2 last2,
+          BinaryPredicate pred); // **C++14**
+
+template<class ForwardIterator1, class ForwardIterator2>
+    constexpr bool      // constexpr in C++20
+    is_permutation(ForwardIterator1 first1, ForwardIterator1 last1,
+                   ForwardIterator2 first2);
+
+template<class ForwardIterator1, class ForwardIterator2>
+    constexpr bool      // constexpr in C++20
+    is_permutation(ForwardIterator1 first1, ForwardIterator1 last1,
+                   ForwardIterator2 first2, ForwardIterator2 last2); // **C++14**
+
+template<class ForwardIterator1, class ForwardIterator2, class BinaryPredicate>
+    constexpr bool      // constexpr in C++20
+    is_permutation(ForwardIterator1 first1, ForwardIterator1 last1,
+                   ForwardIterator2 first2, BinaryPredicate pred);
+
+template<class ForwardIterator1, class ForwardIterator2, class BinaryPredicate>
+    constexpr bool      // constexpr in C++20
+    is_permutation(ForwardIterator1 first1, ForwardIterator1 last1,
+                   ForwardIterator2 first2, ForwardIterator2 last2,
+                   BinaryPredicate pred);  // **C++14**
+
+template <class ForwardIterator1, class ForwardIterator2>
+    constexpr ForwardIterator1      // constexpr in C++20
+    search(ForwardIterator1 first1, ForwardIterator1 last1,
+           ForwardIterator2 first2, ForwardIterator2 last2);
+
+template <class ForwardIterator1, class ForwardIterator2, class BinaryPredicate>
+    constexpr ForwardIterator1      // constexpr in C++20
+    search(ForwardIterator1 first1, ForwardIterator1 last1,
+           ForwardIterator2 first2, ForwardIterator2 last2, BinaryPredicate pred);
+
+template <class ForwardIterator, class Size, class T>
+    constexpr ForwardIterator       // constexpr in C++20
+    search_n(ForwardIterator first, ForwardIterator last, Size count, const T& value);
+
+template <class ForwardIterator, class Size, class T, class BinaryPredicate>
+    constexpr ForwardIterator       // constexpr in C++20
+    search_n(ForwardIterator first, ForwardIterator last,
+             Size count, const T& value, BinaryPredicate pred);
+
+template <class InputIterator, class OutputIterator>
+    constexpr OutputIterator      // constexpr in C++20
+    copy(InputIterator first, InputIterator last, OutputIterator result);
+
+template<class InputIterator, class OutputIterator, class Predicate>
+    constexpr OutputIterator      // constexpr in C++20
+    copy_if(InputIterator first, InputIterator last,
+            OutputIterator result, Predicate pred);
+
+template<class InputIterator, class Size, class OutputIterator>
+    constexpr OutputIterator      // constexpr in C++20
+    copy_n(InputIterator first, Size n, OutputIterator result);
+
+template <class BidirectionalIterator1, class BidirectionalIterator2>
+    constexpr BidirectionalIterator2      // constexpr in C++20
+    copy_backward(BidirectionalIterator1 first, BidirectionalIterator1 last,
+                  BidirectionalIterator2 result);
+
+// [alg.move], move
+template<class InputIterator, class OutputIterator>
+    constexpr OutputIterator move(InputIterator first, InputIterator last,
+                                OutputIterator result);
+
+template<class BidirectionalIterator1, class BidirectionalIterator2>
+    constexpr BidirectionalIterator2
+    move_backward(BidirectionalIterator1 first, BidirectionalIterator1 last,
+                  BidirectionalIterator2 result);
+
+template <class ForwardIterator1, class ForwardIterator2>
+    constexpr ForwardIterator2    // constexpr in C++20
+    swap_ranges(ForwardIterator1 first1, ForwardIterator1 last1, ForwardIterator2 first2);
+
+namespace ranges {
+    template<class I1, class I2>
+    using swap_ranges_result = in_in_result<I1, I2>;
+
+template<input_iterator I1, sentinel_for<I1> S1, input_iterator I2, sentinel_for<I2> S2>
+        requires indirectly_swappable<I1, I2>
+    constexpr ranges::swap_ranges_result<I1, I2>
+        swap_ranges(I1 first1, S1 last1, I2 first2, S2 last2);
+
+template<input_range R1, input_range R2>
+        requires indirectly_swappable<iterator_t<R1>, iterator_t<R2>>
+    constexpr ranges::swap_ranges_result<borrowed_iterator_t<R1>, borrowed_iterator_t<R2>>
+        swap_ranges(R1&& r1, R2&& r2);
+}
+
+template <class ForwardIterator1, class ForwardIterator2>
+    constexpr void                // constexpr in C++20
+    iter_swap(ForwardIterator1 a, ForwardIterator2 b);
+
+template <class InputIterator, class OutputIterator, class UnaryOperation>
+    constexpr OutputIterator      // constexpr in C++20
+    transform(InputIterator first, InputIterator last, OutputIterator result, UnaryOperation op);
+
+template <class InputIterator1, class InputIterator2, class OutputIterator, class BinaryOperation>
+    constexpr OutputIterator      // constexpr in C++20
+    transform(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
+              OutputIterator result, BinaryOperation binary_op);
+
+template <class ForwardIterator, class T>
+    constexpr void      // constexpr in C++20
+    replace(ForwardIterator first, ForwardIterator last, const T& old_value, const T& new_value);
+
+template <class ForwardIterator, class Predicate, class T>
+    constexpr void      // constexpr in C++20
+    replace_if(ForwardIterator first, ForwardIterator last, Predicate pred, const T& new_value);
+
+template <class InputIterator, class OutputIterator, class T>
+    constexpr OutputIterator      // constexpr in C++20
+    replace_copy(InputIterator first, InputIterator last, OutputIterator result,
+                 const T& old_value, const T& new_value);
+
+template <class InputIterator, class OutputIterator, class Predicate, class T>
+    constexpr OutputIterator      // constexpr in C++20
+    replace_copy_if(InputIterator first, InputIterator last, OutputIterator result, Predicate pred, const T& new_value);
+
+template <class ForwardIterator, class T>
+    constexpr void      // constexpr in C++20
+    fill(ForwardIterator first, ForwardIterator last, const T& value);
+
+template <class OutputIterator, class Size, class T>
+    constexpr OutputIterator      // constexpr in C++20
+    fill_n(OutputIterator first, Size n, const T& value);
+
+template <class ForwardIterator, class Generator>
+    constexpr void      // constexpr in C++20
+    generate(ForwardIterator first, ForwardIterator last, Generator gen);
+
+template <class OutputIterator, class Size, class Generator>
+    constexpr OutputIterator      // constexpr in C++20
+    generate_n(OutputIterator first, Size n, Generator gen);
+
+template <class ForwardIterator, class T>
+    constexpr ForwardIterator     // constexpr in C++20
+    remove(ForwardIterator first, ForwardIterator last, const T& value);
+
+template <class ForwardIterator, class Predicate>
+    constexpr ForwardIterator     // constexpr in C++20
+    remove_if(ForwardIterator first, ForwardIterator last, Predicate pred);
+
+template <class InputIterator, class OutputIterator, class T>
+    constexpr OutputIterator     // constexpr in C++20
+    remove_copy(InputIterator first, InputIterator last, OutputIterator result, const T& value);
+
+template <class InputIterator, class OutputIterator, class Predicate>
+    constexpr OutputIterator     // constexpr in C++20
+    remove_copy_if(InputIterator first, InputIterator last, OutputIterator result, Predicate pred);
+
+template <class ForwardIterator>
+    constexpr ForwardIterator    // constexpr in C++20
+    unique(ForwardIterator first, ForwardIterator last);
+
+template <class ForwardIterator, class BinaryPredicate>
+    constexpr ForwardIterator    // constexpr in C++20
+    unique(ForwardIterator first, ForwardIterator last, BinaryPredicate pred);
+
+template <class InputIterator, class OutputIterator>
+    constexpr OutputIterator     // constexpr in C++20
+    unique_copy(InputIterator first, InputIterator last, OutputIterator result);
+
+template <class InputIterator, class OutputIterator, class BinaryPredicate>
+    constexpr OutputIterator     // constexpr in C++20
+    unique_copy(InputIterator first, InputIterator last, OutputIterator result, BinaryPredicate pred);
+
+template <class BidirectionalIterator>
+    constexpr void               // constexpr in C++20
+    reverse(BidirectionalIterator first, BidirectionalIterator last);
+
+template <class BidirectionalIterator, class OutputIterator>
+    constexpr OutputIterator       // constexpr in C++20
+    reverse_copy(BidirectionalIterator first, BidirectionalIterator last, OutputIterator result);
+
+template <class ForwardIterator>
+    constexpr ForwardIterator      // constexpr in C++20
+    rotate(ForwardIterator first, ForwardIterator middle, ForwardIterator last);
+
+template <class ForwardIterator, class OutputIterator>
+    constexpr OutputIterator       // constexpr in C++20
+    rotate_copy(ForwardIterator first, ForwardIterator middle, ForwardIterator last, OutputIterator result);
+
+template <class RandomAccessIterator>
+    void
+    random_shuffle(RandomAccessIterator first, RandomAccessIterator last); // deprecated in C++14, removed in C++17
+
+template <class RandomAccessIterator, class RandomNumberGenerator>
+    void
+    random_shuffle(RandomAccessIterator first, RandomAccessIterator last,
+                   RandomNumberGenerator& rand);  // deprecated in C++14, removed in C++17
+
+template<class PopulationIterator, class SampleIterator,
+         class Distance, class UniformRandomBitGenerator>
+    SampleIterator sample(PopulationIterator first, PopulationIterator last,
+                          SampleIterator out, Distance n,
+                          UniformRandomBitGenerator&& g); // C++17
+
+template<class RandomAccessIterator, class UniformRandomNumberGenerator>
+    void shuffle(RandomAccessIterator first, RandomAccessIterator last,
+                 UniformRandomNumberGenerator&& g);
+
+template<class ForwardIterator>
+  constexpr ForwardIterator
+    shift_left(ForwardIterator first, ForwardIterator last,
+               typename iterator_traits<ForwardIterator>::difference_type n); // C++20
+
+template<class ForwardIterator>
+  constexpr ForwardIterator
+    shift_right(ForwardIterator first, ForwardIterator last,
+                typename iterator_traits<ForwardIterator>::difference_type n); // C++20
+
+template <class InputIterator, class Predicate>
+    constexpr bool  // constexpr in C++20
+    is_partitioned(InputIterator first, InputIterator last, Predicate pred);
+
+template <class ForwardIterator, class Predicate>
+    constexpr ForwardIterator  // constexpr in C++20
+    partition(ForwardIterator first, ForwardIterator last, Predicate pred);
+
+template <class InputIterator, class OutputIterator1,
+          class OutputIterator2, class Predicate>
+    constexpr pair<OutputIterator1, OutputIterator2>   // constexpr in C++20
+    partition_copy(InputIterator first, InputIterator last,
+                   OutputIterator1 out_true, OutputIterator2 out_false,
+                   Predicate pred);
+
+template <class ForwardIterator, class Predicate>
+    ForwardIterator
+    stable_partition(ForwardIterator first, ForwardIterator last, Predicate pred);
+
+template<class ForwardIterator, class Predicate>
+    constexpr ForwardIterator  // constexpr in C++20
+    partition_point(ForwardIterator first, ForwardIterator last, Predicate pred);
+
+template <class ForwardIterator>
+    constexpr bool  // constexpr in C++20
+    is_sorted(ForwardIterator first, ForwardIterator last);
+
+template <class ForwardIterator, class Compare>
+    constexpr bool  // constexpr in C++20
+    is_sorted(ForwardIterator first, ForwardIterator last, Compare comp);
+
+template<class ForwardIterator>
+    constexpr ForwardIterator    // constexpr in C++20
+    is_sorted_until(ForwardIterator first, ForwardIterator last);
+
+template <class ForwardIterator, class Compare>
+    constexpr ForwardIterator    // constexpr in C++20
+    is_sorted_until(ForwardIterator first, ForwardIterator last, Compare comp);
+
+template <class RandomAccessIterator>
+    constexpr void               // constexpr in C++20
+    sort(RandomAccessIterator first, RandomAccessIterator last);
+
+template <class RandomAccessIterator, class Compare>
+    constexpr void               // constexpr in C++20
+    sort(RandomAccessIterator first, RandomAccessIterator last, Compare comp);
+
+template <class RandomAccessIterator>
+    void
+    stable_sort(RandomAccessIterator first, RandomAccessIterator last);
+
+template <class RandomAccessIterator, class Compare>
+    void
+    stable_sort(RandomAccessIterator first, RandomAccessIterator last, Compare comp);
+
+template <class RandomAccessIterator>
+    constexpr void                    // constexpr in C++20
+    partial_sort(RandomAccessIterator first, RandomAccessIterator middle, RandomAccessIterator last);
+
+template <class RandomAccessIterator, class Compare>
+    constexpr void                    // constexpr in C++20
+    partial_sort(RandomAccessIterator first, RandomAccessIterator middle, RandomAccessIterator last, Compare comp);
+
+template <class InputIterator, class RandomAccessIterator>
+    constexpr RandomAccessIterator    // constexpr in C++20
+    partial_sort_copy(InputIterator first, InputIterator last,
+                      RandomAccessIterator result_first, RandomAccessIterator result_last);
+
+template <class InputIterator, class RandomAccessIterator, class Compare>
+    constexpr RandomAccessIterator    // constexpr in C++20
+    partial_sort_copy(InputIterator first, InputIterator last,
+                      RandomAccessIterator result_first, RandomAccessIterator result_last, Compare comp);
+
+template <class RandomAccessIterator>
+    constexpr void                    // constexpr in C++20
+    nth_element(RandomAccessIterator first, RandomAccessIterator nth, RandomAccessIterator last);
+
+template <class RandomAccessIterator, class Compare>
+    constexpr void                    // constexpr in C++20
+    nth_element(RandomAccessIterator first, RandomAccessIterator nth, RandomAccessIterator last, Compare comp);
+
+template <class ForwardIterator, class T>
+    constexpr ForwardIterator                         // constexpr in C++20
+    lower_bound(ForwardIterator first, ForwardIterator last, const T& value);
+
+template <class ForwardIterator, class T, class Compare>
+    constexpr ForwardIterator                         // constexpr in C++20
+    lower_bound(ForwardIterator first, ForwardIterator last, const T& value, Compare comp);
+
+template <class ForwardIterator, class T>
+    constexpr ForwardIterator                         // constexpr in C++20
+    upper_bound(ForwardIterator first, ForwardIterator last, const T& value);
+
+template <class ForwardIterator, class T, class Compare>
+    constexpr ForwardIterator                         // constexpr in C++20
+    upper_bound(ForwardIterator first, ForwardIterator last, const T& value, Compare comp);
+
+template <class ForwardIterator, class T>
+    constexpr pair<ForwardIterator, ForwardIterator>  // constexpr in C++20
+    equal_range(ForwardIterator first, ForwardIterator last, const T& value);
+
+template <class ForwardIterator, class T, class Compare>
+    constexpr pair<ForwardIterator, ForwardIterator>  // constexpr in C++20
+    equal_range(ForwardIterator first, ForwardIterator last, const T& value, Compare comp);
+
+template <class ForwardIterator, class T>
+    constexpr bool                                    // constexpr in C++20
+    binary_search(ForwardIterator first, ForwardIterator last, const T& value);
+
+template <class ForwardIterator, class T, class Compare>
+    constexpr bool                                    // constexpr in C++20
+    binary_search(ForwardIterator first, ForwardIterator last, const T& value, Compare comp);
+
+template <class InputIterator1, class InputIterator2, class OutputIterator>
+    constexpr OutputIterator                          // constexpr in C++20
+    merge(InputIterator1 first1, InputIterator1 last1,
+          InputIterator2 first2, InputIterator2 last2, OutputIterator result);
+
+template <class InputIterator1, class InputIterator2, class OutputIterator, class Compare>
+    constexpr OutputIterator                          // constexpr in C++20
+    merge(InputIterator1 first1, InputIterator1 last1,
+          InputIterator2 first2, InputIterator2 last2, OutputIterator result, Compare comp);
+
+template <class BidirectionalIterator>
+    void
+    inplace_merge(BidirectionalIterator first, BidirectionalIterator middle, BidirectionalIterator last);
+
+template <class BidirectionalIterator, class Compare>
+    void
+    inplace_merge(BidirectionalIterator first, BidirectionalIterator middle, BidirectionalIterator last, Compare comp);
+
+template <class InputIterator1, class InputIterator2>
+    constexpr bool                                    // constexpr in C++20
+    includes(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2);
+
+template <class InputIterator1, class InputIterator2, class Compare>
+    constexpr bool                                    // constexpr in C++20
+    includes(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2, Compare comp);
+
+template <class InputIterator1, class InputIterator2, class OutputIterator>
+    constexpr OutputIterator                          // constexpr in C++20
+    set_union(InputIterator1 first1, InputIterator1 last1,
+              InputIterator2 first2, InputIterator2 last2, OutputIterator result);
+
+template <class InputIterator1, class InputIterator2, class OutputIterator, class Compare>
+    constexpr OutputIterator                          // constexpr in C++20
+    set_union(InputIterator1 first1, InputIterator1 last1,
+              InputIterator2 first2, InputIterator2 last2, OutputIterator result, Compare comp);
+
+template <class InputIterator1, class InputIterator2, class OutputIterator>
+    constexpr OutputIterator                         // constexpr in C++20
+    set_intersection(InputIterator1 first1, InputIterator1 last1,
+                     InputIterator2 first2, InputIterator2 last2, OutputIterator result);
+
+template <class InputIterator1, class InputIterator2, class OutputIterator, class Compare>
+    constexpr OutputIterator                         // constexpr in C++20
+    set_intersection(InputIterator1 first1, InputIterator1 last1,
+                     InputIterator2 first2, InputIterator2 last2, OutputIterator result, Compare comp);
+
+template <class InputIterator1, class InputIterator2, class OutputIterator>
+    constexpr OutputIterator                         // constexpr in C++20
+    set_difference(InputIterator1 first1, InputIterator1 last1,
+                   InputIterator2 first2, InputIterator2 last2, OutputIterator result);
+
+template <class InputIterator1, class InputIterator2, class OutputIterator, class Compare>
+    constexpr OutputIterator                         // constexpr in C++20
+    set_difference(InputIterator1 first1, InputIterator1 last1,
+                   InputIterator2 first2, InputIterator2 last2, OutputIterator result, Compare comp);
+
+template <class InputIterator1, class InputIterator2, class OutputIterator>
+    constexpr OutputIterator                         // constexpr in C++20
+    set_symmetric_difference(InputIterator1 first1, InputIterator1 last1,
+                             InputIterator2 first2, InputIterator2 last2, OutputIterator result);
+
+template <class InputIterator1, class InputIterator2, class OutputIterator, class Compare>
+    constexpr OutputIterator                         // constexpr in C++20
+    set_symmetric_difference(InputIterator1 first1, InputIterator1 last1,
+                             InputIterator2 first2, InputIterator2 last2, OutputIterator result, Compare comp);
+
+template <class RandomAccessIterator>
+    constexpr void                                   // constexpr in C++20
+    push_heap(RandomAccessIterator first, RandomAccessIterator last);
+
+template <class RandomAccessIterator, class Compare>
+    constexpr void                                   // constexpr in C++20
+    push_heap(RandomAccessIterator first, RandomAccessIterator last, Compare comp);
+
+template <class RandomAccessIterator>
+    constexpr void                                   // constexpr in C++20
+    pop_heap(RandomAccessIterator first, RandomAccessIterator last);
+
+template <class RandomAccessIterator, class Compare>
+    constexpr void                                   // constexpr in C++20
+    pop_heap(RandomAccessIterator first, RandomAccessIterator last, Compare comp);
+
+template <class RandomAccessIterator>
+    constexpr void                                   // constexpr in C++20
+    make_heap(RandomAccessIterator first, RandomAccessIterator last);
+
+template <class RandomAccessIterator, class Compare>
+    constexpr void                                   // constexpr in C++20
+    make_heap(RandomAccessIterator first, RandomAccessIterator last, Compare comp);
+
+template <class RandomAccessIterator>
+    constexpr void                                   // constexpr in C++20
+    sort_heap(RandomAccessIterator first, RandomAccessIterator last);
+
+template <class RandomAccessIterator, class Compare>
+    constexpr void                                   // constexpr in C++20
+    sort_heap(RandomAccessIterator first, RandomAccessIterator last, Compare comp);
+
+template <class RandomAccessIterator>
+    constexpr bool   // constexpr in C++20
+    is_heap(RandomAccessIterator first, RandomAccessiterator last);
+
+template <class RandomAccessIterator, class Compare>
+    constexpr bool   // constexpr in C++20
+    is_heap(RandomAccessIterator first, RandomAccessiterator last, Compare comp);
+
+template <class RandomAccessIterator>
+    constexpr RandomAccessIterator   // constexpr in C++20
+    is_heap_until(RandomAccessIterator first, RandomAccessiterator last);
+
+template <class RandomAccessIterator, class Compare>
+    constexpr RandomAccessIterator   // constexpr in C++20
+    is_heap_until(RandomAccessIterator first, RandomAccessiterator last, Compare comp);
+
+template <class ForwardIterator>
+    constexpr ForwardIterator        // constexpr in C++14
+    min_element(ForwardIterator first, ForwardIterator last);
+
+template <class ForwardIterator, class Compare>
+    constexpr ForwardIterator        // constexpr in C++14
+    min_element(ForwardIterator first, ForwardIterator last, Compare comp);
+
+template <class T>
+    constexpr const T&               // constexpr in C++14
+    min(const T& a, const T& b);
+
+template <class T, class Compare>
+    constexpr const T&               // constexpr in C++14
+    min(const T& a, const T& b, Compare comp);
+
+template<class T>
+    constexpr T                      // constexpr in C++14
+    min(initializer_list<T> t);
+
+template<class T, class Compare>
+    constexpr T                      // constexpr in C++14
+    min(initializer_list<T> t, Compare comp);
+
+template<class T>
+    constexpr const T& clamp(const T& v, const T& lo, const T& hi);               // C++17
+
+template<class T, class Compare>
+    constexpr const T& clamp(const T& v, const T& lo, const T& hi, Compare comp); // C++17
+
+template <class ForwardIterator>
+    constexpr ForwardIterator        // constexpr in C++14
+    max_element(ForwardIterator first, ForwardIterator last);
+
+template <class ForwardIterator, class Compare>
+    constexpr ForwardIterator        // constexpr in C++14
+    max_element(ForwardIterator first, ForwardIterator last, Compare comp);
+
+template <class T>
+    constexpr const T&               // constexpr in C++14
+    max(const T& a, const T& b);
+
+template <class T, class Compare>
+    constexpr const T&               // constexpr in C++14
+    max(const T& a, const T& b, Compare comp);
+
+template<class T>
+    constexpr T                      // constexpr in C++14
+    max(initializer_list<T> t);
+
+template<class T, class Compare>
+    constexpr T                      // constexpr in C++14
+    max(initializer_list<T> t, Compare comp);
+
+template<class ForwardIterator>
+    constexpr pair<ForwardIterator, ForwardIterator>  // constexpr in C++14
+    minmax_element(ForwardIterator first, ForwardIterator last);
+
+template<class ForwardIterator, class Compare>
+    constexpr pair<ForwardIterator, ForwardIterator>  // constexpr in C++14
+    minmax_element(ForwardIterator first, ForwardIterator last, Compare comp);
+
+template<class T>
+    constexpr pair<const T&, const T&>  // constexpr in C++14
+    minmax(const T& a, const T& b);
+
+template<class T, class Compare>
+    constexpr pair<const T&, const T&>  // constexpr in C++14
+    minmax(const T& a, const T& b, Compare comp);
+
+template<class T>
+    constexpr pair<T, T>                // constexpr in C++14
+    minmax(initializer_list<T> t);
+
+template<class T, class Compare>
+    constexpr pair<T, T>                // constexpr in C++14
+    minmax(initializer_list<T> t, Compare comp);
+
+template <class InputIterator1, class InputIterator2>
+    constexpr bool     // constexpr in C++20
+    lexicographical_compare(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2);
+
+template <class InputIterator1, class InputIterator2, class Compare>
+    constexpr bool     // constexpr in C++20
+    lexicographical_compare(InputIterator1 first1, InputIterator1 last1,
+                            InputIterator2 first2, InputIterator2 last2, Compare comp);
+
+template<class InputIterator1, class InputIterator2, class Cmp>
+    constexpr auto
+    lexicographical_compare_three_way(InputIterator1 first1, InputIterator1 last1,
+                                      InputIterator2 first2, InputIterator2 last2,
+                                      Cmp comp)
+      -> decltype(comp(*b1, *b2));                                                        // since C++20
+
+template<class InputIterator1, class InputIterator2>
+    constexpr auto
+    lexicographical_compare_three_way(InputIterator1 first1, InputIterator1 last1,
+                                      InputIterator2 first2, InputIterator2 last2);      // since C++20
+
+template <class BidirectionalIterator>
+    constexpr bool     // constexpr in C++20
+    next_permutation(BidirectionalIterator first, BidirectionalIterator last);
+
+template <class BidirectionalIterator, class Compare>
+    constexpr bool     // constexpr in C++20
+    next_permutation(BidirectionalIterator first, BidirectionalIterator last, Compare comp);
+
+template <class BidirectionalIterator>
+    constexpr bool     // constexpr in C++20
+    prev_permutation(BidirectionalIterator first, BidirectionalIterator last);
+
+template <class BidirectionalIterator, class Compare>
+    constexpr bool     // constexpr in C++20
+    prev_permutation(BidirectionalIterator first, BidirectionalIterator last, Compare comp);
+}  // std
+
+*/
+
+#include <__config>
+
+#include <__algorithm/adjacent_find.h>
+#include <__algorithm/all_of.h>
+#include <__algorithm/any_of.h>
+#include <__algorithm/binary_search.h>
+#include <__algorithm/copy.h>
+#include <__algorithm/copy_backward.h>
+#include <__algorithm/copy_if.h>
+#include <__algorithm/copy_n.h>
+#include <__algorithm/count.h>
+#include <__algorithm/count_if.h>
+#include <__algorithm/equal.h>
+#include <__algorithm/equal_range.h>
+#include <__algorithm/fill.h>
+#include <__algorithm/fill_n.h>
+#include <__algorithm/find.h>
+#include <__algorithm/find_end.h>
+#include <__algorithm/find_first_of.h>
+#include <__algorithm/find_if.h>
+#include <__algorithm/find_if_not.h>
+#include <__algorithm/for_each.h>
+#include <__algorithm/generate.h>
+#include <__algorithm/generate_n.h>
+#include <__algorithm/includes.h>
+#include <__algorithm/inplace_merge.h>
+#include <__algorithm/is_heap.h>
+#include <__algorithm/is_heap_until.h>
+#include <__algorithm/is_partitioned.h>
+#include <__algorithm/is_permutation.h>
+#include <__algorithm/is_sorted.h>
+#include <__algorithm/is_sorted_until.h>
+#include <__algorithm/iter_swap.h>
+#include <__algorithm/lexicographical_compare.h>
+#include <__algorithm/lower_bound.h>
+#include <__algorithm/make_heap.h>
+#include <__algorithm/max.h>
+#include <__algorithm/max_element.h>
+#include <__algorithm/merge.h>
+#include <__algorithm/min.h>
+#include <__algorithm/min_element.h>
+#include <__algorithm/minmax.h>
+#include <__algorithm/minmax_element.h>
+#include <__algorithm/mismatch.h>
+#include <__algorithm/move.h>
+#include <__algorithm/move_backward.h>
+#include <__algorithm/next_permutation.h>
+#include <__algorithm/none_of.h>
+#include <__algorithm/nth_element.h>
+#include <__algorithm/partial_sort.h>
+#include <__algorithm/partial_sort_copy.h>
+#include <__algorithm/partition.h>
+#include <__algorithm/partition_copy.h>
+#include <__algorithm/partition_point.h>
+#include <__algorithm/pop_heap.h>
+#include <__algorithm/prev_permutation.h>
+#include <__algorithm/push_heap.h>
+#include <__algorithm/remove.h>
+#include <__algorithm/remove_copy.h>
+#include <__algorithm/remove_copy_if.h>
+#include <__algorithm/remove_if.h>
+#include <__algorithm/replace.h>
+#include <__algorithm/replace_copy.h>
+#include <__algorithm/replace_copy_if.h>
+#include <__algorithm/replace_if.h>
+#include <__algorithm/reverse.h>
+#include <__algorithm/reverse_copy.h>
+#include <__algorithm/rotate.h>
+#include <__algorithm/rotate_copy.h>
+#include <__algorithm/search.h>
+#include <__algorithm/search_n.h>
+#include <__algorithm/set_difference.h>
+#include <__algorithm/set_intersection.h>
+#include <__algorithm/set_symmetric_difference.h>
+#include <__algorithm/set_union.h>
+#include <__algorithm/shuffle.h>
+#include <__algorithm/sort.h>
+#include <__algorithm/sort_heap.h>
+#include <__algorithm/stable_partition.h>
+#include <__algorithm/stable_sort.h>
+#include <__algorithm/swap_ranges.h>
+#include <__algorithm/transform.h>
+#include <__algorithm/unique.h>
+#include <__algorithm/unique_copy.h>
+#include <__algorithm/upper_bound.h>
+
+#if _LIBCPP_STD_VER >= 17
+#  include <__algorithm/clamp.h>
+#  include <__algorithm/for_each_n.h>
+#  include <__algorithm/pstl.h>
+#  include <__algorithm/sample.h>
+#endif // _LIBCPP_STD_VER >= 17
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__algorithm/in_found_result.h>
+#  include <__algorithm/in_fun_result.h>
+#  include <__algorithm/in_in_out_result.h>
+#  include <__algorithm/in_in_result.h>
+#  include <__algorithm/in_out_out_result.h>
+#  include <__algorithm/in_out_result.h>
+#  include <__algorithm/lexicographical_compare_three_way.h>
+#  include <__algorithm/min_max_result.h>
+#  include <__algorithm/ranges_adjacent_find.h>
+#  include <__algorithm/ranges_all_of.h>
+#  include <__algorithm/ranges_any_of.h>
+#  include <__algorithm/ranges_binary_search.h>
+#  include <__algorithm/ranges_clamp.h>
+#  include <__algorithm/ranges_contains.h>
+#  include <__algorithm/ranges_copy.h>
+#  include <__algorithm/ranges_copy_backward.h>
+#  include <__algorithm/ranges_copy_if.h>
+#  include <__algorithm/ranges_copy_n.h>
+#  include <__algorithm/ranges_count.h>
+#  include <__algorithm/ranges_count_if.h>
+#  include <__algorithm/ranges_equal.h>
+#  include <__algorithm/ranges_equal_range.h>
+#  include <__algorithm/ranges_fill.h>
+#  include <__algorithm/ranges_fill_n.h>
+#  include <__algorithm/ranges_find.h>
+#  include <__algorithm/ranges_find_end.h>
+#  include <__algorithm/ranges_find_first_of.h>
+#  include <__algorithm/ranges_find_if.h>
+#  include <__algorithm/ranges_find_if_not.h>
+#  include <__algorithm/ranges_for_each.h>
+#  include <__algorithm/ranges_for_each_n.h>
+#  include <__algorithm/ranges_generate.h>
+#  include <__algorithm/ranges_generate_n.h>
+#  include <__algorithm/ranges_includes.h>
+#  include <__algorithm/ranges_inplace_merge.h>
+#  include <__algorithm/ranges_is_heap.h>
+#  include <__algorithm/ranges_is_heap_until.h>
+#  include <__algorithm/ranges_is_partitioned.h>
+#  include <__algorithm/ranges_is_permutation.h>
+#  include <__algorithm/ranges_is_sorted.h>
+#  include <__algorithm/ranges_is_sorted_until.h>
+#  include <__algorithm/ranges_lexicographical_compare.h>
+#  include <__algorithm/ranges_lower_bound.h>
+#  include <__algorithm/ranges_make_heap.h>
+#  include <__algorithm/ranges_max.h>
+#  include <__algorithm/ranges_max_element.h>
+#  include <__algorithm/ranges_merge.h>
+#  include <__algorithm/ranges_min.h>
+#  include <__algorithm/ranges_min_element.h>
+#  include <__algorithm/ranges_minmax.h>
+#  include <__algorithm/ranges_minmax_element.h>
+#  include <__algorithm/ranges_mismatch.h>
+#  include <__algorithm/ranges_move.h>
+#  include <__algorithm/ranges_move_backward.h>
+#  include <__algorithm/ranges_next_permutation.h>
+#  include <__algorithm/ranges_none_of.h>
+#  include <__algorithm/ranges_nth_element.h>
+#  include <__algorithm/ranges_partial_sort.h>
+#  include <__algorithm/ranges_partial_sort_copy.h>
+#  include <__algorithm/ranges_partition.h>
+#  include <__algorithm/ranges_partition_copy.h>
+#  include <__algorithm/ranges_partition_point.h>
+#  include <__algorithm/ranges_pop_heap.h>
+#  include <__algorithm/ranges_prev_permutation.h>
+#  include <__algorithm/ranges_push_heap.h>
+#  include <__algorithm/ranges_remove.h>
+#  include <__algorithm/ranges_remove_copy.h>
+#  include <__algorithm/ranges_remove_copy_if.h>
+#  include <__algorithm/ranges_remove_if.h>
+#  include <__algorithm/ranges_replace.h>
+#  include <__algorithm/ranges_replace_copy.h>
+#  include <__algorithm/ranges_replace_copy_if.h>
+#  include <__algorithm/ranges_replace_if.h>
+#  include <__algorithm/ranges_reverse.h>
+#  include <__algorithm/ranges_reverse_copy.h>
+#  include <__algorithm/ranges_rotate.h>
+#  include <__algorithm/ranges_rotate_copy.h>
+#  include <__algorithm/ranges_sample.h>
+#  include <__algorithm/ranges_search.h>
+#  include <__algorithm/ranges_search_n.h>
+#  include <__algorithm/ranges_set_difference.h>
+#  include <__algorithm/ranges_set_intersection.h>
+#  include <__algorithm/ranges_set_symmetric_difference.h>
+#  include <__algorithm/ranges_set_union.h>
+#  include <__algorithm/ranges_shuffle.h>
+#  include <__algorithm/ranges_sort.h>
+#  include <__algorithm/ranges_sort_heap.h>
+#  include <__algorithm/ranges_stable_partition.h>
+#  include <__algorithm/ranges_stable_sort.h>
+#  include <__algorithm/ranges_swap_ranges.h>
+#  include <__algorithm/ranges_transform.h>
+#  include <__algorithm/ranges_unique.h>
+#  include <__algorithm/ranges_unique_copy.h>
+#  include <__algorithm/ranges_upper_bound.h>
+#  include <__algorithm/shift_left.h>
+#  include <__algorithm/shift_right.h>
+#endif
+
+#if _LIBCPP_STD_VER >= 23
+#  include <__algorithm/fold.h>
+#  include <__algorithm/ranges_contains_subrange.h>
+#  include <__algorithm/ranges_ends_with.h>
+#  include <__algorithm/ranges_find_last.h>
+#  include <__algorithm/ranges_starts_with.h>
+#endif // _LIBCPP_STD_VER >= 23
+
+#include <version>
+
+// standard-mandated includes
+
+// [algorithm.syn]
+#include <initializer_list>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER == 14
+#  include <execution>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <atomic>
+#  include <bit>
+#  include <concepts>
+#  include <cstdlib>
+#  include <cstring>
+#  include <iterator>
+#  include <memory>
+#  include <stdexcept>
+#  include <type_traits>
+#  include <utility>
+#endif
+
+#endif // _LIBCPP_ALGORITHM

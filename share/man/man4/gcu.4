@@ -1,0 +1,57 @@
+.\" $OpenBSD: gcu.4,v 1.5 2013/07/16 16:05:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2009 Dariusz Swiderski <sfires@sfires.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt GCU 4
+.Os
+.Sh NAME
+.Nm gcu
+.Nd Intel EP80579 Global Configuration Unit
+.Sh SYNOPSIS
+.Cd "gcu* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to the miibus that is hidden behind the GCU device.
+It is used to control PHYs on embedded designs utilizing Intel's EP80579
+chips.
+.Pp
+The GCU also provides access to CAN, SSP and TDM signal strength drivers,
+but since they are not supported by
+.Ox
+the driver does not provide any
+functionality related to them.
+.Sh SEE ALSO
+.Xr em 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4
+.Pp
+Intel's EP80579 Datasheet:
+.Lk http://download.intel.com/design/intarch/ep80579/320066.pdf
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.7 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Dariusz Swiderski Aq Mt dms@openbsd.org ,
+partially based on the
+.Fx
+driver released by Intel under the ISC license.

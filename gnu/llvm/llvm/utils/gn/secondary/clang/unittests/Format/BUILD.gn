@@ -1,0 +1,48 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("FormatTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "BracesInserterTest.cpp",
+    "BracesRemoverTest.cpp",
+    "CleanupTest.cpp",
+    "ConfigParseTest.cpp",
+    "DefinitionBlockSeparatorTest.cpp",
+    "FormatReplacementTest.cpp",
+    "FormatTest.cpp",
+    "FormatTestCSharp.cpp",
+    "FormatTestComments.cpp",
+    "FormatTestJS.cpp",
+    "FormatTestJava.cpp",
+    "FormatTestJson.cpp",
+    "FormatTestMacroExpansion.cpp",
+    "FormatTestObjC.cpp",
+    "FormatTestProto.cpp",
+    "FormatTestRawStrings.cpp",
+    "FormatTestSelective.cpp",
+    "FormatTestTableGen.cpp",
+    "FormatTestTextProto.cpp",
+    "FormatTestVerilog.cpp",
+    "FormatTokenSourceTest.cpp",
+    "IntegerLiteralSeparatorTest.cpp",
+    "MacroCallReconstructorTest.cpp",
+    "MacroExpanderTest.cpp",
+    "MatchFilePathTest.cpp",
+    "NamespaceEndCommentsFixerTest.cpp",
+    "ObjCPropertyAttributeOrderFixerTest.cpp",
+    "QualifierFixerTest.cpp",
+    "SortImportsTestJS.cpp",
+    "SortImportsTestJava.cpp",
+    "SortIncludesTest.cpp",
+    "TokenAnnotatorTest.cpp",
+    "UsingDeclarationsSorterTest.cpp",
+  ]
+}

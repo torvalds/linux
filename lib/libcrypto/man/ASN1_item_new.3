@@ -1,0 +1,127 @@
+.\" $OpenBSD: ASN1_item_new.3,v 1.12 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2016, 2018 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_ITEM_NEW 3
+.Os
+.Sh NAME
+.Nm ASN1_item_new ,
+.Nm ASN1_item_free
+.Nd generic ASN.1 value constructor and destructor
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft ASN1_VALUE *
+.Fo ASN1_item_new
+.Fa "const ASN1_ITEM *it"
+.Fc
+.Ft void
+.Fo ASN1_item_free
+.Fa "ASN1_VALUE *val_in"
+.Fa "const ASN1_ITEM *it"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_item_new
+allocates and initializes an empty ASN.1 value
+of the type described by the global static object
+.Fa it .
+.Pp
+If the item type described by
+.Fa it
+is reference counted,
+.Fn ASN1_item_free
+decrements the reference count of
+.Fa val_in .
+Otherwise, or if the reference count reaches 0,
+.Fn ASN1_item_free
+frees
+.Fa val_in ,
+assuming that it is of the type described by
+.Fa it .
+If the true type of
+.Fa val_in
+fails to match the specified
+.Fa it ,
+buffer overflows and segmentation faults are likely to occur.
+It is not possible to recover the type of an
+.Vt ASN1_VALUE
+object by inspecting it; the type always needs to be remembered
+separately.
+.Pp
+.Vt ASN1_VALUE
+is an incomplete type, and pointers to it always require casting
+to the correct complete type before they can be dereferenced.
+For all practical purposes, a pointer to
+.Vt ASN1_VALUE
+is equivalent to a
+.Vt void
+pointer.
+.Pp
+Depending on
+.Fa it ,
+there are more than 150 different types that
+.Fn ASN1_item_new
+may return.
+Most of them are pointers to structures or pointers to arrays of
+structures, but there are a few exceptions, for example:
+If
+.Fa it
+is
+.Dv ASN1_NULL_it ,
+.Fn ASN1_item_new
+returns a specific invalid pointer representing the unique
+.Vt ASN1_NULL
+object.
+If
+.Fa it
+is
+.Dv LONG_it ,
+.Fn ASN1_item_new
+does not return a pointer at all, but a
+.Vt long
+value cast to
+.Vt ASN1_VALUE * .
+.Sh RETURN VALUES
+The
+.Fn ASN1_item_new
+function returns the new
+.Vt ASN1_VALUE
+object if successful; otherwise
+.Dv NULL
+is returned and an error code can be retrieved with
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr ASN1_get_object 3 ,
+.Xr ASN1_item_d2i 3 ,
+.Xr ASN1_item_digest 3 ,
+.Xr ASN1_item_pack 3 ,
+.Xr ASN1_item_sign 3 ,
+.Xr ASN1_item_verify 3 ,
+.Xr ASN1_NULL_new 3 ,
+.Xr ASN1_TYPE_new 3 ,
+.Xr d2i_ASN1_NULL 3 ,
+.Xr OBJ_nid2obj 3
+.Sh HISTORY
+.Fn ASN1_item_new
+and
+.Fn ASN1_item_free
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Sh BUGS
+The
+.Vt ASN1_VALUE
+type compromises type safety and invites programming mistakes that
+will typically have severe consequences.

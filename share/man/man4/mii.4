@@ -1,0 +1,107 @@
+.\"	$OpenBSD: mii.4,v 1.32 2023/03/06 06:56:49 jmc Exp $
+.\"	$NetBSD: mii.4,v 1.1 1998/11/04 05:21:50 thorpej Exp $
+.\"
+.\" Copyright (c) 1998 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+.\" NASA Ames Research Center.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 6 2023 $
+.Dt MII 4
+.Os
+.Sh NAME
+.Nm mii
+.Nd IEEE 802.3 Media Independent Interface
+.Sh SYNOPSIS
+.Cd "acphy* at mii?"
+.Cd "amphy* at mii?"
+.Cd "atphy* at mii?"
+.Cd "bmtphy* at mii?"
+.Cd "brgphy* at mii?"
+.Cd "ciphy* at mii?"
+.Cd "dcphy* at mii?"
+.Cd "eephy* at mii?"
+.Cd "etphy* at mii?"
+.Cd "exphy* at mii?"
+.Cd "gentbi* at mii?"
+.Cd "icsphy* at mii?"
+.Cd "ipgphy* at mii?"
+.Cd "inphy* at mii?"
+.Cd "iophy* at mii?"
+.Cd "jmphy* at mii?"
+.Cd "luphy* at mii?"
+.Cd "lxtphy* at mii?"
+.Cd "mtdphy* at mii?"
+.Cd "nsgphy* at mii?"
+.Cd "nsphy* at mii?"
+.Cd "nsphyter* at mii?"
+.Cd "qsphy* at mii?"
+.Cd "rdcphy* at mii?"
+.Cd "rgephy* at mii?"
+.Cd "rlphy* at mii?"
+.Cd "sqphy* at mii?"
+.Cd "tlphy* at mii?"
+.Cd "tqphy* at mii?"
+.Cd "txphy* at mii?"
+.Cd "ukphy* at mii?"
+.Cd "urlphy* at mii?"
+.Cd "xmphy* at mii?"
+.Cd "ytphy* at mii?"
+.Sh DESCRIPTION
+Media Independent Interface is an IEEE standard serial bus for
+connecting MACs (network controllers) to PHYs (physical media
+interfaces).
+The
+.Nm
+layer allows network device drivers to share support code for
+various PHY models, and allows unused support for PHYs which
+are not present in a system to be removed from the kernel.
+.Pp
+Network device drivers which use the
+.Nm
+layer carry the
+.Dq mii
+autoconfiguration attribute.
+This allows kernel configuration files to simply specify PHYs as
+described above in
+.Sx SYNOPSIS .
+.Pp
+The following is an example of the messages displayed when a network
+interface with an attached PHY is detected by the kernel:
+.Bd -literal -offset indent
+hme0 at sbus0 slot 1 offset 0x8c00000 pri 7: address 08:00:20:22:86:b8 rev 34
+nsphy0 at hme0 phy 1: DP83840 10/100 PHY, rev. 1
+.Ed
+.Pp
+Supported media types for the PHY can be displayed or set using the
+.Xr ifconfig 8
+.Cm media
+keyword.
+.Sh SEE ALSO
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8

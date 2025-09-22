@@ -1,0 +1,43 @@
+.\"	$OpenBSD: OPENSSL_cleanse.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OPENSSL_CLEANSE 3
+.Os
+.Sh NAME
+.Nm OPENSSL_cleanse
+.Nd OpenSSL memory cleaning operation
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/crypto.h
+.Ft void
+.Fo OPENSSL_cleanse
+.Fa "void *ptr"
+.Fa "size_t len"
+.Fc
+.Sh DESCRIPTION
+Do not use the interface documented here.
+It is provided purely for compatibility with legacy application code.
+.Pp
+.Fn OPENSSL_cleanse
+has the same semantics as, and is a wrapper around,
+.Xr explicit_bzero 3 .
+.Sh SEE ALSO
+.Xr crypto 3
+.Sh HISTORY
+.Fn OPENSSL_cleanse
+first appeared in OpenSSL 0.9.6h and has been available since
+.Ox 3.4 .

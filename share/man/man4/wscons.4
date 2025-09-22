@@ -1,0 +1,251 @@
+.\" $OpenBSD: wscons.4,v 1.24 2023/11/12 09:21:36 dlg Exp $
+.\" $NetBSD: wscons.4,v 1.11 2000/04/13 11:14:42 is Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 12 2023 $
+.Dt WSCONS 4
+.Os
+.Sh NAME
+.Nm wscons
+.Nd workstation console access
+.Sh SYNOPSIS
+.Cd option WSEMUL_SUN
+.Cd option WSEMUL_NO_VT100
+.Cd option WSEMUL_DEFAULT=\&"xxx\&"
+.Cd option WS_KERNEL_FG=WSCOL_XXX
+.Cd option WS_KERNEL_BG=WSCOL_XXX
+.Cd option WSDISPLAY_COMPAT_USL
+.Cd option WSDISPLAY_COMPAT_RAWKBD
+.Pp
+.Cd "wsdisplay* at ..."
+.Cd "wskbd*     at ... mux N"
+.Cd "wsmouse*   at ... mux N"
+.Pp
+.Cd "pseudo-device wsmux" Op Ar count
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for machine-independent access to the console.
+.Pp
+.Nm
+is made of a number of cooperating modules, in particular
+.Bl -bullet
+.It
+Hardware support for display adapters, keyboards and mice; see
+.Xr wsdisplay 4 ,
+.Xr wskbd 4 ,
+and
+.Xr wsmouse 4 .
+.It
+Input event multiplexor; see
+.Xr wsmux 4 .
+.It
+Terminal emulation modules (see below).
+.It
+Compatibility options to support control operations and other low-level
+behaviour of existing terminal drivers (see below).
+.El
+.Ss Terminal emulations
+.Nm
+does not define its own set of terminal control sequences and special keyboard
+codes in terms of
+.Xr termcap 5 .
+Instead, a
+.Dq terminal emulation
+is assigned to each virtual screen when the screen is created (see
+.Xr wsconscfg 8 ) .
+Different terminal emulations can be active at the same time on one display.
+.Pp
+The following choices are available:
+.Bl -tag -width vt100
+.It dumb
+This minimal terminal support is always available.
+No control sequences are supported besides the ASCII control characters.
+The cursor is not addressable.
+Only ASCII keyboard codes will be delivered, cursor and functions keys
+do not work.
+.It sun
+The
+.Dq sun
+console emulation is available by default on the sparc64 architecture,
+or if
+.Cd option WSEMUL_SUN
+was specified at kernel build time.
+It supports the control sequences of
+.Tn SUN
+machine consoles and delivers its keyboard codes for function and
+keypad keys (as far as present on the actually used keyboard).
+.Pp
+ANSI colors are also supported on this emulation, if the
+.Ev TERM
+environment variable is set to
+.Ar rcons-color .
+.Pp
+This emulation is sufficient for full-screen applications.
+.It vt100
+is available by default, but can be disabled with
+.Cd option WSEMUL_NO_VT100 .
+It provides the most commonly used functions of
+.Tn DEC VT100
+terminals with some extensions introduced by the
+.Tn DEC VT220
+and
+.Tn DEC VT320
+models.
+The features of the original
+.Tn VT100
+which are not, or not completely, implemented are:
+.Bl -bullet
+.It
+.Tn VT52
+support, 132-column-mode, smooth scroll, light background, keyboard
+autorepeat control, external printer support, keyboard locking,
+newline/linefeed switching: Escape sequences related
+to these features are ignored or answered with standard replies.
+(DECANM, DECCOLM, DECSCLM, DECSCNM, DECARM, DECPFF, DECPEX, KAM, LNM)
+.It
+Function keys are not reprogrammable and fonts cannot be downloaded.
+DECUDK and DECDLD sequences will be ignored.
+.It
+Neither C1 control set characters will be recognized nor will 8-bit keyboard
+codes be delivered.
+.It
+The
+.Dq DEC supplemental graphic
+font is approximated by the ISO-latin-1 font, though there are
+subtle differences.
+.It
+The actual rendering quality depends on the underlying graphics
+hardware driver.
+Characters might be missing in the available fonts and be
+substituted by more or less fitting replacements.
+.Pp
+Depending on the keyboard used, not all function keys might be available.
+.El
+.Pp
+In addition to the plain
+.Tn VT100
+functions, the following features are supported:
+.Bl -bullet
+.It
+ANSI colors
+.It
+Some
+.Tn VT220
+-like presentation state settings and -reports (DECRSPS), especially
+tabulator settings.
+.El
+.Pp
+In most applications,
+.Nm
+will work sufficiently as a
+.Tn VT220
+emulator.
+.El
+.Pp
+The
+.Va WSEMUL_DEFAULT
+kernel option allows selecting one of the described terminal options
+as the default choice.
+The default goes into effect at kernel startup, i.e.,
+for the operating system console or additional screens allocated
+through the
+.Va WSDISPLAY_DEFAULTSCREENS
+option (see
+.Xr wsdisplay 4 ) ,
+or if no emulation type was passed to the
+.Xr wsconscfg 8
+utility.
+.Pp
+.Em Compatibility options :
+these options allow running X servers or other programs using low-level
+console driver functions which were written specifically for other
+console drivers to run on
+.Ox
+systems.
+The options are in particular:
+.Bl -tag -width WSDISPLAY_COMPAT_xxxxxxxx
+.It Cd WSDISPLAY_COMPAT_USL
+Support the protocol for switches between multiple virtual screens on
+one display as used by most PC-UNIX variants.
+.It Cd WSDISPLAY_COMPAT_RAWKBD
+Allows getting raw XT keyboard scancodes from PC keyboards as needed
+by X servers.
+.El
+.Pp
+.Em Other options :
+.Bl -tag -width 3n
+.It Cd option WS_KERNEL_FG=WSCOL_XXX
+.It Cd option WS_KERNEL_BG=WSCOL_XXX
+.It Cd option \&WS_KERNEL_COLATTR="(WSATTR_XXX | WSATTR_YYY)"
+.It Cd option \&WS_KERNEL_MONOATTR="(WSATTR_XXX | WSATTR_YYY)"
+Make console output originating from the kernel appear differently
+than output from user level programs (via
+.Pa /dev/console
+or the specific tty
+device like
+.Pa /dev/ttyC0 ) .
+.Dq WS_KERNEL_FG
+and
+.Dq WS_KERNEL_BG
+set the foreground/background used on color displays.
+.Pp
+The
+.Dq WSCOL_XXX
+arguments are colors as defined in
+.Pa /usr/include/dev/wscons/wsdisplayvar.h .
+.Dq WS_KERNEL_COLATTR
+and
+.Dq WS_KERNEL_MONOATTR
+are additional attribute flags used on color or monochrome displays,
+respectively.
+The arguments are defined in the same header file.
+Whether the attributes
+are supported or not depends on the actually used graphics adapter.
+These options are ignored by the
+.Dq dumb
+terminal emulation.
+.It Cd option WSCOMPAT_USL_SYNCTIMEOUT=nnn
+The virtual screen switching protocol enabled by
+.Dq WSDISPLAY_COMPAT_USL
+uses a somewhat complex handshake protocol to pass control to user programs
+as X servers controlling a virtual screen.
+To avoid a non-responsive application locking the whole console system, a
+screen switch will be rolled back if the user application does not respond
+to a screen switch request within some time.
+This option sets the timeout (in seconds);
+the default value is 5 seconds.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr wsdisplay 4 ,
+.Xr wskbd 4 ,
+.Xr wsmouse 4 ,
+.Xr wsmux 4 ,
+.Xr wsconscfg 8 ,
+.Xr wsconsctl 8 ,
+.Xr wsfontload 8 ,
+.Xr wsmoused 8

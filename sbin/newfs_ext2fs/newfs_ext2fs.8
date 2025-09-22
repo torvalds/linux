@@ -1,0 +1,344 @@
+.\"	$OpenBSD: newfs_ext2fs.8,v 1.11 2022/03/31 17:27:20 naddy Exp $
+.\"	$NetBSD: newfs_ext2fs.8,v 1.7 2009/12/01 08:47:25 pooka Exp $
+.\"
+.\" Copyright (c) 1983, 1987, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt NEWFS_EXT2FS 8
+.Os
+.Sh NAME
+.Nm newfs_ext2fs
+.Nd construct a new ext2 file system
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl FINqZ
+.Op Fl b Ar block-size
+.Op Fl D Ar inodesize
+.Op Fl f Ar frag-size
+.Op Fl i Ar bytes-per-inode
+.Op Fl m Ar free-space
+.Op Fl n Ar inodes
+.Op Fl O Ar filesystem-format
+.Op Fl S Ar sector-size
+.Op Fl s Ar size
+.Op Fl V Ar verbose
+.Op Fl v Ar volname
+.Ar special
+.Ek
+.Sh DESCRIPTION
+.Nm
+is used to initialize and clear ext2 file systems before first use.
+Before running
+.Nm ,
+the disk must be labeled using
+.Xr disklabel 8 .
+.Nm
+builds a file system on the specified
+.Ar special
+device,
+basing its defaults on the information in the disk label.
+Typically the defaults are reasonable, although
+.Nm
+has numerous options to allow the defaults to be selectively overridden.
+.Pp
+The
+.Ar special
+file should be a raw device,
+for example
+.Pa /dev/rsd0a ;
+if a relative path like
+.Pa sd0a
+is specified,
+the corresponding raw device is used.
+.Pp
+Options with numeric arguments may contain an optional (case-insensitive)
+suffix:
+.Pp
+.Bl -tag -width 3n -offset indent -compact
+.It b
+Bytes; causes no modification.
+(Default)
+.It k
+Kilo; multiply the argument by 1024.
+.It m
+Mega; multiply the argument by 1048576.
+.It g
+Giga; multiply the argument by 1073741824.
+.El
+.Pp
+The following options define the general layout policies.
+.Bl -tag -width Ds
+.It Fl b Ar block-size
+The block size of the file system, in bytes.
+It must be a power of two.
+The smallest allowable size is 1024 bytes.
+The default size depends upon the size of the file system:
+.Pp
+.Bl -tag -width "file system size" -compact -offset indent
+.It Sy "file system size"
+.Ar block-size
+.It \*(Lt= 512 MB
+1 KB
+.It \*(Gt 512 MB
+4 KB
+.El
+.It Fl D Ar inodesize
+Set the inode size.
+Defaults to 128, and can also be set to 256 for
+compatibility with ext4.
+.It Fl F
+Create a file system image in
+.Ar special .
+The file system size needs to be specified with
+.Dq Fl s Ar size .
+No attempts to use or update the disk label will be made.
+.It Fl f Ar frag-size
+The fragment size of the file system in bytes.
+It must be the same as the blocksize,
+because the current ext2fs
+implementation doesn't support fragmentation.
+.It Fl I
+Do not require that the file system type listed in the disk label is
+.Ql ext2fs .
+.It Fl i Ar bytes-per-inode
+This specifies the density of inodes in the file system.
+If fewer inodes are desired, a larger number should be used;
+to create more inodes a smaller number should be given.
+.It Fl m Ar free-space
+The percentage of space reserved from normal users; the minimum free
+space threshold.
+The default value used is 5%.
+.It Fl N
+Causes the file system parameters to be printed out
+without really creating the file system.
+.It Fl n Ar inodes
+This specifies the number of inodes for the file system.
+If both
+.Fl i
+and
+.Fl n
+are specified then
+.Fl n
+takes precedence.
+The default number of inodes is calculated from a number of blocks in
+the file system.
+.It Fl O Ar filesystem-format
+Select the filesystem-format.
+.Pp
+.Bl -tag -width 3n -offset indent -compact
+.It 0
+.Ql GOOD_OLD_REV ;
+this option is primarily used to build root file systems that can be
+understood by old or dumb firmware for bootstrap.
+(default)
+.It 1
+.Ql DYNAMIC_REV ;
+various extended (and sometimes incompatible) features are enabled
+(though not all features are supported on
+.Ox ) .
+Currently only the following features are supported:
+.Pp
+.Bl -tag -width "SPARSESUPER" -offset indent -compact
+.It RESIZE
+Prepare some reserved structures which enable future file system resizing.
+.It FTYPE
+Store file types in directory entries to improve performance.
+.It SPARSESUPER
+Prepare superblock backups for the
+.Xr fsck_ext2fs 8
+utility on not all but sparse block groups.
+.It LARGEFILE
+Enable files larger than 2G bytes.
+.El
+.El
+.It Fl q
+Operate in quiet mode.
+Equivalent to
+.Fl V Ar 1 .
+.It Fl s Ar size
+The size of the file system in sectors.
+An
+.Sq s
+suffix will be interpreted as the number of sectors (the default).
+All other suffixes are interpreted as per other numeric arguments,
+except that the number is converted into sectors by dividing by the
+sector size (as specified by
+.Fl S Ar secsize )
+after suffix interpretation.
+.Pp
+If no
+.Fl s Ar size
+is specified then the filesystem size defaults to that of the partition or,
+if
+.Fl F
+is specified, the existing file.
+.Pp
+If
+.Ar size
+is negative, the specified size is subtracted from the default size
+(reserving space at the end of the partition).
+.It Fl V Ar verbose
+This controls the amount of information written to stdout:
+.Pp
+.Bl -tag -width 3n -offset indent -compact
+.It 0
+No output.
+.It 1
+Overall size and cylinder group details.
+.It 2
+A progress bar (dots ending at right hand margin).
+.It 3
+The first few super-block backup sector numbers are displayed before the
+progress bar.
+.It 4
+All the super-block backup sector numbers are displayed (no progress bar).
+.El
+.Pp
+The default is 4.
+If
+.Fl N
+is specified,
+.Nm
+stops before outputting the progress bar.
+.It Fl v Ar volname
+This specifies a volume name for the file system.
+.It Fl Z
+Pre-zeros the file system image created with
+.Fl F .
+This is necessary if the image is to be used by
+.Xr vnd 4
+(which doesn't support file systems with
+.Sq holes ) .
+.El
+.Pp
+The following option overrides the standard sizes for the disk geometry.
+The default value is taken from the disk label.
+Changing this default is useful only when using
+.Nm
+to build a file system whose raw image will eventually be used on a
+different type of disk than the one on which it is initially created
+(for example on a write-once disk).
+Note that changing this value from its default will make it impossible for
+.Xr fsck_ext2fs 8
+to find the alternative superblocks if the standard superblock is lost.
+.Bl -tag -width Ds
+.It Fl S Ar sector-size
+The size of a sector in bytes (almost never anything but 512).
+Defaults to 512.
+.El
+.Sh NOTES
+There is no option to specify the metadata byte order on the file system
+to be created because the native ext2 file system is always little endian
+even on big endian hosts.
+.Pp
+The file system is created with
+.Sq random
+inode generation numbers to improve NFS security.
+.Pp
+The owner and group IDs of the root node and reserved blocks of the new
+file system are set to the effective UID and GID of the user initializing
+the file system.
+.Pp
+For the
+.Nm
+command to succeed,
+the disk label should first be updated such that the fstype field for the
+partition is set to
+.Ql ext2fs ,
+unless
+.Fl F
+or
+.Fl I
+is used.
+.Pp
+The partition size is found using
+.Xr fstat 2 ,
+not by inspecting the disk label.
+The block size and fragment size will be written back to the disk label
+only if the last character of
+.Ar special
+references the same partition as the minor device number.
+.Sh SEE ALSO
+.Xr fstat 2 ,
+.Xr disklabel 5 ,
+.Xr disktab 5 ,
+.Xr fs 5 ,
+.Xr disklabel 8 ,
+.\" .Xr dumpfs 8 ,
+.Xr fsck_ext2fs 8 ,
+.Xr mount 8 ,
+.Xr mount_ext2fs 8 ,
+.Xr newfs 8
+.Rs
+.%A Remy Card
+.%A Theodore Ts'o
+.%A Stephen Tweedie
+.%T "Design and Implementation of the Second Extended Filesystem"
+.%J "The Proceedings of the First Dutch International Symposium on Linux"
+.%U http://e2fsprogs.sourceforge.net/ext2intro.html
+.Re
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 4.7 .
+.Sh AUTHORS
+The
+.Nm
+command was written by
+.An Izumi Tsutsui
+.Aq Mt tsutsui@NetBSD.org .
+.Sh BUGS
+The
+.Nm
+command is still experimental and there are few sanity checks.
+.Pp
+The
+.Nm
+command doesn't have options to specify each REV1 file system feature
+independently.
+.Pp
+The
+.Nm
+command doesn't support the bad block list accounted by the bad blocks inode.
+.Pp
+Many newer ext2 file system features (especially journaling) are
+not supported yet.
+.Pp
+Some features in file systems created by the
+.Nm
+command might not be recognized properly by the
+.Xr fsck_ext2fs 8
+utility.
+.Pp
+There is no native tool in the
+.Ox
+distribution for resizing ext2 file systems yet.

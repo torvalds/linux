@@ -1,0 +1,40 @@
+# Don't let CTOR_LIST end up in sdata section.
+CRTSTUFF_T_CFLAGS = -G 0
+
+# Assemble startup files.
+$(T)crti.o: $(srcdir)/config/mips/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crti.o -x assembler-with-cpp $(srcdir)/config/mips/crti.asm
+
+$(T)crtn.o: $(srcdir)/config/mips/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crtn.o -x assembler-with-cpp $(srcdir)/config/mips/crtn.asm
+
+LIB1ASMSRC = mips/mips16.S
+LIB1ASMFUNCS = _m16addsf3 _m16subsf3 _m16mulsf3 _m16divsf3 \
+	_m16eqsf2 _m16nesf2 _m16gtsf2 _m16gesf2 _m16lesf2 _m16ltsf2 \
+	_m16fltsisf _m16fix_truncsfsi \
+	_m16adddf3 _m16subdf3 _m16muldf3 _m16divdf3 \
+	_m16extsfdf2 _m16trdfsf2 \
+	_m16eqdf2 _m16nedf2 _m16gtdf2 _m16gedf2 _m16ledf2 _m16ltdf2 \
+	_m16fltsidf _m16fix_truncdfsi \
+	_m16retsf _m16retdf \
+	_m16stub1 _m16stub2 _m16stub5 _m16stub6 _m16stub9 _m16stub10 \
+	_m16stubsf0 _m16stubsf1 _m16stubsf2 _m16stubsf5 _m16stubsf6 \
+	_m16stubsf9 _m16stubsf10 \
+	_m16stubdf0 _m16stubdf1 _m16stubdf2 _m16stubdf5 _m16stubdf6 \
+	_m16stubdf9 _m16stubdf10
+
+# We must build libgcc2.a with -G 0, in case the user wants to link
+# without the $gp register.
+TARGET_LIBGCC2_CFLAGS = -G 0
+
+# Build the libraries for both hard and soft floating point
+
+MULTILIB_OPTIONS = msoft-float EL/EB mips32/mips32r2/mips64
+MULTILIB_DIRNAMES = soft-float el eb mips32 mips32r2 mips64
+MULTILIB_MATCHES = EL=mel EB=meb
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o crti.o crtn.o
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib

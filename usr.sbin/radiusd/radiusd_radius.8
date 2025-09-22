@@ -1,0 +1,84 @@
+.\"	$OpenBSD: radiusd_radius.8,v 1.2 2024/08/04 03:56:57 yasuoka Exp $
+.\"
+.\" Copyright (c) 2014 Esdenera Networks GmbH
+.\" Copyright (c) 2014, 2024 Internet Initiative Japan Inc.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The following requests are required for all man pages.
+.\"
+.Dd $Mdocdate: August 4 2024 $
+.Dt RADIUSD_RADIUS 8
+.Os
+.Sh NAME
+.Nm radiusd_radius
+.Nd provide authentication from upstream RADIUS servers
+.Sh SYNOPSIS
+.Nm radiusd_radius
+.Sh DESCRIPTION
+The
+.Nm
+utility is executed by
+.Xr radiusd 8
+as a module to provide authentication from upstream RADIUS servers.
+.Sh CONFIGURATIONS
+The
+.Nm
+supports the following configuration key and value:
+.Bl -tag -width Ds
+.It Ic server Ar address Ns Op : Ns Ar port
+Specify the upstream server's address and port.
+If
+.Ar port
+is omitted, 1812 is used.
+This configuration can be specified multiple times.
+.It Ic secret Ar secret
+Specify the shared secret with the servers.
+This configuration cannot be omitted.
+.It Ic max-tries Ar number
+Specify the maximum number of retransmissions for a server.
+.Xr radiusd 8
+will retransmit 2, 6, 14, 22, and 30 seconds after the first transmission
+and subsequent retransmissions will occur every 8 seconds.
+If the number of retransmissions per server reaches this value,
+the current server is marked as
+.Dq fail ,
+and the next server is used for subsequent requests.
+The default value is 3.
+.It Ic max-failovers Ar number
+If a positive number is specified,
+.Xr radiusd 8
+will failover to the next server
+when the current server is marked
+.Dq fail .
+This key and value specifies the maximum number of failovers.
+The default value is 0.
+.It Ic request-timeout Ar sec
+Specify the request timeout in seconds.
+If this value is specified,
+.Ar max-tries
+and
+.Ar max-failover
+will not be used.
+.El
+.Sh FILES
+.Bl -tag -width "/usr/libexec/radiusd/radiusd_radius" -compact
+.It Pa /usr/libexec/radiusd/radiusd_radius
+.Dq radius
+module executable.
+.El
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Ox 5.8 .

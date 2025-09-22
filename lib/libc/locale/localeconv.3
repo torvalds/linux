@@ -1,0 +1,198 @@
+.\"	$OpenBSD: localeconv.3,v 1.4 2022/09/11 06:38:10 jmc Exp $
+.\"	$NetBSD: setlocale.3,v 1.3 1997/07/14 23:19:47 kleink Exp $
+.\"
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Donn Seeley at BSDI.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)setlocale.3	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt LOCALECONV 3
+.Os
+.Sh NAME
+.Nm localeconv
+.Nd retrieve parameters for locale-dependent formatting of numbers
+.Sh SYNOPSIS
+.In locale.h
+.Ft struct lconv *
+.Fn localeconv "void"
+.Sh DESCRIPTION
+The
+.Fn localeconv
+function returns a pointer to a static structure
+which provides parameters for
+.Xr locale 1 Ns -dependent
+formatting of numbers.
+On
+.Ox ,
+nothing in the returned structure ever changes.
+On other operating systems, the contents of the structure may vary
+according to the
+.Dv LC_NUMERIC
+and
+.Dv LC_MONETARY
+locale categories.
+.Pp
+It provides the following fields of type
+.Vt char * :
+.Bl -tag -width mon_decimal_point
+.It Fa decimal_point
+The decimal point character, except for currency values.
+.It Fa thousands_sep
+The separator between groups of digits
+before the decimal point, except for currency values.
+.It Fa grouping
+The sizes of the groups of digits, except for currency values.
+This is a pointer to a vector of integers, each of size
+.Vt char ,
+representing group size from low order digit groups
+to high order (right to left).
+The list may be terminated with 0 or
+.Dv CHAR_MAX .
+If the list is terminated with 0,
+the last group size before the 0 is repeated to account for all the digits.
+If the list is terminated with
+.Dv CHAR_MAX ,
+no more grouping is performed.
+.It Fa int_curr_symbol
+The standardized international currency symbol.
+.It Fa currency_symbol
+The local currency symbol.
+.It Fa mon_decimal_point
+The decimal point character for currency values.
+.It Fa mon_thousands_sep
+The separator for digit groups in currency values.
+.It Fa mon_grouping
+Like
+.Fa grouping
+but for currency values.
+.It Fa positive_sign
+The character used to denote non-negative currency values,
+usually the empty string.
+.It Fa negative_sign
+The character used to denote negative currency values,
+usually a minus sign.
+.El
+.Pp
+It also provides the following fields of type
+.Vt char :
+.Bl -tag -width mon_decimal_point
+.It Fa int_frac_digits
+The number of digits after the decimal point
+in an international-style currency value.
+.It Fa frac_digits
+The number of digits after the decimal point
+in the local style for currency values.
+.It Fa p_cs_precedes
+1 if the currency symbol precedes the currency value
+for non-negative values, 0 if it follows.
+.It Fa p_sep_by_space
+1 if a space is inserted between the currency symbol
+and the currency value for non-negative values, 0 otherwise.
+.It Fa n_cs_precedes
+Like
+.Fa p_cs_precedes
+but for negative values.
+.It Fa n_sep_by_space
+Like
+.Fa p_sep_by_space
+but for negative values.
+.It Fa p_sign_posn
+The location of the
+.Fa positive_sign
+with respect to a non-negative quantity and the
+.Fa currency_symbol ,
+coded as follows:
+.Pp
+.Bl -tag -width 3n -compact
+.It Li 0
+Parentheses around the entire string.
+.It Li 1
+Before the string.
+.It Li 2
+After the string.
+.It Li 3
+Just before
+.Fa currency_symbol .
+.It Li 4
+Just after
+.Fa currency_symbol .
+.El
+.It Fa n_sign_posn
+Like
+.Fa p_sign_posn
+but for negative currency values.
+.It Fa int_p_cs_precedes
+Like
+.Fa p_cs_precedes
+but for the international symbol.
+.It Fa int_n_cs_precedes
+Like
+.Fa n_cs_precedes
+but for the international symbol.
+.It Fa int_p_sep_by_space
+Like
+.Fa p_sep_by_space
+but for the international symbol.
+.It Fa int_n_sep_by_space
+Like
+.Fa n_sep_by_space
+but for the international symbol.
+.It Fa int_p_sign_posn
+Like
+.Fa p_sign_posn
+but for the international symbol.
+.It Fa int_n_sign_posn
+Like
+.Fa n_sign_posn
+but for the international symbol.
+.El
+.Pp
+Unless mentioned above,
+an empty string as a value for a field
+indicates a zero length result or
+a value that is not in the current locale.
+A
+.Dv CHAR_MAX
+result similarly denotes an unavailable value.
+.Sh SEE ALSO
+.Xr locale 1 ,
+.Xr nl_langinfo 3 ,
+.Xr setlocale 3
+.Sh STANDARDS
+The
+.Fn localeconv
+function conforms to
+.St -ansiC .
+.Sh HISTORY
+The
+.Fn localeconv
+function first appeared in
+.Bx 4.3 Net/2 .

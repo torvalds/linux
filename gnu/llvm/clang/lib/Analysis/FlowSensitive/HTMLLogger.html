@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<!-- HTMLLogger.cpp ----------------------------------------------------
+
+ Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ See https://llvm.org/LICENSE.txt for license information.
+ SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+//===------------------------------------------------------------------------>
+
+<head>
+<?INJECT?>
+
+<template id="value-template">
+  <details class="value" open>
+    <summary>
+      <span>{{v.kind}}
+        <template data-if="v.value_id"><span class="address">#{{v.value_id}}</span></template>
+      </span>
+      <template data-if="v.location">
+        <span class="location">{{v.type}} <span class="address">@{{v.location}}</span></span>
+      </template>
+    </summary>
+    <template
+        data-for="kv in Object.entries(v)"
+        data-if="['kind', 'value_id', 'type', 'location'].indexOf(kv[0]) < 0">
+      <div class="property"><span class="key">{{kv[0]}}</span>
+        <template data-if="typeof(kv[1]) != 'object'">{{kv[1]}}</template>
+        <template data-if="typeof(kv[1]) == 'object'" data-let="v = kv[1]">
+          <template data-use="value-template"></template>
+        </template>
+      </div>
+    </template>
+  </details>
+</template>
+
+</head>
+
+<body>
+
+<section id="timeline" data-selection="">
+<header>Timeline</header>
+<template data-for="entry in timeline">
+  <div id="{{entry.block}}:{{entry.iter}}" data-bb="{{entry.block}}" class="entry">
+    <span class="counter"></span>
+    {{entry.block}}
+    <template data-if="entry.post_visit">(post-visit)</template>
+    <template data-if="!entry.post_visit">({{entry.iter}})</template>
+    <template data-if="entry.converged"> &#x2192;&#x7c;<!--Rightwards arrow, vertical line--></template>
+  </div>
+</template>
+</section>
+
+<section id="function" data-selection="">
+<header>Function</header>
+<div id="code"></div>
+<div id="cfg"></div>
+</section>
+
+<section id="block" data-selection="bb">
+<header><template>Block {{selection.bb}}</template></header>
+<div id="iterations">
+  <template data-for="iter in cfg[selection.bb].iters">
+    <a class="chooser {{selection.bb}}:{{iter.iter}}" data-iter="{{selection.bb}}:{{iter.iter}}">
+      <template data-if="iter.post_visit">Post-visit</template>
+      <template data-if="!iter.post_visit">{{iter.iter}}</template>
+      <template data-if="iter.converged"> &#x2192;&#x7c;<!--Rightwards arrow, vertical line--></template>
+    </a>
+  </template>
+</div>
+<table id="bb-elements">
+<template>
+  <tr id="{{selection.bb}}.0">
+    <td class="{{selection.bb}}">{{selection.bb}}.0</td>
+    <td>(initial state)</td>
+  </tr>
+</template>
+<template data-for="elt in cfg[selection.bb].elements">
+  <tr id="{{selection.bb}}.{{elt_index+1}}">
+    <td class="{{selection.bb}}">{{selection.bb}}.{{elt_index+1}}</td>
+    <td>{{elt}}</td>
+  </tr>
+</template>
+</table>
+</section>
+
+<section id="element" data-selection="iter,elt">
+<template data-let="state = states[selection.iter + '_' + selection.elt]">
+<header>
+  <template data-if="state.element == 0">{{state.block}} initial state</template>
+  <template data-if="state.element != 0">Element {{selection.elt}}</template>
+  <template data-if="state.post_visit"> (post-visit)</template>
+  <template data-if="!state.post_visit"> (iteration {{state.iter}})</template>
+</header>
+<template data-if="state.value" data-let="v = state.value">
+  <h2>Value</h2>
+  <template data-use="value-template"></template>
+</template>
+<template data-if="state.logs">
+  <h2>Logs</h2>
+  <pre>{{state.logs}}</pre>
+</template>
+<h2>Built-in lattice</h2>
+<pre>{{state.builtinLattice}}</pre>
+</template>
+</section>
+
+<script>
+addBBColors(Object.keys(HTMLLoggerData.cfg).length);
+watchSelection(HTMLLoggerData);
+updateSelection({}, HTMLLoggerData);
+// Copy code and cfg from <template>s into the body.
+for (tmpl of document.querySelectorAll('template[data-copy]'))
+  document.getElementById(tmpl.dataset.copy).replaceChildren(
+      ...tmpl.content.cloneNode(/*deep=*/true).childNodes);
+</script>
+
+</body>
+</html>

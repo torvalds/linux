@@ -1,0 +1,488 @@
+.\"	$OpenBSD: ae3,v 1.4 2004/04/06 08:19:20 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ae3	8.1 (Berkeley) 6/8/93
+.\"
+.NH
+LINE ADDRESSING IN THE EDITOR
+.PP
+The next general area we will discuss is that of
+line addressing in
+.UL ed ,
+that is, how you specify what lines are to be
+affected by editing commands.
+We have already used constructions like 
+.P1
+1,$s/x/y/
+.P2
+to specify a change on all lines.
+And most users are long since familiar with
+using a single newline (or return) to print the next line,
+and with
+.P1
+/thing/
+.P2
+to find a line that contains `thing'.
+Less familiar, surprisingly enough, is the
+use of
+.P1
+?thing?
+.P2
+to scan
+.ul
+backwards
+for the previous occurrence of `thing'.
+This is especially handy when you realize that the thing
+you want to operate on is back up the page from
+where you are currently editing.
+.PP
+The slash and question mark are the only characters you can
+use to delimit a context search, though you can use
+essentially any character in a substitute command.
+.SH
+Address Arithmetic
+.PP
+The next step is to combine the line numbers
+like `\*.', `$', `/.../' and `?...?'
+with `+' and `\-'.
+Thus
+.P1
+$-1
+.P2
+is a command to print the next to last line of
+the current file (that is, one line before line `$').
+For example, to recall how far you got in a previous editing session,
+.P1
+$-5,$p
+.P2
+prints the last six lines.
+(Be sure you understand why it's six, not five.)
+If there aren't six, of course, you'll get an error message.
+.PP
+As another example,
+.P1
+\&\*.-3,\*.+3p
+.P2
+prints from three lines before where you are now
+(at line dot)
+to three lines after,
+thus giving you a bit of context.
+.PP
+Another area in which you can save typing effort
+in specifying lines is to use `\-' and `+' as line numbers
+by themselves.
+.P1
+-
+.P2
+by itself is a command to move back up one line in the file.
+In fact, you can string several minus signs together to move
+back up that many lines:
+.P1
+---
+.P2
+moves up three lines, as does `\-3'.
+Thus
+.P1
+-3,+3p
+.P2
+is also identical to the examples above.
+.PP
+Since `\-' is shorter than `\*.\-1',
+constructions like
+.P1
+-,\*.s/bad/good/
+.P2
+are useful. This changes `bad' to `good' on the previous line and
+on the current line.
+.PP
+`+' and `\-' can be used in combination with searches using `/.../' and `?...?',
+and with `$'.
+The search
+.P1
+/thing/--
+.P2
+finds the line containing `thing', and positions you
+two lines before it.
+.SH
+Repeated Searches
+.PP
+Suppose you ask for the search
+.P1
+/horrible thing/
+.P2
+and when the line is printed you discover that it
+isn't the horrible thing that you wanted,
+so it is necessary to repeat the search again.
+You don't have to re-type the search,
+for the construction
+.P1
+//
+.P2
+is a shorthand for `the previous thing that was searched for',
+whatever it was.
+This can be repeated as many times as necessary.
+You can also go backwards:
+.P1
+??
+.P2
+searches for the same thing,
+but in the reverse direction.
+.PP
+Not only can you repeat the search, but you can
+use `//' as the left side of a substitute command,
+to mean
+`the most recent pattern'.
+.P1
+/horrible thing/
+.ft I
+ .... ed prints line with `horrible thing' ...
+.ft R
+s//good/p
+.P2
+To go backwards and change a line, say
+.P1
+??s//good/
+.P2
+Of course, you can still use the `&' on the right hand side of a substitute to stand for
+whatever got matched:
+.P1
+//s//&\*(BL&/p
+.P2
+finds the next occurrence of whatever you searched for last,
+replaces it by two copies of itself,
+then prints the line just to verify that it worked.
+.SH
+Default Line Numbers and the Value of Dot
+.PP
+One of the most effective ways to speed up your editing
+is always to know what lines will be affected
+by a command if you don't specify the lines it is to act on,
+and on what line you will be positioned (i.e., the value of dot) when a command finishes.
+If you can edit without specifying unnecessary
+line numbers, you can save a lot of typing.
+.PP
+As the most obvious example, if you issue a search command
+like
+.P1
+/thing/
+.P2
+you are left pointing at the next line that contains `thing'.
+Then no address is required with commands like
+.UL s
+to make a substitution on that line,
+or
+.UL p
+to print it,
+or
+.UL l
+to list it,
+or
+.UL d
+to delete it,
+or
+.UL a
+to append text after it,
+or
+.UL c
+to change it,
+or
+.UL i
+to insert text before it.
+.PP
+What happens if there was no `thing'?
+Then you are left right where you were _
+dot is unchanged.
+This is also true if you were sitting
+on the only `thing' when you issued the command.
+The same rules hold for searches that use
+`?...?'; the only difference is the direction
+in which you search.
+.PP
+The delete command
+.UL d 
+leaves dot pointing
+at the line that followed the last deleted line.
+When line `$' gets deleted,
+however,
+dot points at the
+.ul
+new
+line `$'.
+.PP
+The line-changing commands
+.UL a ,
+.UL c ,
+and
+.UL i
+by default all affect the current line _
+if you give no line number with them,
+.UL a
+appends text after the current line,
+.UL c
+changes the current line,
+and
+.UL i
+inserts text before the current line.
+.PP
+.UL a ,
+.UL c ,
+and
+.UL i
+behave identically in one respect _
+when you stop appending, changing, or inserting,
+dot points at the last line entered.
+This is exactly what you want for typing and editing on the fly.
+For example, you can say
+.P1
+.ta 1.5i
+a
+ ... text ...
+ ... botch ...	(minor error)
+\&\*.
+s/botch/correct/	(fix botched line)
+a
+ ... more text ...
+.P2
+without specifying any line number for the substitute command or for
+the second append command.
+Or you can say
+.P1 2
+.ta 1.5i
+a
+ ... text ...
+ ... horrible botch ...	(major error)
+\&\*.
+c	(replace entire line)
+ ... fixed up line ...
+.P2
+.PP
+You should experiment to determine what happens if you add
+.ul
+no
+lines with
+.UL a ,
+.UL c ,
+or
+.UL i .
+.PP
+The
+.UL r
+command will read a file into the text being edited,
+either at the end if you give no address,
+or after the specified line if you do.
+In either case, dot points at the last line read in.
+Remember that you can even say
+.UL 0r
+to read a file in at the beginning of the text.
+(You can also say
+.UL 0a
+or
+.UL 1i
+to start adding text at the beginning.)
+.PP
+The
+.UL w
+command writes out the entire file.
+If you precede the command by one line number,
+that line is written,
+while if you precede it by two line numbers,
+that range of lines is written.
+The 
+.UL w
+command does
+.ul
+not
+change dot:
+the current line remains the same,
+regardless of what lines are written.
+This is true even if you say something like
+.P1
+/^\*e\*.AB/,/^\*e\*.AE/w abstract
+.P2
+which involves a context search.
+.PP
+Since the
+.UL w
+command is so easy to use,
+you should save what you are editing regularly
+as you go along
+just in case the system crashes, or in case you do something foolish,
+like clobbering what you're editing.
+.PP
+The least intuitive behavior, in a sense, is that of the
+.UL s
+command.
+The rule is simple _
+you are left sitting on the last line that got changed.
+If there were no changes, then dot is unchanged.
+.PP
+To illustrate,
+suppose that there are three lines in the buffer, and you are sitting on
+the middle one:
+.P1
+x1
+x2
+x3
+.P2
+Then the command
+.P1
+\&-,+s/x/y/p
+.P2
+prints the third line, which is the last one changed.
+But if the three lines had been
+.P1
+x1
+y2
+y3
+.P2
+and the same command had been issued while
+dot pointed
+at the second line, then the result
+would be to change and print only the first line,
+and that is where dot would be set.
+.SH
+Semicolon `;'
+.PP
+Searches with `/.../' and `?...?' start
+at the current line and move
+forward or backward respectively
+until they either find the pattern or get back to the current line.
+Sometimes this is not what is wanted.
+Suppose, for example, that the buffer contains lines like this:
+.P1
+ \*.
+ \*.
+ \*.
+ ab
+ \*.
+ \*.
+ \*.
+ bc
+ \*. 
+ \*.
+.P2
+Starting at line 1, one would expect that the command
+.P1
+/a/,/b/p
+.P2
+prints all the lines from the `ab' to the `bc' inclusive.
+Actually this is not what happens.
+.ul
+Both
+searches
+(for `a' and for `b')
+start from the same point, and thus they both find the line
+that contains `ab'.
+The result is to print a single line.
+Worse, if there had been a line with a `b' in it
+before the `ab' line, then the print command
+would be in error, since the second line number
+would be less than the first, and it is illegal to
+try to print lines in reverse order.
+.PP
+This is because the comma separator
+for line numbers doesn't set dot as each address is processed;
+each search starts from the same place.
+In 
+.UL ed ,
+the semicolon `;' can be used just like comma,
+with the single difference that use of a semicolon
+forces dot to be set at that point
+as the line numbers are being evaluated.
+In effect, the semicolon `moves' dot.
+Thus in our example above, the command
+.P1
+/a/;/b/p
+.P2
+prints the range of lines from `ab' to `bc',
+because after the `a' is found, dot is set to that line,
+and then `b' is searched for, starting beyond that line.
+.PP
+This property is most often useful in a very simple situation.
+Suppose you want to find the 
+.ul
+second
+occurrence of `thing'.
+You could say
+.P1
+/thing/
+//
+.P2
+but this prints the first occurrence as well as the second,
+and is a nuisance when you know very well that it is only
+the second one you're interested in.
+The solution is to say
+.P1
+/thing/;//
+.P2
+This says to find the first occurrence of `thing', set dot to that line, then find the second
+and print only that.
+.PP
+Closely related is searching for the second previous
+occurrence of something, as in
+.P1
+?something?;??
+.P2
+Printing the third or fourth or ...
+in either direction is left as an exercise.
+.PP
+Finally, bear in mind that if you want to find the first occurrence of
+something in a file, starting at an arbitrary place within the file,
+it is not sufficient to say
+.P1
+1;/thing/
+.P2
+because this fails if `thing' occurs on line 1.
+But it is possible to say
+.P1
+0;/thing/
+.P2
+(one of the few places where 0 is a legal line number),
+for this starts the search at line 1.
+.SH
+Interrupting the Editor
+.PP
+As a final note on what dot gets set to,
+you should be aware that if you hit the interrupt or delete
+or rubout or break key
+while
+.UL ed
+is doing a command, things are put back together again and your state
+is restored as much as possible to what it was before the command
+began.
+Naturally, some changes are irrevocable _
+if you are reading or writing a file or making substitutions or deleting lines, these will be stopped
+in some clean but unpredictable state in the middle
+(which is why it is not usually wise to stop them).
+Dot may or may not be changed.

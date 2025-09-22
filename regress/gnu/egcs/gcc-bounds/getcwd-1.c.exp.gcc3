@@ -1,0 +1,3 @@
+getcwd-1.c: In function `main':
+getcwd-1.c:5: warning: array size (10) is smaller than minimum required (1024)
+: warning: getwd() possibly used unsafely; consider using getcwd()

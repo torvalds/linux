@@ -1,0 +1,73 @@
+
+BGP routing table entry for 2.0.3.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+
+BGP routing table entry for 2.0.5.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+
+BGP routing table entry for 2.0.11.0/24
+    2
+    Nexthop 192.0.2.66 (via 192.0.2.66) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65530:4 BLACKHOLE NO_EXPORT
+    Large Communities: 999:65530:4
+
+BGP routing table entry for 2.0.12.0/24
+    2
+    Nexthop 192.0.2.66 (via 192.0.2.66) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65530:4 BLACKHOLE NO_EXPORT
+    Large Communities: 999:65530:4
+
+BGP routing table entry for 2.0.13.0/24
+    2
+    Nexthop 192.0.2.66 (via 192.0.2.66) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65530:4 BLACKHOLE NO_EXPORT
+    Large Communities: 999:65530:4
+
+BGP routing table entry for 2.0.15.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+
+BGP routing table entry for 3.0.3.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: NO_EXPORT
+
+BGP routing table entry for 3.0.4.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: NO_ADVERTISE
+
+BGP routing table entry for 3.0.7.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+
+BGP routing table entry for 3.0.8.0/24
+    3 3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+
+BGP routing table entry for 3.0.9.0/24
+    3 3 3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+
+BGP routing table entry for 3.0.10.0/24
+    3 3 3 3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+
+BGP routing table entry for 3.0.11.0/24
+    3 3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor 192.0.2.2 (192.0.2.2)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best

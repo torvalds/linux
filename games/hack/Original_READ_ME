@@ -1,0 +1,64 @@
+$OpenBSD: Original_READ_ME,v 1.3 2003/03/11 04:47:39 david Exp $
+$NetBSD: Original_READ_ME,v 1.2 1995/03/23 08:29:10 cgd Exp $
+
+This is export hack, my first semester programming project.
+
+To set it up for your system, you will have to do the following:
+	1: create a hack uid, to own the top ten list, etc.
+	2: create a hack directory "/usr/lib/game/hack" is the default.
+	2.5: make the directory 700 mode.	/* sav files go in there...*/
+	3: modify hack.main.c to use the new directory.
+	4: modify hack.main.c so it uses the new hack gid.  Gid accounts can
+go into magic mode without the password, can get cores with ^G, etc.
+(make sure gid isn't checked anywhere else...)
+	5: recompile hack.
+	6: put it in games after making it set-uid hack.
+	8: fix the bugs I undobtedly left in it.
+	9: tell me what you think of it.
+
+	Hack uses the UCB file /etc/termcap to get your terminal escape codes.
+If you don't use it, you will have to make extensive changes to hack.pri.c
+
+If you find any bugs (That you think I don't know about), or have any
+awesome new changes (Like a better save (One that works!)), or have ANY
+questions, write me
+		Jay Fenlason
+		29 East St.
+		Sudbury Mass.
+			01776
+
+or call me at (617) 443-5036.  Since I have both a modem and a teen-age
+sister, Good Luck.
+
+
+Hack is split (roughly) into several source files that do different things.
+I have tried to fit all the procedures having to do with a certain segment
+of the game into a single file, but the job is not the best in the world.
+The rough splits are:
+
+hack.c		General random stuff and things I never got around to moving.
+hack.main.c	main() and other random procedures, also the lock file stuff.
+hack.mon.c	Monsters, moving, attacking, etc.
+hack.do.c	drink, eat, read, wield, save, etc.
+hack.do1.c	zap, wear, remove, etc...
+hack.pri.c	stuff having to do with the screen, most of the terminal
+		independent stuff is in here.
+hack.lev.c	temp files and calling of mklev.
+
+Because of the peculiar restraints on our system, I make mklev (create
+a level) a separate procedure execd by hack when needed.  The source for
+mklev is (Naturaly) mklev.c.  You may want to put mklev back into hack.
+Good luck.
+
+Most of hack was written by me, with help from
+		Kenny Woodland (KW)	(general random things including
+			the original BUZZ())
+		Mike Thome	(MT)	(The original chamelian)
+	and	Jon Payne	(JP)	(The original lock file kludge and
+			the massive CURS())
+
+This entire program would not have been possible without the SFSU Logo
+Workshop.  I am eternally grateful to all of our students (Especially K.L.),
+without whom I would never have seen Rogue.  I am especially grateful to
+Mike Clancy, without whose generous help I would never have gotten to play
+ROGUE.

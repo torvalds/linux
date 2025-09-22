@@ -1,0 +1,13 @@
+#!/bin/ksh
+#
+# $OpenBSD: identd,v 1.8 2018/01/11 19:52:12 rpe Exp $
+
+daemon="/usr/sbin/identd"
+daemon_flags="-e"
+
+. /etc/rc.d/rc.subr
+
+pexp="identd: (listen|resolver)"
+rc_reload=NO
+
+rc_cmd $1

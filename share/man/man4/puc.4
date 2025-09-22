@@ -1,0 +1,215 @@
+.\"	$OpenBSD: puc.4,v 1.53 2017/08/06 11:12:03 uaa Exp $
+.\"	$NetBSD: puc.4,v 1.7 1999/07/03 05:55:23 cgd Exp $
+.\"
+.\" Copyright (c) 1998 Christopher G. Demetriou.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou
+.\"      for the NetBSD Project.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 6 2017 $
+.Dt PUC 4
+.Os
+.Sh NAME
+.Nm puc
+.Nd PCI universal communications card driver
+.Sh SYNOPSIS
+.Cd "puc* at pci?"
+.Cd "puc* at cardbus?"
+.Cd "lpt* at puc?"
+.Cd "com* at puc?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI communications cards containing
+simple communications ports, such as NS16550-family
+.Pf ( Nm com )
+serial ports and standard PC-like
+.Pf ( Nm lpt )
+parallel ports.
+The driver is called
+.Dq universal
+because the interfaces to these devices aren't nearly as well
+defined and standard as they should be.
+.Pp
+The driver currently supports the following cards and controllers:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Tn "ASIX AX99100 (4 port serial)"
+.It Tn "AT&T/Lucent Venus Modem (found on IBM 33L4618, Actiontec 56K)"
+.It Tn "Avlab Low Profile PCI 4S Quartet (4 port serial)"
+.It Tn "Avlab PCI 2S (2 port serial)"
+.It Tn "Boca Research Turbo Serial 654 (4 port serial)"
+.It Tn "Boca Research Turbo Serial 658 (8 port serial)"
+.It Tn "Brainboxes Instashield IS-200 with BB16PCI958 (2 port serial)"
+.It Tn "Cronyx Omega-PCI (8 port serial)"
+.It Tn "Decision Computer Inc PCCOM PCI 2 Port (2 port serial)"
+.It Tn "Decision Computer Inc PCCOM PCI 4 Port (4 port serial)"
+.It Tn "Decision Computer Inc PCCOM PCI 8 Port (8 port serial)"
+.It Tn "Digi International Digi Neo 4 (4 port serial)"
+.It Tn "Digi International Digi Neo 8 (8 port serial)"
+.It Tn "Dolphin Peripherals 4014 (dual parallel)"
+.It Tn "Dolphin Peripherals 4035 (dual serial)"
+.It Tn "Exsys EX-41098 (4 port serial)"
+.It Tn "IBM 4810 SurePOS 300 Series SCC (4 port serial)"
+.It Tn "Koutech IOFLEX-2S (dual serial)"
+.It Tn "Kouwell Model-223 (2 port serial, 1 port parallel)"
+.It Tn "Lava Computers 2SP-PCI (parallel port)"
+.It Tn "Lava Computers 2SP-PCI and Quattro-PCI (dual serial)"
+.It Tn "Lava Computers Octopus-550"
+.It Tn "Lava LavaPort-650"
+.It Tn "MosChip MCS9865 (1, 2 and 4 port serial)"
+.It Tn "Moxa Technologies Co., Ltd. PCI I/O Card 4S (4 port serial)"
+.It Tn "Moxa Technologies Co., Ltd. C104H/PCI (4 port serial)"
+.It Tn "Moxa Technologies Co., Ltd. CP104/PCI (4 port serial)"
+.It Tn "Moxa Technologies Co., Ltd. C168H/PCI (8 port serial)"
+.It Tn "Moxa Technologies Co., Ltd. CP168U/PCI (8 port serial)"
+.It Tn "NEC PK-UG-X008 (serial)"
+.It Tn "NEC PK-UG-X001 K56flex PCI (modem)"
+.It Tn "NetMos 1P (1 port parallel)"
+.It Tn "NetMos 2S1P (2 port serial and 1 port parallel)"
+.It Tn "NetMos 2S (2 port serial)"
+.It Tn "NetMos 4S (4 port serial)"
+.It Tn "NetMos 6S (6 port serial)"
+.It Tn "Oxford OX16PCI952 (2 port serial, 1 port parallel)"
+.It Tn "Oxford OX16PCI954 (4 port serial, 1 port parallel)"
+.It Tn "PLX 9016 (8 port serial)"
+.It Tn "QEMU PCI Serial"
+.It Tn "QEMU PCI Serial 2x"
+.It Tn "QEMU PCI Serial 4x"
+.It Tn "SIIG Cyber 2P1S PCI (dual parallel and single serial)"
+.It Tn "SIIG Cyber 2S1P PCI (dual serial and single parallel)"
+.It Tn "SIIG Cyber 4S PCI (quad serial)"
+.It Tn "SIIG Cyber I/O PCI (single serial and single parallel)"
+.It Tn "SIIG Cyber Parallel Dual PCI (dual parallel)"
+.It Tn "SIIG Cyber Parallel PCI (single parallel)"
+.It Tn "SIIG Cyber Serial Dual PCI (dual serial)"
+.It Tn "SIIG Cyber Serial PCI (single serial)"
+.It Tn "SIIG Cyber 8S PCI 16C850"
+.It Tn "SUNIX 400x (1 port parallel)"
+.It Tn "SUNIX 401x (2 port parallel)"
+.It Tn "SUNIX 402x (1 port serial)"
+.It Tn "SUNIX 403x (2 port serial)"
+.It Tn "SUNIX 405x (4 port serial)"
+.It Tn "SUNIX 406x (8 port serial)"
+.It Tn "SUNIX 407x (2 port serial and 1 port parallel)"
+.It Tn "SUNIX 408x (2 port serial and 2 port parallel)"
+.It Tn "SUNIX 409x (4 port serial and 2 port parallel)"
+.It Tn "SUNIX 5008 (1 port parallel)"
+.It Tn "SUNIX 5016 (16 port serial)"
+.It Tn "SUNIX 5027 (1 port serial)"
+.It Tn "SUNIX 5037 (2 port serial)"
+.It Tn "SUNIX 5056 (4 port serial)"
+.It Tn "SUNIX 5066 (8 port serial)"
+.It Tn "SUNIX 5069 (1 port serial and 1 port parallel)"
+.It Tn "SUNIX 5079 (2 port serial and 1 port parallel)"
+.It Tn "SUNIX 5099 (4 port serial and 1 port parallel)"
+.It Tn "Syba Tech Ltd. PCI-4S2P-550-ECP (4 port serial and 2 port parallel)"
+.It Tn "US Robotics 3CP5609 PCI (modem)"
+.It Tn "VScom PCI 800  (8 port serial, probably OEM)"
+.It Tn "VScom PCI 011H (1 port parallel)"
+.It Tn "VScom PCI 100H (1 port serial)"
+.It Tn "VScom PCI 110H (1 port serial and 1 port parallel)"
+.It Tn "VScom PCI 200H (2 port serial)"
+.It Tn "VScom PCI 210H (2 port serial and 1 port parallel)"
+.It Tn "VScom PCI 400H (4 port serial)"
+.It Tn "VScom PCI 410H (4 port serial and 1 port parallel)"
+.It Tn "VScom PCI 800H (8 port serial)"
+.It Tn "VScom PCI 100L (1 port serial)"
+.It Tn "VScom PCI 200L (2 port serial)"
+.It Tn "VScom PCI 210L (2 port serial and 1 port parallel)"
+.It Tn "VScom PCI 400L (4 port serial)"
+.It Tn "VScom PCI 400S (4 port serial)"
+.It Tn "VScom PCI 800L (8 port serial)"
+.El
+.Pp
+The driver does not support these cards:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Tn "Dolphin Peripherals 4006 (single parallel)"
+.It Tn "Dolphin Peripherals 4025 (single serial)"
+.It Tn "Dolphin Peripherals 4078 (dual serial and single parallel)"
+.El
+.Pp
+but support for them (and for similar cards) should be trivial to add.
+.Pp
+The
+.Ar port
+locator is used to identify the port (starting from 0) on the
+communications card that a subdevice is supposed to attach to.
+Typically, the numbering of ports is explained in a card's
+hardware documentation, and the port numbers used by the driver
+are the same as (or one off from, e.g., the manual uses ports
+numbered starting from 1) those described in the documentation.
+.Sh SEE ALSO
+.Xr cardbus 4 ,
+.Xr com 4 ,
+.Xr intro 4 ,
+.Xr lpt 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Nx 1.4 .
+.Ox
+support was added in
+.Ox 2.7 .
+CardBus support was added in
+.Ox 4.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Chris Demetriou .
+.Sh BUGS
+The current design of this driver keeps any
+.Nm com
+ports on these cards from easily being used as console.
+Of course, because boards with those are PCI boards, they also suffer
+from dynamic address assignment, which also means that they
+can't easily be used as console.
+.Pp
+Some of the cards supported by this driver have jumper-selectable
+.Nm com
+port clock multipliers, which are unsupported by this driver.
+Those can be easily accommodated with driver flags, or by
+using a properly scaled baud rate when talking to the card.
+.Pp
+Some of the cards supported by this driver, e.g., the VScom PCI-800,
+have software-selectable
+.Nm com
+port clock multipliers, which are unsupported by this driver.
+Those can be accommodated using internal driver flags, or by using
+a properly scaled baud rate when talking to the card.
+.Pp
+Some ports use an
+.Nm lpt
+driver other than the machine-independent driver.
+Those ports will not be able to use
+.Nm lpt
+ports attached to
+.Nm
+devices.

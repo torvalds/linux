@@ -1,0 +1,96 @@
+.\" $OpenBSD: ucom.4,v 1.35 2024/05/15 01:41:18 kevlo Exp $
+.\" $NetBSD: ucom.4,v 1.3 2000/04/14 14:55:18 augustss Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 15 2024 $
+.Dt UCOM 4
+.Os
+.Sh NAME
+.Nm ucom
+.Nd USB tty support
+.Sh SYNOPSIS
+.Cd "ucom* at moscom?"	# MosChip Semiconductor MCS7703
+.Cd "ucom* at uark?"	# Arkmicro Technologies
+.Cd "ucom* at ubsa?"	# Belkin
+.Cd "ucom* at uchcom?"	# WinChipHead CH9102/343/341/340
+.Cd "ucom* at ucycom?"	# Cypress
+.Cd "ucom* at uftdi?"	# FTDI
+.Cd "ucom* at uipaq?"	# iPAQ
+.Cd "ucom* at ukspan?"	# Keyspan
+.Cd "ucom* at umcs?"	# MosChip Semiconductor multiport
+.Cd "ucom* at umct?"	# MCT
+.Cd "ucom* at umodem?"	# Standardized umodem
+.Cd "ucom* at umsm?"	# Qualcomm MSM
+.Cd "ucom* at uplcom?"	# Prolific PL-2303
+.Cd "ucom* at uscom?"	# simple USB serial adapters
+.Cd "ucom* at uslcom?"	# Silicon Laboratories CP2101/CP2102
+.Cd "ucom* at uslhcom?"	# Silicon Laboratories CP2110
+.Cd "ucom* at uticom?"	# Texas Instruments TUSB3410
+.Cd "ucom* at uvisor?"	# Handspring Visor
+.Cd "ucom* at uvscom?"	# SUNTAC Slipper U VS-10U
+.Cd "ucom* at uxrcom?"	# Exar XR21V1410
+.Sh DESCRIPTION
+The
+.Nm
+driver attaches to USB modems, serial ports, and other devices that need
+to look like a tty.
+The
+.Nm
+driver behaves like a
+.Xr tty 4 :
+this means that normal programs such as
+.Xr cu 1
+or
+.Xr pppd 8
+can be used to access the device.
+.Pp
+The
+.Va portno
+locator can be used to decide which port to use for devices that have
+multiple external ports.
+.Sh FILES
+.Bl -tag -width "/dev/ttyU?XX" -compact
+.It Pa /dev/ttyU?
+tty devices
+.It Pa /dev/cuaU?
+call out devices (see
+.Xr tty 4 )
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr tty 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Nx 1.5 .
+.Ox
+support was added in
+.Ox 2.7 .

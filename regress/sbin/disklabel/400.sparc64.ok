@@ -1,0 +1,23 @@
+=== Start 400MB disk ===
+Primary GPT:
+Not Found
+
+Secondary GPT:
+Not Found
+
+MBR:
+Disk: vnd0	geometry: 8212/1/100 [821248 Sectors]
+Offset: 0	Signature: 0x0
+            Starting         Ending         LBA Info:
+ #: id      C   H   S -      C   H   S [       start:        size ]
+-------------------------------------------------------------------------------
+ 0: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 1: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 2: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 3: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+
+  a:             0.4G                0  4.2BSD   2048 16384     1 # /
+  a:           821200                0  4.2BSD   2048 16384     1 
+
+/dev/vnd0a / ffs rw 1 1
+=== End 400MB disk ===

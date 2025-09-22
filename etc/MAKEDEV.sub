@@ -1,0 +1,373 @@
+dnl	$OpenBSD: MAKEDEV.sub,v 1.14 2005/02/07 06:14:18 david Exp $
+dnl
+dnl Copyright (c) 2001-2004 Todd T. Fries <todd@OpenBSD.org>
+dnl
+dnl Permission to use, copy, modify, and distribute this software for any
+dnl purpose with or without fee is hereby granted, provided that the above
+dnl copyright notice and this permission notice appear in all copies.
+dnl
+dnl THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+dnl WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+dnl MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+dnl ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+dnl WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+dnl ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+dnl OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+dnl
+dnl
+dnl This file is an m4 file
+dnl
+dnl Conventions:
+dnl
+dnl o First, a change of quote to make shell statements like: `command`
+dnl   possible
+dnl
+changequote(`{-', `-}')dnl
+dnl
+dnl o Next, change the comment character to make shell parameter
+dnl   substitution possible
+dnl
+changecom(`/*', `*/')dnl
+dnl
+dnl o version info must be stripped of $ so we can say 'generated from' below
+dnl
+dnl  If we just use the version string how are we going to know what arch
+dnl  'MAKEDEV.md,v' came from?
+dnl
+dnl  Thus, I have used the below to create a version string looking like
+dnl  'OpenBSD: etc.sparc/MAKEDEV.inc,v...' which works, although requires
+dnl  some attention if ported to another Id string setup.
+dnl
+dnl
+dnl Initialize the stacks stored in _m4_*
+dnl
+undefine({-_m4_cvs_ver-})dnl
+pushdef({-_m4_cvs_ver-}, {-done-})dnl
+dnl
+undefine({-_m4_devs-})dnl
+pushdef({-_m4_devs-}, {-done-})dnl
+dnl
+undefine({-_m4_disks-})dnl
+undefine({-_m4_disks2-})dnl
+pushdef({-_m4_disks-}, {-done-})dnl
+pushdef({-_m4_disks2-}, {-done-})dnl
+dnl
+dnl define stack 'add to' functions, only unique names queued
+dnl
+define({-ver_q-}, {-ifelse(index($1_ver, y), 0, ,
+{-pushdef({-_m4_cvs_ver-}, {-$2-})define({-$1_ver-}, {-y-})-})-})dnl ver_q
+dnl
+define({-dev_q-}, {-ifelse(index(_q_$1_dev, :), 0,
+{-errprint({-duplicated dev id: $1 at -}__file__{-:-}__line__ originally at _q_$1_dev)-},
+{-pushdef({-_m4_devs-}, {-$1-})dnl
+define({-_q_$1_dev-}, {-:-}__file__{-:-}__line__)-})-})dnl dev_q
+dnl
+define({-disk_q-}, {-ifelse(index(_q_$1_disk, :), 0,
+{-errprint({-duplicated disk id: $1 at -}__file__{-:-}__line__ originally at _q_$1_disk)-}, {-pushdef({-_m4_disks-}, {-$1-})dnl
+pushdef({-_m4_disks2-}, {-$1-})dnl
+define({-_q_$1_disks-}, {-:-}__file__{-:-}__line__)-})-})dnl disk_q
+dnl
+dnl store a version string for 'this' file
+dnl
+dnl vers ( uniqueidstring, versionstring, subdir )
+dnl
+dnl example1: vers(__file__, {-$OpenBSD: MAKEDEV.sub,v 1.14 2005/02/07 06:14:18 david Exp $-})
+dnl example2: vers(__file__, {-$OpenBSD: MAKEDEV.sub,v 1.14 2005/02/07 06:14:18 david Exp $-}, etc.MACHINE)
+dnl
+dnl if subdir is defined, prepend it to the filename in the version string
+dnl
+define({-vers-},
+{-ifelse({-$3-}, {--},
+{-ver_q(hstcl({-$1-}), {-translit({-{-$2-}-}, {-$-}, {--})-})-},
+{-ver_q(hstcl({-$1-}), {-_addsubdir({-{-$2-}-}, $3)-})-})-})dnl
+dnl
+dnl Version info for this file:
+dnl
+vers(__file__, {-$OpenBSD: MAKEDEV.sub,v 1.14 2005/02/07 06:14:18 david Exp $-})dnl
+dnl
+dnl
+define({-_addsubdir-},
+{-patsubst({-$1-}, {-\$(OpenBSD:) ([^\$]*)\$-}, {-\1 $2/\2-})-})dnl
+dnl
+dnl do the 'showing' of the version info
+dnl
+define({-do_vers-}, {-COMM	$1-})dnl
+dnl
+dnl show version function, to be called at the place when all versions are
+dnl   queued, and it is time to show all of them
+dnl
+define({-show_vers-},
+{-ifelse(_m4_cvs_ver, {-done-}, {--},
+{-do_vers(_m4_cvs_ver)
+popdef({-_m4_cvs_ver-})dnl
+show_vers()dnl
+-})-})dnl
+dnl
+dnl show the routines to generate devices
+define({-show_devs-},
+{-ifelse(_m4_devs, {-done-}, {--},
+{-_MKDEV(_m4_devs){--}dnl
+popdef({-_m4_devs-})dnl
+show_devs()dnl
+-})-})dnl
+dnl
+dnl routines to generate disks
+define({-show_disks-},
+{-ifelse(_m4_disks, {-done-}, {--},
+{-ifcase(_m4_disks, _m4_disks{--}*)dnl
+popdef({-_m4_disks-})dnl
+show_disks()dnl
+-})-})dnl
+dnl
+define({-show_disks2-},
+{-ifelse(_m4_disks2, {-done-}, {--},
+{-CasE(_m4_disks2)dnl
+popdef({-_m4_disks2-})dnl
+show_disks2()dnl
+-})-})dnl
+dnl
+dnl
+dnl Some m4 math functions:
+dnl
+dnl   Add(a, b)           - displays the result of a+b
+dnl   Mult(a, b)          - displays the result of a*b
+dnl   trunc a b          - displays the string a minus b removed from the RHS
+dnl   hex a              - displays the hex equivalent of 0-15
+dnl   unt a              - s/[a-z]*([0-9]*).*/\1/ aka sd0a -> 0
+dnl
+dnl Functions:
+dnl
+dnl --> Addition
+dnl
+define({-Add-}, {-$({-(-}$1+$2{-)-})-})dnl
+dnl
+dnl --> Multiplication
+dnl
+define({-Mult-}, {-$({-(-}$1*$2{-)-})-})dnl
+dnl
+dnl
+dnl TRUNC
+dnl
+define({-expr_trunc-}, {-$1trunc()
+$1{
+$1	case {-$-}3 in
+$1	l)   {-expr-} {-$-}1 : '\(.*\)'{-$-}2 ;;
+$1	r|*) {-expr-} ${--}1 : ${--}2'\(.*\)' ;;
+$1	esac
+$1}-})dnl
+dnl
+dnl
+define({-_SHELL-}, {-sh-})dnl
+define({-_this-}, {-{-$-}T-})dnl
+dnl define({-_recurse-}, {-_SHELL _this-})dnl
+define({-_recurse-}, {-R-})dnl
+dnl
+dnl _devitem(pattern, description)
+dnl
+define({-_devitem-},
+{-{-#-}	$1	{-$2-}-})dnl
+dnl
+dnl _devtitle(description)
+dnl
+define({-_devtitle-}, {-{-#-} $1:-})dnl
+dnl
+dnl _DEV(name, [character major], [block major])
+dnl
+define({-_DEV-}, {-$1_dev{--}dnl
+dnl
+dnl _DEV 'ifelse' .. $2 - major_$1_c
+dnl
+ifelse($2, , , {-define(major_$1_c, $2)-})dnl
+dnl
+dnl _DEV 'ifelse' .. $3 - major_$1_b
+dnl
+ifelse($3, , , {-define(major_$1_b, $3)-})dnl
+dnl
+dnl _DEV 'ifelse' .. $4 - step_$1
+dnl
+ifelse($4, , , {-define(step_$1, {-$4-})-})dnl
+dnl
+dnl Some magic here, defining a devitem also defines another
+dnl string so that later we can check if a particular devitem was
+dnl defined, and thus determine if the devices themselves are to
+dnl be built
+dnl
+define({-$1__DEV-}, {-Y-})dnl
+dnl
+dnl More magic, put device string name into a queue of script segments to
+dnl be shown later if it has been defined as a device in MAKEDEV.mi
+dnl
+ifdef({-$1_mkdev-}, {-__mkdev({-$1-})-})dnl
+dnl
+dnl
+-})dnl _DEV
+dnl
+dnl
+define({-ifdev-}, {-ifelse($1__DEV, Y, {-$2-})-})dnl
+dnl
+define({-_MKDEV-}, {-$1_mkdev-})dnl
+define({-_TITLE-}, {-$1_title-})dnl
+define({-__devitem-}, {-define($1_dev, {-_devitem($2, $3)-})-})dnl
+define({-__devtitle-}, {-define($1_title, {-_devtitle($2)-})-})dnl
+dnl
+dnl Beginning and ending of case entries, just incase we change in the
+dnl future, save chasing things down again
+dnl
+define({-_end-}, {-
+	;;
+
+-})dnl
+define({-_beg-}, {-{-)-}
+	-})dnl
+dnl
+dnl  create the script segment for making devices
+dnl             $1     $2      $3
+dnl _mkdev(shortname, devpatt, action)dnl
+define({-_mkdev-}, {-define($1_mkdev, {-$2{--}_beg{--}$3{--}_end-})-})dnl
+dnl
+dnl  define a major character device
+dnl             $1     $2      $3      $4
+dnl _mcdev(shortname, devpatt, devbase, devmajor [, group [ owner ] ])dnl
+dnl
+define({-_mcdev-}, {-define($1_mkdev, {-{-$2-}_beg{--}M $3$U c $4 $U{--}dnl
+ifelse($6, , ifelse($5, , , {- -}$5), {- -}ifelse($5, , 600, $5){- -}$6){--}_end-})-})dnl
+dnl
+dnl         $1        $2      $3        $4       $5      $6
+dnl _cdev(shortname, devpatt, devmajor, devminor[, devmod, devgrp])dnl
+define({-_cdev-},
+{-dnl
+define($1_mkdev, {-$2{--}_beg{--}M $2 c $3 $4 $5 $6{--}_end-}){--}-})dnl
+dnl
+dnl
+define({-__mkdev-}, {-dev_q($1)-})dnl
+dnl
+dnl for showing disks
+dnl
+define({-CasE-},
+{-ifdev({-$1-},
+{-	$1*) dodisk $1 $U major_$1_b major_$1_c $U 0{--}ifstep($1);;
+-})-})dnl
+dnl
+dnl
+define({-ifcase-}, {-dnl
+ifelse(C_ase, Y, ifdev({-$1-}, {-|$2-}),
+{-ifdev({-$1-}, {-$2define({-C_ase-}, Y)-})-})-})dnl
+dnl
+dnl
+dnl device list .. list devices 'iff' they are defined
+dnl
+dnl input:
+dnl
+dnl    _dl({-usb-}, {-usb0 usb1-}, {-urio-}, {-urio-}, ...)
+dnl
+dnl output:
+dnl
+dnl {-<tab>_recurse usb0 usb1 urio
+dnl   <tab>_recurse uhid0 uhid2 uhid3-}
+dnl
+dnl  wrap if more than 60 chars wide
+dnl
+dnl .. wrap it all up in an 'ifelse({-$1-}, , {- ... -})' for neatness ??
+dnl
+define({-_dl-}, {-dnl
+ifdef({-_dt-}, , {-define({-_dt-})-})dnl
+ifdef({-_do-}, , {-_dt{--}_recurse{--}define({-_do-}, 0)dnl
+define({-_dt-}, {-	-})-})dnl
+ifdef({-$1__DEV-},
+{-define({-_di-}, {-$2-})-},
+{-define({-_di-})-})dnl
+ifelse(eval(len(_di)+_do<60), 1,
+{-ifelse(eval(len(_di)>0), 1,
+{- _di{--}define({-_do-}, eval(1+_do+len(_di)))-})-},
+{-
+_dt{--}_recurse _di{--}dnl
+define({-_do-}, len(_di))-})dnl
+ifelse({-$3-}, {--},
+{-undefine({-_dt-}, {-_do-})-}, dnl <--- The END
+{-_dl(shift(shift($@)))-})-})dnl
+dnl
+dnl
+define({-_show_target-}, {-dnl
+ifdef({-$1__DEV-}, {-disp_dev({-$2-})-})dnl
+ifelse({-$3-}, {--},
+{-_disp_dev_end()-}, dnl <--- The END
+{-_show_target(shift(shift($@)))-})-})dnl
+dnl
+define({-disp_dev-}, {-dnl
+ifdef({-_disp_dev_tab-}, , {-define({-_disp_dev_tab-})-})dnl
+ifdef({-_disp_dev_len-}, , {-dnl
+define({-_disp_dev_len-}, 0)dnl
+_disp_dev_tab{--}_recurse{--}dnl
+define({-_disp_dev_tab-}, {-	-})-})dnl
+ifelse(eval(len($1)+_disp_dev_len<60), 1,
+{- $1{--}define({-_disp_dev_len-}, eval(1+_disp_dev_len+len($1)))-}, {-
+_disp_dev_tab{--}_recurse $1{--}dnl
+define({-_disp_dev_len-}, len($1))-})dnl
+-})dnl
+define({-_disp_dev_end-}, {-undefine({-_disp_dev_tab-}, {-_disp_dev_len-})-})dnl
+dnl
+dnl A word about the above:
+dnl
+dnl _dt -> 'tab' .. at first, defined to nothing, as the tab is already there
+dnl        then define it to a tab every time through
+dnl        undefine it at the end
+dnl
+dnl _do -> 'old' count .. stores the length of the old string already displayed
+dnl        it is initialized to 0, added to the length plus 1 of '_di' each
+dnl        iteration the line is less than 60 chars long
+dnl	   undefined at the end
+dnl _di -> 'iteration' string .. the string used in this iteration, is empty if
+dnl        the device does not exist
+dnl
+dnl
+dnl ifstep(devstr)
+dnl   .. if stepping is defined for the particular device, emit ' step', else
+dnl      nothing
+define({-ifstep-}, {-ifdef({-step_$1-}, {- -}step_$1{--})-})dnl
+dnl
+dnl
+define({-target-}, {-twrget({-$1-}, {-$2-}, {-$2-}, shift(shift($@)))-})dnl
+dnl
+dnl twrget(target, devname, prefix, str1, str2, str3)
+dnl        $1     $2      $3     $4   $5   $6
+dnl
+define({-twrget-}, {-dnl
+dnl
+ifdef({-$1_target-}, , {-pushdef({-$1_target-}, {-done-})-})dnl
+dnl
+ifelse({-$4-}, , , {-dnl
+ifelse({-$4-}, {-_done-}, , {-dnl
+ifelse({-$5-}, , , {-dnl
+dnl errprint({-recurse: $1, $2, $3, $4, $5, $6, ...-})dnl
+twrget({-$1-}, {-$2-}, {-$3-}, shift(shift(shift(shift($@)))))dnl
+-})-})-})dnl
+dnl
+ifelse({-$4-}, {-_done-}, , {-dnl
+dnl errprint({-recurse: $1_$2_dev, $3$4, $3$4, _done-})dnl
+twrget({-$1_$2_dev-}, {-$3$4-}, {-$3$4-}, {-_done-})dnl
+-})dnl
+dnl
+ifdef({-$1$2target-}, , {-dnl
+pushdef({-$1_target-}, {-$2-})define({-$1$2target-})dnl
+-})dnl
+dnl
+-})dnl
+dnl
+dnl
+define({-show_target-}, {-dnl
+ifelse($1_target, {-done-}, {-_disp_dev_end()-},
+{-dnl $1_target:
+show_dev($1, -}$1_target{-)dnl
+popdef({-$1_target-})dnl
+show_target({-$1-})dnl
+-})-})dnl
+dnl
+define({-show_dev-}, {-dnl
+ifdef({-$2__DEV-}, {-dnl
+ifelse($1_$2_dev_target, {-done-}, , {-dnl
+disp_dev({-$1_$2_dev_target-})dnl
+popdef({-$1_$2_dev_target-})dnl
+show_dev({-$1-}, {-$2-})-})dnl
+-})dnl
+-})dnl
+dnl

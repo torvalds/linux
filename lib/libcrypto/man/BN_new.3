@@ -1,0 +1,164 @@
+.\" $OpenBSD: BN_new.3,v 1.33 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL man3/BN_new 2457c19d Mar 6 08:43:36 2004 +0000
+.\" selective merge up to: man3/BN_new 681acb31 Sep 29 13:10:34 2017 +0200
+.\" full merge up to: OpenSSL man7/bn 05ea606a May 20 20:52:46 2016 -0400
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000, 2004 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_NEW 3
+.Os
+.Sh NAME
+.Nm BN_new ,
+.Nm BN_clear ,
+.Nm BN_free ,
+.Nm BN_clear_free
+.Nd allocate and free BIGNUMs
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft BIGNUM *
+.Fo BN_new
+.Fa void
+.Fc
+.Ft void
+.Fo BN_clear
+.Fa "BIGNUM *a"
+.Fc
+.Ft void
+.Fo BN_free
+.Fa "BIGNUM *a"
+.Fc
+.Ft void
+.Fo BN_clear_free
+.Fa "BIGNUM *a"
+.Fc
+.Sh DESCRIPTION
+The BN library performs arithmetic operations on integers of arbitrary
+size.
+It was written for use in public key cryptography, such as RSA and
+Diffie-Hellman.
+.Pp
+It uses dynamic memory allocation for storing its data structures.
+That means that there is no limit on the size of the numbers manipulated
+by these functions, but return values must always be checked in case a
+memory allocation error has occurred.
+.Pp
+The basic object in this library is a
+.Vt BIGNUM .
+It is used to hold a single large integer.
+.Pp
+.Fn BN_new
+allocates and initializes a
+.Vt BIGNUM
+structure, in particular setting the value to zero and the flags to
+.Dv BN_FLG_MALLOCED .
+The security-relevant flag
+.Dv BN_FLG_CONSTTIME
+is not set by default.
+.Pp
+.Fn BN_clear
+is used to destroy sensitive data such as keys when they are no longer
+needed.
+It erases the memory used by
+.Fa a
+and sets it to the value 0.
+.Pp
+.Fn BN_free
+frees the components of the
+.Vt BIGNUM
+and, if it was created by
+.Fn BN_new ,
+also the structure itself.
+.Fn BN_clear_free
+additionally overwrites the data before the memory is returned to the
+system.
+If
+.Fa a
+is a
+.Dv NULL
+pointer, no action occurs.
+.Sh RETURN VALUES
+.Fn BN_new
+returns a pointer to the
+.Vt BIGNUM .
+If the allocation fails, it returns
+.Dv NULL
+and sets an error code that can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr BN_add 3 ,
+.Xr BN_add_word 3 ,
+.Xr BN_bn2bin 3 ,
+.Xr BN_cmp 3 ,
+.Xr BN_copy 3 ,
+.Xr BN_CTX_new 3 ,
+.Xr BN_CTX_start 3 ,
+.Xr BN_generate_prime 3 ,
+.Xr BN_get_rfc3526_prime_8192 3 ,
+.Xr BN_kronecker 3 ,
+.Xr BN_mod_inverse 3 ,
+.Xr BN_mod_mul_montgomery 3 ,
+.Xr BN_mod_sqrt 3 ,
+.Xr BN_num_bytes 3 ,
+.Xr BN_rand 3 ,
+.Xr BN_security_bits 3 ,
+.Xr BN_set_bit 3 ,
+.Xr BN_set_flags 3 ,
+.Xr BN_set_negative 3 ,
+.Xr BN_swap 3 ,
+.Xr BN_zero 3 ,
+.Xr crypto 3
+.Sh HISTORY
+.Fn BN_new ,
+.Fn BN_clear ,
+.Fn BN_free ,
+and
+.Fn BN_clear_free
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .

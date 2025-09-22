@@ -1,0 +1,75 @@
+Date: Thu, 8 Feb 2001 08:42:04 -0600
+From: Vikram S. Adve <vadve@cs.uiuc.edu>
+To: Chris Lattner <sabre@nondot.org>
+Subject: RE: Type notation debate...
+
+Chris,
+
+> Okay before you comment, please look at:
+>
+> http://www.research.att.com/~bs/devXinterview.html
+
+I read this argument.  Even before that, I was already in agreement with you
+and him that the C declarator syntax is difficult and confusing.
+
+But in fact, if you read the entire answer carefully, he came to the same
+conclusion I do: that you have to go with familiar syntax over logical
+syntax because familiarity is such a strong force:
+
+        "However, familiarity is a strong force. To compare, in English, we
+live
+more or less happily with the absurd rules for "to be" (am, are, is, been,
+was, were, ...) and all attempts to simplify are treated with contempt or
+(preferably) humor. It be a curious world and it always beed."
+
+> Basically, my argument for this type construction system is that it is
+> VERY simple to use and understand (although it IS different than C, it is
+> very simple and straightforward, which C is NOT).  In fact, I would assert
+> that most programmers TODAY do not understand pointers to member
+> functions, and have to look up an example when they have to write them.
+
+Again, I don't disagree with this at all.  But to some extent this
+particular problem is inherently difficult.  Your syntax for the above
+example may be easier for you to read because this is the way you have been
+thinking about it.  Honestly, I don't find it much easier than the C syntax.
+In either case, I would have to look up an example to write pointers to
+member functions.
+
+But pointers to member functions are nowhere near as common as arrays.  And
+the old array syntax:
+        type [ int, int, ...]
+is just much more familiar and clear to people than anything new you
+introduce, no matter how logical it is.  Introducing a new syntax that may
+make function pointers easier but makes arrays much more difficult seems
+very risky to me.
+
+> In my opinion, it is critically important to have clear and concise type
+> specifications, because types are going to be all over the programs.
+
+I absolutely agree.  But the question is, what is more clear and concise?
+The syntax programmers are used to out of years of experience or a new
+syntax that they have never seen that has a more logical structure.  I think
+the answer is the former.  Sometimes, you have to give up a better idea
+because you can't overcome sociological barriers to it.  Qwerty keyboards
+and Windows are two classic examples of bad technology that are difficult to
+root out.
+
+P.S.  Also, while I agree that most your syntax is more logical, there is
+one part that isn't:
+
+Arrays (without and with size):
+type ::= '[' type ']' | '[' INT ',' type ']'.
+
+The arrays with size lists the dimensions and the type in a single list.
+That is just too confusing:
+        [10, 40, int]
+This seems to be a 3-D array where the third dimension is something strange.
+It is too confusing to have a list of 3 things, some of which are dimensions
+and one is a type.  Either of the following would be better:
+
+        array [10, 40] of int
+or
+        int [10, 40]
+
+--Vikram
+

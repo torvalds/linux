@@ -1,0 +1,262 @@
+.\" $OpenBSD: EVP_CIPHER_CTX_ctrl.3,v 1.5 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 5211e094 Nov 11 14:39:11 2014 -0800
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2018, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2018 Damien Miller <djm@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2001, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_CIPHER_CTX_CTRL 3
+.Os
+.Sh NAME
+.Nm EVP_CIPHER_CTX_ctrl ,
+.Nm EVP_CIPHER_CTX_set_padding ,
+.Nm EVP_CIPHER_CTX_set_key_length ,
+.Nm EVP_CIPHER_CTX_key_length ,
+.Nm EVP_CIPHER_key_length ,
+.Nm EVP_CIPHER_CTX_iv_length ,
+.Nm EVP_CIPHER_iv_length ,
+.Nm EVP_CIPHER_CTX_set_iv ,
+.Nm EVP_CIPHER_CTX_get_iv
+.Nd configure EVP cipher contexts
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_CIPHER_CTX_ctrl
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "int type"
+.Fa "int arg"
+.Fa "void *ptr"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_set_padding
+.Fa "EVP_CIPHER_CTX *x"
+.Fa "int padding"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_set_key_length
+.Fa "EVP_CIPHER_CTX *x"
+.Fa "int keylen"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_key_length
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_key_length
+.Fa "const EVP_CIPHER *e"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_iv_length
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_iv_length
+.Fa "const EVP_CIPHER *e"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_set_iv
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "const unsigned char *iv"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_get_iv
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *iv"
+.Fa "size_t len"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_CIPHER_CTX_ctrl
+allows various cipher specific parameters to be determined and set.
+Currently only the RC2 effective key length can be set; see
+.Xr EVP_rc2_cbc 3
+for details.
+.Pp
+.Fn EVP_CIPHER_CTX_set_padding
+enables or disables padding.
+This function should be called after the context is set up for
+encryption or decryption with
+.Xr EVP_EncryptInit_ex 3 ,
+.Xr EVP_DecryptInit_ex 3 ,
+or
+.Xr EVP_CipherInit_ex 3 .
+By default encryption operations are padded using standard block padding
+and the padding is checked and removed when decrypting.
+If the
+.Fa padding
+parameter is zero, then no padding is performed, the total amount of data
+encrypted or decrypted must then be a multiple of the block size or an
+error will occur.
+.Pp
+.Fn EVP_CIPHER_CTX_set_key_length
+sets the key length of the cipher ctx.
+If the cipher is a fixed length cipher, then attempting to set the key
+length to any value other than the fixed value is an error.
+.Pp
+.Fn EVP_CIPHER_CTX_key_length
+and
+.Fn EVP_CIPHER_key_length
+return the key length of a cipher when passed an
+.Vt EVP_CIPHER_CTX
+or
+.Vt EVP_CIPHER
+structure.
+The constant
+.Dv EVP_MAX_KEY_LENGTH
+is the maximum key length for all ciphers.
+Note: although
+.Fn EVP_CIPHER_key_length
+is fixed for a given cipher, the value of
+.Fn EVP_CIPHER_CTX_key_length
+may be different for variable key length ciphers.
+.Pp
+.Fn EVP_CIPHER_CTX_iv_length
+and
+.Fn EVP_CIPHER_iv_length
+return the IV length of a cipher when passed an
+.Vt EVP_CIPHER_CTX
+or
+.Vt EVP_CIPHER .
+They will return zero if the cipher does not use an IV.
+.Fn EVP_CIPHER_CTX_iv_length
+can fail and return \-1.
+The constant
+.Dv EVP_MAX_IV_LENGTH
+is the maximum IV length for all ciphers.
+.Pp
+.Fn EVP_CIPHER_CTX_set_iv
+and
+.Fn EVP_CIPHER_CTX_get_iv
+set and retrieve the IV for an
+.Vt EVP_CIPHER_CTX ,
+respectively.
+In both cases, the specified IV length must exactly equal the expected
+IV length for the context as returned by
+.Fn EVP_CIPHER_CTX_iv_length .
+.Sh RETURN VALUES
+.Fn EVP_CIPHER_CTX_ctrl
+returns 1 for success or 0 for failure.
+Some implementations may return negative values for some errors.
+.Pp
+.Fn EVP_CIPHER_CTX_set_padding
+always returns 1.
+.Pp
+.Fn EVP_CIPHER_CTX_set_key_length ,
+.Fn EVP_CIPHER_CTX_set_iv ,
+and
+.Fn EVP_CIPHER_CTX_get_iv
+return 1 for success or 0 for failure.
+.Pp
+.Fn EVP_CIPHER_CTX_key_length
+and
+.Fn EVP_CIPHER_key_length
+return the key length.
+.Pp
+.Fn EVP_CIPHER_CTX_iv_length
+and
+.Fn EVP_CIPHER_iv_length
+return the IV length or zero if the cipher does not use an IV.
+.Fn EVP_CIPHER_CTX_iv_length
+can fail and return \-1.
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_CIPHER_nid 3 ,
+.Xr EVP_EncryptInit 3
+.Sh HISTORY
+.Fn EVP_CIPHER_CTX_key_length ,
+.Fn EVP_CIPHER_key_length ,
+.Fn EVP_CIPHER_CTX_iv_length ,
+and
+.Fn EVP_CIPHER_iv_length
+first appeared in SSLeay 0.6.5 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_CIPHER_CTX_ctrl
+and
+.Fn EVP_CIPHER_CTX_set_key_length
+first appeared in OpenSSL 0.9.6 and have been available since
+.Ox 2.9 .
+.Pp
+.Fn EVP_CIPHER_CTX_set_padding
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .
+.Pp
+.Fn EVP_CIPHER_CTX_set_iv
+and
+.Fn EVP_CIPHER_CTX_get_iv
+first appeared in LibreSSL 2.8.1 and have been available since
+.Ox 6.4 .
+.Sh BUGS
+.Dv EVP_MAX_KEY_LENGTH
+and
+.Dv EVP_MAX_IV_LENGTH
+only refer to the internal ciphers with default key lengths.
+If custom ciphers exceed these values, the results are unpredictable.
+This is because it has become standard practice to define a generic key
+as a fixed unsigned char array containing
+.Dv EVP_MAX_KEY_LENGTH
+bytes.

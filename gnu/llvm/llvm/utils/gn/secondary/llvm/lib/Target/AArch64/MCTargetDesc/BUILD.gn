@@ -1,0 +1,86 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("AArch64GenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../AArch64.td"
+}
+
+tablegen("AArch64GenAsmWriter1") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [
+    "-gen-asm-writer",
+    "-asmwriternum=1",
+  ]
+  td_file = "../AArch64.td"
+}
+
+tablegen("AArch64GenInstrInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../AArch64.td"
+}
+
+tablegen("AArch64GenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../AArch64.td"
+}
+
+tablegen("AArch64GenRegisterInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../AArch64.td"
+}
+
+tablegen("AArch64GenSubtargetInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../AArch64.td"
+}
+
+# This should contain tablegen targets generating .inc files included
+# by other targets. .inc files only used by .cpp files in this directory
+# should be in deps on the static_library instead.
+group("tablegen") {
+  visibility = [
+    ":MCTargetDesc",
+    "../Utils",
+  ]
+  public_deps = [
+    ":AArch64GenInstrInfo",
+    ":AArch64GenRegisterInfo",
+    ":AArch64GenSubtargetInfo",
+  ]
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMAArch64Desc"
+  public_deps = [ ":tablegen" ]
+  deps = [
+    ":AArch64GenAsmWriter",
+    ":AArch64GenAsmWriter1",
+    ":AArch64GenMCCodeEmitter",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/AArch64/TargetInfo",
+    "//llvm/lib/Target/AArch64/Utils",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "AArch64AsmBackend.cpp",
+    "AArch64ELFObjectWriter.cpp",
+    "AArch64ELFStreamer.cpp",
+    "AArch64InstPrinter.cpp",
+    "AArch64MCAsmInfo.cpp",
+    "AArch64MCCodeEmitter.cpp",
+    "AArch64MCExpr.cpp",
+    "AArch64MCTargetDesc.cpp",
+    "AArch64MachObjectWriter.cpp",
+    "AArch64TargetStreamer.cpp",
+    "AArch64WinCOFFObjectWriter.cpp",
+    "AArch64WinCOFFStreamer.cpp",
+  ]
+}

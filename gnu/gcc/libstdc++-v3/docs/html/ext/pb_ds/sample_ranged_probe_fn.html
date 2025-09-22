@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>sample_ranged_probe_fn Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>sample_ranged_probe_fn</tt> Interface</h1>
+
+    <p>A sample ranged-probe functor.</p>
+
+    <p>This class serves to show the interface a ranged-probe
+    functor needs to support.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/detail/hash_fn/sample_ranged_probe_fn.hpp"><tt>sample_ranged_probe_fn.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link2" id="link2">General definitions.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="size_type55424436" id="size_type55424436">size_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+size_t, e.g.
+</pre>
+        </td>
+
+        <td>
+          <p>Size type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link3" id="link3">Public Methods</a></h2>
+
+    <h3><a name="link4" id="link4">Constructors, destructor, and
+    related.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  sample_ranged_probe_fn
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Default constructor.</p>
+
+          <p>Must be default constructable.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  sample_ranged_probe_fn
+  (<b>const</b> sample_ranged_probe_fn &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Copy constructor.</p>
+
+          <p>Must be copy constructable.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  swap
+  (sample_ranged_probe_fn &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Swaps content.</p>
+
+          <p>Must be swappable (if there is such a word).</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link5" id="link5">Protected Methods</a></h2>
+
+    <h3><a name="link6" id="link6">Notification methods.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b> 
+  notify_resized
+  (<a href="#size_type55424436"><tt>size_type</tt></a> size)
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies the policy object that the container's size
+          has changed to <span class="c1"><tt>size</tt></span>.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link7" id="link7">Operators.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <a href="#size_type55424436"><tt>size_type</tt></a> 
+  <b>operator</b>()
+  (const_key_reference r_key,
+    size_t hash,
+    <a href=
+"#size_type55424436"><tt>size_type</tt></a> i) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Transforms the <tt><b>const</b></tt> key reference
+          <span class="c1"><tt>r_key</tt></span> <span class=
+          "c1"><tt>into the </tt></span><span class=
+          "c1"><tt>i-th </tt></span>position within the table. This
+          method <span class="c1"><tt>i</tt></span>s called for
+          each collision within the probe sequence.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

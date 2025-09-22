@@ -1,0 +1,7 @@
+BLIST representing 64 blocks (0 MB of swap), requiring   0.00M of ram
+BLIST raw radix tree: 1 records, top-radix 64
+64/64/64> BLIST {
+    (0000,64): bitmap ffffffffffffffff big=64
+}
+64/64/64> gapfind: begin=0000 end=0040 size=64
+64/64/64> 

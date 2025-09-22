@@ -1,0 +1,407 @@
+.\"	$OpenBSD: ldpd.conf.5,v 1.44 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2013, 2016 Renato Westphal <renato@openbsd.org>
+.\" Copyright (c) 2009 Michele Marchetto <michele@openbsd.org>
+.\" Copyright (c) 2005, 2006 Esben Norby <norby@openbsd.org>
+.\" Copyright (c) 2004 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2002 Daniel Hartmeier <dhartmei@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt LDPD.CONF 5
+.Os
+.Sh NAME
+.Nm ldpd.conf
+.Nd LDP routing daemon configuration file
+.Sh DESCRIPTION
+The
+.Xr ldpd 8
+daemon implements the Label Distribution Protocol as described in RFC 5036.
+.Pp
+The
+.Nm
+config file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global settings for
+.Xr ldpd 8 .
+.It Sx Address-family configuration
+Address-family specific parameters.
+.It Sx Interfaces configuration
+Interface-specific parameters.
+.It Sx Targeted neighbors configuration
+Targeted neighbor specific parameters.
+.It Sx Neighbors configuration
+Neighbor-specific parameters.
+.It Sx Layer 2 VPNs configuration
+Layer 2 VPNs parameters as per RFC 4447.
+.El
+.Pp
+Argument names not beginning with a letter, digit, or underscore
+must be quoted.
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/ldpd.sub.conf"
+.Ed
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic neighbor ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Ss Global configuration
+Several settings can be configured globally or within a more restricted scope,
+like per address-family or per interface.
+The only settings that can be set globally and not overruled are listed below.
+.Pp
+.Bl -tag -width Ds -compact
+.It Xo
+.Ic ds-cisco-interop
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+If set to
+.Ic yes ,
+Cisco non-compliant format will be used to send and interpret the Dual-Stack
+capability TLV.
+The default is
+.Ic no .
+.Pp
+.It Xo
+.Ic fib-update
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+If set to
+.Ic no ,
+do not update the Label Forwarding Information Base, a.k.a. the kernel routing
+table.
+The default is
+.Ic yes .
+.Pp
+.It Ic rdomain Ar tableid
+Specifies the routing table
+.Xr ldpd 8
+should modify.
+Table 0 is the default table.
+.Pp
+.It Ic router-id Ar address
+Set the router ID; in combination with labelspace it forms the LSR-ID.
+If not specified, the numerically lowest IP address of the router will be used.
+.Pp
+.It Xo
+.Ic tcp md5sig password Ar secret
+.Op Ar lsr-id Ns Op / Ns Ar prefix
+.Xc
+.It Xo
+.Ic tcp md5sig key Ar secret
+.Op Ar lsr-id Ns Op / Ns Ar prefix
+.Xc
+.It Xo
+.Ic no tcp md5sig
+.Op Ar lsr-id Ns Op / Ns Ar prefix
+.Xc
+Enable or disable TCP MD5 signatures per RFC 5036.
+The shared secret can either be given as a password or hexadecimal key.
+An optional prefix may be specified to scope the key configuration to a
+set of neighbors with the specified LSR-IDs.
+.Bd -literal -offset indent
+tcp md5sig password mekmitasdigoat 192.168.0.0/24
+no tcp md5sig 192.168.0.25
+.Ed
+.Pp
+.It Xo
+.Ic transport-preference
+.Pq Ic ipv4 Ns | Ns Ic ipv6
+.Xc
+Specify the preferred address-family for TCP transport connections.
+If two dual-stack LSRs preferences does not match, no LDP session will
+be established.
+The default is
+.Ic ipv6 .
+.El
+.Ss Address-family configuration
+Each address-family can have several parameters configured
+individually, otherwise they are inherited.
+.Bd -literal -offset indent
+address-family ipv6 {
+	explicit-null yes
+	transport-address 2001:db8::50
+	interface em0
+}
+.Ed
+.Pp
+.Bl -tag -width Ds -compact
+.It Xo
+.Ic explicit-null
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+If set to
+.Ic yes ,
+advertise explicit-null labels in place of implicit-null labels for directly
+connected prefixes.
+The default is
+.Ic no .
+.Pp
+.It Xo
+.Ic gtsm-enable
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+If set to
+.Ic yes ,
+.Xr ldpd 8
+will use the GTSM procedures described in RFC 6720 (for the IPv4 address-family)
+and RFC 7552 (for the IPv6 address-family).
+.Pp
+Since GTSM is mandatory for LDPv6, the only effect of disabling GTSM for the
+IPv6 address-family is that
+.Xr ldpd 8
+will not discard packets with a hop limit below 255.
+This may be necessary to interoperate with older implementations.
+Outgoing packets will still be sent using a hop limit of 255
+for maximum compatibility.
+.Pp
+If GTSM is enabled, multi-hop neighbors should have either GTSM disabled
+individually or configured with an appropriate gtsm-hops distance.
+The default is
+.Ic yes .
+.Pp
+.It Ic keepalive Ar seconds
+Set the keepalive timeout in seconds.
+The default value is 180; valid range is 3\-65535.
+.Pp
+.It Xo
+.Ic targeted-hello-accept
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+If set to
+.Ic yes ,
+allow LDP sessions to be established with remote neighbors that have not been
+specifically configured.
+The default is
+.Ic no .
+.Pp
+.It Ic transport-address Ar address
+Set the local address to be used in the TCP sessions.
+For the IPv4 address-family, the router-id will be used if this option is not specified.
+For the IPv6 address-family, this option must be specified.
+.El
+.Ss Interfaces configuration
+Each interface can have several parameters configured individually, otherwise
+they are inherited.
+.Bd -literal -offset indent
+address-family ipv4 {
+	interface em0 {
+		link-hello-holdtime 9
+		link-hello-interval 3
+	}
+}
+.Ed
+.Pp
+Interface-specific parameters are listed below.
+.Bl -tag -width Ds
+.It Ic link-hello-holdtime Ar seconds
+Set the hello holdtime in seconds.
+The maximum time
+.Xr ldpd 8
+will wait between two consecutive hello messages from a peer before it is
+marked as being down.
+The default value is 15; valid range is 3\-65535.
+.It Ic link-hello-interval Ar seconds
+Set the hello interval in seconds.
+The default value is 5; valid range is 1\-65535.
+.El
+.Ss Targeted neighbors configuration
+Each targeted neighbor can have several parameters configured individually,
+otherwise they are inherited.
+.Bd -literal -offset indent
+address-family ipv4 {
+	targeted-neighbor A.B.C.D {
+		targeted-hello-holdtime 90
+		targeted-hello-interval 10
+	}
+}
+address-family ipv6 {
+	targeted-neighbor 2001:db8::1
+}
+.Ed
+.Pp
+Targeted-neighbor specific parameters are listed below.
+.Bl -tag -width Ds
+.It Ic targeted-hello-holdtime Ar seconds
+Set the hello holdtime in seconds.
+The maximum time
+.Xr ldpd 8
+will wait between two consecutive hello messages from a peer before it is
+marked as being down.
+The default value is 45.
+.It Ic targeted-hello-interval Ar seconds
+Set the hello interval in seconds.
+The default value is 5; valid range is 1\-65535.
+.El
+.Ss Neighbors configuration
+The
+.Ic neighbor
+section allows for the configuration of neighbor-specific parameters.
+Note, however, that
+.Xr ldpd 8
+uses the hello discovery mechanism to discover its neighbors.
+Without an underlying adjacency these commands have no effect.
+A neighbor is identified by its LSR-ID, not by its remote address.
+The neighbor-specific parameters apply for both LDPoIPv4 and LDPoIPv6 sessions.
+.Bd -literal -offset indent
+neighbor A.B.C.D {
+}
+.Ed
+.Pp
+Neighbor-specific parameters are listed below.
+.Bl -tag -width Ds
+.It Ic keepalive Ar seconds
+Set the keepalive timeout in seconds.
+Inherited from the global configuration if not given.
+Valid range is 3\-65535.
+.It Xo
+.Ic gtsm-enable
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+Override the inherited configuration and enable/disable GTSM for this neighbor.
+.It Ic gtsm-hops Ar hops
+Set the maximum number of hops the neighbor may be away.
+When GTSM is enabled for this neighbor, incoming packets are required to have
+a TTL/hop limit of 256 minus this value, ensuring they have not passed
+through more than the expected number of hops.
+The default value is 1; valid range is 1\-255.
+.It Ic tcp md5sig password Ar secret
+Enable TCP MD5 signatures per RFC 5036 with the specified password.
+.It Ic tcp md5sig key Ar secret
+Enable TCP MD5 signatures per RFC 5036 with the specified hexadecimal key.
+.It Ic no tcp md5sig
+Disable the use of TCP MD5 signatures.
+.El
+.Ss Layer 2 VPNs configuration
+.Xr ldpd 8
+implements the signaling of pseudowires which can be used to
+implement either the VPWS solution (also known as PWE3) or the VPLS
+solution.
+Currently only the VPLS solution is supported.
+.Bd -literal -offset indent
+l2vpn name type vpls {
+        bridge bridge0
+        interface em1
+        pseudowire mpw1 {
+                pw-id 100
+                neighbor-id 192.168.1.10
+        }
+        pseudowire mpw2 {
+                pw-id 200
+                neighbor-id 10.0.1.5
+        }
+}
+.Ed
+.Pp
+Layer 2 VPN specific parameters are listed below.
+.Bl -tag -width Ds
+.It Ic bridge Ar interface
+Set the bridge interface the VPLS is associated with.
+This parameter is optional and is only used to remove MAC addresses received
+from MAC address withdrawal messages.
+Only one bridge interface can be set.
+.It Ic interface Ar interface
+Configure a non pseudowire interface pertaining to the VPLS.
+This parameter is optional and is only used to send MAC address withdrawal
+messages when the specified interface is shutdown.
+Multiple interfaces can be configured.
+.It Ic mtu Ar number
+Set the MTU advertised in the pseudowires.
+Local and remote MTUs must match for a pseudowire to be set up.
+The default value is 1500.
+.It Xo
+.Ic type
+.Pq Ic ethernet Ns | Ns Ic ethernet-tagged
+.Xc
+Specify the type of the configured pseudowires.
+The type must be the same at both endpoints.
+The default is
+.Ic ethernet .
+.El
+.Sh PSEUDOWIRES
+Each
+.Xr mpw 4
+pseudowire interface can have several parameters configured individually,
+otherwise they are inherited.
+A pseudowire interface is specified by its name.
+.Bd -literal -offset indent
+pseudowire mpw5 {
+	pw-id 5000
+	neighbor-id 172.16.1.50
+}
+.Ed
+.Pp
+Pseudowire-specific parameters are listed below.
+.Bl -tag -width Ds
+.It Xo
+.Ic control-word
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+Specify whether the use of the control word is preferred or not
+preferred.
+The default is
+.Ic yes .
+.It Ic neighbor-addr Ar address
+Specify the IPv4 or IPv6 address of the remote endpoint of the pseudowire.
+A targeted neighbor will automatically be created for this address.
+By default, the LSR-ID of the remote endpoint of the pseudowire will be used.
+.It Ic neighbor-id Ar address
+Specify the LSR-ID of the remote endpoint of the pseudowire.
+.It Ic pw-id Ar number
+Set the PW ID used to identify the pseudowire.
+The PW ID must be the same at both endpoints.
+Valid range is 1\-4294967295.
+.It Xo
+.Ic status-tlv
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+Specify whether the use of the Status TLV is preferred or not
+preferred.
+The default is
+.Ic yes .
+.El
+.Sh FILES
+.Bl -tag -width /etc/examples/ldpd.conf -compact
+.It Pa /etc/ldpd.conf
+.Xr ldpd 8
+configuration file.
+.It Pa /etc/examples/ldpd.conf
+Example configuration file.
+.El
+.Sh SEE ALSO
+.Xr ldpctl 8 ,
+.Xr ldpd 8 ,
+.Xr rc.conf.local 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 4.6 .

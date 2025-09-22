@@ -1,0 +1,29 @@
+This is the traditional children's card game "Go Fish".  We each get seven
+cards, and the rest of the deck is kept to be drawn from later.  The
+object of the game is to collect "books", or all of the cards of a single
+value.  For example, getting four 2's would give you a "book of 2's".
+
+We take turns asking each other for cards, but you can't ask me for a card
+value if you don't have one of them in your hand!  If I have any cards of
+the value you ask for, I have to give them to you.  As long as I have one
+of the cards you ask for, you get to keep asking.  If you ask me for a
+card value that I don't have, then I'll tell you to "Go Fish!"  This means
+that you draw a card from the deck.  If you draw the card you asked me
+for, you get to keep asking me for cards.  If not, it's my turn and I ask
+you for a card.
+
+Sometimes you get to ask first, sometimes I do.  I'll tell you when it's
+your turn to move, I'll draw cards from the deck for you, and I'll tell
+you what you have in your hand.  (Don't worry, I don't look at your hand
+when I'm trying to decide what card to ask for, honest!)
+
+Your input can be a card value ("A", "2", "3", "4", "5", "6", "7", "8",
+"9", "10", "J", "Q" or "K") or the letter "p", or "quit".  The letter "p"
+makes my game much smarter, and the line "quit" stops the game.  Just
+hitting the carriage return key displays how many cards I have in my hand,
+how many are left in the deck, and which books I've gotten.
+
+Normally, the game stops when one of us runs out of cards, and the winner
+is whoever has the most books!
+
+Good luck!

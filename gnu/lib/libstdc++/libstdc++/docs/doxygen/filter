@@ -1,0 +1,13 @@
+#!/bin/sh
+
+script=$1
+file=$2
+
+# Possibly allow some files to go unchanged.  Other
+# future manipulations are likely.
+case $file in
+ */alloc_policies.h)
+  cat $file ;;
+ *) sed -f $script $file ;;
+esac
+

@@ -1,0 +1,160 @@
+.\" $OpenBSD: PKCS8_pkey_set0.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS8_PKEY_SET0 3
+.Os
+.Sh NAME
+.Nm PKCS8_pkey_set0 ,
+.Nm PKCS8_pkey_get0 ,
+.Nm PKCS8_pkey_add1_attr_by_NID ,
+.Nm PKCS8_pkey_get0_attrs
+.Nd change and inspect PKCS#8 PrivateKeyInfo objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo PKCS8_pkey_set0
+.Fa "PKCS8_PRIV_KEY_INFO *keyinfo"
+.Fa "ASN1_OBJECT *aobj"
+.Fa "int version"
+.Fa "int ptype"
+.Fa "void *pval"
+.Fa "unsigned char *data"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo PKCS8_pkey_get0
+.Fa "const ASN1_OBJECT **paobj"
+.Fa "const unsigned char **pdata"
+.Fa "int *plen"
+.Fa "const X509_ALGOR **palgor"
+.Fa "const PKCS8_PRIV_KEY_INFO *keyinfo"
+.Fc
+.Ft int
+.Fo PKCS8_pkey_add1_attr_by_NID
+.Fa "PKCS8_PRIV_KEY_INFO *keyinfo"
+.Fa "int nid"
+.Fa "int type"
+.Fa "const unsigned char *data"
+.Fa "int len"
+.Fc
+.Ft const STACK_OF(X509_ATTRIBUTE) *
+.Fo PKCS8_pkey_get0_attrs
+.Fa "const PKCS8_PRIV_KEY_INFO *keyinfo"
+.Fc
+.Sh DESCRIPTION
+.Fn PKCS8_pkey_set0
+initializes the
+.Fa keyinfo
+object.
+The algorithm is set to
+.Fa aobj
+with the associated parameter type
+.Fa ptype
+and parameter value
+.Fa pval
+using
+.Xr X509_ALGOR_set0 3 ,
+replacing any previous information about the algorithm.
+Unless
+.Fa data
+is
+.Dv NULL ,
+the encoded private key is set to the
+.Fa len
+bytes starting at
+.Fa data
+using
+.Xr ASN1_STRING_set0 3 ,
+not performing any validation.
+If
+.Fa data
+is
+.Dv NULL ,
+the key data remains unchanged.
+If the
+.Fa version
+argument is greater than or equal to 0, it replaces any existing version;
+otherwise, the version remains unchanged.
+If
+.Fa keyinfo
+contains any attributes, they remain unchanged.
+.Pp
+.Fn PKCS8_pkey_get0
+retrieves some information from the
+.Fa keyinfo
+object.
+Internal pointers to the algorithm OID, the
+.Vt AlgorithmIdentifier ,
+and the encoded private key are stored in
+.Pf * Fa paobj ,
+.Pf * Fa palgor ,
+and
+.Pf * Fa pdata ,
+respectively.
+.Dv NULL
+pointers can be passed for any of these three arguments if the respective
+information is not needed.
+Unless
+.Fa pdata
+is
+.Dv NULL ,
+.Pf * Fa plen
+is set to the number of bytes in
+.Pf * Fa pdata .
+.Pp
+.Fn PKCS8_pkey_add1_attr_by_NID
+creates a new X.501 Attribute object using
+.Xr X509_ATTRIBUTE_create_by_NID 3
+and appends it to the attributes of
+.Fa keyinfo .
+.Sh RETURN VALUES
+.Fn PKCS8_pkey_set0
+and
+.Fn PKCS8_pkey_add1_attr_by_NID
+return 1 for success or 0 for failure.
+.Pp
+.Fn PKCS8_pkey_get0
+always returns 1.
+.Pp
+.Fn PKCS8_pkey_get0_attrs
+returns an internal pointer to the array of attributes associated with
+.Fa keyinfo
+or
+.Dv NULL
+if no attributes are set.
+.Sh SEE ALSO
+.Xr ASN1_STRING_set0 3 ,
+.Xr EVP_PKCS82PKEY 3 ,
+.Xr OBJ_nid2obj 3 ,
+.Xr PKCS8_PRIV_KEY_INFO_new 3 ,
+.Xr STACK_OF 3 ,
+.Xr X509_ALGOR_new 3 ,
+.Xr X509_ATTRIBUTE_create_by_NID 3 ,
+.Xr X509_ATTRIBUTE_new 3
+.Sh HISTORY
+.Fn PKCS8_pkey_set0
+and
+.Fn PKCS8_pkey_get0
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .
+.Pp
+.Fn PKCS8_pkey_add1_attr_by_NID
+and
+.Fn PKCS8_pkey_get0_attrs
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.4 .

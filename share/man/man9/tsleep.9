@@ -1,0 +1,287 @@
+.\"	$OpenBSD: tsleep.9,v 1.16 2022/03/31 17:27:23 naddy Exp $
+.\"	$NetBSD: sleep.9,v 1.11 1999/03/24 06:15:12 mycroft Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt TSLEEP 9
+.Os
+.Sh NAME
+.Nm tsleep ,
+.Nm tsleep_nsec ,
+.Nm msleep ,
+.Nm msleep_nsec ,
+.Nm rwsleep ,
+.Nm rwsleep_nsec ,
+.Nm wakeup ,
+.Nm wakeup_n ,
+.Nm wakeup_one
+.Nd process context sleep and wakeup
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.Fd #define INFSLP	UINT64_MAX
+.Fd #define MAXTSLP	(UINT64_MAX - 1)
+.Ft int
+.Fo tsleep
+.Fa "void *ident"
+.Fa "int priority"
+.Fa "const char *wmesg"
+.Fa "int timo"
+.Fc
+.Ft int
+.Fo tsleep_nsec
+.Fa "void *ident"
+.Fa "int priority"
+.Fa "const char *wmesg"
+.Fa "uint64_t nsecs"
+.Fc
+.Ft int
+.Fo msleep
+.Fa "void *ident"
+.Fa "struct mutex *mtx"
+.Fa "int priority"
+.Fa "const char *wmesg"
+.Fa "int timo"
+.Fc
+.Ft int
+.Fo msleep_nsec
+.Fa "void *ident"
+.Fa "struct mutex *mtx"
+.Fa "int priority"
+.Fa "const char *wmesg"
+.Fa "uint64_t nsecs"
+.Fc
+.Ft int
+.Fo rwsleep
+.Fa "void *ident"
+.Fa "struct rwlock *rwl"
+.Fa "int priority"
+.Fa "const char *wmesg"
+.Fa "int timo"
+.Fc
+.Ft int
+.Fo rwsleep_nsec
+.Fa "void *ident"
+.Fa "struct rwlock *rwl"
+.Fa "int priority"
+.Fa "const char *wmesg"
+.Fa "uint64_t nsecs"
+.Fc
+.Ft void
+.Fn wakeup "void *ident"
+.Ft void
+.Fn wakeup_n "void *ident" "int count"
+.Ft void
+.Fn wakeup_one "void *ident"
+.Sh DESCRIPTION
+These functions implement voluntary context switching.
+.Fn tsleep ,
+.Fn msleep
+and
+.Fn rwsleep
+are used throughout the kernel whenever processing in the current context
+cannot continue for any of the following reasons:
+.Bl -bullet -offset indent
+.It
+The current process needs to await the results of a pending I/O operation.
+.It
+The current process needs resources
+.Pq e.g. memory
+which are temporarily unavailable.
+.It
+The current process wants access to data structures which are locked by
+other processes.
+.El
+.Pp
+The
+.Fn wakeup ,
+.Fn wakeup_n ,
+and
+.Fn wakeup_one
+functions are used to notify sleeping processes of possible changes to the
+condition that caused them to go to sleep.
+Typically, an awakened process will -- after it has acquired a context
+again -- retry the action that blocked its operation to see if the
+.Dq blocking
+condition has cleared.
+.Pp
+The
+.Fn tsleep
+function takes the following arguments:
+.Bl -tag -width priority
+.It Fa ident
+An identifier of the
+.Dq wait channel
+representing the resource for which the current process needs to wait.
+This typically is the virtual address of some kernel data structure related
+to the resource for which the process is contending.
+The same identifier must be used in a call to
+.Fn wakeup
+to get the process going again.
+.Fa ident
+should not be
+.Dv NULL .
+.It Fa priority
+The process priority to be used when the process is awakened and put on
+the queue of runnable processes.
+This mechanism is used to optimize
+.Dq throughput
+of processes executing in kernel mode.
+If the flag
+.Dv PCATCH
+is OR'ed into
+.Fa priority ,
+the process checks for posted signals before and after sleeping.
+.It Fa wmesg
+A pointer to a character string indicating the reason a process is sleeping.
+The kernel does not use the string, but makes it available
+.Pq through the process structure field Li p_wmesg
+for user level utilities such as
+.Xr ps 1 .
+.It Fa timo
+If non-zero, the process will sleep for at most
+.Li timo/hz
+seconds.
+If this amount of time elapses and no
+.Fn wakeup "ident"
+has occurred, and no signal
+.Pq if Dv PCATCH No was set
+was posted,
+.Fn tsleep
+will return
+.Er EWOULDBLOCK .
+.El
+.Pp
+The
+.Fn msleep
+function behaves just like
+.Fn tsleep ,
+but takes an additional argument:
+.Bl -tag -width priority
+.It Fa mtx
+A mutex that will be unlocked when the process is safely
+on the sleep queue.
+The mutex will be relocked at the end of msleep unless the
+.Dv PNORELOCK
+flag is set in the
+.Fa priority
+argument.
+.El
+.Pp
+The
+.Fn rwsleep
+function behaves just like
+.Fn tsleep ,
+but takes an additional argument:
+.Bl -tag -width priority
+.It Fa rwl
+A read- or write-lock that will be unlocked when the process is safely
+on the sleep queue.
+The lock will be relocked at the end of rwsleep unless the
+.Dv PNORELOCK
+flag is set in the
+.Fa priority
+argument.
+.El
+.Pp
+The
+.Fn tsleep_nsec ,
+.Fn msleep_nsec ,
+and
+.Fn rwsleep_nsec
+functions behave like their unsuffixed counterparts except that they
+accept a timeout in terms of nanoseconds.
+These functions will always sleep for at least one tick,
+even if
+.Fa nsecs
+is zero.
+If
+.Fa nsecs
+is equal to
+.Dv INFSLP
+these functions do not time out,
+otherwise they sleep for at least
+.Fa nsecs
+nanoseconds.
+.Pp
+The
+.Fn wakeup
+function will mark all processes which are currently sleeping on the identifier
+.Fa ident
+as runnable.
+Eventually, each of the processes will resume execution in the kernel
+context, causing a return from
+.Fn tsleep .
+Note that processes returning from sleep should always re-evaluate the
+conditions that blocked them, since a call to
+.Fn wakeup
+merely signals a
+.Em possible
+change to the blocking conditions.
+For example, when two or more processes are waiting for an exclusive lock,
+only one of them will succeed in acquiring the lock when it is released.
+All others will have to go back to sleep and wait for the next opportunity.
+.Pp
+The
+.Fn wakeup_n
+and
+.Fn wakeup_one
+functions behave similarly to
+.Fn wakeup
+except that only
+.Fa count
+or one process, respectively, is marked runnable.
+.Sh RETURN VALUES
+.Fn tsleep ,
+.Fn tsleep_nsec ,
+.Fn msleep ,
+.Fn msleep_nsec ,
+.Fn rwsleep ,
+and
+.Fn rwsleep_nsec
+return 0 if they return as a result of a
+.Fn wakeup .
+If they return as a result of a signal, the return value is
+.Er ERESTART
+if the signal has the
+.Dv SA_RESTART
+property
+.Pq see Xr sigaction 2 ,
+and
+.Er EINTR
+otherwise.
+If they return as a result of a timeout, the return value is
+.Er EWOULDBLOCK .
+.Sh CODE REFERENCES
+These functions are implemented in the file
+.Pa sys/kern/kern_synch.c .
+.Sh SEE ALSO
+.Xr hz 9 ,
+.Xr mi_switch 9 ,
+.Xr timeout 9

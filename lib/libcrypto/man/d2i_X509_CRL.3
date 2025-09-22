@@ -1,0 +1,149 @@
+.\" $OpenBSD: d2i_X509_CRL.3,v 1.11 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_X509_CRL 3
+.Os
+.Sh NAME
+.Nm d2i_X509_CRL ,
+.Nm i2d_X509_CRL ,
+.Nm d2i_X509_CRL_bio ,
+.Nm d2i_X509_CRL_fp ,
+.Nm i2d_X509_CRL_bio ,
+.Nm i2d_X509_CRL_fp ,
+.Nm d2i_X509_CRL_INFO ,
+.Nm i2d_X509_CRL_INFO ,
+.Nm d2i_X509_REVOKED ,
+.Nm i2d_X509_REVOKED
+.Nd decode and encode X.509 certificate revocation lists
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_CRL *
+.Fo d2i_X509_CRL
+.Fa "X509_CRL **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_CRL
+.Fa "X509_CRL *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft X509_CRL *
+.Fo d2i_X509_CRL_bio
+.Fa "BIO *in_bio"
+.Fa "X509_CRL **val_out"
+.Fc
+.Ft X509_CRL *
+.Fo d2i_X509_CRL_fp
+.Fa "FILE *in_fp"
+.Fa "X509_CRL **val_out"
+.Fc
+.Ft int
+.Fo i2d_X509_CRL_bio
+.Fa "BIO *out_bio"
+.Fa "X509_CRL *val_in"
+.Fc
+.Ft int
+.Fo i2d_X509_CRL_fp
+.Fa "FILE *out_fp"
+.Fa "X509_CRL *val_in"
+.Fc
+.Ft X509_CRL_INFO *
+.Fo d2i_X509_CRL_INFO
+.Fa "X509_CRL_INFO **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_CRL_INFO
+.Fa "X509_CRL_INFO *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft X509_REVOKED *
+.Fo d2i_X509_REVOKED
+.Fa "X509_REVOKED **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_REVOKED
+.Fa "X509_REVOKED *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode X.509 certificate revocation lists.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_X509_CRL
+and
+.Fn i2d_X509_CRL
+decode and encode an ASN.1
+.Vt CertificateList
+structure defined in RFC 5280 section 5.1.
+.Pp
+.Fn d2i_X509_CRL_bio ,
+.Fn d2i_X509_CRL_fp ,
+.Fn i2d_X509_CRL_bio ,
+and
+.Fn i2d_X509_CRL_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn d2i_X509_CRL_INFO
+and
+.Fn i2d_X509_CRL_INFO
+decode and encode an ASN.1
+.Vt TBSCertList
+structure defined in RFC 5280 section 5.1.
+.Pp
+.Fn d2i_X509_REVOKED
+and
+.Fn i2d_X509_REVOKED
+decode and encode an ASN.1 structure representing one element of
+the revokedCertificates field of the ASN.1
+.Vt TBSCertList
+structure.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_REVOKED_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile,
+section 5: CRL and CRL Extensions Profile
+.Sh HISTORY
+.Fn d2i_X509_CRL ,
+.Fn i2d_X509_CRL ,
+.Fn d2i_X509_CRL_fp ,
+.Fn i2d_X509_CRL_fp ,
+.Fn d2i_X509_CRL_INFO ,
+.Fn i2d_X509_CRL_INFO ,
+.Fn d2i_X509_REVOKED ,
+and
+.Fn i2d_X509_REVOKED
+first appeared in SSLeay 0.5.1.
+.Fn d2i_X509_CRL_bio
+and
+.Fn i2d_X509_CRL_bio
+first appeared in SSLeay 0.6.0.
+These functions have been available since
+.Ox 2.4 .

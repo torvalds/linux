@@ -1,0 +1,64 @@
+@0 pass out on lo0 inet from 10.0.0.0/8 to 172.16.0.0/16 flags S/SA nat-to 172.16.0.1
+  [ Skip steps: i=end r=end f=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass in on lo0 inet proto tcp from any to 1.2.3.4 port = 80 flags S/SA rdr-to 127.0.0.1 port 8080
+  [ Skip steps: i=end r=end f=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 pass out on lo0 inet from 10.0.0.0/8 to 11.0.0.0/8 flags S/SA nat-to 12.0.0.0/8 static-port
+  [ Skip steps: i=end r=end f=end p=5 sp=end dp=5 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass in on lo0 inet from 11.0.0.0/8 to 12.0.0.0/8 flags S/SA rdr-to 10.0.0.0/8
+  [ Skip steps: i=end r=end f=end p=5 sp=end dp=5 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass out log on lo0 inet from 10.0.0.0/8 to 172.16.0.0/16 flags S/SA nat-to 172.16.0.1
+  [ Skip steps: i=end r=end f=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 pass in log on lo0 inet proto tcp from any to 1.2.3.4 port = 80 flags S/SA rdr-to 127.0.0.1 port 8080
+  [ Skip steps: i=end r=end f=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 pass out log on lo0 inet from 10.0.0.0/8 to 11.0.0.0/8 flags S/SA nat-to 12.0.0.0/8 static-port
+  [ Skip steps: i=end r=end f=end p=9 sp=end dp=9 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 pass in log on lo0 inet from 11.0.0.0/8 to 12.0.0.0/8 flags S/SA rdr-to 10.0.0.0/8
+  [ Skip steps: i=end r=end f=end p=9 sp=end dp=9 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 pass out log (all) on lo0 inet from 10.0.0.0/8 to 172.16.0.0/16 flags S/SA nat-to 172.16.0.1
+  [ Skip steps: i=end r=end f=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 pass in log (all) on lo0 inet proto tcp from any to 1.2.3.4 port = 80 flags S/SA rdr-to 127.0.0.1 port 8080
+  [ Skip steps: i=end r=end f=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 pass out log (all) on lo0 inet from 10.0.0.0/8 to 11.0.0.0/8 flags S/SA nat-to 12.0.0.0/8 static-port
+  [ Skip steps: i=end r=end f=end p=13 sp=end dp=13 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 pass in log (all) on lo0 inet from 11.0.0.0/8 to 12.0.0.0/8 flags S/SA rdr-to 10.0.0.0/8
+  [ Skip steps: i=end r=end f=end p=13 sp=end dp=13 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@12 match out log on lo0 inet from 10.0.0.0/8 to 172.16.0.0/16 nat-to 172.16.0.1
+  [ Skip steps: i=end r=end f=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@13 match in log on lo0 inet proto tcp from any to 1.2.3.4 port = 80 rdr-to 127.0.0.1 port 8080
+  [ Skip steps: i=end r=end f=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@14 match out log on lo0 inet from 10.0.0.0/8 to 11.0.0.0/8 nat-to 12.0.0.0/8 static-port
+  [ Skip steps: i=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@15 match in log on lo0 inet from 11.0.0.0/8 to 12.0.0.0/8 rdr-to 10.0.0.0/8
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

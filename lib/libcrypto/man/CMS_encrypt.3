@@ -1,0 +1,192 @@
+.\" $OpenBSD: CMS_encrypt.3,v 1.8 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 83cf7abf May 29 13:07:08 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CMS_ENCRYPT 3
+.Os
+.Sh NAME
+.Nm CMS_encrypt
+.Nd create a CMS EnvelopedData structure
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cms.h
+.Ft CMS_ContentInfo *
+.Fo CMS_encrypt
+.Fa "STACK_OF(X509) *certificates"
+.Fa "BIO *in"
+.Fa "const EVP_CIPHER *cipher"
+.Fa "unsigned int flags"
+.Fc
+.Sh DESCRIPTION
+.Fn CMS_encrypt
+creates a CMS
+.Vt EnvelopedData
+structure, encrypting the content provided by
+.Fa in .
+.Pp
+The recipient
+.Fa certificates
+are added as
+.Vt KeyTransRecipientInfo
+structures by calling the function
+.Xr CMS_add1_recipient_cert 3
+internally.
+Only certificates carrying RSA, Diffie-Hellman or EC keys are supported
+by this function.
+The
+.Fa certificates
+argument can be set to
+.Dv NULL
+if the
+.Dv CMS_PARTIAL
+flag is set and recipients are added later using
+.Xr CMS_add1_recipient_cert 3
+or
+.Xr CMS_add0_recipient_key 3 .
+.Pp
+.Fa cipher
+is the symmetric cipher to use.
+It must support ASN.1 encoding of its parameters.
+.Xr EVP_des_ede3_cbc 3
+(triple DES) is the algorithm of choice for S/MIME use because most
+clients support it.
+.Pp
+Many browsers implement a "sign and encrypt" option which is simply an
+S/MIME
+.Vt EnvelopedData
+containing an S/MIME signed message.
+This can be readily produced by storing the S/MIME signed message in a
+memory BIO and passing it to
+.Fn CMS_encrypt .
+.Pp
+The following flags can be passed in the
+.Fa flags
+parameter:
+.Bl -tag -width Ds
+.It Dv CMS_TEXT
+MIME headers for type text/plain are prepended to the data.
+.It Dv CMS_BINARY
+Do not translate the supplied content into MIME canonical format
+even though that is required by the S/MIME specifications.
+This option should be used if the supplied data is in binary format.
+Otherwise, the translation will corrupt it.
+If
+.Dv CMS_BINARY
+is set, then
+.Dv CMS_TEXT
+is ignored.
+.It Dv CMS_USE_KEYID
+Use the subject key identifier value to identify recipient certificates.
+An error occurs if all recipient certificates do not have a subject key
+identifier extension.
+By default, issuer name and serial number are used instead.
+.It Dv CMS_STREAM
+Return a partial
+.Vt CMS_ContentInfo
+structure suitable for streaming I/O: no data is read from the BIO
+.Fa in .
+Several functions including
+.Xr SMIME_write_CMS 3 ,
+.Xr i2d_CMS_bio_stream 3 ,
+or
+.Xr PEM_write_bio_CMS_stream 3
+can be used  to finalize the structure.
+Alternatively, finalization can be performed by obtaining the streaming
+ASN1
+.Vt BIO
+directly using
+.Xr BIO_new_CMS 3 .
+Outputting the content of the returned
+.Vt CMS_ContentInfo
+structure via a function that does not properly finalize it
+will give unpredictable results.
+.It Dv CMS_PARTIAL
+Return a partial
+.Vt CMS_ContentInfo
+structure to which additional recipients and attributes can
+be added before finalization.
+.It Dv CMS_DETACHED
+Omit the data being encrypted from the
+.Vt CMS_ContentInfo
+structure.
+This is rarely used in practice and is not supported by
+.Xr SMIME_write_CMS 3 .
+.El
+.Sh RETURN VALUES
+.Fn CMS_encrypt
+returns either a
+.Vt CMS_ContentInfo
+structure or
+.Dv NULL
+if an error occurred.
+The error can be obtained from
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr CMS_add0_cert 3 ,
+.Xr CMS_add1_recipient_cert 3 ,
+.Xr CMS_ContentInfo_new 3 ,
+.Xr CMS_decrypt 3
+.Sh STANDARDS
+RFC 5652: Cryptographic Message Syntax (CMS)
+.Bl -dash -compact -offset indent
+.It
+section 6.1: EnvelopedData Type
+.It
+section 6.2.1: KeyTransRecipientInfo Type
+.El
+.Sh HISTORY
+.Fn CMS_encrypt
+first appeared in OpenSSL 0.9.8h
+and has been available since
+.Ox 6.7 .
+.Pp
+The
+.Dv CMS_STREAM
+flag first appeared in OpenSSL 1.0.0.

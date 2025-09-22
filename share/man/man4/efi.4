@@ -1,0 +1,102 @@
+.\"	$OpenBSD: efi.4,v 1.3 2024/05/05 19:13:13 kn Exp $
+.\"
+.\" Copyright (c) 2018 Mark Kettenis <kettenis@openbsd.org>
+.\" Copyright (c) 2024 Klemens Nanni <kn@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 5 2024 $
+.Dt EFI 4
+.Os
+.Sh NAME
+.Nm efi
+.Nd Unified Extensible Firmware Interface
+.Sh SYNOPSIS
+.Cd "# amd64"
+.Cd "efi* at bios?"
+.Pp
+.Cd "# arm64"
+.Cd "efi* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for EFI runtime services offered by UEFI
+firmware implementations.
+It can read and write the Real Time Clock and provides userland applications
+.Xr ioctl 2
+access to the System Resource Table and to read and write variables.
+.Sh IOCTLS
+.Nm
+supports the following
+.Xr ioctl 2
+commands, available through
+.In dev/efi/efi.h
+.In dev/efi/efiio.h :
+.Bl -tag -width xxxx
+.It Dv EFIIOC_GET_TABLE Fa "struct efi_get_table_ioc *"
+.Bd -literal
+struct efi_get_table_ioc {
+	void *buf;          /* Pointer to userspace buffer */
+	struct uuid uuid;   /* UUID to look up */
+	size_t table_len;   /* Table size */
+	size_t buf_len;     /* Size of the buffer */
+};
+.Ed
+.Pp
+Read a table.
+.It Dv EFIIOC_VAR_GET Fa "struct efi_var_ioc *"
+.Bd -literal
+struct efi_var_ioc {
+	uint16_t *name;     /* User pointer to name, in UCS2 chars */
+	size_t namesize;    /* Number of *bytes* in the name
+	                       including terminator */
+	struct uuid vendor; /* Vendor's UUID for variable */
+	uint32_t attrib;    /* Attributes */
+	void *data;         /* User pointer to value */
+	size_t datasize;    /* Number of *bytes* in the value */
+};
+.Ed
+.Pp
+Read a variable.
+.It Dv EFIIOC_VAR_NEXT Fa "struct efi_var_ioc *"
+Enumerate all variables.
+The first command must use the empty name.
+Further ones must denote the previous variable's name and UUID.
+.It Dv EFIIOC_VAR_SET Fa "struct efi_var_ioc *"
+Write a variable.
+Delete it if
+.Va datasize
+is zero.
+.El
+.Sh FILES
+.Bl -tag -width /dev/efi -compact
+.It Pa /dev/efi
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared for arm64 in
+.Ox 6.3 .
+Support for amd64, the ESRT and EFI variables appeared in
+.Ox 7.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .
+Support for the ESRT and EFI variables is heavily based on work done by
+.An Sergii Dmytruk Aq Mt sergii.dmytruk@3meb.com .

@@ -1,0 +1,231 @@
+.\" $OpenBSD: tls_config_set_protocols.3,v 1.13 2025/07/07 10:54:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2014 Ted Unangst <tedu@openbsd.org>
+.\" Copyright (c) 2015, 2016 Joel Sing <jsing@openbsd.org>
+.\" Copyright (c) 2015 Bob Beck <beck@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt TLS_CONFIG_SET_PROTOCOLS 3
+.Os
+.Sh NAME
+.Nm tls_config_set_protocols ,
+.Nm tls_config_parse_protocols ,
+.Nm tls_config_set_alpn ,
+.Nm tls_config_set_ciphers ,
+.Nm tls_config_set_dheparams ,
+.Nm tls_config_set_ecdhecurves ,
+.\" .Nm tls_config_set_ecdhecurve is intentionally undocumented.
+.Nm tls_config_prefer_ciphers_client ,
+.Nm tls_config_prefer_ciphers_server
+.Nd TLS protocol and cipher selection
+.Sh SYNOPSIS
+.Lb libtls libssl libcrypto
+.In tls.h
+.Ft int
+.Fo tls_config_set_protocols
+.Fa "struct tls_config *config"
+.Fa "uint32_t protocols"
+.Fc
+.Ft int
+.Fo tls_config_parse_protocols
+.Fa "uint32_t *protocols"
+.Fa "const char *protostr"
+.Fc
+.Ft int
+.Fo tls_config_set_alpn
+.Fa "struct tls_config *config"
+.Fa "const char *alpn"
+.Fc
+.Ft int
+.Fo tls_config_set_ciphers
+.Fa "struct tls_config *config"
+.Fa "const char *ciphers"
+.Fc
+.Ft int
+.Fo tls_config_set_dheparams
+.Fa "struct tls_config *config"
+.Fa "const char *params"
+.Fc
+.Ft int
+.Fo tls_config_set_ecdhecurves
+.Fa "struct tls_config *config"
+.Fa "const char *curves"
+.Fc
+.Ft void
+.Fn tls_config_prefer_ciphers_client "struct tls_config *config"
+.Ft void
+.Fn tls_config_prefer_ciphers_server "struct tls_config *config"
+.Sh DESCRIPTION
+These functions modify a configuration by setting parameters.
+The configuration options apply to both clients and servers, unless noted
+otherwise.
+.Pp
+.Fn tls_config_set_protocols
+specifies which versions of the TLS protocol may be used.
+Possible values are the bitwise OR of:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Dv TLS_PROTOCOL_TLSv1_2
+.It
+.Dv TLS_PROTOCOL_TLSv1_3
+.El
+.Pp
+Additionally, the values
+.Dv TLS_PROTOCOL_TLSv1
+(TLSv1.2, TLSv1.3),
+.Dv TLS_PROTOCOLS_ALL
+(all supported protocols) and
+.Dv TLS_PROTOCOLS_DEFAULT
+(TLSv1.2 and TLSv1.3) may be used.
+.Pp
+The
+.Fn tls_config_parse_protocols
+utility function parses a protocol string and returns the corresponding
+value via the
+.Ar protocols
+argument.
+This value can then be passed to the
+.Fn tls_config_set_protocols
+function.
+The protocol string is a comma or colon separated list of keywords.
+Valid keywords are:
+.Pp
+.Bl -tag -width "tlsv1.3" -offset indent -compact
+.It Dv tlsv1.2
+.It Dv tlsv1.3
+.It Dv all
+.Pq all supported protocols
+.It Dv default
+.Pq an alias for Dv secure
+.It Dv legacy
+.Pq an alias for Dv all
+.It Dv secure
+.Pq currently TLSv1.2 and TLSv1.3
+.El
+.Pp
+If a value has a negative prefix (in the form of a leading exclamation mark)
+then it is removed from the list of available protocols, rather than being
+added to it.
+.Pp
+.Fn tls_config_set_alpn
+sets the ALPN protocols that are supported.
+The alpn string is a comma separated list of protocols, in order of preference.
+.Pp
+.Fn tls_config_set_ciphers
+sets the list of ciphers that may be used.
+Lists of ciphers are specified by name, and the
+permitted names are:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Dv secure Pq or alias Dv default
+.It
+.Dv compat
+.It
+.Dv legacy
+.It
+.Dv insecure Pq or alias Dv all
+.El
+.Pp
+Alternatively, libssl cipher strings can be specified.
+See the CIPHERS section of
+.Xr openssl 1
+for further information.
+.Pp
+.Fn tls_config_set_dheparams
+specifies the parameters that will be used during Diffie-Hellman Ephemeral
+(DHE) key exchange.
+Possible values are:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Dv none
+.It
+.Dv auto
+.It
+.Dv legacy
+.El
+.Pp
+In
+.Dv auto
+mode, the key size for the ephemeral key is automatically selected
+based on the size of the private key being used for signing.
+In
+.Dv legacy
+mode, 1024 bit ephemeral keys are used.
+The default value is
+.Dv none ,
+which disables DHE key exchange.
+.Pp
+.Fn tls_config_set_ecdhecurves
+specifies the names of the elliptic curves that may be used during Elliptic
+Curve Diffie-Hellman Ephemeral (ECDHE) key exchange.
+This is a comma separated list, given in order of preference.
+The special value of "default" will use the default curves (currently X25519,
+P-256 and P-384).
+This function replaces
+.Fn tls_config_set_ecdhecurve ,
+which is deprecated.
+.Pp
+.Fn tls_config_prefer_ciphers_client
+prefers ciphers in the client's cipher list when selecting a cipher suite
+(server only).
+This is considered to be less secure than preferring the server's list.
+.Pp
+.Fn tls_config_prefer_ciphers_server
+prefers ciphers in the server's cipher list when selecting a cipher suite
+(server only).
+This is considered to be more secure than preferring the client's list and is
+the default.
+.Sh RETURN VALUES
+These functions return 0 on success or -1 on error.
+.Sh SEE ALSO
+.Xr tls_config_ocsp_require_stapling 3 ,
+.Xr tls_config_set_session_id 3 ,
+.Xr tls_config_verify 3 ,
+.Xr tls_init 3 ,
+.Xr tls_load_file 3
+.Sh HISTORY
+.Fn tls_config_set_ciphers
+appeared in
+.Ox 5.6
+and got its final name in
+.Ox 5.7 .
+.Pp
+.Fn tls_config_set_protocols ,
+.Fn tls_config_parse_protocols ,
+.Fn tls_config_set_dheparams ,
+and
+.Fn tls_config_set_ecdhecurve
+appeared in
+.Ox 5.7 ,
+.Fn tls_config_prefer_ciphers_client
+and
+.Fn tls_config_prefer_ciphers_server
+in
+.Ox 5.9 ,
+and
+.Fn tls_config_set_alpn
+in
+.Ox 6.1 .
+.Sh AUTHORS
+.An Joel Sing Aq Mt jsing@openbsd.org
+with contributions from
+.An Ted Unangst Aq Mt tedu@openbsd.org
+.Pq Fn tls_config_set_ciphers
+and
+.An Reyk Floeter Aq Mt reyk@openbsd.org
+.Pq Fn tls_config_set_ecdhecurve

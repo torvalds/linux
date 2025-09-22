@@ -1,0 +1,57 @@
+.\"     $OpenBSD: ldomd.8,v 1.6 2019/07/27 09:55:46 kn Exp $
+.\"
+.\" Copyright (c) 2012 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 27 2019 $
+.Dt LDOMD 8 sparc64
+.Os
+.Sh NAME
+.Nm ldomd
+.Nd Logical Domain daemon
+.Sh SYNOPSIS
+.Nm ldomd
+.Op Fl d
+.Sh DESCRIPTION
+The
+.Nm
+daemon manages the logical domains on sun4v systems.
+It manages the logical domain configuration and provides domain
+services to guest domains.
+Currently it only implements support for the Variable
+Configuration domain service.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.El
+.Sh SEE ALSO
+.Xr vldc 4 ,
+.Xr ldom.conf 5 ,
+.Xr ldomctl 8
+.Sh HISTORY
+The
+.Nm
+daemon first appeared in
+.Ox 5.3 .
+.Sh AUTHORS
+The
+.Nm
+daemon was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

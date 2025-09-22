@@ -1,0 +1,309 @@
+.\" $OpenBSD: OCSP_response_status.3,v 1.9 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL bb9ad09e Jun 6 00:43:05 2016 -0400
+.\" selective merge up to: OpenSSL 6738bf14 Feb 13 12:51:29 2018 +0000
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016, 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2014, 2016, 2018 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OCSP_RESPONSE_STATUS 3
+.Os
+.Sh NAME
+.Nm OCSP_RESPONSE_new ,
+.Nm OCSP_RESPONSE_free ,
+.Nm OCSP_RESPBYTES_new ,
+.Nm OCSP_RESPBYTES_free ,
+.Nm OCSP_BASICRESP_new ,
+.Nm OCSP_BASICRESP_free ,
+.Nm OCSP_RESPDATA_new ,
+.Nm OCSP_RESPDATA_free ,
+.Nm OCSP_RESPID_new ,
+.Nm OCSP_RESPID_free ,
+.Nm OCSP_response_create ,
+.Nm OCSP_response_status ,
+.Nm OCSP_response_status_str ,
+.Nm OCSP_response_get1_basic ,
+.Nm OCSP_basic_sign
+.Nd OCSP response functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ocsp.h
+.Ft OCSP_RESPONSE *
+.Fn OCSP_RESPONSE_new void
+.Ft void
+.Fn OCSP_RESPONSE_free "OCSP_RESPONSE *resp"
+.Ft OCSP_RESPBYTES *
+.Fn OCSP_RESPBYTES_new void
+.Ft void
+.Fn OCSP_RESPBYTES_free "OCSP_RESPBYTES *respbytes"
+.Ft OCSP_BASICRESP *
+.Fn OCSP_BASICRESP_new void
+.Ft void
+.Fn OCSP_BASICRESP_free "OCSP_BASICRESP *bs"
+.Ft OCSP_RESPDATA *
+.Fn OCSP_RESPDATA_new void
+.Ft void
+.Fn OCSP_RESPDATA_free "OCSP_RESPDATA *respdata"
+.Ft OCSP_RESPID *
+.Fn OCSP_RESPID_new void
+.Ft void
+.Fn OCSP_RESPID_free "OCSP_RESPID *respid"
+.Ft OCSP_RESPONSE *
+.Fo OCSP_response_create
+.Fa "int status"
+.Fa "OCSP_BASICRESP *bs"
+.Fc
+.Ft int
+.Fo OCSP_response_status
+.Fa "OCSP_RESPONSE *resp"
+.Fc
+.Ft const char *
+.Fo OCSP_response_status_str
+.Fa "long code"
+.Fc
+.Ft OCSP_BASICRESP *
+.Fo OCSP_response_get1_basic
+.Fa "OCSP_RESPONSE *resp"
+.Fc
+.Ft int
+.Fo OCSP_basic_sign
+.Fa "OCSP_BASICRESP *bs"
+.Fa "X509 *signer"
+.Fa "EVP_PKEY *key"
+.Fa "const EVP_MD *dgst"
+.Fa "STACK_OF(X509) *certs"
+.Fa "unsigned long flags"
+.Fc
+.Sh DESCRIPTION
+.Fn OCSP_RESPONSE_new
+allocates and initializes an empty
+.Vt OCSP_RESPONSE
+object, representing an ASN.1
+.Vt OCSPResponse
+structure defined in RFC 6960.
+.Fn OCSP_RESPONSE_free
+frees
+.Fa resp .
+.Pp
+.Fn OCSP_RESPBYTES_new
+allocates and initializes an empty
+.Vt OCSP_RESPBYTES
+object, representing an ASN.1
+.Vt ResponseBytes
+structure defined in RFC 6960.
+Such an object is used inside
+.Vt OCSP_RESPONSE .
+.Fn OCSP_RESPBYTES_free
+frees
+.Fa respbytes .
+.Pp
+.Fn OCSP_BASICRESP_new
+allocates and initializes an empty
+.Vt OCSP_BASICRESP
+object, representing an ASN.1
+.Vt BasicOCSPResponse
+structure defined in RFC 6960.
+.Vt OCSP_RESPBYTES
+contains the DER-encoded form of an
+.Vt OCSP_BASICRESP
+object.
+.Fn OCSP_BASICRESP_free
+frees
+.Fa bs .
+.Pp
+.Fn OCSP_RESPDATA_new
+allocates and initializes an empty
+.Vt OCSP_RESPDATA
+object, representing an ASN.1
+.Vt ResponseData
+structure defined in RFC 6960.
+Such an object is used inside
+.Vt OCSP_BASICRESP .
+.Fn OCSP_RESPDATA_free
+frees
+.Fa respdata .
+.Pp
+.Fn OCSP_RESPID_new
+allocates and initializes an empty
+.Vt OCSP_RESPID
+object, representing an ASN.1
+.Vt ResponderID
+structure defined in RFC 6960.
+Such an object is used inside
+.Vt OCSP_RESPDATA .
+.Fn OCSP_RESPID_free
+frees
+.Fa respid .
+.Pp
+.Fn OCSP_response_create
+creates an
+.Vt OCSP_RESPONSE
+object for
+.Fa status
+and optionally including the basic response
+.Fa bs .
+.Pp
+.Fn OCSP_response_status
+returns the OCSP response status of
+.Fa resp .
+It returns one of the values
+.Dv OCSP_RESPONSE_STATUS_SUCCESSFUL ,
+.Dv OCSP_RESPONSE_STATUS_MALFORMEDREQUEST ,
+.Dv OCSP_RESPONSE_STATUS_INTERNALERROR ,
+.Dv OCSP_RESPONSE_STATUS_TRYLATER ,
+.Dv OCSP_RESPONSE_STATUS_SIGREQUIRED ,
+or
+.Dv OCSP_RESPONSE_STATUS_UNAUTHORIZED .
+.Pp
+.Fn OCSP_response_status_str
+converts one of the
+.Fa status
+codes returned by
+.Fn OCSP_response_status
+to a string consisting of one word.
+.Pp
+.Fn OCSP_response_get1_basic
+decodes and returns the
+.Vt OCSP_BASICRESP
+object contained in
+.Fa resp .
+It is only called if the status of a response is
+.Dv OCSP_RESPONSE_STATUS_SUCCESSFUL .
+.Pp
+.Fn OCSP_basic_sign
+signs the OCSP response
+.Fa bs
+using the certificate
+.Fa signer ,
+the private key
+.Fa key ,
+the digest
+.Fa dgst ,
+and the additional certificates
+.Fa certs .
+If the
+.Fa flags
+option
+.Dv OCSP_NOCERTS
+is set, then no certificates will be included in the request.
+If the
+.Fa flags
+option
+.Dv OCSP_RESPID_KEY
+is set, then the responder is identified by key ID
+rather than by name.
+.Sh RETURN VALUES
+.Fn OCSP_RESPONSE_new
+and
+.Fn OCSP_response_create
+return a pointer to an
+.Vt OCSP_RESPONSE
+object or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn OCSP_BASICRESP_new
+and
+.Fn OCSP_response_get1_basic
+return a pointer to an
+.Vt OCSP_BASICRESP
+object or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn OCSP_RESPBYTES_new ,
+.Fn OCSP_RESPDATA_new ,
+and
+.Fn OCSP_RESPID_new
+return a pointer to an empty
+.Vt OCSP_RESPBYTES ,
+.Vt OCSP_RESPDATA ,
+or
+.Vt OCSP_RESPID
+object, respectively, or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn OCSP_response_status
+returns a status value.
+.Pp
+.Fn OCSP_response_status_str
+returns a pointer to a static string.
+.Pp
+.Fn OCSP_basic_sign
+return 1 on success or 0 on failure.
+.Sh SEE ALSO
+.Xr EVP_DigestInit 3 ,
+.Xr OCSP_cert_to_id 3 ,
+.Xr OCSP_request_add1_nonce 3 ,
+.Xr OCSP_REQUEST_new 3 ,
+.Xr OCSP_resp_find_status 3 ,
+.Xr OCSP_sendreq_new 3
+.Sh STANDARDS
+RFC 6960: X.509 Internet Public Key Infrastructure Online Certificate
+Status Protocol, section 4.2: Response Syntax
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.7
+and have been available since
+.Ox 3.2 .

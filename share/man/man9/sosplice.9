@@ -1,0 +1,279 @@
+.\"	$OpenBSD: sosplice.9,v 1.11 2025/01/09 17:42:38 mvs Exp $
+.\"
+.\" Copyright (c) 2011-2013 Alexander Bluhm <bluhm@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 9 2025 $
+.Dt SOSPLICE 9
+.Os
+.Sh NAME
+.Nm sosplice ,
+.Nm somove
+.Nd splice two sockets for zero-copy data transfer
+.Sh SYNOPSIS
+.Ft int
+.Fn sosplice "struct socket *so" "int fd" "off_t max" "struct timeval *tv"
+.Ft int
+.Fn somove "struct socket *so" "int wait"
+.Sh DESCRIPTION
+The function
+.Fn sosplice
+is used to splice together a source and a drain socket.
+The source socket is passed as the
+.Fa so
+argument;
+the file descriptor of the drain is passed in
+.Fa fd .
+If
+.Fa fd
+is negative, an existing splicing gets dissolved.
+If
+.Fa max
+is positive, at most that many bytes will get transferred.
+If
+.Fa tv
+is not NULL, a
+.Xr timeout 9
+is scheduled to dissolve splicing in the case when no data can be
+transferred for the specified period of time.
+Socket splicing can be invoked from userland via the
+.Xr setsockopt 2
+system-call at the
+.Dv SOL_SOCKET
+level with the socket option
+.Dv SO_SPLICE .
+.Pp
+Before connecting both sockets, several checks are executed.
+See the
+.Sx ERRORS
+section for possible failures.
+The connection between both sockets is implemented by setting these
+additional fields in the
+.Vt struct sosplice Va *so_sp
+field in
+.Vt struct socket :
+.Pp
+.Bl -dash -compact -offset indent
+.It
+.Vt struct socket Va *ssp_socket
+links from the source to the drain socket.
+.It
+.Vt struct socket Va *ssp_soback
+links back from the drain to the source socket.
+.It
+.Vt off_t Va ssp_len
+counts the number of bytes spliced so far from this socket.
+.It
+.Vt off_t Va ssp_max
+specifies the maximum number of bytes to splice from this socket if
+non-zero.
+.It
+.Vt struct timeval Va ssp_idletv
+specifies the maximum idle time if non-zero.
+.It
+.Vt struct timeout Va ssp_idleto
+provides storage for the kernel timeout if idle time is used.
+.El
+.Pp
+After connecting both sockets,
+.Fn sosplice
+calls
+.Fn somove
+to transfer the mbufs already in the source receive buffer to the
+drain send buffer.
+Finally the socket buffer flag
+.Dv SB_SPLICE
+is set on both socket buffers, to indicate that the protocol layer
+has to call
+.Fn somove
+whenever data or space is available.
+.Pp
+The function
+.Fn somove
+transfers data from the source's receive buffer to the drain's send
+buffer.
+It must be called at
+.Xr splsoftnet 9
+and
+.Fa so
+must be a spliced source socket.
+It may be necessary to split an mbuf to handle out-of-band data
+inline or when the maximum splice length has been reached.
+If
+.Fa wait
+is
+.Dv M_WAIT ,
+splitting mbufs will always succeed.
+For
+.Dv M_DONTWAIT
+the out-of-band property might get lost or a short splice might
+happen.
+In the latter case, less than the given maximum number of bytes are
+transferred and userland has to cope with this.
+Note that a short splice cannot happen if
+.Fn somove
+was called by
+.Fn sosplice .
+So a second
+.Xr setsockopt 2
+after a short splice pointing to the same maximum will always
+succeed.
+.Pp
+Before transferring data,
+.Fn somove
+checks both sockets for errors and that the drain socket is connected.
+If the drain cannot send anymore, an
+.Er EPIPE
+error is set on the source socket.
+The data length to move is limited by the optional maximum splice
+length and the space in the drain's send socket buffer.
+Up to this amount of data is taken out of the source's receive
+socket buffer.
+To avoid splicing loops created by userland, the number of times
+an mbuf may be moved between sockets is limited to 128.
+.Pp
+For atomic protocols, either one complete packet is taken out, or
+nothing is taken at all if:
+the packet is bigger than the drain's send buffer size, in which
+case the splicing gets aborted with an
+.Er EMSGSIZE
+error;
+the packet does not fit into the drain's current send buffer space,
+in which case it is left in the source's receive buffer for later
+processing;
+or the maximum splice length is located within a packet, in which
+case splicing gets dissolved like a short splice.
+All address or control mbufs associated with the taken packet are
+dropped.
+.Pp
+If the maximum splice length has been reached, an mbuf may get
+split for non-atomic protocols.
+Otherwise an mbuf is either moved completely to the send buffer or
+left in the receive buffer for later processing.
+If SO_OOBINLINE is set, out-of-band data will get moved as such
+although this might not be reliable.
+The data is sent out to the drain socket via the protocol function.
+If that fails and the drain socket cannot send anymore, an
+.Er EPIPE
+error is set on the source socket.
+.Pp
+For packet oriented protocols
+.Fn somove
+iterates over the next packet queue.
+.Pp
+If a maximum splice length was specified and at least this amount
+of data has been received from the drain socket, splicing gets
+dissolved.
+In this case, an
+.Er EFBIG
+error is set on the source socket if the maximum amount of data has
+been transferred.
+Userland can process this error to distinguish the full splice from
+a short splice or to react to the completed maximum splice immediately.
+If an idle timeout was specified and no data has been transferred
+for that period of time, the handler
+.Fn soidle
+dissolves splicing and sets an
+.Er ETIMEDOUT
+error on the source socket.
+.Pp
+The function
+.Fn sounsplice
+is called to dissolve the socket splicing if the source socket
+cannot receive anymore and its receive buffer is empty; or if the
+drain socket cannot send anymore; or if the maximum has been reached;
+or if an error occurred; or if the idle timeout has fired.
+.Pp
+If the socket buffer flag
+.Dv SB_SPLICE
+is set, the functions
+.Fn sorwakeup
+and
+.Fn sowwakeup
+will call
+.Fn somove
+to trigger the transfer when new data or buffer space is available.
+While socket splicing is active, any
+.Xr read 2
+from the source socket will block.
+Neither read nor write wakeups will be delivered to the file
+descriptors.
+After dissolving, a read event or a socket error is signaled to
+userland on the source socket.
+If space is available, a write event will be signaled on the drain
+socket.
+.Sh RETURN VALUES
+.Fn sosplice
+returns 0 on success and otherwise the error number.
+.Fn somove
+returns 0 if socket splicing has been finished and 1 if it continues.
+.Sh ERRORS
+.Fn sosplice
+will succeed unless:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The given file descriptor
+.Fa fd
+is not an active descriptor.
+.It Bq Er EBUSY
+The source or the drain socket is already spliced.
+.It Bq Er EINVAL
+The given maximum value
+.Fa max
+is negative.
+.It Bq Er ENOTCONN
+The source socket requires a connection and is neither connected
+nor in the process of connecting to a peer.
+.It Bq Er ENOTCONN
+The drain socket is neither connected nor in the process of connecting
+to a peer.
+.It Bq Er EPROTO
+The source socket is not spliced with the drain socket.
+.It Bq Er ENOTSOCK
+The given file descriptor
+.Fa fd
+is not a socket.
+.It Bq Er EOPNOTSUPP
+The source or the drain socket is a listen socket.
+.It Bq Er EPROTONOSUPPORT
+The source socket's protocol layer does not have the
+.Dv PR_SPLICE
+flag set.
+Only TCP and UDP socket splicing is supported.
+.It Bq Er EPROTONOSUPPORT
+The drain socket's protocol does not have the same
+.Fa pr_usrreq
+function as the source.
+.It Bq Er EWOULDBLOCK
+The source socket is non-blocking and the receive buffer is already
+locked.
+.El
+.Sh SEE ALSO
+.Xr setsockopt 2 ,
+.Xr options 4 ,
+.Xr timeout 9
+.Sh HISTORY
+Socket splicing for TCP first appeared in
+.Ox 4.9 ;
+support for UDP was added in
+.Ox 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The idea for socket splicing originally came from
+.An Markus Friedl Aq Mt markus@openbsd.org ,
+and
+.An Alexander Bluhm Aq Mt bluhm@openbsd.org
+implemented it.
+.An Mike Belopuhov Aq Mt mikeb@openbsd.org
+added the timeout feature.

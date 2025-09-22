@@ -1,0 +1,71 @@
+#! /usr/bin/perl
+
+# ex:ts=8 sw=4:
+# $OpenBSD: my,v 1.6 2019/08/19 12:11:04 espie Exp $
+#
+# Copyright (c) 2011 Marc Espie <espie@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+use strict;
+use warnings;
+use File::Path;
+
+my $root = $ENV{'ROOT'};
+
+File::Path::make_path("$root/pkgdb");
+
+$ENV{'PKG_DBDIR'} = "$root/pkgdb";
+my $prog = "pkg_".(shift @ARGV);
+
+my @args = ('-D', 'nonroot', @ARGV);
+if ($prog ne 'pkg_info') {
+	unshift(@args, '-B', $root);
+}
+if ($prog eq 'pkg_add') {
+	unshift(@args, '-D', 'unsigned');
+}
+unshift(@args, '-D', 'NOINSTALLPATH');
+unshift(@args, '-D', 'DONTLOG');
+if ($ENV{'DEBUG'}) {
+	unshift(@args, 'perl', '-d', "/usr/sbin/$prog", '-D', 'debug');
+} else {
+	unshift(@args, $prog);
+}
+print STDERR join(' ', $prog, @ARGV), "\n" unless $ENV{'SILENT'} || $ENV{'VERBOSE'};
+print join(' ', @args), "\n" if $ENV{'VERBOSE'};
+
+my $choices = {
+	pkg_add => 'PkgAdd',
+	pkg_check => 'PkgCheck',
+	pkg_create => 'PkgCreate',
+	pkg_delete => 'PkgDelete',
+	pkg_info => 'PkgInfo',
+	pkg_sign => 'PkgSign',
+	fw_update => 'FwUpdate',
+};
+
+if (defined $ENV{INJECT}) {
+	my $module = "OpenBSD::$choices->{$prog}";
+	eval "require $module";
+	if ($@) {
+		die $@;
+	}
+	eval "require \"$ENV{INJECT}\"";
+	if ($@) {
+		die $@;
+	}
+	@ARGV = @args;
+	exit($module->parse_and_run(shift @ARGV));
+} else {
+	exec {$args[0]} @args;
+}

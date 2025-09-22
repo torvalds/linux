@@ -1,0 +1,72 @@
+#	$OpenBSD: genassym.cf,v 1.8 2024/04/06 18:33:54 kettenis Exp $
+#
+# Copyright (c) 2020 Brian Bamsch <bbamsch@google.com>
+# All rights reserved.
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+include <sys/param.h>
+include <sys/proc.h>
+
+include <machine/frame.h>
+include <machine/pcb.h>
+include <machine/cpu.h>
+include <machine/param.h>
+include <machine/bootconfig.h>
+
+struct	trapframe
+member	tf_ra
+member	tf_sp
+member	tf_gp
+member	tf_tp
+member	tf_t
+member	tf_s
+member	tf_a
+member	tf_sepc
+member	tf_sstatus
+member	tf_stval
+member	tf_scause
+
+struct	switchframe
+member	sf_s
+member	sf_ra
+
+struct	proc
+member	p_stat
+member	p_cpu
+member	p_addr
+member	p_astpending	p_md.md_astpending
+
+export	SONPROC
+
+struct	sigframe
+member	sf_sc
+
+struct	pcb
+member	pcb_sp
+member	pcb_onfault
+
+struct	cpu_info
+member	ci_self
+member	ci_curproc
+member	ci_curpcb
+ifdef MULTIPROCESSOR
+member	ci_satp
+member	ci_initstack_end
+endif
+
+struct	riscv_bootparams
+member	RISCV_BOOTPARAMS_KERN_L1PT	kern_l1pt
+member	RISCV_BOOTPARAMS_KERN_PHYS	kern_phys
+member	RISCV_BOOTPARAMS_KERN_STACK	kern_stack
+member	RISCV_BOOTPARAMS_DTBP_PHYS	dtbp_phys

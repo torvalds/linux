@@ -1,0 +1,39 @@
+sh-c.o: $(srcdir)/config/sh/sh-c.c \
+  $(CONFIG_H) $(SYSTEM_H) $(TREE_H) $(TM_H) $(TM_P_H) coretypes.h
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/sh/sh-c.c
+
+LIB1ASMSRC = sh/lib1funcs.asm
+LIB1ASMFUNCS = _ashiftrt _ashiftrt_n _ashiftlt _lshiftrt _movstr \
+  _movstr_i4 _mulsi3 _sdivsi3 _sdivsi3_i4 _udivsi3 _udivsi3_i4 _set_fpscr \
+  $(LIB1ASMFUNCS_CACHE)
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+$(T)crt1.o: $(srcdir)/config/sh/crt1.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crt1.o -x assembler-with-cpp $(srcdir)/config/sh/crt1.asm
+$(T)crti.o: $(srcdir)/config/sh/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crti.o -x assembler-with-cpp $(srcdir)/config/sh/crti.asm
+$(T)crtn.o: $(srcdir)/config/sh/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crtn.o -x assembler-with-cpp $(srcdir)/config/sh/crtn.asm
+
+$(out_object_file): gt-sh.h
+gt-sh.h : s-gtype ; @true
+
+symbian.o: $(srcdir)/config/sh/symbian.c $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) \
+  $(RTL_H) output.h flags.h $(TREE_H) expr.h toplev.h $(TM_P_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/sh/symbian.c
+
+
+# Local Variables:
+# mode: Makefile
+# End:

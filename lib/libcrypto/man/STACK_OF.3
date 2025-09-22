@@ -1,0 +1,208 @@
+.\" $OpenBSD: STACK_OF.3,v 1.6 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2018 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt STACK_OF 3
+.Os
+.Sh NAME
+.Nm STACK_OF
+.Nd variable-sized arrays of pointers, called OpenSSL stacks
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/safestack.h
+.Fn STACK_OF type
+.Sh DESCRIPTION
+The
+.In openssl/safestack.h
+header provides a fragile, unusually complicated system of
+macro-generated wrappers around the functions described in the
+.Xr OPENSSL_sk_new 3
+manual page.
+It is intended to implement superficially type-safe variable-sized
+arrays of pointers, somewhat misleadingly called
+.Dq stacks
+by OpenSSL.
+Due to the excessive number of API functions, it is impossible to
+properly document this system.
+In particular, calling
+.Xr man 1
+for any of the functions operating on stacks cannot yield any result.
+.Pp
+Unfortunately, application programs can hardly avoid using the concept
+because several important OpenSSL APIs rely on it; see the
+.Sx SEE ALSO
+section for examples.
+Even though both pages are more complicated than any manual page
+ought to be, using the concept safely requires a complete understanding
+of all the details in both this manual page and in
+.Xr OPENSSL_sk_new 3 .
+.Pp
+The
+.Fn STACK_OF
+macro takes a
+.Fa type
+name as its argument, typically the name of a type
+that has been defined as an alias for a specific
+.Vt struct
+type using a
+.Sy typedef
+declaration.
+It expands to an incomplete
+.Vt struct
+type which is intended to represent a
+.Dq stack
+of objects of the given
+.Fa type .
+That type does not actually exist, so it is not possible to define,
+for example, an automatic variable
+.Ql STACK_OF(X509) my_certificates ;
+it is only possible to define pointers to stacks, for example
+.Ql STACK_OF(X509) *my_certificates .
+The only way such pointers can ever be used is by wrapper functions
+casting them to the type
+.Vt _STACK *
+described in
+.Xr OPENSSL_sk_new 3 .
+.Pp
+For a considerable number of types, OpenSSL provides one wrapper
+function for each function described in
+.Xr OPENSSL_sk_new 3 .
+The names of these wrapper functions are usually constructed by
+inserting the name of the type and an underscore after the
+.Sq sk_
+prefix of the function name.
+Usually, where the real functions take
+.Vt void *
+arguments, the wrappers take pointers to the
+.Fa type
+in questions, and where the real functions take
+.Vt _STACK *
+arguments, the wrappers take pointers to
+.Fn STACK_OF type .
+The same applies to return values.
+Various exceptions to all this exist, but the above applies to
+all the types listed below.
+.Pp
+Using the above may make sense for the following types because
+public API functions exist that take stacks of these types as
+arguments or return them:
+.Vt ASN1_INTEGER ,
+.Vt ASN1_OBJECT ,
+.Vt ASN1_UTF8STRING ,
+.Vt CMS_RecipientInfo ,
+.Vt CMS_SignerInfo ,
+.Vt CONF_VALUE ,
+.Vt GENERAL_NAMES ,
+.Vt GENERAL_SUBTREE ,
+.Vt OPENSSL_STRING Pq which is just Vt char * ,
+.Vt PKCS12_SAFEBAG ,
+.Vt PKCS7 ,
+.Vt PKCS7_RECIP_INFO ,
+.Vt PKCS7_SIGNER_INFO ,
+.Vt POLICYQUALINFO ,
+.Vt SRTP_PROTECTION_PROFILE ,
+.Vt SSL_CIPHER ,
+.Vt SSL_COMP ,
+.Vt X509 ,
+.Vt X509_ALGOR ,
+.Vt X509_ATTRIBUTE ,
+.Vt X509_CRL ,
+.Vt X509_EXTENSION ,
+.Vt X509_INFO ,
+.Vt X509_NAME ,
+.Vt X509_OBJECT ,
+.Vt X509_POLICY_NODE ,
+.Vt X509_REVOKED .
+.Pp
+Additionally, some public API functions use the following types
+which are declared with
+.Sy typedef :
+.Bl -column STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS
+.It Vt STACK_OF(ACCESS_DESCRIPTION) Ta Vt AUTHORITY_INFO_ACCESS
+.It Vt STACK_OF(ASN1_OBJECT)        Ta Vt EXTENDED_KEY_USAGE
+.It Vt STACK_OF(ASN1_TYPE)          Ta Vt ASN1_SEQUENCE_ANY
+.It Vt STACK_OF(DIST_POINT)         Ta Vt CRL_DIST_POINTS
+.It Vt STACK_OF(GENERAL_NAME)       Ta Vt GENERAL_NAMES
+.It Vt STACK_OF(IPAddressFamily)    Ta Vt IPAddrBlocks
+.It Vt STACK_OF(POLICY_MAPPING)     Ta Vt POLICY_MAPPINGS
+.It Vt STACK_OF(POLICYINFO)         Ta Vt CERTIFICATEPOLICIES
+.It Vt STACK_OF(X509_ALGOR)         Ta Vt X509_ALGORS
+.It Vt STACK_OF(X509_EXTENSION)     Ta Vt X509_EXTENSIONS
+.El
+.Pp
+Even though the OpenSSL headers declare wrapper functions for many
+more types and even though the OpenSSL documentation says that users
+can declare their own stack types, using
+.Fn STACK_OF
+with any type not listed here is strongly discouraged.
+For other types, there may be subtle, undocumented differences
+in syntax and semantics, and attempting to declare custom stack
+types is very error prone; using plain C arrays of pointers to
+the desired type is much simpler and less dangerous.
+.Sh EXAMPLES
+The following program creates a certificate object, puts two
+pointers to it on a stack, and uses
+.Xr X509_free 3
+to clean up properly:
+.Bd -literal
+#include <err.h>
+#include <stdio.h>
+#include <openssl/x509.h>
+
+int
+main(void)
+{
+	STACK_OF(X509)	*stack;
+	X509		*x;
+
+	if ((stack = sk_X509_new_null()) == NULL)
+		err(1, NULL);
+	if ((x = X509_new()) == NULL)
+		err(1, NULL);
+	if (sk_X509_push(stack, x) == 0)
+		err(1, NULL);
+	if (X509_up_ref(x) == 0)
+		errx(1, "X509_up_ref failed");
+	if (sk_X509_push(stack, x) == 0)
+		err(1, NULL);
+	printf("%d pointers: %p, %p\en", sk_X509_num(stack),
+	    sk_X509_value(stack, 0), sk_X509_value(stack, 1));
+	sk_X509_pop_free(stack, X509_free);
+
+	return 0;
+}
+.Ed
+.Pp
+The output looks similar to:
+.Pp
+.Dl 2 pointers: 0x4693ff24c00, 0x4693ff24c00
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr OCSP_request_sign 3 ,
+.Xr OPENSSL_sk_new 3 ,
+.Xr PKCS12_parse 3 ,
+.Xr PKCS7_encrypt 3 ,
+.Xr SSL_CTX_set_client_CA_list 3 ,
+.Xr SSL_get_ciphers 3 ,
+.Xr SSL_get_peer_cert_chain 3 ,
+.Xr SSL_load_client_CA_file 3 ,
+.Xr X509_CRL_get_REVOKED 3 ,
+.Xr X509_STORE_CTX_get0_chain 3
+.Sh HISTORY
+The
+.Fn STACK_OF
+macro first appeared in OpenSSL 0.9.3 and has been available since
+.Ox 2.6 .

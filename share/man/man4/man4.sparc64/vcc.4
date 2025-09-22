@@ -1,0 +1,53 @@
+.\"     $OpenBSD: vcc.4,v 1.4 2015/11/21 08:04:20 jmc Exp $
+.\"
+.\" Copyright (c) 2009 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 21 2015 $
+.Dt VCC 4 sparc64
+.Os
+.Sh NAME
+.Nm vcc ,
+.Nm vcctty
+.Nd virtual console concentrator
+.Sh SYNOPSIS
+.Cd "vcc* at cbus?"
+.Cd "vcctty* at vcc?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to the consoles of guest domains from the
+control domain of sun4v systems.
+It provides a standard
+.Xr tty 4
+interface on top of a logical domain channel provided by the
+UltraSPARC Hypervisor.
+.Sh FILES
+.Bl -tag -width /dev/ttyV[0-9a-zA-Z]
+.It /dev/ttyV[0-9a-zA-Z]
+.El
+.Sh SEE ALSO
+.Xr cbus 4 ,
+.Xr intro 4 ,
+.Xr tty 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.6 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

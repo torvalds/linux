@@ -1,0 +1,18 @@
+/// \mainpage LLVM
+///
+/// \section main_intro Introduction
+/// Welcome to LLVM.
+///
+/// This documentation describes the **internal** software that makes
+/// up LLVM, not the **external** use of  LLVM. There are no instructions
+/// here on how to use LLVM, only the APIs that make up the software. For usage
+/// instructions, please see the programmer's guide or reference manual.
+///
+/// \section main_caveat Caveat
+/// This documentation is generated directly from the source code with doxygen.
+/// Since LLVM is constantly under active development, what you're about to
+/// read is out of date! However, it may still be useful since certain portions
+/// of LLVM are very stable.
+///
+/// \section main_changelog Change Log
+/// - Original content written 12/30/2003 by Reid Spencer

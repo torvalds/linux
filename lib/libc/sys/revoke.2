@@ -1,0 +1,108 @@
+.\"	$OpenBSD: revoke.2,v 1.16 2021/06/30 18:46:49 schwarze Exp $
+.\"	$NetBSD: revoke.2,v 1.3 1995/10/12 15:41:11 jtc Exp $
+.\"
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Berkeley Software Design, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)revoke.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: June 30 2021 $
+.Dt REVOKE 2
+.Os
+.Sh NAME
+.Nm revoke
+.Nd revoke file access
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn revoke "const char *path"
+.Sh DESCRIPTION
+The
+.Fn revoke
+function invalidates all current open file descriptors in the system
+for the tty device named by
+.Fa path .
+Subsequent operations on any such descriptors
+fail, with the exceptions that a
+.Fn read
+from a tty which has been revoked returns a count of zero (end of file),
+and a
+.Fn close
+call will succeed.
+If the file is a special file for a device which is open,
+the device close function
+is called as if all open references to the file had been closed.
+.Pp
+Access to a file may be revoked only by its owner or the superuser.
+The
+.Fn revoke
+function is used to prepare a terminal device for a new login session,
+preventing any access by a previous user of the terminal.
+The
+.Xr pty 4
+subsystem has this as an implicit operation, but hardwired
+.Xr tty 4
+require the operation.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+Access to the named file is revoked unless one of the following:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Dv NAME_MAX
+characters, or an entire pathname (including the terminating NUL)
+exceeded
+.Dv PATH_MAX
+bytes.
+.It Bq Er ENOENT
+The named file or a component of the pathname does not exist.
+.It Bq Er ENOTTY
+.Fa path
+is not associated with a tty special device.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EFAULT
+.Fa path
+points outside the process's allocated address space.
+.It Bq Er EPERM
+The caller is neither the owner of the file nor the superuser.
+.El
+.Sh SEE ALSO
+.Xr close 2
+.Sh HISTORY
+The
+.Fn revoke
+function was introduced in
+.Bx 4.3 Reno .

@@ -1,0 +1,82 @@
+.\"	$OpenBSD: vte.4,v 1.4 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2011 Kevin Lo <kevlo@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt VTE 4
+.Os
+.Sh NAME
+.Nm vte
+.Nd RDC R6040 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "vte* at pci?"
+.Cd "rdcphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Ethernet interfaces based on the
+RDC R6040 Ethernet chipset which is commonly found on
+Vortex86 System On a Chip (SoC).
+.Pp
+The
+.Nm
+driver supports interrupt moderation mechanism, a 64-bit multicast
+hash filter.
+.Pp
+The following
+.Ar media
+types are supported:
+.Pp
+.Bl -tag -width autoselect -compact
+.It Cm autoselect
+Enable autoselection of the media type and options.
+.It Cm 10baseT
+Set 10Mbps operation.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+To view a list of media types and options supported by the card, try
+.Ic ifconfig <device> media .
+For example,
+.Ic ifconfig vte0 media .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr rdcphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 4.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Pyun YongHyeon
+for
+.Fx
+and ported to
+.Ox
+by
+.An Kevin Lo Aq Mt kevlo@openbsd.org .

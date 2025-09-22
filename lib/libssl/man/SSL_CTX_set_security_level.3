@@ -1,0 +1,160 @@
+.\" $OpenBSD: SSL_CTX_set_security_level.3,v 1.3 2025/06/08 22:52:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_SECURITY_LEVEL 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_security_level ,
+.Nm SSL_set_security_level ,
+.Nm SSL_CTX_get_security_level ,
+.Nm SSL_get_security_level
+.Nd change security level for TLS
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft void
+.Fo SSL_CTX_set_security_level
+.Fa "SSL_CTX *ctx"
+.Fa "int level"
+.Fc
+.Ft void
+.Fo SSL_set_security_level
+.Fa "SSL *s"
+.Fa "int level"
+.Fc
+.Ft int
+.Fo SSL_CTX_get_security_level
+.Fa "const SSL_CTX *ctx"
+.Fc
+.Ft int
+.Fo SSL_get_security_level
+.Fa "const SSL *s"
+.Fc
+.Sh DESCRIPTION
+A security level is a set of restrictions on algorithms, key lengths,
+protocol versions, and other features in TLS connections.
+These restrictions apply in addition to those that exist from individually
+selecting supported features, for example ciphers, curves, or algorithms.
+.Pp
+The following table shows properties of the various security levels:
+.Bl -column # sec 15360 ECC TLS SHA1 -offset indent
+.It # Ta   sec Ta   \0\0RSA Ta   ECC Ta TLS Ta MAC
+.It 0 Ta \0\00 Ta \0\0\0\00 Ta \0\00 Ta 1.0 Ta MD5
+.It 1 Ta  \080 Ta    \01024 Ta   160 Ta 1.0 Ta RC4
+.It 2 Ta   112 Ta    \02048 Ta   224 Ta 1.0 Ta
+.It 3 Ta   128 Ta    \03072 Ta   256 Ta 1.1 Ta SHA1
+.It 4 Ta   192 Ta    \07680 Ta   384 Ta 1.2 Ta
+.It 5 Ta   256 Ta     15360 Ta   512 Ta 1.2 Ta
+.El
+.Pp
+The meaning of the columns is as follows:
+.Pp
+.Bl -tag -width features -compact
+.It #
+The number of the
+.Fa level .
+.It sec
+The minimum security strength measured in bits, which is approximately
+the binary logarithm of the number of operations an attacker has
+to perform in order to break a cryptographic key.
+This minimum strength is enforced for all relevant parameters
+including cipher suite encryption algorithms, ECC curves, signature
+algorithms, DH parameter sizes, and certificate algorithms and key
+sizes.
+See SP800-57 below
+.Sx SEE ALSO
+for details on individual algorithms.
+.It RSA
+The minimum key length in bits for the RSA and DH algorithms.
+.It ECC
+The minimum key length in bits for ECC algorithms.
+.It TLS
+The minimum TLS protocol version.
+.It MAC
+Cipher suites using the given MACs are allowed on this level
+and on lower levels, but not on higher levels.
+.El
+.Pp
+Level 0 is only provided for backward compatibility and permits everything.
+.Pp
+Level 3 and higher disable support for session tickets
+and only accept cipher suites that provide forward secrecy.
+.Pp
+The functions
+.Fn SSL_CTX_set_security_level
+and
+.Fn SSL_set_security_level
+choose the security
+.Fa level
+for
+.Fa ctx
+or
+.Fa s ,
+respectively.
+If not set, security level 1 is used.
+.Pp
+.Xr SSL_CTX_new 3
+initializes the security level of the new object to 1.
+.Pp
+.Xr SSL_new 3
+and
+.Xr SSL_set_SSL_CTX 3
+copy the security level from the context to the SSL object.
+.Pp
+.Xr SSL_dup 3
+copies the security level from the old to the new object.
+.Sh RETURN VALUES
+.Fn SSL_CTX_get_security_level
+and
+.Fn SSL_get_security_level
+return the security level configured in
+.Fa ctx
+or
+.Fa s ,
+respectively.
+.Sh SEE ALSO
+.Xr EVP_PKEY_security_bits 3 ,
+.Xr RSA_security_bits 3 ,
+.Xr ssl 3 ,
+.Xr SSL_CTX_new 3 ,
+.Xr SSL_new 3
+.Rs
+.%A Elaine Barker
+.%T Recommendation for Key Management
+.%I U.S. National Institute of Standards and Technology
+.%R NIST Special Publication 800-57 Part 1 Revision 5
+.%U https://doi.org/10.6028/NIST.SP.800-57pt1r5
+.%C Gaithersburg, MD
+.%D May 2020
+.Re
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.1.0
+and have been available since
+.Ox 7.2 .
+.Sh CAVEATS
+Applications which do not check the return values
+of configuration functions will misbehave.
+For example, if an application does not check the return value
+after trying to set a certificate and the certificate is rejected
+because of the security level, the application may behave as if
+no certificate had been provided at all.
+.Pp
+While some restrictions may be handled gracefully by negotiations
+between the client and the server, other restrictions may be
+fatal and abort the TLS handshake.
+For example, this can happen if the peer certificate contains a key
+that is too short or if the DH parameter size is too small.

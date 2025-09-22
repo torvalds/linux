@@ -1,0 +1,205 @@
+.\"	$OpenBSD: gettimeofday.2,v 1.33 2022/03/31 17:27:16 naddy Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)gettimeofday.2	8.2 (Berkeley) 5/26/95
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt GETTIMEOFDAY 2
+.Os
+.Sh NAME
+.Nm gettimeofday ,
+.Nm settimeofday
+.Nd get or set the time of day
+.Sh SYNOPSIS
+.In sys/time.h
+.Ft int
+.Fn gettimeofday "struct timeval *now" "struct timezone *tz"
+.Ft int
+.Fn settimeofday "const struct timeval *now" "const struct timezone *tz"
+.Sh DESCRIPTION
+The
+.Fn gettimeofday
+function writes the absolute value of the system's Coordinated Universal Time
+.Pq UTC
+clock to
+.Fa now
+unless
+.Fa now
+is
+.Dv NULL .
+.Pp
+The UTC clock's absolute value is the time elapsed since
+Jan 1 1970 00:00:00 +0000
+.Pq the Epoch .
+The clock normally advances continuously,
+though it may jump discontinuously if a process calls
+.Fn settimeofday
+or
+.Xr clock_settime 2 .
+For this reason,
+.Fn gettimeofday
+is not generally suitable for measuring elapsed time.
+Whenever possible,
+use
+.Xr clock_gettime 2
+to measure elapsed time with one of the system's monotonic clocks instead.
+.Pp
+The
+.Fn settimeofday
+function sets the system's UTC clock to the absolute value
+.Fa now
+unless
+.Fa now
+is
+.Dv NULL .
+Only the superuser may set the clock.
+If the system
+.Xr securelevel 7
+is 2 or greater, the clock may only be advanced.
+This limitation prevents a malicious superuser
+from setting arbitrary timestamps on files.
+Setting the clock cancels any ongoing
+.Xr adjtime 2
+adjustment.
+.Pp
+The structure pointed to by
+.Fa now
+is defined in
+.In sys/time.h
+as:
+.Bd -literal
+struct timeval {
+	time_t		tv_sec;		/* seconds */
+	suseconds_t	tv_usec;	/* and microseconds */
+};
+.Ed
+.Pp
+The
+.Fa tz
+argument is historical:
+the system no longer maintains timezone information in the kernel.
+The
+.Fa tz
+argument should always be
+.Dv NULL .
+.Fn gettimeofday
+zeroes
+.Fa tz
+if it is not
+.Dv NULL .
+.Fn settimeofday
+ignores the contents of
+.Fa tz
+if it is not
+.Dv NULL .
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn gettimeofday
+and
+.Fn settimeofday
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+.Fa now
+or
+.Fa tz
+are not
+.Dv NULL
+and reference invalid memory.
+.El
+.Pp
+.Fn settimeofday
+will also fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa now
+specifies a microsecond value less than zero or greater than or equal to
+one million.
+.It Bq Er EPERM
+The caller is not the superuser.
+.It Bq Er EPERM
+The system
+.Xr securelevel 7
+is 2 or greater and
+.Fa now
+specifies a time in the past.
+.El
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr adjtime 2 ,
+.Xr clock_gettime 2 ,
+.Xr getitimer 2 ,
+.Xr ctime 3 ,
+.Xr time 3 ,
+.Xr timeradd 3
+.Sh STANDARDS
+The
+.Fn gettimeofday
+function conforms to
+.St -p1003.1-2008 .
+.Pp
+The
+.Fn settimeofday
+function is non-standard,
+though many systems offer it.
+.Sh HISTORY
+As predecessors of these functions,
+former system calls
+.Fn time
+and
+.Fn stime
+first appeared in
+.At v1 ,
+and
+.Fn ftime
+first appeared in
+.At v7 .
+The
+.Fn gettimeofday
+and
+.Fn settimeofday
+system calls first appeared in
+.Bx 4.1c .
+.Sh CAVEATS
+Setting the time with
+.Fn settimeofday
+is dangerous; if possible use
+.Xr adjtime 2
+instead.
+Many daemon programming techniques utilize time-delta techniques
+using the results from
+.Fn gettimeofday
+instead of from
+.Xr clock_gettime 2
+on the
+.Dv CLOCK_MONOTONIC
+clock.
+Time jumps can cause these programs to malfunction in unexpected ways.
+If the time must be set, consider rebooting the machine for safety.

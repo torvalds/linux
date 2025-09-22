@@ -1,0 +1,22 @@
+global MUDFLAP_FLAGS
+set MUDFLAP_FLAGS [list {} {-static} { -O} {-O2} {-O3}]
+
+libmudflap-init c++
+if {$cxx == "g++"} then {
+    unsupported "g++ not found"
+    return
+}
+
+dg-init
+
+global srcdir
+
+foreach flags $MUDFLAP_FLAGS {
+    foreach srcfile [lsort [glob -nocomplain ${srcdir}/libmudflap.c++/*frag.cxx]] {
+	set bsrc [file tail $srcfile]
+	setenv MUDFLAP_OPTIONS "-viol-segv"
+	dg-runtest $srcfile $flags "-fmudflap -lmudflap"
+    }
+}
+
+dg-finish

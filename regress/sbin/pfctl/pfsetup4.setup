@@ -1,0 +1,1 @@
+ifconfig lo1000000 inet 192.168.0.1 netmask 0xffffff00

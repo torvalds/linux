@@ -1,0 +1,323 @@
+.\"	$OpenBSD: dlfcn.3,v 1.37 2025/06/13 18:34:00 schwarze Exp $
+.\"	$NetBSD: dlfcn.3,v 1.3 1996/01/09 19:43:34 pk Exp $
+.\"
+.\" Copyright (c) 1995 Paul Kranenburg
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Paul Kranenburg.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt DLOPEN 3
+.Os
+.Sh NAME
+.Nm dlopen ,
+.Nm dlclose ,
+.Nm dlsym ,
+.Nm dladdr ,
+.Nm dlctl ,
+.Nm dlerror
+.Nd dynamic link interface
+.Sh SYNOPSIS
+.In dlfcn.h
+.Ft void *
+.Fn dlopen "const char *path" "int mode"
+.Ft int
+.Fn dlclose "void *handle"
+.Ft void *
+.Fn dlsym "void *handle" "const char *symbol"
+.Ft int
+.Fn dladdr "const void *addr" "Dl_info *info"
+.Ft int
+.Fn dlctl "void *handle" "int cmd" "void *data"
+.Ft char *
+.Fn dlerror "void"
+.Sh DESCRIPTION
+These functions provide an interface to the run-time linker
+.Xr ld.so 1 .
+They allow new shared objects to be loaded into a process's address space
+under program control.
+.Pp
+The
+.Fn dlopen
+function takes the name of a shared object as its first argument.
+The shared object is mapped into the address space, relocated, and its external
+references are resolved in the same way as is done with the implicitly loaded
+shared libraries at program startup.
+.Pp
+The
+.Fa path
+parameter can be specified as either an absolute pathname to a shared library
+or just the name of the shared library itself.
+When an absolute pathname is specified,
+only the path provided will be searched for the shared library.
+When just a shared library is specified,
+the same paths will be searched that are used for
+.Dq intrinsic
+shared library searches.
+.Pp
+Shared libraries take the following form:
+.Pp
+.Dl lib<name>.so[.xx[.yy]]
+.Pp
+When a shared library is specified without a version or with a partial version,
+the same library search rules apply that are used for
+.Dq intrinsic
+shared library searches.
+A null pointer supplied for
+.Fa path
+will return a special
+.Fa handle
+that behaves the same as the
+.Dv RTLD_DEFAULT
+special
+.Fa handle .
+.Pp
+The
+.Fa mode
+parameter specifies symbol resolution time and symbol visibility.
+One of the following values may be used to specify symbol resolution time:
+.Bl -tag -width "RTLD_LAZYXX" -offset indent
+.It Sy RTLD_NOW
+Symbols are resolved immediately.
+.It Sy RTLD_LAZY
+Symbols are resolved when they are first referred to.
+This is the default value if resolution time is unspecified.
+.El
+.Pp
+One of the following values may be used to specify symbol visibility:
+.Bl -tag -width "RTLD_GLOBAL" -offset indent
+.It Sy RTLD_GLOBAL
+The object's symbols and the symbols of its dependencies will be visible to
+other objects.
+.It Sy RTLD_LOCAL
+The object's symbols and the symbols of its dependencies will not be visible to
+other objects.
+This is the default value if visibility is unspecified.
+.El
+.Pp
+To specify both resolution time and visibility, bitwise inclusive OR one of
+each of the above values together.
+If an object was opened with RTLD_LOCAL and later opened with RTLD_GLOBAL,
+then it is promoted to RTLD_GLOBAL.
+.Pp
+Additionally, the following flag may be ORed into the mode argument:
+.Bl -tag -width "RTLD_NODELETE" -offset indent
+.It Sy RTLD_NODELETE
+Prevents unload of the loaded object on
+.Fn dlclose .
+.It Sy RTLD_NOLOAD
+Only return valid handle for the object if it is already loaded in
+the process address space, otherwise NULL is returned.
+Other mode flags may be specified, which will be applied for promotion
+for the found object.
+.El
+.Pp
+The main executable's symbols are normally invisible to
+.Fn dlopen
+symbol resolution.
+Those symbols will be visible if linking is done with
+.Xr cc 1
+.Fl rdynamic ,
+which is equivalent to
+.Xr ld 1
+.Fl -export-dynamic .
+.Pp
+All shared objects loaded at program startup are globally visible.
+.Pp
+.Fn dlopen
+returns a
+.Fa handle
+to be used in calls to
+.Fn dlclose ,
+.Fn dlsym ,
+and
+.Fn dlctl .
+If the named shared object has already been loaded by a previous call to
+.Fn dlopen
+and not yet unloaded by
+.Fn dlclose ,
+a
+.Fa handle
+referring to the resident copy is returned.
+.Pp
+.Fn dlclose
+unlinks and removes the object referred to by
+.Fa handle
+from the process address space.
+If multiple calls to
+.Fn dlopen
+have been done on this object or the object is a dependency of another object
+then the object is removed when its reference count drops to zero.
+.Fn dlclose
+returns 0 on success and non-zero on failure.
+.Pp
+.Fn dlsym
+searches for a definition of
+.Fa symbol
+in the object designated by
+.Fa handle
+and all shared objects that it depends on.
+The symbol's address is returned.
+If the symbol cannot be resolved,
+.Dv NULL
+is returned.
+.Pp
+.Fn dlsym
+may also be called with special
+.Fa handles .
+.Fn dlsym
+respects symbol visibility as specified by the
+.Fn dlopen
+.Fa mode
+parameter.
+However, the symbols of an object's dependencies are always visible to it.
+The following special
+.Fa handles
+may be used with
+.Fn dlsym :
+.Bl -tag -width "RTLD_DEFAULTXX" -offset indent
+.It Sy NULL
+Interpreted as a reference to the executable or shared object
+from which the call is being made.
+Thus an object can reference its own symbols and the symbols of its
+dependencies without calling
+.Fn dlopen .
+.It Sy RTLD_DEFAULT
+All the visible shared objects and the executable will be searched
+in the order they were loaded.
+.It Sy RTLD_NEXT
+The search for
+.Fa symbol
+is limited to the visible shared objects which were loaded
+after the one issuing the call to
+.Fn dlsym .
+Thus, if
+.Fn dlsym
+is called from the main program, all the visible shared libraries are searched.
+If it is called from a shared library, all subsequently visible shared
+libraries are searched.
+.It Sy RTLD_SELF
+The search for
+.Fa symbol
+is limited to the shared object issuing the call to
+.Fn dlsym
+and those shared objects which were loaded after it that are visible.
+.El
+.Pp
+.Fn dladdr
+queries the dynamic linker for information about the shared object
+containing the address
+.Fa addr .
+The information is returned in the structure specified by
+.Fa info .
+The structure contains at least the following members:
+.Bl -tag -width "XXXconst char *dli_fname"
+.It Li "const char *dli_fname"
+The pathname of the shared object containing the address
+.Fa addr .
+.It Li "void *dli_fbase"
+The base address at which the shared object is mapped into the
+address space of the calling process.
+.It Li "const char *dli_sname"
+The name of the nearest run-time symbol with an address less than or
+equal to
+.Fa addr .
+.Pp
+If no symbol with a suitable address is found, both this field and
+.Va dli_saddr
+are set to
+.Dv NULL .
+.It Li "void *dli_saddr"
+The address of the symbol returned in
+.Va dli_sname .
+.El
+.Pp
+If a mapped shared object containing
+.Fa addr
+cannot be found,
+.Fn dladdr
+returns 0.
+In that case, a message detailing the failure can be retrieved by
+calling
+.Fn dlerror .
+On success, a non-zero value is returned.
+Note: both strings pointed at by
+.Va dli_fname
+and
+.Va dli_sname
+reside in memory private to the run-time linker module and should not
+be modified by the caller.
+.Pp
+In dynamically linked programs, the address of a global function will
+point to its program linkage table entry, rather than to the entry
+point of the function itself.
+This causes most global functions to appear to be defined within the
+main executable, rather than in the shared libraries where the actual
+code resides.
+.Pp
+.Fn dlctl
+provides an interface similar to
+.Xr ioctl 2
+to control several aspects of the run-time linker's operation.
+This interface is currently under development.
+.Pp
+.Fn dlerror
+returns a character string representing the most recent error that has
+occurred while processing one of the other functions described here.
+If no dynamic linking errors have occurred since the last invocation of
+.Fn dlerror ,
+.Fn dlerror
+returns
+.Dv NULL .
+Thus, invoking
+.Fn dlerror
+a second time, immediately following a prior invocation, will result in
+.Dv NULL
+being returned.
+.Sh SEE ALSO
+.Xr ld 1 ,
+.Xr ld.so 1 ,
+.Xr elf 5
+.Sh STANDARDS
+The
+.Fn dladdr ,
+.Fn dlclose ,
+.Fn dlerror ,
+.Fn dlopen ,
+and
+.Fn dlsym
+functions conform to
+.St -p1003.1-2024 .
+.Sh HISTORY
+Some of the
+.Nm dl*
+functions first appeared in SunOS 4.
+.Sh CAVEATS
+Loading untrustworthy libraries into the process's address space with
+.Nm dlopen
+is very dangerous because system-dependent initialization steps occur
+including the calling of constructor functions, even if the library
+is otherwise unused.

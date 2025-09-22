@@ -1,0 +1,108 @@
+.\"	$OpenBSD: zs.4,v 1.2 2017/11/02 15:37:58 jmc Exp $
+.\"	$NetBSD: zstty.4,v 1.14 2011/06/07 20:22:56 wiz Exp $
+.\"
+.\" Copyright (c) 1997 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Gordon W. Ross.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 2 2017 $
+.Dt ZS 4 alpha
+.Os
+.Sh NAME
+.Nm zs ,
+.\" .Nm zskbd ,
+.\" .Nm zsms ,
+.Nm zstty
+.Nd Zilog 8530 (ZSCC) Serial Communications Controller
+.Sh SYNOPSIS
+.Cd "zs*    at ioasic0"
+.\" .Cd "lskbd* at zs1"
+.\" .Cd "vsms*  at zs0"
+.Cd "zstty* at zs?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides TTY support for the two Zilog 8530 Dual UART chips found on
+DEC 3000 systems.
+On these systems, two of these serial interfaces are hardwired for use by the
+keyboard and mouse.
+Only the second interface of each
+.Nm
+controller can be used as a regular serial port.
+.\" The
+.\" .Nm lskbd
+.\" devices connect keyboard devices to the generic keyboard driver
+.\" .Nm wskbd .
+.\" The
+.\" .Nm vsms
+.\" devices connect mice to the generic mouse driver
+.\" .Xr wsmouse 4 .
+The
+.Nm zstty
+interfaces provide RS-423
+and RS-232 serial ports for general purpose use.
+.Pp
+The
+.Nm
+driver supports all of the standard
+.Xr tty 4
+ioctl calls.
+The status of the DTR, RTS, CTS, and DCD signals can be queried with
+the TIOCMGET command but, due to limitations in the hardware,
+only the DTR and RTS signals can be modified with the TIOCMSET, TIOCMBIC,
+and TIOCMBIS
+.Xr ioctl 2
+commands.
+.Pp
+Input and output for each line may be set to any baud rate in the
+range 50 to 38400.
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /dev/ttyB[01]
+.It Pa /dev/cuaB[01]
+.El
+.Sh DIAGNOSTICS
+.Bl -tag -width indent
+.It zs*: fifo overflow
+The on-chip
+.Dq FIFO
+has overflowed and incoming data has been lost.
+This generally means the machine is not responding to
+interrupts from the ZS chip fast enough, which can be
+remedied only by using a lower baud rate.
+.It zs*: ring overflow
+The software input
+.Qq ring
+has overflowed.
+This usually means input flow-control is not configured correctly
+.Pq i.e. incorrect cable wiring .
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr ioasic 4 ,
+.Xr tty 4
+.\" .Xr wskbd 4 ,
+.\" .Xr wsmouse 4

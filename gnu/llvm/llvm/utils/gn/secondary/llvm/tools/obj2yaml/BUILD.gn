@@ -1,0 +1,22 @@
+executable("obj2yaml") {
+  deps = [
+    "//llvm/lib/DebugInfo/CodeView",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/Object",
+    "//llvm/lib/ObjectYAML",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "archive2yaml.cpp",
+    "coff2yaml.cpp",
+    "dwarf2yaml.cpp",
+    "dxcontainer2yaml.cpp",
+    "elf2yaml.cpp",
+    "macho2yaml.cpp",
+    "minidump2yaml.cpp",
+    "obj2yaml.cpp",
+    "offload2yaml.cpp",
+    "wasm2yaml.cpp",
+    "xcoff2yaml.cpp",
+  ]
+}

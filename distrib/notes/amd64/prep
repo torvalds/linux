@@ -1,0 +1,17 @@
+dnl	$OpenBSD: prep,v 1.8 2021/12/25 17:26:13 tj Exp $
+First and foremost, before beginning the installation process, MAKE
+SURE YOU HAVE A RELIABLE BACKUP of any data on your hard disk that you
+wish to keep.  Repartitioning your hard disk is an excellent way to
+destroy important data.
+
+If you plan to dual boot, use the other operating system's "fdisk" program
+or partition editor to create at least one of the partitions to be used for
+that operating system.  If that operating system is already set up to use the
+entire disk, you will need to make space available.  Windows can resize its
+own system partition.  In the control panel, search for "partition": this
+will lead you to the system administration tool.  You do not have to create an
+OpenBSD partition at this time; the OpenBSD installation will give you an
+opportunity to create the partition needed for OpenBSD.
+
+Your hard disk is now prepared to have OpenBSD installed on it, and
+you should proceed with the installation instructions.

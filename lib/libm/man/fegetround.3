@@ -1,0 +1,82 @@
+.\"	$OpenBSD: fegetround.3,v 1.5 2025/06/07 10:33:06 schwarze Exp $
+.\"
+.\" Copyright (c) 2011 Martynas Venckus <martynas@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt FEGETROUND 3
+.Os
+.Sh NAME
+.Nm fegetround ,
+.Nm fesetround
+.Nd control floating-point rounding direction modes
+.Sh SYNOPSIS
+.Lb libm
+.In fenv.h
+.Ft int
+.Fn fegetround void
+.Ft int
+.Fn fesetround "int round"
+.Sh DESCRIPTION
+These functions provide control of floating-point rounding direction
+modes.
+The
+.Fa round
+input argument is a value specifying a rounding direction mode and
+containing any of the values listed below.
+.Bl -tag -width "FE_TOWARDZERO"
+.It Dv FE_TONEAREST
+Results are rounded to the closest representable value.
+If the exact result is exactly half way between two representable
+values, the value whose last binary digit is even (zero) is chosen.
+This is the default mode.
+.It Dv FE_DOWNWARD
+Results are rounded towards negative \*[If].
+.It Dv FE_UPWARD
+Results are rounded towards positive \*[If].
+.It Dv FE_TOWARDZERO
+Results are rounded towards zero.
+.El
+.Pp
+The
+.Fn fegetround
+function gets the current rounding direction.
+.Pp
+The
+.Fn fesetround
+function establishes the rounding direction represented by
+.Pa round .
+If the argument is not equal to the value of a rounding direction
+macro, the rounding direction is not changed.
+.Sh RETURN VALUES
+The
+.Fn fegetround
+function returns the current rounding direction.
+The
+.Fn fesetround
+function return zero on success, and non-zero if an error occurred.
+.Sh SEE ALSO
+.Xr feclearexcept 3 ,
+.Xr feenableexcept 3 ,
+.Xr fegetenv 3
+.Sh STANDARDS
+The
+.Fn fegetround
+and
+.Fn fesetround
+functions conform to
+.St -isoC-99 .
+.Sh HISTORY
+These functions first appeared in
+.Ox 5.0 .

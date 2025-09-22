@@ -1,0 +1,59 @@
+.\" $OpenBSD: atomic_swap_uint.9,v 1.6 2014/07/18 10:40:14 dlg Exp $
+.\"
+.\" Copyright (c) 2014 David Gwynne <dlg@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 18 2014 $
+.Dt ATOMIC_SWAP_UINT 9
+.Os
+.Sh NAME
+.Nm atomic_swap_uint ,
+.Nm atomic_swap_ulong ,
+.Nm atomic_swap_ptr
+.Nd atomic swap operations
+.Sh SYNOPSIS
+.In sys/atomic.h
+.Ft unsigned int
+.Fn atomic_swap_uint "volatile unsigned int *p" "unsigned int new"
+.Ft unsigned long
+.Fn atomic_swap_ulong "volatile unsigned long *p" "unsigned long new"
+.Ft void *
+.Fn atomic_swap_ptr "volatile void *p" "void *new"
+.Sh DESCRIPTION
+The atomic_swap set of functions provide an interface for atomically
+performing swap operations with respect to interrupts and multiple
+processors in the system.
+.Pp
+The value referenced by the pointer
+.Fa p
+is replaced by the value
+.Fa new .
+.Sh CONTEXT
+.Fn atomic_swap_uint ,
+.Fn atomic_swap_ulong ,
+and
+.Fn atomic_swap_ptr
+can all be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+These functions return the value at
+.Fa p
+as it was before the swap operation.
+.Sh SEE ALSO
+.Xr atomic_cas_uint 9
+.Sh HISTORY
+The atomic_swap functions first appeared in
+.Nx 5.0
+and
+.Ox 5.5 .

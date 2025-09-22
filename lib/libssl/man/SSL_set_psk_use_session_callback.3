@@ -1,0 +1,87 @@
+.\" $OpenBSD: SSL_set_psk_use_session_callback.3,v 1.2 2025/06/08 22:52:00 schwarze Exp $
+.\" OpenSSL man3/SSL_CTX_set_psk_client_callback.pod
+.\" checked up to 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_SET_PSK_USE_SESSION_CALLBACK 3
+.Os
+.Sh NAME
+.Nm SSL_set_psk_use_session_callback ,
+.Nm SSL_psk_use_session_cb_func
+.Nd set TLS pre-shared key client callback
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft typedef int
+.Fo (*SSL_psk_use_session_cb_func)
+.Fa "SSL *ssl"
+.Fa "const EVP_MD *md"
+.Fa "const unsigned char **id"
+.Fa "size_t *idlen"
+.Fa "SSL_SESSION **session"
+.Fc
+.Ft void
+.Fo SSL_set_psk_use_session_callback
+.Fa "SSL *ssl"
+.Fa "SSL_psk_use_session_cb_func cb"
+.Fc
+.Sh DESCRIPTION
+LibreSSL provides the stub function
+.Fn SSL_set_psk_use_session_callback
+to allow compiling application programs
+that contain optional support for TLSv1.3 pre-shared keys.
+.Pp
+LibreSSL does not support TLS pre-shared keys,
+and no action occurs when
+.Fn SSL_set_psk_use_session_callback
+is called.
+In particular, both arguments are ignored.
+During session negotiation,
+LibreSSL never calls the callback
+.Fa cb
+and always behaves as if that callback succeeded and set the
+.Pf * Fa session
+pointer to
+.Dv NULL .
+That is, LibreSSL never sends a pre-shared key to the server
+and never aborts the handshake for lack of a pre-shared key.
+.Pp
+With OpenSSL, a client application wishing to use TLSv1.3 pre-shared keys
+can install a callback function
+.Fa cb
+using
+.Fn SSL_set_psk_use_session_callback .
+The OpenSSL library may call
+.Fa cb
+once or twice during session negotiation.
+If the callback fails, OpenSSL aborts connection setup.
+If the callback succeeds but sets the
+.Pf * Fa session
+pointer to
+.Dv NULL ,
+OpenSSL continues the handshake
+but does not send a pre-shared key to the server.
+.Sh RETURN VALUES
+The
+.Fn SSL_psk_use_session_cb_func
+callback is expected to return 1 on success or 0 on failure.
+.Sh HISTORY
+.Fn SSL_set_psk_use_session_callback
+and
+.Fn SSL_psk_use_session_cb_func
+first appeared in OpenSSL 1.1.1 and have been available since
+.Ox 7.0 .

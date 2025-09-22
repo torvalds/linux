@@ -1,0 +1,627 @@
+.\"	$OpenBSD: pci.4,v 1.413 2025/09/19 00:42:06 kevlo Exp $
+.\"	$NetBSD: pci.4,v 1.29 2000/04/01 00:32:23 tsarna Exp $
+.\"
+.\" Copyright (c) 2000 Theo de Raadt.  All rights reserved.
+.\" Copyright (c) 1997 Jason R. Thorpe.  All rights reserved.
+.\" Copyright (c) 1997 Jonathan Stone
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgements:
+.\"      This product includes software developed by Jonathan Stone
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 19 2025 $
+.Dt PCI 4
+.Os
+.Sh NAME
+.Nm pci
+.Nd introduction to PCI bus support
+.Sh SYNOPSIS
+.Cd "# alpha"
+.Cd "pci* at apecs?"
+.Cd "pci* at cia?"
+.Cd "pci* at irongate?"
+.Cd "pci* at lca?"
+.Cd "pci* at tsp?"
+.Cd "pci* at mcpcia?"
+.Pp
+.Cd "# amd64, i386"
+.Cd "pci* at mainbus0"
+.Pp
+.Cd "# arm64"
+.Cd "pci* at acpipci?"
+.Cd "pci* at bcmpcie?"
+.Cd "pci* at dwpcie?"
+.Cd "pci* at mvkpcie?"
+.Cd "pci* at pciecam?"
+.Cd "pci* at rkpcie?"
+.Pp
+.Cd "# armv7"
+.Cd "pci* at mvpcie?"
+.Cd "pci* at pciecam?"
+.Pp
+.Cd "# hppa"
+.Cd "pci* at dino?"
+.Cd "pci* at elroy?"
+.Pp
+.Cd "# landisk"
+.Cd "pci* at shpcic?"
+.Pp
+.Cd "# loongson"
+.Cd "pci* at bonito?"
+.Cd "pci* at htb?"
+.Pp
+.Cd "# macppc"
+.Cd "pci* at mpcpcibr?"
+.Cd "pci* at ht?"
+.Cd "pci* at hpb?"
+.Pp
+.Cd "# octeon"
+.Cd "pci* at octpcie?"
+.Pp
+.Cd "# riscv64"
+.Cd "pci* at dwpcie?"
+.Cd "pci* at pciecam?"
+.Pp
+.Cd "# sparc64"
+.Cd "pci* at psycho?"
+.Cd "pci* at schizo?"
+.Cd "pci* at pyro?"
+.Cd "pci* at vpci?"
+.Pp
+.Cd "# all architectures"
+.Cd "pci* at pchb?"
+.Cd "pci* at ppb?"
+.Sh DESCRIPTION
+The system includes a machine-independent PCI bus subsystem and
+several machine-independent PCI device drivers.
+.Pp
+Note that interrupt mappings on the i386 may require that you configure
+your BIOS to reserve sufficient interrupts as "PCI/ISAPnP" so that there
+are sufficient interrupts remaining to configure the discovered PCI
+devices.
+For more information, see
+.Xr pcibios 4 .
+.Pp
+.Ox
+provides support for the following devices.
+Note that not all architectures support all devices.
+.Ss SCSI host adapters
+.Bl -tag -width 10n -offset ind -compact
+.It Xr adv 4 , Xr adw 4
+AdvanSys PCI SCSI interface
+.It Xr ahc 4
+Adaptec VL/EISA/PCI SCSI interface
+.It Xr ahd 4
+Adaptec PCI/PCI-X AIC79xx-based Ultra320 SCSI interface
+.It Xr iha 4
+Initio INIC-940/950 based PCI SCSI interface
+.It Xr mpi 4
+LSI Logic Fusion-MPT Message Passing Interface
+.It Xr mpii 4
+LSI Logic Fusion-MPT Message Passing Interface II
+.It Xr nvme 4
+Non-Volatile Memory Host Controller Interface
+.It Xr pcscp 4
+Advanced Micro Devices Am53c974 PCscsi-PCI SCSI interface
+.It Xr qla 4
+QLogic ISP2100/2200/2300 Fibre Channel controller
+.It Xr qle 4
+QLogic ISP2400/2500 Fibre Channel controller
+.It Xr qlw 4
+QLogic ISP1000/1020/1x40/1x80/1x160 SCSI controller
+.It Xr siop 4
+LSI/Symbios Logic/NCR 53c8xx SCSI interface
+.It Xr trm 4
+TRM-S1040 based PCI SCSI interface
+.It Xr ufshci 4
+Universal Flash Storage Host Controller Interface
+.It Xr vmwpvs 4
+VMware Paravirtual SCSI
+.El
+.Ss IDE disk controllers
+.Bl -tag -width "kauaiata(4)" -offset ind -compact
+.It Xr ahci 4
+Advanced Host Controller Interface for Serial ATA
+.It Xr jmb 4
+JMicron JMB36x SATA II and PATA Host Controller
+.It Xr kauaiata 4
+ATA100 HD controller on PCI bus
+.It Xr pciide 4
+PCI IDE controller driver
+.It Xr sili 4
+Silicon Image 3124/3132/3531 SATA controller
+.El
+.Ss RAID and cache controllers
+.Bl -tag -width 10n -offset ind -compact
+.It Xr aac 4
+Adaptec SAS/SATA/SCSI RAID controller
+.It Xr ami 4
+American Megatrends Inc. MegaRAID PATA/SATA/SCSI RAID controller
+.It Xr arc 4
+Areca Technology Corporation SAS/SATA RAID controller
+.It Xr cac 4
+Compaq Smart Array 2/3/4 SCSI RAID controller
+.It Xr ciss 4
+Compaq Smart Array SAS/SATA/SCSI RAID controller
+.It Xr gdt 4
+ICP-Vortex and Intel GDT SATA/SCSI RAID controller
+.It Xr ips 4
+IBM SATA/SCSI ServeRAID controller
+.It Xr mfi 4
+LSI Logic & Dell MegaRAID SAS RAID controller
+.It Xr mfii 4
+LSI Logic MegaRAID SAS Fusion RAID controller
+.It Xr twe 4
+3ware 5000/6000/7000/8000 series PATA/SATA RAID controller
+.El
+.Ss Wired network interfaces
+.Bl -tag -width 10n -offset ind -compact
+.It Xr age 4
+Attansic L1 10/100/1Gb Ethernet device
+.It Xr alc 4
+Atheros AR813x/AR815x/AR816x/AR817x 10/100/1Gb Ethernet device
+.It Xr ale 4
+Atheros AR8121/AR8113/AR8114 10/100/1Gb Ethernet device
+.It Xr aq 4
+Aquantia AQC1xx 1Gb/2.5Gb/5Gb/10Gb PCIe Ethernet device
+.It Xr bce 4
+Broadcom BCM4401 10/100 Ethernet device
+.It Xr bge 4
+Broadcom BCM57xx/BCM590x 10/100/1Gb Ethernet device
+.It Xr bnx 4
+Broadcom NetXtreme II 10/100/1Gb Ethernet device
+.It Xr bnxt 4
+Broadcom NetXtreme-C/E 10Gb/25Gb/40Gb/50Gb Ethernet device
+.It Xr cas 4
+Sun Cassini 10/100/1Gb Ethernet device
+.It Xr dc 4
+DEC/Intel 21140/21142/21143/21145 and clones 10/100 Ethernet device
+.It Xr de 4
+DEC DC21x4x (Tulip) 10/100 Ethernet device
+.It Xr dwqe 4
+Synopsys DesignWare Ethernet Quality-of-Service Controller
+.It Xr em 4
+Intel PRO/1000 10/100/1Gb Ethernet device
+.It Xr ep 4
+3Com EtherLink III and Fast EtherLink III 10/100 Ethernet device
+.It Xr epic 4
+SMC 83C170 (EPIC/100) 10/100 Ethernet device
+.It Xr et 4
+Agere/LSI ET1310 10/100/1Gb Ethernet device
+.It Xr fxp 4
+Intel EtherExpress PRO/100 10/100 Ethernet device
+.It Xr gem 4
+GEM 10/100/1Gb Ethernet device
+.It Xr hme 4
+Sun Happy Meal 10/100 Ethernet device
+.It Xr iavf 4
+Intel Ethernet adaptive virtual function device
+.It Xr ice 4
+Intel Ethernet 800 series PCI Express 1Gb/10Gb/25Gb/50Gb/100Gb Ethernet device
+.It Xr igc 4
+Intel I225/I226 1Gb/2.5Gb Ethernet device
+.It Xr ix 4
+Intel 82598/82599/X540/X550 PCI Express 100/1Gb/10Gb Ethernet device
+.It Xr ixgb 4
+Intel PRO/10GbE 10Gb Ethernet device
+.It Xr ixl 4
+Intel Ethernet 700 series Ethernet device
+.It Xr ixv 4
+Intel 10Gb Ethernet virtual function device
+.It Xr jme 4
+JMicron JMC25x/JMC26x 10/100/1Gb Ethernet device
+.It Xr lge 4
+Level 1 LXT1001 NetCellerator PCI 1Gb Ethernet device
+.It Xr lii 4
+Attansic L2 10/100 Ethernet device
+.It Xr mcx 4
+Mellanox 5th generation Ethernet device
+.It Xr msk 4
+Marvell Yukon-2 10/100/1Gb Ethernet device
+.It Xr mtd 4
+Myson Technology MTD800/MTD803/MTD891 10/100/1Gb Ethernet device
+.It Xr myx 4
+Myricom Myri-10G PCI Express 10Gb Ethernet device
+.It Xr ne 4
+NE2000 and compatible 10/100 Ethernet device
+.It Xr nep 4
+Sun Neptune 10Gb Ethernet device
+.It Xr nfe 4
+NVIDIA nForce MCP 10/100/1Gb Ethernet device
+.It Xr ngbe 4
+WangXun WX1860 PCI Express 10/100/1Gb Ethernet device
+.It Xr nge 4
+National Semiconductor PCI 10/100/1Gb Ethernet device
+.It Xr oce 4
+Emulex OneConnect 10Gb Ethernet device
+.It Xr pcn 4
+AMD PCnet-PCI 10/100 Ethernet device
+.It Xr re 4
+Realtek 8139C+/8169/816xS/811xS/8168/810xE 10/100/1Gb Ethernet device
+.It Xr rge 4
+Realtek 8125/8126/8127 PCI Express 10/100/1Gb/2.5Gb/5Gb/10Gb Ethernet device
+.It Xr rl 4
+Realtek 8129/8139 10/100 Ethernet device
+.It Xr se 4
+SiS 190/191 10/100/1Gb Ethernet device
+.It Xr sf 4
+Adaptec AIC-6915 "Starfire" PCI 10/100 Ethernet device
+.It Xr sis 4
+SiS 900, SiS 7016, and NS DP83815/6 10/100 Ethernet device
+.It Xr sk 4
+SysKonnect XMAC II and Marvell Yukon 10/100/1Gb Ethernet device
+.It Xr ste 4
+Sundance Technologies ST201 10/100 Ethernet device
+.It Xr stge 4
+Sundance/Tamarack TC9021 1Gb Ethernet device
+.It Xr tht 4
+Tehuti Networks 10Gb Ethernet device
+.It Xr ti 4
+Alteon Networks Tigon I and II 1Gb Ethernet device
+.It Xr tl 4
+Texas Instruments ThunderLAN 10/100 Ethernet device
+.It Xr txp 4
+3Com 3XP Typhoon/Sidewinder (3CR990) 10/100 Ethernet device
+.It Xr vge 4
+VIA Velocity 10/100/1Gb Ethernet device
+.It Xr vic 4
+VMware VMXnet Virtual Interface Controller device
+.It Xr vmx 4
+VMware VMXNET3 Virtual Interface Controller device
+.It Xr vr 4
+VIA Rhine I/II/III 10/100 Ethernet device
+.It Xr vte 4
+RDC R6040 10/100 Ethernet device
+.It Xr wb 4
+Winbond W89C840F 10/100 Ethernet device
+.It Xr xge 4
+Neterion Xframe/Xframe II 10Gb Ethernet device
+.It Xr xl 4
+3Com EtherLink XL and Fast EtherLink XL 10/100 Ethernet device
+.El
+.Ss Wireless network interfaces
+.Bl -tag -width 10n -offset ind -compact
+.It Xr acx 4
+TI ACX100/ACX111 IEEE 802.11a/b/g wireless network device
+.It Xr an 4
+Aironet Communications 4500/4800 IEEE 802.11FH/b wireless network device
+.It Xr ath 4
+Atheros IEEE 802.11a/b/g wireless network device with GPIO
+.It Xr athn 4
+Atheros IEEE 802.11a/b/g/n wireless network device
+.It Xr atw 4
+ADMtek ADM8211 IEEE 802.11b wireless network device
+.It Xr bwfm 4
+Broadcom and Cypress IEEE 802.11a/ac/ax/b/g/n wireless network device
+.It Xr bwi 4
+Broadcom AirForce IEEE 802.11b/g wireless network device
+.It Xr ipw 4
+Intel PRO/Wireless 2100 IEEE 802.11b wireless network device
+.It Xr iwi 4
+Intel
+PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11a/b/g wireless network device
+.It Xr iwn 4
+Intel WiFi Link and Centrino IEEE 802.11a/b/g/n wireless network device
+.It Xr iwm 4
+Intel 7000/8000/9000 IEEE 802.11a/ac/b/g/n wireless network device
+.It Xr iwx 4
+Intel AX200/AX201/AX210/AX211 IEEE 802.11a/ac/ax/b/g/n wireless network device
+.It Xr malo 4
+Marvell Libertas IEEE 802.11b/g wireless network device
+.It Xr pgt 4
+Conexant/Intersil Prism GT Full-MAC IEEE 802.11a/b/g wireless network device
+.It Xr qwx 4
+Qualcomm IEEE 802.11a/ac/ax/b/g/n wireless network device
+.It Xr ral 4
+Ralink Technology/MediaTek IEEE 802.11a/b/g/n wireless network device
+.It Xr rtw 4
+Realtek RTL8180L IEEE 802.11b wireless network device
+.It Xr rtwn 4
+Realtek RTL8188CE/RTL8188EE/RTL8192CE/RTL8723AE PCIe IEEE 802.11b/g/n wireless
+network device
+.It Xr wi 4
+WaveLAN/IEEE, PRISM 2-3, and Spectrum24 IEEE 802.11b wireless network
+device
+.It Xr wpi 4
+Intel PRO/Wireless 3945ABG IEEE 802.11a/b/g wireless network device
+.El
+.Ss Cryptography accelerators
+.Bl -tag -width 10n -offset ind -compact
+.It Xr ccp 4
+AMD cryptographic co-processor
+.It Xr glxsb 4
+Geode LX Security Block crypto accelerator
+.El
+.Ss Serial interfaces
+.Bl -tag -width 10n -offset ind -compact
+.It Xr cy 4
+Cyclades Cyclom-4Y, -8Y, and -16Y asynchronous serial communications devices
+.It Xr cz 4
+Cyclades-Z series multi-port serial adapter device
+.It Xr puc 4
+PCI
+.Dq universal
+communications card driver
+.El
+.Ss Display adapters
+.Bl -tag -width 10n -offset ind -compact
+.It Xr astfb 4
+Aspeed BMC frame buffer
+.It Xr gfxp 4
+accelerated color frame buffer
+.It Xr ifb 4
+inextricable frame buffer
+.It Xr machfb 4
+accelerated color frame buffer
+.It radeonfb 4
+accelerated color frame buffer
+.It Xr raptor 4
+accelerated color frame buffer
+.It Xr sisfb 4
+SiS 315 Pro frame buffer
+.It Xr smfb 4
+Silicon Motion frame buffer
+.It Xr sti 4
+HP Standard Text Interface
+.It Xr tga 4
+DECchip 21030 (TGA) graphics driver
+.It Xr vga 4
+VGA graphics cards
+.It Xr vgafb 4
+VGA frame buffer
+.El
+.Ss Audio devices
+.Bl -tag -width 10n -offset ind -compact
+.It Xr auacer 4
+Acer Labs I/O Controller Hub integrated AC'97 audio device
+.It Xr auglx 4
+AMD Geode LX CS5536 integrated AC'97 audio device
+.It Xr auich 4
+Intel ICH integrated AC'97 audio device
+.It Xr auixp 4
+ATI SB200/SB300/SB400/SB600 integrated AC'97 audio device
+.It Xr autri 4
+Trident 4DWAVE-DX/NX, SiS 7018, ALi M5451 audio device
+.It Xr auvia 4
+VIA VT82C686A/VT8233/VT8235/VT8237 integrated AC'97 audio device
+.It Xr azalia 4
+generic High Definition Audio device
+.It Xr clcs 4
+Cirrus Logic CS4280/CS4610/CS4615 audio device
+.It Xr clct 4
+Cirrus Logic CS4281 audio device
+.It Xr cmpci 4
+C-Media CMI8338/CMI8738/CMI8768 PCI audio device
+.It Xr eap 4
+Ensoniq AudioPCI audio device
+.It Xr emu 4
+Creative Labs SBLive!, PCI 512, and Audigy audio device
+.It Xr envy 4
+VIA Envy24 audio device
+.It Xr esa 4
+ESS Technology Allegro-1/Maestro-3 family audio device
+.It Xr eso 4
+ESS Technology Solo-1 PCI AudioDrive audio device
+.It Xr fms 4
+Forte Media FM801 audio device
+.It Xr maestro 4
+ESS Maestro 1 and 2 audio device
+.It Xr neo 4
+NeoMagic 256AV/ZX audio device
+.It Xr sv 4
+S3 SonicVibes audio device
+.It Xr yds 4
+Yamaha DS-XG audio device
+.El
+.Ss Time receiver devices
+.Bl -tag -width 10n -offset ind -compact
+.It Xr mbg 4
+Meinberg Funkuhren timedelta sensor
+.El
+.Ss Radio receiver devices
+.Bl -tag -width 10n -offset ind -compact
+.It Xr fms 4
+Forte Media FM801 audio device
+.El
+.Ss Hardware Sensors
+.Bl -tag -width 10n -offset ind -compact
+.It Xr berkwdt 4
+Berkshire Products watchdog timer device
+.It Xr geodesc 4
+Geode SC1100/SCx200 IAOC watchdog timer device
+.It Xr ichwdt 4
+Intel 6300ESB ICH watchdog timer device
+.It Xr itherm 4
+Intel 3400 temperature sensor
+.It Xr kate 4
+AMD K8 temperature sensor
+.It Xr km 4
+AMD K10 temperature sensor
+.It Xr ksmn 4
+AMD K17 temperature sensor over SMN
+.It Xr pchtemp 4
+Intel PCH temperature sensor
+.It Xr pwdog 4
+Quancom PWDOG1 watchdog timer device
+.It Xr viapm 4
+VIA SMBus controller and VIA VT82C686A/VT8231 hardware monitor
+.It Xr wdt 4
+ICS PCI-WDT500/501 watchdog timer device
+.El
+.Ss Miscellaneous devices
+.Bl -tag -width "amdpcib(4)" -offset ind -compact
+.It Xr alipm 4
+Acer Labs M7101 SMBus controller
+.It Xr amas 4
+AMD memory address map
+.It Xr amdiic 4
+AMD-8111 SMBus controller
+.It Xr amdpcib 4
+AMD-8111 series LPC bridge and timecounter
+.It Xr amdpm 4
+AMD-756/766/768/8111 Power Management and SMBus controller
+.It Xr bktr 4
+Brooktree Bt848/849/878/879 PCI TV tuners and video capture boards
+.It Xr cbb 4
+PCI Yenta compatible CardBus bridges
+.It Xr drm 4
+Direct Rendering Manager device
+.It Xr dwiic 4
+Synopsys DesignWare I2C controller
+.It Xr ehci 4
+USB Enhanced Host Controller Interface
+.It Xr gcu 4
+Intel EP80579 Global Configuration Unit
+.It Xr glxpcib 4
+CS5536 PCI-ISA Bridge with timecounter, watchdog timer, and GPIO
+.It Xr gscpcib 4
+National Semiconductor Geode SC1100 PCI-ISA bridge with GPIO
+.It Xr gscpm 4
+National Semiconductor Geode SC1100 SMI/ACPI module
+.It Xr hpb 4
+HyperTransport-PCI bridge
+.It Xr ichiic 4
+Intel ICH SMBus controller
+.It Xr ichpcib 4
+Intel ICHx/ICHx-M LPC bridges
+.It Xr iosf 4
+Intel OnChip System Fabric device
+.It Xr nviic 4
+NVIDIA nForce2/3/4 SMBus controller
+.It Xr ohci 4
+USB Open Host Controller Interface
+.It Xr pcib 4
+PCI-ISA bridge
+.It Xr pcic 4
+PCI PCMCIA controllers, including the Cirrus Logic GD6729
+.It Xr piixpm 4
+Intel PIIX SMBus controller
+.It Xr ppb 4
+PCI-PCI bridge
+.It Xr rtsx 4
+Realtek SD card reader
+.It Xr sbbc 4
+PCI BootBus Controller
+.It Xr sdhc 4
+SD Host Controller
+.It Xr ssio 4
+National Semiconductor PC87560 Legacy IO
+.It Xr tcpcib 4
+Intel Atom E600 series LPC bridge and watchdog timer
+.It Xr uhci 4
+USB Universal Host Controller Interface
+.It Xr viapm 4
+VIA SMBus controller
+.It Xr virtio 4
+VirtIO support driver
+.It Xr voyager 4
+Silicon Motion Mobile Multimedia Companion Chip
+.It Xr xspd 4
+XenSource Platform Device driver
+.El
+.Sh IOCTLS
+If the kernel is compiled with the
+.Va USER_PCICONF
+kernel option, the following
+.Xr ioctl 2
+calls are supported by the
+.Nm
+driver.
+They are defined in the header file
+.In sys/pciio.h .
+.Bl -tag -width Ds
+.It PCIOCREAD Fa "struct pci_io *"
+This
+.Xr ioctl 2
+reads the PCI configuration registers specified by the passed-in
+.Va pci_io
+structure.
+The
+.Va pci_io
+structure consists of the following fields:
+.Bl -tag -width pi_width
+.It pi_sel
+A
+.Va pcisel
+structure which specifies the bus, slot and function the user would like to
+query.
+.It pi_reg
+The PCI configuration register the user would like to access.
+.It pi_width
+The width, in bytes, of the data the user would like to read.
+This value can be only 4.
+.It pi_data
+The data returned by the kernel.
+.El
+.It PCIOCWRITE Fa "struct pci_io *"
+This
+.Xr ioctl 2
+allows users to write to the PCI device specified in the passed-in
+.Va pci_io
+structure.
+The
+.Va pci_io
+structure is described above.
+The limitations on data width described for
+reading registers, above, also apply to writing PCI configuration registers.
+.It PCIOCGETROM Fa "struct pci_rom *"
+This
+.Xr ioctl 2
+allows users to read the contents of the PCI ROM specified in the passed-in
+.Va pci_rom
+structure.
+The
+.Va pci_rom
+structure consists of the following fields:
+.Bl -tag -width pr_romlen
+.It pr_sel
+A
+.Va pcisel
+structure which specifies the bus, slot and function the user would like to
+query.
+.It pr_romlen
+Size of the buffer to store the contents of the ROM.
+Upon return, this field will contain the size of the ROM
+.It pr_rom
+The address of the buffer to store the contents of the ROM.
+.El
+.Pp
+If the ROM is larger than the specified buffer size,
+.Dv ENOMEM
+will be returned.
+.El
+.Sh FILES
+.Bl -tag -width /dev/pci* -compact
+.It Pa /dev/pci*
+Character device for the
+.Nm
+driver.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pcidump 8
+.Sh HISTORY
+The machine-independent PCI subsystem appeared in
+.Ox 1.2 .

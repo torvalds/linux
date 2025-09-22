@@ -1,0 +1,94 @@
+.\" $OpenBSD: fsirand.8,v 1.32 2019/01/25 00:19:26 millert Exp $
+.\"
+.\" Copyright (c) 1997 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 25 2019 $
+.Dt FSIRAND 8
+.Os
+.Sh NAME
+.Nm fsirand
+.Nd randomize inode generation numbers
+.Sh SYNOPSIS
+.Nm fsirand
+.Op Fl bfp
+.Ar special ...
+.Sh DESCRIPTION
+The
+.Nm
+command installs random generation numbers on all the inodes for
+each filesystem specified on the command line by
+.Ar special .
+This increases the security of NFS-exported filesystems by making
+it difficult to
+.Dq guess
+filehandles.
+.Pp
+.Em Note :
+.Xr newfs 8
+now does the equivalent of
+.Nm
+itself so it is no longer necessary to
+run
+.Nm
+by hand on a new filesystem.
+It is only used to re-randomize or report on an existing filesystem.
+.Pp
+.Nm
+should only be used on an unmounted filesystem that
+has been checked with
+.Xr fsck 8
+or a filesystem that is mounted read-only.
+.Nm
+may be used on the root filesystem in single-user mode
+but the system should be rebooted via
+.Dq reboot -n
+afterwards.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl b
+Use the default block size (usually 512 bytes) instead
+of the value gleaned from the disklabel.
+.It Fl f
+Force
+.Nm
+to run even if the filesystem on
+.Ar special
+is not marked as clean.
+.It Fl p
+Print the current generation numbers for all inodes instead of
+generating new ones.
+.El
+.Sh SEE ALSO
+.Xr fs 5 ,
+.Xr fsck 8 ,
+.Xr newfs 8 ,
+.Xr reboot 8
+.Sh HISTORY
+The
+.Nm
+command appeared in SunOS 3.x.
+This version of
+.Nm
+first appeared in
+.Ox 2.1 .
+.Sh AUTHORS
+.An Todd C. Miller
+.Sh CAVEATS
+Since
+.Nm
+allocates enough memory to hold all the inodes in
+a given cylinder group, it may use a large amount
+of memory for large disks with few cylinder groups.

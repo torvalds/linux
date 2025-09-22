@@ -1,0 +1,20 @@
+#!/bin/ksh
+#
+# $OpenBSD: dhcpd,v 1.4 2022/10/10 12:07:53 kn Exp $
+
+daemon="/usr/sbin/dhcpd"
+
+. /etc/rc.d/rc.subr
+
+rc_configtest() {
+	# use rc_exec here since daemon_flags may contain arguments with spaces
+	rc_exec "${daemon} -n ${daemon_flags}"
+}
+
+rc_reload=NO
+
+rc_pre() {
+	touch /var/db/dhcpd.leases
+}
+
+rc_cmd $1

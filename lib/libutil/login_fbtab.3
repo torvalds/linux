@@ -1,0 +1,54 @@
+.\"	$OpenBSD: login_fbtab.3,v 1.16 2025/06/06 22:01:40 schwarze Exp $
+.\"
+.\" Copyright 1995 by Wietse Venema.  All rights reserved.  Some individual
+.\" files may be covered by other copyrights.
+.\"
+.\" This material was originally written and compiled by Wietse Venema at
+.\" Eindhoven University of Technology, The Netherlands, in 1990, 1991,
+.\" 1992, 1993, 1994 and 1995.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that this entire copyright notice
+.\" is duplicated in all such copies.
+.\"
+.\" This software is provided "as is" and without any expressed or implied
+.\" warranties, including, without limitation, the implied warranties of
+.\" merchantibility and fitness for any particular purpose.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt LOGIN_FBTAB 3
+.Os
+.Sh NAME
+.Nm login_fbtab
+.Nd implement device security based on fbtab(5)
+.Sh SYNOPSIS
+.Lb libutil
+.In sys/types.h
+.In util.h
+.Ft void
+.Fn login_fbtab "const char *tty" "uid_t uid" "gid_t gid"
+.Sh DESCRIPTION
+The
+.Fn login_fbtab
+function reads the
+.Pa /etc/fbtab
+file and implements device security as described in the
+.Xr fbtab 5
+manual page.
+.Sh FILES
+.Bl -tag -width /etc/fbtab -compact
+.It Pa /etc/fbtab
+.El
+.Sh DIAGNOSTICS
+Problems are reported via the
+.Xr syslogd 8
+daemon with the severity of
+.Dv LOG_ERR .
+.Sh SEE ALSO
+.Xr fbtab 5
+.Sh AUTHORS
+.An Wietse Venema Aq Mt wietse@wzv.win.tue.nl
+.br
+Eindhoven University of Technology
+.br
+The Netherlands

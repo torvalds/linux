@@ -1,0 +1,24 @@
+
+Most commands optionally preceded by integer argument k.  Defaults in brackets.
+Star (*) indicates argument becomes new default.
+-------------------------------------------------------------------------------
+<space>			Display next k lines of text [current screen size]
+z			Display next k lines of text [current screen size]*
+<return>		Display next k lines of text [1]*
+d or ctrl-D		Scroll k lines [current scroll size, initially 11]*
+q or Q or <interrupt>	Exit from more
+s			Skip forward k lines of text [1]
+f			Skip forward k screenfuls of text [1]
+b or ctrl-B		Skip backwards k screenfuls of text [1]
+'			Go to place where previous search started
+=			Display current line number
+/<regular expression>	Search for kth occurrence of regular expression [1]
+n			Search for kth occurrence of last r.e [1]
+!<cmd> or :!<cmd>	Execute <cmd> in a subshell
+v			Start up /usr/ucb/vi at current line
+ctrl-L			Redraw screen
+:n			Go to kth next file [1]
+:p			Go to kth previous file [1]
+:f			Display current file name and line number
+.			Repeat previous command
+-------------------------------------------------------------------------------

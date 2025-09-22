@@ -1,0 +1,8 @@
+# DEFINE: %{foo}=Hello World
+# DEFINE: %{foo}=Hello \
+# DEFINE:   World
+# RUN: echo '%{foo}'
+
+# CHECK: ValueError: Substitution whose pattern contains '%{foo}' is already defined before '{{DEFINE}}:' directive from line [[#@LINE-4]] to [[#@LINE-3]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

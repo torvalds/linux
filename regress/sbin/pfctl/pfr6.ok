@@ -1,0 +1,152 @@
+# create
+# pass add -n 1.1.1.1 !1.1.1.2 10.10/16 !10.11/16 ::1 !::2
+6/6 addresses added (dummy).
+# pass add -nf-
+6/6 addresses added (dummy).
+# pass add -nqv 1.1.1.1 !1.1.1.2 10.10/16 !10.11/16 ::1 !::2
+A  1.1.1.1
+A  10.10.0.0/16
+A  ::1
+A !1.1.1.2
+A !10.11.0.0/16
+A !::2
+# pass add -nqvv 1.1.1.1 !1.1.1.2 10.10/16 !10.11/16 ::1 !::2
+A  1.1.1.1
+A  10.10.0.0/16
+A  ::1
+A !1.1.1.2
+A !10.11.0.0/16
+A !::2
+# pass add 1.1.1.1 !1.1.1.2 10.10/16 !10.11/16 ::1 !::2
+6/6 addresses added.
+# pass show 
+   1.1.1.1
+  !1.1.1.2
+   10.10.0.0/16
+  !10.11.0.0/16
+   ::1
+  !::2
+# pass replace -n 1.1.1.1 !1.1.1.2 !!1.1.1.3 !!!1.1.1.4
+2 addresses added (dummy).
+4 addresses deleted (dummy).
+# pass replace -nf-
+2 addresses added (dummy).
+4 addresses deleted (dummy).
+# pass replace -nqv 1.1.1.1 !1.1.1.2 !!1.1.1.3 !!!1.1.1.4
+A  1.1.1.3
+A !1.1.1.4
+D  10.10.0.0/16
+D  ::1
+D !10.11.0.0/16
+D !::2
+# pass replace -nqvv 1.1.1.1 !1.1.1.2 !!1.1.1.3 !!!1.1.1.4
+   1.1.1.1
+  !1.1.1.2
+A  1.1.1.3
+A !1.1.1.4
+D  10.10.0.0/16
+D  ::1
+D !10.11.0.0/16
+D !::2
+# pass replace 1.1.1.1 !1.1.1.2 !!1.1.1.3 !!!1.1.1.4
+2 addresses added.
+4 addresses deleted.
+# pass show 
+   1.1.1.1
+  !1.1.1.2
+   1.1.1.3
+  !1.1.1.4
+# pass replace -n fe80::/16 !fe81::/16 !!fe82::/16 !!!fe83::/16
+4 addresses added (dummy).
+4 addresses deleted (dummy).
+# pass replace -nf-
+4 addresses added (dummy).
+4 addresses deleted (dummy).
+# pass replace -nqv fe80::/16 !fe81::/16 !!fe82::/16 !!!fe83::/16
+A  fe80::/16
+A  fe82::/16
+A !fe81::/16
+A !fe83::/16
+D  1.1.1.1
+D  1.1.1.3
+D !1.1.1.2
+D !1.1.1.4
+# pass replace -nqvv fe80::/16 !fe81::/16 !!fe82::/16 !!!fe83::/16
+A  fe80::/16
+A  fe82::/16
+A !fe81::/16
+A !fe83::/16
+D  1.1.1.1
+D  1.1.1.3
+D !1.1.1.2
+D !1.1.1.4
+# pass replace fe80::/16 !fe81::/16 !!fe82::/16 !!!fe83::/16
+4 addresses added.
+4 addresses deleted.
+# pass show 
+   fe80::/16
+  !fe81::/16
+   fe82::/16
+  !fe83::/16
+# pass replace -n 10/8 !10.10/16 10.10.10/24 !10.10.10.10
+4 addresses added (dummy).
+4 addresses deleted (dummy).
+# pass replace -nf-
+4 addresses added (dummy).
+4 addresses deleted (dummy).
+# pass replace -nqv 10/8 !10.10/16 10.10.10/24 !10.10.10.10
+A  10.0.0.0/8
+A  10.10.10.0/24
+A !10.10.0.0/16
+A !10.10.10.10
+D  fe80::/16
+D  fe82::/16
+D !fe81::/16
+D !fe83::/16
+# pass replace -nqvv 10/8 !10.10/16 10.10.10/24 !10.10.10.10
+A  10.0.0.0/8
+A  10.10.10.0/24
+A !10.10.0.0/16
+A !10.10.10.10
+D  fe80::/16
+D  fe82::/16
+D !fe81::/16
+D !fe83::/16
+# pass replace 10/8 !10.10/16 10.10.10/24 !10.10.10.10
+4 addresses added.
+4 addresses deleted.
+# pass add -n fe80::/16 !fe80:fe80::/32 fe80:fe80:fe80::/48
+3/3 addresses added (dummy).
+# pass add -nf-
+3/3 addresses added (dummy).
+# pass add -nqv fe80::/16 !fe80:fe80::/32 fe80:fe80:fe80::/48
+A  fe80::/16
+A  fe80:fe80:fe80::/48
+A !fe80:fe80::/32
+# pass add -nqvv fe80::/16 !fe80:fe80::/32 fe80:fe80:fe80::/48
+A  fe80::/16
+A  fe80:fe80:fe80::/48
+A !fe80:fe80::/32
+# pass add fe80::/16 !fe80:fe80::/32 fe80:fe80:fe80::/48
+3/3 addresses added.
+# pass show 
+   10.0.0.0/8
+  !10.10.0.0/16
+   10.10.10.0/24
+  !10.10.10.10
+   fe80::/16
+  !fe80:fe80::/32
+   fe80:fe80:fe80::/48
+# pass test 10.1.1.1 10.10.10.1
+2/2 addresses match.
+# fail test 11.1.1.1 10.10.1.1 10.10.10.10
+0/3 addresses match.
+# fail test 10.1.1.1 11.1.1.1
+1/2 addresses match.
+# kill
+1 tables deleted.
+rules cleared
+ktable: 28 allocated, 28 released, 0 leaked.
+pfrke_plain: 95 allocated, 95 released, 0 leaked.
+pfrke_route: 0 allocated, 0 released, 0 leaked.
+pfrke_cost: 0 allocated, 0 released, 0 leaked.

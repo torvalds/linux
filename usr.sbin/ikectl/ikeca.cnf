@@ -1,0 +1,109 @@
+# $OpenBSD: ikeca.cnf,v 1.10 2023/11/17 14:43:36 tobhe Exp $
+
+CERT_C			= DE
+CERT_ST			= Lower Saxony
+CERT_L			= Hanover
+CERT_O			= OpenBSD
+CERT_OU			= iked
+CERT_CN			=
+CERT_EMAIL		= reyk@openbsd.org
+
+# default settings
+CERTPATHLEN		= 1
+CERTUSAGE		= digitalSignature,keyCertSign,cRLSign
+EXTCERTUSAGE		= serverAuth,clientAuth
+CERTIP			= 0.0.0.0
+CERTFQDN		= nohost.nodomain
+CADB			= index.txt
+CASERIAL		= serial.txt
+NSCERTTYPE		= server,client
+
+[ req ]
+#default_bits		= 2048
+#default_md		= sha256
+#default_keyfile 	= privkey.pem
+distinguished_name	= req_distinguished_name
+#attributes		= req_attributes
+req_extensions		= $ENV::REQ_EXT
+
+[ req_distinguished_name ]
+countryName			= Country Name (2 letter code)
+countryName_default		= $ENV::CERT_C
+countryName_min			= 2
+countryName_max			= 2
+
+stateOrProvinceName		= State or Province Name (full name)
+stateOrProvinceName_default	= $ENV::CERT_ST
+
+localityName			= Locality Name (eg, city)
+localityName_default		= $ENV::CERT_L
+
+0.organizationName		= Organization Name (eg, company)
+0.organizationName_default	= $ENV::CERT_O
+
+# we can do this but it is not needed normally :-)
+#1.organizationName		= Second Organization Name (eg, company)
+#1.organizationName_default	= OpenBSD
+
+organizationalUnitName		= Organizational Unit Name (eg, section)
+organizationalUnitName_default	= $ENV::CERT_OU
+
+commonName			= Common Name (eg, fully qualified host name)
+commonName_max			= 64
+commonName_default		= $ENV::CERT_CN
+
+emailAddress			= Email Address
+emailAddress_max		= 64
+emailAddress_default		= $ENV::CERT_EMAIL
+
+[ req_attributes ]
+challengePassword		= A challenge password
+challengePassword_min		= 4
+challengePassword_max		= 20
+
+unstructuredName		= An optional company name
+
+[ x509v3_extensions ]
+nsCaRevocationUrl		= http://127.0.0.1/ca-crl.pem
+nsComment			= "This is a comment"
+
+# under ASN.1, the 0 bit would be encoded as 80
+nsCertType			= 0x40
+
+[x509v3_CA]
+basicConstraints=critical,CA:true,pathlen:$ENV::CERTPATHLEN
+keyUsage=$ENV::CERTUSAGE
+
+[x509v3_IPAddr]
+keyUsage=$ENV::CERTUSAGE
+nsCertType=$ENV::NSCERTTYPE
+subjectAltName=IP:$ENV::CERTIP
+extendedKeyUsage=$ENV::EXTCERTUSAGE
+
+[x509v3_FQDN]
+keyUsage=$ENV::CERTUSAGE
+nsCertType=$ENV::NSCERTTYPE
+subjectAltName=DNS:$ENV::CERTFQDN
+extendedKeyUsage=$ENV::EXTCERTUSAGE
+
+[ca]
+default_ca			= CA_default
+
+[CA_sign_policy]
+countryName			= optional
+stateOrProvinceName		= optional
+localityName			= optional
+organizationName		= optional
+organizationalUnitName		= optional
+commonName			= supplied
+emailAddress			= optional
+
+[CA_default]
+database			= $ENV::CADB
+serial				= $ENV::CASERIAL
+default_md			= sha256
+default_days			= 365
+default_crl_days		= 365
+unique_subject			= no
+email_in_dn			= yes
+policy				= CA_sign_policy

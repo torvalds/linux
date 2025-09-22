@@ -1,0 +1,226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>Tree Text Insert Timing Test</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1>Tree-Based and Trie-Based Text Insert Timing Test</h1>
+<h2><a name="description" id="description">Description</a></h2>
+<p>This test inserts a number of values with keys from an
+    arbitrary text ([ <a href="references.html#wickland96thirty">wickland96thirty</a> ]) into
+    a container using <tt>insert</tt> . It measures the average
+    time for <tt>insert</tt> as a function of the number of values
+    inserted.</p>
+<p>(The test was executed with <a href="../../../../testsuite/performance/ext/pb_ds/tree_text_insert_timing.cc"><tt>tree_text_insert_timing_test</tt></a>
+    thirty_years_among_the_dead_preproc.txt 200 200 2100)</p>
+<h2><a name="purpose" id="purpose">Purpose</a></h2>
+<p>The test checks the effect of different underlying
+    data structures.</p>
+<h2><a name="results" id="results">Results</a></h2>
+<p>Figures <a href="#NNTG">NNTG</a>, <a href="#NVTG">NVTG</a>,
+    and <a href="#NPTG">NPTG</a> show the results for the native
+    tree and <tt>pb_ds</tt>'s node-based trees, the native tree and
+    <tt>pb_ds</tt>'s vector-based trees, and the native tree
+    and<tt>pb_ds</tt>'s PATRICIA-trie, respectively, in <a href="assoc_performance_tests.html#gcc"><u>g++</u></a>; Figures
+    <a href="#NNTM">NNTM</a>, <a href="#NVTM">NVTM</a>, and
+    <a href="#NPTM">NPTM</a> show the same in <a href="assoc_performance_tests.html#msvc"><u>msvc++</u></a>; Figures
+    <a href="#NNTL">NNTL</a>, <a href="#NVTL">NVTL</a>, and
+    <a href="#NPTL">NPTL</a> show the same in <a href="assoc_performance_tests.html#local"><u>local</u></a>.</p>
+<div id="NNTG_res_div">
+<div id="NNTG_gcc">
+<div id="NNTG_tree_text_insert_timing_test_node_tree">
+<div id="NNTG_assoc">
+<div id="NNTG_Native_tree_and_node-based_trees_text_insert_timing_test_using__tt_insert_455tt_"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NNTG" id="NNTG"><img src="tree_text_insert_timing_test_node_tree_gcc.png" alt="no image" /></a></h6>NNTG: Native tree and node-based trees text insert timing test using <tt>insert</tt> - <a href="assoc_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+splay_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+n_map-
+<tt>std::map</tt></li>
+<li>
+rb_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NVTG_res_div">
+<div id="NVTG_gcc">
+<div id="NVTG_tree_text_insert_timing_test_vector_tree">
+<div id="NVTG_assoc">
+<div id="NVTG_Native_tree_and_vector-based_tree_text_insert_timing_test_using__tt_insert_455tt_"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NVTG" id="NVTG"><img src="tree_text_insert_timing_test_vector_tree_gcc.png" alt="no image" /></a></h6>NVTG: Native tree and vector-based tree text insert timing test using <tt>insert</tt> - <a href="assoc_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+ov_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="ov_tree_tag.html"><tt>ov_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+n_map-
+<tt>std::map</tt></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NPTG_res_div">
+<div id="NPTG_gcc">
+<div id="NPTG_tree_text_insert_timing_test_pat_trie">
+<div id="NPTG_assoc">
+<div id="NPTG_Native_tree_and_PATRICIA_trie_text_insert_timing_test_using__tt_insert_455tt_"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPTG" id="NPTG"><img src="tree_text_insert_timing_test_pat_trie_gcc.png" alt="no image" /></a></h6>NPTG: Native tree and PATRICIA trie text insert timing test using <tt>insert</tt> - <a href="assoc_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_map-
+<tt>std::map</tt></li>
+<li>
+pat_trie_map-
+<a href="trie.html"><tt>trie</tt></a>
+ with <tt>Tag</tt> = <a href="pat_trie_tag.html"><tt>pat_trie_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_trie_node_update.html"><tt>null_trie_node_update</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NNTM_res_div">
+<div id="NNTM_msvc">
+<div id="NNTM_tree_text_insert_timing_test_node_tree">
+<div id="NNTM_assoc">
+<div id="NNTM_Native_tree_and_node-based_trees_text_insert_timing_test_using__tt_insert_455tt_"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NNTM" id="NNTM"><img src="tree_text_insert_timing_test_node_tree_msvc.png" alt="no image" /></a></h6>NNTM: Native tree and node-based trees text insert timing test using <tt>insert</tt> - <a href="assoc_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+splay_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+n_map-
+<tt>std::map</tt></li>
+<li>
+rb_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NVTM_res_div">
+<div id="NVTM_msvc">
+<div id="NVTM_tree_text_insert_timing_test_vector_tree">
+<div id="NVTM_assoc">
+<div id="NVTM_Native_tree_and_vector-based_tree_text_insert_timing_test_using__tt_insert_455tt_"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NVTM" id="NVTM"><img src="tree_text_insert_timing_test_vector_tree_msvc.png" alt="no image" /></a></h6>NVTM: Native tree and vector-based tree text insert timing test using <tt>insert</tt> - <a href="assoc_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+ov_tree_map-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="ov_tree_tag.html"><tt>ov_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+n_map-
+<tt>std::map</tt></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NPTM_res_div">
+<div id="NPTM_msvc">
+<div id="NPTM_tree_text_insert_timing_test_pat_trie">
+<div id="NPTM_assoc">
+<div id="NPTM_Native_tree_and_PATRICIA_trie_text_insert_timing_test_using__tt_insert_455tt_"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPTM" id="NPTM"><img src="tree_text_insert_timing_test_pat_trie_msvc.png" alt="no image" /></a></h6>NPTM: Native tree and PATRICIA trie text insert timing test using <tt>insert</tt> - <a href="assoc_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+pat_trie_map-
+<a href="trie.html"><tt>trie</tt></a>
+ with <tt>Tag</tt> = <a href="pat_trie_tag.html"><tt>pat_trie_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_trie_node_update.html"><tt>null_trie_node_update</tt></a>
+</li>
+<li>
+n_map-
+<tt>std::map</tt></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NNTL_res_div">
+<div id="NNTL_local">
+<div id="NNTL_tree_text_insert_timing_test_node_tree">
+<div id="NNTL_assoc">
+<div id="NNTL_Native_tree_and_node-based_trees_text_insert_timing_test_using__tt_insert_455tt_"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NNTL" id= "NNTL"><img src="tree_text_insert_timing_test_node_tree_local.png" alt="no image" /></a></h6>NNTL: Native tree and node-based trees text insert timing test using <tt>insert</tt> - <a href = "assoc_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NVTL_res_div">
+<div id="NVTL_local">
+<div id="NVTL_tree_text_insert_timing_test_vector_tree">
+<div id="NVTL_assoc">
+<div id="NVTL_Native_tree_and_vector-based_tree_text_insert_timing_test_using__tt_insert_455tt_"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NVTL" id= "NVTL"><img src="tree_text_insert_timing_test_vector_tree_local.png" alt="no image" /></a></h6>NVTL: Native tree and vector-based tree text insert timing test using <tt>insert</tt> - <a href = "assoc_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NPTL_res_div">
+<div id="NPTL_local">
+<div id="NPTL_tree_text_insert_timing_test_pat_trie">
+<div id="NPTL_assoc">
+<div id="NPTL_Native_tree_and_PATRICIA_trie_text_insert_timing_test_using__tt_insert_455tt_"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPTL" id= "NPTL"><img src="tree_text_insert_timing_test_pat_trie_local.png" alt="no image" /></a></h6>NPTL: Native tree and PATRICIA trie text insert timing test using <tt>insert</tt> - <a href = "assoc_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<h2><a name="observations" id="observations">Observations</a></h2>
+<p>Observing Figure <a href="#NNTG">NNTG</a> , for this
+    setting, a splay tree, ( <a href="tree.html"><tt>tree</tt></a>
+    with <tt>Tag =</tt> <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a> ) does
+    not do well. This was covered in <a href="tree_text_find_find_timing_test.html">Tree-Based and
+    Trie-Based Text <tt>find</tt> Find Timing Test</a> . The two
+    red-black trees perform better.</p>
+<p>Observing Figure <a href="#NVTG">NVTG</a>, an ordered-vector
+    tree ( <a href="tree.html"><tt>tree</tt></a>
+    with <tt>Tag =</tt> <a href="ov_tree_tag.html"><tt>ov_tree_tag</tt></a>) performs
+    abysmally. Inserting into this type of tree has linear
+    complexity [ <a href="references.html#austern00noset">austern00noset</a>].</p>
+<p>Observing Figure <a href="#NPTG">NPTG</a> , A PATRICIA trie
+    ( <a href="trie.html"><tt>trie</tt></a>
+    with <tt>Tag =</tt> <a href="pat_trie_tag.html"><tt>pat_trie_tag</tt></a> ) has
+    abysmal performance, as well. This is not that surprising,
+    since a large-fan-out PATRICIA trie works like a hash table with
+    collisions resolved by a sub-trie. Each time a collision is
+    encountered, a new "hash-table" is built A large fan-out
+    PATRICIA trie, however, doe does well in look-ups (see <a href="tree_text_find_find_timing_test.html">Tree-Based and
+    Trie-Based Text <tt>find</tt> Find Timing Test</a> ). It is
+    possibly beneficial to semi-static settings, therefore.</p>
+<p><a href="assoc_performance_tests.html#tree_like_based_types">Observations::Tree-Like-Based
+    Container Types</a> summarizes some observations on tree-based
+    and trie-based containers.</p>
+</div>
+</body>
+</html>

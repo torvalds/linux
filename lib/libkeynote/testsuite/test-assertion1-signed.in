@@ -1,0 +1,45 @@
+keynote-version: 2 # some comment
+comment: The weird looking string test in the conditions field is for
+	 verifying correctness of string grammar
+# comment inside comment field, no problem
+#authorizer: $$$$foo 	# Don't try this at home@@AUTH@@
+licensees:  (MYKEY) && ((("Key3") || "Key4") && (MYKEY)) || TWOKEY
+local-constants: MYKEY = "Key3"
+# we can put a comment here
+	 TWOKEY = "dsa-hex:3081de02402ae5e2d8c12fbaec4934dd5a98cbe39159\
+		   f1b8d02143a5e3d07c96c0acedef73d508a54286bb19b53cd2b7\
+		   bd0beca47b12ec75ddd7a7aeece8b724fbf940ca220241008cfe\
+		   2799793dc5eef44cc78228d2a42e76246326e6f442d7c14eb705\
+		   3e48d49a001350177e7d320d762d87f10ecbeceffb12b359e4c0\
+		   f827e05b34ef336823710215008773db9f8a9d42e7ad53c023d1\
+		   61dda43ae081a9024069f506a956d69c8a0a2ab6d6a888f57dd0\
+		   6593f537135b6d3c2bc928634f7e5e03b12c9fbac7ce4a6ce708\
+		   b63bdcda576e5eeecfb68930a5c3ca8df71d84fd0e"
+conditions: app_domain == "testing" ->
+# gratuitous comment
+ 	{
+	    1 / 0 == 1 -> "true"; # runtime exception
+	    true -> "false";
+	    request == "whatever" -> "false";
+	TWOKEY == "dsa-hex:3081de02402ae5e2d8c12fbaec4934dd5a98cbe39159\
+                   f1b8d02143a5e3d07c96c0acedef73d508a54286bb19b53cd2b7\
+                   bd0beca47b12ec75ddd7a7aeece8b724fbf940ca220241008cfe\
+                   2799793dc5eef44cc78228d2a42e76246326e6f442d7c14eb705\
+                   3e48d49a001350177e7d320d762d87f10ecbeceffb12b359e4c0\
+                   f827e05b34ef336823710215008773db9f8a9d42e7ad53c023d1\
+                   61dda43ae081a9024069f506a956d69c8a0a2ab6d6a888f57dd0\
+                   6593f537135b6d3c2bc928634f7e5e03b12c9fbac7ce4a6ce708\
+                   b63bdcda576e5eeecfb68930a5c3ca8df71d84fd0e" &&
+		@(foo) == @foo &&
+        "this string contains a newline\n\
+ \ followed by one space." == 
+        "this\ string\ contains\ a\ newline\n\ foll\
+                owed\ by\ one\ space\." &&
+        "this string contains a newline\n\ \
+ followed by one space." == 
+        "this string contains a newline\012\040followed by one space." &&
+	    request == "test" -> "true"; # this is another comment
+	    request == "whatever3" -> "true";
+	    request == "test" -> "fa" . "lse";
+	};
+signature:

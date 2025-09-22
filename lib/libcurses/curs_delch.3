@@ -1,0 +1,77 @@
+.\" $OpenBSD: curs_delch.3,v 1.8 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2006,2010 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_delch.3,v 1.8 2023/10/17 09:52:08 nicm Exp $
+.TH curs_delch 3 2023-07-01 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.SH NAME
+\fBdelch\fP,
+\fBwdelch\fP,
+\fBmvdelch\fP,
+\fBmvwdelch\fP \- delete character under the cursor in a \fBcurses\fP window
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint delch(void);\fP
+.br
+\fBint wdelch(WINDOW *\fIwin\fB);\fR
+.br
+\fBint mvdelch(int \fIy\fB, int \fIx\fB);\fR
+.br
+\fBint mvwdelch(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB);\fR
+.SH DESCRIPTION
+These routines delete the character under the cursor; all characters to the
+right of the cursor on the same line are moved to the left one position and the
+last character on the line is filled with a blank.
+The cursor position does
+not change (after moving to \fIy\fP, \fIx\fP, if specified).
+(This does not
+imply use of the hardware delete character feature.)
+.SH RETURN VALUE
+All routines return the integer \fBERR\fP upon failure and an \fBOK\fP (SVr4
+specifies only "an integer value other than \fBERR\fP") upon successful
+completion.
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+Note that \fBdelch\fP, \fBmvdelch\fP, and \fBmvwdelch\fP may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+The
+standard specifies that they return \fBERR\fP on failure, but specifies no
+error conditions.
+.SH SEE ALSO
+\fBcurses\fP(3)

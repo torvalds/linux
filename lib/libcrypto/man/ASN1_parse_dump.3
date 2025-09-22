@@ -1,0 +1,217 @@
+.\" $OpenBSD: ASN1_parse_dump.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_PARSE_DUMP 3
+.Os
+.Sh NAME
+.Nm ASN1_parse_dump ,
+.Nm ASN1_parse
+.Nd parse BER and print information about it
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft int
+.Fo ASN1_parse_dump
+.Fa "BIO *bio"
+.Fa "const unsigned char *ber_in"
+.Fa "long length"
+.Fa "int indent"
+.Fa "int dump"
+.Fc
+.Ft int
+.Fo ASN1_parse
+.Fa "BIO *bio"
+.Fa "const unsigned char *ber_in"
+.Fa "long length"
+.Fa "int indent"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_parse_dump
+parses BER-encoded values and prints information about them to
+.Fa bio .
+On function entry,
+.Pf * Fa ber_in
+is expected to point to the first identifier octet of an encoded value.
+At most
+.Fa length
+bytes are inspected.
+.Pp
+For each value successfully parsed, the following information is printed:
+.Bl -enum
+.It
+The index of its first identifier octet relative to
+.Fa ber_in
+as a decimal number followed by a colon.
+For the first value parsed and printed, this is
+.Qq 0:\& .
+.It
+The nesting depth as a decimal integer.
+For the first value parsed and printed, this is
+.Qq d=0 .
+.It
+The header length in bytes, including the identifier octets and the
+length octets, as a decimal integer.
+For example, for a boolean value, this is
+.Qq hl=2
+because the encoding of a boolean value contains
+one identifier octet (0x01) and one length octet (also 0x01,
+because one content octet follows after the header).
+.It
+If the value is encoded using the definite form for the length octets,
+the number encoded in the length octets as a decimal integer.
+This is the number of content octets that follow.
+For example, for a boolean value, this is
+.Qq l=1 .
+If the value is encoded using a length octet indicating the indefinite form,
+.Qq l=inf
+is printed instead.
+.It
+If the value is primitive,
+.Qq prim:\&
+is printed;
+if it is constructed,
+.Qq cons:\& .
+.It
+The next field depends on the class of the tag:
+.Bl -tag -width Ds
+.It Dv V_ASN1_PRIVATE
+.Qq priv
+followed by the decimal tag number in square brackets
+.It Dv V_ASN1_CONTEXT_SPECIFIC
+.Qq cont
+followed by the decimal tag number in square brackets
+.It Dv V_ASN1_APPLICATION
+.Qq appl
+followed by the decimal tag number in square brackets
+.It V_ASN1_UNIVERSAL
+If the tag number is 30 or less, the return value from
+.Xr ASN1_tag2str 3
+is printed; otherwise,
+.Qq <ASN1
+followed by the decimal tag number and a closing angle bracket.
+.El
+.El
+.Pp
+For constructed values, the contained values are recursively printed.
+.Pp
+Primitive values are processed as follows:
+.Bl -tag -width Ds
+.It Dv V_ASN1_BOOLEAN
+Its integer value is printed as a decimal number.
+.It Dv V_ASN1_INTEGER
+Decoded with
+.Xr d2i_ASN1_INTEGER 3 ,
+printed as a hexadecimal number with an even number of digits.
+.It Dv V_ASN1_ENUMERATED
+Decoded with
+.Xr d2i_ASN1_ENUMERATED 3 ,
+printed as a hexadecimal number with an even number of digits.
+.It Dv V_ASN1_OBJECT
+Decoded with
+.Xr d2i_ASN1_OBJECT 3 ,
+printed with
+.Xr i2a_ASN1_OBJECT 3 .
+.It Dv V_ASN1_OCTET_STRING
+Decoded with
+.Xr d2i_ASN1_OCTET_STRING 3 .
+If the data consists only of printable ASCII characters, line feeds,
+carriage returns and horizontal tabs, it is printed as an ASCII string.
+.Pp
+Otherwise, the
+.Fa dump
+argument decides the format.
+If it is zero, a raw hex dump is emitted, consisting of two hexadecimal
+digits for every data byte.
+If
+.Fa dump
+is non-zero,
+.Xr BIO_dump_indent 3
+is used.
+Unless
+.Fa dump
+is \-1, the data is truncated after
+.Fa dump
+bytes.
+.It Dv V_ASN1_PRINTABLESTRING
+Printed as an ASCII string.
+The same applies to
+.Dv V_ASN1_IA5STRING ,
+.Dv V_ASN1_T61STRING ,
+.Dv V_ASN1_NUMERICSTRING ,
+.Dv V_ASN1_VISIBLESTRING ,
+.Dv V_ASN1_UTF8STRING ,
+.Dv V_ASN1_UTCTIME ,
+and
+.Dv V_ASN1_GENERALIZEDTIME .
+.It Other tags
+If the
+.Fa dump
+argument is 0, their data is silently ignored.
+If
+.Fa dump
+is non-zero,
+.Xr BIO_dump_indent 3
+is used.
+Unless
+.Fa dump
+is \-1, the data is truncated after
+.Fa dump
+bytes.
+.El
+.Pp
+.Fn ASN1_parse
+is identical to
+.Fn ASN1_parse_dump
+with 0 passed as the
+.Fa dump
+argument.
+.Sh RETURN VALUES
+These functions return 1 for success or 0 for failure.
+.Pp
+In particular, they print an error message to
+.Fa bio ,
+abort parsing and printing, and return 0
+when parsing or decoding fails, when a recursive call fails,
+when encountering a value extending beyond
+.Fa length ,
+or when encountering a nesting level in excess of 128.
+They also abort parsing and printing and return 0
+when any printing operation fails.
+.Sh SEE ALSO
+.Xr ASN1_get_object 3 ,
+.Xr ASN1_item_d2i 3 ,
+.Xr ASN1_item_new 3 ,
+.Xr ASN1_STRING_print 3 ,
+.Xr ASN1_TYPE_new 3
+.Sh STANDARDS
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules:
+Specification of Basic Encoding Rules (BER), Canonical Encoding
+Rules (CER) and Distinguished Encoding Rules (DER),
+section 8.1: General rules for encoding
+.Sh HISTORY
+.Fn ASN1_parse
+first appeared in SSLeay 0.5.1 and has been available since
+.Ox 2.4 .
+.Pp
+.Fn ASN1_parse_dump
+first appeared in OpenSSL 0.9.6 and has been available since
+.Ox 2.9 .
+.Sh BUGS
+The content of values tagged as
+.Dv V_ASN1_BMPSTRING
+is silently ignored and none of it is printed.

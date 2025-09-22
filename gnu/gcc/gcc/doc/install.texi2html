@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# Convert the GCC install documentation from texinfo format to HTML.
+#
+# $SOURCEDIR and $DESTDIR, resp., refer to the directory containing
+# the texinfo source and the directory to put the HTML version in.
+#
+# (C) 2001, 2003, 2006 Free Software Foundation
+# Originally by Gerald Pfeifer <pfeifer@dbai.tuwien.ac.at>, June 2001.
+#
+# This script is Free Software, and it can be copied, distributed and
+# modified as defined in the GNU General Public License.  A copy of
+# its license can be downloaded from http://www.gnu.org/copyleft/gpl.html
+
+set -e
+
+SOURCEDIR=${SOURCEDIR-.}
+DESTDIR=${DESTDIR-HTML}
+
+MAKEINFO=${MAKEINFO-makeinfo}
+
+if [ ! -d $DESTDIR ]; then
+    mkdir -p $DESTDIR
+fi
+
+for x in index.html specific.html prerequisites.html download.html configure.html \
+         build.html test.html finalinstall.html binaries.html old.html \
+         gfdl.html
+do
+    define=`echo $x | sed -e 's/\.//g'`
+    echo "define = $define"
+    $MAKEINFO -I $SOURCEDIR -I $SOURCEDIR/include $SOURCEDIR/install.texi --html --no-split -D$define -o$DESTDIR/$x
+done

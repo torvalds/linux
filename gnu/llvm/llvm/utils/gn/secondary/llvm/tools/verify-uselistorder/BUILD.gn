@@ -1,0 +1,11 @@
+executable("verify-uselistorder") {
+  deps = [
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "verify-uselistorder.cpp" ]
+}

@@ -1,0 +1,346 @@
+.\" $OpenBSD: SSL_CTX_new.3,v 1.18 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL 21cd6e00 Oct 21 14:40:15 2015 +0100
+.\" selective merge up to: OpenSSL 8f75443f May 24 14:04:26 2019 +0200
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2000, 2005, 2012, 2013, 2015, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_NEW 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_new ,
+.Nm SSL_CTX_up_ref ,
+.Nm TLS_method ,
+.Nm TLS_server_method ,
+.Nm TLS_client_method ,
+.Nm SSLv23_method ,
+.Nm SSLv23_server_method ,
+.Nm SSLv23_client_method ,
+.Nm TLSv1_method ,
+.Nm TLSv1_server_method ,
+.Nm TLSv1_client_method ,
+.Nm TLSv1_1_method ,
+.Nm TLSv1_1_server_method ,
+.Nm TLSv1_1_client_method ,
+.Nm TLSv1_2_method ,
+.Nm TLSv1_2_server_method ,
+.Nm TLSv1_2_client_method ,
+.Nm DTLS_method ,
+.Nm DTLS_server_method ,
+.Nm DTLS_client_method ,
+.Nm DTLSv1_method ,
+.Nm DTLSv1_server_method ,
+.Nm DTLSv1_client_method ,
+.Nm DTLSv1_2_method ,
+.Nm DTLSv1_2_server_method ,
+.Nm DTLSv1_2_client_method
+.Nd create a new SSL_CTX object as a framework for TLS enabled functions
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft SSL_CTX *
+.Fn SSL_CTX_new "const SSL_METHOD *method"
+.Ft int
+.Fn SSL_CTX_up_ref "SSL_CTX *ctx"
+.Ft const SSL_METHOD *
+.Fn TLS_method void
+.Ft const SSL_METHOD *
+.Fn TLS_server_method void
+.Ft const SSL_METHOD *
+.Fn TLS_client_method void
+.Ft const SSL_METHOD *
+.Fn SSLv23_method void
+.Ft const SSL_METHOD *
+.Fn SSLv23_server_method void
+.Ft const SSL_METHOD *
+.Fn SSLv23_client_method void
+.Ft const SSL_METHOD *
+.Fn TLSv1_method void
+.Ft const SSL_METHOD *
+.Fn TLSv1_server_method void
+.Ft const SSL_METHOD *
+.Fn TLSv1_client_method void
+.Ft const SSL_METHOD *
+.Fn TLSv1_1_method void
+.Ft const SSL_METHOD *
+.Fn TLSv1_1_server_method void
+.Ft const SSL_METHOD *
+.Fn TLSv1_1_client_method void
+.Ft const SSL_METHOD *
+.Fn TLSv1_2_method void
+.Ft const SSL_METHOD *
+.Fn TLSv1_2_server_method void
+.Ft const SSL_METHOD *
+.Fn TLSv1_2_client_method void
+.Ft const SSL_METHOD *
+.Fn DTLS_method void
+.Ft const SSL_METHOD *
+.Fn DTLS_server_method void
+.Ft const SSL_METHOD *
+.Fn DTLS_client_method void
+.Ft const SSL_METHOD *
+.Fn DTLSv1_method void
+.Ft const SSL_METHOD *
+.Fn DTLSv1_server_method void
+.Ft const SSL_METHOD *
+.Fn DTLSv1_client_method void
+.Ft const SSL_METHOD *
+.Fn DTLSv1_2_method void
+.Ft const SSL_METHOD *
+.Fn DTLSv1_2_server_method void
+.Ft const SSL_METHOD *
+.Fn DTLSv1_2_client_method void
+.Sh DESCRIPTION
+.Fn SSL_CTX_new
+creates a new
+.Vt SSL_CTX
+object as a framework to establish TLS or DTLS enabled connections.
+It initializes the list of ciphers, the session cache setting, the
+callbacks, the keys and certificates, the options, and the security
+level to its default values.
+.Pp
+An
+.Vt SSL_CTX
+object is reference counted.
+Creating a new
+.Vt SSL_CTX
+object sets its reference count to 1.
+Calling
+.Fn SSL_CTX_up_ref
+on it increments the reference count by 1.
+Calling
+.Xr SSL_CTX_free 3
+on it decrements the reference count by 1.
+When the reference count drops to zero,
+any memory or resources allocated to the
+.Vt SSL_CTX
+object are freed.
+.Pp
+The
+.Vt SSL_CTX
+object uses
+.Fa method
+as its connection method, which can be:
+.Bl -tag -width Ds
+.It Fn TLS_method
+The general-purpose version-flexible TLS method.
+The protocol version used will be negotiated to the highest
+version mutually supported by the client and the server.
+The supported protocols are TLSv1, TLSv1.1, TLSv1.2, and TLSv1.3.
+.It Fn DTLS_method
+The version-flexible DTLS method.
+The currently supported protocols are DTLSv1 and DTLSv1.2.
+.El
+.Pp
+The following
+.Fa method
+arguments are deprecated:
+.Bl -tag -width Ds
+.It Xo
+.Fn TLS_server_method ,
+.Fn TLS_client_method ,
+.Fn SSLv23_method ,
+.Fn SSLv23_server_method ,
+.Fn SSLv23_client_method
+.Xc
+Deprecated aliases for
+.Fn TLS_method .
+.It Xo
+.Fn DTLS_server_method ,
+.Fn DTLS_client_method
+.Xc
+Deprecated aliases for
+.Fn DTLS_method .
+.It Xo
+.Fn TLSv1_method ,
+.Fn TLSv1_server_method ,
+.Fn TLSv1_client_method
+.Xc
+A connection established with these methods will only
+understand the TLSv1 protocol.
+.It Xo
+.Fn TLSv1_1_method ,
+.Fn TLSv1_1_server_method ,
+.Fn TLSv1_1_client_method
+.Xc
+A connection established with these methods will only
+understand the TLSv1.1 protocol.
+.It Xo
+.Fn TLSv1_2_method ,
+.Fn TLSv1_2_server_method ,
+.Fn TLSv1_2_client_method
+.Xc
+A connection established with these methods will only
+understand the TLSv1.2 protocol.
+.It Xo
+.Fn DTLSv1_method ,
+.Fn DTLSv1_server_method ,
+.Fn DTLSv1_client_method
+.Xc
+These are the version-specific methods for DTLSv1.
+.It Xo
+.Fn DTLSv1_2_method ,
+.Fn DTLSv1_2_server_method ,
+.Fn DTLSv1_2_client_method
+These are the version-specific methods for DTLSv1.2.
+.Xc
+.El
+.Pp
+In LibreSSL, the methods containing the substrings
+.Dq _server
+or
+.Dq _client
+in their names return the same objects
+as the methods without these substrings.
+.Pp
+The list of protocols available can also be limited using the
+.Dv SSL_OP_NO_TLSv1 ,
+.Dv SSL_OP_NO_TLSv1_1 ,
+and
+.Dv SSL_OP_NO_TLSv1_2
+options of the
+.Xr SSL_CTX_set_options 3
+or
+.Xr SSL_set_options 3
+functions, but this approach is not recommended.
+Clients should avoid creating "holes" in the set of protocols they support.
+When disabling a protocol, make sure that you also disable either
+all previous or all subsequent protocol versions.
+In clients, when a protocol version is disabled without disabling
+all previous protocol versions, the effect is to also disable all
+subsequent protocol versions.
+.Pp
+DTLSv1 and DTLSv1.2 can be disabled with
+.Xr SSL_CTX_set_options 3
+or
+.Xr SSL_set_options 3
+using the
+.Dv SSL_OP_NO_DTLSv1
+and
+.Dv SSL_OP_NO_DTLSv1_2
+options, respectively.
+.Sh RETURN VALUES
+.Fn SSL_CTX_new
+returns a pointer to the newly allocated object or
+.Dv NULL
+on failure.
+Check the error stack to find out the reason for failure.
+.Pp
+.Fn SSL_CTX_up_ref
+returns 1 for success or 0 for failure.
+.Pp
+.Fn TLS_method
+and the other
+.Fn *_method
+functions return pointers to constant static objects.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_accept 3 ,
+.Xr SSL_CTX_free 3 ,
+.Xr SSL_CTX_set_min_proto_version 3 ,
+.Xr SSL_CTX_set_options 3 ,
+.Xr SSL_CTX_set_security_level 3 ,
+.Xr SSL_set_connect_state 3
+.Sh HISTORY
+.Fn SSL_CTX_new
+first appeared in SSLeay 0.5.1.
+.Fn SSLv23_method ,
+.Fn SSLv23_server_method ,
+and
+.Fn SSLv23_client_method
+first appeared in SSLeay 0.8.0.
+.Fn TLSv1_method ,
+.Fn TLSv1_server_method ,
+and
+.Fn TLSv1_client_method
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn DTLSv1_method ,
+.Fn DTLSv1_server_method ,
+and
+.Fn DTLSv1_client_method
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Pp
+.Fn TLSv1_1_method ,
+.Fn TLSv1_1_server_method ,
+.Fn TLSv1_1_client_method ,
+.Fn TLSv1_2_method ,
+.Fn TLSv1_2_server_method ,
+and
+.Fn TLSv1_2_client_method
+first appeared in OpenSSL 1.0.1 and have been available since
+.Ox 5.3 .
+.Pp
+.Fn DTLS_method ,
+.Fn DTLS_server_method ,
+and
+.Fn DTLS_client_method
+first appeared in OpenSSL 1.0.2 and have been available since
+.Ox 6.5 .
+.Pp
+.Fn TLS_method ,
+.Fn TLS_server_method ,
+and
+.Fn TLS_client_method
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 5.8 .
+.Pp
+.Fn SSL_CTX_up_ref
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .
+.Pp
+.Fn DTLSv1_2_method ,
+.Fn DTLSv1_2_server_method ,
+and
+.Fn DTLSv1_2_client_method
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.9 .

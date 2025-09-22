@@ -1,0 +1,168 @@
+#	$OpenBSD: genassym.cf,v 1.49 2025/09/09 08:50:56 hshoexer Exp $
+#	Written by Artur Grabowski art@openbsd.org, Public Domain
+
+include <sys/param.h>
+include <sys/proc.h>
+
+include <uvm/uvm_extern.h>
+
+include <machine/pcb.h>
+include <machine/pmap.h>
+include <machine/pte.h>
+include <machine/vmparam.h>
+include <machine/intr.h>
+include <machine/tss.h>
+
+export	SONPROC
+
+export	L4_SLOT_KERNBASE
+define	L3_SLOT_KERNBASE	pl3_pi(KERNBASE)
+define	L2_SLOT_KERNBASE	pl2_pi(KERNBASE)
+define	L1_SLOT_KERNBASE	pl1_pi(KERNBASE)
+
+export	VM_MAXUSER_ADDRESS
+export	VM_MIN_KERNEL_ADDRESS
+
+struct	proc
+member	p_addr
+member	p_stat
+member	P_MD_REGS	p_md.md_regs
+member	P_MD_FLAGS	p_md.md_flags
+member	P_MD_ASTPENDING	p_md.md_astpending
+member	p_flag
+member	p_cpu
+
+export	P_SYSTEM
+
+export	MDP_IRET
+
+struct	uvmexp		V_
+member	INTR		intrs
+
+struct	trapframe
+member	tf_rdi
+member	tf_rsi
+member	tf_rdx
+member	tf_rcx
+member	tf_r8
+member	tf_r9
+member	tf_r10
+member	tf_r11
+member	tf_r12
+member	tf_r13
+member	tf_r14
+member	tf_r15
+member	tf_rbp
+member	tf_rbx
+member	tf_rax
+member	tf_trapno
+member	tf_err
+member	tf_rip
+member	tf_cs
+member	tf_rflags
+member	tf_rsp
+member	tf_ss
+
+struct	intrframe
+member	if_ppl
+member	if_err
+
+define  FRAMESIZE               sizeof(struct trapframe)
+
+struct iretq_frame
+member	IRETQ_CS	iretq_cs
+member	IRETQ_RIP	iretq_rip
+member	IRETQ_RFLAGS	iretq_rflags
+member	IRETQ_RSP	iretq_rsp
+member	IRETQ_SS	iretq_ss
+
+define	IRETQ_SIZE		sizeof(struct iretq_frame)
+
+struct pcb
+member	pcb_cr3
+member	pcb_rsp
+member	pcb_rbp
+member	pcb_kstack
+member	pcb_fsbase
+member	pcb_onfault
+member	pcb_pmap
+member	pcb_savefpu
+
+struct pmap
+member	pm_pdirpa_intel
+
+struct x86_64_tss
+member	tss_rsp0
+
+struct	cpu_info
+member	CPU_INFO_SCRATCH	ci_scratch
+member  CPU_INFO_SELF		ci_self
+member  CPU_INFO_CPUID		ci_cpuid
+member  CPU_INFO_APICID		ci_apicid
+member  CPU_INFO_RESCHED	ci_want_resched
+member  CPU_INFO_CURPROC	ci_curproc
+member  CPU_INFO_PROC_PMAP	ci_proc_pmap
+member  CPU_INFO_USER_PMAP	ci_user_pmap
+member  CPU_INFO_CURPCB		ci_curpcb
+member  CPU_INFO_IDLE_PCB	ci_idle_pcb
+member	CPU_INFO_ILEVEL		ci_ilevel
+member	CPU_INFO_IDEPTH		ci_idepth
+member	CPU_INFO_ISOURCES	ci_isources
+member	CPU_INFO_IPENDING	ci_ipending
+member	CPU_INFO_IUNMASK	ci_iunmask
+member	CPU_INFO_GDT		ci_gdt
+member	CPU_INFO_TSS		ci_tss
+member	CPU_INFO_PFLAGS		ci_pflags
+member	CPU_INFO_KERN_CR3	ci_kern_cr3
+member	CPU_INFO_USER_CR3	ci_user_cr3
+member	CPU_INFO_KERN_RSP	ci_kern_rsp
+member	CPU_INFO_INTR_RSP	ci_intr_rsp
+member	CPU_INFO_MDS_BUF	ci_mds_buf
+member	CPU_INFO_MDS_TMP	ci_mds_tmp
+
+export	CPUPF_USERSEGS
+export	CPUPF_USERXSTATE
+
+struct	intrsource
+member	is_recurse
+member	is_resume
+member	is_handlers
+member	is_pic
+member	is_pin
+member	is_maxlevel
+
+struct	intrhand
+member	ih_next
+member	ih_level
+member	IH_COUNT	ih_count.ec_count
+
+# pte fields
+export	PG_V
+export	PG_KR
+export	PG_KW
+export	PG_N
+export	PG_NX
+export	PG_G
+export	PG_PS
+
+# PKE value for key1 to be exec-only 
+export	PGK_VALUE
+
+# pmap constants
+export	PDIR_SLOT_PTE
+
+export	NKL4_KIMG_ENTRIES
+export	NKL3_KIMG_ENTRIES
+export	NKL2_KIMG_ENTRIES
+
+export	NDML4_ENTRIES
+export	NDML3_ENTRIES
+export	NDML2_ENTRIES
+
+export	NBPD_L2
+export	NPDPG
+
+export	PDIR_SLOT_DIRECT
+export	PCID_PROC
+export	PCID_PROC_INTEL
+export	INVPCID_PCID

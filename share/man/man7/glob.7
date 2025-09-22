@@ -1,0 +1,149 @@
+.\"	$OpenBSD: glob.7,v 1.8 2023/05/30 14:04:53 aisha Exp $
+.\"
+.\" Copyright (c) 2009 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: May 30 2023 $
+.Dt GLOB 7
+.Os
+.Sh NAME
+.Nm glob
+.Nd shell-style pattern matching
+.Sh DESCRIPTION
+Globbing characters
+.Pq wildcards
+are special characters used to perform pattern matching of pathnames and
+command arguments in the
+.Xr csh 1 ,
+.Xr ksh 1 ,
+and
+.Xr sh 1
+shells as well as
+the C library functions
+.Xr fnmatch 3
+and
+.Xr glob 3 .
+A glob pattern is a word containing one or more unquoted
+.Ql \&?
+or
+.Ql *
+characters, or
+.Dq [..]
+sequences.
+.Pp
+Globs should not be confused with the more powerful
+regular expressions used by programs such as
+.Xr grep 1 .
+While there is some overlap in the special characters used in regular
+expressions and globs, their meaning is different.
+.Pp
+The pattern elements have the following meaning:
+.Bl -tag -width Ds
+.It \&?
+Matches any single character.
+.It \&*
+Matches any sequence of zero or more characters.
+.It [..]
+Matches any of the characters inside the brackets.
+Ranges of characters can be specified by separating two characters by a
+.Ql -
+(e.g.\&
+.Dq [a0-9]
+matches the letter
+.Sq a
+or any digit).
+In order to represent itself, a
+.Ql -
+must either be quoted or the first or last character in the character list.
+Similarly, a
+.Ql \&]
+must be quoted or the first character in the list if it is to represent itself
+instead of the end of the list.
+Also, a
+.Ql \&!
+appearing at the start of the list has special meaning (see below), so to
+represent itself it must be quoted or appear later in the list.
+.Pp
+Within a bracket expression, the name of a
+.Em character class
+enclosed in
+.Sq [:
+and
+.Sq :]
+stands for the list of all characters belonging to that class.
+Supported character classes:
+.Bl -column "xdigit" "xdigit" "xdigit" -offset indent
+.It Li "alnum" Ta Li "cntrl" Ta Li "lower" Ta Li "space"
+.It Li "alpha" Ta Li "digit" Ta Li "print" Ta Li "upper"
+.It Li "blank" Ta Li "graph" Ta Li "punct" Ta Li "xdigit"
+.El
+.Pp
+These match characters using the macros specified in
+.Xr isalnum 3 ,
+.Xr isalpha 3 ,
+and so on.
+A character class may not be used as an endpoint of a range.
+.It [!..]
+Like [..],
+except it matches any character not inside the brackets.
+.It \e
+Matches the character following it verbatim.
+This is useful to quote the special characters
+.Ql \&? ,
+.Ql \&* ,
+.Ql \&[ ,
+and
+.Ql \e
+such that they lose their special meaning.
+For example, the pattern
+.Dq \e\e\e\&*\e[x]\e\&?
+matches the string
+.Dq \e\&*[x]\&? .
+.El
+.Pp
+Note that when matching a pathname, the path separator
+.Ql / ,
+is not matched by a
+.Ql \&? ,
+or
+.Ql * ,
+character or by a
+.Dq [..]
+sequence.
+Thus,
+.Pa /usr/*/*/X11
+would match
+.Pa /usr/X11R6/lib/X11
+and
+.Pa /usr/X11R6/include/X11
+while
+.Pa /usr/*/X11
+would not match either.
+Likewise,
+.Pa /usr/*/bin
+would match
+.Pa /usr/local/bin
+but not
+.Pa /usr/bin .
+.Sh SEE ALSO
+.Xr fnmatch 3 ,
+.Xr glob 3 ,
+.Xr re_format 7
+.Sh HISTORY
+A stand-alone program,
+.Pa /etc/glob ,
+first appeared in
+.At v1 .
+In PWB/UNIX 1.0 this functionality was incorporated into the shell itself.

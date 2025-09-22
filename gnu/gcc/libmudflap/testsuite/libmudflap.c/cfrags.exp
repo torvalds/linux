@@ -1,0 +1,21 @@
+global MUDFLAP_FLAGS
+set MUDFLAP_FLAGS [list {} {-static} {-O2} {-O3}]
+
+libmudflap-init c
+
+dg-init
+
+global srcdir
+foreach flags $MUDFLAP_FLAGS {
+    foreach srcfile [lsort [glob -nocomplain \
+                            ${srcdir}/libmudflap.c/*frag.c \
+                            ${srcdir}/libmudflap.c/heap*.c \
+                            ${srcdir}/libmudflap.c/hook*.c \
+                            ${srcdir}/libmudflap.c/pass*.c]] {
+	set bsrc [file tail $srcfile]
+	setenv MUDFLAP_OPTIONS "-viol-segv"
+	dg-runtest $srcfile $flags "-fmudflap -lmudflap"
+    }
+}
+
+dg-finish

@@ -1,0 +1,169 @@
+.\"	$OpenBSD: boot_sparc64.8,v 1.18 2022/09/05 10:29:28 kn Exp $
+.\"
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)boot_sparc.8	8.2 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: September 5 2022 $
+.Dt BOOT_SPARC64 8 sparc64
+.Os
+.Sh NAME
+.Nm boot_sparc64
+.Nd sparc64 system bootstrapping procedures
+.Sh DESCRIPTION
+.Ss System starts
+When powered on, after a panic, or if the system is rebooted via
+.Xr reboot 8
+or
+.Xr shutdown 8 ,
+the PROM will proceed to its initialization, and will boot an operating
+system if autoboot is enabled.
+.Ss Boot process description
+The sparc64 boot process is split into two parts: a small first-stage bootblock
+that is written into the superblock area of a partition
+.Po
+and hence is limited in size to SBSIZE - DEV_BSIZE bytes
+.Pc ,
+and a second-stage boot program that resides in the filesystem proper.
+The first-stage bootblock is loaded into memory by the PROM.
+After it receives control, it loads the second-stage boot program
+.Sy ofwboot
+from the filesystem.
+The second-stage boot program uses the device driver interface to
+the PROM and the stand-alone filesystem code in
+.Pa libsa.a
+to locate and load the kernel.
+The first-stage bootblock and second-stage boot program can be found in
+.Pa /usr/mdec/bootblk
+and
+.Pa /usr/mdec/ofwboot
+respectively.
+The second-stage boot program commonly resides in the root directory as
+.Pa /ofwboot .
+.Pp
+The boot program attempts to load the kernel from the selected
+boot device, which must currently be an SCSI
+.Pq Pa sd
+or IDE
+.Pq Pa wd
+disk drive, or a CD-ROM
+.Pq Pa cd ,
+or an SCSI tape drive
+.Pq Pa st .
+.Pp
+The UltraSPARC Open Firmware
+will normally look for a bootloader on the device specified by the
+.Va boot-device
+variable.
+The
+.Ox
+bootloader will then look for a kernel named
+.Pa bsd
+by default, unless the
+.Va boot-file
+variable contains a filename, or a different filename has been specified
+in the boot command.
+To reset this variable to its default, empty, value, type the following:
+.Pp
+.D1 Sy ok Li set-default boot-file
+.Pp
+Autoboot is enabled by setting the
+.Va auto-boot?\&
+variable to
+.Dq true ,
+and is the factory default.
+.Ss Boot process options
+The following options are recognized:
+.Pp
+.Bl -tag -width "-XXX" -offset indent -compact
+.It Fl a
+Prompt for the root filesystem and swap devices after the devices have
+been configured.
+.It Fl c
+Enter the
+.Dq User Kernel Configuration
+mode upon startup
+.Pq see Xr boot_config 8 .
+.It Fl d
+Enter the debugger,
+.Xr ddb 4 ,
+as soon as the kernel console has been initialized.
+.It Fl s
+Boot the system single-user.
+The system will be booted multi-user unless this option is specified.
+.El
+.Ss Accessing the PROM during runtime
+If the
+.Xr sysctl 8
+variable
+.Va ddb.console
+is enabled, at any time you can break back to the ROM by pressing the
+.Sq L1
+.Pq also known as the Dq stop key
+and
+.Sq a
+keys at the same time (if the console is a serial port the same is
+achieved by sending a
+.Dq break ) ,
+and entering
+.Ic machine prom
+at the prompt.
+If you do this accidentally you can continue whatever was in progress
+by typing
+.Ic go
+at the PROM prompt, and then
+.Ic cont
+to return to the system.
+.Sh FILES
+.Bl -tag -width /usr/mdec/ofwboot.net -compact
+.It Pa /bsd
+default system kernel
+.It Pa /bsd.rd
+standalone installation kernel, suitable for disaster recovery
+.It Pa /usr/mdec/bootblk
+primary bootstrap for
+.Dq ffs
+file system
+.It Pa /usr/mdec/ofwboot
+secondary bootstrap (usually also installed as
+.Pa /ofwboot )
+.It Pa /usr/mdec/ofwboot.net
+network bootstrap
+.It Pa /usr/mdec/ofwbootfd
+floppy disk bootstrap
+.El
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr softraid 4 ,
+.Xr boot_config 8 ,
+.Xr halt 8 ,
+.Xr init 8 ,
+.Xr installboot 8 ,
+.Xr reboot 8 ,
+.Xr savecore 8 ,
+.Xr shutdown 8

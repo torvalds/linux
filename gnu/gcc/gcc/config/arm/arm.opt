@@ -1,0 +1,155 @@
+; Options for the ARM port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+mabi=
+Target RejectNegative Joined Var(target_abi_name)
+Specify an ABI
+
+mabort-on-noreturn
+Target Report Mask(ABORT_NORETURN)
+Generate a call to abort if a noreturn function returns
+
+mapcs
+Target RejectNegative Mask(APCS_FRAME) MaskExists Undocumented
+
+mapcs-float
+Target Report Mask(APCS_FLOAT)
+Pass FP arguments in FP registers
+
+mapcs-frame
+Target Report Mask(APCS_FRAME)
+Generate APCS conformant stack frames
+
+mapcs-reentrant
+Target Report Mask(APCS_REENT)
+Generate re-entrant, PIC code
+
+mapcs-stack-check
+Target Report Mask(APCS_STACK) Undocumented
+
+march=
+Target RejectNegative Joined
+Specify the name of the target architecture
+
+marm
+Target RejectNegative InverseMask(THUMB) Undocumented
+
+mbig-endian
+Target Report RejectNegative Mask(BIG_END)
+Assume target CPU is configured as big endian
+
+mcallee-super-interworking
+Target Report Mask(CALLEE_INTERWORKING)
+Thumb: Assume non-static functions may be called from ARM code
+
+mcaller-super-interworking
+Target Report Mask(CALLER_INTERWORKING)
+Thumb: Assume function pointers may go to non-Thumb aware code
+
+mcirrus-fix-invalid-insns
+Target Report Mask(CIRRUS_FIX_INVALID_INSNS)
+Cirrus: Place NOPs to avoid invalid instruction combinations
+
+mcpu=
+Target RejectNegative Joined
+Specify the name of the target CPU
+
+mfloat-abi=
+Target RejectNegative Joined Var(target_float_abi_name)
+Specify if floating point hardware should be used
+
+mfp=
+Target RejectNegative Joined Undocumented Var(target_fpe_name)
+
+;; Now ignored.
+mfpe
+Target RejectNegative Mask(FPE) Undocumented
+
+mfpe=
+Target RejectNegative Joined Undocumented Var(target_fpe_name)
+
+mfpu=
+Target RejectNegative Joined Var(target_fpu_name)
+Specify the name of the target floating point hardware/format
+
+mhard-float
+Target RejectNegative
+Alias for -mfloat-abi=hard
+
+mlittle-endian
+Target Report RejectNegative InverseMask(BIG_END)
+Assume target CPU is configured as little endian
+
+mlong-calls
+Target Report Mask(LONG_CALLS)
+Generate call insns as indirect calls, if necessary
+
+mpic-register=
+Target RejectNegative Joined Var(arm_pic_register_string)
+Specify the register to be used for PIC addressing
+
+mpoke-function-name
+Target Report Mask(POKE_FUNCTION_NAME)
+Store function names in object code
+
+msched-prolog
+Target Report Mask(SCHED_PROLOG)
+Permit scheduling of a function's prologue sequence
+
+msingle-pic-base
+Target Report Mask(SINGLE_PIC_BASE)
+Do not load the PIC register in function prologues
+
+msoft-float
+Target RejectNegative
+Alias for -mfloat-abi=soft
+
+mstructure-size-boundary=
+Target RejectNegative Joined Var(structure_size_string)
+Specify the minimum bit alignment of structures
+
+mthumb
+Target Report Mask(THUMB)
+Compile for the Thumb not the ARM
+
+mthumb-interwork
+Target Report Mask(INTERWORK)
+Support calls between Thumb and ARM instruction sets
+
+mtp=
+Target RejectNegative Joined Var(target_thread_switch)
+Specify how to access the thread pointer
+
+mtpcs-frame
+Target Report Mask(TPCS_FRAME)
+Thumb: Generate (non-leaf) stack frames even if not needed
+
+mtpcs-leaf-frame
+Target Report Mask(TPCS_LEAF_FRAME)
+Thumb: Generate (leaf) stack frames even if not needed
+
+mtune=
+Target RejectNegative Joined
+Tune code for the given processor
+
+mwords-little-endian
+Target Report RejectNegative Mask(LITTLE_WORDS)
+Assume big endian bytes, little endian words

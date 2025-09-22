@@ -1,0 +1,37 @@
+.\"	$OpenBSD: plrtc.4,v 1.2 2018/06/18 06:06:52 jmc Exp $
+.\"
+.\" Copyright (c) 2015 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 18 2018 $
+.Dt PLRTC 4
+.Os
+.Sh NAME
+.Nm plrtc
+.Nd ARM PrimeCell PL031 real-time clock
+.Sh SYNOPSIS
+.Cd "plrtc* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the ARM PrimeCell PL031 real-time clock.
+.Rs
+.%T ARM PrimeCell Real Time Clock (PL031) Technical Reference Manual
+.%V ARM DDI 0224
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.8 .

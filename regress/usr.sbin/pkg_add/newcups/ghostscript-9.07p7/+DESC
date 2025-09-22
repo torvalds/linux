@@ -1,0 +1,13 @@
+GNU PostScript interpreter
+Ghostscript is the well-known PostScript interpreter which is
+available for all common and most esoteric platforms and supports
+many different printers, file formats and some displays.
+
+Flavors:
+       a4 - Set page size to A4 by default (instead of letter)
+      gtk - Build with Gtk+ support
+   no_x11 - Build without X support
+
+Maintainer: Matthias Kilian <kili@openbsd.org>
+
+WWW: http://www.cs.wisc.edu/~ghost/

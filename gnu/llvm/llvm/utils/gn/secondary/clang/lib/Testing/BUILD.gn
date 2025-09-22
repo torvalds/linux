@@ -1,0 +1,14 @@
+static_library("Testing") {
+  output_name = "clangTesting"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  testonly = true
+  deps = [
+    "//clang/lib/Basic",
+    "//llvm/lib/Support",
+    "//third-party/unittest:gtest",
+  ]
+  sources = [
+    "CommandLineArgs.cpp",
+    "TestAST.cpp",
+  ]
+}

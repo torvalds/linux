@@ -1,0 +1,144 @@
+.\"	$OpenBSD: mpi.4,v 1.20 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt MPI 4
+.Os
+.Sh NAME
+.Nm mpi
+.Nd LSI Logic Fusion-MPT Message Passing Interface
+.Sh SYNOPSIS
+.Cd "mpi* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for storage controllers using the
+LSI Logic Fusion-MPT Message Passing Interface
+family of chipsets:
+.Pp
+.Bl -dash -offset indent -compact
+.It
+LSI Logic LSI53C1020,
+LSI53C1020A,
+LSI53C1030,
+LSI53C1030T,
+LSI53C1035,
+LSIFC909,
+LSIFC919,
+LSIFC919X,
+LSIFC929,
+LSIFC929X,
+LSIFC949,
+LSIFC949E,
+LSIFC949X,
+LSISAS1064,
+LSISAS1064E,
+LSISAS1068,
+LSISAS1068E
+.El
+.Pp
+These chipsets can be found on the following controllers:
+.Pp
+.Bl -dash -offset indent -compact
+.It
+Apple Fibre Channel PCI Express Card,
+Fibre Channel PCI-X Card
+.It
+Dell PERC 4/im,
+SAS 5/E,
+SAS 5/i,
+SAS 5/iR,
+SAS 6/iR
+.It
+Hewlett-Packard 8 Internal Port SAS Host Bus Adapter with RAID,
+A7173A,
+AB290A,
+EH417AA
+.It
+LSI Logic LSI20320-R,
+LSI21320-IS,
+LSI21320-R,
+LSI22320-R,
+LSI40919H,
+LSI40919LH,
+LSI40919LO,
+LSI40919O,
+LSI40929H,
+LSI40929LH,
+LSI40929LO,
+LSI40929O,
+LSI7102XP,
+LSI7102XP-LC,
+LSI7104EP-LC,
+LSI7104XP-LC,
+LSI7202CP-LC,
+LSI7202EP-LC,
+LSI7202XP,
+LSI7202XP-LC,
+LSI7204EP-LC,
+LSI7204XP-LC,
+LSI7402XP,
+LSI7402XP-LC,
+LSI7404EP-LC,
+LSI7404XP-LC,
+LSISAS3041E-R,
+LSISAS3041X-R,
+LSISAS3080X-R,
+LSISAS3442E-R,
+LSISAS3442X,
+LSISAS3442X-R,
+LSISAS3800X,
+LSISAS3801E,
+LSISAS3801X,
+LSISAS8208ELP,
+LSISAS8208XLP,
+LSIU320
+.El
+.Pp
+The LSI Logic LSI53C1030 is emulated in the following products:
+.Pp
+.Bl -dash -offset indent -compact
+.It
+VMware ESX Server 2.0 and higher,
+GSX Server 3.0 and higher,
+Player,
+Server,
+Workstation 4.5 and higher
+.El
+.Pp
+Some models of these controllers have varying degrees of support for RAID 0
+and RAID 1.
+.Sh SEE ALSO
+.Xr bio 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr bioctl 8 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An David Gwynne Aq Mt dlg@openbsd.org
+and
+.An Marco Peereboom Aq Mt marco@openbsd.org .

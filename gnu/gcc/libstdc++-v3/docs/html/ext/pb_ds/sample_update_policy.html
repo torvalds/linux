@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>sample_update_policy Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>sample_update_policy</tt> Interface</h1>
+
+    <p>A sample list-update policy.</p>
+
+    <p>This class serves to show the interface a list update
+    functor needs to support.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/detail/list_update_policy/sample_update_policy.hpp"><tt>sample_update_policy.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Public Methods</a></h2>
+
+    <h3><a name="link2" id="link2">Constructors, destructor, and
+    related.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  sample_update_policy
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Default constructor.</p>
+
+          <p>Must be default constructable.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  sample_update_policy
+  (<b>const</b> sample_update_policy &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Copy constructor.</p>
+
+          <p>Must be copy constructable.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  swap
+  (sample_update_policy &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Swaps content.</p>
+
+          <p>Must be swappable (if there is such a word).</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link3" id="link3">Protected Types and
+    Constants</a></h2>
+
+    <h3><a name="link4" id="link4">Metadata definitions.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="metadata_type2849297114" id=
+"metadata_type2849297114">metadata_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+Some metadata type.
+</pre>
+        </td>
+
+        <td>
+          <p>Metadata on which this functor operates.</p>
+
+          <p>The <tt><b>class</b></tt> must declare the metadata
+          type on which it operates; the list-update based
+          containers will append to each node an object of this
+          type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link5" id="link5">Protected Methods</a></h2>
+
+    <h3><a name="link6" id="link6">Metadata operations.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#metadata_type2849297114"><tt>metadata_type</tt></a>
+  <b>operator</b>()
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Creates a metadata object.</p>
+
+          <p>A list-update based container object will call this
+          method to create a metadata type when a node is
+          created.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>bool</b> 
+  <b>operator</b>()
+  (metadata_reference r_data) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Decides whether a metadata object should be moved to
+          the front of the list. A list-update based containers
+          object will call this method to decide whether to move a
+          node to the front of the list. The method should return
+          <tt><b>true</b></tt> if the node should be moved to the
+          front of the list.</p>
+
+          <p><tt>metadata_reference</tt> is a reference to a
+          <a href=
+          "#metadata_type2849297114"><tt>metadata_type</tt></a>.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

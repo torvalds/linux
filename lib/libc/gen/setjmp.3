@@ -1,0 +1,211 @@
+.\"	$OpenBSD: setjmp.3,v 1.26 2022/09/11 06:38:10 jmc Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt SETJMP 3
+.Os
+.Sh NAME
+.Nm sigsetjmp ,
+.Nm siglongjmp ,
+.Nm setjmp ,
+.Nm longjmp ,
+.Nm _setjmp ,
+.Nm _longjmp
+.Nd non-local jumps
+.Sh SYNOPSIS
+.In setjmp.h
+.Ft int
+.Fn sigsetjmp "sigjmp_buf env" "int savemask"
+.Ft void
+.Fn siglongjmp "sigjmp_buf env" "int val"
+.Ft int
+.Fn setjmp "jmp_buf env"
+.Ft void
+.Fn longjmp "jmp_buf env" "int val"
+.Ft int
+.Fn _setjmp "jmp_buf env"
+.Ft void
+.Fn _longjmp "jmp_buf env" "int val"
+.Sh DESCRIPTION
+The
+.Fn sigsetjmp ,
+.Fn setjmp ,
+and
+.Fn _setjmp
+functions save their calling environment in
+.Fa env .
+Each of these functions returns 0.
+.Pp
+The corresponding
+.Fn longjmp
+functions restore the environment saved by the most recent
+invocation of the respective
+.Fn setjmp
+function.
+They then return so that program execution continues as if the corresponding
+invocation of the
+.Fn setjmp
+call had just returned the value specified by
+.Fa val ,
+instead of 0.
+The value specified by
+.Fa val
+must be non-zero; a 0 value is treated as 1 to allow the programmer
+to differentiate between a direct invocation of
+.Fn setjmp
+and a return via
+.Fn longjmp .
+.Pp
+Pairs of calls may be intermixed; i.e., both
+.Fn sigsetjmp
+and
+.Fn siglongjmp
+as well as
+.Fn setjmp
+and
+.Fn longjmp
+combinations may be used in the same program.
+However, individual calls may not \(em e.g., the
+.Fa env
+argument to
+.Fn setjmp
+may not be passed to
+.Fn siglongjmp .
+.Pp
+The
+.Fn longjmp
+routines may not be called after the routine which called the
+.Fn setjmp
+routines returns.
+.Pp
+All accessible objects have values as of the time the
+.Fn longjmp
+routine was called, except that the values of objects of automatic storage
+invocation duration that do not have the
+.Vt volatile
+type and have been changed between the
+.Fn setjmp
+invocation and
+.Fn longjmp
+call are indeterminate.
+.Pp
+The
+.Fn setjmp Ns / Ns Fn longjmp
+function pairs save and restore the signal mask while the
+.Fn _setjmp Ns / Ns Fn _longjmp
+function pairs save and restore only the register set and the stack (see
+.Xr sigprocmask 2 ) .
+.Pp
+The
+.Fn sigsetjmp Ns / Ns Fn siglongjmp
+function pairs save and restore the signal mask if the argument
+.Fa savemask
+is non-zero.
+Otherwise, only the register set and the stack are saved.
+.Pp
+In other words,
+.Fn setjmp Ns / Ns Fn longjmp
+are functionally equivalent to
+.Fn sigsetjmp Ns / Ns Fn siglongjmp
+when
+.Fn sigsetjmp
+is called with a non-zero
+.Fa savemask
+argument.
+Conversely,
+.Fn _setjmp Ns / Ns Fn _longjmp
+are functionally equivalent to
+.Fn sigsetjmp Ns / Ns Fn siglongjmp
+when
+.Fn sigsetjmp
+is called with a zero-value
+.Fa savemask .
+.Pp
+The
+.Fn sigsetjmp Ns / Ns Fn siglongjmp
+interfaces are preferred for maximum portability.
+.Sh SEE ALSO
+.Xr sigprocmask 2
+.Sh STANDARDS
+The
+.Fn setjmp
+and
+.Fn longjmp
+functions conform to
+.St -ansiC .
+The
+.Fn sigsetjmp
+and
+.Fn siglongjmp
+functions conform to
+.St -p1003.1-90 .
+.Sh HISTORY
+The
+.Fn setjmp
+and
+.Fn longjmp
+functions first appeared in the Programmer's Workbench (PWB/UNIX).
+.Sh CAVEATS
+Historically, on
+.At V ,
+the
+.Fn setjmp Ns / Ns Fn longjmp
+functions have been equivalent to the
+.Bx
+.Fn _setjmp Ns / Ns Fn _longjmp
+functions and do not restore the signal mask.
+Because of this discrepancy, the
+.Fn sigsetjmp Ns / Ns Fn siglongjmp
+interfaces should be used if portability is desired.
+.Pp
+Use of
+.Fn longjmp
+or
+.Fn siglongjmp
+from inside a signal handler is not as easy as it might seem.
+Generally speaking, all possible code paths between the
+.Fn setjmp
+and
+.Fn longjmp
+must be signal race safe, as discussed in
+.Xr signal 3 .
+Furthermore, the code paths must not do resource management
+(such as
+.Xr open 2
+or
+.Xr close 2 )
+without blocking the signal in question, or resources might
+be mismanaged.
+Obviously this makes
+.Fn longjmp
+much less useful than previously thought.

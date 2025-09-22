@@ -1,0 +1,120 @@
+Ok, here are my comments and suggestions about the LLVM instruction set.
+We should discuss some now, but can discuss many of them later, when we
+revisit synchronization, type inference, and other issues.
+(We have discussed some of the comments already.)
+
+
+o  We should consider eliminating the type annotation in cases where it is
+   essentially obvious from the instruction type, e.g., in br, it is obvious
+   that the first arg. should be a bool and the other args should be labels:
+
+	br bool <cond>, label <iftrue>, label <iffalse>
+
+   I think your point was that making all types explicit improves clarity
+   and readability.  I agree to some extent, but it also comes at the cost
+   of verbosity.  And when the types are obvious from people's experience
+   (e.g., in the br instruction), it doesn't seem to help as much.
+
+
+o  On reflection, I really like your idea of having the two different switch
+   types (even though they encode implementation techniques rather than
+   semantics).  It should simplify building the CFG and my guess is it could
+   enable some significant optimizations, though we should think about which.
+
+
+o  In the lookup-indirect form of the switch, is there a reason not to make
+   the val-type uint?  Most HLL switch statements (including Java and C++)
+   require that anyway.  And it would also make the val-type uniform 
+   in the two forms of the switch.
+
+   I did see the switch-on-bool examples and, while cute, we can just use
+   the branch instructions in that particular case.
+
+
+o  I agree with your comment that we don't need 'neg'.
+
+
+o  There's a trade-off with the cast instruction:
+   +  it avoids having to define all the upcasts and downcasts that are
+      valid for the operands of each instruction  (you probably have thought
+      of other benefits also)
+   -  it could make the bytecode significantly larger because there could
+      be a lot of cast operations
+
+
+o  Making the second arg. to 'shl' a ubyte seems good enough to me.
+   255 positions seems adequate for several generations of machines
+   and is more compact than uint.
+
+
+o  I still have some major concerns about including malloc and free in the
+   language (either as builtin functions or instructions).  LLVM must be
+   able to represent code from many different languages.  Languages such as
+   C, C++ Java and Fortran 90 would not be able to use our malloc anyway
+   because each of them will want to provide a library implementation of it.
+
+   This gets even worse when code from different languages is linked
+   into a single executable (which is fairly common in large apps).
+   Having a single malloc would just not suffice, and instead would simply
+   complicate the picture further because it adds an extra variant in
+   addition to the one each language provides.
+
+   Instead, providing a default library version of malloc and free
+   (and perhaps a malloc_gc with garbage collection instead of free)
+   would make a good implementation available to anyone who wants it.
+
+   I don't recall all your arguments in favor so let's discuss this again,
+   and soon.
+
+
+o  'alloca' on the other hand sounds like a good idea, and the
+   implementation seems fairly language-independent so it doesn't have the
+   problems with malloc listed above.
+
+
+o  About indirect call:
+   Your option #2 sounded good to me.  I'm not sure I understand your
+   concern about an explicit 'icall' instruction?
+
+
+o  A pair of important synchronization instr'ns to think about:
+     load-linked
+     store-conditional
+
+
+o  Other classes of instructions that are valuable for pipeline performance:
+     conditional-move		 
+     predicated instructions
+
+
+o  I believe tail calls are relatively easy to identify; do you know why
+   .NET has a tailcall instruction?
+
+
+o  I agree that we need a static data space.  Otherwise, emulating global
+   data gets unnecessarily complex.
+
+
+o  About explicit parallelism:
+
+   We once talked about adding a symbolic thread-id field to each
+   instruction.  (It could be optional so single-threaded codes are
+   not penalized.)  This could map well to multi-threaded architectures
+   while providing easy ILP for single-threaded onces.  But it is probably
+   too radical an idea to include in a base version of LLVM.  Instead, it
+   could a great topic for a separate study.
+
+   What is the semantics of the IA64 stop bit?
+
+
+
+
+o  And finally, another thought about the syntax for arrays :-)
+
+   Although this syntax:
+	  array <dimension-list> of <type>
+   is verbose, it will be used only in the human-readable assembly code so
+   size should not matter.  I think we should consider it because I find it
+   to be the clearest syntax.  It could even make arrays of function
+   pointers somewhat readable.
+

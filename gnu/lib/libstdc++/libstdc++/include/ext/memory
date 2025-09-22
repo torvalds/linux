@@ -1,0 +1,170 @@
+// Memory extensions -*- C++ -*-
+
+// Copyright (C) 2002 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+/*
+ *
+ * Copyright (c) 1994
+ * Hewlett-Packard Company
+ *
+ * Permission to use, copy, modify, distribute and sell this software
+ * and its documentation for any purpose is hereby granted without fee,
+ * provided that the above copyright notice appear in all copies and
+ * that both that copyright notice and this permission notice appear
+ * in supporting documentation.  Hewlett-Packard Company makes no
+ * representations about the suitability of this software for any
+ * purpose.  It is provided "as is" without express or implied warranty.
+ *
+ *
+ * Copyright (c) 1996
+ * Silicon Graphics Computer Systems, Inc.
+ *
+ * Permission to use, copy, modify, distribute and sell this software
+ * and its documentation for any purpose is hereby granted without fee,
+ * provided that the above copyright notice appear in all copies and
+ * that both that copyright notice and this permission notice appear
+ * in supporting documentation.  Silicon Graphics makes no
+ * representations about the suitability of this software for any
+ * purpose.  It is provided "as is" without express or implied warranty.
+ */
+
+/** @file ext/memory
+ *  This file is a GNU extension to the Standard C++ Library (possibly
+ *  containing extensions from the HP/SGI STL subset).  You should only
+ *  include this header if you are using GCC 3 or later.
+ */
+
+#ifndef _EXT_MEMORY
+#define _EXT_MEMORY
+
+#pragma GCC system_header
+#include <memory>
+#include <bits/stl_tempbuf.h>
+
+namespace __gnu_cxx
+{
+  using std::ptrdiff_t;
+  using std::pair;
+  using std::__iterator_category;
+  using std::_Temporary_buffer;
+  
+
+  template<typename _InputIter, typename _Size, typename _ForwardIter>
+    pair<_InputIter, _ForwardIter>
+    __uninitialized_copy_n(_InputIter __first, _Size __count,
+			   _ForwardIter __result,
+			   std::input_iterator_tag)
+    {
+      _ForwardIter __cur = __result;
+      try {
+	for ( ; __count > 0 ; --__count, ++__first, ++__cur) 
+	  std::_Construct(&*__cur, *__first);
+	return pair<_InputIter, _ForwardIter>(__first, __cur);
+      }
+      catch(...)
+	{
+	  std::_Destroy(__result, __cur);
+	  __throw_exception_again; 
+	}
+    }
+
+  template<typename _RandomAccessIter, typename _Size, typename _ForwardIter>
+    inline pair<_RandomAccessIter, _ForwardIter>
+    __uninitialized_copy_n(_RandomAccessIter __first, _Size __count,
+			   _ForwardIter __result,
+			   std::random_access_iterator_tag)
+    {
+      _RandomAccessIter __last = __first + __count;
+      return pair<_RandomAccessIter, _ForwardIter>(
+		     __last,
+		     std::uninitialized_copy(__first, __last, __result));
+    }
+
+  template<typename _InputIter, typename _Size, typename _ForwardIter>
+    inline pair<_InputIter, _ForwardIter>
+    __uninitialized_copy_n(_InputIter __first, _Size __count,
+			 _ForwardIter __result) {
+      return __uninitialized_copy_n(__first, __count, __result,
+				    __iterator_category(__first));
+    }
+
+  /**
+   *  @brief Copies the range [first,last) into result.
+   *  @param  first  An input iterator.
+   *  @param  last   An input iterator.
+   *  @param  result An output iterator.
+   *  @return   result + (first - last)
+   *  @ingroup SGIextensions
+   *
+   *  Like copy(), but does not require an initialized output range.
+  */
+  template<typename _InputIter, typename _Size, typename _ForwardIter>
+    inline pair<_InputIter, _ForwardIter>
+    uninitialized_copy_n(_InputIter __first, _Size __count,
+			 _ForwardIter __result) {
+      return __uninitialized_copy_n(__first, __count, __result,
+				    __iterator_category(__first));
+    }
+
+
+  /**
+   *  This class provides similar behavior and semantics of the standard
+   *  functions get_temporary_buffer() and return_temporary_buffer(), but
+   *  encapsulated in a type vaguely resembling a standard container.
+   *
+   *  By default, a temporary_buffer<Iter> stores space for objects of
+   *  whatever type the Iter iterator points to.  It is constructed from a
+   *  typical [first,last) range, and provides the begin(), end(), size()
+   *  functions, as well as requested_size().  For non-trivial types, copies
+   *  of *first will be used to initialize the storage.
+   *
+   *  @c malloc is used to obtain underlying storage.
+   *
+   *  Like get_temporary_buffer(), not all the requested memory may be
+   *  available.  Ideally, the created buffer will be large enough to hold a
+   *  copy of [first,last), but if size() is less than requested_size(),
+   *  then this didn't happen.
+   *
+   *  @ingroup SGIextensions
+  */
+  template <class _ForwardIterator, 
+	    class _Tp 
+	      = typename std::iterator_traits<_ForwardIterator>::value_type >
+  struct temporary_buffer : public _Temporary_buffer<_ForwardIterator, _Tp>
+  {
+    /// Requests storage large enough to hold a copy of [first,last).
+    temporary_buffer(_ForwardIterator __first, _ForwardIterator __last)
+      : _Temporary_buffer<_ForwardIterator, _Tp>(__first, __last) {}
+    /// Destroys objects and frees storage.
+    ~temporary_buffer() {}
+  };
+
+} // namespace __gnu_cxx
+
+#endif /* _EXT_MEMORY */
+

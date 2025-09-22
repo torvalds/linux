@@ -1,0 +1,73 @@
+#  Copyright (C) 2005 Free Software Foundation, Inc.
+#
+#   This file is part of GCC.
+#
+#   GCC is free software; you can redistribute it and/or modify it
+#   under the terms of the GNU General Public License as published
+#   by the Free Software Foundation; either version 2, or (at your
+#   option) any later version.
+#
+#   GCC is distributed in the hope that it will be useful, but WITHOUT
+#   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+#   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+#   License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with GCC; see the file COPYING.  If not, write to the Free
+#   Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+#   02110-1301, USA.
+
+# Name of assembly file containing libgcc1 functions.
+# This entry must be present, but it can be empty if the target does
+# not need any assembler functions to support its code generation.
+CROSS_LIBGCC1 =
+#
+# Alternatively if assembler functions *are* needed then define the
+# entries below:
+# CROSS_LIBGCC1 = libgcc1-asm.a
+# LIB1ASMSRC    = mt/lib1funcs.asm
+# LIB1ASMFUNCS  = _udivsi3 etc...
+
+LIB2FUNCS_EXTRA = $(srcdir)/config/mt/lib2extra-funcs.c
+
+# If any special flags are necessary when building libgcc2 put them here.
+#
+# TARGET_LIBGCC2_CFLAGS = 
+
+EXTRA_PARTS = crtbegin.o crtend.o crti.o crtn.o
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+# Assemble startup files.
+$(T)crti.o: $(srcdir)/config/mt/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	  -c -o $(T)crti.o -x assembler $(srcdir)/config/mt/crti.asm
+ 
+$(T)crtn.o: $(srcdir)/config/mt/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	  -c -o $(T)crtn.o -x assembler $(srcdir)/config/mt/crtn.asm
+
+# Enable the following if multilibs are needed.
+# See gcc/genmultilib, gcc/gcc.texi and gcc/tm.texi for a
+# description of the options and their values.
+#
+MULTILIB_OPTIONS    = march=ms1-64-001/march=ms1-16-002/march=ms1-16-003/march=ms2
+MULTILIB_DIRNAMES   = ms1-64-001 ms1-16-002 ms1-16-003 ms2
+# MULTILIB_MATCHES    =
+# MULTILIB_EXCEPTIONS =
+# MULTILIB_EXTRA_OPTS =
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o crti.o crtn.o
+#
+# LIBGCC = stmp-multilib
+# INSTALL_LIBGCC = install-multilib
+

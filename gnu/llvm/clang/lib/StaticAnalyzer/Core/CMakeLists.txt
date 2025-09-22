@@ -1,0 +1,70 @@
+set(LLVM_LINK_COMPONENTS
+  FrontendOpenMP
+  Support
+)
+
+add_clang_library(clangStaticAnalyzerCore
+  APSIntType.cpp
+  AnalysisManager.cpp
+  AnalyzerOptions.cpp
+  BasicValueFactory.cpp
+  BlockCounter.cpp
+  BugReporter.cpp
+  BugReporterVisitors.cpp
+  BugSuppression.cpp
+  CallDescription.cpp
+  CallEvent.cpp
+  Checker.cpp
+  CheckerContext.cpp
+  CheckerHelpers.cpp
+  CheckerManager.cpp
+  CheckerRegistryData.cpp
+  CommonBugCategories.cpp
+  ConstraintManager.cpp
+  CoreEngine.cpp
+  DynamicExtent.cpp
+  DynamicType.cpp
+  Environment.cpp
+  ExplodedGraph.cpp
+  ExprEngine.cpp
+  ExprEngineC.cpp
+  ExprEngineCXX.cpp
+  ExprEngineCallAndReturn.cpp
+  ExprEngineObjC.cpp
+  FunctionSummary.cpp
+  HTMLDiagnostics.cpp
+  LoopUnrolling.cpp
+  LoopWidening.cpp
+  MemRegion.cpp
+  PlistDiagnostics.cpp
+  ProgramState.cpp
+  RangeConstraintManager.cpp
+  RangedConstraintManager.cpp
+  RegionStore.cpp
+  SarifDiagnostics.cpp
+  SimpleConstraintManager.cpp
+  SimpleSValBuilder.cpp
+  SMTConstraintManager.cpp
+  Store.cpp
+  SValBuilder.cpp
+  SVals.cpp
+  SymbolManager.cpp
+  TextDiagnostics.cpp
+  WorkList.cpp
+  Z3CrosscheckVisitor.cpp
+
+  LINK_LIBS
+  clangAST
+  clangASTMatchers
+  clangAnalysis
+  clangBasic
+  clangCrossTU
+  clangFrontend
+  clangLex
+  clangRewrite
+  clangToolingCore
+
+  DEPENDS
+  omp_gen
+  )
+

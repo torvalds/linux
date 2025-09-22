@@ -1,0 +1,222 @@
+.\"	$OpenBSD: rl.4,v 1.37 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 1997, 1998
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$FreeBSD: rl.4,v 1.7 1998/12/24 18:52:47 wpaul Exp $
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt RL 4
+.Os
+.Sh NAME
+.Nm rl
+.Nd Realtek 8129/8139 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "rl* at pci?"
+.Cd "rl* at cardbus?"
+.Cd "rlphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Ethernet adapters and embedded
+controllers based on the Realtek 8129 and 8139 Fast Ethernet controller
+chips.
+This includes, among others, the following cards:
+.Pp
+.Bl -item -offset indent -compact
+.It
+Accton MPX5030 CardBus
+.It
+Allied Telesyn AT2550
+.It
+Corega FEther CB-TXD 10/100 Ethernet
+.It
+D-Link DFE-520TX C1, DFE-530TX+, DFE-538TX, DFE-690TXD
+.It
+Encore ENL832-TX-RENT 10/100 M PCI
+.It
+Genius GF100TXR
+.It
+KTX-9130TX 10/100 Fast Ethernet
+.It
+Longshine LCS-8038TX-R
+.It
+NDC Communications NE100TX-E
+.It
+Netgear FA311 v2
+.It
+Netronix Inc. EA-1210 NetEther 10/100
+.It
+Nortel BayStack 21
+.It
+OvisLink LEF-8129TX, LEF-8139TX
+.It
+SMC EZ Card 10/100 PCI 1211-TX
+.It
+TRENDnet TE100-PCBUSR CardBus
+.El
+.Pp
+The Realtek controllers use bus master DMA but do not use a
+descriptor-based data transfer mechanism.
+The receiver uses a single fixed size ring buffer from which packets must be
+copied into mbufs.
+For transmission, there are only four outbound packet
+address registers which require all outgoing packets to be stored
+as contiguous buffers.
+Furthermore, outbound packet buffers must be longword aligned or else
+transmission will fail.
+.Pp
+The 8129 differs from the 8139 in that the 8139 has an internal
+PHY which is controlled through special direct access registers
+whereas the 8129 uses an external PHY via an MII bus.
+The 8139 supports both 10 and 100Mbps speeds in either full or half duplex.
+The 8129 can support the same speeds and modes given an appropriate
+PHY chip.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width full-duplex
+.It autoselect
+Enable autoselection of the media type and options.
+This is only supported if the PHY chip attached to the Realtek controller
+supports NWAY autonegotiation.
+The user can manually override the autoselected mode by adding media options
+to the appropriate
+.Xr hostname.if 5
+file.
+.It 10baseT
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It full-duplex
+Force full duplex operation.
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+Note that the 100baseTX media type is only available if supported
+by the adapter.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "rl0: couldn't map memory"
+A fatal initialization error has occurred.
+.It "rl0: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "rl0: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "rl0: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.It "rl0: no memory for tx list"
+The driver failed to allocate an mbuf for the transmitter ring when
+allocating a pad buffer or collapsing an mbuf chain into a cluster.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr rlphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%B The Realtek 8129 and 8139 datasheets
+.%O ftp.realtek.com.tw:/lancard/data sheet
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Ox
+support first appeared in
+.Ox 2.5 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .
+.Sh BUGS
+Since outbound packets must be longword aligned, the transmit
+routine has to copy an unaligned packet into an mbuf cluster buffer
+before transmission.
+The driver abuses the fact that the cluster buffer
+pool is allocated at system startup time in a contiguous region starting
+at a page boundary.
+Since cluster buffers are 2048 bytes, they are
+longword aligned by definition.
+The driver probably should not be
+depending on this characteristic.
+.Pp
+The Realtek data sheets are of especially poor quality: the grammar
+and spelling are awful and there is a lot of information missing,
+particularly concerning the receiver operation.
+One particularly important fact that the data sheets fail to mention
+relates to the way in which the chip fills in the receive buffer.
+When an interrupt is posted to signal that a frame has been received,
+it is possible that another frame might be in the process of being
+copied into the receive buffer while the driver is busy handling
+the first one.
+If the driver
+manages to finish processing the first frame before the chip is done
+DMAing the rest of the next frame, the driver may attempt to process
+the next frame in the buffer before the chip has had a chance to finish
+DMAing all of it.
+.Pp
+The driver can check for an incomplete frame by inspecting the frame
+length in the header preceding the actual packet data: an incomplete
+frame will have the magic length of 0xFFF0.
+When the driver encounters this value, it knows that it has finished
+processing all currently available packets.
+Neither this magic value nor its significance are
+documented anywhere in the Realtek data sheets.

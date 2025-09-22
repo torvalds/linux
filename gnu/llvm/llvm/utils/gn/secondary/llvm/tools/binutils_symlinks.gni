@@ -1,0 +1,5 @@
+declare_args() {
+  # If set, creates symlinks for nm, objdump, readelf in the build
+  # directory.
+  llvm_install_binutils_symlinks = false
+}

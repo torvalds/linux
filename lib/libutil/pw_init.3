@@ -1,0 +1,219 @@
+.\"	$OpenBSD: pw_init.3,v 1.16 2025/06/06 22:01:40 schwarze Exp $
+.\"
+.\" Copyright (c) 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software developed by the Computer Systems
+.\" Engineering group at Lawrence Berkeley Laboratory under DARPA contract
+.\" BG 91-66 and contributed to Berkeley.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt PW_INIT 3
+.Os
+.Sh NAME
+.Nm pw_init ,
+.Nm pw_setdir ,
+.Nm pw_file ,
+.Nm pw_edit ,
+.Nm pw_prompt ,
+.Nm pw_copy ,
+.Nm pw_scan ,
+.Nm pw_error
+.Nd utility functions for interactive passwd file updates
+.Sh SYNOPSIS
+.Lb libutil
+.In pwd.h
+.In util.h
+.Ft void
+.Fn pw_init void
+.Ft void
+.Fn pw_setdir "const char *directory"
+.Ft char *
+.Fn pw_file "const char *filename"
+.Ft void
+.Fn pw_edit "int notsetuid" "const char *filename"
+.Ft void
+.Fn pw_prompt void
+.Ft void
+.Fn pw_copy "int ffd" "int tfd" "const struct passwd *pw" "const struct passwd *opw"
+.Ft int
+.Fn pw_scan "char *bp" "struct passwd *pw" "int *flags"
+.Ft void
+.Fn pw_error "const char *name" "int err" "int eval"
+.Sh DESCRIPTION
+These functions are designed as conveniences for interactive programs
+which update the passwd file and do nothing else.
+They generally
+handle errors by printing out a message to the standard error stream
+and possibly aborting the process.
+.Pp
+The
+.Fn pw_init
+function prepares for a passwd update by unlimiting all resource
+constraints, disabling core dumps (thus preventing dumping the
+contents of the passwd database into a world-readable file), and
+disabling most signals.
+.Pp
+The
+.Fn pw_setdir
+function sets an alternative directory where the rest of the functions look
+for password-related files.
+Use this if you are writing utilities that should
+be able to handle password files outside of
+.Pa /etc .
+.Pp
+The
+.Fn pw_file
+function transforms filenames so that they end up in the directory specified
+to the latest
+.Fn pw_setdir
+call.
+The rule is that all directories are stripped of the given name and
+only the filename is appended to the directory.
+.Pp
+The
+.Fn pw_edit
+function runs an editor (named by the environment variable EDITOR, or
+.Pa /usr/bin/vi
+if EDITOR is not set) on the file
+.Fa filename
+(or
+.Pa /etc/ptmp
+if
+.Fa filename
+is NULL).
+If
+.Fa notsetuid
+is nonzero,
+.Fn pw_edit
+will set the effective user and group ID to the real user and group ID
+before running the editor.
+.Pp
+The
+.Fn pw_prompt
+function asks the user whether they want to re-edit the password
+file; if the answer is no,
+.Fn pw_prompt
+deletes the lock file and exits the process.
+.Pp
+The
+.Fn pw_copy
+function reads a passwd file from
+.Fa ffd
+and writes it to
+.Fa tfd ,
+updating the entry corresponding to pw-\*(Gtpw_name
+with the information in
+.Fa pw .
+If
+.Fa opw
+is not NULL, opw-\*(Gtpw_name will be used for matching instead.
+Additionally, if the existing entry does not match
+.Fa opw ,
+the operation is aborted.
+The use of
+.Fa opw
+allows the caller to change the user name in an entry as well as
+guarantee that the entry being replaced has not changed in the
+meantime.
+.Pp
+The
+.Fn pw_scan
+function accepts in
+.Fa bp
+a passwd entry as it would be represented in
+.Pa /etc/master.passwd
+and fills in
+.Fa pw
+with corresponding values; string fields in
+.Fa pw
+will be pointers into
+.Fa bp .
+Some characters in
+.Fa bp
+will be overwritten with 0s in order to terminate the strings pointed
+to by
+.Fa pw .
+If
+.Fa flags
+is non-null, it is filled in with the following flags:
+.Bl -tag -width _PASSWORD_NOGIDxxx
+.It Dv _PASSWORD_NOUID
+The uid field of
+.Fa bp
+is empty.
+.It Dv _PASSWORD_NOGID
+The gid field of
+.Fa bp
+is empty.
+.It Dv _PASSWD_NOCHG
+The change field of
+.Fa bp
+is empty.
+.It Dv _PASSWD_NOEXP
+The expire field of
+.Fa bp
+is empty.
+.El
+.Pp
+The
+.Fn pw_error
+function displays an error message, aborts the current passwd update,
+and exits the current process.
+If
+.Fa err
+is non-zero, a warning message beginning with
+.Fa name
+is printed for the current value of
+.Va errno .
+The process exits with status
+.Fa eval .
+.Sh RETURN VALUES
+The
+.Fn pw_scan
+function prints a warning message and returns 0 if the string in the
+.Fa bp
+argument is not a valid passwd string.
+Otherwise,
+.Fn pw_scan
+returns 1.
+.Sh FILES
+.Bl -tag -width "/etc/master.passwdXXX" -compact
+.It Pa /etc/master.passwd
+Current password file.
+.It Pa /etc/passwd
+Legacy password file.
+.It Pa /etc/ptmp
+Password lock file.
+.It Pa /etc/pwd.db
+Insecure password database file.
+.It Pa /etc/spwd.db
+Secure password database file.
+.El
+.Sh SEE ALSO
+.Xr pw_lock 3 ,
+.Xr passwd 5

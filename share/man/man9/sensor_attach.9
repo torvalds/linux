@@ -1,0 +1,157 @@
+.\"	$OpenBSD: sensor_attach.9,v 1.13 2015/09/14 15:14:55 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 Michael Knudsen <mk@openbsd.org>
+.\" Copyright (c) 2006 Constantine A. Murenin <cnst+openbsd@bugmail.mojo.ru>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL  DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 14 2015 $
+.Dt SENSOR_ATTACH 9
+.Os
+.Sh NAME
+.Nm sensor_attach ,
+.Nm sensor_detach ,
+.Nm sensor_find ,
+.Nm sensordev_install ,
+.Nm sensordev_deinstall ,
+.Nm sensordev_get ,
+.Nm sensor_task_register ,
+.Nm sensor_task_unregister
+.Nd sensors framework
+.Sh SYNOPSIS
+.In sys/sensors.h
+.Ft void
+.Fn sensordev_install "struct ksensordev *sensdev"
+.Ft void
+.Fn sensordev_deinstall "struct ksensordev *sensdev"
+.Ft struct ksensordev *
+.Fn sensordev_get "int devnum"
+.Pp
+.Ft void
+.Fn sensor_attach "struct ksensordev *sensdev" "struct ksensor *sens"
+.Ft void
+.Fn sensor_detach "struct ksensordev *sensdev" "struct ksensor *sens"
+.Ft struct ksensor *
+.Fn sensor_find "int devnum" "enum sensor_type stype" "int numt"
+.Pp
+.Ft struct sensor_task *
+.Fn sensor_task_register "void *arg" "void (*func)(void *)" "int period"
+.Ft void
+.Fn sensor_task_unregister "struct sensor_task *st"
+.Sh DESCRIPTION
+The
+sensors
+framework API provides a mechanism for manipulation of hardware sensors
+that are available under the
+.Va hw.sensors
+.Xr sysctl 8
+tree.
+.Pp
+.Fn sensor_attach
+adds the sensor specified by the
+.Fa sens
+argument to the sensor device specified by the
+.Fa sensdev
+argument.
+.Fn sensor_detach
+can be used to remove sensors previously added by
+.Fn sensor_attach .
+.Pp
+.Fn sensordev_install
+registers the sensor device specified by the
+.Fa sensdev
+argument so that all sensors that are attached to the device become
+accessible via the sysctl interface.
+.Fn sensordev_deinstall
+can be used to remove sensor devices previously registered by
+.Fn sensordev_install .
+.Pp
+.Fn sensordev_get
+takes ordinal number
+.Fa devnum
+specifying a sensor device and
+returns a pointer to the corresponding
+.Vt struct ksensordev ,
+or
+.Dv NULL
+if no such sensor device exists.
+.Pp
+.Fn sensor_find
+takes ordinal number
+.Fa devnum
+specifying a sensor device, sensor type
+.Fa stype
+and ordinal number of sensor of such type
+.Fa numt ,
+and returns a pointer to the corresponding
+.Vt struct ksensor ,
+or
+.Dv NULL
+if no such sensor exists.
+.Fn sensor_find
+will always return
+.Dv NULL
+if the corresponding sensor devices are not registered by
+.Fn sensordev_install .
+.Pp
+Drivers are responsible for retrieving, interpreting, and normalising
+sensor values and updating the sensor struct periodically.
+If the driver needs process context, for example to sleep, it can
+register a task with the sensor framework.
+.Pp
+.Fn sensor_task_register
+is used to register a periodic task to update sensors.
+The
+.Fa func
+argument is a pointer to the function to run with an interval of
+.Fa period
+seconds.
+The
+.Fa arg
+parameter is the argument given to the
+.Fa func
+function.
+.Fn sensor_task_unregister
+ensures that the task specified by the
+.Fa st
+argument is no longer running, and then removes it from the queue.
+.Pp
+All the functions in the sensor framework must be called during
+.Xr autoconf 9
+or from a process context.
+Additionally,
+.Fn sensor_task_unregister
+must not be called from the sensor task that it is about to remove.
+.Sh SEE ALSO
+.Xr sysctl 8 ,
+.Xr autoconf 9
+.Sh HISTORY
+The sensor framework was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org
+and first appeared in
+.Ox 3.4 .
+.An David Gwynne Aq Mt dlg@openbsd.org
+later extended it for
+.Ox 3.8 .
+.An Constantine A. Murenin Aq Mt cnst+openbsd@bugmail.mojo.ru
+extended it even further by introducing the concept of sensor devices in
+.Ox 4.1 .

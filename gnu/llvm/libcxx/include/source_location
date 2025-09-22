@@ -1,0 +1,85 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_SOURCE_LOCATION
+#define _LIBCPP_SOURCE_LOCATION
+
+/* source_location synopsis
+
+namespace std {
+  struct source_location {
+    static consteval source_location current() noexcept;
+    constexpr source_location() noexcept;
+
+    constexpr uint_least32_t line() const noexcept;
+    constexpr uint_least32_t column() const noexcept;
+    constexpr const char* file_name() const noexcept;
+    constexpr const char* function_name() const noexcept;
+  };
+}
+*/
+
+#include <__config>
+#include <cstdint>
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#if _LIBCPP_STD_VER >= 20
+
+class source_location {
+  // The names source_location::__impl, _M_file_name, _M_function_name, _M_line, and _M_column
+  // are hard-coded in the compiler and must not be changed here.
+  struct __impl {
+    const char* _M_file_name;
+    const char* _M_function_name;
+    unsigned _M_line;
+    unsigned _M_column;
+  };
+  const __impl* __ptr_ = nullptr;
+  // GCC returns the type 'const void*' from the builtin, while clang returns
+  // `const __impl*`. Per C++ [expr.const], casts from void* are not permitted
+  // in constant evaluation, so we don't want to use `void*` as the argument
+  // type unless the builtin returned that, anyhow, and the invalid cast is
+  // unavoidable.
+  using __bsl_ty = decltype(__builtin_source_location());
+
+public:
+  // The defaulted __ptr argument is necessary so that the builtin is evaluated
+  // in the context of the caller. An explicit value should never be provided.
+  static consteval source_location current(__bsl_ty __ptr = __builtin_source_location()) noexcept {
+    source_location __sl;
+    __sl.__ptr_ = static_cast<const __impl*>(__ptr);
+    return __sl;
+  }
+  _LIBCPP_HIDE_FROM_ABI constexpr source_location() noexcept = default;
+
+  _LIBCPP_HIDE_FROM_ABI constexpr uint_least32_t line() const noexcept {
+    return __ptr_ != nullptr ? __ptr_->_M_line : 0;
+  }
+  _LIBCPP_HIDE_FROM_ABI constexpr uint_least32_t column() const noexcept {
+    return __ptr_ != nullptr ? __ptr_->_M_column : 0;
+  }
+  _LIBCPP_HIDE_FROM_ABI constexpr const char* file_name() const noexcept {
+    return __ptr_ != nullptr ? __ptr_->_M_file_name : "";
+  }
+  _LIBCPP_HIDE_FROM_ABI constexpr const char* function_name() const noexcept {
+    return __ptr_ != nullptr ? __ptr_->_M_function_name : "";
+  }
+};
+
+#endif // _LIBCPP_STD_VER >= 20
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_SOURCE_LOCATION

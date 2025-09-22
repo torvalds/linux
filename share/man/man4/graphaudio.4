@@ -1,0 +1,49 @@
+.\"	$OpenBSD: graphaudio.4,v 1.2 2021/04/08 11:52:27 jmc Exp $
+.\"
+.\" Copyright (c) 2020 Patrick Wildt <patrick@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 8 2021 $
+.Dt GRAPHAUDIO 4
+.Os
+.Sh NAME
+.Nm graphaudio
+.Nd audio graph card
+.Sh SYNOPSIS
+.Cd "graphaudio* at fdt?"
+.Cd "audio* at graphaudio?"
+.Sh DESCRIPTION
+.Nm
+is a generic driver for audio cards.
+It represents the logical connection of audio components like I2S
+controllers and codecs.
+.Sh SEE ALSO
+.Xr audio 4 ,
+.Xr intro 4 ,
+.Xr simpleaudio 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org
+based on the
+.Xr simpleaudio 4
+driver by
+.An Patrick Wildt Aq Mt patrick@blueri.se .

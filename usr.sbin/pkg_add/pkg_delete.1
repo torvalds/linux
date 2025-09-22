@@ -1,0 +1,210 @@
+.\"	$OpenBSD: pkg_delete.1,v 1.60 2025/05/22 01:40:21 kn Exp $
+.\"
+.\" Documentation and design originally from FreeBSD. All the code has
+.\" been rewritten since. We keep the documentation's notice:
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" Jordan K. Hubbard
+.\"
+.\"
+.Dd $Mdocdate: May 22 2025 $
+.Dt PKG_DELETE 1
+.Os
+.Sh NAME
+.Nm pkg_delete
+.Nd delete software package distributions
+.Sh SYNOPSIS
+.Nm pkg_delete
+.Op Fl acIimnqsVvXx
+.Op Fl B Ar pkg-destdir
+.Op Fl D Ar name Ns Op = Ns Ar value
+.Op Ar pkg-name ...
+.Sh DESCRIPTION
+The
+.Nm
+command is used to delete packages that have been previously installed
+with the
+.Xr pkg_add 1
+command.
+.Pp
+Package names may be specified either as the package name itself, or as a
+filename which consists of the package name plus the
+.Dq .tgz
+suffix, or as a full pathname like
+.Pa /var/db/pkg/pkgname ,
+so that shell wildcards can be used.
+.Pp
+Version numbers and flavors
+.Po
+see
+.Xr packages-specs 7
+.Pc
+can be omitted, unless the resulting specification is ambiguous.
+.Pp
+Otherwise,
+.Ar pkg-name
+in
+.Nm
+may use the same convenient shortcuts as
+.Xr pkg_add 1 :
+.Sq Nm Ar autoconf Ns % Ns Ar 2.13
+will delete
+.Ar autoconf
+from the
+.Ar 2.13
+branch.
+.Pp
+.Nm
+will
+.Xr syslog 3
+deletions by default.
+.Pp
+.Nm
+relies on the file system information being consistent.
+In case of a system crash,
+.Pa /var/db/pkg
+may become corrupted.
+Use
+.Xr pkg_check 8
+to repair things.
+.Pp
+.Nm
+may ask questions in interactive mode, or error out otherwise.
+Interactive mode is the default on a tty, see
+options
+.Fl I/i .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Delete unused dependencies (packages that are not needed by anything tagged
+as installed manually).
+Can be used without
+.Ar pkgnames .
+If used with
+.Ar pkgnames ,
+it will only delete non manual installs in the list.
+.It Fl B Ar pkg-destdir
+Set
+.Ar pkg-destdir
+as the prefix to prepend to any object deleted.
+.It Fl c
+Delete extra configuration files, users and groups mentioned as
+.Cm @extra ,
+.Cm @newuser
+and
+.Cm @newgroup
+in the packing-list, respectively.
+.It Fl D Ar name Ns Op = Ns Ar value
+Force removal of the package.
+.Ar name
+is a keyword that states what failsafe
+should be waived.
+Recognized keywords include:
+.Pp
+.Bl -tag -width "dependenciesXX" -compact
+.It Cm baddepend
+Force the deletion of packages even if they reference nonexistent dependencies.
+.It Cm checksum
+Verify checksums before deleting files.
+.It Cm dependencies
+Also delete the whole set of packages that depends upon the requested packages.
+.It Cm nonroot
+Uninstall even if not running as root.
+.It Cm scripts
+External scripts may fail.
+.El
+.It Fl I
+Force non-interactive mode.
+Default is to be interactive when run from a tty.
+.It Fl i
+Force interactive mode, even if not run from a tty.
+.Nm
+may ask questions to the user if faced with difficult decisions.
+.It Fl m
+Causes
+.Nm
+to always display the progress meter in cases it would not do so by default.
+.It Fl n
+Don't actually deinstall a package, just report the steps that
+would be taken if it were.
+.It Fl qq
+Do not bother with checksums for configuration files.
+.It Fl s
+Don't actually deinstall packages, report the disk size changes
+that would happen.
+.It Fl V
+Turn on statistics output.
+For now, only displays the number of packages done/total number of packages.
+Several
+.Fl V
+will turn on more statistics in the future.
+.It Fl v
+Turn on verbose output.
+Several
+.Fl v
+turn on more verbose output.
+By default,
+.Nm
+is almost completely silent, but it reacts to keyboard status requests
+.Po
+see
+.Xr stty 1
+.Pc .
+.Fl v
+turns on basic messages,
+.Fl vv
+adds relevant system operations,
+.Fl vvv
+shows most internal computations apart from individual file/directory
+additions, and
+.Fl vvvvv
+shows everything.
+.It Fl X
+Delete everything, except the list of packages that follow.
+.It Fl x
+Disable progress meter.
+.El
+.Sh TECHNICAL DETAILS
+.Nm
+examines installed package records for the
+.Ar pkgname
+specified,  checks inter-dependencies between installed packages,
+deletes the package contents in an order respecting dependencies
+(e.g., packages with dependencies get removed first), and finally
+removes the package records.
+.Pp
+If a package is required by other installed packages not mentioned in
+the list of packages to remove,
+.Nm
+will list those dependent packages and refuse to delete the package.
+.Sh ENVIRONMENT
+.Bl -tag -width PKG_CHECKSUM
+.It Ev PKG_CHECKSUM
+If set, verify files checksums during deletion, exactly like
+.Fl D Ns Cm checksum .
+.It Ev PKG_DBDIR
+Where to look for installed packages instead of
+.Pa /var/db/pkg .
+.El
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr pkg_info 1 ,
+.Xr packages-specs 7 ,
+.Xr pkg_check 8
+.Sh AUTHORS
+.Bl -tag -width indent -compact
+.It An Jordan Hubbard
+initial design
+.It An Marc Espie
+complete rewrite
+.El

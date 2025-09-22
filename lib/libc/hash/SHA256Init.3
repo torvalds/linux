@@ -1,0 +1,349 @@
+.\"	$OpenBSD: SHA256Init.3,v 1.4 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2003, 2004 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Sponsored in part by the Defense Advanced Research Projects
+.\" Agency (DARPA) and Air Force Research Laboratory, Air Force
+.\" Materiel Command, USAF, under agreement number F39502-99-1-0512.
+.\"
+.\" See http://www.nist.gov/sha/ for the detailed standard
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt SHA256INIT 3
+.Os
+.Sh NAME
+.Nm SHA224Init ,
+.Nm SHA224Update ,
+.Nm SHA224Pad ,
+.Nm SHA224Final ,
+.Nm SHA224Transform ,
+.Nm SHA224End ,
+.Nm SHA224File ,
+.Nm SHA224FileChunk ,
+.Nm SHA224Data ,
+.Nm SHA256Init ,
+.Nm SHA256Update ,
+.Nm SHA256Pad ,
+.Nm SHA256Final ,
+.Nm SHA256Transform ,
+.Nm SHA256End ,
+.Nm SHA256File ,
+.Nm SHA256FileChunk ,
+.Nm SHA256Data ,
+.Nm SHA384Init ,
+.Nm SHA384Update ,
+.Nm SHA384Pad ,
+.Nm SHA384Final ,
+.Nm SHA384Transform ,
+.Nm SHA384End ,
+.Nm SHA384File ,
+.Nm SHA384FileChunk ,
+.Nm SHA384Data ,
+.Nm SHA512Init ,
+.Nm SHA512Update ,
+.Nm SHA512Pad ,
+.Nm SHA512Final ,
+.Nm SHA512Transform ,
+.Nm SHA512End ,
+.Nm SHA512File ,
+.Nm SHA512FileChunk ,
+.Nm SHA512Data ,
+.Nm SHA512_256Init ,
+.Nm SHA512_256Update ,
+.Nm SHA512_256Pad ,
+.Nm SHA512_256Final ,
+.Nm SHA512_256Transform ,
+.Nm SHA512_256End ,
+.Nm SHA512_256File ,
+.Nm SHA512_256FileChunk ,
+.Nm SHA512_256Data
+.Nd calculate the NIST Secure Hash Standard (version 2)
+.Sh SYNOPSIS
+.In sys/types.h
+.In sha2.h
+.Ft void
+.Fn SHA224Init "SHA2_CTX *context"
+.Ft void
+.Fn SHA224Update "SHA2_CTX *context" "const u_int8_t *data" "size_t len"
+.Ft void
+.Fn SHA224Pad "SHA2_CTX *context"
+.Ft void
+.Fn SHA224Final "u_int8_t digest[SHA224_DIGEST_LENGTH]" "SHA2_CTX *context"
+.Ft void
+.Fn SHA224Transform "u_int32_t state[8]" "const u_int8_t buffer[SHA224_BLOCK_LENGTH]"
+.Ft char *
+.Fn SHA224End "SHA2_CTX *context" "char *buf"
+.Ft char *
+.Fn SHA224File "const char *filename" "char *buf"
+.Ft char *
+.Fn SHA224FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft char *
+.Fn SHA224Data "const u_int8_t *data" "size_t len" "char *buf"
+.Ft void
+.Fn SHA256Init "SHA2_CTX *context"
+.Ft void
+.Fn SHA256Update "SHA2_CTX *context" "const u_int8_t *data" "size_t len"
+.Ft void
+.Fn SHA256Pad "SHA2_CTX *context"
+.Ft void
+.Fn SHA256Final "u_int8_t digest[SHA256_DIGEST_LENGTH]" "SHA2_CTX *context"
+.Ft void
+.Fn SHA256Transform "u_int32_t state[8]" "const u_int8_t buffer[SHA256_BLOCK_LENGTH]"
+.Ft char *
+.Fn SHA256End "SHA2_CTX *context" "char *buf"
+.Ft char *
+.Fn SHA256File "const char *filename" "char *buf"
+.Ft char *
+.Fn SHA256FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft char *
+.Fn SHA256Data "const u_int8_t *data" "size_t len" "char *buf"
+.Ft void
+.Fn SHA384Init "SHA2_CTX *context"
+.Ft void
+.Fn SHA384Update "SHA2_CTX *context" "const u_int8_t *data" "size_t len"
+.Ft void
+.Fn SHA384Pad "SHA2_CTX *context"
+.Ft void
+.Fn SHA384Final "u_int8_t digest[SHA384_DIGEST_LENGTH]" "SHA2_CTX *context"
+.Ft void
+.Fn SHA384Transform "u_int64_t state[8]" "const u_int8_t buffer[SHA384_BLOCK_LENGTH]"
+.Ft char *
+.Fn SHA384End "SHA2_CTX *context" "char *buf"
+.Ft char *
+.Fn SHA384File "const char *filename" "char *buf"
+.Ft char *
+.Fn SHA384FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft char *
+.Fn SHA384Data "const u_int8_t *data" "size_t len" "char *buf"
+.Ft void
+.Fn SHA512Init "SHA2_CTX *context"
+.Ft void
+.Fn SHA512Update "SHA2_CTX *context" "const u_int8_t *data" "size_t len"
+.Ft void
+.Fn SHA512Pad "SHA2_CTX *context"
+.Ft void
+.Fn SHA512Final "u_int8_t digest[SHA512_DIGEST_LENGTH]" "SHA2_CTX *context"
+.Ft void
+.Fn SHA512Transform "u_int64_t state[8]" "const u_int8_t buffer[SHA512_BLOCK_LENGTH]"
+.Ft char *
+.Fn SHA512End "SHA2_CTX *context" "char *buf"
+.Ft char *
+.Fn SHA512File "const char *filename" "char *buf"
+.Ft char *
+.Fn SHA512FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft char *
+.Fn SHA512Data "const u_int8_t *data" "size_t len" "char *buf"
+.Ft void
+.Fn SHA512_256Init "SHA2_CTX *context"
+.Ft void
+.Fn SHA512_256Update "SHA2_CTX *context" "const u_int8_t *data" "size_t len"
+.Ft void
+.Fn SHA512_256Pad "SHA2_CTX *context"
+.Ft void
+.Fn SHA512_256Final "u_int8_t digest[SHA512_256_DIGEST_LENGTH]" "SHA2_CTX *context"
+.Ft void
+.Fn SHA512_256Transform "u_int64_t state[8]" "const u_int8_t buffer[SHA512_256_BLOCK_LENGTH]"
+.Ft char *
+.Fn SHA512_256End "SHA2_CTX *context" "char *buf"
+.Ft char *
+.Fn SHA512_256File "const char *filename" "char *buf"
+.Ft char *
+.Fn SHA512_256FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft char *
+.Fn SHA512_256Data "const u_int8_t *data" "size_t len" "char *buf"
+.Sh DESCRIPTION
+The SHA2 functions implement the NIST Secure Hash Standard,
+FIPS PUB 180-2.
+The SHA2 functions are used to generate a condensed representation of a
+message called a message digest, suitable for use as a digital signature.
+There are four families of functions, with names corresponding to
+the number of bits in the resulting message digest.
+The SHA-224 and SHA-256 functions are limited to processing a message of less
+than 2^64 bits as input.
+The SHA-384 and SHA-512 functions can process a message of at most 2^128 - 1
+bits as input.
+.Pp
+The SHA2 functions are considered to be more secure than the SHA1 functions,
+with which they share a similar interface.
+The 224, 256, 384, and 512-bit versions of SHA2 share the same interface.
+SHA512/256, a truncated version of SHA512, is also supported.
+For brevity, only the 256-bit variants are described below.
+.Pp
+The
+.Fn SHA256Init
+function initializes a SHA2_CTX
+.Fa context
+for use with
+.Fn SHA256Update
+and
+.Fn SHA256Final .
+The
+.Fn SHA256Update
+function adds
+.Fa data
+of length
+.Fa len
+to the SHA2_CTX specified by
+.Fa context .
+.Fn SHA256Final
+is called when all data has been added via
+.Fn SHA256Update
+and stores a message digest in the
+.Fa digest
+parameter.
+.Pp
+The
+.Fn SHA256Pad
+function can be used to apply padding to the message digest as in
+.Fn SHA256Final ,
+but the current context can still be used with
+.Fn SHA256Update .
+.Pp
+The
+.Fn SHA256Transform
+function is used by
+.Fn SHA256Update
+to hash 512-bit blocks and forms the core of the algorithm.
+Most programs should use the interface provided by
+.Fn SHA256Init ,
+.Fn SHA256Update ,
+and
+.Fn SHA256Final
+instead of calling
+.Fn SHA256Transform
+directly.
+.Pp
+The
+.Fn SHA256End
+function is a front end for
+.Fn SHA256Final
+which converts the digest into an ASCII representation
+of the digest in hexadecimal.
+.Pp
+The
+.Fn SHA256File
+function calculates the digest for a file and returns the result via
+.Fn SHA256End .
+If
+.Fn SHA256File
+is unable to open the file, a
+.Dv NULL
+pointer is returned.
+.Pp
+.Fn SHA256FileChunk
+behaves like
+.Fn SHA256File
+but calculates the digest only for that portion of the file starting at
+.Fa offset
+and continuing for
+.Fa length
+bytes or until end of file is reached, whichever comes first.
+A zero
+.Fa length
+can be specified to read until end of file.
+A negative
+.Fa length
+or
+.Fa offset
+will be ignored.
+.Pp
+The
+.Fn SHA256Data
+function
+calculates the digest of an arbitrary string and returns the result via
+.Fn SHA256End .
+.Pp
+For each of the
+.Fn SHA256End ,
+.Fn SHA256File ,
+.Fn SHA256FileChunk ,
+and
+.Fn SHA256Data
+functions the
+.Fa buf
+parameter should either be a string large enough to hold the resulting digest
+(e.g.\&
+.Dv SHA224_DIGEST_STRING_LENGTH ,
+.Dv SHA256_DIGEST_STRING_LENGTH ,
+.Dv SHA384_DIGEST_STRING_LENGTH ,
+.Dv SHA512_DIGEST_STRING_LENGTH ,
+or
+.Dv SHA512_256_DIGEST_STRING_LENGTH ,
+depending on the function being used)
+or a
+.Dv NULL
+pointer.
+In the latter case, space will be dynamically allocated via
+.Xr malloc 3
+and should be freed using
+.Xr free 3
+when it is no longer needed.
+.Sh EXAMPLES
+The following code fragment will calculate the SHA-256 digest for the string
+.Qq abc ,
+which is
+.Dq 0xba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad .
+.Bd -literal -offset indent
+SHA2_CTX ctx;
+u_int8_t results[SHA256_DIGEST_LENGTH];
+char *buf;
+int n;
+
+buf = "abc";
+n = strlen(buf);
+SHA256Init(&ctx);
+SHA256Update(&ctx, (u_int8_t *)buf, n);
+SHA256Final(results, &ctx);
+
+/* Print the digest as one long hex value */
+printf("0x");
+for (n = 0; n \*(Lt SHA256_DIGEST_LENGTH; n++)
+	printf("%02x", results[n]);
+putchar('\en');
+.Ed
+.Pp
+Alternately, the helper functions could be used in the following way:
+.Bd -literal -offset indent
+u_int8_t output[SHA256_DIGEST_STRING_LENGTH];
+char *buf = "abc";
+
+printf("0x%s\en", SHA256Data(buf, strlen(buf), output));
+.Ed
+.Sh SEE ALSO
+.Xr cksum 1 ,
+.Xr sha256 1 ,
+.Xr MD5Init 3 ,
+.Xr RMD160Init 3 ,
+.Xr SHA1Init 3
+.Rs
+.%T Secure Hash Standard
+.%O FIPS PUB 180-2
+.Re
+.Sh HISTORY
+The SHA2 functions appeared in
+.Ox 3.4 .
+.Sh AUTHORS
+.An -nosplit
+This implementation of the SHA functions was written by
+.An Aaron D. Gifford .
+.Pp
+The
+.Fn SHA256End ,
+.Fn SHA256File ,
+.Fn SHA256FileChunk ,
+and
+.Fn SHA256Data
+helper functions are derived from code written by
+.An Poul-Henning Kamp .

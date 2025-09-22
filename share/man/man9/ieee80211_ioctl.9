@@ -1,0 +1,82 @@
+.\"	$OpenBSD: ieee80211_ioctl.9,v 1.5 2013/07/17 20:21:53 schwarze Exp $
+.\"
+.\" Copyright (c) 2004 Bruce M. Simpson <bms@spc.org>
+.\" Copyright (c) 2004 Darron Broad <darron@kewl.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/ieee80211_ioctl.9,v 1.2 2004/07/07 12:59:39 ru Exp $
+.\" $Id: ieee80211_ioctl.9,v 1.5 2013/07/17 20:21:53 schwarze Exp $
+.\"
+.Dd $Mdocdate: July 17 2013 $
+.Dt IEEE80211_IOCTL 9
+.Os
+.Sh NAME
+.Nm ieee80211_ioctl
+.Nd 802.11 interface ioctl commands
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.In net80211/ieee80211_proto.h
+.In net80211/ieee80211_ioctl.h
+.Ft int
+.Fn ieee80211_ioctl "struct ifnet *ifp" "u_long cmd" "caddr_t data"
+.Sh DESCRIPTION
+These
+functions are typically invoked by drivers in response to requests
+for information or to change settings from the userland.
+.Pp
+.\"
+The
+.Fn ieee80211_ioctl
+function provides a default implementation of the
+.Dv SIOCS80211
+and
+.Dv SIOCG80211
+ifioctls commands for 802.11 drivers.
+The call signature is identical to that of the
+.Va if_ioctl
+member found in
+.Vt struct ifnet ,
+however, many drivers store attributes such as
+.Dv IEEE80211_IOC_STATIONNAME
+in the driver's private soft state structure, so driver writers may prefer
+to use this as the catch-all in a switch statement to avoid code duplication.
+.\"
+.Sh SEE ALSO
+.Xr ifconfig 8 ,
+.Xr ieee80211 9
+.Sh HISTORY
+The
+.Nm ieee80211
+series of functions first appeared in
+.Nx 1.5 ,
+and were later ported to
+.Fx 4.6
+and
+.Ox 3.6 .
+.Sh AUTHORS
+.An -nosplit
+This man page was written by
+.An Bruce M. Simpson Aq Mt bms@FreeBSD.org
+and
+.An Darron Broad Aq Mt darron@kewl.org .

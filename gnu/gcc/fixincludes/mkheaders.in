@@ -1,0 +1,106 @@
+#!/bin/sh
+
+# Copyright (C) 2002, 2007 Free Software Foundation, Inc.
+
+#This file is part of GCC.
+
+#GCC is free software; you can redistribute it and/or modify it under
+#the terms of the GNU General Public License as published by the Free
+#Software Foundation; either version 2, or (at your option) any later
+#version.
+
+#GCC is distributed in the hope that it will be useful, but WITHOUT
+#ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+#for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with GCC; see the file COPYING.  If not, write to the Free
+#Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+#02110-1301, USA.
+
+# Basic information
+target=@target@
+target_noncanonical=@target_noncanonical@
+version=@gcc_version@
+
+VERBOSE=0
+while [ x$1 = x-v ] ; do
+    shift
+    VERBOSE=`expr $VERBOSE + 1`
+done
+export VERBOSE
+
+if [ x$1 = x--help ] ; then
+    echo "Usage: mkheaders [options] [prefix [isysroot]]"
+    echo "Options:"
+    echo "  -v        Print more output (may be repeated for even more output)"
+    echo "  --help    This help"
+    echo "  --version Print version information"
+    exit 0
+fi
+
+if [ x$1 = x--version ] ; then
+    echo "mkheaders (GCC) version $version"
+    echo "Copyright 2002, 2007 Free Software Foundation, Inc."
+    echo "This program is free software; you may redistribute it under the"
+    echo "terms of the GNU General Public License.  This program has"
+    echo "absolutely no warranty."
+    exit 0
+fi
+
+# Common prefix for installation directories.
+if [ x$1 != x ] ; then
+  prefix=$1
+  shift
+else
+  prefix=@prefix@
+fi
+
+# Allow for alternate isysroot in which to find headers
+if [ x$1 != x ] ; then
+  isysroot=$1
+  shift
+else
+  isysroot=
+fi
+
+# Directory in which to put host dependent programs and libraries
+exec_prefix=@exec_prefix@
+# Directory in which to put the directories used by the compiler.
+libdir=@libdir@
+libexecdir=@libexecdir@
+# Directory in which the compiler finds libraries, etc.
+libsubdir=${libdir}/gcc/${target_noncanonical}/${version}
+# Directory in which the compiler finds executables
+libexecsubdir=${libexecdir}/gcc/${target_noncanonical}/${version}
+
+itoolsdir=${libexecsubdir}/install-tools
+itoolsdatadir=${libsubdir}/install-tools
+incdir=${libsubdir}/include
+
+. ${itoolsdatadir}/mkheaders.conf
+
+cd ${itoolsdir}
+rm -rf ${incdir}/*
+
+if [ x${STMP_FIXINC} != x ] ; then
+	TARGET_MACHINE="${target}" target_canonical="${target}" \
+	    MACRO_LIST="${itoolsdatadir}/macro_list" \
+	    @SHELL@ ./fixinc.sh ${incdir} \
+	    ${isysroot}${SYSTEM_HEADER_DIR} ${OTHER_FIXINCLUDES_DIRS}
+	rm -f ${incdir}/syslimits.h
+	if [ -f ${incdir}/limits.h ]; then
+	  mv ${incdir}/limits.h ${incdir}/syslimits.h
+	else
+	  cp ${itoolsdatadir}/gsyslimits.h ${incdir}/syslimits.h
+	fi
+fi
+
+cp ${itoolsdatadir}/include/* ${incdir}
+
+if [ x${STMP_FIXPROTO} != x ] ; then
+  mkinstalldirs="@SHELL@ ${itoolsdir}/mkinstalldirs"
+  export FIXPROTO_DEFINES mkinstalldirs
+  @SHELL@ fixproto ${incdir} ${incdir} ${isysroot}${SYSTEM_HEADER_DIR} || exit 1
+fi

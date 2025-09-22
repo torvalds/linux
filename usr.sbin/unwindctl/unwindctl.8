@@ -1,0 +1,80 @@
+.\"	$OpenBSD: unwindctl.8,v 1.14 2025/08/03 13:20:36 florian Exp $
+.\"
+.\" Copyright (c) 2004, 2005 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 3 2025 $
+.Dt UNWINDCTL 8
+.Os
+.Sh NAME
+.Nm unwindctl
+.Nd control the unwind daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar socket
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr unwind 8
+daemon.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl s Ar socket
+Use
+.Ar socket
+instead of the default
+.Pa /dev/unwind.sock
+to communicate with
+.Xr unwind 8 .
+.El
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Cm log brief
+Disable verbose logging.
+.It Cm log verbose
+Enable verbose logging.
+.It Cm log debug
+Enable very noisy debug logging.
+.It Cm reload
+Reload the configuration file.
+.It Cm status
+Show a status summary.
+.It Cm status autoconf
+Show nameservers learned from
+.Xr dhcpleased 8
+or
+.Xr slaacd 8 .
+.\" .It Cm status memory
+.\" Show memory consumption.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/unwind.sockXX" -compact
+.It Pa /dev/unwind.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr unwind 8 .
+.El
+.Sh SEE ALSO
+.Xr unwind.conf 5 ,
+.Xr unwind 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 6.5 .

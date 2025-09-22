@@ -1,0 +1,250 @@
+######### rfc2307
+
+attributetype ( 1.3.6.1.1.1.1.0 NAME 'uidNumber'
+	DESC 'An integer uniquely identifying a user in an
+	      administrative domain'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.1 NAME 'gidNumber'
+	DESC 'An integer uniquely identifying a group in an
+	      administrative domain'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.2 NAME 'gecos'
+	DESC 'The GECOS field; the common name'
+	EQUALITY caseIgnoreIA5Match
+	SUBSTR caseIgnoreIA5SubstringsMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.3 NAME 'homeDirectory'
+	DESC 'The absolute path to the home directory'
+	EQUALITY caseExactIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.4 NAME 'loginShell'
+	DESC 'The path to the login shell'
+	EQUALITY caseExactIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.5 NAME 'shadowLastChange'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.6 NAME 'shadowMin'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.7 NAME 'shadowMax'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.8 NAME 'shadowWarning'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.9 NAME 'shadowInactive'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.10 NAME 'shadowExpire'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.11 NAME 'shadowFlag'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.12 NAME 'memberUid'
+	EQUALITY caseExactIA5Match
+	SUBSTR caseExactIA5SubstringsMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+attributetype ( 1.3.6.1.1.1.1.13 NAME 'memberNisNetgroup'
+	EQUALITY caseExactIA5Match
+	SUBSTR caseExactIA5SubstringsMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+attributetype ( 1.3.6.1.1.1.1.14 NAME 'nisNetgroupTriple'
+	DESC 'Netgroup triple'
+	SYNTAX 1.3.6.1.1.1.0.0 )
+
+attributetype ( 1.3.6.1.1.1.1.15 NAME 'ipServicePort'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.16 NAME 'ipServiceProtocol'
+	SUP name )
+
+attributetype ( 1.3.6.1.1.1.1.17 NAME 'ipProtocolNumber'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.18 NAME 'oncRpcNumber'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.19 NAME 'ipHostNumber'
+	DESC 'IP address as a dotted decimal, eg. 192.168.1.1,
+	      omitting leading zeros'
+	EQUALITY caseIgnoreIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{128} )
+
+attributetype ( 1.3.6.1.1.1.1.20 NAME 'ipNetworkNumber'
+	DESC 'IP network as a dotted decimal, eg. 192.168,
+	      omitting leading zeros'
+	EQUALITY caseIgnoreIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{128}
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.21 NAME 'ipNetmaskNumber'
+	DESC 'IP netmask as a dotted decimal, eg. 255.255.255.0,
+	      omitting leading zeros'
+	EQUALITY caseIgnoreIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{128}
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.1.1.1.22 NAME 'macAddress'
+	DESC 'MAC address in maximal, colon separated hex notation,
+	      eg. 00:00:92:90:ee:e2'
+	EQUALITY caseIgnoreIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{128} )
+
+attributetype ( 1.3.6.1.1.1.1.23 NAME 'bootParameter'
+	DESC 'rpc.bootparamd parameter'
+	SYNTAX 1.3.6.1.1.1.0.1 )
+
+attributetype ( 1.3.6.1.1.1.1.24 NAME 'bootFile'
+	DESC 'Boot image name'
+	EQUALITY caseExactIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+attributetype ( 1.3.6.1.1.1.1.26 NAME 'nisMapName'
+	SUP name )
+
+attributetype ( 1.3.6.1.1.1.1.27 NAME 'nisMapEntry'
+	EQUALITY caseExactIA5Match
+	SUBSTR caseExactIA5SubstringsMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{1024}
+	SINGLE-VALUE )
+
+objectclass ( 1.3.6.1.1.1.2.0 NAME 'posixAccount'
+	SUP top
+	AUXILIARY
+	DESC 'Abstraction of an account with POSIX attributes'
+	MUST ( cn $ uid $ uidNumber $ gidNumber $ homeDirectory )
+	MAY ( userPassword $ loginShell $ gecos $ description ) )
+
+objectclass ( 1.3.6.1.1.1.2.1 NAME 'shadowAccount'
+	SUP top
+	AUXILIARY
+	DESC 'Additional attributes for shadow passwords'
+	MUST uid
+	MAY ( userPassword $ shadowLastChange $ shadowMin $ shadowMax $
+		shadowWarning $ shadowInactive $ shadowExpire $ shadowFlag $
+		description ) )
+
+objectclass ( 1.3.6.1.1.1.2.2 NAME 'posixGroup'
+	SUP top
+	STRUCTURAL
+	DESC 'Abstraction of a group of accounts'
+	MUST ( cn $ gidNumber )
+	MAY ( userPassword $ memberUid $ description ) )
+
+objectclass ( 1.3.6.1.1.1.2.3 NAME 'ipService'
+	SUP top
+	STRUCTURAL
+	DESC 'Abstraction an Internet Protocol service. Maps an IP port
+	      and protocol (such as tcp or udp) to one or more names; the
+	      distinguished value of the cn attribute denotes the services
+	      canonical name'
+	MUST ( cn $ ipServicePort $ ipServiceProtocol )
+	MAY ( description ) )
+
+objectclass ( 1.3.6.1.1.1.2.4 NAME 'ipProtocol'
+	SUP top
+	STRUCTURAL
+	DESC 'Abstraction of an IP protocol. Maps a protocol number to one
+	      or more names. The distinguished value of the cn attribute
+	      denotes the protocols canonical name'
+	MUST ( cn $ ipProtocolNumber $ description )
+	MAY description )
+
+objectclass ( 1.3.6.1.1.1.2.5 NAME 'oncRpc'
+	SUP top
+	STRUCTURAL
+	DESC 'Abstraction of an Open Network Computing (ONC) [RFC1057]
+	      Remote Procedure Call (RPC) binding. This class maps an
+	      ONC RPC number to a name. The distinguished value of the cn
+	      attribute denotes the RPC services canonical name'
+	MUST ( cn $ oncRpcNumber $ description )
+	MAY description )
+
+objectclass ( 1.3.6.1.1.1.2.6 NAME 'ipHost'
+	SUP top
+	AUXILIARY
+	DESC 'Abstraction of a host, an IP device. The distinguished value
+	      of the cn attribute denotes the hosts canonical name. Device
+	      SHOULD be used as a structural class'
+	MUST ( cn $ ipHostNumber )
+	MAY ( l $ description $ manager ) )
+
+objectclass ( 1.3.6.1.1.1.2.7 NAME 'ipNetwork'
+	SUP top
+	STRUCTURAL
+	DESC 'Abstraction of a network. The distinguished value of the cn
+	      attribute denotes the networks canonical name'
+	MUST ( cn $ ipNetworkNumber )
+	MAY ( ipNetmaskNumber $ l $ description $ manager ) )
+
+objectclass ( 1.3.6.1.1.1.2.8 NAME 'nisNetgroup'
+	SUP top
+	STRUCTURAL
+	DESC 'Abstraction of a netgroup. May refer to other netgroups'
+	MUST cn
+	MAY ( nisNetgroupTriple $ memberNisNetgroup $ description ) )
+
+objectclass ( 1.3.6.1.1.1.2.09 NAME 'nisMap'
+	SUP top
+	STRUCTURAL
+	DESC 'A generic abstraction of a NIS map'
+	MUST nisMapName
+	MAY description )
+
+objectclass ( 1.3.6.1.1.1.2.10 NAME 'nisObject'
+	SUP top
+	STRUCTURAL
+	DESC 'An entry in a NIS map'
+	MUST ( cn $ nisMapEntry $ nisMapName )
+	MAY description )
+
+objectclass ( 1.3.6.1.1.1.2.11 NAME 'ieee802Device'
+	SUP top
+	AUXILIARY
+	DESC 'A device with a MAC address; device SHOULD be used as a
+	      structural class'
+	MAY macAddress )
+
+objectclass ( 1.3.6.1.1.1.2.12 NAME 'bootableDevice'
+	SUP top
+	AUXILIARY
+	DESC 'A device with boot parameters; device SHOULD be used as a
+	      structural class'
+	MAY ( bootFile $ bootParameter ) )
+

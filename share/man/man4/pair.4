@@ -1,0 +1,110 @@
+.\"	$OpenBSD: pair.4,v 1.4 2015/10/30 10:48:55 reyk Exp $
+.\"
+.\" Copyright (c) 2015 Reyk Floeter <reyk@openbsd.org>
+.\" Copyright (c) 2009 Theo de Raadt <deraadt@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 30 2015 $
+.Dt PAIR 4
+.Os
+.Sh NAME
+.Nm pair
+.Nd virtual Ethernet interface pair
+.Sh SYNOPSIS
+.Cd "pseudo-device pair"
+.Sh DESCRIPTION
+The
+.Nm
+interface simulates a normal Ethernet interface by encapsulating
+standard network frames with an Ethernet header, specifically for use
+in a pair of interfaces that are interconnected with each other.
+.Pp
+To use it, the administrator needs to create two
+.Nm
+interfaces and connect them;
+the interfaces are
+.Sq patched ,
+as would be done with physical network ports.
+All packets that are sent on the first interface are received on the
+second interface.
+.Sh EXAMPLES
+Set up a pair of interfaces where each of them is a member of a different
+.Xr rdomain 4 :
+.Bd -literal -offset indent
+# ifconfig pair1 rdomain 1 10.1.1.1/24 up
+# ifconfig pair2 rdomain 2 10.1.1.2/24 up
+# ifconfig pair1 patch pair2
+# route -T 1 exec ping 10.1.1.2
+.Ed
+.Pp
+When adding multiple
+.Nm
+to multiple
+.Xr bridge 4
+interfaces, it is possible to create a loop;
+the system load will go up while it is busy sending packets from one
+bridge to another and back.
+By design, the driver does not prevent such loops by itself, but it is
+possible to use the Spanning Tree Protocol (STP) to detect and remove
+loops in the virtual network topology:
+.Bd -literal -offset indent
+# ifconfig pair0 up
+# ifconfig pair1 rdomain 1 patch pair0 up
+# ifconfig pair2 up
+# ifconfig pair3 rdomain 1 patch pair2 up
+# ifconfig bridge0 add pair0 add pair2 stp pair0 stp pair2 up
+# ifconfig bridge1 add pair1 add pair3 stp pair1 stp pair3 up
+.Ed
+.Sh SEE ALSO
+.Xr bridge 4 ,
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr rdomain 4 ,
+.Xr vether 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Nm
+driver is based on
+.Xr vether 4
+by
+.An Theo de Raadt Aq Mt deraadt@openbsd.org .
+It has been extended and turned into
+.Nm
+by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .
+.Sh CAVEATS
+Unlike
+.Xr vether 4 ,
+the
+.Nm
+interface cannot be used as a stand-alone member in a
+.Xr bridge 4 :
+the link state remains down until it is connected to the second interface.
+Any associated routes will be marked down until it is patched.
+Use
+.Xr vether 4
+as a bridge endpoint for routing purposes instead.
+.Sh BUGS
+Like
+.Xr tun 4 ,
+the Ethernet address chosen will be partially random, and may
+occasionally collide with another address.

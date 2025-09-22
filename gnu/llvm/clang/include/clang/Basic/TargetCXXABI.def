@@ -1,0 +1,129 @@
+//===--- TargetCXXABI.def - Target C++ ABI database --------------- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the various C++ ABI kinds used on different platforms.
+// Users of this file must define the CXXABI macro to make use of this
+// information.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef CXXABI
+#error Define the CXXABI macro to handle C++ ABI kinds.
+#endif
+
+#ifndef ITANIUM_CXXABI
+#define ITANIUM_CXXABI(Name, Str) CXXABI(Name, Str)
+#endif
+
+#ifndef MICROSOFT_CXXABI
+#define MICROSOFT_CXXABI(Name, Str) CXXABI(Name, Str)
+#endif
+
+/// The generic Itanium ABI is the standard ABI of most open-source
+/// and Unix-like platforms.  It is the primary ABI targeted by
+/// many compilers, including Clang and GCC.
+///
+/// It is documented here:
+///   http://www.codesourcery.com/public/cxx-abi/
+ITANIUM_CXXABI(GenericItanium, "itanium")
+
+/// The generic ARM ABI is a modified version of the Itanium ABI
+/// proposed by ARM for use on ARM-based platforms.
+///
+/// These changes include:
+///   - the representation of member function pointers is adjusted
+///     to not conflict with the 'thumb' bit of ARM function pointers;
+///   - constructors and destructors return 'this';
+///   - guard variables are smaller;
+///   - inline functions are never key functions;
+///   - array cookies have a slightly different layout;
+///   - additional convenience functions are specified;
+///   - and more!
+///
+/// It is documented here:
+///    http://infocenter.arm.com
+///                    /help/topic/com.arm.doc.ihi0041c/IHI0041C_cppabi.pdf
+ITANIUM_CXXABI(GenericARM, "arm")
+
+/// The iOS ABI is a partial implementation of the ARM ABI.
+/// Several of the features of the ARM ABI were not fully implemented
+/// in the compilers that iOS was launched with.
+///
+/// Essentially, the iOS ABI includes the ARM changes to:
+///   - member function pointers,
+///   - guard variables,
+///   - array cookies, and
+///   - constructor/destructor signatures.
+ITANIUM_CXXABI(iOS, "ios")
+
+/// The iOS 64-bit and macOS 64-bit ARM ABI follows ARM's published 64-bit
+/// ABI more closely, but we don't guarantee to follow it perfectly.
+///
+/// It is documented here:
+///    http://infocenter.arm.com
+///                  /help/topic/com.arm.doc.ihi0059a/IHI0059A_cppabi64.pdf
+ITANIUM_CXXABI(AppleARM64, "applearm64")
+
+/// WatchOS is a modernisation of the iOS ABI, which roughly means it's
+/// the iOS64 ABI ported to 32-bits. The primary difference from iOS64 is
+/// that RTTI objects must still be unique at the moment.
+ITANIUM_CXXABI(WatchOS, "watchos")
+
+/// The generic AArch64 ABI is also a modified version of the Itanium ABI,
+/// but it has fewer divergences than the 32-bit ARM ABI.
+///
+/// The relevant changes from the generic ABI in this case are:
+///   - representation of member function pointers adjusted as in ARM.
+///   - guard variables  are smaller.
+ITANIUM_CXXABI(GenericAArch64, "aarch64")
+
+/// The generic Mips ABI is a modified version of the Itanium ABI.
+///
+/// At the moment, only change from the generic ABI in this case is:
+///   - representation of member function pointers adjusted as in ARM.
+ITANIUM_CXXABI(GenericMIPS, "mips")
+
+/// The WebAssembly ABI is a modified version of the Itanium ABI.
+///
+/// The changes from the Itanium ABI are:
+///   - representation of member function pointers is adjusted, as in ARM;
+///   - member functions are not specially aligned;
+///   - constructors and destructors return 'this', as in ARM;
+///   - guard variables are 32-bit on wasm32, as in ARM;
+///   - unused bits of guard variables are reserved, as in ARM;
+///   - inline functions are never key functions, as in ARM;
+///   - C++11 POD rules are used for tail padding, as in iOS64.
+///
+/// TODO: At present the WebAssembly ABI is not considered stable, so none
+/// of these details is necessarily final yet.
+ITANIUM_CXXABI(WebAssembly, "webassembly")
+
+/// The Fuchsia ABI is a modified version of the Itanium ABI.
+///
+/// The relevant changes from the Itanium ABI are:
+///   - constructors and destructors return 'this', as in ARM.
+ITANIUM_CXXABI(Fuchsia, "fuchsia")
+
+/// The XL ABI is the ABI used by IBM xlclang compiler and is a modified
+/// version of the Itanium ABI.
+///
+/// The relevant changes from the Itanium ABI are:
+///   - static initialization is adjusted to use sinit and sterm functions;
+ITANIUM_CXXABI(XL, "xl")
+
+/// The Microsoft ABI is the ABI used by Microsoft Visual Studio (and
+/// compatible compilers).
+///
+/// FIXME: should this be split into Win32 and Win64 variants?
+///
+/// Only scattered and incomplete official documentation exists.
+MICROSOFT_CXXABI(Microsoft, "microsoft")
+
+#undef CXXABI
+#undef ITANIUM_CXXABI
+#undef MICROSOFT_CXXABI

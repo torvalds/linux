@@ -1,0 +1,215 @@
+.\"	$OpenBSD: gpioctl.8,v 1.25 2018/03/12 12:52:14 jmc Exp $
+.\"
+.\" Copyright (c) 2004 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 12 2018 $
+.Dt GPIOCTL 8
+.Os
+.Sh NAME
+.Nm gpioctl
+.Nd control GPIO devices
+.Sh SYNOPSIS
+.Nm gpioctl
+.Op Fl q
+.Ar device
+.Ar pin
+.Op Cm 0 | 1 | 2 | on | off | toggle
+.Nm gpioctl
+.Op Fl q
+.Ar device
+.Ar pin
+.Cm set
+.Op Ar flags
+.Op Ar name
+.Nm gpioctl
+.Op Fl q
+.Ar device
+.Ar pin
+.Cm unset
+.Nm gpioctl
+.Op Fl q
+.Ar device
+.Cm attach
+.Ar device
+.Ar offset
+.Ar mask
+.Op Ar flag
+.Nm gpioctl
+.Op Fl q
+.Ar device
+.Cm detach
+.Ar device
+.Sh DESCRIPTION
+The
+.Nm
+program allows manipulation of GPIO
+(General Purpose Input/Output) device pins.
+Such devices can be either part of the chipset or embedded CPU,
+or a separate chip.
+The usual way of using GPIO
+is to connect some simple devices such as LEDs and 1-wire thermal sensors
+to its pins.
+.Pp
+Each GPIO device has an associated device file in the
+.Pa /dev
+directory.
+.Ar device
+can be specified with or without the
+.Pa /dev
+prefix.
+For example,
+.Pa /dev/gpio0
+or
+.Pa gpio0 .
+.Pp
+GPIO pins can be either
+.Dq read
+or
+.Dq written
+with the values of logical 0 or 1.
+If only a
+.Ar pin
+number is specified on the command line, the pin state will be read
+from the GPIO controller and displayed.
+To write to a pin, a value must be specified after the
+.Ar pin
+number.
+Values can be either
+.Cm 0
+or
+.Cm 1 .
+A value of
+.Cm 2
+has a special meaning: it
+.Dq toggles
+the pin, i.e. changes its state to the opposite.
+Instead of the numerical values, the word
+.Cm on ,
+.Cm off ,
+or
+.Cm toggle
+can be used.
+.Pp
+Only pins that have been configured at securelevel 0, typically during system
+startup, are accessible once the securelevel has been raised.
+Pins can be given symbolic names for easier use.
+Besides using individual pins, device drivers that use GPIO pins can be
+attached to a
+.Xr gpio 4
+device using the
+.Nm
+command.
+.Pp
+The following configuration
+.Ar flags
+are supported by the GPIO framework.
+Note that not all the flags can be supported by the particular GPIO controller.
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It in
+input direction
+.It out
+output direction
+.It inout
+bi-directional
+.It od
+open-drain output
+.It pp
+push-pull output
+.It tri
+tri-state (output disabled)
+.It pu
+internal pull-up enabled
+.It pd
+internal pull-down enabled
+.It iin
+invert input
+.It iout
+invert output
+.El
+.Pp
+When attaching an I2C device,
+if the
+.Ar flag
+argument is set to 1,
+the order of the SDA and SCL signals is reversed
+(see
+.Xr gpioiic 4 ) .
+.Pp
+When executed with only the
+.Xr gpio 4
+device name as argument,
+.Nm
+reads information about the GPIO device and displays it.
+At securelevel 0 the number of physically available pins is displayed,
+at higher securelevels the number of configured
+.Pq Cm set
+pins is displayed.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl q
+Operate quietly i.e. nothing is printed to stdout.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/gpiou" -compact
+.It /dev/gpio Ns Ar u
+GPIO device unit
+.Ar u
+file.
+.El
+.Sh EXAMPLES
+Configure pin 20 to have push-pull output:
+.Pp
+.Dl # gpioctl gpio0 20 set out pp
+.Pp
+Write logical 1 to pin 20:
+.Pp
+.Dl # gpioctl gpio0 20 1
+.Pp
+Attach a
+.Xr onewire 4
+bus on a
+.Xr gpioow 4
+device on pin 4:
+.Pp
+.Dl # gpioctl gpio0 attach gpioow 4 0x01
+.Pp
+Detach the gpioow0 device:
+.Pp
+.Dl # gpioctl gpio0 detach gpioow0
+.Pp
+Configure pin 5 as output and name it error_led:
+.Pp
+.Dl # gpioctl gpio0 5 set out error_led
+.Pp
+Toggle the error_led:
+.Pp
+.Dl # gpioctl gpio0 error_led 2
+.Sh SEE ALSO
+.Xr gpio 4
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .
+Device attachment was added by
+.An Marc Balmer Aq Mt mbalmer@openbsd.org .

@@ -1,0 +1,90 @@
+.\"	$OpenBSD: mimmutable.2,v 1.5 2024/01/21 17:46:03 deraadt Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mimmutable.2	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: January 21 2024 $
+.Dt MIMMUTABLE 2
+.Os
+.Sh NAME
+.Nm mimmutable
+.Nd control the immutability of pages
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn mimmutable "void *addr" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn mimmutable
+system call
+changes currently mapped pages in the region to be marked immutable,
+which means their protection or mapping may not be changed in the future.
+Most requests to
+.Xr madvise 2 ,
+.Xr minherit 2 ,
+.Xr mmap 2 ,
+.Xr mprotect 2 ,
+.Xr msync 2 , and
+.Xr munmap 2
+to pages marked immutable will return with error
+.Er EPERM .
+.Pp
+Unmapped pages in the region do not retain immutability, but this
+behaviour should not be relied upon.
+.Pp
+Not all implementations will guarantee that the immutable characteristic
+can be set on a page basis;
+the granularity of changes may be as large as an entire region.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn mimmutable
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The virtual address range specified by the
+.Fa addr
+and
+.Fa len
+arguments is not valid.
+.It Bq Er EPERM
+At least one page has inheritance of
+.Dv MAP_INHERIT_ZERO .
+.El
+.Sh SEE ALSO
+.Xr minherit 2 ,
+.Xr mmap 2 ,
+.Xr mprotect 2 ,
+.Xr munmap 2
+.Sh HISTORY
+The
+.Fn mimmutable
+function first appeared in
+.Ox 7.3 .

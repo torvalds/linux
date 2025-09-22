@@ -1,0 +1,1043 @@
+//===--- TokenKinds.def - C Family Token Kind Database ----------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the TokenKind database.  This includes normal tokens like
+// tok::ampamp (corresponding to the && token) as well as keywords for various
+// languages.  Users of this file must optionally #define the TOK, KEYWORD,
+// CXX11_KEYWORD, ALIAS, or PPKEYWORD macros to make use of this file.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef TOK
+#define TOK(X)
+#endif
+#ifndef PUNCTUATOR
+#define PUNCTUATOR(X,Y) TOK(X)
+#endif
+#ifndef KEYWORD
+#define KEYWORD(X,Y) TOK(kw_ ## X)
+#endif
+#ifndef CXX11_KEYWORD
+#define CXX11_KEYWORD(X,Y) KEYWORD(X,KEYCXX11|(Y))
+#endif
+#ifndef CXX20_KEYWORD
+#define CXX20_KEYWORD(X,Y) KEYWORD(X,KEYCXX20|(Y))
+#endif
+#ifndef C99_KEYWORD
+#define C99_KEYWORD(X,Y) KEYWORD(X,KEYC99|(Y))
+#endif
+#ifndef C23_KEYWORD
+#define C23_KEYWORD(X,Y) KEYWORD(X,KEYC23|(Y))
+#endif
+#ifndef COROUTINES_KEYWORD
+#define COROUTINES_KEYWORD(X) CXX20_KEYWORD(X,KEYCOROUTINES)
+#endif
+#ifndef MODULES_KEYWORD
+#define MODULES_KEYWORD(X) KEYWORD(X,KEYMODULES)
+#endif
+#ifndef TYPE_TRAIT
+#define TYPE_TRAIT(N,I,K) KEYWORD(I,K)
+#endif
+#ifndef TYPE_TRAIT_1
+#define TYPE_TRAIT_1(I,E,K) TYPE_TRAIT(1,I,K)
+#endif
+#ifndef TYPE_TRAIT_2
+#define TYPE_TRAIT_2(I,E,K) TYPE_TRAIT(2,I,K)
+#endif
+#ifndef TYPE_TRAIT_N
+#define TYPE_TRAIT_N(I,E,K) TYPE_TRAIT(0,I,K)
+#endif
+#ifndef ARRAY_TYPE_TRAIT
+#define ARRAY_TYPE_TRAIT(I,E,K) KEYWORD(I,K)
+#endif
+#ifndef UNARY_EXPR_OR_TYPE_TRAIT
+#define UNARY_EXPR_OR_TYPE_TRAIT(I,E,K) KEYWORD(I,K)
+#endif
+#ifndef CXX11_UNARY_EXPR_OR_TYPE_TRAIT
+#define CXX11_UNARY_EXPR_OR_TYPE_TRAIT(I,E,K) CXX11_KEYWORD(I,K)
+#endif
+#ifndef EXPRESSION_TRAIT
+#define EXPRESSION_TRAIT(I,E,K) KEYWORD(I,K)
+#endif
+#ifndef TRANSFORM_TYPE_TRAIT_DEF
+#define TRANSFORM_TYPE_TRAIT_DEF(K, Trait) KEYWORD(__##Trait, KEYCXX)
+#endif
+
+#ifndef ALIAS
+#define ALIAS(X,Y,Z)
+#endif
+#ifndef PPKEYWORD
+#define PPKEYWORD(X)
+#endif
+#ifndef CXX_KEYWORD_OPERATOR
+#define CXX_KEYWORD_OPERATOR(X,Y)
+#endif
+#ifndef OBJC_AT_KEYWORD
+#define OBJC_AT_KEYWORD(X)
+#endif
+#ifndef TESTING_KEYWORD
+#define TESTING_KEYWORD(X, L) KEYWORD(X, L)
+#endif
+#ifndef ANNOTATION
+#define ANNOTATION(X) TOK(annot_ ## X)
+#endif
+#ifndef PRAGMA_ANNOTATION
+#define PRAGMA_ANNOTATION(X) ANNOTATION(X)
+#endif
+#ifndef NOTABLE_IDENTIFIER
+#define NOTABLE_IDENTIFIER(X)
+#endif
+
+//===----------------------------------------------------------------------===//
+// Preprocessor keywords.
+//===----------------------------------------------------------------------===//
+
+// These have meaning after a '#' at the start of a line. These define enums in
+// the tok::pp_* namespace.  Note that IdentifierInfo::getPPKeywordID must be
+// manually updated if something is added here.
+PPKEYWORD(not_keyword)
+
+// C99 6.10.1 - Conditional Inclusion.
+PPKEYWORD(if)
+PPKEYWORD(ifdef)
+PPKEYWORD(ifndef)
+PPKEYWORD(elif)
+PPKEYWORD(elifdef)
+PPKEYWORD(elifndef)
+PPKEYWORD(else)
+PPKEYWORD(endif)
+PPKEYWORD(defined)
+
+// C99 6.10.2 - Source File Inclusion.
+PPKEYWORD(include)
+PPKEYWORD(__include_macros)
+
+// C99 6.10.3 - Macro Replacement.
+PPKEYWORD(define)
+PPKEYWORD(undef)
+
+// C99 6.10.4 - Line Control.
+PPKEYWORD(line)
+
+// C99 6.10.5 - Error Directive.
+PPKEYWORD(error)
+
+// C99 6.10.6 - Pragma Directive.
+PPKEYWORD(pragma)
+
+// C23 & C++26 #embed
+PPKEYWORD(embed)
+
+// GNU Extensions.
+PPKEYWORD(import)
+PPKEYWORD(include_next)
+PPKEYWORD(warning)
+PPKEYWORD(ident)
+PPKEYWORD(sccs)
+PPKEYWORD(assert)
+PPKEYWORD(unassert)
+
+// Clang extensions
+PPKEYWORD(__public_macro)
+PPKEYWORD(__private_macro)
+
+//===----------------------------------------------------------------------===//
+// Language keywords.
+//===----------------------------------------------------------------------===//
+
+// These define members of the tok::* namespace.
+
+TOK(unknown)             // Not a token.
+TOK(eof)                 // End of file.
+TOK(eod)                 // End of preprocessing directive (end of line inside a
+                         // directive).
+TOK(code_completion)     // Code completion marker
+
+// C99 6.4.9: Comments.
+TOK(comment)             // Comment (only in -E -C[C] mode)
+
+// C99 6.4.2: Identifiers.
+TOK(identifier)          // abcde123
+TOK(raw_identifier)      // Used only in raw lexing mode.
+
+// C99 6.4.4.1: Integer Constants
+// C99 6.4.4.2: Floating Constants
+TOK(numeric_constant)    // 0x123
+
+// Directly holds numerical value. Used to process C23 #embed.
+TOK(binary_data)
+
+// C99 6.4.4: Character Constants
+TOK(char_constant)       // 'a'
+TOK(wide_char_constant)  // L'b'
+
+// C++17 Character Constants
+TOK(utf8_char_constant)  // u8'a'
+
+// C++11 Character Constants
+TOK(utf16_char_constant) // u'a'
+TOK(utf32_char_constant) // U'a'
+
+// C99 6.4.5: String Literals.
+TOK(string_literal)      // "foo"
+TOK(wide_string_literal) // L"foo"
+
+// C11 6.4.7: Header Names
+TOK(header_name)         // <foo>, or "foo" lexed as a header-name
+
+// C++11 String Literals.
+TOK(utf8_string_literal) // u8"foo"
+TOK(utf16_string_literal)// u"foo"
+TOK(utf32_string_literal)// U"foo"
+
+// C99 6.4.6: Punctuators.
+PUNCTUATOR(l_square,            "[")
+PUNCTUATOR(r_square,            "]")
+PUNCTUATOR(l_paren,             "(")
+PUNCTUATOR(r_paren,             ")")
+PUNCTUATOR(l_brace,             "{")
+PUNCTUATOR(r_brace,             "}")
+PUNCTUATOR(period,              ".")
+PUNCTUATOR(ellipsis,            "...")
+PUNCTUATOR(amp,                 "&")
+PUNCTUATOR(ampamp,              "&&")
+PUNCTUATOR(ampequal,            "&=")
+PUNCTUATOR(star,                "*")
+PUNCTUATOR(starequal,           "*=")
+PUNCTUATOR(plus,                "+")
+PUNCTUATOR(plusplus,            "++")
+PUNCTUATOR(plusequal,           "+=")
+PUNCTUATOR(minus,               "-")
+PUNCTUATOR(arrow,               "->")
+PUNCTUATOR(minusminus,          "--")
+PUNCTUATOR(minusequal,          "-=")
+PUNCTUATOR(tilde,               "~")
+PUNCTUATOR(exclaim,             "!")
+PUNCTUATOR(exclaimequal,        "!=")
+PUNCTUATOR(slash,               "/")
+PUNCTUATOR(slashequal,          "/=")
+PUNCTUATOR(percent,             "%")
+PUNCTUATOR(percentequal,        "%=")
+PUNCTUATOR(less,                "<")
+PUNCTUATOR(lessless,            "<<")
+PUNCTUATOR(lessequal,           "<=")
+PUNCTUATOR(lesslessequal,       "<<=")
+PUNCTUATOR(spaceship,           "<=>")
+PUNCTUATOR(greater,             ">")
+PUNCTUATOR(greatergreater,      ">>")
+PUNCTUATOR(greaterequal,        ">=")
+PUNCTUATOR(greatergreaterequal, ">>=")
+PUNCTUATOR(caret,               "^")
+PUNCTUATOR(caretequal,          "^=")
+PUNCTUATOR(pipe,                "|")
+PUNCTUATOR(pipepipe,            "||")
+PUNCTUATOR(pipeequal,           "|=")
+PUNCTUATOR(question,            "?")
+PUNCTUATOR(colon,               ":")
+PUNCTUATOR(semi,                ";")
+PUNCTUATOR(equal,               "=")
+PUNCTUATOR(equalequal,          "==")
+PUNCTUATOR(comma,               ",")
+PUNCTUATOR(hash,                "#")
+PUNCTUATOR(hashhash,            "##")
+PUNCTUATOR(hashat,              "#@")
+
+// C++ Support
+PUNCTUATOR(periodstar,          ".*")
+PUNCTUATOR(arrowstar,           "->*")
+PUNCTUATOR(coloncolon,          "::")
+
+// Objective C support.
+PUNCTUATOR(at,                  "@")
+
+// CUDA support.
+PUNCTUATOR(lesslessless,          "<<<")
+PUNCTUATOR(greatergreatergreater, ">>>")
+
+// CL support
+PUNCTUATOR(caretcaret,            "^^")
+
+// C99 6.4.1: Keywords.  These turn into kw_* tokens.
+// Flags allowed:
+//   KEYALL   - This is a keyword in all variants of C and C++, or it
+//              is a keyword in the implementation namespace that should
+//              always be treated as a keyword
+//   KEYC99   - This is a keyword introduced to C in C99
+//   KEYC11   - This is a keyword introduced to C in C11
+//   KEYC23   - This is a keyword introduced to C in C23
+//   KEYCXX   - This is a C++ keyword, or a C++-specific keyword in the
+//              implementation namespace
+//   KEYNOCXX - This is a keyword in every non-C++ dialect.
+//   KEYCXX11 - This is a C++ keyword introduced to C++ in C++11
+//   KEYCXX20 - This is a C++ keyword introduced to C++ in C++20
+//   KEYMODULES - This is a keyword if the C++ extensions for modules
+//                are enabled.
+//   KEYGNU   - This is a keyword if GNU extensions are enabled
+//   KEYMS    - This is a keyword if Microsoft extensions are enabled
+//   KEYMSCOMPAT - This is a keyword if Microsoft compatibility mode is enabled
+//   KEYNOMS18 - This is a keyword that must never be enabled under
+//               MSVC <= v18.
+//   KEYOPENCLC   - This is a keyword in OpenCL C
+//   KEYOPENCLCXX - This is a keyword in C++ for OpenCL
+//   KEYNOOPENCL  - This is a keyword that is not supported in OpenCL
+//   KEYALTIVEC - This is a keyword in AltiVec
+//   KEYZVECTOR - This is a keyword for the System z vector extensions,
+//                which are heavily based on AltiVec
+//   KEYBORLAND - This is a keyword if Borland extensions are enabled
+//   KEYCOROUTINES - This is a keyword if support for C++ coroutines is enabled
+//   BOOLSUPPORT - This is a keyword if 'bool' is a built-in type
+//   HALFSUPPORT - This is a keyword if 'half' is a built-in type
+//   WCHARSUPPORT - This is a keyword if 'wchar_t' is a built-in type
+//   CHAR8SUPPORT - This is a keyword if 'char8_t' is a built-in type
+//   KEYFIXEDPOINT - This is a keyword according to the N1169 fixed point
+//                   extension.
+//
+KEYWORD(auto                        , KEYALL)
+KEYWORD(break                       , KEYALL)
+KEYWORD(case                        , KEYALL)
+KEYWORD(char                        , KEYALL)
+KEYWORD(const                       , KEYALL)
+KEYWORD(continue                    , KEYALL)
+KEYWORD(default                     , KEYALL)
+KEYWORD(do                          , KEYALL)
+KEYWORD(double                      , KEYALL)
+KEYWORD(else                        , KEYALL)
+KEYWORD(enum                        , KEYALL)
+KEYWORD(extern                      , KEYALL)
+KEYWORD(float                       , KEYALL)
+KEYWORD(for                         , KEYALL)
+KEYWORD(goto                        , KEYALL)
+KEYWORD(if                          , KEYALL)
+KEYWORD(int                         , KEYALL)
+KEYWORD(_ExtInt                     , KEYALL)
+KEYWORD(_BitInt                     , KEYALL)
+KEYWORD(long                        , KEYALL)
+KEYWORD(register                    , KEYALL)
+KEYWORD(return                      , KEYALL)
+KEYWORD(short                       , KEYALL)
+KEYWORD(signed                      , KEYALL)
+UNARY_EXPR_OR_TYPE_TRAIT(sizeof, SizeOf, KEYALL)
+UNARY_EXPR_OR_TYPE_TRAIT(__datasizeof, DataSizeOf, KEYCXX)
+KEYWORD(static                      , KEYALL)
+KEYWORD(struct                      , KEYALL)
+KEYWORD(switch                      , KEYALL)
+KEYWORD(typedef                     , KEYALL)
+KEYWORD(union                       , KEYALL)
+KEYWORD(unsigned                    , KEYALL)
+KEYWORD(void                        , KEYALL)
+KEYWORD(volatile                    , KEYALL)
+KEYWORD(while                       , KEYALL)
+KEYWORD(_Alignas                    , KEYALL)
+KEYWORD(_Alignof                    , KEYALL)
+KEYWORD(_Atomic                     , KEYALL|KEYNOOPENCL)
+KEYWORD(_Bool                       , KEYNOCXX)
+KEYWORD(_Complex                    , KEYALL)
+KEYWORD(_Generic                    , KEYALL)
+// Note, C2y removed support for _Imaginary; we retain it as a keyword because
+// 1) it's a reserved identifier, so we're allowed to steal it, 2) there's no
+// good way to specify a keyword in earlier but not later language modes within
+// this file, 3) this allows us to provide a better diagnostic in case a user
+// does use the keyword.
+KEYWORD(_Imaginary                  , KEYALL)
+KEYWORD(_Noreturn                   , KEYALL)
+KEYWORD(_Static_assert              , KEYALL)
+KEYWORD(_Thread_local               , KEYALL)
+KEYWORD(__func__                    , KEYALL)
+KEYWORD(__objc_yes                  , KEYALL)
+KEYWORD(__objc_no                   , KEYALL)
+
+
+// C++ 2.11p1: Keywords.
+KEYWORD(asm                         , KEYCXX|KEYGNU)
+KEYWORD(bool                        , BOOLSUPPORT|KEYC23)
+KEYWORD(catch                       , KEYCXX)
+KEYWORD(class                       , KEYCXX)
+KEYWORD(const_cast                  , KEYCXX)
+KEYWORD(delete                      , KEYCXX)
+KEYWORD(dynamic_cast                , KEYCXX)
+KEYWORD(explicit                    , KEYCXX)
+KEYWORD(export                      , KEYCXX)
+KEYWORD(false                       , BOOLSUPPORT|KEYC23)
+KEYWORD(friend                      , KEYCXX)
+KEYWORD(mutable                     , KEYCXX)
+KEYWORD(namespace                   , KEYCXX)
+KEYWORD(new                         , KEYCXX)
+KEYWORD(operator                    , KEYCXX)
+KEYWORD(private                     , KEYCXX)
+KEYWORD(protected                   , KEYCXX)
+KEYWORD(public                      , KEYCXX)
+KEYWORD(reinterpret_cast            , KEYCXX)
+KEYWORD(static_cast                 , KEYCXX)
+KEYWORD(template                    , KEYCXX)
+KEYWORD(this                        , KEYCXX)
+KEYWORD(throw                       , KEYCXX)
+KEYWORD(true                        , BOOLSUPPORT|KEYC23)
+KEYWORD(try                         , KEYCXX)
+KEYWORD(typename                    , KEYCXX)
+KEYWORD(typeid                      , KEYCXX)
+KEYWORD(using                       , KEYCXX)
+KEYWORD(virtual                     , KEYCXX)
+KEYWORD(wchar_t                     , WCHARSUPPORT)
+
+// C++ 2.5p2: Alternative Representations.
+CXX_KEYWORD_OPERATOR(and     , ampamp)
+CXX_KEYWORD_OPERATOR(and_eq  , ampequal)
+CXX_KEYWORD_OPERATOR(bitand  , amp)
+CXX_KEYWORD_OPERATOR(bitor   , pipe)
+CXX_KEYWORD_OPERATOR(compl   , tilde)
+CXX_KEYWORD_OPERATOR(not     , exclaim)
+CXX_KEYWORD_OPERATOR(not_eq  , exclaimequal)
+CXX_KEYWORD_OPERATOR(or      , pipepipe)
+CXX_KEYWORD_OPERATOR(or_eq   , pipeequal)
+CXX_KEYWORD_OPERATOR(xor     , caret)
+CXX_KEYWORD_OPERATOR(xor_eq  , caretequal)
+
+// C99 Keywords.
+C99_KEYWORD(restrict                    , 0)
+C99_KEYWORD(inline                      , KEYCXX|KEYGNU)
+
+
+// C++11 keywords
+CXX11_KEYWORD(alignas               , KEYC23)
+// alignof and _Alignof return the required ABI alignment
+CXX11_UNARY_EXPR_OR_TYPE_TRAIT(alignof, AlignOf, KEYC23)
+CXX11_KEYWORD(char16_t              , KEYNOMS18)
+CXX11_KEYWORD(char32_t              , KEYNOMS18)
+CXX11_KEYWORD(constexpr             , KEYC23)
+CXX11_KEYWORD(decltype              , 0)
+CXX11_KEYWORD(noexcept              , 0)
+CXX11_KEYWORD(nullptr               , KEYC23)
+CXX11_KEYWORD(static_assert         , KEYMSCOMPAT|KEYC23)
+CXX11_KEYWORD(thread_local          , KEYC23)
+
+// C++20 / coroutines keywords
+COROUTINES_KEYWORD(co_await)
+COROUTINES_KEYWORD(co_return)
+COROUTINES_KEYWORD(co_yield)
+
+// C++20 keywords
+MODULES_KEYWORD(module)
+MODULES_KEYWORD(import)
+
+// C++20 keywords.
+CXX20_KEYWORD(consteval             , 0)
+CXX20_KEYWORD(constinit             , 0)
+CXX20_KEYWORD(concept               , 0)
+CXX20_KEYWORD(requires              , 0)
+
+// Not a CXX20_KEYWORD because it is disabled by -fno-char8_t.
+KEYWORD(char8_t                     , CHAR8SUPPORT)
+
+// C11 Extension
+KEYWORD(_Float16                    , KEYALL)
+
+// C23 keywords
+C23_KEYWORD(typeof                  , KEYGNU)
+C23_KEYWORD(typeof_unqual           , 0)
+
+// ISO/IEC JTC1 SC22 WG14 N1169 Extension
+KEYWORD(_Accum                      , KEYFIXEDPOINT)
+KEYWORD(_Fract                      , KEYFIXEDPOINT)
+KEYWORD(_Sat                        , KEYFIXEDPOINT)
+
+// GNU Extensions (in impl-reserved namespace)
+KEYWORD(_Decimal32                  , KEYALL)
+KEYWORD(_Decimal64                  , KEYALL)
+KEYWORD(_Decimal128                 , KEYALL)
+KEYWORD(__null                      , KEYCXX)
+// __alignof returns the preferred alignment of a type, the alignment
+// clang will attempt to give an object of the type if allowed by ABI.
+UNARY_EXPR_OR_TYPE_TRAIT(__alignof, PreferredAlignOf, KEYALL)
+KEYWORD(__attribute                 , KEYALL)
+KEYWORD(__builtin_choose_expr       , KEYALL)
+KEYWORD(__builtin_offsetof          , KEYALL)
+KEYWORD(__builtin_FILE              , KEYALL)
+KEYWORD(__builtin_FILE_NAME         , KEYALL)
+KEYWORD(__builtin_FUNCTION          , KEYALL)
+KEYWORD(__builtin_FUNCSIG           , KEYMS)
+KEYWORD(__builtin_LINE              , KEYALL)
+KEYWORD(__builtin_COLUMN            , KEYALL)
+KEYWORD(__builtin_source_location   , KEYCXX)
+
+// __builtin_types_compatible_p is a GNU C extension that we handle like a C++
+// type trait.
+TYPE_TRAIT_2(__builtin_types_compatible_p, TypeCompatible, KEYNOCXX)
+KEYWORD(__builtin_va_arg            , KEYALL)
+KEYWORD(__extension__               , KEYALL)
+KEYWORD(__float128                  , KEYALL)
+KEYWORD(__ibm128                    , KEYALL)
+KEYWORD(__imag                      , KEYALL)
+KEYWORD(__int128                    , KEYALL)
+KEYWORD(__label__                   , KEYALL)
+KEYWORD(__real                      , KEYALL)
+KEYWORD(__thread                    , KEYALL)
+KEYWORD(__FUNCTION__                , KEYALL)
+KEYWORD(__PRETTY_FUNCTION__         , KEYALL)
+KEYWORD(__auto_type                 , KEYALL)
+
+// MS Extensions
+KEYWORD(__FUNCDNAME__               , KEYMS)
+KEYWORD(__FUNCSIG__                 , KEYMS)
+KEYWORD(L__FUNCTION__               , KEYMS)
+KEYWORD(L__FUNCSIG__                , KEYMS)
+TYPE_TRAIT_1(__is_interface_class, IsInterfaceClass, KEYMS)
+TYPE_TRAIT_1(__is_sealed, IsSealed, KEYMS)
+
+// MSVC12.0 / VS2013 Type Traits
+TYPE_TRAIT_1(__is_destructible, IsDestructible, KEYALL)
+TYPE_TRAIT_1(__is_trivially_destructible, IsTriviallyDestructible, KEYCXX)
+TYPE_TRAIT_1(__is_nothrow_destructible, IsNothrowDestructible, KEYALL)
+TYPE_TRAIT_2(__is_nothrow_assignable, IsNothrowAssignable, KEYCXX)
+TYPE_TRAIT_N(__is_constructible, IsConstructible, KEYCXX)
+TYPE_TRAIT_N(__is_nothrow_constructible, IsNothrowConstructible, KEYCXX)
+
+// MSVC14.0 / VS2015 Type Traits
+TYPE_TRAIT_2(__is_assignable, IsAssignable, KEYCXX)
+
+// MSVC Type Traits of unknown vintage
+TYPE_TRAIT_1(__has_nothrow_move_assign, HasNothrowMoveAssign, KEYCXX)
+TYPE_TRAIT_1(__has_trivial_move_assign, HasTrivialMoveAssign, KEYCXX)
+TYPE_TRAIT_1(__has_trivial_move_constructor, HasTrivialMoveConstructor, KEYCXX)
+
+// GNU and MS Type Traits
+TYPE_TRAIT_1(__has_nothrow_assign, HasNothrowAssign, KEYCXX)
+TYPE_TRAIT_1(__has_nothrow_copy, HasNothrowCopy, KEYCXX)
+TYPE_TRAIT_1(__has_nothrow_constructor, HasNothrowConstructor, KEYCXX)
+TYPE_TRAIT_1(__has_trivial_assign, HasTrivialAssign, KEYCXX)
+TYPE_TRAIT_1(__has_trivial_copy, HasTrivialCopy, KEYCXX)
+TYPE_TRAIT_1(__has_trivial_constructor, HasTrivialDefaultConstructor, KEYCXX)
+TYPE_TRAIT_1(__has_trivial_destructor, HasTrivialDestructor, KEYCXX)
+TYPE_TRAIT_1(__has_virtual_destructor, HasVirtualDestructor, KEYCXX)
+TYPE_TRAIT_1(__is_abstract, IsAbstract, KEYCXX)
+TYPE_TRAIT_1(__is_aggregate, IsAggregate, KEYCXX)
+TYPE_TRAIT_2(__is_base_of, IsBaseOf, KEYCXX)
+TYPE_TRAIT_1(__is_class, IsClass, KEYCXX)
+TYPE_TRAIT_2(__is_convertible_to, IsConvertibleTo, KEYCXX)
+TYPE_TRAIT_1(__is_empty, IsEmpty, KEYCXX)
+TYPE_TRAIT_1(__is_enum, IsEnum, KEYCXX)
+TYPE_TRAIT_1(__is_final, IsFinal, KEYCXX)
+TYPE_TRAIT_1(__is_literal, IsLiteral, KEYCXX)
+// Name for GCC 4.6 compatibility - people have already written libraries using
+// this name unfortunately.
+ALIAS("__is_literal_type", __is_literal, KEYCXX)
+TYPE_TRAIT_1(__is_pod, IsPOD, KEYCXX)
+TYPE_TRAIT_1(__is_polymorphic, IsPolymorphic, KEYCXX)
+TYPE_TRAIT_1(__is_standard_layout, IsStandardLayout, KEYCXX)
+TYPE_TRAIT_1(__is_trivial, IsTrivial, KEYCXX)
+TYPE_TRAIT_2(__is_trivially_assignable, IsTriviallyAssignable, KEYCXX)
+TYPE_TRAIT_N(__is_trivially_constructible, IsTriviallyConstructible, KEYCXX)
+TYPE_TRAIT_1(__is_trivially_copyable, IsTriviallyCopyable, KEYCXX)
+TYPE_TRAIT_1(__is_union, IsUnion, KEYCXX)
+TYPE_TRAIT_1(__has_unique_object_representations,
+             HasUniqueObjectRepresentations, KEYCXX)
+TYPE_TRAIT_2(__is_layout_compatible, IsLayoutCompatible, KEYCXX)
+TYPE_TRAIT_2(__is_pointer_interconvertible_base_of, IsPointerInterconvertibleBaseOf, KEYCXX)
+
+#include "clang/Basic/TransformTypeTraits.def"
+
+// Clang-only C++ Type Traits
+TYPE_TRAIT_1(__is_trivially_relocatable, IsTriviallyRelocatable, KEYCXX)
+TYPE_TRAIT_1(__is_trivially_equality_comparable, IsTriviallyEqualityComparable, KEYCXX)
+TYPE_TRAIT_1(__is_bounded_array, IsBoundedArray, KEYCXX)
+TYPE_TRAIT_1(__is_unbounded_array, IsUnboundedArray, KEYCXX)
+TYPE_TRAIT_1(__is_nullptr, IsNullPointer, KEYCXX)
+TYPE_TRAIT_1(__is_scoped_enum, IsScopedEnum, KEYCXX)
+TYPE_TRAIT_1(__is_referenceable, IsReferenceable, KEYCXX)
+TYPE_TRAIT_1(__can_pass_in_regs, CanPassInRegs, KEYCXX)
+TYPE_TRAIT_2(__reference_binds_to_temporary, ReferenceBindsToTemporary, KEYCXX)
+TYPE_TRAIT_2(__reference_constructs_from_temporary, ReferenceConstructsFromTemporary, KEYCXX)
+TYPE_TRAIT_2(__reference_converts_from_temporary, ReferenceConvertsFromTemporary, KEYCXX)
+// IsDeducible is only used internally by clang for CTAD implementation and
+// is not exposed to users.
+TYPE_TRAIT_2(/*EmptySpellingName*/, IsDeducible, KEYCXX)
+
+TYPE_TRAIT_1(__is_bitwise_cloneable, IsBitwiseCloneable, KEYALL)
+
+// Embarcadero Expression Traits
+EXPRESSION_TRAIT(__is_lvalue_expr, IsLValueExpr, KEYCXX)
+EXPRESSION_TRAIT(__is_rvalue_expr, IsRValueExpr, KEYCXX)
+
+// Embarcadero Unary Type Traits
+TYPE_TRAIT_1(__is_arithmetic, IsArithmetic, KEYCXX)
+TYPE_TRAIT_1(__is_floating_point, IsFloatingPoint, KEYCXX)
+TYPE_TRAIT_1(__is_integral, IsIntegral, KEYCXX)
+TYPE_TRAIT_1(__is_complete_type, IsCompleteType, KEYCXX)
+TYPE_TRAIT_1(__is_void, IsVoid, KEYCXX)
+TYPE_TRAIT_1(__is_array, IsArray, KEYCXX)
+TYPE_TRAIT_1(__is_function, IsFunction, KEYCXX)
+TYPE_TRAIT_1(__is_reference, IsReference, KEYCXX)
+TYPE_TRAIT_1(__is_lvalue_reference, IsLvalueReference, KEYCXX)
+TYPE_TRAIT_1(__is_rvalue_reference, IsRvalueReference, KEYCXX)
+TYPE_TRAIT_1(__is_fundamental, IsFundamental, KEYCXX)
+TYPE_TRAIT_1(__is_object, IsObject, KEYCXX)
+TYPE_TRAIT_1(__is_scalar, IsScalar, KEYCXX)
+TYPE_TRAIT_1(__is_compound, IsCompound, KEYCXX)
+TYPE_TRAIT_1(__is_pointer, IsPointer, KEYCXX)
+TYPE_TRAIT_1(__is_member_object_pointer, IsMemberObjectPointer, KEYCXX)
+TYPE_TRAIT_1(__is_member_function_pointer, IsMemberFunctionPointer, KEYCXX)
+TYPE_TRAIT_1(__is_member_pointer, IsMemberPointer, KEYCXX)
+TYPE_TRAIT_1(__is_const, IsConst, KEYCXX)
+TYPE_TRAIT_1(__is_volatile, IsVolatile, KEYCXX)
+TYPE_TRAIT_1(__is_signed, IsSigned, KEYCXX)
+TYPE_TRAIT_1(__is_unsigned, IsUnsigned, KEYCXX)
+
+// Embarcadero Binary Type Traits
+TYPE_TRAIT_2(__is_same, IsSame, KEYCXX)
+TYPE_TRAIT_2(__is_convertible, IsConvertible, KEYCXX)
+TYPE_TRAIT_2(__is_nothrow_convertible, IsNothrowConvertible, KEYCXX)
+ARRAY_TYPE_TRAIT(__array_rank, ArrayRank, KEYCXX)
+ARRAY_TYPE_TRAIT(__array_extent, ArrayExtent, KEYCXX)
+// Name for GCC 6 compatibility.
+ALIAS("__is_same_as", __is_same, KEYCXX)
+
+// Apple Extension.
+KEYWORD(__private_extern__          , KEYALL)
+KEYWORD(__module_private__          , KEYALL)
+
+UNARY_EXPR_OR_TYPE_TRAIT(__builtin_ptrauth_type_discriminator, PtrAuthTypeDiscriminator, KEYALL)
+
+// Extension that will be enabled for Microsoft, Borland and PS4, but can be
+// disabled via '-fno-declspec'.
+KEYWORD(__declspec                  , 0)
+
+// Microsoft Extension.
+KEYWORD(__cdecl                     , KEYALL)
+KEYWORD(__stdcall                   , KEYALL)
+KEYWORD(__fastcall                  , KEYALL)
+KEYWORD(__thiscall                  , KEYALL)
+KEYWORD(__regcall                   , KEYALL)
+KEYWORD(__vectorcall                , KEYALL)
+KEYWORD(__forceinline               , KEYMS)
+KEYWORD(__unaligned                 , KEYMS)
+KEYWORD(__super                     , KEYMS)
+
+// OpenCL address space qualifiers
+KEYWORD(__global                    , KEYOPENCLC | KEYOPENCLCXX)
+KEYWORD(__local                     , KEYOPENCLC | KEYOPENCLCXX)
+KEYWORD(__constant                  , KEYOPENCLC | KEYOPENCLCXX)
+KEYWORD(__private                   , KEYOPENCLC | KEYOPENCLCXX)
+KEYWORD(__generic                   , KEYOPENCLC | KEYOPENCLCXX)
+ALIAS("global", __global            , KEYOPENCLC | KEYOPENCLCXX)
+ALIAS("local", __local              , KEYOPENCLC | KEYOPENCLCXX)
+ALIAS("constant", __constant        , KEYOPENCLC | KEYOPENCLCXX)
+ALIAS("private", __private          , KEYOPENCLC)
+ALIAS("generic", __generic          , KEYOPENCLC | KEYOPENCLCXX)
+// OpenCL function qualifiers
+KEYWORD(__kernel                    , KEYOPENCLC | KEYOPENCLCXX)
+ALIAS("kernel", __kernel            , KEYOPENCLC | KEYOPENCLCXX)
+// OpenCL access qualifiers
+KEYWORD(__read_only                 , KEYOPENCLC | KEYOPENCLCXX)
+KEYWORD(__write_only                , KEYOPENCLC | KEYOPENCLCXX)
+KEYWORD(__read_write                , KEYOPENCLC | KEYOPENCLCXX)
+ALIAS("read_only", __read_only      , KEYOPENCLC | KEYOPENCLCXX)
+ALIAS("write_only", __write_only    , KEYOPENCLC | KEYOPENCLCXX)
+ALIAS("read_write", __read_write    , KEYOPENCLC | KEYOPENCLCXX)
+// OpenCL builtins
+KEYWORD(__builtin_astype            , KEYOPENCLC | KEYOPENCLCXX)
+UNARY_EXPR_OR_TYPE_TRAIT(vec_step, VecStep, KEYOPENCLC | KEYOPENCLCXX | KEYALTIVEC | KEYZVECTOR)
+#define GENERIC_IMAGE_TYPE(ImgType, Id) KEYWORD(ImgType##_t, KEYOPENCLC | KEYOPENCLCXX)
+#include "clang/Basic/OpenCLImageTypes.def"
+KEYWORD(pipe                        , KEYOPENCLC | KEYOPENCLCXX)
+// C++ for OpenCL s2.3.1: addrspace_cast operator
+KEYWORD(addrspace_cast              , KEYOPENCLCXX)
+
+// CUDA/HIP function attributes
+KEYWORD(__noinline__                , KEYCUDA)
+
+// HLSL keywords.
+KEYWORD(cbuffer                     , KEYHLSL)
+KEYWORD(tbuffer                     , KEYHLSL)
+KEYWORD(groupshared                 , KEYHLSL)
+KEYWORD(in                          , KEYHLSL)
+KEYWORD(inout                       , KEYHLSL)
+KEYWORD(out                         , KEYHLSL)
+
+// OpenMP Type Traits
+UNARY_EXPR_OR_TYPE_TRAIT(__builtin_omp_required_simd_align, OpenMPRequiredSimdAlign, KEYALL)
+
+// Borland Extensions.
+KEYWORD(__pascal                    , KEYALL)
+
+// Altivec Extension.
+KEYWORD(__vector                    , KEYALTIVEC|KEYZVECTOR)
+KEYWORD(__pixel                     , KEYALTIVEC)
+KEYWORD(__bool                      , KEYALTIVEC|KEYZVECTOR)
+
+// ARM NEON extensions.
+ALIAS("__fp16", half                , KEYALL)
+KEYWORD(__bf16                      , KEYALL)
+
+// OpenCL Extension.
+KEYWORD(half                        , HALFSUPPORT)
+
+// Objective-C ARC keywords.
+KEYWORD(__bridge                     , KEYOBJC)
+KEYWORD(__bridge_transfer            , KEYOBJC)
+KEYWORD(__bridge_retained            , KEYOBJC)
+KEYWORD(__bridge_retain              , KEYOBJC)
+
+// Objective-C keywords.
+KEYWORD(__covariant                  , KEYOBJC)
+KEYWORD(__contravariant              , KEYOBJC)
+KEYWORD(__kindof                     , KEYOBJC)
+
+// Alternate spelling for various tokens.  There are GCC extensions in all
+// languages, but should not be disabled in strict conformance mode.
+ALIAS("__alignof__"      , __alignof    , KEYALL)
+ALIAS("__asm"            , asm          , KEYALL)
+ALIAS("__asm__"          , asm          , KEYALL)
+ALIAS("__attribute__"    , __attribute  , KEYALL)
+ALIAS("__complex"        , _Complex     , KEYALL)
+ALIAS("__complex__"      , _Complex     , KEYALL)
+ALIAS("__const"          , const        , KEYALL)
+ALIAS("__const__"        , const        , KEYALL)
+ALIAS("__decltype"       , decltype     , KEYCXX)
+ALIAS("__imag__"         , __imag       , KEYALL)
+ALIAS("__inline"         , inline       , KEYALL)
+ALIAS("__inline__"       , inline       , KEYALL)
+ALIAS("__nullptr"        , nullptr      , KEYCXX)
+ALIAS("__real__"         , __real       , KEYALL)
+ALIAS("__restrict"       , restrict     , KEYALL)
+ALIAS("__restrict__"     , restrict     , KEYALL)
+ALIAS("__signed"         , signed       , KEYALL)
+ALIAS("__signed__"       , signed       , KEYALL)
+ALIAS("__typeof"         , typeof       , KEYALL)
+ALIAS("__typeof__"       , typeof       , KEYALL)
+ALIAS("__typeof_unqual"  , typeof_unqual, KEYALL)
+ALIAS("__typeof_unqual__", typeof_unqual, KEYALL)
+ALIAS("__volatile"       , volatile     , KEYALL)
+ALIAS("__volatile__"     , volatile     , KEYALL)
+
+// Type nullability.
+KEYWORD(_Nonnull                 , KEYALL)
+KEYWORD(_Nullable                , KEYALL)
+KEYWORD(_Nullable_result         , KEYALL)
+KEYWORD(_Null_unspecified        , KEYALL)
+
+// WebAssembly Type Extension
+KEYWORD(__funcref                     , KEYALL)
+
+// Microsoft extensions which should be disabled in strict conformance mode
+KEYWORD(__ptr64                       , KEYMS)
+KEYWORD(__ptr32                       , KEYMS)
+KEYWORD(__sptr                        , KEYMS)
+KEYWORD(__uptr                        , KEYMS)
+KEYWORD(__w64                         , KEYMS)
+KEYWORD(__uuidof                      , KEYMS | KEYBORLAND)
+KEYWORD(__try                         , KEYMS | KEYBORLAND)
+KEYWORD(__finally                     , KEYMS | KEYBORLAND)
+KEYWORD(__leave                       , KEYMS | KEYBORLAND)
+KEYWORD(__int64                       , KEYMS)
+KEYWORD(__if_exists                   , KEYMS)
+KEYWORD(__if_not_exists               , KEYMS)
+KEYWORD(__single_inheritance          , KEYMS)
+KEYWORD(__multiple_inheritance        , KEYMS)
+KEYWORD(__virtual_inheritance         , KEYMS)
+KEYWORD(__interface                   , KEYMS)
+ALIAS("__int8"           , char       , KEYMS)
+ALIAS("__int16"          , short      , KEYMS)
+ALIAS("__int32"          , int        , KEYMS)
+ALIAS("__wchar_t"        , wchar_t    , KEYMS)
+ALIAS("__builtin_alignof", __alignof  , KEYMS)
+
+// Microsoft single-underscore prefixed aliases for double-underscore prefixed
+// keywords.
+ALIAS("_asm"             , asm          , KEYMS)
+ALIAS("_alignof"         , __alignof    , KEYMS)
+ALIAS("_cdecl"           , __cdecl      , KEYMS | KEYBORLAND)
+ALIAS("_declspec"        , __declspec   , KEYMS)
+ALIAS("_fastcall"        , __fastcall   , KEYMS | KEYBORLAND)
+ALIAS("_finally"         , __finally    , KEYMSCOMPAT)
+ALIAS("_forceinline"     , __forceinline, KEYMSCOMPAT)
+ALIAS("_inline"          , inline       , KEYMS)
+ALIAS("_int8"            , char         , KEYMS)
+ALIAS("_int16"           , short        , KEYMS)
+ALIAS("_int32"           , int          , KEYMS)
+ALIAS("_int64"           , __int64      , KEYMS)
+ALIAS("_leave"           , __leave      , KEYMSCOMPAT)
+ALIAS("_multiple_inheritance", __multiple_inheritance, KEYMSCOMPAT)
+ALIAS("_ptr32"           , __ptr32      , KEYMSCOMPAT)
+ALIAS("_ptr64"           , __ptr64      , KEYMSCOMPAT)
+ALIAS("_restrict"        , restrict     , KEYMSCOMPAT)
+ALIAS("_stdcall"         , __stdcall    , KEYMS | KEYBORLAND)
+ALIAS("_thiscall"        , __thiscall   , KEYMS)
+ALIAS("_try"             , __try        , KEYMSCOMPAT)
+ALIAS("_vectorcall"      , __vectorcall , KEYMS)
+ALIAS("_unaligned"       , __unaligned  , KEYMSCOMPAT)
+ALIAS("_uptr"            , __uptr       , KEYMSCOMPAT)
+ALIAS("_uuidof"          , __uuidof     , KEYMS | KEYBORLAND)
+ALIAS("_virtual_inheritance", __virtual_inheritance, KEYMSCOMPAT)
+ALIAS("_w64"             , __w64        , KEYMSCOMPAT)
+
+// Borland Extensions which should be disabled in strict conformance mode.
+ALIAS("_pascal"      , __pascal   , KEYBORLAND)
+
+// Clang Extensions.
+KEYWORD(__builtin_convertvector          , KEYALL)
+UNARY_EXPR_OR_TYPE_TRAIT(__builtin_vectorelements, VectorElements, KEYALL)
+ALIAS("__char16_t"   , char16_t          , KEYCXX)
+ALIAS("__char32_t"   , char32_t          , KEYCXX)
+KEYWORD(__builtin_bit_cast               , KEYALL)
+KEYWORD(__builtin_available              , KEYALL)
+KEYWORD(__builtin_sycl_unique_stable_name, KEYSYCL)
+
+// Keywords defined by Attr.td.
+// The "EMPTY ## X" is used to prevent early macro-expansion of the keyword.
+#ifndef KEYWORD_ATTRIBUTE
+#define KEYWORD_ATTRIBUTE(X, HASARG, EMPTY) KEYWORD(EMPTY ## X, KEYALL)
+#endif
+#include "clang/Basic/RegularKeywordAttrInfo.inc"
+
+// Clang-specific keywords enabled only in testing.
+TESTING_KEYWORD(__unknown_anytype , KEYALL)
+
+
+//===----------------------------------------------------------------------===//
+// Objective-C @-preceded keywords.
+//===----------------------------------------------------------------------===//
+
+// These have meaning after an '@' in Objective-C mode. These define enums in
+// the tok::objc_* namespace.
+
+OBJC_AT_KEYWORD(not_keyword)
+OBJC_AT_KEYWORD(class)
+OBJC_AT_KEYWORD(compatibility_alias)
+OBJC_AT_KEYWORD(defs)
+OBJC_AT_KEYWORD(encode)
+OBJC_AT_KEYWORD(end)
+OBJC_AT_KEYWORD(implementation)
+OBJC_AT_KEYWORD(interface)
+OBJC_AT_KEYWORD(private)
+OBJC_AT_KEYWORD(protected)
+OBJC_AT_KEYWORD(protocol)
+OBJC_AT_KEYWORD(public)
+OBJC_AT_KEYWORD(selector)
+OBJC_AT_KEYWORD(throw)
+OBJC_AT_KEYWORD(try)
+OBJC_AT_KEYWORD(catch)
+OBJC_AT_KEYWORD(finally)
+OBJC_AT_KEYWORD(synchronized)
+OBJC_AT_KEYWORD(autoreleasepool)
+
+OBJC_AT_KEYWORD(property)
+OBJC_AT_KEYWORD(package)
+OBJC_AT_KEYWORD(required)
+OBJC_AT_KEYWORD(optional)
+OBJC_AT_KEYWORD(synthesize)
+OBJC_AT_KEYWORD(dynamic)
+OBJC_AT_KEYWORD(import)
+OBJC_AT_KEYWORD(available)
+
+//===----------------------------------------------------------------------===//
+// Notable identifiers.
+//===----------------------------------------------------------------------===//
+NOTABLE_IDENTIFIER(not_notable)
+NOTABLE_IDENTIFIER(FILE)
+NOTABLE_IDENTIFIER(jmp_buf)
+NOTABLE_IDENTIFIER(sigjmp_buf)
+NOTABLE_IDENTIFIER(ucontext_t)
+NOTABLE_IDENTIFIER(float_t)
+NOTABLE_IDENTIFIER(double_t)
+
+// TODO: What to do about context-sensitive keywords like:
+//       bycopy/byref/in/inout/oneway/out?
+
+ANNOTATION(cxxscope)     // annotation for a C++ scope spec, e.g. "::foo::bar::"
+ANNOTATION(typename)     // annotation for a C typedef name, a C++ (possibly
+                         // qualified) typename, e.g. "foo::MyClass", or
+                         // template-id that names a type ("std::vector<int>")
+ANNOTATION(template_id)  // annotation for a C++ template-id that names a
+                         // function template specialization (not a type),
+                         // e.g., "std::swap<int>", or a type-constraint (which
+                         // might not have explicit template arguments),
+                         // e.g. "C", "C<int>".
+ANNOTATION(non_type)     // annotation for a single non-type declaration
+ANNOTATION(non_type_undeclared) // annotation for an undeclared identifier that
+                                // was assumed to be an ADL-only function name
+ANNOTATION(non_type_dependent)  // annotation for an assumed non-type member of
+                                // a dependent base class
+ANNOTATION(overload_set) // annotation for an unresolved overload set
+ANNOTATION(primary_expr) // annotation for a primary expression, used when
+                         // tentatively parsing a lambda init-capture or ObjC
+                         // message send
+ANNOTATION(decltype)     // annotation for a decltype expression,
+                         // e.g., "decltype(foo.bar())"
+ANNOTATION(pack_indexing_type) // annotation for an indexed pack of type,
+                              // e.g., "T...[expr]"
+
+// Annotation for #pragma unused(...)
+// For each argument inside the parentheses the pragma handler will produce
+// one 'pragma_unused' annotation token followed by the argument token.
+PRAGMA_ANNOTATION(pragma_unused)
+
+// Annotation for #pragma GCC visibility...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_vis)
+
+// Annotation for #pragma pack...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_pack)
+
+// Annotation for #pragma clang __debug parser_crash...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_parser_crash)
+
+// Annotation for #pragma clang __debug captured...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_captured)
+
+// Annotation for #pragma clang __debug dump...
+// The lexer produces these so that the parser and semantic analysis can
+// look up and dump the operand.
+PRAGMA_ANNOTATION(pragma_dump)
+
+// Annotation for #pragma ms_struct...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_msstruct)
+
+// Annotation for #pragma align...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_align)
+
+// Annotation for #pragma weak id
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_weak)
+
+// Annotation for #pragma weak id = id
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_weakalias)
+
+// Annotation for #pragma redefine_extname...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_redefine_extname)
+
+// Annotation for #pragma STDC FP_CONTRACT...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_fp_contract)
+
+// Annotations for #pragma STDC FENV_ACCESS and #pragma fenv_access (MS compat)
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_fenv_access)
+PRAGMA_ANNOTATION(pragma_fenv_access_ms)
+
+// Annotation for #pragma STDC FENV_ROUND
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_fenv_round)
+
+// Annotation for #pragma STDC CX_LIMITED_RANGE
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_cx_limited_range)
+
+// Annotation for #pragma float_control
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_float_control)
+
+// Annotation for #pragma pointers_to_members...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_ms_pointers_to_members)
+
+// Annotation for #pragma vtordisp...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_ms_vtordisp)
+
+// Annotation for all microsoft #pragmas...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_ms_pragma)
+
+// Annotation for #pragma OPENCL EXTENSION...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+PRAGMA_ANNOTATION(pragma_opencl_extension)
+
+// Annotations for OpenMP pragma directives - #pragma omp ...
+// The parser produces this annotation token when it parses an [[omp::*]]
+// attribute. The tokens from the attribute argument list are replayed to the
+// token stream with this leading token (and a trailing pragma_openmp_end) so
+// that the parser can reuse the OpenMP parsing logic but still be able to
+// distinguish between a real pragma and a converted pragma. It is not marked
+// as a PRAGMA_ANNOTATION because it doesn't get generated from a #pragma.
+ANNOTATION(attr_openmp)
+// The lexer produces these so that they only take effect when the parser
+// handles #pragma omp ... directives.
+PRAGMA_ANNOTATION(pragma_openmp)
+PRAGMA_ANNOTATION(pragma_openmp_end)
+
+// Annotations for OpenACC pragma directives - #pragma acc.
+// Like with OpenMP, these are produced by the lexer when it parses a
+// #pragma acc directive so it can be handled during parsing of the directives.
+PRAGMA_ANNOTATION(pragma_openacc)
+PRAGMA_ANNOTATION(pragma_openacc_end)
+
+// Annotations for loop pragma directives #pragma clang loop ...
+// The lexer produces these so that they only take effect when the parser
+// handles #pragma loop ... directives.
+PRAGMA_ANNOTATION(pragma_loop_hint)
+
+PRAGMA_ANNOTATION(pragma_fp)
+
+// Annotation for the attribute pragma directives - #pragma clang attribute ...
+PRAGMA_ANNOTATION(pragma_attribute)
+
+// Annotation for the riscv pragma directives - #pragma clang riscv intrinsic ...
+PRAGMA_ANNOTATION(pragma_riscv)
+
+// Annotations for module import translated from #include etc.
+ANNOTATION(module_include)
+ANNOTATION(module_begin)
+ANNOTATION(module_end)
+
+// Annotation for a header_name token that has been looked up and transformed
+// into the name of a header unit.
+ANNOTATION(header_unit)
+
+// Annotation for end of input in clang-repl.
+ANNOTATION(repl_input_end)
+
+// Annotation for #embed
+ANNOTATION(embed)
+
+#undef PRAGMA_ANNOTATION
+#undef ANNOTATION
+#undef TESTING_KEYWORD
+#undef OBJC_AT_KEYWORD
+#undef CXX_KEYWORD_OPERATOR
+#undef PPKEYWORD
+#undef ALIAS
+#undef EXPRESSION_TRAIT
+#undef CXX11_UNARY_EXPR_OR_TYPE_TRAIT
+#undef UNARY_EXPR_OR_TYPE_TRAIT
+#undef ARRAY_TYPE_TRAIT
+#undef TYPE_TRAIT_N
+#undef TYPE_TRAIT_2
+#undef TYPE_TRAIT_1
+#undef TYPE_TRAIT
+#undef CXX20_KEYWORD
+#undef CXX11_KEYWORD
+#undef KEYWORD
+#undef PUNCTUATOR
+#undef TOK
+#undef C99_KEYWORD
+#undef C23_KEYWORD
+#undef NOTABLE_IDENTIFIER

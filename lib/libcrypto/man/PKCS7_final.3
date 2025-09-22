@@ -1,0 +1,203 @@
+.\" $OpenBSD: PKCS7_final.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS7_FINAL 3
+.Os
+.Sh NAME
+.Nm PKCS7_final
+.Nd read data from a BIO into a ContentInfo object
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft int
+.Fo PKCS7_final
+.Fa "PKCS7 *p7"
+.Fa "BIO *data"
+.Fa "int flags"
+.Fc
+.Sh DESCRIPTION
+.Fn PKCS7_final
+reads
+.Fa data
+and puts it into the appropriate content field of
+.Fa p7
+itself or of its appropriate substructure, which can be of type
+.Vt SignedData ,
+.Vt EnvelopedData ,
+.Vt SignedAndEnvelopedData ,
+.Vt DigestedData ,
+or arbitrary data.
+The
+.Xr PKCS7_dataFinal 3
+manual explains which field exactly the data is put into.
+.Pp
+The following
+.Fa flags
+are recognized:
+.Bl -tag -width PKCS7_BINARY
+.It Dv PKCS7_BINARY
+Copy the data verbatim without changing any bytes.
+By default, line endings are replaced with two-byte
+.Qq \er\en
+sequences (ASCII CR+LF).
+If this flag is set,
+.Dv PKCS7_TEXT
+is ignored.
+.It Dv PKCS7_TEXT
+Prepend
+.Qq Content-Type: text/plain
+followed by a blank line to the data.
+This flag is ignored if
+.Dv PKCS7_BINARY
+is also set.
+.El
+.Pp
+If any other bits are set in
+.Fa flags ,
+for example
+.Dv PKCS7_STREAM
+or
+.Dv PKCS7_PARTIAL ,
+they are ignored, allowing to pass the same
+.Fa flags
+argument that was already passed to
+.Xr PKCS7_sign 3
+or
+.Xr PKCS7_encrypt 3 .
+.Pp
+.Fn PKCS7_final
+is most commonly used to finalize a
+.Fa p7
+object returned from a call to
+.Xr PKCS7_sign 3
+that used
+.Fa flags
+including
+.Dv PKCS7_PARTIAL
+or
+.Dv PKCS7_STREAM .
+With these flags,
+.Xr PKCS7_sign 3
+ignores its
+.Fa data
+argument.
+The partial
+.Fa p7
+object returned can then be customized, for example setting up
+multiple signers or non-default digest algorithms with
+.Xr PKCS7_sign_add_signer 3 ,
+before calling
+.Fn PKCS7_final .
+.Pp
+Similarly,
+.Fn PKCS7_final
+can be used to finalize a
+.Fa p7
+object returned from a call to
+.Xr PKCS7_encrypt 3
+that used
+.Fa flags
+including
+.Dv PKCS7_STREAM .
+.Pp
+Since
+.Fn PKCS7_final
+starts by calling
+.Xr PKCS7_dataInit 3
+internally, using it to finalize a
+.Fa p7
+object containing
+.Vt SignedAndEnvelopedData ,
+.Vt DigestedData ,
+or arbitrary data requires the setup described in the
+.Xr PKCS7_dataInit 3
+manual.
+For
+.Vt SignedData
+and
+.Vt EnvelopedData ,
+such manual setup is also feasible, but it is more easily performed with
+.Xr PKCS7_sign 3
+or
+.Xr PKCS7_encrypt 3 ,
+respectively.
+.Pp
+.Fn PKCS7_final
+is only one among several functions that can be used to finalize
+.Fa p7 ;
+alternatives include
+.Xr SMIME_write_PKCS7 3 ,
+.Xr PEM_write_bio_PKCS7_stream 3 ,
+and
+.Xr i2d_PKCS7_bio_stream 3 .
+.Sh RETURN VALUES
+.Fn PKCS7_final
+returns 1 on success or 0 on failure.
+.Pp
+Possible reasons for failure include:
+.Pp
+.Bl -dash -compact -offset 2n -width 1n
+.It
+.Fa p7
+is
+.Dv NULL .
+.It
+The
+.Fa content
+field of
+.Fa p7
+is empty.
+.It
+The
+.Fa contentType
+of
+.Fa p7
+is unsupported.
+.It
+Signing or digesting is requested and
+.Fa p7
+is not configured to store a detached signature, but does not contain
+the required field to store the content either.
+.It
+At least one signer lacks a usable digest algorithm.
+.It
+A cipher is required but none is configured.
+.It
+Any required operation fails, for example signing or digesting.
+.It
+Memory allocation fails.
+.El
+.Pp
+Signers lacking private keys do not cause failure but are silently skipped.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr i2d_PKCS7_bio_stream 3 ,
+.Xr PEM_write_bio_PKCS7_stream 3 ,
+.Xr PKCS7_add_attribute 3 ,
+.Xr PKCS7_dataFinal 3 ,
+.Xr PKCS7_dataInit 3 ,
+.Xr PKCS7_encrypt 3 ,
+.Xr PKCS7_new 3 ,
+.Xr PKCS7_sign 3 ,
+.Xr SMIME_write_PKCS7 3
+.Sh HISTORY
+.Fn PKCS7_final
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .
+.Sh CAVEATS
+This function does not support
+.Vt EncryptedData .

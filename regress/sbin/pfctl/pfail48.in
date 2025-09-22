@@ -1,0 +1,2 @@
+pass in proto tcp from any to any port 123 \
+	keep state (source-track global, max-src-nodes 1000)

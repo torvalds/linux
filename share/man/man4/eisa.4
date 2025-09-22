@@ -1,0 +1,111 @@
+.\"	$OpenBSD: eisa.4,v 1.23 2020/01/10 01:13:19 jsg Exp $
+.\"	$NetBSD: eisa.4,v 1.10 2001/09/11 22:52:52 wiz Exp $
+.\"
+.\" Copyright (c) 1997 Jonathan Stone
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgements:
+.\"      This product includes software developed by Jonathan Stone
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 10 2020 $
+.Dt EISA 4
+.Os
+.Sh NAME
+.Nm eisa
+.Nd introduction to EISA bus support
+.Sh SYNOPSIS
+Machine-dependent; depends on the bus topology and
+.Tn EISA
+bus interface of your system.
+Typical
+.Tn EISA
+buses are either connected directly
+to the main system bus, or via an
+.Tn PCI
+to
+.Tn EISA
+bridge.
+See the
+.Xr intro 4
+documentation for your system for details.
+.Sh DESCRIPTION
+.Ox
+includes a machine-independent
+.Tn EISA
+bus subsystem and several machine-independent
+.Tn EISA
+device drivers.
+.Pp
+.Ox
+provides support for the following devices.
+Note that not all architectures support all devices.
+.Ss Disk and tape controllers
+.Bl -tag -width 12n -offset ind -compact
+.It Xr cac 4
+Compaq Smart Array 2/3/4 SCSI RAID controller
+.El
+.Ss SCSI interfaces
+.Bl -tag -width 12n -offset ind -compact
+.It Xr ahc 4
+Adaptec VL/EISA/PCI SCSI interface
+.It Xr uha 4
+Ultrastor SCSI interface
+.El
+.Ss Network interfaces
+.Bl -tag -width 12n -offset ind -compact
+.It Xr ep 4
+3Com EtherLink III and Fast EtherLink III 10/100 Ethernet device
+.\" .It Xr le 4
+.\" Digital DE422
+.\" .Tn Ethernet
+.\" interfaces.
+.\" .It Xr tlp 4
+.\" Digital DE425
+.\" .Tn Ethernet
+.\" interfaces.
+.El
+.Pp
+Note that most or all
+.Tn EISA
+devices also have
+.Tn PCI
+or
+.Tn ISA
+equivalents.
+These are listed in
+.Xr pci 4 ,
+.Xr isa 4 ,
+or
+.Xr isapnp 4 ,
+respectively.
+The manual pages for each individual driver also lists the
+supported bus variants.
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The machine-independent
+.Tn EISA
+subsystem appeared in
+.Ox 1.2 .

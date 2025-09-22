@@ -1,0 +1,79 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("ARMGenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../ARM.td"
+}
+
+tablegen("ARMGenInstrInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../ARM.td"
+}
+
+tablegen("ARMGenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../ARM.td"
+}
+
+tablegen("ARMGenRegisterInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../ARM.td"
+}
+
+tablegen("ARMGenSubtargetInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../ARM.td"
+}
+
+# This should contain tablegen targets generating .inc files included
+# by other targets. .inc files only used by .cpp files in this directory
+# should be in deps on the static_library instead.
+group("tablegen") {
+  visibility = [
+    ":MCTargetDesc",
+    "../Utils",
+  ]
+  public_deps = [
+    ":ARMGenInstrInfo",
+    ":ARMGenRegisterInfo",
+    ":ARMGenSubtargetInfo",
+  ]
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMARMDesc"
+  public_deps = [ ":tablegen" ]
+  deps = [
+    ":ARMGenAsmWriter",
+    ":ARMGenMCCodeEmitter",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/ARM/TargetInfo",
+    "//llvm/lib/Target/ARM/Utils",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "ARMAsmBackend.cpp",
+    "ARMELFObjectWriter.cpp",
+    "ARMELFStreamer.cpp",
+    "ARMInstPrinter.cpp",
+    "ARMMCAsmInfo.cpp",
+    "ARMMCCodeEmitter.cpp",
+    "ARMMCExpr.cpp",
+    "ARMMCTargetDesc.cpp",
+    "ARMMachORelocationInfo.cpp",
+    "ARMMachObjectWriter.cpp",
+    "ARMTargetStreamer.cpp",
+    "ARMUnwindOpAsm.cpp",
+    "ARMWinCOFFObjectWriter.cpp",
+    "ARMWinCOFFStreamer.cpp",
+  ]
+}

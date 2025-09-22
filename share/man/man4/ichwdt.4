@@ -1,0 +1,57 @@
+.\"	$OpenBSD: ichwdt.4,v 1.8 2014/11/15 14:41:02 bentley Exp $
+.\"
+.\" Copyright (c) 2005 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 15 2014 $
+.Dt ICHWDT 4
+.Os
+.Sh NAME
+.Nm ichwdt
+.Nd Intel 6300ESB ICH watchdog timer device
+.Sh SYNOPSIS
+.Cd "ichwdt* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the watchdog timer of the Intel 6300ESB I/O Controller Hub.
+.Pp
+.Nm
+provides the standard
+.Xr watchdog 4
+interface and may be used with
+.Xr watchdogd 8 .
+The watchdog timer can be configured via
+.Xr sysctl 8 .
+.Pp
+Once the watchdog timer resets the CPU, the driver reports it on the
+next boot displaying the
+.Dq reboot on timeout
+message in the dmesg.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr watchdog 4 ,
+.Xr sysctl 8 ,
+.Xr watchdogd 8
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

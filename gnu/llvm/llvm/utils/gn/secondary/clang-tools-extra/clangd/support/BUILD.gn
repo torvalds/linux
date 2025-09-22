@@ -1,0 +1,25 @@
+# clangd/support contains low-level support libraries that do not depend
+# on clang either programmatically or conceptually.
+static_library("support") {
+  output_name = "clangdSupport"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//llvm/lib/Support",
+    "//llvm/utils/gn/build/libs/atomic",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "Cancellation.cpp",
+    "Context.cpp",
+    "FileCache.cpp",
+    "Logger.cpp",
+    "Markup.cpp",
+    "MemoryTree.cpp",
+    "Path.cpp",
+    "Shutdown.cpp",
+    "ThreadCrashReporter.cpp",
+    "Threading.cpp",
+    "ThreadsafeFS.cpp",
+    "Trace.cpp",
+  ]
+}

@@ -1,0 +1,2 @@
+ike from 1.1.1.1 to any local 192.168.3.2 peer 192.168.3.1
+ike from 1.1.1.1 to any peer 192.168.3.1 local 192.168.3.2

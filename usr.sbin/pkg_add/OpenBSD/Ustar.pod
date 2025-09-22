@@ -1,0 +1,225 @@
+$OpenBSD: Ustar.pod,v 1.3 2023/05/16 10:52:58 espie Exp $
+
+=head1 NAME
+
+OpenBSD::Ustar - simple access to Ustar C<tar(1)> archives
+
+=head1 SYNOPSIS
+
+    use OpenBSD::Ustar;
+    # for reading
+
+    open(my $in, "<", $arcnameforreading) or die;
+    $rdarc = OpenBSD::Ustar->new($in, $state, $destdir);
+    $rdarc->set_description($arcnameforreading);
+    while (my $o = $rdarc->next) {
+    	# decide whether we want to extract it, change object attributes
+	$o->create;
+    }
+    $rdarc->close;
+
+    # for writing
+    open(my $out, ">", $arcnameforwriting) or die;
+    $wrarc = OpenBSD::Ustar->new($fh, $state, $destdir);
+    # loop
+    	my $o = $wrarc->prepare($filename);
+	# tweak some entry parameters
+	$o->write;
+
+    $wrarc->close;
+
+    # for copying
+    open(my $in, "<", $arcnameforreading) or die;
+    $rdarc = OpenBSD::Ustar->new($in, $state, $destdir);
+    open(my $out, ">", $arcnameforwriting) or die;
+    $wrarc = OpenBSD::Ustar->new($fh, $state, $destdir);
+    while (my $o = $rdarc->next) {
+    	$o->copy($wrarc);
+    }
+    $rdarc->close;
+    $wrarc->close;
+
+=head1 DESCRIPTION
+
+C<OpenBSD::Ustar> provides an API to read, write and copy archives compatible
+with C<tar(1)>.
+
+For the time being, it can only handle the USTAR archive format,
+but is supports the C<XHDR> (x blocktype) extension for accurately 
+representing long hard links and symbolic links.
+It also accurately recognize some common extensions that it doesn't process.
+
+A filehandle C<$fh> is associated with an C<OpenBSD::Ustar> object through
+C<new>. For archive reading, the filehandle should support
+C<read>. C<OpenBSD::Ustar> does not rely on C<seek> or C<rewind> in order
+to be usable on pipe outputs. For archive writing, the filehandle should
+support C<print>.
+
+Error messages and fatal errors will be handled through the C<$state> object,
+which should conform to C<OpenBSD::BaseState(3p)> (uses C<errsay> and C<fatal>).
+
+Note that read and write support are mutually exclusive, though there is
+no need to specify the mode used at creation time; it is implicitly
+provided by the underlying filehandle.
+
+Read access to an archive object C<$rdarc> occurs through a loop that
+repeatedly calls C<$o = $rdarc-E<gt>next> to obtain the next archive entry.
+It returns an archive entry object C<$o> that can be
+queried to decide whether to extract this entry or not.
+
+Write access to an archive object C<$wrarc> occurs through a user-directed
+loop: obtain an archive entry through C<$o = $wrarc-E<gt>prepare($filename)>,
+which can be tweaked manually and then written to the archive.
+
+C<prepare> takes an optional C<$destdir> parameter that will override the
+archive destdination directory.
+This can be used to prepare an archive entry from a temporary file, that
+will be used for the real checks and contents of the archive, then set
+the name to save before writing the actual entry:
+
+    $o = $wrarc->prepare($tempfile, '');
+    $o->set_name("othername");
+    $o->write;
+
+Most client software will specialize C<OpenBSD::Ustar> to their own needs.
+Note however that C<OpenBSD::Ustar> is not designed for inheritance.
+Composition (putting a C<OpenBSD::Ustar> object inside your class) and
+forwarding methods (writing C<create> or C<next> methods that call the
+corresponding C<OpenBSD::Ustar> method) are the correct way to use this API.
+
+Note that C<OpenBSD::Ustar> does not do any caching. The client
+code is responsible for retrieving and storing archives if it
+needs to scan through them multiple times in a row.
+
+Actual extraction is performed through C<$o-E<gt>create> and is not
+mandatory. Thus, client code can control whether it wants to extract archive
+elements or not.
+
+In case of errors, the archive will call C<$state-E<gt>fatal> with a suitable
+error message that contains the last index name processed. The user may
+set an optional archive description with C<set_description>.
+
+The archive object can take a description through C<$arc-E<gt>set_description>
+which will be used in error messages related to archive extraction or creation.
+
+The archive object can be embued with a C<$callback> through 
+C<$arch-E<gt>set_callback>, which will be called regularly while 
+extracting large objects, as C<&$callback($donesize)>,
+with C<$donesize> the number of bytes already extracted, for use in
+progressmeter-style user interactions.
+
+Small files can also be directly extracted to a scalar using
+C<$v = $o-E<gt>contents>.
+
+Actual file objects can also be directly extracted to a temporary file using
+C<$oE<gt>extract_to_fh($fh)>.
+
+Actual writing is performed through C<$o-E<gt>write> and is not mandatory
+either.
+
+Archives should be closed using C<$wrarc-E<gt>close>, which will
+pad the archive as needed and close the underlying file handle.
+In particular, this is mandatory for write access, since valid archives
+require blank-filled blocks.
+
+This is equivalent to calling C<$wrarc-E<gt>pad>, which will
+complete the archive with blank-filled blocks, then closing the
+associated file handle manually.
+
+Client code may decide to abort archive extraction early, or to run it through
+until C<$arc-E<gt>next> returns false.  The C<OpenBSD::Ustar> object doesn't
+hold any hidden resources and doesn't need any specific clean-up.
+
+Client code is only responsible for closing the underlying filehandle and
+terminating any associated pipe process.
+
+An object C<$o> returned through C<next> or through C<prepare> holds all
+the characteristics of the archive header:
+
+=over 20
+
+=item C<$o-E<gt>IsDir>
+
+true if archive entry is a directory
+
+=item C<$o-E<gt>isFile>
+
+true if archive entry is a file
+
+=item C<$o-E<gt>isLink>
+
+true if archive entry is any kind of link
+
+=item C<$o-E<gt>isSymLink>
+
+true if archive entry is a symbolic link
+
+=item C<$o-E<gt>isHardLink>
+
+true if archive entry is a hard link
+
+=item C<$o-E<gt>{name}>
+
+filename
+
+=item C<$o-E<gt>{mode}>
+
+C<chmod(2)> mode
+
+=item C<$o-E<gt>{atime}>
+
+C<utime(2)> access time
+
+=item C<$o-E<gt>{mtime}>
+
+C<utime(2)> modification time
+
+=item C<$o-E<gt>{uid}>
+
+owner user ID
+
+=item C<$o-E<gt>{gid}>
+
+owner group ID
+
+=item C<$o-E<gt>{uname}>
+
+owner user name
+
+=item C<$o-E<gt>{gname}>
+
+owner group name
+
+=item C<$o-E<gt>{linkname}>
+
+name of the source link, if applicable
+
+=back
+
+The fields C<name>, C<mode>, C<atime>, C<mtime>, C<uid>, C<gid> and C<linkname>
+can be altered before calling C<$o-E<gt>create> or C<$o-E<gt>write>,
+and will properly influence the resulting file.
+C<atime> and C<mtime> can be undef to set those to the current time.
+
+The relationship between C<uid> and C<uname>, and C<gid> and C<gname>
+conforms to the USTAR format usual behavior.
+
+In addition, client code may define C<$o-E<gt>{cwd}> in a way similar
+to C<tar(1)>'s C<-C> option to affect the creation of hard links.
+
+All creation commands happen relative to the current destdir of
+the C<$arc> C<OpenBSD::Ustar> object.  This is set at creation, and can
+later be changed through C<$arc-E<gt>destdir($value)>.
+
+During writing, hard link status is determined according to already written
+archive entries: a name that references a file which has already been written
+will be granted hard link status.
+
+Hard links can not be copied from one archive to another unless the original
+file has also been copied.  Calling C<$o-E<gt>alias($arc, $name)> will trick
+the destination archive C<$arc> into believing C<$o> has been copied under the
+given C<$name>, so that further hard links will be copied over.
+
+Archives can be copied by creating separate archives for reading and writing.
+Calling C<$o = $rdarc-E<gt>next> and C<$o-E<gt>copy($wrarc)> will copy
+an entry obtained from C<$rdarc> to C<$wrarc>.

@@ -1,0 +1,4 @@
+Error: Invalid shared library @lib lib/subdir/libbad.so.${LIBbaad_VERSION}
+
+Error: src30/usr/local/lib/subdir/libbad.so.${LIBbaad_VERSION} does not exist
+pkg_create: can't continue

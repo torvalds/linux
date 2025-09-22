@@ -1,0 +1,171 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_SYSTEM_ERROR
+#define _LIBCPP_SYSTEM_ERROR
+
+/*
+    system_error synopsis
+
+namespace std
+{
+
+class error_category
+{
+public:
+    virtual ~error_category() noexcept;
+
+    constexpr error_category();
+    error_category(const error_category&) = delete;
+    error_category& operator=(const error_category&) = delete;
+
+    virtual const char* name() const noexcept = 0;
+    virtual error_condition default_error_condition(int ev) const noexcept;
+    virtual bool equivalent(int code, const error_condition& condition) const noexcept;
+    virtual bool equivalent(const error_code& code, int condition) const noexcept;
+    virtual string message(int ev) const = 0;
+
+    bool operator==(const error_category& rhs) const noexcept;
+    bool operator!=(const error_category& rhs) const noexcept;              // removed in C++20
+    bool operator<(const error_category& rhs) const noexcept;               // removed in C++20
+    strong_ordering operator<=>(const error_category& rhs) const noexcept;  // C++20
+};
+
+const error_category& generic_category() noexcept;
+const error_category& system_category() noexcept;
+
+template <class T> struct is_error_code_enum
+    : public false_type {};
+
+template <class T> struct is_error_condition_enum
+    : public false_type {};
+
+template <class _Tp>
+inline constexpr bool is_error_condition_enum_v = is_error_condition_enum<_Tp>::value; // C++17
+
+template <class _Tp>
+inline constexpr bool is_error_code_enum_v = is_error_code_enum<_Tp>::value; // C++17
+
+class error_code
+{
+public:
+    // constructors:
+    error_code() noexcept;
+    error_code(int val, const error_category& cat) noexcept;
+    template <class ErrorCodeEnum>
+        error_code(ErrorCodeEnum e) noexcept;
+
+    // modifiers:
+    void assign(int val, const error_category& cat) noexcept;
+    template <class ErrorCodeEnum>
+        error_code& operator=(ErrorCodeEnum e) noexcept;
+    void clear() noexcept;
+
+    // observers:
+    int value() const noexcept;
+    const error_category& category() const noexcept;
+    error_condition default_error_condition() const noexcept;
+    string message() const;
+    explicit operator bool() const noexcept;
+};
+
+// non-member functions:
+template <class charT, class traits>
+    basic_ostream<charT,traits>&
+    operator<<(basic_ostream<charT,traits>& os, const error_code& ec);
+
+class error_condition
+{
+public:
+    // constructors:
+    error_condition() noexcept;
+    error_condition(int val, const error_category& cat) noexcept;
+    template <class ErrorConditionEnum>
+        error_condition(ErrorConditionEnum e) noexcept;
+
+    // modifiers:
+    void assign(int val, const error_category& cat) noexcept;
+    template <class ErrorConditionEnum>
+        error_condition& operator=(ErrorConditionEnum e) noexcept;
+    void clear() noexcept;
+
+    // observers:
+    int value() const noexcept;
+    const error_category& category() const noexcept;
+    string message() const noexcept;
+    explicit operator bool() const noexcept;
+};
+
+class system_error
+    : public runtime_error
+{
+public:
+    system_error(error_code ec, const string& what_arg);
+    system_error(error_code ec, const char* what_arg);
+    system_error(error_code ec);
+    system_error(int ev, const error_category& ecat, const string& what_arg);
+    system_error(int ev, const error_category& ecat, const char* what_arg);
+    system_error(int ev, const error_category& ecat);
+
+    const error_code& code() const noexcept;
+    const char* what() const noexcept;
+};
+
+template <> struct is_error_condition_enum<errc>
+    : true_type { }
+
+error_code make_error_code(errc e) noexcept;
+error_condition make_error_condition(errc e) noexcept;
+
+// Comparison operators:
+bool operator==(const error_code& lhs, const error_code& rhs) noexcept;
+bool operator==(const error_code& lhs, const error_condition& rhs) noexcept;
+bool operator==(const error_condition& lhs, const error_code& rhs) noexcept;                  // removed in C++20
+bool operator==(const error_condition& lhs, const error_condition& rhs) noexcept;
+bool operator!=(const error_code& lhs, const error_code& rhs) noexcept;                       // removed in C++20
+bool operator!=(const error_code& lhs, const error_condition& rhs) noexcept;                  // removed in C++20
+bool operator!=(const error_condition& lhs, const error_code& rhs) noexcept;                  // removed in C++20
+bool operator!=(const error_condition& lhs, const error_condition& rhs) noexcept;             // removed in C++20
+bool operator<(const error_condition& lhs, const error_condition& rhs) noexcept;              // removed in C++20
+bool operator<(const error_code& lhs, const error_code& rhs) noexcept;                        // removed in C++20
+strong_ordering operator<=>(const error_code& lhs, const error_code& rhs) noexcept;           // C++20
+strong_ordering operator<=>(const error_condition& lhs, const error_condition& rhs) noexcept; // C++20
+
+template <> struct hash<std::error_code>;
+template <> struct hash<std::error_condition>;
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__system_error/errc.h>
+#include <__system_error/error_category.h>
+#include <__system_error/error_code.h>
+#include <__system_error/error_condition.h>
+#include <__system_error/system_error.h>
+#include <version>
+
+// standard-mandated includes
+
+// [system.error.syn]
+#include <compare>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cstdint>
+#  include <cstring>
+#  include <limits>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_SYSTEM_ERROR

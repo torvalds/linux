@@ -1,0 +1,215 @@
+.\" $OpenBSD: iked.8,v 1.30 2021/11/29 13:20:24 jmc Exp $
+.\"
+.\" Copyright (c) 2010 - 2014 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 29 2021 $
+.Dt IKED 8
+.Os
+.Sh NAME
+.Nm iked
+.Nd Internet Key Exchange version 2 (IKEv2) daemon
+.Sh SYNOPSIS
+.Nm iked
+.Op Fl dnSTtVv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Op Fl p Ar udpencap_port
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+.Nm
+is an Internet Key Exchange (IKEv2) daemon which performs mutual
+authentication and which establishes and maintains IPsec flows and
+security associations (SAs) between the two peers.
+.Pp
+The IKEv2 protocol is defined in RFC 7296,
+which combines and updates the previous standards:
+ISAKMP/Oakley (RFC 2408),
+IKE (RFC 2409),
+and the Internet DOI (RFC 2407).
+.Nm
+only supports the IKEv2 protocol;
+support for
+ISAKMP/Oakley and IKEv1
+is provided by
+.Xr isakmpd 8 .
+.Pp
+.Nm
+supports mutual authentication using RSA or ECDSA public keys and X.509
+certificates.
+See the
+.Sx PUBLIC KEY AUTHENTICATION
+section below and PKI AND CERTIFICATE AUTHORITY COMMANDS in
+.Xr ikectl 8
+for more information about creating and maintaining the public key
+infrastructure.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize and log to
+.Em stderr .
+.It Fl f Ar file
+Use
+.Ar file
+as the configuration file, instead of the default
+.Pa /etc/iked.conf .
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl p Ar udpencap_port
+Specify the listen port for encapsulated UDP that
+the daemon will bind to as well as the UDP encapsulation port set
+in resulting IPsec SAs.
+In order to receive UDP encapsulated IPsec packets on ports other
+than 4500, the
+.Em net.inet.esp.udpencap_port
+.Xr sysctl 2
+variable has to be set accordingly.
+Implies -t.
+.It Fl S
+Start
+.Nm
+in passive mode.
+See the
+.Ic set passive
+option in
+.Xr iked.conf 5
+for more information.
+.It Fl s Ar socket
+Use
+.Ar socket
+as the control socket, instead of the default
+.Pa /var/run/iked.sock .
+.It Fl T
+Disable NAT-Traversal and do not propose NAT-Traversal support to the peers.
+.It Fl t
+Enforce NAT-Traversal and only listen to NAT-Traversal messages.
+This option is only recommended for testing; the default is to
+negotiate NAT-Traversal with the peers.
+.It Fl V
+Show the version and exit.
+.It Fl v
+Produce more verbose output.
+.El
+.Sh PUBLIC KEY AUTHENTICATION
+It is possible to store trusted public keys to make them directly
+usable by
+.Nm ,
+bypassing the need to use certificates.
+The keys should be saved in PEM format (see
+.Xr openssl 1 )
+and named and stored as follows:
+.Pp
+.Bl -tag -width "for_ufqdn_identitiesXX" -offset 3n -compact
+.It For IPv4 identities:
+/etc/iked/pubkeys/ipv4/A.B.C.D
+.It For IPv6 identities:
+/etc/iked/pubkeys/ipv6/abcd:abcd::ab:bc
+.It For FQDN identities:
+/etc/iked/pubkeys/fqdn/foo.bar.org
+.It For UFQDN identities:
+/etc/iked/pubkeys/ufqdn/user@foo.bar.org
+.El
+.Pp
+Depending on the
+.Ic srcid
+and
+.Ic dstid
+specifications in
+.Xr iked.conf 5 ,
+keys may be named after their IPv4 address, IPv6 address,
+fully qualified domain name (FQDN) or user fully qualified domain name (UFQDN).
+.Pp
+For example,
+.Nm
+can authenticate using the pre-generated keys if the local public key,
+by default
+.Pa /etc/iked/local.pub ,
+is copied to the remote gateway as
+.Pa /etc/iked/pubkeys/ipv4/local.gateway.ip.address
+and the remote gateway's public key
+is copied to the local gateway as
+.Pa /etc/iked/pubkeys/ipv4/remote.gateway.ip.address .
+Of course, new keys may also be generated
+(the user is not required to use the pre-generated keys).
+In this example,
+.Ic srcid
+and
+.Ic dstid
+would also have to be set to the specified addresses
+in
+.Xr iked.conf 5 .
+.Sh FILES
+.Bl -tag -width "/etc/iked/private/XXX" -compact
+.It Pa /etc/iked.conf
+The default
+.Nm
+configuration file.
+.It Pa /etc/iked/ca/
+The directory where CA certificates are kept.
+.It Pa /etc/iked/certs/
+The directory where IKE certificates are kept, both the local
+certificate(s) and those of the peers, if a choice to have them kept
+permanently has been made.
+.It Pa /etc/iked/crls/
+The directory where CRLs are kept.
+.It Pa /etc/iked/private/
+The directory where local private keys used for public key authentication
+are kept.
+The file
+.Pa local.key
+is used to store the local private key.
+.It Pa /etc/iked/pubkeys/
+The directory in which trusted public keys are kept.
+The keys must be named in the fashion described above.
+.It Pa /var/run/iked.sock
+The default
+.Nm
+control socket.
+.El
+.Sh SEE ALSO
+.Xr iked.conf 5 ,
+.Xr ikectl 8 ,
+.Xr isakmpd 8
+.Sh STANDARDS
+.Rs
+.%A C. Kaufman
+.%A P. Hoffman
+.%A Y. Nir
+.%A P. Eronen
+.%A T. Kivinen
+.%D October 2014
+.%R RFC 7296
+.%T Internet Key Exchange Protocol Version 2 (IKEv2)
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.8 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

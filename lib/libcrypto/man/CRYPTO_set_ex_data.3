@@ -1,0 +1,565 @@
+.\" $OpenBSD: CRYPTO_set_ex_data.3,v 1.16 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CRYPTO_SET_EX_DATA 3
+.Os
+.Sh NAME
+.Nm CRYPTO_get_ex_new_index ,
+.Nm CRYPTO_EX_new ,
+.Nm CRYPTO_EX_free ,
+.Nm CRYPTO_EX_dup ,
+.Nm CRYPTO_new_ex_data ,
+.Nm CRYPTO_set_ex_data ,
+.Nm CRYPTO_get_ex_data ,
+.Nm CRYPTO_free_ex_data
+.Nd low-level functions for application specific data
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/crypto.h
+.Ft int
+.Fo CRYPTO_get_ex_new_index
+.Fa "int class_index"
+.Fa "long argl"
+.Fa "void *argp"
+.Fa "CRYPTO_EX_new *new_func"
+.Fa "CRYPTO_EX_dup *dup_func"
+.Fa "CRYPTO_EX_free *free_func"
+.Fc
+.Ft typedef int
+.Fo CRYPTO_EX_new
+.Fa "void *parent"
+.Fa "void *data"
+.Fa "CRYPTO_EX_DATA *ad"
+.Fa "int idx"
+.Fa "long argl"
+.Fa "void *argp"
+.Fc
+.Ft typedef void
+.Fo CRYPTO_EX_free
+.Fa "void *parent"
+.Fa "void *data"
+.Fa "CRYPTO_EX_DATA *ad"
+.Fa "int idx"
+.Fa "long argl"
+.Fa "void *argp"
+.Fc
+.Ft typedef int
+.Fo CRYPTO_EX_dup
+.Fa "CRYPTO_EX_DATA *to"
+.Fa "const CRYPTO_EX_DATA *from"
+.Fa "void *datap"
+.Fa "int idx"
+.Fa "long argl"
+.Fa "void *argp"
+.Fc
+.Ft int
+.Fo CRYPTO_new_ex_data
+.Fa "int class_index"
+.Fa "void *parent"
+.Fa "CRYPTO_EX_DATA *ad"
+.Fc
+.Ft int
+.Fo CRYPTO_set_ex_data
+.Fa "CRYPTO_EX_DATA *ad"
+.Fa "int idx"
+.Fa "void *data"
+.Fc
+.Ft void *
+.Fo CRYPTO_get_ex_data
+.Fa "CRYPTO_EX_DATA *ad"
+.Fa "int idx"
+.Fc
+.Ft void
+.Fo CRYPTO_free_ex_data
+.Fa "int class_index"
+.Fa "void *parent"
+.Fa "CRYPTO_EX_DATA *ad"
+.Fc
+.Sh DESCRIPTION
+The library implements the functions documented in the
+.Xr RSA_get_ex_new_index 3
+manual page and similar functions for other parent object types
+using the functions documented in the present manual page.
+Application programs almost never need
+to call the functions documented here directly.
+.Pp
+.Fn CRYPTO_get_ex_new_index
+behaves in the same way as
+.Xr RSA_get_ex_new_index 3
+except that the parent object type that the new
+.Fa idx
+is reserved for is not part of the function name
+but instead specified by the additional
+.Fa class_index
+argument receiving one of the
+.Dv CRYPTO_EX_INDEX_*
+constants defined in
+.In openssl/crypto.h .
+The recommendation given in
+.Xr RSA_get_ex_new_index 3
+to set the
+.Fa argl
+argument to 0 and the last four arguments all to
+.Dv NULL
+applies.
+The library passes the
+.Fa argl
+and
+.Fa argp
+arguments through to the callback functions for the respective
+.Fa idx ,
+but ignores them otherwise.
+.Pp
+If a function pointer is passed for the
+.Fa new_func
+argument, that function is called for the returned
+.Fa idx
+whenever a new parent object is allocated with
+.Xr RSA_new 3
+or a similar function.
+.Pp
+If a function pointer is passed for the
+.Fa free_func
+argument, that function is called for the returned
+.Fa idx
+when a parent object is freed with
+.Xr RSA_free 3
+or a similar function.
+.Pp
+The arguments of
+.Fa new_func
+and
+.Fa free_func
+are as follows:
+.Pp
+.Bl -tag -width Ds -compact
+.It Fa parent
+the parent object that contains the
+.Fa data
+.It Fa data
+the
+.Fa data
+previously set by
+.Fn CRYPTO_set_ex_data
+at
+.Fa idx
+in
+.Fa parent
+.It Fa ad
+the
+.Vt CRYPTO_EX_DATA
+subobject of the
+.Fa parent
+object
+.It Fa idx
+return value of
+.Fn CRYPTO_get_ex_new_index
+that set this callback
+.It Fa argl
+the
+.Fa argl
+passed to
+.Fn CRYPTO_get_ex_new_index
+for this
+.Fa idx
+.It Fa argp
+the
+.Fa argp
+passed to
+.Fn CRYPTO_get_ex_new_index
+for this
+.Fa idx
+.El
+.Pp
+If a function pointer is passed for the
+.Fa dup_func ,
+that function is supposed to be called for the returned
+.Fa idx
+whenever a parent object of the respective type is copied.
+Actually, the only functions doing that are
+.Xr BIO_dup_chain 3 ,
+.Xr EC_KEY_copy 3 ,
+and
+.Xr SSL_dup 3 ,
+and the TLS 1.3 network stack does it internally when duplicating a
+.Vt SSL_SESSION
+object after receiving a new session ticket message.
+Most other object types supporting ex_data do not support
+copying in the first place, whereas
+.Xr DSA_dup_DH 3
+and
+.Xr X509_dup 3
+simply ignore
+.Fa dup_func .
+.Pp
+The arguments of
+.Fa dup_func
+are as follows:
+.Pp
+.Bl -tag -width Ds -compact
+.It Fa to
+the
+.Vt CRYPTO_EX_DATA
+subobject of the new parent object
+.It Fa from
+the
+.Vt CRYPTO_EX_DATA
+subobject of the original parent object
+.It Fa datap
+a pointer to a copy of the pointer to the original ex_data
+.It Fa idx
+return value of
+.Fn CRYPTO_get_ex_new_index
+that set this callback
+.It Fa argl
+the
+.Fa argl
+passed to
+.Fn CRYPTO_get_ex_new_index
+for this
+.Fa idx
+.It Fa argp
+the
+.Fa argp
+passed to
+.Fn CRYPTO_get_ex_new_index
+for this
+.Fa idx
+.El
+.Pp
+Inside
+.Fa dup_func ,
+the
+.Fa data
+pointer contained in the original parent object being copied
+can be accessed by casting and dereferencing
+.Fa datap ,
+for example:
+.Pp
+.Dl char *orig_data = *(char **)datap;
+.Pp
+If the original data is copied, for example in a manner similar to
+.Bd -literal -offset indent
+char *new_data;
+if ((new_data = strdup(orig_data)) == NULL)
+	return 0;
+.Ed
+.Pp
+then the pointer to the newly allocated memory needs to be passed
+back to the caller in the
+.Fa datap
+argument, for example:
+.Bd -literal -offset indent
+*(char **)datap = new_data;
+return 1;
+.Ed
+.Pp
+Calling
+.Fn CRYPTO_set_ex_data to idx new_data
+from inside
+.Fa dup_func
+has no effect because the code calling
+.Fa dup_func
+unconditionally calls
+.Fn CRYPTO_set_ex_data to idx *datap
+after
+.Fa dup_func
+returns successfully.
+Consequently, if
+.Fa dup_func
+does not change
+.Pf * Fa datap ,
+the new parent object ends up containing a pointer to the same memory
+as the original parent object and any memory allocated in
+.Fa dup_func
+is leaked.
+.Pp
+When multiple callback functions are called,
+they are called in increasing order of their
+.Fa idx
+value.
+.Pp
+.Fn CRYPTO_new_ex_data
+is an internal function that initializes the
+.Fa ad
+subobject of the
+.Fa parent
+object, with the type of the parent object specified by the
+.Fa class_index
+argument.
+Initialization includes calling the respective
+.Fa new_func
+callbacks for all reserved
+.Fa idx
+values that have such callbacks configured.
+Despite its name,
+.Fn CRYPTO_new_ex_data
+does not create a new object but requires that
+.Fa ad
+points to an already allocated but still uninitialized object.
+.Pp
+.Fn CRYPTO_set_ex_data
+and
+.Fn CRYPTO_get_ex_data
+behave in the same way as
+.Xr RSA_set_ex_data 3
+and
+.Xr RSA_get_ex_data 3 ,
+respectively, except that they do not accept a pointer
+to the parent object but instead require a pointer to the
+.Vt CRYPTO_EX_DATA
+subobject of that parent object.
+.Pp
+.Fn CRYPTO_free_ex_data
+is an internal function that frees any memory used inside the
+.Fa ad
+subobject of the
+.Fa parent
+object, with the type of the parent object specified by the
+.Fa class_index
+argument.
+This includes calling the respective
+.Fa free_func
+callbacks for all reserved
+.Fa idx
+values that have such callbacks configured.
+Despite its name,
+.Fn CRYPTO_free_ex_data
+does not free
+.Fa ad
+itself.
+.Sh RETURN VALUES
+.Fn CRYPTO_get_ex_new_index
+returns a new index equal to or greater than 1
+or \-1 if memory allocation fails.
+.Pp
+.Fn CRYPTO_EX_new
+and
+.Fn CRYPTO_EX_dup
+functions are supposed to return 1 on success or 0 on failure.
+.Pp
+.Fn CRYPTO_new_ex_data
+and
+.Fn CRYPTO_set_ex_data
+return 1 on success or 0 if memory allocation fails.
+.Pp
+.Fn CRYPTO_get_ex_data
+returns the application specific data or
+.Dv NULL
+if the parent object that contains
+.Fa ad
+does not contain application specific data at the given
+.Fa idx .
+.Sh ERRORS
+After failure of
+.Fn CRYPTO_get_ex_new_index ,
+.Fn CRYPTO_new_ex_data ,
+or
+.Fn CRYPTO_set_ex_data ,
+the following diagnostic can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3 :
+.Bl -tag -width Ds
+.It Dv ERR_R_MALLOC_FAILURE Qq "malloc failure"
+Memory allocation failed.
+.El
+.Pp
+In a few unusual failure cases,
+.Xr ERR_get_error 3
+may report different errors caused by
+.Xr OPENSSL_init_crypto 3
+or even none at all.
+.Pp
+Even though it cannot indicate failure,
+.Fn CRYPTO_free_ex_data
+may occasionally also set an error code that can be retrieved with
+.Xr ERR_get_error 3 .
+.Pp
+.Fn CRYPTO_get_ex_data
+does not distinguish success from failure.
+Consequently, after
+.Fn CRYPTO_get_ex_data
+returns
+.Dv NULL ,
+.Xr ERR_get_error 3
+returns 0 unless there is still an earlier error in the queue.
+.Sh SEE ALSO
+.Xr BIO_get_ex_new_index 3 ,
+.Xr DH_get_ex_new_index 3 ,
+.Xr DSA_get_ex_new_index 3 ,
+.Xr RSA_get_ex_new_index 3 ,
+.Xr SSL_CTX_get_ex_new_index 3 ,
+.Xr SSL_get_ex_new_index 3 ,
+.Xr SSL_SESSION_get_ex_new_index 3 ,
+.Xr X509_STORE_CTX_get_ex_new_index 3 ,
+.Xr X509_STORE_get_ex_new_index 3
+.Sh HISTORY
+.Fn CRYPTO_get_ex_new_index ,
+.Fn CRYPTO_new_ex_data ,
+.Fn CRYPTO_set_ex_data ,
+.Fn CRYPTO_get_ex_data ,
+and
+.Fn CRYPTO_free_ex_data
+first appeared in SSLeay 0.9.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn CRYPTO_EX_new ,
+.Fn CRYPTO_EX_free ,
+and
+.Fn CRYPTO_EX_dup
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Sh CAVEATS
+If an program installs callback functions, the last call to
+.Fn CRYPTO_get_ex_new_index
+installing a function of a certain type for a certain
+.Fa class_index
+needs to be complete before the first object of that
+.Fa class_index
+can be created, freed, or copied, respectively.
+Otherwise, incomplete initialization or cleanup will result.
+.Pp
+At the time
+.Fa new_func
+is called, the
+.Fa parent
+object is only partially initialized,
+so trying to access any data in it is strongly discouraged.
+The
+.Fa data
+argument is typically
+.Dv NULL
+in
+.Fa new_func .
+.Pp
+At the time
+.Fa free_func
+is called, the
+.Fa parent
+object is already mostly deconstructed
+and part of its content may have been cleared and freed.
+Consequently, trying to access any data in
+.Fa parent
+is strongly discouraged.
+According to the OpenSSL API documentation, the library code calling
+.Fa free_func
+would even be permitted to pass a
+.Dv NULL
+pointer for the
+.Fa parent
+argument.
+.Pp
+.Fn CRYPTO_set_ex_data
+and
+.Fn CRYPTO_get_ex_data
+cannot reasonably be used outside the callback functions
+because no API function provides access to any pointers of the type
+.Vt CRYPTO_EX_DATA * .
+.Pp
+Inside
+.Fa new_func ,
+calling
+.Fn CRYPTO_get_ex_data
+makes no sense because it always returns
+.Dv NULL ,
+and calling
+.Fn CRYPTO_set_ex_data
+makes no sense because
+.Fa new_func
+does not have access to any meaningful
+.Fa data
+it could store, and the absence of application specific data at any given
+.Fa idx
+is already sufficiently indicated by the default return value
+.Dv NULL
+of
+.Fn CRYPTO_get_ex_data ,
+.Xr RSA_get_ex_data 3 ,
+and similar functions.
+.Pp
+Inside
+.Fa free_func ,
+calling
+.Fn CRYPTO_get_ex_data
+makes no sense because the return value is already available in
+.Fa data ,
+and calling
+.Fn CRYPTO_set_ex_data
+makes no sense because the parent object, including any ex_data
+contained in it, is already being deconstructed and will no longer
+exist by the time application code regains control.
+.Pp
+Inside
+.Fa dup_func ,
+calling
+.Fn CRYPTO_get_ex_data
+makes no sense because the return value for
+.Fa from
+is already available as
+.Pf * Fa datap ,
+and the return value for
+.Fa to
+is
+.Dv NULL .
+Calling
+.Fn CRYPTO_set_ex_data
+makes no sense because changing
+.Fa from
+would cause an undesirable side effect in this context
+and trying to change
+.Fa to
+is ineffective as explained above.
+.Pp
+Consequently, application code can never use
+.Fn CRYPTO_set_ex_data
+or
+.Fn CRYPTO_get_ex_data
+in a meaningful way.
+.Pp
+The fact that the functions documented in the present manual page
+are part of the public API might create the impression
+that application programs could add ex_data support
+to additional object types not offering it by default.
+However, for built-in object types not offering ex_support, this
+is not possible because such objects do not contain the required
+.Vt CRYPTO_EX_DATA
+subobject.
+.Pp
+It is theoretically possible to add ex_data support to an
+application-defined object type by adding a
+.Vt CRYPTO_EX_DATA
+field to the struct declaration, a call to
+.Fn CRYPTO_new_ex_data
+to the object constructor, and a call to
+.Fn CRYPTO_free_ex_data
+to the object destructor.
+The OpenSSL documentation mentions that the constant
+.Dv CRYPTO_EX_INDEX_APP
+is reserved for this very purpose.
+However, doing this would hardly be useful.
+It is much more straightforward to just add
+all the required data fields to the struct declaration itself.
+.Sh BUGS
+If
+.Fa new_func
+or
+.Fa dup_func
+fails, the failure is silently ignored by the library, potentially
+resulting in an incompletely initialized object.
+The application program cannot detect this kind of failure.

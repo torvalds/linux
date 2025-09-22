@@ -1,0 +1,393 @@
+.\"	$OpenBSD: dc.4,v 1.54 2022/02/18 10:24:32 jsg Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ee.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man4/dc.4,v 1.1 1999/12/04 17:41:24 wpaul Exp $
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt DC 4
+.Os
+.Sh NAME
+.Nm dc
+.Nd DEC/Intel 21140/21142/21143/21145 and clones 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "dc* at pci?"
+.Cd "dc* at cardbus?"
+.Cd "amphy* at mii?"
+.Cd "bmtphy* at mii?"
+.Cd "dcphy* at mii?"
+.Cd "icsphy* at mii?"
+.Cd "lxtphy* at mii?"
+.Cd "mtdphy* at mii?"
+.Cd "nsphy* at mii?"
+.Cd "nsphyter* at mii?"
+.Cd "sqphy* at mii?"
+.Cd "tqphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for several PCI, Mini PCI, and CardBus Fast Ethernet
+adapters and embedded controllers based on the following chipsets:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+DEC 21140 PCI
+.It
+DEC/Intel 21143 PCI and CardBus
+.It
+Intel 21145 PCI
+.It
+Macronix 98713, 98713A, 98715, 98715A, 98725, 98727 and 98732
+.It
+Davicom DM9100, DM9102, and DM9102A
+.It
+ASIX Electronics AX88140A and AX88141
+.It
+ADMtek AL981 Comet, AN983 Centaur-P and ADM9511/ADM9513 Centaur-II PCI
+.It
+ADMtek AN985 Centaur-C CardBus
+.It
+Lite-On 82c168 and 82c169 PNIC
+.It
+Lite-On/Macronix 82c115 PNIC II
+.It
+Xircom X3201-based CardBus
+.El
+.Pp
+All of these chips have the same general register layout, DMA
+descriptor format and method of operation.
+All of the clone chips are based on the 21143 design with
+various modifications.
+(The 21140 is an older version of the 21143.)
+The 21143 itself has support for 10baseT, BNC, AUI, MII and symbol
+media attachments, 10 and 100Mbps speeds in full or half duplex,
+and built-in NWAY autonegotiation.
+The 21143 also offers several receive filter programming options including
+perfect filtering, inverse perfect filtering and hash table filtering.
+The 21145 seems to be 10Mbps only and has an additional (unsupported)
+HomePNA PHY.
+.Pp
+Some clone chips duplicate the 21143 fairly closely while others
+only maintain superficial similarities.
+Some support only MII media attachments.
+Others use different receiver filter programming mechanisms.
+At least one supports only chained DMA descriptors
+(most support both chained descriptors and contiguously allocated
+fixed size rings).
+Some chips (especially the PNIC) also have peculiar bugs.
+The
+.Nm
+driver does its best to provide generalized support for all
+of these chipsets in order to keep special case code to a minimum.
+.Pp
+These chips are used by many vendors, which makes it
+difficult to provide a complete list of all supported cards.
+The following NICs are known to work with the
+.Nm
+driver at this time:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Digital DE500-BA 10/100 (21143, non-MII)
+.It
+Built-in DE500-BA on DEC Alpha workstations (21143, non-MII)
+.It
+Built-in Ethernet on Linksys EtherFast 10/100 Instant GigaDrive (DM9102, MII)
+.It
+Kingston KNE100TX (21143, MII)
+.It
+D-Link DFE-570TX (21143, MII, quad port)
+.It
+NDC SOHOware SFA110A (98713A)
+.It
+NDC SOHOware SFA110A Rev B4 (98715AEC-C)
+.It
+SVEC PN102-TX (98713)
+.It
+CNet Pro120A (98715A or 98713A) and CNet Pro120B (98715)
+.It
+Compex RL100-TX (98713 or 98713A)
+.It
+Linksys LNE100TX (PNIC 82c168, 82c169)
+.It
+NetGear FA310-TX Rev. D1, D2 or D3 (PNIC 82c169)
+.It
+Matrox FastNIC 10/100 (PNIC 82c168, 82c169)
+.It
+Kingston KNE110TX (PNIC 82c169)
+.It
+Linksys LNE100TX v2.0 (PNIC II 82c115)
+.It
+Jaton XpressNet (Davicom DM9102)
+.It
+Alfa Inc GFC2204 (ASIX AX88140A)
+.It
+CNet Pro110B (ASIX AX88140A)
+.It
+Linksys LNE100TX v4.x (ADMtek AN983 Centaur-P)
+.It
+Xircom CardBus, including RealPort models (Xircom X3201)
+.It
+IBM EtherJet 10/100 CardBus (Intel 21143)
+.It
+Accton EN1217 (98715) and EN2242 (ADMtek Centaur)
+.It
+Mototech ME316 (ADMtek Centaur)
+.It
+Conexant LANfinity RS7112 Mini PCI
+.El
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width full-duplex
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the
+.Xr hostname.if 5
+file.
+.Pp
+Note: the built-in NWAY autonegotiation on the original PNIC 82c168
+chip is horribly broken and is not supported by the
+.Nm
+driver at this time: the chip will operate in any speed or duplex
+mode, however these must be set manually.
+The original 82c168 appears on very early revisions of the Linksys LNE100TX
+and Matrox FastNIC.
+.It 10baseT
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to enable
+.Ar full-duplex
+operation.
+Not specifying
+.Ar full duplex
+implies
+.Ar half-duplex
+mode.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to enable
+.Ar full-duplex
+operation.
+Not specifying
+.Ar full duplex
+implies
+.Ar half-duplex
+mode.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It full-duplex
+Force full duplex operation.
+The interface will operate in half duplex mode if this media option
+is not specified.
+.El
+.Pp
+Note that the 100baseTX media type may not be available on certain
+Intel 21143 adapters which support 10Mbps media attachments only.
+The Intel 21145 supports 10Mbps half-duplex only.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "dc0: couldn't map ports/memory"
+A fatal initialization error has occurred.
+.It "dc0: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "dc0: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+This can happen if the device is unable to deliver interrupts for some
+reason, or if there is a problem with the network connection (cable).
+.It "dc0: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.It "dc0: TX underrun -- increasing TX threshold"
+The device generated a transmit underrun error while attempting to
+DMA and transmit a packet.
+This happens if the host is not able to DMA the packet data into the NIC's
+FIFO fast enough.
+The driver will dynamically increase the transmit start threshold so that
+more data must be DMAed into the FIFO before the NIC will start
+transmitting it onto the wire.
+.It "dc0: TX underrun -- using store and forward mode"
+The device continued to generate transmit underruns even after all
+possible transmit start threshold settings had been tried, so the
+driver programmed the chip for store and forward mode.
+In this mode, the NIC will not begin transmission until the entire packet
+has been transferred into its FIFO memory.
+.El
+.Sh SEE ALSO
+.Xr amphy 4 ,
+.Xr arp 4 ,
+.Xr bmtphy 4 ,
+.Xr cardbus 4 ,
+.Xr dcphy 4 ,
+.Xr icsphy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr lxtphy 4 ,
+.Xr mtdphy 4 ,
+.Xr netintro 4 ,
+.Xr nsphy 4 ,
+.Xr nsphyter 4 ,
+.Xr pci 4 ,
+.Xr sqphy 4 ,
+.Xr tqphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T ADMtek AL981 and AL983 data sheets
+.Re
+.Rs
+.%T ASIX Electronics AX88140A and AX88141 data sheets
+.%U https://www.asix.com.tw
+.Re
+.Rs
+.%T Davicom DM9102 data sheet
+.Re
+.Rs
+.%T Intel 21143 Hardware Reference Manual
+.%U http://developer.intel.com
+.Re
+.Rs
+.%T Macronix 98713/A, 98715/A and 98725 data sheets
+.%U https://www.macronix.com
+.Re
+.Rs
+.%T Macronix 98713/A and 98715/A app notes
+.%U https://www.macronix.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.0 .
+.Ox
+support was added in
+.Ox 2.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu
+and ported to
+.Ox
+by
+.An Aaron Campbell Aq Mt aaron@openbsd.org .
+.Sh BUGS
+The Macronix application notes claim that in order to put the
+chips in normal operation, the driver must write a certain magic
+number into the CSR16 register.
+The numbers are documented in the app notes, but the exact meaning of the
+bits is not.
+.Pp
+The 98713A seems to have a problem with 10Mbps full duplex mode.
+The transmitter works but the receiver tends to produce many
+unexplained errors leading to very poor overall performance.
+The 98715A does not exhibit this problem.
+All other modes on the 98713A seem to work correctly.
+.Pp
+The original 82c168 PNIC chip has built-in NWAY support which is
+used on certain early Linksys LNE100TX and Matrox FastNIC cards,
+however it is horribly broken and difficult to use reliably.
+Consequently, autonegotiation is not currently supported for this
+chipset: the driver defaults the NIC to 10baseT half duplex, and it's
+up to the operator to manually select a different mode if necessary.
+(Later cards use an external MII transceiver to implement NWAY
+autonegotiation and work correctly.)
+.Pp
+The
+.Nm
+driver programs 82c168 and 82c169 PNIC chips to use the store and
+forward setting for the transmit start threshold by default.
+This is to work around problems with some NIC/PCI bus combinations where
+the PNIC can transmit corrupt frames when operating at 100Mbps,
+probably due to PCI DMA burst transfer errors.
+.Pp
+The 82c168 and 82c169 PNIC chips also have a receiver bug that
+sometimes manifests during periods of heavy receive and transmit
+activity, where the chip will improperly DMA received frames to
+the host.
+The chips appear to upload several kilobytes of garbage
+data along with the received frame data, dirtying several RX buffers
+instead of just the expected one.
+The
+.Nm
+driver detects this condition and will salvage the frame, however
+it incurs a serious performance penalty in the process.
+.Pp
+The PNIC chips also sometimes generate a transmit underrun error when
+the driver attempts to download the receiver filter setup frame, which
+can result in the receive filter being incorrectly programmed.
+The
+.Nm
+driver will watch for this condition and requeue the setup frame until
+it is transferred successfully.
+.Pp
+The ADMtek AL981 chip (and possibly the AN983 as well) has been observed
+to sometimes wedge on transmit: this appears to happen when the driver
+queues a sequence of frames which cause it to wrap from the end of
+the transmit descriptor ring back to the beginning.
+The
+.Nm
+driver attempts to avoid this condition by not queuing any frames past
+the end of the transmit ring during a single invocation of the
+.Fn dc_start
+routine.
+This workaround has a negligible impact on transmit performance.
+.Pp
+The
+.Fn mii_tick
+function does not currently run for ASIX boards, meaning cable disconnects
+and reconnects can go unnoticed.
+The AX88140A and AX88141 data sheets indicate that they don't have RX or TX
+state registers (the bits are reserved).
+Therefore, we can't seem to reliably detect when the adapter is idle.
+.Pp
+The Davicom interfaces require a grossly high PCI latency timer value to
+function properly.
+This means when a Davicom adapter is present in the machine, it is given
+an unfairly high amount of bandwidth on the PCI bus, unnecessarily taking
+time away from other devices.
+Therefore, Davicom network cards are not recommended for use with
+.Ox .
+Be careful; some motherboards have Davicom interfaces built-in.

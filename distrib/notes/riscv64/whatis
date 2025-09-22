@@ -1,0 +1,3 @@
+dnl	$OpenBSD: whatis,v 1.2 2023/03/16 18:04:08 miod Exp $
+
+OpenBSD/MACHINE is a port to various 64-bit RISC-V based systems.

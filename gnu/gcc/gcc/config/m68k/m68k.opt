@@ -1,0 +1,153 @@
+; Options for the Motorola 68000 port of the compiler.
+
+; Copyright (C) 2005, 2006 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+m5200
+Target RejectNegative Mask(5200)
+Generate code for a 520X
+
+m5206e
+Target RejectNegative Mask(CF_HWDIV)
+Generate code for a 5206e
+
+m528x
+Target RejectNegative Mask(528x)
+Generate code for a 528x
+
+m5307
+Target RejectNegative Mask(CFV3)
+Generate code for a 5307
+
+m5407
+Target RejectNegative Mask(CFV4)
+Generate code for a 5407
+
+mcfv4e
+Target RejectNegative Mask(CFV4E)
+Generate code for a ColdFire v4e
+
+m68000
+Target RejectNegative
+Generate code for a 68000
+
+m68020
+Target RejectNegative Mask(68020)
+Generate code for a 68020
+
+m68020-40
+Target RejectNegative Mask(68040)
+Generate code for a 68040, without any new instructions
+
+m68020-60
+Target RejectNegative Mask(68060)
+Generate code for a 68060, without any new instructions
+
+m68030
+Target RejectNegative Mask(68030)
+Generate code for a 68030
+
+m68040
+Target RejectNegative Mask(68040_ONLY)
+Generate code for a 68040
+
+m68060
+Target RejectNegative
+Generate code for a 68060
+
+m68302
+Target RejectNegative
+Generate code for a 68302
+
+m68332
+Target RejectNegative
+Generate code for a 68332
+
+; Has no effect on gcc
+m68851
+Target
+Generate code for a 68851
+
+m68881
+Target RejectNegative Mask(68881)
+Generate code that uses 68881 floating-point instructions
+
+malign-int
+Target Report Mask(ALIGN_INT)
+Align variables on a 32-bit boundary
+
+mbitfield
+Target Report RejectNegative Mask(BITFIELD)
+Use the bit-field instructions
+
+mc68000
+Target RejectNegative
+Generate code for a 68000
+
+mc68020
+Target RejectNegative
+Generate code for a 68020
+
+mcpu32
+Target RejectNegative
+Generate code for a cpu32
+
+mid-shared-library
+Target Report Mask(ID_SHARED_LIBRARY)
+Enable ID based shared library
+
+mnobitfield
+Target RejectNegative InverseMask(BITFIELD)
+Do not use the bit-field instructions
+
+mnortd
+Target RejectNegative InverseMask(RTD)
+Use normal calling convention
+
+mnoshort
+Target RejectNegative InverseMask(SHORT)
+Consider type 'int' to be 32 bits wide
+
+mpcrel
+Target Report Mask(PCREL)
+Generate pc-relative code
+
+mrtd
+Target Report RejectNegative Mask(RTD)
+Use different calling convention using 'rtd'
+
+msep-data
+Target Report Mask(SEP_DATA)
+Enable separate data segment
+
+mshared-library-id=
+Target RejectNegative Joined UInteger
+ID of shared library to build
+
+mshort
+Target Report RejectNegative Mask(SHORT)
+Consider type 'int' to be 16 bits wide
+
+msoft-float
+Target RejectNegative InverseMask(68881)
+Generate code with library calls for floating point
+
+mstrict-align
+Target Report Mask(STRICT_ALIGNMENT)
+Do not use unaligned memory references

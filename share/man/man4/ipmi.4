@@ -1,0 +1,180 @@
+.\"	$OpenBSD: ipmi.4,v 1.15 2020/03/29 11:24:53 kettenis Exp $
+.\"
+.\" Copyright (c) 2005 Marco Peereboom <marco@openbsd.org>
+.\" Text was heavily borrowed from the IPMI spec V1.5
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: March 29 2020 $
+.Dt IPMI 4
+.Os
+.Sh NAME
+.Nm ipmi
+.Nd Intelligent Platform Management Interface driver
+.Sh SYNOPSIS
+.Cd "ipmi0 at mainbus0"
+.Cd "ipmi0 at acpi?"
+.Cd "ipmi0 at iic?"
+.Cd "ipmi0 at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+term Intelligent Platform Management refers to autonomous monitoring and
+recovery features implemented directly in platform management hardware and
+firmware.
+The key characteristics of Intelligent Platform Management is that
+inventory, monitoring, logging, and recovery control functions are available
+independent of the main processor, BIOS, and operating system.
+.Pp
+Platform status information can be obtained and recovery actions initiated
+under situations where vendor "in-band" management mechanisms are unavailable.
+The independent monitoring, logging, and access functions available through IPMI
+provide a level of manageability built in to the platform hardware.
+This can support systems where there is no systems management software
+available for a particular operating system.
+.Pp
+At the heart of the IPMI architecture is a microcontroller called
+the Baseboard Management Controller (BMC).
+The BMC provides the intelligence behind Intelligent Platform Management.
+The BMC manages the interface between system management software
+and the platform management hardware, provides autonomous monitoring,
+event logging, and recovery control and serves as the gateway
+between systems management software and hardware.
+.Sh IPMI MESSAGING
+IPMI uses message-based interfaces for the different interfaces to the platform
+management subsystems.
+All IPMI messages share the same fields in the message "payload",
+regardless of the interface (transport) that they're transferred over.
+IPMI messaging uses a request/response protocol.
+IPMI request messages are commonly referred to as commands.
+The use of request/response protocol facilitates the transfer of
+IPMI messages over different transports.
+IPMI commands are grouped into functional command sets
+using a field called network function code.
+There are command sets for sensor and event related commands,
+chassis commands etc.
+This functional grouping makes it easier to organize and manage
+the assignment and allocation of command values.
+.Sh SENSOR MODEL
+Access to monitored information such as temperatures, voltages, fan status
+etc., is provided via the IPMI Sensor Model.
+Instead of providing direct access to the monitoring hardware,
+IPMI provides access by abstracted sensor commands
+such as the "Get Sensor Reading" command,
+implemented via a management controller.
+This approach isolates the software from changes in the
+platform management hardware implementation.
+.Pp
+Sensors are classified according to the type of readings they provide
+and/or the type of events they generate.
+A sensor can return either an analog or discrete reading.
+Sensor events can be discrete or threshold-based.
+.Sh SYSTEM EVENT LOG AND EVENT MESSAGES
+The BMC provides a centralized non-volatile System Event Log, or SEL.
+Having the SEL and logging functions managed by the BMC
+helps ensure that post-mortem logging information is available
+should a failure occur that disables the systems processor(s).
+.Pp
+A set of IPMI commands allows the SEL to be read and cleared
+and for events to be added to the SEL.
+The common request message (command)
+used for adding events to the SEL is referred to as an Event Message.
+.Sh SENSOR DATA RECORDS & CAPABILITIES COMMANDS
+IPMI's extensibility and scalability mean that
+each platform implementation can have
+a different population of management controllers and sensors and
+different event generation capabilities.
+The design of IPMI allows system
+management software to retrieve information from the platform
+and automatically configure itself to the platform's capabilities.
+.Pp
+Information that describes the platform management capabilities
+is provided via two mechanisms:
+Capabilities Commands and Sensor Data Records (SDRs).
+Capabilities commands are commands within the IPMI command sets that return
+fields that provide information on other commands and functions the controller
+can handle.
+.Sh SYSTEMS INTERFACES
+IPMI defines three standardized systems interfaces that systems software uses
+for transferring IPMI messages to the BMC.
+In order to support a variety of microcontrollers,
+IPMI offers a choice of systems interfaces.
+The system interfaces are similar enough so that
+a single driver can handle all IPMI system interfaces.
+.Bl -tag -width Ds
+.It Keyboard Controller Style (KCS)
+The bit definitions and operation of the registers follows that used in the
+Intel 8742 Universal Peripheral Interface microcontroller.
+The term "Keyboard Controller Style" reflects the fact that
+the 8742 interface was used as the legacy keyboard controller interface
+in PC architecture computer systems.
+This interface is available built in to several commercially available
+microcontrollers.
+Data is transferred across the KCS interface using a per-byte handshake.
+.It System Management Interface Chip (SMIC)
+The SMIC interface provides an alternative
+when the implementer wishes to use a microcontroller for the BMC
+that does not have the built-in hardware for a KCS interface.
+This interface is a three I/O port interface that can be
+implemented using a simple ASIC, FPGA, or discrete logic devices.
+It may also be built in to a custom-designed management controller.
+Like the KCS interface,
+a per-byte handshake is also used
+for transferring data across the SMIC interface.
+.It Block Transfer (BT)
+This interface provides a higher performance system interface option.
+Unlike the KCS and SMIC interfaces,
+a per-block handshake is used for transferring data across the interface.
+The BT interface also provides an alternative to using
+a controller with a built-in KCS interface.
+The BT interface has three I/O mapped ports.
+A typical implementation includes hardware buffers for holding
+upstream and downstream message blocks.
+The BT interface can be implemented using an ASIC or FPGA
+or may be built in to a custom-designed management controller.
+.It SMBus System Interface (SSIF)
+The SSIF interface provides access to the BMC over an SMBus interface.
+.El
+.Sh WATCHDOG
+IPMI provides
+.Xr watchdog 4
+timer functionality.
+Once configured, if the watchdog is not reset within
+a certain period of time,
+it will timeout and the server will reset.
+The reset will occur regardless of the recoverability of the hang or crash.
+.Pp
+Example of enabling a watchdog:
+.Pp
+.Dl # sysctl kern.watchdog.period=10
+.Pp
+In this case if the watchdog is not reset,
+it'll reboot the server after roughly 10 seconds.
+.Pp
+Example of disabling the watchdog:
+.Pp
+.Dl # sysctl kern.watchdog.period=0
+.Sh SEE ALSO
+.Xr watchdog 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.9
+and conforms to the IPMI 1.5 specification.
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jordan Hargrave Aq Mt jordan@openbsd.org .

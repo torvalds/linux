@@ -1,0 +1,239 @@
+.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_DEV_SET_IO_FUNCTIONS 3
+.Os
+.Sh NAME
+.Nm fido_dev_set_io_functions ,
+.Nm fido_dev_set_sigmask ,
+.Nm fido_dev_set_timeout ,
+.Nm fido_dev_set_transport_functions ,
+.Nm fido_dev_io_handle
+.Nd FIDO2 device I/O interface
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Bd -literal
+typedef void *fido_dev_io_open_t(const char *);
+typedef void  fido_dev_io_close_t(void *);
+typedef int   fido_dev_io_read_t(void *, unsigned char *, size_t, int);
+typedef int   fido_dev_io_write_t(void *, const unsigned char *, size_t);
+
+typedef struct fido_dev_io {
+	fido_dev_io_open_t  *open;
+	fido_dev_io_close_t *close;
+	fido_dev_io_read_t  *read;
+	fido_dev_io_write_t *write;
+} fido_dev_io_t;
+
+#ifdef _WIN32
+typedef int fido_sigset_t;
+#else
+typedef sigset_t fido_sigset_t;
+#endif
+
+typedef int   fido_dev_rx_t(struct fido_dev *,
+                  uint8_t, unsigned char *, size_t, int);
+typedef int   fido_dev_tx_t(struct fido_dev *,
+                  uint8_t, const unsigned char *, size_t);
+
+typedef struct fido_dev_transport {
+	fido_dev_rx_t *rx;
+	fido_dev_tx_t *tx;
+} fido_dev_transport_t;
+.Ed
+.Pp
+.Ft int
+.Fn fido_dev_set_io_functions "fido_dev_t *dev" "const fido_dev_io_t *io"
+.Ft int
+.Fn fido_dev_set_sigmask "fido_dev_t *dev" "const fido_sigset_t *sigmask"
+.Ft int
+.Fn fido_dev_set_timeout "fido_dev_t *dev" "int ms"
+.Ft int
+.Fn fido_dev_set_transport_functions "fido_dev_t *dev" "const fido_dev_transport_t *t"
+.Ft void *
+.Fn fido_dev_io_handle "const fido_dev_t *dev"
+.Sh DESCRIPTION
+The
+.Fn fido_dev_set_io_functions
+function sets the I/O handlers used by
+.Em libfido2
+to talk to
+.Fa dev .
+By default, these handlers are set to the operating system's native HID or NFC
+interfaces.
+They are defined as follows:
+.Bl -tag -width Ds
+.It Vt fido_dev_open_t
+Receives a
+.Vt const char *
+holding a path and opens the corresponding device, returning a
+non-NULL opaque pointer on success and NULL on error.
+.It Vt fido_dev_close_t
+Receives the opaque pointer returned by
+.Vt fido_dev_open_t
+and closes the device.
+.It Vt fido_dev_read_t
+Reads a single transmission unit (HID report, APDU) from a device.
+The first parameter is the opaque pointer returned by
+.Vt fido_dev_open_t .
+The second parameter is the read buffer, and the third parameter
+is the read buffer size.
+The fourth parameter is the number of milliseconds the caller is
+willing to sleep, should the call need to block.
+If this value holds -1,
+.Vt fido_dev_read_t
+may block indefinitely.
+On success, the number of bytes read is returned.
+On error, -1 is returned.
+.It Vt fido_dev_write_t
+Writes a single transmission unit (HID report, APDU) to
+.Fa dev .
+The first parameter is the opaque pointer returned by
+.Vt fido_dev_open_t .
+The second parameter is the write buffer, and the third parameter
+is the number of bytes to be written.
+A
+.Vt fido_dev_write_t
+may block.
+On success, the number of bytes written is returned.
+On error, -1 is returned.
+.El
+.Pp
+When calling
+.Fn fido_dev_set_io_functions ,
+the
+.Fa open ,
+.Fa close ,
+.Fa read ,
+and
+.Fa write
+fields of
+.Fa io
+may not be NULL.
+.Pp
+No references to
+.Fa io
+are held by
+.Fn fido_dev_set_io_functions .
+.Pp
+The
+.Fn fido_dev_set_sigmask
+function may be used to specify a non-NULL signal mask
+.Fa sigmask
+to be used while
+.Em libfido2's
+default I/O handlers wait on
+.Fa dev .
+On UNIX-like operating systems,
+.Vt fido_sigset_t
+is defined as
+.Vt sigset_t .
+On Windows,
+.Vt fido_sigset_t
+is defined as
+.Vt int
+and
+.Fn fido_dev_set_sigmask
+is a no-op.
+.Pp
+No references to
+.Fa sigmask
+are held by
+.Fn fido_dev_set_sigmask .
+.Pp
+The
+.Fn fido_dev_set_timeout
+function informs
+.Em libfido2
+not to block for more than
+.Fa ms
+milliseconds while communicating with
+.Fa dev .
+If a timeout occurs, the corresponding
+.Em fido_dev_*
+function will fail with
+.Dv FIDO_ERR_RX .
+If
+.Fa ms
+is -1,
+then
+.Em libfido2
+may block indefinitely.
+This is the default behaviour.
+When using the Windows Hello backend,
+.Fa ms
+is used as a guidance and may be overwritten by the platform.
+.Pp
+The
+.Fn fido_dev_set_transport_functions
+function sets the transport functions used by
+.Em libfido2
+to talk to
+.Fa dev .
+While the I/O handlers are responsible for sending and receiving
+transmission units of initialization and continuation packets already
+formatted by
+.Em libfido2 ,
+the transport handlers are responsible for sending and receiving
+the CTAPHID commands and data directly, as defined in the FIDO Client
+to Authenticator Protocol (CTAP) standard.
+They are defined as follows:
+.Bl -tag -width Ds
+.It Vt fido_dev_tx_t
+Receives a device, a CTAPHID command to transmit, a data buffer to
+transmit, and the length of the data buffer.
+On success, 0 is returned.
+On error, -1 is returned.
+.It Vt fido_dev_rx_t
+Receives a device, a CTAPHID command whose response the caller expects
+to receive, a data buffer to receive into, the size of the data buffer
+determining the maximum length of a response, and the maximum number of
+milliseconds to wait for a response.
+On success, the number of bytes read into the data buffer is returned.
+On error, -1 is returned.
+.El
+.Pp
+When transport functions are specified,
+.Em libfido2
+will use them instead of the
+.Dv read
+and
+.Dv write
+functions of the I/O handlers.
+However, the I/O handlers must still be specified to open and close the
+device.
+.Pp
+The
+.Fn fido_dev_io_handle
+function returns the opaque pointer returned by the
+.Dv open
+function of the I/O handlers.
+This is useful mainly for the transport functions, which unlike the I/O
+handlers are passed the
+.Vt fido_dev_t
+pointer instead of the opaque I/O handle.
+.Sh RETURN VALUES
+On success,
+.Fn fido_dev_set_io_functions ,
+.Fn fido_dev_set_transport_functions ,
+.Fn fido_dev_set_sigmask ,
+and
+.Fn fido_dev_set_timeout
+return
+.Dv FIDO_OK .
+On error, a different error code defined in
+.In fido/err.h
+is returned.
+.Sh SEE ALSO
+.Xr fido_dev_info_manifest 3 ,
+.Xr fido_dev_open 3
+.Rs
+.%D 2021-06-15
+.%O Proposed Standard, Version 2.1
+.%Q FIDO Alliance
+.%R Client to Authenticator Protocol (CTAP)
+.%U https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-20210615.html
+.Re

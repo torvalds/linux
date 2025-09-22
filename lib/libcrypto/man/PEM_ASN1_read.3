@@ -1,0 +1,173 @@
+.\" $OpenBSD: PEM_ASN1_read.3,v 1.4 2025/07/16 17:59:10 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2025 $
+.Dt PEM_ASN1_READ 3
+.Os
+.Sh NAME
+.Nm d2i_of_void ,
+.Nm PEM_ASN1_read ,
+.Nm PEM_ASN1_read_bio
+.Nd PEM and DER decode an arbitrary ASN.1 value
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pem.h
+.Ft typedef void *
+.Fo d2i_of_void
+.Fa "void **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft void *
+.Fo PEM_ASN1_read
+.Fa "d2i_of_void *d2i"
+.Fa "const char *name"
+.Fa "FILE *in_fp"
+.Fa "void **val_out"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Ft void *
+.Fo PEM_ASN1_read_bio
+.Fa "d2i_of_void *d2i"
+.Fa "const char *name"
+.Fa "BIO *in_bp"
+.Fa "void **val_out"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Sh DESCRIPTION
+These functions read one object from
+.Fa in_fp
+or
+.Fa in_bp
+and perform both PEM and DER decoding.
+They are needed when more specific decoding functions
+like those documented in
+.Xr PEM_read_bio_PrivateKey 3
+and
+.Xr PEM_read_SSL_SESSION 3
+are inadequate for the type
+.Fa name .
+.Pp
+For PEM decoding,
+.Xr PEM_bytes_read_bio 3
+is called internally.
+Consequently, the first object of type
+.Fa name
+is returned and preceding objects of other types are discarded.
+If necessary, data is decrypted, using
+.Fa cb
+and/or
+.Fa u
+if they are not
+.Dv NULL ,
+as described in the
+.Xr pem_password_cb 3
+manual page.
+.Pp
+For subsequent DER decoding, pass a
+.Fa d2i
+callback function that is adequate for the type
+.Fa name ,
+typically returning a pointer of a type more specific than
+.Ft void * .
+For example,
+.Xr d2i_ASN1_TYPE 3
+can always be used and its manual page describes the required
+behaviour of the callback function to be passed.
+Normally, passing a more specific function is more useful;
+candidate functions can be found with
+.Ql man -k Nm~^d2i_ .
+.Pp
+For the
+.Fa name
+argument, the
+.Dv PEM_STRING_*
+string constants defined in
+.In openssl/pem.h
+can be used.
+.Pp
+The
+.Fa val_out
+argument is useless and its many dangers are described in detail in the
+.Xr d2i_ASN1_TYPE 3
+manual page.
+To reduce the risk of bugs, always passing
+.Dv NULL
+is recommended.
+.Sh RETURN VALUES
+These functions return a pointer to the decoded object or
+.Dv NULL
+if an error occurs.
+They fail if
+.Xr PEM_bytes_read_bio 3
+fails, for example because of invalid syntax in the input, an unknown
+encryption, or an invalid passphrase entered by the user.
+They also fail if
+.Fa d2i
+returns
+.Dv NULL ,
+for example due to DER decoding errors.
+.Pp
+.Fn PEM_ASN1_read
+may also fail if memory is exhausted.
+.Sh EXAMPLES
+Typical usage of
+.Fn PEM_ASN1_read
+is demonstrated by the implementation of the more specific function
+to PEM and DER decode an X.509 certificate:
+.Bd -literal -offset 2n
+X509 *
+PEM_read_X509(FILE *fp, X509 **val_out, pem_password_cb *cb, void *u)
+{
+	return PEM_ASN1_read((d2i_of_void *)d2i_X509, PEM_STRING_X509,
+	    fp, (void **)val_out, cb, u);
+}
+.Ed
+.Sh ERRORS
+Diagnostics that can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3
+include:
+.Bl -tag -width Ds
+.It Dv ERR_R_BUF_LIB Qq "BUF lib"
+.Fn PEM_ASN1_read
+failed to set up a temporary BIO,
+for example because memory was exhausted.
+.It Dv ERR_R_ASN1_LIB Qq "ASN1 lib"
+.Fa d2i
+returned
+.Dv NULL ,
+for example due to a DER syntax error.
+.El
+.Pp
+Additional types of errors can result from
+.Xr PEM_bytes_read_bio 3 .
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr d2i_ASN1_TYPE 3 ,
+.Xr PEM_bytes_read_bio 3 ,
+.Xr PEM_read 3 ,
+.Xr PEM_read_bio_PrivateKey 3 ,
+.Xr PEM_read_SSL_SESSION 3 ,
+.Xr PEM_X509_INFO_read_bio 3
+.Sh HISTORY
+These functions first appeared in SSLeay 0.5.1
+and have been available since
+.Ox 2.4 .

@@ -1,0 +1,2 @@
+tcpmd5 from 1.1.1.1 to 2.2.2.2 spi 0x00001000 authkey 0xdeadbeef
+tcpmd5 from 1.1.1.1 to 2.2.2.2 spi 0x00001001 authkey 0xbeefdead

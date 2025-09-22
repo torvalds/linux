@@ -1,0 +1,10 @@
+static_library("HipStdPar") {
+  output_name = "LLVMHipStdPar"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [ "HipStdPar.cpp" ]
+}

@@ -1,0 +1,13 @@
+..
+    **************************************************
+    *                                                *
+    *   Automatically generated file, do not edit!   *
+    *                                                *
+    **************************************************
+
+.. _amdgpu_synid_gfx908_m_28b494:
+
+m
+=
+
+This operand may be used with an integer operand modifier :ref:`sext<amdgpu_synid_sext>`.

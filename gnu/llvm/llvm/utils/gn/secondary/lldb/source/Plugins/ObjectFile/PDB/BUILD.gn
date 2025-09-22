@@ -1,0 +1,11 @@
+static_library("PDB") {
+  output_name = "lldbPluginObjectFilePDB"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Symbol",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "ObjectFilePDB.cpp" ]
+}

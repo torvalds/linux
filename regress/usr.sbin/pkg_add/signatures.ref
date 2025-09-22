@@ -1,0 +1,8 @@
+Couldn't find test/y in first signature
+Error: foo-1.0 exists in two non-comparable versions
+Someone forgot to bump a REVISION
+foo-1.0,0,@x-1.0 vs. foo-1.0,0,@x-1.0,@y-2.0
+Couldn't find test/y in second signature
+Error: foo-1.0 exists in two non-comparable versions
+Someone forgot to bump a REVISION
+foo-1.0,0,@x-1.0,@y-2.0 vs. foo-1.0,0,@x-1.0

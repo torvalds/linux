@@ -1,0 +1,99 @@
+.\" $OpenBSD: ober_oid_cmp.3,v 1.7 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2007, 2012 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt OBER_OID_CMP 3
+.Os
+.Sh NAME
+.Nm ober_oid_cmp ,
+.Nm ober_oid2ber ,
+.Nm ober_string2oid
+.Nd OID helper functions for the BER library
+.Sh SYNOPSIS
+.Lb libutil
+.In sys/types.h
+.In ber.h
+.Ft int
+.Fn "ober_oid_cmp" "struct ber_oid *a" "struct ber_oid *b"
+.Ft size_t
+.Fn "ober_oid2ber" "struct ber_oid *oid" "u_int8_t *buf" "size_t size"
+.Ft int
+.Fn "ober_string2oid" "const char *string" "struct ber_oid *oid"
+.Sh DESCRIPTION
+Object Identifiers are commonly used in ASN.1-based protocols.
+These functions provide an interface to parse OIDs.
+For internal representation of OIDs, the following structure
+.Vt struct ber_oid
+is being used:
+.Bd -literal
+#define BER_MIN_OID_LEN		2
+#define BER_MAX_OID_LEN		64
+
+struct ber_oid {
+	u_int32_t	bo_id[BER_MAX_OID_LEN + 1];
+	size_t		bo_n;
+};
+.Ed
+.Pp
+The
+.Fn ober_oid2ber
+and
+.Fn ober_string2oid
+functions may be used to convert from and to
+.Vt struct ber_oid .
+.Pp
+.Fn ober_oid_cmp
+may be used to compare two
+.Vt ber_oid
+structures.
+.Sh RETURN VALUES
+.Fn ober_oid2ber
+returns the number of bytes written or 0 on failure.
+.Pp
+.Fn ober_string2oid
+returns 0 on success or -1 on failure.
+.Pp
+.Fn ober_oid_cmp
+returns an integer greater than, equal to, or less than 0, according to whether
+the oid
+.Fa a
+is greater than, equal to, or less than the oid
+.Fa b .
+If the shortest length from
+.Fa a
+and
+.Fa b
+matches
+the weight of the integer is 2, else it is 1.
+.Sh SEE ALSO
+.Xr ober_add_string 3 ,
+.Xr ober_get_string 3 ,
+.Xr ober_read_elements 3 ,
+.Xr ober_set_header 3
+.Sh HISTORY
+These functions first appeared as internal functions in
+.Xr snmpd 8
+in
+.Ox 4.2
+and were moved to libutil in
+.Ox 6.6 .
+.Sh AUTHORS
+.An -nosplit
+The BER library was written by
+.An Claudio Jeker Aq Mt claudio@openbsd.org ,
+.An Marc Balmer Aq Mt marc@openbsd.org
+and
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

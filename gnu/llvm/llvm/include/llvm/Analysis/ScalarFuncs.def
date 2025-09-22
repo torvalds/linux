@@ -1,0 +1,117 @@
+//===-- ScalarFuncs.def - Library information ----------*- C++ -*----------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+// This .def file creates mapping from standard IEEE math functions
+// their corresponding entries in the IBM MASS (scalar) library.
+// LLVM intrinsic math functions will be handled in PPCISelLowing to
+// allow existing optimizations like pow(x,0.5) --> sqrt(x).
+
+#if defined(TLI_DEFINE_SCALAR_MASS_FUNCS)
+#define TLI_DEFINE_SCALAR_MASS_FUNC(SCAL, MASSENTRY) {SCAL, MASSENTRY},
+#endif
+
+TLI_DEFINE_SCALAR_MASS_FUNC("acosf", "__xl_acosf")
+TLI_DEFINE_SCALAR_MASS_FUNC("__acosf_finite", "__xl_acosf")
+TLI_DEFINE_SCALAR_MASS_FUNC("acos", "__xl_acos")
+TLI_DEFINE_SCALAR_MASS_FUNC("__acos_finite", "__xl_acos")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("acoshf", "__xl_acoshf")
+TLI_DEFINE_SCALAR_MASS_FUNC("__acoshf_finite", "__xl_acoshf")
+TLI_DEFINE_SCALAR_MASS_FUNC("acosh", "__xl_acosh")
+TLI_DEFINE_SCALAR_MASS_FUNC("__acosh_finite", "__xl_acosh")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("asinf", "__xl_asinf")
+TLI_DEFINE_SCALAR_MASS_FUNC("__asinf_finite", "__xl_asinf")
+TLI_DEFINE_SCALAR_MASS_FUNC("asin", "__xl_asin")
+TLI_DEFINE_SCALAR_MASS_FUNC("__asin_finite", "__xl_asin")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("asinhf", "__xl_asinhf")
+TLI_DEFINE_SCALAR_MASS_FUNC("asinh", "__xl_asinh")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("atanf", "__xl_atanf")
+TLI_DEFINE_SCALAR_MASS_FUNC("atan", "__xl_atan")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("atan2f", "__xl_atan2f")
+TLI_DEFINE_SCALAR_MASS_FUNC("__atan2f_finite", "__xl_atan2f")
+TLI_DEFINE_SCALAR_MASS_FUNC("atan2", "__xl_atan2")
+TLI_DEFINE_SCALAR_MASS_FUNC("__atan2_finite", "__xl_atan2")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("atanhf", "__xl_atanhf")
+TLI_DEFINE_SCALAR_MASS_FUNC("__atanhf_finite", "__xl_atanhf")
+TLI_DEFINE_SCALAR_MASS_FUNC("atanh", "__xl_atanh")
+TLI_DEFINE_SCALAR_MASS_FUNC("__atanh_finite", "__xl_atanh")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("cbrtf", "__xl_cbrtf")
+TLI_DEFINE_SCALAR_MASS_FUNC("cbrt", "__xl_cbrt")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("cosf", "__xl_cosf")
+TLI_DEFINE_SCALAR_MASS_FUNC("cos", "__xl_cos")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("coshf", "__xl_coshf")
+TLI_DEFINE_SCALAR_MASS_FUNC("__coshf_finite", "__xl_coshf")
+TLI_DEFINE_SCALAR_MASS_FUNC("cosh", "__xl_cosh")
+TLI_DEFINE_SCALAR_MASS_FUNC("__cosh_finite", "__xl_cosh")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("erff", "__xl_erff")
+TLI_DEFINE_SCALAR_MASS_FUNC("erf", "__xl_erf")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("erfcf", "__xl_erfcf")
+TLI_DEFINE_SCALAR_MASS_FUNC("erfc", "__xl_erfc")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("expf", "__xl_expf")
+TLI_DEFINE_SCALAR_MASS_FUNC("__expf_finite", "__xl_expf")
+TLI_DEFINE_SCALAR_MASS_FUNC("exp", "__xl_exp")
+TLI_DEFINE_SCALAR_MASS_FUNC("__exp_finite", "__xl_exp")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("expm1f", "__xl_expm1f")
+TLI_DEFINE_SCALAR_MASS_FUNC("expm1", "__xl_expm1")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("hypotf", "__xl_hypotf")
+TLI_DEFINE_SCALAR_MASS_FUNC("hypot", "__xl_hypot")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("lgammaf", "__xl_lgammaf")
+TLI_DEFINE_SCALAR_MASS_FUNC("lgamma", "__xl_lgamma")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("logf", "__xl_logf")
+TLI_DEFINE_SCALAR_MASS_FUNC("__logf_finite", "__xl_logf")
+TLI_DEFINE_SCALAR_MASS_FUNC("log", "__xl_log")
+TLI_DEFINE_SCALAR_MASS_FUNC("__log_finite", "__xl_log")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("log10f", "__xl_log10f")
+TLI_DEFINE_SCALAR_MASS_FUNC("__log10f_finite", "__xl_log10f")
+TLI_DEFINE_SCALAR_MASS_FUNC("log10", "__xl_log10")
+TLI_DEFINE_SCALAR_MASS_FUNC("__log10_finite", "__xl_log10")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("log1pf", "__xl_log1pf")
+TLI_DEFINE_SCALAR_MASS_FUNC("log1p", "__xl_log1p")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("powf", "__xl_powf")
+TLI_DEFINE_SCALAR_MASS_FUNC("__powf_finite", "__xl_powf")
+TLI_DEFINE_SCALAR_MASS_FUNC("pow", "__xl_pow")
+TLI_DEFINE_SCALAR_MASS_FUNC("__pow_finite", "__xl_pow")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("rsqrt", "__xl_rsqrt")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("sinf", "__xl_sinf")
+TLI_DEFINE_SCALAR_MASS_FUNC("sin", "__xl_sin")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("sinhf", "__xl_sinhf")
+TLI_DEFINE_SCALAR_MASS_FUNC("__sinhf_finite", "__xl_sinhf")
+TLI_DEFINE_SCALAR_MASS_FUNC("sinh", "__xl_sinh")
+TLI_DEFINE_SCALAR_MASS_FUNC("__sinh_finite", "__xl_sinh")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("sqrt", "__xl_sqrt")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("tanf", "__xl_tanf")
+TLI_DEFINE_SCALAR_MASS_FUNC("tan", "__xl_tan")
+
+TLI_DEFINE_SCALAR_MASS_FUNC("tanhf", "__xl_tanhf")
+TLI_DEFINE_SCALAR_MASS_FUNC("tanh", "__xl_tanh")
+
+#undef TLI_DEFINE_SCALAR_MASS_FUNCS
+#undef TLI_DEFINE_SCALAR_MASS_FUNC

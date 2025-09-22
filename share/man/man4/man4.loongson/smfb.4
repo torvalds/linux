@@ -1,0 +1,47 @@
+.\"	$OpenBSD: smfb.4,v 1.3 2010/02/18 23:05:06 miod Exp $
+.\"
+.\" Copyright (c) 2010 Miodrag Vallat.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 18 2010 $
+.Dt SMFB 4 loongson
+.Os
+.Sh NAME
+.Nm smfb
+.Nd Silicon Motion frame buffer
+.Sh SYNOPSIS
+.Cd "smfb* at pci?" Pq "SM712"
+.Cd "smfb* at voyager?" Pq "SM502"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Silicon Motion SM502 and SM712 frame buffers in 16-bit
+color mode.
+.Pp
+The
+.Nm
+driver interfaces the frame buffer with the
+.Xr wscons 4
+console framework, as a
+.Xr wsdisplay 4
+device.
+.Pp
+It is currently not possible to change the frame buffer resolution and
+color depth.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr voyager 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4

@@ -1,0 +1,538 @@
+.\"	$OpenBSD: auth_subr.3,v 1.27 2023/02/19 21:33:38 aisha Exp $
+.\"
+.\" Copyright (c) 1997 Berkeley Software Design, Inc. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Berkeley Software Design,
+.\"	Inc.
+.\" 4. The name of Berkeley Software Design, Inc.  may not be used to endorse
+.\"    or promote products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN, INC. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	BSDI $From: auth_subr.3,v 2.5 2000/03/30 19:11:27 polk Exp $
+.Dd $Mdocdate: February 19 2023 $
+.Dt AUTH_OPEN 3
+.Os
+.Sh NAME
+.Nm auth_open ,
+.Nm auth_call ,
+.Nm auth_challenge ,
+.Nm auth_check_change ,
+.Nm auth_check_expire ,
+.Nm auth_clean ,
+.Nm auth_close ,
+.Nm auth_clrenv ,
+.Nm auth_clroption ,
+.Nm auth_clroptions ,
+.Nm auth_getitem ,
+.Nm auth_getpwd ,
+.Nm auth_getstate ,
+.Nm auth_getvalue ,
+.Nm auth_set_va_list ,
+.Nm auth_setdata ,
+.Nm auth_setenv ,
+.Nm auth_setitem ,
+.Nm auth_setoption ,
+.Nm auth_setpwd ,
+.Nm auth_setstate
+.Nd interface to the BSD Authentication system
+.Sh SYNOPSIS
+.In sys/types.h
+.In login_cap.h
+.In bsd_auth.h
+.Ft auth_session_t *
+.Fn auth_open "void"
+.Ft int
+.Fn auth_close "auth_session_t *as"
+.Ft int
+.Fn auth_call "auth_session_t *as" "char *path" "..."
+.Ft char *
+.Fn auth_challenge "auth_session_t *as"
+.Ft quad_t
+.Fn auth_check_change "auth_session_t *as"
+.Ft quad_t
+.Fn auth_check_expire "auth_session_t *as"
+.Ft void
+.Fn auth_clean "auth_session_t *as"
+.Ft void
+.Fn auth_clrenv "auth_session_t *as"
+.Ft void
+.Fn auth_clroption "auth_session_t * as" "char *name"
+.Ft void
+.Fn auth_clroptions "auth_session_t *as"
+.Ft char *
+.Fn auth_getitem "auth_session_t *as" "auth_item_t item"
+.Ft struct passwd *
+.Fn auth_getpwd "auth_session_t *as"
+.Ft int
+.Fn auth_getstate "auth_session_t *as"
+.Ft char *
+.Fn auth_getvalue "auth_session_t *as" "char *what"
+.Ft void
+.Fn auth_set_va_list "auth_session_t *as" "va_list ap"
+.Ft int
+.Fn auth_setdata "auth_session_t *as" "void *ptr" "size_t len"
+.Ft void
+.Fn auth_setenv "auth_session_t *as"
+.Ft int
+.Fn auth_setitem "auth_session_t *as" "auth_item_t item" "char *value"
+.Ft int
+.Fn auth_setoption "auth_session_t *as" "char *name" "char *value"
+.Ft int
+.Fn auth_setpwd "auth_session_t *as" "struct passwd *pwd"
+.Ft void
+.Fn auth_setstate "auth_session_t *as" "int state"
+.Sh DESCRIPTION
+These functions provide the lower level interface to the
+.Bx
+Authentication system.
+They all operate on a
+.Bx
+Authentication session pointer,
+.Fa as ,
+which is returned by
+.Fn auth_open .
+The session pointer
+must be passed to all other
+.Bx
+Authentication functions called.
+The
+.Fn auth_open
+function returns
+.Dv NULL
+if it was unable to allocate memory for the session.
+The session is terminated by the
+.Fn auth_close
+function,
+which also sets any environment variables requested by the login script
+(assuming the user was not rejected) or removes files created by the
+login script if the authentication was not successful.
+It returns the final state of the authentication request.
+A return value of 0 implies the user was not authenticated.
+A non-zero return value is made up of 1 or more of the following values
+ORed together:
+.Bl -tag -width AUTH_ROOTOKAYXX
+.It Dv AUTH_OKAY
+The user was authenticated.
+.It Dv AUTH_ROOTOKAY
+The user was authenticated with a root instance.
+.It Dv AUTH_SECURE
+The user was authenticated via a mechanism which is not subject to
+eavesdropping attacks (such as provided by token cards).
+.El
+.Pp
+The full state of the session is returned by the
+.Fn auth_getstate
+function.
+In addition to the values above, it also may contain the bits:
+.Bl -tag -width AUTH_ROOTOKAYXX
+.It Dv AUTH_SILENT
+Do not report an error, the user was not authenticated for access and
+was not expected to be.
+This is returned by login scripts that allow changing of the user's password,
+for instance.
+This value is stripped off for normal returns.
+.It Dv AUTH_CHALLENGE
+The user was not authenticated for access and a challenge was issued.
+The challenge should be displayed to the user, a response retrieved,
+and the result verified.
+This value is stripped off for normal returns.
+.It Dv AUTH_EXPIRED
+The user's account has expired.
+.It Dv AUTH_PWEXPIRED
+The user's password has expired and needs to be changed.
+.El
+.Pp
+A session may be cleaned
+by calling
+.Fn auth_clean .
+This function removes any files created by a login script in this
+session and clears all state associated with this session, with the
+exception of the option settings.
+It is not necessary to call
+.Fn auth_clean
+if
+.Fn auth_close
+is called.
+.Pp
+The remaining functions are described in alphabetical order.
+.Pp
+The fundamental function for doing
+.Bx
+Authentication is
+.Fn auth_call .
+In addition to the pointer to the
+.Bx
+Authentication session, it takes
+the following parameters:
+.Bl -tag -width indent
+.It Ar path
+The full path name of the login script to run.
+.It Ar ...
+The remaining arguments, which should be of type
+.Vt char *
+and terminated with a
+.Dv NULL ,
+are passed to the login script at the end of the command line.
+Non-optional arguments such as user should be prefixed by a
+.Qq --
+argument so that
+.Xr getopt 3
+will not attempt to interpret them as optional flags.
+.El
+.Pp
+The
+.Fn auth_call
+function, after verifying the
+.Ar path ,
+creates a bi-directional pipe (socketpair) which is located on
+file descriptor 3 for the child (the login script).
+This is known as the
+.Dq back channel .
+The actual command line passed to the child is made up of
+3 parts.
+The parameters passed to
+.Fn auth_call
+following
+.Ar path
+have appended to them any arguments specified by the
+.Fn auth_set_va_list
+function.
+These are typically the variable arguments passed to the function
+that calls
+.Fn auth_call .
+Any option values set by the
+.Fn auth_setoption
+function are inserted between the first argument (the command
+name) and the second argument with a preceding
+.Fl v
+flag.
+The name and value are separated by an
+.Sq = :
+.Pp
+.D1 Fl v Ar name=value
+.Pp
+Once the login script has been spawned, any data specified by the
+.Fn auth_setdata
+is written to the back channel.
+Multiple blocks of data may have been specified and they will be sent
+in the same order they were specified.
+As the data is sent, the storage for the data is zeroed out and then freed
+(the data is zeroed out since it may contain sensitive information,
+such as a password).
+Once any data is written out,
+.Fn auth_call
+reads up to 8192 bytes of data from the back channel.
+The state of the session is determined from this data (see
+.Xr login.conf 5
+for details).
+If the login script exits with a 0 and does not specify any return state
+on the back channel, the state prior to the call to
+.Fn auth_call
+is retained.
+.Pp
+Note that while
+.Fn auth_call
+will zero out the copies it makes of sensitive information, such as plain text
+passwords, after it is sent, it is the responsibility of the
+caller to zero out the original copies of this sensitive information.
+Due to the mechanics of the
+.Fn auth_call
+function, this data must be zeroed
+.Em before
+.Fn auth_call
+is called.
+The safest place to zero out sensitive information is immediately
+after it has been passed to
+.Fn auth_setdata .
+.Pp
+The back channel data may also contain a file descriptor passed back
+from the login script.
+If this is the case, the login script will first send back the string
+.Dq fd
+to indicate that a file descriptor will be the next data item.
+The file descriptor will be passed back to the next invocation of
+the login script with a number specified by the
+.Fl v Ar fd
+option.
+This is used to implement stateful challenge/response schemes that require
+a persistent connection during the challenge and response.
+The copy of the descriptor in the parent process is closed when the
+child is running to prevent deadlock when file locking is used.
+The descriptor is also closed by a call to
+.Fn auth_close
+or
+.Fn auth_clean .
+.Pp
+The data read from the back channel is also used by the
+.Fn auth_getvalue
+and
+.Fn auth_close
+functions.
+Subsequent calls to
+.Fn auth_call
+will cause this data to be lost and overwritten with the new data read
+from the new call.
+.Pp
+The environment passed to the login script by
+.Fn auth_call
+only contains two values:
+.Ev PATH
+and
+.Ev SHELL .
+The
+.Ev PATH
+is set to the default path
+.Pa ( /bin
+and
+.Pa /usr/bin )
+while the
+.Ev SHELL
+is set to the default system shell
+.Pq Pa /bin/sh .
+.Pp
+The
+.Fn auth_challenge
+function queries the login script defined by the current
+.Ar style
+for a challenge for the user specified by
+.Ar name .
+(See below for the setting of the
+.Ar style
+and
+.Ar name ) .
+It internally uses the
+.Fn auth_call
+function.
+The generated challenge is returned.
+.Dv NULL
+is returned on error or if no challenge was generated.
+.Pp
+The
+.Fn auth_check_change
+and
+.Fn auth_check_expire
+functions check the password expiration (change) and account expiration
+times.
+They return 0 if no change or expiration time is set for the account.
+They return a negative value of how many seconds have passed since
+the password or account expired.
+In this case the state of the session is marked with either
+.Li AUTH_PWEXPIRED
+or
+.Li AUTH_EXPIRED
+as well as clearing any bits which would indicate the authentication was
+successful.
+If the password or account has not expired, they return the number of
+seconds left until the account does expire.
+The return value of -1 can either indicate the password or account
+just expired or that no password entry was set for the current session.
+.Pp
+The
+.Fn auth_clrenv
+function clears any requests set by a login script for
+environment variables to be set.
+.Pp
+The
+.Fn auth_clroption
+function clears the previously set option
+.Fa name .
+.Pp
+The
+.Fn auth_clroptions
+function clears all previously set options.
+.Pp
+The
+.Fn auth_getitem
+function returns the value of
+.Fa item .
+The
+.Fa item
+may be one of:
+.Bl -tag -width AUTH_INTERACTIVE
+.It Dv AUTH_CHALLENGE
+The latest challenge, if any, set for the session.
+.It Dv AUTH_CLASS
+The class of the user, as defined by the
+.Pa /etc/login.conf
+file.
+This value is not directly used by
+.Bx
+Authentication, rather, it is
+passed to the login scripts for their possible use.
+.It Dv AUTH_INTERACTIVE
+If set to any value, then the session is tagged as interactive.
+If not set, the session is not interactive.
+When the value is requested, it is always either
+.Dv NULL
+or
+.Dq True .
+The auth subroutines may choose to provide additional information to
+standard output or standard error when the session is interactive.
+There is no functional change in the operation of the subroutines.
+.It Dv AUTH_NAME
+The name of the user being authenticated.
+The name should include the instance, if any, that is being requested.
+.It Dv AUTH_SERVICE
+The service requesting the authentication.
+Initially it is set to the default service which provides the traditional
+interactive service.
+.It Dv AUTH_STYLE
+The style of authentication being performed, as defined by the
+.Pa /etc/login.conf
+file.
+The style determines which login script should actually be used.
+.El
+.Pp
+The value returned points to private memory and should not be
+freed by the caller.
+.Pp
+The
+.Fn auth_getvalue
+function returns the value, if any, associated with the specified internal
+variable
+.Ar what .
+These variables are set by login scripts.
+When a new login script is run
+(by the
+.Fn auth_call
+function),
+the values from the previous login script are lost.
+(See
+.Xr login.conf 5
+for details on internal variables.)
+.Pp
+The
+.Fn auth_set_va_list
+function establishes a variable argument list to be used by the
+.Fn auth_call
+function.
+It is intended to be used by functions which need to call
+.Fn auth_call
+but take a variable number of arguments themselves.
+Since the arguments are not copied, the call to
+.Fn auth_call
+must be placed within the scope of
+.Fa ap .
+The
+.Fn auth_call
+function will call
+.Xr va_end 3
+on
+.Fa ap .
+.Pp
+The
+.Fn auth_setdata
+function makes a copy of
+.Fa len
+bytes of data pointed to by
+.Fa ptr
+for use by
+.Fn auth_call .
+The data will be passed on the back channel to the next login script called.
+.Pp
+The
+.Fn auth_setenv
+function adds/deletes any environment variables requested by the
+login script to the current environment.
+.Pp
+The
+.Fn auth_setitem
+function assigns
+.Fa value
+to the specified
+.Fa item .
+The items are described above with the
+.Fn auth_getitem
+function.
+In addition, if
+.Fa value
+is
+.Dv NULL ,
+the
+.Fa item
+is cleared.
+If
+.Fa value
+is
+.Dv NULL
+and
+.Fa item
+is
+.Li AUTH_ALL
+then all items are cleared.
+.Pp
+The
+.Fn auth_setoption
+function requests that the option
+.Fa name
+be set with the value of
+.Fa value
+when a script is executed by
+.Fn auth_call .
+The actual arguments to the script will be placed at the beginning
+of the argument vector.
+For each option two arguments will be issued:
+.Li -v name=value .
+.Pp
+The function
+.Fn auth_setpwd
+establishes the password file entry for the authentication session.
+If the name has already been set by
+.Fn auth_setitem
+then the
+.Fa pwd
+argument may be
+.Dv NULL ,
+else it must be the password entry to use.
+.Pp
+The function
+.Fn auth_getpwd
+retrieves the saved password file entry for the authentication session.
+If no entry has been saved (either explicitly via
+.Fn auth_setpwd
+or implicitly via
+.Fn auth_check_expire
+or
+.Fn auth_check_change ) ,
+it returns
+.Dv NULL .
+Note that the memory containing the password file entry is freed by
+a call to
+.Fn auth_close
+or
+.Fn auth_clean .
+.Pp
+The function
+.Fn auth_setstate
+sets the sessions state to
+.Fa state .
+Typically this is either
+.Li AUTH_OKAY
+or 0.
+.Sh SEE ALSO
+.Xr authenticate 3 ,
+.Xr login_cap 3 ,
+.Xr pw_dup 3 ,
+.Xr login.conf 5

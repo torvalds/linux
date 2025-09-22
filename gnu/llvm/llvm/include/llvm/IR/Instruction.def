@@ -1,0 +1,255 @@
+//===-- llvm/Instruction.def - File that describes Instructions -*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file contains descriptions of the various LLVM instructions.  This is
+// used as a central place for enumerating the different instructions and
+// should eventually be the place to put comments about the instructions.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+// Provide definitions of macros so that users of this file do not have to
+// define everything to use it...
+//
+#ifndef FIRST_TERM_INST
+#define FIRST_TERM_INST(num)
+#endif
+#ifndef HANDLE_TERM_INST
+#ifndef HANDLE_INST
+#define HANDLE_TERM_INST(num, opcode, Class)
+#else
+#define HANDLE_TERM_INST(num, opcode, Class) HANDLE_INST(num, opcode, Class)
+#endif
+#endif
+#ifndef LAST_TERM_INST
+#define LAST_TERM_INST(num)
+#endif
+
+#ifndef FIRST_UNARY_INST
+#define FIRST_UNARY_INST(num)
+#endif
+#ifndef HANDLE_UNARY_INST
+#ifndef HANDLE_INST
+#define HANDLE_UNARY_INST(num, opcode, instclass)
+#else
+#define HANDLE_UNARY_INST(num, opcode, Class) HANDLE_INST(num, opcode, Class)
+#endif
+#endif
+#ifndef LAST_UNARY_INST
+#define LAST_UNARY_INST(num)
+#endif
+
+#ifndef FIRST_BINARY_INST
+#define FIRST_BINARY_INST(num)
+#endif
+#ifndef HANDLE_BINARY_INST
+#ifndef HANDLE_INST
+#define HANDLE_BINARY_INST(num, opcode, instclass)
+#else
+#define HANDLE_BINARY_INST(num, opcode, Class) HANDLE_INST(num, opcode, Class)
+#endif
+#endif
+#ifndef LAST_BINARY_INST
+#define LAST_BINARY_INST(num)
+#endif
+
+#ifndef FIRST_MEMORY_INST
+#define FIRST_MEMORY_INST(num)
+#endif
+#ifndef HANDLE_MEMORY_INST
+#ifndef HANDLE_INST
+#define HANDLE_MEMORY_INST(num, opcode, Class)
+#else
+#define HANDLE_MEMORY_INST(num, opcode, Class) HANDLE_INST(num, opcode, Class)
+#endif
+#endif
+#ifndef LAST_MEMORY_INST
+#define LAST_MEMORY_INST(num)
+#endif
+
+#ifndef FIRST_CAST_INST
+#define FIRST_CAST_INST(num)
+#endif
+#ifndef HANDLE_CAST_INST
+#ifndef HANDLE_INST
+#define HANDLE_CAST_INST(num, opcode, Class)
+#else
+#define HANDLE_CAST_INST(num, opcode, Class) HANDLE_INST(num, opcode, Class)
+#endif
+#endif
+#ifndef LAST_CAST_INST
+#define LAST_CAST_INST(num)
+#endif
+
+#ifndef FIRST_FUNCLETPAD_INST
+#define FIRST_FUNCLETPAD_INST(num)
+#endif
+#ifndef HANDLE_FUNCLETPAD_INST
+#ifndef HANDLE_INST
+#define HANDLE_FUNCLETPAD_INST(num, opcode, Class)
+#else
+#define HANDLE_FUNCLETPAD_INST(num, opcode, Class) HANDLE_INST(num, opcode, Class)
+#endif
+#endif
+#ifndef LAST_FUNCLETPAD_INST
+#define LAST_FUNCLETPAD_INST(num)
+#endif
+
+#ifndef FIRST_OTHER_INST
+#define FIRST_OTHER_INST(num)
+#endif
+#ifndef HANDLE_OTHER_INST
+#ifndef HANDLE_INST
+#define HANDLE_OTHER_INST(num, opcode, Class)
+#else
+#define HANDLE_OTHER_INST(num, opcode, Class) HANDLE_INST(num, opcode, Class)
+#endif
+#endif
+#ifndef LAST_OTHER_INST
+#define LAST_OTHER_INST(num)
+#endif
+
+#ifndef HANDLE_USER_INST
+#define HANDLE_USER_INST(num, opc, Class) HANDLE_OTHER_INST(num, opc, Class)
+#endif
+
+// Terminator Instructions - These instructions are used to terminate a basic
+// block of the program.   Every basic block must end with one of these
+// instructions for it to be a well formed basic block.
+//
+ FIRST_TERM_INST  ( 1)
+HANDLE_TERM_INST  ( 1, Ret           , ReturnInst)
+HANDLE_TERM_INST  ( 2, Br            , BranchInst)
+HANDLE_TERM_INST  ( 3, Switch        , SwitchInst)
+HANDLE_TERM_INST  ( 4, IndirectBr    , IndirectBrInst)
+HANDLE_TERM_INST  ( 5, Invoke        , InvokeInst)
+HANDLE_TERM_INST  ( 6, Resume        , ResumeInst)
+HANDLE_TERM_INST  ( 7, Unreachable   , UnreachableInst)
+HANDLE_TERM_INST  ( 8, CleanupRet    , CleanupReturnInst)
+HANDLE_TERM_INST  ( 9, CatchRet      , CatchReturnInst)
+HANDLE_TERM_INST  (10, CatchSwitch   , CatchSwitchInst)
+HANDLE_TERM_INST  (11, CallBr        , CallBrInst) // A call-site terminator
+  LAST_TERM_INST  (11)
+
+// Standard unary operators...
+ FIRST_UNARY_INST(12)
+HANDLE_UNARY_INST(12, FNeg  , UnaryOperator)
+  LAST_UNARY_INST(12)
+
+// Standard binary operators...
+ FIRST_BINARY_INST(13)
+HANDLE_BINARY_INST(13, Add  , BinaryOperator)
+HANDLE_BINARY_INST(14, FAdd , BinaryOperator)
+HANDLE_BINARY_INST(15, Sub  , BinaryOperator)
+HANDLE_BINARY_INST(16, FSub , BinaryOperator)
+HANDLE_BINARY_INST(17, Mul  , BinaryOperator)
+HANDLE_BINARY_INST(18, FMul , BinaryOperator)
+HANDLE_BINARY_INST(19, UDiv , BinaryOperator)
+HANDLE_BINARY_INST(20, SDiv , BinaryOperator)
+HANDLE_BINARY_INST(21, FDiv , BinaryOperator)
+HANDLE_BINARY_INST(22, URem , BinaryOperator)
+HANDLE_BINARY_INST(23, SRem , BinaryOperator)
+HANDLE_BINARY_INST(24, FRem , BinaryOperator)
+
+// Logical operators (integer operands)
+HANDLE_BINARY_INST(25, Shl  , BinaryOperator) // Shift left  (logical)
+HANDLE_BINARY_INST(26, LShr , BinaryOperator) // Shift right (logical)
+HANDLE_BINARY_INST(27, AShr , BinaryOperator) // Shift right (arithmetic)
+HANDLE_BINARY_INST(28, And  , BinaryOperator)
+HANDLE_BINARY_INST(29, Or   , BinaryOperator)
+HANDLE_BINARY_INST(30, Xor  , BinaryOperator)
+  LAST_BINARY_INST(30)
+
+// Memory operators...
+ FIRST_MEMORY_INST(31)
+HANDLE_MEMORY_INST(31, Alloca, AllocaInst)  // Stack management
+HANDLE_MEMORY_INST(32, Load  , LoadInst  )  // Memory manipulation instrs
+HANDLE_MEMORY_INST(33, Store , StoreInst )
+HANDLE_MEMORY_INST(34, GetElementPtr, GetElementPtrInst)
+HANDLE_MEMORY_INST(35, Fence , FenceInst )
+HANDLE_MEMORY_INST(36, AtomicCmpXchg , AtomicCmpXchgInst )
+HANDLE_MEMORY_INST(37, AtomicRMW , AtomicRMWInst )
+  LAST_MEMORY_INST(37)
+
+// Cast operators ...
+// NOTE: The order matters here because CastInst::isEliminableCastPair
+// NOTE: (see Instructions.cpp) encodes a table based on this ordering.
+ FIRST_CAST_INST(38)
+HANDLE_CAST_INST(38, Trunc   , TruncInst   )  // Truncate integers
+HANDLE_CAST_INST(39, ZExt    , ZExtInst    )  // Zero extend integers
+HANDLE_CAST_INST(40, SExt    , SExtInst    )  // Sign extend integers
+HANDLE_CAST_INST(41, FPToUI  , FPToUIInst  )  // floating point -> UInt
+HANDLE_CAST_INST(42, FPToSI  , FPToSIInst  )  // floating point -> SInt
+HANDLE_CAST_INST(43, UIToFP  , UIToFPInst  )  // UInt -> floating point
+HANDLE_CAST_INST(44, SIToFP  , SIToFPInst  )  // SInt -> floating point
+HANDLE_CAST_INST(45, FPTrunc , FPTruncInst )  // Truncate floating point
+HANDLE_CAST_INST(46, FPExt   , FPExtInst   )  // Extend floating point
+HANDLE_CAST_INST(47, PtrToInt, PtrToIntInst)  // Pointer -> Integer
+HANDLE_CAST_INST(48, IntToPtr, IntToPtrInst)  // Integer -> Pointer
+HANDLE_CAST_INST(49, BitCast , BitCastInst )  // Type cast
+HANDLE_CAST_INST(50, AddrSpaceCast, AddrSpaceCastInst)  // addrspace cast
+  LAST_CAST_INST(50)
+
+ FIRST_FUNCLETPAD_INST(51)
+HANDLE_FUNCLETPAD_INST(51, CleanupPad, CleanupPadInst)
+HANDLE_FUNCLETPAD_INST(52, CatchPad  , CatchPadInst)
+  LAST_FUNCLETPAD_INST(52)
+
+// Other operators...
+ FIRST_OTHER_INST(53)
+HANDLE_OTHER_INST(53, ICmp   , ICmpInst   )  // Integer comparison instruction
+HANDLE_OTHER_INST(54, FCmp   , FCmpInst   )  // Floating point comparison instr.
+HANDLE_OTHER_INST(55, PHI    , PHINode    )  // PHI node instruction
+HANDLE_OTHER_INST(56, Call   , CallInst   )  // Call a function
+HANDLE_OTHER_INST(57, Select , SelectInst )  // select instruction
+HANDLE_USER_INST (58, UserOp1, Instruction)  // May be used internally in a pass
+HANDLE_USER_INST (59, UserOp2, Instruction)  // Internal to passes only
+HANDLE_OTHER_INST(60, VAArg  , VAArgInst  )  // vaarg instruction
+HANDLE_OTHER_INST(61, ExtractElement, ExtractElementInst)// extract from vector
+HANDLE_OTHER_INST(62, InsertElement, InsertElementInst)  // insert into vector
+HANDLE_OTHER_INST(63, ShuffleVector, ShuffleVectorInst)  // shuffle two vectors.
+HANDLE_OTHER_INST(64, ExtractValue, ExtractValueInst)// extract from aggregate
+HANDLE_OTHER_INST(65, InsertValue, InsertValueInst)  // insert into aggregate
+HANDLE_OTHER_INST(66, LandingPad, LandingPadInst)  // Landing pad instruction.
+HANDLE_OTHER_INST(67, Freeze, FreezeInst) // Freeze instruction.
+  LAST_OTHER_INST(67)
+
+#undef  FIRST_TERM_INST
+#undef HANDLE_TERM_INST
+#undef   LAST_TERM_INST
+
+#undef  FIRST_UNARY_INST
+#undef HANDLE_UNARY_INST
+#undef   LAST_UNARY_INST
+
+#undef  FIRST_BINARY_INST
+#undef HANDLE_BINARY_INST
+#undef   LAST_BINARY_INST
+
+#undef  FIRST_MEMORY_INST
+#undef HANDLE_MEMORY_INST
+#undef   LAST_MEMORY_INST
+
+#undef  FIRST_CAST_INST
+#undef HANDLE_CAST_INST
+#undef   LAST_CAST_INST
+
+#undef  FIRST_FUNCLETPAD_INST
+#undef HANDLE_FUNCLETPAD_INST
+#undef   LAST_FUNCLETPAD_INST
+
+#undef  FIRST_OTHER_INST
+#undef HANDLE_OTHER_INST
+#undef   LAST_OTHER_INST
+
+#undef HANDLE_USER_INST
+
+#ifdef HANDLE_INST
+#undef HANDLE_INST
+#endif

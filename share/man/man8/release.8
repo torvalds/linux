@@ -1,0 +1,285 @@
+.\"	$OpenBSD: release.8,v 1.100 2025/08/19 15:51:51 schwarze Exp $
+.\"
+.\"	Copyright (c) 2000 Marco S. Hyman
+.\"	Copyright (c) 2016 Theo Buehler <tb@openbsd.org>
+.\"
+.\"	Permission to copy all or part of this material for any purpose is
+.\"	granted provided that the above copyright notice and this paragraph
+.\"	are duplicated in all copies.  THIS SOFTWARE IS PROVIDED ``AS IS''
+.\"	AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
+.\"	LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\"	FOR A PARTICULAR PURPOSE.
+.\"
+.Dd $Mdocdate: August 19 2025 $
+.Dt RELEASE 8
+.Os
+.Sh NAME
+.Nm release
+.Nd building an OpenBSD release
+.Sh DESCRIPTION
+There are several steps necessary to build a release:
+.Pp
+.Bl -enum -compact -offset indent
+.It
+Update sources.
+.It
+Build and install a new kernel.
+.It
+Build a new base system.
+.It
+Make and validate the base system release.
+.It
+Build and install Xenocara.
+.It
+Make and validate the Xenocara release.
+.It
+Create boot and installation disk images.
+.It
+Make the third party packages.
+.El
+.Pp
+This manual describes the steps for the
+.Em release
+and
+.Em stable
+branches.
+To build a
+.Em current
+release, additional steps may be required.
+See
+.Lk https://www.openbsd.org/faq/current.html
+for any needed workarounds.
+.Pp
+Commands to be run as a user are preceded by a dollar sign
+.Sq $ .
+Commands that must be run as the superuser are preceded by a hash mark
+.Sq # .
+Privileges will be de-escalated to the user
+.Sy build
+whenever possible.
+.Pp
+Most of the defaults can be overridden by setting
+the appropriate variables in
+.Xr mk.conf 5 .
+.Ss 1. Update sources
+A
+.Nm
+should use sources that were checked out using the same
+.Xr cvs 1
+tag.
+There are two families of tags:
+.Bl -tag -width OPENBSD_x_y_BASE
+.It OPENBSD_x_y_BASE
+The sources for the
+.Ox x.y
+release.
+.It OPENBSD_x_y
+The sources for the
+.Ox x.y
+stable branch.
+It contains the patches described in
+.Lk https://www.openbsd.org/stable.html .
+.El
+.Pp
+See
+.Lk https://www.openbsd.org/anoncvs.html
+for instructions on fetching the sources for the first time.
+.Pp
+To update existing sources to the versions identified by one of the above
+tags, use the commands:
+.Bd -literal -offset indent
+$ cd /usr/src && cvs up -r TAG -Pd
+$ cd /usr/xenocara && cvs up -r TAG -Pd
+$ cd /usr/ports && cvs up -r TAG -Pd
+.Ed
+.Pp
+.Sy Warning :
+.Xr cvs 1
+tags are
+.Sq sticky .
+See
+.Xr cvs 1
+for more information.
+.Ss 2. Build and install a new kernel
+Always build and install a new kernel and reboot before
+building the programs that will use the kernel.
+This ensures that any new system calls, for example, will be present
+when needed.
+.Pp
+.Dl # cd /sys/arch/$(machine)/compile/GENERIC.MP
+.Pp
+Replace
+.Pa GENERIC.MP
+with a different kernel configuration if necessary.
+.Pp
+Create the build directory and configuration file,
+then compile and install the kernel:
+.Bd -literal -offset indent
+# make obj
+# make config
+# make && make install
+.Ed
+.Pp
+The current kernel is copied to
+.Pa /obsd
+and the new kernel to
+.Pa /bsd .
+Reboot.
+.Ss 3. Build a new base system
+The build process will place the object files in a tree under
+.Pa /usr/obj .
+This directory must be owned by build:wobj with mode 770.
+.Pp
+Create the tree of obj directories and begin the build:
+.Bd -literal -offset indent
+# cd /usr/src
+# make obj && make build
+.Ed
+.Pp
+After the build is completed, update
+.Pa /etc ,
+.Pa /var ,
+and
+.Pa /dev ,
+using
+.Xr sysmerge 8
+and
+.Xr MAKEDEV 8 :
+.Bd -literal -offset indent
+# sysmerge
+# cd /dev && ./MAKEDEV all
+.Ed
+.Pp
+At this point, the base system is up to date with the code
+that will be made into a release.
+.Ss 4. Make and validate the base system release
+The base system release consists of at least one generic kernel,
+some installation media, the release tarballs,
+installation instructions, and checksum files.
+.Pp
+On arm64 and armv7 architectures, additional files are required.
+Install the following packages using
+.Xr pkg_add 1
+or from
+.Xr ports 7 :
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It arm64
+raspberrypi-firmware u-boot-rpi
+.It armv7
+dtb u-boot-arm
+.El
+.Pp
+Create a
+.Va RELEASEDIR
+directory to store the release files.
+This directory must be writable by
+.Sy build .
+.Pp
+To build a release, it is necessary to prepare a filesystem mounted with the
+.Em noperm
+.Xr mount 8
+option.
+Either standard FFS or
+.Xr mount_mfs 8
+may be used.
+The root of this filesystem must have owner
+.Sy build
+and mode 700.
+On this filesystem, create a
+.Va DESTDIR
+directory.
+This will be the root of a complete
+.Ox
+installation.
+.Pp
+.Sy Warning :
+.Va DESTDIR
+and
+.Va RELEASEDIR
+must not refer to any directory with
+.Pa /mnt
+in its path, as
+.Pa /mnt
+is used in the release generation process.
+The
+.Xr vnd 4
+device vnd0
+is also used and must not be configured.
+.Pp
+Make the release and check the contents of the release tarballs:
+.Bd -literal -offset indent
+# export DESTDIR=your-destdir RELEASEDIR=your-releasedir
+# cd /usr/src/etc && make release
+# cd /usr/src/distrib/sets && sh checkflist
+# unset RELEASEDIR DESTDIR
+.Ed
+.Ss 5. Build and install Xenocara
+Xenocara is based on the X.Org modular build system.
+Its sources are supposed to be in
+.Pa /usr/xenocara .
+The
+.Pa /usr/src
+tree is also needed while building Xenocara.
+The object directory
+.Pa /usr/xobj
+should be empty and owned by build:wobj with mode 770.
+.Pp
+The following steps will build and install Xenocara.
+.Bd -literal -offset indent
+# cd /usr/xenocara
+# make bootstrap
+# make obj
+# make build
+.Ed
+.Ss 6. Make and validate the Xenocara release
+Xenocara uses
+.Va DESTDIR
+and
+.Va RELEASEDIR
+as described above.
+Use a different
+.Va DESTDIR
+for the Xenocara release than for the base release,
+as the contents of
+.Va DESTDIR
+will be removed.
+.Pp
+The steps to build and validate the Xenocara release are:
+.Bd -literal -offset indent
+# export DESTDIR=your-destdir RELEASEDIR=your-releasedir
+# make release
+# make checkdist
+# unset RELEASEDIR DESTDIR
+.Ed
+.Pp
+At this point,
+.Ox
+base system and X Window System tarballs are in
+.Va RELEASEDIR .
+.Ss 7. Create boot and installation disk images
+The disk images
+.No install${ Ns Va VERSION Ns }.img
+and
+.No install${ Ns Va VERSION Ns }.iso
+are suitable for installs without network connectivity.
+They contain the tarballs built in the previous steps.
+.Bd -literal -offset indent
+# export RELDIR=your-releasedir RELXDIR=your-xenocara-releasedir
+# cd /usr/src/distrib/$(machine)/iso && make
+# make install
+.Ed
+.Pp
+The two installer images are now stored in the local release
+directory.
+.Ss 8. Make the third party packages
+The ports subsystem of contributed applications is capable of producing
+packages for installation, either individually or in bulk.
+This is described in
+.Xr ports 7 .
+.Sh SEE ALSO
+.Xr cvs 1 ,
+.Xr pkg_add 1 ,
+.Xr mk.conf 5 ,
+.Xr ports 7 ,
+.Xr sysmerge 8

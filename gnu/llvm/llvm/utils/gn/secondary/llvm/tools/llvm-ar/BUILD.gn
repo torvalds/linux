@@ -1,0 +1,44 @@
+import("//llvm/tools/binutils_symlinks.gni")
+import("//llvm/utils/gn/build/driver_executable.gni")
+import("//llvm/utils/gn/build/symlink_or_copy.gni")
+
+symlinks = [
+  "llvm-dlltool",
+  "llvm-lib",
+  "llvm-ranlib",
+]
+if (llvm_install_binutils_symlinks) {
+  symlinks += [
+    "ar",
+    "dlltool",
+    "ranlib",
+  ]
+}
+foreach(target, symlinks) {
+  symlink_or_copy(target) {
+    deps = [ ":llvm-ar" ]
+    source = "llvm-ar"
+    output = "$root_out_dir/bin/$target"
+  }
+}
+
+# //:llvm-ar depends on this symlink target, see comment in //BUILD.gn.
+group("symlinks") {
+  deps = [ ":llvm-ar" ]
+  foreach(target, symlinks) {
+    deps += [ ":$target" ]
+  }
+}
+
+driver_executable("llvm-ar") {
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/ToolDrivers/llvm-dlltool:DlltoolDriver",
+    "//llvm/lib/ToolDrivers/llvm-lib:LibDriver",
+  ]
+  sources = [ "llvm-ar.cpp" ]
+}

@@ -1,0 +1,4 @@
+# double macro set
+extif="wi0"
+extif="lo0"
+block in on $extif

@@ -1,0 +1,403 @@
+.\" $OpenBSD: RSA_pkey_ctx_ctrl.3,v 1.9 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to:
+.\" OpenSSL man3/EVP_PKEY_CTX_ctrl.pod 99d63d46 Oct 26 13:56:48 2016 -0400
+.\" OpenSSL man3/EVP_PKEY_CTX_set_rsa_pss_keygen_md.pod
+.\"   87103969 Oct 1 14:11:57 2018 -0700
+.\" selective merge up to:
+.\" OpenSSL man3/EVP_PKEY_CTX_ctrl.pod df75c2b f Dec 9 01:02:36 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>
+.\" and Antoine Salon <asalon@vmware.com>.
+.\" Copyright (c) 2006, 2009, 2013, 2014, 2015, 2017, 2018 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_PKEY_CTX_CTRL 3
+.Os
+.Sh NAME
+.Nm RSA_pkey_ctx_ctrl ,
+.Nm EVP_PKEY_CTX_set_rsa_padding ,
+.Nm EVP_PKEY_CTX_get_rsa_padding ,
+.Nm EVP_PKEY_CTX_set_rsa_keygen_bits ,
+.Nm EVP_PKEY_CTX_set_rsa_keygen_pubexp ,
+.Nm EVP_PKEY_CTX_set_rsa_mgf1_md ,
+.Nm EVP_PKEY_CTX_get_rsa_mgf1_md ,
+.Nm EVP_PKEY_CTX_set_rsa_oaep_md ,
+.Nm EVP_PKEY_CTX_get_rsa_oaep_md ,
+.Nm EVP_PKEY_CTX_set0_rsa_oaep_label ,
+.Nm EVP_PKEY_CTX_get0_rsa_oaep_label ,
+.Nm EVP_PKEY_CTX_set_rsa_pss_saltlen ,
+.Nm EVP_PKEY_CTX_get_rsa_pss_saltlen ,
+.Nm EVP_PKEY_CTX_set_rsa_pss_keygen_md ,
+.Nm EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md ,
+.Nm EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen
+.Nd RSA private key control operations
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft int
+.Fo RSA_pkey_ctx_ctrl
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int optype"
+.Fa "int cmd"
+.Fa "int p1"
+.Fa "void *p2"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_rsa_padding
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int pad"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get_rsa_padding
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int *ppad"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_rsa_keygen_bits
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int mbits"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_rsa_keygen_pubexp
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "BIGNUM *pubexp"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_rsa_mgf1_md
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "const EVP_MD *md"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get_rsa_mgf1_md
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "const EVP_MD **pmd"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_rsa_oaep_md
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "const EVP_MD *md"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get_rsa_oaep_md
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "const EVP_MD **pmd"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set0_rsa_oaep_label
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "unsigned char *label"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get0_rsa_oaep_label
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "unsigned char **plabel"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_rsa_pss_saltlen
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get_rsa_pss_saltlen
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int *plen"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_rsa_pss_keygen_md
+.Fa "EVP_PKEY_CTX *pctx"
+.Fa "const EVP_MD *md"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md
+.Fa "EVP_PKEY_CTX *pctx"
+.Fa "const EVP_MD *md"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen
+.Fa "EVP_PKEY_CTX *pctx"
+.Fa "int saltlen"
+.Fc
+.Sh DESCRIPTION
+The function
+.Fn RSA_pkey_ctx_ctrl
+is a shallow wrapper around
+.Xr EVP_PKEY_CTX_ctrl 3
+which only succeeds if
+.Fa ctx
+matches either
+.Dv EVP_PKEY_RSA
+or
+.Dv EVP_PKEY_RSA_PSS .
+.Pp
+All the remaining "functions" are implemented as macros.
+.Pp
+The
+.Fn EVP_PKEY_CTX_set_rsa_padding
+macro sets the RSA padding mode for
+.Fa ctx .
+The
+.Fa pad
+parameter can take the value
+.Dv RSA_PKCS1_PADDING
+for PKCS#1 padding,
+.Dv RSA_NO_PADDING
+for no padding,
+.Dv RSA_PKCS1_OAEP_PADDING
+for OAEP padding (encrypt and decrypt only),
+.Dv RSA_X931_PADDING
+for X9.31 padding (signature operations only) and
+.Dv RSA_PKCS1_PSS_PADDING
+(sign and verify only).
+Only the last one can be used with keys of the type
+.Dv EVP_PKEY_RSA_PSS .
+.Pp
+Two RSA padding modes behave differently if
+.Xr EVP_PKEY_CTX_set_signature_md 3
+is used.
+If this macro is called for PKCS#1 padding, the plaintext buffer is an
+actual digest value and is encapsulated in a
+.Vt DigestInfo
+structure according to PKCS#1 when signing and this structure is
+expected (and stripped off) when verifying.
+If this control is not used with RSA and PKCS#1 padding then the
+supplied data is used directly and not encapsulated.
+In the case of X9.31 padding for RSA the algorithm identifier byte is
+added or checked and removed if this control is called.
+If it is not called then the first byte of the plaintext buffer is
+expected to be the algorithm identifier byte.
+.Pp
+The
+.Fn EVP_PKEY_CTX_get_rsa_padding
+macro retrieves the RSA padding mode for
+.Fa ctx .
+.Pp
+The
+.Fn EVP_PKEY_CTX_set_rsa_keygen_bits
+macro sets the RSA key length for RSA or RSA-PSS key generation to
+.Fa mbits .
+The smallest supported value is 512 bits.
+If not specified, 1024 bits is used.
+.Pp
+The
+.Fn EVP_PKEY_CTX_set_rsa_keygen_pubexp
+macro sets the public exponent value for RSA or RSA-PSS key generation to
+.Fa pubexp .
+Currently, it should be an odd integer.
+The
+.Fa pubexp
+pointer is used internally by this function, so it should not be modified
+or freed after the call.
+If this macro is not called, then 65537 is used.
+.Pp
+The
+.Fn EVP_PKEY_CTX_set_rsa_mgf1_md
+macro sets the MGF1 digest for RSA padding schemes to
+.Fa md .
+Unless explicitly specified, the signing digest is used.
+The padding mode must have been set to
+.Dv RSA_PKCS1_OAEP_PADDING
+or
+.Dv RSA_PKCS1_PSS_PADDING .
+If the key is of the type
+.Dv EVP_PKEY_RSA_PSS
+and has usage restrictions, an error occurs if an attempt is made
+to set the digest to anything other than the restricted value.
+.Pp
+The
+.Fn EVP_PKEY_CTX_get_rsa_mgf1_md
+macro retrieves the MGF1 digest for
+.Fa ctx .
+Unless explicitly specified, the signing digest is used.
+The padding mode must have been set to
+.Dv RSA_PKCS1_OAEP_PADDING
+or
+.Dv RSA_PKCS1_PSS_PADDING .
+.Ss Optimal asymmetric encryption padding
+The following macros require that the padding mode was set to
+.Dv RSA_PKCS1_OAEP_PADDING .
+.Pp
+The
+.Fn EVP_PKEY_CTX_set_rsa_oaep_md
+macro sets the message digest type used in RSA OAEP to
+.Fa md .
+.Pp
+The
+.Fn EVP_PKEY_CTX_get_rsa_oaep_md
+macro gets the message digest type used in RSA OAEP to
+.Pf * Fa pmd .
+.Pp
+The
+.Fn EVP_PKEY_CTX_set0_rsa_oaep_label
+macro sets the RSA OAEP label to
+.Fa label
+and its length to
+.Fa len .
+If
+.Fa label
+is
+.Dv NULL
+or
+.Fa len
+is 0, the label is cleared.
+The library takes ownership of the label so the caller should not
+free the original memory pointed to by
+.Fa label .
+.Pp
+The
+.Fn EVP_PKEY_CTX_get0_rsa_oaep_label
+macro gets the RSA OAEP label to
+.Pf * Fa plabel .
+The return value is the label length.
+The resulting pointer is owned by the library and should not be
+freed by the caller.
+.Ss Probabilistic signature scheme
+The following macros require that the padding mode was set to
+.Dv RSA_PKCS1_PSS_PADDING .
+.Pp
+The
+.Fn EVP_PKEY_CTX_set_rsa_pss_saltlen
+macro sets the RSA PSS salt length to
+.Fa len .
+Three special values are supported:
+.Dv RSA_PSS_SALTLEN_DIGEST
+sets the salt length to the digest length.
+.Dv RSA_PSS_SALTLEN_MAX
+sets the salt length to the maximum permissible value.
+When signing,
+.Dv RSA_PSS_SALTLEN_AUTO
+sets the salt length to the maximum permissible value.
+When verifying,
+.Dv RSA_PSS_SALTLEN_AUTO
+causes the salt length to be automatically determined based on the
+PSS block structure.
+If this macro is not called, a salt length value of
+.Dv RSA_PSS_SALTLEN_AUTO
+is used by default.
+.Pp
+If the key has usage restrictions and an attempt is made to set the
+salt length below the minimum value, an error occurs.
+Also, if the key has usage restrictions,
+.Dv RSA_PSS_SALTLEN_AUTO
+is not supported for verification.
+.Pp
+The
+.Fn EVP_PKEY_CTX_get_rsa_pss_saltlen
+macro retrieves the RSA PSS salt length for
+.Fa ctx .
+.Pp
+Optional parameter restrictions can be specified when generating a PSS
+key.
+If any restrictions are set using the macros described below,
+then all parameters are restricted.
+For example, setting a minimum salt length also restricts the digest and
+MGF1 algorithms.
+If any restrictions are in place, then they are reflected in the
+corresponding parameters of the public key when (for example) a
+certificate request is signed.
+.Pp
+.Fn EVP_PKEY_CTX_set_rsa_pss_keygen_md
+restricts the digest algorithm the generated key can use to
+.Fa md .
+.Pp
+.Fn EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md
+restricts the MGF1 algorithm the generated key can use to
+.Fa md .
+.Pp
+.Fn EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen
+restricts the minimum salt length to
+.Fa saltlen .
+.Sh RETURN VALUES
+These functions return a positive value for success or 0 or a negative
+value for failure.
+In particular, a return value of -2 indicates the operation is not
+supported by the public key algorithm.
+.Sh SEE ALSO
+.Xr EVP_DigestInit 3 ,
+.Xr EVP_PKEY_CTX_ctrl 3 ,
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_decrypt 3 ,
+.Xr EVP_PKEY_derive 3 ,
+.Xr EVP_PKEY_encrypt 3 ,
+.Xr EVP_PKEY_get_default_digest_nid 3 ,
+.Xr EVP_PKEY_keygen 3 ,
+.Xr EVP_PKEY_sign 3 ,
+.Xr EVP_PKEY_verify 3 ,
+.Xr EVP_PKEY_verify_recover 3
+.Sh HISTORY
+The functions
+.Fn EVP_PKEY_CTX_set_rsa_padding ,
+.Fn EVP_PKEY_CTX_set_rsa_keygen_bits ,
+.Fn EVP_PKEY_CTX_set_rsa_keygen_pubexp ,
+and
+.Fn EVP_PKEY_CTX_set_rsa_pss_saltlen
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .
+.Pp
+The functions
+.Fn EVP_PKEY_CTX_get_rsa_padding ,
+.Fn EVP_PKEY_CTX_set_rsa_mgf1_md ,
+.Fn EVP_PKEY_CTX_get_rsa_mgf1_md ,
+and
+.Fn EVP_PKEY_CTX_get_rsa_pss_saltlen
+first appeared in OpenSSL 1.0.1 and have been available since
+.Ox 5.3 .
+.Pp
+The functions
+.Fn EVP_PKEY_CTX_set_rsa_oaep_md ,
+.Fn EVP_PKEY_CTX_get_rsa_oaep_md ,
+.Fn EVP_PKEY_CTX_set0_rsa_oaep_label ,
+and
+.Fn EVP_PKEY_CTX_get0_rsa_oaep_label
+first appeared in OpenSSL 1.0.2 and have been available since
+.Ox 6.7 .
+.Pp
+The function
+.Fn RSA_pkey_ctx_ctrl
+first appeared in OpenSSL 1.1.1 and has been available since
+.Ox 6.7 .

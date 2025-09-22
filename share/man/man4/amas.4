@@ -1,0 +1,86 @@
+.\"	$OpenBSD: amas.4,v 1.4 2013/07/16 16:05:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2009 Ariane van der Steldt <ariane@stack.nl>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt AMAS 4
+.Os
+.Sh NAME
+.Nm amas
+.Nd AMD memory address map
+.Sh SYNOPSIS
+.Cd "amas* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides read access to the AMD memory map, which describes
+the location of physical memory.
+.Pp
+One instance of this device is shared between all cores on a chip.
+This device is present on AMD processors of the 0Fh, 10h and 11h family.
+.Pp
+The
+.Nm
+device can run in either interleaved mode or in non-interleaved mode.
+In interleaved mode, the physical memory addresses are rotated across
+each chip.
+.Nm
+sits between the CPU cores, the DRAM controller and the HyperTransport bus.
+When a CPU requests a memory page,
+.Nm
+decides if the request is serviced from memory local to the chip,
+in which case it normalizes the address and passes it on to the dram
+controller.
+If the request refers to memory present on a different chip,
+the request is forwarded to the correct chip using the hypertransport bus.
+.Pp
+The
+.Nm
+device is configured by the BIOS and kernel startup routines.
+If multiple instances of this device are available,
+all should contain the same information.
+.Sh SEE ALSO
+.Xr pci 4
+.Rs
+.%T "BIOS and Kernel Developer's Guide for AMD Athlon 64 and AMD Opteron Processors"
+.%D February 2006
+.%R Publication # 26094
+.%P pp. 66\(en80
+.\" .%U http://support.amd.com/us/Processor_TechDocs/26094.PDF
+.Re
+.Rs
+.%T "BIOS and Kernel Developer's Guide (BKDG) For AMD Family 10h Processors"
+.%D March 2008
+.%R Publication # 31116
+.%P pp. 158\(en167
+.\" .%U http://support.amd.com/us/Processor_TechDocs/31116.pdf
+.Re
+.Rs
+.%T "BIOS and Kernel Developer's Guide (BKDG) For AMD Family 11h Processors"
+.%D July 2008
+.%R Publication # 41256
+.%P pp. 109\(en114
+.\" .%U http://support.amd.com/us/Processor_TechDocs/41256.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.6 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Ariane van der Steldt Aq Mt ariane@stack.nl .

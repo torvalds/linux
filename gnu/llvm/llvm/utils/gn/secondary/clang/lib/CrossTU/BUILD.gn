@@ -1,0 +1,13 @@
+static_library("CrossTU") {
+  output_name = "clangCrossTU"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Index",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "CrossTranslationUnit.cpp" ]
+}

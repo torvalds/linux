@@ -1,0 +1,478 @@
+@c Copyright (C) 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+@c 1999, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@node Objective-C
+@comment  node-name,  next,  previous,  up
+
+@chapter GNU Objective-C runtime features
+
+This document is meant to describe some of the GNU Objective-C runtime
+features.  It is not intended to teach you Objective-C, there are several
+resources on the Internet that present the language.  Questions and
+comments about this document to Ovidiu Predescu
+@email{ovidiu@@cup.hp.com}.
+
+@menu
+* Executing code before main::
+* Type encoding::
+* Garbage Collection::
+* Constant string objects::
+* compatibility_alias::
+@end menu
+
+@node Executing code before main, Type encoding, Objective-C, Objective-C
+@section @code{+load}: Executing code before main
+
+The GNU Objective-C runtime provides a way that allows you to execute
+code before the execution of the program enters the @code{main}
+function.  The code is executed on a per-class and a per-category basis,
+through a special class method @code{+load}.
+
+This facility is very useful if you want to initialize global variables
+which can be accessed by the program directly, without sending a message
+to the class first.  The usual way to initialize global variables, in the
+@code{+initialize} method, might not be useful because
+@code{+initialize} is only called when the first message is sent to a
+class object, which in some cases could be too late.
+
+Suppose for example you have a @code{FileStream} class that declares
+@code{Stdin}, @code{Stdout} and @code{Stderr} as global variables, like
+below:
+
+@smallexample
+
+FileStream *Stdin = nil;
+FileStream *Stdout = nil;
+FileStream *Stderr = nil;
+
+@@implementation FileStream
+
++ (void)initialize
+@{
+    Stdin = [[FileStream new] initWithFd:0];
+    Stdout = [[FileStream new] initWithFd:1];
+    Stderr = [[FileStream new] initWithFd:2];
+@}
+
+/* @r{Other methods here} */
+@@end
+
+@end smallexample
+
+In this example, the initialization of @code{Stdin}, @code{Stdout} and
+@code{Stderr} in @code{+initialize} occurs too late.  The programmer can
+send a message to one of these objects before the variables are actually
+initialized, thus sending messages to the @code{nil} object.  The
+@code{+initialize} method which actually initializes the global
+variables is not invoked until the first message is sent to the class
+object.  The solution would require these variables to be initialized
+just before entering @code{main}.
+
+The correct solution of the above problem is to use the @code{+load}
+method instead of @code{+initialize}:
+
+@smallexample
+
+@@implementation FileStream
+
++ (void)load
+@{
+    Stdin = [[FileStream new] initWithFd:0];
+    Stdout = [[FileStream new] initWithFd:1];
+    Stderr = [[FileStream new] initWithFd:2];
+@}
+
+/* @r{Other methods here} */
+@@end
+
+@end smallexample
+
+The @code{+load} is a method that is not overridden by categories.  If a
+class and a category of it both implement @code{+load}, both methods are
+invoked.  This allows some additional initializations to be performed in
+a category.
+
+This mechanism is not intended to be a replacement for @code{+initialize}.
+You should be aware of its limitations when you decide to use it
+instead of @code{+initialize}.
+
+@menu
+* What you can and what you cannot do in +load::
+@end menu
+
+
+@node What you can and what you cannot do in +load,  , Executing code before main, Executing code before main
+@subsection What you can and what you cannot do in @code{+load}
+
+The @code{+load} implementation in the GNU runtime guarantees you the following
+things:
+
+@itemize @bullet
+
+@item
+you can write whatever C code you like;
+
+@item
+you can send messages to Objective-C constant strings (@code{@@"this is a
+constant string"});
+
+@item
+you can allocate and send messages to objects whose class is implemented
+in the same file;
+
+@item
+the @code{+load} implementation of all super classes of a class are executed before the @code{+load} of that class is executed;
+
+@item
+the @code{+load} implementation of a class is executed before the
+@code{+load} implementation of any category.
+
+@end itemize
+
+In particular, the following things, even if they can work in a
+particular case, are not guaranteed:
+
+@itemize @bullet
+
+@item
+allocation of or sending messages to arbitrary objects;
+
+@item
+allocation of or sending messages to objects whose classes have a
+category implemented in the same file;
+
+@end itemize
+
+You should make no assumptions about receiving @code{+load} in sibling
+classes when you write @code{+load} of a class.  The order in which
+sibling classes receive @code{+load} is not guaranteed.
+
+The order in which @code{+load} and @code{+initialize} are called could
+be problematic if this matters.  If you don't allocate objects inside
+@code{+load}, it is guaranteed that @code{+load} is called before
+@code{+initialize}.  If you create an object inside @code{+load} the
+@code{+initialize} method of object's class is invoked even if
+@code{+load} was not invoked.  Note if you explicitly call @code{+load}
+on a class, @code{+initialize} will be called first.  To avoid possible
+problems try to implement only one of these methods.
+
+The @code{+load} method is also invoked when a bundle is dynamically
+loaded into your running program.  This happens automatically without any
+intervening operation from you.  When you write bundles and you need to
+write @code{+load} you can safely create and send messages to objects whose
+classes already exist in the running program.  The same restrictions as
+above apply to classes defined in bundle.
+
+
+
+@node Type encoding, Garbage Collection, Executing code before main, Objective-C
+@section Type encoding
+
+The Objective-C compiler generates type encodings for all the
+types.  These type encodings are used at runtime to find out information
+about selectors and methods and about objects and classes.
+
+The types are encoded in the following way:
+
+@c @sp 1
+
+@multitable @columnfractions .25 .75
+@item @code{_Bool}
+@tab @code{B}
+@item @code{char}
+@tab @code{c}
+@item @code{unsigned char}
+@tab @code{C}
+@item @code{short}
+@tab @code{s}
+@item @code{unsigned short}
+@tab @code{S}
+@item @code{int}
+@tab @code{i}
+@item @code{unsigned int}
+@tab @code{I}
+@item @code{long}
+@tab @code{l}
+@item @code{unsigned long}
+@tab @code{L}
+@item @code{long long}
+@tab @code{q}
+@item @code{unsigned long long}
+@tab @code{Q}
+@item @code{float}
+@tab @code{f}
+@item @code{double}
+@tab @code{d}
+@item @code{void}
+@tab @code{v}
+@item @code{id}
+@tab @code{@@}
+@item @code{Class}
+@tab @code{#}
+@item @code{SEL}
+@tab @code{:}
+@item @code{char*}
+@tab @code{*}
+@item unknown type
+@tab @code{?}
+@item Complex types
+@tab @code{j} followed by the inner type.  For example @code{_Complex double} is encoded as "jd".
+@item bit-fields
+@tab @code{b} followed by the starting position of the bit-field, the type of the bit-field and the size of the bit-field (the bit-fields encoding was changed from the NeXT's compiler encoding, see below)
+@end multitable
+
+@c @sp 1
+
+The encoding of bit-fields has changed to allow bit-fields to be properly
+handled by the runtime functions that compute sizes and alignments of
+types that contain bit-fields.  The previous encoding contained only the
+size of the bit-field.  Using only this information it is not possible to
+reliably compute the size occupied by the bit-field.  This is very
+important in the presence of the Boehm's garbage collector because the
+objects are allocated using the typed memory facility available in this
+collector.  The typed memory allocation requires information about where
+the pointers are located inside the object.
+
+The position in the bit-field is the position, counting in bits, of the
+bit closest to the beginning of the structure.
+
+The non-atomic types are encoded as follows:
+
+@c @sp 1
+
+@multitable @columnfractions .2 .8
+@item pointers
+@tab @samp{^} followed by the pointed type.
+@item arrays
+@tab @samp{[} followed by the number of elements in the array followed by the type of the elements followed by @samp{]}
+@item structures
+@tab @samp{@{} followed by the name of the structure (or @samp{?} if the structure is unnamed), the @samp{=} sign, the type of the members and by @samp{@}}
+@item unions
+@tab @samp{(} followed by the name of the structure (or @samp{?} if the union is unnamed), the @samp{=} sign, the type of the members followed by @samp{)}
+@end multitable
+
+Here are some types and their encodings, as they are generated by the
+compiler on an i386 machine:
+
+@sp 1
+
+@multitable @columnfractions .25 .75
+@item Objective-C type
+@tab Compiler encoding
+@item
+@smallexample
+int a[10];
+@end smallexample
+@tab @code{[10i]}
+@item
+@smallexample
+struct @{
+  int i;
+  float f[3];
+  int a:3;
+  int b:2;
+  char c;
+@}
+@end smallexample
+@tab @code{@{?=i[3f]b128i3b131i2c@}}
+@end multitable
+
+@sp 1
+
+In addition to the types the compiler also encodes the type
+specifiers.  The table below describes the encoding of the current
+Objective-C type specifiers:
+
+@sp 1
+
+@multitable @columnfractions .25 .75
+@item Specifier
+@tab Encoding
+@item @code{const}
+@tab @code{r}
+@item @code{in}
+@tab @code{n}
+@item @code{inout}
+@tab @code{N}
+@item @code{out}
+@tab @code{o}
+@item @code{bycopy}
+@tab @code{O}
+@item @code{oneway}
+@tab @code{V}
+@end multitable
+
+@sp 1
+
+The type specifiers are encoded just before the type.  Unlike types
+however, the type specifiers are only encoded when they appear in method
+argument types.
+
+
+@node Garbage Collection, Constant string objects, Type encoding, Objective-C
+@section Garbage Collection
+
+Support for a new memory management policy has been added by using a
+powerful conservative garbage collector, known as the
+Boehm-Demers-Weiser conservative garbage collector.  It is available from
+@w{@uref{http://www.hpl.hp.com/personal/Hans_Boehm/gc/}}.
+
+To enable the support for it you have to configure the compiler using an
+additional argument, @w{@option{--enable-objc-gc}}.  You need to have
+garbage collector installed before building the compiler.  This will
+build an additional runtime library which has several enhancements to
+support the garbage collector.  The new library has a new name,
+@file{libobjc_gc.a} to not conflict with the non-garbage-collected
+library.
+
+When the garbage collector is used, the objects are allocated using the
+so-called typed memory allocation mechanism available in the
+Boehm-Demers-Weiser collector.  This mode requires precise information on
+where pointers are located inside objects.  This information is computed
+once per class, immediately after the class has been initialized.
+
+There is a new runtime function @code{class_ivar_set_gcinvisible()}
+which can be used to declare a so-called @dfn{weak pointer}
+reference.  Such a pointer is basically hidden for the garbage collector;
+this can be useful in certain situations, especially when you want to
+keep track of the allocated objects, yet allow them to be
+collected.  This kind of pointers can only be members of objects, you
+cannot declare a global pointer as a weak reference.  Every type which is
+a pointer type can be declared a weak pointer, including @code{id},
+@code{Class} and @code{SEL}.
+
+Here is an example of how to use this feature.  Suppose you want to
+implement a class whose instances hold a weak pointer reference; the
+following class does this:
+
+@smallexample
+
+@@interface WeakPointer : Object
+@{
+    const void* weakPointer;
+@}
+
+- initWithPointer:(const void*)p;
+- (const void*)weakPointer;
+@@end
+
+
+@@implementation WeakPointer
+
++ (void)initialize
+@{
+  class_ivar_set_gcinvisible (self, "weakPointer", YES);
+@}
+
+- initWithPointer:(const void*)p
+@{
+  weakPointer = p;
+  return self;
+@}
+
+- (const void*)weakPointer
+@{
+  return weakPointer;
+@}
+
+@@end
+
+@end smallexample
+
+Weak pointers are supported through a new type character specifier
+represented by the @samp{!} character.  The
+@code{class_ivar_set_gcinvisible()} function adds or removes this
+specifier to the string type description of the instance variable named
+as argument.
+
+@c =========================================================================
+@node Constant string objects
+@section Constant string objects
+
+GNU Objective-C provides constant string objects that are generated
+directly by the compiler.  You declare a constant string object by
+prefixing a C constant string with the character @samp{@@}:
+
+@smallexample
+  id myString = @@"this is a constant string object";
+@end smallexample
+
+The constant string objects are by default instances of the
+@code{NXConstantString} class which is provided by the GNU Objective-C
+runtime.  To get the definition of this class you must include the
+@file{objc/NXConstStr.h} header file.
+
+User defined libraries may want to implement their own constant string
+class.  To be able to support them, the GNU Objective-C compiler provides
+a new command line options @option{-fconstant-string-class=@var{class-name}}.
+The provided class should adhere to a strict structure, the same
+as @code{NXConstantString}'s structure:
+
+@smallexample
+
+@@interface MyConstantStringClass
+@{
+  Class isa;
+  char *c_string;
+  unsigned int len;
+@}
+@@end
+
+@end smallexample
+
+@code{NXConstantString} inherits from @code{Object}; user class
+libraries may choose to inherit the customized constant string class
+from a different class than @code{Object}.  There is no requirement in
+the methods the constant string class has to implement, but the final
+ivar layout of the class must be the compatible with the given
+structure.
+
+When the compiler creates the statically allocated constant string
+object, the @code{c_string} field will be filled by the compiler with
+the string; the @code{length} field will be filled by the compiler with
+the string length; the @code{isa} pointer will be filled with
+@code{NULL} by the compiler, and it will later be fixed up automatically
+at runtime by the GNU Objective-C runtime library to point to the class
+which was set by the @option{-fconstant-string-class} option when the
+object file is loaded (if you wonder how it works behind the scenes, the
+name of the class to use, and the list of static objects to fixup, are
+stored by the compiler in the object file in a place where the GNU
+runtime library will find them at runtime).
+
+As a result, when a file is compiled with the
+@option{-fconstant-string-class} option, all the constant string objects
+will be instances of the class specified as argument to this option.  It
+is possible to have multiple compilation units referring to different
+constant string classes, neither the compiler nor the linker impose any
+restrictions in doing this.
+
+@c =========================================================================
+@node compatibility_alias
+@section compatibility_alias
+
+This is a feature of the Objective-C compiler rather than of the
+runtime, anyway since it is documented nowhere and its existence was
+forgotten, we are documenting it here.
+
+The keyword @code{@@compatibility_alias} allows you to define a class name
+as equivalent to another class name.  For example:
+
+@smallexample
+@@compatibility_alias WOApplication GSWApplication;
+@end smallexample
+
+tells the compiler that each time it encounters @code{WOApplication} as
+a class name, it should replace it with @code{GSWApplication} (that is,
+@code{WOApplication} is just an alias for @code{GSWApplication}).
+
+There are some constraints on how this can be used---
+
+@itemize @bullet
+
+@item @code{WOApplication} (the alias) must not be an existing class;
+
+@item @code{GSWApplication} (the real class) must be an existing class.
+
+@end itemize

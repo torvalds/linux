@@ -1,0 +1,98 @@
+.\" $OpenBSD: X509_NAME_hash.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2017, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_NAME_HASH 3
+.Os
+.Sh NAME
+.Nm X509_NAME_hash ,
+.Nm X509_issuer_name_hash ,
+.Nm X509_subject_name_hash ,
+.\" X509_issuer_and_serial_hash() is intentionally undocumented
+.\" because it uses MD5 only and is unused in real-world code.
+.Nm X509_NAME_hash_old ,
+.Nm X509_issuer_name_hash_old ,
+.Nm X509_subject_name_hash_old
+.\" In the following line, "X.501" and "Name" are not typos.
+.\" The "Name" type is defined in X.501, not in X.509.
+.\" The type is called "Name" with capital "N", not "name".
+.Nd calculate SHA-1 or MD5 hashes of X.501 Name objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft unsigned long
+.Fn X509_NAME_hash "X509_NAME *name"
+.Ft unsigned long
+.Fn X509_issuer_name_hash "X509 *x"
+.Ft unsigned long
+.Fn X509_subject_name_hash "X509 *x"
+.Ft unsigned long
+.Fn X509_NAME_hash_old "X509_NAME *name"
+.Ft unsigned long
+.Fn X509_issuer_name_hash_old "X509 *x"
+.Ft unsigned long
+.Fn X509_subject_name_hash_old "X509 *x"
+.Sh DESCRIPTION
+.Fn X509_NAME_hash
+calculates an
+.Xr SHA1 3
+hash of the DER-encoded form of
+.Fa name .
+It is for example used by
+.Xr X509_LOOKUP_hash_dir 3
+to locate certificate files in the file system.
+.Pp
+.Fn X509_issuer_name_hash
+and
+.Fn X509_subject_name_hash
+are wrappers to calculate this hash of the issuer or subject name of
+.Fa x ,
+respectively.
+.Pp
+.Fn X509_NAME_hash_old ,
+.Fn X509_issuer_name_hash_old ,
+and
+.Fn X509_subject_name_hash_old
+are variants that use MD5 instead of SHA-1.
+.Sh RETURN VALUES
+These functions return the hash value or 0 if an error occurs.
+.Sh SEE ALSO
+.Xr i2d_X509_NAME 3 ,
+.Xr X509_get_subject_name 3 ,
+.Xr X509_LOOKUP_new 3 ,
+.Xr X509_NAME_digest 3 ,
+.Xr X509_NAME_new 3
+.Sh HISTORY
+.Fn X509_subject_name_hash
+first appeared in SSLeay 0.4.0,
+.Fn X509_issuer_name_hash
+in SSLeay 0.5.1, and
+.Fn X509_NAME_hash
+in SSLeay 0.8.0.
+They were switched to hashing the DER representation of the name
+rather than an ASCII rendering in SSLeay 0.9.0 and have all been
+available since
+.Ox 2.4 .
+.Pp
+They were switched to using SHA-1 instead of MD5 in OpenSSL 1.0.0 and in
+.Ox 4.9 .
+.Pp
+.Fn X509_NAME_hash_old ,
+.Fn X509_issuer_name_hash_old ,
+and
+.Fn X509_subject_name_hash_old
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .

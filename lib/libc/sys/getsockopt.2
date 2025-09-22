@@ -1,0 +1,541 @@
+.\"	$OpenBSD: getsockopt.2,v 1.62 2024/04/02 14:23:15 claudio Exp $
+.\"	$NetBSD: getsockopt.2,v 1.7 1995/02/27 12:33:29 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getsockopt.2	8.3 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: April 2 2024 $
+.Dt GETSOCKOPT 2
+.Os
+.Sh NAME
+.Nm getsockopt ,
+.Nm setsockopt
+.Nd get or set options on sockets
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn getsockopt "int s" "int level" "int optname" "void *optval" "socklen_t *optlen"
+.Ft int
+.Fn setsockopt "int s" "int level" "int optname" "const void *optval" "socklen_t optlen"
+.Sh DESCRIPTION
+.Fn getsockopt
+and
+.Fn setsockopt
+manipulate the
+.Em options
+associated with a socket.
+Options may exist at multiple protocol levels;
+they are always present at the uppermost
+.Dq socket
+level.
+.Pp
+When manipulating socket options, the level at which the
+option resides and the name of the option must be specified.
+To manipulate options at the socket level,
+.Fa level
+is specified as
+.Dv SOL_SOCKET .
+To manipulate options at any other level the protocol number of the
+appropriate protocol controlling the option is supplied.
+For example, to indicate that an option is to be interpreted by the
+TCP protocol,
+.Fa level
+should be set to the protocol number of TCP; see
+.Xr getprotoent 3 .
+.Pp
+The parameters
+.Fa optval
+and
+.Fa optlen
+are used to access option values for
+.Fn setsockopt .
+For
+.Fn getsockopt
+they identify a buffer in which the value for the
+requested option(s) are to be returned.
+For
+.Fn getsockopt ,
+.Fa optlen
+is a value-result parameter, initially containing the
+size of the buffer pointed to by
+.Fa optval ,
+and modified on return to indicate the actual size of the value returned.
+If no option value is to be supplied or returned,
+.Fa optval
+may be
+.Dv NULL .
+.Pp
+.Fa optname
+and any specified options are passed uninterpreted to the appropriate
+protocol module for interpretation.
+The include file
+.In sys/socket.h
+contains definitions for socket level options, described below.
+Options at other protocol levels vary in format and name;
+consult the appropriate entries in section 4 of the manual.
+.Pp
+Most socket-level options utilize an
+.Vt int
+parameter for
+.Fa optval .
+For
+.Fn setsockopt ,
+the parameter should be non-zero to enable a boolean option,
+or zero if the option is to be disabled.
+.Dv SO_LINGER
+uses a
+.Vt struct linger
+parameter, defined in
+.In sys/socket.h ,
+which specifies the desired state of the option and the
+linger interval (see below).
+.Dv SO_SNDTIMEO
+and
+.Dv SO_RCVTIMEO
+use a
+.Vt struct timeval
+parameter, defined in
+.In sys/time.h .
+.Pp
+The following options are recognized at the socket level.
+Except as noted, each may be examined with
+.Fn getsockopt
+and set with
+.Fn setsockopt .
+.Pp
+.Bl -tag -width SO_OOBINLINE -offset indent -compact
+.It Dv SO_DEBUG
+enables recording of debugging information
+.It Dv SO_REUSEADDR
+enables local address reuse
+.It Dv SO_REUSEPORT
+enables duplicate address and port bindings
+.It Dv SO_KEEPALIVE
+enables keep connections alive
+.It Dv SO_DONTROUTE
+enables routing bypass; not supported
+.It Dv SO_LINGER
+linger on close if data present
+.It Dv SO_BROADCAST
+enables permission to transmit broadcast messages
+.It Dv SO_OOBINLINE
+enables reception of out-of-band data in band
+.It Dv SO_BINDANY
+enables binding to any address
+.It Dv SO_SNDBUF
+set buffer size for output
+.It Dv SO_RCVBUF
+set buffer size for input
+.It Dv SO_SNDLOWAT
+set minimum count for output
+.It Dv SO_RCVLOWAT
+set minimum count for input
+.It Dv SO_SNDTIMEO
+set timeout value for output
+.It Dv SO_RCVTIMEO
+set timeout value for input
+.It Dv SO_TIMESTAMP
+enables reception of a timestamp with datagrams
+.It Dv SO_RTABLE
+set the routing table used for route lookups
+.It Dv SO_SPLICE
+splice two sockets together or get data length
+.It Dv SO_ZEROIZE
+clear all memory containing user supplied data
+.It Dv SO_TYPE
+get the type of the socket (get only)
+.It Dv SO_ERROR
+get and clear error on the socket (get only)
+.It Dv SO_DOMAIN
+get the domain of the socket (get only)
+.It Dv SO_PROTOCOL
+get the protocol of the socket (get only)
+.It Dv SO_ACCEPTCONN
+get listening status of the socket (get only)
+.It Dv SO_PEERCRED
+get the credentials from other side of connection (get only)
+.El
+.Pp
+.Dv SO_DEBUG
+enables debugging in the underlying protocol modules.
+Transliterate the protocol trace with
+.Xr trpt 8 .
+.Dv SO_REUSEADDR
+indicates that the rules used in validating addresses supplied in a
+.Xr bind 2
+call should allow reuse of local addresses
+by callers with the same user ID (or the superuser).
+.Dv SO_REUSEPORT
+allows completely duplicate bindings by multiple processes if they all set
+.Dv SO_REUSEPORT
+before binding the port.
+This option permits multiple instances of a program to each
+receive UDP/IP multicast or broadcast datagrams destined for the bound port.
+.Dv SO_KEEPALIVE
+enables the periodic transmission of messages on a connected socket.
+Should the connected party fail to respond to these messages, the connection
+is considered broken and processes using the socket are notified via a
+.Dv SIGPIPE
+signal when attempting to send data.
+.Pp
+.Dv SO_LINGER
+controls the action taken when unsent messages
+are queued on socket and a
+.Xr close 2
+is performed.
+If the socket promises reliable delivery of data and
+.Dv SO_LINGER
+is set, the system will block the process on the
+.Xr close 2
+attempt until it is able to transmit the data or until it decides it
+is unable to deliver the information (a timeout period measured in seconds,
+termed the linger interval, is specified in the
+.Fn setsockopt
+call when
+.Dv SO_LINGER
+is requested).
+If
+.Dv SO_LINGER
+is disabled and a
+.Xr close 2
+is issued, the system will process the close in a manner that allows
+the process to continue as quickly as possible.
+.Pp
+The option
+.Dv SO_BROADCAST
+requests permission to send broadcast datagrams
+on the socket.
+Broadcast was a privileged operation in earlier versions of the system.
+With protocols that support out-of-band data, the
+.Dv SO_OOBINLINE
+option requests that out-of-band data be placed in the normal data input
+queue as received; it will then be accessible with
+.Xr recv 2
+or
+.Xr read 2
+calls without the
+.Dv MSG_OOB
+flag.
+Some protocols always behave as if this option is set.
+.Pp
+.Dv SO_BINDANY
+allows the socket to be bound to addresses
+which are not local to the machine, so it
+can be used to make a transparent proxy.
+Note that this option is limited to the superuser.
+In order to receive packets for these addresses,
+.Dv SO_BINDANY
+needs to be combined with matching outgoing
+.Xr pf 4
+rules with the
+.Ar divert-reply
+parameter.
+For example, with the following rule the socket receives packets
+for 192.168.0.10 even if it is not a local address:
+.Pp
+.Dl pass out inet from 192.168.0.10 divert-reply
+.Pp
+.Dv SO_SNDBUF
+and
+.Dv SO_RCVBUF
+are options to adjust the normal
+buffer sizes allocated for output and input buffers, respectively.
+The buffer size may be increased for high-volume connections,
+or may be decreased to limit the possible backlog of incoming data.
+The system places an absolute limit on these values.
+.Pp
+.Dv SO_SNDLOWAT
+is an option to set the minimum count for output operations.
+Most output operations process all of the data supplied
+by the call, delivering data to the protocol for transmission
+and blocking as necessary for flow control.
+Nonblocking output operations will process as much data as permitted
+subject to flow control without blocking, but will process no data
+if flow control does not allow the smaller of the low water mark value
+or the entire request to be processed.
+A
+.Xr select 2
+or
+.Xr poll 2
+operation testing the ability to write to a socket will return true
+only if the low water mark amount could be processed.
+The default value for
+.Dv SO_SNDLOWAT
+is set to a convenient size for network efficiency, often 1024.
+.Dv SO_RCVLOWAT
+is an option to set the minimum count for input operations.
+In general, receive calls will block until any (non-zero) amount of data
+is received, then return with the smaller of the amount available or the amount
+requested.
+The default value for
+.Dv SO_RCVLOWAT
+is 1.
+If
+.Dv SO_RCVLOWAT
+is set to a larger value, blocking receive calls normally
+wait until they have received the smaller of the low water mark value
+or the requested amount.
+Receive calls may still return less than the low water mark if an error
+occurs, a signal is caught, or the type of data next in the receive queue
+is different than that returned.
+.Pp
+.Dv SO_SNDTIMEO
+is an option to set a timeout value for output operations.
+It accepts a
+.Vt struct timeval
+parameter with the number of seconds and microseconds
+used to limit waits for output operations to complete.
+If a send operation has blocked for this much time,
+it returns with a partial count or with the error
+.Er EWOULDBLOCK
+if no data was sent.
+In the current implementation, this timer is restarted each time additional
+data are delivered to the protocol,
+implying that the limit applies to output portions ranging in size
+from the low water mark to the high water mark for output.
+.Dv SO_RCVTIMEO
+is an option to set a timeout value for input operations.
+It accepts a
+.Vt struct timeval
+parameter with the number of seconds and microseconds
+used to limit waits for input operations to complete.
+In the current implementation, this timer is restarted each time additional
+data are received by the protocol,
+and thus the limit is in effect an inactivity timer.
+If a receive operation has been blocked for this much time without
+receiving additional data, it returns with a short count
+or with the error
+.Er EWOULDBLOCK
+if no data were received.
+.Pp
+If the
+.Dv SO_TIMESTAMP
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call will return a timestamp corresponding to when the datagram was
+received.
+The msg_control field in the msghdr structure points to a buffer
+that contains a cmsghdr structure followed by a struct timeval.
+The cmsghdr fields have the following values:
+.Bd -literal -offset indent
+cmsg_len = CMSG_LEN(sizeof(struct timeval))
+cmsg_level = SOL_SOCKET
+cmsg_type = SCM_TIMESTAMP
+.Ed
+.Pp
+The
+.Dv SO_RTABLE
+option gets or sets the routing table which will be used by the socket
+for address lookups.
+If a protocol family of the socket doesn't support switching routing tables,
+the
+.Er ENOPROTOOPT
+error is returned.
+Only the superuser is allowed to change the routing table if it is already
+set to a non-zero value.
+A socket's chosen routing table is initialized from the process's configuration,
+previously selected using
+.Xr setrtable 2 .
+.Pp
+.Dv SO_SPLICE
+can splice together two TCP or UDP sockets for unidirectional
+zero-copy data transfers.
+Splice also the other way around to get bidirectional data flow.
+Both sockets must be of the same type.
+In the first form,
+.Fn setsockopt
+is called with the source socket
+.Fa s
+and the drain socket's
+.Vt int
+file descriptor as
+.Fa optval .
+In the second form,
+.Fa optval
+is a
+.Vt struct splice
+with the drain socket in
+.Va sp_fd ,
+a positive maximum number of bytes or 0 in
+.Va sp_max
+and an idle timeout
+.Va sp_idle
+in the form of a
+.Vt struct timeval .
+If \-1 is given as drain socket, the source socket
+.Fa s
+gets unspliced.
+Otherwise the spliced data transfer continues within the kernel
+until the optional maximum is reached, one of the connections
+terminates, idle timeout expires or an error occurs.
+A successful
+.Xr select 2 ,
+.Xr poll 2 ,
+or
+.Xr kqueue 2
+operation testing the ability to read from the source socket indicates
+that the splicing has terminated.
+When one of the sockets gets closed, splicing ends.
+The error status can be examined with
+.Dv SO_ERROR
+at the source socket.
+The
+.Er ELOOP
+error is set if userland created a loop by splicing sockets connected
+to localhost.
+The
+.Er ETIMEDOUT
+error is set if there was no data transferred between two sockets
+during the
+.Va sp_idle
+period of time.
+The
+.Er EFBIG
+error is set after exactly
+.Va sp_max
+bytes have been transferred.
+Note that if a maximum is given, it is only guaranteed that no more
+bytes are transferred.
+A short splice can happen, but then a second call to splice will
+transfer the remaining data immediately.
+The
+.Dv SO_SPLICE
+option with
+.Fn getsockopt
+and an
+.Vt off_t
+value as
+.Fa optval
+can be used to retrieve the number of bytes transferred so far from the
+source socket
+.Fa s .
+A successful new splice resets this number.
+.Pp
+Userland may write sensitive data into a socket.
+If
+.Dv SO_ZEROIZE
+is set, overwrite kernel memory after sending data.
+.Pp
+Finally,
+.Dv SO_TYPE ,
+.Dv SO_DOMAIN ,
+.Dv SO_PROTOCOL ,
+.Dv SO_ERROR ,
+.Dv SO_ACCEPTCONN ,
+and
+.Dv SO_PEERCRED
+are options used only with
+.Fn getsockopt .
+.Dv SO_TYPE
+returns the type of the socket, such as
+.Dv SOCK_STREAM ;
+it is useful for servers that inherit sockets on startup.
+.Dv SO_DOMAIN
+returns the domain of the socket, such as
+.Dv AF_INET .
+.Dv SO_PROTOCOL
+returns the protocol of the socket such as
+.Dv IPPROTO_TCP .
+.Dv SO_ERROR
+returns any pending error on the socket and clears the error status.
+It may be used to check for asynchronous errors on connected
+datagram sockets or for other asynchronous errors.
+.Dv SO_ACCEPTCONN
+returns whether the socket is currently accepting connections, that is,
+whether or not
+.Xr listen 2
+was called.
+.Dv SO_PEERCRED
+fetches the
+.Va struct sockpeercred
+credentials from the other side of the connection
+(currently only possible on
+.Dv AF_UNIX
+sockets).
+These credentials are from the time that
+.Xr bind 2 ,
+.Xr connect 2
+or
+.Xr socketpair 2
+were called.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The call succeeds unless:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The argument
+.Fa s
+is not a valid descriptor.
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+is a file, not a socket.
+.It Bq Er ENOPROTOOPT
+The option is unknown at the level indicated.
+.It Bq Er EOPNOTSUPP
+The option is unsupported.
+.It Bq Er EFAULT
+The address pointed to by
+.Fa optval
+is not in a valid part of the process address space.
+For
+.Fn getsockopt ,
+this error may also be returned if
+.Fa optlen
+is not in a valid part of the process address space.
+.El
+.Sh SEE ALSO
+.Xr connect 2 ,
+.Xr getrtable 2 ,
+.Xr ioctl 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr socket 2 ,
+.Xr getprotoent 3 ,
+.Xr divert 4 ,
+.Xr pf.conf 5 ,
+.Xr protocols 5 ,
+.Xr sosplice 9
+.Sh STANDARDS
+The
+.Fn getsockopt
+and
+.Fn setsockopt
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn getsockopt
+system call appeared in
+.Bx 4.1c .
+.Sh BUGS
+Several of the socket options should be handled at lower levels of the system.

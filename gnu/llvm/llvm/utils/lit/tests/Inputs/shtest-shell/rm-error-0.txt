@@ -1,0 +1,3 @@
+# Check error on a unsupported rm. (cannot be part of a pipeline)
+#
+# RUN: rm -rf temp | echo "hello"

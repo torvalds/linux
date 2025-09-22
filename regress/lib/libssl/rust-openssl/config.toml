@@ -1,0 +1,6 @@
+[net]
+	offline = true
+[source.modcargo]
+	directory = '/usr/local/share/rust-openssl-tests/modcargo-crates'
+[source.crates-io]
+	replace-with = 'modcargo'

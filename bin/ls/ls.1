@@ -1,0 +1,520 @@
+.\"	$OpenBSD: ls.1,v 1.79 2016/10/24 13:46:58 schwarze Exp $
+.\"	$NetBSD: ls.1,v 1.14 1995/12/05 02:44:01 jtc Exp $
+.\"
+.\" Copyright (c) 1980, 1990, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
+.\"
+.Dd $Mdocdate: October 24 2016 $
+.Dt LS 1
+.Os
+.Sh NAME
+.Nm ls
+.Nd list directory contents
+.Sh SYNOPSIS
+.Nm ls
+.Op Fl 1AaCcdFfgHhikLlmnopqRrSsTtux
+.Op Ar
+.Sh DESCRIPTION
+For each operand that names a
+.Ar file
+of a type other than directory,
+.Nm
+displays its name as well as any requested,
+associated information.
+For each named directory,
+.Nm
+displays the names of files contained
+within that directory, as well as any requested, associated
+information.
+.Pp
+If no operands are given, the contents of the current
+directory are displayed.
+If more than one operand is given,
+non-directory operands are displayed first; directory
+and non-directory operands are sorted separately and in
+lexicographical order.
+By default,
+.Nm
+lists one entry per line to standard
+output; the exceptions are to terminals or when the
+.Fl C ,
+.Fl m ,
+or
+.Fl x
+options are specified.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 1
+(The numeric digit
+.Dq one . )
+Force output to be one entry per line.
+This is the default when
+output is not to a terminal.
+.It Fl A
+List all entries except for
+.Sq \&.
+and
+.Sq \&.. .
+Always set for the superuser.
+.It Fl a
+Include directory entries whose names begin with a
+dot
+.Pq Sq \&. .
+.It Fl C
+Force multi-column output; this is the default when output is to a terminal.
+.It Fl c
+Use time file's status was last changed instead of last modification
+time for sorting
+.Pq Fl t
+or printing
+.Pf ( Fl g , l ,
+or
+.Fl n ) .
+.It Fl d
+Directories are listed as plain files (not searched recursively) and
+symbolic links in the argument list are not indirected through.
+.It Fl F
+Display a slash
+.Pq Sq /
+immediately after each pathname that is a directory,
+an asterisk
+.Pq Sq *
+after each that is executable,
+an at sign
+.Pq Sq @
+after each symbolic link,
+an equal sign
+.Pq Sq =
+after each socket,
+and a vertical bar
+.Pq Sq \&|
+after each that is a FIFO.
+.It Fl f
+Output is not sorted.
+This option implies
+.Fl a .
+.It Fl g
+List in long format as in
+.Fl l ,
+except that the owner is not printed.
+.It Fl H
+Follow symbolic links specified on the command line.
+This is the default behaviour when none of the
+.Fl d , F ,
+or
+.Fl l
+options are specified.
+.It Fl h
+When used with a long format
+option, use unit suffixes: Byte, Kilobyte, Megabyte, Gigabyte, Terabyte,
+Petabyte, and Exabyte in order to reduce the number of digits to four or fewer
+using powers of 2 for sizes (K=1024, M=1048576, etc.).
+.It Fl i
+For each file, print its inode number.
+.It Fl k
+Modifies the
+.Fl s
+option, causing the sizes to be reported in kilobytes.
+Overrides any value specified by the
+.Ev BLOCKSIZE
+environment variable.
+.It Fl L
+If argument is a symbolic link, evaluate the file information and file type
+to be those of the file referenced by the link, and not the link itself;
+however,
+.Nm
+writes the name of the link itself and not the file referenced by the link.
+.It Fl l
+(The lowercase letter
+.Dq ell . )
+List in long format (see below).
+A total sum of all file
+sizes is output on a line before the long listing.
+Output is one entry per line.
+.It Fl m
+Stream output format; list files across the page, separated by commas.
+.It Fl n
+List in long format as in
+.Fl l ,
+but retain user and group IDs in a numeric format.
+The output of
+.Fl gn
+and
+.Fl ng
+is identical:
+a long listing with numerical group ID,
+and no numerical user ID.
+The output of
+.Fl ln
+and
+.Fl \&nl
+is identical:
+a long listing with numerical group and user ID.
+.It Fl o
+Include the file flags in a long format
+.Pf ( Fl g , l ,
+or
+.Fl n )
+output.
+.It Fl p
+Display a slash
+.Pq Sq /
+immediately after each pathname that is a directory.
+.It Fl q
+Force printing of non-graphic characters in file names as
+the character
+.Sq \&? ;
+this is the default when output is to a terminal.
+.It Fl R
+Recursively list subdirectories encountered.
+.It Fl r
+Reverse the order of the sort to get reverse
+lexicographical order or the smallest or oldest entries first.
+.It Fl S
+Sort by size, largest file first.
+.It Fl s
+Display the number of file system blocks actually used by each file,
+where partial units are rounded up to the next integer value.
+Blocks are 512 bytes unless overridden by the
+.Fl k
+flag or
+.Ev BLOCKSIZE
+environment variable.
+.It Fl T
+Display complete time information for the file, including
+month, day, hour, minute, second, and year.
+This option has no effect unless one of the long format
+.Pf ( Fl g , l ,
+or
+.Fl n )
+options is also specified.
+.It Fl t
+Sort by time modified (most recently modified
+first) before sorting the operands in lexicographical
+order.
+.It Fl u
+Use file's last access time
+instead of last modification time
+for sorting
+.Pq Fl t
+or printing
+.Pf ( Fl g , l ,
+or
+.Fl n ) .
+.It Fl x
+Multi-column output sorted across the page rather than down the page.
+.El
+.Pp
+It is not an error to specify more than one of
+the following mutually exclusive options:
+.Fl 1 ,
+.Fl C ,
+.Fl g ,
+.Fl l ,
+.Fl m ,
+.Fl n ,
+and
+.Fl x ;
+and
+.Fl c ,
+.Fl f ,
+.Fl S ,
+.Fl t ,
+and
+.Fl u .
+Where more than one option is specified from the same
+mutually exclusive group,
+the last option given overrides the others,
+except that
+.Fl l
+always overrides
+.Fl g ;
+and
+.Fl f
+always overrides
+.Fl c ,
+.Fl S ,
+.Fl t ,
+and
+.Fl u .
+.Ss The Long Format
+If the
+.Fl g ,
+.Fl l ,
+or
+.Fl n
+options are given, the following information
+is displayed for each file:
+mode,
+number of links,
+owner (though not for
+.Fl g ) ,
+group,
+size in bytes,
+time of last modification
+.Pq Dq mmm dd HH:MM ,
+and the pathname.
+In addition, for each directory whose contents are displayed, the first
+line displayed is the total number of blocks used by the files in the
+directory.
+Blocks are 512 bytes unless overridden by the
+.Fl k
+option or
+.Ev BLOCKSIZE
+environment variable.
+.Pp
+If the owner or group name is not a known user or group name, respectively,
+or the
+.Fl n
+option is given, the numeric ID is displayed.
+.Pp
+If the file is a character special or block special file,
+the major and minor device numbers for the file are displayed
+in the size field.
+.Pp
+If the
+.Fl T
+option is given, the time of last modification is displayed using the
+format
+.Dq mmm dd HH:MM:SS ccyy .
+.Pp
+If the file is a symbolic link, the pathname of the
+linked-to file is preceded by
+.Dq \-\*(Gt .
+.Pp
+The file mode printed under the
+.Fl g ,
+.Fl l ,
+or
+.Fl n
+options consists of the entry type, owner permissions, group permissions,
+and other permissions.
+The entry type character describes the type of file, as follows:
+.Pp
+.Bl -tag -width 4n -offset indent -compact
+.It Sy \-
+regular file
+.It Sy b
+block special file
+.It Sy c
+character special file
+.It Sy d
+directory
+.It Sy l
+symbolic link
+.It Sy p
+FIFO
+.It Sy s
+socket link
+.El
+.Pp
+The next three fields
+are three characters each:
+owner permissions,
+group permissions, and
+other permissions.
+Each field has three character positions:
+.Pp
+.Bl -enum -offset indent -compact
+.It
+If
+.Sy r ,
+the file is readable; if
+.Sy \- ,
+it is not readable.
+.It
+If
+.Sy w ,
+the file is writable; if
+.Sy \- ,
+it is not writable.
+.It
+The first of the following that applies:
+.Bl -tag -width 4n -offset indent
+.It Sy S
+If in the owner permissions, the file is not executable and
+set-user-ID mode is set.
+If in the group permissions, the file is not executable
+and set-group-ID mode is set.
+.It Sy s
+If in the owner permissions, the file is executable
+and set-user-ID mode is set.
+If in the group permissions, the file is executable
+and set-group-ID mode is set.
+.It Sy x
+The file is executable or the directory is
+searchable.
+.It Sy \-
+The file is neither readable, writable, executable,
+nor set-user-ID, nor set-group-ID, nor sticky (see below).
+.El
+.Pp
+These next two apply only to the third character in the last group
+(other permissions):
+.Bl -tag -width 4n -offset indent
+.It Sy T
+The sticky bit is set
+(mode
+.Li 1000 ) ,
+but neither executable nor searchable (see
+.Xr chmod 1
+or
+.Xr sticky 8 ) .
+.It Sy t
+The sticky bit is set (mode
+.Li 1000 ) ,
+and is searchable or executable
+(see
+.Xr chmod 1
+or
+.Xr sticky 8 ) .
+.El
+.El
+.Pp
+In addition, if the
+.Fl o
+option is specified, the file flags (see
+.Xr chflags 1 )
+are displayed as comma-separated strings in front of the file size,
+abbreviated as follows:
+.Pp
+.Bl -tag -width 8n -offset indent -compact
+.It \&-
+no flags
+.It arch
+archived
+.It nodump
+do not dump
+.It sappnd
+system append-only
+.It schg
+system immutable
+.It uappnd
+user append-only
+.It uchg
+user immutable
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width BLOCKSIZE
+.It Ev BLOCKSIZE
+If the environment variable
+.Ev BLOCKSIZE
+is set, and the
+.Fl k
+option is not specified, the block counts
+(see
+.Fl s )
+will be displayed in units of that size block.
+.It Ev COLUMNS
+If set to a positive integer,
+output is formatted to the given width in columns.
+Otherwise,
+.Nm
+defaults to the terminal width, or 80 columns if the output is not a terminal.
+.It Ev LC_CTYPE
+The character encoding
+.Xr locale 1 .
+It decides which byte sequences form characters
+and what their display width is.
+If unset or set to
+.Qq C ,
+.Qq POSIX ,
+or an unsupported value, non-ASCII bytes are replaced by question marks.
+.It Ev TZ
+The time zone to use when displaying dates.
+See
+.Xr environ 7
+for more information.
+.El
+.Sh EXIT STATUS
+.Ex -std ls
+.Sh EXAMPLES
+List the contents of the current working directory in long format:
+.Pp
+.Dl $ ls -l
+.Pp
+In addition to listing the contents of the current working directory in
+long format, show inode numbers, file flags (see
+.Xr chflags 1 ) ,
+and suffix each filename with a symbol representing its file type:
+.Pp
+.Dl $ ls -lioF
+.Pp
+List the files in
+.Pa /var/log ,
+sorting the output such that the most recently modified entries are
+printed first:
+.Pp
+.Dl $ ls -lt /var/log
+.Sh SEE ALSO
+.Xr chflags 1 ,
+.Xr chmod 1 ,
+.Xr symlink 7 ,
+.Xr sticky 8
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification,
+except behaviour for the
+.Fl o
+flag differs.
+.Pp
+The flags
+.Op Fl hT ,
+as well as the
+.Ev BLOCKSIZE
+environment variable,
+are extensions to that specification.
+.Pp
+The flags
+.Op Fl go
+are marked by
+.St -p1003.1-2008
+as being an X/Open System Interfaces option.
+.Pp
+Historically, the
+.Fl g
+flag was used to specify that the group field be included in long listings.
+The group field is now automatically included in the long listing for
+files and the meaning of the
+.Fl g
+flag has been changed in order to be compatible with the
+.St -p1003.1-2008
+specification.
+.Sh HISTORY
+An
+.Nm
+utility appeared in
+.At v1 .

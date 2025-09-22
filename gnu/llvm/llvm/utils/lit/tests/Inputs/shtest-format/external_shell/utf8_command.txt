@@ -1,0 +1,3 @@
+# Run a command including UTF-8 characters.
+#
+# RUN: echo £

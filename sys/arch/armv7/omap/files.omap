@@ -1,0 +1,100 @@
+#	$OpenBSD: files.omap,v 1.26 2020/04/10 22:02:45 kettenis Exp $
+
+define omap {}
+device omap: omap
+attach omap at fdt
+file	arch/armv7/omap/omap_machdep.c		omap	needs-flag
+file	arch/armv7/omap/omap.c			omap
+file	arch/armv7/omap/omap3.c
+file	arch/armv7/omap/omap4.c
+file	arch/armv7/omap/am335x.c
+
+device omcm: fdt
+attach omcm at fdt
+file	arch/armv7/omap/omcm.c			omcm
+
+device omclock
+attach omclock at fdt
+file	arch/armv7/omap/omclock.c		omclock
+
+device ommmc: sdmmcbus
+attach ommmc at fdt
+file	arch/armv7/omap/ommmc.c			ommmc
+
+device cpsw: ether, ifnet, mii, ifmedia
+attach cpsw at fdt
+file	arch/armv7/omap/if_cpsw.c		cpsw
+
+device prcm
+attach prcm at omap
+file	arch/armv7/omap/prcm.c			prcm
+
+device omgpio: gpiobus
+attach omgpio at fdt
+file	arch/armv7/omap/omgpio.c		omgpio
+
+device tiiic: i2cbus
+attach tiiic at fdt
+file	arch/armv7/omap/ti_iic.c		tiiic
+
+device edma
+attach edma at fdt
+file	arch/armv7/omap/edma.c			edma
+
+device intc
+attach intc at fdt
+file	arch/armv7/omap/intc.c			intc
+
+device omwugen
+attach omwugen at fdt
+file	arch/armv7/omap/omwugen.c		omwugen
+
+device gptimer
+attach gptimer at omap
+file	arch/armv7/omap/gptimer.c		gptimer
+
+device dmtimer
+attach dmtimer at omap
+file	arch/armv7/omap/dmtimer.c		dmtimer
+
+device omapid
+attach omapid at omap
+file	arch/armv7/omap/omapid.c		omapid
+
+device omdog
+attach omdog at fdt
+file	arch/armv7/omap/omdog.c			omdog
+
+device omrng
+attach omrng at fdt
+file	arch/armv7/omap/omrng.c			omrng
+
+attach ohci at omap with omohci
+file	arch/armv7/omap/omohci.c		omohci
+
+device omehci: usbus
+attach omehci at fdt
+file	arch/armv7/omap/omehci.c		omehci
+
+device omsysc: fdt
+attach omsysc at fdt
+file	arch/armv7/omap/omsysc.c		omsysc
+
+device omusbtll
+attach omusbtll at omap
+file arch/armv7/omap/omusbtll.c			omusbtll
+
+# LCD frame buffer
+device omdisplay: wsemuldisplaydev, rasops16
+attach omdisplay at omap
+file arch/armv7/omap/omdisplay.c		omdisplay
+
+device amdisplay: wsemuldisplaydev, rasops16
+attach amdisplay at fdt
+file arch/armv7/omap/amdisplay.c		amdisplay
+
+# TDA19988 HDMI PHY
+device nxphdmi
+attach nxphdmi at i2c
+file	arch/armv7/omap/nxphdmi.c		nxphdmi
+

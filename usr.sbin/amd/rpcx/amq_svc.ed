@@ -1,0 +1,24 @@
+/"amq.h"/a
+#include "am.h"
+#include <arpa/inet.h>
+.
+/_msgout(/-1,/^}/d
+/local/a
+	extern SVCXPRT *lamqp;
+
+	if (transp != lamqp) {
+		struct sockaddr_in *fromsin = svc_getcaller(transp);
+
+		syslog(LOG_WARNING,
+		    "non-local amq attempt (might be from %s)",
+		    inet_ntoa(fromsin->sin_addr));
+		svcerr_noproc(transp);
+		return;
+	}
+.
+/_msgout/;+1c
+		plog(XLOG_FATAL, "unable to free rpc arguments in amqprog");
+		going_down(1);
+.
+g/_rpcsvcdirty/d
+wq

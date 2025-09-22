@@ -1,0 +1,207 @@
+We're in the process of converting the existing testsuite machinery to
+use the new style DejaGnu framework.  Eventually, we'll abandon
+../mkcheck.in in favor of this new testsuite framework.
+
+// 1: Thoughts on naming test cases, and structuring them.
+The testsuite directory has been divided into 11 directories, directly
+correlated to the relevant chapters in the standard. For example, the
+directory testsuite/21_strings contains tests related to "Chapter 21,
+Strings library" in the C++ standard.
+
+So, the first step in making a new test case is to choose the correct
+directory. The second item is seeing if a test file exists that tests
+the item in question. Generally, within chapters test files are named
+after the section headings in ISO 14882, the C++ standard. For instance, 
+
+21.3.7.9 Inserters and Extractors
+
+Has a related test case:
+21_strings/inserters_extractors.cc
+
+Not so hard. Some time, the words "ctor" and "dtor" are used instead
+of "construct", "constructor", "cons", "destructor", etc. Other than
+that, the naming seems mostly consistent. If the file exists, add a
+test to it. If it does not, then create a new file. All files are
+copyright the FSF, and GPL'd: this is very important. 
+
+In addition, some of the locale and io code tests different
+instantiating types: thus, 'char' or 'wchar_t' is appended to the name
+as constructed above.
+
+Also, some test files are negative tests. That is, they are supposed
+to fail (usually this involves making sure some kind of construct gets
+an error when it's compiled.) These test files have 'neg' appended to
+the name as constructed above.
+
+Inside a test file, the plan is to test the relevant parts of the
+standard, and then add specific regressions as additional test
+functions, ie test04() can represent a specific regression noted in
+GNATS. Once test files get unwieldy or too big, then they should be
+broken up into multiple sub-categories, hopefully intelligently named
+after the relevant (and more specific) part of the standard.
+
+
+// 2: How to write a test case, from a dejagnu perspective
+As per the dejagnu instructions, always return 0 from main to indicate
+success.
+
+Basically, a test case contains dg-keywords (see dg.exp) indicating
+what to do and what kinds of behaviour are to be expected.  New
+testcases should be written with the new style DejaGnu framework in
+mind.
+
+To ease transition, here is the list of dg-keyword documentation
+lifted from dg.exp -- eventually we should improve DejaGnu
+documentation, but getting checkin account currently demands Pyrrhic
+effort. 
+
+# The currently supported options are:
+#
+# dg-prms-id N
+#	set prms_id to N
+#
+# dg-options "options ..." [{ target selector }]
+#	specify special options to pass to the tool (eg: compiler)
+#
+# dg-do do-what-keyword [{ target/xfail selector }]
+#	`do-what-keyword' is tool specific and is passed unchanged to
+#	${tool}-dg-test.  An example is gcc where `keyword' can be any of:
+#	preprocess|compile|assemble|link|run
+#	and will do one of: produce a .i, produce a .s, produce a .o,
+#	produce an a.out, or produce an a.out and run it (the default is
+#	compile).
+#
+# dg-error regexp comment [{ target/xfail selector } [{.|0|linenum}]]
+#	indicate an error message <regexp> is expected on this line
+#	(the test fails if it doesn't occur)
+#	Linenum=0 for general tool messages (eg: -V arg missing).
+#	"." means the current line.
+#
+# dg-warning regexp comment [{ target/xfail selector } [{.|0|linenum}]]
+#	indicate a warning message <regexp> is expected on this line
+#	(the test fails if it doesn't occur)
+#
+# dg-bogus regexp comment [{ target/xfail selector } [{.|0|linenum}]]
+#	indicate a bogus error message <regexp> use to occur here
+#	(the test fails if it does occur)
+#
+# dg-build regexp comment [{ target/xfail selector }]
+#	indicate the build use to fail for some reason
+#	(errors covered here include bad assembler generated, tool crashes,
+#	and link failures)
+#	(the test fails if it does occur)
+#
+# dg-excess-errors comment [{ target/xfail selector }]
+#	indicate excess errors are expected (any line)
+#	(this should only be used sparingly and temporarily)
+#
+# dg-output regexp [{ target selector }]
+#	indicate the expected output of the program is <regexp>
+#	(there may be multiple occurrences of this, they are concatenated)
+#
+# dg-final { tcl code }
+#	add some tcl code to be run at the end
+#	(there may be multiple occurrences of this, they are concatenated)
+#	(unbalanced braces must be \-escaped)
+#
+# "{ target selector }" is a list of expressions that determine whether the
+# test succeeds or fails for a particular target, or in some cases whether the
+# option applies for a particular target.  If the case of `dg-do' it specifies
+# whether the testcase is even attempted on the specified target.
+#
+# The target selector is always optional.  The format is one of:
+#
+# { xfail *-*-* ... } - the test is expected to fail for the given targets
+# { target *-*-* ... } - the option only applies to the given targets
+#
+# At least one target must be specified, use *-*-* for "all targets".
+# At present it is not possible to specify both `xfail' and `target'.
+# "native" may be used in place of "*-*-*".
+
+Example 1: Testing compilation only
+(to just have a testcase do compile testing, without linking and executing)
+// { dg-do compile }
+
+Example 2: Testing for expected warings on line 36
+// { dg-warning "string literals" "" { xfail *-*-* } 36
+
+Example 3: Testing for compilation errors on line 41
+// { dg-do compile }
+// { dg-error "no match for" "" { xfail *-*-* } 41 }
+
+More examples can be found in the libstdc++-v3/testsuite/*/*.cc files.
+
+
+// 3: Test harness notes, invocation, and debugging.
+Configuring the dejagnu harness to work with libstdc++-v3 in a cross
+compilation environment has been maddening. However, it does work now,
+and on a variety of platforms. Including solaris, linux, and cygwin.
+
+To debug the test harness during runs, try invoking with
+
+make check-target-libstdc++-v3 RUNTESTFLAGS="-v"
+or
+make check-target-libstdc++-v3 RUNTESTFLAGS="-v -v"
+
+There are two ways to run on a simulator: set up DEJAGNU to point to a
+specially crafted site.exp, or pass down --target_board flags.
+
+Example flags to pass down for various embedded builds are as follows:
+
+--target=powerpc-eabism (libgloss/sim)
+make check-target-libstdc++-v3 RUNTESTFLAGS="--target_board=powerpc-sim"
+
+--target=calmrisc32 (libgloss/sid)
+make check-target-libstdc++-v3 RUNTESTFLAGS="--target_board=calmrisc32-sid"
+
+--target=xscale-elf (newlib/sim)
+make check-target-libstdc++-v3 RUNTESTFLAGS="--target_board=arm-sim"
+
+
+// 4: Future plans, to be done
+Shared runs need to be implemented, for targets that support shared libraries.
+
+Diffing of expected output to standard streams needs to be finished off.
+
+The V3 testing framework supports, or will eventually support,
+additional keywords for the purpose of easing the job of writing
+testcases.  All V3-keywords are of the form @xxx@.  Currently plans
+for supported keywords include:
+
+  @require@ <files>
+      The existence of <files> is essential for the test to complete
+      successfully.  For example, a testcase foo.C using bar.baz as
+      input file could say
+	    // @require@ bar.baz
+      The special variable % stands for the rootname, e.g. the
+      file-name without its `.C' extension.  Example of use (taken
+      verbatim from 27_io/filebuf.cc)
+	   // @require@ %-*.tst %-*.txt
+
+  @diff@ <first-list> <second-list>
+      After the testcase compiles and ran successfully, diff
+      <first-list> against <second-list>, these lists should have the
+      same length.  The test fails if diff returns non-zero a pair of
+      files.
+
+Current testing problems with cygwin-hosted tools:
+
+There are two known problems which I have not addressed.  The first is
+that when testing cygwin hosted tools from the unix build dir, it does
+the wrong thing building the wrapper program (testglue.c) because host
+and target are the same in site.exp (host and target are the same from
+the perspective of the target libraries)
+
+Problem number two is a little more annoying.  In order for me to make
+v3 testing work on Windows, I had to tell dejagnu to copy over the
+debug_assert.h file to the remote host and then set the includes to
+-I./.  This is how all the other tests like this are done so I didn't
+think much of it.  However, this had some unfortunate results due to
+gcc having a testcase called "limits" and C++ having an include file
+called "limits".  The gcc "limits" binary was in the temporary dir
+when the v3 tests were being built.  As a result, the gcc "limits"
+binary was being #included rather than the intended one.  The only way
+to fix this is to go through the testsuites and make sure binaries are
+deleted on the remote host when testing is done with them.  That is a
+lot more work than I want to do so I worked around it by cleaning out
+D:\kermit on compsognathus and rerunning tests.

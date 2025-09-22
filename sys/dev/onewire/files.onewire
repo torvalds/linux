@@ -1,0 +1,30 @@
+# $OpenBSD: files.onewire,v 1.3 2010/07/06 19:59:59 deraadt Exp $
+
+define	onewire {}
+
+device	onewire: onewire
+attach	onewire at onewirebus
+file	dev/onewire/onewire.c		onewire
+file	dev/onewire/onewire_subr.c	onewire
+
+file	dev/onewire/onewire_bitbang.c	onewire_bitbang
+
+# ID family type device
+device	owid
+attach	owid at onewire
+file	dev/onewire/owid.c		owid
+
+# Smart Battery Monitor type device
+device	owsbm
+attach	owsbm at onewire
+file	dev/onewire/owsbm.c		owsbm
+
+# Temperature family type device
+device	owtemp
+attach	owtemp at onewire
+file	dev/onewire/owtemp.c		owtemp
+
+# Counter family type device
+device	owctr
+attach	owctr at onewire
+file	dev/onewire/owctr.c		owctr

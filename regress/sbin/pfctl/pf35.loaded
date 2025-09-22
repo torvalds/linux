@@ -1,0 +1,24 @@
+@0 block return out on lo0 inet all queue std 
+[ Skip steps: i=end d=end f=end sp=end da=end ]
+[ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+
+@1 pass out on lo0 inet proto tcp from 10.0.0.0/24 to any port = 80 keep state queue developers 
+[ Skip steps: i=end d=end f=end p=end sp=end da=end dp=3 ]
+[ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+
+@2 pass out on lo0 inet proto tcp from 10.0.1.0/24 to any port = 80 keep state queue employees 
+[ Skip steps: i=end d=end f=end p=end sp=end da=end ]
+[ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+
+@3 pass out on lo0 inet proto tcp from any to any port = 22 tos 0x10 keep state queue ssh_interactive 
+[ Skip steps: i=end d=end f=end p=end sa=end sp=end da=end dp=5 ]
+[ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+
+@4 pass out on lo0 inet proto tcp from any to any port = 22 tos 0x08 keep state queue ssh_bulk 
+[ Skip steps: i=end d=end f=end p=end sa=end sp=end da=end ]
+[ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+
+@5 pass out on lo0 inet proto tcp from any to any port = 25 keep state queue mail 
+[ Skip steps: i=end d=end f=end p=end sa=end sp=end da=end dp=end ]
+[ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+

@@ -1,0 +1,73 @@
+.\" $OpenBSD: isfdtype.3,v 1.10 2019/01/25 00:19:25 millert Exp $
+.\"
+.\" Copyright (c) 2002 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Sponsored in part by the Defense Advanced Research Projects
+.\" Agency (DARPA) and Air Force Research Laboratory, Air Force
+.\" Materiel Command, USAF, under agreement number F39502-99-1-0512.
+.\"
+.Dd $Mdocdate: January 25 2019 $
+.Dt ISFDTYPE 3
+.Os
+.Sh NAME
+.Nm isfdtype
+.Nd determine whether a file descriptor is of a specific type
+.Sh SYNOPSIS
+.In sys/stat.h
+.Ft int
+.Fn isfdtype "int fd" "int fdtype"
+.Sh DESCRIPTION
+The
+.Fn isfdtype
+function checks whether or not the file descriptor
+.Fa fd
+is of type
+.Fa fdtype .
+.Pp
+A list of possible file types may be found in
+.Xr stat 2
+and the
+.In sys/stat.h
+include file.
+.Sh RETURN VALUES
+The
+.Fn isfdtype
+function returns 1 if
+.Fa fd
+is of type
+.Fa fdtype
+and 0 if it is not.
+If
+.Fn isfdtype
+fails, a value of \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The following error codes may be set in
+.Va errno :
+.Bl -tag -width Er
+.It Bq Er EBADF
+.Fa fd
+is not a valid open file descriptor.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.El
+.Sh SEE ALSO
+.Xr stat 2
+.Sh HISTORY
+The
+.Fn isfdtype
+function first appeared in
+.Ox 3.3 .

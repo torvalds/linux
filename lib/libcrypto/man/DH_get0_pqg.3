@@ -1,0 +1,343 @@
+.\" $OpenBSD: DH_get0_pqg.3,v 1.10 2025/06/13 18:34:00 schwarze Exp $
+.\" selective merge up to: OpenSSL 83cf7abf May 29 13:07:08 2018 +0100
+.\"
+.\" This file was written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2016, 2018 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt DH_GET0_PQG 3
+.Os
+.Sh NAME
+.Nm DH_get0_pqg ,
+.Nm DH_get0_p ,
+.Nm DH_get0_q ,
+.Nm DH_get0_g ,
+.Nm DH_set0_pqg ,
+.Nm DH_get0_key ,
+.Nm DH_get0_pub_key ,
+.Nm DH_get0_priv_key ,
+.Nm DH_set0_key ,
+.Nm DH_clear_flags ,
+.Nm DH_test_flags ,
+.Nm DH_set_flags ,
+.Nm DH_get0_engine ,
+.Nm DH_set_length
+.Nd get data from and set data in a DH object
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/dh.h
+.Ft void
+.Fo DH_get0_pqg
+.Fa "const DH *dh"
+.Fa "const BIGNUM **p"
+.Fa "const BIGNUM **q"
+.Fa "const BIGNUM **g"
+.Fc
+.Ft const BIGNUM *
+.Fo DH_get0_p
+.Fa "const DH *dh"
+.Fc
+.Ft const BIGNUM *
+.Fo DH_get0_q
+.Fa "const DH *dh"
+.Fc
+.Ft const BIGNUM *
+.Fo DH_get0_g
+.Fa "const DH *dh"
+.Fc
+.Ft int
+.Fo DH_set0_pqg
+.Fa "DH *dh"
+.Fa "BIGNUM *p"
+.Fa "BIGNUM *q"
+.Fa "BIGNUM *g"
+.Fc
+.Ft void
+.Fo DH_get0_key
+.Fa "const DH *dh"
+.Fa "const BIGNUM **pub_key"
+.Fa "const BIGNUM **priv_key"
+.Fc
+.Ft const BIGNUM *
+.Fo DH_get0_pub_key
+.Fa "const DH *dh"
+.Fc
+.Ft const BIGNUM *
+.Fo DH_get0_priv_key
+.Fa "const DH *dh"
+.Fc
+.Ft int
+.Fo DH_set0_key
+.Fa "DH *dh"
+.Fa "BIGNUM *pub_key"
+.Fa "BIGNUM *priv_key"
+.Fc
+.Ft void
+.Fo DH_clear_flags
+.Fa "DH *dh"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo DH_test_flags
+.Fa "const DH *dh"
+.Fa "int flags"
+.Fc
+.Ft void
+.Fo DH_set_flags
+.Fa "DH *dh"
+.Fa "int flags"
+.Fc
+.Ft ENGINE *
+.Fo DH_get0_engine
+.Fa "DH *d"
+.Fc
+.Ft int
+.Fo DH_set_length
+.Fa "DH *dh"
+.Fa "long length"
+.Fc
+.Sh DESCRIPTION
+A
+.Vt DH
+object contains the parameters
+.Fa p ,
+.Fa g ,
+and optionally
+.Fa q .
+It also contains a public key
+.Fa pub_key
+and an optional private key
+.Fa priv_key .
+.Pp
+The
+.Fa p ,
+.Fa q ,
+and
+.Fa g
+parameters can be obtained by calling
+.Fn DH_get0_pqg .
+If the parameters have not yet been set, then
+.Pf * Fa p ,
+.Pf * Fa q ,
+and
+.Pf * Fa g
+are set to
+.Dv NULL .
+Otherwise, they are set to pointers to the internal representations
+of the values that should not be freed by the application.
+Any of the out parameters
+.Fa p ,
+.Fa q ,
+and
+.Fa g
+can be
+.Dv NULL ,
+in which case no value is returned for that parameter.
+.Pp
+The
+.Fa p ,
+.Fa q ,
+and
+.Fa g
+values can be set by calling
+.Fn DH_set0_pqg .
+Calling this function transfers the memory management of the values to
+.Fa dh ,
+and therefore they should not be freed by the caller.
+The
+.Fa q
+argument may be
+.Dv NULL .
+.Pp
+The
+.Fn DH_get0_key
+function stores pointers to the internal representations
+of the public key in
+.Pf * Fa pub_key
+and to the private key in
+.Pf * Fa priv_key .
+Either may be
+.Dv NULL
+if it has not yet been set.
+If the private key has been set, then the public key must be.
+Any of the out parameters
+.Fa pub_key
+and
+.Fa priv_key
+can be
+.Dv NULL ,
+in which case no value is returned for that parameter.
+.Pp
+The public and private key values can be set using
+.Fn DH_set0_key .
+Either parameter may be
+.Dv NULL ,
+which means the corresponding
+.Vt DH
+field is left untouched.
+This function transfers the memory management of the key values to
+.Fa dh ,
+and therefore they should not be freed by the caller.
+.Pp
+Values retrieved with
+.Fn DH_get0_pqg
+and
+.Fn DH_get0_key
+are owned by the
+.Vt DH
+object and may therefore not be passed to
+.Fn DH_set0_pqg
+or
+.Fn DH_set0_key .
+If needed, duplicate the received values using
+.Xr BN_dup 3
+and pass the duplicates.
+.Pp
+Any of the values
+.Fa p ,
+.Fa q ,
+.Fa g ,
+.Fa pub_key ,
+and
+.Fa priv_key
+can also be retrieved separately by the corresponding functions
+.Fn DH_get0_p ,
+.Fn DH_get0_q ,
+.Fn DH_get0_g ,
+.Fn DH_get0_pub_key ,
+and
+.Fn DH_get0_priv_key ,
+respectively.
+The pointers are owned by the
+.Vt DH
+object.
+.Pp
+.Fn DH_clear_flags
+clears the specified
+.Fa flags
+in
+.Fa dh .
+.Fn DH_test_flags
+tests the
+.Fa flags
+in
+.Fa dh .
+.Fn DH_set_flags
+sets the
+.Fa flags
+in
+.Fa dh ;
+any flags already set remain set.
+For all three functions, multiple flags can be passed in one call,
+OR'ed together bitwise.
+.Pp
+.Fn DH_set_length
+sets the optional length attribute of
+.Fa dh ,
+indicating the length of the secret exponent (private key) in bits.
+If the length attribute is non-zero, it is used, otherwise it is ignored.
+.Sh RETURN VALUES
++.Fn DH_get0_p ,
++.Fn DH_get0_q ,
++.Fn DH_get0_g ,
++.Fn DH_get0_pub_key ,
++and
++.Fn DH_get0_priv_key ,
++return a pointer owned by the
++.Vt DH
++object if the corresponding value has been set,
++otherwise they return
++.Dv NULL .
+.Fn DH_set0_pqg ,
+.Fn DH_set0_key ,
+and
+.Fn DH_set_length
+return 1 on success or 0 on failure.
+.Pp
+.Fn DH_test_flags
+return those of the given
+.Fa flags
+currently set in
+.Fa dh
+or 0 if none of the given
+.Fa flags
+are set.
+.Pp
+.Fn DH_get0_engine
+always returns
+.Dv NULL .
+.Sh SEE ALSO
+.Xr DH_generate_key 3 ,
+.Xr DH_generate_parameters 3 ,
+.Xr DH_new 3 ,
+.Xr DH_security_bits 3 ,
+.Xr DH_size 3 ,
+.Xr DHparams_print 3
+.Sh HISTORY
+.Fn DH_get0_pqg ,
+.Fn DH_set0_pqg ,
+.Fn DH_get0_key ,
+.Fn DH_set0_key ,
+.Fn DH_clear_flags ,
+.Fn DH_test_flags ,
+.Fn DH_set_flags ,
+.Fn DH_get0_engine ,
+and
+.Fn DH_set_length
+first appeared in OpenSSL 1.1.0
+and have been available since
+.Ox 6.3 .
+.Pp
+.Fn DH_get0_p ,
+.Fn DH_get0_q ,
+.Fn DH_get0_g ,
+.Fn DH_get0_pub_key ,
+and
+.Fn DH_get0_priv_key
+first appeared in OpenSSL 1.1.1
+and have been available since
+.Ox 7.1 .

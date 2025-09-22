@@ -1,0 +1,88 @@
+#	$OpenBSD: RAMDISKU1,v 1.26 2023/04/28 18:27:55 cheloha Exp $
+
+machine		sparc64
+maxusers	4
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		RAMDISK_HOOKS
+option		MINIROOTSIZE=6144
+
+option		FFS
+option		FFS2
+
+option		WSEMUL_SUN	# provide sun terminal emulation; required
+option		WSEMUL_NO_VT100	# do not provide vt100 terminal emulation
+
+config		bsd root on rd0a
+
+mainbus0	at root
+cpu0		at mainbus0
+
+sbus*		at mainbus0				# Ultra 1
+clock*		at sbus?				# Mostek clock
+
+le*		at sbus?			# Lance Ethernet - AMD7990
+ledma*		at sbus?
+le*		at ledma?
+lebuffer*	at sbus?
+le*		at lebuffer?
+hme*		at sbus?
+gem*		at sbus?
+
+# The flags on the esp entries below work around deficiencies in the driver:
+#	bits 0-7:  disable disconnect/reselect for the corresponding target
+#	bits 8-15: disable synch negotiation for target [bit-8]
+#	Note: targets 4-7 have disconnect/reselect enabled on the premise
+#	      that tape devices normally have one of these targets. Tape
+#	      devices should be allowed to disconnect for the SCSI bus
+#	      to operate acceptably.
+dma*		at sbus?
+esp*		at dma?
+esp*		at sbus?
+
+scsibus*	at scsi?
+sd*		at scsibus?
+#cd*		at scsibus?
+
+nsphy*		at mii?			# NS and compatible PHYs
+qsphy*		at mii?			# Quality Semi QS6612 PHYs
+ukphy*		at mii?			# Unknown PHYs
+
+zs*		at sbus?
+zstty*		at zs?
+zskbd*		at zs?
+wskbd*		at zskbd?
+
+agten*		at sbus?		# Fujitsu AG-10e framebuffer
+wsdisplay*	at agten?
+bwtwo*		at sbus?		# bwtwo monochrome framebuffer
+wsdisplay*	at bwtwo?
+cgsix*		at sbus?		# cgsix 8-bit accelerated framebuffer
+wsdisplay*	at cgsix?
+cgthree*	at sbus?		# cgthree 8-bit framebuffer
+wsdisplay*	at cgthree?
+cgtwelve*	at sbus?		# cgtwelve 24-bit color framebuffer
+wsdisplay*	at cgtwelve?
+creator*	at mainbus0		# Creator3D/Elite3D framebuffers
+wsdisplay*	at creator?
+mgx*		at sbus?		# SMS MGX/MGXPlus framebuffer
+wsdisplay*	at mgx?
+rfx*		at sbus?		# RasterFlex framebuffer series
+wsdisplay*	at rfx?
+tvtwo*		at sbus?		# Parallax XVideo/PowerVideo framebuffer
+wsdisplay*	at tvtwo?
+vigra*		at sbus?		# Viagra framebuffer series
+wsdisplay*	at vigra?
+zx*		at sbus?		# Sun Leo (ZX) framebuffer
+wsdisplay*	at zx?
+
+xbox*		at sbus?
+sbus*		at xbox?
+
+pcons0		at mainbus0		# PROM console
+
+pseudo-device	rd 1
+pseudo-device	loop 1

@@ -1,0 +1,12 @@
+@0 match out on lo0 inet from 192.168.1.1 to any tag regress nat-to 10.0.0.1 static-port
+  [ Skip steps: i=end r=end f=2 p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 match in on lo0 inet from any to 10.0.0.1 tag regress rdr-to 192.168.1.1
+  [ Skip steps: i=end r=end p=end sa=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 block drop out on lo0 all tagged regress
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

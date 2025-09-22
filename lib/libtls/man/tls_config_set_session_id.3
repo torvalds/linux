@@ -1,0 +1,106 @@
+.\" $OpenBSD: tls_config_set_session_id.3,v 1.6 2025/07/07 10:54:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2017 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2018 Joel Sing <jsing@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt TLS_CONFIG_SET_SESSION_ID 3
+.Os
+.Sh NAME
+.Nm tls_config_set_session_fd ,
+.Nm tls_config_set_session_id ,
+.Nm tls_config_set_session_lifetime ,
+.Nm tls_config_add_ticket_key
+.Nd configure resuming of TLS handshakes
+.Sh SYNOPSIS
+.Lb libtls libssl libcrypto
+.In tls.h
+.Ft int
+.Fo tls_config_set_session_fd
+.Fa "struct tls_config *config"
+.Fa "int session_fd"
+.Fc
+.Ft int
+.Fo tls_config_set_session_id
+.Fa "struct tls_config *config"
+.Fa "const unsigned char *session_id"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo tls_config_set_session_lifetime
+.Fa "struct tls_config *config"
+.Fa "int lifetime"
+.Fc
+.Ft int
+.Fo tls_config_add_ticket_key
+.Fa "struct tls_config *config"
+.Fa "uint32_t keyrev"
+.Fa "unsigned char *key"
+.Fa "size_t keylen"
+.Fc
+.Sh DESCRIPTION
+.Fn tls_config_set_session_fd
+sets a file descriptor to be used to manage data for TLS sessions (client only).
+The given file descriptor must be a regular file and be owned by the current
+user, with permissions being restricted to only allow the owner to read and
+write the file (0600).
+If the file has a non-zero length, the client will attempt to read session
+data from this file and resume the previous TLS session with the server.
+Upon a successful handshake the file will be updated with current session
+data, if available.
+The caller is responsible for closing this file descriptor, after all TLS
+contexts that have been configured to use it have been freed via
+.Fn tls_free .
+.Pp
+.Fn tls_config_set_session_id
+sets the session identifier that will be used by the TLS server when
+sessions are enabled (server only).
+By default a random value is used.
+.Pp
+.Fn tls_config_set_session_lifetime
+sets the lifetime to be used for TLS sessions (server only).
+Session support is disabled if a lifetime of zero is specified, which is the
+default.
+.Pp
+.Fn tls_config_add_ticket_key
+adds a key used for the encryption and authentication of TLS tickets
+(server only).
+By default keys are generated and rotated automatically based on their lifetime.
+This function should only be used to synchronise ticket encryption key across
+multiple processes.
+Re-adding a known key will result in an error, unless it is the most recently
+added key.
+.Sh RETURN VALUES
+These functions return 0 on success or -1 on error.
+.Sh SEE ALSO
+.Xr tls_accept_socket 3 ,
+.Xr tls_config_set_protocols 3 ,
+.Xr tls_init 3 ,
+.Xr tls_load_file 3 ,
+.Xr tls_server 3
+.Sh HISTORY
+.Fn tls_config_set_session_id ,
+.Fn tls_config_set_session_lifetime
+and
+.Fn tls_config_add_ticket_key
+appeared in
+.Ox 6.1 .
+.Pp
+.Fn tls_config_set_session_fd
+appeared in
+.Ox 6.3 .
+.Sh AUTHORS
+.An Claudio Jeker Aq Mt claudio@openbsd.org
+.An Joel Sing Aq Mt jsing@openbsd.org

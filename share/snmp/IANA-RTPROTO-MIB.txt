@@ -1,0 +1,102 @@
+IANA-RTPROTO-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, mib-2           FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION               FROM SNMPv2-TC;
+
+ianaRtProtoMIB  MODULE-IDENTITY
+    LAST-UPDATED "201604250000Z" -- April 25, 2016
+    ORGANIZATION "IANA"
+    CONTACT-INFO
+            " Internet Assigned Numbers Authority
+              Internet Corporation for Assigned Names and Numbers
+              12025 Waterfront Drive, Suite 300
+              Los Angeles, CA 90094-2536
+
+              Phone: +1 310 301 5800
+              EMail: iana&iana.org"
+    DESCRIPTION
+            "This MIB module defines the IANAipRouteProtocol and
+            IANAipMRouteProtocol textual conventions for use in MIBs
+            which need to identify unicast or multicast routing
+            mechanisms.
+
+            Any additions or changes to the contents of this MIB module
+            require either publication of an RFC, or Designated Expert
+            Review as defined in RFC 2434, Guidelines for Writing an
+            IANA Considerations Section in RFCs.  The Designated Expert
+            will be selected by the IESG Area Director(s) of the Routing
+            Area."
+
+    REVISION     "201604250000Z"  -- April 25, 2016
+    DESCRIPTION  "Corrected typographical error in revision date."
+
+    REVISION     "201604060000Z"  -- April 6, 2016
+    DESCRIPTION  "Added ttdp(20)."
+
+    REVISION     "201208300000Z"  -- August 30, 2012
+    DESCRIPTION  "Added dhcp(19)."
+
+    REVISION     "201107220000Z"  -- July 22, 2011
+    DESCRIPTION  "Added rpl(18) ."
+
+    REVISION     "200009260000Z"  -- September 26, 2000
+    DESCRIPTION  "Original version, published in coordination
+                 with RFC 2932."
+    ::= { mib-2 84 }
+
+IANAipRouteProtocol ::= TEXTUAL-CONVENTION
+   STATUS      current
+   DESCRIPTION
+            "A mechanism for learning routes.  Inclusion of values for
+            routing protocols is not intended to imply that those
+            protocols need be supported."
+   SYNTAX      INTEGER {
+                other     (1),  -- not specified
+                local     (2),  -- local interface
+                netmgmt   (3),  -- static route
+                icmp      (4),  -- result of ICMP Redirect
+
+                        -- the following are all dynamic
+                        -- routing protocols
+
+                egp        (5),  -- Exterior Gateway Protocol
+                ggp        (6),  -- Gateway-Gateway Protocol
+                hello      (7),  -- FuzzBall HelloSpeak
+                rip        (8),  -- Berkeley RIP or RIP-II
+                isIs       (9),  -- Dual IS-IS
+                esIs       (10), -- ISO 9542
+                ciscoIgrp  (11), -- Cisco IGRP
+                bbnSpfIgp  (12), -- BBN SPF IGP
+                ospf       (13), -- Open Shortest Path First
+                bgp        (14), -- Border Gateway Protocol
+                idpr       (15), -- InterDomain Policy Routing
+                ciscoEigrp (16), -- Cisco EIGRP
+                dvmrp      (17), -- DVMRP
+                rpl        (18), -- RPL [RFC-ietf-roll-rpl-19]
+                dhcp       (19), -- DHCP [RFC2132]
+                ttdp       (20)  -- Train Topology Discovery Protocol (TTDP) [IEC 61375-2-5]
+               }
+
+IANAipMRouteProtocol ::= TEXTUAL-CONVENTION
+   STATUS      current
+   DESCRIPTION
+            "The multicast routing protocol.  Inclusion of values for
+            multicast routing protocols is not intended to imply that
+            those protocols need be supported."
+   SYNTAX      INTEGER {
+                   other(1),          -- none of the following
+                   local(2),          -- e.g., manually configured
+                   netmgmt(3),        -- set via net.mgmt protocol
+                   dvmrp(4),
+                   mospf(5),
+                   pimSparseDense(6), -- PIMv1, both DM and SM
+                   cbt(7),
+                   pimSparseMode(8),  -- PIM-SM
+                   pimDenseMode(9),   -- PIM-DM
+                   igmpOnly(10),
+                   bgmp(11),
+                   msdp(12)
+               }
+
+END

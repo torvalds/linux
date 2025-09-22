@@ -1,0 +1,19 @@
+static_library("AArch64") {
+  output_name = "LLVMBOLTTargetAArch64"
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [
+    "//bolt/lib/Core",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/AArch64/MCTargetDesc",
+  ]
+  sources = [ "AArch64MCPlusBuilder.cpp" ]
+
+  # This target reaches into the internal headers of LLVM's AArch64 library.
+  # That target doesn't expect that, so it doesn't use public_deps for
+  # tblgen-generated headers used only in internal headers (...which this
+  # target here questionably includes). So depend on the target that generates
+  # those headers here.
+  include_dirs = [ "//llvm/lib/Target/AArch64" ]
+  deps += [ "//llvm/lib/Target/AArch64/Utils" ]
+}

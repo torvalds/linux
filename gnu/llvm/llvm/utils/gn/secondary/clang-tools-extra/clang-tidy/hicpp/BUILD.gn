@@ -1,0 +1,29 @@
+static_library("hicpp") {
+  output_name = "clangTidyHICPPModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/bugprone",
+    "//clang-tools-extra/clang-tidy/cppcoreguidelines",
+    "//clang-tools-extra/clang-tidy/google",
+    "//clang-tools-extra/clang-tidy/misc",
+    "//clang-tools-extra/clang-tidy/modernize",
+    "//clang-tools-extra/clang-tidy/performance",
+    "//clang-tools-extra/clang-tidy/readability",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/Serialization",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "ExceptionBaseclassCheck.cpp",
+    "HICPPTidyModule.cpp",
+    "IgnoredRemoveResultCheck.cpp",
+    "MultiwayPathsCoveredCheck.cpp",
+    "NoAssemblerCheck.cpp",
+    "SignedBitwiseCheck.cpp",
+  ]
+}

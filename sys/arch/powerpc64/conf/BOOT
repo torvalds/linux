@@ -1,0 +1,71 @@
+# $OpenBSD: BOOT,v 1.10 2025/05/18 11:47:35 visa Exp $
+
+machine		powerpc64
+maxusers	4
+
+option		BOOT_KERNEL
+option		BOOT_QUIET
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		RAMDISK_HOOKS
+option		MINIROOTSIZE=16384
+
+option		FFS
+option		FFS2
+option		MSDOSFS
+option		INET6
+option		EXT2FS
+option		NFSCLIENT
+option		CRYPTO
+
+config		bsd	root on rd0a swap on rd0b
+
+mainbus0	at root
+cpu0		at mainbus?
+opal0		at fdt?
+opalcons*	at fdt?
+phb*		at fdt?
+pci*		at phb?
+xics*		at fdt?
+xicp*		at fdt?
+xive*		at fdt?
+
+ahci*		at pci?
+mpii*		at pci?
+nvme*		at pci?
+ppb*		at pci?
+pci*		at ppb?
+xhci*		at pci?
+usb*		at xhci?
+
+scsibus*	at scsi?
+sd*		at scsibus?
+st*		at scsibus?             # SCSI tape drives
+cd*		at scsibus?             # SCSI CD-ROM drives
+ch*		at scsibus?             # SCSI autochangers
+safte*		at scsibus?             # SCSI accessed fault-tolerant enclosures
+ses*		at scsibus?             # SCSI enclosure services
+uk*		at scsibus?             # unknown SCSI
+
+# USB devices
+uhub*		at usb?			# USB Hubs
+uhub*		at uhub?		# USB Hubs
+uhidev*		at uhub?		# Human Interface Devices
+uhid*		at uhidev?		# USB generic HID support
+ukbd*		at uhidev?		# USB keyboard
+wskbd*		at ukbd? mux 1
+ums*		at uhidev?		# USB mouse
+wsmouse* 	at ums? mux 0
+umass*		at uhub?		# USB Mass Storage devices
+
+pseudo-device	loop 1
+pseudo-device	vlan
+pseudo-device	trunk
+pseudo-device	bpfilter 1
+pseudo-device	rd 1
+pseudo-device	bio 1
+pseudo-device	kexec
+pseudo-device	wsmux 2

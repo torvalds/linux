@@ -1,0 +1,158 @@
+.\"	$OpenBSD: EVP_OpenInit.3,v 1.10 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_OPENINIT 3
+.Os
+.Sh NAME
+.Nm EVP_OpenInit ,
+.Nm EVP_OpenUpdate ,
+.Nm EVP_OpenFinal
+.Nd EVP envelope decryption
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_OpenInit
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "EVP_CIPHER *type"
+.Fa "unsigned char *ek"
+.Fa "int ekl"
+.Fa "unsigned char *iv"
+.Fa "EVP_PKEY *priv"
+.Fc
+.Ft int
+.Fo EVP_OpenUpdate
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *outl"
+.Fa "unsigned char *in"
+.Fa "int inl"
+.Fc
+.Ft int
+.Fo EVP_OpenFinal
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *outl"
+.Fc
+.Sh DESCRIPTION
+The EVP envelope routines are a high level interface to envelope
+decryption.
+They decrypt a public key encrypted symmetric key and then decrypt data
+using it.
+.Pp
+.Fn EVP_OpenInit
+initializes a cipher context
+.Fa ctx
+for decryption with cipher
+.Fa type .
+It decrypts the encrypted symmetric key of length
+.Fa ekl
+bytes passed in the
+.Fa ek
+parameter using the private key
+.Fa priv .
+The IV is supplied in the
+.Fa iv
+parameter.
+.Pp
+.Fn EVP_OpenUpdate
+and
+.Fn EVP_OpenFinal
+have exactly the same properties as the
+.Xr EVP_DecryptUpdate 3
+and
+.Xr EVP_DecryptFinal 3
+routines.
+.Pp
+It is possible to call
+.Fn EVP_OpenInit
+twice in the same way as
+.Xr EVP_DecryptInit 3 .
+The first call should have
+.Fa priv
+set to
+.Dv NULL
+and (after setting any cipher parameters) it should be
+called again with
+.Fa type
+set to
+.Dv NULL .
+.Pp
+If the cipher passed in the
+.Fa type
+parameter is a variable length cipher then the key length will be set to
+the value of the recovered key length.
+If the cipher is a fixed length cipher then the recovered key length
+must match the fixed cipher length.
+.Pp
+.Fn EVP_OpenUpdate
+is implemented as a macro.
+.Sh RETURN VALUES
+.Fn EVP_OpenInit
+returns 0 on error or a non-zero integer (actually the recovered secret
+key size) if successful.
+.Pp
+.Fn EVP_OpenUpdate
+returns 1 for success or 0 for failure.
+.Pp
+.Fn EVP_OpenFinal
+returns 0 if the decrypt failed or 1 for success.
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_EncryptInit 3 ,
+.Xr EVP_SealInit 3
+.Sh HISTORY
+.Fn EVP_OpenInit ,
+.Fn EVP_OpenUpdate ,
+and
+.Fn EVP_OpenFinal
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .

@@ -1,0 +1,21 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ProfileDataTests") {
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/ProfileData",
+    "//llvm/lib/ProfileData/Coverage",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "BPFunctionNodeTest.cpp",
+    "CoverageMappingTest.cpp",
+    "InstrProfDataTest.cpp",
+    "InstrProfTest.cpp",
+    "ItaniumManglingCanonicalizerTest.cpp",
+    "MemProfTest.cpp",
+    "PGOCtxProfReaderWriterTest.cpp",
+    "SampleProfTest.cpp",
+    "SymbolRemappingReaderTest.cpp",
+  ]
+}

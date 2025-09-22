@@ -1,0 +1,149 @@
+.\"	$OpenBSD: getfsstat.2,v 1.22 2022/07/30 07:19:30 jsg Exp $
+.\"	$NetBSD: getfsstat.2,v 1.6 1995/06/29 11:40:44 cgd Exp $
+.\"
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)getfsstat.2	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: July 30 2022 $
+.Dt GETFSSTAT 2
+.Os
+.Sh NAME
+.Nm getfsstat
+.Nd get list of all mounted file systems
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/mount.h
+.Ft int
+.Fn getfsstat "struct statfs *buf" "size_t bufsize" "int flags"
+.Sh DESCRIPTION
+.Fn getfsstat
+returns information about all mounted file systems.
+.Fa buf
+is a pointer to an array of
+.Xr statfs 2
+structures defined as follows:
+.Bd -literal
+typedef struct { int32_t val[2]; } fsid_t;
+
+#define MFSNAMELEN   16 /* length of fs type name, including nul */
+#define MNAMELEN     90	/* length of buffer for returned name */
+
+struct statfs {
+    u_int32_t  f_flags;	/* copy of mount flags */
+    u_int32_t  f_bsize;	/* file system block size */
+    u_int32_t  f_iosize;	/* optimal transfer block size */
+
+    				/* unit is f_bsize */
+    u_int64_t  f_blocks;	/* total data blocks in file system */
+    u_int64_t  f_bfree;	/* free blocks in fs */
+    int64_t    f_bavail;	/* free blocks avail to non-superuser */
+
+    u_int64_t  f_files;	/* total file nodes in file system */
+    u_int64_t  f_ffree;	/* free file nodes in fs */
+    int64_t    f_favail;	/* free file nodes avail to non-root */
+
+    u_int64_t  f_syncwrites;	/* count of sync writes since mount */
+    u_int64_t  f_syncreads;	/* count of sync reads since mount */
+    u_int64_t  f_asyncwrites;	/* count of async writes since mount */
+    u_int64_t  f_asyncreads;	/* count of async reads since mount */
+
+    fsid_t     f_fsid;		/* file system id */
+    u_int32_t  f_namemax;	/* maximum filename length */
+    uid_t      f_owner;	/* user that mounted the file system */
+    u_int64_t  f_ctime;	/* last mount [-u] time */
+
+    char f_fstypename[MFSNAMELEN];	/* fs type name */
+    char f_mntonname[MNAMELEN];	/* directory on which mounted */
+    char f_mntfromname[MNAMELEN];	/* mounted file system */
+    char f_mntfromspec[MNAMELEN];	/* special for mount request */
+    union mount_info mount_info;	/* per-filesystem mount options */
+};
+.Ed
+.Pp
+The buffer is filled with an array of
+.Fa statfs
+structures, one for each mounted file system
+up to the size specified by
+.Fa bufsize .
+.Pp
+If
+.Fa buf
+is
+.Dv NULL ,
+.Fn getfsstat
+returns just the number of mounted file systems.
+.Pp
+Normally
+.Fa flags
+should be specified as
+.Dv MNT_WAIT .
+If
+.Fa flags
+is set to
+.Dv MNT_NOWAIT ,
+.Fn getfsstat
+will return the information it has available without requesting
+an update from each file system.
+Thus, some of the information will be out of date, but
+.Fn getfsstat
+will not block waiting for information from a file system that is
+unable to respond.
+If no flags are provided,
+.Dv MNT_WAIT
+is assumed.
+.Pp
+Note that
+.Fa f_fsid
+will be empty unless the user is the superuser.
+.Sh RETURN VALUES
+Upon successful completion, the number of
+.Fa statfs
+structures is returned.
+Otherwise, \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn getfsstat
+fails if one or more of the following are true:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+.Fa buf
+points to an invalid address.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.El
+.Sh SEE ALSO
+.Xr statfs 2 ,
+.Xr fstab 5 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Fn getfsstat
+function first appeared in
+.Bx 4.3 Reno .

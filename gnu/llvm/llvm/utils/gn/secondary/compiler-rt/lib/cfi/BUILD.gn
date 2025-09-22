@@ -1,0 +1,12 @@
+import("//clang/resource_dir.gni")
+
+source_set("sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  sources = [ "cfi.cpp" ]
+}
+
+copy("ignorelist") {
+  sources = [ "cfi_ignorelist.txt" ]
+  outputs = [ "$clang_resource_dir/share/{{source_target_relative}}" ]
+}

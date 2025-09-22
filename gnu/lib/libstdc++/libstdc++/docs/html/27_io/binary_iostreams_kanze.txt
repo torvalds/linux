@@ -1,0 +1,51 @@
+
+From: James Kanze <kanze@gabi-soft.de>
+Newsgroups: comp.lang.c++.moderated
+Subject: Re: binary iostreams ?
+Date: 3 Feb 2001 14:28:19 -0500
+Message-ID: <86lmro86qp.fsf@alex.gabi-soft.de>
+
+"Plinio Conti" <plinio.contiNO@SPAMMINGmclink.it> writes:
+
+|>  Why std c++ library stream classes are only text-oriented?
+
+Because that is the only universally recognized format.
+
+|>  I mean, if I want to write an int, a float, etc. AS IT IS I can't
+|>  use streams, because they write and read a human readable text
+|>  format of numbers.
+
+Correct.
+
+|>  Does anyone know how to solve the problem?
+
+It depends on what you really want to do.  If you are just dumping a
+block of memory to disk, in order to free up memory, and will reread it
+later in the same run of the same program, ostream::write and
+istream::read are what you need.  Note, however, that this ony works 1)
+in the same run of the same program, and 2) for PODs without pointers.
+
+If you are writing something that will be read by another program, or a
+later run of the same program, you'll have to define a specific format
+to use, and implement streams to input and output that.  If you are
+writing something that will be read by an existing program, or be
+transmitted over a network to another machine, you will have to find out
+what protocol is expected, and adher to it.
+
+|>  Any public library?
+
+Not that I know of.  I think that there is a library somewhere that
+outputs in format RPC, or maybe some Internet format.
+
+|>  What do you think about this choice?
+
+What other choice is possible?  It's not reasonable to ask the standard
+to support all binary formats, and it's not reasonable for it to favor
+any one of them.  Given that, what else can you do.
+
+--
+James Kanze                               mailto:kanze@gabi-soft.de
+Conseils en informatique orientée objet/
+                   Beratung in objektorientierter Datenverarbeitung
+Ziegelhüttenweg 17a, 60598 Frankfurt, Germany Tel. +49(069)63198627
+

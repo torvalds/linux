@@ -1,0 +1,251 @@
+.\"	$OpenBSD: tcp.4,v 1.28 2024/12/01 08:11:14 pascal Exp $
+.\"	$NetBSD: tcp.4,v 1.3 1994/11/30 16:22:35 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)tcp.4	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: December 1 2024 $
+.Dt TCP 4
+.Os
+.Sh NAME
+.Nm tcp
+.Nd Internet Transmission Control Protocol
+.Sh SYNOPSIS
+.In sys/socket.h
+.In netinet/in.h
+.In netinet/tcp.h
+.Ft int
+.Fn socket AF_INET SOCK_STREAM 0
+.Ft int
+.Fn socket AF_INET6 SOCK_STREAM 0
+.Sh DESCRIPTION
+The
+.Tn TCP
+protocol provides a reliable, flow-controlled, two-way
+transmission of data.
+It is a byte-stream protocol used to support the
+.Dv SOCK_STREAM
+abstraction.
+TCP uses the standard
+Internet address format and, in addition, provides a per-host
+collection of
+.Dq port addresses .
+Thus, each address is composed
+of an Internet address specifying the host and network, with
+a specific
+.Tn TCP
+port on the host identifying the peer entity.
+.Pp
+Sockets utilizing the TCP protocol are either
+.Dq active
+or
+.Dq passive .
+Active sockets initiate connections to passive
+sockets.
+By default
+.Tn TCP
+sockets are created active; to create a
+passive socket the
+.Xr listen 2
+system call must be used
+after binding the socket with the
+.Xr bind 2
+system call.
+Only passive sockets may use the
+.Xr accept 2
+call to accept incoming connections.
+Only active sockets may use the
+.Xr connect 2
+call to initiate connections.
+.Pp
+Passive sockets may
+.Dq underspecify
+their location to match
+incoming connection requests from multiple networks.
+This technique, termed
+.Dq wildcard addressing ,
+allows a single
+server to provide service to clients on multiple networks.
+To create a socket which listens on all networks, the Internet
+address
+.Dv INADDR_ANY
+must be bound.
+The
+.Tn TCP
+port may still be specified
+at this time; if the port is not specified the system will assign one.
+Once a connection has been established, the socket's address is
+fixed by the peer entity's location.
+The address assigned to the socket is the address associated with
+the network interface through which packets are being transmitted
+and received.
+Normally this address corresponds to the peer entity's network.
+.Pp
+.Tn TCP
+supports several socket options which are set with
+.Xr setsockopt 2
+and tested with
+.Xr getsockopt 2 .
+.Bl -ohang
+.It Cd TCP_INFO
+Retrieve information about a socket's underlying TCP session.
+.Dv TCP_INFO
+is only used with
+.Fn getsockopt .
+The argument is a pointer to an instance of
+.Vt "struct tcp_info"
+(from
+.In netinet/tcp.h ) .
+.It Cd TCP_NODELAY
+Under most circumstances,
+.Tn TCP
+sends data when it is presented;
+when outstanding data has not yet been acknowledged, it gathers
+small amounts of output to be sent in a single packet once
+an acknowledgement is received.
+For a small number of clients, such as window systems
+that send a stream of mouse events which receive no replies,
+this packetization may cause significant delays.
+Therefore,
+.Tn TCP
+provides a boolean option,
+.Dv TCP_NODELAY
+(from
+.In netinet/tcp.h ) ,
+to defeat this algorithm.
+.It Cd TCP_NOPUSH
+By convention, the
+.Tn TCP
+sender will set the
+.Dq push
+bit and begin transmission immediately (if permitted) at the
+end of every user call to
+.Xr write 2
+or
+.Xr writev 2 .
+When this option is set to a non-zero value,
+.Tn TCP
+will delay sending any data at all until either the socket
+is closed, the internal send buffer is filled, or this option
+is set to a zero value.
+.It Cd TCP_MAXSEG
+Set the maximum segment size for this connection.
+The maximum segment size can only be lowered.
+.It Cd TCP_SACK_ENABLE
+Use selective acknowledgements for this connection.
+Additional information about
+segments already received can be transmitted back to the sender,
+thus indicating segments that have been lost and allowing for
+a swifter recovery.
+Both communication endpoints need to support
+.Em SACK .
+The fallback behaviour is NewReno fast recovery phase, which allows
+one lost segment to be recovered per round trip time.
+When more than one segment has been dropped per window, the transmission can
+continue without waiting for a retransmission timeout.
+.It Cd TCP_MD5SIG
+Use TCP MD5 signatures per RFC 2385.
+This requires
+.Em Security Associations
+to be set up, which can be done using
+.Xr ipsecctl 8 .
+When a listening socket has
+.Em TCP_MD5SIG
+set, it accepts connections with MD5 signatures only from sources for which a
+.Em Security Association
+is set up.
+Connections without MD5 signatures are only accepted from sources for which no
+.Em Security Association
+is set up.
+The connected socket only has
+.Em TCP_MD5SIG
+set if the connection is protected with MD5 signatures.
+.El
+.Pp
+The option level for the
+.Xr setsockopt 2
+call is the protocol number for
+.Tn TCP ,
+available from
+.Xr getprotobyname 3 .
+.Pp
+Options at the
+.Tn IP
+transport level may be used with
+.Tn TCP ;
+see
+.Xr ip 4
+or
+.Xr ip6 4 .
+Incoming connection requests that are source-routed are noted,
+and the reverse source route is used in responding.
+.Sh DIAGNOSTICS
+A socket operation may fail with one of the following errors returned:
+.Bl -tag -width [EADDRNOTAVAIL]
+.It Bq Er EISCONN
+when trying to establish a connection on a socket which
+already has one;
+.It Bq Er ENOBUFS
+when the system runs out of memory for
+an internal data structure;
+.It Bq Er ETIMEDOUT
+when a connection was dropped
+due to excessive retransmissions;
+.It Bq Er ECONNRESET
+when the remote peer
+forces the connection to be closed;
+.It Bq Er ECONNREFUSED
+when the remote
+peer actively refuses connection establishment (usually because
+no process is listening to the port);
+.It Bq Er EADDRINUSE
+when an attempt
+is made to create a socket with a port which has already been
+allocated;
+.It Bq Er EADDRNOTAVAIL
+when an attempt is made to create a
+socket with a network address for which no network interface
+exists.
+.El
+.Sh SEE ALSO
+.Xr tcpbench 1 ,
+.Xr getsockopt 2 ,
+.Xr socket 2 ,
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr ip 4 ,
+.Xr ip6 4 ,
+.Xr netintro 4 ,
+.Xr ipsecctl 8 ,
+.Xr tcpdrop 8
+.Sh HISTORY
+The
+.Nm
+protocol stack appeared in
+.Bx 4.2 .

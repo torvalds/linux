@@ -1,0 +1,24 @@
+prefix 2a01:c00::/26 source-as 6805
+prefix 2a01:c500::/28 source-as 12479 maxlen 46
+prefix 2a01:c500::/31 source-as 12479 maxlen 42
+prefix 2a01:c910::/29 source-as 3215 maxlen 48
+prefix 2a01:ce80::/26 source-as 51964 maxlen 48
+prefix 2a01:cf00::/40 source-as 20603 maxlen 48
+prefix 2a01:cf00::/42 source-as 2278 maxlen 48
+prefix 2a01:cf00:f::/48 source-as 2278
+prefix 2a01:e00::/26 source-as 12322 maxlen 32
+prefix 2a01:e00::/32 source-as 12322
+prefix 2a01:e01::/32 source-as 12322
+prefix 2a01:e02::/32 source-as 12322
+prefix 2a01:e0a::/38 source-as 12322
+prefix 80.128.0.0/11 source-as 0 maxlen 11
+prefix 80.128.0.0/11 source-as 3320
+prefix 80.128.0.0/12 source-as 3320
+prefix 80.144.0.0/13 source-as 3320
+prefix 80.152.0.0/14 source-as 3320
+prefix 80.156.0.0/16 source-as 3320
+prefix 80.157.0.0/16 source-as 3320
+prefix 80.157.16.0/20 source-as 3320
+prefix 80.157.8.0/21 source-as 3320
+prefix 80.158.0.0/17 source-as 34086 maxlen 21
+prefix 80.159.224.0/19 source-as 2792 maxlen 24

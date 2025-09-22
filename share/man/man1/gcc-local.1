@@ -1,0 +1,419 @@
+.\" $OpenBSD: gcc-local.1,v 1.57 2023/10/29 23:31:16 millert Exp $
+.\"
+.\" Copyright (c) 2002 Marc Espie
+.\" Copyright (c) 2003 Anil Madhavapeddy
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 29 2023 $
+.Dt GCC-LOCAL 1
+.Os
+.Sh NAME
+.Nm gcc-local
+.Nd local modifications to gcc
+.Sh DESCRIPTION
+.Ox
+uses derivatives of
+.Xr gcc 1
+versions 3.3.6 or 4.2.1,
+depending on machine architecture.
+In all cases,
+the software comes with specific modifications for
+.Ox :
+.Bl -dash
+.It
+For the C programming language,
+.Nm gcc
+defaults to the
+.Em gnu99
+standard,
+not
+.Em gnu89 .
+The
+.Fl std
+option can be used to select a different language standard.
+.It
+.Nm gcc
+does not search under
+.Pa /usr/local
+for include files nor for libraries:
+as a system compiler, it only searches the system paths by default.
+.It
+On all architectures where the stack is non-executable,
+trampoline code marks the smallest possible area around the trampoline stub
+executable using
+.Xr mprotect 2 .
+.It
+Trampoline code generation is disabled by default.
+Code requiring trampolines will not compile without
+.Fl ftrampolines .
+The warning flag
+.Fl Wtrampolines
+can be used to locate trampoline instances if trampoline generation
+is re-enabled.
+.It
+The
+.Fl O2
+option does not include
+.Fl fstrict-aliasing ,
+as this option causes issues on some legacy code.
+.Fl fstrict-aliasing
+is very unsafe with code that plays tricks with casts, bypassing the
+already weak type system of C.
+.It
+The
+.Fl O2
+option does not include
+.Fl fstrict-overflow ,
+as this option causes issues on some legacy code.
+.Fl fstrict-overflow
+can cause surprising optimizations to occur, possibly deleting security
+critical overflow checks.
+.It
+The
+.Fl O2
+option does not include the
+.Fl ftree-vrp
+optimization as it is known to be broken in
+.Nm gcc 4.2.1 .
+.It
+.Nm gcc
+recognizes the extra format attribute syslog, to better match
+the definition of
+.Xr syslog 3 ,
+and silence erroneous warnings when used with
+.Fl pedantic .
+.It
+.Nm gcc
+recognizes the attribute
+.Cm __nonnull__ ,
+which can be used to mark arguments that can't be
+.Dv NULL .
+The printf format attribute does not imply
+.Cm __nonnull__
+for the format.
+This allows for correct format checking on the
+.Xr err 3
+function family.
+.It
+.Nm gcc
+recognizes the extra attribute
+.Cm __sentinel__ ,
+which can be used to mark varargs function that need a
+.Dv NULL
+pointer to mark argument termination, like
+.Xr execl 3 .
+This exposes latent bugs for 64-bit architectures,
+where a terminating 0 will expand to a 32-bit int, and not a full-fledged
+64-bits pointer.
+.It
+On alpha,
+.Fl mieee
+is enabled by default to enable full compliance with
+the IEEE floating point standard,
+although the
+.Dq inexact
+flag is not maintained.
+Additionally, rounding mode is dynamic.
+.It
+.Nm gcc
+comes with the
+.Dq ProPolice
+stack protection extension, which is enabled by default.
+This extension reorders local variable declarations and adds stack consistency
+checks at runtime, in order to detect stack overflows, and will attempt to
+report the problem in the system logs by calling
+.Xr syslog 3
+with a
+.Dv LOG_CRIT
+priority message:
+.Dq stack overflow in function XXX ,
+and abort the faulting process.
+It can be turned off using the
+.Fl fno-stack-protector
+command line option.
+Note that the stack protector relies on some support code in libc.
+Stand-alone programs not linked against libc must either provide their own
+support bits or use the
+.Fl fno-stack-protector
+option.
+.Pp
+There is a
+.Fl fstack-protector-all
+option that turns stack protection code on for all functions
+and disables any heuristic that flags some functions as safe.
+This extended checking has a moderate runtime cost though.
+There is a
+.Fl fstack-protector-strong
+option, similar to
+.Fl fstack-protector ,
+which includes additional functions to be protected \(em those that
+have local array definitions
+or have references to local frame addresses.
+.It
+On amd64,
+.Fl msave-args
+can be passed to the compiler to have functions save their register
+arguments on the stack, while maintaining compatibility with the
+System 5 AMD64 ABI.
+This enables tools and debuggers that understand this semantic to
+trivially generate stack traces that include function arguments.
+.It
+On the alpha, amd64, arm, hppa, i386, mips64, powerpc, sh and sparc64
+architectures,
+.Nm gcc
+generates position-independent executables
+.Pq PIEs
+by default, allowing the system to load the resulting binary
+at a random location.
+This behavior can be turned off by passing
+.Fl fno-pie
+to the compiler and
+.Fl nopie
+to the linker.
+.It
+.Nm gcc
+recognizes a new flag which is enabled by default,
+.Fl Wbounded ,
+to perform basic checks on functions which accept buffers and sizes.
+An extra attribute,
+.Cm __bounded__ ,
+has been added to mark functions that can be
+checked this way.
+.It
+.Nm gcc
+recognizes a new format attribute, kprintf, to deal with the extra format
+arguments
+.Ql %b ,
+.Ql %r ,
+and
+.Ql %z
+used in the
+.Ox
+kernel.
+.It
+.Nm gcc
+does not store its version string in objects.
+This behavior can be restored with
+.Fl fident .
+.It
+The option
+.Fl fstack-shuffle
+will randomize the order of stack variables at compile time with
+.Nm gcc 4.2.1 ,
+which can be helpful to find bugs.
+This option is silently ignored by
+.Nm gcc 3.3.6 .
+.It
+.Nm gcc
+will not move variables initialized with the value zero
+from the data section to the bss section.
+The default behaviour of
+.Nm gcc 3.3.6
+and
+.Nm gcc 4.2.1
+on other systems is to perform this action, which can be restored for
+.Ox
+with
+.Fl fzero-initialized-in-bss .
+.It
+.Nm gcc
+does not warn for cast expressions used as lvalues outside of
+.Fl pedantic .
+.It
+.Nm gcc 4.2.1
+does not warn for passing pointer arguments or assignment with
+different signedness outside of
+.Fl pedantic .
+This can be
+re-enabled with the
+.Fl Wpointer-sign
+flag.
+.It
+.Nm gcc
+recognizes the preprocessor flag
+.Fl CC
+that lets comments in macros pass through to the output (except in
+.Fl traditional
+mode).
+.It
+The warning option
+.Fl Wsystem-headers ,
+which makes
+.Nm gcc
+report warnings in systems headers,
+is enabled by default.
+.It
+.Nm gcc
+supports two extra warning options:
+.Bl -item
+.It
+.Fl Wframe-larger-than= Ns Va N
+.Po
+and its non-portable alias
+.Fl Wstack-larger-than- Ns Va N
+.Pc
+will report functions using more than
+.Va N
+bytes of stack space for their local variables.
+Stack space used for other purposes (such as register window saving,
+callee-saved registers, or outbound arguments storage)
+is not taken into account for this check.
+.It
+.Fl Wvariable-decl
+will report automatic variable declarations whose size cannot be
+determined at compile-time.
+.El
+.It
+.Nm gcc 4.2.1
+and
+.Nm gcc 3.3.6
+have backported support for the GCC binary integer constants extension,
+which was first introduced in
+.Nm gcc 4.3 .
+.It
+The behavior of
+.Fl Wshadow
+in
+.Nm gcc 4.2.1
+has been altered to behave similarly to
+.Nm gcc 4.8
+and not warn about variables or parameters that shadow a global
+function unless the variable or parameter is of type pointer-to-function.
+.El
+.Sh ATTRIBUTES
+The
+.Cm __bounded__
+attribute is used to type-check functions whose parameters pass fixed-length
+buffers and their sizes.
+The syntax for normal buffers is:
+.Pp
+.Ic __attribute__ Ns Po Po
+.Cm __bounded__ Ns Pq Cm __buffer__ , Va buffer , length
+.Pc Pc
+.Pp
+where
+.Fa buffer
+contains the parameter number (starting from 1) of the pointer to the buffer,
+and
+.Fa length
+contains the parameter number of the buffer length argument.
+.Pp
+.Nm gcc
+will emit a warning if the length argument is a constant larger than the
+actual size of the buffer.
+If the buffer is not a statically declared array of fixed length, no warnings
+will be generated.
+Refer to
+.Xr memcpy 3
+for an example of a function with this check.
+.Pp
+For checking strings, just use
+.Cm __string__
+instead of
+.Cm __buffer__ :
+.Pp
+.Ic __attribute__ Ns Po Po
+.Cm __bounded__ Ns Pq Cm __string__ , Va buffer , length
+.Pc Pc
+.Pp
+In addition to the checks described above, this also tests if the
+.Va length
+argument was wrongly derived from a
+.Fn sizeof "void *"
+operation.
+.Xr strlcpy 3
+is a good example of a string function with this check.
+.Pp
+If a function needs string checking like
+.Cm __string__
+but operates on element counts rather than buffer sizes, use
+.Cm __wcstring__ :
+.Pp
+.Ic __attribute__ Ns Po Po
+.Cm __bounded__ Ns Pq Cm __wcstring__ , Va buffer , count
+.Pc Pc
+.Pp
+An example of a string function with this check is
+.Xr wcslcpy 3 .
+.Pp
+Some functions specify the length as two arguments:
+the number of elements and the size of each element.
+In this case, use the
+.Cm __size__
+attribute:
+.Pp
+.Ic __attribute__ Ns Po Po
+.Cm __bounded__ Ns Pq Cm __size__ , Va buffer , nmemb , size
+.Pc Pc
+.Pp
+where
+.Va buffer
+contains the parameter number of the pointer to the buffer,
+.Va nmemb
+contains the parameter number of the number of members, and
+.Va size
+has the parameter number of the size of each element.
+The type checks performed by
+.Cm __size__
+are the same as the
+.Cm __buffer__
+attribute.
+See
+.Xr fread 3
+for an example of this type of function.
+.Pp
+If a function accepts a buffer parameter and specifies that it has to be of a
+minimum length, the __minbytes__ attribute can be used:
+.Pp
+.Ic __attribute__ Ns Po Po
+.Cm __bounded__ Ns Pq Cm __minbytes__ , Va buffer , minsize
+.Pc Pc
+.Pp
+where
+.Va buffer
+contains the parameter number of the pointer to the buffer, and
+.Va minsize
+specifies the minimum number of bytes that the buffer should be.
+.Xr ctime_r 3
+is an example of this type of function.
+.Pp
+If
+.Fl Wbounded
+is specified with
+.Fl Wformat ,
+additional checks are performed on
+.Xr sscanf 3
+format strings.
+The
+.Ql %s
+fields are checked for incorrect bound lengths by checking the size of the
+buffer associated with the format argument.
+.Sh SEE ALSO
+.Xr gcc 1
+.Sh CAVEATS
+The
+.Fl Wbounded
+flag only works with statically allocated fixed-size buffers.
+Since it is applied at compile-time, dynamically allocated memory buffers
+and non-constant arguments are ignored.

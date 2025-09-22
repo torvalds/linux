@@ -1,0 +1,210 @@
+In this file a quick overview of all the modifications that have been made for
+zone verification.
+
+
+Configuring the verifier
+========================
+
+Configure (nsd.conf) options were added. In the new "verify:" clause:
+	enable:
+	port:
+	ip-address:
+	verify-zones:
+	verifier:
+	verifier-count,
+	verifier-feed-zone,
+    and verifier-timeout.
+
+And for the "zone:" and "pattern:" clauses:
+	verify-zone,
+	verifier,
+	verifier-feed-zone,
+    and verifier-timeout.
+
+To parse the syntax for those options, configlexer.lex and configparser.y are
+modified. To hold those configuration values, the structs nsd_options and
+pattern_options in the file options.h are extended.
+
+The type of pattern_options::verifier, char**, is in the vector of arguments
+form that can be used by the execve family of executing functions. The helper
+type "struct component" is defined to help parsing a command with arguments.
+A zone_verifier is a list of STRING tokens. A stack of component is
+constructed from those strings, that eventually is converted to an argument
+in configparser.y.
+
+
+Difffile modifications
+======================
+
+It is possible that during a reload updates for multiple different zones are
+read. If some should be loaded (because they verified or didn't need to be
+verified) and some not, we have a problem because the database is updated
+with all the updates (also the bad ones) and we cannot easily selectively
+undo only the bad updates.
+
+In order to break this situation the committed field of each transfer is
+utilized. Initially it will be assigned the value DIFF_NOT_COMMITTED (0).
+When an update is verified this will be modified to DIFF_COMMITTED (1),
+DIFF_CORRUPT (2) or DIFF_INCONSISTENT (4) depending on whether the update
+was applied and verified successfully. When a reload resulted in one or
+more zones being corrupt or inconsistent, the newly forked server will quit
+with exit status NSD_RELOAD_FAILED and the parent server will initiate a new
+reload. Then it is clear which updates should be merged with the database (the
+updates which committed field is neither DIFF_CORRUPT or DIFF_INCONSISTENT).
+
+	Handling of the NSD_RELOAD_FAILED exit status of a child reload server
+	is in server_main (server.c)
+
+To allow updates to be applied again on failure, xfrd has been updated to keep
+all updates for each zone around until a reload succeeds. The set of updates
+is fixed once a reload has been initiated to avoid a potentially infinite
+loop. During the update window, xfrd will accept and transfer updates, but
+does not schedule them until the reload finishes. As a result, xfrd manages
+the updates stored on disk rather than the server, which previously just
+removed each update during the reload process regardless of the result.
+Potentially resulting in the same transfer being tried mutiple times if the
+set of updates contained a bad update.
+
+
+Running verifiers
+=================
+
+In server_reload (in server.c) the function server_verify is called just after
+all updates are merged into the (in memory) database, but just before the new
+database will be served. server_verify sets up a temporary event loop, calls
+verify_zone repeatedly to run the verifiers and mark each updated zone.
+server_reload then inspects the update status for each zone and communicates
+the number of good and bad zones in the update. server_reload then decides how
+to continue based on the number of good and bad zones as described above.
+
+verify_zone is defined in verify.c (and .h). The function creates the
+necessary pipes, starts the verifier and then sets up the required events and
+registers them with the event loop.
+
+The state for each verifier is maintained an array of struct verifier. The
+size of the array is "verifier-count:" big. Each verifier that runs
+simultaneously is assigned a slot. When no free slots are available it waits
+until a running verifier is finished (or timed out) and a free slot is
+available for a potential next verifier to run simultaneously with the already
+running verifiers. The default setting is to run just one verifier at once,
+which will probably be fine in most situations.
+
+Once all verifiers are finised (or timed out), the event loop is exited and
+server_reload communicates the status for each updated zone.
+
+
+Environment variables for the verifiers
+=======================================
+
+Verifiers are informed on how a zone can be verified through environment
+variables. The information on which addresses and ports a verifier may query a
+zone to be assessed is available and set on startup just after reading the
+configuration and setting up the sockets in nsd.c by calling
+setup_verifier_environment (also in nsd.c).
+
+Verifiers are spawned (via verify_zone) with popen3. verify_zone sets the zone
+specific environment variables (VERIFY_ZONE and VERIFY_ZONE_ON_STDIN) just
+before it executes the verifier with execvp. Server sockets are automatically
+closed when the verifier is executed.
+
+
+Logging a verifiers standard output and error streams
+=====================================================
+
+Everything a verifier outputs to stdin and stderr is logged in the nsd log
+file.  Handler with handle_log_from_fd (verify.c) as a callback are setup by
+server_verifiers_add. The log_from_fd_t struct is the user_data for the handler
+and contains besides the priority and the file descriptor, variables that are
+used by handle_log_from_fd to make sure logged lines will never exceed
+LOGLINELEN in length and will be split into parts if necessary.
+
+Note that in practice error messages are always logged before messages on the
+standard output, because stdout is buffered and stderr is not. Maybe it is more
+convenient to set stdout to unbuffered too.
+
+
+Feeding a zone to a verifier
+============================
+
+The complete zone may be fed to the standard input of a verifier when the
+"verifier-feed-zone:" configuration option has value "yes" (the default). For
+this purpose a verify_handle_feed (verify.c) handler is called when the
+standard input file descriptor of the verifier is writeable. The function
+utilizes the zone_rr_iter_next (verify.c) function to get the next rr to
+write to the verifier. The verifier_zone_feed struct is used to maintain state
+(the file handle, the rr pretty printing state and the zone iterator).
+
+
+Serving a zone to a verifier
+============================
+
+The nsd struct (in nsd.h) is extended with two arrays of nsd_socket structs:
+verify_tcp and verify_udp and an verify_ifs size_t which holds the number of
+sockets for verifying. This reflects the tcp, udp and ifs members that are used
+for normal serving. Several parts in the code that operate on the tcp and udp
+arrays is simply reused with the verify_tcp and verify_udp arrays.
+
+Furthermore, in places in server.c were before the server_close_all_sockets
+(server.c) function was used with the normal server sockets, the function is
+called subsequently for the verify sockets. Also in server_start_xfrd the
+sockets for verifiers are closed in the xfrd child process, because it has no
+need for them.
+
+
+Verifier timeouts
+=================
+
+A handler for timeouts (as configured with the "verifier-timeout:" option) is
+added by server_verifiers_add at verifier initialization time. The callback is
+handle_verifier_timeout (verify.c) and the verifier_state_type for the verifier
+is used as user_data.
+
+verify_handle_timeout simply kills the verifier (by sending SIGTERM) and does
+not cleanup the verifier state for reuse. This is done in verify_handle_exit,
+which is triggered once the verifier exits, because it can handle and start
+more verifiers simultaneously.
+
+
+Aborting the reload process (and killing all running verifiers)
+===============================================================
+
+A reload might (especially with a verifier) take some time. A parent server
+process could in this time be asked to quit. If that happens and it has a child
+reload server process, it sends the NSD_QUIT command over the communication
+channel. verify_handle_command, which is registered when the temporary event
+loop is created, is triggered and sends a SIGTERM signal to each of the
+verifiers.
+
+
+Refreshing and expiring zones
+=============================
+
+When the SOA-Refresh timer runs out, a fresh zone is tried to be fetched from
+the master server. If that fails, each SOA-Retry time will be tried again. To
+prevent a bad zone from being verified again and again, xfrd remembers the
+last serial number of the zone that didn't verify. It will not try to transfer
+a zone with the bad serial number again.
+
+Before afer reloading, the reload process informed xfrd which SOA's were
+merged in the database, so that xfrd knew when zone needed to be refreshed.
+This is adapted to inform xfrd about bad zones. The function
+inform_xfrd_new_soas is called for this in server.c. It communicated either
+good or bad soas. When bad soas are communicated a session starts with
+NSD_BAD_SOA_BEGIN. For only good zones it starts with NSD_SOA_BEGIN. Each soa
+is preceded by a NSD_SOA_INFO. When all soas are communicated, NSD_SOA_END is
+send. Reception of these messages by xfrd is handled by function
+xfrd_handle_ipc_read in ipc.c. In the xfrd_state struct (in xfrd.h), the
+boolean parent_bad_soa_infos is added to help with this control flow in ipc.
+
+The soas are eventually processed by xfrd, via xfrd_handle_ipc_SOAINFO in
+ipc.c, with the xfrd_handle_incoming_soa function in xfrd.c.  The function
+make sure that if a bad soa was received it is remembered in the xfrd_zone
+struct. Two new variables are added for the purpose to this struct: soa_bad
+and soa_bad_acquired.  The values are stored and read to the xfrd.state file
+with the functions xfrd_write_state_soa and xfrd_read_state respectively.
+
+In xfrd.c function xfrd_parse_received_xfr_packet is adapted to make sure that
+known bad serials are not transfered again unless the transfer is in a
+response to a notify. And even then only when the SOA matches the one in the
+notify (if it contained one, otherwise any SOA is good).
+

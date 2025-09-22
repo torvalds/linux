@@ -1,0 +1,13 @@
+import("//clang/resource_dir.gni")
+import("//llvm/triples.gni")
+
+declare_args() {
+  # Use target triple as the name of the runtimes directory.
+  clang_enable_per_target_runtime_dir = false
+}
+
+if (clang_enable_per_target_runtime_dir) {
+  runtimes_dir = "$clang_resource_dir/lib/$llvm_target_triple"
+} else {
+  runtimes_dir = "$root_build_dir/lib"
+}

@@ -1,0 +1,444 @@
+.\"	$OpenBSD: stat.2,v 1.49 2021/11/21 23:44:55 jan Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)stat.2	8.3 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: November 21 2021 $
+.Dt STAT 2
+.Os
+.Sh NAME
+.Nm stat ,
+.Nm lstat ,
+.Nm fstatat ,
+.Nm fstat ,
+.Nm S_ISBLK ,
+.Nm S_ISCHR ,
+.Nm S_ISDIR ,
+.Nm S_ISFIFO ,
+.Nm S_ISLNK ,
+.Nm S_ISREG ,
+.Nm S_ISSOCK
+.Nd get file status
+.Sh SYNOPSIS
+.In sys/stat.h
+.Ft int
+.Fn stat "const char *path" "struct stat *sb"
+.Ft int
+.Fn lstat "const char *path" "struct stat *sb"
+.Ft int
+.Fn fstat "int fd" "struct stat *sb"
+.In sys/stat.h
+.In fcntl.h
+.Ft int
+.Fn fstatat "int fd" "const char *path" "struct stat *sb" "int flag"
+.Sh DESCRIPTION
+The
+.Fn stat
+function obtains information about the file pointed to by
+.Fa path .
+Read, write, or execute
+permission of the named file is not required, but all directories
+listed in the pathname leading to the file must be searchable.
+.Pp
+The
+.Fn lstat
+function is identical to
+.Fn stat
+except when the named file is a symbolic link,
+in which case
+.Fn lstat
+returns information about the link itself, not the file the link references.
+.Pp
+The
+.Fn fstatat
+function is equivalent to either the
+.Fn stat
+or
+.Fn lstat
+function depending on the value of
+.Fa flag
+(see below), except that where
+.Fa path
+specifies a relative path,
+the file whose information is returned is determined relative to
+the directory associated with file descriptor
+.Fa fd
+instead of the current working directory.
+.Pp
+If
+.Fn fstatat
+is passed the special value
+.Dv AT_FDCWD
+(defined in
+.In fcntl.h )
+in the
+.Fa fd
+parameter, the current working directory is used
+and the behavior is identical to a call to
+.Fn stat
+or
+.Fn lstat ,
+depending on whether or not the
+.Dv AT_SYMLINK_NOFOLLOW
+bit is set in
+.Fa flag .
+.Pp
+The
+.Fa flag
+argument is the bitwise OR of zero or more of the following values:
+.Pp
+.Bl -tag -width AT_SYMLINK_NOFOLLOW -offset indent -compact
+.It Dv AT_SYMLINK_NOFOLLOW
+If
+.Fa path
+names a symbolic link, then the status of the symbolic link is returned.
+.El
+.Pp
+The
+.Fn fstat
+function obtains the same information about an open file
+known by the file descriptor
+.Fa fd .
+.Pp
+The
+.Fa sb
+argument is a pointer to a
+.Vt stat
+structure
+as defined by
+.In sys/stat.h
+(shown below)
+and into which information is placed concerning the file.
+.Bd -literal
+struct stat {
+    dev_t	    st_dev;	/* inode's device */
+    ino_t	    st_ino;	/* inode's number */
+    mode_t	    st_mode;	/* inode protection mode */
+    nlink_t	    st_nlink;	/* number of hard links */
+    uid_t	    st_uid;	/* user ID of the file's owner */
+    gid_t	    st_gid;	/* group ID of the file's group */
+    dev_t	    st_rdev;	/* device type */
+    struct timespec st_atim;	/* time of last access */
+    struct timespec st_mtim;	/* time of last data modification */
+    struct timespec st_ctim;	/* time of last file status change */
+    off_t	    st_size;	/* file size, in bytes */
+    blkcnt_t	    st_blocks;	/* blocks allocated for file */
+    blksize_t	    st_blksize;	/* optimal blocksize for I/O */
+    u_int32_t	    st_flags;	/* user defined flags for file */
+    u_int32_t	    st_gen;	/* file generation number */
+};
+.Ed
+.Pp
+The time-related fields of
+.Vt struct stat
+are represented in
+.Vt struct timespec
+format, which has nanosecond precision.
+However, the actual precision is generally limited by the file
+system holding the file.
+The fields are as follows:
+.Bl -tag -width XXXst_mtim
+.It Fa st_atim
+Time when file data was last accessed.
+Set when the file system object was created and updated by the
+.Xr utimes 2
+and
+.Xr read 2
+system calls.
+.It Fa st_mtim
+Time when file data was last modified.
+Changed by the
+.Xr truncate 2 ,
+.Xr utimes 2 ,
+and
+.Xr write 2
+system calls.
+For directories, changed by any system call that alters which files are
+in the directory, such as the
+.Xr unlink 2 ,
+.Xr rename 2 ,
+.Xr mkdir 2 ,
+and
+.Xr symlink 2
+system calls.
+.It Fa st_ctim
+Time when file status was last changed (inode data modification).
+Changed by the
+.Xr chmod 2 ,
+.Xr chown 2 ,
+.Xr link 2 ,
+.Xr rename 2 ,
+.Xr unlink 2 ,
+.Xr utimes 2 ,
+and
+.Xr write 2
+system calls.
+.El
+.Pp
+In addition, all the time fields are set to the current time when
+a file system object is first created by the
+.Xr mkdir 2 ,
+.Xr mkfifo 2 ,
+.Xr mknod 2 ,
+.Xr open 2 ,
+and
+.Xr symlink 2
+system calls.
+.Pp
+For compatibility with previous standards,
+.Fa st_atime ,
+.Fa st_mtime ,
+and
+.Fa st_ctime
+macros are provided that expand to the
+.Fa tv_secs
+member of their respective
+.Vt struct timespec
+member.
+Deprecated macros are also provided for some transitional names:
+.Fa st_atimensec ,
+.Fa st_mtimensec ,
+.Fa st_ctimensec ,
+.Fa st_atimespec ,
+.Fa st_mtimespec ,
+and
+.Fa st_ctimespec .
+.Pp
+The size-related fields of the
+.Vt struct stat
+are as follows:
+.Bl -tag -width XXXst_blksize
+.It Fa st_blksize
+The optimal I/O block size for the file.
+.It Fa st_blocks
+The actual number of blocks allocated for the file in 512-byte units.
+As short symbolic links are stored in the inode, this number may
+be zero.
+.El
+.Pp
+The status information word
+.Fa st_mode
+has the following bits:
+.Bd -literal -offset indent
+#define S_IFMT   0170000  /* type of file mask */
+#define S_IFIFO  0010000  /* named pipe (fifo) */
+#define S_IFCHR  0020000  /* character special */
+#define S_IFDIR  0040000  /* directory */
+#define S_IFBLK  0060000  /* block special */
+#define S_IFREG  0100000  /* regular */
+#define S_IFLNK  0120000  /* symbolic link */
+#define S_IFSOCK 0140000  /* socket */
+#define S_ISUID  0004000  /* set-user-ID on execution */
+#define S_ISGID  0002000  /* set-group-ID on execution */
+#define S_ISVTX  0001000  /* save swapped text even after use */
+#define S_IRWXU  0000700  /* RWX mask for owner */
+#define S_IRUSR  0000400  /* R for owner */
+#define S_IWUSR  0000200  /* W for owner */
+#define S_IXUSR  0000100  /* X for owner */
+#define S_IRWXG  0000070  /* RWX mask for group */
+#define S_IRGRP  0000040  /* R for group */
+#define S_IWGRP  0000020  /* W for group */
+#define S_IXGRP  0000010  /* X for group */
+#define S_IRWXO  0000007  /* RWX mask for other */
+#define S_IROTH  0000004  /* R for other */
+#define S_IWOTH  0000002  /* W for other */
+#define S_IXOTH  0000001  /* X for other */
+.Ed
+.Pp
+The following macros test a file's type.
+If the file is of that type, a non-zero value is returned;
+otherwise, 0 is returned.
+.Bd -literal -offset indent
+S_ISBLK(st_mode m)  /* block special */
+S_ISCHR(st_mode m)  /* char special */
+S_ISDIR(st_mode m)  /* directory */
+S_ISFIFO(st_mode m) /* fifo */
+S_ISLNK(st_mode m)  /* symbolic link */
+S_ISREG(st_mode m)  /* regular file */
+S_ISSOCK(st_mode m) /* socket */
+.Ed
+.Pp
+For a list of access modes, see
+.In sys/stat.h ,
+.Xr access 2 ,
+and
+.Xr chmod 2 .
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn stat ,
+.Fn lstat ,
+and
+.Fn fstatat
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Dv NAME_MAX
+characters, or an entire pathname (including the terminating NUL)
+exceeded
+.Dv PATH_MAX
+bytes.
+.It Bq Er ENOENT
+A component of
+.Fa path
+does not exist or
+.Fa path
+is an empty string.
+.It Bq Er EACCES
+Search permission is denied for a component of the
+.Fa path .
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the
+.Fa path .
+.It Bq Er EFAULT
+.Fa sb
+or
+.Fa path
+points to an invalid address.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.El
+.Pp
+Additionally,
+.Fn fstatat
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument was neither zero nor
+.Dv AT_SYMLINK_NOFOLLOW .
+.It Bq Er EBADF
+The
+.Fa path
+argument specifies a relative path and the
+.Fa fd
+argument is neither
+.Dv AT_FDCWD
+nor a valid file descriptor.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument specifies a relative path and the
+.Fa fd
+argument is a valid file descriptor but it does not reference a directory.
+.It Bq Er EACCES
+The
+.Fa path
+argument specifies a relative path but search permission is denied
+for the directory which the
+.Fa fd
+file descriptor references.
+.El
+.Pp
+.Fn fstat
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+.Fa fd
+is not a valid open file descriptor.
+.It Bq Er EFAULT
+.Fa sb
+points to an invalid address.
+.It Bq Er EIO
+An I/O error occurred while reading from the file system.
+.El
+.Sh SEE ALSO
+.Xr chmod 2 ,
+.Xr chown 2 ,
+.Xr clock_gettime 2 ,
+.Xr utimes 2 ,
+.Xr symlink 7
+.Sh STANDARDS
+Previous versions of the system used different types for the
+.Fa st_dev ,
+.Fa st_uid ,
+.Fa st_gid ,
+.Fa st_rdev ,
+.Fa st_size ,
+.Fa st_blksize ,
+and
+.Fa st_blocks
+fields.
+.Pp
+The
+.Fn fstat ,
+.Fn fstatat ,
+.Fn lstat ,
+and
+.Fn stat
+functions are intended to conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn stat
+and
+.Fn fstat
+system calls first appeared in
+.At v1 .
+The
+.In sys/stat.h
+header file and the
+.Vt "struct stat"
+were introduced in
+.At v7 .
+.Pp
+An
+.Fn lstat
+function call appeared in
+.Bx 4.2 .
+The
+.Fn fstatat
+function appeared in
+.Ox 5.0 .
+.Sh CAVEATS
+The file generation number,
+.Fa st_gen ,
+is only available to the superuser.
+.Pp
+Certain programs written when the timestamps were just of type
+.Vt time_t
+assumed that the members were consecutive (and could therefore
+be treated as an array and have their address passed directly to
+.Xr utime 3 ) .
+The transition to timestamps of type
+.Vt struct timespec
+broke them irrevocably.
+.Sh BUGS
+Applying
+.Fn fstat
+to a pipe or socket
+fails to fill in a unique device and inode number pair.
+Applying
+.Fn fstat
+to a socket
+also fails to fill in the time fields.

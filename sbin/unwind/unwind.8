@@ -1,0 +1,133 @@
+.\"	$OpenBSD: unwind.8,v 1.13 2023/02/21 07:47:24 jmc Exp $
+.\"
+.\" Copyright (c) 2018 Florian Obser <florian@openbsd.org>
+.\" Copyright (c) 2016 Kenneth R Westerback <kwesterback@gmail.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 21 2023 $
+.Dt UNWIND 8
+.Os
+.Sh NAME
+.Nm unwind
+.Nd validating DNS resolver
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnv
+.Op Fl f Ar file
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+.Nm
+is a validating DNS resolver.
+It is intended to run on client machines like workstations or laptops and only
+listens on localhost.
+.Pp
+.Nm
+sends DNS queries to nameservers to answer queries.
+If it detects that DNS queries are blocked by the local network,
+it can switch to resolvers learned through autoconfiguration.
+It periodically probes if DNS is no longer blocked and switches back to
+querying nameservers itself.
+A list of sources for proposals learned through autoconfiguration
+is documented in
+.Xr resolvd 8 .
+.Pp
+.Nm
+keeps the DNS answers in a cache shared by the different DNS name
+server types.
+.Nm
+manages the cache size by deleting oldest entries when needed.
+The cache is non-configurable and is lost upon process restart.
+.Pp
+To have
+.Nm
+enabled at boot time, use
+.Dq rcctl enable unwind ,
+which sets
+.Pp
+.Dl unwind_flags=\(dq\(dq
+.Pp
+in
+.Xr rc.conf.local 8 .
+.Pp
+A running
+.Nm
+can be controlled with the
+.Xr unwindctl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Specify an alternative configuration file.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl s Ar socket
+Use an alternate location for the default control socket.
+.It Fl v
+Produce more verbose output.
+Multiple
+.Fl v
+options increase the verbosity.
+Debug output from libunbound is only available when logging to
+.Em stderr .
+.El
+.Sh FILES
+.Bl -tag -width "/var/db/unwind.keyXXX" -compact
+.It Pa /etc/unwind.conf
+Default
+.Nm
+configuration file.
+.It Pa /var/db/unwind.key
+Trust anchor for DNSSEC validation.
+.It Pa /dev/unwind.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr unwindctl 8 .
+.El
+.Sh SEE ALSO
+.Xr unwind.conf 5 ,
+.Xr unbound 8 ,
+.Xr unwindctl 8
+.Sh STANDARDS
+.Rs
+.%A P. Mockapetris
+.%D November 1987
+.%R RFC 1034
+.%T DOMAIN NAMES - CONCEPTS AND FACILITIES
+.Re
+.Pp
+.Rs
+.%A P. Mockapetris
+.%D November 1987
+.%R RFC 1035
+.%T DOMAIN NAMES - IMPLEMENTATION AND SPECIFICATION
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 6.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was written by
+.An Florian Obser Aq Mt florian@openbsd.org .

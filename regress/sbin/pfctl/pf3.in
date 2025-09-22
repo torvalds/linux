@@ -1,0 +1,13 @@
+pass in all
+pass in from any to any
+
+block in proto tcp from any to any flags FUPEW/FSRPAUEW
+block in proto tcp from any to any flags SF/SFRA
+block in proto tcp from any to any flags /SFRAW
+
+pass in proto { udp, icmp, tcp } from any to any flags S/SA
+pass in from any to any flags S/SA no state
+pass in from any to any flags any no state
+pass in from any to any flags any
+pass in from any to any keep state
+pass in from any to any

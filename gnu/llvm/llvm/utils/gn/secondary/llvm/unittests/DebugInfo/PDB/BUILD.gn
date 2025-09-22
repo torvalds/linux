@@ -1,0 +1,33 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("DebugInfoPDBTests") {
+  deps = [
+    "//llvm/lib/DebugInfo/CodeView",
+    "//llvm/lib/DebugInfo/MSF",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "HashTableTest.cpp",
+    "NativeSessionTest.cpp",
+    "NativeSymbolReuseTest.cpp",
+    "PDBApiTest.cpp",
+    "StringTableBuilderTest.cpp",
+  ]
+
+  # DebugInfoPDBTests uses llvm::getInputFileDirectory(), which expects
+  # a file called llvm.srcdir.txt next to the test executable that contains
+  # the path of the source directory (which contains this file).
+  # lit doesn't change the cwd while running googletests, so the cwd isn't
+  # well-defined. This means this has to be an absolute path.
+  # FIXME: This doesn't work with swarming. This should really be a data
+  # dependency, and the cwd while tests requiring input files run should
+  # be required to be some fixed directory.
+  # FIXME: Also, the GN way is to write this file at build time. But since
+  # there's only two uses of this, and since this is a pattern that hopefully
+  # will disappear again, and since it doesn't have any measurable performance
+  # hit, write the file at GN time.
+  # Note: This line here implicitly depends on unittest() setting output_dir to
+  # target_out_dir.
+  write_file("$target_out_dir/llvm.srcdir.txt", rebase_path("."))
+}

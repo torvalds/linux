@@ -1,0 +1,51 @@
+.\"     $OpenBSD: ccp.4,v 1.6 2024/09/04 11:12:53 jsg Exp $
+.\"
+.\" Copyright (c) 2018 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 4 2024 $
+.Dt CCP 4
+.Os
+.Sh NAME
+.Nm ccp
+.Nd AMD cryptographic co-processor
+.Sh SYNOPSIS
+.Cd "ccp* at acpi?"
+.Cd "ccp* at fdt?"
+.Cd "ccp* at pci?"
+.Sh DESCRIPTION
+AMD cryptographic co-processor devices provide offload for various
+cryptographic algorithms, offload of zlib compression and decompression,
+and a random number generator.
+.Pp
+The
+.Nm
+driver supports feeding output of the random number generator into
+the kernel entropy pool.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr psp 4 ,
+.Xr random 4 ,
+.Xr arc4random 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An David Gwynne Aq Mt dlg@openbsd.org .

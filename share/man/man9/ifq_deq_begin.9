@@ -1,0 +1,76 @@
+.\"     $OpenBSD: ifq_deq_begin.9,v 1.5 2021/03/20 21:02:56 sthen Exp $
+.\"
+.\"  Copyright (c) 2015 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 20 2021 $
+.Dt IFQ_DEQ_BEGIN 9
+.Os
+.Sh NAME
+.Nm ifq_deq_begin ,
+.Nm ifq_deq_commit ,
+.Nm ifq_deq_rollback
+.Nd dequeue an mbuf from an interface sending queue
+.Sh SYNOPSIS
+.In net/if_var.h
+.Ft struct mbuf *
+.Fn ifq_deq_begin "struct ifqueue *ifq"
+.Ft void
+.Fn ifq_deq_commit "struct ifqueue *ifq" "struct mbuf *m"
+.Ft void
+.Fn ifq_deq_rollback "struct ifqueue *ifq" "struct mbuf *m"
+.Sh DESCRIPTION
+The ifq_deq_*
+set of functions provides a non-atomic alternative to
+.Xr ifq_dequeue 9 .
+Their use is discouraged, code should use
+.Xr ifq_dequeue 9
+whenever possible.
+.Bl -tag -width Ds
+.It Fn ifq_deq_begin "struct ifqueue *ifq"
+Get a reference to the next mbuf to be transmitted from the
+.Fa ifq
+interface send queue.
+If an mbuf is to be transmitted, also acquire a lock on the send queue
+to exclude modification or freeing of the referenced mbuf.
+Its packet header must not be modified until the mbuf has been dequeued with
+.Fn ifq_deq_commit .
+.It Fn ifq_deq_commit "struct ifqueue *ifq" "struct mbuf *m"
+Dequeue the mbuf
+.Fa m
+that was referenced by a previous call to
+.Fn ifq_deq_begin
+and release the lock on
+.Fa ifq .
+.It Fn ifq_deq_rollback "struct ifqueue *ifq" "struct mbuf *m"
+Release the lock on the interface send queue
+.Fa ifq
+that was acquired while a reference to
+.Fa m
+was being held.
+.El
+.Sh CONTEXT
+.Fn ifq_deq_begin ,
+.Fn ifq_deq_commit ,
+and
+.Fn ifq_deq_rollback
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn ifq_deq_begin
+returns the next mbuf to be transmitted by the interface.
+If no packet is available for transmission,
+.Dv NULL
+is returned.
+.Sh SEE ALSO
+.Xr ifq_dequeue 9

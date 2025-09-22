@@ -1,0 +1,237 @@
+.\"	$OpenBSD: rc.conf.8,v 1.31 2022/09/25 22:47:27 kn Exp $
+.\"
+.\" Copyright (c) 1997 Ian F. Darwin
+.\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 25 2022 $
+.Dt RC.CONF 8
+.Os
+.Sh NAME
+.Nm rc.conf ,
+.Nm rc.conf.local
+.Nd system daemon configuration database
+.Sh DESCRIPTION
+The file
+.Nm rc.conf
+contains a series of variable assignments that are used to configure
+the system daemons.
+These variables are read by
+.Xr rc 8
+early on in the boot sequence and every time an
+.Xr rc.d 8
+script is executed.
+.Pp
+It is advisable to leave
+.Nm rc.conf
+untouched, and instead create and edit a new
+.Nm rc.conf.local
+file or use the
+.Xr rcctl 8
+utility.
+Since only the last assignment to any variable takes effect,
+variables set in this file override variables previously set in
+.Nm rc.conf .
+.Pp
+.Nm rc.conf
+is made up of variable assignments
+.Pq Ar variable Ns = Ns Ar value
+with comments designated by a hash mark
+.Pq Sq # .
+.Pp
+.Sy Base system daemon
+configuration variables are used to enable and disable daemon programs
+that are installed by default, and to set their command line options.
+.Pp
+All of these variables follow the format
+.Dq Ar daemon Ns _flags
+where
+.Ar daemon
+is the name of one of the
+.Xr rc.d 8
+daemon control scripts.
+The list of base system daemons, including the information whether
+they are enabled by default, can be displayed with this command:
+.Pp
+.Dl grep _flags /etc/rc.conf
+.Pp
+If one of these variables is set to
+.Cm NO ,
+the respective
+.Ar daemon
+is disabled.
+If set to the empty string, the
+.Ar daemon
+is run with the default command line arguments defined in its
+.Xr rc.d 8
+.Ar daemon
+script, or without command line arguments if no such default exists.
+If set to any other value, including a string containing
+only a single blank character, the
+.Ar daemon
+is run with those command line arguments.
+.Pp
+.Sy Package daemon
+configuration variables are used to enable and disable
+daemon programs installed from
+.Xr packages 7 ,
+and to set their command line options.
+.Pp
+The special
+.Cm pkg_scripts
+variable lists
+.Xr rc.d 8
+.Ar daemon
+control scripts to be started in the specified order.
+For each
+.Ar daemon
+listed, its default command line options can optionally be overridden
+using the variable
+.Ar daemon Ns _flags
+as described above.
+.Pp
+.Sy Base system service
+configuration variables control features available by default
+that are not implemented as daemons.
+They can be set to either
+.Cm YES
+or
+.Cm NO .
+When set to
+.Cm YES ,
+they have the following effects:
+.Bl -tag -width check_quotas
+.It Cm accounting
+rc calls:
+.Xr accton 8
+.Pa /var/account/acct
+.It Cm check_quotas
+rc calls:
+.Xr quotacheck 8
+.Fl a ;
+.Xr quotaon 8
+.Fl a
+.It Cm ipsec
+rc calls:
+.Xr ipsecctl 8
+.Fl f Pa /etc/ipsec.conf
+.It Cm library_aslr
+rc reorders some libraries for improved protection against ROP.
+.It Cm multicast
+See
+.Xr multicast 4 .
+.It Cm pf
+rc calls:
+.Xr pfctl 8
+.Fl ef Pa /etc/pf.conf
+.It Cm spamd_black
+The script
+.Pa /etc/rc.d/spamd
+uses
+.Fl b
+in front of any other configured command line arguments when running
+.Xr spamd 8
+and
+.Xr spamd-setup 8 .
+.El
+.Pp
+.Sy Auxiliary
+configuration variables mostly determine
+the locations of specific configuration files.
+The boot scripts use them as follows:
+.Bl -tag -width amd_master
+.It Cm amd_master
+The
+.Xr amd 8
+master map file.
+The script
+.Pa /etc/rc.d/amd
+appends its content to the command line when starting the auto mounter daemon.
+.It Cm shlib_dirs
+Extra shared library search path entries.
+rc calls:
+.Xr ldconfig 8
+.Pa /usr/X11R6/lib
+.Pa /usr/local/lib
+.Pf $ Brq Ar shlib_dirs
+.It Cm savecore_flags
+rc calls:
+.Xr savecore 8
+.Pf $ Brq Ar savecore_flags
+.Pa /var/crash
+.El
+.Sh EXAMPLES
+Do not start the
+.Xr dhcpd 8
+daemon when booting the system:
+.Bd -literal -offset indent
+dhcpd_flags=NO
+.Ed
+.Pp
+To run the dhcpd daemon,
+add the following line to
+.Nm rc.conf.local :
+.Bd -literal -offset indent
+dhcpd_flags=
+.Ed
+.Pp
+To start it with some options:
+.Bd -literal -offset indent
+dhcpd_flags=-A abandoned
+.Ed
+.Pp
+Run
+.Pa /etc/rc.d/messagebus
+then
+.Pa /etc/rc.d/cupsd
+with the
+.Cm start
+argument at boot time,
+and in reverse order with the
+.Cm stop
+argument at shutdown:
+.Bd -literal -offset indent
+pkg_scripts=messagebus cupsd
+.Ed
+.Pp
+The default location of the
+.Xr amd 8
+master map file is:
+.Bd -literal -offset indent
+amd_master=/etc/amd/master	# AMD 'master' map
+.Ed
+.Sh SEE ALSO
+.Xr init 8 ,
+.Xr intro 8 ,
+.Xr rc 8 ,
+.Xr rc.d 8 ,
+.Xr rcctl 8
+.Sh HISTORY
+The
+.Nm
+file first appeared in
+.Ox 2.2 .

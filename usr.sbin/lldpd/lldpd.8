@@ -1,0 +1,71 @@
+.\" $OpenBSD: lldpd.8,v 1.6 2025/05/16 04:26:43 kn Exp $
+.\"
+.\" Copyright (c) 2025 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 16 2025 $
+.Dt LLDPD 8
+.Os
+.Sh NAME
+.Nm lldpd
+.Nd Link Layer Discovery Protocol (LLDP) daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+The
+.Nm
+daemon receives
+Link Layer Discovery Protocol
+.Pq LLDP
+messages on Ethernet interfaces and stores them for display by
+.Xr lldp 8 .
+.Pp
+LLDP is a link layer protocol for advertising and discovering identity
+and capability.
+.Pp
+The options are as follows:
+.Bl -tag -width "-f fileXXX"
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to stderr.
+.It Fl s Ar socket
+Use
+.Ar socket
+to communicate with
+.Xr lldp 8 .
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/lldp.sock" -compact
+.It Pa /var/run/lldp.sock
+default
+.Nm
+control socket
+.El
+.Sh SEE ALSO
+.\" Xr frame 4 ,
+.Xr lldp 8
+.Sh STANDARDS
+.Rs
+.%R IEEE 802.1AB
+.%T Station and Media Access Control Connectivity Discovery
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 7.8 .

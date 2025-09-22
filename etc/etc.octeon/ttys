@@ -1,0 +1,13 @@
+#
+#	$OpenBSD: ttys,v 1.2 2013/05/23 21:33:39 bcallah Exp $
+#
+# name	getty				type	status		comments
+#
+console	"/usr/libexec/getty std.115200"	vt220	on  secure
+# wsdisplay(4) glass console
+ttyC0	"/usr/libexec/getty std.9600"	vt220	off secure
+# com(4) serial ports
+tty00	"/usr/libexec/getty std.9600"	unknown	off secure
+tty01	"/usr/libexec/getty std.9600"	unknown	off secure
+tty02	"/usr/libexec/getty std.9600"	unknown	off secure
+tty03	"/usr/libexec/getty std.9600"	unknown	off secure

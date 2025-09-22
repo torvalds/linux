@@ -1,0 +1,32 @@
+//===- BPFPassRegistry.def - Registry of BPF passes -------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file is used as the registry of passes that are part of the
+// BPF backend.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+#ifndef FUNCTION_PASS
+#define FUNCTION_PASS(NAME, CREATE_PASS)
+#endif
+FUNCTION_PASS("bpf-aspace-simplify", BPFASpaceCastSimplifyPass())
+FUNCTION_PASS("bpf-ir-peephole", BPFIRPeepholePass())
+#undef FUNCTION_PASS
+
+#ifndef FUNCTION_PASS_WITH_PARAMS
+#define FUNCTION_PASS_WITH_PARAMS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)
+#endif
+FUNCTION_PASS_WITH_PARAMS(
+    "bpf-preserve-static-offset", "BPFPreserveStaticOffsetPass",
+    [=](bool AllowPartial) {
+      return BPFPreserveStaticOffsetPass(AllowPartial);
+    },
+    parseBPFPreserveStaticOffsetOptions, "allow-partial")
+#undef FUNCTION_PASS_WITH_PARAMS

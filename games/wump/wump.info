@@ -1,0 +1,43 @@
+Welcome to the game of Hunt the Wumpus. 
+
+The Wumpus typically lives in a cave of twenty rooms, where each room 
+is connected by three tunnels to the other rooms in the cavern.  Caves 
+may vary, however, depending on options specified when starting the game.
+The cave may contain one-way passages.
+
+The game has the following hazards for intrepid adventurers to wend their
+way through:
+
+  Pits   -- If you fall into one of the bottomless pits, you find yourself
+	    slung back out on the far side of the Earth and in very poor
+	    shape to continue your quest since you're dead.
+
+  Bats   -- As with any other cave, the Wumpus cave has bats in residence.
+	    These are a bit more potent, however, and if you stumble into
+	    one of their rooms they will rush up and carry you elsewhere in
+	    the cave.
+  
+  Wumpus -- If you happen to walk into the room the Wumpus is in you'll find
+	    that he has quite an appetite for young adventurous humans!  Not
+	    recommended.
+
+The Wumpus, by the way, is not bothered by the hazards since he has sucker
+feet and is too big for the bats to lift.  If you try to shoot him and miss,
+there's also a chance that he'll up and move himself into another room,
+though by nature the Wumpus is a sedentary creature.
+
+Each turn you may either move or shoot a crooked arrow.  Moving is done
+simply by specifying "m" for move and the number of the room that you'd
+like to move down a tunnel towards.  Shooting is done similarly; indicate
+that you'd like to shoot one of your magic arrows with an "s" for shoot,
+then list a set of connected room numbers through which the deadly shaft
+should fly!
+
+If a tunnel does not exist between two consecutive rooms in the arrow's
+path, the arrow will flail about and randomly pick an existing tunnel
+to continue through.  You might just end up shooting yourself in the
+foot if you're not careful!  On the other hand, if you shoot the Wumpus 
+you've WON!
+
+Good luck.
+

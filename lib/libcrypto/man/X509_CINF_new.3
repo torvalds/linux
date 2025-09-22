@@ -1,0 +1,118 @@
+.\"	$OpenBSD: X509_CINF_new.3,v 1.12 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_CINF_NEW 3
+.Os
+.Sh NAME
+.Nm X509_CINF_new ,
+.Nm X509_CINF_free ,
+.Nm X509_VAL_new ,
+.Nm X509_VAL_free ,
+.Nm X509_CERT_AUX_new ,
+.Nm X509_CERT_AUX_free
+.Nd X.509 certificate information objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_CINF *
+.Fn X509_CINF_new void
+.Ft void
+.Fn X509_CINF_free "X509_CINF *inf"
+.Ft X509_VAL *
+.Fn X509_VAL_new void
+.Ft void
+.Fn X509_VAL_free "X509_VAL *val"
+.Ft X509_CERT_AUX *
+.Fn X509_CERT_AUX_new void
+.Ft void
+.Fn X509_CERT_AUX_free "X509_CERT_AUX *aux"
+.Sh DESCRIPTION
+.Fn X509_CINF_new
+allocates and initializes an empty
+.Vt X509_CINF
+object, representing an ASN.1
+.Vt TBSCertificate
+structure defined in RFC 5280 section 4.1.
+It is used inside the
+.Vt X509
+object and holds the main information contained in the X.509
+certificate including subject, public key, issuer, serial number,
+validity period, and extensions.
+.Fn X509_CINF_free
+frees
+.Fa inf .
+.Pp
+.Fn X509_VAL_new
+allocates and initializes an empty
+.Vt X509_VAL
+object, representing an ASN.1
+.Vt Validity
+structure defined in RFC 5280 section 4.1.
+It is used inside the
+.Vt X509_CINF
+object and holds the validity period of the certificate.
+.Fn X509_VAL_free
+frees
+.Fa val .
+.Pp
+.Fn X509_CERT_AUX_new
+allocates and initializes an empty
+.Vt X509_CERT_AUX
+structure.
+It can be used inside an
+.Vt X509
+object to hold optional non-standard auxiliary data appended to a
+certificate, for example friendly alias names and trust data.
+.Fn X509_CERT_AUX_free
+frees
+.Fa aux .
+.Sh RETURN VALUES
+.Fn X509_CINF_new ,
+.Fn X509_VAL_new ,
+and
+.Fn X509_CERT_AUX_new
+return the new
+.Vt X509_CINF ,
+.Vt X509_VAL ,
+or
+.Vt X509_CERT_AUX
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr d2i_X509_CINF 3 ,
+.Xr X509_add1_trust_object 3 ,
+.Xr X509_CERT_AUX_print 3 ,
+.Xr X509_keyid_set1 3 ,
+.Xr X509_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Sh HISTORY
+.Fn X509_CINF_new ,
+.Fn X509_CINF_free ,
+.Fn X509_VAL_new ,
+and
+.Fn X509_VAL_free
+appeared in SSLeay 0.4 or earlier and have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_CERT_AUX_new
+and
+.Fn X509_CERT_AUX_free
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .

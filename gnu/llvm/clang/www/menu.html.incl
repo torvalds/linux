@@ -1,0 +1,54 @@
+<div id="menu">
+  <div>
+    <a href="http://llvm.org/">LLVM Home</a>
+  </div>
+
+  <div class="submenu">
+    <label>Clang Info</label>
+    <a href="http://llvm.org/releases/download.html">Download</a>
+    <a href="/index.html">About</a>
+    <a href="/features.html">Features</a>
+    <a href="/related.html">Related Projects</a>
+    <a href="/docs/UsersManual.html">User's Manual</a>
+    <a href="/compatibility.html">Language&nbsp;Compatibility</a>
+    <a href="/docs/LanguageExtensions.html">Language&nbsp;Extensions</a>
+    <a href="/c_status.html">C Status</a>
+    <a href="/cxx_status.html">C++ Status</a>
+  </div>
+
+  <div class="submenu">
+    <label>Clang Development</label>
+    <a href="/get_started.html">Get&nbsp;Started</a>
+    <a href="/get_involved.html">Get&nbsp;Involved</a>
+    <a href="/OpenProjects.html">Open&nbsp;Projects</a>
+    <a href="/docs/InternalsManual.html">Clang&nbsp;Internals</a>
+    <a href="/hacking.html">Hacking on Clang</a>
+  </div>
+
+  <div class="submenu">
+    <label>Clang Tools</label>
+    <a href="http://clang-analyzer.llvm.org">Automatic Bug-Finding</a>
+    <a href="/docs/Tooling.html">Writing Clang Tools</a>
+  </div>
+
+  <div class="submenu">
+    <label>Communication</label>
+    <a href="https://discourse.llvm.org/c/clang">Clang Forum</a>
+    <a href="http://lists.llvm.org/mailman/listinfo/cfe-commits">cfe-commits List</a>
+    <a href="https://github.com/llvm/llvm-project/issues">Bug Reports</a>
+    <a href="irc://irc.oftc.net/llvm">IRC: irc.oftc.net#llvm</a>
+  </div>
+
+  <div class="submenu">
+    <label>The Code</label>
+    <a href="/get_started.html#build">Check Out Sources</a>
+    <a href="https://github.com/llvm/llvm-project/tree/main/clang/">Browse Sources</a>
+    <a href="http://clang.llvm.org/doxygen/">doxygen</a>
+  </div>
+
+  <div class="submenu">
+    <label>Clang Events</label>
+    <a href="http://llvm.org/devmtg/">LLVM Meeting</a>
+  </div>
+
+</div>

@@ -1,0 +1,9 @@
+=> Print with one element
+@map[7]: 3
+=> Print after min:
+@map[7]: 3
+=> Print after max:
+@map[7]: 5
+=> Print after sum:
+@map[7]: 12
+@map[7]: 12

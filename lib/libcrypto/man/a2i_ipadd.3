@@ -1,0 +1,137 @@
+.\" $OpenBSD: a2i_ipadd.3,v 1.2 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt A2I_IPADD 3
+.Os
+.Sh NAME
+.Nm a2i_ipadd ,
+.Nm a2i_IPADDRESS ,
+.Nm a2i_IPADDRESS_NC
+.Nd parse Internet Protocol addresses into ASN.1 OCTET STRINGs for X.509
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft int
+.Fo a2i_ipadd
+.Fa "unsigned char *ipout"
+.Fa "const char *ipasc"
+.Fc
+.Ft ASN1_OCTET_STRING *
+.Fo a2i_IPADDRESS
+.Fa "const char *ipasc"
+.Fc
+.Ft ASN1_OCTET_STRING *
+.Fo a2i_IPADDRESS_NC
+.Fa "const char *ipasc"
+.Fc
+.Sh DESCRIPTION
+.Fn a2i_ipadd
+and
+.Fn a2i_IPADDRESS
+parse the string
+.Fa ipasc
+containing an IPv4 or IPv6 address
+in one of the following formats:
+.Bd -literal -offset indent
+d.d.d.d
+x:x:x:x:x:x:x:x (exactly 8 words)
+(x:)*x::x(:x)* (less than 8 words)
+(x:)*x:: (less than 8 words)
+::x(:x)* (less than 8 words)
+::
+(x:)*d.d.d.d (up to 6 hexadecimal words, :: can be used)
+.Ed
+.Pp
+where each
+.Ar d
+represents a non-negative decimal number less than 256
+with one, two or three digits and each
+.Ar x
+represents a non-negative hexadecimal number
+with one, two, three, or four digits.
+Both the lower case letters a-f and the upper case letters A-F can be used.
+.Pp
+.Fn a2i_ipadd
+stores the bytes of the address in network byte order (big endian) starting at
+.Fa ipout .
+The caller is responsible for providing sufficient space;
+always providing a buffer of at least 16 bytes is recommended,
+even if an IPv4 address is expected, to avoid buffer overruns in case
+.Fa ipasc
+is malformed.
+.Pp
+.Fn a2i_IPADDRESS
+stores the address in a newly allocated ASN.1
+.Vt OCTET STRING .
+.Pp
+.Fn a2i_IPADDRESS_NC
+expects
+.Fa ipasc
+to contain two addresses of the same address family in the above form,
+separated by a slash
+.Pq Sq /
+character, and stores the concatenation of both addresses
+in a newly allocated ASN.1
+.Vt OCTET STRING ,
+which is typically used for address/mask pairs
+in name constraint extensions of CA certificates.
+.Sh RETURN VALUES
+.Fn a2i_ipadd
+returns the number of bytes written to
+.Fa ipout
+in case of success, i.e. 4 for an IPv4 or 16 for an IPv6 address,
+or 0 if parsing failed.
+.Pp
+.Fn a2i_IPADDRESS
+and
+.Fn a2i_IPADDRESS_NC
+return the new object or
+.Dv NULL
+if parsing or memory allocation failed.
+.Sh SEE ALSO
+.Xr a2i_ASN1_STRING 3 ,
+.Xr ASN1_OCTET_STRING_new 3 ,
+.Xr ASN1_OCTET_STRING_set 3 ,
+.Xr GENERAL_NAME_new 3 ,
+.Xr IPAddressRange_new 3 ,
+.Xr NAME_CONSTRAINTS_new 3 ,
+.Xr s2i_ASN1_OCTET_STRING 3 ,
+.Xr X509_EXTENSION_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Bl -dash -width 1n -compact
+.It
+section 4.2.1.6: Subject Alternative Name
+.It
+section 4.2.1.10: Name Constraints
+.El
+.Sh HISTORY
+.Fn a2i_IPADDRESS
+and
+.Fn a2i_IPADDRESS_NC
+first appeared in OpenSSL 0.9.8 and
+.Fn a2i_ipadd
+in OpenSSL 0.9.8e.
+They have been available since
+.Ox 4.5 .
+.Sh CAVEATS
+While some syntax errors are caught, only minimal validation takes place,
+and these functions often return objects that make no sense, in particular
+in the context of IPv6.
+For example, the trailing :d.d.d.d syntax can be appended
+to a hexadecimal part that results in twelve arbitrary bytes.

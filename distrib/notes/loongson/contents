@@ -1,0 +1,34 @@
+dnl	$OpenBSD: contents,v 1.18 2025/03/25 08:17:47 miod Exp $
+TopPart
+
+OpenBSDdistsets
+
+OpenBSDbsd
+
+OpenBSDbsdmp
+
+OpenBSDrd
+
+OpenBSDcd
+
+OpenBSDminiroot
+
+	boot		The OpenBSD/MACHINE bootloader.
+
+DistributionDescription(eight)
+
+OpenBSDbase(163360152,530356281)
+
+OpenBSDcomp(72655957,306826786)
+
+OpenBSDgame(2925484,7575843)
+
+OpenBSDman(8511220,31765192)
+
+OpenBSDxbase(51367271,188986004)
+
+OpenBSDxfont(23591452,35814089)
+
+OpenBSDxserv(13517163,55084420)
+
+OpenBSDxshare(4708057,23910338)

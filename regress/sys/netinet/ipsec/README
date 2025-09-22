@@ -1,0 +1,24 @@
+Send IPsec traffic to another machine where it gets processed.
+There the IPsec implementation has to deliver it to the local stack
+or forward it after decryption.  By reflecting the packets, the way
+back is also tested.  When the response is received at the generating
+machine, the test is considered successful.
+
+Currently ICMP ping, UDP, TCP packets are protected with ESP and
+AH.  Also IPIP encapsulation and IP compression flows are tested.
+Transport and tunnel mode are tested with all combinations of IPv4
+and IPv6.  SA bundles that do IPComp, ESP, AH with a single flow
+are tested with all combinations of encapsulation mode, and both
+ip versions, and the ip protocols ping, UDP, TCP.  Small and big
+ping packets are used, as IPComp skips small packets.
+
+The netstat -s counters are checked to ensure that encrypted packets
+are processed in both ways.
+
+The BPF output of the enc0 and pflog0 interface is checked.  This
+ensures that all IPsec packets are passed to bpf and pf.
+
+TODO:
+Tests for fragments and path MTU discovery are planned.
+Test TCP MD5 signatures.
+Test NAT-Traversal over UDP.

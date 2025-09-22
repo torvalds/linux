@@ -1,1 +1,0 @@
-vdso_test_gettimeofday.c

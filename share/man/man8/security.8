@@ -1,0 +1,173 @@
+.\" $OpenBSD: security.8,v 1.28 2025/03/31 17:35:28 schwarze Exp $
+.\"
+.\" David Leonard, 2001. Public Domain.
+.\"
+.Dd $Mdocdate: March 31 2025 $
+.Dt SECURITY 8
+.Os
+.Sh NAME
+.Nm security
+.Nd periodic system security check
+.Sh DESCRIPTION
+.Nm
+is a command script that examines the system for some signs of security
+weaknesses.
+It is only a security aid and does not offer complete protection.
+.Nm
+is run by
+.Xr daily 8 ,
+which mails any output to root on a daily basis.
+.Pp
+The
+.Nm
+script carries out the following list of simple checks:
+.Bl -bullet
+.It
+Check the
+.Xr master.passwd 5
+and
+.Xr group 5
+files for
+syntax, empty passwords, partially closed accounts,
+suspicious UIDs, suspicious GIDs, and duplicate entries.
+.It
+Check root's home directory and login environment for
+insecure permissions, suspicious paths, and umask commands in the
+dotfiles.
+.It
+Check for suspicious commands in
+.Pa /etc/mail/aliases .
+.It
+Check for insecurities in
+.Pa /etc/hosts.lpd .
+.It
+Check user
+.Pa .rhosts
+and
+.Pa .shosts
+files for open access.
+.It
+Check user home directory permissions.
+.It
+Check many user dotfile permissions.
+.It
+Check user mailbox permissions.
+.It
+Check NFS
+.Xr exports 5
+file for global export entries.
+.It
+Check for changes in setuid/setgid files and devices.
+.It
+Check disk ownership and permissions.
+.It
+Check for changes in the device file list.
+.It
+Check for permission changes in special files and system binaries listed in
+.Pa /etc/mtree/special .
+.Nm
+also provides hooks for administrators to create their own lists.
+These lists should be kept in
+.Pa /etc/mtree/
+and filenames must have the suffix
+.Dq .secure .
+The following example shows how to create such a list,
+to protect the programs in
+.Pa /bin :
+.Bd -literal -offset 4n
+# mtree -cx -p /bin -K sha256digest,type > /etc/mtree/bin.secure
+# chown root:wheel /etc/mtree/bin.secure
+# chmod 600 /etc/mtree/bin.secure
+.Ed
+.Pp
+.Sy Note:
+These checks do not provide complete protection against
+Trojan horse binaries, as
+the miscreant can modify the tree specification to match the replaced binary.
+For details on really protecting yourself against modified binaries, see
+.Xr mtree 8 .
+.It
+Check for changes in files listed in
+.Pa /etc/changelist .
+Files being created or deleted,
+as well as content change in the files themselves,
+are reported.
+See
+.Xr changelist 5
+for further details.
+.It
+Check for changes to the disklabels and partition tables of mounted disks.
+.It
+Report on the installation or removal of any system
+.Xr package 5 .
+.It
+Check
+.Xr hostname.if 5
+file permissions.
+.El
+.Pp
+The intent of the
+.Nm
+script is to point out some obvious holes to the system administrator.
+.Sh ENVIRONMENT
+The following variables can be set in
+.Pa /etc/daily.local :
+.Pp
+.Bl -tag -width "PASSWDSKIP" -compact
+.It Ev PASSWDSKIP
+A whitespace-separated list of
+.Ar name : Ns Ar shell
+pairs allowed to have empty passwords.
+For example, a machine running both CVS and gotd for anonymous access
+might set:
+.Bd -literal -offset indent
+PASSWDSKIP="anoncvs:/usr/local/bin/anoncvssh
+            anonymous:/usr/local/bin/gotsh"
+.Ed
+.Pp
+.It Ev SUIDSKIP
+A whitespace-separated list of absolute paths to be skipped
+in setuid/setgid file checks and in device special file checks.
+Avoid trailing slashes.
+.El
+.Sh FILES
+.Bl -tag -width /dev/changelist -compact
+.It Pa /etc/changelist
+.It Pa /etc/daily
+.It Pa /etc/mtree
+.It Pa /usr/libexec/security
+.It Pa /var/backups
+.El
+.Sh SEE ALSO
+.Xr changelist 5 ,
+.Xr daily 8 ,
+.Xr mtree 8
+.Sh HISTORY
+A
+.Nm
+shell script appeared in
+.Bx 4.3 Reno ,
+but most functionality only came with
+.Bx 4.4 .
+.Sh AUTHORS
+.An -nosplit
+The present manual was written by
+.An David Leonard
+for
+.Ox 2.9 .
+.An Andrew Fresh Aq Mt afresh1@openbsd.org
+and
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org
+rewrote
+.Nm
+from scratch in
+.Xr perl 1
+for
+.Ox 5.0 .
+.Sh BUGS
+The name of this script may provide a false sense of
+.Nm security .
+.\" Well, I thought it was amusing.
+.Pp
+There are perhaps an infinite number of ways the system can be compromised
+without this script noticing.

@@ -1,0 +1,382 @@
+.\"	$OpenBSD: dd.1,v 1.39 2020/10/29 07:01:24 jmc Exp $
+.\"	$NetBSD: dd.1,v 1.5 1995/03/21 09:04:04 cgd Exp $
+.\"
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Keith Muller of the University of California, San Diego.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)dd.1	8.2 (Berkeley) 1/13/94
+.\"
+.Dd $Mdocdate: October 29 2020 $
+.Dt DD 1
+.Os
+.Sh NAME
+.Nm dd
+.Nd convert and copy a file
+.Sh SYNOPSIS
+.Nm dd
+.Op Ar operand ...
+.Sh DESCRIPTION
+The
+.Nm
+utility copies the standard input to the standard output, applying any
+specified conversions.
+Input data is read and written in 512-byte blocks.
+If input reads are short, input from multiple reads are aggregated
+to form the output block.
+When finished,
+.Nm
+displays the number of complete and partial input and output blocks
+and truncated input records to the standard error output.
+.Pp
+The following operands are available:
+.Bl -tag -width of=file
+.It Cm if Ns = Ns Ar file
+Read input from
+.Ar file
+instead of the standard input.
+.It Cm of Ns = Ns Ar file
+Write output to
+.Ar file
+instead of the standard output.
+Any regular output file is truncated unless the
+.Cm notrunc
+conversion value is specified.
+If an initial portion of the output file is skipped (see the
+.Cm seek
+operand),
+the output file is truncated at that point.
+.It Cm ibs Ns = Ns Ar n
+Set the input block size to
+.Ar n
+bytes instead of the default 512.
+.It Cm obs Ns = Ns Ar n
+Set the output block size to
+.Ar n
+bytes instead of the default 512.
+.It Cm bs Ns = Ns Ar n
+Set both the input and output block size to
+.Ar n
+bytes, superseding the
+.Cm ibs
+and
+.Cm obs
+operands.
+If no conversion values other than
+.Cm noerror ,
+.Cm notrunc ,
+or
+.Cm sync
+are specified, then each input block is copied to the output as a
+single block without any aggregation of short blocks.
+.It Cm cbs Ns = Ns Ar n
+Set the conversion record size to
+.Ar n
+bytes.
+The conversion record size is required by the record oriented conversion
+values.
+.It Cm count Ns = Ns Ar n
+Copy only
+.Ar n
+input blocks.
+.It Cm files Ns = Ns Ar n
+Copy
+.Ar n
+input files before terminating.
+This operand is only applicable when the input device is a tape.
+.It Cm seek Ns = Ns Ar n
+Seek
+.Ar n
+blocks from the beginning of the output before copying.
+On non-tape devices, an
+.Xr lseek 2
+operation is used.
+Otherwise, existing blocks are read and the data discarded.
+If the user does not have read permission for the tape, it is positioned
+using the tape
+.Xr ioctl 2
+function calls.
+If the seek operation is past the end of file, space from the current
+end of file to the specified offset is filled with blocks of NUL bytes.
+.It Cm skip Ns = Ns Ar n
+Skip
+.Ar n
+blocks from the beginning of the input before copying.
+On input which supports seeks, an
+.Xr lseek 2
+operation is used.
+Otherwise, input data is read and discarded.
+For pipes, the correct number of bytes is read.
+For all other devices, the correct number of blocks is read without
+distinguishing between a partial or complete block being read.
+.It Cm status Ns = Ns Ar value
+The
+.Ar value
+is one of the symbols from the following list:
+.Bl -tag -width unblock
+.It Cm noxfer
+Do not print the transfer statistics as the last line of status output.
+.It Cm none
+Do not print the status output.
+Error messages are shown; informational messages are not.
+.El
+.It Cm conv Ns = Ns Ar value Ns Op , Ns Ar value ...
+Each
+.Ar value
+is one of the symbols from the following list:
+.Bl -tag -width unblock
+.It Cm ascii
+The same as the
+.Cm unblock
+value except that characters are translated from EBCDIC to ASCII
+before the records are converted.
+(These values imply
+.Cm unblock
+if the operand
+.Cm cbs
+is also specified.)
+.It Cm block
+Treats the input as a sequence of newline or end-of-file terminated variable
+length records independent of input and output block boundaries.
+Any trailing newline character is discarded.
+Each input record is converted to a fixed length output record where the
+length is specified by the
+.Cm cbs
+operand.
+Input records shorter than the conversion record size are padded with spaces.
+Input records longer than the conversion record size are truncated.
+The number of truncated input records, if any, is reported to the standard
+error output at the completion of the copy.
+.It Cm ebcdic , ibm
+The same as the
+.Cm block
+value except that characters are translated from ASCII to EBCDIC
+after the records are converted.
+(These values imply
+.Cm block
+if the operand
+.Cm cbs
+is also specified.)
+There are two conversion maps for EBCDIC.
+The value
+.Cm ebcdic
+specifies the recommended one which is compatible with
+.At V .
+The value
+.Cm ibm
+is a slightly different mapping, which is compatible with the
+.At V
+.Cm ibm
+value.
+.It Cm fsync
+Call
+.Xr fsync 2
+on the output file before exiting.
+.It Cm lcase
+Transform uppercase characters into lowercase characters.
+.It Cm noerror
+Do not stop processing on an input error.
+When an input error occurs, a diagnostic message followed by the current
+input and output block counts will be written to the standard error output
+in the same format as the standard completion message.
+If the
+.Cm sync
+conversion is also specified, any missing input data will be replaced
+with NUL bytes (or with spaces if a block oriented conversion value was
+specified) and processed as a normal input buffer.
+If the
+.Cm sync
+conversion is not specified, the input block is omitted from the output.
+On input files which are not tapes or pipes, the file offset
+will be positioned past the block in which the error occurred using
+.Xr lseek 2 .
+.It Cm notrunc
+Do not truncate the output file.
+This will preserve any blocks in the output file not explicitly written
+by
+.Nm dd .
+The
+.Cm notrunc
+value is not supported for tapes.
+.It Cm osync
+Pad the final output block to the full output block size.
+This forces the final output block to be the same size
+as preceding blocks for use on devices that require
+regularly sized blocks to be written.
+This option is incompatible with the
+.Cm bs
+block size specification.
+.It Cm swab
+Swap every pair of input bytes.
+If an input buffer has an odd number of bytes, the last byte will be
+ignored during swapping.
+.It Cm sync
+Pad every input block to the input buffer size.
+Spaces are used for pad bytes if a block oriented conversion value is
+specified, otherwise NUL bytes are used.
+.It Cm ucase
+Transform lowercase characters into uppercase characters.
+.It Cm unblock
+Treats the input as a sequence of fixed length records independent of input
+and output block boundaries.
+The length of the input records is specified by the
+.Cm cbs
+operand.
+Any trailing space characters are discarded and a newline character is
+appended.
+.El
+.El
+.Pp
+Where sizes are specified, a decimal number of bytes is expected.
+If the number ends with a
+.Sq b ,
+.Sq k
+or
+.Sq K ,
+.Sq m
+or
+.Sq M ,
+.Sq g
+or
+.Sq G ,
+or
+.Sq w ,
+the number is multiplied by 512, 1024 (1K), 1048576 (1M), 1073741824 (1G),
+or the number of bytes in an integer, respectively.
+Two or more numbers may be separated by an
+.Sq x
+to indicate a product.
+.Pp
+When finished,
+.Nm
+displays the number of complete and partial input and output blocks,
+truncated input records, and odd-length byte-swapping blocks to the
+standard error output.
+A partial input block is one where less than the input block size
+was read.
+A partial output block is one where less than the output block size
+was written.
+Partial output blocks to tape devices are considered fatal errors.
+Otherwise, the rest of the block will be written.
+Partial output blocks to character devices will produce a warning message.
+A truncated input block is one where a variable length record oriented
+conversion value was specified and the input line was too long to
+fit in the conversion record or was not newline terminated.
+.Pp
+Normally, data resulting from input or conversion or both are aggregated
+into output blocks of the specified size.
+After the end of input is reached, any remaining output is written as
+a block.
+This means that the final output block may be shorter than the output
+block size.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+(see the
+.Dq status
+argument for
+.Xr stty 1 )
+signal, the current input and output block counts will
+be written to the standard error output
+in the same format as the standard completion message.
+If
+.Nm
+receives a
+.Dv SIGINT
+signal, the current input and output block counts will
+be written to the standard error output
+in the same format as the standard completion message and
+.Nm
+will exit.
+.Sh EXIT STATUS
+.Ex -std dd
+.Sh EXAMPLES
+Write a bootable
+.Ox
+disk image to a USB flash drive attached at
+.Pa /dev/sd3 :
+.Pp
+.Dl # dd if=install68.img of=/dev/rsd3c bs=1m
+.Pp
+Create an ISO-9660 image of a CD-ROM:
+.Pp
+.Dl # dd if=/dev/rcd0c of=disk.iso bs=32k
+.Sh SEE ALSO
+.Xr cp 1 ,
+.Xr mt 1 ,
+.Xr tr 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The conversions
+.Cm ascii ,
+.Cm ebcdic ,
+and
+.Cm ibm
+are marked by
+.St -p1003.1-2008
+as being an
+X/Open System Interfaces option.
+.Pp
+The
+.Cm files
+and
+.Cm status
+operands,
+the
+.Cm fsync
+and
+.Cm osync
+conversions,
+the
+.Sq K ,
+.Sq m ,
+.Sq M ,
+.Sq g ,
+.Sq G ,
+and
+.Sq w
+size multipliers
+and
+.Dv SIGINFO
+handling
+are all extensions to the
+.St -p1003.1-2008
+specification.
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v5 .

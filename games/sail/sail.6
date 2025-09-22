@@ -1,0 +1,1083 @@
+.\"	$OpenBSD: sail.6,v 1.24 2022/02/18 23:17:14 jsg Exp $
+.\"	$NetBSD: sail.6,v 1.4 1995/04/22 10:37:24 cgd Exp $
+.\"
+.\" Copyright (c) 1988, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)sail.6	8.2 (Berkeley) 12/30/93
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt SAIL 6
+.Os
+.Sh NAME
+.Nm sail
+.Nd multi-user wooden ships and iron men
+.Sh SYNOPSIS
+.Nm sail
+.Op Fl bx
+.Op Fl s Op Fl l
+.Op Ar number
+.Sh DESCRIPTION
+.Bf -symbolic
+.Nm
+is currently unusable because it relies on
+.Xr setegid 2
+to allow multiple users read and write access to the same files.
+.Ef
+.Pp
+.Nm
+is a computer version of Avalon Hill's game of fighting sail
+originally developed by S. Craig Taylor.
+.Pp
+Players of
+.Nm
+take command of an old-fashioned Man of War and fight other
+players or the computer.
+They may re-enact one of the many historical sea battles recorded
+in the game, or they can choose a fictional battle.
+.Pp
+As sea captains in the
+.Nm
+Navy, players have complete control over the workings of their ship.
+They must order every maneuver, change the set of their sails, and judge the
+right moments to let loose the terrible destruction of their broadsides.
+In addition to fighting their enemies,
+they must harness the powers of the wind and sea.
+The outcome of many battles during the age of sail was decided by the
+ability of one captain to hold the
+.Sq weather gage .
+.Pp
+The flags are:
+.Bl -tag -width flag
+.It Fl b
+No bells.
+.It Fl l
+Show the login name.
+Only effective with
+.Fl s .
+.It Fl s
+Print the names and ships of the top ten sailors.
+.It Fl x
+Play the first available ship instead of prompting for a choice.
+.El
+.Sh IMPLEMENTATION
+.Nm
+is really two programs in one.
+All players start a process which runs their ship.
+In addition, a
+.Em driver
+process is forked
+.Pq by the first player
+to run the computer ships and take care of global bookkeeping.
+.Pp
+Because the driver must calculate moves for each ship it controls, the
+more ships the computer is playing, the slower the game will appear.
+.Pp
+Players who join a game in progress will synchronize
+with the other players
+.Pq a rather slow process for everyone ,
+and then they may play along with the rest.
+.Pp
+To implement a multi-user game in
+.Ux
+Version 7,
+which was the operating system
+.Nm
+was first written under, the communicating processes must use a common
+temporary file as a place to read and write messages.
+In addition, a locking mechanism must be provided to ensure exclusive
+access to the shared file.
+For example,
+.Nm
+uses a temporary file named
+.Pa /tmp/#sailsink.21
+for scenario 21, and corresponding file names for the other scenarios.
+To provide exclusive access to the temporary file,
+.Nm
+uses a technique stolen from an old game called
+.Ic pubcaves
+by Jeff Cohen.
+Processes do a busy wait in the loop
+.Bd -literal -offset indent
+for (n = 0; link(sync_file, sync_lock) == -1 && n < 30; n++)
+	sleep(2);
+.Ed
+.Pp
+until they are able to create a link to a file named
+.Pa /tmp/#saillock.?? .
+The
+.Dq ??
+correspond to the scenario number of the game.
+Since
+.Ux
+guarantees that a link will point to only one file, the process
+that succeeds in linking will have exclusive access to the temporary file.
+.\" .Pp
+.\" Whether or not this really works is open to speculation.  When ucbmiro
+.\" was rebooted after a crash, the file system check program found 3 links
+.\" between the
+.\" .Nm
+.\" temporary file and its link file.
+.Ss "CONSEQUENCES OF SEPARATE PLAYER AND DRIVER PROCESSES"
+When players do something of global interest, such as moving or firing,
+the driver must coordinate the action with the other ships in the game.
+For example, players who want to move in a certain direction, write a
+message into the temporary file requesting that the driver move their ship.
+Each
+.Dq turn ,
+the driver reads all the messages sent from the players and
+decides what happened.
+It then writes back into the temporary file new values of variables, etc.
+.Pp
+The most noticeable effect this communication has on the game is the
+delay in moving.
+Suppose a player types a move and hits return.
+What happens then?
+The player process saves up messages to
+be written to the temporary file in a buffer.
+Every 7 seconds or so, the player process gets exclusive access
+to the temporary file and writes out its buffer to the file.
+The driver, running asynchronously, must
+read in the movement command, process it, and write out the results.
+This takes two exclusive accesses to the temporary file.
+Finally, when the player process gets around to doing another 7-second update,
+the results of the move are displayed on the screen.
+Hence, every movement requires four
+exclusive accesses to the temporary file (anywhere from 7 to 21 seconds
+depending upon asynchrony) before players see the results of their moves.
+.Pp
+In practice, the delays are not as annoying as they would appear.
+There is room for
+.Dq pipelining
+in the movement.
+After the player writes out a first movement message,
+a second movement command can then be issued.
+The first message will be in the temporary file waiting for the driver, and
+the second will be in the file buffer waiting to be written to the file.
+Thus, by always typing moves a turn ahead of the time, the player can
+sail around quite quickly.
+.Pp
+If the player types several movement commands between two 7-second updates,
+only the last movement command typed will be seen by the driver.
+Movement commands within the same update "overwrite" each other, in a sense.
+.Ss "HISTORICAL INFO"
+Old Square Riggers were very maneuverable ships capable of intricate
+sailing.
+Their only disadvantage was an inability to sail very close to the wind.
+The design of a wooden ship allowed only for the
+guns to bear to the left and right sides.
+A few guns of small aspect
+.Pq usually 6 or 9 pounders
+could point forward, but their
+effect was small compared to a 68-gun broadside of 24 or 32 pounders.
+The guns bear approximately like so:
+.Bd -literal -offset indent
+       \e
+        b----------------
+    ---0
+        \e
+         \e
+          \e     up to a range of ten (for round shot)
+           \e
+            \e
+             \e
+.Ed
+.Pp
+An interesting phenomenon occurred when a broadside was fired
+down the length of an enemy ship.
+The shot tended to bounce along the deck and did several times more damage.
+This phenomenon was called a rake.
+Because the bows of a ship are very strong and present a smaller
+target than the stern, a stern rake
+.Pq firing from the stern to the bow
+causes more damage than a bow rake.
+.Bd -literal -offset indent
+                        b
+                       00   ----  Stern rake!
+                         a
+.Ed
+.Pp
+Most ships were equipped with carronades, which were very large,
+close-range cannons.
+American ships from the revolution until the War of 1812
+were almost entirely armed with carronades.
+.Pp
+The period of history covered in
+.Nm
+is approximately from the 1770s until the end of Napoleonic France in 1815.
+There are many excellent books about the age of sail
+.Pq see Sx REFERENCES .
+.Pp
+Fighting ships came in several sizes classed by armament.
+The mainstays of any fleet were its
+.Dq Ships of the Line ,
+or
+.Dq Line of Battle Ships .
+They were so named because these ships fought together in great lines.
+They were close enough for mutual support, yet every ship could fire
+both its broadsides.
+We get the modern words
+.Dq ocean liner ,
+or
+.Dq liner ,
+and
+.Dq battleship
+from
+.Dq ship of the line .
+The most common size was the 74-gun two-decked ship of the line.
+The two gun decks usually mounted 18 and 24 pounder guns.
+.Pp
+The pride of the fleet were the first rates.
+These were huge three decked ships of the line mounting 80 to 136 guns.
+The guns in the three tiers were usually 18, 24, and 32 pounders in
+that order from top to bottom.
+.Pp
+Various other ships came next.
+They were almost all
+.Dq razees ,
+or ships of the line with one deck sawed off.
+They mounted 40-64 guns and were
+a poor cross between a frigate and a line of battle ship.
+They neither had the speed of the former nor the firepower of the latter.
+.Pp
+Next came the
+.Dq eyes of the fleet .
+Frigates came in many sizes mounting anywhere from 32 to 44 guns.
+They were very handy vessels.
+They could outsail anything bigger and outshoot anything smaller.
+Frigates didn't fight in lines of battle as the much bigger 74's did.
+Instead, they harassed the enemy's rear or captured crippled ships.
+They were much more useful in missions away from the fleet,
+such as cutting out expeditions or boat actions.
+They could hit hard and get away fast.
+.Pp
+Lastly, there were the corvettes, sloops, and brigs.
+These were smaller ships mounting typically fewer than 20 guns.
+A corvette was only slightly smaller than a frigate,
+so one might have up to 30 guns.
+Sloops were used for carrying dispatches or passengers.
+Brigs were something you built for land-locked lakes.
+.Ss "SAIL PARTICULARS"
+Ships in
+.Nm
+are represented by two characters.
+One character represents the bow of the ship,
+and the other represents the stern.
+Ships have nationalities and numbers.
+The first ship of a nationality is number 0, the second
+number 1, etc.
+Therefore, the first British ship in a game would be printed as
+.Sq b0 .
+The second Brit would be
+.Sq b1 ,
+and the fifth Don would be
+.Sq s4 .
+.Pp
+Ships can set normal sails, called Battle Sails, or bend on extra canvas
+called Full Sails.
+A ship under full sail is a beautiful sight indeed,
+and it can move much faster than a ship under Battle Sails.
+The only trouble is, with full sails set, there is so much tension on sail and
+rigging that a well aimed round shot can burst a sail into ribbons where
+it would only cause a little hole in a loose sail.
+For this reason, rigging damage is doubled on a ship with full sails set.
+Don't let that discourage you from using full sails:
+I like to keep them up right into the heat of battle.
+A ship with full sails set has a capital letter for its nationality.
+E.g., a Frog,
+.Sq f0 ,
+with full sails set would be printed as
+.Sq F0 .
+.Pp
+When a ship is battered into a listing hulk, the last man aboard
+.Dq strikes the colors .
+This ceremony is the ship's formal surrender.
+The nationality character of a surrendered ship is printed as
+.Sq \&! .
+E.g., the Frog of our last example would soon be
+.Sq !0 .
+.Pp
+A ship has a random chance of catching fire or sinking when it reaches the
+stage of listing hulk.
+A sinking ship has a tilde
+.Sq ~
+printed for its nationality, and a ship on fire and about to explode has a
+.Sq #
+printed.
+.Pp
+Captured ships become the nationality of the prize crew.
+Therefore, if
+an American ship captures a British ship, the British ship will have an
+.Sq a
+printed for its nationality.
+In addition, the ship number is changed
+to
+.Sq & ,
+.Sq ' ,
+.Sq \&( ,
+.Sq \&) ,
+.Sq * ,
+or
+.Sq +
+depending upon the original number,
+be it 0, 1, 2, 3, 4, or 5.
+E.g., the
+.Sq b0
+captured by an American becomes the
+.Sq a& .
+The
+.Sq s4
+captured by a Frog becomes the
+.Sq f* .
+.Pp
+The ultimate example is, of course, an exploding Brit captured by an
+American:
+.Sq #& .
+.Ss MOVEMENT
+Movement is the most confusing part of
+.Nm
+to many.
+Ships can head in 8 directions:
+.Bd -literal
+                                 0      0      0
+        b       b       b0      b       b       b       0b      b
+        0        0                                             0
+.Ed
+.Pp
+The stern of a ship moves when it turns.
+The bow remains stationary.
+Ships can always turn, regardless of the wind (unless they are becalmed).
+All ships drift when they lose headway.
+If a ship doesn't move forward at all for two turns, it will begin to drift.
+If a ship has begun to drift, then it must move forward before it turns, if
+it plans to do more than make a right or left turn, which is always
+possible.
+.Pp
+Movement commands to
+.Nm
+are a string of forward moves and turns.
+An example is
+.Sq l3 .
+It will turn a ship left and then move it ahead 3 spaces.
+In the drawing above, the
+.Sq b0
+made 7 successive left turns.
+When
+.Nm
+prompts you for a move, it prints three characters of import.
+E.g.,
+.Pp
+.Dl move (7, 4):
+.Pp
+The first number is the maximum number of moves you can make,
+including turns.
+The second number is the maximum number of turns you can make.
+Between the numbers is sometimes printed a quote
+.Sq ' .
+If the quote is present, it means that your ship has been drifting, and
+you must move ahead to regain headway before you turn (see note above).
+Some of the possible moves for the example above are as follows:
+.Bd -literal -offset indent
+move (7, 4): 7
+move (7, 4): 1
+move (7, 4): d		/* drift, or do nothing */
+move (7, 4): 6r
+move (7, 4): 5r1
+move (7, 4): 4r1r
+move (7, 4): l1r1r2
+move (7, 4): 1r1r1r1
+.Ed
+.Pp
+Because square riggers performed so poorly sailing into the wind, if at
+any point in a movement command you turn into the wind, the movement stops
+there.
+E.g.,
+.Bd -literal -offset indent
+move (7, 4): l1l4
+Movement Error;
+Helm: l1l
+.Ed
+.Pp
+Moreover, whenever you make a turn, your movement allowance drops to
+the lesser of what's left or what you would have at the new attitude.
+In short,
+if you turn closer to the wind, you most likely won't be able to sail the
+full allowance printed in the "move" prompt.
+.Pp
+Old sailing captains had to keep an eye constantly on the wind.
+Captains in
+.Nm
+are no different.
+A ship's ability to move depends on its attitude to the wind.
+The best angle possible is to have the wind off your quarter, that is,
+just off the stern.
+The direction rose on the side of the screen gives the
+possible movements for your ship at all positions to the wind.
+Battle sail speeds are given first,
+and full sail speeds are given in parentheses.
+.Bd -literal
+				 0 1(2)
+				\e|/
+				-^-3(6)
+				/|\e
+				 | 4(7)
+				3(6)
+.Ed
+.Pp
+Pretend the bow of your ship
+.Pq the Sq ^
+is pointing upward and the wind is
+blowing from the bottom to the top of the page.
+The numbers at the bottom
+.Sq 3(6)
+will be your speed under battle or full sails in such a situation.
+If the wind is off your quarter, then you can move
+.Sq 4(7) .
+If the wind is off your beam,
+.Sq 3(6) .
+If the wind is off your bow, then you can only move
+.Sq 1(2) .
+If you are facing into the wind, you can't move at all;
+ships facing into the wind were said to be
+.Dq in irons .
+.Ss "WINDSPEED AND DIRECTION"
+The windspeed and direction is displayed as a little weather vane on the
+side of the screen.
+The number in the middle of the vane indicates the wind
+speed, and the + to - indicates the wind direction.
+The wind blows from
+the + sign (high pressure) to the - sign (low pressure).
+E.g.,
+.Bd -literal -offset indent-two
+|
+3
++
+.Ed
+.Pp
+The wind speeds are 0 = becalmed, 1 = light breeze, 2 = moderate breeze,
+3 = fresh breeze, 4 = strong breeze, 5 = gale, 6 = full gale, 7 = hurricane.
+If a hurricane shows up, all ships are destroyed.
+.Ss "GRAPPLING AND FOULING"
+If two ships collide, they run the risk of becoming tangled together.
+This is called
+.Dq fouling .
+Fouled ships are stuck together, and neither can move.
+They can unfoul each other if they want to.
+Boarding parties can only be
+sent across to ships when the antagonists are either fouled or grappled.
+.Pp
+Ships can grapple each other by throwing grapnels into the rigging of
+the other.
+.Pp
+The number of fouls and grapples you have are displayed on the upper
+right of the screen.
+.Ss BOARDING
+Boarding was a very costly venture in terms of human life.
+Boarding parties may be formed in
+.Nm
+to either board an enemy ship or to defend your own ship against attack.
+Men organized as Defensive Boarding Parties fight twice as hard to save
+their ship as men left unorganized.
+.Pp
+The boarding strength of a crew depends upon its quality and upon the
+number of men sent.
+.Ss "CREW QUALITY"
+The British seaman was world renowned for his sailing abilities.
+American sailors, however, were actually the best seamen in the world.
+Because the American Navy offered twice the wages of the Royal Navy,
+British seamen who liked the sea defected to America by the thousands.
+.Pp
+In
+.Nm ,
+crew quality is quantized into 5 energy levels.
+.Em Elite
+crews can outshoot and outfight all other sailors.
+.Em Crack
+crews are next.
+.Em Mundane
+crews are average, and
+.Em Green
+and
+.Em Mutinous
+crews are below average.
+A good rule of thumb is that
+.Em Crack
+or
+.Em Elite
+crews get one extra hit per broadside compared to
+.Em Mundane
+crews.
+Don't expect too much from
+.Em Green
+crews.
+.Ss BROADSIDES
+Your two broadsides may be loaded with four kinds of shot:
+grape, chain, round, and double.
+You have guns and carronades in both the port and starboard batteries.
+Carronades only have a range of two, so you have to get in
+close to be able to fire them.
+You have the choice of firing at the hull
+or rigging of another ship.
+If the range of the ship is greater than 6,
+then you may only shoot at the rigging.
+.Pp
+The types of shot and their advantages are:
+.Bl -tag -width DOUBLEx
+.It ROUND
+Range of 10.
+Good for hull or rigging hits.
+.It DOUBLE
+Range of 1.
+Extra good for hull or rigging hits.
+Double takes two turns to load.
+.It CHAIN
+Range of 3.
+Excellent for tearing down rigging.
+Cannot damage hull or guns, though.
+.It GRAPE
+Range of 1.
+Sometimes devastating against enemy crews.
+.El
+.Pp
+On the side of the screen is displayed some vital information about your
+ship:
+.Bd -literal -offset indent
+Load  D! R!
+Hull  9
+Crew  4  4  2
+Guns  4  4
+Carr  2  2
+Rigg  5 5 5 5
+.Ed
+.Pp
+"Load" shows what your port (left) and starboard (right) broadsides are
+loaded with.
+A
+.Sq \&!
+after the type of shot indicates that it is an initial broadside.
+Initial broadside were loaded with care before battle and before
+the decks ran red with blood.
+As a consequence, initial broadsides are a
+little more effective than broadsides loaded later.
+A
+.Sq *
+after the type of shot indicates that the gun
+crews are still loading it, and you cannot fire yet.
+"Hull" shows how much hull you have left.
+"Crew" shows your three sections of crew.
+As your crew dies off, your ability to fire decreases.
+"Guns" and "Carr" show your port and starboard guns.
+As you lose guns, your ability to fire decreases.
+"Rigg" shows how much rigging you have on your 3 or 4 masts.
+As rigging is shot away, you lose mobility.
+.Ss "EFFECTIVENESS OF FIRE"
+It is very dramatic when a ship fires its thunderous broadsides, but the
+mere opportunity to fire them does not guarantee any hits.
+Many factors influence the destructive force of a broadside.
+First of all, and the chief factor, is distance.
+It is harder to hit a ship at range ten than it is
+to hit one sloshing alongside.
+Next is raking.
+Raking fire, as mentioned before,
+can sometimes dismast a ship at range ten.
+Next, crew size and quality affects the damage done by a broadside.
+The number of guns firing also bears on the point,
+so to speak.
+Lastly, weather affects the accuracy of a broadside.
+If the seas are high (5 or 6), then the lower gunports of ships of the line
+can't even be opened to run out the guns.
+This gives frigates and other flush decked vessels an advantage in a storm.
+The scenario
+.Em Pellew vs. The Droits de L'Homme
+takes advantage of this peculiar circumstance.
+.Ss REPAIRS
+Repairs may be made to your Hull, Guns, and Rigging at the slow rate of
+two points per three turns.
+The message "Repairs Completed" will be
+printed if no more repairs can be made.
+.Ss "PECULIARITIES OF COMPUTER SHIPS"
+Computer ships in
+.Nm
+follow all the rules above with a few exceptions.
+Computer ships never repair damage.
+If they did, the players could never beat them.
+They play well enough as it is.
+As a consolation, the computer ships can fire double
+shot every turn.
+That fluke is a good reason to keep your distance.
+The driver figures out the moves of the computer ships.
+It computes them with a typical
+A.I. distance function and a depth-first search to find the maximum
+.Dq score .
+It seems to work fairly well, although
+.\" I'll be the first to admit
+it isn't perfect.
+.Sh HOW TO PLAY
+Commands are given to
+.Nm
+by typing a single character.
+You will then be prompted for further input.
+A brief summary of the commands follows.
+.Ss "COMMAND SUMMARY"
+.Bl -tag -width xxx
+.It f
+Fire broadsides if they bear
+.It l
+Reload
+.It L
+Unload broadsides (to change ammo)
+.It m
+Move
+.It i
+Print the closest ship
+.It I
+Print all ships
+.It F
+Find a particular ship or ships (e.g.\&
+.Sq a?
+for all Americans)
+.It s
+Send a message around the fleet
+.It b
+Attempt to board an enemy ship
+.It B
+Recall boarding parties
+.It c
+Change set of sail
+.It r
+Repair
+.It u
+Attempt to unfoul
+.It g
+Grapple/ungrapple
+.It v
+Print version number of game
+.It ^L
+Redraw screen
+.It Q
+Quit
+.It C
+Center your ship in the window
+.It U
+Move window up
+.It D,N
+Move window down
+.It H
+Move window left
+.It J
+Move window right
+.It S
+Toggle window to follow your ship or stay where it is
+.El
+.Sh SCENARIOS
+Here is a summary of the scenarios in
+.Nm :
+.Ss Ranger vs. Drake:
+Wind from the N, blowing a fresh breeze.
+.Bd -literal
+(a) Ranger            19 gun Sloop (crack crew) (7 pts)
+(b) Drake             17 gun Sloop (crack crew) (6 pts)
+.Ed
+.Ss The Battle of Flamborough Head:
+Wind from the S, blowing a fresh breeze.
+.Pp
+This is John Paul Jones' first famous battle.
+Aboard the Bonhomme Richard,
+he was able to overcome the Serapis's greater firepower
+by quickly boarding her.
+.Bd -literal
+(a) Bonhomme Rich     42 gun Corvette (crack crew) (11 pts)
+(b) Serapis           44 gun Frigate (crack crew) (12 pts)
+.Ed
+.Ss Arbuthnot and Des Touches:
+Wind from the N, blowing a gale.
+.Bd -literal
+(b) America           64 gun Ship of the Line (crack crew) (20 pts)
+(b) Befford           74 gun Ship of the Line (crack crew) (26 pts)
+(b) Adamant           50 gun Ship of the Line (crack crew) (17 pts)
+(b) London            98 gun 3 Decker SOL (crack crew) (28 pts)
+(b) Royal Oak         74 gun Ship of the Line (crack crew) (26 pts)
+(f) Neptune           74 gun Ship of the Line (average crew) (24 pts)
+(f) Duc de Bourgogne  80 gun 3 Decker SOL (average crew) (27 pts)
+(f) Conquerant        74 gun Ship of the Line (average crew) (24 pts)
+(f) Provence          64 gun Ship of the Line (average crew) (18 pts)
+(f) Romulus           44 gun Ship of the Line (average crew) (10 pts)
+.Ed
+.Ss Suffren and Hughes:
+Wind from the S, blowing a fresh breeze.
+.Bd -literal
+(b) Monmouth          74 gun Ship of the Line (average crew) (24 pts)
+(b) Hero              74 gun Ship of the Line (crack crew) (26 pts)
+(b) Isis              50 gun Ship of the Line (crack crew) (17 pts)
+(b) Superb            74 gun Ship of the Line (crack crew) (27 pts)
+(b) Burford           74 gun Ship of the Line (average crew) (24 pts)
+(f) Flamband          50 gun Ship of the Line (average crew) (14 pts)
+(f) Annibal           74 gun Ship of the Line (average crew) (24 pts)
+(f) Severe            64 gun Ship of the Line (average crew) (18 pts)
+(f) Brilliant         80 gun Ship of the Line (crack crew) (31 pts)
+(f) Sphinx            80 gun Ship of the Line (average crew) (27 pts)
+.Ed
+.Ss Nymphe vs. Cleopatre:
+Wind from the S, blowing a fresh breeze.
+.Bd -literal
+(b) Nymphe            36 gun Frigate (crack crew) (11 pts)
+(f) Cleopatre         36 gun Frigate (average crew) (10 pts)
+.Ed
+.Ss Mars vs. Hercule:
+Wind from the S, blowing a fresh breeze.
+.Bd -literal
+(b) Mars              74 gun Ship of the Line (crack crew) (26 pts)
+(f) Hercule           74 gun Ship of the Line (average crew) (23 pts)
+.Ed
+.Ss Ambuscade vs. Baionnaise:
+Wind from the N, blowing a fresh breeze.
+.Bd -literal
+(b) Ambuscade         32 gun Frigate (average crew) (9 pts)
+(f) Baionnaise        24 gun Corvette (average crew) (9 pts)
+.Ed
+.Ss Constellation vs. Insurgent:
+Wind from the S, blowing a gale.
+.Bd -literal
+(a) Constellation     38 gun Corvette (elite crew) (17 pts)
+(f) Insurgent         36 gun Corvette (average crew) (11 pts)
+.Ed
+.Ss Constellation vs. Vengeance:
+Wind from the S, blowing a fresh breeze.
+.Bd -literal
+(a) Constellation     38 gun Corvette (elite crew) (17 pts)
+(f) Vengeance         40 gun Frigate (average crew) (15 pts)
+.Ed
+.Ss The Battle of Lissa:
+Wind from the S, blowing a fresh breeze.
+.Bd -literal
+(b) Amphion           32 gun Frigate (elite crew) (13 pts)
+(b) Active            38 gun Frigate (elite crew) (18 pts)
+(b) Volage            22 gun Frigate (elite crew) (11 pts)
+(b) Cerberus          32 gun Frigate (elite crew) (13 pts)
+(f) Favorite          40 gun Frigate (average crew) (15 pts)
+(f) Flore             40 gun Frigate (average crew) (15 pts)
+(f) Danae             40 gun Frigate (crack crew) (17 pts)
+(f) Bellona           32 gun Frigate (green crew) (9 pts)
+(f) Corona            40 gun Frigate (green crew) (12 pts)
+(f) Carolina          32 gun Frigate (green crew) (7 pts)
+.Ed
+.Ss Constitution vs. Guerriere:
+Wind from the SW, blowing a gale.
+.Bd -literal
+(a) Constitution      44 gun Corvette (elite crew) (24 pts)
+(b) Guerriere         38 gun Frigate (crack crew) (15 pts)
+.Ed
+.Ss United States vs. Macedonian:
+Wind from the S, blowing a fresh breeze.
+.Bd -literal
+(a) United States     44 gun Frigate (elite crew) (24 pts)
+(b) Macedonian        38 gun Frigate (crack crew) (16 pts)
+.Ed
+.Ss Constitution vs. Java:
+Wind from the S, blowing a fresh breeze.
+.Bd -literal
+(a) Constitution      44 gun Corvette (elite crew) (24 pts)
+(b) Java              38 gun Corvette (crack crew) (19 pts)
+.Ed
+.Ss Chesapeake vs. Shannon:
+Wind from the S, blowing a fresh breeze.
+.Bd -literal
+(a) Chesapeake        38 gun Frigate (average crew) (14 pts)
+(b) Shannon           38 gun Frigate (elite crew) (17 pts)
+.Ed
+.Ss The Battle of Lake Erie:
+Wind from the S, blowing a light breeze.
+.Bd -literal
+(a) Lawrence          20 gun Sloop (crack crew) (9 pts)
+(a) Niagara           20 gun Sloop (elite crew) (12 pts)
+(b) Lady Prevost      13 gun Brig (crack crew) (5 pts)
+(b) Detroit           19 gun Sloop (crack crew) (7 pts)
+(b) Q. Charlotte      17 gun Sloop (crack crew) (6 pts)
+.Ed
+.Ss Wasp vs. Reindeer:
+Wind from the S, blowing a light breeze.
+.Bd -literal
+(a) Wasp              20 gun Sloop (elite crew) (12 pts)
+(b) Reindeer          18 gun Sloop (elite crew) (9 pts)
+.Ed
+.Ss Constitution vs. Cyane and Levant:
+Wind from the S, blowing a moderate breeze.
+.Bd -literal
+(a) Constitution      44 gun Corvette (elite crew) (24 pts)
+(b) Cyane             24 gun Sloop (crack crew) (11 pts)
+(b) Levant            20 gun Sloop (crack crew) (10 pts)
+.Ed
+.Ss Pellew vs. Droits de L'Homme:
+Wind from the N, blowing a gale.
+.Bd -literal
+(b) Indefatigable     44 gun Frigate (elite crew) (14 pts)
+(b) Amazon            36 gun Frigate (crack crew) (14 pts)
+(f) Droits L'Hom      74 gun Ship of the Line (average crew) (24 pts)
+.Ed
+.Ss Algeciras:
+Wind from the SW, blowing a moderate breeze.
+.Bd -literal
+(b) Caesar            80 gun Ship of the Line (crack crew) (31 pts)
+(b) Pompee            74 gun Ship of the Line (crack crew) (27 pts)
+(b) Spencer           74 gun Ship of the Line (crack crew) (26 pts)
+(b) Hannibal          98 gun 3 Decker SOL (crack crew) (28 pts)
+(s) Real-Carlos       112 gun 3 Decker SOL (green crew) (27 pts)
+(s) San Fernando      96 gun 3 Decker SOL (green crew) (24 pts)
+(s) Argonauta         80 gun Ship of the Line (green crew) (23 pts)
+(s) San Augustine     74 gun Ship of the Line (green crew) (20 pts)
+(f) Indomptable       80 gun Ship of the Line (average crew) (27 pts)
+(f) Desaix            74 gun Ship of the Line (average crew) (24 pts)
+.Ed
+.Ss Lake Champlain:
+Wind from the N, blowing a fresh breeze.
+.Bd -literal
+(a) Saratoga          26 gun Sloop (crack crew) (12 pts)
+(a) Eagle             20 gun Sloop (crack crew) (11 pts)
+(a) Ticonderoga       17 gun Sloop (crack crew) (9 pts)
+(a) Preble            7 gun Brig (crack crew) (4 pts)
+(b) Confiance         37 gun Frigate (crack crew) (14 pts)
+(b) Linnet            16 gun Sloop (elite crew) (10 pts)
+(b) Chubb             11 gun Brig (crack crew) (5 pts)
+.Ed
+.Ss Last Voyage of the USS President:
+Wind from the N, blowing a fresh breeze.
+.Bd -literal
+(a) President         44 gun Frigate (elite crew) (24 pts)
+(b) Endymion          40 gun Frigate (crack crew) (17 pts)
+(b) Pomone            44 gun Frigate (crack crew) (20 pts)
+(b) Tenedos           38 gun Frigate (crack crew) (15 pts)
+.Ed
+.Ss Hornblower and the Natividad:
+Wind from the E, blowing a gale.
+.Pp
+A scenario for you Horny fans.
+Remember, he sank the Natividad against heavy odds and winds.
+Hint: don't try to board the Natividad;
+her crew is much bigger, albeit green.
+.Bd -literal
+(b) Lydia             36 gun Frigate (elite crew) (13 pts)
+(s) Natividad         50 gun Ship of the Line (green crew) (14 pts)
+.Ed
+.Ss Curse of the Flying Dutchman:
+Wind from the S, blowing a fresh breeze.
+.Pp
+Just for fun, take the Piece of cake.
+.Bd -literal
+(s) Piece of Cake     24 gun Corvette (average crew) (9 pts)
+(f) Flying Dutchy     120 gun 3 Decker SOL (elite crew) (43 pts)
+.Ed
+.Ss The South Pacific:
+Wind from the S, blowing a strong breeze.
+.Bd -literal
+(a) USS Scurvy        136 gun 3 Decker SOL (mutinous crew) (27 pts)
+(b) HMS Tahiti        120 gun 3 Decker SOL (elite crew) (43 pts)
+(s) Australian        32 gun Frigate (average crew) (9 pts)
+(f) Bikini Atoll      7 gun Brig (crack crew) (4 pts)
+.Ed
+.Ss Hornblower and the battle of Rosas bay:
+Wind from the E, blowing a fresh breeze.
+.Pp
+The only battle Hornblower ever lost.
+He was able to dismast one ship and stern rake the others though.
+See if you can do as well.
+.Bd -literal
+(b) Sutherland        74 gun Ship of the Line (crack crew) (26 pts)
+(f) Turenne           80 gun 3 Decker SOL (average crew) (27 pts)
+(f) Nightmare         74 gun Ship of the Line (average crew) (24 pts)
+(f) Paris             112 gun 3 Decker SOL (green crew) (27 pts)
+(f) Napoleon          74 gun Ship of the Line (green crew) (20 pts)
+.Ed
+.Ss Cape Horn:
+Wind from the NE, blowing a strong breeze.
+.Bd -literal
+(a) Concord           80 gun Ship of the Line (average crew) (27 pts)
+(a) Berkeley          98 gun 3 Decker SOL (crack crew) (28 pts)
+(b) Thames            120 gun 3 Decker SOL (elite crew) (43 pts)
+(s) Madrid            112 gun 3 Decker SOL (green crew) (27 pts)
+(f) Musket            80 gun 3 Decker SOL (average crew) (27 pts)
+.Ed
+.Ss New Orleans:
+Wind from the SE, blowing a fresh breeze.
+.Pp
+Watch that little Cypress go!
+.Bd -literal
+(a) Alligator         120 gun 3 Decker SOL (elite crew) (43 pts)
+(b) Firefly           74 gun Ship of the Line (crack crew) (27 pts)
+(b) Cypress           44 gun Frigate (elite crew) (14 pts)
+.Ed
+.Ss Botany Bay:
+Wind from the N, blowing a fresh breeze.
+.Bd -literal
+(b) Shark             64 gun Ship of the Line (average crew) (18 pts)
+(f) Coral Snake       44 gun Corvette (elite crew) (24 pts)
+(f) Sea Lion          44 gun Frigate (elite crew) (24 pts)
+.Ed
+.Ss Voyage to the Bottom of the Sea:
+Wind from the NW, blowing a fresh breeze.
+.Pp
+This one is dedicated to Richard Basehart and David Hedison.
+.Bd -literal
+(a) Seaview           120 gun 3 Decker SOL (elite crew) (43 pts)
+(a) Flying Sub        40 gun Frigate (crack crew) (17 pts)
+(b) Mermaid           136 gun 3 Decker SOL (mutinous crew) (27 pts)
+(s) Giant Squid       112 gun 3 Decker SOL (green crew) (27 pts)
+.Ed
+.Ss Frigate Action:
+Wind from the E, blowing a fresh breeze.
+.Bd -literal
+(a) Killdeer          40 gun Frigate (average crew) (15 pts)
+(b) Sandpiper         40 gun Frigate (average crew) (15 pts)
+(s) Curlew            38 gun Frigate (crack crew) (16 pts)
+.Ed
+.Ss The Battle of Midway:
+Wind from the E, blowing a moderate breeze.
+.Bd -literal
+(a) Enterprise        80 gun Ship of the Line (crack crew) (31 pts)
+(a) Yorktown          80 gun Ship of the Line (average crew) (27 pts)
+(a) Hornet            74 gun Ship of the Line (average crew) (24 pts)
+(j) Akagi             112 gun 3 Decker SOL (green crew) (27 pts)
+(j) Kaga              96 gun 3 Decker SOL (green crew) (24 pts)
+(j) Soryu             80 gun Ship of the Line (green crew) (23 pts)
+.Ed
+.Ss Star Trek:
+Wind from the S, blowing a fresh breeze.
+.Bd -literal
+(a) Enterprise        450 gun Ship of the Line (elite crew) (75 pts)
+(a) Yorktown          450 gun Ship of the Line (elite crew) (75 pts)
+(a) Reliant           450 gun Ship of the Line (elite crew) (75 pts)
+(a) Galileo           450 gun Ship of the Line (elite crew) (75 pts)
+(k) Kobayashi Maru    450 gun Ship of the Line (elite crew) (75 pts)
+(k) Klingon II        450 gun Ship of the Line (elite crew) (75 pts)
+(o) Red Orion         450 gun Ship of the Line (elite crew) (75 pts)
+(o) Blue Orion        450 gun Ship of the Line (elite crew) (75 pts)
+.Ed
+.Sh HISTORY
+Dave Riggle wrote the first version of
+.Nm
+on a PDP 11/70 in the fall of 1980.
+Needless to say, says Dave, the code was horrendous,
+not portable in any sense of the word, and didn't work.
+The program was not
+very modular and had
+.Fn fseek Ns s
+and
+.Fn fwrites Ns s
+every few lines.
+After a tremendous rewrite from the top down,
+he got the first working version up by 1981.
+There were several annoying bugs concerning firing broadsides and
+finding angles.
+.Nm
+uses no floating point, by the way, so the direction routines are rather
+tricky.
+Ed Wang rewrote the
+.Fn angle
+routine in 1981 to be less incorrect, and he added code to let a player
+select a ship at the start of the game.
+.\"instead of the first one available).
+.Pp
+Captain Happy (Craig Leres) is responsible for making
+.Nm
+portable for the first time.
+This was no easy task, by the way.
+.\" Constants like 2 and 10 were very frequent in the code.
+.\" I also became famous for using "Riggle Memorial Structures" in
+.\" .Nm .
+.\" Many of my structure references are so long that they run off the line
+.\" printer page.
+.\" Here is an example, if you promise not to laugh.
+.\" .br
+.\" .sp
+.\" .ce
+.\" specs[scene[flog.fgamenum].ship[flog.fshipnum].shipnum].pts
+.\" .br
+.\" .sp
+.Pp
+.Nm
+received its fourth and most thorough rewrite in the summer and fall
+of 1983:
+Ed Wang rewrote and modularized the code
+.Pq a monumental feat
+almost from scratch.
+Although he introduced many new bugs, the final
+result was very much cleaner and
+.Pq \&?
+faster.
+He added window movement commands and find ship commands.
+.Sh AUTHORS
+.An -nosplit
+.Nm
+has been a group effort of
+.An Dave Riggle ,
+.An \&Ed Wang Pq co-author
+and
+.An Craig Leres Pq refitting ,
+with consulting from
+.An Chris Guthrie ,
+.An Captain Happy ,
+.An Horatio Nelson ,
+and many valiant others.
+.Sh REFERENCES
+.Rs
+.%B Wooden Ships & Iron Men
+.%A "Avalon Hill"
+.Re
+.Pp
+.Rs
+.%B Captain Horatio Hornblower Novels
+.%O "(13 of them)"
+.%A "C.S. Forester"
+.Re
+.Pp
+.Rs
+.%B Captain Richard Bolitho Novels
+.%O "(12 of them)"
+.%A "Alexander Kent"
+.Re
+.Pp
+.Rs
+.%B The Complete Works of Captain Frederick Marryat
+.Re
+Of these, especially
+.Bl -item -offset indent -compact
+.It
+.%B Mr. Midshipman Easy
+.It
+.%B Peter Simple
+.It
+.%B Jacob Faithful
+.It
+.%B Japhet in Search of a Father
+.It
+.%B Snarleyyow, or The Dog Fiend
+.It
+.%B Frank Mildmay, or The Naval Officer
+.El
+.Sh BUGS
+Probably a few.
+.\" Please report them to "riggle@ernie.berkeley.edu" and
+.\" "edward@ucbarpa.berkeley.edu"

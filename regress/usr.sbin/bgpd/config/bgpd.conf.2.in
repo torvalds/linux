@@ -1,0 +1,12 @@
+# $OpenBSD: bgpd.conf.2.in,v 1.1 2018/09/07 08:38:35 claudio Exp $
+# Test various community related filter parsing
+
+AS 1
+
+allow from any       community local-as:neighbor-as
+allow from any   ext-community rt 1:2
+allow from any   ext-community l2vid 192.0.2.1:2
+allow from any   ext-community ovs valid
+allow from any   ext-community ovs invalid
+allow from any   ext-community ovs not-found
+allow from any large-community local-as:neighbor-as:*

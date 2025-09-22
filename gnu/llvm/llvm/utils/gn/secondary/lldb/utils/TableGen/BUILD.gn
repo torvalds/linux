@@ -1,0 +1,12 @@
+executable("lldb-tblgen") {
+  deps = [
+    "//llvm/lib/Support",
+    "//llvm/lib/TableGen",
+  ]
+  sources = [
+    "LLDBOptionDefEmitter.cpp",
+    "LLDBPropertyDefEmitter.cpp",
+    "LLDBTableGen.cpp",
+    "LLDBTableGenUtils.cpp",
+  ]
+}

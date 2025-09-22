@@ -1,0 +1,23 @@
+# In order to work around the very problems that force us to now generally
+# create a libgcc.so, glibc reexported a number of routines from libgcc.a.
+# By now choosing the same version tags for these specific routines, we
+# maintain enough binary compatibility to allow future versions of glibc
+# to defer implementation of these routines to libgcc.so via DT_AUXILIARY.
+
+%inherit GCC_3.0 GLIBC_2.0
+GLIBC_2.0 {
+  # Sampling of DImode arithmetic used by (at least) i386 and m68k.
+  __divdi3
+  __moddi3
+  __udivdi3
+  __umoddi3
+
+  # Exception handling support functions used by most everyone.
+  __register_frame
+  __register_frame_table
+  __deregister_frame
+  __register_frame_info
+  __deregister_frame_info
+  __frame_state_for
+  __register_frame_info_table
+}

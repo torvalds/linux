@@ -1,0 +1,126 @@
+.\" $OpenBSD: tsearch.3,v 1.22 2022/03/31 17:27:16 naddy Exp $
+.\"
+.\" Copyright (c) 1997 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt TSEARCH 3
+.Os
+.Sh NAME
+.Nm tsearch ,
+.Nm tfind ,
+.Nm tdelete ,
+.Nm twalk
+.Nd manipulate binary search trees
+.Sh SYNOPSIS
+.In search.h
+.Ft void *
+.Fn tdelete "const void *key" "void **rootp" "int (*compar)(const void *, const void *)"
+.Ft void *
+.Fn tfind "const void *key" "void * const *rootp" "int (*compar)(const void *, const void *)"
+.Ft void *
+.Fn tsearch "const void *key" "void **rootp" "int (*compar)(const void *, const void *)"
+.Ft void
+.Fn twalk "const void *root" "void (*action)(const void *, VISIT, int)"
+.Sh DESCRIPTION
+The
+.Fn tdelete ,
+.Fn tfind ,
+.Fn tsearch ,
+and
+.Fn twalk
+functions manage binary search trees based on algorithms T and D
+from Knuth (6.2.2).
+The comparison function passed in by
+the user has the same style of return values as
+.Xr strcmp 3 .
+.Pp
+.Fn tfind
+searches for the datum matched by the argument
+.Fa key
+in the binary tree rooted at
+.Fa rootp ,
+returning a pointer to the datum if it is found and
+.Dv NULL
+if it is not.
+.Pp
+.Fn tsearch
+is identical to
+.Fn tfind
+except that if no match is found,
+.Fa key
+is inserted into the tree and a pointer to it is returned.
+If
+.Fa rootp
+points to a null value, a new binary search tree is created.
+.Pp
+.Fn tdelete
+deletes a node from the specified binary search tree and returns
+a pointer to the parent of the node to be deleted.
+If the node to be deleted is the root of the binary search tree,
+.Fa rootp
+will be adjusted and an unspecified non-null pointer will be returned.
+It takes the same arguments as
+.Fn tfind
+and
+.Fn tsearch .
+.Pp
+.Fn twalk
+walks the binary search tree rooted in
+.Fa root
+and calls the function
+.Fa action
+on each node.
+.Fa action
+is called with three arguments: a pointer to the current node,
+a value from the enum
+.Sy "typedef enum { preorder, postorder, endorder, leaf } VISIT;"
+specifying the traversal type, and a node level (where level
+zero is the root of the tree).
+.Sh RETURN VALUES
+The
+.Fn tsearch
+function returns
+.Dv NULL
+if allocation of a new node fails (usually
+due to a lack of free memory).
+.Pp
+.Fn tdelete
+returns a pointer to the parent of the deleted node or an unspecified
+non-null pointer if the root node is deleted.
+.Pp
+.Fn tfind ,
+.Fn tsearch ,
+and
+.Fn tdelete
+return
+.Dv NULL
+if
+.Fa rootp
+is
+.Dv NULL
+or the datum cannot be found.
+.Sh SEE ALSO
+.Xr bsearch 3 ,
+.Xr lsearch 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2008 .
+.Sh CAVEATS
+The value returned when deleting the root node was unspecified before
+the
+.St -p1003.1-2008
+standard, so users of the
+.Fn tdelete
+function should be wary of relying on a specific behaviour.

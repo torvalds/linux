@@ -1,0 +1,66 @@
+.\"	$OpenBSD: vmt.4,v 1.10 2021/01/15 06:16:21 jmatthew Exp $
+.\"
+.\" Copyright (c) 2008 Marco Peereboom <marco@openbsd.org>
+.\" Text was heavily borrowed from the IPMI spec V1.5
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: January 15 2021 $
+.Dt VMT 4
+.Os
+.Sh NAME
+.Nm vmt
+.Nd VMware Tools driver
+.Sh SYNOPSIS
+.Cd "vmt0 at pvbus0"
+.Sh DESCRIPTION
+The
+.Nm
+driver is a kernel level implementation of VMware Tools.
+VMware Tools are intended to provide better support for operating systems
+running inside virtual machines.
+.Pp
+.Nm
+handles shutdown and reboot requests from the host by signalling
+.Xr init 8
+with
+.Dv SIGUSR2
+and
+.Dv SIGINT
+respectively.
+.Nm
+will log notifications that the guest has been suspended or resumed by the
+host.
+It also provides access to the host machine's clock as a timedelta sensor.
+.Pp
+.Nm
+reports the guest's hostname and all non-loopback IP addresses to the host.
+.Sh SEE ALSO
+.Xr pvbus 4 ,
+.Xr init 8 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Pp
+A
+.Sy vmwh
+helper program is available via
+.Xr packages 7 .
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.4 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An David Gwynne Aq Mt dlg@openbsd.org .

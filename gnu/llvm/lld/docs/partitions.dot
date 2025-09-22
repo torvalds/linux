@@ -1,0 +1,22 @@
+digraph G {
+  part_main [label="Main partition",shape=plaintext];
+  part1 [label="Loadable partition 1",shape=plaintext];
+  part2 [label="Loadable partition 2",shape=plaintext];
+  main [style=filled,fillcolor=lightblue];
+  f1 [style=filled,fillcolor=lightsalmon];
+  f2 [style=filled,fillcolor=palegreen];
+  f3 [style=filled,fillcolor=lightblue];
+  f4 [style=filled,fillcolor=lightsalmon];
+  f5 [style=filled,fillcolor=lightblue];
+  f6 [style=filled,fillcolor=palegreen];
+  part_main -> main;
+  main -> f3;
+  part1 -> f1;
+  f1 -> f3;
+  f1 -> f4;
+  f1 -> f5;
+  part2 -> f2;
+  f2 -> f3;
+  f2 -> f5;
+  f2 -> f6;
+}

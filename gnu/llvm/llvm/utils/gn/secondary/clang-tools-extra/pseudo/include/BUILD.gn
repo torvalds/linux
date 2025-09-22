@@ -1,0 +1,39 @@
+import("//llvm/utils/gn/build/compiled_action.gni")
+
+template("gen") {
+  compiled_action(target_name) {
+    tool = "//clang-tools-extra/pseudo/gen:clang-pseudo-gen"
+    inputs = [ "../lib/cxx/cxx.bnf" ]
+    outputs = [ "$target_gen_dir/$target_name" ]
+    args = [
+      "--grammar",
+      rebase_path(inputs[0], root_build_dir),
+      "-o",
+      rebase_path(outputs[0], root_build_dir),
+      invoker.flag,
+    ]
+  }
+}
+
+gen("CXXSymbols.inc") {
+  flag = "--emit-symbol-list"
+}
+
+gen("CXXBNF.inc") {
+  flag = "--emit-grammar-content"
+}
+
+config("cxx_gen_config") {
+  visibility = [ ":cxx_gen" ]
+  include_dirs = [ target_gen_dir ]
+}
+
+group("cxx_gen") {
+  deps = [
+    ":CXXBNF.inc",
+    ":CXXSymbols.inc",
+  ]
+
+  # Let targets depending on this find the generated files.
+  public_configs = [ ":cxx_gen_config" ]
+}

@@ -1,0 +1,42 @@
+.\"	$OpenBSD: sxirintc.4,v 1.1 2022/09/12 17:30:32 kettenis Exp $
+.\"
+.\" Copyright (c) 2022 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 12 2022 $
+.Dt SXIRINTC 4
+.Os
+.Sh NAME
+.Nm sxirintc
+.Nd Allwinner wakeup interrupt controller
+.Sh SYNOPSIS
+.Cd "sxirintc* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the wakeup interrupt controller
+integrated on Allwinner A23/A31/A33/A64/A83T/H3/H5 SoCs.
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

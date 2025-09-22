@@ -1,0 +1,156 @@
+.\" $OpenBSD: curs_opaque.3,v 1.3 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2020-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 2007-2014,2015 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_opaque.3,v 1.3 2023/10/17 09:52:08 nicm Exp $
+.TH curs_opaque 3 2023-07-01 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.na
+.hy 0
+.SH NAME
+\fBis_cleared\fP,
+\fBis_idlok\fP,
+\fBis_idcok\fP,
+\fBis_immedok\fP,
+\fBis_keypad\fP,
+\fBis_leaveok\fP,
+\fBis_nodelay\fP,
+\fBis_notimeout\fP,
+\fBis_pad\fP,
+\fBis_scrollok\fP,
+\fBis_subwin\fP,
+\fBis_syncok\fP,
+\fBwgetdelay\fP,
+\fBwgetparent\fP,
+\fBwgetscrreg\fP \- \fBcurses\fP window properties
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBbool is_cleared(const WINDOW *\fIwin\fB);\fR
+.br
+\fBbool is_idcok(const WINDOW *\fIwin\fB);\fR
+.br
+\fBbool is_idlok(const WINDOW *\fIwin\fB);\fR
+.br
+\fBbool is_immedok(const WINDOW *\fIwin\fB);\fR
+.br
+\fBbool is_keypad(const WINDOW *\fIwin\fB);\fR
+.br
+\fBbool is_leaveok(const WINDOW *\fIwin\fB);\fR
+.br
+\fBbool is_nodelay(const WINDOW *\fIwin\fB);\fR
+.br
+\fBbool is_notimeout(const WINDOW *\fIwin\fB);\fR
+.br
+\fBbool is_pad(const WINDOW *\fIwin\fB);\fR
+.br
+\fBbool is_scrollok(const WINDOW *\fIwin\fB);\fR
+.br
+\fBbool is_subwin(const WINDOW *\fIwin\fB);\fR
+.br
+\fBbool is_syncok(const WINDOW *\fIwin\fB);\fR
+.br
+\fBWINDOW * wgetparent(const WINDOW *\fIwin\fB);\fR
+.br
+\fBint wgetdelay(const WINDOW *\fIwin\fB);\fR
+.br
+\fBint wgetscrreg(const WINDOW *\fIwin\fB, int *\fItop\fB, int *\fIbottom\fB);\fR
+.SH DESCRIPTION
+This implementation provides functions which return properties
+set in the WINDOW structure, allowing it to be \*(``opaque\*('' if
+the symbol \fBNCURSES_OPAQUE\fP is defined:
+.TP 5
+\fBis_cleared\fP
+returns the value set in \fBclearok\fP(3)
+.TP 5
+\fBis_idcok\fP
+returns the value set in \fBidcok\fP(3)
+.TP 5
+\fBis_idlok\fP
+returns the value set in \fBidlok\fP(3)
+.TP 5
+\fBis_immedok\fP
+returns the value set in \fBimmedok\fP(3)
+.TP 5
+\fBis_keypad\fP
+returns the value set in \fBkeypad\fP(3)
+.TP 5
+\fBis_leaveok\fP
+returns the value set in \fBleaveok\fP(3)
+.TP 5
+\fBis_nodelay\fP
+returns the value set in \fBnodelay\fP(3)
+.TP 5
+\fBis_notimeout\fP
+returns the value set in \fBnotimeout\fP(3)
+.TP 5
+\fBis_pad\fP
+returns \fBTRUE\fP if the window is a pad
+i.e., created by \fBnewpad\fP(3)
+.TP 5
+\fBis_scrollok\fP
+returns the value set in \fBscrollok\fP(3)
+.TP 5
+\fBis_subwin\fP
+returns \fBTRUE\fP if the window is a subwindow,
+i.e., created by \fBsubwin\fP(3) or \fBderwin\fP(3)
+.TP 5
+\fBis_syncok\fP
+returns the value set in \fBsyncok\fP(3)
+.TP 5
+\fBwgetdelay\fP
+returns the delay timeout as set in \fBwtimeout\fP(3).
+.TP 5
+\fBwgetparent\fP
+returns the parent WINDOW pointer for subwindows,
+or NULL for windows having no parent.
+.TP 5
+\fBwgetscrreg\fP
+returns the top and bottom rows for the scrolling margin
+as set in \fBwsetscrreg\fP.
+.SH RETURN VALUE
+These functions all return \fBTRUE\fP or \fBFALSE\fP, except as noted.
+.SH NOTES
+Both a macro and a function are provided for each name.
+.SH PORTABILITY
+These routines are specific to ncurses.
+They were not supported on Version 7, BSD or System V implementations.
+It is recommended that any code depending on ncurses extensions
+be conditioned using NCURSES_VERSION.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_inopts\fP(3),
+\fBcurs_outopts\fP(3),
+\fBcurs_window\fP(3)

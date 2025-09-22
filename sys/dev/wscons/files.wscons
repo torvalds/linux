@@ -1,0 +1,44 @@
+# $OpenBSD: files.wscons,v 1.18 2024/11/05 16:53:30 miod Exp $
+# $NetBSD: files.wscons,v 1.34 2005/05/04 01:52:16 augustss Exp $
+
+#
+# "Workstation Console" glue; attaches frame buffer to emulator & keyboard,
+# plus deals with kernel mouse drivers.
+#
+# These files are included with strange conditions because of the hairy
+# interactions between them.  In particular, chunks of the glue,
+# keyboard, and mouse code are called directly by other chunks.  Also,
+# each hardware driver can make calls into its (child) interface driver.
+# This could all be cleaned up, but it's not clear that it's worth the
+# trouble.
+#
+
+# this loses, but there's no way to define attributes which have attributes
+device	wsdisplay #tty?
+attach	wsdisplay at wsemuldisplaydev
+device	wskbd
+attach	wskbd at wskbddev
+device	wsmouse
+attach	wsmouse at wsmousedev
+
+file	dev/wscons/wsdisplay.c			wsdisplay	needs-flag
+file	dev/wscons/wsdisplay_compat_usl.c	wsdisplay & wsdisplay_compat_usl
+file	dev/wscons/wsevent.c			wsdisplay | wskbd |
+						wsmouse | wsmux
+file	dev/wscons/wskbd.c			wskbd		needs-flag
+file	dev/wscons/wskbdutil.c			wskbd
+file	dev/wscons/wsmouse.c			wsmouse		needs-flag
+file	dev/wscons/wstpad.c			wsmouse
+
+pseudo-device	wsmux
+file	dev/wscons/wsmux.c			wsmux		needs-flag
+
+# emulation code
+file	dev/wscons/wsemulconf.c			wsdisplay
+file	dev/wscons/wsemul_dumb.c		wsdisplay & wsemul_dumb
+file	dev/wscons/wsemul_subr.c		wsdisplay
+file	dev/wscons/wsemul_sun.c			wsdisplay & wsemul_sun
+file	dev/wscons/wsemul_vt100.c		wsdisplay & !wsemul_no_vt100
+file	dev/wscons/wsemul_vt100_subr.c		wsdisplay & !wsemul_no_vt100
+file	dev/wscons/wsemul_vt100_chars.c		wsdisplay & !wsemul_no_vt100
+file	dev/wscons/wsemul_vt100_keys.c		wsdisplay & !wsemul_no_vt100

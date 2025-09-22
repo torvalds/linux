@@ -1,0 +1,21 @@
+executable("clang-tidy") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy:all-checks",
+    "//clang-tools-extra/clang-tidy:clang-tidy-config",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsAsmParsers",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsInfos",
+  ]
+  sources = [
+    "ClangTidyMain.cpp",
+    "ClangTidyToolMain.cpp",
+  ]
+}

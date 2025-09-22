@@ -1,0 +1,89 @@
+
+From: kuehl@ramsen.informatik.uni-konstanz.de (Dietmar Kuehl)
+Newsgroups: comp.std.c++
+Subject: Re: binary iostreams ?
+Date: Sat,  3 Feb 2001 17:17:49 GMT
+Message-ID: <95hctq$suu$2@news.BelWue.DE>
+
+Hi,
+Plinio Conti (plinio.contiNO@SPAMMINGmclink.it) wrote:
+: Why std c++ library stream classes are only text-oriented?
+
+There is only a text oriented front end to stream buffers because text
+input and output does not vary between platforms. This is very
+different for binary output. For example, binary output has to consider
+
+- word sizes: Is an 'int' two, four, or eight bytes long? The same
+  questions arise for all other built-in types.
+
+- what is the bit pattern of a value? I think that at least implicitly
+  in the standard a binary representation for integer types is required.
+  I don't think that it is required to use two's complement. In any
+  case, the floating point representations do differ, eg. in their
+  number of bytes used.
+
+- what "endianess" is to be used?
+
+Basically it is possible to decide a format for each of those. This,
+however, implies inefficient implementations on platforms where the
+format does not match the internal representation.
+
+What many people asking for binary I/O forget is that binary I/O also
+requires some form of formatting! Assuming that just writing data and
+then reading it in will work is asking for problems, eg. when the
+compiler version changes and they decided to use a 32 bit integer
+rather than a 16 bit integer: It is not even necessary to switch
+platforms to run into problems!
+
+: I mean, if I want to write an int, a float, etc. AS IT IS I can't use
+: streams, because they write and read a human readable text format of
+: numbers.
+
+Which is for most I/O a reasonable approach. If it is not for you, you
+might want to consider a data base: File I/O is not really useful as a
+persistance mechanism. It is fine eg. for user interaction (text I/O),
+logging (text I/O), cross platfrom program interaction (formatted I/O),
+and data exchange (formatted I/O). In all these cases, the I/O is
+formatted, although possible using a binary format. For persistance,
+data bases are used. Depending on your needs, a relational or an object
+oriented one may be better suited.
+
+That said, it is worth to mention that it is easy to create a hierarchy
+similar to IOStreams built on top of stream buffers but doing binary
+formatting. A somewhat aged example is found at
+<ftp://ftp.fmi.uni-konstanz.de/pub/algo/personal/kuehl/binio.tar.gz>.
+This uses XDR formatting of the binary data (well, if I remmeber 
+correctly, it is easy to plug in a different binary formatting).
+
+: Does anyone know how to solve the problem?
+
+Use a data base, text formatting, or binary formatting. With the
+details you have given it is impossible to tell which of those is the
+right approach because you haven't told *why* you want a binary format
+and *what* you want to do. That basically means that you came up with
+solution and you want us to confirm that it is the right one without
+telling us what problem is solved! Until I have seen the problem I
+doubt that binary I/O is the right approach...
+
+... and, BTW, using 'std::istream::read()' and 'std::ostream::write()'
+is almost certainly the *wrong* approach! These functions are an
+historical mistake which should have been corrected in the standard:
+It is my understanding that these methods were present in the IOStream
+version predating the rework from Jerry Schwartz and were left in to
+be compatible with the earlier stuff although they were not necessary:
+You could get binary I/O from the stream buffer level. The original
+IOStream library (maybe you remember using <stream.h>) did not have
+stream buffers and thus basic support for binary I/O was also present
+on the streams level.
+
+: What do you think about this choice?
+
+When I wrote the above paragraph about confirming your choice, I haven't
+read this question! As I said above: You told us what solution you have
+choosen without stating what problem is solved. We cannot determine
+whether your choice is the right one. Actually, I'm pretty sure it is
+the wrong one but without seen the details I can't be certain.
+--
+<mailto:dietmar_kuehl@yahoo.com> <http://www.dietmar-kuehl.de/>
+Phaidros eaSE - Easy Software Engineering: <http://www.phaidros.com/>
+

@@ -1,0 +1,330 @@
+.\"	$OpenBSD: OCSP_REQUEST_new.3,v 1.13 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2014, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OCSP_REQUEST_NEW 3
+.Os
+.Sh NAME
+.Nm OCSP_REQUEST_new ,
+.Nm OCSP_REQUEST_free ,
+.Nm OCSP_SIGNATURE_new ,
+.Nm OCSP_SIGNATURE_free ,
+.Nm OCSP_REQINFO_new ,
+.Nm OCSP_REQINFO_free ,
+.Nm OCSP_ONEREQ_new ,
+.Nm OCSP_ONEREQ_free ,
+.Nm OCSP_request_add0_id ,
+.Nm OCSP_request_sign ,
+.Nm OCSP_request_add1_cert ,
+.Nm OCSP_request_onereq_count ,
+.Nm OCSP_request_onereq_get0
+.Nd OCSP request functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ocsp.h
+.Ft OCSP_REQUEST *
+.Fn OCSP_REQUEST_new void
+.Ft void
+.Fn OCSP_REQUEST_free "OCSP_REQUEST *req"
+.Ft OCSP_SIGNATURE *
+.Fn OCSP_SIGNATURE_new void
+.Ft void
+.Fn OCSP_SIGNATURE_free "OCSP_SIGNATURE *signature"
+.Ft OCSP_REQINFO *
+.Fn OCSP_REQINFO_new void
+.Ft void
+.Fn OCSP_REQINFO_free "OCSP_REQINFO *reqinfo"
+.Ft OCSP_ONEREQ *
+.Fn OCSP_ONEREQ_new void
+.Ft void
+.Fn OCSP_ONEREQ_free "OCSP_ONEREQ *onereq"
+.Ft OCSP_ONEREQ *
+.Fo OCSP_request_add0_id
+.Fa "OCSP_REQUEST *req"
+.Fa "OCSP_CERTID *cid"
+.Fc
+.Ft int
+.Fo OCSP_request_sign
+.Fa "OCSP_REQUEST *req"
+.Fa "X509 *signer"
+.Fa "EVP_PKEY *key"
+.Fa "const EVP_MD *dgst"
+.Fa "STACK_OF(X509) *certs"
+.Fa "unsigned long flags"
+.Fc
+.Ft int
+.Fo OCSP_request_add1_cert
+.Fa "OCSP_REQUEST *req"
+.Fa "X509 *cert"
+.Fc
+.Ft int
+.Fo OCSP_request_onereq_count
+.Fa "OCSP_REQUEST *req"
+.Fc
+.Ft OCSP_ONEREQ *
+.Fo OCSP_request_onereq_get0
+.Fa "OCSP_REQUEST *req"
+.Fa "int i"
+.Fc
+.Sh DESCRIPTION
+.Fn OCSP_REQUEST_new
+allocates and initializes an empty
+.Vt OCSP_REQUEST
+object, representing an ASN.1
+.Vt OCSPRequest
+structure defined in RFC 6960.
+.Fn OCSP_REQUEST_free
+frees
+.Fa req .
+.Pp
+.Fn OCSP_SIGNATURE_new
+allocates and initializes an empty
+.Vt OCSP_SIGNATURE
+object, representing an ASN.1
+.Vt Signature
+structure defined in RFC 6960.
+Such an object is used inside
+.Vt OCSP_REQUEST .
+.Fn OCSP_SIGNATURE_free
+frees
+.Fa signature .
+.Pp
+.Fn OCSP_REQINFO_new
+allocates and initializes an empty
+.Vt OCSP_REQINFO
+object, representing an ASN.1
+.Vt TBSRequest
+structure defined in RFC 6960.
+Such an object is used inside
+.Vt OCSP_REQUEST .
+It asks about the validity of one or more certificates.
+.Fn OCSP_REQINFO_free
+frees
+.Fa reqinfo .
+.Pp
+.Fn OCSP_ONEREQ_new
+allocates and initializes an empty
+.Vt OCSP_ONEREQ
+object, representing an ASN.1
+.Vt Request
+structure defined in RFC 6960.
+Such objects are used inside
+.Vt OCSP_REQINFO .
+Each one asks about the validity of one certificate.
+.Fn OCSP_ONEREQ_free
+frees
+.Fa onereq .
+.Pp
+.Fn OCSP_request_add0_id
+adds certificate ID
+.Fa cid
+to
+.Fa req .
+It returns the
+.Vt OCSP_ONEREQ
+object added so an application can add additional extensions to the
+request.
+The
+.Fa cid
+parameter must not be freed up after the operation.
+.Pp
+.Fn OCSP_request_sign
+signs OCSP request
+.Fa req
+using certificate
+.Fa signer ,
+private key
+.Fa key ,
+digest
+.Fa dgst ,
+and additional certificates
+.Fa certs .
+If the
+.Fa flags
+option
+.Dv OCSP_NOCERTS
+is set, then no certificates will be included in the request.
+.Pp
+.Fn OCSP_request_add1_cert
+adds certificate
+.Fa cert
+to request
+.Fa req .
+The application is responsible for freeing up
+.Fa cert
+after use.
+.Pp
+.Fn OCSP_request_onereq_count
+returns the total number of
+.Vt OCSP_ONEREQ
+objects in
+.Fa req .
+.Pp
+.Fn OCSP_request_onereq_get0
+returns an internal pointer to the
+.Vt OCSP_ONEREQ
+contained in
+.Fa req
+of index
+.Fa i .
+The index value
+.Fa i
+runs from 0 to
+.Fn OCSP_request_onereq_count req No - 1 .
+.Pp
+.Fn OCSP_request_onereq_count
+and
+.Fn OCSP_request_onereq_get0
+are mainly used by OCSP responders.
+.Sh RETURN VALUES
+.Fn OCSP_REQUEST_new ,
+.Fn OCSP_SIGNATURE_new ,
+.Fn OCSP_REQINFO_new ,
+and
+.Fn OCSP_ONEREQ_new
+return an empty
+.Vt OCSP_REQUEST ,
+.Vt OCSP_SIGNATURE ,
+.Vt OCSP_REQINFO ,
+or
+.Vt OCSP_ONEREQ
+object, respectively, or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn OCSP_request_add0_id
+returns the
+.Vt OCSP_ONEREQ
+object containing
+.Fa cid
+or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn OCSP_request_sign
+and
+.Fn OCSP_request_add1_cert
+return 1 for success or 0 for failure.
+.Pp
+.Fn OCSP_request_onereq_count
+returns the total number of
+.Vt OCSP_ONEREQ
+objects in
+.Fa req .
+.Pp
+.Fn OCSP_request_onereq_get0
+returns a pointer to an
+.Vt OCSP_ONEREQ
+object or
+.Dv NULL
+if the index value is out of range.
+.Sh EXAMPLES
+Create an
+.Vt OCSP_REQUEST
+object for certificate
+.Fa cert
+with issuer
+.Fa issuer :
+.Bd -literal -offset indent
+OCSP_REQUEST *req;
+OCSP_ID *cid;
+
+req = OCSP_REQUEST_new();
+if (req == NULL)
+	/* error */
+cid = OCSP_cert_to_id(EVP_sha1(), cert, issuer);
+if (cid == NULL)
+	/* error */
+
+if (OCSP_REQUEST_add0_id(req, cid) == NULL)
+	/* error */
+
+ /* Do something with req, e.g. query responder */
+
+OCSP_REQUEST_free(req);
+.Ed
+.Sh SEE ALSO
+.Xr ACCESS_DESCRIPTION_new 3 ,
+.Xr crypto 3 ,
+.Xr d2i_OCSP_REQUEST 3 ,
+.Xr d2i_OCSP_RESPONSE 3 ,
+.Xr EVP_DigestInit 3 ,
+.Xr OCSP_cert_to_id 3 ,
+.Xr OCSP_CRLID_new 3 ,
+.Xr OCSP_request_add1_nonce 3 ,
+.Xr OCSP_resp_find_status 3 ,
+.Xr OCSP_response_status 3 ,
+.Xr OCSP_sendreq_new 3 ,
+.Xr OCSP_SERVICELOC_new 3 ,
+.Xr X509_ocspid_print 3
+.Sh STANDARDS
+RFC 6960: X.509 Internet Public Key Infrastructure Online Certificate
+Status Protocol, section 4.1: Request Syntax
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.7
+and have been available since
+.Ox 3.2 .

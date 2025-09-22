@@ -1,0 +1,73 @@
+.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_INIT 3
+.Os
+.Sh NAME
+.Nm fido_init ,
+.Nm fido_set_log_handler
+.Nd initialise the FIDO2 library
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Bd -literal
+typedef void fido_log_handler_t(const char *);
+.Ed
+.Pp
+.Ft void
+.Fn fido_init "int flags"
+.Ft void
+.Fn fido_set_log_handler "fido_log_handler_t *handler"
+.Sh DESCRIPTION
+The
+.Fn fido_init
+function initialises the
+.Em libfido2
+library.
+Its invocation must precede that of any other
+.Em libfido2
+function in the context of the executing thread.
+.Pp
+If
+.Dv FIDO_DEBUG
+is set in
+.Fa flags ,
+then
+debug output will be emitted by
+.Em libfido2
+on
+.Em stderr .
+Alternatively, the
+.Ev FIDO_DEBUG
+environment variable may be set.
+.Pp
+If
+.Dv FIDO_DISABLE_U2F_FALLBACK
+is set in
+.Fa flags ,
+then
+.Em libfido2
+will not fallback to U2F in
+.Xr fido_dev_open 3
+if a device claims to support FIDO2 but fails to respond to
+a CTAP 2.0 greeting.
+.Pp
+The
+.Fn fido_set_log_handler
+function causes
+.Fa handler
+to be called for each log line generated in the context of the
+executing thread.
+Lines passed to
+.Fa handler
+include a trailing newline character and are not printed by
+.Em libfido2
+on
+.Em stderr .
+.Sh SEE ALSO
+.Xr fido_assert_new 3 ,
+.Xr fido_cred_new 3 ,
+.Xr fido_dev_info_manifest 3 ,
+.Xr fido_dev_open 3

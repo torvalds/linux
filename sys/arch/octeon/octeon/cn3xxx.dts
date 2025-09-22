@@ -1,0 +1,82 @@
+/*	$OpenBSD: cn3xxx.dts,v 1.4 2019/09/15 06:48:29 visa Exp $	*/
+
+/*
+ * Copyright (c) 2017 Visa Hankala
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * Dummy device-tree for CN3xxx/CN5xxx based systems where the firmware
+ * does not provide a native one.
+ */
+
+/*
+ * The file is compiled into an asm file using the Linux device tree compiler.
+ *
+ * $ dtc -V 17 -O asm -o cn3xxx_dts.S cn3xxx.dts
+ *
+ * To avoid invalid 8-bit relocations in the object file, certain sequences
+ * of .byte values have to be folded manually into .word values
+ * in the generated header.
+ */
+
+/dts-v1/;
+
+/ {
+	model = "CN3xxx/CN5xxx";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	soc@0 {
+		compatible = "simple-bus";
+		interrupt-parent = <&ciu>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ciu: ciu@1070000000000 {
+			compatible = "cavium,octeon-3860-ciu";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0x10700 0x00000000 0x0 0x7000>;
+		};
+
+		mdio@1180000001800 {
+			compatible = "cavium,octeon-3860-mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x11800 0x00001800 0x0 0x40>;
+		};
+
+		pip@11800a0000000 {
+			compatible = "cavium,octeon-3860-pip";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x11800 0xa0000000 0x0 0x2000>;
+
+			interface@0 {
+				compatible = "cavium,octeon-3860-pip-interface";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+			};
+		};
+
+		serial@1180000000800 {
+			compatible = "cavium,octeon-3860-uart";
+			reg = <0x11800 0x00000800 0x0 0x400>;
+			interrupts = <0 0x22>;
+		};
+	};
+};

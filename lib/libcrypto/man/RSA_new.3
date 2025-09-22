@@ -1,0 +1,249 @@
+.\" $OpenBSD: RSA_new.3,v 1.19 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to:
+.\" OpenSSL doc/man3/RSA_new.pod e9b77246 Jan 20 19:58:49 2017 +0100
+.\" OpenSSL doc/crypto/rsa.pod 35d2e327 Jun 3 16:19:49 2016 -0400 (final)
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2018, 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_NEW 3
+.Os
+.Sh NAME
+.Nm RSA_new ,
+.Nm RSAPrivateKey_dup ,
+.Nm RSAPublicKey_dup ,
+.Nm RSA_up_ref ,
+.Nm RSA_free
+.Nd allocate and free RSA objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft RSA *
+.Fn RSA_new void
+.Ft RSA *
+.Fo RSAPrivateKey_dup
+.Fa "RSA *rsa"
+.Fc
+.Ft RSA *
+.Fo RSAPublicKey_dup
+.Fa "RSA *rsa"
+.Fc
+.Ft int
+.Fo RSA_up_ref
+.Fa "RSA *rsa"
+.Fc
+.Ft void
+.Fo RSA_free
+.Fa "RSA *rsa"
+.Fc
+.Sh DESCRIPTION
+The RSA functions implement RSA public key encryption and signatures
+as defined in PKCS #1 v2.0 (RFC 2437).
+.Pp
+.Fn RSA_new
+allocates and initializes an
+.Vt RSA
+structure, setting the reference count to 1.
+It is equivalent to calling
+.Xr RSA_new_method 3
+with a
+.Dv NULL
+argument.
+.Pp
+.Fn RSAPrivateKey_dup
+calls
+.Fn RSA_new
+and copies the public and private key components from
+.Fa rsa
+into the new structure.
+.Fn RSAPublicKey_dup
+does the same except that it copies the public key components only.
+.Pp
+.Fn RSA_up_ref
+increments the reference count by 1.
+.Pp
+.Fn RSA_free
+decrements the reference count by 1.
+If it reaches 0, it calls the optional
+.Fa finish
+function set up with
+.Xr RSA_meth_set_finish 3
+and frees the
+.Vt RSA
+structure and its components.
+The key is erased before the memory is returned to the system.
+If
+.Fa rsa
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+The
+.Vt RSA
+structure consists of several
+.Vt BIGNUM
+components.
+It can contain public as well as private RSA keys:
+.Bd -literal
+typedef struct {
+	BIGNUM *n;		// public modulus
+	BIGNUM *e;		// public exponent
+	BIGNUM *d;		// private exponent
+	BIGNUM *p;		// secret prime factor
+	BIGNUM *q;		// secret prime factor
+	BIGNUM *dmp1;		// d mod (p-1)
+	BIGNUM *dmq1;		// d mod (q-1)
+	BIGNUM *iqmp;		// q^-1 mod p
+	// ...
+} RSA;
+.Ed
+.Pp
+In public keys, the private exponent
+.Fa d
+and the related secret values
+.Fa p , q , dmp1 , dmp2 ,
+and
+.Fa iqmp
+are
+.Dv NULL .
+.Pp
+.Fa p ,
+.Fa q ,
+.Fa dmp1 ,
+.Fa dmq1 ,
+and
+.Fa iqmp
+may be
+.Dv NULL
+in private keys, but the RSA operations are much faster when these
+values are available.
+.Pp
+Note that RSA keys may use non-standard
+.Vt RSA_METHOD
+implementations.
+In some cases, these
+.Vt BIGNUM
+values will not be used by the implementation or may be used for
+alternative data storage.
+For this reason, applications should generally avoid using
+.Vt RSA
+structure elements directly and instead use API functions to query
+or modify keys.
+.Sh RETURN VALUES
+.Fn RSA_new ,
+.Fn RSAPrivateKey_dup ,
+and
+.Fn RSAPublicKey_dup
+return a pointer to the newly allocated structure, or
+.Dv NULL
+if an error occurs.
+An error code can be obtained by
+.Xr ERR_get_error 3 .
+.Pp
+.Fn RSA_up_ref
+returns 1 for success or 0 for failure.
+.Sh SEE ALSO
+.Xr BN_new 3 ,
+.Xr crypto 3 ,
+.Xr d2i_RSAPublicKey 3 ,
+.Xr DH_new 3 ,
+.Xr DSA_new 3 ,
+.Xr EVP_PKEY_set1_RSA 3 ,
+.Xr RSA_blinding_on 3 ,
+.Xr RSA_check_key 3 ,
+.Xr RSA_generate_key 3 ,
+.Xr RSA_get0_key 3 ,
+.Xr RSA_get_ex_new_index 3 ,
+.Xr RSA_meth_new 3 ,
+.Xr RSA_padding_add_PKCS1_type_1 3 ,
+.Xr RSA_pkey_ctx_ctrl 3 ,
+.Xr RSA_print 3 ,
+.Xr RSA_private_encrypt 3 ,
+.Xr RSA_PSS_PARAMS_new 3 ,
+.Xr RSA_public_encrypt 3 ,
+.Xr RSA_security_bits 3 ,
+.Xr RSA_set_method 3 ,
+.Xr RSA_sign 3 ,
+.Xr RSA_sign_ASN1_OCTET_STRING 3 ,
+.Xr RSA_size 3
+.Sh STANDARDS
+SSL, PKCS #1 v2.0
+.Pp
+RSA was covered by a US patent which expired in September 2000.
+.Sh HISTORY
+.Fn RSA_new
+and
+.Fn RSA_free
+appeared in SSLeay 0.4 or earlier.
+.Fn RSAPrivateKey_dup
+first appeared in SSLeay 0.5.1 and
+.Fn RSAPublicKey_dup
+in SSLeay 0.5.2.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn RSA_up_ref
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .

@@ -1,0 +1,116 @@
+[fake/bin/[[:alpha:]]*] <0x0>
+fake/bin/cat
+fake/bin/chgrp
+fake/bin/chio
+fake/bin/chmod
+fake/bin/cksum
+fake/bin/cp
+fake/bin/cpio
+fake/bin/csh
+fake/bin/date
+fake/bin/dd
+fake/bin/df
+fake/bin/domainname
+fake/bin/echo
+fake/bin/ed
+fake/bin/eject
+fake/bin/expr
+fake/bin/hostname
+fake/bin/kill
+fake/bin/ksh
+fake/bin/ln
+fake/bin/ls
+fake/bin/md5
+fake/bin/mkdir
+fake/bin/mt
+fake/bin/mv
+fake/bin/pax
+fake/bin/ps
+fake/bin/pwd
+fake/bin/rcp
+fake/bin/rksh
+fake/bin/rm
+fake/bin/rmail
+fake/bin/rmd160
+fake/bin/rmdir
+fake/bin/sh
+fake/bin/sha1
+fake/bin/sha256
+fake/bin/sha384
+fake/bin/sha512
+fake/bin/sleep
+fake/bin/stty
+fake/bin/sum
+fake/bin/sync
+fake/bin/systrace
+fake/bin/tar
+fake/bin/test
+
+[fake/bin/[[:alpha:]]*] <0x4000>
+fake/bin/cat 0100644
+fake/bin/chgrp 0100644
+fake/bin/chio 0100644
+fake/bin/chmod 0100644
+fake/bin/cksum 0100644
+fake/bin/cp 0100644
+fake/bin/cpio 0100644
+fake/bin/csh 0100644
+fake/bin/date 0100644
+fake/bin/dd 0100644
+fake/bin/df 0100644
+fake/bin/domainname 0100644
+fake/bin/echo 0100644
+fake/bin/ed 0100644
+fake/bin/eject 0100644
+fake/bin/expr 0100644
+fake/bin/hostname 0100644
+fake/bin/kill 0100644
+fake/bin/ksh 0100644
+fake/bin/ln 0100644
+fake/bin/ls 0100644
+fake/bin/md5 0100644
+fake/bin/mkdir 0100644
+fake/bin/mt 0100644
+fake/bin/mv 0100644
+fake/bin/pax 0100644
+fake/bin/ps 0100644
+fake/bin/pwd 0100644
+fake/bin/rcp 0100755
+fake/bin/rksh 0100755
+fake/bin/rm 0100755
+fake/bin/rmail 0100755
+fake/bin/rmd160 0100755
+fake/bin/rmdir 0100755
+fake/bin/sh 0100444
+fake/bin/sha1 0100444
+fake/bin/sha256 0100444
+fake/bin/sha384 0100444
+fake/bin/sha512 0100444
+fake/bin/sleep 0100444
+fake/bin/stty 0100444
+fake/bin/sum 0100444
+fake/bin/sync 0100444
+fake/bin/systrace 0100444
+fake/bin/tar 0100711
+fake/bin/test 0100711
+
+[fake/bin/rm{,dir,ail}] <0x80>
+fake/bin/rm
+fake/bin/rmdir
+fake/bin/rmail
+
+[fake/bin/sha[[:digit:]]] <0x0>
+fake/bin/sha1
+
+[fake/bin/sha[[:digit:]]*] <0x0>
+fake/bin/sha1
+fake/bin/sha256
+fake/bin/sha384
+fake/bin/sha512
+
+[fake/bin/ca[a-z]] <0x0>
+fake/bin/cat
+
+[fake/b[a-z]*] <0x4000>
+fake/bin 0040755
+

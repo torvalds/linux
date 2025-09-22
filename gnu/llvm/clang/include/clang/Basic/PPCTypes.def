@@ -1,0 +1,38 @@
+//===-- PPCTypes.def - Metadata about PPC types -----------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file defines PPC types.
+//  Custom code should define one of these macros:
+//
+//    PPC_VECTOR_TYPE(Name, Id, Size) - A PPC vector type of a given size
+//    (in bits).
+//
+//    PPC_VECTOR_MMA_TYPE(Name, Id, Size) - A PPC MMA vector type of a given
+//    size (in bits).
+//
+//    PPC_VECTOR_VSX_TYPE(Name, Id, Size) - A PPC VSX vector type of a given
+//    size (in bits).
+//
+//===----------------------------------------------------------------------===//
+
+#if defined(PPC_VECTOR_TYPE)
+  #define PPC_VECTOR_MMA_TYPE(Name, Id, Size) PPC_VECTOR_TYPE(Name, Id, Size)
+  #define PPC_VECTOR_VSX_TYPE(Name, Id, Size) PPC_VECTOR_TYPE(Name, Id, Size)
+#elif defined(PPC_VECTOR_MMA_TYPE)
+  #define PPC_VECTOR_VSX_TYPE(Name, Id, Size)
+#elif defined(PPC_VECTOR_VSX_TYPE)
+  #define PPC_VECTOR_MMA_TYPE(Name, Id, Size)
+#endif
+
+
+PPC_VECTOR_MMA_TYPE(__vector_quad, VectorQuad, 512)
+PPC_VECTOR_VSX_TYPE(__vector_pair, VectorPair, 256)
+
+#undef PPC_VECTOR_MMA_TYPE
+#undef PPC_VECTOR_VSX_TYPE
+#undef PPC_VECTOR_TYPE

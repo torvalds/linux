@@ -1,0 +1,83 @@
+.\"	$OpenBSD: dwge.4,v 1.7 2023/04/04 00:38:38 jsg Exp $
+.\"
+.\" Copyright (c) 2016 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 4 2023 $
+.Dt DWGE 4
+.Os
+.Sh NAME
+.Nm dwge
+.Nd Synopsys DesignWare GMAC 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "dwge* at fdt?"
+.Cd "rgephy*" at mii?
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various Ethernet controllers based on the
+Synopsys DesignWare GMAC core.
+These controllers are typically found on SoCs, such as the Allwinner
+A20/A31 and Rockchip RK3288/RK3399 ARM SoCs.
+.Pp
+The
+.Nm
+driver supports several media types, which are selected via the
+.Xr ifconfig 8
+command.
+The supported media types are:
+.Bl -tag -width "media" -offset indent
+.It Cm media No autoselect
+Attempt to autoselect the media type (default)
+.It Cm media No 1000baseT Cm mediaopt No full-duplex
+Use 1000baseT on copper, full duplex
+.It Cm media No 1000baseT Cm mediaopt No half-duplex
+Use 1000baseT on copper, half duplex
+.It Cm media No 100baseTX Cm mediaopt No full-duplex
+Use 100baseTX, full duplex
+.It Cm media No 100baseTX Cm mediaopt No half-duplex
+Use 100baseTX, half duplex
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr rgephy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Nx 7.0 .
+It was ported to
+.Ox 6.1
+and rewritten for
+.Ox 6.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Matt Thomas
+and
+.An Martin Husemann
+for
+.Nx
+and rewritten by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org
+and
+.An Patrick Wildt Aq Mt patrick@openbsd.org .

@@ -1,0 +1,8 @@
+pass in all flags any no state
+pass in from any to any flags any no state
+pass in proto tcp from any port <= 1024 to any flags any no state label foo_bar
+pass in proto tcp from any to any port = 25 flags any no state
+pass in proto tcp from 10.0.0.0/8 port > 1024 to ! 10.1.2.3 port != 22 flags any no state
+pass in proto igmp from 10.0.0.0/8 to 10.1.1.1 allow-opts no state
+pass in proto tcp from { 1.2.3.4, 1.2.3.5 } to any flags any no state label \
+"$nr:$proto:$srcaddr:$srcport:$dstaddr:$dstport"

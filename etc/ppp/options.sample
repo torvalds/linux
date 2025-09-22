@@ -1,0 +1,12 @@
+#	$OpenBSD: options.sample,v 1.2 2014/07/10 11:18:23 jasper Exp $
+/dev/ttyb
+19200
+modem
+crtscts
+defaultroute
+netmask 255.255.255.0
+ipcp-accept-local
+ipcp-accept-remote
+noipdefault
+lock
+connect "/usr/sbin/chat -v -f /etc/ppp/chatscript"

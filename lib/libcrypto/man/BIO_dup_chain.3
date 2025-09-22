@@ -1,0 +1,142 @@
+.\" $OpenBSD: BIO_dup_chain.3,v 1.3 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_DUP_CHAIN 3
+.Os
+.Sh NAME
+.Nm BIO_dup_chain ,
+.Nm BIO_dup_state
+.Nd copy a BIO chain
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.Ft BIO *
+.Fn BIO_dup_chain "BIO *b"
+.Ft long
+.Fn BIO_dup_state "BIO *b" "BIO *new_bio"
+.Sh DESCRIPTION
+.Fn BIO_dup_chain
+copies the chain starting at
+.Fa b
+by iteratively copying
+.Fa b
+and all the BIOs following it
+and joining the copies in the same order as in the original chain.
+The copying operation is neither a deep copy nor a shallow copy.
+.Pp
+Some parts of the state of each BIO are copied,
+in particular with respect to the values returned by
+.Xr BIO_get_init 3 ,
+.Xr BIO_test_flags 3 ,
+and
+.Xr BIO_get_shutdown 3 .
+.\" XXX new_bio->num = bio->num;
+Other parts of the state of the BIOs are not copied
+but instead initialized to 0,
+in particular with respect to the values returned by
+.Xr BIO_number_read 3 ,
+.Xr BIO_number_written 3 ,
+and
+.Xr BIO_get_retry_reason 3 .
+The custom data pointer that can be used by custom BIO types
+and that can be retrieved with
+.Xr BIO_get_data 3
+is set to
+.Dv NULL
+in the copied BIO objects rather than copied.
+The reference count of each BIO in the copied chain is set to 1.
+.Pp
+For each BIO in the chain, copying the data that was set with
+.Xr BIO_set_ex_data 3
+is attempted, which may involve calling application-defined
+callback functions.
+.Pp
+The following pointers are copied
+rather than creating deep copies of the objects pointed to:
+.Bl -bullet
+.It
+The
+.Fa type
+pointer used for creating each BIO with
+.Xr BIO_new 3 ,
+implying that functions like
+.Xr BIO_method_name 3
+return pointers to the same strings for the BIOs in the copied chain,
+and that these strings are not copied.
+.It
+All function pointers, in particular those installed with
+.Xr BIO_set_callback_ex 3
+and
+.Xr BIO_get_callback_ex 3 .
+.It
+The pointer installed with
+.Xr BIO_set_callback_arg 3 ,
+which implies that for BIOs using
+.Xr BIO_debug_callback 3 ,
+those in the copied chain use the same BIOs for debugging output
+as the corresponding ones in the original chain,
+and none of the debugging output BIOs are copied.
+.El
+.Pp
+.Fn BIO_dup_state
+is a macro that calls
+.Xr BIO_ctrl 3
+with a
+.Fa cmd
+argument of
+.Dv BIO_CTRL_DUP .
+It is automatically called for each BIO during
+.Fn BIO_dup_chain
+after the copied BIO is initialized and data copied into it,
+but before the data set with
+.Xr BIO_set_ex_data 3
+is copied into the new BIO and before it is linked into the new chain.
+.Pp
+This control operation may modify the operation of
+.Fn BIO_dup_chain
+for particular types of BIOs contained in the chain,
+for example initializing or copying additional data.
+For BIO types provided by the library, such additional effects
+are documented in the respective manual pages, in particular in
+.Xr BIO_f_buffer 3 ,
+.Xr BIO_f_cipher 3 ,
+.Xr BIO_f_md 3 ,
+.Xr BIO_f_ssl 3 ,
+.Xr BIO_s_bio 3 ,
+and
+.Xr BIO_s_connect 3 .
+.Sh RETURN VALUES
+.Fn BIO_dup_chain
+returns a pointer to the newly allocated copy of the BIO
+.Fa b
+on success or
+.Dv NULL
+on failure .
+.Pp
+.Fn BIO_dup_state
+returns 1 on success or a value less than or equal to zero on failure.
+.Sh SEE ALSO
+.Xr BIO_get_data 3 ,
+.Xr BIO_new 3 ,
+.Xr BIO_next 3 ,
+.Xr BIO_push 3
+.Sh HISTORY
+.Fn BIO_dup_chain
+and
+.Fn BIO_dup_state
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .

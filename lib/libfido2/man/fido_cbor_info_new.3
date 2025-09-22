@@ -1,0 +1,242 @@
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_CBOR_INFO_NEW 3
+.Os
+.Sh NAME
+.Nm fido_cbor_info_new ,
+.Nm fido_cbor_info_free ,
+.Nm fido_dev_get_cbor_info ,
+.Nm fido_cbor_info_aaguid_ptr ,
+.Nm fido_cbor_info_extensions_ptr ,
+.Nm fido_cbor_info_protocols_ptr ,
+.Nm fido_cbor_info_transports_ptr ,
+.Nm fido_cbor_info_versions_ptr ,
+.Nm fido_cbor_info_options_name_ptr ,
+.Nm fido_cbor_info_options_value_ptr ,
+.Nm fido_cbor_info_algorithm_type ,
+.Nm fido_cbor_info_algorithm_cose ,
+.Nm fido_cbor_info_algorithm_count ,
+.Nm fido_cbor_info_aaguid_len ,
+.Nm fido_cbor_info_extensions_len ,
+.Nm fido_cbor_info_protocols_len ,
+.Nm fido_cbor_info_transports_len ,
+.Nm fido_cbor_info_versions_len ,
+.Nm fido_cbor_info_options_len ,
+.Nm fido_cbor_info_maxmsgsiz ,
+.Nm fido_cbor_info_maxcredbloblen ,
+.Nm fido_cbor_info_maxcredcntlst ,
+.Nm fido_cbor_info_maxcredidlen ,
+.Nm fido_cbor_info_maxlargeblob ,
+.Nm fido_cbor_info_fwversion
+.Nd FIDO2 CBOR Info API
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft fido_cbor_info_t *
+.Fn fido_cbor_info_new "void"
+.Ft void
+.Fn fido_cbor_info_free "fido_cbor_info_t **ci_p"
+.Ft int
+.Fn fido_dev_get_cbor_info "fido_dev_t *dev" "fido_cbor_info_t *ci"
+.Ft const unsigned char *
+.Fn fido_cbor_info_aaguid_ptr "const fido_cbor_info_t *ci"
+.Ft char **
+.Fn fido_cbor_info_extensions_ptr "const fido_cbor_info_t *ci"
+.Ft const uint8_t *
+.Fn fido_cbor_info_protocols_ptr "const fido_cbor_info_t *ci"
+.Ft char **
+.Fn fido_cbor_info_transports_ptr "const fido_cbor_info_t *ci"
+.Ft char **
+.Fn fido_cbor_info_versions_ptr "const fido_cbor_info_t *ci"
+.Ft char **
+.Fn fido_cbor_info_options_name_ptr "const fido_cbor_info_t *ci"
+.Ft const bool *
+.Fn fido_cbor_info_options_value_ptr "const fido_cbor_info_t *ci"
+.Ft const char *
+.Fn fido_cbor_info_algorithm_type "const fido_cbor_info_t *ci" "size_t idx"
+.Ft int
+.Fn fido_cbor_info_algorithm_cose "const fido_cbor_info_t *ci" "size_t idx"
+.Ft size_t
+.Fn fido_cbor_info_algorithm_count "const fido_cbor_info_t *ci"
+.Ft size_t
+.Fn fido_cbor_info_aaguid_len "const fido_cbor_info_t *ci"
+.Ft size_t
+.Fn fido_cbor_info_extensions_len "const fido_cbor_info_t *ci"
+.Ft size_t
+.Fn fido_cbor_info_protocols_len "const fido_cbor_info_t *ci"
+.Ft size_t
+.Fn fido_cbor_info_transports_len "const fido_cbor_info_t *ci"
+.Ft size_t
+.Fn fido_cbor_info_versions_len "const fido_cbor_info_t *ci"
+.Ft size_t
+.Fn fido_cbor_info_options_len "const fido_cbor_info_t *ci"
+.Ft uint64_t
+.Fn fido_cbor_info_maxmsgsiz "const fido_cbor_info_t *ci"
+.Ft uint64_t
+.Fn fido_cbor_info_maxcredbloblen "const fido_cbor_info_t *ci"
+.Ft uint64_t
+.Fn fido_cbor_info_maxcredcntlst "const fido_cbor_info_t *ci"
+.Ft uint64_t
+.Fn fido_cbor_info_maxcredidlen "const fido_cbor_info_t *ci"
+.Ft uint64_t
+.Fn fido_cbor_info_maxlargeblob "const fido_cbor_info_t *ci"
+.Ft uint64_t
+.Fn fido_cbor_info_fwversion "const fido_cbor_info_t *ci"
+.Sh DESCRIPTION
+The
+.Fn fido_cbor_info_new
+function returns a pointer to a newly allocated, empty
+.Vt fido_cbor_info_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_cbor_info_free
+function releases the memory backing
+.Fa *ci_p ,
+where
+.Fa *ci_p
+must have been previously allocated by
+.Fn fido_cbor_info_new .
+On return,
+.Fa *ci_p
+is set to NULL.
+Either
+.Fa ci_p
+or
+.Fa *ci_p
+may be NULL, in which case
+.Fn fido_cbor_info_free
+is a NOP.
+.Pp
+The
+.Fn fido_dev_get_cbor_info
+function transmits a
+.Dv CTAP_CBOR_GETINFO
+command to
+.Fa dev
+and fills
+.Fa ci
+with attributes retrieved from the command's response.
+The
+.Fn fido_dev_get_cbor_info
+function may block.
+.Pp
+The
+.Fn fido_cbor_info_aaguid_ptr ,
+.Fn fido_cbor_info_extensions_ptr ,
+.Fn fido_cbor_info_protocols_ptr ,
+.Fn fido_cbor_info_transports_ptr ,
+and
+.Fn fido_cbor_info_versions_ptr
+functions return pointers to the authenticator attestation GUID,
+supported extensions, PIN protocol, transports, and CTAP version
+strings of
+.Fa ci .
+The corresponding length of a given attribute can be
+obtained by
+.Fn fido_cbor_info_aaguid_len ,
+.Fn fido_cbor_info_extensions_len ,
+.Fn fido_cbor_info_protocols_len ,
+.Fn fido_cbor_info_transports_len ,
+or
+.Fn fido_cbor_info_versions_len .
+.Pp
+The
+.Fn fido_cbor_info_options_name_ptr
+and
+.Fn fido_cbor_info_options_value_ptr
+functions return pointers to the array of option names and their
+respective values
+in
+.Fa ci .
+The length of the options array is returned by
+.Fn fido_cbor_info_options_len .
+.Pp
+The
+.Fn fido_cbor_info_algorithm_count
+function returns the number of supported algorithms in
+.Fa ci .
+The
+.Fn fido_cbor_info_algorithm_cose
+function returns the COSE identifier of algorithm
+.Fa idx
+in
+.Fa ci ,
+or 0 if the COSE identifier is unknown or unset.
+The
+.Fn fido_cbor_info_algorithm_type
+function returns the type of algorithm
+.Fa idx
+in
+.Fa ci ,
+or NULL if the type is unset.
+Please note that the first algorithm in
+.Fa ci
+has an
+.Fa idx
+(index) value of 0.
+.Pp
+The
+.Fn fido_cbor_info_maxmsgsiz
+function returns the maximum message size attribute of
+.Fa ci .
+.Pp
+The
+.Fn fido_cbor_info_maxcredbloblen
+function returns the maximum
+.Dq credBlob
+length in bytes supported by the authenticator as reported in
+.Fa ci .
+.Pp
+The
+.Fn fido_cbor_info_maxcredcntlst
+function returns the maximum supported number of credentials in
+a single credential ID list as reported in
+.Fa ci .
+.Pp
+The
+.Fn fido_cbor_info_maxcredidlen
+function returns the maximum supported length of a credential ID
+as reported in
+.Fa ci .
+.Pp
+The
+.Fn fido_cbor_info_maxlargeblob
+function returns the maximum length in bytes of an authenticator's
+serialized largeBlob array as reported in
+.Fa ci .
+.Pp
+The
+.Fn fido_cbor_info_fwversion
+function returns the firmware version attribute of
+.Fa ci .
+.Pp
+A complete example of how to use these functions can be found in the
+.Pa example/info.c
+file shipped with
+.Em libfido2 .
+.Sh RETURN VALUES
+The
+.Fn fido_cbor_info_aaguid_ptr ,
+.Fn fido_cbor_info_extensions_ptr ,
+.Fn fido_cbor_info_protocols_ptr ,
+.Fn fido_cbor_info_transports_ptr ,
+.Fn fido_cbor_info_versions_ptr ,
+.Fn fido_cbor_info_options_name_ptr ,
+and
+.Fn fido_cbor_info_options_value_ptr
+functions return NULL if the respective field in
+.Fa ci
+is absent.
+If not NULL, returned pointers are guaranteed to exist until any
+API function that takes
+.Fa ci
+without the
+.Em const
+qualifier is invoked.
+.Sh SEE ALSO
+.Xr fido_dev_open 3

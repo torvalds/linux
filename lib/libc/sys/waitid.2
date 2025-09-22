@@ -1,0 +1,261 @@
+.\"	$OpenBSD: waitid.2,v 1.2 2022/12/20 09:01:05 jmc Exp $
+.\"	$NetBSD: wait.2,v 1.6 1995/02/27 12:39:37 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)wait.2	8.2 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: December 20 2022 $
+.Dt WAITID 2
+.Os
+.Sh NAME
+.Nm waitid
+.Nd wait for process state change
+.Sh SYNOPSIS
+.In sys/wait.h
+.Ft int
+.Fn waitid "idtype_t idtype" "id_t id" "siginfo_t *infop" "int options"
+.Sh DESCRIPTION
+The
+.Fn waitid
+function suspends execution of its calling process until
+a selected state change occurs for a matching child process,
+or a signal is received.
+.Pp
+The set of child processes to be queried is specified by the arguments
+.Fa idtype
+and
+.Fa id .
+.Bl -dash -offset indent
+.It
+If
+.Fa idtype
+is
+.Dv P_PID ,
+.Fn waitid
+waits for the child process with a process ID equal to
+.Dv (pid_t)id .
+.It
+If
+.Fa idtype
+is
+.Dv P_PGID ,
+.Fn waitid
+waits for the child process with a process group ID equal to
+.Dv (pid_t)id .
+.It
+If
+.Fa idtype
+is
+.Dv P_ALL ,
+.Fn waitid
+waits for any child process and the
+.Dv id
+is ignored.
+.El
+.Pp
+The
+.Fa options
+argument is the bitwise OR of zero or more of the following values:
+.Bl -tag -width "WCONTINUED"
+.It Dv WCONTINUED
+Causes status to be reported for selected child processes that were
+previously stopped and which have been continued by receipt of a
+.Dv SIGCONT
+signal.
+.It Dv WEXITED
+Reports the status of selected processes which have terminated.
+.It Dv WNOHANG
+Indicates that the call should not block if there are no selected processes
+that have a status change to report.
+.It Dv WNOWAIT
+Keeps the process whose status is returned in a waitable state.
+The process may be waited for again after this call completes.
+.It Dv WSTOPPED
+Reports the status of selected processes which are stopped due to a
+.Dv SIGTTIN , SIGTTOU , SIGTSTP ,
+or
+.Dv SIGSTOP
+signal.
+.It Dv WTRAPPED
+Reports the status of selected processes which are stopped due to a
+process tracing event
+.Xr ( ptrace 2 ) .
+.El
+.Pp
+At least one of
+.Dv WCONTINUED , WEXITED , WSTOPPED ,
+or
+.Dv WTRAPPED
+must be specified.
+.Pp
+If
+.Fn waitid
+found a matching process, the structure referenced by
+.Fa infop
+is filled with the status of the process:
+.Fa si_signo
+is set to
+.Dv SIGCHLD ,
+and
+.Fa si_pid
+and
+.Fa si_uid
+are set to the process ID and effective user ID of the matched process.
+.Fa si_code
+will be set to one of the following values:
+.Bl -tag -width "CLD_CONTINUED"
+.It Dv CLD_CONTINUED
+The process was previously stopped and was continued.
+.Fa si_status
+will be set to
+.Dv SIGCONT .
+Only returned if
+.Fa options
+includes
+.Dv WCONTINUED .
+.It Dv CLD_DUMPED
+The process was killed by a signal and a core file was generated.
+.Fa si_status
+will be set to the signal that killed the process.
+Only returned if
+.Fa options
+includes
+.Dv WEXITED .
+.It Dv CLD_EXITED
+The process exited normally.
+.Fa si_status
+will be set to the full
+.Ft int
+value that was passed to
+.Xr _exit 2 .
+Only returned if
+.Fa options
+includes
+.Dv WEXITED .
+.It Dv CLD_KILLED
+The process was killed by a signal with generation of a core file.
+.Fa si_status
+will be set to the signal that killed the process.
+Only returned if
+.Fa options
+includes
+.Dv WEXITED .
+.It Dv CLD_STOPPED
+The process was stopped due to a signal.
+.Fa si_status
+will be set to the signal that stopped the process.
+Only returned if
+.Fa options
+includes
+.Dv WSTOPPED .
+.It Dv CLD_TRAPPED
+The process was stopped due to process tracing
+.Xr ( ptrace 2 ) .
+.Fa si_status
+will be set to the signal that caused the trap.
+Only returned if
+.Fa options
+includes
+.Dv WTRAPPED .
+.El
+.Pp
+If
+.Dv WNOHANG
+was specified and
+.Fn waitid
+didn't find a matching process,
+.Fa si_signo
+and
+.Fa si_pid
+will be set to zero.
+.Sh RETURN VALUES
+If
+.Fn waitid
+returns because one or more processes have a state change to report,
+0 is returned.
+If an error is detected,
+a value of -1
+is returned and
+.Va errno
+is set to indicate the error.
+If
+.Dv WNOHANG
+is specified and there are
+no stopped, continued or exited children,
+0 is returned.
+.Sh ERRORS
+.Fn waitid
+will fail and return immediately if:
+.Bl -tag -width Er
+.It Bq Er ECHILD
+The calling process has no existing unwaited-for child processes.
+.It Bq Er ECHILD
+No status from the terminated child process is available
+because the calling process has asked the system to discard
+such status by ignoring the signal
+.Dv SIGCHLD
+or setting the flag
+.Dv SA_NOCLDWAIT
+for that signal.
+.It Bq Er EFAULT
+The
+.Fa infop
+argument points to an illegal address.
+(May not be detected before exit of a child process.)
+.It Bq Er EINTR
+The call was interrupted by a caught signal, or the signal did not have the
+.Dv SA_RESTART
+flag set.
+.It Bq Er EINVAL
+Invalid or undefined flags were passed in the
+.Fa options
+argument, or
+.Fa idtype
+and
+.Fa id
+specified an invalid set of processes.
+.El
+.Sh SEE ALSO
+.Xr _exit 2 ,
+.Xr ptrace 2 ,
+.Xr sigaction 2 ,
+.Xr wait 2 ,
+.Xr exit 3
+.Sh STANDARDS
+The
+.Fn waitid
+function conforms to
+.St -p1003.1-2008 .
+The
+.Dv WTRAPPED
+macro is an extension to that specification.
+.\" .Sh HISTORY
+.\" A
+.\" .Fn waitid
+.\" system call first appeared in

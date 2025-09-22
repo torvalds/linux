@@ -1,0 +1,240 @@
+.\" $OpenBSD: curs_pad.3,v 1.10 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_pad.3,v 1.10 2023/10/17 09:52:08 nicm Exp $
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.TH curs_pad 3 2023-07-01 "ncurses 6.4" "Library calls"
+.na
+.hy 0
+.SH NAME
+\fBnewpad\fP,
+\fBsubpad\fP,
+\fBprefresh\fP,
+\fBpnoutrefresh\fP,
+\fBpechochar\fP,
+\fBpecho_wchar\fP \- create and display \fBcurses\fP pads
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBWINDOW *newpad(int \fInlines\fB, int \fIncols\fB);\fR
+.br
+\fBWINDOW *subpad(WINDOW *\fIorig\fB, int \fInlines\fB, int \fIncols\fB,\fR
+      \fBint \fIbegin_y\fB, int \fIbegin_x\fB);\fR
+.br
+\fBint prefresh(WINDOW *\fIpad\fB, int \fIpminrow\fB, int \fIpmincol\fB,\fR
+      \fBint \fIsminrow\fB, int \fIsmincol\fB, int \fIsmaxrow\fB, int \fIsmaxcol\fB);\fR
+.br
+\fBint pnoutrefresh(WINDOW *\fIpad\fB, int \fIpminrow\fB, int \fIpmincol\fB,\fR
+      \fBint \fIsminrow\fB, int \fIsmincol\fB, int \fIsmaxrow\fB, int \fIsmaxcol\fB);\fR
+.br
+\fBint pechochar(WINDOW *\fIpad\fB, chtype \fIch\fB);\fR
+.br
+\fBint pecho_wchar(WINDOW *\fIpad\fB, const cchar_t *\fIwch\fB);\fR
+.SH DESCRIPTION
+.SS newpad
+The \fBnewpad\fP routine creates and returns a pointer to a new pad data
+structure with the given number of lines, \fInlines\fP, and columns,
+\fIncols\fP.
+A pad is like a window, except that it is not restricted by the
+screen size, and is not necessarily associated with a particular part of the
+screen.
+Pads can be used when a large window is needed, and only a part of the
+window will be on the screen at one time.
+Automatic refreshes of pads
+(e.g., from scrolling or echoing of input) do not occur.
+.PP
+It is not
+legal to call \fBwrefresh\fP with a \fIpad\fP as an argument; the routines
+\fBprefresh\fP or \fBpnoutrefresh\fP should be called instead.
+Note that these
+routines require additional parameters to specify the part of the pad to be
+displayed and the location on the screen to be used for the display.
+.SS subpad
+The \fBsubpad\fP routine creates and returns a pointer to a subwindow within a
+pad with the given number of lines, \fInlines\fP, and columns, \fIncols\fP.
+Unlike \fBsubwin\fP, which uses screen coordinates, the window is at position
+(\fIbegin\fR_\fIx\fB,\fR \fIbegin\fR_\fIy\fR) on the pad.
+The window is
+made in the middle of the window \fIorig\fP, so that changes made to one window
+affect both windows.
+During the use of this routine, it will often be
+necessary to call \fBtouchwin\fP or \fBtouchline\fP on \fIorig\fP before
+calling \fBprefresh\fP.
+.SS prefresh, pnoutrefresh
+The \fBprefresh\fP and \fBpnoutrefresh\fP routines are analogous to
+\fBwrefresh\fP and \fBwnoutrefresh\fP except that they relate to pads instead
+of windows.
+The additional parameters are needed to indicate what part of the
+pad and screen are involved.
+.bP
+The \fIpminrow\fP and \fIpmincol\fP parameters specify the upper
+left-hand corner of the rectangle to be displayed in the pad.
+.bP
+The \fIsminrow\fP,
+\fIsmincol\fP, \fIsmaxrow\fP, and \fIsmaxcol\fP
+parameters specify the edges of the
+rectangle to be displayed on the screen.
+.PP
+The lower right-hand corner of the
+rectangle to be displayed in the pad is calculated from the screen coordinates,
+since the rectangles must be the same size.
+Both rectangles must be entirely
+contained within their respective structures.
+Negative values of
+\fIpminrow\fP, \fIpmincol\fP, \fIsminrow\fP, or \fIsmincol\fP are treated as if
+they were zero.
+.SS pechochar
+The \fBpechochar\fP routine is functionally equivalent to a call to \fBaddch\fP
+followed by a call to \fBrefresh\fP(3),
+a call to \fBwaddch\fP followed by a call
+to \fBwrefresh\fP, or a call to \fBwaddch\fP followed by a call to
+\fBprefresh\fP.
+The knowledge that only a single character is being output is
+taken into consideration and, for non-control characters, a considerable
+performance gain might be seen by using these routines instead of their
+equivalents.
+In the case of \fBpechochar\fP, the last location of the pad on
+the screen is reused for the arguments to \fBprefresh\fP.
+.SS pecho_wchar
+The \fBpecho_wchar\fP function is the analogous wide-character
+form of \fBpechochar\fP.
+It outputs one character to a pad and immediately refreshes the pad.
+It does this by a call to \fBwadd_wch\fP followed by a call to \fBprefresh\fP.
+.SH RETURN VALUE
+Routines that return an integer return \fBERR\fP upon failure and \fBOK\fP
+(SVr4 only specifies "an integer value other than \fBERR\fP") upon successful
+completion.
+.PP
+Routines that return pointers return \fBNULL\fP on error, and set \fBerrno\fP
+to \fBENOMEM\fP.
+.PP
+X/Open does not define any error conditions.
+In this implementation
+.RS 3
+.TP 5
+\fBprefresh\fP and \fBpnoutrefresh\fP
+return an error
+if the window pointer is null, or
+if the window is not really a pad or
+if the area to refresh extends off-screen or
+if the minimum coordinates are greater than the maximum.
+.TP 5
+\fBpechochar\fP
+returns an error
+if the window is not really a pad, and the associated call
+to \fBwechochar\fP returns an error.
+.TP 5
+\fBpecho_wchar\fP
+returns an error
+if the window is not really a pad, and the associated call
+to \fBwecho_wchar\fP returns an error.
+.RE
+.SH NOTES
+Note that \fBpechochar\fP may be a macro.
+.SH PORTABILITY
+BSD curses has no \fIpad\fP feature.
+.PP
+SVr2 curses (1986) provided the \fBnewpad\fP and related functions,
+documenting them in a single line each.
+SVr3 (1987) provided more extensive documentation.
+.PP
+The documentation does not explain the term \fIpad\fP.
+However, the Apollo \fIAegis\fP workstation operating system
+supported a graphical \fIpad\fP feature:
+.bP
+These graphical pads could be much larger than the computer's display.
+.bP
+The read-only output from a command could be scrolled back to inspect,
+and select text from the pad.
+.PP
+The two uses may be related.
+.PP
+The XSI Curses standard, Issue 4 describes these functions,
+without significant change from the SVr3 documentation.
+It describes no error conditions.
+The behavior of \fBsubpad\fP if the parent window is not
+a pad is undocumented,
+and is not checked by the vendor Unix implementations:
+.bP
+SVr4 curses sets a flag in the \fBWINDOW\fP structure in \fBnewpad\fP
+which tells if the window is a \fIpad\fP.
+.IP
+However, it uses this information only in
+\fBwaddch\fP (to decide if it should call \fBwrefresh\fP) and
+\fBwscrl\fP (to avoid scrolling a pad),
+and does not check in \fBwrefresh\fP to ensure that the pad
+is refreshed properly.
+.bP
+Solaris X/Open Curses checks if a window is a pad in \fBwnoutrefresh\fP,
+returning \fBERR\fP in that case.
+.IP
+However, it only sets the flag for subwindows if the parent window is a pad.
+Its \fBnewpad\fP function does not set this information.
+Consequently, the check will never fail.
+.IP
+It makes no comparable check in \fBpnoutrefresh\fP,
+though interestingly enough, a comment in the source code
+states that the lack of a check was an MKS extension.
+.bP
+NetBSD 7 curses
+sets a flag in the \fBWINDOW\fP structure for \fBnewpad\fP and \fBsubpad\fP,
+using this to help with the distinction between \fBwnoutrefresh\fP
+and \fBpnoutrefresh\fP.
+.IP
+It does not check for the case where a subwindow is created in
+a pad using \fBsubwin\fP or \fBderwin\fP.
+.IP
+The \fBdupwin\fP function returns a regular window when duplicating a pad.
+Likewise, \fBgetwin\fP always returns a window, even if the saved
+data was from a pad.
+.PP
+This implementation
+.bP
+sets a flag in the \fBWINDOW\fP structure for \fBnewpad\fP and \fBsubpad\fP,
+.bP
+allows a \fBsubwin\fP or \fBderwin\fP call to succeed having a pad parent by
+forcing the subwindow to be a pad,
+.bP
+checks in both \fBwnoutrefresh\fP and \fBpnoutrefresh\fP to ensure
+that pads and windows are handled distinctly, and
+.bP
+ensures that \fBdupwin\fP and \fBgetwin\fP treat
+pads versus windows consistently.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_refresh\fP(3),
+\fBcurs_touch\fP(3),
+\fBcurs_addch\fP(3).

@@ -1,0 +1,175 @@
+.\"	$OpenBSD: newlocale.3,v 1.3 2019/06/25 17:40:24 schwarze Exp $
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 25 2019 $
+.Dt NEWLOCALE 3
+.Os
+.Sh NAME
+.Nm newlocale ,
+.Nm duplocale ,
+.Nm freelocale
+.Nd create and destroy locale objects
+.Sh SYNOPSIS
+.In locale.h
+.Ft locale_t
+.Fo newlocale
+.Fa "int mask"
+.Fa "const char *locname"
+.Fa "locale_t oldloc"
+.Fc
+.Ft locale_t
+.Fo duplocale
+.Fa "locale_t oldloc"
+.Fc
+.Ft void
+.Fo freelocale
+.Fa "locale_t oldloc"
+.Fc
+.Sh DESCRIPTION
+The function
+.Fn newlocale
+creates a new locale object for use with
+.Xr uselocale 3
+and with many functions that accept
+.Vt locale_t
+arguments.
+Locale categories not contained in the
+.Fa mask
+are copied from
+.Fa oldloc
+to the new locale object, or from the
+.Qq C
+locale if
+.Fa oldloc
+is
+.Po Vt locale_t Pc Ns 0 .
+.Pp
+On
+.Ox ,
+.Fa locname
+only affects the return value if
+.Fa mask
+includes
+.Dv LC_CTYPE_MASK ,
+and
+.Fa locname
+is only meaningful if it is
+.Qq C
+or
+.Qq POSIX ,
+if it ends with
+.Qq .UTF-8 ,
+or if it is an empty string.
+Other
+.Fa locname
+arguments have the same effect as
+.Qq C .
+.Pp
+The function
+.Fn duplocale
+copies
+.Fa oldloc ,
+or the global locale if given the special argument
+.Dv LC_GLOBAL_LOCALE .
+.Pp
+For portability, when an object returned from
+.Fn newlocale
+or
+.Fn duplocale
+is no longer needed, pass it to
+.Fn freelocale ,
+even though the latter has no effect on
+.Ox .
+The
+.Fa oldloc
+objects passed to
+.Fn newlocale
+or
+.Fn freelocale
+become invalid, and using them or passing them once again to
+.Fn freelocale
+results in undefined behaviour, whereas objects passed to
+.Fn duplocale
+remain valid and can be passed to
+.Fn freelocale
+later on.
+.Sh RETURN VALUES
+The functions
+.Fn newlocale
+and
+.Fn duplocale
+return the new locale object on success or
+.Po Vt locale_t Pc Ns 0
+on failure.
+.Sh ENVIRONMENT
+If
+.Fa locname
+is an empty string,
+.Fa newlocale
+inspects
+.Ev LC_ALL ,
+.Ev LC_CTYPE ,
+and
+.Ev LANG
+as described in
+.Xr locale 1 .
+.Sh ERRORS
+The function
+.Fn newlocale
+fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+An invalid bit is set in
+.Fa mask ,
+or
+.Fa locname
+is
+.Dv NULL .
+.It Bq Er ENOENT
+Locale data is not available for
+.Fa locname .
+.El
+.Pp
+On other operating systems,
+.Fn newlocale
+and
+.Fn duplocale
+may also fail with
+.Er ENOMEM .
+.Sh SEE ALSO
+.Xr iswalnum 3 ,
+.Xr iswctype 3 ,
+.Xr towctrans 3 ,
+.Xr towlower 3 ,
+.Xr uselocale 3 ,
+.Xr wcscasecmp 3 ,
+.Xr wctrans 3 ,
+.Xr wctype 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2008
+including Technical Corrigendum 3.
+.Sh HISTORY
+These functions have been available since
+.Ox 6.2 .
+.Sh CAVEATS
+Calling
+.Fn newlocale
+with an
+.Fa oldloc
+argument of
+.Dv LC_GLOBAL_LOCALE
+results in undefined behaviour.

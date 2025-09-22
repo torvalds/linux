@@ -1,0 +1,201 @@
+.\"	$OpenBSD: boot_config.8,v 1.34 2025/05/05 20:50:03 tedu Exp $
+.\"
+.\" Copyright (c) 1996 Mats O Jansson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 4. Neither the name of the author nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 5 2025 $
+.Dt BOOT_CONFIG 8
+.Os
+.Sh NAME
+.Nm boot_config
+.Nd how to change kernel configuration at boot
+.Sh DESCRIPTION
+.Nm BOOT_CONFIG
+is a kernel option that makes it possible to change the configuration
+at boot time.
+The same interface is available from userland, using the
+.Fl e
+argument to
+.Xr config 8 .
+.Pp
+The boot time configuration is invoked by passing the
+.Fl c
+option, either from the firmware prompt or,
+depending on the architecture, when the bootstrap loader
+prompts for a kernel to boot:
+.Bd -literal
+>> OpenBSD/i386 BOOT 3.26
+.No "boot>" Ic boot -c
+booting hd0a:/bsd: ...
+\&...
+real mem  = 1073086464 (1023MB)
+avail mem = 1043189760 (994MB)
+User Kernel Config
+UKC>
+.Ed
+.Pp
+Changes made can be saved for the next reboot, by using
+.Xr config 8 .
+However, those changes would not persist across system upgrades and would
+prevent kernel relinking.
+To ensure these changes are carried over to upgraded kernels, they can
+be saved to the
+.Xr bsd.re-config 5
+configuration file.
+.Sh COMMANDS
+.Bl -tag -width "disable devno | dev"
+.It Ic add Ar dev
+Add a device through copying another.
+.It Ic base Cm 8 | 10 | 16
+Change the base of numbers displayed and entered.
+.It Ic change Ar devno | dev
+Modify one or more devices.
+.It Ic disable Ar devno | dev
+Disable one or more devices.
+.It Ic enable Ar devno | dev
+Enable one or more devices.
+.It Ic exit
+Continue boot.
+.It Ic find Ar devno | dev
+Find one or more devices.
+.It Ic help
+Give a short summary of all commands and their arguments.
+.It Ic list
+Show all known devices, a screen at a time.
+.It Ic lines Op Ar count
+Set the number of rows per page.
+.It Ic quit
+Continue boot.
+.It Ic show Op Ar attr Op Ar val
+Show all devices for which attribute
+.Ar attr
+has the value
+.Ar val .
+.It Ic verbose
+Toggle the autoconfig verbose variable.
+.El
+.Sh EXAMPLES
+The Ethernet card is not detected at boot because the kernel configuration
+does not match the physical hardware configuration,
+e.g. wrong IRQ in OpenBSD/i386.
+The Ethernet card is supposed to use the
+.Xr ne 4
+driver.
+.Bd -literal
+.No UKC> Ic find ne
+24 ne0 at isa0 port 0x240 size 0 iomem 0xd8000 iosiz 0 irq 9 drq -1 drq2 -1 flags 0x0
+25 ne1 at isa0 port 0x300 size 0 iomem -1 iosiz 0 irq 10 drq -1 drq2 -1 flags 0x0
+26 ne* at isapnp0 port -1 size 0 iomem -1 iosiz 0 irq -1 drq -1 flags 0x0
+27 ne* at pci* dev -1 function -1 flags 0x0
+28 ne* at pcmcia* function -1 irq -1 flags 0x0
+UKC>
+.Ed
+.Pp
+ne1 seems to match the configuration except it uses IRQ 5 instead of IRQ 10.
+So the irq on ne1 should be changed via the
+.Fa change
+command.
+The device can be specified by either name or number.
+.Bd -literal
+.No UKC> Ic change ne1
+25 ne1 at isa0 port 0x300 size 0 iomem -1 iosiz 0 irq 10 drq -1 drq2 -1 flags 0x0
+.No change (y/n) \&? Ic y
+.No port [0x300] \&?
+.No size [0] \&?
+.No iomem [-1] \&?
+.No iosiz [0] \&?
+.No irq [10] \&? Ic 5
+.No drq [-1] \&?
+.No drq2 [-1] \&?
+.No flags [0] \&?
+25 ne1 changed
+25 ne1 at isa0 port 0x300 size 0 iomem -1 iosiz 0 irq 5 drq -1 drq2 -1 flags 0x0
+UKC>
+.Ed
+.Pp
+The show command is useful for finding which devices have a certain attribute.
+It can also be used to find those devices with a particular value for
+an attribute.
+.Bd -literal
+.No UKC> Ic show slot
+  2 ahc* at eisa0 slot -1 flags 0x0
+ 10 uha* at eisa0 slot -1 flags 0x0
+ 12 ep0 at eisa0 slot -1 flags 0x0
+ 17 ep* at eisa0 slot -1 flags 0x0
+102 ahb* at eisa0 slot -1 flags 0x0
+103 fea* at eisa0 slot -1 flags 0x0
+.No UKC> Ic show port 0x300
+ 25 ne1 at isa0 port 0x300 size 0 iomem -1 iosiz 0 irq 10 drq -1 drq2 -1 flags 0x0
+ 72 we1 at isa0 port 0x300 size 0 iomem 0xcc000 iosiz 0 irq 10 drq -1 drq2 -1 flags 0x0
+ 75 el0 at isa0 port 0x300 size 0 iomem -1 iosiz 0 irq 9 drq -1 drq2 -1 flags 0x0
+ 77 ie1 at isa0 port 0x300 size 0 iomem -1 iosiz 0 irq 10 drq -1 drq2 -1 flags 0x0
+UKC>
+.Ed
+.Pp
+It is possible to add new devices, but only devices that were linked into the
+kernel.
+If a new device is added, following devices will be renumbered.
+.Bd -literal
+.No UKC> Ic find ep
+ 11 ep0 at isa0 port -1 size 0 iomem -1 iosiz 0 irq -1 drq -1 drq2 -1 flags 0x0
+ 12 ep0 at eisa0 slot -1 flags 0x0
+ 13 ep0 at pci* dev -1 function -1 flags 0x0
+ 14 ep* at isapnp0 port -1 size 0 iomem -1 iosiz 0 irq -1 drq -1 flags 0x0
+ 15 ep* at isa0 port -1 size 0 iomem -1 iosiz 0 irq -1 drq -1 drq2 -1 flags 0x0
+ 16 ep* at eisa0 slot -1 flags 0x0
+ 17 ep* at pci* dev -1 function -1 flags 0x0
+ 18 ep* at pcmcia* dev -1 irq -1 flags 0x0
+.No UKC> Ic add ep1
+.No "Clone Device (DevNo, 'q' or '\&?') \&?" Ic 13
+.No "Insert before Device (DevNo, 'q' or '\&?')" Ic 14
+ 14 ep1 at pci* dev -1 function -1
+.No UKC> Ic change 14
+ 14 ep1 at pci* dev -1 function -1
+.No change (y/n) \&? Ic y
+.No dev [-1] \&? Ic 14
+.No function [-1] \&?
+.No flags [0] \&? Ic 18
+ 14 ep1 changed
+ 14 ep1 at pci* dev 14 function -1 flags 0x12
+UKC>
+.Ed
+.Pp
+When configuration is completed, booting can proceed by issuing the
+.Ic quit
+or
+.Ic exit
+commands.
+.Bd -literal
+.No UKC> Ic quit
+Continuing...
+mainbus0 (root)
+.Ed
+.Sh SEE ALSO
+.Xr bsd.re-config 5 ,
+.Xr config 8
+.Sh AUTHORS
+.An Mats O Jansson Aq Mt moj@stacken.kth.se

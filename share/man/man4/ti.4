@@ -1,0 +1,210 @@
+.\"	$OpenBSD: ti.4,v 1.45 2021/09/08 20:29:21 jmc Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$FreeBSD: src/share/man/man4/ti.4,v 1.11 2000/08/10 19:47:32 billf Exp $
+.\"
+.Dd $Mdocdate: September 8 2021 $
+.Dt TI 4
+.Os
+.Sh NAME
+.Nm ti
+.Nd Alteon Networks Tigon I and II 1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "ti* at pci?"
+.Cd "ti* at sbus?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Gigabit Ethernet adapters based on the
+Alteon Networks Tigon Gigabit Ethernet controller chip, including
+the following:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+3Com 3C985-SX Gigabit Ethernet (1000baseSX)
+.It
+3Com 3C985B-SX Gigabit Ethernet (1000baseSX)
+.It
+Alteon AceNIC V Gigabit Ethernet (1000baseSX)
+.It
+Alteon AceNIC V Gigabit Ethernet (1000baseT)
+.It
+Digital EtherWORKS 1000SX PCI Gigabit Ethernet (1000baseSX)
+.It
+Farallon PN9000SX Gigabit Ethernet (1000baseSX)
+.It
+Netgear GA620 Gigabit Ethernet (1000baseSX)
+.It
+Netgear GA620T Gigabit Ethernet (1000baseT)
+.It
+Silicon Graphics Gigabit Ethernet (1000baseSX)
+.It
+Silicon Graphics Gigabit Ethernet (1000baseT)
+.It
+Sun Vector Gigabit Ethernet (1000baseSX)
+.El
+.Pp
+The Tigon contains an embedded R4000 CPU, Gigabit MAC, dual DMA channels and
+a PCI interface unit.
+The Tigon II contains two R4000 CPUs and other refinements.
+Either chip can be used in either a 32-bit or 64-bit PCI slot.
+Communication with the chip is achieved via PCI shared memory and
+bus master DMA.
+SBus cards are also available and use a special bridge chip.
+The Tigon I and II support hardware multicast address filtering,
+VLAN tag insertion and stripping, and jumbo frames.
+.Pp
+While the Tigon chipset supports 10, 100 and 1000Mbps speeds, support for
+10 and 100Mbps speeds is only available on boards with the proper
+transceivers.
+Most adapters are only designed to work at 1000Mbps, however the driver
+should support those NICs that work at lower speeds as well.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width full-duplex
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the appropriate
+.Xr hostname.if 5
+file.
+.It 10baseT
+Set 10Mbps operation
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 1000baseSX
+Set 1000Mbps (Gigabit Ethernet) on fiber operation.
+Only
+.Ar full-duplex
+mode is supported at this speed.
+.It 1000baseT
+Set 1000Mbps (Gigabit Ethernet) on copper operation.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It full-duplex
+Force full duplex operation
+.It half-duplex
+Force half duplex operation
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh FILES
+Two firmware files are necessary, for Tigon 1 and Tigon 2 devices.
+These are loaded on demand
+when the device is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/tigon1
+.It Pa /etc/firmware/tigon2
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ti0: couldn't map memory"
+A fatal initialization error has occurred.
+.It "ti0: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "ti0: no memory for softc struct!"
+The driver failed to allocate memory for per-device instance information
+during initialization.
+.It "ti0: failed to enable memory mapping!"
+The driver failed to initialize PCI shared memory mapping.
+This might happen if the card is not in a bus-master slot.
+.It "ti0: no memory for jumbo buffers!"
+The driver failed to allocate memory for jumbo frames during
+initialization.
+.It "ti0: bios thinks we're in a 64 bit slot, but we aren't"
+The BIOS has programmed the NIC as though it had been installed in
+a 64-bit PCI slot, but in fact the NIC is in a 32-bit slot.
+This happens as a result of a bug in some BIOSes.
+This can be worked around on the Tigon II, but
+on the Tigon I initialization will fail.
+.It "ti0: board self-diagnostics failed!"
+The ROMFAIL bit in the CPU state register was set after system
+startup, indicating that the on-board NIC diagnostics failed.
+.It "ti0: unknown hwrev"
+The driver detected a board with an unsupported hardware revision.
+The
+.Nm
+driver supports revision 4 (Tigon 1) and revision 6 (Tigon 2) chips
+and has firmware only for those devices.
+.It "ti0: watchdog timeout -- resetting"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr sbus 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Ox
+support first appeared in
+.Ox 2.6 .
+SBus support was added in
+.Ox 4.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@bsdi.com .
+SBus support was added by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

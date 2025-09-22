@@ -1,0 +1,20 @@
+# -*- makefile -*-
+
+# SImode routines
+
+LIB2FUNCS_EXTRA = \
+	$(srcdir)/config/stormy16/stormy16-lib2.c
+
+# floating point emulation libraries
+
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT'				> fp-bit.c
+	cat $(srcdir)/config/fp-bit.c			>> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+TARGET_LIBGCC2_CFLAGS = -Os

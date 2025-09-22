@@ -1,0 +1,41 @@
+.\"	$OpenBSD: sxie.4,v 1.4 2016/06/26 10:12:29 jsg Exp $
+.\"
+.\" Copyright (c) 2014 Raphael Graf <rapha@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 26 2016 $
+.Dt SXIE 4 armv7
+.Os
+.Sh NAME
+.Nm sxie
+.Nd A1X/A20 EMAC 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "sxie* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the EMAC 10/100 Ethernet device integrated in
+Allwinner Technology A1X/A20 SoCs.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr ifmedia 4 ,
+.Xr mii 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 5.5 .

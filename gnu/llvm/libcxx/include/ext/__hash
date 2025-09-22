@@ -1,0 +1,85 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXT_HASH
+#define _LIBCPP_EXT_HASH
+
+#pragma GCC system_header
+
+#include <__config>
+#include <cstring>
+#include <stddef.h>
+#include <string>
+
+namespace __gnu_cxx {
+
+template <typename _Tp>
+struct _LIBCPP_TEMPLATE_VIS hash {};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<const char*> : public std::__unary_function<const char*, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(const char* __c) const _NOEXCEPT {
+    return std::__do_string_hash(__c, __c + strlen(__c));
+  }
+};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<char*> : public std::__unary_function<char*, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(char* __c) const _NOEXCEPT {
+    return std::__do_string_hash<const char*>(__c, __c + strlen(__c));
+  }
+};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<char> : public std::__unary_function<char, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(char __c) const _NOEXCEPT { return __c; }
+};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<signed char> : public std::__unary_function<signed char, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(signed char __c) const _NOEXCEPT { return __c; }
+};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<unsigned char> : public std::__unary_function<unsigned char, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(unsigned char __c) const _NOEXCEPT { return __c; }
+};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<short> : public std::__unary_function<short, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(short __c) const _NOEXCEPT { return __c; }
+};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<unsigned short> : public std::__unary_function<unsigned short, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(unsigned short __c) const _NOEXCEPT { return __c; }
+};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<int> : public std::__unary_function<int, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(int __c) const _NOEXCEPT { return __c; }
+};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<unsigned int> : public std::__unary_function<unsigned int, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(unsigned int __c) const _NOEXCEPT { return __c; }
+};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<long> : public std::__unary_function<long, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(long __c) const _NOEXCEPT { return __c; }
+};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<unsigned long> : public std::__unary_function<unsigned long, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(unsigned long __c) const _NOEXCEPT { return __c; }
+};
+} // namespace __gnu_cxx
+
+#endif // _LIBCPP_EXT_HASH

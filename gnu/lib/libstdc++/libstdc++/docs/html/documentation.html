@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+ <meta name="KEYWORDS" 
+  content="libstdc++, homepage, home, C++, library, c++, std, g++, ABI, STL" />
+ <title>GNU C++ Standard Library</title>
+<link rel="StyleSheet" href="lib3styles.css" />
+</head>
+<body>
+
+
+<p><strong>All of these documents</strong> (in fact, this entire homepage set)
+   are bundled with the library source, under the <code>docs</code>
+   subdirectory, for releases and snapshots.  The sole exception is the
+   automatically-generated source documentation, available separately.
+</p>
+
+<hr />
+<br />
+<h2><a name="1">Introduction</a></h2>
+   <p>This is a short list of text files pertaining to this implementation of
+      ISO 14882.  A brief description may follow the name of the file.
+   </p>
+      <ul>
+         <li><a href="17_intro/COPYING">License</a>
+         - GPL v2 license terms</li>
+         <li><a href="abi.txt">ABI Policy and Guidelines</a></li>
+         <li><a href="17_intro/BUGS">BUGS</a></li>
+         <li><a href="17_intro/PROBLEMS">PROBLEMS</a>
+         - target-specific known issues</li>
+         <!-- Linking to "../README" doesn't work; we are at the top level
+              of the web pages.  Punt.  -->
+         <li>README - directory structure</li>
+         <li><a href="17_intro/RELEASE-NOTES">RELEASE-NOTES</a>
+         - latest version info, recent changes and news</li>
+         <li><a href="17_intro/TODO">TODO</a>
+         - tasks yet undone</li>
+         <li><a href="faq/index.html">FAQ (HTML)</a>, 
+             <a href="faq/index.txt">FAQ (text)</a></li>
+      </ul>
+
+<hr />
+<br />
+<h2><a name="2">Configuring, Building, Testing, Installing</a></h2>
+<ul>
+   <li><a href="configopts.html">Configure options</a></li>
+   <li><a href="install.html">Getting started: configure, build, install</a>
+   </li>
+   <li><a href="test.html">Testing details</a>
+   <li><a href="debug.html">Debugging schemes and strategies</a>
+   </li>
+</ul>
+
+
+<hr />
+<br />
+<h2><a name="4">Source-Level Documentation</a></h2>
+<p>The library sources have been specially formatted so that with the
+   proper invocation of another tool (Doxygen), a set of HTML pages
+   are generated from the sources files themselves.  The resultant
+   documentation is referred to as Source-Level Documentation, and is
+   useful for examining the signatures of public member functions for
+   the library classes, finding out what is in a particular include
+   file, looking at inheritance diagrams, etc.
+</p>
+<p>The source-level documentation for the most recent releases can
+   be viewed online:
+</p>
+<ul>
+ <li><a href="libstdc++-html-USERS-3.3/index.html">for the 3.3 release</a></li>
+ <li><a href="latest-doxygen/index.html">&quot;the latest collection&quot;</a>
+   (for the main development tree; see the date on the first page)
+ </li>
+</ul>
+<p>This generated HTML collection, as above, is also available for download in
+   the libstdc++ snapshots directory at
+   <code>&lt;URL:ftp://gcc.gnu.org/pub/gcc/libstdc++/doxygen/&gt;</code>.
+   You will almost certainly need to use one of the
+   <a href="http://gcc.gnu.org/mirrors.html">mirror sites</a> to download
+   the tarball.  After unpacking, simply load libstdc++-html-*/index.html
+   into a browser.
+</p>
+<p>Documentation for older releases is available for download only, not
+   online viewing.
+</p>
+<p>In addition, an initial set of man pages are also available in the
+   same place as the HTML collections.  Start with C++Intro(3).
+</p>
+
+
+<hr />
+<br />
+<h2><a name="3">Chapter-Specific Documentation</a></h2>
+<p>Information, extensions, notes and advice on specific implementation 
+   capabilites and/or liabilities broken down into chapter names based on the 
+   C++ standard.
+</p>
+<!--
+  The list below is automatically generated.  To make changes in the text,
+  edit the appropriate HOWTO file and run "make" in this directory.  In
+  those files, you may reorder entries as you like, but DO NOT change the
+  "#number"s in anchors, for they are used elsewhere and in bookmarks.
+-->
+<!-- beginlist -->
+  <ul>
+   <li>Library Introduction (Chapter 17)
+   <ul>
+     <li><a href="17_intro/howto.html#2">The Standard C++ header files</a></li>
+     <li><a href="17_intro/howto.html#3">The Standard C++ library and multithreading</a></li>
+     <li><a href="17_intro/howto.html#4"><code>&lt;foo&gt;</code> vs <code>&lt;foo.h&gt;</code></a></li>
+     <li><a href="17_intro/porting-howto.html">Porting HOWTO</a></li>
+     <li><a href="17_intro/howto.html#5">Behavior specific to libstdc++-v3</a></li>
+     <li><a href="17_intro/howto.html#6">Preprocessor macros controlling the library</a></li>
+   </ul>
+   </li>
+
+   <li>Library Support (Chapter 18)
+   <ul>
+     <li><a href="18_support/howto.html#1">Types</a></li>
+     <li><a href="18_support/howto.html#2">Implementation properties</a></li>
+     <li><a href="18_support/howto.html#3">Start and Termination</a></li>
+     <li><a href="18_support/howto.html#4">Dynamic memory management</a></li>
+     <li><a href="18_support/howto.html#5">RTTI, the ABI, and demangling</a></li>
+   </ul>
+   </li>
+
+   <li>Diagnostics (Chapter 19)
+   <ul>
+     <li><a href="19_diagnostics/howto.html#1">Adding data to exceptions</a></li>
+     <li><a href="19_diagnostics/howto.html#2">Exception class hierarchy diagram</a></li>
+     <li><a href="19_diagnostics/howto.html#3">Concept checkers -- <strong>new and improved!</strong></a></li>
+     <li><a href="19_diagnostics/howto.html#4">Verbose <code>terminate</code></a></li>
+   </ul>
+   </li>
+
+   <li>General Utilities (Chapter 20)
+   <ul>
+     <li><a href="20_util/howto.html#1"><code>auto_ptr</code> is not omnipotent</a></li>
+     <li><a href="20_util/howto.html#2"><code>auto_ptr</code> inside container classes</a></li>
+     <li><a href="20_util/howto.html#3">Functors</a></li>
+     <li><a href="20_util/howto.html#4">Pairs</a></li>
+     <li><a href="20_util/howto.html#5">Memory allocators</a></li>
+   </ul>
+   </li>
+
+   <li>Strings (Chapter 21)
+   <ul>
+     <li><a href="21_strings/howto.html#1">MFC's CString</a></li>
+     <li><a href="21_strings/howto.html#2">A case-insensitive string class</a></li>
+     <li><a href="21_strings/howto.html#3">Breaking a C++ string into tokens</a></li>
+     <li><a href="21_strings/howto.html#4">Simple transformations</a></li>
+     <li><a href="21_strings/howto.html#5">Making strings of arbitrary character types</a></li>
+   </ul>
+   </li>
+
+   <li>Localization (Chapter 22)
+   <ul>
+     <li><a href="22_locale/howto.html#1">class locale</a></li>
+     <li><a href="22_locale/howto.html#2">class codecvt</a></li>
+     <li><a href="22_locale/howto.html#3">class ctype</a></li>
+     <li><a href="22_locale/howto.html#4">class messages</a></li>
+     <li><a href="22_locale/howto.html#5">Bjarne Stroustrup on Locales</a></li>
+     <li><a href="22_locale/howto.html#6">Nathan Myers on Locales</a></li>
+     <li><a href="22_locale/howto.html#7">Correct Transformations</a></li>
+   </ul>
+   </li>
+
+   <li>Containers (Chapter 23)
+   <ul>
+     <li><a href="23_containers/howto.html#1">Making code unaware of the container/array difference</a></li>
+     <li><a href="23_containers/howto.html#2">Variable-sized bitmasks</a></li>
+     <li><a href="23_containers/howto.html#3">Containers and multithreading</a></li>
+     <li><a href="23_containers/howto.html#4">&quot;Hinting&quot; during insertion</a></li>
+     <li><a href="23_containers/howto.html#5">Bitmasks and string arguments</a></li>
+     <li><a href="23_containers/howto.html#6"><code>std::list::size()</code> is O(n)!</a></li>
+     <li><a href="23_containers/howto.html#7">Space overhead management for vectors</a></li>
+   </ul>
+   </li>
+
+   <li>Iterators (Chapter 24)
+   <ul>
+     <li><a href="24_iterators/howto.html#1">They ain't pointers!</a></li>
+     <li><a href="24_iterators/howto.html#2">It ends <em>where?</em></a></li>
+   </ul>
+   </li>
+
+   <li>Algorithms (Chapter 25)
+   <ul>
+     <li><a href="25_algorithms/howto.html#1">Prerequisites</a></li>
+     <li><a href="25_algorithms/howto.html#2">Special <code>swap</code>s</a></li>
+   </ul>
+   </li>
+
+   <li>Numerics (Chapter 26)
+   <ul>
+     <li><a href="26_numerics/howto.html#1">Complex Number Processing</a></li>
+     <li><a href="26_numerics/howto.html#2">Array Processing</a></li>
+     <li><a href="26_numerics/howto.html#3">Numerical Functions</a></li>
+     <li><a href="26_numerics/howto.html#4">C99</a></li>
+   </ul>
+   </li>
+
+   <li>Input/Output (Chapter 27)
+   <ul>
+     <li><a href="27_io/howto.html#1">Copying a file</a></li>
+     <li><a href="27_io/howto.html#2">The buffering is screwing up my program!</a></li>
+     <li><a href="27_io/howto.html#3">Binary I/O</a></li>
+     <li><a href="27_io/howto.html#5">What is this &lt;sstream&gt;/stringstreams thing?</a></li>
+     <li><a href="27_io/howto.html#6">Deriving a stream buffer</a></li>
+     <li><a href="27_io/howto.html#7">More on binary I/O</a></li>
+     <li><a href="27_io/howto.html#8">Pathetic performance?  Ditch C.</a></li>
+     <li><a href="27_io/howto.html#9">Threads and I/O</a></li>
+     <li><a href="27_io/howto.html#10">Which header?</a></li>
+     <li><a href="27_io/howto.html#11">Using FILE*s and file descriptors with IOStreams</a></li>
+   </ul>
+   </li>
+
+   <li>Extensions to the Standard Library
+   <ul>
+     <li><a href="ext/howto.html#1">Ropes and trees and hashes, oh my!</a></li>
+     <li><a href="ext/howto.html#2">Added members and types</a></li>
+     <li><a href="ext/howto.html#3">Allocators (versions 3.0, 3.1, 3.2, 3.3)</a></li>
+     <li><a href="ext/howto.html#6">Allocators (version 3.4)</a></li>
+     <li><a href="ext/howto.html#4">Compile-time checks</a></li>
+     <li><a href="ext/howto.html#5">LWG Issues</a></li>
+     <li><a href="ext/../18_support/howto.html#5">Demangling</a></li>
+   </ul>
+   </li>
+
+  </ul>
+<!-- endlist -->
+
+<hr />
+<br />
+<h2><a name="5">Contributor-Specific Information</a></h2>
+<ul>
+   <li><a href="17_intro/contribute.html">Contributor checklist</a></li>
+   <li><a href="http://gcc.gnu.org/cvswrite.html">Getting CVS write access
+       (look for &quot;Write after approval&quot;)</a></li>
+   <li><a href="17_intro/BADNAMES">BADNAMES</a>
+       - names to avoid because of potential collisions</li>
+   <li><a href="17_intro/C++STYLE">C++STYLE</a>
+       - coding style by example</li>
+   <li><a href="17_intro/CHECKLIST">CHECKLIST</a>
+       - a list of required features and their status.</li>
+   <li><a href="17_intro/DESIGN">DESIGN</a>
+       - overview of the implementation plan</li>
+   <li><a href="17_intro/HEADER_POLICY">HEADER_POLICY</a>
+       - header naming and sub-include structure</li>
+</ul>
+
+<!-- ####################################################### -->
+
+<p>Return <a href="http://gcc.gnu.org/libstdc++/">to the libstdc++ homepage</a>.</p>
+
+<hr />
+<p class="fineprint"><em>
+See <a href="17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+</body>
+</html>

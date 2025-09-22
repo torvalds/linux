@@ -1,0 +1,164 @@
+dnl	$OpenBSD: install,v 1.35 2020/07/05 22:27:47 tj Exp $
+OpenBSDInstallPrelude
+
+Before you begin, you should decide if OpenBSD is to be installed
+on the whole disk or share the disk with Mac OS.
+
+For stand-alone (No Mac OS installed) or dedicated disks, the MBR
+installation method should be chosen and no additional prep is necessary.
+
+If the disk is to be shared with Mac OS, a partition must be preallocated
+by the Mac OS partition editor and Mac OS installed to the proper partition.
+This expects that the HFS partition will be the first partition on
+the disk, and then the OpenBSD partition will follow.
+This may require the disk be reformatted using the "Drive Setup" application
+and reinstalled under Mac OS.
+
+OpenBSDInstallPart2
+
+	At this time, the system can be installed from the supplied
+	CD-ROM boot image, by network loading the bootloader, or loading
+	the bootloader and kernel from an HFS partition.
+
+	Once the bootloader is installed on the local hard drive, the
+	system can boot from it. OpenBSD may share a drive with Mac OS
+	if the process is followed carefully. Currently it is
+	necessary to use Open Firmware commands to dual boot between
+	OS's, or multiple drives may be used with each OS owning drive(s).
+	It is also possible on some newer models to set up the system
+	to auto boot OpenBSD and if Mac OS is desired, choose it using
+	the firmware boot selector by holding down the <option> key
+	during reboot and selecting the Mac OS Disk icon.
+
+	(Refer to "Preparing your System for OpenBSD Installation" above
+	 for information on how to access and boot from Open Firmware.)
+
+OpenBSDInstallPart3(,"wd0")
+
+OpenBSDInstallPart4
+
+	Disks on OpenBSD/MACHINE are partitioned either using Apple-style
+	HFS partitions, or MBR partitions.
+
+	OpenBSD/MACHINE can share a disk with Mac OS or Mac OS X by using
+	an HFS partitioned disk. For proper layout, the disk should be
+	partitioned with Mac OS or Mac OS X first with unused space or a
+	spare partition where OpenBSD can be installed.
+
+	The installation program will ask you whether you intend to use
+	HFS or MBR partitions.
+
+	HFS partitioning:
+
+		HFS partition tables are edited with pdisk(8).  The most
+		common operation, and the example presented here, deals
+		with the conversion of an existing partition into one usable
+		by OpenBSD.
+
+		Before editing, the partition table may look like the
+		following:
+
+	 #:                type name             length   base    ( size )
+	 1: Apple_partition_map Apple                63 @ 1
+	 2:      Apple_Driver43*Macintosh            54 @ 64
+	 3:      Apple_Driver43*Macintosh            74 @ 118
+	 4:    Apple_Driver_ATA*Macintosh            54 @ 192
+	 5:    Apple_Driver_ATA*Macintosh            74 @ 246
+	 6:      Apple_FWDriver Macintosh           200 @ 320
+	 7:  Apple_Driver_IOKit Macintosh           512 @ 520
+	 8:       Apple_Patches Patch Partition     512 @ 1032
+	 9:           Apple_HFS untitled        2142310 @ 1544    (  1.0G)
+	10:           Apple_HFS untitled 2      4120589 @ 2143854 (  2.0G)
+	11:              Unused untitled 3      6330517 @ 6264443 (  3.0G)
+
+		After editing the table, it should look like:
+
+	 #:                type name             length   base    ( size )
+	 1: Apple_partition_map Apple                63 @ 1
+	 2:      Apple_Driver43*Macintosh            54 @ 64
+	 3:      Apple_Driver43*Macintosh            74 @ 118
+	 4:    Apple_Driver_ATA*Macintosh            54 @ 192
+	 5:    Apple_Driver_ATA*Macintosh            74 @ 246
+	 6:      Apple_FWDriver Macintosh           200 @ 320
+	 7:  Apple_Driver_IOKit Macintosh           512 @ 520
+	 8:       Apple_Patches Patch Partition     512 @ 1032
+	 9:           Apple_HFS untitled        2142310 @ 1544    (  1.0G)
+	10:           Apple_HFS untitled 2      4120589 @ 2143854 (  2.0G)
+	11:             OpenBSD OpenBSD         6330517 @ 6264443 (  3.0G)
+
+		This will likely be different based on the number of
+		partitions created on the disk by the Apple partition editor.
+		It is _VERY_ important to not change the start, sizes, or
+		types of partitions other than the ones that are to be used
+		by OpenBSD, including the Apple_Driver.* and
+		Apple_partition_map.
+
+		---
+		Command (? for help): p
+		<output is in the before example above>
+		Command (? for help): t
+		Partition number: 11
+		Existing partition type ``Unused''.
+		New type of partition: OpenBSD
+		Command (? for help): n
+		Partition number: 11
+		New name of partition: OpenBSD
+		Command (? for help): p
+		<output is in the after example above>
+		---
+
+	MBR partitioning:
+
+dnl What follows is the same text as OpenBSDInstallMBRPart2, but
+dnl indented one tab to the right.
+dnl The macro can't be reused because line wraps will occur at different
+dnl places.
+dnl XXX This document really should be converted to mdoc...
+		The installation program will ask you if you want to use
+		the whole disk for OpenBSD.  If you don't need to or don't
+		intend to share the disk with other operating systems,
+		answer `y' here.  The installation program will then create
+		a single MBR partition spanning the whole disk, dedicated
+		to OpenBSD.
+
+		Otherwise, fdisk(8) will be invoked to let you to edit
+		your MBR partitioning.  The current MBR partitions defined
+		will be displayed and you will be allowed to modify them,
+		add new partitions, and change which partition to boot from
+		by default.
+
+		After your OpenBSD MBR partition has been set up, the real
+		partition setup can follow.
+
+OpenBSDInstallPart5({:-
+	If you have DOS or Linux partitions defined on the disk, these
+	will usually show up as partition 'i', 'j' and so on.-:})
+
+	If you chose to use HFS partitioning to share the disk with MacOS,
+	OpenBSD will be unable to install the bootloader into the HFS(+)
+	partition to boot OpenBSD; it will be necessary to copy 'ofwboot'
+	from the installation media into the first HFS(+) partition using
+	Mac OS or Mac OS X.
+	If the disk is partitioned using MBR, the bootloader will be
+	automatically installed if you set up a small (a few MB) MSDOS
+	partition as position `i' in the label.
+
+OpenBSDInstallPart6({:-CD-ROM, -:})
+
+OpenBSDURLInstall
+
+OpenBSDCDROMInstall
+		
+OpenBSDNFSInstall
+
+OpenBSDDISKInstall(,,{:- or MS-DOS-:})
+		
+OpenBSDCommonInstall
+
+OpenBSDInstallWrapup
+
+OpenBSDCongratulations
+
+
+
+OpenBSDUnattendedInstallation

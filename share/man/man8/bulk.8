@@ -1,0 +1,208 @@
+.\"	$OpenBSD: bulk.8,v 1.11 2025/06/15 19:27:34 tb Exp $
+.\"
+.\"	Copyright (c) 2016 Marc Espie <espie@openbsd.org>
+.\"
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: June 15 2025 $
+.Dt BULK 8
+.Os
+.Sh NAME
+.Nm bulk
+.Nd building OpenBSD packages in bulk
+.Sh DESCRIPTION
+There are quite a few steps necessary to build packages on a cluster.
+They are:
+.Pp
+.Bl -enum -compact -offset indent
+.It
+Choose master machine setup and create partitions.
+.It
+Setup chrooted builds on the master.
+.It
+Add slaves and do a full bulk.
+.It
+Clean up and do subsequent bulks.
+.It
+Perform additional maintenance.
+.El
+.Ss 1. Choose master machine setup and create partitions
+Setup a master machine with enough room for a chroot, say
+.Pa /build .
+Assuming you are using a cluster of machines,
+this chroot should contain NFS exportable partitions for distfiles,
+plists, and packages (one single partition can be used for simplicity).
+A full setup currently requires in the order of 120GB for distfiles
+and 80GB for packages.
+Expect these numbers to grow.
+150GB for each should last a few years.
+.Pp
+It is possible to build packages without a chroot, but the space
+requirement difference is negligible (a full
+.Ox
+install is less than 2GB), and having everything chrooted means you may
+install useful tools to help with the process outside of the chroot
+.Po
+for instance
+.Xr rsync 1
+.Pc .
+.Pp
+Reserve one "scratch" partition under the chroot for WRKOBJDIR
+(for instance, mfs, async, or SSD).
+This can often double as
+.Pa /tmp
+under the chroot.
+The largest ports can take in excess of 20GB each (more for a debug
+build) and you may have several of these built at the same time.
+50GB is probably a reasonable minimum on an architecture which can build
+chromium, though 100GB would not be overkill, especially if you have
+many cores.
+.Pp
+Alternately, you can setup your whole chroot as a scratch partition,
+and reserve one more permanent space under it for distfiles,
+packages, and plists.
+.Pp
+Choose a strategy for the ports tree itself.
+There must be a copy under
+.Pa /build .
+You can either copy it from outside the chroot, have it in an NFS
+partition, or manually make sure all machines on the cluster have the
+same ports tree (cvs checkout, rsync ...).
+.Pp
+Note that logs are only produced on the master, and thus do not
+need to be nfs exportable, nor even inside the chroot.
+.Pp
+.Ox
+now comes with default users for package builds, namely _pbuild and _pfetch.
+.Pp
+The default
+.Xr login.conf 5
+is appropriate for most setups, but _pbuild's datasize-cur may need
+to be bumped for a few ports.
+Likewise, maxproc-cur is too small for machines with more than 4-6 cpus.
+.Pp
+Note that _pbuild does not need network access, and is now blocked by default
+in
+.Xr pf 4 .
+.Pp
+Recent
+.Ox
+systems do not need any kind of
+.Xr doas 1
+setup for bulk ports builds, as
+.Xr dpb 1
+is run as root and drops permissions appropriately.
+.Pp
+However, you may still want to setup
+.Xr doas 1
+for root, if you want to manually fix ports, as
+.Ar PORTS_PRIVSEP
+relies on it.
+.Ss 2. Setup chrooted builds on the master
+Populate the initial chroot with
+.Xr proot 1 .
+Point DISTDIR, PACKAGE_REPOSITORY, PLIST_REPOSITORY, WRKOBJDIR
+to appropriate locations.
+.Pp
+Pay attention to nodev and wxallowed warnings.
+A chroot setup that can't have devices won't work at all.
+A setup without wxallowed in /usr/local and WRKOBJDIR won't
+build a lot of things.
+.Pp
+Check that this setup can build ports by running
+.Li dpb -B /build
+as root.
+Fix any issues related to file ownership at this point.
+See
+.Xr dpb 1
+for details.
+.Pp
+If your WRKOBJDIR is a temporary partition, make sure it
+belongs to _pbuild:_pbuild after a reboot.
+.Ss 3. Add slaves and do a full bulk
+Create identical slave machines with the same release material.
+Have them import the NFS partitions from the master, they
+don't need root access to the partitions.
+Set up
+.Xr ssh 1
+so that the master can connect to the slaves, using ssh protocol 2,
+as root, preferably without a password or passphrase (however,
+.Xr dpb 1
+uses a master connection, so a password would be required just once per host).
+.Pp
+Note that code on slave machines will only run as _pbuild
+(during builds) or root (during dependency installation).
+Slave machines only require highly restricted network access.
+They just need to act as nfs clients to the master and to be reachable
+through ssh from the master.
+.Pp
+Use a similar
+.Xr proot 1
+config to populate each slave.
+.Pp
+You should now be able to build ports on the slaves.
+A simple config will just have
+.Bd -literal -offset indent
+DEFAULT chroot=/build
+localhost
+host1
+\&...
+.Ed
+.Pp
+Check that the full config can still build ports.
+.Pp
+You're now ready for a full bulk.
+Beware that even fast configs (3 amd64 with 8 cores each) may take over 24 hours
+to finish.
+It's generally appropriate to run
+.Xr dpb 1
+under
+.Xr tmux 1 .
+.Ss 4. Clean up and do subsequent bulks
+Before running the next bulk, you should set up rotating logs and move the
+PACKAGE_REPOSITORY away.
+Save the PLIST_REPOSITORY and DISTDIR though.
+PLIST_REPOSITORY will catch problems in packing-lists.
+.Pa ${PLIST_REPOSITORY}/${ARCH}/history
+is also used to store
+.Xr sha256 1
+history, necessary to reorder files inside packages to speed updates up.
+.Pp
+The DISTDIR contains history information as well as DISTDIR/build-stats
+to speed further runs up.
+.Pp
+How you wipe things out depends on your setup.
+If you run
+.Xr proot 1
+again each time, most things will get cleaned up automatically
+.Po
+.Pa /build/usr/local , /build/var/db/pkg ...
+.Pc .
+Note that known directories such as WRKOBJDIR do not get cleaned up
+automatically, so you may want to set up a STARTUP_SCRIPT in
+.Xr dpb 1 .
+.Ss 5. Perform additional maintenance
+.Xr clean-old-distfiles 1
+should be run occasionally since the DISTDIR will continue growing.
+.Pp
+.Xr pkg_check-problems 1
+should be run occasionally to find out conflicts and dependency issues.
+.Sh SEE ALSO
+.Xr clean-old-distfiles 1 ,
+.Xr dpb 1 ,
+.Xr pkg_check-problems 1 ,
+.Xr proot 1 ,
+.Xr register-plist 1 ,
+.Xr tmux 1 ,
+.Xr bsd.port.mk 5 ,
+.Xr release 8

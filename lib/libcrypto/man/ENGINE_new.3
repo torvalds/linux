@@ -1,0 +1,175 @@
+.\" $OpenBSD: ENGINE_new.3,v 1.11 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\" Copyright (c) 2018 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ENGINE_NEW 3
+.Os
+.Sh NAME
+.Nm ENGINE_new ,
+.Nm ENGINE_free ,
+.Nm ENGINE_init ,
+.Nm ENGINE_finish ,
+.Nm ENGINE_ctrl_cmd ,
+.Nm ENGINE_ctrl_cmd_string ,
+.Nm ENGINE_by_id ,
+.Nm ENGINE_get_id ,
+.Nm ENGINE_get_name ,
+.Nm ENGINE_set_default ,
+.Nm ENGINE_get_default_RSA ,
+.Nm ENGINE_set_default_RSA ,
+.Nm ENGINE_load_private_key ,
+.Nm ENGINE_load_public_key ,
+.Nm ENGINE_load_builtin_engines ,
+.Nm ENGINE_load_dynamic ,
+.Nm ENGINE_load_openssl ,
+.Nm ENGINE_register_all_complete ,
+.Nm ENGINE_cleanup
+.Nd ENGINE stub functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/engine.h
+.Ft ENGINE *
+.Fn ENGINE_new void
+.Ft int
+.Fo ENGINE_free
+.Fa "ENGINE *engine"
+.Fc
+.Ft int
+.Fn ENGINE_init "ENGINE *engine"
+.Ft int
+.Fn ENGINE_finish "ENGINE *engine"
+.Ft int
+.Fo ENGINE_ctrl_cmd
+.Fa "ENGINE *engine"
+.Fa "const char *cmd_name"
+.Fa "long i"
+.Fa "void *p"
+.Fa "void (*f)(void)"
+.Fa "int cmd_optional"
+.Fc
+.Ft int
+.Fo ENGINE_ctrl_cmd_string
+.Fa "ENGINE *engine"
+.Fa "const char *cmd_name"
+.Fa "const char *arg"
+.Fa "int cmd_optional"
+.Fc
+.Ft ENGINE *
+.Fn ENGINE_by_id "const char *id"
+.Ft const char *
+.Fn ENGINE_get_id "const ENGINE *engine"
+.Ft const char *
+.Fn ENGINE_get_name "const ENGINE *engine"
+.Ft int
+.Fn ENGINE_set_default "ENGINE *engine" "unsigned int flags"
+.Ft ENGINE *
+.Fn ENGINE_get_default_RSA "ENGINE *engine"
+.Ft int
+.Fn ENGINE_set_default_RSA "ENGINE *engine"
+.Ft EVP_PKEY *
+.Fo ENGINE_load_private_key
+.Fa "ENGINE *engine"
+.Fa "const char *key_id"
+.Fa "UI_METHOD *ui_method"
+.Fa "void *callback_data"
+.Fc
+.Ft EVP_PKEY *
+.Fo ENGINE_load_public_key
+.Fa "ENGINE *engine"
+.Fa "const char *key_id"
+.Fa "UI_METHOD *ui_method"
+.Fa "void *callback_data"
+.Fc
+.Ft void
+.Fn ENGINE_load_builtin_engines "void"
+.Ft void
+.Fn ENGINE_load_dynamic "void"
+.Ft void
+.Fn ENGINE_load_openssl "void"
+.Ft int
+.Fn ENGINE_register_all_complete "void"
+.Ft void
+.Fn ENGINE_cleanup "void"
+.Sh DESCRIPTION
+.Vt ENGINE
+objects used to provide alternative implementations of
+cryptographic algorithms, for example using specialized hardware.
+LibreSSL no longer supports this feature.
+.Pp
+All functions in this manual ignore all their arguments and
+do nothing except return failure if possible.
+They are provided only to avoid patching software that expects
+.Vt ENGINE
+support to be available.
+.Sh RETURN VALUES
+.Fn ENGINE_new ,
+.Fn ENGINE_by_id ,
+.Fn ENGINE_get_default_RSA ,
+.Fn ENGINE_load_private_key ,
+and
+.Fn ENGINE_load_public_key
+always return
+.Dv NULL .
+.Pp
+.Fn ENGINE_free ,
+.Fn ENGINE_init ,
+.Fn ENGINE_finish ,
+.Fn ENGINE_ctrl_cmd ,
+.Fn ENGINE_ctrl_cmd_string ,
+.Fn ENGINE_set_default ,
+.Fn ENGINE_set_default_RSA ,
+and
+.Fn ENGINE_register_all_complete
+always return 0.
+.Pp
+.Fn ENGINE_get_id
+and
+.Fn ENGINE_get_name
+always return the constant empty string.
+.Sh SEE ALSO
+.Xr crypto 3
+.Sh HISTORY
+.Fn ENGINE_new ,
+.Fn ENGINE_free ,
+.Fn ENGINE_init ,
+.Fn ENGINE_finish ,
+.Fn ENGINE_by_id ,
+.Fn ENGINE_get_id ,
+.Fn ENGINE_get_name ,
+.Fn ENGINE_set_default ,
+.Fn ENGINE_get_default_RSA ,
+.Fn ENGINE_set_default_RSA ,
+.Fn ENGINE_load_private_key ,
+and
+.Fn ENGINE_load_public_key
+first appeared in OpenSSL 0.9.7
+and have been available since
+.Ox 2.9 .
+.Pp
+.Fn ENGINE_ctrl_cmd ,
+.Fn ENGINE_ctrl_cmd_string ,
+.Fn ENGINE_load_builtin_engines ,
+.Fn ENGINE_load_openssl ,
+.Fn ENGINE_register_all_complete ,
+and
+.Fn ENGINE_cleanup
+first appeared in OpenSSL 0.9.7
+and have been available since
+.Ox 3.4 .
+.Pp
+All these functions were turned into stubs in
+.Ox 7.4 .

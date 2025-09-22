@@ -1,0 +1,199 @@
+.\" $OpenBSD: ural.4,v 1.26 2025/03/25 19:57:54 jmc Exp $
+.\"
+.\" Copyright (c) 2005-2007
+.\"	Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 25 2025 $
+.Dt URAL 4
+.Os
+.Sh NAME
+.Nm ural
+.Nd Ralink Technology/MediaTek USB IEEE 802.11b/g wireless network device
+.Sh SYNOPSIS
+.Cd "ural* at uhub? port ?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 2.0 wireless adapters based on the Ralink RT2500USB
+chipset.
+.Pp
+The RT2500USB chipset is the first generation of 802.11b/g adapters from Ralink.
+It consists of two integrated chips, an RT2570 MAC/BBP and an RT2526 radio
+transceiver.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It IBSS mode
+Also known as
+.Em IEEE ad-hoc
+mode or
+.Em peer-to-peer
+mode.
+This is the standardized method of operating without an access point.
+Stations associate with a service set.
+However, actual connections between stations are peer-to-peer.
+.It Host AP
+In this mode the driver acts as an access point (base station)
+for other cards.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+The
+.Nm
+driver relies on the software 802.11 stack for both encryption and decryption
+of data frames.
+.Pp
+The transmit speed is user-selectable or can be adapted automatically by the
+driver depending on the number of hardware transmission retries.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh HARDWARE
+The following adapters should work:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It AMIT WL532U
+.It ASUS WL-167g v1
+.It Belkin F5D7050 v2000
+.It Buffalo WLI-U2-KG54
+.It Buffalo WLI-U2-KG54-AI
+.It Buffalo WLI-U2-KG54-YB
+.It CNet CWD-854
+.It Compex WLU54G 2A1100
+.It Conceptronic C54RU
+.It D-Link DWL-G122 (b1)
+.It Dynalink WLG25USB
+.It E-Tech WGUS02
+.It Eminent EM3035
+.It Gigabyte GN-WBKG
+.It Hercules HWGUSB2-54
+.It KCORP LifeStyle KLS-685
+.It Linksys HU200-TS
+.It Linksys WUSB54G v4
+.It Linksys WUSB54GP v4
+.It MSI MS-6861
+.It MSI MS-6865
+.It MSI MS-6869
+.It Nintendo Wi-Fi USB Connector
+.It Nova Tech NV-902W
+.It OvisLink Evo-W54USB
+.It SerComm UB801R
+.It SparkLAN WL-685R
+.It Sphairon UB801R
+.It Surecom EP-9001-g rev 3A
+.It Sweex LC100060
+.It Tonze UW-6200C
+.It Zaapa ZNWUSB-54
+.It Zinwell ZPlus-G250
+.It Zinwell ZWX-G261
+.It Zonet ZEW2500P
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig ural0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures ural0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+nwid mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Pp
+The following
+.Xr hostname.if 5
+example creates a host-based access point on boot:
+.Bd -literal -offset indent
+mediaopt hostap
+nwid mynwid wpakey mywpakey
+inet 192.168.1.1 255.255.255.0
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ural0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.7 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.Sh CAVEATS
+The
+.Nm
+driver supports automatic control of the transmit speed in BSS mode only.
+Therefore the use of an
+.Nm
+adapter in Host AP mode is discouraged.
+.Pp
+Host AP mode doesn't support power saving.
+Clients attempting to use power saving mode may experience significant
+packet loss (disabling power saving on the client will fix this).

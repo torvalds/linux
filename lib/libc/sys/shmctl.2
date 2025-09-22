@@ -1,0 +1,198 @@
+.\"	$OpenBSD: shmctl.2,v 1.19 2021/11/21 23:44:55 jan Exp $
+.\"	$NetBSD: shmctl.2,v 1.3 1997/03/27 08:20:39 mikel Exp $
+.\"
+.\" Copyright (c) 1995 Frank van der Linden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed for the NetBSD Project
+.\"      by Frank van der Linden
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"/
+.Dd $Mdocdate: November 21 2021 $
+.Dt SHMCTL 2
+.Os
+.Sh NAME
+.Nm shmctl
+.Nd shared memory control operations
+.Sh SYNOPSIS
+.In sys/shm.h
+.Ft int
+.Fn shmctl "int shmid" "int cmd" "struct shmid_ds *buf"
+.Sh DESCRIPTION
+The
+.Fn shmctl
+system call performs some control operations on the shared memory area
+specified by
+.Fa shmid .
+.Pp
+Each shared memory segment has a data structure associated with it,
+parts of which may be altered by
+.Fn shmctl
+and parts of which determine the actions of
+.Fn shmctl .
+.Pp
+This structure is defined as follows in
+.In sys/shm.h :
+.Bd -literal
+struct shmid_ds {
+	struct ipc_perm	 shm_perm;	/* operation permissions */
+	int		 shm_segsz;	/* size of segment in bytes */
+	pid_t		 shm_lpid;	/* pid of last shm op */
+	pid_t		 shm_cpid;	/* pid of creator */
+	short		 shm_nattch;	/* # of current attaches */
+	time_t		 shm_atime;	/* last shmat() time*/
+	time_t		 shm_dtime;	/* last shmdt() time */
+	time_t		 shm_ctime;	/* last change by shmctl() */
+	void		*shm_internal;	/* sysv stupidity */
+};
+.Ed
+.Pp
+The
+.Bf -literal
+ipc_perm
+.Ef
+structure used inside the
+.Bf -literal
+shmid_ds
+.Ef
+structure is defined in
+.In sys/ipc.h
+and looks like this:
+.Bd -literal
+struct ipc_perm {
+	uid_t		cuid;	/* creator user id */
+	gid_t		cgid;	/* creator group id */
+	uid_t		uid;	/* user id */
+	gid_t		gid;	/* group id */
+	mode_t		mode;	/* r/w permission (see chmod(2)) */
+	u_short		seq;	/* sequence # */
+				/* (to generate unique msg/sem/shm id) */
+	key_t		key;	/* user specified msg/sem/shm key */
+};
+.Ed
+.Pp
+The operation to be performed by
+.Fn shmctl
+is specified in
+.Fa cmd
+and is one of:
+.Bl -tag -width IPC_RMIDX
+.It Dv IPC_STAT
+Gather information about the shared memory segment and place it in the
+structure pointed to by
+.Fa buf .
+.It Dv IPC_SET
+Set the value of the
+.Va shm_perm.uid ,
+.Va shm_perm.gid
+and
+.Va shm_perm.mode
+fields in the structure associated with
+.Fa shmid .
+The values are taken from the corresponding fields in the structure
+pointed to by
+.Fa buf .
+This operation can only be executed by the superuser, or a process that
+has an effective user ID equal to either
+.Va shm_perm.cuid
+or
+.Va shm_perm.uid
+in the data structure associated with the shared memory segment.
+.It Dv IPC_RMID
+Mark the shared memory segment specified by
+.Fa shmid
+for removal when it is no longer in use by any process.
+When it is removed, all data associated with it will be destroyed too.
+Only the superuser or a process with an effective UID equal to the
+.Va shm_perm.cuid
+or
+.Va shm_perm.uid
+values in the data structure associated with the queue can do this.
+.El
+.Pp
+The read and write permissions on a shared memory identifier
+are determined by the
+.Va shm_perm.mode
+field in the same way as is
+done with files (see
+.Xr chmod 2 ) ,
+but the effective UID can match either the
+.Va shm_perm.cuid
+field or the
+.Va shm_perm.uid
+field, and the
+effective GID can match either
+.Va shm_perm.cgid
+or
+.Va shm_perm.gid .
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn shmctl
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+.Fa cmd
+is equal to
+.Dv IPC_SET
+or
+.Dv IPC_RMID
+and the caller is not the superuser, nor does
+the effective UID match either the
+.Va shm_perm.uid
+or
+.Va shm_perm.cuid
+fields of the data structure associated with the shared memory segment.
+.Pp
+An attempt is made to increase the value of
+.Va shm_qbytes
+through
+.Dv IPC_SET
+but the caller is not the superuser.
+.It Bq Er EACCES
+The command is
+.Dv IPC_STAT
+and the caller has no read permission for this shared memory segment.
+.It Bq Er EINVAL
+.Fa shmid
+is not a valid shared memory segment identifier.
+.Pp
+.Va cmd
+is not a valid command.
+.It Bq Er EFAULT
+.Fa buf
+specifies an invalid address.
+.El
+.Sh SEE ALSO
+.Xr ipcrm 1 ,
+.Xr ipcs 1 ,
+.Xr shmat 2 ,
+.Xr shmget 2
+.Sh STANDARDS
+Segments which are marked for removal (but not yet removed
+since they are still in use) can be attached to by new callers
+using
+.Xr shmat 2 .
+This is permitted as an extension beyond the standards.

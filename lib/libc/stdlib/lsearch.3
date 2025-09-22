@@ -1,0 +1,106 @@
+.\"	$OpenBSD: lsearch.3,v 1.14 2015/11/30 17:03:05 jmc Exp $
+.\"
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)lsearch.3	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: November 30 2015 $
+.Dt LSEARCH 3
+.Os
+.Sh NAME
+.Nm lsearch ,
+.Nm lfind
+.Nd linear searching routines
+.Sh SYNOPSIS
+.In search.h
+.Ft void *
+.Fn lsearch "const void *key" "void *base" "size_t *nelp" \
+    "size_t width" "int (*compar)(const void *, const void *)"
+.Ft void *
+.Fn lfind "const void *key" "const void *base" "size_t *nelp" \
+    "size_t width" "int (*compar)(const void *, const void *)"
+.Sh DESCRIPTION
+The functions
+.Fn lsearch
+and
+.Fn lfind
+provide basic linear searching functionality.
+.Pp
+.Fa base
+is the pointer to the beginning of an array.
+The argument
+.Fa nelp
+is the current number of elements in the array, where each element
+is
+.Fa width
+bytes long.
+The
+.Fa compar
+function
+is a comparison routine which is used to compare two elements.
+It takes two arguments which point to the
+.Fa key
+object and to an array member, in that order, and must return an integer
+less than, equivalent to, or greater than zero if the
+.Fa key
+object is considered, respectively, to be less than, equal to, or greater
+than the array member.
+.Pp
+The
+.Fn lsearch
+and
+.Fn lfind
+functions
+return a pointer into the array referenced by
+.Fa base
+where
+.Fa key
+is located.
+If
+.Fa key
+does not exist,
+.Fn lfind
+will return a null pointer and
+.Fn lsearch
+will add it to the array.
+When an element is added to the array by
+.Fn lsearch ,
+the location referenced by the argument
+.Fa nelp
+is incremented by one.
+.Sh SEE ALSO
+.Xr bsearch 3 ,
+.Xr dbopen 3
+.Sh STANDARDS
+The
+.Fn lsearch
+and
+.Fn lfind
+functions conform to the X/Open System Interfaces option of the
+.St -p1003.1-2008
+specification.

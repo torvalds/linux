@@ -1,0 +1,83 @@
+; Options for the Renesas M32R port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+m32rx
+Target Report RejectNegative Mask(M32RX)
+Compile for the m32rx
+
+m32r2
+Target Report RejectNegative Mask(M32R2)
+Compile for the m32r2
+
+m32r
+Target RejectNegative
+Compile for the m32r
+
+malign-loops
+Target Report Mask(ALIGN_LOOPS)
+Align all loops to 32 byte boundary
+
+mbranch-cost=1
+Target Report RejectNegative Mask(BRANCH_COST)
+Prefer branches over conditional execution
+
+mbranch-cost=2
+Target Report RejectNegative InverseMask(BRANCH_COST)
+Give branches their default cost
+
+mdebug
+Target Mask(DEBUG)
+Display compile time statistics
+
+mflush-func=
+Target RejectNegative Joined Var(m32r_cache_flush_func) Init(CACHE_FLUSH_FUNC)
+Specify cache flush function
+
+mflush-trap=
+Target RejectNegative Joined UInteger Var(m32r_cache_flush_trap) Init(CACHE_FLUSH_TRAP)
+Specify cache flush trap number
+
+missue-rate=1
+Target Report RejectNegative Mask(LOW_ISSUE_RATE)
+Only issue one instruction per cycle
+
+missue-rate=2
+Target Report RejectNegative InverseMask(LOW_ISSUE_RATE)
+Allow two instructions to be issued per cycle
+
+mmodel=
+Target RejectNegative Joined
+Code size: small, medium or large
+
+mno-flush-func
+Target RejectNegative
+Don't call any cache flush functions
+
+mno-flush-trap
+Target RejectNegative
+Don't call any cache flush trap
+
+; mrelax
+; Target Mask(RELAX)
+
+msdata=
+Target RejectNegative Joined
+Small data area: none, sdata, use

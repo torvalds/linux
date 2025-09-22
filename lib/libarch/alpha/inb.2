@@ -1,0 +1,133 @@
+.\" $OpenBSD: inb.2,v 1.9 2025/06/08 12:48:44 schwarze Exp $
+.\"
+.\" Copyright (c) 2002 Matthieu Herrb
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\"    - Redistributions of source code must retain the above copyright
+.\"      notice, this list of conditions and the following disclaimer.
+.\"    - Redistributions in binary form must reproduce the above
+.\"      copyright notice, this list of conditions and the following
+.\"      disclaimer in the documentation and/or other materials provided
+.\"      with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt LIBALPHA 2 alpha
+.Os
+.Sh NAME
+.Nm dense_base ,
+.Nm inb ,
+.Nm inl ,
+.Nm inw ,
+.Nm ioperm ,
+.Nm map_memory ,
+.Nm outb ,
+.Nm outl ,
+.Nm outw ,
+.Nm readb ,
+.Nm readl ,
+.Nm readw ,
+.Nm unmap_memory ,
+.Nm writeb ,
+.Nm writel ,
+.Nm writew
+.Nd Alpha devices I/O ports and memory access functions
+.Sh SYNOPSIS
+.Lb libalpha
+.Ft u_int64_t
+.Fn dense_base "void"
+.Ft u_int8_t
+.Fn inb "u_int32_t port"
+.Ft u_int32_t
+.Fn inl "u_int32_t port"
+.Ft u_int16_t
+.Fn inw "u_int32_t port"
+.Ft int
+.Fn ioperm "unsigned long from" "unsigned long num" "int on"
+.Ft void *
+.Fn map_memory "u_int32_t address" "u_int32_t size"
+.Ft void
+.Fn outb "u_int32_t port" "u_int8_t val"
+.Ft void
+.Fn outl "u_int32_t port" "u_int32_t val"
+.Ft void
+.Fn outw "u_int32_t port" "u_int16_t val"
+.Ft u_int8_t
+.Fn readb "void *handle" "u_int32_t offset"
+.Ft u_int32_t
+.Fn readl "void *handle" "u_int32_t offset"
+.Ft u_int16_t
+.Fn readw "void *handle" "u_int32_t offset"
+.Ft void
+.Fn unmap_memory "void *handle" "u_int32_t size"
+.Ft void
+.Fn writeb "void *handle" "u_int32_t offset" "u_int8_t val"
+.Ft void
+.Fn writel "void *handle" "u_int32_t offset" "u_int32_t val"
+.Ft void
+.Fn writew "void *handle" "u_int32_t offset" "u_int16_t val"
+.Sh DESCRIPTION
+The functions in libalpha give userland programs access to the I/O
+ports on the OpenBSD/alpha platform.
+.Pp
+The
+.Fn in*
+functions return data read from the specified I/O port.
+.Pp
+The
+.Fn out*
+functions write data to the specified I/O port.
+.Pp
+.Fn ioperm
+enables access to the specified port numbers if
+.Fa on
+is
+.Dv TRUE
+and disables access if
+.Fa on
+is
+.Dv FALSE .
+.Pp
+The
+.Fn map_memory
+function allows a user program to map part of a device memory.
+.Pp
+The
+.Fn unmap_memory
+function unmaps memory that was previously mapped by
+.Fn map_memory .
+.Pp
+The
+.Fn read*
+functions read data from device memory previously mapped by
+.Fn map_memory .
+.Pp
+The
+.Fn write*
+functions write data to the device memory previously mapped by
+.Fn map_memory .
+.Sh HISTORY
+These functions originally appeared in
+.Fx .
+.Sh CAVEATS
+Only BWX bus access method is supported for now.
+Machines requiring
+swiz type access are not supported.
+.Pp
+Root credentials are needed to use these functions.

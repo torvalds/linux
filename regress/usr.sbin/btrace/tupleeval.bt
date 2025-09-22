@@ -1,0 +1,8 @@
+BEGIN {
+	$t = (5, comm, "str", probe);
+	@u = $t;
+}
+
+END {
+	print(@u)
+}

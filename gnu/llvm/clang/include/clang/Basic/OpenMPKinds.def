@@ -1,0 +1,247 @@
+//===--- OpenMPKinds.def - OpenMP directives and clauses list ---*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+/// \file
+/// This file defines the list of supported OpenMP directives and
+/// clauses.
+///
+//===----------------------------------------------------------------------===//
+
+#ifndef OPENMP_SCHEDULE_KIND
+#define OPENMP_SCHEDULE_KIND(Name)
+#endif
+#ifndef OPENMP_SCHEDULE_MODIFIER
+#define OPENMP_SCHEDULE_MODIFIER(Name)
+#endif
+#ifndef OPENMP_DEPEND_KIND
+#define OPENMP_DEPEND_KIND(Name)
+#endif
+#ifndef OPENMP_LINEAR_KIND
+#define OPENMP_LINEAR_KIND(Name)
+#endif
+#ifndef OPENMP_MAP_KIND
+#define OPENMP_MAP_KIND(Name)
+#endif
+#ifndef OPENMP_MAP_MODIFIER_KIND
+#define OPENMP_MAP_MODIFIER_KIND(Name)
+#endif
+#ifndef OPENMP_MOTION_MODIFIER_KIND
+#define OPENMP_MOTION_MODIFIER_KIND(Name)
+#endif
+#ifndef OPENMP_DIST_SCHEDULE_KIND
+#define OPENMP_DIST_SCHEDULE_KIND(Name)
+#endif
+#ifndef OPENMP_DEFAULTMAP_KIND
+#define OPENMP_DEFAULTMAP_KIND(Name)
+#endif
+#ifndef OPENMP_ATOMIC_DEFAULT_MEM_ORDER_KIND
+#define OPENMP_ATOMIC_DEFAULT_MEM_ORDER_KIND(Name)
+#endif
+#ifndef OPENMP_ATOMIC_FAIL_MODIFIER
+#define OPENMP_ATOMIC_FAIL_MODIFIER(Name)
+#endif
+#ifndef OPENMP_AT_KIND
+#define OPENMP_AT_KIND(Name)
+#endif
+#ifndef OPENMP_SEVERITY_KIND
+#define OPENMP_SEVERITY_KIND(Name)
+#endif
+#ifndef OPENMP_DEFAULTMAP_MODIFIER
+#define OPENMP_DEFAULTMAP_MODIFIER(Name)
+#endif
+#ifndef OPENMP_DEVICE_TYPE_KIND
+#define OPENMP_DEVICE_TYPE_KIND(Name)
+#endif
+#ifndef OPENMP_LASTPRIVATE_KIND
+#define OPENMP_LASTPRIVATE_KIND(Name)
+#endif
+#ifndef OPENMP_ORDER_KIND
+#define OPENMP_ORDER_KIND(Name)
+#endif
+#ifndef OPENMP_ORDER_MODIFIER
+#define OPENMP_ORDER_MODIFIER(Name)
+#endif
+#ifndef OPENMP_DEVICE_MODIFIER
+#define OPENMP_DEVICE_MODIFIER(Name)
+#endif
+#ifndef OPENMP_REDUCTION_MODIFIER
+#define OPENMP_REDUCTION_MODIFIER(Name)
+#endif
+#ifndef OPENMP_ADJUST_ARGS_KIND
+#define OPENMP_ADJUST_ARGS_KIND(Name)
+#endif
+#ifndef OPENMP_BIND_KIND
+#define OPENMP_BIND_KIND(Name)
+#endif
+#ifndef OPENMP_GRAINSIZE_MODIFIER
+#define OPENMP_GRAINSIZE_MODIFIER(Name)
+#endif
+#ifndef OPENMP_NUMTASKS_MODIFIER
+#define OPENMP_NUMTASKS_MODIFIER(Name)
+#endif
+#ifndef OPENMP_DOACROSS_MODIFIER
+#define OPENMP_DOACROSS_MODIFIER(Name)
+#endif
+
+// Static attributes for 'schedule' clause.
+OPENMP_SCHEDULE_KIND(static)
+OPENMP_SCHEDULE_KIND(dynamic)
+OPENMP_SCHEDULE_KIND(guided)
+OPENMP_SCHEDULE_KIND(auto)
+OPENMP_SCHEDULE_KIND(runtime)
+
+// Modifiers for 'schedule' clause.
+OPENMP_SCHEDULE_MODIFIER(monotonic)
+OPENMP_SCHEDULE_MODIFIER(nonmonotonic)
+OPENMP_SCHEDULE_MODIFIER(simd)
+
+// Modifiers for 'device' clause.
+OPENMP_DEVICE_MODIFIER(ancestor)
+OPENMP_DEVICE_MODIFIER(device_num)
+
+// Static attributes for 'defaultmap' clause.
+OPENMP_DEFAULTMAP_KIND(scalar)
+OPENMP_DEFAULTMAP_KIND(aggregate)
+OPENMP_DEFAULTMAP_KIND(pointer)
+
+// Modifiers for 'defaultmap' clause.
+OPENMP_DEFAULTMAP_MODIFIER(alloc)
+OPENMP_DEFAULTMAP_MODIFIER(to)
+OPENMP_DEFAULTMAP_MODIFIER(from)
+OPENMP_DEFAULTMAP_MODIFIER(tofrom)
+OPENMP_DEFAULTMAP_MODIFIER(firstprivate)
+OPENMP_DEFAULTMAP_MODIFIER(none)
+OPENMP_DEFAULTMAP_MODIFIER(default)
+OPENMP_DEFAULTMAP_MODIFIER(present)
+
+// Static attributes for 'depend' clause.
+OPENMP_DEPEND_KIND(in)
+OPENMP_DEPEND_KIND(out)
+OPENMP_DEPEND_KIND(inout)
+OPENMP_DEPEND_KIND(mutexinoutset)
+OPENMP_DEPEND_KIND(depobj)
+OPENMP_DEPEND_KIND(source)
+OPENMP_DEPEND_KIND(sink)
+OPENMP_DEPEND_KIND(inoutset)
+OPENMP_DEPEND_KIND(outallmemory)
+OPENMP_DEPEND_KIND(inoutallmemory)
+
+// Modifiers for 'linear' clause.
+OPENMP_LINEAR_KIND(val)
+OPENMP_LINEAR_KIND(ref)
+OPENMP_LINEAR_KIND(uval)
+OPENMP_LINEAR_KIND(step)
+
+// Modifiers for 'atomic_default_mem_order' clause.
+OPENMP_ATOMIC_DEFAULT_MEM_ORDER_KIND(seq_cst)
+OPENMP_ATOMIC_DEFAULT_MEM_ORDER_KIND(acq_rel)
+OPENMP_ATOMIC_DEFAULT_MEM_ORDER_KIND(relaxed)
+
+// Modifiers for atomic 'fail' clause.
+OPENMP_ATOMIC_FAIL_MODIFIER(seq_cst)
+OPENMP_ATOMIC_FAIL_MODIFIER(acquire)
+OPENMP_ATOMIC_FAIL_MODIFIER(relaxed)
+
+// Modifiers for 'at' clause.
+OPENMP_AT_KIND(compilation)
+OPENMP_AT_KIND(execution)
+
+// Modifiers for 'severity' clause.
+OPENMP_SEVERITY_KIND(fatal)
+OPENMP_SEVERITY_KIND(warning)
+
+// Map types for 'map' clause.
+OPENMP_MAP_KIND(alloc)
+OPENMP_MAP_KIND(to)
+OPENMP_MAP_KIND(from)
+OPENMP_MAP_KIND(tofrom)
+OPENMP_MAP_KIND(delete)
+OPENMP_MAP_KIND(release)
+
+// Map-type-modifiers for 'map' clause.
+OPENMP_MAP_MODIFIER_KIND(always)
+OPENMP_MAP_MODIFIER_KIND(close)
+OPENMP_MAP_MODIFIER_KIND(mapper)
+OPENMP_MAP_MODIFIER_KIND(iterator)
+OPENMP_MAP_MODIFIER_KIND(present)
+// This is an OpenMP extension for the sake of OpenACC support.
+OPENMP_MAP_MODIFIER_KIND(ompx_hold)
+
+// Modifiers for 'to' or 'from' clause.
+OPENMP_MOTION_MODIFIER_KIND(mapper)
+OPENMP_MOTION_MODIFIER_KIND(present)
+
+// Static attributes for 'dist_schedule' clause.
+OPENMP_DIST_SCHEDULE_KIND(static)
+
+// Device types for 'device_type' clause.
+OPENMP_DEVICE_TYPE_KIND(host)
+OPENMP_DEVICE_TYPE_KIND(nohost)
+OPENMP_DEVICE_TYPE_KIND(any)
+
+// Type of the 'lastprivate' clause.
+OPENMP_LASTPRIVATE_KIND(conditional)
+
+// Type of the 'order' clause.
+OPENMP_ORDER_KIND(concurrent)
+
+// Modifiers for the 'order' clause.
+OPENMP_ORDER_MODIFIER(reproducible)
+OPENMP_ORDER_MODIFIER(unconstrained)
+
+// Modifiers for 'reduction' clause.
+OPENMP_REDUCTION_MODIFIER(default)
+OPENMP_REDUCTION_MODIFIER(inscan)
+OPENMP_REDUCTION_MODIFIER(task)
+
+// Adjust-op kinds for the 'adjust_args' clause.
+OPENMP_ADJUST_ARGS_KIND(nothing)
+OPENMP_ADJUST_ARGS_KIND(need_device_ptr)
+
+// Binding kinds for the 'bind' clause.
+OPENMP_BIND_KIND(teams)
+OPENMP_BIND_KIND(parallel)
+OPENMP_BIND_KIND(thread)
+
+// Modifiers for the 'grainsize' clause.
+OPENMP_GRAINSIZE_MODIFIER(strict)
+
+// Modifiers for the 'num_tasks' clause.
+OPENMP_NUMTASKS_MODIFIER(strict)
+
+// Modifiers for the 'doacross' clause.
+OPENMP_DOACROSS_MODIFIER(source)
+OPENMP_DOACROSS_MODIFIER(sink)
+OPENMP_DOACROSS_MODIFIER(sink_omp_cur_iteration)
+OPENMP_DOACROSS_MODIFIER(source_omp_cur_iteration)
+
+#undef OPENMP_NUMTASKS_MODIFIER
+#undef OPENMP_GRAINSIZE_MODIFIER
+#undef OPENMP_BIND_KIND
+#undef OPENMP_ADJUST_ARGS_KIND
+#undef OPENMP_REDUCTION_MODIFIER
+#undef OPENMP_DEVICE_MODIFIER
+#undef OPENMP_ORDER_KIND
+#undef OPENMP_ORDER_MODIFIER
+#undef OPENMP_LASTPRIVATE_KIND
+#undef OPENMP_DEVICE_TYPE_KIND
+#undef OPENMP_LINEAR_KIND
+#undef OPENMP_DEPEND_KIND
+#undef OPENMP_SCHEDULE_MODIFIER
+#undef OPENMP_SCHEDULE_KIND
+#undef OPENMP_ATOMIC_DEFAULT_MEM_ORDER_KIND
+#undef OPENMP_ATOMIC_FAIL_MODIFIER
+#undef OPENMP_AT_KIND
+#undef OPENMP_SEVERITY_KIND
+#undef OPENMP_MAP_KIND
+#undef OPENMP_MAP_MODIFIER_KIND
+#undef OPENMP_MOTION_MODIFIER_KIND
+#undef OPENMP_DIST_SCHEDULE_KIND
+#undef OPENMP_DEFAULTMAP_KIND
+#undef OPENMP_DEFAULTMAP_MODIFIER
+#undef OPENMP_DOACROSS_MODIFIER
+

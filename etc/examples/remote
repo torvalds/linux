@@ -1,0 +1,17 @@
+#	$OpenBSD: remote,v 1.3 2016/03/09 16:28:46 deraadt Exp $
+#
+# Remote host descriptions -- see cu(1), cgetcap(3), tty(4), remote(5)
+#
+# On OpenBSD the serial ports are typically called /dev/cua* or /dev/tty*.
+# The /dev/cua* calling unit should be used if available (some drivers do not
+# provide it). See tty(4) for more information.
+#
+
+unixhost:\
+	:br#9600:
+
+cua00|For i386,macppc:\
+	:dv=/dev/cua00:tc=unixhost:
+
+cuaa|For sparc:\
+	:dv=/dev/cuaa:tc=unixhost:

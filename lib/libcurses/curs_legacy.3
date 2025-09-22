@@ -1,0 +1,109 @@
+.\" $OpenBSD: curs_legacy.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2019-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 2007-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_legacy.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.TH curs_legacy 3 2023-07-01 "ncurses 6.4" "Library calls"
+.SH NAME
+curs_legacy \- get \fBcurses\fP cursor and window coordinates, attributes
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint getattrs(const WINDOW *\fIwin\fB);\fR
+.sp
+\fBint getbegx(const WINDOW *\fIwin\fB);\fR
+.br
+\fBint getbegy(const WINDOW *\fIwin\fB);\fR
+.sp
+\fBint getcurx(const WINDOW *\fIwin\fB);\fR
+.br
+\fBint getcury(const WINDOW *\fIwin\fB);\fR
+.sp
+\fBint getmaxx(const WINDOW *\fIwin\fB);\fR
+.br
+\fBint getmaxy(const WINDOW *\fIwin\fB);\fR
+.sp
+\fBint getparx(const WINDOW *\fIwin\fB);\fR
+.br
+\fBint getpary(const WINDOW *\fIwin\fB);\fR
+.SH DESCRIPTION
+These legacy functions are simpler to use than the X/Open Curses functions:
+.bP
+The \fBgetattrs\fP function returns the same attribute data as \fBwattr_get\fP.
+.IP
+However, \fBgetattrs\fP returns an integer (actually a \fBchtype\fP),
+while \fBwattr_get\fP returns the current color pair in a separate parameter.
+In the wide-character library configuration,
+color pairs may not fit into a \fBchtype\fP,
+so \fBwattr_get\fP is the only way to obtain the color information.
+.IP
+Because \fBgetattrs\fP returns the attributes in a single parameter,
+it would not be possible for an application to distinguish that from
+\fBERR\fP (a \fI-1\fP).
+If the window parameter is null, \fBgetattrs\fP returns \fBA_NORMAL\fP (zero).
+.bP
+The \fBgetbegy\fP and \fBgetbegx\fP functions return the same
+data as \fBgetbegyx\fP.
+.bP
+The \fBgetcury\fP and \fBgetcurx\fP functions return the same
+data as \fBgetyx\fP.
+.bP
+The \fBgetmaxy\fP and \fBgetmaxx\fP functions return the same
+data as \fBgetmaxyx\fP.
+.bP
+The \fBgetpary\fP and \fBgetparx\fP functions return the same
+data as \fBgetparyx\fP.
+.SH RETURN VALUE
+Except as noted,
+these functions return an integer,
+or \fBERR\fP if the window parameter is null.
+.SH NOTES
+All of these interfaces are provided as macros and functions.
+The macros are suppressed (and only the functions provided)
+when \fBNCURSES_OPAQUE\fP is defined.
+The standard forms such as \fBgetyx\fP must be implemented as macros,
+and (in this implementation) are defined in terms of the functions
+described here,
+to avoid reliance on internal details of the WINDOW structure.
+.SH PORTABILITY
+These functions were supported on Version 7, BSD or System V implementations.
+None of those implementations checked the window parameter.
+.PP
+The \fBgetattrs\fP function and macro are defined to return a (signed) integer
+for compatibility with those implementations
+although an unsigned type would have been more appropriate.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_getyx\fP(3),
+\fBcurs_opaque\fP(3)

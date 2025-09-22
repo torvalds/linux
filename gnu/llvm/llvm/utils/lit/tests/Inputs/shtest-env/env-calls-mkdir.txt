@@ -1,0 +1,1 @@
+# RUN: env -u FOO BAR=3 mkdir foobar

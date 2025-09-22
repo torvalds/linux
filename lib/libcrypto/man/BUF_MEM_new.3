@@ -1,0 +1,154 @@
+.\"	$OpenBSD: BUF_MEM_new.3,v 1.20 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL doc/crypto/buffer.pod 18edda0f Sep 20 03:28:54 2000 +0000
+.\"	not merged: 74924dcb, 58e3457a, 21b0fa91, 7644a9ae
+.\"	OpenSSL doc/crypto/BUF_MEM_new.pod 53934822 Jun 9 16:39:19 2016 -0400
+.\"	not merged: c952780c, 91da5e77
+.\"	OpenSSL doc/man3/BUF_MEM_new.pod 498180de Dec 12 15:35:09 2016 +0300
+.\"
+.\" This file was written by Ralf S. Engelschall <rse@openssl.org>.
+.\" Copyright (c) 1999, 2000, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BUF_MEM_NEW 3
+.Os
+.Sh NAME
+.Nm BUF_MEM_new ,
+.Nm BUF_MEM_free ,
+.Nm BUF_MEM_grow ,
+.Nm BUF_MEM_grow_clean
+.Nd simple character arrays structure
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/buffer.h
+.Ft BUF_MEM *
+.Fo BUF_MEM_new
+.Fa void
+.Fc
+.Ft void
+.Fo BUF_MEM_free
+.Fa "BUF_MEM *a"
+.Fc
+.Ft int
+.Fo BUF_MEM_grow
+.Fa "BUF_MEM *str"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo BUF_MEM_grow_clean
+.Fa "BUF_MEM *str"
+.Fa "size_t len"
+.Fc
+.Sh DESCRIPTION
+The buffer library handles simple character arrays.
+Buffers are used for various purposes in the library, most notably
+memory BIOs.
+.Pp
+The library uses the
+.Vt BUF_MEM
+structure defined in buffer.h:
+.Bd -literal
+typedef struct buf_mem_st {
+	size_t length;	/* current number of bytes */
+	char *data;
+	size_t max;	/* size of buffer */
+} BUF_MEM;
+.Ed
+.Pp
+.Fa length
+is the current size of the buffer in bytes;
+.Fa max
+is the amount of memory allocated to the buffer.
+There are three functions which handle these and one miscellaneous function.
+.Pp
+.Fn BUF_MEM_new
+allocates a new buffer of zero size.
+.Pp
+.Fn BUF_MEM_free
+frees up an already existing buffer.
+The data is zeroed before freeing up in case the buffer contains
+sensitive data.
+If
+.Fa a
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn BUF_MEM_grow
+changes the size of an already existing buffer to
+.Fa len .
+Any data already in the buffer is preserved if it increases in size.
+.Pp
+.Fn BUF_MEM_grow_clean
+is similar to
+.Fn BUF_MEM_grow ,
+but it sets any freed or additionally allocated memory to zero.
+.Sh RETURN VALUES
+.Fn BUF_MEM_new
+returns the buffer or
+.Dv NULL
+on error.
+.Pp
+.Fn BUF_MEM_grow
+and
+.Fn BUF_MEM_grow_clean
+return zero on error or the new size (i.e.\&
+.Fa len ) .
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr BIO_s_mem 3
+.Sh HISTORY
+.Fn BUF_MEM_new ,
+.Fn BUF_MEM_free ,
+and
+.Fn BUF_MEM_grow
+first appeared in SSLeay 0.6.0.
+All these functions  have been available since
+.Ox 2.4 .
+.Pp
+.Fn BUF_MEM_grow_clean
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .

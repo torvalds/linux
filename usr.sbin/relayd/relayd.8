@@ -1,0 +1,154 @@
+.\"	$OpenBSD: relayd.8,v 1.25 2015/07/27 14:50:58 sobrado Exp $
+.\"
+.\" Copyright (c) 2006 Pierre-Yves Ritschard <pyr@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 27 2015 $
+.Dt RELAYD 8
+.Os
+.Sh NAME
+.Nm relayd
+.Nd relay daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Sh DESCRIPTION
+.Nm
+is a daemon to relay and dynamically redirect incoming connections to
+a target host.
+Its main purposes are to run as a load-balancer, application layer
+gateway, or transparent proxy.
+The daemon is able to monitor groups of hosts for availability, which
+is determined by checking for a specific service common to a host
+group.
+When availability is confirmed,
+layer 3 and/or layer 7 forwarding services are set up by
+.Nm .
+.Pp
+Layer 3 redirection happens at the packet level; to configure
+it,
+.Nm
+communicates with
+.Xr pf 4 .
+To allow
+.Nm
+to properly set up
+.Xr pf 4
+rules, the following line is required in the filter section of
+.Xr pf.conf 5 :
+.Bd -literal -offset indent
+anchor "relayd/*"
+.Ed
+.Pp
+Layer 7 relaying happens at the application level and is
+handled by
+.Nm
+itself.
+Various application level filtering and protocol-specific
+load-balancing options are available for relays.
+.Pp
+.Nm
+works in terms of the following
+.Em entities :
+relays, protocols, redirections, and tables.
+A
+.Em relay
+represents a layer 7 load-balancing instance.
+Each instance translates to a listening TCP or UDP port.
+A
+.Em protocol
+defines which actions, if any, are taken on the
+packet payload as data crosses a relay.
+A
+.Em redirection
+represents a layer 3 load-balancing instance.
+Each instance translates to a
+.Xr pf 4
+rdr-to rule being added.
+A
+.Em table
+represents a group of hosts which can be checked for
+availability using the same method.
+Each table contains at least one host.
+If a table is used in a layer 3 load-balancing instance, it
+will be mapped to a
+.Xr pf 4
+table containing only those hosts which are up.
+.Pp
+All these entities can be configured in
+.Xr relayd.conf 5 ,
+and
+.Xr relayctl 8
+can be used to alter or report on the status of each entity.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Specify an alternative configuration file.
+The default is
+.Pa /etc/relayd.conf .
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl v
+Produce more verbose output.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/relayd.sockXX" -compact
+.It Pa /etc/relayd.conf
+Default configuration file.
+.It Pa /var/run/relayd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr relayctl 8 .
+.El
+.Sh SEE ALSO
+.Xr relayd.conf 5 ,
+.Xr relayctl 8
+.Sh HISTORY
+The
+.Nm
+program, formerly known as
+.Ic hoststated ,
+first appeared in
+.Ox 4.1 .
+It was renamed to
+.Nm
+in
+.Ox 4.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was written by
+.An Pierre-Yves Ritschard Aq Mt pyr@openbsd.org
+and
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

@@ -1,0 +1,101 @@
+.\"	$OpenBSD: pkg_subst.1,v 1.1 2018/06/26 05:38:49 espie Exp $
+.\"
+.\" Copyright (c) 2010 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 26 2018 $
+.Dt PKG_SUBST 1
+.Os
+.Sh NAME
+.Nm pkg_subst
+.Nd substitute variables' values in files
+.Sh SYNOPSIS
+.Nm pkg_subst
+.Op Fl ci
+.Op Fl B Ar basedir
+.Op Fl D Ar name Ns Op = Ns Ar value
+.Op Fl g Ar group
+.Op Fl m Ar mode
+.Op Fl o Ar owner
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+is used within the ports tree to substitute variable values, using
+the exact same conventions used by
+.Xr pkg_create 1 .
+Constructs like
+.Li ${VAR}
+will be replaced with the variable value, according to
+.Fl D Ar name Ns Op = Ns Ar value
+options.
+.Pp
+The options are as follows
+.Bl -tag -width Dname[=value]xxx
+.It Fl B Ar basedir
+Specify a basedir in which we know file properties.
+It is forbidden to copy files from elsewhere without
+.Fl m Ar mode .
+.It Fl c
+Copy and substitute.
+Number of
+.Ar file
+arguments must be even.
+They are paired as
+.Ar src1
+.Ar dest1 ,
+.Ar src2
+.Ar dest2 ...
+and each
+.Ar src
+file is substituted and copied into the corresponding
+.Ar dest
+file.
+.It Xo
+.Fl D
+.Ar name Ns Op = Ns Ar value
+.Xc
+Define
+.Ar name
+to
+.Ar value ,
+or to 1 if no value is given.
+.It Fl g Ar group
+Change group of destination file to
+.Ar group .
+.It Fl i
+Ignore changes to group or owner that failed.
+.It Fl m Ar mode
+Change mode of destination file to
+.Ar mode .
+.It Fl o Ar owner
+Change owner of destination file to
+.Ar owner .
+.El
+.Pp
+If no
+.Ar file
+arguments is given,
+.Nm
+acts as a filter from stdin to stdout.
+.Pp
+Without
+.Fl c ,
+each
+.Ar file
+is backed up as
+.Ar file.beforesubst
+before the substitution occurs.
+.Sh SEE ALSO
+.Xr install 1 ,
+.Xr pkg_create 1

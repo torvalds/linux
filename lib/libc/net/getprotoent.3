@@ -1,0 +1,213 @@
+.\"	$OpenBSD: getprotoent.3,v 1.18 2013/06/05 03:39:23 tedu Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt GETPROTOENT 3
+.Os
+.Sh NAME
+.Nm getprotoent ,
+.Nm getprotoent_r ,
+.Nm getprotobynumber ,
+.Nm getprotobynumber_r ,
+.Nm getprotobyname ,
+.Nm getprotobyname_r ,
+.Nm setprotoent ,
+.Nm setprotoent_r ,
+.Nm endprotoent ,
+.Nm endprotoent_r
+.Nd get protocol entry
+.Sh SYNOPSIS
+.In netdb.h
+.Ft struct protoent *
+.Fn getprotoent "void"
+.Ft int
+.Fn getprotoent_r "struct protoent *protoent" "struct protoent_data *protoent_data"
+.Ft struct protoent *
+.Fn getprotobyname "const char *name"
+.Ft int
+.Fn getprotobyname_r "const char *name" "struct protoent *protoent" "struct protoent_data *protoent_data"
+.Ft struct protoent *
+.Fn getprotobynumber "int proto"
+.Ft int
+.Fn getprotobynumber_r "int proto" "struct protoent *protoent" "struct protoent_data *protoent_data"
+.Ft void
+.Fn setprotoent "int stayopen"
+.Ft void
+.Fn setprotoent_r "int stayopen" "struct protoent_data *protoent_data"
+.Ft void
+.Fn endprotoent "void"
+.Ft void
+.Fn endprotoent_r "struct protoent_data *protoent_data"
+.Sh DESCRIPTION
+The
+.Fn getprotoent ,
+.Fn getprotobyname ,
+and
+.Fn getprotobynumber
+functions each return a pointer to an object with the following structure
+containing the broken-out fields of a line in the network protocol database,
+.Pa /etc/protocols .
+.Bd -literal -offset indent
+.Pp
+struct	protoent {
+	char	*p_name;	/* official name of protocol */
+	char	**p_aliases;	/* alias list */
+	int	p_proto;	/* protocol number */
+};
+.Ed
+.Pp
+The members of this structure are:
+.Bl -tag -width p_aliases
+.It Fa p_name
+The official name of the protocol.
+.It Fa p_aliases
+A null-terminated list of alternate names for the protocol.
+.It Fa p_proto
+The protocol number.
+.El
+.Pp
+The
+.Fn getprotoent
+function reads the next line of the file, opening the file if necessary.
+.Pp
+The
+.Fn setprotoent
+function opens and rewinds the file.
+If the
+.Fa stayopen
+flag is non-zero,
+the protocol database will not be closed after each call to
+.Fn getprotobyname
+or
+.Fn getprotobynumber .
+.Pp
+The
+.Fn endprotoent
+function closes the file.
+.Pp
+The
+.Fn getprotobyname
+and
+.Fn getprotobynumber
+functions sequentially search from the beginning of the file until a
+matching protocol name or protocol number is found, or until
+.Dv EOF
+is encountered.
+.Pp
+The
+.Fn getprotoent_r ,
+.Fn getprotobyport_r ,
+.Fn getprotobyname_r ,
+.Fn setprotoent_r ,
+and
+.Fn endprotoent_r
+functions are reentrant versions of the above functions that take a
+pointer to a
+.Vt protoent_data
+structure which is used to store state information.
+The structure must be zero-filled before it is used
+and should be considered opaque for the sake of portability.
+.Pp
+The
+.Fn getprotoent_r ,
+.Fn getprotobyport_r ,
+and
+.Fn getprotobyname_r
+functions
+also take a pointer to a
+.Vt protoent
+structure which is used to store the results of the database lookup.
+.Sh RETURN VALUES
+The
+.Fn getprotoent ,
+.Fn getprotobyport ,
+and
+.Fn getprotobyname
+functions return a pointer to a
+.Vt protoent
+structure on success or a null pointer if end-of-file
+is reached or an error occurs.
+.Pp
+The
+.Fn getprotoent_r ,
+.Fn getprotobyport_r ,
+and
+.Fn getprotobyname_r
+functions return 0 on success or \-1 if end-of-file
+is reached or an error occurs.
+.Sh FILES
+.Bl -tag -width /etc/protocols -compact
+.It Pa /etc/protocols
+.El
+.Sh SEE ALSO
+.Xr protocols 5
+.Sh STANDARDS
+The
+.Fn getprotoent ,
+.Fn getprotobynumber ,
+.Fn getprotobyname ,
+.Fn setprotoent ,
+and
+.Fn endprotoent
+functions conform to
+.St -p1003.1-2004 .
+.Pp
+The
+.Fn getprotoent_r ,
+.Fn getprotobyport_r ,
+.Fn getprotobyname_r ,
+.Fn setprotoent_r ,
+and
+.Fn endprotoent_r
+functions are not currently standardized.
+This implementation follows the API used by HP, IBM, and Digital.
+.Sh HISTORY
+The
+.Fn getprotoent ,
+.Fn getprotobynumber ,
+.Fn getprotobyname ,
+.Fn setprotoent ,
+and
+.Fn endprotoent
+functions appeared in
+.Bx 4.2 .
+.Pp
+The
+.Fn getprotoent_r ,
+.Fn getprotobyport_r ,
+.Fn getprotobyname_r ,
+.Fn setprotoent_r ,
+and
+.Fn endprotoent_r
+functions appeared in
+.Ox 3.7 .
+.Sh BUGS
+The non-reentrant functions use a static data space; if the data is needed
+for future use, it should be copied before any subsequent calls overwrite it.
+Only the Internet protocols are currently understood.

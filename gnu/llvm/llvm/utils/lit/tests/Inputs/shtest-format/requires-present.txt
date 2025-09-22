@@ -1,0 +1,4 @@
+# REQUIRES with only true clauses. Test should run.
+REQUIRES: a-present-feature, true, !not-true
+REQUIRES: true
+RUN: true

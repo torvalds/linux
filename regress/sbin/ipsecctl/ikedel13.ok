@@ -1,0 +1,13 @@
+FROM = "{ 2.2.2.0/24, 3.3.3.0/24, 4.4.4.0/24 }"
+t from-2.2.2.0/24-to-1.1.1.1
+C rmv [Phase 2]:Connections=from-2.2.2.0/24-to-1.1.1.1
+C rms [from-2.2.2.0/24-to-1.1.1.1]
+C rms [phase2-from-2.2.2.0/24-to-1.1.1.1]
+t from-3.3.3.0/24-to-1.1.1.1
+C rmv [Phase 2]:Connections=from-3.3.3.0/24-to-1.1.1.1
+C rms [from-3.3.3.0/24-to-1.1.1.1]
+C rms [phase2-from-3.3.3.0/24-to-1.1.1.1]
+t from-4.4.4.0/24-to-1.1.1.1
+C rmv [Phase 2]:Connections=from-4.4.4.0/24-to-1.1.1.1
+C rms [from-4.4.4.0/24-to-1.1.1.1]
+C rms [phase2-from-4.4.4.0/24-to-1.1.1.1]

@@ -1,0 +1,336 @@
+.\" $OpenBSD: BIO_push.3,v 1.15 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to:
+.\" OpenSSL doc/man3/BIO_push.pod 791bfd91 Nov 19 20:38:27 2021 +0100
+.\" OpenSSL doc/man7/bio.pod 1cb7eff4 Sep 10 13:56:40 2019 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2014 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_PUSH 3
+.Os
+.Sh NAME
+.Nm BIO_push ,
+.Nm BIO_pop ,
+.Nm BIO_set_next
+.Nd manipulate BIO chains
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.Ft BIO *
+.Fo BIO_push
+.Fa "BIO *b"
+.Fa "BIO *new_tail"
+.Fc
+.Ft BIO *
+.Fo BIO_pop
+.Fa "BIO *b"
+.Fc
+.Ft void
+.Fo BIO_set_next
+.Fa "BIO *b"
+.Fa "BIO *new_tail"
+.Fc
+.Sh DESCRIPTION
+BIOs can be joined together to form chains.
+A chain normally consists of one or more filter BIOs
+and one source/sink BIO at the end.
+Data read from or written to the first BIO traverses the chain
+to the end.
+.Pp
+Every BIO is a member of exactly one chain.
+It is either at the beginning of its chain
+or there is exactly one preceding BIO.
+It is either at the end of its chain
+or there is exactly one following BIO.
+If there is neither a preceding nor a following BIO,
+it can be regarded as a chain with one member.
+Every chain has exactly one beginning and exactly one end.
+.Pp
+.Fn BIO_push
+appends the chain starting at
+.Fa new_tail
+to the end of the chain that contains
+.Fa b .
+Unless
+.Fa b
+is
+.Dv NULL ,
+it then calls
+.Xr BIO_ctrl 3
+on
+.Fa b
+with an argument of
+.Dv BIO_CTRL_PUSH .
+If
+.Fa b
+or
+.Fa new_tail
+is
+.Dv NULL ,
+nothing is appended.
+.Pp
+In LibreSSL, if
+.Fa new_tail
+is not at the beginning of its chain,
+the head of that chain up to but not including
+.Fa new_tail
+is cut off and becomes a separate chain.
+For portability, it is best to make sure that
+.Fa new_tail
+is at the beginning of its chain before calling
+.Fn BIO_push .
+.Pp
+.Fn BIO_pop
+removes the BIO
+.Fa b
+from its chain.
+Despite the word
+.Dq pop
+in the function name,
+.Fa b
+can be at the beginning, in the middle, or at the end of its chain.
+Before removal,
+.Xr BIO_ctrl 3
+is called on
+.Fa b
+with an argument of
+.Dv BIO_CTRL_POP .
+The removed BIO
+.Fa b
+becomes the only member of its own chain and can thus be freed
+or attached to a different chain.
+If
+.Fa b
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+.Fn BIO_set_next
+appends the chain starting with
+.Fa new_tail
+to the chain ending with
+.Fa b .
+.Pp
+In LibreSSL, if
+.Fa new_tail
+is not at the beginning of its chain,
+the head of that chain up to but not including
+.Fa new_tail
+is cut off and becomes a separate chain,
+and if
+.Fa b
+is not at the end of its chain,
+the tail of that chain starting after
+.Fa b
+is cut off and becomes a separate chain.
+.Pp
+For portability, it is best to make sure that
+.Fa b
+is at the end of its chain and that
+.Fa new_tail
+is at the beginning of its chain before calling
+.Fn BIO_set_next
+and to avoid calling
+.Fn BIO_pop
+on
+.Fa new_tail
+afterwards.
+.Pp
+In LibreSSL, the only built-in BIO type for which
+.Xr BIO_ctrl 3
+calls with an argument of
+.Dv BIO_CTRL_PUSH
+or
+.Dv BIO_CTRL_POP
+have any effect is
+.Xr BIO_f_ssl 3 .
+.Sh RETURN VALUES
+.Fn BIO_push
+returns
+.Fa b
+if it is not
+.Dv NULL
+or
+.Fa new_tail
+if it is.
+.Pp
+.Fn BIO_pop
+returns the BIO that followed
+.Fa b
+in its chain, or
+.Dv NULL
+if
+.Fa b
+is
+.Dv NULL
+or was at the end of its chain.
+.Sh EXAMPLES
+For these examples suppose
+.Sy md1
+and
+.Sy md2
+are digest BIOs,
+.Sy b64
+is a Base64 BIO and
+.Sy f
+is a file BIO (see
+.Xr BIO_f_md 3 ,
+.Xr BIO_f_base64 3 ,
+and
+.Xr BIO_s_file 3 ,
+respectively).
+.Pp
+If the call
+.Pp
+.Dl BIO_push(b64, f);
+.Pp
+is made then the new chain will be
+.Sy b64-f .
+After making the calls
+.Bd -literal -offset indent
+BIO_push(md2, b64);
+BIO_push(md1, md2);
+.Ed
+.Pp
+the new chain is
+.Sy md1-md2-b64-f .
+Data written to
+.Sy md1
+will be digested
+by
+.Sy md1
+and
+.Sy md2 ,
+Base64-encoded and written to
+.Sy f .
+.Pp
+It should be noted that reading causes data to pass
+in the reverse direction.
+That is, data is read from
+.Sy f ,
+Base64-decoded and digested by
+.Sy md1
+and
+.Sy md2 .
+If this call is made:
+.Pp
+.Dl BIO_pop(md2);
+.Pp
+The call will return
+.Sy b64
+and the new chain will be
+.Sy md1-b64-f ;
+data can be written to
+.Sy md1
+as before.
+.Sh SEE ALSO
+.Xr BIO_find_type 3 ,
+.Xr BIO_new 3 ,
+.Xr BIO_read 3
+.Sh HISTORY
+.Fn BIO_push
+first appeared in SSLeay 0.6.0.
+.Fn BIO_pop
+first appeared in SSLeay 0.6.4.
+Both functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn BIO_set_next
+first appeared in OpenSSL 1.1.0
+and has been available since
+.Ox 7.1 .
+.Sh CAVEATS
+Creating a cyclic chain results in undefined behavior.
+For example, infinite recursion or infinite loops may ensue.
+.Pp
+If it is unknown whether
+.Fa b
+and
+.Fa new_tail
+are already members of the same chain and whether joining them would
+create a cycle, the calling code can use the following safe idiom:
+.Bd -literal -offset indent
+BIO *btest;
+
+for (btest = new_tail; btest != NULL; btest = BIO_next(btest))
+	if (btest == b)
+		/* Bail out because this would create a cycle. */
+BIO_push(b, new_tail);  /* This is now safe. */
+.Ed
+.Pp
+The same idiom can be used with
+.Fn BIO_set_next
+instead of
+.Fn BIO_push .
+.Pp
+Often, the safe idiom is not needed because it is already known that
+.Fa b
+and
+.Fa new_tail
+are not members of the same chain, for example when
+.Fa b
+or
+.Fa new_tail
+was created right before.

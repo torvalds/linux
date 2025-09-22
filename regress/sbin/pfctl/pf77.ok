@@ -1,0 +1,1 @@
+pass inet from (lo0)/8 to any flags S/SA

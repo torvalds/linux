@@ -1,0 +1,10 @@
+#
+#	$OpenBSD: ttys,v 1.2 2008/01/09 17:39:42 miod Exp $
+#
+# name	getty				type	status		comments
+#
+console	"/usr/libexec/getty std.9600"	vt220	on   secure
+# graphics console
+ttyC0	"/usr/libexec/getty std.9600"	vt220	off secure
+# siotty(4) serial console port
+ttya	"/usr/libexec/getty std.9600"	unknown	off  secure	# console

@@ -1,0 +1,2 @@
+# /bin/sh is too buggy, so use /bin/bash instead.
+SHELL = /bin/bash

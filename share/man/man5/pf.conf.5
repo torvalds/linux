@@ -1,0 +1,3000 @@
+.\"	$OpenBSD: pf.conf.5,v 1.603 2025/07/07 20:56:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2002, Daniel Hartmeier
+.\" Copyright (c) 2003 - 2013 Henning Brauer <henning@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\"    - Redistributions of source code must retain the above copyright
+.\"      notice, this list of conditions and the following disclaimer.
+.\"    - Redistributions in binary form must reproduce the above
+.\"      copyright notice, this list of conditions and the following
+.\"      disclaimer in the documentation and/or other materials provided
+.\"      with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt PF.CONF 5
+.Os
+.Sh NAME
+.Nm pf.conf
+.Nd packet filter configuration file
+.Sh DESCRIPTION
+The
+.Xr pf 4
+packet filter modifies, drops, or passes packets according to rules or
+definitions specified in
+.Nm .
+.Pp
+This is an overview of the sections in this manual page:
+.Bl -inset
+.It Sx PACKET FILTERING
+including network address translation (NAT).
+.It Sx OPTIONS
+globally tune the behaviour of the packet filtering engine.
+.It Sx QUEUEING
+provides rule-based bandwidth and traffic control.
+.It Sx TABLES
+provide a method for dealing with large numbers of addresses.
+.It Sx ANCHORS
+are containers for rules and tables.
+.It Sx STATEFUL FILTERING
+tracks packets by state.
+.It Sx TRAFFIC NORMALISATION
+includes scrub, fragment handling, and blocking spoofed traffic.
+.It Sx OPERATING SYSTEM FINGERPRINTING
+is a method for detecting a host's operating system.
+.It Sx EXAMPLES
+provides some example rulesets.
+.It Sx GRAMMAR
+provides a complete BNF grammar reference.
+.El
+.Pp
+The current line can be extended over multiple lines using a backslash
+.Pq Sq \e .
+Comments can be put anywhere in the file using a hash mark
+.Pq Sq # ,
+and extend to the end of the current line.
+Care should be taken when commenting out multi-line text:
+the comment is effective until the end of the entire block.
+.Pp
+Argument names not beginning with a letter, digit, or underscore
+must be quoted.
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/pf/sub.filter.conf"
+.Ed
+.Pp
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic pass ,
+.Cm in ,
+or
+.Cm out ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+ext_if = "kue0"
+all_ifs = "{" $ext_if lo0 "}"
+pass out on $ext_if from any to any
+pass in  on $ext_if proto tcp from any to any port 25
+.Ed
+.Sh PACKET FILTERING
+.Xr pf 4
+has the ability to
+.Ic block ,
+.Ic pass ,
+and
+.Ic match
+packets based on attributes of their layer 3
+and layer 4 headers.
+Filter rules determine which of these actions are taken;
+filter parameters specify the packets to which a rule applies.
+.Pp
+Each time a packet processed by the packet filter comes in on or
+goes out through an interface, the filter rules are evaluated in
+sequential order, from first to last.
+For
+.Ic block
+and
+.Ic pass ,
+the last matching rule decides what action is taken;
+if no rule matches the packet, the default action is to pass
+the packet without creating a state.
+For
+.Ic match ,
+rules are evaluated every time they match;
+the pass/block state of a packet remains unchanged.
+.Pp
+Most parameters are optional.
+If a parameter is specified, the rule only applies to packets with
+matching attributes.
+The matching for some parameters can be inverted with the
+.Cm !\&
+operator.
+Certain parameters can be expressed as lists, in which case
+.Xr pfctl 8
+generates all needed rule combinations.
+.Pp
+By default
+.Xr pf 4
+filters packets statefully:
+the first time a packet matches a
+.Ic pass
+rule, a state entry is created.
+The packet filter examines each packet to see if it matches an existing state.
+If it does, the packet is passed without evaluation of any rules.
+After the connection is closed or times out, the state entry is automatically
+removed.
+.Pp
+The following actions can be used in the filter:
+.Bl -tag -width Ds
+.It Ic block
+The packet is blocked.
+There are a number of ways in which a
+.Ic block
+rule can behave when blocking a packet.
+The default behaviour is to
+.Cm drop
+packets silently, however this can be overridden or made
+explicit either globally, by setting the
+.Cm block-policy
+option, or on a per-rule basis with one of the following options:
+.Pp
+.Bl -tag -width return-icmp6 -compact
+.It Cm drop
+The packet is silently dropped.
+.It Cm return
+This causes a TCP RST to be returned for TCP packets
+and an ICMP UNREACHABLE for other types of packets.
+.It Cm return-icmp
+.It Cm return-icmp6
+This causes ICMP messages to be returned for packets which match the rule.
+By default this is an ICMP UNREACHABLE message, however this
+can be overridden by specifying a message as a code or number.
+.It Cm return-rst
+This applies only to TCP packets,
+and issues a TCP RST which closes the connection.
+An optional parameter,
+.Cm ttl ,
+may be given with a TTL value.
+.El
+.Pp
+Options returning ICMP packets currently have no effect if
+.Xr pf 4
+operates on a
+.Xr bridge 4 ,
+as the code to support this feature has not yet been implemented.
+.Pp
+The simplest mechanism to block everything by default and only pass
+packets that match explicit rules is specify a first filter rule of:
+.Pp
+.Dl block all
+.It Ic match
+The packet is matched.
+This mechanism is used to provide fine grained filtering
+without altering the block/pass state of a packet.
+.Ic match
+rules differ from
+.Ic block
+and
+.Ic pass
+rules in that parameters are set every time a packet matches the
+rule, not only on the last matching rule.
+For the following parameters,
+this means that the parameter effectively becomes
+.Dq sticky
+until explicitly overridden:
+.Cm nat-to ,
+.Cm binat-to ,
+.Cm rdr-to ,
+.Cm queue ,
+.Cm rtable ,
+and
+.Cm scrub .
+.Pp
+.Cm log
+is different still,
+in that the action happens every time a rule matches
+i.e. a single packet can get logged more than once.
+.It Ic pass
+The packet is passed;
+state is created unless the
+.Cm no state
+option is specified.
+.El
+.Pp
+The following parameters can be used in the filter:
+.Bl -tag -width Ds
+.It Cm in No or Cm out
+A packet always comes in on, or goes out through, one interface.
+.Cm in
+and
+.Cm out
+apply to incoming and outgoing packets;
+if neither are specified,
+the rule will match packets in both directions.
+.It Cm log Pq Cm all | matches | to Ar interface | Cm user
+In addition to any action specified,
+log the packet.
+Only the packet that establishes the state is logged,
+unless the
+.Cm no state
+option is specified.
+The logged packets are sent to a
+.Xr pflog 4
+interface, by default
+.Pa pflog0 ;
+pflog0 is monitored by the
+.Xr pflogd 8
+logging daemon which logs to the file
+.Pa /var/log/pflog
+in pcap binary format.
+.Pp
+The keywords
+.Cm all , matches , to ,
+and
+.Cm user
+are optional and can be combined using commas,
+but must be enclosed in parentheses if given.
+.Pp
+Use
+.Cm all
+to force logging of all packets for a connection.
+This is not necessary when
+.Cm no state
+is explicitly specified.
+.Pp
+If
+.Cm matches
+is specified,
+it logs the packet on all subsequent matching rules.
+It is often combined with
+.Cm to Ar interface
+to avoid adding noise to the default log file.
+.Pp
+The keyword
+.Cm user
+logs the UID and PID of the
+socket on the local host used to send or receive a packet,
+in addition to the normal information.
+.Pp
+To specify a logging interface other than
+.Pa pflog0 ,
+use the syntax
+.Cm to Ar interface .
+.It Cm quick
+If a packet matches a rule which has the
+.Cm quick
+option set, this rule
+is considered the last matching rule, and evaluation of subsequent rules
+is skipped.
+.It Cm on Ar interface | Cm any
+This rule applies only to packets coming in on, or going out through, this
+particular interface or interface group.
+For more information on interface groups,
+see the
+.Ic group
+keyword in
+.Xr ifconfig 8 .
+.Cm any
+will match any existing interface except loopback ones.
+.It Cm on rdomain Ar number
+This rule applies only to packets coming in on, or going out through, this
+particular routing domain.
+.It Cm inet | inet6
+This rule applies only to packets of this address family.
+.It Cm proto Ar protocol
+This rule applies only to packets of this protocol.
+Common protocols are ICMP, ICMP6, TCP, and UDP.
+For a list of all the protocol name to number mappings used by
+.Xr pfctl 8 ,
+see the file
+.Pa /etc/protocols .
+.It Xo
+.Cm from Ar source
+.Cm port Ar source
+.Cm os Ar source
+.Cm to Ar dest
+.Cm port Ar dest
+.Xc
+This rule applies only to packets with the specified source and destination
+addresses and ports.
+.Pp
+Addresses can be specified in CIDR notation (matching netblocks), as
+symbolic host names, interface names or interface group names, or as any
+of the following keywords:
+.Pp
+.Bl -tag -width urpf-failed -compact
+.It Cm any
+Any address.
+.It Cm no-route
+Any address which is not currently routable.
+.It Cm route Ar label
+Any address matching the given
+.Xr route 8
+.Ar label .
+.It Cm self
+Expands to all addresses assigned to all interfaces.
+.It Pf < Ar table Ns >
+Any address matching the given
+.Ar table .
+.It Cm urpf-failed
+Any source address that fails a unicast reverse path forwarding (URPF)
+check, i.e. packets coming in on an interface other than that which holds
+the route back to the packet's source address.
+.El
+.Pp
+Ranges of addresses are specified using the
+.Sq -
+operator.
+For instance:
+.Dq 10.1.1.10 - 10.1.1.12
+means all addresses from 10.1.1.10 to 10.1.1.12,
+hence addresses 10.1.1.10, 10.1.1.11, and 10.1.1.12.
+.Pp
+Interface names, interface group names, and
+.Cm self
+can have modifiers appended:
+.Pp
+.Bl -tag -width :broadcast -compact
+.It Cm :0
+Do not include interface aliases.
+.It Cm :broadcast
+Translates to the interface's broadcast address(es).
+.It Cm :network
+Translates to the network(s) attached to the interface.
+.It Cm :peer
+Translates to the point-to-point interface's peer address(es).
+.El
+.Pp
+Host names may also have the
+.Cm :0
+modifier appended to restrict the name resolution to the first of each
+v4 and v6 address found.
+.Pp
+Host name resolution and interface to address translation are done at
+ruleset load-time.
+When the address of an interface (or host name) changes (under DHCP or PPP,
+for instance), the ruleset must be reloaded for the change to be reflected
+in the kernel.
+Surrounding the interface name (and optional modifiers) in parentheses
+changes this behaviour.
+When the interface name is surrounded by parentheses, the rule is
+automatically updated whenever the interface changes its address.
+The ruleset does not need to be reloaded.
+This is especially useful with NAT.
+.Pp
+Ports can be specified either by number or by name.
+For example, port 80 can be specified as
+.Cm www .
+For a list of all port name to number mappings used by
+.Xr pfctl 8 ,
+see the file
+.Pa /etc/services .
+.Pp
+Ports and ranges of ports are specified using these operators:
+.Bd -literal -offset indent
+=	(equal)
+!=	(unequal)
+<	(less than)
+<=	(less than or equal)
+>	(greater than)
+>=	(greater than or equal)
+:	(range including boundaries)
+><	(range excluding boundaries)
+<>	(except range)
+.Ed
+.Pp
+.Sq >< ,
+.Sq <>
+and
+.Sq \&:
+are binary operators (they take two arguments).
+For instance:
+.Bl -tag -width Ds
+.It Li port 2000:2004
+means
+.Sq all ports \(>= 2000 and \(<= 2004 ,
+hence ports 2000, 2001, 2002, 2003, and 2004.
+.It Li port 2000 >< 2004
+means
+.Sq all ports > 2000 and < 2004 ,
+hence ports 2001, 2002, and 2003.
+.It Li port 2000 <> 2004
+means
+.Sq all ports < 2000 or > 2004 ,
+hence ports 1\(en1999 and 2005\(en65535.
+.El
+.Pp
+The operating system of the source host can be specified in the case of TCP
+rules with the
+.Cm os
+modifier.
+See the
+.Sx OPERATING SYSTEM FINGERPRINTING
+section for more information.
+.Pp
+The
+.Cm host ,
+.Cm port ,
+and
+.Cm os
+specifications are optional, as in the following examples:
+.Bd -literal -offset indent
+pass in all
+pass in from any to any
+pass in proto tcp from any port < 1024 to any
+pass in proto tcp from any to any port 25
+pass in proto tcp from 10.0.0.0/8 port >= 1024 \e
+      to ! 10.1.2.3 port != ssh
+pass in proto tcp from any os "OpenBSD"
+pass in proto tcp from route "DTAG"
+.Ed
+.El
+.Pp
+The following additional parameters can be used in the filter:
+.Pp
+.Bl -tag -width Ds -compact
+.It Cm all
+This is equivalent to
+.Ql from any to any .
+.Pp
+.It Cm allow-opts
+By default, packets with IPv4 options or IPv6 hop-by-hop or destination
+options header are blocked.
+When
+.Cm allow-opts
+is specified for a
+.Ic pass
+rule, packets that pass the filter based on that rule (last matching)
+do so even if they contain options.
+For packets that match state, the rule that initially created the
+state is used.
+The implicit pass rule, that is used when a packet does not match
+any rules, does not allow IP options or option headers.
+Note that IPv6 packets with type 0 routing headers are always dropped.
+.Pp
+.It Cm divert-packet port Ar port
+Used to send matching packets to
+.Xr divert 4
+sockets bound to port
+.Ar port .
+If the default option of fragment reassembly is enabled, scrubbing with
+.Cm reassemble tcp
+is also enabled for
+.Cm divert-packet
+rules.
+.Pp
+.It Cm divert-reply
+Used to receive replies for sockets that are bound to addresses
+which are not local to the machine.
+See
+.Xr setsockopt 2
+for information on how to bind these sockets.
+.Pp
+.It Cm divert-to Ar host Cm port Ar port
+Used to redirect packets to a local socket bound to
+.Ar host
+and
+.Ar port .
+The packets will not be modified, preserving the original destination
+address for the application to access.
+.Dv SOCK_STREAM
+connections can access the original destination address using
+.Xr getsockname 2 .
+.Dv SOCK_DGRAM
+sockets can be configured with the
+.Xr ip 4
+.Dv IP_RECVDSTADDR
+and
+.Dv IP_RECVDSTPORT
+socket options when receiving IPv4 packets, or the
+.Xr ip6 4
+.Dv IPV6_RECVPKTINFO
+and
+.Dv IPV6_RECVDSTPORT
+socket options when receiving IPv6 packets.
+.Pp
+.It Cm flags Ar a Ns / Ns Ar b | Cm any
+This rule only applies to TCP packets that have the flags
+.Ar a
+set out of set
+.Ar b .
+Flags not specified in
+.Ar b
+are ignored.
+For stateful connections, the default is
+.Cm flags S/SA .
+To indicate that flags should not be checked at all, specify
+.Cm flags any .
+The flags are: (F)IN, (S)YN, (R)ST, (P)USH, (A)CK, (U)RG, (E)CE, and C(W)R.
+.Bl -tag -width "flags /SFRA"
+.It Cm flags S/S
+Flag SYN is set.
+The other flags are ignored.
+.It Cm flags S/SA
+This is the default setting for stateful connections.
+Out of SYN and ACK, exactly SYN may be set.
+SYN, SYN+PSH, and SYN+RST match, but SYN+ACK, ACK, and ACK+RST do not.
+This is more restrictive than the previous example.
+.It Cm flags /SFRA
+If the first set is not specified, it defaults to none.
+All of SYN, FIN, RST, and ACK must be unset.
+.El
+.Pp
+Because
+.Cm flags S/SA
+is applied by default (unless
+.Cm no state
+is specified), only the initial SYN packet of a TCP handshake will create
+a state for a TCP connection.
+It is possible to be less restrictive, and allow state creation from
+intermediate
+.Pq non-SYN
+packets, by specifying
+.Cm flags any .
+This will cause
+.Xr pf 4
+to synchronize to existing connections, for instance
+if one flushes the state table.
+However, states created from such intermediate packets may be missing
+connection details such as the TCP window scaling factor.
+States which modify the packet flow, such as those affected by
+.Cm af-to ,
+.Cm modulate state ,
+.Cm nat-to ,
+.Cm rdr-to ,
+or
+.Cm synproxy state
+options, or scrubbed with
+.Cm reassemble tcp ,
+will also not be recoverable from intermediate packets.
+Such connections will stall and time out.
+.Pp
+.It Cm group Ar group
+Similar to
+.Cm user ,
+this rule only applies to packets of sockets owned by the specified
+.Ar group .
+.Pp
+.It Cm icmp-type Ar type Op Cm code Ar code
+.It Cm icmp6-type Ar type Op Cm code Ar code
+This rule only applies to ICMP or ICMP6 packets with the specified type
+and code.
+Text names for ICMP types and codes are listed in
+.Xr icmp 4
+and
+.Xr icmp6 4 .
+The protocol and the ICMP type indicator
+.Po
+.Cm icmp-type
+or
+.Cm icmp6-type
+.Pc
+must match.
+.Pp
+ICMP responses are not permitted unless they either match an
+existing request, or unless
+.Cm no state
+or
+.Cm keep state (sloppy)
+is specified.
+.Pp
+.It Cm label Ar string
+Adds a label to the rule, which can be used to identify the rule.
+For instance,
+.Ql pfctl -s labels
+shows per-rule statistics for rules that have labels.
+.Pp
+The following macros can be used in labels:
+.Pp
+.Bl -tag -width "$srcaddrXXX" -compact -offset indent
+.It Va $dstaddr
+The destination IP address.
+.It Va $dstport
+The destination port specification.
+.It Va $if
+The interface.
+.It Va $nr
+The rule number.
+.It Va $proto
+The protocol name.
+.It Va $srcaddr
+The source IP address.
+.It Va $srcport
+The source port specification.
+.El
+.Pp
+For example:
+.Bd -literal -offset indent -compact
+ips = "{ 1.2.3.4, 1.2.3.5 }"
+pass in proto tcp from any to $ips \e
+      port > 1023 label "$dstaddr:$dstport"
+.Ed
+.Pp
+Expands to:
+.Bd -literal -offset indent -compact
+pass in inet proto tcp from any to 1.2.3.4 \e
+      port > 1023 label "1.2.3.4:>1023"
+pass in inet proto tcp from any to 1.2.3.5 \e
+      port > 1023 label "1.2.3.5:>1023"
+.Ed
+.Pp
+The macro expansion for the
+.Cm label
+directive occurs only at configuration file parse time, not during runtime.
+.Pp
+.It Cm max-pkt-rate Ar number Ns / Ns Ar seconds
+Measure the rate of packets matching the rule and states created by it.
+When the specified rate is exceeded, the rule stops matching.
+Only packets in the direction in which the state was created are considered,
+so that typically requests are counted and replies are not.
+For example,
+to pass up to 100 ICMP packets per 10 seconds:
+.Bd -literal -offset indent
+block in proto icmp
+pass in proto icmp max-pkt-rate 100/10
+.Ed
+.Pp
+When the rate is exceeded, all ICMP is blocked until the rate falls below
+100 per 10 seconds again.
+.Pp
+.It Cm once
+Create a one shot rule.
+The first matching packet marks the rule as expired.
+Expired rules are skipped and hidden, unless
+.Xr pfctl 8
+is used in debug or verbose mode.
+.Pp
+.It Cm probability Ar number Ns %
+A probability attribute can be attached to a rule,
+with a value set between 0 and 100%,
+in which case the rule is honoured using the given probability value.
+For example, the following rule will drop 20% of incoming ICMP packets:
+.Pp
+.Dl block in proto icmp probability 20%
+.Pp
+.It Cm prio Ar number
+Only match packets which have the given queueing priority assigned.
+.Pp
+.It Oo Cm \&! Oc Ns Cm received-on Ar interface
+Only match packets which were received on the specified
+.Cm interface
+(or interface group).
+.Cm any
+will match any existing interface except loopback ones.
+.Pp
+.It Cm rtable Ar number
+Used to select an alternate routing table for the routing lookup.
+Only effective before the route lookup happened, i.e. when filtering inbound.
+.Pp
+.It Cm set delay Ar milliseconds
+Packets matching this rule will be delayed at the outbound interface by the
+given number of milliseconds.
+.Pp
+.It Cm set prio Ar priority | Pq Ar priority , priority
+Packets matching this rule will be assigned a specific queueing priority.
+Priorities are assigned as integers 0 through 7,
+with a default priority of 3.
+If the packet is transmitted on a
+.Xr vlan 4
+interface, the queueing priority will also be written as the priority
+code point in the 802.1Q VLAN header.
+If two priorities are given, TCP ACKs with no data payload and packets
+which have a TOS of
+.Cm lowdelay
+will be assigned to the second one.
+Packets with a higher priority number are processed first,
+and packets with the same priority are processed
+in the order in which they are received.
+.Pp
+For example:
+.Bd -literal -offset indent
+pass in proto tcp to port 25 set prio 2
+pass in proto tcp to port 22 set prio (2, 5)
+.Ed
+.Pp
+The interface priority queues accessed by the
+.Cm set prio
+keyword are always enabled and do not require any additional
+configuration, unlike the queues described below and in the
+.Sx QUEUEING
+section.
+.Pp
+.It Cm set queue Ar queue | Pq Ar queue , queue
+Packets matching this rule will be assigned to the specified
+.Ar queue .
+If two queues are given, packets which have a TOS of
+.Cm lowdelay
+and TCP ACKs with no data payload will be assigned to the second one.
+See
+.Sx QUEUEING
+for setup details.
+.Pp
+For example:
+.Bd -literal -offset indent
+pass in proto tcp to port 25 set queue mail
+pass in proto tcp to port 22 set queue(ssh_bulk, ssh_prio)
+.Ed
+.Pp
+.It Cm set tos Ar string | number
+Enforces a TOS for matching packets.
+.Ar string
+may be one of
+.Cm critical ,
+.Cm inetcontrol ,
+.Cm lowdelay ,
+.Cm netcontrol ,
+.Cm throughput ,
+.Cm reliability ,
+or one of the DiffServ Code Points:
+.Cm ef ,
+.Cm af11 No ... Cm af43 ,
+.Cm cs0 No ... Cm cs7 ;
+.Ar number
+may be either a hex or decimal number.
+.Pp
+.It Cm tag Ar string
+Packets matching this rule will be tagged with the specified
+.Ar string .
+The tag acts as an internal marker that can be used to
+identify these packets later on.
+This can be used, for example, to provide trust between
+interfaces and to determine if packets have been
+processed by translation rules.
+Tags are
+.Dq sticky ,
+meaning that the packet will be tagged even if the rule
+is not the last matching rule.
+Further matching rules can replace the tag with a
+new one but will not remove a previously applied tag.
+A packet is only ever assigned one tag at a time.
+Tags take the same macros as labels (see above).
+.Pp
+.It Oo Cm \&! Oc Ns Cm tagged Ar string
+Used with filter or translation rules
+to specify that packets must already
+be tagged with the given
+.Ar string
+in order to match the rule.
+.Pp
+.It Cm tos Ar string | number
+This rule applies to packets with the specified TOS bits set.
+.Ar string
+may be one of
+.Cm critical ,
+.Cm inetcontrol ,
+.Cm lowdelay ,
+.Cm netcontrol ,
+.Cm throughput ,
+.Cm reliability ,
+or one of the DiffServ Code Points:
+.Cm ef ,
+.Cm af11 No ... Cm af43 ,
+.Cm cs0 No ... Cm cs7 ;
+.Ar number
+may be either a hex or decimal number.
+.Pp
+For example, the following rules are identical:
+.Bd -literal -offset indent
+pass all tos lowdelay
+pass all tos 0x10
+pass all tos 16
+.Ed
+.Pp
+.It Cm user Ar user
+This rule only applies to packets of sockets owned by the specified
+.Ar user .
+For outgoing connections initiated from the firewall, this is the user
+that opened the connection.
+For incoming connections to the firewall itself, this is the user that
+listens on the destination port.
+.Pp
+When listening sockets are bound to the wildcard address,
+.Xr pf 4
+cannot determine if a connection is destined for the firewall itself.
+To avoid false matches on just the destination port, combine a
+.Cm user
+rule with source or destination address
+.Cm self .
+.Pp
+All packets, both outgoing and incoming, of one connection are associated
+with the same user and group.
+Only TCP and UDP packets can be associated with users.
+.Pp
+The
+.Ar user
+and
+.Ar group
+arguments refer to the effective (as opposed to the real) IDs, in
+case the socket is created by a setuid/setgid process.
+User and group IDs are stored when a socket is created;
+when a process creates a listening socket as root (for instance, by
+binding to a privileged port) and subsequently changes to another
+user ID (to drop privileges), the credentials will remain root.
+.Pp
+User and group IDs can be specified as either numbers or names.
+The syntax is similar to the one for ports.
+The following example allows only selected users to open outgoing
+connections:
+.Bd -literal -offset indent
+block out proto tcp all
+pass  out proto tcp from self user { < 1000, dhartmei }
+.Ed
+.Pp
+The example below permits users with uid between 1000 and 1500
+to open connections:
+.Bd -literal -offset indent
+block out proto tcp all
+pass  out proto tcp from self user { 999 >< 1501 }
+.Ed
+.Pp
+The
+.Sq \&:
+operator, which works for port number matching, does not work for
+.Cm user
+and
+.Cm group
+match.
+.El
+.Ss Translation
+Translation options modify either the source or destination address and
+port of the packets associated with a stateful connection.
+.Xr pf 4
+modifies the specified address and/or port in the packet and recalculates
+IP, TCP, and UDP checksums as necessary.
+.Pp
+If specified on a
+.Ic match
+rule, subsequent rules will see packets as they look
+after any addresses and ports have been translated.
+These rules will therefore have to filter based on the translated
+address and port number.
+.Pp
+The state entry created permits
+.Xr pf 4
+to keep track of the original address for traffic associated with that state
+and correctly direct return traffic for that connection.
+.Pp
+Different types of translation are possible with pf:
+.Bl -tag -width binat-to
+.It Cm af-to
+Translation between different address families (NAT64) is handled
+using
+.Cm af-to
+rules.
+Because address family translation overrides the routing table, it's
+only possible to use
+.Cm af-to
+on inbound rules, and a source address for the resulting translation
+must always be specified.
+.Pp
+The optional second argument is the host or subnet the original
+addresses are translated into for the destination.
+The lowest bits of the original destination address form the host
+part of the new destination address according to the specified subnet.
+It is possible to embed a complete IPv4 address into an IPv6 address
+using a network prefix of /96 or smaller.
+.Pp
+When a destination address is not specified, it is assumed that the host
+part is 32-bit long.
+For IPv6 to IPv4 translation this would mean using only the lower 32
+bits of the original IPv6 destination address.
+For IPv4 to IPv6 translation the destination subnet defaults to the
+subnet of the new IPv6 source address with a prefix length of /96.
+See RFC 6052 Section 2.2 for details on how the prefix determines the
+destination address encoding.
+.Pp
+For example, the following rules are identical:
+.Bd -literal -offset indent
+pass in inet af-to inet6 from 2001:db8::1 to 2001:db8::/96
+pass in inet af-to inet6 from 2001:db8::1
+.Ed
+.Pp
+In the above example the matching IPv4 packets will be modified to
+have a source address of 2001:db8::1 and a destination address will
+get prefixed with 2001:db8::/96, e.g. 198.51.100.100 will be
+translated to 2001:db8::c633:6464.
+.Pp
+In the reverse case the following rules are identical:
+.Bd -literal -offset indent
+pass in inet6 from any to 64:ff9b::/96 af-to inet \e
+	from 198.51.100.1 to 0.0.0.0/0
+pass in inet6 from any to 64:ff9b::/96 af-to inet \e
+	from 198.51.100.1
+.Ed
+.Pp
+The destination IPv4 address is assumed to be embedded inside the
+original IPv6 destination address, e.g. 64:ff9b::c633:6464 will be
+translated to 198.51.100.100.
+.Pp
+The current implementation will only extract IPv4 addresses from the
+IPv6 addresses with a prefix length of /96 and greater.
+.It Cm binat-to
+A
+.Cm binat-to
+rule specifies a bidirectional mapping between an external IP
+netblock and an internal IP netblock.
+It expands to an outbound
+.Cm nat-to
+rule and an inbound
+.Cm rdr-to
+rule.
+.It Cm nat-to
+A
+.Cm nat-to
+option specifies that IP addresses are to be changed as the packet
+traverses the given interface.
+This technique allows one or more IP addresses
+on the translating host to support network traffic for a larger range of
+machines on an
+.Dq inside
+network.
+Although in theory any IP address can be used on the inside, it is strongly
+recommended that one of the address ranges defined by RFC 1918 be used.
+Those netblocks are:
+.Bd -literal -offset indent
+10.0.0.0 \(en 10.255.255.255 (all of net 10, i.e. 10/8)
+172.16.0.0 \(en 172.31.255.255 (i.e. 172.16/12)
+192.168.0.0 \(en 192.168.255.255 (i.e. 192.168/16)
+.Ed
+.Pp
+.Cm nat-to
+is usually applied outbound.
+If applied inbound, nat-to to a local IP address is not supported.
+.It Cm rdr-to
+The packet is redirected to another destination and possibly a
+different port.
+.Cm rdr-to
+can optionally specify port ranges instead of single ports.
+For instance:
+.Bl -tag -width Ds
+.It match in ... port 2000:2999 rdr-to ... port 4000
+redirects ports 2000 to 2999 (inclusive) to port 4000.
+.It match in ... port 2000:2999 rdr-to ... port 4000:*
+redirects port 2000 to 4000, port 2001 to 4001, ..., port 2999 to 4999.
+.El
+.Pp
+.Cm rdr-to
+is usually applied inbound.
+If applied outbound, rdr-to to a local IP address is not supported.
+.El
+.Pp
+In addition to modifying the address, some translation rules may modify
+source or destination ports for TCP or UDP connections;
+implicitly in the case of
+.Cm nat-to
+options and explicitly in the case of
+.Cm rdr-to
+ones.
+Port numbers are never translated with a
+.Cm binat-to
+rule.
+.Pp
+Translation options apply only to packets that pass through the specified
+interface, and if no interface is specified, translation is applied
+to packets on all interfaces.
+For instance, redirecting port 80 on an external interface to an internal
+web server will only work for connections originating from the outside.
+Connections to the address of the external interface from local hosts will
+not be redirected, since such packets do not actually pass through the
+external interface.
+Redirections cannot reflect packets back through the interface they arrive
+on, they can only be redirected to hosts connected to different interfaces
+or to the firewall itself.
+.Pp
+However packets may be redirected to hosts connected to the interface the
+packet arrived on by using redirection with NAT.
+For example:
+.Bd -literal -offset indent
+pass in on $int_if proto tcp from $int_net to $ext_if port 80 \e
+	rdr-to $server
+pass out on $int_if proto tcp to $server port 80 \e
+	received-on $int_if nat-to $int_if
+.Ed
+.Pp
+Note that redirecting external incoming connections to the loopback address
+will effectively allow an external host to connect to daemons
+bound solely to the loopback address, circumventing the traditional
+blocking of such connections on a real interface.
+For example:
+.Bd -literal -offset indent
+pass in on egress proto tcp from any to any port smtp \e
+	rdr-to 127.0.0.1 port spamd
+.Ed
+.Pp
+Unless this effect is desired, any of the local non-loopback addresses
+should be used instead as the redirection target, which allows external
+connections only to daemons bound to this address or not bound to
+any address.
+.Pp
+For
+.Cm af-to ,
+.Cm nat-to
+and
+.Cm rdr-to
+options for which there is a single redirection address which has a
+subnet mask smaller than 32 for IPv4 or 128 for IPv6 (more than one IP
+address), a variety of different methods for assigning this address can be
+used:
+.Bl -tag -width xxxx
+.It Cm bitmask
+The
+.Cm bitmask
+option applies the network portion of the redirection address to the address
+to be modified (source with
+.Cm nat-to ,
+destination with
+.Cm rdr-to ) .
+.It Cm least-states Op Cm sticky-address
+The
+.Cm least-states
+option selects the address with the least active states from
+a given address pool and considers given weights
+associated with address(es).
+Weights can be specified between 1 and 65535.
+Addresses with higher weights are selected more often.
+.Pp
+.Cm sticky-address
+can be specified to ensure that multiple connections from the
+same source are mapped to the same redirection address.
+Associations are destroyed as soon as there are
+no longer states which refer to them;
+in order to make the mappings last
+beyond the lifetime of the states,
+increase the global options with
+.Ic set Cm timeout src.track .
+.It Cm random Op Cm sticky-address
+The
+.Cm random
+option selects an address at random within the defined block of addresses.
+.Cm sticky-address
+is as described above.
+.It Cm round-robin Op Cm sticky-address
+The
+.Cm round-robin
+option loops through the redirection address(es) and considers given weights
+associated with address(es).
+Weights can be specified between 1 and 65535.
+Addresses with higher weights are selected more often.
+.Cm sticky-address
+is as described above.
+.It Cm source-hash Oo Ar key Oc Op Cm sticky-address
+The
+.Cm source-hash
+option uses a hash of the source address to determine the redirection address,
+ensuring that the redirection address is always the same for a given source.
+An optional
+.Ar key
+can be specified after this keyword either in hex or as a string;
+by default
+.Xr pfctl 8
+randomly generates a key for source-hash every time the
+ruleset is reloaded.
+.Cm sticky-address
+is as described above.
+.It Cm static-port
+With
+.Cm nat-to
+rules, the
+.Cm static-port
+option prevents
+.Xr pf 4
+from modifying the source port on TCP and UDP packets.
+.El
+.Pp
+When more than one redirection address or a table is specified,
+.Cm bitmask
+is not permitted as a pool type.
+.Ss Routing
+If a packet matches a rule with one of the following route options set,
+the packet filter will route the packet according to the type of route option.
+When such a rule creates state, the route option is also applied to all
+packets matching the same connection.
+.Bl -tag -width route-to
+.It Cm dup-to
+The
+.Cm dup-to
+option creates a duplicate of the packet and routes it like
+.Cm route-to .
+The original packet gets routed as it normally would.
+.It Cm reply-to
+The
+.Cm reply-to
+option is similar to
+.Cm route-to ,
+but routes packets that pass in the opposite direction (replies) to the
+specified address.
+Opposite direction is only defined in the context of a state entry, and
+.Cm reply-to
+is useful only in rules that create state.
+It can be used on systems with multiple paths to the internet to ensure
+that replies to an incoming network connection to a particular address
+are sent using the path associated with that address (symmetric routing
+enforcement).
+.It Cm route-to
+The
+.Cm route-to
+option routes the packet to the specified destination address instead
+of the destination address in the packet header.
+When a
+.Cm route-to
+rule creates state, only packets that pass in the same direction as the
+filter rule specifies will be routed in this way.
+Packets passing in the opposite direction (replies) are not affected
+and are routed normally.
+.El
+.Pp
+For the
+.Cm dup-to ,
+.Cm reply-to ,
+and
+.Cm route-to
+route options
+for which there is a single redirection address which has a
+subnet mask smaller than 32 for IPv4 or 128 for IPv6 (more than one IP
+address),
+the methods
+.Cm least-states ,
+.Cm random ,
+.Cm round-robin ,
+and
+.Cm source-hash ,
+as described above,
+can be used.
+.Sh OPTIONS
+.Xr pf 4
+may be tuned for various situations using the
+.Ic set
+command.
+.Bl -tag -width Ds
+.It Ic set Cm block-policy drop | return
+The
+.Cm block-policy
+option sets the default behaviour for the packet
+.Ic block
+action:
+.Pp
+.Bl -tag -width return -compact
+.It Cm drop
+Packet is silently dropped.
+.It Cm return
+A TCP RST is returned for blocked TCP packets,
+an ICMP UNREACHABLE is returned for blocked UDP packets,
+and all other packets are silently dropped.
+.El
+.Pp
+The default value is
+.Cm drop .
+.It Ic set Cm debug Ar level
+Set the debug
+.Ar level ,
+which limits the severity of log messages printed by
+.Xr pf 4 .
+This should be a keyword from the following ordered list
+(highest to lowest):
+.Cm emerg ,
+.Cm alert ,
+.Cm crit ,
+.Cm err ,
+.Cm warning ,
+.Cm notice ,
+.Cm info ,
+and
+.Cm debug .
+These keywords correspond to the similar (LOG_) values specified to the
+.Xr syslog 3
+library routine.
+The default value is
+.Cm err .
+.It Cm set Cm fingerprints Ar filename
+Load fingerprints of known operating systems from the given
+.Ar filename .
+By default fingerprints of known operating systems are automatically
+loaded from
+.Xr pf.os 5 ,
+but can be overridden via this option.
+Setting this option may leave a small period of time where the fingerprints
+referenced by the currently active ruleset are inconsistent until the new
+ruleset finishes loading.
+The default location for fingerprints is
+.Pa /etc/pf.os .
+.It Ic set Cm hostid Ar number
+The 32-bit hostid
+.Ar number
+identifies this firewall's state table entries to other firewalls
+in a
+.Xr pfsync 4
+failover cluster.
+By default the hostid is set to a pseudo-random value, however it may be
+desirable to manually configure it, for example to more easily identify the
+source of state table entries.
+The hostid may be specified in either decimal or hexadecimal.
+.It Ic set Cm limit Ar limit-item number
+Sets hard limits on the memory pools used by the packet filter.
+See
+.Xr pool 9
+for an explanation of memory pools.
+.Pp
+Limits can be set on the following:
+.Bl -tag -width pktdelay_pkts
+.It Cm states
+Set the maximum number of entries in the memory pool used by state table
+entries (those generated by
+.Ic pass
+rules which do not specify
+.Cm no state ) .
+The default is 100000.
+.It Cm src-nodes
+Set the maximum number of entries in the memory pool used for tracking
+source IP addresses (generated by the
+.Cm sticky-address
+and
+.Cm src.track
+options).
+The default is 10000.
+.It Cm frags
+Set the maximum number of entries in the memory pool used for fragment
+reassembly.
+The maximum may not exceed, and should be well below,
+the maximum number of mbuf clusters
+.Pq sysctl kern.maxclusters
+in the system.
+The default is NMBCLUSTERS/32.
+.Dv NMBCLUSTERS
+defines the total number of packets which can exist in-system at any one time.
+Refer to
+.In machine/param.h
+for the platform-specific value.
+.It Cm tables
+Set the number of tables that can exist.
+The default is 1000.
+.It Cm table-entries
+Set the number of addresses that can be stored in tables.
+The default is 200000, or 100000 on machines with
+less than 100MB of physical memory.
+.It Cm pktdelay_pkts
+Set the maximum number of packets that can be held in the delay queue.
+The default is 10000.
+.It Cm anchors
+Set the number of anchors that can exist.
+The default is 512.
+.El
+.Pp
+Multiple limits can be combined on a single line:
+.Bd -literal -offset indent
+set limit { states 20000, frags 2000, src-nodes 2000 }
+.Ed
+.It Ic set Cm loginterface Ar interface | Cm none
+Enable collection of packet and byte count statistics for the given
+interface or interface group.
+These statistics can be viewed using:
+.Pp
+.Dl # pfctl -s info
+.Pp
+In this example
+.Xr pf 4
+collects statistics on the interface named dc0:
+.Pp
+.Dl set loginterface dc0
+.Pp
+One can disable the loginterface using:
+.Pp
+.Dl set loginterface none
+.Pp
+The default value is
+.Cm none .
+.It Ic set Cm optimization Ar environment
+Optimize state timeouts for one of the following network environments:
+.Pp
+.Bl -tag -width Ds -compact
+.It Cm aggressive
+Aggressively expire connections.
+This can greatly reduce the memory usage of the firewall at the cost of
+dropping idle connections early.
+.It Cm conservative
+Extremely conservative settings.
+Avoid dropping legitimate connections at the
+expense of greater memory utilization (possibly much greater on a busy
+network) and slightly increased processor utilization.
+.It Cm high-latency
+A high-latency environment (such as a satellite connection).
+.It Cm normal
+A normal network environment.
+Suitable for almost all networks.
+.It Cm satellite
+Alias for
+.Cm high-latency .
+.El
+.Pp
+The default value is
+.Cm normal .
+.It Ic set Cm reassemble yes | no Op Cm no-df
+The
+.Cm reassemble
+option is used to enable or disable the reassembly of fragmented packets,
+and can be set to
+.Cm yes
+(the default) or
+.Cm no .
+If
+.Cm no-df
+is also specified, fragments with the
+.Dq dont-fragment
+bit set are reassembled too,
+instead of being dropped;
+the reassembled packet will have the
+.Dq dont-fragment
+bit cleared.
+The default value is
+.Cm yes .
+.It Ic set Cm ruleset-optimization Ar level
+.Bl -tag -width profile -compact
+.It Cm basic
+Enable basic ruleset optimization.
+This is the default behaviour.
+Basic ruleset optimization does four things to improve the
+performance of ruleset evaluations:
+.Pp
+.Bl -enum -compact
+.It
+remove duplicate rules
+.It
+remove rules that are a subset of another rule
+.It
+combine multiple rules into a table when advantageous
+.It
+reorder the rules to improve evaluation performance
+.El
+.Pp
+.It Cm none
+Disable the ruleset optimizer.
+.It Cm profile
+Uses the currently loaded ruleset as a feedback profile to tailor the
+ordering of
+.Cm quick
+rules to actual network traffic.
+.El
+.Pp
+It is important to note that the ruleset optimizer will modify the ruleset
+to improve performance.
+A side effect of the ruleset modification is that per-rule accounting
+statistics will have different meanings than before.
+If per-rule accounting is important for billing purposes or whatnot,
+either the ruleset optimizer should not be used or a label field should
+be added to all of the accounting rules to act as optimization barriers.
+.Pp
+Optimization can also be set as a command-line argument to
+.Xr pfctl 8 ,
+overriding the settings in
+.Nm .
+.It Ic set Cm skip on Ar ifspec
+List interfaces for which packets should not be filtered.
+Packets passing in or out on such interfaces are passed as if pf was
+disabled, i.e. pf does not process them in any way.
+This can be useful on loopback and other virtual interfaces, when
+packet filtering is not desired and can have unexpected effects.
+PF filters traffic on all interfaces by default.
+.It Ic set Cm state-defaults Ar state-option , ...
+The
+.Cm state-defaults
+option sets the state options for states created from rules
+without an explicit
+.Cm keep state .
+For example:
+.Pp
+.Dl set state-defaults pflow, no-sync
+.It Ic set Cm state-policy if-bound | floating
+The
+.Cm state-policy
+option sets the default behaviour for states:
+.Pp
+.Bl -tag -width if-bound -compact
+.It Cm if-bound
+States are bound to an interface.
+.It Cm floating
+States can match packets on any interfaces (the default).
+.El
+.It Ic set Cm syncookies never | always | adaptive
+When
+.Cm syncookies
+are active, pf will answer each and every incoming TCP SYN with a
+syncookie SYNACK, without allocating any resources.
+Upon reception of the client's ACK in response to the syncookie
+SYNACK, pf will evaluate the ruleset and create state if the ruleset
+permits it, complete the three way handshake with the target host,
+and continue the connection with synproxy in place.
+This allows pf to be resilient against large synflood attacks,
+which could otherwise exhaust the state table.
+Due to the blind answers to each and every SYN,
+syncookies share the caveats of synproxy:
+seemingly accepting connections that will be dropped later on.
+.Pp
+.Bl -tag -width adaptive -compact
+.It Cm never
+pf will never send syncookie SYNACKs (the default).
+.It Cm always
+pf will always send syncookie SYNACKs.
+.It Cm adaptive
+pf will enable syncookie mode when a given percentage of the state table
+is used up by half-open TCP connections, such as those that saw the initial
+SYN but didn't finish the three way handshake.
+The thresholds for entering and leaving syncookie mode can be specified using:
+.Bd -literal -offset indent
+set syncookies adaptive (start 25%, end 12%)
+.Ed
+.El
+.It Ic set Cm timeout Ar variable value
+.Bl -tag -width "src.track" -compact
+.It Cm frag
+Seconds before an unassembled fragment is expired (60 by default).
+.It Cm interval
+Interval between purging expired states and fragments (10 seconds by default).
+.It Cm src.track
+Length of time to retain a source tracking entry after the last state
+expires (0 by default, which means there is no global limit.
+The value is defined by the rule which creates the state.).
+.El
+.Pp
+When a packet matches a stateful connection, the seconds to live for the
+connection will be updated to that of the
+protocol and modifier
+which corresponds to the connection state.
+Each packet which matches this state will reset the TTL.
+Tuning these values may improve the performance of the
+firewall at the risk of dropping valid idle connections.
+Alternatively, these values may be adjusted collectively
+in a manner suitable for a specific environment using
+.Cm set optimization
+(see above).
+.Pp
+.Bl -tag -width Ds -compact
+.It Cm tcp.closed Pq 90 seconds by default
+The state after one endpoint sends an RST.
+.It Cm tcp.closing Pq 900 seconds by default
+The state after the first FIN has been sent.
+.It Cm tcp.established Pq 24 hours by default
+The fully established state.
+.It Cm tcp.finwait Pq 45 seconds by default
+The state after both FINs have been exchanged and the connection is closed.
+Some hosts (notably web servers on Solaris) send TCP packets even after closing
+the connection.
+Increasing
+.Cm tcp.finwait
+(and possibly
+.Cm tcp.closing )
+can prevent blocking of such packets.
+.It Cm tcp.first Pq 120 seconds by default
+The state after the first packet.
+.It Cm tcp.opening Pq 30 seconds by default
+The state after the second packet but before both endpoints have
+acknowledged the connection.
+.It Cm tcp.tsdiff Pq 30 seconds by default
+Maximum allowed time difference between RFC 1323 compliant packet timestamps.
+.El
+.Pp
+ICMP and UDP are handled in a fashion similar to TCP, but with a much more
+limited set of states:
+.Pp
+.Bl -tag -width Ds -compact
+.It Cm icmp.error Pq 10 seconds by default
+The state after an ICMP error came back in response to an ICMP packet.
+.It Cm icmp.first Pq 20 seconds by default
+The state after the first packet.
+.It Cm udp.first Pq 60 seconds by default
+The state after the first packet.
+.It Cm udp.multiple Pq 60 seconds by default
+The state if both hosts have sent packets.
+.It Cm udp.single Pq 30 seconds by default
+The state if the source host sends more than one packet but the destination
+host has never sent one back.
+.El
+.Pp
+Other protocols are handled similarly to UDP:
+.Pp
+.Bl -tag -width xxxx -compact
+.It Cm other.first Pq 60 seconds by default
+.It Cm other.multiple Pq 60 seconds by default
+.It Cm other.single Pq 30 seconds by default
+.El
+.Pp
+Timeout values can be reduced adaptively as the number of state table
+entries grows.
+.Pp
+.Bl -tag -width Ds -compact
+.It Cm adaptive.start Pq 60000 states by default
+When the number of state entries exceeds this value, adaptive scaling
+begins.
+All timeout values are scaled linearly with factor
+(adaptive.end \- number of states) / (adaptive.end \- adaptive.start).
+.It Cm adaptive.end Pq 120000 states by default
+When reaching this number of state entries, all timeout values become
+zero, effectively purging all state entries immediately.
+This value is used to define the scale factor; it should not actually
+be reached (set a lower state limit, see below).
+.El
+.Pp
+Adaptive timeouts are enabled by default, with an adaptive.start value
+equal to 60% of the state limit, and an adaptive.end value equal to
+120% of the state limit.
+They can be disabled by setting both adaptive.start and adaptive.end to 0.
+.Pp
+The adaptive timeout values can be defined both globally and for each rule.
+When used on a per-rule basis, the values relate to the number of
+states created by the rule, otherwise to the total number of
+states.
+.Pp
+For example:
+.Bd -literal -offset indent
+set timeout tcp.first 120
+set timeout tcp.established 86400
+set timeout { adaptive.start 60000, adaptive.end 120000 }
+set limit states 100000
+.Ed
+.Pp
+With 90000 state table entries, the timeout values are scaled to 50%
+(tcp.first 60, tcp.established 43200).
+.El
+.Pp
+.Dq pfctl -F Reset
+restores default values for the following options: debug, all limit options,
+loginterface, reassemble, skip, syncookies, all timeouts.
+.Sh QUEUEING
+Packets can be assigned to queues for the purpose of bandwidth
+control.
+At least one declaration is required to configure queues, and later
+any packet filtering rule can reference the defined queues by name.
+When filtering, the last referenced
+.Ar queue
+name is where any passed packets will be queued, while for
+blocked packets it specifies where any resulting ICMP or TCP RST
+packets should be queued.
+If the referenced queue does not exist on the outgoing interface,
+the default queue for that interface is used.
+Queues attached to an interface build a tree,
+thus each queue can have further child queues.
+Only leaf queues, i.e. queues without children, can be used to assign
+packets to.
+The root queue must specifically reference an interface, all other queues
+pick up the interfaces they should be created on from their parent queues.
+.Pp
+In the following example, a queue named std is created on the interface em0,
+with 3 child queues ssh, mail and http:
+.Bd -literal -offset indent
+queue std on em0 bandwidth 100M
+queue ssh parent std bandwidth 10M
+queue mail parent std bandwidth 10M
+queue http parent std bandwidth 80M default
+.Ed
+.Pp
+The specified bandwidth is the target bandwidth, every queue can receive
+more bandwidth as long as the parent still has some available.
+The maximum bandwidth that should be assigned to a given queue can be limited
+using the
+.Cm max
+keyword.
+If a limitation isn't imposed on the root queue, borrowing can result in
+saturating the bandwidth of the outgoing interface.
+Similarly, a minimum (reserved) bandwidth can be specified:
+.Pp
+.Dl queue ssh parent std bandwidth 10M min 5M max 25M
+.Pp
+For each of these 3 bandwidth specifications an additional burst bandwidth and
+time can be specified:
+.Pp
+.Dl queue ssh parent std bandwidth 10M burst 90M for 100ms
+.Pp
+All
+.Cm bandwidth
+values are specified as bits per second or using the suffixes
+.Cm K ,
+.Cm M ,
+and
+.Cm G
+to represent kilobits, megabits, and gigabits per second, respectively.
+The value must not exceed the interface bandwidth.
+.Pp
+If multiple connections are assigned the same queue, they're not guaranteed
+to share the queue bandwidth fairly.
+An alternative flow queue manager can be used to achieve fair sharing by
+indicating how many simultaneous states are expected with a
+.Cm flows
+option, unless a minimum bandwidth has been specified as well.
+.Pp
+When packets are classified by the stateful inspection engine, a flow
+identifier is assigned to all packets belonging to the state,
+thus limiting the number of individual flows that can be recognized
+by the resolution of a flow identifier.
+The current implementation is able to classify traffic into 32767 distinct
+flows.
+However, efficient fair sharing is observed even with a much smaller number
+of flows.
+For example on a 10Mbit/s DSL or a cable modem uplink, the following simple
+configuration can be used:
+.Bd -literal -offset 4n
+queue outq on em0 bandwidth 9M max 9M flows 1024 qlimit 1024 \e
+      default
+.Ed
+.Pp
+It's important to specify the upper bound within 90-95% of the expected
+bandwidth and raise the default queue limit.
+.Pp
+If a
+.Cm flows
+option appears without a
+.Cm bandwidth
+specification, the flow queue manager is selected as the queueing discipline
+for the corresponding interface acting as a default queue for all outgoing
+packets.
+In such a scenario, a queueing hierarchy is not supported.
+.Pp
+In addition to the bandwidth and flow specifications, queues support the
+following options:
+.Bl -tag -width xxxx
+.It Cm default
+Packets not matched by another queue are assigned to this queue.
+Exactly one default queue per interface is required.
+.It Cm on Ar interface
+Specifies the interface the queue operates on.
+If not given, it operates on all matching interfaces.
+.It Cm parent Ar name
+Defines which parent queue the queue should be attached to.
+Mandatory for all queues except root queues.
+The parent queue must exist.
+.It Cm quantum Ar size
+Specifies the quantum of service for the flow queue manager.
+The lower the quantum size the more advantage is given to streams of smaller
+packets at the expense of bulk transfers.
+The default value is set to the configured Maximum Transmission Unit (MTU)
+of the specified interface.
+.It Cm qlimit Ar limit
+The maximum number of packets held in the queue.
+The default is 50.
+.El
+.Pp
+Packets can be assigned to queues based on filter rules by using the
+.Cm queue
+keyword.
+Normally only one
+.Ar queue
+is specified; when a second one is specified it will instead be used for
+packets which have a TOS of
+.Cm lowdelay
+and for TCP ACKs with no data payload.
+.Pp
+To continue the previous example, the examples below would specify the
+four referenced
+queues, plus a few child queues.
+Interactive
+.Xr ssh 1
+sessions get a queue with a minimum bandwidth;
+.Xr scp 1
+and
+.Xr sftp 1
+bulk transfers go to a separate queue.
+The queues are then referenced by filtering rules.
+.Bd -literal -offset 4n
+queue rootq on em0 bandwidth 100M max 100M
+queue http parent rootq bandwidth 60M burst 90M for 100ms
+queue  developers parent http bandwidth 45M
+queue  employees parent http bandwidth 15M
+queue mail parent rootq bandwidth 10M
+queue ssh parent rootq bandwidth 20M
+queue  ssh_interactive parent ssh bandwidth 10M min 5M
+queue  ssh_bulk parent ssh bandwidth 10M
+queue std parent rootq bandwidth 20M default
+
+block return out on em0 inet all set queue std
+pass out on em0 inet proto tcp from $developerhosts to any port 80 \e
+      set queue developers
+pass out on em0 inet proto tcp from $employeehosts to any port 80 \e
+      set queue employees
+pass out on em0 inet proto tcp from any to any port 22 \e
+      set queue(ssh_bulk, ssh_interactive)
+pass out on em0 inet proto tcp from any to any port 25 \e
+      set queue mail
+.Ed
+.Sh TABLES
+Tables are named structures which can hold a collection of addresses and
+networks.
+Lookups against tables in
+.Xr pf 4
+are relatively fast, making a single rule with tables much more efficient,
+in terms of
+processor usage and memory consumption, than a large number of rules which
+differ only in IP address (either created explicitly or automatically by rule
+expansion).
+.Pp
+Tables can be used as the source or destination of filter
+or translation rules.
+They can also be used for the redirect address of
+.Cm nat-to
+and
+.Cm rdr-to
+and in the routing options of filter rules, but not for
+.Cm bitmask
+pools.
+.Pp
+Tables can be defined with any of the following
+.Xr pfctl 8
+mechanisms.
+As with macros, reserved words may not be used as table names.
+.Bl -tag -width "manually"
+.It manually
+Persistent tables can be manually created with the
+.Cm add
+or
+.Cm replace
+option of
+.Xr pfctl 8 ,
+before or after the ruleset has been loaded.
+.It Nm
+Table definitions can be placed directly in this file and loaded at the
+same time as other rules are loaded, atomically.
+Table definitions inside
+.Nm
+use the
+.Ic table
+statement, and are especially useful to define non-persistent tables.
+The contents of a pre-existing table defined without a list of addresses
+to initialize it is not altered when
+.Nm
+is loaded.
+A table initialized with the empty list,
+.Li { } ,
+will be cleared on load.
+.El
+.Pp
+Tables may be defined with the following attributes:
+.Bl -tag -width counters
+.It Cm const
+The
+.Cm const
+flag prevents the user from altering the contents of the table once it
+has been created.
+Without that flag,
+.Xr pfctl 8
+can be used to add or remove addresses from the table at any time, even
+when running with
+.Xr securelevel 7
+= 2.
+.It Cm counters
+The
+.Cm counters
+flag enables per-address packet and byte counters, which can be displayed with
+.Xr pfctl 8 .
+.It Cm persist
+The
+.Cm persist
+flag forces the kernel to keep the table even when no rules refer to it.
+If the flag is not set, the kernel will automatically remove the table
+when the last rule referring to it is flushed.
+.El
+.Pp
+This example creates a table called
+.Dq private ,
+to hold RFC 1918 private network blocks,
+and a table called
+.Dq badhosts ,
+which is initially empty.
+A filter rule is set up to block all traffic coming from addresses listed in
+either table:
+.Bd -literal -offset indent
+table <private> const { 10/8, 172.16/12, 192.168/16 }
+table <badhosts> persist
+block on fxp0 from { <private>, <badhosts> } to any
+.Ed
+.Pp
+The private table cannot have its contents changed and the badhosts table
+will exist even when no active filter rules reference it.
+Addresses may later be added to the badhosts table, so that traffic from
+these hosts can be blocked by using the following:
+.Pp
+.Dl # pfctl -t badhosts -Tadd 204.92.77.111
+.Pp
+A table can also be initialized with an address list specified in one or more
+external files, using the following syntax:
+.Bd -literal -offset indent
+table <spam> persist file "/etc/spammers" file "/etc/openrelays"
+block on fxp0 from <spam> to any
+.Ed
+.Pp
+The files
+.Pa /etc/spammers
+and
+.Pa /etc/openrelays
+list IP addresses, one per line.
+Any lines beginning with a
+.Sq #
+are treated as comments and ignored.
+In addition to being specified by IP address, hosts may also be
+specified by their hostname.
+When the resolver is called to add a hostname to a table,
+.Em all
+resulting IPv4 and IPv6 addresses are placed into the table.
+IP addresses can also be entered in a table by specifying a valid interface
+name, a valid interface group, or the
+.Cm self
+keyword, in which case all addresses assigned to the interface(s) will be
+added to the table.
+.Sh ANCHORS
+Besides the main ruleset,
+.Nm
+can specify anchor attachment points.
+An anchor is a container that can hold rules,
+address tables, and other anchors.
+When evaluation of the main ruleset reaches an
+.Ic anchor
+rule,
+.Xr pf 4
+will proceed to evaluate all rules specified in that anchor.
+.Pp
+The following example blocks all packets on the external interface by default,
+then evaluates all rules in the anchor named "spam",
+and finally passes all outgoing connections and
+incoming connections to port 25:
+.Bd -literal -offset indent
+ext_if = "kue0"
+block on $ext_if all
+anchor spam
+pass out on $ext_if all
+pass in on $ext_if proto tcp from any to $ext_if port smtp
+.Ed
+.Pp
+Anchors can be manipulated through
+.Xr pfctl 8
+without reloading the main ruleset or other anchors.
+This loads a single rule into the anchor,
+which blocks all packets from a specific address:
+.Bd -literal -offset indent
+# echo "block in quick from 1.2.3.4 to any" | pfctl -a spam -f -
+.Ed
+.Pp
+The anchor can also be populated by adding a
+.Ic load anchor
+rule after the anchor rule.
+When
+.Xr pfctl 8
+loads
+.Nm ,
+it will also load all the rules from the file
+.Pa /etc/pf-spam.conf
+into the anchor.
+.Bd -literal -offset indent
+anchor spam
+load anchor spam from "/etc/pf-spam.conf"
+.Ed
+.Pp
+An anchor rule can also contain a filter ruleset
+in a brace-delimited block.
+In that case, no separate loading of rules into the anchor
+is required.
+Brace delimited blocks may contain rules or other brace-delimited blocks.
+When an anchor is populated this way, the anchor name becomes optional.
+Since the parser specification for anchor names is a string,
+double quote characters
+.Pq Sq \&"
+should be placed around the anchor name.
+.Bd -literal -offset indent
+anchor "external" on egress {
+	block
+	anchor out {
+		pass proto tcp from any to port { 25, 80, 443 }
+	}
+	pass in proto tcp to any port 22
+}
+.Ed
+.Pp
+Anchor rules can also specify packet filtering parameters
+using the same syntax as filter rules.
+When parameters are used,
+the anchor rule is only evaluated for matching packets.
+This allows conditional evaluation of anchors, like:
+.Bd -literal -offset indent
+block on $ext_if all
+anchor spam proto tcp from any to any port smtp
+pass out on $ext_if all
+pass in on $ext_if proto tcp from any to $ext_if port smtp
+.Ed
+.Pp
+The rules inside anchor "spam" are only evaluated
+for TCP packets with destination port 25.
+Hence, the following
+will only block connections from 1.2.3.4 to port 25:
+.Bd -literal -offset indent
+# echo "block in quick from 1.2.3.4 to any" | pfctl -a spam -f -
+.Ed
+.Pp
+Matching filter and translation rules marked with the
+.Cm quick
+option are final and abort the evaluation of the rules in other
+anchors and the main ruleset.
+If the anchor itself is marked with the
+.Cm quick
+option,
+ruleset evaluation will terminate when the anchor is exited if the packet is
+matched by any rule within the anchor.
+.Pp
+An anchor references other anchor attachment points
+using the following syntax:
+.Bl -tag -width xxxx
+.It Ic anchor Ar name
+Evaluates the filter rules in the specified anchor.
+.El
+.Pp
+An anchor has a name which specifies the path where
+.Xr pfctl 8
+can be used to access the anchor to perform operations on it, such as
+attaching child anchors to it or loading rules into it.
+Anchors may be nested, with components separated by
+.Sq /
+characters, similar to how file system hierarchies are laid out.
+The main ruleset is actually the default anchor, so filter and
+translation rules, for example, may also be contained in any anchor.
+.Pp
+Anchor rules are evaluated relative to the anchor in which they are contained.
+For example,
+all anchor rules specified in the main ruleset will reference
+anchor attachment points underneath the main ruleset,
+and anchor rules specified in a file loaded from a
+.Ic load anchor
+rule will be attached under that anchor point.
+.Pp
+Anchors may end with the asterisk
+.Pq Sq *
+character, which signifies that all anchors attached at that point
+should be evaluated in the alphabetical ordering of their anchor name.
+For example,
+the following
+will evaluate each rule in each anchor attached to the "spam" anchor:
+.Bd -literal -offset indent
+anchor "spam/*"
+.Ed
+.Pp
+Note that it will only evaluate anchors that are directly attached to the
+"spam" anchor, and will not descend to evaluate anchors recursively.
+.Pp
+Since anchors are evaluated relative to the anchor in which they are
+contained, there is a mechanism for accessing the parent and ancestor
+anchors of a given anchor.
+Similar to file system path name resolution, if the sequence
+.Sq ..
+appears as an anchor path component, the parent anchor of the current
+anchor in the path evaluation at that point will become the new current
+anchor.
+As an example, consider the following:
+.Bd -literal -offset indent
+# printf 'anchor "spam/allowed"\en' | pfctl -f -
+# printf 'anchor "../banned"\enpass\en' | pfctl -a spam/allowed -f -
+.Ed
+.Pp
+Evaluation of the main ruleset will lead into the
+spam/allowed anchor, which will evaluate the rules in the
+spam/banned anchor, if any, before finally evaluating the
+.Ic pass
+rule.
+.Sh STATEFUL FILTERING
+.Xr pf 4
+filters packets statefully,
+which has several advantages.
+For TCP connections, comparing a packet to a state involves checking
+its sequence numbers, as well as TCP timestamps if a rule using the
+.Cm reassemble tcp
+parameter applies to the connection.
+If these values are outside the narrow windows of expected
+values, the packet is dropped.
+This prevents spoofing attacks, such as when an attacker sends packets with
+a fake source address/port but does not know the connection's sequence
+numbers.
+Similarly,
+.Xr pf 4
+knows how to match ICMP replies to states.
+For example,
+to allow echo requests (such as those created by
+.Xr ping 8 )
+out statefully and match incoming echo replies correctly to states:
+.Pp
+.Dl pass out inet proto icmp all icmp-type echoreq
+.Pp
+Also, looking up states is usually faster than evaluating rules.
+If there are 50 rules, all of them are evaluated sequentially in O(n).
+Even with 50000 states, only 16 comparisons are needed to match a
+state, since states are stored in a binary search tree that allows
+searches in O(log2\~n).
+.Pp
+Furthermore, correct handling of ICMP error messages is critical to
+many protocols, particularly TCP.
+.Xr pf 4
+matches ICMP error messages to the correct connection, checks them against
+connection parameters, and passes them if appropriate.
+For example if an ICMP source quench message referring to a stateful TCP
+connection arrives, it will be matched to the state and get passed.
+.Pp
+Finally, state tracking is required for
+.Cm nat-to
+and
+.Cm rdr-to
+options, in order to track address and port translations and reverse the
+translation on returning packets.
+.Pp
+.Xr pf 4
+will also create state for other protocols which are effectively stateless by
+nature.
+UDP packets are matched to states using only host addresses and ports,
+and other protocols are matched to states using only the host addresses.
+.Pp
+If stateless filtering of individual packets is desired,
+the
+.Cm no state
+keyword can be used to specify that state will not be created
+if this is the last matching rule.
+Note that packets which match neither block nor pass rules,
+and thus are passed by default,
+are effectively passed as if
+.Cm no state
+had been specified.
+.Pp
+A number of parameters can also be set to affect how
+.Xr pf 4
+handles state tracking,
+as detailed below.
+.Ss State Modulation
+Much of the security derived from TCP is attributable to how well the
+initial sequence numbers (ISNs) are chosen.
+Some popular stack implementations choose
+.Em very
+poor ISNs and thus are normally susceptible to ISN prediction exploits.
+By applying a
+.Cm modulate state
+rule to a TCP connection,
+.Xr pf 4
+will create a high quality random sequence number for each connection
+endpoint.
+.Pp
+The
+.Cm modulate state
+directive implicitly keeps state on the rule and is
+only applicable to TCP connections.
+.Pp
+For instance:
+.Bd -literal -offset indent
+block all
+pass out proto tcp from any to any modulate state
+pass in  proto tcp from any to any port 25 flags S/SFRA \e
+      modulate state
+.Ed
+.Pp
+Note that modulated connections will not recover when the state table
+is lost (firewall reboot, flushing the state table, etc.).
+.Xr pf 4
+will not be able to infer a connection again after the state table flushes
+the connection's modulator.
+When the state is lost, the connection may be left dangling until the
+respective endpoints time out the connection.
+It is possible on a fast local network for the endpoints to start an ACK
+storm while trying to resynchronize after the loss of the modulator.
+The default
+.Cm flags
+settings (or a more strict equivalent) should be used on
+.Cm modulate state
+rules to prevent ACK storms.
+.Pp
+Note that alternative methods are available
+to prevent loss of the state table
+and allow for firewall failover.
+See
+.Xr carp 4
+and
+.Xr pfsync 4
+for further information.
+.Ss SYN Proxy
+By default,
+.Xr pf 4
+passes packets that are part of a
+TCP handshake between the endpoints.
+The
+.Cm synproxy state
+option can be used to cause
+.Xr pf 4
+itself to complete the handshake with the active endpoint, perform a handshake
+with the passive endpoint, and then forward packets between the endpoints.
+.Pp
+No packets are sent to the passive endpoint before the active endpoint has
+completed the handshake, hence so-called SYN floods with spoofed source
+addresses will not reach the passive endpoint, as the sender can't complete the
+handshake.
+.Pp
+The proxy is transparent to both endpoints; they each see a single
+connection from/to the other endpoint.
+.Xr pf 4
+chooses random initial sequence numbers for both handshakes.
+Once the handshakes are completed, the sequence number modulators
+(see previous section) are used to translate further packets of the
+connection.
+.Cm synproxy state
+includes
+.Cm modulate state .
+.Pp
+Rules with
+.Cm synproxy state
+will not work if
+.Xr pf 4
+operates on a
+.Xr bridge 4 .
+Also they act on incoming SYN packets only.
+.Pp
+Example:
+.Bd -literal -offset indent
+pass in proto tcp from any to any port www synproxy state
+.Ed
+.Ss Stateful Tracking Options
+A number of options related to stateful tracking can be applied on a
+per-rule basis.
+One of
+.Cm keep state ,
+.Cm modulate state ,
+or
+.Cm synproxy state
+must be specified explicitly to apply these options to a rule.
+.Pp
+.Bl -tag -width xxxx -compact
+.It Cm floating
+States can match packets on any interfaces
+(the opposite of
+.Cm if-bound ) .
+This is the default.
+.It Cm if-bound
+States are bound to an interface
+(the opposite of
+.Cm floating ) .
+.It Cm max Ar number
+Limits the number of concurrent states the rule may create.
+When this limit is reached, further packets that would create
+state are dropped until existing states time out.
+.It Cm no-sync
+Prevent state changes for states created by this rule from appearing on the
+.Xr pfsync 4
+interface.
+.It Cm pflow
+States created by this rule are exported on the
+.Xr pflow 4
+interface.
+.It Cm sloppy
+For TCP, uses a sloppy connection tracker that does not check sequence
+numbers at all, which makes insertion and ICMP teardown attacks way
+easier.
+This is intended to be used in situations where one does not see all
+packets of a connection, e.g. in asymmetric routing situations.
+It cannot be used with
+.Cm modulate state
+or
+.Cm synproxy state .
+For ICMP, this option allows states to be created from replies,
+not just requests.
+.It Ar timeout seconds
+Changes the
+.Ar timeout
+values used for states created by this rule.
+For a list of all valid
+.Ar timeout
+names, see
+.Sx OPTIONS
+above.
+.El
+.Pp
+Multiple options can be specified, separated by commas:
+.Bd -literal -offset indent
+pass in proto tcp from any to any \e
+      port www keep state \e
+      (max 100, source-track rule, max-src-nodes 75, \e
+      max-src-states 3, tcp.established 60, tcp.closing 5)
+.Ed
+.Pp
+When the
+.Cm source-track
+keyword is specified, the number of states per source IP is tracked.
+.Pp
+.Bl -tag -width xxxx -compact
+.It Cm source-track global
+The number of states created by all rules that use this option is limited.
+Each rule can specify different
+.Cm max-src-nodes
+and
+.Cm max-src-states
+options, however state entries created by any participating rule count towards
+each individual rule's limits.
+.It Cm source-track rule
+The maximum number of states created by this rule is limited by the rule's
+.Cm max-src-nodes
+and
+.Cm max-src-states
+options.
+Only state entries created by this particular rule count toward the rule's
+limits.
+.El
+.Pp
+The following limits can be set:
+.Pp
+.Bl -tag -width xxxx -compact
+.It Cm max-src-nodes Ar number
+Limits the maximum number of source addresses which can simultaneously
+have state table entries.
+.It Cm max-src-states Ar number
+Limits the maximum number of simultaneous state entries that a single
+source address can create with this rule.
+.El
+.Pp
+For stateful TCP connections, limits on established connections (connections
+which have completed the TCP 3-way handshake) can also be enforced
+per source IP.
+.Pp
+.Bl -tag -width xxxx -compact
+.It Cm max-src-conn Ar number
+Limits the maximum number of simultaneous TCP connections which have
+completed the 3-way handshake that a single host can make.
+.It Cm max-src-conn-rate Ar number Ns / Ns Ar seconds
+Limit the rate of new connections over a time interval.
+The connection rate is an approximation calculated as a moving average.
+.El
+.Pp
+When one of these limits is reached, further packets that would create
+state are dropped until existing states time out.
+.Pp
+Because the 3-way handshake ensures that the source address is not being
+spoofed, more aggressive action can be taken based on these limits.
+With the
+.Cm overload Pf < Ar table Ns >
+state option, source IP addresses which hit either of the limits on
+established connections will be added to the named
+.Ar table .
+This table can be used in the ruleset to block further activity from
+the offending host, redirect it to a tarpit process, or restrict its
+bandwidth.
+.Pp
+The optional
+.Cm flush
+keyword kills all states created by the matching rule which originate
+from the host which exceeds these limits.
+The
+.Cm global
+modifier to the
+.Cm flush
+command kills all states originating from the
+offending host, regardless of which rule created the state.
+.Pp
+For example, the following rules will protect the webserver against
+hosts making more than 100 connections in 10 seconds.
+Any host which connects faster than this rate will have its address added
+to the <bad_hosts> table and have all states originating from it flushed.
+Any new packets arriving from this host will be dropped unconditionally
+by the block rule.
+.Bd -literal -offset indent
+block quick from <bad_hosts>
+pass in on $ext_if proto tcp to $webserver port www keep state \e
+      (max-src-conn-rate 100/10, overload <bad_hosts> flush global)
+.Ed
+.Sh TRAFFIC NORMALISATION
+Traffic normalisation is a broad umbrella term
+for aspects of the packet filter which deal with
+verifying packets, packet fragments, spoof traffic,
+and other irregularities.
+.Ss Scrub
+Scrub involves sanitising packet content in such a way
+that there are no ambiguities in packet interpretation on the receiving side.
+It is invoked with the
+.Cm scrub
+option, added to regular rules.
+.Pp
+Parameters are specified enclosed in parentheses.
+At least one of the following parameters must be specified:
+.Bl -tag -width xxxx
+.It Cm max-mss Ar number
+Reduces the maximum segment size (MSS)
+on TCP SYN packets to be no greater than
+.Ar number .
+This is sometimes required in scenarios where the two endpoints
+of a TCP connection are not able to carry similar sized packets
+and the resulting mismatch can lead to packet fragmentation or loss.
+Note that setting the MSS this way can have undesirable effects,
+such as interfering with the OS detection features of
+.Xr pf 4 .
+.It Cm min-ttl Ar number
+Enforces a minimum TTL for matching IP packets.
+.It Cm no-df
+Clears the
+.Dq dont-fragment
+bit from a matching IPv4 packet.
+Some operating systems have NFS implementations
+which are known to generate fragmented packets with the
+.Dq dont-fragment
+bit set.
+.Xr pf 4
+will drop such fragmented
+.Dq dont-fragment
+packets unless
+.Cm no-df
+is specified.
+.Pp
+Unfortunately some operating systems also generate their
+.Dq dont-fragment
+packets with a zero IP identification field.
+Clearing the
+.Dq dont-fragment
+bit on packets with a zero IP ID may cause deleterious results if an
+upstream router later fragments the packet.
+Using
+.Cm random-id
+is recommended in combination with
+.Cm no-df
+to ensure unique IP identifiers.
+.It Cm random-id
+Replaces the IPv4 identification field with random values to compensate
+for predictable values generated by many hosts.
+This option only applies to packets that are not fragmented
+after the optional fragment reassembly.
+.It Cm reassemble tcp
+Statefully normalises TCP connections.
+.Cm reassemble tcp
+performs the following normalisations:
+.Bl -ohang
+.It TTL
+Neither side of the connection is allowed to reduce their IP TTL.
+An attacker may send a packet such that it reaches the firewall, affects
+the firewall state, and expires before reaching the destination host.
+.Cm reassemble tcp
+will raise the TTL of all packets back up to the highest value seen on
+the connection.
+.It Timestamp Modulation
+Modern TCP stacks will send a timestamp on every TCP packet and echo
+the other endpoint's timestamp back to them.
+Many operating systems will merely start the timestamp at zero when
+first booted, and increment it several times a second.
+The uptime of the host can be deduced by reading the timestamp and multiplying
+by a constant.
+Also observing several different timestamps can be used to count hosts
+behind a NAT device.
+And spoofing TCP packets into a connection requires knowing or guessing
+valid timestamps.
+Timestamps merely need to be monotonically increasing and not derived off a
+guessable base time.
+.Cm reassemble tcp
+will cause
+.Cm scrub
+to modulate the TCP timestamps with a random number.
+.It Extended PAWS Checks
+There is a problem with TCP on long fat pipes, in that a packet might get
+delayed for longer than it takes the connection to wrap its 32-bit sequence
+space.
+In such an occurrence, the old packet would be indistinguishable from a
+new packet and would be accepted as such.
+The solution to this is called PAWS: Protection Against Wrapped Sequence
+numbers.
+It protects against it by making sure the timestamp on each packet does
+not go backwards.
+.Cm reassemble tcp
+also makes sure the timestamp on the packet does not go forward more
+than the RFC allows.
+By doing this,
+.Xr pf 4
+artificially extends the security of TCP sequence numbers by 10 to 18
+bits when the host uses appropriately randomized timestamps, since a
+blind attacker would have to guess the timestamp as well.
+.El
+.El
+.Pp
+For example:
+.Pp
+.Dl match in all scrub (no-df random-id max-mss 1440)
+.Ss Fragment Handling
+The size of IP datagrams (packets) can be significantly larger than the
+maximum transmission unit (MTU) of the network.
+In cases when it is necessary or more efficient to send such large packets,
+the large packet will be fragmented into many smaller packets that will each
+fit onto the wire.
+Unfortunately for a firewalling device, only the first logical fragment will
+contain the necessary header information for the subprotocol that allows
+.Xr pf 4
+to filter on things such as TCP ports or to perform NAT.
+.Pp
+One alternative is to filter individual fragments with filter rules.
+If packet reassembly is turned off, it is passed to the filter.
+Filter rules with matching IP header parameters decide whether the
+fragment is passed or blocked, in the same way as complete packets
+are filtered.
+Without reassembly, fragments can only be filtered based on IP header
+fields (source/destination address, protocol), since subprotocol header
+fields are not available (TCP/UDP port numbers, ICMP code/type).
+The
+.Cm fragment
+option can be used to restrict filter rules to apply only to
+fragments, but not complete packets.
+Filter rules without the
+.Cm fragment
+option still apply to fragments, if they only specify IP header fields.
+For instance:
+.Bd -literal -offset indent
+pass in proto tcp from any to any port 80
+.Ed
+.Pp
+The rule above never applies to a fragment,
+even if the fragment is part of a TCP packet with destination port 80,
+because without reassembly this information
+is not available for each fragment.
+This also means that fragments cannot create new or match existing
+state table entries, which makes stateful filtering and address
+translation (NAT, redirection) for fragments impossible.
+.Pp
+In most cases, the benefits of reassembly outweigh the additional
+memory cost,
+so reassembly is on by default.
+.Pp
+The memory allocated for fragment caching can be limited using
+.Xr pfctl 8 .
+Once this limit is reached, fragments that would have to be cached
+are dropped until other entries time out.
+The timeout value can also be adjusted.
+.Pp
+When forwarding reassembled IPv6 packets, pf refragments them with
+the original maximum fragment size.
+This allows the sender to determine the optimal fragment size by
+path MTU discovery.
+.Ss Blocking Spoofed Traffic
+Spoofing is the faking of IP addresses,
+typically for malicious purposes.
+The
+.Ic antispoof
+directive expands to a set of filter rules which will block all
+traffic with a source IP from the network(s) directly connected
+to the specified interface(s) from entering the system through
+any other interface.
+.Pp
+For example:
+.Dl antispoof for lo0
+.Pp
+Expands to:
+.Bd -literal -offset indent -compact
+block drop in on ! lo0 inet from 127.0.0.1/8 to any
+block drop in on ! lo0 inet6 from ::1 to any
+.Ed
+.Pp
+For non-loopback interfaces, there are additional rules to block incoming
+packets with a source IP address identical to the interface's IP(s).
+For example, assuming the interface wi0 had an IP address of 10.0.0.1 and a
+netmask of 255.255.255.0:
+.Pp
+.Dl antispoof for wi0 inet
+.Pp
+Expands to:
+.Bd -literal -offset indent -compact
+block drop in on ! wi0 inet from 10.0.0.0/24 to any
+block drop in inet from 10.0.0.1 to any
+.Ed
+.Pp
+Caveat: Rules created by the
+.Ic antispoof
+directive interfere with packets sent over loopback interfaces
+to local addresses.
+One should pass these explicitly.
+.Sh OPERATING SYSTEM FINGERPRINTING
+Passive OS fingerprinting is a mechanism to inspect nuances of a TCP
+connection's initial SYN packet and guess at the host's operating system.
+Unfortunately these nuances are easily spoofed by an attacker so the
+fingerprint is not useful in making security decisions.
+But the fingerprint is typically accurate enough to make policy decisions
+upon.
+.Pp
+The fingerprints may be specified by operating system class, by
+version, or by subtype/patchlevel.
+The class of an operating system is typically the vendor or genre
+and would be
+.Ox
+for the
+.Xr pf 4
+firewall itself.
+The version of the oldest available
+.Ox
+release on the main FTP site
+would be 2.6 and the fingerprint would be written as:
+.Pp
+.Dl \&"OpenBSD 2.6\&"
+.Pp
+The subtype of an operating system is typically used to describe the
+patchlevel if that patch led to changes in the TCP stack behavior.
+In the case of
+.Ox ,
+the only subtype is for a fingerprint that was
+normalised by the
+.Cm no-df
+scrub option and would be specified as:
+.Pp
+.Dl \&"OpenBSD 3.3 no-df\&"
+.Pp
+Fingerprints for most popular operating systems are provided by
+.Xr pf.os 5 .
+Once
+.Xr pf 4
+is running, a complete list of known operating system fingerprints may
+be listed by running:
+.Pp
+.Dl # pfctl -so
+.Pp
+Filter rules can enforce policy at any level of operating system specification
+assuming a fingerprint is present.
+Policy could limit traffic to approved operating systems or even ban traffic
+from hosts that aren't at the latest service pack.
+.Pp
+The
+.Cm unknown
+class can also be used as the fingerprint which will match packets for
+which no operating system fingerprint is known.
+.Pp
+Examples:
+.Bd -literal -offset indent
+pass  out proto tcp from any os OpenBSD
+block out proto tcp from any os Doors
+block out proto tcp from any os "Doors PT"
+block out proto tcp from any os "Doors PT SP3"
+block out from any os "unknown"
+pass on lo0 proto tcp from any os "OpenBSD 3.3 lo0"
+.Ed
+.Pp
+Operating system fingerprinting is limited only to the TCP SYN packet.
+This means that it will not work on other protocols and will not match
+a currently established connection.
+.Pp
+Caveat: operating system fingerprints are occasionally wrong.
+There are three problems: an attacker can trivially craft packets to
+appear as any operating system;
+an operating system patch could change the stack behavior and no fingerprints
+will match it until the database is updated;
+and multiple operating systems may have the same fingerprint.
+.Sh EXAMPLES
+In this example,
+the external interface is
+.Pa kue0 .
+We use a macro for the interface name, so it can be changed easily.
+All incoming traffic is "normalised",
+and everything is blocked and logged by default.
+.Bd -literal -offset 4n
+ext_if = "kue0"
+match in all scrub (no-df max-mss 1440)
+block return log on $ext_if all
+.Ed
+.Pp
+Here we specifically block packets we don't want:
+anything coming from source we have no back routes for;
+packets whose ingress interface does not match the one in
+the route back to their source address;
+anything that does not have our address (157.161.48.183) as source;
+broadcasts (cable modem noise);
+and anything from reserved address space or invalid addresses.
+.Bd -literal -offset 4n
+block in from no-route to any
+block in from urpf-failed to any
+block out log quick on $ext_if from ! 157.161.48.183 to any
+block in quick on $ext_if from any to 255.255.255.255
+block in log quick on $ext_if from { 10.0.0.0/8, 172.16.0.0/12, \e
+    192.168.0.0/16, 255.255.255.255/32 } to any
+.Ed
+.Pp
+For ICMP,
+pass out/in ping queries.
+State matching is done on host addresses and ICMP ID (not type/code),
+so replies (like 0/0 for 8/0) will match queries.
+ICMP error messages (which always refer to a TCP/UDP packet)
+are handled by the TCP/UDP states.
+.Bd -literal -offset 4n
+pass on $ext_if inet proto icmp all icmp-type 8 code 0
+.Ed
+.Pp
+For UDP,
+pass out all UDP connections.
+DNS connections are passed in.
+.Bd -literal -offset 4n
+pass out on $ext_if proto udp all
+pass in on $ext_if proto udp from any to any port domain
+.Ed
+.Pp
+For TCP,
+pass out all TCP connections and modulate state.
+SSH, SMTP, DNS, and IDENT connections are passed in.
+We do not allow Windows 9x SMTP connections since they are typically
+a viral worm.
+.Bd -literal -offset 4n
+pass out on $ext_if proto tcp all modulate state
+pass in on $ext_if proto tcp from any to any \e
+    port { ssh, smtp, domain, auth }
+block in on $ext_if proto tcp from any \e
+    os { "Windows 95", "Windows 98" } to any port smtp
+.Ed
+.Pp
+Here we pass in/out all IPv6 traffic:
+note that we have to enable this in two different ways,
+on both our physical interface and our tunnel.
+.Bd -literal -offset 4n
+pass quick on gif0 inet6
+pass quick on $ext_if proto ipv6
+.Ed
+.Pp
+This example illustrates packet tagging.
+There are three interfaces: $int_if, $ext_if, and $wifi_if (wireless).
+NAT is being done on $ext_if for all outgoing packets.
+Packets in on $int_if are tagged and passed out on $ext_if.
+All other outgoing packets
+(i.e. packets from the wireless network)
+are only permitted to access port 80.
+.Bd -literal -offset 4n
+pass in on $int_if from any to any tag INTNET
+pass in on $wifi_if from any to any
+
+block out on $ext_if from any to any
+pass out quick on $ext_if tagged INTNET
+pass out on $ext_if proto tcp from any to any port 80
+.Ed
+.Pp
+In this example,
+we tag incoming packets as they are redirected to
+.Xr spamd 8 .
+The tag is used to pass those packets through the packet filter.
+.Bd -literal -offset 4n
+match in on $ext_if inet proto tcp from <spammers> to port smtp \e
+     tag SPAMD rdr-to 127.0.0.1 port spamd
+
+block in on $ext_if
+pass in on $ext_if inet proto tcp tagged SPAMD
+.Ed
+.Pp
+This example maps incoming requests on port 80 to port 8080, on
+which a daemon is running (because, for example, it is not run as root,
+and therefore lacks permission to bind to port 80).
+.Bd -literal -offset 4n
+match in on $ext_if proto tcp from any to any port 80 \e
+      rdr-to 127.0.0.1 port 8080
+.Ed
+.Pp
+If a
+.Ic pass
+rule is used with the
+.Cm quick
+modifier, packets matching the translation rule are passed without
+inspecting subsequent filter rules.
+.Bd -literal -offset 4n
+pass in quick on $ext_if proto tcp from any to any port 80 \e
+      rdr-to 127.0.0.1 port 8080
+.Ed
+.Pp
+In the example below, vlan12 is configured as 192.168.168.1;
+the machine translates all packets coming from 192.168.168.0/24 to 204.92.77.111
+when they are going out any interface except vlan12.
+This has the net effect of making traffic from the 192.168.168.0/24
+network appear as though it is the Internet routable address
+204.92.77.111 to nodes behind any interface on the router except
+for the nodes on vlan12.
+Thus, 192.168.168.1 can talk to the 192.168.168.0/24 nodes.
+.Bd -literal -offset 4n
+match out on ! vlan12 from 192.168.168.0/24 to any nat-to 204.92.77.111
+.Ed
+.Pp
+In the example below, the machine sits between a fake internal
+144.19.74.* network, and a routable external IP of 204.92.77.100.
+The last rule excludes protocol AH from being translated.
+.Bd -literal -offset 4n
+pass out on $ext_if from 144.19.74.0/24 nat-to 204.92.77.100
+pass out on $ext_if proto ah from 144.19.74.0/24
+.Ed
+.Pp
+In the example below, packets bound for one specific server, as well as those
+generated by the sysadmins are not proxied; all other connections are.
+.Bd -literal -offset 4n
+pass in on $int_if proto { tcp, udp } from any to any port 80 \e
+      rdr-to 127.0.0.1 port 80
+pass in on $int_if proto { tcp, udp } from any to $server port 80
+pass in on $int_if proto { tcp, udp } from $sysadmins to any port 80
+.Ed
+.Pp
+This example maps outgoing packets' source port
+to an assigned proxy port instead of an arbitrary port.
+In this case, proxy outgoing isakmp with port 500 on the gateway.
+.Bd -literal -offset 4n
+match out on $ext_if inet proto udp from any port isakmp to any \e
+    nat-to ($ext_if) port 500
+.Ed
+.Pp
+One more example uses
+.Cm rdr-to
+to redirect a TCP and UDP port to an internal machine.
+.Bd -literal -offset 4n
+match in on $ext_if inet proto tcp from any to ($ext_if) port 8080 \e
+      rdr-to 10.1.2.151 port 22
+match in on $ext_if inet proto udp from any to ($ext_if) port 8080 \e
+      rdr-to 10.1.2.151 port 53
+.Ed
+.Pp
+In this example, a NAT gateway is set up to translate internal addresses
+using a pool of public addresses (192.0.2.16/28).
+A given source address is always translated to the same pool address by
+using the
+.Cm source-hash
+keyword.
+The gateway also translates incoming web server connections
+to a group of web servers on the internal network.
+.Bd -literal -offset 4n
+match out on $ext_if inet from any to any nat-to 192.0.2.16/28 \e
+    source-hash
+match in  on $ext_if proto tcp from any to any port 80 \e
+    rdr-to { 10.1.2.155 weight 2, 10.1.2.160 weight 1, \e
+             10.1.2.161 weight 8 } round-robin
+.Ed
+.Pp
+The bidirectional address translation example uses a single
+.Cm binat-to
+rule that expands to a
+.Cm nat-to
+and an
+.Cm rdr-to
+rule.
+.Bd -literal -offset 4n
+pass on $ext_if from 10.1.2.120 to any binat-to 192.0.2.17
+.Ed
+.Pp
+The previous example is identical to the following set of rules:
+.Bd -literal -offset 4n
+pass out on $ext_if inet from 10.1.2.120 to any \e
+      nat-to 192.0.2.17 static-port
+pass in on $ext_if inet from any to 192.0.2.17 rdr-to 10.1.2.120
+.Ed
+.Pp
+In the example below, a router handling both address families
+translates an internal IPv4 subnet to IPv6 using the well-known
+64:ff9b::/96 prefix:
+.Bd -literal -offset 4n
+pass in on $v4_if inet af-to inet6 from ($v6_if) to 64:ff9b::/96
+.Ed
+.Pp
+Paired with the example above, the example below can be used on
+another router handling both address families to translate back
+to IPv4:
+.Bd -literal -offset 4n
+pass in on $v6_if inet6 to 64:ff9b::/96 af-to inet from ($v4_if)
+.Ed
+.Sh GRAMMAR
+Syntax for
+.Nm
+in BNF:
+.Bd -literal
+line           = ( option | pf-rule |
+                 antispoof-rule | queue-rule | anchor-rule |
+                 anchor-close | load-anchor | table-rule | include )
+
+option         = "set" ( [ "timeout" ( timeout | "{" timeout-list "}" ) ] |
+                 [ "ruleset-optimization" [ "none" | "basic" |
+                 "profile" ] ] |
+                 [ "optimization" [ "default" | "normal" | "high-latency" |
+                 "satellite" | "aggressive" | "conservative" ] ]
+                 [ "limit" ( limit-item | "{" limit-list "}" ) ] |
+                 [ "loginterface" ( interface-name | "none" ) ] |
+                 [ "block-policy" ( "drop" | "return" ) ] |
+                 [ "state-policy" ( "if-bound" | "floating" ) ]
+                 [ "state-defaults" state-opts ]
+                 [ "fingerprints" filename ] |
+                 [ "skip on" ifspec ] |
+                 [ "debug" ( "emerg" | "alert" | "crit" | "err" |
+                 "warning" | "notice" | "info" | "debug" ) ] |
+                 [ "reassemble" ( "yes" | "no" ) [ "no-df" ] ] )
+
+pf-rule        = action [ ( "in" | "out" ) ]
+                 [ "log" [ "(" logopts ")"] ] [ "quick" ]
+                 [ "on" ( ifspec | "rdomain" number ) ] [ af ]
+                 [ protospec ] [ hosts ] [ filteropts ]
+
+logopts        = logopt [ [ "," ] logopts ]
+logopt         = "all" | "matches" | "user" | "to" interface-name
+
+filteropts     = filteropt [ [ "," ] filteropts ]
+filteropt      = user | group | flags | icmp-type | icmp6-type |
+                 "tos" tos |
+                 ( "no" | "keep" | "modulate" | "synproxy" ) "state"
+                 [ "(" state-opts ")" ] | "scrub" "(" scrubopts ")" |
+                 "fragment" | "allow-opts" | "once" |
+                 "divert-packet" "port" port | "divert-reply" |
+                 "divert-to" host "port" port |
+                 "label" string | "tag" string | [ "!" ] "tagged" string |
+                 "max-pkt-rate" number "/" seconds |
+                 "set delay" number |
+                 "set prio" ( number | "(" number [ [ "," ] number ] ")" ) |
+                 "set queue" ( string | "(" string [ [ "," ] string ] ")" ) |
+                 "rtable" number | "probability" number"%" | "prio" number |
+                 "af-to" af "from" ( redirhost | "{" redirhost-list "}" )
+                 [ "to" ( redirhost | "{" redirhost-list "}" ) ] |
+                 "binat-to" ( redirhost | "{" redirhost-list "}" )
+                 [ portspec ] [ pooltype ] |
+                 "rdr-to" ( redirhost | "{" redirhost-list "}" )
+                 [ portspec ] [ pooltype ] |
+                 "nat-to" ( redirhost | "{" redirhost-list "}" )
+                 [ portspec ] [ pooltype ] [ "static-port" ] |
+                 [ route ] | [ "set tos" tos ] |
+                 [ [ "!" ] "received-on" ( interface-name | interface-group ) ]
+
+scrubopts      = scrubopt [ [ "," ] scrubopts ]
+scrubopt       = "no-df" | "min-ttl" number | "max-mss" number |
+                 "reassemble tcp" | "random-id"
+
+antispoof-rule = "antispoof" [ "log" ] [ "quick" ]
+                 "for" ifspec [ af ] [ "label" string ]
+
+table-rule     = "table" "<" string ">" [ tableopts ]
+tableopts      = tableopt [ tableopts ]
+tableopt       = "persist" | "const" | "counters" |
+                 "file" string | "{" [ tableaddrs ] "}"
+tableaddrs     = tableaddr-spec [ [ "," ] tableaddrs ]
+tableaddr-spec = [ "!" ] tableaddr [ "/" mask-bits ]
+tableaddr      = hostname | ifspec | "self" |
+                 ipv4-dotted-quad | ipv6-coloned-hex
+
+queue-rule     = "queue" string [ "on" interface-name ] queueopts-list
+
+anchor-rule    = "anchor" [ string ] [ ( "in" | "out" ) ] [ "on" ifspec ]
+                 [ af ] [ protospec ] [ hosts ] [ filteropt-list ] [ "{" ]
+
+anchor-close   = "}"
+
+load-anchor    = "load anchor" string "from" filename
+
+queueopts-list = queueopts-list queueopts | queueopts
+queueopts      = ([ "bandwidth" bandwidth ] | [ "min" bandwidth ] |
+                 [ "max" bandwidth ] | [ "parent" string ] |
+                 [ "default" ]) |
+                 ([ "flows" number ] | [ "quantum" number ]) |
+                 [ "qlimit" number ]
+
+bandwidth      = bandwidth-spec [ "burst" bandwidth-spec "for" number "ms" ]
+bandwidth-spec = number ( "" | "K" | "M" | "G" )
+
+action         = "pass" | "match" | "block" [ return ]
+return         = "drop" | "return" |
+                 "return-rst" [ "(" "ttl" number ")" ] |
+                 "return-icmp" [ "(" icmpcode [ [ "," ] icmp6code ] ")" ] |
+                 "return-icmp6" [ "(" icmp6code ")" ]
+icmpcode       = ( icmp-code-name | icmp-code-number )
+icmp6code      = ( icmp6-code-name | icmp6-code-number )
+
+ifspec         = ( [ "!" ] ( interface-name | interface-group ) ) |
+                 "{" interface-list "}"
+interface-list = [ "!" ] ( interface-name | interface-group )
+                 [ [ "," ] interface-list ]
+route          = ( "route-to" | "reply-to" | "dup-to" )
+                 ( redirhost | "{" redirhost-list "}" )
+af             = "inet" | "inet6"
+
+protospec      = "proto" ( proto-name | proto-number |
+                 "{" proto-list "}" )
+proto-list     = ( proto-name | proto-number ) [ [ "," ] proto-list ]
+
+hosts          = "all" |
+                 "from" ( "any" | "no-route" | "urpf-failed" | "self" |
+                 host | "{" host-list "}" | "route" string ) [ port ]
+                 [ os ]
+                 "to"   ( "any" | "no-route" | "self" | host |
+                 "{" host-list "}" | "route" string ) [ port ]
+
+ipspec         = "any" | host | "{" host-list "}"
+host           = [ "!" ] ( address [ "weight" number ] |
+                 address [ "/" mask-bits ] [ "weight" number ] |
+                 "<" string ">" )
+redirhost      = address [ "/" mask-bits ]
+address        = ( interface-name | interface-group |
+                 "(" ( interface-name | interface-group ) ")" |
+                 hostname | ipv4-dotted-quad | ipv6-coloned-hex )
+host-list      = host [ [ "," ] host-list ]
+redirhost-list = redirhost [ [ "," ] redirhost-list ]
+
+port           = "port" ( unary-op | binary-op | "{" op-list "}" )
+portspec       = "port" ( number | name ) [ ":" ( "*" | number | name ) ]
+os             = "os"  ( os-name | "{" os-list "}" )
+user           = "user" ( unary-op | binary-op | "{" op-list "}" )
+group          = "group" ( unary-op | binary-op | "{" op-list "}" )
+
+unary-op       = [ "=" | "!=" | "<" | "<=" | ">" | ">=" ]
+                 ( name | number )
+binary-op      = number ( "<>" | "><" | ":" ) number
+op-list        = ( unary-op | binary-op ) [ [ "," ] op-list ]
+
+os-name        = operating-system-name
+os-list        = os-name [ [ "," ] os-list ]
+
+flags          = "flags" ( [ flag-set ] "/"  flag-set | "any" )
+flag-set       = [ "F" ] [ "S" ] [ "R" ] [ "P" ] [ "A" ] [ "U" ] [ "E" ]
+                 [ "W" ]
+
+icmp-type      = "icmp-type" ( icmp-type-code | "{" icmp-list "}" )
+icmp6-type     = "icmp6-type" ( icmp-type-code | "{" icmp-list "}" )
+icmp-type-code = ( icmp-type-name | icmp-type-number )
+                 [ "code" ( icmp-code-name | icmp-code-number ) ]
+icmp-list      = icmp-type-code [ [ "," ] icmp-list ]
+
+tos            = ( "lowdelay" | "throughput" | "reliability" |
+                 [ "0x" ] number )
+
+state-opts     = state-opt [ [ "," ] state-opts ]
+state-opt      = ( "max" number | "no-sync" | timeout | "sloppy" |
+                 "pflow" | "source-track" [ ( "rule" | "global" ) ] |
+                 "max-src-nodes" number | "max-src-states" number |
+                 "max-src-conn" number |
+                 "max-src-conn-rate" number "/" number |
+                 "overload" "<" string ">" [ "flush" [ "global" ] ] |
+                 "if-bound" | "floating" )
+
+timeout-list   = timeout [ [ "," ] timeout-list ]
+timeout        = ( "tcp.first" | "tcp.opening" | "tcp.established" |
+                 "tcp.closing" | "tcp.finwait" | "tcp.closed" | "tcp.tsdiff" |
+                 "udp.first" | "udp.single" | "udp.multiple" |
+                 "icmp.first" | "icmp.error" |
+                 "other.first" | "other.single" | "other.multiple" |
+                 "frag" | "interval" | "src.track" |
+                 "adaptive.start" | "adaptive.end" ) number
+
+limit-list     = limit-item [ [ "," ] limit-list ]
+limit-item     = ( "states" | "frags" | "src-nodes" | "tables" |
+                 "table-entries" ) number
+
+pooltype       = ( "bitmask" | "least-states" |
+                 "random" | "round-robin" |
+                 "source-hash" [ ( hex-key | string-key ) ] )
+                 [ "sticky-address" ]
+
+include        = "include" filename
+.Ed
+.Sh FILES
+.Bl -tag -width /etc/examples/pf.conf -compact
+.It Pa /etc/hosts
+Host name database.
+.It Pa /etc/pf.conf
+Default location of the ruleset file.
+.It Pa /etc/examples/pf.conf
+Example ruleset file.
+.It Pa /etc/pf.os
+Default location of OS fingerprints.
+.It Pa /etc/protocols
+Protocol name database.
+.It Pa /etc/services
+Service name database.
+.El
+.Sh SEE ALSO
+.Xr pf 4 ,
+.Xr pflow 4 ,
+.Xr pfsync 4 ,
+.Xr pf.os 5 ,
+.Xr pfctl 8 ,
+.Xr pflogd 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 3.0 .

@@ -1,0 +1,779 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="HOWTO for the libstdc++ chapter 27." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 HOWTO:  Chapter 27: Input/Output</title>
+<link rel="StyleSheet" href="../lib3styles.css" type="text/css" />
+<link rel="Start" href="../documentation.html" type="text/html"
+  title="GNU C++ Standard Library" />
+<link rel="Prev" href="../26_numerics/howto.html" type="text/html"
+  title="Numerics" />
+<link rel="Next" href="../ext/howto.html" type="text/html"
+  title="Extensions" />
+<link rel="Copyright" href="../17_intro/license.html" type="text/html" />
+<link rel="Help" href="../faq/index.html" type="text/html" title="F.A.Q." />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Chapter 27:  Input/Output</a></h1>
+
+<p>Chapter 27 deals with iostreams and all their subcomponents
+   and extensions.  All <em>kinds</em> of fun stuff.
+</p>
+
+
+<!-- ####################################################### -->
+<hr />
+<h1>Contents</h1>
+<ul>
+   <li><a href="#1">Copying a file</a></li>
+   <li><a href="#2">The buffering is screwing up my program!</a></li>
+   <li><a href="#3">Binary I/O</a></li>
+   <li><a href="#5">What is this &lt;sstream&gt;/stringstreams thing?</a></li>
+   <li><a href="#6">Deriving a stream buffer</a></li>
+   <li><a href="#7">More on binary I/O</a></li>
+   <li><a href="#8">Pathetic performance?  Ditch C.</a></li>
+   <li><a href="#9">Threads and I/O</a></li>
+   <li><a href="#10">Which header?</a></li>
+   <li><a href="#11">Using FILE*s and file descriptors with IOStreams</a></li>
+</ul>
+
+<hr />
+
+<!-- ####################################################### -->
+
+<h2><a name="1">Copying a file</a></h2>
+   <p>So you want to copy a file quickly and easily, and most important,
+      completely portably.  And since this is C++, you have an open
+      ifstream (call it IN) and an open ofstream (call it OUT):
+   </p>
+   <pre>
+   #include &lt;fstream&gt;
+
+   std::ifstream  IN ("input_file");
+   std::ofstream  OUT ("output_file"); </pre>
+   <p>Here's the easiest way to get it completely wrong:
+   </p>
+   <pre>
+   OUT &lt;&lt; IN;</pre>
+   <p>For those of you who don't already know why this doesn't work
+      (probably from having done it before), I invite you to quickly
+      create a simple text file called &quot;input_file&quot; containing
+      the sentence
+   </p>
+      <pre>
+      The quick brown fox jumped over the lazy dog.</pre>
+   <p>surrounded by blank lines.  Code it up and try it.  The contents
+      of &quot;output_file&quot; may surprise you.
+   </p>
+   <p>Seriously, go do it.  Get surprised, then come back.  It's worth it.
+   </p>
+   <hr width="60%" />
+   <p>The thing to remember is that the <code>basic_[io]stream</code> classes
+      handle formatting, nothing else.  In particular, they break up on
+      whitespace.  The actual reading, writing, and storing of data is
+      handled by the <code>basic_streambuf</code> family.  Fortunately, the
+      <code>operator&lt;&lt;</code> is overloaded to take an ostream and
+      a pointer-to-streambuf, in order to help with just this kind of
+      &quot;dump the data verbatim&quot; situation.
+   </p>
+   <p>Why a <em>pointer</em> to streambuf and not just a streambuf?  Well,
+      the [io]streams hold pointers (or references, depending on the
+      implementation) to their buffers, not the actual
+      buffers.  This allows polymorphic behavior on the part of the buffers
+      as well as the streams themselves.  The pointer is easily retrieved
+      using the <code>rdbuf()</code> member function.  Therefore, the easiest
+      way to copy the file is:
+   </p>
+   <pre>
+   OUT &lt;&lt; IN.rdbuf();</pre>
+   <p>So what <em>was</em> happening with OUT&lt;&lt;IN?  Undefined
+      behavior, since that particular &lt;&lt; isn't defined by the Standard.
+      I have seen instances where it is implemented, but the character
+      extraction process removes all the whitespace, leaving you with no
+      blank lines and only &quot;Thequickbrownfox...&quot;.  With
+      libraries that do not define that operator, IN (or one of IN's
+      member pointers) sometimes gets converted to a void*, and the output
+      file then contains a perfect text representation of a hexadecimal
+      address (quite a big surprise).  Others don't compile at all.
+   </p>
+   <p>Also note that none of this is specific to o<b>*f*</b>streams. 
+      The operators shown above are all defined in the parent 
+      basic_ostream class and are therefore available with all possible
+      descendants.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="2">The buffering is screwing up my program!</a></h2>
+<!--
+  This is not written very well.  I need to redo this section.
+-->
+   <p>First, are you sure that you understand buffering?  Particularly
+      the fact that C++ may not, in fact, have anything to do with it?
+   </p>
+   <p>The rules for buffering can be a little odd, but they aren't any
+      different from those of C.  (Maybe that's why they can be a bit
+      odd.)  Many people think that writing a newline to an output
+      stream automatically flushes the output buffer.  This is true only
+      when the output stream is, in fact, a terminal and not a file
+      or some other device -- and <em>that</em> may not even be true
+      since C++ says nothing about files nor terminals.  All of that is
+      system-dependent.  (The &quot;newline-buffer-flushing only occurring
+      on terminals&quot; thing is mostly true on Unix systems, though.)
+   </p>
+   <p>Some people also believe that sending <code>endl</code> down an
+      output stream only writes a newline.  This is incorrect; after a
+      newline is written, the buffer is also flushed.  Perhaps this
+      is the effect you want when writing to a screen -- get the text
+      out as soon as possible, etc -- but the buffering is largely
+      wasted when doing this to a file:
+   </p>
+   <pre>
+   output &lt;&lt; &quot;a line of text&quot; &lt;&lt; endl;
+   output &lt;&lt; some_data_variable &lt;&lt; endl;
+   output &lt;&lt; &quot;another line of text&quot; &lt;&lt; endl; </pre>
+   <p>The proper thing to do in this case to just write the data out
+      and let the libraries and the system worry about the buffering.
+      If you need a newline, just write a newline:
+   </p>
+   <pre>
+   output &lt;&lt; &quot;a line of text\n&quot;
+          &lt;&lt; some_data_variable &lt;&lt; '\n'
+          &lt;&lt; &quot;another line of text\n&quot;; </pre>
+   <p>I have also joined the output statements into a single statement.
+      You could make the code prettier by moving the single newline to
+      the start of the quoted text on the last line, for example.
+   </p>
+   <p>If you do need to flush the buffer above, you can send an
+      <code>endl</code> if you also need a newline, or just flush the buffer
+      yourself:
+   </p>
+   <pre>
+   output &lt;&lt; ...... &lt;&lt; flush;    // can use std::flush manipulator
+   output.flush();               // or call a member fn </pre>
+   <p>On the other hand, there are times when writing to a file should
+      be like writing to standard error; no buffering should be done 
+      because the data needs to appear quickly (a prime example is a
+      log file for security-related information).  The way to do this is
+      just to turn off the buffering <em>before any I/O operations at
+      all</em> have been done (note that opening counts as an I/O operation):
+   </p>
+   <pre>
+   std::ofstream    os;
+   std::ifstream    is;
+   int   i;
+
+   os.rdbuf()-&gt;pubsetbuf(0,0);
+   is.rdbuf()-&gt;pubsetbuf(0,0);
+
+   os.open(&quot;/foo/bar/baz&quot;);
+   is.open(&quot;/qux/quux/quuux&quot;);
+   ...
+   os &lt;&lt; &quot;this data is written immediately\n&quot;;
+   is &gt;&gt; i;   // and this will probably cause a disk read </pre>
+   <p>Since all aspects of buffering are handled by a streambuf-derived
+      member, it is necessary to get at that member with <code>rdbuf()</code>.
+      Then the public version of <code>setbuf</code> can be called.  The 
+      arguments are the same as those for the Standard C I/O Library
+      function (a buffer area followed by its size).
+   </p>
+   <p>A great deal of this is implementation-dependent.  For example,
+      <code>streambuf</code> does not specify any actions for its own 
+      <code>setbuf()</code>-ish functions; the classes derived from
+      <code>streambuf</code> each define behavior that &quot;makes 
+      sense&quot; for that class:  an argument of (0,0) turns off buffering
+      for <code>filebuf</code> but does nothing at all for its siblings
+      <code>stringbuf</code> and <code>strstreambuf</code>, and specifying
+      anything other than (0,0) has varying effects.
+      User-defined classes derived from <code>streambuf</code> can
+      do whatever they want.  (For <code>filebuf</code> and arguments for
+      <code>(p,s)</code> other than zeros, libstdc++ does what you'd expect:
+      the first <code>s</code> bytes of <code>p</code> are used as a buffer,
+      which you must allocate and deallocate.)
+   </p>
+   <p>A last reminder:  there are usually more buffers involved than
+      just those at the language/library level.  Kernel buffers, disk
+      buffers, and the like will also have an effect.  Inspecting and
+      changing those are system-dependent.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="3">Binary I/O</a></h2>
+   <p>The first and most important thing to remember about binary I/O is
+      that opening a file with <code>ios::binary</code> is not, repeat
+      <em>not</em>, the only thing you have to do.  It is not a silver
+      bullet, and will not allow you to use the <code>&lt;&lt;/&gt;&gt;</code>
+      operators of the normal fstreams to do binary I/O.
+   </p>
+   <p>Sorry.  Them's the breaks.
+   </p>
+   <p>This isn't going to try and be a complete tutorial on reading and
+      writing binary files (because &quot;binary&quot;
+      <a href="#7">covers a lot of ground)</a>, but we will try and clear
+      up a couple of misconceptions and common errors.
+   </p>
+   <p>First, <code>ios::binary</code> has exactly one defined effect, no more
+      and no less.  Normal text mode has to be concerned with the newline
+      characters, and the runtime system will translate between (for
+      example) '\n' and the appropriate end-of-line sequence (LF on Unix,
+      CRLF on DOS, CR on Macintosh, etc).  (There are other things that
+      normal mode does, but that's the most obvious.)  Opening a file in
+      binary mode disables this conversion, so reading a CRLF sequence
+      under Windows won't accidentally get mapped to a '\n' character, etc.
+      Binary mode is not supposed to suddenly give you a bitstream, and
+      if it is doing so in your program then you've discovered a bug in
+      your vendor's compiler (or some other part of the C++ implementation,
+      possibly the runtime system).
+   </p>
+   <p>Second, using <code>&lt;&lt;</code> to write and <code>&gt;&gt;</code> to
+      read isn't going to work with the standard file stream classes, even
+      if you use <code>skipws</code> during reading.  Why not?  Because 
+      ifstream and ofstream exist for the purpose of <em>formatting</em>,
+      not reading and writing.  Their job is to interpret the data into
+      text characters, and that's exactly what you don't want to happen
+      during binary I/O.
+   </p>
+   <p>Third, using the <code>get()</code> and <code>put()/write()</code> member
+      functions still aren't guaranteed to help you.  These are
+      &quot;unformatted&quot; I/O functions, but still character-based.
+      (This may or may not be what you want, see below.)
+   </p>
+   <p>Notice how all the problems here are due to the inappropriate use
+      of <em>formatting</em> functions and classes to perform something
+      which <em>requires</em> that formatting not be done?  There are a
+      seemingly infinite number of solutions, and a few are listed here:
+   </p>
+   <ul>
+      <li>&quot;Derive your own fstream-type classes and write your own
+          &lt;&lt;/&gt;&gt; operators to do binary I/O on whatever data
+          types you're using.&quot;  This is a Bad Thing, because while
+          the compiler would probably be just fine with it, other humans
+          are going to be confused.  The overloaded bitshift operators
+          have a well-defined meaning (formatting), and this breaks it.
+      </li>
+      <li>&quot;Build the file structure in memory, then <code>mmap()</code>
+          the file and copy the structure.&quot;  Well, this is easy to
+          make work, and easy to break, and is pretty equivalent to
+          using <code>::read()</code> and <code>::write()</code> directly, and
+          makes no use of the iostream library at all...
+      </li>
+      <li>&quot;Use streambufs, that's what they're there for.&quot;
+          While not trivial for the beginner, this is the best of all
+          solutions.  The streambuf/filebuf layer is the layer that is
+          responsible for actual I/O.  If you want to use the C++
+          library for binary I/O, this is where you start.
+      </li>
+   </ul>
+   <p>How to go about using streambufs is a bit beyond the scope of this
+      document (at least for now), but while streambufs go a long way,
+      they still leave a couple of things up to you, the programmer.
+      As an example, byte ordering is completely between you and the
+      operating system, and you have to handle it yourself.
+   </p>
+   <p>Deriving a streambuf or filebuf
+      class from the standard ones, one that is specific to your data
+      types (or an abstraction thereof) is probably a good idea, and
+      lots of examples exist in journals and on Usenet.  Using the
+      standard filebufs directly (either by declaring your own or by
+      using the pointer returned from an fstream's <code>rdbuf()</code>)
+      is certainly feasible as well.
+   </p>
+   <p>One area that causes problems is trying to do bit-by-bit operations
+      with filebufs.  C++ is no different from C in this respect:  I/O
+      must be done at the byte level.  If you're trying to read or write
+      a few bits at a time, you're going about it the wrong way.  You
+      must read/write an integral number of bytes and then process the
+      bytes.  (For example, the streambuf functions take and return
+      variables of type <code>int_type</code>.)
+   </p>
+   <p>Another area of problems is opening text files in binary mode.
+      Generally, binary mode is intended for binary files, and opening
+      text files in binary mode means that you now have to deal with all of 
+      those end-of-line and end-of-file problems that we mentioned before.
+      An instructive thread from comp.lang.c++.moderated delved off into
+      this topic starting more or less at
+      <a href="http://groups.google.com/groups?oi=djq&selm=an_436187505">this</a>
+      article and continuing to the end of the thread.  (You'll have to
+      sort through some flames every couple of paragraphs, but the points
+      made are good ones.)
+   </p>
+ 
+<hr />
+<h2><a name="5">What is this &lt;sstream&gt;/stringstreams thing?</a></h2>
+   <p>Stringstreams (defined in the header <code>&lt;sstream&gt;</code>)
+      are in this author's opinion one of the coolest things since
+      sliced time.  An example of their use is in the Received Wisdom
+      section for Chapter 21 (Strings),
+      <a href="../21_strings/howto.html#1.1internal"> describing how to
+      format strings</a>.
+   </p>
+   <p>The quick definition is:  they are siblings of ifstream and ofstream,
+      and they do for <code>std::string</code> what their siblings do for
+      files.  All that work you put into writing <code>&lt;&lt;</code> and
+      <code>&gt;&gt;</code> functions for your classes now pays off
+      <em>again!</em>  Need to format a string before passing the string
+      to a function?  Send your stuff via <code>&lt;&lt;</code> to an
+      ostringstream.  You've read a string as input and need to parse it?
+      Initialize an istringstream with that string, and then pull pieces
+      out of it with <code>&gt;&gt;</code>.  Have a stringstream and need to
+      get a copy of the string inside?  Just call the <code>str()</code>
+      member function.
+   </p>
+   <p>This only works if you've written your
+      <code>&lt;&lt;</code>/<code>&gt;&gt;</code> functions correctly, though,
+      and correctly means that they take istreams and ostreams as
+      parameters, not i<b>f</b>streams and o<b>f</b>streams.  If they
+      take the latter, then your I/O operators will work fine with
+      file streams, but with nothing else -- including stringstreams.
+   </p>
+   <p>If you are a user of the strstream classes, you need to update
+      your code.  You don't have to explicitly append <code>ends</code> to
+      terminate the C-style character array, you don't have to mess with
+      &quot;freezing&quot; functions, and you don't have to manage the
+      memory yourself.  The strstreams have been officially deprecated,
+      which means that 1) future revisions of the C++ Standard won't
+      support them, and 2) if you use them, people will laugh at you.
+   </p>
+
+<hr />
+<h2><a name="6">Deriving a stream buffer</a></h2>
+   <p>Creating your own stream buffers for I/O can be remarkably easy.
+      If you are interested in doing so, we highly recommend two very
+      excellent books:
+      <a href="http://www.langer.camelot.de/iostreams.html">Standard C++
+      IOStreams and Locales</a> by Langer and Kreft, ISBN 0-201-18395-1, and
+      <a href="http://www.josuttis.com/libbook/">The C++ Standard Library</a>
+      by Nicolai Josuttis, ISBN 0-201-37926-0.  Both are published by
+      Addison-Wesley, who isn't paying us a cent for saying that, honest.
+   </p>
+   <p>Here is a simple example, io/outbuf1, from the Josuttis text.  It
+      transforms everything sent through it to uppercase.  This version
+      assumes many things about the nature of the character type being
+      used (for more information, read the books or the newsgroups):
+   </p>
+   <pre>
+    #include &lt;iostream&gt;
+    #include &lt;streambuf&gt;
+    #include &lt;locale&gt;
+    #include &lt;cstdio&gt;
+
+    class outbuf : public std::streambuf
+    {
+      protected:
+	/* central output function
+	 * - print characters in uppercase mode
+	 */
+	virtual int_type overflow (int_type c) {
+	    if (c != EOF) {
+		// convert lowercase to uppercase
+		c = std::toupper(static_cast&lt;char&gt;(c),getloc());
+
+		// and write the character to the standard output
+		if (putchar(c) == EOF) {
+		    return EOF;
+		}
+	    }
+	    return c;
+	}
+    };
+
+    int main()
+    {
+	// create special output buffer
+	outbuf ob;
+	// initialize output stream with that output buffer
+	std::ostream out(&amp;ob);
+
+	out &lt;&lt; "31 hexadecimal: "
+	    &lt;&lt; std::hex &lt;&lt; 31 &lt;&lt; std::endl;
+	return 0;
+    }
+   </pre>
+   <p>Try it yourself!  More examples can be found in 3.1.x code, in
+      <code>include/ext/*_filebuf.h</code>, and on
+      <a href="http://www.informatik.uni-konstanz.de/~kuehl/c++/iostream/">Dietmar
+      K&uuml;hl's IOStreams page</a>.
+   </p>
+
+<hr />
+<h2><a name="7">More on binary I/O</a></h2>
+   <p>Towards the beginning of February 2001, the subject of
+      &quot;binary&quot; I/O was brought up in a couple of places at the
+      same time.  One notable place was Usenet, where James Kanze and
+      Dietmar K&uuml;hl separately posted articles on why attempting
+      generic binary I/O was not a good idea.  (Here are copies of
+      <a href="binary_iostreams_kanze.txt">Kanze's article</a> and
+      <a href="binary_iostreams_kuehl.txt">K&uuml;hl's article</a>.)
+   </p>
+   <p>Briefly, the problems of byte ordering and type sizes mean that
+      the unformatted functions like <code>ostream::put()</code> and
+      <code>istream::get()</code> cannot safely be used to communicate
+      between arbitrary programs, or across a network, or from one
+      invocation of a program to another invocation of the same program
+      on a different platform, etc.
+   </p>
+   <p>The entire Usenet thread is instructive, and took place under the
+      subject heading &quot;binary iostreams&quot; on both comp.std.c++
+      and comp.lang.c++.moderated in parallel.  Also in that thread,
+      Dietmar K&uuml;hl mentioned that he had written a pair of stream
+      classes that would read and write XDR, which is a good step towards
+      a portable binary format.
+   </p>
+
+<hr />
+<h2><a name="8">Pathetic performance?  Ditch C.</a></h2>
+   <p>It sounds like a flame on C, but it isn't.  Really.  Calm down.
+      I'm just saying it to get your attention.
+   </p>
+   <p>Because the C++ library includes the C library, both C-style and
+      C++-style I/O have to work at the same time.  For example:
+   </p>
+   <pre>
+     #include &lt;iostream&gt;
+     #include &lt;cstdio&gt;
+
+     std::cout &lt;&lt; &quot;Hel&quot;;
+     std::printf (&quot;lo, worl&quot;);
+     std::cout &lt;&lt; &quot;d!\n&quot;;
+   </pre>
+   <p>This must do what you think it does.
+   </p>
+   <p>Alert members of the audience will immediately notice that buffering
+      is going to make a hash of the output unless special steps are taken.
+   </p>
+   <p>The special steps taken by libstdc++, at least for version 3.0,
+      involve doing very little buffering for the standard streams, leaving
+      most of the buffering to the underlying C library.  (This kind of
+      thing is <a href="../explanations.html#cstdio">tricky to get right</a>.)
+      The upside is that correctness is ensured.  The downside is that
+      writing through <code>cout</code> can quite easily lead to awful
+      performance when the C++ I/O library is layered on top of the C I/O
+      library (as it is for 3.0 by default).  Some patches have been applied
+      which improve the situation for 3.1.
+   </p>
+   <p>However, the C and C++ standard streams only need to be kept in sync
+      when both libraries' facilities are in use.  If your program only uses
+      C++ I/O, then there's no need to sync with the C streams.  The right
+      thing to do in this case is to call
+   </p>
+   <pre>
+     #include <em>any of the I/O headers such as ios, iostream, etc</em>
+
+     std::ios::sync_with_stdio(false);
+   </pre>
+   <p>You must do this before performing any I/O via the C++ stream objects.
+      Once you call this, the C++ streams will operate independently of the
+      (unused) C streams.  For GCC 3.x, this means that <code>cout</code> and
+      company will become fully buffered on their own.
+   </p>
+   <p>Note, by the way, that the synchronization requirement only applies to
+      the standard streams (<code>cin</code>, <code>cout</code>,
+      <code>cerr</code>,
+      <code>clog</code>, and their wide-character counterparts).  File stream
+      objects that you declare yourself have no such requirement and are fully
+      buffered.
+   </p>
+
+<hr />
+<h2><a name="9">Threads and I/O</a></h2>
+   <p>I'll assume that you have already read the
+      <a href="../17_intro/howto.html#3">general notes on library threads</a>,
+      and the
+      <a href="../23_containers/howto.html#3">notes on threaded container
+      access</a> (you might not think of an I/O stream as a container, but
+      the points made there also hold here).  If you have not read them,
+      please do so first.
+   </p>
+   <p>This gets a bit tricky.  Please read carefully, and bear with me.
+   </p>
+   <h3>Structure</h3>
+   <p>As described <a href="../explanations.html#cstdio">here</a>, a wrapper
+      type called <code>__basic_file</code> provides our abstraction layer
+      for the <code>std::filebuf</code> classes.  Nearly all decisions dealing
+      with actual input and output must be made in <code>__basic_file</code>.
+   </p>
+   <p>A generic locking mechanism is somewhat in place at the filebuf layer,
+      but is not used in the current code.  Providing locking at any higher
+      level is akin to providing locking within containers, and is not done
+      for the same reasons (see the links above).
+   </p>
+   <h3>The defaults for 3.0.x</h3>
+   <p>The __basic_file type is simply a collection of small wrappers around
+      the C stdio layer (again, see the link under Structure).  We do no
+      locking ourselves, but simply pass through to calls to <code>fopen</code>,
+      <code>fwrite</code>, and so forth.
+   </p>
+   <p>So, for 3.0, the question of &quot;is multithreading safe for I/O&quot; 
+      must be answered with, &quot;is your platform's C library threadsafe
+      for I/O?&quot;  Some are by default, some are not; many offer multiple
+      implementations of the C library with varying tradeoffs of threadsafety
+      and efficiency.  You, the programmer, are always required to take care
+      with multiple threads.
+   </p>
+   <p>(As an example, the POSIX standard requires that C stdio FILE*
+       operations are atomic.  POSIX-conforming C libraries (e.g, on Solaris
+       and GNU/Linux) have an internal mutex to serialize operations on
+       FILE*s.  However, you still need to not do stupid things like calling
+       <code>fclose(fs)</code> in one thread followed by an access of
+       <code>fs</code> in another.)
+   </p>
+   <p>So, if your platform's C library is threadsafe, then your
+      <code>fstream</code> I/O operations will be threadsafe at the lowest
+      level.  For higher-level operations, such as manipulating the data
+      contained in the stream formatting classes (e.g., setting up callbacks
+      inside an <code>std::ofstream</code>), you need to guard such accesses
+      like any other critical shared resource.
+   </p>
+   <h3>The future</h3>
+   <p>As already mentioned <a href="../explanations.html#cstdio">here</a>, a
+      second choice is available for I/O implementations:  libio.  This is
+      disabled by default, and in fact will not currently work due to other
+      issues.  It will be revisited, however.
+   </p>
+   <p>The libio code is a subset of the guts of the GNU libc (glibc) I/O
+      implementation.  When libio is in use, the <code>__basic_file</code>
+      type is basically derived from FILE.  (The real situation is more
+      complex than that... it's derived from an internal type used to
+      implement FILE.  See libio/libioP.h to see scary things done with
+      vtbls.)  The result is that there is no &quot;layer&quot; of C stdio
+      to go through; the filebuf makes calls directly into the same
+      functions used to implement <code>fread</code>, <code>fwrite</code>,
+      and so forth, using internal data structures.  (And when I say
+      &quot;makes calls directly,&quot; I mean the function is literally
+      replaced by a jump into an internal function.  Fast but frightening.
+      *grin*)
+   </p>
+   <p>Also, the libio internal locks are used.  This requires pulling in
+      large chunks of glibc, such as a pthreads implementation, and is one
+      of the issues preventing widespread use of libio as the libstdc++
+      cstdio implementation.
+   </p>
+   <p>But we plan to make this work, at least as an option if not a future
+      default.  Platforms running a copy of glibc with a recent-enough
+      version will see calls from libstdc++ directly into the glibc already
+      installed.  For other platforms, a copy of the libio subsection will
+      be built and included in libstdc++.
+   </p>
+   <h3>Alternatives</h3>
+   <p>Don't forget that other cstdio implementations are possible.  You could
+      easily write one to perform your own forms of locking, to solve your
+      &quot;interesting&quot; problems.
+   </p>
+
+<hr />
+<h2><a name="10">Which header?</a></h2>
+   <p>To minimize the time you have to wait on the compiler, it's good to
+      only include the headers you really need.  Many people simply include
+      &lt;iostream&gt; when they don't need to -- and that can <em>penalize
+      your runtime as well.</em>  Here are some tips on which header to use
+      for which situations, starting with the simplest.
+   </p>
+   <p><strong>&lt;iosfwd&gt;</strong> should be included whenever you simply
+      need the <em>name</em> of an I/O-related class, such as
+      &quot;ofstream&quot; or &quot;basic_streambuf&quot;.  Like the name
+      implies, these are forward declarations.  (A word to all you fellow
+      old school programmers:  trying to forward declare classes like
+      &quot;class istream;&quot; won't work.  Look in the iosfwd header if
+      you'd like to know why.)  For example,
+   </p>
+   <pre>
+    #include &lt;iosfwd&gt;
+
+    class MyClass
+    {
+        ....
+        std::ifstream&amp;   input_file;
+    };
+
+    extern std::ostream&amp; operator&lt;&lt; (std::ostream&amp;, MyClass&amp;);
+   </pre>
+   <p><strong>&lt;ios&gt;</strong> declares the base classes for the entire
+      I/O stream hierarchy, std::ios_base and std::basic_ios&lt;charT&gt;, the
+      counting types std::streamoff and std::streamsize, the file
+      positioning type std::fpos, and the various manipulators like
+      std::hex, std::fixed, std::noshowbase, and so forth.
+   </p>
+   <p>The ios_base class is what holds the format flags, the state flags,
+      and the functions which change them (setf(), width(), precision(),
+      etc).  You can also store extra data and register callback functions
+      through ios_base, but that has been historically underused.  Anything
+      which doesn't depend on the type of characters stored is consolidated
+      here.
+   </p>
+   <p>The template class basic_ios is the highest template class in the
+      hierarchy; it is the first one depending on the character type, and
+      holds all general state associated with that type:  the pointer to the
+      polymorphic stream buffer, the facet information, etc.
+   </p>
+   <p><strong>&lt;streambuf&gt;</strong> declares the template class
+      basic_streambuf, and two standard instantiations, streambuf and
+      wstreambuf.  If you need to work with the vastly useful and capable
+      stream buffer classes, e.g., to create a new form of storage
+      transport, this header is the one to include.
+   </p>
+   <p><strong>&lt;istream&gt;</strong>/<strong>&lt;ostream&gt;</strong> are
+      the headers to include when you are using the &gt;&gt;/&lt;&lt;
+      interface, or any of the other abstract stream formatting functions.
+      For example,
+   </p>
+   <pre>
+    #include &lt;istream&gt;
+
+    std::ostream&amp; operator&lt;&lt; (std::ostream&amp; os, MyClass&amp; c)
+    {
+       return os &lt;&lt; c.data1() &lt;&lt; c.data2();
+    }
+   </pre>
+   <p>The std::istream and std::ostream classes are the abstract parents of
+      the various concrete implementations.  If you are only using the
+      interfaces, then you only need to use the appropriate interface header.
+   </p>
+   <p><strong>&lt;iomanip&gt;</strong> provides &quot;extractors and inserters
+      that alter information maintained by class ios_base and its derived
+      classes,&quot; such as std::setprecision and std::setw.  If you need
+      to write expressions like <code>os &lt;&lt; setw(3);</code> or
+      <code>is &gt;&gt; setbase(8);</code>, you must include &lt;iomanip&gt;.
+   </p>
+   <p><strong>&lt;sstream&gt;</strong>/<strong>&lt;fstream&gt;</strong>
+      declare the six stringstream and fstream classes.  As they are the
+      standard concrete descendants of istream and ostream, you will already
+      know about them.
+   </p>
+   <p>Finally, <strong>&lt;iostream&gt;</strong> provides the eight standard
+      global objects (cin, cout, etc).  To do this correctly, this header
+      also provides the contents of the &lt;istream&gt; and &lt;ostream&gt;
+      headers, but nothing else.  The contents of this header look like
+   </p>
+   <pre>
+    #include &lt;ostream&gt;
+    #include &lt;istream&gt;
+
+    namespace std
+    {
+        extern istream cin;
+        extern ostream cout;
+        ....
+
+        // this is explained below
+        <strong>static ios_base::Init __foo;</strong>    // not its real name
+    }
+   </pre>
+   <p>Now, the runtime penalty mentioned previously:  the global objects
+      must be initialized before any of your own code uses them; this is
+      guaranteed by the standard.  Like any other global object, they must
+      be initialized once and only once.  This is typically done with a
+      construct like the one above, and the nested class ios_base::Init is 
+      specified in the standard for just this reason.
+   </p>
+   <p>How does it work?  Because the header is included before any of your
+      code, the <strong>__foo</strong> object is constructed before any of
+      your objects.  (Global objects are built in the order in which they
+      are declared, and destroyed in reverse order.)  The first time the
+      constructor runs, the eight stream objects are set up.
+   </p>
+   <p>The <code>static</code> keyword means that each object file compiled
+      from a source file containing &lt;iostream&gt; will have its own
+      private copy of <strong>__foo</strong>.  There is no specified order
+      of construction across object files (it's one of those pesky NP
+      problems that make life so interesting), so one copy in each object
+      file means that the stream objects are guaranteed to be set up before
+      any of your code which uses them could run, thereby meeting the
+      requirements of the standard.
+   </p>
+   <p>The penalty, of course, is that after the first copy of
+      <strong>__foo</strong> is constructed, all the others are just wasted
+      processor time.  The time spent is merely for an increment-and-test
+      inside a function call, but over several dozen or hundreds of object
+      files, that time can add up.  (It's not in a tight loop, either.)
+   </p>
+   <p>The lesson?  Only include &lt;iostream&gt; when you need to use one of
+      the standard objects in that source file; you'll pay less startup
+      time.  Only include the header files you need to in general; your
+      compile times will go down when there's less parsing work to do.
+   </p>
+
+
+<hr />
+<h2><a name="11">Using FILE*s and file descriptors with IOStreams</a></h2>
+   <!-- referenced by ext/howto.html#2, update link if numbering changes -->
+   <p>The v2 library included non-standard extensions to construct
+      <code>std::filebuf</code>s from C stdio types such as
+      <code>FILE*</code>s and POSIX file descriptors.
+      Today the recommended way to use stdio types with libstdc++-v3
+      IOStreams is via the <code>stdio_filebuf</code> class (see below),
+      but earlier releases provided slightly different mechanisms.
+   </p>
+   <ul>
+     <li>3.0.x <code>filebuf</code>s have another ctor with this signature:
+         <br />
+        <code>basic_filebuf(__c_file_type*, ios_base::openmode, int_type);</code>
+         <br />This comes in very handy in a number of places, such as
+         attaching Unix sockets, pipes, and anything else which uses file
+         descriptors, into the IOStream buffering classes.  The three
+         arguments are as follows:
+         <ul>
+          <li><code>__c_file_type*      F   </code>
+              // the __c_file_type typedef usually boils down to stdio's FILE
+          </li>
+          <li><code>ios_base::openmode  M   </code>
+              // same as all the other uses of openmode
+          </li>
+          <li><code>int_type            B   </code>
+              // buffer size, defaults to BUFSIZ if not specified
+          </li>
+         </ul>
+         For those wanting to use file descriptors instead of FILE*'s, I
+         invite you to contemplate the mysteries of C's <code>fdopen()</code>.
+     </li>
+     <li>In library snapshot 3.0.95 and later, <code>filebuf</code>s bring
+         back an old extension:  the <code>fd()</code> member function.  The
+         integer returned from this function can be used for whatever file
+         descriptors can be used for on your platform.  Naturally, the
+         library cannot track what you do on your own with a file descriptor,
+         so if you perform any I/O directly, don't expect the library to be
+         aware of it.
+     </li>
+     <li>Beginning with 3.1, the extra <code>filebuf</code> constructor and
+         the <code>fd()</code> function were removed from the standard
+         filebuf.  Instead, <code>&lt;ext/stdio_filebuf.h&gt;</code> contains
+         a derived class called
+         <a href="http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/class____gnu__cxx_1_1stdio__filebuf.html"><code>__gnu_cxx::stdio_filebuf</code></a>.
+         This class can be constructed from a C <code>FILE*</code> or a file
+         descriptor, and provides the <code>fd()</code> function.
+     </li>
+   </ul>
+   <p>If you want to access a <code>filebuf</code>s file descriptor to
+      implement file locking (e.g. using the <code>fcntl()</code> system
+      call) then you might be interested in Henry Suter's
+      <a href="http://suter.home.cern.ch/suter/RWLock.html">RWLock</a>
+      class.
+   </p>
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="../17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>
+
+

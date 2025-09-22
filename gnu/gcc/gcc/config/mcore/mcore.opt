@@ -1,0 +1,80 @@
+; Options for the Motorola MCore port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+m210
+Target RejectNegative Report InverseMask(M340)
+Generate code for the M*Core M210
+
+m340
+Target RejectNegative Report Mask(M340)
+Generate code for the M*Core M340
+
+m4align
+Target RejectNegative Report InverseMask(8ALIGN)
+Set maximum alignment to 4
+
+m4byte-functions
+Target Report Mask(OVERALIGN_FUNC)
+Force functions to be aligned to a 4 byte boundary
+
+m8align
+Target RejectNegative Report Mask(8ALIGN)
+Set maximum alignment to 8
+
+mbig-endian
+Target RejectNegative Report InverseMask(LITTLE_END)
+Generate big-endian code
+
+mcallgraph-data
+Target Report Mask(CG_DATA)
+Emit call graph information
+
+mdiv
+Target Report Mask(DIV)
+Use the divide instruction
+
+mhardlit
+Target Report Mask(HARDLIT)
+Inline constants if it can be done in 2 insns or less
+
+mlittle-endian
+Target RejectNegative Report Mask(LITTLE_END)
+Generate little-endian code
+
+; Not used by the compiler proper.
+mno-lsim
+Target RejectNegative Undocumented
+
+mrelax-immediates
+Target Report Mask(RELAX_IMM)
+Use arbitrary sized immediates in bit operations
+
+mslow-bytes
+Target Report Mask(SLOW_BYTES)
+Prefer word accesses over byte accesses
+
+mstack-increment=
+Target RejectNegative Joined UInteger Var(mcore_stack_increment) VarExists
+Set the maximum amount for a single stack increment operation
+
+mwide-bitfields
+Target Report Mask(W_FIELD)
+Always treat bitfields as int-sized

@@ -1,0 +1,11 @@
+#!/bin/ksh
+#
+# $OpenBSD: sasyncd,v 1.2 2018/01/11 19:52:12 rpe Exp $
+
+daemon="/usr/sbin/sasyncd"
+
+. /etc/rc.d/rc.subr
+
+pexp="sasyncd: \[priv\]"
+
+rc_cmd $1

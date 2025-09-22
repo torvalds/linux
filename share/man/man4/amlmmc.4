@@ -1,0 +1,51 @@
+.\"	$OpenBSD: amlmmc.4,v 1.1 2019/09/03 21:02:51 kettenis Exp $
+.\"
+.\" Copyright (c) 2019 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 3 2019 $
+.Dt AMLMMC 4
+.Os
+.Sh NAME
+.Nm amlmmc
+.Nd Amlogic MMC/SD/SDIO controller
+.Sh SYNOPSIS
+.Cd "amlmmc* at fdt?"
+.Cd "sdmmc* at amlmmc?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various MMC/SD/SDIO controllers integrated
+on various Amlogic SoCs.
+.Pp
+The
+.Xr sdmmc 4
+subsystem performs SD/MMC transactions to communicate with whatever
+MMC/SD/SDIO devices are inserted into the card slot or directly
+connected to the controller.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sdmmc 4
+.Sh HISTORY
+.Ox
+support for
+.Nm
+first appeared in
+.Ox 6.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

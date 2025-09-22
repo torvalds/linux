@@ -1,0 +1,195 @@
+.\"	$OpenBSD: getdents.2,v 1.4 2022/08/04 06:20:24 jsg Exp $
+.\"	$NetBSD: getdirentries.2,v 1.7 1995/10/12 15:40:50 jtc Exp $
+.\"
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)getdirentries.2	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: August 4 2022 $
+.Dt GETDENTS 2
+.Os
+.Sh NAME
+.Nm getdents
+.Nd get directory entries in a filesystem independent format
+.Sh SYNOPSIS
+.In dirent.h
+.Ft int
+.Fn getdents "int fd" "void *buf" "size_t nbytes"
+.Sh DESCRIPTION
+.Fn getdents
+reads directory entries from the directory
+referenced by the file descriptor
+.Fa fd
+into the buffer pointed to by
+.Fa buf ,
+in a filesystem independent format.
+Up to
+.Fa nbytes
+of data will be transferred.
+.Fa nbytes
+must be greater than or equal to the
+block size associated with the file (see
+.Xr stat 2 ) .
+Some filesystems may not support
+.Fn getdents
+with buffers smaller than this size.
+.Pp
+The data in the buffer is a series of
+.Em dirent
+structures each containing at least the following entries:
+.Bd -literal -offset indent
+ino_t		d_fileno;
+off_t		d_off;
+u_int16_t	d_reclen;
+u_int8_t	d_type;
+u_int8_t	d_namlen;
+char    	d_name[MAXNAMLEN + 1]; /* see below */
+.Ed
+.Pp
+The
+.Fa d_fileno
+entry is a number which is unique for each distinct file in the filesystem.
+Files that are linked by hard links (see
+.Xr link 2 )
+have the same
+.Fa d_fileno .
+The
+.Fa d_off
+entry is the file offset of the next entry.
+The
+.Fa d_reclen
+entry is the length, in bytes, of the directory record.
+.Pp
+The
+.Fa d_type
+is the type of file, where the following are possible types:
+.Dv DT_UNKNOWN ,
+.Dv DT_FIFO ,
+.Dv DT_CHR ,
+.Dv DT_DIR ,
+.Dv DT_BLK ,
+.Dv DT_REG ,
+.Dv DT_LNK ,
+and
+.Dv DT_SOCK .
+.Pp
+The
+.Fa d_namlen
+entry specifies the length of the file name excluding the NUL byte.
+Thus the actual size of
+.Fa d_name
+may vary from 1 to
+.Dv MAXNAMLEN
+\&+ 1.
+.Pp
+The
+.Fa d_name
+entry contains a NUL-terminated file name.
+.Pp
+Entries may be separated by extra space.
+The
+.Fa d_reclen
+entry may be used as an offset from the start of a
+.Fa dirent
+structure to the next structure, if any.
+.Pp
+Invalid entries with
+.Fa d_fileno
+set to 0 may be returned among regular entries.
+.Pp
+The actual number of bytes transferred is returned.
+The current position pointer associated with
+.Fa fd
+is set to point to the next block of entries.
+The pointer may not advance by the number of bytes returned by
+.Fn getdents .
+.Pp
+The current position pointer may be set and retrieved by
+.Xr lseek 2 .
+The current position pointer should only be set to a value returned by
+.Xr lseek 2 ,
+the value of
+.Fa d_off
+from an entry,
+or zero.
+.Sh RETURN VALUES
+If successful, the number of bytes actually transferred is returned.
+A value of zero is returned when
+the end of the directory has been reached.
+Otherwise, \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn getdents
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+.Fa fd
+is not a valid file descriptor open for reading.
+.It Bq Er EFAULT
+Part of
+.Fa buf
+points outside the process's allocated address space.
+.It Bq Er EINVAL
+The file referenced by
+.Fa fd
+is not a directory, or
+.Fa nbytes
+is too small for returning a directory entry or block of entries,
+or the current position pointer is invalid.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.El
+.Sh SEE ALSO
+.Xr lseek 2 ,
+.Xr open 2 ,
+.Xr opendir 3 ,
+.Xr dirent 5
+.Sh STANDARDS
+The
+.Fn getdents
+call is not a portable interface and should not be used directly by
+applications.
+Use
+.Xr readdir 3
+instead.
+.Sh HISTORY
+The
+.Fn getdirentries
+function first appeared in
+.Bx 4.3 Reno .
+In
+.Ox 5.5
+the
+.Fa d_off
+entry was added to
+.Vt struct dirent
+and
+.Fn getdirentries
+was replaced with
+.Fn getdents .

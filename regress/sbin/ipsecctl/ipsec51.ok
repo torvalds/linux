@@ -1,0 +1,4 @@
+flow ah out proto udp from 1.1.1.1 port ntp to 2.2.2.2 peer 2.2.2.2 type require
+flow ah in proto udp from 2.2.2.2 to 1.1.1.1 port ntp peer 2.2.2.2 type require
+flow ah out proto udp from 1.1.1.1 port ntp to 2.2.2.2 peer 2.2.2.2 type require
+flow ah in proto udp from 2.2.2.2 to 1.1.1.1 port ntp peer 2.2.2.2 type require

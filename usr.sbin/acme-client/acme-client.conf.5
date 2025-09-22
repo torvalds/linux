@@ -1,0 +1,222 @@
+.\"	$OpenBSD: acme-client.conf.5,v 1.32 2025/09/16 15:06:02 sthen Exp $
+.\"
+.\" Copyright (c) 2005 Esben Norby <norby@openbsd.org>
+.\" Copyright (c) 2004 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2002 Daniel Hartmeier <dhartmei@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 16 2025 $
+.Dt ACME-CLIENT.CONF 5
+.Os
+.Sh NAME
+.Nm acme-client.conf
+.Nd acme-client configuration file
+.Sh DESCRIPTION
+The
+.Nm
+file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Authorities
+Certificate authorities (CAs) that can be contacted via ACME.
+.It Sx Domains
+Certificate specifications.
+.El
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/acme-client.sub.conf"
+.Ed
+.Pp
+The current line can be extended over multiple lines using a backslash
+.Pq Sq \e .
+Comments can be put anywhere in the file using a hash mark
+.Pq Sq # ,
+and extend to the end of the current line.
+Care should be taken when commenting out multi-line text:
+the comment is effective until the end of the entire block.
+.Pp
+Argument names not beginning with a letter, digit, underscore, or '/'
+must be quoted.
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word.
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+api_url="https://acme-v02.api.letsencrypt.org/directory"
+authority letsencrypt {
+	api url $api_url
+	account key "/etc/acme/letsencrypt-privkey.pem"
+}
+.Ed
+.Ss Authorities
+The configured certificate authorities.
+.Pp
+Each authority section starts with a declaration of the name identifying a
+certificate authority.
+.Bl -tag -width Ds
+.It Ic authority Ar name Brq ...
+The
+.Ar name
+is a string used to reference this certificate authority.
+.El
+.Pp
+It is followed by a block of options enclosed in curly brackets:
+.Bl -tag -width Ds
+.It Ic account key Ar file Op Ar keytype
+Specify a
+.Ar file
+used to identify the user of this certificate authority.
+.Ar keytype
+can be
+.Cm rsa
+or
+.Cm ecdsa .
+It defaults to
+.Cm rsa .
+.It Ic api url Ar url
+Specify the
+.Ar url
+under which the ACME API is reachable.
+.It Ic contact Ar contact
+Optional
+.Ar contact
+URLs that the authority can use to contact the client for issues related to
+this account.
+.El
+.Ss Domains
+The certificates to be obtained through ACME.
+.Bl -tag -width Ds
+.It Ic domain Ar handle Brq ...
+Each domain section begins with the
+.Ic domain
+keyword followed by an identifier for this domain block.
+.El
+.Pp
+It is followed by a block of options enclosed in curly brackets:
+.Bl -tag -width Ds
+.It Ic domain name Ar name
+The
+.Ar name
+to be used as the common name component of the subject of the
+X.509 certificate.
+This is optional.
+If not specified, the
+.Ar handle
+of the domain block will be used as common name.
+.It Ic alternative names Brq ...
+A list of alternative names,
+comma or space separated,
+for which the certificate will be valid.
+The common name is included automatically if this option is present,
+but there is no automatic conversion/inclusion between "www." and
+plain domain name forms.
+.It Ic domain key Ar file Op Ar keytype
+The private key file for which the certificate will be obtained.
+.Ar keytype
+can be
+.Cm rsa
+or
+.Cm ecdsa .
+It defaults to
+.Cm rsa .
+If the key file does not exist,
+.Xr acme-client 1
+will generate a key itself (4096-bit for
+.Cm rsa
+or secp384r1 for
+.Cm ecdsa ) .
+.It Ic domain certificate Ar file
+The filename of the certificate that will be issued.
+This is optional if
+.Ar domain full chain certificate
+is specified.
+A backup with name
+.Ar file.1
+is created if
+.Ar file
+exists.
+.It Ic domain chain certificate Ar file
+The filename in which to store the certificate chain
+that will be returned by the certificate authority.
+It needs to be in the same directory as the
+.Ar domain certificate
+(or in a subdirectory) and can be specified as a relative or absolute path.
+This setting is optional.
+A backup with name
+.Ar file.1
+is created if
+.Ar file
+exists.
+.It Ic domain full chain certificate Ar file
+The filename in which to store the full certificate chain
+that will be returned by the certificate authority.
+It needs to be in the same directory as the
+.Ar domain certificate
+(or in a subdirectory) and can be specified as a relative or absolute path.
+This is a combination of the
+.Ar domain certificate
+and the
+.Ar domain chain certificate
+in one file, and is required by most browsers.
+This is optional if
+.Ar domain certificate
+is specified.
+A backup with name
+.Ar file.1
+is created if
+.Ar file
+exists.
+.It Ic profile Ar profile
+The certificate profile to be requested.
+If this setting is absent, no profile request is made.
+.It Ic sign with Ar authority
+The certificate authority (as declared above in the
+.Sx Authorities
+section) to use.
+If this setting is absent, the first authority specified is used.
+.It Ic challengedir Ar path
+The directory in which the challenge file will be stored.
+If it is not specified, a default of
+.Pa /var/www/acme
+will be used.
+.El
+.Sh FILES
+.Bl -tag -width /etc/examples/acme-client.conf -compact
+.It Pa /etc/acme-client.conf
+.Xr acme-client 1
+configuration file.
+.It Pa /etc/examples/acme-client.conf
+Example configuration file.
+.El
+.Sh SEE ALSO
+.Xr acme-client 1
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 6.1 .

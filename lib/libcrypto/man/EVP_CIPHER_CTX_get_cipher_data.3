@@ -1,0 +1,147 @@
+.\" $OpenBSD: EVP_CIPHER_CTX_get_cipher_data.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_CIPHER_CTX_GET_CIPHER_DATA 3
+.Os
+.Sh NAME
+.Nm EVP_CIPHER_CTX_get_cipher_data ,
+.Nm EVP_CIPHER_CTX_set_cipher_data ,
+.Nm EVP_CIPHER_CTX_buf_noconst
+.Nd inspect and modify EVP_CIPHER_CTX objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft void *
+.Fo EVP_CIPHER_CTX_get_cipher_data
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fc
+.Ft void *
+.Fo EVP_CIPHER_CTX_set_cipher_data
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "void *cipher_data"
+.Fc
+.Ft unsigned char *
+.Fo EVP_CIPHER_CTX_buf_noconst
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_CIPHER_CTX_get_cipher_data
+returns a pointer to the cipher data of
+.Fa ctx .
+The format and content of this data is specific to the algorithm
+and to the particular implementation of the cipher.
+For example, this data can be used by engines
+to store engine specific information.
+The data is automatically allocated and freed by OpenSSL, so
+applications and engines should not normally free this directly (but see
+below).
+.Pp
+.Fn EVP_CIPHER_CTX_set_cipher_data
+allows an application or engine to replace the existing cipher data
+with new data, transferring ownership of
+.Fa cipher_data
+to the
+.Fa ctx
+object.
+A pointer to any existing cipher data is returned from this function.
+If the old data is no longer required,
+it should be freed through a call to
+.Xr free 3 .
+.Pp
+.Fn EVP_CIPHER_CTX_buf_noconst
+provides engines and custom cipher implementations
+with access to the internal buffer that
+.Xr EVP_EncryptUpdate 3
+copies input data into before encrypting it.
+This function can for example be used
+inside callback functions installed with
+.Xr EVP_CIPHER_meth_set_do_cipher 3 .
+.Sh RETURN VALUES
+.Fn EVP_CIPHER_CTX_get_cipher_data
+returns an internal pointer owned by
+.Fa ctx .
+.Pp
+.Fn EVP_CIPHER_CTX_set_cipher_data
+returns a pointer to the old cipher data of
+.Fa ctx
+and transfers ownership to the caller.
+.Pp
+.Fn EVP_CIPHER_CTX_buf_noconst
+returns a pointer to an internal buffer owned by
+.Fa ctx .
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_CIPHER_meth_new 3 ,
+.Xr EVP_EncryptInit 3
+.Sh HISTORY
+.Fn EVP_CIPHER_CTX_get_cipher_data ,
+.Fn EVP_CIPHER_CTX_set_cipher_data ,
+and
+.Fn EVP_CIPHER_CTX_buf_noconst
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 7.1 .

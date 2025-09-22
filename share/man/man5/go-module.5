@@ -1,0 +1,208 @@
+.\"	$OpenBSD: go-module.5,v 1.5 2025/02/07 02:53:30 lucas Exp $
+.\"
+.\" Copyright (c) 2008 Marc Espie
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 7 2025 $
+.Dt GO-MODULE 5
+.Os
+.Sh NAME
+.Nm go-module
+.Nd lang/go port module
+.Sh DESCRIPTION
+This manual page documents the behavior of setting
+.Li MODULES=lang/go
+in the
+.Xr ports 7
+tree.
+.Pp
+Adds Go toolchain support.
+Requires
+.Ev ALL_TARGET
+to be set to canonical Go import path of port.
+(Module sets it automatically for ports that use
+.Ev GH_ACCOUNT
+and
+.Ev GH_PROJECT
+macros.)
+.Pp
+During execution of
+.Cm pre-configure
+target module moves source code from
+.Pa ${MODGO_SUBDIR}
+to
+.Pa ${WRKSRC} ,
+subdirectory of
+.Pa ${MODGO_WORKSPACE}
+- specially-crafted Go workspace located at
+.Pa ${WRKDIR}/go .
+During
+.Cm do-build
+module calls
+.Dq go install
+with
+.Ev GOPATH
+set to
+.Pa ${MODGO_WORKSPACE} ,
+runs its output through sed to prevent writes outside
+.Ev WRKDIR
+sandbox and sends output to
+.Xr sh 1 .
+During
+.Cm do-install
+it copies executables from
+.Pa ${MODGO_WORKSPACE}/bin
+to
+.Pa ${PREFIX}/bin ,
+and/or directories
+.Pa ${MODGO_WORKSPACE}/pkg
+and
+.Pa ${MODGO_WORKSPACE}/src
+to
+.Pa ${PREFIX}/go ,
+depending on
+.Ev MODGO_TYPE
+contents.
+.Pp
+Sets
+.Ev BUILD_DEPENDS ,
+.Ev RUN_DEPENDS ,
+.Ev ALL_TARGET ,
+.Ev TEST_TARGET ,
+.Ev ONLY_FOR_ARCHS ,
+.Ev SEPARATE_BUILD ,
+and
+.Ev WRKSRC .
+.Pp
+Appends to
+.Ev CATEGORIES .
+.Pp
+Defines:
+.Bl -tag -width MODGO_WORKSPACE
+.It Ev MODGO_TYPE
+Type of port.
+May be any combination of:
+.Bl -tag -width lib
+.It bin
+ordinary binary, which should be installed to
+.Pa ${PREFIX}/bin ,
+.It lib
+library, which should come with source code.
+.El
+.Pp
+Defaults to
+.Ar bin .
+.It Ev MODGO_WORKSPACE
+Path to Go workspace set up for port build process.
+Defaults to
+.Pa ${WRKDIR}/go .
+See Go documentation for details.
+.It Ev MODGO_SUBDIR
+Path to Go source code within port's sources tarball.
+Defaults to
+.Pa ${WRKDIST} .
+.It Ev MODGO_SETUP_WORKSPACE
+Commands setting up Go workspace for building ports.
+By default, happens during execution of
+.Cm pre-configure
+target.
+.It Ev MODGO_BUILDDEP
+Controls whether contents of
+.Ev MODGO_BUILD_DEPENDS
+are appended to port's
+.Ev BUILD_DEPENDS .
+Defaults to
+.Ar Yes .
+.It Ev MODGO_MODNAME
+Name of Go module as defined in the
+.Pa go.mod
+file contained in a project.
+If this is set,
+.Ev MODGO_MODULES ,
+.Ev MODGO_MODFILES
+and
+.Ev MODGO_VERSION
+need to be defined as well.
+Setting this will also set
+.Ev ALL_TARGET .
+When
+.Ev MODGO_MODFILES
+is set, and a "cmd" directory is found in
+.Ev WRKSRC ,
+"./cmd/..." is also built by
+.Cm do-build
+automatically.
+.It Ev MODGO_VERSION
+Sets the specific version of a Go module to use.
+For example: v0.1.3.
+.It Ev MODGO_MODULES
+List of modules and their specific versions that an application depends on.
+.It Ev MODGO_MODFILES
+List of go.mod files and their versions that are required for dependency
+resolution.
+These are required by Go to determine the full dependency graph.
+.El
+.Pp
+Additionally defines
+.Ev MODGO_ARCH
+(application architecture name used by Go),
+.Ev MODGO_PACKAGES ,
+.Ev MODGO_SOURCES
+and
+.Ev MODGO_TOOLS
+(paths for installed Go packages, sources and tools respectively),
+.Ev MODGO_CMD
+and
+.Ev MODGO_FLAGS
+(source code build command and flags passed as its arguments),
+.Ev MODGO_LDFLAGS ,
+.Ev MODGO_BUILD_CMD
+and
+.Ev MODGO_TEST_CMD
+(commands for building and testing go packages; normally called with canonical
+Go package names as arguments),
+.Ev MODGO_{BUILD,INSTALL,TEST}_TARGET
+and
+.Ev MODGO_{BUILD,RUN}_DEPENDS .
+.Pp
+This module adds one
+.Xr make 1
+target:
+.Bl -tag -width modgo-gen-modules
+.It Cm modgo-gen-modules
+Generate the
+.Ev MODGO_MODULES
+and the
+.Ev MODGO_MODFILES
+lists.
+If
+.Ev MODGO_VERSION
+is set to "latest", the latest known-to-Go version of a package will be used
+to build the list of modules.
+Similarly, if
+.Ev MODGO_VERSION
+is empty, the latest version will be fetched.
+.El
+.Sh SEE ALSO
+.Xr port-modules 5

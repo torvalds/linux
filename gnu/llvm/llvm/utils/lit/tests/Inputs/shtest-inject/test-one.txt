@@ -1,0 +1,5 @@
+
+# This test has one RUN line, but more run lines are prepended to it by the
+# test format in use.
+
+# RUN: echo "IN THE FILE"

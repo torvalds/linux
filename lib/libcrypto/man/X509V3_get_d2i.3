@@ -1,0 +1,508 @@
+.\" $OpenBSD: X509V3_get_d2i.3,v 1.26 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL ff7fbfd5 Nov 2 11:52:01 2015 +0000
+.\" selective merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023, 2024 Theo Buehler <tb@openbsd.org>
+.\" Copyright (c) 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2014, 2015, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509V3_GET_D2I 3
+.Os
+.Sh NAME
+.Nm X509V3_get_d2i ,
+.Nm X509V3_add1_i2d ,
+.Nm X509V3_EXT_d2i ,
+.Nm X509V3_EXT_i2d ,
+.Nm X509_get_ext_d2i ,
+.Nm X509_add1_ext_i2d ,
+.Nm X509_CRL_get_ext_d2i ,
+.Nm X509_CRL_add1_ext_i2d ,
+.Nm X509_REVOKED_get_ext_d2i ,
+.Nm X509_REVOKED_add1_ext_i2d ,
+.Nm X509_get0_extensions ,
+.Nm X509_CRL_get0_extensions ,
+.Nm X509_REVOKED_get0_extensions ,
+.Nm X509_get0_uids
+.Nd X509 extension decode and encode functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft void *
+.Fo X509V3_get_d2i
+.Fa "const STACK_OF(X509_EXTENSION) *x"
+.Fa "int nid"
+.Fa "int *crit"
+.Fa "int *idx"
+.Fc
+.Ft int
+.Fo X509V3_add1_i2d
+.Fa "STACK_OF(X509_EXTENSION) **x"
+.Fa "int nid"
+.Fa "void *value"
+.Fa "int crit"
+.Fa "unsigned long flags"
+.Fc
+.Ft void *
+.Fo X509V3_EXT_d2i
+.Fa "X509_EXTENSION *ext"
+.Fc
+.Ft X509_EXTENSION *
+.Fo X509V3_EXT_i2d
+.Fa "int ext_nid"
+.Fa "int crit"
+.Fa "void *ext"
+.Fc
+.Ft void *
+.Fo X509_get_ext_d2i
+.Fa "const X509 *x"
+.Fa "int nid"
+.Fa "int *crit"
+.Fa "int *idx"
+.Fc
+.Ft int
+.Fo X509_add1_ext_i2d
+.Fa "X509 *x"
+.Fa "int nid"
+.Fa "void *value"
+.Fa "int crit"
+.Fa "unsigned long flags"
+.Fc
+.Ft void *
+.Fo X509_CRL_get_ext_d2i
+.Fa "const X509_CRL *crl"
+.Fa "int nid"
+.Fa "int *crit"
+.Fa "int *idx"
+.Fc
+.Ft int
+.Fo X509_CRL_add1_ext_i2d
+.Fa "X509_CRL *crl"
+.Fa "int nid"
+.Fa "void *value"
+.Fa "int crit"
+.Fa "unsigned long flags"
+.Fc
+.Ft void *
+.Fo X509_REVOKED_get_ext_d2i
+.Fa "const X509_REVOKED *r"
+.Fa "int nid"
+.Fa "int *crit"
+.Fa "int *idx"
+.Fc
+.Ft int
+.Fo X509_REVOKED_add1_ext_i2d
+.Fa "X509_REVOKED *r"
+.Fa "int nid"
+.Fa "void *value"
+.Fa "int crit"
+.Fa "unsigned long flags"
+.Fc
+.Ft const STACK_OF(X509_EXTENSION) *
+.Fo X509_get0_extensions
+.Fa "const X509 *x"
+.Fc
+.Ft const STACK_OF(X509_EXTENSION) *
+.Fo X509_CRL_get0_extensions
+.Fa "const X509_CRL *crl"
+.Fc
+.Ft const STACK_OF(X509_EXTENSION) *
+.Fo X509_REVOKED_get0_extensions
+.Fa "const X509_REVOKED *r"
+.Fc
+.Ft void
+.Fo X509_get0_uids
+.Fa "const X509 *x"
+.Fa "const ASN1_BIT_STRING **issuerUID"
+.Fa "const ASN1_BIT_STRING **subjectUID"
+.Fc
+.Sh DESCRIPTION
+.Fn X509V3_get_d2i
+looks for an extension with OID
+.Fa nid
+in the extensions
+.Fa x
+and, if found, decodes it.
+If
+.Fa idx
+is
+.Dv NULL ,
+then only one occurrence of an extension is permissible.
+Otherwise the first extension after index
+.Pf * Fa idx
+is returned and
+.Pf * Fa idx
+is updated to the location of the extension.
+If
+.Fa crit
+is not
+.Dv NULL ,
+then
+.Pf * Fa crit
+is set to a status value: -2 if the extension occurs multiple times
+(this is only returned if
+.Fa idx
+is
+.Dv NULL ) ,
+-1 if the extension could not be found, 0 if the extension is found
+and is not critical, and 1 if it is critical.
+A pointer to an extension specific structure or
+.Dv NULL
+is returned.
+.Pp
+.Fn X509V3_add1_i2d
+adds extension
+.Fa value
+to STACK
+.Pf * Fa x
+(allocating a new STACK if necessary) using OID
+.Fa nid
+and criticality
+.Fa crit
+according to
+.Fa flags .
+.Pp
+.Fn X509V3_EXT_d2i
+attempts to decode the ASN.1 data contained in extension
+.Fa ext
+and returns a pointer to an extension specific structure or
+.Dv NULL
+if the extension could not be decoded (invalid syntax or not supported).
+.Pp
+.Fn X509V3_EXT_i2d
+encodes the extension specific structure
+.Fa ext
+with OID
+.Fa ext_nid
+and criticality
+.Fa crit .
+.Pp
+.Fn X509_get_ext_d2i
+and
+.Fn X509_add1_ext_i2d
+operate on the extensions of certificate
+.Fa x ,
+and are otherwise identical to
+.Fn X509V3_get_d2i
+and
+.Fn X509V3_add1_i2d .
+.Pp
+.Fn X509_CRL_get_ext_d2i
+and
+.Fn X509_CRL_add1_ext_i2d
+operate on the extensions of CRL
+.Fa crl ,
+and are otherwise identical to
+.Fn X509V3_get_d2i
+and
+.Fn X509V3_add1_i2d .
+.Pp
+.Fn X509_REVOKED_get_ext_d2i
+and
+.Fn X509_REVOKED_add1_ext_i2d
+operate on the extensions of the
+.Vt X509_REVOKED
+structure
+.Fa r
+(i.e. for CRL entry extensions), and are otherwise identical to
+.Fn X509V3_get_d2i
+and
+.Fn X509V3_add1_i2d .
+.Pp
+.Fn X509_get0_extensions ,
+.Fn X509_CRL_get0_extensions ,
+and
+.Fn X509_REVOKED_get0_extensions
+return a stack of all the extensions of a certificate, a CRL,
+or a CRL entry, respectively.
+.Pp
+In almost all cases an extension can occur at most once and multiple
+occurrences is an error.
+Therefore the
+.Fa idx
+parameter is usually
+.Dv NULL .
+.Pp
+The
+.Fa flags
+argument consists of two parts OR'ed together:
+the operation mode and the optional silent flag.
+The operation mode is the bitwise OR of the
+.Fa flags
+and the bitmask
+.Dv X509V3_ADD_OP_MASK .
+The following operation modes are recognized:
+.Pp
+.Dv X509V3_ADD_DEFAULT
+appends a new extension only if the extension does not already exist.
+An error is returned if the extension does already exist.
+.Pp
+.Dv X509V3_ADD_APPEND
+appends a new extension, ignoring whether the extension already exists.
+This is a misfeature and should not be used because certificates must
+not include the same extension more than once.
+.Pp
+.Dv X509V3_ADD_REPLACE
+replaces an extension if it exists otherwise appends a new extension.
+.Pp
+.Dv X509V3_ADD_REPLACE_EXISTING
+replaces an existing extension if it exists otherwise returns an error.
+.Pp
+.Dv X509V3_ADD_KEEP_EXISTING
+appends a new extension only if the extension does not already exist.
+An error
+.Sy is not
+returned if the extension does already exist.
+.Pp
+.Dv X509V3_ADD_DELETE
+deletes extension
+.Fa nid
+if it exists and errors otherwise.
+No new extension is added.
+.Pp
+Any other operation mode results in an error.
+.Pp
+If
+.Dv X509V3_ADD_SILENT
+is OR'd into the
+.Fa flags ,
+any error returned will not be added to the error queue.
+.Pp
+The function
+.Fn X509V3_get_d2i
+will return
+.Dv NULL
+if the extension is not found, occurs multiple times or cannot be
+decoded.
+It is possible to determine the precise reason by checking the value of
+.Pf * Fa crit .
+.Pp
+.Fn X509_get0_uids
+returns the issuer and subject unique identifiers of the certificate
+.Fa x
+in
+.Pf * Fa issuerUID
+and
+.Pf * Fa subjectUID .
+If a unique identifier field is not present in
+.Fa x ,
+.Dv NULL
+is returned.
+Either one of
+.Fa issuerUID
+and
+.Fa subjectUID
+can be
+.Dv NULL .
+.Sh SUPPORTED EXTENSIONS
+The following sections contain a list of all supported extensions
+including their name and NID.
+.Ss PKIX Certificate Extensions
+The following certificate extensions are defined in PKIX standards such
+as RFC 5280.
+.Bl -column 30n 30n
+.It Basic Constraints             Ta Dv NID_basic_constraints
+.It Key Usage                     Ta Dv NID_key_usage
+.It Extended Key Usage            Ta Dv NID_ext_key_usage
+.It Subject Key Identifier        Ta Dv NID_subject_key_identifier
+.It Authority Key Identifier      Ta Dv NID_authority_key_identifier
+.It Private Key Usage Period      Ta Dv NID_private_key_usage_period
+.It Subject Alternative Name      Ta Dv NID_subject_alt_name
+.It Issuer Alternative Name       Ta Dv NID_issuer_alt_name
+.It Authority Information Access  Ta Dv NID_info_access
+.It Subject Information Access    Ta Dv NID_sinfo_access
+.It Name Constraints              Ta Dv NID_name_constraints
+.It Certificate Policies          Ta Dv NID_certificate_policies
+.It Policy Mappings               Ta Dv NID_policy_mappings
+.It Policy Constraints            Ta Dv NID_policy_constraints
+.It Inhibit Any Policy            Ta Dv NID_inhibit_any_policy
+.It IP Address Delegation         Ta Dv NID_sbgp_ipAddrBlock
+.It Autonomous System Identifier Delegation\
+                                  Ta Dv NID_sbgp_autonomousSysNum
+.El
+.Ss Netscape Certificate Extensions
+The following are (largely obsolete) Netscape certificate extensions.
+.Bl -column 30n 30n
+.It Netscape Cert Type            Ta Dv NID_netscape_cert_type
+.It Netscape Base Url             Ta Dv NID_netscape_base_url
+.It Netscape Revocation Url       Ta Dv NID_netscape_revocation_url
+.It Netscape CA Revocation Url    Ta Dv NID_netscape_ca_revocation_url
+.It Netscape Renewal Url          Ta Dv NID_netscape_renewal_url
+.It Netscape CA Policy Url        Ta Dv NID_netscape_ca_policy_url
+.It Netscape SSL Server Name      Ta Dv NID_netscape_ssl_server_name
+.It Netscape Comment              Ta Dv NID_netscape_comment
+.El
+.Ss PKIX CRL Extensions
+The following are CRL extensions from PKIX standards such as RFC 5280.
+.Bl -column 30n 30n
+.It CRL Number                    Ta Dv NID_crl_number
+.It CRL Distribution Points       Ta Dv NID_crl_distribution_points
+.It Delta CRL Indicator           Ta Dv NID_delta_crl
+.It Freshest CRL                  Ta Dv NID_freshest_crl
+.It Invalidity Date               Ta Dv NID_invalidity_date
+.It Issuing Distribution Point    Ta Dv NID_issuing_distribution_point
+.El
+.Pp
+The following are CRL entry extensions from PKIX standards such as
+RFC 5280.
+.Bl -column 30n 30n
+.It CRL Reason Code               Ta Dv NID_crl_reason
+.It Certificate Issuer            Ta Dv NID_certificate_issuer
+.El
+.Ss OCSP Extensions
+.Bl -column 30n 30n
+.It OCSP Nonce                    Ta Dv NID_id_pkix_OCSP_Nonce
+.It OCSP CRL ID                   Ta Dv NID_id_pkix_OCSP_CrlID
+.It Acceptable OCSP Responses     Ta Dv NID_id_pkix_OCSP_acceptableResponses
+.It OCSP No Check                 Ta Dv NID_id_pkix_OCSP_noCheck
+.It OCSP Archive Cutoff           Ta Dv NID_id_pkix_OCSP_archiveCutoff
+.It OCSP Service Locator          Ta Dv NID_id_pkix_OCSP_serviceLocator
+.It Hold Instruction Code         Ta Dv NID_hold_instruction_code
+.El
+.Sh RETURN VALUES
+.Fn X509V3_get_d2i ,
+.Fn X509V3_EXT_d2i ,
+.Fn X509_get_ext_d2i ,
+.Fn X509_CRL_get_ext_d2i ,
+and
+.Fn X509_REVOKED_get_ext_d2i
+return a pointer to an extension specific structure or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn X509V3_add1_i2d ,
+.Fn X509_add1_ext_i2d ,
+.Fn X509_CRL_add1_ext_i2d ,
+and
+.Fn X509_REVOKED_add1_ext_i2d
+return 1 if the operation is successful, 0 if it fails due to a
+non-fatal error (extension not found, already exists, cannot be encoded),
+or -1 due to a fatal error such as a memory allocation failure.
+In some cases of failure, the reason can be determined with
+.Xr ERR_get_error 3 .
+.Pp
+The
+.Fn X509V3_EXT_i2d
+function returns a pointer to an
+.Vt X509_EXTENSION
+structure if successful; otherwise
+.Dv NULL
+is returned and an error code can be retrieved with
+.Xr ERR_get_error 3 .
+.Pp
+.Fn X509_get0_extensions ,
+.Fn X509_CRL_get0_extensions ,
+and
+.Fn X509_REVOKED_get0_extensions
+return a stack of extensions, or
+.Dv NULL
+if no extensions are present.
+.Sh SEE ALSO
+.Xr d2i_X509 3 ,
+.Xr d2i_X509_EXTENSION 3 ,
+.Xr X509_check_purpose 3 ,
+.Xr X509_CRL_get0_by_serial 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_get_pubkey 3 ,
+.Xr X509_get_subject_name 3 ,
+.Xr X509_get_version 3 ,
+.Xr X509_new 3 ,
+.Xr X509_REVOKED_new 3 ,
+.Xr X509V3_EXT_print 3 ,
+.Xr X509V3_extensions_print 3
+.Sh HISTORY
+.Fn X509V3_EXT_d2i
+first appeared in OpenSSL 0.9.2b.
+.Fn X509V3_EXT_i2d
+first appeared in OpenSSL 0.9.3.
+Both functions have been available since
+.Ox 2.6 .
+.Pp
+.Fn X509V3_get_d2i ,
+.Fn X509_get_ext_d2i ,
+.Fn X509_CRL_get_ext_d2i ,
+and
+.Fn X509_REVOKED_get_ext_d2i
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn X509V3_add1_i2d ,
+.Fn X509_add1_ext_i2d ,
+.Fn X509_CRL_add1_ext_i2d ,
+and
+.Fn X509_REVOKED_add1_ext_i2d
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn X509_get0_extensions ,
+.Fn X509_CRL_get0_extensions ,
+and
+.Fn X509_REVOKED_get0_extensions
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.3 .
+.Pp
+.Fn X509_get0_uids
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 7.3 .

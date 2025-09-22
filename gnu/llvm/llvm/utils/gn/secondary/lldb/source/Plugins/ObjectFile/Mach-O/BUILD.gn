@@ -1,0 +1,21 @@
+static_library("Mach-O") {
+  output_name = "lldbPluginObjectFileMachO"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Plugins/Process/Utility",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+
+  if (current_os == "win") {
+    defines = [ "_ENABLE_EXTENDED_ALIGNED_STORAGE" ]
+  }
+
+  # Reaches into Plugins/Process/Utility.
+  include_dirs = [ "//lldb/source" ]
+  sources = [ "ObjectFileMachO.cpp" ]
+}

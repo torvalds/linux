@@ -1,0 +1,2 @@
+strlcat-6.c: In function 'main':
+strlcat-6.c:6: warning: non-positive bounds length (-1) detected

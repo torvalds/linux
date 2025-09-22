@@ -1,0 +1,11 @@
+#!/bin/ksh
+#
+# $OpenBSD: ypldap,v 1.4 2018/01/11 19:52:12 rpe Exp $
+
+daemon="/usr/sbin/ypldap"
+
+. /etc/rc.d/rc.subr
+
+pexp="ypldap: ldap client.*"
+
+rc_cmd $1

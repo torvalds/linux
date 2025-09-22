@@ -1,0 +1,774 @@
+   IANAifType-MIB DEFINITIONS ::= BEGIN
+
+   IMPORTS
+       MODULE-IDENTITY, mib-2      FROM SNMPv2-SMI
+       TEXTUAL-CONVENTION          FROM SNMPv2-TC;
+
+   ianaifType MODULE-IDENTITY
+       LAST-UPDATED "202208170000Z" -- August 17, 2022
+       ORGANIZATION "IANA"
+       CONTACT-INFO "        Internet Assigned Numbers Authority
+
+                     Postal: ICANN
+                             12025 Waterfront Drive, Suite 300
+                             Los Angeles, CA 90094-2536
+
+                     Tel:    +1 310-301-5800
+                     E-Mail: iana@iana.org"
+       DESCRIPTION  "This MIB module defines the IANAifType Textual
+                     Convention, and thus the enumerated values of
+                     the ifType object defined in MIB-II's ifTable."
+
+       REVISION     "202208170000Z"  -- August 17, 2022
+       DESCRIPTION  "Changed gpon description to refer to G.984."
+
+       REVISION     "202105170000Z"  -- May 17, 2021
+       DESCRIPTION  "Registration of new IANAifType 303."
+
+       REVISION     "202104230000Z"  -- April 23, 2021
+       DESCRIPTION  "Registration of new tunnelType 19 and
+                     combined 2018-06-28 revision statements"
+
+       REVISION     "202104220000Z"  -- April 22, 2021
+       DESCRIPTION  "Registration of new IANAifType 302."
+
+       REVISION     "202102180000Z"  -- February 18, 2021
+       DESCRIPTION  "Registration of new IANAifType 301."
+
+       REVISION     "202008270000Z"  -- August 27, 2020
+       DESCRIPTION  "Updated Interface Types (ifType) registry name."
+
+       REVISION     "202007100000Z"  -- July 10, 2020
+       DESCRIPTION  "Registration of new IANAifType 300."
+
+       REVISION     "202004020000Z"  -- April 2, 2020
+       DESCRIPTION  "Added reference to ifType definitions registry."
+
+       REVISION     "202001100000Z"  -- January 10, 2020
+       DESCRIPTION  "Addition of IANAifType 299."
+
+       REVISION     "201912030000Z"  -- December 3, 2019
+       DESCRIPTION  "Updated email address for IANA"
+
+       REVISION     "201910160000Z"  -- October 16, 2019
+       DESCRIPTION  "Addition of IANAifTypes 297-298."
+
+       REVISION     "201902140000Z"  -- February 14, 2019
+       DESCRIPTION  "Registration of new tunnelType 18."
+
+       REVISION     "201902080000Z"  -- February 8, 2019
+       DESCRIPTION  "Added missing commas for 295-296."
+
+       REVISION     "201901310000Z"  -- January 31, 2019
+       DESCRIPTION  "Registration of new IANAifTypes 295-296."
+
+       REVISION     "201807040000Z"  -- July 4, 2018
+       DESCRIPTION  "Added missing commas for 291-293."
+
+       REVISION     "201806280000Z"  -- June 28, 2018
+       DESCRIPTION  "Registration of new IANAifTypes 293-294."
+
+       REVISION     "201806220000Z"  -- June 22, 2018
+       DESCRIPTION  "Registration of new IANAifType 292."
+
+       REVISION     "201806210000Z"  -- June 21, 2018
+       DESCRIPTION  "Registration of new IANAifType 291."
+
+       REVISION     "201703300000Z"  -- March 30, 2017
+       DESCRIPTION  "Registration of new IANAifType 290."
+
+       REVISION     "201701190000Z"  -- January 19, 2017
+       DESCRIPTION  "Registration of new IANAifType 289."
+
+       REVISION     "201611230000Z"  -- November 23, 2016
+       DESCRIPTION  "Registration of new IANAifTypes 283-288."
+
+       REVISION     "201606160000Z"  -- June 16, 2016
+       DESCRIPTION  "Updated IANAtunnelType DESCRIPTION per RFC 7870"
+
+       REVISION     "201606090000Z"  -- June 9, 2016
+       DESCRIPTION  "Registration of new IANAifType 282."
+
+       REVISION     "201606080000Z"  -- June 8, 2016
+       DESCRIPTION  "Updated description for tunnelType 17."
+
+       REVISION     "201605190000Z"  -- May 19, 2016
+       DESCRIPTION  "Updated description for tunnelType 16."
+
+       REVISION     "201605030000Z"  -- May 3, 2016
+       DESCRIPTION  "Registration of new IANAifType 281."
+
+       REVISION     "201604290000Z"  -- April 29, 2016
+       DESCRIPTION  "Registration of new tunnelTypes 16 and 17."
+
+       REVISION     "201409240000Z"  -- September 24, 2014
+       DESCRIPTION  "Registration of new IANAifType 280."
+
+       REVISION     "201409190000Z"  -- September 19, 2014
+       DESCRIPTION  "Registration of new IANAifType 279."
+
+       REVISION     "201407030000Z"  -- July 3, 2014
+       DESCRIPTION  "Registration of new IANAifTypes 277-278."
+
+       REVISION     "201405220000Z" -- May 22, 2014
+       DESCRIPTION  "Updated contact info."
+
+       REVISION     "201205170000Z"  -- May 17, 2012
+       DESCRIPTION  "Registration of new IANAifType 272."
+
+       REVISION     "201201110000Z"  -- January 11, 2012
+       DESCRIPTION  "Registration of new IANAifTypes 266-271."
+
+       REVISION     "201112180000Z"  -- December 18, 2011
+       DESCRIPTION  "Registration of new IANAifTypes 263-265."
+
+       REVISION     "201110260000Z"  -- October 26, 2011
+       DESCRIPTION  "Registration of new IANAifType 262."
+
+       REVISION     "201109070000Z"  -- September 7, 2011
+       DESCRIPTION  "Registration of new IANAifTypes 260 and 261."
+
+       REVISION     "201107220000Z"  -- July 22, 2011
+       DESCRIPTION  "Registration of new IANAifType 259."
+
+       REVISION     "201106030000Z"  -- June 03, 2011
+       DESCRIPTION  "Registration of new IANAifType 258."
+
+       REVISION     "201009210000Z"  -- September 21, 2010
+       DESCRIPTION  "Registration of new IANAifTypes 256 and 257."
+
+       REVISION     "201007210000Z"  -- July 21, 2010
+       DESCRIPTION  "Registration of new IANAifType 255."
+
+       REVISION     "201002110000Z"  -- February 11, 2010
+       DESCRIPTION  "Registration of new IANAifType 254."
+
+       REVISION     "201002080000Z"  -- February 08, 2010
+       DESCRIPTION  "Registration of new IANAifTypes 252 and 253."
+
+       REVISION     "200905060000Z"  -- May 06, 2009
+       DESCRIPTION  "Registration of new IANAifType 251."
+
+       REVISION     "200902060000Z"  -- February 06, 2009
+       DESCRIPTION  "Registration of new IANAtunnelType 15."
+
+       REVISION     "200810090000Z"  -- October 09, 2008
+       DESCRIPTION  "Registration of new IANAifType 250."
+
+       REVISION     "200808120000Z"  -- August 12, 2008
+       DESCRIPTION  "Registration of new IANAifType 249."
+
+       REVISION     "200807220000Z"  -- July 22, 2008
+       DESCRIPTION  "Registration of new IANAifTypes 247 and 248."
+
+       REVISION     "200806240000Z"  -- June 24, 2008
+       DESCRIPTION  "Registration of new IANAifType 246."
+
+       REVISION     "200805290000Z"  -- May 29, 2008
+       DESCRIPTION  "Registration of new IANAifType 245."
+
+       REVISION     "200709130000Z"  -- September 13, 2007
+       DESCRIPTION  "Registration of new IANAifTypes 243 and 244."
+
+       REVISION     "200705290000Z"  -- May 29, 2007
+       DESCRIPTION  "Changed the description for IANAifType 228."
+
+       REVISION     "200703080000Z"  -- March 08, 2007
+       DESCRIPTION  "Registration of new IANAifType 242."
+
+       REVISION     "200701230000Z"  -- January 23, 2007
+       DESCRIPTION  "Registration of new IANAifTypes 239, 240, and 241."
+
+       REVISION     "200610170000Z"  -- October 17, 2006
+       DESCRIPTION  "Deprecated/Obsoleted IANAifType 230.  Registration of
+                     IANAifType 238."
+
+       REVISION     "200609250000Z"  -- September 25, 2006
+       DESCRIPTION  "Changed the description for IANA ifType
+                     184 and added new IANA ifType 237."
+
+       REVISION     "200608170000Z"  -- August 17, 2006
+       DESCRIPTION  "Changed the descriptions for IANAifTypes
+                     20 and 21."
+
+       REVISION     "200608110000Z"  -- August 11, 2006
+       DESCRIPTION  "Changed the descriptions for IANAifTypes
+                     7, 11, 62, 69, and 117."
+
+       REVISION     "200607250000Z"  -- July 25, 2006
+       DESCRIPTION  "Registration of new IANA ifType 236."
+
+       REVISION     "200606140000Z"  -- June 14, 2006
+       DESCRIPTION  "Registration of new IANA ifType 235."
+
+       REVISION     "200603310000Z"  -- March 31, 2006
+       DESCRIPTION  "Registration of new IANA ifType 234."
+
+       REVISION     "200603300000Z"  -- March 30, 2006
+       DESCRIPTION  "Registration of new IANA ifType 233."
+
+       REVISION     "200512220000Z"  -- December 22, 2005
+       DESCRIPTION  "Registration of new IANA ifTypes 231 and 232."
+
+       REVISION     "200510100000Z"  -- October 10, 2005
+       DESCRIPTION  "Registration of new IANA ifType 230."
+
+       REVISION     "200509090000Z"  -- September 09, 2005
+       DESCRIPTION  "Registration of new IANA ifType 229."
+
+       REVISION     "200505270000Z"  -- May 27, 2005
+       DESCRIPTION  "Registration of new IANA ifType 228."
+
+       REVISION     "200503030000Z"  -- March 3, 2005
+       DESCRIPTION  "Added the IANAtunnelType TC and deprecated
+                         IANAifType sixToFour (215) per RFC4087."
+
+       REVISION     "200411220000Z"  -- November 22, 2004
+       DESCRIPTION  "Registration of new IANA ifType 227 per RFC4631."
+
+       REVISION     "200406170000Z"  -- June 17, 2004
+       DESCRIPTION  "Registration of new IANA ifType 226."
+
+       REVISION     "200405120000Z"  -- May 12, 2004
+       DESCRIPTION  "Added description for IANAifType 6, and
+                         changed the descriptions for IANAifTypes
+                     180, 181, and 182."
+
+       REVISION     "200405070000Z"  -- May 7, 2004
+       DESCRIPTION  "Registration of new IANAifType 225."
+
+       REVISION     "200308250000Z"  -- Aug 25, 2003
+       DESCRIPTION  "Deprecated IANAifTypes 7 and 11. Obsoleted
+                     IANAifTypes 62, 69, and 117.  ethernetCsmacd (6)
+                     should be used instead of these values"
+
+       REVISION     "200308180000Z"  -- Aug 18, 2003
+       DESCRIPTION  "Registration of new IANAifType
+                     224."
+
+       REVISION     "200308070000Z"  -- Aug 7, 2003
+       DESCRIPTION  "Registration of new IANAifTypes
+                     222 and 223."
+
+       REVISION     "200303180000Z"  -- Mar 18, 2003
+       DESCRIPTION  "Registration of new IANAifType
+                     221."
+
+       REVISION     "200301130000Z"  -- Jan 13, 2003
+       DESCRIPTION  "Registration of new IANAifType
+                     220."
+
+       REVISION     "200210170000Z"  -- Oct 17, 2002
+       DESCRIPTION  "Registration of new IANAifType
+                     219."
+
+       REVISION     "200207160000Z"  -- Jul 16, 2002
+       DESCRIPTION  "Registration of new IANAifTypes
+                     217 and 218."
+
+       REVISION     "200207100000Z"  -- Jul 10, 2002
+       DESCRIPTION  "Registration of new IANAifTypes
+                     215 and 216."
+
+       REVISION     "200206190000Z"  -- Jun 19, 2002
+       DESCRIPTION  "Registration of new IANAifType
+                     214."
+
+       REVISION     "200201040000Z"  -- Jan 4, 2002
+       DESCRIPTION  "Registration of new IANAifTypes
+                     211, 212 and 213."
+
+       REVISION     "200112200000Z"  -- Dec 20, 2001
+       DESCRIPTION  "Registration of new IANAifTypes
+                     209 and 210."
+
+       REVISION     "200111150000Z"  -- Nov 15, 2001
+       DESCRIPTION  "Registration of new IANAifTypes
+                     207 and 208."
+
+       REVISION     "200111060000Z"  -- Nov 6, 2001
+       DESCRIPTION  "Registration of new IANAifType
+                     206."
+
+       REVISION     "200111020000Z"  -- Nov 2, 2001
+       DESCRIPTION  "Registration of new IANAifType
+                     205."
+
+       REVISION     "200110160000Z"  -- Oct 16, 2001
+       DESCRIPTION  "Registration of new IANAifTypes
+                     199, 200, 201, 202, 203, and 204."
+
+       REVISION     "200109190000Z"  -- Sept 19, 2001
+       DESCRIPTION  "Registration of new IANAifType
+                     198."
+
+       REVISION     "200105110000Z"  -- May 11, 2001
+       DESCRIPTION  "Registration of new IANAifType
+                     197."
+
+       REVISION     "200101120000Z"  -- Jan 12, 2001
+       DESCRIPTION  "Registration of new IANAifTypes
+                     195 and 196."
+
+       REVISION     "200012190000Z"  -- Dec 19, 2000
+       DESCRIPTION  "Registration of new IANAifTypes
+                     193 and 194."
+
+       REVISION     "200012070000Z"  -- Dec 07, 2000
+       DESCRIPTION  "Registration of new IANAifTypes
+                     191 and 192."
+
+       REVISION     "200012040000Z"  -- Dec 04, 2000
+       DESCRIPTION  "Registration of new IANAifType
+                     190."
+
+       REVISION     "200010170000Z"  -- Oct 17, 2000
+       DESCRIPTION  "Registration of new IANAifTypes
+                     188 and 189."
+
+       REVISION     "200010020000Z"  -- Oct 02, 2000
+       DESCRIPTION  "Registration of new IANAifType 187."
+
+       REVISION     "200009010000Z"  -- Sept 01, 2000
+       DESCRIPTION  "Registration of new IANAifTypes
+                     184, 185, and 186."
+
+       REVISION     "200008240000Z"  -- Aug 24, 2000
+       DESCRIPTION  "Registration of new IANAifType 183."
+
+       REVISION     "200008230000Z"  -- Aug 23, 2000
+       DESCRIPTION  "Registration of new IANAifTypes
+                     174-182."
+
+       REVISION     "200008220000Z"  -- Aug 22, 2000
+       DESCRIPTION  "Registration of new IANAifTypes 170,
+                     171, 172 and 173."
+
+       REVISION     "200004250000Z"  -- Apr 25, 2000
+       DESCRIPTION  "Registration of new IANAifTypes 168 and 169."
+
+       REVISION     "200003060000Z"  -- Mar 6, 2000
+       DESCRIPTION  "Fixed a missing semi-colon in the IMPORT.
+                     Also cleaned up the REVISION log a bit.
+                     It is not complete, but from now on it will
+                     be maintained and kept up to date with each
+                     change to this MIB module."
+
+       REVISION     "199910081430Z"  -- Oct 08, 1999
+       DESCRIPTION  "Include new name assignments up to cnr(85).
+                     This is the first version available via the WWW
+                     at: ftp://ftp.isi.edu/mib/ianaiftype.mib"
+
+       REVISION     "199401310000Z"  -- Jan 31, 1994
+       DESCRIPTION  "Initial version of this MIB as published in
+                     RFC 1573."
+       ::= { mib-2 30 }
+
+   IANAifType ::= TEXTUAL-CONVENTION
+       STATUS       current
+       DESCRIPTION
+               "This data type is used as the syntax of the ifType
+               object in the (updated) definition of MIB-II's
+               ifTable.
+
+               The definition of this textual convention with the
+               addition of newly assigned values is published
+               periodically by the IANA, in either the Assigned
+               Numbers RFC, or some derivative of it specific to
+               Internet Network Management number assignments.  (The
+               latest arrangements can be obtained by contacting the
+               IANA.)
+
+               Interface types must not be directly added to the
+               IANAifType-MIB MIB module.  They must instead be added
+               to the 'Interface Types (ifType)' registry at
+               https://www.iana.org/assignments/smi-numbers.
+
+               The relationship between the assignment of ifType
+               values and of OIDs to particular media-specific MIBs
+               is solely the purview of IANA and is subject to change
+               without notice.  Quite often, a media-specific MIB's
+               OID-subtree assignment within MIB-II's 'transmission'
+               subtree will be the same as its ifType value.
+               However, in some circumstances this will not be the
+               case, and implementors must not pre-assume any
+               specific relationship between ifType values and
+               transmission subtree OIDs."
+       SYNTAX  INTEGER {
+                   other(1),          -- none of the following
+                   regular1822(2),
+                   hdh1822(3),
+                   ddnX25(4),
+                   rfc877x25(5),
+                   ethernetCsmacd(6), -- for all ethernet-like interfaces,
+                                      -- regardless of speed, as per RFC3635
+                   iso88023Csmacd(7), -- Deprecated via RFC3635
+                                      -- ethernetCsmacd (6) should be used instead
+                   iso88024TokenBus(8),
+                   iso88025TokenRing(9),
+                   iso88026Man(10),
+                   starLan(11), -- Deprecated via RFC3635
+                                -- ethernetCsmacd (6) should be used instead
+                   proteon10Mbit(12),
+                   proteon80Mbit(13),
+                   hyperchannel(14),
+                   fddi(15),
+                   lapb(16),
+                   sdlc(17),
+                   ds1(18),            -- DS1-MIB
+                   e1(19),             -- Obsolete see DS1-MIB
+                   basicISDN(20),              -- no longer used
+                                               -- see also RFC2127
+                   primaryISDN(21),            -- no longer used
+                                               -- see also RFC2127
+                   propPointToPointSerial(22), -- proprietary serial
+                   ppp(23),
+                   softwareLoopback(24),
+                   eon(25),            -- CLNP over IP
+                   ethernet3Mbit(26),
+                   nsip(27),           -- XNS over IP
+                   slip(28),           -- generic SLIP
+                   ultra(29),          -- ULTRA technologies
+                   ds3(30),            -- DS3-MIB
+                   sip(31),            -- SMDS, coffee
+                   frameRelay(32),     -- DTE only.
+                   rs232(33),
+                   para(34),           -- parallel-port
+                   arcnet(35),         -- arcnet
+                   arcnetPlus(36),     -- arcnet plus
+                   atm(37),            -- ATM cells
+                   miox25(38),
+                   sonet(39),          -- SONET or SDH
+                   x25ple(40),
+                   iso88022llc(41),
+                   localTalk(42),
+                   smdsDxi(43),
+                   frameRelayService(44),  -- FRNETSERV-MIB
+                   v35(45),
+                   hssi(46),
+                   hippi(47),
+                   modem(48),          -- Generic modem
+                   aal5(49),           -- AAL5 over ATM
+                   sonetPath(50),
+                   sonetVT(51),
+                   smdsIcip(52),       -- SMDS InterCarrier Interface
+                   propVirtual(53),    -- proprietary virtual/internal
+                   propMultiplexor(54),-- proprietary multiplexing
+                   ieee80212(55),      -- 100BaseVG
+                   fibreChannel(56),   -- Fibre Channel
+                   hippiInterface(57), -- HIPPI interfaces
+                   frameRelayInterconnect(58), -- Obsolete, use either
+                                       -- frameRelay(32) or
+                                       -- frameRelayService(44).
+                   aflane8023(59),     -- ATM Emulated LAN for 802.3
+                   aflane8025(60),     -- ATM Emulated LAN for 802.5
+                   cctEmul(61),        -- ATM Emulated circuit
+                   fastEther(62),      -- Obsoleted via RFC3635
+                                       -- ethernetCsmacd (6) should be used instead
+                   isdn(63),           -- ISDN and X.25
+                   v11(64),            -- CCITT V.11/X.21
+                   v36(65),            -- CCITT V.36
+                   g703at64k(66),      -- CCITT G703 at 64Kbps
+                   g703at2mb(67),      -- Obsolete see DS1-MIB
+                   qllc(68),           -- SNA QLLC
+                   fastEtherFX(69),    -- Obsoleted via RFC3635
+                                       -- ethernetCsmacd (6) should be used instead
+                   channel(70),        -- channel
+                   ieee80211(71),      -- radio spread spectrum
+                   ibm370parChan(72),  -- IBM System 360/370 OEMI Channel
+                   escon(73),          -- IBM Enterprise Systems Connection
+                   dlsw(74),           -- Data Link Switching
+                   isdns(75),          -- ISDN S/T interface
+                   isdnu(76),          -- ISDN U interface
+                   lapd(77),           -- Link Access Protocol D
+                   ipSwitch(78),       -- IP Switching Objects
+                   rsrb(79),           -- Remote Source Route Bridging
+                   atmLogical(80),     -- ATM Logical Port
+                   ds0(81),            -- Digital Signal Level 0
+                   ds0Bundle(82),      -- group of ds0s on the same ds1
+                   bsc(83),            -- Bisynchronous Protocol
+                   async(84),          -- Asynchronous Protocol
+                   cnr(85),            -- Combat Net Radio
+                   iso88025Dtr(86),    -- ISO 802.5r DTR
+                   eplrs(87),          -- Ext Pos Loc Report Sys
+                   arap(88),           -- Appletalk Remote Access Protocol
+                   propCnls(89),       -- Proprietary Connectionless Protocol
+                   hostPad(90),        -- CCITT-ITU X.29 PAD Protocol
+                   termPad(91),        -- CCITT-ITU X.3 PAD Facility
+                   frameRelayMPI(92),  -- Multiproto Interconnect over FR
+                   x213(93),           -- CCITT-ITU X213
+                   adsl(94),           -- Asymmetric Digital Subscriber Loop
+                   radsl(95),          -- Rate-Adapt. Digital Subscriber Loop
+                   sdsl(96),           -- Symmetric Digital Subscriber Loop
+                   vdsl(97),           -- Very H-Speed Digital Subscrib. Loop
+                   iso88025CRFPInt(98), -- ISO 802.5 CRFP
+                   myrinet(99),        -- Myricom Myrinet
+                   voiceEM(100),       -- voice recEive and transMit
+                   voiceFXO(101),      -- voice Foreign Exchange Office
+                   voiceFXS(102),      -- voice Foreign Exchange Station
+                   voiceEncap(103),    -- voice encapsulation
+                   voiceOverIp(104),   -- voice over IP encapsulation
+                   atmDxi(105),        -- ATM DXI
+                   atmFuni(106),       -- ATM FUNI
+                   atmIma (107),       -- ATM IMA
+                   pppMultilinkBundle(108), -- PPP Multilink Bundle
+                   ipOverCdlc (109),   -- IBM ipOverCdlc
+                   ipOverClaw (110),   -- IBM Common Link Access to Workstn
+                   stackToStack (111), -- IBM stackToStack
+                   virtualIpAddress (112), -- IBM VIPA
+                   mpc (113),          -- IBM multi-protocol channel support
+                   ipOverAtm (114),    -- IBM ipOverAtm
+                   iso88025Fiber (115), -- ISO 802.5j Fiber Token Ring
+                   tdlc (116),         -- IBM twinaxial data link control
+                   gigabitEthernet (117), -- Obsoleted via RFC3635
+                                          -- ethernetCsmacd (6) should be used instead
+                   hdlc (118),         -- HDLC
+                   lapf (119),         -- LAP F
+                   v37 (120),          -- V.37
+                   x25mlp (121),       -- Multi-Link Protocol
+                   x25huntGroup (122), -- X25 Hunt Group
+                   transpHdlc (123),   -- Transp HDLC
+                   interleave (124),   -- Interleave channel
+                   fast (125),         -- Fast channel
+                   ip (126),           -- IP (for APPN HPR in IP networks)
+                   docsCableMaclayer (127),  -- CATV Mac Layer
+                   docsCableDownstream (128), -- CATV Downstream interface
+                   docsCableUpstream (129),  -- CATV Upstream interface
+                   a12MppSwitch (130), -- Avalon Parallel Processor
+                   tunnel (131),       -- Encapsulation interface
+                   coffee (132),       -- coffee pot
+                   ces (133),          -- Circuit Emulation Service
+                   atmSubInterface (134), -- ATM Sub Interface
+                   l2vlan (135),       -- Layer 2 Virtual LAN using 802.1Q
+                   l3ipvlan (136),     -- Layer 3 Virtual LAN using IP
+                   l3ipxvlan (137),    -- Layer 3 Virtual LAN using IPX
+                   digitalPowerline (138), -- IP over Power Lines
+                   mediaMailOverIp (139), -- Multimedia Mail over IP
+                   dtm (140),        -- Dynamic syncronous Transfer Mode
+                   dcn (141),    -- Data Communications Network
+                   ipForward (142),    -- IP Forwarding Interface
+                   msdsl (143),       -- Multi-rate Symmetric DSL
+                   ieee1394 (144), -- IEEE1394 High Performance Serial Bus
+                   if-gsn (145),       --   HIPPI-6400
+                   dvbRccMacLayer (146), -- DVB-RCC MAC Layer
+                   dvbRccDownstream (147),  -- DVB-RCC Downstream Channel
+                   dvbRccUpstream (148),  -- DVB-RCC Upstream Channel
+                   atmVirtual (149),   -- ATM Virtual Interface
+                   mplsTunnel (150),   -- MPLS Tunnel Virtual Interface
+                   srp (151),   -- Spatial Reuse Protocol
+                   voiceOverAtm (152),  -- Voice Over ATM
+                   voiceOverFrameRelay (153),   -- Voice Over Frame Relay
+                   idsl (154),          -- Digital Subscriber Loop over ISDN
+                   compositeLink (155),  -- Avici Composite Link Interface
+                   ss7SigLink (156),     -- SS7 Signaling Link
+                   propWirelessP2P (157),  --  Prop. P2P wireless interface
+                   frForward (158),    -- Frame Forward Interface
+                   rfc1483 (159),       -- Multiprotocol over ATM AAL5
+                   usb (160),           -- USB Interface
+                   ieee8023adLag (161),  -- IEEE 802.3ad Link Aggregate
+                   bgppolicyaccounting (162), -- BGP Policy Accounting
+                   frf16MfrBundle (163), -- FRF .16 Multilink Frame Relay
+                   h323Gatekeeper (164), -- H323 Gatekeeper
+                   h323Proxy (165), -- H323 Voice and Video Proxy
+                   mpls (166), -- MPLS
+                   mfSigLink (167), -- Multi-frequency signaling link
+                   hdsl2 (168), -- High Bit-Rate DSL - 2nd generation
+                   shdsl (169), -- Multirate HDSL2
+                   ds1FDL (170), -- Facility Data Link 4Kbps on a DS1
+                   pos (171), -- Packet over SONET/SDH Interface
+                   dvbAsiIn (172), -- DVB-ASI Input
+                   dvbAsiOut (173), -- DVB-ASI Output
+                   plc (174), -- Power Line Communtications
+                   nfas (175), -- Non Facility Associated Signaling
+                   tr008 (176), -- TR008
+                   gr303RDT (177), -- Remote Digital Terminal
+                   gr303IDT (178), -- Integrated Digital Terminal
+                   isup (179), -- ISUP
+                   propDocsWirelessMaclayer (180), -- Cisco proprietary Maclayer
+                   propDocsWirelessDownstream (181), -- Cisco proprietary Downstream
+                   propDocsWirelessUpstream (182), -- Cisco proprietary Upstream
+                   hiperlan2 (183), -- HIPERLAN Type 2 Radio Interface
+                   propBWAp2Mp (184), -- PropBroadbandWirelessAccesspt2multipt
+                             -- use of this iftype for IEEE 802.16 WMAN
+                             -- interfaces as per IEEE Std 802.16f is
+                             -- deprecated and ifType 237 should be used instead.
+                   sonetOverheadChannel (185), -- SONET Overhead Channel
+                   digitalWrapperOverheadChannel (186), -- Digital Wrapper
+                   aal2 (187), -- ATM adaptation layer 2
+                   radioMAC (188), -- MAC layer over radio links
+                   atmRadio (189), -- ATM over radio links
+                   imt (190), -- Inter Machine Trunks
+                   mvl (191), -- Multiple Virtual Lines DSL
+                   reachDSL (192), -- Long Reach DSL
+                   frDlciEndPt (193), -- Frame Relay DLCI End Point
+                   atmVciEndPt (194), -- ATM VCI End Point
+                   opticalChannel (195), -- Optical Channel
+                   opticalTransport (196), -- Optical Transport
+                   propAtm (197), --  Proprietary ATM
+                   voiceOverCable (198), -- Voice Over Cable Interface
+                   infiniband (199), -- Infiniband
+                   teLink (200), -- TE Link
+                   q2931 (201), -- Q.2931
+                   virtualTg (202), -- Virtual Trunk Group
+                   sipTg (203), -- SIP Trunk Group
+                   sipSig (204), -- SIP Signaling
+                   docsCableUpstreamChannel (205), -- CATV Upstream Channel
+                   econet (206), -- Acorn Econet
+                   pon155 (207), -- FSAN 155Mb Symetrical PON interface
+                   pon622 (208), -- FSAN622Mb Symetrical PON interface
+                   bridge (209), -- Transparent bridge interface
+                   linegroup (210), -- Interface common to multiple lines
+                   voiceEMFGD (211), -- voice E&M Feature Group D
+                   voiceFGDEANA (212), -- voice FGD Exchange Access North American
+                   voiceDID (213), -- voice Direct Inward Dialing
+                   mpegTransport (214), -- MPEG transport interface
+                   sixToFour (215), -- 6to4 interface (DEPRECATED)
+                   gtp (216), -- GTP (GPRS Tunneling Protocol)
+                   pdnEtherLoop1 (217), -- Paradyne EtherLoop 1
+                   pdnEtherLoop2 (218), -- Paradyne EtherLoop 2
+                   opticalChannelGroup (219), -- Optical Channel Group
+                   homepna (220), -- HomePNA ITU-T G.989
+                   gfp (221), -- Generic Framing Procedure (GFP)
+                   ciscoISLvlan (222), -- Layer 2 Virtual LAN using Cisco ISL
+                   actelisMetaLOOP (223), -- Acteleis proprietary MetaLOOP High Speed Link
+                   fcipLink (224), -- FCIP Link
+                   rpr (225), -- Resilient Packet Ring Interface Type
+                   qam (226), -- RF Qam Interface
+                   lmp (227), -- Link Management Protocol
+                   cblVectaStar (228), -- Cambridge Broadband Networks Limited VectaStar
+                   docsCableMCmtsDownstream (229), -- CATV Modular CMTS Downstream Interface
+                   adsl2 (230), -- Asymmetric Digital Subscriber Loop Version 2
+                                -- (DEPRECATED/OBSOLETED - please use adsl2plus 238 instead)
+                   macSecControlledIF (231), -- MACSecControlled
+                   macSecUncontrolledIF (232), -- MACSecUncontrolled
+                   aviciOpticalEther (233), -- Avici Optical Ethernet Aggregate
+                   atmbond (234), -- atmbond
+                   voiceFGDOS (235), -- voice FGD Operator Services
+                   mocaVersion1 (236), -- MultiMedia over Coax Alliance (MoCA) Interface
+                             -- as documented in information provided privately to IANA
+                   ieee80216WMAN (237), -- IEEE 802.16 WMAN interface
+                   adsl2plus (238), -- Asymmetric Digital Subscriber Loop Version 2,
+                                   -- Version 2 Plus and all variants
+                   dvbRcsMacLayer (239), -- DVB-RCS MAC Layer
+                   dvbTdm (240), -- DVB Satellite TDM
+                   dvbRcsTdma (241), -- DVB-RCS TDMA
+                   x86Laps (242), -- LAPS based on ITU-T X.86/Y.1323
+                   wwanPP (243), -- 3GPP WWAN
+                   wwanPP2 (244), -- 3GPP2 WWAN
+                   voiceEBS (245), -- voice P-phone EBS physical interface
+                   ifPwType (246), -- Pseudowire interface type
+                   ilan (247), -- Internal LAN on a bridge per IEEE 802.1ap
+                   pip (248), -- Provider Instance Port on a bridge per IEEE 802.1ah PBB
+                   aluELP (249), -- Alcatel-Lucent Ethernet Link Protection
+                   gpon (250), -- Gigabit-capable passive optical networks (G-PON) as per ITU-T G.984
+                   vdsl2 (251), -- Very high speed digital subscriber line Version 2 (as per ITU-T Recommendation G.993.2)
+                   capwapDot11Profile (252), -- WLAN Profile Interface
+                   capwapDot11Bss (253), -- WLAN BSS Interface
+                   capwapWtpVirtualRadio (254), -- WTP Virtual Radio Interface
+                   bits (255), -- bitsport
+                   docsCableUpstreamRfPort (256), -- DOCSIS CATV Upstream RF Port
+                   cableDownstreamRfPort (257), -- CATV downstream RF port
+                   vmwareVirtualNic (258), -- VMware Virtual Network Interface
+                   ieee802154 (259), -- IEEE 802.15.4 WPAN interface
+                   otnOdu (260), -- OTN Optical Data Unit
+                   otnOtu (261), -- OTN Optical channel Transport Unit
+                   ifVfiType (262), -- VPLS Forwarding Instance Interface Type
+                   g9981 (263), -- G.998.1 bonded interface
+                   g9982 (264), -- G.998.2 bonded interface
+                   g9983 (265), -- G.998.3 bonded interface
+                   aluEpon (266), -- Ethernet Passive Optical Networks (E-PON)
+                   aluEponOnu (267), -- EPON Optical Network Unit
+                   aluEponPhysicalUni (268), -- EPON physical User to Network interface
+                   aluEponLogicalLink (269), -- The emulation of a point-to-point link over the EPON layer
+                   aluGponOnu (270), -- GPON Optical Network Unit
+                   aluGponPhysicalUni (271), -- GPON physical User to Network interface
+                   vmwareNicTeam (272), -- VMware NIC Team
+                   docsOfdmDownstream (277), -- CATV Downstream OFDM interface
+                   docsOfdmaUpstream (278), -- CATV Upstream OFDMA interface
+                   gfast (279), -- G.fast port
+                   sdci (280), -- SDCI (IO-Link)
+                   xboxWireless (281), -- Xbox wireless
+                   fastdsl (282), -- FastDSL
+                   docsCableScte55d1FwdOob (283), -- Cable SCTE 55-1 OOB Forward Channel
+                   docsCableScte55d1RetOob (284), -- Cable SCTE 55-1 OOB Return Channel
+                   docsCableScte55d2DsOob (285), -- Cable SCTE 55-2 OOB Downstream Channel
+                   docsCableScte55d2UsOob (286), -- Cable SCTE 55-2 OOB Upstream Channel
+                   docsCableNdf (287), -- Cable Narrowband Digital Forward
+                   docsCableNdr (288), -- Cable Narrowband Digital Return
+                   ptm (289), -- Packet Transfer Mode
+                   ghn (290), -- G.hn port
+                   otnOtsi (291), -- Optical Tributary Signal
+                   otnOtuc (292), -- OTN OTUCn
+                   otnOduc (293), -- OTN ODUC
+                   otnOtsig (294), -- OTN OTUC Signal
+                   microwaveCarrierTermination (295), -- air interface of a single microwave carrier
+                   microwaveRadioLinkTerminal (296), -- radio link interface for one or several aggregated microwave carriers
+                   ieee8021axDrni (297), -- IEEE 802.1AX Distributed Resilient Network Interface
+                   ax25 (298), -- AX.25 network interfaces
+                   ieee19061nanocom (299), -- Nanoscale and Molecular Communication
+                   cpri (300), -- Common Public Radio Interface
+                   omni (301), -- Overlay Multilink Network Interface (OMNI)
+                   roe (302), -- Radio over Ethernet Interface
+                   p2pOverLan (303) -- Point to Point over LAN interface
+                   }
+
+IANAtunnelType ::= TEXTUAL-CONVENTION
+    STATUS     current
+    DESCRIPTION
+            "The encapsulation method used by a tunnel. The value
+            direct indicates that a packet is encapsulated
+            directly within a normal IP header, with no
+            intermediate header, and unicast to the remote tunnel
+            endpoint (e.g., an RFC 2003 IP-in-IP tunnel, or an RFC
+            1933 IPv6-in-IPv4 tunnel). The value minimal indicates
+            that a Minimal Forwarding Header (RFC 2004) is
+            inserted between the outer header and the payload
+            packet. The value UDP indicates that the payload
+            packet is encapsulated within a normal UDP packet
+            (e.g., RFC 1234).
+
+            The values sixToFour, sixOverFour, and isatap
+            indicates that an IPv6 packet is encapsulated directly
+            within an IPv4 header, with no intermediate header,
+            and unicast to the destination determined by the 6to4,
+            6over4, or ISATAP protocol.
+
+            The remaining protocol-specific values indicate that a
+            header of the protocol of that name is inserted
+            between the outer header and the payload header.
+
+            The IP Tunnel MIB [RFC4087] is designed to manage
+            tunnels of any type over IPv4 and IPv6 networks;
+            therefore, it already supports IP-in-IP tunnels.
+            But in a DS-Lite scenario, the tunnel type is
+            point-to-multipoint IP-in-IP tunnels.  The direct(2)
+            defined in the IP Tunnel MIB only supports point-to-point
+            tunnels.  So, it needs to define a new tunnel type for
+            DS-Lite.
+
+            The assignment policy for IANAtunnelType values is
+            identical to the policy for assigning IANAifType
+            values."
+    SYNTAX     INTEGER {
+                   other(1),           -- none of the following
+                   direct(2),          -- no intermediate header
+                   gre(3),             -- GRE encapsulation
+                   minimal(4),         -- Minimal encapsulation
+                   l2tp(5),            -- L2TP encapsulation
+                   pptp(6),            -- PPTP encapsulation
+                   l2f(7),             -- L2F encapsulation
+                   udp(8),             -- UDP encapsulation
+                   atmp(9),            -- ATMP encapsulation
+                   msdp(10),           -- MSDP encapsulation
+                   sixToFour(11),      -- 6to4 encapsulation
+                   sixOverFour(12),    -- 6over4 encapsulation
+                   isatap(13),         -- ISATAP encapsulation
+                   teredo(14),         -- Teredo encapsulation
+                   ipHttps(15),        -- IPHTTPS
+                   softwireMesh(16),   -- softwire mesh tunnel
+                   dsLite(17),         -- DS-Lite tunnel
+                   aplusp(18),         -- A+P encapsulation
+                   ipsectunnelmode(19) -- IpSec tunnel mode encapsulation
+               }
+
+   END

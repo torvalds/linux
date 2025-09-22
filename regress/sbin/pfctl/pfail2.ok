@@ -1,0 +1,6 @@
+stdin:3: proto icmp doesn't match address family inet6
+stdin:3: skipping rule due to errors
+stdin:3: rule expands to no valid combination
+stdin:4: proto icmp6 doesn't match address family inet
+stdin:4: skipping rule due to errors
+stdin:4: rule expands to no valid combination

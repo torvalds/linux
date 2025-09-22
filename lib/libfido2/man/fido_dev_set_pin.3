@@ -1,0 +1,104 @@
+.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_DEV_SET_PIN 3
+.Os
+.Sh NAME
+.Nm fido_dev_set_pin ,
+.Nm fido_dev_get_retry_count ,
+.Nm fido_dev_get_uv_retry_count ,
+.Nm fido_dev_reset
+.Nd FIDO2 device management functions
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft int
+.Fn fido_dev_set_pin "fido_dev_t *dev" "const char *pin" "const char *oldpin"
+.Ft int
+.Fn fido_dev_get_retry_count "fido_dev_t *dev" "int *retries"
+.Ft int
+.Fn fido_dev_get_uv_retry_count "fido_dev_t *dev" "int *retries"
+.Ft int
+.Fn fido_dev_reset "fido_dev_t *dev"
+.Sh DESCRIPTION
+The
+.Fn fido_dev_set_pin
+function sets the PIN of device
+.Fa dev
+to
+.Fa pin ,
+where
+.Fa pin
+is a NUL-terminated UTF-8 string.
+If
+.Fa oldpin
+is not NULL, the device's PIN is changed from
+.Fa oldpin
+to
+.Fa pin ,
+where
+.Fa pin
+and
+.Fa oldpin
+are NUL-terminated UTF-8 strings.
+.Pp
+The
+.Fn fido_dev_get_retry_count
+function fills
+.Fa retries
+with the number of PIN retries left in
+.Fa dev
+before lock-out, where
+.Fa retries
+is an addressable pointer.
+.Pp
+The
+.Fn fido_dev_get_uv_retry_count
+function fills
+.Fa retries
+with the number of built-in UV retries left in
+.Fa dev
+before built-in UV is disabled, where
+.Fa retries
+is an addressable pointer.
+.Pp
+The
+.Fn fido_dev_reset
+function performs a reset on
+.Fa dev ,
+resetting the device's PIN and erasing credentials stored on the
+device.
+.Pp
+Please note that
+.Fn fido_dev_set_pin ,
+.Fn fido_dev_get_retry_count ,
+.Fn fido_dev_get_uv_retry_count ,
+and
+.Fn fido_dev_reset
+are synchronous and will block if necessary.
+.Sh RETURN VALUES
+The error codes returned by
+.Fn fido_dev_set_pin ,
+.Fn fido_dev_get_retry_count ,
+.Fn fido_dev_get_uv_retry_count ,
+and
+.Fn fido_dev_reset
+are defined in
+.In fido/err.h .
+On success,
+.Dv FIDO_OK
+is returned.
+.Sh CAVEATS
+Regarding
+.Fn fido_dev_reset ,
+the actual user-flow to perform a reset is outside the scope of the
+FIDO2 specification, and may therefore vary depending on the
+authenticator.
+Yubico authenticators will return
+.Dv FIDO_ERR_NOT_ALLOWED
+if a reset is issued later than 5 seconds after power-up, and
+.Dv FIDO_ERR_ACTION_TIMEOUT
+if the user fails to confirm the reset by touching the key
+within 30 seconds.

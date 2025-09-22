@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="bkoz@redhat.com (Benjamin Kosnik)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="Notes on the ctype implementation." />
+   <title>Notes on the ctype implementation.</title>
+<link rel="StyleSheet" href="../lib3styles.css" type="text/css" />
+<link rel="Start" href="../documentation.html" type="text/html"
+  title="GNU C++ Standard Library" />
+<link rel="Bookmark" href="howto.html" type="text/html" title="Localization" />
+<link rel="Copyright" href="../17_intro/license.html" type="text/html" />
+<link rel="Help" href="../faq/index.html" type="text/html" title="F.A.Q." />
+</head>
+<body>
+  <h1>
+  Notes on the ctype implementation.
+  </h1>
+<em>
+prepared by Benjamin Kosnik (bkoz@redhat.com) on August 30, 2000
+</em>
+
+<h2>
+1. Abstract
+</h2>
+<p>
+Woe is me.
+</p>
+
+<h2>
+2. What the standard says
+</h2>
+
+
+<h2>
+3. Problems with &quot;C&quot; ctype : global locales, termination.
+</h2>
+
+<p>
+For the required specialization codecvt&lt;wchar_t, char, mbstate_t&gt; ,
+conversions are made between the internal character set (always UCS4
+on GNU/Linux) and whatever the currently selected locale for the
+LC_CTYPE category implements.
+</p>
+
+<h2>
+4. Design
+</h2>
+The two required specializations are implemented as follows:
+
+<p>
+<code>
+ctype&lt;char&gt;
+</code>
+</p>
+<p>
+This is simple specialization. Implementing this was a piece of cake.
+</p>
+
+<p>
+<code>
+ctype&lt;wchar_t&gt;
+</code>
+</p>
+<p>
+This specialization, by specifying all the template parameters, pretty
+much ties the hands of implementors. As such, the implementation is
+straightforward, involving mcsrtombs for the conversions between char
+to wchar_t and wcsrtombs for conversions between wchar_t and char.
+</p>
+
+<p>
+Neither of these two required specializations deals with Unicode
+characters. As such, libstdc++-v3 implements 
+</p>
+
+<h2>
+5.  Examples
+</h2>
+
+<pre>
+  typedef ctype&lt;char&gt; cctype;
+</pre>
+
+More information can be found in the following testcases:
+<ul>
+<li> testsuite/22_locale/ctype_char_members.cc    </li>
+<li> testsuite/22_locale/ctype_wchar_t_members.cc </li>
+</ul>
+
+<h2>
+6.  Unresolved Issues
+</h2>
+
+<ul>
+   <li> how to deal with the global locale issue? </li>
+
+   <li> how to deal with different types than char, wchar_t? </li>
+
+   <li> codecvt/ctype overlap: narrow/widen </li>
+
+   <li> mask typedef in codecvt_base, argument types in codecvt.
+   what is know about this type? </li>
+
+   <li> why mask* argument in codecvt? </li>
+   
+   <li> can this be made (more) generic? is there a simple way to
+   straighten out the configure-time mess that is a by-product of
+   this class? </li>
+
+   <li> get the ctype&lt;wchar_t&gt;::mask stuff under control. Need to
+   make some kind of static table, and not do lookup evertime
+   somebody hits the do_is... functions. Too bad we can't just
+   redefine mask for ctype&lt;wchar_t&gt; </li>
+   
+   <li> rename abstract base class. See if just smash-overriding
+   is a better approach. Clarify, add sanity to naming. </li>
+
+</ul>
+
+
+<h2>
+7. Acknowledgments
+</h2>
+Ulrich Drepper for patient answering of late-night questions, skeletal
+examples, and C language expertise.
+
+<h2>
+8. Bibliography / Referenced Documents
+</h2>
+
+Drepper, Ulrich, GNU libc (glibc) 2.2 manual. In particular, Chapters &quot;6. Character Set Handling&quot; and &quot;7 Locales and Internationalization&quot;
+
+<p>
+Drepper, Ulrich, Numerous, late-night email correspondence
+</p>
+
+<p>
+ISO/IEC 14882:1998 Programming languages - C++
+</p>
+
+<p>
+ISO/IEC 9899:1999 Programming languages - C
+</p>
+
+<p>
+Langer, Angelika and Klaus Kreft, Standard C++ IOStreams and Locales, Advanced Programmer's Guide and Reference, Addison Wesley Longman, Inc. 2000
+</p>
+
+<p>
+Stroustrup, Bjarne, Appendix D, The C++ Programming Language, Special Edition, Addison Wesley, Inc. 2000
+</p>
+
+<p>
+System Interface Definitions, Issue 6 (IEEE Std. 1003.1-200x)
+The Open Group/The Institute of Electrical and Electronics Engineers, Inc.
+http://www.opennc.org/austin/docreg.html
+</p>
+
+</body>
+</html>

@@ -1,0 +1,83 @@
+.\"     $OpenBSD: getnewvnode.9,v 1.11 2020/11/14 10:35:58 jmc Exp $
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/getnewvnode.9,v 1.1 2001/12/02 02:13:35 alfred Exp $
+.\"
+.Dd $Mdocdate: November 14 2020 $
+.Dt GETNEWVNODE 9
+.Os
+.Sh NAME
+.Nm getnewvnode
+.Nd get a new vnode
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In sys/mount.h
+.Ft int
+.Fo getnewvnode
+.Fa "enum vtagtype tag"
+.Fa "struct mount *mp"
+.Fa "const struct vops *vops"
+.Fa "struct vnode **vpp"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn getnewvnode
+function initializes a new vnode, assigning it the vnode operations passed in
+.Fa vops .
+It will have its v_tag field set to
+.Fa tag
+and be placed in the mount queue for the mount point represented by
+.Fa mp .
+.Pp
+The vnode is either freshly allocated, taken from the free list or taken from
+the hold list.
+If there are no vnodes on the free list, half the time a vnode
+referencing buffers will be taken from the hold list, otherwise it will be
+freshly allocated.
+.Pp
+The arguments to
+.Fn getnewvnode
+are:
+.Bl -tag -width "vops"
+.It Fa tag
+The file system type.
+.It Fa mp
+The mount point to add the new vnode to.
+.It Fa vops
+The vnode operations to assign to the new vnode.
+.It Fa vpp
+Points to the new vnode upon successful completion.
+.El
+.Sh RETURN VALUES
+.Fn getnewvnode
+returns 0 on success, or ENFILE if the vnode table is full.
+.Sh AUTHORS
+This man page was originally written by
+.An Chad David Aq Mt davidc@acns.ab.ca
+for
+.Fx .

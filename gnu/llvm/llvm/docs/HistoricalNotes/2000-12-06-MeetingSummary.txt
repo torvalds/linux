@@ -1,0 +1,83 @@
+SUMMARY
+-------
+
+We met to discuss the LLVM instruction format and bytecode representation:
+
+ISSUES RESOLVED
+---------------
+
+1. We decided that we shall use a flat namespace to represent our 
+   variables in SSA form, as opposed to having a two dimensional namespace
+   of the original variable and the SSA instance subscript.
+
+ARGUMENT AGAINST:
+   * A two dimensional namespace would be valuable when doing alias 
+     analysis because the extra information can help limit the scope of
+     analysis.
+
+ARGUMENT FOR:
+   * Including this information would require that all users of the LLVM
+     bytecode would have to parse and handle it.  This would slow down the
+     common case and inflate the instruction representation with another
+     infinite variable space.
+
+REASONING:
+   * It was decided that because original variable sources could be
+     reconstructed from SSA form in linear time, that it would be an
+     unjustified expense for the common case to include the extra
+     information for one optimization.  Alias analysis itself is typically
+     greater than linear in asymptotic complexity, so this extra analaysis
+     would not affect the runtime of the optimization in a significant
+     way.  Additionally, this would be an unlikely optimization to do at
+     runtime.
+
+
+IDEAS TO CONSIDER
+-----------------
+
+1. Including dominator information in the LLVM bytecode
+   representation.  This is one example of an analysis result that may be
+   packaged with the bytecodes themselves.  As a conceptual implementation 
+   idea, we could include an immediate dominator number for each basic block
+   in the LLVM bytecode program.  Basic blocks could be numbered according
+   to the order of occurrence in the bytecode representation.
+
+2. Including loop header and body information.  This would facilitate
+   detection of intervals and natural loops.
+
+UNRESOLVED ISSUES 
+----------------- 
+
+1. Will oSUIF provide enough of an infrastructure to support the research
+   that we will be doing?  We know that it has less than stellar
+   performance, but hope that this will be of little importance for our
+   static compiler.  This could affect us if we decided to do some IP
+   research.  Also we do not yet understand the level of exception support
+   currently implemented.
+
+2. Should we consider the requirements of a direct hardware implementation
+   of the LLVM when we design it?  If so, several design issues should
+   have their priorities shifted.  The other option is to focus on a
+   software layer interpreting the LLVM in all cases.
+
+3. Should we use some form of packetized format to improve forward
+   compatibility?  For example, we could design the system to encode a
+   packet type and length field before analysis information, to allow a
+   runtime to skip information that it didn't understand in a bytecode
+   stream.  The obvious benefit would be for compatibility, the drawback
+   is that it would tend to splinter that 'standard' LLVM definition.
+
+4. Should we use fixed length instructions or variable length
+   instructions?  Fetching variable length instructions is expensive (for
+   either hardware or software based LLVM runtimes), but we have several
+   'infinite' spaces that instructions operate in (SSA register numbers,
+   type spaces, or packet length [if packets were implemented]).  Several
+   options were mentioned including: 
+     A. Using 16 or 32 bit numbers, which would be 'big enough'
+     B. A scheme similar to how UTF-8 works, to encode infinite numbers
+        while keeping small number small.
+     C. Use something similar to Huffman encoding, so that the most common
+        numbers are the smallest.
+
+-Chris
+

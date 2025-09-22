@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# Similar to libcxx/utils/ci/run-buildbot-container, but adds additional options
+# needed for running Android tests.
+
+set -e
+
+MONOREPO_ROOT="$(git rev-parse --show-toplevel)"
+if [[ ! -d "${MONOREPO_ROOT}/libcxx/utils/ci/vendor/android" ]]; then
+    echo "Was unable to find the root of the LLVM monorepo; are you running from within the monorepo?"
+    exit 1
+fi
+
+DOCKER_OPTIONS=(-it)
+DOCKER_OPTIONS+=(--volume "${MONOREPO_ROOT}:/llvm")
+DOCKER_OPTIONS+=(--workdir "/llvm")
+DOCKER_OPTIONS+=(--cap-add=SYS_PTRACE)
+
+# Mount this volume to allow the main image to share its copy of the Android
+# platform tools with the emulator image, ensuring that the adb versions match.
+# This argument will create a new volume if it doesn't already exist.
+DOCKER_OPTIONS+=(--volume android-platform-tools:/mnt/android-platform-tools)
+
+# Pass through the Docker socket so that the buildbot can start a sibling
+# container running an Android emulator.
+if [ -S /var/run/docker.sock ]; then
+    DOCKER_OPTIONS+=(--volume /var/run/docker.sock:/var/run/docker.sock)
+fi
+
+docker run "${DOCKER_OPTIONS[@]}" libcxx-builder-android \
+    bash -c 'git config --global --add safe.directory /llvm; (/opt/android/container-setup.sh && exec bash)'

@@ -1,0 +1,66 @@
+.\"	$OpenBSD: wdog_register.9,v 1.7 2013/07/17 20:21:56 schwarze Exp $
+.\"
+.\" Copyright (c) 2004 Michael Knudsen <mk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 17 2013 $
+.Dt WDOG_REGISTER 9
+.Os
+.Sh NAME
+.Nm wdog_register
+.Nd kernel watchdog interface
+.Sh SYNOPSIS
+.In sys/systm.h
+.Ft void
+.Fn wdog_register "int (*cb)(void *cb_arg, int period)" "void *cb_arg"
+.Sh DESCRIPTION
+The kernel watchdog interface is used by hardware watchdog drivers and
+should be used for all future drivers.
+.Pp
+.Fn wdog_register
+is called by the hardware driver after configuring the hardware watchdog
+device.
+The
+.Fa cb_arg
+argument is a pointer to the hardware device control structure.
+The
+.Fa cb
+argument is a pointer to a function supplied by the driver which sets
+the timeout in the hardware device.
+.Pp
+The
+.Fa cb_arg
+parameter given to
+.Fa cb
+is a pointer to the device control structure.
+The
+.Fa period
+parameter supplies the desired timeout value in seconds.
+A
+.Fa period
+value of zero disables the watchdog.
+Setting the timeout to a nonzero value after disabling the watchdog
+will update the timeout value and enable the watchdog.
+.Sh CODE REFERENCES
+The framework is implemented in the file
+.Pa sys/kern/kern_watchdog.c .
+.Sh SEE ALSO
+.Xr watchdog 4 ,
+.Xr sysctl_int 9 ,
+.Xr timeout 9
+.Sh HISTORY
+The watchdog timer framework was written by
+.An Markus Friedl Aq Mt markus@openbsd.org
+and first appeared in
+.Ox 3.3 .

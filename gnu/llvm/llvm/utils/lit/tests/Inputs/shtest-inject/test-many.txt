@@ -1,0 +1,7 @@
+
+# This test has several RUN lines, but more run lines are prepended to it by
+# the test format in use.
+
+# RUN: echo "IN THE FILE"
+# RUN: echo "IF IT WORKS"
+# RUN: echo "AS EXPECTED"

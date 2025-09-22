@@ -1,0 +1,40 @@
+import("//llvm/tools/binutils_symlinks.gni")
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/symlink_or_copy.gni")
+
+tablegen("TapiOpts") {
+  visibility = [ ":llvm-readtapi" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+if (llvm_install_binutils_symlinks) {
+  symlink_or_copy("readtapi") {
+    deps = [ ":llvm-readtapi" ]
+    source = "llvm-readtapi"
+    output = "$root_out_dir/bin/readtapi"
+  }
+}
+
+# //:llvm-readtapi depends on this symlink target, see comment in //BUILD.gn.
+group("symlinks") {
+  deps = [ ":llvm-readtapi" ]
+  if (llvm_install_binutils_symlinks) {
+    deps += [ ":readtapi" ]
+  }
+}
+
+executable("llvm-readtapi") {
+  deps = [
+    ":TapiOpts",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/TextAPI",
+    "//llvm/lib/TextAPI/BinaryReader",
+  ]
+  sources = [
+    "DiffEngine.cpp",
+    "llvm-readtapi.cpp",
+  ]
+}

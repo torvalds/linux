@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, gcc, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="HOWTO for libstdc++ chapter 17." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 HOWTO:  Chapter 17: Library Introduction</title>
+<link rel="StyleSheet" href="../lib3styles.css" type="text/css" />
+<link rel="Start" href="../documentation.html" type="text/html"
+ title="GNU C++ Standard Library" />
+<link rel="Next" href="../18_support/howto.html" type="text/html"
+  title="Library Support" />
+<link rel="Copyright" href="license.html" type="text/html" />
+<link rel="Help" href="../faq/index.html" type="text/html" title="F.A.Q." />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Chapter 17:  Library Introduction</a></h1>
+
+<p>Chapter 17 is actually a list of definitions and descriptions used
+   in the following chapters of the Standard when describing the actual
+   library.  Here, we use &quot;Introduction&quot; as an introduction
+   to the <em>GNU implementation of</em> the ISO Standard C++ Library.
+</p>
+
+
+<!-- ####################################################### -->
+<hr />
+<h1>Contents</h1>
+<ul>
+   <li><a href="#2">The Standard C++ header files</a></li>
+   <li><a href="#3">The Standard C++ library and multithreading</a></li>
+   <li><a href="#4"><code>&lt;foo&gt;</code> vs <code>&lt;foo.h&gt;</code></a></li>
+   <li><a href="porting-howto.html">Porting HOWTO</a></li>
+   <li><a href="#5">Behavior specific to libstdc++-v3</a></li>
+   <li><a href="#6">Preprocessor macros controlling the library</a></li>
+</ul>
+
+<hr />
+
+<!-- ####################################################### -->
+
+<h2><a name="2">The Standard C++ header files</a></h2>
+   <p>The Standard C++ Library specifies 50 header files that must be
+      available to all hosted implementations.  Actually, the word
+      &quot;files&quot; is a misnomer, since the contents of the headers
+      don't necessarily have to be in any kind of external file.  The
+      only rule is that when you <code>#include</code> a certain header, the
+      contents of that header, as defined by the Standard, become
+      available to you, no matter how.
+   </p>
+   <p>The names of the headers can be easily seen in
+      <a href="headers_cc.txt"><code>testsuite/17_intro/headers.cc</code></a>,
+      which is a small testbed we use to make certain that the headers
+      all compile and run.
+   </p>
+
+<hr />
+<h2><a name="3">The Standard C++ library and multithreading</a></h2>
+   <p>This section discusses issues surrounding the proper compilation
+      of multithreaded applications which use the Standard C++
+      library.  This information is GCC-specific since the C++
+      standard does not address matters of multithreaded applications.
+      Unless explicitly prefaced, all information in this section is
+      current as of the GCC 3.0 release and all later point releases.
+   </p>
+   <p>Earlier GCC releases had a somewhat different approach to
+      threading configuration and proper compilation.  Before GCC 3.0,
+      configuration of the threading model was dictated by compiler
+      command-line options and macros (both of which were somewhat
+      thread-implementation and port-specific).  There were no
+      guarantees related to being able to link code compiled with one
+      set of options and macro setting with another set.  For GCC 3.0,
+      configuration of the threading model used with libraries and
+      user-code is performed when GCC is configured and built using
+      the --enable-threads and --disable-threads options.  The ABI is
+      stable for symbol name-mangling and limited functional
+      compatibility exists between code compiled under different
+      threading models.
+   </p>
+   <p>All normal disclaimers aside, multithreaded C++ application are
+      only supported when libstdc++ and all user code was built with
+      compilers which report (via <code> gcc/g++ -v </code>) the same thread
+      model and that model is not <em>single</em>.  As long as your
+      final application is actually single-threaded, then it should be
+      safe to mix user code built with a thread model of
+      <em>single</em> with a libstdc++ and other C++ libraries built
+      with another thread model useful on the platform.  Other mixes
+      may or may not work but are not considered supported.  (Thus, if
+      you distribute a shared C++ library in binary form only, it may
+      be best to compile it with a GCC configured with
+      --enable-threads for maximal interchangeability and usefulness
+      with a user population that may have built GCC with either
+      --enable-threads or --disable-threads.)
+   </p>
+   <p>When you link a multithreaded application, you will probably
+      need to add a library or flag to g++.  This is a very
+      non-standardized area of GCC across ports.  Some ports support a
+      special flag (the spelling isn't even standardized yet) to add
+      all required macros to a compilation (if any such flags are
+      required then you must provide the flag for all compilations not
+      just linking) and link-library additions and/or replacements at
+      link time.  The documentation is weak.  Here is a quick summary
+      to display how ad hoc this is: On Solaris, both -pthreads and
+      -threads (with subtly different meanings) are honored.  On OSF,
+      -pthread and -threads (with subtly different meanings) are
+      honored.  On Linux/i386, -pthread is honored.  On FreeBSD,
+      -pthread is honored.  Some other ports use other switches.
+      AFAIK, none of this is properly documented anywhere other than
+      in ``gcc -dumpspecs'' (look at lib and cpp entries).
+   </p>
+   <p>See <a href="../faq/index.html#3">FAQ</a> (general overview), <a
+      href="../23_containers/howto.html#3">23</a> (containers), and <a
+      href="../27_io/howto.html#9">27</a> (I/O) for more information.
+   </p>
+   <p>The libstdc++-v3 library (unlike libstdc++-v2, all of it, not
+      just the STL) has been designed so that multithreaded
+      applications using it may be written.  The first problem is
+      finding a <em>fast</em> method of implementation portable to all
+      platforms.  Due to historical reasons, some of the library is
+      written against per-CPU-architecture spinlocks and other parts
+      against the gthr.h abstraction layer which is provided by gcc.
+      A minor problem that pops up every so often is different
+      interpretations of what &quot;thread-safe&quot; means for a
+      library (not a general program).  We currently use the <a
+      href="http://www.sgi.com/tech/stl/thread_safety.html">same
+      definition that SGI</a> uses for their STL subset.  However, the
+      exception for read-only containers only applies to the STL
+      components.
+   </p>
+   <p>Here is a small link farm to threads (no pun) in the mail archives
+      that discuss the threading problem.  Each link is to the first
+      relevant message in the thread; from there you can use
+      &quot;Thread Next&quot; to move down the thread.  This farm is in
+      latest-to-oldest order.
+   </p>
+      <ul>
+        <li>Our threading expert Loren gives a breakdown of
+        <a href="http://gcc.gnu.org/ml/libstdc++/2001-10/msg00024.html">the
+        six situations involving threads</a> for the 3.0 release series.</li>
+        <li><a href="http://gcc.gnu.org/ml/libstdc++/2001-05/msg00384.html">
+        This message</a> inspired a recent updating of issues with threading
+        and the SGI STL library.  It also contains some example
+        POSIX-multithreaded STL code.</li>
+      </ul>
+   <p> (A large selection of links to older messages has been removed; many
+      of the messages from 1999 were lost in a disk crash, and the few
+      people with access to the backup tapes have been too swamped with work
+      to restore them.  Many of the points have been superseded anyhow.)
+   </p>
+   <p>This section will be updated as new and interesting issues come
+      to light.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="4"><code>&lt;foo&gt;</code> vs <code>&lt;foo.h&gt;</code></a></h2>
+   <p>The new-style headers are fully supported in libstdc++-v3.  The compiler
+      itself fully supports namespaces, including <code>std::</code>.
+   </p>
+   <p>For those of you new to ISO C++98, no, that isn't a typo, the headers
+      really have new names.  Marshall Cline's C++ FAQ Lite has a good
+      explanation in
+<a href="http://www.parashift.com/c++-faq-lite/coding-standards.html#faq-27.4">item [27.4]</a>.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="5">Behavior specific to libstdc++-v3</a></h2>
+   <p>The ISO standard defines the following phrase:
+   </p>
+     <blockquote><dl>
+     <dt><code>[1.3.5] implementation-defined behavior</code></dt>
+     <dd>behavior, for a well-formed program construct and correct data, that
+         depends on the implementation <strong>and that each implementation
+         shall document</strong>.
+     </dd>
+     </dl></blockquote>
+   <p>We do so here, for the C++ library only.  Behavior of the compiler,
+      linker, runtime loader, and other elements of &quot;the
+      implementation&quot; are documented elsewhere.  Everything listed in
+      Annex B, Implementation Qualities, are also part of the compiler, not
+      the library.
+   </p>
+   <p>For each entry, we give the section number of the standard, when
+      applicable.  This list is probably incomplet and inkorrekt.
+   </p>
+   <p><strong>[1.9]/11 #3</strong> If <code>isatty(3)</code> is true, then
+      interactive stream support is implied.
+   </p>
+   <p><strong>[17.4.4.5]</strong> Non-reentrant functions are probably best
+      discussed in the various sections on multithreading (see above).
+   </p>
+   <!-- [17.4.4.8]/3 says any function that doesn't have an exception-spec
+        can throw whatever we want; see also its footnote.  Let's list those
+        in the sections where the function itself occurs.
+   -->
+   <p><strong>[18.1]/4</strong> The type of <code>NULL</code> is described
+      <a href="../18_support/howto.html#1">here</a>.
+   </p>
+   <p><strong>[18.3]/8</strong> Even though it's listed in the library
+      sections, libstdc++-v3 has zero control over what the cleanup code hands
+      back to the runtime loader.  Talk to the compiler people.  :-)
+   </p>
+   <p><strong>[18.4.2.1]/5</strong> (bad_alloc),<br />
+      <strong>[18.5.2]/5</strong> (bad_cast),<br />
+      <strong>[18.5.3]/5</strong> (bad_typeid),<br />
+      <strong>[18.6.1]/8</strong> (exception),<br />
+      <strong>[18.6.2.1]/5</strong> (bad_exception):  The <code>what()</code>
+      member function of class <code>std::exception</code>, and these other
+      classes publicly derived from it, simply returns the name of the
+      class.  But they are the <em>mangled</em> names; you will need to call
+      <code>c++filt</code> and pass the names as command-line parameters to
+      demangle them, or call a
+      <a href="../18_support/howto.html#5">runtime demangler function</a>.
+      (The classes in <code>&lt;stdexcept&gt;</code> have constructors which
+      require an argument to use later for <code>what()</code> calls, so the
+      problem of <code>what()</code>'s value does not arise in most
+      user-defined exceptions.)
+   </p>
+   <p><strong>[18.5.1]/7</strong> The return value of
+      <code>std::type_info::name()</code> is the mangled type name (see the
+      previous entry for more).
+   </p>
+   <p><strong>[20.1.5]/5</strong> <em>&quot;Implementors are encouraged to
+      supply libraries that can accept allocators that encapsulate more
+      general memory models and that support non-equal instances.  In such
+      implementations, any requirements imposed on allocators by containers
+      beyond those requirements that appear in Table 32, and the semantics
+      of containers and algorithms when allocator instances compare
+      non-equal, are implementation-defined.&quot;</em>  As yet we don't
+      have any allocators which compare non-equal, so we can't describe how
+      they behave.
+   </p>
+   <p><strong>[21.1.3.1]/3,4</strong>,<br />
+      <strong>[21.1.3.2]/2</strong>,<br />
+      <strong>[23.*]'s foo::iterator</strong>,<br />
+      <strong>[27.*]'s foo::*_type</strong>,<br />
+      <strong>others...</strong>
+      Nope, these types are called implementation-defined because you
+      shouldn't be taking advantage of their underlying types.  Listing them
+      here would defeat the purpose.  :-)
+   </p>
+   <p><strong>[21.1.3.1]/5</strong> I don't really know about the mbstate_t
+      stuff... see the <a href="../22_locale/howto.html">chapter 22 notes</a>
+      for what does exist.
+   </p>
+   <p><strong>[22.*]</strong> Anything and everything we have on locale
+      implementation will be described
+      <a href="../22_locale/howto.html">over here</a>.
+   </p>
+   <p><strong>[26.2.8]/9</strong> I have no idea what
+      <code>complex&lt;T&gt;</code>'s pow(0,0) returns.
+   </p>
+   <p><strong>[27.4.2.4]/2</strong> Calling
+      <code>std::ios_base::sync_with_stdio</code> after I/O has already been
+      performed on the standard stream objects will
+      flush the buffers, and <!-- this line might go away -->
+      destroy and recreate the underlying buffer instances.  Whether or not
+      the previously-written I/O is destroyed in this process depends mostly
+      on the --enable-libio choice:  for stdio, if the written data is
+      already in the stdio buffer, the data may be completely safe!
+   </p>
+   <p><strong>[27.6.1.1.2]</strong>,<br />
+      <strong>[27.6.2.3]</strong> The I/O sentry ctor and dtor can perform
+      additional work than the minimum required.  We are not currently taking
+      advantage of this yet.
+   </p>
+   <p><strong>[27.7.1.3]/16</strong>,<br />
+      <strong>[27.8.1.4]/10</strong>
+      The effects of <code>pubsetbuf/setbuf</code> are described
+      <a href="../27_io/howto.html#2">in this chapter</a>.
+   </p>
+   <p><strong>[27.8.1.4]/16</strong> Calling <code>fstream::sync</code> when
+      a get area exists will... whatever <code>fflush()</code> does, I think.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="6">Preprocessor macros controlling the library</a></h2>
+   <p>Some of the semantics of the libstdc++-v3 implementation are
+      controlled by preprocessor macros, both during build/installation and
+      during compilation of user code.  Many of these choices are made when
+      the library is built and installed (actually, during
+      <a href="../configopts.html">the configuration step</a>, with the
+      various --enable/--disable choices being translated to #define/#undef).
+   </p>
+   <p>All library macros begin with <code>_GLIBCPP_</code> in earlier
+      versions, and <code>_GLIBCXX_</code> in later versions.  The fact that
+      these symbols start with a leading underscore should give you a clue
+      that (by default) they aren't meant to be changed by the user.  :-)
+   </p>
+   <p>These macros are all gathered in the file <code>c++config.h</code>,
+      which is generated during installation.  <strong>You must assume that
+      these macros cannot be redefined by your own code</strong>, unless we
+      document otherwise here.  Some of the choices control code which has
+      already been compiled (i.e., libstdc++.a/.so).  If you explicitly
+      #define or #undef these macros, the <em>headers</em> may see different
+      code paths, but the <em>libraries</em> which you link against will not.
+      If you want to experiment with different values, you must change the
+      config headers before building/installing the library.
+   </p>
+   <p>Below are macros which, for 3.1 and later, you may change yourself,
+      in your own code with #define/#undef or with -D/-U compiler flags.
+      The default state of the symbol is listed.  &quot;Configurable&quot;
+      (or &quot;Not configurable&quot;) means that the symbol is initially
+      chosen (or not) based on --enable/--disable options at configure time.
+      For 3.1 through 3.3, the prefixes are <code>_GLIBCPP_</code>.
+   </p>
+    <dl>
+    <dt><code>_GLIBCXX_DEPRECATED</code></dt>
+    <dd>Undefined by default.  Not configurable.  Turning this on enables
+        older ARM-style iostreams code, and other anachronisms.  This may be
+        useful in updating old C++ programs which no longer meet the
+        requirements of the language.
+    </dd>
+    <!--
+     Can this actually be turned off and still produce a working lib?  Must
+     check.  -pme
+     No, it can't.  Hmmm.  -pme
+    <dt><code>_GLIBCPP_RESOLVE_LIB_DEFECTS</code></dt>
+    <dd>Defined by default.  Not configurable.  The library follows
+        corrections and updates from the ISO committee, see
+        <a href="../faq/index.html#5_2">here</a> and
+        <a href="../ext/howto.html#5">here</a> for more on this feature.
+        If you have code which depends on the first version of the standard,
+        you might try undefining this macro.
+    </dd>
+    -->
+    <dt><code>_GLIBCXX_CONCEPT_CHECKS</code></dt>
+    <dd>Undefined by default.  Configurable.  When defined, performs
+        compile-time checking on certain template instantiations to detect
+        violations of the requirements of the standard.  This is described
+        in more detail <a href="../19_diagnostics/howto.html#3">here</a>.
+    </dd>
+    <dt><code>_GLIBCXX_DEBUG</code></dt>
+    <dd>Undefined by default. Configurable. When defined, compiles
+    user code using the <a href="../debug.html#safe">libstdc++ debug
+    mode</a>.
+    </dd>
+    <dt><code>_GLIBCXX_DEBUG_PEDANTIC</code></dt>
+    <dd>Undefined by default. Configurable. When defined while
+    compiling with the <a href="../debug.html#safe">libstdc++ debug
+    mode</a>, makes the debug mode extremely picky by making the use
+    of libstdc++ extensions and libstdc++-specific behavior into
+    errors.
+    </dd>
+    <!--
+    <dt><code></code></dt>
+    <dd>
+    </dd>
+    -->
+    </dl>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>
+
+

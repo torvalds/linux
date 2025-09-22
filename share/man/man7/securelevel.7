@@ -1,0 +1,167 @@
+.\"     $OpenBSD: securelevel.7,v 1.32 2025/04/29 17:44:00 jmc Exp $
+.\"
+.\" Copyright (c) 2000 Hugh Graham
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 29 2025 $
+.Dt SECURELEVEL 7
+.Os
+.Sh NAME
+.Nm securelevel
+.Nd securelevel and its effects
+.Sh DESCRIPTION
+The
+.Ox
+kernel provides four levels of system security:
+.Bl -tag -width flag
+.It \&-1 Em Permanently insecure mode
+.Bl -hyphen -compact
+.It
+.Xr init 8
+will not attempt to raise the securelevel
+.It
+may only be set with
+.Xr sysctl 8
+while the system is insecure
+.It
+otherwise identical to securelevel 0
+.El
+.It \ 0 Em Insecure mode
+.Bl -hyphen -compact
+.It
+used during bootstrapping and while the system is single-user
+.It
+all devices may be read or written subject to their permissions
+.It
+system file flags may be cleared with
+.Xr chflags 2
+.El
+.It \ 1 Em Secure mode
+.Bl -hyphen -compact
+.It
+default mode when system is multi-user
+.It
+securelevel may no longer be lowered except by init
+.It
+.Pa /dev/mem
+and
+.Pa /dev/kmem
+cannot be opened
+.It
+raw disk devices of mounted file systems are read-only
+.It
+system immutable and append-only file flags may not be removed
+.It
+the
+.Va hw.allowpowerdown ,
+.Va kern.allowkmem ,
+.Va kern.utc_offset ,
+.Va net.inet.ip.sourceroute ,
+and
+.Va machdep.kbdreset
+.Xr sysctl 8
+variables may not be changed
+.It
+the
+.Va ddb.console ,
+.Va ddb.panic ,
+and
+.Va machdep.allowaperture
+.Xr sysctl 8
+variables may not be raised
+.It
+.Xr gpioctl 8
+may only access GPIO pins configured at system startup
+.El
+.It \ 2 Em Highly secure mode
+.Bl -hyphen -compact
+.It
+all effects of securelevel 1
+.It
+raw disk devices are always read-only whether mounted or not
+.It
+.Xr settimeofday 2
+and
+.Xr clock_settime 2
+may not set the time backwards or close to overflow
+.It
+.Xr pf 4
+filter and NAT rules may not be altered
+.El
+.El
+.Pp
+Securelevel provides convenient means of
+.Dq locking down
+a system to a degree suited to its environment.
+It is normally set at boot by
+.Xr rc 8 ,
+or the superuser may raise securelevel at any time by modifying the
+.Va kern.securelevel
+.Xr sysctl 8
+variable.
+However, only
+.Xr init 8
+may lower it once the system has entered secure mode.
+.Pp
+Highly secure mode may seem Draconian, but is intended as a last line of
+defence should the superuser account be compromised.
+Its effects preclude
+circumvention of file flags by direct modification of a raw disk device,
+or erasure of a file system by means of
+.Xr newfs 8 .
+Further, it can limit the potential damage of a compromised
+.Dq firewall
+by prohibiting the modification of packet filter rules.
+Preventing
+the system clock from being set backwards aids in post-mortem analysis
+and helps ensure the integrity of logs.
+Precision timekeeping is not
+affected because the clock may still be slowed.
+.Pp
+Because securelevel can be modified with the in-kernel debugger
+.Xr ddb 4 ,
+a convenient means of locking it off (if present) is provided
+at securelevels 1 and 2.
+This is accomplished by setting
+.Va ddb.console
+and
+.Va ddb.panic
+to 0 with the
+.Xr sysctl 8
+utility.
+.Sh FILES
+.Bl -tag -width /etc/rc.securelevel -compact
+.It Pa /etc/rc.securelevel
+commands that run before the security level changes
+.El
+.Sh SEE ALSO
+.Xr init 8 ,
+.Xr rc 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Ox 2.6 .
+.Sh BUGS
+The list of securelevel's effects may not be comprehensive.

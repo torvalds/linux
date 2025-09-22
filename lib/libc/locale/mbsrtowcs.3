@@ -1,0 +1,198 @@
+.\" $OpenBSD: mbsrtowcs.3,v 1.5 2013/06/05 03:39:22 tedu Exp $
+.\" $NetBSD: mbsrtowcs.3,v 1.6 2003/09/08 17:54:31 wiz Exp $
+.\"
+.\" Copyright (c)2002 Citrus Project,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt MBSRTOWCS 3
+.Os
+.\" ----------------------------------------------------------------------
+.Sh NAME
+.Nm mbsrtowcs ,
+.Nm mbsnrtowcs
+.Nd converts a multibyte character string to a wide-character string \
+(restartable)
+.\" ----------------------------------------------------------------------
+.Sh SYNOPSIS
+.In wchar.h
+.Ft size_t
+.Fn mbsrtowcs "wchar_t * restrict dst" "const char ** restrict src" "size_t len" \
+"mbstate_t * restrict ps"
+.Ft size_t
+.Fn mbsnrtowcs "wchar_t * restrict dst" "const char ** restrict src" "size_t nmc" \
+"size_t len" "mbstate_t * restrict ps"
+.\" ----------------------------------------------------------------------
+.Sh DESCRIPTION
+The
+.Fn mbsrtowcs
+function converts the multibyte character string indirectly pointed to by
+.Fa src
+to the corresponding wide-character string and stores it in the
+array pointed to by
+.Fa dst .
+The conversion stops due to the following reasons:
+.Bl -bullet
+.It
+The conversion reaches a null byte.
+In this case, the null byte is also converted.
+.It
+The conversion has already stored
+.Fa len
+wide characters.
+.It
+The conversion encounters an invalid character.
+.El
+.Pp
+The
+.Fn mbsnrtowcs
+function is equivalent to
+.Fn mbsrtowcs
+except that it will additionally stop the conversion after processing
+.Fa nmc
+bytes.
+.Pp
+Each character is converted as if
+.Xr mbrtowc 3
+is continuously called.
+.Pp
+After conversion,
+if
+.Fa dst
+is not a null pointer,
+the pointer object pointed to by
+.Fa src
+is a null pointer (if the conversion is stopped due to reaching a null byte)
+or the address just past the last byte processed.
+.Pp
+If
+.Fa dst
+is not a
+null pointer and the conversion is stopped due to reaching a null byte,
+the state object pointed to by
+.Fa ps
+is set to an initial state after the conversion has taken place.
+.Pp
+The behaviour of the
+.Fn mbsrtowcs
+and
+.Fn mbsnrtowcs
+functions is affected by the
+.Dv LC_CTYPE
+category of the current locale.
+.Pp
+There are two special cases:
+.Bl -tag -width 012345678901
+.It "dst == NULL"
+The conversion takes place, but the resultant wide-character string
+is discarded.
+In this case, the pointer object pointed to by
+.Fa src
+is not modified and
+.Fa len
+is ignored.
+.It "ps == NULL"
+The
+.Fn mbsrtowcs
+and
+.Fn mbsnrtowcs
+functions use their own internal state objects to keep the conversion state,
+instead of
+.Fa ps
+as mentioned in this manual page.
+.Pp
+Calling any other functions in
+.Em libc
+never change these internal states,
+which are initialized at startup time of the program.
+.El
+.\" ----------------------------------------------------------------------
+.Sh RETURN VALUES
+The
+.Fn mbsrtowcs
+and
+.Fn mbsnrtowcs
+functions return:
+.Bl -tag -width 012345678901
+.It 0 or positive
+The value returned is the number of elements stored in the array pointed to by
+.Fa dst ,
+except for a terminating null wide character (if any).
+If
+.Fa dst
+is not null and the value returned is equal to
+.Fa len ,
+the wide-character string pointed to by
+.Fa dst
+is not null terminated.
+If
+.Fa dst
+is a null pointer, the value returned is the number of elements to contain
+the whole string converted, except for a terminating null wide character.
+.It (size_t)-1
+The array indirectly pointed to by
+.Fa src
+contains a byte sequence forming invalid character.
+In this case,
+.Va errno
+is set to indicate the error.
+.El
+.\" ----------------------------------------------------------------------
+.Sh ERRORS
+The
+.Fn mbsrtowcs
+and
+.Fn mbsnrtowcs
+functions may return the following errors:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+The pointer pointed to by
+.Fa src
+points to an invalid or incomplete multibyte character.
+.It Bq Er EINVAL
+.Fa ps
+points to an invalid or uninitialized mbstate_t object.
+.El
+.\" ----------------------------------------------------------------------
+.Sh SEE ALSO
+.Xr mbrtowc 3 ,
+.Xr mbstowcs 3 ,
+.Xr setlocale 3
+.\" ----------------------------------------------------------------------
+.Sh STANDARDS
+The
+.Fn mbsrtowcs
+function conforms to
+.\" .St -isoC-amd1 .
+ISO/IEC 9899/AMD1:1995
+.Pq Dq ISO C90, Amendment 1 .
+The restrict qualifier is added at
+.\" .St -isoC99 .
+ISO/IEC 9899/1999
+.Dq Pq ISO C99 .
+.Pp
+The
+.Fn mbsnrtowcs
+function conforms to
+.St -p1003.1-2008 .

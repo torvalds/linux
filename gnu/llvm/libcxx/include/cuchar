@@ -1,0 +1,75 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CUCHAR
+#define _LIBCPP_CUCHAR
+
+/*
+    cuchar synopsis // since C++11
+
+Macros:
+
+    __STDC_UTF_16__
+    __STDC_UTF_32__
+
+namespace std {
+
+Types:
+
+  mbstate_t
+  size_t
+
+size_t mbrtoc8(char8_t* pc8, const char* s, size_t n, mbstate_t* ps);   // since C++20
+size_t c8rtomb(char* s, char8_t c8, mbstate_t* ps);                     // since C++20
+size_t mbrtoc16(char16_t* pc16, const char* s, size_t n, mbstate_t* ps);
+size_t c16rtomb(char* s, char16_t c16, mbstate_t* ps);
+size_t mbrtoc32(char32_t* pc32, const char* s, size_t n, mbstate_t* ps);
+size_t c32rtomb(char* s, char32_t c32, mbstate_t* ps);
+
+} // std
+
+*/
+
+#include <__config>
+
+#include <uchar.h>
+
+#ifndef _LIBCPP_UCHAR_H
+#   error <cuchar> tried including <uchar.h> but didn't find libc++'s <uchar.h> header. \
+          This usually means that your header search paths are not configured properly. \
+          The header search paths should contain the C++ Standard Library headers before \
+          any C Standard Library, and you are probably using compiler flags that make that \
+          not be the case.
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#if !defined(_LIBCPP_CXX03_LANG)
+
+using ::mbstate_t _LIBCPP_USING_IF_EXISTS;
+using ::size_t _LIBCPP_USING_IF_EXISTS;
+
+#  if !defined(_LIBCPP_HAS_NO_C8RTOMB_MBRTOC8)
+using ::mbrtoc8 _LIBCPP_USING_IF_EXISTS;
+using ::c8rtomb _LIBCPP_USING_IF_EXISTS;
+#  endif
+using ::mbrtoc16 _LIBCPP_USING_IF_EXISTS;
+using ::c16rtomb _LIBCPP_USING_IF_EXISTS;
+using ::mbrtoc32 _LIBCPP_USING_IF_EXISTS;
+using ::c32rtomb _LIBCPP_USING_IF_EXISTS;
+
+#endif // _LIBCPP_CXX03_LANG
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_CUCHAR

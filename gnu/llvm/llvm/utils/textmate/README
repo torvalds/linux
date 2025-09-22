@@ -1,0 +1,8 @@
+This directory contains a "bundle" for doing syntax highlighting of TableGen
+files for the TextMate editor for OS X. The highlighting follows that done 
+by the TextMate "C" bundle.  Currently, keywords, comments, and strings are 
+highlighted.
+
+To install this bundle, copy it to the per user area:
+  cp -R utils/textmate/TableGen.tmbundle \
+    ~/Library/Application\ Support/TextMate/Bundles/TableGen.tmbundle 

@@ -1,0 +1,34 @@
+static_library("LogicalView") {
+  output_name = "LLVMDebugInfoLogicalView"
+  deps = [
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/DebugInfo/CodeView",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "Core/LVCompare.cpp",
+    "Core/LVElement.cpp",
+    "Core/LVLine.cpp",
+    "Core/LVLocation.cpp",
+    "Core/LVObject.cpp",
+    "Core/LVOptions.cpp",
+    "Core/LVRange.cpp",
+    "Core/LVReader.cpp",
+    "Core/LVScope.cpp",
+    "Core/LVSort.cpp",
+    "Core/LVSupport.cpp",
+    "Core/LVSymbol.cpp",
+    "Core/LVType.cpp",
+    "LVReaderHandler.cpp",
+    "Readers/LVBinaryReader.cpp",
+    "Readers/LVCodeViewReader.cpp",
+    "Readers/LVCodeViewVisitor.cpp",
+    "Readers/LVDWARFReader.cpp",
+  ]
+}

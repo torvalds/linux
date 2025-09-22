@@ -1,0 +1,49 @@
+.\"	$OpenBSD: ksmn.4,v 1.1 2019/09/26 13:09:55 brynet Exp $
+.\"
+.\" Copyright (c) 2019 Bryan Steele <brynet@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 26 2019 $
+.Dt KSMN 4
+.Os
+.Sh NAME
+.Nm ksmn
+.Nd AMD F17 temperature sensor over SMN
+.Sh SYNOPSIS
+.Cd "ksmn* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the temperature sensor available in the
+AMD Family 17h processors (Zen/Zen+/Zen2).
+.Pp
+Sensor values are made available through the
+.Xr sysctl 8
+interface.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bryan Steele Aq Mt brynet@openbsd.org

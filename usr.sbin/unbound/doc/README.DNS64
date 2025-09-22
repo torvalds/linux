@@ -1,0 +1,50 @@
+The DNS64 code was written by Viagenie, 2009, by Simon Perrault as part
+of the Ecdysis project.  The code is copyright by them, and has the BSD
+license (see the dns64/dns64.c file).
+
+To enable DNS64 functionality in Unbound, two directives in unbound.conf must
+be edited:
+
+1. The "module-config" directive must start with "dns64". For example:
+
+    module-config: "dns64 validator iterator"
+
+If you're not using DNSSEC then you may remove "validator".
+
+2. The "dns64-prefix" directive indicates your DNS64 prefix. For example:
+
+    dns64-prefix: 64:FF9B::/96
+
+The prefix must be a /96 or shorter.
+
+To test that things are working right, perform a query against Unbound for a
+domain name for which no AAAA record exists. You should see a AAAA record in
+the answer section. The corresponding IPv6 address will be inside the DNS64
+prefix. For example:
+
+    $ unbound -c unbound.conf
+    $ dig @localhost jazz-v4.viagenie.ca aaaa
+    [...]
+    ;; ANSWER SECTION:
+    jazz-v4.viagenie.ca.        86400   IN      AAAA    64:ff9b::ce7b:1f02
+
+
+NAT64 support was added by David Lamparter in 2022; license(s) of the
+surrounding code apply.  Note that NAT64 is closely related but functionally
+orthogonal to DNS64;  it allows Unbound to send outgoing queries to IPv4-only
+servers over IPv6 through the configured NAT64 prefix.  This allows running
+an Unbound instance on an IPv6-only host without breaking every single domain
+that only has IPv4 servers.  Whether that Unbound instance also does DNS64 is
+an independent choice.
+
+To enable NAT64 in Unbound, add to unbound.conf's "server" section:
+
+    do-nat64: yes
+
+The NAT64 prefix defaults to the DNS64 prefix, which in turn defaults to the
+standard 64:FF9B::/96 prefix.  You can reconfigure it with:
+
+    nat64-prefix: 64:FF9B::/96
+
+To test NAT64 operation, pick a domain that only has IPv4 reachability for its
+nameservers and try resolving any names in that domain.

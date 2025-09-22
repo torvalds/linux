@@ -1,0 +1,3 @@
+block drop in on ! lo0 inet6 from ::1 to any label "antispoof-lo0"
+block drop in on ! lo0 inet from 127.0.0.0/8 to any label "antispoof-lo0"
+block drop in log quick on ! lo0 inet from 127.0.0.0/8 to any label "antispoof-lo0-2"

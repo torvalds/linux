@@ -1,0 +1,41 @@
+; Options for the Matsushita MN10300 port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+mam33
+Target
+Target the AM33 processor
+
+mam33-2
+Target
+Target the AM33/2.0 processor
+
+mmult-bug
+Target Report Mask(MULT_BUG)
+Work around hardware multiply bug
+
+; Ignored by the compiler
+mrelax
+Target RejectNegative
+Enable linker relaxations
+
+mreturn-pointer-on-d0
+Target Report Mask(PTR_A0D0)
+Return pointers in both a0 and d0

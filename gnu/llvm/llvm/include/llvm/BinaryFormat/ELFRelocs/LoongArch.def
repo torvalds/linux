@@ -1,0 +1,151 @@
+#ifndef ELF_RELOC
+#error "ELF_RELOC must be defined"
+#endif
+
+// These types and values are from the LoongArch ELF psABI which can be found at
+// https://github.com/loongson/LoongArch-Documentation
+// and these definitions has been adopted by binutils (include/elf/loongarch.h).
+// The commit hash (main branch) we reference is:
+// 9b3bd9f4a497115913c22f1a2a47863798fbc02a
+
+ELF_RELOC(R_LARCH_NONE,                        0)
+ELF_RELOC(R_LARCH_32,                          1)
+ELF_RELOC(R_LARCH_64,                          2)
+ELF_RELOC(R_LARCH_RELATIVE,                    3)
+ELF_RELOC(R_LARCH_COPY,                        4)
+ELF_RELOC(R_LARCH_JUMP_SLOT,                   5)
+ELF_RELOC(R_LARCH_TLS_DTPMOD32,                6)
+ELF_RELOC(R_LARCH_TLS_DTPMOD64,                7)
+ELF_RELOC(R_LARCH_TLS_DTPREL32,                8)
+ELF_RELOC(R_LARCH_TLS_DTPREL64,                9)
+ELF_RELOC(R_LARCH_TLS_TPREL32,                10)
+ELF_RELOC(R_LARCH_TLS_TPREL64,                11)
+ELF_RELOC(R_LARCH_IRELATIVE,                  12)
+ELF_RELOC(R_LARCH_MARK_LA,                    20)
+ELF_RELOC(R_LARCH_MARK_PCREL,                 21)
+ELF_RELOC(R_LARCH_SOP_PUSH_PCREL,             22)
+ELF_RELOC(R_LARCH_SOP_PUSH_ABSOLUTE,          23)
+ELF_RELOC(R_LARCH_SOP_PUSH_DUP,               24)
+ELF_RELOC(R_LARCH_SOP_PUSH_GPREL,             25)
+ELF_RELOC(R_LARCH_SOP_PUSH_TLS_TPREL,         26)
+ELF_RELOC(R_LARCH_SOP_PUSH_TLS_GOT,           27)
+ELF_RELOC(R_LARCH_SOP_PUSH_TLS_GD,            28)
+ELF_RELOC(R_LARCH_SOP_PUSH_PLT_PCREL,         29)
+ELF_RELOC(R_LARCH_SOP_ASSERT,                 30)
+ELF_RELOC(R_LARCH_SOP_NOT,                    31)
+ELF_RELOC(R_LARCH_SOP_SUB,                    32)
+ELF_RELOC(R_LARCH_SOP_SL,                     33)
+ELF_RELOC(R_LARCH_SOP_SR,                     34)
+ELF_RELOC(R_LARCH_SOP_ADD,                    35)
+ELF_RELOC(R_LARCH_SOP_AND,                    36)
+ELF_RELOC(R_LARCH_SOP_IF_ELSE,                37)
+ELF_RELOC(R_LARCH_SOP_POP_32_S_10_5,          38)
+ELF_RELOC(R_LARCH_SOP_POP_32_U_10_12,         39)
+ELF_RELOC(R_LARCH_SOP_POP_32_S_10_12,         40)
+ELF_RELOC(R_LARCH_SOP_POP_32_S_10_16,         41)
+ELF_RELOC(R_LARCH_SOP_POP_32_S_10_16_S2,      42)
+ELF_RELOC(R_LARCH_SOP_POP_32_S_5_20,          43)
+ELF_RELOC(R_LARCH_SOP_POP_32_S_0_5_10_16_S2,  44)
+ELF_RELOC(R_LARCH_SOP_POP_32_S_0_10_10_16_S2, 45)
+ELF_RELOC(R_LARCH_SOP_POP_32_U,               46)
+ELF_RELOC(R_LARCH_ADD8,                       47)
+ELF_RELOC(R_LARCH_ADD16,                      48)
+ELF_RELOC(R_LARCH_ADD24,                      49)
+ELF_RELOC(R_LARCH_ADD32,                      50)
+ELF_RELOC(R_LARCH_ADD64,                      51)
+ELF_RELOC(R_LARCH_SUB8,                       52)
+ELF_RELOC(R_LARCH_SUB16,                      53)
+ELF_RELOC(R_LARCH_SUB24,                      54)
+ELF_RELOC(R_LARCH_SUB32,                      55)
+ELF_RELOC(R_LARCH_SUB64,                      56)
+ELF_RELOC(R_LARCH_GNU_VTINHERIT,              57)
+ELF_RELOC(R_LARCH_GNU_VTENTRY,                58)
+
+// Relocs whose processing do not require a stack machine.
+//
+// Spec addition: https://github.com/loongson/LoongArch-Documentation/pull/57
+// Binutils commit 6d13722a97cee3fd397e116bde3bcedbb1e220be
+//      and commit 9801120721c3a702ce3bd50433ef920f92a83502
+ELF_RELOC(R_LARCH_B16,              64)
+ELF_RELOC(R_LARCH_B21,              65)
+ELF_RELOC(R_LARCH_B26,              66)
+ELF_RELOC(R_LARCH_ABS_HI20,         67)
+ELF_RELOC(R_LARCH_ABS_LO12,         68)
+ELF_RELOC(R_LARCH_ABS64_LO20,       69)
+ELF_RELOC(R_LARCH_ABS64_HI12,       70)
+ELF_RELOC(R_LARCH_PCALA_HI20,       71)
+ELF_RELOC(R_LARCH_PCALA_LO12,       72)
+ELF_RELOC(R_LARCH_PCALA64_LO20,     73)
+ELF_RELOC(R_LARCH_PCALA64_HI12,     74)
+ELF_RELOC(R_LARCH_GOT_PC_HI20,      75)
+ELF_RELOC(R_LARCH_GOT_PC_LO12,      76)
+ELF_RELOC(R_LARCH_GOT64_PC_LO20,    77)
+ELF_RELOC(R_LARCH_GOT64_PC_HI12,    78)
+ELF_RELOC(R_LARCH_GOT_HI20,         79)
+ELF_RELOC(R_LARCH_GOT_LO12,         80)
+ELF_RELOC(R_LARCH_GOT64_LO20,       81)
+ELF_RELOC(R_LARCH_GOT64_HI12,       82)
+ELF_RELOC(R_LARCH_TLS_LE_HI20,      83)
+ELF_RELOC(R_LARCH_TLS_LE_LO12,      84)
+ELF_RELOC(R_LARCH_TLS_LE64_LO20,    85)
+ELF_RELOC(R_LARCH_TLS_LE64_HI12,    86)
+ELF_RELOC(R_LARCH_TLS_IE_PC_HI20,   87)
+ELF_RELOC(R_LARCH_TLS_IE_PC_LO12,   88)
+ELF_RELOC(R_LARCH_TLS_IE64_PC_LO20, 89)
+ELF_RELOC(R_LARCH_TLS_IE64_PC_HI12, 90)
+ELF_RELOC(R_LARCH_TLS_IE_HI20,      91)
+ELF_RELOC(R_LARCH_TLS_IE_LO12,      92)
+ELF_RELOC(R_LARCH_TLS_IE64_LO20,    93)
+ELF_RELOC(R_LARCH_TLS_IE64_HI12,    94)
+ELF_RELOC(R_LARCH_TLS_LD_PC_HI20,   95)
+ELF_RELOC(R_LARCH_TLS_LD_HI20,      96)
+ELF_RELOC(R_LARCH_TLS_GD_PC_HI20,   97)
+ELF_RELOC(R_LARCH_TLS_GD_HI20,      98)
+ELF_RELOC(R_LARCH_32_PCREL,         99)
+ELF_RELOC(R_LARCH_RELAX,            100)
+
+// Relocs added in ELF for the LoongArch™ Architecture v20230519, part of the
+// v2.10 LoongArch ABI specs.
+//
+// Spec addition: https://github.com/loongson/la-abi-specs/pull/1
+// Binutils commit 57a930e3bfe4b2c7fd6463ed39311e1938513138
+// Note that the 101 and 104 relocation numbers are defined as R_LARCH_DELETE
+// and R_LARCH_CFA respectively in psABI 2.10. But they are marked as reserved
+// in psABI v2.20 because they were proved not necessary to be exposed outside
+// of the linker.
+ELF_RELOC(R_LARCH_ALIGN,       102)
+ELF_RELOC(R_LARCH_PCREL20_S2,  103)
+ELF_RELOC(R_LARCH_ADD6,        105)
+ELF_RELOC(R_LARCH_SUB6,        106)
+ELF_RELOC(R_LARCH_ADD_ULEB128, 107)
+ELF_RELOC(R_LARCH_SUB_ULEB128, 108)
+ELF_RELOC(R_LARCH_64_PCREL,    109)
+
+// Relocs added in ELF for the LoongArch™ Architecture v20231102, part of the
+// v2.20 LoongArch ABI specs.
+//
+// Spec addition: https://github.com/loongson/la-abi-specs/pull/4
+ELF_RELOC(R_LARCH_CALL36, 110)
+
+// Relocs added in ELF for the LoongArch™ Architecture v20231219, part of the
+// v2.30 LoongArch ABI specs.
+//
+// Spec addition: https://github.com/loongson/la-abi-specs/pull/5
+ELF_RELOC(R_LARCH_TLS_DESC32,           13)
+ELF_RELOC(R_LARCH_TLS_DESC64,           14)
+ELF_RELOC(R_LARCH_TLS_DESC_PC_HI20,    111)
+ELF_RELOC(R_LARCH_TLS_DESC_PC_LO12,    112)
+ELF_RELOC(R_LARCH_TLS_DESC64_PC_LO20,  113)
+ELF_RELOC(R_LARCH_TLS_DESC64_PC_HI12,  114)
+ELF_RELOC(R_LARCH_TLS_DESC_HI20,       115)
+ELF_RELOC(R_LARCH_TLS_DESC_LO12,       116)
+ELF_RELOC(R_LARCH_TLS_DESC64_LO20,     117)
+ELF_RELOC(R_LARCH_TLS_DESC64_HI12,     118)
+ELF_RELOC(R_LARCH_TLS_DESC_LD,         119)
+ELF_RELOC(R_LARCH_TLS_DESC_CALL,       120)
+ELF_RELOC(R_LARCH_TLS_LE_HI20_R,       121)
+ELF_RELOC(R_LARCH_TLS_LE_ADD_R,        122)
+ELF_RELOC(R_LARCH_TLS_LE_LO12_R,       123)
+ELF_RELOC(R_LARCH_TLS_LD_PCREL20_S2,   124)
+ELF_RELOC(R_LARCH_TLS_GD_PCREL20_S2,   125)
+ELF_RELOC(R_LARCH_TLS_DESC_PCREL20_S2, 126)

@@ -1,0 +1,81 @@
+# My ~/.inputrc file is in -*- text -*- for easy editing with Emacs.
+#
+# Notice the various bindings which are conditionalized depending
+# on which program is running, or what terminal is active.
+#
+
+# Copyright (C) 1989-2002 Free Software Foundation, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA.
+
+# In all programs, all terminals, make sure this is bound.
+"\C-x\C-r": re-read-init-file
+
+# Hp terminals (and some others) have ugly default behaviour for C-h.
+"\C-h": backward-delete-char
+"\e\C-h": backward-kill-word
+"\C-xd": dump-functions
+
+# In xterm windows, make the arrow keys do the right thing.
+$if TERM=xterm
+"\e[A": previous-history
+"\e[B": next-history
+"\e[C": forward-char
+"\e[D": backward-char
+
+# alternate arrow key prefix
+"\eOA": previous-history
+"\eOB": next-history
+"\eOC": forward-char
+"\eOD": backward-char
+
+# Under Xterm in Bash, we bind local Function keys to do something useful.
+$if Bash
+"\e[11~": "Function Key 1"
+"\e[12~": "Function Key 2"
+"\e[13~": "Function Key 3"
+"\e[14~": "Function Key 4"
+"\e[15~": "Function Key 5"
+
+# I know the following escape sequence numbers are 1 greater than
+# the function key.  Don't ask me why, I didn't design the xterm terminal.
+"\e[17~": "Function Key 6"
+"\e[18~": "Function Key 7"
+"\e[19~": "Function Key 8"
+"\e[20~": "Function Key 9"
+"\e[21~": "Function Key 10"
+$endif
+$endif
+
+# For Bash, all terminals, add some Bash specific hacks.
+$if Bash
+"\C-xv": show-bash-version
+"\C-x\C-e": shell-expand-line
+
+# Here is one for editing my path.
+"\C-xp": "$PATH\C-x\C-e\C-e\"\C-aPATH=\":\C-b"
+
+# Make C-x r read my mail in emacs.
+# "\C-xr": "emacs -f rmail\C-j"
+$endif
+
+# For FTP, different hacks:
+$if Ftp
+"\C-xg": "get \M-?"
+"\C-xt": "put \M-?"
+"\M-.": yank-last-arg
+$endif
+
+" ": self-insert

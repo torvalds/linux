@@ -1,0 +1,106 @@
+.\"	$OpenBSD: sendsyslog.2,v 1.13 2021/03/09 15:08:23 bluhm Exp $
+.\"
+.\" Copyright (c) 2017 Alexander Bluhm <bluhm@openbsd.org>
+.\" Copyright (c) 2014 Theo de Raadt
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 9 2021 $
+.Dt SENDSYSLOG 2
+.Os
+.Sh NAME
+.Nm sendsyslog
+.Nd send a message to syslogd
+.Sh SYNOPSIS
+.In sys/syslog.h
+.In sys/types.h
+.Ft int
+.Fn sendsyslog "const char *msg" "size_t len" "int flags"
+.Sh DESCRIPTION
+The
+.Fn sendsyslog
+function is used to transmit a
+.Xr syslog 3
+formatted message direct to
+.Xr syslogd 8
+without requiring the allocation of a socket.
+The
+.Fa msg
+is not NUL terminated and its
+.Fa len
+is limited to 8192 bytes.
+If
+.Dv LOG_CONS
+is specified in the
+.Fa flags
+argument, and
+.Xr syslogd 8
+is not accepting messages, the message will be sent to the console.
+This is used internally by
+.Xr syslog_r 3 ,
+so that messages can be sent during difficult situations.
+If sending to
+.Xr syslogd 8
+fails, up to 100 messages are stashed in the kernel.
+After that, dropped messages are counted.
+When
+.Xr syslogd 8
+works again, before the next message, stashed messages and possibly
+a warning with the drop counter, error number, and pid is logged.
+.Pp
+To receive messages from the kernel,
+.Xr syslogd 8
+has to create a datagram socket pair and register one end.
+This registration is done by opening the
+.Pa /dev/klog
+device and passing one file descriptor of the socket pair as argument
+to
+.Xr ioctl 2 Dv LIOCSFD
+invoked on the klog file descriptor.
+After that the messages can be read from the other end of the
+socket pair.
+By utilizing
+.Pa /dev/klog
+the access to log messages is limited to processes that may open
+this device.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn sendsyslog
+can fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An invalid user space address was specified for a parameter.
+.It Bq Er EMSGSIZE
+The socket requires that message be sent atomically,
+and the size of the message to be sent made this impossible.
+.It Bq Er ENOBUFS
+The system was unable to allocate an internal buffer.
+The operation may succeed when buffers become available.
+.It Bq Er ENOTCONN
+The message cannot be sent, likely because
+.Xr syslogd 8
+is not running.
+.El
+.Sh SEE ALSO
+.Xr syslog_r 3 ,
+.Xr syslogd 8
+.Sh HISTORY
+The
+.Fn sendsyslog
+function call appeared in
+.Ox 5.6 .
+The
+.Fa flags
+argument was added in
+.Ox 6.0 .

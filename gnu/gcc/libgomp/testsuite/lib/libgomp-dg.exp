@@ -1,0 +1,225 @@
+# Damn dejagnu for not having proper library search paths for load_lib.
+# We have to explicitly load everything that gcc-dg.exp wants to load.
+
+proc load_gcc_lib { filename } {
+    global srcdir loaded_libs
+
+    load_file $srcdir/../../gcc/testsuite/lib/$filename
+    set loaded_libs($filename) ""
+}
+
+load_lib dg.exp
+load_gcc_lib file-format.exp
+load_gcc_lib target-supports.exp
+load_gcc_lib target-supports-dg.exp
+load_gcc_lib scanasm.exp
+load_gcc_lib scandump.exp
+load_gcc_lib scanrtl.exp
+load_gcc_lib scantree.exp
+load_gcc_lib scanipa.exp
+load_gcc_lib prune.exp
+load_gcc_lib target-libpath.exp
+load_gcc_lib wrapper.exp
+load_gcc_lib gcc-defs.exp
+load_gcc_lib gcc-dg.exp
+load_gcc_lib gfortran-dg.exp
+
+set dg-do-what-default run
+
+#
+# GCC_UNDER_TEST is the compiler under test.
+#
+
+set libgomp_compile_options ""
+
+#
+# libgomp_init -- This gets run more than it should be....
+#
+
+if [info exists TOOL_OPTIONS] {
+    set multilibs [get_multilibs $TOOL_OPTIONS]
+} else {
+    set multilibs [get_multilibs]
+}
+
+proc libgomp_init { args } {
+    global srcdir blddir objdir tool_root_dir
+    global libgomp_initialized
+    global tmpdir
+    global gluefile wrap_flags
+    global ALWAYS_CFLAGS
+    global CFLAGS
+    global TOOL_EXECUTABLE TOOL_OPTIONS
+    global GCC_UNDER_TEST
+    global TESTING_IN_BUILD_TREE
+    global target_triplet
+    global ld_library_path
+    global lang_test_file
+    global lang_library_path
+    global lang_link_flags
+
+    set blddir [lookfor_file [get_multilibs] libgomp]
+
+    # We set LC_ALL and LANG to C so that we get the same error
+    # messages as expected.
+    setenv LC_ALL C
+    setenv LANG C
+
+    if ![info exists GCC_UNDER_TEST] then {
+	if [info exists TOOL_EXECUTABLE] {
+	    set GCC_UNDER_TEST $TOOL_EXECUTABLE
+	} else {
+	    set GCC_UNDER_TEST "[find_gcc]"
+	}
+    }
+
+    if ![info exists tmpdir] {
+	set tmpdir "/tmp"
+    }
+
+    if [info exists gluefile] {
+	unset gluefile
+    }
+
+    if {![info exists CFLAGS]} {
+	set CFLAGS ""
+    }
+
+    # Locate libgcc.a so we don't need to account for different values of
+    # SHLIB_EXT on different platforms
+    set gccdir [lookfor_file $tool_root_dir gcc/libgcc.a]
+    if {$gccdir != ""} {
+        set gccdir [file dirname $gccdir]
+    }
+
+    # Compute what needs to be put into LD_LIBRARY_PATH
+    set ld_library_path ".:${blddir}/.libs"
+
+    if { [info exists lang_test_file] && [file exists "${blddir}/"] } {
+	append ld_library_path ":${blddir}/${lang_library_path}"
+    }
+
+    # Compute what needs to be added to the existing LD_LIBRARY_PATH.
+    if {$gccdir != ""} {
+	append ld_library_path ":${gccdir}"
+	set compiler [lindex $GCC_UNDER_TEST 0]
+
+	if { [is_remote host] == 0 && [which $compiler] != 0 } {
+	  foreach i "[exec $compiler --print-multi-lib]" {
+	    set mldir ""
+	    regexp -- "\[a-z0-9=_/\.-\]*;" $i mldir
+	    set mldir [string trimright $mldir "\;@"]
+	    if { "$mldir" == "." } {
+	      continue
+	    }
+	    if { [llength [glob -nocomplain ${gccdir}/${mldir}/libgcc_s*.so.*]] >= 1 } {
+	      append ld_library_path ":${gccdir}/${mldir}"
+	    }
+	  }
+	}
+    }
+    set_ld_library_path_env_vars
+
+    set ALWAYS_CFLAGS ""
+    lappend ALWAYS_CFLAGS "additional_flags=-B${blddir}/"
+    lappend ALWAYS_CFLAGS "additional_flags=-I${blddir}"
+    lappend ALWAYS_CFLAGS "additional_flags=-I${srcdir}/.."
+    lappend ALWAYS_CFLAGS "ldflags=-L${blddir}/.libs -lgomp"
+    if { [info exists lang_test_file] && [file exists "${blddir}/"] } {
+	lappend ALWAYS_CFLAGS "ldflags=-L${blddir}/${lang_library_path} ${lang_link_flags}"
+    }
+
+    # We use atomic operations in the testcases to validate results.
+    if [istarget i?86-*-*] {
+	lappend ALWAYS_CFLAGS "additional_flags=-march=i486"
+    }
+    if [istarget sparc*-*-*] {
+	lappend ALWAYS_CFLAGS "additional_flags=-mcpu=v9"
+    }
+
+    if [info exists TOOL_OPTIONS] {
+	lappend ALWAYS_CFLAGS "additional_flags=$TOOL_OPTIONS"
+    }
+
+    # Make sure that lines are not wrapped.  That can confuse the
+    # error-message parsing machinery.
+    lappend ALWAYS_CFLAGS "additional_flags=-fmessage-length=0"
+
+    # And, gee, turn on OpenMP.
+    lappend ALWAYS_CFLAGS "additional_flags=-fopenmp"
+}
+
+#
+# libgomp_target_compile -- compile a source file
+#
+
+proc libgomp_target_compile { source dest type options } {
+    global tmpdir
+    global libgomp_compile_options
+    global gluefile wrap_flags
+    global ALWAYS_CFLAGS
+    global GCC_UNDER_TEST
+
+    libgomp_init
+
+    if { [target_info needs_status_wrapper] != "" && [info exists gluefile] } {
+	lappend options "libs=${gluefile}"
+	lappend options "ldflags=${wrap_flags}"
+    }
+
+    lappend options "additional_flags=[libio_include_flags]"
+    lappend options "compiler=$GCC_UNDER_TEST"
+
+    set options [concat $libgomp_compile_options $options]
+
+    set options [concat "$ALWAYS_CFLAGS" $options]
+
+    set options [dg-additional-files-options $options $source]
+
+    set result [target_compile $source $dest $type $options]
+
+    return $result
+}
+
+# ??? The same as in standard.exp.  Why doesn't anyone else have to 
+# define this?
+
+proc libgomp_load { program args } {
+    if { [llength $args] > 0 } {
+        set program_args [lindex $args 0]
+    } else {
+        set program_args ""
+    }
+
+    if { [llength $args] > 1 } {
+        set input_file [lindex $args 1]
+    } else {
+        set input_file ""
+    }
+    return [remote_load target $program $program_args $input_file]
+}
+
+proc libgomp_option_help { } {
+    send_user " --additional_options,OPTIONS\t\tUse OPTIONS to compile the testcase files. OPTIONS should be comma-separated.\n"
+}
+
+proc libgomp_option_proc { option } {
+    if [regexp "^--additional_options," $option] {
+	global libgomp_compile_options
+	regsub "--additional_options," $option "" option
+	foreach x [split $option ","] {
+	    lappend libgomp_compile_options "additional_flags=$x"
+	}
+	return 1
+    } else {
+	return 0
+    }
+}
+
+proc libgomp-dg-test { prog do_what extra_tool_flags } {
+    return [gcc-dg-test-1 libgomp_target_compile $prog $do_what $extra_tool_flags]
+}
+
+proc libgomp-dg-prune { system text } {
+    return [gcc-dg-prune $system $text]
+}

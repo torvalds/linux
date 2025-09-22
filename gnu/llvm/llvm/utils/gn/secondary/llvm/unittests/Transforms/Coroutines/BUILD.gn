@@ -1,0 +1,16 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("CoroTests") {
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Testing/Support",
+    "//llvm/lib/Transforms/Coroutines",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [ "ExtraRematTest.cpp" ]
+}

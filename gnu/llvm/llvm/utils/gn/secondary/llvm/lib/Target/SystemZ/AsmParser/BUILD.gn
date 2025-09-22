@@ -1,0 +1,21 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("SystemZGenAsmMatcher") {
+  visibility = [ ":AsmParser" ]
+  args = [ "-gen-asm-matcher" ]
+  td_file = "../SystemZ.td"
+}
+
+static_library("AsmParser") {
+  output_name = "LLVMSystemZAsmParser"
+  deps = [
+    ":SystemZGenAsmMatcher",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/SystemZ/MCTargetDesc",
+    "//llvm/lib/Target/SystemZ/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "SystemZAsmParser.cpp" ]
+}

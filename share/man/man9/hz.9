@@ -1,0 +1,91 @@
+.\"	$OpenBSD: hz.9,v 1.9 2019/01/14 02:05:46 tedu Exp $
+.\"
+.\" Copyright (c) 1999 Marc Espie
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 14 2019 $
+.Dt HZ 9
+.Os
+.Sh NAME
+.Nm hz ,
+.Nm tick ,
+.Nm tickadj ,
+.Nm stathz ,
+.Nm profhz
+.Nd system time model
+.Sh SYNOPSIS
+.Vt extern int hz;
+.Vt extern int tick;
+.Vt extern int tickadj;
+.Vt extern int stathz;
+.Vt extern int profhz;
+.Sh DESCRIPTION
+The system is driven by
+.Xr hardclock 9
+interrupts, which occur at
+.Va hz
+frequency, and are used to keep track of real time.
+.Pp
+On systems where another independent clock is available, it is set at
+.Va stathz
+frequency, and used to gather timing statistics.
+Ideally, it would be better to drive
+.Va stathz
+with a slightly randomized clock, that is still a fixed number on average,
+as this would prevent malicious processes from working around the scheduler.
+If a separate clock is not available,
+.Va stathz
+is set to
+.Va hz .
+.Pp
+If profiling is enabled, the clock normally used to drive
+.Va stathz
+may be run at a higher rate
+.Va profhz ,
+which must be a multiple of
+.Va stathz .
+This will give higher resolution profiling information.
+.Pp
+Normally,
+.Xr hardclock 9
+increments
+.Va time
+by
+.Va tick
+each time it is called.
+If the system clock has drifted,
+.Xr adjtime 2
+may be used to skew this increment, but by no more
+than ten times
+.Va tickadj .
+.Pp
+These system variables are available by reading
+.Dv KERN_CLOCKRATE
+from
+.Xr sysctl 2 .
+.Sh SEE ALSO
+.Xr adjtime 2 ,
+.Xr clock_getres 2 ,
+.Xr sysctl 2 ,
+.Xr hardclock 9 ,
+.Xr microtime 9

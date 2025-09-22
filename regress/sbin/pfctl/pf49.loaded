@@ -1,0 +1,16 @@
+@0 pass in on lo0 inet6 from ::1 to any flags S/SA
+  [ Skip steps: i=end d=2 r=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass in on lo0 inet from 127.0.0.0/8 to any flags S/SA
+  [ Skip steps: i=end r=end f=3 p=end sa=3 da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 pass out on lo0 inet from 127.0.0.0/8 to any flags S/SA
+  [ Skip steps: i=end r=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass in on lo0 inet6 from ::1 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

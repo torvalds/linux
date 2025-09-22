@@ -1,0 +1,440 @@
+.\"	$OpenBSD: vmctl.8,v 1.79 2025/06/09 18:43:01 dv Exp $
+.\"
+.\" Copyright (c) 2015-2024 Mike Larkin <mlarkin@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 9 2025 $
+.Dt VMCTL 8
+.Os
+.Sh NAME
+.Nm vmctl
+.Nd control the virtual machine daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Ar command
+.Op Ar arg ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to control the virtual machine monitor (VMM) subsystem.
+A VMM manages virtual machines (VMs) on a host.
+The VMM subsystem is responsible for creating, destroying, and executing
+VMs.
+.Pp
+The
+.Fl v
+option enables verbose mode.
+Within the commands,
+the
+.Ar size
+argument can be specified with a human-readable scale,
+using the format described in
+.Xr scan_scaled 3 .
+The
+.Ar id
+argument can be either a numeric, non-zero identifier or alternatively
+the name of a virtual machine.
+.Pp
+The
+.Ar name
+argument can only consist of alphanumeric characters, as well as '.', '-',
+and '_',
+and must start with a letter.
+.Pp
+The
+.Ar disk
+argument is used by commands that take a path to a disk image file.
+It may be prefixed with a format prefix
+.Pf ( raw : Ns Ar disk
+or
+.Pf qcow2 : Ns Ar disk )
+.Sm on
+in order to specify the disk image format.
+If left unspecified, the format defaults to
+.Sq raw
+if it cannot be derived automatically.
+.Pp
+The commands are as follows:
+.Bl -tag -width Ds
+.It Cm console Ar id
+Using
+.Xr cu 1
+connect to the console of the VM with the specified
+.Ar id .
+.It Cm create Oo Fl b Ar base | Fl i Ar disk Oc Oo Fl s Ar size Oc Ar disk
+Create a VM disk image file with the specified
+.Ar disk
+path.
+.Bl -tag -width "-i input"
+.It Fl b Ar base
+For
+.Sq qcow2 ,
+a
+.Ar base
+image may be specified.
+The base image is not modified and the derived image contains only the
+changes written by the VM.
+.It Fl i Ar disk
+Copy and convert the input
+.Ar disk
+to the newly created disk.
+This option conflicts with
+.Fl b Ar base .
+.It Fl s Ar size
+Specify the
+.Ar size
+of the new disk image, rounded to megabytes.
+If the
+.Fl b
+option is specified, the size must match the size of the
+.Ar base
+image.
+For the
+.Fl i
+option, the size cannot be smaller than the input disk size.
+The size can be omitted with the
+.Fl b
+and
+.Fl i
+options and will be obtained from the base or input image respectively.
+.El
+.It Cm load Ar filename
+Load additional configuration from the specified file.
+.It Cm log brief | verbose
+Disable or enable verbose debug logging.
+.It Cm pause Ar id
+Pause a VM with the specified
+.Ar id .
+.It Cm reload
+Remove all stopped VMs and reload the configuration from the default
+configuration file.
+VMs that are currently running will not have their configuration reloaded.
+To reload configurations for currently running VMs, stop those VMs before
+issuing the reload command.
+.It Cm reset Op Cm all | switches | vms
+Reset the running state,
+reset
+.Cm switches ,
+or reset and terminate all
+.Cm vms .
+.It Cm show Oo Fl r Oc Op Ar id
+An alias for the
+.Cm status
+command.
+.It Xo Cm start
+.Op Fl cL
+.Bk -words
+.Op Fl B Ar device
+.Op Fl b Ar path
+.Op Fl d Ar disk
+.Op Fl i Ar count
+.Op Fl m Ar size
+.Op Fl n Ar switch
+.Op Fl r Ar path
+.Op Fl t Ar name
+.Ar id | name
+.Ek
+.Xc
+Start a new VM
+.Ar name
+with the specified parameters.
+An existing VM may be started by referencing its
+.Ar id .
+.Bl -tag -width "-I parent"
+.It Fl B Ar device
+Force system to boot from the specified device for this boot.
+.Ar device
+can be set to:
+.Pp
+.Bl -tag -width "cdrom" -compact
+.It Ar cdrom
+Boot the CD-ROM image.
+.It Ar disk
+Boot from disk.
+.It Ar net
+Perform a PXE boot using the first network interface.
+.El
+.Pp
+Currently
+.Ar net
+is only supported when booting a kernel using the
+.Fl b
+flag while
+.Ar disk
+and
+.Ar cdrom
+only work with VMs booted using BIOS.
+.It Fl b Ar path
+Boot the VM with the specified
+.Ox
+kernel or custom BIOS image.
+If not specified, the default is to boot using the BIOS image in
+.Pa /etc/firmware/vmm-bios .
+If the VM is an existing VM, use the provided image for only the next boot.
+.It Fl c
+Automatically connect to the VM console.
+.It Fl d Ar disk
+Use a disk image at the specified
+.Ar disk
+path (may be specified multiple times to add multiple disk images).
+.It Fl i Ar count
+Number of network interfaces to add to the VM.
+.It Fl L
+Add a local network interface.
+.Xr vmd 8
+will auto-generate an IPv4 subnet for the interface,
+configure a gateway address on the VM host side,
+and run a simple DHCP/BOOTP server for the VM.
+See
+.Sx LOCAL INTERFACES
+below for more information on how addresses are calculated and assigned when
+using the
+.Fl L
+option.
+.It Fl m Ar size
+Memory
+.Ar size
+of the VM, rounded to megabytes.
+The default is 512M.
+The maximum amount of memory assignable to a VM is governed by the datasize
+parameter for the vmd user in
+.Pa /etc/login.conf .
+.It Fl n Ar switch
+Add a network interface that is attached to the specified virtual
+.Ar switch .
+See the SWITCH CONFIGURATION section in
+.Xr vm.conf 5
+for more information.
+.It Fl r Ar path
+ISO image file for virtual CD-ROM.
+This image file will be available in the
+selected VM as a SCSI CD-ROM device attached to a virtio SCSI adapter
+(e.g.\&
+.Xr vioscsi 4 ) .
+.It Fl t Ar name
+Use an existing VM with the specified
+.Ar name
+as a template to create a new VM instance.
+The instance will inherit settings from the parent VM,
+except for exclusive options such as disk, interface lladdr, and
+interface names.
+.El
+.It Cm status Oo Fl r Oc Op Ar id
+List VMs running on the host, optionally listing just the selected VM
+.Ar id .
+If the
+.Fl r
+flag is present, the output will only contain running VMs.
+.It Cm stop Oo Fl fw Oc Oo Fl a | Ar id Oc
+Stop (terminate) a VM defined by the specified VM
+.Ar id
+or all running VMs
+.Pq Fl a .
+By default,
+a graceful shutdown will be attempted if the VM supports the
+.Xr vmmci 4
+device.
+.Pp
+The following options can be specified when stopping a VM:
+.Bl -tag -width "-w"
+.It Fl f
+Forcefully stop the VM without attempting a graceful shutdown.
+.It Fl w
+Wait until the VM has been terminated.
+.El
+.It Cm unpause Ar id
+Unpause (resume from a paused state) a VM with the specified
+.Ar id .
+.It Cm wait Ar id
+Wait until the specified VM has stopped.
+.El
+.Pp
+If the
+.Fl i ,
+.Fl L ,
+or
+.Fl n
+options are specified during VM startup, a corresponding number
+of host-side
+.Xr tap 4
+interfaces will be allocated and mapped to the
+.Xr vio 4
+interfaces inside the guest VM.
+This tap/vio interface mapping
+allows guest network traffic to be manipulated by the host.
+Any valid host-side interface configuration may be performed on these
+tap interfaces, such as bridging (via
+.Xr veb 4 ) ,
+or using
+.Xr pf 4
+nat-to rules to create private or host-side NATed networks, as desired.
+For each
+.Xr tap 4
+network interface on the host,
+.Xr vmd 8
+will set the interface's description to allow easy identification of
+the corresponding VM by ID, interface number, and name:
+.Bd -literal -offset indent
+# ifconfig tap0
+tap0: flags=8842<BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	lladdr fe:e1:ba:d8:50:d1
+	description: vm1-if0-myvm
+	index 15 priority 0 llprio 3
+	groups: tap
+	status: active
+.Ed
+.Sh LOCAL INTERFACES
+Local interfaces can be used to easily configure VM networking without
+needing to manually assign network addresses.
+A local interface is added
+to a VM using the -L option to the 'vmctl start' command and results in the
+addition of a
+.Xr vio 4
+interface inside the VM and a corresponding
+.Xr tap 4
+interface on the host.
+When using local interfaces,
+.Xr vmd 8
+will provide DHCP services to the guest VM and offer addresses selected
+from the 100.64.0.0/10 IPv4 range.
+From within the 100.64.0.0/10
+range,
+.Xr vmd 8
+allocates a pair of addresses for the guest-side
+.Xr vio 4
+and host-side
+.Xr tap 4
+interfaces as follows:
+.Pp
+For the first local interface:
+.Bl -bullet -compact
+.It
+The host (tapX) address is assigned 100.64.n.2,
+where 'n' is the numeric VM ID visible in the 'vmctl status' command
+.It
+The guest (vio0) address is assigned 100.64.n.3
+.El
+.Pp
+For the second and subsequent local interface(s):
+.Bl -bullet -compact
+.It
+The second local interface uses 100.64.n.4 and 100.64.n.5 for the
+host (tapX) and guest (vio1) interfaces, respectively.
+.It
+Subsequent local interfaces are numbered similarly, continuing with 100.64.n.6
+and 100.64.n.7, etc
+.El
+.Pp
+Multiple -L options can be provided to the 'vmctl start' command, if more than
+one interface is desired.
+Local interfaces are assigned to the VM before
+any other interfaces specified with the -i option (thus, local interfaces,
+if requested, are numbered starting at vio0 inside the guest VM).
+.Pp
+If NAT is desired, the
+.Va net.inet.ip.forwarding
+.Xr sysctl 8
+must also be set to 1.
+.Pp
+When using local interfaces, the DHCP configuration offered to the guest VM
+specifies the address of the corresponding host
+.Xr tap 4
+interface as both the default route and the (sole) nameserver.
+Guest VM traffic can optionally be NATed through the host
+with an entry in the host machine's
+.Pa /etc/pf.conf
+similar to the following:
+.Bd -literal -offset indent
+pass out on egress from 100.64.0.0/10 to any nat-to (egress)
+.Ed
+.Pp
+If desired, DNS queries originating from guest VMs can be redirected to a
+different DNS server with an entry in the host machine's
+.Pa /etc/pf.conf
+similar to the following:
+.Bd -literal -offset indent
+pass in proto { udp tcp } from 100.64.0.0/10 to any port domain \e
+      rdr-to $dns_server port domain
+.Ed
+.Sh FILES
+.Bl -tag -width "/etc/var/run/vmd.sockXX" -compact
+.It Pa /etc/vm.conf
+Default configuration file.
+.It Pa /var/run/vmd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr vmd 8 .
+.El
+.Sh EXIT STATUS
+.Ex -std vmctl
+.Nm
+may fail due to one of the following reasons:
+.Pp
+.Bl -bullet -compact
+.It
+The VMM subsystem could not be enabled or disabled as requested.
+.It
+A requested VM-based operation could not be completed.
+.El
+.Sh EXAMPLES
+Create a 4.5 Gigabyte disk image, disk.img:
+.Bd -literal -offset indent
+$ vmctl create -s 4.5G disk.img
+.Ed
+.Pp
+Convert a disk image from the
+.Sq raw
+format to
+.Sq qcow2 :
+.Bd -literal -offset indent
+$ vmctl create -i disk.img disk.qcow2
+.Ed
+.Pp
+Create a new VM with 1GB memory, one network interface, one disk image
+('disk.img') and boot from kernel '/bsd':
+.Bd -literal -offset indent
+# vmctl start -m 1G -i 1 -b /bsd -d disk.img "myvm"
+.Ed
+.Pp
+Start a new VM instance with the name 'myvm' from a pre-configured
+VM 'openbsd.4G':
+.Bd -literal -offset indent
+# vmctl start -t "openbsd.4G" -d mydisk.img "myvm"
+.Ed
+.Pp
+Terminate VM number 1:
+.Bd -literal -offset indent
+# vmctl stop 1
+.Ed
+.Sh SEE ALSO
+.Xr pf 4 ,
+.Xr tap 4 ,
+.Xr veb 4 ,
+.Xr vio 4 ,
+.Xr vmm 4 ,
+.Xr vm.conf 5 ,
+.Xr rc.conf 8 ,
+.Xr sysctl 8 ,
+.Xr vmd 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+.An -nosplit
+.An Mike Larkin Aq Mt mlarkin@openbsd.org
+and
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

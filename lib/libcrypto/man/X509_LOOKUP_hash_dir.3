@@ -1,0 +1,189 @@
+.\" $OpenBSD: X509_LOOKUP_hash_dir.3,v 1.14 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL 61f805c1 Jan 16 01:01:46 2018 +0800
+.\" selective merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Victor B. Wagner <vitus@cryptocom.ru>
+.\" and Claus Assmann.
+.\" Copyright (c) 2015, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_LOOKUP_HASH_DIR 3
+.Os
+.Sh NAME
+.Nm X509_LOOKUP_hash_dir ,
+.Nm X509_LOOKUP_file ,
+.Nm X509_LOOKUP_mem
+.Nd certificate lookup methods
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509_vfy.h
+.Ft const X509_LOOKUP_METHOD *
+.Fn X509_LOOKUP_hash_dir void
+.Ft const X509_LOOKUP_METHOD *
+.Fn X509_LOOKUP_file void
+.Ft const X509_LOOKUP_METHOD *
+.Fn X509_LOOKUP_mem void
+.Sh DESCRIPTION
+.Fn X509_LOOKUP_hash_dir ,
+.Fn X509_LOOKUP_file ,
+and
+.Fn X509_LOOKUP_mem
+return pointers to static certificate lookup method objects
+built into the library, for use with
+.Vt X509_STORE .
+.Pp
+Users of the library typically do not need
+to retrieve pointers to these method objects manually.
+They are automatically used by the
+.Xr X509_STORE_load_locations 3
+or
+.Xr SSL_CTX_load_verify_locations 3
+functions.
+.Ss File Method
+The
+.Fn X509_LOOKUP_file
+method loads all the certificates or CRLs present in a file into memory
+at the time the file is added as a lookup source.
+.Pp
+The file format is ASCII text which contains concatenated PEM
+certificates and CRLs.
+.Pp
+This method should be used by applications which work with a small set
+of CAs.
+.Ss Hashed Directory Method
+.Fa X509_LOOKUP_hash_dir
+is a more advanced method which loads certificates and CRLs on demand,
+and caches them in memory once they are loaded.
+As of OpenSSL 1.0.0, it also checks for newer CRLs upon each lookup, so
+that newer CRLs are used as soon as they appear in the directory.
+.Pp
+The directory should contain one certificate or CRL per file in PEM
+format, with a filename of the form
+.Ar hash . Ns Ar N
+for a certificate, or
+.Ar hash . Ns Sy r Ns Ar N
+for a CRL.
+The
+.Ar hash
+is the value returned by the
+.Xr X509_NAME_hash 3
+function applied to the subject name for certificates or issuer
+name for CRLs.
+The hash can also be obtained via the
+.Fl hash
+option of the
+.Xr openssl 1
+.Cm x509
+or
+.Cm crl
+commands.
+.Pp
+The
+.Ar N
+suffix is a sequence number that starts at zero and is incremented
+consecutively for each certificate or CRL with the same
+.Ar hash
+value.
+Gaps in the sequence numbers are not supported.
+It is assumed that there are no more objects with the same hash
+beyond the first missing number in the sequence.
+.Pp
+Sequence numbers make it possible for the directory to contain multiple
+certificates with the same subject name hash value.
+For example, it is possible to have in the store several certificates
+with the same subject or several CRLs with the same issuer (and, for
+example, a different validity period).
+.Pp
+When checking for new CRLs, once one CRL for a given hash value is
+loaded, hash_dir lookup method checks only for certificates with
+sequence number greater than that of the already cached CRL.
+.Pp
+Note that the hash algorithm used for subject name hashing changed in
+OpenSSL 1.0.0, and all certificate stores have to be rehashed when
+moving from OpenSSL 0.9.8 to 1.0.0.
+.Ss Memory Method
+The
+.Fn X509_LOOKUP_mem
+method supports loading PEM-encoded certificates and revocation lists
+that are already stored in memory, using the function
+.Xr X509_LOOKUP_add_mem 3 .
+This is particularly useful in processes using
+.Xr chroot 2 .
+.Sh RETURN VALUES
+These functions always return a pointer to a static object.
+.Sh SEE ALSO
+.Xr SSL_CTX_load_verify_locations 3 ,
+.Xr X509_LOOKUP_new 3 ,
+.Xr X509_STORE_load_locations 3 ,
+.Xr X509_STORE_new 3
+.Sh HISTORY
+.Fn X509_LOOKUP_hash_dir
+and
+.Fn X509_LOOKUP_file
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_LOOKUP_mem
+first appeared in
+.Ox 5.7 .

@@ -1,0 +1,135 @@
+.\"	$OpenBSD: ypbind.8,v 1.26 2018/04/26 12:53:09 schwarze Exp $
+.\"	$NetBSD: ypbind.8,v 1.2 1996/02/28 01:21:00 thorpej Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 26 2018 $
+.Dt YPBIND 8
+.Os
+.Sh NAME
+.Nm ypbind
+.Nd create and maintain a binding to a YP server
+.Sh SYNOPSIS
+.Nm ypbind
+.Op Fl insecure
+.Op Fl ypset
+.Op Fl ypsetme
+.Sh DESCRIPTION
+.Nm
+finds the server for a particular YP domain and stores information about it
+in a
+.Dq binding file .
+This binding information includes the IP address of the server associated with
+that particular domain and which port the server is using.
+This information is stored in the directory
+.Pa /var/yp/binding
+in a file named with the convention
+.Pa DOMAINNAME.version .
+(The YP system only supplies information on version 2.)
+.Pp
+When
+.Nm
+starts the primary domain (or gets the first request for a new domain),
+it checks if a file for the domain in question exists in the directory
+.Pa /etc/yp/
+(i.e.,
+.Pa /etc/yp/DOMAINNAME ) .
+If such a file exists, it will list the hosts which
+.Nm
+should restrict its server search to.
+Otherwise,
+.Nm
+assumes it will need to use broadcasts to find a valid server.
+Using either of these techniques,
+.Nm
+will search for a server willing to serve maps for the
+client's domain.
+Once a binding is established,
+.Nm
+maintains this binding by periodically communicating with the server to which
+it is bound.
+If the binding is somehow lost, e.g by server reboot,
+.Nm
+marks the domain as unbound and attempts to re-establish the binding.
+When the binding is once again successful,
+.Nm
+marks the domain as bound and resumes its periodic check.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl insecure
+Permit binding to a
+.Xr ypserv 8
+on a non-reserved port.
+This is needed if receiving maps from SunOS 3.x or Ultrix.
+.It Fl ypset
+.Xr ypset 8
+may be used to change the server to which a domain is bound.
+.It Fl ypsetme
+.Xr ypset 8
+may be used only from this machine to change the server
+to which a domain is bound.
+.El
+.Pp
+The
+.Fl ypset
+and
+.Fl ypsetme
+options are dangerous and should be avoided.
+For greatest security, the use of a server list in
+.Pa /etc/yp/DOMAINNAME
+is recommended.
+The file should contain a list of valid YP server hostnames,
+with one hostname per line.
+The comment character is #.
+.Sh FILES
+.Pa /var/yp/binding/DOMAINNAME.version
+- binding file for domainname
+.Pa /etc/yp/DOMAINNAME
+- server list for this particular domain
+.Sh SEE ALSO
+.Xr domainname 1 ,
+.Xr ypcat 1 ,
+.Xr ypmatch 1 ,
+.Xr ypwhich 1 ,
+.Xr yp 8 ,
+.Xr yppoll 8 ,
+.Xr ypserv 8 ,
+.Xr ypset 8
+.Pp
+Once
+.Nm ypbind
+is running, the following pages should be reviewed in order to see how to
+enable YP support for each of the following maps:
+.Xr ethers 5 ,
+.Xr group 5 ,
+.Xr hosts 5 ,
+.Xr passwd 5 ,
+.Xr resolv.conf 5
+.Sh AUTHORS
+.An Theo de Raadt

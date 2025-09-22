@@ -1,0 +1,59 @@
+# $OpenBSD: bgpd.conf.16.in,v 1.1 2024/04/09 09:33:46 claudio Exp $
+# test announce statements
+
+AS 1
+
+neighbor 192.0.2.1 {
+	remote-as	64496
+	role		peer
+
+	announce inet unicast
+	announce inet vpn
+	announce inet flowspec
+	announce inet6 unicast
+	announce inet6 vpn
+	announce inet6 flowspec
+
+	announce add-path recv yes
+	announce add-path send all
+
+	announce as-4byte yes
+	announce enhanced refresh yes
+	announce policy yes
+	announce refresh yes
+	announce restart yes
+}
+
+neighbor 192.0.2.2 {
+	remote-as	64496
+	role		peer
+
+	announce inet none
+	announce inet6 none
+
+	announce add-path recv no
+	announce add-path send no
+
+	announce as-4byte no
+	announce enhanced refresh no
+	announce policy no
+	announce refresh no
+	announce restart no
+}
+
+neighbor 192.0.2.3 {
+	remote-as	64496
+	role		peer
+
+	announce inet unicast enforce
+	announce inet6 unicast enforce
+
+	announce add-path recv enforce
+	announce add-path send best plus 3 enforce
+
+	announce as-4byte enforce
+	announce enhanced refresh enforce
+	announce policy enforce
+	announce refresh enforce
+	announce restart enforce
+}

@@ -1,0 +1,64 @@
+{
+  "name": "Disassembly",
+  "scopeName": "source.disassembly",
+  "uuid": "9ade615f-5d82-4ac5-b22f-a1998c356ebe",
+  "patterns": [
+    {
+      "comment": "x86 Address, bytes and opcode",
+      "name": "meta.instruction",
+      "match": "^([A-Za-z0-9]+):\\s([A-Z0-9]{2}\\s)+>?\\s+(\\w+)",
+      "captures": {
+        "1": {"name": "constant.numeric"},
+        "3": {"name": "keyword.opcode"}
+      }
+    },
+    {
+      "comment": "ARM Address, bytes and opcode",
+      "name": "meta.instruction",
+      "match": "^libIGL.so\\[([A-Za-z0-9]+)\\]\\s+(\\<\\+[0-9]*\\>):\\s+([A-Za-z]+.?[A-Za-z]*)",
+      "captures": {
+        "1": {"name": "constant.numeric"},
+        "3": {"name": "keyword.opcode"}
+      }
+    },
+    {
+      "comment": "ARM64 Address, bytes and opcode",
+      "name": "meta.instruction",
+      "match": "^liblog.so\\[([A-Za-z0-9]+)\\]\\s+(\\<\\+[0-9]*\\>):\\s+([A-Za-z]+.?[A-Za-z]*)",
+      "captures": {
+        "1": {"name": "constant.numeric"},
+        "3": {"name": "keyword.opcode"}
+      }
+    },
+    {
+      "comment": "Numeric constant",
+      "name": "constant.numeric",
+      "match": "(\\$|\\b)((0x)|[0-9])[A-Za-z0-9]+\\b"
+    },
+    {
+      "comment": "x86 Register",
+      "name": "variable.language",
+      "match": "%[A-Za-z][A-Za-z0-9]*"
+    },
+    {
+      "comment": "ARM Register",
+      "name": "variable.language",
+      "match": "r\\d+"
+    },
+    {
+      "comment": "ARM Register Shortnames",
+      "name": "variable.language",
+      "match": "(fp|sp|lr|pc|wzr|xzr)"
+    },
+    {
+      "comment": "ARM64 Register",
+      "name": "variable.language",
+      "match": "(x|w)[0-9]+"
+    },
+    {
+      "comment": "End of line comment",
+      "name": "comment.line.semicolon",
+      "match": ";.*$"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+.\"	$OpenBSD: brswphy.4,v 1.2 2020/04/06 00:01:08 pirofti Exp $
+.\"
+.\" Copyright (c) 2014 Paul Irofti <paul@irofti.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: April 6 2020 $
+.Dt BRSWPHY 4
+.Os
+.Sh NAME
+.Nm brswphy
+.Nd Broadcom BCM53xx 10/100/1000TX Ethernet PHY
+.Sh SYNOPSIS
+.Cd "brswphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Broadcom BCM53115 10/100/1000TX Ethernet PHY interfaces found
+on some of the octeon models.
+.Sh SEE ALSO
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr mii 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Paul Irofti Aq Mt paul@irofti.net .

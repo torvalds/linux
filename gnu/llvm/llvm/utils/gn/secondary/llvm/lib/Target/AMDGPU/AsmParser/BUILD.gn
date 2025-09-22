@@ -1,0 +1,24 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("AMDGPUGenAsmMatcher") {
+  visibility = [ ":AsmParser" ]
+  args = [ "-gen-asm-matcher" ]
+  td_file = "../AMDGPU.td"
+}
+
+static_library("AsmParser") {
+  output_name = "LLVMAMDGPUAsmParser"
+  deps = [
+    ":AMDGPUGenAsmMatcher",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/AMDGPU/MCTargetDesc",
+    "//llvm/lib/Target/AMDGPU/TargetInfo",
+    "//llvm/lib/Target/AMDGPU/Utils",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "AMDGPUAsmParser.cpp" ]
+}

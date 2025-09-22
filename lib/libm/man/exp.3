@@ -1,0 +1,351 @@
+.\"	$OpenBSD: exp.3,v 1.36 2025/06/07 10:33:06 schwarze Exp $
+.\"
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)exp.3	6.12 (Berkeley) 7/31/91
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt EXP 3
+.Os
+.Sh NAME
+.Nm exp ,
+.Nm expf ,
+.Nm expl ,
+.Nm exp2 ,
+.Nm exp2f ,
+.Nm exp2l ,
+.Nm expm1 ,
+.Nm expm1f ,
+.Nm expm1l ,
+.Nm log ,
+.Nm logf ,
+.Nm logl ,
+.Nm log2 ,
+.Nm log2f ,
+.Nm log2l ,
+.Nm log10 ,
+.Nm log10f ,
+.Nm log10l ,
+.Nm log1p ,
+.Nm log1pf ,
+.Nm log1pl ,
+.Nm pow ,
+.Nm powf ,
+.Nm powl
+.Nd exponential, logarithm, power functions
+.Sh SYNOPSIS
+.Lb libm
+.In math.h
+.Ft double
+.Fn exp "double x"
+.Ft float
+.Fn expf "float x"
+.Ft long double
+.Fn expl "long double x"
+.Ft double
+.Fn exp2 "double x"
+.Ft float
+.Fn exp2f "float x"
+.Ft long double
+.Fn exp2l "long double x"
+.Ft double
+.Fn expm1 "double x"
+.Ft float
+.Fn expm1f "float x"
+.Ft long double
+.Fn expm1l "long double x"
+.Ft double
+.Fn log "double x"
+.Ft float
+.Fn logf "float x"
+.Ft long double
+.Fn logl "long double x"
+.Ft double
+.Fn log2 "double x"
+.Ft float
+.Fn log2f "float x"
+.Ft long double
+.Fn log2l "long double x"
+.Ft double
+.Fn log10 "double x"
+.Ft float
+.Fn log10f "float x"
+.Ft long double
+.Fn log10l "long double x"
+.Ft double
+.Fn log1p "double x"
+.Ft float
+.Fn log1pf "float x"
+.Ft long double
+.Fn log1pl "long double x"
+.Ft double
+.Fn pow "double x" "double y"
+.Ft float
+.Fn powf "float x" "float y"
+.Ft long double
+.Fn powl "long double x" "long double y"
+.Sh DESCRIPTION
+The
+.Fn exp
+function computes the base
+.Ms e
+exponential value of the given argument
+.Fa x .
+The
+.Fn expf
+function is a single precision version of
+.Fn exp .
+The
+.Fn expl
+function is an extended precision version of
+.Fn exp .
+.Pp
+The
+.Fn exp2
+function computes the base 2 exponential of the given argument
+.Fa x .
+The
+.Fn exp2f
+function is a single precision version of
+.Fn exp2 .
+The
+.Fn exp2l
+function is an extended precision version of
+.Fn exp2 .
+.Pp
+The
+.Fn expm1
+function computes the value exp(x) \(mi 1 accurately even for tiny argument
+.Fa x .
+The
+.Fn expm1f
+function is a single precision version of
+.Fn expm1 .
+The
+.Fn expm1l
+function is an extended precision version of
+.Fn expm1 .
+.Pp
+The
+.Fn log
+function computes the value of the natural logarithm of argument
+.Fa x .
+The
+.Fn logf
+function is a single precision version of
+.Fn log .
+The
+.Fn logl
+function is an extended precision version of
+.Fn log .
+.Pp
+The
+.Fn log2
+function computes the value of the logarithm of argument
+.Fa x
+to base 2.
+The
+.Fn log2f
+function is a single precision version of
+.Fn log2 .
+The
+.Fn log2l
+function is an extended precision version of
+.Fn log2 .
+.Pp
+The
+.Fn log10
+function computes the value of the logarithm of argument
+.Fa x
+to base 10.
+The
+.Fn log10f
+function is a single precision version of
+.Fn log10 .
+The
+.Fn log10l
+function is an extended precision version of
+.Fn log10 .
+.Pp
+The
+.Fn log1p
+function computes
+the value of log(1 + x) accurately even for tiny argument
+.Fa x .
+The
+.Fn log1pf
+function is a single precision version of
+.Fn log1p .
+The
+.Fn log1pl
+function is an extended precision version of
+.Fn log1p .
+.Pp
+The
+.Fn pow
+function computes the value of
+.Fa x
+to the exponent
+.Fa y .
+The
+.Fn powf
+function is a single precision version of
+.Fn pow .
+The
+.Fn powl
+function is an extended precision version of
+.Fn pow .
+.Sh RETURN VALUES
+These functions will return the appropriate computation unless an error
+occurs or an argument is out of range.
+The functions
+.Fn exp ,
+.Fn expm1
+and
+.Fn pow
+detect if the computed value will overflow
+and set the global variable
+.Va errno
+to
+.Er ERANGE .
+The function
+.Fn pow x y
+checks to see if
+.Fa x
+< 0 and
+.Fa y
+is not an integer, in the event this is true,
+the global variable
+.Va errno
+is set to
+.Er EDOM .
+.Sh ERRORS (due to Roundoff etc.)
+exp(x), log(x), expm1(x) and log1p(x) are accurate to within
+an
+.Em ulp ,
+and log10(x) to within about 2
+.Em ulps ;
+an
+.Em ulp
+is one
+.Em Unit
+in the
+.Em Last
+.Em Place .
+The error in
+.Fn pow x y
+is below about 2
+.Em ulps
+when its
+magnitude is moderate, but increases as
+.Fn pow x y
+approaches
+the over/underflow thresholds until almost as many bits could be
+lost as are occupied by the floating\-point format's exponent
+field; that is 11 bits for IEEE 754 Double.
+No such drastic loss has been exposed by testing; the worst
+errors observed have been below 300
+.Em ulps
+for IEEE 754 Double.
+Moderate values of
+.Fn pow
+are accurate enough that
+.Fn pow integer integer
+is exact until it is bigger than 2**53 for IEEE 754.
+.Sh NOTES
+The functions exp(x) \(mi 1 and log(1 + x) are called
+expm1 and logp1 in BASIC on the Hewlett\-Packard HP-71B
+and APPLE Macintosh, EXP1 and LN1 in Pascal, exp1 and log1 in C
+on APPLE Macintoshes, where they have been provided to make
+sure financial calculations of ((1 + x)**n \(mi 1) / x, namely
+expm1(n * log1p(x)) / x, will be accurate when x is tiny.
+They also provide accurate inverse hyperbolic functions.
+.Pp
+The function
+.Fn pow x 0
+returns x**0 = 1 for all x including x = 0 and infinity.
+Previous implementations of
+.Fn pow
+may have defined x**0 to be undefined in some or all of these cases.
+Here are reasons for returning x**0 = 1 always:
+.Bl -enum -width indent
+.It
+Any program that already tests whether x is zero (or
+infinite or NaN) before computing x**0 cannot care
+whether 0**0 = 1 or not.
+Any program that depends upon 0**0 to be invalid is dubious anyway since that
+expression's meaning and, if invalid, its consequences
+vary from one computer system to another.
+.It
+Some Algebra texts (e.g., Sigler's) define x**0 = 1 for
+all x, including x = 0.
+This is compatible with the convention that accepts a[0]
+as the value of polynomial
+.Bd -literal -offset indent
+p(x) = a[0]*x**0 + a[1]*x**1 + a[2]*x**2 +...+ a[n]*x**n
+.Ed
+.Pp
+at x = 0 rather than reject a[0]*0**0 as invalid.
+.It
+Analysts will accept 0**0 = 1 despite that x**y can
+approach anything or nothing as x and y approach 0
+independently.
+The reason for setting 0**0 = 1 anyway is this:
+.Bd -filled -offset indent
+If x(z) and y(z) are
+.Em any
+functions analytic (expandable
+in power series) in z around z = 0, and if there
+x(0) = y(0) = 0, then x(z)**y(z) \(-> 1 as z \(-> 0.
+.Ed
+.It
+If 0**0 = 1, then infinity**0 = 1/0**0 = 1 too; and
+then NaN**0 = 1 too because x**0 = 1 for all finite
+and infinite x, i.e., independently of x.
+.El
+.Sh SEE ALSO
+.Xr fpclassify 3 ,
+.Xr ilogb 3
+.Sh HISTORY
+The
+.Fn exp
+and
+.Fn log
+functions first appeared in
+.At v1 ;
+.Fn pow
+in
+.At v3 ;
+.Fn log10
+in
+.At v7 ;
+.Fn log1p
+and
+.Fn expm1
+in
+.Bx 4.3 .

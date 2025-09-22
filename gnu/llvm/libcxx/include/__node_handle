@@ -1,0 +1,209 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP___NODE_HANDLE
+#define _LIBCPP___NODE_HANDLE
+
+/*
+
+template<unspecified>
+class node-handle {
+public:
+  using value_type     = see below;     // not present for map containers
+  using key_type       = see below;     // not present for set containers
+  using mapped_type    = see below;     // not present for set containers
+  using allocator_type = see below;
+
+private:
+  using container_node_type = unspecified;                  // exposition only
+  using ator_traits = allocator_traits<allocator_type>;     // exposition only
+
+  typename ator_traits::template
+    rebind_traits<container_node_type>::pointer ptr_;       // exposition only
+  optional<allocator_type> alloc_;                          // exposition only
+
+public:
+  // [container.node.cons], constructors, copy, and assignment
+  constexpr node-handle() noexcept : ptr_(), alloc_() {}
+  node-handle(node-handle&&) noexcept;
+  node-handle& operator=(node-handle&&);
+
+  // [container.node.dtor], destructor
+  ~node-handle();
+
+  // [container.node.observers], observers
+  value_type& value() const;            // not present for map containers
+  key_type& key() const;                // not present for set containers
+  mapped_type& mapped() const;          // not present for set containers
+
+  allocator_type get_allocator() const;
+  explicit operator bool() const noexcept;
+  [[nodiscard]] bool empty() const noexcept; // nodiscard since C++20
+
+  // [container.node.modifiers], modifiers
+  void swap(node-handle&)
+    noexcept(ator_traits::propagate_on_container_swap::value ||
+             ator_traits::is_always_equal::value);
+
+  friend void swap(node-handle& x, node-handle& y) noexcept(noexcept(x.swap(y))) {
+    x.swap(y);
+  }
+};
+
+*/
+
+#include <__assert>
+#include <__config>
+#include <__memory/allocator_traits.h>
+#include <__memory/pointer_traits.h>
+#include <optional>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#if _LIBCPP_STD_VER >= 17
+
+// Specialized in __tree & __hash_table for their _NodeType.
+template <class _NodeType, class _Alloc>
+struct __generic_container_node_destructor;
+
+template <class _NodeType, class _Alloc, template <class, class> class _MapOrSetSpecifics>
+class _LIBCPP_TEMPLATE_VIS __basic_node_handle
+    : public _MapOrSetSpecifics< _NodeType, __basic_node_handle<_NodeType, _Alloc, _MapOrSetSpecifics>> {
+  template <class _Tp, class _Compare, class _Allocator>
+  friend class __tree;
+  template <class _Tp, class _Hash, class _Equal, class _Allocator>
+  friend class __hash_table;
+  friend struct _MapOrSetSpecifics< _NodeType, __basic_node_handle<_NodeType, _Alloc, _MapOrSetSpecifics>>;
+
+  typedef allocator_traits<_Alloc> __alloc_traits;
+  typedef __rebind_pointer_t<typename __alloc_traits::void_pointer, _NodeType> __node_pointer_type;
+
+public:
+  typedef _Alloc allocator_type;
+
+private:
+  __node_pointer_type __ptr_ = nullptr;
+  optional<allocator_type> __alloc_;
+
+  _LIBCPP_HIDE_FROM_ABI void __release_ptr() {
+    __ptr_   = nullptr;
+    __alloc_ = std::nullopt;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI void __destroy_node_pointer() {
+    if (__ptr_ != nullptr) {
+      typedef typename __allocator_traits_rebind< allocator_type, _NodeType>::type __node_alloc_type;
+      __node_alloc_type __alloc(*__alloc_);
+      __generic_container_node_destructor<_NodeType, __node_alloc_type>(__alloc, true)(__ptr_);
+      __ptr_ = nullptr;
+    }
+  }
+
+  _LIBCPP_HIDE_FROM_ABI __basic_node_handle(__node_pointer_type __ptr, allocator_type const& __alloc)
+      : __ptr_(__ptr), __alloc_(__alloc) {}
+
+public:
+  _LIBCPP_HIDE_FROM_ABI __basic_node_handle() = default;
+
+  _LIBCPP_HIDE_FROM_ABI __basic_node_handle(__basic_node_handle&& __other) noexcept
+      : __ptr_(__other.__ptr_), __alloc_(std::move(__other.__alloc_)) {
+    __other.__ptr_   = nullptr;
+    __other.__alloc_ = std::nullopt;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI __basic_node_handle& operator=(__basic_node_handle&& __other) {
+    _LIBCPP_ASSERT_COMPATIBLE_ALLOCATOR(
+        __alloc_ == std::nullopt || __alloc_traits::propagate_on_container_move_assignment::value ||
+            __alloc_ == __other.__alloc_,
+        "node_type with incompatible allocator passed to "
+        "node_type::operator=(node_type&&)");
+
+    __destroy_node_pointer();
+    __ptr_ = __other.__ptr_;
+
+    if (__alloc_traits::propagate_on_container_move_assignment::value || __alloc_ == std::nullopt)
+      __alloc_ = std::move(__other.__alloc_);
+
+    __other.__ptr_   = nullptr;
+    __other.__alloc_ = std::nullopt;
+
+    return *this;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI allocator_type get_allocator() const { return *__alloc_; }
+
+  _LIBCPP_HIDE_FROM_ABI explicit operator bool() const { return __ptr_ != nullptr; }
+
+  [[nodiscard]] _LIBCPP_HIDE_FROM_ABI bool empty() const { return __ptr_ == nullptr; }
+
+  _LIBCPP_HIDE_FROM_ABI void swap(__basic_node_handle& __other) noexcept(
+      __alloc_traits::propagate_on_container_swap::value || __alloc_traits::is_always_equal::value) {
+    using std::swap;
+    swap(__ptr_, __other.__ptr_);
+    if (__alloc_traits::propagate_on_container_swap::value || __alloc_ == std::nullopt ||
+        __other.__alloc_ == std::nullopt)
+      swap(__alloc_, __other.__alloc_);
+  }
+
+  _LIBCPP_HIDE_FROM_ABI friend void
+  swap(__basic_node_handle& __a, __basic_node_handle& __b) noexcept(noexcept(__a.swap(__b))) {
+    __a.swap(__b);
+  }
+
+  _LIBCPP_HIDE_FROM_ABI ~__basic_node_handle() { __destroy_node_pointer(); }
+};
+
+template <class _NodeType, class _Derived>
+struct __set_node_handle_specifics {
+  typedef typename _NodeType::__node_value_type value_type;
+
+  _LIBCPP_HIDE_FROM_ABI value_type& value() const { return static_cast<_Derived const*>(this)->__ptr_->__get_value(); }
+};
+
+template <class _NodeType, class _Derived>
+struct __map_node_handle_specifics {
+  typedef typename _NodeType::__node_value_type::key_type key_type;
+  typedef typename _NodeType::__node_value_type::mapped_type mapped_type;
+
+  _LIBCPP_HIDE_FROM_ABI key_type& key() const {
+    return static_cast<_Derived const*>(this)->__ptr_->__get_value().__ref().first;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI mapped_type& mapped() const {
+    return static_cast<_Derived const*>(this)->__ptr_->__get_value().__ref().second;
+  }
+};
+
+template <class _NodeType, class _Alloc>
+using __set_node_handle = __basic_node_handle< _NodeType, _Alloc, __set_node_handle_specifics>;
+
+template <class _NodeType, class _Alloc>
+using __map_node_handle = __basic_node_handle< _NodeType, _Alloc, __map_node_handle_specifics>;
+
+template <class _Iterator, class _NodeType>
+struct _LIBCPP_TEMPLATE_VIS __insert_return_type {
+  _Iterator position;
+  bool inserted;
+  _NodeType node;
+};
+
+#endif // _LIBCPP_STD_VER >= 17
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#endif // _LIBCPP___NODE_HANDLE

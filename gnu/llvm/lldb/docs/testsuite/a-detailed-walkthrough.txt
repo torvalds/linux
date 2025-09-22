@@ -1,0 +1,263 @@
+Let's pick test/settings/TestSettings.py as our example.  First, notice the file
+name "TestSettings.py", the Test*.py pattern is the default mechanism that the
+test driver uses for discovery of tests.  As to TestSettings.py, it defines a
+class:
+
+class SettingsCommandTestCase(TestBase):
+
+derived from TestBase, which is defined in test/lldbtest.py and is itself
+derived from Python's unittest framework's TestCase class.  See also
+http://docs.python.org/library/unittest.html for more details.
+
+To just run the TestSettings.py test, chdir to the lldb test directory, and then
+type the following command:
+
+/Volumes/data/lldb/svn/trunk/test $ ./dotest.py settings
+----------------------------------------------------------------------
+Collected 6 tests
+
+----------------------------------------------------------------------
+Ran 6 tests in 8.699s
+
+OK (expected failures=1)
+/Volumes/data/lldb/svn/trunk/test $ 
+
+Pass '-v' option to the test driver to also output verbose descriptions of the
+individual test cases and their test status:
+
+/Volumes/data/lldb/svn/trunk/test $ ./dotest.py -v settings
+----------------------------------------------------------------------
+Collected 6 tests
+
+test_set_auto_confirm (TestSettings.SettingsCommandTestCase)
+Test that after 'set auto-confirm true', manual confirmation should not kick in. ... ok
+test_set_output_path (TestSettings.SettingsCommandTestCase)
+Test that setting target.process.output-path for the launched process works. ... expected failure
+test_set_prompt (TestSettings.SettingsCommandTestCase)
+Test that 'set prompt' actually changes the prompt. ... ok
+test_set_term_width (TestSettings.SettingsCommandTestCase)
+Test that 'set term-width' actually changes the term-width. ... ok
+test_with_dsym (TestSettings.SettingsCommandTestCase)
+Test that run-args and env-vars are passed to the launched process. ... ok
+test_with_dwarf (TestSettings.SettingsCommandTestCase)
+Test that run-args and env-vars are passed to the launched process. ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 5.735s
+
+OK (expected failures=1)
+/Volumes/data/lldb/svn/trunk/test $ 
+
+Underneath, the '-v' option passes keyword argument verbosity=2 to the
+Python's unittest.TextTestRunner (see also
+http://docs.python.org/library/unittest.html#unittest.TextTestRunner).  For very
+detailed descriptions about what's going on during the test, pass '-t' to the
+test driver, which asks the test driver to trace the commands executed and to
+display their output.  For brevity, the '-t' output is not included here.
+
+Notice the 'expected failures=1' message at the end of the run.  This is because
+of a bug currently in lldb such that setting target.process.output-path to
+'stdout.txt' does not have any effect on the redirection of the standard output
+of the subsequent launched process.  We are using unittest to decorate (mark)
+the particular test method as such:
+
+    @unittest.expectedFailure
+    # rdar://problem/8435794
+    # settings set target.process.output-path does not seem to work
+    def test_set_output_path(self):
+
+See http://docs.python.org/library/unittest.html for more details.
+
+Now let's look inside the test method:
+
+    def test_set_output_path(self):
+        """Test that setting target.process.output-path for the launched process works."""
+        self.build()
+
+        exe = os.path.join(os.getcwd(), "a.out")
+        self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
+
+        # Set the output-path and verify it is set.
+        self.runCmd("settings set target.process.output-path 'stdout.txt'")
+        self.expect("settings show target.process.output-path",
+            startstr = "target.process.output-path (string) = 'stdout.txt'")
+
+        self.runCmd("run", RUN_SUCCEEDED)
+
+        # The 'stdout.txt' file should now exist.
+        self.assertTrue(os.path.isfile("stdout.txt"),
+                        "'stdout.txt' exists due to target.process.output-path.")
+
+        # Read the output file produced by running the program.
+        with open('stdout.txt', 'r') as f:
+            output = f.read()
+
+        self.expect(output, exe=False,
+            startstr = "This message should go to standard out.")
+
+The self.build() statement is used to build a binary for this
+test instance. This will build the binary for the current debug info format. If
+we wanted to avoid running the test for every supported debug info format we
+could annotate it with @no_debug_info_test. The test would then only be run for
+the default format.  The logic for building a test binary resides in the builder
+modules (packages/Python/lldbsuite/test/builders/builder.py)
+
+After the binary is built, it is time to specify the file to be used as the main
+executable by lldb:
+
+        # Construct the path to a file "a.out" inside the test's build folder.
+        exe = self.getBuildArtifact("a.out")
+        self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
+
+The runCmd() method is defined in the TestBase base class and its purpose is to
+pass the specified command to the lldb command interpreter. It's like you're
+typing the command within an interactive lldb session.
+
+The CURRENT_EXECUTABLE_SET is an assert message defined in the lldbtest module
+so that it can be reused from other test modules.
+
+By default, the runCmd() is going to check the return status of the command
+execution and fails the test if it is not a success.  The assert message, in our
+case CURRENT_EXECUTABLE_SET, is used in the exception printout if this happens.
+
+There are cases when we don't care about the return status from the command
+execution.  This can be accomplished by passing the keyword argument pair
+'check=False' to the method.
+
+After the current executable is set, we'll then execute two more commands:
+
+        # Set the output-path and verify it is set.
+        stdout = self.getBuildArtifact('stdout.txt')
+        self.runCmd("settings set target.process.output-path '%s'" %stdout)
+        self.expect("settings show target.process.output-path",
+                    SETTING_MSG("target.process.output-path"),
+            startstr = "target.process.output-path (string) = '.*stdout.txt'")
+
+The first uses the 'settings set' command to set the static setting
+target.process.output-path to be 'stdout.txt', instead of the default
+'/dev/stdout'.  We then immediately issue a 'settings show' command to check
+that, indeed, the setting did take place.  Notice that we use a new method
+expect() to accomplish the task, which in effect issues a runCmd() behind the
+door and grabs the output from the command execution and expects to match the
+start string of the output against what we pass in as the value of the keyword
+argument pair:
+
+            startstr = "target.process.output-path (string) = '%s'" %stdout
+
+Take a look at TestBase.expect() within lldbtest.py for more details.  Among
+other things, it can also match against a list of regexp patterns as well as a
+list of sub strings.  And it can also perform negative matching, i.e., instead
+of expecting something from the output of command execution, it can perform the
+action of 'not expecting' something.
+
+This will launch/run the program:
+
+        self.runCmd("run", RUN_SUCCEEDED)
+
+And this asserts that the file 'stdout.txt' should be present after running the
+program.
+
+        # The 'stdout.txt' file should now exist.
+        self.assertTrue(os.path.isfile(stdout),
+                        "stdout.txt' exists due to target.process.output-path.")
+
+Also take a look at main.cpp which emits some message to the stdout.  Now, if we
+pass this assertion, it's time to examine the contents of the file to make sure
+it contains the same message as programmed in main.cpp:
+
+        # Read the output file produced by running the program.
+        with open(stdout, 'r') as f:
+            output = f.read()
+
+        self.expect(output, exe=False,
+            startstr = "This message should go to standard out.")
+
+We open the file and read its contents into output, then issue an expect()
+method.  The 'exe=False' keyword argument pair tells expect() that don't try to
+execute the first arg as a command at all.  Instead, treat it as a string to
+match against whatever is thrown in as keyword argument pairs!
+
+There are also other test methods present in the TestSettings.py mode:
+test_set_prompt(), test_set_term_width(), test_set_auto_confirm(),
+test_with_dsym(), and test_with_dwarf().  We are using the default test loader
+from unittest framework, which uses the 'test' method name prefix to identify
+test methods automatically.
+
+This finishes the walkthrough of the test method test_set_output_path(self).
+Before we say goodbye, notice the little method definition at the top of the
+file:
+
+    @classmethod
+    def classCleanup(cls):
+        system(["/bin/sh", "-c", "rm -f "+self.getBuildArtifact("output.txt")])
+        system(["/bin/sh", "-c", "rm -f "+self.getBuildArtifact("stdout.txt")])
+
+This is a classmethod (as shown by the @classmethod decorator) which allows the
+individual test class to perform cleanup actions after the test harness finishes
+with the particular test class.  This is part of the so-called test fixture in
+the unittest framework.  From http://docs.python.org/library/unittest.html:
+
+A test fixture represents the preparation needed to perform one or more tests,
+and any associate cleanup actions. This may involve, for example, creating
+temporary or proxy databases, directories, or starting a server process.
+
+The TestBase class uses such fixture with setUp(self), tearDown(self),
+setUpClass(cls), and tearDownClass(cls).  And within teraDownClass(cls), it
+checks whether the current class has an attribute named 'classCleanup', and
+executes as a method if present.  In this particular case, the classCleanup()
+calls a utility function system() defined in lldbtest.py in order to remove the
+files created by running the program as the tests are executed.
+
+This system() function uses the Python subprocess module to spawn the process
+and to retrieve its results.  If the test instance passes the keyword argument
+pair 'sender=self', the detailed command execution through the operating system
+also gets recorded in a session object.  If the test instance fails or errors,
+the session info automatically gets dumped to a file grouped under a directory
+named after the timestamp of the particular test suite run.
+
+For simple cases, look for the timestamp directory in the same directory of the
+test driver program dotest.py.  For example, if we comment out the
+@expectedFailure decorator for TestSettings.py, and then run the test module:
+
+/Volumes/data/lldb/svn/trunk/test $ ./dotest.py -v settings
+----------------------------------------------------------------------
+Collected 6 tests
+
+test_set_auto_confirm (TestSettings.SettingsCommandTestCase)
+Test that after 'set auto-confirm true', manual confirmation should not kick in. ... ok
+test_set_output_path (TestSettings.SettingsCommandTestCase)
+Test that setting target.process.output-path for the launched process works. ... FAIL
+test_set_prompt (TestSettings.SettingsCommandTestCase)
+Test that 'set prompt' actually changes the prompt. ... ok
+test_set_term_width (TestSettings.SettingsCommandTestCase)
+Test that 'set term-width' actually changes the term-width. ... ok
+test_with_dsym (TestSettings.SettingsCommandTestCase)
+Test that run-args and env-vars are passed to the launched process. ... ok
+test_with_dwarf (TestSettings.SettingsCommandTestCase)
+Test that run-args and env-vars are passed to the launched process. ... ok
+
+======================================================================
+FAIL: test_set_output_path (TestSettings.SettingsCommandTestCase)
+Test that setting target.process.output-path for the launched process works.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/data/lldb/svn/trunk/test/settings/TestSettings.py", line 125, in test_set_output_path
+    "'stdout.txt' exists due to target.process.output-path.")
+AssertionError: False is not True : 'stdout.txt' exists due to target.process.output-path.
+
+----------------------------------------------------------------------
+Ran 6 tests in 8.219s
+
+FAILED (failures=1)
+/Volumes/data/lldb/svn/trunk/test $ ls 2010-10-19-14:10:49.059609
+
+NOTE: This directory name has been changed to not contain the ':' character
+      which is not allowed in windows platforms.  We'll change the ':' to '_'
+      and get rid of the microsecond resolution by modifying the test driver.
+
+TestSettings.SettingsCommandTestCase.test_set_output_path.log
+/Volumes/data/lldb/svn/trunk/test $ 
+
+We get one failure and a timestamp directory 2010-10-19-14:10:49.059609.
+For education purposes, the directory and its contents are reproduced here in
+the same directory as the current file.

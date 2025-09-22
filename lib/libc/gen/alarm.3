@@ -1,0 +1,108 @@
+.\"	$OpenBSD: alarm.3,v 1.17 2022/08/02 01:23:23 jsg Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 2 2022 $
+.Dt ALARM 3
+.Os
+.Sh NAME
+.Nm alarm
+.Nd schedule SIGALRM delivery
+.Sh SYNOPSIS
+.In unistd.h
+.Ft unsigned int
+.Fn alarm "unsigned int seconds"
+.Sh DESCRIPTION
+.Bf -symbolic
+This is a simplified interface to
+.Xr setitimer 2 .
+.Ef
+.Pp
+The
+.Fn alarm
+function schedules the
+.Dv SIGALRM
+signal for delivery to the calling process after the given number of
+.Fa seconds
+have elapsed.
+.Pp
+If an alarm is already pending,
+another call to
+.Fn alarm
+will supersede the prior call.
+.Pp
+If
+.Fa seconds
+is zero,
+any pending alarm is cancelled.
+.Sh RETURN VALUES
+.Fn alarm
+returns the number of seconds remaining until the pending alarm would have
+expired.
+If the alarm has already expired,
+the alarm was cancelled,
+or no alarm was ever scheduled,
+.Fn alarm
+returns zero.
+.Sh SEE ALSO
+.Xr setitimer 2 ,
+.Xr sigaction 2 ,
+.Xr sigsuspend 2 ,
+.Xr signal 3 ,
+.Xr sleep 3 ,
+.Xr ualarm 3
+.Sh STANDARDS
+The
+.Fn alarm
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+An
+.Fn alarm
+system call first appeared outside of Bell Labs in the
+.Dq 50 changes
+tape for
+.At v6 .
+It was first officially released with PWB/UNIX 1.0.
+For
+.Bx 4.1c ,
+it was reimplemented as a wrapper around the
+.Xr setitimer 2
+system call.
+.Sh CAVEATS
+The
+.Fn alarm
+function is implemented with the per-process
+.Dv ITIMER_REAL
+timer described in
+.Xr setitimer 2 .
+Use of both
+.Fn alarm
+and
+.Xr setitimer 2
+in the same program may yield confusing behavior.

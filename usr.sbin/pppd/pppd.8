@@ -1,0 +1,1515 @@
+.\" $OpenBSD: pppd.8,v 1.48 2022/03/31 17:27:31 naddy Exp $
+.\" Id: pppd.8,v 1.27 1998/03/31 04:31:08 paulus Exp $
+.\"
+.\" Copyright (c) 1993-2003 Paul Mackerras <paulus@samba.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THIS SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt PPPD 8
+.Os
+.Sh NAME
+.Nm pppd
+.Nd Point-to-Point Protocol daemon
+.Sh SYNOPSIS
+.Nm pppd
+.Op Ar tty_name
+.Op Ar speed
+.Op Ar options
+.Sh DESCRIPTION
+PPP is the protocol used for establishing internet links over dial-up
+modems, DSL connections, and many other types of point-to-point links.
+The
+.Nm
+daemon works together with the kernel
+.Xr ppp 4
+driver to establish and maintain a PPP link with another system
+(called the
+.Em peer )
+and to negotiate Internet Protocol (IP) addresses for each end of the link.
+.Nm
+can also authenticate the peer and/or supply authentication information
+to the peer.
+PPP can be used with other network protocols besides IP, but such use
+is becoming increasingly rare.
+.Sh FREQUENTLY USED OPTIONS
+.Bl -tag -width Ds
+.It Ar tty_name
+Use the serial port called
+.Ar ttyname
+to communicate with the peer.
+The string
+.Dq /dev/
+is prepended to
+.Ar ttyname
+to form the name of the device to open.
+If no device name is given, or if the name of the terminal
+connected to the standard input is given,
+.Nm
+will use that terminal, and will not fork to put itself in the background.
+This option is privileged if the
+.Cm noauth
+option is used.
+.It Ar speed
+An option that is a decimal number is taken as the desired baud rate
+for the serial device.
+On systems such as
+.Bx 4.4
+and
+.Ox ,
+any speed can be specified.
+Other systems (e.g., Linux, SunOS) only support the commonly used
+baud-rates.
+.It Cm active-filter Ar filter-expression
+Specifies a packet filter to be applied to data packets to determine
+which packets are to be regarded as link activity, and therefore reset
+the idle timer, or cause the link to be brought up in demand-dialling
+mode.
+This option is useful in conjunction with the
+.Cm idle
+option if there are packets being sent or received regularly over the link
+(for example, routing information packets)
+which would otherwise prevent the link from ever appearing to be idle.
+The
+.Ar filter-expression
+syntax is as described for
+.Xr tcpdump 8 ,
+except that qualifiers which are inappropriate for a PPP link, such as
+.Ar ether
+and
+.Ar arp ,
+are not permitted.
+Generally the filter expression should be enclosed in single quotes to
+prevent whitespace in the expression from being interpreted by the shell.
+.It Cm asyncmap Ar map
+This option sets the Async-Control-Character-Map (ACCM) for this end
+of the link.
+The ACCM is a set of 32 bits, one for each of the ASCII control characters
+with values from 0 to 31, where a 1 bit indicates that the corresponding
+control character should not be used in PPP packets sent to this system.
+The map is encoded as a hexadecimal number (without a leading 0x) where the
+least significant bit (00000001) represents character 0 and the
+most significant bit (80000000) represents character 31.
+.Nm
+will ask the peer to send these characters as a 2-byte escape sequence.
+If multiple
+.Cm asyncmap
+options are given, the values are ORed together.
+If no
+.Cm asyncmap
+option is given, no async character map will be negotiated for the receive
+direction; the peer should then escape
+.Em all
+control characters.
+To escape transmitted characters, use the
+.Cm escape
+option.
+.It Cm auth
+Require the peer to authenticate itself before allowing network
+packets to be sent or received.
+.It Cm call Ar name
+Read options from the file
+.Pa /etc/ppp/peers/name .
+This file may contain privileged options, such as
+.Cm noauth ,
+even if
+.Nm
+is not being run by root.
+The
+.Ar name
+string may not begin with
+.Qq /
+or include
+.Qq ..
+as a pathname component.
+The format of the options file is described below.
+.It Cm connect Ar script
+Usually there is something which needs to be done to prepare the link
+before the PPP protocol can be started; for instance, with a dial-up
+modem, commands need to be sent to the modem to dial the appropriate
+phone number.
+This option specifies a command for
+.Nm
+to execute (by passing it to a shell) before attempting to start PPP
+negotiation.
+The
+.Xr chat 8
+program is often useful here, as it provides a way to send arbitrary strings
+to a modem and respond to received characters.
+This option is privileged if the
+.Cm noauth
+option is used.
+.It Cm crtscts
+Specifies that
+.Nm
+should set the serial port to use hardware flow control using the RTS and CTS
+signals in the RS-232 interface.
+If neither the
+.Cm crtscts
+nor the
+.Cm nocrtscts
+option is given, the hardware flow control setting for the serial port
+is left unchanged.
+.It Cm defaultroute
+Add a default route to the system routing tables, using the peer as
+the gateway, when IPCP negotiation is successfully completed.
+This entry is removed when the PPP connection is broken.
+This option is privileged if the
+.Cm nodefaultroute
+option has been specified.
+.It Cm disconnect Ar script
+Execute the command specified by
+.Ar script ,
+by passing it to a shell,
+after
+.Nm
+has terminated the link.
+This command could, for example, issue commands to the modem to cause it
+to hang up if hardware modem control signals were not available.
+The disconnect script is not run if the modem has already hung up.
+This option is privileged if the
+.Cm noauth
+option is used.
+.It Cm escape Ar xx,yy,...
+Specifies that certain characters should be escaped on transmission
+(regardless of whether the peer requests them to be escaped with its
+async control character map).
+The characters to be escaped are specified as a list of hex numbers
+separated by commas.
+Note that almost any character can be specified for the
+.Cm escape
+option, unlike the
+.Cm asyncmap
+option which only allows control characters to be specified.
+The characters which may not be escaped are those with hex values
+0x20 \- 0x3f or 0x5e.
+.It Cm file Ar name
+Read options from file
+.Ar name
+(the format is described below).
+The file must be readable by the user who has invoked
+.Nm pppd .
+.It Cm lock
+Specifies that
+.Nm
+should create a UUCP-style lock file for the
+serial device to ensure exclusive access to the device.
+.It Cm mru Ar n
+Set the MRU (Maximum Receive Unit) value to
+.Ar n .
+.Nm
+will ask the peer to send packets of no more than
+.Ar n
+bytes.
+The value of
+.Ar n
+must be between 128 and 16384; the default is 1500.
+A value of 296 works well on very slow links
+(40 bytes for TCP/IP header + 256 bytes of data).
+Note that for the IPv6 protocol, the MRU must be at least 1280.
+.It Cm mtu Ar n
+Set the MTU (Maximum Transmit Unit) value to
+.Ar n .
+Unless the peer requests a smaller value via MRU negotiation,
+.Nm
+will request that the kernel networking code send data packets of no more than
+.Ar n
+bytes through the PPP network interface.
+Note that for the IPv6 protocol, the MTU must be at least 1280.
+.It Cm passive
+Enables the
+.Qq passive
+option in the LCP.
+With this option,
+.Nm
+will attempt to initiate a connection; if no reply is received from the peer,
+.Nm
+will then just wait passively for a valid LCP packet from the peer,
+instead of exiting, as it would without this option.
+.El
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Xo
+.Oo Ar local_IP_address Oc : Ns
+.Op Ar remote_IP_address
+.Xc
+Set the local and/or remote interface IP addresses.
+Either one may be omitted.
+The IP addresses can be specified with a host name or in
+decimal dot notation (e.g., 150.234.56.78).
+The default local address is the (first) IP address of the system (unless the
+.Cm noipdefault
+option is given).
+The remote address will be obtained from the peer
+if not specified in any option.
+Thus, in simple cases, this option is not required.
+If a local and/or remote IP address is specified with this option,
+.Nm
+will not accept a different value from the peer in the IPCP negotiation,
+unless the
+.Cm ipcp-accept-local
+and/or
+.Cm ipcp-accept-remote
+options are given, respectively.
+.It Cm bsdcomp Ar nr,nt
+Request that the peer compress packets that it sends, using the
+BSD-Compress scheme, with a maximum code size of
+.Ar nr
+bits, and agree to compress packets sent to the peer with
+a maximum code size of
+.Ar nt
+bits.
+If
+.Ar nt
+is not specified, it defaults to the value given for
+.Ar nr .
+Values in the range 9 to 15 may be used for
+.Ar nr
+and
+.Ar nt ;
+larger values give better compression but
+consume more kernel memory for compression dictionaries.
+Alternatively, a value of 0 for
+.Ar nr
+or
+.Ar nt
+disables compression in the corresponding direction.
+.Cm nobsdcomp
+or
+.Cm bsdcomp 0
+disables BSD-Compress compression entirely.
+.It Cm chap-interval Ar n
+If this option is given,
+.Nm
+will rechallenge the peer every
+.Ar n
+seconds.
+.It Cm chap-max-challenge Ar n
+Set the maximum number of CHAP challenge transmissions to
+.Ar n
+(default 10).
+.It Cm chap-restart Ar n
+Set the CHAP restart interval (retransmission timeout for challenges) to
+.Ar n
+seconds (default 3).
+.It Cm debug
+Enables connection debugging facilities.
+If this option is given,
+.Nm
+will log the contents of all control packets sent or received in a
+readable form.
+The packets are logged through
+.Xr syslogd 8
+with facility
+.Ar daemon
+and level
+.Ar debug .
+This information can be directed to a file by setting up
+.Pa /etc/syslog.conf
+appropriately (see
+.Xr syslog.conf 5 ) .
+.It Cm default-asyncmap
+Disable asyncmap negotiation, forcing all control characters to be
+escaped for both the transmit and the receive direction.
+.It Cm default-mru
+Disable MRU (Maximum Receive Unit) negotiation.
+With this option,
+.Nm
+will use the default MRU value of 1500 bytes for both the
+transmit and receive direction.
+.It Cm deflate Ar nr,nt
+Request that the peer compress packets that it sends, using the
+Deflate scheme, with a maximum window size of
+.Ar 2**nr
+bytes, and agree to compress packets sent to the peer with
+a maximum window size of
+.Ar 2**nt
+bytes.
+If
+.Ar nt
+is not specified, it defaults to the value given for
+.Ar nr .
+Values in the range 8 to 15 may be used for
+.Ar nr
+and
+.Ar nt ;
+larger values give better compression but consume more kernel memory
+for compression dictionaries.
+Alternatively, a value of 0 for
+.Ar nr
+or
+.Ar nt
+disables compression in the corresponding direction.
+Use
+.Cm nodeflate
+or
+.Cm deflate 0
+to disable Deflate compression entirely.
+(Note:
+.Nm
+requests Deflate compression in preference to BSD-Compress if the peer
+can do either.)
+.It Cm demand
+Initiate the link only on demand, i.e., when data traffic is present.
+With this option, the remote IP address must be specified by the user
+on the command line or in an options file.
+.Nm
+will initially configure the interface and enable it for IP traffic without
+connecting to the peer.
+When traffic is available,
+.Nm
+will connect to the peer and perform negotiation, authentication, etc.
+When this is completed,
+.Nm
+will commence passing data packets (i.e., IP packets) across the link.
+.Pp
+The
+.Cm demand
+option implies the
+.Cm persist
+option.
+If this behaviour is not desired, use the
+.Cm nopersist
+option after the
+.Cm demand
+option.
+The
+.Cm idle
+and
+.Cm holdoff
+options are also useful in conjunction with the
+.Cm demand
+option.
+.It Cm domain Ar d
+Append the domain name
+.Ar d
+to the local host name for authentication purposes.
+For example, if
+.Xr gethostname 3
+returns the name porsche, but the fully qualified domain name is
+porsche.Quotron.COM, you could specify
+.Cm domain Quotron.COM .
+.Nm
+would then use the name
+.Ar porsche.Quotron.COM
+for looking up secrets in the secrets file, and as the default name to
+send to the peer when authenticating itself to the peer.
+This option is privileged.
+.It Cm holdoff Ar n
+Specifies how many seconds to wait before re-initiating the link after
+it terminates.
+This option only has any effect if the
+.Cm persist
+or
+.Cm demand
+option is used.
+The holdoff period is not applied if the link was terminated
+because it was idle.
+.It Cm idle Ar n
+Specifies that
+.Nm
+should disconnect if the link is idle for
+.Ar n
+seconds.
+The link is idle when no data packets (i.e., IP packets) are
+being sent or received.
+Note: it is not advisable to use this option with the
+.Cm persist
+option without the
+.Cm demand
+option.
+If the
+.Cm active-filter
+option is given, data packets which are rejected by the specified
+activity filter also count as the link being idle.
+.It Cm ipcp-accept-local
+With this option,
+.Nm
+will accept the peer's idea of our local IP address,
+even if the local IP address was specified in an option.
+.It Cm ipcp-accept-remote
+With this option,
+.Nm
+will accept the peer's idea of its (remote) IP address,
+even if the remote IP address was specified in an option.
+.It Cm ipcp-max-configure Ar n
+Set the maximum number of IPCP configure-request transmissions to
+.Ar n
+(default 10).
+.It Cm ipcp-max-failure Ar n
+Set the maximum number of IPCP configure-NAKs returned before starting
+to send configure-Rejects to
+.Ar n
+(default 10).
+.It Cm ipcp-max-terminate Ar n
+Set the maximum number of IPCP terminate-request transmissions to
+.Ar n
+(default 3).
+.It Cm ipcp-restart Ar n
+Set the IPCP restart interval (retransmission timeout) to
+.Ar n
+seconds (default 3).
+.It Cm ipparam Ar string
+Provides an extra parameter to the ip-up and ip-down scripts.
+If this option is given, the
+.Ar string
+supplied is given as the 6th parameter to those scripts.
+.It Cm kdebug Ar n
+Enable debugging code in the kernel-level PPP driver.
+The argument
+.Ar n
+is a number which is the sum of the following values:
+1 to enable general debug messages,
+2 to request that the contents of received packets be printed,
+and 4 to request that the contents of transmitted packets be printed.
+On most systems, messages printed by the kernel are logged by
+.Xr syslogd 8
+to a file as directed in the
+.Pa /etc/syslog.conf
+configuration file.
+.It Cm lcp-echo-failure Ar n
+If this option is given,
+.Nm
+will presume the peer to be dead if
+.Ar n
+LCP echo-requests are sent without receiving a valid LCP echo-reply.
+If this happens,
+.Nm
+will terminate the connection.
+Use of this option requires a non-zero value for the
+.Cm lcp-echo-interval
+parameter.
+This option can be used to enable
+.Nm
+to terminate after the physical connection has been broken
+(e.g., the modem has hung up) in situations where no hardware modem
+control lines are available.
+.It Cm lcp-echo-interval Ar n
+If this option is given,
+.Nm
+will send an LCP echo-request frame to the peer every
+.Ar n
+seconds.
+Normally the peer should respond to the echo-request by sending an echo-reply.
+This option can be used with the
+.Cm lcp-echo-failure
+option to detect that the peer is no longer connected.
+.It Cm lcp-max-configure Ar n
+Set the maximum number of LCP configure-request transmissions to
+.Ar n
+(default 10).
+.It Cm lcp-max-failure Ar n
+Set the maximum number of LCP configure-NAKs returned before starting
+to send configure-Rejects to
+.Ar n
+(default 10).
+.It Cm lcp-max-terminate Ar n
+Set the maximum number of LCP terminate-request transmissions to
+.Ar n
+(default 3).
+.It Cm lcp-restart Ar n
+Set the LCP restart interval (retransmission timeout) to
+.Ar n
+seconds (default 3).
+.It Cm local
+Don't use the modem control lines.
+With this option,
+.Nm
+will ignore the state of the CD (Carrier Detect) signal from the modem
+and will not change the state of the DTR (Data Terminal Ready) signal.
+.It Cm login
+Use the system password database for authenticating the peer using
+PAP, and record the user in the system wtmp file.
+Note that the peer must have an entry in the
+.Pa /etc/ppp/pap-secrets
+file as well as the system password database to be allowed access.
+.It Cm maxconnect Ar n
+Terminate the connection when it has been available for network
+traffic for
+.Ar n
+seconds (i.e.,
+.Ar n
+seconds after the first network control protocol comes up).
+.It Cm modem
+Use the modem control lines.
+This option is the default.
+With this option,
+.Nm
+will wait for the CD (Carrier Detect) signal from the
+modem to be asserted when opening the serial device (unless a connect
+script is specified), and it will drop the DTR (Data Terminal Ready)
+signal briefly when the connection is terminated and before executing
+the connect script.
+On Ultrix, this option implies hardware flow control, as for the
+.Cm crtscts
+option.
+.It Cm modem_chat
+Use the modem control lines during the chat script.
+The default is to ignore the state of the CD (Carrier Detect) signal
+from the modem during the chat script.
+If you are using a
+.Xr cua 4
+device (as opposed to a
+.Xr tty 4
+device),
+you should set this option.
+You should not use this option with a dialback setup as it will cause
+the chat script to exit when carrier drops.
+.It Cm ms-dns Op Ar addr
+If
+.Nm
+is acting as a server for Microsoft Windows clients, this option allows
+.Nm
+to supply one or two DNS (Domain Name Server) addresses to the clients.
+The first instance of this option specifies the primary DNS address;
+the second instance (if given) specifies the secondary DNS address.
+(This option was present in some older versions of
+.Nm
+under the name
+.Cm dns-addr . )
+.It Cm ms-wins Op Ar addr
+If
+.Nm
+is acting as a server for Microsoft Windows or
+.Qq Samba
+clients,
+this option allows
+.Nm
+to supply one or two WINS (Windows Internet Name Services) server addresses
+to the clients.
+The first instance of this option specifies the primary WINS address;
+the second instance (if given) specifies the secondary WINS address.
+.It Cm name Ar name
+Set the name of the local system for authentication purposes to
+.Ar name .
+This is a privileged option.
+With this option,
+.Nm
+will use lines in the secrets files which have
+.Ar name
+as the second field when looking for a secret to use
+in authenticating the peer.
+In addition, unless overridden with the
+.Cm user
+option,
+.Ar name
+will be used as the name to send to the peer when authenticating the
+local system to the peer.
+(Note that
+.Nm
+does not append the domain name to
+.Ar name . )
+.It Cm netmask Ar n
+Set the interface netmask to
+.Ar n ,
+a 32-bit netmask in
+.Dq decimal dot
+notation (e.g. 255.255.255.0).
+If this option is given, the value specified is ORed with the default netmask.
+The default netmask is chosen based on the negotiated remote IP address;
+it is the appropriate network mask for the class of the remote IP address,
+ORed with the netmasks for any non point-to-point network interfaces in the
+system which are on the same network.
+(Note: on some platforms,
+.Nm
+will always use 255.255.255.255 for the netmask, if that is the only
+appropriate value for a point-to-point interface.)
+.It Cm noaccomp
+Disable Address/Control compression in both directions (send and receive).
+.It Cm noauth
+Do not require the peer to authenticate itself.
+This option is privileged if the
+.Cm auth
+option is specified in
+.Pa /etc/ppp/options .
+.It Cm nobsdcomp
+Disables BSD-Compress compression;
+.Nm
+will not request or agree to compress packets using the BSD-Compress scheme.
+.It Cm noccp
+Disable CCP (Compression Control Protocol) negotiation.
+This option should only be required if the peer is buggy and gets confused by
+requests from
+.Nm
+for CCP negotiation.
+.It Cm nocrtscts
+Disable hardware flow control (i.e., RTS/CTS) on the serial port.
+If neither the
+.Cm crtscts
+nor the
+.Cm nocrtscts
+option is given, the hardware flow control setting for the serial port
+is left unchanged.
+.It Cm nodefaultroute
+Disable the
+.Cm defaultroute
+option.
+The system administrator who wishes to prevent users from creating
+default routes with
+.Nm
+can do so by placing this option in the
+.Pa /etc/ppp/options
+file.
+.It Cm nodeflate
+Disables Deflate compression;
+.Nm
+will not request or agree to compress packets using the Deflate scheme.
+.It Cm nodetach
+Don't detach from the controlling terminal.
+Without this option, if a serial device other than the terminal
+on the standard input is specified,
+.Nm
+will fork to become a background process.
+.It Cm noip
+Disable IPCP negotiation and IP communication.
+This option should only be required if the peer is buggy and gets confused
+by requests from
+.Nm
+for IPCP negotiation.
+.It Cm noipdefault
+Disables the default behaviour when no local IP address is specified,
+which is to determine (if possible) the local IP address from the hostname.
+With this option, the peer will have to supply the local IP
+address during IPCP negotiation (unless it was specified explicitly
+on the command line or in an options file).
+.It Cm nomagic
+Disable magic number negotiation.
+With this option,
+.Nm
+cannot detect a looped-back line.
+This option should only be needed if the peer is buggy.
+.It Cm nopcomp
+Disable protocol field compression negotiation in both the receive and
+the transmit direction.
+.It Cm nopersist
+Exit once a connection has been made and terminated.
+This is the default unless the
+.Cm persist
+or
+.Cm demand
+option has been specified.
+.It Cm nopredictor1
+Do not accept or agree to Predictor-1 compression.
+.It Cm noproxyarp
+Disable the
+.Cm proxyarp
+option.
+The system administrator who wishes to prevent users from creating
+proxy ARP entries with
+.Nm
+can do so by placing this option in the
+.Pa /etc/ppp/options
+file.
+.It Cm novj
+Disable Van Jacobson style TCP/IP header compression in both the
+transmit and the receive direction.
+.It Cm novjccomp
+Disable the connection-ID compression option in Van Jacobson style
+TCP/IP header compression.
+With this option,
+.Nm
+will not omit the connection-ID byte from Van Jacobson compressed
+TCP/IP headers, nor ask the peer to do so.
+.It Cm papcrypt
+Indicates that all secrets in the
+.Pa /etc/ppp/pap-secrets
+file which are used for checking the identity of the peer are encrypted,
+and thus
+.Nm
+should not accept a password which, before encryption,
+is identical to the secret from the
+.Pa /etc/ppp/pap-secrets
+file.
+.It Cm pap-max-authreq Ar n
+Set the maximum number of PAP authenticate-request transmissions to
+.Ar n
+(default 10).
+.It Cm pap-restart Ar n
+Set the PAP restart interval (retransmission timeout) to
+.Ar n
+seconds (default 3).
+.It Cm pap-timeout Ar n
+Set the maximum time that
+.Nm
+will wait for the peer to authenticate itself with PAP to
+.Ar n
+seconds (0 means no limit).
+.It Cm pass-filter Ar filter-expression
+Specifies a packet filter to apply to data packets being sent or
+received to determine which packets should be allowed to pass.
+Packets which are rejected by the filter are silently discarded.
+This option can be used to prevent specific network protocols
+using up link bandwidth, or to provide a basic firewall capability.
+The
+.Ar filter-expression
+syntax is as described for
+.Xr tcpdump 8 ,
+except that qualifiers which are inappropriate for a PPP link, such as
+.Ar ether
+and
+.Ar arp ,
+are not permitted.
+Generally the filter expression should be enclosed in single quotes to prevent
+whitespace in the expression from being interpreted by the shell.
+Note that it is possible to apply different constraints to incoming and
+outgoing packets using the
+.Cm inbound
+and
+.Cm outbound
+qualifiers.
+.It Cm persist
+Do not exit after a connection is terminated; instead try to reopen
+the connection.
+.It Cm predictor1
+Request that the peer compress frames that it sends using Predictor-1
+compression, and agree to compress transmitted frames with Predictor-1
+if requested.
+This option has no effect unless the kernel driver supports Predictor-1
+compression.
+.It Cm proxyarp
+Add an entry to this system's ARP (Address Resolution Protocol) table
+with the IP address of the peer and the Ethernet address of this system.
+This will have the effect of making the peer appear to other
+systems to be on the local Ethernet.
+.It Cm remotename Ar name
+Set the assumed name of the remote system for authentication purposes to
+.Ar name .
+.It Cm refuse-chap
+With this option,
+.Nm
+will not agree to authenticate itself to the peer using CHAP.
+.It Cm refuse-pap
+With this option,
+.Nm
+will not agree to authenticate itself to the peer using PAP.
+.It Cm require-chap
+Require the peer to authenticate itself using CHAP
+(Challenge Handshake Authentication Protocol) authentication.
+.It Cm require-pap
+Require the peer to authenticate itself using PAP
+(Password Authentication Protocol) authentication.
+.It Cm silent
+With this option,
+.Nm
+will not transmit LCP packets to initiate a connection until a valid LCP
+packet is received from the peer (as for the `passive' option with ancient
+versions of
+.Nm pppd ) .
+.It Cm usehostname
+Enforce the use of the hostname (with domain name appended, if given)
+as the name of the local system for authentication purposes (overrides the
+.Cm name
+option).
+.It Cm user Ar name
+Sets the name used for authenticating the local system to the peer to
+.Ar name .
+.It Cm vj-max-slots Ar n
+Sets the number of connection slots to be used by the Van Jacobson
+TCP/IP header compression and decompression code to
+.Ar n ,
+which must be between 2 and 16, inclusive.
+.It Cm welcome Ar script
+Run the executable or shell command specified by
+.Ar script
+before initiating PPP negotiation, after the connect script (if any) has
+completed.
+This option is privileged if the
+.Cm noauth
+option is used.
+.It Cm xonxoff
+Use software flow control (i.e., XON/XOFF) to control the flow of data on
+the serial port.
+.El
+.Sh OPTIONS FILES
+Options can be taken from files as well as the command line.
+.Nm
+reads options from the files
+.Pa /etc/ppp/options , ~/.ppprc
+and
+.Pf /etc/ppp/options. Ar ttyname
+(in that order) before processing the options on the command line.
+(In fact, the command-line options are scanned to find the terminal name
+before the
+.Pf options. Ar ttyname
+file is read.)
+In forming the name of the
+.Pf options. Ar ttyname
+file,
+the initial /dev/ is removed from the terminal name, and any remaining
+/ characters are replaced with dots.
+.Pp
+An options file is parsed into a series of words, delimited by whitespace.
+Whitespace can be included in a word by enclosing the word in double-quotes (").
+A backslash (\e) quotes the following character.
+A hash (#) starts a comment, which continues until the end of the line.
+There is no restriction on using the
+.Cm file
+or
+.Cm call
+options within an options file.
+.Sh SECURITY
+Users must be in group
+.Qq network
+to be able to use
+.Nm pppd .
+.Pp
+.Nm
+provides system administrators with sufficient access control that PPP
+access to a server machine can be provided to legitimate users without
+fear of compromising the security of the server or the network it's on.
+In part this is provided by the
+.Pa /etc/ppp/options file ,
+where the administrator can place options to restrict the ways in which
+.Nm
+can be used, and in part by the PAP and CHAP secrets files, where the
+administrator can restrict the set of IP addresses which individual
+users may use.
+.Pp
+The normal way that
+.Nm
+should be set up is to have the
+.Cm auth
+option in the
+.Pa /etc/ppp/options
+file.
+(This may become the default in later releases.)
+If users wish to use
+.Nm
+to dial out to a peer which will refuse to authenticate itself
+(such as an internet service provider), the system administrator should
+create an options file under
+.Pa /etc/ppp/peers
+containing the
+.Cm noauth
+option, the name of the serial port to use, and the
+.Cm connect
+option (if required), plus any other appropriate options.
+In this way,
+.Nm
+can be set up to allow non-privileged users to make unauthenticated
+connections only to trusted peers.
+.Pp
+As indicated above, some security-sensitive options are privileged,
+which means that they may not be used by an ordinary non-privileged
+user running a setuid-root
+.Nm pppd ,
+either on the command line, in the user's
+.Pa ~/.ppprc
+file, or in an options file read using the
+.Cm file
+option.
+Privileged options may be used in the
+.Pa /etc/ppp/options
+file or in an options file read using the
+.Cm call
+option.
+If
+.Nm
+is being run by the root user, privileged options can be used without
+restriction.
+.Sh AUTHENTICATION
+Authentication is the process whereby one peer convinces the other of
+its identity.
+This involves the first peer sending its name to the other,
+together with some kind of secret information which could only
+come from the genuine authorized user of that name.
+In such an exchange, we will call the first peer the
+.Qq client
+and the other the
+.Qq server .
+The client has a name by which it identifies itself to the server,
+and the server also has a name by which it identifies itself to the client.
+Generally the genuine client shares some secret (or password) with the server,
+and authenticates itself by proving that it knows that secret.
+Very often, the names used for authentication correspond to the internet
+hostnames of the peers, but this is not essential.
+.Pp
+At present,
+.Nm
+supports two authentication protocols:
+the Password Authentication Protocol (PAP)
+and the Challenge Handshake Authentication Protocol (CHAP).
+PAP involves the client sending its name and a cleartext password
+to the server to authenticate itself.
+In contrast, the server initiates the CHAP authentication exchange by
+sending a challenge to the client (the challenge packet includes the
+server's name).
+The client must respond with a response which includes its name
+plus a hash value derived from the shared secret and the challenge,
+in order to prove that it knows the secret.
+.Pp
+The PPP protocol, being symmetrical, allows both peers to require the
+other to authenticate itself.
+In that case, two separate and independent authentication exchanges
+will occur.
+The two exchanges could use different authentication protocols,
+and in principle, different names could be used in the two exchanges.
+.Pp
+The default behaviour of
+.Nm
+is to agree to authenticate if requested, and to not require authentication
+from the peer.
+However,
+.Nm
+will not agree to authenticate itself with a particular protocol
+if it has no secrets which could be used to do so.
+.Pp
+.Nm
+stores secrets for use in authentication in secrets files
+.Pf ( Pa /etc/ppp/pap-secrets
+for PAP,
+.Pa /etc/ppp/chap-secrets
+for CHAP).
+Both secrets files have the same format.
+The secrets files can contain secrets for
+.Nm
+to use in authenticating itself to other systems, as well as secrets for
+.Nm
+to use when authenticating other systems to itself.
+.Pp
+Each line in a secrets file contains one secret.
+Any following words on the same line are taken to be a list
+of acceptable IP addresses for that client.
+If there are only 3 words on the line, or if the first word is
+.Qq \- ,
+then all IP addresses are disallowed.
+To allow any address, use
+.Qq * .
+A word starting with
+.Qq \&!
+indicates that the specified address is
+.Em not
+acceptable.
+An address may be followed by
+.Qq /
+and a number
+.Ar n ,
+to indicate a whole subnet, i.e., all addresses which have the same value
+in the most significant
+.Ar n
+bits.
+Case is significant in the client and server names and in the secret.
+.Pp
+If the secret starts with an `@', what follows is assumed to be the
+name of a file from which to read the secret.
+A
+.Qq *
+as the client or server name matches any name.
+When selecting a secret,
+.Nm
+takes the best match, i.e., the match with the fewest wildcards.
+.Pp
+Thus a secrets file contains both secrets for use in authenticating
+other hosts, plus secrets which we use for authenticating ourselves to
+others.
+When
+.Nm
+is authenticating the peer (checking the peer's identity), it chooses a
+secret with the peer's name in the first field and the name of the local
+system in the second field.
+The name of the local system defaults to the hostname, with the domain
+name appended if the
+.Cm domain
+option is used.
+This default can be overridden with the
+.Cm name
+option, except when the
+.Cm usehostname
+option is used.
+.Pp
+When
+.Nm
+is choosing a secret to use in authenticating itself to the peer,
+it first determines what name it is going to use to identify
+itself to the peer.
+This name can be specified by the user with the
+.Cm user
+option.
+If this option is not used, the name defaults to the name of the local system,
+determined as described in the previous paragraph.
+Then
+.Nm
+looks for a secret with this name in the first field and the peer's name
+in the second field.
+.Nm
+will know the name of the peer if CHAP authentication is being used, because
+the peer will have sent it in the challenge packet.
+However, if PAP is being used,
+.Nm
+will have to determine the peer's name from the options specified by the user.
+The user can specify the peer's name directly with the
+.Cm remotename
+option.
+Otherwise, if the remote IP address was specified by a name
+(rather than in numeric form), that name will be used as the peer's name.
+Failing that,
+.Nm
+will use the null string as the peer's name.
+.Pp
+When authenticating the peer with PAP, the supplied password is first
+compared with the secret from the secrets file.
+If the password doesn't match the secret, the password is encrypted using
+.Xr crypt 3
+and checked against the secret again.
+Thus secrets for authenticating the peer can be stored in encrypted form
+if desired.
+If the
+.Cm papcrypt
+option is given, the first (unencrypted) comparison is omitted,
+for better security.
+.Pp
+Furthermore, if the
+.Cm login
+option was specified, the username and password are also checked against
+the system password database.
+Thus, the system administrator can set up the pap-secrets file to allow PPP
+access only to certain users, and to restrict the set of IP addresses
+that each user can use.
+Typically, when using the
+.Cm login
+option, the secret in
+.Pa /etc/ppp/pap-secrets
+would be
+.Pq ,
+which will match any password supplied by the peer.
+This avoids the need to have the same secret in two places.
+.Pp
+Authentication must be satisfactorily completed before IPCP
+(or any other Network Control Protocol) can be started.
+If the peer is required to authenticate itself, and fails to do so,
+.Nm
+will terminate the link (by closing LCP).
+If IPCP negotiates an unacceptable IP address for the remote host,
+IPCP will be closed.
+IP packets can only be sent or received when IPCP is open.
+.Pp
+In some cases it is desirable to allow some hosts which can't
+authenticate themselves to connect and use one of a restricted set of
+IP addresses, even when the local host generally requires authentication.
+If the peer refuses to authenticate itself when requested,
+.Nm
+takes that as equivalent to authenticating with PAP
+using the empty string for the username and password.
+Thus, by adding a line to the pap-secrets file which specifies the empty
+string for the client and password, it is possible to allow restricted
+access to hosts which refuse to authenticate themselves.
+.Sh ROUTING
+When IPCP negotiation is completed successfully,
+.Nm
+will inform the kernel of the local and remote IP addresses for the PPP
+interface.
+This is sufficient to create a host route to the remote end of the
+link, which will enable the peers to exchange IP packets.
+Communication with other machines generally requires further
+modification to routing tables and/or ARP
+(Address Resolution Protocol) tables.
+In most cases the
+.Cm defaultroute
+and/or
+.Cm proxyarp
+options are sufficient for this, but in some cases
+further intervention is required.
+The
+.Pa /etc/ppp/ip-up
+script can be used for this.
+.Pp
+Sometimes it is desirable to add a default route through the remote
+host, as in the case of a machine whose only connection to the
+Internet is through the PPP interface.
+The
+.Cm defaultroute
+option causes
+.Nm
+to create such a default route when IPCP comes up, and
+delete it when the link is terminated.
+.Pp
+In some cases it is desirable to use proxy ARP, for example on a
+server machine connected to a LAN, in order to allow other hosts to
+communicate with the remote host.
+The
+.Cm proxyarp
+option causes
+.Nm
+to look for a network interface on the same subnet as the remote
+host (an interface supporting broadcast and ARP, which is up and not a
+point-to-point or loopback interface).
+If found,
+.Nm
+creates a permanent, published ARP entry with the IP address of the remote host
+and the hardware address of the network interface found.
+.Pp
+When the
+.Cm demand
+option is used, the interface IP addresses have
+already been set at the point when IPCP comes up.
+If
+.Nm
+has not been able to negotiate the same addresses that it used to configure
+the interface (for example when the peer is an ISP that uses dynamic
+IP address assignment),
+.Nm
+has to change the interface IP addresses to the negotiated addresses.
+This may disrupt existing connections, and the use of demand dialling with
+peers that do dynamic IP address assignment is not recommended.
+.Sh SCRIPTS
+.Nm
+invokes scripts at various stages in its processing which can be
+used to perform site-specific ancillary processing.
+These scripts are usually shell scripts, but could be executable code files
+instead.
+.Nm
+does not wait for the scripts to finish.
+.\" The scripts are executed as root (with the real and effective user ID set to 0),
+.\" so that they can do things such as update routing tables or run
+.\" privileged daemons.
+.\" Be careful that the contents of these scripts do not compromise your system's
+.\" security.
+.Nm
+runs the scripts with standard input, output and error redirected to
+.Pa /dev/null ,
+and with an environment that is empty except for some environment variables
+that give information about the link.
+The environment variables that
+.Nm
+sets are:
+.Bl -tag -width "PEERNAME"
+.It Ev DEVICE
+The name of the serial tty device being used.
+.It Ev IFNAME
+The name of the network interface being used.
+.It Ev IPLOCAL
+The IP address for the local end of the link.
+This is only set when IPCP has come up.
+.It Ev IPREMOTE
+The IP address for the remote end of the link.
+This is only set when IPCP has come up.
+.It Ev PEERNAME
+The authenticated name of the peer.
+This is only set if the peer authenticates itself.
+.It Ev SPEED
+The baud rate of the tty device.
+.It Ev UID
+The real user ID of the user who invoked
+.Nm pppd .
+.El
+.Pp
+.Nm
+invokes the following scripts, if they exist.
+It is not an error if they don't exist.
+.Bl -tag -width Ds
+.It Pa /etc/ppp/auth-up
+A program or script which is executed after the remote system
+successfully authenticates itself.
+It is executed with the parameters
+.Pp
+.Ar interface-name peer-name user-name tty-device speed
+.Pp
+Note that this script is not executed if the peer doesn't authenticate
+itself, for example when the
+.Cm noauth
+option is used.
+.It Pa /etc/ppp/auth-down
+A program or script which is executed when the link goes down, if
+.Pa /etc/ppp/auth-up
+was previously executed.
+It is executed in the same manner with the same parameters as
+.Pa /etc/ppp/auth-up .
+.It Pa /etc/ppp/ip-up
+A program or script which is executed when the link is available for
+sending and receiving IP packets (that is, IPCP has come up).
+It is executed with the parameters
+.Pp
+.Ar interface-name tty-device speed local-IP-address remote-IP-address ipparam
+.It Pa /etc/ppp/ip-down
+A program or script which is executed when the link is no longer
+available for sending and receiving IP packets.
+This script can be used for undoing the effects of the
+.Pa /etc/ppp/ip-up
+script.
+It is invoked in the same manner and with the same parameters as the ip-up
+script.
+.El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa /etc/ppp/pap-secrets
+Usernames, passwords and IP addresses for PAP authentication.
+This file should be owned by root and not readable or writable by any other
+user.
+.Nm
+will log a warning if this is not the case.
+.It Pa /etc/ppp/chap-secrets
+Names, secrets and IP addresses for CHAP authentication.
+As for
+.Pa /etc/ppp/pap-secrets ,
+this file should be owned by root and not readable or writable
+by any other user.
+.Nm
+will log a warning if this is not the case.
+.It Pa /etc/ppp/options
+System default options for
+.Nm pppd ,
+read before user default options or command-line options.
+.It Pa ~/.ppprc
+User default options, read before
+.Pf /etc/ppp/options. Ar ttyname .
+.It Pa /etc/ppp/options. Ns Ar ttyname
+System default options for the serial port being used, read after
+.Pa ~/.ppprc .
+In forming the
+.Ar ttyname
+part of this filename, an initial /dev/ is stripped from the port name (if
+present), and any slashes in the remaining part are converted to dots.
+.It Pa /etc/ppp/peers
+A directory containing options files which may contain privileged
+options, even if
+.Nm
+was invoked by a user other than root.
+The system administrator can create options files in this directory to
+permit non-privileged users to dial out without requiring the peer to
+authenticate, but only to certain trusted peers.
+.El
+.Sh EXAMPLES
+The following examples assume that the
+.Pa /etc/ppp/options
+file contains the
+.Cm auth
+option (as in the default
+.Pa /etc/ppp/options
+file in the PPP distribution).
+.Pp
+Probably the most common use of
+.Nm
+is to dial out to an ISP.
+This can be done with a command such as
+.Pp
+.Dl pppd call isp
+.Pp
+where the
+.Pa /etc/ppp/peers/isp
+file is set up by the system administrator to contain something like this:
+.Bd -literal -offset indent
+ttyS0 19200 crtscts
+connect '/usr/sbin/chat -v -f /etc/ppp/chat-isp'
+noauth
+.Ed
+.Pp
+In this example, we are using chat to dial the ISP's modem and go
+through any logon sequence required.
+The
+.Pa /etc/ppp/chat-isp
+file contains the script used by chat; it could for example contain
+something like this:
+.Bd -literal -offset indent
+ABORT "NO CARRIER"
+ABORT "NO DIALTONE"
+ABORT "ERROR"
+ABORT "NO ANSWER"
+ABORT "BUSY"
+ABORT "Username/Password Incorrect"
+"" "at"
+OK "at&d0&c1"
+OK "atdt2468135"
+"name:" "^Umyuserid"
+"word:" "\eqmypassword"
+"ispts" "\eq^Uppp"
+"~-^Uppp-~"
+.Ed
+.Pp
+See the
+.Xr chat 8
+man page for details of chat scripts.
+.Pp
+.Nm
+can also be used to provide a dial-in PPP service for users.
+If the users already have login accounts, the simplest way to set up the
+PPP service is to let the users log in to their accounts and run
+.Nm
+(installed setuid-root) with a command such as
+.Pp
+.Dl pppd proxyarp
+.Pp
+To allow a user to use the PPP facilities, you need to allocate an IP
+address for that user's machine and create an entry in
+.Pa /etc/ppp/pap-secrets
+or
+.Pa /etc/ppp/chap-secrets
+(depending on which authentication method the PPP implementation on the
+user's machine supports), so that the user's
+machine can authenticate itself.
+For example, if Joe has a machine called
+.Qq joespc
+which is to be allowed to dial in to the machine called
+.Qq server
+and use the IP address joespc.my.net, you would add an entry like this to
+.Pa /etc/ppp/pap-secrets
+or
+.Pa /etc/ppp/chap-secrets :
+.Pp
+.Dl joespc	server	"joe's secret"	joespc.my.net
+.Pp
+Alternatively, you can create a username called (for example)
+.Qq ppp ,
+whose login shell is
+.Nm
+and whose home directory is
+.Pa /etc/ppp .
+Options to be used when
+.Nm
+is run this way can be put in
+.Pa /etc/ppp/.ppprc .
+.Pp
+If your serial connection is any more complicated than a piece of
+wire, you may need to arrange for some control characters to be escaped.
+In particular, it is often useful to escape XON (^Q) and
+XOFF (^S), using
+.Cm asyncmap a0000 .
+If the path includes a telnet, you probably should escape ^] as well
+.Cm ( asyncmap 200a0000 ) .
+If the path includes an rlogin, you will need to use the
+.Cm escape ff
+option on the end which is running the rlogin client, since many
+rlogin implementations are not transparent; they will remove the
+sequence (0xff, 0xff, 0x73, 0x73, followed by any 8 bytes) from the stream.
+.Sh DIAGNOSTICS
+Messages are sent to the
+.Xr syslogd 8
+daemon using facility
+.Dv LOG_DAEMON .
+(This can be overridden by recompiling
+.Nm
+with the macro
+.Dv LOG_PPP
+defined as the desired facility.)
+See the
+.Xr syslogd 8
+documentation for details of where the syslog daemon will write the
+messages.
+On most systems, the syslog daemon uses the
+.Pa /etc/syslog.conf
+file to specify the destination(s) for syslog messages.
+You may need to edit that file to suit.
+.Pp
+The
+.Cm debug
+option causes the contents of all control packets sent
+or received to be logged, that is, all LCP, PAP, CHAP or IPCP packets.
+This can be useful if the PPP negotiation does not succeed or if
+authentication fails.
+If debugging is enabled at compile time, the
+.Cm debug
+option also causes other debugging messages to be logged.
+.Pp
+Debugging can also be enabled or disabled by sending a SIGUSR1 signal
+to the
+.Nm
+process.
+This signal acts as a toggle.
+.Sh SEE ALSO
+.Xr cua 4 ,
+.Xr ppp 4 ,
+.Xr tty 4 ,
+.Xr chat 8 ,
+.Xr syslogd 8 ,
+.Xr tcpdump 8
+.Rs
+.%A V. Jacobson
+.%D February 1990
+.%R RFC 1144
+.%T Compressing TCP/IP Headers for Low-Speed Serial Links
+.Re
+.Rs
+.%A R. Rivest
+.%D April 1992
+.%R RFC 1321
+.%T The MD5 Message-Digest Algorithm
+.Re
+.Rs
+.%A G. McGregor
+.%D May 1992
+.%R RFC 1332
+.%T The PPP Internet Protocol Control Protocol (IPCP)
+.Re
+.Rs
+.%A B. Lloyd
+.%A W. Simpson
+.%D October 1992
+.%R RFC 1334
+.%T PPP Authentication Protocols
+.Re
+.Rs
+.%A W. Simpson
+.%D July 1994
+.%R RFC 1661
+.%T The Point-to-Point Protocol (PPP)
+.Re
+.Rs
+.%A W. Simpson
+.%D July 1994
+.%R RFC 1662
+.%T PPP in HDLC-like Framing
+.Re
+.Rs
+.%A W. Simpson
+.%D August 1996
+.%R RFC 1994
+.%T PPP Challenge Handshake Authentication Protocol (CHAP)
+.Re
+.Sh NOTES
+Some limited degree of control can be exercised over a running
+.Nm
+process by sending it a signal from the list below.
+.Bl -tag -width Ds
+.It SIGINT , SIGTERM
+These signals cause
+.Nm
+to terminate the link (by closing LCP), restore the serial device settings,
+and exit.
+.It SIGHUP
+This signal causes
+.Nm
+to terminate the link, restore the serial device settings,
+and close the serial device.
+If the
+.Cm persist
+or
+.Cm demand
+option has been specified,
+.Nm
+will try to reopen the serial device and start another connection
+(after the holdoff period).
+Otherwise
+.Nm
+will exit.
+If this signal is received during the holdoff period, it causes
+.Nm
+to end the holdoff period immediately.
+.It SIGUSR1
+This signal toggles the state of the
+.Cm debug
+option.
+.It SIGUSR2
+This signal causes
+.Nm
+to renegotiate compression.
+This can be useful to re-enable compression after it has been disabled
+as a result of a fatal decompression error.
+(Fatal decompression errors generally indicate a bug
+in one or other implementation.)
+.El
+.Sh AUTHORS
+.An Paul Mackerras Aq Mt Paul.Mackerras@samba.org ,
+based on earlier work by Drew Perkins, Brad Clements, Karl Fox, Greg Christy,
+and Brad Parker.
+.Sh BUGS
+Scripts should be run as root,
+but are not.

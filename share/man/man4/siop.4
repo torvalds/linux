@@ -1,0 +1,140 @@
+.\"	$OpenBSD: siop.4,v 1.21 2022/02/17 12:24:08 jsg Exp $
+.\"	$NetBSD: siop.4,v 1.3 2000/10/23 16:38:10 bouyer Exp $
+.\"
+.\" Copyright (c) 2000 Manuel Bouyer.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 17 2022 $
+.Dt SIOP 4
+.Os
+.Sh NAME
+.Nm siop
+.Nd LSI/Symbios Logic/NCR 53c8xx SCSI interface
+.Sh SYNOPSIS
+.Cd "siop* at pci?"
+.Pp
+.Cd "# hppa"
+.Cd "siop* at mainbus? irq 3"
+.Cd "siop* at phantomas? irq 3"
+.Cd "siop* at uturn? irq 3"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for following LSI/Symbios Logic/NCR 53c8xx and
+related
+.Tn SCSI
+controller chips:
+.Pp
+.Bl -dash -compact -offset indent
+.It
+53c720 and 53c770 (Fast-Wide
+.Tn SCSI )
+.It
+53c810, 53c810a and 53c815 (Fast
+.Tn SCSI )
+.It
+53c820, 53c825 and 53c825a (Fast-Wide
+.Tn SCSI )
+.It
+53c860 (Ultra
+.Tn SCSI )
+.It
+53c875 and 53c875j (Ultra-Wide
+.Tn SCSI )
+.It
+53c876 (Dual Ultra-Wide
+.Tn SCSI )
+.It
+53c885 (Ultra-Wide
+.Tn SCSI
+and
+.Tn Ethernet )
+.It
+53c895 and 53c895a (Ultra2-Wide
+.Tn SCSI )
+.It
+53c896 (PCI 64bit, dual Ultra2-Wide
+.Tn SCSI )
+.It
+53c1010 (PCI 64bit, dual Ultra3-Wide
+.Tn SCSI .
+.Em NOTE :
+at this time
+.Nm
+supports at most Ultra2-Wide with this chip)
+.It
+53c1510D (dual Ultra2-Wide
+.Tn SCSI )
+.El
+.Pp
+.Nm
+replaces the older
+.Nm ncr
+driver which supported most of these devices.
+.Pp
+Older 53C700 and 53C710 controllers are supported by the
+.Xr oosiop 4
+and
+.Xr osiop 4
+drivers, respectively.
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr intro 4 ,
+.Xr oosiop 4 ,
+.Xr osiop 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr st 4 ,
+.Xr uk 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Nx 1.5 ,
+.Ox
+support was added in
+.Ox 2.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Manuel Bouyer Aq Mt Manuel.Bouyer@lip6.fr
+for
+.Nx .
+It was ported to
+.Ox
+with 53c1010 support added by
+.An Ken Westerback Aq Mt krw@openbsd.org
+using code from the
+.Fx
+sym-2 driver written by
+.An Gerard Roudier Aq Mt groudier@FreeBSD.org .

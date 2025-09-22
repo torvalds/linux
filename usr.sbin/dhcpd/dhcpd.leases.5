@@ -1,0 +1,190 @@
+.\"	$OpenBSD: dhcpd.leases.5,v 1.14 2024/06/27 16:39:31 florian Exp $
+.\"
+.\" Copyright (c) 1997, 1998 The Internet Software Consortium.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.Dd $Mdocdate: June 27 2024 $
+.Dt DHCPD.LEASES 5
+.Os
+.Sh NAME
+.Nm dhcpd.leases
+.Nd DHCP server lease database
+.Sh DESCRIPTION
+The Internet Software Consortium DHCP Server keeps a persistent
+database of leases that it has assigned.
+This database is a free-form ASCII file containing a series of
+lease declarations.
+Every time a lease is acquired, renewed or released, its new value is
+recorded at the end of the lease file.
+So if more than one declaration appears for a given lease,
+the last one in the file is the current one.
+.Sh FORMAT
+Currently, the only declaration that is used in the
+.Nm
+file is the
+.Ic lease
+declaration.
+.Pp
+.D1 Ic lease Ar ip-address No { Ar statements... No }
+.Pp
+Each lease declaration includes the single IP address that has been
+leased to the client.
+The statements within the braces define the duration of the lease
+and to whom it is assigned.
+.Pp
+The start and end time of a lease are recorded using the
+.Ic starts
+and
+.Ic ends
+statements:
+.Pp
+.D1 Ic starts Ar date ;
+.D1 Ic ends Ar date ;
+.Pp
+Dates are specified as follows:
+.Pp
+.D1 Ar weekday year Ns / Ns Ar month Ns / Ns Ar day hour : Ns Ar minute : Ns Ar second
+.Pp
+The weekday is present to make it easy for a human to tell when a
+lease expires \- it's specified as a number from zero to six, with zero
+being Sunday.
+The day of week is ignored on input.
+The year is specified with the century, so it should generally be four digits
+except for really long leases.
+The month is specified as a number starting with 1 for January.
+The day of the month is likewise specified starting with 1.
+The hour is a number from 0 to 23, the minute a number from 0 to 59,
+and the second also a number from 0 to 59.
+.Pp
+Lease times are specified in Coordinated Universal Time (UTC), not in the
+local time zone.
+.Pp
+The MAC address of the network interface that was used to acquire the
+lease is recorded with the
+.Ic hardware
+statement:
+.Pp
+.D1 Ic hardware Ar hardware-type mac-address ;
+.Pp
+The MAC address is specified as a series of hexadecimal octets,
+separated by colons.
+.Pp
+If the client uses a client identifier to acquire its address, the
+client identifier is recorded using the
+.Ic uid
+statement:
+.Pp
+.D1 Ic uid Ar client-identifier ;
+.Pp
+The client identifier is recorded as a series of hexadecimal octets,
+regardless of whether the client specifies an ASCII string or uses the
+newer hardware type/MAC address format.
+.Pp
+If the client sends a hostname using the
+.Ic Client Hostname
+option, as specified in some versions of the DHCP-DNS Interaction draft, that
+hostname is recorded using the
+.Ic client-hostname
+statement.
+.Pp
+.D1 Ic client-hostname Qq Ar hostname ;
+.Pp
+If the client sends its hostname using the
+.Ic Hostname
+option, it is recorded using the
+.Ic hostname
+statement.
+.Pp
+.D1 Ic hostname Qq Ar hostname ;
+.Pp
+The DHCP server may determine that a lease has been misused in some
+way, either because a client that has been assigned a lease NAKs it,
+or because the server's own attempt to see if an address is in use
+prior to reusing it reveals that the address is in fact already in
+use.
+In that case, the
+.Ic abandoned
+statement will be used to indicate that the lease should not be reassigned.
+.Pp
+.D1 Ic abandoned ;
+.Pp
+Abandoned leases are reclaimed automatically.
+When a client asks for a new address, and the server finds that there
+are no new addresses, it checks to see if there are any abandoned leases,
+and allocates the least recently abandoned lease.
+The standard mechanisms for checking for lease address conflicts are still
+followed, so if the abandoned lease's IP address is still in use,
+it will be reabandoned.
+.Pp
+If a client
+.Em requests
+an abandoned address, the server assumes that the reason the address was
+abandoned was that the lease file was corrupted, and that the client is
+the machine that responded when the lease was probed,
+causing it to be abandoned.
+In that case, the address is immediately assigned to the client.
+.Sh FILES
+.Bl -tag -width Ds -compact
+.It Pa /var/db/dhcpd.leases
+.El
+.Sh SEE ALSO
+.Xr dhcp-options 5 ,
+.Xr dhcpd.conf 5 ,
+.Xr dhcpd 8
+.Sh STANDARDS
+.Rs
+.%A R. Droms
+.%D March 1997
+.%R RFC 2131
+.%T Dynamic Host Configuration Protocol
+.Re
+.Pp
+.Rs
+.%A S. Alexander
+.%A R. Droms
+.%D March 1997
+.%R RFC 2132
+.%T DHCP Options and BOOTP Vendor Extensions
+.Re
+.Sh AUTHORS
+.An -nosplit
+.Xr dhcpd 8
+was written by
+.An Ted Lemon Aq Mt mellon@vix.com
+under a contract with Vixie Labs.
+.Pp
+The current implementation was reworked by
+.An Henning Brauer Aq Mt henning@openbsd.org .

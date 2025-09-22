@@ -1,0 +1,22 @@
+# After the initial '=', the value can contain '=' with no special meaning.
+
+# DEFINE: %{equals} = FileCheck -check-prefixes=FOO,BAR
+# RUN: echo '%{equals}'
+# CHECK:# | FileCheck -check-prefixes=FOO,BAR
+#
+# REDEFINE: %{equals} == == =
+# RUN: echo '%{equals}'
+# CHECK:# | = == =
+
+# DEFINE: %{continue-equals} = FileCheck -strict-whitespace -match-full-lines \
+# DEFINE:                      -check-prefixes=FOO,BAR
+# RUN: echo '%{continue-equals}'
+# CHECK:# | FileCheck -strict-whitespace -match-full-lines -check-prefixes=FOO,BAR
+#
+# REDEFINE: %{continue-equals} = FileCheck -input-file=test.txt                \
+# REDEFINE:                      -implicit-check-not=foobar                    \
+# REDEFINE:                      -check-prefixes=FOO,BAR
+# RUN: echo '%{continue-equals}'
+# CHECK:# | FileCheck -input-file=test.txt -implicit-check-not=foobar -check-prefixes=FOO,BAR
+
+# CHECK: Passed: 1 {{\([0-9]*.[0-9]*%\)}}

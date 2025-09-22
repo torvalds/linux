@@ -1,0 +1,40 @@
+# A target containing all code tweaks (i.e. mini-refactorings) provided by
+# clangd.
+# Built as a source_set to make sure the linker does not remove global
+# constructors that register individual tweaks in a global registry.
+source_set("tweaks") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clangd",
+    "//clang-tools-extra/clangd/support",
+    "//clang/lib/AST",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [
+    "../..",
+
+    # For "clang-include-cleaner/..." includes.
+    "//clang-tools-extra/include-cleaner/include",
+  ]
+  sources = [
+    "AddUsing.cpp",
+    "AnnotateHighlightings.cpp",
+    "DefineInline.cpp",
+    "DefineOutline.cpp",
+    "DumpAST.cpp",
+    "ExpandDeducedType.cpp",
+    "ExpandMacro.cpp",
+    "ExtractFunction.cpp",
+    "ExtractVariable.cpp",
+    "MemberwiseConstructor.cpp",
+    "ObjCLocalizeStringLiteral.cpp",
+    "ObjCMemberwiseInitializer.cpp",
+    "PopulateSwitch.cpp",
+    "RawStringLiteral.cpp",
+    "RemoveUsingNamespace.cpp",
+    "ScopifyEnum.cpp",
+    "SpecialMembers.cpp",
+    "SwapIfBranches.cpp",
+  ]
+}

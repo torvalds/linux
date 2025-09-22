@@ -1,0 +1,73 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("AnalysisTests") {
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Testing/Support",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "AliasAnalysisTest.cpp",
+    "AliasSetTrackerTest.cpp",
+    "AssumeBundleQueriesTest.cpp",
+    "BasicAliasAnalysisTest.cpp",
+    "BlockFrequencyInfoTest.cpp",
+    "BranchProbabilityInfoTest.cpp",
+    "CFGTest.cpp",
+    "CGSCCPassManagerTest.cpp",
+    "CallGraphTest.cpp",
+    "CaptureTrackingTest.cpp",
+    "ConstraintSystemTest.cpp",
+    "DDGTest.cpp",
+    "DomTreeUpdaterTest.cpp",
+    "FunctionPropertiesAnalysisTest.cpp",
+    "GlobalsModRefTest.cpp",
+    "IRSimilarityIdentifierTest.cpp",
+    "IVDescriptorsTest.cpp",
+    "InlineCostTest.cpp",
+    "LazyCallGraphTest.cpp",
+    "LoadsTest.cpp",
+    "LoopInfoTest.cpp",
+    "LoopNestTest.cpp",
+    "MLModelRunnerTest.cpp",
+    "MemoryBuiltinsTest.cpp",
+    "MemoryProfileInfoTest.cpp",
+    "MemorySSATest.cpp",
+    "PhiValuesTest.cpp",
+    "PluginInlineAdvisorAnalysisTest.cpp",
+    "PluginInlineOrderAnalysisTest.cpp",
+    "ProfileSummaryInfoTest.cpp",
+    "ReplaceWithVecLibTest.cpp",
+    "ScalarEvolutionTest.cpp",
+    "SparsePropagation.cpp",
+    "TBAATest.cpp",
+    "TargetLibraryInfoTest.cpp",
+    "TensorSpecTest.cpp",
+    "UnrollAnalyzerTest.cpp",
+    "ValueLatticeTest.cpp",
+    "ValueTrackingTest.cpp",
+    "VectorUtilsTest.cpp",
+  ]
+
+  # If plugins are disabled, this test will disable itself at runtime.
+  # Otherwise, reconfiguring with plugins disabled will leave behind a stale
+  # executable.
+  if (host_os != "win") {
+    deps += [
+      "InlineAdvisorPlugin",
+      "InlineOrderPlugin",
+    ]
+  }
+
+  # Support plugins.
+  # FIXME: Disable dead stripping once other binaries are dead-stripped.
+  if (host_os != "mac" && host_os != "win") {
+    # Corresponds to export_executable_symbols() in cmake.
+    ldflags = [ "-rdynamic" ]
+  }
+}

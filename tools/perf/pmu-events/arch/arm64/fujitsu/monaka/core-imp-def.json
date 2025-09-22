@@ -1,6 +1,0 @@
-[
-    {
-        "ArchStdEvent": "L1I_CACHE_PRF",
-        "BriefDescription": "This event counts L1I_CACHE caused by hardware prefetch or software prefetch."
-    }
-]

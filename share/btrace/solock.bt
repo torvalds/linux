@@ -1,0 +1,27 @@
+/*	$OpenBSD: solock.bt,v 1.1 2025/07/21 21:15:05 bluhm Exp $	*/
+
+/*
+ * solock: stack sampling of socket lock contension
+ *  - probe: netlock, solock
+ *  - arg0: pointer to struct rwlock
+ *  - arg1: lock type
+ *    - 1: read lock
+ *    - 2: write lock
+ *  - arg2: success status
+ *    - 1: locked immediately
+ *    - 2: locked after spinning
+ *    - 3: locked after sleeping
+ *    - 4: locking failed
+ *
+ * To produce a FlameGraph process the output with stackcollapse-bpftrace.pl
+ * and flamegraph.pl found in:
+ *	https://github.com/brendangregg/FlameGraph
+ */
+tracepoint:rwlock:solock {
+	if (arg2 >= 2) {
+		@[kstack] = count();
+	}
+}
+END {
+	print(@);
+}

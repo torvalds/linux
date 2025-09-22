@@ -1,0 +1,113 @@
+.\"	$OpenBSD: dhcp6leased.8,v 1.2 2024/10/30 17:01:28 florian Exp $
+.\"
+.\" Copyright (c) 2024 Florian Obser <florian@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 30 2024 $
+.Dt DHCP6LEASED 8
+.Os
+.Sh NAME
+.Nm dhcp6leased
+.Nd Dynamic Host Configuration Protocol (DHCPv6) client daemon for IPv6 prefix delegation
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnv
+.Op Fl f Ar file
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+.Nm
+is an IPv6 dynamic host configuration protocol (DHCPv6) daemon for clients.
+It requests IPv6 prefix delegations from DHCPv6 servers for assignment
+to downstream interfaces.
+.Pp
+DHCPv6 clients are identified by DHCPv6 Unique Identifiers (DUID).
+.Nm
+uses a DUID based on a random Universally Unique Identifier
+(UUID).
+The DUID is stored in
+.Pa /var/db/dhcp6leased/uuid .
+If the file does not exist or the UUID is not readable a new UUID is
+generated.
+.Pp
+A running
+.Nm
+can be controlled with the
+.Xr dhcp6leasectl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Specify an alternative configuration file.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl s Ar socket
+Use an alternate location for the default control socket.
+.It Fl v
+Produce more verbose output.
+Multiple
+.Fl v
+options increase the verbosity.
+.El
+.Sh FILES
+.Bl -tag -width "/var/db/dhcp6leased/<if>" -compact
+.It Pa /dev/dhcp6leased.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr dhcp6leasectl 8 .
+.It Pa /etc/dhcp6leased.conf
+Default
+.Nm
+configuration file.
+.It Pa /var/db/dhcp6leased/ Ns Aq Ar if
+Interface specific lease files.
+.It Pa /var/db/dhcp6leased/uuid
+DUID to identify this client.
+.El
+.Sh SEE ALSO
+.Xr dhcp6leased.conf 5 ,
+.Xr dhcp6leasectl 8 ,
+.Xr ifconfig 8
+.Sh STANDARDS
+.Rs
+.%A T. Mrugalski
+.%A M. Siodelski
+.%A B. Volz
+.%A A. Yourtchenko
+.%A M. Richardson
+.%A S. Jiang
+.%A T. Lemon
+.%A T. Winters
+.%D November 2018
+.%R RFC 8415
+.%T Dynamic Host Configuration Protocol for IPv6 (DHCPv6)
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 7.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was written by
+.An Florian Obser Aq Mt florian@openbsd.org .

@@ -1,0 +1,9 @@
+/:#if.*[ \t]*PGINPROF/d
+/:#if.*[ \t]*TRACE/d
+/:#if.*[ \t]*lint/d
+/:#if.*[ \t]*notdef/d
+/:#if.*[ \t]*unneeded/d
+/:#if.*[ \t]*TCPTRUEOOB/d
+/:#if.*[ \t]*notyet/d
+/:#if.*[ \t]*_KERNEL/d
+/:#if.*[ \t]*_LOCORE/d

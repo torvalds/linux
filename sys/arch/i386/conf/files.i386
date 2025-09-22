@@ -1,0 +1,410 @@
+#	$OpenBSD: files.i386,v 1.253 2025/06/07 15:11:12 kettenis Exp $
+#
+# new style config file for i386 architecture
+#
+
+# maxpartitions must be first item in files.${ARCH}
+maxpartitions 16
+
+maxusers 2 16 100
+
+file	arch/i386/i386/autoconf.c
+file	arch/i386/i386/bus_space.c
+file	arch/i386/i386/bus_dma.c
+file	arch/i386/i386/conf.c
+file	arch/i386/i386/db_disasm.c	ddb
+file	arch/i386/i386/db_interface.c	ddb
+file	arch/i386/i386/db_memrw.c	ddb
+file	arch/i386/i386/db_trace.c	ddb
+file	arch/i386/i386/disksubr.c	disk
+file	arch/i386/i386/est.c		!small_kernel
+file	arch/i386/i386/gdt.c
+file	arch/i386/i386/in_cksum.s
+file	arch/i386/i386/machdep.c
+file	arch/i386/i386/hibernate_machdep.c hibernate
+file	arch/i386/i386/via.c
+file	arch/i386/i386/locore.s
+file	arch/i386/i386/amd64errata.c	!small_kernel
+file	arch/i386/i386/longrun.c	!small_kernel
+file	arch/i386/i386/ucode.c		!small_kernel
+file	arch/i386/i386/mem.c
+file	arch/i386/i386/i686_mem.c	mtrr
+file	arch/i386/i386/k6_mem.c		mtrr
+file 	arch/i386/i386/mtrr.c		mtrr
+file	arch/i386/i386/p4tcc.c		!small_kernel
+file	arch/i386/i386/pmap.c
+file	arch/i386/i386/pmapae.c
+file	arch/i386/i386/powernow.c	!small_kernel
+file	arch/i386/i386/powernow-k7.c	!small_kernel
+file	arch/i386/i386/powernow-k8.c	!small_kernel
+file	arch/i386/i386/k1x-pstate.c	!small_kernel
+file	arch/i386/i386/process_machdep.c
+file	arch/i386/i386/sys_machdep.c
+file	arch/i386/i386/trap.c
+file	arch/i386/i386/vm_machdep.c
+file	arch/i386/i386/dkcsum.c		bios
+file	dev/cninit.c
+file	arch/i386/i386/mptramp.s	multiprocessor
+file	arch/i386/i386/mp_setperf.c	multiprocessor
+file	arch/i386/i386/ipifuncs.c	multiprocessor
+file	arch/i386/i386/db_mp.c		multiprocessor & ddb
+file	arch/i386/i386/wscons_machdep.c	wsdisplay
+major	{vnd = 14}
+
+include "dev/rasops/files.rasops"
+include "dev/wsfont/files.wsfont"
+
+#
+# Media Independent Interface (mii)
+#
+include "dev/mii/files.mii"
+
+#
+# Machine-independent SCSI drivers
+#
+
+include "scsi/files.scsi"
+major	{sd = 4}
+major	{cd = 6}
+major	{rd = 17}
+
+#
+# Machine-independent ATAPI drivers
+#
+
+include "dev/atapiscsi/files.atapiscsi"
+include "dev/ata/files.ata"
+
+#
+# System bus types
+#
+
+define mainbus {[apid = -1]}
+device	mainbus: isabus, eisabus, pcibus, mainbus
+attach	mainbus at root
+file	arch/i386/i386/mainbus.c	mainbus
+
+file   arch/i386/i386/codepatch.c
+
+#device	mca at root {...}
+
+#
+# Paravirtual device bus
+#
+include "dev/pv/files.pv"
+
+#
+# PCI-only drivers
+# XXX MUST BE INCLUDED BEFORE files.isa, as long as files.isa attaches
+# XXX devices to 'pci'.
+#
+
+include "dev/pci/files.pci"
+file	arch/i386/pci/pci_machdep.c		pci
+file	arch/i386/pci/pciide_machdep.c		pciide
+file	arch/i386/pci/pcic_pci_machdep.c	pcic_pci
+file	arch/i386/pci/vga_post.c		vga_pci & x86emu
+
+# PCI-Host bridge chipsets
+device  pchb: pcibus, agpbus
+attach	pchb at pci
+file	arch/i386/pci/pchb.c		pchb
+
+# AMAS AMD memory address switch
+device  amas
+attach  amas at pci
+file    dev/pci/amas.c			amas
+
+# AGP bridge support. most attach at pchb
+file	arch/i386/pci/agp_machdep.c	agp | inteldrm
+
+# Geode SC1100
+device	geodesc
+attach	geodesc at pci
+file	arch/i386/pci/geodesc.c		geodesc
+
+# AMD Geode LX series processor security block
+device	glxsb
+attach	glxsb at pci
+file	arch/i386/pci/glxsb.c		glxsb
+
+# National Semiconductor Geode SC1100 SMI/ACPI module
+device	gscpm
+attach	gscpm at pci
+file	arch/i386/pci/gscpm.c		gscpm
+
+# AMD Geode LX series MSR access
+device	amdmsr
+attach	amdmsr at mainbus
+file	arch/i386/i386/amdmsr.c		amdmsr	needs-flag
+
+# PCI-ISA bridge chipsets
+device	pcib: isabus
+attach	pcib at pci
+file	arch/i386/pci/pcib.c		pcib | ichpcib | gscpcib | glxpcib | amdpcib | tcpcib
+
+# Intel ICHx/ICHx-M LPC bridges
+device	ichpcib: isabus
+attach	ichpcib at pci
+file	arch/i386/pci/ichpcib.c		ichpcib
+
+# National Semiconductor Geode SC1100 PCI-ISA bridge
+device	gscpcib: isabus, gpiobus
+attach	gscpcib at pci
+file	arch/i386/pci/gscpcib.c		gscpcib
+
+# AMD 8111 LPC bridge
+device	amdpcib: isabus
+attach	amdpcib at pci
+file	dev/pci/amdpcib.c		amdpcib
+
+# Intel Atom E600 LPC bridge
+device	tcpcib: isabus
+attach	tcpcib at pci
+file	dev/pci/tcpcib.c		tcpcib
+
+device	hme: ether, ifnet, mii, ifmedia
+file	dev/ic/hme.c			hme
+attach	hme at pci with hme_pci
+file	dev/pci/if_hme_pci.c		hme_pci
+
+#
+# ISA and mixed ISA+EISA or ISA+PCI or ISA+PCMCIA drivers
+#
+
+major	{wd = 0}
+major	{fd = 2}
+
+include "dev/isa/files.isa"
+file	arch/i386/isa/isa_machdep.c	isabus
+
+# PC clock
+file	arch/i386/isa/clock.c		isabus
+
+# Numeric Processing Extension; Math Co-processor
+device	npx
+attach	npx at isa
+file	arch/i386/isa/npx.c		npx needs-flag
+
+# attribute used to represent the "keyboard controller"
+# XXX should be a real device
+define pckbcport {[irq = -1], [port = -1]}
+
+# PC Mice; Logitech-style, Microsoft-style, and PS/2-style
+device	lms: wsmousedev
+attach	lms at isa
+file	arch/i386/isa/lms.c		lms needs-flag
+device	mms: wsmousedev
+attach	mms at isa
+file	arch/i386/isa/mms.c		mms needs-flag
+
+include	"dev/wscons/files.wscons"
+include	"dev/pckbc/files.pckbc"
+
+# Adaptec AHA-284x VL SCSI controllers
+# device declaration in sys/conf/files
+attach	ahc at isa with ahc_isa
+file	arch/i386/isa/ahc_isa.c		ahc_isa
+
+# Soekris GPIO & LEDs driver
+device	skgpio: gpiobus
+attach	skgpio at isa
+file	dev/isa/skgpio.c		skgpio
+
+# Pentium performance counters
+pseudo-device	pctr
+file	arch/i386/i386/pctr.c		pctr needs-flag
+
+pseudo-device	nvram
+file	arch/i386/i386/nvram.c	nvram needs-flag
+
+#
+# EISA-only drivers
+#
+
+include "dev/eisa/files.eisa"
+file	arch/i386/eisa/eisa_machdep.c	eisa
+
+#
+# ISA PnP
+#
+
+include "dev/isa/files.isapnp"
+file	arch/i386/isa/isapnp_machdep.c	isapnp
+
+# Game adapter (joystick)
+device	joy
+file	arch/i386/isa/joy.c		joy needs-flag
+attach	joy at isa with joy_isa
+file	arch/i386/isa/joy_isa.c		joy_isa
+attach	joy at isapnp with joy_isapnp
+file	arch/i386/isa/joy_isapnp.c	joy_isapnp
+
+#
+# Compatibility modules
+#
+
+device	bios {}
+attach	bios at mainbus
+file	arch/i386/i386/bios.c		bios needs-count
+
+device	apm
+attach	apm at bios
+file	arch/i386/i386/apm.c		apm needs-count
+file	arch/i386/i386/apmcall.S	apm
+
+file	arch/i386/i386/acpiapm.c
+
+# Intel SMP specification 1.4
+define	mpbios
+device	mpbios
+attach	mpbios at bios
+file	arch/i386/i386/mpbios.c		mpbios needs-flag
+file	arch/i386/i386/mpbios_intr_fixup.c	mpbios & pci
+
+# CPUS
+define	cpu {[apid = -1]}
+device	cpu
+attach	cpu at mainbus
+file	arch/i386/i386/cpu.c		cpu
+
+# Common APIC support routines
+file	arch/i386/i386/apic.c		ioapic | lapic
+
+# Local APIC (required for multiprocessor)
+define	lapic
+file	arch/i386/i386/lapic.c		lapic needs-flag
+
+# I/O APICs
+device	ioapic: mpbios, lapic
+attach	ioapic at mainbus
+file	arch/i386/i386/ioapic.c		ioapic needs-flag
+
+device	pcibios
+attach	pcibios at bios
+file	arch/i386/pci/pcibios.c		pcibios needs-count
+file	arch/i386/pci/pci_intr_fixup.c	pcibios
+file	arch/i386/pci/pci_bus_fixup.c	pcibios
+file	arch/i386/pci/pci_addr_fixup.c	pcibios
+file	arch/i386/pci/opti82c558.c	pcibios
+file	arch/i386/pci/opti82c700.c	pcibios
+file	arch/i386/pci/piix.c		pcibios
+file	arch/i386/pci/rccosb4.c		pcibios
+file	arch/i386/pci/sis85c503.c	pcibios
+file	arch/i386/pci/via82c586.c	pcibios
+file	arch/i386/pci/via8231.c		pcibios
+file	arch/i386/pci/amd756.c		pcibios
+file	arch/i386/pci/ali1543.c		pcibios
+
+#
+# CARDBUS
+#
+include	"dev/cardbus/files.cardbus"
+file	arch/i386/i386/rbus_machdep.c	cardbus
+
+# XXXX pcic here because it needs to be late.  The catch: pcic needs
+# to be late, so devices which attach to it are attached late.  But it
+# needs to be before its isa and pci attachments.  This answer is
+# non-optimal, but I don't have a better answer right now.
+
+# PCIC pcmcia controller
+# XXX this needs to be done very late, so it's done here.  This feels
+# like a kludge, but it might be for the best.
+
+device	pcic: pcmciabus
+file	dev/ic/i82365.c			pcic
+
+# PCIC pcmcia controller on ISA bus.
+attach	pcic at isa with pcic_isa
+file	dev/isa/i82365_isa.c		pcic_isa
+
+# PCIC pcmcia controller on PCI bus.
+attach	pcic at pci with pcic_pci
+file	dev/pci/i82365_pci.c		pcic_pci
+
+# PCIC pcmcia controller on PnP board
+attach	pcic at isapnp with pcic_isapnp
+file	dev/isa/i82365_isapnp.c	pcic_isapnp
+
+# Code common to ISA and ISAPnP attachments
+file	dev/isa/i82365_isasubr.c	pcic_isa | pcic_isapnp | pcic_pci
+
+# Databook TCIC/2 pcmcia/isa bridge
+device	tcic: pcmciabus
+file	dev/ic/tcic2.c			tcic
+attach	tcic at isa with tcic_isa
+file	dev/isa/tcic2_isa.c		tcic_isa
+
+#
+# Machine-independent PCMCIA drivers
+#
+include "dev/pcmcia/files.pcmcia"
+
+#
+# Machine-independent HID support
+#
+include	"dev/hid/files.hid"
+
+#
+# Machine-independent USB drivers
+#
+include "dev/usb/files.usb"
+
+#
+# Machine-independent I2C drivers
+#
+include "dev/i2c/files.i2c"
+
+#
+# Machine-independent GPIO drivers
+#
+include "dev/gpio/files.gpio"
+
+#
+# Machine-independent 1-Wire drivers
+#
+include "dev/onewire/files.onewire"
+
+#
+# Machine-independent SD/MMC drivers
+#
+include "dev/sdmmc/files.sdmmc"
+
+include "dev/acpi/files.acpi"
+attach	acpi at bios
+file	arch/i386/i386/acpi_machdep.c		acpi
+file	arch/i386/i386/acpi_wakecode.S		acpi & !small_kernel
+file	dev/acpi/acpi_x86.c			acpi & suspend & !small_kernel
+file	dev/acpi/acpi_apm.c			acpi
+file	dev/acpi/acpicpu_x86.c			acpicpu needs-flag
+
+#
+# IPMI
+#
+attach	ipmi at mainbus
+
+# Dell Embedded Systems Management
+device	esm
+attach	esm at mainbus
+file	arch/i386/i386/esm.c			esm needs-flag
+
+# quad support is necessary for 32 bit architectures
+file lib/libkern/adddi3.c
+file lib/libkern/anddi3.c
+file lib/libkern/ashldi3.c
+file lib/libkern/ashrdi3.c
+file lib/libkern/cmpdi2.c
+file lib/libkern/divdi3.c
+file lib/libkern/iordi3.c
+file lib/libkern/lshldi3.c
+file lib/libkern/lshrdi3.c
+file lib/libkern/moddi3.c
+file lib/libkern/muldi3.c
+file lib/libkern/negdi2.c
+file lib/libkern/notdi2.c
+file lib/libkern/qdivrem.c
+file lib/libkern/subdi3.c
+file lib/libkern/ucmpdi2.c
+file lib/libkern/udivdi3.c
+file lib/libkern/umoddi3.c
+file lib/libkern/xordi3.c

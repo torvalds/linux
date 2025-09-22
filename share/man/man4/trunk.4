@@ -1,0 +1,147 @@
+.\"	$OpenBSD: trunk.4,v 1.31 2020/08/24 07:34:00 kn Exp $
+.\"
+.\" Copyright (c) 2005, 2006 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 24 2020 $
+.Dt TRUNK 4
+.Os
+.Sh NAME
+.Nm trunk
+.Nd link aggregation and link failover interface
+.Sh SYNOPSIS
+.Cd "pseudo-device trunk"
+.Sh DESCRIPTION
+The
+.Nm
+interface allows aggregation of multiple network interfaces as one virtual
+.Nm
+interface.
+.Pp
+A
+.Nm
+interface can be created using the
+.Ic ifconfig trunk Ns Ar N Ic create
+command.
+.Pp
+The driver currently supports the trunk protocols
+.Ic broadcast ,
+.Ic failover ,
+.Ic lacp ,
+.Ic loadbalance ,
+.Ic none ,
+and
+.Ic roundrobin
+(the default).
+The protocols determine which ports are used for outgoing traffic
+and whether a specific port accepts incoming traffic.
+The interface link state is used to validate if the port is active or
+not.
+.Bl -tag -width loadbalance
+.It Ic broadcast
+Sends frames to all ports of the trunk and receives frames on any
+port of the trunk.
+.It Ic failover
+Sends and receives traffic only through the master port.
+If the master port becomes unavailable,
+the next active port is used.
+The first interface added is the master port;
+any interfaces added after that are used as failover devices.
+.It Ic lacp
+Uses the IEEE 802.3ad (renamed to 802.1AX in 2014)
+Link Aggregation Control Protocol (LACP)
+and the Marker Protocol
+to increase link speed and provide redundancy.
+LACP trunk groups are composed of ports of the same speed,
+set to full-duplex operation.
+This protocol requires a switch which supports LACP.
+By default, the LACP implementation uses active-mode LACP,
+slow timeout, and 0x8000 (medium) priority as system and port
+priorities.
+.It Ic loadbalance
+Distributes outgoing traffic through all active ports
+and accepts incoming traffic from any active port.
+A hash of the protocol header is used to maintain packet ordering.
+The hash includes the Ethernet source and destination address and, if
+available, the VLAN tag, and the IP source and destination address.
+.It Ic none
+This protocol is intended to do nothing: it disables any traffic without
+disabling the
+.Nm
+interface itself.
+.It Ic roundrobin
+Distributes outgoing traffic through all active ports
+and accepts incoming traffic from any active port.
+A round-robin scheduler is used to aggregate the traffic.
+.El
+.Pp
+The configuration can be done at runtime or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+.Sh EXAMPLES
+Create a simple round robin trunk with two
+.Xr bge 4
+Gigabit Ethernet
+interfaces:
+.Bd -literal -offset indent
+# ifconfig bge0 up
+# ifconfig bge1 up
+# ifconfig trunk0 trunkport bge0 trunkport bge1 \e
+	192.168.1.1 netmask 255.255.255.0
+.Ed
+.Pp
+The following example uses an active failover trunk to set up roaming
+between wired and wireless networks using two network devices.
+Whenever the wired master interface is unplugged, the wireless failover
+device will be used:
+.Bd -literal -offset indent
+# ifconfig em0 up
+# ifconfig ath0 nwid my_net up
+# ifconfig trunk0 trunkproto failover trunkport em0 trunkport ath0 \e
+	192.168.1.1 netmask 255.255.255.0
+.Ed
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .
+.Sh CAVEATS
+The trunk protocols
+.Ic loadbalance
+and
+.Ic roundrobin
+require a switch which supports IEEE 802.3ad static link aggregation;
+otherwise protocols
+such as
+.Xr inet6 4
+duplicate address detection (DAD)
+cannot properly deal with duplicate packets.
+.Pp
+The
+.Nm
+interface takes its MTU from the first
+.Ic trunkport .
+To avoid mismatches, adding a child interface with a different
+MTU is not permitted.

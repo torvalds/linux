@@ -1,0 +1,11 @@
+# Check diff ("diff -I") which is aimed to ignore changes where all lines match RE.
+
+# RUN: echo 'foo' > %t.0
+# RUN: echo 'bar1' >> %t.0
+# RUN: echo 'foo' >> %t.0
+
+# RUN: echo 'foo' > %t.1
+# RUN: echo 'bar2' >> %t.1
+# RUN: echo 'foo' >> %t.1
+
+# RUN: diff -I "bar*" %t.0 %t.1

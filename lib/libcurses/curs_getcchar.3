@@ -1,0 +1,196 @@
+.\"***************************************************************************
+.\" Copyright 2019-2021,2023 Thomas E. Dickey                                *
+.\" Copyright 2001-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_getcchar.3,v 1.1 2023/10/17 09:52:08 nicm Exp $
+.TH curs_getcchar 3 2023-07-01 "ncurses 6.4" "Library calls"
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fBgetcchar\fP,
+\fBsetcchar\fP \- Get a wide character string and rendition from a \fBcchar_t\fP or set a \fBcchar_t\fP from a wide-character string
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint getcchar(\fP
+.br
+.B "        const cchar_t *\fIwcval\fP,"
+.br
+.B "        wchar_t *\fIwch\fP,"
+.br
+.B "        attr_t *\fIattrs\fP,"
+.br
+.B "        short *\fIcolor_pair\fP,"
+.br
+.B "        void *\fIopts\fP );"
+.sp
+.B "int setcchar("
+.br
+.B "        cchar_t *\fIwcval\fP,"
+.br
+.B "        const wchar_t *\fIwch\fP,"
+.br
+.B "        const attr_t \fIattrs\fP,"
+.br
+.B "        short \fIcolor_pair\fP,"
+.br
+.B "        const void *\fIopts\fP );"
+.SH DESCRIPTION
+.SS getcchar
+The \fBgetcchar\fP function gets a wide-character string
+and rendition from a \fBcchar_t\fP argument.
+When \fIwch\fP is not a null pointer,
+the \fBgetcchar\fP function does the following:
+.bP
+Extracts information from a \fBcchar_t\fP value \fIwcval\fP
+.bP
+Stores the character attributes in the location pointed to by \fIattrs\fP
+.bP
+Stores the color-pair in the location pointed to by \fIcolor_pair\fP
+.bP
+Stores the wide-character string,
+characters referenced by \fIwcval\fP, into the array pointed to by \fIwch\fP.
+.PP
+When
+\fIwch\fP
+is a null pointer, the
+\fBgetcchar\fP
+function does the following:
+.bP
+Obtains the number of wide characters pointed to by \fIwcval\fP
+.bP
+Does not change the data referenced by
+\fIattrs\fP
+or
+\fIcolor_pair\fP
+.SS setcchar
+The \fBsetcchar\fP function initializes the location pointed to by \fIwcval\fP
+by using:
+.bP
+The character attributes in
+\fIattrs\fP
+.bP
+The color pair in
+\fIcolor_pair\fP
+.bP
+The wide-character string pointed to by \fIwch\fP.
+The string must be L'\\0' terminated,
+contain at most one spacing character,
+which must be the first.
+.IP
+Up to \fBCCHARW_MAX\fP\-1 nonspacing characters may follow.
+Additional nonspacing characters are ignored.
+.IP
+The string may contain a single control character instead.
+In that case, no nonspacing characters are allowed.
+.SH EXTENSIONS
+X/Open Curses documents the \fIopts\fP argument as reserved for future use,
+saying that it must be null.
+This implementation
+uses that parameter in ABI 6 for the functions which have a color-pair
+parameter to support extended color pairs:
+.bP
+For  functions  which modify the color, e.g., \fBsetcchar\fP,
+if \fIopts\fP is set it is treated as a pointer to \fBint\fP,
+and used to  set  the  color pair instead of the \fBshort\fP pair parameter.
+.bP
+For functions which retrieve the color, e.g., \fBgetcchar\fP,
+if \fIopts\fP is set it is treated as a pointer to \fBint\fP,
+and  used  to  retrieve  the color pair as an \fBint\fP value,
+in addition retrieving it via the standard pointer to \fBshort\fP parameter.
+.SH NOTES
+The \fIwcval\fP argument may be a value generated by a call to
+\fBsetcchar\fP or by a function that has a \fBcchar_t\fP output argument.
+If \fIwcval\fP is constructed by any other means, the effect is unspecified.
+.SH RETURN VALUE
+When \fIwch\fP is a null pointer,
+\fBgetcchar\fP returns the number of wide characters referenced by
+\fIwcval\fP,
+including one for a trailing null.
+.PP
+When \fIwch\fP is not a null pointer,
+\fBgetcchar\fP returns \fBOK\fP upon successful completion,
+and \fBERR\fP otherwise.
+.PP
+Upon successful completion, \fBsetcchar\fP returns \fBOK\fP.
+Otherwise, it returns \fBERR\fP.
+.SH PORTABILITY
+The \fBCCHARW_MAX\fP symbol is specific to ncurses.
+X/Open Curses does not provide details for the layout of the \fBcchar_t\fP
+structure.
+It tells what data are stored in it:
+.bP
+a spacing character (\fBwchar_t\fP, i.e., 32-bits).
+.bP
+non-spacing characters (again, \fBwchar_t\fP's).
+.bP
+attributes (at least 16 bits, inferred from the various ACS- and WACS-flags).
+.bP
+color pair (at least 16 bits, inferred from the \fBunsigned short\fP type).
+.PP
+The non-spacing characters are optional,
+in the sense that zero or more may be stored in a \fBcchar_t\fP.
+XOpen/Curses specifies a limit:
+.RS 4
+.PP
+Implementations may limit the number of non-spacing characters that can be
+associated with a spacing character, provided any limit is at least 5.
+.RE
+.PP
+The Unix implementations at the time follow that limit:
+.bP
+AIX\ 4 and OSF1\ 4 use the same declaration with an array of 5 non-spacing
+characters \fIz\fP and a single spacing character \fIc\fP.
+.bP
+HP-UX\ 10 uses an opaque structure with 28 bytes,
+which is large enough for the 6 \fBwchar_t\fP values.
+.bP
+Solaris \fIxpg4\fP curses uses a single array of 6 \fBwchar_t\fP values.
+.PP
+This implementation's \fBcchar_t\fP was defined in 1995
+using \fB5\fP for the total of spacing and non-spacing characters
+(\fBCCHARW_MAX\fP).
+That was probably due to a misreading of the AIX\ 4 header files,
+because the X/Open Curses document was not generally available at that time.
+Later (in 2002), this detail was overlooked when beginning to implement
+the functions using the structure.
+.PP
+In practice, even four non-spacing characters may seem enough.
+X/Open Curses documents possible uses for non-spacing characters,
+including using them for ligatures between characters
+(a feature apparently not supported by any curses implementation).
+Unicode does not limit the (analogous) number of combining characters,
+so some applications may be affected.
+.SH SEE ALSO
+Functions:
+\fBcurs_attr\fP(3),
+\fBcurs_color\fP(3),
+\fBcurses\fP(3),
+\fBwcwidth\fP(3).

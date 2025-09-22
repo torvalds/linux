@@ -1,0 +1,65 @@
+.\" $OpenBSD: ASN1_UNIVERSALSTRING_to_string.3,v 1.2 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_UNIVERSALSTRING_TO_STRING 3
+.Os
+.Sh NAME
+.Nm ASN1_UNIVERSALSTRING_to_string
+.Nd recode UTF-32 to ISO Latin-1
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft int
+.Fo ASN1_UNIVERSALSTRING_to_string
+.Fa "ASN1_UNIVERSALSTRING *string"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_UNIVERSALSTRING_to_string
+assumes that the given
+.Fa string
+is encoded in UTF-32, recodes it in place to ISO Latin-1,
+and changes the type according to
+.Xr ASN1_PRINTABLE_type 3 .
+.Pp
+.Fn ASN1_UNIVERSALSTRING_to_string
+fails and leaves the
+.Fa string
+unchanged if its
+.Xr ASN1_STRING_type 3
+is not
+.Dv V_ASN1_UNIVERSALSTRING ,
+if its
+.Xr ASN1_STRING_length 3
+is not a multiple of four bytes,
+or if any of its characters cannot be represented in ISO Latin-1.
+.Pp
+In case of success, the
+.Xr ASN1_STRING_length 3
+of the
+.Fa string
+is reduced by a factor of four.
+.Sh RETURN VALUES
+.Fn ASN1_UNIVERSALSTRING_to_string
+returns 1 on success or 0 on failure.
+.Sh SEE ALSO
+.Xr ASN1_mbstring_copy 3 ,
+.Xr ASN1_STRING_new 3 ,
+.Xr ASN1_STRING_to_UTF8 3
+.Sh HISTORY
+.Fn ASN1_UNIVERSALSTRING_to_string
+first appeared in SSLeay 0.8.0 and has been available since
+.Ox 2.4 .

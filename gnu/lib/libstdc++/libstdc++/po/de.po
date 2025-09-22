@@ -1,0 +1,31 @@
+# Translations needed for GNU C++ library locale implementation.
+# Copyright (C) 2001 Free Software Foundation, Inc.
+# Benjamin Kosnik <bkoz@redhat.com>, 2001.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: libstdc++ 3.1.0\n"
+"POT-Creation-Date: 2001-07-31 08:49-0700\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-1\n"
+"Content-Transfer-Encoding: 8-bit\n"
+
+#: string_literals.cc:23
+msgid "please"
+msgstr "bitte"
+
+#: string_literals.cc:24
+msgid "thank you"
+msgstr "danke"
+
+#: string_literals.cc:27
+msgid "true"
+msgstr "zutreffend"
+
+#: string_literals.cc:28
+msgid "false"
+msgstr "falsch"

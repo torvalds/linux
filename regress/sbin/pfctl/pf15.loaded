@@ -1,0 +1,36 @@
+@0 match all scrub (no-df)
+  [ Skip steps: i=end d=5 r=end f=end p=5 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 match all scrub (min-ttl 25)
+  [ Skip steps: i=end d=5 r=end f=end p=5 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 match all scrub (max-mss 224)
+  [ Skip steps: i=end d=5 r=end f=end p=5 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 match all scrub (no-df max-mss 224)
+  [ Skip steps: i=end d=5 r=end f=end p=5 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 match all set (tos 0x10)
+  [ Skip steps: i=end r=end f=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 match out proto esp all set (tos 0x08)
+  [ Skip steps: i=end d=end r=end f=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 match out proto ah all set (tos 0x04)
+  [ Skip steps: i=end d=end r=end f=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 match out proto icmp all set (tos 0x12)
+  [ Skip steps: i=end d=end r=end f=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 match out all set (tos 0x08) tagged THROUGHPUT
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

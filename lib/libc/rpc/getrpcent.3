@@ -1,0 +1,122 @@
+.\"	$OpenBSD: getrpcent.3,v 1.13 2013/06/05 03:39:23 tedu Exp $
+.\"
+.\" Copyright (c) 2010, Oracle America, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"     * Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"     * Redistributions in binary form must reproduce the above
+.\"       copyright notice, this list of conditions and the following
+.\"       disclaimer in the documentation and/or other materials
+.\"       provided with the distribution.
+.\"     * Neither the name of the "Oracle America, Inc." nor the names of its
+.\"       contributors may be used to endorse or promote products derived
+.\"       from this software without specific prior written permission.
+.\"
+.\"   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\"   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\"   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\"   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\"   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+.\"   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\"   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\"   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\"   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\"   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\"   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt GETRPCENT 3
+.Os
+.Sh NAME
+.Nm getrpcent ,
+.Nm getrpcbyname ,
+.Nm getrpcbynumber ,
+.Nm endrpcent ,
+.Nm setrpcent
+.Nd get RPC entry
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft struct rpcent *
+.Fn getrpcent void
+.Ft struct rpcent *
+.Fn getrpcbyname "char *name"
+.Ft struct rpcent *
+.Fn getrpcbynumber "int number"
+.Ft void
+.Fn setrpcent "int stayopen"
+.Ft void
+.Fn endrpcent void
+.Sh DESCRIPTION
+.Fn getrpcent ,
+.Fn getrpcbyname ,
+and
+.Fn getrpcbynumber ,
+each return a pointer to an object with the
+following structure
+containing the broken-out
+fields of a line in the rpc program number database,
+.Pa /etc/rpc :
+.Bd -literal -offset 2n
+struct rpcent {
+	char	*r_name;	/* name of server for this rpc program */
+	char	**r_aliases;	/* alias list */
+	int	r_number;	/* rpc program number */
+};
+.Ed
+.Pp
+The members of this structure are:
+.Bl -tag -width r_aliases -offset indent
+.It r_name
+The name of the server for this rpc program.
+.It r_aliases
+A zero terminated list of alternate names for the rpc program.
+.It r_number
+The rpc program number for this service.
+.El
+.Pp
+.Fn getrpcent
+reads the next line of the file, opening the file if necessary.
+.Pp
+.Fn setrpcent
+opens and rewinds the file.
+If the
+.Fa stayopen
+flag is non-zero,
+the net database will not be closed after each call to
+.Fn getrpcent
+(either directly, or indirectly through one of
+the other
+.Dq getrpc
+calls).
+.Pp
+.Fn endrpcent
+closes the file.
+.Pp
+.Fn getrpcbyname
+and
+.Fn getrpcbynumber
+sequentially search from the beginning
+of the file until a matching rpc program name or
+program number is found, or until end-of-file is encountered.
+.Sh FILES
+.Pa /etc/rpc
+.Sh DIAGNOSTICS
+A
+.Dv NULL
+pointer is returned on
+.Dv EOF
+or error.
+.Sh SEE ALSO
+.Xr rpc 5 ,
+.Xr rpcinfo 8 ,
+.Xr ypserv 8
+.Sh BUGS
+All information
+is contained in a static area
+so it must be copied if it is
+to be saved.

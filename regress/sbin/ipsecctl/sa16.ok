@@ -1,0 +1,6 @@
+esp tunnel from 3ffe::1 to 3ffe::2 spi 0xdeadbeef auth hmac-sha1 enc aes \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+	enckey 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+esp tunnel from 3ffe::2 to 3ffe::1 spi 0xbeefdead auth hmac-sha1 enc aes \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+	enckey 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee

@@ -1,0 +1,70 @@
+.\"	$OpenBSD: bcrypt_pbkdf.3,v 1.7 2025/06/06 22:01:39 schwarze Exp $
+.\"
+.\" Copyright (c) 2012 Ted Unangst <tedu@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt BCRYPT_PBKDF 3
+.Os
+.Sh NAME
+.Nm bcrypt_pbkdf
+.Nd bcrypt password-based key derivation function
+.Sh SYNOPSIS
+.Lb libutil
+.In util.h
+.Ft int
+.Fn bcrypt_pbkdf "const char *pass" "size_t pass_len" "const uint8_t *salt" \
+    "size_t salt_len" "uint8_t *key" "size_t key_len" "unsigned int rounds"
+.Sh DESCRIPTION
+The
+.Nm
+function converts a password into a byte array suitable for use as
+an encryption key.
+The password and salt values are combined and repeatedly hashed
+.Ar rounds
+times.
+The salt value should be randomly generated beforehand.
+The repeated hashing is designed to thwart discovery of the key via
+password guessing attacks.
+The higher the number of rounds, the slower each attempt will be.
+.\" A minimum value of at least 4 is recommended.
+.Sh RETURN VALUES
+The
+.Fn bcrypt_pbkdf
+function returns 0 to indicate success and \-1 for failure.
+.\" .Sh EXAMPLES
+.\" .Sh ERRORS
+.Sh SEE ALSO
+.Xr bcrypt 3
+.Sh STANDARDS
+.Rs
+.%A Niels Provos and David Mazieres
+.%D June 1999
+.%T A Future-Adaptable Password Scheme
+.Re
+.Pp
+.Rs
+.%A B. Kaliski
+.%D September 2000
+.%R RFC 2898
+.%T PKCS #5: Password-Based Cryptography Specification Version 2.0
+.Re
+.\" .Sh HISTORY
+.\" .Sh AUTHORS
+.Sh CAVEATS
+This implementation deviates slightly from the PBKDF2 standard by mixing
+output key bits nonlinearly.
+By mixing the output bytes together, an attacker is required to perform
+all of the work without taking any shortcuts.
+.\" .Sh BUGS

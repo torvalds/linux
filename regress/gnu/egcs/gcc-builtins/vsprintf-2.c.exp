@@ -1,0 +1,1 @@
+vsprintf-2.c:: warning: vsprintf() is often misused, please use vsnprintf()

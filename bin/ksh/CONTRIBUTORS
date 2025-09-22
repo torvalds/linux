@@ -1,0 +1,129 @@
+$OpenBSD: CONTRIBUTORS,v 1.11 2019/01/25 00:19:25 millert Exp $
+
+This is a partial history of this shell gleened from old change logs and
+readmes (most of which are still in the misc directory) and the source
+code.  Hopefully it is correct and no contributors have been left out
+(file a bug report if you spot a problem :-)).
+
+Release history:
+    * Eric Gisin (egisin@math.uwaterloo.ca), created pdksh, using
+      Charles Forsyth's public domain V7 shell as a base; also used parts
+      of the BRL shell (written by Doug A Gwyn, Doug Kingston, Ron Natalie,
+      Arnold Robbins, Lou Salkind, and others?, circa '87; the parts used in
+      pdksh included getopts, test builtin, ulimit, tty setting/getting, emacs
+      editing, and job control; the test builtin was based on code by Erik
+      Baalbergen).
+      '87..'89 ?
+      Released versions: .. 3.2
+    * John R MacMillan (@yonge.csri.toronto.edu:chance!john@sq.sq.com)
+      takes over as maintainer
+      dates?
+      Released versions: 3.3 (?)
+    * Simon J. Gerraty (sjg@zen.void.oz.au) takes over as maintainer
+      Nov '91..July '94 ?
+      Released versions: 4.0 .. 4.9
+    * Michael Rendell (michael@cs.mun.ca) takes over as maintainer
+      July, 1994
+      Released versions: 5.0 .. 5.2
+
+Major contributions:
+    * John R MacMillan (@yonge.csri.toronto.edu:chance!john@sq.sq.com), ?:
+      cleaned up configuration, many bug fixes (see misc/Changes.jrm).
+    * Simon Gerraty, (sjg@zen.void.oz.au), Nov '91..?: much improved emacs mode
+      ala at&t ksh, 386bsd port, sigaction routines for non-POSIX systems
+      (see misc/ChangeLog.sjg and misc/ReadME.sjg).
+    * Peter Collinson (pc@hillside.co.uk), July '92: added select, at&t ksh
+      style history file, original csh-style {} globbing, BSD/386 port,
+      misc bug fixes.
+    * Larry Bouzane (larry@compusult.nf.ca), Mar '89..'93: re-wrote job control,
+      added async job notification, added CDPATH and other cd fixes, misc bug
+      fixes.
+    * John Rochester (jr@cs.mun.ca), '87: wrote vi command line editor; various
+      bug fixes/enhancements.
+    * Jeff Sparkes (jsparkes@bnr.ca), Mar '89..Mar '90: added arrays,
+      merged John Rochester's vi code into pdksh, misc bug fixes.
+    * Michael Haardt (u31b3hs@POOL.Informatik.RWTH-Aachen.DE), Sept '94:
+      organized man page, filled in many of its copious blank spots; added
+      KSH ifdefs.
+    * Dale DePriest (daled@cadence.com): ported to OS/2 (initially based on
+      port of pdksh4.9 to OS/2 by Kai Rommel (rommel@ars.muc.de)); maintains
+      OS/2 port; misc bug fixes.
+
+Other contributors:
+    * Piercarlo Grandi (pcg@aber.ac.uk), Dec '93: fixes for linux port
+    * Neil Smithline (Neil.Smithline@eng.sun.com), Aug '92: emacs-style
+      filename completion.
+    * Mike Jetzer [mlj] (jetzer@studsys.mscs.mu.edu), ?;Nov '94: fixes for vi
+      mode (see misc/Changes.mlj), added v to vi, fixes for history; fixed
+      command redoing in vi; fixes to vi globbing.
+    * Robert J Gibson: mailbox checking code that was adapted for pdksh by
+      John R. MacMillan.
+    * ? (guy@demon.co.uk), ?: promptlen() function.
+    * J.T. Conklin (jtc@cygnus.com): POSIXized test builtin; miscellaneous
+      fixes/enhancements.
+    * Sean Hogan (sean@neweast.ca): fixes for ICS 3.0 Unix, found and helped
+      fix numerous problems.
+    * Gordan Larson (hoh@approve.se): fix to compile sans VI, ksh.1 typo.
+    * Thomas Gellekum (thomas@ghpc8.ihf.rwth-aachen.de): fixes for Makefile
+      typos, fixed CLK_TCK for FreeBSD, man page fixes.
+    * Ed Ferguson (Ed.Ferguson@dseg.ti.com): fix to compile sans VI.
+    * Brian Campbell (brianc@qnx.com): fixes to compile under QNX and
+      to compile with dmake.
+    * (guy@netapp.com), Oct '94: patch to use gmacs flag.
+    * Andrew Moore (alm@netcom.com): reported many bugs, fixes.
+    * William Bader (wbader@CSEE.Lehigh.Edu): fix to compile on SCO Unix
+      (struct winsize).
+    * Mike Long (mike.long@analog.com): makefile fix - use $manext, not 1.
+    * Art Mills (aem@hpbs9162.bio.hp.com): bug fix for vi file completion in
+      command mode.
+    * Tory Bollinger (tboll@authstin.ibm.com): allow ~ in vi mode to take
+      a count.
+    * Frank Edwards (<crash@azhrei.EEC.COM>): added macros to vi (@char).
+    * Fritz Heinrichmeyer (<Fritz.Heinrichmeyer@FernUni-Hagen.de>): fixes
+      to allow compile under Linux 1.4.3.
+    * Gabor Zahemszky (<zgabor@CoDe.hu>): SVR3_PGRP vs SYSV_PGRP, many
+      bug reports and man page fixes.
+    * Dave Kinchlea (<kinch@julian.uwo.ca>): DEFAULT_ENV patches.
+    * Paul Borman (<prb@bsdi.com>): j_exit: send HUP, then CONT; HUP fg process.
+    * DaviD W. Sanderson (<dws@ssec.wisc.edu>): patches to allow { .. } instead
+      of in .. esac in case statements.
+    * ? (<ra@rhi.hi.is>): partial patches to handle SIGWINCH for command line
+      editing.
+    * Jason Tyler (<jason@nc.bhpese.oz.au>): fixes for bugs in fc.
+    * Stefan Dalibor (<Stefan.Dalibor@informatik.uni-erlangen.de>): fix for
+      COLUMNS never being set in x_init().
+    * Arnon Kanfi (<arnon@gilly.datatools.com>): fix for prompt.
+    * Marc Olzheim (<marcolz@stack.nl>): patches to ifdef KSH the mail check
+      code and aliases; enum patches for old K&R compilers; handle missing dup2.
+    * Lars Hecking (<lhecking@nmrc.ucc.ie>): fixes so shell compiles as sh
+      again.
+    * Bill Kish (<kish@browncow.com>): added prompt delimiter hack for
+      hidden characters (eg, escape codes).
+    * Andrew S. Townley (<atownley@informix.com>): fixes for NeXT machines:
+      get a controlling if one needed, use correct profile.
+    * Eric J. Chet (<ejc@bazzle.com>): fix for core dump in . (quitenv() called
+      too soon).
+    * Greg A. Woods <woods@most.weird.com>: fix to make ^[_ in emacs work
+      as in at&t ksh.
+    * George Robbins <grr@shandakor.tharsis.com>: fix for sh mode to
+      keep exec'd file descriptors open.
+    * George White <gwhite@bodnext.bio.dfo.ca>: fix here-doc problem under OS/2
+      (memory allocated incorrectly).
+    * David E. Wexelblat <dwex@DataFocus.com>: fix to avoid memory overrun
+      in aresize(); fix to not print un-named options.
+    * Clifford Wolf (<clifford@clifford.at>): fix memory overrun in aresize();
+      fixed sys_siglist[] problem.
+    * Theo de Raadt (<deraadt@cvs.openbsd.org>): allow ". /dev/null".
+    * Eric Youngdale (<ericy@datafocus.com>): flag field incorrectly changed
+      in exec.c(flushcom).
+    * Todd. C Miller (Todd C. Miller <millert@openbsd.org>): fix
+      for coredump in jobs.
+    * Kevin Schoedel <schoedel@kw.igs.net>: fix for word location in file
+      completion.
+    * Martin Lucina <mato@kotelna.sk>: fix for argument parsing in exit command,
+      fix for KSH_CHECK_H_TYPE.
+    * Mark Funkenhauser <mark@interix.com>: added $LINENO support.
+    * Corinna Vinschen <Corinna@Vinschen.de> and Steven Hein <ssh@sgi.com>:
+      port to cyngin environment on win95/winnt.
+    * Martin Dalecki <dalecki@cs.net.pl>: changes for 8 bit emacs mode.
+    * Dave Hillman <daveh@gte.net>: patch for bug in test -nt.

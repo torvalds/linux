@@ -1,0 +1,72 @@
+.\" $OpenBSD: X509_INFO_new.3,v 1.5 2025/07/16 17:59:10 schwarze Exp $
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2025 $
+.Dt X509_INFO_NEW 3
+.Os
+.Sh NAME
+.Nm X509_INFO_new ,
+.Nm X509_INFO_free
+.Nd X.509 certificate wrapper object
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_INFO *
+.Fn X509_INFO_new void
+.Ft void
+.Fn X509_INFO_free "X509_INFO *info"
+.Sh DESCRIPTION
+.Vt X509_INFO
+is a reference-counted wrapper object storing a pointer to an X.509
+certificate together with pointers to the associated private key
+and to an associated certificate revocation list.
+It is for example used internally by
+.Xr X509_load_cert_crl_file 3 .
+.Pp
+.Fn X509_INFO_new
+allocates and initializes an empty
+.Vt X509_INFO
+object and sets its reference count to 1.
+.Pp
+.Fn X509_INFO_free
+decrements the reference count of
+.Fa info
+by 1.
+If the reference count reaches 0, it frees all referenced objects
+as well as the storage needed for
+.Fa info
+itself.
+If
+.Fa info
+is a
+.Dv NULL
+pointer, no action occurs.
+.Sh RETURN VALUES
+.Fn X509_INFO_new
+returns the newly allocated
+.Vt X509_INFO
+object or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr PEM_X509_INFO_read_bio 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_new 3
+.Sh HISTORY
+.Fn X509_INFO_new
+and
+.Fn X509_INFO_free
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .

@@ -1,0 +1,58 @@
+.\" $OpenBSD: BN_kronecker.3,v 1.3 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_KRONECKER 3
+.Os
+.Sh NAME
+.Nm BN_kronecker
+.Nd Kronecker symbol
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft int
+.Fo BN_kronecker
+.Fa "const BIGNUM *a"
+.Fa "const BIGNUM *b"
+.Fa "BN_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+.Fn BN_kronecker
+computes the Kronecker symbol
+.Pq a | b ,
+which generalizes the Legendre and Jacobi symbols
+for arbitrary integer numbers
+.Fa b .
+.Sh RETURN VALUES
+.Fn BN_kronecker
+returns \-1, 0, or 1 in case of success or \-2 on error.
+.Sh SEE ALSO
+.Xr BN_CTX_new 3 ,
+.Xr BN_gcd 3 ,
+.Xr BN_mod_sqrt 3 ,
+.Xr BN_new 3
+.Rs
+.%A Henri Cohen
+.%B A Course in Computational Algebraic Number Theory
+.%I Springer
+.%C Berlin
+.%D 1993
+.%O Algorithm 1.4.10
+.Re
+.Sh HISTORY
+.Fn BN_kronecker
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .

@@ -1,0 +1,7 @@
+ext_if="lo0"
+
+set loginterface $ext_if
+set timeout tcp.established 3600
+set limit states 100
+set optimization normal
+set block-policy drop

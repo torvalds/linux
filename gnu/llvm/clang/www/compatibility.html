@@ -1,0 +1,864 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Language Compatibility</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+  <style type="text/css">
+</style>
+</head>
+<body>
+
+<!--#include virtual="menu.html.incl"-->
+
+<div id="content">
+
+<!-- ======================================================================= -->
+<h1>Language Compatibility</h1>
+<!-- ======================================================================= -->
+
+<p>Clang strives to both conform to current language standards (up to C11
+  and C++11) and also to implement many widely-used extensions available
+  in other compilers, so that most correct code will "just work" when
+  compiled with Clang. However, Clang is more strict than other
+  popular compilers, and may reject incorrect code that other
+  compilers allow. This page documents common compatibility and
+  portability issues with Clang to help you understand and fix the
+  problem in your code when Clang emits an error message.</p>
+
+<ul>
+  <li><a href="#c">C compatibility</a>
+    <ul>
+      <li><a href="#inline">C99 inline functions</a></li>
+      <li><a href="#vector_builtins">"missing" vector __builtin functions</a></li>
+      <li><a href="#lvalue-cast">Lvalue casts</a></li>
+      <li><a href="#blocks-in-protected-scope">Jumps to within <tt>__block</tt> variable scope</a></li>
+      <li><a href="#block-variable-initialization">Non-initialization of <tt>__block</tt> variables</a></li>
+      <li><a href="#inline-asm">Inline assembly</a></li>
+    </ul>
+  </li>
+  <li><a href="#objective-c">Objective-C compatibility</a>
+    <ul>
+      <li><a href="#super-cast">Cast of super</a></li>
+      <li><a href="#sizeof-interface">Size of interfaces</a></li>
+      <li><a href="#objc_objs-cast">Internal Objective-C types</a></li>
+      <li><a href="#c_variables-class">C variables in @class or @protocol</a></li>
+    </ul>
+  </li>
+  <li><a href="#cxx">C++ compatibility</a>
+    <ul>
+      <li><a href="#vla">Variable-length arrays</a></li>
+      <li><a href="#dep_lookup">Unqualified lookup in templates</a></li>
+      <li><a href="#dep_lookup_bases">Unqualified lookup into dependent bases of class templates</a></li>
+      <li><a href="#undep_incomplete">Incomplete types in templates</a></li>
+      <li><a href="#bad_templates">Templates with no valid instantiations</a></li>
+      <li><a href="#default_init_const">Default initialization of const
+      variable of a class type requires user-defined default
+      constructor</a></li>
+      <li><a href="#param_name_lookup">Parameter name lookup</a></li>
+    </ul>
+  </li>
+  <li><a href="#cxx11">C++11 compatibility</a>
+    <ul>
+      <li><a href="#deleted-special-func">Deleted special member
+  functions</a></li>
+    </ul>
+  </li>
+  <li><a href="#objective-cxx">Objective-C++ compatibility</a>
+    <ul>
+      <li><a href="#implicit-downcasts">Implicit downcasts</a></li>
+    </ul>
+    <ul>
+      <li><a href="#class-as-property-name">Using <code>class</code> as a property name</a></li>
+    </ul>
+  </li>
+</ul>
+
+<!-- ======================================================================= -->
+<h2 id="c">C compatibility</h2>
+<!-- ======================================================================= -->
+
+<!-- ======================================================================= -->
+<h3 id="inline">C99 inline functions</h3>
+<!-- ======================================================================= -->
+<p>By default, Clang builds C code in GNU C17 mode, so it uses standard C99
+semantics for the <code>inline</code> keyword. These semantics are different
+from those in GNU C89 mode, which is the default mode in versions of GCC
+prior to 5.0. For example, consider the following code:</p>
+<pre>
+inline int add(int i, int j) { return i + j; }
+
+int main() {
+  int i = add(4, 5);
+  return i;
+}
+</pre>
+
+<p>In C99, <code>inline</code> means that a function's definition is
+provided only for inlining, and that there is another definition
+(without <code>inline</code>) somewhere else in the program.  That
+means that this program is incomplete, because if <code>add</code>
+isn't inlined (for example, when compiling without optimization), then
+<code>main</code> will have an unresolved reference to that other
+definition.  Therefore we'll get a (correct) link-time error like this:</p>
+
+<pre>
+Undefined symbols:
+  "_add", referenced from:
+      _main in cc-y1jXIr.o
+</pre>
+
+<p>By contrast, GNU C89 mode (used by default in older versions of GCC) is the
+C89 standard plus a lot of extensions. C89 doesn't have an <code>inline</code>
+keyword, but GCC recognizes it as an extension and just treats it as a hint to
+the optimizer.</p>
+
+<p>There are several ways to fix this problem:</p>
+
+<ul>
+  <li>Change <code>add</code> to a <code>static inline</code>
+  function.  This is usually the right solution if only one
+  translation unit needs to use the function.  <code>static
+  inline</code> functions are always resolved within the translation
+  unit, so you won't have to add a non-<code>inline</code> definition
+  of the function elsewhere in your program.</li>
+
+  <li>Remove the <code>inline</code> keyword from this definition of
+  <code>add</code>.  The <code>inline</code> keyword is not required
+  for a function to be inlined, nor does it guarantee that it will be.
+  Some compilers ignore it completely.  Clang treats it as a mild
+  suggestion from the programmer.</li>
+
+  <li>Provide an external (non-<code>inline</code>) definition
+  of <code>add</code> somewhere else in your program.  The two
+  definitions must be equivalent!</li>
+
+  <li>Compile in the GNU C89 dialect by adding
+  <code>-std=gnu89</code> to the set of Clang options. This option is
+  only recommended if the program source cannot be changed or if the
+  program also relies on additional C89-specific behavior that cannot
+  be changed.</li>
+</ul>
+
+<p>All of this only applies to C code; the meaning of <code>inline</code>
+in C++ is very different from its meaning in either GNU89 or C99.</p>
+
+<!-- ======================================================================= -->
+<h3 id="vector_builtins">"missing" vector __builtin functions</h3>
+<!-- ======================================================================= -->
+
+<p>The Intel and AMD manuals document a number "<tt>&lt;*mmintrin.h&gt;</tt>"
+header files, which define a standardized API for accessing vector operations
+on X86 CPUs.  These functions have names like <tt>_mm_xor_ps</tt> and
+<tt>_mm256_addsub_pd</tt>.  Compilers have leeway to implement these functions
+however they want.  Since Clang supports an excellent set of <a
+href="../docs/LanguageExtensions.html#vectors">native vector operations</a>,
+the Clang headers implement these interfaces in terms of the native vector
+operations.
+</p>
+
+<p>In contrast, GCC implements these functions mostly as a 1-to-1 mapping to
+builtin function calls, like <tt>__builtin_ia32_paddw128</tt>.  These builtin
+functions are an internal implementation detail of GCC, and are not portable to
+the Intel compiler, the Microsoft compiler, or Clang.  If you get build errors
+mentioning these, the fix is simple: switch to the *mmintrin.h functions.</p>
+
+<p>The same issue occurs for NEON and Altivec for the ARM and PowerPC
+architectures respectively.  For these, make sure to use the &lt;arm_neon.h&gt;
+and &lt;altivec.h&gt; headers.</p>
+
+<p>For x86 architectures this <a href="builtins.py">script</a> should help with
+the manual migration process.  It will rewrite your source files in place to
+use the APIs instead of builtin function calls. Just call it like this:</p>
+
+<pre>
+  builtins.py *.c *.h
+</pre>
+
+<p>and it will rewrite all of the .c and .h files in the current directory to
+use the API calls instead of calls like <tt>__builtin_ia32_paddw128</tt>.</p>
+
+<!-- ======================================================================= -->
+<h3 id="lvalue-cast">Lvalue casts</h3>
+<!-- ======================================================================= -->
+
+<p>Old versions of GCC permit casting the left-hand side of an assignment to a
+different type. Clang produces an error on similar code, e.g.,</p>
+
+<pre>
+<b>lvalue.c:2:3: <span class="error">error:</span> assignment to cast is illegal, lvalue casts are not supported</b>
+  (int*)addr = val;
+<span class="caret">  ^~~~~~~~~~ ~</span>
+</pre>
+
+<p>To fix this problem, move the cast to the right-hand side. In this
+example, one could use:</p>
+
+<pre>
+  addr = (float *)val;
+</pre>
+
+<!-- ======================================================================= -->
+<h3 id="blocks-in-protected-scope">Jumps to within <tt>__block</tt> variable scope</h3>
+<!-- ======================================================================= -->
+
+<p>Clang disallows jumps into the scope of a <tt>__block</tt>
+variable.  Variables marked with <tt>__block</tt> require special
+runtime initialization. A jump into the scope of a <tt>__block</tt>
+variable bypasses this initialization, leaving the variable's metadata
+in an invalid state.  Consider the following code fragment:</p>
+
+<pre>
+int fetch_object_state(struct MyObject *c) {
+  if (!c->active) goto error;
+
+  __block int result;
+  run_specially_somehow(^{ result = c->state; });
+  return result;
+
+ error:
+  fprintf(stderr, "error while fetching object state");
+  return -1;
+}
+</pre>
+
+<p>GCC accepts this code, but it produces code that will usually crash
+when <code>result</code> goes out of scope if the jump is taken.  (It's
+possible for this bug to go undetected because it often won't crash if
+the stack is fresh, i.e. still zeroed.)  Therefore, Clang rejects this
+code with a hard error:</p>
+
+<pre>
+<b>t.c:3:5: <span class="error">error:</span> goto into protected scope</b>
+    goto error;
+<span class="caret">    ^</span>
+<b>t.c:5:15: <span class="note">note:</note></b> jump bypasses setup of __block variable
+  __block int result;
+<span class="caret">              ^</span>
+</pre>
+
+<p>The fix is to rewrite the code to not require jumping into a
+<tt>__block</tt> variable's scope, e.g. by limiting that scope:</p>
+
+<pre>
+  {
+    __block int result;
+    run_specially_somehow(^{ result = c->state; });
+    return result;
+  }
+</pre>
+
+<!-- ======================================================================= -->
+<h3 id="block-variable-initialization">Non-initialization of <tt>__block</tt>
+variables</h3>
+<!-- ======================================================================= -->
+
+<p>In the following example code, the <tt>x</tt> variable is used before it is
+defined:</p>
+<pre>
+int f0() {
+  __block int x;
+  return ^(){ return x; }();
+}
+</pre>
+
+<p>By an accident of implementation, GCC and llvm-gcc unintentionally always
+zero initialized <tt>__block</tt> variables. However, any program which depends
+on this behavior is relying on unspecified compiler behavior. Programs must
+explicitly initialize all local block variables before they are used, as with
+other local variables.</p>
+
+<p>Clang does not zero initialize local block variables, and programs which rely
+on such behavior will most likely break when built with Clang.</p>
+
+
+<!-- ======================================================================= -->
+<h3 id="inline-asm">Inline assembly</h3>
+<!-- ======================================================================= -->
+
+<p>In general, Clang is highly compatible with the GCC inline assembly
+extensions, allowing the same set of constraints, modifiers and operands as GCC
+inline assembly.</p>
+
+<p>On targets that use the integrated assembler (such as most X86 targets),
+inline assembly is run through the integrated assembler instead of your system
+assembler (which is most commonly "gas", the GNU assembler).  The LLVM
+integrated assembler is extremely compatible with GAS, but there are a couple of
+minor places where it is more picky, particularly due to outright GAS bugs.</p>
+
+<p>One specific example is that the assembler rejects ambiguous X86 instructions
+that don't have suffixes.  For example:</p>
+
+<pre>
+  asm("add %al, (%rax)");
+  asm("addw $4, (%rax)");
+  asm("add $4, (%rax)");
+</pre>
+
+<p>Both clang and GAS accept the first instruction: because the first
+instruction uses the 8-bit <tt>%al</tt> register as an operand, it is clear that
+it is an 8-bit add.  The second instruction is accepted by both because the "w"
+suffix indicates that it is a 16-bit add.  The last instruction is accepted by
+GAS even though there is nothing that specifies the size of the instruction (and
+the assembler randomly picks a 32-bit add).  Because it is ambiguous, Clang
+rejects the instruction with this error message:
+</p>
+
+<pre>
+<b>&lt;inline asm&gt;:3:1: <span class="error">error:</span> ambiguous instructions require an explicit suffix (could be 'addb', 'addw', 'addl', or 'addq')</b>
+add $4, (%rax)
+<span class="caret">^</span>
+</pre>
+
+<p>To fix this compatibility issue, add an explicit suffix to the instruction:
+this makes your code more clear and is compatible with both GCC and Clang.</p>
+
+<!-- ======================================================================= -->
+<h2 id="objective-c">Objective-C compatibility</h2>
+<!-- ======================================================================= -->
+
+<!-- ======================================================================= -->
+<h3 id="super-cast">Cast of super</h3>
+<!-- ======================================================================= -->
+
+<p>GCC treats the <code>super</code> identifier as an expression that
+can, among other things, be cast to a different type. Clang treats
+<code>super</code> as a context-sensitive keyword, and will reject a
+type-cast of <code>super</code>:</p>
+
+<pre>
+<b>super.m:11:12: <span class="error">error:</span> cannot cast 'super' (it isn't an expression)</b>
+  [(Super*)super add:4];
+<span class="caret">   ~~~~~~~~^</span>
+</pre>
+
+<p>To fix this problem, remove the type cast, e.g.</p>
+<pre>
+  [super add:4];
+</pre>
+
+<!-- ======================================================================= -->
+<h3 id="sizeof-interface">Size of interfaces</h3>
+<!-- ======================================================================= -->
+
+<p>When using the "non-fragile" Objective-C ABI in use, the size of an
+Objective-C class may change over time as instance variables are added
+(or removed). For this reason, Clang rejects the application of the
+<code>sizeof</code> operator to an Objective-C class when using this
+ABI:</p>
+
+<pre>
+<b>sizeof.m:4:14: <span class="error">error:</span> invalid application of 'sizeof' to interface 'NSArray' in non-fragile ABI</b>
+  int size = sizeof(NSArray);
+<span class="caret">             ^     ~~~~~~~~~</span>
+</pre>
+
+<p>Code that relies on the size of an Objective-C class is likely to
+be broken anyway, since that size is not actually constant. To address
+this problem, use the Objective-C runtime API function
+<code>class_getInstanceSize()</code>:</p>
+
+<pre>
+  class_getInstanceSize([NSArray class])
+</pre>
+
+<!-- ======================================================================= -->
+<h3 id="objc_objs-cast">Internal Objective-C types</h3>
+<!-- ======================================================================= -->
+
+<p>GCC allows using pointers to internal Objective-C objects, <tt>struct objc_object*</tt>,
+<tt>struct objc_selector*</tt>, and <tt>struct objc_class*</tt> in place of the types
+<tt>id</tt>, <tt>SEL</tt>, and <tt>Class</tt> respectively. Clang treats the
+internal Objective-C structures as implementation detail and won't do implicit conversions:
+
+<pre>
+<b>t.mm:11:2: <span class="error">error:</span> no matching function for call to 'f'</b>
+        f((struct objc_object *)p);
+<span class="caret">        ^</span>
+<b>t.mm:5:6: <span class="note">note:</note></b> candidate function not viable: no known conversion from 'struct objc_object *' to 'id' for 1st argument
+void f(id x);
+<span class="caret">     ^</span>
+</pre>
+
+<p>Code should use types <tt>id</tt>, <tt>SEL</tt>, and <tt>Class</tt>
+instead of the internal types.</p>
+
+<!-- ======================================================================= -->
+<h3 id="c_variables-class">C variables in @interface or @protocol</h3>
+<!-- ======================================================================= -->
+
+<p>GCC allows the declaration of C variables in
+an <code>@interface</code> or <code>@protocol</code>
+declaration. Clang does not allow variable declarations to appear
+within these declarations unless they are marked <code>extern</code>.</p>
+
+<p>Variables may still be declared in an @implementation.</p>
+
+<pre>
+@interface XX
+int a;         // not allowed in clang
+int b = 1;     // not allowed in clang
+extern int c;  // allowed
+@end
+
+</pre>
+
+<!-- ======================================================================= -->
+<h2 id="cxx">C++ compatibility</h2>
+<!-- ======================================================================= -->
+
+<!-- ======================================================================= -->
+<h3 id="vla">Variable-length arrays</h3>
+<!-- ======================================================================= -->
+
+<p>GCC and C99 allow an array's size to be determined at run
+time. This extension is not permitted in standard C++. However, Clang
+supports such variable length arrays for compatibility with GNU C and
+C99 programs.</p>
+
+<p>If you would prefer not to use this extension, you can disable it with
+<tt>-Werror=vla</tt>. There are several ways to fix your code:
+
+<ol>
+<li>replace the variable length array with a fixed-size array if you can
+    determine a reasonable upper bound at compile time; sometimes this is as
+    simple as changing <tt>int size = ...;</tt> to <tt>const int size
+    = ...;</tt> (if the initializer is a compile-time constant);</li>
+<li>use <tt>std::vector</tt> or some other suitable container type;
+    or</li>
+<li>allocate the array on the heap instead using <tt>new Type[]</tt> -
+    just remember to <tt>delete[]</tt> it.</li>
+</ol>
+
+<!-- ======================================================================= -->
+<h3 id="dep_lookup">Unqualified lookup in templates</h3>
+<!-- ======================================================================= -->
+
+<p>Some versions of GCC accept the following invalid code:
+
+<pre>
+template &lt;typename T&gt; T Squared(T x) {
+  return Multiply(x, x);
+}
+
+int Multiply(int x, int y) {
+  return x * y;
+}
+
+int main() {
+  Squared(5);
+}
+</pre>
+
+<p>Clang complains:
+
+<pre>
+<b>my_file.cpp:2:10: <span class="error">error:</span> call to function 'Multiply' that is neither visible in the template definition nor found by argument-dependent lookup</b>
+  return Multiply(x, x);
+<span class="caret">         ^</span>
+<b>my_file.cpp:10:3: <span class="note">note:</span></b> in instantiation of function template specialization 'Squared&lt;int&gt;' requested here
+  Squared(5);
+<span class="caret">  ^</span>
+<b>my_file.cpp:5:5: <span class="note">note:</span></b> 'Multiply' should be declared prior to the call site
+int Multiply(int x, int y) {
+<span class="caret">    ^</span>
+</pre>
+
+<p>The C++ standard says that unqualified names like <q>Multiply</q>
+are looked up in two ways.
+
+<p>First, the compiler does <i>unqualified lookup</i> in the scope
+where the name was written.  For a template, this means the lookup is
+done at the point where the template is defined, not where it's
+instantiated.  Since <tt>Multiply</tt> hasn't been declared yet at
+this point, unqualified lookup won't find it.
+
+<p>Second, if the name is called like a function, then the compiler
+also does <i>argument-dependent lookup</i> (ADL).  (Sometimes
+unqualified lookup can suppress ADL; see [basic.lookup.argdep]p3 for
+more information.)  In ADL, the compiler looks at the types of all the
+arguments to the call.  When it finds a class type, it looks up the
+name in that class's namespace; the result is all the declarations it
+finds in those namespaces, plus the declarations from unqualified
+lookup.  However, the compiler doesn't do ADL until it knows all the
+argument types.
+
+<p>In our example, <tt>Multiply</tt> is called with dependent
+arguments, so ADL isn't done until the template is instantiated.  At
+that point, the arguments both have type <tt>int</tt>, which doesn't
+contain any class types, and so ADL doesn't look in any namespaces.
+Since neither form of lookup found the declaration
+of <tt>Multiply</tt>, the code doesn't compile.
+
+<p>Here's another example, this time using overloaded operators,
+which obey very similar rules.
+
+<pre>#include &lt;iostream&gt;
+
+template&lt;typename T&gt;
+void Dump(const T&amp; value) {
+  std::cout &lt;&lt; value &lt;&lt; "\n";
+}
+
+namespace ns {
+  struct Data {};
+}
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, ns::Data data) {
+  return out &lt;&lt; "Some data";
+}
+
+void Use() {
+  Dump(ns::Data());
+}</pre>
+
+<p>Again, Clang complains:</p>
+
+<pre>
+<b>my_file2.cpp:5:13: <span class="error">error:</span> call to function 'operator&lt;&lt;' that is neither visible in the template definition nor found by argument-dependent lookup</b>
+  std::cout &lt;&lt; value &lt;&lt; "\n";
+<span class="caret">            ^</span>
+<b>my_file2.cpp:17:3: <span class="note">note:</span></b> in instantiation of function template specialization 'Dump&lt;ns::Data&gt;' requested here
+  Dump(ns::Data());
+<span class="caret">  ^</span>
+<b>my_file2.cpp:12:15: <span class="note">note:</span></b> 'operator&lt;&lt;' should be declared prior to the call site or in namespace 'ns'
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, ns::Data data) {
+<span class="caret">              ^</span>
+</pre>
+
+<p>Just like before, unqualified lookup didn't find any declarations
+with the name <tt>operator&lt;&lt;</tt>.  Unlike before, the argument
+types both contain class types: one of them is an instance of the
+class template type <tt>std::basic_ostream</tt>, and the other is the
+type <tt>ns::Data</tt> that we declared above.  Therefore, ADL will
+look in the namespaces <tt>std</tt> and <tt>ns</tt> for
+an <tt>operator&lt;&lt;</tt>.  Since one of the argument types was
+still dependent during the template definition, ADL isn't done until
+the template is instantiated during <tt>Use</tt>, which means that
+the <tt>operator&lt;&lt;</tt> we want it to find has already been
+declared.  Unfortunately, it was declared in the global namespace, not
+in either of the namespaces that ADL will look in!
+
+<p>There are two ways to fix this problem:</p>
+<ol><li>Make sure the function you want to call is declared before the
+template that might call it.  This is the only option if none of its
+argument types contain classes.  You can do this either by moving the
+template definition, or by moving the function definition, or by
+adding a forward declaration of the function before the template.</li>
+<li>Move the function into the same namespace as one of its arguments
+so that ADL applies.</li></ol>
+
+<p>For more information about argument-dependent lookup, see
+[basic.lookup.argdep].  For more information about the ordering of
+lookup in templates, see [temp.dep.candidate].
+
+<!-- ======================================================================= -->
+<h3 id="dep_lookup_bases">Unqualified lookup into dependent bases of class templates</h3>
+<!-- ======================================================================= -->
+
+<p>Some versions of GCC accept the following invalid code:
+
+<pre>
+template &lt;typename T&gt; struct Base {
+  void DoThis(T x) {}
+  static void DoThat(T x) {}
+};
+
+template &lt;typename T&gt; struct Derived : public Base&lt;T&gt; {
+  void Work(T x) {
+    DoThis(x);  // Invalid!
+    DoThat(x);  // Invalid!
+  }
+};
+</pre>
+
+Clang correctly rejects it with the following errors
+(when <tt>Derived</tt> is eventually instantiated):
+
+<pre>
+<b>my_file.cpp:8:5: <span class="error">error:</span> use of undeclared identifier 'DoThis'</b>
+    DoThis(x);
+<span class="caret">    ^</span>
+    this-&gt;
+<b>my_file.cpp:2:8: <span class="note">note:</note></b> must qualify identifier to find this declaration in dependent base class
+  void DoThis(T x) {}
+<span class="caret">       ^</span>
+<b>my_file.cpp:9:5: <span class="error">error:</span> use of undeclared identifier 'DoThat'</b>
+    DoThat(x);
+<span class="caret">    ^</span>
+    this-&gt;
+<b>my_file.cpp:3:15: <span class="note">note:</note></b> must qualify identifier to find this declaration in dependent base class
+  static void DoThat(T x) {}
+</pre>
+
+Like we said <a href="#dep_lookup">above</a>, unqualified names like
+<tt>DoThis</tt> and <tt>DoThat</tt> are looked up when the template
+<tt>Derived</tt> is defined, not when it's instantiated.  When we look
+up a name used in a class, we usually look into the base classes.
+However, we can't look into the base class <tt>Base&lt;T&gt;</tt>
+because its type depends on the template argument <tt>T</tt>, so the
+standard says we should just ignore it.  See [temp.dep]p3 for details.
+
+<p>The fix, as Clang tells you, is to tell the compiler that we want a
+class member by prefixing the calls with <tt>this-&gt;</tt>:
+
+<pre>
+  void Work(T x) {
+    <b>this-&gt;</b>DoThis(x);
+    <b>this-&gt;</b>DoThat(x);
+  }
+</pre>
+
+Alternatively, you can tell the compiler exactly where to look:
+
+<pre>
+  void Work(T x) {
+    <b>Base&lt;T&gt;</b>::DoThis(x);
+    <b>Base&lt;T&gt;</b>::DoThat(x);
+  }
+</pre>
+
+This works whether the methods are static or not, but be careful:
+if <tt>DoThis</tt> is virtual, calling it this way will bypass virtual
+dispatch!
+
+<!-- ======================================================================= -->
+<h3 id="undep_incomplete">Incomplete types in templates</h3>
+<!-- ======================================================================= -->
+
+<p>The following code is invalid, but compilers are allowed to accept it:
+
+<pre>
+  class IOOptions;
+  template &lt;class T&gt; bool read(T &amp;value) {
+    IOOptions opts;
+    return read(opts, value);
+  }
+
+  class IOOptions { bool ForceReads; };
+  bool read(const IOOptions &amp;opts, int &amp;x);
+  template bool read&lt;&gt;(int &amp;);
+</pre>
+
+The standard says that types which don't depend on template parameters
+must be complete when a template is defined if they affect the
+program's behavior.  However, the standard also says that compilers
+are free to not enforce this rule.  Most compilers enforce it to some
+extent; for example, it would be an error in GCC to
+write <tt>opts.ForceReads</tt> in the code above.  In Clang, we feel
+that enforcing the rule consistently lets us provide a better
+experience, but unfortunately it also means we reject some code that
+other compilers accept.
+
+<p>We've explained the rule here in very imprecise terms; see
+[temp.res]p8 for details.
+
+<!-- ======================================================================= -->
+<h3 id="bad_templates">Templates with no valid instantiations</h3>
+<!-- ======================================================================= -->
+
+<p>The following code contains a typo: the programmer
+meant <tt>init()</tt> but wrote <tt>innit()</tt> instead.
+
+<pre>
+  template &lt;class T&gt; class Processor {
+    ...
+    void init();
+    ...
+  };
+  ...
+  template &lt;class T&gt; void process() {
+    Processor&lt;T&gt; processor;
+    processor.innit();       // <-- should be 'init()'
+    ...
+  }
+</pre>
+
+Unfortunately, we can't flag this mistake as soon as we see it: inside
+a template, we're not allowed to make assumptions about "dependent
+types" like <tt>Processor&lt;T&gt;</tt>.  Suppose that later on in
+this file the programmer adds an explicit specialization
+of <tt>Processor</tt>, like so:
+
+<pre>
+  template &lt;&gt; class Processor&lt;char*&gt; {
+    void innit();
+  };
+</pre>
+
+Now the program will work &mdash; as long as the programmer only ever
+instantiates <tt>process()</tt> with <tt>T = char*</tt>!  This is why
+it's hard, and sometimes impossible, to diagnose mistakes in a
+template definition before it's instantiated.
+
+<p>The standard says that a template with no valid instantiations is
+ill-formed.  Clang tries to do as much checking as possible at
+definition-time instead of instantiation-time: not only does this
+produce clearer diagnostics, but it also substantially improves
+compile times when using pre-compiled headers.  The downside to this
+philosophy is that Clang sometimes fails to process files because they
+contain broken templates that are no longer used.  The solution is
+simple: since the code is unused, just remove it.
+
+<!-- ======================================================================= -->
+<h3 id="default_init_const">Default initialization of const variable of a class type requires user-defined default constructor</h3>
+<!-- ======================================================================= -->
+
+<p>If a <tt>class</tt> or <tt>struct</tt> has no user-defined default
+constructor, C++ doesn't allow you to default construct a <tt>const</tt>
+instance of it like this ([dcl.init], p9):
+
+<pre>
+class Foo {
+ public:
+  // The compiler-supplied default constructor works fine, so we
+  // don't bother with defining one.
+  ...
+};
+
+void Bar() {
+  const Foo foo;  // Error!
+  ...
+}
+</pre>
+
+To fix this, you can define a default constructor for the class:
+
+<pre>
+class Foo {
+ public:
+  Foo() {}
+  ...
+};
+
+void Bar() {
+  const Foo foo;  // Now the compiler is happy.
+  ...
+}
+</pre>
+
+An upcoming change to the C++ standard is expected to weaken this rule to only
+apply when the compiler-supplied default constructor would leave a member
+uninitialized. Clang implements the more relaxed rule in version 3.8 onwards.
+
+<!-- ======================================================================= -->
+<h3 id="param_name_lookup">Parameter name lookup</h3>
+<!-- ======================================================================= -->
+
+<p>Some versions of GCC allow the redeclaration of function parameter names within a function prototype in C++ code, e.g.</p>
+<blockquote>
+<pre>
+void f(int a, int a);
+</pre>
+</blockquote>
+<p>Clang diagnoses this error (where the parameter name has been redeclared). To fix this problem, rename one of the parameters.</p>
+
+<!-- ======================================================================= -->
+<h2 id="cxx11">C++11 compatibility</h2>
+<!-- ======================================================================= -->
+
+<!-- ======================================================================= -->
+<h3 id="deleted-special-func">Deleted special member functions</h3>
+<!-- ======================================================================= -->
+
+<p>In C++11, the explicit declaration of a move constructor or a move
+assignment operator within a class deletes the implicit declaration
+of the copy constructor and copy assignment operator. This change came
+fairly late in the C++11 standardization process, so early
+implementations of C++11 (including Clang before 3.0, GCC before 4.7,
+and Visual Studio 2010) do not implement this rule, leading them to
+accept this ill-formed code:</p>
+
+<pre>
+struct X {
+  X(X&amp;&amp;); <i>// deletes implicit copy constructor:</i>
+  <i>// X(const X&amp;) = delete;</i>
+};
+
+void f(X x);
+void g(X x) {
+  f(x); <i>// error: X has a deleted copy constructor</i>
+}
+</pre>
+
+<p>This affects some early C++11 code, including Boost's popular <a
+href="https://www.boost.org/doc/libs/release/libs/smart_ptr/shared_ptr.htm"><tt>shared_ptr</tt></a>
+up to version 1.47.0. The fix for Boost's <tt>shared_ptr</tt> is
+<a href="https://svn.boost.org/trac/boost/changeset/73202">available here</a>.</p>
+
+<!-- ======================================================================= -->
+<h2 id="objective-cxx">Objective-C++ compatibility</h2>
+<!-- ======================================================================= -->
+
+<!-- ======================================================================= -->
+<h3 id="implicit-downcasts">Implicit downcasts</h3>
+<!-- ======================================================================= -->
+
+<p>Due to a bug in its implementation, GCC allows implicit downcasts
+of Objective-C pointers (from a base class to a derived class) when
+calling functions. Such code is inherently unsafe, since the object
+might not actually be an instance of the derived class, and is
+rejected by Clang. For example, given this code:</p>
+
+<pre>
+@interface Base @end
+@interface Derived : Base @end
+
+void f(Derived *p);
+void g(Base *p) {
+  f(p);
+}
+</pre>
+
+<p>Clang produces the following error:</p>
+
+<pre>
+<b>downcast.mm:6:3: <span class="error">error:</span> no matching function for call to 'f'</b>
+  f(p);
+<span class="caret">  ^</span>
+<b>downcast.mm:4:6: <span class="note">note:</note></b> candidate function not viable: cannot convert from
+      superclass 'Base *' to subclass 'Derived *' for 1st argument
+void f(Derived *p);
+<span class="caret">     ^</span>
+</pre>
+
+<p>If the downcast is actually correct (e.g., because the code has
+already checked that the object has the appropriate type), add an
+explicit cast:</p>
+
+<pre>
+  f((Derived *)base);
+</pre>
+
+<!-- ======================================================================= -->
+<h3 id="class-as-property-name">Using <code>class</code> as a property name</h3>
+<!-- ======================================================================= -->
+
+<p>In C and Objective-C, <code>class</code> is a normal identifier and
+can be used to name fields, ivars, methods, and so on.  In
+C++, <code>class</code> is a keyword.  For compatibility with existing
+code, Clang permits <code>class</code> to be used as part of a method
+selector in Objective-C++, but this does not extend to any other part
+of the language.  In particular, it is impossible to use property dot
+syntax in Objective-C++ with the property name <code>class</code>, so
+the following code will fail to parse:</p>
+
+<pre>
+@interface I {
+int cls;
+}
++ (int)class;
+@end
+
+@implementation  I
+- (int) Meth { return I.class; }
+@end
+</pre>
+
+<p>Use explicit message-send syntax instead, i.e. <code>[I class]</code>.</p>
+
+</div>
+</body>
+</html>

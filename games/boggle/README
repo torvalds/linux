@@ -1,0 +1,56 @@
+$OpenBSD: README,v 1.4 2000/04/21 03:10:30 pjanzen Exp $
+
+Bog is a fairly portable simulation of Parker Brother's game of Boggle and
+is similar to the 4.[23] BSD "boggle" and Sun's "boggletool".
+Bog has not been derived from any proprietary code.
+It has been tested on the Sun 3 under SunOS 3.2 and on the Atari 1040ST (MWC).
+
+What You Need
+
+You will need curses and a large word list.
+The minix word list or /usr/dict/words will do nicely.
+The word list must already be sorted (you can use "sort -c" to check).
+
+Contents
+
+	README		- this file
+	Makefile
+	bog.man		- half-hearted man page (use the game's help command)
+	bog.h		- configuration and header info
+	bog.c		- machine independent game code
+	word.c		- machine independent word list routines
+	help.c		- (curses) help routine
+	mach.c		- (curses) display code
+	prtable.c	- ditto
+	timer.c		- machine dependent (os) input polling
+	mkdict.c	- convert a word list to a bog dictionary
+	mkindex.c	- create an index file for the bog dictionary
+	showdict.c	- print a bog dictionary to stdout
+
+Portability
+
+- I've tried to make bog.c (the program logic) independent of the I/O.
+  My plan was to make it straightforward to adapt the game to run under a
+  windowing system (eg., Suntools, GEM).  I have no plan to actually do this.
+  I've stuck to a small subset of the curses routines.
+- The program runs with the input in raw mode.
+- If you want the running timer you must #define TIMER in bog.h
+  and insert the input polling code in timer.c for your system.  There is
+  already code there for BSD, SYSV, and ATARI.
+
+Setup
+
+1. Check bog.h and Makefile and edit to fit your environment
+2. "make all"
+   This will make all the binaries and create the dictionary and index files
+3. Move "dict", "dict.ind", and "helpfile" to where you specified in bog.h
+4. Play away
+
+Enjoy. [But beware: boggle can be addictive!]
+
+-----
+Barry Brachman           | UUCP:    {alberta,uw-beaver,uunet}!
+Dept. of Computer Science|           ubc-vision!ubc-csgrads!brachman
+Univ. of British Columbia| Internet: brachman@cs.ubc.ca
+Vancouver, B.C. V6T 1W5  |           brachman%ubc.csnet@csnet-relay.arpa
+(604) 228-5010           | brachman@ubc.csnet

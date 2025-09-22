@@ -1,0 +1,231 @@
+.\"	$OpenBSD: speaker.4,v 1.12 2024/07/18 05:44:46 jmc Exp $
+.\"	$NetBSD: speaker.4,v 1.9 1998/08/18 08:16:56 augustss Exp $
+.\"
+.\" Copyright (c) 1993 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 18 2024 $
+.Dt SPKR 4
+.Os
+.Sh NAME
+.Nm speaker ,
+.Nm spkr
+.Nd console speaker device driver
+.Sh SYNOPSIS
+.Cd "spkr0	at pcppi?"
+.Sh DESCRIPTION
+The
+.Nm
+device driver allows applications to control the built-in speaker on
+machines providing a PCPPI speaker interface.
+.Pp
+Only one process may have this device open at any given time;
+.Xr open 2
+and
+.Xr close 2
+are used to lock and relinquish it.
+An attempt to
+.Fn open
+when another process has the device locked will return \-1 with an
+.Er EBUSY
+error indication.
+Writes to the device are interpreted as
+.Dq play strings
+in a simple ASCII melody notation.
+An
+.Fn ioctl
+for tone generation at arbitrary frequencies is also supported.
+.Pp
+Sound-generation does
+.Em not
+monopolize the processor; in fact, the driver
+spends most of its time sleeping while the PC hardware is emitting tones.
+Other processes may emit beeps while the driver is running.
+.Pp
+Applications may call
+.Fn ioctl
+on a speaker file descriptor to control the speaker driver directly;
+definitions for the
+.Fn ioctl
+interface are in
+.In dev/isa/spkrio.h .
+The
+.Vt tone_t
+structure used in these calls has two fields,
+specifying a frequency (in Hz) and a duration (in 1/100ths of a second).
+A frequency of zero is interpreted as a rest.
+.Pp
+At present there are two such ioctls.
+The
+.Dv SPKRTONE
+ioctl accepts a pointer to a single tone structure as a third argument and
+plays it.
+The
+.Dv SPKRTUNE
+ioctl accepts a pointer to the first of an array of tone structures and plays
+them in continuous sequence; this array must be terminated by a final member
+with a zero duration.
+.Pp
+The play-string language is modelled on the PLAY statement conventions of
+IBM BASIC 2.0.
+The MB, MF and X primitives of PLAY are not useful in a UNIX environment and
+are omitted.
+The
+.Dq octave-tracking
+feature is also new.
+.Pp
+There are 84 accessible notes numbered 1-84 in 7 octaves, each running from
+C to B, numbered 0-6; the scale is equal-tempered A440 and octave 3 starts
+with middle C.
+By default, the play function emits half-second notes with the last 1/16th
+second being
+.Dq rest time .
+.Pp
+Play strings are interpreted left to right as a series of play command groups;
+letter case is ignored.
+Play command groups are as follows:
+.Bl -tag -width xxx
+.It CDEFGAB
+Letters A through G cause the corresponding note to be played in the current
+octave.
+A note letter may optionally be followed by an
+.Dq accidental sign ,
+one of
+.Ql # ,
+.Ql + ,
+or
+.Ql - ;
+the first two of these cause it to be sharped one half-tone, the last causes
+it to be flatted one half-tone.
+It may also be followed by a time value number and by sustain dots (see below).
+Time values are interpreted as for the L command below.
+.It O Aq Ar n
+If
+.Ar n
+is numeric, this sets the current octave.
+.Ar n
+may also be one of
+.Sq L
+or
+.Sq N
+to enable or disable octave-tracking (it is disabled by default).
+When octave-tracking is on, interpretation of a pair of letter notes will
+change octaves if necessary in order to make the smallest possible jump between
+notes.
+Thus
+.Qq olbc
+will be played as
+.Qq olb>c ,
+and
+.Qq olcb
+as
+.Qq olc<b .
+Octave locking is disabled for one letter note following by
+.Ql > ,
+.Ql < ,
+and
+.Ql O[0123456] .
+.Bd -literal -offset indent
+> -- bump the current octave up one.
+< -- drop the current octave down one.
+.Ed
+.It N Aq Ar n
+Play note
+.Ar n ,
+.Ar n
+being 1 to 84 or 0 for a rest of current time value.
+May be followed by sustain dots.
+.It L Aq Ar n
+Sets the current time value for notes.
+The default is L4, quarter notes.
+The lowest possible value is 1; values up to 64 are accepted.
+L1 sets whole notes, L2 sets half notes, L4 sets quarter notes, etc.
+.It P Aq Ar n
+Pause (rest), with
+.Ar n
+interpreted as for L.
+May be followed by sustain dots.
+May also be written
+.Ql ~ .
+.It T Aq Ar n
+Sets the number of quarter notes per minute; default is 120.
+Musical names for common tempi are:
+.Bl -column "Description" "Larghissimo" "Beats per minute" -offset indent
+.It Em "Description" Ta Em "Tempo" Ta Em "Beats per Minute"
+.It "very slow" Ta Larghissimo Ta 40\(en60
+.It "very slow" Ta Largo Ta 40\(en60
+.It "very slow"  Ta Larghetto Ta 60\(en66
+.It "very slow" Ta Grave Ta 60\(en66
+.It "very slow" Ta Lento Ta 60\(en66
+.It "slow" Ta Adagio Ta 66\(en76
+.It "slow" Ta Adagietto Ta 66\(en76
+.It "medium" Ta Andante Ta 76\(en108
+.It "medium" Ta Andantino Ta 76\(en108
+.It "fast" Ta Moderato Ta 108\(en120
+.It "fast" Ta Allegretto Ta 108\(en120
+.It "fast" Ta Allegro Ta 120\(en168
+.It "fast" Ta Vivace Ta 120\(en168
+.It "fast" Ta Veloce Ta 120\(en168
+.It "very fast" Ta Presto Ta 168\(en208
+.It "very fast" Ta Prestissimo Ta 168\(en208
+.El
+.It M[LNS]
+Set articulation.
+MN (N for normal) is the default; the last 1/8th of the note's value is rest
+time.
+You can set ML for legato (no rest space) or MS (staccato) 1/4 rest space.
+.El
+.Pp
+Notes (that is, CDEFGAB or N command character groups) may be followed by
+sustain dots.
+Each dot causes the note's value to be lengthened by one-half for each one.
+Thus, a note dotted once is held for 3/2 of its undotted value;
+dotted twice, it is held 9/4, and three times would give 27/8.
+.Pp
+Whitespace in play strings is simply skipped and may be used to separate
+melody sections.
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /dev/speaker
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pcppi 4
+.Sh AUTHORS
+.An Eric S. Raymond Aq Mt esr@snark.thyrsus.com ,
+Feb 1990
+.Sh BUGS
+Due to roundoff in the pitch tables and slop in the tone-generation and timer
+hardware (neither of which was designed for precision), neither pitch accuracy
+nor timings will be mathematically exact.
+.Pp
+There is no volume control.
+.Pp
+In play strings which are very long (longer than your system's physical I/O
+blocks) note suffixes or numbers may occasionally be parsed incorrectly due
+to crossing a block boundary.

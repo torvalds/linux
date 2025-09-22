@@ -1,0 +1,133 @@
+The goal: calls from inside libc to other libc functions should
+ * not be overridable (except for the malloc family), and
+ * not have pointless inefficiencies.
+
+To achieve this, we arrange that all these internal call be via
+identifiers that are of hidden visibility and--to avoid confusion
+and work correctly in static executables--are in the reserved
+namespace.
+
+This document describes the details of the naming scheme and how
+it is implemented.
+
+I've chosen a prefix of underbar-libc-underbar ("_libc_") for this.
+These are not declared directly; instead, the gcc "asm labels"
+extension is used to rename the function.
+
+We need many of the symbols to be weak in *static* builds, but they
+can be strong in the dynamic library, as there's a natural precedence
+from the search order there.  When the descriptions below say a
+name is "weak", that is only necessary for the static library and
+not for the shared library.  Note: use defined(PIC) to recognize
+when compiling the shared objects: some archs define __PIC__ *all*
+the time.
+
+---------
+
+For syscalls which are not cancellation points, such as getpid(),
+the identifiers are just:
+	_libc_getpid		hidden alias, for use internal to libc only
+	_thread_sys_getpid	global name, for use outside libc only
+	getpid			weak alias, for use outside libc only
+
+For syscalls which are cancellation points, such as wait4(), there
+are identifiers that do not provide cancellation:
+	_libc_wait4		hidden alias, for use internal to libc only
+	_thread_sys_wait4	global name, for use outside libc only
+...and identifiers that do provide cancellation:
+	wait4			weak alias, for general use
+	_libc_wait4_cancel	hidden name, for use internal to libc only
+Inside libc, the bare name ("wait4") binds to the version *with*
+cancellation.  If it's necessary to use the syscall without doing
+cancellation it can be obtained by calling HIDDEN(x) instead of
+just x.
+
+Some other calls need to be wrapped for reasons other than cancellation,
+such as to provide functionality beyond the underlying syscall (e.g.,
+ptrace).  For these, there are identifiers for the raw call, without
+the wrapping:
+	_libc_ptrace		hidden alias, for use internal to libc only
+	_thread_sys_ptrace	global name, for use outside libc only
+...and identifiers that do provide the libc wrapping:
+	ptrace			weak alias, for general use
+	_libc_ptrace_wrap	hidden name, for use internal to libc only
+Inside libc, the bare name ("ptrace") binds to the wrapper; if
+the raw version is necessary it can be obtained by calling HIDDEN(x)
+instead of just x.
+
+For syscalls implemented in ASM, the aliases of the raw syscall stub
+are provided by the ASM macros.  Of the macros used by sys/Makefile.inc:
+RSYSCALL(), PSEUDO(), and PSEUDO_NOERROR() generate all three names
+(ala getpid() above), while RSYSCALL_HIDDEN() generates just the
+_thread_sys_x and _libc_x names.
+
+
+
+By using gcc's "asm label" extension, we can usually avoid having
+to type those prefixes in the .h and .c files.  However, for those
+cases where a non-default binding is necessary we can use these macros
+to get the desired identifier:
+
+  CANCEL(x)
+	This expands to the internal, hidden name of a cancellation
+	wrapper: _libc_x_cancel.  ex: CANCEL(fsync)(fd)
+
+  WRAP(x)
+	This expands to the internal, hidden name of a non-cancellation
+	wrapper: _libc_x_wrap.  ex: WRAP(sigprocmask)(set)
+
+
+In order to actually set up the desired asm labels, we use these in
+the internal .h files:
+  PROTO_NORMAL(x)		Symbols used both internally and externally
+	This makes gcc convert use of x to use _libc_x instead
+	ex: PROTO_NORMAL(getpid)
+
+  PROTO_STD_DEPRECATED(x)	Standard C symbols that we don't want to use
+	This just marks the symbol as deprecated, with no renaming.
+	ex: PROTO_STD_DEPRECATED(strcpy)
+
+  PROTO_DEPRECATED(x)	Symbols not in ISO C that we don't want to use
+	This marks the symbol as both weak and deprecated, with no renaming
+	ex: PROTO_DEPRECATED(creat)
+
+  PROTO_CANCEL(x)		Functions that have cancellation wrappers
+	Like PROTO_NORMAL(x), but also declares _libc_x_cancel
+	ex: PROTO_CANCEL(wait4)
+
+  PROTO_WRAP(x)		Functions that have wrappers for other reasons
+	Like PROTO_NORMAL(x), but also declares _libc_x_wrap.  Internal
+	calls that want the wrapper's processing should invoke WRAP(x)(...)
+	ex: PROTO_WRAP(sigaction)
+
+
+Finally, to create the expected aliases, we use these in the .c files
+where the definitions are:
+  DEF_STRONG(x)		Symbols reserved to or specified by ISO C
+	This defines x as a strong alias for _libc_x; this must only
+	be used for symbols that are reserved by the C standard
+	(or reserved in the external identifier namespace).
+	Matches with PROTO_NORMAL()
+	ex: DEF_STRONG(fopen)
+
+  DEF_WEAK(x)		Symbols used internally and not in ISO C
+	This defines x as a weak alias for _libc_x
+	Matches with PROTO_NORMAL()
+	ex: DEF_WEAK(lseek)
+
+  DEF_CANCEL(x)		Symbols that have a cancellation wrapper
+	This defines x as a weak alias for _libc_x_cancel.
+	Matches with PROTO_CANCEL()
+	ex: DEF_CANCEL(read)
+
+  DEF_WRAP(x)
+	This defines x as a weak alias for _libc_x_wrap.
+	Matches with PROTO_WRAP()
+	ex: DEF_WRAP(ptrace)
+
+  MAKE_CLONE(dst, src)	Symbols that are exact clones of other symbols
+	This declares _libc_dst as being the same type as dst, and makes
+	_libc_dst a strong, hidden alias for _libc_src.  You still need to
+	DEF_STRONG(dst) or DEF_WEAK(dst) to alias dst itself
+	ex: MAKE_CLONE(SHA224Pad, SHA256Pad)
+

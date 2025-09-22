@@ -1,0 +1,21 @@
+LIB1ASMSRC = xtensa/lib1funcs.asm
+LIB1ASMFUNCS = _mulsi3 _nsau _divsi3 _modsi3 _udivsi3 _umodsi3 \
+	_negsf2 _addsubsf3 _mulsf3 _divsf3 _cmpsf2 _fixsfsi _fixsfdi \
+	_fixunssfsi _fixunssfdi _floatsisf _floatunsisf \
+	_floatdisf _floatundisf \
+	_negdf2 _addsubdf3 _muldf3 _divdf3 _cmpdf2 _fixdfsi _fixdfdi \
+	_fixunsdfsi _fixunsdfdi _floatsidf _floatunsidf \
+	_floatdidf _floatundidf \
+	_truncdfsf2 _extendsfdf2
+
+LIB2FUNCS_EXTRA = $(srcdir)/config/xtensa/lib2funcs.S
+
+$(T)crti.o: $(srcdir)/config/xtensa/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crti.o -x assembler-with-cpp $(srcdir)/config/xtensa/crti.asm
+$(T)crtn.o: $(srcdir)/config/xtensa/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crtn.o -x assembler-with-cpp $(srcdir)/config/xtensa/crtn.asm
+
+$(out_object_file): gt-xtensa.h
+gt-xtensa.h : s-gtype ; @true

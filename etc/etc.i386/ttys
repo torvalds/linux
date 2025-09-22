@@ -1,0 +1,26 @@
+#
+#	$OpenBSD: ttys,v 1.18 2008/01/09 17:39:42 miod Exp $
+#
+# name	getty				type	status		comments
+#
+console	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyC0	"/usr/libexec/getty std.9600"	vt220	on  secure
+ttyC1	"/usr/libexec/getty std.9600"	vt220	on  secure
+ttyC2	"/usr/libexec/getty std.9600"	vt220	on  secure
+ttyC3	"/usr/libexec/getty std.9600"	vt220	on  secure
+ttyC4	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyC5	"/usr/libexec/getty std.9600"	vt220	on  secure
+ttyC6	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyC7	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyC8	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyC9	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyCa	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyCb	"/usr/libexec/getty std.9600"	vt220	off secure
+tty00	"/usr/libexec/getty std.9600"	unknown off
+tty01	"/usr/libexec/getty std.9600"	unknown off
+tty02	"/usr/libexec/getty std.9600"	unknown off
+tty03	"/usr/libexec/getty std.9600"	unknown off
+tty04	"/usr/libexec/getty std.9600"	unknown off
+tty05	"/usr/libexec/getty std.9600"	unknown off
+tty06	"/usr/libexec/getty std.9600"	unknown off
+tty07	"/usr/libexec/getty std.9600"	unknown off

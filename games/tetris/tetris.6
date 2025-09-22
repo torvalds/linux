@@ -1,0 +1,172 @@
+.\"	$OpenBSD: tetris.6,v 1.21 2017/06/19 06:04:16 bentley Exp $
+.\"
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Nancy L. Tinkham and Darren F. Provine.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)tetris.6	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: June 19 2017 $
+.Dt TETRIS 6
+.Os
+.Sh NAME
+.Nm tetris
+.Nd the game of tetris
+.Sh SYNOPSIS
+.Nm tetris
+.Op Fl cps
+.Op Fl k Ar keys
+.Op Fl l Ar level
+.Sh DESCRIPTION
+The
+.Nm
+command runs a display-based game.
+The object is to fit shapes together to form complete rows,
+which then vanish.
+When the shapes fill up to the top, the game ends.
+You can optionally select a level of play or custom-select control keys.
+.Pp
+The default level of play is 2.
+.Pp
+The default control keys are as follows:
+.Pp
+.Bl -tag -width "<space>" -compact -offset indent
+.It j
+move left
+.It k
+rotate 1/4 turn counterclockwise
+.It l
+move right
+.It <space>
+drop
+.It p
+pause
+.It q
+quit
+.El
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c
+Classic tetris mode, in which shapes rotate clockwise and are drawn with
+.Dq [] .
+.It Fl k Ar keys
+The default control keys can be changed using the
+.Fl k
+option.
+The
+.Ar keys
+argument must have the six keys in order; remember to quote any
+space or tab characters from the shell.
+For example:
+.sp
+.Dl "tetris -l 2 -k 'jkl pq'"
+.sp
+will play the default game, i.e. level 2 with the default
+control keys.
+The current key settings are displayed at the bottom of the screen
+during play.
+.It Fl l Ar level
+Select a level of play.
+.It Fl p
+Switch on previewing of the shape that will appear next.
+This penalizes your score.
+.It Fl s
+Display the top scores.
+.El
+.Sh PLAY
+At the start of the game, a shape will appear at the top of the screen,
+falling one square at a time.
+The speed at which it falls is determined directly by the level:
+if you select level 2, the blocks will fall twice per second;
+at level 9, they fall 9 times per second.
+(As the game goes on, things speed up,
+no matter what your initial selection.)
+When this shape
+.Dq "touches down"
+on the bottom of the field, another will appear at the top.
+.Pp
+You can move shapes to the left or right, rotate them counterclockwise,
+or drop them to the bottom by pressing the appropriate keys.
+As you fit them together, completed horizontal rows vanish,
+and any blocks above fall down to fill in.
+When the blocks stack up to the top of the screen, the game is over.
+.Sh SCORING
+You get one point for every block you fit into the stack,
+and one point for every space a block falls when you hit the drop key.
+(Dropping the blocks is therefore a good way to increase your score.)
+Completing a row rewards you with a bonus corresponding to the number
+of simultaneous rows completed.
+Your total score is the product of the level of play
+and your accumulated
+points \(em 200
+points on level 3 gives you a score of 600.
+Each player gets at most one entry on any level,
+for a total of nine scores in the high scores file.
+Players who no longer have accounts are limited to one score.
+Also, scores over 5 years old are expired.
+The exception to these conditions is that the highest score on a given
+level is
+.Em always
+kept,
+so that following generations can pay homage to those who have
+wasted serious amounts of time.
+.Pp
+The score list is produced at the end of the game.
+The printout includes each player's overall ranking,
+name, score, and how many points were scored on what level.
+Scores which are the highest on a given level
+are marked with asterisks
+.Dq * .
+.Sh ENVIRONMENT
+.Bl -tag -width $HOME/.tetris.scores
+.It Ev LOGNAME
+Name displayed in high score file.
+.El
+.Sh FILES
+.Bl -tag -width $HOME/.tetris.scores
+.It Pa $HOME/.tetris.scores
+High score file.
+.El
+.Sh AUTHORS
+.An -nosplit
+Adapted from a 1989 International Obfuscated C Code Contest winner by
+.An Chris Torek
+and
+.An Darren F. Provine .
+.Pp
+Manual adapted from the original entry written by
+.An Nancy L. Tinkham
+and
+.An Darren F. Provine .
+.Pp
+Shape previewing code adapted from code by
+.An Hubert Feyrer .
+.Sh BUGS
+The higher levels are unplayable without a fast terminal connection.

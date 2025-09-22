@@ -1,0 +1,78 @@
+.\" $OpenBSD: ASN1_item_verify.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_ITEM_VERIFY 3
+.Os
+.Sh NAME
+.Nm ASN1_item_verify
+.Nd signature verification for ASN.1 values
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo ASN1_item_verify
+.Fa "const ASN1_ITEM *it"
+.Fa "X509_ALGOR *algor1"
+.Fa "ASN1_BIT_STRING *sig_in"
+.Fa "void *val_in"
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_item_verify
+assumes that
+.Fa val_in
+is an
+.Ft ASN1_VALUE
+of the type specified by
+.Fa it ,
+encodes it into DER format by calling
+.Xr ASN1_item_i2d 3 ,
+and verifies in a way similar to
+.Xr EVP_DigestVerify 3
+that
+.Fa sig_in
+contains a valid signature of the resulting byte array,
+a signature that was created with the signature algorithm
+.Fa algor1
+and the private key corresponding to the public key
+.Fa pkey .
+.Sh RETURN VALUES
+.Fn ASN1_item_verify
+returns 1 if signature verification succeeds, 0 if signature verification
+fails, or \-1 if
+.Fa pkey
+is
+.Dv NULL ,
+if
+.Fa sig_in
+contains invalid flags, or if
+.Fa algor1
+requests an invalid or unsupported digest algorithm
+or does not work with the given
+.Fa pkey .
+.Sh SEE ALSO
+.Xr ASN1_BIT_STRING_new 3 ,
+.Xr ASN1_item_i2d 3 ,
+.Xr ASN1_item_sign 3 ,
+.Xr EVP_DigestVerify 3 ,
+.Xr EVP_PKEY_new 3 ,
+.Xr OBJ_find_sigid_algs 3 ,
+.Xr X509_ALGOR_new 3
+.Sh HISTORY
+.Fn ASN1_item_verify
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.1 .

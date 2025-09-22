@@ -1,0 +1,24 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ClangDriverTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/Basic",
+    "//clang/lib/Driver",
+    "//clang/lib/Frontend",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "DXCModeTest.cpp",
+    "DistroTest.cpp",
+    "GCCVersionTest.cpp",
+    "ModuleCacheTest.cpp",
+    "MultilibBuilderTest.cpp",
+    "MultilibTest.cpp",
+    "SanitizerArgsTest.cpp",
+    "ToolChainTest.cpp",
+  ]
+}

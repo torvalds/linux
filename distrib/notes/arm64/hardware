@@ -1,0 +1,94 @@
+dnl	$OpenBSD: hardware,v 1.28 2025/09/01 19:08:24 kettenis Exp $
+The following machines are targeted by OpenBSD/MACHINE:
+
+	Allwinner A64/H5/H6/H616
+		Pine64 Pine 64/64+
+		Pine64 H64
+		Pine64 Pinebook
+		NanoPi A64
+		Orange Pi PC2
+		Orange Pi Zero Plus
+		Orange Pi Zero2
+	AMD Opteron A1100 (Seattle)
+		AMD Seattle Development Board
+		SoftIron OverDrive 1000
+		SoftIron OverDrive 3000
+	Amlogic G12B/SM1
+		Banana Pi BPI-M5
+		Hardkernel ODROID-N2
+		Hardkernel ODROID-C4
+		Hardkernel ODROID-HC4
+	Ampere eMAG
+		Lenovo ThinkSystem HR330A
+		Lenovo ThinkSystem HR350A
+	Ampere Altra
+		GIGABYTE R152-P30/31/32
+		GIGABYTE E252-P30/31
+		GIGABYTE R272-P30/31/32/33
+	Apple M1/M2
+		Apple Mac mini (M1, 2020)
+		Apple MacBook Air (M1, 2020)
+		Apple MacBook Pro (13-inch, M1, 2020)
+		Apple iMac (24-inch, M1, 2021)
+		Apple MacBook Pro (14-inch, M1 Pro/Max, 2021)
+		Apple MacBook Pro (16-inch, M1 Pro/Max, 2021)
+		Apple Mac Studio (M1 Max/Ultra, 2022)
+		Apple Mac mini (M2, 2023)
+		Apple MacBook Air (13-inch, M2, 2022)
+		Apple MacBook Pro (13-inch, M2, 2022)
+		Apple MacBook Air (15-inch, M2, 2023)
+		Apple Mac mini (M2 Pro, 2023)
+		Apple MacBook Pro (14-inch, M2 Pro/Max, 2023)
+		Apple MacBook Pro (16-inch, M2 Pro/Max, 2023)
+		Apple Mac Studio (M2 Max/Ultra, 2023)
+	Broadcom BCM2837/BCM2711/BCM2712
+		Raspberry Pi 3
+		Raspberry Pi 3 Model B+
+		Raspberry Pi 4
+		Raspberry Pi 400
+		Raspberry Pi Compute Module 4
+		Raspberry Pi 5
+	Cix CD8180
+		Radxa Orion O6
+	Marvell ARMADA 3K
+		Turris MOX
+		Marvell ESPRESSObin
+		GL.iNet Brume
+	Marvell ARMADA 7K/8K
+		SolidRun/Marvell MACCHIATObin
+	NXP i.MX 8M Quad/Mini/Plus
+		MNT Reform
+		SolidRun CuBox-M
+		SolidRun HummingBoard
+	Qualcomm Snapdragon 7cx (SC7180/SC7180P)
+		Acer Aspire One
+	Qualcomm Snapdragon 8cx Gen 3 (SC8280XP)
+		Lenovo ThinkPad X13s Gen 1
+		Microsoft Windows Dev Kit 2023
+	Qualcomm Snapdragon X Elite (X1E80100)
+		ASUS Vivobook S 15
+		HONOR MagicBook Art 14 Snapdragon
+		HP OmniBook X 14
+		Lenovo Yoga Slim 7x
+		Lenovo Thinkpad T14s Gen 6
+		Samsung Galaxy Book4 Edge
+	Rockchip RK3328/RK3399(pro)
+		Pine64 ROCK64
+		Pine64 ROCKPro64
+		Pinebook Pro
+		Firefly-RK3399
+		FriendlyElec NanoPC-T4
+		Theobroma Systems RK3399-Q7
+		Radxa ROCK Pi N10
+	Rockchip RK3566/RK3568
+		Pine64 Quartz64 Model A
+		Pine64 Quartz64 Model B
+		ROC-RK3566-PC
+		NanoPi R5S
+		Radxa ROCK 3A
+	Rockchip RK3588
+		Radxa ROCK 5B
+		NanoPi R6C
+		NanoPi R6S
+	Socionext SC2A11
+		Socionext SynQuacer-E Developerbox

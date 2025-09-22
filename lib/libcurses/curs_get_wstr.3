@@ -1,0 +1,226 @@
+.\" $OpenBSD: curs_get_wstr.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 2002-2012,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_get_wstr.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.TH curs_get_wstr 3 2023-08-05 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.na
+.hy 0
+.SH NAME
+\fBget_wstr\fP,
+\fBgetn_wstr\fP,
+\fBwget_wstr\fP,
+\fBwgetn_wstr\fP,
+\fBmvget_wstr\fP,
+\fBmvgetn_wstr\fP,
+\fBmvwget_wstr\fP,
+\fBmvwgetn_wstr\fP \- get an array of wide characters from a curses terminal keyboard
+.ad
+.hy
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>\fP
+.sp
+\fBint get_wstr(wint_t *\fIwstr\fB);\fR
+.br
+\fBint getn_wstr(wint_t *\fIwstr\fB, int \fIn\fB);\fR
+.br
+\fBint wget_wstr(WINDOW *\fIwin\fB, wint_t *\fIwstr\fB);\fR
+.br
+\fBint wgetn_wstr(WINDOW *\fIwin\fB, wint_t *\fIwstr\fB, int \fIn\fB);\fR
+.sp
+\fBint mvget_wstr(int \fIy\fB, int \fIx\fB, wint_t *\fIwstr\fB);\fR
+.br
+\fBint mvgetn_wstr(int \fIy\fB, int \fIx\fB, wint_t *\fIwstr\fB, int \fIn\fB);\fR
+.br
+\fBint mvwget_wstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, wint_t *\fIwstr\fB);\fR
+.br
+\fBint mvwgetn_wstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, wint_t *\fIwstr\fB, int \fIn\fB);\fR
+.fi
+.SH DESCRIPTION
+The function
+\fBwgetn_wstr\fP
+is equivalent to a series of calls to
+\fBwget_wch\fP(3)
+until a newline or carriage return terminates the series:
+.bP
+The terminating character is not included in the returned string.
+.bP
+An end-of-file condition is represented by \fBWEOF\fP,
+as defined in \fB<wchar.h>\fP.
+.bP
+In all instances, the end of the string is terminated
+by a null \fBwchar_t\fP.
+.bP
+The function stores the result in the area pointed to
+by the \fIwstr\fP parameter.
+.bP
+The function reads at most \fIn\fP characters,
+thus preventing a possible overflow of the input buffer.
+.IP
+Any attempt to enter more characters
+(other than the terminating newline or carriage return)
+causes a beep.
+.IP
+Function keys also cause a beep and are ignored.
+.PP
+The user's \fIerase\fP and \fIkill\fP characters are interpreted:
+.bP
+The \fIerase\fP character (e.g., \fB^H\fP) erases the character
+at the end of the buffer, moving the cursor to the left.
+.IP
+If \fIkeypad\fP mode is on for the window,
+\fBKEY_LEFT\fP and \fBKEY_BACKSPACE\fP
+are both considered equivalent to the user's \fIerase\fP character.
+.bP
+The \fIkill\fP character (e.g., \fB^U\fP) erases the entire buffer,
+leaving the cursor at the beginning of the buffer.
+.PP
+Characters input are echoed only if \fBecho\fP is currently on.
+In that case,
+backspace is echoed as deletion of the previous character
+(typically a left motion).
+.PP
+The
+\fBgetn_wstr\fP,
+\fBmvgetn_wstr\fP,
+\fBmvwgetn_wstr\fP, and
+\fBwgetn_wstr\fP
+functions are identical
+to the
+\fBget_wstr\fP,
+\fBmvget_wstr\fP,
+\fBmvwget_wstr\fP, and
+\fBwget_wstr\fP
+functions, respectively,
+except that the
+\fB*n_*\fP
+versions read at most
+\fIn\fP
+characters, letting the application prevent overflow of the
+input buffer.
+.SH NOTES
+Any of these functions other than
+\fBwgetn_wstr\fP
+may be macros.
+.PP
+Using
+\fBget_wstr\fP,
+\fBmvget_wstr\fP,
+\fBmvwget_wstr\fP, or
+\fBwget_wstr\fP
+to read a line that
+overflows the array pointed to by
+\fBwstr\fP
+causes undefined
+results.
+The use of
+\fBgetn_wstr\fP,
+\fBmvgetn_wstr\fP,
+\fBmvwgetn_wstr\fP, or
+\fBwgetn_wstr\fP,
+respectively, is recommended.
+.PP
+These functions cannot return \fBKEY_\fP values because there
+is no way to distinguish a \fBKEY_\fP value from a valid \fBwchar_t\fP value.
+may be macros.
+.SH RETURN VALUE
+All of these functions return the integer \fBOK\fP upon successful completion.
+If unsuccessful, they return \fBERR\fP.
+.PP
+X/Open defines no error conditions.
+.PP
+In this implementation,
+these functions return an error
+.bP
+if the window pointer is null,
+.bP
+if its timeout expires without having any data, or
+.bP
+if the associated call to
+\fBwget_wch\fP
+failed.
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH PORTABILITY
+These functions are described in The Single Unix Specification, Version 2.
+No error conditions are defined.
+.PP
+This implementation returns \fBERR\fP if the window pointer is null,
+or if the lower-level \fBwget_wch\fP call returns an \fBERR\fP.
+In the latter case,
+an \fBERR\fP return without other data is treated as an end-of-file condition,
+and the returned array contains a \fBWEOF\fP followed by a null \fBwchar_t\fP.
+.PP
+X/Open curses documented these functions to pass an array of \fBwchar_t\fP
+in 1997, but that was an error because of this part of the description:
+.RS
+.PP
+The effect of \fBget_wstr\fP is as though a series of calls to
+\fBget_wch\fP were made, until a newline character, end-of-line character, or
+end-of-file character is processed.
+.RE
+.PP
+The latter function \fIget_wch\fP can return a negative value,
+while \fBwchar_t\fP is a unsigned type.
+All of the vendors implement this using \fBwint_t\fP, following the standard.
+.PP
+X/Open Curses, Issue 7 (2009) is unclear regarding whether
+the terminating \fInull \fBwchar_t\fR
+value is counted in the length parameter \fIn\fP.
+X/Open Curses, Issue 7 revised the corresponding description
+of \fBwgetnstr\fP to address this issue.
+The unrevised description of \fBwget_nwstr\fP can be interpreted either way.
+This implementation counts the terminator in the length.
+.PP
+X/Open Curses does not specify what happens if the length \fIn\fP is negative.
+.bP
+For analogy with \fBwgetnstr\fP,
+ncurses 6.2 uses a limit (based on \fBLINE_MAX\fP).
+.bP
+Some other implementations (such as Solaris xcurses) do the same,
+while others (PDCurses) do not allow this.
+.bP
+NetBSD 7 curses imitates ncurses 6.1 in this regard,
+treating a \fB\-1\fP as an indefinite number of characters.
+.SH SEE ALSO
+Functions:
+\fBcurses\fP(3),
+\fBcurs_get_wch\fP(3),
+\fBcurs_getstr\fP(3).

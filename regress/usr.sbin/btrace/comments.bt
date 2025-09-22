@@ -1,0 +1,10 @@
+/*
+ * Multi-lines comment.
+ */
+END
+// comment after probe
+{
+	printf("followed by a comment\n");
+	// comment that should be skipped (off-by one test)
+}
+/* Another comment */

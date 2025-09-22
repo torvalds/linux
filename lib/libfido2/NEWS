@@ -1,0 +1,226 @@
+* Version 1.11.0 (2022-05-03)
+ ** Experimental PCSC support; enable with -DUSE_PCSC.
+ ** Improved OpenSSL 3.0 compatibility.
+ ** Use RFC1951 raw deflate to compress CTAP 2.1 largeBlobs.
+ ** winhello: advertise "uv" instead of "clientPin".
+ ** winhello: support hmac-secret in fido_dev_get_assert().
+ ** New API calls:
+  - fido_cbor_info_maxlargeblob.
+ ** Documentation and reliability fixes.
+ ** Separate build and regress targets.
+
+* Version 1.10.0 (2022-01-17)
+ ** hid_osx: handle devices with paths > 511 bytes; gh#462.
+ ** bio: fix CTAP2 canonical CBOR encoding in fido_bio_dev_enroll_*(); gh#480.
+ ** winhello: fallback to GetTopWindow() if GetForegroundWindow() fails.
+ ** winhello: fallback to hid_win.c if webauthn.dll isn't available.
+ ** New API calls:
+  - fido_dev_info_set;
+  - fido_dev_io_handle;
+  - fido_dev_new_with_info;
+  - fido_dev_open_with_info.
+ ** Cygwin and NetBSD build fixes.
+ ** Documentation and reliability fixes.
+ ** Support for TPM 2.0 attestation of COSE_ES256 credentials.
+
+* Version 1.9.0 (2021-10-27)
+ ** Enabled NFC support on Linux.
+ ** Added OpenSSL 3.0 compatibility.
+ ** Removed OpenSSL 1.0 compatibility.
+ ** Support for FIDO 2.1 "minPinLength" extension.
+ ** Support for COSE_EDDSA, COSE_ES256, and COSE_RS1 attestation.
+ ** Support for TPM 2.0 attestation.
+ ** Support for device timeouts; see fido_dev_set_timeout().
+ ** New API calls:
+  - es256_pk_from_EVP_PKEY;
+  - fido_cred_attstmt_len;
+  - fido_cred_attstmt_ptr;
+  - fido_cred_pin_minlen;
+  - fido_cred_set_attstmt;
+  - fido_cred_set_pin_minlen;
+  - fido_dev_set_pin_minlen_rpid;
+  - fido_dev_set_timeout;
+  - rs256_pk_from_EVP_PKEY.
+ ** Reliability and portability fixes.
+ ** Better handling of HID devices without identification strings; gh#381.
+ ** Fixed detection of Windows's native webauthn API; gh#382.
+
+* Version 1.8.0 (2021-07-22)
+ ** Dropped 'Requires.private' entry from pkg-config file.
+ ** Better support for FIDO 2.1 authenticators.
+ ** Support for Windows's native webauthn API.
+ ** Support for attestation format 'none'.
+ ** New API calls:
+  - fido_assert_set_clientdata;
+  - fido_cbor_info_algorithm_cose;
+  - fido_cbor_info_algorithm_count;
+  - fido_cbor_info_algorithm_type;
+  - fido_cbor_info_transports_len;
+  - fido_cbor_info_transports_ptr;
+  - fido_cred_set_clientdata;
+  - fido_cred_set_id;
+  - fido_credman_set_dev_rk;
+  - fido_dev_is_winhello.
+ ** fido2-token: new -Sc option to update a resident credential.
+ ** Documentation and reliability fixes.
+ ** HID access serialisation on Linux.
+
+* Version 1.7.0 (2021-03-29)
+ ** New dependency on zlib.
+ ** Fixed musl build; gh#259.
+ ** hid_win: detect devices with vendor or product IDs > 0x7fff; gh#264.
+ ** Support for FIDO 2.1 authenticator configuration.
+ ** Support for FIDO 2.1 UV token permissions.
+ ** Support for FIDO 2.1 "credBlobs" and "largeBlobs" extensions.
+ ** New API calls:
+  - fido_assert_blob_len;
+  - fido_assert_blob_ptr;
+  - fido_assert_largeblob_key_len;
+  - fido_assert_largeblob_key_ptr;
+  - fido_assert_set_hmac_secret;
+  - fido_cbor_info_maxcredbloblen;
+  - fido_cred_largeblob_key_len;
+  - fido_cred_largeblob_key_ptr;
+  - fido_cred_set_blob;
+  - fido_dev_enable_entattest;
+  - fido_dev_force_pin_change;
+  - fido_dev_has_uv;
+  - fido_dev_largeblob_get;
+  - fido_dev_largeblob_get_array;
+  - fido_dev_largeblob_remove;
+  - fido_dev_largeblob_set;
+  - fido_dev_largeblob_set_array;
+  - fido_dev_set_pin_minlen;
+  - fido_dev_set_sigmask;
+  - fido_dev_supports_credman;
+  - fido_dev_supports_permissions;
+  - fido_dev_supports_uv;
+  - fido_dev_toggle_always_uv.
+ ** New fido_init flag to disable fido_dev_open's U2F fallback; gh#282.
+ ** Experimental NFC support on Linux; enable with -DNFC_LINUX.
+
+* Version 1.6.0 (2020-12-22)
+ ** Fix OpenSSL 1.0 and Cygwin builds.
+ ** hid_linux: fix build on 32-bit systems.
+ ** hid_osx: allow reads from spawned threads.
+ ** Documentation and reliability fixes.
+ ** New API calls:
+  - fido_cred_authdata_raw_len;
+  - fido_cred_authdata_raw_ptr;
+  - fido_cred_sigcount;
+  - fido_dev_get_uv_retry_count;
+  - fido_dev_supports_credman.
+ ** Hardened Windows build.
+ ** Native FreeBSD and NetBSD support.
+ ** Use CTAP2 canonical CBOR when combining hmac-secret and credProtect.
+
+* Version 1.5.0 (2020-09-01)
+ ** hid_linux: return FIDO_OK if no devices are found.
+ ** hid_osx:
+  - repair communication with U2F tokens, gh#166;
+  - reliability fixes.
+ ** fido2-{assert,cred}: new options to explicitly toggle UP, UV.
+ ** Support for configurable report lengths.
+ ** New API calls:
+  - fido_cbor_info_maxcredcntlst;
+  - fido_cbor_info_maxcredidlen;
+  - fido_cred_aaguid_len;
+  - fido_cred_aaguid_ptr;
+  - fido_dev_get_touch_begin;
+  - fido_dev_get_touch_status.
+ ** Use COSE_ECDH_ES256 with CTAP_CBOR_CLIENT_PIN; gh#154.
+ ** Allow CTAP messages up to 2048 bytes; gh#171.
+ ** Ensure we only list USB devices by default.
+
+* Version 1.4.0 (2020-04-15)
+ ** hid_hidapi: hidapi backend; enable with -DUSE_HIDAPI=1.
+ ** Fall back to U2F if the key claims to, but does not support FIDO2.
+ ** FIDO2 credential protection (credprot) support.
+ ** New API calls:
+  - fido_cbor_info_fwversion;
+  - fido_cred_prot;
+  - fido_cred_set_prot;
+  - fido_dev_set_transport_functions;
+  - fido_set_log_handler.
+ ** Support for FreeBSD.
+ ** Support for C++.
+ ** Support for MSYS.
+ ** Fixed EdDSA and RSA self-attestation.
+
+* Version 1.3.1 (2020-02-19)
+ ** fix zero-ing of le1 and le2 when talking to a U2F device.
+ ** dropping sk-libfido2 middleware, please find it in the openssh tree.
+
+* Version 1.3.0 (2019-11-28)
+ ** assert/hmac: encode public key as per spec, gh#60.
+ ** fido2-cred: fix creation of resident keys.
+ ** fido2-{assert,cred}: support for hmac-secret extension.
+ ** hid_osx: detect device removal, gh#56.
+ ** hid_osx: fix device detection in MacOS Catalina.
+ ** New API calls:
+  - fido_assert_set_authdata_raw;
+  - fido_assert_sigcount;
+  - fido_cred_set_authdata_raw;
+  - fido_dev_cancel.
+ ** Middleware library for use by OpenSSH.
+ ** Support for biometric enrollment.
+ ** Support for OpenBSD.
+ ** Support for self-attestation.
+
+* Version 1.2.0 (released 2019-07-26)
+ ** Credential management support.
+ ** New API reflecting FIDO's 3-state booleans (true, false, absent):
+  - fido_assert_set_up;
+  - fido_assert_set_uv;
+  - fido_cred_set_rk;
+  - fido_cred_set_uv.
+ ** Command-line tools for Windows.
+ ** Documentation and reliability fixes.
+ ** fido_{assert,cred}_set_options() are now marked as deprecated.
+
+* Version 1.1.0 (released 2019-05-08)
+ ** MacOS: fix IOKit crash on HID read.
+ ** Windows: fix contents of release file.
+ ** EdDSA (Ed25519) support.
+ ** fido_dev_make_cred: fix order of CBOR map keys.
+ ** fido_dev_get_assert: plug memory leak when operating on U2F devices.
+
+* Version 1.0.0 (released 2019-03-21)
+ ** Native HID support on Linux, MacOS, and Windows.
+ ** fido2-{assert,cred}: new -u option to force U2F on dual authenticators.
+ ** fido2-assert: support for multiple resident keys with the same RP.
+ ** Strict checks for CTAP2 compliance on received CBOR payloads.
+ ** Better fuzzing harnesses.
+ ** Documentation and reliability fixes.
+
+* Version 0.4.0 (released 2019-01-07)
+ ** fido2-assert: print the user id for resident credentials.
+ ** Fix encoding of COSE algorithms when making a credential.
+ ** Rework purpose of fido_cred_set_type; no ABI change.
+ ** Minor documentation and code fixes.
+
+* Version 0.3.0 (released 2018-09-11)
+ ** Various reliability fixes.
+ ** Merged fuzzing instrumentation.
+ ** Added regress tests.
+ ** Added support for FIDO 2's hmac-secret extension.
+ ** New API calls:
+  - fido_assert_hmac_secret_len;
+  - fido_assert_hmac_secret_ptr;
+  - fido_assert_set_extensions;
+  - fido_assert_set_hmac_salt;
+  - fido_cred_set_extensions;
+  - fido_dev_force_fido2.
+ ** Support for native builds with Microsoft Visual Studio 17.
+
+* Version 0.2.0 (released 2018-06-20)
+ ** Added command-line tools.
+ ** Added a couple of missing get functions.
+
+* Version 0.1.1 (released 2018-06-05)
+ ** Added documentation.
+ ** Added OpenSSL 1.0 support.
+ ** Minor fixes.
+
+* Version 0.1.0 (released 2018-05-18)
+ ** First beta release.

@@ -1,0 +1,4 @@
+declare_args() {
+  # Whether to build clangd's XPC components.
+  clangd_build_xpc = current_os == "mac"
+}

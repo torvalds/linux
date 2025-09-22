@@ -1,0 +1,15 @@
+#!/bin/ksh
+#
+# $OpenBSD: bootparamd,v 1.4 2018/01/11 21:09:26 rpe Exp $
+
+daemon="/usr/sbin/rpc.bootparamd"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=NO
+
+rc_pre() {
+	[[ -s /etc/bootparams ]]
+}
+
+rc_cmd $1

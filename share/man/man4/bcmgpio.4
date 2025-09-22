@@ -1,0 +1,46 @@
+.\"	$OpenBSD: bcmgpio.4,v 1.2 2020/05/16 17:58:55 jmc Exp $
+.\"
+.\" Copyright (c) 2020 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 16 2020 $
+.Dt BCMGPIO 4
+.Os
+.Sh NAME
+.Nm bcmgpio
+.Nd Broadcom BCM283x GPIO controller
+.Sh SYNOPSIS
+.Cd "bcmgpio* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver uses pin control data from the device tree to select one of
+multiple possible roles available for pins on Broadcom BCM283x and
+BCM2711 SoCs.
+It does not provide direct device driver entry points but makes its
+functions available to other drivers.
+.Sh SEE ALSO
+.Xr gpio 4 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

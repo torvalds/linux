@@ -1,0 +1,3 @@
+dnl	$OpenBSD: whatis,v 1.4 2014/04/22 22:58:02 aoyama Exp $
+
+OpenBSD/MACHINE runs on the OMRON LUNA-88K family of workstations.

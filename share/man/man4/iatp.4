@@ -1,0 +1,46 @@
+.\"	$OpenBSD: iatp.4,v 1.2 2016/09/01 10:37:50 jmc Exp $
+.\"
+.\" Copyright (c) 2016 joshua stein <jcs@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 1 2016 $
+.Dt IATP 4
+.Os
+.Sh NAME
+.Nm iatp
+.Nd Atmel maXTouch touchpad and touchscreen
+.Sh SYNOPSIS
+.Cd "iatp* at iic?"
+.Cd "wsmouse* at iatp? mux 0"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Atmel maXTouch touchpad and touchscreen
+devices connected over Inter-Integrated Circuit (I2C) buses.
+Access to these devices is through the
+.Xr wscons 4
+driver.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr wsmouse 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An joshua stein Aq Mt jcs@openbsd.org .

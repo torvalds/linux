@@ -1,0 +1,305 @@
+.\"	$OpenBSD: syslogd.8,v 1.61 2022/06/16 18:44:43 bluhm Exp $
+.\"
+.\" Copyright (c) 1983, 1986, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)syslogd.8	8.1 (Berkeley) 6/6/93
+.\"	$NetBSD: syslogd.8,v 1.3 1996/01/02 17:41:48 perry Exp $
+.\"
+.Dd $Mdocdate: June 16 2022 $
+.Dt SYSLOGD 8
+.Os
+.Sh NAME
+.Nm syslogd
+.Nd log system messages
+.Sh SYNOPSIS
+.Nm syslogd
+.Bk -words
+.Op Fl 46dFhnruVZ
+.Op Fl a Ar path
+.Op Fl C Ar CAfile
+.Op Fl c Ar cert_file
+.Op Fl f Ar config_file
+.Op Fl K Ar CAfile
+.Op Fl k Ar key_file
+.Op Fl m Ar mark_interval
+.Op Fl p Ar log_socket
+.Op Fl S Ar listen_address
+.Op Fl s Ar reporting_socket
+.Op Fl T Ar listen_address
+.Op Fl U Ar bind_address
+.Ek
+.Sh DESCRIPTION
+.Nm
+writes system messages to log files or a user's terminal.
+Output can be sent to other programs
+for further processing.
+It can also securely send and receive log messages
+to and from remote hosts.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 4
+Forces
+.Nm
+to use only IPv4 addresses for UDP.
+.It Fl 6
+Forces
+.Nm
+to use only IPv6 addresses for UDP.
+.It Fl a Ar path
+Specify a location where
+.Nm
+should place an additional log socket.
+The primary use for this is to place additional log sockets in
+.Pa /dev/log
+of various chroot filespaces, though the need for these is
+less urgent after the introduction of
+.Xr sendsyslog 2 .
+.It Fl C Ar CAfile
+PEM encoded file containing CA certificates used for certificate
+validation of a remote loghost;
+the default is
+.Pa /etc/ssl/cert.pem .
+.It Fl c Ar cert_file
+PEM encoded file containing the client certificate for TLS connections
+to a remote loghost.
+The default is not to use a client certificate for the outgoing connection
+to a syslog server.
+This option has to be used together with
+.Fl k Ar key_file .
+.It Fl d
+Enable debugging to the standard output,
+and do not disassociate from the controlling terminal.
+.It Fl F
+Run in the foreground instead of disassociating from the controlling
+terminal and running as a background daemon.
+.It Fl f Ar config_file
+Specify the pathname of an alternate configuration file;
+the default is
+.Pa /etc/syslog.conf .
+.It Fl h
+Include the hostname when sending messages to a remote loghost.
+.It Fl K Ar CAfile
+PEM encoded file containing CA certificates used for client certificate
+validation on the local listen socket.
+By default incoming connections from any TLS client are allowed.
+.It Fl k Ar key_file
+PEM encoded file containing the client private key for TLS connections
+to a remote loghost.
+This option has to be used together with
+.Fl c Ar cert_file .
+.It Fl m Ar mark_interval
+Select the number of minutes between
+.Dq mark
+messages; the default is 20 minutes.
+.It Fl n
+Print source addresses numerically rather than symbolically.
+This saves an address-to-name lookup for each incoming message,
+which can be useful when combined with the
+.Fl u
+option on a loghost with no DNS cache.
+Messages from the local host will still be logged with
+the symbolic local host name.
+.It Fl p Ar log_socket
+Specify the pathname of an alternate log socket to be used instead;
+the default is
+.Pa /dev/log .
+.It Fl r
+Print duplicate lines immediately and suppress the "last message
+repeated" summary when piping to another program or forwarding to
+a remote loghost.
+If given twice, this is done for all log actions.
+.It Fl S Ar listen_address
+Create a TLS listen socket for receiving encrypted messages and
+bind it to the specified address.
+A port number may be specified using the
+.Ar host : Ns Ar port
+syntax.
+The first
+.Ar listen_address
+is also used to find a suitable server key and certificate in
+.Pa /etc/ssl/ .
+.It Fl s Ar reporting_socket
+Specify path to a UNIX-domain
+socket for use in reporting logs stored in memory buffers using
+.Xr syslogc 8 .
+.It Fl T Ar listen_address
+Create a TCP listen socket for receiving messages and bind it to
+the specified address.
+There is no well-known port for syslog over TCP, so a port number
+must be specified using the
+.Ar host : Ns Ar port
+syntax.
+.It Fl U Ar bind_address
+Create a UDP socket for receiving messages and bind it to the
+specified address.
+This can be used, for example, with a pf divert-to rule to receive
+packets when
+.Nm
+is bound to localhost.
+A port number may be specified using the
+.Ar host : Ns Ar port
+syntax.
+.It Fl u
+Select the historical
+.Dq insecure
+mode, in which
+.Nm
+will accept input from the UDP port.
+Some software wants this, but you can be subjected to a variety of
+attacks over the network, including attackers remotely filling logs.
+.It Fl V
+Do not perform remote server certificate and hostname validation
+when sending messages.
+.It Fl Z
+Generate timestamps in ISO format.
+This includes the year and the timezone, and all logging is done
+in UTC.
+.El
+.Pp
+The options
+.Fl a , S , T ,
+and
+.Fl U
+can be given more than once to specify multiple input sources.
+.Pp
+When starting up,
+.Nm
+reads its configuration file,
+.Xr syslog.conf 5 ,
+and opens the configured logfiles and TCP and TLS connections.
+The logfiles already have to exist with the correct permissions.
+When receiving a
+.Dv SIGHUP
+signal, it closes all open logfiles and outgoing TCP and TLS
+connections and re-runs this initialization sequence.
+Sending this signal is required both after editing the configuration
+file and after log rotation.
+.Pp
+.Nm
+opens a UDP socket, as specified
+in
+.Pa /etc/services ,
+for sending forwarded messages.
+By default all incoming data on this socket is discarded.
+If insecure mode is switched on with
+.Fl u ,
+it will also read messages from the socket.
+.Nm
+also opens and reads messages from the
+.Ux Ns -domain
+socket
+.Pa /dev/log ,
+and from the special device
+.Pa /dev/klog
+(to read kernel messages),
+and from
+.Xr sendsyslog 2
+(to read messages from userland processes).
+.Pp
+The message sent to
+.Nm
+should consist of a single line.
+Embedded new line characters are converted to spaces;
+binary data is encoded by
+.Xr vis 3 ,
+but no backslash is inserted.
+The message can contain a priority code, which should be a preceding
+decimal number in angle braces, for example,
+.Dq <5> .
+This priority code should map into the priorities defined in the
+include file
+.In sys/syslog.h .
+.Pp
+When sending syslog messages to a remote loghost via TLS, the
+server's certificate and hostname are validated to prevent malicious
+servers from reading messages.
+If the server has a certificate with a matching hostname signed by
+a CA in
+.Pa /etc/ssl/cert.pem ,
+it is verified with that by default.
+If the server has a certificate with a matching hostname signed by
+a private CA, use the
+.Fl C
+option and put that CA into
+.Ar CAfile .
+Validation can be explicitly turned off using the
+.Fl V
+option.
+If the server is accepting messages only from clients with a trusted
+client certificate, use the
+.Fl k
+and
+.Fl c
+options to authenticate
+.Nm
+with this certificate.
+.Pp
+When receiving syslog messages from a TLS client, there must be
+a server key and certificate in
+.Pa /etc/ssl/private/host Ns Oo : Ns Ar port Oc Ns Ar .key
+and
+.Pa /etc/ssl/host Ns Oo : Ns Ar port Oc Ns Ar .crt .
+If the client uses certificates to authenticate, the CA of the
+client's certificate may be added to
+.Ar CAfile
+using the
+.Fl K
+option to protect from messages being spoofed by malicious senders.
+.Sh FILES
+.Bl -tag -width /var/run/syslog.pid -compact
+.It Pa /dev/log
+Name of the
+.Ux Ns -domain
+datagram log socket.
+.It Pa /dev/klog
+Kernel log device.
+.It Pa /etc/ssl/
+Private keys and public certificates.
+.It Pa /etc/syslog.conf
+Configuration file.
+.It Pa /var/run/syslog.pid
+Process ID of current
+.Nm .
+.El
+.Sh SEE ALSO
+.Xr logger 1 ,
+.Xr syslog 3 ,
+.Xr services 5 ,
+.Xr syslog.conf 5 ,
+.Xr newsyslog 8 ,
+.Xr syslogc 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .
+.Sh CAVEATS
+.Nm
+does not create files,
+it only logs to existing ones.

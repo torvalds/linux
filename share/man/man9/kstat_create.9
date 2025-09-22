@@ -1,0 +1,268 @@
+.\" $OpenBSD: kstat_create.9,v 1.7 2022/09/10 08:50:53 jsg Exp $
+.\"
+.\" Copyright (c) 2020 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 10 2022 $
+.Dt KSTAT_CREATE 9
+.Os
+.Sh NAME
+.Nm kstat_create ,
+.Nm kstat_read_nop ,
+.Nm kstat_set_wlock ,
+.Nm kstat_set_rlock ,
+.Nm kstat_set_mutex ,
+.Nm kstat_install ,
+.Nm kstat_remove ,
+.Nm kstat_destroy
+.Nd kernel statistics provider API
+.Sh SYNOPSIS
+.In sys/kstat.h
+.Ft struct kstat *
+.Fo kstat_create
+.Fa "const char *provider"
+.Fa "unsigned int instance"
+.Fa "const char *name"
+.Fa "unsigned int unit"
+.Fa "unsigned int type"
+.Fa "unsigned int flags"
+.Fc
+.Ft int
+.Fn kstat_read_nop "struct kstat *ks"
+.Ft void
+.Fn kstat_set_wlock "struct kstat *ks" "struct rwlock *rwl"
+.Ft void
+.Fn kstat_set_rlock "struct kstat *ks" "struct rwlock *rwl"
+.Ft void
+.Fn kstat_set_mutex "struct kstat *ks" "struct mutex *mtx"
+.Ft void
+.Fn kstat_install "struct kstat *ks"
+.Ft void
+.Fn kstat_remove "struct kstat *ks"
+.Ft void
+.Fn kstat_destroy "struct kstat *ks"
+.Sh DESCRIPTION
+Kernel subsystems can provide statistics to userland using the kernel
+statistics (kstat) API.
+.Pp
+A kstat is uniquely identified by a tuple made up of the
+.Fa provider ,
+.Fa instances ,
+.Fa name ,
+and
+.Fa unit
+arguments.
+.\" Once created, the kstat API allocates a unique 64bit identifier for
+.\" the kstat.
+.Pp
+The information exported by a kstat is typed.
+The supported kstat types are
+.Bl -tag -width xxx -offset indent
+.It Dv KSTAT_T_RAW
+The kstat provides raw bytes.
+.It Dv KSTAT_T_KV
+The kstat provides a series of
+.Vt struct kstat_kv
+structures that represent key/value information.
+See
+.Xr kstat_kv_init 9
+for more detail.
+.El
+.Pp
+Below is a simplified version of the
+.Vt kstat
+structure that shows the fields that a subsystem operates on:
+.Bd -literal
+struct kstat {
+	void			 *ks_softc;
+	void			 *ks_ptr;
+
+	void			 *ks_data;
+	size_t			  ks_datalen;
+	struct timespec		  ks_updated;
+
+	int			(*ks_read)(struct kstat *ks);
+	int			(*ks_copy)(struct kstat *ks, void *dst);
+
+	const struct kstat_lock_ops *
+				  ks_lock_ops;
+	void			 *ks_lock;
+};
+.Ed
+.Pp
+The
+.Fa ks_softc
+and
+.Fa ks_ptr
+fields are available for the subsystem providing the kstat to use.
+For example, if a hardware device driver is providing a kstat then
+.Fa ks_softc
+can be initialised with a reference to the softc structure allocated
+for that device driver.
+.Fa ks_ptr
+is intended for use by a subsystem to refer to data or state that
+is only needed when providing the kstat which would not otherwise
+be referenced by the provider.
+.Pp
+The
+.Fa ks_datalen
+field specifies how much data is exported by the kstat to userland.
+.Pp
+.Fa ks_updated
+is set by the provider to the system uptime when the kstat data was
+updated.
+.Pp
+.Fa ks_data
+may be set to a data buffer used to store the kstat data payload.
+.Pp
+The
+.Fa ks_read
+handler is called by the kstat API when userland requests the current
+kstat data.
+A kstat provider may ignore the request via and update the data by
+another process.
+For example, a device may periodically update a set of statistics
+and notify the kernel when the new statistics are available with
+an interrupt.
+Such a driver would update the kstat data and
+.Fa ks_updated
+when the interrupt is processed, and ignore the request to update
+from userland.
+The default
+.Fa ks_read
+handler sets
+.Fa ks_updated
+using
+.Xr getnanouptime 9 .
+.Pp
+The
+.Fa ks_copy
+handler is used by the kstat API to copy the current kstat data into the
+.Fa dst
+buffer.
+The default
+.Fa ks_copy
+handler uses
+.Xr memcpy 3
+to copy
+.Fa ks_datalen
+bytes from
+.Fa ks_data
+to
+.Fa dst .
+.Pp
+Accesses to the above
+.Vt kstat
+structure fields and calls to the
+.Fa ks_read
+and
+.Fa ks_copy
+handlers by the kstat subsystem are serialised by the locking primitive
+referenced by
+.Fa ks_lock .
+By default
+.Fa ks_lock
+references a global write lock provided by the kstat API,
+but should be set to a provider specific lock with the
+.Fa kstat_set_rlock ,
+.Fa kstat_set_wlock ,
+or
+.Fa kstat_set_mutex
+functions.
+.Pp
+The
+.Fn kstat_create
+function allocates a
+.Vt kstat
+structure and adds it to the list of statistics that userland can
+query.
+Once a
+.Vt kstat
+structure has been created,
+the caller is responsible for initialising the structure.
+.Pp
+.Fn kstat_read_nop
+can be used as a
+.Fa ks_read
+handler to ignore the request to update the kstat data and
+.Fa ks_updated
+timestamp.
+.Pp
+The
+.Fn kstat_set_wlock
+and
+.Fn kstat_set_rlock
+functions specifies that the
+.Fa rwl
+read/write lock should be used as an exclusive or shared lock
+respectively by the kstat API when interacting with the provider.
+.Pp
+The
+.Fn kstat_set_mutex
+function specifies that the
+.Fa mtx
+mutex should be acquired by the kstat API when interacting with the
+provider.
+.Pp
+After the structure has been initialised,
+.Fn kstat_install
+notifies the kstat subsystem that
+.Fa ks
+can be used to export information to userland.
+.Pp
+.Fn kstat_remove
+disables the kstat, preventing it from being used to export information
+to userland.
+This allows allocations referenced by the kstat struct to be released
+and configuration torn down before the kstat itself is freed with
+.Fn kstat_destroy .
+.Pp
+.Fn kstat_destroy
+removes
+.Fa ks
+from the list of exported statistics and frees it.
+.Sh CONTEXT
+.Fn kstat_create ,
+.Fn kstat_install ,
+.Fn kstat_remove ,
+.Fn kstat_set_wlock ,
+.Fn kstat_set_rlock ,
+.Fn kstat_set_mutex ,
+and
+.Fn kstat_destroy
+can be called during autoconf, or from process context.
+They cannot be called by a
+.Fa ks_read
+or
+.Fa ks_copy
+handler.
+.Sh RETURN VALUES
+.Fn kstat_create
+returns a pointer to a
+.Vt kstat
+structure on success, or
+.Dv NULL
+on failure.
+.Sh SEE ALSO
+.Xr kstat 1 ,
+.Xr memcpy 3 ,
+.Xr kstat 4 ,
+.Xr kstat_kv_init 9 ,
+.Xr mtx_enter 9 ,
+.Xr rw_enter 9
+.Sh HISTORY
+These functions first appeared in
+.Ox 6.8 .
+.Sh AUTHORS
+.An David Gwynne Aq Mt dlg@openbsd.org

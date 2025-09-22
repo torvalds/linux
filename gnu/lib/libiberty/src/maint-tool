@@ -1,0 +1,296 @@
+#!/usr/bin/perl
+# -*- perl -*-
+
+#   Copyright (C) 2001
+#   Free Software Foundation
+#
+# This file is part of the libiberty library.
+# Libiberty is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# Libiberty is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU Library General Public
+# License along with libiberty; see the file COPYING.LIB.  If not,
+# write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+# Boston, MA 02110-1301, USA.
+#
+# Originally written by DJ Delorie <dj@redhat.com>
+
+
+# This is a trivial script which checks the lists of C and O files in
+# the Makefile for consistency.
+
+$mode = shift;
+$srcdir = ".";
+
+if ($mode eq "-s") {
+    $srcdir = shift;
+    $mode = shift;
+}
+
+&missing() if $mode eq "missing";
+&undoc() if $mode eq "undoc";
+&deps() if $mode eq "deps";
+
+exit 0;
+
+format STDOUT =
+^<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<~
+$out
+        ^<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<~~
+$out
+.
+
+######################################################################
+
+sub missing {
+
+    opendir(S, $srcdir);
+    while ($f = readdir S) {
+	$have{$f} = 1;
+    }
+    closedir(S);
+    opendir(S, ".");
+    while ($f = readdir S) {
+	$have{$f} = 1;
+    }
+    closedir(S);
+
+    for $a (@ARGV) {
+	$listed{$a} = 1;
+	$have{$a} = 0;
+    }
+
+    for $f (sort keys %have) {
+	next unless $have{$f};
+	if ($f =~ /\.c$/) {
+	    print "S $f\n";
+	}
+    }
+    for $f (sort keys %listed) {
+	if ($f =~ /(.*)\.c$/) {
+	    $base = $1;
+	    if (! $listed{"$base.o"}) {
+		print "O $f\n";
+	    }
+	}
+    }
+}
+
+######################################################################
+
+sub undoc {
+
+    opendir(S, $srcdir);
+    while ($file = readdir S) {
+	if ($file =~ /\.texi$/) {
+	    open(T, "$srcdir/$file");
+	    while (<T>) {
+		if (/^\@deftype[^\(]* ([^\s\(]+) *\(/) {
+		    $documented{$1} = 1;
+		}
+	    }
+	    close(T);
+	}
+	if ($file =~ /\.c$/) {
+	    open(C, "$srcdir/$file");
+	    while (<C>) {
+		if (/\@undocumented (\S+)/) {
+		    $documented{$1} = 1;
+		}
+		if (/^static /) {
+		    if (! /[\(;]/) {
+			s/[\r\n]+$/ /;
+			$_ .= <C>;
+		    }
+		    while ($_ =~ /\([^\)]*$/) {
+			s/[\r\n]+$/ /;
+			$_ .= <C>;
+		    }
+		}
+		s/ VPARAMS([ \(])/$1/;
+		s/PREFIX\(([^\)]*)\)/byte_$1/;
+		if (/^static [^\(]* ([^\s\(]+) *\(.*\)$/) {
+		    $documented{$1} = 1;
+		}
+	    }
+	}
+    }
+    closedir(D);
+
+    # $out = join(' ', sort keys %documented);
+    # write;
+    # print "\n";
+
+    system "etags $srcdir/*.c $srcdir/../include/*.h";
+    open(TAGS, "TAGS");
+    while (<TAGS>) {
+	s/[\r\n]+$//;
+	if (/^\014$/) {
+	    $filename = <TAGS>;
+	    $filename =~ s/[\r\n]+$//;
+	    $filename =~ s/,\d+$//;
+	    $filename =~ s@.*[/\\]@@;
+	    next;
+	}
+	if ($filename =~ /\.c$/ ) {
+	    next unless /^[_a-zA-Z]/;
+	} else {
+	    next unless /^\# *define/;
+	    s/\# *define *//;
+	}
+
+	s/ VPARAMS//;
+	s/ *\177.*//;
+	s/,$//;
+	s/DEFUN\(//;
+	s/\(//;
+
+	next if /^static /;
+	next if /\s/;
+	next if /^_/;
+	next if $documented{$_};
+	next if /_H_?$/;
+
+	if ($seen_in{$_} ne $filename) {
+	    $saw{$_} ++;
+	}
+	$seen_in{$_} = $filename;
+    }
+
+    for $k (keys %saw) {
+	delete $saw{$k} if $saw{$k} > 1;
+    }
+
+    for $k (sort keys %saw) {
+	$fromfile{$seen_in{$k}} .= " " if $fromfile{$seen_in{$k}};
+	$fromfile{$seen_in{$k}} .= $k;
+    }
+
+    for $f (sort keys %fromfile) {
+	$out = "$f: $fromfile{$f}";
+	write;
+    }
+}
+
+######################################################################
+
+sub deps_for {
+    my($f) = @_;
+    my(%d);
+    open(F, $f);
+    %d = ();
+    while (<F>) {
+	if (/^#\s*include\s+["<](.*)[">]/) {
+	    $d{$1} = 1;
+	}
+    }
+    close(F);
+    return keys %d;
+}
+
+sub canonicalize {
+    my ($p) = @_;
+    0 while $p =~ s@/\./@/@g;
+    0 while $p =~ s@^\./@@g;
+    0 while $p =~ s@/[^/]+/\.\./@/@g;
+    return $p;
+}
+
+sub locals_first {
+    my ($a,$b) = @_;
+    return -1 if $a eq "config.h";
+    return  1 if $b eq "config.h";
+    return $a cmp $b;
+}
+
+sub deps {
+
+    $crule  = "\tif [ x\"\$(PICFLAG)\" != x ]; then \\\n";
+    $crule .= "\t  \$(COMPILE.c) \$(PICFLAG) \$< -o pic/\$@; \\\n";
+    $crule .= "\telse true; fi\n";
+    $crule .= "\t\$(COMPILE.c) \$< \$(OUTPUT_OPTION)\n";
+    $crule .= "\n";
+
+    $incdir = shift @ARGV;
+
+    opendir(INC, $incdir);
+    while ($f = readdir INC) {
+	next unless $f =~ /\.h$/;
+	$mine{$f} = "\$(INCDIR)/$f";
+	$deps{$f} = join(' ', &deps_for("$incdir/$f"));
+    }
+    $mine{'config.h'} = "config.h";
+
+    opendir(INC, $srcdir);
+    while ($f = readdir INC) {
+	next unless $f =~ /\.h$/;
+	$mine{$f} = "\$(srcdir)/$f";
+	$deps{$f} = join(' ', &deps_for("$srcdir/$f"));
+    }
+    $mine{'config.h'} = "config.h";
+
+    open(IN, "$srcdir/Makefile.in");
+    open(OUT, ">$srcdir/Makefile.tmp");
+    while (<IN>) {
+	last if /remainder of this file/;
+	print OUT;
+    }
+    print OUT "# The dependencies in the remainder of this file are automatically\n";
+    print OUT "# generated by \"make maint-deps\".  Manual edits will be lost.\n\n";
+
+    opendir(S, $srcdir);
+    for $f (sort readdir S) {
+	if ($f =~ /\.c$/) {
+
+	    %scanned = ();
+	    @pending = &deps_for("$srcdir/$f");
+	    while (@pending) {
+		@tmp = @pending;
+		@pending = ();
+		for $p (@tmp) {
+		    next unless $mine{$p};
+		    if (!$scanned{$p}) {
+			push(@pending, split(' ', $deps{$p}));
+			$scanned{$p} = 1;
+		    }
+		}
+	    }
+	    @deps = sort { &locals_first($a,$b) } keys %scanned;
+	    $obj = $f;
+	    $obj =~ s/\.c$/.o/;
+	    $obj = "./$obj:";
+	    if ($#deps >= 0) {
+		print OUT "$obj \$(srcdir)/$f";
+		$len = length("$obj $f");
+		for $dt (@deps) {
+		    $d = $mine{$dt};
+		    if ($len + length($d) > 70) {
+			printf OUT " \\\n\t$d";
+			$len = 8 + length($d);
+		    } else {
+			print OUT " $d";
+			$len += length($d) + 1;
+		    }
+		}
+		print OUT "\n";
+	    } else {
+		print OUT "$obj \$(srcdir)/$f\n";
+	    }
+	    $c = $crule;
+	    $c =~ s@\$\<@\$\(srcdir\)\/$f@g;
+	    print OUT $c;
+	}
+    }
+    closedir(S);
+    close(IN);
+    close(OUT);
+
+    rename("$srcdir/Makefile.tmp", "$srcdir/Makefile.in");
+}

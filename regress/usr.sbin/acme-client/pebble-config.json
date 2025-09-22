@@ -1,0 +1,27 @@
+{
+  "pebble": {
+    "listenAddress": "0.0.0.0:14000",
+    "managementListenAddress": "0.0.0.0:15000",
+    "certificate": "${.CURDIR}/localhost_cert.pem",
+    "privateKey": "${.CURDIR}/localhost_key.pem",
+    "httpPort": 80,
+    "tlsPort": 5001,
+    "ocspResponderURL": "",
+    "externalAccountBindingRequired": false,
+    "domainBlocklist": ["blocked-domain.example"],
+    "retryAfter": {
+        "authz": 3,
+        "order": 5
+    },
+    "profiles": {
+      "default": {
+        "description": "The profile you know and love",
+        "validityPeriod": 7776000
+      },
+      "shortlived": {
+        "description": "A short-lived cert profile, without actual enforcement",
+        "validityPeriod": 518400
+      }
+    }
+  }
+}

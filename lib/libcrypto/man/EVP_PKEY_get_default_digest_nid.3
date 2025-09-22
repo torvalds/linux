@@ -1,0 +1,129 @@
+.\" $OpenBSD: EVP_PKEY_get_default_digest_nid.3,v 1.11 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL df75c2bf Dec 9 01:02:36 2018 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2006, 2009, 2013, 2018 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_GET_DEFAULT_DIGEST_NID 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_get_default_digest_nid
+.Nd get default signature digest
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_PKEY_get_default_digest_nid
+.Fa "EVP_PKEY *pkey"
+.Fa "int *pnid"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn EVP_PKEY_get_default_digest_nid
+function sets
+.Pf * Fa pnid
+to the default message digest NID for the public key signature
+operations associated with
+.Fa pkey .
+.Pp
+Some signature algorithms, for example
+.Dv EVP_PKEY_ED25519 ,
+do not use a digest during signing.
+In this case,
+.Pf * Fa pnid
+is set to
+.Dv NID_undef .
+.Pp
+Support for the following public key algorithms is built into the library:
+.Pp
+.Bl -column -compact EVP_PKEY_base_id(3) NID_sha256 mandatory
+.It Xr EVP_PKEY_base_id 3 Ta Pf * Fa pnid               Ta return value
+.It Dv EVP_PKEY_DSA       Ta Dv NID_sha1                Ta mandatory
+.It Dv EVP_PKEY_EC        Ta Dv NID_sha1                Ta mandatory
+.It Dv EVP_PKEY_ED25519   Ta Dv NID_undef               Ta mandatory
+.It Dv EVP_PKEY_HMAC      Ta Dv NID_sha1                Ta advisory
+.It Dv EVP_PKEY_RSA       Ta Dv NID_sha256              Ta advisory
+.El
+.Sh RETURN VALUES
+The
+.Fn EVP_PKEY_get_default_digest_nid
+function returns 1 if the message digest is advisory (that is other
+digests can be used) and 2 if it is mandatory (other digests cannot be
+used).
+It returns 0 or a negative value for failure.
+In particular, a return value of -2 indicates the operation is not
+supported by the public key algorithm.
+.Sh SEE ALSO
+.Xr EVP_PKEY_CTX_ctrl 3 ,
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_new 3 ,
+.Xr EVP_PKEY_sign 3 ,
+.Xr EVP_PKEY_verify 3 ,
+.Xr EVP_PKEY_verify_recover 3
+.Sh HISTORY
+.Fn EVP_PKEY_get_default_digest_nid
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .

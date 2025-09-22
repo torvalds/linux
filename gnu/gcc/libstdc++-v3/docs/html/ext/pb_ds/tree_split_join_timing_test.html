@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>Tree Split Join Timing Test</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1>Tree Split-Join Timing Test</h1>
+<h2><a name="description" id="description">Description</a></h2>
+<p>This test a container, inserts into a number of values,
+    splits the container at the median, and joins the two
+    containers. (If the containers are one of <tt>pb_ds</tt> 's
+    trees, it splits and joins with the <tt>split</tt> and
+    <tt>join</tt> method; otherwise, it uses the <tt>erase</tt> and
+    <tt>insert</tt> methods.) It measures the time for splitting
+    and joining the containers as a function of the number of
+    values inserted.</p>
+<p>(The test was executed with <a href="../../../../testsuite/performance/ext/pb_ds/tree_split_join_timing.cc"><tt>tree_split_join_timing_test</tt></a>
+    200 200 2100)</p>
+<h2><a name="purpose" id="purpose">Purpose</a></h2>
+<p>The test checks the performance difference of <tt>join</tt>
+    as opposed to a sequence of <tt>insert</tt> operations; by
+    implication, this test checks the most efficient way to erase a
+    sub-sequence from a tree-like-based container, since this can
+    always be performed by a small sequence of splits and joins
+    (see <a href="motivation.html#assoc_split_join_methods">Motivation::Associative
+    Containers::Slightly Different Methods::Methods Related to
+    Split and Join</a> and <a href="tree_based_containers.html#add_methods">Design::Associative
+    Containers::Tree-Based Containers::Additional Methods</a>
+    .)</p>
+<h2><a name="results" id="results">Results</a></h2>
+<p>Figures <a href="#NTG">NTG</a>, <a href="#NTM">NTM</a>, and
+    <a href="#NTL">NTL</a> show the results for the native and
+    tree-based containers in <a href="assoc_performance_tests.html#gcc"><u>g++</u></a>, <a href="assoc_performance_tests.html#msvc"><u>msvc++</u></a>, and
+    <a href="assoc_performance_tests.html#local"><u>local</u></a>,
+    respectively.</p>
+<div id="NTG_res_div">
+<div id="NTG_gcc">
+<div id="NTG_tree_split_join_timing_test">
+<div id="NTG_assoc">
+<div id="NTG_Native_and_tree-based_container_splits_and_joins"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTG" id="NTG"><img src="tree_split_join_timing_test_gcc.png" alt="no image" /></a></h6>NTG: Native and tree-based container splits and joins - <a href="assoc_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_set-
+<tt>std::set</tt></li>
+<li>
+splay_tree_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+rb_tree_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+ov_tree_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="ov_tree_tag.html"><tt>ov_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NTM_res_div">
+<div id="NTM_msvc">
+<div id="NTM_tree_split_join_timing_test">
+<div id="NTM_assoc">
+<div id="NTM_Native_and_tree-based_container_splits_and_joins"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTM" id="NTM"><img src="tree_split_join_timing_test_msvc.png" alt="no image" /></a></h6>NTM: Native and tree-based container splits and joins - <a href="assoc_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_set-
+<tt>std::set</tt></li>
+<li>
+splay_tree_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+rb_tree_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+<li>
+ov_tree_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="ov_tree_tag.html"><tt>ov_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NTL_res_div">
+<div id="NTL_local">
+<div id="NTL_tree_split_join_timing_test">
+<div id="NTL_assoc">
+<div id="NTL_Native_and_tree-based_container_splits_and_joins"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTL" id= "NTL"><img src="tree_split_join_timing_test_local.png" alt="no image" /></a></h6>NTL: Native and tree-based container splits and joins - <a href = "assoc_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<h2><a name="observations" id="observations">Observations</a></h2>
+<p>In this test, the native red-black trees must be split and
+    joined externally, through a sequence of <tt>erase</tt> and
+    <tt>insert</tt> operations. This is clearly super-linear, and
+    it is not that surprising that the cost is high.</p>
+<p><tt>pb_ds</tt> 's tree-based containers use in this test the
+    <tt>split</tt> and <tt>join</tt> methods, which have lower
+    complexity: the <tt>join</tt> method of a splay tree ( <a href="tree.html"><tt>tree</tt></a>
+    with <tt>Tag =</tt> <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a> ) is
+    quadratic in the length of the longest root-leaf path, and
+    linear in the total number of elements; the <tt>join</tt>
+    method of a red-black tree ( <a href="tree.html"><tt>tree</tt></a>
+    with <tt>Tag =</tt> <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a> ) or an
+    ordered-vector tree ( <a href="tree.html"><tt>tree</tt></a>
+    with <tt>Tag =</tt> <a href="ov_tree_tag.html"><tt>ov_tree_tag</tt></a> ) is linear
+    in the number of elements.</p>
+<p>Asides from orders of growth, <tt>pb_ds</tt> 's trees access
+    their allocator very little in these operations, and some of
+    them do not access it at all. This leads to lower constants in
+    their complexity, and, for some containers, to exception-free
+    splits and joins (which can be determined via <a href="assoc_container_traits.html"><tt>container_traits</tt></a>).</p>
+<p>It is important to note that <tt>split</tt> and
+    <tt>join</tt> are not esoteric methods - they are the most
+    efficient means of erasing a contiguous range of values from a
+    tree based container.</p>
+</div>
+</body>
+</html>

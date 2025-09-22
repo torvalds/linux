@@ -1,0 +1,18 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("TargetParserTests") {
+  deps = [
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "CSKYTargetParserTest.cpp",
+    "Host.cpp",
+    "RISCVISAInfoTest.cpp",
+    "RISCVTargetParserTest.cpp",
+    "TargetParserTest.cpp",
+    "TripleTest.cpp",
+  ]
+}

@@ -1,0 +1,225 @@
+
+			    CRIBBAGE
+			      from
+		       According to Hoyle
+
+Cribbage is believed to have been invented by Sir John Suckling (1609-1642).
+Probably it is an elaboration of an older game, Noddy.  The original game
+was played with hands of five cards; the modern game gives each player
+six.  That is virtually the only change from Suckling's directions.
+
+Players:
+
+	Two.  There are variants for three and four players [not described
+	here].
+
+Cards:
+
+	The pack of 52.  The cards in each suit rank: K (high), Q, J, 10,
+9, 8, 7, 6, 5, 4, 3, 2, A.  The counting values are: K, Q, J, 10, each 10
+(wherefore these are called tenth cards); ace, 1; each other card, its
+index value.
+
+Cribbage Board:
+
+	Indispensable to scoring [unless you have a computer!, ed.] is
+the device known as the cribbage board.  This is a rectangular panel, long
+and narrow, in which are four rows of 30 holes each.  At one end, or in the
+center, are two or four additional holes, called game holes.  The board is
+placed between the two players, and each keeps his own score on the two
+rows of holes nearest himself.  Each is supplied with two pegs.  Before the
+first hand, the pegs are placed in the game holes.  On making his first
+score, the player advances one peg an appropriate number of holes (one per
+point) away from the game end of the board.  The second score is recorded
+by placing the second peg an appropriate distance ahead of the first.  For
+each subsequent score, the rear peg is jumped ahead of the other, the
+distance between the two pegs always showing the amount of this last score.
+
+	The traditional mode of scoring is down (away from the game end)
+the outer row, and up the inner row.  "Once around" is a game of 61 points.
+"Twice around" is a game of 121 points.
+
+Preliminaries:
+
+	Cards are drawn; the lower deals first.  If cards of equal rank
+are drawn, both players draw again.  Dealer has the right to shuffle last.
+Nondealer cuts, and must leave at least four cards in each packet.
+
+Dealing:
+
+	Each player receives six cards, dealt one at a time face down,
+beginning with the nondealer.  The turn to deal alternates.  The dealer
+has an advantage.
+
+Laying Away:
+
+	After seeing his hand, each player lays away two cards face down.
+The four cards laid away, placed in one pile, form the crib.  The crib
+counts for the dealer.  Nondealer therefore tries to lay away balking
+cards -- cards that are least likely to create a score in the crib.
+
+The Starter:
+
+	After both hands have laid away, nondealer lifts off a packet from
+the top of the stock (the rest of the pack).  Again, each packet must
+contain at least four cards.  Dealer turns up the top card of the lower
+packet, which is then placed on top of the stock when the packets are
+reunited.  The card thus turned up is called 1 the starter.  If it is a
+jack, dealer immediately pegs 2, called 2 for his heels.
+
+The Play:
+
+	Nondealer begins the play by laying a card from his hand face up
+on the table, announcing its counting value.  Dealer then shows a card,
+announcing the total count of the two cards.  Play continues in the same
+way, by alternate exposure of cards, each player announcing the new total
+count.  The total may be carried only to 31, no further.  If a player adds
+a card that brings the total exactly to 31, he pegs 2.  If a player is
+unable to play another card without exceeding 31, he must say "Go," and
+his opponent pegs 1, but before doing so, opponent must lay down any
+additional cards he can without exceeding 31.  If such additional cards
+bring the total to exactly 31, he pegs 2 instead of 1.
+
+	Whenever a go occurs, the opponent of the player who played the
+last card must lead for a new count starting at zero.  Playing the last
+card of all counts as a go.  (Since nondealer makes the opening lead,
+dealer is bound to peg at least 1 in play.)
+
+	Besides pegging for 31 and go, the player may also peg for certain
+combinations made in play, as follows:
+
+	Fifteen:
+		Making the count total 15 pegs 2.
+	Pair:
+		Playing a card of same rank as that previously played pegs
+		2.  Playing a third card of the same rank makes pair royal
+		and pegs 6.  Playing the fourth card of the same rank
+		makes double pair royal and pegs 12.
+
+		The tenth cards pair strictly by rank, a king with a king,
+		a queen with a queen, and so on.  (King and jack do not
+		make a pair, although each has the counting value 10.)
+	Run:
+		Playing a card which, with the two or more played
+		immediately previously, makes a sequence of three or more
+		cards, pegs 1 for each card in the run.  Runs depend on
+		rank alone; the suits do not matter.  Nor does the score
+		for run depend upon playing the cards in strict sequence,
+		so long as the three or more last cards played can be
+		arranged in a run.  Example: 7, 6, 8 played in that order
+		score 3 for run; 5, 2, 4, 3 played in that order score 4
+		for run.
+
+		Any of the foregoing combinations count, whether the cards
+		are played alternately or one player plays several times
+		in succession in consequence of a go.  But a combination
+		does not score if it is interrupted by a go.
+
+	Showing:
+		After the play, the hands are shown (counted).  Nondealer
+		shows first, then dealer's hand, then crib.  The starter
+		is deemed to belong to each hand, so that each hand includes
+		five cards.  Combinations of scoring value are as follows:
+
+		Fifteen:
+			Each combinations of two or more cards that total
+			fifteen scores 2.
+		Pair:
+			Each pair of cards of the same rank scores 2.
+
+		Run:
+			Each combination of three or more cards in sequence
+			scores 1 for each card in the run.
+		Flush:
+			Four cards of the same suit in hand score 4; four
+			cards in hand or crib of same suit as the starter
+			score 5.  (No count for four-flush in crib.)
+		His Nobs:
+			Jack of same suit as the starter, in hand or crib,
+			scores 1.
+
+	It is important to note that every separate grouping of cards that
+makes a fifteen, pair, or run counts separately.  Three of a kind, pair
+royal, counts 6 because three sets of pairs can be made; similarly, four
+of a kind, double pair royal, contain six pairs and count 12.
+
+	The highest possible hand is J, 5, 5, 5 with the starter the 5 of
+the same suit as the jack.  There are four fifteens by combining the jack
+with a five, four more by combinations of three fives (a total of 16 for
+fifteens); the double pair royal adds 12 for a total of 28; and his nobs
+adds 1 for a maximum score of 29.  (the score of 2 for his heels does not
+count in the total of the hand, since it is pegged before the play.)
+
+	A double run is a run with one card duplicated, as 4-3-3-2.
+Exclusive of fifteens, a double run of three cards counts 8; of four cards,
+10.  A triple run is a run of three with one card triplicated, as K-K-K-Q-J.
+Exclusive of fifteens, it counts 15.  A quadruple run is a run of three
+with two different cards duplicated, as the example 8-8-7-6-6 previously
+given.  Exclusive of fifteens, it counts 16.
+
+	No hand can be constructed that counts 19, 25, 26 or 27.  A
+time-honored way of showing a hand with not a single counting combination
+is to say "I have nineteen."
+
+	The customary order in showing is to count fifteens first, then
+runs, then pairs, but there is no compulsion of law.  Example: A hand
+(with starter) of 9-6-5-4-4 will usually be counted "Fifteen 2, fifteen
+4, fifteen 6 and double run makes 14," or simply "Fifteen 6 and 8 is 14."
+
+Muggins:
+
+	The hands and crib are counted aloud, and if a player claims a
+greater total than is due him, his opponent may require correction.  In
+some localities, if a player claims less than is due, his opponent may
+say "Muggins" and himself score the points overlooked.
+
+Scoring:
+
+	The usual game is 121, but it may be set at 61 by agreement.
+Since the player wins who first returns to the game hole by going "twice
+around," the scores must be pegged strictly in order: his heels, pegging
+in play, non-dealer's hand, dealer's hand, crib.  Thus, if nondealer goes
+out on showing his hand, he wins, even though dealer might have gone out
+with a greater total if allowed to count his hand and crib.
+
+	When the game of 121 is played for a stake, a player wins a single
+game if the loser makes 61 points or more.  If the loser fails to reach
+61, he is lurched, and the other wins a double game.
+
+Irregularities:
+
+	Misdeal.  There must be a new deal by the same dealer if a card
+is found faced in the pack, if a card is exposed in dealing, or if the
+pack be found imperfect.
+
+	Wrong Number of Cards.  If one hand (not crib) is found to have
+the wrong number of cards after laying away for the crib, the other hand
+and crib being correct, the opponent may either demand a new deal or may
+peg 2 and rectify the hand.  If the crib is incorrect, both hands being
+correct, nondealer pegs 2 and the crib is corrected.
+
+Error in Pegging:
+
+	If a player places a peg short of the amount to which he is
+entitled, he may not correct his error after he has played the next card
+or after the cut for the next deal.  If he pegs more than his announced
+score, the error must be corrected on demand at any time before the cut
+for the next deal and his opponent pegs 2.
+
+Strategy:
+
+	The best balking cards are kings and aces, because they have the
+least chance of producing sequences.  Tenth cards are generally good,
+provided that the two cards laid away are not too near (likely to make a
+sequence).  When nothing better offers, give two wide cards -- at least
+three apart in rank.
+
+	Proverbially the safest lead is a 4.  The next card cannot make
+a 15.  Lower cards are also safe from this point of view, but are better
+treasured for go and 31.  The most dangerous leads are 7 and 8, but may
+be made to trap the opponent when they are backed with other close cards.
+Generally speaking, play on (toward a sequence) when you have close cards
+and off when you do not.  However, the state of the score is a
+consideration.  If far behind, play on when there is any chance of building
+a score for yourself; if well ahead, balk your opponent by playing off
+unless you will surely peg as much as he by playing on.

@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<grammar xmlns="http://relaxng.org/ns/structure/1.0"
+         datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <start>
+    <choice>
+      <!-- Everything else not explicitly mentioned below. -->
+      <ref name="Other" />
+
+      <ref name="Function" />
+      <ref name="Class" />
+      <ref name="Variable" />
+      <ref name="Namespace" />
+      <ref name="Typedef" />
+      <ref name="Enum" />
+    </choice>
+  </start>
+
+  <define name="Other">
+    <element name="Other">
+      <ref name="attrSourceLocation" />
+      <ref name="Name" />
+      <optional>
+        <ref name="USR" />
+      </optional>
+      <optional>
+        <ref name="Headerfile" />
+      </optional>
+      <optional>
+        <ref name="Declaration" />
+      </optional>
+      <optional>
+        <ref name="Abstract" />
+      </optional>
+      <optional>
+        <ref name="TemplateParameters" />
+      </optional>
+      <optional>
+        <ref name="Parameters" />
+      </optional>
+      <optional>
+        <ref name="ResultDiscussion" />
+      </optional>
+      <optional>
+        <ref name="Discussion" />
+      </optional>
+    </element>
+  </define>
+
+  <define name="Function">
+    <element name="Function">
+      <optional>
+        <attribute name="templateKind">
+          <choice>
+            <value>template</value>
+            <value>specialization</value>
+          </choice>
+        </attribute>
+      </optional>
+      <ref name="attrSourceLocation" />
+
+      <optional>
+        <attribute name="isInstanceMethod">
+          <data type="boolean" />
+        </attribute>
+      </optional>
+      <optional>
+        <attribute name="isClassMethod">
+          <data type="boolean" />
+        </attribute>
+      </optional>
+
+      <ref name="Name" />
+      <optional>
+        <ref name="USR" />
+      </optional>
+      <optional>
+        <ref name="Headerfile" />
+      </optional>
+      <optional>
+        <ref name="Declaration" />
+      </optional>
+      <optional>
+        <ref name="Abstract" />
+      </optional>
+      <optional>
+        <ref name="TemplateParameters" />
+      </optional>
+      <optional>
+        <ref name="Parameters" />
+      </optional>
+      <optional>
+        <ref name="Exceptions" />
+      </optional>
+      <zeroOrMore>
+        <ref name="Availability" />
+      </zeroOrMore>
+      <zeroOrMore>
+        <ref name="Deprecated" />
+      </zeroOrMore>
+      <zeroOrMore>
+        <ref name="Unavailable" />
+      </zeroOrMore>
+      <optional>
+        <ref name="ResultDiscussion" />
+      </optional>
+      <optional>
+        <ref name="Discussion" />
+      </optional>
+    </element>
+  </define>
+
+  <define name="Class">
+    <element name="Class">
+      <optional>
+        <attribute name="templateKind">
+          <choice>
+            <value>template</value>
+            <value>specialization</value>
+            <value>partialSpecialization</value>
+          </choice>
+        </attribute>
+      </optional>
+      <ref name="attrSourceLocation" />
+
+      <ref name="Name" />
+      <optional>
+        <ref name="USR" />
+      </optional>
+      <optional>
+        <ref name="Headerfile" />
+      </optional>
+      <optional>
+        <ref name="Declaration" />
+      </optional>
+      <optional>
+        <ref name="Abstract" />
+      </optional>
+      <optional>
+        <ref name="TemplateParameters" />
+      </optional>
+
+      <!-- Parameters and results don't make sense for classes, but the user
+           can specify \param or \returns in a comment anyway. -->
+      <optional>
+        <ref name="Parameters" />
+      </optional>
+      <optional>
+        <ref name="ResultDiscussion" />
+      </optional>
+
+      <optional>
+        <ref name="Discussion" />
+      </optional>
+    </element>
+  </define>
+
+  <define name="Variable">
+    <element name="Variable">
+      <ref name="attrSourceLocation" />
+      <ref name="Name" />
+      <optional>
+        <ref name="USR" />
+      </optional>
+      <optional>
+        <ref name="Headerfile" />
+      </optional>
+      <optional>
+        <ref name="Declaration" />
+      </optional>
+      <optional>
+        <ref name="Abstract" />
+      </optional>
+
+      <!-- Template parameters, parameters and results don't make sense for
+            variables, but the user can specify \tparam \param or \returns
+            in a comment anyway. -->
+      <optional>
+        <ref name="TemplateParameters" />
+      </optional>
+      <optional>
+        <ref name="Parameters" />
+      </optional>
+      <optional>
+        <ref name="ResultDiscussion" />
+      </optional>
+
+      <optional>
+        <ref name="Discussion" />
+      </optional>
+    </element>
+  </define>
+
+  <define name="Namespace">
+    <element name="Namespace">
+      <ref name="attrSourceLocation" />
+      <ref name="Name" />
+      <optional>
+        <ref name="USR" />
+      </optional>
+      <optional>
+        <ref name="Headerfile" />
+      </optional>
+      <optional>
+        <ref name="Declaration" />
+      </optional>
+      <optional>
+        <ref name="Abstract" />
+      </optional>
+
+      <!-- Template parameters, parameters and results don't make sense for
+           namespaces, but the user can specify \tparam, \param or \returns
+           in a comment anyway. -->
+      <optional>
+        <ref name="TemplateParameters" />
+      </optional>
+      <optional>
+        <ref name="Parameters" />
+      </optional>
+      <optional>
+        <ref name="ResultDiscussion" />
+      </optional>
+
+      <optional>
+        <ref name="Discussion" />
+      </optional>
+    </element>
+  </define>
+
+  <define name="Typedef">
+    <element name="Typedef">
+      <ref name="attrSourceLocation" />
+      <ref name="Name" />
+      <optional>
+        <ref name="USR" />
+      </optional>
+      <optional>
+        <ref name="Headerfile" />
+      </optional>
+      <optional>
+        <ref name="Declaration" />
+      </optional>
+      <optional>
+        <ref name="Abstract" />
+      </optional>
+
+      <optional>
+        <ref name="TemplateParameters" />
+      </optional>
+
+      <!-- Parameters and results might make sense for typedefs if the type is
+           a function pointer type. -->
+      <optional>
+        <ref name="Parameters" />
+      </optional>
+      <optional>
+        <ref name="ResultDiscussion" />
+      </optional>
+
+      <optional>
+        <ref name="Discussion" />
+      </optional>
+    </element>
+  </define>
+
+  <define name="Enum">
+    <element name="Enum">
+      <ref name="attrSourceLocation" />
+      <ref name="Name" />
+      <optional>
+        <ref name="USR" />
+      </optional>
+      <optional>
+        <ref name="Headerfile" />
+      </optional>
+      <optional>
+        <ref name="Declaration" />
+      </optional>
+      <optional>
+        <ref name="Abstract" />
+      </optional>
+
+      <!-- Template parameters, parameters and results don't make sense for
+            enums, but the user can specify \tparam \param or \returns in a
+            comment anyway. -->
+      <optional>
+        <ref name="TemplateParameters" />
+      </optional>
+      <optional>
+        <ref name="Parameters" />
+      </optional>
+      <optional>
+        <ref name="ResultDiscussion" />
+      </optional>
+
+      <optional>
+        <ref name="Discussion" />
+      </optional>
+    </element>
+  </define>
+
+  <define name="attrSourceLocation">
+    <optional>
+      <attribute name="file">
+        <!-- Non-empty text content. -->
+        <data type="string">
+          <param name="pattern">.*\S.*</param>
+        </data>
+      </attribute>
+    </optional>
+    <optional>
+      <attribute name="line">
+        <data type="positiveInteger" />
+      </attribute>
+      <attribute name="column">
+        <data type="positiveInteger" />
+      </attribute>
+    </optional>
+  </define>
+
+  <define name="Name">
+    <element name="Name">
+      <!-- Non-empty text content. -->
+      <data type="string">
+        <param name="pattern">.*\S.*</param>
+      </data>
+    </element>
+  </define>
+
+  <define name="USR">
+    <element name="USR">
+      <!-- Non-empty text content. -->
+      <data type="string">
+        <param name="pattern">.*\S.*</param>
+      </data>
+    </element>
+  </define>
+
+  <define name="Abstract">
+    <element name="Abstract">
+      <zeroOrMore>
+        <ref name="TextBlockContent" />
+      </zeroOrMore>
+    </element>
+  </define>
+
+  <define name="Declaration">
+    <element name="Declaration">
+      <!-- Non-empty text content. -->
+      <data type="string"/>
+    </element>
+  </define>
+
+  <define name="Headerfile">
+    <element name="Headerfile">
+      <oneOrMore>
+        <ref name="TextBlockContent" />
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="Discussion">
+    <element name="Discussion">
+      <zeroOrMore>
+        <ref name="TextBlockContent" />
+      </zeroOrMore>
+    </element>
+  </define>
+
+  <define name="TemplateParameters">
+    <element name="TemplateParameters">
+      <!-- Parameter elements should be sorted according to position. -->
+      <oneOrMore>
+        <element name="Parameter">
+          <element name="Name">
+            <!-- Non-empty text content. -->
+            <data type="string">
+              <param name="pattern">.*\S.*</param>
+            </data>
+          </element>
+          <optional>
+            <!-- This is index at depth 0.  libclang API can return more
+                 information about position, but we expose only essential
+                 information here, since "Parameter" elements are already
+                 sorted.
+
+                 "Position" element could be added in future if needed.  -->
+            <element name="Index">
+              <data type="nonNegativeInteger" />
+            </element>
+          </optional>
+          <!-- In general, template parameters with whitespace discussion
+               should not be emitted.  Schema might be more strict here. -->
+          <element name="Discussion">
+            <ref name="TextBlockContent" />
+          </element>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="Parameters">
+    <element name="Parameters">
+      <!-- Parameter elements should be sorted according to index. -->
+      <oneOrMore>
+        <element name="Parameter">
+          <element name="Name">
+            <!-- Non-empty text content. -->
+            <data type="string">
+              <param name="pattern">.*\S.*</param>
+            </data>
+          </element>
+          <optional>
+            <choice>
+              <element name="Index">
+                <data type="nonNegativeInteger" />
+              </element>
+              <element name="IsVarArg">
+                <empty />
+              </element>
+            </choice>
+          </optional>
+          <element name="Direction">
+            <attribute name="isExplicit">
+              <data type="boolean" />
+            </attribute>
+            <choice>
+              <value>in</value>
+              <value>out</value>
+              <value>in,out</value>
+            </choice>
+          </element>
+          <!-- In general, template parameters with whitespace discussion
+               should not be emitted, unless direction is explicitly specified.
+               Schema might be more strict here. -->
+          <element name="Discussion">
+            <ref name="TextBlockContent" />
+          </element>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="Exceptions">
+    <element name="Exceptions">
+      <oneOrMore>
+        <ref name="TextBlockContent" />
+      </oneOrMore>
+    </element>
+  </define>
+
+  <define name="Availability">
+    <element name="Availability">
+      <attribute name="distribution">
+        <data type="string" />
+      </attribute>
+      <optional>
+        <element name="IntroducedInVersion">
+          <data type="string">
+            <param name="pattern">\d+|\d+\.\d+|\d+\.\d+.\d+</param>
+          </data>
+        </element>
+      </optional>
+      <optional>
+        <element name="DeprecatedInVersion">
+          <data type="string">
+            <param name="pattern">\d+|\d+\.\d+|\d+\.\d+.\d+</param>
+          </data>
+        </element>
+      </optional>
+      <optional>
+        <element name="RemovedAfterVersion">
+          <data type="string">
+            <param name="pattern">\d+|\d+\.\d+|\d+\.\d+.\d+</param>
+          </data>
+        </element>
+      </optional>
+      <optional>
+        <element name="DeprecationSummary">
+          <data type="string" />
+        </element>
+      </optional>
+      <optional>
+        <ref name="Unavailable" />
+      </optional>
+    </element>
+  </define>
+
+  <define name="Deprecated">
+    <element name="Deprecated">
+      <optional>
+        <data type="string" />
+      </optional>
+    </element>
+  </define>
+
+  <define name="Unavailable">
+    <element name="Unavailable">
+      <optional>
+        <data type="string" />
+      </optional>
+    </element>
+  </define>
+
+  <define name="ResultDiscussion">
+    <element name="ResultDiscussion">
+      <zeroOrMore>
+        <ref name="TextBlockContent" />
+      </zeroOrMore>
+    </element>
+  </define>
+
+  <define name="TextBlockContent">
+    <choice>
+      <element name="Para">
+        <optional>
+          <attribute name="kind">
+            <choice>
+              <value>attention</value>
+              <value>author</value>
+              <value>authors</value>
+              <value>bug</value>
+              <value>copyright</value>
+              <value>date</value>
+              <value>invariant</value>
+              <value>note</value>
+              <value>post</value>
+              <value>pre</value>
+              <value>remark</value>
+              <value>remarks</value>
+              <value>sa</value>
+              <value>see</value>
+              <value>since</value>
+              <value>todo</value>
+              <value>version</value>
+              <value>warning</value>
+            </choice>
+          </attribute>
+        </optional>
+        <zeroOrMore>
+          <ref name="TextInlineContent" />
+        </zeroOrMore>
+      </element>
+      <element name="Verbatim">
+        <attribute name="xml:space">
+          <value>preserve</value>
+        </attribute>
+        <attribute name="kind">
+          <!-- TODO: add all Doxygen verbatim kinds -->
+          <choice>
+            <value>code</value>
+            <value>verbatim</value>
+          </choice>
+        </attribute>
+        <text />
+      </element>
+    </choice>
+  </define>
+
+  <define name="TextInlineContent">
+    <choice>
+      <text />
+      <element name="bold">
+        <!-- Non-empty text content. -->
+        <data type="string">
+          <param name="pattern">.*\S.*</param>
+        </data>
+      </element>
+      <element name="monospaced">
+        <!-- Non-empty text content. -->
+        <data type="string">
+          <param name="pattern">.*\S.*</param>
+        </data>
+      </element>
+      <element name="emphasized">
+        <!-- Non-empty text content. -->
+        <data type="string">
+          <param name="pattern">.*\S.*</param>
+        </data>
+      </element>
+      <element name="anchor">
+        <attribute name="id">
+          <data type="string">
+            <!-- Non-empty text content without whitespace. -->
+            <param name="pattern">\S+</param>
+          </data>
+        </attribute>
+      </element>
+      <element name="rawHTML">
+        <optional>
+          <!-- If not specified, the default value is 'false'. -->
+          <!-- The value 'false' or absence of the attribute does not imply
+               that the HTML is actually well-formed. -->
+          <attribute name="isMalformed">
+            <data type="boolean" />
+          </attribute>
+        </optional>
+        <!-- Non-empty text content. -->
+        <data type="string">
+          <param name="pattern">.*\S.*</param>
+        </data>
+      </element>
+    </choice>
+  </define>
+
+</grammar>
+

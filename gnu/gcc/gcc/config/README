@@ -1,0 +1,5 @@
+This directory contains machine-specific files for the GNU C compiler.
+It has a subdirectory for each basic CPU type.
+The only files in this directory itself
+are some .h files that pertain to particular operating systems
+and are used for more than one CPU type.

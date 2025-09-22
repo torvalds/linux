@@ -1,0 +1,169 @@
+.\"
+.\" Copyright (c) 2001 Peter Philipp
+.\" Copyright (c) 1997 Colin Wood
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Colin Wood
+.\"      for the NetBSD Project.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: akbd.4,v 1.6 2022/02/20 15:21:15 jsg Exp $
+.\"	$NetBSD: adb.4,v 1.1 1997/07/18 02:13:42 ender Exp $
+.\"
+.Dd $Mdocdate: February 20 2022 $
+.Dt AKBD 4
+.Os
+.Sh NAME
+.Nm akbd
+.Nd Apple Keyboard Device
+.Sh SYNOPSIS
+.Cd "akbd* at adb?"
+.Cd "wskbd* at akbd? mux 1"
+.Cd "option AKBD_LAYOUT=XXX"
+.Sh DESCRIPTION
+This driver supports ADB keyboards within the
+.Xr wscons 4
+console framework.
+It doesn't provide direct device driver entry points but makes its
+functions available via the internal
+.Xr wskbd 4
+interface.
+.Pp
+The following is a partial list of supported
+.Tn AKBD
+devices:
+.Bd -filled -offset indent
+.Bl -item -compact
+.It
+Apple Standard Keyboard
+.It
+Apple Extended Keyboard
+.It
+Apple Keyboard II
+.It
+Apple PowerBook Keyboard
+.It
+Apple Adjustable Keyboard
+.It
+Apple PowerBook extended Keyboard
+.It
+Apple PowerBook G3 Keyboard
+.It
+Apple PowerBook G4 Keyboard
+.It
+Apple iBook Keyboard
+.It
+.El
+.Ed
+.Pp
+The
+.Nm
+driver supports a number of different key mappings which
+can be chosen from with the kernel option
+.Dq AKBD_LAYOUT
+at compile time or with the utility
+.Xr wsconsctl 8
+(variable:
+.Dq keyboard.encoding )
+at runtime.
+Other mappings can be used if the whole keymap is replaced by means of
+.Xr wsconsctl 8 .
+The built-in mappings are at this time:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It KB_DE
+.Pq de
+German with
+.Dq dead accents .
+.It KB_ES
+.Pq es
+Spanish.
+.It KB_FR
+.Pq fr
+French.
+.It KB_JP
+.Pq jp
+Japanese.
+.It KB_PT
+.Pq pt
+Portuguese.
+.It KB_SF
+.Pq sf
+Swiss French with
+.Dq dead accents .
+.It KB_SG
+.Pq sg
+Swiss German with
+.Dq dead accents .
+.It KB_SV
+.Pq sv
+Swedish with
+.Dq dead accents .
+.It KB_UK
+.Pq uk
+British.
+.It KB_US
+.Pq us
+English/US keyboard mapping (default).
+.El
+.Pp
+The KB_DE, KB_FR, KB_SG and KB_SV mappings can be used in the KB_NODEAD
+.Pq .nodead
+variant.
+This switches off the
+.Dq dead accents .
+.Sh EXAMPLES
+To set a German keyboard layout without
+.Dq dead accents ,
+use
+.Ic wsconsctl keyboard.encoding=de.nodead .
+To set it at kernel build time, add
+the following to the kernel configuration file:
+.Bd -literal -offset indent
+option AKBD_LAYOUT="KB_DE|KB_NODEAD"
+.Ed
+.Sh SEE ALSO
+.Xr adb 4 ,
+.Xr intro 4 ,
+.Xr ukbd 4 ,
+.Xr wskbd 4 ,
+.Xr wsconsctl 8
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Nx 0.9 .
+It has been under development ever since.
+.Sh AUTHORS
+.An -nosplit
+.An Bradley A. Grantham
+wrote the original
+.Nm
+driver, including the MRG support.
+The hardware direct interface was written by
+.An John P. Wittkoski .
+.Sh BUGS
+The list of built-in mappings doesn't follow any logic.
+It grew as people submitted what they needed.

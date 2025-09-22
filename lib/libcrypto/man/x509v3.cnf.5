@@ -1,0 +1,738 @@
+.\" $OpenBSD: x509v3.cnf.5,v 1.8 2022/03/31 17:27:17 naddy Exp $
+.\" full merge up to:
+.\" OpenSSL man5/x509v3_config a41815f0 Mar 17 18:43:53 2017 -0700
+.\" selective merge up to: OpenSSL 36cf10cf Oct 4 02:11:08 2017 -0400
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2004, 2006, 2013, 2014, 2015, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt X509V3.CNF 5
+.Os
+.Sh NAME
+.Nm x509v3.cnf
+.Nd X.509 V3 certificate extension configuration format
+.Sh DESCRIPTION
+Several of the OpenSSL utilities can add extensions to a certificate or
+certificate request based on the contents of a configuration file.
+The file format is based on the
+.Xr openssl.cnf 5
+format.
+.Pp
+Typically the application will contain an option to point to an
+extension section.
+Each line of the extension section takes the form:
+.Pp
+.D1 Ar extension_name Ns = Ns Oo Cm critical , Oc Ar extension_options
+.Pp
+If
+.Cm critical
+is present, then the extension will be critical.
+.Pp
+The format of
+.Ar extension_options
+depends on the value of
+.Ar extension_name .
+.Pp
+There are four main types of extension: string extensions, multi-valued
+extensions, raw extensions, and arbitrary extensions.
+.Pp
+String extensions simply have a string which contains either the value
+itself or how it is obtained.
+For example:
+.Pp
+.Dl nsComment="This is a Comment"
+.Pp
+Multi-valued extensions have a short form and a long form.
+The short form is a list of names and values:
+.Pp
+.Dl basicConstraints=critical,CA:true,pathlen:1
+.Pp
+The long form allows the values to be placed in a separate section:
+.Bd -literal -offset indent
+basicConstraints=critical,@bs_section
+
+[bs_section]
+CA=true
+pathlen=1
+.Ed
+.Pp
+Both forms are equivalent.
+.Pp
+The syntax of raw extensions is governed by the extension code:
+it can for example contain data in multiple sections.
+The correct syntax to use is defined by the extension code itself:
+check out the certificate policies extension for an example.
+.Pp
+If an extension type is unsupported, then the arbitrary extension
+syntax must be used; see the
+.Sx ARBITRARY EXTENSIONS
+section for more details.
+.Sh STANDARD EXTENSIONS
+The following sections describe each supported extension in detail.
+.Ss Basic constraints
+This is a multi-valued extension which indicates whether a certificate
+is a CA certificate.
+The first (mandatory) name is
+.Ic CA
+followed by
+.Cm TRUE
+or
+.Cm FALSE .
+If
+.Ic CA
+is
+.Cm TRUE ,
+then an optional
+.Ic pathlen
+name followed by a non-negative value can be included.
+For example:
+.Bd -literal -offset indent
+basicConstraints=CA:TRUE
+basicConstraints=CA:FALSE
+basicConstraints=critical,CA:TRUE, pathlen:0
+.Ed
+.Pp
+A CA certificate must include the
+.Ic basicConstraints
+value with the
+.Ic CA
+field set to
+.Cm TRUE .
+An end user certificate must either set
+.Ic CA
+to
+.Cm FALSE
+or exclude the extension entirely.
+Some software may require the inclusion of
+.Ic basicConstraints
+with
+.Ic CA
+set to
+.Cm FALSE
+for end entity certificates.
+.Pp
+The
+.Ic pathlen
+parameter indicates the maximum number of CAs that can appear below
+this one in a chain.
+So if you have a CA with a
+.Ic pathlen
+of zero, it can only be used to sign end user certificates and not
+further CAs.
+.Ss Key usage
+Key usage is a multi-valued extension consisting of a list of names of
+the permitted key usages.
+.Pp
+The supported names are:
+.Ic digitalSignature ,
+.Ic nonRepudiation ,
+.Ic keyEncipherment ,
+.Ic dataEncipherment ,
+.Ic keyAgreement ,
+.Ic keyCertSign ,
+.Ic cRLSign ,
+.Ic encipherOnly ,
+and
+.Ic decipherOnly .
+Examples:
+.Bd -literal -offset indent
+keyUsage=digitalSignature, nonRepudiation
+keyUsage=critical, keyCertSign
+.Ed
+.Ss Extended key usage
+This extension consists of a list of purposes for
+which the certificate public key can be used.
+.Pp
+These can either be object short names or the dotted numerical form of OIDs.
+While any OID can be used, only certain values make sense.
+In particular the following PKIX, NS and MS values are meaningful:
+.Bl -column emailProtection
+.It Em value Ta Em meaning
+.It Ic serverAuth      Ta TLS server authentication
+.It Ic clientAuth      Ta TLS client authentication
+.It Ic codeSigning     Ta code signing
+.It Ic emailProtection Ta E-mail protection (S/MIME)
+.It Ic timeStamping    Ta trusted timestamping
+.It Ic OCSPSigning     Ta OCSP signing
+.It Ic ipsecIKE        Ta IPsec internet key exchange
+.It Ic msCodeInd       Ta Microsoft individual code signing (authenticode)
+.It Ic msCodeCom       Ta Microsoft commercial code signing (authenticode)
+.It Ic msCTLSign       Ta Microsoft trust list signing
+.It Ic msEFS           Ta Microsoft encrypted file system
+.El
+.Pp
+Examples:
+.Bd -literal -offset indent
+extendedKeyUsage=critical,codeSigning,1.2.3.4
+extendedKeyUsage=serverAuth,clientAuth
+.Ed
+.Ss Subject key identifier
+This is really a string extension and can take two possible values.
+Either the word
+.Cm hash
+which will automatically follow the guidelines in RFC 3280
+or a hex string giving the extension value to include.
+The use of the hex string is strongly discouraged.
+Example:
+.Pp
+.Dl subjectKeyIdentifier=hash
+.Ss Authority key identifier
+The authority key identifier extension permits two options,
+.Cm keyid
+and
+.Cm issuer :
+both can take the optional value
+.Cm always .
+.Pp
+If the
+.Cm keyid
+option is present, an attempt is made to copy the subject
+key identifier from the parent certificate.
+If the value
+.Cm always
+is present, then an error is returned if the option fails.
+.Pp
+The
+.Cm issuer
+option copies the issuer and serial number from the issuer certificate.
+This will only be done if the
+.Cm keyid
+option fails or is not included unless the
+.Cm always
+flag will always include the value.
+Example:
+.Pp
+.Dl authorityKeyIdentifier=keyid,issuer
+.Ss Subject alternative name
+The subject alternative name extension allows various literal values to
+be included in the configuration file.
+These include
+.Ic email
+(an email address),
+.Ic URI
+(a uniform resource indicator),
+.Ic DNS
+(a DNS domain name),
+.Ic RID
+(a registered ID: OBJECT IDENTIFIER),
+.Ic IP
+(an IP address),
+.Ic dirName
+(a distinguished name), and
+.Ic otherName .
+.Pp
+The
+.Ic email
+option can include a special
+.Cm copy
+value.
+This will automatically include any email addresses contained in the
+certificate subject name in the extension.
+.Pp
+The IP address used in the
+.Ic IP
+options can be in either IPv4 or IPv6 format.
+.Pp
+The value of
+.Ic dirName
+should point to a section containing the distinguished name to use as a
+set of name value pairs.
+Multi values AVAs can be formed by prefacing the name with a
+.Ql +
+character.
+.Pp
+.Ic otherName
+can include arbitrary data associated with an OID: the value should
+be the OID followed by a semicolon and the content in standard
+.Xr ASN1_generate_nconf 3
+format.
+Examples:
+.Bd -literal -offset 2n
+subjectAltName=email:copy,email:my@other.address,URI:http://my.url.here/
+subjectAltName=IP:192.168.7.1
+subjectAltName=IP:13::17
+subjectAltName=email:my@other.address,RID:1.2.3.4
+subjectAltName=otherName:1.2.3.4;UTF8:some other identifier
+
+subjectAltName=dirName:dir_sect
+
+[dir_sect]
+C=UK
+O=My Organization
+OU=My Unit
+CN=My Name
+.Ed
+.Ss Issuer alternative name
+The issuer alternative name option supports all the literal options of
+subject alternative name.
+It does not support the
+.Ic email : Ns Cm copy
+option because that would not make sense.
+It does support an additional
+.Ic issuer : Ns Cm copy
+option that will copy all the subject alternative name values from
+the issuer certificate (if possible).
+Example:
+.Pp
+.Dl issuerAltName = issuer:copy
+.Ss Authority info access
+The authority information access extension gives details about how to
+access certain information relating to the CA.
+Its syntax is
+.Ar accessOID ; location
+where
+.Ar location
+has the same syntax as subject alternative name (except that
+.Ic email : Ns Cm copy
+is not supported).
+.Ar accessOID
+can be any valid OID but only certain values are meaningful,
+for example
+.Cm OCSP
+and
+.Cm caIssuers .
+Example:
+.Bd -literal -offset indent
+authorityInfoAccess = OCSP;URI:http://ocsp.my.host/
+authorityInfoAccess = caIssuers;URI:http://my.ca/ca.html
+.Ed
+.Ss CRL distribution points
+This is a multi-valued extension whose options can be either in
+.Ar name : Ns Ar value
+pair form using the same form as subject alternative name or a
+single value representing a section name containing all the
+distribution point fields.
+.Pp
+For a
+.Ar name : Ns Ar value
+pair a new DistributionPoint with the fullName field set to the
+given value, both the cRLissuer and reasons fields are omitted in
+this case.
+.Pp
+In the single option case, the section indicated contains values
+for each field.
+In this section:
+.Pp
+If the name is
+.Ic fullname ,
+the value field should contain the full name of the distribution
+point in the same format as subject alternative name.
+.Pp
+If the name is
+.Ic relativename ,
+then the value field should contain a section name whose contents
+represent a DN fragment to be placed in this field.
+.Pp
+The name
+.Ic CRLIssuer ,
+if present, should contain a value for this field in subject
+alternative name format.
+.Pp
+If the name is
+.Ic reasons ,
+the value field should consist of a comma separated field containing
+the reasons.
+Valid reasons are:
+.Cm keyCompromise ,
+.Cm CACompromise ,
+.Cm affiliationChanged ,
+.Cm superseded ,
+.Cm cessationOfOperation ,
+.Cm certificateHold ,
+.Cm privilegeWithdrawn ,
+and
+.Cm AACompromise .
+.Pp
+Simple examples:
+.Bd -literal -offset indent
+crlDistributionPoints=URI:http://myhost.com/myca.crl
+crlDistributionPoints=URI:http://my.com/my.crl,URI:http://oth.com/my.crl
+.Ed
+.Pp
+Full distribution point example:
+.Bd -literal -offset indent
+crlDistributionPoints=crldp1_section
+
+[crldp1_section]
+fullname=URI:http://myhost.com/myca.crl
+CRLissuer=dirName:issuer_sect
+reasons=keyCompromise, CACompromise
+
+[issuer_sect]
+C=UK
+O=Organisation
+CN=Some Name
+.Ed
+.Ss Issuing distribution point
+This extension should only appear in CRLs.
+It is a multi-valued extension whose syntax is similar to the "section"
+pointed to by the CRL distribution points extension with a few
+differences.
+.Pp
+The names
+.Ic reasons
+and
+.Ic CRLissuer
+are not recognized.
+.Pp
+The name
+.Ic onlysomereasons
+is accepted, which sets this field.
+The value is in the same format as the CRL distribution point
+.Ic reasons
+field.
+.Pp
+The names
+.Ic onlyuser ,
+.Ic onlyCA ,
+.Ic onlyAA ,
+and
+.Ic indirectCRL
+are also accepted.
+The values should be a boolean values
+.Cm ( TRUE
+or
+.Cm FALSE )
+to indicate the value of the corresponding field.
+Example:
+.Bd -literal -offset indent
+issuingDistributionPoint=critical, @idp_section
+
+[idp_section]
+fullname=URI:http://myhost.com/myca.crl
+indirectCRL=TRUE
+onlysomereasons=keyCompromise, CACompromise
+
+[issuer_sect]
+C=UK
+O=Organisation
+CN=Some Name
+.Ed
+.Ss Certificate policies
+This is a raw extension.
+All the fields of this extension can be set by using the appropriate
+syntax.
+.Pp
+If you follow the PKIX recommendations and just use one OID, then you
+just include the value of that OID.
+Multiple OIDs can be set separated by commas, for example:
+.Pp
+.Dl certificatePolicies= 1.2.4.5, 1.1.3.4
+.Pp
+If you wish to include qualifiers, then the policy OID and qualifiers
+need to be specified in a separate section: this is done by using the
+.Pf @ Ar section
+syntax instead of a literal OID value.
+.Pp
+The section referred to must include the policy OID using the name
+.Ic policyIdentifier .
+.Ic CPSuri
+qualifiers can be included using the syntax:
+.Pp
+.D1 Ic CPS . Ns Ar nnn Ns = Ns Ar value
+.Pp
+.Ic userNotice
+qualifiers can be set using the syntax:
+.Pp
+.D1 Ic userNotice . Ns Ar nnn Ns =@ Ns Ar notice
+.Pp
+The value of the
+.Ic userNotice
+qualifier is specified in the relevant section.
+This section can include
+.Ic explicitText ,
+.Ic organization ,
+and
+.Ic noticeNumbers
+options.
+.Ic explicitText
+and
+.Ic organization
+are text strings,
+and
+.Ic noticeNumbers
+is a comma separated list of numbers.
+The
+.Ic organization
+and
+.Ic noticeNumbers
+options (if included) must
+.Em both
+be present.
+If you use the
+.Ic userNotice
+option with IE5 then you need the
+.Ic ia5org
+option at the top level to modify the encoding: otherwise it will
+not be interpreted properly.
+Example:
+.Bd -literal -offset indent
+certificatePolicies=ia5org,1.2.3.4,1.5.6.7.8,@polsect
+
+[polsect]
+policyIdentifier = 1.3.5.8
+CPS.1="http://my.host.name/"
+CPS.2="http://my.your.name/"
+userNotice.1=@notice
+
+[notice]
+explicitText="Explicit Text Here"
+organization="Organisation Name"
+noticeNumbers=1,2,3,4
+.Ed
+.Pp
+The
+.Ic ia5org
+option changes the type of the
+.Ic organization
+field.
+In RFC 2459, it can only be of type
+.Vt DisplayText .
+In RFC 3280,
+.Vt IA5String
+is also permissible.
+Some software (for example some versions of MSIE) may require
+.Ic ia5org .
+.Ss Policy constraints
+This is a multi-valued extension which consists of the names
+.Ic requireExplicitPolicy
+or
+.Ic inhibitPolicyMapping
+and a non-negative integer value.
+At least one component must be present.
+Example:
+.Pp
+.Dl policyConstraints = requireExplicitPolicy:3
+.Ss Inhibit any policy
+This is a string extension whose value must be a non-negative integer.
+Example:
+.Pp
+.Dl inhibitAnyPolicy = 2
+.Ss Name constraints
+The name constraints extension is a multi-valued extension.
+The name should begin with the word
+.Cm permitted
+or
+.Cm excluded ,
+followed by a semicolon.
+The rest of the name and the value follows the syntax of subjectAltName
+except
+.Ic email : Ns Cm copy
+is not supported and the
+.Ic IP
+form should consist of an IP addresses and subnet mask separated
+by a slash.
+Examples:
+.Bd -literal -offset indent
+nameConstraints=permitted;IP:192.168.0.0/255.255.0.0
+nameConstraints=permitted;email:.somedomain.com
+nameConstraints=excluded;email:.com
+.Ed
+.Ss OCSP no check
+The OCSP no check extension is a string extension,
+but its value is ignored.
+Example:
+.Pp
+.Dl noCheck = ignored
+.Ss TLS Feature (aka must staple)
+This is a multi-valued extension consisting of a list of TLS extension
+identifiers.
+Each identifier may be a number in the range from 0 to 65535 or a
+supported name.
+When a TLS client sends a listed extension, the TLS server is expected
+to include that extension in its reply.
+.Pp
+The supported names are:
+.Cm status_request
+and
+.Cm status_request_v2 .
+Example:
+.Pp
+.Dl tlsfeature = status_request
+.Sh DEPRECATED EXTENSIONS
+The following extensions are non-standard, Netscape specific and largely
+obsolete.
+Their use in new applications is discouraged.
+.Ss Netscape string extensions
+Netscape comment
+.Ic ( nsComment )
+is a string extension containing a comment which will be displayed when
+the certificate is viewed in some browsers.
+Example:
+.Pp
+.Dl nsComment = "Some Random Comment"
+.Pp
+Other supported extensions in this category are:
+.Ic nsBaseUrl ,
+.Ic nsRevocationUrl ,
+.Ic nsCaRevocationUrl ,
+.Ic nsRenewalUrl ,
+.Ic nsCaPolicyUrl ,
+and
+.Ic nsSslServerName .
+.Ss Netscape certificate type
+This is a multi-valued extensions which consists of a list of flags to
+be included.
+It was used to indicate the purposes for which a certificate could be
+used.
+The
+.Ic basicConstraints ,
+.Ic keyUsage ,
+and extended key usage extensions are now used instead.
+.Pp
+Acceptable values for
+.Ic nsCertType
+are:
+.Cm client ,
+.Cm server ,
+.Cm email ,
+.Cm objsign ,
+.Cm reserved ,
+.Cm sslCA ,
+.Cm emailCA ,
+.Cm objCA .
+.Sh ARBITRARY EXTENSIONS
+If an extension is not supported by the OpenSSL code, then it must
+be encoded using the arbitrary extension format.
+It is also possible to use the arbitrary format for supported
+extensions.
+Extreme care should be taken to ensure that the data is formatted
+correctly for the given extension type.
+.Pp
+There are two ways to encode arbitrary extensions.
+.Pp
+The first way is to use the word
+.Cm ASN1
+followed by the extension content using the same syntax as
+.Xr ASN1_generate_nconf 3 .
+For example:
+.Bd -literal -offset indent
+1.2.3.4=critical,ASN1:UTF8String:Some random data
+1.2.3.4=ASN1:SEQUENCE:seq_sect
+
+[seq_sect]
+field1 = UTF8:field1
+field2 = UTF8:field2
+.Ed
+.Pp
+It is also possible to use the word
+.Cm DER
+to include the raw encoded data in any extension.
+.Bd -literal -offset indent
+1.2.3.4=critical,DER:01:02:03:04
+1.2.3.4=DER:01020304
+.Ed
+.Pp
+The value following
+.Cm DER
+is a hex dump of the DER encoding of the extension.
+Any extension can be placed in this form to override the default behaviour.
+For example:
+.Pp
+.Dl basicConstraints=critical,DER:00:01:02:03
+.Sh FILES
+.Bl -tag -width /etc/ssl/x509v3.cnf -compact
+.It Pa /etc/ssl/x509v3.cnf
+standard configuration file
+.El
+.Sh SEE ALSO
+.Xr openssl 1 ,
+.Xr ASN1_generate_nconf 3 ,
+.Xr OPENSSL_config 3 ,
+.Xr openssl.cnf 5
+.Sh HISTORY
+X509v3 extension code was first added to OpenSSL 0.9.2.
+.Sh CAVEATS
+There is no guarantee that a specific implementation will process a
+given extension.
+It may therefore sometimes be possible to use certificates for purposes
+prohibited by their extensions because a specific application does not
+recognize or honour the values of the relevant extensions.
+.Pp
+The
+.Cm DER
+and
+.Cm ASN1
+options should be used with caution.
+It is possible to create totally invalid extensions if they are not used
+carefully.
+.Pp
+If an extension is multi-value and a field value must contain a comma,
+the long form must be used.
+Otherwise the comma would be misinterpreted as a field separator.
+For example,
+.Pp
+.Dl subjectAltName=URI:ldap://somehost.com/CN=foo,OU=bar
+.Pp
+will produce an error, but the following form is valid:
+.Bd -literal -offset indent
+subjectAltName=@subject_alt_section
+
+[subject_alt_section]
+subjectAltName=URI:ldap://somehost.com/CN=foo,OU=bar
+.Ed
+.Pp
+Due to the behaviour of the OpenSSL CONF library, the same field
+name can only occur once in a section.
+That means that
+.Bd -literal -offset indent
+subjectAltName=@alt_section
+
+[alt_section]
+email=steve@here
+email=steve@there
+.Ed
+.Pp
+will only use the last value.
+This can be worked around by using the form:
+.Bd -literal -offset indent
+[alt_section]
+email.1=steve@here
+email.2=steve@there
+.Ed

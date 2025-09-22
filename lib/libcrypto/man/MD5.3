@@ -1,0 +1,202 @@
+.\"	$OpenBSD: MD5.3,v 1.10 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org> and
+.\" Richard Levitte <levitte@openssl.org>.
+.\" Copyright (c) 2000, 2006 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt MD5 3
+.Os
+.Sh NAME
+.Nm MD4 ,
+.Nm MD5 ,
+.Nm MD4_Init ,
+.Nm MD4_Update ,
+.Nm MD4_Final ,
+.Nm MD5_Init ,
+.Nm MD5_Update ,
+.Nm MD5_Final
+.Nd MD4 and MD5 hash functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/md4.h
+.Ft unsigned char *
+.Fo MD4
+.Fa "const unsigned char *d"
+.Fa "unsigned long n"
+.Fa "unsigned char *md"
+.Fc
+.Ft int
+.Fo MD4_Init
+.Fa "MD4_CTX *c"
+.Fc
+.Ft int
+.Fo MD4_Update
+.Fa "MD4_CTX *c"
+.Fa "const void *data"
+.Fa "unsigned long len"
+.Fc
+.Ft int
+.Fo MD4_Final
+.Fa "unsigned char *md"
+.Fa "MD4_CTX *c"
+.Fc
+.In openssl/md5.h
+.Ft unsigned char *
+.Fo MD5
+.Fa "const unsigned char *d"
+.Fa "unsigned long n"
+.Fa "unsigned char *md"
+.Fc
+.Ft int
+.Fo MD5_Init
+.Fa "MD5_CTX *c"
+.Fc
+.Ft int
+.Fo MD5_Update
+.Fa "MD5_CTX *c"
+.Fa "const void *data"
+.Fa "unsigned long len"
+.Fc
+.Ft int
+.Fo MD5_Final
+.Fa "unsigned char *md"
+.Fa "MD5_CTX *c"
+.Fc
+.Sh DESCRIPTION
+MD4 and MD5 are cryptographic hash functions with a 128-bit
+output.
+.Pp
+.Fn MD4
+and
+.Fn MD5
+compute the MD4 and MD5 message digest of the
+.Fa n
+bytes at
+.Fa d
+and place it in
+.Fa md ,
+which must have space for
+.Dv MD4_DIGEST_LENGTH No == Dv MD5_DIGEST_LENGTH No == 16
+bytes of output.
+.Pp
+The following functions may be used if the message is not completely
+stored in memory:
+.Pp
+.Fn MD5_Init
+initializes a
+.Vt MD5_CTX
+structure.
+.Pp
+.Fn MD5_Update
+can be called repeatedly with chunks of the message to be hashed
+.Pq Fa len No bytes at Fa data .
+.Pp
+.Fn MD5_Final
+places the message digest in
+.Fa md ,
+which must have space for
+.Dv MD5_DIGEST_LENGTH No == 16
+bytes of output, and erases the
+.Vt MD5_CTX .
+.Pp
+.Fn MD4_Init ,
+.Fn MD4_Update ,
+and
+.Fn MD4_Final
+are analogous using an
+.Vt MD4_CTX
+structure.
+.Pp
+Applications should use the higher level functions
+.Xr EVP_DigestInit 3
+etc. instead of calling these hash functions directly.
+.Sh RETURN VALUES
+.Fn MD4
+and
+.Fn MD5
+return pointers to the hash value.
+.Pp
+.Fn MD4_Init ,
+.Fn MD4_Update ,
+.Fn MD4_Final ,
+.Fn MD5_Init ,
+.Fn MD5_Update ,
+and
+.Fn MD5_Final
+return 1 for success or 0 otherwise.
+.Sh SEE ALSO
+.Xr EVP_DigestInit 3
+.Sh STANDARDS
+RFC 1320, RFC 1321
+.Sh HISTORY
+.Fn MD5 ,
+.Fn MD5_Init ,
+.Fn MD5_Update ,
+and
+.Fn MD5_Final
+appeared in SSLeay 0.4 or earlier and have been available since
+.Ox 2.4 .
+.Pp
+.Fn MD4 ,
+.Fn MD4_Init ,
+.Fn MD4_Update ,
+and
+.Fn MD4_Final
+first appeared in OpenSSL 0.9.6 and have been available since
+.Ox 2.9 .
+.Sh CAVEATS
+Other implementations allow
+.Fa md
+in
+.Fn MD4
+and
+.Fn MD5
+to be
+.Dv NULL
+and return a static array, which is not thread safe.

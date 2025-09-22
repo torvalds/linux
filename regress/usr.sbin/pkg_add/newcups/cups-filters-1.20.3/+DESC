@@ -1,0 +1,11 @@
+OpenPrinting CUPS filters
+This package provides additional CUPS filters which are not provided by
+the CUPS project itself. This includes filters for a PDF based printing
+workflow.
+
+Available flavor:
+	ldap	support for browsing remote printer queues via LDAP
+
+Maintainer: Antoine Jacoutot <ajacoutot@openbsd.org>
+
+WWW: http://www.linuxfoundation.org/collaborate/workgroups/openprinting

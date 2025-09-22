@@ -1,0 +1,61 @@
+.\"	$OpenBSD: uark.4,v 1.5 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt UARK 4
+.Os
+.Sh NAME
+.Nm uark
+.Nd Arkmicro Technologies ARK3116 based USB serial adapter
+.Sh SYNOPSIS
+.Cd "uark* at uhub?"
+.Cd "ucom* at uark?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Arkmicro Technologies ARK3116 based serial adapters.
+.Pp
+The following devices should work with the
+.Nm
+driver:
+.Bd -literal -offset indent
+HL USB-RS232
+HugePine USB-UART
+KQ-U8A Data Cable
+Skymaster USB to RS232
+.Ed
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr uhub 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jonathan Gray Aq Mt jsg@openbsd.org .
+.Sh CAVEATS
+Setting hardware flow control is not currently supported.
+It is not yet known how to ask the hardware to send a break.
+.Pp
+Arkmicro Technologies do not reply to requests of documentation
+for their products.

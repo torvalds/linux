@@ -1,0 +1,250 @@
+.\"     $OpenBSD: autoinstall.8,v 1.25 2021/11/08 16:12:10 kn Exp $
+.\"
+.\" Copyright (c) 2013 Robert Peichaer <rpe@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 8 2021 $
+.Dt AUTOINSTALL 8
+.Os
+.Sh NAME
+.Nm autoinstall
+.Nd unattended OpenBSD installation and upgrade
+.Sh DESCRIPTION
+.Nm
+allows unattended installation or upgrade of
+.Ox
+by automatically responding to installer questions with
+answers from a response file.
+.Nm
+uses DHCP to discover the location of the response
+file and HTTP to fetch the file.
+If that fails, the installer asks for the location which can either be
+a URL or a local path.
+.Pp
+See
+.Xr install.site 5
+for how to provide custom configuration.
+.Pp
+To start unattended installation or upgrade choose '(A)utoinstall' at the
+install prompt.
+If there is only one network interface, the installer fetches the response
+file via that interface.
+If there is more than one network interface, a selection is presented
+and the installer fetches the response file via the selected interface.
+.Pp
+If the machine is netbooted, the
+.Nm
+feature is invoked if the user does not intervene within
+a short time.
+It behaves as if the user selected '(A)utoinstall', but
+always fetches the response file via the netboot interface.
+.Pp
+If either
+.Pa /auto_install.conf
+or
+.Pa /auto_upgrade.conf
+is found on
+.Pa bsd.rd Ns 's
+built-in RAM disk,
+.Nm
+behaves as if the machine is netbooted, but uses the local response file.
+In case both files exist,
+.Pa /auto_install.conf
+takes precedence.
+.Pp
+.Nm
+uses HTTP to fetch one of the files
+.Pa install.conf ,
+.Ar MAC_address Ns - Ns Pa install.conf
+or
+.Ar hostname Ns - Ns Pa install.conf
+for install answers, or one of
+.Pa upgrade.conf ,
+.Ar MAC_address Ns - Ns Pa upgrade.conf
+or
+.Ar hostname Ns - Ns Pa upgrade.conf
+for upgrade answers.
+.Pp
+The URL used to fetch the file is constructed from
+.Xr dhcp-options 5
+statements extracted from the DHCP lease file.
+.Ic next-server
+specifies the
+.Ar server .
+.Ic filename
+specifies the
+.Ar filename .
+The statement
+.Ic option host-name
+specifies the
+.Ar hostname
+which is also used as the default hostname during installation.
+.Pp
+If
+.Ar filename
+is
+.Cm auto_install ,
+then the URLs tried are, in order:
+.Sm off
+.Bd -unfilled -offset indent
+.No http:// Ar server No / Ar MAC_address No -install.conf
+.No http:// Ar server No / Ar hostname No -install.conf
+.No http:// Ar server No /install.conf
+.Ed
+.Sm on
+.Pp
+where
+.Ar MAC_address
+is a string of six hex octets separated by colons
+representing the MAC
+address of the interface being used to fetch the files.
+.Pp
+If
+.Ar filename
+is
+.Cm auto_upgrade ,
+the URLs tried are, in order:
+.Sm off
+.Bd -unfilled -offset indent
+.No http:// Ar server No / Ar MAC_address No -upgrade.conf
+.No http:// Ar server No / Ar hostname No -upgrade.conf
+.No http:// Ar server No /upgrade.conf
+.Ed
+.Sm on
+.Pp
+On architectures where the
+.Ic filename
+statement is used to provide the name of the file to netboot
+it is necessary to create symbolic links called
+.Pa auto_install
+and
+.Pa auto_upgrade
+that point to the expected boot program
+and to change the value of the
+.Ic filename
+statement in the
+.Xr dhcpd.conf 5
+file to be
+.Cm auto_install
+or
+.Cm auto_upgrade .
+.Pp
+To use a subdirectory as response file location on the HTTP server, the same
+directory structure containing the symbolic links has to exist in the tftproot
+directory.
+The value of
+.Ic filename
+has to be the full path to these symbolic links, and the HTTP and TFTP servers
+must be on the same machine.
+.Pp
+The response file is a line-oriented ASCII text file.
+The format of each line is:
+.Pp
+.D1 Ar question No = Ar answer
+.Pp
+.Ar question
+is an installer question (not including the question mark) or a non-ambiguous
+part of it, consisting of whitespace separated words.
+.Ar answer
+is the answer to the question.
+Passwords may be in plaintext, encrypted with
+.Xr encrypt 1 ,
+or set to
+.Ql *************
+(13 '*'s) to disable password logins, only permitting alternative access methods
+(for example,
+.Xr ssh 1
+keys).
+.Pp
+If
+.Nm
+does not find an answer in the response file, the default answer as
+provided by the installer is used.
+.Pp
+The response file may contain answers to the following questions, which are
+only available during unattended installation to provide additional installer
+features:
+.Bl -tag -width Ds
+.It Public ssh key for root account = Ar ssh key
+.Ar ssh key
+is stored in
+.Pa /root/.ssh/authorized_keys .
+.It Public ssh key for user puffy = Ar ssh key
+.Ar ssh key
+is stored in
+.Pa ~puffy/.ssh/authorized_keys .
+.It URL to autopartitioning template for disklabel = Ar url
+A template file for
+.Xr disklabel 8
+autopartitioning is fetched from
+.Ar url
+allowing a custom partition layout for the root disk.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/dhcpd.confXXX" -compact
+.It Pa /etc/dhcpd.conf
+.Xr dhcpd 8
+configuration file
+.It Pa install.conf
+response file for unattended installation
+.It Pa upgrade.conf
+response file for unattended upgrade
+.El
+.Sh EXAMPLES
+A typical
+.Pa install.conf
+file will look something like this:
+.Bd -literal -offset indent
+System hostname = server1
+Password for root = $2b$14$Z4xRMg8vDpgYH...GVot3ySoj8yby
+Change the default console to com0 = yes
+Which speed should com0 use = 19200
+Setup a user = puffy
+Password for user = *************
+Public ssh key for user = ssh-ed25519 AAAAC3NzaC1...g3Aqre puffy@ai
+What timezone are you in = Europe/Stockholm
+Location of sets = http
+HTTP Server = cdn.openbsd.org
+.Ed
+.Pp
+The same file could be used for upgrades by creating a symbolic link called
+.Pa upgrade.conf
+that points to
+.Pa install.conf .
+The upgrade process will only use the answers it needs.
+.Pp
+And an example
+.Xr dhcpd.conf 5
+.Ic host
+declaration:
+.Bd -literal -offset indent
+host foo {
+  hardware ethernet 00:50:60:49:8b:84;
+  fixed-address 192.168.2.180;
+  filename "auto_install";
+  option host-name "foo";
+}
+.Ed
+.Sh SEE ALSO
+.Xr dhcp-options 5 ,
+.Xr dhcpd.conf 5 ,
+.Xr install.site 5 ,
+.Xr diskless 8
+.Sh HISTORY
+The
+.Nm
+feature first appeared in
+.Ox 5.5 .
+.Sh AUTHORS
+.An Robert Peichaer Aq Mt rpe@openbsd.org

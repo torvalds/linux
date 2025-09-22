@@ -1,0 +1,73 @@
+.\"	$OpenBSD: cad.4,v 1.4 2022/01/27 17:36:22 visa Exp $
+.\"
+.\" Copyright (c) 2021 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 27 2022 $
+.Dt CAD 4
+.Os
+.Sh NAME
+.Nm cad
+.Nd Cadence 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "cad* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the Cadence Gigabit Ethernet MAC core found on some SoCs,
+including the following:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Microchip PolarFire SoC
+.It
+SiFive FU740-C000
+.It
+Xilinx Zynq-7000
+.El
+.Pp
+The
+.Nm
+driver supports IPv4 receive IP/TCP/UDP checksum offload,
+and IPv6 receive TCP/UDP checksum offload.
+.Pp
+The following media types and options are supported,
+as given to
+.Xr ifconfig 8 :
+.Bl -tag -width autoselect -offset indent
+.It media autoselect
+Use auto-negotiation for speed and duplex (default).
+.It media 1000baseT mediaopt full-duplex
+Use 1000baseT on copper, full duplex.
+.It media 100baseTX mediaopt full-duplex
+Use 100baseTX on copper, full duplex.
+.It media 100baseTX mediaopt half-duplex
+Use 100baseTX on copper, half duplex.
+.It media 10baseT mediaopt full-duplex
+Use 10baseT on copper, full duplex.
+.It media 10baseT mediaopt half-duplex
+Use 10baseT on copper, half duplex.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.0

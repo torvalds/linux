@@ -1,0 +1,232 @@
+	Hack & Quest data file - version 1.0.3
+@	human (or you)
+-	a wall
+|	a wall
++	a door
+.	the floor of a room
+ 	a dark part of a room
+#	a corridor
+}	water filled area
+<	the staircase to the previous level
+>	the staircase to the next level
+^	a trap
+$	a pile, pot or chest of gold
+%%      a piece of food
+!	a potion
+*	a gem
+?	a scroll
+=	a ring
+/	a wand
+[	a suit of armor
+)	a weapon
+(	a useful item (camera, key, rope etc.)
+0	an iron ball
+_	an iron chain
+`	an enormous rock
+"	an amulet
+,	a trapper
+:	a chameleon
+;	a giant eel
+'	a lurker above
+&	a demon
+A	a giant ant
+B	a giant bat
+C	a centaur;
+	Of all the monsters put together by  the  Greek  imagination
+	the  Centaurs (Kentauroi) constituted a class in themselves.
+	Despite a strong streak  of  sensuality  in  their  make-up,
+	their  normal  behaviour  was  moral, and they took a kindly
+	thought of man's welfare. The attempted outrage of Nessos on
+	Deianeira,  and  that  of the whole tribe of Centaurs on the
+	Lapith women, are more than offset  by  the  hospitality  of
+	Pholos  and  by  the  wisdom of Cheiron, physician, prophet,
+	lyrist, and the instructor of Achilles.  Further,  the  Cen-
+	taurs  were  peculiar in that their nature, which united the
+	body of a horse with the trunk and head of a  man,  involved
+	an  unthinkable  duplication  of  vital organs and important
+	members. So grotesque a combination seems  almost  un-Greek.
+	These  strange  creatures were said to live in the caves and
+	clefts of the mountains, myths associating  them  especially
+	with the hills of Thessaly and the range of Erymanthos.
+	               [Mythology of all races, Vol. 1, pp. 270-271]
+D	a dragon;
+	In the West the dragon was the natural  enemy  of  man.  Although
+	preferring to live in bleak and desolate regions, whenever it was
+	seen among men it left in its wake a  trail  of  destruction  and
+	disease. Yet any attempt to slay this beast was a perilous under-
+	taking. For the dragon's assailant had to contend not  only  with
+	clouds  of  sulphurous fumes pouring from its fire-breathing nos-
+	trils, but also with the thrashings of its tail, the most  deadly
+	part of its serpent-like body.
+	[From: Mythical Beasts by Deirdre Headon (The Leprechaun Library)]
+E	a floating eye
+F	a freezing sphere
+G	a gnome;
+	... And then a gnome came by, carrying a bundle, an old fellow
+	three times as large as an imp and wearing clothes of a sort,
+	especially a hat. And he was clearly just as frightened as the
+	imps though he could not go so fast. Ramon Alonzo saw that there
+	must be some great trouble that was vexing magical things; and,
+	since gnomes speak the language of men, and will answer if spoken
+	to gently, he raised his hat, and asked of the gnome his name.
+	The gnome did not stop his hasty shuffle a moment as he answered
+	'Alaraba' and grabbed the rim of his hat but forgot to doff it.
+	'What is the trouble, Alaraba?' said Ramon Alonzo.
+	'White magic. Run!' said the gnome ...
+			[From: The Charwoman's Shadow, by Lord Dunsany.]
+H	a hobgoblin;
+	Hobgoblin. Used by the  Puritans  and  in  later  times  for
+	wicked  goblin  spirits,  as in Bunyan's 'Hobgoblin nor foul
+	friend', but its more correct use is for the friendly  spir-
+	its  of  the brownie type.  In 'A midsummer night's dream' a
+	fairy says to Shakespeare's Puck:
+	        Those that Hobgoblin call you, and sweet Puck,
+	        You do their work, and they shall have good luck:
+	        Are you not he?
+	and obviously Puck would not wish to be called  a  hobgoblin
+	if that was an ill-omened word.
+	Hobgoblins are on the whole, good-humoured and ready  to  be
+	helpful,  but fond of practical joking, and like most of the
+	fairies rather nasty people to annoy. Boggarts hover on  the
+	verge of hobgoblindom.  Bogles are just over the edge.
+	One Hob mentioned by Henderson, was Hob Headless who haunted
+	the  road  between Hurworth and Neasham, but could not cross
+	the little river Kent, which flowed into the  Tess.  He  was
+	exorcised  and  laid under a large stone by the roadside for
+	ninety-nine years and a day. If anyone was so unwary  as  to
+	sit  on  that stone, he would be unable to quit it for ever.
+	The ninety-nine years is nearly up, so trouble may  soon  be
+	heard of on the road between Hurworth and Neasham.
+	               [Katharine Briggs, A  dictionary  of Fairies]
+I	an invisible stalker
+J	a jackal
+K	a kobold
+L	a leprechaun;
+	The Irish Leprechaun is the Faeries' shoemaker and is  known
+	under  various  names  in different parts of Ireland: Cluri-
+	caune in Cork, Lurican in Kerry, Lurikeen in Kildare and Lu-
+	rigadaun  in  Tipperary.  Although he works for the Faeries,
+	the Leprechaun is not of the same species. He is small,  has
+	dark  skin  and wears strange clothes.  His nature has some-
+	thing of the manic-depressive about it: first  he  is  quite
+	happy,  whistling merrily as he nails a sole on to a shoe; a
+	few minutes later, he is sullen and  morose,  drunk  on  his
+	home-made  heather ale. The Leprechaun's two great loves are
+	tobacco and whiskey, and he is a first-rate con-man,  impos-
+	sible  to  out-fox.  No  one, no matter how clever, has ever
+	managed to cheat him out of his hidden pot of  gold  or  his
+	magic  shilling. At the last minute he always thinks of some
+	way to divert his captor's attention  and  vanishes  in  the
+	twinkling  of  an eye.
+	                  [From: A Field Guide to the Little People
+	                     by  Nancy Arrowsmith & George Moorse. ]
+M	a mimic
+N	a nymph
+O	an orc
+P	a purple worm
+Q	a quasit
+R	a rust monster
+S	a snake
+T	a troll
+U	an umber hulk
+V	a vampire
+W	a wraith
+X	a xorn
+Y	a yeti
+Z	a zombie
+a	an acid blob
+b	a giant beetle
+c	a cockatrice;
+	Once in a great while, when the positions of the  stars  are
+	just  right, a seven-year-old rooster will lay an egg. Then,
+	along will come a snake, to coil around the egg, or a  toad,
+	to  squat  upon  the  egg, keeping it warm and helping it to
+	hatch. When it hatches, out comes a creature  called  basil-
+	isk, or cockatrice, the most deadly of all creatures. A sin-
+	gle glance from its yellow, piercing toad's eyes  will  kill
+	both  man  and beast. Its power of destruction is said to be
+	so great that sometimes simply to hear its  hiss  can  prove
+	fatal.  Its breath is so venomous that it causes  all  vege-
+	tation to wither.
+	There is, however, one  creature  which  can  withstand  the
+	basilisk's deadly gaze, and this is the weasel. No one knows
+	why this is so, but although the fierce weasel can slay  the
+	basilisk,  it will itself be killed in the struggle. Perhaps
+	the weasel knows the basilisk's fatal weakness: if  it  ever
+	sees  its own reflection in a mirror it will perish instant-
+	ly. But even a dead basilisk is dangerous, for  it  is  said
+	that merely touching its lifeless body can cause a person to
+	sicken and die.
+	    [From: Mythical Beasts by Deirdre Headon (The Leprechaun
+	           Library) and other sources. ]
+d	a dog
+e	an ettin
+f	a fog cloud
+g	a gelatinous cube
+h	a homunculus
+i	an imp;
+	 ... imps ... little creatures of two feet high  that  could
+	gambol and jump prodigiously; ...
+			[From: The Charwoman's Shadow, by Lord Dunsany.]
+	
+	An 'imp' is an off-shoot or cutting. Thus an 'ymp tree'  was
+	a grafted tree, or one grown from a cutting, not from seed.
+	'Imp' properly means a small devil, an off-shoot  of  Satan,
+	but  the distinction between goblins or bogles and imps from
+	hell is hard to make, and many in the  Celtic  countries  as
+	well as the English Puritans regarded all fairies as devils.
+	The fairies of tradition often hover  uneasily  between  the
+	ghostly and the diabolic state.
+	                 [Katharine Briggs, A dictionary of Fairies]
+j	a jaguar
+k	a killer bee
+l	a leocrotta
+m	a minotaur
+n	a nurse
+o	an owlbear
+p	a piercer
+q	a quivering blob
+r	a giant rat
+s	a scorpion
+t	a tengu;
+	The tengu was the  most  troublesome  creature  of  Japanese
+	legend.   Part  bird  and part man, with red beak for a nose
+	and flashing eyes, the tengu was notorious for  stirring  up
+	feuds  and  prolonging  enmity between families. Indeed, the
+	belligerent tengus were supposed to have  been  man's  first
+	instructors in the use of arms.
+	                    [From: Mythical Beasts by Deirdre Headon
+	                                 (The Leprechaun Library). ]
+u	a unicorn;
+	Men have always sought the elusive unicorn, for  the  single
+	twisted  horn  which projected from its forehead was thought
+	to be a powerful talisman. It was said that the unicorn  had
+	simply  to  dip  the tip of its horn in a muddy pool for the
+	water to become pure. Men also believed that to  drink  from
+	this horn was a protection against all sickness, and that if
+	the horn was ground to a powder it would act as an  antidote
+	to  all poisons. Less than 200 years ago in France, the horn
+	of a unicorn was used in a ceremony to test the  royal  food
+	for poison.
+	Although only the size of a small horse, the  unicorn  is  a
+	very  fierce  beast,  capable  of killing an elephant with a
+	single thrust from its horn.  Its  fleetness  of  foot  also
+	makes  this solitary creature difficult to capture. However,
+	it can be tamed and captured by a maiden. Made gentle by the
+	sight  of a virgin, the unicorn can be lured to lay its head
+	in her lap, and in this docile mood, the maiden  may  secure
+	it with a golden rope.
+	                    [From: Mythical Beasts by Deirdre Headon
+	                                 (The Leprechaun Library). ]
+v	a violet fungi
+w	a long worm;
+	From its teeth the crysknife can be manufactured.
+~	the tail of a long worm
+x	a xan;
+	The xan were animals sent to prick the legs of the Lords of Xibalba.
+y	a yellow light
+z	a zruty;
+	The zruty are wild and gigantic beings, living in the wildernesses
+	of the Tatra mountains.
+1	The wizard of Yendor
+2	The mail daemon

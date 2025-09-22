@@ -1,0 +1,19 @@
+@LIT_SITE_CFG_IN_HEADER@
+
+# Generic config options for all compiler-rt unit tests.
+config.target_triple = "@LLVM_TARGET_TRIPLE@"
+config.llvm_src_root = "@LLVM_MAIN_SRC_DIR@"
+config.llvm_obj_root = "@LLVM_BINARY_DIR@"
+config.llvm_tools_dir = lit_config.substitute("@LLVM_TOOLS_DIR@")
+config.compiler_rt_src_root = "@COMPILER_RT_SOURCE_DIR@"
+config.compiler_rt_libdir = lit_config.substitute("@COMPILER_RT_RESOLVED_LIBRARY_OUTPUT_DIR@")
+config.enable_per_target_runtime_dir = @LLVM_ENABLE_PER_TARGET_RUNTIME_DIR_PYBOOL@
+config.llvm_build_mode = lit_config.substitute("@LLVM_BUILD_MODE@")
+config.host_arch = "@HOST_ARCH@"
+config.host_os = "@HOST_OS@"
+config.llvm_lib_dir = "@LLVM_LIBRARY_DIR@"
+config.gwp_asan = @COMPILER_RT_HAS_GWP_ASAN_PYBOOL@
+config.emulator = "@COMPILER_RT_EMULATOR@"
+
+# Setup attributes common for all compiler-rt unit tests.
+lit_config.load_config(config, "@COMPILER_RT_SOURCE_DIR@/unittests/lit.common.unit.cfg.py")

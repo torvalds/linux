@@ -1,0 +1,2 @@
+strlcpy-5.c: In function `main':
+strlcpy-5.c:7: warning: sizeof(pointer) possibly incorrect in argument 3

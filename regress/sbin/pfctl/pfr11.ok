@@ -1,0 +1,36 @@
+# create
+# pass list 
+regress
+# pass list -v
+-pa----	regress	regress
+# pass rule pass in from <regress.1> to any
+# pass list 
+regress
+# pass list -v
+-pa----	regress	regress
+----r--	regress.1	regress
+# pass rule pass in from <regress.1> to <regress.2>
+# pass list 
+regress
+# pass list -v
+-pa----	regress	regress
+----r--	regress.1	regress
+----r--	regress.2	regress
+# pass rule pass in from <regress.1> to any
+# pass list 
+regress
+# pass list -v
+-pa----	regress	regress
+----r--	regress.1	regress
+# pass rule 
+# pass list 
+regress
+# pass list -v
+-pa----	regress	regress
+# kill
+1 tables deleted.
+rules cleared
+ktable: 7 allocated, 7 released, 0 leaked.
+pfrke_plain: 0 allocated, 0 released, 0 leaked.
+pfrke_route: 0 allocated, 0 released, 0 leaked.
+pfrke_cost: 0 allocated, 0 released, 0 leaked.

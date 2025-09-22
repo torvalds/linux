@@ -1,0 +1,116 @@
+/*===---- algorithm - CUDA wrapper for <algorithm> -------------------------===
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ *===-----------------------------------------------------------------------===
+ */
+
+#ifndef __CLANG_CUDA_WRAPPERS_ALGORITHM
+#define __CLANG_CUDA_WRAPPERS_ALGORITHM
+
+// This header defines __device__ overloads of std::min/max.
+//
+// Ideally we'd declare these functions only if we're <= C++11.  In C++14,
+// these functions are constexpr, and so are implicitly __host__ __device__.
+//
+// However, the compiler being in C++14 mode does not imply that the standard
+// library supports C++14.  There is no macro we can test to check that the
+// stdlib has constexpr std::min/max.  Thus we have to unconditionally define
+// our device overloads.
+//
+// A host+device function cannot be overloaded, and a constexpr function
+// implicitly become host device if there's no explicitly host or device
+// overload preceding it.  So the simple thing to do would be to declare our
+// device min/max overloads, and then #include_next <algorithm>.  This way our
+// device overloads would come first, and so if we have a C++14 stdlib, its
+// min/max won't become host+device and conflict with our device overloads.
+//
+// But that also doesn't work.  libstdc++ is evil and declares std::min/max in
+// an internal header that is included *before* <algorithm>.  Thus by the time
+// we're inside of this file, std::min/max may already have been declared, and
+// thus we can't prevent them from becoming host+device if they're constexpr.
+//
+// Therefore we perpetrate the following hack: We mark our __device__ overloads
+// with __attribute__((enable_if(true, ""))).  This causes the signature of the
+// function to change without changing anything else about it.  (Except that
+// overload resolution will prefer it over the __host__ __device__ version
+// rather than considering them equally good).
+
+#include_next <algorithm>
+
+// We need to define these overloads in exactly the namespace our standard
+// library uses (including the right inline namespace), otherwise they won't be
+// picked up by other functions in the standard library (e.g. functions in
+// <complex>).  Thus the ugliness below.
+#ifdef _LIBCPP_BEGIN_NAMESPACE_STD
+_LIBCPP_BEGIN_NAMESPACE_STD
+#else
+namespace std {
+#ifdef _GLIBCXX_BEGIN_NAMESPACE_VERSION
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+#endif
+#endif
+
+#pragma push_macro("_CPP14_CONSTEXPR")
+#if __cplusplus >= 201402L
+#define _CPP14_CONSTEXPR constexpr
+#else
+#define _CPP14_CONSTEXPR
+#endif
+
+template <class __T, class __Cmp>
+__attribute__((enable_if(true, "")))
+inline _CPP14_CONSTEXPR __host__ __device__ const __T &
+max(const __T &__a, const __T &__b, __Cmp __cmp) {
+  return __cmp(__a, __b) ? __b : __a;
+}
+
+template <class __T>
+__attribute__((enable_if(true, "")))
+inline _CPP14_CONSTEXPR __host__ __device__ const __T &
+max(const __T &__a, const __T &__b) {
+  return __a < __b ? __b : __a;
+}
+
+template <class __T, class __Cmp>
+__attribute__((enable_if(true, "")))
+inline _CPP14_CONSTEXPR __host__ __device__ const __T &
+min(const __T &__a, const __T &__b, __Cmp __cmp) {
+  return __cmp(__b, __a) ? __b : __a;
+}
+
+template <class __T>
+__attribute__((enable_if(true, "")))
+inline _CPP14_CONSTEXPR __host__ __device__ const __T &
+min(const __T &__a, const __T &__b) {
+  return __b < __a ? __b : __a;
+}
+
+#pragma pop_macro("_CPP14_CONSTEXPR")
+
+#ifdef _LIBCPP_END_NAMESPACE_STD
+_LIBCPP_END_NAMESPACE_STD
+#else
+#ifdef _GLIBCXX_BEGIN_NAMESPACE_VERSION
+_GLIBCXX_END_NAMESPACE_VERSION
+#endif
+} // namespace std
+#endif
+
+#endif // __CLANG_CUDA_WRAPPERS_ALGORITHM

@@ -1,0 +1,2 @@
+stdin: 1: no protocol supplied with source/destination ports
+ipsecctl: Syntax error in config file: ipsec rules not loaded

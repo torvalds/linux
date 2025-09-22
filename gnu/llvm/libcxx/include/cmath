@@ -1,0 +1,646 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CMATH
+#define _LIBCPP_CMATH
+
+/*
+    cmath synopsis
+
+Macros:
+
+    HUGE_VAL
+    HUGE_VALF               // C99
+    HUGE_VALL               // C99
+    INFINITY                // C99
+    NAN                     // C99
+    FP_INFINITE             // C99
+    FP_NAN                  // C99
+    FP_NORMAL               // C99
+    FP_SUBNORMAL            // C99
+    FP_ZERO                 // C99
+    FP_FAST_FMA             // C99
+    FP_FAST_FMAF            // C99
+    FP_FAST_FMAL            // C99
+    FP_ILOGB0               // C99
+    FP_ILOGBNAN             // C99
+    MATH_ERRNO              // C99
+    MATH_ERREXCEPT          // C99
+    math_errhandling        // C99
+
+namespace std
+{
+
+Types:
+
+    float_t                 // C99
+    double_t                // C99
+
+// C90
+
+floating_point abs(floating_point x);
+
+floating_point acos (arithmetic x);
+float          acosf(float x);
+long double    acosl(long double x);
+
+floating_point asin (arithmetic x);
+float          asinf(float x);
+long double    asinl(long double x);
+
+floating_point atan (arithmetic x);
+float          atanf(float x);
+long double    atanl(long double x);
+
+floating_point atan2 (arithmetic y, arithmetic x);
+float          atan2f(float y, float x);
+long double    atan2l(long double y, long double x);
+
+floating_point ceil (arithmetic x);
+float          ceilf(float x);
+long double    ceill(long double x);
+
+floating_point cos (arithmetic x);
+float          cosf(float x);
+long double    cosl(long double x);
+
+floating_point cosh (arithmetic x);
+float          coshf(float x);
+long double    coshl(long double x);
+
+floating_point exp (arithmetic x);
+float          expf(float x);
+long double    expl(long double x);
+
+floating_point fabs (arithmetic x);
+float          fabsf(float x);
+long double    fabsl(long double x);
+
+floating_point floor (arithmetic x);
+float          floorf(float x);
+long double    floorl(long double x);
+
+floating_point fmod (arithmetic x, arithmetic y);
+float          fmodf(float x, float y);
+long double    fmodl(long double x, long double y);
+
+floating_point frexp (arithmetic value, int* exp);
+float          frexpf(float value, int* exp);
+long double    frexpl(long double value, int* exp);
+
+floating_point ldexp (arithmetic value, int exp);
+float          ldexpf(float value, int exp);
+long double    ldexpl(long double value, int exp);
+
+floating_point log (arithmetic x);
+float          logf(float x);
+long double    logl(long double x);
+
+floating_point log10 (arithmetic x);
+float          log10f(float x);
+long double    log10l(long double x);
+
+floating_point modf (floating_point value, floating_point* iptr);
+float          modff(float value, float* iptr);
+long double    modfl(long double value, long double* iptr);
+
+floating_point pow (arithmetic x, arithmetic y);
+float          powf(float x, float y);
+long double    powl(long double x, long double y);
+
+floating_point sin (arithmetic x);
+float          sinf(float x);
+long double    sinl(long double x);
+
+floating_point sinh (arithmetic x);
+float          sinhf(float x);
+long double    sinhl(long double x);
+
+floating_point sqrt (arithmetic x);
+float          sqrtf(float x);
+long double    sqrtl(long double x);
+
+floating_point tan (arithmetic x);
+float          tanf(float x);
+long double    tanl(long double x);
+
+floating_point tanh (arithmetic x);
+float          tanhf(float x);
+long double    tanhl(long double x);
+
+//  C99
+
+bool signbit(arithmetic x);
+
+int fpclassify(arithmetic x);
+
+bool isfinite(arithmetic x);
+bool isinf(arithmetic x);
+bool isnan(arithmetic x);
+bool isnormal(arithmetic x);
+
+bool isgreater(arithmetic x, arithmetic y);
+bool isgreaterequal(arithmetic x, arithmetic y);
+bool isless(arithmetic x, arithmetic y);
+bool islessequal(arithmetic x, arithmetic y);
+bool islessgreater(arithmetic x, arithmetic y);
+bool isunordered(arithmetic x, arithmetic y);
+
+floating_point acosh (arithmetic x);
+float          acoshf(float x);
+long double    acoshl(long double x);
+
+floating_point asinh (arithmetic x);
+float          asinhf(float x);
+long double    asinhl(long double x);
+
+floating_point atanh (arithmetic x);
+float          atanhf(float x);
+long double    atanhl(long double x);
+
+floating_point cbrt (arithmetic x);
+float          cbrtf(float x);
+long double    cbrtl(long double x);
+
+floating_point copysign (arithmetic x, arithmetic y);
+float          copysignf(float x, float y);
+long double    copysignl(long double x, long double y);
+
+floating_point erf (arithmetic x);
+float          erff(float x);
+long double    erfl(long double x);
+
+floating_point erfc (arithmetic x);
+float          erfcf(float x);
+long double    erfcl(long double x);
+
+floating_point exp2 (arithmetic x);
+float          exp2f(float x);
+long double    exp2l(long double x);
+
+floating_point expm1 (arithmetic x);
+float          expm1f(float x);
+long double    expm1l(long double x);
+
+floating_point fdim (arithmetic x, arithmetic y);
+float          fdimf(float x, float y);
+long double    fdiml(long double x, long double y);
+
+floating_point fma (arithmetic x, arithmetic y, arithmetic z);
+float          fmaf(float x, float y, float z);
+long double    fmal(long double x, long double y, long double z);
+
+floating_point fmax (arithmetic x, arithmetic y);
+float          fmaxf(float x, float y);
+long double    fmaxl(long double x, long double y);
+
+floating_point fmin (arithmetic x, arithmetic y);
+float          fminf(float x, float y);
+long double    fminl(long double x, long double y);
+
+double         hermite(unsigned n, double x);                    // C++17
+float          hermite(unsigned n, float x);                     // C++17
+long double    hermite(unsigned n, long double x);               // C++17
+float          hermitef(unsigned n, float x);                    // C++17
+long double    hermitel(unsigned n, long double x);              // C++17
+template <class Integer>
+double         hermite(unsigned n, Integer x);                   // C++17
+
+floating_point hypot (arithmetic x, arithmetic y);
+float          hypotf(float x, float y);
+long double    hypotl(long double x, long double y);
+
+double       hypot(double x, double y, double z);                // C++17
+float        hypot(float x, float y, float z);                   // C++17
+long double  hypot(long double x, long double y, long double z); // C++17
+
+int ilogb (arithmetic x);
+int ilogbf(float x);
+int ilogbl(long double x);
+
+floating_point lgamma (arithmetic x);
+float          lgammaf(float x);
+long double    lgammal(long double x);
+
+long long llrint (arithmetic x);
+long long llrintf(float x);
+long long llrintl(long double x);
+
+long long llround (arithmetic x);
+long long llroundf(float x);
+long long llroundl(long double x);
+
+floating_point log1p (arithmetic x);
+float          log1pf(float x);
+long double    log1pl(long double x);
+
+floating_point log2 (arithmetic x);
+float          log2f(float x);
+long double    log2l(long double x);
+
+floating_point logb (arithmetic x);
+float          logbf(float x);
+long double    logbl(long double x);
+
+long lrint (arithmetic x);
+long lrintf(float x);
+long lrintl(long double x);
+
+long lround (arithmetic x);
+long lroundf(float x);
+long lroundl(long double x);
+
+double      nan (const char* str);
+float       nanf(const char* str);
+long double nanl(const char* str);
+
+floating_point nearbyint (arithmetic x);
+float          nearbyintf(float x);
+long double    nearbyintl(long double x);
+
+floating_point nextafter (arithmetic x, arithmetic y);
+float          nextafterf(float x, float y);
+long double    nextafterl(long double x, long double y);
+
+floating_point nexttoward (arithmetic x, long double y);
+float          nexttowardf(float x, long double y);
+long double    nexttowardl(long double x, long double y);
+
+floating_point remainder (arithmetic x, arithmetic y);
+float          remainderf(float x, float y);
+long double    remainderl(long double x, long double y);
+
+floating_point remquo (arithmetic x, arithmetic y, int* pquo);
+float          remquof(float x, float y, int* pquo);
+long double    remquol(long double x, long double y, int* pquo);
+
+floating_point rint (arithmetic x);
+float          rintf(float x);
+long double    rintl(long double x);
+
+floating_point round (arithmetic x);
+float          roundf(float x);
+long double    roundl(long double x);
+
+floating_point scalbln (arithmetic x, long ex);
+float          scalblnf(float x, long ex);
+long double    scalblnl(long double x, long ex);
+
+floating_point scalbn (arithmetic x, int ex);
+float          scalbnf(float x, int ex);
+long double    scalbnl(long double x, int ex);
+
+floating_point tgamma (arithmetic x);
+float          tgammaf(float x);
+long double    tgammal(long double x);
+
+floating_point trunc (arithmetic x);
+float          truncf(float x);
+long double    truncl(long double x);
+
+constexpr float       lerp(float a, float b, float t) noexcept;                   // C++20
+constexpr double      lerp(double a, double b, double t) noexcept;                // C++20
+constexpr long double lerp(long double a, long double b, long double t) noexcept; // C++20
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__math/hypot.h>
+#include <__type_traits/enable_if.h>
+#include <__type_traits/is_arithmetic.h>
+#include <__type_traits/is_constant_evaluated.h>
+#include <__type_traits/is_floating_point.h>
+#include <__type_traits/is_same.h>
+#include <__type_traits/promote.h>
+#include <__type_traits/remove_cv.h>
+#include <limits>
+#include <version>
+
+#include <__math/special_functions.h>
+#include <math.h>
+
+#ifndef _LIBCPP_MATH_H
+#   error <cmath> tried including <math.h> but didn't find libc++'s <math.h> header. \
+          This usually means that your header search paths are not configured properly. \
+          The header search paths should contain the C++ Standard Library headers before \
+          any C Standard Library, and you are probably using compiler flags that make that \
+          not be the case.
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::signbit _LIBCPP_USING_IF_EXISTS;
+using ::fpclassify _LIBCPP_USING_IF_EXISTS;
+using ::isfinite _LIBCPP_USING_IF_EXISTS;
+using ::isinf _LIBCPP_USING_IF_EXISTS;
+using ::isnan _LIBCPP_USING_IF_EXISTS;
+using ::isnormal _LIBCPP_USING_IF_EXISTS;
+using ::isgreater _LIBCPP_USING_IF_EXISTS;
+using ::isgreaterequal _LIBCPP_USING_IF_EXISTS;
+using ::isless _LIBCPP_USING_IF_EXISTS;
+using ::islessequal _LIBCPP_USING_IF_EXISTS;
+using ::islessgreater _LIBCPP_USING_IF_EXISTS;
+using ::isunordered _LIBCPP_USING_IF_EXISTS;
+using ::isunordered _LIBCPP_USING_IF_EXISTS;
+
+using ::float_t _LIBCPP_USING_IF_EXISTS;
+using ::double_t _LIBCPP_USING_IF_EXISTS;
+
+using ::abs _LIBCPP_USING_IF_EXISTS;
+
+using ::acos _LIBCPP_USING_IF_EXISTS;
+using ::acosf _LIBCPP_USING_IF_EXISTS;
+using ::asin _LIBCPP_USING_IF_EXISTS;
+using ::asinf _LIBCPP_USING_IF_EXISTS;
+using ::atan _LIBCPP_USING_IF_EXISTS;
+using ::atanf _LIBCPP_USING_IF_EXISTS;
+using ::atan2 _LIBCPP_USING_IF_EXISTS;
+using ::atan2f _LIBCPP_USING_IF_EXISTS;
+using ::ceil _LIBCPP_USING_IF_EXISTS;
+using ::ceilf _LIBCPP_USING_IF_EXISTS;
+using ::cos _LIBCPP_USING_IF_EXISTS;
+using ::cosf _LIBCPP_USING_IF_EXISTS;
+using ::cosh _LIBCPP_USING_IF_EXISTS;
+using ::coshf _LIBCPP_USING_IF_EXISTS;
+
+using ::exp _LIBCPP_USING_IF_EXISTS;
+using ::expf _LIBCPP_USING_IF_EXISTS;
+
+using ::fabs _LIBCPP_USING_IF_EXISTS;
+using ::fabsf _LIBCPP_USING_IF_EXISTS;
+using ::floor _LIBCPP_USING_IF_EXISTS;
+using ::floorf _LIBCPP_USING_IF_EXISTS;
+
+using ::fmod _LIBCPP_USING_IF_EXISTS;
+using ::fmodf _LIBCPP_USING_IF_EXISTS;
+
+using ::frexp _LIBCPP_USING_IF_EXISTS;
+using ::frexpf _LIBCPP_USING_IF_EXISTS;
+using ::ldexp _LIBCPP_USING_IF_EXISTS;
+using ::ldexpf _LIBCPP_USING_IF_EXISTS;
+
+using ::log _LIBCPP_USING_IF_EXISTS;
+using ::logf _LIBCPP_USING_IF_EXISTS;
+
+using ::log10 _LIBCPP_USING_IF_EXISTS;
+using ::log10f _LIBCPP_USING_IF_EXISTS;
+using ::modf _LIBCPP_USING_IF_EXISTS;
+using ::modff _LIBCPP_USING_IF_EXISTS;
+
+using ::pow _LIBCPP_USING_IF_EXISTS;
+using ::powf _LIBCPP_USING_IF_EXISTS;
+
+using ::sin _LIBCPP_USING_IF_EXISTS;
+using ::sinf _LIBCPP_USING_IF_EXISTS;
+using ::sinh _LIBCPP_USING_IF_EXISTS;
+using ::sinhf _LIBCPP_USING_IF_EXISTS;
+
+using ::sqrt _LIBCPP_USING_IF_EXISTS;
+using ::sqrtf _LIBCPP_USING_IF_EXISTS;
+using ::tan _LIBCPP_USING_IF_EXISTS;
+using ::tanf _LIBCPP_USING_IF_EXISTS;
+
+using ::tanh _LIBCPP_USING_IF_EXISTS;
+using ::tanhf _LIBCPP_USING_IF_EXISTS;
+
+using ::acosh _LIBCPP_USING_IF_EXISTS;
+using ::acoshf _LIBCPP_USING_IF_EXISTS;
+using ::asinh _LIBCPP_USING_IF_EXISTS;
+using ::asinhf _LIBCPP_USING_IF_EXISTS;
+using ::atanh _LIBCPP_USING_IF_EXISTS;
+using ::atanhf _LIBCPP_USING_IF_EXISTS;
+using ::cbrt _LIBCPP_USING_IF_EXISTS;
+using ::cbrtf _LIBCPP_USING_IF_EXISTS;
+
+using ::copysign _LIBCPP_USING_IF_EXISTS;
+using ::copysignf _LIBCPP_USING_IF_EXISTS;
+
+using ::erf _LIBCPP_USING_IF_EXISTS;
+using ::erff _LIBCPP_USING_IF_EXISTS;
+using ::erfc _LIBCPP_USING_IF_EXISTS;
+using ::erfcf _LIBCPP_USING_IF_EXISTS;
+using ::exp2 _LIBCPP_USING_IF_EXISTS;
+using ::exp2f _LIBCPP_USING_IF_EXISTS;
+using ::expm1 _LIBCPP_USING_IF_EXISTS;
+using ::expm1f _LIBCPP_USING_IF_EXISTS;
+using ::fdim _LIBCPP_USING_IF_EXISTS;
+using ::fdimf _LIBCPP_USING_IF_EXISTS;
+using ::fmaf _LIBCPP_USING_IF_EXISTS;
+using ::fma _LIBCPP_USING_IF_EXISTS;
+using ::fmax _LIBCPP_USING_IF_EXISTS;
+using ::fmaxf _LIBCPP_USING_IF_EXISTS;
+using ::fmin _LIBCPP_USING_IF_EXISTS;
+using ::fminf _LIBCPP_USING_IF_EXISTS;
+using ::hypot _LIBCPP_USING_IF_EXISTS;
+using ::hypotf _LIBCPP_USING_IF_EXISTS;
+using ::ilogb _LIBCPP_USING_IF_EXISTS;
+using ::ilogbf _LIBCPP_USING_IF_EXISTS;
+using ::lgamma _LIBCPP_USING_IF_EXISTS;
+using ::lgammaf _LIBCPP_USING_IF_EXISTS;
+using ::llrint _LIBCPP_USING_IF_EXISTS;
+using ::llrintf _LIBCPP_USING_IF_EXISTS;
+using ::llround _LIBCPP_USING_IF_EXISTS;
+using ::llroundf _LIBCPP_USING_IF_EXISTS;
+using ::log1p _LIBCPP_USING_IF_EXISTS;
+using ::log1pf _LIBCPP_USING_IF_EXISTS;
+using ::log2 _LIBCPP_USING_IF_EXISTS;
+using ::log2f _LIBCPP_USING_IF_EXISTS;
+using ::logb _LIBCPP_USING_IF_EXISTS;
+using ::logbf _LIBCPP_USING_IF_EXISTS;
+using ::lrint _LIBCPP_USING_IF_EXISTS;
+using ::lrintf _LIBCPP_USING_IF_EXISTS;
+using ::lround _LIBCPP_USING_IF_EXISTS;
+using ::lroundf _LIBCPP_USING_IF_EXISTS;
+
+using ::nan _LIBCPP_USING_IF_EXISTS;
+using ::nanf _LIBCPP_USING_IF_EXISTS;
+
+using ::nearbyint _LIBCPP_USING_IF_EXISTS;
+using ::nearbyintf _LIBCPP_USING_IF_EXISTS;
+using ::nextafter _LIBCPP_USING_IF_EXISTS;
+using ::nextafterf _LIBCPP_USING_IF_EXISTS;
+using ::nexttoward _LIBCPP_USING_IF_EXISTS;
+using ::nexttowardf _LIBCPP_USING_IF_EXISTS;
+using ::remainder _LIBCPP_USING_IF_EXISTS;
+using ::remainderf _LIBCPP_USING_IF_EXISTS;
+using ::remquo _LIBCPP_USING_IF_EXISTS;
+using ::remquof _LIBCPP_USING_IF_EXISTS;
+using ::rint _LIBCPP_USING_IF_EXISTS;
+using ::rintf _LIBCPP_USING_IF_EXISTS;
+using ::round _LIBCPP_USING_IF_EXISTS;
+using ::roundf _LIBCPP_USING_IF_EXISTS;
+using ::scalbln _LIBCPP_USING_IF_EXISTS;
+using ::scalblnf _LIBCPP_USING_IF_EXISTS;
+using ::scalbn _LIBCPP_USING_IF_EXISTS;
+using ::scalbnf _LIBCPP_USING_IF_EXISTS;
+using ::tgamma _LIBCPP_USING_IF_EXISTS;
+using ::tgammaf _LIBCPP_USING_IF_EXISTS;
+using ::trunc _LIBCPP_USING_IF_EXISTS;
+using ::truncf _LIBCPP_USING_IF_EXISTS;
+
+using ::acosl _LIBCPP_USING_IF_EXISTS;
+using ::asinl _LIBCPP_USING_IF_EXISTS;
+using ::atanl _LIBCPP_USING_IF_EXISTS;
+using ::atan2l _LIBCPP_USING_IF_EXISTS;
+using ::ceill _LIBCPP_USING_IF_EXISTS;
+using ::cosl _LIBCPP_USING_IF_EXISTS;
+using ::coshl _LIBCPP_USING_IF_EXISTS;
+using ::expl _LIBCPP_USING_IF_EXISTS;
+using ::fabsl _LIBCPP_USING_IF_EXISTS;
+using ::floorl _LIBCPP_USING_IF_EXISTS;
+using ::fmodl _LIBCPP_USING_IF_EXISTS;
+using ::frexpl _LIBCPP_USING_IF_EXISTS;
+using ::ldexpl _LIBCPP_USING_IF_EXISTS;
+using ::logl _LIBCPP_USING_IF_EXISTS;
+using ::log10l _LIBCPP_USING_IF_EXISTS;
+using ::modfl _LIBCPP_USING_IF_EXISTS;
+using ::powl _LIBCPP_USING_IF_EXISTS;
+using ::sinl _LIBCPP_USING_IF_EXISTS;
+using ::sinhl _LIBCPP_USING_IF_EXISTS;
+using ::sqrtl _LIBCPP_USING_IF_EXISTS;
+using ::tanl _LIBCPP_USING_IF_EXISTS;
+
+using ::tanhl _LIBCPP_USING_IF_EXISTS;
+using ::acoshl _LIBCPP_USING_IF_EXISTS;
+using ::asinhl _LIBCPP_USING_IF_EXISTS;
+using ::atanhl _LIBCPP_USING_IF_EXISTS;
+using ::cbrtl _LIBCPP_USING_IF_EXISTS;
+
+using ::copysignl _LIBCPP_USING_IF_EXISTS;
+
+using ::erfl _LIBCPP_USING_IF_EXISTS;
+using ::erfcl _LIBCPP_USING_IF_EXISTS;
+using ::exp2l _LIBCPP_USING_IF_EXISTS;
+using ::expm1l _LIBCPP_USING_IF_EXISTS;
+using ::fdiml _LIBCPP_USING_IF_EXISTS;
+using ::fmal _LIBCPP_USING_IF_EXISTS;
+using ::fmaxl _LIBCPP_USING_IF_EXISTS;
+using ::fminl _LIBCPP_USING_IF_EXISTS;
+using ::hypotl _LIBCPP_USING_IF_EXISTS;
+using ::ilogbl _LIBCPP_USING_IF_EXISTS;
+using ::lgammal _LIBCPP_USING_IF_EXISTS;
+using ::llrintl _LIBCPP_USING_IF_EXISTS;
+using ::llroundl _LIBCPP_USING_IF_EXISTS;
+using ::log1pl _LIBCPP_USING_IF_EXISTS;
+using ::log2l _LIBCPP_USING_IF_EXISTS;
+using ::logbl _LIBCPP_USING_IF_EXISTS;
+using ::lrintl _LIBCPP_USING_IF_EXISTS;
+using ::lroundl _LIBCPP_USING_IF_EXISTS;
+using ::nanl _LIBCPP_USING_IF_EXISTS;
+using ::nearbyintl _LIBCPP_USING_IF_EXISTS;
+using ::nextafterl _LIBCPP_USING_IF_EXISTS;
+using ::nexttowardl _LIBCPP_USING_IF_EXISTS;
+using ::remainderl _LIBCPP_USING_IF_EXISTS;
+using ::remquol _LIBCPP_USING_IF_EXISTS;
+using ::rintl _LIBCPP_USING_IF_EXISTS;
+using ::roundl _LIBCPP_USING_IF_EXISTS;
+using ::scalblnl _LIBCPP_USING_IF_EXISTS;
+using ::scalbnl _LIBCPP_USING_IF_EXISTS;
+using ::tgammal _LIBCPP_USING_IF_EXISTS;
+using ::truncl _LIBCPP_USING_IF_EXISTS;
+
+template <class _A1, __enable_if_t<is_floating_point<_A1>::value, int> = 0>
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR bool __constexpr_isnan(_A1 __lcpp_x) _NOEXCEPT {
+#if __has_builtin(__builtin_isnan)
+  return __builtin_isnan(__lcpp_x);
+#else
+  return isnan(__lcpp_x);
+#endif
+}
+
+template <class _A1, __enable_if_t<!is_floating_point<_A1>::value, int> = 0>
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR bool __constexpr_isnan(_A1 __lcpp_x) _NOEXCEPT {
+  return std::isnan(__lcpp_x);
+}
+
+template <class _A1, __enable_if_t<is_floating_point<_A1>::value, int> = 0>
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR bool __constexpr_isinf(_A1 __lcpp_x) _NOEXCEPT {
+#if __has_builtin(__builtin_isinf)
+  return __builtin_isinf(__lcpp_x);
+#else
+  return isinf(__lcpp_x);
+#endif
+}
+
+template <class _A1, __enable_if_t<!is_floating_point<_A1>::value, int> = 0>
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR bool __constexpr_isinf(_A1 __lcpp_x) _NOEXCEPT {
+  return std::isinf(__lcpp_x);
+}
+
+template <class _A1, __enable_if_t<is_floating_point<_A1>::value, int> = 0>
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR bool __constexpr_isfinite(_A1 __lcpp_x) _NOEXCEPT {
+#if __has_builtin(__builtin_isfinite)
+  return __builtin_isfinite(__lcpp_x);
+#else
+  return isfinite(__lcpp_x);
+#endif
+}
+
+template <class _A1, __enable_if_t<!is_floating_point<_A1>::value, int> = 0>
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR bool __constexpr_isfinite(_A1 __lcpp_x) _NOEXCEPT {
+  return __builtin_isfinite(__lcpp_x);
+}
+
+#if _LIBCPP_STD_VER >= 20
+template <typename _Fp>
+_LIBCPP_HIDE_FROM_ABI constexpr _Fp __lerp(_Fp __a, _Fp __b, _Fp __t) noexcept {
+  if ((__a <= 0 && __b >= 0) || (__a >= 0 && __b <= 0))
+    return __t * __b + (1 - __t) * __a;
+
+  if (__t == 1)
+    return __b;
+  const _Fp __x = __a + __t * (__b - __a);
+  if ((__t > 1) == (__b > __a))
+    return __b < __x ? __x : __b;
+  else
+    return __x < __b ? __x : __b;
+}
+
+_LIBCPP_HIDE_FROM_ABI inline constexpr float lerp(float __a, float __b, float __t) _NOEXCEPT {
+  return __lerp(__a, __b, __t);
+}
+
+_LIBCPP_HIDE_FROM_ABI inline constexpr double lerp(double __a, double __b, double __t) _NOEXCEPT {
+  return __lerp(__a, __b, __t);
+}
+
+_LIBCPP_HIDE_FROM_ABI inline constexpr long double lerp(long double __a, long double __b, long double __t) _NOEXCEPT {
+  return __lerp(__a, __b, __t);
+}
+
+template <class _A1, class _A2, class _A3>
+inline _LIBCPP_HIDE_FROM_ABI constexpr
+    typename enable_if_t< is_arithmetic<_A1>::value && is_arithmetic<_A2>::value && is_arithmetic<_A3>::value,
+                          __promote<_A1, _A2, _A3> >::type
+    lerp(_A1 __a, _A2 __b, _A3 __t) noexcept {
+  typedef typename __promote<_A1, _A2, _A3>::type __result_type;
+  static_assert(!(
+      _IsSame<_A1, __result_type>::value && _IsSame<_A2, __result_type>::value && _IsSame<_A3, __result_type>::value));
+  return std::__lerp((__result_type)__a, (__result_type)__b, (__result_type)__t);
+}
+#endif // _LIBCPP_STD_VER >= 20
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_CMATH

@@ -1,0 +1,2 @@
+# diff -r currently cannot handle stdin.
+# RUN: diff -r %t -

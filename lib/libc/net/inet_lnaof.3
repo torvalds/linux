@@ -1,0 +1,89 @@
+.\"	$OpenBSD: inet_lnaof.3,v 1.4 2019/08/30 20:06:07 jmc Exp $
+.\"	$NetBSD: inet.3,v 1.7 1997/06/18 02:25:24 lukem Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)inet.3	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: August 30 2019 $
+.Dt INET_LNAOF 3
+.Os
+.Sh NAME
+.Nm inet_makeaddr ,
+.Nm inet_netof ,
+.Nm inet_lnaof
+.Nd routines for manipulating classful Internet Protocol version 4 (IPv4) addresses
+.Sh SYNOPSIS
+.In arpa/inet.h
+.Ft struct in_addr
+.Fn inet_makeaddr "in_addr_t net" "in_addr_t lna"
+.Ft in_addr_t
+.Fn inet_netof "struct in_addr in"
+.Ft in_addr_t
+.Fn inet_lnaof "struct in_addr in"
+.Sh DESCRIPTION
+As originally designed,
+IP version 4 split each address into a network part and local network
+address part, encoding that split into the address itself.
+It is frequency-encoded;
+the most-significant bit is clear in Class A addresses,
+in which the high-order 8 bits are the network number.
+Class B addresses use the high-order 16 bits as the network field,
+and Class C addresses have a 24-bit network part.
+.Pp
+The routine
+.Fn inet_makeaddr
+takes an Internet network number and a local
+network address and constructs an Internet address
+from it.
+.Pp
+The routines
+.Fn inet_netof
+and
+.Fn inet_lnaof
+break apart Internet host addresses, returning
+the network number and local network address part,
+respectively.
+.Pp
+All Internet addresses are returned in network
+order (bytes ordered from left to right).
+All network numbers and local address parts are
+returned as machine format integer values.
+.Sh SEE ALSO
+.Xr gethostbyname 3 ,
+.Xr inet_addr 3 ,
+.Xr inet_net_ntop 3 ,
+.Xr hosts 5
+.Sh HISTORY
+The
+.Nm inet_makeaddr ,
+.Nm inet_lnaof ,
+and
+.Nm inet_netof
+functions appeared in
+.Bx 4.2 .

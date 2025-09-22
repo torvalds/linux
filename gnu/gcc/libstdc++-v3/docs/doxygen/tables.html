@@ -1,0 +1,645 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head><meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
+<title>Tables</title>
+<link href="style.css" rel="stylesheet" type="text/css">
+</head>
+
+<body bgcolor="#ffffff">
+
+<h1>Tables</h1>
+
+<p>Most of the requirements on containers are presented in the ISO standard
+   in the form of tables.  In order to avoid massive duplication of effort
+   while documenting all the classes, we follow the standard's lead and
+   present the base information here.  Individual classes will only document
+   their departures from these tables (removed functions, additional functions,
+   changes, etc).
+</p>
+
+<p>We will not try to duplicate all of the surrounding text (footnotes,
+   explanations, etc.) from the standard, because that would also entail a
+   duplication of effort.  Some of the surrounding text has been paraphrased
+   here for clarity.  If you are uncertain about the meaning or interpretation
+   of these notes, consult a good textbook, and/or purchase your own copy of
+   the standard (it's cheap, see our FAQ).
+</p>
+
+<p>The table numbers are the same as those used in the standard.  Tables can
+   be jumped to using their number, e.g., &quot;tables.html#67&quot;.  Only
+   Tables 65 through 69 are presented.  Some of the active Defect Reports
+   are also noted or incorporated.
+</p>
+
+<hr />
+
+<a name="65"><p>
+<table cellpadding="3" cellspacing="5" align="center" rules="rows" border="3"
+       cols="5" title="Table 65">
+<caption><h2>Table 65 --- Container Requirements</h2></caption>
+<tr><th colspan="5">
+Anything calling itself a container must meet these minimum requirements.
+</th></tr>
+<tr>
+<td><strong>expression</strong></td>
+<td><strong>result type</strong></td>
+<td><strong>operational semantics</strong></td>
+<td><strong>notes, pre-/post-conditions, assertions</strong></td>
+<td><strong>complexity</strong></td>
+</tr>
+
+<tr>
+<td>X::value_type</td>
+<td>T</td>
+<td>&nbsp;</td>
+<td>T is Assignable</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>X::reference</td>
+<td>lvalue of T</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>X::const_reference</td>
+<td>const lvalue of T</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>X::iterator</td>
+<td>iterator type pointing to T</td>
+<td>&nbsp;</td>
+<td>Any iterator category except output iterator.
+    Convertible to X::const_iterator.</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>X::const_iterator</td>
+<td>iterator type pointing to const T</td>
+<td>&nbsp;</td>
+<td>Any iterator category except output iterator.</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>X::difference_type</td>
+<td>signed integral type</td>
+<td>&nbsp;</td>
+<td>identical to the difference type of X::iterator and X::const_iterator</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>X::size_type</td>
+<td>unsigned integral type</td>
+<td>&nbsp;</td>
+<td>size_type can represent any non-negative value of difference_type</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>X u;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>post: u.size() == 0</td>
+<td>constant</td>
+</tr>
+
+<tr>
+<td>X();</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>X().size == 0</td>
+<td>constant</td>
+</tr>
+
+<tr>
+<td>X(a);</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>a == X(a)</td>
+<td>linear</td>
+</tr>
+
+<tr>
+<td>X u(a);<br />X u = a;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>post: u == a.  Equivalent to: X u; u = a;</td>
+<td>linear</td>
+</tr>
+
+<tr>
+<td>(&amp;a)-&gt;~X();</td>
+<td>void</td>
+<td>&nbsp;</td>
+<td>dtor is applied to every element of a; all the memory is deallocated</td>
+<td>linear</td>
+</tr>
+
+<tr>
+<td>a.begin()</td>
+<td>iterator; const_iterator for constant a</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>constant</td>
+</tr>
+
+<tr>
+<td>a.end()</td>
+<td>iterator; const_iterator for constant a</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>constant</td>
+</tr>
+
+<tr>
+<td>a == b</td>
+<td>convertible to bool</td>
+<td>&nbsp;</td>
+<td>== is an equivalence relation.  a.size()==b.size() &amp;&amp;
+    equal(a.begin(),a.end(),b.begin())</td>
+<td>linear</td>
+</tr>
+
+<tr>
+<td>a != b</td>
+<td>convertible to bool</td>
+<td>&nbsp;</td>
+<td>equivalent to !(a==b)</td>
+<td>linear</td>
+</tr>
+
+<tr>
+<td>a.swap(b)</td>
+<td>void</td>
+<td>&nbsp;</td>
+<td>swap(a,b)</td>
+<td>may or may not have constant complexity</td>
+</tr>
+
+<tr>
+<td>r = a</td>
+<td>X&amp;</td>
+<td>&nbsp;</td>
+<td>r == a</td>
+<td>linear</td>
+</tr>
+
+<!-- a fifth column, "operation semantics," magically appears in the table
+     at this point... wtf?  -->
+<tr>
+<td>a.size()</td>
+<td>size_type</td>
+<td>a.end() - a.begin()</td>
+<td>&nbsp;</td>
+<td>may or may not have constant complexity</td>
+</tr>
+
+<tr>
+<td>a.max_size()</td>
+<td>size_type</td>
+<td>size() of the largest possible container</td>
+<td>&nbsp;</td>
+<td>may or may not have constant complexity</td>
+</tr>
+
+<tr>
+<td>a.empty()</td>
+<td>convertible to bool</td>
+<td>a.size() == 0</td>
+<td>&nbsp;</td>
+<td>constant</td>
+</tr>
+
+<tr>
+<td>a &lt; b</td>
+<td>convertible to bool</td>
+<td>lexographical_compare( a.begin, a.end(), b.begin(), b.end())</td>
+<td>pre: &lt; is defined for T and is a total ordering relation</td>
+<td>linear</td>
+</tr>
+
+<tr>
+<td>a &gt; b</td>
+<td>convertible to bool</td>
+<td>b &lt; a</td>
+<td>&nbsp;</td>
+<td>linear</td>
+</tr>
+
+<tr>
+<td>a &lt;= b</td>
+<td>convertible to bool</td>
+<td>!(a &gt; b)</td>
+<td>&nbsp;</td>
+<td>linear</td>
+</tr>
+
+<tr>
+<td>a &gt;= b</td>
+<td>convertible to bool</td>
+<td>!(a &lt; b)</td>
+<td>&nbsp;</td>
+<td>linear</td>
+</tr>
+</table title="Table 65"></p></a>
+
+
+<a name="66"><p>
+<table cellpadding="3" cellspacing="5" align="center" rules="rows" border="3"
+       cols="4" title="Table 66">
+<caption><h2>Table 66 --- Reversible Container Requirements</h2></caption>
+<tr><th colspan="4">
+If a container's iterator is bidirectional or random-access, then the
+container also meets these requirements.
+Deque, list, vector, map, multimap, set, and multiset are such containers.
+</th></tr>
+<tr>
+<td><strong>expression</strong></td>
+<td><strong>result type</strong></td>
+<td><strong>notes, pre-/post-conditions, assertions</strong></td>
+<td><strong>complexity</strong></td>
+</tr>
+
+<tr>
+<td>X::reverse_iterator</td>
+<td>iterator type pointing to T</td>
+<td>reverse_iterator&lt;iterator&gt;</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>X::const_reverse_iterator</td>
+<td>iterator type pointing to const T</td>
+<td>reverse_iterator&lt;const_iterator&gt;</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>a.rbegin()</td>
+<td>reverse_iterator; const_reverse_iterator for constant a</td>
+<td>reverse_iterator(end())</td>
+<td>constant</td>
+</tr>
+
+<tr>
+<td>a.rend()</td>
+<td>reverse_iterator; const_reverse_iterator for constant a</td>
+<td>reverse_iterator(begin())</td>
+<td>constant</td>
+</tr>
+</table title="Table 66"></p></a>
+
+
+<a name="67"><p>
+<table cellpadding="3" cellspacing="5" align="center" rules="rows" border="3"
+       cols="3" title="Table 67">
+<caption><h2>Table 67 --- Sequence Requirements</h2></caption>
+<tr><th colspan="3">
+These are in addition to the requirements of <a href="#65">containers</a>.
+Deque, list, and vector are such containers.
+</th></tr>
+<tr>
+<td><strong>expression</strong></td>
+<td><strong>result type</strong></td>
+<td><strong>notes, pre-/post-conditions, assertions</strong></td>
+</tr>
+
+<tr>
+<td>X(n,t)<br />X a(n,t)</td>
+<td>&nbsp;</td>
+<td>constructs a sequence with n copies of t<br />post: size() == n</td>
+</tr>
+
+<tr>
+<td>X(i,j)<br />X a(i,j)</td>
+<td>&nbsp;</td>
+<td>constructs a sequence equal to the range [i,j)<br />
+    post: size() == distance(i,j)</td>
+</tr>
+
+<tr>
+<td>a.insert(p,t)</td>
+<td>iterator (points to the inserted copy of t)</td>
+<td>inserts a copy of t before p</td>
+</tr>
+
+<tr>
+<td>a.insert(p,n,t)</td>
+<td>void</td>
+<td>inserts n copies of t before p</td>
+</tr>
+
+<tr>
+<td>a.insert(p,i,j)</td>
+<td>void</td>
+<td>inserts copies of elements in [i,j) before p<br />
+    pre: i, j are not iterators into a</td>
+</tr>
+
+<tr>
+<td>a.erase(q)</td>
+<td>iterator (points to the element following q (prior to erasure))</td>
+<td>erases the element pointed to by q</td>
+</tr>
+
+<tr>
+<td>a.erase(q1,q1)</td>
+<td>iterator (points to the element pointed to by q2 (prior to erasure))</td>
+<td>erases the elements in the range [q1,q2)</td>
+</tr>
+
+<tr>
+<td>a.clear()</td>
+<td>void</td>
+<td>erase(begin(),end())<br />post: size() == 0</td>
+</tr>
+</table title="Table 67"></p></a>
+
+
+<a name="68"><p>
+<table cellpadding="3" cellspacing="5" align="center" rules="rows" border="3"
+       cols="4" title="Table 68">
+<caption><h2>Table 68 --- Optional Sequence Operations</h2></caption>
+<tr><th colspan="4">
+These operations are only included in containers when the operation can be
+done in constant time.
+</th></tr>
+<tr>
+<td><strong>expression</strong></td>
+<td><strong>result type</strong></td>
+<td><strong>operational semantics</strong></td>
+<td><strong>container</strong></td>
+</tr>
+
+<tr>
+<td>a.front()</td>
+<td>reference; const_reference for constant a</td>
+<td>*a.begin()</td>
+<td>vector, list, deque</td>
+</tr>
+
+<tr>
+<td>a.back()</td>
+<td>reference; const_reference for constant a</td>
+<td>*--a.end()</td>
+<td>vector, list, deque</td>
+</tr>
+
+<tr>
+<td>a.push_front(x)</td>
+<td>void</td>
+<td>a.insert(a.begin(),x)</td>
+<td>list, deque</td>
+</tr>
+
+<tr>
+<td>a.push_back(x)</td>
+<td>void</td>
+<td>a.insert(a.end(),x)</td>
+<td>vector, list, deque</td>
+</tr>
+
+<tr>
+<td>a.pop_front()</td>
+<td>void</td>
+<td>a.erase(a.begin())</td>
+<td>list, deque</td>
+</tr>
+
+<tr>
+<td>a.pop_back()</td>
+<td>void</td>
+<td>a.erase(--a.end())</td>
+<td>vector, list, deque</td>
+</tr>
+
+<tr>
+<td>a[n]</td>
+<td>reference; const_reference for constant a</td>
+<td>*(a.begin() + n)</td>
+<td>vector, deque</td>
+</tr>
+
+<tr>
+<td>a.at(n)</td>
+<td>reference; const_reference for constant a</td>
+<td>*(a.begin() + n)<br />throws out_of_range if n&gt;=a.size()</td>
+<td>vector, deque</td>
+</tr>
+</table title="Table 68"></p></a>
+
+
+<a name="69"><p>
+<table cellpadding="3" cellspacing="5" align="center" rules="rows" border="3"
+       cols="4" title="Table 69">
+<caption><h2>Table 69 --- Associative Container Requirements</h2></caption>
+<tr><th colspan="4">
+These are in addition to the requirements of <a href="#65">containers</a>.
+Map, multimap, set, and multiset are such containers.  An associative
+container supports <em>unique keys</em> (and is written as
+<code>a_uniq</code> instead of <code>a</code>) if it may contain at most
+one element for each key.  Otherwise it supports <em>equivalent keys</em>
+(and is written <code>a_eq</code>).  Examples of the former are set and map,
+examples of the latter are multiset and multimap.
+</th></tr>
+<tr>
+<td><strong>expression</strong></td>
+<td><strong>result type</strong></td>
+<td><strong>notes, pre-/post-conditions, assertions</strong></td>
+<td><strong>complexity</strong></td>
+</tr>
+
+<tr>
+<td>X::key_type</td>
+<td>Key</td>
+<td>Key is Assignable</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>X::key_compare</td>
+<td>Compare</td>
+<td>defaults to less&lt;key_type&gt;</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>X::value_compare</td>
+<td>a binary predicate type</td>
+<td>same as key_compare for set and multiset; an ordering relation on
+    pairs induced by the first component (Key) for map and multimap</td>
+<td>compile time</td>
+</tr>
+
+<tr>
+<td>X(c)<br />X a(c)</td>
+<td>&nbsp;</td>
+<td>constructs an empty container which uses c as a comparison object</td>
+<td>constant</td>
+</tr>
+
+<tr>
+<td>X()<br />X a</td>
+<td>&nbsp;</td>
+<td>constructs an empty container using Compare() as a comparison object</td>
+<td>constant</td>
+</tr>
+
+<tr>
+<td>X(i,j,c)<br />X a(i,j,c)</td>
+<td>&nbsp;</td>
+<td>constructs an empty container and inserts elements from the range [i,j)
+    into it; uses c as a comparison object</td>
+<td>NlogN in general where N is distance(i,j); linear if [i,j) is
+    sorted with value_comp()</td>
+</tr>
+
+<tr>
+<td>X(i,j)<br />X a(i,j)</td>
+<td>&nbsp;</td>
+<td>same as previous, but uses Compare() as a comparison object</td>
+<td>same as previous</td>
+</tr>
+
+<tr>
+<td>a.key_comp()</td>
+<td>X::key_compare</td>
+<td>returns the comparison object out of which a was constructed</td>
+<td>constant</td>
+</tr>
+
+<tr>
+<td>a.value_comp()</td>
+<td>X::value_compare</td>
+<td>returns an object constructed out of the comparison object</td>
+<td>constant</td>
+</tr>
+
+<tr>
+<td>a_uniq.insert(t)</td>
+<td>pair&lt;iterator,bool&gt;</td>
+<td>&quot;Inserts t if and only if there is no element in the container with
+    key equivalent to the key of t. The bool component of the returned pair
+    is true -iff- the insertion took place, and the iterator component of
+    the pair points to the element with key equivalent to the key of
+    t.&quot;</td> <!-- DR 316 -->
+<td>logarithmic</td>
+</tr>
+
+<tr>
+<td>a_eq.insert(t)</td>
+<td>iterator</td>
+<td>inserts t, returns the iterator pointing to the inserted element</td>
+<td>logarithmic</td>
+</tr>
+
+<tr>
+<td>a.insert(p,t)</td>
+<td>iterator</td>
+<td>possibly inserts t (depending on whether a_uniq or a_eq); returns iterator
+    pointing to the element with key equivalent to the key of t; iterator p
+    is a hint pointing to where the insert should start to search</td>
+<td>logarithmic in general, amortized constant if t is inserted right
+    after p<br />
+    <strong>[but see DR 233 and <a href="
+    http://gcc.gnu.org/onlinedocs/libstdc++/23_containers/howto.html#4">our
+    specific notes</a>]</strong></td>
+</tr>
+
+<tr>
+<td>a.insert(i,j)</td>
+<td>void</td>
+<td>pre: i, j are not iterators into a.  possibly inserts each element from
+    the range [i,j) (depending on whether a_uniq or a_eq)</td>
+<td>Nlog(size()+N) where N is distance(i,j) in general</td> <!-- DR 264 -->
+</tr>
+
+<tr>
+<td>a.erase(k)</td>
+<td>size_type</td>
+<td>erases all elements with key equivalent to k; returns number of erased
+    elements</td>
+<td>log(size()) + count(k)</td>
+</tr>
+
+<tr>
+<td>a.erase(q)</td>
+<td>void</td>
+<td>erases the element pointed to by q</td>
+<td>amortized constant</td>
+</tr>
+
+<tr>
+<td>a.erase(q1,q2)</td>
+<td>void</td>
+<td>erases all the elements in the range [q1,q2)</td>
+<td>log(size()) + distance(q1,q2)</td>
+</tr>
+
+<tr>
+<td>a.clear()</td>
+<td>void</td>
+<td>erases everything; post: size() == 0</td>
+<td>linear</td> <!-- DR 224 -->
+</tr>
+
+<tr>
+<td>a.find(k)</td>
+<td>iterator; const_iterator for constant a</td>
+<td>returns iterator pointing to element with key equivalent to k, or
+    a.end() if no such element found</td>
+<td>logarithmic</td>
+</tr>
+
+<tr>
+<td>a.count(k)</td>
+<td>size_type</td>
+<td>returns number of elements with key equivalent to k</td>
+<td>log(size()) + count(k)</td>
+</tr>
+
+<tr>
+<td>a.lower_bound(k)</td>
+<td>iterator; const_iterator for constant a</td>
+<td>returns iterator pointing to the first element with key not less than k</td>
+<td>logarithmic</td>
+</tr>
+
+<tr>
+<td>a.upper_bound(k)</td>
+<td>iterator; const_iterator for constant a</td>
+<td>returns iterator pointing to the first element with key greater than k</td>
+<td>logarithmic</td>
+</tr>
+
+<tr>
+<td>a.equal_range(k)</td>
+<td>pair&lt;iterator,iterator&gt;;
+    pair&lt;const_iterator, const_iterator&gt; for constant a</td>
+<td>equivalent to make_pair(a.lower_bound(k), a.upper_bound(k))</td>
+<td>logarithmic</td>
+</tr>
+</table title="Table 69"></p></a>
+
+
+<hr />
+<p class="smallertext"><em>
+See <a href="mainpage.html">mainpage.html</a> for copying conditions.
+See <a href="http://gcc.gnu.org/libstdc++/">the libstdc++ homepage</a>
+for more information.
+</em></p>
+
+
+</body>
+</html>
+

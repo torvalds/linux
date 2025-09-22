@@ -1,0 +1,95 @@
+.\"	$OpenBSD: bios.4,v 1.11 2007/05/31 19:19:54 jmc Exp $
+.\"
+.\" Copyright (c) 2001 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF MIND,
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt BIOS 4 i386
+.Os
+.Sh NAME
+.Nm bios
+.Nd a driver for PC Firmware, aka BIOS
+.Sh SYNOPSIS
+.Cd "bios0    at mainbus0 flags 0x0000"
+.Cd "apm0     at bios0 flags 0x0000"
+.Cd "pcibios0 at bios0 flags 0x0000"
+.Sh DESCRIPTION
+.Ox
+provides support for PC firmware, aka BIOS and some of its functions,
+currently: APM subsystem, BIOS32 extensions, PCI BIOS subsystem.
+.Pp
+The
+.Nm
+driver also identifies BIOS type (such as "AT/286+", which is
+almost always used in modern machines) and BIOS image date stamp,
+which is, presumably, the day the BIOS image was compiled by vendor
+and could be used as a crude BIOS version identification.
+The
+.Nm
+driver also scans the ISA memory hole at 640K-1M for optional
+ROM images and reserves the space from being used by various
+ISA devices, for example
+.Xr pcic 4 .
+.Pp
+Flags is a bit mask, each bit of which specifies which functions
+of the driver to disable.
+.Bl -tag -width 0x0001
+.It 0x0001
+BIOS32 attachment.
+.Pp
+Do not probe or attach to BIOS32 extensions.
+BIOS32 is one of
+the interfaces to the PCI BIOS configuration tables.
+.It 0x0002
+PCI BIOS attachment.
+.Pp
+Do not probe or attach the
+.Xr pcibios 4
+device, which performs certain PCI configuration tasks.
+.It 0x0004
+Do not perform the scan for ROM images in the ISA memory hole
+(0xc0000 - 0xf0000 physical addresses).
+.It 0x0008
+SMBIOS attachment.
+.Pp
+Do not probe or attach to SMBIOS.
+SMBIOS provides greater detail about system hardware configuration
+and is required to attach
+.Xr ipmi 4
+on most systems.
+.El
+.Sh SEE ALSO
+.Xr apm 4 ,
+.Xr intro 4 ,
+.Xr pcibios 4 ,
+.Xr pcmcia 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Ox 2.2 .
+.Sh BUGS
+On some machines optional ROM images do not pass checksum check,
+but it's considered better to reserve space for those anyway,
+choosing lesser evil from many.

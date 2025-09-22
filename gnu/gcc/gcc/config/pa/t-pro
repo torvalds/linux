@@ -1,0 +1,17 @@
+LIB2FUNCS_EXTRA=lib2funcs.asm 
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+lib2funcs.asm: $(srcdir)/config/pa/lib2funcs.asm
+	rm -f lib2funcs.asm
+	cp $(srcdir)/config/pa/lib2funcs.asm .

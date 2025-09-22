@@ -1,0 +1,14 @@
+@LIT_SITE_CFG_IN_HEADER@
+
+import sys
+
+config.lit_tools_dir = "@LLVM_LIT_TOOLS_DIR@"
+config.llvm_src_root = "@LLVM_SOURCE_DIR@"
+config.llvm_obj_root = "@LLVM_BINARY_DIR@"
+config.llvm_tools_dir = lit_config.substitute("@LLVM_TOOLS_DIR@")
+
+import lit.llvm
+lit.llvm.initialize(lit_config, config)
+
+# Let the main config do the real work.
+lit_config.load_config(config, "@LLVM_BINARY_DIR@/utils/lit/tests/lit.cfg")

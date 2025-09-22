@@ -1,0 +1,97 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: atexit.3,v 1.13 2022/02/06 00:29:02 jsg Exp $
+.\"
+.Dd $Mdocdate: February 6 2022 $
+.Dt ATEXIT 3
+.Os
+.Sh NAME
+.Nm atexit
+.Nd register a function to be called on exit
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft int
+.Fn atexit "void (*function)(void)"
+.Sh DESCRIPTION
+The
+.Fn atexit
+function registers the given
+.Fa function
+to be called at program exit, whether via
+.Xr exit 3
+or via return from the program's
+.Fn main .
+Functions so registered are called in reverse order;
+no arguments are passed.
+At least 32 functions can always be registered,
+and more are allowed as long as sufficient memory can be allocated.
+.Pp
+If a shared object is unloaded from process memory using
+.Xr dlclose 3 ,
+then any functions registered by calling
+.Fn atexit
+from that shared object will be called in reverse order and unregistered.
+Note that it is the source of the call to
+.Fn atexit
+that matters, not the source of the function that was registered.
+.Pp
+.Fn atexit
+is very difficult to use correctly without creating
+.Xr exit 3 Ns -time
+races.
+Unless absolutely necessary, avoid using it.
+.Sh RETURN VALUES
+The
+.Nm
+function returns the value 0 if successful; otherwise a non-zero
+value is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+No memory was available to add the function to the list.
+The existing list of functions is unmodified.
+.El
+.Sh SEE ALSO
+.Xr dlclose 3 ,
+.Xr exit 3
+.Sh STANDARDS
+The
+.Fn atexit
+function conforms to
+.St -ansiC .
+.Pp
+Setting
+.Va errno
+on error and the behavior when a shared object is unloaded
+are extensions to that standard.

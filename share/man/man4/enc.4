@@ -1,0 +1,161 @@
+.\"	$OpenBSD: enc.4,v 1.30 2020/02/15 22:19:51 kn Exp $
+.\"
+.\" Copyright (c) 2006 Jason McIntyre <jmc@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 15 2020 $
+.Dt ENC 4
+.Os
+.Sh NAME
+.Nm enc
+.Nd encapsulating interface
+.Sh SYNOPSIS
+.Cd "pseudo-device enc"
+.Sh DESCRIPTION
+The
+.Nm
+interface is a virtual interface for
+.Xr ipsec 4
+traffic.
+It allows packet filtering using
+.Xr pf 4 ;
+prior to encapsulation and after decapsulation,
+packets may be monitored using
+.Xr tcpdump 8 .
+.Pp
+An
+.Nm
+interface can be created at runtime using the
+.Ic ifconfig enc Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+The
+.Nm enc0
+interface will always exist and cannot be destroyed using
+.Xr ifconfig 8 .
+.Pp
+Packet filtering is documented in greater detail in
+.Xr pf.conf 5 ,
+however some details relevant to filtering on the
+.Nm
+interface are documented below.
+.Pp
+Firstly,
+.Xr pf 4
+is a stateful packet filter,
+which means it can track the state of a connection.
+It does this
+.Em automatically .
+States are normally
+.Em floating ,
+which means they can match packets on any interface.
+However this is a potential problem for filtering IPsec traffic:
+states need to be interface bound,
+to avoid permitting unencrypted traffic
+should the SAs expire and not be replaced.
+Therefore all rules on the
+.Nm
+interface should explicitly set
+.Dq keep state (if-bound) .
+For example:
+.Bd -literal -offset indent
+pass in on enc0 proto ipencap from 172.25.0.45 to 1.2.3.4 \e
+	keep state (if-bound)
+.Ed
+.Pp
+Secondly, the
+.Nm
+interface does not directly support bandwidth control via
+.Xr pf 4
+queueing.
+Instead, IPsec packets must be tagged and the tagged packets
+are assigned to queues.
+.Xr ipsec.conf 5
+provides an example of tag-based queueing
+and further information on packet tagging.
+.Pp
+Finally,
+the use of translation rules to map and redirect network traffic
+requires some care.
+Packets destined to be IPsec processed are seen by the
+filter/translation engine twice,
+both before and after being IPsec processed.
+If a packet's translated address
+on the way back fails to match an existing IPsec flow,
+from the translated address to the original source address,
+it will be discarded by the filter.
+It is best to avoid this situation where possible,
+though a flow may be explicitly created to work around it.
+.Pp
+As noted above,
+.Xr tcpdump 8
+may be invoked on the
+.Nm
+interface to see packets prior to encapsulation and after decapsulation.
+For example:
+.Bd -literal -offset 3n
+# tcpdump -envps 1500 -i enc0 -l | grep 10.0.0.33
+tcpdump: listening on enc0, link-type ENC
+15:05:08.934708 (authentic,confidential): SPI 0x6bcac587: \e
+	172.25.0.45 > 1.2.3.4: 10.9.9.28.7001 > 10.0.0.33.7000: \e
+	[udp sum ok] udp 52 (ttl 64, id 5672, len 80) \e
+	(ttl 64, id 30009, len 100, bad cksum 0!)
+15:05:09.063517 (authentic,confidential): SPI 0x4b70c05a: \e
+	1.2.3.4 > 172.25.0.45: 10.0.0.33.7000 > 10.9.9.28.7001: \e
+	[udp sum ok] udp 156 (ttl 63, id 14880, len 184) \e
+	(ttl 51, id 19689, len 204)
+.Ed
+.Pp
+The packets above show (for each direction):
+date, ESP (not AH), SPI, direction, and encapsulated part.
+The first packet is headed from 172.25.0.45 to 1.2.3.4
+and the encapsulated part from 10.9.9.28 to 10.0.0.33.
+.Pp
+Negotiations can be watched on the physical interface too:
+.Bd -literal -offset 3n
+# tcpdump -envps 1500 -i wi0 port 500 or port 4500
+tcpdump: listening on wi0, link-type EN10MB
+15:15:58.188747 0:2:6f:3a:3f:3e 0:10:f3:3:bd:8a 0800 226: \e
+    172.25.0.45.500 > 1.2.3.4.500: [udp sum ok] \e
+[...]
+	attribute ENCRYPTION_ALGORITHM = AES_CBC
+	attribute HASH_ALGORITHM = SHA
+	attribute AUTHENTICATION_METHOD = RSA_SIG
+	attribute GROUP_DESCRIPTION = MODP_1024
+	attribute LIFE_TYPE = SECONDS
+	attribute LIFE_DURATION = 3600
+	attribute KEY_LENGTH = 128
+[...]
+15:15:59.080058 0:10:f3:3:bd:8a 0:2:6f:3a:3f:3e 0800 226: \e
+    1.2.3.4.500 > 172.25.0.45.500: [udp sum ok] \e
+[...]
+	attribute ENCRYPTION_ALGORITHM = AES_CBC
+	attribute HASH_ALGORITHM = SHA
+	attribute AUTHENTICATION_METHOD = RSA_SIG
+	attribute GROUP_DESCRIPTION = MODP_1024
+	attribute LIFE_TYPE = SECONDS
+	attribute LIFE_DURATION = 3600
+	attribute KEY_LENGTH = 128
+[...]
+.Ed
+.Pp
+The attribute lines for the negotiation must match.
+.Sh SEE ALSO
+.Xr ipsec 4 ,
+.Xr pf 4 ,
+.Xr ipsec.conf 5 ,
+.Xr pf.conf 5 ,
+.Xr tcpdump 8

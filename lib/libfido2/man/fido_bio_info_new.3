@@ -1,0 +1,82 @@
+.\" Copyright (c) 2019 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_BIO_INFO_NEW 3
+.Os
+.Sh NAME
+.Nm fido_bio_info_new ,
+.Nm fido_bio_info_free ,
+.Nm fido_bio_info_type ,
+.Nm fido_bio_info_max_samples
+.Nd FIDO2 biometric sensor information API
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.In fido/bio.h
+.Ft fido_bio_info_t *
+.Fn fido_bio_info_new "void"
+.Ft void
+.Fn fido_bio_info_free "fido_bio_info_t **info_p"
+.Ft uint8_t
+.Fn fido_bio_info_type "const fido_bio_info_t *info"
+.Ft uint8_t
+.Fn fido_bio_info_max_samples "const fido_bio_info_t *info"
+.Sh DESCRIPTION
+Biometric sensor metadata is abstracted in
+.Em libfido2
+by the
+.Vt fido_bio_info_t
+type.
+.Pp
+The functions described in this page allow a
+.Vt fido_bio_info_t
+type to be allocated, deallocated, and inspected.
+For device operations on
+.Vt fido_bio_info_t ,
+please refer to
+.Xr fido_bio_dev_get_info 3 .
+.Pp
+The
+.Fn fido_bio_info_new
+function returns a pointer to a newly allocated, empty
+.Vt fido_bio_info_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_bio_info_free
+function releases the memory backing
+.Fa *info_p ,
+where
+.Fa *info_p
+must have been previously allocated by
+.Fn fido_bio_info_new .
+On return,
+.Fa *info_p
+is set to NULL.
+Either
+.Fa info_p
+or
+.Fa *info_p
+may be NULL, in which case
+.Fn fido_bio_info_free
+is a NOP.
+.Pp
+The
+.Fn fido_bio_info_type
+function returns the fingerprint sensor type, which is
+.Dv 1
+for touch sensors, and
+.Dv 2
+for swipe sensors.
+.Pp
+The
+.Fn fido_bio_info_max_samples
+function returns the maximum number of successful samples
+required for enrollment.
+.Sh SEE ALSO
+.Xr fido_bio_dev_get_info 3 ,
+.Xr fido_bio_enroll_new 3 ,
+.Xr fido_bio_template 3

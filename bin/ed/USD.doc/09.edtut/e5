@@ -1,0 +1,310 @@
+.\"	$OpenBSD: e5,v 1.2 2003/06/26 16:24:16 mickey Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)e5	8.1 (Berkeley) 6/8/93
+.\"
+.SH
+Change and Insert \- ``c'' and ``i''
+.PP
+This section discusses the
+.ul
+change
+command
+.P1
+c
+.P2
+which is used to change
+or replace a group of one or more lines,
+and the
+.ul
+insert
+command
+.P1
+i
+.P2
+which is used for inserting a group of one or more lines.
+.PP
+``Change'', written as
+.P1
+c
+.P2
+is used to replace a number of lines with different lines, which
+are typed in at the terminal.
+For example,
+to change lines
+.UL .+1
+through
+.UL $
+to something else, type
+.P1
+\&.+1,$c
+\&. . . \fItype the lines of text you want here\fP . . .
+\*.
+.P2
+The lines you type between the
+.UL c
+command and
+the 
+.UL .
+will take the place of the original lines between
+start line and end line.
+This is most useful in replacing a line
+or several lines which have errors in them.
+.PP
+If only one line is specified in the
+.UL c
+command, then just
+that line is replaced.
+(You can type in as many replacement lines as you like.)
+Notice
+the use of
+.UL .
+to end the
+input \- this works just like the
+.UL .
+in the append command
+and must appear by itself on a new line.
+If no line number is given, line dot is replaced.
+The value of dot is set to the last line you typed in.
+.PP
+``Insert'' is similar to append \- for instance
+.P1
+/string/i
+\&. . . \fItype the lines to be inserted here\fP . . .
+\*.
+.P2
+will insert the given text
+.ul
+before
+the next line that contains ``string''.
+The text between
+.UL i
+and
+.UL .
+is
+.ul
+inserted before
+the specified line.
+If no line number is specified dot is used.
+Dot is set to the last line inserted.
+.SH
+Exercise 7:
+.PP
+``Change'' is rather like a combination of
+delete followed by insert.
+Experiment to verify that
+.P1
+\fIstart, end\fP d
+i
+.ul
+\&. . . text . . .
+\*.
+.P2
+is almost the same as
+.P1
+\fIstart, end\fP c
+.ul
+\&. . . text . . .
+\*.
+.P2
+These are not
+.ul
+precisely
+the same
+if line
+.UL $
+gets deleted.
+Check this out.
+What is dot?
+.PP
+Experiment with
+.UL a
+and
+.UL i ,
+to see that they are
+similar, but not the same.
+You will observe that
+.P1
+\fIline\(hynumber\fP a
+\&. . . \fItext\fP . . .
+\*.
+.P2
+appends
+.ul
+after
+the given line, while
+.P1
+\fIline\(hynumber\fP i
+\&. . . \fItext\fP . . .
+\*.
+.P2
+inserts
+.ul
+before
+it.
+Observe that if no line number is given,
+.UL i
+inserts before line dot, while 
+.UL a
+appends
+after line dot.
+.SH
+Moving text around: the ``m'' command
+.PP
+The move command 
+.UL m
+is used for cutting and pasting \-
+it lets you move a group of lines
+from one place to another in the buffer.
+Suppose you want to put the first three lines of the buffer at the end instead.
+You could do it by saying:
+.P1
+1,3w temp
+$r temp
+1,3d
+.P2
+(Do you see why?)
+but you can do it a lot easier with the 
+.UL m
+command:
+.P1
+1,3m$
+.P2
+The general case is
+.P1
+\fIstart line, end line\fP m \fIafter this line\fP
+.P2
+Notice that there is a third line to be specified \-
+the place where the moved stuff gets put.
+Of course the lines to be moved can be specified
+by context searches;
+if you had
+.P1
+First paragraph
+\&. . .
+end of first paragraph.
+Second paragraph
+\&. . .
+end of second paragraph.
+.P2
+you could reverse the two paragraphs like this:
+.P1
+/Second/,/end of second/m/First/\-1
+.P2
+Notice the
+.UL \-1 :
+the moved text goes
+.ul
+after
+the line mentioned.
+Dot gets set to the last line moved.
+.SH
+The global commands ``g'' and ``v''
+.PP
+The
+.ul
+global
+command
+.UL g
+is used to execute one or more 
+.ul
+ed
+commands on all those lines in the buffer
+that match some specified string.
+For example
+.P1
+g/peling/p
+.P2
+prints all lines that contain
+.UL peling .
+More usefully,
+.P1
+g/peling/s//pelling/gp
+.P2
+makes the substitution everywhere on the line,
+then prints each corrected line.
+Compare this to
+.P1
+1,$s/peling/pelling/gp
+.P2
+which only prints the last line substituted.
+Another subtle difference is that
+the
+.UL g
+command
+does not give a
+.UL ?
+if
+.UL peling
+is not found
+where the
+.UL s
+command will.
+.PP
+There may be several commands
+(including
+.UL a ,
+.UL c ,
+.UL i ,
+.UL r ,
+.UL w ,
+but not
+.UL g );
+in that case,
+every line except the last must end with a backslash
+.UL \e :
+.P1
+g/xxx/\*.-1s/abc/def/\e
+\&\*.+2s/ghi/jkl/\e
+\&\*.-2,\*.p
+.P2
+makes changes in the lines before and after each line
+that contains
+.UL xxx ,
+then prints all three lines.
+.PP
+The
+.UL v
+command is the same as
+.UL g ,
+except that the commands are executed on every line
+that does
+.ul
+not
+match the string following
+.UL v :
+.P1
+v/ /d
+.P2
+deletes every line that does not contain a blank.

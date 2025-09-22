@@ -1,0 +1,9 @@
+ike esp from 3ffe:1::/64 to 3ffe:2::/64 peer 3ffe::29 \
+        main auth hmac-sha1 enc 3des group modp3072 \
+        quick auth hmac-sha1 enc 3des group modp3072 \
+        srcid sharleena.as10.net dstid faui31o.informatik.uni-erlangen.de
+ike esp from 3ffe::51 to 3ffe::29 \
+        main auth hmac-sha1 enc aes group modp3072 \
+        quick auth hmac-sha2-256 enc aes group modp3072 \
+        srcid sharleena.as10.net dstid faui31o.informatik.uni-erlangen.de
+

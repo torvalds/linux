@@ -1,0 +1,67 @@
+$OpenBSD: Search.pod,v 1.1 2020/12/20 15:30:58 daniel Exp $
+
+=head1 NAME
+
+OpenBSD::Search - package names matching framework
+
+=head1 SYNOPSIS
+
+   use OpenBSD::Search;
+
+   # pkgspec objects
+   my $search_object = OpenBSD::Search::PkgSpec->new($pattern);
+   my $filter_object = OpenBSD::Search::Filter->keep_most_recent;
+
+   # need repository to apply to
+
+   use OpenBSD::PackageRepository::Installed;
+
+   my $inst = OpenBSD::PackageRepository::Installed->new;
+
+   my $list_ref = $inst->match_locations($search_object, $filter_object);
+
+
+=head1 DESCRIPTION
+
+C<OpenBSD::Search> provides a search infrastructure
+for C<OpenBSD::PackageRepository> objects.
+
+A given repository can be searched for existing packages using
+C<$repo-E<gt>match_locations($search1, $filter1, ...);>
+
+It returns a reference to a list of matching C<OpenBSD::PackageLocation>
+objects.
+
+A repository list can be searched in a similar way: the search
+proceeds through each repository in the list, and stops as soon
+as it finds a non-empty match (similar to C<ld -L> rules).
+
+The first search object C<$search> is used to find the basic set
+of matching packages, and further objects are used to weed out
+unwanted elements from the list.
+
+Complex searches must be built as lists of filter objects, in
+order to preserve RepositoryList semantics, and ensure the correct
+non-empty first match is returned.
+
+The infrastructure provides the following objects:
+
+=over 4
+
+=item OpenBSD::Search::PkgSpec
+
+C<OpenBSD::PkgSpec> filters.
+
+=item OpenBSD::Search::Stem
+
+finds all packages with a given stem.
+
+=item OpenBSD::Search::PartialStem
+
+finds all packages including a partial stem.
+
+=item OpenBSD::Search::Filter
+
+filters package list through further tests.
+
+=back

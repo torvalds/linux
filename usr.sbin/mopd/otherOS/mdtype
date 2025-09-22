@@ -1,0 +1,75 @@
+#!/bin/sh
+#
+# @(#) $OpenBSD: mdtype,v 1.3 1999/03/27 14:31:22 maja Exp $
+#
+# Determine machine type.
+#
+machine="UNKNOWN"
+
+if [ -f /usr/bin/uname ]; then
+
+    os=`/usr/bin/uname`
+	
+    if [ $os = "AIX" ]; then
+	if [ "`/usr/bin/uname -v`" = "3" ]; then
+	    machine="rs6000"
+	fi
+	if [ "`/usr/bin/uname -v`" = "4" ]; then
+	    hw="`/usr/sbin/lsattr -l proc0 -E -a type | /usr/bin/cut -d\   -f2`"
+	    if [ $hw = "PowerPC_601" ]; then
+		machine="rs6000"
+	    fi 
+	    if [ $hw = "POWER" ]; then
+		machine="rs6000"
+	    fi 
+	    if [ $hw = "POWER2" ]; then
+		machine="rs6000"
+	    fi 
+	fi
+    fi
+
+    if [ $os = "SunOS" ]; then
+	machine="`/usr/bin/uname -m |/usr/bin/cut -c1-4 `"
+    fi
+
+    if [ $os = "NetBSD" ]; then
+	machine="`/usr/bin/uname -m`"
+    fi
+
+    if [ $machine = "sparc" ]; then
+	machine="sun4"
+    fi
+
+fi
+
+if [ -f /bin/uname ]; then
+
+    os=`/bin/uname`
+	
+    if [ $os = "Linux" ]; then
+        
+	machine="`/bin/uname -m`"
+
+	if [ $machine = "i686" ]; then
+	    machine="i386"
+	fi
+
+	if [ $machine = "i586" ]; then
+	    machine="i386"
+	fi
+
+	if [ $machine = "i486" ]; then
+	    machine="i386"
+	fi
+	
+    fi
+
+fi
+
+echo $machine
+
+if [ $machine = "UNKNOWN" ]; then
+    exit 1
+else
+    exit 0
+fi

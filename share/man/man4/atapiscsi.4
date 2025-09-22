@@ -1,0 +1,100 @@
+.\"	$OpenBSD: atapiscsi.4,v 1.12 2012/08/14 01:08:19 dlg Exp $
+.\"
+.\" Copyright (c) 1999 Constantine Sapuntzakis.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 14 2012 $
+.Dt ATAPISCSI 4
+.Os
+.Sh NAME
+.Nm atapiscsi
+.Nd ATAPI<->SCSI adapter
+.Sh SYNOPSIS
+.Cd "atapiscsi* at wdc? flags 0x0000"
+.Cd "atapiscsi* at pciide? flags 0x0000"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports ATAPI (also called IDE) devices such as CD-ROMs, ZIP
+drives, LS-120 floppy drives, and tape drives.
+All ATAPI devices talk a subset of the SCSI protocol.
+.Pp
+The
+.Nm
+driver acts like a SCSI adapter.
+Thus, the ATAPI devices connected to the system will appear as SCSI devices.
+ATAPI CD-ROMs will appear as
+.Xr cd 4
+devices, ATAPI tape drives as
+.Xr st 4
+devices, and ATAPI floppies as
+.Xr sd 4
+devices.
+.Pp
+For performance reasons, one should avoid putting an ATAPI device and
+a hard disk on the same cable.
+The driver does not support bus release and, even if it did, many ATAPI
+devices do not support it.
+There is only one command outstanding on a cable at a time.
+For example, if a hard disk and a CD drive are placed on the same cable,
+the hard disk requests may get queued behind slower CD operations.
+.Pp
+The
+.Cm flags
+are used only with controllers that support DMA operations and
+mode settings (like some
+.Xr pciide 4
+controllers).
+The lowest order (rightmost) nibble of the
+.Cm flags
+define the PIO mode to use.
+The next four bits indicate the DMA mode and the third nibble the UltraDMA
+mode.
+.Pp
+For each set of four bits, the 3 lower bits define the mode to use
+and the last bit must be set to 1 for this setting to be used.
+For DMA and UltraDMA, 0xf (1111) means
+.Dq disable .
+For example, a
+.Cm flags
+value of 0x0fac (1111 1010 1100)
+means
+.Do
+use PIO mode 4, DMA mode 2, disable UltraDMA
+.Dc .
+The special setting 0x0000 means
+.Dq use whatever the drive claims to support .
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr intro 4 ,
+.Xr pciide 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr st 4 ,
+.Xr wdc 4
+.Sh BUGS
+Slow devices, like tape drives, could do a better job of sharing the channel.
+For now, we recommend you put the tape device on its own channel.

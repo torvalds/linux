@@ -1,0 +1,298 @@
+.\"	$OpenBSD: X509_ALGOR_dup.3,v 1.24 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL 4692340e Jun 7 15:49:08 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_ALGOR_DUP 3
+.Os
+.Sh NAME
+.Nm X509_ALGOR_new ,
+.Nm X509_ALGOR_free ,
+.Nm X509_ALGOR_dup ,
+.Nm X509_ALGOR_set0 ,
+.Nm X509_ALGOR_get0 ,
+.Nm X509_ALGOR_cmp
+.Nd create, change, and inspect algorithm identifiers
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_ALGOR *
+.Fn X509_ALGOR_new void
+.Ft void
+.Fn X509_ALGOR_free "X509_ALGOR *alg"
+.Ft X509_ALGOR *
+.Fo X509_ALGOR_dup
+.Fa "X509_ALGOR *alg"
+.Fc
+.Ft int
+.Fo X509_ALGOR_set0
+.Fa "X509_ALGOR *alg"
+.Fa "ASN1_OBJECT *aobj"
+.Fa "int ptype"
+.Fa "void *pval"
+.Fc
+.Ft void
+.Fo X509_ALGOR_get0
+.Fa "const ASN1_OBJECT **paobj"
+.Fa "int *pptype"
+.Fa "const void **ppval"
+.Fa "const X509_ALGOR *alg"
+.Fc
+.Ft int
+.Fo X509_ALGOR_cmp
+.Fa "const X509_ALGOR *a"
+.Fa "const X509_ALGOR *b"
+.Fc
+.Sh DESCRIPTION
+An
+.Vt X509_ALGOR
+object represents an ASN.1
+.Vt AlgorithmIdentifier
+structure defined in RFC 5280 section 4.1.1.2.
+It specifies a cryptographic
+.Fa algorithm
+by an ASN.1 object identifier (OID) that can be obtained from
+.Xr OBJ_nid2obj 3 ,
+together with optional algorithm-specific
+.Fa parameters
+of the type
+.Vt ASN1_TYPE ,
+see
+.Xr ASN1_TYPE_set 3 .
+.Vt X509_ALGOR
+objects are used by many other objects, for example certificates,
+certificate revocation lists, and certificate requests.
+.Pp
+.Fn X509_ALGOR_new
+allocates a new
+.Vt X509_ALGOR
+object containing the object that
+.Xr OBJ_nid2obj 3
+returns for
+.Dv NID_undef
+as the
+.Fa algorithm
+and a
+.Dv NULL
+pointer as the
+.Fa parameters .
+.Pp
+.Fn X509_ALGOR_free
+frees
+.Fa alg
+and any data contained in it.
+If
+.Fa alg
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+.Fn X509_ALGOR_dup
+creates a deep copy of
+.Fa alg .
+It is implemented by calling
+.Xr ASN1_item_dup 3
+with arguments of
+.Dv X509_ALGOR_it
+and
+.Fa alg ,
+which is equivalent to calling
+.Xr i2d_X509_ALGOR 3
+and
+.Xr d2i_X509_ALGOR 3 .
+.Pp
+.Fn X509_ALGOR_set0
+sets the algorithm OID of
+.Fa alg
+to
+.Fa aobj
+and the associated parameter type to
+.Fa ptype
+with value
+.Fa pval .
+If
+.Fa ptype
+is
+.Dv V_ASN1_UNDEF ,
+the parameter is omitted and
+.Fa pval
+is ignored.
+If
+.Fa ptype
+is zero,
+.Fa pval
+is ignored and the existing parameter is left unchanged, or if
+.Fa alg
+does not contain a parameter, a new, empty parameter of type
+.Dv V_ASN1_UNDEF
+is added.
+Otherwise
+.Fa ptype
+and
+.Fa pval
+have the same meaning as the
+.Fa type
+and
+.Fa value
+parameters to
+.Xr ASN1_TYPE_set 3 .
+Ownership of
+.Fa aobj
+and, unless it is ignored, of
+.Fa pval
+is transferred to
+.Fa alg
+on success.
+.Pp
+.Fn X509_ALGOR_get0
+returns
+.Fa alg Ns 's
+algorithm OID in
+.Pf * Fa paobj ,
+its parameter type in
+.Pf * Fa pptype ,
+and its parameter value in
+.Pf * Fa ppval .
+Any of
+.Fa paobj ,
+.Fa pptype ,
+and
+.Fa ppval
+can be
+.Dv NULL .
+If
+.Fa pptype is
+.Dv NULL
+or if
+.Pf * Fa pptype
+is
+.Dv V_ASN1_UNDEF
+then
+.Pf * Fa ppval Ns 's
+value is undefined.
+.Pp
+.Fn X509_ALGOR_cmp
+compares
+.Fa a
+and
+.Fa b .
+.Sh RETURN VALUES
+.Fn X509_ALGOR_new
+and
+.Fn X509_ALGOR_dup
+return a new
+.Vt X509_ALGOR
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn X509_ALGOR_set0
+returns 1 for success or 0 if
+.Fa alg
+is
+.Dv NULL
+or memory allocation fails.
+.Pp
+.Fn X509_ALGOR_cmp
+returns 0 if
+.Fa a
+and
+.Fa b
+have identical encodings or non-zero otherwise.
+.Sh SEE ALSO
+.Xr ASN1_TYPE_set 3 ,
+.Xr d2i_X509_ALGOR 3 ,
+.Xr EVP_DigestInit 3 ,
+.Xr OBJ_nid2obj 3 ,
+.Xr X509_get0_signature 3 ,
+.Xr X509_new 3 ,
+.Xr X509_PUBKEY_get0_param 3 ,
+.Xr X509_signature_dump 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Sh HISTORY
+.Fn X509_ALGOR_new
+and
+.Fn X509_ALGOR_free
+appeared in SSLeay 0.4 or earlier and have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_ALGOR_dup
+first appeared in SSLeay 0.9.1 and has been available since
+.Ox 2.6 .
+.Pp
+.Fn X509_ALGOR_set0
+and
+.Fn X509_ALGOR_get0
+first appeared in OpenSSL 0.9.8h and have been available since
+.Ox 4.5 .
+.Pp
+.Fn X509_ALGOR_cmp
+first appeared in OpenSSL 0.9.8zd, 1.0.0p, and 1.0.1k
+and has been available since
+.Ox 4.9 .

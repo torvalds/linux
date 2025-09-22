@@ -1,0 +1,201 @@
+.\" $OpenBSD: X509_cmp_time.3,v 1.13 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL 83cf7abf May 29 13:07:08 2018 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2017, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Emilia Kasper <emilia@openssl.org>
+.\" Copyright (c) 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_CMP_TIME 3
+.Os
+.Sh NAME
+.Nm X509_cmp_time ,
+.Nm X509_cmp_current_time ,
+.Nm X509_time_adj_ex ,
+.Nm X509_time_adj ,
+.Nm X509_gmtime_adj
+.Nd ASN.1 Time utilities
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_cmp_time
+.Fa "const ASN1_TIME *asn1_time"
+.Fa "time_t *cmp_time"
+.Fc
+.Ft int
+.Fo X509_cmp_current_time
+.Fa "const ASN1_TIME *asn1_time"
+.Fc
+.Ft ASN1_TIME *
+.Fo X509_time_adj_ex
+.Fa "ASN1_TIME *out_time"
+.Fa "int offset_day"
+.Fa "long offset_sec"
+.Fa "time_t *in_time"
+.Fc
+.Ft ASN1_TIME *
+.Fo X509_time_adj
+.Fa "ASN1_TIME *out_time"
+.Fa "long offset_sec"
+.Fa "time_t *in_time"
+.Fc
+.Ft ASN1_TIME *
+.Fo X509_gmtime_adj
+.Fa "ASN1_TIME *out_time"
+.Fa "long offset_sec"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_cmp_time
+parses
+.Fa asn1_time
+and compares it to
+.Fa cmp_time ,
+or to the current time if
+.Fa cmp_time
+is
+.Dv NULL .
+.Fn X509_cmp_current_time
+compares it to the current time.
+.Pp
+.Fn X509_time_adj_ex
+sets
+.Fa out_time
+to a time
+.Fa offset_day
+and
+.Fa offset_sec
+later than
+.Fa in_time .
+The values of
+.Fa offset_day
+and
+.Fa offset_sec
+can be negative to set a time before
+.Fa in_time .
+The
+.Fa offset_sec
+value can also exceed the number of seconds in a day.
+If
+.Fa in_time
+is
+.Dv NULL ,
+the current time is used instead.
+If
+.Fa out_time
+is
+.Dv NULL ,
+a new
+.Vt ASN1_TIME
+structure is allocated and returned.
+.Pp
+.Fn X509_time_adj
+does the same with a 0 day offset.
+.Pp
+.Fn X509_gmtime_adj
+does the same using the current time instead of
+.Fa in_time ,
+that is, it sets
+.Fa out_time
+to a time
+.Fa offset_sec
+seconds later than the current time.
+.Sh RETURN VALUES
+.Fn X509_cmp_time
+and
+.Fn X509_cmp_current_time
+return -1 if
+.Fa asn1_time
+is earlier than or equal to
+.Fa cmp_time ,
+1 if it is later, or 0 on error.
+.Pp
+.Fn X509_time_adj_ex ,
+.Fn X509_time_adj ,
+and
+.Fn X509_gmtime_adj
+return a pointer to the updated or newly allocated
+.Vt ASN1_TIME
+structure or
+.Dv NULL
+on error.
+.Sh SEE ALSO
+.Xr ASN1_TIME_new 3 ,
+.Xr ASN1_TIME_set 3 ,
+.Xr time 3
+.Sh HISTORY
+.Fn X509_cmp_current_time
+and
+.Fn X509_gmtime_adj
+first appeared in SSLeay 0.6.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_cmp_time
+and
+.Fn X509_time_adj
+first appeared in OpenSSL 0.9.6 and have been available since
+.Ox 2.9 .
+.Pp
+.Fn X509_time_adj_ex
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .

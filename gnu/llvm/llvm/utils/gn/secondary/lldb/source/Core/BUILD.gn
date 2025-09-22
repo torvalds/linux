@@ -1,0 +1,99 @@
+import("//lldb/utils/TableGen/lldb_tablegen.gni")
+
+lldb_tablegen("CoreProperties") {
+  args = [ "-gen-lldb-property-defs" ]
+}
+
+lldb_tablegen("CorePropertiesEnum") {
+  args = [ "-gen-lldb-property-enum-defs" ]
+  td_file = "CoreProperties.td"
+}
+
+static_library("Core") {
+  output_name = "lldbCore"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    ":CoreProperties",
+    ":CorePropertiesEnum",
+    "//clang/lib/Driver",
+
+    #"//lldb/source/Breakpoint", # Dependency cycle.
+    #"//lldb/source/DataFormatters", # Dependency cycle.
+    #"//lldb/source/Expression", # Dependency cycle.
+    "//lldb/source/Host",
+
+    #"//lldb/source/Interpreter", # Dependency cycle.
+    #"//lldb/source/Symbol", # Dependency cycle.
+    #"//lldb/source/Target", # Dependency cycle.
+    "//lldb/source/Utility",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+
+    #"//lldb/source/Plugins/Language/CPlusPlus", # 3-hop dependency cycle.
+    #"//lldb/source/Plugins/Language/ObjC",  # Many-hop dependency cycle.
+
+    # FIXME:
+    #  ${LLDB_CURSES_LIBS}
+  ]
+
+  # FIXME: Link curses, libedit if needed.
+  include_dirs = [ ".." ]
+  sources = [
+    "Address.cpp",
+    "AddressRange.cpp",
+    "AddressRangeListImpl.cpp",
+    "AddressResolver.cpp",
+    "AddressResolverFileLine.cpp",
+    "Communication.cpp",
+    "DataFileCache.cpp",
+    "Debugger.cpp",
+    "DebuggerEvents.cpp",
+    "Declaration.cpp",
+    "Disassembler.cpp",
+    "DumpDataExtractor.cpp",
+    "DumpRegisterInfo.cpp",
+    "DumpRegisterValue.cpp",
+    "DynamicLoader.cpp",
+    "EmulateInstruction.cpp",
+    "FileLineResolver.cpp",
+    "FormatEntity.cpp",
+    "Highlighter.cpp",
+    "IOHandler.cpp",
+    "IOHandlerCursesGUI.cpp",
+    "Mangled.cpp",
+    "Module.cpp",
+    "ModuleChild.cpp",
+    "ModuleList.cpp",
+    "Opcode.cpp",
+    "PluginManager.cpp",
+    "Progress.cpp",
+    "RichManglingContext.cpp",
+    "SearchFilter.cpp",
+    "Section.cpp",
+    "SourceLocationSpec.cpp",
+    "SourceManager.cpp",
+    "StreamAsynchronousIO.cpp",
+    "ThreadedCommunication.cpp",
+    "UserSettingsController.cpp",
+    "Value.cpp",
+    "ValueObject.cpp",
+    "ValueObjectCast.cpp",
+    "ValueObjectChild.cpp",
+    "ValueObjectConstResult.cpp",
+    "ValueObjectConstResultCast.cpp",
+    "ValueObjectConstResultChild.cpp",
+    "ValueObjectConstResultImpl.cpp",
+    "ValueObjectDynamicValue.cpp",
+    "ValueObjectList.cpp",
+    "ValueObjectMemory.cpp",
+    "ValueObjectRegister.cpp",
+    "ValueObjectSyntheticFilter.cpp",
+    "ValueObjectUpdater.cpp",
+    "ValueObjectVTable.cpp",
+    "ValueObjectVariable.cpp",
+  ]
+}

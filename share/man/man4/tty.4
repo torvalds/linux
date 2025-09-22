@@ -1,0 +1,511 @@
+.\"	$OpenBSD: tty.4,v 1.56 2024/08/16 16:10:27 florian Exp $
+.\"	$NetBSD: tty.4,v 1.4 1996/03/19 04:26:01 paulus Exp $
+.\"
+.\" Copyright (c) 1991, 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)tty.4	8.3 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: August 16 2024 $
+.Dt TTY 4
+.Os
+.Sh NAME
+.Nm tty ,
+.Nm cua
+.Nd general terminal interface
+.Sh SYNOPSIS
+.In sys/ioctl.h
+.Sh DESCRIPTION
+This section describes the interface to the terminal drivers
+in the system.
+.Ss Terminal Special Files
+Each hardware terminal port (such as a serial port) on the system usually has a
+terminal special device file associated with it in the directory
+.Pa /dev/
+(for
+example,
+.Pa /dev/tty03 ) .
+When a user logs into
+the system on one of these hardware terminal ports, the system has already
+opened the associated device and prepared the line for normal interactive
+use (see
+.Xr getty 8 ) .
+There is also a special case of a terminal file that connects not to
+a hardware terminal port, but to another program on the other side.
+These special terminal devices are called
+.Em ptys
+and provide the mechanism necessary to give users the same interface to the
+system when logging in over a network (using
+.Xr ssh 1
+for example).
+Even in these cases the details of how the terminal
+file was opened and set up is already handled by special software
+in the system.
+Thus, users do not normally need to worry about the details of
+how these lines are opened or used.
+.Pp
+For hardware terminal ports, dial-out is supported through matching
+device nodes called calling units.
+For instance, the terminal called
+.Pa /dev/tty03
+would have a matching calling unit called
+.Pa /dev/cua03 .
+These two devices are normally differentiated by creating the calling
+unit device node with a minor number 128 greater than the dial-in
+device node.
+Whereas the dial-in device (the
+.Em tty )
+normally
+requires a hardware signal to indicate to the system that it is active,
+the dial-out device (the
+.Em cua )
+does not, and hence can communicate unimpeded
+with a device such as a modem, or with another system over a serial link.
+This means that a process like
+.Xr getty 8
+will wait on a dial-in device until a connection is established.
+Meanwhile, a dial-out connection can be established on the dial-out
+device (for the very same hardware terminal port) without disturbing
+anything else on the system.
+The
+.Xr getty 8
+process does not even notice that anything is happening on the terminal
+port.
+If a connecting call comes in after the dial-out connection has finished, the
+.Xr getty 8
+process will deal with it properly, without having noticed the
+intervening dial-out action.
+For more information on dial-out, see
+.Xr cu 1 .
+.Pp
+When an interactive user logs in, the system prepares the line to
+behave in a certain way (called a
+.Em "line discipline" ) ,
+described in
+.Xr stty 1
+at the command level, and in
+.Xr termios 4
+at the programming level.
+To change settings associated with a login terminal,
+refer to the preceding man pages for the common cases.
+The remainder of this man page is concerned with describing details of using
+and controlling terminal devices at a low level, such as that possibly
+required by a program wishing to provide features similar to those provided
+by the system.
+.Ss Line disciplines
+A terminal file is used like any other file in the system in that
+it can be opened, read, and written to using standard system
+calls.
+For each existing terminal file, there is a software processing module
+called a
+.Em "line discipline"
+associated with it.
+The
+.Em "line discipline"
+essentially glues the low level device driver code with the high
+level generic interface routines (such as
+.Xr read 2
+and
+.Xr write 2 ) ,
+and is responsible for implementing the semantics associated
+with the device.
+When a terminal file is first opened by a program, the default
+.Em "line discipline"
+called the
+.Dv termios
+line discipline is associated with the file.
+This is the primary line discipline that is used in most cases and provides
+the semantics that users normally associate with a terminal.
+When the
+.Dv termios
+line discipline is in effect, the terminal file behaves and is
+operated according to the rules described in
+.Xr termios 4 .
+Refer to that man page for a full description of the terminal
+semantics.
+The operations described here
+generally represent features common
+across all
+.Em "line disciplines" ,
+although some of these calls may not
+make sense in conjunction with a line discipline other than
+.Dv termios ,
+and some may not be supported by the underlying
+hardware (or lack thereof, as in the case of ptys).
+.Ss Terminal File Operations
+All of the following operations are invoked using the
+.Xr ioctl 2
+system call.
+Refer to that man page for a description of the
+.Em request
+and
+.Em argp
+parameters.
+In addition to the ioctl
+.Em requests
+defined here, the specific line discipline
+in effect will define other
+.Em requests
+specific to it (actually
+.Xr termios 4
+defines them as function calls, not ioctl
+.Em requests ) .
+The following section lists the available ioctl requests.
+The name of the request, a description of its purpose, and the typed
+.Em argp
+parameter (if any)
+are listed.
+For example, the first entry says
+.Pp
+.D1 Em "TIOCSETD int *ldisc"
+.Pp
+and would be called on the terminal associated with
+file descriptor zero by the following code fragment:
+.Bd -literal
+	int ldisc;
+
+	ldisc = TTYDISC;
+	ioctl(0, TIOCSETD, &ldisc);
+.Ed
+.Ss Terminal File Request Descriptions
+.Bl -tag -width TIOCGWINSZ
+.It Dv TIOCSETD Fa int *ldisc
+Change to the new line discipline pointed to by
+.Fa ldisc .
+The available line disciplines currently available are:
+.Pp
+.Bl -tag -width TIOCGWINSZ -compact
+.It TTYDISC
+Termios interactive line discipline.
+.It PPPDISC
+Point-to-Point Protocol line discipline.
+.It NMEADISC
+NMEA 0183 line discipline.
+.It MSTSDISC
+Meinberg Standard Time String line discipline.
+.El
+.It Dv TIOCGETD Fa int *ldisc
+Return the current line discipline in the integer pointed to by
+.Fa ldisc .
+.It Dv TIOCSBRK Fa void
+Set the terminal hardware into BREAK condition.
+.It Dv TIOCCBRK Fa void
+Clear the terminal hardware BREAK condition.
+.It Dv TIOCSDTR Fa void
+Assert data terminal ready (DTR).
+.It Dv TIOCCDTR Fa void
+Clear data terminal ready (DTR).
+.It Dv TIOCGPGRP Fa int *tpgrp
+Return the current process group the terminal is associated
+with in the integer pointed to by
+.Fa tpgrp .
+This is the underlying call that implements the
+.Xr tcgetpgrp 3
+call.
+.It Dv TIOCSPGRP Fa int *tpgrp
+Associate the terminal with the process group (as an integer) pointed to by
+.Fa tpgrp .
+This is the underlying call that implements the
+.Xr tcsetpgrp 3
+call.
+.It Dv TIOCGETA Fa struct termios *term
+Place the current value of the termios state associated with the
+device in the termios structure pointed to by
+.Fa term .
+This is the underlying call that implements the
+.Xr tcgetattr 3
+call.
+.It Dv TIOCSETA Fa struct termios *term
+Set the termios state associated with the device immediately.
+This is the underlying call that implements the
+.Xr tcsetattr 3
+call with the
+.Dv TCSANOW
+option.
+.It Dv TIOCSETAW Fa struct termios *term
+First wait for any output to complete, then set the termios state
+associated with the device.
+This is the underlying call that implements the
+.Xr tcsetattr 3
+call with the
+.Dv TCSADRAIN
+option.
+.It Dv TIOCSETAF Fa struct termios *term
+First wait for any output to complete, clear any pending input,
+then set the termios state associated with the device.
+This is the underlying call that implements the
+.Xr tcsetattr 3
+call with the
+.Dv TCSAFLUSH
+option.
+.It Dv TIOCOUTQ Fa int *num
+Place the current number of characters in the output queue in the
+integer pointed to by
+.Fa num .
+.It Dv TIOCNOTTY Fa void
+This call is obsolete but left for compatibility.
+In the past, when a process that didn't have a controlling terminal
+.Po
+see
+.Em The Controlling Terminal
+in
+.Xr termios 4
+.Pc
+first opened a terminal device, it acquired that terminal as its
+controlling terminal.
+For some programs this was a hazard as they didn't want a controlling
+terminal in the first place, and this provided a mechanism to disassociate
+the controlling terminal from the calling process.
+It
+.Em must
+be called by opening the file
+.Pa /dev/tty
+and calling
+.Dv TIOCNOTTY
+on that file descriptor.
+.Pp
+The current system does not allocate a controlling terminal to
+a process on an
+.Xr open 2
+call: there is a specific ioctl called
+.Dv TIOCSCTTY
+to make a terminal the controlling
+terminal.
+In addition, a program can
+.Xr fork 2
+and call the
+.Xr setsid 2
+system call which will place the process into its own session - which
+has the effect of disassociating it from the controlling terminal.
+This is the new and preferred method for programs to lose their controlling
+terminal.
+.It Dv TIOCSETVERAUTH Fa int *secs
+Indicate that the current user has successfully authenticated to this session.
+Future authentication checks may then be bypassed by performing a
+.Dv TIOCCHKVERAUTH
+check.
+The verified authentication status will expire after
+.Fa secs
+seconds.
+Only root may perform this operation.
+.It Dv TIOCCLRVERAUTH Fa void
+Clear any verified auth status associated with this session.
+.It Dv TIOCCHKVERAUTH Fa void
+Check the verified auth status of this session.
+The calling process must have the same real user ID and
+parent process as the process which called
+.Dv TIOCSETVERAUTH .
+A zero return indicates success.
+.It Dv TIOCSTOP Fa void
+Stop output on the terminal (like typing ^S at the keyboard).
+.It Dv TIOCSTART Fa void
+Start output on the terminal (like typing ^Q at the keyboard).
+.It Dv TIOCSCTTY Fa void
+Make the terminal the controlling terminal for the process (the process
+must not currently have a controlling terminal).
+.It Dv TIOCDRAIN Fa void
+Wait until all output is drained.
+.It Dv TIOCEXCL Fa void
+Set exclusive use on the terminal.
+No further opens are permitted except by root.
+Of course, this means that programs that are run by root (or setuid)
+will not obey the exclusive setting - which limits the usefulness
+of this feature.
+.It Dv TIOCNXCL Fa void
+Clear exclusive use of the terminal.
+Further opens are permitted.
+.It Dv TIOCFLUSH Fa int *what
+If the value of the int pointed to by
+.Fa what
+contains the
+.Dv FREAD
+bit as defined in
+.In sys/fcntl.h ,
+then all characters in the input queue are cleared.
+If it contains the
+.Dv FWRITE
+bit, then all characters in the output queue are cleared.
+If the value of the integer is zero, then it behaves as if both the
+.Dv FREAD
+and
+.Dv FWRITE
+bits were set (i.e., clears both queues).
+.It Dv TIOCGWINSZ Fa struct winsize *ws
+Put the window size information associated with the terminal in the
+.Va winsize
+structure pointed to by
+.Fa ws .
+The window size structure contains the number of rows and columns (and pixels
+if appropriate) of the devices attached to the terminal.
+It is set by user software and is the means by which most full\&-screen
+oriented programs determine the screen size.
+.It Dv TIOCSWINSZ Fa struct winsize *ws
+Set the window size associated with the terminal to be the value in
+the
+.Va winsize
+structure pointed to by
+.Fa ws
+(see above).
+.It Dv TIOCCONS Fa int *on
+If
+.Fa on
+points to a non-zero integer, redirect kernel console output
+.Po
+see
+.Xr printf 9
+.Pc
+to this terminal.
+If
+.Fa on
+points to a zero integer, redirect kernel console output back to the normal
+console.
+This is usually used on workstations to redirect kernel messages
+to a particular window.
+.It Dv TIOCMSET Fa int *state
+The integer pointed to by
+.Fa state
+contains bits that correspond to modem state.
+Following is a list of defined variables and the modem state they represent:
+.Pp
+.Bl -tag -width TIOCMXCTS -compact
+.It TIOCM_LE
+Line Enable.
+.It TIOCM_DTR
+Data Terminal Ready.
+.It TIOCM_RTS
+Request To Send.
+.It TIOCM_ST
+Secondary Transmit.
+.It TIOCM_SR
+Secondary Receive.
+.It TIOCM_CTS
+Clear To Send.
+.It TIOCM_CAR
+Carrier Detect.
+.It TIOCM_CD
+Carrier Detect (synonym).
+.It TIOCM_RNG
+Ring Indication.
+.It TIOCM_RI
+Ring Indication (synonym).
+.It TIOCM_DSR
+Data Set Ready.
+.El
+.Pp
+This call sets the terminal modem state to that represented by
+.Fa state .
+Not all terminals may support this.
+.It Dv TIOCMGET Fa int *state
+Return the current state of the terminal modem lines as represented
+above in the integer pointed to by
+.Fa state .
+.It Dv TIOCMBIS Fa int *state
+The bits in the integer pointed to by
+.Fa state
+represent modem state as described above; however, the state is OR-ed
+in with the current state.
+.It Dv TIOCMBIC Fa int *state
+The bits in the integer pointed to by
+.Fa state
+represent modem state as described above; however, each bit which is on
+in
+.Fa state
+is cleared in the terminal.
+.It Dv TIOCGTSTAMP Fa struct timeval *timeval
+Return the (single) timestamp.
+.It Dv TIOCSTSTAMP Fa struct tstamps *tstamps
+Chooses the conditions which will cause the current system time to be
+immediately copied to the terminal timestamp storage.
+This is often used to determine exactly the moment at which one or
+more of these events occurred, though only one can be monitored.
+Only
+.Dv TIOCM_CTS
+and
+.Dv TIOCM_CAR
+are honoured in
+.Va tstamps.ts_set
+and
+.Va tstamps.ts_clr ;
+these indicate which raising and lowering events on the respective lines
+should cause a timestamp capture.
+.It Dv TIOCSFLAGS Fa int *state
+The bits in the integer pointed to by
+.Fa state
+contain bits that correspond to serial port state.
+Following is a list of defined variables and the serial port state they
+represent:
+.Pp
+.Bl -tag -width TIOCFLAG_SOFTCAR -compact
+.It TIOCFLAG_SOFTCAR
+Ignore hardware carrier.
+.It TIOCFLAG_CLOCAL
+Set clocal on open.
+.It TIOCFLAG_CRTSCTS
+Set crtscts on open.
+.It TIOCFLAG_MDMBUF
+Set mdmbuf on open.
+.El
+.Pp
+This call sets the serial port state to that represented by
+.Fa state .
+Not all serial ports may support this.
+.It Dv TIOCGFLAGS Fa int *state
+Return the current state of the serial port as represented
+above in the integer pointed to by
+.Fa state .
+.It Dv TIOCSTAT Fa void
+Causes the kernel to write a status message to the terminal that displays the
+current load average,
+the name of the command in the foreground,
+its process ID,
+the symbolic wait channel,
+the number of user and system seconds used,
+the percentage of CPU the process is getting,
+and the resident set size of the process.
+.El
+.Sh FILES
+.Bl -tag -width /dev/tty -compact
+.It Pa /dev/tty
+controlling terminal, if any
+.El
+.Sh SEE ALSO
+.Xr cu 1 ,
+.Xr stty 1 ,
+.Xr tty 1 ,
+.Xr ioctl 2 ,
+.Xr pty 4 ,
+.Xr termios 4 ,
+.Xr ttys 5 ,
+.Xr getty 8
+.Sh HISTORY
+A console typewriter device
+.Pa /dev/tty
+and asynchronous communication interfaces
+.Pa /dev/tty[0-5]
+first appeared in
+.At v1 .
+The cua support is inspired by similar support in SunOS.

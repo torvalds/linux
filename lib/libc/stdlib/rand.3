@@ -1,0 +1,135 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: rand.3,v 1.21 2022/03/29 18:15:52 naddy Exp $
+.\"
+.Dd $Mdocdate: March 29 2022 $
+.Dt RAND 3
+.Os
+.Sh NAME
+.Nm rand ,
+.Nm rand_r ,
+.Nm srand ,
+.Nm srand_deterministic
+.Nd bad pseudo-random number generator
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft void
+.Fn srand "unsigned int seed"
+.Ft void
+.Fn srand_deterministic "unsigned int seed"
+.Ft int
+.Fn rand void
+.Ft int
+.Fn rand_r "unsigned int *seed"
+.Sh DESCRIPTION
+.Bf -symbolic
+Standards insist that this interface return deterministic results.
+Unsafe usage is very common, so
+.Ox
+changed the subsystem to return non-deterministic results by default.
+.Ef
+.Pp
+To satisfy portable code,
+.Fn srand
+may be called to initialize the subsystem.
+In
+.Ox
+the
+.Ar seed
+variable is ignored, and strong random number results will be provided from
+.Xr arc4random 3 .
+In other systems, the
+.Ar seed
+variable primes a simplistic deterministic algorithm.
+.Pp
+If the standardized behavior is required
+.Fn srand_deterministic
+can be substituted for
+.Fn srand ,
+then subsequent
+.Fn rand
+calls will return results using the deterministic algorithm.
+The deterministic sequence algorithm changed a number of times since
+original development, is underspecified, and should not be relied upon to
+remain consistent between platforms and over time.
+.Pp
+The
+.Fn rand
+function returns a result in the range of 0 to
+.Dv RAND_MAX .
+By default, this result comes from
+.Xr arc4random 3 .
+If
+.Fn srand_deterministic
+was called, the result will be computed using the deterministic algorithm.
+.Pp
+The
+.Fn rand_r
+function is a thread-safe version of
+.Fn rand .
+Storage for the seed must be provided through the
+.Fa seed
+argument, and needs to have been initialized by the caller.
+It always operates using the deterministic algorithm.
+.Sh SEE ALSO
+.Xr arc4random 3 ,
+.Xr rand48 3 ,
+.Xr random 3
+.Sh STANDARDS
+The
+.Fn rand
+function conforms to
+.St -ansiC .
+.Pp
+The
+.Fn rand_r
+function conforms to
+.St -p1003.1-2008 .
+.Pp
+The
+.Fn srand
+function does not conform to
+.St -ansiC ,
+intentionally.
+.Pp
+The
+.Fn srand_deterministic
+function is an
+.Ox
+extension.
+.Sh HISTORY
+The functions
+.Fn rand
+and
+.Fn srand
+first appeared in
+.At v3 .

@@ -1,0 +1,4 @@
+# Host configuration file for an NCR 3000 (i486/SVR4) system.
+
+# The l flag generates a warning from the SVR4 archiver, remove it.
+AR_FLAGS = cq

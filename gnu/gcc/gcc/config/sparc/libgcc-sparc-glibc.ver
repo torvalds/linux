@@ -1,0 +1,61 @@
+# In order to work around the very problems that force us to now generally
+# create a libgcc.so, glibc reexported a number of routines from libgcc.a.
+# By now choosing the same version tags for these specific routines, we
+# maintain enough binary compatibility to allow future versions of glibc
+# to defer implementation of these routines to libgcc.so via DT_AUXILIARY.
+
+%ifdef __arch64__
+%define GLIBC_VER GLIBC_2.2
+%else
+%define GLIBC_VER GLIBC_2.0
+%endif
+%inherit GCC_3.0 GLIBC_VER
+GLIBC_VER {
+  # Sampling of DImode arithmetic used by (at least) i386 and m68k.
+  __divdi3
+  __moddi3
+  __udivdi3
+  __umoddi3
+
+  # Exception handling support functions used by most everyone.
+  __register_frame
+  __register_frame_table
+  __deregister_frame
+  __register_frame_info
+  __deregister_frame_info
+  __frame_state_for
+  __register_frame_info_table
+}
+
+%if !defined (__arch64__) && defined (__LONG_DOUBLE_128__)
+
+# long double 128 bit support from 32-bit libgcc_s.so.1 is only available
+# when configured with --with-long-double-128.  Make sure all the
+# symbols are available at @@GCC_LDBL_* versions to make it clear
+# there is a configurable symbol set.
+
+%exclude {
+  __fixtfdi
+  __fixunstfdi
+  __floatditf
+
+  __divtc3
+  __multc3
+  __powitf2
+}
+
+%inherit GCC_LDBL_3.0 GCC_3.0
+GCC_LDBL_3.0 {
+  __fixtfdi
+  __fixunstfdi
+  __floatditf
+}
+
+%inherit GCC_LDBL_4.0.0 GCC_4.0.0
+GCC_LDBL_4.0.0 {
+  __divtc3
+  __multc3
+  __powitf2
+}
+
+%endif

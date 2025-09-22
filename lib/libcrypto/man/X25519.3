@@ -1,0 +1,212 @@
+.\" $OpenBSD: X25519.3,v 1.8 2025/06/08 22:40:30 schwarze Exp $
+.\" contains some text from: BoringSSL curve25519.h, curve25519.c
+.\" content also checked up to: OpenSSL f929439f Mar 15 12:19:16 2018 +0000
+.\"
+.\" Copyright (c) 2015 Google Inc.
+.\" Copyright (c) 2018, 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" According to the BoringSSL git history, those parts of the text in
+.\" the present manual page that are Copyrighted by Google were probably
+.\" written by Adam Langley <agl@google.com> in 2015.
+.\" I fail to see any such text in the public domain files written
+.\" by Daniel J. Bernstein and others that are included in SUPERCOP
+.\" and that Adam Langley's BoringSSL implementation is based on.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X25519 3
+.Os
+.Sh NAME
+.Nm X25519 ,
+.Nm X25519_keypair ,
+.Nm ED25519_keypair ,
+.Nm ED25519_sign ,
+.Nm ED25519_verify
+.Nd Elliptic Curve Diffie-Hellman and signature primitives based on Curve25519
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/curve25519.h
+.Ft int
+.Fo X25519
+.Fa "uint8_t out_shared_key[X25519_KEY_LENGTH]"
+.Fa "const uint8_t private_key[X25519_KEY_LENGTH]"
+.Fa "const uint8_t peer_public_value[X25519_KEY_LENGTH]"
+.Fc
+.Ft void
+.Fo X25519_keypair
+.Fa "uint8_t out_public_value[X25519_KEY_LENGTH]"
+.Fa "uint8_t out_private_key[X25519_KEY_LENGTH]"
+.Fc
+.Ft void
+.Fo ED25519_keypair
+.Fa "uint8_t out_public_key[ED25519_PUBLIC_KEY_LENGTH]"
+.Fa "uint8_t out_private_key[ED25519_PRIVATE_KEY_LENGTH]"
+.Fc
+.Ft int
+.Fo ED25519_sign
+.Fa "uint8_t *out_sig"
+.Fa "const uint8_t *message"
+.Fa "size_t message_len"
+.Fa "const uint8_t public_key[ED25519_PUBLIC_KEY_LENGTH]"
+.Fa "const uint8_t private_key_seed[ED25519_PRIVATE_KEY_LENGTH]"
+.Fc
+.Ft int
+.Fo ED25519_verify
+.Fa "const uint8_t *message"
+.Fa "size_t message_len"
+.Fa "const uint8_t signature[ED25519_SIGNATURE_LENGTH]"
+.Fa "const uint8_t public_key[ED25519_PUBLIC_KEY_LENGTH]"
+.Fc
+.Sh DESCRIPTION
+Curve25519 is an elliptic curve over a prime field
+specified in RFC 7748 section 4.1.
+The prime field is defined by the prime number 2^255 - 19.
+.Pp
+X25519
+is the Diffie-Hellman primitive built from Curve25519 as described
+in RFC 7748 section 5.
+Section 6.1 describes the intended use in an Elliptic Curve Diffie-Hellman
+(ECDH) protocol.
+.Pp
+.Fn X25519
+writes a shared key to
+.Fa out_shared_key
+that is calculated from the given
+.Fa private_key
+and the
+.Fa peer_public_value
+by scalar multiplication.
+Do not use the shared key directly, rather use a key derivation
+function and also include the two public values as inputs.
+.Pp
+.Fn X25519_keypair
+sets
+.Fa out_public_value
+and
+.Fa out_private_key
+to a freshly generated public/private key pair.
+First, the
+.Fa out_private_key
+is generated with
+.Xr arc4random_buf 3 .
+Then, the opposite of the masking described in RFC 7748 section 5
+is applied to it to make sure that the generated private key is never
+correctly masked.
+The purpose is to cause incorrect implementations on the peer side
+to consistently fail.
+Correct implementations will decode the key correctly even when it is
+not correctly masked.
+Finally, the
+.Fa out_public_value
+is calculated from the
+.Fa out_private_key
+by multiplying it with the Montgomery base point
+.Vt uint8_t u[32] No = Brq 9 .
+.Pp
+The size of a public and private key is
+.Dv X25519_KEY_LENGTH No = 32
+bytes each.
+.Pp
+Ed25519 is a signature scheme using a twisted Edwards curve
+that is birationally equivalent to Curve25519.
+.Pp
+.Fn ED25519_keypair
+sets
+.Fa out_public_key
+and
+.Fa out_private_key
+to a freshly generated public/private key pair.
+First, the
+.Fa out_private_key
+is generated with
+.Xr arc4random_buf 3 .
+Then, the
+.Fa out_public_key
+is calculated from the private key.
+.Pp
+.Fn ED25519_sign
+signs the
+.Fa message
+of
+.Fa message_len
+bytes using the
+.Fa public_key
+and the
+.Fa private_key
+and writes the signature to
+.Fa out_sig .
+.Pp
+.Fn ED25519_verify
+checks that signing the
+.Fa message
+of
+.Fa message_len
+bytes using the
+.Fa public_key
+would indeed result in the given
+.Fa signature .
+.Pp
+The sizes of a public and private keys are
+.Dv ED25519_PUBLIC_KEY_LENGTH
+and
+.Dv ED25519_PRIVATE_KEY_LENGTH ,
+which are both 32 bytes, and the size of a signature is
+.Dv ED25519_SIGNATURE_LENGTH No = 64
+bytes.
+.Sh RETURN VALUES
+.Fn X25519
+and
+.Fn ED25519_sign
+return 1 on success or 0 on error.
+.Fn X25519
+can fail if the input is a point of small order.
+.Fn ED25519_sign
+always succeeds in LibreSSL, but the API reserves the return value 0
+for memory allocation failure.
+.Pp
+.Fn ED25519_verify
+returns 1 if the
+.Fa signature
+is valid or 0 otherwise.
+.Sh SEE ALSO
+.Xr ECDH_compute_key 3 ,
+.Xr EVP_DigestSign 3 ,
+.Xr EVP_DigestVerify 3 ,
+.Xr EVP_PKEY_derive 3 ,
+.Xr EVP_PKEY_keygen 3
+.Rs
+.%A Daniel J. Bernstein
+.%R A state-of-the-art Diffie-Hellman function:\
+    How do I use Curve25519 in my own software?
+.%U https://cr.yp.to/ecdh.html
+.Re
+.Rs
+.%A Daniel J. Bernstein
+.%A Niels Duif
+.%A Tanja Lange
+.%A Peter Schwabe
+.%A Bo-Yin Yang
+.%T High-Speed High-Security Signatures
+.%B Cryptographic Hardware and Embedded Systems \(em CHES 2011
+.%I Springer
+.%J Lecture Notes in Computer Science
+.%V vol 6917
+.%U https://doi.org/10.1007/978-3-642-23951-9_9
+.%C Nara, Japan
+.%D September 29, 2011
+.Re
+.Sh STANDARDS
+RFC 7748: Elliptic Curves for Security
+.Pp
+RFC 8032: Edwards-Curve Digital Signature Algorithm (EdDSA)

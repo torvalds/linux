@@ -1,0 +1,1 @@
+pass in inet proto icmp all icmp6-type 0

@@ -1,0 +1,2 @@
+fread-2.c: In function 'main':
+fread-2.c:6: warning: array size (100) smaller than required length (110 * 1)

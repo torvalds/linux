@@ -1,0 +1,64 @@
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+# Turn off the SDA while compiling libgcc2.  There are no headers for it
+# and we want maximal upward compatibility here.
+
+TARGET_LIBGCC2_CFLAGS = -G 0
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+# We need to use -fpic when we are using gcc to compile the routines in
+# initfini.c.  This is only really needed when we are going to use gcc/g++
+# to produce a shared library, but since we don't know ahead of time when
+# we will be doing that, we just always use -fpic when compiling the
+# routines in initfini.c.
+# -fpic currently isn't supported for the m32r.
+
+CRTSTUFF_T_CFLAGS =
+
+# .init/.fini section routines
+
+$(T)crtinit.o: $(srcdir)/config/m32r/initfini.c $(GCC_PASSES) $(CONFIG_H)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) \
+	$(CRTSTUFF_T_CFLAGS) $(INCLUDES) -DCRT_INIT \
+	-finhibit-size-directive -fno-inline-functions -g0 \
+	-mmodel=medium -c $(srcdir)/config/m32r/initfini.c \
+	-o $(T)crtinit.o 
+
+$(T)crtfini.o: $(srcdir)/config/m32r/initfini.c $(GCC_PASSES) $(CONFIG_H)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) \
+	$(CRTSTUFF_T_CFLAGS) $(INCLUDES) -DCRT_FINI \
+	-finhibit-size-directive -fno-inline-functions -g0 \
+	-mmodel=medium -c $(srcdir)/config/m32r/initfini.c \
+	-o $(T)crtfini.o 
+m32rx:
+	mkdir $@
+m32r2:
+	mkdir $@
+
+# -mmodel={small,medium} requires separate libraries.
+# We don't build libraries for the large model, instead we use the medium
+# libraries.  The only difference is that the large model can handle jumps
+# more than 26 signed bits away.
+
+MULTILIB_OPTIONS = mmodel=small/mmodel=medium m32r/m32rx/m32r2 
+MULTILIB_DIRNAMES = small medium m32r m32rx m32r2
+MULTILIB_MATCHES = mmodel?medium=mmodel?large
+
+# Set MULTILIB_EXTRA_OPTS so shipped libraries have small data in .sdata and
+# SHN_M32R_SCOMMON.
+# This is important for objects referenced in system header files.
+MULTILIB_EXTRA_OPTS = msdata=sdata
+
+EXTRA_MULTILIB_PARTS = crtinit.o crtfini.o
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib

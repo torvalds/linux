@@ -1,0 +1,8 @@
+stdin:4: binat-to requires a specified source and redirect address
+stdin:4: source and redir addresess must have a matching network mask in binat-rule
+stdin:4: tables cannot be used as the redirect address of a binat-to rule
+stdin:4: skipping rule due to errors
+stdin:4: rule expands to no valid combination
+stdin:5: invalid use of table <sometable> as the source address of a binat-to rule
+stdin:5: skipping rule due to errors
+stdin:5: rule expands to no valid combination

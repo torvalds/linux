@@ -1,0 +1,22 @@
+# create
+# pass add -n localhost
+2/2 addresses added (dummy).
+# pass add -nf-
+2/2 addresses added (dummy).
+# pass add -nqv localhost
+A  127.0.0.1
+A  ::1
+# pass add -nqvv localhost
+A  127.0.0.1
+A  ::1
+# pass add localhost
+2/2 addresses added.
+# fail add invalid$host
+no IP address found for invalid$host
+# kill
+1 tables deleted.
+rules cleared
+ktable: 8 allocated, 8 released, 0 leaked.
+pfrke_plain: 10 allocated, 10 released, 0 leaked.
+pfrke_route: 0 allocated, 0 released, 0 leaked.
+pfrke_cost: 0 allocated, 0 released, 0 leaked.

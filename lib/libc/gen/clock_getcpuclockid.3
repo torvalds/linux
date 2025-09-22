@@ -1,0 +1,65 @@
+.\"	$OpenBSD: clock_getcpuclockid.3,v 1.3 2015/01/15 19:26:27 schwarze Exp $
+.\"
+.\" Copyright (c) 2013 Philip Guenther <guenther@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 15 2015 $
+.Dt CLOCK_GETCPUCLOCKID 3
+.Os
+.Sh NAME
+.Nm clock_getcpuclockid
+.Nd get a clock measuring process CPU time
+.Sh SYNOPSIS
+.In time.h
+.Ft int
+.Fn clock_getcpuclockid "pid_t pid" "clockid_t *clock_id"
+.Sh DESCRIPTION
+The
+.Fn clock_getcpuclockid
+function allows the calling process to get a
+.Vt clockid_t
+value that measures the time spent by CPUs running in user or kernel mode
+on behalf of the process specified by
+.Fa pid .
+If
+.Fa pid
+is zero, then a clock for the calling process will be returned.
+.Sh RETURN VALUES
+If successful,
+.Fn clock_getcpuclockid
+will return zero.
+Otherwise an error number will be returned to indicate the error.
+.Sh ERRORS
+.Fn clock_getcpuclockid
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+.Fa pid
+is neither zero nor the PID of the calling process.
+.El
+.Sh SEE ALSO
+.Xr clock_gettime 2 ,
+.Xr pthread_getcpuclockid 3
+.Sh STANDARDS
+The
+.Fn clock_getcpuclockid
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn clock_getcpuclockid
+function first appeared in IEEE Std 1003.1d-1999
+.Pq Dq POSIX.1d
+and has been available since
+.Ox 5.4 .

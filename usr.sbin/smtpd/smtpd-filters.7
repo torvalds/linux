@@ -1,0 +1,663 @@
+.\"	$OpenBSD: smtpd-filters.7,v 1.15 2025/04/08 17:35:01 op Exp $
+.\"
+.\" Copyright (c) 2008 Janne Johansson <jj@openbsd.org>
+.\" Copyright (c) 2009 Jacek Masiulaniec <jacekm@dobremiasto.net>
+.\" Copyright (c) 2012 Gilles Chehade <gilles@poolp.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: April 8 2025 $
+.Dt SMTPD-FILTERS 7
+.Os
+.Sh NAME
+.Nm smtpd-filters
+.Nd filtering API for the smtpd daemon
+.Sh DESCRIPTION
+The
+.Xr smtpd 8
+daemon provides a Simple Mail Transfer Protocol (SMTP) implementation,
+which allows ordinary machines to become Mail eXchangers (MX).
+Some features that are commonly used by MX,
+such as delivery reporting or spam filtering,
+are outside the scope of SMTP and too complex to fit in
+.Xr smtpd 8 .
+.Pp
+Because an MX may need to provide these features,
+.Xr smtpd 8
+provides an API to extend its behavior through
+.Nm .
+.Pp
+At runtime,
+.Xr smtpd 8
+can report events to
+.Nm ,
+querying what it should answer to these events.
+This allows the decision logic to rely on third-party programs.
+.Sh DESIGN
+.Nm
+are programs that run as unique standalone processes,
+they do not share
+.Xr smtpd 8
+memory space.
+They are executed by
+.Xr smtpd 8
+at startup and expected to run in an infinite loop,
+reading events and filtering requests from
+.Xr stdin 4 ,
+writing responses to
+.Xr stdout 4
+and logging to
+.Xr stderr 4 .
+They are not allowed to terminate.
+.Pp
+Because
+.Nm
+are standalone programs that communicate with
+.Xr smtpd 8
+through
+.Xr fd 4 ,
+they may run as different users than
+.Xr smtpd 8
+and may be written in any language.
+.Nm
+must not use blocking I/O,
+they must support answering asynchronously to
+.Xr smtpd 8 .
+.Sh REPORT AND FILTER
+The API relies on two streams,
+report and filter.
+.Pp
+The report stream is a one-way stream which allows
+.Xr smtpd 8
+to inform
+.Nm
+in real-time about events.
+Report events do not expect an answer from
+.Nm ;
+they are just meant to provide information.
+A filter should be able to replicate the
+.Xr smtpd 8
+state for a session by gathering information coming from report events.
+No decision is ever taken by the report stream.
+.Pp
+The filter stream is a two-way stream which allows
+.Xr smtpd 8
+to query
+.Nm
+about what it should do with a session at a given phase.
+Filter requests expect an answer from
+.Nm ;
+.Xr smtpd 8
+will not let the session move forward until then.
+A decision must always be taken by the filter stream.
+.Pp
+It is sometimes possible to rely on filter requests to gather information,
+but because a response is expected by
+.Xr smtpd 8 ,
+this is more costly than using report events.
+The correct pattern for writing filters is to use report events to
+create a local state for a session,
+then use filter requests to take decisions based on this state.
+The only case when using filter requests instead of report events is correct
+is when a decision is required for the filter request and there is no need
+for more information than that of the event itself.
+.Sh PROTOCOL
+The protocol consists of human-readable lines exchanged between
+.Nm
+and
+.Xr smtpd 8 ,
+through
+.Xr fd 4 .
+.Pp
+The protocol begins with a handshake.
+First,
+.Xr smtpd 8
+provides
+.Nm
+with general configuration information in the form of key-value lines:
+.Bd -literal -offset indent
+config|smtpd-version|7.7.0
+config|protocol|0.7
+config|smtp-session-timeout|300
+config|subsystem|smtp-in
+config|ready
+.Ed
+.Pp
+Then,
+.Nm
+register the stream,
+subsystem and event they want to handle:
+.Bd -literal -offset indent
+register|report|smtp-in|link-connect
+register|ready
+.Ed
+.Pp
+Finally,
+.Xr smtpd 8
+emits report events and filter requests,
+expecting
+.Nm
+to respond or not depending on the stream:
+.Bd -literal -offset indent
+report|0.7|1576146008.006099|smtp-in|link-connect|7641df9771b4ed00|mail.openbsd.org|pass|199.185.178.25:33174|45.77.67.80:25
+report|0.7|1576147242.200225|smtp-in|link-connect|7641dfb3798eb5bf|mail.openbsd.org|pass|199.185.178.25:31205|45.77.67.80:25
+report|0.7|1576148447.982572|smtp-in|link-connect|7641dfc063102cbd|mail.openbsd.org|pass|199.185.178.25:24786|45.77.67.80:25
+.Ed
+.Pp
+The character
+.Dq |
+may only appear in the last field of a payload,
+in which case it should be considered a regular character and not a separator.
+No other field may contain a
+.Dq | .
+.Pp
+The list of subsystems and events,
+as well as the format of requests and responses,
+are documented in the sections below.
+.Sh CONFIGURATION
+During the initial handshake,
+.Xr smtpd 8
+emits a series of configuration keys and values.
+The list is meant to be ignored by
+.Nm
+that do not require it and consumed gracefully by filters that do.
+.Pp
+There are currently three keys:
+.Bd -literal -offset indent
+config|smtpd-version|7.7.0
+config|protocol|0.7
+config|smtp-session-timeout|300
+config|subsystem|smtp-in
+.Ed
+.Pp
+When
+.Xr smtpd 8
+has sent all configuration keys, it emits the following line:
+.Bd -literal -offset indent
+config|ready
+.Ed
+.Sh REPORT EVENTS
+There is currently only one subsystem supported in the API:
+smtp-in.
+.Pp
+Each report event is generated by
+.Xr smtpd 8
+as a single line similar to the one below:
+.Bd -literal -offset indent
+report|0.7|1576146008.006099|smtp-in|link-connect|7641df9771b4ed00|mail.openbsd.org|pass|199.185.178.25:33174|45.77.67.80:25
+.Ed
+.Pp
+The format consists of a protocol prefix containing the stream,
+the protocol version,
+the timestamp,
+the subsystem,
+the event and the unique session identifier,
+separated by
+.Dq | :
+.Bd -literal -offset indent
+report|0.7|1576146008.006099|smtp-in|link-connect|7641df9771b4ed00
+.Ed
+.Pp
+It is followed by a suffix containing the event-specific parameters,
+also separated by
+.Dq | :
+.Bd -literal -offset indent
+mail.openbsd.org|pass|199.185.178.25:33174|45.77.67.80:25
+.Ed
+.Pp
+The list of events and event-specific parameters for smtp-in are as follows:
+.Bl -tag -width Ds
+.It Ic link-connect : Ar rdns fcrdns src dest
+This event is generated upon connection.
+.Pp
+.Ar rdns
+contains the reverse DNS hostname for the remote end or an empty string if none.
+.Pp
+.Ar fcrdns
+contains the string
+.Dq pass
+or
+.Dq fail
+depending on if the remote end validates FCrDNS.
+.Pp
+.Ar src
+contains either the IP address and port of the source address,
+in the format
+.Dq address:port ,
+or the path to a UNIX socket in the format
+.Dq unix:/path .
+.Pp
+.Ar dest
+holds either the IP address and port of the destination address,
+in the format
+.Dq address:port ,
+or the path to a UNIX socket in the format
+.Dq unix:/path .
+.It Ic link-greeting : Ar hostname
+This event is generated upon display of the server banner.
+.Pp
+.Ar hostname
+contains the hostname displayed in the banner.
+.It Ic link-identify : Ar method identity
+This event is generated upon
+.Dq HELO
+or
+.Dq EHLO
+command from the client.
+.Pp
+.Ar method
+contains the string
+.Dq HELO
+or
+.Dq EHLO
+indicating the method used by the client.
+.Pp
+.Ar identity
+contains the identity provided by the client.
+.It Ic link-tls : Ar tls-string
+This event is generated upon successful negotiation of TLS.
+.Pp
+.Ar tls-string
+contains a colon-separated list of TLS properties including the TLS version,
+the cipher suite used by the session and the cipher strength in bits.
+.It Ic link-disconnect
+This event is generated upon disconnection of the client.
+.It Ic link-auth : Ar result username
+This event is generated upon an authentication attempt by the client.
+.Pp
+.Ar result
+contains the string
+.Dq pass ,
+.Dq fail
+or
+.Dq error
+depending on the result of the authentication attempt.
+.Pp
+.Ar username
+contains the username used for the authentication attempt.
+.It Ic tx-reset : Op message-id
+This event is generated when a transaction is reset.
+.Pp
+If reset took place during a transaction,
+.Ar message-id
+contains the identifier of the transaction being reset.
+.It Ic tx-begin : Ar message-id
+This event is generated when a transaction is initiated.
+.Pp
+.Ar message-id
+contains the identifier for the transaction.
+.It Ic tx-mail : Ar message-id Ar result address
+This event is generated when client emits
+.Dq MAIL FROM .
+.Pp
+.Ar message-id
+contains the identifier for the transaction.
+.Pp
+.Ar result
+contains
+.Dq ok
+if the sender was accepted,
+.Dq permfail
+if it was rejected
+or
+.Dq tempfail
+if it was rejected for a transient error.
+.Pp
+.Ar address
+contains the e-mail address of the sender.
+The address is normalized and sanitized,
+the characters
+.Dq <
+and
+.Dq >
+are removed,
+along with any parameters to
+.Dq MAIL FROM .
+.It Ic tx-rcpt : Ar message-id Ar result address
+This event is generated when client emits
+.Dq RCPT TO .
+.Pp
+.Ar message-id
+contains the identifier for the transaction.
+.Pp
+.Ar result
+contains
+.Dq ok
+if the recipient was accepted,
+.Dq permfail
+if it was rejected
+or
+.Dq tempfail
+if it was rejected for a transient error.
+.Pp
+.Ar address
+contains the e-mail address of the recipient.
+The address is normalized and sanitized,
+the characters
+.Dq <
+and
+.Dq >
+are removed,
+along with any parameters to
+.Dq RCPT TO .
+.It Ic tx-envelope : Ar message-id Ar envelope-id
+This event is generated when an envelope is accepted.
+.Pp
+.Ar envelope-id
+contains the unique identifier for the envelope.
+.It Ic tx-data : Ar message-id Ar result
+This event is generated when client has emitted
+.Dq DATA .
+.Pp
+.Ar message-id
+contains the unique identifier for the transaction.
+.Pp
+.Ar result
+contains
+.Dq ok
+if server accepted the message for processing,
+.Dq permfail
+if it has not been accepted and
+.Dq tempfail
+if a transient error prevented message processing.
+.It Ic tx-commit : Ar message-id Ar message-size
+This event is generated when a transaction has been accepted by the server.
+.Pp
+.Ar message-id
+contains the unique identifier for the SMTP transaction.
+.Pp
+.Ar message-size
+contains the size of the message submitted in the
+.Dq DATA
+phase of the SMTP transaction.
+.It Ic tx-rollback : Ar message-id
+This event is generated when a transaction has been rejected by the server.
+.Pp
+.Ar message-id
+contains the unique identifier for the SMTP transaction.
+.It Ic protocol-client : Ar command
+This event is generated for every command submitted by the client.
+It contains the raw command as received by the server.
+.Pp
+.Ar command
+contains the command emitted by the client to the server.
+.It Ic protocol-server : Ar response
+This event is generated for every response emitted by the server.
+It contains the raw response as emitted by the server.
+.Pp
+.Ar response
+contains the response emitted by the server to the client.
+.It Ic filter-report : Ar filter-kind Ar name message
+This event is generated when a filter emits a report.
+.Pp
+.Ar filter-kind may be either
+.Dq builtin
+or
+.Dq proc
+depending on if the filter is an
+.Xr smtpd 8
+builtin filter or a proc filter implementing the API.
+.Pp
+.Ar name
+is the name of the filter that generated the report.
+.Pp
+.Ar message
+is a filter-specific message.
+.It Ic filter-response : Ar phase response Op param
+This event is generated when a filter responds to a filtering request.
+.Pp
+.Ar phase
+contains the phase name for the request.
+The phases are documented in the next section.
+.Pp
+.Ar response
+contains the response of the filter to the request,
+it is either one of
+.Dq proceed ,
+.Dq report ,
+.Dq reject ,
+.Dq disconnect ,
+.Dq junk
+or
+.Dq rewrite .
+.Pp
+If specified,
+.Ar param
+is the parameter to the response.
+.It Ic timeout
+This event is generated when a timeout happens for a session.
+.El
+.Sh FILTER REQUESTS
+There is currently only one subsystem supported in the API:
+smtp-in.
+.Pp
+Filter requests allow
+.Xr smtpd 8
+to query
+.Nm
+about what to do with a session at a particular phase.
+In addition,
+they allow
+.Nm
+to alter the content of a message by adding,
+modifying,
+or suppressing lines of input in a way that is similar to what program like
+.Xr sed 1
+or
+.Xr grep 1
+would do.
+.Pp
+Each filter request is generated by
+.Xr smtpd 8
+as a single line similar to the one below.
+Fields are separated by the
+.Dq |
+character.
+.Bd -literal -offset indent
+filter|0.7|1576146008.006099|smtp-in|connect|7641df9771b4ed00|1ef1c203cc576e5d|mail.openbsd.org|199.185.178.25
+.Ed
+.Pp
+The format consists of a protocol prefix containing the stream,
+the protocol version,
+the timestamp,
+the subsystem,
+the filtering phase,
+the unique session identifier and an opaque token that the filter
+should provide in its response:
+.Bd -literal -offset indent
+filter|0.7|1576146008.006099|smtp-in|connect|7641df9771b4ed00|1ef1c203cc576e5d
+.Ed
+.Pp
+It is followed by a suffix containing the phase-specific parameters of the
+filter request,
+also separated by
+.Dq | :
+.Bd -literal -offset indent
+mail.openbsd.org|199.185.178.25
+.Ed
+.Pp
+Unlike with report events,
+.Xr smtpd 8
+expects answers from filter requests and will not allow a session to move
+forward until the filter has instructed
+.Xr smtpd 8
+how to treat it.
+.Pp
+For all phases except
+.Dq data-line ,
+responses must follow the same construct:
+a message of type
+.Dq filter-result ,
+followed by the unique session id,
+the opaque token,
+a decision and optional decision-specific parameters:
+.Bd -literal -offset indent
+filter-result|7641df9771b4ed00|1ef1c203cc576e5d|proceed
+filter-result|7641df9771b4ed00|1ef1c203cc576e5d|reject|550 nope
+.Ed
+.Pp
+The possible decisions for a
+.Dq filter-result
+message are documented below.
+.Pp
+For the
+.Dq data-line
+phase,
+.Nm
+are fed a stream of lines corresponding to the message to filter,
+terminated by a single dot:
+.Bd -literal -offset indent
+filter|0.7|1576146008.006099|smtp-in|data-line|7641df9771b4ed00|1ef1c203cc576e5d|line 1
+filter|0.7|1576146008.006103|smtp-in|data-line|7641df9771b4ed00|1ef1c203cc576e5d|line 2
+filter|0.7|1576146008.006105|smtp-in|data-line|7641df9771b4ed00|1ef1c203cc576e5d|.
+.Ed
+.Pp
+They are expected to return an output stream
+similarly terminated by a single dot.
+A filter may add to,
+suppress,
+modify or echo back the lines it receives.
+Ultimately,
+.Xr smtpd 8
+assumes that the message consists of the output from
+.Nm .
+.Pp
+Note that filters may be chained,
+and the lines that are input into a subsequent filter
+are the lines that are output from a previous filter.
+.Pp
+The response to
+.Dq data-line
+requests use their own construct.
+A
+.Dq filter-dataline
+prefix,
+followed by the unique session identifier,
+the opaque token and the output line as follows:
+.Bd -literal -offset indent
+filter-dataline|7641df9771b4ed00|1ef1c203cc576e5d|line 1
+filter-dataline|7641df9771b4ed00|1ef1c203cc576e5d|line 2
+filter-dataline|7641df9771b4ed00|1ef1c203cc576e5d|.
+.Ed
+.Pp
+The list of events and event-specific parameters for smtp-in are as follows:
+.Bl -tag -width Ds
+.It Ic connect : Ar rdns src
+This request is emitted after connection,
+before the banner is displayed.
+.Pp
+.Ar src
+contains either the IP address of the source
+(a.b.c.d for IPv4 or [x:x:x:x:x:x:x:x] IPv6)
+or
+.Dq local
+(for UNIX sockets).
+.It Ic helo : Ar identity
+This request is emitted after the client has emitted
+.Dq HELO .
+.It Ic ehlo : Ar identity
+This request is emitted after the client has emitted
+.Dq EHLO .
+.It Ic starttls : Ar tls-string
+This request is emitted after the client has requested
+.Dq STARTTLS .
+.It Ic auth : Ar auth
+This request is emitted after the client has requested
+.Dq AUTH .
+.It Ic mail-from : Ar address
+This request is emitted after the client has requested
+.Dq MAIL FROM .
+.It Ic rcpt-to : Ar address
+This request is emitted after the client has requested
+.Dq RCPT TO .
+.It Ic data
+This request is emitted after the client has requested
+.Dq DATA .
+.It Ic data-line : Ar line
+This request is emitted for each line of input in the
+.Dq DATA
+phase.
+The lines are raw dot-escaped SMTP DATA input,
+terminated with a single dot.
+.It Ic commit
+This request is emitted after the final single dot is received.
+.El
+.Pp
+For every filtering phase,
+excepted
+.Dq data-line ,
+the following decisions may be taken by a filter:
+.Bl -tag -width Ds
+.It Ic proceed
+No action is taken,
+session or transaction may be passed to the next filter.
+.It Ic junk
+The session or transaction is marked as spam.
+.Xr smtpd 8
+will prepend an
+.Dq X-Spam
+header to the message.
+.It Ic reject Ar error
+The command is rejected with the message
+.Ar error .
+The message must be a valid SMTP message including status code,
+5xx or 4xx.
+.Pp
+Messages starting with a 5xx status result in a permanent failure,
+those starting with a 4xx status result in a temporary failure.
+.Pp
+Messages starting with a 421 status will result in a client disconnect.
+.It Ic disconnect Ar error
+The client is disconnected with the message
+.Ar error .
+The message must be a valid SMTP message including status code,
+5xx or 4xx.
+.Pp
+Messages starting with a 5xx status result in a permanent failure,
+those starting with a 4xx status result in a temporary failure.
+.It Ic rewrite Ar parameter
+The command parameter is rewritten.
+.Pp
+This decision allows a filter to perform a rewrite of client-submitted
+commands before they are processed by the SMTP engine.
+.Ar parameter
+is expected to be a valid SMTP parameter for the command.
+.It Ic report Ar parameter
+Generates a report with
+.Ar parameter
+for this filter.
+.El
+.\".Sh EXAMPLES
+.\"This example filter written in
+.\".Xr sh 1
+.\"will echo back...
+.\".Bd -literal -offset indent
+.\"XXX
+.\".Ed
+.\".Pp
+.\"This example filter will filter...
+.\".Bd -literal -offset indent
+.\"XXX
+.\".Ed
+.\".Pp
+.\"Note that libraries may provide a simpler interface to
+.\".Nm
+.\"that does not require implementing the protocol itself.
+.\".Ed
+.Sh SEE ALSO
+.Xr smtpd 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Ox 6.6 .

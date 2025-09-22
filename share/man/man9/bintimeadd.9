@@ -1,0 +1,185 @@
+.\"	$OpenBSD: bintimeadd.9,v 1.1 2019/06/03 01:27:30 cheloha Exp $
+.\"	$NetBSD: getitimer.2,v 1.6 1995/10/12 15:40:54 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getitimer.2	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: June 3 2019 $
+.Dt BINTIMEADD 9
+.Os
+.Sh NAME
+.Nm bintimecmp ,
+.Nm bintimesub ,
+.Nm bintimeadd ,
+.Nm bintimeaddfrac ,
+.Nm BINTIME_TO_TIMEVAL ,
+.Nm BINTIME_TO_TIMESPEC ,
+.Nm TIMEVAL_TO_BINTIME ,
+.Nm TIMESPEC_TO_BINTIME
+.Nd manipulate kernel time structures
+.Sh SYNOPSIS
+.In sys/time.h
+.Ft int
+.Fo bintimecmp
+.Fa "struct bintime *a"
+.Fa "struct bintime *b"
+.Fa operator
+.Fc
+.Ft void
+.Fo bintimesub
+.Fa "const struct bintime *a"
+.Fa "const struct bintime *b"
+.Fa "struct bintime *c"
+.Fc
+.Ft void
+.Fo bintimeadd
+.Fa "const struct bintime *a"
+.Fa "const struct bintime *b"
+.Fa "struct bintime *c"
+.Fc
+.Ft void
+.Fo bintimeaddfrac
+.Fa "const struct bintime *a"
+.Fa "uint64_t fraction"
+.Fa "struct bintime *b"
+.Fc
+.Ft void
+.Fo BINTIME_TO_TIMEVAL
+.Fa "const struct bintime *bt"
+.Fa "struct timeval *tv"
+.Fc
+.Ft void
+.Fo BINTIME_TO_TIMESPEC
+.Fa "const struct bintime *bt"
+.Fa "struct timespec *ts"
+.Fc
+.Ft void
+.Fo TIMEVAL_TO_BINTIME
+.Fa "const struct timeval *tv"
+.Fa "struct bintime *bt"
+.Fc
+.Ft void
+.Fo TIMESPEC_TO_BINTIME
+.Fa "const struct timespec *ts"
+.Fa "struct bintime *bt"
+.Fc
+.Sh DESCRIPTION
+These functions simplify the use of
+.Vt bintime
+structures and the conversion to and from other time representations.
+.Pp
+The following functions are available:
+.Bl -tag -width Ds
+.It Fn bintimecmp a b operator
+Test if the expression
+.Fa a operator b
+is true,
+where
+.Fa operator
+is one of
+.Cm < ,
+.Cm <= ,
+.Cm == ,
+.Cm != ,
+.Cm >= ,
+or
+.Cm > .
+.It Fn bintimesub a b c
+Subtract
+.Fa b
+from
+.Fa a
+and store the result in
+.Fa c .
+.It Fn bintimeadd a b c
+Add
+.Fa b
+to
+.Fa a
+and store the result in
+.Fa c .
+.It Fn bintimeaddfrac a fraction b
+Add
+.Fa fraction
+fractional seconds to
+.Fa a
+and store the result in
+.Fa b .
+A fractional second is equal to 1 / (2^64) seconds.
+.It Fn BINTIME_TO_TIMEVAL bt tv
+Convert
+.Fa bt
+to a
+.Vt struct timeval
+and store the result in
+.Fa tv .
+.It Fn BINTIME_TO_TIMESPEC bt ts
+Convert
+.Fa bt
+to a
+.Vt struct timespec
+and store the result in
+.Fa ts .
+.It Fn TIMEVAL_TO_BINTIME tv bt
+Convert
+.Fa tv
+to a
+.Vt struct bintime
+and store the result in
+.Fa bt .
+.It Fn TIMESPEC_TO_BINTIME ts bt
+Convert
+.Fa ts
+to a
+.Vt struct bintime
+and store the result in
+.Fa bt .
+.El
+.Sh RETURN VALUES
+.Fn bintimecmp
+returns 1 if the tested condition holds or 0 otherwise.
+.Sh CODE REFERENCES
+These functions are implemented in the file
+.Pa sys/sys/time.h .
+.Sh SEE ALSO
+.Xr timeradd 3 ,
+.Xr microtime 9 ,
+.Xr tc_init 9 ,
+.Xr timeout 9
+.Sh HISTORY
+Predecessors to these functions first appeared in
+.Fx 5.0
+and were ported to
+.Ox 3.6 .
+They were modified to more closely resemble the
+.Xr timeradd 3
+macros for
+.Ox 6.6 .
+.Sh AUTHORS
+.An Poul-Henning Kamp Aq Mt phk@freebsd.org

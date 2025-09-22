@@ -1,0 +1,165 @@
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 2017 Free Software Foundation, Inc.                            *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" Author: Thomas E. Dickey
+.\"
+.\" $Id: new_pair.3,v 1.1 2023/10/17 09:52:08 nicm Exp $
+.TH new_pair 3 2023-07-01 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.de NS
+.ie n  .sp
+.el    .sp .5
+.ie n  .in +4
+.el    .in +2
+.nf
+.ft CR			\" Courier
+..
+.de NE
+.fi
+.ft R
+.ie n  .in -4
+.el    .in -2
+..
+.SH NAME
+\fBalloc_pair\fP,
+\fBfind_pair\fP,
+\fBfree_pair\fP \- new curses color-pair functions
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint alloc_pair(int \fIfg\fB, int \fIbg\fB);\fR
+.br
+\fBint find_pair(int \fIfg\fB, int \fIbg\fB);\fR
+.br
+\fBint free_pair(int \fIpair\fB);\fR
+.SH DESCRIPTION
+These functions are an extension to the curses library.
+They permit an application to dynamically allocate a color pair using
+the foreground/background colors rather than assign a fixed color pair number,
+and return an unused pair to the pool.
+.PP
+The number of colors may be related to the number of possible color
+pairs for a given terminal, or it may not:
+.bP
+While almost all terminals allow setting the color \fIattributes\fP
+independently,
+it is unlikely that your terminal allows you to modify the attributes
+of a given character cell without rewriting it.
+That is, the foreground and background colors are applied as a pair.
+.bP
+Color pairs are the curses library's way of managing a color palette
+on a terminal.
+If the library does not keep track of the \fIcombinations\fP of
+colors which are displayed, it will be inefficient.
+.bP
+For simple terminal emulators
+with only a few dozen color combinations,
+it is convenient to use the maximum number of combinations
+as the limit on color pairs:
+.NS
+\fBCOLORS\fI * \fBCOLORS\fR
+.NE
+.bP
+Terminals which support \fIdefault colors\fP distinct
+from \*(``ANSI colors\*(''
+add to the possible combinations, producing this total:
+.NS
+\fI( \fBCOLORS\fI + 1 ) * ( \fBCOLORS\fI + 1 )\fR
+.NE
+.bP
+An application might use up to a few dozen color pairs to
+implement a predefined color scheme.
+.IP
+Beyond that lies in the realm of programs using the foreground
+and background colors for \*(``ASCII art\*(''
+(or some other non-textual application).
+.IP
+Also beyond those few dozen pairs, the required size for a table
+to represent the combinations grows rapidly with an increasing number of colors.
+.IP
+These functions allow a developer to let the screen library
+manage color pairs.
+.SS alloc_pair
+The \fBalloc_pair\fP function accepts parameters for
+foreground and background color, and
+checks if that color combination is already associated with a color pair.
+.bP
+If the combination already exists,
+\fBalloc_pair\fP returns the existing pair.
+.bP
+If the combination does not exist,
+\fBalloc_pair\fP allocates a new color pair and returns that.
+.bP
+If the table fills up, \fBalloc_pair\fP discards the least-recently
+allocated entry using \fBfree_pair\fP and allocates a new color pair.
+.PP
+All of the color pairs are allocated from a table of possible color pairs.
+The size of the table is determined by the terminfo \fBpairs\fP capability.
+The table is shared with \fBinit_pair\fP;
+in fact \fBalloc_pair\fP calls \fBinit_pair\fP after
+updating the ncurses library's fast index to the colors versus color pairs.
+.SS find_pair
+The \fBfind_pair\fP function accepts parameters for
+foreground and background color, and
+checks if that color combination is already associated with a color pair,
+returning the pair number if it has been allocated.
+Otherwise it returns \-1.
+.SS free_pair
+Marks the given color pair as unused,
+i.e., like color pair 0.
+.SH RETURN VALUE
+The \fBalloc_pair\fP function returns a color pair number in the range
+1 through \fBCOLOR_PAIRS\fP\-1, unless it encounters an error updating
+its fast index to the color pair values, preventing it from allocating
+a color pair.
+In that case, it returns \-1.
+.PP
+The \fBfind_pair\fP function returns a color pair number if the
+given color combination has been associated with a color pair,
+or \-1 if not.
+.PP
+Likewise, \fBfree_pair\fP returns \fBOK\fP unless it encounters an
+error updating the fast index or if no such color pair is in use.
+.SH PORTABILITY
+These routines are specific to ncurses.
+They were not supported on
+Version 7, BSD or System V implementations.
+It is recommended that
+any code depending on them be conditioned using NCURSES_VERSION.
+.SH SEE ALSO
+\fBcurs_color\fP(3).
+.SH AUTHOR
+Thomas Dickey.

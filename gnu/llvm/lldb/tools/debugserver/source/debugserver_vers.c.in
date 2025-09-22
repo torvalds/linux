@@ -1,0 +1,2 @@
+const unsigned char debugserverVersionString[] __attribute__ ((used)) = "@(#)PROGRAM:LLDB  PROJECT:lldb-@LLDB_VERSION_MAJOR@.@LLDB_VERSION_MINOR@.@LLDB_VERSION_PATCH@@LLDB_VERSION_SUFFIX@" "\n";
+const double debugserverVersionNumber __attribute__ ((used)) = (double)@LLDB_VERSION_MAJOR@.@LLDB_VERSION_MINOR@;

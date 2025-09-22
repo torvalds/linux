@@ -1,0 +1,27 @@
+# Build a shared libgcc library.
+SHLIB_EXT = .sl
+SHLIB_NAME = @shlib_base_name@$(SHLIB_EXT)
+SHLIB_SOVERSION = 1
+SHLIB_SONAME = @shlib_base_name@.$(SHLIB_SOVERSION)
+SHLIB_OBJS = @shlib_objs@
+SHLIB_DIR = @multilib_dir@
+SHLIB_SLIBDIR_QUAL = @shlib_slibdir_qual@
+
+SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -shared  -nodefaultlibs \
+	-o $(SHLIB_DIR)/$(SHLIB_NAME).tmp @multilib_flags@ $(SHLIB_OBJS) && \
+        rm -f $(SHLIB_DIR)/$(SHLIB_SONAME) && \
+	if [ -f $(SHLIB_DIR)/$(SHLIB_NAME) ]; then \
+	  mv -f $(SHLIB_DIR)/$(SHLIB_NAME) $(SHLIB_DIR)/$(SHLIB_NAME).backup; \
+	else true; fi && \
+	mv $(SHLIB_DIR)/$(SHLIB_NAME).tmp $(SHLIB_DIR)/$(SHLIB_NAME) && \
+        $(LN_S) $(SHLIB_NAME) $(SHLIB_DIR)/$(SHLIB_SONAME)
+
+# $(slibdir) double quoted to protect it from expansion while building
+# libgcc.mk.  We want this delayed until actual install time.
+SHLIB_INSTALL = \
+        $$(mkinstalldirs) $$(DESTDIR)$$(slibdir)$(SHLIB_SLIBDIR_QUAL); \
+	$(INSTALL_DATA) -m 555 $(SHLIB_DIR)/$(SHLIB_NAME) \
+	$$(DESTDIR)$$(slibdir)$(SHLIB_SLIBDIR_QUAL)/$(SHLIB_SONAME); \
+        rm -f $$(DESTDIR)$$(slibdir)$(SHLIB_SLIBDIR_QUAL)/$(SHLIB_NAME); \
+        $(LN_S) $(SHLIB_SONAME) \
+	$$(DESTDIR)$$(slibdir)$(SHLIB_SLIBDIR_QUAL)/$(SHLIB_NAME)

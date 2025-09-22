@@ -1,0 +1,108 @@
+
+	mkhybrid v1.12b5.1 - make ISO9660/HFS shared hybrid CD volume
+
+HFS hybrid code Copyright (C) James Pearson 1997, 1998, 1999
+libhfs code Copyright (C) 1996, 1997 Robert Leslie
+libfile code Copyright (c) Ian F. Darwin 1986, 1987, 1989,
+	1990, 1991, 1992, 1994, 1995
+mkisofs code Copyright 1993 Yggdrasil Computing, Incorporated
+
+WARNING - this is Beta release code - please use with care!
+If you find a bug, please report it to the address given below.
+
+This code is based on a Beta release of mkisofs, so there may be
+problems unrelated to my additions. However, I have found mkisofs
+v1.12b5 to be very stable.
+
+However, many people are using v1.12, so although it's called a "beta"
+release, I would encourage people to use it ...
+Most of the HFS features work fine, however, some are not fully tested.
+These are marked as "Alpha" in the man page.
+
+Please read the man page (mkhybrid.8, or mkhybrid_man.html) for information
+on how to use mkhybrid.
+
+Also see "ChangeLog.mkhybrid" for any minor changes/bug fixes
+
+DESCRIPTION
+
+mkhybrid is a pre-mastering utility that creates ISO9660/ROCKRIDGE/JOLIET/HFS
+hybrid CDROM images. You will have to use some other CD-R package to write
+the image to a CD.
+
+INSTALLATION
+
+To make/install, type "./configure", make any changes to the Makefile
+and type "make"
+
+This has been tested with gcc on SunOS 4.1.3 (see below), gcc on Linux
+(Redhat v5.1), cc on IRIX 5.3/6.2 and gcc on Win95/WinNT4 using Cygnus'
+cygwin (see README.win32)
+
+If you are using SunOS 4.1.[34], then you need the following patches
+to read CDs with associated files:
+
+SunOS 4.1.3:		Patch 101832-05
+SunOS 4.1.3_U1:		Patch 101833-02
+SunOS 4.1.4:		Patch 102583-02
+
+
+EXAMPLES
+
+To create a HFS hybrid CD with the Joliet and Rock Ridge extensions or
+the source directory cd_dir:
+
+% mkhybrid -o cd.iso -r -J -hfs cd_dir
+
+To create a HFS hybrid CD from the source directory cd_dir that contains
+Netatalk Apple/Unix files:
+
+% mkhybrid -o cd.iso --netatalk cd_dir
+
+To create a HFS hybrid CD from the source directory cd_dir, giving all files
+CREATOR and TYPES based on just their filename extensions listed in the file 
+"mapping".:
+
+% mkhybrid -o cd.iso -no-mac-files -map mapping cd_dir
+
+To create a CD with the 'Apple Extensions to ISO9660', from the source
+direcories cd_dir and another_dir. Files in all the known Apple/Unix format
+are decoded and any other files are given CREATOR and TYPE based on their
+magic number given in the file "magic":
+
+% mkhybird -o cd.iso -magic -apple cd_dir another_dir
+
+The following example puts different files on the CD that all have
+the name README, but have different contents when seen as a
+ISO9660/RockRidge Joliet or HFS CD.
+
+Current directory contains
+
+% ls -F
+README.hfs     README.joliet  README.unix    cd_dir/
+
+The following command puts the contents of the directory "cd_dir" on the
+CD along with the three README files - but only one will be seen from
+each of the three filesystems:
+
+% mkhybrid -o cd.iso -hfs -J -r \
+        -hide README.hfs -hide README.joliet \
+        -hide-joliet README.hfs -hide-joliet README.unix \
+        -hide-hfs README.joliet -hide-hfs README.unix \
+        README=README.hfs README=README.joliet README=README.unix \
+        cd_dir
+
+i.e. the file README.hfs will be seen as README on the HFS CD and the
+other two README files will be hidden. Similarly for the Joliet and
+ISO9660/RockRidge CD.
+
+There are probably all sorts of stange results possible with
+combinations of the hide options ...
+
+
+Any comments, bug reports/fixes to the address below.
+
+Please state the version, platform and command line used when submitting
+a bug report - the output from "-log-file -v" would help.
+
+James Pearson (j.pearson@ge.ucl.ac.uk)

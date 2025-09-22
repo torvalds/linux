@@ -1,0 +1,39 @@
+static_library("ARCMigrate") {
+  output_name = "clangARCMigrate"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Analysis",
+    "//clang/lib/Basic",
+    "//clang/lib/Edit",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Sema",
+    "//clang/lib/Serialization",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "ARCMT.cpp",
+    "ARCMTActions.cpp",
+    "FileRemapper.cpp",
+    "ObjCMT.cpp",
+    "PlistReporter.cpp",
+    "TransAPIUses.cpp",
+    "TransARCAssign.cpp",
+    "TransAutoreleasePool.cpp",
+    "TransBlockObjCVariable.cpp",
+    "TransEmptyStatementsAndDealloc.cpp",
+    "TransGCAttrs.cpp",
+    "TransGCCalls.cpp",
+    "TransProperties.cpp",
+    "TransProtectedScope.cpp",
+    "TransRetainReleaseDealloc.cpp",
+    "TransUnbridgedCasts.cpp",
+    "TransUnusedInitDelegate.cpp",
+    "TransZeroOutPropsInDealloc.cpp",
+    "TransformActions.cpp",
+    "Transforms.cpp",
+  ]
+}

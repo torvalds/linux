@@ -1,0 +1,4 @@
+#	$OpenBSD: options,v 1.2 2014/07/10 11:18:23 jasper Exp $
+lock
+auth
+usehostname

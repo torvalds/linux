@@ -1,0 +1,83 @@
+/*	$OpenBSD: ld.script,v 1.4 2020/07/18 13:16:32 kettenis Exp $	*/
+
+/*
+ * Copyright (c) 2013 Mark Kettenis <kettenis@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+ENTRY(_start)
+
+PHDRS
+{
+	text PT_LOAD;
+	dynamic PT_DYNAMIC;
+	openbsd_randomize PT_OPENBSD_RANDOMIZE;
+}
+
+SECTIONS
+{
+	. = 0x00100000;
+	.text :
+	{
+		*(.text)
+	} :text
+	PROVIDE (etext = .);
+	PROVIDE (_etext = .);
+
+	. = ALIGN(4096);
+	.rela.dyn : { *(.rela.dyn) }
+
+	.dynamic :
+	{
+		*(.dynamic)
+	} :dynamic :text
+
+	.rodata :
+	{
+		*(.rodata)
+		*(.data.rel.ro)
+	} :text
+
+	.openbsd.randomdata :
+	{
+		*(.openbsd.randomdata)
+	} :openbsd_randomize :text
+	PROVIDE (_erodata = .);
+
+	. = ALIGN(4096);
+	.data :
+	{
+		*(.data)
+	} :text
+
+	. = ALIGN(4096);
+	.got : { *(.got) }
+	.toc : { *(.toc) }
+
+	PROVIDE (__bss_start = .);
+	.bss :
+	{
+		*(.bss)
+	}
+	PROVIDE (end = .);
+	PROVIDE (_end = .);
+
+	/DISCARD/ :
+	{
+		*(.dynsym)
+		*(.dynstr)
+		*(.gnu.hash)
+		*(.hash)
+	}
+}

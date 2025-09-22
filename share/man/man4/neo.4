@@ -1,0 +1,67 @@
+.\" $OpenBSD: neo.4,v 1.14 2023/09/11 05:07:34 jsg Exp $
+.\"
+.\" Copyright (c) 1998 Constantine Paul Sapuntzakis
+.\" All rights reserved
+.\"
+.\" Author: Constantine Paul Sapuntzakis (csapuntz@cvs.openbsd.org)
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The author's name or those of the contributors may not be used to
+.\"    endorse or promote products derived from this software without
+.\"    specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 11 2023 $
+.Dt NEO 4
+.Os
+.Sh NAME
+.Nm neo
+.Nd NeoMagic 256AV/ZX audio device
+.Sh SYNOPSIS
+.Cd "neo* at pci?"
+.Cd "audio* at neo?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for NeoMagic MagicMedia 256AV and 256ZX
+audio chips found in many laptops, and perhaps on some PCI cards.
+.Sh FILES
+The driver needs a firmware file,
+which is loaded on demand when the device is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/neo-coefficients
+.El
+.Sh SEE ALSO
+.Xr ac97 4 ,
+.Xr audio 4 ,
+.Xr intro 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Ox 2.7 .
+.Sh BUGS
+This driver has some bugs because NeoMagic refuses to provide documentation,
+even though they are discontinuing their products.
+At the time of contact, all persons working at the company were hiding
+behind their receptionist as if in a stage of siege.

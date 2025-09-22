@@ -1,0 +1,175 @@
+.\"	$OpenBSD: ssl.8,v 1.70 2024/05/30 14:06:23 tb Exp $
+.\"
+.\" Copyright (c) 1999 Theo de Raadt, Bob Beck
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 30 2024 $
+.Dt SSL 8
+.Os
+.Sh NAME
+.Nm ssl
+.Nd details for libssl and libcrypto
+.Sh DESCRIPTION
+This document describes some of the issues relating to the use of
+the OpenSSL libssl and libcrypto libraries.
+This document is intended as an overview of what the libraries do,
+and what uses them.
+.Pp
+The libssl and libcrypto libraries implement the TLS version 1 protocol.
+It is most commonly used by the HTTPS protocol for encrypted
+web transactions, as can be done with
+.Xr httpd 8 .
+The libcrypto library is also used by various programs such as
+.Xr ssh 1 ,
+.Xr sshd 8 ,
+and
+.Xr isakmpd 8 .
+.Sh SERVER CERTIFICATES
+The most common uses of TLS will require you to generate a server
+certificate, which is provided by your host as evidence of its identity
+when clients make new connections.
+The certificates reside in the
+.Pa /etc/ssl
+directory, with the keys in the
+.Pa /etc/ssl/private
+directory.
+.Pp
+Private keys can be encrypted using AES and a passphrase to protect their
+integrity should the encrypted file be disclosed.
+However, it is important to note that encrypted server keys mean that the
+passphrase needs to be typed in every time the server is started.
+If a passphrase is not used, you will need to be absolutely sure your
+key file is kept secure.
+.Sh GENERATING RSA SERVER CERTIFICATES FOR WEB SERVERS
+To support HTTPS transactions in
+.Xr httpd 8
+you will need to generate an RSA certificate.
+Start by creating a private key of the desired length:
+.Bd -literal -offset indent
+# openssl genrsa -out /etc/ssl/private/server.key 4096
+.Ed
+.Pp
+Or, if you wish the key to be encrypted with a passphrase that you will
+have to type in when starting servers
+.Bd -literal -offset indent
+# openssl genrsa -aes256 -out /etc/ssl/private/server.key 4096
+.Ed
+.Pp
+If you are only generating a private key to use with
+.Xr acme-client 1
+(for example, with a non-default key length)
+you may stop here.
+.Pp
+Otherwise, the next step is to generate a Certificate Signing Request (CSR)
+which is used to get a Certificate Authority (CA) to sign your certificate.
+To do this use the command:
+.Bd -literal -offset indent
+# openssl req -new -key /etc/ssl/private/server.key \e
+  -out /etc/ssl/private/server.csr
+.Ed
+.Pp
+This
+.Pa server.csr
+file can then be given to a Certificate Authority who will sign the key.
+.Pp
+You can also sign the key yourself, using the command:
+.Bd -literal -offset indent
+# openssl x509 -sha256 -req -days 365 \e
+  -in /etc/ssl/private/server.csr \e
+  -signkey /etc/ssl/private/server.key \e
+  -out /etc/ssl/server.crt
+.Ed
+.Pp
+Note that standard web browsers do not use the common name of a subject,
+but instead require that subject alt names are provided.
+This requires the use of
+.Ar -extfile Pa server.ext
+when self-signing.
+.Bd -literal -offset indent
+# this is an example server.ext file
+subjectAltName=DNS:example.com,DNS:www.example.com
+.Ed
+.Pp
+With
+.Pa /etc/ssl/server.crt
+and
+.Pa /etc/ssl/private/server.key
+in place, you should be able to start
+.Xr httpd 8
+with SSL configured, enabling HTTPS transactions with your machine on port 443.
+.Pp
+You will most likely want to generate a self-signed certificate in the
+manner above along with your certificate signing request to test your
+server's functionality even if you are going to have the certificate
+signed by another Certificate Authority.
+Once your Certificate Authority returns the signed certificate to you,
+you can switch to using the new certificate by replacing the self-signed
+.Pa /etc/ssl/server.crt
+with the certificate signed by your Certificate Authority, and then
+restarting
+.Xr httpd 8 .
+.Sh GENERATING ECDSA SERVER CERTIFICATES
+First, generate a private ECDSA key.
+The following command will use a NIST/SECG curve over a 384-bit
+prime field:
+.Bd -literal -offset indent
+# openssl ecparam -name secp384r1 -genkey \e
+  -noout -out /etc/ssl/private/eccert.key
+.Ed
+.Pp
+Note that some Certificate Authorities will only issue certificates for
+keys generated using prime256v1 parameters.
+.Pp
+If you are only generating a private key to use with
+.Xr acme-client 1 ,
+you may stop here.
+Otherwise, the next step is to generate a Certificate Signing Request (CSR)
+which is used to get a Certificate Authority (CA) to sign your certificate.
+To do this use the command:
+.Bd -literal -offset indent
+# openssl req -key /etc/ssl/private/eccert.key -new \e
+  -out /etc/ssl/private/eccert.csr
+.Ed
+.Pp
+This
+.Pa eccert.csr
+file can then be given to a CA who will sign the key.
+.Pp
+You can also sign the key yourself, using the command:
+.Bd -literal -offset indent
+# openssl x509 -sha256 -req -days 365 \e
+  -in /etc/ssl/private/eccert.csr \e
+  -signkey /etc/ssl/private/eccert.key \e
+  -out /etc/ssl/eccert.crt
+.Ed
+.Sh SEE ALSO
+.Xr acme-client 1 ,
+.Xr openssl 1 ,
+.Xr ssh 1 ,
+.Xr ssl 3 ,
+.Xr httpd 8 ,
+.Xr isakmpd 8 ,
+.Xr rc 8 ,
+.Xr smtpd 8 ,
+.Xr sshd 8 ,
+.Xr starttls 8

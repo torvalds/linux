@@ -1,0 +1,417 @@
+.\"	$OpenBSD: e3,v 1.4 2004/04/05 10:58:08 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)e3	8.1 (Berkeley) 6/8/93
+.\"
+.SH
+The current line \- ``Dot'' or ``.''
+.PP
+Suppose your buffer still contains the six lines as above,
+that you have just typed
+.P1
+1,3p
+.P2
+and
+.ul
+ed
+has printed the three lines for you.
+Try typing just
+.P1
+p	(no line numbers)
+.P2
+This will print
+.P1
+to come to the aid of their party.
+.P2
+which is the third line of the buffer.
+In fact it is the last
+(most recent) line that you have done anything with.
+(You just printed it!)
+You can
+repeat this
+.UL p
+command without line numbers, and
+it will continue to print line 3.
+.PP
+The reason is that
+.ul
+ed
+maintains a record of the last line
+that you did anything to (in this case, line 3, which you
+just printed) so that it can be used instead of an explicit
+line number.
+This most recent line is referred to by the
+shorthand symbol
+.P1
+\&\*.	(pronounced ``dot'')
+.P2
+Dot is a line number in the same way that
+.UL $
+is; it means
+exactly ``the current line'', or loosely,
+``the line you most recently did something to.''
+You
+can use it in several ways \- one possibility
+is to say
+.P1
+\&\*.,$p
+.P2
+This will print all the lines from (including) the current
+line to the
+end of the buffer.
+In our example these are lines 3 through 6.
+.PP
+Some commands change the value of dot, while others do not.
+The
+.UL p
+command sets dot to the number of the last line printed;
+the last command will
+set both
+\*.
+and
+.UL $
+to 6.
+.PP
+Dot is most useful when used in combinations like this one:
+.P1
+\&\*.+1	(or equivalently, \*.+1p)
+.P2
+This means ``print the next line'' and is a handy way to step
+slowly through a buffer.
+You can also say
+.P1
+\&\*.\-1	(or \*.\-1p)
+.P2
+which means ``print the line
+.ul
+before
+the current line.''
+This enables you to go backwards if you wish.
+Another useful one is something like
+.P1
+\&\*.\-3,\*.\-1p
+.P2
+which prints the previous three lines.
+.PP
+Don't forget that all of these change the value of dot.
+You can find out what dot is at any time by typing
+.P1
+\&\*.=
+.P2
+.ul
+Ed
+will respond by printing the value of dot.
+.PP
+Let's summarize some things about the
+.UL p
+command
+and dot.
+Essentially
+.UL p
+can be preceded by 0, 1, or 2 line numbers.
+If there is no line number given, it prints the ``current line'',
+the line that dot refers to.
+If there is one line number given
+(with or without the letter
+.UL p ),
+it prints that line (and dot is set there); and if there
+are two line numbers, it prints all the lines in that range
+(and sets dot to the last line printed).
+If two line numbers are specified
+the first can't be bigger than the second (see Exercise 2).
+.PP
+Typing a single return will cause printing of the next line \-
+it's
+equivalent to
+.UL .+1p .
+Try it.
+Try typing
+a
+.UL \- ;
+you will find that
+it's equivalent to
+.UL .\-1p .
+.SH
+Deleting lines: the ``d'' command
+.PP
+Suppose you want to get rid of the three extra lines in the buffer.
+This is done by the
+.ul
+delete
+command
+.P1
+d
+.P2
+Except that
+.UL d
+deletes lines instead of printing them,
+its action is similar to that of
+.UL p .
+The lines to be deleted are specified for
+.UL d
+exactly as they are for
+.UL p :
+.P1
+\fIstarting line, ending line\fP d
+.P2
+Thus the command
+.P1
+4,$d
+.P2
+deletes lines 4 through the end.
+There are now three lines left, as you can check by using
+.P1
+1,$p
+.P2
+And notice that
+.UL $
+now is line 3!
+Dot
+is set to the next line after the last line deleted,
+unless the last line deleted is the last line in the buffer.
+In that case, dot is set to
+.UL $ .
+.SH
+Exercise 4:
+.PP
+Experiment with
+.UL a ,
+.UL e ,
+.UL r ,
+.UL w ,
+.UL p ,
+and
+.UL d
+until you are sure that you
+know what they do, and until you understand how dot,
+.UL $ ,
+and
+line numbers are used.
+.PP
+If you are adventurous, try using line numbers with
+.UL a ,
+.UL r ,
+and
+.UL w
+as well.
+You will find that
+.UL a
+will append lines
+.ul
+after
+the line number that you specify (rather than after dot); that
+.UL r
+reads
+a file in
+.ul
+after
+the line number you specify (not necessarily
+at the end of the buffer); and that
+.UL w
+will write out exactly the lines
+you specify, not necessarily the whole buffer.
+These variations are sometimes handy.
+For instance you can insert a file at the beginning of a buffer
+by saying
+.P1
+0r filename
+.P2
+and you can enter lines at the beginning of the buffer
+by saying
+.P1
+0a
+\&. . . \fItext\fP . . .
+\*.
+.P2
+Notice that
+.UL .w
+is
+.ul
+very
+different from
+.P1
+\*.
+w
+.P2
+.SH
+Modifying text: the Substitute command ``s''
+.PP
+We are now ready to try one of the most important
+of all commands \- the substitute command
+.P1
+s
+.P2
+This is the command
+that is used to change individual
+words or letters within a line or group of lines.
+It is what you use, for example, for correcting spelling
+mistakes and typing errors.
+.PP
+Suppose that by a typing error, line 1 says
+.P1
+Now is th time
+.P2
+\- the
+.IT e
+has been left off
+.IT the .
+You can use
+.UL s
+to fix this up as follows:
+.P1
+1s/th/the/
+.P2
+This says: ``in line 1, substitute for the characters
+.IT th
+the characters
+.IT the .''
+To verify
+that it works
+.IT ed "" (
+will not print
+the result automatically) say
+.P1
+p
+.P2
+and get
+.P1
+Now is the time
+.P2
+which is what you wanted.
+Notice that dot must have been set to the line
+where the substitution took place, since the
+.UL p
+command
+printed that line.
+Dot is always set this way with the
+.UL s
+command.
+.PP
+The general way to use the substitute command is
+.P1
+\fIstarting\(hyline, ending\(hyline\fP s/\fIchange this\fP/\fIto this\fP/
+.P2
+Whatever string of characters is between the first pair of
+slashes is replaced by whatever is between the second pair,
+in
+.ul
+all
+the lines between
+.UL starting-line
+and
+.UL ending-line .
+Only the first occurrence on each line is changed, however.
+If you want to change
+.ul
+every
+occurrence, see Exercise 5.
+The rules for line numbers are the same as those for
+.UL p ,
+except that dot is set to the last line changed.
+(But there is a trap for the unwary: if no substitution
+took place, dot is
+.ul
+not
+changed.
+This causes an error
+.UL ?
+as a warning.)
+.PP
+Thus you can say
+.P1
+1,$s/speling/spelling/
+.P2
+and correct the first spelling mistake
+on each line
+in the text.
+(This is useful for people who are consistent
+misspellers!)
+.PP
+If no line numbers are given, the
+.UL s
+command assumes we mean
+``make the substitution on line dot'', so it changes things only
+on the current line.
+This leads to the very common sequence
+.P1
+s/something/something else/p
+.P2
+which makes some correction on the
+current line, and then prints it, to make sure it
+worked out right.
+If it didn't,
+you can try again.
+(Notice that there is
+a
+.UL p
+on the same line as the
+.UL s
+command.
+With few exceptions,
+.UL p
+can follow any command;
+no other multi-command lines are legal.)
+.PP
+It's also legal to say
+.P1
+s/ . . . //
+.P2
+which means ``change the first
+string of characters to
+.IT nothing '', ``
+i.e.,
+remove them.
+This is useful for deleting extra words in a line or removing extra
+letters from words.
+For instance, if you had
+.P1
+Nowxx is the time
+.P2
+you can say
+.P1
+s/xx//p
+.P2
+to get
+.P1
+Now is the time
+.P2
+Notice that
+.UL //
+(two adjacent slashes) means ``no characters'', not a blank.
+There
+.ul
+is
+a difference!
+(See below for another meaning of
+.UL // .)

@@ -1,0 +1,151 @@
+.\"	$OpenBSD: arp.4,v 1.23 2021/01/02 15:24:24 schwarze Exp $
+.\"	$NetBSD: arp.4,v 1.2 1995/03/01 11:50:56 chopps Exp $
+.\"
+.\" Copyright (c) 1985, 1986, 1988, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)arp4.4	6.5 (Berkeley) 4/18/94
+.\"
+.Dd $Mdocdate: January 2 2021 $
+.Dt ARP 4
+.Os
+.Sh NAME
+.Nm arp
+.Nd Address Resolution Protocol
+.Sh SYNOPSIS
+.Cd "pseudo-device ether"
+.Sh DESCRIPTION
+The Address Resolution Protocol (ARP) is used to dynamically
+map between Internet host addresses and Ethernet addresses.
+It is used by all of the Ethernet interface drivers.
+It is not specific to Internet protocols or to Ethernet,
+but this implementation currently supports only that combination.
+.Pp
+ARP caches Internet-Ethernet address mappings.
+When an interface requests a mapping for an address not in the cache,
+ARP queues the message which requires the mapping and broadcasts
+a message on the associated network requesting the address mapping.
+If a response is provided, the new mapping is cached and any pending
+message is transmitted.
+ARP will queue at most one packet while waiting for a response to a
+mapping request;
+only the most recently transmitted packet is kept.
+If the target host does not respond after several requests,
+the host is considered to be down for a short period (normally 20 seconds),
+allowing an error to be returned to transmission attempts during this
+interval.
+The error is
+.Er EHOSTDOWN
+for a non-responding destination host, and
+.Er EHOSTUNREACH
+for a non-responding router.
+.Pp
+The ARP cache is stored in the system routing table as
+dynamically created host routes.
+The route to a directly attached Ethernet network is installed as a
+.Dq cloning
+route (one with the
+.Dv RTF_CLONING
+flag set),
+causing routes to individual hosts on that network to be created on
+demand.
+These routes time out periodically (normally 20 minutes after validated;
+entries are not validated when not in use).
+An entry for a host which is not responding is a
+.Dq reject
+route (one with the
+.Dv RTF_REJECT
+flag set).
+.Pp
+ARP entries may be added, deleted or changed with the
+.Xr arp 8
+utility.
+Manually added entries may be temporary, static or permanent,
+and may be
+.Dq published ,
+in which case the system will respond to ARP requests for that host
+as if it were the target of the request.
+A static entry will not
+time out, but may be overwritten by network traffic, while a permanent
+entry will not time out and cannot be overwritten.
+.Pp
+ARP watches passively for hosts impersonating the local host (i.e., a host
+which responds to an ARP mapping request for the local host's address).
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "duplicate IP address %x!! sent from ethernet address: %x:%x:%x:%x:%x:%x"
+ARP has discovered another host on the local network which responds to
+mapping requests for its own Internet address with a different Ethernet
+address, generally indicating that two hosts are attempting to use the
+same Internet address.
+.It "arp info overwritten for %x!! by %x:%x:%x:%x:%x:%x on %x"
+An existing route has been overwritten with a new Ethernet address, for
+example when the other host has changed Ethernet cards.
+If the route
+previously was static/non-expiring, the new route will expire normally.
+.It "arp: attempt to overwrite permanent entry for %x!! by %x:%x:%x:%x:%x:%x on %x"
+As above, but the existing route had been manually set up as permanent.
+The routing information is not modified.
+.It "arp: attempt to overwrite entry for %x!! on %x by %x:%x:%x:%x:%x:%x on %x"
+ARP has noticed an attempt to overwrite a host's routing entry on one
+interface with a routing entry for a different interface.
+The routing information is not modified.
+.It "arp: received reply to broadcast or multicast address"
+ARP received a response which is a broadcast or multicast address.
+This might indicate an ARP spoofing attempt.
+.It "arp: ether address is broadcast for IP address %s!"
+ARP requested information for a host, and received an answer indicating that
+the host's Ethernet address is the Ethernet broadcast address.
+This indicates a misconfigured or broken device.
+.It "arp: ether address is multicast for IP address %s!"
+ARP requested information for a host, and received an answer indicating that
+the host's Ethernet address is the Ethernet multicast address.
+This indicates a misconfigured or broken device.
+.It "arp: attempt to add entry for %s on %s by %s on %s"
+This usually indicates there is more than one interface
+connected to the same hub,
+or that the networks have somehow been short-circuited
+(e.g. IPs that should have been present on interface one
+are present on interface two).
+.It "arplookup: unable to enter address for %s"
+An IP received on the interface does not match the network/netmask
+of the interface.
+This indicates a netmask problem.
+.El
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr route 4 ,
+.Xr arp 8 ,
+.Xr ifconfig 8 ,
+.Xr route 8
+.Sh STANDARDS
+.Rs
+.%A David C. Plummer
+.%D November 1982
+.%R RFC 826
+.%T "An Ethernet Address Resolution Protocol"
+.Re

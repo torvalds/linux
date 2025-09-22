@@ -1,0 +1,7 @@
+Spawn multiple threads and run system calls on TCP socket in parallel.
+
+Setup TCP connections on localhost and run system calls connect(2),
+accept(2), send(2), recv(2), and close(2) in parallel.  In addition
+stress test for socket splicing, unsplice, max length and idle
+timeout can run.  Alternatively to close(2) the tcp drop sysctl(2)
+can be used.  The successful operations are counted.

@@ -1,0 +1,152 @@
+.\" $OpenBSD: uvideo.4,v 1.45 2025/08/14 13:14:44 kirill Exp $
+.\"
+.\" Copyright (c) 2008 Ian Darwin.  All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 14 2025 $
+.Dt UVIDEO 4
+.Os
+.Sh NAME
+.Nm uvideo
+.Nd USB video devices
+.Sh SYNOPSIS
+.Cd "uvideo*     at uhub?"
+.Cd "video*      at uvideo?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports a range of USB Video Class (UVC) devices including webcams,
+camcorders and other cameras.
+UVC is a generic specification and many USB video devices follow it.
+The following models are known to work:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Apple built-in iSight
+.It
+Chen-Source CM12402 Eagle IR Cam
+.It
+Chicony Electronics 4807 (Lenovo X300 647815G Notebooks)
+.It
+Dynex 1.3MP Webcam
+.It
+Elgato Facecam Pro
+.It
+eMPIA Technology 2761 (ASUS EeePC 701 Notebooks)
+.It
+Jabra PanaCast 20
+.It
+Lenovo EasyCamera (Lenovo IdeaPad s10e Notebooks)
+.It
+Logitech QuickCam for Notebooks Pro
+.It
+Logitech QuickCam Communicate Deluxe
+.It
+Logitech QuickCam Communicate MP
+.It
+Logitech QuickCam Deluxe for Notebooks
+.It
+Logitech QuickCam E 3500 Plus
+.It
+Logitech QuickCam Fusion
+.It
+Logitech QuickCam OEM (Dell Notebooks)
+.It
+Logitech QuickCam Orbit AF
+.It
+Logitech QuickCam Orbit MP
+.It
+Logitech QuickCam Pro for Notebooks
+.It
+Logitech QuickCam Pro 5000
+.It
+Logitech QuickCam Pro 9000
+.It
+Logitech QuickCam Sphere AF
+.It
+Logitech QuickCam Sphere MP
+.It
+Logitech QuickCam Ultra Vision
+.It
+Logitech Webcam C200
+.It
+Logitech Webcam C310
+.It
+Logitech Webcam C500
+.It
+Logitech Webcam C920 Pro
+.It
+Logitech Webcam C922 Pro
+.It
+Logitech Webcam C930e
+.It
+Logitech Webcam Pro 9000
+.It
+Microsoft LifeCam NX-6000
+.It
+Microsoft LifeCam VX-500
+.It
+Microsoft LifeCam VX-700
+.It
+OmniVision OV7670 (Dell XPS M1330 Notebooks)
+.It
+Panasonic NV-GS320 Camcorder
+.It
+Rocketfish 2MP AF Webcam
+.It
+Sonix USB 2.0 Camera
+.It
+SunplusIT Inc (Lenovo X1 Carbon 6th Generation Notebooks)
+.It
+SuYin Acer Crystal Eye (Acer AspireOne Notebooks)
+.It
+Vimicro Corp USB 2.0 Camera
+.El
+.Pp
+If the
+.Nm
+device attaches successfully, it will attach the
+.Xr video 4
+driver to provide higher-level access.
+.Sh FILES
+The driver needs a set of firmware for some devices which are loaded when
+a device gets attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/uvideo_isight_05ac-8300
+.It Pa /etc/firmware/uvideo_r5u87x_05ca-1803
+.It Pa /etc/firmware/uvideo_r5u87x_05ca-1810
+.It Pa /etc/firmware/uvideo_r5u87x_05ca-1812
+.It Pa /etc/firmware/uvideo_r5u87x_05ca-1835
+.It Pa /etc/firmware/uvideo_r5u87x_05ca-1836
+.It Pa /etc/firmware/uvideo_r5u87x_05ca-1837
+.It Pa /etc/firmware/uvideo_r5u87x_05ca-1839
+.It Pa /etc/firmware/uvideo_r5u87x_05ca-183a
+.It Pa /etc/firmware/uvideo_r5u87x_05ca-183b
+.It Pa /etc/firmware/uvideo_r5u87x_05ca-183e
+.It Pa /etc/firmware/uvideo_r5u87x_05ca-1841
+.El
+.Pp
+A prepackaged version of the firmware can be installed using
+.Xr fw_update 8 .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr usb 4 ,
+.Xr video 4
+.Sh HISTORY
+The
+.Nm
+driver
+first appeared in
+.Ox 4.4 .

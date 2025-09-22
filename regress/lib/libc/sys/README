@@ -1,0 +1,71 @@
+Regression tests for system calls ported from NetBSD.
+
+Reimplement ATF with many hacks to adjust the tests as little as possible.
+
+Tests passing without source file adjustments:
+t_access	t_getsockname	t_msgctl	t_sigaltstack
+t_bind		t_gettimeofday	t_msgsnd	t_socketpair
+t_conect	t_kill		t_msync		t_truncate
+t_getgroups	t_link		t_pipe		t_umask
+t_getitimer	t_listen	t_ppoll		t_write
+t_getlogin	t_minherit	t_sendrecv
+t_getpid	t_mkdir		t_setuid
+t_getsid	t_mkfifo	t_sigaction
+
+Tests passing after adjustments:
+t_chroot		- fchroot is not implemented
+t_clock_gettime		- requires sysctlbyname
+t_dup			- OpenBSD dup3 is similar to Linux dup3
+t_fork			- add reallocarr function, remove clone(2) tests
+t_fsync			- replace mkstemp
+t_getrusage		- no expected fail, PR kern/30115 is NetBSD, work more
+t_kevent		- no EVFILT_USER, DRVCTLDEV, passing kqueue forbidden
+t_mknod 		- remove tests for unsupported file types
+t_msgget		- remove msgget_limit test
+t_poll 			- remove pollts_* tests
+t_ptrace 		- change EPERM -> EINVAL for PT_ATTACH of a parent
+t_revoke 		- remove basic tests, revoke only on ttys supported
+t_select 		- remove sigset_t struct as it is int on OpenBSD
+t_setrlimit		- remove unsupported resource parameters and lwp
+t_syscall		- add __syscall prototype
+t_vfork			- SIGSTOP is masked before exec(3)/exit(3)
+t_wait_noproc		- waitid and wait6 are not implemented
+t_wait_noproc_wnohang	- waitid and wait6 are not implemented
+
+Failing tests:
+t_mlock		- wrong errno, succeeds where not expected, POSIX imprecise
+t_mmap		- ENOTBLK on test NetBSD is skipping, remove mmap_va0 test
+t_msgrcv	- msgrcv(id, &r, 3 - 1, 0x41, 004000) != -1
+t_pipe2 	- closefrom(4) == -1, remove F_GETNOSIGPIPE and nosigpipe test
+t_stat 		- invalid GID with doas
+t_unlink	- wrong errno according to POSIX
+
+Excluded tests:
+t_clock_nanosleep	- not available
+t_clone			- not available
+t_futex_ops		- no lwp
+t_futex_robust		- no lwp
+t_getcontext		- not available, removed in POSIX.1-2008
+t_getrandom		- not available
+t_issetugid		- works as iplemented
+t_lwp_create		- not available
+t_lwp_ctl		- not available
+t_mincore		- removed
+t_mprotect		- no exec_prot_support and no return_one in libc
+t_nanosleep		- not available
+t_pollts		- not available
+t_posix_fadvise		- optional POSIX Advisory Information
+t_posix_fallocate	- optional POSIX Advisory Information
+t_ptrace_sigchld	-
+t_ptrace_wait		-
+t_ptrace_wait3		-
+t_ptrace_wait4		-
+t_ptrace_wait6		- not implemented
+t_ptrace_waitid		-
+t_ptrace_waitpid	-
+t_sigqueue		- not implemented, added in POSIX.1-2004
+t_sigtimedwait		- not implemented, added in POSIX.1-2004
+t_swapcontext		- not available, removed in POSIX.1-2008
+t_timer_create		- not implemented, added in POSIX.1-2004
+t_ucontext		- not available, removed in POSIX.1-2008
+t_wait			- wait6 is not available, not POSIX

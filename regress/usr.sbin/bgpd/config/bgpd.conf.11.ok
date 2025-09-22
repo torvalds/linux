@@ -1,0 +1,64 @@
+AS 64512
+router-id 127.0.0.1
+socket "/var/run/bgpd.sock.0"
+listen on 0.0.0.0
+listen on ::
+
+
+rde rib Adj-RIB-In no evaluate
+rde rib Loc-RIB rtable 0 fib-update yes
+
+match from any ext-community rt 64496:1 
+match from any ext-community soo 64496:2 
+match from any ext-community odi 64496:3 
+match from any ext-community bdc 64496:4 
+match from any ext-community srcas 64496:5 
+match from any ext-community l2vid 64496:6 
+match from any ext-community rt 4200000001:7 
+match from any ext-community soo 4200000001:8 
+match from any ext-community odi 4200000001:9 
+match from any ext-community bdc 4200000001:10 
+match from any ext-community srcas 4200000001:11 
+match from any ext-community rt 127.0.0.1:12 
+match from any ext-community soo 127.0.0.1:13 
+match from any ext-community odi 127.0.0.1:14 
+match from any ext-community ori 127.0.0.1:15 
+match from any ext-community l2vid 127.0.0.1:16 
+match from any ext-community vrfri 127.0.0.1:17 
+match from any ext-community ort 0x123456789ab0 
+match from any ext-community defgw 0x123456789ab1 
+match from any ext-community mac-mob 0x123456789ab2 
+match from any ext-community esi-lab 0x123456789ab3 
+match from any ext-community esi-rt 0x123456789ab4 
+match from any ext-community ovs valid 
+match from any ext-community ovs invalid 
+match from any ext-community ovs not-found 
+match from any ext-community rt 64496:201 ext-community soo 64496:202 
+match from any ext-community rt 64496:301 ext-community soo 4200000001:302 ext-community odi 127.0.0.1:303 
+match from any set { ext-community delete ovs valid ext-community delete ort 0x123456789abf ext-community delete rt 64496:6001 ext-community delete odi 127.0.0.1:6003 ext-community delete soo 4200000001:6002 ext-community ovs valid ext-community ort 0x123456789abc ext-community rt 64496:5001 ext-community odi 127.0.0.1:5003 ext-community soo 4200000001:5002 }
+match from any ext-community * * 
+match from any ext-community rt * 
+match from any ext-community soo * 
+match from any ext-community odi * 
+match from any ext-community ort * 
+match from any ext-community mac-mob * 
+match from any ext-community ovs * 
+match from any ext-community rt 64496:* 
+match from any ext-community rt 4200000001:* 
+match from any ext-community rt 127.0.0.1:* 
+match from any ext-community soo 64496:* 
+match from any ext-community soo 4200000001:* 
+match from any ext-community soo 127.0.0.1:* 
+match from any set { ext-community delete ort * ext-community delete mac-mob * ext-community delete ovs * ext-community delete rt * ext-community delete soo * ext-community delete odi * ext-community delete rt 64496:* ext-community delete odi 127.0.0.1:* ext-community delete soo 4200000001:* }
+match from any ext-community rt 64496:local-as 
+match from any ext-community soo 4200000001:local-as 
+match from any ext-community odi 127.0.0.1:local-as 
+match from any ext-community rt 64497:neighbor-as 
+match from any ext-community soo 4200000002:neighbor-as 
+match from any ext-community odi 127.0.0.2:neighbor-as 
+match from any ext-community rt local-as:1234 
+match from any ext-community soo local-as:2345 
+match from any ext-community rt neighbor-as:1235 
+match from any ext-community soo neighbor-as:2346 
+match from any ext-community rt neighbor-as:local-as 
+match from any ext-community soo local-as:neighbor-as 

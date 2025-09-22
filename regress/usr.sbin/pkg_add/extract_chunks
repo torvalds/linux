@@ -1,0 +1,68 @@
+#! /usr/bin/perl
+
+# ex:ts=8 sw=4:
+# $OpenBSD: extract_chunks,v 1.2 2014/09/20 09:35:54 espie Exp $
+#
+# Copyright (c) 2014 Marc Espie <espie@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+# modern packages are "chunked" archives, composed of several gzip files
+# this script can extract each chunk for further analysis, as it is
+# difficult using plain old gunzip to do something like that.
+
+use strict;
+use warnings;
+use IO::Uncompress::AnyUncompress qw($AnyUncompressError);
+use File::Basename;
+
+for my $f (@ARGV) {
+	my $z;
+	unless ($z = IO::Uncompress::AnyUncompress->new($f)) {
+		print STDERR "Bad compressed file $f: $AnyUncompressError\n";
+		next;
+	}
+
+	my $buffer;
+	my $length = 1024 * 1024;
+	my $stem = basename($f, ".tgz");
+	my $i = 0;
+
+	while (1) {
+		$i++;
+		# build chunk name in the current directory
+		my $out ="$stem.tar.".sprintf("%04d", $i);
+		open my $fh, ">", $out or die "Can't open chunk $out: $!";
+		while (1) {
+			my $r = $z->read($buffer, $length);
+			if ($r < 0) {
+				print STDERR "Error reading from $f: ",
+				    $AnyUncompressError, "\n";
+			}
+			if ($r <= 0) {
+				last;
+			}
+			syswrite $fh, $buffer, $r;
+		}
+		close $fh;
+		my $s = $z->nextStream;
+		if ($s == -1) {
+			print STDERR "Error switching to next stream of $f:",
+			    $AnyUncompressError, "\n";
+		}
+		if ($s != 1) {
+			last;
+		}
+	}
+}
+

@@ -1,0 +1,30 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//third-party/unittest/unittest.gni")
+
+tablegen("AutomataAutomata") {
+  visibility = [ ":TableGenTests" ]
+  args = [ "-gen-automata" ]
+  td_file = "Automata.td"
+}
+
+tablegen("AutomataTables") {
+  visibility = [ ":TableGenTests" ]
+  args = [ "-gen-searchable-tables" ]
+  td_file = "Automata.td"
+}
+
+unittest("TableGenTests") {
+  deps = [
+    ":AutomataAutomata",
+    ":AutomataTables",
+    "//llvm/lib/Support",
+    "//llvm/lib/TableGen",
+    "//llvm/utils/TableGen/Common",
+  ]
+  include_dirs = [ "//llvm/utils/TableGen" ]
+  sources = [
+    "AutomataTest.cpp",
+    "CodeExpanderTest.cpp",
+    "ParserEntryPointTest.cpp",
+  ]
+}

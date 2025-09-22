@@ -1,0 +1,77 @@
+.\"   $OpenBSD: maestro.4,v 1.16 2015/01/15 20:37:36 schwarze Exp $
+.\"
+.\" Copyright (c) 2001 Marc Espie.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 15 2015 $
+.Dt MAESTRO 4
+.Os
+.Sh NAME
+.Nm maestro
+.Nd ESS Maestro 1 and 2 audio device
+.Sh SYNOPSIS
+.Cd "maestro* at pci?"
+.Cd "audio* at maestro?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports ESS maestro 1, 2 and 2E, including OEM products that
+identify as NEC Versa, or NEC VersaProNX VA26D, as long as they use
+an AC'97 compliant codec, which is always the case, except for very
+early models.
+It does not support maestro 3 cards, which are entirely different and
+supported by the
+.Xr esa 4
+driver.
+.Pp
+Maestro cards have direct support for 16 bit signed little-endian
+mono and stereo, 8 bit signed and unsigned mono and stereo.
+Other encodings are emulated in software.
+Sampling range is 4000 - 48000 Hz, with roughly a 2 Hz resolution.
+.Pp
+Maestro cards have some DSP and Dolby Digital 5.1 hardware, but this driver
+does not support it.
+.Pp
+Other functions of maestro cards (modem, joystick) are not supported.
+.Pp
+PCI interrupt sharing works, as long as other devices comply too.
+.Sh SEE ALSO
+.Xr ac97 4 ,
+.Xr audio 4 ,
+.Xr esa 4 ,
+.Xr intro 4 ,
+.Xr pci 4
+.Sh HISTORY
+Maestro hardware information was gleaned from the
+.Fx
+and Linux OSS drivers.
+.Sh AUTHORS
+.An -nosplit
+.An David Leonard
+and
+.An Marc Espie .
+.Sh BUGS
+Very old cards with a PT101 mixer component should have partial support, e.g.,
+the mixer does not work.
+.Pp
+Recording should work soon.

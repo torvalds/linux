@@ -1,0 +1,180 @@
+.\"	$OpenBSD: acpi.4,v 1.78 2025/05/20 10:17:38 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 20 2025 $
+.Dt ACPI 4
+.Os
+.Sh NAME
+.Nm acpi
+.Nd Advanced Configuration and Power Interface
+.Sh SYNOPSIS
+.Cd "acpi0 at bios?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides basic support for ACPI including loading ACPI tables from
+the firmware, parsing and interpreting AML code, event handling,
+suspending and powering off, and attaching device drivers.
+Userland may access
+.Nm
+by using the
+.Xr apm 4
+device.
+.Pp
+The following devices can attach to
+.Nm :
+.Pp
+.Bl -tag -width "acpithinkpad(4)XXX" -offset indent -compact
+.It Xr abl 4
+Apple backlight support
+.It Xr acpiac 4
+ACPI AC adapter
+.It Xr acpials 4
+ACPI ambient light sensor
+.It Xr acpiasus 4
+ASUS ACPI hotkeys
+.It Xr acpibat 4
+ACPI control method battery
+.It Xr acpibtn 4
+ACPI button
+.It Xr acpicbkbd 4
+Chromebook keyboard backlight
+.It Xr acpicmos 4
+CMOS memory manager
+.It Xr acpicpu 4
+ACPI processor power and performance state
+.It Xr acpidock 4
+ACPI docking station
+.It Xr acpiec 4
+ACPI embedded controller
+.It Xr acpige 4
+ACPI generic event device
+.It Xr acpihid 4
+ACPI HID event and 5-button array
+.It Xr acpihpet 4
+ACPI high precision event timer
+.It Xr acpihve 4
+Hyper-V entropy
+.It Xr acpimadt 4
+ACPI APIC configuration
+.It Xr acpimcfg 4
+ACPI PCI Express configuration space
+.It Xr acpipci 4
+ACPI PCI host bridge
+.It Xr acpiprt 4
+ACPI PCI routing table configuration
+.It Xr acpipwrres 4
+ACPI power resources
+.It Xr acpisbs 4
+ACPI Smart Battery subsystem
+.It Xr acpisony 4
+Sony ACPI control
+.It Xr acpisurface 4
+Microsoft Surface Book ACPI support
+.It Xr acpithinkpad 4
+IBM/Lenovo ThinkPad ACPI support
+.It Xr acpitimer 4
+ACPI power management timer
+.It Xr acpitoshiba 4
+Toshiba ACPI support
+.It Xr acpitz 4
+ACPI thermal zone
+.It Xr acpivideo 4
+ACPI video
+.It Xr acpivout 4
+ACPI video output
+.It Xr acpiwmi 4
+ACPI WMI interface
+.It Xr ahci 4
+Advanced Host Controller Interface for Serial ATA
+.It Xr aibs 4
+ASUSTeK AI Booster ACPI ATK0110 temperature, voltage, and fan sensor
+.It Xr amdgpio 4
+AMD GPIO controller
+.It Xr ampchwm 4
+Ampere Altra fine-grained power telemetry
+.It Xr aplgpio 4
+Intel Apollo Lake GPIO controller
+.It Xr asmc 4
+Apple System Management Controller (SMC)
+.It Xr bse 4
+Broadcom GENET 10/100/1Gb Ethernet device
+.It Xr bytgpio 4
+Intel Bay Trail GPIO controller
+.It Xr ccp 4
+AMD cryptographic co-processor
+.It Xr chvgpio 4
+Intel Cherry View GPIO controller
+.It Xr dwgpio 4
+Synopsys DesignWare GPIO controller
+.It Xr dwiic 4
+Synopsys DesignWare I2C controller
+.It Xr glkgpio 4
+Intel Gemini Lake GPIO controller
+.It Xr imxiic 4
+i.MX onboard I2C controller
+.It Xr intelpmc 4
+Intel power management controller
+.It Xr iosf 4
+Intel OnChip System Fabric device
+.It Xr ipmi 4
+Intelligent Platform Management Interface driver
+.It Xr pchgpio 4
+Intel PCH GPIO controller
+.It Xr pckbc 4
+Keyboard controller
+.It Xr pluart 4
+ARM PrimeCell PL011 UART
+.It Xr qcgpio 4
+Qualcomm Snapdragon GPIO controller
+.It Xr qciic 4
+Qualcomm Snapdragon GENI I2C controller
+.It Xr sdhc 4
+SD Host Controller
+.It Xr tpm 4
+Trusted Platform Module device
+.It Xr ufshci 4
+Universal Flash Storage Host Controller Interface
+.El
+.Sh FILES
+.Bl -tag -width "/dev/apmctlXXX"
+.It /dev/apm
+Power management data device.
+May only be opened read-only.
+May be opened by multiple concurrent users.
+.It /dev/apmctl
+Power management control device.
+May be opened read-write or write-only.
+May only be opened by one user at a time.
+An attempt to open the file when in use will fail, returning
+.Er EBUSY .
+.El
+.Sh SEE ALSO
+.Xr apm 4 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Thorsten Lockert Aq Mt tholo@sigmasoft.com
+and
+.An Jordan Hargrave Aq Mt jordan@openbsd.org .

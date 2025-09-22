@@ -1,0 +1,556 @@
+#	$OpenBSD: GENERIC,v 1.324 2024/02/09 11:05:22 bluhm Exp $
+#
+# For further information on compiling OpenBSD kernels, see the config(8)
+# man page.
+#
+# For further information on hardware support for this architecture, see
+# the intro(4) man page.  For further information about kernel options
+# for this architecture, see the options(4) man page.  For an explanation
+# of each device driver in this file see the section 4 man page for the
+# device.
+
+machine		sparc64
+include		"../../../conf/GENERIC"
+maxusers	80			# estimated number of users
+
+option		SUN4US
+option		SUN4V
+
+option		PCIVERBOSE
+option		USER_PCICONF		# user-space PCI configuration
+option		APERTURE
+option		USBVERBOSE
+
+option		WSEMUL_SUN	# provide sun terminal emulation; required
+option		WSEMUL_NO_VT100	# do not provide vt100 terminal emulation
+option		WSEMUL_DUMB
+option		WSDISPLAY_COMPAT_RAWKBD	# provide raw scancodes; needed for X11
+
+config		bsd	swap generic
+
+# Main bus and CPU .. all systems.
+mainbus0 at root
+cpu0	at mainbus0
+ssm*	at mainbus0
+cpu0	at ssm?
+cmp*	at mainbus0
+cmp*	at ssm?
+cpu0	at cmp?
+core*	at cmp?
+cpu0	at core?
+
+# Bus types found on SPARC systems.
+sbus*	at mainbus0
+central0 at mainbus0
+fhc0	at central0
+fhc*	at mainbus0
+upa0	at mainbus0
+psycho*	at mainbus0
+pci*	at psycho?
+schizo*	at mainbus0
+schizo*	at ssm?
+pci*	at schizo?
+pyro*	at mainbus0
+pci*	at pyro?
+vpci*	at mainbus0
+pci*	at vpci?
+pci*	at ppb?
+ppb*	at pci?
+ebus*	at mainbus0
+ebus*	at pci?
+vbus0	at mainbus0
+sbbc*	at pci?
+cbus*	at vbus?
+
+# PCI Ethernet
+hme*	at pci?			# Sun Happy Meal 10/100
+gem*	at pci?			# Sun GEM 10/100/Gigabit
+cas*	at pci?			# Sun Cassini 100/Gigabit
+nep*	at pci?			# Sun Neptune ethernet
+ti*	at pci?			# Alteon Tigon 1Gb ethernet
+skc*	at pci?			# SysKonnect GEnesis 984x
+sk*	at skc?			#  each port of above
+mskc*	at pci?			# Marvell Yukon-2
+msk*	at mskc?		#  each port of above
+fxp*	at pci?			# EtherExpress 10/100B ethernet
+xl*	at pci?			# 3C9xx ethernet
+xl*	at cardbus?		# 3C9xx ethernet
+pcn*	at pci?			# AMD PCnet-PCI Ethernet
+de*	at pci?			# DC21X4X-based ethernet
+dc*	at pci?			# 21143, "tulip" clone ethernet
+dc*	at cardbus?		# 21143, "tulip" clone ethernet
+ne*	at pci?			# NE2000-compat ethernet cards
+epic*	at pci?			# SMC EPIC/100 ethernet
+em*	at pci?			# Intel Pro/1000 ethernet
+#ixgb*	at pci?			# Intel Pro/10Gb ethernet
+ix*	at pci?			# Intel 82598EB 10Gb ethernet
+ixl*	at pci?			# Intel 700 Series Ethernet
+myx*	at pci?			# Myricom Myri-10G 10Gb ethernet
+mcx*	at pci?			# Mellanox 5th Generation Ethernet
+oce*	at pci?			# Emulex OneConnect 10Gb ethernet
+bge*	at pci?			# Broadcom BCM570x (aka Tigon3)
+bnx*	at pci?			# Broadcom BCM5706/5708 GigE
+stge*	at pci?			# Sundance TC9021 GigE
+rl*	at pci?			# Realtek 81[23]9 ethernet
+vr*	at pci?			# VIA Rhine ethernet
+re*	at pci?			# Realtek 8169/8169S/8110S
+re*	at cardbus?		# Realtek 8169/8169S/8110S
+thtc*	at pci?			# Tehuti Networks 10Gb ethernet
+tht*	at thtc?
+jme*	at pci?			# JMicron JMC250/JMC260 Ethernet
+igc*	at pci?			# Intel I225 Ethernet
+
+ath*	at pci?			# Atheros AR5k (802.11a/b/g)
+ath*	at cardbus?		# Atheros AR5k (802.11a/b/g)
+athn*	at pci?			# Atheros AR9k (802.11a/g/n)
+athn*	at cardbus?		# Atheros AR9k (802.11a/g/n)
+#pgt*	at pci?			# Prism54 Full-MAC
+#acx*	at pci?			# TI ACX100/ACX111 (802.11b/g)
+#acx*	at cardbus?		# TI ACX100/ACX111 (802.11b/g)
+ral*	at pci?			# Ralink RT2500/RT2501/RT2600
+ral*	at cardbus?		# Ralink RT2500/RT2501/RT2600
+malo*	at pci?			# Marvell Libertas
+malo*	at cardbus?		# Marvell Libertas
+malo*	at pcmcia?		# Marvell 88W8385
+
+# PCI SCSI
+#ahc*	at pci?			# Adaptec 2940 SCSI controllers
+siop*	at pci?			# NCR 538XX SCSI controllers
+qlw*	at pci?			# QLogic ISP SCSI
+qla*	at pci?			# QLogic ISP 2[123]xx FibreChannel
+qle*	at pci?			# QLogic ISP 2[45]xx FibreChannel
+pcscp*	at pci?			# AMD 53c974 PCscsi-PCI SCSI
+mpi*	at pci?			# LSI Logic Fusion MPT Message Passing Interface
+mpii*	at pci?			# LSI Message Passing Interface II
+arc*	at pci?			# Areca RAID Controllers
+jmb*	at pci?			# JMicron JMB36x controllers
+ahci*	at jmb? flags 0x0000	# flags 0x0001 to force SATA 1 (1.5Gb/s)
+pciide*	at jmb?
+ahci*	at pci? flags 0x0000	# AHCI SATA controllers
+				# flags 0x0001 to force SATA 1 (1.5Gb/s)
+sili*	at pci?			# Silicon Image 3124/3132/3531 SATA controllers
+nvme*	at pci?			# NVMe controllers
+
+# PCI sound
+auacer*	at pci?			# Acer Labs M5455
+autri*	at pci? flags 0x0000	# Trident 4D WAVE
+cmpci*  at pci?			# C-Media CMI8338/8738
+eap*	at pci?			# Ensoniq AudioPCI S5016
+emu*	at pci?			# SB Live!
+eso*	at pci?			# ESS Solo-1 PCI AudioDrive
+
+puc*	at pci?			# PCI "universal" comm device
+com*	at puc?
+#lpt*	at puc?
+
+# Sound support
+audio*	at auacer?
+audio*	at audioce?
+audio*	at audiocs?
+audio*	at autri?
+audio*	at cmpci?
+audio*	at eap?
+audio*	at emu?
+audio*	at eso?
+
+# MIDI support
+midi*	at autri?
+midi*	at eap?
+
+# USB Controllers
+ohci*	at pci?			# Open Host Controller
+ohci*	at cardbus?
+uhci*	at pci?			# Universal Host Controller (Intel)
+ehci*	at pci?			# Enhanced Host Controller
+ehci*	at cardbus?
+xhci*	at pci?			# eXtensible Host Controller
+
+# USB bus support
+usb*	at ohci?
+usb*	at uhci?
+usb*	at ehci?
+usb*	at xhci?
+
+# USB devices
+uhub*	at usb?			# USB Hubs
+uhub*	at uhub?		# USB Hubs
+urng*	at uhub?		# USB Random Number Generator
+uonerng* at uhub?		# Moonbase Otago OneRNG
+umodem*	at uhub?		# USB Modems/Serial
+ucom*	at umodem?
+uvisor*	at uhub?		# Handspring Visor
+ucom*	at uvisor?
+uvscom*	at uhub?		# SUNTAC Slipper U VS-10U serial
+ucom*	at uvscom?
+ubsa*	at uhub?		# Belkin serial adapter
+ucom*	at ubsa?
+uftdi*	at uhub?		# FTDI FT8U100AX serial adapter
+ucom*	at uftdi?
+uplcom* at uhub?		# I/O DATA USB-RSAQ2 serial adapter
+ucom*	at uplcom?
+umct*	at uhub?		# MCT USB-RS232 serial adapter
+ucom*	at umct?
+uslcom*	at uhub?		# Silicon Laboratories CP210x serial
+ucom*	at uslcom?
+uscom*	at uhub?		# Simple USB serial adapters
+ucom*	at uscom?
+ucrcom*	at uhub?		# Chromebook serial
+ucom*	at ucrcom?
+uark*	at uhub?		# Arkmicro ARK3116 serial
+ucom*	at uark?
+uipaq*	at uhub?		# iPAQ serial adapter
+ucom*	at uipaq?
+uchcom*	at uhub?		# WinChipHead CH341/340 serial
+ucom*	at uchcom?
+uaudio* at uhub?		# USB Audio
+audio*	at uaudio?
+umidi*	at uhub?		# USB MIDI
+midi*	at umidi?
+ulpt*	at uhub?		# USB Printers
+umass*	at uhub?		# USB Mass Storage devices
+uhidev*	at uhub?		# Human Interface Devices
+ums*	at uhidev?		# USB mouse
+wsmouse* at ums? mux 0
+ukbd*	at uhidev?		# USB keyboard
+wskbd*	at ukbd? mux 1
+ucycom*	at uhidev?		# Cypress serial
+ucom*	at ucycom?
+uslhcom* at uhidev?		# Silicon Labs CP2110 USB HID UART
+ucom*	at uslhcom?
+umsm*	at uhub?		# Qualcomm MSM EVDO
+ucom*	at umsm?
+uhid*	at uhidev?		# USB generic HID support
+fido*	at uhidev?		# FIDO/U2F security key support
+ucc*	at uhidev?		# Consumer Control keyboards
+wskbd*	at ucc? mux 1
+ujoy*	at uhidev?		# USB joystick/gamecontroller support
+uhidpp*	at uhidev?		# Logitech HID++ Devices
+upd*	at uhidev?		# USB Power Devices sensors
+aue*	at uhub?		# ADMtek AN986 Pegasus Ethernet
+atu*	at uhub?		# Atmel AT76c50x based 802.11b
+axe*	at uhub?		# ASIX Electronics AX88172 USB Ethernet
+axen*	at uhub?		# ASIX Electronics AX88179 USB Ethernet
+cue*	at uhub?		# CATC USB-EL1201A based Ethernet
+kue*	at uhub?		# Kawasaki KL5KUSB101B based Ethernet
+smsc*	at uhub?		# SMSC LAN95xx Ethernet
+cdce*	at uhub?		# CDC Ethernet
+urndis*	at uhub?		# Remote NDIS devices
+udav*	at uhub?		# Davicom DM9601 based Ethernet
+mos*	at uhub?		# MOSCHIP MCS7730/7830 10/100 Ethernet
+upl*	at uhub?		# Prolific PL2301/PL2302 host-to-host `network'
+ugl*	at uhub?		# Genesys Logic GL620USB-A host-to-host `network'
+ural*	at uhub?		# Ralink RT2500USB
+uath*	at uhub?		# Atheros AR5005UG/AR5005UX
+rsu*	at uhub?		# Realtek RTL8188SU/RTL8191SU/RTL8192SU
+urtwn*	at uhub?		# Realtek RTL8188CU/RTL8192CU
+rum*	at uhub?		# Ralink RT2501USB/RT2601USB
+run*	at uhub?		# Ralink RT2700U/RT2800U/RT3000U
+athn*	at uhub?		# Atheros AR9002U
+zyd*	at uhub?		# Zydas ZD1211
+url*	at uhub?		# Realtek RTL8150L based adapters
+ure*	at uhub?		# Realtek RTL8152 based adapters
+wi*	at uhub?		# WaveLAN IEEE 802.11DS
+udsbr*	at uhub?		# D-Link DSB-R100 radio
+radio*	at udsbr?		# USB radio
+ugen*	at uhub?		# USB Generic driver
+udcf*	at uhub?		# Gude Expert mouseCLOCK
+umbg*	at uhub?		# Meinberg Funkuhren USB5131/DCF600USB
+uthum*	at uhidev?		# TEMPerHUM sensor
+ugold*	at uhidev?		# gold TEMPer sensor
+utwitch* at uhidev?		# UYUREX BBU sensor
+uow*	at uhub?		# Maxim/Dallas DS2490 1-Wire adapter
+onewire* at uow?
+
+# USB Video
+uvideo* at uhub?
+video*  at uvideo?
+
+utvfu*	at uhub?		# Fushicai Audio-Video Grabber
+video*	at utvfu?
+audio*	at utvfu?
+
+# CardBus bus support
+cardbus* at cardslot?
+pcmcia*	at cardslot?
+cbb*	at pci?
+cardslot* at cbb?
+
+#### Standard system devices -- all required for a given architecture
+
+auxio*	at ebus?
+auxio*	at sbus?
+beep*	at ebus?
+beeper*	at ebus?
+power*	at ebus?
+
+# SAB82532 based serial ports
+sab*	at ebus?
+sabtty* at sab?
+
+# NS16550 based serial ports
+com*	at ebus?
+comkbd*	at ebus?
+wskbd* at comkbd? mux 1
+comms*	at ebus?
+wsmouse* at comms? mux 0
+
+# Z8530 based serial ports
+zs*	at sbus?
+zs*	at fhc?
+zstty*	at zs?
+zskbd*	at zs?
+wskbd*	at zskbd? mux 1
+zsms*	at zs?
+wsmouse* at zsms? mux 0
+
+# i8042 based serial ports (PS/2 ports)
+pckbc*	at ebus?			# controller
+pckbd*	at pckbc?			#  ps2 keyboard
+wskbd*	at pckbd? mux 1			#   generic keyboard layer
+pms*	at pckbc?			#  ps2 mouse
+wsmouse* at pms? mux 0			#   generic mouse
+
+audioce*	at ebus?		# ebus cs4231
+
+# parallel ports
+bpp*	at sbus?
+lpt*	at ebus?
+
+bbc*	at ebus?
+led*	at ebus?
+lom*	at ebus?
+pmc*	at ebus?
+ppm*	at ebus?
+wbsd*	at ebus?
+sdmmc*	at wbsd?
+
+# performance counters
+uperf*	at ebus?
+uperf*	at sbus?
+
+## PROM console driver -- if all else fails
+pcons0	at mainbus0			# PROM console
+wsdisplay* at pcons?
+
+## Mostek/DS1287 clocks
+clock*	at sbus?
+clock*	at ebus?
+rtc*	at ebus?
+clock0	at fhc?
+clkbrd*	at fhc?
+#environ* at fhc?
+
+## PROM clock -- if all else failse
+prtc0	at mainbus0
+
+# Virtual devices for sun4v systems.
+vcons0	at vbus?
+vrtc0	at vbus?
+vrng0	at vbus?
+vdsk*	at cbus?
+vnet*	at cbus?
+vcc*	at cbus?
+vcctty*	at vcc?
+vds*	at cbus?
+vdsp*	at vds?
+vsw*	at cbus?
+vnet*	at vsw?
+vldc*	at cbus?
+vldcp*	at vldc?
+
+## Lance Ethernet - AMD7990
+le*		at sbus?
+ledma*		at sbus?
+le*		at ledma?
+lebuffer*	at sbus?
+le*		at lebuffer?
+
+# Quad-ethernet glue device, and sub-devices
+qec*		at sbus?
+qe*		at qec?
+be*		at qec?
+
+hme*		at sbus?
+ti*		at sbus?
+gem*		at sbus?
+
+# Magma serial/parallel port devices
+magma*		at sbus?
+mtty*		at magma?
+mbpp*		at magma?
+
+# Magma serial/parallel port devices
+spif*		at sbus?
+stty*		at spif?
+sbpp*		at spif?
+
+pciide*	at pci? flags 0x0000
+wd*	at pciide? flags 0x0a00
+atapiscsi* at pciide?
+
+wdc*	at pcmcia?
+wd*	at wdc? flags 0x0000
+
+#
+# Note the flags on the esp entries below, that work around
+# deficiencies in the current driver:
+#	bits 0-7:  disable disconnect/reselect for the corresponding target
+#	bits 8-15: disable synch negotiation for target [bit-8]
+#	Note: targets 4-7 have disconnect/reselect enabled on the premise
+#	      that tape devices normally have one of these targets. Tape
+#	      devices should be allowed to disconnect for the SCSI bus
+#	      to operate acceptably.
+#
+dma*	at sbus?				# SBus
+esp*	at dma?					# SBus
+esp*	at sbus?
+qlw*	at sbus?
+qla*	at sbus?
+
+# SCSI bus layer.  SCSI devices attach to the SCSI bus, which attaches
+# to the underlying hardware controller.
+
+# These entries find devices on all SCSI busses and assign
+# unit numbers dynamically.
+scsibus*	at scsi?
+sd*		at scsibus?		# SCSI disks
+st*		at scsibus?		# SCSI tapes
+cd*		at scsibus?		# SCSI CD-ROMs
+ch*		at scsibus?		# SCSI changer devices
+safte*		at scsibus?		# SCSI accessed fault-tolerant encl
+ses*		at scsibus?		# SCSI enclosure services
+uk*		at scsibus?		# unknown SCSI devices
+
+mpath0		at root
+emc*		at scsibus?
+hds*		at scsibus?
+rdac*		at scsibus?
+sym*		at scsibus?
+
+# Media Independent Interface (mii) drivers
+acphy*	at mii?				# Altima AC101 PHYs
+exphy*	at mii?				# 3Com internal PHYs
+bmtphy*	at mii?				# Broadcom 10/100 PHYs
+brgphy*	at mii?				# Broadcom Gigabit PHYs
+eephy*	at mii?				# Marvell 88E1000 series PHY
+xmphy*	at mii?				# XaQti XMAC-II PHYs
+nsphy*	at mii?				# NS and compatible PHYs
+nsphyter*	at mii?			# NS and compatible PHYs
+qsphy*	at mii?				# Quality Semi QS6612 PHYs
+luphy*	at mii?				# Lucent LU6612 PHY
+sqphy*	at mii?				# Seeq 8x220 PHYs
+dcphy*	at mii?				# Digital clone PHYs
+amphy*	at mii?				# AMD AM79c873 PHYs
+icsphy*	at mii?				# ICS 1890 PHYs
+iophy*	at mii?				# Intel 82553 PHYs
+inphy*	at mii?				# Intel 82555 PHYs
+lxtphy*	at mii?				# Level1 LXT970 PHYs
+rlphy*	at mii?				# Realtek 8139 internal PHYs
+urlphy*	at mii?				# Realtek RTL8150L internal PHY
+rgephy*	at mii?				# Realtek 8169S/8110S PHY
+gentbi*	at mii?				# Generic 1000BASE-X ten-bit PHY
+nsgphy*	at mii?				# NS gigabit PHYs
+tqphy*	at mii?				# TDK 78Q212x PHYs
+jmphy*	at mii?				# JMicron JMP202/JMP211 PHYs
+ipgphy*	at mii?				# IC Plus IP1000A PHYs
+ukphy*	at mii?				# Unknown PHYs
+
+# sensors
+pcfiic*	at ebus?
+iic*	at pcfiic?
+alipm*	at pci?
+iic*	at alipm?
+mbg*	at pci?				# Meinberg Funkuhren radio clocks
+
+adc*	at iic?				# Analog Devices AD7416/AD7417/7418
+admtemp* at iic?			# Analog Devices ADM1021
+admlc*	at iic?				# Analog Devices ADM1024
+admtm*	at iic?				# Analog Devices ADM1025
+admtmp*	at iic?				# Analog Devices ADM1030
+admtt*	at iic?				# Analog Devices ADM1031
+adt*	at iic?				# Analog Devices ADT7460
+lm*	at iic?				# LM78/79 and clones
+lmenv*	at iic?				# National Semiconductor LM87
+lmtemp*	at iic?				# NS LM75/LM77 temperature sensor
+maxds*	at iic?				# Maxim DS1631
+maxtmp*	at iic?				# Maxim MAX6642/MAX6690
+pcfadc*	at iic?				# Philips PCF8591 
+ecadc*	at iic?				# SUNW,envctrl temperature sensors
+spdmem* at iic?				# SPD memory eeproms
+tda*	at iic?				# Philips TDA8444
+
+# Framebuffers
+agten*		at sbus?		# Fujitsu AG-10e framebuffer
+wsdisplay*	at agten?
+bwtwo*		at sbus?		# bwtwo monochrome framebuffer
+wsdisplay*	at bwtwo?
+cgsix*		at sbus?		# cgsix 8-bit accelerated framebuffer
+wsdisplay*	at cgsix?
+cgthree*	at sbus?		# cgthree 8-bit framebuffer
+wsdisplay*	at cgthree?
+cgtwelve*	at sbus?		# cgtwelve 24-bit color framebuffer
+wsdisplay*	at cgtwelve?
+creator*	at mainbus0		# Creator3D/Elite3D framebuffers
+creator*	at upa0
+wsdisplay*	at creator?
+gfxp*		at pci?			# PGX32 framebuffer
+wsdisplay*	at gfxp?
+ifb*		at pci?			# Expert3D/XVR-500 framebuffers
+wsdisplay*	at ifb?
+machfb*		at pci?			# PGX/PGX64 framebuffers
+wsdisplay*	at machfb?
+mgx*		at sbus?		# SMS MGX/MGXPlus framebuffer
+wsdisplay*	at mgx?
+radeonfb*	at pci?			# XVR-100/300 framebuffer
+wsdisplay*	at radeonfb?
+raptor*		at pci?			# Raptor framebuffer
+wsdisplay*	at raptor?
+rfx*		at sbus?		# RasterFlex framebuffer series
+wsdisplay*	at rfx?
+tvtwo*		at sbus?		# Parallax XVideo/PowerVideo framebuffer
+wsdisplay*	at tvtwo?
+vgafb*		at pci?			# PCI display (except for Expert3D)
+wsdisplay*	at vgafb?
+vigra*		at sbus?		# Viagra framebuffer series
+wsdisplay*	at vigra?
+zx*		at sbus?		# Sun Leo (ZX) framebuffer
+wsdisplay*	at zx?
+
+radeondrm*	at pci?			# ATI Radeon DRM driver
+drm*		at radeondrm?
+wsdisplay*	at radeondrm?
+
+audiocs*	at sbus?
+
+asio*		at sbus?		# Aurora 210SJ
+com*		at asio?
+apio*		at sbus?		# Aurora 210SJ
+lpt*		at apio?
+
+stp*		at sbus?		# STP4020
+pcmcia*		at stp?
+com*		at pcmcia?		# PCMCIA modems/serial ports
+ep*		at pcmcia?		# PCMCIA based 3C5xx ethernet
+ne*		at pcmcia?		# PCMCIA based NE2000 ethernet
+wi*		at pci?			# WaveLAN IEEE 802.11DS
+wi*		at pcmcia?		# WaveLAN IEEE 802.11DS
+
+# ``XBox'' SBus Expansion
+xbox*		at sbus?
+sbus*		at xbox?
+
+# Floppy controller and drive
+fdc*	at sbus?
+#fdc*	at ebus?
+fd*	at fdc?
+
+# 1-Wire devices
+option ONEWIREVERBOSE
+owid*	at onewire?			# ID
+owsbm*	at onewire?			# Smart Battery Monitor
+owtemp* at onewire?			# Temperature
+owctr*	at onewire?			# Counter device
+
+pseudo-device	hotplug	1		# devices hot plugging
+pseudo-device	dt
+pseudo-device	wsmux	2		# mouse & keyboard multiplexor

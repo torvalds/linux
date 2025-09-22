@@ -1,0 +1,17 @@
+TARGET_LIBGCC2_CFLAGS = -O2 -mfloat32
+LIB2FUNCS_EXTRA = $(srcdir)/config/udivmod.c $(srcdir)/config/udivmodsi4.c \
+    $(srcdir)/config/memcmp.c $(srcdir)/config/memcpy.c \
+    $(srcdir)/config/memmove.c $(srcdir)/config/memset.c
+# floating point emulation libraries
+
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT'                            > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c                   >> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+MULTILIB_OPTIONS = msoft-float

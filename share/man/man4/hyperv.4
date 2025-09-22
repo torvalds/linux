@@ -1,0 +1,73 @@
+.\"	$OpenBSD: hyperv.4,v 1.5 2017/09/18 19:45:52 mikeb Exp $
+.\"
+.\" Copyright (c) 2016 Mike Belopuhov
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 18 2017 $
+.Dt HYPERV 4
+.Os
+.Sh NAME
+.Nm hyperv
+.Nd Hyper-V guest nexus device
+.Sh SYNOPSIS
+.Cd "hyperv0 at pvbus?"
+.Sh DESCRIPTION
+.Nm
+driver performs Synthetic Interrupt Controller initialization,
+sets up hypercalls,
+and provides access to VMBus services required by paravirtualized
+devices such as disk and network interfaces.
+.Pp
+An access is also provided to the Key-Value Pair exchange interface
+via
+.Xr pvbus 4 .
+All keys are associated to one of several key pools:
+.Em Auto ,
+.Em Guest ,
+.Em External
+or
+.Em Guest/Parameters .
+It's possible to modify values of keys in the
+.Em Auto
+pool as well as
+set new keys in the
+.Em Guest
+pool with
+.Xr hostctl 8 .
+The Host provides its read-only keys in
+.Em External
+and
+.Em Guest/Parameters
+pools.
+.Sh SEE ALSO
+.Xr autoconf 4 ,
+.Xr intro 4 ,
+.Xr pvbus 4 ,
+.Xr hostctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mike Belopuhov Aq Mt mikeb@openbsd.org
+based on the
+.Fx
+driver by the Microsoft BSD Integration Services Team
+.Aq Mt bsdic@microsoft.com .
+.Sh CAVEATS
+Generation 2 Virtual Machines are currently not supported.

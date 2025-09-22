@@ -1,0 +1,445 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta name="AUTHOR" content="bkoz@gcc.gnu.org (Benjamin Kosnik)" />
+   <meta name="KEYWORDS" content="c++, libstdc++, gdb, g++, debug" />
+   <meta name="DESCRIPTION" content="Debugging C++ binaries" />
+   <meta name="GENERATOR" content="vi and ten fingers" />
+   <title>Debugging schemes and strategies</title>
+<link rel="StyleSheet" href="lib3styles.css" type="text/css" />
+<link rel="Copyright" href="17_intro/license.html" type="text/html" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Debugging schemes and strategies</a></h1>
+
+<p class="fineprint"><em>
+   The latest version of this document is always available at
+   <a href="http://gcc.gnu.org/onlinedocs/libstdc++/debug.html">
+   http://gcc.gnu.org/onlinedocs/libstdc++/debug.html</a>.
+</em></p>
+
+<p><em>
+   To the <a href="http://gcc.gnu.org/libstdc++/">libstdc++-v3 homepage</a>.
+</em></p>
+
+<!-- ####################################################### -->
+<hr />
+<p>There are numerous things that can be done to improve the ease with
+   which C++ binaries are debugged when using the GNU 
+   tool chain. Here are some of them.
+</p>
+
+<h3 class="left"><a name="gplusplus">Compiler flags determine debug info</a></h3>
+<p>The default optimizations and debug flags for a libstdc++ build are
+   <code>-g -O2</code>. However, both debug and optimization flags can
+   be varied to change debugging characteristics. For instance,
+   turning off all optimization via the <code>-g -O0</code> flag will
+   disable inlining, so that stepping through all functions, including
+   inlined constructors and destructors, is possible. In addition,
+   <code>-fno-eliminate-unused-debug-types</code> can be used when
+   additional debug information, such as nested class info, is desired.
+</p>
+
+<p>Or, the debug format that the compiler and debugger use to communicate
+   information about source constructs can be changed via <code>
+   -gdwarf-2 </code> or <code> -gstabs </code> flags: some debugging
+   formats permit more expressive type and scope information to be
+   shown in gdb.  The default debug information for a particular
+   platform can be identified via the value set by the
+   PREFERRED_DEBUGGING_TYPE macro in the gcc sources.
+</p>
+
+<p>Many other options are available: please see
+<a href="http://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html#Debugging%20Options">"Options for Debugging Your Program"</a>
+   in Using the GNU Compiler Collection (GCC) for a complete list.
+</p>
+
+<h3 class="left"><a name="lib">Using special flags to make a debug binary</a></h3>
+<p>If you would like debug symbols in libstdc++, there are two ways to
+  build libstdc++ with debug flags. The first is to run make from the
+  toplevel in a freshly-configured tree with
+</p>
+<pre>
+     --enable-libstdcxx-debug
+</pre>
+<p>and perhaps</p>
+<pre>
+     --enable-libstdcxx-debug-flags='...'
+</pre>
+<p>to create a separate debug build. Both the normal build and the
+   debug build will persist, without having to specify
+   <code>CXXFLAGS</code>, and the debug library will be installed in a
+   separate directory tree, in <code>(prefix)/lib/debug</code>. For
+   more information, look at the <a href="configopts.html">configuration
+   options</a> document.
+</p>
+
+<p>A second approach is to use the configuration flags 
+</p>
+<pre>
+     make CXXFLAGS='-g3 -O0' all
+</pre>
+
+<p>This quick and dirty approach is often sufficient for quick
+  debugging tasks, when you cannot or don't want to recompile your
+  application to use the <a href="#safe">debug mode</a>.</p>
+
+<h3 class="left"><a name="safe">The libstdc++ debug mode</a></h3>
+<p>By default, libstdc++ is built with efficiency in mind, and
+  therefore performs little or no error checking that is not required
+  by the C++ standard. This means that programs that incorrectly use
+  the C++ standard library will exhibit behavior that is not portable
+  and may not even be predictable, because they tread into 
+  implementation-specific or undefined behavior. To detect some of
+  these errors before they can become problematic, libstdc++ offers a
+  debug mode that provides additional checking of library facilities,
+  and will report errors in the use of libstdc++ as soon as they can
+  be detected by emitting a description of the problem to standard
+  error and aborting the program.  This debug mode is available with
+  GCC 3.4.0 and later versions. </p>
+
+<p>The libstdc++ debug mode performs checking for many areas of the C++
+  standard, but the focus is on checking interactions among standard
+  iterators, containers, and algorithms, including:</p>
+
+  <ul>
+    <li><em>Safe iterators</em>: Iterators keep track of the
+    container whose elements they reference, so errors such as
+    incrementing a past-the-end iterator or dereferencing an iterator
+    that points to a container that has been destructed are diagnosed
+    immediately.</li>
+    
+    <li><em>Algorithm preconditions</em>: Algorithms attempt to
+    validate their input parameters to detect errors as early as
+    possible. For instance, the <code>set_intersection</code>
+    algorithm requires that its iterator
+    parameters <code>first1</code> and <code>last1</code> form a valid
+    iterator range, and that the sequence
+    [<code>first1</code>, <code>last1</code>) is sorted according to
+    the same predicate that was passed
+    to <code>set_intersection</code>; the libstdc++ debug mode will
+    detect an error if the sequence is not sorted or was sorted by a
+    different predicate.</li>
+  </ul>
+
+<h4 class="left">Using the libstdc++ debug mode</h4>
+<p>To use the libstdc++ debug mode, compile your application with the
+  compiler flag <code>-D_GLIBCXX_DEBUG</code>. Note that this flag
+  changes the sizes and behavior of standard class templates such
+  as <code>std::vector</code>, and therefore you can only link code
+  compiled with debug mode and code compiled without debug mode if no
+  instantiation of a container is passed between the two translation
+  units.</p>
+
+<p>For information about the design of the libstdc++ debug mode,
+  please see the <a href="debug_mode.html">libstdc++ debug mode design
+  document</a>.</p>
+
+<h4 class="left">Using the debugging containers without debug
+  mode</h4>
+<p>When it is not feasible to recompile your entire application, or
+  only specific containers need checking, debugging containers are
+  available as GNU extensions. These debugging containers are
+  functionally equivalent to the standard drop-in containers used in
+  debug mode, but they are available in a separate namespace as GNU
+  extensions and may be used in programs compiled with either release
+  mode or with debug mode. The
+  following table provides the names and headers of the debugging
+  containers:
+</p>
+
+<table title="Debugging containers" border="1">
+  <tr>
+    <th>Container</th>
+    <th>Header</th>
+    <th>Debug container</th>
+    <th>Debug header</th>
+  </tr>
+  <tr>
+    <td>std::bitset</td>
+    <td>&lt;bitset&gt;</td>
+    <td>__gnu_debug::bitset</td>
+    <td>&lt;debug/bitset&gt;</td>
+  </tr>
+  <tr>
+    <td>std::deque</td>
+    <td>&lt;deque&gt;</td>
+    <td>__gnu_debug::deque</td>
+    <td>&lt;debug/deque&gt;</td>
+  </tr>
+  <tr>
+    <td>std::list</td>
+    <td>&lt;list&gt;</td>
+    <td>__gnu_debug::list</td>
+    <td>&lt;debug/list&gt;</td>
+  </tr>
+  <tr>
+    <td>std::map</td>
+    <td>&lt;map&gt;</td>
+    <td>__gnu_debug::map</td>
+    <td>&lt;debug/map&gt;</td>
+  </tr>
+  <tr>
+    <td>std::multimap</td>
+    <td>&lt;map&gt;</td>
+    <td>__gnu_debug::multimap</td>
+    <td>&lt;debug/map&gt;</td>
+  </tr>
+  <tr>
+    <td>std::multiset</td>
+    <td>&lt;set&gt;</td>
+    <td>__gnu_debug::multiset</td>
+    <td>&lt;debug/set&gt;</td>
+  </tr>
+  <tr>
+    <td>std::set</td>
+    <td>&lt;set&gt;</td>
+    <td>__gnu_debug::set</td>
+    <td>&lt;debug/set&gt;</td>
+  </tr>
+  <tr>
+    <td>std::string</td>
+    <td>&lt;string&gt;</td>
+    <td>__gnu_debug::string</td>
+    <td>&lt;debug/string&gt;</td>
+  </tr>
+  <tr>
+    <td>std::wstring</td>
+    <td>&lt;string&gt;</td>
+    <td>__gnu_debug::wstring</td>
+    <td>&lt;debug/string&gt;</td>
+  </tr>
+  <tr>
+    <td>std::basic_string</td>
+    <td>&lt;string&gt;</td>
+    <td>__gnu_debug::basic_string</td>
+    <td>&lt;debug/string&gt;</td>
+  </tr>
+  <tr>
+    <td>std::vector</td>
+    <td>&lt;vector&gt;</td>
+    <td>__gnu_debug::vector</td>
+    <td>&lt;debug/vector&gt;</td>
+  </tr>
+  <tr>
+    <td>__gnu_cxx::hash_map</td>
+    <td>&lt;ext/hash_map&gt;</td>
+    <td>__gnu_debug::hash_map</td>
+    <td>&lt;debug/hash_map&gt;</td>
+  </tr>
+  <tr>
+    <td>__gnu_cxx::hash_multimap</td>
+    <td>&lt;ext/hash_map&gt;</td>
+    <td>__gnu_debug::hash_multimap</td>
+    <td>&lt;debug/hash_map&gt;</td>
+  </tr>
+  <tr>
+    <td>__gnu_cxx::hash_set</td>
+    <td>&lt;ext/hash_set&gt;</td>
+    <td>__gnu_debug::hash_set</td>
+    <td>&lt;debug/hash_set&gt;</td>
+  </tr>
+  <tr>
+    <td>__gnu_cxx::hash_multiset</td>
+    <td>&lt;ext/hash_set&gt;</td>
+    <td>__gnu_debug::hash_multiset</td>
+    <td>&lt;debug/hash_set&gt;</td>
+  </tr>
+</table>
+
+<h4 class="left">Debug mode semantics</h4>
+<p>A program that uses the C++ standard library correctly
+  will maintain the same semantics under debug mode as it had with
+  the normal (release) library. All functional and exception-handling
+  guarantees made by the normal library also hold for the debug mode
+  library, with one exception: performance guarantees made by the
+  normal library may not hold in the debug mode library. For
+  instance, erasing an element in a <code>std::list</code> is a
+  constant-time operation in normal library, but in debug mode it is
+  linear in the number of iterators that reference that particular
+  list. So while your (correct) program won't change its results, it 
+  is likely to execute more slowly.</p>
+
+<p>libstdc++ includes many extensions to the C++ standard library. In
+  some cases the extensions are obvious, such as the hashed
+  associative containers, whereas other extensions give predictable
+  results to behavior that would otherwise be undefined, such as
+  throwing an exception when a <code>std::basic_string</code> is
+  constructed from a NULL character pointer. This latter category also
+  includes implementation-defined and unspecified semantics, such as
+  the growth rate of a vector. Use of these extensions is not
+  considered incorrect, so code that relies on them will not be
+  rejected by debug mode. However, use of these extensions may affect
+  the portability of code to other implementations of the C++ standard
+  library, and is therefore somewhat hazardous. For this reason, the
+  libstdc++ debug mode offers a "pedantic" mode (similar to
+  GCC's <code>-pedantic</code> compiler flag) that attempts to emulate
+  the semantics guaranteed by the C++ standard. For
+  instance, constructing a <code>std::basic_string</code> with a NULL
+  character pointer would result in an exception under normal mode or
+  non-pedantic debug mode (this is a libstdc++ extension), whereas
+  under pedantic debug mode libstdc++ would signal an error. To enable
+  the pedantic debug mode, compile your program with
+  both <code>-D_GLIBCXX_DEBUG</code>
+  and <code>-D_GLIBCXX_DEBUG_PEDANTIC</code> .
+  (N.B. In GCC 3.4.x and 4.0.0, due to a bug,
+  <code>-D_GLIBXX_DEBUG_PEDANTIC</code> was also needed. The problem has
+  been fixed in GCC 4.0.1 and later versions.) </p>
+
+<p>The following library components provide extra debugging
+  capabilities in debug mode:</p>
+<ul>
+  <li><code>std::basic_string</code> (no safe iterators)</li>
+  <li><code>std::bitset</code></li>
+  <li><code>std::deque</code></li>
+  <li><code>std::list</code></li>
+  <li><code>std::map</code></li>
+  <li><code>std::multimap</code></li>
+  <li><code>std::multiset</code></li>
+  <li><code>std::set</code></li>
+  <li><code>std::vector</code></li>
+  <li><code>__gnu_cxx::hash_map</code></li>
+  <li><code>__gnu_cxx::hash_multimap</code></li>
+  <li><code>__gnu_cxx::hash_multiset</code></li>
+  <li><code>__gnu_cxx::hash_set</code></li>
+</ul>
+
+
+<h3 class="left"><a name="mem">Tips for memory leak hunting</a></h3>
+
+<p>There are various third party memory tracing and debug utilities
+   that can be used to provide detailed memory allocation information
+   about C++ code. An exhaustive list of tools is not going to be
+   attempted, but includes <code>mtrace</code>, <code>valgrind</code>,
+   <code>mudflap</code>, and the non-free commercial product
+   <code>purify</code>. In addition, <code>libcwd</code> has a
+   replacement for the global new and delete operators that can track
+   memory allocation and deallocation and provide useful memory
+   statistics.
+</p>
+
+<p>Regardless of the memory debugging tool being used, there is one
+   thing of great importance to keep in mind when debugging C++ code
+   that uses <code>new</code> and <code>delete</code>:
+   there are different kinds of allocation schemes that can be used by
+   <code> std::allocator </code>. For implementation details, see this
+   <a href="ext/howto.html#3"> document</a> and look specifically for
+   <code>GLIBCXX_FORCE_NEW</code>. 
+</p>
+
+<p>In a nutshell, the default allocator used by <code>
+   std::allocator</code> is a high-performance pool allocator, and can
+   give the mistaken impression that in a suspect executable, memory
+   is being leaked, when in reality the memory "leak" is a pool being
+   used by the library's allocator and is reclaimed after program
+   termination.
+</p>
+
+<p>For valgrind, there are some specific items to keep in mind. First
+   of all, use a version of valgrind that will work with current GNU
+   C++ tools: the first that can do this is valgrind 1.0.4, but later
+   versions should work at least as well. Second of all, use a
+   completely unoptimized build to avoid confusing valgrind. Third,
+   use GLIBCXX_FORCE_NEW to keep extraneous pool allocation noise from
+   cluttering debug information.
+</p>
+
+<p>Fourth, it may be necessary to force deallocation in other
+   libraries as well, namely the "C" library. On linux, this can be
+   accomplished with the appropriate use of the
+   <code>__cxa_atexit</code> or <code>atexit</code> functions.
+</p>
+
+<pre>
+   #include &lt;cstdlib&gt;
+
+   extern "C" void __libc_freeres(void);
+
+   void do_something() { }
+
+   int main()
+   {
+     atexit(__libc_freeres);
+     do_something();
+     return 0;
+   }
+</pre>
+
+
+<p>or, using <code>__cxa_atexit</code>:</p>
+
+<pre>
+   extern "C" void __libc_freeres(void);
+   extern "C" int __cxa_atexit(void (*func) (void *), void *arg, void *d);
+
+   void do_something() { }
+
+   int main()
+   {
+      extern void* __dso_handle __attribute__ ((__weak__));
+      __cxa_atexit((void (*) (void *)) __libc_freeres, NULL, 
+                   &amp;__dso_handle ? __dso_handle : NULL);
+      do_test();
+      return 0;
+   }
+</pre>
+
+<p>Suggested valgrind flags, given the suggestions above about setting
+   up the runtime environment, library, and test file, might be:
+</p>
+<pre> 
+   valgrind -v --num-callers=20 --leak-check=yes --leak-resolution=high --show-reachable=yes a.out
+</pre>
+
+
+<h3 class="left"><a name="gdb">Some gdb strategies</a></h3>
+<p>Many options are available for gdb itself: please see <a
+   href="http://sources.redhat.com/gdb/current/onlinedocs/gdb_13.html#SEC109">
+   "GDB features for C++" </a> in the gdb documentation. Also
+   recommended: the other parts of this manual.
+</p>
+
+<p>These settings can either be switched on in at the gdb command
+   line, or put into a .gdbint file to establish default debugging
+   characteristics, like so:
+</p>
+
+<pre>
+   set print pretty on
+   set print object on
+   set print static-members on
+   set print vtbl on
+   set print demangle on
+   set demangle-style gnu-v3
+</pre>
+
+
+<h3 class="left"><a name="verbterm">Tracking uncaught exceptions</a></h3>
+<p>The <a href="18_support/howto.html#4">verbose termination handler</a>
+   gives information about uncaught exceptions which are killing the
+   program.  It is described in the linked-to page.
+</p>
+
+
+<p>Return <a href="#top">to the top of the page</a> or
+   <a href="http://gcc.gnu.org/libstdc++/">to the libstdc++ homepage</a>.
+</p>
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

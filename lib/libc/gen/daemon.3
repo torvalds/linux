@@ -1,0 +1,100 @@
+.\"	$OpenBSD: daemon.3,v 1.14 2022/07/30 07:19:30 jsg Exp $
+.\"
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 30 2022 $
+.Dt DAEMON 3
+.Os
+.Sh NAME
+.Nm daemon
+.Nd run in the background
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft int
+.Fn daemon "int nochdir" "int noclose"
+.Sh DESCRIPTION
+The
+.Fn daemon
+function is for programs wishing to detach themselves from the
+controlling terminal and run in the background as system daemons.
+.Pp
+If the argument
+.Fa nochdir
+is zero,
+.Fn daemon
+changes the current working directory to the root
+.Pq Pa / .
+.Pp
+If the argument
+.Fa noclose
+is zero,
+.Fn daemon
+redirects standard input, standard output and standard error to
+.Pa /dev/null .
+.Sh RETURN VALUES
+Upon success,
+.Fn daemon
+returns 0; otherwise \-1 is returned.
+.Sh ERRORS
+The function
+.Fn daemon
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr fork 2
+and
+.Xr setsid 2 .
+.Sh SEE ALSO
+.Xr fork 2 ,
+.Xr setsid 2
+.Sh HISTORY
+The
+.Fn daemon
+function first appeared in
+.Bx 4.3 Reno
+libutil and moved to libc in
+.Bx 4.4 .
+.Sh CAVEATS
+If the
+.Ar noclose
+argument is zero,
+.Fn daemon
+closes the first three file descriptors and redirects them to
+.Pa /dev/null .
+Normally, these correspond to standard input, standard output and
+standard error.
+However, if any of those file descriptors refer to something else they
+will still be closed, resulting in incorrect behavior of the calling program.
+This can happen if any of standard input, standard output or standard error
+have been closed before the program was run.
+Programs using
+.Fn daemon
+should therefore make sure to either call
+.Fn daemon
+before opening any files or sockets or, alternately, verifying that
+any file descriptors obtained have a value greater than 2.

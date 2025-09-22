@@ -1,0 +1,9 @@
+executable("lli-child-target") {
+  deps = [
+    "//llvm/lib/ExecutionEngine/Orc",
+    "//llvm/lib/ExecutionEngine/Orc/Shared",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "ChildTarget.cpp" ]
+}

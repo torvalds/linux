@@ -1,0 +1,259 @@
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_ASSERT_NEW 3
+.Os
+.Sh NAME
+.Nm fido_assert_new ,
+.Nm fido_assert_free ,
+.Nm fido_assert_count ,
+.Nm fido_assert_rp_id ,
+.Nm fido_assert_user_display_name ,
+.Nm fido_assert_user_icon ,
+.Nm fido_assert_user_name ,
+.Nm fido_assert_authdata_ptr ,
+.Nm fido_assert_blob_ptr ,
+.Nm fido_assert_clientdata_hash_ptr ,
+.Nm fido_assert_hmac_secret_ptr ,
+.Nm fido_assert_largeblob_key_ptr ,
+.Nm fido_assert_user_id_ptr ,
+.Nm fido_assert_sig_ptr ,
+.Nm fido_assert_id_ptr ,
+.Nm fido_assert_authdata_len ,
+.Nm fido_assert_blob_len ,
+.Nm fido_assert_clientdata_hash_len ,
+.Nm fido_assert_hmac_secret_len ,
+.Nm fido_assert_largeblob_key_len ,
+.Nm fido_assert_user_id_len ,
+.Nm fido_assert_sig_len ,
+.Nm fido_assert_id_len ,
+.Nm fido_assert_sigcount ,
+.Nm fido_assert_flags
+.Nd FIDO2 assertion API
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft fido_assert_t *
+.Fn fido_assert_new "void"
+.Ft void
+.Fn fido_assert_free "fido_assert_t **assert_p"
+.Ft size_t
+.Fn fido_assert_count "const fido_assert_t *assert"
+.Ft const char *
+.Fn fido_assert_rp_id "const fido_assert_t *assert"
+.Ft const char *
+.Fn fido_assert_user_display_name "const fido_assert_t *assert" "size_t idx"
+.Ft const char *
+.Fn fido_assert_user_icon "const fido_assert_t *assert" "size_t idx"
+.Ft const char *
+.Fn fido_assert_user_name "const fido_assert_t *assert" "size_t idx"
+.Ft const unsigned char *
+.Fn fido_assert_authdata_ptr "const fido_assert_t *assert" "size_t idx"
+.Ft const unsigned char *
+.Fn fido_assert_clientdata_hash_ptr "const fido_assert_t *assert"
+.Ft const unsigned char *
+.Fn fido_assert_blob_ptr "const fido_assert_t *assert" "size_t idx"
+.Ft const unsigned char *
+.Fn fido_assert_hmac_secret_ptr "const fido_assert_t *assert" "size_t idx"
+.Ft const unsigned char *
+.Fn fido_assert_largeblob_key_ptr "const fido_assert_t *assert" "size_t idx"
+.Ft const unsigned char *
+.Fn fido_assert_user_id_ptr "const fido_assert_t *assert" "size_t idx"
+.Ft const unsigned char *
+.Fn fido_assert_sig_ptr "const fido_assert_t *assert" "size_t idx"
+.Ft const unsigned char *
+.Fn fido_assert_id_ptr "const fido_assert_t *assert" "size_t idx"
+.Ft size_t
+.Fn fido_assert_authdata_len "const fido_assert_t *assert" "size_t idx"
+.Ft size_t
+.Fn fido_assert_clientdata_hash_len "const fido_assert_t *assert"
+.Ft size_t
+.Fn fido_assert_blob_len "const fido_assert_t *assert" "size_t idx"
+.Ft size_t
+.Fn fido_assert_hmac_secret_len "const fido_assert_t *assert" "size_t idx"
+.Ft size_t
+.Fn fido_assert_largeblob_key_len "const fido_assert_t *assert" "size_t idx"
+.Ft size_t
+.Fn fido_assert_user_id_len "const fido_assert_t *assert" "size_t idx"
+.Ft size_t
+.Fn fido_assert_sig_len "const fido_assert_t *assert" "size_t idx"
+.Ft size_t
+.Fn fido_assert_id_len "const fido_assert_t *assert" "size_t idx"
+.Ft uint32_t
+.Fn fido_assert_sigcount "const fido_assert_t *assert" "size_t idx"
+.Ft uint8_t
+.Fn fido_assert_flags "const fido_assert_t *assert" "size_t idx"
+.Sh DESCRIPTION
+A FIDO2 assertion is a collection of statements, each statement a
+map between a challenge, a credential, a signature, and ancillary
+attributes.
+In
+.Em libfido2 ,
+a FIDO2 assertion is abstracted by the
+.Vt fido_assert_t
+type.
+The functions described in this page allow a
+.Vt fido_assert_t
+type to be allocated, deallocated, and inspected.
+For other operations on
+.Vt fido_assert_t ,
+please refer to
+.Xr fido_assert_set_authdata 3 ,
+.Xr fido_assert_allow_cred 3 ,
+.Xr fido_assert_verify 3 ,
+and
+.Xr fido_dev_get_assert 3 .
+.Pp
+The
+.Fn fido_assert_new
+function returns a pointer to a newly allocated, empty
+.Vt fido_assert_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_assert_free
+function releases the memory backing
+.Fa *assert_p ,
+where
+.Fa *assert_p
+must have been previously allocated by
+.Fn fido_assert_new .
+On return,
+.Fa *assert_p
+is set to NULL.
+Either
+.Fa assert_p
+or
+.Fa *assert_p
+may be NULL, in which case
+.Fn fido_assert_free
+is a NOP.
+.Pp
+The
+.Fn fido_assert_count
+function returns the number of statements in
+.Fa assert .
+.Pp
+The
+.Fn fido_assert_rp_id
+function returns a pointer to a NUL-terminated string holding the
+relying party ID of
+.Fa assert .
+.Pp
+The
+.Fn fido_assert_user_display_name ,
+.Fn fido_assert_user_icon ,
+and
+.Fn fido_assert_user_name ,
+functions return pointers to the user display name, icon, and
+name attributes of statement
+.Fa idx
+in
+.Fa assert .
+If not NULL, the values returned by these functions point to
+NUL-terminated UTF-8 strings.
+.Pp
+The
+.Fn fido_assert_authdata_ptr ,
+.Fn fido_assert_clientdata_hash_ptr ,
+.Fn fido_assert_id_ptr ,
+.Fn fido_assert_user_id_ptr ,
+.Fn fido_assert_sig_ptr ,
+.Fn fido_assert_sigcount ,
+and
+.Fn fido_assert_flags
+functions return pointers to the CBOR-encoded authenticator data,
+client data hash, credential ID, user ID, signature, signature
+count, and authenticator data flags of statement
+.Fa idx
+in
+.Fa assert .
+.Pp
+The
+.Fn fido_assert_hmac_secret_ptr
+function returns a pointer to the hmac-secret attribute of statement
+.Fa idx
+in
+.Fa assert .
+The HMAC Secret Extension
+.Pq hmac-secret
+is a CTAP 2.0 extension.
+Note that the resulting hmac-secret varies according to whether
+user verification was performed by the authenticator.
+.Pp
+The
+.Fn fido_assert_blob_ptr
+and
+.Fn fido_assert_largeblob_key_ptr
+functions return pointers to the
+.Dq credBlob
+and
+.Dq largeBlobKey
+attributes of statement
+.Fa idx
+in
+.Fa assert .
+Credential Blob
+.Pq credBlob
+and
+Large Blob Key
+.Pq largeBlobKey
+are CTAP 2.1 extensions.
+.Pp
+The
+.Fn fido_assert_authdata_len ,
+.Fn fido_assert_clientdata_hash_len ,
+.Fn fido_assert_id_len ,
+.Fn fido_assert_user_id_len ,
+.Fn fido_assert_sig_len ,
+.Fn fido_assert_hmac_secret_len ,
+.Fn fido_assert_blob_len ,
+and
+.Fn fido_assert_largeblob_key_len
+functions return the length of a given attribute.
+.Pp
+Please note that the first statement in
+.Fa assert
+has an
+.Fa idx
+(index) value of 0.
+.Pp
+The authenticator data and signature parts of an assertion
+statement are typically passed to a FIDO2 server for verification.
+.Sh RETURN VALUES
+The authenticator data returned by
+.Fn fido_assert_authdata_ptr
+is a CBOR-encoded byte string, as obtained from the authenticator.
+.Pp
+The
+.Fn fido_assert_rp_id ,
+.Fn fido_assert_user_display_name ,
+.Fn fido_assert_user_icon ,
+.Fn fido_assert_user_name ,
+.Fn fido_assert_authdata_ptr ,
+.Fn fido_assert_clientdata_hash_ptr ,
+.Fn fido_assert_id_ptr ,
+.Fn fido_assert_user_id_ptr ,
+.Fn fido_assert_sig_ptr ,
+.Fn fido_assert_hmac_secret_ptr ,
+.Fn fido_assert_blob_ptr ,
+and
+.Fn fido_assert_largeblob_key_ptr
+functions may return NULL if the respective field in
+.Fa assert
+is not set.
+If not NULL, returned pointers are guaranteed to exist until any API
+function that takes
+.Fa assert
+without the
+.Em const
+qualifier is invoked.
+.Sh SEE ALSO
+.Xr fido_assert_allow_cred 3 ,
+.Xr fido_assert_set_authdata 3 ,
+.Xr fido_assert_verify 3 ,
+.Xr fido_dev_get_assert 3 ,
+.Xr fido_dev_largeblob_get 3

@@ -1,0 +1,265 @@
+This file is a list of the people responsible for ensuring that patches for a
+particular part of LLVM are reviewed, either by themself or by someone else.
+They are also the gatekeepers for their part of LLVM, with the final word on
+what goes in or not.
+
+The list is sorted by surname and formatted to allow easy grepping and
+beautification by scripts. The fields are: name (N), email (E), web-address
+(W), PGP key ID and fingerprint (P), description (D), snail-mail address
+(S) and (I) IRC handle. Each entry should contain at least the (N), (E) and
+(D) fields.
+
+N: Paul C. Anagnostopoulos
+E: paul@windfall.com
+D: TableGen
+
+N: Matt Arsenault
+E: Matthew.Arsenault@amd.com
+E: arsenm2@gmail.com
+I: arsenm
+D: AMDGPU, InferAddressSpaces
+
+N: Justin Bogner
+E: mail@justinbogner.com
+D: InstrProfiling and related parts of ProfileData
+D: SelectionDAG (lib/CodeGen/SelectionDAG/*)
+
+N: Alex Bradbury
+E: asb@igalia.com
+D: RISC-V backend (lib/Target/RISCV/*)
+
+N: Matthias Braun
+E: matze@braunis.de
+I: MatzeB
+D: Instruction Scheduling
+
+N: Chandler Carruth
+E: chandlerc@gmail.com
+E: chandlerc@google.com
+D: Config, ADT, Support, inlining & related passes, SROA/mem2reg & related passes, CMake, library layering
+
+N: Evan Cheng
+E: evan.cheng@apple.com
+D: parts of code generator not covered by someone else
+
+N: Eric Christopher
+E: echristo@gmail.com
+D: Debug Information, inline assembly
+
+N: Andrey Churbanov
+E: andrey.churbanov@intel.com
+D: OpenMP runtime library
+
+N: Johannes Doerfert
+E: jdoerfert@llnl.gov
+D: OpenMP target offloading, OpenMP-Opt, Attributor
+
+N: Greg Clayton
+E: clayborg@gmail.com
+D: LLDB
+
+N: Louis Dionne
+E: ldionne.2@gmail.com
+D: libc++
+
+N: Peter Collingbourne
+E: peter@pcc.me.uk
+D: libLTO (lib/LTO/* tools/lto/*), LLVM Bitcode (lib/Bitcode/* include/llvm/Bitcode/*)
+
+N: Quentin Colombet
+E: quentin.colombet@gmail.com
+D: Loop Strength Reduction, Register allocators
+
+N: Andrea Di Biagio
+E: andrea.dibiagio@sony.com
+E: andrea.dibiagio@gmail.com
+D: MCA, llvm-mca
+
+N: Hal Finkel
+E: hfinkel@anl.gov
+D: The loop reroller and alias analysis
+
+N: Zheng Chen
+E: czhengsz@cn.ibm.com
+D: PowerPC Backend
+
+N: Dan Gohman
+E: llvm@sunfishcode.online
+D: WebAssembly Backend (lib/Target/WebAssembly/*)
+
+N: Renato Golin
+E: rengolin@systemcall.eu
+D: ARM Linux support
+
+N: Venkatraman Govindaraju
+E: venkatra@cs.wisc.edu
+D: Sparc Backend (lib/Target/Sparc/*)
+
+N: Tobias Grosser
+E: tobias@grosser.es
+D: Polly
+
+N: James Grosbach
+E: grosbach@apple.com
+D: MC layer
+
+N: Justin Holewinski
+E: jholewinski@nvidia.com
+D: NVPTX Target (lib/Target/NVPTX/*)
+
+N: Lang Hames
+E: lhames@gmail.com
+D: MCJIT, RuntimeDyld and JIT event listeners, Orcish Warchief
+
+N: Min-Yih Hsu
+E: min@myhsu.dev
+D: M68k Target (lib/Target/M68k/*)
+
+N: Cyndy Ishida
+E: cyndyishida@gmail.com
+D: TextAPI (lib/TextAPI/*) and related TAPI tools
+
+N: Teresa Johnson
+E: tejohnson@google.com
+D: Gold plugin (tools/gold/*) and IR Linker
+
+N: Galina Kistanova
+E: gkistanova@gmail.com
+D: LLVM Buildbot
+
+N: Anton Korobeynikov
+E: anton@korobeynikov.info
+D: Exception handling, Windows codegen, ARM EABI, MSP430 Target (lib/Target/MSP430/*)
+
+N: Benjamin Kramer
+E: benny.kra@gmail.com
+D: DWARF Parser
+
+N: Sundeep Kushwaha
+E: sundeepk@quicinc.com
+D: Hexagon Backend
+
+N: Florian Hahn
+E: flo@fhahn.com
+D: Loop Vectorizer
+
+N: Alexey Bataev
+E: a.bataev@outlook.com
+D: SLP Vectorizer
+
+N: Sergei Larin
+E: slarin@codeaurora.org
+D: VLIW Instruction Scheduling, Packetization
+
+N: Chris Lattner
+E: sabre@nondot.org
+W: http://nondot.org/~sabre/
+D: Everything not covered by someone else
+
+N: Weining Lu
+E: luweining@loongson.cn
+D: LoongArch backend (lib/Target/LoongArch/*)
+
+N: David Majnemer
+E: david.majnemer@gmail.com
+D: IR Constant Folder, InstCombine
+
+N: Ben Shi
+E: 2283975856@qq.com, powerman1st@163.com
+D: AVR Backend
+
+N: Kazushi Marukawa
+E: marukawa@nec.com
+D: VE Backend
+
+N: Tim Northover
+E: t.p.northover@gmail.com
+D: AArch64 backend, misc ARM backend
+
+N: Diego Novillo
+E: dnovillo@google.com
+D: SampleProfile and related parts of ProfileData
+
+N: Nigel Perks
+E: nigelp@xmos.com
+D: XCore Backend
+
+N: Jacques Pienaar
+E: jpienaar@google.com
+D: Lanai Backend
+
+N: Simon Pilgrim
+E: llvm-dev@redking.me.uk
+D: X86 Backend
+
+N: Philip Reames
+E: listmail@philipreames.com
+D: IndVar Simplify, Scalar Evolution
+
+N: Paul Robinson
+E: paul.robinson@sony.com
+D: Sony PlayStation®4 support
+
+N: Chad Rosier
+E: mcrosier@codeaurora.org
+D: Fast-Isel
+
+N: Andrei Safronov
+E: andrei.safronov@espressif.com
+D: Xtensa backend (lib/Target/Xtensa/*)
+
+N: Duncan Sands
+E: baldrick@free.fr
+D: DragonEgg
+
+N: Mark Schimmel
+E: marksl@synopsys.com
+D: ARC backend (lib/Target/ARC/*)
+
+N: Kostya Serebryany
+E: kcc@google.com
+D: AddressSanitizer, ThreadSanitizer (LLVM parts)
+
+N: Michael Spencer
+E: bigcheesegs@gmail.com
+D: Windows parts of Support, Object, ar, nm, objdump, ranlib, size
+
+N: Alexei Starovoitov
+E: alexei.starovoitov@gmail.com
+D: BPF backend
+
+N: Tom Stellard
+E: tstellar@redhat.com
+D: Stable release management (x.y.[1-9] releases), libclc
+
+N: Evgeniy Stepanov
+E: eugenis@google.com
+D: MemorySanitizer (LLVM part)
+
+N: Phoebe Wang
+E: phoebe.wang@intel.com
+D: X86 Backend
+
+N: Ulrich Weigand
+E: uweigand@de.ibm.com
+D: SystemZ Backend
+
+N: Hans Wennborg
+E: hans@chromium.org
+D: Release management (x.y.0 releases)
+
+N: Jake Ehrlich
+E: jakehehrlich@google.com
+D: llvm-objcopy (tools/llvm-objcopy)
+
+N: Martin Storsjö
+E: martin@martin.st
+D: MinGW
+
+N: Zi Xuan Wu (Zeson)
+E: zixuan.wu@linux.alibaba.com
+D: C-SKY backend (lib/Target/CSKY/*)
+
+N: Ilia Diachkov
+E: ilia.diachkov@gmail.com
+D: SPIR-V backend (lib/Target/SPIRV/*)

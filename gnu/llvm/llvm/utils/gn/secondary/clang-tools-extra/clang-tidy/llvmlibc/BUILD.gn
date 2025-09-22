@@ -1,0 +1,21 @@
+static_library("llvmlibc") {
+  output_name = "clangTidyLLVMLibcModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "CalleeNamespaceCheck.cpp",
+    "ImplementationInNamespaceCheck.cpp",
+    "InlineFunctionDeclCheck.cpp",
+    "LLVMLibcTidyModule.cpp",
+    "RestrictSystemLibcHeadersCheck.cpp",
+  ]
+}

@@ -1,0 +1,49 @@
+.\"	$OpenBSD: rpone.4,v 1.2 2025/08/24 10:53:25 kettenis Exp $
+.\"
+.\" Copyright (c) 2025 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 24 2025 $
+.Dt RPONE 4 arm64
+.Os
+.Sh NAME
+.Nm rpone
+.Nd Raspberry Pi RP1 peripheral controller
+.Sh SYNOPSIS
+.Cd "rpone* at pci?"
+.Cd "cad* at fdt?"
+.Cd "xhci* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the Raspberry Pi RP1 peripheral controller that is
+used in the Raspberry Pi 5.
+The driver acts as a bridge between the PCIe bus and the peripherals
+and maps peripheral interrupts onto MSI-X interrupts.
+The peripherals themselves are supported by separate drivers.
+.Sh SEE ALSO
+.Xr cad 4 ,
+.Xr intro 4 ,
+.Xr xhci 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 7.8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

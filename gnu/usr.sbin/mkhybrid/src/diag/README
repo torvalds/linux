@@ -1,0 +1,77 @@
+#
+# $Id: README,v 1.1 2000/10/10 20:40:27 beck Exp $
+#
+	I am enclosing 3 test programs that I use to verify the
+integrity of an iso9660 disc.  The first one (isodump) is pretty
+simple - it dumps to the screen the contents of the various
+directories.  The second one (isovfy) goes through and looks for
+problems of one kind or another.
+
+	To use, type something like "./isodump /dev/ramdisk" or
+"./isodump /dev/scd0", depending upon where the iso9660 disc is.  It
+starts by displaying the files in the first sector of the root
+directory.  It has some pretty simple one letter commands that you
+can use to traverse the directory tree.
+
+	a - move back one sector.
+	b - move forward one sector.
+	g - go to new logical sector.
+	q - quit
+
+The a and b commands do not try and stop you from going past the
+beginning or end of a sector, and the g command does not have any way
+of knowing whether the sector you request is actually a directory or
+not.
+
+	The output is displayed in several columns.  The first column
+is the total length of the directory record for the file.  The second
+column (in [] brackets) is the volume number.  Next comes the starting
+extent number (in hex), and then comes the file size in bytes.  Then
+cones the filename (not the Rock Ridge version), and this is preceeded
+by an "*" if the file is a directory.  After this is a summary of the
+Rock Ridge fields present along with a display of the translation of
+the symbolic link name if the SL Rock Ridge record is present.
+
+	I tailored this program for debugging some of the problems
+that I was having earlier.  The idea is that you can tailor it
+to test for problems that you might be having, so it is not intended
+as a be-all and end-all dump program.
+
+	If you move to a sector that does not contain directory
+information, the results are unpredictable.
+
+	The second program, isovfy, is run in the same way as isodump,
+except that you do not have to do much except let it run.  I have it
+written to verify all kinds of different things, and as people find
+other sorts of problems other tests could be added.
+
+	The third program, dump.c, basically does a hexdump of the cd.
+This is screen oriented, and there are some simple commands:
+
+	a - move back one sector.
+	b - move forward one sector.
+	f - enter new search string.
+	+ - search forward for search string.
+	g - go to new logical sector.
+	q - quit
+
+
+	Note that with the 'g' command, sectors are always given in
+hex, and represent 2048 byte sectors (as on the cdrom).  If you know
+how to decode a raw iso9660 directory, you can pick out the starting
+extent number from the hexdump and know where to go from there.  The
+starting extent appears something like 30 bytes prior to the start of
+the iso9660 (not Rock Ridge) filename, and it appears in a 7.3.3
+format (meaning that it occupies 8 bytes, 4 in little endian format,
+and 4 in big endian format).  Thus you should see a mirror image of
+the bytes when looking at the extent number.
+
+	The isovfy program can also dump the contents of the path
+tables, but this capability is commented out right now.  Feel free
+to enable this to see what is in the tables.  Ultimately I may fix
+it so that this checks the integrity of the tables as well.
+
+	The isovfy program gives warnings about things like files that
+have a size of 0 but have an extent number assigned.  The mkisofs program
+should never do this, but the YM software does leave these around.
+I think it is probably harmless in the YM case.~

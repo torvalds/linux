@@ -1,0 +1,627 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="Notes for the libstdc++ extensions." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 HOWTO:  Extensions</title>
+<link rel="StyleSheet" href="../lib3styles.css" type="text/css" />
+<link rel="Start" href="../documentation.html" type="text/html"
+  title="GNU C++ Standard Library" />
+<link rel="Prev" href="../27_io/howto.html" type="text/html"
+  title="Input/Output" />
+<link rel="Bookmark" href="sgiexts.html" type="text/html"
+  title="SGI extensions" />
+<link rel="Bookmark" href="mt_allocator.html" type="text/html"
+  title="__mt_alloc" />
+<link rel="Copyright" href="../17_intro/license.html" type="text/html" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Extensions</a></h1>
+
+<p>Here we will make an attempt at describing the non-Standard extensions to
+   the library.  Some of these are from SGI's STL, some of these are GNU's,
+   and some just seemed to appear on the doorstep.
+</p>
+<p><strong>Before you leap in and use these</strong>, be aware of two things:
+</p>
+<ol>
+   <li>Non-Standard means exactly that.  The behavior, and the very
+       existence, of these extensions may change with little or no
+       warning.  (Ideally, the really good ones will appear in the next
+       revision of C++.)  Also, other platforms, other compilers, other
+       versions of g++ or libstdc++-v3 may not recognize these names, or
+       treat them differently, or... </li>
+   <li>You should know how to <a href="../faq/index.html#5_4">access
+       these headers properly</a>. </li>
+</ol>
+
+
+<!-- ####################################################### -->
+<hr />
+<h1>Contents</h1>
+<ul>
+   <li><a href="#1">Ropes and trees and hashes, oh my!</a></li>
+   <li><a href="#2">Added members and types</a></li>
+   <li><a href="mt_allocator.html"><code>__mt_alloc</code> </a></li>
+   <li><a href="#4">Compile-time checks</a></li>
+   <li><a href="#5">LWG Issues</a></li>
+   <li><a href="../18_support/howto.html#6">Demangling</a></li>
+</ul>
+
+<hr />
+
+<!-- ####################################################### -->
+
+<h2><a name="1">Ropes and trees and hashes, oh my!</a></h2>
+   <p>The SGI headers</p>
+   <pre>
+     &lt;bvector&gt;
+     &lt;hash_map&gt;
+     &lt;hash_set&gt;
+     &lt;rope&gt;
+     &lt;slist&gt;
+     &lt;tree&gt;
+   </pre>
+   <p>are all here; <code>&lt;bvector&gt;</code> exposes the old bit_vector
+      class that was used before specialization of vector&lt;bool&gt; was
+      available (it's actually a typedef for the specialization now).
+      <code>&lt;hash_map&gt;</code> and <code>&lt;hash_set&gt;</code>
+      are discussed further below.  <code>&lt;rope&gt;</code> is the SGI
+      specialization for large strings (&quot;rope,&quot; &quot;large
+      strings,&quot; get it?  love those SGI folks).
+      <code>&lt;slist&gt;</code> is a singly-linked list, for when the
+      doubly-linked <code>list&lt;&gt;</code> is too much space overhead, and
+      <code>&lt;tree&gt;</code> exposes the red-black tree classes used in the
+      implementation of the standard maps and sets.
+   </p>
+   <p>Okay, about those hashing classes...  I'm going to foist most of the
+      work off onto SGI's own site.
+   </p>
+   <p>Each of the associative containers map, multimap, set, and multiset
+      have a counterpart which uses a
+      <a href="http://www.sgi.com/tech/stl/HashFunction.html">hashing
+      function</a> to do the arranging, instead of a strict weak ordering
+      function.  The classes take as one of their template parameters a
+      function object that will return the hash value; by default, an
+      instantiation of
+      <a href="http://www.sgi.com/tech/stl/hash.html">hash</a>.
+      You should specialize this functor for your class, or define your own,
+      before trying to use one of the hashing classes.
+   </p>
+   <p>The hashing classes support all the usual associative container
+      functions, as well as some extra constructors specifying the number
+      of buckets, etc.
+   </p>
+   <p>Why would you want to use a hashing class instead of the
+      &quot;normal&quot; implementations?  Matt Austern writes:
+   </p>
+   <blockquote><em>[W]ith a well chosen hash function, hash tables
+   generally provide much better average-case performance than binary
+   search trees, and much worse worst-case performance.  So if your
+   implementation has hash_map, if you don't mind using nonstandard
+   components, and if you aren't scared about the possibility of
+   pathological cases, you'll probably get better performance from
+   hash_map.</em></blockquote>
+   <p>(Side note:  for those of you wondering, <strong>&quot;Why wasn't a hash
+      table included in the Standard in the first #!$@ place?&quot;</strong>
+      I'll give a quick answer:  it was proposed, but too late and in too
+      unorganized a fashion.  Some sort of hashing will undoubtedly be
+      included in a future Standard.)
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="2">Added members and types</a></h2>
+   <p>Some of the classes in the Standard Library have additional
+      publicly-available members, and some classes are themselves not in
+      the standard.  Of those, some are intended purely for the implementors,
+      for example, additional typedefs.  Those won't be described here
+      (or anywhere else).
+   </p>
+   <ul>
+     <li>The extensions added by SGI are so numerous that they have
+         <a href="sgiexts.html">their own page</a>.  Since the SGI STL is no
+         longer actively maintained, we will try and keep this code working
+         ourselves.</li>
+     <li>Extensions allowing <code>filebuf</code>s to be constructed from
+         stdio types are described in the
+         <a href="../27_io/howto.html#11">chapter 27 notes</a>.</li>
+   </ul>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="4">Compile-time checks</a></h2>
+   <p>Currently libstdc++-v3 uses the concept checkers from the Boost
+      library to perform <a href="../19_diagnostics/howto.html#3">optional
+      compile-time checking</a> of template instantiations of the standard
+      containers.  They are described in the linked-to page.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="5">LWG Issues</a></h2>
+   <p>Everybody's got issues.  Even the C++ Standard Library.
+   </p>
+   <p>The Library Working Group, or LWG, is the ISO subcommittee responsible
+      for making changes to the library.  They periodically publish an
+      Issues List containing problems and possible solutions.  As they reach
+      a consensus on proposed solutions, we often incorporate the solution
+      into libstdc++-v3.
+   </p>
+   <p>Here are the issues which have resulted in code changes to the library.
+      The links are to the specific defect reports from a <strong>partial
+      copy</strong> of the Issues List.  You can read the full version online
+      at the <a href="http://www.open-std.org/jtc1/sc22/wg21/">ISO C++
+      Committee homepage</a>, linked to on the
+      <a href="http://gcc.gnu.org/readings.html">GCC &quot;Readings&quot;
+      page</a>.  If
+      you spend a lot of time reading the issues, we recommend downloading
+      the ZIP file and reading them locally.
+   </p>
+   <p>(NB:  <strong>partial copy</strong> means that not all links within
+      the lwg-*.html pages will work.
+      Specifically, links to defect reports that have not been accorded full
+      DR status will probably break.  Rather than trying to mirror the
+      entire issues list on our overworked web server, we recommend you go
+      to the LWG homepage instead.)
+   </p>
+   <p>
+      If a DR is not listed here, we may simply not have gotten to it yet;
+      feel free to submit a patch.  Search the include/bits and src
+      directories for appearances of _GLIBCXX_RESOLVE_LIB_DEFECTS for
+      examples of style.  Note that we usually do not make changes to the code
+      until an issue has reached <a href="lwg-active.html#DR">DR</a> status.
+   </p>
+   <dl>
+    <dt><a href="lwg-defects.html#5">5</a>:
+        <em>string::compare specification questionable</em>
+    </dt>
+    <dd>This should be two overloaded functions rather than a single function.
+    </dd>
+
+    <dt><a href="lwg-defects.html#17">17</a>:
+        <em>Bad bool parsing</em>
+    </dt>
+    <dd>Apparently extracting Boolean values was messed up...
+    </dd>
+
+    <dt><a href="lwg-defects.html#19">19</a>:
+        <em>&quot;Noconv&quot; definition too vague</em>
+    </dt>
+    <dd>If <code>codecvt::do_in</code> returns <code>noconv</code> there are
+        no changes to the values in <code>[to, to_limit)</code>.
+    </dd>
+
+    <dt><a href="lwg-defects.html#22">22</a>:
+        <em>Member open vs flags</em>
+    </dt>
+    <dd>Re-opening a file stream does <em>not</em> clear the state flags.
+    </dd>
+
+    <dt><a href="lwg-defects.html#25">25</a>:
+        <em>String operator&lt;&lt; uses width() value wrong</em>
+    </dt>
+    <dd>Padding issues.
+    </dd>
+
+    <dt><a href="lwg-defects.html#48">48</a>:
+        <em>Use of non-existent exception constructor</em>
+    </dt>
+    <dd>An instance of <code>ios_base::failure</code> is constructed instead.
+    </dd>
+
+    <dt><a href="lwg-defects.html#49">49</a>:
+        <em>Underspecification of ios_base::sync_with_stdio</em>
+    </dt>
+    <dd>The return type is the <em>previous</em> state of synchronization.
+    </dd>
+
+    <dt><a href="lwg-defects.html#50">50</a>:
+        <em>Copy constructor and assignment operator of ios_base</em>
+    </dt>
+    <dd>These members functions are declared <code>private</code> and are
+        thus inaccessible.  Specifying the correct semantics of
+        &quot;copying stream state&quot; was deemed too complicated.
+    </dd>
+
+    <dt><a href="lwg-defects.html#60">60</a>:
+        <em>What is a formatted input function?</em>
+    </dt>
+    <dd>This DR made many widespread changes to <code>basic_istream</code>
+        and <code>basic_ostream</code> all of which have been implemented.
+    </dd>
+
+    <dt><a href="lwg-defects.html#63">63</a>:
+        <em>Exception-handling policy for unformatted output</em>
+    </dt>
+    <dd>Make the policy consistent with that of formatted input, unformatted
+        input, and formatted output.
+    </dd>
+
+    <dt><a href="lwg-defects.html#68">68</a>:
+        <em>Extractors for char* should store null at end</em>
+    </dt>
+    <dd>And they do now.  An editing glitch in the last item in the list of
+        [27.6.1.2.3]/7.
+    </dd>
+
+    <dt><a href="lwg-defects.html#74">74</a>:
+        <em>Garbled text for codecvt::do_max_length</em>
+    </dt>
+    <dd>The text of the standard was gibberish.  Typos gone rampant.
+    </dd>
+
+    <dt><a href="lwg-defects.html#75">75</a>:
+        <em>Contradiction in codecvt::length's argument types</em>
+    </dt>
+    <dd>Change the first parameter to <code>stateT&amp;</code> and implement
+        the new effects paragraph.
+    </dd>
+
+    <dt><a href="lwg-defects.html#83">83</a>:
+        <em>string::npos vs. string::max_size()</em>
+    </dt>
+    <dd>Safety checks on the size of the string should test against
+        <code>max_size()</code> rather than <code>npos</code>.
+    </dd>
+
+    <dt><a href="lwg-defects.html#90">90</a>:
+        <em>Incorrect description of operator&gt;&gt; for strings</em>
+    </dt>
+    <dd>The effect contain <code>isspace(c,getloc())</code> which must be
+        replaced by <code>isspace(c,is.getloc())</code>.
+    </dd>
+
+    <dt><a href="lwg-defects.html#91">91</a>:
+        <em>Description of operator&gt;&gt; and getline() for string&lt;&gt;
+	    might cause endless loop</em>
+    </dt>
+    <dd>They behave as a formatted input function and as an unformatted
+        input function, respectively (except that <code>getline</code> is
+	not required to set <code>gcount</code>).
+    </dd>
+
+    <dt><a href="lwg-defects.html#103">103</a>:
+        <em>set::iterator is required to be modifiable, but this allows
+	    modification of keys.</em>
+    </dt>
+    <dd>For associative containers where the value type is the same as
+        the key type, both <code>iterator</code> and <code>const_iterator
+	</code> are constant iterators.
+    </dd>
+
+    <dt><a href="lwg-defects.html#109">109</a>:
+        <em>Missing binders for non-const sequence elements</em>
+    </dt>
+    <dd>The <code>binder1st</code> and <code>binder2nd</code> didn't have an
+        <code>operator()</code> taking a non-const parameter.
+    </dd>
+
+    <dt><a href="lwg-defects.html#110">110</a>:
+        <em>istreambuf_iterator::equal not const</em>
+    </dt>
+    <dd>This was not a const member function.  Note that the DR says to
+        replace the function with a const one; we have instead provided an
+        overloaded version with identical contents.
+    </dd>
+
+    <dt><a href="lwg-defects.html#117">117</a>:
+        <em>basic_ostream uses nonexistent num_put member functions</em>
+    </dt>
+    <dd><code>num_put::put()</code> was overloaded on the wrong types.
+    </dd>
+
+    <dt><a href="lwg-defects.html#118">118</a>:
+        <em>basic_istream uses nonexistent num_get member functions</em>
+    </dt>
+    <dd>Same as 117, but for <code>num_get::get()</code>.
+    </dd>
+
+    <dt><a href="lwg-defects.html#129">129</a>:
+        <em>Need error indication from seekp() and seekg()</em>
+    </dt>
+    <dd>These functions set <code>failbit</code> on error now.
+    </dd>
+
+    <dt><a href="lwg-defects.html#136">136</a>:
+        <em>seekp, seekg setting wrong streams?</em>
+    </dt>
+    <dd><code>seekp</code> should only set the output stream, and
+        <code>seekg</code> should only set the input stream.
+    </dd>
+
+<!--<dt><a href="lwg-defects.html#159">159</a>:
+        <em>Strange use of underflow()</em>
+    </dt>
+    <dd>In fstream.tcc, the basic_filebuf&lt;&gt;::showmanyc() function
+        should probably not be calling <code>underflow()</code>.
+    </dd> -->
+
+    <dt><a href="lwg-defects.html#167">167</a>:
+        <em>Improper use of traits_type::length()</em>
+    </dt>
+    <dd><code>op&lt;&lt;</code> with a <code>const char*</code> was
+        calculating an incorrect number of characters to write.
+    </dd>
+
+    <dt><a href="lwg-defects.html#169">169</a>:
+        <em>Bad efficiency of overflow() mandated</em>
+    </dt>
+    <dd>Grow efficiently the internal array object.
+    </dd>
+
+    <dt><a href="lwg-defects.html#171">171</a>:
+        <em>Strange seekpos() semantics due to joint position</em>
+    </dt>
+    <dd>Quite complex to summarize...
+    </dd>
+
+    <dt><a href="lwg-defects.html#181">181</a>:
+        <em>make_pair() unintended behavior</em>
+    </dt>
+    <dd>This function used to take its arguments as reference-to-const, now
+        it copies them (pass by value).
+    </dd>
+
+    <dt><a href="lwg-defects.html#195">195</a>:
+        <em>Should basic_istream::sentry's constructor ever set eofbit?</em>
+    </dt>
+    <dd>Yes, it can, specifically if EOF is reached while skipping whitespace.
+    </dd>
+
+    <dt><a href="lwg-defects.html#211">211</a>:
+        <em>operator&gt;&gt;(istream&amp;, string&amp;) doesn't set failbit</em>
+    </dt>
+    <dd>If nothing is extracted into the string, <code>op&gt;&gt;</code> now
+        sets <code>failbit</code> (which can cause an exception, etc., etc.).
+    </dd>
+
+    <dt><a href="lwg-defects.html#214">214</a>:
+        <em>set::find() missing const overload</em>
+    </dt>
+    <dd>Both <code>set</code> and <code>multiset</code> were missing
+        overloaded find, lower_bound, upper_bound, and equal_range functions
+        for const instances.
+    </dd>
+
+    <dt><a href="lwg-defects.html#231">231</a>:
+        <em>Precision in iostream?</em>
+    </dt>
+    <dd>For conversion from a floating-point type, <code>str.precision()</code>
+        is specified in the conversion specification.
+    </dd>
+
+    <dt><a href="lwg-active.html#233">233</a>:
+        <em>Insertion hints in associative containers</em>
+    </dt>
+    <dd>Implement N1780, first check before then check after, insert as close
+        to hint as possible.
+    </dd>
+
+    <dt><a href="lwg-defects.html#235">235</a>:
+        <em>No specification of default ctor for reverse_iterator</em>
+    </dt>
+    <dd>The declaration of <code>reverse_iterator</code> lists a default constructor.
+        However, no specification is given what this constructor should do.
+    </dd>
+
+    <dt><a href="lwg-defects.html#241">241</a>:
+        <em>Does unique_copy() require CopyConstructible and Assignable?</em>
+    </dt>
+    <dd>Add an helper for forward_iterator/output_iterator, fix the existing
+        one for input_iterator/output_iterator not to rely on Assignability.
+    </dd>
+
+    <dt><a href="lwg-defects.html#243">243</a>:
+        <em>get and getline when sentry reports failure</em>
+    </dt>
+    <dd>Store a null character only if the character array has a non-zero size.
+    </dd>
+
+    <dt><a href="lwg-defects.html#251">251</a>:
+        <em>basic_stringbuf missing allocator_type</em>
+    </dt>
+    <dd>This nested typedef was originally not specified.
+    </dd>
+
+    <dt><a href="lwg-defects.html#253">253</a>:
+        <em>valarray helper functions are almost entirely useless</em>
+    </dt>
+    <dd>Make the copy constructor and copy-assignment operator declarations
+        public in gslice_array, indirect_array, mask_array, slice_array; provide
+	definitions.
+    </dd>
+
+    <dt><a href="lwg-defects.html#265">265</a>:
+        <em>std::pair::pair() effects overly restrictive</em>
+    </dt>
+    <dd>The default ctor would build its members from copies of temporaries;
+        now it simply uses their respective default ctors.
+    </dd>
+
+    <dt><a href="lwg-defects.html#266">266</a>:
+        <em>bad_exception::~bad_exception() missing Effects clause</em>
+    </dt>
+    <dd>The <code>bad_</code>* classes no longer have destructors (they
+        are trivial), since no description of them was ever given.
+    </dd>
+
+    <dt><a href="lwg-defects.html#271">271</a>:
+        <em>basic_iostream missing typedefs</em>
+    </dt>
+    <dd>The typedefs it inherits from its base classes can't be used, since
+        (for example) <code>basic_iostream&lt;T&gt;::traits_type</code> is ambiguous.
+    </dd>
+
+    <dt><a href="lwg-defects.html#275">275</a>:
+        <em>Wrong type in num_get::get() overloads</em>
+    </dt>
+    <dd>Similar to 118.
+    </dd>
+
+    <dt><a href="lwg-defects.html#280">280</a>:
+        <em>Comparison of reverse_iterator to const reverse_iterator</em>
+    </dt>
+    <dd>Add global functions with two template parameters.
+        (NB: not added for now a templated assignment operator) 
+    </dd>
+
+    <dt><a href="lwg-defects.html#292">292</a>:
+        <em>Effects of a.copyfmt (a)</em>
+    </dt>
+    <dd>If <code>(this == &amp;rhs)</code> do nothing.
+    </dd>
+
+    <dt><a href="lwg-defects.html#300">300</a>:
+        <em>List::merge() specification incomplete</em>
+    </dt>
+    <dd>If <code>(this == &amp;x)</code> do nothing.
+    </dd>
+
+    <dt><a href="lwg-defects.html#303">303</a>:
+        <em>Bitset input operator underspecified</em>
+    </dt>
+    <dd>Basically, compare the input character to <code>is.widen(0)</code>
+        and <code>is.widen(1)</code>.
+    </dd>
+
+    <dt><a href="lwg-defects.html#305">305</a>:
+        <em>Default behavior of codecvt&lt;wchar_t, char, mbstate_t&gt;::length()</em>
+    </dt>
+    <dd>Do not specify what <code>codecvt&lt;wchar_t, char, mbstate_t&gt;::do_length</code>
+        must return.
+    </dd>
+
+    <dt><a href="lwg-defects.html#328">328</a>:
+        <em>Bad sprintf format modifier in money_put&lt;&gt;::do_put()</em>
+    </dt>
+    <dd>Change the format string to &quot;%.0Lf&quot;.
+    </dd>
+
+    <dt><a href="lwg-defects.html#365">365</a>:
+        <em>Lack of const-qualification in clause 27</em>
+    </dt>
+    <dd>Add const overloads of <code>is_open</code>.
+    </dd>
+
+    <dt><a href="lwg-defects.html#389">389</a>:
+        <em>Const overload of valarray::operator[] returns by value</em>
+    </dt>
+    <dd>Change it to return a <code>const T&amp;</code>.
+    </dd>
+
+    <dt><a href="lwg-defects.html#402">402</a>:
+        <em>Wrong new expression in [some_]allocator::construct</em>
+    </dt>
+    <dd>Replace &quot;new&quot; with &quot;::new&quot;.
+    </dd>
+
+    <dt><a href="lwg-defects.html#409">409</a>:
+        <em>Closing an fstream should clear the error state</em>
+    </dt>
+    <dd>Have <code>open</code> clear the error flags.
+    </dd>
+
+    <dt><a href="lwg-active.html#431">431</a>:
+        <em>Swapping containers with unequal allocators</em>
+    </dt>
+    <dd>Implement Option 3, as per N1599.
+    </dd>
+
+    <dt><a href="lwg-defects.html#432">432</a>:
+        <em>432. stringbuf::overflow() makes only one write position
+	    available</em>
+    </dt>
+    <dd>Implement the resolution, beyond DR 169.
+    </dd>
+
+    <dt><a href="lwg-defects.html#434">434</a>:
+        <em>bitset::to_string() hard to use</em>
+    </dt>
+    <dd>Add three overloads, taking fewer template arguments.
+    </dd>
+
+    <dt><a href="lwg-defects.html#453">453</a>:
+        <em>basic_stringbuf::seekoff need not always fail for an empty stream</em>
+    </dt>
+    <dd>Don't fail if the next pointer is null and newoff is zero.
+    </dd>
+
+    <dt><a href="lwg-defects.html#455">455</a>:
+        <em>cerr::tie() and wcerr::tie() are overspecified</em>
+    </dt>
+    <dd>Initialize cerr tied to cout and wcerr tied to wcout.
+    </dd>
+
+    <dt><a href="lwg-defects.html#464">464</a>:
+        <em>Suggestion for new member functions in standard containers</em>
+    </dt>
+    <dd>Add <code>data()</code> to <code>std::vector</code> and
+        <code>at(const key_type&amp;)</code> to <code>std::map</code>.
+    </dd>
+
+    <dt><a href="lwg-defects.html#508">508</a>:
+        <em>Bad parameters for ranlux64_base_01</em>
+    </dt>
+    <dd>Fix the parameters.
+    </dd>
+
+    <dt><a href="lwg-closed.html#512">512</a>:
+        <em>Seeding subtract_with_carry_01 from a single unsigned long</em>
+    </dt>
+    <dd>Construct a <code>linear_congruential</code> engine and seed with it.
+    </dd>
+
+    <dt><a href="lwg-defects.html#538">538</a>:
+        <em>241 again: Does unique_copy() require CopyConstructible
+	    and Assignable?</em>
+    </dt>
+    <dd>In case of input_iterator/output_iterator rely on Assignability of
+        input_iterator' value_type.
+    </dd>
+
+    <dt><a href="lwg-active.html#586">586</a>:
+        <em>string inserter not a formatted function</em>
+    </dt>
+    <dd>Change it to be a formatted output function (i.e. catch exceptions).
+    </dd>
+<!--
+    <dt><a href="lwg-defects.html#"></a>:
+        <em></em>
+    </dt>
+    <dd>
+    </dd>
+
+-->
+   </dl>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="../17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

@@ -1,0 +1,146 @@
+.\" $OpenBSD: X509_REQ_new.3,v 1.12 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_REQ_NEW 3
+.Os
+.Sh NAME
+.Nm X509_REQ_new ,
+.Nm X509_REQ_dup ,
+.Nm X509_to_X509_REQ ,
+.Nm X509_REQ_free ,
+.Nm X509_REQ_INFO_new ,
+.Nm X509_REQ_INFO_free
+.Nd PKCS#10 certification requests
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_REQ *
+.Fn X509_REQ_new void
+.Ft X509_REQ *
+.Fn X509_REQ_dup "X509_REQ *req"
+.Ft X509_REQ *
+.Fn X509_to_X509_REQ "X509 *x" "EVP_PKEY *pkey" "const EVP_MD *md"
+.Ft void
+.Fn X509_REQ_free "X509_REQ *req"
+.Ft X509_REQ_INFO *
+.Fn X509_REQ_INFO_new void
+.Ft void
+.Fn X509_REQ_INFO_free "X509_REQ_INFO *req_info"
+.Sh DESCRIPTION
+.Fn X509_REQ_new
+allocates and initializes an empty
+.Vt X509_REQ
+object, representing an ASN.1
+.Vt CertificationRequest
+structure defined in RFC 2986 section 4.2.
+It can hold a pointer to an
+.Vt X509_REQ_INFO
+object discussed below together with a cryptographic signature and
+information about the signature algorithm used.
+.Pp
+.Fn X509_REQ_dup
+creates a deep copy of
+.Fa req
+using
+.Xr ASN1_item_dup 3 ,
+setting the reference count of the copy to 1.
+.Pp
+.Fn X509_to_X509_REQ
+allocates a new certification request object, copies
+the subject name and the public key into it from the certificate
+.Fa x ,
+and sets the version to zero.
+Unless
+.Fa pkey
+is
+.Dv NULL ,
+it also signs the request with
+.Xr X509_REQ_sign 3
+using
+.Fa pkey
+and
+.Fa md .
+.Pp
+.Fn X509_REQ_free
+frees
+.Fa req .
+If
+.Fa req
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn X509_REQ_INFO_new
+allocates and initializes an empty
+.Vt X509_REQ_INFO
+object, representing an ASN.1
+.Vt CertificationRequestInfo
+structure defined in RFC 2986 section 4.1.
+It is used inside the
+.Vt X509_REQ
+object and can hold the subject and the public key of the requested
+certificate and additional attributes.
+.Fn X509_REQ_INFO_free
+frees
+.Fa req_info .
+If
+.Fa req_info
+is a
+.Dv NULL
+pointer, no action occurs.
+.Sh RETURN VALUES
+.Fn X509_REQ_new ,
+.Fn X509_REQ_dup ,
+.Fn X509_to_X509_REQ ,
+and
+.Fn X509_REQ_INFO_new
+return the new
+.Vt X509_REQ
+or
+.Vt X509_REQ_INFO
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr d2i_X509_REQ 3 ,
+.Xr PEM_read_X509_REQ 3 ,
+.Xr X509_new 3 ,
+.Xr X509_REQ_add1_attr 3 ,
+.Xr X509_REQ_add_extensions 3 ,
+.Xr X509_REQ_check_private_key 3 ,
+.Xr X509_REQ_digest 3 ,
+.Xr X509_REQ_get0_signature 3 ,
+.Xr X509_REQ_get_pubkey 3 ,
+.Xr X509_REQ_get_subject_name 3 ,
+.Xr X509_REQ_get_version 3 ,
+.Xr X509_REQ_print_ex 3 ,
+.Xr X509_REQ_sign 3
+.Sh STANDARDS
+RFC 2986: PKCS #10: Certification Request Syntax Specification
+.Sh HISTORY
+.Fn X509_REQ_new ,
+.Fn X509_REQ_free ,
+.Fn X509_REQ_INFO_new ,
+and
+.Fn X509_REQ_INFO_free
+first appeared in SSLeay 0.4.4,
+.Fn X509_REQ_dup
+in SSLeay 0.5.1, and
+.Fn X509_to_X509_REQ
+in SSLeay 0.6.0.
+These functions have been available since
+.Ox 2.4 .

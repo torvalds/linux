@@ -1,0 +1,277 @@
+.\"	$OpenBSD: e6,v 1.3 2004/04/05 10:58:08 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)e6	8.1 (Berkeley) 6/8/93
+.\"
+.SH
+Special Characters
+.PP
+You may have noticed that things just don't work right when you used
+some characters like
+\*.,
+.UL * ,
+.UL $ ,
+and others in
+context searches and the substitute command.
+The reason is rather complex, although the cure is simple.
+Basically,
+.ul
+ed
+treats these characters as special, with special meanings.
+For instance,
+.ul
+in a context search or the first string of the substitute command only,
+\*.
+means ``any character,'' not a period, so
+.P1
+/x\*.y/
+.P2
+means ``a line with an
+.UL x ,
+.UL "any character" ,
+and a
+.UL y ,''
+.ul
+not
+just ``a line with an
+.UL x ,
+a period, and a
+.UL y .''
+A complete list of the special characters
+that can cause trouble is the following:
+.P1
+^    \*.    $    [    *    \e    &
+.P2
+.ul
+Warning:
+The backslash character
+.UL \e
+is special to
+.UL ed .
+For safety's sake, 
+avoid it where possible.
+If you have to use one of the special characters
+in a substitute command,
+you can turn off its magic meaning temporarily
+by preceding it with the backslash.
+Thus
+.P1
+s/\e\e\e\*.\e*/backslash dot star/
+.P2
+will change
+.UL \e.*
+into ``backslash dot star''.
+.PP
+Here is a hurried synopsis of the other special characters.
+First, the circumflex
+.UL ^
+signifies
+the beginning of a line.
+Thus
+.P1
+/^string/
+.P2
+finds
+.UL string
+only if it is at the beginning of a line:
+it will find
+.P1
+string
+.P2
+but not
+.P1
+the string...
+.P2
+The dollar-sign
+.UL $
+is just the opposite of the circumflex;
+it means the end of a line:
+.P1
+/string$/
+.P2
+will only find an occurrence of
+.UL string
+that is at the end of some line.
+This implies, of course,
+that
+.P1
+/^string$/
+.P2
+will find only a line that contains just
+.UL string ,
+and
+.P1
+/^\*.$/
+.P2
+finds a line containing exactly one character.
+.PP
+The character
+.UL . ,
+as we mentioned above,
+matches anything;
+.P1
+/x\*.y/
+.P2
+matches any of
+.P1
+x+y
+x-y
+x y
+x\*.y
+.P2
+This is useful in conjunction with
+.UL * ,
+which is a repetition character;
+.UL a*
+is a shorthand for ``any number of
+.UL a 's,''
+so 
+.UL .*
+matches any number of anythings.
+This is used like this:
+.P1
+s/\*.*/stuff/
+.P2
+which changes an entire line,
+or
+.P1
+s/\*.*,//
+.P2
+which deletes all characters in the line up to and
+including the last comma.
+(Since
+.UL .*
+finds the longest possible match,
+this goes up to the last comma.)
+.PP
+.UL [
+is used with
+.UL ]
+to form ``character classes'';
+for example,
+.P1
+/[0123456789]/
+.P2
+matches any single digit \-
+any one of the characters inside the braces
+will cause a match.
+This can be abbreviated to
+.UL [0\-9] .
+.PP
+Finally, the
+.UL &
+is another shorthand character \-
+it is used only on the right-hand part of a substitute command
+where it means ``whatever was matched on the left-hand side''.
+It is used to save typing.
+Suppose the current line contained
+.P1
+Now is the time
+.P2
+and you wanted to put parentheses around it.
+You could just retype the line, but
+this is tedious.
+Or you could say
+.P1
+s/^/(/
+s/$/)/
+.P2
+using your knowledge of
+.UL ^
+and
+.UL $ .
+But the easiest way uses the
+.UL & :
+.P1
+s/\*.*/(&)/
+.P2
+This says ``match the whole line, and replace it
+by itself surrounded by parentheses.''
+The
+.UL &
+can be used several times in a line;
+consider
+using
+.P1
+s/\*.*/&?  &!!/
+.P2
+to produce
+.P1
+Now is the time?  Now is the time!!
+.P2
+.PP
+You don't have to match the whole line, of course:
+if the buffer contains
+.P1
+the end of the world
+.P2
+you could type
+.P1
+/world/s//& is at hand/
+.P2
+to produce
+.P1
+the end of the world is at hand
+.P2
+Observe this expression carefully,
+for it illustrates how to take advantage of
+.ul
+ed
+to save typing.
+The string
+.UL /world/
+found the desired line;
+the shorthand
+.UL //
+found the same
+word in the line;
+and the
+.UL &
+saves you from typing it again.
+.PP
+The
+.UL &
+is a special character only within
+the replacement text of a substitute command,
+and has no special meaning elsewhere.
+You can turn off the special meaning of
+.UL &
+by preceding it with a
+.UL \e :
+.P1
+s/ampersand/\e&/
+.P2
+will convert the word ``ampersand'' into the literal symbol
+.UL &
+in the current line.

@@ -1,0 +1,327 @@
+# $OpenBSD: services,v 1.110 2025/07/31 09:05:26 ajacoutot Exp $
+#
+# Network services, Internet style
+# https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.txt
+#
+
+tcpmux		1/tcp				# TCP port service multiplexer
+echo		7/tcp
+echo		7/udp
+discard		9/tcp		sink null
+discard		9/udp		sink null
+systat		11/tcp		users
+daytime		13/tcp
+daytime		13/udp
+netstat		15/tcp
+qotd		17/tcp		quote
+msp		18/tcp				# message send protocol
+msp		18/udp				# message send protocol
+chargen		19/tcp		ttytst source
+chargen		19/udp		ttytst source
+ftp-data	20/tcp				# default ftp data port
+ftp		21/tcp
+ssh		22/tcp
+ssh		22/udp
+telnet		23/tcp
+# 24 - private
+smtp		25/tcp		mail
+# 26 - unassigned
+time		37/tcp		timserver
+time		37/udp		timserver
+rlp		39/udp		resource	# resource location
+nameserver	42/tcp		name		# IEN 116
+whois		43/tcp		nicname
+tacacs		49/tcp		tacas+		# Login Host Protocol (TACACS)
+tacacs		49/udp		tacas+		# Login Host Protocol (TACACS)
+domain		53/tcp				# Domain Name Server
+domain		53/udp
+mtp		57/tcp				# deprecated
+bootps		67/tcp				# BOOTP server
+bootps		67/udp
+bootpc		68/tcp				# BOOTP client
+bootpc		68/udp
+tftp		69/udp
+gopher		70/tcp				# Internet Gopher
+gopher		70/udp
+rje		77/tcp		netrjs
+finger		79/tcp
+www		80/tcp		http		# WorldWideWeb HTTP
+www		80/udp				# HyperText Transfer Protocol
+link		87/tcp		ttylink
+kerberos	88/udp		kerberos-sec	# Kerberos 5 UDP
+kerberos	88/tcp		kerberos-sec	# Kerberos 5 TCP
+supdup		95/tcp
+# 100 - reserved
+hostnames	101/tcp		hostname	# usually from sri-nic
+iso-tsap	102/tcp		tsap		# part of ISODE.
+x400		103/tcp				# ISO E-mail
+x400-snd	104/tcp
+csnet-ns	105/tcp		cso-ns		# also used by CSO name server
+csnet-ns	105/udp		cso-ns
+rtelnet		107/tcp				# Remote Telnet
+rtelnet		107/udp
+pop3		110/tcp				# POP version 3
+sunrpc		111/tcp		portmap rpcbind
+sunrpc		111/udp		portmap rpcbind
+auth		113/tcp		authentication tap ident
+sftp		115/tcp
+uucp-path	117/tcp
+nntp		119/tcp		readnews untp	# USENET News Transfer Protocol
+ntp		123/tcp
+ntp		123/udp				# Network Time Protocol
+pwdgen		129/tcp				# Password Generator Protocol
+pwdgen		129/udp				# Password Generator Protocol
+epmap		135/tcp				# DCE endpoint resolution
+epmap		135/udp
+netbios-ns	137/tcp				# NETBIOS Name Service
+netbios-ns	137/udp
+netbios-dgm	138/tcp				# NETBIOS Datagram Service
+netbios-dgm	138/udp
+netbios-ssn	139/tcp				# NETBIOS session service
+netbios-ssn	139/udp
+imap		143/tcp		imap2		# Internet Message Access Proto
+bftp		152/tcp				# Background File Transfer Proto
+snmp		161/udp				# Simple Net Mgmt Proto
+snmp-trap	162/udp		snmptrap	# Traps for SNMP
+cmip-man	163/tcp				# ISO mgmt over IP (CMOT)
+cmip-man	163/udp
+cmip-agent	164/tcp
+cmip-agent	164/udp
+xdmcp		177/tcp				# X Display Mgr. Control Proto
+xdmcp		177/udp
+nextstep	178/tcp		NeXTStep NextStep	# NeXTStep window
+nextstep	178/udp		NeXTStep NextStep	# server
+bgp		179/tcp				# Border Gateway Proto.
+prospero	191/tcp				# Cliff Neuman's Prospero
+prospero	191/udp
+irc		194/tcp				# Internet Relay Chat
+smux		199/tcp				# SNMP Unix Multiplexer
+smux		199/udp
+at-rtmp		201/tcp				# AppleTalk routing
+at-rtmp		201/udp
+at-nbp		202/tcp				# AppleTalk name binding
+at-nbp		202/udp
+at-echo		204/tcp				# AppleTalk echo
+at-echo		204/udp
+at-zis		206/tcp				# AppleTalk zone information
+at-zis		206/udp
+z3950		210/tcp		wais		# NISO Z39.50 database
+z3950		210/udp		wais
+ipx		213/tcp				# IPX
+ipx		213/udp
+rpki-rtr	323/tcp				# Resource PKI to Router Protocol
+ulistserv	372/tcp				# UNIX Listserv
+ulistserv	372/udp
+ldap		389/tcp				# Lightweight Directory Access
+ldap		389/udp
+svrloc		427/tcp				# Server Location
+svrloc		427/udp
+nnsp		433/tcp		usenet		# Network News Transfer
+https		443/tcp				# secure http (TLS)
+https		443/udp				# secure http (TLS)
+snpp		444/tcp				# Simple Network Paging Protocol
+microsoft-ds	445/tcp				# Microsoft-DS
+microsoft-ds	445/udp				# Microsoft-DS
+kpasswd		464/tcp				# Kerberos 5 password changing
+kpasswd		464/udp				# Kerberos 5 password changing
+submissions	465/tcp		smtps		# mail message submission (TLS)
+photuris	468/tcp				# Photuris Key Management
+photuris	468/udp
+isakmp		500/udp				# ISAKMP key management
+exec		512/tcp
+biff		512/udp		comsat
+login		513/tcp
+who		513/udp		whod
+shell		514/tcp		cmd		# no passwords used
+syslog		514/udp
+printer		515/tcp		spooler		# line printer spooler
+talk		517/udp
+ntalk		518/udp
+route		520/udp		router routed	# RIP
+efs		521/tcp				# extended file name server
+timed		525/udp		timeserver
+tempo		526/tcp		newdate
+courier		530/tcp		rpc
+conference	531/tcp		chat
+netnews		532/tcp		readnews
+netwall		533/udp				# -for emergency broadcasts
+uucp		540/tcp		uucpd		# uucp daemon
+klogin		543/tcp				# Kerberos authenticated rlogin
+kshell		544/tcp		krcmd		# Kerberos remote shell
+ekshell		545/tcp				# Kerberos encrypted shell
+dhcpv6-client	546/udp				# DHCPv6 client
+dhcpv6-server	547/udp				# DHCPv6 server
+remotefs	556/tcp		rfs_server rfs	# Brunhoff remote filesystem
+afpovertcp	548/tcp				# AFP over TCP
+rtsp		554/tcp				# Real Time Stream Control Proto
+rtsp		554/udp				# Real Time Stream Control Proto
+submission	587/tcp		msa		# mail message submission
+asf-rmcp	623/udp				# ASF/IPMI Proto
+ipp		631/tcp				# Internet Printing Protocol
+ipp		631/udp				# Internet Printing Protocol
+ldaps		636/tcp				# LDAP over TLS/SSL
+ldaps		636/udp
+ldp		646/tcp
+ldp		646/udp
+agentx		705/tcp
+silc		706/tcp				# Secure Live Internet Conferencing
+kerberos-adm	749/tcp				# Kerberos 5 kadmin
+kerberos-adm	749/udp				# Kerberos 5 kadmin
+domain-s	853/tcp				# DNS query-response protocol run over TLS/DTLS
+domain-s	853/udp				# DNS query-response protocol run over TLS/DTLS
+rsync		873/tcp				# rsync server
+imaps		993/tcp				# imap4 protocol over TLS/SSL
+pop3s		995/tcp		spop3		# pop3 protocol over TLS/SSL
+socks		1080/tcp			# Socks
+kpop		1109/tcp			# Pop with Kerberos
+openvpn		1194/tcp			# OpenVPN
+openvpn		1194/udp			# OpenVPN
+ms-sql-s	1433/tcp	Microsoft-SQL-Server
+ms-sql-s	1433/udp	Microsoft-SQL-Server
+ms-sql-m	1434/tcp	Microsoft-SQL-Monitor
+ms-sql-m	1434/udp	Microsoft-SQL-Monitor
+ingreslock	1524/tcp
+ingreslock	1524/udp
+prospero-np	1525/tcp			# Prospero non-privileged
+prospero-np	1525/udp
+sa-msg-port	1646/udp
+l2tp		1701/udp			# Layer 2 Tunneling Protocol
+pptp		1723/tcp			# Point-to-Point Tunneling Protocol
+pptp		1723/udp			# Point-to-Point Tunneling Protocol
+radius		1812/udp			# radius authentication
+radacct		1813/udp	radius-acct	# radius accounting
+mqtt		1883/tcp			# Message Queuing Telemetry Transport Protocol
+ssdp		1900/tcp			# SSDP
+ssdp		1900/udp			# SSDP
+nfsd		2049/udp	nfs		# NFS server
+nfsd		2049/tcp	nfs		# NFS server
+eklogin		2105/tcp			# Kerberos encrypted rlogin
+rkinit		2108/tcp			# Kerberos remote kinit
+kf		2110/tcp			# forward credentials
+kx		2111/tcp			# X over kerberos
+kip		2112/tcp			# IP over kerberos
+kauth		2120/tcp			# Remote kauth
+iprop		2121/tcp			# Kerberos incremental propagation
+cvspserver	2401/tcp			# cvs pserver
+cvspserver	2401/udp			# cvs pserver
+zebrasrv	2600/tcp			# Quagga/Zebra
+zebra		2601/tcp			# Quagga/Zebra
+ripd		2602/tcp			# Quagga/Zebra
+ripng		2603/tcp			# Quagga/Zebra
+ospfd		2604/tcp			# Quagga/Zebra
+bgpd		2605/tcp			# Quagga/Zebra
+ospf6d		2606/tcp			# Quagga/Zebra
+ospfapi		2607/tcp			# Quagga/Zebra
+isisd		2608/tcp			# Quagga/Zebra
+netplan		2983/tcp			# netplan daemon
+eppc		3031/tcp			# Remote AppleEvents/PPC Toolbox
+eppc		3031/udp			# Remote AppleEvents/PPC Toolbox
+iscsi		3260/tcp			# ISCSI
+mysql		3306/tcp			# MySQL
+rdp		3389/tcp			# Microsoft Remote Desktop Protocol
+iapp		3517/tcp	802-11-iapp	# IEEE 802.11f IAPP
+iapp		3517/udp	802-11-iapp	# IEEE 802.11f IAPP
+daap		3689/tcp			# Digital Audio Access Protocol
+daap		3689/udp			# Digital Audio Access Protocol
+svn		3690/tcp			# Subversion
+bfd-control	3784/udp			# BFD Control Protocol
+bfd-echo	3785/udp			# BFD Echo Protocol
+sieve		4190/tcp			# ManageSieve Protocol
+krb524		4444/tcp			# Kerberos 5->4
+krb524		4444/udp			# Kerberos 5->4
+ipsec-nat-t	4500/tcp	ipsec-msft	# IPsec NAT-Traversal
+ipsec-nat-t	4500/udp	ipsec-msft	# IPsec NAT-Traversal
+hylafax		4559/tcp			# HylaFAX client-server protocol
+gre-in-udp	4754/udp			# GRE-in-UDP Encapsulation
+gre-udp-dtls	4755/udp			# GRE-in-UDP Encapsulation with DTLS
+vxlan		4789/udp			# VXLAN
+rfe		5002/tcp			# Radio Free Ethernet
+rfe		5002/udp			# Actually uses UDP only
+sip		5060/tcp			# SIP
+sip		5060/udp			# SIP
+xmpp-client	5222/tcp			# XMPP Client Connection
+xmpp-server	5269/tcp			# XMPP Server Connection
+xmpp-bosh	5280/tcp			# BOSH
+presence	5298/tcp			# XMPP Link-Local Messaging
+presence	5298/udp			# XMPP Link-Local Messaging
+mdns		5353/tcp			# Multicast DNS
+mdns		5353/udp			# Multicast DNS
+mdnsresponder	5354/tcp			# Multicast DNS Responder IPC
+mdnsresponder	5354/udp			# Multicast DNS Responder IPC
+postgresql	5432/tcp			# PostgreSQL
+postgresql	5432/udp			# PostgreSQL
+matter		5540/tcp			# Matter IoT
+matter		5540/udp			# Matter IoT
+rfb		5900/tcp	vnc		# Remote Framebuffer
+dtspc		6112/tcp			# CDE Subprocess Control Service
+syslog-tls	6514/tcp			# syslog over TLS
+afs3-fileserver	7000/tcp			# AFS fileserver
+afs3-fileserver	7000/udp			# AFS fileserver
+afs3-callback	7001/tcp			# AFS callback server
+afs3-callback	7001/udp			# AFS callback server
+afs3-prserver	7002/tcp			# AFS protection server
+afs3-prserver	7002/udp			# AFS protection server
+afs3-vlserver	7003/tcp			# AFS volumelocation server
+afs3-vlserver	7003/udp			# AFS volumelocation server
+afs3-kaserver	7004/tcp			# AFS kerberos authentication server
+afs3-kaserver	7004/udp			# AFS kerberos authentication server
+afs3-volser	7005/tcp			# AFS volume server
+afs3-volser	7005/udp			# AFS volume server
+afs3-errors	7006/tcp			# AFS error interpretation service
+afs3-errors	7006/udp			# AFS error interpretation service
+afs3-bos	7007/tcp			# AFS basic overseer process
+afs3-bos	7007/udp			# AFS basic overseer process
+afs3-update	7008/tcp			# AFS server to server update
+afs3-update	7008/udp			# AFS server to server update
+afs3-rmtsys	7009/tcp			# AFS remote cache manager service
+afs3-rmtsys	7009/udp			# AFS remote cache manager service
+puppet		8140/tcp			# Puppet master service
+matrix-fed	8448/tcp			# Matrix Federation Protocol
+secure-mqtt	8883/tcp			# Secure MQTT
+ub-dns-control	8953/tcp			# unbound dns nameserver control
+git		9418/tcp			# git pack transfer service
+git		9418/udp			# git pack transfer service
+zabbix-agent	10050/tcp			# Zabbix Agent
+zabbix-agent	10050/udp			# Zabbix Agent
+zabbix-trapper	10051/tcp			# Zabbix Trapper
+zabbix-trapper	10051/udp			# Zabbix Trapper
+amt-soap-http	16992/tcp			# Intel AMT SOAP/HTTP
+amt-soap-http	16992/udp			# Intel AMT SOAP/HTTP
+amt-soap-https	16993/tcp			# Intel AMT SOAP/HTTPS
+amt-soap-https	16993/udp			# Intel AMT SOAP/HTTPS
+amt-redir-tcp	16994/tcp			# Intel AMT Redirection/TCP
+amt-redir-tcp	16994/udp			# Intel AMT Redirection/TCP
+amt-redir-tls	16995/tcp			# Intel AMT Redirection/TLS
+amt-redir-tls	16995/udp			# Intel AMT Redirection/TLS
+openwebnet	20005/tcp	xcept		# OpenWebNet protocol for electric network
+openwebnet	20005/udp	xcept		# OpenWebNet protocol for electric network
+#
+# Unofficial services
+#
+pop3pw		106/tcp		poppassd	# Eudora compatible PW changer
+kerberos-iv	750/udp		kdc		# Kerberos authentication--udp
+kerberos-iv	750/tcp		kdc		# Kerberos authentication--tcp
+kerberos_master	751/udp				# Kerberos 4 kadmin
+kerberos_master	751/tcp				# Kerberos 4 kadmin
+krb_prop	754/tcp		hprop		# Kerberos slave propagation
+krbupdate	760/tcp		kreg		# BSD Kerberos registration
+datametrics	1645/udp
+ekshell2	2106/tcp			# Encrypted kshell - UColorado, Boulder
+webster		2627/tcp			# Network dictionary
+conserver	3109/tcp			# console server
+canna		5680/tcp			# Kana->Kanji server
+sane-port	6566/tcp			# SANE Control Port
+icb		7326/tcp			# Internet Citizen's Band
+spamd		8025/tcp			# spamd(8)
+spamd-sync	8025/udp			# spamd(8) synchronisation
+spamd-cfg	8026/tcp			# spamd(8) configuration
+dhcpd-sync	8067/udp			# dhcpd(8) synchronisation
+jetdirect	9100/tcp			# raw printing
+hunt		26740/udp			# hunt(6)
+#
+# Appletalk
+#
+rtmp		1/ddp				# Routing Table Maintenance Protocol
+nbp		2/ddp				# Name Binding Protocol
+echo		4/ddp				# AppleTalk Echo Protocol
+zip		6/ddp				# Zone Information Protocol

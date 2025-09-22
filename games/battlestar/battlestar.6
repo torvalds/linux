@@ -1,0 +1,187 @@
+.\"	$OpenBSD: battlestar.6,v 1.19 2015/11/29 16:05:38 jmc Exp $
+.\"	$NetBSD: battlestar.6,v 1.4 1995/03/21 15:06:42 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)battlestar.6	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: November 29 2015 $
+.Dt BATTLESTAR 6
+.Os
+.Sh NAME
+.Nm battlestar
+.Nd a tropical adventure game
+.Sh SYNOPSIS
+.Nm battlestar
+.Op Fl r
+.Op Ar saved-file
+.Sh DESCRIPTION
+.Nm
+is an adventure game in the classic style.
+However, it's slightly less of a puzzle and more a game of exploration.
+There are a few magical words in the game, but on the whole, simple English
+should suffice to make one's desires understandable to the parser.
+.Sh THE SETTING
+In the days before the darkness came, when battlestars ruled the
+heavens...
+.Bd -literal -offset indent
+Three He made and gave them to His daughters,
+Beautiful nymphs, the goddesses of the waters.
+One to bring good luck and simple feats of wonder,
+Two to wash the lands and churn the waves asunder,
+Three to rule the world and purge the skies with thunder.
+.Ed
+.Pp
+In those times great wizards were known and their powers were beyond
+belief.
+They could take any object from thin air and, uttering the word
+.Sq su ,
+could disappear.
+.Pp
+In those times men were known for their lust for gold and desire to
+wear fine weapons.
+Swords and coats of mail were fashioned that could withstand a laser blast.
+.Pp
+But when the darkness fell, the rightful reigns were toppled.
+Swords and helms and heads of state went rolling across the grass.
+The entire fleet of battlestars was reduced to a single ship.
+.Sh SAMPLE COMMANDS
+.Bd -literal -offset indent
+take	---	take an object
+drop	---	drop an object
+
+wear	---	wear an object you are holding
+draw	---	carry an object you are wearing
+
+put on	---	take an object and wear it
+take off --	draw an object and drop it
+
+throw  <object> <direction>
+.Ed
+.Sh IMPLIED OBJECTS
+.Bd -literal -offset indent
+>-: take watermelon
+watermelon:
+Taken.
+>-: eat
+watermelon:
+Eaten.
+>-: take knife and sword and apple, drop all
+knife:
+Taken.
+broadsword:
+Taken.
+apple:
+Taken.
+knife:
+Dropped.
+broadsword:
+Dropped.
+apple:
+Dropped.
+>-: get
+knife:
+Taken.
+.Ed
+.Pp
+Notice that the
+.Dq shadow
+of the next word stays around if you want to take advantage of it.
+That is, saying
+.Dq take knife
+and then
+.Dq drop
+will drop the knife you just took.
+.Sh SCORE & INVEN
+The two commands
+.Dq score
+and
+.Dq inven
+will print out your current status in the game.
+.Sh SAVING A GAME
+The command
+.Dq save
+will save your game in a file called
+.Pa ~/Bstar
+by default.
+You can recover a saved game by using the
+.Fl r
+option when you start up the
+game, or by giving the name of the saved file as an argument.
+Save files will be saved to and restored from your home directory unless a
+path is specified \- i.e.,
+.Dq Li battlestar -r savedgame
+will look for
+.Pa ~/savedgame ,
+but
+.Dq Li battlestar -r ./savedgame
+will look in the current directory.
+.Dq Li battlestar -r
+will look for the default file,
+.Pa ~/Bstar .
+.Sh DIRECTIONS
+The compass directions N, S, E, and W can be used if you have a compass.
+If you don't have a compass, you'll have to say R, L, A, or B, which
+stand for Right, Left, Ahead, and Back.
+Directions printed in room descriptions are
+always printed in R, L, A, & B relative directions.
+.Sh ENVIRONMENT
+.Bl -tag -width $HOME/.battlestar.scores
+.It Ev LOGNAME
+Name to be recorded in high score file.
+.El
+.Sh FILES
+.Bl -tag -width $HOME/.battlestar.scores
+.It Pa $HOME/.battlestar.scores
+High score file.
+.El
+.Sh HISTORY
+I wrote Battlestar in 1979 in order to experiment with the niceties of
+the C Language.
+Most interesting things that happen in the game are hardwired into the
+code, so don't send me any hate mail about it!
+Instead, enjoy art for art's sake!
+.Sh AUTHORS
+.An David Riggle Aq Mt riggle.pa@xerox.arpa
+.Sh INSPIRATION & ASSISTANCE
+.Bl -item -compact
+.It
+Chris Guthrie
+.Pq Mt chris%ucbcory@berkeley.arpa
+.It
+Peter Da Silva
+.It
+Kevin Brown
+.It
+Edward Wang
+.Pq Mt edward%ucbarpa@berkeley.arpa
+.It
+Ken Arnold & Company
+.El
+.Sh BUGS
+Finite.

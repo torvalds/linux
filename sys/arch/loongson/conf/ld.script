@@ -1,0 +1,61 @@
+/*	$OpenBSD: ld.script,v 1.5 2021/02/18 16:27:07 visa Exp $	*/
+
+OUTPUT_FORMAT("elf64-tradlittlemips")
+OUTPUT_ARCH(mips)
+ENTRY(__start)
+
+PHDRS
+{
+	text PT_LOAD;
+	openbsd_randomize PT_OPENBSD_RANDOMIZE;
+}
+
+SECTIONS
+{
+	.text :
+	{
+		*(.text .text.* .gnu.linkonce.t.*)
+	} :text
+	PROVIDE (etext = .);
+	.rodata :
+	{
+		*(.rodata .rodata.* .gnu.linkonce.r.*)
+	} :text
+
+	. = ALIGN(8);
+	PROVIDE (__kernel_randomdata = .);
+	.openbsd.randomdata :
+	{
+		__retguard_start = ABSOLUTE(.);
+		*(.openbsd.randomdata.retguard .openbsd.randomdata.retguard.*)
+		/* XXX . = ALIGN(0x1000); */
+		__retguard_end = ABSOLUTE(.);
+		*(.openbsd.randomdata .openbsd.randomdata.*)
+	} :text :openbsd_randomize
+	. = ALIGN(8);
+	PROVIDE (__kernel_randomdata_end = .);
+
+	.data :
+	{
+		*(.data .data.* .gnu.linkonce.d.*)
+	} :text
+	PROVIDE (edata = .);
+	.sbss :
+	{
+		*(.sbss .sbss.* .gnu.linkonce.sb.* .scommon)
+	}
+	.bss :
+	{
+		*(.bss .bss.* .gnu.linkonce.b.* COMMON)
+	}
+	. = ALIGN(8);
+	PROVIDE (_end = .);
+	PROVIDE (end = .);
+
+	/DISCARD/ :
+	{
+		*(.pdr)
+		*(.mdebug.abi64)
+		*(.MIPS.options)
+	}
+}

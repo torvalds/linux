@@ -1,0 +1,11 @@
+# RUN: : first line continued \
+# RUN:   to second line
+# RUN: echo 'foo bar' \
+# RUN: | FileCheck %s
+# RUN: echo \
+# RUN: 'foo baz' \
+# RUN: | FileCheck %s
+# RUN: echo 'foo bar' \
+# RUN: | FileCheck %s
+
+# CHECK: foo bar

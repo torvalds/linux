@@ -1,0 +1,271 @@
+.\" $OpenBSD: rwlock.9,v 1.30 2025/08/05 14:25:11 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 Pedro Martelletto <pedro@ambientworks.net>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 5 2025 $
+.Dt RWLOCK 9
+.Os
+.Sh NAME
+.Nm rwlock ,
+.Nm rw_init ,
+.Nm rw_init_flags ,
+.Nm rw_init_flags_trace ,
+.Nm rw_enter ,
+.Nm rw_exit ,
+.Nm rw_enter_read ,
+.Nm rw_enter_write ,
+.Nm rw_exit_read ,
+.Nm rw_exit_write ,
+.Nm rw_assert_wrlock ,
+.Nm rw_assert_rdlock ,
+.Nm rw_assert_anylock ,
+.Nm rw_assert_unlocked ,
+.Nm rw_status ,
+.Nm RWLOCK_INITIALIZER ,
+.Nm RWLOCK_INITIALIZER_TRACE ,
+.Nm rrw_init ,
+.Nm rrw_init_flags ,
+.Nm rrw_enter ,
+.Nm rrw_exit ,
+.Nm rrw_status
+.Nd interface to read/write locks
+.Sh SYNOPSIS
+.In sys/rwlock.h
+.Ft void
+.Fn rw_init "struct rwlock *rwl" "const char *name"
+.Ft void
+.Fn rw_init_flags "struct rwlock *rwl" "const char *name" "int flags"
+.Ft void
+.Fo rw_init_flags_trace
+.Fa "struct rwlock *rwl"
+.Fa "const char *name"
+.Fa "int flags"
+.Fa "int trace"
+.Fc
+.Ft int
+.Fn rw_enter "struct rwlock *rwl" "int flags"
+.Ft void
+.Fn rw_exit "struct rwlock *rwl"
+.Ft void
+.Fn rw_enter_read "struct rwlock *rwl"
+.Ft void
+.Fn rw_enter_write "struct rwlock *rwl"
+.Ft void
+.Fn rw_exit_read "struct rwlock *rwl"
+.Ft void
+.Fn rw_exit_write "struct rwlock *rwl"
+.Ft void
+.Fn rw_assert_wrlock "struct rwlock *rwl"
+.Ft void
+.Fn rw_assert_rdlock "struct rwlock *rwl"
+.Ft void
+.Fn rw_assert_anylock "struct rwlock *rwl"
+.Ft void
+.Fn rw_assert_unlocked "struct rwlock *rwl"
+.Ft int
+.Fn rw_status "struct rwlock *rwl"
+.Fn RWLOCK_INITIALIZER "const char *name"
+.Fn RWLOCK_INITIALIZER_TRACE "const char *name" "int trace"
+.Ft void
+.Fn rrw_init "struct rrwlock *rrwl" "const char *name"
+.Ft void
+.Fn rrw_init_flags "struct rrwlock *rrwl" "const char *name" "int flags"
+.Ft int
+.Fn rrw_enter "struct rrwlock *rrwl" "int flags"
+.Ft void
+.Fn rrw_exit "struct rrwlock *rrwl"
+.Ft int
+.Fn rrw_status "struct rrwlock *rrwl"
+.Sh DESCRIPTION
+The
+.Nm
+set of functions provides a multiple-reader, single-writer locking mechanism to
+ensure mutual exclusion between different threads.
+.Pp
+Read locks can be acquired while the write lock is not held, and may coexist in
+distinct threads at any time.
+A write lock, however, can only be acquired when there are no read locks held,
+granting exclusive access to a single thread.
+.Pp
+The
+.Fn rw_init
+function is used to initiate the lock pointed to by
+.Fa rwl .
+The
+.Fa name
+argument specifies the name of the lock, which is used as the wait message
+if the thread needs to sleep.
+.Pp
+The
+.Fn rw_init_flags
+macro is similar to
+.Fn rw_init ,
+but it additionally accepts a bitwise OR of the following flags:
+.Bl -tag -width RWL_NOWITNESS -offset indent
+.It Dv RWL_DUPOK
+Prevents
+.Xr witness 4
+from logging when a thread acquires more than one lock of this lock type.
+.It Dv RWL_IS_VNODE
+Make
+.Xr witness 4
+ignore lock order issues between this lock type and any other lock type
+tagged with the
+.Dv RWL_IS_VNODE
+flag.
+.It Dv RWL_NOWITNESS
+Instructs
+.Xr witness 4
+to ignore this lock.
+.El
+.Fn rw_init_flags_trace
+additionally accepts a
+.Xr dt 4
+static probe index.
+.Pp
+The
+.Fn rw_enter
+function acquires a lock.
+The
+.Fa flags
+argument specifies what kind of lock should be obtained and also
+modifies the operation.
+The possible flags are:
+.Pp
+.Bl -tag -offset indent -width RW_DOWNGRADEXXX -compact
+.It Dv RW_READ
+Acquire a shared lock.
+.It Dv RW_WRITE
+Acquire an exclusive lock.
+.It Dv RW_DOWNGRADE
+Safely release an exclusive lock and acquire a shared lock without
+letting other exclusive locks in between.
+.It Dv RW_UPGRADE
+Upgrade a shared lock into an exclusive one.
+Must be combined with
+.Dv RW_NOSLEEP .
+.It Dv RW_INTR
+When waiting for a lock, allow signals to interrupt the sleep.
+.It Dv RW_NOSLEEP
+Do not wait for busy locks, fail with
+.Dv EBUSY
+instead.
+.It Dv RW_DUPOK
+Prevents
+.Xr witness 4 ,
+for just this
+.Fn rw_enter ,
+from logging when this thread already has a lock of this lock type.
+.El
+.Pp
+The
+.Fn rw_exit
+function is used to release a held lock.
+.Pp
+The
+.Fn rw_enter_read
+function acquires a read lock, sleeping if necessary.
+.Pp
+The
+.Fn rw_enter_write
+function acquires a write lock, sleeping if necessary.
+.Pp
+The
+.Fn rw_exit_read
+function releases a read lock.
+.Pp
+The
+.Fn rw_exit_write
+function releases a write lock.
+.Pp
+The
+.Fn rw_assert_wrlock ,
+.Fn rw_assert_rdlock ,
+.Fn rw_assert_anylock ,
+and
+.Fn rw_assert_unlocked
+functions check the status
+.Fa rwl ,
+panicking if it is not write-, read-, any-, or unlocked, respectively.
+.Pp
+.Nm rw_status
+returns the current state of the lock.
+.Pp
+A lock declaration may be initialised with the
+.Fn RWLOCK_INITIALIZER
+macro.
+The
+.Fa name
+argument specifies the name of the lock, which is used as the wait message
+if the thread needs to sleep.
+.Fn RWLOCK_INITIALIZER_TRACE
+additionally accepts a
+.Xr dt 4
+static probe index.
+.Pp
+The
+.Nm rrwlock
+functions support recursive write locking by the same process.
+They otherwise behave the same as their rwlock counterparts.
+.Sh CONTEXT
+.Fn rw_init ,
+.Fn rw_init_flags ,
+.Fn rw_init_flags_trace ,
+.Fn rrw_init
+and
+.Fn rrw_init_flags
+can be called during autoconf, from process context, or from interrupt context.
+.Pp
+All other functions can be called during autoconf or from process context.
+.Sh RETURN VALUES
+.Nm rw_enter
+and
+.Nm rrw_enter
+return 0 on success, or an
+.Xr errno 2
+style value on failure.
+.Pp
+.Nm rw_status
+and
+.Nm rrw_status
+return the state of the lock:
+.Pp
+.Bl -tag -width "RW_WRITE_OTHER" -offset indent -compact
+.It Dv RW_WRITE
+Lock is write locked by the calling thread.
+.It Dv RW_WRITE_OTHER
+Lock is write locked by a different thread.
+.It Dv RW_READ
+Lock is read locked.
+The current thread may be one of the threads that has it locked.
+.It 0
+Lock is not locked.
+.El
+.Sh SEE ALSO
+.Xr witness 4 ,
+.Xr mutex 9 ,
+.Xr rwsleep 9 ,
+.Xr spl 9
+.Sh HISTORY
+The
+.Nm
+functions first appeared in
+.Ox 3.5 .
+.Sh AUTHORS
+The
+.Nm
+functions were written by
+.An Artur Grabowski Aq Mt art@openbsd.org .

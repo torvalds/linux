@@ -1,0 +1,390 @@
+.\"	$OpenBSD: d2i_RSAPublicKey.3,v 1.14 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL bb9ad09e Jun 6 00:43:05 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Ulf Moeller <ulf@openssl.org> and
+.\" Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2003, 2009, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_RSAPUBLICKEY 3
+.Os
+.Sh NAME
+.Nm d2i_RSAPublicKey ,
+.Nm i2d_RSAPublicKey ,
+.Nm d2i_RSAPrivateKey ,
+.Nm i2d_RSAPrivateKey ,
+.Nm d2i_Netscape_RSA ,
+.Nm i2d_Netscape_RSA ,
+.Nm d2i_RSA_PSS_PARAMS ,
+.Nm i2d_RSA_PSS_PARAMS ,
+.Nm d2i_RSAPublicKey_bio ,
+.Nm d2i_RSAPublicKey_fp ,
+.Nm i2d_RSAPublicKey_bio ,
+.Nm i2d_RSAPublicKey_fp ,
+.Nm d2i_RSAPrivateKey_bio ,
+.Nm d2i_RSAPrivateKey_fp ,
+.Nm i2d_RSAPrivateKey_bio ,
+.Nm i2d_RSAPrivateKey_fp ,
+.Nm d2i_RSA_PUBKEY ,
+.Nm i2d_RSA_PUBKEY ,
+.Nm d2i_RSA_PUBKEY_bio ,
+.Nm d2i_RSA_PUBKEY_fp ,
+.Nm i2d_RSA_PUBKEY_bio ,
+.Nm i2d_RSA_PUBKEY_fp
+.Nd decode and encode RSA keys and parameters
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft RSA *
+.Fo d2i_RSAPublicKey
+.Fa "RSA **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_RSAPublicKey
+.Fa "RSA *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft RSA *
+.Fo d2i_RSAPrivateKey
+.Fa "RSA **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_RSAPrivateKey
+.Fa "RSA *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft RSA *
+.Fo d2i_Netscape_RSA
+.Fa "RSA **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fa "int (*cb)()"
+.Fc
+.Ft int
+.Fo i2d_Netscape_RSA
+.Fa "RSA *val_in"
+.Fa "unsigned char **der_out"
+.Fa "int (*cb)()"
+.Fc
+.Ft RSA_PSS_PARAMS *
+.Fo d2i_RSA_PSS_PARAMS
+.Fa "RSA_PSS_PARAMS **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_RSA_PSS_PARAMS
+.Fa "RSA_PSS_PARAMS *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.In openssl/x509.h
+.Ft RSA *
+.Fo d2i_RSAPublicKey_bio
+.Fa "BIO *in_bio"
+.Fa "RSA **val_out"
+.Fc
+.Ft RSA *
+.Fo d2i_RSAPublicKey_fp
+.Fa "FILE *in_fp"
+.Fa "RSA **val_out"
+.Fc
+.Ft int
+.Fo i2d_RSAPublicKey_bio
+.Fa "BIO *out_bio"
+.Fa "RSA *val_in"
+.Fc
+.Ft int
+.Fo i2d_RSAPublicKey_fp
+.Fa "FILE *out_fp"
+.Fa "RSA *val_in"
+.Fc
+.Ft RSA *
+.Fo d2i_RSAPrivateKey_bio
+.Fa "BIO *in_bio"
+.Fa "RSA **val_out"
+.Fc
+.Ft RSA *
+.Fo d2i_RSAPrivateKey_fp
+.Fa "FILE *in_fp"
+.Fa "RSA **val_out"
+.Fc
+.Ft int
+.Fo i2d_RSAPrivateKey_bio
+.Fa "BIO *out_bio"
+.Fa "RSA *val_in"
+.Fc
+.Ft int
+.Fo i2d_RSAPrivateKey_fp
+.Fa "FILE *out_fp"
+.Fa "RSA *val_in"
+.Fc
+.Ft RSA *
+.Fo d2i_RSA_PUBKEY
+.Fa "RSA **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_RSA_PUBKEY
+.Fa "RSA *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft RSA *
+.Fo d2i_RSA_PUBKEY_bio
+.Fa "BIO *in_bio"
+.Fa "RSA **val_out"
+.Fc
+.Ft RSA *
+.Fo d2i_RSA_PUBKEY_fp
+.Fa "FILE *in_fp"
+.Fa "RSA **val_out"
+.Fc
+.Ft int
+.Fo i2d_RSA_PUBKEY_bio
+.Fa "BIO *out_bio"
+.Fa "RSA *val_in"
+.Fc
+.Ft int
+.Fo i2d_RSA_PUBKEY_fp
+.Fa "FILE *out_fp"
+.Fa "RSA *val_in"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode RSA private and public keys.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_RSAPublicKey
+and
+.Fn i2d_RSAPublicKey
+decode and encode a PKCS#1
+.Vt RSAPublicKey
+structure defined in RFC 8017 appendix A.1.1.
+.Fn d2i_RSAPublicKey_bio ,
+.Fn d2i_RSAPublicKey_fp ,
+.Fn i2d_RSAPublicKey_bio ,
+and
+.Fn i2d_RSAPublicKey_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn d2i_RSAPrivateKey
+and
+.Fn i2d_RSAPrivateKey
+decode and encode a PKCS#1
+.Vt RSAPrivateKey
+structure defined in RFC 8017 appendix A.1.2.
+The
+.Vt RSA
+structure passed to the private key encoding functions should have
+all the PKCS#1 private key components present.
+The data encoded by the private key functions is unencrypted and
+therefore offers no private key security.
+.Fn d2i_RSAPrivateKey_bio ,
+.Fn d2i_RSAPrivateKey_fp ,
+.Fn i2d_RSAPrivateKey_bio ,
+and
+.Fn i2d_RSAPrivateKey_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn d2i_Netscape_RSA
+and
+.Fn i2d_Netscape_RSA
+decode and encode an RSA private key in NET format.
+These functions are present to provide compatibility with
+certain very old software.
+The NET format has some severe security weaknesses and should be
+avoided if possible.
+.Pp
+.Fn d2i_RSA_PSS_PARAMS
+and
+.Fn i2d_RSA_PSS_PARAMS
+decode and encode a PKCS#1
+.Vt RSASSA-PSS-params
+structure defined in RFC 8017 appendix A.2.3 and documented in
+.Xr RSA_PSS_PARAMS_new 3 .
+.Pp
+.Fn d2i_RSA_PUBKEY
+and
+.Fn i2d_RSA_PUBKEY
+decode and encode an RSA public key using an ASN.1
+.Vt SubjectPublicKeyInfo
+structure defined in RFC 5280 section 4.1 and documented in
+.Xr X509_PUBKEY_new 3 .
+.Fn d2i_RSA_PUBKEY_bio ,
+.Fn d2i_RSA_PUBKEY_fp ,
+.Fn i2d_RSA_PUBKEY_bio ,
+and
+.Fn i2d_RSA_PUBKEY_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Sh RETURN VALUES
+.Fn d2i_RSAPublicKey ,
+.Fn d2i_RSAPublicKey_bio ,
+.Fn d2i_RSAPublicKey_fp ,
+.Fn d2i_RSAPrivateKey ,
+.Fn d2i_RSAPrivateKey_bio ,
+.Fn d2i_RSAPrivateKey_fp ,
+.Fn d2i_Netscape_RSA ,
+.Fn d2i_RSA_PUBKEY ,
+.Fn d2i_RSA_PUBKEY_bio ,
+and
+.Fn d2i_RSA_PUBKEY_fp
+return a valid
+.Vt RSA
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn d2i_RSA_PSS_PARAMS
+returns a valid
+.Vt RSA_PSS_PARAMS
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_RSAPublicKey ,
+.Fn i2d_RSAPrivateKey ,
+.Fn i2d_Netscape_RSA ,
+.Fn i2d_RSA_PSS_PARAMS ,
+and
+.Fn i2d_RSA_PUBKEY
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Pp
+.Fn i2d_RSAPublicKey_bio ,
+.Fn i2d_RSAPublicKey_fp ,
+.Fn i2d_RSAPrivateKey_bio ,
+.Fn i2d_RSAPrivateKey_fp ,
+.Fn i2d_RSA_PUBKEY_bio ,
+and
+.Fn i2d_RSA_PUBKEY_fp
+return 1 for success or 0 if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr EVP_PKEY_set1_RSA 3 ,
+.Xr PEM_write_RSAPrivateKey 3 ,
+.Xr RSA_new 3 ,
+.Xr RSA_PSS_PARAMS_new 3 ,
+.Xr X509_PUBKEY_new 3
+.Sh STANDARDS
+RFC 8017: PKCS #1: RSA Cryptography Specifications
+.Pp
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile,
+section 4.1: Basic Certificate Fields
+.Sh HISTORY
+.Fn d2i_RSAPublicKey ,
+.Fn i2d_RSAPublicKey ,
+.Fn d2i_RSAPrivateKey ,
+.Fn i2d_RSAPrivateKey ,
+.Fn d2i_RSAPrivateKey_fp ,
+.Fn i2d_RSAPrivateKey_fp ,
+.Fn d2i_Netscape_RSA ,
+and
+.Fn i2d_Netscape_RSA
+first appeared in SSLeay 0.5.1.
+.Fn d2i_RSAPrivateKey_bio
+and
+.Fn i2d_RSAPrivateKey_bio
+first appeared in SSLeay 0.6.0.
+.Fn d2i_RSAPublicKey_bio ,
+.Fn d2i_RSAPublicKey_fp ,
+.Fn i2d_RSAPublicKey_bio ,
+and
+.Fn i2d_RSAPublicKey_fp
+first appeared in SSLeay 0.8.1.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn d2i_RSA_PUBKEY ,
+.Fn i2d_RSA_PUBKEY ,
+.Fn d2i_RSA_PUBKEY_bio ,
+.Fn d2i_RSA_PUBKEY_fp ,
+.Fn i2d_RSA_PUBKEY_bio ,
+and
+.Fn i2d_RSA_PUBKEY_fp
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn d2i_RSA_PSS_PARAMS
+and
+.Fn i2d_RSA_PSS_PARAMS
+first appeared in OpenSSL 1.0.1 and have been available since
+.Ox 5.3 .

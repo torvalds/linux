@@ -1,0 +1,285 @@
+.\"	$OpenBSD: printcap.5,v 1.30 2025/08/09 02:03:33 deraadt Exp $
+.\"	$NetBSD: printcap.5,v 1.7 1998/02/20 12:24:50 hubertf Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)printcap.5	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: August 9 2025 $
+.Dt PRINTCAP 5
+.Os
+.Sh NAME
+.Nm printcap
+.Nd printer capability database
+.Sh DESCRIPTION
+The
+.Nm
+file is a simplified version of the
+.Xr termcap 5
+database used to describe line printers.
+The spooling system accesses the
+.Nm
+file every time it is used, allowing dynamic addition and deletion of printers.
+Each entry in the database is used to describe one printer.
+This database may not be substituted for, as is possible for
+.Xr termcap 5 ,
+because it may allow accounting to be bypassed.
+.Pp
+The default printer is normally
+.Dq lp ,
+though the environment variable
+.Ev PRINTER
+may be used to override this.
+Each spooling utility supports an option,
+.Fl P Ns Ar printer ,
+to allow explicit naming of a destination printer.
+.Pp
+Refer to the
+.%T "4.3 BSD Line Printer Spooler Manual"
+for a complete discussion on how to set up the database for a given printer.
+.Sh CAPABILITIES
+Refer to
+.Xr termcap 5
+for a description of the file layout.
+.Bl -column "Name" "Type" "/var/spool/output/lpd" "Description"
+.It Sy Name Ta Sy Type Ta Sy Default Ta Sy Description
+.It "af	str" Ta Dv NULL Ta "name of accounting file"
+.It "br" Ta "num" Ta "none" Ta "if lp is a tty, set baud rate"
+.Pf ( Xr ioctl 2
+call)
+.It "cf" Ta "str" Ta Dv NULL Ta "cifplot data filter"
+.It "df" Ta "str" Ta Dv NULL Ta "tex data filter (DVI format)"
+.It "ff" Ta "str" Ta So Li \ef Sc Ta "string to send for a form feed"
+.It "fo" Ta "bool" Ta "false" Ta "print a form feed when device is opened"
+.It "gf" Ta "str" Ta Dv NULL Ta "graph data filter"
+.Pf ( Xr plot 3
+format)
+.It "hl" Ta "bool" Ta "false" Ta "print the burst header page last"
+.It "ic" Ta "bool" Ta "false" Ta "supports non-standard ioctl to indent printout"
+.It "if" Ta "str" Ta Dv NULL Ta "name of text filter which does accounting"
+.It "lf" Ta "str" Ta Pa /dev/console Ta "error logging file name"
+.It "lo" Ta "str" Ta Pa lock Ta "name of lock file"
+.It "lp" Ta "str" Ta Pa /dev/lp Ta "local printer device, or port@host for remote"
+.It "mc" Ta "num" Ta "0" Ta "maximum number of copies allowed; 0=unlimited"
+.It "ms" Ta "str" Ta Dv NULL Ta "if lp is a tty, a comma-separated,"
+.Xr stty 1 Ns -like
+list describing the tty modes
+.It "mx" Ta "num" Ta "0" Ta "max file size (in"
+.Dv BUFSIZ
+blocks); 0=unlimited
+.It "nd" Ta "str" Ta Dv NULL Ta "next directory for queues list (unimplemented)"
+.It "nf" Ta "str" Ta Dv NULL Ta "ditroff data filter (device independent troff)"
+.It "of" Ta "str" Ta Dv NULL Ta "name of output filtering program"
+.It "pc" Ta "num" Ta "200" Ta "price per foot or page in hundredths of cents"
+.It "pl" Ta "num" Ta "66" Ta "page length (in lines)"
+.It "pw" Ta "num" Ta "132" Ta "page width (in characters)"
+.It "px" Ta "num" Ta "0" Ta "page width in pixels (horizontal)"
+.It "py" Ta "num" Ta "0" Ta "page length in pixels (vertical)"
+.It "rf" Ta "str" Ta Dv NULL Ta "filter for printing FORTRAN style text files"
+.It "rg" Ta "str" Ta Dv NULL Ta "restricted group-only group members can access"
+.It "rm" Ta "str" Ta Dv NULL Ta "machine name for remote printer"
+.It "rp" Ta "str" Ta "``lp''" Ta "remote printer name argument"
+.It "rs" Ta "bool" Ta "false" Ta "remote users must have a local account"
+.It "rw" Ta "bool" Ta "false" Ta "open printer device for reading and writing"
+.It "sb" Ta "bool" Ta "false" Ta "short banner (one line only)"
+.It "sc" Ta "bool" Ta "false" Ta "suppress multiple copies"
+.It "sd" Ta "str" Ta Pa /var/spool/output/lpd Ta "spool directory"
+.It "sf" Ta "bool" Ta "false" Ta "suppress form feeds"
+.It "sh" Ta "bool" Ta "false" Ta "suppress printing of burst page header"
+.It "st" Ta "str" Ta Pa status Ta "status file name"
+.It "tf" Ta "str" Ta Dv NULL Ta "troff data filter (C/A/T phototypesetter)"
+.It "tr" Ta "str" Ta Dv NULL Ta "trailer string to print when queue empties"
+.It "vf" Ta "str" Ta Dv NULL Ta "raster image filter"
+.El
+.Pp
+The classic port number used for remote printing is
+.Vt printer
+(515).
+Many newer printers work better with
+.Vt jetdirect
+(9100).
+.Pp
+If the local line printer driver supports indentation, the daemon
+must understand how to invoke it.
+.Sh FILTERS
+If a printer is specified via
+.Sy lp
+(either local or remote),
+the
+.Xr lpd 8
+daemon creates a pipeline of
+.Dq filters
+to process files for various printer types.
+The pipeline is not set up for remote printers specified via
+.Sy rm
+unless the local host is the same as the remote printer host given.
+The filters selected depend on the flags passed to
+.Xr lpr 1 .
+The pipeline set up is:
+.Bd -literal -offset indent
+p	pr | if	regular text + pr(1)
+none	if	regular text
+c	cf	cifplot
+d	df	DVI (tex)
+g	gf	plot(3)
+n	nf	ditroff
+f	rf	Fortran
+t	tf	troff
+v	vf	raster image
+.Ed
+.Pp
+The
+.Sy if
+filter is invoked with arguments:
+.Bd -filled -offset indent
+.Sy if
+.Op Fl c
+.Fl w Ns Ar width
+.Fl l Ns Ar length
+.Fl i Ns Ar indent
+.Fl n Ar login
+.Fl h Ar host acct-file
+.Ed
+.Pp
+The
+.Fl c
+flag is passed only if the
+.Fl l
+flag (pass control characters literally) is specified to
+.Xr lpr 1 .
+.Ar width
+and
+.Ar length
+specify the page width and length
+(from
+.Sy pw
+and
+.Sy pl ,
+respectively) in characters.
+The
+.Fl n
+and
+.Fl h
+parameters specify the login name and host name of the owner
+of the job, respectively.
+The
+.Ar acct-file
+function is passed from the
+.Sy af
+.Nm
+entry.
+.Pp
+If no
+.Sy if
+is specified,
+.Sy of
+is used instead, with the distinction that
+.Sy of
+is opened only once, while
+.Sy if
+is opened for every individual job.
+Thus,
+.Sy if
+is better suited to performing accounting.
+The
+.Sy of
+is only given the
+.Ar width
+and
+.Ar length
+flags.
+.Pp
+All other filters are called as:
+.Bd -filled -offset indent
+.Nm filter
+.Fl x Ns Ar width
+.Fl y Ns Ar length
+.Fl n Ar login
+.Fl h Ar host acct-file
+.Ed
+.Pp
+where
+.Ar width
+and
+.Ar length
+are represented in pixels, specified by the
+.Sy px
+and
+.Sy py
+entries, respectively.
+All filters take
+.Em stdin
+as the file,
+.Em stdout
+as the printer,
+may log either to
+.Em stderr
+or using
+.Xr syslog 3 ,
+and must not ignore
+.Dv SIGINT .
+.Sh LOGGING
+Error messages generated by the line printer programs themselves
+are logged by
+.Xr syslog 3
+using the
+.Dv LPR
+facility.
+Messages printed on
+.Em stderr
+by the filters are sent to the corresponding
+.Sy lf
+file.
+The filters may, of course, use
+.Xr syslog 3
+themselves.
+.Pp
+Error messages sent to the console have a carriage return and a line
+feed appended to them, rather than just a line feed.
+.Sh FILES
+.Bl -tag -width /etc/examples/printcap -compact
+.It Pa /etc/printcap
+Default location of the database file.
+.It Pa /etc/examples/printcap
+Example database file.
+.El
+.Sh SEE ALSO
+.Xr lpq 1 ,
+.Xr lpr 1 ,
+.Xr lprm 1 ,
+.Xr termcap 5 ,
+.Xr lpc 8 ,
+.Xr lpd 8
+.Rs
+.%T "4.3 BSD Line Printer Spooler Manual"
+.Re
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.2 .

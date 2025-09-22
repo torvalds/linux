@@ -1,0 +1,15 @@
+# load tables from file
+pass load table <regress> persist file "DIR/pfr.addrs1"
+pass show
+pass load table <regress> persist file "DIR/pfr.addrs1" file "DIR/pfr.addrs2"
+pass show
+pass load table <regress> persist file "DIR/pfr.addrs3"
+pass show
+pass load table <regress> persist file "DIR/pfr.addrs1" file "DIR/pfr.addrs3"
+pass show
+pass load table <regress> persist { !127.0.0.1 } file "DIR/pfr.addrs1"
+pass show
+pass load table <regress> persist file "DIR/pfr.addrs1" { 3.3.3.3 }
+pass show
+pass load table <regress> persist { 11/8 } file "DIR/pfr.addrs3" { !12/8 }
+pass show

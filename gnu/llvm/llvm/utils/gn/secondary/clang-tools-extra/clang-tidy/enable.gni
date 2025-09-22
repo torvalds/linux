@@ -1,0 +1,4 @@
+declare_args() {
+  # Whether to include the static analyzer in the clang-tidy binary.
+  clang_tidy_enable_static_analyzer = true
+}

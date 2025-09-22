@@ -1,0 +1,59 @@
+.\"	$OpenBSD: urng.4,v 1.5 2018/04/28 15:44:59 jasper Exp $
+.\"
+.\" Copyright (c) 2015 Sean Levy <attila@stalphonsos.com>
+.\" Copyright (c) 2017 Jasper Lievisse Adriaanse <jasper@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 28 2018 $
+.Dt URNG 4
+.Os
+.Sh NAME
+.Nm urng
+.Nd USB Random Number Generator devices
+.Sh SYNOPSIS
+.Cd "urng* at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various true random number generator
+(TRNG) devices connected via USB.
+.Nm
+reads raw entropy from the device at a (hardware dependent) interval
+and stirs it into the system entropy pool with
+.Xr enqueue_randomness 9 .
+.Sh HARDWARE
+The following devices are supported by this driver:
+.Bl -tag -width "Altus Metrum"
+.It Araneus Alea I and II
+Capable of delivering 100kbit/sec of hardware-generated entropy.
+.It Altus Metrum ChaosKey 1.0
+This device is capable of providing entropy at 10Mbit/s.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr usb 4 ,
+.Xr enqueue_randomness 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.2 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Aaron Bieber Aq Mt abieber@openbsd.org ,
+.An Jasper Lievisse Adriaanse Aq Mt jasper@openbsd.org ,
+and
+.An Sean Levy Aq Mt attila@stalphonsos.com .

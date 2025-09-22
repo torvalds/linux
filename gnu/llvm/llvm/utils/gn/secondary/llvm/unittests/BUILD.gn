@@ -1,0 +1,120 @@
+import("//llvm/lib/Target/targets.gni")
+
+group("unittests") {
+  deps = [
+    "ADT:ADTTests",
+    "Analysis:AnalysisTests",
+    "AsmParser:AsmParserTests",
+    "BinaryFormat:BinaryFormatTests",
+    "Bitcode:BitcodeTests",
+    "Bitstream:BitstreamTests",
+    "CodeGen:CodeGenTests",
+    "CodeGen/GlobalISel:GlobalISelTests",
+    "CodeGenData:CodeGenDataTests",
+    "DWARFLinkerParallel:DWARFLinkerParallelTests",
+    "DebugInfo/BTF:DebugInfoBTFTests",
+    "DebugInfo/CodeView:DebugInfoCodeViewTests",
+    "DebugInfo/DWARF:DebugInfoDWARFTests",
+    "DebugInfo/GSYM:DebugInfoGSYMTests",
+    "DebugInfo/LogicalView:DebugInfoLogicalViewTests",
+    "DebugInfo/MSF:DebugInfoMSFTests",
+    "DebugInfo/PDB:DebugInfoPDBTests",
+    "DebugInfo/Symbolizer:DebugInfoSymbolizerTests",
+    "Debuginfod:DebuginfodTests",
+    "Demangle:DemangleTests",
+    "ExecutionEngine:ExecutionEngineTests",
+    "ExecutionEngine/JITLink:JITLinkTests",
+    "ExecutionEngine/MCJIT:MCJITTests",
+    "ExecutionEngine/Orc:OrcJITTests",
+    "FileCheck:FileCheckTests",
+    "Frontend:LLVMFrontendTests",
+    "FuzzMutate:FuzzMutateTests",
+    "IR:IRTests",
+    "InterfaceStub:InterfaceStubTests",
+    "LineEditor:LineEditorTests",
+    "Linker:LinkerTests",
+    "MC:MCTests",
+    "MI:MITests",
+    "MIR:MIRTests",
+    "ObjCopy:ObjCopyTests",
+    "Object:ObjectTests",
+    "ObjectYAML:ObjectYAMLTests",
+    "Option:OptionTests",
+    "Passes/PassBuilderBindings:PassesBindingsTests",
+    "Passes/Plugins:PluginsTests",
+    "ProfileData:ProfileDataTests",
+    "Remarks:RemarksTests",
+    "SandboxIR:SandboxIRTests",
+    "Support:SupportTests",
+    "Support/DynamicLibrary:DynamicLibraryTests",
+    "TableGen:TableGenTests",
+    "Target:TargetMachineCTests",
+    "TargetParser:TargetParserTests",
+    "Testing/ADT:TestingADTTests",
+    "Testing/Support:TestingSupportTests",
+    "TextAPI:TextAPITests",
+    "Transforms/Coroutines:CoroTests",
+    "Transforms/IPO:IPOTests",
+    "Transforms/Instrumentation:InstrumentationTests",
+    "Transforms/Scalar:ScalarTests",
+    "Transforms/Utils:UtilsTests",
+    "Transforms/Vectorize:VectorizeTests",
+    "XRay:XRayTests",
+    "tools/llvm-cfi-verify:CFIVerifyTests",
+    "tools/llvm-exegesis:LLVMExegesisTests",
+    "tools/llvm-mca:LLVMMCATests",
+    "tools/llvm-profdata:LLVMProfdataTests",
+    "tools/llvm-profgen:LLVMProfgenTests",
+    "//llvm/lib/TargetParser",
+  ]
+
+  # Target-dependent unit tests.
+  # FIXME: This matches how they are set up in the cmake build,
+  # but if we disable an arch after building with it on, this
+  # setup leaves behind stale executables.
+  if (llvm_build_AArch64) {
+    deps += [
+      "Target/AArch64:AArch64Tests",
+      "tools/llvm-exegesis/AArch64:LLVMExegesisAArch64Tests",
+    ]
+  }
+  if (llvm_build_AMDGPU) {
+    deps += [
+      "MC/AMDGPU:AMDGPUMCTests",
+      "Target/AMDGPU:AMDGPUTests",
+    ]
+  }
+  if (llvm_build_ARM) {
+    deps += [ "Target/ARM:ARMTests" ]
+  }
+  if (llvm_build_LoongArch) {
+    deps += [ "Target/LoongArch:LoongArchTests" ]
+  }
+  if (llvm_build_Mips) {
+    deps += [ "tools/llvm-exegesis/Mips:LLVMExegesisMipsTests" ]
+  }
+  if (llvm_build_PowerPC) {
+    deps += [
+      "Target/PowerPC:PowerPCTests",
+      "tools/llvm-exegesis/PowerPC:LLVMExegesisPowerPCTests",
+    ]
+  }
+  if (llvm_build_RISCV) {
+    deps += [ "Target/RISCV:RISCVTests" ]
+  }
+  if (llvm_build_SystemZ) {
+    deps += [ "MC/SystemZ:SystemZAsmLexerTests" ]
+  }
+  if (llvm_build_WebAssembly) {
+    deps += [ "Target/WebAssembly:WebAssemblyTests" ]
+  }
+  if (llvm_build_X86) {
+    deps += [
+      "MC/X86:X86MCTests",
+      "Target/X86:X86Tests",
+      "tools/llvm-exegesis/X86:LLVMExegesisX86Tests",
+    ]
+  }
+
+  testonly = true
+}

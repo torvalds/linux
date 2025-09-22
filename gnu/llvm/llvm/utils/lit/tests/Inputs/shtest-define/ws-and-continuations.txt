@@ -1,0 +1,135 @@
+# Empty values are permitted and reasonable, especially when just establishing
+# expansion order.
+#
+# DEFINE: %{empty}=
+# RUN: echo "'%{empty}'"
+# CHECK:# | ''
+#
+# REDEFINE: %{empty}=
+# RUN: echo "'%{empty}'"
+# CHECK:# | ''
+
+# A value consisting only of whitespace is trimmed to the empty string.
+#
+#               v~~ intentional whitespace
+# DEFINE: %{ws}=   
+# RUN: echo "'%{ws}'"
+# CHECK:# | ''
+#
+#                 v intentional whitespace
+# REDEFINE: %{ws}= 
+# RUN: echo "'%{ws}'"
+# CHECK:# | ''
+
+# Whitespace is not required around the name or value.
+#
+# DEFINE:%{no-whitespace}=abc
+# RUN: echo "'%{no-whitespace}'"
+# CHECK:# | 'abc'
+#
+# REDEFINE:%{no-whitespace}=HelloWorld
+# RUN: echo "'%{no-whitespace}'"
+# CHECK:# | 'HelloWorld'
+
+# Whitespace is not required between substitutions in a value.
+#
+# DEFINE: %{adjacent0} = foo
+# DEFINE: %{adjacent1} = bar
+# DEFINE: %{has-adjacent-substs} = %{adjacent0}%{adjacent1}
+# RUN: echo "'%{has-adjacent-substs}'"
+# CHECK:# | 'foobar'
+#
+# REDEFINE: %{has-adjacent-substs} = %{adjacent0}%{adjacent1}%{adjacent0}
+# RUN: echo "'%{has-adjacent-substs}'"
+# CHECK:# | 'foobarfoo'
+
+# Exact whitespace is preserved within the value, but whitespace enclosing the
+# name or value is discarded.  ('%{' and '}' are part of the name, and
+# whitespace in between isn't permitted.)
+#
+#                                       v~~ intentional whitespace
+# DEFINE:   %{whitespace}  =  abc    def   
+# RUN: echo "'%{whitespace}'"
+# CHECK:# | 'abc    def'
+#                                      v intentional whitespace
+# REDEFINE: %{whitespace} = Hello World 
+# RUN: echo "'%{whitespace}'"
+# CHECK:# | 'Hello World'
+
+# Line continuations in the value are permitted and collapse whitespace.
+#
+# DEFINE: %{continue} = abc\
+# DEFINE:def \
+# DEFINE:ghi\
+# DEFINE: jkl \
+# DEFINE: mno  \
+# DEFINE:  pqr 
+#             ^ intentional whitespace
+# RUN: echo "'%{continue}'"
+# CHECK:# | 'abc def ghi jkl mno pqr'
+#
+# REDEFINE: %{continue} =  abc  \
+# REDEFINE: def
+# RUN: echo "'%{continue}'"
+# CHECK:# | 'abc def'
+
+# Whitespace at the end of the line after a '\' is ignored, and it's treated as
+# a line continuation.  Otherwise, the behavior would be hard to understand
+# because it looks like a line continuation.
+#
+#                                   v~~~~~~~~~~~ intentional whitespace
+# DEFINE: %{ws-after-continue}=foo \            
+# DEFINE: bar                      \ 
+#                                   ^ intentional whitespace
+# DEFINE: baz
+# RUN: echo "'%{ws-after-continue}'"
+# CHECK:# | 'foo bar baz'
+#
+#                                     v intentional whitespace
+# REDEFINE: %{ws-after-continue}=foo \ 
+# REDEFINE: bar                      \            
+#                                     ^~~~~~~~~~~~ intentional whitespace
+# REDEFINE: baz
+# RUN: echo "'%{ws-after-continue}'"
+# CHECK:# | 'foo bar baz'
+
+# A line continuation is recognized anywhere.  It should be used only where
+# whitespace is permitted because it reduces to a single space.
+#
+# Directives with at least one non-whitespace character (could be '\') are
+# permitted even if they contribute nothing to the value.  There might be no
+# practical use, but check that it behaves as expected.
+#
+# DEFINE:\
+# DEFINE:%{blank-lines}\
+# DEFINE:\
+# DEFINE:=\
+# DEFINE:\
+# DEFINE:a
+# RUN: echo "'%{blank-lines}'"
+# CHECK:# | 'a'
+#
+# REDEFINE:                  \
+# REDEFINE: %{blank-lines}   \
+# REDEFINE:                  \
+# REDEFINE:                = \
+# REDEFINE:                  \
+# REDEFINE:      a           \
+# REDEFINE:                  \
+# REDEFINE:      b           \
+# REDEFINE:                  \
+# REDEFINE:      c
+# RUN: echo "'%{blank-lines}'"
+# CHECK:# | 'a b c'
+
+# The fourth DEFINE line is deceptive because it looks like a new substitution,
+# but it's actually a continuation of the previous value.
+#
+# DEFINE: %{name}=x
+# DEFINE: %{value}=3
+# DEFINE: %{deceptive-continue}=echo \
+# DEFINE: %{name}=%{value}
+# RUN: %{deceptive-continue}
+# CHECK:# | x=3
+
+# CHECK:{{ *}}Passed: 1 {{\([0-9]*\.[0-9]*%\)}}

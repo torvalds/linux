@@ -1,0 +1,8 @@
+# RUN: echo 'f o o' > %t.0
+# RUN: echo 'b a r' >> %t.0
+
+# RUN: echo 'f  o  o' > %t.1
+# RUN: echo 'bar' >> %t.1
+
+# Due to -b, only second line has a change.
+# RUN: diff -b %t.0 %t.1

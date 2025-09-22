@@ -1,0 +1,182 @@
+.\"	$OpenBSD: d2i_OCSP_REQUEST.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_OCSP_REQUEST 3
+.Os
+.Sh NAME
+.Nm d2i_OCSP_REQUEST ,
+.Nm i2d_OCSP_REQUEST ,
+.Nm d2i_OCSP_SIGNATURE ,
+.Nm i2d_OCSP_SIGNATURE ,
+.Nm d2i_OCSP_REQINFO ,
+.Nm i2d_OCSP_REQINFO ,
+.Nm d2i_OCSP_ONEREQ ,
+.Nm i2d_OCSP_ONEREQ ,
+.Nm d2i_OCSP_CERTID ,
+.Nm i2d_OCSP_CERTID ,
+.Nm d2i_OCSP_SERVICELOC ,
+.Nm i2d_OCSP_SERVICELOC
+.Nd decode and encode OCSP requests
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ocsp.h
+.Ft OCSP_REQUEST *
+.Fo d2i_OCSP_REQUEST
+.Fa "OCSP_REQUEST **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_REQUEST
+.Fa "OCSP_REQUEST *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_SIGNATURE *
+.Fo d2i_OCSP_SIGNATURE
+.Fa "OCSP_SIGNATURE **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_SIGNATURE
+.Fa "OCSP_SIGNATURE *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_REQINFO *
+.Fo d2i_OCSP_REQINFO
+.Fa "OCSP_REQINFO **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_REQINFO
+.Fa "OCSP_REQINFO *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_ONEREQ *
+.Fo d2i_OCSP_ONEREQ
+.Fa "OCSP_ONEREQ **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_ONEREQ
+.Fa "OCSP_ONEREQ *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_CERTID *
+.Fo d2i_OCSP_CERTID
+.Fa "OCSP_CERTID **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_CERTID
+.Fa "OCSP_CERTID *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_SERVICELOC *
+.Fo d2i_OCSP_SERVICELOC
+.Fa "OCSP_SERVICELOC **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_SERVICELOC
+.Fa "OCSP_SERVICELOC *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode ASN.1 structures used for OCSP
+requests.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_OCSP_REQUEST
+and
+.Fn i2d_OCSP_REQUEST
+decode and encode an ASN.1
+.Vt OCSPRequest
+structure defined in RFC 6960 section 4.1.1.
+.Pp
+.Fn d2i_OCSP_SIGNATURE
+and
+.Fn i2d_OCSP_SIGNATURE
+decode and encode an ASN.1
+.Vt Signature
+structure defined in RFC 6960 section 4.1.1.
+.Pp
+.Fn d2i_OCSP_REQINFO
+and
+.Fn i2d_OCSP_REQINFO
+decode and encode an ASN.1
+.Vt TBSRequest
+structure defined in RFC 6960 section 4.1.1.
+.Pp
+.Fn d2i_OCSP_ONEREQ
+and
+.Fn i2d_OCSP_ONEREQ
+decode and encode an ASN.1
+.Vt Request
+structure defined in RFC 6960 section 4.1.1.
+.Pp
+.Fn d2i_OCSP_CERTID
+and
+.Fn i2d_OCSP_CERTID
+decode and encode an ASN.1
+.Vt CertID
+structure defined in RFC 6960 section 4.1.1.
+.Pp
+.Fn d2i_OCSP_SERVICELOC
+and
+.Fn i2d_OCSP_SERVICELOC
+decode and encode an ASN.1
+.Vt ServiceLocator
+structure defined in RFC 6960 section 4.4.6.
+.Sh RETURN VALUES
+.Fn d2i_OCSP_REQUEST ,
+.Fn d2i_OCSP_SIGNATURE ,
+.Fn d2i_OCSP_REQINFO ,
+.Fn d2i_OCSP_ONEREQ ,
+.Fn d2i_OCSP_CERTID ,
+and
+.Fn d2i_OCSP_SERVICELOC
+return an object of the respective type or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_OCSP_REQUEST ,
+.Fn i2d_OCSP_SIGNATURE ,
+.Fn i2d_OCSP_REQINFO ,
+.Fn i2d_OCSP_ONEREQ ,
+.Fn i2d_OCSP_CERTID ,
+and
+.Fn i2d_OCSP_SERVICELOC
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr OCSP_CERTID_new 3 ,
+.Xr OCSP_REQUEST_new 3 ,
+.Xr OCSP_SERVICELOC_new 3
+.Sh STANDARDS
+RFC 6960: X.509 Internet Public Key Infrastructure Online Certificate
+Status Protocol, section 4.1: Request Syntax
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.7
+and have been available since
+.Ox 3.2 .

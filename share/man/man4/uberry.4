@@ -1,0 +1,44 @@
+.\" $OpenBSD: uberry.4,v 1.6 2015/04/02 14:24:02 jasper Exp $
+.\"
+.\" Copyright (c) 2006 Theo de Raadt <deraadt@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 2 2015 $
+.Dt UBERRY 4
+.Os
+.Sh NAME
+.Nm uberry
+.Nd Research In Motion BlackBerry
+.Sh SYNOPSIS
+.Cd "uberry*     at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides the most minimal support for the USB-connected
+Research In Motion BlackBerry devices, permitting them to be
+charged and powered from a USB port.
+.Sh SEE ALSO
+.Xr uhub 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+first appeared in
+.Ox 4.1 .
+.Sh BUGS
+The
+.Nm
+driver is not able to charge a 7750 (USB cradle model) which has a
+completely dead battery, and we do not know why.

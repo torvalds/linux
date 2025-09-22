@@ -1,0 +1,365 @@
+-- $OpenBSD: OPENBSD-CARP-MIB.txt,v 1.4 2018/05/30 18:17:20 sthen Exp $
+--
+-- Copyright (c) 2006-2011 Joel Knight <knight.joel@gmail.com>
+-- 
+-- Permission to use, copy, modify, and distribute this document for any
+-- purpose with or without fee is hereby granted, provided that the above
+-- copyright notice and this permission notice appear in all copies.
+--
+-- THE DOCUMENT IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+-- WITH REGARD TO THIS DOCUMENT INCLUDING ALL IMPLIED WARRANTIES OF
+-- MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+-- ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+-- WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+-- ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+-- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS DOCUMENT.
+
+
+OPENBSD-CARP-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+	MODULE-IDENTITY, NOTIFICATION-TYPE, OBJECT-TYPE, 
+	Counter64, Integer32, enterprises
+		FROM SNMPv2-SMI
+
+	TruthValue
+		FROM SNMPv2-TC
+
+	openBSD
+		FROM OPENBSD-BASE-MIB
+	
+	MODULE-COMPLIANCE, OBJECT-GROUP
+		FROM SNMPv2-CONF;
+
+carpMIBObjects MODULE-IDENTITY
+    LAST-UPDATED "201805140000Z"
+    ORGANIZATION "OpenBSD"
+    CONTACT-INFO "
+                  Author:     Joel Knight
+                  email:      knight.joel@gmail.com
+                  www:        www.packetmischief.ca/openbsd-snmp-mibs/
+                 "
+    DESCRIPTION  "The MIB module for gathering information about
+		 Common Address Redundancy Protocol (CARP) interfaces."
+    REVISION     "201805140000Z"
+    DESCRIPTION  "Add the carpGroupTable to OPENBSD-CARP-MIB."
+    REVISION     "201201310000Z"
+    DESCRIPTION  "Add the OPENBSD-CARP-MIB to snmpd."
+    ::= { openBSD 6 }
+
+
+-- define the sections of the MIB
+
+carpSysctl			OBJECT IDENTIFIER ::= { carpMIBObjects 1 }
+carpIf				OBJECT IDENTIFIER ::= { carpMIBObjects 2 }
+carpStats			OBJECT IDENTIFIER ::= { carpMIBObjects 3 }
+
+
+-- carpSysctl
+carpAllow OBJECT-TYPE
+	SYNTAX      TruthValue
+	MAX-ACCESS  read-only
+	STATUS      current
+	DESCRIPTION
+	"Indicates whether the node will respond to CARP packets."
+	::= { carpSysctl 1 }
+
+carpPreempt OBJECT-TYPE
+	SYNTAX      TruthValue
+	MAX-ACCESS  read-only
+	STATUS      current
+	DESCRIPTION
+	"Indicates whether preemption is enabled."
+	::= { carpSysctl 2 }
+
+carpLog OBJECT-TYPE
+	SYNTAX      TruthValue
+	MAX-ACCESS  read-only
+	STATUS      current
+	DESCRIPTION
+	"Indicates whether logging of invalid CARP packets is enabled."
+	::= { carpSysctl 3 }
+
+
+-- carpIf
+
+carpIfNumber OBJECT-TYPE
+	SYNTAX      Integer32
+	MAX-ACCESS  read-only
+	STATUS      current
+	DESCRIPTION
+	"The number of CARP interfaces present on this system."
+	::= { carpIf 1 }
+
+carpIfTable OBJECT-TYPE
+	SYNTAX		SEQUENCE OF CarpIfEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"A list of individual CARP interfaces. The number of entries is
+	given by the value of carpIfNumber."
+	::= { carpIf 2 }
+
+carpIfEntry OBJECT-TYPE
+	SYNTAX      CarpIfEntry
+	MAX-ACCESS  not-accessible
+	STATUS      current
+	DESCRIPTION
+	"An entry containing management information applicable to a
+	particular CARP interface."
+	INDEX   { carpIfIndex }
+	::= { carpIfTable 1 }
+
+CarpIfEntry ::=
+	SEQUENCE {
+		carpIfIndex		Integer32,
+		carpIfDescr		OCTET STRING,
+		carpIfVhid		Integer32,
+		carpIfDev		OCTET STRING,
+		carpIfAdvbase		Integer32,
+		carpIfAdvskew		Integer32,
+		carpIfState		Integer32
+	}
+
+carpIfIndex OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"A unique value, greater than zero, for each CARP interface."
+	::= { carpIfEntry 1 }
+
+carpIfDescr OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The name of the CARP interface."
+	::= { carpIfEntry 2 }
+
+carpIfVhid OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The Virtual HostID of the CARP interface."
+	::= { carpIfEntry 3 }
+
+carpIfDev OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The parent interface that the CARP interface is bound to."
+	::= { carpIfEntry 4 }
+
+carpIfAdvbase OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The advbase value of the CARP interface."
+	::= { carpIfEntry 5 }
+
+carpIfAdvskew OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The advskew value of the CARP interface."
+	::= { carpIfEntry 6 }
+
+carpIfState OBJECT-TYPE
+	SYNTAX		INTEGER { init(0), backup(1), master(2) }
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Indicates the operational state of the CARP interface."
+	::= { carpIfEntry 7 }
+
+
+-- carpGroup
+
+carpGroupTable OBJECT-TYPE
+	SYNTAX      SEQUENCE OF CarpGroupEntry
+	MAX-ACCESS  not-accessible
+	STATUS      current
+	DESCRIPTION
+	"A list of interface groups."
+	::= { carpMIBObjects 4 }
+
+carpGroupEntry OBJECT-TYPE
+	SYNTAX      CarpGroupEntry
+	MAX-ACCESS  not-accessible
+	STATUS      current
+	DESCRIPTION
+	"An entry containing management information applicable to a
+	particular interface group."
+	INDEX   { carpGroupIndex }
+	::= { carpGroupTable 1 }
+
+CarpGroupEntry ::=
+	SEQUENCE {
+		carpGroupIndex		Integer32,
+		carpGroupName		OCTET STRING,
+		carpGroupDemote		Integer32
+	}
+
+carpGroupIndex OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"The demote value of the interface group."
+	::= { carpGroupEntry 1 }
+
+carpGroupName OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The name of the interface group."
+	::= { carpGroupEntry 2 }
+
+carpGroupDemote OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The demote value of the interface group."
+	::= { carpGroupEntry 3 }
+
+
+-- carpStats
+
+carpIpPktsRecv OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of IPv4 CARP packets received on all interfaces."
+	::= { carpStats 1 }
+
+carpIp6PktsRecv OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of IPv6 CARP packets received on all interfaces."
+	::= { carpStats 2 }
+
+carpPktDiscardsForBadInterface OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets discarded due to being received on a
+	non-CARP interface."
+	::= { carpStats 3 }
+
+carpPktDiscardsForWrongTtl OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets discarded due to having a TTL less
+	than 255."
+	::= { carpStats 4 }
+
+carpPktShorterThanHeader OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets received on any interface that is
+	shorter than the size of the CARP packet header."
+	::= { carpStats 5 }
+
+carpPktDiscardsForBadChecksum OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets discarded due to bad checksum."
+	::= { carpStats 6 }
+
+carpPktDiscardsForBadVersion OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets discarded due to bad version in
+	the packet header."
+	::= { carpStats 7 }
+
+carpPktDiscardsForTooShort OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets discarded due to being too short."
+	::= { carpStats 8 }
+
+carpPktDiscardsForBadAuth OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets discarded because they failed the
+	HMAC authentication check."
+	::= { carpStats 9 }
+
+carpPktDiscardsForBadVhid OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets discarded due to incorrect VHID in
+	the packet header."
+	::= { carpStats 10 }
+
+carpPktDiscardsForBadAddressList OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets discarded due to bad addresses in
+	the CARP packet."
+	::= { carpStats 11 }
+
+carpIpPktsSent OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of IPv4 CARP packets sent on all interfaces."
+	::= { carpStats 12 }
+
+carpIp6PktsSent OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of IPv6 CARP packets sent on all interfaces."
+	::= { carpStats 13 }
+
+carpNoMemory OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of CARP advertisements that failed because memory
+	could not be allocated."
+	::= { carpStats 14 }
+
+carpTransitionsToMaster OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of times the host has transitioned to MASTER state
+	for any CARP group."
+	::= { carpStats 15 }
+
+END
+

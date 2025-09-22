@@ -1,0 +1,145 @@
+.\" $OpenBSD: tls_connect.3,v 1.5 2025/07/07 10:54:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2014 Ted Unangst <tedu@openbsd.org>
+.\" Copyright (c) 2014, 2015 Joel Sing <jsing@openbsd.org>
+.\" Copyright (c) 2016 Brent Cook <bcook@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt TLS_CONNECT 3
+.Os
+.Sh NAME
+.Nm tls_connect ,
+.Nm tls_connect_fds ,
+.Nm tls_connect_servername ,
+.Nm tls_connect_socket ,
+.Nm tls_connect_cbs
+.Nd instruct a TLS client to establish a connection
+.Sh SYNOPSIS
+.Lb libtls libssl libcrypto
+.In tls.h
+.Ft int
+.Fo tls_connect
+.Fa "struct tls *ctx"
+.Fa "const char *host"
+.Fa "const char *port"
+.Fc
+.Ft int
+.Fo tls_connect_fds
+.Fa "struct tls *ctx"
+.Fa "int fd_read"
+.Fa "int fd_write"
+.Fa "const char *servername"
+.Fc
+.Ft int
+.Fo tls_connect_servername
+.Fa "struct tls *ctx"
+.Fa "const char *host"
+.Fa "const char *port"
+.Fa "const char *servername"
+.Fc
+.Ft int
+.Fo tls_connect_socket
+.Fa "struct tls *ctx"
+.Fa "int s"
+.Fa "const char *servername"
+.Fc
+.Ft int
+.Fo tls_connect_cbs
+.Fa "struct tls *ctx"
+.Fa "ssize_t (*tls_read_cb)(struct tls *ctx,\
+ void *buf, size_t buflen, void *cb_arg)"
+.Fa "ssize_t (*tls_write_cb)(struct tls *ctx,\
+ const void *buf, size_t buflen, void *cb_arg)"
+.Fa "void *cb_arg"
+.Fa "const char *servername"
+.Fc
+.Sh DESCRIPTION
+After creating a TLS client context with
+.Xr tls_client 3
+and configuring it with
+.Xr tls_configure 3 ,
+a client connection is initiated by calling
+.Fn tls_connect .
+This function will create a new socket, connect to the specified
+.Fa host
+and
+.Fa port ,
+and then establish a secure connection.
+The
+.Fa port
+may be numeric or a service name.
+If it is
+.Dv NULL ,
+then a
+.Fa host
+of the format "hostname:port" is permitted.
+The name to use for verification is inferred from the
+.Ar host
+value.
+.Pp
+The
+.Fn tls_connect_servername
+function has the same behaviour, however the name to use for verification is
+explicitly provided, for the case where the TLS server name differs from the
+DNS name.
+.Pp
+An already existing socket can be upgraded to a secure connection by calling
+.Fn tls_connect_socket .
+.Pp
+Alternatively, a secure connection can be established over a pair of existing
+file descriptors by calling
+.Fn tls_connect_fds .
+.Pp
+Calling
+.Fn tls_connect_cbs
+allows read and write callback functions to handle data transfers.
+The specified cb_arg parameter is passed back to the functions,
+and can contain a pointer to any caller-specified data.
+.Sh RETURN VALUES
+These functions return 0 on success or -1 on error.
+.Sh SEE ALSO
+.Xr tls_accept_socket 3 ,
+.Xr tls_client 3 ,
+.Xr tls_close 3 ,
+.Xr tls_config_ocsp_require_stapling 3 ,
+.Xr tls_configure 3 ,
+.Xr tls_handshake 3 ,
+.Xr tls_init 3
+.Sh HISTORY
+.Fn tls_connect
+and
+.Fn tls_connect_socket
+appeared in
+.Ox 5.6
+and got their final names in
+.Ox 5.7 .
+.Pp
+.Fn tls_connect_fds
+and
+.Fn tls_connect_servername
+appeared in
+.Ox 5.7
+and
+.Fn tls_connect_cbs
+in
+.Ox 6.1 .
+.Sh AUTHORS
+.An Joel Sing Aq Mt jsing@openbsd.org
+.An Reyk Floeter Aq Mt reyk@openbsd.org
+.Pp
+.An -nosplit
+.Fn tls_connect_cbs
+was written by
+.An Tobias Pape Aq Mt tobias@netshed.de .

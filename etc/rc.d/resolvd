@@ -1,0 +1,11 @@
+#!/bin/ksh
+#
+# $OpenBSD: resolvd,v 1.1 2021/02/26 18:29:16 kn Exp $
+
+daemon="/sbin/resolvd"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=NO
+
+rc_cmd $1

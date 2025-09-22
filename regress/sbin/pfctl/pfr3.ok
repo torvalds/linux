@@ -1,0 +1,60 @@
+# create
+# pass add -n 10/8 10.11/16 10.11.12/24 10.11.12.13
+4/4 addresses added (dummy).
+# pass add -nf-
+4/4 addresses added (dummy).
+# pass add -nqv 10/8 10.11/16 10.11.12/24 10.11.12.13
+A  10.0.0.0/8
+A  10.11.0.0/16
+A  10.11.12.0/24
+A  10.11.12.13
+# pass add -nqvv 10/8 10.11/16 10.11.12/24 10.11.12.13
+A  10.0.0.0/8
+A  10.11.0.0/16
+A  10.11.12.0/24
+A  10.11.12.13
+# pass add 10/8 10.11/16 10.11.12/24 10.11.12.13
+4/4 addresses added.
+# pass delete -n 10.11.0.0/16 10.11.12.0/24
+2/2 addresses deleted (dummy).
+# pass delete -nf-
+2/2 addresses deleted (dummy).
+# pass delete -nqv 10.11.0.0/16 10.11.12.0/24
+D  10.11.0.0/16
+D  10.11.12.0/24
+# pass delete -nqvv 10.11.0.0/16 10.11.12.0/24
+D  10.11.0.0/16
+D  10.11.12.0/24
+# pass delete 10.11.0.0/16 10.11.12.0/24
+2/2 addresses deleted.
+# pass replace -n 10.0/8 172.16.0/12 192.168.0/16
+1 addresses deleted (dummy).
+2 addresses added (dummy).
+# pass replace -nf-
+1 addresses deleted (dummy).
+2 addresses added (dummy).
+# pass replace -nqv 10.0/8 172.16.0/12 192.168.0/16
+A  172.16.0.0/12
+A  192.168.0.0/16
+D  10.11.12.13
+# pass replace -nqvv 10.0/8 172.16.0/12 192.168.0/16
+   10.0.0.0/8
+A  172.16.0.0/12
+A  192.168.0.0/16
+D  10.11.12.13
+# pass replace 10.0/8 172.16.0/12 192.168.0/16
+1 addresses deleted.
+2 addresses added.
+# pass test 10.1.1.1 172.17.1.1 192.168.1.1
+3/3 addresses match.
+# fail test 11.1.1.1
+0/1 addresses match.
+# fail test 10.1.1.1 11.1.1.1
+1/2 addresses match.
+# kill
+1 tables deleted.
+rules cleared
+ktable: 13 allocated, 13 released, 0 leaked.
+pfrke_plain: 30 allocated, 30 released, 0 leaked.
+pfrke_route: 0 allocated, 0 released, 0 leaked.
+pfrke_cost: 0 allocated, 0 released, 0 leaked.

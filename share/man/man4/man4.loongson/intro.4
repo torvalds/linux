@@ -1,0 +1,109 @@
+.\"	$OpenBSD: intro.4,v 1.5 2022/03/31 17:27:22 naddy Exp $
+.\"
+.\" Copyright (c) 1983, 1986, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)intro.4	5.2 (Berkeley) 3/27/91
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt INTRO 4 loongson
+.Os
+.Sh NAME
+.Nm intro
+.Nd introduction to special files and hardware support
+.Sh DESCRIPTION
+The manual pages in section 4 describe the special files,
+related driver functions, and networking support
+available in the system.
+In this part of the manual, the SYNOPSIS section of
+each configurable device gives a sample specification
+for use in constructing a system description for the
+.Xr config 8
+program.
+The DIAGNOSTICS section lists messages which may appear on the console
+and/or in the system error log
+.Pa /var/log/messages
+due to errors in device operation;
+see
+.Xr syslogd 8
+for more information.
+.Pp
+This section contains both devices
+which may be configured into the system
+and network related information.
+The networking support is introduced in
+.Xr netintro 4 .
+.Sh DEVICE SUPPORT
+This section describes the hardware supported on the
+loongson platform.
+Software support for these devices comes in two forms.
+A hardware device may be supported with a character or block
+.Em device driver ,
+or it may be used within the networking subsystem and have a
+.Em network interface driver .
+Block and character devices are accessed through files in the file
+system of a special type; see
+.Xr mknod 8 .
+Network interfaces are indirectly accessed through the interprocess
+communication facilities provided by the system; see
+.Xr socket 2 .
+.Pp
+A hardware device is identified to the system at configuration time
+and the appropriate device or network interface driver is then compiled
+into the system.
+When the resultant system is booted, the autoconfiguration facilities
+in the system probe for the device and, if found, enable the software
+support for it.
+If a device does not respond at autoconfiguration
+time, it is not accessible at any time afterwards.
+To enable a device which did not autoconfigure,
+the system will have to be rebooted.
+.Pp
+The autoconfiguration system is described in
+.Xr autoconf 4 .
+.Sh LIST OF DEVICES
+A complete list of available devices is contained within the pages
+describing the system buses and controllers.
+For example, a PCI device would be listed in the
+.Xr pci 4
+man page.
+The following buses and controllers list these devices:
+.Pp
+.Bl -tag -compact -width "pcctwo(4)" -offset 3n
+.It Xr isa 4
+introduction to ISA bus support
+.It Xr pci 4
+introduction to PCI bus support
+.El
+.Sh SEE ALSO
+.Xr autoconf 4 ,
+.Xr config 8
+.Sh HISTORY
+The loongson
+.Nm
+appeared in
+.Ox 4.7 .

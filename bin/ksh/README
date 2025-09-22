@@ -1,0 +1,22 @@
+$OpenBSD: README,v 1.16 2017/05/11 20:17:17 jmc Exp $
+
+Last updated Jul '99 for pdksh-5.2.14.
+
+PDksh is a mostly complete AT&T ksh look-alike (see NOTES file for a list
+of things not supported).  Work is mostly finished to make it fully
+compatible with both POSIX and AT&T ksh (when the two don't conflict).
+
+PDksh was being maintained by Michael Rendell (michael@cs.mun.ca),
+who took over from Simon J. Gerraty (sjg@zen.void.oz.au) at the latter's
+suggestion.
+
+Files of interest:
+	CONTRIBUTORS	short history of pdksh, people who contributed, etc.
+	NOTES		lists of known bugs in pdksh, at&t ksh, and posix.
+	PROJECTS	list of things that need to be done in pdksh.
+	LEGAL		A file detailing legal issues concerning pdksh.
+
+
+BTW, THE MOST FREQUENTLY REPORTED BUG IS
+	echo hi | read a; echo $a	# Does not print hi
+I'm aware of this and there is no need to report it.

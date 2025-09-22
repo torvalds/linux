@@ -1,0 +1,3 @@
+MULTILIB_OPTIONS = fpic/fPIC
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib

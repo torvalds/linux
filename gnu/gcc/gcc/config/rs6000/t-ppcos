@@ -1,0 +1,8 @@
+# Multilibs for a powerpc hosted ELF target (linux, SVR4)
+
+MULTILIB_OPTIONS	= msoft-float
+MULTILIB_DIRNAMES	= nof
+MULTILIB_EXTRA_OPTS	= fPIC mstrict-align
+MULTILIB_EXCEPTIONS	= 
+
+MULTILIB_MATCHES	= ${MULTILIB_MATCHES_FLOAT}

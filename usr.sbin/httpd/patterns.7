@@ -1,0 +1,309 @@
+.\"	$OpenBSD: patterns.7,v 1.8 2023/11/08 11:17:20 deraadt Exp $
+.\"
+.\" Copyright (c) 2015 Reyk Floeter <reyk@openbsd.org>
+.\" Copyright (C) 1994-2015 Lua.org, PUC-Rio.
+.\"
+.\" Permission is hereby granted, free of charge, to any person obtaining
+.\" a copy of this software and associated documentation files (the
+.\" "Software"), to deal in the Software without restriction, including
+.\" without limitation the rights to use, copy, modify, merge, publish,
+.\" distribute, sublicense, and/or sell copies of the Software, and to
+.\" permit persons to whom the Software is furnished to do so, subject to
+.\" the following conditions:
+.\"
+.\" The above copyright notice and this permission notice shall be
+.\" included in all copies or substantial portions of the Software.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+.\" EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+.\" IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+.\" CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+.\" TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+.\" SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+.\"
+.\" Derived from section 6.4.1 in manual.html of Lua 5.3.1:
+.\" $Id: patterns.7,v 1.8 2023/11/08 11:17:20 deraadt Exp $
+.\"
+.Dd $Mdocdate: November 8 2023 $
+.Dt PATTERNS 7
+.Os
+.Sh NAME
+.Nm patterns
+.Nd Lua's pattern matching rules
+.Sh DESCRIPTION
+Pattern matching in
+.Xr httpd 8
+is based on the implementation of the Lua scripting language and
+provides a simple and fast alternative to the regular expressions (REs) that
+are described in
+.Xr re_format 7 .
+Patterns are described by regular strings, which are interpreted as
+patterns by the pattern-matching
+.Dq find
+and
+.Dq match
+functions.
+This document describes the syntax and the meaning (that is, what they
+match) of these strings.
+.Sh CHARACTER CLASS
+A character class is used to represent a set of characters.
+The following combinations are allowed in describing a character
+class:
+.Bl -tag -width Ds
+.It Ar x
+(where
+.Ar x
+is not one of the magic characters
+.Sq ^$()%.[]*+-? )
+represents the character
+.Ar x
+itself.
+.It .
+(a dot) represents all characters.
+.It %a
+represents all letters.
+.It %c
+represents all control characters.
+.It %d
+represents all digits.
+.It %g
+represents all printable characters except space.
+.It %l
+represents all lowercase letters.
+.It %p
+represents all punctuation characters.
+.It %s
+represents all space characters.
+.It %u
+represents all uppercase letters.
+.It %w
+represents all alphanumeric characters.
+.It %x
+represents all hexadecimal digits.
+.It Pf % Ar x
+(where
+.Ar x
+is any non-alphanumeric character) represents the character
+.Ar x .
+This is the standard way to escape the magic characters.
+Any non-alphanumeric character (including all punctuation characters,
+even the non-magical) can be preceded by a
+.Sq %
+when used to represent itself in a pattern.
+.It Bq Ar set
+represents the class which is the union of all
+characters in
+.Ar set .
+A range of characters can be specified by separating the end
+characters of the range, in ascending order, with a
+.Sq - .
+All classes
+.Sq Ar %x
+described above can also be used as components in
+.Ar set .
+All other characters in
+.Ar set
+represent themselves.
+For example,
+.Sq [%w_]
+(or
+.Sq [_%w] )
+represents all alphanumeric characters plus the underscore,
+.Sq [0-7]
+represents the octal digits,
+and
+.Sq [0-7%l%-]
+represents the octal digits plus the lowercase letters plus the
+.Sq -
+character.
+.Pp
+The interaction between ranges and classes is not defined.
+Therefore, patterns like
+.Sq [%a-z]
+or
+.Sq [a-%%]
+have no meaning.
+.It Bq Ar ^set
+represents the complement of
+.Ar set ,
+where
+.Ar set
+is interpreted as above.
+.El
+.Pp
+For all classes represented by single letters (
+.Sq %a ,
+.Sq %c ,
+etc.),
+the corresponding uppercase letter represents the complement of the class.
+For instance,
+.Sq %S
+represents all non-space characters.
+.Pp
+The definitions of letter, space, and other character groups depend on
+the current locale.
+In particular, the class
+.Sq [a-z]
+may not be equivalent to
+.Sq %l .
+.Sh PATTERN ITEM
+A pattern item can be
+.Bl -bullet
+.It
+a single character class, which matches any single character in the class;
+.It
+a single character class followed by
+.Sq * ,
+which matches zero or more repetitions of characters in the class.
+These repetition items will always match the longest possible sequence;
+.It
+a single character class followed by
+.Sq + ,
+which matches one or more repetitions of characters in the class.
+These repetition items will always match the longest possible sequence;
+.It
+a single character class followed by
+.Sq - ,
+which also matches zero or more repetitions of characters in the class.
+Unlike
+.Sq * ,
+these repetition items will always match the shortest possible sequence;
+.It
+a single character class followed by
+.Sq \&? ,
+which matches zero or one occurrence of a character in the class.
+It always matches one occurrence if possible;
+.It
+.Sq Pf % Ar n ,
+for
+.Ar n
+between 1 and 9;
+such item matches a substring equal to the n-th captured string (see below);
+.It
+.Sq Pf %b Ar xy ,
+where
+.Ar x
+and
+.Ar y
+are two distinct characters;
+such item matches strings that start with
+.Ar x ,
+end with
+.Ar y ,
+and where the
+.Ar x
+and
+.Ar y
+are
+.Em balanced .
+This means that if one reads the string from left to right, counting
+.Em +1
+for an
+.Ar x
+and
+.Em -1
+for a
+.Ar y ,
+the ending
+.Ar y
+is the first
+.Ar y
+where the count reaches 0.
+For instance, the item
+.Sq %b()
+matches expressions with balanced parentheses.
+.It
+.Sq Pf %f Bq Ar set ,
+a
+.Em frontier pattern ;
+such item matches an empty string at any position such that the next
+character belongs to
+.Ar set
+and the previous character does not belong to
+.Ar set .
+The set
+.Ar set
+is interpreted as previously described.
+The beginning and the end of the subject are handled as if
+they were the character
+.Sq \e0 .
+.El
+.Sh PATTERN
+A pattern is a sequence of pattern items.
+A caret
+.Sq ^
+at the beginning of a pattern anchors the match at the beginning of
+the subject string.
+A
+.Sq $
+at the end of a pattern anchors the match at the end of the subject string.
+At other positions,
+.Sq ^
+and
+.Sq $
+have no special meaning and represent themselves.
+.Sh CAPTURES
+A pattern can contain sub-patterns enclosed in parentheses; they
+describe captures.
+When a match succeeds, the substrings of the subject string that match
+captures are stored (captured) for future use.
+Captures are numbered according to their left parentheses.
+For instance, in the pattern
+.Qq (a*(.)%w(%s*)) ,
+the part of the string matching
+.Qq a*(.)%w(%s*)
+is stored as the first capture (and therefore has number 1);
+the character matching
+.Qq \&.
+is captured with number 2,
+and the part matching
+.Qq %s*
+has number 3.
+.Pp
+As a special case, the empty capture
+.Sq ()
+captures the current string position (a number).
+For instance, if we apply the pattern
+.Qq ()aa()
+on the string
+.Qq flaaap ,
+there will be two captures: 2 and 4.
+.Sh SEE ALSO
+.Xr fnmatch 3 ,
+.Xr re_format 7 ,
+.Xr httpd 8
+.Rs
+.%A Roberto Ierusalimschy
+.%A Luiz Henrique de Figueiredo
+.%A Waldemar Celes
+.%Q Lua.org
+.%Q PUC-Rio
+.%D June 2015
+.%R Lua 5.3 Reference Manual
+.%T Patterns
+.%U https://www.lua.org/manual/5.3/manual.html#6.4.1
+.Re
+.Sh HISTORY
+The first implementation of the pattern rules were introduced with Lua 2.5.
+Almost twenty years later,
+an implementation based on Lua 5.3.1 appeared in
+.Ox 5.8 .
+.Sh AUTHORS
+The pattern matching is derived from the original implementation of
+the Lua scripting language written by
+.An -nosplit
+.An Roberto Ierusalimschy ,
+.An Waldemar Celes ,
+and
+.An Luiz Henrique de Figueiredo
+at PUC-Rio.
+It was turned into a native C API for
+.Xr httpd 8
+by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .
+.Sh CAVEATS
+A notable difference with the Lua implementation is the position in the string
+returned by captures.
+It follows the C-style indexing (position starting from 0)
+instead of Lua-style indexing (position starting from 1).

@@ -1,0 +1,161 @@
+.\"	$OpenBSD: rdomain.4,v 1.19 2022/07/29 18:28:32 kn Exp $
+.\"
+.\" Copyright (c) 2015 Peter Hessler <phessler@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 29 2022 $
+.Dt RDOMAIN 4
+.Os
+.Sh NAME
+.Nm rtable ,
+.Nm rdomain
+.Nd routing tables and routing domains
+.Sh DESCRIPTION
+The traditional kernel routing system had a single table for routes and
+allowed only non-conflicting IP address assignments.
+The
+.Nm rtable
+feature allows multiple lookup tables for routes.
+The
+.Nm rdomain
+feature provides a way to logically segment a router
+between network paths.
+.Ss Routing tables
+Each
+.Nm rtable
+contains routes for outbound network packets.
+A routing domain can contain more than one
+.Nm rtable .
+Multiple routing tables are commonly used for Policy Based Routing.
+.Pp
+The highest ID that can be used for an
+.Nm rtable
+is 255.
+.Ss Routing domains
+Each
+.Nm rdomain
+is a completely separate address space in the kernel.
+An IP address (e.g. 10.0.0.1/16) can be assigned in more than one
+.Nm rdomain ,
+but cannot be assigned more than once per
+.Nm rdomain .
+An interface belongs to one and only one
+.Nm rdomain .
+The interface's
+.Nm rdomain
+determines which rdomain an incoming packet will
+be in.
+Virtual interfaces do not need to belong to the same
+.Nm rdomain
+as the parent.
+Each
+.Nm rdomain
+contains at least one routing table.
+.Pp
+Network traffic within an
+.Nm rdomain
+stays within the current routing domain.
+.Xr pf 4
+is used to move traffic from one
+.Nm rdomain
+to a different
+.Nm rdomain .
+.Pp
+When an interface is assigned to a non-existent
+.Nm rdomain ,
+it gets created automatically.
+At the same time an
+.Nm rtable
+with the same ID and a
+.Xr lo 4
+interface with a unit number matching the ID get created and assigned to the new
+domain.
+.Pp
+An rdomain can be deleted by removing all interfaces from it and then
+destroying the
+.Xr lo 4
+interface with the unit number matching the ID.
+.Pp
+The highest ID that can be used for an
+.Nm rdomain
+is 255.
+.Sh EXAMPLES
+Put em0 and lo4 in rdomain 4:
+.Bd -literal -offset indent
+# ifconfig em0 rdomain 4
+# ifconfig lo4 inet 127.0.0.1/8
+# ifconfig em0 192.0.2.100/24
+.Ed
+.Pp
+List all rdomains with associated interfaces and routing tables:
+.Pp
+.Dl $ netstat -R
+.Pp
+Set a default route and localhost reject route within rtable 4:
+.Bd -literal -offset indent
+# route -T4 -qn add -net 127 127.0.0.1 -reject
+# route -T4 -n add default 192.0.2.1
+.Ed
+.Pp
+Start
+.Xr sshd 8
+in rtable 4:
+.Pp
+.Dl # route -T4 exec /usr/sbin/sshd
+.Pp
+Display the routing table used by each process:
+.Pp
+.Dl $ ps aux -o rtable
+.Pp
+Display the routing table of the current process:
+.Pp
+.Dl $ id -R
+.Pp
+A
+.Xr pf.conf 5
+snippet to block incoming port 80,
+and nat-to and move to rtable 0 on interface em1:
+.Bd -literal -offset indent
+block in on rdomain 4 proto tcp to any port 80
+match out on rdomain 4 to !$internal_net nat-to (em1) rtable 0
+.Ed
+.Pp
+Delete rdomain 4 again:
+.Bd -literal -offset indent
+# ifconfig em0 -rdomain
+# ifconfig lo4 destroy
+.Ed
+.Sh SEE ALSO
+.Xr id 1 ,
+.Xr netstat 1 ,
+.Xr ps 1 ,
+.Xr lo 4 ,
+.Xr route 4 ,
+.Xr pf.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr route 8
+.Sh HISTORY
+.Ox
+support for
+.Nm rdomain
+first appeared in
+.Ox 4.9
+and IPv6 support first appeared in
+.Ox 5.5 .
+.Sh CAVEATS
+No tool is available to assign more than one rtable to an rdomain
+other than to the default one (0).
+.Pp
+An rtable cannot be deleted.
+Deleting an rdomain will move its rtable into the default rdomain.

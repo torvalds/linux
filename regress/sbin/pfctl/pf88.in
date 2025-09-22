@@ -1,0 +1,32 @@
+# pfctl -o duplicate rules
+
+pass in on lo1000000 from any to 10.0.0.1
+pass in on lo1000000 inet from any to 10.0.0.1
+
+pass
+pass out
+pass out 
+pass out quick
+
+pass on lo1000001 to 10.0.0.1
+pass on lo1000000 from any to 10.0.0.1
+
+pass to 10.0.0.2 modulate state
+pass to 10.0.0.2 keep state
+block from 10.0.0.3 to 10.0.0.2
+pass to 10.0.0.2 modulate state
+block from 10.0.0.3 to 10.0.0.2
+pass to 10.0.0.2 synproxy state
+
+
+pass out proto tcp from 10.0.0.4 to 10.0.0.5 keep state
+pass out proto tcp from 10.0.0.4 to 10.0.0.5 port 80 keep state
+
+pass out
+pass in
+
+pass in on lo1000001 from any to any
+pass in on lo1000001 from any to any keep state
+pass in on lo1000001 from any to any
+
+block

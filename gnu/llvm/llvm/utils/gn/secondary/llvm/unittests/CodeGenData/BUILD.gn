@@ -1,0 +1,18 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("CodeGenDataTests") {
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGenData",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "OutlinedHashTreeRecordTest.cpp",
+    "OutlinedHashTreeTest.cpp",
+  ]
+}

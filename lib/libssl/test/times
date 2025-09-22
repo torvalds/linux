@@ -1,0 +1,113 @@
+
+More number for the questions about SSL overheads....
+
+The following numbers were generated on a Pentium pro 200, running Linux.
+They give an indication of the SSL protocol and encryption overheads.
+
+The program that generated them is an unreleased version of ssl/ssltest.c
+which is the SSLeay ssl protocol testing program.  It is a single process that
+talks both sides of the SSL protocol via a non-blocking memory buffer
+interface.
+
+How do I read this?  The protocol and cipher are reasonable obvious.
+The next number is the number of connections being made.  The next is the
+number of bytes exchanged between the client and server side of the protocol.
+This is the number of bytes that the client sends to the server, and then
+the server sends back.  Because this is all happening in one process,
+the data is being encrypted, decrypted, encrypted and then decrypted again.
+It is a round trip of that many bytes.  Because the one process performs
+both the client and server sides of the protocol and it sends this many bytes
+each direction, multiply this number by 4 to generate the number
+of bytes encrypted/decrypted/MACed.  The first time value is how many seconds
+elapsed doing a full SSL handshake, the second is the cost of one
+full handshake and the rest being session-id reuse.
+
+SSLv2 RC4-MD5      1000 x      1   12.83s   0.70s
+SSLv3 NULL-MD5     1000 x      1   14.35s   1.47s
+SSLv3 RC4-MD5      1000 x      1   14.46s   1.56s
+SSLv3 RC4-MD5      1000 x      1   51.93s   1.62s 1024bit RSA
+SSLv3 RC4-SHA      1000 x      1   14.61s   1.83s
+SSLv3 DES-CBC-SHA  1000 x      1   14.70s   1.89s
+SSLv3 DES-CBC3-SHA 1000 x      1   15.16s   2.16s
+
+SSLv2 RC4-MD5      1000 x   1024   13.72s   1.27s
+SSLv3 NULL-MD5     1000 x   1024   14.79s   1.92s
+SSLv3 RC4-MD5      1000 x   1024   52.58s   2.29s 1024bit RSA
+SSLv3 RC4-SHA      1000 x   1024   15.39s   2.67s
+SSLv3 DES-CBC-SHA  1000 x   1024   16.45s   3.55s
+SSLv3 DES-CBC3-SHA 1000 x   1024   18.21s   5.38s
+
+SSLv2 RC4-MD5      1000 x  10240   18.97s   6.52s
+SSLv3 NULL-MD5     1000 x  10240   17.79s   5.11s
+SSLv3 RC4-MD5      1000 x  10240   20.25s   7.90s
+SSLv3 RC4-MD5      1000 x  10240   58.26s   8.08s 1024bit RSA
+SSLv3 RC4-SHA      1000 x  10240   22.96s  11.44s
+SSLv3 DES-CBC-SHA  1000 x  10240   30.65s  18.41s
+SSLv3 DES-CBC3-SHA 1000 x  10240   47.04s  34.53s
+
+SSLv2 RC4-MD5      1000 x 102400   70.22s  57.74s
+SSLv3 NULL-MD5     1000 x 102400   43.73s  31.03s
+SSLv3 RC4-MD5      1000 x 102400   71.32s  58.83s
+SSLv3 RC4-MD5      1000 x 102400  109.66s  59.20s 1024bit RSA
+SSLv3 RC4-SHA      1000 x 102400   95.88s  82.21s
+SSLv3 DES-CBC-SHA  1000 x 102400  173.22s 160.55s
+SSLv3 DES-CBC3-SHA 1000 x 102400  336.61s 323.82s
+
+What does this all mean?  Well for a server, with no session-id reuse, with
+a transfer size of 10240 bytes, using RC4-MD5 and a 512bit server key,
+a Pentium pro 200 running Linux can handle the SSLv3 protocol overheads of
+about 49 connections a second.  Reality will be quite different :-).
+
+Remember the first number is 1000 full ssl handshakes, the second is
+1 full and 999 with session-id reuse.  The RSA overheads for each exchange
+would be one public and one private operation, but the protocol/MAC/cipher
+cost would be quite similar in both the client and server.
+
+eric (adding numbers to speculation)
+
+--- Appendix ---
+- The time measured is user time but these number a very rough.
+- Remember this is the cost of both client and server sides of the protocol.
+- The TCP/kernel overhead of connection establishment is normally the
+  killer in SSL.  Often delays in the TCP protocol will make session-id
+  reuse look slower that new sessions, but this would not be the case on
+  a loaded server.
+- The TCP round trip latencies, while slowing individual connections,
+  would have minimal impact on throughput.
+- Instead of sending one 102400 byte buffer, one 8k buffer is sent until
+- the required number of bytes are processed.
+- The SSLv3 connections were actually SSLv2 compatible SSLv3 headers.
+- A 512bit server key was being used except where noted.
+- No server key verification was being performed on the client side of the
+  protocol.  This would slow things down very little.
+- The library being used is SSLeay 0.8.x.
+- The normal measuring system was commands of the form
+  time ./ssltest -num 1000 -bytes 102400 -cipher DES-CBC-SHA -reuse
+  This modified version of ssltest should be in the next public release of
+  SSLeay.
+
+The general cipher performance number for this platform are
+
+SSLeay 0.8.2a 04-Sep-1997
+built on Fri Sep  5 17:37:05 EST 1997
+options:bn(64,32) md2(int) rc4(idx,int) des(ptr,risc1,16,long) idea(int) blowfish(ptr2)
+C flags:gcc -DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -m486 -Wall -Wuninitialized 
+The 'numbers' are in 1000s of bytes per second processed.
+type              8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2               131.02k      368.41k      500.57k      549.21k      566.09k
+mdc2              535.60k      589.10k      595.88k      595.97k      594.54k
+md5              1801.53k     9674.77k    17484.03k    21849.43k    23592.96k
+sha              1261.63k     5533.25k     9285.63k    11187.88k    11913.90k
+sha1             1103.13k     4782.53k     7933.78k     9472.34k    10070.70k
+rc4             10722.53k    14443.93k    15215.79k    15299.24k    15219.59k
+des cbc          3286.57k     3827.73k     3913.39k     3931.82k     3926.70k
+des ede3         1443.50k     1549.08k     1561.17k     1566.38k     1564.67k
+idea cbc         2203.64k     2508.16k     2538.33k     2543.62k     2547.71k
+rc2 cbc          1430.94k     1511.59k     1524.82k     1527.13k     1523.33k
+blowfish cbc     4716.07k     5965.82k     6190.17k     6243.67k     6234.11k
+                  sign    verify
+rsa  512 bits   0.0100s   0.0011s
+rsa 1024 bits   0.0451s   0.0012s
+rsa 2048 bits   0.2605s   0.0086s
+rsa 4096 bits   1.6883s   0.0302s
+

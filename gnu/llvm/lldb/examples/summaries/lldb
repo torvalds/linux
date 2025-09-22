@@ -1,0 +1,28 @@
+type summary add -w lldb lldb_private::Error                                   -s "Type: ${var.m_type%E}, Code: ${var.m_code}, Message: ${var.m_string}" 
+type summary add -w lldb lldb_private::ConstString                             -s "${var.m_string}" 
+type summary add -w lldb lldb_private::Language                                -s "${var.m_language%E}" 
+type summary add -w lldb lldb_private::RegularExpression                       -s "${var.m_re}" 
+type summary add -w lldb lldb_private::UserID                                  -s "UserID(${var.m_uid})" 
+type summary add -w lldb lldb_private::ValueObject                             -s "${var.m_name}" 
+type summary add -w lldb lldb_private::ValueObjectSP                           -s "${var.ptr_.m_name}"
+type summary add -w lldb lldb_private::ValueObjectRegister                     -s "${var.m_reg_info.name}"
+type summary add -w lldb lldb_private::ClangExpression                         -s "{${var.m_expr_text}}"
+type summary add -w lldb lldb_private::CommandObject                           -s "Command name: ${var.m_cmd_name}"
+type summary add -w lldb lldb_private::Variable                                -s "${var.m_type.m_name} ${var.m_name}"
+type summary add -w lldb lldb_private::StopInfo                                -s "ID: ${var.m_stop_id}, ${var.m_description}"
+type summary add -w lldb lldb_private::FileSpec                                -s "file: ${var.m_filename%S} dir: ${var.m_directory%S}"
+type summary add -v -w lldb lldb::ConnectionStatus                             -s "[enum=${var%E} val=${var%i}]"
+# Where '-v' tells type summary not to show the value itself, but just use the summary format.
+
+type summary add -w lldb "lldb_private::ThreadSafeValue<lldb::StateType>"      -s "${var.m_value}"
+type summary add -w lldb lldb_private::CompileUnit                             -s "file: ${var.m_filename%S} dir: ${var.m_directory%S}" 
+type summary add -w lldb "lldb_private::Module"                                -s "${var.m_file%S}"
+type summary add -w lldb "lldb_private::ModuleSpec"                            -s "${var.m_file%S}"
+type summary add -w lldb "lldb_private::ModuleList"                            -s "${var.m_modules%S}"
+type summary add -w lldb "lldb::ModuleSP"                                      -s "${var._M_ptr%S}"
+type summary add -w lldb "lldb_private::Process"                               -s "Public: ${var.m_public_state%S} Private: ${var.m_private_state%S}"
+type summary add -w lldb "DynamicLoaderMacOSXDYLD::DYLDImageInfo"              -s "${var.file_spec%S}"
+
+type format add -f x lldb::addr_t
+
+type category enable lldb

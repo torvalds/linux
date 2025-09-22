@@ -1,0 +1,210 @@
+.\"	$OpenBSD: kstat.4,v 1.8 2022/01/14 04:25:57 dlg Exp $
+.\"
+.\" Copyright (c) 2022 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 14 2022 $
+.Dt KSTAT 4
+.Os
+.Sh NAME
+.Nm kstat
+.Nd kernel statistics
+.Sh SYNOPSIS
+.Cd "pseudo-device kstat"
+.Sh DESCRIPTION
+The
+.Pa /dev/kstat
+device exposes kernel statistics (kstats) to userland.
+.Sh IOCTLS
+The kstat
+.Xr ioctl 2
+calls are provided in
+.In sys/kstat.h .
+.Pp
+With the exception of
+.Dv KSTATIOC_VERSION ,
+the kstat
+.Xr ioctl 2
+calls use the
+.Vt kstat_req
+structure to request or enumerate kernel
+statistic data from the kernel:
+.Bd -literal
+struct kstat_req {
+	unsigned int		 ks_rflags;
+#define KSTATIOC_F_IGNVER		(1 << 0)
+	/* the current version of the kstat subsystem */
+	unsigned int		 ks_version;
+
+	uint64_t		 ks_id;
+
+	char			 ks_provider[KSTAT_STRLEN];
+	unsigned int		 ks_instance;
+	char			 ks_name[KSTAT_STRLEN];
+	unsigned int		 ks_unit;
+
+	struct timespec		 ks_created;
+	struct timespec		 ks_updated;
+	struct timespec		 ks_interval;
+	unsigned int		 ks_type;
+	unsigned int		 ks_state;
+
+	void			*ks_data;
+	size_t			 ks_datalen;
+	unsigned int		 ks_dataver;
+};
+.Ed
+.Pp
+The kstat subsystem increments a version number when a kstat is added to or
+removed from the subsystem so changes to the set of kstats can be detected.
+The current version can be requested with a
+.Dv KSTATIOC_VERSION
+.Xr ioctl 2
+call.
+Programs requesting a kstat with the other
+.Xr ioctl 2
+calls pass the current version in
+.Va ks_version ,
+and if the version differs an error will be returned with
+.Xr errno 2
+set to
+.Dv EINVAL
+to indicate that the program should resynchronise with the kernel
+subsystem.
+This check can be disabled by setting the
+.Dv KSTATIOC_F_IGNVER
+flag in
+.Va ks_rflags .
+.Pp
+A kstat is identified by a 64bit number, or the combination of a
+provider name, instance number, name, and unit number.
+.Pp
+Unless
+.Va ks_data
+is
+.Dv NULL ,
+the kstat subsystem will request an update of the statistics data
+and copy up to
+.Va ks_datalen
+bytes of it to the specified memory.
+.Pp
+The kstat
+.Xr ioctl 2
+calls are as follows:
+.Bl -tag -width Ds
+.It Dv KSTATIOC_VERSION Fa "unsigned int"
+Get the current version of the set of kernel statistics.
+.It Dv KSTATIOC_FIND_ID Fa "struct kstat_req"
+Request the kstat identified by
+.Va ks_id .
+.It Dv KSTATIOC_NFIND_ID Fa "struct kstat_req"
+Request a kstat with an identifier greater than or equal to
+.Va ks_id .
+.It Dv KSTATIOC_FIND_PROVIDER Fa "struct kstat_req"
+Request the kstat identified by
+.Va ks_provider ,
+.Va ks_instance ,
+.Va ks_name ,
+and
+.Va ks_unit .
+.It Dv KSTATIOC_NFIND_PROVIDER Fa "struct kstat_req"
+Request the kstat or next kstat from the set of kstats ordered by
+.Va ks_provider ,
+.Va ks_instance ,
+.Va ks_name ,
+and
+.Va ks_unit .
+.It Dv KSTATIOC_FIND_NAME Fa "struct kstat_req"
+Request the kstat identified by
+.Va ks_name ,
+.Va ks_unit ,
+.Va ks_provider ,
+and
+.Va ks_instance .
+.It Dv KSTATIOC_NFIND_NAME Fa "struct kstat_req"
+Request the kstat or next kstat from the set of kstats ordered by
+.Va ks_name ,
+.Va ks_unit ,
+.Va ks_provider ,
+and
+.Va ks_instance .
+.El
+.Pp
+Upon the successful request of a kstat, the
+.Nm
+driver will update the
+.Vt kstat_req
+structure with current information about that kstat.
+Updated fields include:
+.Bl -tag -width Ds
+.It Va ks_version
+The current version of the kstat subsystem.
+.It Va ks_id
+The 64bit unique identifier for the requested kstat.
+A kstat can be requested using this identifier and the
+.Dv KSTATIOC_FIND_ID
+.Xr ioctl 2
+call.
+.It Va ks_provider , Va ks_instance , Va ks_name , Va ks_unit
+The fully specified identifier of the kstat.
+A kstat can be requested using these identifiers with the
+.Dv KSTATIOC_FIND_NAME
+and
+.Dv KSTATIOC_FIND_PROVIDER
+.Xr ioctl 2
+calls.
+Groups of kstats with the same identifier or name can be enumerated
+or requested with the
+.Dv KSTATIOC_NFIND_NAME
+and
+.Dv KSTATIOC_NFIND_PROVIDER
+.Xr ioctl 2
+calls without having to fetch the entire set of kstats and filtering
+them.
+.It Va ks_created
+The system uptime when the kstat was created and added to the kstat
+subsystem.
+.It Va ks_updated
+The system uptime at which the kstat data payload was last updated.
+A kstat provider may update data when requested, or report when
+data was last updated by some other process.
+.Va ks_updated
+can by used by a program to identify if data has been updated, or
+for calculating rates of changes of values between updates.
+.It Va ks_type
+The type or structure of the data payload.
+Currently supported types are documented in
+.Xr kstat_create 9 .
+.\" .It Va ks_state
+.\" The state of the kstat. create or installed iirc
+.It Va ks_datalen
+The amount of data the kstat provides in bytes.
+When requesting kstat data, the program specifies the amount of
+space available at
+.Va ks_data
+by setting this variable.
+.El
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /dev/kstat
+.El
+.Sh SEE ALSO
+.\".Xr kstat 1 ,
+.Xr kstat_create 9 ,
+.Xr kstat_kv_init 9
+.Sh HISTORY
+The
+.Nm
+device appeared in
+.Ox 6.8 .

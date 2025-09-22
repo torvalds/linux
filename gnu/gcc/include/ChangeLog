@@ -1,0 +1,321 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-05-13  Release Manager
+
+	* GCC 4.2.0 released.
+
+2007-05-04  Mark Mitchell  <mark@codesourcery.com>
+
+	* demangle.h: Change license to LGPL + exception.
+
+2007-02-09  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* libiberty.h (pex_write_input): Remove prototype.
+
+2006-04-11  Jim Blandy  <jimb@codesourcery.com>
+
+	* libiberty.h (pex_input_file, pex_input_pipe): New declarations.
+
+2006-01-18  DJ Delorie  <dj@redhat.com>
+
+	* md5.h: Include ansidecl.h
+
+2006-01-09  Bob Wilson  <bob.wilson@acm.org>
+
+	* xtensa-config.h (XCHAL_HAVE_MUL32_HIGH): Define.
+
+2005-12-30  Bob Wilson  <bob.wilson@acm.org>
+
+	* xtensa-config.h (XCHAL_HAVE_WIDE_BRANCHES): New.
+
+2005-12-10  Terry Laurenzo  <tlaurenzo@gmail.com>
+
+	PR java/9861
+	* demangle.h : Add DMGL_RET_POSTFIX define to enable alternative
+	output format for return types
+
+2005-10-31  Mark Kettenis  <kettenis@gnu.org>
+
+	* floatformat.h (enum floatformat_byteorders): Add
+	floatformat_vax.
+	(floatformat_vax_aingle, floatformat_vax_double): Declare.
+
+2005-09-26  Mark Mitchell  <mark@codesourcery.com>
+
+	* libiberty.h (expandargv): New function.
+
+2005-08-17  Mark Kettenis  <kettenis@gnu.org>
+
+	* floatformat.h (struct floatformat): Change type of large
+	argument for is_valid member to `const void *'.
+	(floatformat_to_double): Change type of second argument to `const
+	void *'.
+	(floatformat_from_double): Change type of last argument to `void
+	*'.
+	(floatformat_is_valid): Change type of last argument to `const
+	void *'.
+
+2005-07-12  Ben Elliston  <bje@au.ibm.com>
+
+	* xregex2.h (regexec): Qualify this prototype with __extension__
+	when compiling with GNU C.
+
+2005-07-03  Steve Ellcey  <sje@cup.hp.com>
+
+	PR other/13906
+	* ansidecl.h (ATTRIBUTE_ALIGNED_ALIGNOF): New.
+	* md5.h (md5_uintptr): New.
+	(md5_ctx): Align buffer field.
+
+2005-06-30  Daniel Berlin  <dberlin@dberlin.org>
+	
+	* hashtab.h (HTAB_DELETED_ENTRY): New macro.
+	(HTAB_EMPTY_ENTRY): New macro.
+
+2005-06-20  Geoffrey Keating  <geoffk@apple.com>
+
+	* libiberty.h (strverscmp): Prototype. 
+
+2005-06-06  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	* libiberty.h (XOBFINISH): New.
+
+2005-06-01  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (vsnprintf): Add format attribute.
+
+2005-05-29  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* ansidecl.h: Add ATTRIBUTE_FPTR_PRINTF.
+
+2005-05-28  Eli Zaretskii  <eliz@gnu.org>
+
+	* libiberty.h: (snprintf) [!HAVE_DECL_SNPRINTF]: Declare if
+	needed.
+	(vsnprintf) [!HAVE_DECL_VSNPRINTF]: Declare if needed.
+
+2005-05-25  Richard Henderson  <rth@redhat.com>
+
+	* demangle.h (DEMANGLE_COMPONENT_HIDDEN_ALIAS): New.
+
+2005-05-24  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	* libiberty.h (ACONCAT): Properly cast value of alloca().
+
+	* ansidecl.h (ATTRIBUTE_UNUSED_LABEL): Don't define if
+	__cplusplus.
+
+2005-05-12  Steve Ellcey  <sje@cup.hp.com>
+
+	libiberty.h: Do not define empty basename prototype.
+
+2005-05-10  Nick Clifton  <nickc@redhat.com>
+
+	* Update the address and phone number of the FSF organization in
+	the GPL notices in the following files:
+	COPYING, ansidecl.h, bfdlink.h, bout.h, demangle.h, dis-asm.h,
+	dyn-string.h, fibheap.h, filenames.h, floatformat.h,
+	fnmatch.h, gdbm.h, getopt.h, hashtab.h, hp-symtab.h, ieee.h,
+	libiberty.h, md5.h, oasys.h, objalloc.h, obstack.h, os9k.h,
+	partition.h, progress.h, safe-ctype.h, sort.h, splay-tree.h,
+	symcat.h, ternary.h, xregex2.h, xtensa-config.h,
+	xtensa-isa-internal.h, xtensa-isa.h
+
+2005-04-25  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (unlock_std_streams): New.
+
+2005-04-19  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* hashtab.h, libiberty.h, objalloc.h, splay-tree.h, ternary.h:
+	Don't use the PTR macro.
+
+	* sort.h: Don't use the PARAMS macro.
+
+2005-04-16  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (unlock_stream): New.
+
+2005-04-13  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (fopen_unlocked, fdopen_unlocked, freopen_unlocked):
+	Remove parameter names.
+
+2005-04-11  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (fopen_unlocked, fdopen_unlocked, freopen_unlocked):
+	Provide prototypes for new functions.
+
+2005-03-29  Ian Lance Taylor  <ian@airs.com>
+
+	* libiberty.h: Fix indentation.
+
+2005-03-28  Ian Lance Taylor  <ian@airs.com>
+
+	* libiberty.h: Include <stdio.h>.
+	(PEX_RECORD_TIMES, PEX_USE_PIPES, PEX_SAVE_TEMPS): Define.
+	(PEX_LAST, PEX_SEARCH, PEX_SUFFIX, PEX_STDERR_TO_STDOUT): Define.
+	(PEX_BINARY_INPUT, PEX_BINARY_OUTPUT): Define.
+	(pex_init, pex_run, pex_read_output): Declare.
+	(pex_get_status, pex_get_times, pex_free, pex_one): Declare.
+	(struct pex_time): Define.
+
+2005-03-28  Mark Mitchell <mark@codesourcery.com>
+
+	* libiberty.h (ffs): Declare, if necessary.
+
+2005-03-27  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	* xregex2.h (_RE_ARGS): Remove definition and uses.
+
+2005-03-27  Gabriel Dos Reis  <gdr@integreable-solutions.net>
+
+	* ternary.h: Don't use PARAMS anymore.
+
+2005-03-27  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	* partition.h: Remove use of PARAMS.
+	* obstack.h: Remove conditional prototypes __STDC__.
+	* objalloc.h:  Remove use of PARAMS.
+	* splay-tree.h: Likewise.
+
+2005-03-27  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	* md5.h: Remove definition and uses of __P.
+	* dyn-string.h: Remove uses of PARAMS.
+	* fibheap.h: Likewise.
+	* floatformat.h: Likewise.
+	* hashtab.h: Likewise.
+
+2005-03-26  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	* demangle.h: Remove uses of PARAMS.
+
+	* libiberty.h (ANSI_PROTOTYPES): Remove guard since
+	ANSI_PROTOTYPES is always assumed.
+	Remove uses of PARAMS throughout.
+
+2005-03-24  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (xstrndup): Declare.
+
+2005-03-22  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libiberty.h (make_relative_prefix): Add ATTRIBUTE_MALLOC.
+
+2005-03-09  Mark Mitchell  <mark@codesourcery.com>
+
+	* libiberty.h (gettimeofday): Declare.
+
+2005-03-01  Jan Beulich  <jbeulich@novell.com>
+
+	* libiberty.h: Declare unlink_if_ordinary.
+
+2005-02-14  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR bootstrap/19818
+	* ansidecl.h (PARAMS): Guard from redefinition.
+
+2004-12-11  Ben Elliston  <bje@au.ibm.com>
+
+	* fibheap.h (struct fibnode): Only use unsigned long bitfields
+	when __GNUC__ is defined and ints are less than 32-bits wide.
+
+2004-10-07  Bob Wilson  <bob.wilson@acm.org>
+
+	* xtensa-config.h (XSHAL_USE_ABSOLUTE_LITERALS,
+	XCHAL_HAVE_PREDICTED_BRANCHES, XCHAL_INST_FETCH_WIDTH): New.
+	(XCHAL_EXTRA_SA_SIZE, XCHAL_EXTRA_SA_ALIGN): Delete.
+
+2004-09-13  Aaron W. LaFramboise  <aaronavay62@aaronwl.com>
+
+	* libiberty.h (basename): Prototype for __MINGW32__.
+
+2004-09-04  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* ansidecl.h (ATTRIBUTE_SENTINEL): Define.
+	* libiberty.h (concat, reconcat, concat_length, concat_copy,
+	concat_copy2): Use ATTRIBUTE_SENTINEL.
+
+2004-08-02  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	* libiberty.h (XDELETE, XDELETEVEC, XRESIZEVEC): Remove any
+	const-qualification before disposal.
+
+2004-07-24  Bernardo Innocenti  <bernie@develer.com>
+
+	* ansidecl.h (ARG_UNUSED): New Macro.
+
+2004-07-24  Bernardo Innocenti  <bernie@develer.com>
+
+	* libiberty.h (XNEW, XCNEW, XNEWVEC, XCNEWVEC, XOBNEW): Move here from
+	libcpp/internal.h.
+	(XDELETE, XRESIZEVEC, XDELETEVEC, XNEWVAR, XCNEWVAR, XRESIZEVAR): New
+	macros.
+
+2004-07-21  Paolo Bonzini  <bonzini@gnu.org>
+
+	* ansidecl.h (ATTRIBUTE_PURE): New.
+
+2004-07-13  Bernardo Innocenti  <bernie@develer.com>
+
+	* libiberty.h (ASTRDUP): Add casts required for stricter
+	type conversion rules of C++.
+	* obstack.h (obstack_free): Likewise.
+
+2004-05-04  Andreas Jaeger  <aj@suse.de>
+
+	* demangle.h: Do not use C++ reserved keyword typename as
+	parameter for cplus_demangle_fill_builtin_type.
+
+2004-04-22  Richard Henderson  <rth@redhat.com>
+
+	* hashtab.h (struct htab): Add size_prime_index.
+
+2004-04-13  Jeff Law  <law@redhat.com>
+
+	* hashtab.h (htab_remove_elt_with_hash): Prototype new function.
+
+2004-03-30  Zack Weinberg  <zack@codesourcery.com>
+
+	* hashtab.h, splay-tree.h: Use new shorter form of GTY markers.
+
+2004-02-24  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* dyn-string.h: Update copyright date.
+
+2004-02-23  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* dyn-string.h: Remove test of IN_LIBGCC2 and IN_GLIBCPP_V3 and
+	the associated #defines.
+
+2004-01-12  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* demangle.h: Instead of checking ANSI_PROTOTYPES, just include
+	"libiberty.h".
+
+	* demangle.h: If ANSI_PROTOTYPES is defined, include <stddef.h>.
+
+	* demangle.h (enum demangle_component_type): Define.
+	(struct demangle_operator_info): Declare.
+	(struct demangle_builtin_type_info): Declare.
+	(struct demangle_component): Define.
+	(cplus_demangle_fill_component): Declare.
+	(cplus_demangle_fill_name): Declare.
+	(cplus_demangle_fill_builtin_type): Declare.
+	(cplus_demangle_fill_operator): Declare.
+	(cplus_demangle_fill_extended_operator): Declare.
+	(cplus_demangle_fill_ctor, cplus_demangle_fill_dtor): Declare.
+	(cplus_demangle_v3_components): Declare.
+	(cplus_demangle_print): Declare.
+
+For older changes see ChangeLog-9103
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

@@ -1,0 +1,55 @@
+.\"	$OpenBSD: utwitch.4,v 1.5 2013/08/07 06:37:02 jmc Exp $
+.\"
+.\" Copyright (c) 2010 Yojiro UO <yuo@nui.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 7 2013 $
+.Dt UTWITCH 4
+.Os
+.Sh NAME
+.Nm utwitch
+.Nd YUREX USB twitch/jiggle of knee sensor
+.Sh SYNOPSIS
+.Cd "utwitch* at uhidev?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Maywa-denki & KAYAC YUREX device.
+The device has a sensor to count user's leg twitch and it
+possesses a collection of sensor values which are
+made available through the
+.Xr sysctl 8
+interface.
+The counter unit for twitch is "BBU" (BinBo-YUsuri or
+Bounding Body from Unconsciousness) and the unit for BBU speed
+is "mBBU/sec" (milli BBU per second).
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr uhidev 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Rs
+.%T The YUREX Web Page
+.%U http://bbu.kayac.com/en/about/
+.Re
+.Sh HISTORY
+The
+.Nm
+driver was originally named uyurex.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Yojiro UO Aq Mt yuo@nui.org .

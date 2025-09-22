@@ -1,0 +1,36 @@
+$OpenBSD: BaseState.pod,v 1.2 2022/12/28 21:30:18 jmc Exp $
+
+=head1 NAME
+
+OpenBSD::BaseState - light-weight IO and system access in pkg_add
+
+=head1 SYNOPSIS
+
+    use OpenBSD::BaseState;
+
+    OpenBSD::BaseState->say("I'm sorry #1, I'm afraid I can't do that", $user);
+    OpenBSD::BaseState->system('make', '-C');
+
+=head1 DESCRIPTION
+
+C<OpenBSD::BaseState> contains utility functions for C<OpenBSD::State> objects,
+as a light-weight framework for perl code that doesn't really need fully
+fledged state objects and all the extra luggage that the object provides.
+
+As such, C<OpenBSD::BaseState> contains the actual code for
+C<fhprint>, C<fhsay> C<print>, C<say>, C<errsay>, C<fatal>, C<f>, C<system>, C<verbose_system>, C<copy_file>, C<unlink>, C<copy>
+
+=over 4
+
+=item $class->can_output
+
+hook to be overridden if need be, for programs that do not want to keep
+writing to the terminal in the background. Returns 1 by default.
+
+=back
+
+=head1 BUGS
+
+User interface needs are not fully fleshed out and C<OpenBSD::State> is
+a work-in-progress.  What's described here should hopefully no longer
+change too much.

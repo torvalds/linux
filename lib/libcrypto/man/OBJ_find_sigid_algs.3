@@ -1,0 +1,89 @@
+.\" $OpenBSD: OBJ_find_sigid_algs.3,v 1.4 2025/06/09 12:42:46 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 9 2025 $
+.Dt OBJ_FIND_SIGID_ALGS 3
+.Os
+.Sh NAME
+.Nm OBJ_find_sigid_algs ,
+.Nm OBJ_find_sigid_by_algs
+.Nd signature algorithm mappings
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/objects.h
+.Ft int
+.Fo OBJ_find_sigid_algs
+.Fa "int signature"
+.Fa "int *pdigest"
+.Fa "int *pencryption"
+.Fc
+.Ft int
+.Fo OBJ_find_sigid_by_algs
+.Fa "int *psignature"
+.Fa "int digest"
+.Fa "int encryption"
+.Fc
+.Sh DESCRIPTION
+.Fn OBJ_find_sigid_algs
+looks up the
+.Fa signature
+algorithm.
+If it is found, the associated digest algorithm is stored in
+.Pf * Fa pdigest
+unless
+.Fa pdigest
+is a
+.Dv NULL
+pointer, and the associated encryption algorithm is stored in
+.Pf * Fa pencryption
+unless
+.Fa pencryption
+is a
+.Dv NULL
+pointer.
+.Pp
+.Fn OBJ_find_sigid_by_algs
+looks up the pair
+.Pq Fa digest , encryption .
+If it is found, the associated signature algorithm is stored in
+.Pf * Fa psignature
+unless
+.Fa psignature
+is a
+.Dv NULL
+pointer.
+.Sh RETURN VALUES
+.Fn OBJ_find_sigid_algs
+returns 1 if a definition of the
+.Fa signature
+algorithm is found or 0 if a definition of the
+.Fa signature
+algorithm is not built into the library.
+.Pp
+.Fn OBJ_find_sigid_by_algs
+returns 1 if a signature algorithm using the specified
+.Fa digest
+and
+.Fa encryption
+algorithms is defined or 0 if the definition of such an algorithm
+is not built into the library.
+.Sh SEE ALSO
+.Xr OBJ_create 3 ,
+.Xr OBJ_nid2obj 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.0.0
+and have been available since
+.Ox 4.9 .

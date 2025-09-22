@@ -1,0 +1,62 @@
+.\"	$OpenBSD: xe.4,v 1.12 2007/05/31 19:19:53 jmc Exp $
+.\"
+.\" Copyright (c) 1999 Niklas Hallqvist
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt XE 4
+.Os
+.Sh NAME
+.Nm xe
+.Nd Xircom-based 16-bit PCMCIA 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "xe* at pcmcia?"
+.Cd "icsphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+interface provides access to a 10/100 Mb/s Ethernet network via a
+Xircom Ethernet card.
+The Ethernet cards known to be supported by the
+.Nm
+interface are:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Xircom Realport
+.It Xircom CE3
+.El
+.Pp
+However, most 16-bit Xircom Ethernet cards should work.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr icsphy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pcmcia 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Ox 2.5 .

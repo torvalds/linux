@@ -1,0 +1,24 @@
+static_library("Initialization") {
+  output_name = "lldbInitialization"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Plugins/Process/gdb-remote",
+    "//llvm/lib/Support",
+  ]
+
+  if (current_os == "linux" || current_os == "android") {
+    deps += [ "//lldb/source/Plugins/Process/POSIX" ]
+  } else if (current_os == "win") {
+    deps += [ "//lldb/source/Plugins/Process/Windows/Common" ]
+  }
+
+  # SystemInitializerCommon.cpp includes headers from Plugins/Process/....
+  include_dirs = [ ".." ]
+  sources = [
+    "SystemInitializer.cpp",
+    "SystemInitializerCommon.cpp",
+    "SystemLifetimeManager.cpp",
+  ]
+}

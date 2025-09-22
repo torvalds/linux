@@ -1,0 +1,28 @@
+ah tunnel from 1.1.1.1 to 2.2.2.2 spi 0x1eadbeef auth hmac-sha2-256 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 2.2.2.2 to 1.1.1.1 spi 0xbeef1ead auth hmac-sha2-256 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 1.1.1.2 to 2.2.2.2 spi 0x2eadbeef auth hmac-md5 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 2.2.2.2 to 1.1.1.2 spi 0xbeef2ead auth hmac-md5 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 1.1.1.3 to 2.2.2.2 spi 0x3eadbeef auth hmac-ripemd160 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 2.2.2.2 to 1.1.1.3 spi 0xbeef3ead auth hmac-ripemd160 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 1.1.1.4 to 2.2.2.2 spi 0x4eadbeef auth hmac-sha1 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 2.2.2.2 to 1.1.1.4 spi 0xbeef4ead auth hmac-sha1 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 1.1.1.5 to 2.2.2.2 spi 0x5eadbeef auth hmac-sha2-256 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 2.2.2.2 to 1.1.1.5 spi 0xbeef5ead auth hmac-sha2-256 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 1.1.1.6 to 2.2.2.2 spi 0x6eadbeef auth hmac-sha2-384 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 2.2.2.2 to 1.1.1.6 spi 0xbeef6ead auth hmac-sha2-384 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 1.1.1.7 to 2.2.2.2 spi 0x7eadbeef auth hmac-sha2-512 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ah tunnel from 2.2.2.2 to 1.1.1.7 spi 0xbeef7ead auth hmac-sha2-512 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

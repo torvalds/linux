@@ -1,0 +1,5 @@
+sscanf-1.cpp: In function `int main(int, char**)':
+sscanf-1.cpp:6: warning: Array size (10) smaller than format string size (21) 
+   (arg 3)
+sscanf-1.cpp:6: warning: Array size (10) smaller than format string size (11) 
+   (arg 4)

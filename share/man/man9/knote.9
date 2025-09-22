@@ -1,0 +1,114 @@
+.\"	$OpenBSD: knote.9,v 1.10 2023/02/10 14:34:16 visa Exp $
+.\"	$NetBSD: knote.9,v 1.9 2003/04/16 13:35:29 wiz Exp $
+.\"
+.\" Copyright (c) 2001, 2002, 2003 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation is derived from text contributed by
+.\" Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 10 2023 $
+.Dt KNOTE 9
+.Os
+.Sh NAME
+.Nm knote ,
+.Nm knote_locked
+.Nd raise kernel event
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/event.h
+.Ft void
+.Fn knote "struct klist *list" "long hint"
+.Ft void
+.Fn knote_locked "struct klist *list" "long hint"
+.Sh DESCRIPTION
+The
+.Fn knote
+and
+.Fn knote_locked
+functions provide a hook into the kqueue kernel event notification
+mechanism to allow sections of the kernel to raise a kernel event
+in the form of a
+.Sq knote ,
+which is a
+.Fa struct knote
+as defined in
+.In sys/event.h .
+.Pp
+.Fn knote
+takes a singly linked
+.Fa list
+of knotes, along with a
+.Fa hint
+(which is passed to the appropriate filter routine).
+.Fn knote
+then locks and walks the
+.Fa list
+making calls to the filter routine for each knote.
+As each knote contains a reference to the data structure that it is
+attached to, the filter may choose to examine the data structure in
+deciding whether an event should be reported.
+The
+.Fa hint
+is used to pass in additional information, which may not be present in
+the data structure that the filter examines.
+.Pp
+If the filter decides that the event should be returned, it returns a
+non-zero value and
+.Fn knote
+links the knote onto the tail end of the active list in the
+corresponding kqueue for the application to retrieve.
+If the knote is already on the active list, no action is taken, but the
+call to the filter occurs in order to provide an opportunity for the
+filter to record the activity.
+.Pp
+.Fn knote_locked
+is like
+.Fn knote
+but assumes that the
+.Fa list
+is already locked.
+.Pp
+.Fn knote
+and
+.Fn knote_locked
+must not be called from interrupt contexts running at an interrupt
+priority level higher than
+.Fn splsched .
+.\" .Sh ERRORS
+.Sh SEE ALSO
+.Xr kqueue 2
+.\" .Xr kfilter_register 9
+.Sh HISTORY
+The
+.Fn knote
+functions first appeared in
+.Fx 4.1 ,
+and then in
+.Ox 2.9 .
+.Sh AUTHORS
+The
+.Fn kqueue
+system was written by
+.An Jonathan Lemon Aq Mt jlemon@FreeBSD.org .

@@ -1,0 +1,81 @@
+.\" $OpenBSD: myx.4,v 1.7 2022/02/17 12:24:08 jsg Exp $
+.\"
+.\" Copyright (c) 2007 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 17 2022 $
+.Dt MYX 4
+.Os
+.Sh NAME
+.Nm myx
+.Nd Myricom Myri-10G PCI Express 10Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "myx* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the Myricom Myri-10G PCI Express 10Gb Ethernet
+adapters based on the Myricom Lanai-Z8E and Lanai-Z8ES chipsets,
+including the following:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Myricom 10G-PCIE-8A-C Adapter (10GbaseCX4)
+.It
+Myricom 10G-PCIE-8A-R Adapter (10GbaseSR/LR)
+.It
+Myricom 10G-PCIE-8A-Q Adapter (10G XAUI)
+.It
+Myricom 10G-PCIE2-8B2-2S Adapter (10GbaseSR/LR)
+.It
+Myricom 10G-PCIE2-8C2-2S Adapter (10GbaseSR/LR/LRM)
+.El
+.Pp
+Low profile versions are supported as well.
+.Sh FILES
+The adapter needs a firmware file, which is selected and loaded on
+demand by the driver when the device is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/myx-eth_z8e
+.It Pa /etc/firmware/myx-ethp_z8e
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .
+.Sh CAVEATS
+While the firmware supports reading module information for
+.Xr ifconfig 8
+.Cm transceiver
+to use, it does not support writing to the module.
+This prevents configuration of the module, which may prevent
+.Xr ifconfig 8
+from reading the right data from the module where other network
+cards succeed.

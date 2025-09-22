@@ -1,0 +1,135 @@
+.\"	$OpenBSD: smr_call.9,v 1.4 2022/06/22 14:10:49 visa Exp $
+.\"
+.\" Copyright (c) 2019 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 22 2022 $
+.Dt SMR_CALL 9
+.Os
+.Sh NAME
+.Nm smr_read_enter ,
+.Nm smr_read_leave ,
+.Nm smr_init ,
+.Nm smr_call ,
+.Nm smr_barrier ,
+.Nm smr_flush ,
+.Nm SMR_ASSERT_CRITICAL ,
+.Nm SMR_ASSERT_NONCRITICAL
+.Nd safe memory reclamation
+.Sh SYNOPSIS
+.In sys/smr.h
+.Ft void
+.Fn smr_read_enter
+.Ft void
+.Fn smr_read_leave
+.Ft void
+.Fn smr_init "struct smr_entry *smr"
+.Ft void
+.Fn smr_call "struct smr_entry *smr" "void (*fn)(void *)" "void *arg"
+.Ft void
+.Fn smr_barrier
+.Ft void
+.Fn smr_flush
+.Ft void
+.Fn SMR_ASSERT_CRITICAL
+.Ft void
+.Fn SMR_ASSERT_NONCRITICAL
+.Sh DESCRIPTION
+The safe memory reclamation API provides a mechanism for reclaiming
+shared objects that readers can access without locking.
+Objects that are reclaimed through SMR are called SMR-protected.
+The mechanism guarantees that SMR-protected objects are not destroyed
+while readers are using them.
+However, it does not control how these objects are modified.
+.Pp
+Readers access SMR-protected objects inside an SMR read-side critical section
+using
+.Xr SMR_PTR_GET 9 .
+.\" or with a higher level API built on top of it.
+The section is entered with
+.Fn smr_read_enter ,
+and exited with
+.Fn smr_read_leave .
+These routines never block.
+Sleeping is not allowed within SMR read-side critical section.
+.Pp
+.Fn smr_init
+initializes the entry
+.Fa smr
+for use with
+.Fn smr_call .
+.Pp
+.Fn smr_call
+schedules a callback to be invoked after the entry
+.Fa smr
+cannot be referenced by a reader in SMR read-side critical section.
+On invocation, the system calls function
+.Fa fn
+with argument
+.Fa arg
+in process context without any locks held.
+The implementation may delay the call in order to reduce
+overall system overhead by amortization.
+.Pp
+.Fn smr_barrier
+sleeps until any SMR read-side critical sections that are active on other CPUs
+at the time of invocation have ended.
+Like with
+.Fn smr_call ,
+the processing of the request may be delayed.
+.Pp
+.Fn smr_flush
+is like
+.Fn smr_barrier
+but the system is forced to process the request as soon as possible.
+The use of this function is discouraged because of the heavy impact
+on system performance.
+.Pp
+To avoid deadlocks, the caller of
+.Fn smr_barrier
+or
+.Fn smr_flush
+must not hold locks that can block the processing of SMR callbacks.
+.Pp
+The SMR implementation does not limit the number of deferred calls.
+It is important to prevent arbitrary call rate of
+.Fn smr_call .
+Otherwise, it might be possible to exhaust system resources
+if the system is not able to invoke callbacks quickly enough.
+.Pp
+.Fn SMR_ASSERT_CRITICAL
+and
+.Fn SMR_ASSERT_NONCRITICAL
+can be used to assert that the current CPU is or is not
+in SMR read-side critical section.
+.Sh CONTEXT
+.Fn smr_read_enter ,
+.Fn smr_read_leave ,
+.Fn smr_call
+and
+.Fn smr_init
+can be called during autoconf, from process context, or from interrupt context.
+.Pp
+.Fn smr_barrier
+and
+.Fn smr_flush
+can be called from process context.
+.Sh SEE ALSO
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+.Xr SMR_LIST_INIT 9 ,
+.Xr SMR_PTR_GET 9
+.Sh HISTORY
+The SMR API first appeared in
+.Ox 6.5 .

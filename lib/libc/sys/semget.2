@@ -1,0 +1,154 @@
+.\"	$OpenBSD: semget.2,v 1.20 2021/10/23 21:17:45 jmc Exp $
+.\"	$NetBSD: semget.2,v 1.2 1997/03/27 08:20:41 mikel Exp $
+.\"
+.\" Copyright (c) 1995 Frank van der Linden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed for the NetBSD Project
+.\"      by Frank van der Linden
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"/
+.Dd $Mdocdate: October 23 2021 $
+.Dt SEMGET 2
+.Os
+.Sh NAME
+.Nm semget
+.Nd get semaphore set
+.Sh SYNOPSIS
+.In sys/sem.h
+.Ft int
+.Fn semget "key_t key" "int nsems" "int semflg"
+.Sh DESCRIPTION
+The
+.Fn semget
+system call returns the semaphore identifier associated with
+.Fa key .
+.Pp
+A new set containing
+.Fa nsems
+semaphores is created if either
+.Fa key
+is equal to
+.Dv IPC_PRIVATE ,
+or
+.Fa key
+does not have a semaphore set associated with it and the
+.Dv IPC_CREAT
+bit is set in
+.Fa semflg .
+.Pp
+The access modes of the created semaphores is specified in
+.Fa semflg
+as a bitwise OR of zero or more of the following values:
+.Bd -literal -offset indent
+SEM_A        alter permission for owner
+SEM_R        read permission for owner
+
+SEM_A >> 3   alter permission for group
+SEM_R >> 3   read permission for group
+
+SEM_A >> 6   alter permission for other
+SEM_R >> 6   read permission for other
+.Ed
+.Pp
+If a new set of semaphores is created, the data structure associated with it
+(the
+.Va semid_ds
+structure, see
+.Xr semctl 2 )
+is initialized as follows:
+.Bl -bullet
+.It
+.Va sem_perm.cuid
+and
+.Va sem_perm.uid
+are set to the effective UID of the calling process.
+.It
+.Va sem_perm.gid
+and
+.Va sem_perm.cgid
+are set to the effective GID of the calling process.
+.It
+.Va sem_perm.mode
+is set to the lower 9 bits of
+.Fa semflg .
+.It
+.Va sem_nsems
+is set to the value of
+.Fa nsems .
+.It
+.Va sem_ctime
+is set to the current time.
+.It
+.Va sem_otime
+is set to 0.
+.El
+.Sh RETURN VALUES
+.Fn semget
+returns a non-negative semaphore identifier if successful.
+Otherwise, \-1 is returned and
+.Va errno
+is set to reflect the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EACCES
+The caller has no permission to access a semaphore set already associated with
+.Fa key .
+.It Bq Er EEXIST
+Both
+.Dv IPC_CREAT
+and
+.Dv IPC_EXCL
+are set in
+.Fa semflg ,
+and a semaphore set is already associated with
+.Fa key .
+.It Bq Er EINVAL
+.Va nsems
+is less than or equal to 0 or greater than the system limit for the
+number in a semaphore set.
+.Pp
+A semaphore set associated with
+.Fa key
+exists, but has fewer semaphores than the number specified in
+.Fa nsems .
+.It Bq Er ENOSPC
+A new set of semaphores could not be created because the system limit
+for the number of semaphores or the number of semaphore sets has been
+reached.
+.It Bq Er ENOENT
+.Dv IPC_CREAT
+was not set in
+.Fa semflg
+and no semaphore set associated with
+.Fa key
+was found.
+.El
+.Sh SEE ALSO
+.Xr ipcrm 1 ,
+.Xr ipcs 1 ,
+.Xr semctl 2 ,
+.Xr semop 2 ,
+.Xr ftok 3

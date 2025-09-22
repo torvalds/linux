@@ -1,0 +1,71 @@
+.\"	$OpenBSD: zs.4,v 1.8 2015/11/23 10:37:20 mpi Exp $
+.\"
+.\" Copyright (c) 1998 The OpenBSD Project
+.\" All rights reserved.
+.\"
+.\"
+.Dd $Mdocdate: November 23 2015 $
+.Dt ZS 4 macppc
+.Os
+.Sh NAME
+.Nm zs ,
+.Nm zstty
+.Nd Zilog 8530 (ZSCC) serial communications driver
+.Sh SYNOPSIS
+.Cd "zs* at macobio?"
+.Cd "zstty* at zs?"
+.Sh DESCRIPTION
+The
+.Nm
+is a Zilog 8530 serial interface chip used in
+.Tn Sun
+workstations and
+.Tn Apple
+Macintosh systems.
+On most newer Macintosh systems, the first port
+tty00
+is connected to the internal modem.
+The second port is either not connected, or may be connected to
+an IRDA device (untested).
+It is possible to replace the internal modem on some system with
+a real serial port using third party hardware adapters.
+.Pp
+The
+.Nm
+driver supports all of the standard
+.Xr tty 4
+ioctl calls.
+The status of the DTR, RTS, CTS, and DCD signals can be queried with
+TIOCMGET command, but, due to limitations in the hardware,
+only the DTR and RTS signals can be modified with TIOCMSET, TIOCMBIC,
+and TIOCMBIS
+.Xr ioctl 2
+commands.
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /dev/tty00
+.It Pa /dev/tty01
+.It Pa /dev/cua00
+.It Pa /dev/cua01
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr intro 4 ,
+.Xr tty 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Bx 4.4 .
+Support for the TIOCM*
+.Xr ioctl 2 Ns s
+appeared in
+.Ox 2.3 .
+.Sh BUGS
+The
+.Nm
+driver now supports cua minor devices, but with this known deficiency
+in the simultaneous outgoing/incoming aspect of the driver:
+The first outgoing connection succeeds, but second and subsequent
+connections fail, apparently due to a getty hang.
+The hung getty apparently prevents the cua device from being re-opened.

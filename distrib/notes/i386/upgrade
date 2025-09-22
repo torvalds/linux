@@ -1,0 +1,3 @@
+dnl	$OpenBSD: upgrade,v 1.25 2004/09/10 19:12:16 miod Exp $
+OpenBSDUpgrade({:-the CD-ROM or an installation floppy as you would do for
+a new installation-:})

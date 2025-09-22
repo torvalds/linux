@@ -1,0 +1,112 @@
+.\" $OpenBSD: BN_mod_sqrt.3,v 1.3 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_MOD_SQRT 3
+.Os
+.Sh NAME
+.Nm BN_mod_sqrt
+.Nd square root in a prime field
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft BIGNUM *
+.Fo BN_mod_sqrt
+.Fa "BIGNUM *r"
+.Fa "const BIGNUM *a"
+.Fa "const BIGNUM *p"
+.Fa "BN_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+.Fn BN_mod_sqrt
+solves
+.Bd -unfilled -offset indent
+.EQ
+r sup 2 == a ( roman mod p )
+.EN
+.Ed
+.Pp
+for
+.Fa r
+in the prime field of characteristic
+.Fa p
+using the Tonelli-Shanks algorithm if needed
+and places one of the two solutions into
+.Fa r .
+The other solution is
+.Fa p
+\-
+.Fa r .
+.Pp
+The argument
+.Fa p
+is expected to be a prime number.
+.Sh RETURN VALUES
+In case of success,
+.Fn BN_mod_sqrt
+returns
+.Fa r ,
+or a newly allocated
+.Vt BIGNUM
+object if the
+.Fa r
+argument is
+.Dv NULL .
+.Pp
+In case of failure,
+.Dv NULL
+is returned.
+This for example happens if
+.Fa a
+is not a quadratic residue or if memory allocation fails.
+.Sh SEE ALSO
+.Xr BN_CTX_new 3 ,
+.Xr BN_kronecker 3 ,
+.Xr BN_mod_sqr 3 ,
+.Xr BN_new 3
+.Rs
+.%A Henri Cohen
+.%B A Course in Computational Algebraic Number Theory
+.%I Springer
+.%C Berlin
+.%D 1993
+.%O Algorithm 1.5.1
+.Re
+.Sh HISTORY
+.Fn BN_mod_sqrt
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .
+.Sh CAVEATS
+If
+.Fa p
+is not prime,
+.Fn BN_mod_sqrt
+may succeed or fail.
+If it succeeds, the square of the returned value is congruent to
+.Fa a
+modulo
+.Fa p .
+If it fails, the reason reported by
+.Xr ERR_get_error 3
+is often misleading.
+In particular, even if
+.Fa a
+is a perfect square,
+.Fn BN_mod_sqrt
+often reports
+.Dq not a square
+instead of
+.Dq p is not prime .

@@ -1,0 +1,145 @@
+#	$OpenBSD: files.sbus,v 1.44 2018/02/14 23:51:49 jsg Exp $
+#	$NetBSD: files.sbus,v 1.16 2000/12/08 17:29:12 martin Exp $
+#
+# Config file and device description for machine-independent SBUS code.
+# Included by ports that need it.
+
+device	sbus {[slot = -1], [offset = -1]}
+
+# SBus NCR539x SCSI & Lance Ethernet
+device	dma {}: lsi64854
+attach	dma at sbus with dma_sbus
+device	ledma {}: lsi64854
+attach	ledma at sbus
+file	dev/sbus/dma_sbus.c		dma_sbus | ledma
+
+device	lebuffer {}
+attach	lebuffer at sbus
+file	dev/sbus/lebuffer.c		lebuffer
+
+# device definition in sys/conf/files
+attach	le at sbus with le_sbus: le24
+attach	le at lebuffer with le_lebuffer: le24
+attach	le at ledma with le_ledma: le24
+file	dev/sbus/if_le.c		le_sbus
+file	dev/sbus/if_le_lebuffer.c	le_lebuffer
+file	dev/sbus/if_le_ledma.c		le_ledma
+
+device	qec {}
+attach	qec at sbus
+file	dev/sbus/qec.c			qec
+
+device	be: ether, ifnet, mii, ifmedia
+attach	be at qec
+file	dev/sbus/be.c			be
+
+device	qe: ether, ifnet, ifmedia
+attach	qe at qec
+file	dev/sbus/qe.c			qe
+
+attach	esp at sbus with esp_sbus
+attach	esp at dma with esp_dma
+file	dev/sbus/esp_sbus.c		esp_sbus | esp_dma	needs-flag
+
+attach	hme at sbus with hme_sbus
+file	dev/sbus/if_hme_sbus.c		hme_sbus
+
+attach	ti at sbus with ti_sbus
+file	dev/sbus/if_ti_sbus.c		ti_sbus
+
+attach	gem at sbus with gem_sbus
+file	dev/sbus/if_gem_sbus.c		gem_sbus
+
+device	audiocs: audio
+attach	audiocs at sbus
+file	dev/sbus/cs4231.c		audiocs
+
+attach	qlw at sbus with qlw_sbus
+file	dev/sbus/qlw_sbus.c		qlw_sbus
+
+attach	qla at sbus with qla_sbus
+file	dev/sbus/qla_sbus.c		qla_sbus
+
+device	agten: wsemuldisplaydev, rasops8
+attach	agten at sbus
+file	dev/sbus/agten.c		agten
+
+device	bwtwo: wsemuldisplaydev, rasops1
+attach	bwtwo at sbus
+file	dev/sbus/bwtwo.c		bwtwo
+
+device	cgsix: wsemuldisplaydev, rasops8
+attach	cgsix at sbus
+file	dev/sbus/cgsix.c		cgsix
+
+device	cgthree: wsemuldisplaydev, rasops8
+attach	cgthree at sbus
+file	dev/sbus/cgthree.c		cgthree
+
+device	cgtwelve: wsemuldisplaydev, rasops1
+attach	cgtwelve at sbus
+file	dev/sbus/cgtwelve.c		cgtwelve
+
+device	mgx: wsemuldisplaydev, rasops8
+attach	mgx at sbus
+file	dev/sbus/mgx.c			mgx
+
+device	rfx: wsemuldisplaydev, rasops8
+attach	rfx at sbus
+file	dev/sbus/rfx.c			rfx
+
+device	tvtwo: wsemuldisplaydev, rasops8
+attach	tvtwo at sbus
+file	dev/sbus/tvtwo.c		tvtwo
+
+device	vigra: wsemuldisplaydev, rasops8
+attach	vigra at sbus
+file	dev/sbus/vigra.c		vigra
+
+device	zx: wsemuldisplaydev, rasops8
+attach	zx at sbus
+file	dev/sbus/zx.c			zx
+
+device	magma {}
+attach	magma at sbus
+device	mtty
+attach	mtty at magma
+device	mbpp
+attach	mbpp at magma
+file	dev/sbus/magma.c		magma | mtty | mbpp needs-flag
+
+device	spif {}
+attach	spif at sbus
+device	stty
+attach	stty at spif
+device	sbpp
+attach	sbpp at spif
+file	dev/sbus/spif.c			spif | stty | sbpp needs-flag
+
+attach	uperf at sbus with uperf_sbus
+file	dev/sbus/uperf_sbus.c		uperf_sbus
+
+device	asio {}
+attach	asio at sbus
+attach	com at asio with com_asio
+file	dev/sbus/asio.c			asio | com_asio needs-flag
+
+device	apio {}
+attach	apio at sbus
+attach	lpt at apio with lpt_apio
+file	dev/sbus/apio.c			apio | lpt_apio needs-flag
+
+# STP4020 SBus to PCMCIA bridge
+device	stp: pcmciabus
+attach	stp at sbus with stp_sbus
+file	dev/sbus/stp4020.c		stp
+
+# ``XBox'' SBus Expansion
+device	xbox {}
+attach	xbox at sbus
+file	dev/sbus/xbox.c			xbox
+
+# LSI64854 based bi-directional parallel port
+device	bpp {}: lsi64854
+attach	bpp at sbus
+file	dev/sbus/bpp.c			bpp	needs-flag

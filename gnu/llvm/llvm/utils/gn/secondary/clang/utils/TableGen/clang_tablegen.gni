@@ -1,0 +1,43 @@
+# This file introduces a template for running clang-tblgen.
+#
+# Parameters:
+#
+#   args (required)
+#       [list of strings] Flags to pass to clang-tblgen.
+#
+#   output_name (optional)
+#       Basename of the generated output file.
+#       Defaults to target name with ".inc" appended.
+#
+#   td_file (optional)
+#       The .td file to pass to llvm-tblgen.
+#       Defaults to target name with ".td" appended.
+#
+#   visibility (optional)
+#       GN's regular visibility attribute, see `gn help visibility`.
+#
+# Example of usage:
+#
+#   clang_tablegen("DiagnosticGroups") {
+#     args = [ "-gen-clang-diag-groups" ]
+#     td_file = "Diagnostic.td"
+#   }
+
+import("//llvm/utils/TableGen/tablegen.gni")
+
+template("clang_tablegen") {
+  tablegen(target_name) {
+    forward_variables_from(invoker,
+                           [
+                             "output_name",
+                             "td_file",
+                             "visibility",
+                           ])
+
+    args = [
+             "-I",
+             rebase_path("//clang/include", root_build_dir),
+           ] + invoker.args
+    tblgen_target = "//clang/utils/TableGen:clang-tblgen"
+  }
+}

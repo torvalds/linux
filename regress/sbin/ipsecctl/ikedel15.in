@@ -1,0 +1,2 @@
+ike from 10.1.1.0/24 to 10.1.2.0/24 peer 3ffe::1 \
+	srcid sharleena.as10.net dstid faui31o.informatik.uni-erlangen.de

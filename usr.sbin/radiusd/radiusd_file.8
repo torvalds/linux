@@ -1,0 +1,62 @@
+.\"	$OpenBSD: radiusd_file.8,v 1.3 2024/08/04 03:56:57 yasuoka Exp $
+.\"
+.\" Copyright (c) 2024 YASUOKA Masahiko <yasuoka@yasuoka.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The following requests are required for all man pages.
+.\"
+.\" Remove `\&' from the line below.
+.Dd $Mdocdate: August 4 2024 $
+.Dt RADIUSD_FILE 8
+.Os
+.Sh NAME
+.Nm radiusd_file
+.Nd provide authentication by a local file
+.Sh SYNOPSIS
+.\" For a program:  program [-abc] file ...
+.Nm radiusd_file
+.Sh DESCRIPTION
+The
+.Nm
+module is executed by
+.Xr radiusd 8
+as a module to provide authentication from a file written in the syntax
+described in
+.Xr npppd-users 5 .
+It supports the PAP, CHAP, and MSCHAPv2 authentication methods.
+.Sh CONFIGURATIONS
+The
+.Nm module
+supports the following configuration key and value:
+.Bl -tag -width Ds
+.It Cm path Ar path
+The path for the
+.Ar file
+written in the syntax described in
+.Xr npppd-users 5 .
+.El
+.Sh FILES
+.Bl -tag -width "/usr/libexec/radiusd/radiusd_file" -compact
+.It Pa /usr/libexec/radiusd/radiusd_file
+.Dq file
+module executable.
+.El
+.Sh SEE ALSO
+.Xr npppd-users 5 ,
+.Xr radiusd 8
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Ox 7.6 .

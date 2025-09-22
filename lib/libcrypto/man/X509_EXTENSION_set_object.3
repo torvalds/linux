@@ -1,0 +1,349 @@
+.\" $OpenBSD: X509_EXTENSION_set_object.3,v 1.20 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016, 2021, 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_EXTENSION_SET_OBJECT 3
+.Os
+.Sh NAME
+.Nm X509_EXTENSION_new ,
+.Nm X509_EXTENSION_dup ,
+.Nm X509_EXTENSION_free ,
+.Nm X509_EXTENSION_create_by_NID ,
+.Nm X509_EXTENSION_create_by_OBJ ,
+.Nm X509_EXTENSION_set_object ,
+.Nm X509_EXTENSION_set_critical ,
+.Nm X509_EXTENSION_set_data ,
+.Nm X509_EXTENSION_get_object ,
+.Nm X509_EXTENSION_get_critical ,
+.Nm X509_EXTENSION_get_data ,
+.Nm X509_supported_extension
+.\" In the next line, the capital "E" is not a typo.
+.\" The ASN.1 structure is called "Extension", not "extension".
+.Nd create, change, and inspect X.509 Extension objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_EXTENSION *
+.Fn X509_EXTENSION_new void
+.Ft X509_EXTENSION *
+.Fn X509_EXTENSION_dup "X509_EXTENSION *ex"
+.Ft void
+.Fn X509_EXTENSION_free "X509_EXTENSION *ex"
+.Ft X509_EXTENSION *
+.Fo X509_EXTENSION_create_by_NID
+.Fa "X509_EXTENSION **ex"
+.Fa "int nid"
+.Fa "int crit"
+.Fa "ASN1_OCTET_STRING *data"
+.Fc
+.Ft X509_EXTENSION *
+.Fo X509_EXTENSION_create_by_OBJ
+.Fa "X509_EXTENSION **ex"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "int crit"
+.Fa "ASN1_OCTET_STRING *data"
+.Fc
+.Ft int
+.Fo X509_EXTENSION_set_object
+.Fa "X509_EXTENSION *ex"
+.Fa "const ASN1_OBJECT *obj"
+.Fc
+.Ft int
+.Fo X509_EXTENSION_set_critical
+.Fa "X509_EXTENSION *ex"
+.Fa "int crit"
+.Fc
+.Ft int
+.Fo X509_EXTENSION_set_data
+.Fa "X509_EXTENSION *ex"
+.Fa "ASN1_OCTET_STRING *data"
+.Fc
+.Ft ASN1_OBJECT *
+.Fo X509_EXTENSION_get_object
+.Fa "X509_EXTENSION *ex"
+.Fc
+.Ft int
+.Fo X509_EXTENSION_get_critical
+.Fa "const X509_EXTENSION *ex"
+.Fc
+.Ft ASN1_OCTET_STRING *
+.Fo X509_EXTENSION_get_data
+.Fa "X509_EXTENSION *ex"
+.Fc
+.Ft int
+.Fo X509_supported_extension
+.Fa "X509_EXTENSION *ex"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_EXTENSION_new
+allocates and initializes an empty
+.Vt X509_EXTENSION
+object, representing an ASN.1
+.Vt Extension
+structure defined in RFC 5280 section 4.1.
+It is a wrapper object around specific extension objects of different
+types and stores an extension type identifier and a criticality
+flag in addition to the DER-encoded form of the wrapped object.
+.Vt X509_EXTENSION
+objects can be used for X.509 v3 certificates inside
+.Vt X509_CINF
+objects and for X.509 v2 certificate revocation lists inside
+.Vt X509_CRL_INFO
+and
+.Vt X509_REVOKED
+objects.
+.Pp
+.Fn X509_EXTENSION_dup
+creates a deep copy of
+.Fa ex
+using
+.Xr ASN1_item_dup 3 .
+.Pp
+.Fn X509_EXTENSION_free
+frees
+.Fa ex
+and all objects it is using.
+.Pp
+.Fn X509_EXTENSION_create_by_NID
+creates an extension of type
+.Fa nid
+and criticality
+.Fa crit
+using data
+.Fa data .
+The created extension is returned and written to
+.Pf * Fa ex
+reusing or allocating a new extension if necessary, so
+.Pf * Fa ex
+should either be
+.Dv NULL
+or a valid
+.Vt X509_EXTENSION
+structure.
+It must not be an uninitialised pointer.
+.Pp
+.Fn X509_EXTENSION_create_by_OBJ
+is identical to
+.Fn X509_EXTENSION_create_by_NID
+except that it creates an extension using
+.Fa obj
+instead of a NID.
+.Pp
+.Fn X509_EXTENSION_set_object
+sets the extension type of
+.Fa ex
+to
+.Fa obj .
+The
+.Fa obj
+pointer is duplicated internally so
+.Fa obj
+should be freed up after use.
+.Pp
+.Fn X509_EXTENSION_set_critical
+sets the criticality of
+.Fa ex
+to
+.Fa crit .
+If
+.Fa crit
+is zero, the extension in non-critical, otherwise it is critical.
+.Pp
+.Fn X509_EXTENSION_set_data
+sets the data in extension
+.Fa ex
+to
+.Fa data .
+The
+.Fa data
+pointer is duplicated internally.
+.Pp
+.Fn X509_EXTENSION_get_object
+returns the extension type of
+.Fa ex
+as an
+.Vt ASN1_OBJECT
+pointer.
+The returned pointer is an internal value which must not be freed up.
+.Pp
+.Fn X509_EXTENSION_get_critical
+tests whether
+.Fa ex
+is critical.
+.Pp
+.Fn X509_EXTENSION_get_data
+returns the data of extension
+.Fa ex .
+The returned pointer is an internal value which must not be freed up.
+.Pp
+.Fn X509_supported_extension
+checks whether
+.Fa ex
+is of a type supported by the verifier.
+The list of supported extension types is hardcoded into the library.
+If an extension is critical but unsupported,
+the certificate will normally be rejected.
+.Pp
+These functions manipulate the contents of an extension directly.
+Most applications will want to parse or encode and add an extension:
+they should use the extension encode and decode functions instead
+such as
+.Xr X509_add1_ext_i2d 3
+and
+.Xr X509_get_ext_d2i 3 .
+.Pp
+The
+.Fa data
+associated with an extension is the extension encoding in an
+.Vt ASN1_OCTET_STRING
+structure.
+.Sh RETURN VALUES
+.Fn X509_EXTENSION_new ,
+.Fn X509_EXTENSION_dup ,
+.Fn X509_EXTENSION_create_by_NID ,
+and
+.Fn X509_EXTENSION_create_by_OBJ
+return an
+.Vt X509_EXTENSION
+pointer or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn X509_EXTENSION_set_object ,
+.Fn X509_EXTENSION_set_critical ,
+and
+.Fn X509_EXTENSION_set_data
+return 1 for success or 0 for failure.
+.Pp
+.Fn X509_EXTENSION_get_object
+returns an
+.Vt ASN1_OBJECT
+pointer.
+.Pp
+.Fn X509_EXTENSION_get_critical
+returns 0 for non-critical or 1 for critical.
+.Pp
+.Fn X509_EXTENSION_get_data
+returns an
+.Vt ASN1_OCTET_STRING
+pointer.
+.Pp
+.Fn X509_supported_extension
+returns 1 if the type of
+.Fa ex
+is supported by the verifier or 0 otherwise.
+.Sh SEE ALSO
+.Xr ACCESS_DESCRIPTION_new 3 ,
+.Xr AUTHORITY_KEYID_new 3 ,
+.Xr BASIC_CONSTRAINTS_new 3 ,
+.Xr d2i_X509_EXTENSION 3 ,
+.Xr DIST_POINT_new 3 ,
+.Xr ESS_SIGNING_CERT_new 3 ,
+.Xr EXTENDED_KEY_USAGE_new 3 ,
+.Xr GENERAL_NAME_new 3 ,
+.Xr NAME_CONSTRAINTS_new 3 ,
+.Xr OCSP_CRLID_new 3 ,
+.Xr OCSP_SERVICELOC_new 3 ,
+.Xr PKEY_USAGE_PERIOD_new 3 ,
+.Xr POLICYINFO_new 3 ,
+.Xr TS_REQ_new 3 ,
+.Xr X509_check_ca 3 ,
+.Xr X509_check_host 3 ,
+.Xr X509_check_issued 3 ,
+.Xr X509_get_extension_flags 3 ,
+.Xr X509_REQ_add_extensions 3 ,
+.Xr X509V3_EXT_get_nid 3 ,
+.Xr X509V3_EXT_print 3 ,
+.Xr X509V3_extensions_print 3 ,
+.Xr X509V3_get_d2i 3 ,
+.Xr X509v3_get_ext_by_NID 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Sh HISTORY
+.Fn X509_EXTENSION_new
+and
+.Fn X509_EXTENSION_free
+first appeared in SSLeay 0.6.2,
+.Fn X509_EXTENSION_dup
+in SSLeay 0.6.5, and
+.Fn X509_EXTENSION_create_by_NID ,
+.Fn X509_EXTENSION_create_by_OBJ ,
+.Fn X509_EXTENSION_set_object ,
+.Fn X509_EXTENSION_set_critical ,
+.Fn X509_EXTENSION_set_data ,
+.Fn X509_EXTENSION_get_object ,
+.Fn X509_EXTENSION_get_critical ,
+and
+.Fn X509_EXTENSION_get_data
+in SSLeay 0.8.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_supported_extension
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .

@@ -1,0 +1,81 @@
+.\" $OpenBSD: auich.4,v 1.25 2010/02/25 00:18:01 sthen Exp $
+.\"
+.\" Copyright (c) 2000-2001 Michael Shalayeff
+.\" All rights reserved
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF MIND, USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 25 2010 $
+.Dt AUICH 4
+.Os
+.Sh NAME
+.Nm auich
+.Nd Intel ICH integrated AC'97 audio device
+.Sh SYNOPSIS
+.Cd "auich* at pci? flags 0x0000"
+.Cd "audio* at auich?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the integrated AC'97 audio controller present
+on the Intel ICH I/O controller hub and compatible chipsets.
+.Pp
+Supported chipsets:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+AMD 768, 8111
+.It
+Intel 6300ESB/6321ESB
+.It
+Intel 82440MX
+.It
+Intel 82801 (ICH, ICH0, ICH2, ICH3, ICH4, ICH5, ICH6, ICH7)
+.It
+NVIDIA nForce, nForce2, nForce3, nForce4
+.It
+SiS 7012
+.El
+.Pp
+The
+.Nm
+DMA engine supports full-duplex operation and has separate channels
+for line input and microphone.
+Unfortunately, simultaneous recording from both line and microphone inputs
+is not supported due to the current
+.Xr ac97 4
+design.
+Setting
+.Ar flags
+to 0x0001 will compensate for machines that have reversed stereo.
+.Sh SEE ALSO
+.Xr ac97 4 ,
+.Xr audio 4 ,
+.Xr intro 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Ox 2.8 .
+.Sh CAVEATS
+Some hardware implementations only support 48kHz sampling rates.

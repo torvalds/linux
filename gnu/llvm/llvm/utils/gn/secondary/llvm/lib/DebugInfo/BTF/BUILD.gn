@@ -1,0 +1,8 @@
+static_library("BTF") {
+  output_name = "LLVMDebugInfoBTF"
+  deps = [ "//llvm/lib/Support" ]
+  sources = [
+    "BTFParser.cpp",
+    "BTFContext.cpp",
+  ]
+}

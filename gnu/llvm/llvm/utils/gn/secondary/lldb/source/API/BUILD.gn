@@ -1,0 +1,129 @@
+# The LLDB_IN_LIBLLDB setup requires that liblldb is a shared_library
+# on Windows.
+# FIXME: Consider making it a shared_library everywhere like in cmake?
+# (Having it a static_library is simpler -- no need for
+# -Wl,-runpath=$ORIGIN/../lib in executables on unix or the corresponding @loader_path on mac,
+# no need for .exports files, etc.)
+if (current_os == "win") {
+  liblldb_type = "shared_library"
+} else {
+  liblldb_type = "static_library"
+}
+
+target(liblldb_type, "liblldb") {
+  # XXX LLDB_BUILD_FRAMEWORK
+  # XXX LLDB_ENABLE_PYTHON
+  # XXX LLDB_ENABLE_LUA
+
+  output_name = "liblldb"  # XXX lib prefix?
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  public_deps = [ "//lldb/include/lldb/API:SBLanguages" ]
+  deps = [
+    "//lldb/include/lldb/Host:Config",
+    "//lldb/source/Breakpoint",
+    "//lldb/source/Core",
+    "//lldb/source/DataFormatters",
+    "//lldb/source/Expression",
+    "//lldb/source/Host",
+    "//lldb/source/Initialization",
+    "//lldb/source/Interpreter",
+    "//lldb/source/Plugins:LldbAllPlugins",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//lldb/source/Version",
+    "//lldb/tools/argdumper:lldb-argdumper",
+    "//llvm/lib/Support",
+  ]
+
+  # SBTarget.cpp includes Commands-internal header Commands/CommandObjectBreakpoint.h
+  include_dirs = [ ".." ]
+  sources = [
+    "SBAddress.cpp",
+    "SBAddressRange.cpp",
+    "SBAddressRangeList.cpp",
+    "SBAttachInfo.cpp",
+    "SBBlock.cpp",
+    "SBBreakpoint.cpp",
+    "SBBreakpointLocation.cpp",
+    "SBBreakpointName.cpp",
+    "SBBreakpointOptionCommon.cpp",
+    "SBBroadcaster.cpp",
+    "SBCommandInterpreter.cpp",
+    "SBCommandInterpreterRunOptions.cpp",
+    "SBCommandReturnObject.cpp",
+    "SBCommunication.cpp",
+    "SBCompileUnit.cpp",
+    "SBData.cpp",
+    "SBDebugger.cpp",
+    "SBDeclaration.cpp",
+    "SBEnvironment.cpp",
+    "SBError.cpp",
+    "SBEvent.cpp",
+    "SBExecutionContext.cpp",
+    "SBExpressionOptions.cpp",
+    "SBFile.cpp",
+    "SBFileSpec.cpp",
+    "SBFileSpecList.cpp",
+    "SBFormat.cpp",
+    "SBFrame.cpp",
+    "SBFunction.cpp",
+    "SBHostOS.cpp",
+    "SBInstruction.cpp",
+    "SBInstructionList.cpp",
+    "SBLanguageRuntime.cpp",
+    "SBLaunchInfo.cpp",
+    "SBLineEntry.cpp",
+    "SBListener.cpp",
+    "SBMemoryRegionInfo.cpp",
+    "SBMemoryRegionInfoList.cpp",
+    "SBModule.cpp",
+    "SBModuleSpec.cpp",
+    "SBPlatform.cpp",
+    "SBProcess.cpp",
+    "SBProcessInfo.cpp",
+    "SBProcessInfoList.cpp",
+    "SBQueue.cpp",
+    "SBQueueItem.cpp",
+    "SBReproducer.cpp",
+    "SBSaveCoreOptions.cpp",
+    "SBScriptObject.cpp",
+    "SBSection.cpp",
+    "SBSourceManager.cpp",
+    "SBStatisticsOptions.cpp",
+    "SBStream.cpp",
+    "SBStringList.cpp",
+    "SBStructuredData.cpp",
+    "SBSymbol.cpp",
+    "SBSymbolContext.cpp",
+    "SBSymbolContextList.cpp",
+    "SBTarget.cpp",
+    "SBThread.cpp",
+    "SBThreadCollection.cpp",
+    "SBThreadPlan.cpp",
+    "SBTrace.cpp",
+    "SBTraceCursor.cpp",
+    "SBType.cpp",
+    "SBTypeCategory.cpp",
+    "SBTypeEnumMember.cpp",
+    "SBTypeFilter.cpp",
+    "SBTypeFormat.cpp",
+    "SBTypeNameSpecifier.cpp",
+    "SBTypeSummary.cpp",
+    "SBTypeSynthetic.cpp",
+    "SBUnixSignals.cpp",
+    "SBValue.cpp",
+    "SBValueList.cpp",
+    "SBVariablesOptions.cpp",
+    "SBWatchpoint.cpp",
+    "SBWatchpointOptions.cpp",
+    "SystemInitializerFull.cpp",
+  ]
+
+  if (current_os == "win") {
+    defines = [ "LLDB_IN_LIBLLDB" ]
+  }
+
+  # XXX liblldb.exports or liblldb-private.expoorts
+  # XXX dep on clang resource directory
+}

@@ -1,0 +1,105 @@
+.\"	$OpenBSD: shm_open.3,v 1.6 2025/08/04 04:59:31 guenther Exp $
+.\"
+.\" Copyright (c) 2013 Ted Unangst <tedu@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 4 2025 $
+.Dt SHM_OPEN 3
+.Os
+.Sh NAME
+.Nm shm_open ,
+.Nm shm_unlink ,
+.Nm shm_mkstemp
+.Nd create and destroy shared memory objects
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn shm_open "const char *path" "int flags" "mode_t mode"
+.Ft int
+.Fn shm_unlink "const char *path"
+.Ft int
+.Fn shm_mkstemp "char *template"
+.Sh DESCRIPTION
+The
+.Fn shm_open
+function opens a shared memory object and returns a file descriptor suitable
+for use with
+.Xr mmap 2 .
+The
+.Fa flags
+argument has the same meaning as provided to
+.Xr open 2
+and must include at least
+.Dv O_RDONLY
+or
+.Dv O_RDWR
+and may also include a combination of
+.Dv O_CREAT , O_EXCL , O_CLOEXEC , O_CLOFORK , O_NOFOLLOW ,
+or
+.Dv O_TRUNC .
+This implementation forces the
+.Fa mode
+to be 0600 or 0400, and prohibits sharing between different UIDs.
+.Pp
+.Fn shm_unlink
+is used to remove a shared memory object.
+The object is not freed until all references to it have been released via
+.Xr close 2 .
+.Pp
+If a temporary shared memory object is desired, the
+.Fn shm_mkstemp
+function should be preferred as it avoids several possible security
+holes that tend to appear in programs trying to create their own unique
+temporary names.
+The
+.Fa template
+argument is a string with at least six trailing Xs as described in
+.Xr mkstemp 3 .
+.Sh RETURN VALUES
+.Fn shm_open
+and
+.Fn shm_mkstemp
+return a file descriptor on successful completion.
+They may fail for any of the reasons listed in
+.Xr open 2 .
+.Sh SEE ALSO
+.Xr mmap 2
+.Sh STANDARDS
+.Fn shm_open
+and
+.Fn shm_unlink
+appear in
+.St -p1003.1-2001 .
+Using
+.Dv O_CLOEXEC ,
+.Dv O_CLOFORK ,
+or
+.Dv O_NOFOLLOW
+with
+.Fn shm_open
+is an extension to that standard.
+This implementation deviates from the standard by permitting less sharing.
+.Pp
+.Fn shm_mkstemp
+is an extension.
+.Sh HISTORY
+The
+.Fn shm_open ,
+.Fn shm_unlink ,
+and
+.Fn shm_mkstemp
+functions have been available since
+.Ox 5.4 .
+.Sh AUTHORS
+.An Ted Unangst Aq Mt tedu@openbsd.org .

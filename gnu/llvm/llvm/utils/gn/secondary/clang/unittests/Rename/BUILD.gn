@@ -1,0 +1,28 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ClangRenameTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+
+  # We'd like clang/unittests/Tooling/RewriterTestContext.h in the test.
+  include_dirs = [ "../.." ]
+
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Core",
+    "//clang/lib/Tooling/Refactoring",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "RenameAliasTest.cpp",
+    "RenameClassTest.cpp",
+    "RenameEnumTest.cpp",
+    "RenameFunctionTest.cpp",
+    "RenameMemberTest.cpp",
+  ]
+}

@@ -1,0 +1,5 @@
+_ZN4lldb*
+_ZNK4lldb*
+init_lld*
+PyInit__lldb*
+luaopen_lldb*

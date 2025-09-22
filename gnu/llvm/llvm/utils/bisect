@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+#
+# The way you use this is you create a script that takes in as its first
+# argument a count. The script passes into LLVM the count via a command
+# line flag that disables a pass after LLVM has run after the pass has
+# run for count number of times. Then the script invokes a test of some
+# sort and indicates whether LLVM successfully compiled the test via the
+# scripts exit status. Then you invoke bisect as follows:
+#
+# bisect --start=<start_num> --end=<end_num> ./script.sh "%(count)s"
+#
+# And bisect will continually call ./script.sh with various counts using
+# the exit status to determine success and failure.
+#
+from __future__ import print_function
+import os
+import sys
+import argparse
+import subprocess
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--start', type=int, default=0)
+parser.add_argument('--end', type=int, default=(1 << 32))
+parser.add_argument('command', nargs='+')
+
+args = parser.parse_args()
+
+start = args.start
+end = args.end
+
+print("Bisect Starting!")
+print("Start: %d" % start)
+print("End: %d" % end)
+
+last = None
+while start != end and start != end-1:
+    count = start + (end - start)//2
+    print("Visiting Count: %d with (Start, End) = (%d,%d)" % (count, start, end))
+    cmd = [x % {'count':count} for x in args.command]
+    print(cmd)
+    result = subprocess.call(cmd)
+    if result == 0:
+        print("    PASSES! Setting start to count")
+        start = count
+    else:
+        print("    FAILS! Setting end to count")
+        end = count
+
+print("Last good count: %d" % start)

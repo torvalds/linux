@@ -1,0 +1,20 @@
+@0 pass in inet from any to 127.0.0.1 flags S/SA
+  [ Skip steps: i=end d=end r=end p=4 sa=4 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass in inet6 from any to 2000::1 flags S/SA
+  [ Skip steps: i=end d=end r=end p=4 sa=4 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 pass in all flags S/SA probability 50%
+  [ Skip steps: i=end d=end r=end f=4 p=4 sa=4 da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass in all flags S/SA probability 50%
+  [ Skip steps: i=end d=end r=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass in inet6 proto tcp from ::1 to any flags S/SA probability 0.8%
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

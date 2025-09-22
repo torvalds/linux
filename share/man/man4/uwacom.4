@@ -1,0 +1,70 @@
+.\" $OpenBSD: uwacom.4,v 1.5 2023/08/12 20:49:29 miod Exp $
+.\"
+.\" Copyright (c) 2016 Frank Groeneveld <frank@frankgroeneveld.nl>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 12 2023 $
+.Dt UWACOM 4
+.Os
+.Sh NAME
+.Nm uwacom
+.Nd Wacom USB tablets
+.Sh SYNOPSIS
+.Cd "uwacom*  at uhidev?"
+.Cd "wsmouse* at uwacom? mux 0"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides basic support for Wacom USB tablets.
+Access to these devices is through the
+.Xr wscons 4
+framework.
+.Pp
+Absolute positioning of the mouse cursor can be done by hovering the pen above
+the tablet.
+Touching the tablet with the pen tip will emulate mouse button 0,
+while the two pen buttons will emulate button 1 and button 2.
+.Pp
+The
+.Nm
+driver supports the following Wacom tablets:
+.Bl -column "Intuos Draw" "Model Number" -offset 6n
+.It Em Name Ta Em Model Number
+.It Li Intuos Draw Ta CTL-490
+.It Li Intuos S Ta CTL-4100
+.It Li One S Ta CTL-472
+.It Li One M Ta CTL-672
+.El
+.Sh SEE ALSO
+.Xr uhidev 4 ,
+.Xr usb 4 ,
+.Xr wsmouse 4
+.Sh HISTORY
+The
+.Nm
+driver
+first appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Frank Groeneveld Aq Mt frank@frankgroeneveld.nl .
+Support for
+.Dq S
+models was written by
+.An Vladimir Meshcheriakov Aq Mt vladimir.meshcheriakov@epita.fr .
+.Sh CAVEATS
+Advanced features such as pen tip pressure are not supported.

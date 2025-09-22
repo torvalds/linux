@@ -1,0 +1,17 @@
+README.svn
+
+For a svn checkout:
+* configure script, aclocal.m4, as well as yacc/lex output files are
+  committed to the repository.
+* use --enable-debug flag for configure to enable dependency tracking and
+  assertions, otherwise, use make clean; make after svn update.
+
+* Note changes in the Changelog.
+* Every check-in a postcommit hook is run
+	(the postcommit hook is in the svn/unbound/hooks directory).
+	* generates commit email with your changes and comment.
+	* compiles and runs the tests (with testcode/do-tests.sh).
+	* If build errors or test errors happen
+		* Please fix your errors and commit again.
+
+* Use gnu make to compile, make or 'gmake'.

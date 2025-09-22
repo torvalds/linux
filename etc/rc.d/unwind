@@ -1,0 +1,14 @@
+#!/bin/ksh
+#
+# $OpenBSD: unwind,v 1.3 2022/10/14 11:02:43 kn Exp $
+
+daemon="/sbin/unwind"
+
+. /etc/rc.d/rc.subr
+
+rc_configtest() {
+	# use rc_exec here since daemon_flags may contain arguments with spaces
+	rc_exec "${daemon} -n ${daemon_flags}"
+}
+
+rc_cmd $1

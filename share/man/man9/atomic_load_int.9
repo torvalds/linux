@@ -1,0 +1,68 @@
+.\" $OpenBSD: atomic_load_int.9,v 1.2 2025/07/14 08:43:35 dlg Exp $
+.\"
+.\" Copyright (c) 2014 David Gwynne <dlg@openbsd.org>
+.\" Copyright (c) 2022 Alexander Bluhm <bluhm@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 14 2025 $
+.Dt ATOMIC_LOAD_INT 9
+.Os
+.Sh NAME
+.Nm atomic_load_int ,
+.Nm atomic_load_long ,
+.Nm atomic_store_long ,
+.Nm atomic_store_int
+.Nd atomic read and write memory operations
+.Sh SYNOPSIS
+.In sys/atomic.h
+.Ft unsigned int
+.Fn atomic_load_int "volatile const unsigned int *p"
+.Ft unsigned long
+.Fn atomic_load_long "volatile const unsigned long *p"
+.Ft void
+.Fn atomic_store_int "volatile unsigned int *p" "unsigned int v"
+.Ft void
+.Fn atomic_store_long "volatile unsigned long *p" "unsigned long v"
+.Sh DESCRIPTION
+The atomic_load and atomic_store set of functions provide an interface
+for atomically performing read or write memory operations with
+respect to interrupts and multiple processors in the system.
+.Pp
+The atomic_store functions change the value referenced by the pointer
+.Fa p
+to the value
+.Fa v .
+.Sh CONTEXT
+.Fn atomic_load_int ,
+.Fn atomic_load_long ,
+.Fn atomic_store_int ,
+and
+.Fn atomic_store_long
+can all be called during autoconf, from process context, or from
+interrupt context.
+.Sh RETURN VALUES
+.Nm atomic_load_int
+and
+.Nm atomic_load_long
+return the value at
+.Fa p .
+.Sh SEE ALSO
+.Xr atomic_add_int 9 ,
+.Xr atomic_add_long 9 ,
+.Xr atomic_sub_int 9 ,
+.Xr atomic_sub_long 9
+.Sh HISTORY
+The atomic_load and atomic_store functions first appeared in
+.Ox 7.1 .

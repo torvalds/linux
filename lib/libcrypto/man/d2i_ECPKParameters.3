@@ -1,0 +1,467 @@
+.\"	$OpenBSD: d2i_ECPKParameters.3,v 1.15 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL 05ea606a May 20 20:52:46 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2013, 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_ECPKPARAMETERS 3
+.Os
+.Sh NAME
+.Nm d2i_ECPKParameters ,
+.Nm i2d_ECPKParameters ,
+.Nm d2i_ECPKParameters_bio ,
+.Nm i2d_ECPKParameters_bio ,
+.Nm d2i_ECPKParameters_fp ,
+.Nm i2d_ECPKParameters_fp ,
+.Nm d2i_ECParameters ,
+.Nm i2d_ECParameters ,
+.Nm ECParameters_dup ,
+.Nm d2i_ECPrivateKey ,
+.Nm i2d_ECPrivateKey ,
+.Nm d2i_ECPrivateKey_bio ,
+.Nm i2d_ECPrivateKey_bio ,
+.Nm d2i_ECPrivateKey_fp ,
+.Nm i2d_ECPrivateKey_fp ,
+.Nm o2i_ECPublicKey ,
+.Nm i2o_ECPublicKey ,
+.Nm ECPKParameters_print ,
+.Nm ECPKParameters_print_fp ,
+.Nm ECParameters_print ,
+.Nm ECParameters_print_fp ,
+.Nm d2i_EC_PUBKEY ,
+.Nm i2d_EC_PUBKEY ,
+.Nm d2i_EC_PUBKEY_bio ,
+.Nm i2d_EC_PUBKEY_bio ,
+.Nm d2i_EC_PUBKEY_fp ,
+.Nm i2d_EC_PUBKEY_fp
+.Nd decode and encode ASN.1 representations of elliptic curve entities
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ec.h
+.Ft EC_GROUP *
+.Fo d2i_ECPKParameters
+.Fa "EC_GROUP **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ECPKParameters
+.Fa "const EC_GROUP *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft EC_GROUP *
+.Fo d2i_ECPKParameters_bio
+.Fa "BIO *in_bio"
+.Fa "EC_GROUP **val_out"
+.Fc
+.Ft int
+.Fo i2d_ECPKParameters_bio
+.Fa "BIO *out_bio"
+.Fa "EC_GROUP *val_in"
+.Fc
+.Ft EC_GROUP *
+.Fo d2i_ECPKParameters_fp
+.Fa "FILE *in_fp"
+.Fa "EC_GROUP **val_out"
+.Fc
+.Ft int
+.Fo i2d_ECPKParameters_fp
+.Fa "FILE *out_fp"
+.Fa "EC_GROUP *val_in"
+.Fc
+.Ft EC_KEY *
+.Fo d2i_ECParameters
+.Fa "EC_KEY **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ECParameters
+.Fa "EC_KEY *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft EC_KEY *
+.Fo ECParameters_dup
+.Fa "EC_KEY *val_in"
+.Fc
+.Ft EC_KEY *
+.Fo d2i_ECPrivateKey
+.Fa "EC_KEY **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ECPrivateKey
+.Fa "EC_KEY *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft EC_KEY *
+.Fo d2i_ECPrivateKey_bio
+.Fa "BIO *in_bio"
+.Fa "EC_KEY **val_out"
+.Fc
+.Ft int
+.Fo i2d_ECPrivateKey_bio
+.Fa "BIO *out_bio"
+.Fa "EC_KEY *val_in"
+.Fc
+.Ft EC_KEY *
+.Fo d2i_ECPrivateKey_fp
+.Fa "FILE *in_fp"
+.Fa "EC_KEY **val_out"
+.Fc
+.Ft int
+.Fo i2d_ECPrivateKey_fp
+.Fa "FILE *out_fp"
+.Fa "EC_KEY *val_in"
+.Fc
+.Ft EC_KEY *
+.Fo o2i_ECPublicKey
+.Fa "EC_KEY **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2o_ECPublicKey
+.Fa "const EC_KEY *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft int
+.Fo ECPKParameters_print
+.Fa "BIO *out_bio"
+.Fa "const EC_GROUP *val_in"
+.Fa "int indent"
+.Fc
+.Ft int
+.Fo ECPKParameters_print_fp
+.Fa "FILE *out_fp"
+.Fa "const EC_GROUP *val_in"
+.Fa "int indent"
+.Fc
+.Ft int
+.Fo ECParameters_print
+.Fa "BIO *out_bio"
+.Fa "const EC_KEY *val_in"
+.Fc
+.Ft int
+.Fo ECParameters_print_fp
+.Fa "FILE *out_fp"
+.Fa "const EC_KEY *val_in"
+.Fc
+.In openssl/x509.h
+.Ft EC_KEY *
+.Fo d2i_EC_PUBKEY
+.Fa "EC_KEY **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_EC_PUBKEY
+.Fa "EC_KEY *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft EC_KEY *
+.Fo d2i_EC_PUBKEY_bio
+.Fa "BIO *in_bio"
+.Fa "EC_KEY **val_out"
+.Fc
+.Ft int
+.Fo i2d_EC_PUBKEY_bio
+.Fa "BIO *out_bio"
+.Fa "EC_KEY *val_in"
+.Fc
+.Ft EC_KEY *
+.Fo d2i_EC_PUBKEY_fp
+.Fa "FILE *in_fp"
+.Fa "EC_KEY **val_out"
+.Fc
+.Ft int
+.Fo i2d_EC_PUBKEY_fp
+.Fa "FILE *out_fp"
+.Fa "EC_KEY *val_in"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode elliptic curve keys and parameters.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_ECPKParameters
+and
+.Fn i2d_ECPKParameters
+decode and encode the parameters of an elliptic curve.
+.Fn d2i_ECPKParameters_bio ,
+.Fn i2d_ECPKParameters_bio ,
+.Fn d2i_ECPKParameters_fp ,
+and
+.Fn i2d_ECPKParameters_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+These four functions are currently implemented as macros.
+.Pp
+.Fn d2i_ECParameters
+does the same parsing as
+.Fn d2i_ECPKParameters
+but saves the result in the
+.Fa group
+field of an
+.Vt EC_KEY
+structure.
+.Pp
+.Fn i2d_ECParameters
+produces the same output as
+.Fn i2d_ECPKParameters
+but uses
+.Fa val_in->group
+for input instead of
+.Fa val_in .
+.Pp
+.Fn ECParameters_dup
+allocates and initializes an empty
+.Vt EC_KEY
+object and copies the EC parameters from
+.Fa val_in
+to it by calling
+.Fn i2d_ECParameters
+and
+.Fn d2i_ECParameters .
+If a private or public key or any flags are present in
+.Fa val_in ,
+they are not copied.
+.Pp
+.Fn d2i_ECPrivateKey
+and
+.Fn i2d_ECPrivateKey
+decode and encode an EC private key using an ASN.1
+.Vt ECPrivateKey
+structure defined in RFC 5915 section 3 and used for the privateKey
+field of the ASN.1
+.Vt PrivateKeyInfo
+structure defined in RFC 5208 section 5, see
+.Xr PKCS8_PRIV_KEY_INFO_new 3 .
+.Fn d2i_ECPrivateKey_bio ,
+.Fn i2d_ECPrivateKey_bio ,
+.Fn d2i_ECPrivateKey_fp ,
+and
+.Fn i2d_ECPrivateKey_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn o2i_ECPublicKey
+and
+.Fn i2o_ECPublicKey
+decode and encode an EC public key.
+In contrast to
+.Xr ASN1_item_d2i 3 ,
+.Fn o2i_ECPublicKey
+requires
+.Fa val_out ,
+.Pf * Fa val_out ,
+and
+.Po Pf * Fa val_out Pc Ns -> Ns Fa group
+to be
+.Pf non- Dv NULL .
+.Pp
+.Fn ECPKParameters_print
+and
+.Fn ECPKParameters_print_fp
+print human-readable output of the public parameters of the
+.Vt EC_GROUP
+to
+.Fa out_bio
+or
+.Fa out_fp .
+The output lines are indented by
+.Fa indent
+spaces.
+.Pp
+.Fn ECParameters_print
+and
+.Fn ECParameters_print_fp
+print the parameter components of
+.Fa val_in
+to
+.Fa out_bio
+or
+.Fa out_fp .
+.Pp
+.Fn d2i_EC_PUBKEY
+and
+.Fn i2d_EC_PUBKEY
+decode and encode an EC public key using an ASN.1
+.Vt SubjectPublicKeyInfo
+structure defined in RFC 5280 section 4.1 and documented in
+.Xr X509_PUBKEY_new 3 .
+.Fn d2i_EC_PUBKEY_bio ,
+.Fn i2d_EC_PUBKEY_bio ,
+.Fn d2i_EC_PUBKEY_fp ,
+and
+.Fn i2d_EC_PUBKEY_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Sh RETURN VALUES
+.Fn d2i_ECPKParameters ,
+.Fn d2i_ECPKParameters_bio ,
+and
+.Fn d2i_ECPKParameters_fp
+return a valid
+.Vt EC_GROUP
+structure or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn d2i_ECParameters ,
+.Fn ECParameters_dup ,
+.Fn d2i_ECPrivateKey ,
+.Fn d2i_ECPrivateKey_bio ,
+.Fn d2i_ECPrivateKey_fp ,
+.Fn o2i_ECPublicKey ,
+.Fn d2i_EC_PUBKEY ,
+.Fn d2i_EC_PUBKEY_bio ,
+and
+.Fn d2i_EC_PUBKEY_fp
+return a valid
+.Vt EC_KEY
+structure or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_ECPKParameters ,
+.Fn i2d_ECParameters ,
+.Fn i2d_ECPrivateKey ,
+.Fn i2o_ECPublicKey ,
+and
+.Fn i2d_EC_PUBKEY
+return the number of bytes successfully encoded or a negative value if
+an error occurs.
+.Pp
+.Fn i2d_ECPKParameters_bio ,
+.Fn i2d_ECPKParameters_fp ,
+.Fn i2d_ECPrivateKey_bio ,
+.Fn i2d_ECPrivateKey_fp ,
+.Fn ECPKParameters_print ,
+.Fn ECPKParameters_print_fp ,
+.Fn ECParameters_print ,
+.Fn ECParameters_print_fp ,
+.Fn i2d_EC_PUBKEY_bio ,
+and
+.Fn i2d_EC_PUBKEY_fp
+return 1 for success or 0 if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EVP_PKEY_set1_EC_KEY 3 ,
+.Xr PEM_write_ECPrivateKey 3 ,
+.Xr PKCS8_PRIV_KEY_INFO_new 3 ,
+.Xr X509_PUBKEY_new 3
+.Sh STANDARDS
+RFC 5915: Elliptic Curve Private Key Structure
+.Pp
+RFC 5208: Public-Key Cryptography Standards (PKCS) #8:
+Private-Key Information Syntax Specification
+.Pp
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile,
+section 4.1: Basic Certificate Fields
+.Sh HISTORY
+.Fn d2i_ECPKParameters ,
+.Fn i2d_ECPKParameters ,
+.Fn d2i_ECPKParameters_bio ,
+.Fn i2d_ECPKParameters_bio ,
+.Fn d2i_ECPKParameters_fP ,
+.Fn i2d_ECPKParameters_fp ,
+.Fn d2i_ECParameters ,
+.Fn i2d_ECParameters ,
+.Fn ECParameters_dup ,
+.Fn d2i_ECPrivateKey ,
+.Fn i2d_ECPrivateKey ,
+.Fn d2i_ECPrivateKey_bio ,
+.Fn i2d_ECPrivateKey_bio ,
+.Fn d2i_ECPrivateKey_fp ,
+.Fn i2d_ECPrivateKey_fp ,
+.Fn o2i_ECPublicKey ,
+.Fn i2o_ECPublicKey ,
+.Fn ECPKParameters_print ,
+.Fn ECPKParameters_print_fp ,
+.Fn ECParameters_print ,
+.Fn ECParameters_print_fp ,
+.Fn d2i_EC_PUBKEY ,
+.Fn i2d_EC_PUBKEY ,
+.Fn d2i_EC_PUBKEY_bio ,
+.Fn i2d_EC_PUBKEY_bio ,
+.Fn d2i_EC_PUBKEY_fp ,
+and
+.Fn i2d_EC_PUBKEY_fp
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .

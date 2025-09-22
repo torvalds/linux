@@ -1,0 +1,92 @@
+.\"     $OpenBSD: rtable_add.9,v 1.9 2021/03/26 22:41:06 mvs Exp $
+.\"
+.\" Copyright (c) 2011 Bret S. Lambert <blambert@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 26 2021 $
+.Dt RTABLE_ADD 9
+.Os
+.Sh NAME
+.Nm rtable_add ,
+.Nm rtable_exists ,
+.Nm rtable_loindex ,
+.Nm rtable_l2 ,
+.Nm rtable_l2set
+.Nd routing tables and routing domains interface
+.Sh SYNOPSIS
+.In net/rtable.h
+.Ft int
+.Fn rtable_add "unsigned int id"
+.Ft int
+.Fn rtable_exists "unsigned int id"
+.Ft unsigned int
+.Fn rtable_loindex "unsigned int id"
+.Ft unsigned int
+.Fn rtable_l2 "unsigned int id"
+.Ft void
+.Fn rtable_l2set "unsigned int id" "unsigned int rdomain"
+.Sh DESCRIPTION
+Routing tables contain layer 2 and 3 forwarding information.
+Each address family in use will have its own routing table.
+Routing domains are a way of logically segmenting a router among multiple
+networks and may contain more than one routing table.
+.Bl -tag -width Ds
+.It Fn rtable_add "unsigned int id"
+Add routing table with ID of
+.Fa id
+to routing domain
+.Fa 0 .
+.It Fn rtable_exists "unsigned int id"
+Return
+.Fa 1
+if routing table with ID
+.Fa id
+exists,
+.Fa 0
+otherwise.
+.It Fn rtable_loindex "unsigned int id"
+Return the default
+.Xr lo 4
+interface index for the routing table with ID of
+.Fa id .
+.It Fn rtable_l2 "unsigned int id"
+Get the routing domain of routing table with ID of
+.Fa id .
+.It Fn rtable_l2set "unsigned int id" "unsigned int rdomain"
+Place routing table with ID of
+.Fa id
+under the routing domain with ID of
+.Fa rdomain .
+.El
+.Sh CONTEXT
+.Fn rtable_add ,
+.Fn rtable_exists ,
+.Fn rtable_loindex ,
+.Fn rtable_l2 ,
+and
+.Fn task_l2set
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn rtable_add
+may fail with:
+.Pp
+.Bl -tag -width Er -compact
+.It Bq Er ENOMEM
+Memory could not be allocated to extend the list of routing domains.
+.El
+.Sh SEE ALSO
+.Xr lo 4 ,
+.Xr route 4 ,
+.Xr route 8

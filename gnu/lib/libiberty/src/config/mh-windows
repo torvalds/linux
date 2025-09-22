@@ -1,0 +1,1 @@
+EXTRA_OFILES=asprintf.o strcasecmp.o strncasecmp.o vasprintf.o

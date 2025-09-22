@@ -1,0 +1,753 @@
+#	$OpenBSD: lacnic.constraints,v 1.7 2025/02/05 20:45:00 job Exp $
+
+# From https://www.iana.org/assignments/ipv6-unicast-address-assignments
+allow 2001:1200::/23
+allow 2800::/12
+
+# From https://www.iana.org/assignments/as-numbers/
+allow 27648 - 28671
+allow 52224 - 53247
+allow 61440 - 61951
+allow 64099 - 64197
+allow 262144 - 274844
+
+# From nro-delegated-stats 20240417
+allow 278
+allow 676
+allow 1251
+allow 1292
+allow 1296
+allow 1797
+allow 1831
+allow 1840
+allow 1916
+allow 2146
+allow 2277
+allow 2549
+allow 2638
+allow 2708
+allow 2715 - 2716
+allow 2739
+allow 2904
+allow 3132
+allow 3141
+allow 3449
+allow 3454
+allow 3484
+allow 3487
+allow 3496
+allow 3548
+allow 3551
+allow 3556
+allow 3596 - 3597
+allow 3603
+allow 3631 - 3632
+allow 3636
+allow 3640
+allow 3790
+allow 3816
+allow 3905
+allow 3968
+allow 4141
+allow 4209
+allow 4230
+allow 4242
+allow 4244
+allow 4270
+allow 4387
+allow 4493
+allow 4535
+allow 4914
+allow 4926
+allow 4944
+allow 4964
+allow 4967
+allow 4995
+allow 5005
+allow 5633
+allow 5639
+allow 5648
+allow 5692
+allow 5708
+allow 5722
+allow 5745
+allow 5772
+allow 6057
+allow 6063 - 6065
+allow 6084
+allow 6121
+allow 6125
+allow 6133
+allow 6135
+allow 6147 - 6148
+allow 6193
+allow 6240
+allow 6306
+allow 6332
+allow 6342
+allow 6400
+allow 6429
+allow 6458
+allow 6471
+allow 6487
+allow 6495
+allow 6503
+allow 6505
+allow 6535
+allow 6543
+allow 6545
+allow 6568
+allow 6590
+allow 6927
+allow 6945
+allow 6957
+allow 7002
+allow 7004 - 7005
+allow 7038
+allow 7048 - 7049
+allow 7056
+allow 7063
+allow 7080
+allow 7087
+allow 7103
+allow 7120
+allow 7125
+allow 7137
+allow 7149
+allow 7157
+allow 7162
+allow 7167
+allow 7173
+allow 7184
+allow 7195
+allow 7199
+allow 7236
+allow 7298
+allow 7303
+allow 7313
+allow 7315
+allow 7325
+allow 7340
+allow 7365
+allow 7399
+allow 7408
+allow 7414
+allow 7417 - 7418
+allow 7428
+allow 7437 - 7438
+allow 7465
+allow 7727
+allow 7738
+allow 7803
+allow 7864
+allow 7890
+allow 7906
+allow 7908
+allow 7910
+allow 7927
+allow 7934
+allow 7953
+allow 7965
+allow 7974
+allow 7980
+allow 7984
+allow 7993 - 7995
+allow 7997
+allow 8007
+allow 8024
+allow 8026
+allow 8048
+allow 8053 - 8056
+allow 8065 - 8066
+allow 8096
+allow 8140 - 8141
+allow 8151
+allow 8163
+allow 8167
+allow 8178
+allow 10269
+allow 10277
+allow 10285
+allow 10293
+allow 10299
+allow 10301
+allow 10318
+allow 10362
+allow 10391
+allow 10412
+allow 10417
+allow 10420
+allow 10429
+allow 10436
+allow 10452
+allow 10454
+allow 10463
+allow 10476
+allow 10479
+allow 10481
+allow 10495
+allow 10502
+allow 10531
+allow 10560
+allow 10569
+allow 10586
+allow 10600
+allow 10605 - 10606
+allow 10617
+allow 10620
+allow 10624
+allow 10630
+allow 10640
+allow 10649
+allow 10670 - 10671
+allow 10688
+allow 10691
+allow 10697
+allow 10704
+allow 10706
+allow 10715
+allow 10733
+allow 10757
+allow 10778
+allow 10785
+allow 10795
+allow 10824
+allow 10834
+allow 10841
+allow 10847
+allow 10875
+allow 10881
+allow 10895
+allow 10897
+allow 10906
+allow 10938
+allow 10954
+allow 10964
+allow 10983
+allow 10986
+allow 10992
+allow 11008
+allow 11014
+allow 11053
+allow 11058
+allow 11063
+allow 11081
+allow 11083
+allow 11087
+allow 11097
+allow 11136
+allow 11172
+allow 11193
+allow 11237
+allow 11242
+allow 11254
+allow 11256
+allow 11271
+allow 11284
+allow 11295
+allow 11311
+allow 11315
+allow 11335
+allow 11338
+allow 11340
+allow 11356
+allow 11373
+allow 11390
+allow 11392
+allow 11411
+allow 11415
+allow 11419
+allow 11431 - 11432
+allow 11447
+allow 11450 - 11451
+allow 11497 - 11498
+allow 11503
+allow 11514
+allow 11519
+allow 11556
+allow 11562
+allow 11571
+allow 11581
+allow 11585
+allow 11592
+allow 11599
+allow 11617
+allow 11642
+allow 11644
+allow 11664
+allow 11673
+allow 11677
+allow 11694
+allow 11706
+allow 11750 - 11752
+allow 11786
+allow 11800 - 11802
+allow 11815 - 11816
+allow 11830
+allow 11835
+allow 11844
+allow 11888
+allow 11896
+allow 11921
+allow 11947
+allow 11960
+allow 11993
+allow 12034
+allow 12066
+allow 12127
+allow 12135 - 12136
+allow 12140
+allow 12146
+allow 12150
+allow 12248
+allow 12252
+allow 12264
+allow 13316
+allow 13318
+allow 13320
+allow 13353
+allow 13357
+allow 13381
+allow 13424
+allow 13440
+allow 13459
+allow 13474
+allow 13489
+allow 13495
+allow 13514
+allow 13521 - 13522
+allow 13544
+allow 13579
+allow 13584 - 13585
+allow 13591
+allow 13643
+allow 13679
+allow 13682
+allow 13761
+allow 13774
+allow 13835
+allow 13874
+allow 13878
+allow 13914
+allow 13929
+allow 13934 - 13936
+allow 13991
+allow 13999 - 14000
+allow 14026
+allow 14030
+allow 14069
+allow 14080
+allow 14084
+allow 14087
+allow 14111
+allow 14117
+allow 14122
+allow 14178 - 14179
+allow 14186 - 14187
+allow 14202
+allow 14204
+allow 14231 - 14232
+allow 14234
+allow 14249 - 14250
+allow 14259
+allow 14282
+allow 14285 - 14286
+allow 14316
+allow 14318
+allow 14339
+allow 14346
+allow 14377
+allow 14420
+allow 14457
+allow 14463
+allow 14522
+allow 14535
+allow 14553
+allow 14560
+allow 14571
+allow 14624
+allow 14650
+allow 14664
+allow 14674
+allow 14692
+allow 14708 - 14709
+allow 14723
+allow 14754
+allow 14759
+allow 14769
+allow 14795
+allow 14840
+allow 14845
+allow 14867 - 14868
+allow 14886
+allow 14966
+allow 14970
+allow 15030
+allow 15034
+allow 15064
+allow 15066
+allow 15075
+allow 15078
+allow 15107
+allow 15125
+allow 15151
+allow 15180
+allow 15201
+allow 15208
+allow 15236
+allow 15241
+allow 15246
+allow 15252
+allow 15256
+allow 15274
+allow 15311
+allow 16397
+allow 16418
+allow 16471
+allow 16506
+allow 16522
+allow 16528
+allow 16531
+allow 16592
+allow 16594
+allow 16596
+allow 16606 - 16607
+allow 16629
+allow 16663
+allow 16685
+allow 16689
+allow 16701
+allow 16712
+allow 16732
+allow 16735 - 16736
+allow 16742
+allow 16762
+allow 16772
+allow 16780
+allow 16814
+allow 16847
+allow 16849
+allow 16864
+allow 16874
+allow 16885
+allow 16891
+allow 16906
+allow 16911
+allow 16960
+allow 16973
+allow 16975
+allow 16990
+allow 17069
+allow 17072
+allow 17079
+allow 17086
+allow 17108
+allow 17126
+allow 17147
+allow 17182
+allow 17205
+allow 17208
+allow 17222
+allow 17249 - 17250
+allow 17255
+allow 17257
+allow 17287
+allow 17329
+allow 17376
+allow 17379
+allow 17399
+allow 17401
+allow 18449
+allow 18455
+allow 18466
+allow 18479
+allow 18492
+allow 18496
+allow 18532
+allow 18547
+allow 18576
+allow 18579
+allow 18592
+allow 18644
+allow 18667
+allow 18678
+allow 18734
+allow 18739
+allow 18782
+allow 18809
+allow 18822
+allow 18836
+allow 18840
+allow 18846
+allow 18869
+allow 18881
+allow 18941
+allow 18998
+allow 19033
+allow 19037 - 19038
+allow 19064
+allow 19077
+allow 19089 - 19090
+allow 19109
+allow 19114
+allow 19132
+allow 19169
+allow 19180
+allow 19182
+allow 19192
+allow 19196
+allow 19200
+allow 19228
+allow 19244
+allow 19259
+allow 19278
+allow 19315
+allow 19332
+allow 19338
+allow 19361
+allow 19373
+allow 19411
+allow 19422
+allow 19429
+allow 19447
+allow 19519
+allow 19553
+allow 19582 - 19583
+allow 19611
+allow 19632
+allow 19688
+allow 19723
+allow 19731
+allow 19763
+allow 19767
+allow 19863
+allow 19873
+allow 19889
+allow 19960
+allow 19978
+allow 19989 - 19990
+allow 20002
+allow 20015
+allow 20032
+allow 20043 - 20044
+allow 20106
+allow 20116 - 20117
+allow 20121
+allow 20142
+allow 20173
+allow 20191
+allow 20207
+allow 20232
+allow 20244
+allow 20255 - 20256
+allow 20266
+allow 20297
+allow 20299
+allow 20305
+allow 20312
+allow 20321
+allow 20345
+allow 20361
+allow 20363
+allow 20418
+allow 21506
+allow 21520
+allow 21571
+allow 21574 - 21575
+allow 21578
+allow 21590
+allow 21599
+allow 21603
+allow 21612
+allow 21614
+allow 21674
+allow 21692
+allow 21741
+allow 21753
+allow 21756
+allow 21765
+allow 21768
+allow 21824
+allow 21826
+allow 21838
+allow 21862
+allow 21883
+allow 21888
+allow 21911
+allow 21917
+allow 21980
+allow 22010 - 22011
+allow 22019
+allow 22047
+allow 22055
+allow 22080
+allow 22085
+allow 22092
+allow 22122
+allow 22128 - 22129
+allow 22133
+allow 22148
+allow 22177
+allow 22185
+allow 22227
+allow 22250
+allow 22305
+allow 22313
+allow 22341
+allow 22356
+allow 22368
+allow 22371
+allow 22381 - 22382
+allow 22407
+allow 22411
+allow 22431
+allow 22453
+allow 22501
+allow 22508
+allow 22515
+allow 22529
+allow 22541
+allow 22548
+allow 22566
+allow 22628
+allow 22661
+allow 22678
+allow 22689
+allow 22698 - 22699
+allow 22706
+allow 22724
+allow 22726
+allow 22745
+allow 22798
+allow 22818 - 22819
+allow 22833
+allow 22860
+allow 22869
+allow 22876
+allow 22882
+allow 22884
+allow 22889
+allow 22894
+allow 22908
+allow 22924
+allow 22927
+allow 22975
+allow 23002
+allow 23007
+allow 23020
+allow 23031
+allow 23074
+allow 23091
+allow 23105 - 23106
+allow 23113
+allow 23128
+allow 23140
+allow 23201 - 23202
+allow 23216
+allow 23243
+allow 23246
+allow 23289
+allow 23353
+allow 23360
+allow 23382 - 23383
+allow 23416
+allow 23487 - 23488
+allow 23495
+allow 23541
+allow 25607
+allow 25620
+allow 25701
+allow 25705
+allow 25718
+allow 25734
+allow 25812
+allow 25832
+allow 25908
+allow 25927
+allow 25933
+allow 25998
+allow 26048
+allow 26061
+allow 26090
+allow 26104 - 26105
+allow 26107
+allow 26112
+allow 26118 - 26119
+allow 26136
+allow 26162
+allow 26173
+allow 26194
+allow 26210
+allow 26218
+allow 26317
+allow 26418
+allow 26426
+allow 26434
+allow 26473
+allow 26505
+allow 26592 - 26623
+
+# AFRINIC Internet Number Resources cannot be transferred
+# From https://www.iana.org/assignments/ipv4-address-space/
+deny 41.0.0.0/8
+deny 102.0.0.0/8
+deny 105.0.0.0/8
+deny 154.0.0.0/16
+deny 154.16.0.0/16
+deny 154.65.0.0 - 154.255.255.255
+deny 196.0.0.0 - 196.1.0.255
+deny 196.1.4.0/24
+deny 196.1.7.0 - 196.1.63.255
+deny 196.1.71.0/24
+deny 196.1.74.0 - 196.1.103.255
+deny 196.1.115.0 - 196.1.133.255
+deny 196.1.137.0/24
+deny 196.1.143.0 - 196.1.159.255
+deny 196.1.176.0 - 196.1.255.255
+deny 196.2.2.0/23
+deny 196.2.8.0 - 196.2.255.255
+deny 196.3.14.0/23
+deny 196.3.57.0 - 196.3.64.255
+deny 196.3.90.0/24
+deny 196.3.92.0 - 196.3.94.255
+deny 196.3.96.0/21
+deny 196.3.105.0/24
+deny 196.3.107.0 - 196.3.131.255
+deny 196.3.148.0/22
+deny 196.3.154.0 - 196.3.183.255
+deny 196.3.224.0 - 196.4.45.255
+deny 196.4.71.0 - 196.11.171.255
+deny 196.11.174.0 - 196.11.239.255
+deny 196.11.248.0/21
+deny 196.12.10.0 - 196.12.31.255
+deny 196.12.128.0/19
+deny 196.12.192.0 - 196.15.15.255
+deny 196.15.64.0 - 196.26.255.255
+deny 196.27.64.0 - 196.28.47.255
+deny 196.28.64.0 - 196.29.63.255
+deny 196.29.96.0 - 196.31.255.255
+deny 196.32.8.0 - 196.32.31.255
+deny 196.32.96.0/19
+deny 196.32.160.0 - 196.39.255.255
+deny 196.40.96.0 - 196.41.255.255
+deny 196.42.64.0 - 196.216.0.255
+deny 196.216.2.0 - 197.255.255.255
+
+# Private use IPv4 & IPv6 addresses and ASNs
+deny 0.0.0.0/8               # RFC 1122 Local Identification
+deny 10.0.0.0/8              # RFC 1918 private space
+deny 100.64.0.0/10           # RFC 6598 Carrier Grade NAT
+deny 127.0.0.0/8             # RFC 1122 localhost
+deny 169.254.0.0/16          # RFC 3927 link local
+deny 172.16.0.0/12           # RFC 1918 private space
+deny 192.0.2.0/24            # RFC 5737 TEST-NET-1
+deny 192.88.99.0/24          # RFC 7526 6to4 anycast relay
+deny 192.168.0.0/16          # RFC 1918 private space
+deny 198.18.0.0/15           # RFC 2544 benchmarking
+deny 198.51.100.0/24         # RFC 5737 TEST-NET-2
+deny 203.0.113.0/24          # RFC 5737 TEST-NET-3
+deny 224.0.0.0/4             # Multicast
+deny 240.0.0.0/4             # Reserved
+
+# LACNIC supports only IPv4 transfers: allow the complement of what is denied
+allow 0.0.0.0/0

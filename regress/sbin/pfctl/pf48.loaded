@@ -1,0 +1,56 @@
+@0 match out on lo0 inet from <regress.1:2> to <regress.2:*> nat-to 127.0.0.1
+  [ Skip steps: d=2 f=2 p=end da=4 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 match out on ! lo0 inet from ! <regress.1:2> to <regress.2:*> nat-to 127.0.0.1
+  [ Skip steps: p=end da=4 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 match in on lo0 inet6 from <regress.1:2> to <regress.2:*> rdr-to ::1
+  [ Skip steps: d=6 f=4 p=end da=4 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 match in on ! lo0 inet6 from ! <regress.1:2> to <regress.2:*> rdr-to ::1
+  [ Skip steps: d=6 p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 match in from <regress.1:2> to any
+  [ Skip steps: i=end d=6 r=end f=end p=end da=6 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 match in from ! <regress.2:*> to any
+  [ Skip steps: i=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 match out from any to ! <regress.1:2>
+  [ Skip steps: i=end d=8 r=end f=end p=end sa=8 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 match out from any to <regress.2:*>
+  [ Skip steps: i=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 pass in from <regress:6> to any flags S/SA
+  [ Skip steps: i=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 pass out from any to <regress:6> flags S/SA
+  [ Skip steps: i=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 pass in from <regress.1:2> to any flags S/SA
+  [ Skip steps: i=end d=12 r=end f=end p=end da=12 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 pass in from <regress.2:*> to any flags S/SA
+  [ Skip steps: i=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@12 pass out from any to ! <regress.1:2> flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@13 pass out from any to ! <regress.2:*> flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

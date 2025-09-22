@@ -1,0 +1,10 @@
+
+BGP routing table entry for 10.12.1.0/24
+    64500 64501
+    Nexthop 10.12.57.2 (via 10.12.57.2) Neighbor 10.12.57.4 (10.12.57.4)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid
+
+BGP routing table entry for 10.12.1.0/24
+    64500 64501
+    Nexthop 10.12.57.2 (via 10.12.57.2) Neighbor 10.12.57.5 (10.12.57.5)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid

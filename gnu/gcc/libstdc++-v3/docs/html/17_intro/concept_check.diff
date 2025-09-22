@@ -1,0 +1,382 @@
+
+Changes made while bringing boost/concept_check.hpp to v3's concept_check.h:
+
+1)  File format changed from DOS to Unix.
+2)  Boost config.hpp and other workaround files dropped (unneeded in g++ v3).
+3)  Conditionally-compiled code depending on those "breakage" macros was
+    removed, or not, depending on the macro, so that the macros themselves
+    are gone.  Since the same code would always be compiled, let's make it
+    easier on the reader and a few milliseconds faster for cpplib.
+4)  Tests for NDEBUG were removed; if NDEBUG is defined, none of the checking
+    code will even be included.
+5)  BOOST_CLASS_REQUIRES* changed to accept a namespace parameter.
+6)  SameTypeConcept added (simple wrapper around existing code).
+7)  An unused variable in OutputIteratorConcept was removed.
+
+At checkin, this was the exact diff, modulo the end-of-line character changes:
+
+
+--- concept_check.hpp.orig	Sun Apr  1 08:59:46 2001
++++ boost_concept_check.h	Mon Apr  2 18:56:41 2001
+@@ -5,20 +5,15 @@
+ // "as is" without express or implied warranty, and with no claim as
+ // to its suitability for any purpose.
+ //
++
++// GCC Note:  based on version 1.12.0 of the Boost library.
+ #ifndef BOOST_CONCEPT_CHECKS_HPP
+ #define BOOST_CONCEPT_CHECKS_HPP
+ 
+-#include <boost/config.hpp>
+-#include <boost/iterator.hpp>
+-#include <boost/iterator.hpp>
+-#include <utility>
+-#include <boost/pending/limits.hpp>
+-
+-#if (__GNUC__) || defined(__KCC) || defined(__ghs) || defined(__MWERKS__)
+-#define BOOST_FPTR &
+-#else
+-#define BOOST_FPTR
+-#endif
++#pragma GCC system_header
++#include <bits/stl_iterator_base_types.h>    // for traits and tags
++#include <utility>                           // for pair<>
++
+ 
+ namespace boost {
+ 
+@@ -27,80 +22,64 @@
+ template <class Concept>
+ void function_requires()
+ {
+-#if !defined(NDEBUG)
+-  void (Concept::*x)() = BOOST_FPTR Concept::constraints;
++  void (Concept::*x)() = &Concept::constraints;
+   ignore_unused_variable_warning(x);
+-#endif
+ }
+ 
+-// The BOOST_CLASS_REQUIRES macros use function pointers as
+-// template parameters, which VC++ does not support.
+-
+-#if defined(BOOST_NO_FUNCTION_PTR_TEMPLATE_PARAMETERS)
+-
+-#define BOOST_CLASS_REQUIRES(type_var, concept)
+-#define BOOST_CLASS_REQUIRES2(type_var1, type_var2, concept)
+-#define BOOST_CLASS_REQUIRES3(type_var1, type_var2, type_var3, concept)
+-#define BOOST_CLASS_REQUIRES4(type_var1, type_var2, type_var3, type_var4, concept)
+ 
+-#else
+-
+-#define BOOST_CLASS_REQUIRES(type_var, concept) \
+-  typedef void (concept <type_var>::* func##type_var##concept)(); \
++#define BOOST_CLASS_REQUIRES(type_var, ns, concept) \
++  typedef void (ns::concept <type_var>::* func##type_var##concept)(); \
+   template <func##type_var##concept _Tp1> \
+   struct concept_checking_##type_var##concept { }; \
+   typedef concept_checking_##type_var##concept< \
+-    BOOST_FPTR concept <type_var>::constraints> \
++    &ns::concept <type_var>::constraints> \
+     concept_checking_typedef_##type_var##concept
+ 
+-#define BOOST_CLASS_REQUIRES2(type_var1, type_var2, concept) \
+-  typedef void (concept <type_var1,type_var2>::* func##type_var1##type_var2##concept)(); \
++#define BOOST_CLASS_REQUIRES2(type_var1, type_var2, ns, concept) \
++  typedef void (ns::concept <type_var1,type_var2>::* func##type_var1##type_var2##concept)(); \
+   template <func##type_var1##type_var2##concept _Tp1> \
+   struct concept_checking_##type_var1##type_var2##concept { }; \
+   typedef concept_checking_##type_var1##type_var2##concept< \
+-    BOOST_FPTR concept <type_var1,type_var2>::constraints> \
++    &ns::concept <type_var1,type_var2>::constraints> \
+     concept_checking_typedef_##type_var1##type_var2##concept
+ 
+-#define BOOST_CLASS_REQUIRES3(type_var1, type_var2, type_var3, concept) \
+-  typedef void (concept <type_var1,type_var2,type_var3>::* func##type_var1##type_var2##type_var3##concept)(); \
++#define BOOST_CLASS_REQUIRES3(type_var1, type_var2, type_var3, ns, concept) \
++  typedef void (ns::concept <type_var1,type_var2,type_var3>::* func##type_var1##type_var2##type_var3##concept)(); \
+   template <func##type_var1##type_var2##type_var3##concept _Tp1> \
+   struct concept_checking_##type_var1##type_var2##type_var3##concept { }; \
+   typedef concept_checking_##type_var1##type_var2##type_var3##concept< \
+-    BOOST_FPTR concept <type_var1,type_var2,type_var3>::constraints>  \
++    &ns::concept <type_var1,type_var2,type_var3>::constraints>  \
+   concept_checking_typedef_##type_var1##type_var2##type_var3##concept
+ 
+-#define BOOST_CLASS_REQUIRES4(type_var1, type_var2, type_var3, type_var4, concept) \
+-  typedef void (concept <type_var1,type_var2,type_var3,type_var4>::* func##type_var1##type_var2##type_var3##type_var4##concept)(); \
++#define BOOST_CLASS_REQUIRES4(type_var1, type_var2, type_var3, type_var4, ns, concept) \
++  typedef void (ns::concept <type_var1,type_var2,type_var3,type_var4>::* func##type_var1##type_var2##type_var3##type_var4##concept)(); \
+   template <func##type_var1##type_var2##type_var3##type_var4##concept _Tp1> \
+   struct concept_checking_##type_var1##type_var2##type_var3##type_var4##concept { }; \
+   typedef concept_checking_##type_var1##type_var2##type_var3##type_var4##concept< \
+-    BOOST_FPTR concept <type_var1,type_var2,type_var3,type_var4>::constraints>  \
++    &ns::concept <type_var1,type_var2,type_var3,type_var4>::constraints>  \
+     concept_checking_typedef_##type_var1##type_var2##type_var3##type_var4##concept
+ 
+ 
+-#endif
+-
+-#if !defined BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
+ template <class T, class U>
+ struct require_same { };
+ 
+ template <class T>
+ struct require_same<T,T> { typedef T type; };
+-#else
+-// This version does not perform checking, but will not do any harm.
+-template <class T, class U>
+-struct require_same { typedef T type; };
+-#endif
++
++  template <class T, class U>
++  struct SameTypeConcept
++  {
++    void constraints() {
++      typedef typename require_same<T, U>::type req;
++    }
++  };
+ 
+   template <class T>
+   struct IntegerConcept {
+     void constraints() { 
+-#if !defined BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
+       errortype_must_be_an_integer_type();
+-#endif      
+     }
+   };
+-#if !defined BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
+   template <> struct IntegerConcept<short> { void constraints() {} };
+   template <> struct IntegerConcept<unsigned short> { void constraints() {} };
+   template <> struct IntegerConcept<int> { void constraints() {} };
+@@ -108,32 +87,24 @@
+   template <> struct IntegerConcept<long> { void constraints() {} };
+   template <> struct IntegerConcept<unsigned long> { void constraints() {} };
+   // etc.
+-#endif      
+ 
+   template <class T>
+   struct SignedIntegerConcept {
+     void constraints() { 
+-#if !defined BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
+       errortype_must_be_a_signed_integer_type();
+-#endif      
+     }
+   };
+-#if !defined BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
+   template <> struct SignedIntegerConcept<short> { void constraints() {} };
+   template <> struct SignedIntegerConcept<int> { void constraints() {} };
+   template <> struct SignedIntegerConcept<long> { void constraints() {} };
+   // etc.
+-#endif      
+ 
+   template <class T>
+   struct UnsignedIntegerConcept {
+     void constraints() { 
+-#if !defined BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
+       errortype_must_be_an_unsigned_integer_type();
+-#endif      
+     }
+   };
+-#if !defined BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
+   template <> struct UnsignedIntegerConcept<unsigned short>
+     { void constraints() {} };
+   template <> struct UnsignedIntegerConcept<unsigned int>
+@@ -141,7 +112,6 @@
+   template <> struct UnsignedIntegerConcept<unsigned long>
+     { void constraints() {} };
+   // etc.
+-#endif      
+ 
+   //===========================================================================
+   // Basic Concepts
+@@ -159,15 +129,11 @@
+   struct AssignableConcept
+   {
+     void constraints() {
+-#if !defined(_ITERATOR_) // back_insert_iterator broken for VC++ STL
+       a = a;              // require assignment operator
+-#endif
+       const_constraints(a);
+     }
+     void const_constraints(const TT& b) {
+-#if !defined(_ITERATOR_) // back_insert_iterator broken for VC++ STL
+       a = b;              // const required for argument to assignment
+-#endif
+     }
+     TT a;
+   };
+@@ -196,17 +162,13 @@
+   {
+     void constraints() {
+       TT b(a);
+-#if !defined(_ITERATOR_) // back_insert_iterator broken for VC++ STL
+       a = a;              // require assignment operator
+-#endif
+       const_constraints(a);
+       ignore_unused_variable_warning(b);
+     }
+     void const_constraints(const TT& b) {
+       TT c(b);
+-#if !defined(_ITERATOR_) // back_insert_iterator broken for VC++ STL
+       a = b;              // const required for argument to assignment
+-#endif
+       ignore_unused_variable_warning(c);
+     }
+     TT a;
+@@ -304,6 +266,9 @@
+   BOOST_DEFINE_BINARY_OPERATOR_CONSTRAINT(-, SubtractOpConcept);
+   BOOST_DEFINE_BINARY_OPERATOR_CONSTRAINT(%, ModOpConcept);
+ 
++#undef BOOST_DEFINE_BINARY_PREDICATE_OP_CONSTRAINT
++#undef BOOST_DEFINE_BINARY_OPERATOR_CONSTRAINT
++
+   //===========================================================================
+   // Function Object Concepts
+ 
+@@ -318,7 +283,6 @@
+   };
+ 
+ 
+-#if !defined BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
+   template <class Func>
+   struct GeneratorConcept<Func,void>
+   {
+@@ -327,7 +291,6 @@
+     }
+     Func f;
+   };
+-#endif
+ 
+   template <class Func, class Return, class Arg>
+   struct UnaryFunctionConcept
+@@ -340,7 +303,6 @@
+     Return r;
+   };
+ 
+-#if !defined BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
+   template <class Func, class Arg>
+   struct UnaryFunctionConcept<Func, void, Arg> {
+     void constraints() { 
+@@ -348,7 +310,6 @@
+     }
+     Func f;
+   };
+-#endif
+ 
+   template <class Func, class Return, class First, class Second>
+   struct BinaryFunctionConcept
+@@ -362,7 +323,6 @@
+     Return r;
+   };
+ 
+-#if !defined BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
+   template <class Func, class First, class Second>
+   struct BinaryFunctionConcept<Func, void, First, Second>
+   {
+@@ -373,7 +333,6 @@
+     First first;
+     Second second;
+   };
+-#endif
+ 
+   template <class Func, class Arg>
+   struct UnaryPredicateConcept
+@@ -422,9 +381,7 @@
+       function_requires< AssignableConcept<TT> >();
+       function_requires< DefaultConstructibleConcept<TT> >();
+       function_requires< EqualityComparableConcept<TT> >();
+-#ifndef BOOST_NO_STD_ITERATOR_TRAITS
+       typedef typename std::iterator_traits<TT>::value_type V;
+-#endif
+       (void)*i;           // require dereference operator
+     }
+     TT i;
+@@ -446,7 +403,6 @@
+     void constraints() {
+       function_requires< TrivialIteratorConcept<TT> >();
+       // require iterator_traits typedef's
+-#ifndef BOOST_NO_STD_ITERATOR_TRAITS
+       typedef typename std::iterator_traits<TT>::difference_type D;
+       function_requires< SignedIntegerConcept<D> >();
+       typedef typename std::iterator_traits<TT>::reference R;
+@@ -455,7 +411,6 @@
+       function_requires< ConvertibleConcept<
+         typename std::iterator_traits<TT>::iterator_category,
+         std::input_iterator_tag> >();
+-#endif
+       ++i;                // require preincrement operator
+       i++;                // require postincrement operator
+     }
+@@ -471,7 +426,7 @@
+       i++;                // require postincrement operator
+       *i++ = t;           // require postincrement and assignment
+     }
+-    TT i, j;
++    TT i;
+     ValueT t;
+   };
+ 
+@@ -480,14 +435,12 @@
+   {
+     void constraints() {
+       function_requires< InputIteratorConcept<TT> >();
+-#ifndef BOOST_NO_STD_ITERATOR_TRAITS
+       function_requires< ConvertibleConcept<
+         typename std::iterator_traits<TT>::iterator_category,
+         std::forward_iterator_tag> >();
+       typedef typename std::iterator_traits<TT>::reference reference;
+       reference r = *i;
+       ignore_unused_variable_warning(r);
+-#endif
+     }
+     TT i;
+   };
+@@ -507,11 +460,9 @@
+   {
+     void constraints() {
+       function_requires< ForwardIteratorConcept<TT> >();
+-#ifndef BOOST_NO_STD_ITERATOR_TRAITS
+       function_requires< ConvertibleConcept<
+         typename std::iterator_traits<TT>::iterator_category,
+         std::bidirectional_iterator_tag> >();
+-#endif
+       --i;                // require predecrement operator
+       i--;                // require postdecrement operator
+     }
+@@ -536,12 +487,10 @@
+     void constraints() {
+       function_requires< BidirectionalIteratorConcept<TT> >();
+       function_requires< ComparableConcept<TT> >();
+-#ifndef BOOST_NO_STD_ITERATOR_TRAITS
+       function_requires< ConvertibleConcept<
+         typename std::iterator_traits<TT>::iterator_category,
+         std::random_access_iterator_tag> >();
+       typedef typename std::iterator_traits<TT>::reference R;
+-#endif
+ 
+       i += n;             // require assignment addition operator
+       i = i + n; i = n + i; // require addition with difference type
+@@ -552,11 +501,7 @@
+     }
+     TT a, b;
+     TT i, j;
+-#ifndef BOOST_NO_STD_ITERATOR_TRAITS
+     typename std::iterator_traits<TT>::difference_type n;
+-#else
+-    std::ptrdiff_t n;
+-#endif
+   };
+ 
+   template <class TT>
+@@ -568,11 +513,7 @@
+       i[n] = *i;                  // require element access and assignment
+     }
+     TT i;
+-#ifndef BOOST_NO_STD_ITERATOR_TRAITS
+     typename std::iterator_traits<TT>::difference_type n;
+-#else
+-    std::ptrdiff_t n;
+-#endif
+   };
+ 
+   //===========================================================================
+

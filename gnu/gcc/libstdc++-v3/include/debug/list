@@ -1,0 +1,540 @@
+// Debugging list implementation -*- C++ -*-
+
+// Copyright (C) 2003, 2004, 2005, 2006
+// Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+// Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+/** @file debug/list
+ *  This file is a GNU debug extension to the Standard C++ Library.
+ */
+
+#ifndef _GLIBCXX_DEBUG_LIST
+#define _GLIBCXX_DEBUG_LIST 1
+
+#include <list>
+#include <bits/stl_algo.h>
+#include <debug/safe_sequence.h>
+#include <debug/safe_iterator.h>
+
+namespace std
+{
+namespace __debug
+{
+  template<typename _Tp, typename _Allocator = std::allocator<_Tp> >
+    class list
+    : public _GLIBCXX_STD::list<_Tp, _Allocator>,
+      public __gnu_debug::_Safe_sequence<list<_Tp, _Allocator> >
+    {
+      typedef _GLIBCXX_STD::list<_Tp, _Allocator> _Base;
+      typedef __gnu_debug::_Safe_sequence<list>  _Safe_base;
+
+    public:
+      typedef typename _Base::reference             reference;
+      typedef typename _Base::const_reference       const_reference;
+
+      typedef __gnu_debug::_Safe_iterator<typename _Base::iterator, list>
+						    iterator;
+      typedef __gnu_debug::_Safe_iterator<typename _Base::const_iterator, list>
+						    const_iterator;
+
+      typedef typename _Base::size_type             size_type;
+      typedef typename _Base::difference_type       difference_type;
+
+      typedef _Tp				    value_type;
+      typedef _Allocator			    allocator_type;
+      typedef typename _Base::pointer               pointer;
+      typedef typename _Base::const_pointer         const_pointer;
+      typedef std::reverse_iterator<iterator>       reverse_iterator;
+      typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+
+      // 23.2.2.1 construct/copy/destroy:
+      explicit list(const _Allocator& __a = _Allocator())
+      : _Base(__a) { }
+
+      explicit list(size_type __n, const _Tp& __value = _Tp(),
+		    const _Allocator& __a = _Allocator())
+      : _Base(__n, __value, __a) { }
+
+      template<class _InputIterator>
+      list(_InputIterator __first, _InputIterator __last,
+	   const _Allocator& __a = _Allocator())
+      : _Base(__gnu_debug::__check_valid_range(__first, __last), __last, __a)
+      { }
+
+
+      list(const list& __x) : _Base(__x), _Safe_base() { }
+
+      list(const _Base& __x) : _Base(__x), _Safe_base() { }
+
+      ~list() { }
+
+      list&
+      operator=(const list& __x)
+      {
+	static_cast<_Base&>(*this) = __x;
+	this->_M_invalidate_all();
+	return *this;
+      }
+
+      template<class _InputIterator>
+        void
+        assign(_InputIterator __first, _InputIterator __last)
+        {
+	  __glibcxx_check_valid_range(__first, __last);
+	  _Base::assign(__first, __last);
+	  this->_M_invalidate_all();
+	}
+
+      void
+      assign(size_type __n, const _Tp& __t)
+      {
+	_Base::assign(__n, __t);
+	this->_M_invalidate_all();
+      }
+
+      using _Base::get_allocator;
+
+      // iterators:
+      iterator
+      begin()
+      { return iterator(_Base::begin(), this); }
+
+      const_iterator
+      begin() const
+      { return const_iterator(_Base::begin(), this); }
+
+      iterator
+      end()
+      { return iterator(_Base::end(), this); }
+
+      const_iterator
+      end() const
+      { return const_iterator(_Base::end(), this); }
+
+      reverse_iterator
+      rbegin()
+      { return reverse_iterator(end()); }
+
+      const_reverse_iterator
+      rbegin() const
+      { return const_reverse_iterator(end()); }
+
+      reverse_iterator
+      rend()
+      { return reverse_iterator(begin()); }
+
+      const_reverse_iterator
+      rend() const
+      { return const_reverse_iterator(begin()); }
+
+      // 23.2.2.2 capacity:
+      using _Base::empty;
+      using _Base::size;
+      using _Base::max_size;
+
+      void
+      resize(size_type __sz, _Tp __c = _Tp())
+      {
+	this->_M_detach_singular();
+
+	// if __sz < size(), invalidate all iterators in [begin+__sz, end())
+	iterator __victim = begin();
+	iterator __end = end();
+	for (size_type __i = __sz; __victim != __end && __i > 0; --__i)
+	  ++__victim;
+
+	while (__victim != __end)
+	  {
+	    iterator __real_victim = __victim++;
+	    __real_victim._M_invalidate();
+	  }
+
+	try
+	  {
+	    _Base::resize(__sz, __c);
+	  }
+	catch(...)
+	  {
+	    this->_M_revalidate_singular();
+	    __throw_exception_again;
+	  }
+      }
+
+      // element access:
+      reference
+      front()
+      {
+	__glibcxx_check_nonempty();
+	return _Base::front();
+      }
+
+      const_reference
+      front() const
+      {
+	__glibcxx_check_nonempty();
+	return _Base::front();
+      }
+
+      reference
+      back()
+      {
+	__glibcxx_check_nonempty();
+	return _Base::back();
+      }
+
+      const_reference
+      back() const
+      {
+	__glibcxx_check_nonempty();
+	return _Base::back();
+      }
+
+      // 23.2.2.3 modifiers:
+      using _Base::push_front;
+
+      void
+      pop_front()
+      {
+	__glibcxx_check_nonempty();
+	iterator __victim = begin();
+	__victim._M_invalidate();
+	_Base::pop_front();
+      }
+
+      using _Base::push_back;
+
+      void
+      pop_back()
+      {
+	__glibcxx_check_nonempty();
+	iterator __victim = end();
+	--__victim;
+	__victim._M_invalidate();
+	_Base::pop_back();
+      }
+
+      iterator
+      insert(iterator __position, const _Tp& __x)
+      {
+	__glibcxx_check_insert(__position);
+	return iterator(_Base::insert(__position.base(), __x), this);
+      }
+
+      void
+      insert(iterator __position, size_type __n, const _Tp& __x)
+      {
+	__glibcxx_check_insert(__position);
+	_Base::insert(__position.base(), __n, __x);
+      }
+
+      template<class _InputIterator>
+        void
+        insert(iterator __position, _InputIterator __first,
+	       _InputIterator __last)
+        {
+	  __glibcxx_check_insert_range(__position, __first, __last);
+	  _Base::insert(__position.base(), __first, __last);
+	}
+
+      iterator
+      erase(iterator __position)
+      {
+	__glibcxx_check_erase(__position);
+	__position._M_invalidate();
+	return iterator(_Base::erase(__position.base()), this);
+      }
+
+      iterator
+      erase(iterator __position, iterator __last)
+      {
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 151. can't currently clear() empty container
+	__glibcxx_check_erase_range(__position, __last);
+	for (iterator __victim = __position; __victim != __last; )
+	  {
+	    iterator __old = __victim;
+	    ++__victim;
+	    __old._M_invalidate();
+	  }
+	return iterator(_Base::erase(__position.base(), __last.base()), this);
+      }
+
+      void
+      swap(list& __x)
+      {
+	_Base::swap(__x);
+	this->_M_swap(__x);
+      }
+
+      void
+      clear()
+      {
+	_Base::clear();
+	this->_M_invalidate_all();
+      }
+
+      // 23.2.2.4 list operations:
+      void
+      splice(iterator __position, list& __x)
+      {
+	_GLIBCXX_DEBUG_VERIFY(&__x != this,
+			      _M_message(__gnu_debug::__msg_self_splice)
+			      ._M_sequence(*this, "this"));
+	this->splice(__position, __x, __x.begin(), __x.end());
+      }
+
+      void
+      splice(iterator __position, list& __x, iterator __i)
+      {
+	__glibcxx_check_insert(__position);
+
+	// We used to perform the splice_alloc check:  not anymore, redundant
+	// after implementing the relevant bits of N1599.
+
+	_GLIBCXX_DEBUG_VERIFY(__i._M_dereferenceable(),
+			      _M_message(__gnu_debug::__msg_splice_bad)
+			      ._M_iterator(__i, "__i"));
+	_GLIBCXX_DEBUG_VERIFY(__i._M_attached_to(&__x),
+			      _M_message(__gnu_debug::__msg_splice_other)
+			     ._M_iterator(__i, "__i")._M_sequence(__x, "__x"));
+
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 250. splicing invalidates iterators
+	this->_M_transfer_iter(__i);
+	_Base::splice(__position.base(), __x._M_base(), __i.base());
+      }
+
+      void
+      splice(iterator __position, list& __x, iterator __first, iterator __last)
+      {
+	__glibcxx_check_insert(__position);
+	__glibcxx_check_valid_range(__first, __last);
+	_GLIBCXX_DEBUG_VERIFY(__first._M_attached_to(&__x),
+			      _M_message(__gnu_debug::__msg_splice_other)
+			      ._M_sequence(__x, "x")
+			      ._M_iterator(__first, "first"));
+
+	// We used to perform the splice_alloc check:  not anymore, redundant
+	// after implementing the relevant bits of N1599.
+
+	for (iterator __tmp = __first; __tmp != __last; )
+	  {
+	    _GLIBCXX_DEBUG_VERIFY(&__x != this || __tmp != __position,
+				_M_message(__gnu_debug::__msg_splice_overlap)
+				  ._M_iterator(__tmp, "position")
+				  ._M_iterator(__first, "first")
+				  ._M_iterator(__last, "last"));
+	    iterator __victim = __tmp++;
+	    // _GLIBCXX_RESOLVE_LIB_DEFECTS
+	    // 250. splicing invalidates iterators
+	    this->_M_transfer_iter(__victim);
+	  }
+
+	_Base::splice(__position.base(), __x._M_base(), __first.base(),
+		      __last.base());
+      }
+
+      void
+      remove(const _Tp& __value)
+      {
+	for (iterator __x = begin(); __x.base() != _Base::end(); )
+	  {
+	    if (*__x == __value)
+	      __x = erase(__x);
+	    else
+	      ++__x;
+	  }
+      }
+
+      template<class _Predicate>
+        void
+        remove_if(_Predicate __pred)
+        {
+	  for (iterator __x = begin(); __x.base() != _Base::end(); )
+	    {
+	      if (__pred(*__x))
+		__x = erase(__x);
+	      else
+		++__x;
+	    }
+	}
+
+      void
+      unique()
+      {
+	iterator __first = begin();
+	iterator __last = end();
+	if (__first == __last)
+	  return;
+	iterator __next = __first;
+	while (++__next != __last)
+	  {
+	    if (*__first == *__next)
+	      erase(__next);
+	    else
+	      __first = __next;
+	    __next = __first;
+	  }
+      }
+
+      template<class _BinaryPredicate>
+        void
+        unique(_BinaryPredicate __binary_pred)
+        {
+	  iterator __first = begin();
+	  iterator __last = end();
+	  if (__first == __last)
+	    return;
+	  iterator __next = __first;
+	  while (++__next != __last)
+	    {
+	      if (__binary_pred(*__first, *__next))
+		erase(__next);
+	      else
+		__first = __next;
+	      __next = __first;
+	    }
+	}
+
+      void
+      merge(list& __x)
+      {
+	__glibcxx_check_sorted(_Base::begin(), _Base::end());
+	__glibcxx_check_sorted(__x.begin().base(), __x.end().base());
+	for (iterator __tmp = __x.begin(); __tmp != __x.end(); )
+	  {
+	    iterator __victim = __tmp++;
+	    __victim._M_attach(&__x);
+	  }
+	_Base::merge(__x._M_base());
+      }
+
+      template<class _Compare>
+        void
+        merge(list& __x, _Compare __comp)
+        {
+	  __glibcxx_check_sorted_pred(_Base::begin(), _Base::end(), __comp);
+	  __glibcxx_check_sorted_pred(__x.begin().base(), __x.end().base(),
+				      __comp);
+	  for (iterator __tmp = __x.begin(); __tmp != __x.end(); )
+	    {
+	      iterator __victim = __tmp++;
+	      __victim._M_attach(&__x);
+	    }
+	  _Base::merge(__x._M_base(), __comp);
+	}
+
+      void
+      sort() { _Base::sort(); }
+
+      template<typename _StrictWeakOrdering>
+        void
+        sort(_StrictWeakOrdering __pred) { _Base::sort(__pred); }
+
+      using _Base::reverse;
+
+      _Base&
+      _M_base()       { return *this; }
+
+      const _Base&
+      _M_base() const { return *this; }
+
+    private:
+      void
+      _M_invalidate_all()
+      {
+	typedef typename _Base::const_iterator _Base_const_iterator;
+	typedef __gnu_debug::_Not_equal_to<_Base_const_iterator> _Not_equal;
+	this->_M_invalidate_if(_Not_equal(_M_base().end()));
+      }
+    };
+
+  template<typename _Tp, typename _Alloc>
+    inline bool
+    operator==(const list<_Tp, _Alloc>& __lhs, const list<_Tp, _Alloc>& __rhs)
+    { return __lhs._M_base() == __rhs._M_base(); }
+
+  template<typename _Tp, typename _Alloc>
+    inline bool
+    operator!=(const list<_Tp, _Alloc>& __lhs, const list<_Tp, _Alloc>& __rhs)
+    { return __lhs._M_base() != __rhs._M_base(); }
+
+  template<typename _Tp, typename _Alloc>
+    inline bool
+    operator<(const list<_Tp, _Alloc>& __lhs, const list<_Tp, _Alloc>& __rhs)
+    { return __lhs._M_base() < __rhs._M_base(); }
+
+  template<typename _Tp, typename _Alloc>
+    inline bool
+    operator<=(const list<_Tp, _Alloc>& __lhs, const list<_Tp, _Alloc>& __rhs)
+    { return __lhs._M_base() <= __rhs._M_base(); }
+
+  template<typename _Tp, typename _Alloc>
+    inline bool
+    operator>=(const list<_Tp, _Alloc>& __lhs, const list<_Tp, _Alloc>& __rhs)
+    { return __lhs._M_base() >= __rhs._M_base(); }
+
+  template<typename _Tp, typename _Alloc>
+    inline bool
+    operator>(const list<_Tp, _Alloc>& __lhs, const list<_Tp, _Alloc>& __rhs)
+    { return __lhs._M_base() > __rhs._M_base(); }
+
+  template<typename _Tp, typename _Alloc>
+    inline void
+    swap(list<_Tp, _Alloc>& __lhs, list<_Tp, _Alloc>& __rhs)
+    { __lhs.swap(__rhs); }
+} // namespace __debug
+} // namespace std
+
+#endif

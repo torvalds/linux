@@ -1,0 +1,9 @@
+#	$OpenBSD: files.imx,v 1.32 2021/05/28 11:50:18 patrick Exp $
+
+device imxahci: scsi, atascsi
+attach imxahci at fdt
+file	arch/armv7/imx/imxahci.c	imxahci
+
+device imxtemp
+attach imxtemp at fdt
+file	arch/armv7/imx/imxtemp.c	imxtemp

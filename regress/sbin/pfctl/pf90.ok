@@ -1,0 +1,5 @@
+pass log (user) all flags S/SA
+pass log (all) all flags S/SA
+pass log (to pflog7) all flags S/SA
+block drop log (all, user, to pflog1) all
+block drop log (user, to pflog1) all

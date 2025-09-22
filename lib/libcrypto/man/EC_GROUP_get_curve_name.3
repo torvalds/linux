@@ -1,0 +1,266 @@
+.\" $OpenBSD: EC_GROUP_get_curve_name.3,v 1.4 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2025 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt EC_GROUP_GET_CURVE_NAME 3
+.Os
+.Sh NAME
+.Nm EC_GROUP_get_curve_name ,
+.Nm EC_GROUP_set_curve_name ,
+.Nm EC_GROUP_get_asn1_flag ,
+.Nm EC_GROUP_set_asn1_flag ,
+.Nm EC_GROUP_get0_seed ,
+.Nm EC_GROUP_get_seed_len ,
+.Nm EC_GROUP_set_seed ,
+.Nm EC_GROUP_get_point_conversion_form ,
+.Nm EC_GROUP_set_point_conversion_form ,
+.Nm EC_GROUP_get_basis_type
+.Nd configure and inspect details of the ASN.1 encoding of
+.Vt EC_GROUP
+and related objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ec.h
+.Ft int
+.Fo EC_GROUP_get_curve_name
+.Fa "const EC_GROUP *group"
+.Fc
+.Ft void
+.Fo EC_GROUP_set_curve_name
+.Fa "EC_GROUP *group"
+.Fa "int nid"
+.Fc
+.Ft int
+.Fo EC_GROUP_get_asn1_flag
+.Fa "const EC_GROUP *group"
+.Fc
+.Ft void
+.Fo EC_GROUP_set_asn1_flag
+.Fa "EC_GROUP *group"
+.Fa "int flag"
+.Fc
+.Ft unsigned char *
+.Fo EC_GROUP_get0_seed
+.Fa "const EC_GROUP *group"
+.Fc
+.Ft size_t
+.Fo EC_GROUP_get_seed_len
+.Fa "const EC_GROUP *group"
+.Fc
+.Ft size_t
+.Fo EC_GROUP_set_seed
+.Fa "EC_GROUP *group"
+.Fa "const unsigned char *seed"
+.Fa "size_t len"
+.Fc
+.Bd -literal
+typedef enum {
+	POINT_CONVERSION_COMPRESSED = 2,
+	POINT_CONVERSION_UNCOMPRESSED = 4,
+	POINT_CONVERSION_HYBRID = 6
+} point_conversion_form_t;
+
+.Ed
+.Ft point_conversion_form_t
+.Fo EC_GROUP_get_point_conversion_form
+.Fa "const EC_GROUP *group"
+.Fc
+.Ft void
+.Fo EC_GROUP_set_point_conversion_form
+.Fa "EC_GROUP *group"
+.Fa "point_conversion_form_t form"
+.Fc
+.Pp
+Deprecated:
+.Pp
+.Ft int
+.Fo EC_GROUP_get_basis_type
+.Fa "const EC_GROUP *group"
+.Fc
+.Sh DESCRIPTION
+The functions in this manual affect or allow the inspection of
+the details of the ASN.1 encoding produced by the
+.Xr i2d_ECPKParameters 3
+family of functions.
+Modern applications use named curves and uncompressed point encoding,
+which are the default for
+.Xr EC_GROUP_new_by_curve_name 3 .
+.Pp
+In this library, Elliptic curve parameters are either encoded as a
+.Em named curve ,
+using an ASN.1 Object Identifier (OID) to refer to
+standardized parameters that need to be built into the library,
+or using
+.Em explicit curve parameters
+where the field, the curve equation, the base point's coordinates
+and other data are encoded explicitly.
+The
+.Em implicitly CA
+variant is not supported.
+.Pp
+.Fn EC_GROUP_get_curve_name
+gets the Numerical Identifier (NID) representation of the
+ASN.1 Object Identifier used for the named curve encoding of
+.Fa group .
+.Fn EC_GROUP_set_curve_name
+sets it to
+.Fa nid .
+.Pp
+.Fn EC_GROUP_get_asn1_flag
+retrieves the value of the
+.Fa asn1_flag
+member of
+.Fa group .
+If the bit corresponding to
+.Dv OPENSSL_EC_NAMED_CURVE
+is set, named curve encoding is used for
+.Fa group ,
+otherwise explicit encoding is used.
+.Fn EC_GROUP_set_asn1_flag
+sets the
+.Fa asn1_flag
+member of group to
+.Fa flag ,
+which should be either
+.Dv OPENSSL_EC_NAMED_CURVE
+to use named curve encoding or
+.Dv OPENSSL_EC_EXPLICIT_CURVE
+to use explicit encoding.
+.Pp
+The ASN.1 encoding of explicit curve parameters includes
+an optional seed value for parameters generated verifiably at random.
+If a seed value is set on
+.Fa group ,
+.Fn EC_GROUP_get0_seed
+returns a pointer to the internal byte string whose length is returned by
+.Fn EC_GROUP_get_seed_len .
+.Pp
+.Fn EC_GROUP_set_seed
+first clears any seed and length already stored in
+.Fa group .
+If
+.Fa seed
+is not
+.Dv NULL
+and
+.Fa len
+is not zero, it stores a copy of them in
+.Fa group .
+The
+.Fa seed
+should be a random byte string of
+.Fa len
+at least 20 bytes.
+The seed can be unset by passing
+.Dv NULL
+as a
+.Fa seed
+and a
+.Fa len
+of zero.
+The library does not perform any computation or validation with this seed,
+it only includes it in its ASN.1 encoded parameters,
+whether it contains a sensible value or not.
+.Pp
+Points on an elliptic curve, such as the generator or a public key,
+can be encoded in compressed form, uncompressed form,
+or in a hybrid form encompassing both, see
+.Xr EC_POINT_point2oct 3 .
+.Fn EC_GROUP_get_point_conversion_form
+retrieves the encoding used for points on
+.Fa group
+and
+.Fn EC_GROUP_set_point_conversion_form
+sets it to
+.Fa form .
+.Pp
+The deprecated
+.Fn EC_GROUP_get_basis_type
+only makes sense for curves over binary fields.
+It is provided for compatibility only.
+.Sh RETURN VALUES
+.Fn EC_GROUP_get_curve_name
+returns the NID to be used for named curve encoding of
+.Fa group
+or
+.Dv NID_undef
+if no NID is set.
+.Pp
+.Fn EC_GROUP_get_asn1_flag
+returns the value most recently set by
+.Fn EC_GROUP_set_asn1_flag
+on
+.Fa group .
+.Pp
+.Fn EC_GROUP_get0_seed
+returns an internal pointer to the
+.Fa seed
+on
+.Fa group
+or
+.Dv NULL
+if none is set.
+.Pp
+.Fn EC_GROUP_get_seed_len
+returns the byte length of the seed set on
+.Fa group
+or zero if none is set.
+.Pp
+.Fn EC_GROUP_set_seed
+returns 0 on memory allocation failure.
+It returns
+.Fa len
+on success unless
+.Fa seed
+is
+.Dv NULL
+or
+.Fa len
+is zero, in which case it returns 1.
+.Pp
+.Fn EC_GROUP_get_point_conversion_form
+returns the point conversion form last set by
+.Fn EC_GROUP_set_point_conversion_form
+on
+.Fa group .
+.Pp
+.Fn EC_GROUP_get_basis_type
+always returns
+.Dv NID_undef .
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr d2i_ECPKParameters 3 ,
+.Xr EC_GROUP_check 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr EC_GROUP_new_curve_GFp 3 ,
+.Xr EC_KEY_METHOD_new 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EC_POINT_add 3 ,
+.Xr EC_POINT_get_affine_coordinates 3 ,
+.Xr EC_POINT_new 3 ,
+.Xr EC_POINT_point2oct 3 ,
+.Xr ECDH_compute_key 3 ,
+.Xr ECDSA_SIG_new 3 ,
+.Xr OBJ_obj2nid 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Sh BUGS
+Most of the setters cannot report errors and none of them perform proper
+input validation and accept most of the values passed in.
+This can result in invalid or nonsensical ASN.1 encoding produced by
+.Xr i2d_ECPKParameters 3
+and related functions.

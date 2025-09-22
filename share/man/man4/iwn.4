@@ -1,0 +1,216 @@
+.\" $OpenBSD: iwn.4,v 1.63 2025/03/25 19:57:54 jmc Exp $
+.\"
+.\" Copyright (c) 2007,2008
+.\"	Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 25 2025 $
+.Dt IWN 4
+.Os
+.Sh NAME
+.Nm iwn
+.Nd Intel WiFi Link and Centrino IEEE 802.11a/b/g/n wireless network device
+.Sh SYNOPSIS
+.Cd "iwn* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Intel Wireless WiFi Link 4965/5000/1000
+and Centrino Wireless-N 1000/2000/6000 Series PCIe Mini Card network adapters.
+.Pp
+The Intel Wireless WiFi Link 4965AGN (codenamed Kedron) is a PCIe
+Mini Card network adapter that operates in the 2GHz and 5GHz spectra.
+It has 2 transmit paths and 3 receiver paths (2T3R).
+It is part of the fourth-generation Centrino platform (codenamed Santa Rosa).
+.Pp
+The Intel WiFi Link 5000 series is a family of wireless network adapters
+that operate in the 2GHz and 5GHz spectra.
+They are part of the fifth-generation Centrino platform (codenamed Montevina).
+These adapters are available in both PCIe Mini Card (model code ending by MMW)
+and PCIe Half Mini Card (model code ending by HMW) form factor.
+The
+.Nm
+driver provides support for the 5100 (codenamed Shirley Peak 1x2),
+5150 (codenamed Echo Peak-V), 5300 (codenamed Shirley Peak 3x3) and
+5350 (codenamed Echo Peak-P) adapters.
+The 5100 and 5150 adapters have 1 transmit path and 2 receiver paths (1T2R).
+The 5300 and 5350 adapters have 3 transmit paths and 3 receiver paths (3T3R).
+.Pp
+The Intel WiFi Link 1000 (codenamed Condor Peak) is a single-chip wireless
+network adapter that operates in the 2GHz spectrum.
+It is part of the sixth-generation Centrino platform (codenamed Calpella).
+It is available in both PCIe Mini Card (model code ending by MMW)
+and PCIe Half Mini Card (model code ending by HMW) form factor.
+It has 1 transmit path and 2 receiver paths (1T2R).
+.Pp
+The Intel Centrino Ultimate-N 6300 (codenamed Puma Peak 3x3) is a single-chip
+wireless network adapter that operates in the 2GHz and 5GHz spectra.
+It has 3 transmit paths and 3 receiver paths (3T3R).
+The Intel Centrino Advanced-N 6250 (codenamed Kilmer Peak) is a combo
+WiFi/WiMAX network adapter that operates in the 2GHz and 5GHz spectra.
+It has 2 transmit paths and 2 receiver paths (2T2R).
+The Intel Centrino Advanced-N 6200 (codenamed Puma Peak 2x2) is
+a wireless network adapter that operates in the 2GHz and 5GHz spectra.
+It has 2 transmit paths and 2 receiver paths (2T2R).
+These adapters are part of the sixth-generation Centrino platform
+(codenamed Calpella).
+.Pp
+The Intel Centrino Wireless-N 2230 (codename Jackson Peak) and Intel
+Centrino Wireless-N 2200 (codename Marble Peak) are wireless network
+adapters that operate in the 2GHz spectrum.
+These adapters have 2 transmit paths and 2 receiver paths (2T2R).
+The Intel Centrino Wireless-N 135 and Intel Centrino Wireless-N 105
+(codename Canyon Peak) also operate in the 2GHz spectrum.
+These adapters have 1 transmit path and 1 receiver path (1T1R).
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+The
+.Nm
+driver offloads both encryption and decryption of unicast data frames to the
+hardware for the CCMP cipher.
+.Pp
+In BSS mode the driver supports powersave mode
+and background scanning;
+see
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The driver needs at least version 5.6 of the following firmware files,
+which are loaded when an interface is brought up:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/iwn-4965
+.It Pa /etc/firmware/iwn-5000
+.It Pa /etc/firmware/iwn-5150
+.It Pa /etc/firmware/iwn-1000
+.It Pa /etc/firmware/iwn-6000
+.It Pa /etc/firmware/iwn-6050
+.It Pa /etc/firmware/iwn-6005
+.It Pa /etc/firmware/iwn-6030
+.It Pa /etc/firmware/iwn-2030
+.It Pa /etc/firmware/iwn-2000
+.It Pa /etc/firmware/iwn-135
+.It Pa /etc/firmware/iwn-105
+.El
+.Pp
+These firmware files are not free because Intel refuses to grant
+distribution rights without contractual obligations.
+As a result, even though
+.Ox
+includes the driver, the firmware files cannot be included and
+users have to download these files on their own.
+.Pp
+A prepackaged version of the firmware can be installed using
+.Xr fw_update 8 .
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig iwn0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures iwn0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "iwn0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.It "iwn0: fatal firmware error"
+For some reason, the firmware crashed.
+The driver will reset the hardware.
+This should not happen.
+.It "iwn0: radio is disabled by hardware switch"
+The radio transmitter is off and thus no packet can go out.
+The driver will reset the hardware.
+Make sure the laptop radio switch is on.
+.It "iwn0: could not read firmware ... (error N)"
+For some reason, the driver was unable to read the firmware image from the
+filesystem.
+The file might be missing or corrupted.
+.It "iwn0: firmware too short: N bytes"
+The firmware image is corrupted and can't be loaded into the adapter.
+.It "iwn0: could not load firmware"
+An attempt to load the firmware into the adapter failed.
+The driver will reset the hardware.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 4.3 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.Sh CAVEATS
+802.11n operation is currently limited to data rates MCS 0 to MCS 7.

@@ -1,0 +1,34 @@
+/* $OpenBSD: ripemd.h,v 1.1 2024/03/28 23:54:15 joshua Exp $ */
+/*
+ * Copyright (c) 2024 Joshua Sing <joshua@joshuasing.dev>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef _LIBCRYPTO_RIPEMD_H
+#define _LIBCRYPTO_RIPEMD_H
+
+#ifndef _MSC_VER
+#include_next <openssl/ripemd.h>
+#else
+#include "../include/openssl/ripemd.h"
+#endif
+#include "crypto_namespace.h"
+
+LCRYPTO_USED(RIPEMD160_Init);
+LCRYPTO_USED(RIPEMD160_Update);
+LCRYPTO_USED(RIPEMD160_Final);
+LCRYPTO_USED(RIPEMD160);
+LCRYPTO_USED(RIPEMD160_Transform);
+
+#endif /* _LIBCRYPTO_RIPEMD_H */

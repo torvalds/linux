@@ -1,0 +1,160 @@
+.\" $OpenBSD: EC_GROUP_check.3,v 1.6 2025/07/04 05:16:56 jsg Exp $
+.\"
+.\" Copyright (c) 2025 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 4 2025 $
+.Dt EC_GROUP_CHECK 3
+.Os
+.Sh NAME
+.Nm EC_GROUP_check_discriminant ,
+.Nm EC_GROUP_check
+.Nd partially check validity of
+.Vt EC_GROUP
+objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.In openssl/ec.h
+.Pp
+Deprecated:
+.Pp
+.Ft int
+.Fo EC_GROUP_check_discriminant
+.Fa "const EC_GROUP *group"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_GROUP_check
+.Fa "const EC_GROUP *group"
+.Fa "BN_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+These functions are deprecated.
+Only standardized curves built into the library should be used, see
+.Xr EC_GROUP_new_by_curve_name 3 .
+Builtin curves went through far more thorough checking than
+the minimal, incomplete tests performed by these functions.
+.Pp
+These functions have an optional
+.Fa ctx
+argument which is used to avoid the cost of repeated allocation of
+auxiliary
+.Vt BIGNUM
+objects.
+.Pp
+.Fn EC_GROUP_check_discriminant
+can be called after
+.Xr EC_GROUP_new_curve_GFp 3
+to verify that
+.Fa group Ns 's
+parameters have non-zero discriminant 4a^3 + 27b^2 modulo p.
+Assuming that
+.Fa p
+is a prime number larger than three
+this implies that the Weierstrass equation defines an elliptic curve.
+.Pp
+.Fn EC_GROUP_check
+partially verifies that
+.Fa group
+represents an elliptic curve and that
+.Fa generator
+is a point on the curve whose order divides
+.Fa order .
+It checks with
+.Fn EC_GROUP_check_discriminant
+that the discriminant is non-zero
+and then verifies that that
+.Fa order
+is non-zero and that the product
+.Fa generator No * Fa order
+is the point at infinity.
+This implies that the
+.Fa order
+set on
+.Fa group
+is an integer multiple of the
+.Fa generator Ns 's
+order.
+The verification that
+.Fa p
+is a prime
+and that
+.Fa order
+is equal to the
+.Fa generator Ns 's
+order are skipped because they are too expensive.
+.Sh RETURN VALUES
+.Fn EC_GROUP_check_discriminant
+returns 1 on success and 0 on failure.
+Failure modes include that the discriminant is zero modulo
+.Fa p
+and memory allocation failure.
+.Pp
+.Fn EC_GROUP_check
+returns 1 on success and 0 on failure.
+.Sh ERRORS
+Diagnostics for
+.Fn EC_GROUP_check
+that can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3
+include:
+.Bl -tag -width Ds
+.It Dv EC_R_DISCRIMINANT_IS_ZERO Qq "discriminant is zero"
+.Fn EC_GROUP_check_discriminant
+failed because the discriminant is zero or for some other reason.
+.It Dv EC_R_UNDEFINED_GENERATOR Qq "undefined generator"
+no generator is set on
+.Fa group ,
+for example because a call to
+.Xr EC_GROUP_set_generator 3
+is missing.
+.It Dv EC_R_POINT_IS_NOT_ON_CURVE Qq "point is not on curve"
+a generator is set, but it is not a point on the curve represented by
+.Fa group .
+.It Dv EC_R_UNDEFINED_ORDER Qq "undefined order"
+the
+.Fa order
+set on
+.Fa group
+is zero.
+.It Dv EC_R_INVALID_GROUP_ORDER Qq "invalid group order"
+.Fa generator No * Fa order
+is not the point at infinity.
+.El
+.Sh SEE ALSO
+.Xr BN_CTX_new 3 ,
+.Xr BN_is_zero 3 ,
+.Xr crypto 3 ,
+.Xr d2i_ECPKParameters 3 ,
+.Xr EC_GROUP_get_curve_name 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr EC_GROUP_new_curve_GFp 3 ,
+.Xr EC_KEY_METHOD_new 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EC_POINT_add 3 ,
+.Xr EC_POINT_get_affine_coordinates 3 ,
+.Xr EC_POINT_new 3 ,
+.Xr EC_POINT_point2oct 3 ,
+.Xr ECDH_compute_key 3 ,
+.Xr ECDSA_SIG_new 3
+.Sh HISTORY
+.Fn EC_GROUP_check
+and
+.Fn EC_GROUP_check_discriminant
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .

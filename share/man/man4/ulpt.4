@@ -1,0 +1,86 @@
+.\" $OpenBSD: ulpt.4,v 1.13 2013/02/04 11:42:36 stsp Exp $
+.\" $NetBSD: ulpt.4,v 1.4 1999/08/23 12:32:19 augustss Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 4 2013 $
+.Dt ULPT 4
+.Os
+.Sh NAME
+.Nm ulpt
+.Nd USB printer support
+.Sh SYNOPSIS
+.Cd "ulpt*   at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB printers that follow the printer
+bi- or uni-directional protocol.
+The bits in the minor number select various features of the driver.
+.Bl -column "Minor Bit" "Functionxxxxxxxxxxxxxxxxxxxxxxxxxxxx" -offset indent
+.It Em "Minor Bit" Ta Em Function
+.It 64 Ta "Do not initialize the device on the port."
+.El
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa /dev/ulpt?
+.El
+.Pp
+For some HP LaserJet printer models (1000, 1005, 1018, 1020), the driver needs
+at least version 1.0 of the following firmware files, which are loaded when a
+printer is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It /etc/firmware/ulpt-hp1000
+.It /etc/firmware/ulpt-hp1005
+.It /etc/firmware/ulpt-hp1018
+.It /etc/firmware/ulpt-hp1020
+.El
+.Pp
+These firmware files are not free because HP refuses to grant
+distribution rights.
+As a result, even though
+.Ox
+includes the driver, the firmware files cannot be included and
+users have to download these files on their own.
+A port which can download and install the firmware can be found in
+.Pa /usr/ports/sysutils/firmware/ulpt .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr lpt 4 ,
+.Xr uhub 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Nx 1.4 .
+.Ox
+support was added in
+.Ox 2.7 .

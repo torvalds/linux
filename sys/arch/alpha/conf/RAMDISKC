@@ -1,0 +1,71 @@
+#	$OpenBSD: RAMDISKC,v 1.10 2019/09/04 14:29:41 cheloha Exp $
+
+machine		alpha
+maxusers	4
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		RAMDISK_HOOKS
+option		MINIROOTSIZE=5744
+
+option		SCSITERSE
+
+option		FFS
+
+option		WSKBD_NO_INTL_LAYOUTS	# no international keyboard layouts
+
+config		bsd root on rd0a swap on rd0b and wd0b and sd0b
+
+mainbus0	at root
+cpu*		at mainbus0
+option		DEC_ALPHABOOK1	# AlphaBook1:	Tadpole/DEC AlphaBook
+option		NO_IEEE		# Disable IEEE math
+
+lca*		at mainbus?
+
+pci*		at lca?
+pci*		at ppb?
+
+siop*		at pci?				# NCR 53c8xx SCSI
+pceb*		at pci?				# Intel PCI-EISA bridge
+vga*		at pci?				# PCI VGA graphics
+ppb*		at pci?				# PCI-PCI bridges
+sio*		at pci?				# Intel PCI-ISA bridge
+tga*		at pci?				# DEC ZLXp-E[123] graphics
+
+qla*		at pci?				# Qlogic ISP 2[123]xx FibreChannel
+option		ISP_NOFIRMWARE
+
+tqphy*		at mii?				# TDK 78Q212x PHYs
+ukphy*		at mii?				# "unknown" PHYs
+
+isa*		at pceb?
+isa*		at sio?
+
+mcclock*	at isa? port 0x70
+pckbc*		at isa?				# PC keyboard controller
+pckbd*		at pckbc?			# PC keyboard (kbd port)
+com*		at isa? port 0x3f8 irq 4	# standard serial ports
+com*		at isa? port 0x2f8 irq 3
+vga*		at isa?				# ISA (EISA: XXX) VGA
+
+pciide*		at pci? flags 0x0000
+wd*		at pciide? flags 0x0000
+pcic0		at isa? port 0x3e0 iomem 0xd0000 iosiz 0x10000
+pcic1		at isa? port 0x3e2 iomem 0xcc000 iosiz 0x10000
+
+pcmcia*		at pcic? controller ? socket ?
+ep*		at pcmcia? function ?		# 3Com 3c589 and 3c562 Eth.
+
+scsibus*	at scsi?
+#cd*		at scsibus?			# SCSI CD-ROM drives
+sd*		at scsibus?			# SCSI disk drives
+
+wsdisplay*	at vga?
+wsdisplay*	at tga?
+wskbd*		at pckbd?
+
+pseudo-device	loop 1
+pseudo-device	rd 1

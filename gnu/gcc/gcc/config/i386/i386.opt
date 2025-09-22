@@ -1,0 +1,233 @@
+; Options for the IA-32 and AMD64 ports of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+m128bit-long-double
+Target RejectNegative Report Mask(128BIT_LONG_DOUBLE)
+sizeof(long double) is 16
+
+m32
+Target RejectNegative Negative(m64) Report InverseMask(64BIT)
+Generate 32bit i386 code
+
+m386
+Target RejectNegative Undocumented
+;; Deprecated
+
+m3dnow
+Target Report Mask(3DNOW)
+Support 3DNow! built-in functions
+
+m486
+Target RejectNegative Undocumented
+;; Deprecated
+
+m64
+Target RejectNegative Negative(m32) Report Mask(64BIT)
+Generate 64bit x86-64 code
+
+m80387
+Target Report Mask(80387)
+Use hardware fp
+
+m96bit-long-double
+Target RejectNegative Report InverseMask(128BIT_LONG_DOUBLE)
+sizeof(long double) is 12
+
+maccumulate-outgoing-args
+Target Report Mask(ACCUMULATE_OUTGOING_ARGS)
+Reserve space for outgoing arguments in the function prologue
+
+malign-double
+Target Report Mask(ALIGN_DOUBLE)
+Align some doubles on dword boundary
+
+malign-functions=
+Target RejectNegative Joined Var(ix86_align_funcs_string)
+Function starts are aligned to this power of 2
+
+malign-jumps=
+Target RejectNegative Joined Var(ix86_align_jumps_string)
+Jump targets are aligned to this power of 2
+
+malign-loops=
+Target RejectNegative Joined Var(ix86_align_loops_string)
+Loop code aligned to this power of 2
+
+malign-stringops
+Target RejectNegative Report InverseMask(NO_ALIGN_STRINGOPS, ALIGN_STRINGOPS)
+Align destination of the string operations
+
+march=
+Target RejectNegative Joined Var(ix86_arch_string)
+Generate code for given CPU
+
+masm=
+Target RejectNegative Joined Var(ix86_asm_string)
+Use given assembler dialect
+
+mbranch-cost=
+Target RejectNegative Joined Var(ix86_branch_cost_string)
+Branches are this expensive (1-5, arbitrary units)
+
+mlarge-data-threshold=
+Target RejectNegative Joined Var(ix86_section_threshold_string)
+Data greater than given threshold will go into .ldata section in x86-64 medium model
+
+mcmodel=
+Target RejectNegative Joined Var(ix86_cmodel_string)
+Use given x86-64 code model
+
+mdebug-addr
+Target RejectNegative Var(TARGET_DEBUG_ADDR) Undocumented
+
+mdebug-arg
+Target RejectNegative Var(TARGET_DEBUG_ARG) Undocumented
+
+mfancy-math-387
+Target RejectNegative Report InverseMask(NO_FANCY_MATH_387, USE_FANCY_MATH_387)
+Generate sin, cos, sqrt for FPU
+
+mfp-ret-in-387
+Target Report Mask(FLOAT_RETURNS)
+Return values of functions in FPU registers
+
+mfpmath=
+Target RejectNegative Joined Var(ix86_fpmath_string)
+Generate floating point mathematics using given instruction set
+
+mhard-float
+Target RejectNegative Mask(80387) MaskExists
+Use hardware fp
+
+mieee-fp
+Target Report Mask(IEEE_FP)
+Use IEEE math for fp comparisons
+
+minline-all-stringops
+Target Report Mask(INLINE_ALL_STRINGOPS)
+Inline all known string operations
+
+mintel-syntax
+Target Undocumented
+;; Deprecated
+
+mmmx
+Target Report Mask(MMX)
+Support MMX built-in functions
+
+mms-bitfields
+Target Report Mask(MS_BITFIELD_LAYOUT)
+Use native (MS) bitfield layout
+
+mno-align-stringops
+Target RejectNegative Report Mask(NO_ALIGN_STRINGOPS) Undocumented
+
+mno-fancy-math-387
+Target RejectNegative Report Mask(NO_FANCY_MATH_387) Undocumented
+
+mno-push-args
+Target RejectNegative Report Mask(NO_PUSH_ARGS) Undocumented
+
+mno-red-zone
+Target RejectNegative Report Mask(NO_RED_ZONE) Undocumented
+
+momit-leaf-frame-pointer
+Target Report Mask(OMIT_LEAF_FRAME_POINTER)
+Omit the frame pointer in leaf functions
+
+mpentium
+Target RejectNegative Undocumented
+;; Deprecated
+
+mpentiumpro
+Target RejectNegative Undocumented
+;; Deprecated
+
+mpreferred-stack-boundary=
+Target RejectNegative Joined Var(ix86_preferred_stack_boundary_string)
+Attempt to keep stack aligned to this power of 2
+
+mpush-args
+Target Report InverseMask(NO_PUSH_ARGS, PUSH_ARGS)
+Use push instructions to save outgoing arguments
+
+mred-zone
+Target RejectNegative Report InverseMask(NO_RED_ZONE, RED_ZONE)
+Use red-zone in the x86-64 code
+
+mregparm=
+Target RejectNegative Joined Var(ix86_regparm_string)
+Number of registers used to pass integer arguments
+
+mrtd
+Target Report Mask(RTD)
+Alternate calling convention
+
+msoft-float
+Target InverseMask(80387)
+Do not use hardware fp
+
+msse
+Target Report Mask(SSE)
+Support MMX and SSE built-in functions and code generation
+
+msse2
+Target Report Mask(SSE2)
+Support MMX, SSE and SSE2 built-in functions and code generation
+
+msse3
+Target Report Mask(SSE3)
+Support MMX, SSE, SSE2 and SSE3 built-in functions and code generation
+
+msseregparm
+Target RejectNegative Mask(SSEREGPARM)
+Use SSE register passing conventions for SF and DF mode
+
+mstackrealign
+Target Report Var(ix86_force_align_arg_pointer)
+Realign stack in prologue
+
+msvr3-shlib
+Target Report Mask(SVR3_SHLIB)
+Uninitialized locals in .bss
+
+mstack-arg-probe
+Target Report Mask(STACK_PROBE)
+Enable stack probing
+
+mtls-dialect=
+Target RejectNegative Joined Var(ix86_tls_dialect_string)
+Use given thread-local storage dialect
+
+mtls-direct-seg-refs
+Target Report Mask(TLS_DIRECT_SEG_REFS)
+Use direct references against %gs when accessing tls data
+
+msave-args
+Target Report Mask(SAVE_ARGS)
+Save integer arguments on the stack at function entry
+
+mtune=
+Target RejectNegative Joined Var(ix86_tune_string)
+Schedule code for given CPU
+
+;; Support Athlon 3Dnow builtins
+Mask(3DNOW_A)

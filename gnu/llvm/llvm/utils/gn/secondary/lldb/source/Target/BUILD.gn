@@ -1,0 +1,108 @@
+import("//lldb/utils/TableGen/lldb_tablegen.gni")
+
+lldb_tablegen("TargetProperties") {
+  args = [ "-gen-lldb-property-defs" ]
+}
+
+lldb_tablegen("TargetPropertiesEnum") {
+  args = [ "-gen-lldb-property-enum-defs" ]
+  td_file = "TargetProperties.td"
+}
+
+static_library("Target") {
+  output_name = "lldbTarget"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    ":TargetProperties",
+    ":TargetPropertiesEnum",
+
+    #"//lldb/source/Breakpoint", # FIXME: Dependency cycle
+    "//lldb/source/Core",
+    "//lldb/source/Core",
+    "//lldb/source/Expression",
+    "//lldb/source/Host",
+    "//lldb/source/Interpreter",
+    "//lldb/source/Plugins/Process/Utility",
+    "//lldb/source/Symbol",
+    "//lldb/source/Utility",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ ".." ]  # FIXME: Reaches into Plugins internals.
+  sources = [
+    "ABI.cpp",
+    "AssertFrameRecognizer.cpp",
+    "DynamicRegisterInfo.cpp",
+    "ExecutionContext.cpp",
+    "InstrumentationRuntime.cpp",
+    "InstrumentationRuntimeStopInfo.cpp",
+    "JITLoader.cpp",
+    "JITLoaderList.cpp",
+    "Language.cpp",
+    "LanguageRuntime.cpp",
+    "Memory.cpp",
+    "MemoryHistory.cpp",
+    "MemoryRegionInfo.cpp",
+    "MemoryTagMap.cpp",
+    "ModuleCache.cpp",
+    "OperatingSystem.cpp",
+    "PathMappingList.cpp",
+    "Platform.cpp",
+    "Process.cpp",
+    "ProcessTrace.cpp",
+    "Queue.cpp",
+    "QueueItem.cpp",
+    "QueueList.cpp",
+    "RegisterContext.cpp",
+    "RegisterContextUnwind.cpp",
+    "RegisterFlags.cpp",
+    "RegisterNumber.cpp",
+    "RemoteAwarePlatform.cpp",
+    "SectionLoadHistory.cpp",
+    "SectionLoadList.cpp",
+    "StackFrame.cpp",
+    "StackFrameList.cpp",
+    "StackFrameRecognizer.cpp",
+    "StackID.cpp",
+    "Statistics.cpp",
+    "StopInfo.cpp",
+    "StructuredDataPlugin.cpp",
+    "SystemRuntime.cpp",
+    "Target.cpp",
+    "TargetList.cpp",
+    "Thread.cpp",
+    "ThreadCollection.cpp",
+    "ThreadList.cpp",
+    "ThreadPlan.cpp",
+    "ThreadPlanBase.cpp",
+    "ThreadPlanCallFunction.cpp",
+    "ThreadPlanCallFunctionUsingABI.cpp",
+    "ThreadPlanCallOnFunctionExit.cpp",
+    "ThreadPlanCallUserExpression.cpp",
+    "ThreadPlanPython.cpp",
+    "ThreadPlanRunToAddress.cpp",
+    "ThreadPlanShouldStopHere.cpp",
+    "ThreadPlanStack.cpp",
+    "ThreadPlanStepInRange.cpp",
+    "ThreadPlanStepInstruction.cpp",
+    "ThreadPlanStepOut.cpp",
+    "ThreadPlanStepOverBreakpoint.cpp",
+    "ThreadPlanStepOverRange.cpp",
+    "ThreadPlanStepRange.cpp",
+    "ThreadPlanStepThrough.cpp",
+    "ThreadPlanStepUntil.cpp",
+    "ThreadPlanTracer.cpp",
+    "ThreadSpec.cpp",
+    "Trace.cpp",
+    "TraceCursor.cpp",
+    "TraceDumper.cpp",
+    "TraceExporter.cpp",
+    "UnixSignals.cpp",
+    "UnwindAssembly.cpp",
+    "UnwindLLDB.cpp",
+    "VerboseTrapFrameRecognizer.cpp",
+  ]
+}

@@ -1,0 +1,28 @@
+AS 1
+router-id 127.0.0.1
+socket "/var/run/bgpd.sock.0"
+listen on 0.0.0.0
+listen on ::
+
+roa-set {
+	192.0.2.0/24 source-as 1
+}
+
+aspa-set {
+	customer-as 1 provider-as { 2 3 4 5 6 }
+	customer-as 2 expires 1668181648 provider-as { 3 4 }
+	customer-as 3 provider-as { 5 }
+	customer-as 5 provider-as { 1 2 7 }
+	customer-as 17 provider-as { 12 }
+	customer-as 41 provider-as { 2 }
+	customer-as 42 expires 12345 provider-as { 3 4 }
+}
+
+origin-set "test" {
+	192.0.2.0/24 source-as 1
+}
+
+
+rde rib Adj-RIB-In no evaluate
+rde rib Loc-RIB rtable 0 fib-update yes
+

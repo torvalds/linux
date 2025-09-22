@@ -1,0 +1,16 @@
+pass out on lo0 inet from 10.0.0.0/8 to 172.16.0.0/16 flags S/SA nat-to 172.16.0.1
+pass in on lo0 inet proto tcp from any to 1.2.3.4 port = 80 flags S/SA rdr-to 127.0.0.1 port 8080
+pass out on lo0 inet from 10.0.0.0/8 to 11.0.0.0/8 flags S/SA nat-to 12.0.0.0/8 static-port
+pass in on lo0 inet from 11.0.0.0/8 to 12.0.0.0/8 flags S/SA rdr-to 10.0.0.0/8
+pass out log on lo0 inet from 10.0.0.0/8 to 172.16.0.0/16 flags S/SA nat-to 172.16.0.1
+pass in log on lo0 inet proto tcp from any to 1.2.3.4 port = 80 flags S/SA rdr-to 127.0.0.1 port 8080
+pass out log on lo0 inet from 10.0.0.0/8 to 11.0.0.0/8 flags S/SA nat-to 12.0.0.0/8 static-port
+pass in log on lo0 inet from 11.0.0.0/8 to 12.0.0.0/8 flags S/SA rdr-to 10.0.0.0/8
+pass out log (all) on lo0 inet from 10.0.0.0/8 to 172.16.0.0/16 flags S/SA nat-to 172.16.0.1
+pass in log (all) on lo0 inet proto tcp from any to 1.2.3.4 port = 80 flags S/SA rdr-to 127.0.0.1 port 8080
+pass out log (all) on lo0 inet from 10.0.0.0/8 to 11.0.0.0/8 flags S/SA nat-to 12.0.0.0/8 static-port
+pass in log (all) on lo0 inet from 11.0.0.0/8 to 12.0.0.0/8 flags S/SA rdr-to 10.0.0.0/8
+match out log on lo0 inet from 10.0.0.0/8 to 172.16.0.0/16 nat-to 172.16.0.1
+match in log on lo0 inet proto tcp from any to 1.2.3.4 port = 80 rdr-to 127.0.0.1 port 8080
+match out log on lo0 inet from 10.0.0.0/8 to 11.0.0.0/8 nat-to 12.0.0.0/8 static-port
+match in log on lo0 inet from 11.0.0.0/8 to 12.0.0.0/8 rdr-to 10.0.0.0/8

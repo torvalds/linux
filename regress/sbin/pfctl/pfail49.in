@@ -1,0 +1,10 @@
+# dynamic interfaces need not exist at load-time, but names must start
+# with a letter. catches common macro typo cases of ($ext_ip) vs. ($ext_if)
+
+match out on lo0 from any to any nat-to (lo0)
+match out on lo0 from any to any nat-to (lo0:0)
+match out on lo0 from any to any nat-to (nonexistent0)
+match out on lo0 from any to any nat-to (nonexistent0:0)
+match out on lo0 from any to any nat-to (10.1.2.3)
+match out on lo0 from any to any nat-to (10.1.2.3:0)
+

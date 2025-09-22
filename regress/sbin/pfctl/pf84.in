@@ -1,0 +1,17 @@
+match out on tun1000000 from 10.0.0.0/24 to any \
+	nat-to { 10.0.1.1, 10.0.1.2 } round-robin sticky-address
+match in on tun1000000 from any to 10.0.1.1 \
+	rdr-to { 10.0.0.0/24 } sticky-address random
+match in on tun1000000 from any to 10.0.1.2 \
+	rdr-to { 10.0.0.1, 10.0.0.2 } sticky-address
+
+pass in proto tcp from any to any port 22 \
+	keep state (source-track)
+pass in proto tcp from any to any port 25 \
+	keep state (source-track global)
+pass in proto tcp from any to any port 80 \
+	keep state (source-track rule, max-src-nodes 1000, max-src-states 3)
+pass in proto tcp from any to any port 123 \
+	keep state (source-track, max-src-nodes 1000)
+pass in proto tcp from any to any port 321 \
+	keep state (source-track, max-src-states 3)

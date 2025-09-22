@@ -1,0 +1,14 @@
+static_library("clang-apply-replacements") {
+  output_name = "clangApplyReplacements"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Tooling/Core",
+    "//clang/lib/Tooling/Refactoring",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ "include" ]
+  sources = [ "lib/Tooling/ApplyReplacements.cpp" ]
+}

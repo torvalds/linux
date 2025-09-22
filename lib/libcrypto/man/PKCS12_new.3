@@ -1,0 +1,100 @@
+.\"	$OpenBSD: PKCS12_new.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS12_NEW 3
+.Os
+.Sh NAME
+.Nm PKCS12_new ,
+.Nm PKCS12_free ,
+.Nm PKCS12_MAC_DATA_new ,
+.Nm PKCS12_MAC_DATA_free
+.Nd PKCS#12 personal information exchange (PFX)
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs12.h
+.Ft PKCS12 *
+.Fn PKCS12_new void
+.Ft void
+.Fn PKCS12_free "PKCS12 *pfx"
+.Ft PKCS12_MAC_DATA *
+.Fn PKCS12_MAC_DATA_new void
+.Ft void
+.Fn PKCS12_MAC_DATA_free "PKCS12_MAC_DATA *mac_data"
+.Sh DESCRIPTION
+.Fn PKCS12_new
+allocates and initializes an empty
+.Vt PKCS12
+object, representing an ASN.1
+.Vt PFX
+.Pq personal information exchange
+structure defined in RFC 7292 section 4.
+It can hold a pointer to a
+.Vt PKCS7
+object described in
+.Xr PKCS7_new 3
+and optionally an instance of
+.Vt PKCS12_MAC_DATA
+described below.
+.Fn PKCS12_free
+frees
+.Fa pfx .
+.Pp
+.Fn PKCS12_MAC_DATA_new
+allocates and initializes an empty
+.Vt PKCS12_MAC_DATA
+object, representing an ASN.1
+.Vt MacData
+structure defined in RFC 7292 section 4.
+It is used inside
+.Vt PKCS12
+and can hold a pointer to an
+.Vt X509_SIG
+object described in
+.Xr X509_SIG_new 3
+together with a salt value and an iteration count.
+.Fn PKCS12_MAC_DATA_free
+frees
+.Fa mac_data .
+.Sh RETURN VALUES
+.Fn PKCS12_new
+and
+.Fn PKCS12_MAC_DATA_new
+return the new
+.Vt PKCS12
+or
+.Vt PKCS12_MAC_DATA
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr d2i_PKCS12 3 ,
+.Xr PKCS12_create 3 ,
+.Xr PKCS12_newpass 3 ,
+.Xr PKCS12_parse 3 ,
+.Xr PKCS12_SAFEBAG_new 3 ,
+.Xr PKCS7_new 3 ,
+.Xr X509_SIG_new 3
+.Sh STANDARDS
+RFC 7292: PKCS #12: Personal Information Exchange Syntax
+.Sh HISTORY
+.Fn PKCS12_new ,
+.Fn PKCS12_free ,
+.Fn PKCS12_MAC_DATA_new ,
+and
+.Fn PKCS12_MAC_DATA_free
+first appeared in OpenSSL 0.9.3 and have been available since
+.Ox 2.6 .

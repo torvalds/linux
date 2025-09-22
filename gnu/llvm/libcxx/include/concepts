@@ -1,0 +1,173 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CONCEPTS
+#define _LIBCPP_CONCEPTS
+
+/*
+    concepts synopsis
+namespace std {
+  // [concepts.lang], language-related concepts
+  // [concept.same], concept same_as
+  template<class T, class U>
+    concept same_as = see below;
+
+  // [concept.derived], concept derived_from
+  template<class Derived, class Base>
+    concept derived_from = see below;
+
+  // [concept.convertible], concept convertible_to
+  template<class From, class To>
+    concept convertible_to = see below;
+
+  // [concept.commonref], concept common_reference_with
+  template<class T, class U>
+    concept common_reference_with = see below;
+
+  // [concept.common], concept common_with
+  template<class T, class U>
+    concept common_with = see below;
+
+  // [concepts.arithmetic], arithmetic concepts
+  template<class T>
+    concept integral = see below;
+  template<class T>
+    concept signed_integral = see below;
+  template<class T>
+    concept unsigned_integral = see below;
+  template<class T>
+    concept floating_point = see below;
+
+  // [concept.assignable], concept assignable_from
+  template<class LHS, class RHS>
+    concept assignable_from = see below;
+
+  // [concept.swappable], concept swappable
+  namespace ranges {
+    inline namespace unspecified {
+      inline constexpr unspecified swap = unspecified;
+    }
+  }
+  template<class T>
+    concept swappable = see below;
+  template<class T, class U>
+    concept swappable_with = see below;
+
+  // [concept.destructible], concept destructible
+  template<class T>
+    concept destructible = see below;
+
+  // [concept.constructible], concept constructible_from
+  template<class T, class... Args>
+    concept constructible_from = see below;
+
+  // [concept.default.init], concept default_initializable
+  template<class T>
+    concept default_initializable = see below;
+
+  // [concept.moveconstructible], concept move_constructible
+  template<class T>
+    concept move_constructible = see below;
+
+  // [concept.copyconstructible], concept copy_constructible
+  template<class T>
+    concept copy_constructible = see below;
+
+  // [concept.equalitycomparable], concept equality_comparable
+  template<class T>
+    concept equality_comparable = see below;
+  template<class T, class U>
+    concept equality_comparable_with = see below;
+
+  // [concept.totallyordered], concept totally_ordered
+  template<class T>
+    concept totally_ordered = see below;
+  template<class T, class U>
+    concept totally_ordered_with = see below;
+
+  // [concepts.object], object concepts
+  template<class T>
+    concept movable = see below;
+  template<class T>
+    concept copyable = see below;
+  template<class T>
+    concept semiregular = see below;
+  template<class T>
+    concept regular = see below;
+
+  // [concepts.callable], callable concepts
+  // [concept.invocable], concept invocable
+  template<class F, class... Args>
+    concept invocable = see below;
+
+  // [concept.regularinvocable], concept regular_invocable
+  template<class F, class... Args>
+    concept regular_invocable = see below;
+
+  // [concept.predicate], concept predicate
+  template<class F, class... Args>
+    concept predicate = see below;
+
+  // [concept.relation], concept relation
+  template<class R, class T, class U>
+    concept relation = see below;
+
+  // [concept.equiv], concept equivalence_relation
+  template<class R, class T, class U>
+    concept equivalence_relation = see below;
+
+  // [concept.strictweakorder], concept strict_weak_order
+  template<class R, class T, class U>
+    concept strict_weak_order = see below;
+}
+
+*/
+
+#include <__config>
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__concepts/arithmetic.h>
+#  include <__concepts/assignable.h>
+#  include <__concepts/boolean_testable.h>
+#  include <__concepts/class_or_enum.h>
+#  include <__concepts/common_reference_with.h>
+#  include <__concepts/common_with.h>
+#  include <__concepts/constructible.h>
+#  include <__concepts/convertible_to.h>
+#  include <__concepts/copyable.h>
+#  include <__concepts/derived_from.h>
+#  include <__concepts/destructible.h>
+#  include <__concepts/different_from.h>
+#  include <__concepts/equality_comparable.h>
+#  include <__concepts/invocable.h>
+#  include <__concepts/movable.h>
+#  include <__concepts/predicate.h>
+#  include <__concepts/regular.h>
+#  include <__concepts/relation.h>
+#  include <__concepts/same_as.h>
+#  include <__concepts/semiregular.h>
+#  include <__concepts/swappable.h>
+#  include <__concepts/totally_ordered.h>
+#endif // _LIBCPP_STD_VER >= 20
+
+#include <version>
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 17
+#  include <cstddef>
+#endif
+
+#if _LIBCPP_STD_VER <= 20 && !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES)
+#  include <type_traits>
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#endif // _LIBCPP_CONCEPTS

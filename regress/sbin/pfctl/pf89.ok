@@ -1,0 +1,11 @@
+table <bad> persist
+block drop all
+block drop quick from <bad> to any
+pass out proto tcp all flags S/SA
+pass out proto icmp all
+pass out proto udp all
+pass in on lo1000001 inet proto tcp from any to 10.0.0.1 port = 22 flags S/SA keep state (source-track rule, max-src-conn 10, max-src-conn-rate 3/99, src.track 99)
+pass in on lo1000001 inet proto tcp from any to 10.0.0.2 port = 22 flags S/SA keep state (source-track rule, max-src-conn 10)
+pass in on lo1000001 inet proto tcp from any to 10.0.0.3 port = 22 flags S/SA keep state (source-track rule, max-src-conn-rate 3/99, src.track 99)
+pass in on lo1000000 inet proto tcp from any to 10.0.0.1 port = 80 flags S/SA modulate state (source-track rule, max-src-conn 100, max-src-conn-rate 10/5, overload <bad> flush, src.track 5)
+pass in on lo1000000 inet proto tcp from any to 10.0.0.1 port = 8080 flags S/SA synproxy state (source-track rule, max-src-conn 1000, max-src-conn-rate 1000/5, overload <bad> flush global, src.track 5)

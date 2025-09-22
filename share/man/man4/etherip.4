@@ -1,0 +1,186 @@
+.\"	$OpenBSD: etherip.4,v 1.10 2024/08/30 20:08:05 jmc Exp $
+.\"
+.\" Copyright (c) 2015 YASUOKA Masahiko <yasuoka@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The following requests are required for all man pages.
+.\"
+.Dd $Mdocdate: August 30 2024 $
+.Dt ETHERIP 4
+.Os
+.Sh NAME
+.Nm etherip
+.Nd EtherIP tunnel interface
+.Sh SYNOPSIS
+.Cd "pseudo-device etherip"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides point-to-point tunnel interfaces for carrying
+Ethernet frames across IPv4 and IPv6 networks using RFC 3378 EtherIP
+encapsulation.
+.Pp
+An
+.Nm
+interface can be created using the
+.Ic ifconfig etherip Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+It must be configured with the addresses used for the outer header.
+This can be done using
+.Xr ifconfig 8 Ns 's
+.Ic tunnel
+command (which uses the
+.Dv SIOCSLIFPHYADDR
+ioctl).
+The
+.Xr sysctl 2
+variable
+.Dv net.inet.etherip.allow
+must be set to 1, unless
+.Xr ipsec 4
+is being used to protect the traffic.
+.Pp
+.Nm
+interfaces can configured as part of an Ethernet bridge, such as
+.Xr veb 4 ,
+.Xr tpmr 4 ,
+and
+.Xr bridge 4 ,
+to extend the connectivity of Ethernet networks across IP networks,
+possibly across the Internet.
+.Pp
+The EtherIP protocol does not provide any integrated security
+features.
+EtherIP should only be deployed on trusted private networks, or
+protected with IPsec to add authentication and encryption for
+confidentiality.
+IPsec is especially recommended when transporting EtherIP over the
+public Internet.
+EtherIP encapsulated packets may be protected with IPsec by specifying
+the appropriate IPsec flows between the two endpoints.
+To only protect the encapsulated EtherIP traffic between the tunnel
+endpoints, the IP transport protocol 97 (etherip) selector may be used
+in
+.Xr ipsec.conf 5
+or
+.Xr iked.conf 5 .
+.Sh EXAMPLES
+Given two physically separate Ethernet networks,
+.Nm
+can be used as follows to make them appear as the same local area
+network.
+If host gw1 has the external IP address 192.0.2.10 and is connected
+to network1 on em1, and host gw2 has the external IP address
+198.51.100.14 and is connected to network2 on ix1, the following
+configuration can be used to bridge network1 and network2.
+.Pp
+First create a bridge using a
+.Xr veb 4
+interface,
+adding the
+.Nm
+interface and internal Ethernet interface to the bridge.
+.Pp
+On gw1:
+.Bd -literal -offset indent
+gw1# ifconfig etherip0 create tunnel 192.0.2.10 198.51.100.14
+gw1# ifconfig veb0 create add etherip0 add em1
+.Ed
+.Pp
+On gw2:
+.Bd -literal -offset indent
+gw2# ifconfig etherip0 create tunnel 198.51.100.14 192.0.2.10
+gw2# ifconfig veb0 create add etherip0 add ix1
+.Ed
+.Pp
+Create Security Associations (SAs) between the external IP address of each
+bridge and matching ingress flows by using the following
+.Xr ipsec.conf 5
+file on gw1:
+.Bd -literal -offset indent
+esp from 198.51.100.14 to 192.0.2.10 spi 0x4242:0x4243 \e
+        authkey file "auth1:auth2" enckey file "enc1:enc2"
+flow esp proto etherip from 198.51.100.14 to 192.0.2.10
+.Ed
+.Pp
+Now load these rules into the kernel by issuing the
+.Xr ipsecctl 8
+command:
+.Bd -literal -offset indent
+gw1# ipsecctl -f ipsec.conf
+.Ed
+.Pp
+Appropriate
+.Xr ipsec.conf 5
+for gw2:
+.Bd -literal -offset indent
+esp from 198.51.100.14 to 192.0.2.10 spi 0x4243:0x4242 \e
+        authkey file "auth2:auth1" enckey file "enc2:enc1"
+flow esp proto etherip from 198.51.100.14 to 192.0.2.10
+.Ed
+.Pp
+And load them:
+.Bd -literal -offset indent
+gw2# ipsecctl -f ipsec.conf
+.Ed
+.Pp
+Finally, bring all the interfaces up (if not already up).
+.Pp
+On gw1:
+.Bd -literal -offset indent
+gw1# ifconfig em1 up
+gw1# ifconfig etherip0 up
+gw1# ifconfig veb0 up
+.Ed
+.Pp
+On gw2:
+.Bd -literal -offset indent
+gw1# ifconfig ix1 up
+gw1# ifconfig etherip0 up
+gw1# ifconfig veb0 up
+.Ed
+.Sh SEE ALSO
+.Xr sysctl 2 ,
+.Xr bridge 4 ,
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr ipsec 4 ,
+.Xr tpmr 4 ,
+.Xr veb 4 ,
+.Xr hostname.if 5 ,
+.Xr iked.conf 5 ,
+.Xr ipsec.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Sh STANDARDS
+.Rs
+.%A R. Housley
+.%A S. Hollenbeck
+.%D September 2002
+.%R RFC 3378
+.%T EtherIP: Tunneling Ethernet Frames in IP Datagrams
+.Re
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Kazuya Goda Aq Mt goda@openbsd.org .

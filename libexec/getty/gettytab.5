@@ -1,0 +1,346 @@
+.\"	$OpenBSD: gettytab.5,v 1.28 2017/05/27 09:31:13 deraadt Exp $
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)gettytab.5	8.4 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: May 27 2017 $
+.Dt GETTYTAB 5
+.Os
+.Sh NAME
+.Nm gettytab
+.Nd terminal configuration database
+.Sh DESCRIPTION
+The
+.Nm
+file
+is a simplified version of the
+.Xr termcap 5
+database
+used to describe terminal lines.
+The initial terminal login process
+.Xr getty 8
+accesses the
+.Nm
+file each time it starts, allowing simpler
+reconfiguration of terminal characteristics.
+Each entry in the database
+is used to describe one class of terminals.
+.Pp
+There is a default terminal class,
+.Em default ,
+that is used to set global defaults for all other classes.
+(That is, the
+.Em default
+entry is read, then the entry for the class required
+is used to override particular settings.)
+.Sh CAPABILITIES
+Refer to
+.Xr termcap 5
+for a description of the file layout.
+The
+.Em default
+column below lists defaults obtained if there is
+no entry in the table obtained, nor one in the special
+.Em default
+table.
+.Bl -column "Name" "Type" "Default" "Description"
+.It Sy Name Ta Sy Type Ta Sy Default Ta Sy Description
+.It ap Ta bool Ta false Ta "Terminal uses any parity."
+.It bk Ta str Ta 0377 Ta "Alternative end-of-line character (input break)."
+.It c0 Ta num Ta unused Ta "TTY control flags to write messages."
+.It c1 Ta num Ta unused Ta "TTY control flags to read login name."
+.It c2 Ta num Ta unused Ta "TTY control flags to leave terminal as."
+.It ce Ta bool Ta false Ta "Use CRT erase algorithm."
+.It ck Ta bool Ta false Ta "Use CRT kill algorithm."
+.It cl Ta str Ta Dv NULL Ta "Screen clear sequence."
+.It co Ta bool Ta false Ta "Console; add"
+.Ql \en
+after login prompt.
+.It ds Ta str Ta So Li ^Y Sc Ta "Delayed suspend character."
+.It dx Ta bool Ta false Ta "Set"
+.Dv DECCTLQ .
+.It ec Ta bool Ta false Ta "Leave echo OFF."
+.It ep Ta bool Ta false Ta "Terminal uses even parity."
+.It er Ta str Ta So Li ^? Sc Ta "Erase character."
+.It et Ta str Ta So Li ^D Sc Ta "End of text"
+.Pq Dv EOF
+character.
+.It ev Ta str Ta Dv NULL Ta "Initial environment."
+.It fl Ta str Ta So Li ^O Sc Ta "Output flush character."
+.It hc Ta bool Ta false Ta "\&Do"
+.Em not
+hangup line on last close.
+.It hn Ta str Ta hostname Ta "Hostname."
+.It ht Ta bool Ta false Ta "Terminal has real tabs."
+.It i0 Ta num Ta unused Ta "TTY input flags to write messages."
+.It i1 Ta num Ta unused Ta "TTY input flags to read login name."
+.It i2 Ta num Ta unused Ta "TTY input flags to leave terminal as."
+.It ig Ta bool Ta false Ta "Ignore garbage characters in login name."
+.It im Ta str Ta Dv NULL Ta "Initial (banner) message."
+.It in Ta str Ta So Li ^C Sc Ta "Interrupt character."
+.It is Ta num Ta unused Ta "Input speed."
+.It kl Ta str Ta So Li ^U Sc Ta "Kill character."
+.It l0 Ta num Ta unused Ta "TTY local flags to write messages."
+.It l1 Ta num Ta unused Ta "TTY local flags to read login name."
+.It l2 Ta num Ta unused Ta "TTY local flags to leave terminal as."
+.It lc Ta bool Ta false Ta "Terminal has lower case."
+.It lm Ta str Ta login: Ta "Login prompt."
+.It ln Ta str Ta So Li ^V Sc Ta "``Literal next'' character."
+.It lo Ta str Ta Pa /usr/bin/login Ta "Program to execute when name obtained."
+.It mb Ta bool Ta false Ta "\&Do flow control based on carrier."
+.It nl Ta bool Ta false Ta "Terminal has (or might have) a newline character."
+.It np Ta bool Ta false Ta "Terminal uses no parity (i.e., 8-bit characters)."
+.It nx Ta str Ta default Ta "Next table (for auto speed selection)."
+.It o0 Ta num Ta unused Ta "TTY output flags to write messages."
+.It o1 Ta num Ta unused Ta "TTY output flags to read login name."
+.It o2 Ta num Ta unused Ta "TTY output flags to leave terminal as."
+.It op Ta bool Ta false Ta "Terminal uses odd parity."
+.It os Ta num Ta unused Ta "Output speed."
+.It pc Ta str Ta So Li \e0 Sc Ta "Pad character."
+.It pe Ta bool Ta false Ta "Use printer (hard copy) erase algorithm."
+.It pf Ta num Ta 0 Ta "Delay"
+between first prompt and following flush (seconds).
+.It ps Ta bool Ta false Ta "Line connected to a MICOM port selector."
+.It qu Ta str Ta So Li \&^\e Sc Ta "Quit character."
+.It rp Ta str Ta So Li ^R Sc Ta "Line retype character."
+.It rw Ta bool Ta false Ta "\&Do"
+.Em not
+use raw for input, use cbreak.
+.It sp Ta num Ta unused Ta "Line speed (input and output)."
+.It su Ta str Ta So Li ^Z Sc Ta "Suspend character."
+.It tc Ta str Ta none Ta "Table continuation."
+.It to Ta num Ta 0 Ta "Timeout (seconds)."
+.It tt Ta str Ta Dv NULL Ta "Terminal type (for environment)."
+.It ub Ta bool Ta false Ta "\&Do unbuffered output (of prompts etc)."
+.It we Ta str Ta So Li ^W Sc Ta "Word erase character."
+.It xc Ta bool Ta false Ta "\&Do"
+.Em not
+echo control characters as
+.Ql ^X .
+.It xf Ta str Ta So Li ^S Sc Ta Dv XOFF
+(stop output) character.
+.It xn Ta str Ta So Li ^Q Sc Ta Dv XON
+(start output) character.
+.El
+.Pp
+The following capabilities are no longer supported by
+.Xr getty 8 :
+.Bl -column "bd" "bool" "flase" "description"
+.It bd Ta num Ta 0 Ta "Backspace delay."
+.It cb Ta bool Ta false Ta "Use CRT backspace mode."
+.It cd Ta num Ta 0 Ta "Carriage-return delay."
+.It f0 Ta num Ta unused Ta "TTY mode flags to write messages."
+.It f1 Ta num Ta unused Ta "TTY mode flags to read login name."
+.It f2 Ta num Ta unused Ta "TTY mode flags to leave terminal as."
+.It fd Ta num Ta 0 Ta "Form-feed (vertical motion) delay."
+.It nd Ta num Ta 0 Ta "Newline (line-feed) delay."
+.It uc Ta bool Ta false Ta "Terminal is known upper case only."
+.El
+.Pp
+If no line speed is specified, speed will not be altered
+from that which prevails when
+.Xr getty 8
+is entered.
+Specifying an input or output speed will override
+line speed for stated direction only.
+.Pp
+Terminal modes to be used for the output of the message and
+for input of the login name,
+and to leave the terminal set as upon completion,
+are derived from the boolean flags specified.
+If the derivation should prove inadequate,
+any (or all) of these three may be overridden
+with one of the
+.Em \&c0 ,
+.Em \&c1 ,
+.Em \&c2 ,
+.Em \&i0 ,
+.Em \&i1 ,
+.Em \&i2 ,
+.Em \&l0 ,
+.Em \&l1 ,
+.Em \&l2 ,
+.Em \&o0 ,
+.Em \&o1 ,
+or
+.Em \&o2
+numeric specifications, which can be used to specify
+(usually in octal, with a leading
+.Ql 0 )
+the exact values of the flags.
+These flags correspond to the termios
+.Em c_cflag ,
+.Em c_iflag ,
+.Em c_lflag ,
+and
+.Em c_oflag
+fields, respectively.
+Each of these sets must be completely specified to be effective.
+.Pp
+Should
+.Xr getty 8
+receive a null character
+(presumed to indicate a line break)
+it will restart using the table indicated by the
+.Em nx
+entry.
+If there is none, it will re-use its original table.
+.Pp
+Delays are specified in milliseconds;
+the nearest possible delay available in the TTY driver will be used.
+Should greater certainty be desired, delays
+with values 0, 1, 2, and 3 are interpreted as
+choosing that particular delay algorithm from the driver.
+.Pp
+The
+.Em \&cl
+screen clear string may be preceded by a (decimal) number
+of milliseconds of delay required (a la
+.Xr termcap 5 ) .
+This delay is simulated by repeated use of the pad character
+.Em \&pc .
+.Pp
+The initial message and login message
+.Po
+.Em \&im
+and
+.Em \&lm
+.Pc
+may include any of the following character sequences, which expand to
+information about the environment in which
+.Xr getty 8
+is running:
+.Bl -tag -width \&%xxx
+.It \&%d
+The current date.
+.It \&%h
+The hostname of the machine, which is normally obtained from the
+system using
+.Xr gethostname 3 ,
+but may also be overridden by the
+.Em \&hn
+table entry.
+.It \&%t
+The TTY name.
+.It "\&%m, \&%r, \&%s, \&%v"
+The type of machine, release of the operating system, name of the
+operating system, and version of the kernel, respectively, as
+returned by
+.Xr uname 3 .
+.It \&%%
+A
+.Ql %
+character.
+.El
+.Pp
+When
+.Xr getty 8
+executes the login process given in the
+.Em \&lo
+string (usually
+.Pa /usr/bin/login ) ,
+it will have set
+the environment to include the terminal type, as indicated
+by the
+.Em \&tt
+string (if it exists).
+The
+.Em \&ev
+string can be used to enter additional data into the environment.
+It is a list of comma-separated strings, each of which
+will presumably be of the form
+.Em name=value .
+.Pp
+If a non-zero timeout is specified with
+.Em \&to ,
+then
+.Xr getty 8
+will exit within the indicated number of seconds, either having
+received a login name and passed control to
+.Xr login 1 ,
+or having received an alarm signal and exited.
+This may be useful to hangup dial in lines.
+.Pp
+Output from
+.Xr getty 8
+is even parity unless
+.Em \&op
+or
+.Em \&np
+is specified.
+The
+.Em \&op
+string
+may be specified with
+.Em \&ap
+to allow any parity on input, but generate odd parity output.
+Note: this only applies while
+.Xr getty 8
+is being run;
+terminal driver limitations prevent a more complete implementation.
+.Xr getty 8
+does not check parity of input characters in
+.Dv RAW
+mode.
+.Pp
+If a
+.Em \&pp
+string is specified and a PPP link bring-up sequence is recognized,
+.Xr getty 8
+will invoke the program referenced by the
+.Em \&pp
+option.
+This can be used to handle incoming PPP calls.
+.Sh FILES
+.Bl -tag -width "/etc/gettytab" -compact
+.It Pa /etc/gettytab
+Default location of the database file.
+.El
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr gethostname 3 ,
+.Xr uname 3 ,
+.Xr termcap 5 ,
+.Xr getty 8
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.2 .
+.Sh BUGS
+The special characters (erase, kill, etc.) are reset to system defaults by
+.Xr login 1 .
+.Pp
+The delay stuff is a real crock.
+Apart from its general lack of flexibility, some
+of the delay algorithms are not implemented.
+The terminal driver should support sane delay settings.
+.Pp
+The
+.Xr termcap 5
+format is horrid; something more rational should have been chosen.

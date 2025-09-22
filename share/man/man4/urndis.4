@@ -1,0 +1,72 @@
+.\" Copyright (c) 2010 Michael Knudsen <mk@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\"    - Redistributions of source code must retain the above copyright
+.\"      notice, this list of conditions and the following disclaimer.
+.\"    - Redistributions in binary form must reproduce the above
+.\"      copyright notice, this list of conditions and the following
+.\"      disclaimer in the documentation and/or other materials provided
+.\"      with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $OpenBSD: urndis.4,v 1.15 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt URNDIS 4
+.Os
+.Sh NAME
+.Nm urndis
+.Nd USB Remote NDIS Ethernet device
+.Sh SYNOPSIS
+.Cd "urndis*  at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides Ethernet access over Remote NDIS (RNDIS),
+allowing mobile devices such as phones and tablets to provide network access.
+It is often referred to as USB tethering,
+and in most cases must be explicitly enabled on the device.
+.Pp
+.Nm
+should work with any USB RNDIS devices,
+such as those commonly found on Android devices.
+It does not support different media types or options.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 4.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jonathan Armani Aq Mt armani@openbsd.org ,
+.An Michael Knudsen Aq Mt mk@openbsd.org ,
+and
+.An Fabien Romano Aq Mt fabien@openbsd.org .

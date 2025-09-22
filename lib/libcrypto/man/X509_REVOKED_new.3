@@ -1,0 +1,214 @@
+.\" $OpenBSD: X509_REVOKED_new.3,v 1.13 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to:
+.\" OpenSSL man3/X509_CRL_get0_by_serial cdd6c8c5 Mar 20 12:29:37 2017 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_REVOKED_NEW 3
+.Os
+.Sh NAME
+.Nm X509_REVOKED_new ,
+.Nm X509_REVOKED_dup ,
+.Nm X509_REVOKED_free ,
+.Nm X509_REVOKED_get0_serialNumber ,
+.Nm X509_REVOKED_get0_revocationDate ,
+.Nm X509_REVOKED_set_serialNumber ,
+.Nm X509_REVOKED_set_revocationDate
+.Nd create, change, and inspect an X.509 CRL revoked entry
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_REVOKED *
+.Fn X509_REVOKED_new void
+.Ft X509_REVOKED *
+.Fo X509_REVOKED_dup
+.Fa "X509_REVOKED *r"
+.Fc
+.Ft void
+.Fn X509_REVOKED_free "X509_REVOKED *r"
+.Ft const ASN1_INTEGER *
+.Fo X509_REVOKED_get0_serialNumber
+.Fa "const X509_REVOKED *r"
+.Fc
+.Ft const ASN1_TIME *
+.Fo X509_REVOKED_get0_revocationDate
+.Fa "const X509_REVOKED *r"
+.Fc
+.Ft int
+.Fo X509_REVOKED_set_serialNumber
+.Fa "X509_REVOKED *r"
+.Fa "ASN1_INTEGER *serial"
+.Fc
+.Ft int
+.Fo X509_REVOKED_set_revocationDate
+.Fa "X509_REVOKED *r"
+.Fa "ASN1_TIME *tm"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_REVOKED_new
+allocates and initializes an empty
+.Vt X509_REVOKED
+object, representing one of the elements of
+the revokedCertificates field of the ASN.1
+.Vt TBSCertList
+structure defined in RFC 5280 section 5.1.
+It is used by
+.Vt X509_CRL
+objects and can hold information about one revoked certificate
+including issuer names, serial number, revocation date, and revocation
+reason.
+.Pp
+.Fn X509_REVOKED_dup
+creates a deep copy of
+.Fa r .
+.Pp
+.Fn X509_REVOKED_free
+frees
+.Fa r .
+.Pp
+.Fn X509_REVOKED_set_serialNumber
+sets the serial number of
+.Fa r
+to
+.Fa serial .
+The supplied
+.Fa serial
+pointer is not used internally so it should be freed up after use.
+.Pp
+.Fn X509_REVOKED_set_revocationDate
+sets the revocation date of
+.Fa r
+to
+.Fa tm .
+The supplied
+.Fa tm
+pointer is not used internally so it should be freed up after use.
+.Sh RETURN VALUES
+The
+.Fn X509_REVOKED_new
+function returns the new
+.Vt X509_REVOKED
+object if successful; otherwise
+.Dv NULL
+is returned and an error code can be retrieved with
+.Xr ERR_get_error 3 .
+.Pp
+.Fn X509_REVOKED_dup
+return the new
+.Vt X509_REVOKED
+object or
+.Dv NULL
+if an error occurs.
+In some cases of failure, the reason can be determined with
+.Xr ERR_get_error 3 .
+.Pp
+.Fn X509_REVOKED_get0_serialNumber
+returns an internal pointer to the serial number of
+.Fa r .
+.Pp
+.Fn X509_REVOKED_get0_revocationDate
+returns an internal pointer to the revocation date of
+.Fa r .
+.Pp
+.Fn X509_REVOKED_set_serialNumber
+and
+.Fn X509_REVOKED_set_revocationDate
+return 1 for success or 0 for failure.
+In some cases of failure, the reason can be determined with
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr d2i_X509_CRL 3 ,
+.Xr PEM_read_X509_CRL 3 ,
+.Xr X509_CRL_get0_by_serial 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_CRL_print 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_REVOKED_get_ext 3 ,
+.Xr X509_REVOKED_get_ext_d2i 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile, section 5.1: CRL Fields
+.Sh HISTORY
+.Fn X509_REVOKED_new
+and
+.Fn X509_REVOKED_free
+first appeared in SSLeay 0.4.4 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_REVOKED_set_serialNumber
+and
+.Fn X509_REVOKED_set_revocationDate
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn X509_REVOKED_dup
+first appeared in OpenSSL 1.0.2.
+.Fn X509_REVOKED_get0_serialNumber
+and
+.Fn X509_REVOKED_get0_revocationDate
+first appeared in OpenSSL 1.1.0.
+These functions have been available since
+.Ox 6.3 .

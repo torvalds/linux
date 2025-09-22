@@ -1,0 +1,146 @@
+.\" $OpenBSD: wsmux.4,v 1.17 2025/08/16 13:33:48 jsg Exp $
+.\" $NetBSD: wsmux.4,v 1.2 1999/11/03 22:01:40 castor Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 16 2025 $
+.Dt WSMUX 4
+.Os
+.Sh NAME
+.Nm wsmux
+.Nd console keyboard/mouse multiplexor for wscons
+.Sh SYNOPSIS
+.Cd "wskbd*     at ... mux N"
+.Cd "wsmouse*   at ... mux N"
+.Pp
+.Cd "pseudo-device wsmux" Op Ar count
+.Sh DESCRIPTION
+The
+.Nm
+is a pseudo-device driver that allows several
+.Xr wscons 4
+input devices to have their events multiplexed into one stream.
+.Pp
+The typical usage for this device is to have two multiplexors, one
+for mouse events and one for keyboard events.
+All
+.Xr wsmouse 4
+devices should direct their events to the mouse mux (normally 0)
+and all keyboard devices, except the console, should direct their
+events to the keyboard mux (normally 1).
+A device will send its events to the mux indicated by the
+.Va mux
+locator.
+If none is given, the device will not use a multiplexor.
+The keyboard multiplexor should be connected to the display, using
+the
+.Xr wsconscfg 8
+command.
+It will then receive all keystrokes from all keyboards and, furthermore,
+keyboards can be dynamically attached and detached without further
+user interaction.
+In a similar way, the window system will open the mouse multiplexor
+and receive all mouse events; mice can also be dynamically attached
+and detached.
+.Pp
+It is also possible to inject events into a multiplexor from a user program.
+This is used by the
+.Xr wsmoused 8
+daemon to take data from a mouse connected to a serial port and
+make it appear on the standard mouse mux.
+.Ss Ioctls
+.Nm
+supports
+.Xr ioctl 2
+commands to configure and manage events that are returned.
+The following commands are available:
+.Bl -tag -width Dv
+.It Dv WSMUXIO_INJECTEVENT Pq Vt "struct wscons_event"
+injects a synthetic event to the given device.
+Used by
+.Xr wsmoused 8 .
+This command uses the same
+.Vt wscons_event
+structure as returned by
+.Xr read 2
+on
+.Xr wscons 4
+input devices as input.
+.Bd -literal
+struct wscons_event {
+	u_int		type;
+	int		value;
+	struct timespec	time;
+};
+.Ed
+.It Dv WSMUXIO_ADD_DEVICE Pq Vt "struct wsmux_device"
+adds a device to the mux.
+This commands uses a
+.Vt wsmux_device
+structure as input.
+.Bd -literal
+struct wsmux_device {
+	int type;
+#define WSMUX_MOUSE	1
+#define WSMUX_KBD	2
+#define WSMUX_MUX	3
+	int idx;
+};
+.Ed
+.It Dv WSMUXIO_REMOVE_DEVICE Pq Vt "struct wsmux_device"
+removes a device from the mux.
+.It Dv WSMUXIO_LIST_DEVICES Pq Vt "struct wsmux_device_list"
+returns an array of WSMUX_MAXDEV elements describing the devices attached to
+the mux.
+The array is composed of
+.Fa wsmux_device
+structures enclosed in a
+.Fa wsmux_device_list
+structure.
+.Bd -literal
+struct wsmux_device_list {
+	int ndevices;
+	struct wsmux_device devices[WSMUX_MAXDEV];
+};
+.Ed
+.El
+.Sh FILES
+.Bl -item -compact
+.It
+.Pa /dev/wsmouse
+.It
+.Pa /dev/wskbd
+.It
+.Pa /usr/include/dev/wscons/wsconsio.h
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4 ,
+.Xr wskbd 4 ,
+.Xr wsmouse 4 ,
+.Xr wsconscfg 8 ,
+.Xr wsconsctl 8 ,
+.Xr wsmoused 8

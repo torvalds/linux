@@ -1,0 +1,45 @@
+Date: Sat, 19 May 2001 19:09:13 -0500 (CDT)
+From: Chris Lattner <sabre@nondot.org>
+To: Vikram S. Adve <vadve@cs.uiuc.edu>
+Subject: RE: Meeting writeup
+
+> I read it through and it looks great!
+
+Thanks!
+
+> The finally clause in Java may need more thought.  The code for this clause
+> is like a subroutine because it needs to be entered from many points (end of
+> try block and beginning of each catch block), and then needs to *return to
+> the place from where the code was entered*.  That's why JVM has the
+> jsr/jsr_w instruction.
+
+Hrm... I guess that is an implementation decision.  It can either be
+modelled as a subroutine (as java bytecodes do), which is really
+gross... or it can be modelled as code duplication (emitted once inline,
+then once in the exception path).  Because this could, at worst,
+slightly less than double the amount of code in a function (it is
+bounded) I don't think this is a big deal.  One of the really nice things
+about the LLVM representation is that it still allows for runtime code
+generation for exception paths (exceptions paths are not compiled until
+needed).  Obviously a static compiler couldn't do this though.  :)
+
+In this case, only one copy of the code would be compiled... until the
+other one is needed on demand.  Also this strategy fits with the "zero
+cost" exception model... the standard case is not burdened with extra
+branches or "call"s.
+
+> I suppose you could save the return address in a particular register
+> (specific to this finally block), jump to the finally block, and then at the
+> end of the finally block, jump back indirectly through this register.  It
+> will complicate building the CFG but I suppose that can be handled.  It is
+> also unsafe in terms of checking where control returns (which is I suppose
+> why the JVM doesn't use this).
+
+I think that a code duplication method would be cleaner, and would avoid
+the caveats that you mention.  Also, it does not slow down the normal case
+with an indirect branch...
+
+Like everything, we can probably defer a final decision until later.  :)
+
+-Chris
+

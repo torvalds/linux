@@ -1,0 +1,160 @@
+.\" $OpenBSD: ober_set_header.3,v 1.6 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2007, 2012 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt OBER_SET_HEADER 3
+.Os
+.Sh NAME
+.Nm ober_set_header ,
+.Nm ober_calc_len ,
+.Nm ober_set_writecallback ,
+.Nm ober_link_elements ,
+.Nm ober_replace_elements ,
+.Nm ober_dup ,
+.Nm ober_unlink_elements ,
+.Nm ober_free_element ,
+.Nm ober_free_elements
+.Nd change and destroy ASN.1 objects for BER encoding
+.Sh SYNOPSIS
+.Lb libutil
+.In sys/types.h
+.In ber.h
+.Ft void
+.Fn "ober_set_header" "struct ber_element *elm" "int class" "unsigned int type"
+.Ft size_t
+.Fn "ober_calc_len" "struct ber_element *root"
+.Ft void
+.Fo "ober_set_writecallback"
+.Fa "struct ber_element *elm"
+.Fa "void (*cb)(void *arg, size_t offs)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fn "ober_link_elements" "struct ber_element *prev" "struct ber_element *elm"
+.Ft void
+.Fn "ober_replace_elements" "struct ber_element *prev" "struct ber_element *elm"
+.Ft struct ber_element *
+.Fn "ober_dup" "struct ber_element *orig"
+.Ft struct ber_element *
+.Fn "ober_unlink_elements" "struct ber_element *prev"
+.Ft void
+.Fn "ober_free_element" "struct ber_element *root"
+.Ft void
+.Fn "ober_free_elements" "struct ber_element *root"
+.Pp
+.Fd #define BER_TYPE_BOOLEAN			1
+.Fd #define BER_TYPE_INTEGER			2
+.Fd #define BER_TYPE_BITSTRING		3
+.Fd #define BER_TYPE_OCTETSTRING		4
+.Fd #define BER_TYPE_NULL			5
+.Fd #define BER_TYPE_OBJECT			6
+.Fd #define BER_TYPE_ENUMERATED		10
+.Fd #define BER_TYPE_SEQUENCE		16
+.Fd #define BER_TYPE_SET			17
+.Pp
+.Fd #define BER_TYPE_CONSTRUCTED		0x20
+.Pp
+.Fd #define BER_CLASS_UNIVERSAL		0x0
+.Fd #define BER_CLASS_UNIV			BER_CLASS_UNIVERSAL
+.Fd #define BER_CLASS_APPLICATION		0x1
+.Fd #define BER_CLASS_APP			BER_CLASS_APPLICATION
+.Fd #define BER_CLASS_CONTEXT		0x2
+.Fd #define BER_CLASS_PRIVATE		0x3
+.Sh DESCRIPTION
+.Fn ober_set_header
+sets the
+.Fa class
+and
+.Fa type
+of
+.Fa elm .
+.Pp
+.Fn ober_calc_len
+determines the total length of
+.Fa root .
+.Pp
+.Fn ober_set_writecallback
+registers the
+.Vt br_cb
+callback function.
+.Pp
+.Fn ober_link_elements
+links
+.Fa prev
+and
+.Fa elm .
+.Pp
+.Fn ober_replace_elements
+replaces
+.Fa prev
+with
+.Fa new
+and frees any dynamically allocated storage associated with
+.Fa prev .
+.Pp
+.Fn ober_dup
+duplicates an element and all linked elements.
+.Pp
+.Fn ober_unlink_elements
+unlinks
+.Fa prev .
+.Pp
+.Fn ober_free_element
+and
+.Fn ober_free_elements
+free any dynamically allocated storage associated with
+.Fa root .
+.Sh RETURN VALUES
+.Fn ober_calc_len
+returns the total length of a fully populated
+.Fa root
+containing one or more
+.Vt ber_element .
+.Pp
+.Fn ober_dup
+returns a pointer to the duplicated element or
+.Dv NULL
+on error.
+.Pp
+.Fn ober_unlink_elements
+returns a pointer to
+.Vt ber_element .
+.Sh SEE ALSO
+.Xr ober_add_string 3 ,
+.Xr ober_get_string 3 ,
+.Xr ober_oid_cmp 3 ,
+.Xr ober_read_elements 3
+.Sh STANDARDS
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules.
+.Sh HISTORY
+.Fn ober_dup
+first appeared in
+.Ox 7.0 .
+.Pp
+The other functions first appeared as internal functions in
+.Xr snmpd 8
+in
+.Ox 4.2
+and were moved to libutil in
+.Ox 6.6 .
+.Sh AUTHORS
+.An -nosplit
+The BER library was written by
+.An Claudio Jeker Aq Mt claudio@openbsd.org ,
+.An Marc Balmer Aq Mt marc@openbsd.org
+and
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

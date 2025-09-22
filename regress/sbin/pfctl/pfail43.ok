@@ -1,0 +1,8 @@
+stdin:2: cannot load "/does/not/exists": No such file or directory
+stdin:3: tables cannot contain tables
+stdin:4: dynamic addresses are not permitted inside tables
+stdin:5: "no-route" is not permitted inside tables
+no IP address found for 1.1.1.1.1
+stdin:6: could not parse host specification
+no IP address found for 1.1.1.1.1
+stdin:7: could not parse host specification

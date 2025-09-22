@@ -1,0 +1,47 @@
+.\"	$OpenBSD: tda.4,v 1.5 2013/07/16 16:05:50 schwarze Exp $
+.\"
+.\" Copyright (c) 2008 Robert Nagy <robert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt TDA 4 sparc64
+.Os
+.Sh NAME
+.Nm tda
+.Nd Philips TDA8444 fan controller
+.Sh SYNOPSIS
+.Cd "tda* at iic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the TDA8444 DAC to adjust the output voltage to the fans
+on Sun Blade 1000/2000 machines.
+.Pp
+The driver watches the internal and external temperature provided by the
+sensors framework and adjusts the fan speeds accordingly.
+.Sh SEE ALSO
+.Xr iic 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Robert Nagy Aq Mt robert@openbsd.org
+and
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

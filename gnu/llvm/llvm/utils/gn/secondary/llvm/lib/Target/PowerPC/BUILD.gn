@@ -1,0 +1,116 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("PPCGenCallingConv") {
+  visibility = [ ":LLVMPowerPCCodeGen" ]
+  args = [ "-gen-callingconv" ]
+  td_file = "PPC.td"
+}
+
+tablegen("PPCGenDAGISel") {
+  visibility = [ ":LLVMPowerPCCodeGen" ]
+  args = [ "-gen-dag-isel" ]
+  td_file = "PPC.td"
+}
+
+tablegen("PPCGenFastISel") {
+  visibility = [ ":LLVMPowerPCCodeGen" ]
+  args = [ "-gen-fast-isel" ]
+  td_file = "PPC.td"
+}
+
+tablegen("PPCGenGlobalISel") {
+  visibility = [ ":LLVMPowerPCCodeGen" ]
+  args = [ "-gen-global-isel" ]
+  td_file = "PPC.td"
+}
+
+tablegen("PPCGenRegisterBank") {
+  visibility = [ ":LLVMPowerPCCodeGen" ]
+  args = [ "-gen-register-bank" ]
+  td_file = "PPC.td"
+}
+
+static_library("LLVMPowerPCCodeGen") {
+  deps = [
+    ":PPCGenCallingConv",
+    ":PPCGenDAGISel",
+    ":PPCGenFastISel",
+    ":PPCGenGlobalISel",
+    ":PPCGenRegisterBank",
+    "MCTargetDesc",
+    "TargetInfo",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "GISel/PPCCallLowering.cpp",
+    "GISel/PPCInstructionSelector.cpp",
+    "GISel/PPCLegalizerInfo.cpp",
+    "GISel/PPCRegisterBankInfo.cpp",
+    "PPCAsmPrinter.cpp",
+    "PPCBoolRetToInt.cpp",
+    "PPCBranchCoalescing.cpp",
+    "PPCBranchSelector.cpp",
+    "PPCCCState.cpp",
+    "PPCCTRLoops.cpp",
+    "PPCCTRLoopsVerify.cpp",
+    "PPCCallingConv.cpp",
+    "PPCEarlyReturn.cpp",
+    "PPCExpandAtomicPseudoInsts.cpp",
+    "PPCExpandISEL.cpp",
+    "PPCFastISel.cpp",
+    "PPCFrameLowering.cpp",
+    "PPCGenScalarMASSEntries.cpp",
+    "PPCHazardRecognizers.cpp",
+    "PPCISelDAGToDAG.cpp",
+    "PPCISelLowering.cpp",
+    "PPCInstrInfo.cpp",
+    "PPCLoopInstrFormPrep.cpp",
+    "PPCLowerMASSVEntries.cpp",
+    "PPCMCInstLower.cpp",
+    "PPCMIPeephole.cpp",
+    "PPCMachineFunctionInfo.cpp",
+    "PPCMachineScheduler.cpp",
+    "PPCMacroFusion.cpp",
+    "PPCMergeStringPool.cpp",
+    "PPCPreEmitPeephole.cpp",
+    "PPCReduceCRLogicals.cpp",
+    "PPCRegisterInfo.cpp",
+    "PPCSubtarget.cpp",
+    "PPCTLSDynamicCall.cpp",
+    "PPCTOCRegDeps.cpp",
+    "PPCTargetMachine.cpp",
+    "PPCTargetObjectFile.cpp",
+    "PPCTargetTransformInfo.cpp",
+    "PPCVSXCopy.cpp",
+    "PPCVSXFMAMutate.cpp",
+    "PPCVSXSwapRemoval.cpp",
+  ]
+}
+
+# This is a bit different from most build files: Due to this group
+# having the directory's name, "//llvm/lib/Target/PowerPC" will refer to this
+# target, which pulls in the code in this directory *and all subdirectories*.
+# For most other directories, "//llvm/lib/Foo" only pulls in the code directly
+# in "llvm/lib/Foo". The forwarding targets in //llvm/lib/Target expect this
+# different behavior.
+group("PowerPC") {
+  deps = [
+    ":LLVMPowerPCCodeGen",
+    "AsmParser",
+    "Disassembler",
+    "MCTargetDesc",
+    "TargetInfo",
+  ]
+}

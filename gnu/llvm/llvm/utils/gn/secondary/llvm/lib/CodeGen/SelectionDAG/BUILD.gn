@@ -1,0 +1,40 @@
+static_library("SelectionDAG") {
+  output_name = "LLVMSelectionDAG"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "DAGCombiner.cpp",
+    "FastISel.cpp",
+    "FunctionLoweringInfo.cpp",
+    "InstrEmitter.cpp",
+    "LegalizeDAG.cpp",
+    "LegalizeFloatTypes.cpp",
+    "LegalizeIntegerTypes.cpp",
+    "LegalizeTypes.cpp",
+    "LegalizeTypesGeneric.cpp",
+    "LegalizeVectorOps.cpp",
+    "LegalizeVectorTypes.cpp",
+    "ResourcePriorityQueue.cpp",
+    "ScheduleDAGFast.cpp",
+    "ScheduleDAGRRList.cpp",
+    "ScheduleDAGSDNodes.cpp",
+    "ScheduleDAGVLIW.cpp",
+    "SelectionDAG.cpp",
+    "SelectionDAGAddressAnalysis.cpp",
+    "SelectionDAGBuilder.cpp",
+    "SelectionDAGDumper.cpp",
+    "SelectionDAGISel.cpp",
+    "SelectionDAGPrinter.cpp",
+    "SelectionDAGTargetInfo.cpp",
+    "StatepointLowering.cpp",
+    "TargetLowering.cpp",
+  ]
+}

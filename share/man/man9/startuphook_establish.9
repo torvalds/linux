@@ -1,0 +1,85 @@
+.\"	$OpenBSD: startuphook_establish.9,v 1.8 2014/12/10 15:29:52 mikeb Exp $
+.\"
+.\" Copyright (c) 1995 Niklas Hallqvist.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 10 2014 $
+.Dt STARTUPHOOK_ESTABLISH 9
+.Os
+.Sh NAME
+.Nm startuphook_establish ,
+.Nm startuphook_disestablish
+.Nd add or remove a startup hook
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.Ft void *
+.Fn startuphook_establish "void (*fn)(void *)" "void *arg"
+.Ft void
+.Fn startuphook_disestablish "void *cookie"
+.Sh DESCRIPTION
+The
+.Fn startuphook_establish
+function adds
+.Fa fn
+to the list of hooks invoked by
+.Xr dostartuphooks 9
+at startup.
+When invoked, the hook function
+.Fa fn
+will be passed
+.Fa arg
+as its only argument.
+.Pp
+The
+.Fn startuphook_disestablish
+function removes the hook described by the opaque pointer
+.Fa cookie
+from the list of hooks to be invoked at startup.
+If
+.Fa cookie
+is invalid, the result of
+.Fn startuphook_disestablish
+is undefined.
+.Pp
+Startup hooks should be used to perform one-time activities
+that must happen immediately before the root and swap devices
+are configured, but after normal device autoconfiguration.
+.Pp
+Startup hooks are implemented via the more general
+.Xr dohooks 9
+API.
+.Sh RETURN VALUES
+If successful,
+.Fn startuphook_establish
+returns an opaque pointer describing the newly established
+startup hook.
+Otherwise, it returns
+.Dv NULL .
+.Sh SEE ALSO
+.Xr dohooks 9 ,
+.Xr dostartuphooks 9
+.Sh BUGS
+The names are clumsy, at best.

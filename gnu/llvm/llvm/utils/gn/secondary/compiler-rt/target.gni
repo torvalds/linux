@@ -1,0 +1,44 @@
+import("//clang/resource_dir.gni")
+import("//clang/runtimes.gni")
+
+if (current_cpu == "x86") {
+  if (current_os == "android") {
+    crt_current_target_arch = "i686"
+  } else {
+    crt_current_target_arch = "i386"
+  }
+} else if (current_cpu == "x64") {
+  crt_current_target_arch = "x86_64"
+} else if (current_cpu == "arm") {
+  crt_current_target_arch = "arm"
+} else if (current_cpu == "arm64") {
+  crt_current_target_arch = "aarch64"
+} else if (current_cpu == "ppc64") {
+  crt_current_target_arch = "powerpc64le"
+} else {
+  assert(false, "unimplemented current_cpu " + current_cpu)
+}
+
+if (clang_enable_per_target_runtime_dir) {
+  crt_current_out_dir = runtimes_dir
+
+  crt_current_target_suffix = ""
+} else if (current_os == "linux" || current_os == "android") {
+  crt_current_out_dir = "$clang_resource_dir/lib/linux"
+
+  crt_current_target_suffix = "-$crt_current_target_arch"
+  if (current_os == "android") {
+    crt_current_target_suffix += "-android"
+  }
+} else if (current_os == "ios" || current_os == "mac") {
+  crt_current_out_dir = "$clang_resource_dir/lib/darwin"
+  crt_current_target_suffix = "-$crt_current_target_arch"
+} else if (current_os == "baremetal") {
+  crt_current_out_dir = "$clang_resource_dir/lib/baremetal"
+  crt_current_target_suffix = "-$crt_current_target_arch"
+} else if (current_os == "win") {
+  crt_current_out_dir = "$clang_resource_dir/lib/windows"
+  crt_current_target_suffix = "-$crt_current_target_arch"
+} else {
+  assert(false, "unimplemented current_os " + current_os)
+}

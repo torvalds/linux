@@ -1,0 +1,724 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>cc_hash_table Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>cc_hash_table</tt> Interface</h1>
+
+    <p>A concrete collision-chaining hash-based associative
+    container.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/assoc_container.hpp"><tt>assoc_container.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Template Parameters</a></h2>
+
+    <table class="c1" width="100%" border="1" summary=
+    "Template Parameters">
+      <tr>
+        <td width="20%" align="left"><b>Parameter</b></td>
+
+        <td width="50%" align="left"><b>Description</b></td>
+
+        <td width="30%" align="left"><b>Default Value</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Key2501" id="Key2501"><b>typename</b> Key</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Key type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Mapped318655" id="Mapped318655"><b>typename</b> Mapped</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Mapped type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Hash_Fn1515835" id=
+"Hash_Fn1515835"><b>class</b> Hash_Fn </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Hash functor.</p>
+        </td>
+
+        <td>
+          <pre>
+__gnu_cxx::hash&lt;<a href="#Key2501"><tt>Key</tt></a>&gt;
+</pre>if using gcc;
+          <pre>
+stdext::hash_value&lt;<a href="#Key2501"><tt>Key</tt></a>&gt;
+</pre>if using Visual C++ .net
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Eq_Fn60085" id="Eq_Fn60085"><b>class</b> Eq_Fn </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Equivalence functor.</p>
+        </td>
+
+        <td>
+          <pre>
+std::equal_to&lt;<a href="#Key2501"><tt>Key</tt></a>&gt;
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Comb_Hash_Fn320611039" id=
+"Comb_Hash_Fn320611039"><b>class</b> Comb_Hash_Fn </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Combining hash functor.</p>
+
+          <p>If <a href="#Hash_Fn1515835"><tt>Hash_Fn</tt></a> is
+          not <a href="null_hash_fn.html"><span class=
+          "c2"><tt>null_hash_fn</tt></span></a>, then this is the
+          ranged-hash functor; otherwise, this is the range-hashing
+          functor.</p>
+
+          <p>(See <a href=
+          "hash_based_containers.html#hash_policies">Design::Hash-Based
+          Containers::Hash Policies</a>.)</p>
+        </td>
+
+        <td>
+          <pre>
+<a href="direct_mask_range_hashing.html"><span class=
+"c2"><tt>direct_mask_range_hashing</tt></span></a>
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Resize_Policy566860465" id=
+"Resize_Policy566860465"><b>class</b> Resize_Policy </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Resize policy.</p>
+        </td>
+
+        <td>
+          If <tt><a href=
+          "#Comb_Hash_Fn320611039"><tt>Comb_Hash_Fn</tt></a></tt>
+          is <tt><a href=
+          "direct_mask_range_hashing.html"><span class=
+          "c2"><tt>direct_mask_range_hashing</tt></span></a></tt>,
+          then
+          <pre>
+<a href="hash_standard_resize_policy.html"><span class=
+"c2"><tt>hash_standard_resize_policy</tt></span></a>&lt;
+  <a href="hash_exponential_size_policy.html"><span class=
+"c2"><tt>hash_exponential_size_policy</tt></span></a>&lt;
+    <b>typename</b> <a href=
+"#Comb_Hash_Fn320611039"><tt>Comb_Hash_Fn</tt></a>::size_type&gt;,
+  <a href="hash_load_check_resize_trigger.html"><span class=
+"c2"><tt>hash_load_check_resize_trigger</tt></span></a>&lt;
+    <b>typename</b> <a href=
+"#Comb_Hash_Fn320611039"><tt>Comb_Hash_Fn</tt></a>::size_type&gt;,
+  <b>false</b>,
+  <b>typename</b> <a href=
+"#Comb_Hash_Fn320611039"><tt>Comb_Hash_Fn</tt></a>::size_type&gt;
+</pre>otherwise,
+          <pre>
+<a href="hash_standard_resize_policy.html"><span class=
+"c2"><tt>hash_standard_resize_policy</tt></span></a>&lt;
+  <a href="hash_exponential_size_policy.html"><span class=
+"c2"><tt>hash_exponential_size_policy</tt></span></a>&lt;
+    <b>typename</b> <a href=
+"#Comb_Hash_Fn320611039"><tt>Comb_Hash_Fn</tt></a>::size_type&gt;,
+  <a href="hash_load_check_resize_trigger.html"><span class=
+"c2"><tt>hash_load_check_resize_trigger</tt></span></a>&lt;
+    <b>typename</b> <a href=
+"#Comb_Hash_Fn320611039"><tt>Comb_Hash_Fn</tt></a>::size_type&gt;,
+  <b>false</b>,
+  <b>typename</b> <a href=
+"#Comb_Hash_Fn320611039"><tt>Comb_Hash_Fn</tt></a>::size_type&gt;
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Store_Hash218262104" id=
+"Store_Hash218262104"><b>bool</b> Store_Hash </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Indicates whether the hash value will be stored along
+          with each key.</p>
+
+          <p>If <tt><a href=
+          "#hash_fn2015995"><tt>hash_fn</tt></a></tt> is <a href=
+          "null_hash_fn.html"><span class=
+          "c2"><tt>null_hash_fn</tt></span></a>, then the container
+          will not compile if this value is
+          <tt><b>true</b></tt></p>
+        </td>
+
+        <td>
+          <pre>
+<tt><b>false</b></tt>
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Allocator35940069" id=
+"Allocator35940069"><b>class</b> Allocator </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Allocator type.</p>
+        </td>
+
+        <td>
+          <pre>
+std::allocator&lt;<b>char</b>&gt;
+</pre>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Base Classes</a></h2>
+
+    <table class="c1" width="100%" border="1" summary="Bases">
+      <tr>
+        <td width="80%" align="left"><b>Class</b></td>
+
+        <td width="20%" align="left"><b>Derivation Type</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="basic_hash_table.html"><span class=
+"c2"><tt>basic_hash_table</tt></span></a>
+</pre>
+        </td>
+
+        <td>
+          <p>public</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link3" id="link3">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link4" id="link4">Policy Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="hash_fn2015995" id="hash_fn2015995">hash_fn</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Hash_Fn1515835"><tt>Hash_Fn</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Hash functor type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="eq_fn80245" id="eq_fn80245">eq_fn</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Eq_Fn60085"><tt>Eq_Fn</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Equivalence functor type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="resize_policy4084493169" id=
+"resize_policy4084493169">resize_policy</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Resize_Policy566860465"><tt>Resize_Policy</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Resize policy type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="comb_hash_fn1883611199" id=
+"comb_hash_fn1883611199">comb_hash_fn</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Comb_Hash_Fn320611039"><tt>Comb_Hash_Fn</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Combining hash functor type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link5" id="link5">Public Methods</a></h2>
+
+    <h3><a name="link6" id="link6">Constructors, Destructor, and
+    Related</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  cc_hash_table
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Default constructor.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  cc_hash_table
+  (<b>const</b> <a href=
+"#hash_fn2015995"><tt>hash_fn</tt></a> &amp;r_hash_fn)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking some policy objects. <span class=
+          "c1"><tt>r_hash_fn</tt></span> will be copied by the
+          <a href="#Hash_Fn1515835"><tt>Hash_Fn</tt></a> object of
+          the container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  cc_hash_table
+  (<b>const</b> <a href=
+"#hash_fn2015995"><tt>hash_fn</tt></a> &amp;r_hash_fn, 
+    <b>const</b> <a href=
+"#eq_fn80245"><tt>eq_fn</tt></a> &amp;r_eq_fn)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking some policy objects. <span class=
+          "c1"><tt>r_hash_fn</tt></span> will be copied by the
+          <a href="#hash_fn2015995"><tt>hash_fn</tt></a> object of
+          the container object, and <span class=
+          "c1"><tt>r_eq_fn</tt></span> will be copied by the
+          <a href="#eq_fn80245"><tt>eq_fn</tt></a> object of the
+          container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  cc_hash_table
+  (<b>const</b> <a href=
+"#hash_fn2015995"><tt>hash_fn</tt></a> &amp;r_hash_fn, 
+    <b>const</b> <a href=
+"#eq_fn80245"><tt>eq_fn</tt></a> &amp;r_eq_fn, 
+    <b>const</b> <a href=
+"#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a> &amp;r_comb_hash_fn)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking some policy objects. <span class=
+          "c1"><tt>r_hash_fn</tt></span> will be copied by the
+          <a href="#hash_fn2015995"><tt>hash_fn</tt></a> object of
+          the container object, <span class=
+          "c1"><tt>r_eq_fn</tt></span> will be copied by the
+          <a href="#eq_fn80245"><tt>eq_fn</tt></a> object of the
+          container object, and <span class=
+          "c1"><tt>r_comb_hash_fn</tt></span> will be copied by the
+          <a href=
+          "#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a>
+          object of the container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  cc_hash_table
+  (<b>const</b> <a href=
+"#hash_fn2015995"><tt>hash_fn</tt></a> &amp;r_hash_fn, 
+    <b>const</b> <a href=
+"#eq_fn80245"><tt>eq_fn</tt></a> &amp;r_eq_fn, 
+    <b>const</b> <a href=
+"#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a> &amp;r_comb_hash_fn, 
+    <b>const</b> <a href=
+"#resize_policy4084493169"><tt>resize_policy</tt></a> &amp;r_resize_policy)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking some policy objects. <span class=
+          "c1"><tt>r_hash_fn</tt></span> will be copied by the
+          <a href="#hash_fn2015995"><tt>hash_fn</tt></a> object of
+          the container object, <span class=
+          "c1"><tt>r_eq_fn</tt></span> will be copied by the
+          <a href="#eq_fn80245"><tt>eq_fn</tt></a> object of the
+          container object, <span class=
+          "c1"><tt>r_comb_hash_fn</tt></span> will be copied by the
+          <a href=
+          "#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a>
+          object of the container object, and <span class=
+          "c1"><tt>r_resize_policy</tt></span> will be copied by
+          the <a href=
+          "#resize_policy4084493169"><tt>resize_policy</tt></a>
+          object of the container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>template</b>&lt;
+    <b>class</b> It&gt;
+  cc_hash_table
+  (It first_it, 
+    It last_it)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking iterators to a range of
+          value_types. The value_types between <span class=
+          "c1"><tt>first_it</tt></span> and <span class=
+          "c1"><tt>last_it</tt></span> will be inserted into the
+          container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>template</b>&lt;
+    <b>class</b> It&gt;
+  cc_hash_table
+  (It first_it, 
+    It last_it,
+    <b>const</b> <a href=
+"#hash_fn2015995"><tt>hash_fn</tt></a> &amp;r_hash_fn)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking iterators to a range of value_types
+          and some policy objects. The value_types between
+          <span class="c1"><tt>first_it</tt></span> and
+          <span class="c1"><tt>last_it</tt></span> will be inserted
+          into the container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>template</b>&lt;
+    <b>class</b> It&gt;
+  cc_hash_table
+  (It first_it, 
+    It last_it,
+    <b>const</b> <a href=
+"#hash_fn2015995"><tt>hash_fn</tt></a> &amp;r_hash_fn, 
+    <b>const</b> <a href=
+"#eq_fn80245"><tt>eq_fn</tt></a> &amp;r_eq_fn)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking iterators to a range of value_types
+          and some policy objects The value_types between
+          <span class="c1"><tt>first_it</tt></span> and
+          <span class="c1"><tt>last_it</tt></span> will be inserted
+          into the container object. <span class=
+          "c1"><tt>r_hash_fn</tt></span> will be copied by the
+          <a href="#hash_fn2015995"><tt>hash_fn</tt></a> object of
+          the container object, and <span class=
+          "c1"><tt>r_eq_fn</tt></span> will be copied by the
+          <a href="#eq_fn80245"><tt>eq_fn</tt></a> object of the
+          container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>template</b>&lt;
+    <b>class</b> It&gt;
+  cc_hash_table
+  (It first_it, 
+    It last_it,
+    <b>const</b> <a href=
+"#hash_fn2015995"><tt>hash_fn</tt></a> &amp;r_hash_fn, 
+    <b>const</b> <a href=
+"#eq_fn80245"><tt>eq_fn</tt></a> &amp;r_eq_fn, 
+    <b>const</b> <a href=
+"#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a> &amp;r_comb_hash_fn)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking iterators to a range of value_types
+          and some policy objects The value_types between
+          <span class="c1"><tt>first_it</tt></span> and
+          <span class="c1"><tt>last_it</tt></span> will be inserted
+          into the container object. <span class=
+          "c1"><tt>r_hash_fn</tt></span> will be copied by the
+          <a href="#hash_fn2015995"><tt>hash_fn</tt></a> object of
+          the container object, <span class=
+          "c1"><tt>r_eq_fn</tt></span> will be copied by the
+          <a href="#eq_fn80245"><tt>eq_fn</tt></a> object of the
+          container object, and <span class=
+          "c1"><tt>r_comb_hash_fn</tt></span> will be copied by the
+          <a href=
+          "#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a>
+          object of the container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>template</b>&lt;
+    <b>class</b> It&gt;
+  cc_hash_table
+  (It first_it, 
+    It last_it,
+    <b>const</b> <a href=
+"#hash_fn2015995"><tt>hash_fn</tt></a> &amp;r_hash_fn, 
+    <b>const</b> <a href=
+"#eq_fn80245"><tt>eq_fn</tt></a> &amp;r_eq_fn, 
+    <b>const</b> <a href=
+"#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a> &amp;r_comb_hash_fn, 
+    <b>const</b> <a href=
+"#resize_policy4084493169"><tt>resize_policy</tt></a> &amp;r_resize_policy)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking iterators to a range of value_types
+          and some policy objects The value_types between
+          <span class="c1"><tt>first_it</tt></span> and
+          <span class="c1"><tt>last_it</tt></span> will be inserted
+          into the container object. <span class=
+          "c1"><tt>r_hash_fn</tt></span> will be copied by the
+          <a href="#hash_fn2015995"><tt>hash_fn</tt></a> object of
+          the container object, <span class=
+          "c1"><tt>r_eq_fn</tt></span> will be copied by the
+          <a href="#eq_fn80245"><tt>eq_fn</tt></a> object of the
+          container object, <span class=
+          "c1"><tt>r_comb_hash_fn</tt></span> will be copied by the
+          <a href=
+          "#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a>
+          object of the container object, and <span class=
+          "c1"><tt>r_resize_policy</tt></span> will be copied by
+          the <a href=
+          "#resize_policy4084493169"><tt>resize_policy</tt></a>
+          object of the container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  cc_hash_table
+  (<b>const</b> <span class=
+"c2"><tt>cc_hash_table</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Copy constructor.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> 
+  ~cc_hash_table
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Destructor.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<span class="c2"><tt>cc_hash_table</tt></span> &amp;
+  <b>operator</b>=
+  (<b>const</b> <span class=
+"c2"><tt>cc_hash_table</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Assignment operator.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b>
+  swap
+  (<span class=
+"c2"><tt>cc_hash_table</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Swaps content.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link7" id="link7">Policy Access Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a> &amp;
+  get_comb_hash_fn
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Access to the <a href=
+          "#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a>
+          object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>const</b> <a href=
+"#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a> &amp;
+  get_comb_hash_fn
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Const access to the <a href=
+          "#comb_hash_fn1883611199"><tt>comb_hash_fn</tt></a>
+          object.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

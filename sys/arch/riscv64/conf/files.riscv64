@@ -1,0 +1,198 @@
+#	$OpenBSD: files.riscv64,v 1.30 2025/04/26 11:01:55 visa Exp $
+
+# Standard stanzas config(8) can't run without
+maxpartitions 16
+maxusers 2 8 128
+
+# Major number for block devices, for ``root on'' lines
+major	{ wd = 0 }
+major	{ sd = 4 }
+major	{ cd = 6 }
+major	{ rd = 8 }
+
+file	arch/riscv64/riscv64/autoconf.c
+file	arch/riscv64/riscv64/ast.c
+file	arch/riscv64/riscv64/bus_space.c
+file	arch/riscv64/riscv64/bus_dma.c
+file	arch/riscv64/riscv64/clock.c
+file	arch/riscv64/riscv64/conf.c
+file	arch/riscv64/riscv64/disksubr.c		disk
+file	arch/riscv64/riscv64/locore.S
+file	arch/riscv64/riscv64/copy.S
+file	arch/riscv64/riscv64/copystr.S
+file	arch/riscv64/riscv64/exception.S
+file	arch/riscv64/riscv64/cpuswitch.S
+file	arch/riscv64/riscv64/machdep.c
+file	arch/riscv64/riscv64/intr.c
+file	arch/riscv64/riscv64/pmap.c
+file	arch/riscv64/riscv64/mem.c
+file	arch/riscv64/riscv64/process_machdep.c
+file	arch/riscv64/riscv64/vm_machdep.c
+file	arch/riscv64/riscv64/sig_machdep.c
+file	arch/riscv64/riscv64/support.S
+file	arch/riscv64/riscv64/syscall.c
+file	arch/riscv64/riscv64/pagezero.S
+file	arch/riscv64/riscv64/trap.c
+file	arch/riscv64/riscv64/sbi.c
+file	arch/riscv64/riscv64/fpu.c
+
+file	arch/riscv64/riscv64/db_disasm.c	ddb
+file	arch/riscv64/riscv64/db_interface.c	ddb
+file	arch/riscv64/riscv64/db_trace.c	ddb
+
+file	arch/riscv64/dev/pci_machdep.c
+
+pseudo-device	openprom
+file	arch/riscv64/riscv64/openprom.c		openprom needs-flag
+
+#
+# mainbus
+#
+define	mainbus {}
+device	mainbus: fdt
+attach	mainbus at root
+file	arch/riscv64/dev/mainbus.c		mainbus
+
+#
+# cpu
+#
+define	cpu {}
+device	cpu
+attach	cpu at mainbus
+file	arch/riscv64/riscv64/cpu.c		cpu
+
+#
+# HART-specific interrupt controller
+#
+device	intc
+attach	intc at cpu
+file	arch/riscv64/dev/riscv_cpu_intc.c	intc
+
+#
+# simplebus
+#
+device	simplebus: fdt
+attach	simplebus at fdt
+file	arch/riscv64/dev/simplebus.c		simplebus
+
+# PLIC
+device	plic
+attach	plic at fdt
+file	arch/riscv64/dev/plic.c			plic
+
+# Allwinner timer
+device	sxitimer
+attach	sxitimer at fdt
+file	arch/riscv64/dev/sxitimer.c		sxitimer
+
+# PolarFire SoC MSS clock controller
+device	mpfclock
+attach	mpfclock at fdt
+file	arch/riscv64/dev/mpfclock.c		mpfclock
+
+# PolarFire SoC MSS GPIO controller
+device	mpfgpio: gpiobus
+attach	mpfgpio at fdt
+file	arch/riscv64/dev/mpfgpio.c		mpfgpio
+
+# PolarFire SoC MSS I2C controller
+device	mpfiic: i2cbus
+attach	mpfiic at fdt
+file	arch/riscv64/dev/mpfiic.c		mpfiic
+
+# L2 cache controller
+device	sfcc
+attach	sfcc at fdt
+file	arch/riscv64/dev/sfcc.c			sfcc
+
+# SiFive PRCI
+device	sfclock
+attach	sfclock at fdt
+file	arch/riscv64/dev/sfclock.c		sfclock
+
+# SiFive GPIO
+device	sfgpio
+attach	sfgpio at fdt
+file	arch/riscv64/dev/sfgpio.c		sfgpio
+
+# SiFive uart
+device	sfuart
+attach	sfuart at fdt
+file	arch/riscv64/dev/sfuart.c		sfuart
+
+# StarFive clock controller
+device	stfclock
+attach	stfclock at fdt
+file	arch/riscv64/dev/stfclock.c		stfclock
+
+# StarFive PCIe
+device	stfpcie: pcibus
+attach	stfpcie at fdt
+file	arch/riscv64/dev/stfpcie.c		stfpcie
+
+# StarFive PCIe PHY
+device	stfpciephy
+attach	stfpciephy at fdt
+file	arch/riscv64/dev/stfpciephy.c		stfpciephy
+
+# StarFive pinctrl
+device	stfpinctrl
+attach	stfpinctrl at fdt
+file	arch/riscv64/dev/stfpinctrl.c		stfpinctrl
+
+# StarFive random number generator
+device	stfrng
+attach	stfrng at fdt
+file	arch/riscv64/dev/stfrng.c		stfrng
+
+# StarFive temperature sensor
+device	stftemp
+attach	stftemp at fdt
+file	arch/riscv64/dev/stftemp.c		stftemp
+
+# Paravirtual device bus and virtio
+include "dev/pv/files.pv"
+
+file	netinet/in_cksum.c
+file	netinet/in4_cksum.c
+
+#
+# Machine-independent HID support
+#
+include	"dev/hid/files.hid"
+
+# Machine-independent I2C drivers
+include "dev/i2c/files.i2c"
+
+# FDT now requires drm (which is part of pci)
+include "dev/mii/files.mii"
+include "dev/pci/files.pci"
+include "dev/sdmmc/files.sdmmc"
+
+# FDT support
+include "dev/ofw/files.ofw"
+
+# Machine-independent FDT drivers
+include "dev/fdt/files.fdt"
+
+# Machine-independent GPIO drivers
+include "dev/gpio/files.gpio"
+
+# Machine-independent SCSI drivers
+include "scsi/files.scsi"
+
+# Machine-independent ATA drivers
+include "dev/ata/files.ata"
+
+# Include WSCONS stuff
+include "dev/wscons/files.wscons"
+include "dev/rasops/files.rasops"
+include "dev/wsfont/files.wsfont"
+
+device	pciecam: pcibus
+attach	pciecam at fdt
+file	dev/fdt/pciecam.c			pciecam
+
+# Machine-independent USB drivers
+include "dev/usb/files.usb"
+

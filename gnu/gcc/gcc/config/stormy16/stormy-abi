@@ -1,0 +1,167 @@
+xStormy16 ABI
+************
+
+!!!!! NOTE !!!!!
+This document is a draft and is subject to change.
+!!!!! NOTE !!!!!
+
+This part of the file describes the conventions required to write
+ELF object files that are link-compatible with the ones produced
+by the GNU toolchains.
+
+Bit and Byte Ordering
+=====================
+
+This implementation is little-endian.   Bits are numbered starting 
+from 0 being the LSB.
+
+In this document, 'word' means 16 bits.
+
+Calling Sequence
+================
+
+The registers are allocated as follows:
+
+Register	Purpose
+-------------------------------------------------------------------
+r0, r1          Call-volatile.  May be changed during the execution
+                of a call instruction.
+r2 through r7   Argument passing;  call-clobbered.
+r8, r9		Call-volatile.  May be changed during the execution
+		of a call instruction.
+r10 through r13	Call-saved.
+r14		Program status word.
+r15		Stack pointer.
+
+
+Scalar values are returned in register r2-r7 if the value fits.
+Otherwise, a pointer is passed as a 'hidden' first argument and
+the return value is placed there.
+
+Arguments are passed in registers starting in r2, then on the stack.
+Arguments of size not a multiple of a word are padded to whole words.
+If an argument would otherwise be passed partially in registers, and
+partially on the stack, the whole of it is passed on the stack.  The
+last argument is pushed on the stack first.
+
+After a procedure's arguments are pushed on the stack,
+the return address is pushed on the stack, as if by the call
+instruction.  The return address is on the top of the stack when
+a procedure is called.
+
+Objects whose size is a multiple of 16 bits are aligned to a 16-bit
+boundary.
+
+Pointers are 16 bits, referencing addresses between 0 and 0xFFFF.
+
+Procedure pointers are also implemented as 16-bit pointers.
+
+Variable Argument Functions
+===========================
+
+The C type 'va_list' is implemented as a structure, as follows:
+
+struct {
+  char *base;
+  unsigned count;
+}
+
+Both fields are 16 bits.  An argument of size N bytes
+(N will be even) is accessed as if by the following code:
+
+char *result;
+/* count = #bytes non-variable arguments */
+/* 12 = #bytes for register arguments */
+if (count + N > 12)
+  {
+    if (count < 12)
+      count = 12;
+    result = base - (count + N - 12 + 4);
+  }
+else
+  {
+    result = base + count;
+  }
+count += N;
+/* The argument is at `*result'.  */
+
+
+One implementation of this is if a variadic function first
+pushes registers 2 through 7 in sequence at entry, and
+sets 'base' to the address of the first word pushed, 
+producing a stack that appears like:
+
+SP ->
+	[other data]
+	r7
+	r6
+	r5
+	r4
+	r3
+count->	r2
+	Return address (two words)
+	7th procedure parameter word
+	8th procedure parameter word
+	...
+	last procedure parameter word
+
+and initializes 'count' to be the number of bytes of non-variable
+arguments to the function.
+
+ELF File Format
+===============
+
+ELF file header
+---------------
+
+xStormy16 ELF files are distinguished by the value EM_XSTORMY16 in
+the e_machine field of the ELF file header:
+
+#define EM_XSTORMY16	        0xad45
+
+DWARF Register Number Mapping
+-----------------------------
+
+Registers r0 through r15 are mapped to numbers 0 through 15.
+
+Relocations
+-----------
+
+RELA relocs are used exclusively.  The relocation types defined are:
+
+Name			Value	Field	Calculation	Overflow
+----------------------------------------------------------------
+R_XSTORMY16_NONE           0     none      none           none
+R_XSTORMY16_32             1      32       S + A          none
+R_XSTORMY16_16             2      16       S + A          either
+R_XSTORMY16_8              3       8       S + A          unsigned
+R_XSTORMY16_PC32           4      32       S + A - P      none
+R_XSTORMY16_PC16           5      16       S + A - P      signed
+R_XSTORMY16_PC8            6       8       S + A - P      signed
+R_XSTORMY16_REL_12         7      16:12:0  S + A - P      signed
+R_XSTORMY16_24             8      32:23:1 (S + A) >> 1    unsigned
+R_XSTORMY16_FPTR16         9      16       S + A          either
+R_XSTORMY16_LO16           10     16       S + A          none
+R_XSTORMY16_HI16           11     32:16:16 S + A          none
+R_XSTORMY16_12             12     16:12:0  S + A          signed
+R_XSTORMY16_GNU_VTINHERIT  128    n/a      n/a            n/a
+R_XSTORMY16_GNU_VTENTRY    129    n/a      n/a            n/a
+
+In the 'Field' column, the first number indicates whether the
+relocation refers to a byte, word or doubleword.  The second number,
+if any, indicates the size of the bit-field into which the relocation
+is to occur (and also the size for overflow checking).  The third
+number indicates the first bit of the bit-field in the word or
+doubleword, counting the LSB as bit 0.
+
+In the 'Calculation' column, 'S' is the value of the symbol to which
+the reloc refers, 'A' is the addend, and 'P' represents the place of
+the storage unit being relocated.
+
+In the 'Overflow' column, 'none' means that any overflow of the
+computation performed in the 'Calculation' column is ignored.
+'signed' means that the overflow is only reported if it happens when
+the values are treated as signed quantities.  'unsigned' is the same,
+except that the values are treated as unsigned quantities.  'either'
+means that overflow is reported for either signed or unsigned
+overflow.

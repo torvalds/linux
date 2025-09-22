@@ -1,0 +1,36 @@
+This file is a partial list of people who have contributed to the LLVM/CompilerRT
+project.  If you have contributed a patch or made some other contribution to
+LLVM/CompilerRT, please submit a patch to this file to add yourself, and it will be
+done!
+
+The list is sorted by surname and formatted to allow easy grepping and
+beautification by scripts.  The fields are: name (N), email (E), web-address
+(W), PGP key ID and fingerprint (P), description (D), and snail-mail address
+(S).
+
+N: Craig van Vliet
+E: cvanvliet@auroraux.org
+W: http://www.auroraux.org
+D: Code style and Readability fixes.
+
+N: Edward O'Callaghan
+E: eocallaghan@auroraux.org
+W: http://www.auroraux.org
+D: CMake'ify Compiler-RT build system
+D: Maintain Solaris & AuroraUX ports of Compiler-RT
+
+N: Howard Hinnant
+E: hhinnant@apple.com
+D: Architect and primary author of compiler-rt
+
+N: Guan-Hong Liu
+E: koviankevin@hotmail.com
+D: IEEE Quad-precision functions
+
+N: Joerg Sonnenberger
+E: joerg@NetBSD.org
+D: Maintains NetBSD port.
+
+N: Matt Thomas
+E: matt@NetBSD.org
+D: ARM improvements.

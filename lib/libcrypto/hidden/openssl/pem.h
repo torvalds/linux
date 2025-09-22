@@ -1,0 +1,147 @@
+/* $OpenBSD: pem.h,v 1.3 2025/07/16 15:59:26 tb Exp $ */
+/*
+ * Copyright (c) 2023 Bob Beck <beck@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef _LIBCRYPTO_PEM_H
+#define _LIBCRYPTO_PEM_H
+
+#ifndef _MSC_VER
+#include_next <openssl/pem.h>
+#else
+#include "../include/openssl/pem.h"
+#endif
+#include "crypto_namespace.h"
+
+LCRYPTO_USED(PEM_get_EVP_CIPHER_INFO);
+LCRYPTO_USED(PEM_do_header);
+LCRYPTO_USED(PEM_read_bio);
+LCRYPTO_USED(PEM_write_bio);
+LCRYPTO_USED(PEM_bytes_read_bio);
+LCRYPTO_USED(PEM_ASN1_read_bio);
+LCRYPTO_USED(PEM_ASN1_write_bio);
+LCRYPTO_USED(PEM_X509_INFO_read_bio);
+LCRYPTO_USED(PEM_read);
+LCRYPTO_USED(PEM_write);
+LCRYPTO_USED(PEM_ASN1_read);
+LCRYPTO_USED(PEM_ASN1_write);
+LCRYPTO_USED(PEM_SignInit);
+LCRYPTO_USED(PEM_SignUpdate);
+LCRYPTO_USED(PEM_SignFinal);
+LCRYPTO_USED(PEM_def_callback);
+LCRYPTO_USED(PEM_proc_type);
+LCRYPTO_USED(PEM_dek_info);
+LCRYPTO_USED(PEM_read_X509);
+LCRYPTO_USED(PEM_read_bio_X509);
+LCRYPTO_USED(PEM_write_X509);
+LCRYPTO_USED(PEM_write_bio_X509);
+LCRYPTO_USED(PEM_read_X509_AUX);
+LCRYPTO_USED(PEM_read_bio_X509_AUX);
+LCRYPTO_USED(PEM_write_X509_AUX);
+LCRYPTO_USED(PEM_write_bio_X509_AUX);
+LCRYPTO_USED(PEM_read_X509_REQ);
+LCRYPTO_USED(PEM_read_bio_X509_REQ);
+LCRYPTO_USED(PEM_write_X509_REQ);
+LCRYPTO_USED(PEM_write_bio_X509_REQ);
+LCRYPTO_USED(PEM_write_X509_REQ_NEW);
+LCRYPTO_USED(PEM_write_bio_X509_REQ_NEW);
+LCRYPTO_USED(PEM_read_X509_CRL);
+LCRYPTO_USED(PEM_read_bio_X509_CRL);
+LCRYPTO_USED(PEM_write_X509_CRL);
+LCRYPTO_USED(PEM_write_bio_X509_CRL);
+LCRYPTO_USED(PEM_read_PKCS7);
+LCRYPTO_USED(PEM_read_bio_PKCS7);
+LCRYPTO_USED(PEM_write_PKCS7);
+LCRYPTO_USED(PEM_write_bio_PKCS7);
+LCRYPTO_USED(PEM_read_PKCS8);
+LCRYPTO_USED(PEM_read_bio_PKCS8);
+LCRYPTO_USED(PEM_write_PKCS8);
+LCRYPTO_USED(PEM_write_bio_PKCS8);
+LCRYPTO_USED(PEM_read_PKCS8_PRIV_KEY_INFO);
+LCRYPTO_USED(PEM_read_bio_PKCS8_PRIV_KEY_INFO);
+LCRYPTO_USED(PEM_write_PKCS8_PRIV_KEY_INFO);
+LCRYPTO_USED(PEM_write_bio_PKCS8_PRIV_KEY_INFO);
+LCRYPTO_USED(PEM_read_RSAPrivateKey);
+LCRYPTO_USED(PEM_read_bio_RSAPrivateKey);
+LCRYPTO_USED(PEM_write_RSAPrivateKey);
+LCRYPTO_USED(PEM_write_bio_RSAPrivateKey);
+LCRYPTO_USED(PEM_read_RSAPublicKey);
+LCRYPTO_USED(PEM_read_bio_RSAPublicKey);
+LCRYPTO_USED(PEM_write_RSAPublicKey);
+LCRYPTO_USED(PEM_write_bio_RSAPublicKey);
+LCRYPTO_USED(PEM_read_RSA_PUBKEY);
+LCRYPTO_USED(PEM_read_bio_RSA_PUBKEY);
+LCRYPTO_USED(PEM_write_RSA_PUBKEY);
+LCRYPTO_USED(PEM_write_bio_RSA_PUBKEY);
+LCRYPTO_USED(PEM_read_DSAPrivateKey);
+LCRYPTO_USED(PEM_read_bio_DSAPrivateKey);
+LCRYPTO_USED(PEM_write_DSAPrivateKey);
+LCRYPTO_USED(PEM_write_bio_DSAPrivateKey);
+LCRYPTO_USED(PEM_read_DSA_PUBKEY);
+LCRYPTO_USED(PEM_read_bio_DSA_PUBKEY);
+LCRYPTO_USED(PEM_write_DSA_PUBKEY);
+LCRYPTO_USED(PEM_write_bio_DSA_PUBKEY);
+LCRYPTO_USED(PEM_read_DSAparams);
+LCRYPTO_USED(PEM_read_bio_DSAparams);
+LCRYPTO_USED(PEM_write_DSAparams);
+LCRYPTO_USED(PEM_write_bio_DSAparams);
+LCRYPTO_USED(PEM_read_ECPKParameters);
+LCRYPTO_USED(PEM_read_bio_ECPKParameters);
+LCRYPTO_USED(PEM_write_ECPKParameters);
+LCRYPTO_USED(PEM_write_bio_ECPKParameters);
+LCRYPTO_USED(PEM_read_ECPrivateKey);
+LCRYPTO_USED(PEM_read_bio_ECPrivateKey);
+LCRYPTO_USED(PEM_write_ECPrivateKey);
+LCRYPTO_USED(PEM_write_bio_ECPrivateKey);
+LCRYPTO_USED(PEM_read_EC_PUBKEY);
+LCRYPTO_USED(PEM_read_bio_EC_PUBKEY);
+LCRYPTO_USED(PEM_write_EC_PUBKEY);
+LCRYPTO_USED(PEM_write_bio_EC_PUBKEY);
+LCRYPTO_USED(PEM_read_DHparams);
+LCRYPTO_USED(PEM_read_bio_DHparams);
+LCRYPTO_USED(PEM_write_DHparams);
+LCRYPTO_USED(PEM_write_bio_DHparams);
+LCRYPTO_USED(PEM_read_PrivateKey);
+LCRYPTO_USED(PEM_read_bio_PrivateKey);
+LCRYPTO_USED(PEM_write_PrivateKey);
+LCRYPTO_USED(PEM_write_bio_PrivateKey);
+LCRYPTO_USED(PEM_read_PUBKEY);
+LCRYPTO_USED(PEM_read_bio_PUBKEY);
+LCRYPTO_USED(PEM_write_PUBKEY);
+LCRYPTO_USED(PEM_write_bio_PUBKEY);
+LCRYPTO_USED(PEM_write_bio_PrivateKey_traditional);
+LCRYPTO_USED(PEM_write_bio_PKCS8PrivateKey_nid);
+LCRYPTO_USED(PEM_write_bio_PKCS8PrivateKey);
+LCRYPTO_USED(i2d_PKCS8PrivateKey_bio);
+LCRYPTO_USED(i2d_PKCS8PrivateKey_nid_bio);
+LCRYPTO_USED(d2i_PKCS8PrivateKey_bio);
+LCRYPTO_USED(i2d_PKCS8PrivateKey_fp);
+LCRYPTO_USED(i2d_PKCS8PrivateKey_nid_fp);
+LCRYPTO_USED(PEM_write_PKCS8PrivateKey_nid);
+LCRYPTO_USED(d2i_PKCS8PrivateKey_fp);
+LCRYPTO_USED(PEM_write_PKCS8PrivateKey);
+LCRYPTO_USED(PEM_read_bio_Parameters);
+LCRYPTO_USED(PEM_write_bio_Parameters);
+LCRYPTO_USED(b2i_PrivateKey);
+LCRYPTO_USED(b2i_PublicKey);
+LCRYPTO_USED(b2i_PrivateKey_bio);
+LCRYPTO_USED(b2i_PublicKey_bio);
+LCRYPTO_USED(i2b_PrivateKey_bio);
+LCRYPTO_USED(i2b_PublicKey_bio);
+LCRYPTO_USED(b2i_PVK_bio);
+LCRYPTO_USED(i2b_PVK_bio);
+LCRYPTO_USED(ERR_load_PEM_strings);
+
+#endif /* _LIBCRYPTO_PEM_H */

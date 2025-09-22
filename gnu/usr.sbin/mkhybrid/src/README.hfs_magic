@@ -1,0 +1,69 @@
+
+Find file types by using a modified "magic" file
+
+Based on file v3.22 by Ian F. Darwin (see libfile/LEGAL.NOTICE and
+libfile/README.dist - File v3.22 can be found at many archive sites)
+
+For each entry in the magic file, the "message" for the initial offset MUST
+be 4 characters for the CREATOR and 4 characters for the TYPE - white space is
+optional between them. Any other characters on this line are ignored.
+Continuation lines (starting with a '>') are also ignored i.e. only the initial
+offset lines are used.
+
+e.g magic entry for a GIF file:
+
+# off	type		test		message
+#
+# GIF image
+0       string          GIF8            8BIM GIFf
+>4      string          7a              \b, version 8%s,
+>4      string          9a              \b, version 8%s,
+>6      leshort         >0              %hd x
+>8      leshort         >0              %hd,
+#>10    byte            &0x80           color mapped,
+#>10    byte&0x07       =0x00           2 colors
+#>10    byte&0x07       =0x01           4 colors
+#>10    byte&0x07       =0x02           8 colors
+#>10    byte&0x07       =0x03           16 colors
+#>10    byte&0x07       =0x04           32 colors
+#>10    byte&0x07       =0x05           64 colors
+#>10    byte&0x07       =0x06           128 colors
+#>10    byte&0x07       =0x07           256 colors
+
+Just the "8BIM" "GIFf" will be used whatever the type of GIF file it is.
+The continuation lines are used by the "file" command, but ignored by
+mkhybrid. They could be left out completely.
+
+The complete format of the magic file is given in the magic man page (magic.5).
+
+See the file "magic" for other examples
+
+Use with the -magic magic_file option, where magic_file is a file
+described above.
+
+The magic file can be used with the mapping file (option -map) - the order
+these options appear on the command line is important.  mkhybrid will try to
+detect if the file is one of the Unix/Mac files (e.g. a CAP or Netatalk
+file) first. If that fails, it will then use the magic and/or mapping
+file e.g:
+
+mkhybrid -o output.raw -map mapping -magic magic src_dir
+
+The above will check filename extensions first, if that fails to set the
+CREATOR/TYPE, the magic file will be used. To check the magic file
+before the filename extensions, use:
+
+mkhybrid -o output.raw -magic magic -map mapping src_dir
+
+
+Using just a magic file - filename extensions will not be checked e.g:
+
+mkhybrid -o output.raw -magic magic src_dir
+
+For the magic method to work, each file must be opened and read twice
+(once to find it's CREATOR/TYPE, and a second time to actually copy the
+file to the CD image). Therefore the -magic option may significantly
+increase processing time.
+
+If a file's CREATOR/TYPE is not set via the magic and mapping matches,
+then the file is given the default CREATOR/TYPE.

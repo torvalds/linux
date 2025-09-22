@@ -1,0 +1,26 @@
+anchor all {
+  anchor in all {
+    pass quick all flags S/SA
+  }
+  anchor out all {
+    anchor in all {
+      anchor out all {
+        anchor in all {
+          anchor out all {
+            anchor in all {
+              anchor out all {
+                anchor in all {
+                  pass all flags S/SA
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  pass in on tun1000000 all flags S/SA
+  anchor "foo" on tun1000000 all {
+    pass all flags S/SA
+  }
+}

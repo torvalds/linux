@@ -1,0 +1,22 @@
+pass in quick on enc0 from any to any
+pass in quick on enc0 inet from any to any
+pass in quick on enc0 inet6 from any to any
+
+pass out quick on tun1000000 inet from any to any route-to (tun1000001:peer)
+pass out quick on tun1000000 from any to 192.168.1.1 route-to (tun1000001:peer)
+pass out quick on tun1000000 from any to fec0::1 route-to (tun1000001:peer)
+
+pass in on tun1000000 proto tcp from any to any port = 21 dup-to 192.168.1.1
+pass in on tun1000000 proto tcp from any to any port = 21 dup-to fec0::1
+
+pass in quick on tun1000000 from 192.168.1.1/32 to 10.1.1.1/32 route-to (tun1000001:peer)
+pass in quick on tun1000000 from fec0::1/64 to fec1::2/128 route-to (tun1000001:peer)
+
+pass in on tun1000000 proto tcp from any to any port = 21 reply-to 192.168.1.1
+pass in on tun1000000 proto tcp from any to any port = 21 reply-to fec0::1
+
+pass in quick on tun1000000 from 192.168.1.1/32 to 10.1.1.1/32 reply-to (tun1000001:peer)
+pass in quick on tun1000000 from fec0::1/64 to fec1::2/128 reply-to (tun1000001:peer)
+
+pass in quick on tun1000000 from 192.168.1.1/32 to 10.1.1.1/32 dup-to 192.168.1.100
+pass in quick on tun1000000 from fec0::1/64 to fec1::2/128 dup-to fec1::2

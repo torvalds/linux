@@ -1,0 +1,300 @@
+.\"	$OpenBSD: fopen.3,v 1.33 2023/09/28 01:51:00 jsg Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 28 2023 $
+.Dt FOPEN 3
+.Os
+.Sh NAME
+.Nm fopen ,
+.Nm fdopen ,
+.Nm freopen
+.Nd stream open functions
+.Sh SYNOPSIS
+.In stdio.h
+.Ft FILE *
+.Fn fopen "const char *path" "const char *mode"
+.Ft FILE *
+.Fn fdopen "int fildes" "const char *mode"
+.Ft FILE *
+.Fn freopen "const char *path" "const char *mode" "FILE *stream"
+.Sh DESCRIPTION
+The
+.Fn fopen
+function opens the file whose name is the string pointed to by
+.Fa path
+and associates a stream with it.
+.Pp
+The argument
+.Fa mode
+points to a string beginning with one of the following
+sequences (additional characters may follow these sequences):
+.Bl -tag -width indent
+.It Do Li r Dc or Do Li rb Dc
+Open file for reading.
+.It Do Li r+ Dc or Do Li rb+ Dc or Do Li r+b Dc
+Open for reading and writing.
+.It Do Li w Dc or Do Li wb Dc
+Open for writing.
+The file is created if it does not exist, otherwise it is truncated.
+.It Do Li w+ Dc or Do Li wb+ Dc or Do Li w+b Dc
+Open for reading and writing.
+The file is created if it does not exist, otherwise it is truncated.
+.It Do Li a Dc or Do Li ab Dc
+Open for writing.
+The file is created if it does not exist.
+.It Do Li a+ Dc or Do Li ab+ Dc or Do Li a+b Dc
+Open for reading and writing.
+The file is created if it does not exist.
+.El
+.Pp
+The letter
+.Dq b
+in the
+.Fa mode
+strings above is strictly for compatibility with
+.St -ansiC
+and has no effect; the
+.Dq b
+is ignored.
+.Pp
+After any of the above prefixes, the
+.Fa mode
+string can also include zero or more of the following:
+.Bl -tag -width indent
+.It Dq Li e
+The close-on-exec flag is set on the underlying file descriptor of the new
+.Vt FILE .
+.It Dq Li x
+If the
+.Fa mode
+string starts with
+.Dq w
+or
+.Dq a
+then the function shall fail if the file specified by
+.Fa path
+already exists, as if the
+.Dv O_EXCL
+flag was passed to the
+.Xr open 2
+function.
+It has no effect if used with
+.Fn fdopen
+or the
+.Fa mode
+string begins with
+.Dq r .
+.El
+.Pp
+The
+.Fn fopen
+and
+.Fn freopen
+functions initially position the stream at the start of the file
+unless the file is opened in append mode
+.Po
+.Sq a
+or
+.Sq a+
+.Pc ,
+in which case the stream is initially positioned at the end of the file.
+.Pp
+Opening a file in append mode causes all subsequent writes to it
+to be forced to the current end-of-file, regardless of intervening
+repositioning of the stream.
+.Pp
+Any created files will have mode
+.Qq Dv S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
+.Pq Li 0666 ,
+as modified by the process'
+umask value (see
+.Xr umask 2 ) .
+.Pp
+Reads and writes cannot be arbitrarily intermixed on read/write streams.
+ANSI C requires that
+a file positioning function intervene between output and input, unless
+an input operation encounters end-of-file.
+.Pp
+The
+.Fn fdopen
+function associates a stream with the existing file descriptor
+.Fa fildes .
+The
+.Fa mode
+of the stream must be compatible with the mode of the file descriptor.
+The stream is positioned at the file offset of the file descriptor.
+If
+.Fn fdopen
+fails, the file descriptor
+.Fa fildes
+is not affected in any way.
+.Pp
+The
+.Fn freopen
+function opens the file whose name is the string pointed to by
+.Fa path
+and associates the stream pointed to by
+.Fa stream
+with it.
+The original stream (if it exists) is always closed, even if
+.Fn freopen
+fails.
+The
+.Fa mode
+argument is used just as in the
+.Fn fopen
+function.
+The primary use of the
+.Fn freopen
+function is to change the file associated with a standard text stream
+.Pf ( Em stderr ,
+.Em stdin ,
+or
+.Em stdout ) .
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn fopen ,
+.Fn fdopen ,
+and
+.Fn freopen
+return a
+.Vt FILE
+pointer.
+Otherwise,
+.Dv NULL
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa mode
+provided to
+.Fn fopen ,
+.Fn fdopen ,
+or
+.Fn freopen
+was invalid.
+.El
+.Pp
+The
+.Fn fopen ,
+.Fn fdopen
+and
+.Fn freopen
+functions may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr malloc 3 .
+.Pp
+The
+.Fn fopen
+function may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr open 2 .
+.Pp
+The
+.Fn fdopen
+function may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr fcntl 2 .
+.Pp
+The
+.Fn freopen
+function may also fail and set
+.Va errno
+for any of the errors specified for the routines
+.Xr open 2 ,
+.Xr fclose 3 ,
+and
+.Xr fflush 3 .
+.Sh SEE ALSO
+.Xr open 2 ,
+.Xr fclose 3 ,
+.Xr fseek 3 ,
+.Xr funopen 3
+.Sh STANDARDS
+The
+.Fn fopen
+and
+.Fn freopen
+functions conform to
+.St -ansiC .
+The
+.Fn fdopen
+function conforms to
+.St -p1003.1-88 .
+.Sh HISTORY
+The
+.Fn fopen
+function first appeared in
+.At v1 .
+The
+.Fn fdopen
+and
+.Fn freopen
+functions first appeared in
+.At v7 .
+.Pp
+Support for the
+.Dq e
+and
+.Dq x
+mode letters appeared in
+.Ox 5.7 .
+.Sh CAVEATS
+Proper code using
+.Fn fdopen
+with error checking should
+.Xr close 2
+.Fa fildes
+in case of failure, and
+.Xr fclose 3
+the resulting
+.Vt FILE *
+in case of success.
+.Bd -literal
+	FILE *file;
+	int fd;
+
+	if ((file = fdopen(fd, "r")) != NULL) {
+		/* perform operations on the FILE * */
+		fclose(file);
+	} else {
+		/* failure, report the error */
+		close(fd);
+	}
+.Ed

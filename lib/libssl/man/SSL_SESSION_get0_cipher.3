@@ -1,0 +1,95 @@
+.\" $OpenBSD: SSL_SESSION_get0_cipher.3,v 1.2 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL d42e7759f Mar 30 19:40:04 2017 +0200
+.\" selective merge up to: OpenSSL df75c2bf Dec 9 01:02:36 2018 +0100
+.\"
+.\" This file was written by Rich Salz <rsalz@openssl.org>.
+.\" Copyright (c) 2016, 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_SESSION_GET0_CIPHER 3
+.Os
+.Sh NAME
+.Nm SSL_SESSION_get0_cipher
+.Nd retrieve the SSL cipher associated with a session
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft const SSL_CIPHER *
+.Fo SSL_SESSION_get0_cipher
+.Fa "const SSL_SESSION *session"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_SESSION_get0_cipher
+retrieves the cipher that was used by the connection when the session
+was created, or
+.Dv NULL
+if it cannot be determined.
+.Pp
+The value returned is a pointer to an object maintained within
+.Fa session
+and should not be released.
+.Sh RETURN VALUES
+.Fn SSL_SESSION_get0_cipher
+returns the
+.Vt SSL_CIPHER
+associated with
+.Fa session
+or
+.Dv NULL
+if it cannot be determined.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CIPHER_get_name 3 ,
+.Xr SSL_get_current_cipher 3 ,
+.Xr SSL_get_session 3 ,
+.Xr SSL_SESSION_new 3
+.Sh HISTORY
+The
+.Fn SSL_SESSION_get0_cipher
+function first appeared in OpenSSL 1.1.0
+and has been available since
+.Ox 7.0 .

@@ -1,0 +1,35 @@
+# $OpenBSD: disktab,v 1.22 2023/03/07 16:41:08 krw Exp $
+
+miniroot:\
+	:dt=rdroot:se#512:nt#2:ns#64:nc#90:\
+	:pa#11520:oa#0:ba#8192:fa#1024:ta=4.2BSD:\
+	:pc#11520:oc#0:
+
+# Leave nc=16; adjust size using: ns
+rdroot|ramdiskroot|RAM-disk root FS image:\
+	:dt=rdroot:se#512:nc#16:nt#2:ns#192:\
+	:ta=4.2BSD:oa#0:pa#6144:fa#1024:ba#8192:\
+	:oc#0:pc#6144
+
+floppy|floppy3|3in|3.5in High Density Floppy:\
+	:dt=floppy:se#512:nt#2:ns#18:nc#80:\
+	:pa#2880:oa#0:ba#4096:fa#512:ta=4.2BSD:\
+	:pc#2880:oc#0:
+
+# test if not having an 'a' works?
+fakecdrom|Fake image for Bootable CDROM:\
+	:dt=rdroot:se#512:nt#1:ns#640:nc#2048:\
+	:pa#1310720:oa#0:ba#8192:fa#1024:ta=4.2BSD:\
+	:pb#1310720:ob#0:bb#8192:fb#1024:tb=4.2BSD:\
+	:pc#1310720:oc#0:bc#8192:fc#1024:tc=4.2BSD:\
+	:pd#1310720:od#0:bd#8192:fd#1024:td=4.2BSD:
+
+fakeramdisk:\
+	:dt=rdroot:se#512:nt#1:ns#32:nc#200:\
+	:pa#6400:oa#0:ba#8192:fa#4096:ta=4.2BSD:\
+	:pc#6400:oc#0:
+
+install:\
+	:dt=rdroot:se#512:nt#1:ns#32:nc#32256:\
+	:pa#1032192:oa#0:ba#8192:fa#4096:ta=4.2BSD:\
+	:pc#1032192:oc#0:

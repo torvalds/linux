@@ -1,0 +1,25 @@
+# RUN: echo foo > %t.foo
+# RUN: echo bar > %t.bar
+
+# Check output pipe.
+# RUN: diff %t.foo %t.foo | FileCheck -allow-empty -check-prefix=EMPTY %s
+# RUN: diff -u %t.foo %t.bar | FileCheck %s && false || true
+
+# Check input pipe.
+# RUN: cat %t.foo | diff -u - %t.foo
+# RUN: cat %t.foo | diff -u %t.foo -
+# RUN: cat %t.bar | diff -u %t.foo - && false || true
+# RUN: cat %t.bar | diff -u - %t.foo && false || true
+
+# Check output and input pipes at the same time.
+# RUN: cat %t.foo | diff - %t.foo | FileCheck -allow-empty -check-prefix=EMPTY %s
+# RUN: cat %t.bar | diff -u %t.foo - | FileCheck %s && false || true
+
+# Fail so lit will print output.
+# RUN: false
+
+# CHECK:      @@
+# CHECK-NEXT: -foo
+# CHECK-NEXT: +bar
+
+# EMPTY-NOT: {{.}}

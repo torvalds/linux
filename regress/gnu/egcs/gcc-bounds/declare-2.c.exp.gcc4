@@ -1,0 +1,1 @@
+declare-2.c:2: error: bound buffer argument not an array or pointer type

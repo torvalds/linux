@@ -1,0 +1,297 @@
+.\" $OpenBSD: X509_get_pubkey.3,v 1.14 2025/06/08 22:40:30 schwarze Exp $
+.\" selective merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2020, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_GET_PUBKEY 3
+.Os
+.Sh NAME
+.Nm X509_get_pubkey ,
+.Nm X509_get0_pubkey ,
+.Nm X509_set_pubkey ,
+.Nm X509_get_X509_PUBKEY ,
+.Nm X509_get0_pubkey_bitstr ,
+.Nm X509_REQ_get_pubkey ,
+.Nm X509_REQ_get0_pubkey ,
+.Nm X509_REQ_set_pubkey ,
+.Nm X509_extract_key ,
+.Nm X509_REQ_extract_key
+.Nd get or set certificate or certificate request public key
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft EVP_PKEY *
+.Fo X509_get_pubkey
+.Fa "X509 *x"
+.Fc
+.Ft EVP_PKEY *
+.Fo X509_get0_pubkey
+.Fa "const X509 *x"
+.Fc
+.Ft int
+.Fo X509_set_pubkey
+.Fa "X509 *x"
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Ft X509_PUBKEY *
+.Fo X509_get_X509_PUBKEY
+.Fa "const X509 *x"
+.Fc
+.Ft ASN1_BIT_STRING *
+.Fo X509_get0_pubkey_bitstr
+.Fa "const X509 *x"
+.Fc
+.Ft EVP_PKEY *
+.Fo X509_REQ_get_pubkey
+.Fa "X509_REQ *req"
+.Fc
+.Ft EVP_PKEY *
+.Fo X509_REQ_get0_pubkey
+.Fa "X509_REQ *req"
+.Fc
+.Ft int
+.Fo X509_REQ_set_pubkey
+.Fa "X509_REQ *x"
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Ft EVP_PKEY *
+.Fo X509_extract_key
+.Fa "X509 *x"
+.Fc
+.Ft EVP_PKEY *
+.Fo X509_REQ_extract_key
+.Fa "X509_REQ *req"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_get_pubkey
+attempts to decode the public key for certificate
+.Fa x .
+If successful, it returns the public key as an
+.Vt EVP_PKEY
+pointer with its reference count incremented: this means the returned
+key must be freed up after use.
+.Fn X509_get0_pubkey
+is similar except that it does not increment the reference count
+of the returned
+.Vt EVP_PKEY ,
+so it must not be freed up after use.
+.Pp
+.Fn X509_get_X509_PUBKEY
+returns an internal pointer to the
+.Vt SubjectPublicKeyInfo
+structure contained in
+.Fa x .
+The returned value must not be freed up after use.
+.Pp
+.Fn X509_get0_pubkey_bitstr
+returns an internal pointer to just the public key contained in this
+.Vt SubjectPublicKeyInfo
+structure, without the information about the algorithm used.
+.Pp
+.Fn X509_set_pubkey
+attempts to set the public key for certificate
+.Fa x
+to
+.Fa pkey .
+The key
+.Fa pkey
+should be freed up after use.
+.Pp
+.Fn X509_REQ_get_pubkey ,
+.Fn X509_REQ_get0_pubkey ,
+and
+.Fn X509_REQ_set_pubkey
+are similar but operate on certificate request
+.Fa req .
+.Pp
+The first time a public key is decoded, the
+.Vt EVP_PKEY
+structure is cached in the certificate or certificate request itself.
+Subsequent calls return the cached structure with its reference count
+incremented to improve performance.
+.Pp
+.Fn X509_extract_key
+and
+.Fn X509_REQ_extract_key
+are deprecated aliases for
+.Fn X509_get_pubkey
+and
+.Fn X509_REQ_get_pubkey ,
+respectively, implemented as macros.
+.Sh RETURN VALUES
+.Fn X509_get_pubkey ,
+.Fn X509_get0_pubkey ,
+.Fn X509_get_X509_PUBKEY ,
+.Fn X509_get0_pubkey_bitstr ,
+.Fn X509_REQ_get_pubkey ,
+.Fn X509_REQ_get0_pubkey ,
+.Fn X509_extract_key ,
+and
+.Fn X509_REQ_extract_key
+return a public key or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn X509_set_pubkey
+and
+.Fn X509_REQ_set_pubkey
+return 1 for success or 0 for failure.
+.Pp
+In some cases of failure of
+.Fn X509_get0_pubkey ,
+.Fn X509_set_pubkey ,
+.Fn X509_REQ_get_pubkey ,
+.Fn X509_REQ_get0_pubkey ,
+and
+.Fn X509_REQ_set_pubkey ,
+the reason can be determined with
+.Xr ERR_get_error 3 .
+.Sh ERRORS
+.Fn X509_get_pubkey ,
+.Fn X509_get0_pubkey ,
+.Fn X509_REQ_get_pubkey ,
+.Fn X509_extract_key ,
+and
+.Fn X509_REQ_extract_key
+provide diagnostics as documented for
+.Xr X509_PUBKEY_get 3 .
+If
+.Fa x
+or
+.Fa req
+is
+.Dv NULL
+or contains no certificate information,
+they fail without pushing an error onto the stack.
+.Pp
+.Fn X509_get_X509_PUBKEY
+provides no diagnostics and crashes by accessing a
+.Dv NULL
+pointer if
+.Fa x
+is
+.Dv NULL
+or contains no certificate information,
+.Pp
+.Fn X509_get0_pubkey_bitstr
+provides no diagnostics
+and fails without pushing an error onto the stack if
+.Fa x
+is
+.Dv NULL ,
+but it crashes by accessing a
+.Dv NULL
+pointer if
+.Fa x
+contains no certificate information.
+.Sh SEE ALSO
+.Xr d2i_X509 3 ,
+.Xr X509_CRL_get0_by_serial 3 ,
+.Xr X509_NAME_add_entry_by_txt 3 ,
+.Xr X509_NAME_ENTRY_get_object 3 ,
+.Xr X509_NAME_get_index_by_NID 3 ,
+.Xr X509_NAME_print_ex 3 ,
+.Xr X509_new 3 ,
+.Xr X509_PUBKEY_new 3 ,
+.Xr X509_REQ_new 3 ,
+.Xr X509_sign 3 ,
+.Xr X509_verify_cert 3 ,
+.Xr X509V3_get_d2i 3
+.Sh STANDARDS
+RFC 5280, Internet X.509 Public Key Infrastructure Certificate
+and Certificate Revocation List (CRL) Profile,
+section 4.1 Basic Certificate Fields
+.Pp
+RFC 2986: PKCS #10: Certification Request Syntax Specification,
+section 4.1 CertificationRequestInfo
+.Sh HISTORY
+.Fn X509_extract_key
+and
+.Fn X509_REQ_extract_key
+first appeared in SSLeay 0.5.1 but returned a pointer to an
+.Vt RSA
+object before SSLeay 0.6.0.
+.Fn X509_get_pubkey ,
+.Fn X509_set_pubkey ,
+.Fn X509_REQ_get_pubkey ,
+and
+.Fn X509_REQ_set_pubkey
+first appeared in SSLeay 0.6.5.
+.Fn X509_get_X509_PUBKEY
+first appeared in SSLeay 0.8.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_get0_pubkey_bitstr
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.4 .
+.Pp
+.Fn X509_get0_pubkey
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .
+.Fn X509_REQ_get0_pubkey
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 7.1 .

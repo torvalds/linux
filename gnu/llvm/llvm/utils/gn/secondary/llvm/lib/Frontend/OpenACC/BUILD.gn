@@ -1,0 +1,6 @@
+static_library("OpenACC") {
+  output_name = "LLVMFrontendOpenACC"
+  deps = [ "//llvm/lib/Support" ]
+  public_deps = [ "//llvm/include/llvm/Frontend/OpenACC:acc_gen" ]
+  sources = [ "ACC.cpp" ]
+}

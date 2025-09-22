@@ -1,0 +1,82 @@
+.\"	$OpenBSD: cacheflush.3,v 1.3 2025/06/06 21:09:33 schwarze Exp $
+.\"
+.\" Copyright (c) 2009 Miodrag Vallat.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt CACHEFLUSH 3 mips64
+.Os
+.Sh NAME
+.Nm cacheflush ,
+.Nm _flush_cache
+.Nd CPU cache synchronization functions
+.Sh SYNOPSIS
+.\" These functions live in libc.
+.In machine/sysarch.h
+.Ft int
+.Fn cacheflush "void *addr" "int nbytes" "int cache"
+.Ft int
+.Fn _flush_cache "char *addr" "int nbytes" "int cache"
+.Sh DESCRIPTION
+.Fn cacheflush
+allows a process to synchronize the contents of the processor caches with
+main memory.
+Since MIPS processors have separate instruction and data caches, this
+function allows for dynamically generated code to run correctly.
+.Pp
+.Nm
+operates on a contiguous memory range in the current process address space,
+starting at address
+.Fa addr
+and
+.Fa nbytes
+bytes long.
+The caches to be synchronized are specified in the
+.Fa cache
+argument with one of the following values:
+.Pp
+.Bl -tag -width "ICACHEXXX" -compact -offset ind
+.It Dv ICACHE
+synchronize the instruction cache
+.It Dv DCACHE
+synchronize the data cache
+.It Dv BCACHE
+synchronize both the instruction and data caches
+.El
+.Pp
+.Nm _flush_cache
+is an alias for the
+.Nm cacheflush
+function.
+.Sh RETURN VALUES
+Upon successful completion,
+.Nm
+returns zero.
+Otherwise, a value of \-1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Nm
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The address range specified by
+.Fa addr
+and
+.Fa nbytes
+is not part of the process allocated address space.
+.It Bq Er EINVAL
+.Fa cache
+is not valid.
+.El

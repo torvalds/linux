@@ -1,0 +1,2 @@
+match in on lo0 inet proto tcp from 10.0.0.0/8 to any port = 80 rdr-to 127.0.0.1
+block drop out on lo0 all tagged regress

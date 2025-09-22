@@ -1,0 +1,239 @@
+.\"	$OpenBSD: rasops.9,v 1.18 2017/08/21 11:49:50 fcambus Exp $
+.\"     $NetBSD: rasops.9,v 1.4 2002/02/13 08:18:50 ross Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Gregory McGarry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 21 2017 $
+.Dt RASOPS 9
+.Os
+.Sh NAME
+.Nm rasops ,
+.Nm rasops_init ,
+.Nm rasops_reconfig
+.Nd raster display operations
+.Sh SYNOPSIS
+.In dev/wscons/wsdisplayvar.h
+.In dev/rasops/rasops.h
+.Ft int
+.Fn rasops_init "struct rasops_info *ri" "int wantrows" "int wantcols"
+.Ft int
+.Fn rasops_reconfig "struct rasops_info *ri" "int wantrows" "int wantcols"
+.Sh DESCRIPTION
+The
+.Nm
+subsystem is a set of raster operations for
+.Xr wscons 4 .
+.Pp
+The primary data type for using the raster operations is the
+.Em rasops_info
+structure in
+.Pa dev/rasops/rasops.h :
+.Bd -literal
+struct rasops_info {
+
+	/*
+	 * These must be filled in by the caller
+	 */
+	int	ri_depth;	/* depth in bits */
+	u_char	*ri_bits;	/* ptr to bits */
+	int	ri_width;	/* width (pels) */
+	int	ri_height;	/* height (pels) */
+	int	ri_stride;	/* stride in bytes */
+
+	/*
+	 * These can optionally be left zeroed out. If you fill ri_font,
+	 * but aren't using wsfont, set ri_wsfcookie to -1.
+	 */
+	struct	wsdisplay_font *ri_font;
+	int	ri_wsfcookie;	/* wsfont cookie */
+	void	*ri_hw;		/* driver private data */
+	struct wsdisplay_charcell *ri_bs; /* character backing store */
+	int	ri_crow;	/* cursor row */
+	int	ri_ccol;	/* cursor column */
+	int	ri_flg;		/* various operational flags */
+
+	/*
+	 * These are optional and will default if zero. Meaningless
+	 * on depths other than 15, 16, 24 and 32 bits per pel. On
+	 * 24 bit displays, ri_{r,g,b}num must be 8.
+	 */
+	u_char	ri_rnum;	/* number of bits for red */
+	u_char	ri_gnum;	/* number of bits for green */
+	u_char	ri_bnum;	/* number of bits for blue */
+	u_char	ri_rpos;	/* which bit red starts at */
+	u_char	ri_gpos;	/* which bit green starts at */
+	u_char	ri_bpos;	/* which bit blue starts at */
+
+	/*
+	 * These are filled in by rasops_init()
+	 */
+	int	ri_emuwidth;	/* width we actually care about */
+	int	ri_emuheight;	/* height we actually care about */
+	int	ri_emustride;	/* bytes per row we actually care about */
+	int	ri_rows;	/* number of rows (characters) */
+	int	ri_cols;	/* number of columns (characters) */
+	int	ri_delta;	/* row delta in bytes */
+	int	ri_pelbytes;	/* bytes per pel (may be zero) */
+	int	ri_fontscale;	/* fontheight * fontstride */
+	int	ri_xscale;	/* fontwidth * pelbytes */
+	int	ri_yscale;	/* fontheight * stride */
+	u_char  *ri_origbits;	/* where screen bits actually start */
+	int	ri_xorigin;	/* where ri_bits begins (x) */
+	int	ri_yorigin;	/* where ri_bits begins (y) */
+	int32_t	ri_devcmap[16]; /* color -\*[Gt] framebuffer data */
+
+	/*
+	 * The emulops you need to use, and the screen caps for wscons
+	 */
+	struct	wsdisplay_emulops ri_ops;
+	int	ri_caps;
+
+	/*
+	 * Callbacks so we can share some code
+	 */
+	void	(*ri_do_cursor)(struct rasops_info *);
+	void	(*ri_updatecursor)(struct rasops_info *);
+
+#if NRASOPS_ROTATION > 0
+	/* Used to intercept putchar to permit display rotation */
+	struct	wsdisplay_emulops ri_real_ops;
+#endif
+};
+.Ed
+.Pp
+The value of the
+.Em ri_flg
+member is formed by OR'ing the following values:
+.Pp
+.Bl -tag -offset indent -width RI_CLEARMARGINS -compact
+.It RI_FULLCLEAR
+Force eraserows() to clear the whole screen instead of only text lines,
+when invoked with an
+.Em nrows
+parameter equal to the number of text lines.
+.It RI_FORCEMONO
+Do not output coloured text, even if the display supports it.
+.It RI_BSWAP
+Specifies that the frame buffer endianness is different from the CPU's.
+.It RI_CURSOR
+Set when the text cursor is enabled.
+.It RI_CLEAR
+Clear the display upon initialization.
+.It RI_CLEARMARGINS
+Clear display margins upon initialization.
+.It RI_CENTER
+Center the text area.
+.\" Only honoured if option RASOPS_CLIPPING which we don't use.
+.\" .It RI_CURSORCLIP
+.\" Cursor is currently clipped
+.It RI_ROTATE_CW
+Rotate the text display quarter clockwise.
+.It RI_ROTATE_CCW
+Rotate the text display quarter counter-clockwise.
+.It RI_CFGDONE
+.Fn rasops_reconfig
+completed successfully
+.It RI_VCONS
+Support the use of multiple screens.
+.It RI_WRONLY
+Do not read back pixels from the frame buffer memory when performing
+screen-to-screen copy operations.
+This flag is ignored unless
+.Dv RI_VCONS
+is set or the
+.Em ri_bs
+member is set.
+.El
+.Sh FUNCTIONS
+.Bl -tag -width compact
+.It Fn rasops_init "ri" "wantrows" "wantcols"
+Initialise a
+.Em rasops_info
+descriptor.
+The arguments
+.Fa wantrows
+and
+.Fa wantcols
+are the number of rows and columns we'd like.
+In terms of
+optimization, fonts that are a multiple of 8 pixels wide work the
+best.
+.It Fn rasops_reconfig "ri" "wantrows" "wantcols"
+Reconfigure a
+.Em rasops_info
+descriptor because parameters have changed in some way.
+The arguments
+.Fa wantrows
+and
+.Fa wantcols
+are the number of rows and columns we'd like.
+If calling
+.Fn rasops_reconfig
+to change the font and ri_wsfcookie \*[Ge] 0, you must call
+.Fn wsfont_unlock
+on it, and reset it to -1 (or a new, valid cookie).
+.El
+.Sh CODE REFERENCES
+This section describes places within the
+.Ox
+source tree where actual code implementing or utilising the rasops
+subsystem can be found.
+All pathnames are relative to
+.Pa /usr/src .
+.Pp
+The rasops subsystem is implemented within the directory
+.Pa sys/dev/rasops .
+The
+.Nm
+module itself is implemented within the file
+.Pa sys/dev/rasops/rasops.c .
+.Sh SEE ALSO
+.Xr intro 9
+.\" XXX These don't exist yet
+.\" .Xr wscons 9 ,
+.\" .Xr wsdisplay 9 ,
+.\" .Xr wsfont 9
+.Sh HISTORY
+The
+.Nm
+subsystem appeared in
+.Nx 1.5
+and
+.Ox
+first support appeared in
+.Ox 2.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+subsystem was written by
+.An Andrew Doran Aq Mt ad@NetBSD.org .
+Display rotation was written by
+.An Christopher Pascoe Aq Mt pascoe@openbsd.org .
+.Sh CAVEATS
+Display rotation only works for 16bpp displays.

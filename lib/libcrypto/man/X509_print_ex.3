@@ -1,0 +1,285 @@
+.\" $OpenBSD: X509_print_ex.3,v 1.7 2025/07/01 06:47:56 tb Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 1 2025 $
+.Dt X509_PRINT_EX 3
+.Os
+.Sh NAME
+.Nm X509_print_ex ,
+.Nm X509_CERT_AUX_print ,
+.Nm X509_print_ex_fp ,
+.Nm X509_print ,
+.Nm X509_print_fp
+.Nd pretty-print an X.509 certificate
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_print_ex
+.Fa "BIO *bio"
+.Fa "X509 *x"
+.Fa "unsigned long nameflags"
+.Fa "unsigned long skipflags"
+.Fc
+.Ft int
+.Fo X509_CERT_AUX_print
+.Fa "BIO *bio"
+.Fa "X509_CERT_AUX *aux"
+.Fa "int indent"
+.Fc
+.Ft int
+.Fo X509_print_ex_fp
+.Fa "FILE *fp"
+.Fa "X509 *x"
+.Fa "unsigned long nameflags"
+.Fa "unsigned long skipflags"
+.Fc
+.Ft int
+.Fo X509_print
+.Fa "BIO *bio"
+.Fa "X509 *x"
+.Fc
+.Ft int
+.Fo X509_print_fp
+.Fa "FILE *fp"
+.Fa "X509 *x"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_print_ex
+prints information contained in
+.Fa x
+to
+.Fa bio
+in human-readable form.
+Printing is aborted as soon as any operation fails, with the exception
+that failures while attempting to decode or print the public key,
+the X.509 version 3 extensions, or non-standard auxiliary data are
+not considered as errors.
+.Pp
+By default, the following blocks of information are printed
+in the following order.
+Each block can be skipped by setting the corresponding bit in
+.Fa skipflags ,
+provided in parentheses after each block description.
+.Bl -bullet
+.It
+A pair of lines reading
+.Qq Certificate:\&
+and
+.Qq Data:\&
+containing no information.
+.Pq Dv X509_FLAG_NO_HEADER
+.It
+The certificate version number as defined by the standard,
+followed in parentheses by the value contained in the version field
+in hexadecimal notation.
+See
+.Xr X509_get_version 3
+for details.
+.Pq Dv X509_FLAG_NO_VERSION
+.It
+The serial number of the certificate as returned by
+.Xr X509_get_serialNumber 3 .
+If it is not \-1 and converting it to
+.Vt long
+succeeds, it is printed in both decimal and hexadecimal format.
+If it is \-1, too wide to fit in
+.Vt long ,
+or conversion fails, it is printed byte-by-byte in hexadecimal notation.
+.Pq Dv X509_FLAG_NO_SERIAL
+.It
+The name of the signature algorithm is printed with
+.Xr X509_signature_print 3 .
+.Pq Dv X509_FLAG_NO_SIGNAME
+.It
+The issuer name returned by
+.Xr X509_get_issuer_name 3
+is printed with
+.Xr X509_NAME_print_ex 3 .
+.Pq Dv X509_FLAG_NO_ISSUER
+.It
+The validity period from
+.Xr X509_get_notBefore 3
+to
+.Xr X509_get_notAfter 3
+is printed using
+.Xr ASN1_TIME_print 3 .
+.Pq Dv X509_FLAG_NO_VALIDITY
+.It
+The subject name returned from
+.Xr X509_get_subject_name 3
+is printed with
+.Xr X509_NAME_print_ex 3 .
+.Pq Dv X509_FLAG_NO_SUBJECT
+.It
+The public key algorithm is printed with
+.Xr i2a_ASN1_OBJECT 3 ,
+and the public key returned from
+.Xr X509_get_pubkey 3
+with
+.Xr EVP_PKEY_print_public 3 .
+.Pq Dv X509_FLAG_NO_PUBKEY
+.It
+If an issuer or a subject unique identifier is present, its hex dump
+is printed with
+.Xr X509_signature_dump 3 .
+.Pq Dv X509_FLAG_NO_IDS
+.It
+All X.509 extensions contained in the certificate are printed with
+.Xr X509V3_extensions_print 3 .
+.Pq Dv X509_FLAG_NO_EXTENSIONS
+.It
+The signature is printed with
+.Xr X509_signature_print 3 .
+.Pq Dv X509_FLAG_NO_SIGDUMP
+.It
+Non-standard auxiliary data associated with the certificate is printed
+using the function
+.Fn X509_CERT_AUX_print
+documented below.
+.Pq Dv X509_FLAG_NO_AUX
+.El
+.Pp
+The
+.Fa nameflags
+argument modifies the format for printing X.501
+.Vt Name
+objects contained in
+.Fa x .
+It is passed through to
+.Xr X509_NAME_print_ex 3 .
+If
+.Fa nameflags
+is
+.Dv X509_FLAG_COMPAT ,
+the
+.Fa indent
+argument of
+.Xr X509_NAME_print_ex 3
+is set to 16 spaces and the traditional SSLeay format is used.
+Otherwise, if the only bit set in
+.Dv XN_FLAG_SEP_MASK
+is
+.Dv XN_FLAG_SEP_MULTILINE ,
+.Fa indent
+is set to 12 spaces.
+Otherwise,
+.Fa indent
+is set to zero.
+.Pp
+.Fn X509_CERT_AUX_print
+prints information contained in
+.Fa aux
+to
+.Fa bio
+in human-readable form with a left margin of
+.Fa indent
+spaces.
+If
+.Fa aux
+is
+.Dv NULL ,
+it prints nothing.
+.Pp
+Information is printed in the following order:
+.Bl -bullet
+.It
+Purposes the certificate is intended to be used for as set with
+.Xr X509_add1_trust_object 3 ,
+each printed with
+.Xr OBJ_obj2txt 3 .
+.It
+Purposes the certificate is explicitly
+.Em not
+intended to be used for as set with
+.Xr X509_add1_reject_object 3 ,
+again each printed with
+.Xr OBJ_obj2txt 3 .
+.It
+If
+.Fa aux
+contains data set with
+.Xr X509_alias_set1 3 ,
+the raw bytes are printed in unencoded form.
+.It
+If
+.Fa aux
+contains data set with
+.Xr X509_keyid_set1 3 ,
+the bytes are printed in hexadecimal notation with colons in between.
+.El
+.Pp
+.Fn X509_print_ex_fp
+is similar to
+.Fn X509_print_ex
+except that it prints to
+.Fa fp .
+.Pp
+.Fn X509_print
+and
+.Fn X509_print_fp
+are wrapper functions setting the
+.Fa nameflags
+to
+.Dv XN_FLAG_COMPAT
+and the
+.Fa skipflags
+to
+.Dv X509_FLAG_COMPAT .
+.Sh RETURN VALUES
+.Fn X509_print_ex ,
+.Fn X509_print_ex_fp ,
+.Fn X509_print ,
+and
+.Fn X509_print_fp
+return 1 if all requested information was successfully printed,
+even if failures occurred while attempting to decode or print the
+public key or X.509 version 3 extensions, or 0 if any other operation
+failed.
+.Pp
+.Fn X509_CERT_AUX_print
+always returns 1 and silently ignores write errors.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr X509_CERT_AUX_new 3 ,
+.Xr X509_CRL_print 3 ,
+.Xr X509_new 3 ,
+.Xr X509_REQ_print_ex 3
+.Sh HISTORY
+.Fn X509_print
+first appeared in SSLeay 0.5.1 and was changed to print to a
+.Vt BIO
+in SSLeay 0.6.0.
+.Fn X509_print_fp
+first appeared in SSLeay 0.6.0.
+Both functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_CERT_AUX_print
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Pp
+.Fn X509_print_ex
+and
+.Fn X509_print_ex_fp
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Sh BUGS
+If arbitrary data was stored into
+.Fa x
+using
+.Xr X509_alias_set1 3 ,
+these functions may print binary data and even NUL bytes.

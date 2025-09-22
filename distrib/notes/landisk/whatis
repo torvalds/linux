@@ -1,0 +1,4 @@
+dnl	$OpenBSD: whatis,v 1.3 2007/02/28 22:30:05 miod Exp $
+
+OpenBSD/MACHINE runs on various network appliances based on an
+IO-DATA design with an Hitachi/Renesas SuperH CPU.

@@ -1,0 +1,9 @@
+#!/bin/ksh
+#
+# $OpenBSD: bpflogd,v 1.1 2025/05/16 06:27:20 dlg Exp $
+
+daemon="/usr/sbin/bpflogd"
+
+. /etc/rc.d/rc.subr
+
+rc_cmd $1

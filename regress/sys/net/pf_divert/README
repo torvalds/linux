@@ -1,0 +1,58 @@
+Run pf divert-to and divert-reply regression test.  The framework
+runs both a client and a server process.  One process is started
+on the local and the other one on the remote machine.  The kernel's
+pf of the remote machine gets tested.  The remote machine's pf.conf
+must contain an anchor named "regress" where the test places its
+divert rules automatically.  All tests are done with IPv4 and IPv6.
+
+The protocols TCP, UDP, Raw IP, ICMP get tested.  TCP uses a listen
+and a connected stream socket, the others use bound and possibly
+connected datagram sockets.  Over the TCP connection messages are
+sent on both directions.  The datagram sockets deal with single
+packets.  The remote machine can be reached over a non existing
+address which is diverted to the stack.
+
+The args-...-to tests install an incoming divert-to pf rule on the
+remote machine and run a server there.  The server binds to the
+localhost address, for TCP it also listens and accepts.  The client
+is started on the local machine and connects to the non existing
+address of the remote machine.  For TCP the bidirectional connection,
+for the others a singe packet from the client has to reach the
+server.
+
+The args-...-reply tests install an outgoing divert-reply pf rule
+on the remote machine and start a client there.  The client binds
+with bindany to the non existing address and connects to the local
+machine's address.  The server is run on the local machine, for TCP
+it also listens and accepts.  For TCP the bidirectional connection,
+for the others a singe packet from the client has to reach the
+server.
+
+The args-...-reply-to tests use the same setup as the args-...-reply
+tests.  But addtitionally to the packet from the client to the
+server, the server sends a packet back which has to be received by
+the client.  To figure out the client's address and port, the server
+receives with recvfrom and sends back with sendto.  The args-icmp-reply-to
+test does not use a server as the kernel of the local machine
+automatically reflects the ICMP echo request packet with an reply.
+
+The args-icmp-reply-reuse test is similar to the args-icmp-reply-to
+test, but it sends two ICMP echo requests and expects two ICMP echo
+replies.  All four packets use the same socket.  The second echo
+has a different ID, so it cannot use the same pf state.  Check that
+the second reply reaches the client.  This can only work, if pf
+creates a second outgoing state although all packet use one socket.
+
+The reuse tests run pairs of corresponding args-...-to and
+args-...-reply and args-...-reply-to tests consecutively to check
+that the pf states to not interfere.  The first run flushes the
+state, the second must get rid of the state automatically.  For TCP
+the connection in TIME_WAIT is dropped to remove the state.
+
+SUDO=sudo
+As pf and bindany need root privileges either run the tests as root
+or set this variable and run make as a regular user.
+
+KTRACE=ktrace
+Set this variable if you want a ktrace output from client and server.
+Note that ktrace is invoked after sudo as sudo would disable it.

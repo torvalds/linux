@@ -1,0 +1,4 @@
+flow esp out proto etherip from 3ffe:1::1 to 3ffe:1::2 peer 3ffe:1::2 type require
+flow esp in proto etherip from 3ffe:1::2 to 3ffe:1::1 peer 3ffe:1::2 type require
+flow esp out proto etherip from 3ffe:2::1 to 3ffe:3::1 peer 3ffe:3::1 type require
+flow esp in proto etherip from 3ffe:3::1 to 3ffe:2::1 peer 3ffe:3::1 type require

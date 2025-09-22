@@ -1,0 +1,34 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("LLVMExegesisX86Tests") {
+  deps = [
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/X86",
+
+    # Exegesis reaches inside the Target/X86 tablegen internals and must
+    # depend on this Target/X86-internal build target -- and so must its
+    # unittests.
+    "//llvm/lib/Target/X86/MCTargetDesc",
+    "//llvm/tools/llvm-exegesis/lib",
+    "//llvm/tools/llvm-exegesis/lib/X86",
+  ]
+  include_dirs = [
+    "..",
+    "//llvm/lib/Target/X86",
+    "//llvm/tools/llvm-exegesis/lib",
+  ]
+  sources = [
+    "BenchmarkResultTest.cpp",
+    "RegisterAliasingTest.cpp",
+    "SchedClassResolutionTest.cpp",
+    "SnippetFileTest.cpp",
+    "SnippetGeneratorTest.cpp",
+    "SnippetRepetitorTest.cpp",
+    "SubprocessMemoryTest.cpp",
+    "TargetTest.cpp",
+  ]
+}

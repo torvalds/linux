@@ -1,0 +1,45 @@
+TARGET_LIBGCC2_CFLAGS = -fpic -DNO_FPSCR_VALUES
+LIB1ASMFUNCS_CACHE = _ic_invalidate _ic_invalidate_array
+
+LIB2FUNCS_EXTRA= $(srcdir)/config/sh/linux-atomic.asm
+
+MULTILIB_DIRNAMES= 
+MULTILIB_MATCHES = 
+MULTILIB_EXCEPTIONS=
+
+EXTRA_MULTILIB_PARTS= crtbegin.o crtend.o crtbeginS.o crtendS.o crtbeginT.o
+
+# Override t-slibgcc-elf-ver to export some libgcc symbols with
+# the symbol versions that glibc used, and hide some lib1func
+# routines which should not be called via PLT.  We have to create
+# the list from scratch.
+SHLIB_MAPFILES = \
+	$(srcdir)/libgcc-std.ver \
+	$(srcdir)/config/sh/libgcc-excl.ver \
+	$(srcdir)/config/sh/libgcc-glibc.ver
+
+# Override SHLIB_LINK and SHLIB_INSTALL to use linker script
+# libgcc_s.so.
+SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -shared -nodefaultlibs \
+	-Wl,--soname=$(SHLIB_SONAME) \
+	-Wl,--version-script=$(SHLIB_MAP) \
+	-o $(SHLIB_DIR)/$(SHLIB_SONAME).tmp @multilib_flags@ \
+	$(SHLIB_OBJS) $(SHLIB_LC) && \
+	rm -f $(SHLIB_DIR)/$(SHLIB_SOLINK) && \
+	if [ -f $(SHLIB_DIR)/$(SHLIB_SONAME) ]; then \
+	  mv -f $(SHLIB_DIR)/$(SHLIB_SONAME) \
+		$(SHLIB_DIR)/$(SHLIB_SONAME).backup; \
+	else true; fi && \
+	mv $(SHLIB_DIR)/$(SHLIB_SONAME).tmp $(SHLIB_DIR)/$(SHLIB_SONAME) && \
+	(echo "/* GNU ld script"; \
+	 echo "   Use the shared library, but some functions are only in"; \
+	 echo "   the static library.  */"; \
+	 echo "GROUP ( $(SHLIB_SONAME) libgcc.a )" \
+	) > $(SHLIB_DIR)/$(SHLIB_SOLINK)
+SHLIB_INSTALL = \
+	$$(mkinstalldirs) $$(DESTDIR)$$(slibdir)$(SHLIB_SLIBDIR_QUAL); \
+	$(INSTALL_DATA) $(SHLIB_DIR)/$(SHLIB_SONAME) \
+	  $$(DESTDIR)$$(slibdir)$(SHLIB_SLIBDIR_QUAL)/$(SHLIB_SONAME); \
+	rm -f $$(DESTDIR)$$(slibdir)$(SHLIB_SLIBDIR_QUAL)/$(SHLIB_SOLINK); \
+	$(INSTALL_DATA) $(SHLIB_DIR)/$(SHLIB_SOLINK) \
+	  $$(DESTDIR)$$(slibdir)$(SHLIB_SLIBDIR_QUAL)/$(SHLIB_SOLINK)

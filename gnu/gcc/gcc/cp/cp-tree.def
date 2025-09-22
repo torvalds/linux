@@ -1,0 +1,349 @@
+/* This file contains the definitions and documentation for the
+   additional tree codes used in the GNU C++ compiler (see tree.def
+   for the standard codes).
+   Copyright (C) 1987, 1988, 1990, 1993, 1997, 1998, 2003, 2004, 2005,
+   1999, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   Hacked by Michael Tiemann (tiemann@cygnus.com)
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GCC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
+
+
+/* An OFFSET_REF is used in two situations:
+
+   1. An expression of the form `A::m' where `A' is a class and `m' is
+      a non-static member.  In this case, operand 0 will be a TYPE
+      (corresponding to `A') and operand 1 will be a FIELD_DECL,
+      BASELINK, or TEMPLATE_ID_EXPR (corresponding to `m').
+
+      The expression is a pointer-to-member if its address is taken,
+      but simply denotes a member of the object if its address is not
+      taken.
+
+      This form is only used during the parsing phase; once semantic
+      analysis has taken place they are eliminated.
+
+   2. An expression of the form `x.*p'.  In this case, operand 0 will
+      be an expression corresponding to `x' and operand 1 will be an
+      expression with pointer-to-member type.  */
+DEFTREECODE (OFFSET_REF, "offset_ref", tcc_reference, 2)
+
+/* A pointer-to-member constant.  For a pointer-to-member constant
+   `X::Y' The PTRMEM_CST_CLASS is the RECORD_TYPE for `X' and the
+   PTRMEM_CST_MEMBER is the _DECL for `Y'.  */
+DEFTREECODE (PTRMEM_CST, "ptrmem_cst", tcc_constant, 0)
+
+/* For NEW_EXPR, operand 0 is the placement list.
+   Operand 1 is the new-declarator.
+   Operand 2 is the number of elements in the array.
+   Operand 3 is the initializer.  */
+DEFTREECODE (NEW_EXPR, "nw_expr", tcc_expression, 4)
+DEFTREECODE (VEC_NEW_EXPR, "vec_nw_expr", tcc_expression, 3)
+
+/* For DELETE_EXPR, operand 0 is the store to be destroyed.
+   Operand 1 is the value to pass to the destroying function
+   saying whether the store should be deallocated as well.  */
+DEFTREECODE (DELETE_EXPR, "dl_expr", tcc_expression, 2)
+DEFTREECODE (VEC_DELETE_EXPR, "vec_dl_expr", tcc_expression, 2)
+
+/* Value is reference to particular overloaded class method.
+   Operand 0 is the class, operand 1 is the field
+   The COMPLEXITY field holds the class level (usually 0).  */
+DEFTREECODE (SCOPE_REF, "scope_ref", tcc_reference, 2)
+
+/* When composing an object with a member, this is the result.
+   Operand 0 is the object.  Operand 1 is the member (usually
+   a dereferenced pointer to member).  */
+DEFTREECODE (MEMBER_REF, "member_ref", tcc_reference, 2)
+
+/* Type conversion operator in C++.  TREE_TYPE is type that this
+   operator converts to.  Operand is expression to be converted.  */
+DEFTREECODE (TYPE_EXPR, "type_expr", tcc_expression, 1)
+
+/* For AGGR_INIT_EXPR, operand 0 is function which performs initialization,
+   operand 1 is argument list to initialization function,
+   and operand 2 is the slot which was allocated for this expression.  */
+DEFTREECODE (AGGR_INIT_EXPR, "aggr_init_expr", tcc_expression, 3)
+
+/* A throw expression.  operand 0 is the expression, if there was one,
+   else it is NULL_TREE.  */
+DEFTREECODE (THROW_EXPR, "throw_expr", tcc_expression, 1)
+
+/* An empty class object.  The TREE_TYPE gives the class type.  We use
+   these to avoid actually creating instances of the empty classes.  */
+DEFTREECODE (EMPTY_CLASS_EXPR, "empty_class_expr", tcc_expression, 0)
+
+/* A reference to a member function or member functions from a base
+   class.  BASELINK_FUNCTIONS gives the FUNCTION_DECL,
+   TEMPLATE_DECL, OVERLOAD, or TEMPLATE_ID_EXPR corresponding to the
+   functions.  BASELINK_BINFO gives the base from which the functions
+   come, i.e., the base to which the `this' pointer must be converted
+   before the functions are called.  BASELINK_ACCESS_BINFO gives the
+   base used to name the functions.
+
+   A BASELINK is an expression; the TREE_TYPE of the BASELINK gives
+   the type of the expression.  This type is either a FUNCTION_TYPE,
+   METHOD_TYPE, or `unknown_type_node' indicating that the function is
+   overloaded.  */
+DEFTREECODE (BASELINK, "baselink", tcc_exceptional, 0)
+
+/* Template definition.  The following fields have the specified uses,
+   although there are other macros in cp-tree.h that should be used for
+   accessing this data.
+	DECL_ARGUMENTS		template parm vector
+	DECL_TEMPLATE_INFO      template text &c
+	DECL_VINDEX		list of instantiations already produced;
+				only done for functions so far
+   For class template:
+	DECL_INITIAL		associated templates (methods &c)
+	DECL_TEMPLATE_RESULT    null
+   For non-class templates:
+	TREE_TYPE		type of object to be constructed
+	DECL_TEMPLATE_RESULT    decl for object to be created
+				(e.g., FUNCTION_DECL with tmpl parms used)
+ */
+DEFTREECODE (TEMPLATE_DECL, "template_decl", tcc_declaration, 0)
+
+/* Index into a template parameter list.  The TEMPLATE_PARM_IDX gives
+   the index (from 0) of the parameter, while the TEMPLATE_PARM_LEVEL
+   gives the level (from 1) of the parameter.
+
+   Here's an example:
+
+   template <class T> // Index 0, Level 1.
+   struct S
+   {
+      template <class U, // Index 0, Level 2.
+		class V> // Index 1, Level 2.
+      void f();
+   };
+
+   The DESCENDANTS will be a chain of TEMPLATE_PARM_INDEXs descended
+   from this one.  The first descendant will have the same IDX, but
+   its LEVEL will be one less.  The TREE_CHAIN field is used to chain
+   together the descendants.  The TEMPLATE_PARM_DECL is the
+   declaration of this parameter, either a TYPE_DECL or CONST_DECL.
+   The TEMPLATE_PARM_ORIG_LEVEL is the LEVEL of the most distant
+   parent, i.e., the LEVEL that the parameter originally had when it
+   was declared.  For example, if we instantiate S<int>, we will have:
+
+   struct S<int>
+   {
+     template <class U, // Index 0, Level 1, Orig Level 2
+	       class V> // Index 1, Level 1, Orig Level 2
+     void f();
+   };
+
+   The LEVEL is the level of the parameter when we are worrying about
+   the types of things; the ORIG_LEVEL is the level when we are
+   worrying about instantiating things.  */
+DEFTREECODE (TEMPLATE_PARM_INDEX, "template_parm_index", tcc_exceptional, 0)
+
+/* Index into a template parameter list for template template parameters.
+   This parameter must be a type.  The TYPE_FIELDS value will be a
+   TEMPLATE_PARM_INDEX.
+
+   It is used without template arguments like TT in C<TT>,
+   TEMPLATE_TEMPLATE_PARM_TEMPLATE_INFO is NULL_TREE
+   and TYPE_NAME is a TEMPLATE_DECL.  */
+DEFTREECODE (TEMPLATE_TEMPLATE_PARM, "template_template_parm", tcc_type, 0)
+
+/* The ordering of the following codes is optimized for the checking
+   macros in tree.h.  Changing the order will degrade the speed of the
+   compiler.  TEMPLATE_TYPE_PARM, TYPENAME_TYPE, TYPEOF_TYPE,
+   BOUND_TEMPLATE_TEMPLATE_PARM.  */
+
+/* Index into a template parameter list.  This parameter must be a type.
+   The type.values field will be a TEMPLATE_PARM_INDEX.  */
+DEFTREECODE (TEMPLATE_TYPE_PARM, "template_type_parm", tcc_type, 0)
+
+/* A type designated by `typename T::t'.  TYPE_CONTEXT is `T',
+   TYPE_NAME is an IDENTIFIER_NODE for `t'.  If the type was named via
+   template-id, TYPENAME_TYPE_FULLNAME will hold the TEMPLATE_ID_EXPR.
+   TREE_TYPE is always NULL.  */
+DEFTREECODE (TYPENAME_TYPE, "typename_type", tcc_type, 0)
+
+/* A type designated by `__typeof (expr)'.  TYPEOF_TYPE_EXPR is the
+   expression in question.  */
+DEFTREECODE (TYPEOF_TYPE, "typeof_type", tcc_type, 0)
+
+/* Like TEMPLATE_TEMPLATE_PARM it is used with bound template arguments
+   like TT<int>.
+   In this case, TEMPLATE_TEMPLATE_PARM_TEMPLATE_INFO contains the
+   template name and its bound arguments.  TYPE_NAME is a TYPE_DECL.  */
+DEFTREECODE (BOUND_TEMPLATE_TEMPLATE_PARM, "bound_template_template_parm",
+	     tcc_type, 0)
+
+/* For template template argument of the form `T::template C'.
+   TYPE_CONTEXT is `T', the template parameter dependent object.
+   TYPE_NAME is an IDENTIFIER_NODE for `C', the member class template.  */
+DEFTREECODE (UNBOUND_CLASS_TEMPLATE, "unbound_class_template", tcc_type, 0)
+
+/* A using declaration.  USING_DECL_SCOPE contains the specified
+   scope.  In a member using decl, unless DECL_DEPENDENT_P is true,
+   USING_DECL_DECLS contains the _DECL or OVERLOAD so named.  This is
+   not an alias, but is later expanded into multiple aliases.  */
+DEFTREECODE (USING_DECL, "using_decl", tcc_declaration, 0)
+
+/* A using directive. The operand is USING_STMT_NAMESPACE.  */
+DEFTREECODE (USING_STMT, "using_directive", tcc_statement, 1)
+
+/* An un-parsed default argument.  Holds a vector of input tokens and
+   a vector of places where the argument was instantiated before
+   parsing had occurred.  */
+DEFTREECODE (DEFAULT_ARG, "default_arg", tcc_exceptional, 0)
+
+/* A template-id, like foo<int>.  The first operand is the template.
+   The second is NULL if there are no explicit arguments, or a
+   TREE_VEC of arguments.  The template will be a FUNCTION_DECL,
+   TEMPLATE_DECL, or an OVERLOAD.  If the template-id refers to a
+   member template, the template may be an IDENTIFIER_NODE.  */
+DEFTREECODE (TEMPLATE_ID_EXPR, "template_id_expr", tcc_expression, 2)
+
+/* A list-like node for chaining overloading candidates. TREE_TYPE is
+   the original name, and the parameter is the FUNCTION_DECL.  */
+DEFTREECODE (OVERLOAD, "overload", tcc_exceptional, 0)
+
+/* A pseudo-destructor, of the form "OBJECT.~DESTRUCTOR" or
+   "OBJECT.SCOPE::~DESTRUCTOR.  The first operand is the OBJECT.  The
+   second operand (if non-NULL) is the SCOPE.  The third operand is
+   the TYPE node corresponding to the DESTRUCTOR.  The type of the
+   first operand will always be a scalar type.
+
+   The type of a PSEUDO_DTOR_EXPR is always "void", even though it can
+   be used as if it were a zero-argument function.  We handle the
+   function-call case specially, and giving it "void" type prevents it
+   being used in expressions in ways that are not permitted.  */
+DEFTREECODE (PSEUDO_DTOR_EXPR, "pseudo_dtor_expr", tcc_expression, 3)
+
+/* A whole bunch of tree codes for the initial, superficial parsing of
+   templates.  */
+DEFTREECODE (MODOP_EXPR, "modop_expr", tcc_expression, 3)
+DEFTREECODE (CAST_EXPR, "cast_expr", tcc_unary, 1)
+DEFTREECODE (REINTERPRET_CAST_EXPR, "reinterpret_cast_expr", tcc_unary, 1)
+DEFTREECODE (CONST_CAST_EXPR, "const_cast_expr", tcc_unary, 1)
+DEFTREECODE (STATIC_CAST_EXPR, "static_cast_expr", tcc_unary, 1)
+DEFTREECODE (DYNAMIC_CAST_EXPR, "dynamic_cast_expr", tcc_unary, 1)
+DEFTREECODE (DOTSTAR_EXPR, "dotstar_expr", tcc_expression, 2)
+DEFTREECODE (TYPEID_EXPR, "typeid_expr", tcc_expression, 1)
+
+/* A placeholder for an expression that is not type-dependent, but
+   does occur in a template.  When an expression that is not
+   type-dependent appears in a larger expression, we must compute the
+   type of that larger expression.  That computation would normally
+   modify the original expression, which would change the mangling of
+   that expression if it appeared in a template argument list.  In
+   that situation, we create a NON_DEPENDENT_EXPR to take the place of
+   the original expression.  The expression is the only operand -- it
+   is only needed for diagnostics.  */
+DEFTREECODE (NON_DEPENDENT_EXPR, "non_dependent_expr", tcc_expression, 1)
+
+/* CTOR_INITIALIZER is a placeholder in template code for a call to
+   setup_vtbl_pointer (and appears in all functions, not just ctors).  */
+DEFTREECODE (CTOR_INITIALIZER, "ctor_initializer", tcc_expression, 1)
+
+DEFTREECODE (TRY_BLOCK, "try_block", tcc_statement, 2)
+
+DEFTREECODE (EH_SPEC_BLOCK, "eh_spec_block", tcc_statement, 2)
+
+/* A HANDLER wraps a catch handler for the HANDLER_TYPE.  If this is
+   CATCH_ALL_TYPE, then the handler catches all types.  The declaration of
+   the catch variable is in HANDLER_PARMS, and the body block in
+   HANDLER_BODY.  */
+DEFTREECODE (HANDLER, "handler", tcc_statement, 2)
+
+/* A MUST_NOT_THROW_EXPR wraps an expression that may not
+   throw, and must call terminate if it does.  */
+DEFTREECODE (MUST_NOT_THROW_EXPR, "must_not_throw_expr", tcc_expression, 1)
+
+/* A CLEANUP_STMT marks the point at which a declaration is fully
+   constructed.  The CLEANUP_EXPR is run on behalf of CLEANUP_DECL
+   when CLEANUP_BODY completes.  */
+DEFTREECODE (CLEANUP_STMT, "cleanup_stmt", tcc_statement, 3)
+
+/* Represents an 'if' statement. The operands are IF_COND,
+   THEN_CLAUSE, and ELSE_CLAUSE, respectively.  */
+/* ??? It is currently still necessary to distinguish between IF_STMT
+   and COND_EXPR for the benefit of templates.  */
+DEFTREECODE (IF_STMT, "if_stmt", tcc_statement, 3)
+
+/* Used to represent a `for' statement. The operands are
+   FOR_INIT_STMT, FOR_COND, FOR_EXPR, and FOR_BODY, respectively.  */
+DEFTREECODE (FOR_STMT, "for_stmt", tcc_statement, 4)
+
+/* Used to represent a 'while' statement. The operands are WHILE_COND
+   and WHILE_BODY, respectively.  */
+DEFTREECODE (WHILE_STMT, "while_stmt", tcc_statement, 2)
+
+/* Used to represent a 'do' statement. The operands are DO_BODY and
+   DO_COND, respectively.  */
+DEFTREECODE (DO_STMT, "do_stmt", tcc_statement, 2)
+
+/* Used to represent a 'break' statement.  */
+DEFTREECODE (BREAK_STMT, "break_stmt", tcc_statement, 0)
+
+/* Used to represent a 'continue' statement.  */
+DEFTREECODE (CONTINUE_STMT, "continue_stmt", tcc_statement, 0)
+
+/* Used to represent a 'switch' statement. The operands are
+   SWITCH_STMT_COND, SWITCH_STMT_BODY and SWITCH_STMT_TYPE, respectively.  */
+DEFTREECODE (SWITCH_STMT, "switch_stmt", tcc_statement, 3)
+
+/* Used to represent an expression statement.  Use `EXPR_STMT_EXPR' to
+   obtain the expression.  */
+DEFTREECODE (EXPR_STMT, "expr_stmt", tcc_expression, 1)
+
+DEFTREECODE (TAG_DEFN, "tag_defn", tcc_expression, 0)
+
+/* Template instantiation level node.
+
+   TINST_DECL contains the original DECL node.
+   TINST_LOCATION contains the location where the template is instantiated.
+   TINST_IN_SYSTEM_HEADER_P is true if the location is in a system header.
+
+   A stack of template instantiation nodes is kept through the TREE_CHAIN
+   fields of these nodes.  */
+
+DEFTREECODE (TINST_LEVEL, "TINST_LEVEL", tcc_exceptional, 0)
+
+/* Represents an 'offsetof' expression during template expansion.  */
+DEFTREECODE (OFFSETOF_EXPR, "offsetof_expr", tcc_expression, 1)
+
+/* Represents a 'sizeof' expression during template expansion.  */
+DEFTREECODE (SIZEOF_EXPR, "sizeof_expr", tcc_expression, 1)
+
+/* Represents the -> operator during template expansion.  */
+DEFTREECODE (ARROW_EXPR, "arrow_expr", tcc_expression, 1)
+
+/* Represents an '__alignof__' expression during template
+   expansion.  */
+DEFTREECODE (ALIGNOF_EXPR, "alignof_expr", tcc_expression, 1)
+
+/* A STMT_EXPR represents a statement-expression during template
+   expansion.  This is the GCC extension { ( ... ) }.  The
+   STMT_EXPR_STMT is the statement given by the expression.  */
+DEFTREECODE (STMT_EXPR, "stmt_expr", tcc_expression, 1)
+
+/* Unary plus. Operand 0 is the expression to which the unary plus
+   is applied.  */
+DEFTREECODE (UNARY_PLUS_EXPR, "unary_plus_expr", tcc_unary, 1)
+
+/*
+Local variables:
+mode:c
+End:
+*/

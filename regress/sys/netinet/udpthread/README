@@ -1,0 +1,6 @@
+Spawn multiple threads and run system calls on UDP socket in parallel.
+
+Setup UDP sockets on localhost and run system calls connect(2),
+send(2), recv(2), recvfrom(2), and close(2) in parallel.  In addition
+stress test for socket splicing, unsplice, max length and idle
+timeout can run.  The successful operations are counted.

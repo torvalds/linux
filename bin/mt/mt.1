@@ -1,0 +1,201 @@
+.\"	$OpenBSD: mt.1,v 1.30 2020/01/16 16:46:46 schwarze Exp $
+.\"	$NetBSD: mt.1,v 1.8 1996/05/21 10:23:55 mrg Exp $
+.\"
+.\" Copyright (c) 1981, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mt.1	8.1 (Berkeley) 6/6/93
+.\"
+.Dd $Mdocdate: January 16 2020 $
+.Dt MT 1
+.Os
+.Sh NAME
+.Nm mt ,
+.Nm eject
+.Nd magnetic tape and removable media manipulating program
+.Sh SYNOPSIS
+.Nm mt
+.Op Fl f Ar device
+.Ar command
+.Op Ar count
+.Nm eject
+.Op Fl t
+.Ar device
+.Sh DESCRIPTION
+The
+.Nm
+utility sends commands to a magnetic tape drive.
+By default,
+.Nm
+performs the requested operation once.
+Operations may be performed multiple times by specifying
+.Ar count .
+Note
+that
+.Ar device
+must reference a raw (not block) tape device.
+If
+.Ar device
+is of the form
+.Dq host:device
+or
+.Dq user@host:device ,
+.Nm
+writes to the named tape device on the remote host using
+.Xr rmt 8 .
+.Nm eject
+is simply an alias for
+.Nm mt ,
+with the
+.Cm offline
+command specified.
+.Nm eject
+may also be used to eject other types of removable media.
+.Pp
+The options for
+.Nm
+are as follows:
+.Bl -tag -width Ds
+.It Fl f Ar device
+Operate on the
+.Ar device
+specified.
+.El
+.Pp
+The options for
+.Nm eject
+are as follows:
+.Bl -tag -width Ds
+.It Fl t
+Insert the device instead of ejecting.
+For the
+.Xr cd 4
+driver, this requests that the tray be closed.
+.El
+.Pp
+The available commands are listed below.
+Only as many characters as are required to uniquely identify a command
+need be specified.
+.Bl -tag -width "eof, weof"
+.It Cm eof , weof
+Write
+.Ar count
+end-of-file marks at the current position on the tape.
+.It Cm fsf
+Forward space
+.Ar count
+files.
+.It Cm fsr
+Forward space
+.Ar count
+records.
+.It Cm bsf
+Back space
+.Ar count
+files.
+.It Cm bsr
+Back space
+.Ar count
+records.
+.It Cm rewind
+Rewind the tape
+.Pq Ar count Li is ignored .
+.It Cm offline , rewoffl
+Rewind the tape and place the tape unit off-line
+.Pq Ar count Li is ignored .
+On non-tape removable media, the
+.Cm offline
+command causes the media to be ejected when the last operation on it
+closes (i.e., the filesystem is unmounted).
+.It Cm status
+Print status information about the tape unit.
+.It Cm retension
+Retension the tape (if this operation is supported by the tape unit).
+.It Cm erase
+Erase the tape (if this operation is supported by the tape unit).
+.It Cm eom
+Forward space to the end of the media.
+.It Cm blocksize
+Set the tape blocksize to
+.Ar count
+bytes.
+.It Cm density
+Set the tape density code to
+.Ar count
+as specified in the SCSI2 specification.
+.El
+.Pp
+If a tape name is not specified, and the environment variable
+.Ev TAPE
+does not exist,
+.Nm
+uses the device
+.Pa /dev/rst0 .
+The
+.Ev TAPE
+variable is ignored by
+.Nm eject .
+.Sh ENVIRONMENT
+If the following environment variable exists, it is utilized by
+.Nm mt .
+.Bl -tag -width Ds
+.It Ev TAPE
+.Nm
+checks the
+.Ev TAPE
+environment variable if the
+argument
+.Ar device
+is not given.
+.El
+.Sh FILES
+.Bl -tag -width /usr/src/sys/scsi/scsi_tape.h -compact
+.It Pa /dev/rst*
+raw SCSI tape interface
+.It Pa /usr/src/sys/scsi/scsi_tape.h
+list of SCSI2 density codes
+.El
+.Sh EXIT STATUS
+.Nm
+returns a 0 exit status when the operation(s) were successful,
+1 if the command was unrecognized, and 2 if an operation failed.
+.Sh EXAMPLES
+Eject the first CD device.
+This will work even if there is no CD in the drive:
+.Pp
+.Dl $ eject /dev/rcd0c
+.Sh SEE ALSO
+.Xr cdio 1 ,
+.Xr chio 1 ,
+.Xr dd 1 ,
+.Xr ioctl 2 ,
+.Xr mtio 4
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.At v2 .

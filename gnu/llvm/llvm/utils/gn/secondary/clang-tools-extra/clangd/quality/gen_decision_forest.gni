@@ -1,0 +1,46 @@
+template("gen_decision_forest") {
+  model = invoker.model
+  filename = invoker.filename
+  cpp_class = invoker.cpp_class
+  if (defined(invoker.deps)) {
+    extra_deps = invoker.deps
+  } else {
+    extra_deps = []
+  }
+
+  action("${target_name}Cpp") {
+    script = "//clang-tools-extra/clangd/quality/CompletionModelCodegen.py"
+    outputs = [
+      "$target_gen_dir/$filename.cpp",
+      "$target_gen_dir/$filename.h",
+    ]
+    inputs = [
+      "$model/features.json",
+      "$model/forest.json",
+    ]
+    args = [
+      "--model",
+      rebase_path(model, root_build_dir),
+      "--output_dir",
+      rebase_path(target_gen_dir, root_build_dir),
+      "--filename",
+      filename,
+      "--cpp_class",
+      cpp_class,
+    ]
+  }
+
+  config("${target_name}Config") {
+    cflags = [ "-Wno-unused-label" ]
+  }
+
+  source_set(target_name) {
+    configs += [
+      "//llvm/utils/gn/build:clang_code",
+      ":${target_name}Config",
+    ]
+    deps = [ ":${target_name}Cpp" ] + extra_deps
+    include_dirs = [ "." ]
+    sources = get_target_outputs(":${target_name}Cpp")
+  }
+}

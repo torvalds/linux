@@ -1,0 +1,241 @@
+.\" $OpenBSD: tls_read.3,v 1.9 2025/07/07 10:54:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2014, 2015 Ted Unangst <tedu@openbsd.org>
+.\" Copyright (c) 2015 Doug Hogan <doug@openbsd.org>
+.\" Copyright (c) 2015 Joel Sing <jsing@openbsd.org>
+.\" Copyright (c) 2015 Bob Beck <beck@openbsd.org>
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt TLS_READ 3
+.Os
+.Sh NAME
+.Nm tls_read ,
+.Nm tls_write ,
+.Nm tls_handshake ,
+.Nm tls_error ,
+.Nm tls_close
+.Nd use a TLS connection
+.Sh SYNOPSIS
+.Lb libtls libssl libcrypto
+.In tls.h
+.Ft ssize_t
+.Fo tls_read
+.Fa "struct tls *ctx"
+.Fa "void *buf"
+.Fa "size_t buflen"
+.Fc
+.Ft ssize_t
+.Fo tls_write
+.Fa "struct tls *ctx"
+.Fa "const void *buf"
+.Fa "size_t buflen"
+.Fc
+.Ft int
+.Fn tls_handshake "struct tls *ctx"
+.Ft const char *
+.Fn tls_error "struct tls *ctx"
+.Ft int
+.Fn tls_close "struct tls *ctx"
+.Sh DESCRIPTION
+.Fn tls_read
+reads
+.Fa buflen
+bytes of data from the socket into
+.Fa buf .
+It returns the amount of data read.
+.Pp
+.Fn tls_write
+writes
+.Fa buflen
+bytes of data from
+.Fa buf
+to the socket.
+It returns the amount of data written.
+.Pp
+.Fn tls_handshake
+explicitly performs the TLS handshake.
+It is only necessary to call this function if you need to guarantee that the
+handshake has completed, as both
+.Fn tls_read
+and
+.Fn tls_write
+automatically perform the TLS handshake when necessary.
+.Pp
+The
+.Fn tls_error
+function may be used to retrieve a string containing more information
+about the most recent error relating to a context.
+.Pp
+.Fn tls_close
+closes a connection after use.
+Only the TLS layer will be shut down and the caller is responsible for closing
+the file descriptors, unless the connection was established using
+.Xr tls_connect 3
+or
+.Xr tls_connect_servername 3 .
+After closing the connection,
+.Fa ctx
+can be passed to
+.Xr tls_free 3 .
+.Sh RETURN VALUES
+.Fn tls_read
+and
+.Fn tls_write
+return a size on success or -1 on error.
+.Pp
+.Fn tls_handshake
+and
+.Fn tls_close
+return 0 on success or -1 on error.
+.Pp
+The
+.Fn tls_read ,
+.Fn tls_write ,
+.Fn tls_handshake ,
+and
+.Fn tls_close
+functions also have two special return values:
+.Pp
+.Bl -tag -width "TLS_WANT_POLLOUT" -offset indent -compact
+.It Dv TLS_WANT_POLLIN
+The underlying read file descriptor needs to be readable in order to continue.
+.It Dv TLS_WANT_POLLOUT
+The underlying write file descriptor needs to be writeable in order to continue.
+.El
+.Pp
+In the case of blocking file descriptors, the same function call should be
+repeated immediately.
+In the case of non-blocking file descriptors, the same function call should be
+repeated when the required condition has been met.
+.Pp
+Callers of these functions cannot rely on the value of the global
+.Ar errno .
+To prevent mishandling of error conditions,
+.Fn tls_read ,
+.Fn tls_write ,
+.Fn tls_handshake ,
+and
+.Fn tls_close
+all explicitly clear
+.Ar errno .
+.Pp
+.Fn tls_error
+returns
+.Dv NULL
+if no error occurred with
+.Fa ctx
+during or since the last call to
+.Fn tls_handshake ,
+.Fn tls_read ,
+.Fn tls_write ,
+.Fn tls_close ,
+or
+.Xr tls_reset 3
+involving
+.Fa ctx ,
+or if memory allocation failed while trying to assemble the string
+describing the most recent error related to
+.Fa ctx .
+.Sh EXAMPLES
+The following example demonstrates how to handle TLS writes on a blocking
+file descriptor:
+.Bd -literal -offset indent
+\&...
+while (len > 0) {
+	ssize_t ret;
+
+	ret = tls_write(ctx, buf, len);
+	if (ret == TLS_WANT_POLLIN || ret == TLS_WANT_POLLOUT)
+		continue;
+	if (ret == -1)
+		errx(1, "tls_write: %s", tls_error(ctx));
+	buf += ret;
+	len -= ret;
+}
+\&...
+.Ed
+.Pp
+The following example demonstrates how to handle TLS writes on a
+non-blocking file descriptor using
+.Xr poll 2 :
+.Bd -literal -offset indent
+\&...
+pfd[0].fd = fd;
+pfd[0].events = POLLIN|POLLOUT;
+while (len > 0) {
+	nready = poll(pfd, 1, 0);
+	if (nready == -1)
+		err(1, "poll");
+	if ((pfd[0].revents & (POLLERR|POLLNVAL)))
+		errx(1, "bad fd %d", pfd[0].fd);
+	if ((pfd[0].revents & (pfd[0].events|POLLHUP))) {
+		ssize_t ret;
+
+		ret = tls_write(ctx, buf, len);
+		if (ret == TLS_WANT_POLLIN)
+			pfd[0].events = POLLIN;
+		else if (ret == TLS_WANT_POLLOUT)
+			pfd[0].events = POLLOUT;
+		else if (ret == -1)
+			errx(1, "tls_write: %s", tls_error(ctx));
+		else {
+			buf += ret;
+			len -= ret;
+		}
+	}
+}
+\&...
+.Ed
+.Sh SEE ALSO
+.Xr tls_accept_socket 3 ,
+.Xr tls_configure 3 ,
+.Xr tls_conn_version 3 ,
+.Xr tls_connect 3 ,
+.Xr tls_init 3 ,
+.Xr tls_ocsp_process_response 3
+.Sh HISTORY
+.Fn tls_read ,
+.Fn tls_write ,
+.Fn tls_error ,
+and
+.Fn tls_close
+appeared in
+.Ox 5.6
+and got their final names in
+.Ox 5.7 .
+.Pp
+.Fn tls_handshake
+appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+.An Joel Sing Aq Mt jsing@openbsd.org
+with contributions from
+.An Bob Beck Aq Mt beck@openbsd.org
+.Sh CAVEATS
+The function
+.Fn tls_error
+returns an internal pointer.
+It must not be freed by the application, or a double free error
+will occur.
+The pointer will become invalid when the next error occurs with
+.Fa ctx .
+Consequently, if the application may need the message at a later
+time, it has to copy the string before calling the next
+.Sy libtls
+function involving
+.Fa ctx ,
+or a segmentation fault or read access to unintended data is the
+likely result.

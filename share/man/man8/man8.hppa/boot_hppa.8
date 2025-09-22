@@ -1,0 +1,347 @@
+.\"	$OpenBSD: boot_hppa.8,v 1.15 2022/09/05 10:29:27 kn Exp $
+.\"
+.\" Copyright (c) 2002, Miodrag Vallat.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 5 2022 $
+.Dt BOOT_HPPA 8 hppa
+.Os
+.Sh NAME
+.Nm boot_hppa
+.Nd hppa system bootstrapping procedures
+.Sh DESCRIPTION
+.Ss System starts
+When powered on, after a panic, or if the system is rebooted via
+.Xr reboot 8
+or
+.Xr shutdown 8 ,
+the hppa firmware
+.Pq Dq PDC
+will proceed to its initialization, and will boot an operating system
+if autoboot is enabled.
+.\"
+.Ss Boot process description
+System boot blocks are provided as a
+.Dq LIF
+.Pq Logical Interchange Format
+archive, either on a disk device, or via the network, using the
+.Em bootp
+or
+.Em rboot
+protocols, depending on the PDC version.
+A small
+.Xr mkboot 8
+utility
+is provided for combining primary boot and a number
+of images (OS kernels or standalone binaries)
+into one
+.Dq LIF
+volume suitable for booting.
+.Ss PDC concepts
+If autoboot is enabled, the PDC will attempt to boot from the specified
+.Dq boot path
+value.
+If no
+.Dq boot path
+has been specified, the PDC will then scan for bootable devices and
+boot from the first found, after a few seconds allowing the user to
+interrupt the boot process.
+If autoboot is disabled, the PDC will enter interactive mode, after an
+optional device scan.
+In all cases, it is possible to enter interactive mode by holding the
+escape key during the selftests, or when prompted to do so to abort
+the current operation, unless the PDC has been configured in
+.Dq secure mode .
+.\"
+.Ss ISL interaction
+.Dq ISL
+stands for
+.Dq Initial System Loader
+and is the
+.Xr boot 8
+program in
+.Ox .
+On all versions of the PDC except for the 712 and 725 models the
+.Dq boot
+command (see below) will be followed by the question:
+.Dq Interact with IPL (Y, N, or Cancel)?>
+where a positive answer will invoke an interactive prompt in the
+.Xr boot 8
+program later and negative will thus suppress it.
+A cancellation will abort the boot process.
+.Pp
+On the 712 and 725 models firmware an additional
+.Dq isl
+argument should be given to the
+.Dq boot
+command to invoke the
+.Xr boot 8
+interactive prompt.
+With the default behaviour being a non-interactive boot process.
+.\"
+.Ss Old PDC operation
+This version is used on the following models:
+705, 7x0, 715/33/50/75, 725/50/75, 735, 755.
+There are two levels of interactive commands in this version.
+The first level is a short menu:
+.Bd -literal -offset indent
+b)   Boot from specified device
+s)   Search for bootable device
+a)   Enter Boot Administration mode
+x)   Exit and continue boot sequence
+
+Select from menu:
+.Ed
+.Pp
+which provides the following commands:
+.Pp
+.Bl -tag -width "XXX" -offset indent -compact
+.It Cm b
+boot from a device found during the scan,
+either with its short
+.Dq P#
+form, or a complete name specification.
+For example, to boot from the
+.Tn SCSI
+disk with id 6 off the built-in (first) controller,
+one would enter
+.Ic b Ar scsi.6.0 .
+.It Cm s
+rescan for bootable devices.
+.It Cm a
+enter the second part of interactive mode.
+.It Cm x
+resume an interrupted boot sequence.
+.El
+.Pp
+The
+.Dq Boot Administration
+mode, recognizable with its
+.Em BOOT_ADMIN>
+prompt, controls the various boot options.
+The complete list of commands depends on the machine and PDC version.
+The following list only mentions commands impacting the boot process.
+.Bl -tag -width AUTOSELECT -offset indent
+.It AUTOSELECT
+Displays or changes the autoboot setting.
+If autoselect is set to
+.Dq on ,
+the PDC will always attempt to boot the first bootable device found in
+this order:
+.Bl -enum -offset indent -compact
+.It
+Boot device
+.Em path
+setting.
+.It
+.Tn SCSI
+devices connected to the built-in
+.Tn SCSI
+controller,
+the highest ID numbers being preferred.
+.It
+Network
+.Em rboot
+server (see also
+.Xr rbootd 8 ) .
+.It
+Other
+.Tn SCSI
+devices connected to secondary controllers,
+the highest ID numbers being preferred.
+.El
+If the
+.Em primary path
+setting defines a bootable device, no device scan will occur.
+.It BOOT
+Boots off the specified device.
+It is similar to the
+.Ic b
+command from the short menu above.
+The
+.Dq primary
+and
+.Dq alternate
+path settings may be booted with
+.Ic boot Ar pri
+and
+.Ic boot Ar alt
+respectively.
+.It PATH
+Displays or changes the boot and console devices.
+The boot device is defined as the
+.Dq primary
+path, and another setting may be stored as the
+.Dq alternate
+path for rescue purposes.
+For example, to define the primary boot path to the
+.Tn SCSI
+disk with ID 5 connected to the built-in controller, one would enter
+.Ic path primary Ar scsi.5
+.Pp
+When invoked without parameters,
+.Ic path
+will list the various path settings.
+.El
+.\"
+.Ss Modern PDC operation
+Machines equipped with 7100LC, 7200 or 7300LC CPU types are
+usually blessed with a different kind of PDC.
+There is only one interactive mode, with a
+.Em BOOT_ADMIN>
+prompt, which provides both boot settings and commands.
+The complete list of commands depends on the machine and PDC version.
+The following list only mentions commands impacting the boot process.
+.Bl -tag -width auto\ search -offset indent
+.It Ic auto boot
+Displays or changes the autoboot setting.
+If
+.Ic auto boot
+is set to
+.Dq on ,
+the PDC will always attempt to boot.
+The booted device chosen will depend on the
+.Ic auto search
+setting.
+.It Ic auto search
+Displays or changes the device scan setting.
+If
+.Ic auto search
+is set to
+.Dq on ,
+the PDC will attempt to boot the first bootable device found in
+this order:
+.Bl -enum -offset indent -compact
+.It
+Boot device
+.Em path
+setting.
+.It
+.Tn SCSI
+devices connected to the built-in
+.Tn SCSI
+controller,
+the highest ID numbers being preferred.
+.It
+Network
+.Em bootp
+server (see also
+.Xr dhcpd 8 ) .
+.It
+Other
+.Tn SCSI
+devices connected to secondary controllers,
+the highest ID numbers being preferred.
+.El
+If
+.Ic auto search
+is set to
+.Dq off
+and the primary boot path points to a bootable device,
+no device scan will occur.
+.Pp
+Note that setting
+.Ic auto search
+to
+.Dq on
+will force autoboot, regardless of the
+.Ic auto boot
+value.
+.It Ic boot
+Boots off the specified device.
+The
+.Dq primary
+and
+.Dq alternate
+path settings may be booted with
+.Ic boot Ar pri
+and
+.Ic boot Ar alt
+respectively.
+.It Ic path
+Displays or changes the boot and console devices.
+The boot device is defined as the
+.Dq primary
+path, and another setting may be stored as the
+.Dq alternate
+path for rescue purposes.
+For example, to define the primary boot path to the
+.Tn SCSI
+disk with ID 5 connected to the built-in controller, one would enter
+.Ic path pri Ar scsi.5 .
+.Pp
+When invoked without parameters,
+.Ic path
+will list the various path settings.
+.El
+.\"
+.Ss Boot process options
+The
+.Ox
+hppa boot loader program is extensively described in a separate document,
+.Xr boot 8 .
+.Ss Abnormal system termination
+If the system crashes, it will enter the kernel debugger,
+.Xr ddb 4 ,
+if it is configured in the kernel.
+If the crash occurred during
+initialization and the debugger is not present or is exited, the
+kernel will halt the system.
+If the crash occurred during normal operation and the debugger
+is not present or is exited, the system will attempt a dump to the
+configured dump device (which will be automatically recovered with
+.Xr savecore 8
+during the next multi-user boot cycle), and after the dump is complete
+(successful or not) the kernel will attempt a reboot.
+.Sh FILES
+.Bl -tag -width /usr/mdec/xxbootxx -compact
+.It Pa /bsd
+default system kernel
+.It Pa /bsd.rd
+standalone installation kernel, suitable for disaster recovery
+.It Pa boot.lif
+network bootstrap and kernel combined image
+.It Pa /usr/mdec/cdboot
+primary bootstrap for
+.Dq cd9660
+file system
+.It Pa /usr/mdec/xxboot
+primary bootstrap for
+.Dq ffs
+file system
+.It Pa /usr/mdec/boot
+system bootstrap (usually also installed as
+.Pa /boot )
+.El
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr boot 8 ,
+.Xr dhcpd 8 ,
+.Xr halt 8 ,
+.Xr init 8 ,
+.Xr installboot 8 ,
+.Xr rbootd 8 ,
+.Xr reboot 8 ,
+.Xr savecore 8 ,
+.Xr shutdown 8

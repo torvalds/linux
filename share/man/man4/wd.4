@@ -1,0 +1,75 @@
+.\"	$OpenBSD: wd.4,v 1.13 2007/05/31 19:19:53 jmc Exp $
+.\"	$NetBSD: wd.4,v 1.4 1999/04/25 00:00:05 mjl Exp $
+.\"
+.\" Copyright (c) 1994 James A. Jegers
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt WD 4
+.Os
+.Sh NAME
+.Nm wd
+.Nd WD100x compatible hard disk driver
+.Sh SYNOPSIS
+.Cd "wd* at wdc? flags 0x0000"
+.Cd "wd* at pciide? flags 0x0000"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports hard disks which emulate the Western Digital WD100x.
+This includes standard MFM, RLL, ESDI, IDE, and EIDE drives, as well as
+Serial ATA drives, and PCMCIA/CF storage media.
+.Pp
+The
+.Cm flags
+are used only with controllers that support DMA operations and
+mode settings (like some
+.Xr pciide 4
+controllers).
+The lowest order (rightmost) nibble of the
+.Cm flags
+define the PIO mode to use.
+The next four bits indicate the DMA mode and the third nibble the UltraDMA
+mode.
+.Pp
+For each set of four bits, the 3 lower bits define the mode to use
+and the last bit must be set to 1 for this setting to be used.
+For DMA and UltraDMA, 0xf (1111) means
+.Dq disable .
+For example, a
+.Cm flags
+value of 0x0fac (1111 1010 1100)
+means
+.Do
+use PIO mode 4, DMA mode 2, disable UltraDMA
+.Dc .
+The special setting 0x0000 means
+.Dq use whatever the drive claims to support .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pciide 4 ,
+.Xr scsi 4 ,
+.Xr wdc 4 ,
+.Xr disklabel 5 ,
+.Xr atactl 8 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8

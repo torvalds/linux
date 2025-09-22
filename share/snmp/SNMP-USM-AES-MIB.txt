@@ -1,0 +1,62 @@
+SNMP-USM-AES-MIB DEFINITIONS ::= BEGIN
+    IMPORTS
+        MODULE-IDENTITY, OBJECT-IDENTITY,
+        snmpModules             FROM SNMPv2-SMI          -- [RFC2578]
+        snmpPrivProtocols       FROM SNMP-FRAMEWORK-MIB; -- [RFC3411]
+
+snmpUsmAesMIB  MODULE-IDENTITY
+    LAST-UPDATED "200406140000Z"
+    ORGANIZATION "IETF"
+    CONTACT-INFO "Uri Blumenthal
+                  Lucent Technologies / Bell Labs
+                  67 Whippany Rd.
+                  14D-318
+                  Whippany, NJ  07981, USA
+                  973-386-2163
+                  uri@bell-labs.com
+
+                  Fabio Maino
+                  Andiamo Systems, Inc.
+                  375 East Tasman Drive
+                  San Jose, CA  95134, USA
+                  408-853-7530
+                  fmaino@andiamo.com
+
+                  Keith McCloghrie
+                  Cisco Systems, Inc.
+                  170 West Tasman Drive
+                  San Jose, CA  95134-1706, USA
+
+                  408-526-5260
+                  kzm@cisco.com"
+    DESCRIPTION  "Definitions of Object Identities needed for
+                  the use of AES by SNMP's User-based Security
+                  Model.
+
+                  Copyright (C) The Internet Society (2004).
+
+            This version of this MIB module is part of RFC 3826;
+            see the RFC itself for full legal notices.
+            Supplementary information may be available on
+            http://www.ietf.org/copyrights/ianamib.html."
+
+    REVISION     "200406140000Z"
+    DESCRIPTION  "Initial version, published as RFC3826"
+    ::= { snmpModules 20 }
+
+usmAesCfb128Protocol OBJECT-IDENTITY
+    STATUS        current
+    DESCRIPTION  "The CFB128-AES-128 Privacy Protocol."
+    REFERENCE    "- Specification for the ADVANCED ENCRYPTION
+                    STANDARD. Federal Information Processing
+                    Standard (FIPS) Publication 197.
+                    (November 2001).
+
+                  - Dworkin, M., NIST Recommendation for Block
+                    Cipher Modes of Operation, Methods and
+                    Techniques. NIST Special Publication 800-38A
+                    (December 2001).
+                 "
+    ::= { snmpPrivProtocols 4 }
+
+END

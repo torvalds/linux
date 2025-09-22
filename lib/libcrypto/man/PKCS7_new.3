@@ -1,0 +1,270 @@
+.\" $OpenBSD: PKCS7_new.3,v 1.13 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS7_NEW 3
+.Os
+.Sh NAME
+.Nm PKCS7_new ,
+.Nm PKCS7_free ,
+.Nm PKCS7_SIGNED_new ,
+.Nm PKCS7_SIGNED_free ,
+.Nm PKCS7_ENVELOPE_new ,
+.Nm PKCS7_ENVELOPE_free ,
+.Nm PKCS7_SIGN_ENVELOPE_new ,
+.Nm PKCS7_SIGN_ENVELOPE_free ,
+.Nm PKCS7_DIGEST_new ,
+.Nm PKCS7_DIGEST_free ,
+.Nm PKCS7_ENCRYPT_new ,
+.Nm PKCS7_ENCRYPT_free ,
+.Nm PKCS7_ENC_CONTENT_new ,
+.Nm PKCS7_ENC_CONTENT_free ,
+.Nm PKCS7_SIGNER_INFO_new ,
+.Nm PKCS7_SIGNER_INFO_free ,
+.Nm PKCS7_RECIP_INFO_new ,
+.Nm PKCS7_RECIP_INFO_free ,
+.Nm PKCS7_ISSUER_AND_SERIAL_new ,
+.Nm PKCS7_ISSUER_AND_SERIAL_free
+.Nd PKCS#7 data structures
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft PKCS7 *
+.Fn PKCS7_new void
+.Ft void
+.Fn PKCS7_free "PKCS7 *p7"
+.Ft PKCS7_SIGNED *
+.Fn PKCS7_SIGNED_new void
+.Ft void
+.Fn PKCS7_SIGNED_free "PKCS7_SIGNED *signed"
+.Ft PKCS7_ENVELOPE *
+.Fn PKCS7_ENVELOPE_new void
+.Ft void
+.Fn PKCS7_ENVELOPE_free "PKCS7_ENVELOPE *envelope"
+.Ft PKCS7_SIGN_ENVELOPE *
+.Fn PKCS7_SIGN_ENVELOPE_new void
+.Ft void
+.Fn PKCS7_SIGN_ENVELOPE_free "PKCS7_SIGN_ENVELOPE *signed_envelope"
+.Ft PKCS7_DIGEST *
+.Fn PKCS7_DIGEST_new void
+.Ft void
+.Fn PKCS7_DIGEST_free "PKCS7_DIGEST *digested"
+.Ft PKCS7_ENCRYPT *
+.Fn PKCS7_ENCRYPT_new void
+.Ft void
+.Fn PKCS7_ENCRYPT_free "PKCS7_ENCRYPT *encrypted"
+.Ft PKCS7_ENC_CONTENT *
+.Fn PKCS7_ENC_CONTENT_new void
+.Ft void
+.Fn PKCS7_ENC_CONTENT_free "PKCS7_ENC_CONTENT *content"
+.Ft PKCS7_SIGNER_INFO *
+.Fn PKCS7_SIGNER_INFO_new void
+.Ft void
+.Fn PKCS7_SIGNER_INFO_free "PKCS7_SIGNER_INFO *signer"
+.Ft PKCS7_RECIP_INFO *
+.Fn PKCS7_RECIP_INFO_new void
+.Ft void
+.Fn PKCS7_RECIP_INFO_free "PKCS7_RECIP_INFO *recip"
+.Ft PKCS7_ISSUER_AND_SERIAL *
+.Fn PKCS7_ISSUER_AND_SERIAL_new void
+.Ft void
+.Fn PKCS7_ISSUER_AND_SERIAL_free "PKCS7_ISSUER_AND_SERIAL *cert"
+.Sh DESCRIPTION
+PKCS#7 is an ASN.1-based format for transmitting data that has
+cryptography applied to it, in particular signed and encrypted data.
+.Pp
+.Fn PKCS7_new
+allocates and initializes an empty
+.Vt PKCS7
+object, representing an ASN.1
+.Vt ContentInfo
+structure defined in RFC 2315 section 7.
+It is the top-level data structure able to hold any kind of content
+that can be transmitted using PKCS#7.
+It can be used recursively in
+.Vt PKCS7_SIGNED
+and
+.Vt PKCS7_DIGEST
+objects.
+.Fn PKCS7_free
+frees
+.Fa p7 .
+.Pp
+.Fn PKCS7_SIGNED_new
+allocates and initializes an empty
+.Vt PKCS7_SIGNED
+object, representing an ASN.1
+.Vt SignedData
+structure defined in RFC 2315 section 9.
+It can be used inside
+.Vt PKCS7
+objects and holds any kind of content together with signatures by
+zero or more signers and information about the signing algorithm
+and certificates used.
+.Fn PKCS7_SIGNED_free
+frees
+.Fa signed .
+.Pp
+.Fn PKCS7_ENVELOPE_new
+allocates and initializes an empty
+.Vt PKCS7_ENVELOPE
+object, representing an ASN.1
+.Vt EnvelopedData
+structure defined in RFC 2315 section 10.
+It can be used inside
+.Vt PKCS7
+objects and holds any kind of encrypted content together with
+content-encryption keys for one or more recipients.
+.Fn PKCS7_ENVELOPE_free
+frees
+.Fa envelope .
+.Pp
+.Fn PKCS7_SIGN_ENVELOPE_new
+allocates and initializes an empty
+.Vt PKCS7_SIGN_ENVELOPE
+object, representing an ASN.1
+.Vt SignedAndEnvelopedData
+structure defined in RFC 2315 section 11.
+It can be used inside
+.Vt PKCS7
+objects and holds any kind of encrypted content together with
+signatures by one or more signers, information about the signing
+algorithm and certificates used, and content-encryption keys for
+one or more recipients.
+.Fn PKCS7_SIGN_ENVELOPE_free
+frees
+.Fa signed_envelope .
+.Pp
+.Fn PKCS7_DIGEST_new
+allocates and initializes an empty
+.Vt PKCS7_DIGEST
+object, representing an ASN.1
+.Vt DigestedData
+structure defined in RFC 2315 section 12.
+It can be used inside
+.Vt PKCS7
+objects and holds any kind of content together with a message digest
+for checking its integrity and information about the algorithm used.
+.Fn PKCS7_DIGEST_free
+frees
+.Fa digested .
+.Pp
+.Fn PKCS7_ENCRYPT_new
+allocates and initializes an empty
+.Vt PKCS7_ENCRYPT
+object, representing an ASN.1
+.Vt EncryptedData
+structure defined in RFC 2315 section 13.
+It can be used inside
+.Vt PKCS7
+objects and holds any kind of encrypted content.
+Keys are not included and need to be communicated separately.
+.Fn PKCS7_ENCRYPT_free
+frees
+.Fa encrypted .
+.Pp
+.Fn PKCS7_ENC_CONTENT_new
+allocates and initializes an empty
+.Vt PKCS7_ENC_CONTENT
+object, representing an ASN.1
+.Vt EncryptedContentInfo
+structure defined in RFC 2315 section 10.1.
+It can be used inside
+.Vt PKCS7_ENVELOPE ,
+.Vt PKCS7_SIGN_ENVELOPE ,
+and
+.Vt PKCS7_ENCRYPT
+objects and holds encrypted content together with information about
+the encryption algorithm used.
+.Fn PKCS7_ENC_CONTENT_free
+frees
+.Fa content .
+.Pp
+.Fn PKCS7_SIGNER_INFO_new
+allocates and initializes an empty
+.Vt PKCS7_SIGNER_INFO
+object, representing an ASN.1
+.Vt SignerInfo
+structure defined in RFC 2315 section 9.2.
+It can be used inside
+.Vt PKCS7_SIGNED
+and
+.Vt PKCS7_SIGN_ENVELOPE
+objects and holds a signature together with information about the
+signer and the algorithms used.
+.Fn PKCS7_SIGNER_INFO_free
+frees
+.Fa signer .
+.Pp
+.Fn PKCS7_RECIP_INFO_new
+allocates and initializes an empty
+.Vt PKCS7_RECIP_INFO
+object, representing an ASN.1
+.Vt RecipientInfo
+structure defined in RFC 2315 section 10.2.
+It can be used inside
+.Vt PKCS7_ENVELOPE
+and
+.Vt PKCS7_SIGN_ENVELOPE
+objects and holds a content-encryption key together with information
+about the intended recipient and the key encryption algorithm used.
+.Fn PKCS7_RECIP_INFO_free
+frees
+.Fa recip .
+.Pp
+.Fn PKCS7_ISSUER_AND_SERIAL_new
+allocates and initializes an empty
+.Vt PKCS7_ISSUER_AND_SERIAL
+object, representing an ASN.1
+.Vt IssuerAndSerialNumber
+structure defined in RFC 2315 section 6.7.
+It can be used inside
+.Vt PKCS7_SIGNER_INFO
+and
+.Vt PKCS7_RECIP_INFO
+objects and identifies a certificate by holding the distinguished
+name of the certificate issuer and an issuer-specific certificate
+serial number.
+.Fn PKCS7_ISSUER_AND_SERIAL_free
+frees
+.Fa cert .
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr d2i_PKCS7 3 ,
+.Xr i2d_PKCS7_bio_stream 3 ,
+.Xr PEM_read_PKCS7 3 ,
+.Xr PEM_write_bio_PKCS7_stream 3 ,
+.Xr PKCS7_add_attribute 3 ,
+.Xr PKCS7_dataFinal 3 ,
+.Xr PKCS7_dataInit 3 ,
+.Xr PKCS7_decrypt 3 ,
+.Xr PKCS7_encrypt 3 ,
+.Xr PKCS7_final 3 ,
+.Xr PKCS7_get_signer_info 3 ,
+.Xr PKCS7_ISSUER_AND_SERIAL_digest 3 ,
+.Xr PKCS7_set_content 3 ,
+.Xr PKCS7_set_type 3 ,
+.Xr PKCS7_sign 3 ,
+.Xr PKCS7_sign_add_signer 3 ,
+.Xr PKCS7_verify 3 ,
+.Xr SMIME_read_PKCS7 3 ,
+.Xr SMIME_write_PKCS7 3
+.Sh STANDARDS
+RFC 2315: PKCS #7: Cryptographic Message Syntax Version 1.5
+.Sh HISTORY
+These functions first appeared in SSLeay 0.5.1
+and have been available since
+.Ox 2.4 .

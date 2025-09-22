@@ -1,0 +1,1008 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		23043C9D1D35DBEC00FC25CA /* JSON.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 233B4EA51D2DB54300E98261 /* JSON.cpp */; };
+		23043C9E1D35DBFA00FC25CA /* StringConvert.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 233B4EA81D2DB96A00E98261 /* StringConvert.cpp */; };
+		233B4EA71D2DB54300E98261 /* JSON.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 233B4EA51D2DB54300E98261 /* JSON.cpp */; };
+		233B4EA91D2DB96A00E98261 /* StringConvert.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 233B4EA81D2DB96A00E98261 /* StringConvert.cpp */; };
+		23D1B0291D497E8B00FF831B /* OsLogger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23D1B0271D497E8B00FF831B /* OsLogger.cpp */; };
+		23D1B02A1D497E8B00FF831B /* OsLogger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23D1B0271D497E8B00FF831B /* OsLogger.cpp */; };
+		264D5D581293835600ED4C01 /* DNBArch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 264D5D571293835600ED4C01 /* DNBArch.cpp */; };
+		266B5ED11460A68200E43F0A /* DNBArchImplARM64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 266B5ECF1460A68200E43F0A /* DNBArchImplARM64.cpp */; };
+		26CE05A7115C360D0022F371 /* DNBError.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637DE0C71334A0024798E /* DNBError.cpp */; };
+		26CE05A8115C36170022F371 /* DNBThreadResumeActions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 260E7331114BFFE600D1DFB3 /* DNBThreadResumeActions.cpp */; };
+		26CE05A9115C36250022F371 /* debugserver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26A02918114AB9240029C479 /* debugserver.cpp */; };
+		26CE05AA115C36260022F371 /* RNBContext.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26A68F7E0D104EC800665A9E /* RNBContext.cpp */; };
+		26CE05AB115C36270022F371 /* RNBServices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EF8878A00D9C797C001831DA /* RNBServices.cpp */; };
+		26CE05AC115C36280022F371 /* RNBSocket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26A68FB00D1054DA00665A9E /* RNBSocket.cpp */; };
+		26CE05AD115C36280022F371 /* RNBRemote.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26A68FD60D10574500665A9E /* RNBRemote.cpp */; };
+		26CE05AE115C36320022F371 /* dbgnub-mig.defs in Sources */ = {isa = PBXBuildFile; fileRef = 26C637E80C71334A0024798E /* dbgnub-mig.defs */; settings = {ATTRIBUTES = (Client, Server, ); }; };
+		26CE05B0115C36340022F371 /* MachException.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637EE0C71334A0024798E /* MachException.cpp */; };
+		26CE05B1115C36350022F371 /* MachProcess.mm in Sources */ = {isa = PBXBuildFile; fileRef = 26C637F00C71334A0024798E /* MachProcess.mm */; };
+		26CE05B2115C36360022F371 /* MachThread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637F20C71334A0024798E /* MachThread.cpp */; };
+		26CE05B3115C36370022F371 /* MachThreadList.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637F40C71334A0024798E /* MachThreadList.cpp */; };
+		26CE05B4115C36380022F371 /* MachVMMemory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637F60C71334A0024798E /* MachVMMemory.cpp */; };
+		26CE05B5115C36380022F371 /* MachVMRegion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637F80C71334A0024798E /* MachVMRegion.cpp */; };
+		26CE05B6115C36390022F371 /* MachTask.mm in Sources */ = {isa = PBXBuildFile; fileRef = 26B67DE10EE9BC30006C8BC0 /* MachTask.mm */; };
+		26CE05B7115C363B0022F371 /* DNB.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637D60C71334A0024798E /* DNB.cpp */; };
+		26CE05B8115C363C0022F371 /* DNBBreakpoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637D90C71334A0024798E /* DNBBreakpoint.cpp */; };
+		26CE05B9115C363D0022F371 /* DNBDataRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637DB0C71334A0024798E /* DNBDataRef.cpp */; };
+		26CE05BA115C363E0022F371 /* DNBLog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637E00C71334A0024798E /* DNBLog.cpp */; };
+		26CE05BB115C363F0022F371 /* DNBRegisterInfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637E20C71334A0024798E /* DNBRegisterInfo.cpp */; };
+		26CE05BC115C36420022F371 /* PThreadEvent.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637FE0C71334A0024798E /* PThreadEvent.cpp */; };
+		26CE05BD115C36430022F371 /* PThreadMutex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2672DBEE0EEF446700E92059 /* PThreadMutex.cpp */; };
+		26CE05BE115C36440022F371 /* SysSignal.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C638010C71334A0024798E /* SysSignal.cpp */; };
+		26CE05BF115C364D0022F371 /* DNBArchImplX86_64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26CF99A21142EB7400011AAB /* DNBArchImplX86_64.cpp */; };
+		26CE05C3115C36580022F371 /* CFString.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2695DD9B0D3EC160007E4CA2 /* CFString.cpp */; };
+		26CE05C5115C36590022F371 /* CFBundle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2695DD910D3EBFF6007E4CA2 /* CFBundle.cpp */; };
+		26CE05CF115C36F70022F371 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 26ACA3340D3E956300A2120B /* CoreFoundation.framework */; settings = {ATTRIBUTES = (Required, ); }; };
+		26CE05F1115C387C0022F371 /* PseudoTerminal.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF67ABFF0D34604D0022D128 /* PseudoTerminal.cpp */; };
+		456F67461AD46CE9002850C2 /* DNBError.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637DE0C71334A0024798E /* DNBError.cpp */; };
+		456F67471AD46CE9002850C2 /* DNBThreadResumeActions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 260E7331114BFFE600D1DFB3 /* DNBThreadResumeActions.cpp */; };
+		456F67481AD46CE9002850C2 /* debugserver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26A02918114AB9240029C479 /* debugserver.cpp */; };
+		456F67491AD46CE9002850C2 /* RNBContext.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26A68F7E0D104EC800665A9E /* RNBContext.cpp */; };
+		456F674A1AD46CE9002850C2 /* RNBServices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EF8878A00D9C797C001831DA /* RNBServices.cpp */; };
+		456F674B1AD46CE9002850C2 /* RNBSocket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26A68FB00D1054DA00665A9E /* RNBSocket.cpp */; };
+		456F674C1AD46CE9002850C2 /* RNBRemote.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26A68FD60D10574500665A9E /* RNBRemote.cpp */; };
+		456F674D1AD46CE9002850C2 /* dbgnub-mig.defs in Sources */ = {isa = PBXBuildFile; fileRef = 26C637E80C71334A0024798E /* dbgnub-mig.defs */; settings = {ATTRIBUTES = (Client, Server, ); }; };
+		456F674E1AD46CE9002850C2 /* MachException.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637EE0C71334A0024798E /* MachException.cpp */; };
+		456F674F1AD46CE9002850C2 /* MachProcess.mm in Sources */ = {isa = PBXBuildFile; fileRef = 26C637F00C71334A0024798E /* MachProcess.mm */; };
+		456F67501AD46CE9002850C2 /* MachThread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637F20C71334A0024798E /* MachThread.cpp */; };
+		456F67511AD46CE9002850C2 /* MachThreadList.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637F40C71334A0024798E /* MachThreadList.cpp */; };
+		456F67521AD46CE9002850C2 /* MachVMMemory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637F60C71334A0024798E /* MachVMMemory.cpp */; };
+		456F67531AD46CE9002850C2 /* MachVMRegion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637F80C71334A0024798E /* MachVMRegion.cpp */; };
+		456F67541AD46CE9002850C2 /* MachTask.mm in Sources */ = {isa = PBXBuildFile; fileRef = 26B67DE10EE9BC30006C8BC0 /* MachTask.mm */; };
+		456F67551AD46CE9002850C2 /* DNB.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637D60C71334A0024798E /* DNB.cpp */; };
+		456F67561AD46CE9002850C2 /* Genealogy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFEC3363194A8B0B00FF05C6 /* Genealogy.cpp */; };
+		456F67571AD46CE9002850C2 /* DNBBreakpoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637D90C71334A0024798E /* DNBBreakpoint.cpp */; };
+		456F67581AD46CE9002850C2 /* DNBDataRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637DB0C71334A0024798E /* DNBDataRef.cpp */; };
+		456F67591AD46CE9002850C2 /* DNBLog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637E00C71334A0024798E /* DNBLog.cpp */; };
+		456F675A1AD46CE9002850C2 /* DNBRegisterInfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637E20C71334A0024798E /* DNBRegisterInfo.cpp */; };
+		456F675B1AD46CE9002850C2 /* PThreadEvent.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C637FE0C71334A0024798E /* PThreadEvent.cpp */; };
+		456F675C1AD46CE9002850C2 /* PThreadMutex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2672DBEE0EEF446700E92059 /* PThreadMutex.cpp */; };
+		456F675D1AD46CE9002850C2 /* SysSignal.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26C638010C71334A0024798E /* SysSignal.cpp */; };
+		456F675E1AD46CE9002850C2 /* DNBArchImplX86_64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26CF99A21142EB7400011AAB /* DNBArchImplX86_64.cpp */; };
+		456F67621AD46CE9002850C2 /* CFString.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2695DD9B0D3EC160007E4CA2 /* CFString.cpp */; };
+		456F67641AD46CE9002850C2 /* CFBundle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2695DD910D3EBFF6007E4CA2 /* CFBundle.cpp */; };
+		456F67651AD46CE9002850C2 /* PseudoTerminal.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF67ABFF0D34604D0022D128 /* PseudoTerminal.cpp */; };
+		456F67671AD46CE9002850C2 /* DNBArch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 264D5D571293835600ED4C01 /* DNBArch.cpp */; };
+		456F67691AD46CE9002850C2 /* DNBArchImplARM64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 266B5ECF1460A68200E43F0A /* DNBArchImplARM64.cpp */; };
+		456F676B1AD46CE9002850C2 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 26ACA3340D3E956300A2120B /* CoreFoundation.framework */; settings = {ATTRIBUTES = (Required, ); }; };
+		49D404621E39260F00570CDC /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 49D404611E39260F00570CDC /* Foundation.framework */; };
+		AF48558C1D75126800D19C07 /* StdStringExtractor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF48558B1D75126800D19C07 /* StdStringExtractor.cpp */; };
+		AF48558D1D75127500D19C07 /* StdStringExtractor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF48558B1D75126800D19C07 /* StdStringExtractor.cpp */; };
+		AF588449206077BD00A0CB5A /* SocketAddress.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D6631CA81E848FE9006A7B11 /* SocketAddress.cpp */; };
+		AFA3FCA11E39984900218D5E /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 49D404611E39260F00570CDC /* Foundation.framework */; };
+		AFEC3364194A8B0B00FF05C6 /* Genealogy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFEC3363194A8B0B00FF05C6 /* Genealogy.cpp */; };
+		D6631CA91E848FE9006A7B11 /* SocketAddress.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D6631CA81E848FE9006A7B11 /* SocketAddress.cpp */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		2307CCCC1D4A5DAE0016ABC0 /* CMakeLists.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
+		233B4EA51D2DB54300E98261 /* JSON.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSON.cpp; sourceTree = "<group>"; };
+		233B4EA61D2DB54300E98261 /* JSON.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSON.h; sourceTree = "<group>"; };
+		233B4EA81D2DB96A00E98261 /* StringConvert.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = StringConvert.cpp; sourceTree = "<group>"; };
+		23D1B0271D497E8B00FF831B /* OsLogger.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = OsLogger.cpp; sourceTree = "<group>"; };
+		23D1B0281D497E8B00FF831B /* OsLogger.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OsLogger.h; sourceTree = "<group>"; };
+		260828DE0CBAF7F400F95054 /* DNBRuntimeAction.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DNBRuntimeAction.h; sourceTree = "<group>"; };
+		260E7331114BFFE600D1DFB3 /* DNBThreadResumeActions.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DNBThreadResumeActions.cpp; sourceTree = "<group>"; };
+		260E7332114BFFE600D1DFB3 /* DNBThreadResumeActions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DNBThreadResumeActions.h; sourceTree = "<group>"; };
+		260FC7320E5B290400043FC9 /* debugnub-exports */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "debugnub-exports"; sourceTree = SOURCE_ROOT; };
+		26203D1C1641EFB200A662F7 /* com.apple.debugserver.applist.internal.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = com.apple.debugserver.applist.internal.plist; sourceTree = "<group>"; };
+		26203D1D1641EFB200A662F7 /* com.apple.debugserver.internal.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = com.apple.debugserver.internal.plist; sourceTree = "<group>"; };
+		26242C390DDBD33C0054A4CC /* debugserver-entitlements.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "debugserver-entitlements.plist"; sourceTree = "<group>"; };
+		264D5D571293835600ED4C01 /* DNBArch.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DNBArch.cpp; sourceTree = "<group>"; };
+		264F679A1B2F9EB200140093 /* JSONGenerator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = JSONGenerator.h; sourceTree = "<group>"; };
+		26593A060D4931CC001C9FE3 /* ChangeLog */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ChangeLog; sourceTree = "<group>"; };
+		266B5ECF1460A68200E43F0A /* DNBArchImplARM64.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DNBArchImplARM64.cpp; sourceTree = "<group>"; };
+		266B5ED01460A68200E43F0A /* DNBArchImplARM64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DNBArchImplARM64.h; sourceTree = "<group>"; };
+		2672DBEE0EEF446700E92059 /* PThreadMutex.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = PThreadMutex.cpp; sourceTree = "<group>"; };
+		2695DD910D3EBFF6007E4CA2 /* CFBundle.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CFBundle.cpp; sourceTree = "<group>"; };
+		2695DD920D3EBFF6007E4CA2 /* CFBundle.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CFBundle.h; sourceTree = "<group>"; };
+		2695DD9A0D3EC160007E4CA2 /* CFString.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CFString.h; sourceTree = "<group>"; };
+		2695DD9B0D3EC160007E4CA2 /* CFString.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CFString.cpp; sourceTree = "<group>"; };
+		269E8DF8164B2ED200AD65F6 /* com.apple.debugserver.posix.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = com.apple.debugserver.posix.plist; sourceTree = "<group>"; };
+		26A02918114AB9240029C479 /* debugserver.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = debugserver.cpp; sourceTree = "<group>"; };
+		26A4BAED0D498B7D00A9BEAB /* com.apple.debugserver.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = com.apple.debugserver.plist; sourceTree = "<group>"; };
+		26A68F7D0D104EC800665A9E /* RNBContext.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RNBContext.h; sourceTree = "<group>"; };
+		26A68F7E0D104EC800665A9E /* RNBContext.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RNBContext.cpp; sourceTree = "<group>"; };
+		26A68FAF0D1054DA00665A9E /* RNBSocket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RNBSocket.h; sourceTree = "<group>"; };
+		26A68FB00D1054DA00665A9E /* RNBSocket.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RNBSocket.cpp; sourceTree = "<group>"; };
+		26A68FD50D10574500665A9E /* RNBRemote.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RNBRemote.h; sourceTree = "<group>"; };
+		26A68FD60D10574500665A9E /* RNBRemote.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RNBRemote.cpp; sourceTree = "<group>"; };
+		26A8FE1E0D11A77B00203048 /* DNBTimer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DNBTimer.h; sourceTree = "<group>"; };
+		26ACA3340D3E956300A2120B /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
+		26B67DE00EE9BC30006C8BC0 /* MachTask.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MachTask.h; sourceTree = "<group>"; };
+		26B67DE10EE9BC30006C8BC0 /* MachTask.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MachTask.mm; sourceTree = "<group>"; };
+		26C637D60C71334A0024798E /* DNB.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = DNB.cpp; sourceTree = "<group>"; };
+		26C637D70C71334A0024798E /* DNB.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DNB.h; sourceTree = "<group>"; };
+		26C637D80C71334A0024798E /* DNBArch.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DNBArch.h; sourceTree = "<group>"; };
+		26C637D90C71334A0024798E /* DNBBreakpoint.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = DNBBreakpoint.cpp; sourceTree = "<group>"; };
+		26C637DA0C71334A0024798E /* DNBBreakpoint.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DNBBreakpoint.h; sourceTree = "<group>"; };
+		26C637DB0C71334A0024798E /* DNBDataRef.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = DNBDataRef.cpp; sourceTree = "<group>"; };
+		26C637DC0C71334A0024798E /* DNBDataRef.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DNBDataRef.h; sourceTree = "<group>"; };
+		26C637DD0C71334A0024798E /* DNBDefs.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = DNBDefs.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
+		26C637DE0C71334A0024798E /* DNBError.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = DNBError.cpp; sourceTree = "<group>"; };
+		26C637DF0C71334A0024798E /* DNBError.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DNBError.h; sourceTree = "<group>"; };
+		26C637E00C71334A0024798E /* DNBLog.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = DNBLog.cpp; sourceTree = "<group>"; };
+		26C637E10C71334A0024798E /* DNBLog.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DNBLog.h; sourceTree = "<group>"; };
+		26C637E20C71334A0024798E /* DNBRegisterInfo.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = DNBRegisterInfo.cpp; sourceTree = "<group>"; };
+		26C637E30C71334A0024798E /* DNBRegisterInfo.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DNBRegisterInfo.h; sourceTree = "<group>"; };
+		26C637E70C71334A0024798E /* CFUtils.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = CFUtils.h; sourceTree = "<group>"; };
+		26C637E80C71334A0024798E /* dbgnub-mig.defs */ = {isa = PBXFileReference; explicitFileType = sourcecode.mig; fileEncoding = 30; path = "dbgnub-mig.defs"; sourceTree = "<group>"; };
+		26C637EE0C71334A0024798E /* MachException.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = MachException.cpp; sourceTree = "<group>"; };
+		26C637EF0C71334A0024798E /* MachException.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = MachException.h; sourceTree = "<group>"; };
+		26C637F00C71334A0024798E /* MachProcess.mm */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.objcpp; path = MachProcess.mm; sourceTree = "<group>"; };
+		26C637F10C71334A0024798E /* MachProcess.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = MachProcess.h; sourceTree = "<group>"; };
+		26C637F20C71334A0024798E /* MachThread.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = MachThread.cpp; sourceTree = "<group>"; };
+		26C637F30C71334A0024798E /* MachThread.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = MachThread.h; sourceTree = "<group>"; };
+		26C637F40C71334A0024798E /* MachThreadList.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = MachThreadList.cpp; sourceTree = "<group>"; };
+		26C637F50C71334A0024798E /* MachThreadList.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = MachThreadList.h; sourceTree = "<group>"; };
+		26C637F60C71334A0024798E /* MachVMMemory.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = MachVMMemory.cpp; sourceTree = "<group>"; };
+		26C637F70C71334A0024798E /* MachVMMemory.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = MachVMMemory.h; sourceTree = "<group>"; };
+		26C637F80C71334A0024798E /* MachVMRegion.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = MachVMRegion.cpp; sourceTree = "<group>"; };
+		26C637F90C71334A0024798E /* MachVMRegion.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = MachVMRegion.h; sourceTree = "<group>"; };
+		26C637FD0C71334A0024798E /* PThreadCondition.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = PThreadCondition.h; sourceTree = "<group>"; };
+		26C637FE0C71334A0024798E /* PThreadEvent.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = PThreadEvent.cpp; sourceTree = "<group>"; };
+		26C637FF0C71334A0024798E /* PThreadEvent.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = PThreadEvent.h; sourceTree = "<group>"; };
+		26C638000C71334A0024798E /* PThreadMutex.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = PThreadMutex.h; sourceTree = "<group>"; };
+		26C638010C71334A0024798E /* SysSignal.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = SysSignal.cpp; sourceTree = "<group>"; };
+		26C638020C71334A0024798E /* SysSignal.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = SysSignal.h; sourceTree = "<group>"; };
+		26C638050C71334A0024798E /* TTYState.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = TTYState.cpp; sourceTree = "<group>"; };
+		26C638060C71334A0024798E /* TTYState.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = TTYState.h; sourceTree = "<group>"; };
+		26CE0594115C31C20022F371 /* debugserver */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = debugserver; sourceTree = BUILT_PRODUCTS_DIR; };
+		26CF99A21142EB7400011AAB /* DNBArchImplX86_64.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DNBArchImplX86_64.cpp; sourceTree = "<group>"; };
+		26CF99A31142EB7400011AAB /* DNBArchImplX86_64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DNBArchImplX86_64.h; sourceTree = "<group>"; };
+		26E6B9DA0D1329010037ECDD /* RNBDefs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RNBDefs.h; sourceTree = "<group>"; };
+		456F67721AD46CE9002850C2 /* debugserver-nonui */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "debugserver-nonui"; sourceTree = BUILT_PRODUCTS_DIR; };
+		49D404611E39260F00570CDC /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		49F5301213316D7F008956F6 /* MachRegisterStatesX86_64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MachRegisterStatesX86_64.h; sourceTree = "<group>"; };
+		9457ECF61419864100DFE7D8 /* stack_logging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = stack_logging.h; sourceTree = "<group>"; };
+		9684D93A29FCA1E10046D45E /* debugserver-macosx-private-entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; name = "debugserver-macosx-private-entitlements.plist"; path = "resources/debugserver-macosx-private-entitlements.plist"; sourceTree = SOURCE_ROOT; };
+		9684D93B29FCA1E10046D45E /* lldb-debugserver-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; name = "lldb-debugserver-Info.plist"; path = "resources/lldb-debugserver-Info.plist"; sourceTree = SOURCE_ROOT; };
+		9684D93C29FCA1E10046D45E /* debugserver-macosx-entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; name = "debugserver-macosx-entitlements.plist"; path = "resources/debugserver-macosx-entitlements.plist"; sourceTree = SOURCE_ROOT; };
+		9684D93D29FCA1E10046D45E /* debugserver-entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; name = "debugserver-entitlements.plist"; path = "resources/debugserver-entitlements.plist"; sourceTree = SOURCE_ROOT; };
+		AF0934BA18E12B92005A11FD /* Genealogy.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Genealogy.h; sourceTree = "<group>"; };
+		AF0934BB18E12B92005A11FD /* GenealogySPI.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GenealogySPI.h; sourceTree = "<group>"; };
+		AF48558B1D75126800D19C07 /* StdStringExtractor.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = StdStringExtractor.cpp; sourceTree = "<group>"; };
+		AF61C60418F75ABC00B48D9D /* debugserver-macosx-entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "debugserver-macosx-entitlements.plist"; sourceTree = "<group>"; };
+		AF67ABFF0D34604D0022D128 /* PseudoTerminal.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = PseudoTerminal.cpp; sourceTree = "<group>"; };
+		AF67AC000D34604D0022D128 /* PseudoTerminal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PseudoTerminal.h; sourceTree = "<group>"; };
+		AF949ED620605DC2002A91F9 /* com.apple.internal.xpc.remote.debugserver.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = com.apple.internal.xpc.remote.debugserver.plist; sourceTree = "<group>"; };
+		AFEC3363194A8B0B00FF05C6 /* Genealogy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Genealogy.cpp; sourceTree = "<group>"; };
+		D6631CA81E848FE9006A7B11 /* SocketAddress.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SocketAddress.cpp; path = ../../source/Host/common/SocketAddress.cpp; sourceTree = "<group>"; };
+		EF88788B0D9C7558001831DA /* com.apple.debugserver.applist.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = com.apple.debugserver.applist.plist; sourceTree = "<group>"; };
+		EF88789F0D9C797C001831DA /* RNBServices.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RNBServices.h; sourceTree = "<group>"; };
+		EF8878A00D9C797C001831DA /* RNBServices.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RNBServices.cpp; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		26CE0592115C31C20022F371 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				49D404621E39260F00570CDC /* Foundation.framework in Frameworks */,
+				26CE05CF115C36F70022F371 /* CoreFoundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		456F676A1AD46CE9002850C2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				456F676B1AD46CE9002850C2 /* CoreFoundation.framework in Frameworks */,
+				AFA3FCA11E39984900218D5E /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		08FB7794FE84155DC02AAC07 /* dbgnub */ = {
+			isa = PBXGroup;
+			children = (
+				D6631CA81E848FE9006A7B11 /* SocketAddress.cpp */,
+				26ACA3330D3E94F200A2120B /* Framework */,
+				26C637D50C71334A0024798E /* source */,
+				1AB674ADFE9D54B511CA2CBB /* Products */,
+				49D404601E39260F00570CDC /* Frameworks */,
+			);
+			name = dbgnub;
+			sourceTree = "<group>";
+		};
+		1AB674ADFE9D54B511CA2CBB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				26CE0594115C31C20022F371 /* debugserver */,
+				456F67721AD46CE9002850C2 /* debugserver-nonui */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		266B5ECE1460A68200E43F0A /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+				266B5ECF1460A68200E43F0A /* DNBArchImplARM64.cpp */,
+				266B5ED01460A68200E43F0A /* DNBArchImplARM64.h */,
+			);
+			path = arm64;
+			sourceTree = "<group>";
+		};
+		26A028FE114AB6A60029C479 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				9684D93D29FCA1E10046D45E /* debugserver-entitlements.plist */,
+				9684D93C29FCA1E10046D45E /* debugserver-macosx-entitlements.plist */,
+				9684D93A29FCA1E10046D45E /* debugserver-macosx-private-entitlements.plist */,
+				9684D93B29FCA1E10046D45E /* lldb-debugserver-Info.plist */,
+				26A4BAED0D498B7D00A9BEAB /* com.apple.debugserver.plist */,
+				EF88788B0D9C7558001831DA /* com.apple.debugserver.applist.plist */,
+				269E8DF8164B2ED200AD65F6 /* com.apple.debugserver.posix.plist */,
+				26203D1C1641EFB200A662F7 /* com.apple.debugserver.applist.internal.plist */,
+				26203D1D1641EFB200A662F7 /* com.apple.debugserver.internal.plist */,
+				AF949ED620605DC2002A91F9 /* com.apple.internal.xpc.remote.debugserver.plist */,
+				260FC7320E5B290400043FC9 /* debugnub-exports */,
+				26242C390DDBD33C0054A4CC /* debugserver-entitlements.plist */,
+				AF61C60418F75ABC00B48D9D /* debugserver-macosx-entitlements.plist */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
+		26A028FF114AB6BB0029C479 /* libdebugnub */ = {
+			isa = PBXGroup;
+			children = (
+				26C637E60C71334A0024798E /* MacOSX */,
+				260828DE0CBAF7F400F95054 /* DNBRuntimeAction.h */,
+				26A8FE1E0D11A77B00203048 /* DNBTimer.h */,
+				26C637D70C71334A0024798E /* DNB.h */,
+				26C637D60C71334A0024798E /* DNB.cpp */,
+				26C637D80C71334A0024798E /* DNBArch.h */,
+				264D5D571293835600ED4C01 /* DNBArch.cpp */,
+				26C637DA0C71334A0024798E /* DNBBreakpoint.h */,
+				26C637D90C71334A0024798E /* DNBBreakpoint.cpp */,
+				26C637DC0C71334A0024798E /* DNBDataRef.h */,
+				26C637DB0C71334A0024798E /* DNBDataRef.cpp */,
+				26C637DD0C71334A0024798E /* DNBDefs.h */,
+				26C637DF0C71334A0024798E /* DNBError.h */,
+				26C637DE0C71334A0024798E /* DNBError.cpp */,
+				26C637E10C71334A0024798E /* DNBLog.h */,
+				26C637E00C71334A0024798E /* DNBLog.cpp */,
+				26C637E30C71334A0024798E /* DNBRegisterInfo.h */,
+				26C637E20C71334A0024798E /* DNBRegisterInfo.cpp */,
+				260E7332114BFFE600D1DFB3 /* DNBThreadResumeActions.h */,
+				260E7331114BFFE600D1DFB3 /* DNBThreadResumeActions.cpp */,
+				233B4EA61D2DB54300E98261 /* JSON.h */,
+				233B4EA51D2DB54300E98261 /* JSON.cpp */,
+				264F679A1B2F9EB200140093 /* JSONGenerator.h */,
+				AF67AC000D34604D0022D128 /* PseudoTerminal.h */,
+				AF67ABFF0D34604D0022D128 /* PseudoTerminal.cpp */,
+				26C637FD0C71334A0024798E /* PThreadCondition.h */,
+				26C637FF0C71334A0024798E /* PThreadEvent.h */,
+				26C637FE0C71334A0024798E /* PThreadEvent.cpp */,
+				26C638000C71334A0024798E /* PThreadMutex.h */,
+				2672DBEE0EEF446700E92059 /* PThreadMutex.cpp */,
+				233B4EA81D2DB96A00E98261 /* StringConvert.cpp */,
+				26C638020C71334A0024798E /* SysSignal.h */,
+				26C638010C71334A0024798E /* SysSignal.cpp */,
+				26C638060C71334A0024798E /* TTYState.h */,
+				26C638050C71334A0024798E /* TTYState.cpp */,
+			);
+			name = libdebugnub;
+			sourceTree = "<group>";
+		};
+		26ACA3330D3E94F200A2120B /* Framework */ = {
+			isa = PBXGroup;
+			children = (
+				26ACA3340D3E956300A2120B /* CoreFoundation.framework */,
+			);
+			name = Framework;
+			sourceTree = "<group>";
+		};
+		26C637D50C71334A0024798E /* source */ = {
+			isa = PBXGroup;
+			children = (
+				26593A060D4931CC001C9FE3 /* ChangeLog */,
+				26DEFD6C0D104C23008A5A07 /* debugserver */,
+				26A028FF114AB6BB0029C479 /* libdebugnub */,
+			);
+			indentWidth = 4;
+			path = source;
+			sourceTree = "<group>";
+			tabWidth = 4;
+			usesTabs = 0;
+		};
+		26C637E60C71334A0024798E /* MacOSX */ = {
+			isa = PBXGroup;
+			children = (
+				2695DD920D3EBFF6007E4CA2 /* CFBundle.h */,
+				2695DD910D3EBFF6007E4CA2 /* CFBundle.cpp */,
+				2695DD9A0D3EC160007E4CA2 /* CFString.h */,
+				2695DD9B0D3EC160007E4CA2 /* CFString.cpp */,
+				26C637E70C71334A0024798E /* CFUtils.h */,
+				2307CCCC1D4A5DAE0016ABC0 /* CMakeLists.txt */,
+				266B5ECE1460A68200E43F0A /* arm64 */,
+				26CF99A11142EB7400011AAB /* x86_64 */,
+				26C637E80C71334A0024798E /* dbgnub-mig.defs */,
+				AFEC3363194A8B0B00FF05C6 /* Genealogy.cpp */,
+				AF0934BA18E12B92005A11FD /* Genealogy.h */,
+				AF0934BB18E12B92005A11FD /* GenealogySPI.h */,
+				26C637EF0C71334A0024798E /* MachException.h */,
+				26C637EE0C71334A0024798E /* MachException.cpp */,
+				26C637F10C71334A0024798E /* MachProcess.h */,
+				26C637F00C71334A0024798E /* MachProcess.mm */,
+				26C637F30C71334A0024798E /* MachThread.h */,
+				26C637F20C71334A0024798E /* MachThread.cpp */,
+				26C637F50C71334A0024798E /* MachThreadList.h */,
+				26C637F40C71334A0024798E /* MachThreadList.cpp */,
+				26C637F70C71334A0024798E /* MachVMMemory.h */,
+				26C637F60C71334A0024798E /* MachVMMemory.cpp */,
+				26C637F90C71334A0024798E /* MachVMRegion.h */,
+				26C637F80C71334A0024798E /* MachVMRegion.cpp */,
+				26B67DE00EE9BC30006C8BC0 /* MachTask.h */,
+				26B67DE10EE9BC30006C8BC0 /* MachTask.mm */,
+				23D1B0281D497E8B00FF831B /* OsLogger.h */,
+				23D1B0271D497E8B00FF831B /* OsLogger.cpp */,
+				9457ECF61419864100DFE7D8 /* stack_logging.h */,
+			);
+			path = MacOSX;
+			sourceTree = "<group>";
+		};
+		26CF99A11142EB7400011AAB /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+				26CF99A21142EB7400011AAB /* DNBArchImplX86_64.cpp */,
+				26CF99A31142EB7400011AAB /* DNBArchImplX86_64.h */,
+				49F5301213316D7F008956F6 /* MachRegisterStatesX86_64.h */,
+			);
+			path = x86_64;
+			sourceTree = "<group>";
+		};
+		26DEFD6C0D104C23008A5A07 /* debugserver */ = {
+			isa = PBXGroup;
+			children = (
+				26A02918114AB9240029C479 /* debugserver.cpp */,
+				26A028FE114AB6A60029C479 /* Resources */,
+				26A68F7D0D104EC800665A9E /* RNBContext.h */,
+				26A68F7E0D104EC800665A9E /* RNBContext.cpp */,
+				EF88789F0D9C797C001831DA /* RNBServices.h */,
+				EF8878A00D9C797C001831DA /* RNBServices.cpp */,
+				26A68FAF0D1054DA00665A9E /* RNBSocket.h */,
+				26A68FB00D1054DA00665A9E /* RNBSocket.cpp */,
+				26A68FD50D10574500665A9E /* RNBRemote.h */,
+				26A68FD60D10574500665A9E /* RNBRemote.cpp */,
+				26E6B9DA0D1329010037ECDD /* RNBDefs.h */,
+				AF48558B1D75126800D19C07 /* StdStringExtractor.cpp */,
+			);
+			name = debugserver;
+			sourceTree = "<group>";
+			usesTabs = 0;
+		};
+		49D404601E39260F00570CDC /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				49D404611E39260F00570CDC /* Foundation.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		26CE0593115C31C20022F371 /* debugserver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 26CE05A4115C31ED0022F371 /* Build configuration list for PBXNativeTarget "debugserver" */;
+			buildPhases = (
+				26CE0591115C31C20022F371 /* Sources */,
+				26CE0592115C31C20022F371 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = debugserver;
+			productName = "lldb-debugserver";
+			productReference = 26CE0594115C31C20022F371 /* debugserver */;
+			productType = "com.apple.product-type.tool";
+		};
+		456F67431AD46CE9002850C2 /* debugserver-mini */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 456F676D1AD46CE9002850C2 /* Build configuration list for PBXNativeTarget "debugserver-mini" */;
+			buildPhases = (
+				456F67451AD46CE9002850C2 /* Sources */,
+				456F676A1AD46CE9002850C2 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "debugserver-mini";
+			productName = "lldb-debugserver";
+			productReference = 456F67721AD46CE9002850C2 /* debugserver-nonui */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		08FB7793FE84155DC02AAC07 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 0700;
+				LastUpgradeCheck = 0720;
+			};
+			buildConfigurationList = 1DEB914E08733D8E0010E9CD /* Build configuration list for PBXProject "debugserver" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 1;
+			knownRegions = (
+				English,
+				Japanese,
+				French,
+				German,
+			);
+			mainGroup = 08FB7794FE84155DC02AAC07 /* dbgnub */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				26CE0593115C31C20022F371 /* debugserver */,
+				456F67431AD46CE9002850C2 /* debugserver-mini */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		26CE0591115C31C20022F371 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D6631CA91E848FE9006A7B11 /* SocketAddress.cpp in Sources */,
+				26CE05A7115C360D0022F371 /* DNBError.cpp in Sources */,
+				26CE05A8115C36170022F371 /* DNBThreadResumeActions.cpp in Sources */,
+				26CE05A9115C36250022F371 /* debugserver.cpp in Sources */,
+				AF48558C1D75126800D19C07 /* StdStringExtractor.cpp in Sources */,
+				26CE05AA115C36260022F371 /* RNBContext.cpp in Sources */,
+				26CE05AB115C36270022F371 /* RNBServices.cpp in Sources */,
+				23D1B0291D497E8B00FF831B /* OsLogger.cpp in Sources */,
+				26CE05AC115C36280022F371 /* RNBSocket.cpp in Sources */,
+				26CE05AD115C36280022F371 /* RNBRemote.cpp in Sources */,
+				26CE05AE115C36320022F371 /* dbgnub-mig.defs in Sources */,
+				26CE05B0115C36340022F371 /* MachException.cpp in Sources */,
+				26CE05B1115C36350022F371 /* MachProcess.mm in Sources */,
+				26CE05B2115C36360022F371 /* MachThread.cpp in Sources */,
+				233B4EA71D2DB54300E98261 /* JSON.cpp in Sources */,
+				26CE05B3115C36370022F371 /* MachThreadList.cpp in Sources */,
+				26CE05B4115C36380022F371 /* MachVMMemory.cpp in Sources */,
+				26CE05B5115C36380022F371 /* MachVMRegion.cpp in Sources */,
+				26CE05B6115C36390022F371 /* MachTask.mm in Sources */,
+				26CE05B7115C363B0022F371 /* DNB.cpp in Sources */,
+				AFEC3364194A8B0B00FF05C6 /* Genealogy.cpp in Sources */,
+				233B4EA91D2DB96A00E98261 /* StringConvert.cpp in Sources */,
+				26CE05B8115C363C0022F371 /* DNBBreakpoint.cpp in Sources */,
+				26CE05B9115C363D0022F371 /* DNBDataRef.cpp in Sources */,
+				26CE05BA115C363E0022F371 /* DNBLog.cpp in Sources */,
+				26CE05BB115C363F0022F371 /* DNBRegisterInfo.cpp in Sources */,
+				26CE05BC115C36420022F371 /* PThreadEvent.cpp in Sources */,
+				26CE05BD115C36430022F371 /* PThreadMutex.cpp in Sources */,
+				26CE05BE115C36440022F371 /* SysSignal.cpp in Sources */,
+				26CE05BF115C364D0022F371 /* DNBArchImplX86_64.cpp in Sources */,
+				26CE05C5115C36590022F371 /* CFBundle.cpp in Sources */,
+				26CE05C3115C36580022F371 /* CFString.cpp in Sources */,
+				26CE05F1115C387C0022F371 /* PseudoTerminal.cpp in Sources */,
+				264D5D581293835600ED4C01 /* DNBArch.cpp in Sources */,
+				266B5ED11460A68200E43F0A /* DNBArchImplARM64.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		456F67451AD46CE9002850C2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				456F67461AD46CE9002850C2 /* DNBError.cpp in Sources */,
+				456F67471AD46CE9002850C2 /* DNBThreadResumeActions.cpp in Sources */,
+				456F67481AD46CE9002850C2 /* debugserver.cpp in Sources */,
+				23043C9D1D35DBEC00FC25CA /* JSON.cpp in Sources */,
+				456F67491AD46CE9002850C2 /* RNBContext.cpp in Sources */,
+				23D1B02A1D497E8B00FF831B /* OsLogger.cpp in Sources */,
+				456F674A1AD46CE9002850C2 /* RNBServices.cpp in Sources */,
+				456F674B1AD46CE9002850C2 /* RNBSocket.cpp in Sources */,
+				456F674C1AD46CE9002850C2 /* RNBRemote.cpp in Sources */,
+				456F674D1AD46CE9002850C2 /* dbgnub-mig.defs in Sources */,
+				456F674E1AD46CE9002850C2 /* MachException.cpp in Sources */,
+				456F674F1AD46CE9002850C2 /* MachProcess.mm in Sources */,
+				456F67501AD46CE9002850C2 /* MachThread.cpp in Sources */,
+				456F67511AD46CE9002850C2 /* MachThreadList.cpp in Sources */,
+				456F67521AD46CE9002850C2 /* MachVMMemory.cpp in Sources */,
+				456F67531AD46CE9002850C2 /* MachVMRegion.cpp in Sources */,
+				456F67541AD46CE9002850C2 /* MachTask.mm in Sources */,
+				456F67551AD46CE9002850C2 /* DNB.cpp in Sources */,
+				456F67561AD46CE9002850C2 /* Genealogy.cpp in Sources */,
+				456F67571AD46CE9002850C2 /* DNBBreakpoint.cpp in Sources */,
+				456F67581AD46CE9002850C2 /* DNBDataRef.cpp in Sources */,
+				456F67591AD46CE9002850C2 /* DNBLog.cpp in Sources */,
+				456F675A1AD46CE9002850C2 /* DNBRegisterInfo.cpp in Sources */,
+				456F675B1AD46CE9002850C2 /* PThreadEvent.cpp in Sources */,
+				456F675C1AD46CE9002850C2 /* PThreadMutex.cpp in Sources */,
+				456F675D1AD46CE9002850C2 /* SysSignal.cpp in Sources */,
+				456F675E1AD46CE9002850C2 /* DNBArchImplX86_64.cpp in Sources */,
+				23043C9E1D35DBFA00FC25CA /* StringConvert.cpp in Sources */,
+				AF588449206077BD00A0CB5A /* SocketAddress.cpp in Sources */,
+				456F67621AD46CE9002850C2 /* CFString.cpp in Sources */,
+				AF48558D1D75127500D19C07 /* StdStringExtractor.cpp in Sources */,
+				456F67641AD46CE9002850C2 /* CFBundle.cpp in Sources */,
+				456F67651AD46CE9002850C2 /* PseudoTerminal.cpp in Sources */,
+				456F67671AD46CE9002850C2 /* DNBArch.cpp in Sources */,
+				456F67691AD46CE9002850C2 /* DNBArchImplARM64.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1DEB914F08733D8E0010E9CD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				"ARCHS[sdk=iphoneos*]" = arm64;
+				"ARCHS[sdk=macosx*]" = "$(ARCHS_STANDARD_64_BIT)";
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 360.99.0;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LLDB_COMPRESSION_LDFLAGS = "-lcompression";
+				LLDB_OS_LOG_CFLAGS = "-DLLDB_USE_OS_LOG=$(LLDB_USE_OS_LOG)";
+				LLDB_USE_OS_LOG = 0;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = "";
+				STRIP_INSTALLED_PRODUCT = NO;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_BUILDER = "$(USER)";
+			};
+			name = Debug;
+		};
+		1DEB915008733D8E0010E9CD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				"ARCHS[sdk=iphoneos*]" = arm64;
+				"ARCHS[sdk=macosx*]" = "$(ARCHS_STANDARD_64_BIT)";
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CURRENT_PROJECT_VERSION = 360.99.0;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LLDB_COMPRESSION_LDFLAGS = "-lcompression";
+				LLDB_ENERGY_LDFLAGS = "-lpmenergy -lpmsample";
+				LLDB_OS_LOG_CFLAGS = "-DLLDB_USE_OS_LOG=$(LLDB_USE_OS_LOG)";
+				LLDB_USE_OS_LOG = 0;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = "";
+				STRIPFLAGS = "-x";
+				STRIP_STYLE = debugging;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_BUILDER = "$(USER)";
+			};
+			name = Release;
+		};
+		26CE0596115C31C30022F371 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				"CODE_SIGN_ENTITLEMENTS[sdk=*]" = "resources/debugserver-entitlements.plist";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "resources/debugserver-macosx-entitlements.plist";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 360.99.0;
+				FRAMEWORK_SEARCH_PATHS = $SDKROOT/System/Library/PrivateFrameworks;
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*][arch=*]" = (
+					"$(SDKROOT)/System/Library/PrivateFrameworks",
+					"$(SDKROOT)/Developer/Library/PrivateFrameworks",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=macosx*][arch=*]" = "$(SDKROOT)/System/Library/PrivateFrameworks";
+				GCC_C_LANGUAGE_STANDARD = c99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = LLDB_DEBUGSERVER_DEBUG;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				INSTALL_PATH = /usr/bin;
+				LLDB_COMPRESSION_LDFLAGS = "-lcompression";
+				LLDB_DEBUGSERVER = 1;
+				LLDB_ENERGY_CFLAGS = "";
+				"LLDB_ENERGY_CFLAGS[sdk=*internal]" = "-DLLDB_ENERGY";
+				LLDB_ENERGY_LDFLAGS = "-lpmenergy -lpmsample";
+				OTHER_CFLAGS = (
+					"-Wparentheses",
+					"-DDT_VARIANT_$(DT_VARIANT)",
+					"$(LLDB_ENERGY_CFLAGS)",
+					"$(LLDB_OS_LOG_CFLAGS)",
+				);
+				"OTHER_CFLAGS[sdk=iphoneos*][arch=*]" = (
+					"-Wparentheses",
+					"-DWITH_LOCKDOWN",
+					"-DWITH_BKS",
+					"-DWITH_FBS",
+					"-DOS_OBJECT_USE_OBJC=0",
+					"$(LLDB_ENERGY_CFLAGS)",
+					"$(LLDB_OS_LOG_CFLAGS)",
+					"-isystem",
+					"$(SDKROOT)/System/Library/Frameworks/System.framework/PrivateHeaders",
+				);
+				"OTHER_CPLUSPLUSFLAGS[sdk=iphoneos*][arch=*]" = "$(OTHER_CFLAGS)";
+				"OTHER_CPLUSPLUSFLAGS[sdk=watchos*]" = (
+					"$(OTHER_CFLAGS)",
+					"-DWITH_CAROUSEL=1",
+				);
+				OTHER_LDFLAGS = "";
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=*]" = (
+					"-framework",
+					SpringBoardServices,
+					"-framework",
+					BackBoardServices,
+					"-llockdown",
+					"-framework",
+					FrontBoardServices,
+					"-framework",
+					MobileCoreServices,
+					"$(LLDB_ENERGY_LDFLAGS)",
+					"$(LLDB_COMPRESSION_LDFLAGS)",
+				);
+				"OTHER_LDFLAGS[sdk=macosx*]" = (
+					"-sectcreate",
+					__TEXT,
+					__info_plist,
+					"$(PROJECT_DIR)/resources/lldb-debugserver-Info.plist",
+					"$(LLDB_ENERGY_LDFLAGS)",
+					"$(LLDB_COMPRESSION_LDFLAGS)",
+					"-framework",
+					Security,
+				);
+				"OTHER_LDFLAGS[sdk=watchos*]" = (
+					"-framework",
+					SpringBoardServices,
+					"-framework",
+					BackBoardServices,
+					"-llockdown",
+					"-framework",
+					FrontBoardServices,
+					"-framework",
+					MobileCoreServices,
+					"$(LLDB_ENERGY_LDFLAGS)",
+					"$(LLDB_COMPRESSION_LDFLAGS)",
+					"-framework",
+					CarouselServices,
+				);
+				OTHER_MIGFLAGS = "-I$(DERIVED_FILE_DIR)";
+				PRODUCT_NAME = debugserver;
+				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
+				"PROVISIONING_PROFILE[sdk=macosx*]" = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				USER_HEADER_SEARCH_PATHS = "./source ../../source $(DERIVED_SOURCES_DIR) ../../include";
+				ZERO_LINK = NO;
+			};
+			name = Debug;
+		};
+		26CE0597115C31C30022F371 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				"CODE_SIGN_ENTITLEMENTS[sdk=*]" = "resources/debugserver-entitlements.plist";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "resources/debugserver-macosx-entitlements.plist";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 360.99.0;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				FRAMEWORK_SEARCH_PATHS = $SDKROOT/System/Library/PrivateFrameworks;
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*][arch=*]" = (
+					"$(SDKROOT)/System/Library/PrivateFrameworks",
+					"$(SDKROOT)/Developer/Library/PrivateFrameworks",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=macosx*][arch=*]" = "$(SDKROOT)/System/Library/PrivateFrameworks";
+				GCC_C_LANGUAGE_STANDARD = c99;
+				GCC_PREPROCESSOR_DEFINITIONS = LLDB_DEBUGSERVER_RELEASE;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				INSTALL_PATH = /usr/bin;
+				LLDB_COMPRESSION_LDFLAGS = "-lcompression";
+				LLDB_DEBUGSERVER = 1;
+				LLDB_ENERGY_CFLAGS = "";
+				"LLDB_ENERGY_CFLAGS[sdk=*.internal]" = "-DLLDB_ENERGY";
+				LLDB_ENERGY_LDFLAGS = "-lpmenergy -lpmsample";
+				OTHER_CFLAGS = (
+					"-Wparentheses",
+					"-DDT_VARIANT_$(DT_VARIANT)",
+					"$(LLDB_ENERGY_CFLAGS)",
+					"$(LLDB_OS_LOG_CFLAGS)",
+				);
+				"OTHER_CFLAGS[sdk=iphoneos*][arch=*]" = (
+					"-Wparentheses",
+					"-DWITH_LOCKDOWN",
+					"-DWITH_FBS",
+					"-DWITH_BKS",
+					"-DOS_OBJECT_USE_OBJC=0",
+					"$(LLDB_ENERGY_CFLAGS)",
+					"$(LLDB_OS_LOG_CFLAGS)",
+					"-isystem",
+					"$(SDKROOT)/System/Library/Frameworks/System.framework/PrivateHeaders",
+				);
+				"OTHER_CPLUSPLUSFLAGS[sdk=iphoneos*][arch=*]" = "$(OTHER_CFLAGS)";
+				"OTHER_CPLUSPLUSFLAGS[sdk=watchos*]" = (
+					"$(OTHER_CFLAGS)",
+					"-DWITH_CAROUSEL=1",
+				);
+				OTHER_LDFLAGS = "";
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=*]" = (
+					"-framework",
+					SpringBoardServices,
+					"-framework",
+					BackBoardServices,
+					"-llockdown",
+					"-framework",
+					FrontBoardServices,
+					"-framework",
+					MobileCoreServices,
+					"$(LLDB_ENERGY_LDFLAGS)",
+					"$(LLDB_COMPRESSION_LDFLAGS)",
+				);
+				"OTHER_LDFLAGS[sdk=macosx*]" = (
+					"-sectcreate",
+					__TEXT,
+					__info_plist,
+					"$(PROJECT_DIR)/resources/lldb-debugserver-Info.plist",
+					"$(LLDB_ENERGY_LDFLAGS)",
+					"$(LLDB_COMPRESSION_LDFLAGS)",
+					"-framework",
+					Security,
+				);
+				"OTHER_LDFLAGS[sdk=watchos*]" = (
+					"-framework",
+					SpringBoardServices,
+					"-framework",
+					BackBoardServices,
+					"-llockdown",
+					"-framework",
+					FrontBoardServices,
+					"-framework",
+					MobileCoreServices,
+					"$(LLDB_ENERGY_LDFLAGS)",
+					"$(LLDB_COMPRESSION_LDFLAGS)",
+					"-framework",
+					CarouselServices,
+				);
+				OTHER_MIGFLAGS = "-I$(DERIVED_FILE_DIR)";
+				PRODUCT_NAME = debugserver;
+				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
+				"PROVISIONING_PROFILE[sdk=macosx*]" = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				USER_HEADER_SEARCH_PATHS = "./source ../../source $(DERIVED_SOURCES_DIR) ../../include";
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
+		456F676E1AD46CE9002850C2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_ENTITLEMENTS[sdk=*]" = "source/debugserver-entitlements.plist";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "source/debugserver-macosx-entitlements.plist";
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 360.99.0;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				FRAMEWORK_SEARCH_PATHS = $SDKROOT/System/Library/PrivateFrameworks;
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*][arch=*]" = (
+					"$(SDKROOT)/System/Library/PrivateFrameworks",
+					"$(SDKROOT)/Developer/Library/PrivateFrameworks",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=macosx*][arch=*]" = "$(SDKROOT)/System/Library/PrivateFrameworks";
+				GCC_C_LANGUAGE_STANDARD = c99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = LLDB_DEBUGSERVER_DEBUG;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INSTALL_PATH = /usr/local/bin;
+				LLDB_COMPRESSION_LDFLAGS = "-lcompression";
+				LLDB_DEBUGSERVER = 1;
+				LLDB_ENERGY_CFLAGS = "";
+				"LLDB_ENERGY_CFLAGS[sdk=*.internal]" = "-DLLDB_ENERGY";
+				LLDB_ENERGY_LDFLAGS = "-lpmenergy -lpmsample";
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = (
+					"-Wparentheses",
+					"-DDT_VARIANT_$(DT_VARIANT)",
+					"$(LLDB_ENERGY_CFLAGS)",
+					"$(LLDB_OS_LOG_CFLAGS)",
+				);
+				"OTHER_CFLAGS[sdk=iphoneos*][arch=*]" = (
+					"-Wparentheses",
+					"-DOS_OBJECT_USE_OBJC=0",
+					"-DDEBUGSERVER_PROGRAM_SYMBOL=debugserver_nonui",
+					"$(LLDB_ENERGY_CFLAGS)",
+					"$(LLDB_OS_LOG_CFLAGS)",
+				);
+				"OTHER_CPLUSPLUSFLAGS[sdk=iphoneos*][arch=*]" = "$(OTHER_CFLAGS)";
+				OTHER_LDFLAGS = "";
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=*]" = (
+					"-framework",
+					Foundation,
+					"$(LLDB_ENERGY_LDFLAGS)",
+					"$(LLDB_COMPRESSION_LDFLAGS)",
+				);
+				"OTHER_LDFLAGS[sdk=macosx*]" = (
+					"-sectcreate",
+					__TEXT,
+					__info_plist,
+					"$(PROJECT_DIR)/resources/lldb-debugserver-Info.plist",
+					"$(LLDB_ENERGY_LDFLAGS)",
+					"$(LLDB_COMPRESSION_LDFLAGS)",
+				);
+				OTHER_MIGFLAGS = "-I$(DERIVED_FILE_DIR)";
+				PRODUCT_NAME = "debugserver-nonui";
+				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
+				"PROVISIONING_PROFILE[sdk=macosx*]" = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRIP_INSTALLED_PRODUCT = NO;
+				USER_HEADER_SEARCH_PATHS = "./source ../../source $(DERIVED_SOURCES_DIR) ../../include";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_BUILDER = "$(USER)";
+				ZERO_LINK = NO;
+			};
+			name = Debug;
+		};
+		456F67701AD46CE9002850C2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				"CODE_SIGN_ENTITLEMENTS[sdk=*]" = "source/debugserver-entitlements.plist";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "source/debugserver-macosx-entitlements.plist";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "";
+				COPY_PHASE_STRIP = YES;
+				CURRENT_PROJECT_VERSION = 360.99.0;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				FRAMEWORK_SEARCH_PATHS = $SDKROOT/System/Library/PrivateFrameworks;
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*][arch=*]" = (
+					"$(SDKROOT)/System/Library/PrivateFrameworks",
+					"$(SDKROOT)/Developer/Library/PrivateFrameworks",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=macosx*][arch=*]" = "$(SDKROOT)/System/Library/PrivateFrameworks";
+				GCC_C_LANGUAGE_STANDARD = c99;
+				GCC_PREPROCESSOR_DEFINITIONS = LLDB_DEBUGSERVER_RELEASE;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				HEADER_SEARCH_PATHS = /System/Library/Frameworks/System.framework/PrivateHeaders;
+				INSTALL_PATH = /usr/local/bin;
+				LLDB_COMPRESSION_LDFLAGS = "-lcompression";
+				LLDB_DEBUGSERVER = 1;
+				LLDB_ENERGY_CFLAGS = "";
+				"LLDB_ENERGY_CFLAGS[sdk=*.internal]" = "-DLLDB_ENERGY";
+				LLDB_ENERGY_LDFLAGS = "-lpmenergy -lpmsample";
+				OTHER_CFLAGS = (
+					"$(LLDB_ENERGY_CFLAGS)",
+					"-DDEBUGSERVER_PROGRAM_SYMBOL=debugserver_nonui",
+					"$(LLDB_OS_LOG_CFLAGS)",
+				);
+				"OTHER_CFLAGS[sdk=iphoneos*][arch=*]" = (
+					"-Wparentheses",
+					"-DOS_OBJECT_USE_OBJC=0",
+					"-DDEBUGSERVER_PROGRAM_SYMBOL=debugserver_nonui",
+					"$(LLDB_ENERGY_CFLAGS)",
+					"$(LLDB_OS_LOG_CFLAGS)",
+				);
+				"OTHER_CPLUSPLUSFLAGS[sdk=iphoneos*][arch=*]" = "$(OTHER_CFLAGS)";
+				OTHER_LDFLAGS = "";
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=*]" = (
+					"-framework",
+					Foundation,
+					"$(LLDB_ENERGY_LDFLAGS)",
+					"$(LLDB_COMPRESSION_LDFLAGS)",
+				);
+				"OTHER_LDFLAGS[sdk=macosx*]" = (
+					"-sectcreate",
+					__TEXT,
+					__info_plist,
+					"$(PROJECT_DIR)/resources/lldb-debugserver-Info.plist",
+					"$(LLDB_ENERGY_LDFLAGS)",
+					"$(LLDB_COMPRESSION_LDFLAGS)",
+				);
+				OTHER_MIGFLAGS = "-I$(DERIVED_FILE_DIR)";
+				PRODUCT_NAME = "debugserver-nonui";
+				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
+				"PROVISIONING_PROFILE[sdk=macosx*]" = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				USER_HEADER_SEARCH_PATHS = "./source ../../source $(DERIVED_SOURCES_DIR) ../../include";
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1DEB914E08733D8E0010E9CD /* Build configuration list for PBXProject "debugserver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1DEB914F08733D8E0010E9CD /* Debug */,
+				1DEB915008733D8E0010E9CD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		26CE05A4115C31ED0022F371 /* Build configuration list for PBXNativeTarget "debugserver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				26CE0596115C31C30022F371 /* Debug */,
+				26CE0597115C31C30022F371 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		456F676D1AD46CE9002850C2 /* Build configuration list for PBXNativeTarget "debugserver-mini" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				456F676E1AD46CE9002850C2 /* Debug */,
+				456F67701AD46CE9002850C2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 08FB7793FE84155DC02AAC07 /* Project object */;
+}

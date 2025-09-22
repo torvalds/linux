@@ -1,0 +1,18 @@
+static_library("Utils") {
+  output_name = "LLVMWebAssemblyUtils"
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+
+    # MCTargetDesc depends on Utils, so we can't depend on the full
+    # MCTargetDesc target here: it would form a cycle.
+    "//llvm/lib/Target/WebAssembly/MCTargetDesc:tablegen",
+    "//llvm/lib/Target/WebAssembly/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "WebAssemblyTypeUtilities.cpp",
+  ]
+}

@@ -1,0 +1,183 @@
+.\"	$OpenBSD: TS_REQ_new.3,v 1.7 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt TS_REQ_NEW 3
+.Os
+.Sh NAME
+.Nm TS_REQ_new ,
+.Nm TS_REQ_free ,
+.Nm TS_RESP_new ,
+.Nm TS_RESP_free ,
+.Nm TS_STATUS_INFO_new ,
+.Nm TS_STATUS_INFO_free ,
+.Nm TS_TST_INFO_new ,
+.Nm TS_TST_INFO_free ,
+.Nm TS_ACCURACY_new ,
+.Nm TS_ACCURACY_free ,
+.Nm TS_MSG_IMPRINT_new ,
+.Nm TS_MSG_IMPRINT_free
+.Nd X.509 time-stamp protocol
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ts.h
+.Ft TS_REQ *
+.Fn TS_REQ_new void
+.Ft void
+.Fn TS_REQ_free "TS_REQ *req"
+.Ft TS_RESP *
+.Fn TS_RESP_new void
+.Ft void
+.Fn TS_RESP_free "TS_RESP *resp"
+.Ft TS_STATUS_INFO *
+.Fn TS_STATUS_INFO_new void
+.Ft void
+.Fn TS_STATUS_INFO_free "TS_STATUS_INFO *status"
+.Ft TS_TST_INFO *
+.Fn TS_TST_INFO_new void
+.Ft void
+.Fn TS_TST_INFO_free "TS_TST_INFO *token"
+.Ft TS_ACCURACY *
+.Fn TS_ACCURACY_new void
+.Ft void
+.Fn TS_ACCURACY_free "TS_ACCURACY *accuracy"
+.Ft TS_MSG_IMPRINT *
+.Fn TS_MSG_IMPRINT_new void
+.Ft void
+.Fn TS_MSG_IMPRINT_free "TS_MSG_IMPRINT *imprint"
+.Sh DESCRIPTION
+A time-stamping authority is a trusted third party which allows its
+clients to prove that specific data existed at a particular point
+in time.
+Clients send time-stamping requests to the time-stamping server,
+which returns time-stamp tokens to the clients.
+.Pp
+.Fn TS_REQ_new
+allocates and initializes an empty
+.Vt TS_REQ
+object, representing an ASN.1
+.Vt TimeStampReq
+structure defined in RFC 3161 section 2.4.1.
+It can hold a hash of the datum to be time-stamped and some
+auxiliary, optional information.
+.Fn TS_REQ_free
+frees
+.Fa req .
+.Pp
+.Fn TS_RESP_new
+allocates and initializes an empty
+.Vt TS_RESP
+object, representing an ASN.1
+.Vt TimeStampResp
+structure defined in RFC 3161 section 2.4.2.
+It can hold status information and a time-stamp token.
+.Fn TS_RESP_free
+frees
+.Fa resp .
+.Pp
+.Fn TS_STATUS_INFO_new
+allocates and initializes an empty
+.Vt TS_STATUS_INFO
+object, representing an ASN.1
+.Vt PKIStatusInfo
+structure defined in RFC 3161 section 2.4.2.
+It is used inside
+.Vt TS_RESP
+and describes the outcome of one time-stamp request.
+.Fn TS_STATUS_INFO_free
+frees
+.Fa status .
+.Pp
+.Fn TS_TST_INFO_new
+allocates and initializes an empty
+.Vt TS_TST_INFO
+object, representing an ASN.1
+.Vt TSTInfo
+structure defined in RFC 3161 section 2.4.2.
+It is the time-stamp token included in a
+.Vt TS_RESP
+object in case of success, and it can hold the hash of the datum
+copied from a request, the time of generation, and some auxiliary
+information.
+.Fn TS_TST_INFO_free
+frees
+.Fa token .
+.Pp
+.Fn TS_ACCURACY_new
+allocates and initializes an empty
+.Vt TS_ACCURACY
+object, representing an ASN.1
+.Vt Accuracy
+structure defined in RFC 3161 section 2.4.2.
+It can be used inside a
+.Vt TS_TST_INFO
+object and indicates the maximum error of the time stated in the token.
+.Fn TS_ACCURACY_free
+frees
+.Fa accuracy .
+.Pp
+.Fn TS_MSG_IMPRINT_new
+allocates and initializes an empty
+.Vt TS_MSG_IMPRINT
+object, representing an ASN.1
+.Vt MessageImprint
+structure defined in RFC 3161 section 2.4.1.
+It is used inside
+.Vt TS_REQ
+and
+.Vt TS_RESP
+objects.
+It specifies a hash algorithm and stores the hash value of the datum.
+.Fn TS_MSG_IMPRINT_free
+frees
+.Fa imprint .
+.Sh RETURN VALUES
+.Fn TS_REQ_new ,
+.Fn TS_RESP_new ,
+.Fn TS_STATUS_INFO_new ,
+.Fn TS_TST_INFO_new ,
+.Fn TS_ACCURACY_new ,
+and
+.Fn TS_MSG_IMPRINT_new
+return the new
+.Vt TS_REQ ,
+.Vt TS_RESP ,
+.Vt TS_STATUS_INFO ,
+.Vt TS_TST_INFO ,
+.Vt TS_ACCURACY ,
+or
+.Vt TS_MSG_IMPRINT
+object, respectively, or
+.Dv NULL
+if an error occurred.
+.Sh SEE ALSO
+.Xr ACCESS_DESCRIPTION_new 3 ,
+.Xr ESS_SIGNING_CERT_new 3 ,
+.Xr X509_EXTENSION_new 3
+.Sh STANDARDS
+RFC 3161: Internet X.509 Public Key Infrastructure Time-Stamp Protocol
+.Pp
+Note that RFC 3161 has been updated
+by RFC 5816: ESSCertIDv2 Update for RFC 3161.
+That update allows using the Signing Certificate Attribute Definition
+Version 2 according to RFC 5035, but the current implementation
+only supports the Signing Certificate Attribute Definition Version
+1 according to RFC 2634, and hence only supports RFC 3161, but not
+RFC 5816 functionality.
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.0.0
+and have been available since
+.Ox 4.9 .

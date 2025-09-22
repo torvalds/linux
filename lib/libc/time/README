@@ -1,0 +1,66 @@
+$OpenBSD: README,v 1.11 2025/06/23 13:53:11 millert Exp $
+
+README for the tz distribution
+
+"What time is it?" -- Richard Deacon as The King
+"Any time you want it to be." -- Frank Baxter as The Scientist
+					(from the Bell System film "About Time")
+
+The Time Zone Database (often called tz or zoneinfo) contains code and
+data that represent the history of local time for many representative
+locations around the globe.  It is updated periodically to reflect
+changes made by political bodies to time zone boundaries, UTC offsets,
+and daylight-saving rules.
+
+Unless otherwise specified, all files in the tz code and data are in
+the public domain, so clarified as of 2009-05-17 by Arthur David Olson.
+The few exceptions are code derived from BSD, which uses the BSD license.
+
+Here is a recipe for acquiring, building, installing, and testing the
+tz distribution on a GNU/Linux or similar host.
+
+	mkdir tz
+	cd tz
+	wget --retr-symlinks 'ftp://ftp.iana.org/tz/tz*-latest.tar.gz'
+	gzip -dc tzcode-latest.tar.gz | tar -xf -
+	gzip -dc tzdata-latest.tar.gz | tar -xf -
+
+Be sure to read the comments in "Makefile" and make any changes needed
+to make things right for your system, especially if you are using some
+platform other than GNU/Linux.  Then run the following commands,
+substituting your desired installation directory for "$HOME/tzdir":
+
+	make TOPDIR=$HOME/tzdir install
+	$HOME/tzdir/etc/zdump -v America/Los_Angeles
+
+Historical local time information has been included here to:
+
+*	provide a compendium of data about the history of civil time
+	that is useful even if the data are not 100% accurate;
+
+*	give an idea of the variety of local time rules that have
+	existed in the past and thus an idea of the variety that may be
+	expected in the future;
+
+*	provide a test of the generality of the local time rule description
+	system.
+
+The information in the time zone data files is by no means authoritative;
+the files currently do not even attempt to cover all time stamps before
+1970, and there are undoubtedly errors even for time stamps since 1970.
+If you know that the rules are different from those in a file, by all means
+feel free to change a file (and please send the changed version to
+tz@iana.org for use in the future).  Europeans take note!
+
+Thanks to these Timezone Caballeros who've made major contributions to the
+time conversion package:  Keith Bostic; Bob Devine; Paul Eggert; Robert Elz;
+Guy Harris; Mark Horton; John Mackin; and Bradley White.  Thanks also to
+Michael Bloom, Art Neilson, Stephen Prince, John Sovereign, and Frank Wales
+for testing work, and to Gwillim Law for checking local mean time data.
+Thanks in particular to Arthur David Olson, the project's founder and first
+maintainer, to whom the timezone community owes the greatest debt of all.
+None of them are responsible for remaining errors.
+
+Look in <ftp://ftp.iana.org/tz/releases/> for updated versions of these files.
+
+Please send comments or information to tz@iana.org.

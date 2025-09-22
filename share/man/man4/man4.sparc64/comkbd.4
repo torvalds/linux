@@ -1,0 +1,58 @@
+.\"     $OpenBSD: comkbd.4,v 1.9 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2002 Jason L. Wright (jason@thought.net)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt COMKBD 4 sparc64
+.Os
+.Sh NAME
+.Nm comkbd
+.Nd serial keyboard driver
+.Sh SYNOPSIS
+.Cd "comkbd* at ebus?"
+.Cd "wskbd* at comkbd?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Sun serial keyboards such as the Type 4,
+Type 5, and Type 6 attached to a clone of the
+.Tn NS16550
+UART (normally supported by the
+.Xr com 4
+driver).
+.Sh SEE ALSO
+.Xr com 4 ,
+.Xr comms 4 ,
+.Xr ebus 4 ,
+.Xr intro 4 ,
+.Xr wskbd 4
+.Sh HISTORY
+The
+.Nm
+driver was first supported in
+.Ox 3.1 .
+.Sh AUTHORS
+The driver was written by
+.An Jason Wright Aq Mt jason@thought.net .

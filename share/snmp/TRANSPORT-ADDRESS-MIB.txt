@@ -1,0 +1,421 @@
+TRANSPORT-ADDRESS-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-IDENTITY, mib-2     FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION                          FROM SNMPv2-TC;
+
+transportAddressMIB MODULE-IDENTITY
+    LAST-UPDATED "200211010000Z"
+    ORGANIZATION
+        "IETF Operations and Management Area"
+    CONTACT-INFO
+        "Juergen Schoenwaelder (Editor)
+         TU Braunschweig
+         Bueltenweg 74/75
+         38106 Braunschweig, Germany
+
+         Phone: +49 531 391-3289
+         EMail: schoenw@ibr.cs.tu-bs.de
+
+         Send comments to <mibs@ops.ietf.org>."
+    DESCRIPTION
+        "This MIB module provides commonly used transport
+         address definitions.
+
+         Copyright (C) The Internet Society (2002). This version of
+         this MIB module is part of RFC 3419; see the RFC itself for
+         full legal notices."
+
+    -- Revision log
+
+    REVISION    "200211010000Z"
+    DESCRIPTION
+        "Initial version, published as RFC 3419."
+    ::= { mib-2 100 }
+
+transportDomains OBJECT IDENTIFIER ::= { transportAddressMIB 1 }
+
+transportDomainUdpIpv4 OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The UDP over IPv4 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv4 for
+         global IPv4 addresses."
+    ::= { transportDomains 1 }
+
+transportDomainUdpIpv6 OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The UDP over IPv6 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv6 for
+         global IPv6 addresses."
+    ::= { transportDomains 2 }
+
+transportDomainUdpIpv4z OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The UDP over IPv4 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv4z for
+         scoped IPv4 addresses with a zone index."
+    ::= { transportDomains 3 }
+
+transportDomainUdpIpv6z OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The UDP over IPv6 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv6z for
+         scoped IPv6 addresses with a zone index."
+    ::= { transportDomains 4 }
+
+transportDomainTcpIpv4 OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The TCP over IPv4 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv4 for
+         global IPv4 addresses."
+    ::= { transportDomains 5 }
+
+transportDomainTcpIpv6 OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The TCP over IPv6 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv6 for
+         global IPv6 addresses."
+    ::= { transportDomains 6 }
+
+transportDomainTcpIpv4z OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The TCP over IPv4 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv4z for
+         scoped IPv4 addresses with a zone index."
+    ::= { transportDomains 7 }
+
+transportDomainTcpIpv6z OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The TCP over IPv6 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv6z for
+         scoped IPv6 addresses with a zone index."
+    ::= { transportDomains 8 }
+
+transportDomainSctpIpv4 OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The SCTP over IPv4 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv4 for
+         global IPv4 addresses. This transport domain usually
+         represents the primary address on multihomed SCTP
+         endpoints."
+    ::= { transportDomains 9 }
+
+transportDomainSctpIpv6 OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The SCTP over IPv6 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv6 for
+         global IPv6 addresses. This transport domain usually
+         represents the primary address on multihomed SCTP
+         endpoints."
+    ::= { transportDomains 10 }
+
+transportDomainSctpIpv4z OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The SCTP over IPv4 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv4z for
+         scoped IPv4 addresses with a zone index. This transport
+         domain usually represents the primary address on
+         multihomed SCTP endpoints."
+    ::= { transportDomains 11 }
+
+transportDomainSctpIpv6z OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The SCTP over IPv6 transport domain.  The corresponding
+         transport address is of type TransportAddressIPv6z for
+         scoped IPv6 addresses with a zone index. This transport
+         domain usually represents the primary address on
+         multihomed SCTP endpoints."
+    ::= { transportDomains 12 }
+
+transportDomainLocal OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The Posix Local IPC transport domain. The corresponding
+         transport address is of type TransportAddressLocal.
+
+         The Posix Local IPC transport domain incorporates the
+         well-known UNIX domain sockets."
+    ::= { transportDomains 13 }
+
+transportDomainUdpDns OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The UDP transport domain using fully qualified domain
+         names. The corresponding transport address is of type
+         TransportAddressDns."
+    ::= { transportDomains 14 }
+
+transportDomainTcpDns OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The TCP transport domain using fully qualified domain
+         names. The corresponding transport address is of type
+         TransportAddressDns."
+    ::= { transportDomains 15 }
+
+transportDomainSctpDns OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION
+        "The SCTP transport domain using fully qualified domain
+         names. The corresponding transport address is of type
+         TransportAddressDns."
+    ::= { transportDomains 16 }
+
+TransportDomain ::= TEXTUAL-CONVENTION
+    STATUS      current
+    DESCRIPTION
+        "A value that represents a transport domain.
+
+         Some possible values, such as transportDomainUdpIpv4, are
+         defined in this module.  Other possible values can be
+         defined in other MIB modules."
+    SYNTAX      OBJECT IDENTIFIER
+
+--
+-- The enumerated values of the textual convention below should
+-- be identical to the last sub-identifier of the OID registered
+-- for the same domain.
+--
+
+TransportAddressType ::= TEXTUAL-CONVENTION
+    STATUS      current
+    DESCRIPTION
+        "A value that represents a transport domain. This is the
+         enumerated version of the transport domain registrations
+         in this MIB module. The enumerated values have the
+         following meaning:
+
+         unknown(0)     unknown transport address type
+         udpIpv4(1)     transportDomainUdpIpv4
+         udpIpv6(2)     transportDomainUdpIpv6
+         udpIpv4z(3)    transportDomainUdpIpv4z
+         udpIpv6z(4)    transportDomainUdpIpv6z
+         tcpIpv4(5)     transportDomainTcpIpv4
+         tcpIpv6(6)     transportDomainTcpIpv6
+         tcpIpv4z(7)    transportDomainTcpIpv4z
+
+         tcpIpv6z(8)    transportDomainTcpIpv6z
+         sctpIpv4(9)    transportDomainSctpIpv4
+         sctpIpv6(10)   transportDomainSctpIpv6
+         sctpIpv4z(11)  transportDomainSctpIpv4z
+         sctpIpv6z(12)  transportDomainSctpIpv6z
+         local(13)      transportDomainLocal
+         udpDns(14)     transportDomainUdpDns
+         tcpDns(15)     transportDomainTcpDns
+         sctpDns(16)    transportDomainSctpDns
+
+         This textual convention can be used to represent transport
+         domains in situations where a syntax of TransportDomain is
+         unwieldy (for example, when used as an index).
+
+         The usage of this textual convention implies that additional
+         transport domains can only be supported by updating this MIB
+         module. This extensibility restriction does not apply for the
+         TransportDomain textual convention which allows MIB authors
+         to define additional transport domains independently in
+         other MIB modules."
+    SYNTAX      INTEGER {
+                    unknown(0),
+                    udpIpv4(1),
+                    udpIpv6(2),
+                    udpIpv4z(3),
+                    udpIpv6z(4),
+                    tcpIpv4(5),
+                    tcpIpv6(6),
+                    tcpIpv4z(7),
+                    tcpIpv6z(8),
+                    sctpIpv4(9),
+                    sctpIpv6(10),
+                    sctpIpv4z(11),
+                    sctpIpv6z(12),
+                    local(13),
+                    udpDns(14),
+                    tcpDns(15),
+                    sctpDns(16)
+                }
+
+TransportAddress ::= TEXTUAL-CONVENTION
+    STATUS      current
+    DESCRIPTION
+        "Denotes a generic transport address.
+
+         A TransportAddress value is always interpreted within the
+         context of a TransportAddressType or TransportDomain value.
+         Every usage of the TransportAddress textual convention MUST
+
+         specify the TransportAddressType or TransportDomain object
+         which provides the context. Furthermore, MIB authors SHOULD
+         define a separate TransportAddressType or TransportDomain
+         object for each TransportAddress object. It is suggested that
+         the TransportAddressType or TransportDomain is logically
+         registered before the object(s) which use the
+         TransportAddress textual convention if they appear in the
+         same logical row.
+
+         The value of a TransportAddress object must always be
+         consistent with the value of the associated
+         TransportAddressType or TransportDomain object. Attempts
+         to set a TransportAddress object to a value which is
+         inconsistent with the associated TransportAddressType or
+         TransportDomain must fail with an inconsistentValue error.
+
+         When this textual convention is used as a syntax of an
+         index object, there may be issues with the limit of 128
+         sub-identifiers specified in SMIv2, STD 58. In this case,
+         the OBJECT-TYPE declaration MUST include a 'SIZE' clause
+         to limit the number of potential instance sub-identifiers."
+    SYNTAX      OCTET STRING (SIZE (0..255))
+
+TransportAddressIPv4 ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "1d.1d.1d.1d:2d"
+    STATUS      current
+    DESCRIPTION
+        "Represents a transport address consisting of an IPv4
+         address and a port number (as used for example by UDP,
+         TCP and SCTP):
+
+          octets       contents         encoding
+           1-4         IPv4 address     network-byte order
+           5-6         port number      network-byte order
+
+         This textual convention SHOULD NOT be used directly in object
+         definitions since it restricts addresses to a specific format.
+         However, if it is used, it MAY be used either on its own or
+         in conjunction with TransportAddressType or TransportDomain
+         as a pair."
+    SYNTAX      OCTET STRING (SIZE (6))
+
+TransportAddressIPv6 ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "0a[2x:2x:2x:2x:2x:2x:2x:2x]0a:2d"
+    STATUS      current
+    DESCRIPTION
+        "Represents a transport address consisting of an IPv6
+         address and a port number (as used for example by UDP,
+         TCP and SCTP):
+
+          octets       contents         encoding
+           1-16        IPv6 address     network-byte order
+          17-18        port number      network-byte order
+
+         This textual convention SHOULD NOT be used directly in object
+         definitions since it restricts addresses to a specific format.
+         However, if it is used, it MAY be used either on its own or
+         in conjunction with TransportAddressType or TransportDomain
+         as a pair."
+    SYNTAX      OCTET STRING (SIZE (18))
+
+TransportAddressIPv4z ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "1d.1d.1d.1d%4d:2d"
+    STATUS      current
+    DESCRIPTION
+        "Represents a transport address consisting of an IPv4
+         address, a zone index and a port number (as used for
+         example by UDP, TCP and SCTP):
+
+          octets       contents         encoding
+           1-4         IPv4 address     network-byte order
+           5-8         zone index       network-byte order
+           9-10        port number      network-byte order
+
+         This textual convention SHOULD NOT be used directly in object
+         definitions since it restricts addresses to a specific format.
+         However, if it is used, it MAY be used either on its own or
+         in conjunction with TransportAddressType or TransportDomain
+         as a pair."
+    SYNTAX      OCTET STRING (SIZE (10))
+
+TransportAddressIPv6z ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "0a[2x:2x:2x:2x:2x:2x:2x:2x%4d]0a:2d"
+    STATUS      current
+    DESCRIPTION
+        "Represents a transport address consisting of an IPv6
+         address, a zone index and a port number (as used for
+         example by UDP, TCP and SCTP):
+
+          octets       contents         encoding
+           1-16        IPv6 address     network-byte order
+          17-20        zone index       network-byte order
+          21-22        port number      network-byte order
+
+         This textual convention SHOULD NOT be used directly in object
+         definitions since it restricts addresses to a specific format.
+
+         However, if it is used, it MAY be used either on its own or
+         in conjunction with TransportAddressType or TransportDomain
+         as a pair."
+    SYNTAX      OCTET STRING (SIZE (22))
+
+TransportAddressLocal ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "1a"
+    STATUS      current
+    DESCRIPTION
+        "Represents a POSIX Local IPC transport address:
+
+          octets       contents                   encoding
+           all         POSIX Local IPC address    string
+
+         The Posix Local IPC transport domain subsumes UNIX domain
+         sockets.
+
+         This textual convention SHOULD NOT be used directly in object
+         definitions since it restricts addresses to a specific format.
+         However, if it is used, it MAY be used either on its own or
+         in conjunction with TransportAddressType or TransportDomain
+         as a pair.
+
+         When this textual convention is used as a syntax of an
+         index object, there may be issues with the limit of 128
+         sub-identifiers specified in SMIv2, STD 58. In this case,
+         the OBJECT-TYPE declaration MUST include a 'SIZE' clause
+         to limit the number of potential instance sub-identifiers."
+    REFERENCE
+        "Protocol Independent Interfaces (IEEE POSIX 1003.1g)"
+    SYNTAX      OCTET STRING (SIZE (1..255))
+
+TransportAddressDns ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "1a"
+    STATUS      current
+    DESCRIPTION
+        "Represents a DNS domain name followed by a colon ':'
+         (ASCII character 0x3A) and a port number in ASCII.
+         The name SHOULD be fully qualified whenever possible.
+
+         Values of this textual convention are not directly useable as
+         transport-layer addressing information, and require runtime
+         resolution. As such, applications that write them must be
+         prepared for handling errors if such values are not
+         supported, or cannot be resolved (if resolution occurs at the
+         time of the management operation).
+
+         The DESCRIPTION clause of TransportAddress objects that may
+
+         have TransportAddressDns values must fully describe how (and
+         when) such names are to be resolved to IP addresses and vice
+         versa.
+
+         This textual convention SHOULD NOT be used directly in object
+         definitions since it restricts addresses to a specific format.
+         However, if it is used, it MAY be used either on its own or
+         in conjunction with TransportAddressType or TransportDomain
+         as a pair.
+
+         When this textual convention is used as a syntax of an
+         index object, there may be issues with the limit of 128
+         sub-identifiers specified in SMIv2, STD 58. In this case,
+         the OBJECT-TYPE declaration MUST include a 'SIZE' clause
+         to limit the number of potential instance sub-identifiers."
+    SYNTAX      OCTET STRING (SIZE (1..255))
+
+END

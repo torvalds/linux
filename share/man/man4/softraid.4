@@ -1,0 +1,273 @@
+.\"	$OpenBSD: softraid.4,v 1.56 2025/04/13 13:17:31 jmc Exp $
+.\"
+.\" Copyright (c) 2007 Todd T. Fries   <todd@OpenBSD.org>
+.\" Copyright (c) 2007 Marco Peereboom <marco@OpenBSD.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 13 2025 $
+.Dt SOFTRAID 4
+.Os
+.Sh NAME
+.Nm softraid
+.Nd software RAID
+.Sh SYNOPSIS
+.Cd "softraid0 at root"
+.Sh DESCRIPTION
+The
+.Nm
+device emulates a Host Bus Adapter (HBA) that provides RAID and other I/O
+related services.
+The
+.Nm
+device provides a scaffold to implement more complex I/O transformation
+disciplines.
+For example, one can tie chunks together into a mirroring discipline.
+There really is no limit on what type of discipline one can write as long
+as it fits the SCSI model.
+.Pp
+.Nm
+supports a number of
+.Em disciplines .
+A discipline is a collection of functions
+that provides specific I/O functionality.
+This includes I/O path, bring-up, failure recovery, and statistical
+information gathering.
+Essentially a discipline is a lower
+level driver that provides the I/O transformation for the softraid
+device.
+.Pp
+A
+.Em volume
+is a virtual disk device that is made up of a collection of chunks.
+.Pp
+A
+.Em chunk
+is a partition or storage area of fstype
+.Dq RAID .
+.Xr disklabel 8
+is used to alter the fstype.
+.Pp
+Currently
+.Nm
+supports the following disciplines:
+.Bl -ohang -offset indent
+.It RAID 0
+A
+.Em striping
+discipline.
+It segments data over a number of chunks to increase performance.
+RAID 0 does not provide for data loss (redundancy).
+.It RAID 1
+A
+.Em mirroring
+discipline.
+It copies data across more than one chunk to provide for data loss.
+Read performance is increased,
+though at the cost of write speed.
+Unlike traditional RAID 1,
+.Nm
+supports the use of more than two chunks in a RAID 1 setup.
+.It RAID 5
+A
+.Em striping
+discipline with
+.Em floating parity
+across all chunks.
+It stripes data across chunks and provides parity to prevent data loss of
+a single chunk failure.
+Read performance is increased;
+write performance does incur additional overhead.
+.It CRYPTO
+An
+.Em encrypting
+discipline.
+It encrypts data on a single chunk to provide for data confidentiality.
+CRYPTO does not provide redundancy.
+.It CONCAT
+A
+.Em concatenating
+discipline.
+It writes data to each chunk in sequence to provide increased capacity.
+CONCAT does not provide redundancy.
+.It RAID 1C
+A
+.Em mirroring
+and
+.Em encrypting
+discipline.
+It encrypts data to provide for data confidentiality and copies the
+encrypted data across more than one chunk to prevent data loss in
+case of a chunk failure.
+Unlike traditional RAID 1,
+.Nm
+supports the use of more than two chunks in a RAID 1C setup.
+.El
+.Pp
+.Xr installboot 8
+may be used to install
+.Xr boot 8
+in the boot storage area of the
+.Nm
+volume.
+All chunks in the volume will then be bootable.
+Boot support is currently limited to the CRYPTO, RAID 1, and RAID 1C disciplines
+on the amd64, arm64, riscv64 and sparc64 platforms.
+Boot support on i386 is limited to CRYPTO and RAID 1.
+On sparc64, bootable chunks must be RAID partitions using the letter
+.Sq a .
+At the
+.Xr boot 8
+prompt, softraid volumes have names beginning with
+.Sq sr
+and can be booted from like a normal disk device.
+CRYPTO and 1C volumes will require a decryption passphrase or keydisk
+at boot time.
+.Pp
+The status of
+.Nm
+volumes is reported via
+.Xr sysctl 8
+such that it can be monitored by
+.Xr sensorsd 8 .
+Each volume has one fourth level node named
+.Va hw.sensors.softraid0.drive Ns Ar N ,
+where
+.Ar N
+is a small integer indexing the volume.
+The format of the volume status is:
+.Pp
+.D1 Ar value Po Ar device Pc , Ar status
+.Pp
+The
+.Ar device
+identifies the
+.Nm
+volume.
+The following combinations of
+.Ar value
+and
+.Ar status
+can occur:
+.Bl -tag -width Ds -offset indent
+.It Sy online , OK
+The volume is operating normally.
+.It Sy degraded , WARNING
+The volume as a whole is operational, but not all of its chunks are.
+In many cases, using
+.Xr bioctl 8
+.Fl R
+to rebuild the failed chunk is advisable.
+.It Sy rebuilding , WARNING
+A rebuild operation was recently started and has not yet completed.
+.It Sy failed , CRITICAL
+The device is currently unable to process I/O.
+.It Sy unknown , UNKNOWN
+The status is unknown to the system.
+.El
+.Sh EXAMPLES
+An example to create a 3 chunk RAID 1 from scratch is as follows:
+.Pp
+Initialize the partition tables of all disks:
+.Bd -literal -offset indent
+# fdisk -iy wd1
+# fdisk -iy wd2
+# fdisk -iy wd3
+.Ed
+.Pp
+Now create RAID partitions on all disks:
+.Bd -literal -offset indent
+# echo 'RAID *' | disklabel -wAT- wd1
+# echo 'RAID *' | disklabel -wAT- wd2
+# echo 'RAID *' | disklabel -wAT- wd3
+.Ed
+.Pp
+Assemble the RAID volume:
+.Bd -literal -offset indent
+# bioctl -c 1 -l /dev/wd1a,/dev/wd2a,/dev/wd3a softraid0
+.Ed
+.Pp
+The console will show what device was added to the system:
+.Bd -literal -offset indent
+scsibus0 at softraid0: 1 targets
+sd0 at scsibus0 targ 0 lun 0: <OPENBSD, SR RAID 1, 001> SCSI2
+sd0: 1MB, 0 cyl, 255 head, 63 sec, 512 bytes/sec, 3714 sec total
+.Ed
+.Pp
+It is good practice to wipe the front of the disk before using it:
+.Bd -literal -offset indent
+# dd if=/dev/zero of=/dev/rsd0c bs=1m count=1
+.Ed
+.Pp
+Initialize the partition table and create a filesystem on the
+new RAID volume:
+.Bd -literal -offset indent
+# fdisk -iy sd0
+# echo '/ *' | disklabel -wAT- sd0
+# newfs /dev/rsd0a
+.Ed
+.Pp
+The RAID volume is now ready to be used as a normal disk device.
+See
+.Xr bioctl 8
+for more information on configuration of RAID sets.
+.Pp
+Install
+.Xr boot 8
+on the RAID volume, writing boot loaders to all 3 chunks:
+.Bd -literal -offset indent
+# installboot sd0
+.Ed
+.Pp
+At the
+.Xr boot 8
+prompt, load the /bsd kernel from the RAID volume:
+.Bd -literal -offset indent
+boot> boot sr0a:/bsd
+.Ed
+.Sh SEE ALSO
+.Xr bio 4 ,
+.Xr bioctl 8 ,
+.Xr boot 8 ,
+.Xr boot_sparc64 8 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr installboot 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.2 .
+.Sh AUTHORS
+.An Marco Peereboom .
+.Sh CAVEATS
+The driver relies on underlying hardware to properly fail chunks.
+.Pp
+The RAID 1 discipline does not initialize the mirror upon creation.
+This is by design because all sectors that are read are written first.
+There is no point in wasting a lot of time syncing random data.
+.Pp
+The RAID 5 discipline does not initialize parity upon creation, instead parity
+is only updated upon write.
+.Pp
+Stacking disciplines (CRYPTO on top of RAID 5, for example) is not
+supported at this time.
+.Pp
+Currently there is no automated mechanism to recover from failed disks.
+.Pp
+Certain RAID levels can protect against some data loss
+due to component failure.
+RAID is
+.Em not
+a substitute for good backup practices.

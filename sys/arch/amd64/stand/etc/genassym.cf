@@ -1,0 +1,30 @@
+#	$OpenBSD: genassym.cf,v 1.2 2007/06/17 00:30:18 deraadt Exp $
+
+include <sys/param.h>
+include <sys/disklabel.h>
+
+include <machine/specialreg.h>
+include <machine/segments.h>
+include <machine/biosvar.h>
+
+export	DOSPARTOFF
+export	DOSACTIVE
+export	DOSPTYP_OPENBSD
+export	NDOSPART
+export	DOSMBR_SIGNATURE
+export	DEV_BSIZE
+export	CR0_PE
+export	SDT_MEMERAC
+export	SDT_MEMERA
+export	SDT_MEMRWA
+export	SDT_SYS386TGT
+struct	BIOS_regs
+member	biosr_ax
+member	biosr_cx
+member	biosr_dx
+member	biosr_bx
+member	biosr_bp
+member	biosr_si
+member	biosr_di
+member	biosr_ds
+member	biosr_es

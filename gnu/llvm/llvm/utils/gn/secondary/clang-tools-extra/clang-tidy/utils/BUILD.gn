@@ -1,0 +1,38 @@
+static_library("utils") {
+  output_name = "clangTidyUtils"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/Tooling/Transformer",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "ASTUtils.cpp",
+    "Aliasing.cpp",
+    "BracesAroundStatement.cpp",
+    "DeclRefExprUtils.cpp",
+    "DesignatedInitializers.cpp",
+    "ExceptionAnalyzer.cpp",
+    "ExceptionSpecAnalyzer.cpp",
+    "ExprSequence.cpp",
+    "FileExtensionsUtils.cpp",
+    "FixItHintUtils.cpp",
+    "FormatStringConverter.cpp",
+    "HeaderGuard.cpp",
+    "IncludeInserter.cpp",
+    "IncludeSorter.cpp",
+    "LexerUtils.cpp",
+    "Matchers.cpp",
+    "NamespaceAliaser.cpp",
+    "OptionsUtils.cpp",
+    "RenamerClangTidyCheck.cpp",
+    "TransformerClangTidyCheck.cpp",
+    "TypeTraits.cpp",
+    "UseRangesCheck.cpp",
+    "UsingInserter.cpp",
+  ]
+}

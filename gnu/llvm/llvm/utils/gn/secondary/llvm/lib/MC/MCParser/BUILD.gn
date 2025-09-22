@@ -1,0 +1,25 @@
+static_library("MCParser") {
+  output_name = "LLVMMCParser"
+  deps = [
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+
+  sources = [
+    "AsmLexer.cpp",
+    "AsmParser.cpp",
+    "COFFAsmParser.cpp",
+    "COFFMasmParser.cpp",
+    "DarwinAsmParser.cpp",
+    "ELFAsmParser.cpp",
+    "GOFFAsmParser.cpp",
+    "MCAsmLexer.cpp",
+    "MCAsmParser.cpp",
+    "MCAsmParserExtension.cpp",
+    "MCTargetAsmParser.cpp",
+    "MasmParser.cpp",
+    "WasmAsmParser.cpp",
+    "XCOFFAsmParser.cpp",
+  ]
+}

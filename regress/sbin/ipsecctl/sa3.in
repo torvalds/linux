@@ -1,0 +1,6 @@
+esp from 1.1.1.1 to 2.2.2.2 spi 0xdeadbeef \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+	enckey 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+esp from 2.2.2.2 to 1.1.1.1 spi 0xbeefdead \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+	enckey 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee

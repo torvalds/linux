@@ -1,0 +1,20 @@
+import("//third-party/unittest/unittest.gni")
+
+# This test is currently not referenced by anything, it only exists
+# to make sync_source_lists_from_cmake.py happy.
+unittest("DirextXTests") {
+  deps = [
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+
+    # FIXME: If we we ever add lib/Target/DirectX to the GN build, add this dep,
+    # and make /llvm/unittests depend on DirextXTests.
+    #"//llvm/lib/Target/DirectX:LLVMDirectXCodeGen",
+  ]
+  sources = [
+    "CBufferDataLayoutTests.cpp",
+    "PointerTypeAnalysisTests.cpp",
+  ]
+}

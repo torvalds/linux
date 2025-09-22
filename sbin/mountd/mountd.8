@@ -1,0 +1,116 @@
+.\"	$OpenBSD: mountd.8,v 1.21 2022/07/30 07:19:30 jsg Exp $
+.\"	$NetBSD: mountd.8,v 1.11 1996/02/18 11:57:51 fvdl Exp $
+.\"
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
+.\"
+.Dd $Mdocdate: July 30 2022 $
+.Dt MOUNTD 8
+.Os
+.Sh NAME
+.Nm mountd
+.Nd service remote NFS mount requests
+.Sh SYNOPSIS
+.Nm mountd
+.Op Fl d
+.Op Ar exportsfile
+.Sh DESCRIPTION
+.Nm
+is the server for NFS mount requests from other client machines.
+.Nm
+listens for service requests at the port indicated in the NFS
+server specification; see
+.%T "Network File System Protocol Specification" ,
+RFC 1094, Appendix A and
+.%T "NFS: Network File System Version 3 Protocol Specification" ,
+RFC 1813, Appendix I.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Enable debugging mode.
+.Nm
+will not detach from the controlling terminal and will print
+debugging messages to stderr.
+.It Ar exportsfile
+The
+.Ar exportsfile
+argument specifies an alternate location
+for the exports file.
+.El
+.Pp
+When
+.Nm
+is started,
+it loads the export host addresses and options into the kernel
+using the
+.Xr mount 2
+system call.
+After changing the exports file,
+a hangup signal should be sent to the
+.Nm
+daemon
+to get it to reload the export information.
+After sending the
+.Dv SIGHUP
+(kill \-HUP `cat /var/run/mountd.pid`),
+check the syslog output to see if
+.Nm
+logged any parsing
+errors in the exports file.
+.Sh FILES
+.Bl -tag -width /var/run/mountd.pid -compact
+.It Pa /etc/exports
+list of exported filesystems
+.It Pa /var/db/mountdtab
+list of exported filesystems currently mounted
+.It Pa /var/run/mountd.pid
+PID of the currently running
+.Nm
+.El
+.Sh SEE ALSO
+.Xr nfsstat 1 ,
+.Xr exports 5 ,
+.Xr nfsd 8 ,
+.Xr portmap 8 ,
+.Xr showmount 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.3 Reno .
+.Pp
+The
+.Fl n
+flag historically allowed clients to use non-reserved ports
+when communicating with
+.Nm .
+In
+.Ox ,
+a reserved port is always used.

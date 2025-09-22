@@ -1,0 +1,50 @@
+.\" $OpenBSD: igc.4,v 1.3 2023/03/31 13:48:34 jmc Exp $
+.\"
+.\" Copyright (c) 2021 Patrick Wildt <patrick@blueri.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2023 $
+.Dt IGC 4
+.Os
+.Sh NAME
+.Nm igc
+.Nd Intel I225/I226 1Gb/2.5Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "igc* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Intel I225/I226 series Ethernet devices.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Intel Corporation
+and ported to
+.Ox
+by
+.An Kevin Lo Aq Mt kevlo@openbsd.org .

@@ -1,0 +1,14 @@
+flow esp out from 3ffe::3 to 3ffe::2 peer 3ffe::3 type require
+flow esp in from 3ffe::2 to 3ffe::3 peer 3ffe::3 type require
+flow esp out from 3ffe::3 to 3ffe::2 peer 3ffe::3 type use
+flow esp in from 3ffe::2 to 3ffe::3 peer 3ffe::3 type use
+flow esp out from 3ffe::3 to 3ffe::2 peer 3ffe::3 type require
+flow esp in from 3ffe::2 to 3ffe::3 peer 3ffe::3 type require
+flow esp out from 3ffe::3 to 3ffe::2 peer 3ffe::3 type acquire
+flow esp in from 3ffe::2 to 3ffe::3 peer 3ffe::3 type acquire
+flow esp out from 3ffe::3 to 3ffe::2 peer 3ffe::3 type dontacq
+flow esp in from 3ffe::2 to 3ffe::3 peer 3ffe::3 type dontacq
+flow esp out from 3ffe::3 to 3ffe::2 type bypass
+flow esp in from 3ffe::2 to 3ffe::3 type bypass
+flow esp out from 3ffe::3 to 3ffe::2 type deny
+flow esp in from 3ffe::2 to 3ffe::3 type deny

@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="DESCRIPTION" content="configury for libstdc++" />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 configury</title>
+<link rel="StyleSheet" href="../lib3styles.css" type='text/css' />
+<link rel="Start" href="../documentation.html" type="text/html"
+ title="GNU C++ Standard Library" />
+</head>
+<body>
+
+<h1><code>&gt; open configury door</code></h1>
+<h1><code>&gt; look</code></h1>
+
+<p class="larger"><code>You are in a maze of twisty passages, all
+different.</code></p>
+<p class="larger"><code>It is dark.  You are likely to be eaten by a
+Canadian cross build.</code></p>
+
+
+<hr />
+<h2>Notes on libstdc++-v3 configury</h2>
+<blockquote>
+No problem is insoluble in all conceivable circumstances.<br />
+-- The Cosmic AC,
+<a href="http://mit.edu/tylerc/www/twt/LQ1.htm">The
+Last Question</a>, by Isaac Asimov
+</blockquote>
+<ul>
+ <li><a href="#deps">what comes from where</a></li>
+ <li><a href="#breakout">storing information in non-AC files, like
+                         configure.host</a></li>
+ <li><a href="#general">general config notes</a></li>
+ <li><a href="#aclayout">acinclude.m4 layout</a></li>
+ <li><a href="#enable"><code>--enable</code> howto</a></li>
+</ul>
+
+<hr />
+<h3><a name="deps">what comes from where</a></h3>
+<p class="centered"><img src="confdeps.png"
+  alt="Dependency graph in PNG graphics format.  (Get a better browser!)" /></p>
+
+<p>Regenerate using a command sequence like
+   <code>"aclocal-1.7 &amp;&amp; autoconf-2.59 &amp;&amp; autoheader-2.59
+   &amp;&amp; automake-1.7"</code> as needed.  And/or configure with
+   --enable-maintainer-mode.  The version numbers will vary depending on
+   <a href="http://gcc.gnu.org/install/prerequisites.html">the current
+   requirements</a> and your vendor's choice of installation names.
+</p>
+
+
+<hr />
+<h3><a name="breakout">storing information in non-AC files, like
+                       configure.host</a></h3>
+<p>Until that glorious day when we can use AC_TRY_LINK with a cross-compiler,
+   we have to hardcode the results of what the tests would have shown if
+   they could be run.  So we have an inflexible mess like crossconfig.m4.
+</p>
+
+<p>Wouldn't it be nice if we could store that information in files like
+   configure.host, which can be modified without needing to regenerate
+   anything, and can even be tweaked without really knowing how the configury
+   all works?  Perhaps break the pieces of crossconfig.m4 out and place them in
+   their appropriate config/{cpu,os} directory.
+</p>
+
+<p>Alas, writing macros like "<code>AC_DEFINE(HAVE_A_NICE_DAY)</code>" can
+   only be done inside files which are passed through autoconf.  Files which
+   are pure shell script can be source'd at configure time.  Files which
+   contain autoconf macros must be processed with autoconf.  We could still
+   try breaking the pieces out into "config/*/cross.m4" bits, for instance,
+   but then we would need arguments to aclocal/autoconf to properly find
+   them all when generating configure.  I would discourage that.
+</p>
+
+
+<hr />
+<h3><a name="general">general config notes</a></h3>
+<p>Lots of stuff got thrown out because the new autotools kindly generate
+   the same (or better) shell code for us.
+</p>
+
+<p>Most comments should use {octothorpes, shibboleths, hash marks, pound
+   signs, whatevers} rather than "dnl".  Nearly all comments in configure.ac
+   should.  Comments inside macros written in ancilliary .m4 files should.
+   About the only comments which should <em>not</em> use #, but use dnl
+   instead, are comments <em>outside</em> our own macros in the ancilliary
+   files.  The difference is that # comments show up in <code>configure</code>
+   (which is most helpful for debugging), while dnl'd lines just vanish.
+   Since the macros in ancilliary files generate code which appears in odd
+   places, their "outside" comments tend to not be useful while reading
+   <code>configure</code>.
+</p>
+
+<p>Do not use any <code>$target*</code> variables, such as
+   <code>$target_alias</code>.  The single exception is in configure.ac,
+   for automake+dejagnu's sake.
+</p>
+
+<p>
+</p>
+
+<hr />
+<h3><a name="aclayout">acinclude.m4 layout</a></h3>
+<p>The nice thing about acinclude.m4/aclocal.m4 is that macros aren't actually
+   performed/called/expanded/whatever here, just loaded.  So we can arrange
+   the contents however we like.  As of this writing, acinclude.m4 is arranged
+   as follows:
+</p>
+<pre>
+    GLIBCXX_CHECK_HOST
+    GLIBCXX_TOPREL_CONFIGURE
+    GLIBCXX_CONFIGURE
+</pre>
+<p>All the major variable "discovery" is done here.  CXX, multilibs, etc.
+</p>
+<pre>
+    fragments included from elsewhere
+</pre>
+<p>Right now, "fragments" == "the math/linkage bits".
+</p>
+<pre>
+    GLIBCXX_CHECK_COMPILER_FEATURES
+    GLIBCXX_CHECK_LINKER_FEATURES
+    GLIBCXX_CHECK_WCHAR_T_SUPPORT
+</pre>
+<p>Next come extra compiler/linker feature tests.  Wide character support
+   was placed here because I couldn't think of another place for it.  It will
+   probably get broken apart like the math tests, because we're still disabling
+   wchars on systems which could actually support them.
+</p>
+<pre>
+    GLIBCXX_CHECK_SETRLIMIT_ancilliary
+    GLIBCXX_CHECK_SETRLIMIT
+    GLIBCXX_CHECK_S_ISREG_OR_S_IFREG
+    GLIBCXX_CHECK_POLL
+    GLIBCXX_CHECK_WRITEV
+
+    GLIBCXX_CONFIGURE_TESTSUITE
+</pre>
+<p>Feature tests which only get used in one place.  Here, things used only in
+   the testsuite, plus a couple bits used in the guts of I/O.
+</p>
+<pre>
+    GLIBCXX_EXPORT_INCLUDES
+    GLIBCXX_EXPORT_FLAGS
+    GLIBCXX_EXPORT_INSTALL_INFO
+</pre>
+<p>Installation variables, multilibs, working with the rest of the compiler.
+   Many of the critical variables used in the makefiles are set here.
+</p>
+<pre>
+    GLIBGCC_ENABLE
+    GLIBCXX_ENABLE_C99
+    GLIBCXX_ENABLE_CHEADERS
+    GLIBCXX_ENABLE_CLOCALE
+    GLIBCXX_ENABLE_CONCEPT_CHECKS
+    GLIBCXX_ENABLE_CSTDIO
+    GLIBCXX_ENABLE_CXX_FLAGS
+    GLIBCXX_ENABLE_C_MBCHAR
+    GLIBCXX_ENABLE_DEBUG
+    GLIBCXX_ENABLE_DEBUG_FLAGS
+    GLIBCXX_ENABLE_LONG_LONG
+    GLIBCXX_ENABLE_PCH
+    GLIBCXX_ENABLE_SJLJ_EXCEPTIONS
+    GLIBCXX_ENABLE_SYMVERS
+    GLIBCXX_ENABLE_THREADS
+</pre>
+<p>All the features which can be controlled with enable/disable configure
+   options.  Note how they're alphabetized now?  Keep them like that.  :-)
+</p>
+<pre>
+    AC_LC_MESSAGES
+    libtool bits
+</pre>
+<p>Things which we don't seem to use directly, but just has to be present
+   otherwise stuff magically goes wonky.
+</p>
+
+
+<hr />
+<h3><a name="enable"><code>--enable</code> howto</a></h3>
+<p>All the GLIBCXX_ENABLE_FOO macros use a common helper, GLIBCXX_ENABLE.
+   (You don't have to use it, but it's easy.)  The helper does two things
+   for us:
+</p>
+
+<ol>
+ <li>Builds the call to the AC_ARG_ENABLE macro, with --help text properly
+     quoted and aligned.  (Death to changequote!)</li>
+ <li>Checks the result against a list of allowed possibilities, and signals
+     a fatal error if there's no match.  This means that the rest of the
+     GLIBCXX_ENABLE_FOO macro doesn't need to test for strange arguments,
+     nor do we need to protect against empty/whitespace strings with the
+     <code>"x$foo" = "xbar"</code> idiom.</li>
+</ol>
+
+<p>Doing these things correctly takes some extra autoconf/autom4te code,
+   which made our macros nearly illegible.  So all the ugliness is factored
+   out into this one helper macro.
+</p>
+
+<p>Many of the macros take an argument, passed from when they are expanded
+   in configure.ac.  The argument controls the default value of the
+   enable/disable switch.  Previously, the arguments themselves had defaults.
+   Now they don't, because that's extra complexity with zero gain for us.
+</p>
+
+<p>There are three "overloaded signatures".  When reading the descriptions
+   below, keep in mind that the brackets are autoconf's quotation characters,
+   and that they will be stripped.  Examples of just about everything occur
+   in acinclude.m4, if you want to look.
+</p>
+
+<pre>
+    GLIBCXX_ENABLE (FEATURE, DEFAULT, HELP-ARG, HELP-STRING)
+    GLIBCXX_ENABLE (FEATURE, DEFAULT, HELP-ARG, HELP-STRING, permit a|b|c)
+    GLIBCXX_ENABLE (FEATURE, DEFAULT, HELP-ARG, HELP-STRING, SHELL-CODE-HANDLER)
+</pre>
+
+<ul>
+ <li><p>FEATURE is the string that follows --enable.  The results of the test
+     (such as it is) will be in the variable $enable_FEATURE, where FEATURE
+     has been squashed.  Example:  <code>[extra-foo]</code>, controlled by the
+     --enable-extra-foo option and stored in $enable_extra_foo.</p></li>
+ <li><p>DEFAULT is the value to store in $enable_FEATURE if the user does not
+     pass --enable/--disable.  It should be one of the permitted values
+     passed later.  Examples:  <code>[yes]</code>, or <code>[bar]</code>, or
+     <code>[$1]</code> (which passes the argument given to the
+     GLIBCXX_ENABLE_FOO macro as the default).</p>
+     <p>For cases where we need to probe for particular models
+     of things, it is useful to have an undocumented "auto" value here (see
+     GLIBCXX_ENABLE_CLOCALE for an example).</p></li>
+ <li><p>HELP-ARG is any text to append to the option string itself in the
+     --help output.  Examples: <code>[]</code> (i.e., an empty string,
+     which appends nothing),
+     <code>[=BAR]</code>, which produces
+     <code>--enable-extra-foo=BAR</code>, and
+     <code>[@&lt;:@=BAR@:&gt;@]</code>, which produces
+     <code>--enable-extra-foo[=BAR]</code>.  See the difference?  See what
+     it implies to the user?</p>
+     <p>If you're wondering what that line noise in the last example was,
+     that's how you embed autoconf special characters in output text.
+     They're called
+<a
+href="http://www.gnu.org/software/autoconf/manual/autoconf-2.57/html_node/autoconf_95.html#SEC95"><em>quadrigraphs</em></a>
+     and you should use them whenever necessary.</p></li>
+ <li><p>HELP-STRING is what you think it is.  Do not include the "default"
+     text like we used to do; it will be done for you by GLIBCXX_ENABLE.
+     By convention, these are not full English sentences.
+     Example:  [turn on extra foo]</p></li>
+</ul>
+
+<p>With no other arguments, only the standard autoconf patterns are
+   allowed:  "<code>--{enable,disable}-foo[={yes,no}]</code>"  The
+   $enable_FEATURE variable is guaranteed to equal either "yes" or "no"
+   after the macro.  If the user tries to pass something else, an
+   explanatory error message will be given, and configure will halt.
+</p>
+
+<p>The second signature takes a fifth argument,
+   "<code>[permit <em>a</em>|<em>b</em>|<em>c</em>|<em>...</em>]</code>"
+   This allows <em>a</em> or <em>b</em> or ... after the equals sign in the
+   option, and $enable_FEATURE is guaranteed to equal one of them after the
+   macro.  Note that if you want to allow plain --enable/--disable with no
+   "=whatever", you must include "yes" and "no" in the list of permitted
+   values.  Also note that whatever you passed as DEFAULT must be in the list.
+   If the user tries to pass something not on the list, a semi-explanatory
+   error message will be given, and configure will halt.
+   Example:  <code>[permit generic|gnu|ieee_1003.1-2001|yes|no|auto]</code>
+</p>
+
+<p>The third signature takes a fifth argument.  It is arbitrary shell code
+   to execute if the user actually passes the enable/disable option.  (If
+   the user does not, the default is used.  Duh.)  No argument checking at
+   all is done in this signature.  See GLIBCXX_ENABLE_CXX_FLAGS for an
+   example of handling, and an error message.
+</p>
+
+<hr />
+</body>
+</html>

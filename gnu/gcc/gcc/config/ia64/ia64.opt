@@ -1,0 +1,147 @@
+mbig-endian
+Target Report RejectNegative Mask(BIG_ENDIAN)
+Generate big endian code
+
+mlittle-endian
+Target Report RejectNegative InverseMask(BIG_ENDIAN)
+Generate little endian code
+
+mgnu-as
+Target Report Mask(GNU_AS)
+Generate code for GNU as
+
+mgnu-ld
+Target Report Mask(GNU_LD)
+Generate code for GNU ld
+
+mvolatile-asm-stop
+Target Report Mask(VOL_ASM_STOP)
+Emit stop bits before and after volatile extended asms
+
+mregister-names
+Target Mask(REG_NAMES)
+Use in/loc/out register names
+
+mno-sdata
+Target Report RejectNegative Mask(NO_SDATA)
+
+msdata
+Target Report RejectNegative InverseMask(NO_SDATA)
+Enable use of sdata/scommon/sbss
+
+mno-pic
+Target Report RejectNegative Mask(NO_PIC)
+Generate code without GP reg
+
+mconstant-gp
+Target Report RejectNegative Mask(CONST_GP)
+gp is constant (but save/restore gp on indirect calls)
+
+mauto-pic
+Target Report RejectNegative Mask(AUTO_PIC)
+Generate self-relocatable code
+
+minline-float-divide-min-latency
+Target Report RejectNegative Var(TARGET_INLINE_FLOAT_DIV, 1)
+Generate inline floating point division, optimize for latency
+
+minline-float-divide-max-throughput
+Target Report RejectNegative Var(TARGET_INLINE_FLOAT_DIV, 2) Init(2)
+Generate inline floating point division, optimize for throughput
+
+mno-inline-float-divide
+Target Report RejectNegative Var(TARGET_INLINE_FLOAT_DIV, 0)
+
+minline-int-divide-min-latency
+Target Report RejectNegative Var(TARGET_INLINE_INT_DIV, 1)
+Generate inline integer division, optimize for latency
+
+minline-int-divide-max-throughput
+Target Report RejectNegative Var(TARGET_INLINE_INT_DIV, 2)
+Generate inline integer division, optimize for throughput
+
+mno-inline-int-divide
+Target Report RejectNegative Var(TARGET_INLINE_INT_DIV, 0)
+Do not inline integer division
+
+minline-sqrt-min-latency
+Target Report RejectNegative Var(TARGET_INLINE_SQRT, 1)
+Generate inline square root, optimize for latency
+
+minline-sqrt-max-throughput
+Target Report RejectNegative Var(TARGET_INLINE_SQRT, 2)
+Generate inline square root, optimize for throughput
+
+mno-inline-sqrt
+Target Report RejectNegative Var(TARGET_INLINE_SQRT, 0)
+Do not inline square root
+
+mdwarf2-asm
+Target Report Mask(DWARF2_ASM)
+Enable Dwarf 2 line debug info via GNU as
+
+mearly-stop-bits
+Target Report Mask(EARLY_STOP_BITS)
+Enable earlier placing stop bits for better scheduling
+
+mfixed-range=
+Target RejectNegative Joined
+Specify range of registers to make fixed
+
+mtls-size=
+Target RejectNegative Joined UInteger Var(ia64_tls_size) Init(22)
+Specify bit size of immediate TLS offsets
+
+mtune=
+Target RejectNegative Joined
+Schedule code for given CPU
+
+msched-br-data-spec
+Target Report Var(mflag_sched_br_data_spec) Init(0)
+Use data speculation before reload
+
+msched-ar-data-spec
+Target Report Var(mflag_sched_ar_data_spec) Init(1)
+Use data speculation after reload
+
+msched-control-spec
+Target Report Var(mflag_sched_control_spec) Init(0)
+Use control speculation
+
+msched-br-in-data-spec
+Target Report Var(mflag_sched_br_in_data_spec) Init(1)
+Use in block data speculation before reload
+
+msched-ar-in-data-spec
+Target Report Var(mflag_sched_ar_in_data_spec) Init(1)
+Use in block data speculation after reload
+
+msched-in-control-spec
+Target Report Var(mflag_sched_in_control_spec) Init(1)
+Use in block control speculation
+
+msched-ldc
+Target Report Var(mflag_sched_ldc) Init(1)
+Use simple data speculation check
+
+msched-control-ldc
+Target Report Var(mflag_control_ldc) Init(0)
+Use simple data speculation check for control speculation
+
+msched-spec-verbose
+Common Report Var(mflag_sched_spec_verbose) Init(0)
+Print information about speculative motions.
+
+msched-prefer-non-data-spec-insns
+Common Report Var(mflag_sched_prefer_non_data_spec_insns) Init(0)
+If set, data speculative instructions will be chosen for schedule only if there are no other choices at the moment 
+
+msched-prefer-non-control-spec-insns
+Common Report Var(mflag_sched_prefer_non_control_spec_insns) Init(0)
+If set, control speculative instructions will be chosen for schedule only if there are no other choices at the moment 
+
+msched-count-spec-in-critical-path
+Common Report Var(mflag_sched_count_spec_in_critical_path) Init(0)
+Count speculative dependencies while calculating priority of instructions
+
+; This comment is to ensure we retain the blank line above.

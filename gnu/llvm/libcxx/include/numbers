@@ -1,0 +1,164 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_NUMBERS
+#define _LIBCPP_NUMBERS
+
+/*
+    numbers synopsis
+
+namespace std::numbers {
+  template<class T> inline constexpr T e_v          = unspecified;
+  template<class T> inline constexpr T log2e_v      = unspecified;
+  template<class T> inline constexpr T log10e_v     = unspecified;
+  template<class T> inline constexpr T pi_v         = unspecified;
+  template<class T> inline constexpr T inv_pi_v     = unspecified;
+  template<class T> inline constexpr T inv_sqrtpi_v = unspecified;
+  template<class T> inline constexpr T ln2_v        = unspecified;
+  template<class T> inline constexpr T ln10_v       = unspecified;
+  template<class T> inline constexpr T sqrt2_v      = unspecified;
+  template<class T> inline constexpr T sqrt3_v      = unspecified;
+  template<class T> inline constexpr T inv_sqrt3_v  = unspecified;
+  template<class T> inline constexpr T egamma_v     = unspecified;
+  template<class T> inline constexpr T phi_v        = unspecified;
+
+  template<floating_point T> inline constexpr T e_v<T>          = see below;
+  template<floating_point T> inline constexpr T log2e_v<T>      = see below;
+  template<floating_point T> inline constexpr T log10e_v<T>     = see below;
+  template<floating_point T> inline constexpr T pi_v<T>         = see below;
+  template<floating_point T> inline constexpr T inv_pi_v<T>     = see below;
+  template<floating_point T> inline constexpr T inv_sqrtpi_v<T> = see below;
+  template<floating_point T> inline constexpr T ln2_v<T>        = see below;
+  template<floating_point T> inline constexpr T ln10_v<T>       = see below;
+  template<floating_point T> inline constexpr T sqrt2_v<T>      = see below;
+  template<floating_point T> inline constexpr T sqrt3_v<T>      = see below;
+  template<floating_point T> inline constexpr T inv_sqrt3_v<T>  = see below;
+  template<floating_point T> inline constexpr T egamma_v<T>     = see below;
+  template<floating_point T> inline constexpr T phi_v<T>        = see below;
+
+  inline constexpr double e          = e_v<double>;
+  inline constexpr double log2e      = log2e_v<double>;
+  inline constexpr double log10e     = log10e_v<double>;
+  inline constexpr double pi         = pi_v<double>;
+  inline constexpr double inv_pi     = inv_pi_v<double>;
+  inline constexpr double inv_sqrtpi = inv_sqrtpi_v<double>;
+  inline constexpr double ln2        = ln2_v<double>;
+  inline constexpr double ln10       = ln10_v<double>;
+  inline constexpr double sqrt2      = sqrt2_v<double>;
+  inline constexpr double sqrt3      = sqrt3_v<double>;
+  inline constexpr double inv_sqrt3  = inv_sqrt3_v<double>;
+  inline constexpr double egamma     = egamma_v<double>;
+  inline constexpr double phi        = phi_v<double>;
+}
+*/
+
+#include <__concepts/arithmetic.h>
+#include <__config>
+#include <version>
+
+#if _LIBCPP_STD_VER >= 20
+
+#  if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#    pragma GCC system_header
+#  endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+namespace numbers {
+
+template <class _Tp>
+inline constexpr bool __false = false;
+
+template <class _Tp>
+struct __illformed {
+  static_assert(
+      __false<_Tp>,
+      "A program that instantiates a primary template of a mathematical constant variable template is ill-formed.");
+};
+
+template <class _Tp>
+inline constexpr _Tp e_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp log2e_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp log10e_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp pi_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp inv_pi_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp inv_sqrtpi_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp ln2_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp ln10_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp sqrt2_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp sqrt3_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp inv_sqrt3_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp egamma_v = __illformed<_Tp>{};
+template <class _Tp>
+inline constexpr _Tp phi_v = __illformed<_Tp>{};
+
+template <floating_point _Tp>
+inline constexpr _Tp e_v<_Tp> = 2.718281828459045235360287471352662;
+template <floating_point _Tp>
+inline constexpr _Tp log2e_v<_Tp> = 1.442695040888963407359924681001892;
+template <floating_point _Tp>
+inline constexpr _Tp log10e_v<_Tp> = 0.434294481903251827651128918916605;
+template <floating_point _Tp>
+inline constexpr _Tp pi_v<_Tp> = 3.141592653589793238462643383279502;
+template <floating_point _Tp>
+inline constexpr _Tp inv_pi_v<_Tp> = 0.318309886183790671537767526745028;
+template <floating_point _Tp>
+inline constexpr _Tp inv_sqrtpi_v<_Tp> = 0.564189583547756286948079451560772;
+template <floating_point _Tp>
+inline constexpr _Tp ln2_v<_Tp> = 0.693147180559945309417232121458176;
+template <floating_point _Tp>
+inline constexpr _Tp ln10_v<_Tp> = 2.302585092994045684017991454684364;
+template <floating_point _Tp>
+inline constexpr _Tp sqrt2_v<_Tp> = 1.414213562373095048801688724209698;
+template <floating_point _Tp>
+inline constexpr _Tp sqrt3_v<_Tp> = 1.732050807568877293527446341505872;
+template <floating_point _Tp>
+inline constexpr _Tp inv_sqrt3_v<_Tp> = 0.577350269189625764509148780501957;
+template <floating_point _Tp>
+inline constexpr _Tp egamma_v<_Tp> = 0.577215664901532860606512090082402;
+template <floating_point _Tp>
+inline constexpr _Tp phi_v<_Tp> = 1.618033988749894848204586834365638;
+
+inline constexpr double e          = e_v<double>;
+inline constexpr double log2e      = log2e_v<double>;
+inline constexpr double log10e     = log10e_v<double>;
+inline constexpr double pi         = pi_v<double>;
+inline constexpr double inv_pi     = inv_pi_v<double>;
+inline constexpr double inv_sqrtpi = inv_sqrtpi_v<double>;
+inline constexpr double ln2        = ln2_v<double>;
+inline constexpr double ln10       = ln10_v<double>;
+inline constexpr double sqrt2      = sqrt2_v<double>;
+inline constexpr double sqrt3      = sqrt3_v<double>;
+inline constexpr double inv_sqrt3  = inv_sqrt3_v<double>;
+inline constexpr double egamma     = egamma_v<double>;
+inline constexpr double phi        = phi_v<double>;
+
+} // namespace numbers
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_STD_VER >= 20
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <concepts>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_NUMBERS

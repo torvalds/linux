@@ -1,0 +1,288 @@
+.\" $OpenBSD: X509_get0_signature.3,v 1.12 2025/07/06 09:32:08 tb Exp $
+.\" selective merge up to:
+.\" OpenSSL man3/X509_get0_signature 2f7a2520 Apr 25 17:28:08 2017 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 6 2025 $
+.Dt X509_GET0_SIGNATURE 3
+.Os
+.Sh NAME
+.Nm X509_get0_signature ,
+.Nm X509_REQ_get0_signature ,
+.Nm X509_CRL_get0_signature ,
+.Nm X509_get0_tbs_sigalg ,
+.Nm X509_CRL_get0_tbs_sigalg ,
+.Nm X509_get_signature_type ,
+.Nm X509_get_signature_nid ,
+.Nm X509_REQ_get_signature_nid ,
+.Nm X509_CRL_get_signature_nid ,
+.Nm X509_get_signature_info
+.Nd signature information
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft void
+.Fo X509_get0_signature
+.Fa "const ASN1_BIT_STRING **psig"
+.Fa "const X509_ALGOR **palg"
+.Fa "const X509 *x"
+.Fc
+.Ft void
+.Fo X509_REQ_get0_signature
+.Fa "const X509_REQ *req"
+.Fa "const ASN1_BIT_STRING **psig"
+.Fa "const X509_ALGOR **palg"
+.Fc
+.Ft void
+.Fo X509_CRL_get0_signature
+.Fa "const X509_CRL *crl"
+.Fa "const ASN1_BIT_STRING **psig"
+.Fa "const X509_ALGOR **palg"
+.Fc
+.Ft const X509_ALGOR *
+.Fo X509_get0_tbs_sigalg
+.Fa "const X509 *x"
+.Fc
+.Ft const X509_ALGOR *
+.Fo X509_CRL_get0_tbs_sigalg
+.Fa "const X509_CRL *crl"
+.Fc
+.Ft int
+.Fo X509_get_signature_type
+.Fa "const X509 *x"
+.Fc
+.Ft int
+.Fo X509_get_signature_nid
+.Fa "const X509 *x"
+.Fc
+.Ft int
+.Fo X509_REQ_get_signature_nid
+.Fa "const X509_REQ *req"
+.Fc
+.Ft int
+.Fo X509_CRL_get_signature_nid
+.Fa "const X509_CRL *crl"
+.Fc
+.Ft int
+.Fo X509_get_signature_info
+.Fa "X509 *x"
+.Fa "int *md_nid"
+.Fa "int *pkey_nid"
+.Fa "int *security_bits"
+.Fa "uint32_t *flags"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_get0_signature ,
+.Fn X509_REQ_get0_signature ,
+and
+.Fn X509_CRL_get0_signature
+set
+.Pf * Fa psig
+to the signature and
+.Pf * Fa palg
+to the signature algorithm of
+.Fa x ,
+.Fa req ,
+or
+.Fa crl ,
+respectively.
+.Fn X509_get0_tbs_sigalg
+and
+.Fn X509_CRL_get0_tbs_sigalg
+return the signature algorithm in the signed portion of
+.Fa x
+or
+.Fa crl ,
+respectively.
+The values returned are internal pointers
+that must not be freed by the caller.
+.Pp
+.Fn X509_get_signature_type
+returns the base NID corresponding to the signature algorithm of
+.Fa x
+just like
+.Xr EVP_PKEY_base_id 3
+does.
+.Pp
+.Fn X509_get_signature_nid ,
+.Fn X509_REQ_get_signature_nid ,
+and
+.Fn X509_CRL_get_signature_nid
+return the NID corresponding to the signature algorithm of
+.Fa x ,
+.Fa req ,
+or
+.Fa crl ,
+respectively, just like
+.Xr EVP_PKEY_id 3
+does.
+.Pp
+.Fn X509_get_signature_info
+retrieves information about the signature of certificate
+.Fa x .
+The NID of the digest algorithm is written to
+.Pf * Fa md_nid ,
+the public key algorithm to
+.Pf * Fa pkey_nid ,
+the effective security bits to
+.Pf * Fa security_bits ,
+and flag details to
+.Pf * Fa flags .
+Any of the output parameters can be set to
+.Dv NULL
+if the information is not required.
+If
+.Fa flags
+is not a
+.Dv NULL
+pointer,
+.Pf * Fa flags
+is set to the bitwise OR of:
+.Bl -tag -width 1n -offset 3n
+.It Dv X509_SIG_INFO_VALID
+No error occurred.
+This flag is set if
+.Fn X509_get_signature_info
+returns 1.
+.It Dv X509_SIG_INFO_TLS
+The signature algorithm is appropriate for use in TLS.
+For a supported EdDSA algorithm (in LibreSSL this is Ed25519)
+this flag is always set.
+For an RSASSA-PSS PSS algorithm this flag is set if
+the parameters are DER encoded,
+the digest algorithm is one of SHA-256, SHA-384, or SHA-512,
+the same digest algorithm is used in the mask generation function,
+and the salt length is equal to the digest algorithm's output length.
+For all other signature algorithms this flag is set if the digest
+algorithm is one of SHA-1, SHA-256, SHA-384, or SHA-512.
+.El
+.Pp
+.Fn X509_get_signature_info
+returns 1 on success and 0 on failure.
+Failure conditions include unsupported signature algorithms,
+certificate parsing errors and memory allocation failure.
+.Pp
+These functions provide lower level access to the signature
+for cases where an application wishes to analyse or generate a
+signature in a form where
+.Xr X509_sign 3
+is not appropriate, for example in a non-standard or unsupported format.
+.Sh SEE ALSO
+.Xr EVP_PKEY_base_id 3 ,
+.Xr OBJ_obj2nid 3 ,
+.Xr X509_ALGOR_new 3 ,
+.Xr X509_CRL_get0_by_serial 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_get_pubkey 3 ,
+.Xr X509_get_subject_name 3 ,
+.Xr X509_get_version 3 ,
+.Xr X509_new 3 ,
+.Xr X509_REQ_new 3 ,
+.Xr X509_sign 3 ,
+.Xr X509_signature_dump 3 ,
+.Xr X509_verify_cert 3
+.Sh HISTORY
+.Fn X509_get_signature_type
+first appeared in SSLeay 0.8.0 and has been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_get0_signature
+and
+.Fn X509_get_signature_nid
+first appeared in OpenSSL 1.0.2.
+.Fn X509_REQ_get0_signature ,
+.Fn X509_CRL_get0_signature ,
+.Fn X509_get0_tbs_sigalg ,
+.Fn X509_REQ_get_signature_nid ,
+and
+.Fn X509_CRL_get_signature_nid
+first appeared in OpenSSL 1.1.0.
+All these functions have been available since
+.Ox 6.3 .
+.Pp
+.Fn X509_CRL_get0_tbs_sigalg
+first appeared in LibreSSL 3.7.1 and has been available since
+.Ox 7.3 .
+.Pp
+.Fn X509_get_signature_info
+first appeared in OpenSSL 1.1.1 and has been available since
+.Ox 7.6 .
+.Sh CAVEATS
+The security bits returned by
+.Fn X509_get_signature_info
+refer to the information available from the certificate signature
+(such as the signing digest).
+In some cases the actual security of the signature is smaller
+because the signing key is less secure.
+For example in a certificate signed using SHA-512
+and a 1024-bit RSA key.
+.Sh BUGS
+The signatures of
+.Fn X509_get0_signature ,
+.Fn X509_REQ_get0_signature ,
+and
+.Fn X509_CRL_get0_signature
+are inconsistent.

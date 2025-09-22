@@ -1,0 +1,6 @@
+stdin:2: syntax error
+stdin:4: syntax error
+set optimization aggressive
+set timeout tcp.closing 6
+set limit states 1000
+set loginterface lo0

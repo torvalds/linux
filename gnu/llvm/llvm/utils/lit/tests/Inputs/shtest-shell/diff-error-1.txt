@@ -1,0 +1,3 @@
+# Check error on a unsupported diff (not support the -B option).
+#
+# RUN: diff -B temp1.txt temp2.txt

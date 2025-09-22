@@ -1,0 +1,21 @@
+static_library("Coroutines") {
+  output_name = "LLVMCoroutines"
+  deps = [
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/IPO",
+    "//llvm/lib/Transforms/Scalar",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "CoroCleanup.cpp",
+    "CoroConditionalWrapper.cpp",
+    "CoroEarly.cpp",
+    "CoroElide.cpp",
+    "CoroFrame.cpp",
+    "CoroSplit.cpp",
+    "Coroutines.cpp",
+  ]
+}

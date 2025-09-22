@@ -1,0 +1,76 @@
+.\"	$OpenBSD: amdisplay.4,v 1.4 2019/05/29 19:37:06 fcambus Exp $
+.\"
+.\" Copyright (c) 2017 Ian Sutton <ians@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 29 2019 $
+.Dt AMDISPLAY 4 armv7
+.Os
+.Sh NAME
+.Nm amdisplay ,
+.Nm nxphdmi
+.Nd Texas Instruments AM335x LCD display driver
+.Sh SYNOPSIS
+.Nm "amdisplay* at simplebus0"
+.Nm "nxphdmi* at iic*"
+.Nm "wsdisplay* at amdisplay*"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the LCD controller integrated in Texas Instruments' line of
+AM335x SoCs.
+The LCDC reads a framebuffer from memory via DMA and scans it out
+at the proper frequency to suit a display (along with the necessary
+hsync/vsync/etc. signals) to a PHY transmitter.
+The BeagleBone Black uses NXP/Freescale's TDA19988 HDMI transmitter,
+which is additionally supported by the
+.Nm nxphdmi
+driver.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr wsdisplay 4 ,
+.Xr wsfb 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Ian Sutton Aq Mt ians@openbsd.org .
+The
+.Nm nxphdmi
+driver was written by
+.An Oleksandr Tymoshenko Aq Mt gonzo@freebsd.org
+and later ported to
+.Ox .
+.Sh CAVEATS
+On the BeagleBone Black, the LCDC and onboard eMMC NAND chip share the same set
+of pads such that only one can be wired and used at a time.
+To boot from or use the onboard storage, disable
+.Nm
+via
+.Xr config 8
+in the kernel.
+.Pp
+A display must be attached at boot time, otherwise
+.Nm
+will fail to configure.
+.Pp
+Hotplugging is not supported.
+.Pp
+Only 16-bit color depth is supported due to a silicon bug.

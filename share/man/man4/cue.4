@@ -1,0 +1,102 @@
+.\" $OpenBSD: cue.4,v 1.15 2013/07/16 16:05:48 schwarze Exp $
+.\" $NetBSD: cue.4,v 1.2 2000/01/16 13:54:39 augustss Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999, 2000
+.\"     Bill Paul <wpaul@ee.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"     This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man4/cue.4,v 1.1 2000/01/14 03:14:47 wpaul Exp $
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt CUE 4
+.Os
+.Sh NAME
+.Nm cue
+.Nd CATC USB-EL1201A USB Ethernet device
+.Sh SYNOPSIS
+.Cd "cue* at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the Computer
+Access Technology Corporation's USB-EL1202A chipset.
+This includes the following adapters:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Tn Belkin F5U111
+.It Tn CATC Netmate
+.It Tn CATC Netmate II
+.It Tn SmartBridges SmartLink
+.El
+.Pp
+The USB-EL1202A supports a 512-bit multicast hash filter, single perfect
+filter entry for the station address and promiscuous mode.
+Packets are
+received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+The CATC adapter supports only 10Mbps half-duplex mode, hence there are no
+.Xr ifmedia 4
+modes to select.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "cue0: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.It "cue0: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.0 .
+.Ox
+support was added in
+.Ox 2.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu
+and ported to
+.Ox
+by
+.An Aaron Campbell Aq Mt aaron@openbsd.org .

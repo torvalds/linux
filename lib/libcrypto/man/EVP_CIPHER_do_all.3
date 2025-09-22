@@ -1,0 +1,212 @@
+.\" $OpenBSD: EVP_CIPHER_do_all.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2023,2024 Theo Buehler <tb@openbsd.org>
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_CIPHER_DO_ALL 3
+.Os
+.Sh NAME
+.Nm EVP_CIPHER_do_all ,
+.Nm EVP_CIPHER_do_all_sorted ,
+.Nm EVP_MD_do_all ,
+.Nm EVP_MD_do_all_sorted ,
+.Nm OBJ_NAME_do_all ,
+.Nm OBJ_NAME_do_all_sorted
+.Nd iterate over lookup tables for ciphers and digests
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft void
+.Fo EVP_CIPHER_do_all
+.Fa "void (*fn)(const EVP_CIPHER *cipher, const char *from,\
+ const char *to, void *arg)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo EVP_CIPHER_do_all_sorted
+.Fa "void (*fn)(const EVP_CIPHER *cipher, const char *from,\
+ const char *to, void *arg)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo EVP_MD_do_all
+.Fa "void (*fn)(const EVP_MD *md, const char *from,\
+ const char *to, void *arg)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo EVP_MD_do_all_sorted
+.Fa "void (*fn)(const EVP_MD *md, const char *from,\
+ const char *to, void *arg)"
+.Fa "void *arg"
+.Fc
+.Bd -literal
+typedef struct {
+        int	    type;
+        int	    alias;
+        const char *name;
+        const char *data;
+} OBJ_NAME;
+.Ed
+.Pp
+.Ft void
+.Fo OBJ_NAME_do_all
+.Fa "int type"
+.Fa "void (*fn)(const OBJ_NAME *obj_name, void *arg)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo OBJ_NAME_do_all_sorted
+.Fa "int type"
+.Fa "void (*fn)(const OBJ_NAME *obj_name, void *arg)"
+.Fa "void *arg"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_CIPHER_do_all
+calls
+.Fa fn
+on every entry of the global table of cipher names and aliases.
+For a cipher name entry,
+.Fa fn
+is called with a non-NULL
+.Fa cipher ,
+its non-NULL cipher name
+.Fa from ,
+a NULL
+.Fa to ,
+and the
+.Fa arg
+pointer.
+For an alias entry,
+.Fa fn
+is called with a NULL
+.Fa cipher ,
+its alias
+.Fa from ,
+the cipher name that alias points
+.Fa to ,
+and the
+.Fa arg
+pointer.
+.Pp
+.Fn EVP_CIPHER_do_all_sorted
+is similar, except that it processes the cipher names and aliases
+in lexicographic order of their
+.Fa from
+names as determined by
+.Xr strcmp 3 .
+.Pp
+.Fn EVP_MD_do_all
+calls
+.Fa fn
+on every entry of the global table of digest names and aliases.
+For a digest name entry,
+.Fa fn
+is called with a non-NULL
+.Fa md ,
+its non-NULL digest name
+.Fa from ,
+a NULL
+.Fa to ,
+and the
+.Fa arg
+pointer.
+For an alias entry,
+.Fa fn
+is called with a NULL
+.Fa md ,
+its alias
+.Fa from ,
+the digest name that alias points
+.Fa to ,
+and the
+.Fa arg
+pointer.
+.Pp
+.Fn EVP_MD_do_all_sorted
+is similar, except that it processes the digest names and aliases
+in lexicographic order of their
+.Fa from
+names as determined by
+.Xr strcmp 3 .
+.Pp
+.Vt OBJ_NAME
+is an abstraction of the types underlying the lookup tables
+for ciphers and their aliases, and digests and their aliases, respectively.
+For a cipher,
+.Fa type
+is
+.Dv OBJ_NAME_TYPE_CIPHER_METH ,
+.Fa alias
+is 0,
+.Fa name
+is its lookup name and
+.Fa data
+is the
+.Vt EVP_CIPHER
+object it represents, cast to
+.Vt const char * .
+For a cipher alias,
+.Fa type
+is
+.Dv OBJ_NAME_TYPE_CIPHER_METH ,
+.Fa alias
+is
+.Dv OBJ_NAME_ALIAS ,
+.Fa name
+is its lookup name and
+.Fa data
+is the name it aliases.
+Digests representing an
+.Vt EVP_MD
+object and their aliases are represented similarly, except that their type is
+.Dv OBJ_NAME_TYPE_MD_METH .
+.Pp
+.Fn OBJ_NAME_do_all
+calls
+.Fa fn
+on every
+.Fa obj_name
+in the table that has the given
+.Fa type
+(either
+.Dv OBJ_NAME_TYPE_CIPHER_METH
+or
+.Dv OBJ_NAME_TYPE_MD_METH ) ,
+also passing the
+.Fa arg
+pointer.
+.Fn OBJ_NAME_do_all_sorted
+is similar except that it processes the
+.Fa obj_name
+in lexicographic order of their names as determined by
+.Xr strcmp 3 .
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_get_cipherbyname 3 ,
+.Xr EVP_get_digestbyname 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .
+.Sh CAVEATS
+.Fn EVP_CIPHER_do_all_sorted ,
+.Fn EVP_MD_do_all_sorted ,
+and
+.Fn OBJ_NAME_do_all_sorted
+cannot report errors.
+In some implementations they need to allocate internally and
+if memory allocation fails they do nothing at all,
+without telling the caller about the problem.

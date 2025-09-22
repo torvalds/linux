@@ -1,0 +1,46 @@
+.\"	$OpenBSD: usps.4,v 1.3 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2011 Yojiro UO <yuo@nui.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt USPS 4
+.Os
+.Sh NAME
+.Nm usps
+.Nd USPS composite AC power and temperature sensor
+.Sh SYNOPSIS
+.Cd "usps* at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Fujitsu Component Smart Power Strip FX-5204PS.
+The sensor possesses a collection of sensor values which are
+made available through the
+.Xr sysctl 8
+interface.
+As well as AC voltage,
+the device provides the electricity power supply frequency,
+per port electricity consumption,
+and device temperature.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Yojiro UO Aq Mt yuo@nui.org .

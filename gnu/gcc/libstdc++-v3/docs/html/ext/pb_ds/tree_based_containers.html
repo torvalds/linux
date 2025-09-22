@@ -1,0 +1,358 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Tree-Based Containers</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Tree Design</h1>
+
+    <h2><a name="overview" id="overview">Overview</a></h2>
+
+    <p>The tree-based container has the following declaration:</p>
+    <pre>
+<b>template</b>&lt;
+    <b>typename</b> Key,
+    <b>typename</b> Mapped,
+    <b>typename</b> Cmp_Fn = std::less&lt;Key&gt;,
+    <b>typename</b> Tag = <a href="rb_tree_tag.html">rb_tree_tag</a>,
+    <b>template</b>&lt;
+        <b>typename</b> Const_Node_Iterator,
+        <b>typename</b> Node_Iterator,
+        <b>typename</b> Cmp_Fn_,
+        <b>typename</b> Allocator_&gt;
+    <b>class</b> Node_Update = <a href=
+"null_tree_node_update.html">null_tree_node_update</a>,
+    <b>typename</b> Allocator = std::allocator&lt;<b>char</b>&gt; &gt;
+<b>class</b> <a href=
+"tree.html">tree</a>;
+</pre>
+
+    <p>The parameters have the following meaning:</p>
+
+    <ol>
+      <li><tt>Key</tt> is the key type.</li>
+
+      <li><tt>Mapped</tt> is the mapped-policy.</li>
+
+      <li><tt>Cmp_Fn</tt> is a key comparison functor</li>
+
+      <li><tt>Tag</tt> specifies which underlying data structure
+      to use.</li>
+
+      <li><tt>Node_Update</tt> is a policy for updating node
+      invariants. This is described in <a href="#invariants">Node
+      Invariants</a>.</li>
+
+      <li><tt>Allocator</tt> is an allocator
+      type.</li>
+    </ol>
+
+    <p>The <tt>Tag</tt> parameter specifies which underlying
+    data structure to use. Instantiating it by <a href=
+    "rb_tree_tag.html"><tt>rb_tree_tag</tt></a>, <a href=
+    "splay_tree_tag.html"><tt>splay_tree_tag</tt></a>, or
+    <a href="ov_tree_tag.html"><tt>ov_tree_tag</tt></a>,
+    specifies an underlying red-black tree, splay tree, or
+    ordered-vector tree, respectively; any other tag is illegal.
+    Note that containers based on the former two contain more types
+    and methods than the latter (<i>e.g.</i>,
+    <tt>reverse_iterator</tt> and <tt>rbegin</tt>), and different
+    exception and invalidation guarantees.</p>
+
+    <h2><a name="invariants" id="invariants">Node
+    Invariants</a></h2>
+
+    <p>Consider the two trees in Figures <a href=
+    "#node_invariants">Some node invariants</a> A and B. The first
+    is a tree of floats; the second is a tree of pairs, each
+    signifying a geometric line interval. Each element in a tree is refered to as a node of the tree. Of course, each of
+    these trees can support the usual queries: the first can easily
+    search for <tt>0.4</tt>; the second can easily search for
+    <tt>std::make_pair(10, 41)</tt>.</p>
+
+    <p>Each of these trees can efficiently support other queries.
+    The first can efficiently determine that the 2rd key in the
+    tree is <tt>0.3</tt>; the second can efficiently determine
+    whether any of its intervals overlaps
+    <tt>std::make_pair(29,42)</tt> (useful in geometric
+    applications or distributed file systems with leases, for
+    example). (See <a href=
+    "../../../../testsuite/ext/pb_ds/example/tree_order_statistics.cc"><tt>tree_order_statistics.cc</tt></a>
+    and <a href=
+    "../../../../testsuite/ext/pb_ds/example/tree_intervals.cc"><tt>tree_intervals.cc</tt></a>
+    for examples.) It should be noted that an <tt>std::set</tt> can
+    only solve these types of problems with linear complexity.</p>
+
+    <p>In order to do so, each tree stores some <i>metadata</i> in
+    each node, and maintains node invariants <a href=
+    "references.html#clrs2001">clrs2001</a>]. The first stores in
+    each node the size of the sub-tree rooted at the node; the
+    second stores at each node the maximal endpoint of the
+    intervals at the sub-tree rooted at the node.</p>
+
+    <h6 class="c1"><a name="node_invariants" id=
+    "node_invariants"><img src="node_invariants.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Some node invariants.</h6>
+
+    <p>Supporting such trees is difficult for a number of
+    reasons:</p>
+
+    <ol>
+      <li>There must be a way to specify what a node's metadata
+      should be (if any).</li>
+
+      <li>Various operations can invalidate node invariants.
+      <i>E.g.</i>, Figure <a href=
+      "#node_invariant_invalidations">Invalidation of node
+      invariants</a> shows how a right rotation, performed on A,
+      results in B, with nodes <i>x</i> and <i>y</i> having
+      corrupted invariants (the grayed nodes in C); Figure <a href=
+      "#node_invariant_invalidations">Invalidation of node
+      invariants</a> shows how an insert, performed on D, results
+      in E, with nodes <i>x</i> and <i>y</i> having corrupted
+      invariants (the grayed nodes in F). It is not feasible to
+      know outside the tree the effect of an operation on the nodes
+      of the tree.</li>
+
+      <li>The search paths of standard associative containers are
+      defined by comparisons between keys, and not through
+      metadata.</li>
+
+      <li>It is not feasible to know in advance which methods trees
+      can support. Besides the usual <tt>find</tt> method, the
+      first tree can support a <tt>find_by_order</tt> method, while
+      the second can support an <tt>overlaps</tt> method.</li>
+    </ol>
+
+    <h6 class="c1"><a name="node_invariant_invalidations" id=
+    "node_invariant_invalidations"><img src=
+    "node_invariant_invalidations.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">Invalidation of node invariants.</h6>
+
+    <p>These problems are solved by a combination of two means:
+    node iterators, and template-template node updater
+    parameters.</p>
+
+    <h3><a name="node_it" id="node_it">Node Iterators</a></h3>
+
+    <p>Each tree-based container defines two additional iterator
+    types, <a href=
+    "tree_const_node_iterator.html"><tt>const_node_iterator</tt></a>
+    and <a href=
+    "tree_node_iterator.html"><tt>node_iterator</tt></a>.
+    These iterators allow descending from a node to one of its
+    children. Node iterator allow search paths different than those
+    determined by the comparison functor. <a href=
+    "tree.html">tree</a>
+    supports the methods:</p>
+    <pre>
+    <a href="tree_const_node_iterator.html"><tt>const_node_iterator</tt></a>
+    node_begin() <b>const</b>;
+
+    <a href="tree_node_iterator.html"><tt>node_iterator</tt></a>
+    node_begin();
+
+    <a href="tree_const_node_iterator.html"><tt>const_node_iterator</tt></a>
+    node_end() <b>const</b>;
+
+    <a href="tree_node_iterator.html"><tt>node_iterator</tt></a>
+    node_end(); 
+</pre>
+
+    <p>The first pairs return node iterators corresponding to the
+    root node of the tree; the latter pair returns node iterators
+    corresponding to a just-after-leaf node.</p>
+
+    <h3><a name="node_up" id="node_up">Node Updater
+    (Template-Template) Parameters</a></h3>
+
+    <p>The tree-based containers are parametrized by a
+    <tt>Node_Update</tt> template-template parameter. A tree-based
+    container instantiates <tt>Node_Update</tt> to some
+    <tt>node_update</tt> class, and publicly
+    subclasses <tt>node_update</tt>. Figure
+    <a href="#tree_node_update_cd">A tree and its update
+    policy</a> shows this scheme, as well as some predefined
+    policies (which are explained below).</p>
+
+    <h6 class="c1"><a name="tree_node_update_cd" id=
+    "tree_node_update_cd"><img src=
+    "tree_node_update_policy_cd.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">A tree and its update policy.</h6>
+
+    <p><tt>node_update</tt> (an instantiation of
+    <tt>Node_Update</tt>) must define <tt>metadata_type</tt> as
+    the type of metadata it requires. For order statistics,
+    <i>e.g.</i>, <tt>metadata_type</tt> might be <tt>size_t</tt>.
+    The tree defines within each node a <tt>metadata_type</tt>
+    object.</p>
+
+    <p><tt>node_update</tt> must also define the following method
+    for restoring node invariants:</p>
+    <pre>
+    void 
+    operator()(<a href=
+"tree_node_iterator.html"><tt>node_iterator</tt></a> nd_it, <a href=
+"tree_const_node_iterator.html"><tt>const_node_iterator</tt></a> end_nd_it)
+</pre>
+
+    <p>In this method, <tt>nd_it</tt> is a <a href=
+    "tree_node_iterator.html"><tt>node_iterator</tt></a>
+    corresponding to a node whose A) all descendants have valid
+    invariants, and B) its own invariants might be violated;
+    <tt>end_nd_it</tt> is a <a href=
+    "tree_const_node_iterator.html"><tt>const_node_iterator</tt></a>
+    corresponding to a just-after-leaf node. This method should
+    correct the node invariants of the node pointed to by
+    <tt>nd_it</tt>. For example, say node <i>x</i> in Figure
+    <a href="#restoring_node_invariants">Restoring node
+    invariants</a>-A has an invalid invariant, but its' children,
+    <i>y</i> and <i>z</i> have valid invariants. After the
+    invocation, all three nodes should have valid invariants, as in
+    Figure <a href="#restoring_node_invariants">Restoring node
+    invariants</a>-B.</p>
+
+    <h6 class="c1"><a name="restoring_node_invariants" id=
+    "restoring_node_invariants"><img src=
+    "restoring_node_invariants.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">Invalidation of node invariants.</h6>
+
+    <p>When a tree operation might invalidate some node invariant,
+    it invokes this method in its <tt>node_update</tt> base to
+    restore the invariant. For example, Figure <a href=
+    "#update_seq_diagram">Insert update sequence diagram</a> shows
+    an <tt>insert</tt> operation (point A); the tree performs some
+    operations, and calls the update functor three times (points B,
+    C, and D). (It is well known that any <tt>insert</tt>,
+    <tt>erase</tt>, <tt>split</tt> or <tt>join</tt>, can restore
+    all node invariants by a small number of node invariant updates
+    [<a href="references.html#clrs2001">clrs2001</a>].)</p>
+
+    <h6 class="c1"><a name="update_seq_diagram" id=
+    "update_seq_diagram"><img src="update_seq_diagram.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Insert update sequence diagram.</h6>
+
+    <p>To complete the description of the scheme, three questions
+    need to be answered:</p>
+
+    <ol>
+      <li>How can a tree which supports order statistics define a
+      method such as <tt>find_by_order</tt>?</li>
+
+      <li>How can the node updater base access methods of the
+      tree?</li>
+
+      <li>How can the following cyclic dependency be resolved?
+      <tt>node_update</tt> is a base class of the tree, yet it
+      uses node iterators defined in the tree (its child).</li>
+    </ol>
+
+    <p>The first two questions are answered by the fact that
+    <tt>node_update</tt> (an instantiation of
+    <tt>Node_Update</tt>) is a <tt><b>public</b></tt> base class
+    of the tree. Consequently:</p>
+
+    <ol>
+      <li>Any public methods of <tt>node_update</tt> are
+      automatically methods of the tree [<a href=
+      "references.html#alexandrescu01modern">alexandrescu01modern</a>].
+      Thus an order-statistics node updater, <a href=
+      "tree_order_statistics_node_update.html"><tt>tree_order_statistics_node_update</tt></a>
+      defines the <tt>find_by_order</tt> method; any tree
+      instantiated by this policy consequently supports this method
+      as well.</li>
+
+      <li>In C++, if a base class declares a method as
+      <tt><b>virtual</b></tt>, it is <tt><b>virtual</b></tt> in its
+      subclasses. If <tt>node_update</tt> needs to access one of
+      the tree's methods, say the member function <tt>end</tt>, it simply
+      declares that method as <tt><b>virtual</b></tt>
+      abstract.</li>
+    </ol>
+
+    <p>The cyclic dependency is solved through template-template
+    parameters. <tt>Node_Update</tt> is parametrized by the tree's node iterators, its comparison
+    functor, and its allocator type. Thus, 
+    instantiations of <tt>Node_Update</tt> have all information required.</p>
+
+    <p class="c1"><tt>pb_ds</tt> assumes that constructing a metadata object and modifying it
+    are exception free. Suppose that during some method, say
+    <tt>insert</tt>, a metadata-related operation
+    (<i>e.g.</i>, changing the value of a metadata) throws an
+    exception. Ack! Rolling back the method is unusually complex.</p>
+
+    <p>In <a href=
+    "concepts.html#concepts_null_policies">Interface::Concepts::Null
+    Policy Classes</a> a distinction was made between <i>redundant
+    policies</i> and <i>null policies</i>. Node invariants show a
+    case where null policies are required.</p>
+
+    <p>Assume a regular tree is required, one which need not
+    support order statistics or interval overlap queries.
+    Seemingly, in this case a redundant policy - a policy which
+    doesn't affect nodes' contents would suffice. This, would lead
+    to the following drawbacks:</p>
+
+    <ol>
+      <li>Each node would carry a useless metadata object, wasting
+      space.</li>
+
+      <li>The tree cannot know if its <tt>Node_Update</tt> policy
+      actually modifies a node's metadata (this is halting
+      reducible). In Figure <a href=
+      "#rationale_null_node_update">Useless update path</a> ,
+      assume the shaded node is inserted. The tree would have to
+      traverse the useless path shown to the root, applying
+      redundant updates all the way.</li>
+    </ol>
+
+    <h6 class="c1"><a name="rationale_null_node_update" id=
+    "rationale_null_node_update"><img src=
+    "rationale_null_node_update.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">Useless update path.</h6>
+
+    <p>A null policy class, <a href=
+    "null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+    solves both these problems. The tree detects that node
+    invariants are irrelevant, and defines all accordingly.</p>
+
+    <h2><a name="add_methods" id="add_methods">Additional
+    Methods</a></h2>
+
+    <p>Tree-based containers support split and join methods.
+    It is possible to split a tree so that it passes
+    all nodes with keys larger than a given key to a different
+    tree. These methods have the following advantages over the
+    alternative of externally inserting to the destination
+    tree and erasing from the source tree:</p>
+
+    <ol>
+      <li>These methods are efficient - red-black trees are split
+      and joined in poly-logarithmic complexity; ordered-vector
+      trees are split and joined at linear complexity. The
+      alternatives have super-linear complexity.</li>
+
+      <li>Aside from orders of growth, these operations perform
+      few allocations and de-allocations. For red-black trees, allocations are not performed,
+      and the methods are exception-free. </li>
+    </ol>
+  </div>
+</body>
+</html>

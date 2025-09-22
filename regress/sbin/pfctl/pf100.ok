@@ -1,0 +1,18 @@
+pass all flags S/SA
+anchor "a/b" all
+anchor "1/2/3" all
+anchor "relative" all {
+  pass in on lo0 all flags S/SA label "TEST1"
+}
+anchor "camield/*" all
+anchor "relayd/*" all
+anchor "foo" in on lo0 all {
+  anchor "bar" in all {
+    anchor "/1/2/3" all
+    anchor "/relative" all
+    pass in on lo0 all flags S/SA label "FOO"
+  }
+  anchor in all {
+    pass in on lo0 all flags S/SA label "BAR"
+  }
+}

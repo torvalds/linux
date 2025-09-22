@@ -1,0 +1,103 @@
+.\"	$OpenBSD: ripd.8,v 1.14 2023/03/02 17:09:54 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Michele Marchetto <mydecay@openbeer.it>
+.\" Copyright (c) 2004, 2005, 2006 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt RIPD 8
+.Os
+.Sh NAME
+.Nm ripd
+.Nd Routing Information Protocol (RIP) daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+.Nm
+is the Routing Information Protocol
+.Pq RIP
+daemon which manages routers' routing tables.
+.Pp
+A running
+.Nm
+can be controlled with the
+.Xr ripctl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Specify an alternative configuration file.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl s Ar socket
+Use an alternate location for the default control socket.
+.It Fl v
+Produce more verbose output.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/ripd.sockXX" -compact
+.It Pa /etc/ripd.conf
+Default
+.Nm
+configuration file.
+.It Pa /var/run/ripd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr ripctl 8 .
+.El
+.Sh SEE ALSO
+.Xr ripd.conf 5 ,
+.Xr rc.conf 8 ,
+.Xr ripctl 8
+.Sh STANDARDS
+.Rs
+.%A F. Baker
+.%A R. Atkinson
+.%D January 1997
+.%R RFC 2082
+.%T RIP-2 MD5 Authentication
+.Re
+.Pp
+.Rs
+.%A G. Malkin
+.%D November 1998
+.%R RFC 2453
+.%T RIP Version 2
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.1 .

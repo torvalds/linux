@@ -1,0 +1,14 @@
+# Shorten the target alias so when it is used to set 'libsubdir'
+# the name will work in both short and long filename environments.
+ifeq ($(findstring -pc-msdosdjgpp,$(target_alias)),-pc-msdosdjgpp)
+target_alias=djgpp
+endif
+
+# The version string must be modified to contain just one dot
+# because DOS filenames can only have one dot when long filenames
+# are not available.
+__version:=$(gcc_version)
+__version:=$(subst ., ,$(__version))
+ifeq ($(words $(__version)),3)
+gcc_version=$(word 1,$(__version)).$(word 2,$(__version))$(word 3,$(__version))
+endif

@@ -1,0 +1,53 @@
+.\"	$OpenBSD: mpath.4,v 1.6 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2009 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt MPATH 4
+.Os
+.Sh NAME
+.Nm mpath
+.Nd SCSI multipath
+.Sh SYNOPSIS
+.Cd "emc* at scsibus?"
+.Cd "hds* at scsibus?"
+.Cd "rdac* at scsibus?"
+.Cd "sym* at scsibus?"
+.Pp
+.Cd "mpath0 at root"
+.Sh DESCRIPTION
+.Nm
+provides access, I/O multiplexing, and failover support to SCSI
+logical units that can have multiple physical connections to the
+system.
+It uses connections presented by path drivers, for example
+.Xr sym 4 ,
+as backends to a single device attached to its own
+.Xr scsibus 4 .
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr emc 4 ,
+.Xr hds 4 ,
+.Xr intro 4 ,
+.Xr rdac 4 ,
+.Xr scsi 4 ,
+.Xr sym 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.7 .
+.Sh AUTHORS
+.An David Gwynne Aq Mt dlg@openbsd.org .

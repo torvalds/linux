@@ -1,0 +1,34 @@
+$OpenBSD: QUESTIONS,v 1.5 2003/11/05 12:31:21 jmc Exp $
+$EOM: QUESTIONS,v 1.12 1998/10/11 17:11:06 niklas Exp $
+
+Does the spec limit the count of SA payloads in a message?  Where if so?
+[ Only the specific IKE main mode does.  In the IKE spec.]
+
+The message ID field of the header, can it be considered a SA identifier
+if used together with the cookiepair?	[Yes, it is meant to be that]
+
+DOI 0, what protocols are defined for it?  Where?
+
+Isn't this a potential DOS attack:
+Hostile user listens for ISAKMP traffic, and then extracts cookiepairs
+and message IDs which he uses to flood any of the peers with spoofed
+packets pretending to be the other one.  Most probably these packets will
+result in error notifications which potentially result in SA tear-down?
+Maybe should notifications never be issued for erroneous packets which
+cannot be authenticated?  Or should we not tear down SAs as results of
+notifications?
+
+Certicom claims to hold licenses for Elliptic Curve Cryptography? Does this
+concern us? See: http://grouper.ieee.org/groups/1363/P1363/patents.html
+
+Main mode when using public key encryption authentication does not look
+like an identity protection exchange to me.  Must I really get rid of
+the generic ISAKMP payload presense tests?
+
+IV generation is not described precisely in Appendix B of -oakley-08.txt:
+'Subsequent messages MUST use the last CBC encryption block from the previous
+message as their IV'. This probably means that we take the new IV from the
+last encrypted block of the last message we sent. The SSH testing site uses
+the last block from the last message they received. This is probably not
+what was meant and should be clarified on ipsec@tis.com.
+[ From what we have gathered this is what is meant.  ]

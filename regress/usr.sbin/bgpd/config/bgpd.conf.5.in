@@ -1,0 +1,33 @@
+# $OpenBSD: bgpd.conf.5.in,v 1.2 2019/02/12 09:04:10 claudio Exp $
+# test vpn statement
+
+AS 1
+
+# example from the man page
+vpn "a rdomain" on mpe0 {
+	rd 65002:1
+	import-target rt 65002:42
+	export-target rt 65002:42
+	network 192.0.2/24
+}
+
+vpn "an other" on mpe1 {
+	rd 1:2
+}
+
+vpn "test-vpn" on mpe2 {
+	rd 1:3
+
+	# some comment
+	import-target rt 65002:42
+}
+
+vpn "test-full" on mpe3 {
+	export-target rt 65002:42
+	export-target rt 192.0.2.3:42
+	fib-update no
+	import-target rt 65002:21
+	import-target rt 192.0.2.3:21
+	network 192.0.2.32/27
+	rd 192.0.2.4:1
+}

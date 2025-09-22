@@ -1,0 +1,11 @@
+set reassemble yes no-df
+set reassemble no
+match scrub(no-df)
+match scrub(min-ttl 25)
+match scrub(max-mss 224)
+match scrub(no-df max-mss 224)
+match set tos lowdelay
+match out proto esp set tos throughput
+match out proto ah set tos reliability
+match out proto icmp set tos 0x12
+match out all tagged THROUGHPUT set tos throughput

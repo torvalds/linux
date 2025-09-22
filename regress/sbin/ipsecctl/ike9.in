@@ -1,0 +1,1 @@
+ike dynamic esp from 3.3.3.0/24 to 4.4.4.0/24 peer 2.2.2.2 srcid noname.my.domain

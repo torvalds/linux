@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="libstdc++, license, licence" />
+   <meta name="DESCRIPTION" content="Copying restrictions for libstdc++." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 copying</title>
+<link rel="StyleSheet" href="../lib3styles.css" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Licenses for the Library</a></h1>
+
+<p>There are two licenses affecting GNU libstdc++-v3:  one for the code, and
+   one for the documentation.  Here we will describe both of them, and try
+   to answer some of the widespread questions.  If you have more questions,
+   ask the FSF or the
+   <a href="http://gcc.gnu.org/lists.html">gcc mailing list</a>; the person
+   writing this page is a programmer, not a lawyer.
+</p>
+
+<hr />
+
+<h2>The Code:  Runtime GPL</h2>
+
+<p>The source code of libstdc++-v3 is distributed under version 2 of the
+   <a href="COPYING">GNU General Public License</a>, with the so-called
+   &quot;runtime exception,&quot; as follows (or see any header or
+   implementation file):
+</p>
+<pre>
+   As a special exception, you may use this file as part of a free software
+   library without restriction.  Specifically, if other files instantiate
+   templates or use macros or inline functions from this file, or you compile
+   this file and link it with other files to produce an executable, this
+   file does not by itself cause the resulting executable to be covered by
+   the GNU General Public License.  This exception does not however
+   invalidate any other reasons why the executable file might be covered by
+   the GNU General Public License.
+</pre>
+
+<p>Hopefully that text is self-explanatory.  If it isn't, you need to speak
+   to your lawyer, or the Free Software Foundation.
+</p>
+
+<!-- Most of the Q&A's are based on, paraphrased from, and outright stolen
+     from this thread:
+     http://gcc.gnu.org/ml/libstdc++/2000-q2/subjects.html#00050
+-->
+<p><strong>Q:  So any program which uses libstdc++ falls under the GPL?</strong>
+ <br />A:  <strong>No.</strong>  The special exception permits use of the
+     library in proprietary applications.
+</p>
+
+<p><strong>Q:  How is that different from the GNU {Lesser,Library}
+   GPL?</strong>
+ <!-- Quoting Jason Merrill from the thread above: -->
+ <br />A:  The LGPL requires that users be able to replace the LGPL code with a
+     modified version; this is trivial if the library in question is a C
+     shared library.  But there's no way to make that work with C++, where
+     much of the library consists of inline functions and templates, which
+     are expanded inside the code that uses the library.  So to allow people
+     to replace the library code, someone using the library would have to
+     distribute their own source, rendering the LGPL equivalent to the GPL.
+</p>
+
+<p><strong>Q:  I see.  So, what restrictions <em>are</em> there on
+   programs that use the library?</strong>
+ <br />A:  None.  We encourage such programs to be released as open source,
+     but we won't punish you or sue you if you choose otherwise.
+</p>
+
+<hr />
+
+<h2>The Docs:  FDL</h2>
+
+<p>The documentation shipped with the library and made available over the
+   web, including the pages generated from source comments, are copyrighted
+   by the Free Software Foundation, and placed under
+   the <a href="COPYING.DOC">GNU Free Documentation License version 1.1</a>.
+   There are no Front-Cover Texts, no Back-Cover Texts, and
+   <!-- as far as I know -->
+   no Invariant Sections.
+</p>
+
+<p>If you plan on making copies of the documentation, please let us know.
+   We can probably offer suggestions.
+</p>
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+Comments and suggestions about this page are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+Comments or questions about the licenses themselves are also welcome, and
+should be directed to the GCC list as descibed above.
+</em></p>
+
+
+</body>
+</html>
+
+

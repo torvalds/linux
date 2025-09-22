@@ -1,0 +1,4 @@
+# dynaddr with netmask
+
+pass inet to (lo0)/24
+

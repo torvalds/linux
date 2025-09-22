@@ -1,0 +1,155 @@
+
+BGP routing table entry for 2.0.3.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs valid, avs unknown, external, valid, best
+    Ext. Communities: ovs valid
+
+BGP routing table entry for 2.0.4.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 1, weight 0, ovs invalid, avs unknown, external, valid, best
+    Communities: 65520:0 65520:14 65524:2
+    Ext. Communities: ovs invalid rt 65524:2
+
+BGP routing table entry for 2.0.5.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Ext. Communities: ovs not-found
+
+BGP routing table entry for 2.0.6.0/24
+    2 2 2 2 2 2 2 2 2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 1, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65520:0 65520:1 65524:2
+    Ext. Communities: ovs not-found rt 65524:2
+
+BGP routing table entry for 2.0.7.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 1, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65520:0 65520:3 65524:2
+    Ext. Communities: ovs not-found rt 65524:2
+
+BGP routing table entry for 2.0.9.0/24
+    2
+    Nexthop 192.0.2.77 (via 192.0.2.77) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 1, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65520:0 65520:5 65524:2
+    Ext. Communities: ovs not-found rt 65524:2
+
+BGP routing table entry for 2.0.11.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65530:4 BLACKHOLE
+    Ext. Communities: ovs not-found
+    Large Communities: 999:65530:4
+
+BGP routing table entry for 2.0.12.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65530:4 65534:0
+    Ext. Communities: ovs not-found
+    Large Communities: 999:65530:4
+
+BGP routing table entry for 2.0.13.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65530:4
+    Ext. Communities: ovs not-found
+    Large Communities: 999:65530:4 65534:0:0
+
+BGP routing table entry for 2.0.14.0/25
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 1, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65520:0 65520:13 65524:2
+    Ext. Communities: ovs not-found rt 65524:2
+
+BGP routing table entry for 2.0.15.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Ext. Communities: ovs not-found
+
+BGP routing table entry for 3.0.3.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor AS3_1 client (192.0.2.31)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65507:999
+    Ext. Communities: ovs not-found
+
+BGP routing table entry for 3.0.4.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor AS3_1 client (192.0.2.31)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Ext. Communities: ovs not-found
+    Large Communities: 999:65508:999
+
+BGP routing table entry for 3.0.5.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor AS3_1 client (192.0.2.31)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Ext. Communities: ovs not-found
+    Large Communities: 999:0:999
+
+BGP routing table entry for 3.0.6.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor AS3_1 client (192.0.2.31)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 0:1
+    Ext. Communities: ovs not-found
+
+BGP routing table entry for 3.0.7.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor AS3_1 client (192.0.2.31)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 0:999
+    Ext. Communities: ovs not-found
+    Large Communities: 999:65501:1
+
+BGP routing table entry for 3.0.8.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor AS3_1 client (192.0.2.31)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65521:1
+    Ext. Communities: ovs not-found
+
+BGP routing table entry for 3.0.9.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor AS3_1 client (192.0.2.31)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Ext. Communities: ovs not-found
+    Large Communities: 999:65522:1
+
+BGP routing table entry for 3.0.10.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor AS3_1 client (192.0.2.31)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65523:1
+    Ext. Communities: ovs not-found
+
+BGP routing table entry for 3.0.11.0/24
+    3
+    Nexthop 192.0.2.31 (via 192.0.2.31) Neighbor AS3_1 client (192.0.2.31)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65521:65521 65522:65522 65523:65523
+    Ext. Communities: ovs not-found
+
+BGP routing table entry for 22.0.10.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 1, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65520:0 65520:12 65524:2
+    Ext. Communities: ovs not-found rt 65524:2
+
+BGP routing table entry for 192.168.8.0/24
+    2
+    Nexthop 192.0.2.21 (via 192.0.2.21) Neighbor AS2_1 client (192.0.2.21)
+    Origin IGP, metric 0, localpref 1, weight 0, ovs not-found, avs unknown, external, valid, best
+    Communities: 65520:0 65520:2 65524:2
+    Ext. Communities: ovs not-found rt 65524:2

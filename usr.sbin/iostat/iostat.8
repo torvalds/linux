@@ -1,0 +1,202 @@
+.\"	$OpenBSD: iostat.8,v 1.28 2022/09/17 11:39:09 jmc Exp $
+.\"	$NetBSD: iostat.8,v 1.10 1996/10/25 18:21:57 scottr Exp $
+.\"
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)iostat.8	8.1 (Berkeley) 6/6/93
+.\"
+.Dd $Mdocdate: September 17 2022 $
+.Dt IOSTAT 8
+.Os
+.Sh NAME
+.Nm iostat
+.Nd report I/O statistics
+.Sh SYNOPSIS
+.Nm iostat
+.Op Fl CDdIT
+.Op Fl c Ar count
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar wait
+.Op Ar drives
+.Sh DESCRIPTION
+.Nm
+displays kernel I/O statistics on terminal, disk and CPU operations.
+By default,
+.Nm
+displays one line of statistics averaged over the machine's run time.
+The
+.Fl I
+option causes
+.Nm iostat
+to print raw, unaveraged values.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl C
+Show CPU statistics.
+This is enabled by default unless the
+.Fl D ,
+.Fl d ,
+or
+.Fl T
+flags are used.
+.It Fl c Ar count
+Repeat the display
+.Ar count
+times.
+Unless the
+.Fl I
+flag is in effect, the first display is for the time since a reboot and
+each subsequent report is for the time period since the last display.
+Unless overridden by the
+.Fl w
+option, the wait interval between lines is 1 second.
+.It Fl D
+Show alternate disk statistics.
+Displays kilobytes transferred, number of
+transfers, and time spent in transfers.
+Use of this flag disables the default display.
+.It Fl d
+Show disk statistics.
+This is the default.
+Displays kilobytes per
+transfer, number of transfers, and megabytes transferred.
+Use of this flag disables display of CPU and tty statistics.
+.It Fl I
+Show the running total values, rather than an average.
+.It Fl M Ar core
+Extract values associated with the name list from the specified
+.Ar core
+instead of the default
+.Pa /dev/mem .
+.It Fl N Ar system
+Extract the name list from the specified
+.Ar system
+instead of the default
+.Dq Pa /bsd .
+.It Fl T
+Show tty statistics.
+This is enabled by default unless the
+.Fl C ,
+.Fl D ,
+or
+.Fl d
+flags are used.
+.It Fl w Ar wait
+Pause
+.Ar wait
+seconds between each display.
+Unless a
+.Ar count
+is specified via the
+.Fl c
+option,
+.Nm
+will display output until it is interrupted.
+.El
+.Pp
+.Nm
+displays its information in the following format:
+.Bl -tag -width flag
+.It tty
+.Bl -tag -width indent -compact
+.It tin
+characters read from terminals
+.It tout
+characters written to terminals
+.El
+.It disks
+Disk operations.
+The header of the field is the disk name and unit number.
+If more than four disk drives are configured in the system,
+.Nm
+displays only the first four drives.
+To force
+.Nm
+to display specific drives, their names may be supplied on the command
+line.
+.Pp
+.Bl -tag -width indent -compact
+.It KB/t
+Kilobytes transferred per disk transfer
+.It t/s
+Transfers per second
+.It MB/s
+Megabytes transferred per second
+.El
+.Pp
+The alternate display format, selected with
+.Fl D ,
+presents the following values:
+.Pp
+.Bl -tag -width indent -compact
+.It KB
+Kilobytes transferred
+.It xfr
+Disk transfers
+.It time
+Seconds spent in disk activity
+.El
+.It cpu
+.Bl -tag -width indent -compact
+.It \&us
+% of CPU time in user mode
+.It \&ni
+% of CPU time in user mode running niced processes
+.It \&sy
+% of CPU time in system mode
+.It \&sp
+% of CPU time spent spinning
+.It \&in
+% of CPU time processing interrupts
+.It \&id
+% of CPU time in idle mode
+.El
+.El
+.Sh FILES
+.Bl -tag -width /dev/mem -compact
+.It Pa /bsd
+default kernel namelist
+.It Pa /dev/mem
+default memory file
+.El
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr netstat 1 ,
+.Xr nfsstat 1 ,
+.Xr ps 1 ,
+.Xr systat 1 ,
+.Xr top 1 ,
+.Xr pstat 8 ,
+.Xr vmstat 8
+.Pp
+The sections starting with
+.Dq Interpreting system activity
+in
+.%T "Installing and Operating 4.3BSD" .

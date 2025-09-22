@@ -1,0 +1,52 @@
+.\"	$OpenBSD: gdiumiic.4,v 1.2 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt GDIUMIIC 4 loongson
+.Os
+.Sh NAME
+.Nm gdiumiic
+.Nd Gdium specific GPIO I2C controller
+.Sh SYNOPSIS
+.Cd "gdiumiic0 at gpio0 offset 6 mask 0x81"
+.Cd "gdiumiic0 at gpio0 offset 46 mask 0x03"
+.Cd "iic0 at gdiumiic0"
+.Sh DESCRIPTION
+The
+.Nm
+driver allows bit-banging an I2C bus as a master using two GPIO pins.
+The first pin is used as a serial clock (SCL) signal and the second as
+a serial data (SDA).
+Both GPIO pins must be able to drive an output and the SDA pin must be
+also able to read an input.
+.Pp
+The
+.Nm
+driver is derived from the
+.Nm gpioiic
+driver, using a different pin ordering, and knowledge of the Gdium I2C bus
+configuration.
+.Sh SEE ALSO
+.Xr gpio 4 ,
+.Xr gpioiic 4 ,
+.Xr iic 4 ,
+.Xr intro 4
+.Sh AUTHORS
+.An -nosplit
+The original
+.Nm gpioiic
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

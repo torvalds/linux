@@ -1,0 +1,65 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("AVRGenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../AVR.td"
+}
+
+tablegen("AVRGenInstrInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../AVR.td"
+}
+
+tablegen("AVRGenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../AVR.td"
+}
+
+tablegen("AVRGenRegisterInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../AVR.td"
+}
+
+tablegen("AVRGenSubtargetInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../AVR.td"
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMAVRDesc"
+
+  # This should contain tablegen targets generating .inc files included
+  # by other targets. .inc files only used by .cpp files in this directory
+  # should be in deps instead.
+  public_deps = [
+    ":AVRGenInstrInfo",
+    ":AVRGenRegisterInfo",
+    ":AVRGenSubtargetInfo",
+  ]
+  deps = [
+    ":AVRGenAsmWriter",
+    ":AVRGenMCCodeEmitter",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/AVR/TargetInfo",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "AVRAsmBackend.cpp",
+    "AVRELFObjectWriter.cpp",
+    "AVRELFStreamer.cpp",
+    "AVRInstPrinter.cpp",
+    "AVRMCAsmInfo.cpp",
+    "AVRMCCodeEmitter.cpp",
+    "AVRMCELFStreamer.cpp",
+    "AVRMCExpr.cpp",
+    "AVRMCTargetDesc.cpp",
+    "AVRTargetStreamer.cpp",
+  ]
+}

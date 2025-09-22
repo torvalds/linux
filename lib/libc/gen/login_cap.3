@@ -1,0 +1,333 @@
+.\"
+.\" Copyright (c) 1996,1997 Berkeley Software Design, Inc. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Berkeley Software Design,
+.\"	Inc.
+.\" 4. The name of Berkeley Software Design, Inc.  may not be used to endorse
+.\"    or promote products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN, INC. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $OpenBSD: login_cap.3,v 1.24 2024/03/18 08:50:54 op Exp $
+.\" BSDI $From: login_cap.3,v 1.4 1997/11/07 16:22:27 jch Exp $
+.\"
+.Dd $Mdocdate: March 18 2024 $
+.Dt LOGIN_GETCLASS 3
+.Os
+.Sh NAME
+.Nm login_getclass ,
+.Nm login_getstyle ,
+.Nm login_getcapbool ,
+.Nm login_getcapnum ,
+.Nm login_getcapsize ,
+.Nm login_getcapstr ,
+.Nm login_getcaptime ,
+.Nm login_close ,
+.Nm setclasscontext ,
+.Nm setusercontext
+.Nd query login.conf database about a user class
+.Sh SYNOPSIS
+.In sys/types.h
+.In login_cap.h
+.Ft login_cap_t *
+.Fn login_getclass "char *class"
+.Ft char *
+.Fn login_getstyle "login_cap_t *lc" "char *style" "char *type"
+.Ft int
+.Fn login_getcapbool "login_cap_t *lc" "char *cap" "unsigned int def"
+.Ft quad_t
+.Fn login_getcapnum "login_cap_t *lc" "char *cap" "quad_t def" "quad_t err"
+.Ft quad_t
+.Fn login_getcapsize "login_cap_t *lc" "char *cap" "quad_t def" "quad_t err"
+.Ft char *
+.Fn login_getcapstr "login_cap_t *lc" "char *cap" "char *def" "char *err"
+.Ft quad_t
+.Fn login_getcaptime "login_cap_t *lc" "char *cap" "quad_t def" "quad_t err"
+.Ft void
+.Fn login_close "login_cap_t *lc"
+.Ft int
+.Fn setclasscontext "char *class" "unsigned int flags"
+.Ft int
+.Fn setusercontext "login_cap_t *lc" "struct passwd *pwd" "uid_t uid" "unsigned int flags"
+.Sh DESCRIPTION
+The
+.Fn login_getclass
+function extracts the entry specified by
+.Ar class
+(or
+.Li default
+if
+.Ar class
+is
+.Dv NULL
+or the empty string) from
+.Pa /etc/login.conf
+(see
+.Xr login.conf 5 ) .
+If the entry is found, a
+.Vt login_cap_t
+pointer is returned.
+.Dv NULL
+is returned if the user class is not found.
+When the
+.Vt login_cap_t
+structure is no longer needed, it should be freed by the
+.Fn login_close
+function.
+.Pp
+Once
+.Ar lc
+has been returned by
+.Fn login_getclass ,
+any of the other
+.Fn login_*
+functions may be called.
+The
+.Fn login_getstyle
+function is used to obtain the style of authentication that should be used for
+this user class.
+The
+.Ar style
+argument may either be
+.Dv NULL
+or the desired style of authentication.
+If
+.Dv NULL ,
+the first available authentication style will be used.
+The
+.Ar type
+argument refers to the type of authentication being performed.
+This is used to override the standard
+.Li auth
+entry in the database.
+By convention this should be of the form "auth-type".
+Future releases may remove the requirement for the "auth-" prefix and add
+it if it is missing.
+If
+.Ar type
+is
+.Dv NULL
+then only "auth" will be looked at
+(see
+.Xr login.conf 5 ) .
+The
+.Fn login_getstyle
+function will return
+.Dv NULL
+if the desired style of authentication is not available,
+or if no style is available.
+.Pp
+The
+.Fn login_getcapnum ,
+.Fn login_getcapsize ,
+.Fn login_getcapstr ,
+and
+.Fn login_getcaptime
+functions all query the database entry for a field named
+.Ar cap .
+If the field is found, its value is returned.
+If the field is not found, the value specified by
+.Ar def
+is returned.
+If an error is encountered while trying to find the field,
+.Ar err
+is returned.
+See
+.Xr login.conf 5
+for a discussion of the various textual forms the value may take.
+The
+.Fn login_getcapbool
+function is slightly different.
+It returns
+.Ar def
+if no capabilities were found for this class (typically meaning that
+the default class was used and the
+.Pa /etc/login.conf
+file is missing).
+It returns a non-zero value if
+.Ar cap ,
+with no value, was found,
+zero otherwise.
+.Pp
+The
+.Fn setclasscontext
+function takes
+.Ar class ,
+the name of a user class, and sets the resources defined by that
+class according to
+.Ar flags .
+Only the
+.Dv LOGIN_SETPATH ,
+.Dv LOGIN_SETPRIORITY ,
+.Dv LOGIN_SETRESOURCES ,
+.Dv LOGIN_SETRTABLE ,
+and
+.Dv LOGIN_SETUMASK
+bits are used
+(see
+.Fn setusercontext
+below).
+It returns 0 on success and \-1 on failure.
+.Pp
+The
+.Fn setusercontext
+function sets the resources according to
+.Ar flags .
+The
+.Ar lc
+argument, if not
+.Dv NULL ,
+contains the class information that should be used.
+The
+.Ar pwd
+argument, if not
+.Dv NULL ,
+provides information about the user.
+Both
+.Ar lc
+and
+.Ar pwd
+cannot be
+.Dv NULL .
+The
+.Ar uid
+argument is used in place of the user ID contained in the
+.Ar pwd
+structure when calling
+.Xr setuid 2 .
+The
+.Fn setusercontext
+function returns 0 on success and -1 on failure.
+The various bits available to be or-ed together to make up
+.Ar flags
+are:
+.Bl -tag -width LOGIN_SETRESOURCESXX
+.It Dv LOGIN_SETENV
+Sets environment variables specified by the
+.Li setenv
+keyword.
+.It Dv LOGIN_SETGROUP
+Set the group ID and call
+.Xr initgroups 3
+if the
+.Ar pwd
+argument is non-NULL.
+.It Dv LOGIN_SETLOGIN
+Sets the login name using
+.Xr setlogin 2
+if the
+.Ar pwd
+argument is non-NULL.
+.It Dv LOGIN_SETPATH
+Sets the
+.Ev PATH
+environment variable to the value of the
+.Li path
+keyword if specified, or to the value of
+.Dv _PATH_DEFPATH
+in
+.In paths.h
+if not.
+.It Dv LOGIN_SETPRIORITY
+Sets the priority, using
+.Xr setpriority 2 ,
+to the value of the
+.Li priority
+keyword if specified, or to
+.Li 0
+if not.
+.It Dv LOGIN_SETRESOURCES
+Sets the various system resources using
+.Xr setrlimit 2 .
+.It Dv LOGIN_SETRTABLE
+Sets the routing table to the value of the
+.Li rtable
+keyword, if specified,
+using
+.Xr setrtable 2 .
+.It Dv LOGIN_SETUMASK
+Sets the umask, using
+.Xr umask 2 ,
+to the value of the
+.Li umask
+keyword if specified, or to
+.Li 022
+if not.
+.It Dv LOGIN_SETUSER
+Sets the user ID to
+.Ar uid
+using
+.Xr setuid 2 .
+.It Dv LOGIN_SETALL
+Sets all of the above.
+.El
+.Sh SEE ALSO
+.Xr setlogin 2 ,
+.Xr setpriority 2 ,
+.Xr setrlimit 2 ,
+.Xr setrtable 2 ,
+.Xr setuid 2 ,
+.Xr umask 2 ,
+.Xr initgroups 3 ,
+.Xr login.conf 5
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Ox 2.8 .
+.Sh CAVEATS
+The string returned by
+.Fn login_getcapstr
+is allocated via
+.Xr malloc 3
+when the specified capability is present and thus it is the responsibility
+of the caller to
+.Fn free
+this space.
+However, if the capability was not found or an error occurred and
+.Fa def
+or
+.Fa err
+(whichever is relevant) are non-NULL the returned value is simply what
+was passed in to
+.Fn login_getcapstr .
+Therefore it is not possible to blindly
+.Fn free
+the return value without first checking it against
+.Fa def
+and
+.Fa err .
+.Pp
+The same warnings set forth in
+.Xr setlogin 2
+apply to
+.Fn setusercontext
+when the
+.Dv LOGIN_SETLOGIN
+flag is used.
+Specifically, changing the login name affects all processes in the current
+session, not just the current process.
+See
+.Xr setlogin 2
+for more information.

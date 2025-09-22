@@ -1,0 +1,1 @@
+pass divert-packet port 12345 divert-to 127.0.0.1 port 1

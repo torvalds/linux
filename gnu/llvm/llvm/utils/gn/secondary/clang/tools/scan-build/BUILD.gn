@@ -1,0 +1,45 @@
+group("scan-build") {
+  deps = [
+    ":bin",
+    ":libexec",
+    ":man",
+    ":share",
+  ]
+}
+
+copy("bin") {
+  sources = [ "bin/scan-build" ]
+  if (host_os == "mac") {
+    sources += [ "bin/set-xcode-analyzer" ]
+  } else if (host_os == "win") {
+    sources += [ "bin/scan-build.bat" ]
+  }
+  outputs = [ "$root_build_dir/bin/{{source_file_part}}" ]
+}
+
+copy("libexec") {
+  sources = [
+    "libexec/c++-analyzer",
+    "libexec/ccc-analyzer",
+  ]
+  if (host_os == "win") {
+    sources += [
+      "libexec/c++-analyzer.bat",
+      "libexec/ccc-analyzer.bat",
+    ]
+  }
+  outputs = [ "$root_build_dir/libexec/{{source_file_part}}" ]
+}
+
+copy("man") {
+  sources = [ "man/scan-build.1" ]
+  outputs = [ "$root_build_dir/share/man/man1/{{source_file_part}}" ]
+}
+
+copy("share") {
+  sources = [
+    "share/scan-build/scanview.css",
+    "share/scan-build/sorttable.js",
+  ]
+  outputs = [ "$root_build_dir/share/scan-build/{{source_file_part}}" ]
+}

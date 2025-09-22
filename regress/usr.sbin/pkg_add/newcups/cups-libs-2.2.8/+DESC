@@ -1,0 +1,10 @@
+CUPS libraries and headers
+CUPS provides a portable printing layer for UNIX(r)-based operating
+systems.  CUPS provides the System V and Berkeley command-line
+interfaces.
+
+This package provides the core CUPS libraries.
+
+Maintainer: Antoine Jacoutot <ajacoutot@openbsd.org>
+
+WWW: http://www.cups.org/

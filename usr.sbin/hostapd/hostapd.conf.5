@@ -1,0 +1,836 @@
+.\" $OpenBSD: hostapd.conf.5,v 1.50 2025/07/08 14:09:24 schwarze Exp $
+.\"
+.\" Copyright (c) 2004, 2005, 2006 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt HOSTAPD.CONF 5
+.Os
+.Sh NAME
+.Nm hostapd.conf
+.Nd configuration file for the Host Access Point daemon
+.Sh DESCRIPTION
+.Nm
+is the configuration file for the
+.Xr hostapd 8
+daemon.
+.Pp
+The
+.Nm
+file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx MACROS
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx TABLES
+Tables provide a mechanism to handle a large number of link layer
+addresses easily, with increased performance and flexibility.
+.It Sx GLOBAL CONFIGURATION
+Global runtime settings for
+.Xr hostapd 8 .
+.It Sx EVENT RULES
+Event rules provide a powerful mechanism to trigger certain actions
+when receiving specified IEEE 802.11 frames.
+.It Sx IP ROAMING
+The concepts and details about the optional IP based roaming in
+.Xr hostapd 8 .
+.El
+.Pp
+The current line can be extended over multiple lines using a backslash
+.Pq Sq \e .
+Comments can be put anywhere in the file using a hash mark
+.Pq Sq # ,
+and extend to the end of the current line.
+Care should be taken when commenting out multi-line text:
+the comment is effective until the end of the entire block.
+.Pp
+Argument names not beginning with a letter, digit, or underscore
+must be quoted.
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/hostapd.conf.local"
+.Ed
+.Sh MACROS
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic set ,
+.Ic interface ,
+or
+.Ic hostap ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+wlan="ath0"
+set iapp handle subtype { ! add notify, radiotap }
+set iapp interface $wlan
+.Ed
+.Sh TABLES
+Tables are named structures which can hold a collection of link layer
+addresses, masked address ranges, and link layer to IP address
+assignments.
+Lookups against tables in
+.Xr hostapd 8
+are relatively fast, making a single rule with tables much more
+efficient, in terms of processor usage and memory consumption, than a
+large number of rules which differ only in link layer addresses.
+.Pp
+Tables are used for
+.Xr hostapd 8
+.Em event rules
+to match specified IEEE 802.11 link layer addresses and address ranges,
+and the capability to assign link layer to IP addresses and an option netmask
+is a requirement for advanced IAPP functionality.
+.Pp
+Table options may be presented after the table name declaration.
+The following options are supported:
+.Bl -tag -width const
+.It Ic const
+The table is constant and cannot be later changed from its original
+definition.
+.El
+.Pp
+For example:
+.Bd -literal -offset indent
+cisco="00:40:06:ff:ff:ff & ff:ff:ff:00:00:00"
+
+table <black> { $cisco, 00:0d:60:ff:f1:2a }
+table <myess> const {
+	00:00:24:c3:40:18 -> 10.195.64.24,
+	00:00:24:c3:40:19 -> 10.195.64.25,
+	00:00:24:c3:40:1a -> 10.195.64.26
+}
+table <myclient> const {
+	00:05:4e:45:d4:b9 -> 172.23.5.1/30
+}
+.Ed
+.Sh GLOBAL CONFIGURATION
+The following configuration settings are understood:
+.Bl -tag -width Ds
+.It Xo
+.Ic set hostap interface
+.Ar interface |
+.Brq Ar interface0 , interface1 , ...
+.Xc
+Specify the wireless interface running in Host AP mode.
+This option could be omitted to use
+.Xr hostapd 8
+to log received IAPP messages.
+Multiple hostap interfaces may be specified
+as a comma-separated list,
+surrounded by curly braces.
+.It Ic set hostap mode Ar mode
+Specify the Host AP capture mode.
+The supported modes are:
+.Pp
+.Bl -tag -width radiotap -offset indent -compact
+.It Ic radiotap
+Capture IEEE 802.11 frames with additional radiotap headers.
+They will provide optional but useful information like received frame
+signal levels.
+.It Ic pcap
+Capture plain IEEE 802.11 frames.
+.El
+.It Xo
+.Ic set hostap hopper interface
+.Ar interface |
+.Brq Ar interface0 , interface1 , ...
+.Xc
+Enable a channel hopper on the selected wireless interface.
+Multiple hostap interfaces may be specified as a comma-separated list,
+surrounded by curly braces.
+.It Ic set hostap hopper delay Ar number
+Set the delay in milliseconds for the channel hopper before hopping to
+the next available channel.
+The default value is 800 milliseconds.
+.It Ic set iapp interface Ar interface
+Specify the mandatory Inter-Access-Point (IAPP) interface.
+It is important that the IAPP interface is on a trusted
+network because there is no authentication and an attacker could force
+disassociation of selected stations on all listening access points.
+.It Xo
+.Ic set iapp
+.Op Ic address | route
+.Ic roaming table
+.Pf < Ar table Ns >
+.Xc
+Specify a table used for
+.Em IP Roaming
+lookups of link layer address to IP address or subnet assignments.
+.It Xo
+.Ic set iapp handle subtype
+.Ar subtype |
+.Brq Ar subtype0 , subtype1 , ...
+.Xc
+Specify the IAPP subtypes to use:
+.Pp
+.Bl -tag -width broadcast -offset indent -compact
+.It Xo
+.Op Ic not
+.Ic add notify
+.Xc
+Send and receive
+.Em ADD.notify
+messages.
+This option is enabled by default.
+.It Xo
+.Op Ic not
+.Ic radiotap
+.Xc
+Receive
+.Em radiotap
+messages.
+This option is enabled by default.
+.It Xo
+.Op Ic not
+.Op Ic address |\ route
+.Ic roaming
+.Xc
+Enable dynamic roaming of IP addresses or routes.
+These options are disabled by default.
+.El
+.It Ic set iapp mode Ar mode
+Specify the IAPP mode.
+The supported modes are:
+.Pp
+.Bl -tag -width broadcast -offset indent -compact
+.It Xo
+.Ic multicast
+.Op Ic address Ar ipv4addr
+.Op Ic port Ar number
+.Op Ic ttl Ar number
+.Xc
+Use
+.Xr multicast 4
+frames.
+A multicast time-to-live (TTL) of 2 or higher is required to allow
+multicast forwarding, for example for use with
+.Xr mrouted 8 .
+.It Xo
+.Ic broadcast
+.Op Ic port Ar number
+.Xc
+Use broadcast frames.
+.El
+.Pp
+The default is multicast using the multicast address 224.0.1.178 and
+port 3517 with a TTL limited to 1 hop.
+Some access point vendors still use broadcast with the pre-standard
+IAPP port 2313.
+.El
+.Sh EVENT RULES
+Event rules provide a powerful way to trigger a certain action when
+receiving specified IEEE 802.11 frames on the
+.Em hostap interface .
+The rules are handled in sequential order, from first to last.
+Rules are handled without a state:
+each rule is processed independently from the others and from
+any previous actions.
+This behaviour is somewhat different to that of packet filter rules
+specified in
+.Xr pf.conf 5 .
+.Pp
+All
+.Xr hostapd 8
+event rules are single line statements beginning with
+the mandatory
+.Ic hostap handle
+keywords and optional rule options, interface, frame matching,
+a specified action, a limit, and a minimal rate:
+.Bd -filled -offset indent
+.Ic hostap handle
+.Op Ar option
+.Op Ar interface
+.Op Ar frame
+.Op Ar action
+.Op Ar limit
+.Op Ar rate
+.Ed
+.Pp
+Some rule statements support the optional keyword
+.Ic not ,
+also represented by the
+.Ic !\&
+operator,
+for inverse matching.
+.Pp
+The optional parts are defined below.
+.Ss Rule Option
+The rule
+.Ar option
+will modify the behaviour of handling the statement.
+There are two possible options,
+.Ic quick
+and
+.Ic skip .
+If either the keyword
+.Ic quick
+or the keyword
+.Ic skip
+is specified, no further event rules will be handled for this frame
+after processing this rule successfully.
+The keyword
+.Ic skip
+additionally skips any further IAPP processing of the frame,
+which is normally done after handling the event rules.
+.Ss Rule Interface
+The rule
+.Ar interface
+specifies the hostap interface the rule is matched on.
+The available interface list is specified by the global
+.Ic set hostap interface
+configuration setting.
+.Bd -filled -offset indent
+.Ic on
+.Op Ic not
+.Ar interface
+.Ed
+.Pp
+If not given,
+the event rule is matched on all available hostap interfaces.
+.Ss Rule Frame
+The
+.Ar frame
+description specifies a mechanism to match IEEE 802.11 frames.
+.Bl -tag -width Ds
+.It Ic any
+Match all frames.
+.It Xo
+.Ic frame
+.Op Ar type
+.Op Ar dir
+.Op Ar from
+.Op Ar to
+.Op Ar bssid
+.Op Ar radiotap
+.Xc
+Apply rules to frames matching the given parameters.
+The parameters are explained below.
+.Pp
+The
+.Ar type
+parameter specifies the frame type to match on.
+The frame type may be specified in the following ways:
+.Bl -tag -width Ds
+.It Ic type any
+Match all frame types.
+.It Xo
+.Ic type
+.Op Ic not
+.Ic data
+.Xc
+Match data frames.
+Presence of the
+.Ic not
+keyword negates the match and will match all non-data frames.
+.It Xo
+.Ic type
+.Op Ic not
+.Ic management
+.Oo Op Ic not
+.Ar subtype Oc
+.Xc
+Match management frames.
+The
+.Ar subtype
+argument may be specified to optionally match management frames of the
+given subtype.
+The subtype match may be negated by specifying the
+.Ic not
+keyword.
+See the
+.Sx Management Frame Subtypes
+section below for available subtypes specifications.
+.El
+.Pp
+The
+.Ar dir
+parameter specifies the direction the frame is being sent.
+The direction may be specified in the following ways:
+.Bl -tag -width Ds
+.It Ic dir any
+Match all directions.
+.It Ic dir Ar framedir
+Match frames with the given direction
+.Ar framedir .
+See the
+.Sx Frame Directions
+section below for available direction specifications.
+.El
+.Pp
+The
+.Ar radiotap
+rules allow parsing and matching of the extra information reported by
+the radiotap header.
+Support for the specified radiotap headers is optional and the
+specific parameters depend on the radiotap elements reported
+by the wireless interface.
+Support for the radiotap data link type can be verified with the
+.Xr tcpdump 8
+command.
+These rules require
+.Ic hostap mode radiotap
+in the global configuration.
+.Bl -tag -width Ds
+.It Xo
+.Ic signal
+.Op Ic operator
+.Ar percentage Ic %
+.Xc
+Match the signal quality of the received frame.
+.It Xo
+.Ic freq
+.Op Ic operator
+.Ar value Ic ( GHz | MHz )
+.Xc
+Match the transmit rate of the received frame.
+.It Xo
+.Ic txrate
+.Op Ic operator
+.Ar rate Ic Mb
+.Xc
+Match the frequency of the received frame,
+in Mbps.
+.El
+.Pp
+The radiotap rules support the following operators.
+If omitted, the specified value will be checked if it is equal or not.
+.Bd -literal -offset indent
+=	(equal)
+!=	(not equal)
+<	(less than)
+<=	(less than or equal)
+>	(greater than)
+>=	(greater than or equal)
+.Ed
+.Pp
+The
+.Ar from , to ,
+and
+.Ar bssid
+parameters specify the IEEE 802.11 address fields to match on.
+They can be specified in the following ways:
+.Bl -tag -width Ds
+.It Xo
+.Ic ( from | to | bssid ) Ic any
+.Xc
+Allow all addresses for the specified address field.
+.It Xo
+.Ic ( from | to | bssid )
+.Op Ic not
+.Pf < Ar table Ns >
+.Xc
+Allow allow addresses from the given
+.Ar table
+(see
+.Sx TABLES
+above)
+for the specified address field.
+.It Xo
+.Ic ( from | to | bssid )
+.Op Ic not
+.Ar lladdr
+.Xc
+Allow the given address
+.Ar lladdr
+for the specified address field.
+.El
+.El
+.Ss Rule Action
+An optional
+.Ar action
+is triggered if a received IEEE 802.11 frame matches the frame
+description.
+The following actions are supported:
+.Bl -tag -width Ds
+.It Xo
+.Ic with frame Ar type
+.Op Ar dir
+.Ar from to bssid
+.Xc
+Send an arbitrary constructed frame to the wireless network.
+The arguments are as follows.
+.Pp
+The
+.Ar type
+describes the IEEE 802.11 frame type to send, specified in the
+frame control header.
+The following frames types are supported at present:
+.Bl -tag -width Ds
+.It Ic type data
+Send a data frame.
+This is normally used to encapsulate ordinary IEEE 802.3
+frames into IEEE 802.11 wireless frames.
+.It Ic type management Ar subtype
+Send a management frame with the specified subtype.
+Management frames are used to control states and to find access points
+and IBSS nodes in IEEE 802.11 networks.
+See the
+.Sx Management Frame Subtypes
+section below for available subtypes specifications.
+.El
+.Pp
+The
+.Ar dir
+describes the direction the IEEE 802.11 frame will be sent.
+It has the following syntax:
+.Bd -filled -offset indent
+.Ic dir Ar framedir
+.Ed
+.Pp
+See the
+.Sx Frame Directions
+section below for available direction specifications.
+.Pp
+The
+.Ar from , to ,
+and
+.Ar bssid
+arguments specify the link layer address fields used in IEEE 802.11
+frames.
+All address fields are mandatory in the frame action.
+The optional fourth address field used by wireless distribution
+systems (WDS) is currently not supported.
+Each argument is specified by a keyword of the same name
+.Po
+.Ic from , to ,
+or
+.Ic bssid
+.Pc
+followed by one of the following address specifications:
+.Bl -tag -width "&refaddr"
+.It Ar lladdr
+Specify the link layer addresses used in the IEEE 802.11 frame address
+field.
+The link layer address
+.Ql ff:ff:ff:ff:ff:ff
+is the IEEE 802.11 broadcast address.
+.It Li & Ns Ar refaddr
+Fill in a link layer address from the previously matched IEEE 802.11
+frame.
+.Ic &from
+will use the source link layer address;
+.Ic &to
+the destination link layer address; and
+.Ic &bssid
+the BSSID link layer address of the previously matched frame.
+.It Ic random
+Use a random link layer address in the specified IEEE 802.11 frame
+address field.
+Multicast and broadcast link layer addresses will be skipped.
+.El
+.It Ic with iapp type Ar iapp-type
+Send a
+.Xr hostapd 8
+specific IAPP frame with a raw IEEE 802.11 packet dump of the received
+frame to the wired network.
+The only supported
+.Ar iapp-type
+is
+.Ic radiotap .
+.It Ic with log Op Ic verbose
+Write informational messages to the local system log (see
+.Xr syslogd 8 )
+or standard error.
+If the
+.Sx Rule Rate
+has been specified,
+log will print the actual rate.
+.It Ic node add | delete Ar lladdr
+Add or remove the specified node from the internal kernel
+node table.
+.It Ic resend
+Resend the received IEEE 802.11 frame.
+.El
+.Ss Rule Limit
+It is possible to limit handling of specific rules with the
+.Ic limit
+keyword:
+.Bd -filled -offset indent
+.Ic limit
+.Ar number
+.Ic sec | usec
+.Ed
+.Pp
+In some cases it is absolutely necessary to use limited matching
+to protect
+.Xr hostapd 8
+against excessive flooding with IEEE 802.11 frames.
+For example, beacon frames will be normally received every 100 ms.
+.Ss Rule Rate
+It is possible to tell
+.Xr hostapd 8
+to trigger the action only after a specific
+.Ic rate
+of matched frames.
+.Bd -filled -offset indent
+.Ic rate
+.Ar number
+.Ar /
+.Ar number
+.Ic sec
+.Ed
+.Pp
+This will help to detect excessive flooding of IEEE 802.11 frames.
+For example, de-auth flooding is a denial of service (DoS) attack
+against IEEE 802.11 wireless networks.
+.Ss Management Frame Subtypes
+The
+.Ar subtype
+describes the IEEE 802.11 frame subtype, specified in
+the frame control header.
+The choice of subtypes depends on the used frame type.
+.Xr hostapd 8
+currently only supports management frame subtypes.
+Most frame subtypes require an additional subtype-specific header
+in the frame body, but currently only the
+.Ic deauth
+and
+.Ic disassoc
+reason codes are supported:
+.Bl -ohang -offset 3n
+.It Ic subtype beacon
+A beacon frame.
+Wireless access points and devices running in
+.Em ibss
+master or
+.Em hostap
+mode continuously send beacon frames to indicate their presence,
+traffic load, and capabilities.
+.It Ic subtype deauth Op Ar reason
+A deauthentication frame with an optional reason code.
+Deauthenticated stations will lose any IEEE 802.11 operational state.
+.It Ic subtype disassoc Op Ar reason
+A disassociation frame with an optional reason code.
+.It Ic subtype assoc request
+An association request frame.
+.It Ic subtype assoc response
+An association response frame.
+.It Ic subtype atim
+An announcement traffic indication message (ATIM frame).
+.It Xo
+.Ic subtype auth Op Ic open request | response
+.Xc
+An authentication frame.
+.It Ic subtype probe request
+A probe request frame.
+Probe requests are used to probe for access points and IBSS nodes.
+.It Ic subtype probe response
+A probe response frame.
+.It Ic subtype reassoc request
+A re-association request frame.
+.It Ic subtype reassoc response
+A re-association response frame.
+.El
+.Pp
+The
+.Ar reason
+defines a descriptive reason for the actual
+.Em deauthentication
+or
+.Em disassociation
+of a station:
+.Bl -ohang -offset 3n
+.It Ic reason assoc expire
+Disassociated due to inactivity.
+.It Ic reason assoc leave
+Disassociated because the sending station is leaving or has left the
+wireless network.
+.It Ic reason assoc toomany
+Disassociated because the access point has reached its limit of
+associated stations.
+.It Ic reason auth expire
+Previous authentication no longer valid.
+.It Ic reason auth leave
+Deauthenticated because the sending station is leaving or has left the
+wireless network.
+.It Ic reason ie invalid
+IEEE 802.11i extension.
+.It Ic reason mic failure
+IEEE 802.11i extension.
+.It Ic reason not authed
+Frame received from unauthenticated station.
+.It Ic reason assoc not authed
+Frame received from an associated but unauthenticated station.
+.It Ic reason not assoced
+Frame received from unassociated station.
+.It Ic reason rsn required
+IEEE 802.11i extension.
+.It Ic reason rsn inconsistent
+IEEE 802.11i extension.
+.It Ic reason unspecified
+Unspecified reason.
+.El
+.Ss Frame Directions
+The direction a frame is being transmitted
+.Pq Ar framedir
+can be specified in the following ways:
+.Bl -ohang -offset 3n
+.It Ic dir no ds
+No distribution system direction is used for management frames.
+.It Ic dir to ds
+A frame sent from a station to the distribution system, the access point.
+.It Ic dir from ds
+A frame from the distribution system, the access point, to a station.
+.It Ic dir ds to ds
+A frame direction used by wireless distribution systems (WDS) for
+wireless access point to access point communication.
+.El
+.Sh EVENT RULE EXAMPLES
+.Bd -literal
+# Log probe requests locally
+hostap handle type management subtype probe request \e
+    with log
+
+# Detect flooding of management frames except beacons.
+# This will detect some possible denial of service attacks
+# against the IEEE 802.11 protocol.
+hostap handle skip type management subtype ! beacon \e
+    with log \e
+    rate 100 / 10 sec
+
+# Log rogue access points via IAPP, limited to every second,
+# and skip further IAPP processing.
+hostap handle skip type management subtype beacon bssid !<myess> \e
+    with iapp type radiotap limit 1 sec
+
+# Send deauthentication frames to stations associated to rogue APs
+hostap handle type data bssid !<myess> with frame type management \e
+    subtype deauth reason auth expire \e
+    from &bssid to &from bssid &bssid
+
+# Send authentication requests from random station addresses to
+# rogue access points. This is a common way to test the quality of
+# various hostap implementations.
+hostap handle skip type management subtype beacon bssid <pentest> \e
+    with frame type management subtype auth \e
+    from random to &bssid bssid &bssid
+
+# Re-inject a received IEEE 802.11 frame on the interface ath0
+hostap handle on ath0 type management subtype auth with resend
+
+# Remove a blacklisted node from the kernel node tree
+hostap handle type management subtype auth from <blacklist> \e
+    with node delete &from
+
+# Log rogue access points with a strong signal quality on
+# channel 3 (2.422GHz) transmitting frames with 1Mbps.
+hostap handle type management subtype beacon bssid !<myess> \e
+    signal >= 50% txrate 1Mb freq 2.422GHz \e
+    with log
+.Ed
+.Sh IP ROAMING
+In a traditional wireless network, multiple access points are
+members of a single layer 3 broadcast domain.
+The traffic is bridged between physical collision domains,
+as with the
+.Xr bridge 4
+interface in
+.Ox .
+This may cause problems in large wireless networks with a heavy load
+of broadcast traffic, like broadcasted ARP, DHCP or ICMP requests.
+.Pp
+.Xr hostapd 8
+implements IP based roaming to build wireless networks
+without the requirement of a single broadcast domain.
+This works as follows:
+.Pp
+.Bl -enum -compact
+.It
+Every access point running
+.Xr hostapd 8
+is a router to an individual internal broadcast domain,
+.Em without
+using the
+.Xr bridge 4
+interface.
+.It
+An increased multicast TTL is used for IAPP communication
+between access points in multiple network segments.
+Multicast routing is required in the network infrastructure,
+like an
+.Ox
+router running
+.Xr mrouted 8 .
+.It
+The configuration file
+.Nm
+is used to assign IP subnets to link layer addresses.
+If a station with the specified link layer address successfully
+associates to the access point,
+.Xr hostapd 8
+will configure the specified IP address and subnet on
+the wireless interface.
+.It
+The
+IAPP
+.Em ADD.notify
+message is used to notify other access points running
+.Xr hostapd 8
+to remove the station and any assigned IP addresses or subnets from
+the wireless interface.
+.It
+A dynamic routing daemon like
+.Xr ospfd 8
+or
+.Xr bgpd 8
+running on the access point will be used to announce the
+new IP route to the internal network and routers.
+.El
+.Pp
+For example:
+.Bd -literal -offset indent
+# Assign IP addresses to layer 2 addresses
+table <clients> {
+	00:02:6f:42:d0:01 -> 172.23.5.1/30,
+	00:05:4e:45:d3:b8 -> 172.23.5.4/30,
+	00:04:2e:12:03:e0 -> 172.23.5.8/30
+}
+
+# Global options
+set hostap interface ath0
+set hostap mode radiotap
+set iapp interface sis0
+set iapp address roaming table <clients>
+set iapp handle subtype address roaming
+set iapp mode multicast ttl 2
+.Ed
+.Sh FILES
+.Bl -tag -width /etc/examples/hostapd.conf -compact
+.It Pa /etc/hostapd.conf
+Default location of the configuration file.
+.It Pa /etc/examples/hostapd.conf
+Example configuration file.
+.El
+.Sh SEE ALSO
+.Xr hostapd 8
+.Sh AUTHORS
+The
+.Xr hostapd 8
+program was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .
+.Sh CAVEATS
+.Em IP Roaming
+requires statically assigned IP addresses of stations and does
+not support DHCP at present.

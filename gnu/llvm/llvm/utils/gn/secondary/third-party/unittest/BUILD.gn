@@ -1,0 +1,34 @@
+import("//llvm/utils/gn/build/libs/pthread/enable.gni")
+
+# Used to push the gtest include directories to things depending on :googletest.
+config("googletest_config") {
+  include_dirs = [
+    "googlemock/include",
+    "googletest/include",
+  ]
+
+  defines = []
+  if (host_os == "win") {
+    defines += [ "GTEST_OS_WINDOWS" ]
+  }
+  if (!llvm_enable_threads) {
+    defines += [ "GTEST_HAS_PTHREAD=0" ]
+  }
+  defines += [ "GTEST_HAS_RTTI=0" ]
+}
+
+static_library("gtest") {
+  deps = [ "//llvm/lib/Support" ]
+  include_dirs = [
+    "googletest",  # For including src/gtest.cc
+    "googlemock",  # For including src/gmock.cc
+  ]
+  public_configs = [ ":googletest_config" ]
+  configs -= [ "//llvm/utils/gn/build:warn_covered_switch_default" ]
+  configs -= [ "//llvm/utils/gn/build:no_rtti" ]
+  sources = [
+    "googlemock/src/gmock-all.cc",
+    "googletest/src/gtest-all.cc",
+  ]
+  testonly = true
+}

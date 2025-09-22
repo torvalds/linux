@@ -1,0 +1,11 @@
+set reassemble yes no-df
+set reassemble no 
+match all scrub (no-df)
+match all scrub (min-ttl 25)
+match all scrub (max-mss 224)
+match all scrub (no-df max-mss 224)
+match all set (tos 0x10)
+match out proto esp all set (tos 0x08)
+match out proto ah all set (tos 0x04)
+match out proto icmp all set (tos 0x12)
+match out all set (tos 0x08) tagged THROUGHPUT

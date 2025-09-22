@@ -1,0 +1,69 @@
+#	$OpenBSD: README,v 1.3 2001/01/29 02:05:40 niklas Exp $
+#	$NetBSD: README,v 1.5 1996/05/03 21:54:19 cgd Exp $
+#	@(#)README	8.8 (Berkeley) 7/31/94
+
+To run the tests, enter "make regress".
+
+Fairly large files (the command files) are built in this directory during
+the test runs, and even larger files (the database files) are created in
+"/var/tmp".  If the latter directory doesn't exist, set the environmental
+variable TMPDIR to a directory where the files can be built.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+The script file consists of lines with an initial character which is
+the command for that line, or an initial character indicating a key
+or data entry for a previous command.
+
+Legal command characters are as follows:
+
+c: compare a record
+	+ must be followed by [kK][dD]; the data value in the database
+	  associated with the specified key is compared to the specified
+	  data value.
+e: echo a string
+	+ writes out the rest of the line into the output file; if the
+	  last character is not a carriage-return, a newline is appended.
+f: set the flags for the next command
+	+ no value zero's the flags
+g: do a get command
+	+ must be followed by [kK]
+	+ writes out the retrieved data DBT.
+o [r]: dump [reverse]
+	+ dump the database out, if 'r' is set, in reverse order.
+p: do a put command
+	+ must be followed by [kK][dD]
+r: do a del command
+	+ must be followed by [kK] unless R_CURSOR flag set.
+S: sync the database
+s: do a seq command
+	+ must be followed by [kK] if R_CURSOR flag set.
+	+ writes out the retrieved data DBT.
+
+Legal key/data characters are as follows:
+
+D [file]: data file
+	+ set the current data value to the contents of the file
+d [data]:
+	+ set the current key value to the contents of the line.
+K [file]: key file
+	+ set the current key value to the contents of the file
+k [data]:
+	+ set the current key value to the contents of the line.
+
+Blank lines, lines with leading white space, and lines with leading
+hash marks (#) are ignored.
+
+Options to dbtest are as follows:
+
+	-d: Set the DB_LOCK flag.
+	-f: Use the file argument as the database file.
+	-i: Use the rest of the argument to set elements in the info
+	    structure.  If the type is btree, then "-i cachesize=10240"
+	    will set BTREEINFO.cachesize to 10240.
+	-o: The rest of the argument is the output file instead of
+	    using stdout.
+	-s: Don't delete the database file before opening it, i.e.
+	    use the database file from a previous run.
+
+Dbtest requires two arguments, the type of access "hash", "recno"
+or "btree", and the script name or "-" to indicate stdin.

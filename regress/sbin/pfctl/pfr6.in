@@ -1,0 +1,13 @@
+# negated addresses and networks
+pass add 1.1.1.1 !1.1.1.2 10.10/16 !10.11/16 ::1 !::2
+pass show
+pass replace 1.1.1.1 !1.1.1.2 !!1.1.1.3 !!!1.1.1.4
+pass show
+pass replace fe80::/16 !fe81::/16 !!fe82::/16 !!!fe83::/16
+pass show
+pass replace 10/8 !10.10/16 10.10.10/24 !10.10.10.10
+pass add fe80::/16 !fe80:fe80::/32 fe80:fe80:fe80::/48
+pass show
+pass test 10.1.1.1 10.10.10.1
+fail test 11.1.1.1 10.10.1.1 10.10.10.10
+fail test 10.1.1.1 11.1.1.1

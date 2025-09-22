@@ -1,0 +1,29 @@
+/*	$OpenBSD: freenull.c.head,v 1.11 2025/08/25 06:01:33 tb Exp $	*/
+
+#include <openssl/asn1.h>
+#include <openssl/cmac.h>
+#include <openssl/cms.h>
+#include <openssl/comp.h>
+#include <openssl/ct.h>
+#include <openssl/engine.h>
+#ifndef OPENSSL_NO_GOST
+#include <openssl/gost.h>
+#endif
+#include <openssl/hmac.h>
+#include <openssl/mlkem.h>
+#include <openssl/ocsp.h>
+#include <openssl/pkcs12.h>
+#include <openssl/ts.h>
+#include <openssl/ui.h>
+#include <openssl/txt_db.h>
+#include <openssl/x509.h>
+#include <openssl/x509_vfy.h>
+#include <openssl/x509v3.h>
+
+#include <err.h>
+#include <stdio.h>
+#include <string.h>
+
+int
+main(int argc, char **argv)
+{

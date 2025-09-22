@@ -1,0 +1,62 @@
+.\" $OpenBSD: keyok.3,v 1.5 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2021,2022 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" Author: Thomas E. Dickey 1997
+.\"
+.\" $Id: keyok.3,v 1.5 2023/10/17 09:52:08 nicm Exp $
+.TH keyok 3 2022-02-12 "ncurses 6.4" "Library calls"
+.SH NAME
+\fBkeyok\fP \- enable or disable a keycode
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint keyok(int \fIkeycode\fB, bool \fIenable\fB);\fR
+.SH DESCRIPTION
+This is an extension to the curses library.
+It permits an application to disable specific keycodes, rather than
+use the \fBkeypad\fP function to disable all keycodes.
+Keys that have been disabled can be re-enabled.
+.SH RETURN VALUE
+The keycode must be greater than zero, else \fBERR\fP is returned.
+If it does not correspond to a defined key, then \fBERR\fP is returned.
+If the \fIenable\fP parameter is true, then the key must have been disabled,
+and vice versa.
+Otherwise, the function returns \fBOK\fP.
+.SH PORTABILITY
+These routines are specific to ncurses.
+They were not supported on
+Version 7, BSD or System V implementations.
+It is recommended that
+any code depending on them be conditioned using NCURSES_VERSION.
+.SH SEE ALSO
+\fBdefine_key\fP(3).
+.SH AUTHOR
+Thomas Dickey.

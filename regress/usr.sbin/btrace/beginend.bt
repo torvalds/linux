@@ -1,0 +1,13 @@
+// Test BEGIN & END special rules as well as comments...
+// ...inside & outside action blocks
+BEGIN
+{
+
+	printf("Hello from %s\n", probe);
+}
+
+END
+{
+	// Comment inside of a block
+	printf("Bye from %s\n", probe);
+}

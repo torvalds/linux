@@ -1,0 +1,95 @@
+dnl	$OpenBSD: prep,v 1.12 2021/02/18 16:18:04 visa Exp $
+By default MACHINE systems are shipped with a Linux (or proprietary) system
+installed on the CompactFlash card or USB drive.
+
+First connect your computer via serial port to the device (you may need to use
+a Cisco serial cable depending on your hardware) with a command such as
+"cu -l cuaU0 -s 115200" (assuming cuaU0 is your serial port device). Now apply
+power to the device and start it.
+
+Unless you have removed or changed the Linux installation it will be booted
+automatically. If you are quick you can interrupt booting (while still in
+U-Boot) with ^C.
+
+OpenBSD/MACHINE uses serial speed 115200. If this speed is not the default
+on the device, you should adjust it by setting the baudrate U-Boot environment
+variable (you also need to reconnect to the serial port using the new speed):
+
+	# setenv baudrate 115200
+
+There are several ways to load an OpenBSD/MACHINE kernel (or ramdisk),
+over TFTP, from the internal CompactFlash or USB storage.
+
+Booting from a CF card or USB:
+
+  To use the miniroot image you will need another machine to plug the
+  SD card in to. Any machine type will do, as long as it supports SD card
+  storage devices.  Under OpenBSD, it will appear as a ``sd'' device, for
+  example sd1.
+  
+  Use the dd(1) utility to copy the miniroot to the hard drive.
+  The command would likely be, under OpenBSD:
+
+  	dd if=miniroot{:--:}OSrev.img of=/dev/rsd1c
+
+  On the EdgeRouter Lite, some USB storage devices are not detected
+  immediately after power on:
+
+    USB:   (port 0) scanning bus for devices... 
+          USB device not responding, giving up (status=0)
+    1 USB Devices found
+           scanning bus for storage devices...
+    No device found. Not initialized?
+
+  In such cases, manually resetting the usb controller may help:
+  
+    Octeon ubnt_e100# usb reset
+
+  Now load the ramdisk kernel using either of the following commands depending
+  on the medium used. For USB:
+  
+    Octeon ubnt_e100# fatload usb 0 $loadaddr bsd.rd
+  
+  For Compact Flash use:
+
+    # fatload ide 0:1 ${loadaddr} bsd.rd
+
+Booting over the network:
+
+  For TFTP you will first need to set up a TFTP server as described in
+  diskless(8). Assuming tftpd(8) chroots into /tftpboot, copy bsd.rd into that
+  directory.
+
+  Power on your OpenBSD/MACHINE device and from the U-Boot prompt set up
+  networking. In this example it is assumed you have a DHCP server in your
+  network:
+
+	# dhcp
+
+  If you don't have a DHCP server, you need to set the ipaddr U-Boot environment
+  variable:
+
+	# setenv ipaddr <static ip address>
+
+  Now set the IP address of your TFTP server:
+
+	# setenv serverip <server ip>
+
+  The ramdisk kernel needs to be loaded into memory. If you use "0" as the
+  address, the default address location will be used by U-Boot:
+
+	# tftpboot 0 bsd.rd
+	Using octeth0 device
+	TFTP from server 192.168.178.30; our IP address is 192.168.178.89
+	Filename 'bsd.rd'.
+	Load address: 0x9f00000
+	Loading: #########################
+	done
+	Bytes transferred = 7191474 (6dbbb2 hex), 8617 Kbytes/sec
+
+Booting the installation kernel
+
+  Now the kernel can be booted from the default memory location, with no
+  arguments provided:
+
+	# bootoctlinux

@@ -1,0 +1,490 @@
+.\"	$OpenBSD: tar.1,v 1.67 2024/04/16 23:09:35 jca Exp $
+.\"
+.\" Copyright (c) 1996 SigmaSoft, Th. Lockert
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 16 2024 $
+.Dt TAR 1
+.Os
+.Sh NAME
+.Nm tar
+.Nd tape archiver
+.Sh SYNOPSIS
+.Nm tar
+.Sm off
+.No { Cm crtux No } Op Cm 014578beFfHhjLmNOoPpqsvwXZz
+.Sm on
+.Bk -words
+.Op Ar blocking-factor | format | archive | replstr
+.Op Fl C Ar directory
+.Op Fl I Ar file
+.Op Ar
+.Ek
+.Nm tar
+.No { Ns Fl crtux Ns }
+.Bk -words
+.Op Fl 014578eHhjLmNOoPpqvwXZz
+.Op Fl b Ar blocking-factor
+.Op Fl C Ar directory
+.Op Fl F Ar format
+.Op Fl f Ar archive
+.Op Fl I Ar file
+.Op Fl s Ar replstr
+.Op Ar
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+command creates, adds files to, or extracts files from an
+archive file in
+.Dq tar
+format.
+A tar archive is often stored on a magnetic tape, but can be
+stored equally well on a floppy, CD-ROM, or in a regular disk file.
+.Pp
+In the first (legacy) form, all option flags except for
+.Fl C
+and
+.Fl I
+must be contained within the first argument to
+.Nm
+and must not be prefixed by a hyphen
+.Pq Sq - .
+Option arguments, if any, are processed as subsequent arguments to
+.Nm
+and are processed in the order in which their corresponding option
+flags have been presented on the command line.
+.Pp
+In the second and preferred form, option flags may be given in any order
+and are immediately followed by their corresponding option argument
+values.
+.Pp
+One of the following flags must be present:
+.Bl -tag -width Ds
+.It Fl c
+Create new archive, or overwrite an existing archive,
+adding the specified files to it.
+.It Fl r
+Append the named new files to existing archive.
+Note that this will only work on media on which an end-of-file mark
+can be overwritten.
+.It Fl t
+List contents of archive.
+If any files are named on the
+command line, only those files will be listed.
+The
+.Ar file
+arguments may be specified as glob patterns (see
+.Xr glob 7
+for more information), in which case
+.Nm
+will list all archive members that match each pattern.
+.It Fl u
+Alias for
+.Fl r .
+.It Fl x
+Extract files from archive.
+If any files are named on the
+command line, only those files will be extracted from the
+archive.
+The
+.Ar file
+arguments may be specified as glob patterns (see
+.Xr glob 7
+for more information), in which case
+.Nm
+will extract all archive members that match each pattern.
+.Pp
+If more than one copy of a file exists in the
+archive, later copies will overwrite earlier copies during
+extraction.
+The file mode and modification time are preserved
+if possible.
+The file mode is subject to modification by the
+.Xr umask 2 .
+.El
+.Pp
+In addition to the flags mentioned above, any of the following
+flags may be used:
+.Bl -tag -width Ds
+.It Fl b Ar blocking-factor
+Set blocking factor to use for the archive.
+.Nm
+uses 512-byte blocks.
+The default is 20, the maximum is 126.
+Archives with a blocking factor larger than 63
+violate the POSIX standard and will not be portable to all systems.
+.It Fl C Ar directory
+This is a positional argument which sets the working directory for the
+following files.
+When extracting, files will be extracted into
+the specified directory; when creating, the specified files will be matched
+from the directory.
+.It Fl e
+Stop after the first error.
+.It Fl F Ar format
+Specify the output archive format, with the default format being
+.Cm pax .
+.Nm
+currently supports the following formats:
+.Bl -tag -width "sv4cpio"
+.It Cm bcpio
+The old binary cpio format.
+The default blocksize for this format is 5120 bytes.
+This format is not very portable and should not be used when other formats
+are available.
+Inode and device information about a file (used for detecting file hard links
+by this format), which may be truncated by this format, is detected by
+.Nm
+and is repaired.
+.It Cm cpio
+The extended cpio interchange format specified in the
+.St -p1003.2
+standard.
+The default blocksize for this format is 5120 bytes.
+Inode and device information about a file (used for detecting file hard links
+by this format), which may be truncated by this format, is detected by
+.Nm
+and is repaired.
+.It Cm sv4cpio
+The System V release 4 cpio.
+The default blocksize for this format is 5120 bytes.
+Inode and device information about a file (used for detecting file hard links
+by this format), which may be truncated by this format, is detected by
+.Nm
+and is repaired.
+.It Cm sv4crc
+The System V release 4 cpio with file CRC checksums.
+The default blocksize for this format is 5120 bytes.
+Inode and device information about a file (used for detecting file hard links
+by this format), which may be truncated by this format, is detected by
+.Nm
+and is repaired.
+.It Cm tar
+The old
+.Bx
+tar format as found in
+.Bx 4.3 .
+The default blocksize for this format is 10240 bytes.
+Pathnames stored by this format must be 100 characters or less in length.
+Only regular files, hard links, soft links, and directories
+will be archived (other file system types are not supported).
+For backwards compatibility with even older tar formats, see the
+description for
+.Fl o .
+.It Cm ustar
+The extended tar interchange format specified in the
+.St -p1003.2
+standard.
+The default blocksize for this format is 10240 bytes.
+Filenames stored by this format must be 100 characters or less in length;
+the total pathname must be 256 characters or less.
+.It Cm pax
+The pax interchange format specified in the
+.St -p1003.1-2001
+standard.
+The default blocksize for this format is 5120 bytes.
+.El
+.Pp
+.Nm
+will detect and report any file that it is unable to store or extract
+as the result of any specific archive format restrictions.
+The individual archive formats may impose additional restrictions on use.
+Typical archive format restrictions include (but are not limited to):
+file pathname length, file size, link pathname length, and the type of the
+file.
+.It Fl f Ar archive
+Read from or write to
+.Ar archive .
+A hyphen
+.Pq -
+can be used to represent standard input or output.
+The default is
+.Pa /dev/rst0 .
+See also the
+.Ev TAPE
+environment variable.
+.It Fl H
+Follow symlinks given on the command line only.
+.It Fl h
+Follow symbolic links as if they were normal files
+or directories.
+In extract mode this means that a directory entry in the archive
+will not overwrite an existing symbolic link, but rather what the
+link ultimately points to.
+.It Fl I Ar file
+This is a positional argument which reads the names of files to
+archive or extract from the given file, one per line.
+.It Fl j
+Compress archive using bzip2.
+The bzip2 utility must be installed separately.
+.It Fl L
+Synonym for the
+.Fl h
+option.
+.It Fl m
+Do not preserve modification time.
+.It Fl N
+Use only the numeric UID and GID values when creating or extracting an
+archive.
+.It Fl O
+Write old-style (non-POSIX) archives.
+.It Fl o
+Don't write directory information that the older (V7) style
+.Nm
+is unable to decode.
+This implies the
+.Fl O
+flag.
+.It Fl P
+Do not strip leading slashes
+.Pq Sq /
+from pathnames.
+The default is to strip leading slashes.
+.It Fl p
+Preserve user and group ID as well as file mode regardless of
+the current
+.Xr umask 2 .
+The setuid and setgid bits are only preserved if the user and group ID
+could be preserved.
+Only meaningful in conjunction with the
+.Fl x
+flag.
+.It Fl q
+Select the first archive member that matches each
+.Ar file
+operand.
+No more than one archive member is matched for each
+.Ar file .
+When members of type directory are matched, the file hierarchy rooted at that
+directory is also matched.
+.It Fl s Ar replstr
+Modify the archive member names according to the substitution expression
+.Ar replstr ,
+using the syntax of the
+.Xr ed 1
+utility regular expressions.
+.Ar file
+arguments may be given to restrict the list of archive members to those
+specified.
+.Pp
+The format of these regular expressions is
+.Pp
+.Dl /old/new/[gp]
+.Pp
+As in
+.Xr ed 1 ,
+.Va old
+is a basic regular expression (see
+.Xr re_format 7 )
+and
+.Va new
+can contain an ampersand
+.Pq Ql & ,
+.Ql \e Ns Em n
+(where
+.Em n
+is a digit) back-references,
+or subexpression matching.
+The
+.Va old
+string may also contain newline characters.
+Any non-null character can be used as a delimiter
+.Po
+.Ql /
+is shown here
+.Pc .
+Multiple
+.Fl s
+expressions can be specified.
+The expressions are applied in the order they are specified on the
+command line, terminating with the first successful substitution.
+.Pp
+The optional trailing
+.Cm g
+continues to apply the substitution expression to the pathname substring,
+which starts with the first character following the end of the last successful
+substitution.
+The first unsuccessful substitution stops the operation of the
+.Cm g
+option.
+The optional trailing
+.Cm p
+will cause the final result of a successful substitution to be written to
+standard error in the following format:
+.Pp
+.D1 Em original-pathname No >> Em new-pathname
+.Pp
+File or archive member names that substitute to the empty string
+are not selected and will be skipped.
+.It Fl v
+Verbose operation mode.
+If
+.Fl v
+is specified multiple times or if the
+.Fl t
+option is also specified,
+.Nm
+will use a long format for listing files, similar to
+.Xr ls 1
+.Fl l .
+.It Fl w
+Interactively rename files.
+This option causes
+.Nm
+to prompt the user for the filename to use when storing or
+extracting files in an archive.
+.It Fl X
+Do not cross mount points in the file system.
+.It Fl Z
+Compress archive using
+.Xr compress 1 .
+.It Fl z
+Compress archive using
+.Xr gzip 1 .
+.El
+.Pp
+The options
+.Op Fl 014578
+can be used to select one of the compiled-in backup devices,
+.Pa /dev/rstN .
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev TMPDIR
+Path in which to store temporary files.
+.It Ev TAPE
+Default tape device to use instead of
+.Pa /dev/rst0 .
+If set to hyphen
+.Pq Sq - ,
+standard output is used.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/rst0"
+.It Pa /dev/rst0
+default archive name
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 0
+All files were processed successfully.
+.It 1
+An error occurred.
+.El
+.Sh EXAMPLES
+Create an archive on the default tape drive, containing the files named
+.Pa bonvole
+and
+.Pa sekve :
+.Pp
+.Dl $ tar c bonvole sekve
+.Pp
+Create a
+.Xr gzip 1
+compressed archive, called
+.Pa foriru.tar.gz ,
+containing the files
+.Pa bonvole
+and
+.Pa sekve :
+.Pp
+.Dl $ tar czf foriru.tar.gz bonvole sekve
+.Pp
+Verbosely create an archive, called
+.Pa backup.tar.gz ,
+of all files matching the shell
+.Xr glob 7
+function
+.Pa *.c :
+.Pp
+.Dl $ tar cvzf backup.tar.gz *.c
+.Pp
+Verbosely list, but do not extract, all files ending in
+.Pa .jpeg
+from a compressed archive named
+.Pa backup.tar.gz .
+Note that the glob pattern has been quoted to avoid expansion by the shell:
+.Pp
+.Dl $ tar tvzf backup.tar.gz '*.jpeg'
+.Pp
+Verbosely extract an archive, called
+.Pa foo.tar.gz ,
+to the directory
+.Pa /var/foo :
+.Pp
+.Dl $ tar xvzf foo.tar.gz -C /var/foo
+.Pp
+For more detailed examples, see
+.Xr pax 1 .
+.Sh DIAGNOSTICS
+Whenever
+.Nm
+cannot create a file or a link when extracting an archive or cannot
+find a file while writing an archive, or cannot preserve the user
+ID, group ID, file mode, or access and modification times when the
+.Fl p
+option is specified, a diagnostic message is written to standard
+error and a non-zero exit value will be returned, but processing
+will continue.
+In the case where
+.Nm
+cannot create a link to a file,
+.Nm
+will not create a second copy of the file.
+.Pp
+If the extraction of a file from an archive is prematurely terminated
+by a signal or error,
+.Nm
+may have only partially extracted the file the user wanted.
+Additionally, the file modes of extracted files and directories may
+have incorrect file bits, and the modification and access times may
+be wrong.
+.Pp
+If the creation of an archive is prematurely terminated by a signal
+or error,
+.Nm
+may have only partially created the archive, which may violate the
+specific archive format specification.
+.Sh SEE ALSO
+.Xr cpio 1 ,
+.Xr pax 1
+.Sh HISTORY
+A
+.Nm
+command first appeared in
+.At v7 .
+.Sh AUTHORS
+.An Keith Muller
+at the University of California, San Diego.
+.Sh CAVEATS
+The
+.Fl j
+and
+.Fl L
+flags are not portable to other versions of
+.Nm
+where they may have a different meaning.

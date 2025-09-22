@@ -1,0 +1,3 @@
+match out on lo0 inet from 192.168.1.1 to any tag regress nat-to 10.0.0.1 static-port
+match in on lo0 inet from any to 10.0.0.1 tag regress rdr-to 192.168.1.1
+block drop out on lo0 all tagged regress

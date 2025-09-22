@@ -1,0 +1,150 @@
+.\"	$OpenBSD: robots.6,v 1.18 2017/05/28 22:27:10 tedu Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)robots.6	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: May 28 2017 $
+.Dt ROBOTS 6
+.Os
+.Sh NAME
+.Nm robots
+.Nd fight off villainous robots
+.Sh SYNOPSIS
+.Nm robots
+.Op Fl ajrst
+.Op Ar scorefile
+.Sh DESCRIPTION
+.Nm
+pits you against evil robots, who are trying to kill you
+.Pq which is why they are evil .
+Fortunately for you, even though they are evil, they are not very bright
+and have a habit of bumping into each other, thus destroying themselves.
+In order to survive, you must get them to kill each other off, since you
+have no offensive weaponry.
+You are endowed with one piece of defensive weaponry: a teleportation device.
+When two robots run into each other or a junk pile, they die.
+If a robot runs into you, you die.
+When a robot dies, you get 10 points, and when all the robots die,
+you start on the next field.
+This keeps up until they finally get you.
+.Pp
+Robots are represented on the screen by a
+.Sq + ,
+the junk heaps from their collisions by a
+.Sq * ,
+and you
+(the good guy)
+by a
+.Sq @ .
+.Pp
+The commands are:
+.Bl -tag -width indent -compact
+.It Ic h
+move one square left
+.It Ic l
+move one square right
+.It Ic k
+move one square up
+.It Ic j
+move one square down
+.It Ic y
+move one square up and left
+.It Ic u
+move one square up and right
+.It Ic b
+move one square down and left
+.It Ic n
+move one square down and right
+.It Ic \&.
+(also space) do nothing for one turn
+.It Ic HJKLBNYU
+run as far as possible in the given direction
+.It Ic >
+do nothing for as long as possible
+.It Ic t
+teleport to a random location
+.It Ic w
+wait until you die or they all do
+.It Ic q
+quit
+.It Ic ^L
+redraw the screen
+.El
+.Pp
+All commands can be preceded by a count unless the game is in real-time mode.
+.Pp
+If you use the
+.Sq Ic w
+command and survive to the next level, you will get a bonus of 10%
+for each robot which died after you decided to wait.
+If you die, however, you get nothing.
+For all other commands, the program will save you from typos
+by stopping short of being eaten.
+However, with
+.Sq Ic w
+you take the risk of dying by miscalculation.
+.Pp
+Only five scores are allowed per user on the score file.
+If you make it into the score file, you will be shown the list at the end
+of the game.
+If an alternative score file is specified, that will be used instead of the
+standard file for scores.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a
+Advance into the higher levels directly, skipping the lower, easier levels.
+.It Fl j
+Jump,
+.Em i.e. ,
+when you run, don't show any intermediate positions; only show things at
+the end.
+This is useful on slow terminals.
+.It Fl r
+Real-time mode.
+After your first move, robots will advance at least every three seconds.
+.It Fl s
+Don't play, just show the score file.
+.It Fl t
+Teleport automatically when you have no other option.
+This is a little disconcerting until you get used to it, and then it is
+very nice.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width $HOME/.robots.scores
+.It Ev LOGNAME
+Name displayed in high score file.
+.El
+.Sh FILES
+.Bl -tag -width $HOME/.robots.scores
+.It Pa $HOME/.robots.scores
+The score file.
+.El
+.Sh AUTHORS
+.An Ken Arnold

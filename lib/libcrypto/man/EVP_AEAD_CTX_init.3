@@ -1,0 +1,412 @@
+.\" $OpenBSD: EVP_AEAD_CTX_init.3,v 1.17 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2014, Google Inc.
+.\" Parts of the text were written by Adam Langley and David Benjamin.
+.\" Copyright (c) 2015 Reyk Floeter <reyk@openbsd.org>
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_AEAD_CTX_INIT 3
+.Os
+.Sh NAME
+.Nm EVP_AEAD_CTX_new ,
+.Nm EVP_AEAD_CTX_free ,
+.Nm EVP_AEAD_CTX_init ,
+.Nm EVP_AEAD_CTX_cleanup ,
+.Nm EVP_AEAD_CTX_open ,
+.Nm EVP_AEAD_CTX_seal ,
+.Nm EVP_AEAD_key_length ,
+.Nm EVP_AEAD_max_overhead ,
+.Nm EVP_AEAD_max_tag_len ,
+.Nm EVP_AEAD_nonce_length ,
+.Nm EVP_aead_aes_128_gcm ,
+.Nm EVP_aead_aes_256_gcm ,
+.Nm EVP_aead_chacha20_poly1305 ,
+.Nm EVP_aead_xchacha20_poly1305
+.Nd authenticated encryption with additional data
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft EVP_AEAD_CTX *
+.Fn EVP_AEAD_CTX_new void
+.Ft void
+.Fo EVP_AEAD_CTX_free
+.Fa "EVP_AEAD_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_AEAD_CTX_init
+.Fa "EVP_AEAD_CTX *ctx"
+.Fa "const EVP_AEAD *aead"
+.Fa "const unsigned char *key"
+.Fa "size_t key_len"
+.Fa "size_t tag_len"
+.Fa "ENGINE *engine"
+.Fc
+.Ft void
+.Fo EVP_AEAD_CTX_cleanup
+.Fa "EVP_AEAD_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_AEAD_CTX_open
+.Fa "const EVP_AEAD_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "size_t *out_len"
+.Fa "size_t max_out_len"
+.Fa "const unsigned char *nonce"
+.Fa "size_t nonce_len"
+.Fa "const unsigned char *in"
+.Fa "size_t in_len"
+.Fa "const unsigned char *ad"
+.Fa "size_t ad_len"
+.Fc
+.Ft int
+.Fo EVP_AEAD_CTX_seal
+.Fa "const EVP_AEAD_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "size_t *out_len"
+.Fa "size_t max_out_len"
+.Fa "const unsigned char *nonce"
+.Fa "size_t nonce_len"
+.Fa "const unsigned char *in"
+.Fa "size_t in_len"
+.Fa "const unsigned char *ad"
+.Fa "size_t ad_len"
+.Fc
+.Ft size_t
+.Fo EVP_AEAD_key_length
+.Fa "const EVP_AEAD *aead"
+.Fc
+.Ft size_t
+.Fo EVP_AEAD_max_overhead
+.Fa "const EVP_AEAD *aead"
+.Fc
+.Ft size_t
+.Fo EVP_AEAD_max_tag_len
+.Fa "const EVP_AEAD *aead"
+.Fc
+.Ft size_t
+.Fo EVP_AEAD_nonce_length
+.Fa "const EVP_AEAD *aead"
+.Fc
+.Ft const EVP_AEAD *
+.Fo EVP_aead_aes_128_gcm
+.Fa void
+.Fc
+.Ft const EVP_AEAD *
+.Fo EVP_aead_aes_256_gcm
+.Fa void
+.Fc
+.Ft const EVP_AEAD *
+.Fo EVP_aead_chacha20_poly1305
+.Fa void
+.Fc
+.Ft const EVP_AEAD *
+.Fo EVP_aead_xchacha20_poly1305
+.Fa void
+.Fc
+.Sh DESCRIPTION
+AEAD (Authenticated Encryption with Additional Data) couples
+confidentiality and integrity in a single primitive.
+AEAD algorithms take a key and can then seal and open individual
+messages.
+Each message has a unique, per-message nonce and, optionally, additional
+data which is authenticated but not included in the output.
+.Pp
+.Fn EVP_AEAD_CTX_new
+allocates a new context for use with
+.Fn EVP_AEAD_CTX_init .
+It can be cleaned up for reuse with
+.Fn EVP_AEAD_CTX_cleanup
+and must be freed with
+.Fn EVP_AEAD_CTX_free .
+.Pp
+.Fn EVP_AEAD_CTX_free
+cleans up
+.Fa ctx
+and frees the space allocated to it.
+.Pp
+.Fn EVP_AEAD_CTX_init
+initializes the context
+.Fa ctx
+for the given AEAD algorithm
+.Fa aead .
+The
+.Fa engine
+argument must be
+.Dv NULL
+for the default implementation;
+other values are not supported.
+Authentication tags may be truncated by passing a tag length.
+A
+.Fa tag_len
+argument of
+.Dv EVP_AEAD_DEFAULT_TAG_LENGTH ,
+which has the value 0, causes the default tag length to be used.
+.Pp
+.Fn EVP_AEAD_CTX_cleanup
+frees any data allocated for the context
+.Fa ctx .
+After
+.Fn EVP_AEAD_CTX_cleanup ,
+.Fa ctx
+is in the same state as after
+.Fn EVP_AEAD_CTX_new .
+.Pp
+.Fn EVP_AEAD_CTX_open
+authenticates the input
+.Fa in
+and optional additional data
+.Fa ad ,
+decrypting the input and writing it as output
+.Fa out .
+This function may be called (with the same
+.Vt EVP_AEAD_CTX )
+concurrently with itself or with
+.Fn EVP_AEAD_CTX_seal .
+At most the number of input bytes are written as output.
+In order to ensure success,
+.Fa max_out_len
+should be at least the same as the input length
+.Fa in_len .
+On successful return
+.Fa out_len
+is set to the actual number of bytes written.
+The length of the
+.Fa nonce
+specified with
+.Fa nonce_len
+must be equal to the result of EVP_AEAD_nonce_length for this AEAD.
+.Fn EVP_AEAD_CTX_open
+never results in partial output.
+If
+.Fa max_out_len
+is insufficient, zero will be returned and
+.Fa out_len
+will be set to zero.
+If the input and output are aliased then
+.Fa out
+must be <=
+.Fa in .
+.Pp
+.Fn EVP_AEAD_CTX_seal
+encrypts and authenticates the input and authenticates any additional
+data provided in
+.Fa ad ,
+the encrypted input and authentication tag being written as output
+.Fa out .
+This function may be called (with the same
+.Vt EVP_AEAD_CTX )
+concurrently with itself or with
+.Fn EVP_AEAD_CTX_open .
+At most
+.Fa max_out_len
+bytes are written as output and, in order to ensure success, this value
+should be the
+.Fa in_len
+plus the result of
+.Fn EVP_AEAD_max_overhead .
+On successful return,
+.Fa out_len
+is set to the actual number of bytes written.
+The length of the
+.Fa nonce
+specified with
+.Fa nonce_len
+must be equal to the result of
+.Fn EVP_AEAD_nonce_length
+for this AEAD.
+.Fn EVP_AEAD_CTX_seal
+never results in a partial output.
+If
+.Fa max_out_len
+is insufficient, zero will be returned and
+.Fa out_len
+will be set to zero.
+If the input and output are aliased then
+.Fa out
+must be <=
+.Fa in .
+.Pp
+.Fn EVP_AEAD_key_length ,
+.Fn EVP_AEAD_max_overhead ,
+.Fn EVP_AEAD_max_tag_len ,
+and
+.Fn EVP_AEAD_nonce_length
+provide information about the AEAD algorithm
+.Fa aead .
+.Pp
+.Fn EVP_AEAD_max_tag_len
+returns the maximum tag length that can be used with the given
+.Fa aead .
+This is the largest value that can be passed as the
+.Fa tag_len
+argument to
+.Fn EVP_AEAD_CTX_init .
+No built-in
+.Vt EVP_AEAD
+object has a maximum tag length larger than the constant
+.Dv EVP_AEAD_MAX_TAG_LENGTH .
+.Pp
+All cipher algorithms have a fixed key length unless otherwise stated.
+The following ciphers are available:
+.Bl -tag -width Ds -offset indent
+.It Fn EVP_aead_aes_128_gcm
+AES-128 in Galois Counter Mode, using a
+.Fa key_len
+of 16 bytes and a
+.Fa nonce_len
+of 12 bytes.
+.It Fn EVP_aead_aes_256_gcm
+AES-256 in Galois Counter Mode, using a
+.Fa key_len
+of 32 bytes and a
+.Fa nonce_len
+of 12 bytes.
+.It Fn EVP_aead_chacha20_poly1305
+ChaCha20 with a Poly1305 authenticator, using a
+.Fa key_len
+of 32 bytes and a
+.Fa nonce_len
+of 12 bytes.
+The constant
+.Dv EVP_CHACHAPOLY_TLS_TAG_LEN
+specifies the length of the authentication tag in bytes and has a value of 16.
+.It Fn EVP_aead_xchacha20_poly1305
+XChaCha20 with a Poly1305 authenticator, using a
+.Fa key_len
+of 32 bytes and a
+.Fa nonce_len
+of 24 bytes.
+.El
+.Pp
+Unless compatibility with other implementations
+like OpenSSL or BoringSSL is required, using the
+.Sy EVP_AEAD
+interface to AEAD ciphers is recommended
+in preference to the functions documented in the
+.Xr EVP_EncryptInit 3 ,
+.Xr EVP_aes_256_gcm 3 ,
+and
+.Xr EVP_chacha20_poly1305 3
+manual pages.
+The code then becomes transparent to the AEAD cipher used
+and much more flexible.
+It is also safer to use as it prevents common mistakes with the EVP APIs.
+.Sh RETURN VALUES
+.Fn EVP_AEAD_CTX_new
+returns the new
+.Vt EVP_AEAD_CTX
+object on success;
+otherwise
+.Dv NULL
+is returned and
+.Va errno
+is set to
+.Er ENOMEM .
+.Pp
+.Fn EVP_AEAD_CTX_init ,
+.Fn EVP_AEAD_CTX_open ,
+and
+.Fn EVP_AEAD_CTX_seal
+return 1 for success or zero for failure.
+.Pp
+.Fn EVP_AEAD_key_length
+returns the length of the key used for this AEAD.
+.Pp
+.Fn EVP_AEAD_max_overhead
+returns the maximum number of additional bytes added by the act of
+sealing data with the AEAD.
+.Pp
+.Fn EVP_AEAD_max_tag_len
+returns the maximum tag length when using this AEAD.
+.Pp
+.Fn EVP_AEAD_nonce_length
+returns the length of the per-message nonce.
+.Sh EXAMPLES
+Encrypt a string using ChaCha20-Poly1305:
+.Bd -literal -offset indent
+const EVP_AEAD *aead = EVP_aead_chacha20_poly1305();
+static const unsigned char nonce[32] = {0};
+size_t buf_len, nonce_len;
+EVP_AEAD_CTX *ctx;
+
+ctx = EVP_AEAD_CTX_new();
+EVP_AEAD_CTX_init(ctx, aead, key32, EVP_AEAD_key_length(aead),
+    EVP_AEAD_DEFAULT_TAG_LENGTH, NULL);
+nonce_len = EVP_AEAD_nonce_length(aead);
+
+EVP_AEAD_CTX_seal(ctx, out, &out_len, BUFSIZE, nonce,
+    nonce_len, in, in_len, NULL, 0);
+
+EVP_AEAD_CTX_free(ctx);
+.Ed
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_EncryptInit 3
+.Sh STANDARDS
+.Rs
+.%A A. Langley
+.%A W. Chang
+.%A N. Mavrogiannopoulos
+.%A J. Strombergson
+.%A S. Josefsson
+.%D June 2016
+.%R RFC 7905
+.%T ChaCha20-Poly1305 Cipher Suites for Transport Layer Security (TLS)
+.Re
+.Pp
+.Rs
+.%A S. Arciszewski
+.%D October 2018
+.%R draft-arciszewski-xchacha-02
+.%T XChaCha: eXtended-nonce ChaCha and AEAD_XChaCha20_Poly1305
+.Re
+.Sh HISTORY
+AEAD is based on the implementation by
+.An Adam Langley
+.\" OpenSSL commit 9a8646510b Sep 9 12:13:24 2013 -0400
+for Chromium/BoringSSL and first appeared in
+.Ox 5.6 .
+.Pp
+.Fn EVP_AEAD_CTX_new
+and
+.Fn EVP_AEAD_CTX_free
+first appeared in
+.Ox 7.1 .
+.Sh CAVEATS
+The original publications and code by
+.An Adam Langley
+used a modified AEAD construction that is incompatible with the common
+style used by AEAD in TLS and incompatible with RFC 7905:
+.Pp
+.Rs
+.%A A. Langley
+.%A W. Chang
+.%D November 2013
+.%R draft-agl-tls-chacha20poly1305-04
+.%T ChaCha20 and Poly1305 based Cipher Suites for TLS
+.Re
+.Pp
+.Rs
+.%A Y. Nir
+.%A A. Langley
+.%D June 2018
+.%R RFC 8439
+.%T ChaCha20 and Poly1305 for IETF Protocols
+.Re
+.Pp
+In particular, the original version used a
+.Fa nonce_len
+of 8 bytes.

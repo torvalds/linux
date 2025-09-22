@@ -1,0 +1,48 @@
+.\"	$OpenBSD: rkcomphy.4,v 1.2 2023/03/12 20:14:41 jmc Exp $
+.\"
+.\" Copyright (c) 2023 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 12 2023 $
+.Dt RKCOMPHY 4
+.Os
+.Sh NAME
+.Nm rkcomphy
+.Nd Rockchip PCIe/USB3/SATA/QSGMII PHY
+.Sh SYNOPSIS
+.Cd "rkcomphy* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver controls the combo PIPE PHY integrated on Rockchip
+RK3566/RK3568 and RK3588 SoCs.
+The PHY supports the PCIe 2.0 (2.5 GT/s and 5 GT/s), USB 3.0 (5 Gbps),
+SATA (1.5 Gbit/s, 3 Gbit/s and 6 Gbit/s) and QSGMII (1.25 Gbit/s and 5
+Gbit/s) protocols.
+The
+.Nm
+driver does not implement support for QSGMII.
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 7.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

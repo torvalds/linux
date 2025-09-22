@@ -1,0 +1,93 @@
+.\"	$OpenBSD: btrace.8,v 1.10 2025/05/18 20:09:58 schwarze Exp $
+.\"
+.\" Copyright (c) 2019 Martin Pieuchot <mpi@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 18 2025 $
+.Dt BTRACE 8
+.Os
+.Sh NAME
+.Nm btrace
+.Nd bug tracer
+.Sh SYNOPSIS
+.Nm btrace
+.Op Fl lnv
+.Op Fl p Ar elffile
+.Ar programfile | Fl e Ar program
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+utility provides an interface to inspect the internals of the system and
+programs.
+It interprets the
+.Xr bt 5
+program read from the
+.Ar programfile ,
+passing the optional
+.Ar arguments
+to it, and communicates with the dynamic tracer device
+using the interface described in
+.Xr dt 4 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl e Ar program
+Execute the
+.Ar program
+specified as the option argument instead of reading a program from a file.
+In this case, all non-option
+.Ar arguments
+are passed through to the
+.Ar program .
+.It Fl l
+List all available probes.
+.It Fl n
+No action.
+Parse the program and then exit.
+.It Fl p Ar elffile
+Load symbols from the
+.Ar elffile
+to convert
+.Va ustack
+addresses into function names.
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+to print debugging messages.
+Multiple
+.Fl v
+options increase the verbosity.
+The maximum is 2.
+.El
+.Sh FILES
+.Bl -tag -width "/usr/share/btrace/XXXX" -compact
+.It Pa /usr/share/btrace/*
+collection of useful
+.Nm
+programs
+.El
+.Sh EXIT STATUS
+.Ex -std 
+.Sh SEE ALSO
+.Xr dt 4 ,
+.Xr bt 5
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Ox 6.7 .
+.Sh AUTHORS
+.An Martin Pieuchot Aq Mt mpi@openbsd.org

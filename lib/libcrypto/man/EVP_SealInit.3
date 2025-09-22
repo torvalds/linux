@@ -1,0 +1,192 @@
+.\"	$OpenBSD: EVP_SealInit.3,v 1.10 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2003, 2005, 2015 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_SEALINIT 3
+.Os
+.Sh NAME
+.Nm EVP_SealInit ,
+.Nm EVP_SealUpdate ,
+.Nm EVP_SealFinal
+.Nd EVP envelope encryption
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_SealInit
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "const EVP_CIPHER *type"
+.Fa "unsigned char **ek"
+.Fa "int *ekl"
+.Fa "unsigned char *iv"
+.Fa "EVP_PKEY **pubk"
+.Fa "int npubk"
+.Fc
+.Ft int
+.Fo EVP_SealUpdate
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *outl"
+.Fa "unsigned char *in"
+.Fa "int inl"
+.Fc
+.Ft int
+.Fo EVP_SealFinal
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *outl"
+.Fc
+.Sh DESCRIPTION
+The EVP envelope routines are a high level interface to envelope
+encryption.
+They generate a random key and IV (if required) then "envelope" it by
+using public key encryption.
+Data can then be encrypted using this key.
+.Pp
+.Fn EVP_SealInit
+initializes a cipher context
+.Fa ctx
+for encryption with cipher
+.Fa type
+using a random secret key and IV.
+.Fa type
+is normally supplied by a function such as
+.Xr EVP_aes_256_cbc 3 ;
+see
+.Xr EVP_EncryptInit 3
+for details.
+The secret key is encrypted using one or more public keys.
+This allows the same encrypted data to be decrypted using any of
+the corresponding private keys.
+.Fa ek
+is an array of buffers where the public key encrypted secret key will be
+written.
+Each buffer must contain enough room for the corresponding encrypted
+key: that is
+.Fa ek[i]
+must have room for
+.Fn EVP_PKEY_size pubk[i]
+bytes.
+The actual size of each encrypted secret key is written to the array
+.Fa ekl .
+.Fa pubk
+is an array of
+.Fa npubk
+public keys.
+.Pp
+The
+.Fa iv
+parameter is a buffer where the generated IV is written to.
+It must contain enough room for the corresponding cipher's IV, as
+determined by (for example)
+.Fn EVP_CIPHER_iv_length type .
+.Pp
+If the cipher does not require an IV then the
+.Fa iv
+parameter is ignored and can be
+.Dv NULL .
+.Pp
+.Fn EVP_SealUpdate
+and
+.Fn EVP_SealFinal
+have exactly the same properties as the
+.Xr EVP_EncryptUpdate 3
+and
+.Xr EVP_EncryptFinal 3
+routines.
+.Pp
+The public key must be RSA because it is the only OpenSSL public key
+algorithm that supports key transport.
+.Pp
+Envelope encryption is the usual method of using public key encryption
+on large amounts of data.
+This is because public key encryption is slow but symmetric encryption
+is fast.
+So symmetric encryption is used for bulk encryption and the small random
+symmetric key used is transferred using public key encryption.
+.Pp
+It is possible to call
+.Fn EVP_SealInit
+twice in the same way as
+.Xr EVP_EncryptInit 3 .
+The first call should have
+.Fa npubk
+set to 0 and (after setting any cipher parameters) it should be called
+again with
+.Fa type
+set to NULL.
+.Pp
+.Fn EVP_SealUpdate
+is implemented as a macro.
+.Sh RETURN VALUES
+.Fn EVP_SealInit
+returns 0 on error or
+.Fa npubk
+if successful.
+.Pp
+.Fn EVP_SealUpdate
+and
+.Fn EVP_SealFinal
+return 1 for success and 0 for failure.
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_EncryptInit 3 ,
+.Xr EVP_OpenInit 3
+.Sh HISTORY
+.Fn EVP_SealInit ,
+.Fn EVP_SealUpdate ,
+and
+.Fn EVP_SealFinal
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_SealFinal
+did not return a value before OpenSSL 0.9.7.

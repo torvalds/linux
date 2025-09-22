@@ -1,0 +1,169 @@
+.\"	$OpenBSD: strtok.3,v 1.24 2024/12/11 23:28:20 jsg Exp $
+.\"
+.\" Copyright (c) 1988, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 11 2024 $
+.Dt STRTOK 3
+.Os
+.Sh NAME
+.Nm strtok ,
+.Nm strtok_r
+.Nd string token operations
+.Sh SYNOPSIS
+.In string.h
+.Ft char *
+.Fn strtok "char *str" "const char *sep"
+.Ft char *
+.Fn strtok_r "char *str" "const char *sep" "char **last"
+.Sh DESCRIPTION
+.Bf -symbolic
+This interface is obsoleted by
+.Xr strsep 3 .
+.Ef
+.Pp
+The
+.Fn strtok
+function is used to isolate sequential tokens in a NUL-terminated string,
+.Fa str .
+These tokens are separated in the string by at least one of the
+characters in
+.Fa sep .
+The first time that
+.Fn strtok
+is called,
+.Fa str
+should be specified; subsequent calls, wishing to obtain further tokens
+from the same string, should pass a null pointer instead.
+The separator string,
+.Fa sep ,
+must be supplied each time, and may change between calls.
+.Pp
+The
+.Fn strtok_r
+function is a version of
+.Fn strtok
+that takes an explicit context argument and is reentrant.
+.Pp
+Since
+.Fn strtok
+and
+.Fn strtok_r
+modify the string,
+.Fa str
+should not point to an area in the initialized data segment.
+.Sh RETURN VALUES
+The
+.Fn strtok
+and
+.Fn strtok_r
+functions return a pointer to the beginning of each subsequent token
+in the string, after replacing the separator character itself with
+a NUL character.
+When no more tokens remain, a null pointer is returned.
+.Sh EXAMPLES
+The following will construct an array of pointers to each individual word in
+the string
+.Va s :
+.Bd -literal -offset indent
+#define MAXTOKENS	128
+
+char s[512], *p, *tokens[MAXTOKENS];
+char *last;
+int i = 0;
+
+snprintf(s, sizeof(s), "cat dog horse cow");
+
+for ((p = strtok_r(s, " ", &last)); p;
+    (p = strtok_r(NULL, " ", &last))) {
+	if (i < MAXTOKENS - 1)
+		tokens[i++] = p;
+}
+tokens[i] = NULL;
+.Ed
+.Pp
+That is,
+.Li tokens[0]
+will point to
+.Qq cat ,
+.Li tokens[1]
+will point to
+.Qq dog ,
+.Li tokens[2]
+will point to
+.Qq horse ,
+and
+.Li tokens[3]
+will point to
+.Qq cow .
+.Sh SEE ALSO
+.Xr memchr 3 ,
+.Xr strchr 3 ,
+.Xr strcspn 3 ,
+.Xr strpbrk 3 ,
+.Xr strrchr 3 ,
+.Xr strsep 3 ,
+.Xr strspn 3 ,
+.Xr strstr 3 ,
+.Xr wcstok 3
+.Sh STANDARDS
+The
+.Fn strtok
+function conforms to
+.St -ansiC .
+The
+.Fn strtok_r
+function conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn strtok
+function first appeared in
+.At III
+and was reimplemented for
+.Bx 4.3 .
+The
+.Fn strtok_r
+function first appeared in
+.Nx 1.3
+and was reimplemented for
+.Ox 2.7 .
+.Sh BUGS
+The System V
+.Fn strtok ,
+if handed a string containing only delimiter characters,
+will not alter the next starting point, so that a call to
+.Fn strtok
+with a different (or empty) delimiter string
+may return a non-null value.
+Since this implementation always alters the next starting point,
+such a sequence of calls would always return
+.Dv NULL .

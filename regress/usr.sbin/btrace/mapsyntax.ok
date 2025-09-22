@@ -1,0 +1,6 @@
+mapsyntax.bt:2:8: syntax error:
+	zero(42);
+              ^
+mapsyntax.bt:6:8: syntax error:
+	clear(0);
+              ^

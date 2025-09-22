@@ -1,0 +1,20 @@
+BLIST representing 128 blocks (0 MB of swap), requiring   0.00M of ram
+BLIST raw radix tree: 4 records, top-radix 2048
+128/128/2048> 128/128/2048> count 64
+blist_meta_alloc blkat 0 blk 0 count 64 radix 2048
+    R=0000
+64/128/2048> count 32
+blist_meta_alloc blkat 0 blk 0 count 32 radix 2048
+    R=0040
+32/128/2048> count 64
+blist_meta_alloc blkat 0 blk 0 count 64 radix 2048
+    R=SWAPBLK_NONE
+32/128/2048> BLIST {
+    (0000,2048): subtree (32/2048) big=32 {
+        (0000,64): bitmap 0000000000000000 big=0
+        (0040,64): bitmap ffffffff00000000 big=63
+        (0080,64): Terminator
+    }
+}
+32/128/2048> gapfind: begin=0000 end=0000 size=0
+32/128/2048> 

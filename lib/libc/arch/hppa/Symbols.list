@@ -1,0 +1,6 @@
+_GLOBAL_OFFSET_TABLE_
+_mcount
+fabsl
+frexpl
+ldexpl
+modfl

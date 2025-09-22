@@ -1,0 +1,125 @@
+.\"	$OpenBSD: fdc.4,v 1.16 2016/09/01 12:24:56 jmc Exp $
+.\"	$NetBSD: fdc.4,v 1.6 1996/03/22 01:55:14 andrew Exp $
+.\"
+.\" Copyright (c) 1996 Andrew C. Wheadon
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fdc.4	8.1 (Berkeley) 3/22/96
+.\"
+.Dd $Mdocdate: September 1 2016 $
+.Dt FDC 4
+.Os
+.Sh NAME
+.Nm fdc
+.Nd NEC765 compatible floppy disk driver
+.Sh SYNOPSIS
+.Cd "fdc0 at isa? port 0x3f0 irq 6 drq 2    " Pq alpha, amd64, i386
+.Cd "fdc* at sbus?                          " Pq sparc64
+.\" .Cd "fdc* at ebus?                          " Pq sparc64
+.Cd "fd* at fdc? flags 0x00"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the standard AT floppy disk controllers.
+These include standard IDE, MFM, RLL,
+EIDE, ESDI and SCSI controllers with floppy attachment,
+commonly encountered on many isa bus machines,
+as well as the on-board floppy controller found on most
+UltraSPARC workstations.
+.Pp
+The standard names of a floppy drive will take the form
+.Pa /dev/fd{0,1,2,3}{,B,C,D,E,F,G,H}[a-p] .
+.Pp
+The first component of this path is the unit number, permitting
+a total of 4 floppy drives.
+The next component is missing for the default geometry (it
+would be A, but it is omitted for simplicity) and B-H for the
+other 7 geometry types the floppy driver supports.
+The last component of the path is the 16 partitions that a floppy
+disk can support.
+.Pp
+The additional geometry types are as follows:
+.Pp
+.Bl -tag -width xxxxxx -offset indent -compact
+.It `B' 1.44MB
+.It `C' 1.2MB
+.It `D' 360KB/AT (360KB disk in a 1.2 MB drive)
+.It `E' 360KB/PC (360KB drive)
+.It `F' 720KB
+.It `G' 720KB/x (720KB in a 1.2 MB drive)
+.It `H' 360KB/x (360KB in a 720KB drive)
+.El
+.Pp
+The default geometry is the format specified in the BIOS, and
+is typically the largest supported format.
+.Pp
+Some isa floppy controllers do not respond correctly to probes, and
+the configuration file
+.Cm flags
+field can be used to specify a particular drive type, overriding the
+probed type.
+If the 0x10 bit is on, the low order three bits of the
+.Cm flags
+field encode the drive type, as follows:
+.Pp
+.Bl -tag -width 2.88MB -offset indent -compact
+.It 1 2.88MB
+.It 2 1.44MB
+.It 3 1.2MB
+.It 4 720K
+.It 5 360K
+.It 6 1.2 MB Japanese format
+.El
+.Pp
+If the 0x20 bit is on, the drive will be attached even
+if it was not found by the probe routine.
+These flags are ignored on
+.Nm
+controllers not connected to an
+.Xr isa 4
+bus.
+.Sh SEE ALSO
+.Xr eject 1 ,
+.Xr fdformat 1 ,
+.Xr ebus 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr sbus 4
+.Sh BUGS
+The
+.Nm
+driver can interfere with other
+.Xr isa 4
+controllers, namely some WD/SMC
+network controllers fail to work when the probing mechanism
+in the
+.Nm
+driver probes for a missing second floppy drive.
+In this case you should try recompiling the kernel
+replacing the relevant line with
+.Cd "fd0 at fdc?" .

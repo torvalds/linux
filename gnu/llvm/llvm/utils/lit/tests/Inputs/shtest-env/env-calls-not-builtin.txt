@@ -1,0 +1,4 @@
+# Other tests thoroughly check that 'env' cannot call various builtin commands.
+# Pick one and make sure it fails even if there's a 'not' in the way.
+
+# RUN: env -u FOO BAR=3 not rm %t.no-such-file

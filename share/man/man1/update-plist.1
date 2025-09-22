@@ -1,0 +1,323 @@
+.\"	$OpenBSD: update-plist.1,v 1.10 2024/04/14 17:24:15 phessler Exp $
+.\"
+.\" Copyright (c) 2018 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 14 2024 $
+.Dt UPDATE-PLIST 1
+.Os
+.Sh NAME
+.Nm update-plist
+.Nd create or update packing-list(s) for a given port
+.Sh SYNOPSIS
+.Ev PORTSDIR Ns = Ns Ar path
+.Op Ev FAKE_TREE_OWNER Ns = Ns Ar user Ev PORTS_TREE_OWNER Ns = Ns Ar user Nm doas
+.Nm
+.Op Fl Ffmnqrvx
+.Op Fl C Ar dir
+.Op Fl c Ar var
+.Op Fl E Ar ext
+.Op Fl e Ar ext
+.Op Fl I Ar var
+.Op Fl i Ar var
+.Op Fl j Ar jobs
+.Op Fl S Ar var
+.Op Fl s Ar var
+.Op Fl X Ar path
+.Op Fl w Ar suffix
+.Fl -
+.Ar pkg_create_args ...
+.Sh DESCRIPTION
+.Nm
+is a helper script for the target
+.Ar update-plist
+in
+.Xr bsd.port.mk 5 .
+.Pp
+Along with options and environment variables,
+.Nm
+uses the exact same options and arguments that would be passed to
+.Xr pkg_create 1 .
+Since
+.Xr pkg_create 1
+normally takes one single actual
+.Ar pkgname ,
+there is no ambiguity in
+.Ev MULTI_PACKAGES
+situations.
+.Pp
+The first set of arguments correspond to the
+.Sq default package .
+.Pp
+If
+.Ev PORTS_PRIVSEP
+is in effect,
+.Nm
+is run as root, but will switch back to
+.Ev FAKE_TREE_OWNER
+for scanning the installation directory and to
+.Ev PORTS_TREE_OWNER
+for writing packing-lists.
+.Pp
+.Nm
+may need to know the
+.Ev PORTSDIR
+location in order to scan dependencies to trim common directories.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl C Ar dir
+Use a cache directory
+.Ar dir
+for scanning dependencies.
+Beware that this directory should then be cleaned manually if the
+dependencies's packing-lists change.
+But this will speed up packing-list regeneration for ports with
+lots of dependencies significantly.
+.It Fl c Ar var
+Variable
+.Ar var
+may be used as a way to insert
+.Cm @ Ns comment
+when other variables vanish.
+.It Fl E Ar ext
+Write new files with
+.Ar ext
+extension instead of the default
+.Pa .new .
+.It Fl e Ar ext
+Preserve old files as
+.Ar ext
+extension instead of the default
+.Pa .orig .
+.It Fl F
+Do not try to run
+.Xr pkg_locate 1 .
+.It Fl f
+Force
+.Xr pkg_locate 1
+to look up every file for conflicts instead of just the new ones.
+.It Fl I Ar var
+Variable
+.Ar var
+may expand to nothing, in which case the variable from
+.Fl c Ar var
+can be used to prevent duplicate entries.
+.It Fl i Ar var
+Ignore variable
+.Ar var
+for new substitutions.
+Only existing substitutions will be considered for the new lists.
+.It Fl j Ar jobs
+Use
+.Ar jobs
+concurrent
+.Xr pkg_locate 1
+pipes.
+Default is
+.Sq hw.ncpuonline .
+.It Fl n
+Do not move the final packing-lists in position.
+Instead, leave the
+.Pa <file>.new
+files for comparison.
+.It Fl q
+Quiet mode.
+Do not display status progress messages.
+Note that this is not the opposite of verbose mode.
+.It Fl r
+Run the
+.Pa fake
+directory scan as root.
+.It Fl S Ar var
+Consider variable for substitution only at the end of paths,
+e.g., for suffixes like
+.Pa .pyc
+or
+.Pa .pyo .
+.It Fl s Ar var
+Consider variable for substitution only at start of paths,
+e.g., for directories like
+.Pa /etc/rc.d
+or
+.Pa /usr/local .
+.It Fl v
+Verbose mode.
+Explain about directories stripped from dependencies.
+Note that this is not the opposite of quiet mode.
+.It Fl w Ar suffix
+Warn about suffixes such as
+.Ar .orig
+that (usually) should not end into packing-lists.
+.It Fl X Ar path
+Exclude file at absolute
+.Ar path
+from the information recorded in the packing-list.
+.El
+.Pp
+.Nm
+assumes all multi-packages live under the same installation directory
+.Po
+.Xr pkg_create 1 Ns 's
+.Fl B
+option
+.Pc ,
+and it will scan all paths under that directory and dispatch
+them into corresponding subpackages, using the following heuristics:
+.Bl -bullet
+.It
+files that were in existing packing-list(s) will be kept in the same
+packing-list.
+.It
+new files and directories will be put in the packing-list that owns
+the corresponding directory.
+.It
+barring that, new files will be put into the first packing-list whose PREFIX
+fits.
+.El
+.Pp
+As far as possible, everything that looks like actual files will be sorted
+in alphabetical order, after variable substitutions.
+.Pp
+.Nm
+will warn for a lot of conditions, such as pre-formatted manpages, or files
+ending in pre-patch suffixes.
+Adding a
+.Cm @comment Ar intentional<reason>
+will silence the warning.
+For instance:
+.Bd -literal -offset indent
+@man man/ja_JP.EUC/cat1/kakasi.0
+@comment intentional: mandoc doesn't handle this locale
+.Ed
+.Pp
+.Nm
+will also scan dependencies, in order to strip common directories.
+.Pp
+If the
+.Ar pkglocatedb
+package is installed,
+.Nm
+will make use of it and report unregistered conflicts.
+This can be disabled with
+.Fl F
+as it is time-consuming.
+.Pp
+Most
+.Ev SUBST_VARS
+variables will be back-substituted into the regenerated packing-lists,
+starting from the longest variable values.
+.Nm
+tries to keep existing substitutions.
+It does not add new substitutions on
+.Ev BASE_PKGPATH
+and
+.Ev BUILD_PKGPATH ,
+it does only substitute
+.Ev FULLPKGNAME
+in
+.Pa share/doc/pkg-readmes
+and it currently does not add new substitutions for
+.Ev ARCH
+nor
+.Ev MACHINE_ARCH .
+.Pp
+Some packages (notoriously Python packages) create some directories optionally
+based on flavors.
+Options
+.Fl c
+and
+.Fl I
+can be used to avoid duplicate directory definitions.
+.Pp
+Specifically, a generated packing-list would contain
+.Bd -literal -offset indent -compact
+lib/python${MODPY_VERSION}/site-packages/bpdb/
+lib/python${MODPY_VERSION}/site-packages/bpdb/${MODPY_PYCACHE}/
+.Ed
+which expands to
+.Bd -literal -offset indent -compact
+lib/python3.7/site-packages/bpdb/
+lib/python3.7/site-packages/bpdb/__pycache__/
+.Ed
+for python3, which is fine.
+.Pp
+But for python2, variable
+.Sq MODPY_PYCACHE
+will be empty, resulting in
+.Bd -literal -offset indent -compact
+lib/python2.7/site-packages/bpdb/
+lib/python2.7/site-packages/bpdb/
+.Ed
+thus a duplicate directory,
+.Xr pkg_create 1
+won't be happy.
+.Pp
+Using
+.Ev UPDATE_PLIST_ARGS = Fl c Ar MODPY_COMMENT Fl I Ar MODPY_PYCACHE
+will result in injecting
+.Sq ${MODPY_COMMENT}
+wherever
+.Nm
+finds a duplicate directory by replacing
+.Sq ${MODPY_PYCACHE}
+with nothing.
+.Pp
+This yields
+.Bd -literal -offset indent -compact
+lib/python${MODPY_VERSION}/site-packages/bpdb/
+${MODPY_COMMENT}lib/python${MODPY_VERSION}/site-packages/bpdb/MODPY_PYCACHE}/
+.Ed
+and for python2 this expands to
+.Bd -literal -offset indent -compact
+lib/python2.7/site-packages/bpdb/
+@comment lib/python2.7/site-packages/bpdb/
+.Ed
+which is exactly what we want.
+.Pp
+Specific items such as shared libraries or binaries will gain annotations
+and special handling, for instance
+.Ev LIBlibname_VERSION .
+.Pp
+Existing packing-lists are scanned for non-file entries, such as
+.Cm newuser ,
+.Cm mode ,
+or
+.Cm exec
+markers.
+Those will be inserted into the updated packing-lists at the most likely
+position.
+.Pp
+.Nm
+will first write files as
+.Pa <file>.new ,
+then it will display which files are new and which files have changed.
+If old packing-lists already exist, it will move old packing lists into
+.Pa <file>.orig ,
+then move the new files into position.
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr bsd.port.mk 5
+.Sh BUGS AND LIMITATIONS
+.Nm
+might be the most complicated piece of the ports infrastructure.
+There will always be cases that require manual intervention.
+.
+Since
+.Ar fake
+is now run as non-root,
+.Nm
+can't figure out users and groups for new files, so these should be
+considered carefully.

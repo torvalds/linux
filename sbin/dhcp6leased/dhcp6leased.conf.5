@@ -1,0 +1,136 @@
+.\"	$OpenBSD: dhcp6leased.conf.5,v 1.6 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2018, 2021, 2024 Florian Obser <florian@openbsd.org>
+.\" Copyright (c) 2005 Esben Norby <norby@openbsd.org>
+.\" Copyright (c) 2004 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2002 Daniel Hartmeier <dhartmei@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt DHCP6LEASED.CONF 5
+.Os
+.Sh NAME
+.Nm dhcp6leased.conf
+.Nd DHCPv6 client configuration file
+.Sh DESCRIPTION
+The
+.Xr dhcp6leased 8
+daemon is a dynamic host configuration protocol client daemon for IPv6 prefix
+delegation.
+.Pp
+The
+.Nm
+config file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global settings for
+.Xr dhcp6leased 8 .
+.It Sx Prefix delegation
+.Xr dhcp6leased 8
+requests prefix delegation from a DHCPv6 server and assigns prefixes
+to interfaces.
+This section defines on which interfaces prefix delegation should be
+requested and to which interfaces prefixes should be assigned.
+.El
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic interface ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Ss Global configuration
+These settings affect the operation of the
+.Xr dhcp6leased 8
+daemon as a whole.
+.Bl -tag -width Ds
+.It Ic request rapid commit
+Send the rapid commit DHCPv6 option, requesting a two-message exchange
+from the server instead of the normal four-message exchange.
+.El
+.Ss Prefix delegation
+A list of interfaces on which to request prefix delegation:
+.Bl -tag -width Ds
+.It Ic request prefix delegation on Ar name Ic for Brq Ar name Ns Oo / Ns Ar prefix Oc Ar ...
+.El
+.Pp
+This requests a prefix delegation on the upstream network interface
+.Ar name
+for the list of
+.Ar name Ns Op / Ns Ar prefix
+network interfaces.
+If
+.Ar prefix
+is omitted a default of /64 is used.
+.Pp
+.Xr dhcp6leased 8
+will calculate the prefix length needed to cover all interfaces in the list.
+When a prefix is delegated by a DHCPv6 server,
+.Xr dhcp6leased 8
+splits the prefix into smaller prefixes and assigns them to the interfaces
+in the order they are listed.
+This might create unassigned gaps in the delegated prefix.
+.Pp
+For example if a /64 and /60 prefix are to be assigned to network interfaces,
+.Xr dhcp6leased 8
+requests a /59 prefix.
+The prefix is then split into two /60 prefixes and the first /64 out of the
+first /60 prefix is assigned to the first interface.
+The second /60 prefix from the delegated /59 is assigned to the
+second interface.
+This leaves 15 unused /64 prefixes in the first /60.
+.Pp
+Care should be taken to avoid renumbering of existing interfaces
+when new interfaces are added or existing interfaces are removed.
+New interfaces can be added to the end of the list or in places
+where unassigned gaps were present.
+.Pp
+The special name
+.Cm reserve
+can be used to reserve space in the delegated prefix for later use or
+when an interface is removed.
+.Pp
+Running
+.Xr dhcp6leased 8
+in configtest mode with a verbosity of two or more will print the
+configuration file with comments indicated how prefixes would be
+assigned to network interfaces.
+This can be used to check that existing interface are not renumbered.
+.Pp
+More than one prefix can be requested from a DHCPv6 server, however most ISP
+DHCPv6 servers will only delegate a single prefix.
+Therefore it is better to let
+.Xr dhcp6leased 8
+request a single larger prefix and split it up.
+.Xr dhcp6leased 8
+has a compile time limit on how many prefix requests per interface it can
+handle.
+.Sh FILES
+.Bl -tag -width /etc/dhcp6leased.conf -compact
+.It Pa /etc/dhcp6leased.conf
+.Xr dhcp6leased 8
+configuration file.
+.El
+.Sh SEE ALSO
+.Xr dhcp6leasectl 8 ,
+.Xr dhcp6leased 8

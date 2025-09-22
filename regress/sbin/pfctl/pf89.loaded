@@ -1,0 +1,40 @@
+@0 block drop all
+  [ Skip steps: i=5 d=2 r=end f=5 p=2 da=5 sp=end dp=5 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 block drop quick from <bad:0> to any
+  [ Skip steps: i=5 r=end f=5 da=5 sp=end dp=5 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 pass out proto tcp all flags S/SA
+  [ Skip steps: i=5 d=5 r=end f=5 sa=end da=5 sp=end dp=5 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass out proto icmp all
+  [ Skip steps: i=5 d=5 r=end f=5 sa=end da=5 sp=end dp=5 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass out proto udp all
+  [ Skip steps: r=end sa=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 pass in on lo1000001 inet proto tcp from any to 10.0.0.1 port = 22 flags S/SA keep state (source-track rule, max-src-conn 10, max-src-conn-rate 3/99, src.track 99)
+  [ Skip steps: i=8 d=end r=end f=end p=end sa=end sp=end dp=8 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 pass in on lo1000001 inet proto tcp from any to 10.0.0.2 port = 22 flags S/SA keep state (source-track rule, max-src-conn 10)
+  [ Skip steps: i=8 d=end r=end f=end p=end sa=end sp=end dp=8 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 pass in on lo1000001 inet proto tcp from any to 10.0.0.3 port = 22 flags S/SA keep state (source-track rule, max-src-conn-rate 3/99, src.track 99)
+  [ Skip steps: d=end r=end f=end p=end sa=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 pass in on lo1000000 inet proto tcp from any to 10.0.0.1 port = 80 flags S/SA modulate state (source-track rule, max-src-conn 100, max-src-conn-rate 10/5, overload <bad> flush, src.track 5)
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 pass in on lo1000000 inet proto tcp from any to 10.0.0.1 port = 8080 flags S/SA synproxy state (source-track rule, max-src-conn 1000, max-src-conn-rate 1000/5, overload <bad> flush global, src.track 5)
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

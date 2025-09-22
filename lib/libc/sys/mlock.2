@@ -1,0 +1,162 @@
+.\"	$OpenBSD: mlock.2,v 1.20 2019/01/11 18:46:30 deraadt Exp $
+.\"	$NetBSD: mlock.2,v 1.3 1995/06/24 10:42:03 cgd Exp $
+.\"
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: January 11 2019 $
+.Dt MLOCK 2
+.Os
+.Sh NAME
+.Nm mlock ,
+.Nm munlock
+.Nd lock (unlock) physical pages in memory
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn mlock "const void *addr" "size_t len"
+.Ft int
+.Fn munlock "const void *addr" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn mlock
+system call
+locks into memory the physical pages associated with the virtual address
+range starting at
+.Fa addr
+for
+.Fa len
+bytes.
+The
+.Fn munlock
+call unlocks pages previously locked by one or more
+.Fn mlock
+calls.
+For both, the
+.Fa addr
+parameter should be aligned to a multiple of the page size.
+If the
+.Fa len
+parameter is not a multiple of the page size, it will be rounded up
+to be so.
+The entire range must be allocated.
+.Pp
+After an
+.Fn mlock
+call, the indicated pages will cause neither a non-resident page
+nor address-translation fault until they are unlocked.
+They may still cause protection-violation faults or TLB-miss faults on
+architectures with software-managed TLBs.
+The physical pages remain in memory until all locked mappings for the pages
+are removed.
+Multiple processes may have the same physical pages locked via their own
+virtual address mappings.
+A single process may likewise have pages multiply locked via different virtual
+mappings of the same pages or via nested
+.Fn mlock
+calls on the same address range.
+Unlocking is performed explicitly by
+.Fn munlock
+or implicitly by a call to
+.Xr munmap 2
+which deallocates the unmapped address range.
+Locked mappings are not inherited by the child process after a
+.Xr fork 2 .
+.Pp
+Since physical memory is a potentially scarce resource, processes are
+limited in how much they can lock down.
+A single process can
+.Fn mlock
+the minimum of
+a system-wide
+.Dq wired pages
+limit and the per-process
+.Li RLIMIT_MEMLOCK
+resource limit.
+.Sh RETURN VALUES
+.Rv -std mlock munlock
+.Sh ERRORS
+.Fn mlock
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The address given is not page aligned or the length is negative.
+.It Bq Er EAGAIN
+Locking the indicated range would exceed either the system or per-process
+limit for locked memory.
+.It Bq Er ENOMEM
+Some portion of the indicated address range is not allocated.
+There was an error faulting/mapping a page.
+.El
+.Pp
+.Fn munlock
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The address given is not page aligned or
+.Fa addr
+and
+.Fa size
+specify a region that would extend beyond the end of the address space.
+.It Bq Er ENOMEM
+Some portion of the indicated address range is not allocated.
+Some portion of the indicated address range is not locked.
+.El
+.Sh SEE ALSO
+.Xr fork 2 ,
+.Xr minherit 2 ,
+.Xr mlockall 2 ,
+.Xr mmap 2 ,
+.Xr munmap 2 ,
+.Xr setrlimit 2 ,
+.Xr getpagesize 3
+.Sh HISTORY
+The
+.Fn mlock
+and
+.Fn munlock
+functions first appeared in
+.Bx 4.4 .
+.Sh BUGS
+Unlike Sun's implementation, multiple
+.Fn mlock
+calls on the same address range require the corresponding number of
+.Fn munlock
+calls to actually unlock the pages, i.e.,
+.Fn mlock
+nests.
+This should be considered a consequence of the implementation
+and not a feature.
+.Pp
+The per-process resource limit is a limit on the amount of virtual
+memory locked, while the system-wide limit is for the number of locked
+physical pages.
+Hence a process with two distinct locked mappings of the same physical page
+counts as 2 pages against the per-process limit and as only a single page
+in the system limit.

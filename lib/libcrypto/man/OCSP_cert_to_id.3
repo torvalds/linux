@@ -1,0 +1,240 @@
+.\"	$OpenBSD: OCSP_cert_to_id.3,v 1.15 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2014, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OCSP_CERT_TO_ID 3
+.Os
+.Sh NAME
+.Nm OCSP_CERTID_new ,
+.Nm OCSP_CERTID_free ,
+.Nm OCSP_cert_to_id ,
+.Nm OCSP_cert_id_new ,
+.Nm OCSP_id_issuer_cmp ,
+.Nm OCSP_id_cmp ,
+.Nm OCSP_id_get0_info
+.Nd OCSP certificate ID utility functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ocsp.h
+.Ft OCSP_CERTID *
+.Fn OCSP_CERTID_new void
+.Ft void
+.Fn OCSP_CERTID_free "OCSP_CERTID *id"
+.Ft OCSP_CERTID *
+.Fo OCSP_cert_to_id
+.Fa "const EVP_MD *dgst"
+.Fa "const X509 *subject"
+.Fa "const X509 *issuer"
+.Fc
+.Ft OCSP_CERTID *
+.Fo OCSP_cert_id_new
+.Fa "const EVP_MD *dgst"
+.Fa "const X509_NAME *issuerName"
+.Fa "const ASN1_BIT_STRING *issuerKey"
+.Fa "const ASN1_INTEGER *serialNumber"
+.Fc
+.Ft int
+.Fo OCSP_id_issuer_cmp
+.Fa "OCSP_CERTID *a"
+.Fa "OCSP_CERTID *b"
+.Fc
+.Ft int
+.Fo OCSP_id_cmp
+.Fa "OCSP_CERTID *a"
+.Fa "OCSP_CERTID *b"
+.Fc
+.Ft int
+.Fo OCSP_id_get0_info
+.Fa "ASN1_OCTET_STRING **piNameHash"
+.Fa "ASN1_OBJECT **pmd"
+.Fa "ASN1_OCTET_STRING **pikeyHash"
+.Fa "ASN1_INTEGER **pserial"
+.Fa "OCSP_CERTID *cid"
+.Fc
+.Sh DESCRIPTION
+.Fn OCSP_CERTID_new
+allocates and initializes an empty
+.Vt OCSP_CERTID
+object, representing an ASN.1
+.Vt CertID
+structure defined in RFC 6960.
+It can store hashes of an issuer's distinguished name and public
+key together with a serial number of a certificate.
+It is used by the
+.Vt OCSP_ONEREQ
+object described in
+.Xr OCSP_ONEREQ_new 3
+and by the
+.Vt OCSP_SINGLERESP
+object described in
+.Xr OCSP_SINGLERESP_new 3 .
+.Fn OCSP_CERTID_free
+frees
+.Fa id .
+.Pp
+.Fn OCSP_cert_to_id
+creates and returns a new
+.Vt OCSP_CERTID
+object using message digest
+.Fa dgst
+for certificate
+.Fa subject
+with issuer
+.Fa issuer .
+If
+.Fa dgst
+is
+.Dv NULL
+then SHA-1 is used.
+.Pp
+.Fn OCSP_cert_id_new
+creates and returns a new
+.Vt OCSP_CERTID
+using
+.Fa dgst
+and issuer name
+.Fa issuerName ,
+issuer key hash
+.Fa issuerKey
+and serial number
+.Fa serialNumber .
+.Pp
+.Fn OCSP_id_issuer_cmp
+compares the hash algorithms,
+the hashed issuer distinguished names and
+the hashed public keys of
+.Vt OCSP_CERTID
+.Fa a
+and
+.Fa b .
+.Pp
+.Fn OCSP_id_cmp
+compares
+.Vt OCSP_CERTID
+.Fa a
+and
+.Fa b
+using
+.Fn OCSP_id_issuer_cmp
+followed by a comparison of the certificate serial numbers with
+.Xr ASN1_INTEGER_cmp 3 .
+.Pp
+.Fn OCSP_id_get0_info
+returns the issuer name hash, hash OID, issuer key hash and serial
+number contained in
+.Fa cid .
+If any of the values are not required, the corresponding parameter can be
+set to
+.Dv NULL .
+The values returned by
+.Fn OCSP_id_get0_info
+are internal pointers and must not be freed up by an application:
+they will be freed when the corresponding
+.Vt OCSP_CERTID
+object is freed.
+.Pp
+OCSP clients will typically only use
+.Fn OCSP_cert_to_id
+or
+.Fn OCSP_cert_id_new :
+the other functions are used by responder applications.
+.Sh RETURN VALUES
+.Fn OCSP_CERTID_new ,
+.Fn OCSP_cert_to_id ,
+and
+.Fn OCSP_cert_id_new
+return either a pointer to a valid
+.Vt OCSP_CERTID
+object or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn OCSP_id_cmp
+and
+.Fn OCSP_id_issuer_cmp
+return 0 for a match or non-zero otherwise.
+.Pp
+.Fn OCSP_id_get0_info
+returns 1 for success or 0 for failure.
+.Sh SEE ALSO
+.Xr ASN1_INTEGER_cmp 3 ,
+.Xr EVP_DigestInit 3 ,
+.Xr OCSP_request_add1_nonce 3 ,
+.Xr OCSP_REQUEST_new 3 ,
+.Xr OCSP_resp_find_status 3 ,
+.Xr OCSP_response_status 3 ,
+.Xr OCSP_sendreq_new 3 ,
+.Xr X509_get_issuer_name 3 ,
+.Xr X509_NAME_new 3 ,
+.Xr X509_ocspid_print 3
+.Sh STANDARDS
+RFC 6960: X.509 Internet Public Key Infrastructure Online Certificate
+Status Protocol, section 4: Details of the Protocol
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.7
+and have been available since
+.Ox 3.2 .

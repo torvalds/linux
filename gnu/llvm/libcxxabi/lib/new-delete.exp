@@ -1,0 +1,21 @@
+# Symbols for all variants of global operator new and delete
+__Znwm
+__ZnwmRKSt9nothrow_t
+__ZnwmSt11align_val_t
+__ZnwmSt11align_val_tRKSt9nothrow_t
+__ZdaPv
+__ZdaPvm
+__ZdaPvmSt11align_val_t
+__ZdaPvRKSt9nothrow_t
+__ZdaPvSt11align_val_t
+__ZdaPvSt11align_val_tRKSt9nothrow_t
+__ZdlPv
+__ZdlPvm
+__ZdlPvmSt11align_val_t
+__ZdlPvRKSt9nothrow_t
+__ZdlPvSt11align_val_t
+__ZdlPvSt11align_val_tRKSt9nothrow_t
+__Znam
+__ZnamRKSt9nothrow_t
+__ZnamSt11align_val_t
+__ZnamSt11align_val_tRKSt9nothrow_t

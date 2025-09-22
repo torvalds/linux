@@ -1,0 +1,21 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("LanaiGenDisassemblerTables") {
+  visibility = [ ":Disassembler" ]
+  args = [ "-gen-disassembler" ]
+  td_file = "../Lanai.td"
+}
+
+static_library("Disassembler") {
+  output_name = "LLVMLanaiDisassembler"
+  deps = [
+    ":LanaiGenDisassemblerTables",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/Lanai/MCTargetDesc",
+    "//llvm/lib/Target/Lanai/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "LanaiDisassembler.cpp" ]
+}

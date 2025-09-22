@@ -1,0 +1,24 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/driver_executable.gni")
+
+tablegen("Opts") {
+  visibility = [ ":llvm-ifs" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+driver_executable("llvm-ifs") {
+  deps = [
+    ":Opts",
+    "//llvm/lib/InterfaceStub",
+    "//llvm/lib/Object",
+    "//llvm/lib/ObjectYAML",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/TextAPI",
+  ]
+  sources = [
+    "ErrorCollector.cpp",
+    "llvm-ifs.cpp",
+  ]
+}

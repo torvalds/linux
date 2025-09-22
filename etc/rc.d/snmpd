@@ -1,0 +1,16 @@
+#!/bin/ksh
+#
+# $OpenBSD: snmpd,v 1.5 2022/11/30 02:54:15 kn Exp $
+
+daemon="/usr/sbin/snmpd"
+
+. /etc/rc.d/rc.subr
+
+rc_configtest() {
+	# use rc_exec here since daemon_flags may contain arguments with spaces
+	rc_exec "${daemon} -n ${daemon_flags}"
+}
+
+rc_reload=NO
+
+rc_cmd $1

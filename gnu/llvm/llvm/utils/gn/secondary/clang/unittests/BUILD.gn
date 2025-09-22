@@ -1,0 +1,48 @@
+import("//clang/lib/StaticAnalyzer/Frontend/enable.gni")
+
+group("unittests") {
+  deps = [
+    "AST:ASTTests",
+    "AST/Interp:InterpTests",
+    "ASTMatchers:ASTMatchersTests",
+    "ASTMatchers/Dynamic:DynamicASTMatchersTests",
+    "Basic:BasicTests",
+    "CodeGen:ClangCodeGenTests",
+    "CrossTU:CrossTUTests",
+    "Driver:ClangDriverTests",
+    "Format:FormatTests",
+    "Frontend:FrontendTests",
+    "Index:IndexTests",
+    "InstallAPI:InstallAPITests",
+    "Interpreter:ClangReplInterpreterTests",
+    "Lex:LexTests",
+    "Rename:ClangRenameTests",
+    "Rewrite:RewriteTests",
+    "Sema:SemaTests",
+    "Serialization:SerializationTests",
+    "Support:ClangSupportTests",
+    "Tooling:ToolingTests",
+    "Tooling/Syntax:SyntaxTests",
+  ]
+  if (clang_enable_static_analyzer) {
+    deps += [
+      "Analysis:ClangAnalysisTests",
+      "Analysis/FlowSensitive:ClangAnalysisFlowSensitiveTests",
+      "StaticAnalyzer:StaticAnalysisTests",
+    ]
+  }
+  if (host_os != "win") {
+    deps += [
+      # FIXME: libclang unit tests are disabled on Windows due
+      # to failures, mostly in libclang.VirtualFileOverlay_*.
+      # FIXME: Also, the executable can't find libclang.dll since that's
+      # in a different directory.
+      "libclang:libclangTests",
+      "libclang/CrashTests:libclangCrashTests",
+
+      # Exceptions on Windows are not yet supported.
+      "Interpreter/ExceptionTests:ClangReplInterpreterExceptionTests",
+    ]
+  }
+  testonly = true
+}

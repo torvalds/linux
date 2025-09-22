@@ -1,0 +1,3 @@
+stdin: 4: syntax error
+ipsecctl: Syntax error in config file: ipsec rules not loaded
+remote_gw = "192.168.0.1"

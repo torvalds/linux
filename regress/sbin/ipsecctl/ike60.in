@@ -1,0 +1,3 @@
+ike from 10.0.0.1 to any main enc aes-128 quick enc aes-128
+ike from 10.0.0.2 to any main enc aes-192 quick enc aes-192
+ike from 10.0.0.3 to any main enc aes-256 quick enc aes-256

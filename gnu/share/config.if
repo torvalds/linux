@@ -1,0 +1,87 @@
+#! /dev/null
+# Don't call it directly. This shell script fragment is called to
+# determine:
+#
+#	1. libstcxx_interface: the interface name for libstdc++.
+#	2. cxx_interface: the interface name for c++.
+#	3. libc_interface: the interface name for libc.
+#
+
+# Get the top level src dir.
+if [ -z "${topsrcdir}" -a -z "${top_srcdir}" ]
+then
+  echo "Undefined top level src dir: topsrcdir and top_srcdir are empty" >&2
+  exit 1
+fi
+
+if [ -n "${topsrcdir}" ]
+then
+  if_topsrcdir=${topsrcdir}
+else
+  if_topsrcdir=${top_srcdir}
+fi
+
+if [ -f ${if_topsrcdir}/libstdc++/Makefile.in ]; then
+# We check libstdc++ for libstdcxx_interface.
+libstdcxx_interface=`grep "^INTERFACE" ${if_topsrcdir}/libstdc++/Makefile.in | sed 's/INTERFACE[ 	]*=[ 	]*\(.*\)/\1/'`
+else
+libstdcxx_interface=
+fi
+
+if [ -f ${if_topsrcdir}/gcc/cp/Makefile.in ]; then
+# We check gcc/cp for cxx_interface.
+cxx_interface=`grep "^INTERFACE" ${if_topsrcdir}/gcc/cp/Makefile.in | sed 's/INTERFACE[ 	]*=[ 	]*\(.*\)/\1/'`
+else
+cxx_interface=
+fi
+
+# The trickiest part is libc_interface.
+if [ -z "${libc_interface}" ]
+then
+  case ${target_os} in
+  *linux*libc1*|*linux*libc5*)
+    case ${target_alias} in
+    *alpha*|*powerpc*)
+      libc_interface=-libc5.9-
+      ;;
+    *)
+      libc_interface=-libc5-
+      ;;
+    esac
+    ;;
+  *linux*gnu*)
+    # We have to work harder to figure it out.
+    if [ ${target_alias} = ${build_alias} ]
+    then
+      dummy=if$$
+      cat >$dummy.c <<EOF
+#include <features.h>                      
+main(argc, argv)
+     int argc;          
+     char *argv[];
+{
+  printf("%d\n", __GLIBC_MINOR__);
+  return 0;
+}
+EOF
+      ${CC-cc} $dummy.c -o $dummy 2>/dev/null
+      if [ "$?" = 0 ]
+      then
+	libc_interface=-libc6.`./$dummy`-
+	rm -f $dummy.c $dummy
+      else
+	# It should never happen.
+	echo "Cannot find the GNU C library minor version number." >&2
+	rm -f $dummy.c $dummy
+	exit 1
+      fi
+    else
+      # Cross compiling. Assume glibc 2.1.
+      libc_interface=-libc6.1-
+    fi
+    ;;
+  *)
+    libc_interface=-
+    ;;
+  esac
+fi

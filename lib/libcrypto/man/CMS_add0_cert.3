@@ -1,0 +1,223 @@
+.\" $OpenBSD: CMS_add0_cert.3,v 1.11 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL e9b77246 Jan 20 19:58:49 2017 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CMS_ADD0_CERT 3
+.Os
+.Sh NAME
+.Nm CMS_add0_cert ,
+.Nm CMS_add1_cert ,
+.Nm CMS_get1_certs ,
+.Nm CMS_add0_crl ,
+.Nm CMS_add1_crl ,
+.Nm CMS_get1_crls
+.Nd CMS certificate and CRL utility functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cms.h
+.Ft int
+.Fo CMS_add0_cert
+.Fa "CMS_ContentInfo *cms"
+.Fa "X509 *certificate"
+.Fc
+.Ft int
+.Fo CMS_add1_cert
+.Fa "CMS_ContentInfo *cms"
+.Fa "X509 *certificate"
+.Fc
+.Ft STACK_OF(X509) *
+.Fo CMS_get1_certs
+.Fa "CMS_ContentInfo *cms"
+.Fc
+.Ft int
+.Fo CMS_add0_crl
+.Fa "CMS_ContentInfo *cms"
+.Fa "X509_CRL *crl"
+.Fc
+.Ft int
+.Fo CMS_add1_crl
+.Fa "CMS_ContentInfo *cms"
+.Fa "X509_CRL *crl"
+.Fc
+.Ft STACK_OF(X509_CRL) *
+.Fo CMS_get1_crls
+.Fa "CMS_ContentInfo *cms"
+.Fc
+.Sh DESCRIPTION
+.Fn CMS_add0_cert
+adds the
+.Fa certificate
+to the
+.Fa certificates
+field of
+.Fa cms
+if it is of the type
+.Vt SignedData
+or to the
+.Fa originatorInfo.certs
+field if it is of the type
+.Vt EnvelopedData .
+.Fn CMS_add1_cert
+does the same and also increments the reference count of the
+.Fa certificate
+with
+.Xr X509_up_ref 3
+in case of success.
+.Pp
+.Fn CMS_get1_certs
+returns all certificates in
+.Fa cms .
+.Pp
+.Fn CMS_add0_crl
+adds the
+.Fa crl
+to the
+.Fa crls
+field of
+.Fa cms
+if it is of the type
+.Vt SignedData
+or to the
+.Fa originatorInfo.crls
+field if it is of the type
+.Vt EnvelopedData .
+.Fn CMS_add1_crl
+does the same and also increments the reference count of the
+.Fa crl
+with
+.Xr X509_CRL_up_ref 3
+in case of success.
+.Pp
+.Fn CMS_get1_crls
+returns any CRLs in
+.Fa cms .
+.Pp
+An error occurs if
+.Fa cms
+is of any type other than
+.Vt SignedData
+or
+.Vt EnvelopedData .
+.Pp
+The same
+.Fa certificate
+or
+.Fa crl
+must not be added to the same
+.Fa cms
+structure more than once.
+.Sh RETURN VALUES
+.Fn CMS_add0_cert ,
+.Fn CMS_add1_cert ,
+.Fn CMS_add0_crl ,
+and
+.Fn CMS_add1_crl
+return 1 for success or 0 for failure.
+.Pp
+.Fn CMS_get1_certs
+and
+.Fn CMS_get1_crls
+return the STACK of certificates or CRLs or
+.Dv NULL
+if there are none or an error occurs.
+Possible errors are that the
+.Fa cms
+type is invalid or memory allocation failure.
+Not all errors result in an error on the error stack.
+The returned stack must be freed using the appropriate
+macro wrapper of
+.Xr sk_pop_free 3 ,
+namely
+.Dv sk_X509_pop_free()
+or
+.Dv sk_X509_CRL_pop_free() .
+.Sh SEE ALSO
+.Xr CMS_ContentInfo_new 3 ,
+.Xr CMS_encrypt 3 ,
+.Xr CMS_final 3 ,
+.Xr CMS_sign 3 ,
+.Xr ERR_get_error 3
+.Sh STANDARDS
+RFC 5652: Cryptographic Message Syntax
+.Bl -dash -compact -offset indent
+.It
+section 5.1: SignedData Type
+.It
+section 6.1: EnvelopedData Type
+.El
+.Sh HISTORY
+.Fn CMS_add0_cert ,
+.Fn CMS_add1_cert ,
+.Fn CMS_get1_certs ,
+.Fn CMS_add0_crl ,
+and
+.Fn CMS_get1_crls
+first appeared in OpenSSL 0.9.8h and
+.Fn CMS_add1_crl
+in OpenSSL 1.0.0.
+These functions have been available since
+.Ox 6.7 .

@@ -1,0 +1,11 @@
+# basic anchor test
+anchor on tun1000000 {
+	anchor foo out {
+		pass proto tcp to port 1234 
+		anchor proto tcp to port 2413 user root label "foo" {
+			block
+			pass from 127.0.0.1
+		}
+	}
+	pass in proto tcp to port 1234 
+}

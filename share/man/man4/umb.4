@@ -1,0 +1,95 @@
+.\"	$OpenBSD: umb.4,v 1.19 2024/05/23 08:06:22 kevlo Exp $
+.\"
+.\" Copyright (c) 2016 genua mbH
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 23 2024 $
+.Dt UMB 4
+.Os
+.Sh NAME
+.Nm umb
+.Nd USB Mobile Broadband Interface Model (MBIM)
+.Sh SYNOPSIS
+.Cd "umb*  at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB MBIM devices.
+.Pp
+MBIM devices establish connections via cellular networks such as
+GPRS, UMTS, and LTE.
+They appear as a regular point-to-point network interface,
+transporting raw IP frames.
+Once a connection is established,
+the device will automatically set an IP address
+and send out a nameserver proposal,
+which
+.Xr resolvd 8
+can act on.
+.Pp
+Required configuration parameters like PIN and APN have to be set
+with
+.Xr ifconfig 8 .
+Once the SIM card has been unlocked with the correct PIN, it
+will remain in this state until the MBIM device is power-cycled.
+In case the device is connected to an "always-on" USB port,
+it may be possible to connect to a provider without entering the
+PIN again even if the system was rebooted.
+.Sh HARDWARE
+The following devices should work:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Dell DW5821e
+.It Ericsson H5321gw and N5321gw
+.It Fibocom L831-EAU
+.\" .It Huawei ME906s -- attaches but needs more work
+.It Medion Mobile S4222 (MediaTek OEM)
+.It Quectel EC25
+.It Quectel EM060K
+.It Quectel RM500Q
+.It SIMCom SIM7600
+.It SIMCom SIM8262E-M2
+.It Sierra Wireless EM7345
+.It Sierra Wireless EM7455
+.It Sierra Wireless EM8805
+.It Sierra Wireless MC8305
+.El
+.Sh EXAMPLES
+The following
+.Xr hostname.if 5
+example configures umb0 to set the APN to
+.Dq internet ,
+enabling data roaming,
+and obtaining an IP address using IPv6 stateless address autoconfiguration:
+.Bd -literal -offset indent
+pin 1234
+apn internet
+inet6 autoconf
+roaming
+.Ed
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr route 8
+.Rs
+.%T "Universal Serial Bus Communications Class Subclass Specification for Mobile Broadband Interface Model"
+.%U https://www.usb.org/document-library/mobile-broadband-interface-model-v10-errata-1-and-adopters-agreement
+.Re
+.Sh CAVEATS
+Devices which fail to provide a conforming MBIM implementation will
+probably be attached as some other driver, such as
+.Xr umsm 4 .

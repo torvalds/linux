@@ -1,0 +1,248 @@
+.\"	$OpenBSD: umsm.4,v 1.97 2024/05/23 08:06:22 kevlo Exp $
+.\"
+.\" Copyright (c) 2006 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 23 2024 $
+.Dt UMSM 4
+.Os
+.Sh NAME
+.Nm umsm
+.Nd Qualcomm MSM modem device
+.Sh SYNOPSIS
+.Cd "umsm* at uhub?"
+.Cd "ucom* at umsm?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Qualcomm MSM modem adapters.
+The MSM chipset is found in EVDO, UMTS and LTE capable modems.
+Typically these are CardBus and PCI Express Mini Cards that incorporate a
+USB controller with the actual device attached to it.
+.Pp
+The following devices are known to work with the
+.Nm
+driver:
+.Bl -column "Medion Mobile S4012 (Huawei E1550 OEM)" "Bus" -offset 6n
+.It Em Device Ta Em Bus
+.It Li "AirPrime PC5220" Ta "CardBus"
+.It Li "Alcatel One Touch X060" Ta "USB"
+.It Li "Alcatel One Touch X200" Ta "USB"
+.It Li "Alcatel One Touch X210" Ta "USB"
+.It Li "Alcatel One Touch X220" Ta "USB"
+.It Li "AnyDATA ADU-500A" Ta "USB"
+.It Li "AnyDATA ADU-E100H" Ta "USB"
+.It Li "AnyDATA A2502" Ta "USB"
+.It Li "C-motech CNU 680" Ta "USB"
+.It Li "Emobile D01HW (Huawei OEM)" Ta "USB"
+.It Li "Emobile D02HW (Huawei OEM)" Ta "USB"
+.It Li "Emobile D12HW (Huawei OEM)" Ta "USB"
+.It Li "Emobile D22HW (Huawei OEM)" Ta "USB"
+.It Li "Emobile D31HW (Huawei OEM)" Ta "USB"
+.It Li "Emobile H12HW (Huawei OEM)" Ta "USB"
+.It Li "Emobile D21LC (longcheer OEM)" Ta "USB"
+.It Li "Huawei Mobile E156G" Ta "USB"
+.It Li "Huawei Mobile E160E" Ta "USB"
+.It Li "Huawei Mobile E161" Ta "USB"
+.It Li "Huawei Mobile E160g" Ta "USB"
+.It Li "Huawei Mobile E1692" Ta "USB"
+.It Li "Huawei Mobile E172" Ta "USB"
+.It Li "Huawei Mobile E173" Ta "USB"
+.It Li "Huawei Mobile E173s" Ta "USB"
+.It Li "Huawei Mobile E180" Ta "USB"
+.It Li "Huawei Mobile E181" Ta "USB"
+.It Li "Huawei Mobile E182" Ta "USB"
+.It Li "Huawei Mobile E220" Ta "USB"
+.It Li "Huawei Mobile E303" Ta "USB"
+.It Li "Huawei Mobile E352" Ta "USB"
+.It Li "Huawei Mobile E353" Ta "USB"
+.It Li "Huawei Mobile E392" Ta "USB"
+.It Li "Huawei Mobile E510" Ta "USB"
+.It Li "Huawei Mobile E1550" Ta "USB"
+.It Li "Huawei Mobile E1750" Ta "USB"
+.It Li "Huawei Mobile E1752" Ta "USB"
+.It Li "Huawei Mobile E1820" Ta "USB"
+.It Li "Huawei Mobile E3372" Ta "USB"
+.It Li "Huawei Mobile EM770W" Ta "PCI Express Mini Card"
+.It Li "Huawei Mobile K4510" Ta "USB"
+.It Li "Huawei Mobile K4511" Ta "USB"
+.It Li "Huawei Mobile Connect E169g" Ta "USB"
+.It Li "Huawei Mobile Connect E618" Ta "USB"
+.It Li "Huawei Mobile Connect E620" Ta "USB"
+.It Li "IIJMobile 120FU (ZTE OEM)" Ta "USB"
+.It Li "Kyocera KPC650" Ta "CardBus"
+.It Li "Medion Mobile S4012 (Huawei E1550 OEM)" Ta "USB"
+.It Li "Medion Mobile S4222 (MediaTek OEM)" Ta "USB"
+.It Li "Novatel Wireless ES620" Ta "USB"
+.It Li "Novatel Wireless Ovation U727" Ta "USB"
+.It Li "Novatel Wireless U760" Ta "USB"
+.It Li "NTT DoCoMo A2502" Ta "USB"
+.It Li "ONDA Communication H600" Ta "CardBus"
+.It Li "ONDA Communication MSA110UP" Ta "USB"
+.It Li "Option GlobeSurfer iCON 7.2" Ta "USB"
+.It Li "Option GlobeTrotter 3G+" Ta "CardBus"
+.It Li "Option GlobeTrotter 3G Quad" Ta "CardBus"
+.It Li "Option GlobeTrotter 3G Quad Plus" Ta "CardBus"
+.It Li "Option GlobeTrotter GT Fusion" Ta "CardBus"
+.It Li "Option GlobeTrotter GT Max" Ta "CardBus"
+.It Li "Option GlobeTrotter HSDPA" Ta "USB"
+.It Li "Option iCON 225" Ta "USB"
+.It Li "Option iCON 505" Ta "USB"
+.It Li "Option GlobeTrotter HSUPA 380E" Ta "PCI Express Mini Card"
+.It Li "Quectel EC25" Ta "PCI Express Mini Card"
+.It Li "Quectel EM060K" Ta "M.2"
+.It Li "Sierra Wireless MC8755" Ta "PCI Express Mini Card"
+.It Li "Sierra Wireless MC8775" Ta "PCI Express Mini Card"
+.It Li "Sierra Wireless MC8790" Ta "PCI Express Mini Card"
+.It Li "Sierra Wireless AirCard 580" Ta "CardBus"
+.It Li "Sierra Wireless AirCard 875" Ta "CardBus"
+.It Li "Sierra Wireless AirCard 881" Ta "CardBus"
+.It Li "Sierra Wireless AirCard 881U" Ta "USB"
+.It Li "Sierra Wireless Inc. USB 305" Ta "USB"
+.It Li "Simcom SIM7600E" Ta "PCI Express Mini Card"
+.It Li "Softbank C01SW (Sierra OEM)" Ta "USB"
+.It Li "Toshiba 3G HSDPA MiniCard" Ta "PCI Express Mini Card"
+.It Li "Vodafone Mobile Connect 3G" Ta "CardBus"
+.It Li "Vodafone Mobile Broadband K3765" Ta "USB"
+.It Li "Vodafone Mobile Broadband K3772" Ta "USB"
+.It Li "ZTE AC2746" Ta "USB"
+.It Li "ZTE MF112" Ta "USB"
+.It Li "ZTE MF190" Ta "USB"
+.It Li "ZTE MF633" Ta "USB"
+.It Li "ZTE MF637" Ta "USB"
+.El
+.Pp
+Devices suspected of being compatible are:
+.Bl -column "Option GlobeTrotter HSDPA ICON225" "Bus" -offset 6n
+.It Em Device Ta Em Bus
+.It Li "Dell W5500" Ta "PCI Express Mini Card"
+.It Li "Huawei E270+" Ta "USB"
+.It Li "Huawei E1690" Ta "USB"
+.It Li "Huawei E1762" Ta "USB"
+.It Li "Novatel Wireless ExpressCard" Ta "ExpressCard"
+.It Li "Novatel Wireless Merlin V620" Ta "CardBus"
+.It Li "Novatel Wireless Merlin V740" Ta "CardBus"
+.It Li "Novatel Wireless Merlin X950D" Ta "ExpressCard"
+.It Li "Novatel Wireless MC950D" Ta "USB"
+.It Li "Novatel Wireless S720" Ta "CardBus"
+.It Li "Novatel Wireless U720" Ta "USB"
+.It Li "Novatel Wireless U740" Ta "CardBus"
+.It Li "Novatel Wireless U870" Ta "CardBus"
+.It Li "Novatel Wireless V720" Ta "CardBus"
+.It Li "Novatel Wireless X950D" Ta "ExpressCard"
+.It Li "Novatel Wireless XU870 HSDPA" Ta "ExpressCard"
+.It Li "Sierra Wireless AirCard 595" Ta "CardBus"
+.It Li "Sierra Wireless AirCard 597E" Ta "CardBus"
+.It Li "Sierra Wireless AirCard 880" Ta "CardBus"
+.It Li "Sierra Wireless AirCard 880E" Ta "ExpressCard"
+.It Li "Sierra Wireless AirCard 880U" Ta "USB"
+.It Li "Sierra Wireless AirCard 881E" Ta "ExpressCard"
+.It Li "Sierra Wireless AirCard 885U" Ta "USB"
+.It Li "Sierra Wireless C597" Ta "USB"
+.It Li "Sierra Wireless EM5625" Ta "USB"
+.It Li "Sierra Wireless MC5720" Ta "PCI Express Mini Card"
+.It Li "Sierra Wireless MC5725" Ta "PCI Express Mini Card"
+.It Li "Sierra Wireless MC8765" Ta "PCI Express Mini Card"
+.It Li "Sierra Wireless MC8780" Ta "PCI Express Mini Card"
+.It Li "Sierra Wireless MC8781" Ta "PCI Express Mini Card"
+.El
+.Pp
+Some modems have multiple serial ports,
+however almost all modems have only one effective serial port
+for PPP connections.
+For example, the Huawei E220 has two serial ports,
+but only the first port can be used to make connections;
+the second one is for management.
+The Option GlobeTrotter HSDPA/HSUPA modems have three serial ports,
+but only the last port can be used to make PPP connections.
+The Medion Mobile S4222 has four serial ports, but only the first
+port can be used to make connections.
+.Pp
+Some modems require multi-link PPP operation.
+For example, the Huawei E1550 has four serial ports.
+When initiating a connection, the control commands have to be issued
+on the third port, and after that the actual PPP connection comes
+up on the first port.
+The function of the second and fourth ports is unknown.
+.Sh EXAMPLES
+An example demand dial configuration for Cingular Wireless using
+.Xr pppd 8 :
+.Pp
+.Pa /etc/ppp/cingular-chat :
+.Bd -literal -offset indent
+TIMEOUT 10
+REPORT CONNECT
+ABORT BUSY
+ABORT 'NO CARRIER'
+ABORT ERROR
+\&'' ATZ OK AT&F OK
+AT+CGDCONT=1,"IP","isp.cingular" OK
+ATD*99***1# CONNECT
+.Ed
+.Pp
+.Pa /etc/ppp/peers/ac875 :
+.Bd -literal -offset indent
+cuaU0
+115200
+debug
+noauth
+nocrtscts
+:10.254.254.1
+ipcp-accept-remote
+defaultroute
+user isp@cingulargprs.com
+demand
+active-filter 'not udp port 123'
+persist
+idle 600
+connect "/usr/sbin/chat -v -f /etc/ppp/cingular-chat"
+.Ed
+.Pp
+.Pa /etc/ppp/chap-secrets :
+.Bd -literal -offset indent
+# Secrets for authentication using CHAP
+# client		server	secret		IP addresses
+isp@cingulargprs.com	*	CINGULAR1
+.Ed
+.Pp
+.Xr pppd 8
+is then started using:
+.Pp
+.Dl # pppd call ac875
+.Sh SEE ALSO
+.Xr ucom 4 ,
+.Xr uhub 4 ,
+.Xr usb 4 ,
+.Xr pppd 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jonathan Gray Aq Mt jsg@openbsd.org
+and
+.An Yojiro UO Aq Mt yuo@nui.org .
+.Sh CAVEATS
+For Verizon Wireless (and possibly other services),
+cards require a one-time activation before they will work;
+.Nm
+does not currently support this.
+.Pp
+The additional IEEE 802.11 wireless chipset found in the Option
+GlobeTrotter GT FUSION is not yet supported.

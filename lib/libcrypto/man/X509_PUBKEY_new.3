@@ -1,0 +1,402 @@
+.\" $OpenBSD: X509_PUBKEY_new.3,v 1.19 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2020, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_PUBKEY_NEW 3
+.Os
+.Sh NAME
+.Nm X509_PUBKEY_new ,
+.Nm X509_PUBKEY_free ,
+.Nm X509_PUBKEY_set ,
+.Nm X509_PUBKEY_get0 ,
+.Nm X509_PUBKEY_get ,
+.Nm d2i_X509_PUBKEY ,
+.Nm i2d_X509_PUBKEY ,
+.Nm d2i_PUBKEY ,
+.Nm i2d_PUBKEY ,
+.Nm d2i_PUBKEY_bio ,
+.Nm d2i_PUBKEY_fp ,
+.Nm i2d_PUBKEY_fp ,
+.Nm i2d_PUBKEY_bio ,
+.Nm X509_PUBKEY_set0_param ,
+.Nm X509_PUBKEY_get0_param
+.Nd X.509 SubjectPublicKeyInfo structure
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_PUBKEY *
+.Fn X509_PUBKEY_new void
+.Ft void
+.Fo X509_PUBKEY_free
+.Fa "X509_PUBKEY *a"
+.Fc
+.Ft int
+.Fo X509_PUBKEY_set
+.Fa "X509_PUBKEY **x"
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Ft EVP_PKEY *
+.Fo X509_PUBKEY_get0
+.Fa "X509_PUBKEY *key"
+.Fc
+.Ft EVP_PKEY *
+.Fo X509_PUBKEY_get
+.Fa "X509_PUBKEY *key"
+.Fc
+.Ft X509_PUBKEY *
+.Fo d2i_X509_PUBKEY
+.Fa "X509_PUBKEY **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_PUBKEY
+.Fa "X509_PUBKEY *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft EVP_PKEY *
+.Fo d2i_PUBKEY
+.Fa "EVP_PKEY **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PUBKEY
+.Fa "EVP_PKEY *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft EVP_PKEY *
+.Fo d2i_PUBKEY_bio
+.Fa "BIO *bp"
+.Fa "EVP_PKEY **val_out"
+.Fc
+.Ft EVP_PKEY *
+.Fo d2i_PUBKEY_fp
+.Fa "FILE *fp"
+.Fa "EVP_PKEY **val_out"
+.Fc
+.Ft int
+.Fo i2d_PUBKEY_fp
+.Fa "FILE *fp"
+.Fa "EVP_PKEY *val_in"
+.Fc
+.Ft int
+.Fo i2d_PUBKEY_bio
+.Fa "BIO *bp"
+.Fa "EVP_PKEY *val_in"
+.Fc
+.Ft int
+.Fo X509_PUBKEY_set0_param
+.Fa "X509_PUBKEY *pub"
+.Fa "ASN1_OBJECT *aobj"
+.Fa "int ptype"
+.Fa "void *pval"
+.Fa "unsigned char *penc"
+.Fa "int penclen"
+.Fc
+.Ft int
+.Fo X509_PUBKEY_get0_param
+.Fa "ASN1_OBJECT **ppkalg"
+.Fa "const unsigned char **pk"
+.Fa "int *ppklen"
+.Fa "X509_ALGOR **pa"
+.Fa "X509_PUBKEY *pub"
+.Fc
+.Sh DESCRIPTION
+The
+.Vt X509_PUBKEY
+structure represents the ASN.1
+.Vt SubjectPublicKeyInfo
+structure defined in RFC 5280 section 4.1 and used in certificates
+and certificate requests.
+.Pp
+.Fn X509_PUBKEY_new
+allocates and initializes an
+.Vt X509_PUBKEY
+structure.
+.Pp
+.Fn X509_PUBKEY_free
+frees up the
+.Vt X509_PUBKEY
+structure
+.Fa a .
+If
+.Fa a
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn X509_PUBKEY_set
+sets the public key in
+.Pf * Fa x
+to the public key contained in the
+.Vt EVP_PKEY
+structure
+.Fa pkey .
+If
+.Pf * Fa x
+is not
+.Dv NULL ,
+any existing public key structure will be freed.
+.Pp
+.Fn X509_PUBKEY_get0
+returns the public key contained in
+.Fa key .
+The returned value is an internal pointer which must not be freed after use.
+.Pp
+.Fn X509_PUBKEY_get
+is similar to
+.Fn X509_PUBKEY_get0
+except that the reference
+count on the returned key is incremented so it must be freed using
+.Xr EVP_PKEY_free 3
+after use.
+.Pp
+.Fn d2i_X509_PUBKEY ,
+.Fn i2d_X509_PUBKEY ,
+.Fn d2i_PUBKEY ,
+and
+.Fn i2d_PUBKEY
+decode and encode an ASN.1
+.Vt SubjectPublicKeyInfo
+structure using either the
+.Vt X509_PUBKEY
+or the
+.Vt EVP_PKEY
+object type, respectively.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Fn d2i_PUBKEY_bio ,
+.Fn d2i_PUBKEY_fp ,
+.Fn i2d_PUBKEY_bio
+and
+.Fn i2d_PUBKEY_fp
+are similar to
+.Fn d2i_PUBKEY
+and
+.Fn i2d_PUBKEY
+except they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn X509_PUBKEY_set0_param
+sets the public key parameters of
+.Fa pub .
+The OID associated with the algorithm is set to
+.Fa aobj .
+The type of the algorithm parameters is set to
+.Fa ptype
+using the structure
+.Fa pval .
+The encoding of the public key itself is set to the
+.Fa penclen
+bytes contained in buffer
+.Fa penc .
+On success ownership of all the supplied parameters is passed to
+.Fa pub
+so they must not be freed after the call.
+.Pp
+.Fn X509_PUBKEY_get0_param
+retrieves the public key parameters from
+.Fa pub ,
+.Pf * Fa ppkalg
+is set to the associated OID and the encoding consists of
+.Pf * Fa ppklen
+bytes at
+.Pf * Fa pk ,
+and
+.Pf * Fa pa
+is set to the associated
+.Vt AlgorithmIdentifier
+for the public key.
+If the value of any of these parameters is not required,
+it can be set to
+.Dv NULL .
+All of the retrieved pointers are internal and must not be freed after
+the call.
+.Sh RETURN VALUES
+If the allocation fails,
+.Fn X509_PUBKEY_new
+returns
+.Dv NULL
+and sets an error code that can be obtained by
+.Xr ERR_get_error 3 .
+Otherwise it returns a pointer to the newly allocated structure.
+.Pp
+.Fn X509_PUBKEY_get0
+returns an internal pointer or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn X509_PUBKEY_get
+returns a pointer to an object that had its reference count incremented or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn d2i_X509_PUBKEY ,
+.Fn d2i_PUBKEY ,
+.Fn d2i_PUBKEY_bio ,
+and
+.Fn d2i_PUBKEY_fp
+return a pointer to a valid object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_X509_PUBKEY
+and
+.Fn i2d_PUBKEY
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Pp
+.Fn X509_PUBKEY_set ,
+.Fn X509_PUBKEY_set0_param ,
+.Fn X509_PUBKEY_get0_param ,
+.Fn i2d_PUBKEY_fp ,
+and
+.Fn i2d_PUBKEY_bio
+return 1 for success and 0 if an error occurred.
+.Sh ERRORS
+After failure of
+.Fn X509_PUBKEY_get0
+or
+.Fn X509_PUBKEY_get ,
+one of the following diagnostics can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3 :
+.Bl -tag -width Ds
+.It Dv X509_R_UNSUPPORTED_ALGORITHM Qq "unsupported algorithm"
+The public key uses an algorithm unsupported by
+.Xr EVP_PKEY_set_type 3 .
+.It X509_R_METHOD_NOT_SUPPORTED Qq "method not supported"
+While the algorithm is known to
+.Xr EVP_PKEY_set_type 3 ,
+using it for decoding is not supported.
+.It X509_R_PUBLIC_KEY_DECODE_ERROR Qq "public key decode error"
+Decoding the public key failed.
+.It Dv ERR_R_MALLOC_FAILURE Qq "malloc failure"
+Memory was exhausted when trying to allocate the new
+.Vt EVP_PKEY
+object.
+.El
+.Pp
+If
+.Fa key
+is
+.Dv NULL
+or does not contain a public key,
+these functions fail but no error is pushed onto the stack.
+.Sh SEE ALSO
+.Xr d2i_X509 3 ,
+.Xr X509_ALGOR_new 3 ,
+.Xr X509_get_pubkey 3 ,
+.Xr X509_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Sh HISTORY
+.Fn X509_PUBKEY_new
+and
+.Fn X509_PUBKEY_free
+appeared in SSLeay 0.4 or earlier.
+.Fn d2i_X509_PUBKEY
+and
+.Fn i2d_X509_PUBKEY
+first appeared in SSLeay 0.5.1.
+.Fn X509_PUBKEY_set
+and
+.Fn X509_PUBKEY_get
+first appeared in SSLeay 0.8.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn d2i_PUBKEY
+and
+.Fn i2d_PUBKEY
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn d2i_PUBKEY_bio ,
+.Fn d2i_PUBKEY_fp ,
+.Fn i2d_PUBKEY_fp ,
+and
+.Fn i2d_PUBKEY_bio
+first appeared in OpenSSL 0.9.6 and have been available since
+.Ox 2.9 .
+.Pp
+.Fn X509_PUBKEY_set0_param
+and
+.Fn X509_PUBKEY_get0_param
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .
+.Pp
+.Fn X509_PUBKEY_get0
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .

@@ -1,0 +1,91 @@
+.\"	$OpenBSD: hashinit.9,v 1.9 2016/09/24 18:59:04 tedu Exp $
+.\"
+.\" Copyright (c) 2001 Tobias Weingartner
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 24 2016 $
+.Dt HASHINIT 9
+.Os
+.Sh NAME
+.Nm hashinit ,
+.Nm hashfree
+.Nd kernel hashtable functions
+.Sh SYNOPSIS
+.In sys/systm.h
+.Ft void *
+.Fn hashinit "int num" "int type" "int flags" "u_long *mask"
+.Ft void
+.Fn hashfree "void *hash" "int num" "int type"
+.Sh DESCRIPTION
+The
+.Fn hashinit
+function is used to allocate a hashtable of a desired size given by the
+.Fa num
+argument.
+The
+.Fn hashinit
+function will round this number to the next power of two, and
+allocate and initialize the requested hashtable.
+The
+.Fa type
+and
+.Fa flags
+arguments are passed to the
+.Xr malloc 9
+function unchanged.
+The
+.Fa mask
+argument is used to pass back the mask for use with the allocated
+hashing table.
+.Pp
+The
+.Fn hashfree
+function causes memory allocated by the
+.Fn hashinit
+function to be released.
+The
+.Fa num
+and
+.Fa type
+arguments of related calls must match.
+.Sh RETURN VALUES
+The
+.Fn hashinit
+function returns a pointer to the allocated and initialized hash table.
+.Sh SEE ALSO
+.Xr free 9 ,
+.Xr malloc 9
+.Sh LIMITATIONS
+The
+.Fn hashinit
+function currently only allocates hash tables with LIST bucket pointers
+at this time.
+Future enhancements to allocate QUEUE bucket pointers may be warranted.
+This may necessitate an API change to accommodate.
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Bx 4.4 .

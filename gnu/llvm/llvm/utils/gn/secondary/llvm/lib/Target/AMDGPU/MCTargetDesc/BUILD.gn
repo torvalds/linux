@@ -1,0 +1,118 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("AMDGPUGenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../AMDGPU.td"
+}
+
+tablegen("AMDGPUGenInstrInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../AMDGPU.td"
+}
+
+tablegen("AMDGPUGenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../AMDGPU.td"
+}
+
+tablegen("AMDGPUGenRegisterInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../AMDGPU.td"
+}
+
+tablegen("AMDGPUGenSubtargetInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../AMDGPU.td"
+}
+
+tablegen("R600GenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../R600.td"
+}
+
+tablegen("R600GenInstrInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../R600.td"
+}
+
+tablegen("R600GenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../R600.td"
+}
+
+tablegen("R600GenRegisterInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../R600.td"
+}
+
+tablegen("R600GenSubtargetInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../R600.td"
+}
+
+# This should contain tablegen targets generating .inc files included
+# by other targets. .inc files only used by .cpp files in this directory
+# should be in deps on the static_library instead.
+group("tablegen") {
+  visibility = [
+    ":MCTargetDesc",
+    "../Utils",
+  ]
+  public_deps = [
+    ":AMDGPUGenInstrInfo",
+    ":AMDGPUGenRegisterInfo",
+    ":AMDGPUGenSubtargetInfo",
+    ":R600GenInstrInfo",
+    ":R600GenRegisterInfo",
+    ":R600GenSubtargetInfo",
+  ]
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMAMDGPUDesc"
+  public_deps = [ ":tablegen" ]
+  deps = [
+    ":AMDGPUGenAsmWriter",
+    ":AMDGPUGenMCCodeEmitter",
+    ":R600GenAsmWriter",
+    ":R600GenMCCodeEmitter",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/AMDGPU/TargetInfo",
+    "//llvm/lib/Target/AMDGPU/Utils",
+    "//llvm/lib/TargetParser",
+
+    # AMDGPUMCExpr.cpp includes GCNSubtarget.h which after 490e348e679
+    # includes the generated AMDGPUGenRegisterBank.inc file :/
+    "//llvm/lib/Target/AMDGPU/:AMDGPUGenRegisterBank",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "AMDGPUAsmBackend.cpp",
+    "AMDGPUELFObjectWriter.cpp",
+    "AMDGPUELFStreamer.cpp",
+    "AMDGPUInstPrinter.cpp",
+    "AMDGPUMCAsmInfo.cpp",
+    "AMDGPUMCCodeEmitter.cpp",
+    "AMDGPUMCExpr.cpp",
+    "AMDGPUMCKernelDescriptor.cpp",
+    "AMDGPUMCTargetDesc.cpp",
+    "AMDGPUTargetStreamer.cpp",
+    "R600InstPrinter.cpp",
+    "R600MCCodeEmitter.cpp",
+    "R600MCTargetDesc.cpp",
+  ]
+}

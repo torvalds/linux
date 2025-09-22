@@ -1,0 +1,32 @@
+=== Start 4000MB disk ===
+Primary GPT:
+Not Found
+
+Secondary GPT:
+Not Found
+
+MBR:
+Disk: vnd0	geometry: 81940/1/100 [8194048 Sectors]
+Offset: 0	Signature: 0x0
+            Starting         Ending         LBA Info:
+ #: id      C   H   S -      C   H   S [       start:        size ]
+-------------------------------------------------------------------------------
+ 0: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 1: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 2: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 3: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+
+  a:             0.9G                0  4.2BSD   2048 16384     1 # /
+  a:          1798700                0  4.2BSD   2048 16384     1 
+  b:             0.2G          1798700    swap                    
+  b:           484400          1798700    swap                    
+  d:             2.5G          2283100  4.2BSD   2048 16384     1 # /usr
+  d:          5162400          2283100  4.2BSD   2048 16384     1 
+  e:             0.4G          7445500  4.2BSD   2048 16384     1 # /home
+  e:           748500          7445500  4.2BSD   2048 16384     1 
+
+/dev/vnd0a / ffs rw 1 1
+/dev/vnd0e /home ffs rw 1 2
+/dev/vnd0d /usr ffs rw 1 2
+/dev/vnd0b none swap sw
+=== End 4000MB disk ===

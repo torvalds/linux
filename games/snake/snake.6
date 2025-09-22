@@ -1,0 +1,134 @@
+.\"	$OpenBSD: snake.6,v 1.15 2022/02/18 23:17:14 jsg Exp $
+.\"	$NetBSD: snake.6,v 1.5 1995/04/22 08:34:35 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)snake.6	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt SNAKE 6
+.Os
+.Sh NAME
+.Nm snake
+.Nd display chase game
+.Sh SYNOPSIS
+.Nm snake
+.Op Fl st
+.Op Fl l Ar length
+.Op Fl w Ar width
+.Sh DESCRIPTION
+.Nm snake
+is a display-based game.
+The object of the game is to make as much money as possible without
+getting eaten by the snake.
+The
+.Fl l
+and
+.Fl w
+options allow you to specify the length and width of the field.
+By default the entire screen (except for the last column) is used.
+The
+.Fl s
+option shows all scores.
+The
+.Fl t
+option makes the game assume you are on a slow terminal.
+.Pp
+You are represented on the screen by an I.
+The snake is 6 squares long and is represented by s's with an S at the head.
+The money is $, and an exit is #.
+Your score is posted in the upper left hand corner.
+.Pp
+You can move around using the same conventions as
+.Xr vi 1 :
+that is, the
+.Ic h ,
+.Ic j ,
+.Ic k ,
+and
+.Ic l
+keys work, as do the arrow keys.
+Other possibilities include:
+.Bl -tag -width indent
+.It Ic sefc
+These keys are like hjkl but form a directed pad around the d key.
+.It Ic HJKL
+These keys move you all the way in the indicated direction to the
+same row or column as the money.
+This does
+.Em not
+let you jump away from the snake, but rather saves you from having
+to type a key repeatedly.
+The snake still gets all its turns.
+.It Ic SEFC
+Likewise for the upper case versions on the left.
+.It Ic ATPB
+These keys move you to the four edges of the screen.
+Their position on the keyboard is mnemonic, e.g.\&
+P is at the far right of the keyboard.
+.It Ic x
+This lets you quit the game at any time.
+.It Ic p
+Sometimes points in a direction you might want to go.
+.It Ic w
+Space warp to get out of tight squeezes, at a price.
+.El
+.Pp
+To earn money, move to the same square the money is on.
+A new $ will appear when you earn the current one.
+As you get richer, the snake gets hungrier.
+To leave the game, move to the exit (#).
+.Pp
+A record is kept of the personal best score of each player.
+Scores are only counted if you leave at the exit.
+Getting eaten by the snake is worth nothing.
+.Pp
+As in pinball, matching the last digit of your score to the number
+which appears after the game is worth a bonus.
+.Pp
+To see who wastes time playing snake, run
+.Nm snake
+.Fl s .
+.Sh ENVIRONMENT
+.Bl -tag -width $HOME/.snake.scores
+.It Ev LOGNAME
+Name displayed in high score file.
+.El
+.Sh FILES
+.Bl -tag -width $HOME/.snake.scores
+.It Pa $HOME/.snake.scores
+Database of personal bests.
+.\".It Pa $HOME/.snake.log
+.\"log of games played
+.El
+.Sh BUGS
+When playing on a small screen,
+it's hard to tell when you hit the edge of the screen.
+.Pp
+The scoring function takes into account the size of the screen.
+A perfect function to do this equitably has not been devised.

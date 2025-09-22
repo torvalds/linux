@@ -1,0 +1,52 @@
+$OpenBSD: BUGS,v 1.16 2017/08/22 15:03:37 mpi Exp $
+$EOM: BUGS,v 1.38 2000/02/18 08:47:35 niklas Exp $
+
+Until we have a bug-tracking system setup, we might just add bugs to this
+file:
+------------------------------------------------------------------------------
+
+* We need a death timeout on half-ready SAs just like exchanges.  At the
+  moment we leak SAs.
+
+* Quick mode establishments via UI using -P bind-addr gets "Address already in
+  use".
+
+* If the first proposal is turned down, the initiator gets confused.
+
+* Renegotiation after a failed phase 1 fails.
+
+* Rekeying is now done automatically on expirations, it should not.  The
+  SAs should be brought up on-demand just like the first time.
+
+* Notifications regarding exchange errors seems to not have the right SPI,
+  at least not in phase 1, in NO_PROPOSAL_CHOSEN.
+
+* Outgoing informational exchanges when we use INVALID_PAYLOAD_TYPE
+  cause a DOI error.
+
+* In Linux select(2) of named pipes seems broken as they will return as
+  readable even when nothing is there after one read has succeeded.
+
+* I have seen INITIAL-CONTACT sent on the second Main Mode.
+
+* When ID mismatches occur, coredumps may follow, investigate!
+
+* ESP+AH does not work properly
+
+* Looping QM seen (due to lost sendpackets from other participant?)
+
+* Teardown from UI does not remove exchanges.
+
+* Wrong error message when policy check fails.
+
+* Retransmit of QM (packet 1) after INFO/PAYLOAD_MALFORMED was received.
+
+* SIGSEGV after sa_enter: sa added to sa list, trigged by DELETE notify (Linux)
+
+* Passive connections, undefined local&remote IDs will cause IKE peer IDs
+  to be used.
+
+* host route support in KLIPS does not work properly
+
+* When not having compiled in support for a certain crypto algorithm and
+  the config file still tells us to propose it, we segfault.

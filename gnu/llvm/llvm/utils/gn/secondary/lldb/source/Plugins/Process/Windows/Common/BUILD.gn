@@ -1,0 +1,48 @@
+static_library("Common") {
+  output_name = "lldbPluginProcessWindowsCommon"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Interpreter",
+    "//lldb/source/Plugins/DynamicLoader/Windows-DYLD",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//llvm/lib/Support",
+  ]
+  libs = [
+    "psapi.lib",
+    "rpcrt4.lib",
+    "ws2_32.lib",
+  ]
+
+  include_dirs = [
+    # ../Process/Windows/Common/x64/RegisterContextWindows_x64.h uses an
+    # unqualified include for "RegisterContextWindows.h".
+    ".",
+
+    # Reaches into Plugins/Process/Utility.
+    "//lldb/source",
+  ]
+  sources = [
+    "DebuggerThread.cpp",
+    "LocalDebugDelegate.cpp",
+    "NativeProcessWindows.cpp",
+    "NativeRegisterContextWindows.cpp",
+    "NativeRegisterContextWindows_WoW64.cpp",
+    "NativeRegisterContextWindows_arm.cpp",
+    "NativeRegisterContextWindows_arm64.cpp",
+    "NativeRegisterContextWindows_i386.cpp",
+    "NativeRegisterContextWindows_x86_64.cpp",
+    "NativeThreadWindows.cpp",
+    "ProcessDebugger.cpp",
+    "ProcessWindows.cpp",
+    "ProcessWindowsLog.cpp",
+    "RegisterContextWindows.cpp",
+    "TargetThreadWindows.cpp",
+    "arm/RegisterContextWindows_arm.cpp",
+    "arm64/RegisterContextWindows_arm64.cpp",
+    "x64/RegisterContextWindows_x64.cpp",
+    "x86/RegisterContextWindows_x86.cpp",
+  ]
+}

@@ -1,0 +1,23 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("AMDGPUGenDisassemblerTables") {
+  visibility = [ ":Disassembler" ]
+  args = [ "-gen-disassembler" ]
+  td_file = "../AMDGPU.td"
+}
+
+static_library("Disassembler") {
+  output_name = "LLVMAMDGPUDisassembler"
+  deps = [
+    ":AMDGPUGenDisassemblerTables",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/AMDGPU/MCTargetDesc",
+    "//llvm/lib/Target/AMDGPU/TargetInfo",
+    "//llvm/lib/Target/AMDGPU/Utils",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "AMDGPUDisassembler.cpp" ]
+}

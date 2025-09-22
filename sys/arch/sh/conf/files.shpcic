@@ -1,0 +1,11 @@
+#	$OpenBSD: files.shpcic,v 1.4 2009/04/25 16:25:12 kettenis Exp $
+#	$NetBSD: files.shpcic,v 1.2 2005/12/11 12:18:58 christos Exp $
+
+#
+# SH7751{,R} integrated PCI controller
+#
+device  shpcic: pcibus
+attach  shpcic at mainbus
+
+file    arch/sh/dev/shpcic.c		sh4 & shpcic
+file    arch/sh/dev/pciide_machdep.c	pciide

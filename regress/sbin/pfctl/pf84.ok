@@ -1,0 +1,10 @@
+table <__automatic_0> const { 10.0.1.1 10.0.1.2 }
+table <__automatic_1> const { 10.0.0.1 10.0.0.2 }
+match out on tun1000000 inet from 10.0.0.0/24 to any nat-to <__automatic_0> round-robin sticky-address
+match in on tun1000000 inet from any to 10.0.1.1 rdr-to 10.0.0.0/24 random sticky-address
+match in on tun1000000 inet from any to 10.0.1.2 rdr-to <__automatic_1> round-robin sticky-address
+pass in proto tcp from any to any port = 22 flags S/SA keep state (source-track global)
+pass in proto tcp from any to any port = 25 flags S/SA keep state (source-track global)
+pass in proto tcp from any to any port = 80 flags S/SA keep state (source-track rule, max-src-states 3, max-src-nodes 1000)
+pass in proto tcp from any to any port = 123 flags S/SA keep state (source-track rule, max-src-nodes 1000)
+pass in proto tcp from any to any port = 321 flags S/SA keep state (source-track global, max-src-states 3)

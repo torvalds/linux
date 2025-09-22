@@ -1,0 +1,10 @@
+@comment $OpenBSD: +CONTENTS,v 1.2 2019/08/20 11:02:28 espie Exp $
+@name cups-filters-1.20.3
+@comment pkgpath=print/cups-filters ftp=yes
+@arch *
++DESC
+@sha KceUaybg6jfOy2zJMEkgvV82wLA3SDbdpTio00F574w=
+@size 384
+@depend print/cups,-libs:cups-libs-*:cups-libs-2.2.8
+@depend print/ghostscript/gnu:ghostscript-*:ghostscript-9.07p7
+@wantlib cups.6.4

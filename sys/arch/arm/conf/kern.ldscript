@@ -1,0 +1,89 @@
+/*	$OpenBSD: kern.ldscript,v 1.5 2019/11/09 20:07:00 guenther Exp $	*/
+/*	$NetBSD: ldscript.evbarm,v 1.2 2003/03/05 23:54:22 thorpej Exp $	*/
+
+OUTPUT_ARCH(arm)
+
+/* Define how we want our ELF binary to look like. */
+PHDRS
+{
+	text PT_LOAD;
+	rodata PT_LOAD FLAGS (4);
+	data PT_LOAD;
+	openbsd_randomize PT_OPENBSD_RANDOMIZE;
+}
+
+__ALIGN_SIZE = 0x1000;
+__kernel_base = @KERNEL_BASE_VIRT@;
+
+ENTRY(bootstrap_start)
+SECTIONS
+{
+	. = __kernel_base;
+	PROVIDE (__text_start = .);
+	.text :
+	{
+		*(.text .text.*)
+		*(.stub)
+		*(.glue_7t) *(.glue_7)
+	} :text =0
+	PROVIDE (_etext = .);
+	PROVIDE (etext = .);
+
+	/* Move rodata to the next page, so we can nuke X and W bit on it */
+	. = ALIGN(__ALIGN_SIZE);
+	PROVIDE (__rodata_start = .);
+	.rodata :
+	{
+		*(.rodata .rodata.*)
+	} :rodata
+	.openbsd.randomdata :
+	{
+		__retguard_start = ABSOLUTE(.);
+		*(.openbsd.randomdata.retguard .openbsd.randomdata.retguard.*)
+		/* XXX . = ALIGN(__ALIGN_SIZE); */
+		__retguard_end = ABSOLUTE(.);
+		*(.openbsd.randomdata .openbsd.randomdata.*)
+	} :openbsd_randomize :rodata
+	PROVIDE (_erodata = .);
+
+	/* Move .data to the next page, so we can add W bit on it */
+	. = ALIGN(__ALIGN_SIZE);
+	PROVIDE (__data_start = .);
+	.data :
+	{
+		*(.data .data.*)
+	} :data
+	.sdata :
+	{
+		*(.sdata .sdata.*)
+	} :data
+	PROVIDE (_edata = .);
+
+	PROVIDE (__bss_start = .);
+	.sbss :
+	{
+		*(.dynsbss)
+		*(.sbss)
+		*(.sbss.*)
+		*(.scommon)
+	} :data
+	.bss :
+	{
+		*(.dynbss)
+		*(.bss)
+		*(.bss.*)
+		*(COMMON)
+		/* Align here to ensure that the .bss section occupies space up to
+		   _end.  Align after .bss to ensure correct alignment even if the
+		   .bss section disappears because there are no input sections.  */
+		. = ALIGN(32 / 8);
+	} :data
+	. = ALIGN(32 / 8);
+	PROVIDE (_end = .);
+	PROVIDE (end = .);
+	/DISCARD/ :
+	{
+		*(.ARM.exidx)
+	}
+}
+

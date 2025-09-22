@@ -1,0 +1,85 @@
+@c Copyright (C) 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@node Collect2
+@chapter @code{collect2}
+
+GCC uses a utility called @code{collect2} on nearly all systems to arrange
+to call various initialization functions at start time.
+
+The program @code{collect2} works by linking the program once and
+looking through the linker output file for symbols with particular names
+indicating they are constructor functions.  If it finds any, it
+creates a new temporary @samp{.c} file containing a table of them,
+compiles it, and links the program a second time including that file.
+
+@findex __main
+@cindex constructors, automatic calls
+The actual calls to the constructors are carried out by a subroutine
+called @code{__main}, which is called (automatically) at the beginning
+of the body of @code{main} (provided @code{main} was compiled with GNU
+CC)@.  Calling @code{__main} is necessary, even when compiling C code, to
+allow linking C and C++ object code together.  (If you use
+@option{-nostdlib}, you get an unresolved reference to @code{__main},
+since it's defined in the standard GCC library.  Include @option{-lgcc} at
+the end of your compiler command line to resolve this reference.)
+
+The program @code{collect2} is installed as @code{ld} in the directory
+where the passes of the compiler are installed.  When @code{collect2}
+needs to find the @emph{real} @code{ld}, it tries the following file
+names:
+
+@itemize @bullet
+@item
+@file{real-ld} in the directories listed in the compiler's search
+directories.
+
+@item
+@file{real-ld} in the directories listed in the environment variable
+@code{PATH}.
+
+@item
+The file specified in the @code{REAL_LD_FILE_NAME} configuration macro,
+if specified.
+
+@item
+@file{ld} in the compiler's search directories, except that
+@code{collect2} will not execute itself recursively.
+
+@item
+@file{ld} in @code{PATH}.
+@end itemize
+
+``The compiler's search directories'' means all the directories where
+@command{gcc} searches for passes of the compiler.  This includes
+directories that you specify with @option{-B}.
+
+Cross-compilers search a little differently:
+
+@itemize @bullet
+@item
+@file{real-ld} in the compiler's search directories.
+
+@item
+@file{@var{target}-real-ld} in @code{PATH}.
+
+@item
+The file specified in the @code{REAL_LD_FILE_NAME} configuration macro,
+if specified.
+
+@item
+@file{ld} in the compiler's search directories.
+
+@item
+@file{@var{target}-ld} in @code{PATH}.
+@end itemize
+
+@code{collect2} explicitly avoids running @code{ld} using the file name
+under which @code{collect2} itself was invoked.  In fact, it remembers
+up a list of such names---in case one copy of @code{collect2} finds
+another copy (or version) of @code{collect2} installed as @code{ld} in a
+second place in the search path.
+
+@code{collect2} searches for the utilities @code{nm} and @code{strip}
+using the same algorithm as above for @code{ld}.

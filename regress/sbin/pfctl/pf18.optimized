@@ -1,0 +1,76 @@
+@0 match out on lo0 inet from 192.168.1.1 to any nat-to 10.0.0.1
+  [ Skip steps: i=15 d=end r=15 f=end da=4 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 match out on lo0 inet proto tcp from 192.168.1.2 to any nat-to 10.0.0.2
+  [ Skip steps: i=15 d=end r=15 f=end da=4 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 match out on lo0 inet proto udp from 192.168.1.3 to any nat-to 10.0.0.3
+  [ Skip steps: i=15 d=end r=15 f=end da=4 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 match out on lo0 inet proto icmp from 192.168.1.4 to any nat-to 10.0.0.4
+  [ Skip steps: i=15 d=end r=15 f=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 match out on lo0 inet from 192.168.1.5 to 172.6.1.1 nat-to 127.0.0.1
+  [ Skip steps: i=15 d=end r=15 f=end p=15 sa=7 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 match out on lo0 inet from 192.168.1.5 to 172.14.1.2 nat-to 127.0.0.1
+  [ Skip steps: i=15 d=end r=15 f=end p=15 sa=7 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 match out on lo0 inet from 192.168.1.5 to 172.16.2.0/24 nat-to 127.0.0.1
+  [ Skip steps: i=15 d=end r=15 f=end p=15 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 match out on lo0 inet from 192.168.1.6 to 172.6.1.1 nat-to 127.0.0.1
+  [ Skip steps: i=15 d=end r=15 f=end p=15 sa=10 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 match out on lo0 inet from 192.168.1.6 to 172.14.1.2 nat-to 127.0.0.1
+  [ Skip steps: i=15 d=end r=15 f=end p=15 sa=10 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 match out on lo0 inet from 192.168.1.6 to 172.16.2.0/24 nat-to 127.0.0.1
+  [ Skip steps: i=15 d=end r=15 f=end p=15 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 match out on lo0 inet from 192.168.1.7 to 172.6.1.1 nat-to 127.0.0.1
+  [ Skip steps: i=15 d=end r=15 f=end p=15 sa=13 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 match out on lo0 inet from 192.168.1.7 to 172.14.1.2 nat-to 127.0.0.1
+  [ Skip steps: i=15 d=end r=15 f=end p=15 sa=13 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@12 match out on lo0 inet from 192.168.1.7 to 172.16.2.0/24 nat-to 127.0.0.1
+  [ Skip steps: i=15 d=end r=15 f=end p=15 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@13 match out on lo0 inet from 192.168.0.0/24 to any nat-to (lo0:1) round-robin
+  [ Skip steps: i=15 d=end r=15 f=end p=15 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@14 match out on lo0 inet from 192.168.1.8 to ! 172.17.0.0/16 nat-to 10.0.0.8
+  [ Skip steps: d=end f=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@15 match out on ! lo0 inet proto udp all nat-to 10.0.0.8 static-port
+  [ Skip steps: i=17 d=end r=17 f=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@16 match out on ! lo0 inet proto tcp all nat-to 10.0.0.8 static-port
+  [ Skip steps: d=end f=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@17 match out on lo0 inet all nat-to 10.0.0.8
+  [ Skip steps: d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@18 match out on tun1000000 inet all nat-to 10.0.0.8
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

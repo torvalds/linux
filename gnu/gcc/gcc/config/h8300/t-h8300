@@ -1,0 +1,43 @@
+LIB1ASMSRC = h8300/lib1funcs.asm
+LIB1ASMFUNCS = _cmpsi2 _ucmpsi2 _divhi3 _divsi3 _mulhi3 _mulsi3 \
+  _fixunssfsi_asm
+
+LIB2FUNCS_EXTRA = \
+	$(srcdir)/config/h8300/clzhi2.c \
+	$(srcdir)/config/h8300/ctzhi2.c \
+	$(srcdir)/config/h8300/parityhi2.c \
+	$(srcdir)/config/h8300/popcounthi2.c \
+	$(srcdir)/config/h8300/fixunssfsi.c
+
+# We do not have DF type, so fake out the libgcc2 compilation.
+TARGET_LIBGCC2_CFLAGS = -DDF=SF
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	echo '#define FLOAT_ONLY' >> fp-bit.c
+	echo '#define SMALL_MACHINE' >> fp-bit.c
+	echo '#ifdef __H8300__' >> fp-bit.c
+	echo '#define CMPtype HItype' >> fp-bit.c
+	echo '#else' >> fp-bit.c
+	echo '#define CMPtype SItype' >> fp-bit.c
+	echo '#endif' >> fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+MULTILIB_OPTIONS = mh/ms/msx mn mint32
+MULTILIB_DIRNAMES = h8300h h8300s h8sx normal int32
+MULTILIB_EXCEPTIONS = mint32 mn mn/mint32
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+s-config s-conditions s-flags s-codes s-constants s-emit s-recog \
+s-opinit s-extract s-peep s-attr s-attrtab s-output: \
+	$(srcdir)/config/h8300/mova.md
+
+$(srcdir)/config/h8300/mova.md: $(srcdir)/config/h8300/genmova.sh
+	$(SHELL) $(srcdir)/config/h8300/genmova.sh \
+	  > $(srcdir)/config/h8300/mova.md

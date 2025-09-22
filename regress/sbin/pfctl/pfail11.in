@@ -1,0 +1,5 @@
+set optimization aggressive
+set timeout tcp.closing 6, tcp.opening 6
+pass in all
+set limit states 1000, frags 1000
+set loginterface lo0

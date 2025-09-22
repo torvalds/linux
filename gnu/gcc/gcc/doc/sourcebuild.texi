@@ -1,0 +1,1524 @@
+@c Copyright (C) 2002, 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@node Source Tree
+@chapter Source Tree Structure and Build System
+
+This chapter describes the structure of the GCC source tree, and how
+GCC is built.  The user documentation for building and installing GCC
+is in a separate manual (@uref{http://gcc.gnu.org/install/}), with
+which it is presumed that you are familiar.
+
+@menu
+* Configure Terms:: Configuration terminology and history.
+* Top Level::       The top level source directory.
+* gcc Directory::   The @file{gcc} subdirectory.
+* Testsuites::      The GCC testsuites.
+@end menu
+
+@include configterms.texi
+
+@node Top Level
+@section Top Level Source Directory
+
+The top level source directory in a GCC distribution contains several
+files and directories that are shared with other software
+distributions such as that of GNU Binutils.  It also contains several
+subdirectories that contain parts of GCC and its runtime libraries:
+
+@table @file
+@item boehm-gc
+The Boehm conservative garbage collector, used as part of the Java
+runtime library.
+
+@item contrib
+Contributed scripts that may be found useful in conjunction with GCC@.
+One of these, @file{contrib/texi2pod.pl}, is used to generate man
+pages from Texinfo manuals as part of the GCC build process.
+
+@item fastjar
+An implementation of the @command{jar} command, used with the Java
+front end.
+
+@item gcc
+The main sources of GCC itself (except for runtime libraries),
+including optimizers, support for different target architectures,
+language front ends, and testsuites.  @xref{gcc Directory, , The
+@file{gcc} Subdirectory}, for details.
+
+@item include
+Headers for the @code{libiberty} library.
+
+@item libada
+The Ada runtime library.
+
+@item libcpp
+The C preprocessor library.
+
+@item libgfortran
+The Fortran runtime library.
+
+@item libffi
+The @code{libffi} library, used as part of the Java runtime library.
+
+@item libiberty
+The @code{libiberty} library, used for portability and for some
+generally useful data structures and algorithms.  @xref{Top, ,
+Introduction, libiberty, @sc{gnu} libiberty}, for more information
+about this library.
+
+@item libjava
+The Java runtime library.
+
+@item libmudflap
+The @code{libmudflap} library, used for instrumenting pointer and array
+dereferencing operations.
+
+@item libobjc
+The Objective-C and Objective-C++ runtime library.
+
+@item libstdc++-v3
+The C++ runtime library.
+
+@item maintainer-scripts
+Scripts used by the @code{gccadmin} account on @code{gcc.gnu.org}.
+
+@item zlib
+The @code{zlib} compression library, used by the Java front end and as
+part of the Java runtime library.
+@end table
+
+The build system in the top level directory, including how recursion
+into subdirectories works and how building runtime libraries for
+multilibs is handled, is documented in a separate manual, included
+with GNU Binutils.  @xref{Top, , GNU configure and build system,
+configure, The GNU configure and build system}, for details.
+
+@node gcc Directory
+@section The @file{gcc} Subdirectory
+
+The @file{gcc} directory contains many files that are part of the C
+sources of GCC, other files used as part of the configuration and
+build process, and subdirectories including documentation and a
+testsuite.  The files that are sources of GCC are documented in a
+separate chapter.  @xref{Passes, , Passes and Files of the Compiler}.
+
+@menu
+* Subdirectories:: Subdirectories of @file{gcc}.
+* Configuration::  The configuration process, and the files it uses.
+* Build::          The build system in the @file{gcc} directory.
+* Makefile::       Targets in @file{gcc/Makefile}.
+* Library Files::  Library source files and headers under @file{gcc/}.
+* Headers::        Headers installed by GCC.
+* Documentation::  Building documentation in GCC.
+* Front End::      Anatomy of a language front end.
+* Back End::       Anatomy of a target back end.
+@end menu
+
+@node Subdirectories
+@subsection Subdirectories of @file{gcc}
+
+The @file{gcc} directory contains the following subdirectories:
+
+@table @file
+@item @var{language}
+Subdirectories for various languages.  Directories containing a file
+@file{config-lang.in} are language subdirectories.  The contents of
+the subdirectories @file{cp} (for C++), @file{objc} (for Objective-C)
+and @file{objcp} (for Objective-C++) are documented in this manual
+(@pxref{Passes, , Passes and Files of the Compiler}); those for other
+languages are not.  @xref{Front End, , Anatomy of a Language Front End},
+for details of the files in these directories.
+
+@item config
+Configuration files for supported architectures and operating
+systems.  @xref{Back End, , Anatomy of a Target Back End}, for
+details of the files in this directory.
+
+@item doc
+Texinfo documentation for GCC, together with automatically generated
+man pages and support for converting the installation manual to
+HTML@.  @xref{Documentation}.
+
+@item fixinc
+The support for fixing system headers to work with GCC@.  See
+@file{fixinc/README} for more information.  The headers fixed by this
+mechanism are installed in @file{@var{libsubdir}/include}.  Along with
+those headers, @file{README-fixinc} is also installed, as
+@file{@var{libsubdir}/include/README}.
+
+@item ginclude
+System headers installed by GCC, mainly those required by the C
+standard of freestanding implementations.  @xref{Headers, , Headers
+Installed by GCC}, for details of when these and other headers are
+installed.
+
+@item intl
+GNU @code{libintl}, from GNU @code{gettext}, for systems which do not
+include it in libc.  Properly, this directory should be at top level,
+parallel to the @file{gcc} directory.
+
+@item po
+Message catalogs with translations of messages produced by GCC into
+various languages, @file{@var{language}.po}.  This directory also
+contains @file{gcc.pot}, the template for these message catalogues,
+@file{exgettext}, a wrapper around @command{gettext} to extract the
+messages from the GCC sources and create @file{gcc.pot}, which is run
+by @samp{make gcc.pot}, and @file{EXCLUDES}, a list of files from
+which messages should not be extracted.
+
+@item testsuite
+The GCC testsuites (except for those for runtime libraries).
+@xref{Testsuites}.
+@end table
+
+@node Configuration
+@subsection Configuration in the @file{gcc} Directory
+
+The @file{gcc} directory is configured with an Autoconf-generated
+script @file{configure}.  The @file{configure} script is generated
+from @file{configure.ac} and @file{aclocal.m4}.  From the files
+@file{configure.ac} and @file{acconfig.h}, Autoheader generates the
+file @file{config.in}.  The file @file{cstamp-h.in} is used as a
+timestamp.
+
+@menu
+* Config Fragments::     Scripts used by @file{configure}.
+* System Config::        The @file{config.build}, @file{config.host}, and
+                         @file{config.gcc} files.
+* Configuration Files::  Files created by running @file{configure}.
+@end menu
+
+@node Config Fragments
+@subsubsection Scripts Used by @file{configure}
+
+@file{configure} uses some other scripts to help in its work:
+
+@itemize @bullet
+@item The standard GNU @file{config.sub} and @file{config.guess}
+files, kept in the top level directory, are used.  FIXME: when is the
+@file{config.guess} file in the @file{gcc} directory (that just calls
+the top level one) used?
+
+@item The file @file{config.gcc} is used to handle configuration
+specific to the particular target machine.  The file
+@file{config.build} is used to handle configuration specific to the
+particular build machine.  The file @file{config.host} is used to handle
+configuration specific to the particular host machine.  (In general,
+these should only be used for features that cannot reasonably be tested in
+Autoconf feature tests.)
+@xref{System Config, , The @file{config.build}; @file{config.host};
+and @file{config.gcc} Files}, for details of the contents of these files.
+
+@item Each language subdirectory has a file
+@file{@var{language}/config-lang.in} that is used for
+front-end-specific configuration.  @xref{Front End Config, , The Front
+End @file{config-lang.in} File}, for details of this file.
+
+@item A helper script @file{configure.frag} is used as part of
+creating the output of @file{configure}.
+@end itemize
+
+@node System Config
+@subsubsection The @file{config.build}; @file{config.host}; and @file{config.gcc} Files
+
+The @file{config.build} file contains specific rules for particular systems
+which GCC is built on.  This should be used as rarely as possible, as the
+behavior of the build system can always be detected by autoconf.
+
+The @file{config.host} file contains specific rules for particular systems
+which GCC will run on.  This is rarely needed.
+
+The @file{config.gcc} file contains specific rules for particular systems
+which GCC will generate code for.  This is usually needed.
+
+Each file has a list of the shell variables it sets, with descriptions, at the
+top of the file.
+
+FIXME: document the contents of these files, and what variables should
+be set to control build, host and target configuration.
+
+@include configfiles.texi
+
+@node Build
+@subsection Build System in the @file{gcc} Directory
+
+FIXME: describe the build system, including what is built in what
+stages.  Also list the various source files that are used in the build
+process but aren't source files of GCC itself and so aren't documented
+below (@pxref{Passes}).
+
+@include makefile.texi
+
+@node Library Files
+@subsection Library Source Files and Headers under the @file{gcc} Directory
+
+FIXME: list here, with explanation, all the C source files and headers
+under the @file{gcc} directory that aren't built into the GCC
+executable but rather are part of runtime libraries and object files,
+such as @file{crtstuff.c} and @file{unwind-dw2.c}.  @xref{Headers, ,
+Headers Installed by GCC}, for more information about the
+@file{ginclude} directory.
+
+@node Headers
+@subsection Headers Installed by GCC
+
+In general, GCC expects the system C library to provide most of the
+headers to be used with it.  However, GCC will fix those headers if
+necessary to make them work with GCC, and will install some headers
+required of freestanding implementations.  These headers are installed
+in @file{@var{libsubdir}/include}.  Headers for non-C runtime
+libraries are also installed by GCC; these are not documented here.
+(FIXME: document them somewhere.)
+
+Several of the headers GCC installs are in the @file{ginclude}
+directory.  These headers, @file{iso646.h},
+@file{stdarg.h}, @file{stdbool.h}, and @file{stddef.h},
+are installed in @file{@var{libsubdir}/include},
+unless the target Makefile fragment (@pxref{Target Fragment})
+overrides this by setting @code{USER_H}.
+
+In addition to these headers and those generated by fixing system
+headers to work with GCC, some other headers may also be installed in
+@file{@var{libsubdir}/include}.  @file{config.gcc} may set
+@code{extra_headers}; this specifies additional headers under
+@file{config} to be installed on some systems.
+
+GCC installs its own version of @code{<float.h>}, from @file{ginclude/float.h}.
+This is done to cope with command-line options that change the
+representation of floating point numbers.
+
+GCC also installs its own version of @code{<limits.h>}; this is generated
+from @file{glimits.h}, together with @file{limitx.h} and
+@file{limity.h} if the system also has its own version of
+@code{<limits.h>}.  (GCC provides its own header because it is
+required of ISO C freestanding implementations, but needs to include
+the system header from its own header as well because other standards
+such as POSIX specify additional values to be defined in
+@code{<limits.h>}.)  The system's @code{<limits.h>} header is used via
+@file{@var{libsubdir}/include/syslimits.h}, which is copied from
+@file{gsyslimits.h} if it does not need fixing to work with GCC; if it
+needs fixing, @file{syslimits.h} is the fixed copy.
+
+@node Documentation
+@subsection Building Documentation
+
+The main GCC documentation is in the form of manuals in Texinfo
+format.  These are installed in Info format; DVI versions may be
+generated by @samp{make dvi}, PDF versions by @samp{make pdf}, and
+HTML versions by @command{make html}.  In addition, some man pages are
+generated from the Texinfo manuals, there are some other text files
+with miscellaneous documentation, and runtime libraries have their own
+documentation outside the @file{gcc} directory.  FIXME: document the
+documentation for runtime libraries somewhere.
+
+@menu
+* Texinfo Manuals::      GCC manuals in Texinfo format.
+* Man Page Generation::  Generating man pages from Texinfo manuals.
+* Miscellaneous Docs::   Miscellaneous text files with documentation.
+@end menu
+
+@node Texinfo Manuals
+@subsubsection Texinfo Manuals
+
+The manuals for GCC as a whole, and the C and C++ front ends, are in
+files @file{doc/*.texi}.  Other front ends have their own manuals in
+files @file{@var{language}/*.texi}.  Common files
+@file{doc/include/*.texi} are provided which may be included in
+multiple manuals; the following files are in @file{doc/include}:
+
+@table @file
+@item fdl.texi
+The GNU Free Documentation License.
+@item funding.texi
+The section ``Funding Free Software''.
+@item gcc-common.texi
+Common definitions for manuals.
+@item gpl.texi
+The GNU General Public License.
+@item texinfo.tex
+A copy of @file{texinfo.tex} known to work with the GCC manuals.
+@end table
+
+DVI-formatted manuals are generated by @samp{make dvi}, which uses
+@command{texi2dvi} (via the Makefile macro @code{$(TEXI2DVI)}).  
+PDF-formatted manuals are generated by @samp{make pdf}, which uses
+@command{texi2pdf} (via the Makefile macro @code{$(TEXI2PDF)}).  HTML
+formatted manuals are generated by @command{make html}.  Info
+manuals are generated by @samp{make info} (which is run as part of
+a bootstrap); this generates the manuals in the source directory,
+using @command{makeinfo} via the Makefile macro @code{$(MAKEINFO)},
+and they are included in release distributions.
+
+Manuals are also provided on the GCC web site, in both HTML and
+PostScript forms.  This is done via the script
+@file{maintainer-scripts/update_web_docs}.  Each manual to be
+provided online must be listed in the definition of @code{MANUALS} in
+that file; a file @file{@var{name}.texi} must only appear once in the
+source tree, and the output manual must have the same name as the
+source file.  (However, other Texinfo files, included in manuals but
+not themselves the root files of manuals, may have names that appear
+more than once in the source tree.)  The manual file
+@file{@var{name}.texi} should only include other files in its own
+directory or in @file{doc/include}.  HTML manuals will be generated by
+@samp{makeinfo --html}, PostScript manuals by @command{texi2dvi}
+and @command{dvips}, and PDF manuals by @command{texi2pdf}.
+All Texinfo files that are parts of manuals must
+be checked into CVS, even if they are generated files, for the
+generation of online manuals to work.
+
+The installation manual, @file{doc/install.texi}, is also provided on
+the GCC web site.  The HTML version is generated by the script
+@file{doc/install.texi2html}.
+
+@node Man Page Generation
+@subsubsection Man Page Generation
+
+Because of user demand, in addition to full Texinfo manuals, man pages
+are provided which contain extracts from those manuals.  These man
+pages are generated from the Texinfo manuals using
+@file{contrib/texi2pod.pl} and @command{pod2man}.  (The man page for
+@command{g++}, @file{cp/g++.1}, just contains a @samp{.so} reference
+to @file{gcc.1}, but all the other man pages are generated from
+Texinfo manuals.)
+
+Because many systems may not have the necessary tools installed to
+generate the man pages, they are only generated if the
+@file{configure} script detects that recent enough tools are
+installed, and the Makefiles allow generating man pages to fail
+without aborting the build.  Man pages are also included in release
+distributions.  They are generated in the source directory.
+
+Magic comments in Texinfo files starting @samp{@@c man} control what
+parts of a Texinfo file go into a man page.  Only a subset of Texinfo
+is supported by @file{texi2pod.pl}, and it may be necessary to add
+support for more Texinfo features to this script when generating new
+man pages.  To improve the man page output, some special Texinfo
+macros are provided in @file{doc/include/gcc-common.texi} which
+@file{texi2pod.pl} understands:
+
+@table @code
+@item @@gcctabopt
+Use in the form @samp{@@table @@gcctabopt} for tables of options,
+where for printed output the effect of @samp{@@code} is better than
+that of @samp{@@option} but for man page output a different effect is
+wanted.
+@item @@gccoptlist
+Use for summary lists of options in manuals.
+@item @@gol
+Use at the end of each line inside @samp{@@gccoptlist}.  This is
+necessary to avoid problems with differences in how the
+@samp{@@gccoptlist} macro is handled by different Texinfo formatters.
+@end table
+
+FIXME: describe the @file{texi2pod.pl} input language and magic
+comments in more detail.
+
+@node Miscellaneous Docs
+@subsubsection Miscellaneous Documentation
+
+In addition to the formal documentation that is installed by GCC,
+there are several other text files with miscellaneous documentation:
+
+@table @file
+@item ABOUT-GCC-NLS
+Notes on GCC's Native Language Support.  FIXME: this should be part of
+this manual rather than a separate file.
+@item ABOUT-NLS
+Notes on the Free Translation Project.
+@item COPYING
+The GNU General Public License.
+@item COPYING.LIB
+The GNU Lesser General Public License.
+@item *ChangeLog*
+@itemx */ChangeLog*
+Change log files for various parts of GCC@.
+@item LANGUAGES
+Details of a few changes to the GCC front-end interface.  FIXME: the
+information in this file should be part of general documentation of
+the front-end interface in this manual.
+@item ONEWS
+Information about new features in old versions of GCC@.  (For recent
+versions, the information is on the GCC web site.)
+@item README.Portability
+Information about portability issues when writing code in GCC@.  FIXME:
+why isn't this part of this manual or of the GCC Coding Conventions?
+@item SERVICE
+A pointer to the GNU Service Directory.
+@end table
+
+FIXME: document such files in subdirectories, at least @file{config},
+@file{cp}, @file{objc}, @file{testsuite}.
+
+@node Front End
+@subsection Anatomy of a Language Front End
+
+A front end for a language in GCC has the following parts:
+
+@itemize @bullet
+@item
+A directory @file{@var{language}} under @file{gcc} containing source
+files for that front end.  @xref{Front End Directory, , The Front End
+@file{@var{language}} Directory}, for details.
+@item
+A mention of the language in the list of supported languages in
+@file{gcc/doc/install.texi}.
+@item
+A mention of the name under which the language's runtime library is
+recognized by @option{--enable-shared=@var{package}} in the
+documentation of that option in @file{gcc/doc/install.texi}.
+@item
+A mention of any special prerequisites for building the front end in
+the documentation of prerequisites in @file{gcc/doc/install.texi}.
+@item
+Details of contributors to that front end in
+@file{gcc/doc/contrib.texi}.  If the details are in that front end's
+own manual then there should be a link to that manual's list in
+@file{contrib.texi}.
+@item
+Information about support for that language in
+@file{gcc/doc/frontends.texi}.
+@item
+Information about standards for that language, and the front end's
+support for them, in @file{gcc/doc/standards.texi}.  This may be a
+link to such information in the front end's own manual.
+@item
+Details of source file suffixes for that language and @option{-x
+@var{lang}} options supported, in @file{gcc/doc/invoke.texi}.
+@item
+Entries in @code{default_compilers} in @file{gcc.c} for source file
+suffixes for that language.
+@item
+Preferably testsuites, which may be under @file{gcc/testsuite} or
+runtime library directories.  FIXME: document somewhere how to write
+testsuite harnesses.
+@item
+Probably a runtime library for the language, outside the @file{gcc}
+directory.  FIXME: document this further.
+@item
+Details of the directories of any runtime libraries in
+@file{gcc/doc/sourcebuild.texi}.
+@end itemize
+
+If the front end is added to the official GCC CVS repository, the
+following are also necessary:
+
+@itemize @bullet
+@item
+At least one Bugzilla component for bugs in that front end and runtime
+libraries.  This category needs to be mentioned in
+@file{gcc/gccbug.in}, as well as being added to the Bugzilla database.
+@item
+Normally, one or more maintainers of that front end listed in
+@file{MAINTAINERS}.
+@item
+Mentions on the GCC web site in @file{index.html} and
+@file{frontends.html}, with any relevant links on
+@file{readings.html}.  (Front ends that are not an official part of
+GCC may also be listed on @file{frontends.html}, with relevant links.)
+@item
+A news item on @file{index.html}, and possibly an announcement on the
+@email{gcc-announce@@gcc.gnu.org} mailing list.
+@item
+The front end's manuals should be mentioned in
+@file{maintainer-scripts/update_web_docs} (@pxref{Texinfo Manuals})
+and the online manuals should be linked to from
+@file{onlinedocs/index.html}.
+@item
+Any old releases or CVS repositories of the front end, before its
+inclusion in GCC, should be made available on the GCC FTP site
+@uref{ftp://gcc.gnu.org/pub/gcc/old-releases/}.
+@item
+The release and snapshot script @file{maintainer-scripts/gcc_release}
+should be updated to generate appropriate tarballs for this front end.
+The associated @file{maintainer-scripts/snapshot-README} and
+@file{maintainer-scripts/snapshot-index.html} files should be updated
+to list the tarballs and diffs for this front end.
+@item
+If this front end includes its own version files that include the
+current date, @file{maintainer-scripts/update_version} should be
+updated accordingly.
+@item
+@file{CVSROOT/modules} in the GCC CVS repository should be updated.
+@end itemize
+
+@menu
+* Front End Directory::  The front end @file{@var{language}} directory.
+* Front End Config::     The front end @file{config-lang.in} file.
+@end menu
+
+@node Front End Directory
+@subsubsection The Front End @file{@var{language}} Directory
+
+A front end @file{@var{language}} directory contains the source files
+of that front end (but not of any runtime libraries, which should be
+outside the @file{gcc} directory).  This includes documentation, and
+possibly some subsidiary programs build alongside the front end.
+Certain files are special and other parts of the compiler depend on
+their names:
+
+@table @file
+@item config-lang.in
+This file is required in all language subdirectories.  @xref{Front End
+Config, , The Front End @file{config-lang.in} File}, for details of
+its contents
+@item Make-lang.in
+This file is required in all language subdirectories.  It contains
+targets @code{@var{lang}.@var{hook}} (where @code{@var{lang}} is the
+setting of @code{language} in @file{config-lang.in}) for the following
+values of @code{@var{hook}}, and any other Makefile rules required to
+build those targets (which may if necessary use other Makefiles
+specified in @code{outputs} in @file{config-lang.in}, although this is
+deprecated).  It also adds any testsuite targets that can use the
+standard rule in @file{gcc/Makefile.in} to the variable
+@code{lang_checks}.
+
+@table @code
+@itemx all.cross
+@itemx start.encap
+@itemx rest.encap
+FIXME: exactly what goes in each of these targets?
+@item tags
+Build an @command{etags} @file{TAGS} file in the language subdirectory
+in the source tree.
+@item info
+Build info documentation for the front end, in the build directory.
+This target is only called by @samp{make bootstrap} if a suitable
+version of @command{makeinfo} is available, so does not need to check
+for this, and should fail if an error occurs.
+@item dvi
+Build DVI documentation for the front end, in the build directory.
+This should be done using @code{$(TEXI2DVI)}, with appropriate
+@option{-I} arguments pointing to directories of included files.
+@item pdf
+Build PDF documentation for the front end, in the build directory.
+This should be done using @code{$(TEXI2PDF)}, with appropriate
+@option{-I} arguments pointing to directories of included files.
+@item html
+Build HTML documentation for the front end, in the build directory.
+@item man
+Build generated man pages for the front end from Texinfo manuals
+(@pxref{Man Page Generation}), in the build directory.  This target
+is only called if the necessary tools are available, but should ignore
+errors so as not to stop the build if errors occur; man pages are
+optional and the tools involved may be installed in a broken way.
+@item install-common
+Install everything that is part of the front end, apart from the
+compiler executables listed in @code{compilers} in
+@file{config-lang.in}.
+@item install-info
+Install info documentation for the front end, if it is present in the
+source directory.  This target should have dependencies on info files
+that should be installed.
+@item install-man
+Install man pages for the front end.  This target should ignore
+errors.
+@item srcextra
+Copies its dependencies into the source directory.  This generally should
+be used for generated files such as Bison output files which are not
+present in CVS, but should be included in any release tarballs.  This
+target will be executed during a bootstrap if
+@samp{--enable-generated-files-in-srcdir} was specified as a
+@file{configure} option.
+@item srcinfo
+@itemx srcman
+Copies its dependencies into the source directory.  These targets will be
+executed during a bootstrap if @samp{--enable-generated-files-in-srcdir}
+was specified as a @file{configure} option.
+@item uninstall
+Uninstall files installed by installing the compiler.  This is
+currently documented not to be supported, so the hook need not do
+anything.
+@item mostlyclean
+@itemx clean
+@itemx distclean
+@itemx maintainer-clean
+The language parts of the standard GNU
+@samp{*clean} targets.  @xref{Standard Targets, , Standard Targets for
+Users, standards, GNU Coding Standards}, for details of the standard
+targets.  For GCC, @code{maintainer-clean} should delete
+all generated files in the source directory that are not checked into
+CVS, but should not delete anything checked into CVS@.
+@item stage1
+@itemx stage2
+@itemx stage3
+@itemx stage4
+@itemx stageprofile
+@itemx stagefeedback
+Move to the stage directory files not included in @code{stagestuff} in
+@file{config-lang.in} or otherwise moved by the main @file{Makefile}.
+@end table
+
+@item lang.opt
+This file registers the set of switches that the front end accepts on
+the command line, and their @option{--help} text.  @xref{Options}.
+@item lang-specs.h
+This file provides entries for @code{default_compilers} in
+@file{gcc.c} which override the default of giving an error that a
+compiler for that language is not installed.
+@item @var{language}-tree.def
+This file, which need not exist, defines any language-specific tree
+codes.
+@end table
+
+@node Front End Config
+@subsubsection The Front End @file{config-lang.in} File
+
+Each language subdirectory contains a @file{config-lang.in} file.  In
+addition the main directory contains @file{c-config-lang.in}, which
+contains limited information for the C language.  This file is a shell
+script that may define some variables describing the language:
+
+@table @code
+@item language
+This definition must be present, and gives the name of the language
+for some purposes such as arguments to @option{--enable-languages}.
+@item lang_requires
+If defined, this variable lists (space-separated) language front ends
+other than C that this front end requires to be enabled (with the
+names given being their @code{language} settings).  For example, the
+Java front end depends on the C++ front end, so sets
+@samp{lang_requires=c++}.
+@item subdir_requires
+If defined, this variable lists (space-separated) front end directories
+other than C that this front end requires to be present.  For example,
+the Objective-C++ front end uses source files from the C++ and
+Objective-C front ends, so sets @samp{subdir_requires="cp objc"}.
+@item target_libs
+If defined, this variable lists (space-separated) targets in the top
+level @file{Makefile} to build the runtime libraries for this
+language, such as @code{target-libobjc}.
+@item lang_dirs
+If defined, this variable lists (space-separated) top level
+directories (parallel to @file{gcc}), apart from the runtime libraries,
+that should not be configured if this front end is not built.
+@item build_by_default
+If defined to @samp{no}, this language front end is not built unless
+enabled in a @option{--enable-languages} argument.  Otherwise, front
+ends are built by default, subject to any special logic in
+@file{configure.ac} (as is present to disable the Ada front end if the
+Ada compiler is not already installed).
+@item boot_language
+If defined to @samp{yes}, this front end is built in stage 1 of the
+bootstrap.  This is only relevant to front ends written in their own
+languages.
+@item compilers
+If defined, a space-separated list of compiler executables that will
+be run by the driver.  The names here will each end
+with @samp{\$(exeext)}.
+@item stagestuff
+If defined, a space-separated list of files that should be moved to
+the @file{stage@var{n}} directories in each stage of bootstrap.
+@item outputs
+If defined, a space-separated list of files that should be generated
+by @file{configure} substituting values in them.  This mechanism can
+be used to create a file @file{@var{language}/Makefile} from
+@file{@var{language}/Makefile.in}, but this is deprecated, building
+everything from the single @file{gcc/Makefile} is preferred.
+@item gtfiles
+If defined, a space-separated list of files that should be scanned by
+gengtype.c to generate the garbage collection tables and routines for
+this language.  This excludes the files that are common to all front
+ends.  @xref{Type Information}.
+@item need_gmp
+If defined  to @samp{yes}, this frontend requires the GMP library.
+Enables configure tests for GMP, which set @code{GMPLIBS} and
+@code{GMPINC} appropriately.
+
+@end table
+
+@node Back End
+@subsection Anatomy of a Target Back End
+
+A back end for a target architecture in GCC has the following parts:
+
+@itemize @bullet
+@item
+A directory @file{@var{machine}} under @file{gcc/config}, containing a
+machine description @file{@var{machine}.md} file (@pxref{Machine Desc,
+, Machine Descriptions}), header files @file{@var{machine}.h} and
+@file{@var{machine}-protos.h} and a source file @file{@var{machine}.c}
+(@pxref{Target Macros, , Target Description Macros and Functions}),
+possibly a target Makefile fragment @file{t-@var{machine}}
+(@pxref{Target Fragment, , The Target Makefile Fragment}), and maybe
+some other files.  The names of these files may be changed from the
+defaults given by explicit specifications in @file{config.gcc}.
+@item
+If necessary, a file @file{@var{machine}-modes.def} in the
+@file{@var{machine}} directory, containing additional machine modes to
+represent condition codes.  @xref{Condition Code}, for further details.
+@item
+An optional @file{@var{machine}.opt} file in the @file{@var{machine}}
+directory, containing a list of target-specific options.  You can also
+add other option files using the @code{extra_options} variable in
+@file{config.gcc}.  @xref{Options}.
+@item
+Entries in @file{config.gcc} (@pxref{System Config, , The
+@file{config.gcc} File}) for the systems with this target
+architecture.
+@item
+Documentation in @file{gcc/doc/invoke.texi} for any command-line
+options supported by this target (@pxref{Run-time Target, , Run-time
+Target Specification}).  This means both entries in the summary table
+of options and details of the individual options.
+@item
+Documentation in @file{gcc/doc/extend.texi} for any target-specific
+attributes supported (@pxref{Target Attributes, , Defining
+target-specific uses of @code{__attribute__}}), including where the
+same attribute is already supported on some targets, which are
+enumerated in the manual.
+@item
+Documentation in @file{gcc/doc/extend.texi} for any target-specific
+pragmas supported.
+@item
+Documentation in @file{gcc/doc/extend.texi} of any target-specific
+built-in functions supported.
+@item
+Documentation in @file{gcc/doc/extend.texi} of any target-specific
+format checking styles supported.
+@item
+Documentation in @file{gcc/doc/md.texi} of any target-specific
+constraint letters (@pxref{Machine Constraints, , Constraints for
+Particular Machines}).
+@item
+A note in @file{gcc/doc/contrib.texi} under the person or people who
+contributed the target support.
+@item
+Entries in @file{gcc/doc/install.texi} for all target triplets
+supported with this target architecture, giving details of any special
+notes about installation for this target, or saying that there are no
+special notes if there are none.
+@item
+Possibly other support outside the @file{gcc} directory for runtime
+libraries.  FIXME: reference docs for this.  The libstdc++ porting
+manual needs to be installed as info for this to work, or to be a
+chapter of this manual.
+@end itemize
+
+If the back end is added to the official GCC CVS repository, the
+following are also necessary:
+
+@itemize @bullet
+@item
+An entry for the target architecture in @file{readings.html} on the
+GCC web site, with any relevant links.
+@item
+Details of the properties of the back end and target architecture in
+@file{backends.html} on the GCC web site.
+@item
+A news item about the contribution of support for that target
+architecture, in @file{index.html} on the GCC web site.
+@item
+Normally, one or more maintainers of that target listed in
+@file{MAINTAINERS}.  Some existing architectures may be unmaintained,
+but it would be unusual to add support for a target that does not have
+a maintainer when support is added.
+@end itemize
+
+@node Testsuites
+@section Testsuites
+
+GCC contains several testsuites to help maintain compiler quality.
+Most of the runtime libraries and language front ends in GCC have
+testsuites.  Currently only the C language testsuites are documented
+here; FIXME: document the others.
+
+@menu
+* Test Idioms::     Idioms used in testsuite code.
+* Test Directives:: Directives used within DejaGnu tests.
+* Ada Tests::       The Ada language testsuites.
+* C Tests::         The C language testsuites.
+* libgcj Tests::    The Java library testsuites.
+* gcov Testing::    Support for testing gcov.
+* profopt Testing:: Support for testing profile-directed optimizations.
+* compat Testing::  Support for testing binary compatibility.
+@end menu
+
+@node Test Idioms
+@subsection Idioms Used in Testsuite Code
+
+In general, C testcases have a trailing @file{-@var{n}.c}, starting
+with @file{-1.c}, in case other testcases with similar names are added
+later.  If the test is a test of some well-defined feature, it should
+have a name referring to that feature such as
+@file{@var{feature}-1.c}.  If it does not test a well-defined feature
+but just happens to exercise a bug somewhere in the compiler, and a
+bug report has been filed for this bug in the GCC bug database,
+@file{pr@var{bug-number}-1.c} is the appropriate form of name.
+Otherwise (for miscellaneous bugs not filed in the GCC bug database),
+and previously more generally, test cases are named after the date on
+which they were added.  This allows people to tell at a glance whether
+a test failure is because of a recently found bug that has not yet
+been fixed, or whether it may be a regression, but does not give any
+other information about the bug or where discussion of it may be
+found.  Some other language testsuites follow similar conventions.
+
+In the @file{gcc.dg} testsuite, it is often necessary to test that an
+error is indeed a hard error and not just a warning---for example,
+where it is a constraint violation in the C standard, which must
+become an error with @option{-pedantic-errors}.  The following idiom,
+where the first line shown is line @var{line} of the file and the line
+that generates the error, is used for this:
+
+@smallexample
+/* @{ dg-bogus "warning" "warning in place of error" @} */
+/* @{ dg-error "@var{regexp}" "@var{message}" @{ target *-*-* @} @var{line} @} */
+@end smallexample
+
+It may be necessary to check that an expression is an integer constant
+expression and has a certain value.  To check that @code{@var{E}} has
+value @code{@var{V}}, an idiom similar to the following is used:
+
+@smallexample
+char x[((E) == (V) ? 1 : -1)];
+@end smallexample
+
+In @file{gcc.dg} tests, @code{__typeof__} is sometimes used to make
+assertions about the types of expressions.  See, for example,
+@file{gcc.dg/c99-condexpr-1.c}.  The more subtle uses depend on the
+exact rules for the types of conditional expressions in the C
+standard; see, for example, @file{gcc.dg/c99-intconst-1.c}.
+
+It is useful to be able to test that optimizations are being made
+properly.  This cannot be done in all cases, but it can be done where
+the optimization will lead to code being optimized away (for example,
+where flow analysis or alias analysis should show that certain code
+cannot be called) or to functions not being called because they have
+been expanded as built-in functions.  Such tests go in
+@file{gcc.c-torture/execute}.  Where code should be optimized away, a
+call to a nonexistent function such as @code{link_failure ()} may be
+inserted; a definition
+
+@smallexample
+#ifndef __OPTIMIZE__
+void
+link_failure (void)
+@{
+  abort ();
+@}
+#endif
+@end smallexample
+
+@noindent
+will also be needed so that linking still succeeds when the test is
+run without optimization.  When all calls to a built-in function
+should have been optimized and no calls to the non-built-in version of
+the function should remain, that function may be defined as
+@code{static} to call @code{abort ()} (although redeclaring a function
+as static may not work on all targets).
+
+All testcases must be portable.  Target-specific testcases must have
+appropriate code to avoid causing failures on unsupported systems;
+unfortunately, the mechanisms for this differ by directory.
+
+FIXME: discuss non-C testsuites here.
+
+@node Test Directives
+@subsection Directives used within DejaGnu tests
+
+Test directives appear within comments in a test source file and begin
+with @code{dg-}.  Some of these are defined within DejaGnu and others
+are local to the GCC testsuite.
+
+The order in which test directives appear in a test can be important:
+directives local to GCC sometimes override information used by the
+DejaGnu directives, which know nothing about the GCC directives, so the
+DejaGnu directives must precede GCC directives.
+
+Several test directives include selectors which are usually preceded by
+the keyword @code{target} or @code{xfail}.  A selector is: one or more
+target triplets, possibly including wildcard characters; a single
+effective-target keyword; or a logical expression.  Depending on the
+context, the selector specifies whether a test is skipped and reported
+as unsupported or is expected to fail.  Use @samp{*-*-*} to match any
+target.
+Effective-target keywords are defined in @file{target-supports.exp} in
+the GCC testsuite.
+
+A selector expression appears within curly braces and uses a single
+logical operator: one of @samp{!}, @samp{&&}, or @samp{||}.  An
+operand is another selector expression, an effective-target keyword,
+a single target triplet, or a list of target triplets within quotes or
+curly braces.  For example:
+
+@smallexample
+@{ target @{ ! "hppa*-*-* ia64*-*-*" @} @}
+@{ target @{ powerpc*-*-* && lp64 @} @}
+@{ xfail @{ lp64 || vect_no_align @} @}
+@end smallexample
+
+@table @code
+@item @{ dg-do @var{do-what-keyword} [@{ target/xfail @var{selector} @}] @}
+@var{do-what-keyword} specifies how the test is compiled and whether
+it is executed.  It is one of:
+
+@table @code
+@item preprocess
+Compile with @option{-E} to run only the preprocessor.
+@item assemble
+Compile with @option{-S} to produce an assembly code file.
+@item compile
+Compile with @option{-c} to produce a relocatable object file.
+@item link
+Compile, assemble, and link to produce an executable file.
+@item run
+Produce and run an executable file, which is expected to return
+an exit code of 0.
+@end table
+
+The default is @code{compile}.  That can be overridden for a set of
+tests by redefining @code{dg-do-what-default} within the @code{.exp}
+file for those tests.
+
+If the directive includes the optional @samp{@{ target @var{selector} @}}
+then the test is skipped unless the target system is included in the
+list of target triplets or matches the effective-target keyword.
+
+If the directive includes the optional @samp{@{ xfail @var{selector} @}}
+and the selector is met then the test is expected to fail.  For
+@code{dg-do run}, execution is expected to fail but compilation
+is expected to pass.
+
+@item @{ dg-options @var{options} [@{ target @var{selector} @}] @}
+This DejaGnu directive provides a list of compiler options, to be used
+if the target system matches @var{selector}, that replace the default
+options used for this set of tests.
+
+@item @{ dg-skip-if @var{comment} @{ @var{selector} @} @{ @var{include-opts} @} @{ @var{exclude-opts} @} @}
+Skip the test if the test system is included in @var{selector} and if
+each of the options in @var{include-opts} is in the set of options with
+which the test would be compiled and if none of the options in
+@var{exclude-opts} is in the set of options with which the test would be
+compiled.
+
+Use @samp{"*"} for an empty @var{include-opts} list and @samp{""} for
+an empty @var{exclude-opts} list.
+
+@item  @{ dg-xfail-if @var{comment} @{ @var{selector} @} @{ @var{include-opts} @} @{ @var{exclude-opts} @} @}
+Expect the test to fail if the conditions (which are the same as for
+@code{dg-skip-if}) are met.
+
+@item @{ dg-require-@var{support} args @}
+Skip the test if the target does not provide the required support;
+see @file{gcc-dg.exp} in the GCC testsuite for the actual directives.
+These directives must appear after any @code{dg-do} directive in the test.
+They require at least one argument, which can be an empty string if the
+specific procedure does not examine the argument.
+
+@item @{ dg-require-effective-target @var{keyword} @}
+Skip the test if the test target, including current multilib flags,
+is not covered by the effective-target keyword.
+This directive must appear after any @code{dg-do} directive in the test.
+
+@item  @{ dg-shouldfail @var{comment} @{ @var{selector} @} @{ @var{include-opts} @} @{ @var{exclude-opts} @} @}
+Expect the test executable to return a nonzero exit status if the
+conditions (which are the same as for @code{dg-skip-if}) are met.
+
+@item @{ dg-error @var{regexp} [@var{comment} [@{ target/xfail @var{selector} @} [@var{line}] @}]] @}
+This DejaGnu directive appears on a source line that is expected to get
+an error message, or else specifies the source line associated with the
+message.  If there is no message for that line or if the text of that
+message is not matched by @var{regexp} then the check fails and
+@var{comment} is included in the @code{FAIL} message.  The check does
+not look for the string @samp{"error"} unless it is part of @var{regexp}.
+
+@item @{ dg-warning @var{regexp} [@var{comment} [@{ target/xfail @var{selector} @} [@var{line}] @}]] @}
+This DejaGnu directive appears on a source line that is expected to get
+a warning message, or else specifies the source line associated with the
+message.  If there is no message for that line or if the text of that
+message is not matched by @var{regexp} then the check fails and
+@var{comment} is included in the @code{FAIL} message.  The check does
+not look for the string @samp{"warning"} unless it is part of @var{regexp}.
+
+@item @{ dg-bogus @var{regexp} [@var{comment} [@{ target/xfail @var{selector} @} [@var{line}] @}]] @}
+This DejaGnu directive appears on a source line that should not get a
+message matching @var{regexp}, or else specifies the source line
+associated with the bogus message.  It is usually used with @samp{xfail}
+to indicate that the message is a known problem for a particular set of
+targets.
+
+@item @{ dg-excess-errors @var{comment} [@{ target/xfail @var{selector} @}] @}
+This DejaGnu directive indicates that the test is expected to fail due
+to compiler messages that are not handled by @samp{dg-error},
+@samp{dg-warning} or @samp{dg-bogus}.
+
+@item @{ dg-output @var{regexp} [@{ target/xfail @var{selector} @}] @}
+This DejaGnu directive compares @var{regexp} to the combined output
+that the test executable writes to @file{stdout} and @file{stderr}.
+
+@item @{ dg-prune-output @var{regexp} @}
+Prune messages matching @var{regexp} from test output.
+
+@item @{ dg-additional-files "@var{filelist}" @}
+Specify additional files, other than source files, that must be copied
+to the system where the compiler runs.
+
+@item @{ dg-additional-sources "@var{filelist}" @}
+Specify additional source files to appear in the compile line
+following the main test file.
+
+@item @{ dg-final @{ @var{local-directive} @} @}
+This DejaGnu directive is placed within a comment anywhere in the
+source file and is processed after the test has been compiled and run.
+Multiple @samp{dg-final} commands are processed in the order in which
+they appear in the source file.
+
+The GCC testsuite defines the following directives to be used within
+@code{dg-final}.
+
+@table @code
+@item cleanup-coverage-files
+Removes coverage data files generated for this test.
+
+@item cleanup-repo-files
+Removes files generated for this test for @option{-frepo}.
+
+@item cleanup-rtl-dump @var{suffix}
+Removes RTL dump files generated for this test.
+
+@item cleanup-tree-dump @var{suffix}
+Removes tree dump files matching @var{suffix} which were generated for
+this test.
+
+@item cleanup-saved-temps
+Removes files for the current test which were kept for @option{--save-temps}.
+
+@item scan-file @var{filename} @var{regexp} [@{ target/xfail @var{selector} @}]
+Passes if @var{regexp} matches text in @var{filename}.
+
+@item scan-file-not @var{filename} @var{regexp} [@{ target/xfail @var{selector} @}]
+Passes if @var{regexp} does not match text in @var{filename}.
+
+@item scan-hidden @var{symbol} [@{ target/xfail @var{selector} @}]
+Passes if @var{symbol} is defined as a hidden symbol in the test's
+assembly output.
+
+@item scan-not-hidden @var{symbol} [@{ target/xfail @var{selector} @}]
+Passes if @var{symbol} is not defined as a hidden symbol in the test's
+assembly output.
+
+@item scan-assembler-times @var{regex} @var{num} [@{ target/xfail @var{selector} @}]
+Passes if @var{regex} is matched exactly @var{num} times in the test's
+assembler output.
+
+@item scan-assembler @var{regex} [@{ target/xfail @var{selector} @}]
+Passes if @var{regex} matches text in the test's assembler output.
+
+@item scan-assembler-not @var{regex} [@{ target/xfail @var{selector} @}]
+Passes if @var{regex} does not match text in the test's assembler output.
+
+@item scan-assembler-dem @var{regex} [@{ target/xfail @var{selector} @}]
+Passes if @var{regex} matches text in the test's demangled assembler output.
+
+@item scan-assembler-dem-not @var{regex} [@{ target/xfail @var{selector} @}]
+Passes if @var{regex} does not match text in the test's demangled assembler
+output.
+
+@item scan-tree-dump-times @var{regex} @var{num} @var{suffix} [@{ target/xfail @var{selector} @}]
+Passes if @var{regex} is found exactly @var{num} times in the dump file
+with suffix @var{suffix}.
+
+@item scan-tree-dump @var{regex} @var{suffix} [@{ target/xfail @var{selector} @}]
+Passes if @var{regex} matches text in the dump file with suffix @var{suffix}.
+
+@item scan-tree-dump-not @var{regex} @var{suffix} [@{ target/xfail @var{selector} @}]
+Passes if @var{regex} does not match text in the dump file with suffix
+@var{suffix}.
+
+@item scan-tree-dump-dem @var{regex} @var{suffix} [@{ target/xfail @var{selector} @}]
+Passes if @var{regex} matches demangled text in the dump file with
+suffix @var{suffix}.
+
+@item scan-tree-dump-dem-not @var{regex} @var{suffix} [@{ target/xfail @var{selector} @}]
+Passes if @var{regex} does not match demangled text in the dump file with
+suffix @var{suffix}.
+
+@item output-exists [@{ target/xfail @var{selector} @}]
+Passes if compiler output file exists.
+
+@item output-exists-not [@{ target/xfail @var{selector} @}]
+Passes if compiler output file does not exist.
+
+@item run-gcov @var{sourcefile}
+Check line counts in @command{gcov} tests.
+
+@item run-gcov [branches] [calls] @{ @var{opts} @var{sourcefile} @}
+Check branch and/or call counts, in addition to line counts, in
+@command{gcov} tests.
+@end table
+@end table
+
+@node Ada Tests
+@subsection Ada Language Testsuites
+
+The Ada testsuite includes executable tests from the ACATS 2.5
+testsuite, publicly available at
+@uref{http://www.adaic.org/compilers/acats/2.5}
+
+These tests are integrated in the GCC testsuite in the
+@file{gcc/testsuite/ada/acats} directory, and
+enabled automatically when running @code{make check}, assuming
+the Ada language has been enabled when configuring GCC@.
+
+You can also run the Ada testsuite independently, using
+@code{make check-ada}, or run a subset of the tests by specifying which
+chapter to run, e.g.:
+
+@smallexample
+$ make check-ada CHAPTERS="c3 c9"
+@end smallexample
+
+The tests are organized by directory, each directory corresponding to
+a chapter of the Ada Reference Manual.  So for example, c9 corresponds
+to chapter 9, which deals with tasking features of the language.
+
+There is also an extra chapter called @file{gcc} containing a template for
+creating new executable tests.
+
+The tests are run using two @command{sh} scripts: @file{run_acats} and
+@file{run_all.sh}.  To run the tests using a simulator or a cross
+target, see the small
+customization section at the top of @file{run_all.sh}.
+
+These tests are run using the build tree: they can be run without doing
+a @code{make install}.
+
+@node C Tests
+@subsection C Language Testsuites
+
+GCC contains the following C language testsuites, in the
+@file{gcc/testsuite} directory:
+
+@table @file
+@item gcc.dg
+This contains tests of particular features of the C compiler, using the
+more modern @samp{dg} harness.  Correctness tests for various compiler
+features should go here if possible.
+
+Magic comments determine whether the file
+is preprocessed, compiled, linked or run.  In these tests, error and warning
+message texts are compared against expected texts or regular expressions
+given in comments.  These tests are run with the options @samp{-ansi -pedantic}
+unless other options are given in the test.  Except as noted below they
+are not run with multiple optimization options.
+@item gcc.dg/compat
+This subdirectory contains tests for binary compatibility using
+@file{compat.exp}, which in turn uses the language-independent support
+(@pxref{compat Testing, , Support for testing binary compatibility}).
+@item gcc.dg/cpp
+This subdirectory contains tests of the preprocessor.
+@item gcc.dg/debug
+This subdirectory contains tests for debug formats.  Tests in this
+subdirectory are run for each debug format that the compiler supports.
+@item gcc.dg/format
+This subdirectory contains tests of the @option{-Wformat} format
+checking.  Tests in this directory are run with and without
+@option{-DWIDE}.
+@item gcc.dg/noncompile
+This subdirectory contains tests of code that should not compile and
+does not need any special compilation options.  They are run with
+multiple optimization options, since sometimes invalid code crashes
+the compiler with optimization.
+@item gcc.dg/special
+FIXME: describe this.
+
+@item gcc.c-torture
+This contains particular code fragments which have historically broken easily.
+These tests are run with multiple optimization options, so tests for features
+which only break at some optimization levels belong here.  This also contains
+tests to check that certain optimizations occur.  It might be worthwhile to
+separate the correctness tests cleanly from the code quality tests, but
+it hasn't been done yet.
+
+@item gcc.c-torture/compat
+FIXME: describe this.
+
+This directory should probably not be used for new tests.
+@item gcc.c-torture/compile
+This testsuite contains test cases that should compile, but do not
+need to link or run.  These test cases are compiled with several
+different combinations of optimization options.  All warnings are
+disabled for these test cases, so this directory is not suitable if
+you wish to test for the presence or absence of compiler warnings.
+While special options can be set, and tests disabled on specific
+platforms, by the use of @file{.x} files, mostly these test cases
+should not contain platform dependencies.  FIXME: discuss how defines
+such as @code{NO_LABEL_VALUES} and @code{STACK_SIZE} are used.
+@item gcc.c-torture/execute
+This testsuite contains test cases that should compile, link and run;
+otherwise the same comments as for @file{gcc.c-torture/compile} apply.
+@item gcc.c-torture/execute/ieee
+This contains tests which are specific to IEEE floating point.
+@item gcc.c-torture/unsorted
+FIXME: describe this.
+
+This directory should probably not be used for new tests.
+@item gcc.c-torture/misc-tests
+This directory contains C tests that require special handling.  Some
+of these tests have individual expect files, and others share
+special-purpose expect files:
+
+@table @file
+@item @code{bprob*.c}
+Test @option{-fbranch-probabilities} using @file{bprob.exp}, which
+in turn uses the generic, language-independent framework
+(@pxref{profopt Testing, , Support for testing profile-directed
+optimizations}).
+
+@item @code{dg-*.c}
+Test the testsuite itself using @file{dg-test.exp}.
+
+@item @code{gcov*.c}
+Test @command{gcov} output using @file{gcov.exp}, which in turn uses the
+language-independent support (@pxref{gcov Testing, , Support for testing gcov}).
+
+@item @code{i386-pf-*.c}
+Test i386-specific support for data prefetch using @file{i386-prefetch.exp}.
+@end table
+
+@end table
+
+FIXME: merge in @file{testsuite/README.gcc} and discuss the format of
+test cases and magic comments more.
+
+@node libgcj Tests
+@subsection The Java library testsuites.
+
+Runtime tests are executed via @samp{make check} in the
+@file{@var{target}/libjava/testsuite} directory in the build
+tree.  Additional runtime tests can be checked into this testsuite.
+
+Regression testing of the core packages in libgcj is also covered by the
+Mauve testsuite.  The @uref{http://sourceware.org/mauve/,,Mauve Project}
+develops tests for the Java Class Libraries.  These tests are run as part
+of libgcj testing by placing the Mauve tree within the libjava testsuite
+sources at @file{libjava/testsuite/libjava.mauve/mauve}, or by specifying
+the location of that tree when invoking @samp{make}, as in
+@samp{make MAUVEDIR=~/mauve check}.
+
+To detect regressions, a mechanism in @file{mauve.exp} compares the
+failures for a test run against the list of expected failures in
+@file{libjava/testsuite/libjava.mauve/xfails} from the source hierarchy.
+Update this file when adding new failing tests to Mauve, or when fixing
+bugs in libgcj that had caused Mauve test failures.
+
+The @uref{http://sourceware.org/mauve/jacks.html,,
+Jacks} project provides a testsuite for Java compilers that can be used
+to test changes that affect the GCJ front end.  This testsuite is run as
+part of Java testing by placing the Jacks tree within the libjava
+testsuite sources at @file{libjava/testsuite/libjava.jacks/jacks}.
+
+We encourage developers to contribute test cases to Mauve and Jacks.
+
+@node gcov Testing
+@subsection Support for testing @command{gcov}
+
+Language-independent support for testing @command{gcov}, and for checking
+that branch profiling produces expected values, is provided by the
+expect file @file{gcov.exp}.  @command{gcov} tests also rely on procedures
+in @file{gcc.dg.exp} to compile and run the test program.  A typical
+@command{gcov} test contains the following DejaGnu commands within comments:
+
+@smallexample
+@{ dg-options "-fprofile-arcs -ftest-coverage" @}
+@{ dg-do run @{ target native @} @}
+@{ dg-final @{ run-gcov sourcefile @} @}
+@end smallexample
+
+Checks of @command{gcov} output can include line counts, branch percentages,
+and call return percentages.  All of these checks are requested via
+commands that appear in comments in the test's source file.
+Commands to check line counts are processed by default.
+Commands to check branch percentages and call return percentages are
+processed if the @command{run-gcov} command has arguments @code{branches}
+or @code{calls}, respectively.  For example, the following specifies
+checking both, as well as passing @option{-b} to @command{gcov}:
+
+@smallexample
+@{ dg-final @{ run-gcov branches calls @{ -b sourcefile @} @} @}
+@end smallexample
+
+A line count command appears within a comment on the source line
+that is expected to get the specified count and has the form
+@code{count(@var{cnt})}.  A test should only check line counts for
+lines that will get the same count for any architecture.
+
+Commands to check branch percentages (@code{branch}) and call
+return percentages (@code{returns}) are very similar to each other.
+A beginning command appears on or before the first of a range of
+lines that will report the percentage, and the ending command
+follows that range of lines.  The beginning command can include a
+list of percentages, all of which are expected to be found within
+the range.  A range is terminated by the next command of the same
+kind.  A command @code{branch(end)} or @code{returns(end)} marks
+the end of a range without starting a new one.  For example:
+
+@smallexample
+if (i > 10 && j > i && j < 20)  /* @r{branch(27 50 75)} */
+                                /* @r{branch(end)} */
+  foo (i, j);
+@end smallexample
+
+For a call return percentage, the value specified is the
+percentage of calls reported to return.  For a branch percentage,
+the value is either the expected percentage or 100 minus that
+value, since the direction of a branch can differ depending on the
+target or the optimization level.
+
+Not all branches and calls need to be checked.  A test should not
+check for branches that might be optimized away or replaced with
+predicated instructions.  Don't check for calls inserted by the
+compiler or ones that might be inlined or optimized away.
+
+A single test can check for combinations of line counts, branch
+percentages, and call return percentages.  The command to check a
+line count must appear on the line that will report that count, but
+commands to check branch percentages and call return percentages can
+bracket the lines that report them.
+
+@node profopt Testing
+@subsection Support for testing profile-directed optimizations
+
+The file @file{profopt.exp} provides language-independent support for
+checking correct execution of a test built with profile-directed
+optimization.  This testing requires that a test program be built and
+executed twice.  The first time it is compiled to generate profile
+data, and the second time it is compiled to use the data that was
+generated during the first execution.  The second execution is to
+verify that the test produces the expected results.
+
+To check that the optimization actually generated better code, a
+test can be built and run a third time with normal optimizations to
+verify that the performance is better with the profile-directed
+optimizations.  @file{profopt.exp} has the beginnings of this kind
+of support.
+
+@file{profopt.exp} provides generic support for profile-directed
+optimizations.  Each set of tests that uses it provides information
+about a specific optimization:
+
+@table @code
+@item tool
+tool being tested, e.g., @command{gcc}
+
+@item profile_option
+options used to generate profile data
+
+@item feedback_option
+options used to optimize using that profile data
+
+@item prof_ext
+suffix of profile data files
+
+@item PROFOPT_OPTIONS
+list of options with which to run each test, similar to the lists for
+torture tests
+@end table
+
+@node compat Testing
+@subsection Support for testing binary compatibility
+
+The file @file{compat.exp} provides language-independent support for
+binary compatibility testing.  It supports testing interoperability of
+two compilers that follow the same ABI, or of multiple sets of
+compiler options that should not affect binary compatibility.  It is
+intended to be used for testsuites that complement ABI testsuites.
+
+A test supported by this framework has three parts, each in a
+separate source file: a main program and two pieces that interact
+with each other to split up the functionality being tested.
+
+@table @file
+@item @var{testname}_main.@var{suffix}
+Contains the main program, which calls a function in file
+@file{@var{testname}_x.@var{suffix}}.
+
+@item @var{testname}_x.@var{suffix}
+Contains at least one call to a function in
+@file{@var{testname}_y.@var{suffix}}.
+
+@item @var{testname}_y.@var{suffix}
+Shares data with, or gets arguments from,
+@file{@var{testname}_x.@var{suffix}}.
+@end table
+
+Within each test, the main program and one functional piece are
+compiled by the GCC under test.  The other piece can be compiled by
+an alternate compiler.  If no alternate compiler is specified,
+then all three source files are all compiled by the GCC under test.
+You can specify pairs of sets of compiler options.  The first element
+of such a pair specifies options used with the GCC under test, and the
+second element of the pair specifies options used with the alternate
+compiler.  Each test is compiled with each pair of options.
+
+@file{compat.exp} defines default pairs of compiler options.
+These can be overridden by defining the environment variable
+@env{COMPAT_OPTIONS} as:
+
+@smallexample
+COMPAT_OPTIONS="[list [list @{@var{tst1}@} @{@var{alt1}@}]
+  ...[list @{@var{tstn}@} @{@var{altn}@}]]"
+@end smallexample
+
+where @var{tsti} and @var{alti} are lists of options, with @var{tsti}
+used by the compiler under test and @var{alti} used by the alternate
+compiler.  For example, with
+@code{[list [list @{-g -O0@} @{-O3@}] [list @{-fpic@} @{-fPIC -O2@}]]},
+the test is first built with @option{-g -O0} by the compiler under
+test and with @option{-O3} by the alternate compiler.  The test is
+built a second time using @option{-fpic} by the compiler under test
+and @option{-fPIC -O2} by the alternate compiler.
+
+An alternate compiler is specified by defining an environment
+variable to be the full pathname of an installed compiler; for C
+define @env{ALT_CC_UNDER_TEST}, and for C++ define
+@env{ALT_CXX_UNDER_TEST}.  These will be written to the
+@file{site.exp} file used by DejaGnu.  The default is to build each
+test with the compiler under test using the first of each pair of
+compiler options from @env{COMPAT_OPTIONS}.  When
+@env{ALT_CC_UNDER_TEST} or
+@env{ALT_CXX_UNDER_TEST} is @code{same}, each test is built using
+the compiler under test but with combinations of the options from
+@env{COMPAT_OPTIONS}.
+
+To run only the C++ compatibility suite using the compiler under test
+and another version of GCC using specific compiler options, do the
+following from @file{@var{objdir}/gcc}:
+
+@smallexample
+rm site.exp
+make -k \
+  ALT_CXX_UNDER_TEST=$@{alt_prefix@}/bin/g++ \
+  COMPAT_OPTIONS="lists as shown above" \
+  check-c++ \
+  RUNTESTFLAGS="compat.exp"
+@end smallexample
+
+A test that fails when the source files are compiled with different
+compilers, but passes when the files are compiled with the same
+compiler, demonstrates incompatibility of the generated code or
+runtime support.  A test that fails for the alternate compiler but
+passes for the compiler under test probably tests for a bug that was
+fixed in the compiler under test but is present in the alternate
+compiler.
+
+The binary compatibility tests support a small number of test framework
+commands that appear within comments in a test file.
+
+@table @code
+@item dg-require-*
+These commands can be used in @file{@var{testname}_main.@var{suffix}}
+to skip the test if specific support is not available on the target.
+
+@item dg-options
+The specified options are used for compiling this particular source
+file, appended to the options from @env{COMPAT_OPTIONS}.  When this
+command appears in @file{@var{testname}_main.@var{suffix}} the options
+are also used to link the test program.
+
+@item dg-xfail-if
+This command can be used in a secondary source file to specify that
+compilation is expected to fail for particular options on particular
+targets.
+@end table

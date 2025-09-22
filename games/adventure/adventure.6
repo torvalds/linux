@@ -1,0 +1,65 @@
+.\"	$OpenBSD: adventure.6,v 1.9 2014/09/08 01:27:54 schwarze Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" The game adventure was originally written in Fortran by Will Crowther
+.\" and Don Woods.  It was later translated to C and enhanced by Jim
+.\" Gillogly.  This code is derived from software contributed to Berkeley
+.\" by Jim Gillogly at The Rand Corporation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)adventure.6	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: September 8 2014 $
+.Dt ADVENTURE 6
+.Os
+.Sh NAME
+.Nm adventure
+.Nd an exploration game
+.Sh SYNOPSIS
+.Nm adventure
+.Op Ar saved-file
+.Sh DESCRIPTION
+The object of the game is to locate and explore Colossal Cave, find the
+treasures hidden there, and bring them back to the building with you.
+The program is self-descriptive to a point, but part of the game is to
+discover its rules.
+.Pp
+To terminate a game, enter
+.Dq quit ;
+to save a game for later resumption, enter
+.Dq suspend .
+.Sh AUTHORS
+.An -nosplit
+The game
+.Nm
+was originally written in Fortran by
+.An Will Crowther
+and
+.An Don Woods .
+It was later translated to C and enhanced by
+.An Jim Gillogly Aq Mt jim@rand.org .

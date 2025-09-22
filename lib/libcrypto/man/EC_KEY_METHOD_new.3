@@ -1,0 +1,330 @@
+.\" $OpenBSD: EC_KEY_METHOD_new.3,v 1.6 2025/06/08 22:40:29 schwarze Exp $
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EC_KEY_METHOD_NEW 3
+.Os
+.Sh NAME
+.Nm EC_KEY_METHOD_new ,
+.Nm EC_KEY_METHOD_free ,
+.Nm EC_KEY_METHOD_set_init ,
+.Nm EC_KEY_METHOD_get_init ,
+.Nm EC_KEY_METHOD_set_sign ,
+.Nm EC_KEY_METHOD_get_sign ,
+.Nm EC_KEY_METHOD_set_verify ,
+.Nm EC_KEY_METHOD_get_verify ,
+.Nm EC_KEY_METHOD_set_keygen ,
+.Nm EC_KEY_METHOD_get_keygen ,
+.Nm EC_KEY_METHOD_set_compute_key ,
+.Nm EC_KEY_METHOD_get_compute_key ,
+.Nm EC_KEY_OpenSSL ,
+.Nm EC_KEY_set_default_method ,
+.Nm EC_KEY_get_default_method ,
+.Nm EC_KEY_new_method ,
+.Nm EC_KEY_set_method ,
+.Nm EC_KEY_get_method
+.Nd custom EC_KEY implementations
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ec.h
+.Ft EC_KEY_METHOD *
+.Fo EC_KEY_METHOD_new
+.Fa "const EC_KEY_METHOD *meth"
+.Fc
+.Ft void
+.Fo EC_KEY_METHOD_free
+.Fa "EC_KEY_METHOD *meth"
+.Fc
+.Ft void
+.Fo EC_KEY_METHOD_set_init
+.Fa "EC_KEY_METHOD *meth"
+.Fa "int (*init)(EC_KEY *key)"
+.Fa "void (*finish)(EC_KEY *key)"
+.Fa "int (*copy)(EC_KEY *dest, const EC_KEY *src)"
+.Fa "int (*set_group)(EC_KEY *key, const EC_GROUP *grp)"
+.Fa "int (*set_private)(EC_KEY *key, const BIGNUM *priv_key)"
+.Fa "int (*set_public)(EC_KEY *key, const EC_POINT *pub_key)"
+.Fc
+.Ft void
+.Fo EC_KEY_METHOD_get_init
+.Fa "const EC_KEY_METHOD *meth"
+.Fa "int (**pinit)(EC_KEY *key)"
+.Fa "void (**pfinish)(EC_KEY *key)"
+.Fa "int (**pcopy)(EC_KEY *dest, const EC_KEY *src)"
+.Fa "int (**pset_group)(EC_KEY *key, const EC_GROUP *grp)"
+.Fa "int (**pset_private)(EC_KEY *key, const BIGNUM *priv_key)"
+.Fa "int (**pset_public)(EC_KEY *key, const EC_POINT *pub_key)"
+.Fc
+.Ft void
+.Fo EC_KEY_METHOD_set_sign
+.Fa "EC_KEY_METHOD *meth"
+.Fa "int (*sign)(int type, const unsigned char *dgst, int dgstlen,\
+ unsigned char *sig, unsigned int *siglen,\
+ const BIGNUM *kinv, const BIGNUM *r, EC_KEY *eckey)"
+.Fa "int (*sign_setup)(EC_KEY *eckey, BN_CTX *ctx,\
+ BIGNUM **kinv, BIGNUM **rp)"
+.Fa "ECDSA_SIG *(*sign_sig)(const unsigned char *dgst, int dgstlen,\
+ const BIGNUM *kinv, const BIGNUM *rp, EC_KEY *eckey)"
+.Fc
+.Ft void
+.Fo EC_KEY_METHOD_get_sign
+.Fa "const EC_KEY_METHOD *meth"
+.Fa "int (**psign)(int type, const unsigned char *dgst, int dgstlen,\
+ unsigned char *sig, unsigned int *siglen,\
+ const BIGNUM *kinv, const BIGNUM *r, EC_KEY *eckey)"
+.Fa "int (**psign_setup)(EC_KEY *eckey, BN_CTX *ctx,\
+ BIGNUM **kinv, BIGNUM **rp)"
+.Fa "ECDSA_SIG *(**psign_sig)(const unsigned char *dgst, int dgstlen,\
+ const BIGNUM *kinv, const BIGNUM *rp, EC_KEY *eckey)"
+.Fc
+.Ft void
+.Fo EC_KEY_METHOD_set_verify
+.Fa "EC_KEY_METHOD *meth"
+.Fa "int (*verify)(int type, const unsigned char *dgst, int dgst_len,\
+ const unsigned char *sigbuf, int sig_len, EC_KEY *eckey)"
+.Fa "int (*verify_sig)(const unsigned char *dgst, int dgst_len,\
+ const ECDSA_SIG *sig, EC_KEY *eckey)"
+.Fc
+.Ft void
+.Fo EC_KEY_METHOD_get_verify
+.Fa "const EC_KEY_METHOD *meth"
+.Fa "int (**pverify)(int type, const unsigned char *dgst, int dgst_len,\
+ const unsigned char *sigbuf, int sig_len, EC_KEY *eckey)"
+.Fa "int (**pverify_sig)(const unsigned char *dgst, int dgst_len,\
+ const ECDSA_SIG *sig, EC_KEY *eckey)"
+.Fc
+.Ft void
+.Fo EC_KEY_METHOD_set_keygen
+.Fa "EC_KEY_METHOD *meth"
+.Fa "int (*keygen)(EC_KEY *key)"
+.Fc
+.Ft void
+.Fo EC_KEY_METHOD_get_keygen
+.Fa "const EC_KEY_METHOD *meth"
+.Fa "int (**pkeygen)(EC_KEY *key)"
+.Fc
+.Ft void
+.Fo EC_KEY_METHOD_set_compute_key
+.Fa "EC_KEY_METHOD *meth"
+.Fa "int (*ckey)(void *out, size_t outlen,\
+ const EC_POINT *pub_key, EC_KEY *ecdh,\
+ void *(*KDF) (const void *in, size_t inlen, void *out, size_t *outlen))"
+.Fc
+.Ft void
+.Fo EC_KEY_METHOD_get_compute_key
+.Fa "const EC_KEY_METHOD *meth"
+.Fa "int (**pck)(void *out, size_t outlen,\
+ const EC_POINT *pub_key, EC_KEY *ecdh,\
+ void *(*KDF) (const void *in, size_t inlen, void *out, size_t *outlen))"
+.Fc
+.Ft const EC_KEY_METHOD *
+.Fn EC_KEY_OpenSSL void
+.Ft void
+.Fo EC_KEY_set_default_method
+.Fa "const EC_KEY_METHOD *meth"
+.Fc
+.Ft const EC_KEY_METHOD *
+.Fn EC_KEY_get_default_method void
+.Ft EC_KEY *
+.Fo EC_KEY_new_method
+.Fa "ENGINE *engine"
+.Fc
+.Ft int
+.Fo EC_KEY_set_method
+.Fa "EC_KEY *key"
+.Fa "const EC_KEY_METHOD *meth"
+.Fc
+.Ft const EC_KEY_METHOD *
+.Fo EC_KEY_get_method
+.Fa "const EC_KEY *key"
+.Fc
+.Sh DESCRIPTION
+An
+.Vt EC_KEY_METHOD
+object holds function pointers used for
+.Vt EC_KEY
+operations.
+.Pp
+.Fn EC_KEY_METHOD_new
+creates a shallow copy of
+.Fa meth ,
+or an empty
+.Vt EC_KEY_METHOD
+object if
+.Fa meth
+is
+.Dv NULL .
+.Pp
+.Fn EC_KEY_METHOD_free
+frees
+.Fa meth .
+If
+.Fa meth
+is
+.Dv NULL
+or the return value of
+.Fn EC_KEY_OpenSSL ,
+no action occurs.
+.Pp
+.Fn EC_KEY_METHOD_set_init
+and
+.Fn EC_KEY_METHOD_get_init
+set and retrieve optional callback functions called at the following places:
+.Pp
+.Bl -tag -width set_private -compact
+.It Fa init
+at the end of
+.Fn EC_KEY_new_method
+and
+.Fn EC_KEY_set_method
+.It Fa finish
+at the beginning of
+.Xr EC_KEY_free 3 ,
+.Xr EC_KEY_copy 3 ,
+and
+.Fn EC_KEY_set_method
+.It Fa copy
+at the end of
+.Xr EC_KEY_copy 3
+.It Fa set_group
+at the end of
+.Xr EC_KEY_set_group 3
+and
+.Xr EC_KEY_new_by_curve_name 3
+.It Fa set_private
+at the beginning of
+.Xr EC_KEY_set_private_key 3
+.It Fa set_public
+at the beginning of
+.Xr EC_KEY_set_public_key 3
+.El
+.Pp
+If any of these callbacks returns 0, the calling function fails.
+By default, all these callbacks are
+.Dv NULL .
+Arguments of
+.Fn EC_KEY_METHOD_get_init
+can be set to
+.Dv NULL
+to selectively retrieve callback function pointers.
+.Pp
+.Fn EC_KEY_METHOD_set_sign
+and
+.Fn EC_KEY_METHOD_get_sign
+set and retrieve the functions implementing
+.Xr ECDSA_sign 3
+and
+.Xr ECDSA_do_sign 3 .
+.Pp
+.Fn EC_KEY_METHOD_set_verify
+and
+.Fn EC_KEY_METHOD_get_verify
+set and retrieve the functions implementing
+.Xr ECDSA_verify 3
+and
+.Xr ECDSA_do_verify 3 .
+.Pp
+.Fn EC_KEY_METHOD_set_keygen
+and
+.Fn EC_KEY_METHOD_get_keygen
+set and retrieve the function implementing
+.Xr EC_KEY_generate_key 3 .
+.Pp
+.Fn EC_KEY_METHOD_set_compute_key
+and
+.Fn EC_KEY_METHOD_get_compute_key
+set and retrieve the function implementing
+.Xr ECDH_compute_key 3 .
+.Pp
+.Fn EC_KEY_set_default_method
+chooses the
+.Fa meth
+to be used for the creation of new
+.Vt EC_KEY
+objects by future invocations of
+.Fn EC_KEY_new_method ,
+or reverts to the default implementation if
+.Fa meth
+is
+.Dv NULL .
+.Pp
+.Fn EC_KEY_new_method
+creates and initializes a new
+.Vt EC_KEY
+object using the
+.Vt EC_KEY_METHOD
+set with
+.Fn EC_KEY_set_default_method .
+The
+.Fa ENGINE *engine
+argument is always ignored and passing
+.Dv NULL
+is recommended.
+.Pp
+.Fn EC_KEY_set_method
+dissociates the
+.Fa key
+from the
+.Vt ENGINE
+it is using, if any, and causes it to use
+.Fa meth
+in the future.
+.Sh RETURN VALUES
+.Fn EC_KEY_METHOD_new
+returns the newly allocated
+.Vt EC_KEY_METHOD
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn EC_KEY_OpenSSL
+returns a static object representing the default EC_KEY implementation.
+.Pp
+.Fn EC_KEY_get_default_method
+returns the
+.Vt EC_KEY_METHOD
+that
+.Fn EC_KEY_new_method
+will use for the creation of new
+.Vt EC_KEY
+objects in the future.
+.Pp
+.Fn EC_KEY_new_method
+returns the newly allocated
+.Vt EC_KEY
+object or NULL if an error occurs.
+.Pp
+.Fn EC_KEY_set_method
+returns 1 for success or 0 for failure.
+.Pp
+.Fn EC_KEY_get_method
+returns the EC_KEY implementation used by the given
+.Fa key .
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr EC_GROUP_check 3 ,
+.Xr EC_GROUP_get_curve_name 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr EC_GROUP_new_curve_GFp 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EC_POINT_add 3 ,
+.Xr EC_POINT_get_affine_coordinates 3 ,
+.Xr EC_POINT_new 3 ,
+.Xr EC_POINT_point2oct 3 ,
+.Xr ECDSA_sign 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.1.0
+and have been available since
+.Ox 6.5 .

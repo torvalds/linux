@@ -1,0 +1,5 @@
+# varset allows concatenated strings as numbers
+myports = 5555 6666
+# and also can be used within another macro
+moreports = $myports 7777
+pass in proto tcp from any to any port { $moreports }

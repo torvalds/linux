@@ -1,0 +1,271 @@
+.\"	$OpenBSD: e1,v 1.4 2004/04/05 10:58:08 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)e1	8.1 (Berkeley) 6/8/93
+.\"
+.nr PS 9
+.nr VS 11
+.SH
+Introduction
+.PP
+.ul
+Ed
+is a ``text editor'', that is, an interactive program
+for creating and modifying ``text'',
+using directions provided by a user at
+a terminal.
+The text is often a document
+like this one,
+or a program,
+or perhaps data for a program.
+.PP
+This introduction is meant to simplify learning
+.UL ed .
+The recommended way to learn
+.ul
+ed
+is to read this document,
+simultaneously using
+.ul
+ed
+to follow the examples,
+then to read the description in section I of the
+.ul
+.UC UNIX
+.UL "Programmer's Manual" ,
+all the while
+experimenting with
+.UL ed .
+(Solicitation of advice from experienced users is also useful.)
+.PP
+Do the exercises!
+They cover material not completely discussed
+in the actual text.
+An appendix summarizes the commands.
+.SH
+Disclaimer
+.PP
+This is an introduction and a tutorial.
+For this reason, no attempt is made to
+cover more than a part of the facilities that
+.ul
+ed
+offers
+(although this fraction includes the most useful and frequently used
+parts).
+When you have mastered the Tutorial,
+try
+.ul
+Advanced Editing on
+.ul
+.UC UNIX .
+Also,
+there is not enough space to explain basic
+.UC UNIX
+procedures.
+We will assume that you know how to log on to
+.UC UNIX ,
+and that you have at least a vague understanding
+of what a file is.
+For more on that, read
+.ul
+.UC UNIX
+.UL "for Beginners" .
+.PP
+You must also know what character to type as the end-of-line
+on your particular terminal.
+This character is the
+.UC RETURN
+key on most terminals.
+Throughout, we will refer to this character,
+whatever it is,
+as
+.UC RETURN .
+.SH
+Getting Started
+.PP
+We'll assume that you have logged in to
+your system
+and it has just printed the prompt character,
+usually either a
+.UL $
+or a
+.UL % .
+The
+easiest way to get
+.ul
+ed
+is to type
+.P1
+ed	(followed by a return)
+.P2
+You are now ready to go \-
+.ul
+ed
+is waiting for you to tell it what to do.
+.SH
+Creating Text \- the Append command ``a''
+.PP
+As your first problem, suppose you want to create some text
+starting from scratch.
+Perhaps you are typing the very first
+draft of a paper; clearly it will have to start
+somewhere, and undergo modifications later.
+This section will show how to get some text in, just to
+get started.
+Later we'll talk about how to change it.
+.PP
+When
+.ul
+ed
+is first started, it is rather like working
+with a blank piece of paper \- there is no text
+or information present.
+This must be supplied by the person using
+.UL ed ;
+it is usually done
+by typing in the text, or by reading it into
+.ul
+ed
+from a
+file.
+We will start by typing in some text, and return shortly to how to
+read files.
+.PP
+First a bit of terminology.
+In
+.ul
+ed
+jargon, the text being
+worked on is said to be ``kept in a buffer.''
+Think of the
+buffer as a work space, if you like, or simply as the information
+that you are going to be editing.
+In effect the buffer is like the
+piece of paper, on which we will write things, then change some
+of them, and finally file the whole thing away for another day.
+.PP
+The user tells
+.ul
+ed
+what to do to his text
+by typing instructions called ``commands.''
+Most
+commands consist of a single letter,
+which must be typed in lower case.
+Each command is typed
+on a separate line.
+(Sometimes the command is preceded by information
+about what line or lines of text are to be affected \-
+we will discuss these shortly.)
+.ul
+Ed
+makes no response
+to most commands \- there is no prompting
+or typing of messages like ``ready''.
+(This silence is preferred
+by experienced users, but sometimes a hangup for beginners.)
+.PP
+The first command is
+.UL append ,
+written as the letter
+.P1
+a
+.P2
+all
+by itself.
+It means ``append (or add) text lines to the buffer,
+as I type them in.''
+Appending is rather like
+writing fresh material on a piece of paper.
+.PP
+So to enter lines of text into the buffer,
+just type an
+.UL a
+followed by a
+.UC RETURN ,
+followed by the lines of text you want, like this:
+.P1
+a
+Now is the time
+for all good men
+to come to the aid of their party.
+\*.
+.P2
+.PP
+The only way to stop appending is to type a
+line that contains only a period.
+The ``\*.'' is used
+to tell
+.ul
+ed
+that you have finished appending.
+(Even experienced users forget that terminating ``\*.''
+sometimes.
+If
+.ul
+ed
+seems to be ignoring you,
+type an extra line with just ``\*.'' on it.
+You may then find you've added some garbage lines
+to your text, which you'll have to take out later.)
+.PP
+After the append command has been done, the buffer will
+contain the three lines
+.P1
+Now is the time
+for all good men
+to come to the aid of their party.
+.P2
+The
+.UL a '' ``
+and ``\*.'' aren't there, because they are
+not text.
+.PP
+To add more text to what you already have,
+just issue another
+.UL a
+command, and continue typing.
+.SH
+Error Messages \- ``?''
+.PP
+If at any time you make an error in the commands you type to
+.UL ed ,
+it will tell you by typing
+.P1
+?
+.P2
+This is about as cryptic as it can be,
+but with practice you can usually
+figure out how you goofed.

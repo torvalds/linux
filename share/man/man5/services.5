@@ -1,0 +1,98 @@
+.\"	$OpenBSD: services.5,v 1.14 2021/05/05 11:49:17 sthen Exp $
+.\"	$NetBSD: services.5,v 1.3 1994/11/30 19:31:31 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)services.5	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: May 5 2021 $
+.Dt SERVICES 5
+.Os
+.Sh NAME
+.Nm services
+.Nd service name database
+.Sh DESCRIPTION
+The
+.Nm
+file contains information regarding the known services available in the
+Internet.
+For each service, a single line should be present with the
+following information:
+.Bd -unfilled -offset indent
+official service name
+port number
+protocol name
+aliases
+.Ed
+.Pp
+Items are separated by any number of blanks and/or tab characters.
+The port number and protocol name are considered a single item; a slash
+.Pq Ql /
+is used to separate the port and protocol (e.g.,
+.Dq 512/tcp ) .
+.Pp
+A hash mark
+.Pq Ql #
+indicates the beginning of a comment; subsequent characters up to the
+end of the line are not interpreted by the routines which search the file.
+.Pp
+Service names may contain any printable character other than a
+field delimiter, newline, or comment character.
+.Pp
+To protect service ports from being used for dynamic port assignment,
+.Xr rc 8
+reads
+.Nm
+at boot and uses the contents to populate
+.Va net.inet.tcp.baddynamic
+and
+.Va net.inet.udp.baddynamic .
+.Pp
+While it is the policy of IANA to assign a single well-known port number
+for both TCP and UDP, to avoid reducing the dynamic port range unnecessarily,
+the unused entries are not always listed in
+.Nm .
+.Sh FILES
+.Bl -tag -width /etc/services -compact
+.It Pa /etc/services
+.El
+.Sh SEE ALSO
+.Xr getservent 3
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.2 .
+.Sh BUGS
+A name server should be used instead of a static file.
+Lines in
+.Pa /etc/services
+are limited to
+.Dv BUFSIZ
+characters (currently 1024).
+Longer lines will be ignored.

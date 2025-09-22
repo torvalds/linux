@@ -1,0 +1,161 @@
+.\"	$OpenBSD: SSL_CTX_set_session_id_context.3,v 1.7 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2001, 2004 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_SESSION_ID_CONTEXT 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_session_id_context ,
+.Nm SSL_set_session_id_context
+.Nd set context within which session can be reused (server side only)
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fo SSL_CTX_set_session_id_context
+.Fa "SSL_CTX *ctx"
+.Fa "const unsigned char *sid_ctx"
+.Fa "unsigned int sid_ctx_len"
+.Fc
+.Ft int
+.Fo SSL_set_session_id_context
+.Fa "SSL *ssl"
+.Fa "const unsigned char *sid_ctx"
+.Fa "unsigned int sid_ctx_len"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_session_id_context
+sets the context
+.Fa sid_ctx
+of length
+.Fa sid_ctx_len
+within which a session can be reused for the
+.Fa ctx
+object.
+.Pp
+.Fn SSL_set_session_id_context
+sets the context
+.Fa sid_ctx
+of length
+.Fa sid_ctx_len
+within which a session can be reused for the
+.Fa ssl
+object.
+.Pp
+Sessions are generated within a certain context.
+When exporting/importing sessions with
+.Xr i2d_SSL_SESSION 3
+and
+.Xr d2i_SSL_SESSION 3 ,
+it would be possible to re-import a session generated from another context
+(e.g., another application), which might lead to malfunctions.
+Therefore each application must set its own session id context
+.Fa sid_ctx
+which is used to distinguish the contexts and is stored in exported sessions.
+The
+.Fa sid_ctx
+can be any kind of binary data with a given length; it is therefore possible
+to use, for instance, the name of the application, the hostname, the service
+name...
+.Pp
+The session id context becomes part of the session.
+The session id context is set by the SSL/TLS server.
+The
+.Fn SSL_CTX_set_session_id_context
+and
+.Fn SSL_set_session_id_context
+functions are therefore only useful on the server side.
+.Pp
+OpenSSL clients will check the session id context returned by the server when
+reusing a session.
+.Pp
+The maximum length of the
+.Fa sid_ctx
+is limited to
+.Dv SSL_MAX_SSL_SESSION_ID_LENGTH .
+.Sh WARNINGS
+If the session id context is not set on an SSL/TLS server and client
+certificates are used, stored sessions will not be reused but a fatal error
+will be flagged and the handshake will fail.
+.Pp
+If a server returns a different session id context to an OpenSSL client
+when reusing a session, an error will be flagged and the handshake will
+fail.
+OpenSSL servers will always return the correct session id context,
+as an OpenSSL server checks the session id context itself before reusing
+a session as described above.
+.Sh RETURN VALUES
+.Fn SSL_CTX_set_session_id_context
+and
+.Fn SSL_set_session_id_context
+return the following values:
+.Bl -tag -width Ds
+.It 0
+The length
+.Fa sid_ctx_len
+of the session id context
+.Fa sid_ctx
+exceeded
+the maximum allowed length of
+.Dv SSL_MAX_SSL_SESSION_ID_LENGTH .
+The error is logged to the error stack.
+.It 1
+The operation succeeded.
+.El
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_SESSION_set1_id_context 3
+.Sh HISTORY
+.Fn SSL_set_session_id_context
+first appeared in OpenSSL 0.9.2b.
+.Fn SSL_CTX_set_session_id_context
+first appeared in OpenSSL 0.9.3.
+Both functions have been available since
+.Ox 2.6 .

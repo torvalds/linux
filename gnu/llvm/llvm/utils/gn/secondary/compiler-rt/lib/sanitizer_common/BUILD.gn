@@ -1,0 +1,221 @@
+source_set("sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  deps = [ "//llvm/utils/gn/build/libs/pthread" ]
+  libs = []
+  if (current_os == "linux" || current_os == "android") {
+    libs += [ "dl" ]
+  }
+  if (current_os == "linux") {
+    libs += [ "rt" ]
+  }
+  sources = [
+    "sancov_flags.cpp",
+    "sancov_flags.h",
+    "sanitizer_addrhashmap.h",
+    "sanitizer_allocator.cpp",
+    "sanitizer_allocator.h",
+    "sanitizer_allocator_checks.cpp",
+    "sanitizer_allocator_checks.h",
+    "sanitizer_allocator_combined.h",
+    "sanitizer_allocator_dlsym.h",
+    "sanitizer_allocator_interface.h",
+    "sanitizer_allocator_internal.h",
+    "sanitizer_allocator_local_cache.h",
+    "sanitizer_allocator_primary32.h",
+    "sanitizer_allocator_primary64.h",
+    "sanitizer_allocator_report.cpp",
+    "sanitizer_allocator_report.h",
+    "sanitizer_allocator_secondary.h",
+    "sanitizer_allocator_size_class_map.h",
+    "sanitizer_allocator_stats.h",
+    "sanitizer_array_ref.h",
+    "sanitizer_asm.h",
+    "sanitizer_atomic.h",
+    "sanitizer_atomic_clang.h",
+    "sanitizer_atomic_msvc.h",
+    "sanitizer_bitvector.h",
+    "sanitizer_bvgraph.h",
+    "sanitizer_chained_origin_depot.cpp",
+    "sanitizer_chained_origin_depot.h",
+    "sanitizer_common.cpp",
+    "sanitizer_common.h",
+    "sanitizer_common_libcdep.cpp",
+    "sanitizer_coverage_fuchsia.cpp",
+    "sanitizer_coverage_libcdep_new.cpp",
+    "sanitizer_coverage_win_sections.cpp",
+    "sanitizer_dbghelp.h",
+    "sanitizer_deadlock_detector.h",
+    "sanitizer_deadlock_detector1.cpp",
+    "sanitizer_deadlock_detector2.cpp",
+    "sanitizer_deadlock_detector_interface.h",
+    "sanitizer_dense_map.h",
+    "sanitizer_dense_map_info.h",
+    "sanitizer_dl.cpp",
+    "sanitizer_dl.h",
+    "sanitizer_errno.cpp",
+    "sanitizer_errno.h",
+    "sanitizer_errno_codes.h",
+    "sanitizer_file.cpp",
+    "sanitizer_file.h",
+    "sanitizer_flag_parser.cpp",
+    "sanitizer_flag_parser.h",
+    "sanitizer_flags.cpp",
+    "sanitizer_flags.h",
+    "sanitizer_flat_map.h",
+    "sanitizer_fuchsia.cpp",
+    "sanitizer_fuchsia.h",
+    "sanitizer_getauxval.h",
+    "sanitizer_hash.h",
+    "sanitizer_interface_internal.h",
+    "sanitizer_internal_defs.h",
+    "sanitizer_leb128.h",
+    "sanitizer_lfstack.h",
+    "sanitizer_libc.cpp",
+    "sanitizer_libc.h",
+    "sanitizer_libignore.cpp",
+    "sanitizer_libignore.h",
+    "sanitizer_linux.cpp",
+    "sanitizer_linux.h",
+    "sanitizer_linux_libcdep.cpp",
+    "sanitizer_linux_s390.cpp",
+    "sanitizer_list.h",
+    "sanitizer_local_address_space_view.h",
+    "sanitizer_lzw.h",
+    "sanitizer_mac.cpp",
+    "sanitizer_mac.h",
+    "sanitizer_mac_libcdep.cpp",
+    "sanitizer_mutex.cpp",
+    "sanitizer_mutex.h",
+    "sanitizer_netbsd.cpp",
+    "sanitizer_placement_new.h",
+    "sanitizer_platform.h",
+    "sanitizer_platform_interceptors.h",
+    "sanitizer_platform_limits_freebsd.cpp",
+    "sanitizer_platform_limits_linux.cpp",
+    "sanitizer_platform_limits_netbsd.cpp",
+    "sanitizer_platform_limits_netbsd.h",
+    "sanitizer_platform_limits_posix.cpp",
+    "sanitizer_platform_limits_posix.h",
+    "sanitizer_platform_limits_solaris.cpp",
+    "sanitizer_platform_limits_solaris.h",
+    "sanitizer_posix.cpp",
+    "sanitizer_posix.h",
+    "sanitizer_posix_libcdep.cpp",
+    "sanitizer_printf.cpp",
+    "sanitizer_procmaps.h",
+    "sanitizer_procmaps_bsd.cpp",
+    "sanitizer_procmaps_common.cpp",
+    "sanitizer_procmaps_fuchsia.cpp",
+    "sanitizer_procmaps_linux.cpp",
+    "sanitizer_procmaps_mac.cpp",
+    "sanitizer_procmaps_solaris.cpp",
+    "sanitizer_ptrauth.h",
+    "sanitizer_quarantine.h",
+    "sanitizer_range.cpp",
+    "sanitizer_range.h",
+    "sanitizer_redefine_builtins.h",
+    "sanitizer_report_decorator.h",
+    "sanitizer_ring_buffer.h",
+    "sanitizer_solaris.cpp",
+    "sanitizer_stack_store.cpp",
+    "sanitizer_stack_store.h",
+    "sanitizer_stackdepot.cpp",
+    "sanitizer_stackdepot.h",
+    "sanitizer_stackdepotbase.h",
+    "sanitizer_stacktrace.cpp",
+    "sanitizer_stacktrace.h",
+    "sanitizer_stacktrace_libcdep.cpp",
+    "sanitizer_stacktrace_printer.cpp",
+    "sanitizer_stacktrace_printer.h",
+    "sanitizer_stacktrace_sparc.cpp",
+    "sanitizer_stoptheworld.h",
+    "sanitizer_stoptheworld_fuchsia.cpp",
+    "sanitizer_stoptheworld_linux_libcdep.cpp",
+    "sanitizer_stoptheworld_mac.cpp",
+    "sanitizer_stoptheworld_netbsd_libcdep.cpp",
+    "sanitizer_stoptheworld_win.cpp",
+    "sanitizer_suppressions.cpp",
+    "sanitizer_suppressions.h",
+    "sanitizer_symbolizer.cpp",
+    "sanitizer_symbolizer.h",
+    "sanitizer_symbolizer_internal.h",
+    "sanitizer_symbolizer_libbacktrace.cpp",
+    "sanitizer_symbolizer_libbacktrace.h",
+    "sanitizer_symbolizer_libcdep.cpp",
+    "sanitizer_symbolizer_mac.cpp",
+    "sanitizer_symbolizer_mac.h",
+    "sanitizer_symbolizer_markup.cpp",
+    "sanitizer_symbolizer_markup.h",
+    "sanitizer_symbolizer_markup_constants.h",
+    "sanitizer_symbolizer_markup_fuchsia.cpp",
+    "sanitizer_symbolizer_posix_libcdep.cpp",
+    "sanitizer_symbolizer_report.cpp",
+    "sanitizer_symbolizer_report_fuchsia.cpp",
+    "sanitizer_symbolizer_win.cpp",
+    "sanitizer_termination.cpp",
+    "sanitizer_thread_arg_retval.cpp",
+    "sanitizer_thread_registry.cpp",
+    "sanitizer_thread_registry.h",
+    "sanitizer_thread_safety.h",
+    "sanitizer_tls_get_addr.cpp",
+    "sanitizer_tls_get_addr.h",
+    "sanitizer_type_traits.cpp",
+    "sanitizer_unwind_fuchsia.cpp",
+    "sanitizer_unwind_linux_libcdep.cpp",
+    "sanitizer_unwind_win.cpp",
+    "sanitizer_vector.h",
+    "sanitizer_win.cpp",
+    "sanitizer_win.h",
+    "sanitizer_win_defs.h",
+    "sanitizer_win_dll_thunk.h",
+    "sanitizer_win_weak_interception.h",
+  ]
+}
+
+source_set("weak_interception") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  sources = [
+    "sanitizer_coverage_win_weak_interception.cpp",
+    "sanitizer_win_weak_interception.cpp",
+  ]
+  defines = [ "SANITIZER_DYNAMIC" ]
+}
+
+source_set("dll_thunk") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  sources = [
+    "sanitizer_coverage_win_dll_thunk.cpp",
+    "sanitizer_coverage_win_sections.cpp",
+    "sanitizer_win_dll_thunk.cpp",
+  ]
+  defines = [ "SANITIZER_DLL_THUNK" ]
+}
+
+source_set("dynamic_runtime_thunk") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  sources = [
+    "sanitizer_coverage_win_dynamic_runtime_thunk.cpp",
+    "sanitizer_coverage_win_sections.cpp",
+    "sanitizer_win_dynamic_runtime_thunk.cpp",
+  ]
+  defines = [ "SANITIZER_DYNAMIC_RUNTIME_THUNK" ]
+  cflags = []
+  if (current_os == "win") {
+    cflags += [ "-Zl" ]
+  }
+}
+
+# Libc functions stubs. These sources should be linked instead of
+# SANITIZER_LIBCDEP_SOURCES when sanitizer_common library must not depend on
+# libc. This is currently unreferenced and exists to make
+# sync_source_lists_from_cmake happy.
+source_set("nolibc_sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  deps = [ "//llvm/utils/gn/build/libs/pthread" ]
+  sources = [ "sanitizer_common_nolibc.cpp" ]
+}

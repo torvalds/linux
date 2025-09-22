@@ -1,0 +1,460 @@
+.\"	$OpenBSD: getopt_long.3,v 1.25 2022/09/11 06:38:11 jmc Exp $
+.\"	$NetBSD: getopt_long.3,v 1.11 2002/10/02 10:54:19 wiz Exp $
+.\"
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getopt.3	8.5 (Berkeley) 4/27/95
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt GETOPT_LONG 3
+.Os
+.Sh NAME
+.Nm getopt_long ,
+.Nm getopt_long_only
+.Nd get long options from command line argument list
+.Sh SYNOPSIS
+.In getopt.h
+.Vt extern char *optarg;
+.Vt extern int optind;
+.Vt extern int optopt;
+.Vt extern int opterr;
+.Vt extern int optreset;
+.Ft int
+.Fn getopt_long "int argc" "char * const *argv" "const char *optstring" "const struct option *longopts" "int *longindex"
+.Ft int
+.Fn getopt_long_only "int argc" "char * const *argv" "const char *optstring" "const struct option *longopts" "int *longindex"
+.Sh DESCRIPTION
+The
+.Fn getopt_long
+function is similar to
+.Xr getopt 3
+but it accepts options in two forms: words and characters.
+The
+.Fn getopt_long
+function provides a superset of the functionality of
+.Xr getopt 3 .
+.Fn getopt_long
+can be used in two ways.
+In the first way, every long option understood by the program has a
+corresponding short option, and the option structure is only used to
+translate from long options to short options.
+When used in this fashion,
+.Fn getopt_long
+behaves identically to
+.Xr getopt 3 .
+This is a good way to add long option processing to an existing program
+with the minimum of rewriting.
+.Pp
+In the second mechanism, a long option sets a flag in the
+.Fa option
+structure passed, or will store a pointer to the command line argument
+in the
+.Fa option
+structure passed to it for options that take arguments.
+Additionally, the long option's argument may be specified as a single
+argument with an equal sign, e.g.
+.Bd -literal -offset indent
+$ myprogram --myoption=somevalue
+.Ed
+.Pp
+When a long option is processed, the call to
+.Fn getopt_long
+will return 0.
+For this reason, long option processing without
+shortcuts is not backwards compatible with
+.Xr getopt 3 .
+.Pp
+It is possible to combine these methods, providing for long options
+processing with short option equivalents for some options.
+Less frequently used options would be processed as long options only.
+.Pp
+Abbreviated long option names are accepted when
+.Fn getopt_long
+processes long options if the abbreviation is unique.
+An exact match is always preferred for a defined long option.
+.Pp
+By default,
+.Fn getopt_long
+permutes
+.Ar argv
+such that all option arguments are evaluated before any non-options arguments.
+If the first character of
+.Fa optstring
+is a plus sign
+.Pq Ql +
+or if the environment variable
+.Ev POSIXLY_CORRECT
+is set, then
+.Ar argv
+is processed in order and option processing stops as soon as the first
+non-option argument is encountered.
+.Pp
+The
+.Fn getopt_long
+call requires an array to be initialized describing the long
+options.
+Each element of the array is a structure:
+.Bd -literal -offset indent
+struct option {
+	char *name;
+	int has_arg;
+	int *flag;
+	int val;
+};
+.Ed
+.Pp
+The
+.Fa name
+field should contain the option name without the leading double dash.
+.Pp
+The
+.Fa has_arg
+field should be one of:
+.Pp
+.Bl -tag -width "optional_argument" -compact -offset indent
+.It Dv no_argument
+no argument to the option is expected.
+.It Dv required_argument
+an argument to the option is required.
+.It Dv optional_argument
+an argument to the option may be presented.
+.El
+.Pp
+If
+.Fa flag
+is not
+.Dv NULL ,
+then the integer pointed to by it will be set to the value in the
+.Fa val
+field.
+If the
+.Fa flag
+field is
+.Dv NULL ,
+then the
+.Fa val
+field will be returned.
+Setting
+.Fa flag
+to
+.Dv NULL
+and setting
+.Fa val
+to the corresponding short option will make this function act just
+like
+.Xr getopt 3 .
+.Pp
+If the
+.Fa longindex
+argument is not
+.Dv NULL ,
+then the integer pointed to by it will be set to the index of the long
+option relative to
+.Fa longopts .
+.Pp
+The last element of the
+.Fa longopts
+array has to be filled with zeroes.
+.Pp
+The
+.Fn getopt_long_only
+function behaves identically to
+.Fn getopt_long
+with the exception that long options may start with
+.Sq -
+in addition to
+.Sq -- .
+If an option starting with
+.Sq -
+does not match a long option but does match a single-character option,
+the single-character option is returned.
+.Sh RETURN VALUES
+If the
+.Fa flag
+field in
+.Vt struct option
+is
+.Dv NULL ,
+.Fn getopt_long
+and
+.Fn getopt_long_only
+return the value specified in the
+.Fa val
+field, which is usually just the corresponding short option.
+If
+.Fa flag
+is not
+.Dv NULL ,
+these functions return 0 and store
+.Fa val
+in the location pointed to by
+.Fa flag .
+These functions return
+.Sq \&:
+if there was a missing option argument,
+.Sq \&?
+if the user specified an unknown or ambiguous option, and
+\-1 when the argument list has been exhausted.
+.Sh IMPLEMENTATION DIFFERENCES
+This section describes differences to the GNU implementation
+found in glibc-2.1.3:
+.Bl -bullet
+.It
+handling of
+.Ql -
+within the option string (not the first character):
+.Bl -tag -width "OpenBSD"
+.It GNU
+treats a
+.Ql -
+on the command line as a non-argument.
+.It OpenBSD
+a
+.Ql -
+within the option string matches a
+.Ql -
+(single dash) on the command line.
+This functionality is provided for backward compatibility with
+programs, such as
+.Xr su 1 ,
+that use
+.Ql -
+as an option flag.
+This practice is wrong, and should not be used in any current development.
+.El
+.It
+handling of
+.Ql ::
+in the option string in the presence of
+.Ev POSIXLY_CORRECT :
+.Bl -tag -width "OpenBSD"
+.It Both
+GNU and
+.Ox
+ignore
+.Ev POSIXLY_CORRECT
+here and take
+.Ql ::
+to mean the preceding option takes an optional argument.
+.El
+.It
+return value in case of missing argument if first character
+(after
+.Ql +
+or
+.Ql - )
+in the option string is not
+.Ql \&: :
+.Bl -tag -width "OpenBSD"
+.It GNU
+returns
+.Ql \&?
+.It OpenBSD
+returns
+.Ql \&:
+(since
+.Ox Ns 's
+.Xr getopt 3
+does).
+.El
+.It
+handling of
+.Ql --a
+in
+.Xr getopt 3 :
+.Bl -tag -width "OpenBSD"
+.It GNU
+parses this as option
+.Ql - ,
+option
+.Ql a .
+.It OpenBSD
+parses this as
+.Ql -- ,
+and returns \-1 (ignoring the
+.Ql a )
+(because the original
+.Fn getopt
+did.)
+.El
+.It
+setting of
+.Va optopt
+for long options with
+.Va flag
+.No non- Ns Dv NULL :
+.Bl -tag -width "OpenBSD"
+.It GNU
+sets
+.Va optopt
+to
+.Va val .
+.It OpenBSD
+sets
+.Va optopt
+to 0 (since
+.Va val
+would never be returned).
+.El
+.It
+handling of
+.Ql -W
+with
+.Ql W;
+in the option string in
+.Xr getopt 3
+(not
+.Fn getopt_long ) :
+.Bl -tag -width "OpenBSD"
+.It GNU
+causes a segmentation fault.
+.It OpenBSD
+no special handling is done;
+.Ql W;
+is interpreted as two separate options, neither of which take an argument.
+.El
+.It
+setting of
+.Va optarg
+for long options without an argument that are invoked via
+.Ql -W
+(with
+.Ql W;
+in the option string):
+.Bl -tag -width "OpenBSD"
+.It GNU
+sets
+.Va optarg
+to the option name (the argument of
+.Ql -W ) .
+.It OpenBSD
+sets
+.Va optarg
+to
+.Dv NULL
+(the argument of the long option).
+.El
+.It
+handling of
+.Ql -W
+with an argument that is not (a prefix to) a known long option
+(with
+.Ql W;
+in the option string):
+.Bl -tag -width "OpenBSD"
+.It GNU
+returns
+.Ql -W
+with
+.Va optarg
+set to the unknown option.
+.It OpenBSD
+treats this as an error (unknown option) and returns
+.Ql \&?
+with
+.Va optopt
+set to 0 and
+.Va optarg
+set to
+.Dv NULL
+(as GNU's man page documents).
+.El
+.It
+The error messages are different.
+.It
+.Ox
+does not permute the argument vector at the same points in
+the calling sequence as GNU does.
+The aspects normally used by the caller
+(ordering after \-1 is returned, value of
+.Va optind
+relative to current positions) are the same, though.
+(We do fewer variable swaps.)
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width Ev
+.It Ev POSIXLY_CORRECT
+If set, option processing stops when the first non-option is found and
+a leading
+.Sq +
+in the
+.Ar optstring
+is ignored.
+.El
+.Sh EXAMPLES
+.Bd -literal
+int bflag, ch, fd;
+int daggerset;
+
+/* options descriptor */
+static struct option longopts[] = {
+	{ "buffy",	no_argument,		NULL, 		'b' },
+	{ "fluoride",	required_argument,	NULL, 	       	'f' },
+	{ "daggerset",	no_argument,		&daggerset,	1 },
+	{ NULL, 	0,			NULL, 		0 }
+};
+
+bflag = 0;
+while ((ch = getopt_long(argc, argv, "bf:", longopts, NULL)) != -1)
+	switch (ch) {
+	case 'b':
+		bflag = 1;
+		break;
+	case 'f':
+		if ((fd = open(optarg, O_RDONLY)) == -1)
+			err(1, "unable to open %s", optarg);
+		break;
+	case 0:
+		if (daggerset)
+			fprintf(stderr, "Buffy will use her dagger to "
+			    "apply fluoride to dracula's teeth\en");
+		break;
+	default:
+		usage();
+	}
+argc -= optind;
+argv += optind;
+.Ed
+.Sh SEE ALSO
+.Xr getopt 3
+.Sh HISTORY
+The
+.Fn getopt_long
+and
+.Fn getopt_long_only
+functions first appeared in GNU libiberty.
+This implementation first appeared in
+.Ox 3.3 .
+.Sh BUGS
+The
+.Ar argv
+argument is not really
+.Dv const
+as its elements may be permuted (unless
+.Ev POSIXLY_CORRECT
+is set).

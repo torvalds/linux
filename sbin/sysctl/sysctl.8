@@ -1,0 +1,189 @@
+.\"	$OpenBSD: sysctl.8,v 1.218 2025/04/29 17:44:00 jmc Exp $
+.\"	$NetBSD: sysctl.8,v 1.4 1995/09/30 07:12:49 thorpej Exp $
+.\"
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)sysctl.8	8.2 (Berkeley) 5/9/95
+.\"
+.Dd $Mdocdate: April 29 2025 $
+.Dt SYSCTL 8
+.Os
+.Sh NAME
+.Nm sysctl
+.Nd get or set kernel state
+.Sh SYNOPSIS
+.Nm sysctl
+.Op Fl Aanq
+.Op Fl f Ar file
+.Op Ar name Ns Oo = Ns Ar value Oc Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility retrieves kernel state and allows processes with
+appropriate privilege to set kernel state.
+The state to be retrieved or set is described using a
+.Dq Management Information Base
+.Pq MIB
+style name, using a dotted set of components.
+.Pp
+When retrieving a variable,
+a subset of the MIB name may be specified to retrieve a list of
+variables in that subset.
+For example, to list all the machdep variables:
+.Pp
+.Dl $ sysctl machdep
+.Pp
+The options are as follows:
+.Bl -tag -width xxx
+.It Fl A
+List all the known MIB names including tables.
+Those with string or integer values will be printed as with the
+.Fl a
+flag; for the table values, the name of the utility to retrieve them is given.
+.It Fl a
+List all the currently available string or integer values.
+This is the default, if no parameters are given to
+.Nm .
+.It Fl f Ar file
+Process
+.Ar name Ns Op = Ns Ar value
+arguments from
+.Ar file
+in
+.Xr sysctl.conf 5
+format.
+.It Fl n
+Suppress printing of the field name, only output the field value.
+Useful for setting shell variables.
+For example, to set the psize shell variable to the pagesize of the hardware:
+.Pp
+.Dl # set psize=`sysctl -n hw.pagesize`
+.It Fl q
+Suppress all output when setting a variable.
+This option overrides the behaviour of
+.Fl n .
+.It Ar name Ns Op = Ns Ar value
+Retrieve the specified variable
+.Ar name ,
+or attempt to set it to
+.Ar value .
+Multiple
+.Ar name Ns Op = Ns Ar value
+arguments may be given.
+If given,
+.Fl f Ar file
+is processed first.
+.El
+.Pp
+The information available from
+.Nm
+consists of integers, strings, and tables.
+For a detailed description of the variables, see
+.Xr sysctl 2 .
+Tables can only be retrieved by special purpose programs such as
+.Xr ps 1 ,
+.Xr systat 1 ,
+and
+.Xr netstat 1 .
+.Pp
+.Nm
+can extract information about the filesystems that have been compiled
+into the running system.
+This information can be obtained by using the command:
+.Pp
+.Dl $ sysctl vfs.mounts
+.Pp
+By default, only filesystems that are actively being used are listed.
+Use of the
+.Fl A
+flag lists all the filesystems compiled into the running kernel.
+.Sh FILES
+.Bl -tag -width "/etc/sysctl.confXX" -compact
+.It Pa /etc/sysctl.conf
+sysctl variables to set at system startup
+.El
+.Sh EXAMPLES
+To retrieve the maximum number of processes allowed
+in the system:
+.Pp
+.Dl $ sysctl kern.maxproc
+.Pp
+To set the maximum number of processes allowed
+in the system to 1000:
+.Pp
+.Dl # sysctl kern.maxproc=1000
+.Pp
+To retrieve information about the system clock rate:
+.Pp
+.Dl $ sysctl kern.clockrate
+.Pp
+To retrieve information about the load average history:
+.Pp
+.Dl $ sysctl vm.loadavg
+.Pp
+To set the list of reserved TCP ports that should not be allocated
+by the kernel dynamically:
+.Pp
+.Dl # sysctl net.inet.tcp.baddynamic=749,750,751,760,761,871
+.Dl # sysctl net.inet.udp.baddynamic=749,750,751,760,761,871,1024-2048
+.Pp
+This can be used to keep daemons
+from stealing a specific port that another program needs to function.
+List elements may be separated by commas and/or whitespace;
+a hyphen may be used to specify a range of ports.
+.Pp
+It is also possible to add or remove ports from the current list:
+.Bd -literal -offset indent
+# sysctl net.inet.tcp.baddynamic=+748,+6000-6999
+# sysctl net.inet.tcp.baddynamic=-871
+.Ed
+.Pp
+To set the amount of shared memory available in the system and
+the maximum number of shared memory segments:
+.Bd -literal -offset indent
+# sysctl kern.shminfo.shmmax=33554432
+# sysctl kern.shminfo.shmseg=32
+.Ed
+.Pp
+To place core dumps from
+.Xr issetugid 2
+programs (in this example
+.Xr bgpd 8 )
+into a safe place for debugging purposes:
+.Bd -literal -offset indent
+# mkdir -m 700 /var/crash/bgpd
+# sysctl kern.nosuidcoredump=3
+.Ed
+.Sh SEE ALSO
+.Xr sysctl 2 ,
+.Xr options 4 ,
+.Xr sysctl.conf 5
+.Sh HISTORY
+.Nm
+first appeared in
+.Bx 4.4 .

@@ -1,0 +1,6 @@
+static_library("TargetInfo") {
+  output_name = "LLVMRISCVInfo"
+  deps = [ "//llvm/lib/Support" ]
+  include_dirs = [ ".." ]
+  sources = [ "RISCVTargetInfo.cpp" ]
+}

@@ -1,0 +1,159 @@
+//=== ---- PPCMacroFusion.def - PowerPC MacroFuson Candidates -v-*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https)//llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier) Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file contains descriptions of the macro-fusion pair for PowerPC.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+#ifndef FUSION_FEATURE
+
+// Each FUSION_FEATURE is assigned with one TYPE, and can be enabled/disabled
+// by HAS_FEATURE. The instructions pair is fusable only when the opcode
+// of the first instruction is in OPSET1, and the second instruction opcode is
+// in OPSET2. And if DEP_OP_IDX >=0, we will check the result of first OP is  
+// the operand of the second op with DEP_OP_IDX as its operand index. We assume
+// that the result of the first op is its operand zero. 
+#define FUSION_FEATURE(TYPE, HAS_FEATURE, DEP_OP_IDX, OPSET1, OPSET2)
+
+#endif
+
+#ifndef FUSION_OP_SET
+#define FUSION_OP_SET(...) __VA_ARGS__ 
+#endif
+
+// Power8 User Manual Section 10.1.12, Instruction Fusion 
+// {addi} followed by one of these {lxvd2x, lxvw4x, lxvdsx, lvebx, lvehx,
+// lvewx, lvx, lxsdx}
+FUSION_FEATURE(AddiLoad, hasAddiLoadFusion, 2, \
+               FUSION_OP_SET(ADDI, ADDI8, ADDItocL, ADDItocL8), \
+               FUSION_OP_SET(LXVD2X, LXVW4X, LXVDSX, LVEBX, LVEHX, LVEWX, \
+                             LVX, LXSDX))
+
+// {addis) followed by one of these {ld, lbz, lhz, lwz}
+FUSION_FEATURE(AddisLoad, hasAddisLoadFusion, 2, \
+               FUSION_OP_SET(ADDIS, ADDIS8, ADDIStocHA8), \
+               FUSION_OP_SET(LD, LBZ, LBZ8, LHZ, LHZ8, LWZ, LWZ8))
+
+// Power10 User Manual Section 19.1.5.4, Fusion
+// {add, mulld} - add
+FUSION_FEATURE(ArithAdd, hasArithAddFusion, -1,
+               FUSION_OP_SET(ADD4, ADD8, MULLD), FUSION_OP_SET(ADD4, ADD8))
+
+// {add, subf} - {and, nand, nor, or}
+FUSION_FEATURE(ArithLogical, hasAddLogicalFusion, -1,
+               FUSION_OP_SET(ADD4, ADD8, SUBF, SUBF8),
+               FUSION_OP_SET(AND, AND8, OR, OR8, NAND, NAND8, NOR, NOR8))
+
+// {and, andc, eqv, nand, nor, or, orc, xor} - {add, subf}
+FUSION_FEATURE(LogicalArith, hasLogicalAddFusion, -1,
+               FUSION_OP_SET(AND, ANDC, EQV, NAND, NOR, OR, ORC, XOR, AND8,
+                             ANDC8, EQV8, NAND8, NOR8, OR8, ORC8, XOR8),
+               FUSION_OP_SET(ADD4, ADD8, SUBF, SUBF8))
+
+// Either of {and, andc, eqv, nand, nor, or, orc, xor}
+FUSION_FEATURE(Logical, hasLogicalFusion, -1,
+               FUSION_OP_SET(AND, ANDC, EQV, NAND, NOR, OR, ORC, XOR, AND8,
+                             ANDC8, EQV8, NAND8, NOR8, OR8, ORC8, XOR8),
+               FUSION_OP_SET(AND, ANDC, EQV, NAND, NOR, OR, ORC, XOR, AND8,
+                             ANDC8, EQV8, NAND8, NOR8, OR8, ORC8, XOR8))
+
+// vaddudm - vaddudm
+FUSION_FEATURE(VecAdd, hasArithAddFusion, -1, FUSION_OP_SET(VADDUDM),
+               FUSION_OP_SET(VADDUDM))
+
+// Either of {vand, vandc, veqv, vnand, vnor, vor, vorc, vxor}
+FUSION_FEATURE(VecLogical, hasLogicalFusion, -1,
+               FUSION_OP_SET(VAND, VANDC, VEQV, VNAND, VNOR, VOR, VORC, VXOR),
+               FUSION_OP_SET(VAND, VANDC, VEQV, VNAND, VNOR, VOR, VORC, VXOR))
+
+// sldi rx, ra, {3, 6} - {add, subf}
+// sldi rx, ra n is alias of rldicr rx, ra, n, 63-n
+FUSION_FEATURE(SldiAdd, hasArithAddFusion, -1, FUSION_OP_SET(RLDICR, RLDICR_32),
+               FUSION_OP_SET(ADD4, ADD8, SUBF, SUBF8))
+
+// rldicl rx, ra, 1, 0  - xor
+FUSION_FEATURE(RotateLeftXor, hasSha3Fusion, 1,
+               FUSION_OP_SET(RLDICL, RLDICL_32, RLDICL_32_64),
+               FUSION_OP_SET(XOR, XOR8))
+
+// rldicr rx, ra, 1, 63 - xor
+FUSION_FEATURE(RotateRightXor, hasSha3Fusion, 1,
+               FUSION_OP_SET(RLDICR, RLDICR_32), FUSION_OP_SET(XOR, XOR8))
+
+// There're two special cases in 'load-compare' series, so we have to split
+// them into several pattern groups to fit into current framework. This can
+// be clearer once we switched to a more expressive approach.
+
+// { lbz,lbzx,lhz,lhzx,lwz,lwzx } - cmpi 0,1,rx,{ 0,1,-1 }
+// { lbz,lbzx,lhz,lhzx,lwz,lwzx } - cmpli 0,L,rx,{ 0,1 }
+FUSION_FEATURE(LoadCmp1, hasCompareFusion, 1,
+               FUSION_OP_SET(LBZ, LBZ8, LBZX, LBZX8, LBZXTLS, LBZXTLS_,
+                             LBZXTLS_32, LHZ, LHZ8, LHZX, LHZX8, LHZXTLS,
+                             LHZXTLS_, LHZXTLS_32, LWZ, LWZ8, LWZX, LWZX8,
+                             LWZXTLS, LWZXTLS_, LWZXTLS_32),
+               FUSION_OP_SET(CMPDI, CMPLDI, CMPLWI))
+
+// { ld,ldx } - cmpi 0,1,rx,{ 0,1,-1 }
+// { ld,ldx } - cmpli 0,1,rx,{ 0,1 }
+FUSION_FEATURE(LoadCmp2, hasCompareFusion, 1,
+               FUSION_OP_SET(LD, LDX, LDXTLS, LDXTLS_),
+               FUSION_OP_SET(CMPDI, CMPLDI))
+
+// { lha,lhax,lwa,lwax } - cmpi 0,L,rx,{ 0,1,-1 }
+FUSION_FEATURE(LoadCmp3, hasCompareFusion, 1,
+               FUSION_OP_SET(LHA, LHA8, LHAX, LHAX8, LWA, LWA_32, LWAX,
+                             LWAX_32),
+               FUSION_OP_SET(CMPLDI, CMPLWI))
+
+// ori - oris
+FUSION_FEATURE(OriOris, hasWideImmFusion, 1, FUSION_OP_SET(ORI, ORI8),
+               FUSION_OP_SET(ORIS, ORIS8))
+
+// lis - ori
+FUSION_FEATURE(LisOri, hasWideImmFusion, 1, FUSION_OP_SET(LIS, LIS8),
+               FUSION_OP_SET(ORI, ORI8))
+
+// oris - ori
+FUSION_FEATURE(OrisOri, hasWideImmFusion, 1, FUSION_OP_SET(ORIS, ORIS8),
+               FUSION_OP_SET(ORI, ORI8))
+
+// xori - xoris
+FUSION_FEATURE(XoriXoris, hasWideImmFusion, 1, FUSION_OP_SET(XORI, XORI8),
+               FUSION_OP_SET(XORIS, XORIS8))
+
+// xoris - xori
+FUSION_FEATURE(XorisXori, hasWideImmFusion, 1, FUSION_OP_SET(XORIS, XORIS8),
+               FUSION_OP_SET(XORI, XORI8))
+
+// addis rx,ra,si - addi rt,rx,SI, SI >= 0
+FUSION_FEATURE(AddisAddi, hasWideImmFusion, 1,
+               FUSION_OP_SET(ADDIS, ADDIS8, ADDIStocHA8, ADDIStocHA),
+               FUSION_OP_SET(ADDI, ADDI8, ADDItocL8, ADDItocL))
+
+// addi rx,ra,si - addis rt,rx,SI, ra > 0, SI >= 2
+FUSION_FEATURE(AddiAddis, hasWideImmFusion, 1,
+               FUSION_OP_SET(ADDI, ADDI8, ADDItocL8, ADDItocL),
+               FUSION_OP_SET(ADDIS, ADDIS8, ADDIStocHA8, ADDIStocHA))
+
+// mtctr - { bcctr,bcctrl }
+FUSION_FEATURE(ZeroMoveCTR, hasZeroMoveFusion, -1,
+               FUSION_OP_SET(MTCTR, MTCTRloop, MTSPR8, MTSPR),
+               FUSION_OP_SET(BCCTR, BCCTRn, BCCTR8, BCCTR8n, BCCTRL, BCCTRLn,
+                             BCCTRL8, BCCTRL8n, gBCCTR, gBCCTRL))
+
+// mtlr - { bclr,bclrl }
+FUSION_FEATURE(ZeroMoveLR, hasZeroMoveFusion, -1,
+               FUSION_OP_SET(MTLR8, MTLR, MTSPR8, MTSPR),
+               FUSION_OP_SET(BCLR, BCLRn, gBCLR, BCLRL, BCLRLn, gBCLRL))
+
+#include "PPCBack2BackFusion.def"
+
+#undef FUSION_FEATURE
+#undef FUSION_OP_SET

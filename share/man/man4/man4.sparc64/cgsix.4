@@ -1,0 +1,154 @@
+.\"	$OpenBSD: cgsix.4,v 1.22 2015/11/01 21:26:48 jmc Exp $
+.\"
+.\" Copyright (c) 2001 Jason L. Wright (jason@thought.net)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 1 2015 $
+.Dt CGSIX 4 sparc64
+.Os
+.Sh NAME
+.Nm cgsix
+.Nd accelerated 8-bit color frame buffer
+.Sh SYNOPSIS
+.Cd "cgsix* at sbus? flags 0x0"
+.Cd "wsdisplay* at cgsix?"
+.Sh DESCRIPTION
+The
+.Nm
+is an SBus color frame buffer with graphics acceleration,
+commonly found in the non
+.Sq creator
+SBus UltraSPARC workstations.
+.Pp
+The
+.Nm
+driver interfaces the frame buffer with the
+.Xr wscons 4
+console framework.
+It does not provide direct device driver entry points
+but makes its functions available via the internal
+.Xr wsdisplay 4
+interface.
+.Pp
+Different models exist, with various memory sizes and capabilities.
+The
+.Nm
+driver supports the four flavours:
+.Bl -item -offset indent -compact
+.It
+GX
+.It
+GX+
+.It
+Turbo GX (or TGX)
+.It
+Turbo GX+ (or TGX+)
+.El
+.Pp
+By default hardware acceleration is used to erase the screen and
+scroll text.
+By setting
+.Ar flags
+to
+.Ar 1
+(via
+.Xr config 8
+or
+.Xr boot_config 8 )
+this acceleration can be disabled.
+.Sh DISPLAY RESOLUTION
+If the
+.Nm
+frame buffer is used as the console display, a different resolution than the
+default 1152x900 can be selected by changing the OpenPROM environment.
+To change the default resolution, type the following:
+.Pp
+.Em \   ok
+setenv
+.Em output-device
+screen:r1280x1024x76
+.Pp
+to change to a 76Hz 1280x1024 resolution.
+.Pp
+If the
+.Nm
+frame buffer is a secondary display, or a serial console is used, the
+display resolution cannot be changed without using an
+.Em nvramrc
+OpenPROM script.
+Refer to the
+.Em Sun Frame Buffer FAQ
+for details.
+.Pp
+The
+.Nm
+frame buffer accepts the following resolutions:
+.Pp
+.Bl -tag -width screen:r1280x1024x76 -compact
+.It screen:r1024x768x60
+Super VGA 1024x768, with a refresh rate of 60Hz.
+Only available on TGX and TGX+.
+.It screen:r1024x768x70
+Super VGA 1024x768, with a refresh rate of 70Hz.
+Only available on TGX and TGX+.
+.It screen:r1024x768x76
+Super VGA 1024x768, with a refresh rate of 76Hz.
+Only available on TGX and TGX+.
+.It screen:r1024x800x74
+1024x800, with a refresh rate of 74Hz.
+Only available on TGX and TGX+.
+.It screen:r1024x800x85
+1024x800, with a refresh rate of 85Hz.
+Only available on GX+, TGX and TGX+.
+.It screen:r1152x900x66
+Standard 1152x900, with a refresh rate of 66Hz.
+.It screen:r1152x900x76
+Standard 1152x900, with a refresh rate of 76Hz.
+This is the default setting on GX and TGX.
+.It screen:r1280x1024x67
+High res 1280x1024, with a refresh rate of 67Hz.
+Only available on GX+ and TGX+.
+This is the default on GX+.
+.It screen:r1280x1024x76
+High res 1280x1024, with a refresh rate of 76Hz.
+Only available on TGX+, where this is the default setting.
+.It screen:r1600x1280x76
+High res 1600x1280, with a refresh rate of 76Hz.
+Only available on GX+ and TGX+.
+.El
+.Pp
+The 1600x1280 resolution is not officially supported by
+.Tn Sun
+on the GX+.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sbus 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4 ,
+.Xr boot_config 8 ,
+.Xr config 8
+.Rs
+.%T Sun Frame Buffer FAQ
+.%U http://www.sunhelp.org/faq/FrameBuffer.html
+.Re

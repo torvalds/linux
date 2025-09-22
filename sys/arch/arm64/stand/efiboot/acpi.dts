@@ -1,0 +1,56 @@
+/dts-v1/;
+
+/ {
+	model = "ACPI";
+	compatible = "openbsd,acpi";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+		status = "disabled";
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <0 0 0>, <0 0 0>, <0 0 0>, <0 0 0>;
+		status = "disabled";
+	};
+
+	gic: interrupt-controller@0 {
+		compatible = "openbsd,gic";
+		#interrupt-cells = <3>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		interrupt-controller;
+		ranges;
+		reg = <0x0 0x0 0x0 0x0>, <0x0 0x0 0x0 0x0>;
+		status = "disabled";
+	};
+
+	uart0: serial@0 {
+		compatible = "openbsd,uart";
+		reg = <0x0 0x0 0x0 0x0>;
+		status = "disabled";
+	};
+
+	acpi@0 {
+		compatible = "openbsd,acpi-5.0";
+		reg = <0x0 0x0 0x0 0x0>;
+	};
+};

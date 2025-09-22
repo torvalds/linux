@@ -1,0 +1,284 @@
+.\"	$OpenBSD: X509_NAME_add_entry_by_txt.3,v 1.17 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL aebb9aac Jul 19 09:27:53 2016 -0400
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2005, 2006, 2013, 2014 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_NAME_ADD_ENTRY_BY_TXT 3
+.Os
+.Sh NAME
+.Nm X509_NAME_add_entry_by_txt ,
+.Nm X509_NAME_add_entry_by_OBJ ,
+.Nm X509_NAME_add_entry_by_NID ,
+.Nm X509_NAME_add_entry ,
+.Nm X509_NAME_delete_entry
+.Nd X509_NAME modification functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_NAME_add_entry_by_txt
+.Fa "X509_NAME *name"
+.Fa "const char *field"
+.Fa "int type"
+.Fa "const unsigned char *bytes"
+.Fa "int len"
+.Fa "int loc"
+.Fa "int set"
+.Fc
+.Ft int
+.Fo X509_NAME_add_entry_by_OBJ
+.Fa "X509_NAME *name"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "int type"
+.Fa "const unsigned char *bytes"
+.Fa "int len"
+.Fa "int loc"
+.Fa "int set"
+.Fc
+.Ft int
+.Fo X509_NAME_add_entry_by_NID
+.Fa "X509_NAME *name"
+.Fa "int nid"
+.Fa "int type"
+.Fa "const unsigned char *bytes"
+.Fa "int len"
+.Fa "int loc"
+.Fa "int set"
+.Fc
+.Ft int
+.Fo X509_NAME_add_entry
+.Fa "X509_NAME *name"
+.Fa "const X509_NAME_ENTRY *ne"
+.Fa "int loc"
+.Fa "int set"
+.Fc
+.Ft X509_NAME_ENTRY *
+.Fo X509_NAME_delete_entry
+.Fa "X509_NAME *name"
+.Fa "int loc"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_NAME_add_entry_by_txt ,
+.Fn X509_NAME_add_entry_by_OBJ ,
+and
+.Fn X509_NAME_add_entry_by_NID
+add a field whose name is defined by a string
+.Fa field ,
+an object
+.Fa obj
+or a NID
+.Fa nid ,
+respectively.
+The field value to be added is in
+.Fa bytes
+of length
+.Fa len .
+If
+.Fa len
+is -1 then the field length is calculated internally using
+.Fn strlen bytes .
+.Pp
+The type of field is determined by
+.Fa type
+which can either be a definition of the type of
+.Fa bytes
+(such as
+.Dv MBSTRING_ASC )
+or a standard ASN.1 type (such as
+.Dv V_ASN1_IA5STRING ) .
+The new entry is added to a position determined by
+.Fa loc
+and
+.Fa set .
+.Pp
+.Fn X509_NAME_add_entry
+adds a copy of an
+.Vt X509_NAME_ENTRY
+structure
+.Fa ne
+to
+.Fa name .
+The new entry is added to a position determined by
+.Fa loc
+and
+.Fa set .
+Since a copy of
+.Fa ne
+is added,
+.Fa ne
+must be freed up after the call.
+.Pp
+.Fn X509_NAME_delete_entry
+deletes an entry from
+.Fa name
+at position
+.Fa loc .
+The deleted entry is returned and must be freed up.
+.Pp
+The use of string types such as
+.Dv MBSTRING_ASC
+or
+.Dv MBSTRING_UTF8
+is strongly recommended for the
+.Fa type
+parameter.
+This allows the internal code to correctly determine the type of the
+field and to apply length checks according to the relevant standards.
+.Pp
+If instead an ASN.1 type is used, no checks are performed and the supplied
+data in
+.Fa bytes
+is used directly.
+.Pp
+In
+.Fn X509_NAME_add_entry_by_txt
+the
+.Fa field
+string represents the field name using
+.Fn OBJ_txt2obj field 0 .
+.Pp
+The
+.Fa loc
+and
+.Fa set
+parameters determine where a new entry should be added.
+For almost all applications,
+.Fa loc
+can be set to -1 and
+.Fa set
+to 0.
+This adds a new entry to the end of
+.Fa name
+as a single valued
+.Vt RelativeDistinguishedName
+(RDN).
+.Pp
+.Fa loc
+actually determines the index where the new entry is inserted:
+if it is -1 it is appended.
+.Pp
+.Fa set
+determines how the new type is added.
+If it is zero, a new RDN is created.
+.Pp
+If
+.Fa set
+is -1 or 1, it is added to the previous or next RDN structure
+respectively.
+This will then be a multivalued RDN: since multivalue RDNs are very
+seldom used,
+.Fa set
+is almost always set to zero.
+.Sh RETURN VALUES
+.Fn X509_NAME_add_entry_by_txt ,
+.Fn X509_NAME_add_entry_by_OBJ ,
+.Fn X509_NAME_add_entry_by_NID ,
+and
+.Fn X509_NAME_add_entry
+return 1 for success or 0 if an error occurred.
+.Pp
+.Fn X509_NAME_delete_entry
+returns either the deleted
+.Vt X509_NAME_ENTRY
+structure or
+.Dv NULL
+if an error occurred.
+.Pp
+In some cases of failure, the reason can be determined with
+.Xr ERR_get_error 3 .
+.Sh EXAMPLES
+Create an
+.Vt X509_NAME
+structure:
+.Bd -literal -offset indent
+C=UK, O=Disorganized Organization, CN=Joe Bloggs
+
+X509_NAME *nm;
+nm = X509_NAME_new();
+if (nm == NULL)
+	/* Some error */
+if (!X509_NAME_add_entry_by_txt(nm, "C", MBSTRING_ASC,
+		"UK", -1, -1, 0))
+	/* Error */
+if (!X509_NAME_add_entry_by_txt(nm, "O", MBSTRING_ASC,
+		"Disorganized Organization", -1, -1, 0))
+	/* Error */
+if (!X509_NAME_add_entry_by_txt(nm, "CN", MBSTRING_ASC,
+		"Joe Bloggs", -1, -1, 0))
+	/* Error */
+.Ed
+.Sh SEE ALSO
+.Xr d2i_X509_NAME 3 ,
+.Xr X509_NAME_ENTRY_get_object 3 ,
+.Xr X509_NAME_get_index_by_NID 3 ,
+.Xr X509_NAME_new 3
+.Sh HISTORY
+.Fn X509_NAME_add_entry
+and
+.Fn X509_NAME_delete_entry
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_NAME_add_entry_by_txt ,
+.Fn X509_NAME_add_entry_by_OBJ ,
+and
+.Fn X509_NAME_add_entry_by_NID
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Sh BUGS
+.Fa type
+can still be set to
+.Dv V_ASN1_APP_CHOOSE
+to use
+.Xr ASN1_PRINTABLE_type 3
+to determine field types.
+Since this form does not understand multicharacter types, performs
+no length checks, and can result in invalid field types, its use
+is strongly discouraged.

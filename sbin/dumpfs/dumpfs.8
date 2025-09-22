@@ -1,0 +1,80 @@
+.\"	$OpenBSD: dumpfs.8,v 1.10 2007/05/31 19:19:44 jmc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)dumpfs.8	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt DUMPFS 8
+.Os
+.Sh NAME
+.Nm dumpfs
+.Nd dump file system information
+.Sh SYNOPSIS
+.Nm dumpfs
+.Op Fl m
+.Ar filesys | device
+.Sh DESCRIPTION
+.Nm
+prints out the super block and cylinder group information
+for the file system or special device specified, unless
+.Fl m
+is specified.
+The listing is very long and detailed.
+.Pp
+.Nm
+is useful mostly for finding out certain file system
+information such as the file system block size, minimum
+free space percentage, and the file system level that
+can be upgraded with the
+.Fl c
+option of
+.Xr fsck_ffs 8 .
+All of this information can be found within the first twenty
+lines of the output.
+.Pp
+If
+.Fl m
+is specified, a
+.Xr newfs 8
+command is output that can be used to generate a new file system
+with equivalent settings.
+.Sh SEE ALSO
+.Xr disktab 5 ,
+.Xr fs 5 ,
+.Xr disklabel 8 ,
+.Xr fsck 8 ,
+.Xr fsck_ffs 8 ,
+.Xr growfs 8 ,
+.Xr newfs 8 ,
+.Xr tunefs 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

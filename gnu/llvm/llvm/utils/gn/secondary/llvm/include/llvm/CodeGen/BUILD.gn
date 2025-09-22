@@ -1,0 +1,7 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("GenVT") {
+  args = [ "-gen-vt" ]
+  td_file = "//llvm/include/llvm/CodeGen/ValueTypes.td"
+  tblgen_target = "//llvm/utils/TableGen:llvm-min-tblgen"
+}

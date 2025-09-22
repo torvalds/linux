@@ -1,0 +1,20 @@
+block drop all
+block return all
+block return-rst proto tcp all
+pass all flags S/SA
+pass in all no state
+pass out all no state
+pass all no state
+block drop in all
+block drop out all
+block drop all
+pass in all flags S/SA
+pass out all flags S/SA
+block drop on lo0 all
+pass on lo0 all flags S/SA
+block drop on lo0 all
+pass proto tcp all flags S/SA
+pass proto udp all
+pass in proto udp all
+pass out proto udp all
+pass out on lo0 proto tcp from any to any port = 25 flags S/SA

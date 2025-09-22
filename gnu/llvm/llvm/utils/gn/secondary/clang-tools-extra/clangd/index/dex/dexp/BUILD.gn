@@ -1,0 +1,13 @@
+executable("dexp") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clangd",
+    "//clang-tools-extra/clangd:features",
+    "//clang-tools-extra/clangd/index/remote/unimplemented",
+    "//clang/lib/Basic",
+    "//llvm/lib/LineEditor",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ "../../.." ]
+  sources = [ "Dexp.cpp" ]
+}

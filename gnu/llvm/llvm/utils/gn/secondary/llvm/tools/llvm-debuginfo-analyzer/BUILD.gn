@@ -1,0 +1,20 @@
+executable("llvm-debuginfo-analyzer") {
+  deps = [
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/DebugInfo/CodeView",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/DebugInfo/LogicalView",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsDisassemblers",
+    "//llvm/lib/Target:AllTargetsInfos",
+  ]
+  sources = [
+    "Options.cpp",
+    "llvm-debuginfo-analyzer.cpp",
+  ]
+}

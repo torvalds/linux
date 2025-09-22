@@ -1,0 +1,161 @@
+.\"	$OpenBSD: setvbuf.3,v 1.5 2022/07/25 02:25:55 jsg Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 25 2022 $
+.Dt SETVBUF 3
+.Os
+.Sh NAME
+.Nm setvbuf
+.Nd stream buffering operations
+.Sh SYNOPSIS
+.In stdio.h
+.Ft int
+.Fn setvbuf "FILE *stream" "char *buf" "int mode" "size_t size"
+.Sh DESCRIPTION
+The three types of stream buffering available are unbuffered, block buffered,
+and line buffered.
+When an output stream is unbuffered, information appears on the
+destination file or terminal as soon as written;
+when it is block buffered, many characters are saved up and written as a block;
+when line buffered, characters are saved up until a newline
+.Pq Ql \en
+is output or input is read from any stream attached to a terminal device
+(typically
+.Em stdin ) .
+.Pp
+The
+.Xr fflush 3
+function may be used to force the block out early.
+.Pp
+Normally, all files are block buffered.
+When the first I/O operation occurs on a file,
+.Xr malloc 3
+is called,
+and an optimally sized buffer is obtained.
+If a stream refers to a terminal
+(as
+.Em stdout
+normally does), it is line buffered.
+.Pp
+The standard error stream
+.Em stderr
+is initially unbuffered.
+.Pp
+The
+.Fn setvbuf
+function may be used to alter the buffering behavior of a stream.
+The
+.Fa mode
+parameter must be one of the following three macros:
+.Pp
+.Bl -tag -width _IOFBF -offset indent -compact
+.It Dv _IONBF
+unbuffered
+.It Dv _IOLBF
+line buffered
+.It Dv _IOFBF
+fully buffered
+.El
+.Pp
+The
+.Fa size
+parameter may be given as zero
+to obtain deferred optimal-size buffer allocation as usual.
+If it is not zero, then except for unbuffered files, the
+.Fa buf
+argument should point to a buffer at least
+.Fa size
+bytes long;
+this buffer will be used instead of the current buffer.
+(If the
+.Fa size
+argument
+is not zero but
+.Fa buf
+is
+.Dv NULL ,
+a buffer of the given size will be allocated immediately,
+and released on close.
+This is an extension to ANSI C;
+portable code should use a size of 0 with any
+.Dv NULL
+buffer.)
+.Pp
+The
+.Fn setvbuf
+function may be used at any time,
+but may have peculiar side effects
+(such as discarding input or flushing output)
+if the stream is
+.Dq active .
+Portable applications should call it only once on any given stream,
+and before any I/O is performed.
+.Sh RETURN VALUES
+Upon successful completion, a value of 0 is returned.
+If
+.Fa mode
+is invalid or if the request cannot be honored, a non-zero value is returned,
+possibly setting
+.Va errno
+to indicate the error.
+The stream is not modified in the error case.
+.Sh ERRORS
+The
+.Fn setvbuf
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa stream
+specified is not associated with a valid file descriptor.
+.El
+.Sh SEE ALSO
+.Xr fclose 3 ,
+.Xr fopen 3 ,
+.Xr fread 3 ,
+.Xr malloc 3 ,
+.Xr printf 3 ,
+.Xr puts 3 ,
+.Xr setbuf 3
+.Sh STANDARDS
+The
+.Fn setvbuf
+function conforms to
+.St -isoC-99 .
+.Sh HISTORY
+The
+.Fn setvbuf
+function first appeared in
+.At V.2
+and was reimplemented for
+.Bx 4.3 Net/2 .

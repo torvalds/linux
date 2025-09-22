@@ -1,0 +1,145 @@
+.\"	$OpenBSD: RSA_print.3,v 1.10 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2003 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_PRINT 3
+.Os
+.Sh NAME
+.Nm RSA_print ,
+.Nm RSA_print_fp ,
+.Nm DSAparams_print ,
+.Nm DSAparams_print_fp ,
+.Nm DSA_print ,
+.Nm DSA_print_fp ,
+.Nm DHparams_print ,
+.Nm DHparams_print_fp
+.Nd print cryptographic parameters
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft int
+.Fo RSA_print
+.Fa "BIO *bp"
+.Fa "RSA *x"
+.Fa "int offset"
+.Fc
+.Ft int
+.Fo RSA_print_fp
+.Fa "FILE *fp"
+.Fa "RSA *x"
+.Fa "int offset"
+.Fc
+.In openssl/dsa.h
+.Ft int
+.Fo DSAparams_print
+.Fa "BIO *bp"
+.Fa "DSA *x"
+.Fc
+.Ft int
+.Fo DSAparams_print_fp
+.Fa "FILE *fp"
+.Fa "DSA *x"
+.Fc
+.Ft int
+.Fo DSA_print
+.Fa "BIO *bp"
+.Fa "DSA *x"
+.Fa "int offset"
+.Fc
+.Ft int
+.Fo DSA_print_fp
+.Fa "FILE *fp"
+.Fa "DSA *x"
+.Fa "int offset"
+.Fc
+.In openssl/dh.h
+.Ft int
+.Fo DHparams_print
+.Fa "BIO *bp"
+.Fa "DH *x"
+.Fc
+.Ft int
+.Fo DHparams_print_fp
+.Fa "FILE *fp"
+.Fa "DH *x"
+.Fc
+.Sh DESCRIPTION
+A human-readable hexadecimal output of the components of the RSA key,
+DSA parameters or key or DH parameters is printed to
+.Fa bp
+or
+.Fa fp .
+.Pp
+The output lines are indented by
+.Fa offset
+spaces.
+.Sh RETURN VALUES
+These functions return 1 on success or 0 on error.
+.Sh SEE ALSO
+.Xr BN_bn2bin 3 ,
+.Xr DH_get0_pqg 3 ,
+.Xr DH_new 3 ,
+.Xr DSA_get0_pqg 3 ,
+.Xr RSA_get0_key 3 ,
+.Xr RSA_new 3
+.Sh HISTORY
+.Fn RSA_print
+and
+.Fn DHparams_print
+first appeared in SSLeay 0.5.1.
+.Fn RSA_print_fp ,
+.Fn DSA_print ,
+and
+.Fn DHparams_print_fp
+first appeared in SSLeay 0.6.0.
+.Fn DSA_print_fp
+first appeared in SSLeay 0.8.0.
+All these functions have been available since
+.Ox 2.4 .

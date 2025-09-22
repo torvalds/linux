@@ -1,0 +1,143 @@
+.\"	$OpenBSD: register-plist.1,v 1.7 2023/10/06 12:45:45 espie Exp $
+.\"
+.\" Copyright (c) 2010 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 6 2023 $
+.Dt REGISTER-PLIST 1
+.Os
+.Sh NAME
+.Nm register-plist
+.Nd smart diff and registration of packing-lists
+.Sh SYNOPSIS
+.Nm register-plist
+.Op Fl n
+.Op Fl s Ar snapdir
+.Ar dir
+.Op Ar pkgname ...
+.Nm
+.Fl p
+.Ar dir
+.Nm
+.Fl t
+.Ar p1
+.Ar p2
+.Sh DESCRIPTION
+.Nm
+is used to check that a packing-list for a given package name doesn't change.
+By default, it is invoked at the end of
+.Li make package ,
+and compares a temporary package with the
+.Pa ${PLIST_REPOSITORY}
+before moving it to
+.Pa ${PACKAGE_REPOSITORY}/${MACHINE_ARCH}/all
+.Po
+see
+.Ev PACKAGE_REPOSITORY
+and
+.Ev PLIST_REPOSITORY
+in
+.Xr bsd.port.mk 5
+.Pc .
+Package names (package stem plus version) are used to uniquely identify
+packages.
+When something in the package changes, the package name should change,
+usually by increasing
+.Ev REVISION .
+.Pp
+.Nm
+checks for a lot of details, including DESCR contents.
+Thus changes in MAINTAINER, hard and symlinks existence and values,
+comments, and other things, will trigger
+.Ev REVISION
+bumps).
+.Pp
+Dependencies receive special treatment.
+Addition or deletion of dependencies should warrant a bump, but
+.Nm
+will also verify that dependencies go
+.Sq forward :
+namely it's okay for a
+.Cm @wantlib
+to go from
+.Pa liba.so.2.0
+to
+.Pa liba.so.3.0
+but not the other way around.
+.Pp
+Starting with
+.Ox 6.6 ,
+.Cm @version
+bumps allow system-wide change to affect plists without triggering an
+error.
+.Pp
+.Nm
+records a packing-list for each
+.Ar pkgname
+into the given directory
+.Ar dir .
+If no previous packing-list for the given pkgname exists, the packing-list
+is recorded.
+If a previous packing-list exists,
+.Nm
+compares both packing-list for discrepancies.
+Whenever something significant changes,
+.Nm
+will display a diff of the differences, and exit with an error.
+.Pp
+Some items in the packing-list may change without actual problems.
+For instance, dependencies are allowed to go forward.
+On the other hand, some items like the package DESCR can't change at all.
+Since this is a generated file, porters often overlook that items such as
+the HOMEPAGE or the MAINTAINER's email address are embedded into that file,
+and thus that changing these requires a REVISION bump.
+.Pp
+If option
+.Fl n
+is specified,
+.Nm
+will do the exact same checks, but will not write any new packing-list.
+.Pp
+If option
+.Fl s Ar snapdir
+is specified,
+.Nm
+will write the packing-list into a separate
+.Ar snapdir
+directory if there have been no errors
+(snapshot directory, to record all packing-lists from the current snapshot).
+.Pp
+.Nm
+can also be invoked with
+.Fl p
+and a
+.Ar dir .
+This will read the packing-list from standard input and check
+that it would register correctly into
+.Ar dir ,
+as used by
+target
+.Cm check-register
+in
+.Xr bsd.port.mk 5 .
+.Pp
+.Nm
+can also be invoked with
+.Fl t
+and two packing-lists
+.Ar p1
+.Ar p2
+to directly compare those packing-lists.
+.Sh SEE ALSO
+.Xr bsd.port.mk 5

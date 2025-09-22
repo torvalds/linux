@@ -1,0 +1,16 @@
+# table loading from pf.conf
+pass list
+pass load table <regress.1> const
+pass list
+pass load table <regress.1> persist const
+pass list
+pass load table <regress.1> persist
+pass list
+pass load table <regress.1>
+pass list
+pass load table <regress> persist { 1.2.3.4 1.2.3.4 4.3.2.1 }
+pass show
+pass load table <regress> persist
+pass show
+pass load table <regress> persist {}
+pass show

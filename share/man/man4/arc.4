@@ -1,0 +1,147 @@
+.\"	$OpenBSD: arc.4,v 1.16 2014/01/24 18:32:27 chris Exp $
+.\"
+.\" Copyright (c) 2006 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 24 2014 $
+.Dt ARC 4
+.Os
+.Sh NAME
+.Nm arc
+.Nd Areca Technology Corporation SAS/SATA RAID controller
+.Sh SYNOPSIS
+.Cd "arc* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the PCI-X and PCI Express RAID controllers from
+Areca Technology Corporation:
+.Pp
+.Bl -dash -offset indent -compact
+.It
+ARC-1110 PCI-X 4 Port SATA RAID Controller
+.It
+ARC-1110ML PCI-X 4 Port SATA RAID Controller
+.It
+ARC-1120 PCI-X 8 Port SATA RAID Controller
+.It
+ARC-1120ML PCI-X 8 Port SATA RAID Controller
+.It
+ARC-1130 PCI-X 12 Port SATA RAID Controller
+.It
+ARC-1130ML PCI-X 12 Port SATA RAID Controller
+.It
+ARC-1160 PCI-X 16 Port SATA RAID Controller
+.It
+ARC-1160ML PCI-X 16 Port SATA RAID Controller
+.It
+ARC-1170 PCI-X 24 Port SATA RAID Controller
+.It
+ARC-1200 Rev A PCI Express 2 Port SATA RAID Controller
+.It
+ARC-1202 PCI Express 2 Port SATA RAID Controller
+.It
+ARC-1210 PCI Express 4 Port SATA RAID Controller
+.It
+ARC-1212 PCI Express 4 Port SATA RAID Controller
+.It
+ARC-1213 PCI Express 4 Port SATA RAID Controller
+.It
+ARC-1214 PCI Express 4 Port SATA RAID Controller
+.It
+ARC-1220 PCI Express 8 Port SATA RAID Controller
+.It
+ARC-1222 PCI Express 8 Port SATA RAID Controller
+.It
+ARC-1223 PCI Express 8 Port SATA RAID Controller
+.It
+ARC-1224 PCI Express 8 Port SATA RAID Controller
+.It
+ARC-1230 PCI Express 12 Port SATA RAID Controller
+.It
+ARC-1230ML PCI Express 12 Port SATA RAID Controller
+.It
+ARC-1231ML PCI Express 12 Port SATA RAID Controller
+.It
+ARC-1260 PCI Express 16 Port SATA RAID Controller
+.It
+ARC-1260ML PCI Express 16 Port SATA RAID Controller
+.It
+ARC-1261ML PCI Express 16 Port SATA RAID Controller
+.It
+ARC-1264il-12 PCI Express 12 Port SATA RAID Controller
+.It
+ARC-1264il-16 PCI Express 16 Port SATA RAID Controller
+.It
+ARC-1280 PCI Express 24 Port SATA RAID Controller
+.It
+ARC-1280ML PCI Express 24 Port SATA RAID Controller
+.It
+ARC-1284ML-24 PCI Express 24 Port SATA RAID Controller
+.It
+ARC-1680 PCI Express 8 Port SAS RAID Controller
+.It
+ARC-1680LP PCI Express 8 Port SAS RAID Controller
+.It
+ARC-1680i PCI Express 8 Port SAS RAID Controller
+.It
+ARC-1680x PCI Express 8 Port SAS RAID Controller
+.It
+ARC-1681 PCI-X 8 Port SAS RAID Controller
+.It
+ARC-1880ixl-8 PCI Express 12 Port SAS RAID Controller
+.It
+ARC-1880ixl-12 PCI Express 16 Port SAS RAID Controller
+.It
+ARC-1882i PCI Express 8 Port SAS RAID Controller
+.It
+ARC-1882x PCI Express 8 Port SAS RAID Controller
+.It
+ARC-1882LP PCI Express 8 Port SAS RAID Controller
+.It
+ARC-1882ix-12 PCI Express 16 Port SAS RAID Controller
+.It
+ARC-1882ix-16 PCI Express 20 Port SAS RAID Controller
+.It
+ARC-1882ix-24 PCI Express 28 Port SAS RAID Controller
+.It
+ARC-1883X PCI Express 16 Port SAS RAID Controller
+.El
+.Pp
+These controllers can support RAID levels 0, 1, 1E, 3, 5, 6, and JBOD.
+.Pp
+.Nm
+supports alarm control and monitoring of volumes configured on the
+controllers via the
+.Xr bio 4
+interface and the
+.Xr bioctl 8
+utility.
+.Sh SEE ALSO
+.Xr bio 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr bioctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An David Gwynne Aq Mt dlg@openbsd.org .

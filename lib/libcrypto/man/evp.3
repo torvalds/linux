@@ -1,0 +1,250 @@
+.\" $OpenBSD: evp.3,v 1.38 2025/06/11 13:48:54 schwarze Exp $
+.\" full merge up to: OpenSSL man7/evp 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>,
+.\" Matt Caswell <matt@openssl.org>, Geoff Thorpe <geoff@openssl.org>,
+.\" and Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2006, 2013, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 11 2025 $
+.Dt EVP 3
+.Os
+.Sh NAME
+.Nm evp
+.Nd high-level cryptographic functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Sh DESCRIPTION
+The EVP library provides a high-level interface to cryptographic
+functions.
+The abbreviation
+.Dq EVP
+is intended to mean
+.Dq EnVeloPe
+in the sense of
+.Dq wrapper library .
+It is not related to the technical meaning of the term
+.Dq envelope
+in contexts like
+.Xr CMS_encrypt 3 ,
+.Xr EVP_SealInit 3 ,
+.Xr PKCS7_encrypt 3 ,
+or
+.Xr SMIME_write_PKCS7 3 .
+.Pp
+.Xr EVP_SealInit 3
+and
+.Xr EVP_OpenInit 3
+provide public key encryption and decryption to implement digital
+"envelopes".
+.Pp
+The
+.Xr EVP_DigestSignInit 3
+and
+.Xr EVP_DigestVerifyInit 3
+functions implement digital signatures and Message Authentication Codes
+(MACs).
+Also see the older
+.Xr EVP_SignInit 3
+and
+.Xr EVP_VerifyInit 3
+functions.
+.Pp
+Symmetric encryption is available with the
+.Xr EVP_EncryptInit 3
+functions.
+The
+.Xr EVP_DigestInit 3
+functions provide message digests.
+.Pp
+Authenticated encryption with additional data (AEAD) is available with
+the
+.Xr EVP_AEAD_CTX_init 3
+functions.
+.Pp
+The
+.Fn EVP_PKEY_*
+functions provide a high-level interface to asymmetric algorithms.
+To create a new
+.Vt EVP_PKEY ,
+see
+.Xr EVP_PKEY_new 3 .
+.Vt EVP_PKEY Ns s
+can be associated with a private key of a particular algorithm
+by using the functions described in the
+.Xr EVP_PKEY_set1_RSA 3
+page, or new keys can be generated using
+.Xr EVP_PKEY_keygen 3 .
+.Vt EVP_PKEY Ns s
+can be compared using
+.Xr EVP_PKEY_cmp 3
+or printed using
+.Xr EVP_PKEY_print_private 3 .
+.Pp
+The
+.Fn EVP_PKEY_*
+functions support the full range of asymmetric algorithm operations:
+.Bl -bullet
+.It
+For key agreement, see
+.Xr EVP_PKEY_derive 3 .
+.It
+For signing and verifying, see
+.Xr EVP_PKEY_sign 3 ,
+.Xr EVP_PKEY_verify 3 ,
+and
+.Xr EVP_PKEY_verify_recover 3 .
+However, note that these functions do not perform a digest of the
+data to be signed.
+Therefore, normally you would use the
+.Xr EVP_DigestSignInit 3
+functions for this purpose.
+.It
+For encryption and decryption see
+.Xr EVP_PKEY_encrypt 3
+and
+.Xr EVP_PKEY_decrypt 3 ,
+respectively.
+However, note that these functions perform encryption and decryption only.
+As public key encryption is an expensive operation, normally you
+would wrap an encrypted message in a digital envelope using the
+.Xr EVP_SealInit 3
+and
+.Xr EVP_OpenInit 3
+functions.
+.El
+.Pp
+The
+.Xr EVP_BytesToKey 3
+function provides some limited support for password based encryption.
+Careful selection of the parameters will provide a PKCS#5 PBKDF1
+compatible implementation.
+However, new applications should typically not use this (preferring, for
+example, PBKDF2 from PCKS#5).
+.Pp
+The
+.Xr EVP_EncodeInit 3
+family of functions provides base64 encoding and decoding.
+.Sh SEE ALSO
+.Xr ASN1_item_digest 3 ,
+.Xr ASN1_item_sign 3 ,
+.Xr BIO_f_cipher 3 ,
+.Xr BIO_f_md 3 ,
+.Xr CMAC_Init 3 ,
+.Xr CMS_encrypt 3 ,
+.Xr CMS_sign 3 ,
+.Xr crypto 3 ,
+.Xr d2i_PKCS8PrivateKey_bio 3 ,
+.Xr d2i_PrivateKey 3 ,
+.Xr EVP_AEAD_CTX_init 3 ,
+.Xr EVP_aes_128_cbc 3 ,
+.Xr EVP_BytesToKey 3 ,
+.Xr EVP_camellia_128_cbc 3 ,
+.Xr EVP_chacha20 3 ,
+.Xr EVP_CIPHER_CTX_ctrl 3 ,
+.Xr EVP_CIPHER_CTX_get_cipher_data 3 ,
+.Xr EVP_CIPHER_CTX_init 3 ,
+.Xr EVP_CIPHER_CTX_set_flags 3 ,
+.Xr EVP_CIPHER_do_all 3 ,
+.Xr EVP_CIPHER_meth_new 3 ,
+.Xr EVP_CIPHER_nid 3 ,
+.Xr EVP_des_cbc 3 ,
+.Xr EVP_DigestInit 3 ,
+.Xr EVP_DigestSignInit 3 ,
+.Xr EVP_DigestVerifyInit 3 ,
+.Xr EVP_EncodeInit 3 ,
+.Xr EVP_EncryptInit 3 ,
+.Xr EVP_MD_CTX_ctrl 3 ,
+.Xr EVP_MD_nid 3 ,
+.Xr EVP_OpenInit 3 ,
+.Xr EVP_PKCS82PKEY 3 ,
+.Xr EVP_PKEY_asn1_get_count 3 ,
+.Xr EVP_PKEY_cmp 3 ,
+.Xr EVP_PKEY_CTX_ctrl 3 ,
+.Xr EVP_PKEY_CTX_get_operation 3 ,
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_CTX_set_hkdf_md 3 ,
+.Xr EVP_PKEY_decrypt 3 ,
+.Xr EVP_PKEY_derive 3 ,
+.Xr EVP_PKEY_encrypt 3 ,
+.Xr EVP_PKEY_get_default_digest_nid 3 ,
+.Xr EVP_PKEY_keygen 3 ,
+.Xr EVP_PKEY_new 3 ,
+.Xr EVP_PKEY_print_private 3 ,
+.Xr EVP_PKEY_set1_RSA 3 ,
+.Xr EVP_PKEY_sign 3 ,
+.Xr EVP_PKEY_size 3 ,
+.Xr EVP_PKEY_verify 3 ,
+.Xr EVP_PKEY_verify_recover 3 ,
+.Xr EVP_rc4 3 ,
+.Xr EVP_SealInit 3 ,
+.Xr EVP_sha1 3 ,
+.Xr EVP_sha3_224 3 ,
+.Xr EVP_SignInit 3 ,
+.Xr EVP_sm3 3 ,
+.Xr EVP_sm4_cbc 3 ,
+.Xr EVP_VerifyInit 3 ,
+.Xr HMAC 3 ,
+.Xr OCSP_basic_sign 3 ,
+.Xr OCSP_request_sign 3 ,
+.Xr PEM_get_EVP_CIPHER_INFO 3 ,
+.Xr PEM_read_bio_PrivateKey 3 ,
+.Xr PKCS12_create 3 ,
+.Xr PKCS5_PBKDF2_HMAC 3 ,
+.Xr PKCS7_encrypt 3 ,
+.Xr PKCS7_sign 3 ,
+.Xr RSA_pkey_ctx_ctrl 3 ,
+.Xr SSL_CTX_set_tlsext_ticket_key_cb 3 ,
+.Xr X509_ALGOR_set0 3 ,
+.Xr X509_check_private_key 3 ,
+.Xr X509_digest 3 ,
+.Xr X509_get_pubkey 3 ,
+.Xr X509_PUBKEY_set 3 ,
+.Xr X509_sign 3 ,
+.Xr X509_to_X509_REQ 3

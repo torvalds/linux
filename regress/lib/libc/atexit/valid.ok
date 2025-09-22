@@ -1,0 +1,5 @@
+main()
+main() returns
+handle_first() counter == 0
+handle_last() counter == 65535
+handle_cleanup()

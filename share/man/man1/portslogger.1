@@ -1,0 +1,61 @@
+.\"	$OpenBSD: portslogger.1,v 1.1 2018/06/26 05:38:49 espie Exp $
+.\"
+.\" Copyright (c) 2010 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 26 2018 $
+.Dt PORTSLOGGER 1
+.Os
+.Sh NAME
+.Nm portslogger
+.Nd logs ports builds selectively
+.Sh SYNOPSIS
+.Nm portslogger
+.Op Fl s
+.Ar directory
+.Sh DESCRIPTION
+.Nm
+saves logs from ports build in separate files.
+.Pp
+.Nm
+handles directory change messages from the ports tree infrastructure and
+switches to a corresponding log file situated in
+.Ar directory
+accordingly, e.g., it will log the build from screen in
+.Pa directory/screen-4.0.3p1.log .
+.Nm
+will filter progress-bar noise from
+.Xr ftp 1 ,
+.Xr pkg_add 1 ,
+and
+.Xr pkg_create 1 .
+.Pp
+By default,
+.Nm
+acts as a filter and still passes its input to stdout, unless
+run with
+.Fl s .
+.Pp
+It is most often used as
+.Pp
+.Dl $ make package 2>&1 | portslogger logdir
+.Pp
+or in conjunction with
+.Xr tmux 1 ,
+such as
+.Pp
+.Dl $ tmux pipe-pane 'portslogger -s logdir'
+.Sh SEE ALSO
+.Xr dpb 1 ,
+.Xr tmux 1

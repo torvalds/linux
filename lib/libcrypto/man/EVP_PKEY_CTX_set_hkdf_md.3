@@ -1,0 +1,259 @@
+.\" $OpenBSD: EVP_PKEY_CTX_set_hkdf_md.3,v 1.5 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 1cb7eff4 Sep 10 13:56:40 2019 +0100
+.\"
+.\" This file was written by Alessandro Ghedini <alessandro@ghedini.me>,
+.\" Matt Caswell <matt@openssl.org>, and Viktor Dukhovni <viktor@dukhovni.org>.
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_CTX_SET_HKDF_MD 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_CTX_set_hkdf_md ,
+.Nm EVP_PKEY_CTX_set1_hkdf_salt ,
+.Nm EVP_PKEY_CTX_set1_hkdf_key ,
+.Nm EVP_PKEY_CTX_add1_hkdf_info ,
+.Nm EVP_PKEY_CTX_hkdf_mode
+.Nd HMAC-based Extract-and-Expand key derivation algorithm
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.In openssl/kdf.h
+.Ft int
+.Fo EVP_PKEY_CTX_hkdf_mode
+.Fa "EVP_PKEY_CTX *pctx"
+.Fa "int mode"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_hkdf_md
+.Fa "EVP_PKEY_CTX *pctx"
+.Fa "const EVP_MD *md"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set1_hkdf_salt
+.Fa "EVP_PKEY_CTX *pctx"
+.Fa "unsigned char *salt"
+.Fa "int saltlen"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set1_hkdf_key
+.Fa "EVP_PKEY_CTX *pctx"
+.Fa "unsigned char *key"
+.Fa "int keylen"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_add1_hkdf_info
+.Fa "EVP_PKEY_CTX *pctx"
+.Fa "unsigned char *info"
+.Fa "int infolen"
+.Fc
+.Sh DESCRIPTION
+The
+.Dv EVP_PKEY_HKDF
+algorithm implements the HKDF key derivation function.
+HKDF follows the "extract-then-expand" paradigm, where the KDF logically
+consists of two modules.
+The first stage takes the input keying material and "extracts" from it a
+fixed-length pseudorandom key K.
+The second stage "expands" the key K
+into several additional pseudorandom keys (the output of the KDF).
+.Pp
+.Fn EVP_PKEY_CTX_hkdf_mode
+sets the mode for the HKDF operation.
+There are three modes that are currently defined:
+.Bl -tag -width Ds
+.It Dv EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND
+This is the default mode.
+Calling
+.Xr EVP_PKEY_derive 3
+on an
+.Vt EVP_PKEY_CTX
+set up for HKDF will perform an extract followed by
+an expand operation in one go.
+The derived key returned will be the result after the expand operation.
+The intermediate fixed-length pseudorandom key K is not returned.
+.Pp
+In this mode the digest, key, salt and info values must be set before a
+key is derived or an error occurs.
+.It Dv EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY
+In this mode calling
+.Xr EVP_PKEY_derive 3
+will just perform the extract operation.
+The value returned will be the intermediate fixed-length pseudorandom
+key K.
+.Pp
+The digest, key and salt values must be set before a key is derived or
+an error occurs.
+.It Dv EVP_PKEY_HKDEF_MODE_EXPAND_ONLY
+In this mode calling
+.Xr EVP_PKEY_derive 3
+will just perform the expand operation.
+The input key should be set to the intermediate fixed-length
+pseudorandom key K returned from a previous extract operation.
+.Pp
+The digest, key and info values must be set before a key is derived or
+an error occurs.
+.El
+.Pp
+.Fn EVP_PKEY_CTX_set_hkdf_md
+sets the message digest associated with the HKDF.
+.Pp
+.Fn EVP_PKEY_CTX_set1_hkdf_salt
+sets the salt to
+.Fa saltlen
+bytes of the buffer
+.Fa salt .
+Any existing value is replaced.
+.Pp
+.Fn EVP_PKEY_CTX_set1_hkdf_key
+sets the key to
+.Fa keylen
+bytes of the buffer
+.Fa key .
+Any existing value is replaced.
+.Pp
+.Fn EVP_PKEY_CTX_add1_hkdf_info
+sets the info value to
+.Fa infolen
+bytes of the buffer
+.Fa info .
+If a value is already set, it is appended to the existing value.
+.Sh STRING CTRLS
+HKDF also supports string based control operations via
+.Xr EVP_PKEY_CTX_ctrl_str 3 .
+The
+.Fa type
+parameter "md" uses the supplied
+.Fa value
+as the name of the digest algorithm to use.
+The
+.Fa type
+parameter "mode" accepts "EXTRACT_AND_EXPAND", "EXTRACT_ONLY"
+and "EXPAND_ONLY" as
+.Fa value
+to determine the mode to use.
+The
+.Fa type
+parameters "salt", "key" and "info" use the supplied
+.Fa value
+parameter as a
+seed, key, or info.
+The names "hexsalt", "hexkey" and "hexinfo" are similar except they take
+a hex string which is converted to binary.
+.Sh NOTES
+All these functions are implemented as macros.
+.Pp
+A context for HKDF can be obtained by calling:
+.Bd -literal
+ EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+.Ed
+.Pp
+The total length of the info buffer cannot exceed 1024 bytes in length:
+this should be more than enough for any normal use of HKDF.
+.Pp
+The output length of an HKDF expand operation is specified via the
+length parameter to the
+.Xr EVP_PKEY_derive 3
+function.
+Since the HKDF output length is variable, passing a
+.Dv NULL
+buffer as a means to obtain the requisite length is not meaningful with
+HKDF in any mode that performs an expand operation.
+Instead, the caller must allocate a buffer of the desired length, and
+pass that buffer to
+.Xr EVP_PKEY_derive 3
+along with (a pointer initialized to) the desired length.
+Passing a
+.Dv NULL
+buffer to obtain the length is allowed when using
+.Dv EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY .
+.Sh RETURN VALUES
+All these functions return 1 for success and 0 or a negative value for
+failure.
+In particular a return value of -2 indicates the operation is not
+supported by the public key algorithm.
+.Sh EXAMPLES
+This example derives 10 bytes using SHA-256 with the secret key
+"secret", salt value "salt" and info value "label":
+.Bd -literal
+EVP_PKEY_CTX *pctx;
+unsigned char out[10];
+size_t outlen = sizeof(out);
+
+if ((pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL)) == NULL)
+	/* Error */
+
+if (EVP_PKEY_derive_init(pctx) <= 0)
+	/* Error */
+if (EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()) <= 0)
+	/* Error */
+if (EVP_PKEY_CTX_set1_hkdf_salt(pctx, "salt", 4) <= 0)
+	/* Error */
+if (EVP_PKEY_CTX_set1_hkdf_key(pctx, "secret", 6) <= 0)
+	/* Error */
+if (EVP_PKEY_CTX_add1_hkdf_info(pctx, "label", 5) <= 0)
+	/* Error */
+if (EVP_PKEY_derive(pctx, out, &outlen) <= 0)
+	/* Error */
+.Ed
+.Sh SEE ALSO
+.Xr EVP_PKEY_CTX_ctrl_str 3 ,
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_derive 3
+.Sh STANDARDS
+RFC 5869: HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
+.Sh HISTORY
+.Fn EVP_PKEY_CTX_set_hkdf_md ,
+.Fn EVP_PKEY_CTX_set1_hkdf_salt ,
+.Fn EVP_PKEY_CTX_set1_hkdf_key ,
+and
+.Fn EVP_PKEY_CTX_add1_hkdf_info
+first appeared in OpenSSL 1.1.0 and
+.Fn EVP_PKEY_CTX_hkdf_mode
+in OpenSSL 1.1.1.
+These functions have been available since
+.Ox 7.2 .

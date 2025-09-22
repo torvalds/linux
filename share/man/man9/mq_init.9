@@ -1,0 +1,251 @@
+.\"     $OpenBSD: mq_init.9,v 1.13 2020/08/28 09:15:16 fcambus Exp $
+.\"
+.\"  Copyright (c) 2015 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 28 2020 $
+.Dt MQ_INIT 9
+.Os
+.Sh NAME
+.Nm mq_init ,
+.Nm mq_enqueue ,
+.Nm mq_push ,
+.Nm mq_dequeue ,
+.Nm mq_enlist ,
+.Nm mq_delist ,
+.Nm mq_dechain ,
+.Nm mq_len ,
+.Nm mq_empty ,
+.Nm mq_full ,
+.Nm mq_hdatalen ,
+.Nm mq_purge ,
+.Nm mq_drops ,
+.Nm mq_set_maxlen ,
+.Nm MBUF_QUEUE_INITIALIZER
+.Nd mbuf queue API
+.Sh SYNOPSIS
+.In sys/mbuf.h
+.Ft void
+.Fn mq_init "struct mbuf_queue *mq" "unsigned int maxlen" "int ipl"
+.Ft int
+.Fn mq_enqueue "struct mbuf_queue *mq" "struct mbuf *m"
+.Ft int
+.Fn mq_push "struct mbuf_queue *mq" "struct mbuf *m"
+.Ft struct mbuf *
+.Fn mq_dequeue "struct mbuf_queue *mq"
+.Ft int
+.Fn mq_enlist "struct mbuf_queue *mq" "struct mbuf_list *ml"
+.Ft void
+.Fn mq_delist "struct mbuf_queue *mq" "struct mbuf_list *ml"
+.Ft struct mbuf *
+.Fn mq_dechain "struct mbuf_queue *mq"
+.Ft unsigned int
+.Fn mq_len "struct mbuf_queue *mq"
+.Ft int
+.Fn mq_empty "struct mbuf_queue *mq"
+.Ft int
+.Fn mq_full "struct mbuf_queue *mq"
+.Ft unsigned int
+.Fn mq_hdatalen "struct mbuf_queue *mq"
+.Ft unsigned int
+.Fn mq_purge "struct mbuf_queue *mq"
+.Ft unsigned int
+.Fn mq_drops "struct mbuf_queue *mq"
+.Ft void
+.Fn mq_set_maxlen "struct mbuf_queue *mq" "unsigned int"
+.Ft struct mbuf_queue
+.Fn MBUF_QUEUE_INITIALIZER "unsigned int maxlen" "int ipl"
+.Sh DESCRIPTION
+The mbuf queue API provides implementations of data structures and operations
+for queueing mbufs and lists of mbufs between contexts.
+.Pp
+mbuf_queue data structures provide a superset of the functionality
+available in mbuf_lists, and protect themselves internally with a
+.Xr mutex 9 ,
+making them useful for moving mbufs between contexts or subsystems.
+Additionally, mbuf_queues provide a limit on the number of mbufs that
+may be queued.
+.Pp
+mbuf_queue structures support the following functionality:
+.Pp
+.Bl -enum -compact -offset indent
+.It
+Insertion of a new mbuf at the end of the queue.
+.It
+Removal of an mbuf from the head of the queue.
+.It
+Reinsertion of an mbuf at the head of the queue.
+.It
+Removal of the entire chain of mbufs on the queue.
+.It
+Insertion of the mbufs in an mbuf_list at the end of the queue.
+.It
+Removal of all the mbufs on the queue as an mbuf_list.
+.El
+.Bl -tag -width Ds
+.It Fn mq_init "struct mbuf_queue *mq" "unsigned int maxlen" "int ipl"
+Initialises the mbuf queue structure
+.Fa mq .
+The maximum number of mbufs that should be queued is specified with
+.Fa maxlen .
+The highest interrupt priority level the queue will be operated at is
+specified via
+.Fa ipl .
+.It Fn MBUF_QUEUE_INITIALIZER "unsigned int maxlen" "int ipl"
+Initialises an mbuf queue structure declaration.
+The maximum number of mbufs that should be queued is specified with
+.Fa maxlen .
+The highest interrupt priority level the queue will be operated at is
+specified via
+.Fa ipl .
+.It Fn mq_enqueue "struct mbuf_queue *mq" "struct mbuf *m"
+Enqueue mbuf
+.Fa m
+on the end of the
+.Fa mq
+mbuf queue.
+If the queue is full then
+.Fa m
+will be dropped.
+.It Fn mq_push "struct mbuf_queue *mq" "struct mbuf *m"
+Enqueue mbuf
+.Fa m
+on the end of the
+.Fa mq
+mbuf queue.
+If the queue is full then the mbuf at the head of the queue
+will be dropped.
+.It Fn mq_dequeue "struct mbuf_queue *mq"
+Dequeue an mbuf from the front of the
+.Fa mq
+mbuf queue.
+.It Fn mq_enlist "struct mbuf_queue *mq" "struct mbuf_list *ml"
+Enqueue all the mbufs on the
+.Fa ml
+mbuf list on to the end of the
+.Fa mq
+mbuf queue.
+Note, the number of mbufs placed on the queue may exceed its maximum length.
+.It Fn mq_delist "struct mbuf_queue *mq" "struct mbuf_list *ml"
+Dequeue all the mbufs on the
+.Fa mq
+mbuf queue on to the
+.Fa ml
+mbuf list.
+.It Fn mq_dechain "struct mbuf_queue *mq"
+Dequeue all mbufs from the
+.Fa mq
+mbuf queue.
+.It Fn mq_len "struct mbuf_queue *mq"
+Return the number of mbufs on the
+.Fa mq
+mbuf queue.
+.It Fn mq_empty "struct mbuf_queue *mq"
+Return if the
+.Fa mq
+mbuf queue is empty.
+.It Fn mq_full "struct mbuf_queue *mq"
+Return if the
+.Fa mq
+mbuf queue is full.
+.It Fn mq_hdatalen "struct mbuf_queue *mq"
+Return the number of bytes in the packet at the head of the
+.Fa mq
+mbuf queue.
+.It Fn mq_purge "struct mbuf_queue *mq"
+Free all the mbufs on the
+.Fa mq
+mbuf queue.
+.It Fn mq_drops "struct mbuf_queue *mq"
+Return how many mbufs were dropped and freed by
+.Xr m_freem 9
+if the
+.Fa mq
+mbuf queue was too full.
+.It Fn mq_set_maxlen "struct mbuf_queue *mq" "unsigned int"
+Alter the maximum number of mbufs that should be queued on the
+.Fa mq
+mbuf queue.
+Note,
+.Fn mq_set_maxlen
+will only set a new limit, it will not free any excess mbufs that may
+already exist on the queue.
+.El
+.Sh CONTEXT
+.Fn mq_init ,
+.Fn mq_enqueue ,
+.Fn mq_push ,
+.Fn mq_dequeue ,
+.Fn mq_enlist ,
+.Fn mq_delist ,
+.Fn mq_dechain ,
+.Fn mq_len ,
+.Fn mq_empty ,
+.Fn mq_full ,
+.Fn mq_purge ,
+.Fn mq_drops ,
+.Fn mq_set_maxlen ,
+and
+.Fn MBUF_QUEUE_INITIALIZER
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn mq_dequeue
+returns the mbuf that was at the head of its queue.
+If the queue was empty,
+.Dv NULL
+is returned.
+.Pp
+.Fn mq_dechain
+returns all the mbufs that were on its queues via a pointer to an mbuf
+with the chain accessible via m_nextpkt members.
+If the queue was empty,
+.Dv NULL
+is returned.
+.Pp
+.Fn mq_len
+returns the number of mbufs on the queue.
+.Pp
+.Fn mq_empty
+returns a non-zero value if the queue is empty, otherwise 0.
+.Pp
+.Fn mq_full
+returns a non-zero value if the queue is full, otherwise 0.
+.Pp
+.Fn mq_enqueue
+returns 0 if the mbuf was successfully queued, or non-zero if the
+mbuf was freed because it would cause the queue to exceed its maximum
+length.
+.Pp
+.Fn mq_push
+returns 0 if there was space on the queue for the mbuf, or non-zero
+if the head of the queue was freed to make space for it.
+.Pp
+.Fn mq_enlist
+returns the number of mbufs that were dropped from the list if the
+length of the queue exceeded its maximum length.
+.Pp
+.Fn mq_hdatalen
+returns the size of a packet on the queue, or 0 if the queue is empty.
+.Pp
+.Fn mq_purge
+returns the number of mbufs that were freed.
+.Pp
+.Fn mq_drops
+returns the number of mbufs that were freed during
+.Fn mq_enqueue
+operations that would have caused the queue to exceed its maximum length.
+.Sh SEE ALSO
+.Xr mbuf 9 ,
+.Xr ml_init 9 ,
+.Xr mutex 9

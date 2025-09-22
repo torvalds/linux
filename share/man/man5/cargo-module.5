@@ -1,0 +1,147 @@
+.\"	$OpenBSD: cargo-module.5,v 1.10 2025/01/13 18:20:47 kirill Exp $
+.\"
+.\" Copyright (c) 2008 Marc Espie
+.\" Copyright (c) 2017 Daniel Jakots
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 13 2025 $
+.Dt CARGO-MODULE 5
+.Os
+.Sh NAME
+.Nm cargo-module
+.Nd devel/cargo port module
+.Sh DESCRIPTION
+This manual page documents the behavior of setting
+.Li MODULES=devel/cargo
+in the
+.Xr ports 7
+tree.
+.Pp
+Automates download and compilation of dependencies of a Rust project using
+.Xr cargo 1 .
+.Pp
+During
+.Cm fetch ,
+static dependencies ("crates") listed in
+.Ev MODCARGO_CRATES
+are downloaded using
+.Ev MODCARGO_DIST_SUBDIR
+as
+.Ev DIST_SUBDIR .
+.Pp
+During
+.Cm post-extract ,
+crates defined in
+.Ev MODCARGO_CRATES
+are moved to the
+.Ev MODCARGO_VENDOR_DIR
+directory.
+.Pp
+During
+.Cm post-patch ,
+crate-metadata are generated using
+.Pa devel/cargo-generate-vendor .
+.Pp
+With
+.Ev CONFIGURE_STYLE
+set to
+.Sq cargo ,
+cargo is configured to use
+.Ev MODCARGO_VENDOR_DIR
+instead of the standard crates-io network source.
+Finally, any crates listed in
+.Ev MODCARGO_CRATES_UPDATE
+are updated.
+.Pp
+.Ev MODCARGO_RUSTFLAGS
+can be used to pass custom flags to all
+.Xr rustc 1
+invocations.
+.Pp
+.Pa lang/rust
+is added to
+.Ev MODULES ,
+and
+.Pa devel/cargo-generate-vendor
+is added to
+.Ev BUILD_DEPENDS .
+.Pp
+This module defines:
+.Bl -tag -width MODCARGO_INSTALL_TARGET_PATHS
+.It Ev MODCARGO_CARGOTOML
+Path to cargo manifest.
+Defaults to
+.Pa ${WRKSRC}/Cargo.toml .
+.It Ev MODCARGO_CARGOLOCK
+Path to
+.Pa Cargo.lock ,
+which is used only by the
+.Cm modcargo-gen-crates
+target.
+Defaults to
+.Pa ${MODCARGO_CARGOTOML:toml=lock} .
+.It Ev MODCARGO_CRATES
+Crates that will be downloaded by the module.
+.It Ev MODCARGO_CRATES_UPDATE
+List of crates to update, overriding the version listed in Cargo.lock.
+.It Ev MODCARGO_FEATURES
+List of features to be used when building.
+.It Ev MODCARGO_INSTALL_TARGET_PATHS
+List of paths to pass to
+.Cm cargo install
+instead of
+.Pa \&. .
+Needs to be set for some virtual manifests.
+.It Ev MODCARGO_VENDOR_DIR
+Name of the local directory for vendoring crates.
+Defaults to
+.Pa ${WRKSRC}/modcargo-crates .
+.It Ev MODCARGO_WANTLIB
+Architecture-specific
+.Ev WANTLIB
+entries required by all Rust code.
+It is a copy of
+.Ev MODRUST_WANTLIB
+provided for simplicity.
+.El
+.Pp
+This module adds three
+.Xr make 1
+targets:
+.Bl -tag -width modcargo-gen-crates-licenses
+.It Cm modcargo-metadata
+Rerun the generation of crates' metadata.
+.It Cm modcargo-gen-crates
+Generate the
+.Ev MODCARGO_CRATES
+list from Cargo.lock (a preliminary crates list is not required).
+.It Cm modcargo-gen-crates-licenses
+Generate the
+.Ev MODCARGO_CRATES
+list with license information from crates present in the
+.Ev MODCARGO_VENDOR_DIR
+directory.
+.El
+.Sh SEE ALSO
+.Xr port-modules 5

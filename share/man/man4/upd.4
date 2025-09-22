@@ -1,0 +1,101 @@
+.\"	$OpenBSD: upd.4,v 1.6 2024/12/01 09:05:05 landry Exp $
+.\"
+.\" Copyright (c) 2014 Andre de Oliveira <andre@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 1 2024 $
+.Dt UPD 4
+.Os
+.Sh NAME
+.Nm upd
+.Nd USB Power Devices sensor
+.Sh SYNOPSIS
+.Cd "upd* at uhidev?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for monitoring various sensors provided by
+USB Power Devices (such as a UPS).
+Supported sensor values are made available via the
+.Xr sysctl 8
+interface.
+.Pp
+The following sensors are supported by the driver:
+.Pp
+.Bl -item -offset indent -compact
+.It
+BatteryPresent
+.It
+ShutdownImminent
+.It
+ACPresent
+.It
+PercentLoad
+.It
+Overload
+.It
+RelativeStateOfCharge
+.It
+AbsoluteStateOfCharge
+.It
+RemainingCapacity
+.It
+FullChargeCapacity
+.It
+Charging
+.It
+Discharging
+.It
+AtRateTimeToFull
+.It
+AtRateTimeToEmpty
+.It
+RunTimeToEmpty
+.It
+NeedReplacement
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr uhidev 4 ,
+.Xr sensorsd.conf 5 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Pp
+The USB Power Devices specification can be found at:
+.Lk https://www.usb.org/hid
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.6 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Andre de Oliveira .
+.Sh BUGS
+The
+.Nm
+driver does not indicate device health via aggregate or
+individual sensor status.
+Users who wish to monitor
+.Nm
+status using
+.Xr sensorsd 8
+must manually establish
+.Dq high
+and
+.Dq low
+limits for sensor values of interest via
+.Xr sensorsd.conf 5 .

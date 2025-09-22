@@ -1,0 +1,77 @@
+$OpenBSD: md5.pod,v 1.2 2023/05/16 11:53:01 espie Exp $
+
+=head1 NAME
+
+OpenBSD::md5 - simple interface to sha256 digests
+
+=head1 SYNOPSIS
+
+    use OpenBSD::md5;
+
+    my $sha = OpenBSD::sha->new($filename);
+    $k->{$sha->key} = $filename;
+
+    my $ck2 = $sha->new($filename2);
+
+    if ($ck2->equals($sha)) {
+         ...
+    }
+
+    print $sha->stringize # provides a base64 representation
+    my $ck3 = $s->fromstring; # decodes both base64 and hex
+	
+
+
+=head1 DESCRIPTION
+
+C<OpenBSD::md5> provides an object-oriented interface to cryptographic
+hashing facilities for use in the ports tree.
+
+In particular, it provides an abstraction to build crypto hashes from
+files, convert from and to text, and compare two checksums while
+keeping the user from making low-level decisions.
+
+The module itself is called C<OpenBSD::md5> for historical reasons,
+but the module only provides a C<OpenBSD::sha>  class, that produces
+and writes sha256 digests.
+
+The C<OpenBSD::md5> class itself was removed a few years ago.
+
+=over 8
+
+=item $o = $class-E<gt>new($filename)
+
+create a new digest object from the contents of a file.
+
+=item $o = $class-E<gt>fromstring($string)
+
+create a new digest object from a string representation.
+
+=item $o2 = $o-E<gt>new($filename) / $o-E<gt>fromstring($string)
+
+create a new digest object C<$o2> of the same type as C<$o>.
+
+=item $o-E<gt>equals($o2)
+
+compare two digest objects. Returns true only if they match.
+
+=item $h{$o-E<gt>key} = ...
+
+return the actual digest as a binary string, for use as a key in hashing.
+
+=item $s = $o-E<gt>stringize
+
+convert the digest into a suitable text representation.
+
+=item $o-E<gt>write($fh)
+
+writes an appropriate digest annotation on a packing-list filehandle
+(see L<OpenBSD::PackingList(3p)> and L<pkg_create(1)>).
+
+=back
+
+=head1 SEE ALSO
+
+L<cksum(1)> ,
+L<Digest::SHA(3p)> ,
+L<Mime::Base64(3p)>

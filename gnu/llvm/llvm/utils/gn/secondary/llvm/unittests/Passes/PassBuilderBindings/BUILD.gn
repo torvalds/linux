@@ -1,0 +1,12 @@
+import("//third-party/unittest/unittest.gni")
+unittest("PassesBindingsTests") {
+  deps = [
+    "//llvm/include/llvm/Config:config",
+    "//llvm/lib/IR",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [ "PassBuilderBindingsTest.cpp" ]
+}

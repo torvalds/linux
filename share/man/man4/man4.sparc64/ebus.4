@@ -1,0 +1,103 @@
+.\"	$OpenBSD: ebus.4,v 1.26 2020/06/18 20:39:28 jmc Exp $
+.\"	$NetBSD: ebus.4,v 1.3 2002/03/13 21:42:20 wiz Exp $
+.\"
+.\" Copyright (c) 1999 Matthew R. Green
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 18 2020 $
+.Dt EBUS 4 sparc64
+.Os
+.Sh NAME
+.Nm ebus
+.Nd introduction to SPARC EBus bus support
+.Sh SYNOPSIS
+.Cd "ebus* at pci?"
+.Cd "ebus* at mainbus0"
+.Sh DESCRIPTION
+The
+.Nm
+bus is designed to provide the ability to put ISA and traditional
+Intel-style peripherals in a SPARC based system with a minimal amount
+of glue logic.
+Typically, it is implemented in the PCIO IC from SME, which also
+implements an
+.Xr hme 4
+compatible PCI network device
+.Pf ( Ql network ) .
+The
+.Nm
+has four DMA channels, similar to the DMA seen in the
+.Xr esp 4
+SCSI DMA.
+.Pp
+.Ox
+provides support for the following devices:
+.Pp
+.Bl -tag -width "audioce(4)XX" -offset 3n -compact
+.It Xr audioce 4
+SPARC64 EBus CS4231 audio device
+.It Xr auxio 4
+SPARC64 auxiliary I/O
+.It Xr bbc 4
+SPARC64 BootBus Controller
+.It Xr beeper 4
+console annunciator
+.It Xr clock 4
+real-time clock
+.It Xr com 4
+serial communications interface
+.It Xr comkbd 4
+serial keyboard driver
+.It Xr comms 4
+serial mouse driver
+.It Xr led 4
+SPARC64 LED driver
+.It Xr lom 4
+lights out management
+.It Xr lpt 4
+parallel port driver
+.It Xr pcfiic 4
+Philips PCF8584 I2C controller
+.It Xr pckbc 4
+PC (ISA) keyboard controller driver
+.It Xr pmc 4
+power management controller
+.It Xr power 4
+power button
+.It Xr sab 4
+Infineon SAB82532 (ESCC2) serial communications driver
+.It Xr uperf 4
+performance counters driver
+.It Xr wbsd 4
+Winbond W83L518D/W83L519D SD memory card interface
+.El
+.Sh SEE ALSO
+.Xr intro 4
+.Rs
+.%A Sun Microelectronics
+.%B Peripheral Component Interconnect Input Output Controller
+.%V Part\ No.:\ 802-7837-01
+.%D March 1997
+.%U http://www.sun.com/processors/manuals/802-7837.pdf
+.Re

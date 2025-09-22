@@ -1,0 +1,91 @@
+.\" $OpenBSD: ksyms.4,v 1.15 2022/03/31 17:27:21 naddy Exp $
+.\"
+.\" Copyright (c) 1998 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt KSYMS 4
+.Os
+.Sh NAME
+.Nm ksyms
+.Nd kernel symbol table device
+.Sh SYNOPSIS
+.Cd "pseudo-device ksyms" Op Ar count
+.Sh DESCRIPTION
+The
+.Pa /dev/ksyms
+device masquerades as an
+.Ox
+native executable with the symbols from the running kernel as its symbol segment.
+Use of
+.Pa /dev/ksyms
+requires that the boot loader preserve the kernel symbols and place
+them at the end of the kernel's address space.
+.Pp
+The
+.Pa /dev/ksyms
+device is used to look up the symbol table name list from the running
+kernel.
+Because it represents the running kernel, it is guaranteed
+to always be up to date even if the kernel file has been changed (or
+is even non-existent).
+It is most useful when used in conjunction with
+.Xr nlist 3
+or the
+.Xr kvm 3
+routines (note that
+.Xr kvm_open 3
+and
+.Xr kvm_openfiles 3
+will try
+.Pa /dev/ksyms
+automatically if the first parameter to them is the
+.Dv NULL
+pointer).
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /dev/ksyms
+.El
+.Sh ERRORS
+An open of
+.Pa /dev/ksyms
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+An open was attempted with write permissions.
+.It Bq Er ENXIO
+No kernel symbols were saved by the boot loader (usually because
+they were removed with
+.Xr strip 1 ) ,
+or the kernel has been compiled without a
+.Dq pseudo-device ksyms
+line.
+.El
+.Sh SEE ALSO
+.Xr kvm 3 ,
+.Xr nlist 3
+.Sh HISTORY
+The
+.Pa /dev/ksyms
+device appeared in
+.Ox 2.4 .
+.Sh BUGS
+It is not possible to
+.Xr mmap 2
+.Pa /dev/ksyms
+because the boot loader does not load the symbol table onto a page
+boundary (so it is not page aligned).
+If all the boot loaders were fixed,
+.Xr mmap 2
+support would be trivial.

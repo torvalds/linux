@@ -1,0 +1,611 @@
+.\"	$OpenBSD: disklabel.8,v 1.157 2024/03/22 21:49:52 jan Exp $
+.\"	$NetBSD: disklabel.8,v 1.9 1995/03/18 14:54:38 cgd Exp $
+.\"
+.\" Copyright (c) 1987, 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Symmetric Computer Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: March 22 2024 $
+.Dt DISKLABEL 8
+.Os
+.Sh NAME
+.Nm disklabel
+.Nd read and write disk pack label
+.Sh SYNOPSIS
+.Nm disklabel
+.Op Fl Acdtv
+.Op Fl h | p Ar unit
+.Op Fl T Ar file
+.Ar disk
+.Nm disklabel
+.Fl w
+.Op Fl Acdnv
+.Op Fl T Ar file
+.Ar disk disktype
+.Op Ar packid
+.Nm disklabel
+.Fl e
+.Op Fl Acdnv
+.Op Fl T Ar file
+.Ar disk
+.Nm disklabel
+.Fl E
+.Op Fl Acdnv
+.Op Fl F Ns | Ns Fl f Ar file
+.Op Fl T Ar file
+.Ar disk
+.Nm disklabel
+.Fl R
+.Op Fl nv
+.Op Fl F Ns | Ns Fl f Ar file
+.Ar disk protofile
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to install, examine, or modify the label on a disk drive or
+pack.
+The disk label contains information about disk characteristics
+.Pq size, type, etc.
+and the partition layout, stored on the disk itself.
+It is used by the operating system to optimize disk I/O and
+locate the filesystems resident on the disk.
+.Pp
+.Nm
+supports 15 configurable partitions,
+.Sq a
+through
+.Sq p ,
+excluding
+.Sq c .
+The
+.Sq c
+partition describes the entire physical disk, is automatically created
+by the kernel, and cannot be modified or deleted by
+.Nm .
+By convention, the
+.Sq a
+partition of the boot disk is the root partition, and the
+.Sq b
+partition of the boot disk is the swap partition,
+but all other letters can be used in any order for any other
+partitions as desired.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl A
+Automatically allocate all the disk space in the
+.Ox
+portion of the disk in the recommended manner.
+See
+.Sx AUTOMATIC DISK ALLOCATION ,
+below.
+.It Fl c
+Clear the system's in-core copy of the label and update it based on
+the on-disk label.
+.It Fl d
+Use the
+.Em default
+label.
+This ignores any existing
+.Ox
+disk label on the disk.
+.It Fl E
+Use the built-in command-driven label editor described below.
+.It Fl e
+Edit an existing disk label using the editor specified in the
+.Ev EDITOR
+environment variable, or
+.Xr vi 1
+if none is specified.
+.It Fl F Ar file
+Write entries to
+.Ar file
+in
+.Xr fstab 5
+format for any partitions for which mount point information is known.
+The entries will be written using disklabel UIDs.
+The
+.Fl F
+flag is only valid when used in conjunction with the
+.Fl E
+or
+.Fl R
+flags.
+If
+.Ar file
+already exists, it will be overwritten.
+.It Fl f Ar file
+The same as
+.Fl F
+except that entries will be written using disk device names.
+.It Fl h
+Print partition sizes in human readable format.
+.It Fl n
+Make no permanent changes to the disklabel
+.Pq useful for debugging purposes .
+.It Fl p Ar unit
+Print partition sizes in
+.Ar unit
+instead of sectors.
+Valid units are b(ytes), c(ylinders), k(ilobytes), m(egabytes), g(igabytes)
+and t(erabytes).
+.It Fl R
+Restore a disk label that was formatted in a prior operation and
+saved in an ASCII file.
+.It Fl T Ar file
+Read the template for automatic allocation from
+.Ar file
+instead of using the builtin one.
+See
+.Sx AUTOMATIC DISK ALLOCATION
+below for the format.
+If
+.Ar file
+is a single dash
+.Pq Sq - ,
+the template is read from the standard input.
+.It Fl t
+Format the label as a
+.Xr disktab 5
+entry.
+.It Fl v
+Print additional information during operation
+.Pq verbose mode .
+.It Fl w
+Write a standard label on the designated drive.
+.It Ar disk
+Specify the
+.Ar disk
+to operate on.
+It can be specified by its full pathname, by an abbreviated disk form,
+or by its disklabel UID.
+In its abbreviated form, the path to the device, the
+.Sq r
+denoting
+.Qq raw device ,
+and the partition letter, can all be omitted.
+For example, the first IDE disk can be specified as either
+.Pa /dev/rwd0c ,
+.Pa /dev/wd0c ,
+or
+.Ar wd0 .
+.It Ar disktype
+Specify a
+.Ar disktype
+entry from the
+.Xr disktab 5
+database.
+.It Ar packid
+Specify a pack identification string for the device
+.Pq see below .
+.It Ar protofile
+Used with the restore option
+.Pq Fl R
+to specify a file to read an ASCII label from.
+.El
+.Pp
+The first form of the command
+.Pq read
+is used to examine the label on the named disk drive.
+It will display all of the parameters associated with the drive
+and its partition layout.
+The kernel's in-core copy of the label is displayed; if
+the disk has no label, or the partition types on the disk are
+incorrect, the kernel may have constructed or modified the label.
+.Pp
+The second form of the command
+.Pq write
+is used to write a standard label on the designated drive.
+The drive parameters and partitions are taken from that file.
+If different disks of the same physical type are
+to have different partitions, it will be necessary to have separate
+disktab entries describing each, or to edit the label after
+installation as described below.
+The optional argument is a pack
+identification string, up to 16 characters long.
+The pack ID must be quoted if it contains blanks.
+The existing label will be updated via the in-core
+copy.
+.Pp
+In the third form of the command
+.Pq edit ,
+the label is read from the in-core kernel copy
+and then supplied to an editor for changes.
+If no editor is specified in an
+.Ev EDITOR
+environment variable,
+.Xr vi 1
+is used.
+When the editor terminates, the formatted label is reread and
+used to rewrite the disk label.
+.Pp
+The built-in label editor
+.Pq fourth form
+provides a simple interactive label editor.
+The editor prompt contains information about the state of the edit
+process.
+.Pp
+.Dl Ar disk Ns *>
+.Pp
+Where
+.Ar disk
+is the name of the disk being edited,
+.Sq *
+means that the in-memory copy of the partition table has been modified but
+not yet written to disk.
+.Pp
+Some commands or prompts take an optional unit.
+Available units are
+.Sq b
+for bytes,
+.Sq c
+for cylinders,
+.Sq k
+for kilobytes,
+.Sq m
+for megabytes,
+.Sq g
+for gigabytes,
+and
+.Sq t
+for terabytes.
+If no unit is given, the default is to use sectors
+(usually 512 bytes).
+.Pp
+Quantities are rounded to the nearest
+cylinder when units are specified for sizes
+.Pq or offsets .
+At prompts that request a size,
+.Ql *
+may be entered to indicate the rest of the available space,
+.Sq %
+for percentage of total, and
+.Sq &
+for percentage free.
+Commands may be aborted by entering
+.Ql ^D
+.Pq Control-D .
+Entering
+.Ql ^D
+at the main prompt will exit the editor.
+.Pp
+The editor commands are as follows:
+.Bl -tag -width "p [unit] "
+.It Cm \&? | h
+Display help message with all available commands.
+There is also
+.Pq simple
+context-sensitive help available at most prompts.
+.It Cm A
+Allocate all the disk space in the recommended manner.
+See
+.Sx AUTOMATIC DISK ALLOCATION ,
+below.
+.It Cm a Op Ar part
+Add new partition.
+This option adds a new partition to the disk label.
+If no partition letter is specified
+.Pq a\-p ,
+the user will be prompted for one.
+.It Cm b
+Set
+.Ox
+disk boundaries.
+This option tells
+.Nm
+which parts of the disk it is allowed to modify.
+This option is probably only useful for ports with
+.Xr fdisk 8
+partition tables where the ending sector in the MBR is incorrect.
+The user may enter
+.Ql *
+at the
+.Dq Size
+prompt to indicate the entire size of the disk
+.Pq minus the starting sector .
+This is useful for disks where the
+fdisk partition table is incapable of storing the real size.
+Note: data may become corrupted if boundaries are extended such
+that they overlap with other resident operating systems.
+.It Cm c Op Ar part
+Change the size of an existing partition.
+If no partition is specified, the user will be prompted for one.
+The new size may be
+in terms of the aforementioned units and may also be prefixed with
+.Ql +
+or
+.Ql -
+to change the size by a relative amount.
+.It Cm D
+Sets the disk label to the default values as reported by the kernel.
+This simulates the case where there is no disk label.
+.It Cm d Op Ar part
+Delete an existing partition (or
+.Ql *
+to delete all partitions).
+If no partition is specified, the user will be prompted for one.
+.It Cm e
+Edit label description, e.g. 'UMIS RPJTJ256MED'.
+.It Cm i
+Change the disklabel UID, specified as a 16-character hexadecimal string.
+If set to all zeros, a new UID will automatically be allocated when the
+disklabel is written to disk.
+.It Cm l Op Ar unit
+Print the disk label header.
+.It Cm M
+Display this manual page.
+The manual page is piped through the pager specified by the
+.Ev PAGER
+environment variable or 'less' if
+.Ev PAGER
+is not set.
+.It Cm m Op Ar part
+Modify parameters for an existing partition.
+If no partition is specified, the user will be prompted for one.
+This option allows
+the user to change the filesystem type, starting offset, partition size,
+and mount point for the specified partition.
+.It Cm n Op Ar part
+Name the mount point for an existing partition.
+If no partition is specified, the user will be prompted for one.
+This option is only valid if
+.Nm
+was invoked with the
+.Fl f
+flag.
+.It Cm p Op Ar unit
+Print the current partition list.
+If a
+.Em unit
+is given, the size and offsets are displayed in terms of the
+specified unit.
+If the unit is
+.Sq * ,
+it is automatically determined by the size of the smallest
+partition.
+.It Cm q
+Quit the editor.
+If any changes have been made, the user will be
+asked whether or not to save the changes to the on-disk label.
+.It Cm R Op Ar part
+Resize a partition in an automatically allocated label,
+compacting unused space between partitions with a higher offset.
+The last partition will be shrunk if necessary.
+Works only for automatically allocated labels with no spoofed partitions.
+.It Cm r
+Recalculate free space.
+This command displays all the free areas on the disk and the total
+number of free sectors.
+.It Cm s Op Ar path
+Save the label to a file in ASCII format (suitable for loading via the
+.Fl R
+option).
+If no path is specified, the user will be prompted for one.
+.It Cm U
+Undo all changes made since entering the editor.
+.It Cm u
+Undo
+.Pq or redo
+last change.
+Entering
+.Em u
+once will undo the last change.
+Entering it again will restore the change.
+.It Cm w
+Write the label to disk.
+This option will commit any changes to the on-disk label.
+.It Cm x
+Exit the editor without saving any changes to the on-disk label.
+.It Cm z
+Zero out the existing partition table and mount point information,
+leaving only the 'c' partition.
+The drive parameters are not changed.
+.El
+.Pp
+In the restore form of the command
+.Pq fifth form ,
+the prototype file used to create the label should be in the same format
+as that produced when reading or editing a label.
+Comments are delimited by
+.Ar #
+and newline.
+.Pp
+Note that when a disk has no real
+.Bx
+disklabel, the kernel creates a
+default label so that the disk can be used.
+This default label will include other partitions found on the disk if
+they are supported on your architecture.
+For example, on systems that support
+.Xr fdisk 8
+partitions the default label will also include DOS and Linux partitions.
+However, these entries are not dynamic, they are fixed at the time
+.Nm
+is run.
+That means that subsequent changes that affect
+.Pf non- Ox
+partitions will not be present in the default label,
+though they may be updated by hand.
+To see the default label, run
+.Nm
+with the
+.Fl d
+flag.
+.Nm
+can then be run with the
+.Fl e
+flag and any entries pasted as desired from the default label into the real one.
+.Sh AUTOMATIC DISK ALLOCATION
+The
+.Fl A
+option and the editor command
+.Cm A
+create disklabels that distribute a disk's free space into a set of
+partitions appropriate for an
+.Ox
+installation.
+The exact set of partitions created depends on available free space,
+how fragmented the free space is
+and some machine dependent variables, but will be approximately:
+.Bl -column "/usr/X11R6" \
+"999MB \(en 999MB" "999MB \(en 999MB" "999MB \(en 999MB" \
+"< 700MB"
+.It \
+Ta Sy > 10GB Free Ta Sy > 2.5GB Ta Sy > 700MB Ta \
+Sy < 700MB
+.It Sy / \
+Ta 150MB \(en \0\01GB Ta 800MB \(en \0\02GB Ta 700MB \(en \0\04GB Ta \
+1MB \(en 2GB
+.It Sy swap \
+Ta \080MB \(en 256MB Ta \080MB \(en 256MB Ta \0\01MB \(en 256MB Ta
+.It Sy /usr \
+Ta 1.5GB \(en \030GB Ta 1.5GB \(en \030GB Ta Ta
+.It Sy /home \
+Ta \0\01GB \(en 300GB Ta 256MB \(en \0\02GB Ta Ta
+.It Sy /tmp \
+Ta 120MB \(en \0\04GB Ta Ta Ta
+.It Sy /var \
+Ta \080MB \(en \0\04GB Ta Ta Ta
+.It Sy /usr/X11R6 \
+Ta 384MB \(en \0\01GB Ta Ta Ta
+.It Sy /usr/local \
+Ta \0\01GB \(en \020GB Ta Ta Ta
+.It Sy /usr/src \
+Ta \0\02GB \(en \0\05GB Ta Ta Ta
+.It Sy /usr/obj \
+Ta \0\05GB \(en \0\06GB Ta Ta Ta
+.El
+.Pp
+The
+.Fl A
+option displays the partition set that would be created and
+.Fl wA
+writes it to disk.
+.Pp
+The default set can be overridden with
+.Fl T .
+Each line of input uses three fields to describe a partition.
+There must not be whitespace before the first field,
+fields are separated by whitespace and fields cannot contain whitespace.
+.Pp
+The first field is the partition's mount point or one of the
+special tokens
+.Sq RAID
+or
+.Sq SWAP .
+.Pp
+The second field is the partition size.
+This can be
+.Sq *
+to make the partition as large as possible,
+an exact size (e.g. 1G) or a size range
+(e.g. 1M-10G or 1G-*).
+.Pp
+The third field is the partition's share of any space left after all
+minimum sizes are accounted for.
+This is expressed as a percentage from 0 (the default) to 100
+(e.g. 37%).
+The last partition receives all remaining free space up to its
+maximum size no matter what percentage is specified.
+.Sh FILES
+.Bl -tag -width "/etc/disktabXXX"
+.It Pa /etc/disktab
+Disk description file.
+.El
+.Sh EXAMPLES
+Display, respectively, the current label, the default label and the
+default auto allocation for sd0:
+.Bd -literal -offset indent
+# disklabel sd0
+# disklabel -d sd0
+# disklabel -A sd0
+.Ed
+.Pp
+Write the default auto allocation to sd0:
+.Pp
+.Dl # disklabel -wA sd0
+.Pp
+Edit the label for the disk with DUID 3eb7f9da875cb9ee:
+.Pp
+.Dl # disklabel -E 3eb7f9da875cb9ee
+.Pp
+Restore the label for sd0 from information in
+.Pa mylabel :
+.Pp
+.Dl # disklabel -R sd0 mylabel
+.Pp
+Put largest contiguous area of free space on sd0 into a single RAID partition:
+.Dl # echo 'RAID *' | disklabel -wAT- sd0
+.Pp
+Write the auto allocation defined in
+.Pa /template
+to sd0:
+.Pp
+.Dl # disklabel -wAT/template sd0
+.Pp
+A template file that results in an auto allocation similar to the
+default one for a disk with 5GB of free space is:
+.Bl -column /home 1300MM256M 75% -offset indent
+.It / Ta \0800M\(en2G Ta \05%
+.It swap Ta \0\080M\(en256M Ta 10%
+.It /usr Ta 1300M\(en\)3G Ta 75%
+.It /home Ta \0256M\(en2G Ta 10%
+.El
+.Sh DIAGNOSTICS
+The kernel device drivers will not allow the size of a disk partition
+to be decreased or the offset of a partition to be changed while
+it is open.
+Some device drivers create a label containing only a
+single large partition if a disk is unlabeled; thus, the label must
+be written to the
+.Sq a
+partition of the disk while it is open.
+This sometimes requires the desired label to be set in two steps,
+the first one creating at least one other partition, and the second
+setting the label on the new partition while shrinking the
+.Sq a
+partition.
+.Sh SEE ALSO
+.Xr softraid 4 ,
+.Xr disklabel 5 ,
+.Xr disktab 5 ,
+.Xr installboot 8 ,
+.Xr scan_ffs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.3 Tahoe .
+.Sh CAVEATS
+The maximum disk and partition size is 64PB.
+.Pp
+On some machines, such as Sparc64, partition tables
+may not exhibit the full functionality described above.

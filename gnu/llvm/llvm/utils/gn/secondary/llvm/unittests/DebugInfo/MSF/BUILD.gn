@@ -1,0 +1,13 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("DebugInfoMSFTests") {
+  deps = [
+    "//llvm/lib/DebugInfo/MSF",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "MSFBuilderTest.cpp",
+    "MSFCommonTest.cpp",
+    "MappedBlockStreamTest.cpp",
+  ]
+}

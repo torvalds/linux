@@ -1,0 +1,1223 @@
+.\"	$OpenBSD: phantasia.6,v 1.3 2022/07/11 03:11:49 daniel Exp $
+.\"	$NetBSD: phantasia.6,v 1.9 2002/09/26 18:32:03 wiz Exp $
+.\"
+.Dd $Mdocdate: July 11 2022 $
+.Dt PHANTASIA 6
+.Os
+.Sh NAME
+.Nm phantasia
+.Nd an interterminal fantasy game
+.Sh SYNOPSIS
+.Nm
+.Op Fl abHmpSsx
+.Sh DESCRIPTION
+.Bf -symbolic
+.Nm
+is currently unusable because it relies on
+.Xr setgid 2
+to allow multiple users read and write access to the same files.
+.Ef
+.Pp
+.Nm
+is a role-playing game that allows players to roll up characters of
+various types to fight monsters and other players.
+Progression of characters is based upon gaining experience from fighting
+monsters (and other players).
+.Pp
+Most of the game is menu-driven and self-explanatory (more or less).
+.\" The screen is cursor updated, so be sure to set up the
+.\" .Ev TERM
+.\" variable in your environment.
+.Pp
+The options provide for a variety of functions to support the game.
+They are:
+.Bl -tag -width aaa -offset indent
+.It Fl a
+Get a listing of all character names on file.
+.It Fl b
+Show scoreboard of top characters per login.
+.It Fl H
+Print header only.
+.It Fl m
+Get a monster listing.
+.It Fl p
+Purge old characters.
+.It Fl S
+Turn on wizard options, if allowed, if running as
+.Em root .
+.It Fl s
+Invoke
+.Nm
+without header information.
+.It Fl x
+Examine/change a particular character on file.
+.El
+.Pp
+The characters are saved on a common file, in order to make the game
+interactive between players.
+Each character is given a password which allows later retrieval.
+Only characters above
+.Em level
+zero are saved.
+Characters unused for a while will be purged.
+Characters are only placed on the scoreboard when they die.
+.Sh PARTICULARS
+.Ss Normal Play
+A number of the player's more important statistics are almost always
+displayed on the screen, with maximums (where applicable) in
+parentheses.
+.Pp
+The character is placed randomly near the center of a Cartesian
+system.
+Most commands are selected with a single letter or digit.
+For example, one may move by hitting
+.Sq W ,
+.Sq S ,
+.Sq N ,
+or
+.Sq E ,
+(lower case may also be used; at no time is the game case-dependent).
+One may also use
+.Sq H ,
+.Sq J ,
+.Sq K ,
+and
+.Sq L
+for movement, as with
+.Xr vi 1 .
+The
+.Ic move
+.Pq Sq 1
+command is for moving to a specific (x, y) coordinate.
+The distance a character can move is calculated by
+1 plus 1.5 per
+.Em level .
+Moving in a compass direction will move the player the maximum
+allowed distance in that direction.
+.Pp
+A player may see who else is playing by using the
+.Ic players
+.Pq Sq 2
+option.
+One may see the coordinates of those who are the same
+distance or closer to the origin as the player.
+.Em Kings
+and
+.Em council of the wise
+can see and can be seen by everyone.
+A
+.Em palantir
+removes these restrictions.
+.Pp
+One can talk to other players with the
+.Ic talk
+.Pq Sq 3
+option.
+In general, this is a line or so of text.
+To remove the current message, just type
+.Aq return
+when prompted for a message.
+.Pp
+The
+.Ic stats
+.Pq Sq 4
+option shows additional characteristics of a player.
+.Pp
+One may leave the game with the
+.Ic quit
+.Pq Sq 5
+option.
+.Pp
+One may rest by default.
+Resting lets one regain maximum
+.Em energy level ,
+and also lets one find
+.Em mana .
+More mana is found at larger levels and further distances from the origin.
+.Pp
+One may call a monster by hitting
+.Sq 9
+or
+.Sq C .
+.Pp
+.Sq X
+can be used to examine other players.
+.Pp
+One may quit or execute a sub-shell by hitting interrupt.
+Quitting during battle results in death, for obvious reasons.
+.Pp
+Several other options become available as the player progresses in
+.Em level
+and
+.Em magic ,
+or to other stations in the game
+.Em ( valar ,
+.Em council of the wise ,
+.Em king ) .
+These are described elsewhere.
+In general, a control-L will force the redrawing of the screen.
+.Pp
+Other things which may happen are more or less self-explanatory.
+.Ss Fighting Monsters
+A player has several options while fighting monsters.
+They are as follows:
+.Bl -tag -width skirmish -offset indent
+.It Ic melee
+Inflicts damage on the monster, based upon
+.Em strength .
+Also decreases the monster's
+.Em strength
+some.
+.It Ic skirmish
+Inflicts a little less damage than
+.Ic melee ,
+but decreases the monster's
+.Em quickness
+instead.
+.It Ic evade
+Attempt to run away.
+Success is based upon both the player's and the monster's
+.Em brains
+and
+.Em quickness .
+.It Ic spell
+Several options for throwing spells (described elsewhere).
+.It Ic nick
+Hits the monster one plus the player's
+.Em sword ,
+and gives the player 10% of the monster's
+.Em experience .
+Decreases the monster's
+.Em experience
+an amount proportional to the amount granted.
+This also increases the monster's quickness.
+Paralyzed monsters wake up very fast when nicked.
+.It Ic luckout
+This is essentially a battle of wits with the monster.
+Success is based upon the player's and the monster's
+.Em brains .
+If successful, the player gets credit for slaying the monster.
+Otherwise, nothing happens, and the chance to
+.Ic luckout
+is lost.
+.El
+.Ss Character Statistics
+.Bl -tag -width energyXlevel -offset indent
+.It Em strength
+determines how much damage a character can inflict.
+.It Em quickness
+determines how many chances a character gets to make decisions while fighting.
+.It Em energy level
+specifies how much damage a character may endure before dying.
+.It Em magic level
+determines which spells a character may throw, and how effective those
+spells will be.
+.It Em brains
+basically, the character's intelligence; used for various fighting options
+and spells.
+.It Em mana
+used as a power source for throwing spells.
+.It Em experience
+gained by fighting monsters and other characters.
+.It Em level
+indicative of how much experience a character has accumulated; progresses
+geometrically as
+.Em experience
+increases.
+.It Em poison
+sickness which degrades a character's performance (affects
+.Em energy level
+and
+.Em strength ) .
+.It Em sin
+accumulated as a character does certain nasty things; used only rarely
+in normal play of the game.
+.It Em age
+of player; roughly equivalent to number of turns.
+As
+.Em age
+increases, many personal statistics degenerate.
+.El
+.Ss Character Types
+Character statistics are rolled randomly from the above list, according
+to character type.
+The types are as follows:
+.Bl -tag -width "experimento" -offset indent
+.It Em magic user
+strong in
+.Em magic level
+and
+.Em brains ,
+weak in other areas.
+Must rely on wits and magic to survive.
+.It Em fighter
+good in
+.Em strength
+and
+.Em energy level ,
+fairly good in other areas.
+This adds up to a well-equipped fighter.
+.It Em elf
+very high
+.Em quickness
+and above average
+.Em magic level .
+.It Em dwarf
+very high
+.Em strength
+and
+.Em energy level ,
+but with a tendency to be rather slow and not too bright.
+.It Em halfling
+rather quick and smart, with high
+.Em energy level ,
+but poor in
+.Em magic
+and
+.Em strength .
+Born with some
+.Em experience .
+.It Em experimento
+very mediocre in all areas.
+However, the
+.Em experimento
+may be placed almost anywhere within the playing grid.
+.El
+.Pp
+The possible ranges for starting statistics are summarized in
+the following table.
+.Pp
+.TS
+l c c c c c c
+l c c c c c c.
+Type	Strength	Quick	Mana	Energy	Brains	Magic
+_
+Mag. User	10-15	30-35	50-100	30-45	60-85	5-9
+Fighter	40-55	30-35	30-50	45-70	25-45	3-6
+Elf	35-45	32-38	45-90	30-50	40-65	4-7
+Dwarf	50-70	25-30	25-45	60-100	20-40	2-5
+Halfling	20-25	34	25-45	55-90	40-75	1-4
+Experimento	25	27	100	35	25	2
+.TE
+.\" .Bl -column "Experimento" "Strength" "Quick" "xxxxxx" "Energy" "Brains" "Magic"
+.\" .It Sy Charactertype	Strength	Quick	Mana	Energy	Brains	Magic
+.\" .It "Magic User"	10-15	30-35	50-100	30-45	60-85	5-9
+.\" .It Fighter	40-55	30-35	30-50	45-70	25-45	3-6
+.\" .It Elf	35-45	32-38	45-90	30-50	40-65	4-7
+.\" .It Dwarf	50-70	25-30	25-45	60-100	20-40	2-5
+.\" .It Halfling	20-25	34	25-45	55-90	40-75	1-4
+.\" .It Experimento	25	27	100	35	25	2
+.\" .El
+.Pp
+Not only are the starting characteristics different for the different
+character types, but the characteristics progress at different rates for the
+different types as the character goes up in
+.Em level .
+.Em Experimentoes Ns '
+characteristics progress randomly as one of the other types.
+The progression as characters increase in
+.Em level
+is summarized in the following table.
+.Pp
+.TS
+nokeep ;
+l c c c c c
+l n n n n n.
+Type	Strength	Mana	Energy	Brains	Magic
+_
+Mag. User	2.0	75	20	6	2.75
+Fighter	3.0	40	30	3.0	1.5
+Elf	2.5	65	25	4.0	2.0
+Dwarf	5	30	35	2.5	1
+Halfling	2.0	30	30	4.5	1
+.TE
+.Pp
+The character type also determines how much gold a player may
+carry, how long until
+.Em rings
+can overcome the player, and how much
+.Em poison
+the player can withstand.
+.Ss Spells
+During the course of the game, the player may use magic powers.
+These cases are described below.
+.Bl -tag -width "all or nothing" -offset indent
+.It Ic cloak
+.Em magic level necessary :
+20 (plus level 7)
+.br
+.Em mana used :
+35 plus 3 per rest period
+.br
+Used during normal play.
+Prevents monsters from finding the character,
+as well as hiding the player from other players.
+The player's coordinates show up as '?' in the
+.Ic players
+option.
+Players cannot collect
+.Em mana ,
+find trading posts, or discover the
+.Em grail
+while cloaked.
+Calling a monster uncloaks, as does choosing this option while cloaked.
+.It Ic teleport
+.Em magic level necessary :
+40 (plus level 12)
+.br
+.Em mana used :
+30 per 75 moved
+.br
+Used during normal play.
+Allows the player to move with much more freedom than with the
+.Ic move
+option, at the price of expending mana.
+The maximum distance possible to move is based upon
+.Em level
+and
+.Em magic level .
+.It Ic power blast
+.Em magic level necessary :
+none
+.br
+.Em mana used :
+5 times
+.Em level
+.br
+Used during inter-terminal battle.
+Damage is based upon
+.Em magic level
+and
+.Em strength .
+Hits much harder than a normal hit.
+.It Ic all or nothing
+.Em magic level necessary :
+none
+.br
+.Em mana used :
+1
+.br
+Used while combating monsters.
+Has a 25% chance of working.
+If it works, it hits the monster just enough to kill it.
+If it fails, it doesn't hit the monster, and doubles the monster's
+.Em quickness
+and
+.Em strength .
+Paralyzed monsters wake up much quicker as a result of this spell.
+.It Ic magic bolt
+.Em magic level necessary :
+5
+.br
+.Em mana used :
+variable
+.br
+Used while combating monsters.
+Hits the monster based upon the amount
+of
+.Em mana
+expended and
+.Em magic level .
+Guaranteed to hit at least 10 per
+.Em mana .
+.It Ic force field
+.Em magic level necessary :
+15
+.br
+.Em mana used :
+30
+.br
+Used during monster combat.
+Throws up a shield to protect from damage.
+The shield is added to actual energy level, and is a fixed number, based
+upon maximum energy.
+Normally, damage occurs first to the shield and then to the players actual
+.Em energy level .
+.It Ic transform
+.Em magic level necessary :
+25
+.br
+.Em mana used :
+50
+.br
+Used during monster combat.
+Transforms the monster randomly into one of the 100 monsters from
+the monster file.
+.It Ic increase might
+.Em magic level necessary :
+35
+.br
+.Em mana used :
+75
+.br
+Used during combat with monsters.
+Increases strength up to a maximum.
+.It Ic invisibility
+.Em magic level necessary :
+45
+.br
+.Em mana used :
+90
+.br
+Used while fighting monsters.
+Makes it harder for the monster to hit, by temporarily increasing the player's
+.Em quickness .
+This spell may be thrown several times, but a maximum level will be reached.
+.It Ic transport
+.Em magic level necessary :
+60
+.br
+.Em mana used :
+125
+.br
+Used during monster combat.
+Transports the monster away from the player.
+Success is based upon player's
+.Em magic
+and
+.Em brains ,
+and the monster's
+.Em experience .
+If it fails, the player is transported instead.
+60% of the time, the monster will drop any treasure it was carrying.
+.It Ic paralyze
+.Em magic level necessary :
+75
+.br
+.Em mana used :
+150
+.br
+Used during monster combat.
+.Dq Freezes
+the monster by putting its
+.Em quickness
+slightly negative.
+The monster will slowly wake up.
+Success is based upon player's
+.Em magic
+and the monster's
+.Em experience .
+If it fails, nothing happens.
+.It Ic specify
+.Em magic level necessary :
+none
+.br
+.Em mana used :
+1000
+.br
+Used during monster combat only by
+.Em valar
+or
+.Em council of the wise .
+Allows the player to pick which monster to fight.
+.El
+.Ss Monsters
+Monsters get bigger farther from the origin (0,0).
+Rings of distance 125 from the origin determine the size.
+A monster's
+.Em experience ,
+.Em energy level ,
+and
+.Em brains
+are multiplied by the size.
+.Em Strength
+is increased 50% per size over one, and
+.Em quickness
+remains the same, regardless of size.
+.Pp
+Nastier monsters are found as one progresses farther out from the origin.
+Monsters also may flock.
+The percent chance of that happening is designated as
+.Em flock%
+in the monster listing.
+Monsters outside the first ring
+may carry treasure, as determined by their treasure type.
+Flocking monsters, and bigger monsters, increase the chances of treasure.
+.Pp
+Certain monsters have special abilities, as follows:
+.Bl -tag -width "Assorted Faeries"
+.It Em Unicorn
+can only be subdued if the player is in possession of a
+.Em virgin .
+.It Em Modnar
+has random characteristics, including treasure type.
+.It Em Mimic
+will pick another name from the list of monsters in order to confuse.
+.It Em Dark Lord
+very nasty person.
+Does not like to be hit (especially nicked),
+and many spells do not work well (or at all) against him.
+One can always
+.Em evade
+from the
+.Em Dark Lord .
+.It Em Leanan-Sidhe
+also a very nasty person.
+She will permanently sap
+.Em strength
+from someone.
+.It Em Saruman
+wanders around with
+.Em Wormtongue ,
+who can steal a
+.Em palantir .
+Also,
+.Em Saruman
+may turn a player's gems into gold pieces, or scramble her/his stats.
+.It Em Thaumaturgist
+can transport a player.
+.It Em Balrog
+inflicts damage by taking away
+.Em experience ,
+not
+.Em energy .
+.It Em Vortex
+may take some
+.Em mana .
+.It Em Nazgul
+may try to steal a
+.Em ring
+or neutralize part of one's
+.Em brains .
+.It Em Tiamat
+may take half a player's
+.Em gold
+and
+.Em gems
+and escape.
+.It Em Kobold
+may get nasty and steal one gold piece and run away.
+.It Em Shelob
+may bite, inflicting the equivalent of one
+.Em poison .
+.It Em Assorted Faeries
+These are killed if attacking someone carrying
+.Em holy water .
+These are
+.Em Cluricaun , Fir Darrig , Fachan ,
+.Em Ghille Dhu , Bogle , Killmoulis ,
+and
+.Em Bwca .
+.It Em Lamprey
+may bite, inflicting 1/2 of a
+.Em poison .
+.It Em Shrieker
+will call one of its (much bigger) buddies if picked upon.
+.It Em Bonnacon
+will become bored with battle, fart, and run off.
+.It Em Smeagol
+will try to steal a
+.Em ring
+from a player, if given the chance.
+.It Em Succubus
+may inflict damage through a
+.Ic force field .
+This subtracts from
+.Em energy level
+instead of any shield the player may have thrown up.
+This is a very easy way to die.
+.It Em Cerberus
+loves metal and will steal all the metal treasures from a player if able.
+.It Em Ungoliant
+can bite and poison.
+This inflicts five
+.Em poisons ,
+and also takes one from the player's
+.Em quickness .
+.It Em Jabberwock
+may tire of battle, and leave after calling one of his friends
+.Em ( Jubjub Bird
+or
+.Em Bandersnatch ) .
+.It Em Morgoth
+actually
+.Em Modnar ,
+but reserved for
+.Em council of the wise , valar ,
+and
+.Em ex-valar .
+Fights with
+.Em Morgoth
+end when either he or the player dies.
+His characteristics are calculated based upon the player's.
+The player is given the chance to ally with him.
+No magic except
+.Ic force field
+works when battling
+.Em Morgoth .
+.It Em Troll
+may regenerate its
+.Em energy
+and
+.Em strength
+while in battle.
+.It Em Wraith
+may make a player blind.
+.El
+.Ss Treasures
+The various treasure types are as follows:
+.Bl -tag -width "type twelve/thirteen"
+.It Type zero
+none
+.It Type one
+.Em power booster
+\- adds mana.
+.br
+.Em druid
+\- adds experience.
+.br
+.Em holy orb
+\- subtracts 0.25 sin.
+.It Type two
+.Em amulet
+\- protects from cursed treasure.
+.br
+.Em holy water
+\- kills
+.Em assorted faeries .
+.br
+.Em hermit
+\- reduces sin by 25% and adds some mana.
+.It Type three
+.Em shield
+\- adds to maximum
+.Em energy level .
+.br
+.Em virgin
+\- used to subdue a
+.Em unicorn ,
+or to give much
+.Em experience
+(and some
+.Em sin ) .
+.br
+.Em athelas
+\- subtracts one
+.Em poison .
+.It Type four (scrolls)
+.Em shield
+\- throws a bigger than normal
+.Ic force field .
+.br
+.Em invisible
+\- temporarily puts the finder's
+.Em quickness
+to one million.
+.br
+.Em ten fold strength
+\- multiplies finder's strength by ten.
+.br
+.Em pick monster
+\- allows finder to pick next monster to battle.
+.br
+.Em general knowledge
+\- adds to finder's
+.Em brains
+and
+.Em magic level .
+.Pp
+All the scrolls except
+.Em general knowledge
+automatically call a monster.
+These preserve any spells that were already in effect, but are only in
+effect while in battle.
+.It Type five
+.Em dagger
+\- adds to
+.Em strength .
+.br
+.Em armour
+\- same as a
+.Em shield ,
+but bigger.
+.br
+.Em tablet
+\- adds
+.Em brains .
+.It Type six
+.Em priest
+\- rests to maximum; adds
+.Em mana , brains ;
+and halves
+.Em sin .
+.br
+.Em Robin Hood
+\- increases
+.Em shield
+and adds permanently to
+.Em strength .
+.br
+.Em axe
+\- like
+.Em dagger ,
+but bigger.
+.It Type seven
+.Em charm
+\- protects from cursed treasure (used before
+.Em amulet ) ;
+used in conjunction with
+.Em blessing
+to battle
+.Em Dark Lord .
+.br
+.Em Merlyn
+\- adds
+.Em brains , magic ,
+and
+.Em mana .
+.br
+.Em war hammer
+\- like an
+.Em axe ,
+but bigger.
+.It Type eight
+.Em healing potion
+\- sets
+.Em poison
+to -2, or subtracts two from
+.Em poison ,
+whichever is better.
+.br
+.Em transporter
+\- allows finder to move anywhere.
+.br
+.Em sword
+\- like a
+.Em war hammer ,
+but bigger.
+.It Type nine
+.Em golden crown
+\- allows the player to become
+.Em king
+by going to (0,0).
+.br
+.Em blessing
+\- cuts
+.Em sin
+to 1/3, adds
+.Em mana ,
+rests to maximum, kills
+.Em Dark Lord
+with a
+.Em charm ,
+and gives bearer first hit on all monsters.
+.br
+.Em quicksilver
+\- adds to
+.Em quickness .
+.It Type ten
+.Em elven boots
+\- adds permanently to
+.Em quickness .
+.It Type eleven
+.Em palantir
+\- allows one to see all the other players; used by
+.Em council of the wise
+to seek the
+.Em grail .
+.It Type twelve/thirteen
+.Em ring
+\- allows one to hit much harder in battle, etc.
+.El
+.Pp
+Any treasure type 10-13 monsters may instead carry a type nine treasure.
+.Pp
+A monster may also be carrying
+.Em gold
+or
+.Em gems .
+These are used at
+.Em trading posts
+to buy things.
+A
+.Em gem
+is worth 1000 gold pieces.
+Too much
+.Em gold
+will slow a player down.
+One may carry 1000 plus 200 per
+.Em level
+of
+.Em gold .
+A
+.Em gem
+weighs one half a gold piece.
+Monsters of treasure type 7 or higher may carry
+.Em gems .
+.Pp
+The chance of a cursed treasure is based upon treasure type.
+The more valuable treasures have a greater chance of being cursed.
+A cursed treasure knocks
+.Em energy level
+very low and adds 0.25
+.Em poison .
+.Ss Rings
+.Em Rings
+are only carried by
+.Em nazguls
+and
+.Em Dark Lords .
+They come in four different flavors.
+All
+.Em rings
+rest the player to maximum,
+and cause them to hit much harder
+in battle with monsters (assuming the
+.Em ring
+is being used for battle.)
+.Pp
+Two types of
+.Em rings
+are cursed and come either from
+.Em nazguls
+or
+.Em Dark Lords .
+After a few times of using these types, the player falls
+under the control of the
+.Em ring ,
+and strange, random things will occur.
+Eventually, the player dies,
+and the player's name is given to a monster on the file.
+Dying before the
+.Em ring
+is used up also renames the monster.
+.Pp
+The two remaining types of
+.Em rings
+are much more benign.
+The one from a
+.Em nazgul
+is good for a limited number of battle rounds, and will save
+the player from death if it was being used.
+The one from
+.Em Dark Lord
+is the same, except that it never is used up.
+.Em rings
+disappear after saving someone from death.
+In general, cursed
+.Em rings
+occur much more often than normal ones.
+It is usually not a good idea to pick one up.
+The only way to get rid of a
+.Em ring
+is to have a monster steal it.
+.Ss King
+A player may become
+.Em king
+by finding a
+.Em crown
+and going to (0,0).
+Players must have a
+.Em level
+in the range of 10 to 1000 to be able to find a
+.Em crown .
+When a player with one or more
+.Em crowns
+reaches
+.Em level
+1000, the
+.Em crowns
+are converted to
+.Em gold .
+.Pp
+Once a player is king, they may do certain things while in
+the Lord's Chamber (0,0).
+These are exercised with the
+.Ic decree
+('0') option.
+.Bl -tag -width "collect taxes"
+.It Ic transport
+This is done to another player.
+It randomly moves the affected player about.
+A
+.Em charm
+protects from transports.
+.It Ic curse
+This is done to another player.
+It is analogous to cursed treasure, but worse.
+It inflicts two
+.Em poison ,
+knocks
+.Em energy level
+very low, and degrades the maximum energy.
+It also removes a
+.Em cloak .
+A
+.Em blessing
+protects from king's curses.
+.It Ic energy void
+The king may put a number of these scattered about
+the kingdom.
+If a player hits one, they lose
+.Em mana , energy ,
+and
+.Em gold .
+The energy void disappears after being hit.
+.It Ic bestow
+This is also done to another player.
+The king may wish to reward one or more loyal subjects by sharing
+.Em gold .
+Or it is a convenient way to dispose of some unwanted deadweight.
+.It Ic collect taxes
+Everyone pays 7% tax on all
+.Em gold
+and
+.Em gems
+acquired, regardless of the existence of a
+.Em king .
+The king collects the accrued taxes with this option.
+.El
+.Pp
+The
+.Em king
+may also
+.Ic teleport
+anywhere for free by using the origin as a starting place.
+.Ss Council of the Wise, Valar
+A player automatically becomes a member of the
+.Em council of the wise
+upon reaching level 3000.
+Members of the council cannot have
+.Em rings .
+Members of the council have a few extra options which they can exercise.
+These are exercised with the
+.Ic intervene
+.Pq Sq 8
+option.
+All
+.Ic intervene
+options cost 1000 mana.
+One
+.Ic intervene
+option is to
+.Ic heal
+another player.
+This is just a quick way for that player to be rested
+to maximum and lose a little
+.Em poison .
+The main purpose in life for members of the council is to seek the
+.Em Holy Grail .
+This is done with a
+.Em palantir
+under the
+.Ic seek grail
+option.
+The distance cited by the seek is accurate within 10%, in order
+not to make it too easy to find the grail.
+A player must have infinitesimally small
+.Em sin ,
+or else it's all over upon finding the grail.
+In order to help members of the council on their quest, they
+may
+.Ic teleport
+with greater ease.
+.Pp
+Upon finding the grail, players advance to position of
+.Em valar .
+They may then exercise more and niftier options under
+.Ic intervention .
+These include all of the council members' options plus the
+ability to move other players about, bless them, and throw monsters at
+them.
+A
+.Em valar Ns 's
+blessing has the same effect as the treasure
+.Em blessing ,
+except that the affected player does not get the
+.Em blessing
+flag set.
+All
+.Ic intervention
+options which affect other players age the player who uses them.
+.Em Valars
+are essentially immortal, but are actually given five lives.
+If these are used up, the player is left to die, and becomes an
+.Em ex-valar .
+A
+.Em valar
+cannot
+.Ic move , teleport ,
+or call monsters.
+(An exception to this is if the
+.Em valar
+finds a
+.Em transporter . )
+This is to allow the
+.Em valar
+to dispose of excess
+.Em gold .
+Any monsters which a
+.Em valar
+encounters are based upon the valar's size.
+Only one valar may exist at a time.
+The current valar is replaced when another player finds the grail.
+The valar is then bumped back to the council of the wise.
+.Ss Wizard
+The
+.Em wizard
+is usually the owner of the game and the one who maintains
+the associated files.
+The
+.Em wizard
+is granted special powers within the game, if it is invoked
+with the
+.Fl S
+option.
+Otherwise, the
+.Em wizard
+plays no different from other players.
+The
+.Em wizard
+abilities are outlined below.
+.Bl -tag -width "super character type"
+.It Ic change players
+When examining a player, (game invoked with
+.Fl x ,
+or
+.Sq X
+is used from within game), the
+.Em wizard
+may also change the player.
+.It Ic intervention
+The
+.Em wizard
+may do all the
+.Ic intervention
+options.
+One extra option,
+.Ic vaporize ,
+is added to kill any offensive players.
+.It Ic super character type
+An extra character type is added.
+This character starts with the
+maximum possible in all statistics, selected from the other character types.
+A
+.Em super
+character's statistics also progress at the maximum possible rate, selected
+from the other character types.
+.El
+.Ss Special Places
+Certain regions of the playing grid have different names.
+In general, this is only to give players some idea of
+their present location.
+Some special places do exist.
+.Bl -tag -width "Trading Posts"
+.It Em Trading Posts
+These are located at |x| == |y| == n*n*100 for n = 1, 2, ..., 1000.
+Trading posts farther out have more things for sale.
+Be careful about cheating the merchants there, as they have short tempers.
+Merchants are dishonest about 5% of the time.
+.It Em Lord's Chamber
+This is located at (0,0).
+Only players with
+.Em crowns
+may enter.
+.It Em Point of \&No Return
+This is located beyond 1.2e+6 in any direction.
+The only way to return from here is a
+.Em transporter
+or to have a
+.Em valar
+relocate the player.
+.It Em Dead Marshes
+This is a band located fairly distant from the origin.
+The first fourteen monsters (water monsters) can normally only be found here.
+.It Em Valhala
+This place is where the
+.Em valar
+resides.
+It is associated with no particular coordinate on the playing grid.
+.El
+.Ss Miscellaneous
+Once a player reaches
+.Em level
+5, the game will start to time out waiting for input.
+This is to try to keep the game a bit faster-paced.
+.Pp
+A
+.Em guru
+will never be disgusted with your
+.Em sins
+if they are less than one.
+.Pp
+A
+.Em medic
+wants half of a player's
+.Em gold
+to be happy.
+Offering more than one has, or a negative amount will anger the
+.Em medic ,
+who will make the player worse (add one
+.Em poison ) .
+.Pp
+The
+.Em Holy Grail
+does little for those who are not ready to behold it.
+Whenever anyone finds it, it moves.
+It is always located within 1e+6 in any compass direction of the origin.
+.Pp
+There is a maximum amount of
+.Em mana
+and
+.Em charms
+a player may possess, based upon
+.Em level .
+.Em Quicksilver
+is always limited to a maximum of 99.
+.Pp
+.Em Books
+bought at a
+.Em trading post
+increase
+.Em brains ,
+based upon the number bought.
+It is unwise, however to buy more than 1/10 of one's
+.Em level
+in books at a time.
+.Pp
+Players over level 10000 are automatically retired.
+.Pp
+A
+.Em blindness
+goes away in random time.
+.Pp
+Players with
+.Em crowns
+are identified with a '*' before their character type.
+.Ss Inter-terminal Battle
+When two player's coordinates correspond, they may engage in battle.
+In general, the player with the highest
+.Em quickness
+gets the first hit.
+If the two players are severely mismatched, the stronger player
+is drastically handicapped for the battle.
+In order to protect from being stuck in an infinite loop,
+the player waiting for response may time out.
+Options for battle are:
+.Bl -tag -width "power blast"
+.It Ic fight
+Inflicts damage upon other person.
+.It Ic run away
+Escape from battle.
+Has a 75% chance of working.
+.It Ic power blast
+Battle spell.
+.It Ic luckout
+One-time chance to try to win against the foe.
+Has a 10% chance of working.
+.El
+.Pp
+Sometimes waits for other players may be excessive, because
+they may be battling a monster.
+Upon slaying a player in battle the winner gets the other's
+.Em experience
+and treasures.
+.Em Rings
+do not work for inter-terminal battle.
+.Sh AUTHORS
+.An Edward Estes ,
+AT&T Information Systems, Skokie, IL
+.Sh BUGS
+All screen formats assume at least 24 lines by at least 80 columns.
+No provisions are made for when any of the data items get too big
+for the allotted space on the screen.

@@ -1,0 +1,62 @@
+
+Commands:
+
+Enter word:                 <return> or <linefeed> or <space>
+Delete previous character:  <delete> or <backspace>
+Delete line:                <^u> or <^w>
+Redraw screen:              <^l> or <^r>
+Pause game:                 <^s>
+Resume game:                <^q> or <^s>
+Suspend game:               <^z>
+Give up on current cube:    <^d>
+Show remaining time:        <space> first thing on a line
+Show help:                  ? (Suspends timer until done)
+Exit game:                  <^c>
+
+(^u means "control u", etc.)
+
+Any time you are prompted while the board is displayed you can type:
+                           <esc>word
+to see where "word" is on the board.
+
+Usage:
+    boggle [-Bbcd] [-t time] [-w length] [+[+]] [boardspec]
+
+    -B: big boggle mode, uses a 5x5 board
+    -b: batch mode (boardspec must be present); dictionary read from stdin
+    -c: a challenge cube will be added to the board
+    -d: debug mode
+    -t time: time limit in seconds instead of default 180
+    -w length: minimum word length in letters instead of default 3
+    +: can reuse a cube, but not twice in succession
+    ++: can reuse cubes arbitrarily
+    boardspec: the first board to use (use 'q' for 'qu'); e.g.:
+          boggle nolezeebnqieegei
+.
+                            Default Rules
+
+A Boggle board is a four by four arrangement of Boggle cubes.
+You have 3 minutes to find as many words as possible in the Boggle board.
+Words are formed by finding a sequence of cubes (letters) that are in the
+game's dictionary.  The (N+1)th cube in the word must be horizontally,
+vertically, or diagonally adjacent to the Nth cube.  Cubes cannot be reused.
+Words consist solely of lower case letters and must be at least 3 letters long.
+.
+                           Options
+
+Command line flags can be given to change the rules of the game.
+The '+' flag allows a cube to be used multiple times, but not in succession.
+The '++' flag makes each cube adjacent to itself.
+The time limit can be changed from the default 3 minutes by using the
+flag '-t time' where 'time' is the duration (in seconds) of each game.
+The minimum word length can be changed from 3 letters by specifying
+'-w length' where 'length' is the minimum number of letters to use.
+.
+Copyright (c) 1988
+Barry Brachman           | UUCP:    {alberta,uw-beaver,uunet}!
+Dept. of Computer Science|           ubc-vision!ubc-csgrads!brachman
+Univ. of British Columbia| Internet: brachman@cs.ubc.ca
+Vancouver, B.C. V6T 1W5  |           brachman%ubc.csnet@csnet-relay.arpa
+(604) 228-5010           | brachman@ubc.csnet
+
+Boggle is a trademark of Parker Brothers.

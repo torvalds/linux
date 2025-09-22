@@ -1,0 +1,998 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_MEMORY
+#define _LIBCPP_MEMORY
+
+// clang-format off
+
+/*
+    memory synopsis
+
+namespace std
+{
+
+struct allocator_arg_t { };
+inline constexpr allocator_arg_t allocator_arg = allocator_arg_t();
+
+template <class T, class Alloc> struct uses_allocator;
+
+template <class Ptr>
+struct pointer_traits
+{
+    typedef Ptr pointer;
+    typedef <details> element_type;
+    typedef <details> difference_type;
+
+    template <class U> using rebind = <details>;
+
+    static pointer pointer_to(<details>);
+};
+
+template <class T>
+struct pointer_traits<T*>
+{
+    typedef T* pointer;
+    typedef T element_type;
+    typedef ptrdiff_t difference_type;
+
+    template <class U> using rebind = U*;
+
+    static pointer pointer_to(<details>) noexcept; // constexpr in C++20
+};
+
+template <class T> constexpr T* to_address(T* p) noexcept; // C++20
+template <class Ptr> constexpr auto to_address(const Ptr& p) noexcept; // C++20
+
+template <class Alloc>
+struct allocator_traits
+{
+    typedef Alloc                        allocator_type;
+    typedef typename allocator_type::value_type
+                                         value_type;
+
+    typedef Alloc::pointer | value_type* pointer;
+    typedef Alloc::const_pointer
+          | pointer_traits<pointer>::rebind<const value_type>
+                                         const_pointer;
+    typedef Alloc::void_pointer
+          | pointer_traits<pointer>::rebind<void>
+                                         void_pointer;
+    typedef Alloc::const_void_pointer
+          | pointer_traits<pointer>::rebind<const void>
+                                         const_void_pointer;
+    typedef Alloc::difference_type
+          | pointer_traits<pointer>::difference_type
+                                         difference_type;
+    typedef Alloc::size_type
+          | make_unsigned<difference_type>::type
+                                         size_type;
+    typedef Alloc::propagate_on_container_copy_assignment
+          | false_type                   propagate_on_container_copy_assignment;
+    typedef Alloc::propagate_on_container_move_assignment
+          | false_type                   propagate_on_container_move_assignment;
+    typedef Alloc::propagate_on_container_swap
+          | false_type                   propagate_on_container_swap;
+    typedef Alloc::is_always_equal
+          | is_empty                     is_always_equal;
+
+    template <class T> using rebind_alloc  = Alloc::rebind<T>::other | Alloc<T, Args...>;
+    template <class T> using rebind_traits = allocator_traits<rebind_alloc<T>>;
+
+    static pointer allocate(allocator_type& a, size_type n);                          // constexpr and [[nodiscard]] in C++20
+    static pointer allocate(allocator_type& a, size_type n, const_void_pointer hint); // constexpr and [[nodiscard]] in C++20
+
+    [[nodiscard]] static constexpr allocation_result<pointer, size_type>
+      allocate_at_least(Alloc& a, size_type n);                                 // Since C++23
+
+    static void deallocate(allocator_type& a, pointer p, size_type n) noexcept; // constexpr in C++20
+
+    template <class T, class... Args>
+    static void construct(allocator_type& a, T* p, Args&&... args); // constexpr in C++20
+
+    template <class T>
+    static void destroy(allocator_type& a, T* p); // constexpr in C++20
+
+    static size_type max_size(const allocator_type& a); // noexcept in C++14, constexpr in C++20
+    static allocator_type select_on_container_copy_construction(const allocator_type& a); // constexpr in C++20
+};
+
+template<class Pointer, class SizeType = size_t>
+struct allocation_result {
+    Pointer ptr;
+    SizeType count;
+}; // Since C++23
+
+template <>
+class allocator<void> // removed in C++20
+{
+public:
+    typedef void*                                 pointer;
+    typedef const void*                           const_pointer;
+    typedef void                                  value_type;
+
+    template <class _Up> struct rebind {typedef allocator<_Up> other;};
+};
+
+template <class T>
+class allocator
+{
+public:
+    typedef size_t    size_type;
+    typedef ptrdiff_t difference_type;
+    typedef T*        pointer;                           // deprecated in C++17, removed in C++20
+    typedef const T*  const_pointer;                     // deprecated in C++17, removed in C++20
+    typedef typename add_lvalue_reference<T>::type
+                      reference;                         // deprecated in C++17, removed in C++20
+    typedef typename add_lvalue_reference<const T>::type
+                      const_reference;                   // deprecated in C++17, removed in C++20
+
+    typedef T         value_type;
+
+    template <class U> struct rebind {typedef allocator<U> other;}; // deprecated in C++17, removed in C++20
+
+    typedef true_type propagate_on_container_move_assignment;
+    typedef true_type is_always_equal;                   // Deprecated in C++23, removed in C++26
+
+    constexpr allocator() noexcept;                      // constexpr in C++20
+    constexpr allocator(const allocator&) noexcept;      // constexpr in C++20
+    template <class U>
+      constexpr allocator(const allocator<U>&) noexcept; // constexpr in C++20
+    ~allocator();                                        // constexpr in C++20
+    pointer address(reference x) const noexcept;             // deprecated in C++17, removed in C++20
+    const_pointer address(const_reference x) const noexcept; // deprecated in C++17, removed in C++20
+    T* allocate(size_t n, const void* hint);          // deprecated in C++17, removed in C++20
+    T* allocate(size_t n);                              // constexpr in C++20
+    void deallocate(T* p, size_t n) noexcept;           // constexpr in C++20
+    size_type max_size() const noexcept;              // deprecated in C++17, removed in C++20
+    template<class U, class... Args>
+        void construct(U* p, Args&&... args);         // deprecated in C++17, removed in C++20
+    template <class U>
+        void destroy(U* p);                           // deprecated in C++17, removed in C++20
+};
+
+template <class T, class U>
+bool operator==(const allocator<T>&, const allocator<U>&) noexcept; // constexpr in C++20
+
+template <class T, class U>
+bool operator!=(const allocator<T>&, const allocator<U>&) noexcept; // removed in C++20
+
+template <class OutputIterator, class T>
+class raw_storage_iterator // deprecated in C++17, removed in C++20
+    : public iterator<output_iterator_tag, void, void, void, void> // until C++17
+{
+public:
+    typedef output_iterator_tag iterator_category;
+    typedef void                value_type;
+    typedef void                difference_type; // until C++20
+    typedef ptrdiff_t           difference_type; // since C++20
+    typedef void                pointer;
+    typedef void                reference;
+
+    explicit raw_storage_iterator(OutputIterator x);
+    raw_storage_iterator& operator*();
+    raw_storage_iterator& operator=(const T& element);
+    raw_storage_iterator& operator++();
+    raw_storage_iterator  operator++(int);
+};
+
+template <class T> pair<T*,ptrdiff_t> get_temporary_buffer(ptrdiff_t n) noexcept;
+template <class T> void               return_temporary_buffer(T* p) noexcept;
+
+template <class T> T* addressof(T& r) noexcept;
+template <class T> T* addressof(const T&& r) noexcept = delete;
+
+template <class InputIterator, class ForwardIterator>
+ForwardIterator
+uninitialized_copy(InputIterator first, InputIterator last, ForwardIterator result);
+
+namespace ranges {
+
+template<class InputIterator, class OutputIterator>
+using uninitialized_copy_result = in_out_result<InputIterator, OutputIterator>; // since C++20
+
+template<input_iterator InputIterator, sentinel-for<InputIterator> Sentinel1, nothrow-forward-iterator OutputIterator, nothrow-sentinel-for<OutputIterator> Sentinel2>
+  requires constructible_from<iter_value_t<OutputIterator>, iter_reference_t<InputIterator>>
+uninitialized_copy_result<InputIterator, OutputIterator>
+uninitialized_copy(InputIterator ifirst, Sentinel1 ilast, OutputIterator ofirst, Sentinel2 olast); // since C++20
+
+template<input_range InputRange, nothrow-forward-range OutputRange>
+  requires constructible_from<range_value_t<OutputRange>, range_reference_t<InputRange>>
+uninitialized_copy_result<borrowed_iterator_t<InputRange>, borrowed_iterator_t<OutputRange>>
+uninitialized_copy(InputRange&& in_range, OutputRange&& out_range); // since C++20
+
+}
+
+template <class InputIterator, class Size, class ForwardIterator>
+ForwardIterator
+uninitialized_copy_n(InputIterator first, Size n, ForwardIterator result);
+
+namespace ranges {
+
+template<class InputIterator, class OutputIterator>
+using uninitialized_copy_n_result = in_out_result<InputIterator, OutputIterator>; // since C++20
+
+template<input_iterator InputIterator, nothrow-forward-iterator OutputIterator, nothrow-sentinel-for<OutputIterator> Sentinel>
+  requires constructible_from<iter_value_t<OutputIterator>, iter_reference_t<InputIterator>>
+uninitialized_copy_n_result<InputIterator, OutputIterator>
+uninitialized_copy_n(InputIterator ifirst, iter_difference_t<InputIterator> n, OutputIterator ofirst, Sentinel olast); // since C++20
+
+}
+
+template <class ForwardIterator, class T>
+void uninitialized_fill(ForwardIterator first, ForwardIterator last, const T& x);
+
+namespace ranges {
+
+template <nothrow-forward-iterator ForwardIterator, nothrow-sentinel-for<ForwardIterator> Sentinel, class T>
+  requires constructible_from<iter_value_t<ForwardIterator>, const T&>
+ForwardIterator uninitialized_fill(ForwardIterator first, Sentinel last, const T& x); // since C++20
+
+template <nothrow-forward-range ForwardRange, class T>
+  requires constructible_from<range_value_t<ForwardRange>, const T&>
+borrowed_iterator_t<ForwardRange> uninitialized_fill(ForwardRange&& range, const T& x); // since C++20
+
+}
+
+template <class ForwardIterator, class Size, class T>
+ForwardIterator
+uninitialized_fill_n(ForwardIterator first, Size n, const T& x);
+
+namespace ranges {
+
+template <nothrow-forward-iterator ForwardIterator, class T>
+  requires constructible_from<iter_value_t<ForwardIterator>, const T&>
+ForwardIterator uninitialized_fill_n(ForwardIterator first, iter_difference_t<ForwardIterator> n); // since C++20
+
+}
+
+template <class T, class ...Args>
+constexpr T* construct_at(T* location, Args&& ...args); // since C++20
+
+namespace ranges {
+  template<class T, class... Args>
+    constexpr T* construct_at(T* location, Args&&... args); // since C++20
+}
+
+template <class T>
+void destroy_at(T* location); // constexpr in C++20
+
+namespace ranges {
+  template<destructible T>
+    constexpr void destroy_at(T* location) noexcept; // since C++20
+}
+
+template <class ForwardIterator>
+void destroy(ForwardIterator first, ForwardIterator last); // constexpr in C++20
+
+namespace ranges {
+  template<nothrow-input-iterator InputIterator, nothrow-sentinel-for<InputIterator> Sentinel>
+    requires destructible<iter_value_t<InputIterator>>
+    constexpr InputIterator destroy(InputIterator first, Sentinel last) noexcept; // since C++20
+  template<nothrow-input-range InputRange>
+    requires destructible<range_value_t<InputRange>>
+    constexpr borrowed_iterator_t<InputRange> destroy(InputRange&& range) noexcept; // since C++20
+}
+
+template <class ForwardIterator, class Size>
+ForwardIterator destroy_n(ForwardIterator first, Size n); // constexpr in C++20
+
+namespace ranges {
+  template<nothrow-input-iterator InputIterator>
+    requires destructible<iter_value_t<InputIterator>>
+    constexpr InputIterator destroy_n(InputIterator first, iter_difference_t<InputIterator> n) noexcept; // since C++20
+}
+
+template <class InputIterator, class ForwardIterator>
+ ForwardIterator uninitialized_move(InputIterator first, InputIterator last, ForwardIterator result);
+
+namespace ranges {
+
+template<class InputIterator, class OutputIterator>
+using uninitialized_move_result = in_out_result<InputIterator, OutputIterator>; // since C++20
+
+template <input_iterator InputIterator, sentinel_for<InputIterator> Sentinel1, nothrow-forward-iterator OutputIterator, nothrow-sentinel-for<O> Sentinel2>
+  requires constructible_from<iter_value_t<OutputIterator>, iter_rvalue_reference_t<InputIterator>>
+uninitialized_move_result<InputIterator, OutputIterator>
+uninitialized_move(InputIterator ifirst, Sentinel1 ilast, OutputIterator ofirst, Sentinel2 olast); // since C++20
+
+template<input_range InputRange, nothrow-forward-range OutputRange>
+  requires constructible_from<range_value_t<OutputRange>, range_rvalue_reference_t<InputRange>>
+uninitialized_move_result<borrowed_iterator_t<InputRange>, borrowed_iterator_t<OutputRange>>
+uninitialized_move(InputRange&& in_range, OutputRange&& out_range); // since C++20
+
+}
+
+template <class InputIterator, class Size, class ForwardIterator>
+ pair<InputIterator,ForwardIterator> uninitialized_move_n(InputIterator first, Size n, ForwardIterator result);
+
+namespace ranges {
+
+template<class InputIterator, class OutputIterator>
+using uninitialized_move_n_result = in_out_result<InputIterator, OutputIterator>; // since C++20
+
+template<input_iterator InputIterator, nothrow-forward-iterator OutputIterator, nothrow-sentinel-for<OutputIterator> Sentinel>
+  requires constructible_from<iter_value_t<OutputIterator>, iter_rvalue_reference_t<InputIterator>>
+uninitialized_move_n_result<InputIterator, OutputIterator>
+uninitialized_move_n(InputIterator ifirst, iter_difference_t<InputIterator> n, OutputIterator ofirst, Sentinel olast); // since C++20
+
+}
+
+template <class ForwardIterator>
+ void uninitialized_value_construct(ForwardIterator first, ForwardIterator last);
+
+namespace ranges {
+
+template <nothrow-forward-iterator ForwardIterator, nothrow-sentinel-for<ForwardIterator> Sentinel>
+  requires default_initializable<iter_value_t<ForwardIterator>>
+ ForwardIterator uninitialized_value_construct(ForwardIterator first, Sentinel last); // since C++20
+
+template <nothrow-forward-range ForwardRange>
+  requires default_initializable<range_value_t<ForwardRange>>
+ borrowed_iterator_t<ForwardRange> uninitialized_value_construct(ForwardRange&& r); // since C++20
+
+}
+
+template <class ForwardIterator, class Size>
+ ForwardIterator uninitialized_value_construct_n(ForwardIterator first, Size n);
+
+namespace ranges {
+
+template <nothrow-forward-iterator ForwardIterator>
+  requires default_initializable<iter_value_t<ForwardIterator>>
+ ForwardIterator uninitialized_value_construct_n(ForwardIterator first, iter_difference_t<ForwardIterator> n); // since C++20
+
+}
+
+template <class ForwardIterator>
+ void uninitialized_default_construct(ForwardIterator first, ForwardIterator last);
+
+namespace ranges {
+
+template <nothrow-forward-iterator ForwardIterator, nothrow-sentinel-for<ForwardIterator> Sentinel>
+  requires default_initializable<iter_value_t<ForwardIterator>>
+ ForwardIterator uninitialized_default_construct(ForwardIterator first, Sentinel last); // since C++20
+
+template <nothrow-forward-range ForwardRange>
+  requires default_initializable<range_value_t<ForwardRange>>
+ borrowed_iterator_t<ForwardRange> uninitialized_default_construct(ForwardRange&& r); // since C++20
+
+}
+
+template <class ForwardIterator, class Size>
+ ForwardIterator uninitialized_default_construct_n(ForwardIterator first, Size n);
+
+namespace ranges {
+
+template <nothrow-forward-iterator ForwardIterator>
+  requires default_initializable<iter_value_t<ForwardIterator>>
+ ForwardIterator uninitialized_default_construct_n(ForwardIterator first, iter_difference_t<ForwardIterator> n); // since C++20
+
+}
+
+template <class Y> struct auto_ptr_ref {};      // deprecated in C++11, removed in C++17
+
+template<class X>
+class auto_ptr                                  // deprecated in C++11, removed in C++17
+{
+public:
+    typedef X element_type;
+
+    explicit auto_ptr(X* p =0) throw();
+    auto_ptr(auto_ptr&) throw();
+    template<class Y> auto_ptr(auto_ptr<Y>&) throw();
+    auto_ptr& operator=(auto_ptr&) throw();
+    template<class Y> auto_ptr& operator=(auto_ptr<Y>&) throw();
+    auto_ptr& operator=(auto_ptr_ref<X> r) throw();
+    ~auto_ptr() throw();
+
+    typename add_lvalue_reference<X>::type operator*() const throw();
+    X* operator->() const throw();
+    X* get() const throw();
+    X* release() throw();
+    void reset(X* p =0) throw();
+
+    auto_ptr(auto_ptr_ref<X>) throw();
+    template<class Y> operator auto_ptr_ref<Y>() throw();
+    template<class Y> operator auto_ptr<Y>() throw();
+};
+
+template <class T>
+struct default_delete
+{
+    constexpr default_delete() noexcept = default;
+    template <class U> constexpr default_delete(const default_delete<U>&) noexcept; // constexpr since C++23
+
+    constexpr void operator()(T*) const noexcept;                                   // constexpr since C++23
+};
+
+template <class T>
+struct default_delete<T[]>
+{
+    constexpr default_delete() noexcept = default;
+    template <class U> constexpr default_delete(const default_delete <U[]>&) noexcept; // constexpr since C++23
+    constexpr void operator()(T*) const noexcept;                                      // constexpr since C++23
+    template <class U> void operator()(U*) const = delete;
+};
+
+template <class T, class D = default_delete<T>>
+class unique_ptr
+{
+public:
+    typedef see below pointer;
+    typedef T element_type;
+    typedef D deleter_type;
+
+    // constructors
+    constexpr unique_ptr() noexcept;
+    constexpr explicit unique_ptr(pointer p) noexcept;           // constexpr since C++23
+    constexpr unique_ptr(pointer p, see below d1) noexcept;      // constexpr since C++23
+    constexpr unique_ptr(pointer p, see below d2) noexcept;      // constexpr since C++23
+    constexpr unique_ptr(unique_ptr&& u) noexcept;               // constexpr since C++23
+    constexpr unique_ptr(nullptr_t) noexcept : unique_ptr() { }
+    template <class U, class E>
+        constexpr unique_ptr(unique_ptr<U, E>&& u) noexcept;     // constexpr since C++23
+    template <class U>
+        unique_ptr(auto_ptr<U>&& u) noexcept;                    // removed in C++17
+
+    // destructor
+    constexpr ~unique_ptr();                                     // constexpr since C++23
+
+    // assignment
+    constexpr unique_ptr& operator=(unique_ptr&& u) noexcept;                         // constexpr since C++23
+    template <class U, class E>
+    constexpr unique_ptr& operator=(unique_ptr<U, E>&& u) noexcept;                   // constexpr since C++23
+    constexpr unique_ptr& operator=(nullptr_t) noexcept;                              // constexpr since C++23
+
+    // observers
+    constexpr
+    add_lvalue_reference<T>::type operator*() const noexcept(see below);              // constexpr since C++23
+    constexpr pointer operator->() const noexcept;                                    // constexpr since C++23
+    constexpr pointer get() const noexcept;                                           // constexpr since C++23
+    constexpr deleter_type& get_deleter() noexcept;                                   // constexpr since C++23
+    constexpr const deleter_type& get_deleter() const noexcept;                       // constexpr since C++23
+    constexpr explicit operator bool() const noexcept;                                // constexpr since C++23
+
+    // modifiers
+    constexpr pointer release() noexcept;                                             // constexpr since C++23
+    constexpr void reset(pointer p = pointer()) noexcept;                             // constexpr since C++23
+    constexpr void swap(unique_ptr& u) noexcept;                                      // constexpr since C++23
+};
+
+template <class T, class D>
+class unique_ptr<T[], D>
+{
+public:
+    typedef implementation-defined pointer;
+    typedef T element_type;
+    typedef D deleter_type;
+
+    // constructors
+    constexpr unique_ptr() noexcept;
+    constexpr explicit unique_ptr(pointer p) noexcept;          // constexpr since C++23
+    constexpr unique_ptr(pointer p, see below d) noexcept;      // constexpr since C++23
+    constexpr unique_ptr(pointer p, see below d) noexcept;      // constexpr since C++23
+    constexpr unique_ptr(unique_ptr&& u) noexcept;              // constexpr since C++23
+    template <class U, class E>
+    constexpr unique_ptr(unique_ptr <U, E>&& u) noexcept;       // constexpr since C++23
+    constexpr unique_ptr(nullptr_t) noexcept : unique_ptr() { }
+
+    // destructor
+    constexpr ~unique_ptr();                                    // constexpr since C++23
+
+    // assignment
+    constexpr unique_ptr& operator=(unique_ptr&& u) noexcept;        // constexpr since C++23
+    template <class U, class E>
+    constexpr unique_ptr& operator=(unique_ptr <U, E>&& u) noexcept; // constexpr since C++23
+    constexpr unique_ptr& operator=(nullptr_t) noexcept;             // constexpr since C++23
+
+    // observers
+    constexpr T& operator[](size_t i) const;                    // constexpr since C++23
+    constexpr pointer get() const noexcept;                     // constexpr since C++23
+    constexpr deleter_type& get_deleter() noexcept;             // constexpr since C++23
+    constexpr const deleter_type& get_deleter() const noexcept; // constexpr since C++23
+    constexpr explicit operator bool() const noexcept;          // constexpr since C++23
+
+    // modifiers
+    constexpr pointer release() noexcept;                       // constexpr since C++23
+    constexpr void reset(pointer p = pointer()) noexcept;       // constexpr since C++23
+    constexpr void reset(nullptr_t) noexcept;                   // constexpr since C++23
+  template <class U> void reset(U) = delete;
+    constexpr void swap(unique_ptr& u) noexcept;                // constexpr since C++23
+};
+
+template <class T, class D>
+    constexpr void swap(unique_ptr<T, D>& x, unique_ptr<T, D>& y) noexcept;                 // constexpr since C++23
+
+template <class T1, class D1, class T2, class D2>
+    constexpr bool operator==(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y);    // constexpr since C++23
+template <class T1, class D1, class T2, class D2>
+    bool operator!=(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y);              // removed in C++20
+template <class T1, class D1, class T2, class D2>
+    bool operator<(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y);
+template <class T1, class D1, class T2, class D2>
+    bool operator<=(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y);
+template <class T1, class D1, class T2, class D2>
+    bool operator>(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y);
+template <class T1, class D1, class T2, class D2>
+    bool operator>=(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y);
+template<class T1, class D1, class T2, class D2>
+  requires three_way_comparable_with<typename unique_ptr<T1, D1>::pointer,
+                                     typename unique_ptr<T2, D2>::pointer>
+  compare_three_way_result_t<typename unique_ptr<T1, D1>::pointer,
+                             typename unique_ptr<T2, D2>::pointer>
+    operator<=>(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y);      // C++20
+
+template <class T, class D>
+    constexpr bool operator==(const unique_ptr<T, D>& x, nullptr_t) noexcept;   // constexpr since C++23
+template <class T, class D>
+    bool operator==(nullptr_t, const unique_ptr<T, D>& y) noexcept;             // removed in C++20
+template <class T, class D>
+    bool operator!=(const unique_ptr<T, D>& x, nullptr_t) noexcept;             // removed in C++20
+template <class T, class D>
+    bool operator!=(nullptr_t, const unique_ptr<T, D>& y) noexcept;             // removed in C++20
+
+template <class T, class D>
+    constexpr bool operator<(const unique_ptr<T, D>& x, nullptr_t);     // constexpr since C++23
+template <class T, class D>
+    constexpr bool operator<(nullptr_t, const unique_ptr<T, D>& y);     // constexpr since C++23
+template <class T, class D>
+    constexpr bool operator<=(const unique_ptr<T, D>& x, nullptr_t);    // constexpr since C++23
+template <class T, class D>
+    constexpr bool operator<=(nullptr_t, const unique_ptr<T, D>& y);    // constexpr since C++23
+template <class T, class D>
+    constexpr bool operator>(const unique_ptr<T, D>& x, nullptr_t);     // constexpr since C++23
+template <class T, class D>
+    constexpr bool operator>(nullptr_t, const unique_ptr<T, D>& y);     // constexpr since C++23
+template <class T, class D>
+    constexpr bool operator>=(const unique_ptr<T, D>& x, nullptr_t);    // constexpr since C++23
+template <class T, class D>
+    constexpr bool operator>=(nullptr_t, const unique_ptr<T, D>& y);    // constexpr since C++23
+template<class T, class D>
+  requires three_way_comparable<typename unique_ptr<T, D>::pointer>
+  compare_three_way_result_t<typename unique_ptr<T, D>::pointer>
+    constexpr operator<=>(const unique_ptr<T, D>& x, nullptr_t);        // C++20, constexpr since C++23
+
+class bad_weak_ptr
+    : public std::exception
+{
+    bad_weak_ptr() noexcept;
+};
+
+template<class T, class... Args>
+constexpr unique_ptr<T> make_unique(Args&&... args);                            // C++14, constexpr since C++23
+template<class T>
+constexpr unique_ptr<T> make_unique(size_t n);                                  // C++14, constexpr since C++23
+template<class T, class... Args> unspecified   make_unique(Args&&...) = delete; // C++14, T == U[N]
+
+template<class T>
+  constexpr unique_ptr<T> make_unique_for_overwrite();                        // T is not array, C++20, constexpr since C++23
+template<class T>
+  constexpr unique_ptr<T> make_unique_for_overwrite(size_t n);                // T is U[], C++20, constexpr since C++23
+template<class T, class... Args>
+  unspecified make_unique_for_overwrite(Args&&...) = delete;                  // T is U[N], C++20
+
+template<class E, class T, class Y, class D>
+    basic_ostream<E, T>& operator<< (basic_ostream<E, T>& os, unique_ptr<Y, D> const& p);
+
+template<class T>
+class shared_ptr
+{
+public:
+    typedef T element_type; // until C++17
+    typedef remove_extent_t<T> element_type; // since C++17
+    typedef weak_ptr<T> weak_type; // C++17
+
+    // constructors:
+    constexpr shared_ptr() noexcept;
+    template<class Y> explicit shared_ptr(Y* p);
+    template<class Y, class D> shared_ptr(Y* p, D d);
+    template<class Y, class D, class A> shared_ptr(Y* p, D d, A a);
+    template <class D> shared_ptr(nullptr_t p, D d);
+    template <class D, class A> shared_ptr(nullptr_t p, D d, A a);
+    template<class Y> shared_ptr(const shared_ptr<Y>& r, T *p) noexcept;
+    shared_ptr(const shared_ptr& r) noexcept;
+    template<class Y> shared_ptr(const shared_ptr<Y>& r) noexcept;
+    shared_ptr(shared_ptr&& r) noexcept;
+    template<class Y> shared_ptr(shared_ptr<Y>&& r) noexcept;
+    template<class Y> explicit shared_ptr(const weak_ptr<Y>& r);
+    template<class Y> shared_ptr(auto_ptr<Y>&& r);          // removed in C++17
+    template <class Y, class D> shared_ptr(unique_ptr<Y, D>&& r);
+    shared_ptr(nullptr_t) : shared_ptr() { }
+
+    // destructor:
+    ~shared_ptr();
+
+    // assignment:
+    shared_ptr& operator=(const shared_ptr& r) noexcept;
+    template<class Y> shared_ptr& operator=(const shared_ptr<Y>& r) noexcept;
+    shared_ptr& operator=(shared_ptr&& r) noexcept;
+    template<class Y> shared_ptr& operator=(shared_ptr<Y>&& r);
+    template<class Y> shared_ptr& operator=(auto_ptr<Y>&& r); // removed in C++17
+    template <class Y, class D> shared_ptr& operator=(unique_ptr<Y, D>&& r);
+
+    // modifiers:
+    void swap(shared_ptr& r) noexcept;
+    void reset() noexcept;
+    template<class Y> void reset(Y* p);
+    template<class Y, class D> void reset(Y* p, D d);
+    template<class Y, class D, class A> void reset(Y* p, D d, A a);
+
+    // observers:
+    T* get() const noexcept;
+    T& operator*() const noexcept;
+    T* operator->() const noexcept;
+    long use_count() const noexcept;
+    bool unique() const noexcept;  // deprected in C++17, removed in C++20
+    explicit operator bool() const noexcept;
+    template<class U> bool owner_before(shared_ptr<U> const& b) const noexcept;
+    template<class U> bool owner_before(weak_ptr<U> const& b) const noexcept;
+};
+
+template<class T>
+shared_ptr(weak_ptr<T>) -> shared_ptr<T>;
+template<class T, class D>
+shared_ptr(unique_ptr<T, D>) -> shared_ptr<T>;
+
+// shared_ptr comparisons:
+template<class T, class U>
+    bool operator==(shared_ptr<T> const& a, shared_ptr<U> const& b) noexcept;
+template<class T, class U>
+    bool operator!=(shared_ptr<T> const& a, shared_ptr<U> const& b) noexcept;               // removed in C++20
+template<class T, class U>
+    bool operator<(shared_ptr<T> const& a, shared_ptr<U> const& b) noexcept;                // removed in C++20
+template<class T, class U>
+    bool operator>(shared_ptr<T> const& a, shared_ptr<U> const& b) noexcept;                // removed in C++20
+template<class T, class U>
+    bool operator<=(shared_ptr<T> const& a, shared_ptr<U> const& b) noexcept;               // removed in C++20
+template<class T, class U>
+    bool operator>=(shared_ptr<T> const& a, shared_ptr<U> const& b) noexcept;               // removed in C++20
+template<class T, class U>
+    strong_ordering operator<=>(shared_ptr<T> const& a, shared_ptr<U> const& b) noexcept;   // C++20
+
+template <class T>
+    bool operator==(const shared_ptr<T>& x, nullptr_t) noexcept;
+template <class T>
+    bool operator==(nullptr_t, const shared_ptr<T>& y) noexcept;               // removed in C++20
+template <class T>
+    bool operator!=(const shared_ptr<T>& x, nullptr_t) noexcept;               // removed in C++20
+template <class T>
+    bool operator!=(nullptr_t, const shared_ptr<T>& y) noexcept;               // removed in C++20
+template <class T>
+    bool operator<(const shared_ptr<T>& x, nullptr_t) noexcept;                // removed in C++20
+template <class T>
+    bool operator<(nullptr_t, const shared_ptr<T>& y) noexcept;                // removed in C++20
+template <class T>
+    bool operator<=(const shared_ptr<T>& x, nullptr_t) noexcept;               // removed in C++20
+template <class T>
+    bool operator<=(nullptr_t, const shared_ptr<T>& y) noexcept;               // removed in C++20
+template <class T>
+    bool operator>(const shared_ptr<T>& x, nullptr_t) noexcept;                // removed in C++20
+template <class T>
+    bool operator>(nullptr_t, const shared_ptr<T>& y) noexcept;                // removed in C++20
+template <class T>
+    bool operator>=(const shared_ptr<T>& x, nullptr_t) noexcept;               // removed in C++20
+template <class T>
+    bool operator>=(nullptr_t, const shared_ptr<T>& y) noexcept;               // removed in C++20
+template<class T>
+    strong_ordering operator<=>(shared_ptr<T> const& x, nullptr_t) noexcept;   // C++20
+
+// shared_ptr specialized algorithms:
+template<class T> void swap(shared_ptr<T>& a, shared_ptr<T>& b) noexcept;
+
+// shared_ptr casts:
+template<class T, class U>
+    shared_ptr<T> static_pointer_cast(shared_ptr<U> const& r) noexcept;
+template<class T, class U>
+    shared_ptr<T> dynamic_pointer_cast(shared_ptr<U> const& r) noexcept;
+template<class T, class U>
+    shared_ptr<T> const_pointer_cast(shared_ptr<U> const& r) noexcept;
+
+// shared_ptr I/O:
+template<class E, class T, class Y>
+    basic_ostream<E, T>& operator<< (basic_ostream<E, T>& os, shared_ptr<Y> const& p);
+
+// shared_ptr get_deleter:
+template<class D, class T> D* get_deleter(shared_ptr<T> const& p) noexcept;
+
+template<class T, class... Args>
+    shared_ptr<T> make_shared(Args&&... args); // T is not an array
+template<class T, class A, class... Args>
+    shared_ptr<T> allocate_shared(const A& a, Args&&... args); // T is not an array
+
+template<class T>
+    shared_ptr<T> make_shared(size_t N); // T is U[] (since C++20)
+template<class T, class A>
+    shared_ptr<T> allocate_shared(const A& a, size_t N); // T is U[] (since C++20)
+
+template<class T>
+    shared_ptr<T> make_shared(); // T is U[N] (since C++20)
+template<class T, class A>
+    shared_ptr<T> allocate_shared(const A& a); // T is U[N] (since C++20)
+
+template<class T>
+    shared_ptr<T> make_shared(size_t N, const remove_extent_t<T>& u); // T is U[] (since C++20)
+template<class T, class A>
+    shared_ptr<T> allocate_shared(const A& a, size_t N, const remove_extent_t<T>& u); // T is U[] (since C++20)
+
+template<class T> shared_ptr<T>
+    make_shared(const remove_extent_t<T>& u); // T is U[N] (since C++20)
+template<class T, class A>
+    shared_ptr<T> allocate_shared(const A& a, const remove_extent_t<T>& u); // T is U[N] (since C++20)
+
+template<class T>
+  shared_ptr<T> make_shared_for_overwrite();                                  // T is not U[], C++20
+template<class T, class A>
+  shared_ptr<T> allocate_shared_for_overwrite(const A& a);                    // T is not U[], C++20
+
+template<class T>
+  shared_ptr<T> make_shared_for_overwrite(size_t N);                          // T is U[], C++20
+template<class T, class A>
+  shared_ptr<T> allocate_shared_for_overwrite(const A& a, size_t N);          // T is U[], C++20
+
+template<class T>
+class weak_ptr
+{
+public:
+    typedef T element_type; // until C++17
+    typedef remove_extent_t<T> element_type; // since C++17
+
+    // constructors
+    constexpr weak_ptr() noexcept;
+    template<class Y> weak_ptr(shared_ptr<Y> const& r) noexcept;
+    weak_ptr(weak_ptr const& r) noexcept;
+    template<class Y> weak_ptr(weak_ptr<Y> const& r) noexcept;
+    weak_ptr(weak_ptr&& r) noexcept;                      // C++14
+    template<class Y> weak_ptr(weak_ptr<Y>&& r) noexcept; // C++14
+
+    // destructor
+    ~weak_ptr();
+
+    // assignment
+    weak_ptr& operator=(weak_ptr const& r) noexcept;
+    template<class Y> weak_ptr& operator=(weak_ptr<Y> const& r) noexcept;
+    template<class Y> weak_ptr& operator=(shared_ptr<Y> const& r) noexcept;
+    weak_ptr& operator=(weak_ptr&& r) noexcept;                      // C++14
+    template<class Y> weak_ptr& operator=(weak_ptr<Y>&& r) noexcept; // C++14
+
+    // modifiers
+    void swap(weak_ptr& r) noexcept;
+    void reset() noexcept;
+
+    // observers
+    long use_count() const noexcept;
+    bool expired() const noexcept;
+    shared_ptr<T> lock() const noexcept;
+    template<class U> bool owner_before(shared_ptr<U> const& b) const noexcept;
+    template<class U> bool owner_before(weak_ptr<U> const& b) const noexcept;
+};
+
+template<class T>
+weak_ptr(shared_ptr<T>) -> weak_ptr<T>;
+
+// weak_ptr specialized algorithms:
+template<class T> void swap(weak_ptr<T>& a, weak_ptr<T>& b) noexcept;
+
+// class owner_less:
+template<class T> struct owner_less;
+
+template<class T>
+struct owner_less<shared_ptr<T> >
+    : binary_function<shared_ptr<T>, shared_ptr<T>, bool>
+{
+    typedef bool result_type;
+    bool operator()(shared_ptr<T> const&, shared_ptr<T> const&) const noexcept;
+    bool operator()(shared_ptr<T> const&, weak_ptr<T> const&) const noexcept;
+    bool operator()(weak_ptr<T> const&, shared_ptr<T> const&) const noexcept;
+};
+
+template<class T>
+struct owner_less<weak_ptr<T> >
+    : binary_function<weak_ptr<T>, weak_ptr<T>, bool>
+{
+    typedef bool result_type;
+    bool operator()(weak_ptr<T> const&, weak_ptr<T> const&) const noexcept;
+    bool operator()(shared_ptr<T> const&, weak_ptr<T> const&) const noexcept;
+    bool operator()(weak_ptr<T> const&, shared_ptr<T> const&) const noexcept;
+};
+
+template <>  // Added in C++14
+struct owner_less<void>
+{
+    template <class _Tp, class _Up>
+    bool operator()( shared_ptr<_Tp> const& __x, shared_ptr<_Up> const& __y) const noexcept;
+    template <class _Tp, class _Up>
+    bool operator()( shared_ptr<_Tp> const& __x,   weak_ptr<_Up> const& __y) const noexcept;
+    template <class _Tp, class _Up>
+    bool operator()(   weak_ptr<_Tp> const& __x, shared_ptr<_Up> const& __y) const noexcept;
+    template <class _Tp, class _Up>
+    bool operator()(   weak_ptr<_Tp> const& __x,   weak_ptr<_Up> const& __y) const noexcept;
+
+    typedef void is_transparent;
+};
+
+template<class T>
+class enable_shared_from_this
+{
+protected:
+    constexpr enable_shared_from_this() noexcept;
+    enable_shared_from_this(enable_shared_from_this const&) noexcept;
+    enable_shared_from_this& operator=(enable_shared_from_this const&) noexcept;
+    ~enable_shared_from_this();
+public:
+    shared_ptr<T> shared_from_this();
+    shared_ptr<T const> shared_from_this() const;
+};
+
+template<class T>
+    bool atomic_is_lock_free(const shared_ptr<T>* p);
+template<class T>
+    shared_ptr<T> atomic_load(const shared_ptr<T>* p);
+template<class T>
+    shared_ptr<T> atomic_load_explicit(const shared_ptr<T>* p, memory_order mo);
+template<class T>
+    void atomic_store(shared_ptr<T>* p, shared_ptr<T> r);
+template<class T>
+    void atomic_store_explicit(shared_ptr<T>* p, shared_ptr<T> r, memory_order mo);
+template<class T>
+    shared_ptr<T> atomic_exchange(shared_ptr<T>* p, shared_ptr<T> r);
+template<class T>
+    shared_ptr<T>
+    atomic_exchange_explicit(shared_ptr<T>* p, shared_ptr<T> r, memory_order mo);
+template<class T>
+    bool
+    atomic_compare_exchange_weak(shared_ptr<T>* p, shared_ptr<T>* v, shared_ptr<T> w);
+template<class T>
+    bool
+    atomic_compare_exchange_strong( shared_ptr<T>* p, shared_ptr<T>* v, shared_ptr<T> w);
+template<class T>
+    bool
+    atomic_compare_exchange_weak_explicit(shared_ptr<T>* p, shared_ptr<T>* v,
+                                          shared_ptr<T> w, memory_order success,
+                                          memory_order failure);
+template<class T>
+    bool
+    atomic_compare_exchange_strong_explicit(shared_ptr<T>* p, shared_ptr<T>* v,
+                                            shared_ptr<T> w, memory_order success,
+                                            memory_order failure);
+// Hash support
+template <class T> struct hash;
+template <class T, class D> struct hash<unique_ptr<T, D> >;
+template <class T> struct hash<shared_ptr<T> >;
+
+template <class T, class Alloc>
+  inline constexpr bool uses_allocator_v = uses_allocator<T, Alloc>::value;
+
+// [allocator.uses.construction], uses-allocator construction
+template<class T, class Alloc, class... Args>
+  constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // since C++20
+                                                  Args&&... args) noexcept;
+template<class T, class Alloc, class Tuple1, class Tuple2>
+  constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // since C++20
+                                                  piecewise_construct_t,
+                                                  Tuple1&& x, Tuple2&& y) noexcept;
+template<class T, class Alloc>
+  constexpr auto uses_allocator_construction_args(const Alloc& alloc) noexcept;   // since C++20
+template<class T, class Alloc, class U, class V>
+  constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // since C++20
+                                                  U&& u, V&& v) noexcept;
+template<class T, class Alloc, class U, class V>
+  constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // since C++23
+                                                  pair<U, V>& pr) noexcept;
+template<class T, class Alloc, class U, class V>
+  constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // since C++20
+                                                  const pair<U, V>& pr) noexcept;
+template<class T, class Alloc, class U, class V>
+  constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // since C++20
+                                                  pair<U, V>&& pr) noexcept;
+template<class T, class Alloc, class U, class V>
+  constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // since C++23
+                                                  const pair<U, V>&& pr) noexcept;
+template<class T, class Alloc, pair-like P>
+  constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // since C++20
+                                                  P&& p) noexcept;
+template<class T, class Alloc, class U>
+  constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // since C++20
+                                                  U&& u) noexcept;
+template<class T, class Alloc, class... Args>
+  constexpr T make_obj_using_allocator(const Alloc& alloc, Args&&... args);       // since C++20
+template<class T, class Alloc, class... Args>
+  constexpr T* uninitialized_construct_using_allocator(T* p,                      // since C++20
+                                                         const Alloc& alloc, Args&&... args);
+
+// [ptr.align]
+void* align(size_t alignment, size_t size, void*& ptr, size_t& space);
+
+template<size_t N, class T>
+[[nodiscard]] constexpr T* assume_aligned(T* ptr); // since C++20
+
+// [out.ptr.t], class template out_ptr_t
+template<class Smart, class Pointer, class... Args>
+  class out_ptr_t;                                          // since c++23
+
+// [out.ptr], function template out_ptr
+template<class Pointer = void, class Smart, class... Args>
+  auto out_ptr(Smart& s, Args&&... args);                   // since c++23
+
+// [inout.ptr.t], class template inout_ptr_t
+template<class Smart, class Pointer, class... Args>
+  class inout_ptr_t;                                        // since c++23
+
+// [inout.ptr], function template inout_ptr
+template<class Pointer = void, class Smart, class... Args>
+  auto inout_ptr(Smart& s, Args&&... args);                 // since c++23
+
+}  // std
+
+*/
+
+// clang-format on
+
+#include <__config>
+#include <__memory/addressof.h>
+#include <__memory/align.h>
+#include <__memory/allocator.h>
+#include <__memory/allocator_arg_t.h>
+#include <__memory/allocator_traits.h>
+#include <__memory/auto_ptr.h>
+#include <__memory/inout_ptr.h>
+#include <__memory/out_ptr.h>
+#include <__memory/pointer_traits.h>
+#include <__memory/raw_storage_iterator.h>
+#include <__memory/shared_ptr.h>
+#include <__memory/temporary_buffer.h>
+#include <__memory/uninitialized_algorithms.h>
+#include <__memory/unique_ptr.h>
+#include <__memory/uses_allocator.h>
+
+// standard-mandated includes
+
+#if _LIBCPP_STD_VER >= 17
+#  include <__memory/construct_at.h>
+#endif
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__memory/assume_aligned.h>
+#  include <__memory/concepts.h>
+#  include <__memory/ranges_construct_at.h>
+#  include <__memory/ranges_uninitialized_algorithms.h>
+#  include <__memory/uses_allocator_construction.h>
+#endif
+
+#if _LIBCPP_STD_VER >= 23
+#  include <__memory/allocate_at_least.h>
+#endif
+
+#include <version>
+
+// [memory.syn]
+#include <compare>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <atomic>
+#  include <concepts>
+#  include <cstddef>
+#  include <cstdint>
+#  include <cstdlib>
+#  include <cstring>
+#  include <iosfwd>
+#  include <iterator>
+#  include <new>
+#  include <stdexcept>
+#  include <tuple>
+#  include <type_traits>
+#  include <typeinfo>
+#  include <utility>
+#endif
+
+#endif // _LIBCPP_MEMORY

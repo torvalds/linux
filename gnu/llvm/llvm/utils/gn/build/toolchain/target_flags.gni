@@ -1,0 +1,59 @@
+import("//llvm/triples.gni")
+import("//llvm/utils/gn/build/mac_sdk.gni")
+import("//llvm/utils/gn/build/toolchain/compiler.gni")
+
+# Flags in this file are passed both to the compiler that's building
+# compiler-rt at build time (via normal gn cflags/ldflags), as well as to the
+# compiler building compiler-rt test programs at test time (via
+# COMPILER_RT_TEST_COMPILER_CFLAGS).
+
+target_flags = []
+target_ldflags = []
+
+if (current_os == "android") {
+  target_flags += [
+    "--target=$llvm_current_triple",
+    "--sysroot=$android_ndk_path/toolchains/llvm/prebuilt/linux-x86_64/sysroot",
+    "--gcc-toolchain=$android_ndk_path/toolchains/llvm/prebuilt/linux-x86_64",
+    "-fno-emulated-tls",
+  ]
+  target_ldflags += [ "-static-libstdc++" ]
+  if (current_cpu == "arm") {
+    target_flags += [ "-march=armv7-a" ]
+  }
+} else if (current_os == "ios" || current_os == "mac") {
+  if (current_cpu == "arm64") {
+    target_flags += [
+      "-arch",
+      "arm64",
+    ]
+    target_ldflags += [
+      "-arch",
+      "arm64",
+    ]
+  } else if (current_cpu == "x64") {
+    target_flags += [
+      "-arch",
+      "x86_64",
+    ]
+    target_ldflags += [
+      "-arch",
+      "x86_64",
+    ]
+  }
+  if (current_os == "mac") {
+    target_flags += [
+      "-isysroot",
+      rebase_path(mac_sdk_path, root_build_dir),
+      # TODO(lgrey): We should be getting this from `compiler_defaults`. Why
+      # aren't we?
+    "-mmacos-version-min=10.10",
+    ]
+  }
+} else if (current_os == "baremetal") {
+  target_flags += [ "--target=$llvm_current_triple" ]
+}
+
+if (current_cpu == "x86") {
+  target_flags += [ "-m32" ]
+}

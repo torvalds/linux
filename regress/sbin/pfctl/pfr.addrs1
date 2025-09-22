@@ -1,0 +1,16 @@
+# address file regress tests
+
+# some unroutables
+127.0.0.1 192.168/16 172.16/12 10/8
+
+# some IPv6 addresses
+::5 fe80::/16 2000::1
+
+# interfaces
+lo0 lo0/24 lo0:network
+
+# name resolution
+localhost
+
+1.1.1.1   # comment may appear...
+2.2.2.2   # after addresses too.

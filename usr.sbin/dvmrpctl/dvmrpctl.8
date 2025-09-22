@@ -1,0 +1,78 @@
+.\"	$OpenBSD: dvmrpctl.8,v 1.11 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2004, 2005, 2006 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt DVMRPCTL 8
+.Os
+.Sh NAME
+.Nm dvmrpctl
+.Nd control the DVMRP routing daemon
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr dvmrpd 8
+daemon.
+Commands may be abbreviated to the minimum unambiguous prefix; for example,
+.Cm s s
+for
+.Cm show summary .
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Cm log brief
+Disable verbose debug logging.
+.It Cm log verbose
+Enable verbose debug logging.
+.It Cm show igmp
+Show IGMP status for all interfaces.
+.It Cm show interfaces Op Ar interface
+Show details for all interfaces or the specified
+.Ar interface .
+.It Cm show mfc Op Cm detail
+Show the Multicast Forwarding Cache.
+.Cm detail
+can be specified for additional detail.
+.It Cm show neighbor Op Cm detail
+Show neighbors.
+.Cm detail
+can be specified for additional detail.
+.It Cm show rib Op Cm detail
+Show the Routing Information Base.
+.Cm detail
+can be specified for additional detail.
+.It Cm show summary
+Show summary information.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/dvmrpd.sockXX" -compact
+.It Pa /var/run/dvmrpd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr dvmrpd 8 .
+.El
+.Sh SEE ALSO
+.Xr dvmrpd.conf 5 ,
+.Xr dvmrpd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.0 .

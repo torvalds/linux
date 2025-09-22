@@ -1,0 +1,389 @@
+
+2002-10-14 Benjamin Kosnik
+
+Description of the libstdc++ ABI.
+
+I. What is an ABI? What's covered? What's not?
+
+- scope of document, of use to system integrators.
+
+- What's the deal with C++? Why can't different compiler's object
+  files link with each other? Bug? Feature?
+
+- compilation includes and linked library binary must match up..
+
+- shared library only, static is immutable.
+
+- What's an ABI?
+
+- library ABI, compiler ABI different issues, (but related)
+
+- GNU C++ does not have a compiler command line option to switch
+  between various different C++ ABIs. For instance, there is no way to
+  switch between the gcc-3.0.x ABI, gcc-3.1.x ABI, and the gcc-3.2.x
+  ABI during compilation. Other C++ compilers do allow this, and some
+  g++ command line options may change the ABI (-fno-exceptions, see
+  the complete list), but there is no version switch. Sorry. 
+
+  To use a specific C++ABI, one must use the corresponding GNU C++
+  toolchain. 
+
+- How can this complexity be managed? What does C++ versioning mean?
+  Because library and compiler changes often make binaries compiled
+  with one version of the GNU tools incompatible with binaries
+  compiled with other (either newer or older) versions of the same GNU
+  tools, specific techniques are used to make managing this complexity
+  easier.
+
+  The following techniques are used:
+
+  - Release versioning on the libgcc_s.so binary.
+
+    It is versioned as follows:
+    gcc-3.0.0: libgcc_s.so.1
+    gcc-3.0.1: libgcc_s.so.1
+    gcc-3.0.2: libgcc_s.so.1
+    gcc-3.0.3: libgcc_s.so.1
+    gcc-3.0.4: libgcc_s.so.1
+    gcc-3.1.0: libgcc_s.so.1
+    gcc-3.1.1: libgcc_s.so.1
+    gcc-3.2.0: libgcc_s.so.1
+
+
+  - Release versioning on the libstdc++.so binary.
+
+    It is versioned as follows:
+    gcc-3.0.0: libstdc++.so.3.0.0
+    gcc-3.0.1: libstdc++.so.3.0.1
+    gcc-3.0.2: libstdc++.so.3.0.2
+    gcc-3.0.3: libstdc++.so.3.0.2 (Error, should be libstdc++.so.3.0.3)
+    gcc-3.0.4: libstdc++.so.3.0.4
+    gcc-3.1.0: libstdc++.so.4.0.0
+    gcc-3.1.1: libstdc++.so.4.0.1
+    gcc-3.2.0: libstdc++.so.5.0.0
+
+
+  - Symbol versioning on the libgcc_s.so binary.
+  
+    file: gcc/libgcc-std.ver
+
+    It is versioned as follows:
+    gcc-3.0.0: GCC_3.0
+    gcc-3.0.1: GCC_3.0
+    gcc-3.0.2: GCC_3.0
+    gcc-3.0.3: GCC_3.0
+    gcc-3.0.4: GCC_3.0
+    gcc-3.1.0: GCC_3.0
+    gcc-3.1.1: GCC_3.0
+    gcc-3.2.0: GCC_3.0
+
+
+  - Symbol versioning on the libstdc++.so binary.
+  
+    It is versioned as follows:
+    gcc-3.0.0: (Error, unversioned)
+    gcc-3.0.1: (Error, unversioned)
+    gcc-3.0.2: (Error, unversioned)
+    gcc-3.0.3: (Error, unversioned)
+    gcc-3.0.4: (Error, unversioned)
+    gcc-3.1.0: GLIBCPP_3.1, CXXABI_1
+    gcc-3.1.1: GLIBCPP_3.1, CXXABI_1
+    gcc-3.2.0: GLIBCPP_3.2, CXXABI_1.2
+    
+    file: libstdc++-v3/config/linker-map.gnu
+  
+
+  - Incremental bumping of a compiler pre-defined macro,
+    __GXX_ABI_VERSION. This macro is defined as the version of the
+    compiler v3 ABI, with g++ 3.0.x being version 100. This macro will
+    be automatically defined whenever g++ is used (the curious can
+    test this by invoking g++ with the '-v' flag.)
+    
+    This macro is defined in the file "lang-specs.h" in the gcc/cp directory.
+    Later versions define it in "c-common.c" in the gcc directory.
+
+    It is versioned as follows:
+    gcc-3.0.x: 100
+    gcc-3.1.x: 100 (Error, should be 101)
+    gcc-3.2.x: 102
+
+
+  - Incremental bumping of a library pre-defined macro,
+    __GLIBCPP__. This macro is defined as the date the library was
+    released, in compressed ISO date format, as an unsigned long.
+
+    This macro is defined in the file "c++config" in the
+    "libstdc++-v3/include/bits" directory and is changed every night
+    by an automated script.
+
+    It is versioned as follows:
+    gcc-3.0.0: 20010615
+    gcc-3.0.1: 20010819
+    gcc-3.0.2: 20011023
+    gcc-3.0.3: 20011220
+    gcc-3.0.4: 20020220
+    gcc-3.1.0: 20020514
+    gcc-3.1.1: 20020725
+    gcc-3.2.0: 20020814
+
+
+  - Incremental bumping of a library pre-defined macro,
+    _GLIBCPP_VERSION. This macro is defined as the released version of
+    the library, as a string literal. This is only implemented in
+    gcc-3.1.0 releases and higher.
+
+    This macro is defined in the file "c++config" in the
+    "libstdc++-v3/include/bits" directory and is generated
+    automatically by autoconf as part of the configure-time generation
+    of config.h.
+
+    It is versioned as follows:
+    gcc-3.0.0: "3.0.0"
+    gcc-3.0.1: "3.0.0" (Error, should be "3.0.1")
+    gcc-3.0.2: "3.0.0" (Error, should be "3.0.2")
+    gcc-3.0.3: "3.0.0" (Error, should be "3.0.3")
+    gcc-3.0.4: "3.0.0" (Error, should be "3.0.4")
+    gcc-3.1.0: "3.1.0"
+    gcc-3.1.1: "3.1.1"
+    gcc-3.2.0: "3.2"
+
+
+  - Matching each specific C++ compiler release to a specific set of
+    C++ include files. This is only implemented in gcc-3.1.1 releases
+    and higher.
+
+    All C++ includes are installed in include/c++, then nest in a
+    directory hierarchy corresponding to the C++ compiler's released
+    version. This version corresponds to the variable "gcc_version" in
+    "libstdc++-v3/acinclude.m4," and more details can be found in that
+    file's macro GLIBCPP_CONFIGURE.
+
+    C++ includes are versioned as follows:
+    gcc-3.0.0: include/g++-v3
+    gcc-3.0.1: include/g++-v3
+    gcc-3.0.2: include/g++-v3
+    gcc-3.0.3: include/g++-v3
+    gcc-3.0.4: include/g++-v3
+    gcc-3.1.0: include/g++-v3
+    gcc-3.1.1: include/c++/3.1.1
+    gcc-3.2.0: include/c++/3.2
+
+  Taken together, these techniques can accurately specify interface
+  and implementation changes in the GNU C++ tools themselves. Used
+  properly, they allow both the GNU C++ tools implementation, and
+  programs using them, an evolving yet controlled development that
+  maintains backward compatibility.
+
+- Minimum environment that supports a versioned ABI: what's needed?  A
+  supported dynamic linker, a GNU linker of sufficient vintage to
+  understand demangled C++ name globbing (ld), a shared executable
+  compiled with g++, and shared libraries (libgcc_s, libstdc++-v3)
+  compiled by a compiler (g++) with a compatible ABI. Phew.
+
+  On top of all that, an additional constraint: libstdc++ did not
+  attempt to version symbols (or age gracefully, really) until version
+  3.1.0. 
+
+  Most modern Linux and BSD versions, particularly ones using
+  gcc-3.1.x tools, will meet the requirements above.
+
+- What configure options impact symbol versioning?
+
+  It turns out that most of the configure options that change default
+  behavior will impact the mangled names of exported symbols, and thus
+  impact versioning and compatibility.
+
+  For more information on configure options, including ABI impacts, see:
+  http://gcc.gnu.org/onlinedocs/libstdc++/configopts.html
+
+  There is one flag that explicitly deals with symbol versioning:
+  --enable-symvers. 
+
+  In particular, libstdc++-v3/acinclude.m4 has a macro called
+  GLIBCPP_ENABLE_SYMVERS that defaults to yes (or the argument passed
+  in via --enable-symvers=foo). At that point, the macro attempts to
+  make sure that all the requirement for symbol versioning are in
+  place. For more information, please consult acinclude.m4. 
+
+- How can I tell if symbol versioning is, indeed, active? 
+
+  When the GNU C++ library is being built with symbol versioning on,
+  you should see the following at configure time for libstdc++-v3:
+
+  checking versioning on shared library symbols... gnu
+
+  If you don't see this line in the configure output, or if this line
+  appears but the last word is 'no', then you are out of luck.
+
+  If the compiler is pre-installed, a quick way to test is to compile
+  the following (or any) simple C++ file:
+
+#include <iostream>
+
+int main()
+{ std::cout << "hello" << std::endl; return 0; }
+
+%g++ hello.cc -o hello.out
+%nm hello.out
+
+If you see symbols in the resulting output with "GLIBCPP_3.x" as part
+of the name, then the executable is versioned. Here's an example:
+
+         U _ZNSt8ios_base4InitC1Ev@@GLIBCPP_3.1
+
+
+II. Library ABI changes
+
+The following will cause the library major version number to
+increase, say from "libstdc++.so.3.0.4" to "libstdc++.so.4.0.0".
+
+- (anything) changing in the gcc/g++ compiler ABI
+
+- (anything) changing size of an exported symbol
+
+- (anything) changing alignment of an exported symbol
+
+- (anything) changing the layout of an exported symbol
+
+- (anything) changing mangling on an exported symbol
+
+- (anything) deleting an exported symbol
+
+- (anything) changing the size, alignment, or layout of types
+  specified in the C++ standard. These may not necessarily be
+  instantiated or otherwise exported in the library binary, and
+  include all the required locale facets, as well as things like
+  std::basic_streambuf, et al.
+
+Note: adding an exported symbol, if it's in a new and dependent
+interface name, is ok.
+
+The following will cause the library revision version number to
+increase, say from "libstdc++.so.5.0.0" to "libstdc++.so.5.0.1".
+
+- any release of the gcc toolchain.
+
+
+III. Versioning
+
+- include files
+
+  - versioning headers with version, why necessary
+    (need to control member/non-member functions, add delete files)
+
+- shared library binaries
+
+  - release versions
+
+  - libtool versions
+
+  - when does so version get a bump? what are the options?
+
+  - how is the link map used?  
+
+  - in an non-abi breaking minor release, how are symbols added?
+    removed?
+
+  - in an abi-breaking major release, what happens? symbol fall back
+
+
+IV. Testing ABI changes
+
+Testing for GNU C++ ABI changes is composed of two distinct areas:
+testing the C++ compiler (g++) for compiler changes, and testing the
+C++ library (libstdc++) for library changes.
+
+Testing the C++ compiler ABI can be done various ways.
+
+One. 
+Intel ABI checker. More information can be obtained
+<a href="http://developer.intel.com/software/products/opensource/">here.</a>
+
+Two.
+The second is yet unreleased, but has been announced on the gcc
+mailing list. It is yet unspecified if these tools will be freely
+available, and able to be included in a GNU project. Please contact
+Mark Mitchell (mark@codesourcery.com) for more details, and current
+status.
+
+Three.
+Involves using the vlad.consistency test framework. This has also been
+discussed on the gcc mailing lists.
+
+Testing the C++ library ABI can also be done various ways.
+
+One. 
+(Brendan Kehoe, Jeff Law suggestion to run 'make check-c++' two ways, 
+one with a new compiler and an old library, and the other with an old
+compiler and a new library, and look for testsuite regressions)
+
+Details on how to set this kind of test up can be found here:
+http://gcc.gnu.org/ml/gcc/2002-08/msg00142.html
+
+Two.  
+Use the 'make check-abi' rule in the libstdc++-v3 Makefile. 
+
+This is a proactive check the library ABI. Currently, exported symbol
+names that are either weak or defined are checked against a last known
+good baseline. Currently, this baseline is keyed off of 3.2.0
+binaries, as this was the last time the .so number was incremented. In
+addition, all exported names are demangled, and the exported objects
+are checked to make sure they are the same size as the same object in
+the baseline.
+
+This dataset is insufficient, yet a start. Also needed is a
+comprehensive check for all user-visible types part of the standard
+library for sizeof() and alignof() changes. 
+
+Verifying compatible layouts of objects is not even attempted.  It
+should be possible to use sizeof, alignof, and offsetof to compute
+offsets for each structure and type in the standard library, saving to
+another datafile. Then, compute this in a similar way for new
+binaries, and look for differences.
+
+Another approach might be to use the -fdump-class-hierarchy flag to
+get information. However, currently this approach gives insufficient
+data for use in library testing, as class data members, their offsets,
+and other detailed data is not displayed with this flag.
+(See g++/7470 on how this was used to find bugs.)
+
+Perhaps there are other C++ ABI checkers. If so, please notify
+us. We'd like to know about them!
+
+
+V. Issues not directly addressed, and possible suggestions
+
+- what to do about multi-ABI systems (nathan scenario)?
+
+  - compatibility libs
+
+  --enable-version-specific-runtime-libs
+
+  - Alexandre Oliva proposal to have extended name attributes, modify ld
+ 
+  - directory-level versioning
+
+- wrapping C++ API's in "C" to use the C ABI.
+
+
+V. References
+
+ABIcheck, a vague idea of checking ABI compatibility
+http://abicheck.sourceforge.net/
+
+C++ ABI reference
+http://www.codesourcery.com/cxx-abi/
+
+Intel ABI documentation
+"Intel® Compilers for Linux* -Compatibility with the GNU Compilers"
+(included in icc 6.0)
+
+Sun Solaris 2.9 docs
+Linker and Libraries Guide (document 816-1386)
+C++ Migration Guide (document 816-2459)
+http://docs.sun.com/db/prod/solaris.9
+http://docs.sun.com/?p=/doc/816-1386&a=load
+
+Ulrich Drepper, "ELF Symbol Versioning"
+http://people.redhat.com/drepper/symbol-versioning
+

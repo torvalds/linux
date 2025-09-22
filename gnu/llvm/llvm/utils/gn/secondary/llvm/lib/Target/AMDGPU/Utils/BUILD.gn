@@ -1,0 +1,41 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("AMDGPUGenSearchableTables") {
+  visibility = [
+    ":Utils",
+    "//llvm/unittests/MC/AMDGPU:AMDGPUMCTests",
+  ]
+  args = [ "-gen-searchable-tables" ]
+  td_file = "../AMDGPU.td"
+}
+
+static_library("Utils") {
+  output_name = "LLVMAMDGPUUtils"
+  public_deps = [ ":AMDGPUGenSearchableTables" ]
+  deps = [
+    # AMDGPUBaseInfo.cpp includes GCNSubtarget.h which after 490e348e679
+    # includes the generated AMDGPUGenRegisterBank.inc file :/
+    "../:AMDGPUGenRegisterBank",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+
+    # MCTargetDesc depends on Utils, so we can't depend on the full
+    # MCTargetDesc target here: it would form a cycle.
+    "//llvm/lib/Target/AMDGPU/MCTargetDesc:tablegen",
+  ]
+
+  # AMDGPUBaseInfo.h includes a header from MCTargetDesc :-/
+  include_dirs = [ ".." ]
+  sources = [
+    "AMDGPUAsmUtils.cpp",
+    "AMDGPUBaseInfo.cpp",
+    "AMDGPUDelayedMCExpr.cpp",
+    "AMDGPUMemoryUtils.cpp",
+    "AMDGPUPALMetadata.cpp",
+    "AMDKernelCodeTUtils.cpp",
+  ]
+}

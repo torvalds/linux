@@ -1,0 +1,101 @@
+.\"	$OpenBSD: arcofi.4,v 1.8 2020/04/22 05:37:00 jmc Exp $
+.\"
+.\"
+.\" Copyright (c) 2011 Miodrag Vallat.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 22 2020 $
+.Dt ARCOFI 4
+.Os
+.Sh NAME
+.Nm arcofi
+.Nd Siemens PSB2160 audio codec
+.Sh SYNOPSIS
+.Cd "arcofi* at gsc?"
+.Cd "audio*  at arcofi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the HP
+.Dq Audio1
+audio devices, based upon the Siemens PSB2160
+.Dq ARCOFI
+codec, to implement the audio device interface described in
+.Xr audio 4 .
+.Pp
+This device is found onboard HP 9000 workstations models 425e, 705 and 710.
+.Pp
+The
+.Nm
+is limited to a mono, 8000 KHz sound, either with 8-bit phone-quality mu-law or
+a-law samples, or 16-bit signed linear samples in big-endian byte order.
+.Ss AUDIOCTL SETTINGS
+The following encodings are supported:
+.Pp
+.Bl -tag -width AUDIO_ENCODING_SLINEAR_BE -offset indent -compact
+.It Li AUDIO_ENCODING_ULAW
+.It Li AUDIO_ENCODING_ALAW
+.It Li AUDIO_ENCODING_SLINEAR_BE
+Natively supported.
+.Pp
+.It Li AUDIO_ENCODING_SLINEAR
+Software converted to
+.Li AUDIO_ENCODING_ULAW
+encoding.
+.Pp
+.It Li AUDIO_ENCODING_SLINEAR_LE
+.It Li AUDIO_ENCODING_ULINEAR_LE
+.It Li AUDIO_ENCODING_ULINEAR_BE
+Software converted to
+.Li AUDIO_ENCODING_SLINEAR_BE
+encoding.
+.El
+.Ss MIXERCTL SETTINGS
+The
+.Nm
+has three audio ports:
+.Pp
+.Bl -tag -width "outputs.lineXXX" -offset indent -compact
+.It Cm inputs.line
+The
+.Sq line in
+jack connector.
+.It Cm outputs.line
+The
+.Sq line out
+jack connector.
+.It Cm outputs.spkr
+The built-in speaker.
+.El
+.Pp
+Each port has a volume control, and can be muted.
+.Pp
+The
+.Cm outputs.line
+and
+.Cm outputs.spkr
+volume settings are tied to the same hardware setting.
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr audio 4 ,
+.Xr gsc 4 ,
+.Xr intro 4 ,
+.Xr audioctl 8 ,
+.Xr mixerctl 8
+.Sh HISTORY
+.Ox
+support for
+.Nm
+first appeared in
+.Ox 5.1 .

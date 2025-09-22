@@ -1,0 +1,37 @@
+dnl	$OpenBSD: hardware,v 1.44 2014/02/27 18:48:15 deraadt Exp $
+OpenBSD/MACHINE OSREV runs on the following classes of HP9000 machines:
+- PA7000-based
+	705, 710, 720, 730, 750
+- PA7100-based
+	715/33, 715/50, 715/75
+	725/50, 725/75
+	735/100, 755/100
+	742i, 745i, 747i
+- PA7100LC-based
+	712
+	715/64, 715/80, 715/100, 715/100XC
+	725/64, 725/100
+	743i, 748i
+	Saic Galaxy 1100
+- PA7150-based
+	735/125, 755/125
+- PA7200-based
+	J200, J210, J210XC
+	C100, C110
+- PA7300LC-based
+	A180, A180C
+	B132L, B132L+, B160L, B180L+, C132L, C160L
+	744, 745, 748
+	RDI PrecisionBook
+- PA8000-based (in 32-bit mode):
+	C160, C180
+- PA8200-based (in 32-bit mode):
+	C200, C240, J2240
+- PA8500-based (in 32-bit mode):
+	B1000, B2000, C360, C3000, J5000, J7000
+- PA8600-based (in 32-bit mode):
+	B2600, C3600, J5600, J6000, J7600
+- PA8700-based (in 32-bit mode):
+	C3650, C3700, C3750, J6700, J6750
+
+A minimum of 16MB of RAM is required.

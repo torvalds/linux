@@ -1,0 +1,7 @@
+# basic manipulation of IPv4 networks
+pass add 10/8 10.11/16 10.11.12/24 10.11.12.13
+pass delete 10.11.0.0/16 10.11.12.0/24
+pass replace 10.0/8 172.16.0/12 192.168.0/16
+pass test 10.1.1.1 172.17.1.1 192.168.1.1
+fail test 11.1.1.1
+fail test 10.1.1.1 11.1.1.1

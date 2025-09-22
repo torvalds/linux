@@ -1,0 +1,129 @@
+import("//compiler-rt/gen_version_script.gni")
+import("//compiler-rt/target.gni")
+
+if (current_cpu == "x64") {
+  hwasan_name = "hwasan_aliases"
+} else {
+  hwasan_name = "hwasan"
+}
+
+gen_version_script("version_script") {
+  extra = "hwasan.syms.extra"
+  output = "$target_gen_dir/hwasan.vers"
+  libs = [
+    ":hwasan",
+    ":hwasan_cxx",
+  ]
+  lib_names = [
+    "$hwasan_name",
+    "${hwasan_name}_cxx",
+  ]
+}
+
+source_set("sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  defines = [ "HWASAN_WITH_INTERCEPTORS=1" ]
+  if (current_cpu == "x64") {
+    defines += [ "HWASAN_ALIASING_MODE" ]
+  }
+  deps = [
+    "//compiler-rt/lib/interception:sources",
+    "//compiler-rt/lib/lsan:common_sources",
+    "//compiler-rt/lib/sanitizer_common:sources",
+    "//compiler-rt/lib/ubsan:sources",
+  ]
+  sources = [
+    "hwasan.cpp",
+    "hwasan.h",
+    "hwasan_allocation_functions.cpp",
+    "hwasan_allocator.cpp",
+    "hwasan_allocator.h",
+    "hwasan_dynamic_shadow.cpp",
+    "hwasan_dynamic_shadow.h",
+    "hwasan_exceptions.cpp",
+    "hwasan_flags.h",
+    "hwasan_fuchsia.cpp",
+    "hwasan_globals.cpp",
+    "hwasan_globals.h",
+    "hwasan_interceptors.cpp",
+    "hwasan_interceptors_vfork.S",
+    "hwasan_interface_internal.h",
+    "hwasan_linux.cpp",
+    "hwasan_malloc_bisect.h",
+    "hwasan_mapping.h",
+    "hwasan_memintrinsics.cpp",
+    "hwasan_poisoning.cpp",
+    "hwasan_poisoning.h",
+    "hwasan_report.cpp",
+    "hwasan_report.h",
+    "hwasan_setjmp_aarch64.S",
+    "hwasan_setjmp_riscv64.S",
+    "hwasan_thread.cpp",
+    "hwasan_thread.h",
+    "hwasan_thread_list.cpp",
+    "hwasan_thread_list.h",
+    "hwasan_type_test.cpp",
+  ]
+}
+
+source_set("cxx_sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  defines = [ "HWASAN_WITH_INTERCEPTORS=1" ]
+  deps = [ "//compiler-rt/lib/ubsan:cxx_sources" ]
+  sources = [ "hwasan_new_delete.cpp" ]
+}
+
+static_library("hwasan") {
+  output_dir = crt_current_out_dir
+  output_name = "clang_rt.$hwasan_name$crt_current_target_suffix"
+  complete_static_lib = true
+  configs -= [
+    "//llvm/utils/gn/build:llvm_code",
+    "//llvm/utils/gn/build:thin_archive",
+  ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  deps = [ ":sources" ]
+}
+
+static_library("hwasan_cxx") {
+  output_dir = crt_current_out_dir
+  output_name = "clang_rt.${hwasan_name}_cxx$crt_current_target_suffix"
+  complete_static_lib = true
+  configs -= [
+    "//llvm/utils/gn/build:llvm_code",
+    "//llvm/utils/gn/build:thin_archive",
+  ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  deps = [ ":cxx_sources" ]
+}
+
+shared_library("hwasan_shared") {
+  output_dir = crt_current_out_dir
+  output_name = "clang_rt.$hwasan_name$crt_current_target_suffix"
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  deps = [
+    ":cxx_sources",
+    ":sources",
+    ":version_script",
+  ]
+  inputs = [ "$target_gen_dir/hwasan.vers" ]
+  ldflags = [
+    "-Wl,--version-script," + rebase_path(inputs[0], root_build_dir),
+    "-Wl,-z,global",
+  ]
+}
+
+static_library("hwasan_preinit") {
+  output_dir = crt_current_out_dir
+  output_name = "clang_rt.${hwasan_name}-preinit$crt_current_target_suffix"
+  complete_static_lib = true
+  configs -= [
+    "//llvm/utils/gn/build:llvm_code",
+    "//llvm/utils/gn/build:thin_archive",
+  ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  sources = [ "hwasan_preinit.cpp" ]
+}

@@ -1,0 +1,42 @@
+.\"	$OpenBSD: airport.7,v 1.4 2022/02/18 10:24:32 jsg Exp $
+.\"
+.\" Copyright (c) 2017 Sebastian Benoit <benno@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt AIRPORT 7
+.Os
+.Sh NAME
+.Nm airport
+.Nd list of IATA airport codes
+.Sh DESCRIPTION
+The
+.Nm
+file is a list of airports that have an IATA airport code.
+The list is sorted alphabetically by airport code.
+.Pp
+The list is not a complete list of all IATA codes.
+New airports can only be added by
+.Ox
+developers who have visited an airport and thereby have verified its existence.
+.Sh FILES
+.Bl -tag -width /usr/share/misc/airport -compact
+.It Pa /usr/share/misc/airport
+.El
+.Sh SEE ALSO
+.Lk https://www.iata.org/codes "Airline and Airport Code Search"
+.Sh CAVEATS
+There are also railway stations with IATA codes.
+These may not be listed, except if someone landed there by plane and
+survived to update the file.

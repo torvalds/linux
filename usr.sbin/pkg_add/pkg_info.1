@@ -1,0 +1,332 @@
+.\"	$OpenBSD: pkg_info.1,v 1.65 2022/05/29 12:46:28 schwarze Exp $
+.\"
+.\" Documentation and design originally from FreeBSD. All the code has
+.\" been rewritten since. We keep the documentation's notice:
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" Jordan K. Hubbard
+.\"
+.\"
+.Dd $Mdocdate: May 29 2022 $
+.Dt PKG_INFO 1
+.Os
+.Sh NAME
+.Nm pkg_info
+.Nd display information on software packages
+.Sh SYNOPSIS
+.Nm pkg_info
+.Bk -words
+.Op Fl AaCcdfIKLMmPqRSstUvz
+.Op Fl D Ar name Ns Op = Ns Ar value
+.Op Fl E Ar filename
+.Op Fl e Ar pkg-name
+.Op Fl l Ar str
+.Op Fl Q Ar substring
+.Op Fl r Ar pkgspec
+.Op Ar pkg-name ...
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+command is used to dump out information for packages, as created by
+.Xr pkg_create 1 ,
+which may be still
+packed up or already installed on the system with the
+.Xr pkg_add 1
+command.
+.Pp
+The
+.Ar pkg-name
+may be the name of an installed package, the pathname to a package
+distribution file, or a URL to a package available through FTP, HTTP, HTTPS,
+or SCP.
+.Nm
+will try to complete
+.Ar pkg-name
+with a version number while looking through installed packages.
+If no
+.Ar pkg-name
+is specified,
+.Nm
+shows the names and one-line comments for all installed packages
+except internal packages.
+.Pp
+When browsing through uninstalled packages, running
+.Ic pkg_info -I *.tgz
+will report a summary line for each package, so that it is possible to
+run
+.Ic pkg_info pkgname.tgz
+to obtain a longer package description, and
+.Ic pkg_add -n pkgname.tgz
+to check that the installation would proceed cleanly, including dependencies.
+.Pp
+The following command-line options are supported:
+.Bl -tag -width indent
+.It Fl A
+Show the names and one-line comments for all installed packages,
+including internal packages.
+This option cannot be combined with
+.Ar pkg-name
+arguments.
+.It Fl a
+Show the names and one-line comments for all installed packages
+except internal packages.
+This option cannot be combined with
+.Ar pkg-name
+arguments.
+It is the default when neither options nor arguments are given.
+.It Fl C
+Show certificate information for signed packages.
+.It Fl c
+Show the one-line comment field for each package.
+.It Fl D Ar name Ns Op = Ns Ar value
+Enforce extra options as given by
+.Ar name ,
+similarly to
+.Xr pkg_add 1 .
+.Pp
+.Bl -tag -width "updatedependsXX" -compact
+.It Cm SIGNER
+List of trusted signers, separated by commas.
+Corresponds to list of public keys under
+.Pa /etc/signify
+we want to trust.
+Defaults to any key matching
+.Sq *pkg
+for packages, and any key matching
+.Sq *fw
+for firmware.
+.It Cm snap
+Force
+.Sq %c
+and
+.Sq %m
+to expand to
+.Sq snapshots ,
+even on a release kernel.
+.It Cm unsigned
+Allow opening unsigned packages without warnings/errors
+(necessary for
+.Xr ports 7 ,
+automatically set by the build infrastructure).
+.El
+.It Fl d
+Show the long-description field for each package.
+.It Fl E Ar filename
+Look for the package(s) that contains the given
+.Ar filename .
+As a faster alternative, note that there is a package, pkglocatedb, that
+contains a
+.Xr locate 1
+database of every file in every package.
+.It Fl e Ar pkg-name
+This option
+allows you to test for the presence of another (perhaps
+prerequisite) package from a script.
+If the package identified by
+.Ar pkg-name
+is currently installed, return 0, otherwise return 1.
+In addition, the names of any package(s) found installed are printed to
+stdout unless turned off using the
+.Fl q
+option.
+.Pp
+The given
+.Ar pkg-name
+is actually a package specification, as described in
+.Xr packages-specs 7 .
+For example,
+.Ic pkg_info -e 'name->=1.3'
+will match versions 1.3 and later of the
+.Pa name
+package.
+.It Fl e Ar pkgpath
+Another variant of this option that uses a pkgpath instead.
+A pkgpath is a location within the ports tree, as described
+in
+.Xr pkgpath 7 .
+For example,
+.Ic pkg_info -e x11/kde/base3
+will match any package that was compiled according to
+.Pa ${PORTSDIR}/x11/kde/base3 .
+.It Fl f
+Show the packing-list instructions for each package.
+See
+.Xr pkg_create 1
+and
+.Xr package 5
+for the various annotations.
+.It Fl I
+Show the name and one-line comment
+.Pq Dq index entry
+for each package.
+This is done by default if neither options nor arguments are given.
+.It Fl K
+Prefix file names with category keyword (e.g., @file, @lib).
+Always used together with
+.Fl L .
+.It Fl L
+Show the files within each package.
+This is different from just
+viewing the packing-list, since full pathnames for everything
+are generated.
+.It Fl l Ar str
+Prefix each information category header (see
+.Fl q )
+shown with
+.Ar str .
+This is primarily of use to front-end programs that want to request a
+lot of different information fields at once for a package, but don't
+necessarily want the output intermingled in such a way that they can't
+organize it.
+This lets you add a special token to the start of each field.
+.It Fl M
+Show the install-message file (if any) for each package.
+.It Fl m
+Show the names and one-line comments for all packages tagged as manually
+installed, omitting those automatically installed as dependencies.
+This option cannot be combined with
+.Ar pkg-name
+arguments.
+.It Fl P
+Show the
+.Xr pkgpath 7
+for each package.
+You can easily build a subdirlist with this.
+.It Fl Q Ar substring
+Show the names of all packages in the first repository
+of the package search path containing the
+.Ar substring
+in the stems of their package names.
+A stem is a package name with all version and flavor suffixes removed; see
+.Xr pkg_add 1
+for more details on stems.
+If
+.Fl a
+is also specified, show the names of all matching packages
+in all repositories instead.
+.It Fl q
+Be
+.Dq quiet
+in emitting report headers and such, just dump the
+raw info (basically, assume a non-human reading).
+.It Fl R
+Show which packages require a given package.
+.It Fl r Ar pkgspec
+Check a list for a given
+.Ar pkgspec .
+The following arguments are names of packages to verify.
+Exit status will be augmented by 2 if none of the packages do match.
+.It Fl S
+Show the update signature for each package.
+The
+.Sq update signature
+is a unique tag showing the package name, a global version number,
+and the version number
+of every run time dependency and shared library used to build this package.
+.It Fl s
+Show an estimate of the total size of each package.
+.It Fl t
+Show the names and one-line comments for packages
+which are not required by any other packages.
+This option cannot be combined with
+.Ar pkg-name
+arguments.
+.It Fl U
+Show the deinstall-message file (if any) for each package.
+.It Fl v
+Turn on verbose output.
+.It Fl z
+Fuzzy listing option, often used together with
+.Fl m .
+Only shows stems, flavors and branches information.
+To be reused with
+.Xr pkg_add 1
+.Fl l
+to recreate a package installation with different versions and no ambiguity.
+Note that this intentionally does not include firmware, as they are not
+handled by
+.Xr pkg_add 1 .
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width PKG_TMPDIR
+.It Ev PKG_DBDIR
+The standard package database directory,
+.Pa /var/db/pkg ,
+can be overridden by specifying an alternative directory in the
+.Ev PKG_DBDIR
+environment variable.
+.It Ev PKG_PATH
+This can be used to specify a colon-separated list of paths to search for
+package files.
+The current directory is always searched first, even if
+.Ev PKG_PATH
+is set.
+If
+.Ev PKG_PATH
+is used, the suffix
+.Dq .tgz
+is automatically appended to the
+.Ar pkg-name ,
+whereas searching in the current directory uses
+.Ar pkg-name
+literally.
+Each entry consists of a directory name.
+URL schemes such as FTP, HTTP, HTTPS, or SCP are also appropriate.
+The current directory may be indicated
+implicitly by an empty directory name, or explicitly by a single
+period
+.Pq Ql \&./ .
+Special sequences
+.Sq %a ,
+.Sq %c ,
+.Sq %m ,
+.Sq %v
+will be expanded.
+.It Ev PKG_TMPDIR
+Temporary area where package information files will be extracted, instead of
+.Pa /tmp .
+.It Ev TRUSTED_PKG_PATH
+Same semantics as
+.Ev PKG_PATH ,
+but it is searched before
+.Ev PKG_PATH
+and waives any kind of signature checking.
+.El
+.Sh FILES
+.Bl -tag -width /var/db/pkg/
+.It Pa /usr/local/share/doc/pkg-readmes/
+.Ox Ns -specific
+information about individual packages
+.It Pa /var/db/pkg/
+database of installed
+.Xr packages 7
+.El
+.Sh TECHNICAL DETAILS
+Package info is either extracted from package files named on the
+command line, or from already installed package information
+in
+.Pa /var/db/pkg/<pkg-name> .
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr pkg_delete 1 ,
+.Xr bsd.port.mk 5 ,
+.Xr package 5 ,
+.Xr packages-specs 7 ,
+.Xr pkgpath 7
+.Sh AUTHORS
+.Bl -tag -width indent -compact
+.It An Jordan Hubbard
+initial design
+.It An Marc Espie
+complete rewrite
+.El

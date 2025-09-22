@@ -1,0 +1,94 @@
+.\"	$OpenBSD: rdate.8,v 1.40 2023/11/12 18:53:22 otto Exp $
+.\"	$NetBSD: rdate.8,v 1.4 1996/04/08 20:55:17 jtc Exp $
+.\"
+.\" Copyright (c) 1994 Christos Zoulas
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 12 2023 $
+.Dt RDATE 8
+.Os
+.Sh NAME
+.Nm rdate
+.Nd set the system's date from a remote host
+.Sh SYNOPSIS
+.Nm rdate
+.Op Fl 46acnopsv
+.Ar host
+.Sh DESCRIPTION
+.Nm
+displays and sets the local date and time from the
+host name or address given as the argument.
+The time source may be an RFC 5905 protocol SNTP/NTP server
+or an RFC 868 TCP protocol server,
+which is usually implemented as a built-in service of
+.Xr inetd 8 .
+By default,
+.Nm
+uses the RFC 5905 SNTP/NTP protocol.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.It Fl a
+Use the
+.Xr adjtime 2
+call to gradually skew the local time to the
+remote time rather than just hopping.
+.It Fl c
+Correct leap seconds.
+This should be used only when synchronizing to a server
+which does not correctly account for leap seconds.
+.It Fl n
+Use SNTP (RFC 5905) instead of the RFC 868 time protocol.
+This is the default.
+This protocol counts 32 bits of seconds from January 1, 1900
+and will handle rollover to a new NTP era in February 2036.
+.It Fl o
+Use an RFC 868 TCP protocol server instead of SNTP.
+This protocol is obsolete as it is not capable of representing
+dates past January 19, 2038 03:14:07 GMT.
+.It Fl p
+Do not set, just print the remote time.
+.It Fl s
+Do not print the time.
+.It Fl v
+Verbose output.
+Always show the adjustment.
+.El
+.Sh FILES
+.Bl -tag -width /var/log/wtmp -compact
+.It Pa /var/log/wtmp
+record of date resets and time changes
+.El
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr adjtime 2 ,
+.Xr inetd 8 ,
+.Xr ntpd 8

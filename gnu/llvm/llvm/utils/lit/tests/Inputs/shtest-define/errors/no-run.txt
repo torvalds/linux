@@ -1,0 +1,8 @@
+# DEFINE and REDEFINE are not sufficient.  There must be a RUN.
+
+# DEFINE: %{local:echo}=foo
+# REDEFINE: %{global:echo}=bar
+
+# CHECK: Test has no '{{RUN}}:' line
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

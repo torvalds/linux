@@ -1,0 +1,7 @@
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+
+write_cmake_config("RuntimeLibraryVariables") {
+  input = "//bolt/include/bolt/RuntimeLibs/RuntimeLibraryVariables.inc.in"
+  output = "$target_gen_dir/RuntimeLibraryVariables.inc"
+  values = [ "LLVM_LIBDIR_SUFFIX=" ]
+}

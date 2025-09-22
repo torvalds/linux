@@ -1,0 +1,81 @@
+.\"	$OpenBSD: mpe.4,v 1.12 2021/05/14 13:10:20 kn Exp $
+.\"
+.\" Copyright (C) 2008 Pierre-Yves Ritschard <pyr@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 14 2021 $
+.Dt MPE 4
+.Os
+.Sh NAME
+.Nm mpe
+.Nd MPLS Provider Edge
+.Sh SYNOPSIS
+.Cd "pseudo-device mpe"
+.Sh DESCRIPTION
+The
+.Nm
+interface is a Multiprotocol Label Switching (MPLS) Provider Edge
+pseudo-device used to enter and leave an MPLS domain.
+.Pp
+An
+.Nm
+interface can be created at runtime using the
+.Ic ifconfig mpe Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+The interface itself can be configured with
+.Xr ifconfig 8 ;
+see its manual page for more information.
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+calls are specific to
+.Nm ,
+.Xr mpip 4
+and
+.Xr mpw 4
+interfaces:
+.Bl -tag -width "SIOCSETLABEL" -offset 3n
+.It SIOCSETLABEL
+Encapsulate packets entering this interface in MPLS using
+the specified label.
+.It SIOCGETLABEL
+Report the label that packets entering this interface will be
+tagged with.
+.It SIOCDELLABEL
+Unset the MPLS label.
+.El
+.\"
+.Sh SEE ALSO
+.Xr sysctl 2 ,
+.Xr mpip 4 ,
+.Xr mpw 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr ldpd 8 ,
+.Xr netstart 8
+.\"
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 4.4 .
+.\"
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Pierre-Yves Ritschard Aq Mt pyr@openbsd.org .

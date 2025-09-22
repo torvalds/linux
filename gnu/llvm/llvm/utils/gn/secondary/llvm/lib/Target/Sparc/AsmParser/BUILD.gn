@@ -1,0 +1,21 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("SparcGenAsmMatcher") {
+  visibility = [ ":AsmParser" ]
+  args = [ "-gen-asm-matcher" ]
+  td_file = "../Sparc.td"
+}
+
+static_library("AsmParser") {
+  output_name = "LLVMSparcAsmParser"
+  deps = [
+    ":SparcGenAsmMatcher",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/Sparc/MCTargetDesc",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "SparcAsmParser.cpp" ]
+}

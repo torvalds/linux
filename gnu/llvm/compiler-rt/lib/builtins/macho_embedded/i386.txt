@@ -1,0 +1,7 @@
+i686.get_pc_thunk.eax
+i686.get_pc_thunk.ebp
+i686.get_pc_thunk.ebx
+i686.get_pc_thunk.ecx
+i686.get_pc_thunk.edi
+i686.get_pc_thunk.edx
+i686.get_pc_thunk.esi

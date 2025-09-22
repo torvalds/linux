@@ -1,0 +1,5 @@
+type summary add -s "${var._M_dataplus._M_p}" std::string std::basic_string<char> "std::basic_string<char,std::char_traits<char>,std::allocator<char> >"
+type summary add -s "\"${var%@}\"" "NSString *"
+type summary add -s "${svar%#} items" -e -x std::map<
+type summary add -s "${svar%#} items" -e -x std::vector<
+type summary add -s "${svar%#} items" -e -x std::list<

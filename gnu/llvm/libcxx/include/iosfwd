@@ -1,0 +1,186 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_IOSFWD
+#define _LIBCPP_IOSFWD
+
+/*
+    iosfwd synopsis
+
+namespace std
+{
+
+template<class charT> struct char_traits;
+template<>            struct char_traits<char>;
+template<>            struct char_traits<char8_t>;  // C++20
+template<>            struct char_traits<char16_t>;
+template<>            struct char_traits<char32_t>;
+template<>            struct char_traits<wchar_t>;
+
+template<class T>     class allocator;
+
+template <class charT, class traits = char_traits<charT> > class basic_ios;
+
+template <class charT, class traits = char_traits<charT> > class basic_streambuf;
+template <class charT, class traits = char_traits<charT> > class basic_istream;
+template <class charT, class traits = char_traits<charT> > class basic_ostream;
+template <class charT, class traits = char_traits<charT> > class basic_iostream;
+
+template <class charT, class traits = char_traits<charT>, class Allocator = allocator<charT> >
+    class basic_stringbuf;
+template <class charT, class traits = char_traits<charT>, class Allocator = allocator<charT> >
+    class basic_istringstream;
+template <class charT, class traits = char_traits<charT>, class Allocator = allocator<charT> >
+    class basic_ostringstream;
+template <class charT, class traits = char_traits<charT>, class Allocator = allocator<charT> >
+    class basic_stringstream;
+
+template <class charT, class traits = char_traits<charT> > class basic_filebuf;
+template <class charT, class traits = char_traits<charT> > class basic_ifstream;
+template <class charT, class traits = char_traits<charT> > class basic_ofstream;
+template <class charT, class traits = char_traits<charT> > class basic_fstream;
+
+template <class charT, class traits = char_traits<charT> > class istreambuf_iterator;
+template <class charT, class traits = char_traits<charT> > class ostreambuf_iterator;
+
+typedef basic_ios<char>              ios;
+typedef basic_ios<wchar_t>           wios;
+
+typedef basic_streambuf<char>        streambuf;
+typedef basic_istream<char>          istream;
+typedef basic_ostream<char>          ostream;
+typedef basic_iostream<char>         iostream;
+
+typedef basic_stringbuf<char>        stringbuf;
+typedef basic_istringstream<char>    istringstream;
+typedef basic_ostringstream<char>    ostringstream;
+typedef basic_stringstream<char>     stringstream;
+
+typedef basic_filebuf<char>          filebuf;
+typedef basic_ifstream<char>         ifstream;
+typedef basic_ofstream<char>         ofstream;
+typedef basic_fstream<char>          fstream;
+
+typedef basic_streambuf<wchar_t>     wstreambuf;
+typedef basic_istream<wchar_t>       wistream;
+typedef basic_ostream<wchar_t>       wostream;
+typedef basic_iostream<wchar_t>      wiostream;
+
+typedef basic_stringbuf<wchar_t>     wstringbuf;
+typedef basic_istringstream<wchar_t> wistringstream;
+typedef basic_ostringstream<wchar_t> wostringstream;
+typedef basic_stringstream<wchar_t>  wstringstream;
+
+typedef basic_filebuf<wchar_t>       wfilebuf;
+typedef basic_ifstream<wchar_t>      wifstream;
+typedef basic_ofstream<wchar_t>      wofstream;
+typedef basic_fstream<wchar_t>       wfstream;
+
+template <class state> class fpos;
+using streampos  = fpos<char_traits<char>::state_type>;
+using wstreampos = fpos<char_traits<wchar_t>::state_type>;
+using u8streampos = fpos<char_traits<char8_t>::state_type>; // C++20
+using u16streampos = fpos<char_traits<char16_t>::state_type>;
+using u32streampos = fpos<char_traits<char32_t>::state_type>;
+
+template <class charT, class traits = char_traits<charT>, class Allocator = allocator<charT>>
+    class basic_syncbuf;                          // C++20
+
+using syncbuf = basic_syncbuf<char>;              // C++20
+using wsyncbuf = basic_syncbuf<wchar_t>;          // C++20
+
+template <class charT, class traits = char_traits<charT>, class Allocator = allocator<charT>>
+    class basic_osyncstream;                      // C++20
+
+using osyncstream = basic_osyncstream<char>;      // C++20
+using wosyncstream = basic_osyncstream<wchar_t>;  // C++20
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__fwd/fstream.h>
+#include <__fwd/ios.h>
+#include <__fwd/istream.h>
+#include <__fwd/memory.h>
+#include <__fwd/ostream.h>
+#include <__fwd/sstream.h>
+#include <__fwd/streambuf.h>
+#include <__fwd/string.h>
+#include <__std_mbstate_t.h>
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+template <class _CharT, class _Traits = char_traits<_CharT> >
+class _LIBCPP_TEMPLATE_VIS istreambuf_iterator;
+template <class _CharT, class _Traits = char_traits<_CharT> >
+class _LIBCPP_TEMPLATE_VIS ostreambuf_iterator;
+
+template <class _State>
+class _LIBCPP_TEMPLATE_VIS fpos;
+typedef fpos<mbstate_t> streampos;
+#ifndef _LIBCPP_HAS_NO_WIDE_CHARACTERS
+typedef fpos<mbstate_t> wstreampos;
+#endif
+#ifndef _LIBCPP_HAS_NO_CHAR8_T
+typedef fpos<mbstate_t> u8streampos;
+#endif
+typedef fpos<mbstate_t> u16streampos;
+typedef fpos<mbstate_t> u32streampos;
+
+#if _LIBCPP_STD_VER >= 20 && !defined(_LIBCPP_HAS_NO_EXPERIMENTAL_SYNCSTREAM)
+
+template <class _CharT, class _Traits = char_traits<_CharT>, class _Allocator = allocator<_CharT>>
+class basic_syncbuf;
+
+using syncbuf = basic_syncbuf<char>;
+#  ifndef _LIBCPP_HAS_NO_WIDE_CHARACTERS
+using wsyncbuf = basic_syncbuf<wchar_t>;
+#  endif
+
+template <class _CharT, class _Traits = char_traits<_CharT>, class _Allocator = allocator<_CharT>>
+class basic_osyncstream;
+
+using osyncstream = basic_osyncstream<char>;
+#  ifndef _LIBCPP_HAS_NO_WIDE_CHARACTERS
+using wosyncstream = basic_osyncstream<wchar_t>;
+#  endif
+
+#endif // _LIBCPP_STD_VER >= 20 && !defined(_LIBCPP_HAS_NO_EXPERIMENTAL_SYNCSTREAM)
+
+template <class _CharT, class _Traits>
+class __save_flags {
+  typedef basic_ios<_CharT, _Traits> __stream_type;
+  typedef typename __stream_type::fmtflags fmtflags;
+
+  __stream_type& __stream_;
+  fmtflags __fmtflags_;
+  _CharT __fill_;
+
+public:
+    __save_flags(const __save_flags&) = delete;
+    __save_flags& operator=(const __save_flags&) = delete;
+
+  _LIBCPP_HIDE_FROM_ABI explicit __save_flags(__stream_type& __stream)
+      : __stream_(__stream), __fmtflags_(__stream.flags()), __fill_(__stream.fill()) {}
+  _LIBCPP_HIDE_FROM_ABI ~__save_flags() {
+    __stream_.flags(__fmtflags_);
+    __stream_.fill(__fill_);
+  }
+};
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_IOSFWD

@@ -1,0 +1,393 @@
+.\"	$OpenBSD: wi.4,v 1.31 2025/03/27 15:12:14 jmc Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$FreeBSD: wi.4,v 1.3 1999/05/22 16:12:43 wpaul Exp $
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt WI 4
+.Os
+.Sh NAME
+.Nm wi
+.Nd WaveLAN/IEEE, PRISM 2-3, and Spectrum24 IEEE 802.11b wireless network device
+.Sh SYNOPSIS
+.Cd "# all architectures"
+.Cd "wi* at pci?"
+.Cd "wi* at pcmcia? function ?"
+.Cd "wi* at uhub? port ?"
+.Pp
+.Cd "# macppc extra attachment"
+.Cd "wi* at macobio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for wireless network adapters based around
+the Lucent Hermes, Intersil PRISM-2, Intersil PRISM-2.5, Intersil PRISM-3,
+and Symbol Spectrum24 chipsets.
+All five chipsets provide a similar interface to the driver.
+.Pp
+The
+.Nm
+driver encapsulates all IP and ARP traffic as 802.11 frames, though
+it can receive either 802.11 or 802.3 frames.
+Transmit speed is selectable between 1Mbps fixed, 2Mbps fixed, 2Mbps
+with auto fallback, 5.5Mbps, 8Mbps, or 11Mbps, depending on hardware.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It IBSS mode
+Also known as
+.Em IEEE ad-hoc
+mode or
+.Em peer-to-peer
+mode.
+This is the standardized method of operating without an access point.
+Stations associate with a service set.
+However, actual connections between stations are peer-to-peer
+as in ad-hoc mode.
+Cards with very old firmware revisions do not support this mode.
+.It IBSS master
+Also know as
+.Em Host IBSS
+mode.
+In this mode the station takes on part of the role of an access point,
+though traffic does not pass through it to reach the other stations.
+When a group of stations are operating in IBSS mode, one of them must be
+the master, specifying the network name of the service set.
+.It Host AP
+In this mode the driver acts as an access point (base station)
+for other cards.
+Only cards based on the Intersil chipsets support this mode.
+Furthermore, this mode is not supported on USB devices.
+.It ad-hoc mode
+More accurately known as
+.Em ad-hoc demo mode .
+This mode does not require an access point; the adapter communicates with
+other ad-hoc stations within range on a peer-to-peer basis.
+This mode is not specified by the IEEE 802.11 standard and there
+may be problems interoperating with adapters manufactured by different vendors.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use both software and hardware
+Wired Equivalent Privacy (WEP).
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+.Pp
+The Lucent WaveLAN/IEEE Silver and Gold cards as well as the Intersil
+and Symbol cards have support for WEP encryption.
+The WaveLAN Gold as well as newer Intersil and Symbol cards support
+104-bit keys, the others only accept 40-bit keys.
+The Lucent WaveLAN/IEEE Bronze cards do not support WEP at all.
+See also
+.Sx CAVEATS
+below.
+.Pp
+In BSS mode,
+the driver supports powersave mode,
+which can be enabled via
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh HARDWARE
+Cards supported by the
+.Nm
+driver come in a variety of packages, though the most common
+are of the PCMCIA type.
+In many cases, the PCI version of a wireless card is simply
+a PCMCIA card bundled with a PCI adapter.
+The PCI adapters come in two flavors: true PCMCIA bridges and
+dumb PCMCIA bridges.
+A true PCMCIA bridge (such as those sold by Lucent) will attach
+as a real PCMCIA controller.
+The wireless card will then attach to the PCMCIA bus.
+Wireless cards in PCMCIA slots may be inserted and ejected on the fly.
+A dumb bridge, on the other hand, does not show up as a true PCMCIA bus.
+The wireless card will simply appear to the host as a normal PCI
+device and will not require any PCMCIA support.
+Cards in this type of adapter should only be removed when the
+machine is powered down.
+.Pp
+The following cards are among those supported by the
+.Nm
+driver:
+.Bl -column "Linksys Instant Wireless WPC11 2.5" "Prism-2.5" "PCMCIA"
+.It Sy Card Ta Sy Chip Ta Sy Bus
+.It 3Com AirConnect 3CRWE737A Ta Spectrum24 Ta PCMCIA
+.It 3Com AirConnect 3CRWE777A Ta Prism-2 Ta PCI
+.It Acer Warplink USB-400 Ta Prism-3 Ta USB
+.It Actiontec HWC01170 Ta Prism-2.5 Ta PCMCIA
+.It Actiontec HWU01170 Ta Prism-3 Ta USB
+.It Adaptec AWN-8030 Ta Prism-2.5 Ta PCMCIA
+.It Addtron AWA-100 Ta Prism-2 Ta PCI
+.It Addtron AWP-100 Ta Prism-2 Ta PCMCIA
+.It Agere ORiNOCO Ta Hermes Ta PCMCIA
+.It AirVast WM168b Ta Prism-3 Ta USB
+.It AmbiCom WL1100C-CF Ta Prism-3 Ta CF
+.It Ambit WLAN Ta Prism-3 Ta USB
+.It Apacer Wireless Steno MB112 Ta Prism-3 Ta USB
+.It Apple Airport Ta Hermes Ta macobio
+.It ARtem Onair Ta Hermes Ta PCMCIA
+.It ASUS SpaceLink WL-100 Ta Prism-2.5 Ta PCMCIA
+.It ASUS SpaceLink WL-110 Ta Prism-2.5 Ta CF
+.It ASUS WL-140 Ta Prism-3 Ta USB
+.It Belkin F5D6020 (version 1 only) Ta Prism-2 Ta PCMCIA
+.It Belkin F5D6001 (version 1 only) Ta Prism-2 Ta PCI
+.It Belkin F5D6060 (version 1 only) Ta Prism-2.5 Ta CF
+.It Buffalo AirStation Ta Prism-2 Ta PCMCIA
+.It Buffalo AirStation Ta Prism-2 Ta CF
+.It Cabletron RoamAbout Ta Hermes Ta PCMCIA
+.It Compaq Agency NC5004 Ta Prism-2 Ta PCMCIA
+.It Compaq W100 Ta Prism-3 Ta USB
+.It Contec FLEXLAN/FX-DS110-PCC Ta Prism-2 Ta PCMCIA
+.It Corega PCC-11 Ta Prism-2 Ta PCMCIA
+.It Corega PCCA-11 Ta Prism-2 Ta PCMCIA
+.It Corega PCCB-11 Ta Prism-2 Ta PCMCIA
+.It Corega CGWLPCIA11 Ta Prism-2 Ta PCI
+.It Corega WLUSB-11 Ta Prism-3 Ta USB
+.It Corega WLUSB-11 Key Ta Prism-3 Ta USB
+.It D-Link DCF-660W Ta Prism-2 Ta CF
+.It D-Link DWL-120 (rev F) Ta Prism-3 Ta USB
+.It D-Link DWL-122 Ta Prism-3 Ta USB
+.It D-Link DWL-520 (rev A and B only) Ta Prism-2.5 Ta PCI
+.It D-Link DWL-650 (rev A1-J3 only) Ta Prism-2.5 Ta PCMCIA
+.It ELSA XI300 Ta Prism-2 Ta PCMCIA
+.It ELSA XI325 Ta Prism-2.5 Ta PCMCIA
+.It ELSA XI325H Ta Prism-2.5 Ta PCMCIA
+.It ELSA XI800 Ta Prism-2 Ta CF
+.It EMTAC A2424i Ta Prism-2 Ta PCMCIA
+.It Ericsson Wireless LAN CARD C11 Ta Spectrum24 Ta PCMCIA
+.It Gemtek WL-311 Ta Prism-2.5 Ta PCMCIA
+.It Hawking Technology WE110P Ta Prism-2.5 Ta PCMCIA
+.It I-O DATA WN-B11/PCM Ta Prism-2 Ta PCMCIA
+.It I-O DATA WN-B11/USB Ta Prism-3 Ta USB
+.It Intel PRO/Wireless 2011 Ta Spectrum24 Ta PCMCIA
+.It Intel PRO/Wireless 2011B Ta Prism-3 Ta USB
+.It Intersil Prism II Ta Prism-2 Ta PCMCIA
+.It Intersil Mini PCI Ta Prism-2.5 Ta PCI
+.It Intersil ISL3872 Ta Prism-3 Ta PCI
+.It Intersil Prism 2X Ta Prism-3 Ta USB
+.It JVC MP-XP7250 Ta Prism-3 Ta USB
+.It Linksys WCF12 Ta Prism-3 Ta CF
+.It Linksys Instant Wireless WPC11 Ta Prism-2 Ta PCMCIA
+.It Linksys Instant Wireless WPC11 2.5 Ta Prism-2.5 Ta PCMCIA
+.It Linksys Instant Wireless WPC11 3.0 Ta Prism-3 Ta PCMCIA
+.It Linksys WUSB11 v3.0 Ta Prism-3 Ta USB
+.It Linksys WUSB12 Ta Prism-3 Ta USB
+.It Longshine 8301 Ta Prism-2 Ta PCI
+.It Lucent WaveLAN Ta Hermes Ta PCMCIA
+.It Melco WLI-USB-KB11 Ta Prism-3 Ta USB
+.It Melco WLI-USB-KS11G Ta Prism-3 Ta USB
+.It Melco WLI-USB-S11 Ta Prism-3 Ta USB
+.It Microsoft MN510 Ta Prism-3 Ta USB
+.It Microsoft MN520 Ta Prism-2.5 Ta PCMCIA
+.It NANOSPEED ROOT-RZ2000 Ta Prism-2 Ta PCMCIA
+.It NDC/Sohoware NCP130 Ta Prism-2 Ta PCI
+.It NEC CMZ-RT-WP Ta Prism-2 Ta PCMCIA
+.It Netgear MA111 (version 1 only) Ta Prism-3 Ta USB
+.It Netgear MA311 Ta Prism-2.5 Ta PCI
+.It Netgear MA401 Ta Prism-2 Ta PCMCIA
+.It Netgear MA401RA Ta Prism-2.5 Ta PCMCIA
+.It Netgear MA701 Ta Prism-2.5 Ta CF
+.It Nokia C020 Wireless LAN Ta Prism-I Ta PCMCIA
+.It Nokia C110/C111 Wireless LAN Ta Prism-2 Ta PCMCIA
+.It Nortel E-mobility 211818-A Ta Spectrum24 Ta PCI
+.It NTT-ME 11Mbps Wireless LAN Ta Prism-2 Ta PCMCIA
+.It Pheenet WL-503IA Ta Prism-3 Ta USB
+.It Planex GW-NS11H Ta Prism-3 Ta PCMCIA
+.It Planex GW-US11H Ta Prism-3 Ta USB
+.It Pretec Compact WLAN OC-WLBXX-A Ta Prism-2.5 Ta CF
+.It Proxim Harmony Ta Prism-2 Ta PCMCIA
+.It Proxim RangeLAN-DS Ta Prism-2 Ta PCMCIA
+.It Samsung MagicLAN SWL-2000N Ta Prism-2 Ta PCMCIA
+.It Samsung MagicLAN SWL-2210P Ta Prism-2 Ta PCI
+.It Senao NL-2511CF Ta Prism-3 Ta CF
+.It Senao NL-2511MP Ta Prism-2.5 Ta PCI
+.It Siemens SpeedStream SS1021 Ta Prism-2 Ta PCMCIA
+.It Siemens SpeedStream SS1022 Ta Prism-3 Ta USB
+.It Sitecom WL-022 Ta Prism-3 Ta USB
+.It SMC 2632 EZ Connect Ta Prism-2 Ta PCMCIA
+.It Symbol Spectrum24 Ta Spectrum24 Ta PCMCIA
+.It Symbol LA4123 Ta Spectrum24 Ta PCI
+.It Syntax USB-400 Ta Prism-3 Ta USB
+.It TDK LAK-CD011WL Ta Prism-2 Ta PCMCIA
+.It US Robotics 1120 Ta Prism-3 Ta USB
+.It US Robotics 2410 Ta Prism-2 Ta PCMCIA
+.It US Robotics 2445 Ta Prism-2 Ta PCMCIA
+.It ViewSonic Airsync Ta Prism-2.5 Ta USB
+.It Z-Com XI-725/726 Ta Prism-2.5 Ta USB
+.It Z-Com XI-735 Ta Prism-3 Ta USB
+.It ZyXEL ZyAIR B-200 Ta Prism-3 Ta USB
+.El
+.Pp
+Note that some of the PRISM-II adapters only work at 3.3V, hence
+.Xr cardbus 4
+support is required for those cards to set VCC correctly, even
+though they are really 16-bit cards.
+.Pp
+USB support is still experimental and the device may stop functioning
+during normal use.
+Resetting the device by configuring the interface down and back up again will
+normally reactivate it.
+.Pp
+Several vendors sell PCI adapters built around the PLX Technology 9050
+or 9052 chip.
+The following such adapters are supported or expected to work:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 3Com AirConnect 3CRWE777A (3.3V)
+.It Addtron AWA-100
+.It Belkin F5D6000 (a rebadged WL11000P)
+.It Eumitcom WL11000P
+.It Global Sun Technology GL24110P (untested)
+.It Global Sun Technology GL24110P02
+.It Linksys WDT11 (a rebadged GL24110P02)
+.It Longshine 8031
+.It Netgear MA301
+.It Siemens/Efficient Networks SpeedStream 1023
+.It US Robotics 2415 (rebadged WL11000P)
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig wi0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures wi0 to join network
+.Dq mynwid ,
+using WEP key
+.Dq mywepkey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+nwid mynwid nwkey mywepkey
+inet autoconf
+.Ed
+.Pp
+The following
+.Xr hostname.if 5
+example creates a host-based access point on boot:
+.Bd -literal -offset indent
+inet 192.168.1.1 255.255.255.0
+mediaopt hostap
+nwid mynwid nwkey mywepkey
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "wi0: init failed"
+The WaveLAN card failed to come ready after an initialization command
+was issued.
+.It "wi0: failed to allocate N bytes on NIC"
+The driver was unable to allocate memory for transmit frames in the
+NIC's on-board RAM.
+.It "wi0: device timeout"
+The WaveLAN failed to generate an interrupt to acknowledge a transmit
+command.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr pcmcia 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T HCF Light programming specification
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Ox
+support was added in
+.Ox 2.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu
+and ported to
+.Ox
+by
+.An Niklas Hallqvist Aq Mt niklas@appli.se .
+.Sh CAVEATS
+The original Lucent WaveLAN cards usually default to channel 3;
+newer cards use channel 10 by default.
+Non-Lucent cards vary, for instance the Addtron cards use channel
+11 by default.
+See
+.Xr ifconfig 8
+for information on how to change the channel.
+.Pp
+Not all 3.3V
+.Nm
+PCMCIA cards work.
+.Pp
+IBSS creation does not currently work with Symbol cards.
+.Pp
+The host-based access point mode on the Intersil PRISM cards has
+bugs when used with firmware versions prior to 0.8.3 and is completely
+unusable with firmware versions prior to 0.8.0 and 1.4.0-1.4.2.
+.Pp
+Software WEP is currently only supported in Host AP and BSS modes.
+Furthermore, software WEP is currently incapable of decrypting
+fragmented frames.
+Lucent-based cards using firmware 8.10 and above fragment encrypted
+frames sent at 11Mbps.
+To work around this, Lucent clients with this firmware revision
+connecting to a Host AP server should use a 2Mbps connection or
+upgrade their firmware to version 8.72.
+.Pp
+Host AP mode doesn't support WDS.
+.Pp
+Support for USB devices is buggy.
+Host AP mode and AP scanning are not currently supported with USB devices.

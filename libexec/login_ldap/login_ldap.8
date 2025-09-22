@@ -1,0 +1,253 @@
+.\" $OpenBSD: login_ldap.8,v 1.3 2022/03/31 17:27:18 naddy Exp $
+.\" Copyright (c) 2002 Institute for Open Systems Technology Australia (IFOST)
+.\" Copyright (c) 2007 Michael Erdely <merdely@openbsd.org>
+.\" Copyright (c) 2019 Martijn van Duren <martijn@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"   derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt LOGIN_LDAP 8
+.Os
+.Sh NAME
+.Nm login_ldap
+.Nd contact LDAP directory server for authentication
+.Sh SYNOPSIS
+.Nm login_ldap
+.Op Fl d
+.Op Fl s Ar service
+.Op Fl v Ar name Ns = Ns Ar value
+.Ar user
+.Op Ar class
+.Sh DESCRIPTION
+The
+.Nm
+utility contacts an LDAP server to authenticate a
+.Ar user .
+.Pp
+Available options are:
+.Bl -tag -width indent
+.It Fl d
+Print debugging information.
+.It Fl s
+Specify the service.
+Currently only
+.Dq login
+and
+.Dq response
+are supported.
+The challenge service is not supported, but it is not an error to specify
+this service.
+If this happens,
+.Nm
+will request the response service.
+.It Fl v
+This option is for compatibility and is ignored.
+.El
+.Pp
+.Nm
+searches for the
+.Ar user
+on the LDAP server based on the filter parameters in the configuration file.
+If the user is found, it will try to bind to it using the supplied password.
+.Pp
+.Nm
+uses the
+.Ar ldap-conffile
+.Xr login.conf 5
+variable to determine the location of the configuration file.
+If no
+.Ar ldap-conffile
+can be found, it will fall back to
+.Pa /etc/login_ldap.conf .
+The configuration file must be owned by root with group auth and permissions
+0640.
+.Sh LOGIN_LDAP.CONF VARIABLES
+The login_ldap.conf file takes one key value pair per line separated by a
+.Sq = .
+No spaces are allowed between the
+.Sq =
+and
+.Ar value .
+The
+.Ar key
+may have leading and trailing whitespaces.
+Empty lines and lines starting with a
+.Sq #
+are ignored.
+.Pp
+The
+.Nm
+utility requires the following variables:
+.Bl -tag -width basedn
+.It Ar host
+The hostname of the LDAP server or an LDAP URL.
+The LDAP URL is described in the following format:
+.Pp
+.Sm off
+.Op Ar protocol No ://
+.Ar host Op : Ar port
+.Sm on
+.Pp
+The following protocols are supported:
+.Pp
+.Bl -tag -width "ldap+tls" -compact
+.It ldap
+Connect with TCP in plain text.
+This is the default.
+.It ldaps
+Connect with TLS.
+The default port is 636.
+.It ldap+tls
+Connect with TCP and enable TLS using the StartTLS operation.
+.El
+.Pp
+Multiple host entries are supported and are tried in order of appearance.
+.It Ar basedn
+Point in the LDAP server's Directory Information Tree
+.Nm
+should begin searching for user objects.
+This option can be omitted if the binddn points directly to the user entry.
+.It Ar binddn
+DN used by
+.Nm
+to bind to the LDAP server.
+If no basedn is set, this is used to bind directly to the user and uses the user
+supplied password.
+Use FORMAT FILTERS to specify the username in this case.
+.Pp
+If basedn is set, it is used together with bindpw to bind to the LDAP server and
+search for the user entry based on filter and scope.
+If
+.Ar binddn
+is omitted and basedn is set, an anonymous bind is used to search for the user
+entry.
+.El
+.Pp
+In most cases, you will need to configure additional options.
+The following entries to login_ldap.conf are also recognised by
+.Nm
+and are optional:
+.Bl -tag -width cacertdir
+.It Ar bindpw
+Password used by
+.Nm
+to bind to the LDAP server.
+Leave this out for a passwordless bind.
+.It Ar filter
+LDAP search filter (in accordance with RFC 1558) which identifies the
+objectclasses and attributes necessary for
+.Nm
+to locate the user object.
+See the
+.Sx FILTER FORMATS
+section for details.
+.It Ar timeout
+Time in seconds to wait for the LDAP server to respond to a query.
+The default is 60 seconds per query, with up to four queries occurring.
+.It Ar scope
+The directory scope when performing the user lookup (first pass) search.
+Acceptable values are:
+.Pp
+.Bl -tag -width baseXXX -offset indent -compact
+.It base
+Base object search
+.It one
+One level search
+.It sub
+Full subtree search
+.El
+.Pp
+The default is sub if scope is unspecified.
+.It Ar cacert
+The pathname of the CA used for SSL certificates.
+.It Ar cacertdir
+The directory containing the certificates of trusted CAs.
+.El
+.Pp
+An additional groupcheck can be performed to verify the user is allowed to log
+in.
+This can be done by specifying
+.Ar gbasedn , Ar gfilter
+and optionally
+.Ar gscope .
+See
+.Ar basedn , Ar filter
+and
+.Ar scope
+for semantics.
+These checks are performed by the binddn user.
+.Sh FILTER FORMATS
+The following format specifiers are valid for the filter:
+.Bl -tag -width xxx
+.It %u
+Username.
+The username of the user to be authenticated as specified by the
+.Ar user
+argument.
+.It %h
+Hostname.
+The hostname of the host the user is trying to authenticate on,
+as returned by
+.Xr gethostname 3
+and displayed by
+.Xr hostname 1 .
+.It %d
+The dn of the user attempting authentication as returned from the first pass of
+the search.
+This option is only available to gfilter and gbasedn.
+.It %%
+A literal
+.Sq %
+character.
+.El
+.Sh FILES
+.Bl -tag -width /etc/examples/login_ldap.conf -compact
+.It Pa /etc/examples/login_ldap.conf
+Example configuration file.
+.El
+.Sh SEE ALSO
+.Xr ldap 1 ,
+.Xr login 1 ,
+.Xr login.conf 5 ,
+.Xr ldapd 8 ,
+.Xr ypldap 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Ox 3.3
+ports and was later mostly rewritten by
+.An Martijn van Duren Aq Mt martijn@openbsd.org
+and imported into
+.Ox 6.8 .
+.Sh AUTHORS
+The
+.Nm
+utility was originally written by:
+.Pp
+.An Peter Werner Aq Mt peterw@ifost.org.au
+.An Michael Erdely Aq Mt merdely@openbsd.org
+.Sh CAVEATS
+As there is no SASL support, passwords are sent to the LDAP server.
+TLS should be used to protect the password in transit.

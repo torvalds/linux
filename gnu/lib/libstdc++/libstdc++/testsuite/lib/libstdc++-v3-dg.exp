@@ -1,0 +1,285 @@
+# Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+
+# Define libstdc++-v3 callbacks for dg.exp.
+
+load_lib dg.exp
+load_lib libgloss.exp
+load_lib prune.exp
+
+proc libstdc++-v3-copy-files {srcfiles dstdir} {
+    foreach f $srcfiles {
+	if { [catch { set symlink [file readlink $f] } x] } then {
+	    file copy -force $f $dstdir
+	} else {
+	    if { [regexp "^/" "$symlink"] } then {
+		file copy -force $symlink $dstdir
+	    } else {
+		set dirname [file dirname $f]
+		file copy -force $dirname/$symlink $dstdir
+	    }
+	}
+    }
+}
+
+proc libstdc++-v3-init { args } {
+    global srcdir
+    global outdir
+    global blddir
+    global cxx
+    global includes
+    global cxxflags
+    global objdir
+    global gluefile wrap_flags
+    global env
+    global ld_library_path
+    global original_ld_library_path
+    global tool_root_dir
+
+    set blddir [lookfor_file [get_multilibs] libstdc++]
+
+    # By default, we assume we want to run program images.
+    global dg-do-what-default
+    set dg-do-what-default run
+
+    # Copy any required data files.
+    libstdc++-v3-copy-files [glob -nocomplain "$srcdir/{,*/}*/*.tst"] $outdir
+    libstdc++-v3-copy-files [glob -nocomplain "$srcdir/{,*/}*/*.txt"] $outdir
+
+
+    # Setup LD_LIBRARY_PATH so that libgcc_s, libstdc++ binaries can be found.
+    # Find the existing LD_LIBRARY_PATH.
+    if [info exists env(LD_LIBRARY_PATH)] {
+	set original_ld_library_path $env(LD_LIBRARY_PATH)
+    } else {
+	if [info exists env(SHLIB_PATH)] {
+	    set original_ld_library_path $env(SHLIB_PATH)
+	} else {
+	    if [info exists env(DYLD_LIBRARY_PATH)] {
+		set original_ld_library_path $env(DYLD_LIBRARY_PATH)
+	    } else {
+		set original_ld_library_path ""
+	    }
+	}
+    }
+
+    # Locate libgcc.a so we don't need to account for different values of
+    # SHLIB_EXT on different platforms
+    set gccdir [lookfor_file $tool_root_dir gcc/libgcc.a]
+    if {$gccdir != ""} {
+	set gccdir [file dirname $gccdir]
+    }
+
+    # Compute what needs to be added to the existing LD_LIBRARY_PATH.
+    set ld_library_path ""
+    append ld_library_path ":${gccdir}"
+    set compiler g++
+    if { [is_remote host] == 0 && [which $compiler] != 0 } {
+      foreach i "[exec $compiler --print-multi-lib]" {
+	set mldir ""
+	regexp -- "\[a-z0-9=/\.-\]*;" $i mldir
+	set mldir [string trimright $mldir "\;@"]
+	if { "$mldir" == "." } {
+	  continue
+	}
+	if { [llength [glob -nocomplain ${gccdir}/${mldir}/libgcc_s*.so.*]] == 1 } {
+	  append ld_library_path ":${gccdir}/${mldir}"
+	}
+      }
+    }
+    append ld_library_path ":${blddir}/src/.libs"
+
+    # On IRIX 6, we have to set variables akin to LD_LIBRARY_PATH, but
+    # called LD_LIBRARYN32_PATH (for the N32 ABI) and LD_LIBRARY64_PATH
+    # (for the 64-bit ABI).  The right way to do this would be to modify
+    # unix.exp -- but that's not an option since it's part of DejaGNU
+    # proper, so we do it here.  We really only need to do 
+    # this on IRIX, but it shouldn't hurt to do it anywhere else.
+    setenv  LD_LIBRARY_PATH     "$ld_library_path:$original_ld_library_path"
+    setenv  SHLIB_PATH          "$ld_library_path:$original_ld_library_path"
+    setenv  LD_LIBRARYN32_PATH  "$ld_library_path:$original_ld_library_path"
+    setenv  LD_LIBRARY64_PATH   "$ld_library_path:$original_ld_library_path"
+    setenv  LD_RUN_PATH         "$ld_library_path:$original_ld_library_path"
+    setenv  LD_LIBRARY_PATH_64  "$ld_library_path:$original_ld_library_path"
+    setenv  DYLD_LIBRARY_PATH   "$ld_library_path:$original_ld_library_path"
+    verbose -log "LD_LIBRARY_PATH = $env(LD_LIBRARY_PATH)"
+
+    # Do a bunch of handstands and backflips for cross compiling and
+    # finding simulators...
+    if [is_remote host] {
+        set header [remote_download host ${blddir}/testsuite/testsuite_hooks.h]
+        if { $header == "" } {
+            verbose -log "Unable to download ${blddir}/testsuite/testsuite_hooks.h to host."
+            return "untested"
+        }
+      set cxx [transform "g++"]
+      set cxxflags "-ggdb3 -DDEBUG_ASSERT"
+      set includes "-I./"
+    } else {
+        # If we find a testsuite_flags file, we're testing in the build dir.
+        set flags_file "${blddir}/testsuite_flags"
+        if { [file exists $flags_file] } {
+            set cxx [exec sh $flags_file --build-cxx]
+            set cxxflags [exec sh $flags_file --cxxflags]
+            set includes [exec sh $flags_file --build-includes]
+        } else {
+            set cxx [transform "g++"]
+            set cxxflags "-ggdb3 -DDEBUG_ASSERT"
+            set includes "-I${srcdir}"
+        }
+    }
+
+    if { [target_info needs_status_wrapper]!=""} {
+      file delete ${objdir}/testglue.o;
+      set gluefile ${objdir}/testglue.o;
+      set result [build_wrapper $gluefile];
+      if { $result != "" } {
+          set gluefile [lindex $result 0];
+          set wrap_flags [lindex $result 1];
+      } else {
+          unset gluefile
+      }
+    }
+}
+
+proc libstdc++-v3-dg-test { prog do_what extra_tool_flags } {
+    # Set up the compiler flags, based on what we're going to do.
+
+    switch $do_what {
+	"preprocess" {
+	    set compile_type "preprocess"
+	    set output_file "[file rootname [file tail $prog]].i"
+	}
+	"compile" {
+	    set compile_type "assembly"
+	    set output_file "[file rootname [file tail $prog]].s"
+	}
+	"assemble" {
+	    set compile_type "object"
+	    set output_file "[file rootname [file tail $prog]].o"
+	}
+	"link" {
+	    set compile_type "executable"
+	    set output_file "./[file rootname [file tail $prog]].exe"
+	}
+	"run" {
+	    set compile_type "executable"
+	    # FIXME: "./" is to cope with "." not being in $PATH.
+	    # Should this be handled elsewhere?
+	    # YES.
+	    set output_file "./[file rootname [file tail $prog]].exe"
+	    # This is the only place where we care if an executable was
+	    # created or not.  If it was, dg.exp will try to run it.
+	    remote_file build delete $output_file;
+	}
+	default {
+	    perror "$do_what: not a valid dg-do keyword"
+	    return ""
+	}
+    }
+    set options ""
+    if { $extra_tool_flags != "" } {
+	lappend options "additional_flags=$extra_tool_flags"
+    }
+
+    set comp_output [libstdc++-v3_target_compile "$prog" "$output_file" "$compile_type" $options];
+    set comp_output [ prune_g++_output $comp_output ];
+
+    return [list $comp_output $output_file]
+}
+
+
+proc libstdc++-v3_target_compile { source dest type options } {
+    global gluefile 
+    global wrap_flags
+    global cxx
+    global cxxflags
+    global includes
+    global blddir
+
+    if { [target_info needs_status_wrapper] != "" && [info exists gluefile] } {
+	lappend options "libs=${gluefile}"
+	lappend options "ldflags=${wrap_flags}"
+    }
+
+    set cxx_final $cxx
+    set cxxlibglossflags  [libgloss_link_flags]
+    set cxx_final [concat $cxx_final $cxxlibglossflags]
+    set cxx_final [concat $cxx_final $cxxflags]
+    set cxx_final [concat $cxx_final $includes]
+
+    lappend options "compiler=$cxx_final"
+
+    # Picks up the freshly-built testsuite library corresponding to the
+    # multilib under test.
+    lappend options "ldflags=-L${blddir}/testsuite"
+    lappend options "libs=-lv3test"
+
+    return [target_compile $source $dest $type $options]
+}
+
+
+# A bit sloppy...  Returns a list of source files (full pathnames) to
+# compile.  We mimic the mkcheck script in that the first time this is run,
+# all existing files are listed in "testsuite_files" in the output
+# directory.  Subsequent runs pull the list from that file, allowing users
+# to trim the list down to problematic tests.
+### This is supposed to be done via RUNTESTFLAGS, but that doesn't work.
+proc libstdc++-v3-list-sourcefiles { } {
+    global srcdir
+    global outdir
+
+    set files_file "${outdir}/testsuite_files"
+    set sfiles ""
+    if { [file exists $files_file] } {
+	set f [open $files_file]
+	while { ! [eof $f] } {
+	    set t [gets $f]
+	    if { [string length "$t"] != 0 } {
+		lappend sfiles ${srcdir}/${t}
+	    }
+	}
+    } else {
+	set f [open $files_file "w"]
+	set where_we_were [pwd]
+	cd $srcdir
+	foreach s [lsort [glob -nocomplain "*/*.cc" "*/*/*.cc" "{,*/}*/*/*/*.cc" ]] {
+	    lappend sfiles ${srcdir}/${s}
+	    puts $f $s
+	}
+	cd $where_we_were
+    }
+    close $f
+
+    # Disable wchar_t tests if library not configured to support
+    # wchar_t testing. 
+    set wchar_file "${outdir}/testsuite_wchar_t"    
+    if { [file exists $wchar_file] } {
+	return $sfiles
+    } else {
+	# Remove wchar_t tests files from list.
+	set res {}
+	foreach w $sfiles {
+	    if [regexp "wchar_t" $w] {
+		verbose "element out list is $w"
+	    } else {
+		verbose "element in list is $w"
+		lappend res $w
+	    }
+	}
+	return $res
+    }
+}

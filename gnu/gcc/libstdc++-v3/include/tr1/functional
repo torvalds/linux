@@ -1,0 +1,1106 @@
+// TR1 functional header -*- C++ -*-
+
+// Copyright (C) 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+/** @file tr1/functional
+ *  This is a TR1 C++ Library header.
+ */
+
+#ifndef _TR1_FUNCTIONAL
+#define _TR1_FUNCTIONAL 1
+
+#pragma GCC system_header
+
+#include "../functional"
+#include <typeinfo>
+#include <tr1/type_traits>
+#include <ext/type_traits.h>
+#include <cstdlib>  // for std::abort
+#include <tr1/tuple>
+
+namespace std
+{
+_GLIBCXX_BEGIN_NAMESPACE(tr1)
+
+  template<typename _MemberPointer>
+    class _Mem_fn;
+
+  /**
+   *  @if maint
+   *  Actual implementation of _Has_result_type, which uses SFINAE to
+   *  determine if the type _Tp has a publicly-accessible member type
+   *  result_type.
+   *  @endif
+  */
+  template<typename _Tp>
+    class _Has_result_type_helper : __sfinae_types
+    {
+      template<typename _Up>
+      struct _Wrap_type
+      { };
+
+      template<typename _Up>
+        static __one __test(_Wrap_type<typename _Up::result_type>*);
+
+      template<typename _Up>
+        static __two __test(...);
+
+    public:
+      static const bool value = sizeof(__test<_Tp>(0)) == 1;
+    };
+
+  template<typename _Tp>
+    struct _Has_result_type
+       : integral_constant<
+           bool,
+           _Has_result_type_helper<typename remove_cv<_Tp>::type>::value>
+    { };
+
+  /**
+   *  @if maint
+   *  If we have found a result_type, extract it.
+   *  @endif
+  */
+  template<bool _Has_result_type, typename _Functor>
+    struct _Maybe_get_result_type
+    { };
+
+  template<typename _Functor>
+    struct _Maybe_get_result_type<true, _Functor>
+    {
+      typedef typename _Functor::result_type result_type;
+    };
+
+  /**
+   *  @if maint
+   *  Base class for any function object that has a weak result type, as
+   *  defined in 3.3/3 of TR1.
+   *  @endif
+  */
+  template<typename _Functor>
+    struct _Weak_result_type_impl
+    : _Maybe_get_result_type<_Has_result_type<_Functor>::value, _Functor>
+    {
+    };
+
+  /**
+   *  @if maint
+   *  Strip top-level cv-qualifiers from the function object and let
+   *  _Weak_result_type_impl perform the real work.
+   *  @endif
+  */
+  template<typename _Functor>
+    struct _Weak_result_type
+    : _Weak_result_type_impl<typename remove_cv<_Functor>::type>
+    {
+    };
+
+  template<typename _Signature>
+    class result_of;
+
+  /**
+   *  @if maint
+   *  Actual implementation of result_of. When _Has_result_type is
+   *  true, gets its result from _Weak_result_type. Otherwise, uses
+   *  the function object's member template result to extract the
+   *  result type.
+   *  @endif
+  */
+  template<bool _Has_result_type, typename _Signature>
+    struct _Result_of_impl;
+
+  // Handle member data pointers using _Mem_fn's logic
+  template<typename _Res, typename _Class, typename _T1>
+    struct _Result_of_impl<false, _Res _Class::*(_T1)>
+    {
+      typedef typename _Mem_fn<_Res _Class::*>
+                ::template _Result_type<_T1>::type type;
+    };
+
+  /**
+   *  @if maint
+   *  Determines if the type _Tp derives from unary_function.
+   *  @endif
+  */
+  template<typename _Tp>
+    struct _Derives_from_unary_function : __sfinae_types
+    {
+    private:
+      template<typename _T1, typename _Res>
+        static __one __test(const volatile unary_function<_T1, _Res>*);
+
+      // It's tempting to change "..." to const volatile void*, but
+      // that fails when _Tp is a function type.
+      static __two __test(...);
+
+    public:
+      static const bool value = sizeof(__test((_Tp*)0)) == 1;
+    };
+
+  /**
+   *  @if maint
+   *  Determines if the type _Tp derives from binary_function.
+   *  @endif
+  */
+  template<typename _Tp>
+    struct _Derives_from_binary_function : __sfinae_types
+    {
+    private:
+      template<typename _T1, typename _T2, typename _Res>
+        static __one __test(const volatile binary_function<_T1, _T2, _Res>*);
+
+      // It's tempting to change "..." to const volatile void*, but
+      // that fails when _Tp is a function type.
+      static __two __test(...);
+
+    public:
+      static const bool value = sizeof(__test((_Tp*)0)) == 1;
+    };
+
+  /**
+   *  @if maint
+   *  Turns a function type into a function pointer type
+   *  @endif
+  */
+  template<typename _Tp, bool _IsFunctionType = is_function<_Tp>::value>
+    struct _Function_to_function_pointer
+    {
+      typedef _Tp type;
+    };
+
+  template<typename _Tp>
+    struct _Function_to_function_pointer<_Tp, true>
+    {
+      typedef _Tp* type;
+    };
+
+  /**
+   *  @if maint
+   *  Knowing which of unary_function and binary_function _Tp derives
+   *  from, derives from the same and ensures that reference_wrapper
+   *  will have a weak result type. See cases below.
+   *  @endif
+   */
+  template<bool _Unary, bool _Binary, typename _Tp>
+    struct _Reference_wrapper_base_impl;
+
+  // Not a unary_function or binary_function, so try a weak result type
+  template<typename _Tp>
+    struct _Reference_wrapper_base_impl<false, false, _Tp>
+    : _Weak_result_type<_Tp>
+    { };
+
+  // unary_function but not binary_function
+  template<typename _Tp>
+    struct _Reference_wrapper_base_impl<true, false, _Tp>
+    : unary_function<typename _Tp::argument_type,
+		     typename _Tp::result_type>
+    { };
+
+  // binary_function but not unary_function
+  template<typename _Tp>
+    struct _Reference_wrapper_base_impl<false, true, _Tp>
+    : binary_function<typename _Tp::first_argument_type,
+		      typename _Tp::second_argument_type,
+		      typename _Tp::result_type>
+    { };
+
+  // both unary_function and binary_function. import result_type to
+  // avoid conflicts.
+   template<typename _Tp>
+    struct _Reference_wrapper_base_impl<true, true, _Tp>
+    : unary_function<typename _Tp::argument_type,
+		     typename _Tp::result_type>,
+      binary_function<typename _Tp::first_argument_type,
+		      typename _Tp::second_argument_type,
+		      typename _Tp::result_type>
+    {
+      typedef typename _Tp::result_type result_type;
+    };
+
+  /**
+   *  @if maint
+   *  Derives from unary_function or binary_function when it
+   *  can. Specializations handle all of the easy cases. The primary
+   *  template determines what to do with a class type, which may
+   *  derive from both unary_function and binary_function.
+   *  @endif
+  */
+  template<typename _Tp>
+    struct _Reference_wrapper_base
+    : _Reference_wrapper_base_impl<
+      _Derives_from_unary_function<_Tp>::value,
+      _Derives_from_binary_function<_Tp>::value,
+      _Tp>
+    { };
+
+  // - a function type (unary)
+  template<typename _Res, typename _T1>
+    struct _Reference_wrapper_base<_Res(_T1)>
+    : unary_function<_T1, _Res>
+    { };
+
+  // - a function type (binary)
+  template<typename _Res, typename _T1, typename _T2>
+    struct _Reference_wrapper_base<_Res(_T1, _T2)>
+    : binary_function<_T1, _T2, _Res>
+    { };
+
+  // - a function pointer type (unary)
+  template<typename _Res, typename _T1>
+    struct _Reference_wrapper_base<_Res(*)(_T1)>
+    : unary_function<_T1, _Res>
+    { };
+
+  // - a function pointer type (binary)
+  template<typename _Res, typename _T1, typename _T2>
+    struct _Reference_wrapper_base<_Res(*)(_T1, _T2)>
+    : binary_function<_T1, _T2, _Res>
+    { };
+
+  // - a pointer to member function type (unary, no qualifiers)
+  template<typename _Res, typename _T1>
+    struct _Reference_wrapper_base<_Res (_T1::*)()>
+    : unary_function<_T1*, _Res>
+    { };
+
+  // - a pointer to member function type (binary, no qualifiers)
+  template<typename _Res, typename _T1, typename _T2>
+    struct _Reference_wrapper_base<_Res (_T1::*)(_T2)>
+    : binary_function<_T1*, _T2, _Res>
+    { };
+
+  // - a pointer to member function type (unary, const)
+  template<typename _Res, typename _T1>
+    struct _Reference_wrapper_base<_Res (_T1::*)() const>
+    : unary_function<const _T1*, _Res>
+    { };
+
+  // - a pointer to member function type (binary, const)
+  template<typename _Res, typename _T1, typename _T2>
+    struct _Reference_wrapper_base<_Res (_T1::*)(_T2) const>
+    : binary_function<const _T1*, _T2, _Res>
+    { };
+
+  // - a pointer to member function type (unary, volatile)
+  template<typename _Res, typename _T1>
+    struct _Reference_wrapper_base<_Res (_T1::*)() volatile>
+    : unary_function<volatile _T1*, _Res>
+    { };
+
+  // - a pointer to member function type (binary, volatile)
+  template<typename _Res, typename _T1, typename _T2>
+    struct _Reference_wrapper_base<_Res (_T1::*)(_T2) volatile>
+    : binary_function<volatile _T1*, _T2, _Res>
+    { };
+
+  // - a pointer to member function type (unary, const volatile)
+  template<typename _Res, typename _T1>
+    struct _Reference_wrapper_base<_Res (_T1::*)() const volatile>
+    : unary_function<const volatile _T1*, _Res>
+    { };
+
+  // - a pointer to member function type (binary, const volatile)
+  template<typename _Res, typename _T1, typename _T2>
+    struct _Reference_wrapper_base<_Res (_T1::*)(_T2) const volatile>
+    : binary_function<const volatile _T1*, _T2, _Res>
+    { };
+
+  template<typename _Tp>
+    class reference_wrapper
+      : public _Reference_wrapper_base<typename remove_cv<_Tp>::type>
+    {
+      // If _Tp is a function type, we can't form result_of<_Tp(...)>,
+      // so turn it into a function pointer type.
+      typedef typename _Function_to_function_pointer<_Tp>::type
+        _M_func_type;
+
+      _Tp* _M_data;
+    public:
+      typedef _Tp type;
+      explicit reference_wrapper(_Tp& __indata): _M_data(&__indata)
+      { }
+
+      reference_wrapper(const reference_wrapper<_Tp>& __inref):
+      _M_data(__inref._M_data)
+      { }
+
+      reference_wrapper&
+      operator=(const reference_wrapper<_Tp>& __inref)
+      {
+        _M_data = __inref._M_data;
+        return *this;
+      }
+
+      operator _Tp&() const
+      { return this->get(); }
+
+      _Tp&
+      get() const
+      { return *_M_data; }
+
+#define _GLIBCXX_REPEAT_HEADER <tr1/ref_wrap_iterate.h>
+#include <tr1/repeat.h>
+#undef _GLIBCXX_REPEAT_HEADER
+    };
+
+
+  // Denotes a reference should be taken to a variable.
+  template<typename _Tp>
+    inline reference_wrapper<_Tp>
+    ref(_Tp& __t)
+    { return reference_wrapper<_Tp>(__t); }
+
+  // Denotes a const reference should be taken to a variable.
+  template<typename _Tp>
+    inline reference_wrapper<const _Tp>
+    cref(const _Tp& __t)
+    { return reference_wrapper<const _Tp>(__t); }
+
+  template<typename _Tp>
+    inline reference_wrapper<_Tp>
+    ref(reference_wrapper<_Tp> __t)
+    { return ref(__t.get()); }
+
+  template<typename _Tp>
+    inline reference_wrapper<const _Tp>
+    cref(reference_wrapper<_Tp> __t)
+    { return cref(__t.get()); }
+
+   template<typename _Tp, bool>
+     struct _Mem_fn_const_or_non
+     {
+       typedef const _Tp& type;
+     };
+
+    template<typename _Tp>
+      struct _Mem_fn_const_or_non<_Tp, false>
+      {
+        typedef _Tp& type;
+      };
+
+  template<typename _Res, typename _Class>
+  class _Mem_fn<_Res _Class::*>
+  {
+    // This bit of genius is due to Peter Dimov, improved slightly by
+    // Douglas Gregor.
+    template<typename _Tp>
+      _Res&
+      _M_call(_Tp& __object, _Class *) const
+      { return __object.*__pm; }
+
+    template<typename _Tp, typename _Up>
+      _Res&
+      _M_call(_Tp& __object, _Up * const *) const
+      { return (*__object).*__pm; }
+
+    template<typename _Tp, typename _Up>
+      const _Res&
+      _M_call(_Tp& __object, const _Up * const *) const
+      { return (*__object).*__pm; }
+
+    template<typename _Tp>
+      const _Res&
+      _M_call(_Tp& __object, const _Class *) const
+      { return __object.*__pm; }
+
+    template<typename _Tp>
+      const _Res&
+      _M_call(_Tp& __ptr, const volatile void*) const
+      { return (*__ptr).*__pm; }
+
+    template<typename _Tp> static _Tp& __get_ref();
+
+    template<typename _Tp>
+      static __sfinae_types::__one __check_const(_Tp&, _Class*);
+    template<typename _Tp, typename _Up>
+      static __sfinae_types::__one __check_const(_Tp&, _Up * const *);
+    template<typename _Tp, typename _Up>
+      static __sfinae_types::__two __check_const(_Tp&, const _Up * const *);
+    template<typename _Tp>
+      static __sfinae_types::__two __check_const(_Tp&, const _Class*);
+    template<typename _Tp>
+      static __sfinae_types::__two __check_const(_Tp&, const volatile void*);
+
+  public:
+    template<typename _Tp>
+      struct _Result_type
+      : _Mem_fn_const_or_non<
+        _Res,
+        (sizeof(__sfinae_types::__two)
+	 == sizeof(__check_const<_Tp>(__get_ref<_Tp>(), (_Tp*)0)))>
+      { };
+
+    template<typename _Signature>
+      struct result;
+
+    template<typename _CVMem, typename _Tp>
+      struct result<_CVMem(_Tp)>
+      : public _Result_type<_Tp> { };
+
+    template<typename _CVMem, typename _Tp>
+      struct result<_CVMem(_Tp&)>
+      : public _Result_type<_Tp> { };
+
+    explicit _Mem_fn(_Res _Class::*__pm) : __pm(__pm) { }
+
+    // Handle objects
+    _Res&       operator()(_Class& __object)       const
+    { return __object.*__pm; }
+
+    const _Res& operator()(const _Class& __object) const
+    { return __object.*__pm; }
+
+    // Handle pointers
+    _Res&       operator()(_Class* __object)       const
+    { return __object->*__pm; }
+
+    const _Res&
+    operator()(const _Class* __object) const
+    { return __object->*__pm; }
+
+    // Handle smart pointers and derived
+    template<typename _Tp>
+      typename _Result_type<_Tp>::type
+      operator()(_Tp& __unknown) const
+      { return _M_call(__unknown, &__unknown); }
+
+  private:
+    _Res _Class::*__pm;
+  };
+
+  /**
+   *  @brief Returns a function object that forwards to the member
+   *  pointer @a pm.
+   */
+  template<typename _Tp, typename _Class>
+    inline _Mem_fn<_Tp _Class::*>
+    mem_fn(_Tp _Class::* __pm)
+    {
+      return _Mem_fn<_Tp _Class::*>(__pm);
+    }
+
+  /**
+   *  @brief Determines if the given type _Tp is a function object
+   *  should be treated as a subexpression when evaluating calls to
+   *  function objects returned by bind(). [TR1 3.6.1]
+   */
+  template<typename _Tp>
+    struct is_bind_expression
+    { static const bool value = false; };
+
+  template<typename _Tp>
+    const bool is_bind_expression<_Tp>::value;
+
+  /**
+   *  @brief Determines if the given type _Tp is a placeholder in a
+   *  bind() expression and, if so, which placeholder it is. [TR1 3.6.2]
+   */
+  template<typename _Tp>
+    struct is_placeholder
+    { static const int value = 0; };
+
+  template<typename _Tp>
+    const int is_placeholder<_Tp>::value;
+
+  /**
+   *  @if maint
+   *  The type of placeholder objects defined by libstdc++.
+   *  @endif
+   */
+  template<int _Num> struct _Placeholder { };
+
+  /**
+   *  @if maint
+   *  Partial specialization of is_placeholder that provides the placeholder
+   *  number for the placeholder objects defined by libstdc++.
+   *  @endif
+   */
+  template<int _Num>
+    struct is_placeholder<_Placeholder<_Num> >
+    { static const int value = _Num; };
+
+  template<int _Num>
+    const int is_placeholder<_Placeholder<_Num> >::value;
+
+  /**
+   *  @if maint
+   *  Maps an argument to bind() into an actual argument to the bound
+   *  function object [TR1 3.6.3/5]. Only the first parameter should
+   *  be specified: the rest are used to determine among the various
+   *  implementations. Note that, although this class is a function
+   *  object, isn't not entirely normal because it takes only two
+   *  parameters regardless of the number of parameters passed to the
+   *  bind expression. The first parameter is the bound argument and
+   *  the second parameter is a tuple containing references to the
+   *  rest of the arguments.
+   *  @endif
+   */
+  template<typename _Arg,
+           bool _IsBindExp = is_bind_expression<_Arg>::value,
+           bool _IsPlaceholder = (is_placeholder<_Arg>::value > 0)>
+    class _Mu;
+
+  /**
+   *  @if maint
+   *  If the argument is reference_wrapper<_Tp>, returns the
+   *  underlying reference. [TR1 3.6.3/5 bullet 1]
+   *  @endif
+   */
+  template<typename _Tp>
+    class _Mu<reference_wrapper<_Tp>, false, false>
+    {
+    public:
+      typedef _Tp& result_type;
+
+      /* Note: This won't actually work for const volatile
+       * reference_wrappers, because reference_wrapper::get() is const
+       * but not volatile-qualified. This might be a defect in the TR.
+       */
+      template<typename _CVRef, typename _Tuple>
+      result_type
+      operator()(_CVRef& __arg, const _Tuple&) const volatile
+      { return __arg.get(); }
+    };
+
+  /**
+   *  @if maint
+   *  If the argument is a bind expression, we invoke the underlying
+   *  function object with the same cv-qualifiers as we are given and
+   *  pass along all of our arguments (unwrapped). [TR1 3.6.3/5 bullet 2]
+   *  @endif
+   */
+  template<typename _Arg>
+    class _Mu<_Arg, true, false>
+    {
+    public:
+      template<typename _Signature> class result;
+
+#define _GLIBCXX_REPEAT_HEADER <tr1/mu_iterate.h>
+#  include <tr1/repeat.h>
+#undef _GLIBCXX_REPEAT_HEADER
+    };
+
+  /**
+   *  @if maint
+   *  If the argument is a placeholder for the Nth argument, returns
+   *  a reference to the Nth argument to the bind function object.
+   *  [TR1 3.6.3/5 bullet 3]
+   *  @endif
+   */
+  template<typename _Arg>
+    class _Mu<_Arg, false, true>
+    {
+    public:
+      template<typename _Signature> class result;
+
+      template<typename _CVMu, typename _CVArg, typename _Tuple>
+      class result<_CVMu(_CVArg, _Tuple)>
+      {
+        // Add a reference, if it hasn't already been done for us.
+        // This allows us to be a little bit sloppy in constructing
+        // the tuple that we pass to result_of<...>.
+        typedef typename tuple_element<(is_placeholder<_Arg>::value - 1),
+                                       _Tuple>::type __base_type;
+
+      public:
+        typedef typename add_reference<__base_type>::type type;
+      };
+
+      template<typename _Tuple>
+      typename result<_Mu(_Arg, _Tuple)>::type
+      operator()(const volatile _Arg&, const _Tuple& __tuple) const volatile
+      {
+        return ::std::tr1::get<(is_placeholder<_Arg>::value - 1)>(__tuple);
+      }
+    };
+
+  /**
+   *  @if maint
+   *  If the argument is just a value, returns a reference to that
+   *  value. The cv-qualifiers on the reference are the same as the
+   *  cv-qualifiers on the _Mu object. [TR1 3.6.3/5 bullet 4]
+   *  @endif
+   */
+  template<typename _Arg>
+    class _Mu<_Arg, false, false>
+    {
+    public:
+      template<typename _Signature> struct result;
+
+      template<typename _CVMu, typename _CVArg, typename _Tuple>
+      struct result<_CVMu(_CVArg, _Tuple)>
+      {
+        typedef typename add_reference<_CVArg>::type type;
+      };
+
+      // Pick up the cv-qualifiers of the argument
+      template<typename _CVArg, typename _Tuple>
+      _CVArg& operator()(_CVArg& __arg, const _Tuple&) const volatile
+      { return __arg; }
+    };
+
+  /**
+   *  @if maint
+   *  Maps member pointers into instances of _Mem_fn but leaves all
+   *  other function objects untouched. Used by tr1::bind(). The
+   *  primary template handles the non--member-pointer case.
+   *  @endif
+   */
+  template<typename _Tp>
+    struct _Maybe_wrap_member_pointer
+    {
+      typedef _Tp type;
+      static const _Tp& __do_wrap(const _Tp& __x) { return __x; }
+    };
+
+  /**
+   *  @if maint
+   *  Maps member pointers into instances of _Mem_fn but leaves all
+   *  other function objects untouched. Used by tr1::bind(). This
+   *  partial specialization handles the member pointer case.
+   *  @endif
+   */
+  template<typename _Tp, typename _Class>
+    struct _Maybe_wrap_member_pointer<_Tp _Class::*>
+    {
+      typedef _Mem_fn<_Tp _Class::*> type;
+      static type __do_wrap(_Tp _Class::* __pm) { return type(__pm); }
+    };
+
+  /**
+   *  @if maint
+   *  Type of the function object returned from bind().
+   *  @endif
+   */
+   template<typename _Signature>
+     struct _Bind;
+
+  /**
+   *  @if maint
+   *  Type of the function object returned from bind<R>().
+   *  @endif
+   */
+   template<typename _Result, typename _Signature>
+     struct _Bind_result;
+
+  /**
+   *  @if maint
+   *  Class template _Bind is always a bind expression.
+   *  @endif
+   */
+   template<typename _Signature>
+     struct is_bind_expression<_Bind<_Signature> >
+     { static const bool value = true; };
+
+   template<typename _Signature>
+     const bool is_bind_expression<_Bind<_Signature> >::value;
+
+  /**
+   *  @if maint
+   *  Class template _Bind_result is always a bind expression.
+   *  @endif
+   */
+   template<typename _Result, typename _Signature>
+     struct is_bind_expression<_Bind_result<_Result, _Signature> >
+     { static const bool value = true; };
+
+   template<typename _Result, typename _Signature>
+     const bool is_bind_expression<_Bind_result<_Result, _Signature> >::value;
+
+  /**
+   *  @brief Exception class thrown when class template function's
+   *  operator() is called with an empty target.
+   *
+   */
+  class bad_function_call : public std::exception { };
+
+  /**
+   *  @if maint
+   *  The integral constant expression 0 can be converted into a
+   *  pointer to this type. It is used by the function template to
+   *  accept NULL pointers.
+   *  @endif
+   */
+  struct _M_clear_type;
+
+  /**
+   *  @if maint
+   *  Trait identifying "location-invariant" types, meaning that the
+   *  address of the object (or any of its members) will not escape.
+   *  Also implies a trivial copy constructor and assignment operator.
+   *   @endif
+   */
+  template<typename _Tp>
+    struct __is_location_invariant
+    : integral_constant<bool,
+                        (is_pointer<_Tp>::value
+                         || is_member_pointer<_Tp>::value)>
+    {
+    };
+
+  class _Undefined_class;
+
+  union _Nocopy_types
+  {
+    void*       _M_object;
+    const void* _M_const_object;
+    void (*_M_function_pointer)();
+    void (_Undefined_class::*_M_member_pointer)();
+  };
+
+  union _Any_data {
+    void*       _M_access()       { return &_M_pod_data[0]; }
+    const void* _M_access() const { return &_M_pod_data[0]; }
+
+    template<typename _Tp> _Tp& _M_access()
+    { return *static_cast<_Tp*>(_M_access()); }
+
+    template<typename _Tp> const _Tp& _M_access() const
+    { return *static_cast<const _Tp*>(_M_access()); }
+
+    _Nocopy_types _M_unused;
+    char _M_pod_data[sizeof(_Nocopy_types)];
+  };
+
+  enum _Manager_operation
+  {
+    __get_type_info,
+    __get_functor_ptr,
+    __clone_functor,
+    __destroy_functor
+  };
+
+  /* Simple type wrapper that helps avoid annoying const problems
+     when casting between void pointers and pointers-to-pointers. */
+  template<typename _Tp>
+    struct _Simple_type_wrapper
+    {
+      _Simple_type_wrapper(_Tp __value) : __value(__value) { }
+
+      _Tp __value;
+    };
+
+  template<typename _Tp>
+    struct __is_location_invariant<_Simple_type_wrapper<_Tp> >
+      : __is_location_invariant<_Tp>
+    {
+    };
+
+  // Converts a reference to a function object into a callable
+  // function object.
+  template<typename _Functor>
+    inline _Functor& __callable_functor(_Functor& __f) { return __f; }
+
+  template<typename _Member, typename _Class>
+    inline _Mem_fn<_Member _Class::*>
+    __callable_functor(_Member _Class::* &__p)
+    { return mem_fn(__p); }
+
+  template<typename _Member, typename _Class>
+    inline _Mem_fn<_Member _Class::*>
+    __callable_functor(_Member _Class::* const &__p)
+    { return mem_fn(__p); }
+
+  template<typename _Signature, typename _Functor>
+    class _Function_handler;
+
+  template<typename _Signature>
+    class function;
+
+
+  /**
+   *  @if maint
+   *  Base class of all polymorphic function object wrappers.
+   *  @endif
+   */
+  class _Function_base
+  {
+  public:
+    static const std::size_t _M_max_size = sizeof(_Nocopy_types);
+    static const std::size_t _M_max_align = __alignof__(_Nocopy_types);
+
+    template<typename _Functor>
+    class _Base_manager
+    {
+    protected:
+      static const bool __stored_locally =
+        (__is_location_invariant<_Functor>::value
+         && sizeof(_Functor) <= _M_max_size
+         && __alignof__(_Functor) <= _M_max_align
+         && (_M_max_align % __alignof__(_Functor) == 0));
+      typedef integral_constant<bool, __stored_locally> _Local_storage;
+
+      // Retrieve a pointer to the function object
+      static _Functor* _M_get_pointer(const _Any_data& __source)
+      {
+        const _Functor* __ptr =
+          __stored_locally? &__source._M_access<_Functor>()
+          /* have stored a pointer */ : __source._M_access<_Functor*>();
+        return const_cast<_Functor*>(__ptr);
+      }
+
+      // Clone a location-invariant function object that fits within
+      // an _Any_data structure.
+      static void
+      _M_clone(_Any_data& __dest, const _Any_data& __source, true_type)
+      {
+        new (__dest._M_access()) _Functor(__source._M_access<_Functor>());
+      }
+
+      // Clone a function object that is not location-invariant or
+      // that cannot fit into an _Any_data structure.
+      static void
+      _M_clone(_Any_data& __dest, const _Any_data& __source, false_type)
+      {
+        __dest._M_access<_Functor*>() =
+          new _Functor(*__source._M_access<_Functor*>());
+      }
+
+      // Destroying a location-invariant object may still require
+      // destruction.
+      static void
+      _M_destroy(_Any_data& __victim, true_type)
+      {
+        __victim._M_access<_Functor>().~_Functor();
+      }
+
+      // Destroying an object located on the heap.
+      static void
+      _M_destroy(_Any_data& __victim, false_type)
+      {
+        delete __victim._M_access<_Functor*>();
+      }
+
+    public:
+      static bool
+      _M_manager(_Any_data& __dest, const _Any_data& __source,
+                 _Manager_operation __op)
+      {
+        switch (__op) {
+        case __get_type_info:
+          __dest._M_access<const type_info*>() = &typeid(_Functor);
+          break;
+
+        case __get_functor_ptr:
+          __dest._M_access<_Functor*>() = _M_get_pointer(__source);
+          break;
+
+        case __clone_functor:
+          _M_clone(__dest, __source, _Local_storage());
+          break;
+
+        case __destroy_functor:
+          _M_destroy(__dest, _Local_storage());
+          break;
+        }
+        return false;
+      }
+
+      static void
+      _M_init_functor(_Any_data& __functor, const _Functor& __f)
+      {
+        _M_init_functor(__functor, __f, _Local_storage());
+      }
+
+      template<typename _Signature>
+      static bool
+      _M_not_empty_function(const function<_Signature>& __f)
+      {
+        return __f;
+      }
+
+      template<typename _Tp>
+      static bool
+      _M_not_empty_function(const _Tp*& __fp)
+      {
+        return __fp;
+      }
+
+      template<typename _Class, typename _Tp>
+      static bool
+      _M_not_empty_function(_Tp _Class::* const& __mp)
+      {
+        return __mp;
+      }
+
+      template<typename _Tp>
+      static bool
+      _M_not_empty_function(const _Tp&)
+      {
+        return true;
+      }
+
+    private:
+      static void
+      _M_init_functor(_Any_data& __functor, const _Functor& __f, true_type)
+      {
+        new (__functor._M_access()) _Functor(__f);
+      }
+
+      static void
+      _M_init_functor(_Any_data& __functor, const _Functor& __f, false_type)
+      {
+        __functor._M_access<_Functor*>() = new _Functor(__f);
+      }
+    };
+
+    template<typename _Functor>
+    class _Ref_manager : public _Base_manager<_Functor*>
+    {
+      typedef _Function_base::_Base_manager<_Functor*> _Base;
+
+    public:
+      static bool
+      _M_manager(_Any_data& __dest, const _Any_data& __source,
+                 _Manager_operation __op)
+      {
+        switch (__op) {
+        case __get_type_info:
+          __dest._M_access<const type_info*>() = &typeid(_Functor);
+          break;
+
+        case __get_functor_ptr:
+          __dest._M_access<_Functor*>() = *_Base::_M_get_pointer(__source);
+          return is_const<_Functor>::value;
+          break;
+
+        default:
+          _Base::_M_manager(__dest, __source, __op);
+        }
+        return false;
+      }
+
+      static void
+      _M_init_functor(_Any_data& __functor, reference_wrapper<_Functor> __f)
+      {
+        // TBD: Use address_of function instead
+        _Base::_M_init_functor(__functor, &__f.get());
+      }
+    };
+
+    _Function_base() : _M_manager(0) { }
+
+    ~_Function_base()
+    {
+      if (_M_manager)
+        {
+          _M_manager(_M_functor, _M_functor, __destroy_functor);
+        }
+    }
+
+
+    bool _M_empty() const { return !_M_manager; }
+
+    typedef bool (*_Manager_type)(_Any_data&, const _Any_data&,
+                                  _Manager_operation);
+
+    _Any_data     _M_functor;
+    _Manager_type _M_manager;
+  };
+
+  // [3.7.2.7] null pointer comparisons
+
+  /**
+   *  @brief Compares a polymorphic function object wrapper against 0
+   *  (the NULL pointer).
+   *  @returns @c true if the wrapper has no target, @c false otherwise
+   *
+   *  This function will not throw an exception.
+   */
+  template<typename _Signature>
+    inline bool
+    operator==(const function<_Signature>& __f, _M_clear_type*)
+    {
+      return !__f;
+    }
+
+  /**
+   *  @overload
+   */
+  template<typename _Signature>
+    inline bool
+    operator==(_M_clear_type*, const function<_Signature>& __f)
+    {
+      return !__f;
+    }
+
+  /**
+   *  @brief Compares a polymorphic function object wrapper against 0
+   *  (the NULL pointer).
+   *  @returns @c false if the wrapper has no target, @c true otherwise
+   *
+   *  This function will not throw an exception.
+   */
+  template<typename _Signature>
+    inline bool
+    operator!=(const function<_Signature>& __f, _M_clear_type*)
+    {
+      return __f;
+    }
+
+  /**
+   *  @overload
+   */
+  template<typename _Signature>
+    inline bool
+    operator!=(_M_clear_type*, const function<_Signature>& __f)
+    {
+      return __f;
+    }
+
+  // [3.7.2.8] specialized algorithms
+
+  /**
+   *  @brief Swap the targets of two polymorphic function object wrappers.
+   *
+   *  This function will not throw an exception.
+   */
+  template<typename _Signature>
+    inline void
+    swap(function<_Signature>& __x, function<_Signature>& __y)
+    {
+      __x.swap(__y);
+    }
+
+_GLIBCXX_END_NAMESPACE
+}
+
+#define _GLIBCXX_JOIN(X,Y) _GLIBCXX_JOIN2( X , Y )
+#define _GLIBCXX_JOIN2(X,Y) _GLIBCXX_JOIN3(X,Y)
+#define _GLIBCXX_JOIN3(X,Y) X##Y
+#define _GLIBCXX_REPEAT_HEADER <tr1/functional_iterate.h>
+#include <tr1/repeat.h>
+#undef _GLIBCXX_REPEAT_HEADER
+#undef _GLIBCXX_JOIN3
+#undef _GLIBCXX_JOIN2
+#undef _GLIBCXX_JOIN
+
+#include <tr1/functional_hash.h>
+
+#endif

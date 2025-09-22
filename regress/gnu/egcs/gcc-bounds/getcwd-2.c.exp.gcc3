@@ -1,0 +1,2 @@
+getcwd-2.c: In function `main':
+getcwd-2.c:5: warning: non-positive bounds length (-990) detected

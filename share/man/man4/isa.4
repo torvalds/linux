@@ -1,0 +1,226 @@
+.\"	$OpenBSD: isa.4,v 1.82 2023/04/27 19:10:53 jmc Exp $
+.\"	$NetBSD: isa.4,v 1.19 2000/03/18 16:54:37 augustss Exp $
+.\"
+.\" Copyright (c) 2000 Theo de Raadt.  All rights reserved.
+.\" Copyright (c) 1997 Jason R. Thorpe.  All rights reserved.
+.\" Copyright (c) 1997 Jonathan Stone
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgements:
+.\"      This product includes software developed by Jonathan Stone
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 27 2023 $
+.Dt ISA 4
+.Os
+.Sh NAME
+.Nm isa , isadma
+.Nd introduction to ISA bus support
+.Sh SYNOPSIS
+.Cd "# amd64 and i386"
+.Cd "isa* at amdpcib?"
+.Cd "isa0 at tcpcib?"
+.Cd "isa0 at mainbus0"
+.Cd "isa0 at pcib?"
+.Cd "isadma0 at isa?"
+.Pp
+.Cd "# i386"
+.Cd "isa0 at ichpcib?"
+.Cd "isa* at glxpcib?"
+.Cd "isa0 at gscpcib?"
+.Pp
+.Cd "# alpha"
+.Cd "isa* at pceb?"
+.Cd "isa* at sio?"
+.Cd "isadma0 at isa?"
+.Pp
+.Cd "# loongson"
+.Cd "isa* at glxpcib?"
+.Sh DESCRIPTION
+The system includes a machine-independent ISA bus subsystem
+and several machine-independent ISA device drivers.
+.Pp
+Attachments are machine-dependent and depend on the bus topology and
+ISA bus interface of the system.
+Drivers able to use DMA attach at
+.Nm isadma ;
+otherwise they attach at
+.Nm isa .
+.Pp
+Note that interrupt mappings on the i386 may require that the BIOS
+be configured to reserve the interrupts for these devices as "Legacy ISA".
+If such configuration is not done, the system may use those interrupts
+for
+.Xr pci 4
+or
+.Xr isapnp 4
+devices instead.
+.Pp
+.Ox
+provides support for the following devices.
+Note that not all architectures support all devices.
+.Ss SCSI controllers
+.Bl -tag -width 12n -offset ind -compact
+.It Xr ahc 4
+Adaptec VL/EISA/PCI SCSI interface
+.It Xr aic 4
+Adaptec AIC-6260 and AIC-6360 SCSI interface
+.It Xr uha 4
+Ultrastor SCSI interface
+.It Xr wds 4
+WD7000 compatible ISA SCSI interface
+.El
+.Ss Disk and tape controllers
+.Bl -tag -width 12n -offset ind -compact
+.It Xr fdc 4
+NEC765 compatible floppy disk driver
+.It Xr wdc 4
+Standard Western Digital type hard drive controllers: MFM, RLL, ESDI,
+and IDE/ATAPI.
+See also the
+.Xr pciide 4
+device driver which is used instead on machines with PCI IDE controllers.
+.El
+.Ss Serial and parallel interfaces
+.Bl -tag -width 12n -offset ind -compact
+.It Xr addcom 4
+Addonics FlexPort 8S serial communication cards
+.It Xr ast 4
+multiplexing serial communications interface
+.It Xr boca 4
+multiplexing serial communications interface
+.It Xr com 4
+serial communications interface
+.It Xr cy 4
+Cyclades Cyclom-{4, 8, 16}Y asynchronous comms board device driver
+.It Xr hsq 4
+multiplexing serial communications interface
+.It Xr lpt 4
+parallel port driver
+.El
+.Ss Network interfaces
+.Bl -tag -width 12n -offset ind -compact
+.It Xr ec 4
+3Com EtherLink II (3c503) Ethernet device
+.It Xr ef 4
+3Com Fast EtherLink ISA (3c515) 10/100 Ethernet device
+.It Xr eg 4
+3Com EtherLink Plus Ethernet (3c505) Ethernet device
+.It Xr el 4
+3Com EtherLink (3C501) Ethernet device
+.It Xr ep 4
+3Com EtherLink III and Fast EtherLink III 10/100 Ethernet device
+.It Xr ex 4
+Intel EtherExpress Pro/10 and Pro/10+ Ethernet device
+.It Xr ie 4
+Intel i82586/i82596 Ethernet device
+.It Xr lc 4
+DEC EtherWORKS III 10/100 Ethernet device
+.It Xr le 4
+AMD LANCE Ethernet device
+.It Xr ne 4
+NE2000 and compatible 10/100 Ethernet device
+.It Xr sm 4
+SMC91C9x and SMC91C1xx-based 10/100 Ethernet device
+.It Xr we 4
+Western Digital/SMC WD80x3, SMC Elite Ultra, and SMC EtherEZ Ethernet device
+.El
+.Ss Sound cards
+.Bl -tag -width 12n -offset ind -compact
+.It Xr ess 4
+ESS Technology AudioDrive family audio device
+.It Xr gus 4
+Gravis UltraSound/UltraSound MAX audio device
+.It Xr mpu 4
+Roland/Yamaha MPU401 MIDI UART device
+.It Xr pas 4
+Media Vision Pro AudioSpectrum audio device
+.It Xr sb 4
+SoundBlaster family audio device
+.El
+.Ss Hardware Sensors
+.Bl -tag -width 12n -offset ind -compact
+.It Xr aps 4
+ThinkPad Active Protection System accelerometer
+.It Xr asmc 4
+Apple System Management Controller (SMC)
+.It Xr fins 4
+Fintek F71805F LPC Super I/O
+.It Xr it 4
+ITE IT87xxF and SiS SiS950 temperature, voltage, and fan sensor with
+watchdog timer
+.It Xr lm 4
+National Semiconductor LM78/79/81 temperature, voltage, and fan sensor
+.It Xr nsclpcsio 4
+National Semiconductor PC87366 LPC Super I/O with GPIO
+.It Xr schsio 4
+SMSC SCH311x LPC Super I/O
+.It Xr uguru 4
+ABIT temperature, voltage and fan sensors
+.It Xr viasio 4
+VIA VT1211 LPC Super I/O
+.It Xr wbsio 4
+Winbond LPC Super I/O
+.El
+.Ss Miscellaneous devices
+.Bl -tag -width 12n -offset ind -compact
+.It Xr gscsio 4
+National Semiconductor Geode SC1100 I2C controller
+.It Xr isagpio 4
+ISA I/O mapped as GPIO
+.It Xr joy 4
+games adapter
+.It Xr lms 4
+Logitech-style bus mouse driver
+.It Xr mms 4
+Microsoft-style bus mouse driver
+.It Xr npx 4
+Numeric Processing Extension coprocessor and emulator
+.It Xr pcdisplay 4
+PC display adapter driver for wscons
+.It Xr pcic 4
+ISA PCMCIA controllers
+.It Xr pckbc 4
+PC (ISA) keyboard controller driver
+.It Xr pcppi 4
+PC (ISA) control and timer port driver
+.It Xr skgpio 4
+Soekris net6501 GPIO and LEDs driver
+.It Xr tcic 4
+Databook PCMCIA controller driver
+.It Xr vga 4
+VGA graphics driver for wscons
+.It Xr ykbec 4
+Ene Technology KB3310B embedded controller chip
+.El
+.Pp
+Note that some ISA devices also have newer ISA Plug-and-Play variants.
+These are listed in
+.Xr isapnp 4 .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr isapnp 4
+.Sh HISTORY
+The machine-independent ISA subsystem appeared in
+.Ox 2.0 .

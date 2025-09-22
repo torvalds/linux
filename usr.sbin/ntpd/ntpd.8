@@ -1,0 +1,159 @@
+.\" $OpenBSD: ntpd.8,v 1.49 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2003, 2004, 2006 Henning Brauer <henning@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF MIND, USE, DATA OR PROFITS, WHETHER IN
+.\" AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt NTPD 8
+.Os
+.Sh NAME
+.Nm ntpd
+.Nd Network Time Protocol (NTP) daemon
+.Sh SYNOPSIS
+.Nm ntpd
+.Bk -words
+.Op Fl dnv
+.Op Fl f Ar file
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+daemon synchronizes the local clock to one or more remote NTP servers
+or local timedelta sensors.
+.Nm
+can also act as an NTP server itself,
+redistributing the local time.
+It implements the Simple Network Time Protocol version 4,
+as described in RFC 5905,
+and the Network Time Protocol version 3,
+as described in RFC 1305.
+Time can also be fetched from TLS HTTPS servers to reduce the
+impact of unauthenticated NTP
+man-in-the-middle attacks.
+.Pp
+The options are as follows:
+.Bl -tag -width "-f fileXXX"
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Use
+.Ar file
+as the configuration file,
+instead of the default
+.Pa /etc/ntpd.conf .
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl v
+This option allows
+.Nm
+to send DEBUG priority messages to syslog.
+.El
+.Pp
+.Nm
+uses the
+.Xr adjtime 2
+system call to correct the local system time without causing time jumps.
+Adjustments of 32ms and greater are logged using
+.Xr syslog 3 .
+The threshold value is chosen to avoid having local clock drift
+thrash the log files.
+Should
+.Nm
+be started with the
+.Fl d
+or
+.Fl v
+option, all calls to
+.Xr adjtime 2
+will be logged.
+.Pp
+At boot,
+.Nm
+will stay for a maximum of 15 seconds in the foreground and make efforts to
+verify and correct the time if constraints are configured and
+satisfied or if trusted servers or sensors return results,
+and if the clock is not being moved backwards.
+.Pp
+After the local clock is synchronized,
+.Nm
+adjusts the clock frequency using the
+.Xr adjfreq 2
+system call to compensate for systematic drift.
+.Pp
+.Nm
+is started at boot time by default via
+.Va ntpd_flags
+in
+.Pa /etc/rc.conf .
+See
+.Xr rc 8
+and
+.Xr rc.conf 8
+for more information on the boot process
+and enabling daemons.
+.Pp
+When
+.Nm
+starts up, it reads settings from its configuration file,
+typically
+.Xr ntpd.conf 5 ,
+and its initial clock drift from
+.Pa /var/db/ntpd.drift .
+Clock drift is periodically written to the drift file thereafter.
+.Sh FILES
+.Bl -tag -width "/var/db/ntpd.driftXXX" -compact
+.It Pa /etc/ntpd.conf
+Default configuration file.
+.It Pa /var/db/ntpd.drift
+Drift file.
+.It Pa /var/run/ntpd.sock
+Socket file for communication with
+.Xr ntpctl 8 .
+.El
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr adjfreq 2 ,
+.Xr adjtime 2 ,
+.Xr ntpd.conf 5 ,
+.Xr ntpctl 8 ,
+.Xr rc 8 ,
+.Xr rc.conf 8 ,
+.Xr rdate 8
+.Sh STANDARDS
+.Rs
+.%A David L. Mills
+.%D March 1992
+.%R RFC 1305
+.%T Network Time Protocol (Version 3): Specification, Implementation and Analysis
+.Re
+.Pp
+.Rs
+.%A David L. Mills
+.%A Jim Martin
+.%A Jack Burbank
+.%A William Kasch
+.%D June 2010
+.%R RFC 5905
+.%T Network Time Protocol Version 4: Protocol and Algorithms Specification
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 3.6 .

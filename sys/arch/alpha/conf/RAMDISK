@@ -1,0 +1,104 @@
+#	$OpenBSD: RAMDISK,v 1.82 2019/09/04 14:29:41 cheloha Exp $
+
+machine		alpha
+maxusers	4
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		RAMDISK_HOOKS
+option		MINIROOTSIZE=5744
+
+option		SCSITERSE
+
+option		FFS
+
+# CPU Support; at least one is REQUIRED
+#option		DEC_3000_500	# Flamingo etc:	3000/[4-9]00*
+#option		DEC_3000_300	# Pelican etc:	3000/300*
+option		DEC_2100_A50	# Avanti etc:	AlphaStation 400, 200, etc.
+option		DEC_KN20AA	# KN20AA:	AlphaStation 600
+option		DEC_KN300	# KN300:	AlphaServer 4100 and 1200
+option		DEC_AXPPCI_33	# NoName:	AXPpci33, etc.
+option		DEC_EB164	# EB164:	AlphaPC 164
+#option		DEC_EB64PLUS	# EB64+:	AlphaPC 64, etc.
+option		DEC_2000_300	# "Jensen":	2000/300 (DECpc AXP 150)
+option		DEC_550		# Miata:	Digital Personal Workstation
+option		DEC_1000	# Mikasa etc:	Digital AlphaServer 1000
+option		DEC_1000A	# Corelle etc:	Digital AlphaServer 800/1000A
+#option		DEC_6600	# EV6:		XP1000, 264DP OEM Board
+#option		API_UP1000	# EV6:		Alpha Processor UP1000
+option		NO_IEEE		# Disable IEEE math
+
+option		WSKBD_NO_INTL_LAYOUTS	# no international keyboard layouts
+
+config		bsd root on rd0a swap on rd0b and wd0b and sd0b
+
+mainbus0	at root
+cpu*		at mainbus0
+
+mcbus*		at mainbus?
+mcmem*		at mcbus? mid?
+
+apecs*		at mainbus?
+cia*		at mainbus?
+lca*		at mainbus?
+mcpcia*		at mcbus? mid?
+
+pci*		at apecs?
+pci*		at cia?
+pci*		at lca?
+pci*		at ppb?
+pci*		at mcpcia?
+
+#ahc*		at pci?				# AHA-28xx SCSI (NOT 64-BIT)
+de*		at pci?				# 21x4[012]-based Ethernet
+dc*		at pci?				# 21143, "tulip" clone ethernet
+fxp*		at pci?				# EtherExpress 10/100B ethernet cards
+siop*		at pci?				# NCR 53c8xx SCSI
+pceb*		at pci?				# Intel PCI-EISA bridge
+vga*		at pci?				# PCI VGA graphics
+ppb*		at pci?				# PCI-PCI bridges
+sio*		at pci?				# Intel PCI-ISA bridge
+tga*		at pci?				# DEC ZLXp-E[123] graphics
+#pcn*		at pci?				# AMD PCnet-PCI Ethernet
+
+qlw*		at pci?				# QLogic ISP SCSI
+qla*		at pci?				# QLogic ISP 2[123]xx FibreChannel
+option		ISP_NOFIRMWARE
+
+amphy*		at mii?				# AMD 79C873 PHYs
+bmtphy*		at mii?				# Broadcom 10/100 PHYs
+dcphy*		at mii?				# Digital Clone PHYs
+lxtphy*		at mii?				# Level1 LXT970 PHYs
+mtdphy*		at mii?				# Myson MTD972 PHYs
+nsphy*		at mii?				# NS and compatible PHYs
+nsphyter*	at mii?			# NS and compatible PHYs
+sqphy*		at mii?				# Seeq 8x220 PHYs
+tqphy*		at mii?				# TDK 78Q212x PHYs
+ukphy*		at mii?				# "unknown" PHYs
+
+isa*		at pceb?
+isa*		at sio?
+
+mcclock*	at isa? port 0x70
+pckbc*		at isa?				# PC keyboard controller
+pckbd*		at pckbc?			# PC keyboard (kbd port)
+com*		at isa? port 0x3f8 irq 4	# standard serial ports
+com*		at isa? port 0x2f8 irq 3
+vga*		at isa?				# ISA (EISA: XXX) VGA
+
+pciide*		at pci? flags 0x0000
+wd*		at pciide? flags 0x0000
+
+scsibus*	at scsi?
+sd*		at scsibus?			# SCSI disk drives
+
+wsdisplay*	at vga?
+wsdisplay*	at tga?
+wskbd*		at pckbd?
+
+pseudo-device	bpfilter 1
+pseudo-device	loop 1
+pseudo-device	rd 1

@@ -1,0 +1,89 @@
+.\" $OpenBSD: ifstated.8,v 1.10 2017/08/08 14:16:12 rob Exp $
+.\"
+.\" Copyright (c) 2004 Ryan McBride <mcbride@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 8 2017 $
+.Dt IFSTATED 8
+.Os
+.Sh NAME
+.Nm ifstated
+.Nd Interface State daemon
+.Sh SYNOPSIS
+.Nm ifstated
+.Op Fl dhinv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Sh DESCRIPTION
+The
+.Nm
+daemon runs commands in response to network state changes, which it
+determines by monitoring interface link state or running external
+tests.
+For example, it can be used with
+.Xr carp 4
+to change running services or to ensure that
+.Xr carp 4
+interfaces stay in sync, or with
+.Xr pf 4
+to test server or link availability and modify translation or routing rules.
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize and log to
+.Em stdout .
+.It Fl f Ar file
+Specify an alternate location,
+.Ar file ,
+for the configuration file.
+.It Fl h
+Print help message.
+.It Fl i
+Ignore initial interface states.
+.It Fl n
+Configtest mode.
+Check config validity, then exit.
+.It Fl v
+Verbose mode.
+Use twice to further increase verbosity.
+.El
+.Pp
+Upon receiving
+.Dv SIGHUP ,
+.Nm
+reloads the configuration file.
+.Sh FILES
+.Bl -tag -width "/etc/ifstated.conf" -compact
+.It Pa /etc/ifstated.conf
+.Nm
+configuration file.
+.El
+.Sh SEE ALSO
+.Xr carp 4 ,
+.Xr pf 4 ,
+.Xr ifstated.conf 5
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 3.8 .

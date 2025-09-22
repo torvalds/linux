@@ -1,0 +1,156 @@
+.\" $OpenBSD: sec.4,v 1.6 2024/09/20 01:15:53 dlg Exp $
+.\"
+.\" Copyright (c) 2023 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 20 2024 $
+.Dt SEC 4
+.Os
+.Sh NAME
+.Nm sec
+.Nd route based IPsec VPN tunnel interface pseudo-device
+.Sh SYNOPSIS
+.Cd "pseudo-device sec"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides point-to-point tunnel interfaces for IPv4 and IPv6
+protected by the
+.Xr ipsec 4
+Encapsulating Security Payload (ESP)
+protocol.
+.Pp
+Traffic is encapsulated in the ESP protocol and forwarded to the
+remote endpoint by routing over a
+.Nm
+interface rather than matching policy in the IPsec Security Policy
+Database (SPD).
+.Nm
+interfaces require the configuration of IPsec Security Associations (SAs)
+.\" with the interface extension
+between the local and remote endpoints.
+Negotiation of interface SAs is supported by
+.Xr iked 8
+and
+.Xr isakmpd 8
+(the latter via
+.Xr ipsecctl 8 ) .
+.\" These IPsec IKE daemons negotiate ESP tunnel mode between 0.0.0.0/0
+.\" and 0.0.0.0/0.
+.Pp
+.Nm
+interfaces can be created at runtime using the
+.Ic ifconfig sec Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+The interface itself can be configured with
+.Xr ifconfig 8 ;
+see its manual page for more information.
+.Sh EXAMPLES
+.Nm
+can be used to provide secure and confidential IP connectivity
+between sites over the public internet.
+For example, a cloud provider may provide connectivity between
+networks they host for a customer, and that customers own
+.Dq on premises
+networks using IPsec tunnels.
+.Ox
+can be set up on the customer side given the following parameters:
+.Pp
+.Bl -tag -width Customer-Gateway -offset indent -compact
+.It Pre-Shared Key
+7kA7evdkd50Q5YdCCF9t8eftgEgL4vk2
+.El
+.Pp
+Outside IP Addresses:
+.Bl -tag -width Customer-Gateway -offset indent -compact
+.It Customer Gateway
+192.0.2.8
+.It Provider Gateway
+198.51.100.14
+.El
+.Pp
+Inside IP Addresses:
+.Bl -tag -width Customer-Gateway -offset indent -compact
+.It Customer Gateway
+169.254.229.42/30
+.It Provider Gateway
+169.254.229.41/30
+.El
+.Pp
+A
+.Nm
+interface can be configured on the customer gateway:
+.Bd -literal -offset indent
+# ifconfig sec0 create
+# ifconfig sec0 inet 169.254.229.42/30 169.254.229.41
+# ifconfig sec0 up
+.Ed
+.Pp
+.Xr iked 8
+can be used for IKEv2 negotiation of the IPsec tunnel with the following
+.Xr iked.conf 5
+configuration:
+.Bd -literal -offset indent
+ikev2 "s2s" active \\
+	from any to any \\
+	local 192.0.2.8 peer 198.51.100.14 \\
+	psk "7kA7evdkd50Q5YdCCF9t8eftgEgL4vk2" \\
+	iface sec0
+.Ed
+.Pp
+Alternatively, IKEv1 negotiation of the IPsec tunnel SAs is supported by
+.Xr isakmpd 8
+and
+.Xr ipsecctl 8 .
+The equivalent
+.Xr ipsec.conf 5
+configuration for the given parameters follows:
+.Bd -literal -offset indent
+ike interface sec0 \\
+	local 192.0.2.8 peer 198.51.100.14 \\
+	psk "7kA7evdkd50Q5YdCCF9t8eftgEgL4vk2"
+.Ed
+.Pp
+Once the Security Associations are established, communication between
+the customer and provider gateways is enabled.
+.Pp
+Routes to networks hosted by the provider can be added using the
+providers
+.Dq inside IP
+address as the gateway address, or negotiated using a dynamic routing
+protocol.
+Multiple
+.Nm
+interfaces may be configured to talk to separate provider gateways,
+providing redundancy or multiple paths between sites.
+.Sh SEE ALSO
+.Xr ipsec 4 ,
+.Xr netintro 4 ,
+.Xr hostname.if 5 ,
+.Xr pf.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr iked 8 ,
+.Xr ipsecctl 8 ,
+.Xr isakmpd 8 ,
+.Xr netstart 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.4 .
+.Sh AUTHORS
+.An David Gwynne Aq Mt dlg@openbsd.org .

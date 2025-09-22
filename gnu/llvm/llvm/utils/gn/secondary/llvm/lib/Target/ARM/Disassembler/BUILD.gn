@@ -1,0 +1,22 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("ARMGenDisassemblerTables") {
+  visibility = [ ":Disassembler" ]
+  args = [ "-gen-disassembler" ]
+  td_file = "../ARM.td"
+}
+
+static_library("Disassembler") {
+  output_name = "LLVMARMDisassembler"
+  deps = [
+    ":ARMGenDisassemblerTables",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/ARM/MCTargetDesc",
+    "//llvm/lib/Target/ARM/Utils",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "ARMDisassembler.cpp" ]
+}

@@ -1,0 +1,122 @@
+.\"	$OpenBSD: dhcpleased.8,v 1.7 2024/08/11 06:07:37 jmc Exp $
+.\"
+.\" Copyright (c) 2021 Florian Obser <florian@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 11 2024 $
+.Dt DHCPLEASED 8
+.Os
+.Sh NAME
+.Nm dhcpleased
+.Nd Dynamic Host Configuration Protocol (DHCP) client
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnv
+.Op Fl f Ar file
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+.Nm
+is a dynamic host configuration protocol (DHCP) daemon for clients.
+If an interface has the
+.Sy AUTOCONF4
+flag set
+(auto configuration is enabled),
+.Nm
+sends requests for IP configuration information from a DHCP server,
+such as
+.Xr dhcpd 8 ,
+and uses that information to configure the relevant interface.
+.Pp
+See
+.Xr hostname.if 5
+and
+.Xr ifconfig 8
+on how to enable auto configuration on an interface.
+.Pp
+.Nm
+monitors network interface states (interface going up or down,
+auto configuration enabled or disabled, etc.) and sends requests
+when necessary.
+A running
+.Nm
+can be controlled with the
+.Xr dhcpleasectl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Specify an alternative configuration file.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl s Ar socket
+Use an alternate location for the default control socket.
+.It Fl v
+Produce more verbose output.
+Multiple
+.Fl v
+options increase the verbosity.
+.El
+.Sh FILES
+.Bl -tag -width "/var/db/dhcpleased/<if>" -compact
+.It Pa /dev/dhcpleased.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr dhcpleasectl 8 .
+.It Pa /etc/dhcpleased.conf
+Default
+.Nm
+configuration file.
+.It Pa /var/db/dhcpleased/ Ns Aq Ar if
+Interface specific lease files.
+.El
+.Sh SEE ALSO
+.Xr dhcpleased.conf 5 ,
+.Xr hostname.if 5 ,
+.Xr dhcpd 8 ,
+.Xr dhcpleasectl 8 ,
+.Xr ifconfig 8
+.Sh STANDARDS
+.Rs
+.%A R. Droms
+.%D March 1997
+.%R RFC 2131
+.%T Dynamic Host Configuration Protocol
+.Re
+.Pp
+.Rs
+.%A S. Alexander
+.%A R. Droms
+.%D March 1997
+.%R RFC 2132
+.%T DHCP Options and BOOTP Vendor Extensions
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 6.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was written by
+.An Florian Obser Aq Mt florian@openbsd.org .

@@ -1,0 +1,8 @@
+# Create two directories for further comparison.
+# RUN: rm -rf %t/dir1 %t/dir2
+# RUN: mkdir -p %t/dir1 %t/dir2
+
+# Add two empty files with different names, "diff -r" should fail.
+# RUN: touch %t/dir1/dir1unique
+# RUN: touch %t/dir2/dir2unique
+# RUN: diff -r %t/dir1 %t/dir2

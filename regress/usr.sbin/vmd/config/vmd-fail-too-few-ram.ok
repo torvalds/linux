@@ -1,0 +1,2 @@
+memory size must be at least 1MB
+4: failed to parse size: 1048575

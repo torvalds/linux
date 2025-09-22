@@ -1,0 +1,28 @@
+import("//clang/lib/ARCMigrate/enable.gni")
+import("//clang/lib/StaticAnalyzer/Frontend/enable.gni")
+
+assert(clang_enable_static_analyzer || !clang_enable_arcmt,
+       "Cannot disable static analyzer while enabling ARCMT")
+
+static_library("FrontendTool") {
+  output_name = "clangFrontendTool"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/include/clang/Config",
+    "//clang/lib/Basic",
+    "//clang/lib/CodeGen",
+    "//clang/lib/Driver",
+    "//clang/lib/ExtractAPI",
+    "//clang/lib/Frontend",
+    "//clang/lib/Frontend/Rewrite",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+  ]
+  if (clang_enable_arcmt) {
+    deps += [ "//clang/lib/ARCMigrate" ]
+  }
+  if (clang_enable_static_analyzer) {
+    deps += [ "//clang/lib/StaticAnalyzer/Frontend" ]
+  }
+  sources = [ "ExecuteCompilerInvocation.cpp" ]
+}

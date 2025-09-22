@@ -1,0 +1,7 @@
+command script import ./example.py
+type summary add --expand --recognizer-function --python-function example.message_summary example.is_message_type
+type synth add --recognizer-function --python-class example.MessageChildProvider example.is_message_type
+b program.cpp:112
+r
+p customer
+p order

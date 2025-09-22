@@ -1,0 +1,16 @@
+#!/bin/ksh
+#
+# $OpenBSD: dhcpleased,v 1.2 2022/10/14 10:41:43 kn Exp $
+
+daemon="/sbin/dhcpleased"
+
+. /etc/rc.d/rc.subr
+
+rc_configtest() {
+	# use rc_exec here since daemon_flags may contain arguments with spaces
+	rc_exec "${daemon} -n ${daemon_flags}"
+}
+
+rc_reload=NO
+
+rc_cmd $1

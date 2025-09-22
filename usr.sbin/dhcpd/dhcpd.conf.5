@@ -1,0 +1,937 @@
+.\"	$OpenBSD: dhcpd.conf.5,v 1.27 2022/03/31 17:27:29 naddy Exp $
+.\"
+.\" Copyright (c) 1995, 1996, 1997, 1998, 1998, 1999
+.\" The Internet Software Consortium.    All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt DHCPD.CONF 5
+.Os
+.Sh NAME
+.Nm dhcpd.conf
+.Nd DHCP server configuration file
+.Sh DESCRIPTION
+The
+.Nm
+file contains configuration information for
+.Xr dhcpd 8 ,
+the Internet Software Consortium DHCP Server.
+.Pp
+The
+.Nm
+file is a free-form ASCII text file.
+It is parsed by the recursive-descent parser built into
+.Xr dhcpd 8 .
+The file may contain extra tabs and newlines for formatting purposes.
+Keywords in the file are case-insensitive.
+Comments may be placed anywhere within the file (except within quotes).
+Comments begin with the
+.Sq #
+character and end at the end of the line.
+.Pp
+The file essentially consists of a list of statements.
+Statements fall into two broad categories \- parameters and declarations.
+.Pp
+Parameter statements say how to do something (e.g., how long a
+lease to offer), whether to do something (e.g., should
+.Xr dhcpd 8
+provide addresses to unknown clients), or what parameters to provide to the
+client (e.g., use gateway 220.177.244.7).
+.Pp
+Declarations are used to describe the topology of the
+network, to describe clients on the network, to provide addresses that
+can be assigned to clients, or to apply a group of parameters to a
+group of declarations.
+In any group of parameters and declarations, all parameters must be specified
+before any declarations which depend on those parameters may be specified.
+.Pp
+Declarations about network topology include the
+.Ic shared-network
+and the
+.Ic subnet
+declarations.
+If clients on a subnet are to be assigned addresses dynamically, a
+.Ic range
+declaration must appear within the
+.Ic subnet
+declaration.
+For clients with statically assigned addresses, or for installations where
+only known clients will be served, each such client must have a
+.Ic host
+declaration.
+If parameters are to be applied to a group of declarations which are not
+related strictly on a per-subnet basis, the
+.Ic group
+declaration can be used.
+.Pp
+For every subnet which will be served, and for every subnet
+to which the dhcp server is connected, there must be one
+.Ic subnet
+declaration, which tells
+.Xr dhcpd 8
+how to recognize that an address is on that subnet.
+A
+.Ic subnet
+declaration is required for each subnet even if no addresses will be
+dynamically allocated on that subnet.
+.Pp
+Some installations have physical networks on which more than one IP
+subnet operates.
+For example, if there is a site-wide requirement that 8-bit subnet masks
+be used, but a department with a single physical Ethernet network expands
+to the point where it has more than 254 nodes, it may be necessary to run
+two 8-bit subnets on the same Ethernet until such time as a new physical
+network can be added.
+In this case, the
+.Ic subnet
+declarations for these two networks may be enclosed in a
+.Ic shared-network
+declaration.
+.Pp
+Some sites may have departments which have clients on more than one
+subnet, but it may be desirable to offer those clients a uniform set
+of parameters which are different than what would be offered to
+clients from other departments on the same subnet.
+For clients which will be declared explicitly with
+.Ic host
+declarations, these declarations can be enclosed in a
+.Ic group
+declaration along with the parameters which are common to that department.
+For clients whose addresses will be dynamically assigned, there is currently no
+way to group parameter assignments other than by network topology.
+.Pp
+When a client is to be booted, its boot parameters are determined by
+first consulting that client's
+.Ic host
+declaration (if any), then consulting the
+.Ic group
+declaration (if any) which enclosed that
+.Ic host
+declaration, then consulting the
+.Ic subnet
+declaration for the subnet on which the client is booting, then consulting the
+.Ic shared-network
+declaration (if any) containing that subnet, and finally consulting the
+top-level parameters which may be specified outside of any declaration.
+.Pp
+When
+.Xr dhcpd 8
+tries to find a
+.Ic host
+declaration for a client, it first looks for a
+.Ic host
+declaration which has a
+.Ar fixed-address
+parameter which matches the subnet or shared network on which the client
+is booting.
+If it doesn't find any such entry, it then tries to find an entry which has no
+.Ar fixed-address
+parameter.
+If no such entry is found, then
+.Xr dhcpd 8
+acts as if there is no entry in the
+.Nm
+file for that client, even if there is an entry for that client on a
+different subnet or shared network.
+.Sh EXAMPLES
+A typical
+.Nm
+file will look something like this:
+.Pp
+Example 1
+.Bd -unfilled -offset indent
+.Ar global parameters...
+
+shared-network ISC-BIGGIE {
+.Pf "  " Ar shared-network-specific parameters ...
+  subnet 204.254.239.0 netmask 255.255.255.224 {
+.Pf "    " Ar subnet-specific parameters ...
+    range 204.254.239.10 204.254.239.30;
+  }
+  subnet 204.254.239.32 netmask 255.255.255.224 {
+.Pf "    " Ar subnet-specific parameters ...
+    range 204.254.239.42 204.254.239.62;
+  }
+}
+
+subnet 204.254.239.64 netmask 255.255.255.224 {
+.Pf "  " Ar subnet-specific parameters ...
+  range 204.254.239.74 204.254.239.94;
+}
+
+group {
+.Pf "  " Ar group-specific parameters ...
+  host zappo.test.isc.org {
+.Pf "    " Ar host-specific parameters ...
+  }
+  host beppo.test.isc.org {
+.Pf "    " Ar host-specific parameters ...
+  }
+  host harpo.test.isc.org {
+.Pf "    " Ar host-specific parameters ...
+  }
+}
+.Ed
+.Pp
+Notice that at the beginning of the file, there's a place
+for global parameters.
+These might be things like the organization's domain name,
+the addresses of the name servers
+(if they are common to the entire organization), and so on.
+So, for example:
+.Pp
+Example 2
+.Bd -literal -offset indent
+option domain-name \&"isc.org\&";
+option domain-name-servers ns1.isc.org, ns2.isc.org;
+.Ed
+.Pp
+As you can see in Example 2, it's legal to specify host addresses in
+parameters as hostnames rather than as numeric IP addresses.
+.Pp
+In Example 1, you can see that both the shared-network statement and
+the subnet statements can have parameters.
+Let us say that the shared network ISC-BIGGIE supports an entire department \-
+perhaps the accounting department.
+If accounting has its own domain, then a shared-network-specific parameter
+might be:
+.Pp
+.Dl option domain-name \&"accounting.isc.org\&";
+.Pp
+All subnet declarations appearing in the shared-network declaration
+would then have the domain-name option set to
+.Dq accounting.isc.org
+instead of just
+.Dq isc.org .
+.Pp
+The most obvious reason for having subnet-specific parameters as
+shown in Example 1 is that each subnet, of necessity, has its own router.
+So for the first subnet, for example, there should be something like:
+.Pp
+.Dl option routers 204.254.239.1;
+.Pp
+Note that the address here is specified numerically.
+This is not required \- if you have a different hostname for each
+interface on your router, it's perfectly legitimate to use the hostname
+for that interface instead of the numeric address.
+However, in many cases there may be only one hostname for all of a router's
+IP addresses, and it would not be appropriate to use that name here.
+.Pp
+In Example 1 there is also a
+.Ic group
+statement, which provides common parameters for a set of three hosts \- zappo,
+beppo and harpo.
+As you can see, these hosts are all in the test.isc.org domain, so it
+might make sense for a group-specific parameter to override the domain
+name supplied to these hosts:
+.Pp
+.Dl option domain-name \&"test.isc.org\&";
+.Pp
+Also, given the domain they're in, these are probably test machines.
+If we wanted to test the DHCP leasing mechanism, we might set the
+lease timeout somewhat shorter than the default:
+.Bd -literal -offset indent
+max-lease-time 120;
+default-lease-time 120;
+.Ed
+.Pp
+You may have noticed that while some parameters start with the
+.Ic option
+keyword, some do not.
+Parameters starting with the
+.Ic option
+keyword correspond to actual DHCP options, while parameters that do not start
+with the option keyword either control the behaviour of the DHCP server
+(e.g., how long a lease
+.Xr dhcpd 8
+will give out), or specify client parameters that are not optional in the
+DHCP protocol (for example, server-name and filename).
+.Pp
+In Example 1, each host had
+.Ar host-specific parameters .
+These could include such things as the
+.Ic hostname
+option, the name of a file to download (the
+.Ar filename
+parameter) and the address of the server from which to download the file (the
+.Ar next-server
+parameter).
+In general, any parameter can appear anywhere that parameters are allowed,
+and will be applied according to the scope in which the parameter appears.
+.Pp
+Imagine that you have a site with a lot of NCD X-Terminals.
+These terminals come in a variety of models, and you want to specify the
+boot files for each model.
+One way to do this would be to have host declarations for each server
+and group them by model:
+.Bd -literal -offset indent
+group {
+  filename "Xncd19r";
+  next-server ncd-booter;
+
+  host ncd1 { hardware ethernet 0:c0:c3:49:2b:57; }
+  host ncd4 { hardware ethernet 0:c0:c3:80:fc:32; }
+  host ncd8 { hardware ethernet 0:c0:c3:22:46:81; }
+}
+
+group {
+  filename "Xncd19c";
+  next-server ncd-booter;
+
+  host ncd2 { hardware ethernet 0:c0:c3:88:2d:81; }
+  host ncd3 { hardware ethernet 0:c0:c3:00:14:11; }
+}
+
+group {
+  filename "XncdHMX";
+  next-server ncd-booter;
+
+  host ncd5 { hardware ethernet 0:c0:c3:11:90:23; }
+  host ncd6 { hardware ethernet 0:c0:c3:91:a7:8; }
+  host ncd7 { hardware ethernet 0:c0:c3:cc:a:8f; }
+}
+.Ed
+.Sh REFERENCE: DECLARATIONS
+The
+.Ic shared-network
+statement informs the DHCP server that some IP subnets actually
+share the same physical network:
+.Bd -unfilled -offset indent
+.Ic shared-network Ar name No {
+.Pf "  " Op Ar parameters
+.Pf "  " Op Ar declarations
+}
+.Ed
+.Pp
+Any subnets in a shared network should be declared within a
+.Ic shared-network
+statement.
+Parameters specified in the
+.Ic shared-network
+statement will be used when booting clients on those subnets unless
+parameters provided at the subnet or host level override them.
+If any subnet in a shared network has addresses available for dynamic
+allocation, those addresses are collected into a common pool for that
+shared network and assigned to clients as needed.
+There is no way to distinguish on which subnet of a shared network a
+client should boot.
+.Pp
+.Ar name
+should be the name of the shared network.
+This name is used when printing debugging messages, so it should be
+descriptive for the shared network.
+The name may have the syntax of a valid hostname
+(although it will never be used as such), or it may be any arbitrary
+name, enclosed in quotes.
+.Pp
+The
+.Ic subnet
+statement provides
+.Xr dhcpd 8
+with enough information to tell whether or not an IP address is on that subnet:
+.Bd -unfilled -offset indent
+.Ic subnet Ar subnet-number Ic netmask Ar netmask No {
+.Pf "  " Op Ar parameters
+.Pf "  " Op Ar declarations
+}
+.Ed
+.Pp
+It may also be used to provide subnet-specific parameters and to
+specify what addresses may be dynamically allocated to clients booting
+on that subnet.
+Such addresses are specified using the
+.Ic range
+declaration.
+.Pp
+The
+.Ar subnet-number
+and
+.Ar netmask
+should be specified as numeric IP addresses.
+The subnet number, together with the netmask, are sufficient to determine
+whether any given IP address is on the specified subnet.
+.Pp
+Although a netmask must be given with every subnet declaration, it is
+recommended that if there is any variance in subnet masks at a site, a
+subnet-mask option statement be used in each subnet declaration to set
+the desired subnet mask, since any subnet-mask option statement will
+override the subnet mask declared in the subnet statement.
+.Pp
+The
+.Ic range
+statement gives the lowest and highest IP addresses in a range:
+.Bd -filled -offset indent
+.Ic range Op Ic dynamic-bootp
+.Ar low-address Oo Ar high-address Oc ;
+.Ed
+.Pp
+For any subnet on which addresses will be assigned dynamically, there
+must be at least one
+.Ic range
+statement.
+All IP addresses in the range should be in the subnet in which the
+.Ic range
+statement is declared.
+The
+.Ic dynamic-bootp
+flag may be specified if addresses in the specified range may be dynamically
+assigned to BOOTP clients as well as DHCP clients.
+When specifying a single address,
+.Ar high-address
+can be omitted.
+.Pp
+There must be at least one
+.Ic host
+statement for every BOOTP client that is to be served:
+.Bd -unfilled -offset indent
+.Ic host Ar hostname No {
+.Pf "  " Op Ar parameters
+.Pf "  " Op Ar declarations
+}
+.Ed
+.Pp
+.Ic host
+statements may also be specified for DHCP clients, although this is
+not required unless booting is only enabled for known hosts.
+.Pp
+If it is desirable to be able to boot a DHCP or BOOTP
+client on more than one subnet with fixed addresses, more than one
+address may be specified in the
+.Ar fixed-address
+parameter, or more than one
+.Ic host
+statement may be specified.
+.Pp
+If client-specific boot parameters must change based on the network
+to which the client is attached, then multiple
+.Ic host
+statements should be used.
+.Pp
+If a client is to be booted using a fixed address if it's
+possible, but should be allocated a dynamic address otherwise, then a
+.Ic host
+statement must be specified without a
+.Ar fixed-address
+clause.
+.Ar hostname
+should be a name identifying the host.
+If a
+.Ar hostname
+option is not specified for the host,
+.Ar hostname
+is used.
+.Pp
+.Ic host
+declarations are matched to actual DHCP or BOOTP clients by matching the
+.Ic dhcp-client-identifier
+option specified in the
+.Ic host
+declaration to the one supplied by the client or, if the
+.Ic host
+declaration or the client does not provide a
+.Ic dhcp-client-identifier
+option, by matching the
+.Ar hardware
+parameter in the
+.Ic host
+declaration to the network hardware address supplied by the client.
+BOOTP clients do not normally provide a
+.Ar dhcp-client-identifier ,
+so the hardware address must be used for all clients that may boot using
+the BOOTP protocol.
+.Pp
+The
+.Ic group
+statement is used simply to apply one or more parameters to a group of
+declarations:
+.Bd -unfilled -offset indent
+.Ic group No {
+.Pf "  " Op Ar parameters
+.Pf "  " Op Ar declarations
+}
+.Ed
+.Pp
+It can be used to group hosts, shared networks, subnets, or even other groups.
+.Sh REFERENCE: ALLOW and DENY
+The
+.Ic allow
+and
+.Ic deny
+statements can be used to control the behaviour of
+.Xr dhcpd 8
+to various sorts of requests.
+.Pp
+The
+.Ar unknown-clients
+flag tells
+.Xr dhcpd 8
+whether or not to dynamically assign addresses to unknown clients:
+.Bd -literal -offset indent
+allow unknown-clients;
+deny unknown-clients;
+.Ed
+.Pp
+Dynamic address assignment to unknown clients is allowed by default.
+.Pp
+The
+.Ar bootp
+flag tells
+.Xr dhcpd 8
+whether or not to respond to bootp queries:
+.Bd -literal -offset indent
+allow bootp;
+deny bootp;
+.Ed
+.Pp
+Bootp queries are allowed by default.
+.Pp
+The
+.Ar booting
+flag tells
+.Xr dhcpd 8
+whether or not to respond to queries from a particular client:
+.Bd -literal -offset indent
+allow booting;
+deny booting;
+.Ed
+.Pp
+This keyword only has meaning when it appears in a host declaration.
+By default, booting is allowed, but if it is disabled for a particular client,
+then that client will not be able to get an address from the DHCP server.
+.Sh REFERENCE: PARAMETERS
+The
+.Ic default-lease-time
+statement specifies the
+.Ar time
+in seconds that will be assigned to a lease
+if the client requesting the lease does not ask for a specific expiration time:
+.Pp
+.D1 Ic default-lease-time Ar time ;
+.Pp
+The
+.Ic max-lease-time
+statement specifies the maximum
+.Ar time
+in seconds that will be assigned to a lease
+if the client requesting the lease asks for a specific expiration time:
+.Pp
+.D1 Ic max-lease-time Ar time ;
+.Pp
+The
+.Ic hardware
+statement allows a
+BOOTP client to be recognized in a
+.Ic host
+statement:
+.Pp
+.D1 Ic hardware Ar hardware-type hardware-address ;
+.Pp
+.Ar hardware-type
+must be the name of a hardware interface type.
+Currently, the
+.Cm ethernet ,
+.Cm token-ring
+and
+.Cm fddi
+physical interface types are recognized,
+although support for DHCP-over-IPsec virtual interface type
+.Cm ipsec-tunnel
+is provided.
+The
+.Ar hardware-address
+should be a set of colon-separated hexadecimal octets (0-ff)
+or a hostname that can be looked up in
+.Xr ethers 5
+when the configuration is read.
+The
+.Ic hardware
+statement may also be used for DHCP clients.
+.Pp
+The
+.Ic filename
+statement can be used to specify the name of the initial boot file which
+is to be loaded by a client:
+.Pp
+.D1 Ic filename Qq Ar filename ;
+.Pp
+The
+.Ar filename
+should be a filename recognizable to whatever file transfer protocol
+the client can be expected to use to load the file.
+.Pp
+The
+.Ic server-name
+statement can be used to inform the client of the name of the server
+from which it is booting:
+.Pp
+.D1 Ic server-name Qq Ar name ;
+.Pp
+.Ar name
+should be the name that will be provided to the client.
+.Pp
+The
+.Ic next-server
+statement specifies the host address of
+the server from which the initial boot file (specified in the
+.Ic filename
+statement) is to be loaded:
+.Pp
+.D1 Ic next-server Ar server-name ;
+.Pp
+.Ar server-name
+should be a numeric IP address or a hostname.
+If no
+.Ic next-server
+parameter applies to a given client, the DHCP server's IP address is used.
+.Pp
+The
+.Ic fixed-address
+statement assigns one or more fixed IP addresses to a client:
+.Pp
+.D1 Ic fixed-address Ar address Op , Ar address ... ;
+.Pp
+It should only appear in a
+.Ic host
+declaration.
+If more than one address is supplied, then when the client boots, it will be
+assigned the address which corresponds to the network on which it is booting.
+If none of the addresses in the
+.Ic fixed-address
+statement are on the network on which the client is booting, that client will
+not match the
+.Ic host
+declaration containing that
+.Ic fixed-address
+statement.
+Each
+.Ar address
+should be either an IP address or a hostname which resolves to one
+or more IP addresses.
+.Pp
+Clients with fixed addresses are not assigned DHCP leases,
+and may therefore not be used with the
+.Fl ACL
+table options of
+.Xr dhcpd 8 .
+.Pp
+The
+.Ic dynamic-bootp-lease-cutoff
+statement sets the ending time for all leases assigned dynamically to
+BOOTP clients:
+.Pp
+.D1 Ic dynamic-bootp-lease-cutoff Ar date ;
+.Pp
+Because BOOTP clients do not have any way of renewing leases,
+and don't know that their leases could expire, by default
+.Xr dhcpd 8
+assigns infinite leases to all BOOTP clients.
+However, it may make sense in some situations to set a cutoff date for all
+BOOTP leases \- for example, the end of a school term,
+or the time at night when a facility is closed and all
+machines are required to be powered off.
+.Pp
+.Ar date
+should be the date on which all assigned BOOTP leases will end.
+The date is specified in the form:
+.Pp
+.Dl W YYYY/MM/DD HH:MM:SS
+.Pp
+W is the day of the week expressed as a number from zero (Sunday)
+to six (Saturday).
+YYYY is the year, including the century.
+MM is the month expressed as a number from 1 to 12.
+DD is the day of the month, counting from 1.
+HH is the hour, from zero to 23.
+MM is the minute and SS is the second.
+The time is always in Coordinated Universal Time (UTC), not local time.
+.Pp
+The
+.Ic dynamic-bootp-lease-length
+statement sets the length of leases dynamically assigned to BOOTP clients:
+.Pp
+.D1 Ic dynamic-bootp-lease-length Ar length ;
+.Pp
+At some sites, it may be possible to assume that a lease is no longer in
+use if its holder has not used BOOTP or DHCP to get its address within
+a certain time period.
+The period is specified in
+.Ar length
+as a number of seconds.
+If a client reboots using BOOTP during the timeout period, the lease
+duration is reset to
+.Ar length ,
+so a BOOTP client that boots frequently enough will never lose its lease.
+Needless to say, this parameter should be adjusted with extreme caution.
+.Pp
+The
+.Ic get-lease-hostnames
+statement tells
+.Xr dhcpd 8
+whether or not to look up the hostname corresponding to the IP address of
+each address in the lease pool and use that address for the DHCP
+.Ic hostname
+option:
+.Pp
+.D1 Ic get-lease-hostnames Ar flag ;
+.Pp
+If
+.Ar flag
+is true, then this lookup is done for all addresses in the current scope.
+By default, or if
+.Ar flag
+is false, no lookups are done.
+.Pp
+If the
+.Ic use-host-decl-names
+parameter is true in a given scope, then for every host declaration within
+that scope, the name provided for the host declaration will be supplied to
+the client as its hostname:
+.Pp
+.D1 Ic use-host-decl-names Ar flag ;
+.Pp
+So, for example:
+.Bd -literal -offset indent
+group {
+  use-host-decl-names on;
+
+  host joe {
+    hardware ethernet 08:00:2b:4c:29:32;
+    fixed-address joe.fugue.com;
+  }
+}
+.Ed
+.Pp
+is equivalent to:
+.Bd -literal -offset indent
+host joe {
+  hardware ethernet 08:00:2b:4c:29:32;
+  fixed-address joe.fugue.com;
+  option host-name "joe";
+}
+.Ed
+.Pp
+An
+.Ic option host-name
+statement within a host declaration will override the use of the name
+in the host declaration.
+.Pp
+The
+.Ic authoritative
+statement:
+.Pp
+.D1 Ic authoritative ;
+.D1 Ic not authoritative ;
+.Pp
+The DHCP server will normally assume that the configuration
+information about a given network segment is known to be correct and
+is authoritative.
+So if a client requests an IP address on a given network segment that the
+server knows is not valid for that segment, the server will respond with a
+DHCPNAK message, causing the client to forget its IP address and try to get
+a new one.
+.Pp
+If a DHCP server is being configured by somebody who is not the
+network administrator and who therefore does not wish to assert this
+level of authority, then the statement
+.Dq not authoritative
+should be written in the appropriate scope in the configuration file.
+.Pp
+Usually, writing
+.Ic not authoritative;
+at the top level of the file should be sufficient.
+However, if a DHCP server is to be set up so that it is aware of some
+networks for which it is authoritative and some networks for which it is not,
+it may be more appropriate to declare authority on a per-network-segment basis.
+.Pp
+Note that the most specific scope for which the concept of authority
+makes any sense is the physical network segment \- either a
+shared-network statement or a subnet statement that is not contained
+within a shared-network statement.
+It is not meaningful to specify that the server is authoritative for some
+subnets within a shared network, but not authoritative for others,
+nor is it meaningful to specify that the server is authoritative for some
+host declarations and not others.
+.Pp
+The
+.Ic use-lease-addr-for-default-route
+statement:
+.Pp
+.D1 Ic use-lease-addr-for-default-route Ar flag ;
+.Pp
+If the
+.Ic use-lease-addr-for-default-route
+parameter is true in a given scope, then instead of sending the value
+specified in the routers option (or sending no value at all),
+the IP address of the lease being assigned is sent to the client.
+This supposedly causes Win95 machines to ARP for all IP addresses,
+which can be helpful if your router is configured for proxy ARP.
+.Pp
+If
+.Ic use-lease-addr-for-default-route
+is enabled and an option routers statement are both in scope,
+the routers option will be preferred.
+The rationale for this is that in situations where you want to use
+this feature, you probably want it enabled for a whole bunch of
+Windows 95 machines, and you want to override it for a few other machines.
+Unfortunately, if the opposite happens to be true for your
+site, you are probably better off not trying to use this flag.
+.Pp
+The
+.Ic always-reply-rfc1048
+statement:
+.Pp
+.D1 Ic always-reply-rfc1048 Ar flag ;
+.Pp
+Some BOOTP clients expect RFC 1048-style responses, but do not follow
+RFC 1048 when sending their requests.
+You can tell that a client is having this problem if it is not getting
+the options you have configured for it and if you see in the server log
+the message
+.Dq (non-rfc1048)
+printed with each BOOTREQUEST that is logged.
+.Pp
+If you want to send RFC 1048 options to such a client, you can set the
+.Ic always-reply-rfc1048
+option in that client's host declaration, and the DHCP server will
+respond with an RFC 1048-style vendor options field.
+This flag can be set in any scope, and will affect all clients covered
+by that scope.
+.Pp
+The
+.Ic server-identifier
+statement can be used to define the value that is sent in the
+DHCP Server Identifier option for a given scope:
+.Pp
+.D1 Ic server-identifier Ar hostname ;
+.Pp
+The value specified
+.Em must
+be an IP address for the DHCP server, and must be reachable by all
+clients served by a particular scope.
+.Pp
+The use of the server-identifier statement is not recommended \- the only
+reason to use it is to force a value other than the default value to be
+sent on occasions where the default value would be incorrect.
+The default value is the first IP address associated with the physical
+network interface on which the request arrived.
+.Pp
+The usual case where the
+.Ic server-identifier
+statement needs to be sent is when a physical interface has more than one
+IP address, and the one being sent by default isn't appropriate for some
+or all clients served by that interface.
+Another common case is when an alias is defined for the purpose of
+having a consistent IP address for the DHCP server, and it is desired
+that the clients use this IP address when contacting the server.
+.Pp
+Supplying a value for the
+.Ic dhcp-server-identifier
+option is equivalent to using the
+.Ic server-identifier
+statement.
+.Pp
+The
+.Ic echo-client-id
+statement controls RFC 6842 compliant behavior and has a default
+value of true:
+.Pp
+.D1 Ic echo-client-id Ar flag ;
+.Pp
+Some devices, especially old printers, require
+.Ic echo-client-id
+to be false.
+.Pp
+When
+.Ic echo-client-id
+is true ,
+.Xr dhcpd 8
+copies option dhcp-client-identifier (code 61)
+from
+DHCP DISCOVER or REQUEST messages into
+the DHCP ACK or NAK reply sent to the client.
+.Sh REFERENCE: OPTION STATEMENTS
+DHCP option statements are documented in the
+.Xr dhcp-options 5
+manual page.
+.Sh FILES
+.Bl -tag -width /etc/examples/dhcpd.conf -compact
+.It Pa /etc/examples/dhcpd.conf
+Example configuration file.
+.El
+.Sh SEE ALSO
+.Xr dhcp-options 5 ,
+.Xr dhcpd.leases 5 ,
+.Xr dhcpd 8
+.Sh STANDARDS
+.Rs
+.%A R. Droms
+.%D March 1997
+.%R RFC 2131
+.%T Dynamic Host Configuration Protocol
+.Re
+.Pp
+.Rs
+.%A S. Alexander
+.%A R. Droms
+.%D March 1997
+.%R RFC 2132
+.%T DHCP Options and BOOTP Vendor Extensions
+.Re
+.Pp
+.Rs
+.%A M. Patrick
+.%D January 2001
+.%R RFC 3046
+.%T DHCP Relay Agent Information Option
+.Re
+.Pp
+.Rs
+.%A B. Patel
+.%A B. Aboba
+.%A S. Kelly
+.%A V. Gupta
+.%D January 2003
+.%R RFC 3456
+.%T Dynamic Host Configuration Protocol (DHCPv4) Configuration of IPsec Tunnel Mode
+.Re
+.Sh AUTHORS
+.An -nosplit
+.Xr dhcpd 8
+was written by
+.An Ted Lemon Aq Mt mellon@vix.com
+under a contract with Vixie Labs.
+.Pp
+The current implementation was reworked by
+.An Henning Brauer Aq Mt henning@openbsd.org .

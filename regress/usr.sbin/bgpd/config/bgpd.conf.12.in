@@ -1,0 +1,18 @@
+# $OpenBSD: bgpd.conf.12.in,v 1.1 2019/02/27 04:11:40 claudio Exp $
+# Test export statements
+
+AS 1
+
+neighbor 127.0.0.2 {
+	remote-as 2
+	export none
+}
+
+neighbor 127.0.0.3 {
+	remote-as 3
+	export default-route
+}
+
+neighbor 127.0.0.4 {
+	remote-as 4
+}

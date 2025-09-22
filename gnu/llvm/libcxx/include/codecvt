@@ -1,0 +1,597 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CODECVT
+#define _LIBCPP_CODECVT
+
+/*
+    codecvt synopsis
+
+namespace std
+{
+
+enum codecvt_mode
+{
+    consume_header = 4,
+    generate_header = 2,
+    little_endian = 1
+};
+
+template <class Elem, unsigned long Maxcode = 0x10ffff,
+          codecvt_mode Mode = (codecvt_mode)0>
+class codecvt_utf8
+    : public codecvt<Elem, char, mbstate_t>
+{
+    explicit codecvt_utf8(size_t refs = 0);
+    ~codecvt_utf8();
+};
+
+template <class Elem, unsigned long Maxcode = 0x10ffff,
+          codecvt_mode Mode = (codecvt_mode)0>
+class codecvt_utf16
+    : public codecvt<Elem, char, mbstate_t>
+{
+    explicit codecvt_utf16(size_t refs = 0);
+    ~codecvt_utf16();
+};
+
+template <class Elem, unsigned long Maxcode = 0x10ffff,
+          codecvt_mode Mode = (codecvt_mode)0>
+class codecvt_utf8_utf16
+    : public codecvt<Elem, char, mbstate_t>
+{
+    explicit codecvt_utf8_utf16(size_t refs = 0);
+    ~codecvt_utf8_utf16();
+};
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__locale>
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if _LIBCPP_STD_VER < 26 || defined(_LIBCPP_BUILDING_LIBRARY) || defined(_LIBCPP_ENABLE_CXX26_REMOVED_CODECVT)
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+enum _LIBCPP_DEPRECATED_IN_CXX17 codecvt_mode { consume_header = 4, generate_header = 2, little_endian = 1 };
+
+// codecvt_utf8
+
+template <class _Elem>
+class __codecvt_utf8;
+
+#  ifndef _LIBCPP_HAS_NO_WIDE_CHARACTERS
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf8<wchar_t> : public codecvt<wchar_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+  codecvt_mode __mode_;
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+public:
+  typedef wchar_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf8(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<wchar_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+#  endif // _LIBCPP_HAS_NO_WIDE_CHARACTERS
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf8<char16_t> : public codecvt<char16_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  codecvt_mode __mode_;
+
+public:
+  typedef char16_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf8(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<char16_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf8<char32_t> : public codecvt<char32_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  codecvt_mode __mode_;
+
+public:
+  typedef char32_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf8(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<char32_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+template <class _Elem, unsigned long _Maxcode = 0x10ffff, codecvt_mode _Mode = (codecvt_mode)0>
+class _LIBCPP_TEMPLATE_VIS _LIBCPP_DEPRECATED_IN_CXX17 codecvt_utf8 : public __codecvt_utf8<_Elem> {
+public:
+  _LIBCPP_HIDE_FROM_ABI explicit codecvt_utf8(size_t __refs = 0) : __codecvt_utf8<_Elem>(__refs, _Maxcode, _Mode) {}
+
+  _LIBCPP_HIDE_FROM_ABI ~codecvt_utf8() {}
+};
+_LIBCPP_SUPPRESS_DEPRECATED_POP
+
+// codecvt_utf16
+
+template <class _Elem, bool _LittleEndian>
+class __codecvt_utf16;
+
+#  ifndef _LIBCPP_HAS_NO_WIDE_CHARACTERS
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf16<wchar_t, false> : public codecvt<wchar_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+  codecvt_mode __mode_;
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+public:
+  typedef wchar_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf16(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<wchar_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf16<wchar_t, true> : public codecvt<wchar_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+  codecvt_mode __mode_;
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+public:
+  typedef wchar_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf16(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<wchar_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+#  endif // _LIBCPP_HAS_NO_WIDE_CHARACTERS
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf16<char16_t, false> : public codecvt<char16_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  codecvt_mode __mode_;
+
+public:
+  typedef char16_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf16(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<char16_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf16<char16_t, true> : public codecvt<char16_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  codecvt_mode __mode_;
+
+public:
+  typedef char16_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf16(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<char16_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf16<char32_t, false> : public codecvt<char32_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  codecvt_mode __mode_;
+
+public:
+  typedef char32_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf16(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<char32_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf16<char32_t, true> : public codecvt<char32_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  codecvt_mode __mode_;
+
+public:
+  typedef char32_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf16(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<char32_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+template <class _Elem, unsigned long _Maxcode = 0x10ffff, codecvt_mode _Mode = (codecvt_mode)0>
+class _LIBCPP_TEMPLATE_VIS
+_LIBCPP_DEPRECATED_IN_CXX17 codecvt_utf16 : public __codecvt_utf16<_Elem, _Mode & little_endian> {
+public:
+  _LIBCPP_HIDE_FROM_ABI explicit codecvt_utf16(size_t __refs = 0)
+      : __codecvt_utf16<_Elem, _Mode & little_endian>(__refs, _Maxcode, _Mode) {}
+
+  _LIBCPP_HIDE_FROM_ABI ~codecvt_utf16() {}
+};
+_LIBCPP_SUPPRESS_DEPRECATED_POP
+
+// codecvt_utf8_utf16
+
+template <class _Elem>
+class __codecvt_utf8_utf16;
+
+#  ifndef _LIBCPP_HAS_NO_WIDE_CHARACTERS
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf8_utf16<wchar_t> : public codecvt<wchar_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+  codecvt_mode __mode_;
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+public:
+  typedef wchar_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf8_utf16(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<wchar_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+#  endif // _LIBCPP_HAS_NO_WIDE_CHARACTERS
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf8_utf16<char32_t> : public codecvt<char32_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  codecvt_mode __mode_;
+
+public:
+  typedef char32_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf8_utf16(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<char32_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+template <>
+class _LIBCPP_EXPORTED_FROM_ABI __codecvt_utf8_utf16<char16_t> : public codecvt<char16_t, char, mbstate_t> {
+  unsigned long __maxcode_;
+  codecvt_mode __mode_;
+
+public:
+  typedef char16_t intern_type;
+  typedef char extern_type;
+  typedef mbstate_t state_type;
+
+  _LIBCPP_HIDE_FROM_ABI explicit __codecvt_utf8_utf16(size_t __refs, unsigned long __maxcode, codecvt_mode __mode)
+      : codecvt<char16_t, char, mbstate_t>(__refs), __maxcode_(__maxcode), __mode_(__mode) {}
+  _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+protected:
+  result do_out(state_type& __st,
+                const intern_type* __frm,
+                const intern_type* __frm_end,
+                const intern_type*& __frm_nxt,
+                extern_type* __to,
+                extern_type* __to_end,
+                extern_type*& __to_nxt) const override;
+  result do_in(state_type& __st,
+               const extern_type* __frm,
+               const extern_type* __frm_end,
+               const extern_type*& __frm_nxt,
+               intern_type* __to,
+               intern_type* __to_end,
+               intern_type*& __to_nxt) const override;
+  result do_unshift(state_type& __st, extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const override;
+  int do_encoding() const _NOEXCEPT override;
+  bool do_always_noconv() const _NOEXCEPT override;
+  int do_length(state_type&, const extern_type* __frm, const extern_type* __end, size_t __mx) const override;
+  int do_max_length() const _NOEXCEPT override;
+};
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+template <class _Elem, unsigned long _Maxcode = 0x10ffff, codecvt_mode _Mode = (codecvt_mode)0>
+class _LIBCPP_TEMPLATE_VIS _LIBCPP_DEPRECATED_IN_CXX17 codecvt_utf8_utf16 : public __codecvt_utf8_utf16<_Elem> {
+public:
+  _LIBCPP_HIDE_FROM_ABI explicit codecvt_utf8_utf16(size_t __refs = 0)
+      : __codecvt_utf8_utf16<_Elem>(__refs, _Maxcode, _Mode) {}
+
+  _LIBCPP_HIDE_FROM_ABI ~codecvt_utf8_utf16() {}
+};
+_LIBCPP_SUPPRESS_DEPRECATED_POP
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_STD_VER < 26 || defined(_LIBCPP_BUILDING_LIBRARY) || defined(_LIBCPP_ENABLE_CXX26_REMOVED_CODECVT)
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <atomic>
+#  include <concepts>
+#  include <cstddef>
+#  include <cstdlib>
+#  include <cstring>
+#  include <initializer_list>
+#  include <iosfwd>
+#  include <limits>
+#  include <mutex>
+#  include <new>
+#  include <stdexcept>
+#  include <type_traits>
+#  include <typeinfo>
+#endif
+
+#endif // _LIBCPP_CODECVT

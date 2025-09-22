@@ -1,0 +1,452 @@
+.\" $OpenBSD: SSL_CTX_use_certificate.3,v 1.18 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL 3aaa1bd0 Mar 28 16:35:25 2017 +1000
+.\" selective merge up to: OpenSSL d1f7a1e6 Apr 26 14:05:40 2018 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2000, 2001, 2002, 2003, 2005 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_USE_CERTIFICATE 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_use_certificate ,
+.Nm SSL_CTX_use_certificate_ASN1 ,
+.Nm SSL_CTX_use_certificate_file ,
+.Nm SSL_use_certificate ,
+.Nm SSL_use_certificate_ASN1 ,
+.Nm SSL_use_certificate_chain_file ,
+.Nm SSL_use_certificate_file ,
+.Nm SSL_CTX_use_certificate_chain_file ,
+.Nm SSL_CTX_use_certificate_chain_mem ,
+.Nm SSL_CTX_use_PrivateKey ,
+.Nm SSL_CTX_use_PrivateKey_ASN1 ,
+.Nm SSL_CTX_use_PrivateKey_file ,
+.Nm SSL_CTX_use_RSAPrivateKey ,
+.Nm SSL_CTX_use_RSAPrivateKey_ASN1 ,
+.Nm SSL_CTX_use_RSAPrivateKey_file ,
+.Nm SSL_use_PrivateKey_file ,
+.Nm SSL_use_PrivateKey_ASN1 ,
+.Nm SSL_use_PrivateKey ,
+.Nm SSL_use_RSAPrivateKey ,
+.Nm SSL_use_RSAPrivateKey_ASN1 ,
+.Nm SSL_use_RSAPrivateKey_file ,
+.Nm SSL_CTX_check_private_key ,
+.Nm SSL_check_private_key
+.Nd load certificate and key data
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fn SSL_CTX_use_certificate "SSL_CTX *ctx" "X509 *x"
+.Ft int
+.Fn SSL_CTX_use_certificate_ASN1 "SSL_CTX *ctx" "int len" "unsigned char *d"
+.Ft int
+.Fn SSL_CTX_use_certificate_file "SSL_CTX *ctx" "const char *file" "int type"
+.Ft int
+.Fn SSL_use_certificate "SSL *ssl" "X509 *x"
+.Ft int
+.Fn SSL_use_certificate_ASN1 "SSL *ssl" "unsigned char *d" "int len"
+.Ft int
+.Fn SSL_use_certificate_chain_file "SSL *ssl" "const char *file"
+.Ft int
+.Fn SSL_use_certificate_file "SSL *ssl" "const char *file" "int type"
+.Ft int
+.Fn SSL_CTX_use_certificate_chain_file "SSL_CTX *ctx" "const char *file"
+.Ft int
+.Fn SSL_CTX_use_certificate_chain_mem "SSL_CTX *ctx" "void *buf" "int len"
+.Ft int
+.Fn SSL_CTX_use_PrivateKey "SSL_CTX *ctx" "EVP_PKEY *pkey"
+.Ft int
+.Fo SSL_CTX_use_PrivateKey_ASN1
+.Fa "int pk" "SSL_CTX *ctx" "unsigned char *d" "long len"
+.Fc
+.Ft int
+.Fn SSL_CTX_use_PrivateKey_file "SSL_CTX *ctx" "const char *file" "int type"
+.Ft int
+.Fn SSL_CTX_use_RSAPrivateKey "SSL_CTX *ctx" "RSA *rsa"
+.Ft int
+.Fn SSL_CTX_use_RSAPrivateKey_ASN1 "SSL_CTX *ctx" "unsigned char *d" "long len"
+.Ft int
+.Fn SSL_CTX_use_RSAPrivateKey_file "SSL_CTX *ctx" "const char *file" "int type"
+.Ft int
+.Fn SSL_use_PrivateKey "SSL *ssl" "EVP_PKEY *pkey"
+.Ft int
+.Fn SSL_use_PrivateKey_ASN1 "int pk" "SSL *ssl" "unsigned char *d" "long len"
+.Ft int
+.Fn SSL_use_PrivateKey_file "SSL *ssl" "const char *file" "int type"
+.Ft int
+.Fn SSL_use_RSAPrivateKey "SSL *ssl" "RSA *rsa"
+.Ft int
+.Fn SSL_use_RSAPrivateKey_ASN1 "SSL *ssl" "const unsigned char *d" "long len"
+.Ft int
+.Fn SSL_use_RSAPrivateKey_file "SSL *ssl" "const char *file" "int type"
+.Ft int
+.Fn SSL_CTX_check_private_key "const SSL_CTX *ctx"
+.Ft int
+.Fn SSL_check_private_key "const SSL *ssl"
+.Sh DESCRIPTION
+These functions load the certificates and private keys into the
+.Vt SSL_CTX
+or
+.Vt SSL
+object, respectively.
+.Pp
+The
+.Fn SSL_CTX_*
+class of functions loads the certificates and keys into the
+.Vt SSL_CTX
+object
+.Fa ctx .
+The information is passed to
+.Vt SSL
+objects
+.Fa ssl
+created from
+.Fa ctx
+with
+.Xr SSL_new 3
+by copying, so that changes applied to
+.Fa ctx
+do not propagate to already existing
+.Vt SSL
+objects.
+.Pp
+The
+.Fn SSL_*
+class of functions only loads certificates and keys into a specific
+.Vt SSL
+object.
+The specific information is kept when
+.Xr SSL_clear 3
+is called for this
+.Vt SSL
+object.
+.Pp
+.Fn SSL_CTX_use_certificate
+loads the certificate
+.Fa x
+into
+.Fa ctx ;
+.Fn SSL_use_certificate
+loads
+.Fa x
+into
+.Fa ssl .
+The rest of the certificates needed to form the complete certificate chain can
+be specified using the
+.Xr SSL_CTX_add_extra_chain_cert 3
+function.
+.Pp
+.Fn SSL_CTX_use_certificate_ASN1
+loads the ASN1 encoded certificate from the memory location
+.Fa d
+(with length
+.Fa len )
+into
+.Fa ctx ;
+.Fn SSL_use_certificate_ASN1
+loads the ASN1 encoded certificate into
+.Fa ssl .
+.Pp
+.Fn SSL_CTX_use_certificate_file
+loads the first certificate stored in
+.Fa file
+into
+.Fa ctx .
+The formatting
+.Fa type
+of the certificate must be specified from the known types
+.Dv SSL_FILETYPE_PEM
+and
+.Dv SSL_FILETYPE_ASN1 .
+.Fn SSL_use_certificate_file
+loads the certificate from
+.Fa file
+into
+.Fa ssl .
+See the
+.Sx NOTES
+section on why
+.Fn SSL_CTX_use_certificate_chain_file
+should be preferred.
+.Pp
+The
+.Fn SSL_CTX_use_certificate_chain*
+functions load a certificate chain into
+.Fa ctx .
+The certificates must be in PEM format and must be sorted starting with the
+subject's certificate (actual client or server certificate),
+followed by intermediate CA certificates if applicable,
+and ending at the highest level (root) CA.
+With the exception of
+.Fn SSL_use_certificate_chain_file ,
+there is no corresponding function working on a single
+.Vt SSL
+object.
+.Pp
+.Fn SSL_CTX_use_PrivateKey
+adds
+.Fa pkey
+as private key to
+.Fa ctx .
+.Fn SSL_CTX_use_RSAPrivateKey
+adds the private key
+.Fa rsa
+of type RSA to
+.Fa ctx .
+.Fn SSL_use_PrivateKey
+adds
+.Fa pkey
+as private key to
+.Fa ssl ;
+.Fn SSL_use_RSAPrivateKey
+adds
+.Fa rsa
+as private key of type RSA to
+.Fa ssl .
+If a certificate has already been set and the private does not belong to the
+certificate, an error is returned.
+To change a certificate private key pair,
+the new certificate needs to be set with
+.Fn SSL_use_certificate
+or
+.Fn SSL_CTX_use_certificate
+before setting the private key with
+.Fn SSL_CTX_use_PrivateKey
+or
+.Fn SSL_use_PrivateKey .
+.Pp
+.Fn SSL_CTX_use_PrivateKey_ASN1
+adds the private key of type
+.Fa pk
+stored at memory location
+.Fa d
+(length
+.Fa len )
+to
+.Fa ctx .
+.Fn SSL_CTX_use_RSAPrivateKey_ASN1
+adds the private key of type RSA stored at memory location
+.Fa d
+(length
+.Fa len )
+to
+.Fa ctx .
+.Fn SSL_use_PrivateKey_ASN1
+and
+.Fn SSL_use_RSAPrivateKey_ASN1
+add the private key to
+.Fa ssl .
+.Pp
+.Fn SSL_CTX_use_PrivateKey_file
+adds the first private key found in
+.Fa file
+to
+.Fa ctx .
+The formatting
+.Fa type
+of the private key must be specified from the known types
+.Dv SSL_FILETYPE_PEM
+and
+.Dv SSL_FILETYPE_ASN1 .
+.Fn SSL_CTX_use_RSAPrivateKey_file
+adds the first private RSA key found in
+.Fa file
+to
+.Fa ctx .
+.Fn SSL_use_PrivateKey_file
+adds the first private key found in
+.Fa file
+to
+.Fa ssl ;
+.Fn SSL_use_RSAPrivateKey_file
+adds the first private RSA key found to
+.Fa ssl .
+.Pp
+The
+.Fn SSL_CTX_check_private_key
+function is seriously misnamed.
+It compares the
+.Em public
+key components and parameters of an OpenSSL private key with the
+corresponding certificate loaded into
+.Fa ctx .
+If more than one key/certificate pair (RSA/ECDSA) is installed,
+the last item installed will be compared.
+If, e.g., the last item was an RSA certificate or key,
+the RSA key/certificate pair will be checked.
+.Fn SSL_check_private_key
+performs the same
+.Em public
+key comparison for
+.Fa ssl .
+If no key/certificate was explicitly added for this
+.Fa ssl ,
+the last item added into
+.Fa ctx
+will be checked.
+.Pp
+Despite the name, neither
+.Fn SSL_CTX_check_private_key
+nor
+.Fn SSL_check_private_key
+checks whether the private key component is indeed a private key,
+nor whether it matches the public key component.
+They merely compare the public materials (e.g. exponent and modulus of
+an RSA key) and/or key parameters (e.g. EC params of an EC key) of a
+key pair.
+.Sh NOTES
+The internal certificate store of OpenSSL can hold several private
+key/certificate pairs at a time.
+The certificate used depends on the cipher selected.
+See also
+.Xr SSL_CTX_set_cipher_list 3 .
+.Pp
+When reading certificates and private keys from file, files of type
+.Dv SSL_FILETYPE_ASN1
+(also known as
+.Em DER ,
+binary encoding) can only contain one certificate or private key; consequently,
+.Fn SSL_CTX_use_certificate_chain_file
+is only applicable to PEM formatting.
+Files of type
+.Dv SSL_FILETYPE_PEM
+can contain more than one item.
+.Pp
+.Fn SSL_CTX_use_certificate_chain_file
+adds the first certificate found in the file to the certificate store.
+The other certificates are added to the store of chain certificates using
+.Xr SSL_CTX_add1_chain_cert 3 .
+It is recommended to use the
+.Fn SSL_CTX_use_certificate_chain_file
+instead of the
+.Fn SSL_CTX_use_certificate_file
+function in order to allow the use of complete certificate chains even when no
+trusted CA storage is used or when the CA issuing the certificate shall not be
+added to the trusted CA storage.
+.Pp
+If additional certificates are needed to complete the chain during the TLS
+negotiation, CA certificates are additionally looked up in the locations of
+trusted CA certificates (see
+.Xr SSL_CTX_load_verify_locations 3 ) .
+.Pp
+The private keys loaded from file can be encrypted.
+In order to successfully load encrypted keys,
+a function returning the passphrase must have been supplied (see
+.Xr SSL_CTX_set_default_passwd_cb 3 ) .
+(Certificate files might be encrypted as well from the technical point of view,
+it however does not make sense as the data in the certificate is considered
+public anyway.)
+.Sh RETURN VALUES
+On success, the functions return 1.
+Otherwise check out the error stack to find out the reason.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_clear 3 ,
+.Xr SSL_CTX_add1_chain_cert 3 ,
+.Xr SSL_CTX_add_extra_chain_cert 3 ,
+.Xr SSL_CTX_load_verify_locations 3 ,
+.Xr SSL_CTX_set_cipher_list 3 ,
+.Xr SSL_CTX_set_client_CA_list 3 ,
+.Xr SSL_CTX_set_client_cert_cb 3 ,
+.Xr SSL_CTX_set_default_passwd_cb 3 ,
+.Xr SSL_new 3 ,
+.Xr X509_check_private_key 3
+.Sh HISTORY
+.Fn SSL_use_certificate ,
+.Fn SSL_use_certificate_file ,
+.Fn SSL_use_RSAPrivateKey ,
+and
+.Fn SSL_use_RSAPrivateKey_file
+appeared in SSLeay 0.4 or earlier.
+.Fn SSL_use_certificate_ASN1
+and
+.Fn SSL_use_RSAPrivateKey_ASN1
+first appeared in SSLeay 0.5.1.
+.Fn SSL_use_PrivateKey_file ,
+.Fn SSL_use_PrivateKey_ASN1 ,
+and
+.Fn SSL_use_PrivateKey
+first appeared in SSLeay 0.6.0.
+.Fn SSL_CTX_use_certificate ,
+.Fn SSL_CTX_use_certificate_ASN1 ,
+.Fn SSL_CTX_use_certificate_file ,
+.Fn SSL_CTX_use_PrivateKey ,
+.Fn SSL_CTX_use_PrivateKey_ASN1 ,
+.Fn SSL_CTX_use_PrivateKey_file ,
+.Fn SSL_CTX_use_RSAPrivateKey ,
+.Fn SSL_CTX_use_RSAPrivateKey_ASN1 ,
+and
+.Fn SSL_CTX_use_RSAPrivateKey_file
+first appeared in SSLeay 0.6.1.
+.Fn SSL_CTX_check_private_key
+and
+.Fn SSL_check_private_key
+first appeared in SSLeay 0.6.5.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_CTX_use_certificate_chain_file
+first appeared in OpenSSL 0.9.4 and has been available since
+.Ox 2.6 .
+.Pp
+.Fn SSL_use_certificate_chain_file
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.9 .
+.Pp
+Support for DER encoded private keys
+.Pq Dv SSL_FILETYPE_ASN1
+in
+.Fn SSL_CTX_use_PrivateKey_file
+and
+.Fn SSL_use_PrivateKey_file
+was added in 0.9.8.
+.Pp
+.Fn SSL_CTX_use_certificate_chain_mem
+first appeared in
+.Ox 5.7 .

@@ -1,0 +1,3 @@
+# RUN: echo \
+
+Program code.

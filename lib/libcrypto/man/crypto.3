@@ -1,0 +1,419 @@
+.\"	$OpenBSD: crypto.3,v 1.31 2025/04/25 20:04:09 tb Exp $
+.\"	OpenSSL a9c85cea Nov 11 09:33:55 2016 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Ulf Moeller <ulf@openssl.org> and
+.\" Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2002 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 25 2025 $
+.Dt CRYPTO 3
+.Os
+.Sh NAME
+.Nm crypto
+.Nd OpenSSL cryptographic library
+.Sh DESCRIPTION
+The OpenSSL crypto library implements a wide range of cryptographic
+algorithms used in various Internet standards.
+The services provided by this library are used by the OpenSSL
+implementations of TLS and S/MIME, and they have also been used to
+implement SSH, OpenPGP, and other cryptographic standards.
+.Pp
+.Sy Symmetric ciphers
+including AES, Blowfish, CAST, ChaCha20, IDEA, DES, RC2, and RC4
+are provided by the generic interface
+.Xr EVP_EncryptInit 3 .
+Low-level stand-alone interfaces include
+.Xr AES_encrypt 3 ,
+.Xr BF_set_key 3 ,
+.Xr ChaCha 3 ,
+.Xr DES_set_key 3 ,
+.Xr RC2_encrypt 3 ,
+and
+.Xr RC4 3 .
+.Pp
+.Sy Public key cryptography and key agreement
+are provided by
+.Xr DH_new 3 ,
+.Xr ECDH_compute_key 3 ,
+.Xr X25519 3 ,
+.Xr DSA_new 3 ,
+.Xr ECDSA_SIG_new 3 ,
+.Xr RSA_new 3 ,
+and
+.Xr EVP_PKEY_new 3 .
+.Pp
+.Sy Certificates
+are handled by
+.Xr X509_new 3
+and
+.Xr X509v3_add_ext 3 .
+.Pp
+.Sy Authentication codes and hash functions
+offered include
+.Xr EVP_DigestInit 3 ,
+.Xr CMAC_Init 3 ,
+.Xr HMAC 3 ,
+.Xr MD4 3 ,
+.Xr MD5 3 ,
+.Xr RIPEMD160 3 ,
+.Xr SHA1 3 ,
+and
+.Xr SHA256 3 .
+.Pp
+.Sy Input, output, and data encoding
+facilities include
+.Xr ASN1_TYPE_get 3 ,
+.Xr BIO_new 3 ,
+.Xr CMS_ContentInfo_new 3 ,
+.Xr evp 3 ,
+.Xr EVP_EncodeInit 3 ,
+.Xr PEM_read 3 ,
+.Xr PKCS7_encrypt 3 ,
+.Xr PKCS7_sign 3 ,
+.Xr PKCS12_create 3 ,
+and
+.Xr SMIME_write_PKCS7 3 .
+.Pp
+.Sy Auxiliary features include:
+.Bl -dash -compact
+.It
+configuration file handling: see
+.Xr OPENSSL_config 3
+.It
+error reporting: see
+.Xr ERR 3
+.It
+.Xr OCSP_REQUEST_new 3
+.It
+.Xr UI_new 3
+.El
+.Pp
+.Sy Internal utilities
+include
+.Xr BIO_f_buffer 3 ,
+.Xr BN_new 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr lh_new 3 ,
+and
+.Xr STACK_OF 3 .
+.Sh NAMING CONVENTIONS
+Elements used in the names of API functions include the following:
+.Bl -tag -width Ds
+.It add0
+See
+.Dq set0
+below.
+.It add1
+See
+.Dq set1
+below.
+.It BIO
+basic input and/or output abstraction:
+The function manipulates objects of the idiosyncratic OpenSSL
+.Vt BIO
+object type.
+See
+.Xr BIO_new 3 .
+.It bio
+The function uses a
+.Vt BIO
+object for input or output.
+In many cases, simpler variants of the function are available
+that operate directly on
+.In stdio.h
+.Vt FILE
+objects or directly in RAM, usually using byte arrays.
+.It BIO_f_
+filter BIO:
+The function returns a pointer to a static built-in object that,
+when passed to
+.Xr BIO_new 3 ,
+results in the creation of a BIO object that can write data to
+and/or read data from another
+.Vt BIO
+object.
+.It BIO_s_
+source and/or sink BIO:
+The function returns a pointer to a static built-in object that,
+when passed to
+.Xr BIO_new 3 ,
+results in the creation of a BIO object
+that can write data to an external destination
+and/or read data from an external source,
+for example a file descriptor or object, a memory buffer, or the network.
+.It BN
+big number:
+The function operates on
+.Vt BIGNUM
+objects representing integer numbers of variable, almost unlimited size.
+See
+.Xr BN_new 3 .
+.It cb
+callback:
+The function takes or returns a function pointer
+that is called by API functions from inside the library.
+The function pointed to may be defined by the application program.
+In some cases, API functions with
+.Dq cb
+in their name may return function pointers to internal functions
+defined inside the library that are not API functions.
+The element
+.Dq cb
+is also used in the names of some function pointer datatypes
+declared with
+.Sy typedef .
+In a small number of cases, the all caps form
+.Dq CB
+is used with the same meaning.
+.It CTX
+context:
+The function operates on a wrapper object around another object.
+The purposes and properties of such
+.Dq CTX
+wrapper objects vary wildly depending on the objects in question.
+A few function names use the lower case form
+.Dq ctx
+in the same sense.
+.It d2i
+DER to internal:
+The function decodes input conforming to ASN.1 basic encoding rules (BER)
+and either stores the result in an existing object
+or in a newly allocated object.
+The latter is usually preferable because
+creating a new object is more robust and less error prone.
+In spite of the name, the input usually does not need to conform to ASN.1
+distinguished encoding rules (DER), which are more restrictive than BER.
+.It EVP
+digital EnVeloPe library:
+See
+.Xr evp 3 .
+.It ex
+This name element is used for two completely unrelated purposes.
+.Pp
+extended version:
+The function is similar to an older function without the
+.Dq ex
+in its name, but takes one or more additional arguments
+in order to make it more versatile.
+In several cases, the older version is now deprecated.
+.Pp
+extra data:
+Some object types support storing additional, application-specific data
+inside objects in addition to the data the object is designed to hold.
+The function sets, retrieves, or prepares for using such extra data.
+Related function names usually contain
+.Dq ex_data
+or
+.Dq ex_new_index .
+See
+.Xr CRYPTO_set_ex_data 3 .
+.It fp
+file pointer:
+The function takes a
+.Vt FILE *
+argument.
+Usually, the function is a variant of another function taking a
+.Vt BIO *
+argument instead.
+.It i2d
+internal to DER:
+The function encodes an object passed as an argument
+according to ASN.1 distinguished encoding rules (DER).
+There are a few rare exceptions of functions that have
+.Dq i2d
+in their name but produce output anyway
+that only conforms to ASN.1 basic encoding rules (BER) and not to DER.
+.It get0
+The function returns an internal pointer
+owned by the object passed as an argument.
+The returned pointer must not be freed by the calling code.
+It will be freed automatically
+when the object owning the pointer will be freed.
+.It get1
+The function returns a copy of a sub-object
+of an object passed as an argument.
+The caller is responsible for freeing the returned object
+when it is no longer needed.
+.Pp
+If the object type is reference counted, usually the reference count
+is incremented instead of copying the object.
+Consequently, modifying the returned object may still impact all
+objects containing references to it.
+The caller is responsible for freeing the returned object
+when it is no longer needed; for reference-counted objects still
+referenced elsewhere, this will merely decrement the reference count.
+.It get
+Functions containing
+.Dq get
+in their name without a following digit may behave in
+.Dq get0
+or, more rarely, in
+.Dq get1
+style.
+To find out which is the case, refer to the individual manual pages.
+.It lh
+linear hash:
+The function manipulates a dynamic hash table.
+See
+.Xr lh_new 3 .
+.It md
+message digest.
+Some function names use the all caps form
+.Dq MD
+in the same sense.
+.It meth
+The function manipulates an object holding a function table.
+Usually, such function tables allow the application program
+to implement additional cryptographic or I/O algorithms
+and to use them with the same high-level API functions as the
+algorithms provided by the library itself, or to replace the
+implementations of algorithms provided by the library with
+custom implementations provided by the application program.
+Some API functions use the name elements
+.Dq method
+or
+.Dq METHOD
+in the same sense.
+See also the
+.Dq cb
+entry in the present list.
+.It nid
+numerical identifier:
+A non-standard, LibreSSL-specific
+.Vt int
+number associated with an ASN.1 object identifier.
+In several cases, the all caps form
+.Dq NID
+is used in the same sense.
+See
+.Xr OBJ_nid2obj 3 .
+.It obj
+This name element and its all caps form
+.Dq OBJ
+usually refer to ASN.1 object identifiers represented by the
+.Vt ASN1_OBJECT
+data type.
+See
+.Xr ASN1_OBJECT_new 3 .
+.It PKEY
+In most cases, this name element and its lower case form
+.Dq pkey
+mean
+.Dq private key ,
+but for both forms, there are some cases where they mean
+.Dq public key
+instead.
+.It set0
+The function transfers ownership of a pointer passed as an argument
+to an object passed as another argument,
+by storing the pointer inside the object.
+The transferred pointer must not be freed by the calling code.
+It will be freed automatically
+when the object now owning the pointer will be freed.
+.It set1
+The function copies the content of one object passed as an argument
+into another object also passed as an argument.
+When the calling code no longer needs the copied object,
+it can free that object.
+.Pp
+In some cases, if the object to be copied is reference counted,
+the function does not actually copy the object but merely increments
+its reference count and stores the pointer to it in the other object.
+When the calling code no longer needs its original pointer to
+the now inner object, it can free the original pointer, thus
+decrementing the reference count of the inner object
+and transferring ownership of the inner object to the outer object.
+The inner object will then be freed automatically
+when the outer object is freed later on.
+.It set
+Functions containing
+.Dq set
+in their name without a following digit may behave in
+.Dq set0
+or, more rarely, in
+.Dq set1
+style.
+To find out which is the case, refer to the individual manual pages.
+.It sk
+stack:
+The function manipulates a variable-sized array of pointers
+in the idiosyncratic style described in
+.Xr OPENSSL_sk_new 3 .
+.It TS
+X.509 time-stamp protocol:
+See
+.Xr TS_REQ_new 3 .
+.It up_ref
+The function increments the reference count of the argument by one.
+Only a minority of object types support reference counting.
+For those that do, if the reference count is greater than one,
+the corresponding
+.Dq free
+function reverses the effect of one call to the
+.Dq up_ref
+function rather than freeing the object.
+.El
+.Sh SEE ALSO
+.Xr openssl 1 ,
+.Xr ssl 3

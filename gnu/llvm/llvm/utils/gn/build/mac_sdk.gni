@@ -1,0 +1,31 @@
+import("//llvm/utils/gn/build/sysroot.gni")
+
+have_ios_sdks = true
+
+if (sysroot == "") {
+  declare_args() {
+    # Set to true if you don't have Xcode installed, but do have the commandline
+    # tools.
+    mac_use_commandline_tools_sdk = false
+  }
+
+  # Location of the mac sdk.
+  # The correct way to do this is to call xcrun
+  # (https://reviews.llvm.org/D70835), but that makes `gn gen` take twice as
+  # long and almost everyone has Xcode installed.  So require that people who
+  # don't have it installed set a gn arg.
+  if (mac_use_commandline_tools_sdk) {
+    mac_sdk_path = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
+
+    # iOS SDKs aren't available in the commandline tools SDK.
+    have_ios_sdks = false
+  } else {
+    mac_sdk_path = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+    ios_sdk_path = "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
+    iossim_sdk_path = "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
+  }
+} else {
+  ios_sdk_path = sysroot + "/iPhoneOS.sdk"
+  iossim_sdk_path = sysroot + "/iPhoneSimulator.sdk"
+  mac_sdk_path = sysroot + "/MacOSX.sdk"
+}

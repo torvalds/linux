@@ -1,0 +1,88 @@
+BasedOnStyle: LLVM
+
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveBitFields: Consecutive
+AlignEscapedNewlines: Right
+AlignOperands: AlignAfterOperator
+AlignTrailingComments: true
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortFunctionsOnASingleLine: true
+AllowShortLambdasOnASingleLine: All
+AttributeMacros: ['_LIBCPP_HIDE_FROM_ABI',
+                  '_LIBCPP_CONSTEXPR',
+                  '_LIBCPP_CONSTEXPR_SINCE_CXX14',
+                  '_LIBCPP_CONSTEXPR_SINCE_CXX17',
+                  '_LIBCPP_CONSTEXPR_SINCE_CXX20',
+                  '_LIBCPP_CONSTEXPR_SINCE_CXX23',
+                  '_LIBCPP_ALIGNOF',
+                  '_ALIGNAS_TYPE',
+                  '_ALIGNAS',
+                  '_LIBCPP_NORETURN',
+                  '_LIBCPP_ALWAYS_INLINE',
+                  '_LIBCPP_DISABLE_EXTENTSION_WARNING',
+                  '_LIBCPP_HIDDEN',
+                  '_LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS',
+                  '_LIBCPP_FUNC_VIS',
+                  '_LIBCPP_TYPE_VIS',
+                  '_LIBCPP_TEMPLATE_VIS',
+                  '_LIBCPP_TEMPLATE_DATA_VIS',
+                  '_LIBCPP_EXPORTED_FROM_ABI',
+                  '_LIBCPP_OVERRIDABLE_FUNC_VIS',
+                  '_LIBCPP_EXCEPTION_ABI',
+                  '_LIBCPP_ENUM_VIS',
+                  '_LIBCPP_EXTERN_TEMPLATE_TYPE_VIS',
+                  '_LIBCPP_INTERNAL_LINKAGE',
+                  '_LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION',
+                  '_LIBCPP_HIDE_FROM_ABI_AFTER_V1',
+                  '_LIBCPP_INLINE_VISIBILITY',
+                  '_LIBCPP_CONSTEVAL',
+                  '_LIBCPP_NOALIAS',
+                  '_LIBCPP_USING_IF_EXISTS',
+                  '_LIBCPP_DEPRECATED',
+                  '_LIBCPP_DEPRECATED_IN_CXX11',
+                  '_LIBCPP_DEPRECATED_IN_CXX14',
+                  '_LIBCPP_DEPRECATED_IN_CXX17',
+                  '_LIBCPP_DEPRECATED_IN_CXX20',
+                  '_LIBCPP_NODISCARD',
+                  '_LIBCPP_NODISCARD_EXT',
+                  '_LIBCPP_NO_DESTROY',
+                  '_LIBCPP_WEAK',
+                  '_LIBCPP_CONSTINIT',
+                  '_LIBCPP_FALLTHROUGH',
+                  '_LIBCPP_STANDALONE_DEBUG',
+                  '_LIBCPP_NO_UNIQUE_ADDRESS',
+                 ]
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeConceptDeclarations: true
+BreakInheritanceList: BeforeColon
+EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: Always
+IndentWrappedFunctionNames: false
+IndentRequires: true
+InsertTrailingCommas: Wrapped
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+PackConstructorInitializers: NextLine
+
+PenaltyIndentedWhitespace: 2
+
+Language: Cpp
+Standard: c++20
+SpacesInAngles: Leave
+
+AlwaysBreakTemplateDeclarations: true
+PointerAlignment: Left
+
+
+# Disable formatting options which may break tests.
+SortIncludes: false
+ReflowComments: false
+
+# libc++'s preferred indentions of preprocessor statements.
+IndentPPDirectives: AfterHash
+
+# libc++ has some long names so we need more than the 80 column limit imposed by LLVM style, for sensible formatting
+ColumnLimit: 120

@@ -1,0 +1,5 @@
+Standard,Name,Assignee,CL,Status
+C++23,`ranges::to <https://wg21.link/P1206R7>`_,Konstantin Varlamov,`D142335 <https://reviews.llvm.org/D142335>`_,Complete
+C++23,`Pipe support for user-defined range adaptors <https://wg21.link/P2387R3>`_,"Louis Dionne, Jakub Mazurkiewicz, and Xiaoyang Liu",Various,Complete
+C++23,`Formatting Ranges <https://wg21.link/P2286R8>`_,Mark de Wever,Various,Complete
+C++20,`Stashing stashing iterators for proper flattening <https://wg21.link/P2770R0>`_,Jakub Mazurkiewicz,Various,In progress

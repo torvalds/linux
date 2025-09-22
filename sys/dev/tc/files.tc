@@ -1,0 +1,52 @@
+#	$OpenBSD: files.tc,v 1.15 2018/02/14 23:51:49 jsg Exp $
+#	$NetBSD: files.tc,v 1.26 2001/11/28 10:21:24 lukem Exp $
+#
+# Config file and device description for machine-independent
+# TURBOchannel code.  Included by ports that need it.
+
+device	tc {[slot = -1], [offset = -1]}
+#attach	tc at tcbus
+file	dev/tc/tc.c			tc
+
+# IOCTL ASIC
+device	ioasic {[offset = -1]}
+attach	ioasic at tc
+file	dev/tc/ioasic_subr.c		ioasic
+
+# LANCE attachments.
+#  lance device defined in sys/conf/files
+#  le_dec_subr	attribute defined in sys/dev/dec/files.dec
+
+attach	le at ioasic with le_ioasic:	le24, le_dec_subr
+file	dev/tc/if_le_ioasic.c		le_ioasic
+
+attach	le at tc with le_tc:		le24, le_dec_subr
+file	dev/tc/if_le_tc.c		le_tc
+
+# baseboard audio
+device	bba: audio, am7930
+attach	bba at ioasic
+file	dev/tc/bba.c			bba
+
+# TCDS dual channel SCSI
+device	tcds {[chip = -1]}
+attach	tcds at tc
+file	dev/tc/tcds.c			tcds
+
+# 53C[F]90 PMAZ single or dual channel SCSI
+device	asc: ncr53c9x, scsi
+file	dev/tc/asc.c			asc
+attach	asc at tc with asc_tc
+file	dev/tc/asc_tc.c			asc_tc
+attach	asc at tcds with asc_tcds
+file	dev/tc/asc_tcds.c		asc_tcds
+
+# 8530 UARTs using the MI 8530 driver
+device	zs {[channel = -1]}
+attach	zs at ioasic with zs_ioasic
+file	dev/tc/zs_ioasic.c		zs		needs-flag
+file	dev/ic/z8530sc.c		zs
+
+device	zstty: tty
+attach	zstty at zs
+file	dev/ic/z8530tty.c		zstty		needs-flag

@@ -1,0 +1,99 @@
+# $OpenBSD: test-patterns.out,v 1.2 2015/06/26 10:09:42 semarie Exp $
+string='/page/51'
+pattern='^/(%a+)/(%d+)$'
+ret=0 num=3
+0: /page/51
+1: page
+2: 51
+string='/Apage/51'
+pattern='/[^%d][%w%u][^%c]+()[%d]+'
+ret=0 num=2
+0: /Apage/51
+1: 
+string='/^page/51'
+pattern='/^(.a.e)/(.)'
+ret=0 num=3
+0: /^page/51
+1: page
+2: 5
+string='/page/page-51'
+pattern='/(.*)/%1-(%d+)'
+ret=0 num=3
+0: /page/page-51
+1: page
+2: 51
+string='/page/[51]'
+pattern='/page/(%b[])'
+ret=0 num=2
+0: /page/[51]
+1: [51]
+string=':-]'
+pattern=']+'
+ret=0 num=2
+0: :-]
+1: ]
+string=':-)'
+pattern='[)]+'
+ret=0 num=2
+0: :-)
+1: )
+string='/page/51'
+pattern='$^'
+ret=-1 num=0
+string='1234567890'
+pattern='([2-5]-)'
+ret=0 num=2
+0: 1234567890
+1: 
+string='****'
+pattern='^**$'
+ret=0 num=2
+0: ****
+1: ****
+string='xxxx'
+pattern='^x*$'
+ret=0 num=2
+0: xxxx
+1: xxxx
+string='/page/51'
+pattern='no-%d-match'
+ret=-1 num=0
+patterns-tester: str_match: invalid capture index
+string='/page/page-51'
+pattern='/(.*)/%9-(%d+)'
+patterns-tester: str_match: invalid pattern capture
+string=':-)'
+pattern=')+'
+patterns-tester: str_match: unfinished capture
+string='/page/51'
+pattern='/page/51('
+patterns-tester: str_match: malformed pattern (ends with '%')
+string='/page/51'
+pattern='/page/51%'
+patterns-tester: str_match: malformed pattern (missing ']')
+string='/page/51'
+pattern='/page/[51'
+patterns-tester: str_match: malformed pattern (missing arguments to '%b')
+string='/page/(51)'
+pattern='/page/%b('
+patterns-tester: str_match: too many captures
+string='/page/51'
+pattern='()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()'
+patterns-tester: str_match: missing '[' after '%f' in pattern
+string='/page/51'
+pattern='/page/%f'
+patterns-tester: str_match: missing '[' after '%f' in pattern
+string='/page/51'
+pattern='/page%f/51'
+patterns-tester: str_match: max repetition items
+string='q*********************************'
+pattern='*************************************q'
+patterns-tester: str_match: max repetition items
+string='q+++++++++++++++++++++++++++++++++'
+pattern='+++++++++++++++++++++++++++++++++++++q'
+patterns-tester: str_match: max repetition items
+string='q---------------------------------'
+pattern='-------------------------------------q'
+patterns-tester: str_match: max repetition items
+string='q?????????????????????????????????'
+pattern='?????????????????????????????????????q'

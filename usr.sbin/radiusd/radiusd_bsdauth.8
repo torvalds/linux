@@ -1,0 +1,61 @@
+.\"	$OpenBSD: radiusd_bsdauth.8,v 1.3 2024/08/04 03:56:57 yasuoka Exp $
+.\"
+.\" Copyright (c) 2014 Esdenera Networks GmbH
+.\" Copyright (c) 2014, 2024 Internet Initiative Japan Inc.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The following requests are required for all man pages.
+.\"
+.Dd $Mdocdate: August 4 2024 $
+.Dt RADIUSD_BSDAUTH 8
+.Os
+.Sh NAME
+.Nm radiusd_bsdauth
+.Nd provide authentication by BSD authentication system
+.Sh SYNOPSIS
+.Nm radiusd_bsdauth
+.Sh DESCRIPTION
+The
+.Nm
+utility is executed by
+.Xr radiusd 8
+as a module to provide authentication from the local system's
+.Xr authenticate 3
+interface,
+known as
+.Dq bsd auth .
+It only supports PAP, password based authentication.
+.Sh CONFIGURATIONS
+The
+.Nm
+supports the following configuration key and value:
+.Bl -tag -width Ds
+.It Ic restrict-group Ar group ...
+Restrict login only if the user is a member of the specified groups.
+.El
+.Sh FILES
+.Bl -tag -width "/usr/libexec/radiusd/radiusd_bsdauth" -compact
+.It Pa /usr/libexec/radiusd/radiusd_bsdauth
+.Dq bsdauth
+module executable.
+.El
+.Sh SEE ALSO
+.Xr authenticate 3 ,
+.Xr radiusd.conf 5 ,
+.Xr radiusd 8
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Ox 5.8 .

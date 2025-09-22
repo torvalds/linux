@@ -1,0 +1,49 @@
+.\"	$OpenBSD: mopa.out.1,v 1.16 2017/07/06 16:50:58 schwarze Exp $
+.\"
+.\" Copyright (c) 1996 Mats O Jansson.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 6 2017 $
+.Dt MOPA.OUT 1
+.Os
+.Sh NAME
+.Nm mopa.out
+.Nd create MOP image from another executable format
+.Sh SYNOPSIS
+.Nm mopa.out
+.Ar infile
+.Ar outfile
+.Sh DESCRIPTION
+.Nm
+is used to convert a file from another executable format to a MOP-image.
+.Pp
+Elf64 alpha images, as well as Elf32 and a.out VAX images,
+are the only currently supported input formats.
+.Sh SEE ALSO
+.Xr mopchk 1 ,
+.Xr mopprobe 1 ,
+.Xr moptrace 1 ,
+.Xr elf 5 ,
+.Xr mopd 8
+.Sh AUTHORS
+.An Lloyd Parkes
+.An Jason R. Thorpe

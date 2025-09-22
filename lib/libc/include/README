@@ -1,0 +1,110 @@
+So you want to add an interface to libc...
+
+CASE I: internal symbols
+
+  A) used in a single file
+     Duh: use whatever name you want and make it static
+
+  B) used in multiple files
+     Give it a name in the implementation namespace (leading underbar)
+     and declare it in a __{BEGIN,END}_HIDDEN_DECLS block in a .h
+     file inside libc.  If it's used in just a single subdir of
+     libc *and* that subdir has an appropriate .h file in it, then
+     declare it there.
+     Example: stdio/local.h.
+     Otherwise, declare it in one of the hidden/* files.
+     Example: _mktemp() in hidden/stdio.h
+
+CASE II: external symbols
+
+  First of all, add your symbol to Symbols.list.  MD symbols go in
+  arch/*/Symbols.list (shock, I know)
+
+  Declare your function in the appropriate header.  It almost certainly
+  should be in a public header installed under /usr/include/.  Exceptions
+  are symbols that are just shared between libc and libpthread/csu/ld.so
+  which are only declared in libc/include/* or just in each .c file.
+
+  A) objects (variables)
+     That's it, you're done.
+
+
+  B) plain C functions (not syscalls)
+     1) functions that are *not* called from inside libc
+
+	If this function is specified in the ISO C standard or its
+	name begins with an underbar, then in the hidden/* version
+	of the header where you declared the function, add this line:
+		PROTO_STD_DEPRECATED(your_function_name);
+
+	Otherwise, this is *not* a function specified in the ISO C
+	standard and its name begins with a letter.  In the hidden/*
+	version of the header where you declared the function, add
+	this line:
+		PROTO_DEPRECATED(your_function_name);
+
+	Note: the "DEPRECATED" suffix is about a detail of
+	how the macros work and has nothing to do with whether the
+	function itself is a Good Thing vs deprecated.
+
+     2) functions that are called from inside libc
+
+	In the hidden/* version of the header where you declared
+	the function, add this line:
+		PROTO_NORMAL(your_function_name);
+
+	Then, in the .c file(s) where the function is defined:
+	 - if the function is specified in the ISO C standard or
+	   its name begins with an underbar, add
+		DEF_STRONG(your_function_name);
+
+	 - otherwise, add:
+		DEF_WEAK(your_function_name);
+
+
+  C) syscalls that don't require any wrapping
+
+     In the hidden/* version of the header where you declared the
+     function, add this line:
+	PROTO_NORMAL(your_function_name);
+
+     Generate the stub by adding it to the ASM variable in
+     libc/sys/Makefile.inc
+
+
+  D) syscalls that require cancellation or similar wrappers that don't
+     change the function signature
+
+     Generate the stub by adding it to the HIDDEN (*not* ASM!)
+     variable in libc/sys/Makefile.inc
+
+     In the hidden/* version of the header where you declared the
+     function, add this line:
+	PROTO_WRAP(your_function_name);
+
+     The wrapper function should be defined in
+	libc/sys/w_your_function_name.c
+     which should define WRAP(your_function_name) and follow it
+     with DEF_WRAP(your_function_name).  Look at libc/sys/w_sigaction.c
+     for an example.
+
+     By default, libc code that calls your_function_name() will get
+     the real syscall and *not* the wrapper.  libc calls that need
+     to go through the wrapper should invoke WRAP(your_function_name)
+
+
+  E) syscalls that require libc wrappers for other reasons
+     First of all, make sure this really is the Right Thing.  Talk
+     with kettenis, deraadt, millert, and guenther.
+
+     If the actual syscall doesn't have the same calling convention
+     as the C interface, then maybe it shouldn't be exported at all
+     and you should just have an ASM stub, like SYS___tfork -->
+     __tfork_thread() or SYS_break --> brk() and sbrk().  If it
+     _could_ be called from C, then give the syscall a name different
+     from the C API.  Syscalls that fail this for historical reasons
+     (e.g., exit == _exit(2)) are generated with PSEUDO/PSEUDO_NOERR
+     in libc/sys/Makefile.inc, so the ASM stub has a leading underbar.
+     Go read gen/getlogin.c rev 1.13 for an example of how to do
+     this, but don't pick this option, really.
+

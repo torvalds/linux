@@ -1,0 +1,9 @@
+#	$OpenBSD: files.vexpress,v 1.11 2018/07/09 09:54:01 patrick Exp $
+
+device sysreg
+attach sysreg at fdt
+file	arch/armv7/vexpress/sysreg.c	sysreg
+
+device	pciecam: pcibus
+attach	pciecam at fdt
+file	arch/armv7/vexpress/pciecam.c	pciecam

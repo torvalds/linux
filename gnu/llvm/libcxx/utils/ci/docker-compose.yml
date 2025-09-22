@@ -1,0 +1,37 @@
+version: '3.7'
+
+x-versions: &compiler_versions
+  GCC_LATEST_VERSION: 14
+  LLVM_HEAD_VERSION: 19
+
+services:
+  buildkite-builder:
+    image: ghcr.io/libcxx/buildkite-builder:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: buildkite-builder
+      args:
+        BASE_IMAGE: ubuntu:noble
+        <<: *compiler_versions
+  actions-builder:
+    image: ghcr.io/libcxx/actions-builder:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: actions-builder
+      args:
+        BASE_IMAGE: ghcr.io/actions/actions-runner:2.317.0
+        <<: *compiler_versions
+  android-buildkite-builder:
+    image: ghcr.io/libcxx/android-buildkite-builder:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: android-buildkite-builder
+      args:
+        BASE_IMAGE: ubuntu:noble
+        ANDROID_CLANG_VERSION: r498229b
+        ANDROID_CLANG_PREBUILTS_COMMIT: 5186d132c99aa75dc25207c392e3ea5b93d0107e
+        ANDROID_SYSROOT_BID: 10957860
+        <<: *compiler_versions

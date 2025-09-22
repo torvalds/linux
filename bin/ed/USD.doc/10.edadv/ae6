@@ -1,0 +1,519 @@
+.\"	$OpenBSD: ae6,v 1.4 2004/04/06 08:19:20 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ae6	8.1 (Berkeley) 6/8/93
+.\"
+.NH
+CUT AND PASTE WITH THE EDITOR
+.PP
+Now we move on to manipulating pieces of files _
+individual lines or groups of lines.
+This is another area where new users seem
+unsure of themselves.
+.SH
+Filenames
+.PP
+The first step is to ensure that you know the
+.UL ed
+commands for reading and writing files.
+Of course you can't go very far without knowing
+.UL r
+and
+.UL w .
+Equally useful, but less well known, is the `edit' command
+.UL e .
+Within
+.UL ed ,
+the command
+.P1
+e  newfile
+.P2
+says `I want to edit a new file called
+.UL newfile ,
+without leaving the editor.'
+The
+.UL e
+command discards whatever you're currently working on
+and starts over on 
+.UL newfile .
+It's exactly the same as if you had quit with the
+.UL q
+command, then re-entered
+.UL ed
+with a new file name,
+except that if you have a pattern remembered, then a command
+like
+.UL //
+will still work.
+.PP
+If you enter
+.UL ed
+with the command
+.P1
+ed  file
+.P2
+.UL ed 
+remembers the name of the file,
+and any subsequent
+.UL e ,
+.UL r ,
+or
+.UL w
+commands that don't contain a filename
+will refer to this remembered file.
+Thus
+.P1 2
+.ta .5i .6i .7i
+ed  file1
+ ... (editing) ...
+w	(writes back in file1)
+e  file2	(edit new file, without leaving editor)
+ ... (editing on file2) ...
+w	(writes back on file2)
+.P2
+(and so on) does a series of edits on various files
+without ever leaving
+.UL ed
+and without typing the name of any file more than once.
+(As an aside, if you examine the sequence of commands here,
+you can see why many
+UNIX
+systems use
+.UL e
+as a synonym
+for
+.UL ed .)
+.PP
+You can find out the remembered file name at any time
+with the
+.UL f
+command;
+just type
+.UL f
+without a file name.
+You can also change the name of the remembered file name with
+.UL f ;
+a useful sequence is
+.P1
+ed  precious
+f  junk
+ ... (editing) ...
+.P2
+which gets a copy of a precious file,
+then uses
+.UL f
+to guarantee that a careless 
+.UL w
+command won't clobber the original.
+.SH
+Inserting One File into Another
+.PP
+Suppose you have a file called
+`memo',
+and you want the file called
+`table'
+to be inserted just after the reference to
+Table 1.
+That is, in
+`memo'
+somewhere is a line that says
+.IP
+Table 1 shows that ...
+.LP
+and the data contained in
+`table'
+has to go there,
+probably so it will be formatted
+properly by
+.UL nroff
+or
+.UL troff .
+Now what?
+.PP
+This one is easy.
+Edit
+`memo',
+find
+`Table 1',
+and add the file
+`table'
+right there:
+.P1
+ed  memo
+/Table 1/
+.ft I
+Table 1 shows that ... [response from ed]
+.ft
+\&\*.r  table
+.P2
+The critical line is the last one.
+As we said earlier, the
+.UL r
+command reads a file;
+here you asked for it to be read in right after
+line dot.
+An
+.UL r
+command without any address
+adds lines at the end,
+so it is the same as
+.UL $r .
+.SH
+Writing out Part of a File
+.PP
+The other side of the coin is writing out part of
+the document you're editing.
+For example, maybe
+you want to copy out into a separate file
+that table from the previous example,
+so it can be formatted and tested separately.
+Suppose that in the file being edited 
+we have
+.P1
+\&\*.TS
+ ...[lots of stuff]
+\&\*.TE
+.P2
+which is the way a table is set up for the
+.UL tbl
+program.
+To isolate
+the table
+in a separate file called
+`table',
+first find the start of the table
+(the `.TS' line), then write out the interesting part:
+.P1
+/^\*e\*.TS/
+.ft I
+\&\*.TS  [ed prints the line it found]
+.ft R
+\&\*.,/^\*e\*.TE/w table
+.P2
+and the job is done.
+If you are confident, you can do it all at once with
+.P1
+/^\*e\*.TS/;/^\*e\*.TE/w table
+.P2
+and now you have two copies, one in the file you're still editing,
+one in the file `table' you've just written.
+.PP
+The point is that the
+.UL w
+command can
+write out a group of lines, instead of the whole file.
+In fact, you can write out a single line if you like:
+just give one line number instead of two.
+For example, if you have just typed a horribly complicated line
+and you know that it (or something like it) is going to be needed later,
+then save it _ don't re-type it.
+In the editor, say
+.P1
+a
+\&...lots of stuff...
+\&...horrible line...
+\&\*.
+\&\*.w  temp
+a
+\&\*.\*.\*.more stuff\*.\*.\*.
+\&\*.
+\&\*.r temp
+a
+\&\*.\*.\*.more stuff\*.\*.\*.
+\&\*.
+.P2
+This last example is worth studying, to be sure you appreciate
+what's going on.
+.SH
+Moving Lines Around
+.PP
+Suppose you want to 
+move a paragraph from its present position in a paper
+to the end.
+How would you do it?
+As a concrete example, suppose each paragraph in the paper
+begins with the formatting command
+`.PP'.
+Think about it and write down the details before reading on.
+.PP
+The brute force way
+(not necessarily bad)
+is to write the paragraph onto a temporary file,
+delete it from its current position,
+then read in the temporary file at the end.
+Assuming that you are sitting on the 
+`.PP' command that begins
+the paragraph, this is the sequence of commands:
+.P1
+\&\*.,/^\*e\*.PP/-w temp
+\&\*.,//-d
+$r temp
+.P2
+That is, from where you are now
+(`\*.')
+until one line before the next `\*.PP'
+(`/^\*e\*.PP/\-')
+write onto
+`temp'.
+Then delete the same lines.
+Finally, read
+`temp'
+at the end.
+.PP
+As we said, that's the brute force way.
+The easier way (often)
+is to use the
+.ul
+move
+command
+.UL m
+that 
+.UL ed
+provides _
+it lets you do the whole set of operations
+at one crack,
+without any temporary file.
+.PP
+The 
+.UL m
+command
+is like many other
+.UL ed
+commands in that it takes up to two line numbers in front
+that tell what lines are to be affected.
+It is also
+.ul
+followed
+by a line number that tells where the lines are to go.
+Thus
+.P1
+line1, line2 m line3
+.P2
+says to move all the lines between
+`line1'
+and
+`line2'
+after
+`line3'.
+Naturally, any of
+`line1'
+etc., can be patterns between slashes,
+$
+signs, or other ways to specify lines.
+.PP
+Suppose again that you're sitting at the first line of the
+paragraph.
+Then you can say
+.P1
+\&\*.,/^\*e\*.PP/-m$
+.P2
+That's all.
+.PP
+As another example of a frequent operation,
+you can reverse the order of two adjacent lines
+by moving the first one
+to after the second.
+Suppose that you are positioned at the first.
+Then
+.P1
+m+
+.P2
+does it.
+It says to move line dot to after one line after line dot.
+.PP
+As you can see, the
+.UL m
+command is more succinct and direct than
+writing, deleting and re-reading.
+When is brute force better anyway?
+This is a matter of personal taste _
+do what you have most confidence in.
+The main difficulty with the
+.UL m
+command
+is that if you use patterns to specify both the lines
+you are moving and the target,
+you have to take care that you specify them properly,
+or you may well not move the lines you thought you did.
+The result of a botched
+.UL m
+command can be a ghastly mess.
+Doing the job a step at a time
+makes it easier for you to verify at each step
+that you accomplished what you wanted to.
+It's also a good idea to issue a 
+.UL w
+command
+before doing anything complicated;
+then if you goof, it's easy to back up
+to where you were.
+.SH
+Marks
+.PP
+.UL ed
+provides a facility for marking a line
+with a particular name so you can later reference it
+by name
+regardless of its actual line number.
+This can be handy for moving lines,
+and for keeping track of them even after they've been moved.
+The
+.ul
+mark
+command is
+.UL k ;
+the command
+.P1
+kx
+.P2
+marks the current line with the name `x'.
+If a line number precedes the
+.UL k ,
+that line is marked.
+(The mark name must be a single lower case letter.)
+Now you can refer to the marked line with the address
+.P1
+\(fmx
+.P2
+.PP
+Marks are most useful for moving things around.
+Find the first line of the block to be moved, and mark it
+with
+.UL ka .
+Then find the last line and mark it with
+.UL kb .
+Now position yourself at the place where the stuff is to go
+and say
+.P1
+\(fma,\(fmbm\*.
+.P2
+.PP
+Bear in mind that only one line can have a particular
+mark name associated with it
+at any given time.
+.SH
+Copying Lines
+.PP
+We mentioned earlier the idea of saving a line
+that was hard to type or used often,
+so as to cut down on typing time.
+Of course this could be more than one line;
+then the saving is presumably even greater.
+.PP
+.UL ed
+provides another command,
+called
+.UL t
+(for `transfer')
+for making a copy of a group of one or more lines
+at any point.
+This is often easier than writing and reading.
+.PP
+The 
+.UL t
+command is identical to the
+.UL m
+command, except that instead of moving lines
+it simply duplicates them at the place you named.
+Thus
+.P1
+1,$t$
+.P2
+duplicates the entire contents that you are editing.
+A more common use for
+.UL t
+is for creating a series of lines that differ only slightly.
+For example, you can say
+.P1
+.ta 1i
+a
+\&..........  x  ......... (long line)
+\&\*.
+t\*.	(make a copy)
+s/x/y/	(change it a bit)
+t\*.	(make third copy)
+s/y/z/	(change it a bit)
+.P2
+and so on.
+.SH
+The Temporary Escape `!'
+.PP
+Sometimes it is convenient to be able
+to temporarily escape from the editor to do
+some other
+.UX
+command,
+perhaps one of the file copy or move commands
+discussed in section 5,
+without leaving the editor.
+The `escape' command 
+.UL !
+provides a way to do this.
+.PP
+If you say
+.P1
+!any UNIX command
+.P2
+your current editing state is suspended,
+and the
+.UX
+command you asked for is executed.
+When the command finishes,
+.UL ed
+will signal you by printing another
+.UL ! ;
+at that point you can resume editing.
+.PP
+You can really do
+.ul
+any
+.UX
+command, including another 
+.UL ed .
+(This is quite common, in fact.)
+In this case, you can even do another
+.UL ! .
+.PP
+On Berkeley 
+.UX
+systems, there is an additional (and preferable) mechanism called
+.ul
+job control
+which lets you suspend your edit session (or, for that matter,
+any program), return to the shell from 
+which you invoked that program, and issue any commands, then resume
+the program from the point where it was stopped.  See
+.ul
+An Introduction to the C Shell
+for more details.

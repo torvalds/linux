@@ -1,0 +1,107 @@
+.\"	$OpenBSD: boca.4,v 1.12 2014/02/20 17:56:35 schwarze Exp $
+.\"
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Systems Programming Group of the University of Utah Computer
+.\" Science Department.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
+.\"	from: Id: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
+.\"
+.Dd $Mdocdate: February 20 2014 $
+.Dt BOCA 4
+.Os
+.Sh NAME
+.Nm boca
+.Nd multiplexing serial communications interface
+.Sh SYNOPSIS
+For 4-port BB1004 boards and 8-port BB1008 boards:
+.Pp
+.Cd "boca0 at isa? port 0x100 irq 5"
+.Cd "com* at boca?"
+.Pp
+For 16-port BB2016 boards:
+.Pp
+.Cd "boca0 at isa? port 0x100 irq 5"
+.Cd "boca1 at isa? port 0x140 irq 5"
+.Cd "com* at boca?"
+.Pp
+(The BB2016 is functionally equivalent to two BB1008 boards,
+and is configured as such.)
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for BOCA Research BB1004, BB1008, and BB2016
+boards that multiplex together up to four, eight, or sixteen
+.Tn EIA
+.Tn RS-232C
+.Pq Tn CCITT V.28
+communications interfaces.
+.Pp
+Each
+.Nm
+device is the master device for up to eight
+.Nm com
+devices.
+The kernel configuration specifies these
+.Nm com
+devices as slave devices of the
+.Nm
+device, as shown in
+.Sx SYNOPSIS .
+The slave ID given for each
+.Nm com
+device determines which bit in the interrupt multiplexing register is
+tested to find interrupts for that device.
+The
+.Cd port
+specification for the
+.Nm
+device is used to compute the base addresses for the
+.Nm com
+subdevices and the port for the interrupt multiplexing register.
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa /dev/tty??
+.El
+.Sh SEE ALSO
+.Xr com 4 ,
+.Xr intro 4 ,
+.Xr isa 4
+.Sh HISTORY
+The
+.Nm
+driver was written by
+.An Charles Hannum ,
+based on the
+.Nm ast
+driver and source code from
+.An David Muir Sharnoff .
+David wishes to acknowledge the assistance of
+.An Jason Venner
+in determining how to use the BOCA boards.

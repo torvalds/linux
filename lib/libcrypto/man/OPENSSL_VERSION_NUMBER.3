@@ -1,0 +1,282 @@
+.\" $OpenBSD: OPENSSL_VERSION_NUMBER.3,v 1.14 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL 1f13ad31 Dec 25 17:50:39 2017 +0800
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Ulf Moeller <ulf@openssl.org>,
+.\" Richard Levitte <levitte@openssl.org>, and
+.\" Bodo Moeller <bodo@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2015, 2016, 2017 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OPENSSL_VERSION_NUMBER 3
+.Os
+.Sh NAME
+.Nm OPENSSL_VERSION_NUMBER ,
+.Nm LIBRESSL_VERSION_NUMBER ,
+.Nm LIBRESSL_VERSION_TEXT ,
+.Nm OPENSSL_VERSION_TEXT ,
+.Nm OpenSSL_version_num ,
+.Nm OpenSSL_version ,
+.Nm SSLeay ,
+.Nm SSLeay_version
+.Nd get OpenSSL version number
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/opensslv.h
+.Fd #define OPENSSL_VERSION_NUMBER 0x020000000L
+.Fd #define LIBRESSL_VERSION_NUMBER 0x02nnnn00fL
+.Fd #define LIBRESSL_VERSION_TEXT \(dqLibreSSL 2.n.n\(dq
+.Fd #define OPENSSL_VERSION_TEXT LIBRESSL_VERSION_TEXT
+.In openssl/crypto.h
+.Ft unsigned long
+.Fn OpenSSL_version_num void
+.Ft const char *
+.Fo OpenSSL_version
+.Fa "int t"
+.Fc
+.Ft long
+.Fn SSLeay void
+.Ft const char *
+.Fo SSLeay_version
+.Fa "int t"
+.Fc
+.Sh DESCRIPTION
+.Dv OPENSSL_VERSION_NUMBER
+and
+.Dv LIBRESSL_VERSION_NUMBER
+are numeric release version identifiers.
+The first two digits contain the major release number,
+the third and fourth digits the minor release number,
+and the fifth and sixth digits the fix release number.
+For OpenSSL, the seventh and eight digits contain the patch release number
+and the final digit is 0 for development, 1 to e for betas 1 to 14, or f
+for release.
+For LibreSSL,
+.Dv OPENSSL_VERSION_NUMBER
+is always 0x020000000,
+and
+.Dv LIBRESSL_VERSION_NUMBER
+always ends with 00f.
+.Pp
+For example:
+.Bd -literal -offset indent
+OPENSSL_VERSION_NUMBER:
+0x000906000 == 0.9.6 dev
+0x000906023 == 0.9.6b beta 3
+0x00090605f == 0.9.6e release
+0x020000000 == 2.0.0 for any version of LibreSSL
+
+LIBRESSL_VERSION_NUMBER:
+0x02070000f == LibreSSL 2.7.0
+.Ed
+.Pp
+OpenSSL versions prior to 0.9.3 had identifiers < 0x0930.
+For versions between 0.9.3 and 0.9.5,
+the seventh digit was 1 for release and 0 otherwise,
+and the eighth and ninth digits were the patch release number.
+.Pp
+For example:
+.Bd -literal
+0x000904100 == 0.9.4 release
+0x000905000 == 0.9.5 dev
+.Ed
+.Pp
+OpenSSL version 0.9.5a had an interim interpretation that is like the current
+one, except the patch level got the highest bit set, to keep continuity.
+The number was therefore 0x0090581f.
+.Pp
+.Fn OpenSSL_version_num
+returns
+.Dv OPENSSL_VERSION_NUMBER .
+.Pp
+.Fn OpenSSL_version
+returns different strings depending on
+.Fa t :
+.Bl -tag -width Ds
+.It Dv OPENSSL_VERSION
+The text variant of the version number,
+.Dv OPENSSL_VERSION_TEXT .
+For OpenSSL, it includes the release date, for example
+.Qq OpenSSL 0.9.5a 1 Apr 2000 .
+For LibreSSL,
+.Dv LIBRESSL_VERSION_TEXT
+is returned.
+.It Dv OPENSSL_CFLAGS
+The compiler flags set for the compilation process in the form
+.Qq compiler: ...
+if available or
+.Qq compiler: information not available
+otherwise.
+LibreSSL never provides compiler information.
+.It Dv OPENSSL_BUILT_ON
+The date of the build process in the form
+.Qq built on: ...
+if available or
+.Qq built on: date not available
+otherwise.
+LibreSSL never provides information on the build date.
+.It Dv OPENSSL_PLATFORM
+The Configure target of the library build in the form
+.Qq platform: ...
+if available or
+.Qq platform: information not available
+otherwise.
+LibreSSL never provides platform information.
+.It Dv OPENSSL_DIR
+The
+.Dv OPENSSLDIR
+setting of the library build in the form
+.Qq OPENSSLDIR: Qq ...
+if available or
+.Qq OPENSSLDIR: N/A
+otherwise.
+For LibreSSL, the default is
+.Qq OPENSSLDIR: Qq /etc/ssl .
+.It Dv OPENSSL_ENGINES_DIR
+The
+.Dv ENGINESDIR
+setting of the library build in the form
+.Qq ENGINESDIR: Qq ...
+if available or
+.Qq ENGINESDIR: N/A
+otherwise.
+LibreSSL never provides or uses an
+.Dv ENGINESDIR .
+.El
+.Pp
+For an unknown
+.Fa t ,
+the text
+.Qq not available
+is returned.
+.Pp
+For backward compatibility,
+.Dv SSLEAY_VERSION_NUMBER
+is an alias for
+.Dv OPENSSL_VERSION_NUMBER
+and
+.Fn SSLeay
+for
+.Fn OpenSSL_version_num .
+The legacy function
+.Fn SSLeay_version
+is similar to
+.Fn OpenSSL_version
+except that it takes arguments
+.Dv SSLEAY_VERSION ,
+.Dv SSLEAY_CFLAGS ,
+.Dv SSLEAY_BUILT_ON ,
+.Dv SSLEAY_PLATFORM ,
+and
+.Dv SSLEAY_DIR
+which expand to
+.Em other
+numerical values than the corresponding
+.Dv OPENSSL_*
+macros.
+.Sh RETURN VALUES
+.Fn OpenSSL_version_num
+and
+.Fn SSLeay
+return a constant version number.
+.Pp
+.Fn OpenSSL_version
+and
+.Fn SSLeay_version
+return pointers to static strings.
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr OPENSSL_config 3
+.Sh HISTORY
+.Fn SSLeay ,
+.Fn SSLeay_version ,
+and
+.Dv SSLEAY_VERSION_NUMBER
+first appeared in SSLeay 0.6.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Dv OPENSSL_VERSION_NUMBER
+first appeared in the first OpenSSL release, OpenSSL 0.9.1c,
+and has been available since
+.Ox 2.6 .
+.Pp
+.Dv SSLEAY_DIR
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Dv LIBRESSL_VERSION_NUMBER
+first appeared in LibreSSL 2.0.0 and
+.Ox 5.6
+and got its final format in LibreSSL 2.3.2 and
+.Ox 5.9 .
+.Dv LIBRESSL_VERSION_TEXT
+first appeared in LibreSSL 2.2.2 and
+.Ox 5.8 .
+.Pp
+.Fn OpenSSL_version_num
+and
+.Fn OpenSSL_version
+first appeared in OpenSSL 1.1.0
+and have been available since LibreSSL 2.7.1 and
+.Ox 6.3 .

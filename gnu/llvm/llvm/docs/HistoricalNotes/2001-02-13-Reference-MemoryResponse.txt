@@ -1,0 +1,47 @@
+Date: Tue, 13 Feb 2001 18:25:42 -0600
+From: Vikram S. Adve <vadve@cs.uiuc.edu>
+To: Chris Lattner <sabre@nondot.org>
+Subject: RE: LLVM Concerns...
+
+> 1. Reference types
+>    Right now, I've spec'd out the language to have a pointer type, which
+>    works fine for lots of stuff... except that Java really has
+>    references: constrained pointers that cannot be manipulated: added and
+>    subtracted, moved, etc... Do we want to have a type like this?  It
+>    could be very nice for analysis (pointer always points to the start of
+>    an object, etc...) and more closely matches Java semantics.  The
+>    pointer type would be kept for C++ like semantics.  Through analysis,
+>    C++ pointers could be promoted to references in the LLVM
+>    representation.
+
+
+You're right, having references would be useful.  Even for C++ the *static*
+compiler could generate references instead of pointers with fairly
+straightforward analysis.  Let's include a reference type for now.  But I'm
+also really concerned that LLVM is becoming big and complex and (perhaps)
+too high-level.  After we get some initial performance results, we may have
+a clearer idea of what our goals should be and we should revisit this
+question then.
+
+> 2. Our "implicit" memory references in assembly language:
+>    After thinking about it, this model has two problems:
+>       A. If you do pointer analysis and realize that two stores are
+>          independent and can share the same memory source object,
+
+not sure what you meant by "share the same memory source object"
+
+> there is
+>          no way to represent this in either the bytecode or assembly.
+>       B. When parsing assembly/bytecode, we effectively have to do a full
+>          SSA generation/PHI node insertion pass to build the dependencies
+>          when we don't want the "pinned" representation.  This is not
+>          cool.
+
+I understand the concern.  But again, let's focus on the performance first
+and then look at the language design issues.  E.g., it would be good to know
+how big the bytecode files are before expanding them further.  I am pretty
+keen to explore the implications of LLVM for mobile devices.  Both bytecode
+size and power consumption are important to consider there.
+
+--Vikram
+

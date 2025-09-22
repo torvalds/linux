@@ -1,0 +1,126 @@
+.\" $OpenBSD: __thrsigdivert.2,v 1.6 2023/02/22 06:54:13 guenther Exp $
+.\"
+.\" Copyright (c) 2012 Philip Guenther <guenther@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 22 2023 $
+.Dt __THRSIGDIVERT 2
+.Os
+.Sh NAME
+.Nm __thrsigdivert
+.Nd synchronously accept a signal
+.Sh SYNOPSIS
+.In sys/time.h
+.In signal.h
+.Ft int
+.Fn __thrsigdivert "sigset_t set" "siginfo_t *info" "const struct timespec *timeout"
+.Sh DESCRIPTION
+The
+.Fn __thrsigdivert
+function is used to implement
+.Fn sigwait .
+It selects a signal pending for the calling thread or process from
+.Fa set ,
+atomically clears it from that set of pending signals,
+and returns that signal number.
+If prior to the call to
+.Fn __thrsigdivert
+there are multiple pending instances of a single signal number,
+it is undefined whether upon successful return there are any remaining
+pending signals for that signal number.
+If no signal in
+.Fa set
+is pending at the time of the call,
+the thread shall be suspended until one or more becomes pending.
+The signals defined by
+.Fa set
+should have been blocked in all threads in the process at the time
+of the call to
+.Fn __thrsigdivert ;
+otherwise the signal may be delivered to some thread that does not
+have it blocked.
+.Pp
+If more than one thread is using
+.Fn __thrsigdivert
+to wait for the same signal,
+no more than one of these threads shall return from
+.Fn __thrsigdivert
+for any given signal that is sent.
+Which thread returns from
+.Fn __thrsigdivert
+if more than a single thread is waiting is unspecified.
+.Pp
+If the
+.Fa info
+argument is not
+.Dv NULL ,
+then a
+.Vt siginfo_t
+will be stored there which has the selected signal number in its
+.Fa si_signo
+member and the cause of the signal in its
+.Fa si_code
+member.
+.Pp
+If the
+.Fa timeout
+argument is not
+.Dv NULL
+and no selected signal is currently pending,
+then
+.Fn __thrsigdivert
+will wait no longer than the specified time period for a signal to
+arrive before failing.
+.Sh RETURN VALUES
+If successful,
+the number of the signal that was accepted is returned.
+Otherwise, a value of -1 is returned and
+.Dv errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn __thrsigdivert
+will succeed unless:
+.Bl -tag -width Er
+.It Bq Er EWOULDBLOCK
+The timeout was reached before a selected signal was received.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigwait 3
+.Sh STANDARDS
+The
+.Fn __thrsigdivert
+function is specific to
+.Ox
+and should not be used in portable applications.
+.Sh HISTORY
+A
+.Fn thrsigdivert
+syscall appeared in
+.Ox 3.9 .
+The
+.Fa info
+and
+.Fa timeout
+arguments were added in
+.Ox 4.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Fn thrsigdivert
+syscall was created by
+.An Ted Unangst Aq Mt tedu@OpenBSD.org .
+This manual page was written by
+.An Philip Guenther Aq Mt guenther@OpenBSD.org .

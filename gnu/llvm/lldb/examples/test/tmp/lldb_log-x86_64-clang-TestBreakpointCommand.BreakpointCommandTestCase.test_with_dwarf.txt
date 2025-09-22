@@ -1,0 +1,55 @@
+com.apple.main-thread /Volumes/data/lldb/svn/ToT/build/Debug/LLDB.framework/Versions/A/Resources/debugserver arguments:
+argv[0]="/Volumes/data/lldb/svn/ToT/build/Debug/LLDB.framework/Versions/A/Resources/debugserver"
+argv[1]="localhost:33231"
+argv[2]="--native-regs"
+argv[3]="--setsid"
+argv[4]=NULL
+
+
+com.apple.main-thread Host::LaunchProcess (launch_info) => pid=55287, path='/Volumes/data/lldb/svn/ToT/build/Debug/LLDB.framework/Versions/A/Resources/debugserver' err = 0x00000000
+com.apple.main-thread ProcessGDBRemote::StartAsyncThread ()
+<lldb.process.gdb-remote.async> ProcessGDBRemote::AsyncThread (arg = 0x7fabc0997600, pid = 0) thread starting...
+<lldb.process.gdb-remote.async> ProcessGDBRemote::AsyncThread (arg = 0x7fabc0997600, pid = 0) listener.WaitForEvent (NULL, event_sp)...
+com.apple.main-thread <   1> send packet: +
+com.apple.main-thread history[1] tid=0x1307 <   1> send packet: +
+com.apple.main-thread <  19> send packet: $QStartNoAckMode#b0
+com.apple.main-thread <   1> read packet: +
+com.apple.main-thread <   6> read packet: $OK#9a
+com.apple.main-thread <   1> send packet: +
+com.apple.main-thread <  26> send packet: $QThreadSuffixSupported#00
+com.apple.main-thread <   6> read packet: $OK#00
+com.apple.main-thread <  27> send packet: $QListThreadsInStopReply#00
+com.apple.main-thread <   6> read packet: $OK#00
+com.apple.main-thread <  13> send packet: $qHostInfo#00
+com.apple.main-thread < 122> read packet: $cputype:16777223;cpusubtype:3;ostype:macosx;watchpoint_exceptions_received:after;vendor:apple;endian:little;ptrsize:8;#00
+com.apple.main-thread <  10> send packet: $vCont?#00
+com.apple.main-thread <  17> read packet: $vCont;c;C;s;S#00
+com.apple.main-thread <  27> send packet: $qVAttachOrWaitSupported#00
+com.apple.main-thread <   6> read packet: $OK#00
+
+...
+
+com.apple.main-thread ProcessGDBRemote::DoDestroy()
+com.apple.main-thread <   5> send packet: $k#00
+com.apple.main-thread error: failed to get response for 'k'
+com.apple.main-thread ProcessGDBRemote::DoDestroy - failed to send k packet
+com.apple.main-thread ProcessGDBRemote::StopAsyncThread ()
+<lldb.process.gdb-remote.async> ProcessGDBRemote::AsyncThread (arg = 0x7fabc1882000, pid = 55289) Got an event of type: 2...
+<lldb.process.gdb-remote.async> ProcessGDBRemote::AsyncThread (arg = 0x7fabc1882000, pid = 55289) got eBroadcastBitAsyncThreadShouldExit...
+<lldb.process.gdb-remote.async> ProcessGDBRemote::AsyncThread (arg = 0x7fabc1882000, pid = 55289) thread exiting...
+com.apple.root.default-priority ProcessGDBRemote::MonitorDebugserverProcess (baton=0x7fabc1882000, pid=55290, signo=2 (0x2), exit_status=-1)
+com.apple.main-thread <  18> send packet: $z0,100000e37,1#00
+com.apple.main-thread <   6> read packet: $OK#00
+com.apple.main-thread <  21> send packet: $z0,7fff5fc0d6e5,1#00
+com.apple.main-thread <   6> read packet: $OK#00
+com.apple.main-thread <  21> send packet: $z0,7fff8b132187,1#00
+com.apple.main-thread <   6> read packet: $OK#00
+com.apple.main-thread ProcessGDBRemote::DoDestroy()
+com.apple.main-thread <   5> send packet: $k#00
+com.apple.main-thread error: failed to get response for 'k'
+com.apple.main-thread ProcessGDBRemote::DoDestroy - failed to send k packet
+com.apple.main-thread ProcessGDBRemote::StopAsyncThread ()
+<lldb.process.gdb-remote.async> ProcessGDBRemote::AsyncThread (arg = 0x7fabc0bed200, pid = 55292) Got an event of type: 2...
+<lldb.process.gdb-remote.async> ProcessGDBRemote::AsyncThread (arg = 0x7fabc0bed200, pid = 55292) got eBroadcastBitAsyncThreadShouldExit...
+<lldb.process.gdb-remote.async> ProcessGDBRemote::AsyncThread (arg = 0x7fabc0bed200, pid = 55292) thread exiting...
+com.apple.root.default-priority ProcessGDBRemote::MonitorDebugserverProcess (baton=0x7fabc0bed200, pid=55293, signo=2 (0x2), exit_status=-1)

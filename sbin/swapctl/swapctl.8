@@ -1,0 +1,230 @@
+.\"	$OpenBSD: swapctl.8,v 1.38 2025/08/08 22:24:15 kirill Exp $
+.\"	$NetBSD: swapctl.8,v 1.14 1998/05/22 18:27:52 msaitoh Exp $
+.\"
+.\" Copyright (c) 1997 Matthew R. Green
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 8 2025 $
+.Dt SWAPCTL 8
+.Os
+.Sh NAME
+.Nm swapctl ,
+.Nm swapon
+.Nd system swap management tool
+.Sh SYNOPSIS
+.Nm swapctl
+.Fl A
+.Op Fl p Ar priority
+.Op Fl t Cm blk | noblk
+.Nm swapctl
+.Fl a
+.Op Fl p Ar priority
+.Ar path
+.Nm swapctl
+.Fl c
+.Fl p Ar priority
+.Ar path
+.Nm swapctl
+.Fl d
+.Ar path
+.Nm swapctl
+.Op Oo Fl l Oc | Fl s
+.Op Fl k
+.Nm swapon
+.Fl a | Ar path
+.Sh DESCRIPTION
+The
+.Nm
+program adds, removes,
+lists and prioritizes swap devices and files for the system.
+The
+.Nm swapon
+program acts the same as
+.Ic swapctl -a ,
+except if
+.Nm swapon
+itself is called with
+.Fl a ,
+in which case
+it acts as
+.Ic swapctl -A .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl A
+This option causes
+.Nm
+to read the
+.Pa /etc/fstab
+file for devices and files with an
+.Dq sw
+type, and adds all these entries
+as swap devices.
+If no swap devices are configured,
+.Nm
+will exit with an error code.
+.It Fl a
+The
+.Fl a
+option requires that a
+.Ar path
+also be in the argument list.
+The
+.Ar path
+is added to the kernel's list of swap devices using the
+.Xr swapctl 2
+system call.
+When using the
+.Nm swapon
+form of this command, the
+.Fl a
+option is treated the same as the
+.Fl A
+option, for backwards compatibility.
+.It Fl c
+The
+.Fl c
+option changes the priority of the listed swap device or file.
+.It Fl d Ar path
+The
+.Fl d
+option removes the listed
+.Ar path
+from the kernel's list of swap devices or files.
+.It Fl k
+The
+.Fl k
+option uses 1024 byte blocks instead of the default 512 byte.
+.It Fl l
+The
+.Fl l
+option lists the current swap devices and files, and their usage statistics.
+.It Fl p Ar priority
+The
+.Fl p
+option sets the priority of swap devices or files to the
+.Ar priority
+argument.
+.It Fl s
+The
+.Fl s
+option displays a single line summary of current swap statistics.
+.It Fl t Cm blk | noblk
+This flag modifies the function of the
+.Fl A
+option.
+The
+.Fl t
+option allows the type of device to add to be specified.
+An argument of
+.Cm blk
+causes all block devices in
+.Pa /etc/fstab
+to be added.
+An argument of
+.Cm noblk
+causes all non-block devices in
+.Pa /etc/fstab
+to be added.
+This option is useful in early system startup, where swapping
+may be needed before all file systems are available, such as during
+disk checks of large file systems.
+.El
+.Sh SWAP OPTIONS
+Lines such as the following
+specify swap devices in
+.Pa /etc/fstab :
+.Bd -literal -offset indent
+/dev/sd1b none swap sw
+d48d0e3fc1c39531.k none swap sw
+.Ed
+.Pp
+The initial swap device (root disk, partition b) need not appear in
+.Pa /etc/fstab ,
+though it is not an error for it to do so.
+.Pp
+Additional flags include:
+.Pp
+.Bl -tag -width nfsmntpt=/path -compact
+.It priority=N
+Swap devices and files may be assigned different priorities,
+to allow faster resources to be used first.
+Swap devices at the same priority are used in a round-robin fashion until
+there is no more space available at this priority, when the next priority
+level will be used.
+The default priority is 0, the highest.
+This value can be any valid integer,
+with higher values receiving less priority.
+.It nfsmntpt=/path
+This option is useful for swapping to NFS files.
+It specifies an existing directory
+.Pf / Ar path
+to be used as the local mount point for an NFS file system.
+Typically, once
+this mount has succeeded, the file to be used for swapping on will
+be available under this mount point.
+For example:
+.Bd -literal
+server:/export/swap/client none swap sw,nfsmntpt=/swap
+.Ed
+.El
+.Sh EXIT STATUS
+.Ex -std swapctl
+.Sh SEE ALSO
+.Xr swapctl 2 ,
+.Xr vnd 4 ,
+.Xr fstab 5 ,
+.Xr mount_nfs 8 ,
+.Xr mount_vnd 8
+.Sh HISTORY
+The
+.Nm
+program was originally developed in
+.Nx 1.3 .
+It was ported to
+.Ox 2.6
+by Tobias Weingartner.
+The original
+.Nm swapon
+program, provided for backwards compatibility, appeared in
+.Bx 4.0 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Matthew R. Green Aq Mt mrg@eterna.com.au .
+.Sh BUGS
+Local and remote swap files cannot be configured until the file
+systems they reside on are mounted read/write.
+The system startup scripts need to
+.Xr fsck 8
+all local file systems before this can happen.
+This process requires substantial amounts of memory on some systems.
+If one configures no
+local block swap devices on a machine that has local file systems to
+check and rely only on swap files, the machine will have no swap space
+at all during system
+.Xr fsck 8
+and may run out of real memory, causing fsck to abnormally exit and
+startup scripts to fail.

@@ -1,0 +1,10 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ClangSupportTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/Frontend",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "TimeProfilerTest.cpp" ]
+}

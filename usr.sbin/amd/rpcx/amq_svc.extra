@@ -1,0 +1,11 @@
+	extern SVCXPRT *lamqp;
+
+	if (transp != lamqp) {
+		struct sockaddr_in *fromsin = svc_getcaller(transp);
+
+		syslog(LOG_WARNING,
+		    "non-local amq attempt (might be from %s)",
+		    inet_ntoa(fromsin->sin_addr));
+		svcerr_noproc(transp);
+		return;
+	}

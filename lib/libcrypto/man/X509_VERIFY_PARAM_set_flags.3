@@ -1,0 +1,737 @@
+.\" $OpenBSD: X509_VERIFY_PARAM_set_flags.3,v 1.30 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL d33def66 Feb 9 14:17:13 2016 -0500
+.\" selective merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2018, 2021, 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>
+.\" and Viktor Dukhovni <viktor@dukhovni.org>.
+.\" Copyright (c) 2009, 2013, 2014, 2015, 2016, 2017 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_VERIFY_PARAM_SET_FLAGS 3
+.Os
+.Sh NAME
+.Nm X509_VERIFY_PARAM_get0_name ,
+.Nm X509_VERIFY_PARAM_set1_name ,
+.Nm X509_VERIFY_PARAM_set_flags ,
+.Nm X509_VERIFY_PARAM_clear_flags ,
+.Nm X509_VERIFY_PARAM_get_flags ,
+.Nm X509_VERIFY_PARAM_set_purpose ,
+.Nm X509_VERIFY_PARAM_set_trust ,
+.Nm X509_VERIFY_PARAM_set_time ,
+.Nm X509_VERIFY_PARAM_get_time ,
+.Nm X509_VERIFY_PARAM_add0_policy ,
+.Nm X509_VERIFY_PARAM_set1_policies ,
+.Nm X509_VERIFY_PARAM_set_depth ,
+.Nm X509_VERIFY_PARAM_get_depth ,
+.Nm X509_VERIFY_PARAM_set_auth_level ,
+.Nm X509_VERIFY_PARAM_set1_host ,
+.Nm X509_VERIFY_PARAM_add1_host ,
+.Nm X509_VERIFY_PARAM_set_hostflags ,
+.Nm X509_VERIFY_PARAM_get0_peername ,
+.Nm X509_VERIFY_PARAM_set1_email ,
+.Nm X509_VERIFY_PARAM_set1_ip ,
+.Nm X509_VERIFY_PARAM_set1_ip_asc
+.Nd X509 verification parameters
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509_vfy.h
+.Ft const char *
+.Fo X509_VERIFY_PARAM_get0_name
+.Fa "const X509_VERIFY_PARAM *param"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_set1_name
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "const char *name"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_set_flags
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "unsigned long flags"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_clear_flags
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "unsigned long flags"
+.Fc
+.Ft unsigned long
+.Fo X509_VERIFY_PARAM_get_flags
+.Fa "X509_VERIFY_PARAM *param"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_set_purpose
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "int purpose"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_set_trust
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "int trust"
+.Fc
+.Ft void
+.Fo X509_VERIFY_PARAM_set_time
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "time_t t"
+.Fc
+.Ft time_t
+.Fo X509_VERIFY_PARAM_get_time
+.Fa const X509_VERIFY_PARAM *param"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_add0_policy
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "ASN1_OBJECT *policy"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_set1_policies
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "STACK_OF(ASN1_OBJECT) *policies"
+.Fc
+.Ft void
+.Fo X509_VERIFY_PARAM_set_depth
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "int depth"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_get_depth
+.Fa "const X509_VERIFY_PARAM *param"
+.Fc
+.Ft void
+.Fo X509_VERIFY_PARAM_set_auth_level
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "int auth_level"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_set1_host
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "const char *name"
+.Fa "size_t namelen"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_add1_host
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "const char *name"
+.Fa "size_t namelen"
+.Fc
+.Ft void
+.Fo X509_VERIFY_PARAM_set_hostflags
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "unsigned int flags"
+.Fc
+.Ft char *
+.Fo X509_VERIFY_PARAM_get0_peername
+.Fa "X509_VERIFY_PARAM *param"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_set1_email
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "const char *email"
+.Fa "size_t emaillen"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_set1_ip
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "const unsigned char *ip"
+.Fa "size_t iplen"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_set1_ip_asc
+.Fa "X509_VERIFY_PARAM *param"
+.Fa "const char *ipasc"
+.Fc
+.Sh DESCRIPTION
+These functions manipulate an
+.Vt X509_VERIFY_PARAM
+object associated with a certificate verification operation.
+.Pp
+.Fn X509_VERIFY_PARAM_get0_name
+returns the name of the given
+.Fa param
+object, usually describing its purpose, for example
+.Qq default ,
+.Qq pkcs7 ,
+.Qq smime_sign ,
+.Qq ssl_client ,
+or
+.Qq ssl_server .
+For user-defined objects, the returned pointer may be
+.Dv NULL
+even if the object is otherwise valid.
+.Pp
+.Fn X509_VERIFY_PARAM_set1_name
+sets the name of
+.Fa param
+to a copy of
+.Fa name ,
+or to
+.Dv NULL
+if
+.Fa name
+is
+.Dv NULL .
+.Pp
+.Fn X509_VERIFY_PARAM_set_flags
+sets the flags in
+.Fa param
+by OR'ing it with
+.Fa flags .
+See the
+.Sx VERIFICATION FLAGS
+section for a complete description of values the
+.Fa flags
+parameter can take.
+.Pp
+If the
+.Fa flags
+argument includes any of the flags contained in
+.Dv X509_V_FLAG_POLICY_MASK ,
+that is, any of
+.Dv X509_V_FLAG_POLICY_CHECK ,
+.Dv X509_V_FLAG_EXPLICIT_POLICY ,
+.Dv X509_V_FLAG_INHIBIT_ANY ,
+and
+.Dv X509_V_FLAG_INHIBIT_MAP ,
+then
+.Dv X509_V_FLAG_POLICY_CHECK
+is set in addition to the flags contained in the
+.Fa flags
+argument.
+.Pp
+.Fn X509_VERIFY_PARAM_get_flags
+returns the flags in
+.Fa param .
+.Pp
+.Fn X509_VERIFY_PARAM_clear_flags
+clears the specified
+.Fa flags
+in
+.Fa param .
+.Pp
+Calling this function can result in unusual internal states of the
+.Fa param
+object, for example having a verification time configured but having
+.Dv X509_V_FLAG_USE_CHECK_TIME
+unset, or having
+.Dv X509_V_FLAG_EXPLICIT_POLICY
+set but
+.Dv X509_V_FLAG_POLICY_CHECK
+unset, which may have surprising effects.
+.Pp
+.Fn X509_VERIFY_PARAM_set_purpose
+sets the verification
+.Fa purpose
+identifier in
+.Fa param .
+This determines the acceptable purpose of the certificate chain, for example
+.Dv X509_PURPOSE_SSL_CLIENT
+or
+.Dv X509_PURPOSE_SSL_SERVER .
+Standard purposes are listed in
+.Xr X509_check_purpose 3 ,
+and additional purposes can be defined with
+.Xr X509_PURPOSE_add 3 .
+.Pp
+.Fn X509_VERIFY_PARAM_set_trust
+sets the trust setting in
+.Fa param
+to
+.Fa trust .
+.Pp
+.Fn X509_VERIFY_PARAM_set_time
+sets the flag
+.Dv X509_V_FLAG_USE_CHECK_TIME
+in
+.Fa param
+in addition to the flags already set and sets the verification time to
+.Fa t .
+If this function is not called, the current time is used instead,
+or the UNIX Epoch (January 1, 1970) if
+.Dv X509_V_FLAG_USE_CHECK_TIME
+is manually set using
+.Fn X509_VERIFY_PARAM_set_flags .
+.Pp
+.Fn X509_VERIFY_PARAM_add0_policy
+enables policy checking (it is disabled by default) and adds
+.Fa policy
+to the acceptable policy set.
+.Pp
+.Fn X509_VERIFY_PARAM_set1_policies
+enables policy checking (it is disabled by default) and sets the
+acceptable policy set to
+.Fa policies .
+Any existing policy set is cleared.
+The
+.Fa policies
+parameter can be
+.Dv NULL
+to clear an existing policy set.
+.Pp
+.Fn X509_VERIFY_PARAM_set_depth
+sets the maximum verification depth to
+.Fa depth .
+That is the maximum number of untrusted CA certificates that can appear
+in a chain.
+.Pp
+.Fn X509_VERIFY_PARAM_set_auth_level
+sets the security level as defined in
+.Xr SSL_CTX_set_security_level 3
+for certificate chain validation.
+For a certificate chain to validate, the public keys of all the
+certificates must meet the specified security level.
+The signature algorithm security level is not enforced for the
+chain's trust anchor certificate, which is either directly trusted
+or validated by means other than its signature.
+.Pp
+From the point of view of the X.509 library,
+the default security level is 0.
+However, the SSL library
+uses a different default security level of 1 and calls
+.Fn X509_VERIFY_PARAM_set_auth_level
+with its own level before validating a certificate chain.
+.Pp
+.Fn X509_VERIFY_PARAM_set1_host
+sets the expected DNS hostname to
+.Fa name
+clearing any previously specified hostname or names.
+If
+.Fa name
+is
+.Dv NULL
+or empty, the list of hostnames is cleared, and name checks are not
+performed on the peer certificate.
+.Fa namelen
+should be set to the length of
+.Fa name .
+For historical compatibility, if
+.Fa name
+is NUL-terminated,
+.Fa namelen
+may be specified as zero.
+When a hostname is specified, certificate verification automatically
+invokes
+.Xr X509_check_host 3
+with flags equal to the
+.Fa flags
+argument given to
+.Fn X509_VERIFY_PARAM_set_hostflags
+(default zero).
+.Fn X509_VERIFY_PARAM_set1_host
+will fail if
+.Fa name
+contains any embedded 0 bytes.
+.Pp
+.Fn X509_VERIFY_PARAM_add1_host
+adds
+.Fa name
+as an additional reference identifier that can match the peer's
+certificate.
+Any previous names set via
+.Fn X509_VERIFY_PARAM_set1_host
+and
+.Fn X509_VERIFY_PARAM_add1_host
+are retained.
+No change is made if
+.Fa name
+is
+.Dv NULL
+or empty.
+.Fa namelen
+should be set to the length of
+.Fa name .
+For historical compatibility, if
+.Fa name
+is NUL-terminated,
+.Fa namelen
+may be specified as zero.
+.Fn X509_VERIFY_PARAM_add1_host
+will fail if
+.Fa name
+contains any embedded 0 bytes.
+When multiple names are configured, the peer is considered verified when
+any name matches.
+.Pp
+.Fn X509_VERIFY_PARAM_get0_peername
+returns the DNS hostname or subject CommonName from the peer certificate
+that matched one of the reference identifiers.
+When wildcard matching is not disabled, or when a reference identifier
+specifies a parent domain (starts with ".") rather than a hostname, the
+peer name may be a wildcard name or a sub-domain of the reference
+identifier respectively.
+.Pp
+.Fn X509_VERIFY_PARAM_set1_email
+sets the expected RFC 822 email address to
+.Fa email .
+.Fa emaillen
+should be set to the length of
+.Fa email .
+For historical compatibility, if
+.Fa email
+is NUL-terminated,
+.Fa emaillen
+may be specified as zero,
+.Fn X509_VERIFY_PARAM_set1_email
+will fail if
+.Fa email
+is NULL, an empty string, or contains embedded 0 bytes.
+When an email address is specified, certificate verification
+automatically invokes
+.Xr X509_check_email 3 .
+.Pp
+.Fn X509_VERIFY_PARAM_set1_ip
+sets the expected IP address to
+.Fa ip .
+The
+.Fa ip
+argument is in binary format, in network byte-order, and
+.Fa iplen
+must be set to 4 for IPv4 and 16 for IPv6.
+.Fn X509_VERIFY_PARAM_set1_ip
+will fail if
+.Fa ip
+is NULL or if
+.Fa iplen
+is not 4 or 16.
+When an IP address is specified,
+certificate verification automatically invokes
+.Xr X509_check_ip 3 .
+.Pp
+.Fn X509_VERIFY_PARAM_set1_ip_asc
+sets the expected IP address to
+.Fa ipasc .
+The
+.Fa ipasc
+argument is a NUL-terminal ASCII string:
+dotted decimal quad for IPv4 and colon-separated hexadecimal for IPv6.
+The condensed "::" notation is supported for IPv6 addresses.
+.Fn X509_VERIFY_PARAM_set1_ip_asc
+will fail if
+.Fa ipasc
+is unparsable.
+.Sh RETURN VALUES
+.Fn X509_VERIFY_PARAM_set1_name ,
+.Fn X509_VERIFY_PARAM_set_flags ,
+.Fn X509_VERIFY_PARAM_clear_flags ,
+.Fn X509_VERIFY_PARAM_set_purpose ,
+.Fn X509_VERIFY_PARAM_set_trust ,
+.Fn X509_VERIFY_PARAM_add0_policy ,
+and
+.Fn X509_VERIFY_PARAM_set1_policies
+return 1 for success or 0 for failure.
+.Pp
+.Fn X509_VERIFY_PARAM_set1_host ,
+.Fn X509_VERIFY_PARAM_add1_host ,
+.Fn X509_VERIFY_PARAM_set1_email ,
+.Fn X509_VERIFY_PARAM_set1_ip ,
+and
+.Fn X509_VERIFY_PARAM_set1_ip_asc
+return 1 for success or 0 for failure.
+A failure from these routines will poison
+the
+.Vt X509_VERIFY_PARAM
+object so that future calls to
+.Xr X509_verify_cert 3
+using the poisoned object will fail.
+.Pp
+.Fn X509_VERIFY_PARAM_get_flags
+returns the current verification flags.
+.Pp
+.Fn X509_VERIFY_PARAM_get_time
+always returns the configured verification time.
+It does so even if the returned time will not be used because the flag
+.Dv X509_V_FLAG_USE_CHECK_TIME
+is unset.
+.Pp
+.Fn X509_VERIFY_PARAM_get_depth
+returns the current verification depth.
+.Pp
+.Fn X509_VERIFY_PARAM_get0_name
+and
+.Fn X509_VERIFY_PARAM_get0_peername
+return pointers to strings that are only valid
+during the lifetime of the given
+.Fa param
+object and that must not be freed by the application program.
+.Sh VERIFICATION FLAGS
+The verification flags consists of zero or more of the following
+flags OR'ed together.
+.Pp
+.Dv X509_V_FLAG_CRL_CHECK
+enables CRL checking for the certificate chain leaf certificate.
+An error occurs if a suitable CRL cannot be found.
+.Pp
+.Dv X509_V_FLAG_CRL_CHECK_ALL
+enables CRL checking for the entire certificate chain.
+.Pp
+.Dv X509_V_FLAG_IGNORE_CRITICAL
+disables critical extension checking.
+By default any unhandled critical extensions in certificates or (if
+checked) CRLs results in a fatal error.
+If this flag is set, unhandled critical extensions are ignored.
+.Sy WARNING :
+setting this option for anything other than debugging purposes can be a
+security risk.
+Finer control over which extensions are supported can be performed in
+the verification callback.
+.Pp
+The
+.Dv X509_V_FLAG_X509_STRICT
+flag disables workarounds for some broken certificates and makes the
+verification strictly apply X509 rules.
+.Pp
+.Dv X509_V_FLAG_ALLOW_PROXY_CERTS
+deprecated flag that used to
+enable proxy certificate verification.
+In LibreSSL, this flag has no effect.
+.Pp
+.Dv X509_V_FLAG_POLICY_CHECK
+enables certificate policy checking; by default no policy checking is
+performed.
+Additional information is sent to the verification callback relating to
+policy checking.
+.Pp
+.Dv X509_V_FLAG_EXPLICIT_POLICY ,
+.Dv X509_V_FLAG_INHIBIT_ANY ,
+and
+.Dv X509_V_FLAG_INHIBIT_MAP
+set the
+.Dq require explicit policy ,
+.Dq inhibit any policy ,
+and
+.Dq inhibit policy mapping
+flags, respectively, as defined in RFC 3280.
+These three flags are ignored unless
+.Dv X509_V_FLAG_POLICY_CHECK
+is also set.
+.Pp
+If
+.Dv X509_V_FLAG_NOTIFY_POLICY
+is set and policy checking is successful, a special status code is
+sent to the verification callback.
+.Pp
+By default some additional features such as indirect CRLs and CRLs
+signed by different keys are disabled.
+If
+.Dv X509_V_FLAG_EXTENDED_CRL_SUPPORT
+is set, they are enabled.
+.Pp
+If
+.Dv X509_V_FLAG_USE_DELTAS
+is set, delta CRLs (if present) are used to determine certificate
+status.
+If not set, deltas are ignored.
+.Pp
+.Dv X509_V_FLAG_CHECK_SS_SIGNATURE
+enables checking of the root CA self signed certificate signature.
+By default this check is disabled because it doesn't add any additional
+security but in some cases applications might want to check the
+signature anyway.
+A side effect of not checking the root CA signature is that disabled or
+unsupported message digests on the root CA are not treated as fatal
+errors.
+.Pp
+The deprecated
+.Dv X509_V_FLAG_CB_ISSUER_CHECK
+flag used to enable debugging of certificate issuer checks.
+It is provided for binary backwards compatibility and has no effect.
+.Pp
+When
+.Dv X509_V_FLAG_TRUSTED_FIRST
+is set, construction of the certificate chain in
+.Xr X509_verify_cert 3
+will search the trust store for issuer certificates before searching the
+provided untrusted certificates.
+Local issuer certificates are often more likely to satisfy local
+security requirements and lead to a locally trusted root.
+This is especially important when some certificates in the trust store
+have explicit trust settings; see the trust settings options of the
+.Cm x509
+command in
+.Xr openssl 1 .
+.Pp
+The
+.Dv X509_V_FLAG_NO_ALT_CHAINS
+flag suppresses checking for alternative chains.
+By default, unless
+.Dv X509_V_FLAG_TRUSTED_FIRST
+is set, when building a certificate chain, if the first certificate
+chain found is not trusted, then OpenSSL will attempt to replace
+untrusted certificates supplied by the peer with certificates from the
+trust store to see if an alternative chain can be found that is trusted.
+.Pp
+The
+.Dv X509_V_FLAG_PARTIAL_CHAIN
+flag causes intermediate certificates in the trust store to be treated
+as trust-anchors, in the same way as the self-signed root CA
+certificates.
+This makes it possible to trust certificates issued by an intermediate
+CA without having to trust its ancestor root CA.
+.Pp
+If
+.Dv X509_V_FLAG_USE_CHECK_TIME
+is set, the validity period of certificates and CRLs is checked.
+In this case,
+.Dv X509_V_FLAG_NO_CHECK_TIME
+is ignored.
+If the validation time was set with
+.Fn X509_VERIFY_PARAM_set_time ,
+that time is used.
+If
+.Fn X509_VERIFY_PARAM_set_time
+was not called, the UNIX Epoch (January 1, 1970) is used.
+.Pp
+If neither
+.Dv X509_V_FLAG_USE_CHECK_TIME
+nor
+.Dv X509_V_FLAG_NO_CHECK_TIME
+is set, the validity period of certificates and CRLs is checked
+using the current time.
+This is the default behaviour.
+In this case, if a validation time was set with
+.Fn X509_VERIFY_PARAM_set_time
+but
+.Dv X509_V_FLAG_USE_CHECK_TIME
+was later cleared with
+.Fn X509_VERIFY_PARAM_clear_flags ,
+the configured validation time is ignored
+and the current time is used anyway.
+.Pp
+If
+.Dv X509_V_FLAG_USE_CHECK_TIME
+is not set but
+.Dv X509_V_FLAG_NO_CHECK_TIME
+is set, the validity period of certificates and CRLs is not checked
+at all, and like in the previous case, any configured validation
+time is ignored.
+.Sh EXAMPLES
+Enable CRL checking when performing certificate verification during
+SSL connections associated with an
+.Vt SSL_CTX
+structure
+.Fa ctx :
+.Bd -literal -offset indent
+X509_VERIFY_PARAM *param;
+
+param = X509_VERIFY_PARAM_new();
+X509_VERIFY_PARAM_set_flags(param, X509_V_FLAG_CRL_CHECK);
+SSL_CTX_set1_param(ctx, param);
+X509_VERIFY_PARAM_free(param);
+.Ed
+.Sh SEE ALSO
+.Xr SSL_set1_host 3 ,
+.Xr SSL_set1_param 3 ,
+.Xr X509_check_host 3 ,
+.Xr X509_STORE_CTX_new 3 ,
+.Xr X509_STORE_new 3 ,
+.Xr X509_verify_cert 3 ,
+.Xr X509_VERIFY_PARAM_new 3
+.Sh HISTORY
+.Fn X509_VERIFY_PARAM_set1_name ,
+.Fn X509_VERIFY_PARAM_set_flags ,
+.Fn X509_VERIFY_PARAM_set_purpose ,
+.Fn X509_VERIFY_PARAM_set_trust ,
+.Fn X509_VERIFY_PARAM_set_time ,
+.Fn X509_VERIFY_PARAM_add0_policy ,
+.Fn X509_VERIFY_PARAM_set1_policies ,
+.Fn X509_VERIFY_PARAM_set_depth ,
+and
+.Fn X509_VERIFY_PARAM_get_depth
+first appeared in OpenSSL 0.9.8.
+.Fn X509_VERIFY_PARAM_clear_flags
+and
+.Fn X509_VERIFY_PARAM_get_flags
+first appeared in OpenSSL 0.9.8a.
+All these functions have been available since
+.Ox 4.5 .
+.Pp
+.Fn X509_VERIFY_PARAM_get0_name ,
+.Fn X509_VERIFY_PARAM_set1_host ,
+.Fn X509_VERIFY_PARAM_add1_host ,
+.Fn X509_VERIFY_PARAM_set_hostflags ,
+.Fn X509_VERIFY_PARAM_get0_peername ,
+.Fn X509_VERIFY_PARAM_set1_email ,
+.Fn X509_VERIFY_PARAM_set1_ip ,
+and
+.Fn X509_VERIFY_PARAM_set1_ip_asc
+first appeared in OpenSSL 1.0.2 and have been available since
+.Ox 6.3 .
+.Pp
+.Fn X509_VERIFY_PARAM_set_auth_level
+first appeared in OpenSSL 1.1.0 and
+.Fn X509_VERIFY_PARAM_get_time
+in OpenSSL 1.1.0d.
+Both functions have been available since
+.Ox 7.2 .
+.Sh BUGS
+Delta CRL checking is currently primitive.
+Only a single delta can be used and (partly due to limitations of
+.Vt X509_STORE )
+constructed CRLs are not maintained.
+.Pp
+If CRLs checking is enabled, CRLs are expected to be available in
+the corresponding
+.Vt X509_STORE
+structure.
+No attempt is made to download CRLs from the CRL distribution points
+extension.

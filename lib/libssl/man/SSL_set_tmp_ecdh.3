@@ -1,0 +1,120 @@
+.\"	$OpenBSD: SSL_set_tmp_ecdh.3,v 1.7 2025/06/08 22:52:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_SET_TMP_ECDH 3
+.Os
+.Sh NAME
+.Nm SSL_set_tmp_ecdh ,
+.Nm SSL_CTX_set_tmp_ecdh ,
+.Nm SSL_set_ecdh_auto ,
+.Nm SSL_CTX_set_ecdh_auto ,
+.Nm SSL_set_tmp_ecdh_callback ,
+.Nm SSL_CTX_set_tmp_ecdh_callback
+.Nd select a curve for ECDH ephemeral key exchange
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft long
+.Fo SSL_set_tmp_ecdh
+.Fa "SSL *ssl"
+.Fa "EC_KEY *ecdh"
+.Fc
+.Ft long
+.Fo SSL_CTX_set_tmp_ecdh
+.Fa "SSL_CTX *ctx"
+.Fa "EC_KEY *ecdh"
+.Fc
+.Ft long
+.Fo SSL_set_ecdh_auto
+.Fa "SSL *ssl"
+.Fa "int state"
+.Fc
+.Ft long
+.Fo SSL_CTX_set_ecdh_auto
+.Fa "SSL_CTX *ctx"
+.Fa "int state"
+.Fc
+.Ft void
+.Fo SSL_set_tmp_ecdh_callback
+.Fa "SSL *ssl"
+.Fa "EC_KEY *(*ecdh)(SSL *ssl, int is_export, int keylength)"
+.Fc
+.Ft void
+.Fo SSL_CTX_set_tmp_ecdh_callback
+.Fa "SSL_CTX *ctx"
+.Fa "EC_KEY *(*ecdh)(SSL *ssl, int is_export, int keylength)"
+.Fc
+.Sh DESCRIPTION
+Automatic EC curve selection and generation is always enabled in
+LibreSSL, and applications cannot manually provide EC keys for use
+with ECDH key exchange.
+.Pp
+The only remaining effect of
+.Fn SSL_set_tmp_ecdh
+is that the curve of the given
+.Fa ecdh
+key becomes the only curve enabled for the
+.Fa ssl
+connection, so it is equivalent to calling
+.Xr SSL_set1_groups_list 3
+with the same single curve name.
+.Pp
+.Fn SSL_CTX_set_tmp_ecdh
+has the same effect on all connections that will be created from
+.Fa ctx
+in the future.
+.Pp
+The functions
+.Fn SSL_set_ecdh_auto ,
+.Fn SSL_CTX_set_ecdh_auto ,
+.Fn SSL_set_tmp_ecdh_callback ,
+and
+.Fn SSL_CTX_set_tmp_ecdh_callback
+are deprecated and have no effect.
+.Sh RETURN VALUES
+.Fn SSL_set_tmp_ecdh
+and
+.Fn SSL_CTX_set_tmp_ecdh
+return 1 on success or 0 on failure.
+.Pp
+.Fn SSL_set_ecdh_auto ,
+.Fn SSL_CTX_set_ecdh_auto ,
+.Fn SSL_set_tmp_ecdh_callback ,
+and
+.Fn SSL_CTX_set_tmp_ecdh_callback
+always return 1.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_set1_groups 3 ,
+.Xr SSL_CTX_set_cipher_list 3 ,
+.Xr SSL_CTX_set_options 3 ,
+.Xr SSL_CTX_set_tmp_dh_callback 3 ,
+.Xr SSL_new 3
+.Sh HISTORY
+.Fn SSL_set_tmp_ecdh ,
+.Fn SSL_CTX_set_tmp_ecdh ,
+.Fn SSL_set_tmp_ecdh_callback ,
+and
+.Fn SSL_CTX_set_tmp_ecdh_callback
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Pp
+.Fn SSL_CTX_set_ecdh_auto
+and
+.Fn SSL_set_ecdh_auto
+first appeared in OpenSSL 1.0.2 and have been available since
+.Ox 5.7 .

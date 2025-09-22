@@ -1,0 +1,131 @@
+.\"	$OpenBSD: de.4,v 1.24 2015/01/15 20:37:36 schwarze Exp $
+.\"
+.\" Copyright (c) 1997 David E. O'Brien
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 15 2015 $
+.Dt DE 4
+.Os
+.Sh NAME
+.Nm de
+.Nd DEC DC21x4x (Tulip) 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "de* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports Ethernet adapters based on the Digital
+Equipment DC21x4x based self-contained Ethernet chips.
+This includes, among others, the following models:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Asante
+.It Cogent EM100FX and EM440TX
+.It DEC PCI DE435, EISA DE425, DE450, DE500
+.It older Linksys 10, 10/100
+.It SMC 8432, 9332, 9334
+.It ZNYX ZX3xx
+.El
+.Pp
+This driver may support other cards based on the 21040 and 21041 Ethernet
+controllers, or the 21140[A], 21141, 21142, and 21143 Fast Ethernet
+controllers.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width full-duplex -offset indent
+.It autoselect
+Enable autoselection of the media type and options.
+.It 10baseT
+Set 10Mbps operation on the 10baseT port.
+.It 10base2
+Set 10Mbps operation on the BNC port.
+.It 10base5
+Set 10Mbps operation on the AUI port.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.It 100baseFX
+Set 100Mbps operation.
+.It 100baseT4
+Set 100Mbps operation (4-pair cat-3 cable).
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Pp
+.Bl -tag -width full-duplex -offset indent -compact
+.It full-duplex
+Set full duplex operation for UTP port.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+To view a list of media types and options supported by your card try
+.Ic ifconfig <device> media .
+For example,
+.Ic ifconfig de0 media .
+.Pp
+Note that the media types available depend on the particular card in use.
+Some cards are explicitly programmed to a particular media type by a
+setup utility and are not changeable.
+.Pp
+The old
+.Dq ifconfig linkN
+method of configuration is not supported.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "de0: waking device from sleep/snooze mode"
+The 21041 and 21140A chips support suspending the operation of the card.
+.It "de0: error: desired IRQ of X does not match device's actual IRQ of Y"
+The device probe detected that the board is configured for a different
+interrupt than the one specified in the kernel configuration file.
+.It "de0: not configured; limit of N reached or exceeded"
+There is a limit of 32
+.Nm
+devices allowed in a single machine.
+.It "de0: not configured; 21040 pass 2.0 required (X.Y found)"
+.It "de0: not configured; 21140 pass 1.1 required (X.Y found)"
+Certain revisions of the chipset are not supported by this driver.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An Matt Thomas .
+This manual page was written by
+.An David E. O'Brien .
+.Sh CAVEATS
+Since the 21040 is available on both EISA and PCI boards, one must be careful
+in how one defines the 21040 in the kernel config file.

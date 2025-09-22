@@ -1,0 +1,345 @@
+===========================================
+Libc++ 18.0.0 (In-Progress) Release Notes
+===========================================
+
+.. contents::
+   :local:
+   :depth: 2
+
+Written by the `Libc++ Team <https://libcxx.llvm.org>`_
+
+.. warning::
+
+   These are in-progress notes for the upcoming libc++ 18.0.0 release.
+   Release notes for previous releases can be found on
+   `the Download Page <https://releases.llvm.org/download.html>`_.
+
+Introduction
+============
+
+This document contains the release notes for the libc++ C++ Standard Library,
+part of the LLVM Compiler Infrastructure, release 18.0.0. Here we describe the
+status of libc++ in some detail, including major improvements from the previous
+release and new feature work. For the general LLVM release notes, see `the LLVM
+documentation <https://llvm.org/docs/ReleaseNotes.html>`_. All LLVM releases may
+be downloaded from the `LLVM releases web site <https://llvm.org/releases/>`_.
+
+For more information about libc++, please see the `Libc++ Web Site
+<https://libcxx.llvm.org>`_ or the `LLVM Web Site <https://llvm.org>`_.
+
+Note that if you are reading this file from a Git checkout or the
+main Libc++ web page, this document applies to the *next* release, not
+the current one. To see the release notes for a specific release, please
+see the `releases page <https://llvm.org/releases/>`_.
+
+What's New in Libc++ 18.0.0?
+==============================
+
+The main focus of the libc++ team has been to implement new C++20, C++23,
+and C++26 features.
+
+New hardened modes for the library have been added, replacing the legacy debug mode that was
+removed in the LLVM 17 release. Unlike the legacy debug mode, some of these hardening modes are
+also intended to be used in production. See :ref:`hardening` for more details.
+
+Work on the ranges support has progressed. See
+:ref:`ranges-status` for the current status.
+
+Work on the experimental C++23 module support has progressed. The ``std.compat``
+module is available and the feature is retroactively available in C++20. See
+:ref:`ModulesInLibcxx` for more information.
+
+Work on the experimental C++17 Parallel STL has progressed. See
+:ref:`pstl-status` for the current status.
+
+Work on the experimental C++17 SIMD support has progressed. See
+:ref:`parallelism-status` for the current status.
+
+
+Implemented Papers
+------------------
+- P2093R14 - Formatted output
+- P2539R4  - Should the output of ``std::print`` to a terminal be synchronized with the underlying stream?
+- P2497R0 - Testing for success or failure of ``<charconv>`` functions
+- P2697R1 - Interfacing ``bitset`` with ``string_view``
+- P2443R1 - ``views::chunk_by``
+- P2538R1 - ADL-proof ``std::projected``
+- P2614R2 - Deprecate ``numeric_limits::has_denorm``
+- P0053R7 - C++ Synchronized Buffered Ostream (in the experimental library)
+- P2467R1 - Support exclusive mode for fstreams
+- P0020R6 - Floating Point Atomic
+- P2905R2 - Runtime format strings
+- P2918R2 - Runtime format strings II
+- P2871R3 - Remove Deprecated Unicode Conversion Facets from C++26
+- P2870R3 - Remove ``basic_string::reserve()``
+- P2909R4 - Fix formatting of code units as integers (Dude, where’s my ``char``?)
+- P2821R5 - ``span.at()``
+- P0521R0 - Proposed Resolution for CA 14 (``shared_ptr`` ``use_count/unique``)
+- P0543R3 - Saturation arithmetic
+- P1759R6 - Native handles and file streams
+- P2868R3 - Remove Deprecated ``std::allocator`` Typedef From C++26
+- P2517R1 - Add a conditional ``noexcept`` specification to ``std::apply``
+- P2447R6 - ``span`` over initializer list
+
+
+Improvements and New Features
+-----------------------------
+
+- ``std::ranges::count`` and ``std::ranges::find`` are  now optimized for
+  ``std::vector<bool>::iterator``, which can lead up to 350x performance
+  improvements.
+
+- ``std::for_each`` has been optimized for segmented iterators like ``std::deque::iterator`` in C++23 and
+  later, which can lead up to 40x performance improvements.
+
+- The library now provides several hardening modes under which common cases of library undefined behavior will be turned
+  into a reliable program termination. The ``fast`` hardening mode enables a set of security-critical checks with
+  minimal runtime overhead; the ``extensive`` hardening mode additionally enables relatively cheap checks that catch
+  common logic errors but aren't necessarily security-critical; and the ``debug`` hardening mode enables all available
+  checks, some of which might be very expensive. Vendors can configure which hardening mode is enabled by default with
+  the ``LIBCXX_HARDENING_MODE`` variable at CMake configuration time. Users can control which hardening mode is enabled
+  on a per translation unit basis using the ``_LIBCPP_HARDENING_MODE`` macro. See :ref:`the hardening documentation
+  <using-hardening-modes>` for more details.
+
+- The ``_LIBCPP_ENABLE_CXX26_REMOVED_CODECVT`` macro has been added to make
+  the declarations in ``<codecvt>`` available.
+
+- The ``_LIBCPP_ENABLE_CXX26_REMOVED_STRING_RESERVE`` macro has been added to make
+  the function ``std::basic_string<...>::reserve()`` available.
+
+- The ``_LIBCPP_ENABLE_CXX26_REMOVED_ALLOCATOR_MEMBERS`` macro has been added to make
+  the function ``allocator<T>::is_always_equal`` available.
+
+- The ``_LIBCPP_ENABLE_CXX20_REMOVED_SHARED_PTR_UNIQUE`` macro has been added to make
+  the function ``std::shared_ptr<...>::unique()`` available.
+
+- The cmake option ``LIBCXX_ENABLE_STD_MODULES`` has been removed. The test
+  infrastructure no longer depends on a modern CMake, it works with the minimal
+  required LLVM version (3.20.0).
+
+- The ``.cppm`` files of experimental standard library modules can now be
+  installed. By default, they are not installed. This can be enabled by
+  configuring CMake with ``-DLIBCXX_INSTALL_MODULES=ON``. The installation
+  directory can be configured with the CMake option
+  ``-DLIBCXX_INSTALL_MODULE_DIR=<path>``. The default location is
+  ``${PREFIX}/share/libc++/v1``.
+
+- AddressSanitizer annotations have been added to ``std::basic_string``.
+  These annotations are enabled for all allocators by default.
+  It's only enabled for long strings, strings using the small buffer optimization are not annotated.
+
+- The libc++ source code has been formatted with ``clang-format``. This
+  `discourse thread <https://discourse.llvm.org/t/rfc-clang-formatting-all-of-libc-once-and-for-all>`_
+  contains information how to rebase downstream patches.
+
+Deprecations and Removals
+-------------------------
+
+- Availability macros which will never trigger an error have been removed. This includes anything that has been
+  introduced before macOS 10.13, iOS 12, tvOS 12 and watchOS 4. This shouldn't affect anybody, since AppleClang 15
+  doesn't support any older OSes. If you are a vendor and make use of these macros, please inform the libc++ team so we
+  can re-introduce them and consider upstreaming support for your platform.
+
+- The non-conforming constructor ``std::future_error(std::error_code)`` has been removed. Please use the
+  ``std::future_error(std::future_errc)`` constructor provided in C++17 instead.
+
+- `P1957 <https://wg21.link/P1957>`_ has been implemented in Clang and libc++ removed a code path that led to
+  narrowing conversions in ``std::variant`` behaving in a non-standard way. This may change how some uses of
+  ``std::variant``'s constructor behave in user code. The ``_LIBCPP_ENABLE_NARROWING_CONVERSIONS_IN_VARIANT``
+  macro is provided to restore the previous behavior, and it will be supported in the LLVM 18 release only.
+  In LLVM 19 and beyond, ``_LIBCPP_ENABLE_NARROWING_CONVERSIONS_IN_VARIANT`` will not be honored anymore.
+
+- Overriding ``__libcpp_verbose_abort`` no longer has any effect on library assertions. The only supported way
+  to customize the assertion handler that gets invoked when a hardening assertion fails is now by setting the
+  ``LIBCXX_ASSERTION_HANDLER_FILE`` CMake variable and providing a custom header. See the documentation on
+  overriding the default assertion handler for details. The ability to override ``__libcpp_verbose_abort``
+  will be removed in an upcoming release in favor of the new overriding mechanism.
+
+- In safe mode (which is now equivalent to the ``extensive`` hardening mode), a failed assertion will now
+  generate a trap rather than a call to verbose abort.
+
+- The ``_LIBCPP_AVAILABILITY_CUSTOM_VERBOSE_ABORT_PROVIDED`` macro is not honored anymore in LLVM 18.
+  Please see the updated documentation about the hardening modes in libc++ and in particular on
+  overriding the default assertion handler.
+
+- The headers ``<experimental/deque>``, ``<experimental/forward_list>``, ``<experimental/list>``,
+  ``<experimental/map>``, ``<experimental/memory_resource>``, ``<experimental/regex>``, ``<experimental/set>``,
+  ``<experimental/string>``, ``<experimental/unordered_map>``, ``<experimental/unordered_set>``,
+  and ``<experimental/vector>`` have been removed in LLVM 18, as all their contents will have been
+  implemented in namespace ``std`` for at least two releases.
+
+- The macro ``_LIBCPP_ENABLE_CXX20_REMOVED_ALLOCATOR_MEMBERS`` has been deprecated and will be removed
+  in LLVM 19. This macro used to re-enable redundant members of ``std::allocator<T>`` like ``pointer``,
+  ``reference``, ``rebind``, ``address``, ``max_size``, ``construct``, ``destroy``, and the two-argument
+  overload of ``allocate``. However, this led to the library being non-conforming due to incorrect
+  constexpr-ness.
+
+- The macros ``_LIBCPP_ENABLE_CXX17_REMOVED_FEATURES`` and
+  ``_LIBCPP_ENABLE_CXX20_REMOVED_FEATURES`` have been deprecated and
+  will be removed in LLVM 19. These macros used to re-enable all features
+  that were removed in the C++17 and C++20 standards. Instead of using these
+  macros, please use the macros to re-enable individual features.
+
+- The macro ``_LIBCPP_INLINE_VISIBILITY`` has been deprecated in LLVM 18 and
+  will be removed entirely in LLVM 19. The macro ``_LIBCPP_HIDE_FROM_ABI`` is
+  the drop-in replacement.
+
+- The macro ``_VSTD`` has been deprecated in LLVM 18 and will be removed
+  entirely in LLVM 19. The code ``std`` is the drop-in replacement.
+
+
+Upcoming Deprecations and Removals
+----------------------------------
+
+- The ability to override ``__libcpp_verbose_abort`` will be removed in an upcoming release.
+
+LLVM 19
+~~~~~~~
+
+- The ``LIBCXX_EXECUTOR`` CMake variable has been deprecated.  LLVM 19 will
+  completely remove support for the ``*_EXECUTOR`` variables.
+
+- The ``LIBCXX_ENABLE_ASSERTIONS`` CMake variable that was used to enable the safe mode will be deprecated and setting
+  it will trigger an error; use the ``LIBCXX_HARDENING_MODE`` variable with the value ``extensive`` instead. Similarly,
+  the ``_LIBCPP_ENABLE_ASSERTIONS`` macro will be deprecated (setting it to ``1`` still enables the extensive mode in
+  the LLVM 19 release while also issuing a deprecation warning). See :ref:`the hardening documentation
+  <using-hardening-modes>` for more details.
+
+- The base template for ``std::char_traits`` has been marked as deprecated and will be removed in LLVM 19. If you
+  are using ``std::char_traits`` with types other than ``char``, ``wchar_t``, ``char8_t``, ``char16_t``, ``char32_t``
+  or a custom character type for which you specialized ``std::char_traits``, your code will stop working when we
+  remove the base template. The Standard does not mandate that a base template is provided, and such a base template
+  is bound to be incorrect for some types, which could currently cause unexpected behavior while going undetected.
+  Note that the ``_LIBCPP_CHAR_TRAITS_REMOVE_BASE_SPECIALIZATION`` macro can be defined in LLVM 18 to eagerly remove
+  the specialization and prepare code bases for the unconditional removal in LLVM 19.
+
+- The ``_LIBCPP_ENABLE_NARROWING_CONVERSIONS_IN_VARIANT`` macro that changed the behavior for narrowing conversions
+  in ``std::variant`` will be removed in LLVM 19.
+
+- The ``_LIBCPP_ENABLE_CXX20_REMOVED_ALLOCATOR_MEMBERS`` macro has been deprecated in LLVM 18 and will be removed
+  entirely in LLVM 19.
+
+- The ``_LIBCPP_ENABLE_CXX17_REMOVED_FEATURES`` and
+  ``_LIBCPP_ENABLE_CXX20_REMOVED_FEATURES`` macros have been deprecated
+  in LLVM 18 and will be removed entirely in LLVM 19.
+
+- The macro ``_LIBCPP_INLINE_VISIBILITY`` has been deprecated in LLVM 18 and
+  will be removed entirely in LLVM 19.
+
+- The macro ``_VSTD`` has been deprecated in LLVM 18 and will be removed
+  entirely in LLVM 19.
+
+LLVM 20
+~~~~~~~
+
+- The ``LIBCXX_ENABLE_ASSERTIONS`` CMake variable and the ``_LIBCPP_ENABLE_ASSERTIONS`` macro that were used to enable
+  the safe mode will be removed.
+
+
+ABI Affecting Changes
+---------------------
+
+- When the shared/static library is built with ``-fno-exceptions``, the behavior of ``operator new`` was changed
+  to make it standards-conforming. In LLVM 17 and before, the throwing versions of ``operator new`` would return
+  ``nullptr`` upon failure to allocate, when the shared/static library was built with exceptions disabled. This
+  was non-conforming, since the throwing versions of ``operator new`` are never expected to return ``nullptr``, and
+  this non-conformance could actually lead to miscompiles in subtle cases.
+
+  Starting in LLVM 18, the throwing versions of ``operator new`` will abort the program when they fail to allocate
+  if the shared/static library has been built with ``-fno-exceptions``. This is consistent with the behavior of all
+  other potentially-throwing functions in the library, which abort the program instead of throwing when ``-fno-exceptions``
+  is used.
+
+  Furthermore, when the shared/static library is built with ``-fno-exceptions``, users who override the throwing
+  version of ``operator new`` will now need to also override the ``std::nothrow_t`` version of ``operator new`` if
+  they want to use it. Indeed, this is because there is no way to implement a conforming ``operator new(nothrow)``
+  from a conforming potentially-throwing ``operator new`` when compiled with ``-fno-exceptions``. In that case, using
+  ``operator new(nothrow)`` without overriding it explicitly but after overriding the throwing ``operator new`` will
+  result in an error.
+
+  Note that this change only impacts vendors/users that build the shared/static library themselves and pass
+  ``-DLIBCXX_ENABLE_EXCEPTIONS=OFF``, which is not the default configuration. If you are using the default
+  configuration of the library, the libc++ shared/static library will be built with exceptions enabled, and
+  there is no change between LLVM 17 and LLVM 18, even for users who build their own code using ``-fno-exceptions``.
+
+- The symbol of a non-visible function part of ``std::system_error`` was removed.
+  This is not a breaking change as the private function ``__init`` was never referenced internally outside of the dylib.
+
+- This release of libc++ added missing visibility annotations on some types in the library. Users compiling with
+  ``-fvisbility=hidden`` may notice that additional type infos from libc++ are being exported from their ABI. This is
+  the correct behavior in almost all cases since exporting the RTTI is required for these types to work properly with
+  ``dynamic_cast``, exceptions and other mechanisms across binaries. However, if you intend to use libc++ purely as an
+  internal implementation detail (i.e. you use libc++ as a static archive and never export libc++ symbols from your ABI)
+  and you notice changes to your exported symbols list, then this means that you were not properly preventing libc++
+  symbols from being part of your ABI.
+
+- The name mangling for instantiations of ``std::projected`` has changed in order to implement P2538R1. This technically
+  results in an ABI break, however in practice we expect uses of ``std::projected`` in ABI-sensitive places to be
+  extremely rare. Any error resulting from this change should result in a link-time error.
+
+- The internal alignment requirements for heap allocations inside ``std::string`` has decreased from 16 to 8. This
+  saves memory since string requests fewer additional bytes than it did previously. However, this also changes the
+  return value of ``std::string::max_size`` and can cause code compiled against older libc++ versions but linked at
+  runtime to a new version to throw a different exception when attempting allocations that are too large
+  (``std::bad_alloc`` vs ``std::length_error``).
+
+- The layout of some range adaptors that use the ``movable-box`` exposition-only type as an implementation
+  detail has changed in order to fix a `bug <https://github.com/llvm/llvm-project/issues/70506>`_ which could result in
+  overwriting user data following the ``movable-box``.
+  This bug was caused by incorrect usage of the ``[[no_unique_address]]`` attribute inside the implementation of ``movable-box``.
+  This fix affects the layout of the following views: ``take_while_view``, ``filter_view``, ``single_view``, ``drop_while_view``,
+  ``repeat_view``, ``transform_view``, ``chunk_by_view``. In order to avoid silent breakage as a result of this fix, an ABI tag has been added to
+  these views such that their mangled name will be different starting in this version of libc++.
+  As a result, attempting to call a function that expects one of these views will fail to link until the code has been rebuilt
+  against a matching version of libc++. In practice, we believe it is unusual for these views to appear at ABI boundaries so this
+  should not be a major problem for most users. However it is probably worth auditing ranges-heavy code for ABI boundaries that
+  would contain these views, or for types that contain these views as members and which are passed across ABI boundaries.
+
+- Some properties of libc++ may cause ODR-violations when mixing multiple libc++
+  instances. To avoid these, often benign, ODR-violations the ODR-affecting
+  properties are now part of the ABI tag. The ODR-affecting properties are:
+
+    - library version (This was part of the ABI tag prior to LLVM 18.)
+    - exceptions vs no-exceptions
+    - hardening mode
+
+  This should not be ABI-affecting except that libc++ will be more robust
+  against different configurations of it being used in different translation
+  units.
+
+- The amount of padding bytes available for use at the end of certain ``std::expected`` instantiations has changed in this
+  release. This is an ABI break for any code that held a ``std::expected`` member with ``[[no_unique_address]]`` in an
+  ABI-facing type. In those cases, the layout of the enclosing type will change, breaking the ABI. However, the
+  ``std::expected<T, E>`` member requires a few characteristics in order to be affected by this change:
+
+  - A type equivalent to ``union {T ; E}`` needs to have more than one byte of padding available.
+  - The ``std::expected<T, E>`` member must have been in a situation where its padding bytes were previously reused by
+    another object, which can happen in a few cases (this is probably not exhaustive):
+
+    - It is a member with ``[[no_unique_address]]`` applied to it, and it is followed by another data member, or
+    - It is a member with ``[[no_unique_address]]`` applied to it, and it is the last member of the user-defined type,
+      and that user-defined type is used in ways that its padding bytes can be reused, or
+    - It is inherited from
+
+  We expect that this will not be a very frequent occurrence. However, there is unfortunately no technique we can use
+  in the library to catch such misuse. Indeed, even applying an ABI tag to ``std::expected`` would not help since ABI
+  tags are not propagated to containing types. As a result, if you notice very difficult to explain bugs around the
+  usage of a ``std::expected``, you should consider checking whether you are hitting this ABI break. This change was
+  done to fix `#70494 <https://github.com/llvm/llvm-project/issues/70494>`_ and the vendor communication is handled
+  in `#70820 <https://github.com/llvm/llvm-project/issues/70820>`_.
+
+
+Build System Changes
+--------------------
+
+- The ``LIBCXX_EXECUTOR`` CMake variable has been deprecated. If you are relying on this, the new replacement is
+  passing ``-Dexecutor=...`` to ``llvm-lit``. Alternatively, this flag can be made persistent in the generated test
+  configuration file by passing ``-DLIBCXX_TEST_PARAMS=executor=...``. This also applies to the ``LIBUWIND_EXECTOR``
+  and ``LIBCXXABI_EXECUTOR`` CMake variables. LLVM 19 will completely remove support for the ``*_EXECUTOR`` variables.
+
+- ``LIBCXXABI_USE_LLVM_UNWINDER`` and ``COMPILER_RT_USE_LLVM_UNWINDER`` switched defaults from ``OFF`` to ``ON``.
+  This means that by default, libc++abi and compiler-rt will link against the LLVM provided ``libunwind`` library
+  instead of the system-provided unwinding library. If you are building the LLVM runtimes with the goal of shipping
+  them so that they can interoperate with other system-provided libraries that might be using a different unwinding
+  library (such as ``libgcc_s``), you should pass ``LIBCXXABI_USE_LLVM_UNWINDER=OFF`` and ``COMPILER_RT_USE_LLVM_UNWINDER=OFF``
+  to make sure the system-provided unwinding library is used by the LLVM runtimes.

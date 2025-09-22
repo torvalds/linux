@@ -1,0 +1,12 @@
+import("//llvm/utils/gn/build/libs/curl/enable.gni")
+
+config("curl_config") {
+  visibility = [ ":curl" ]
+  libs = [ "curl" ]
+}
+
+group("curl") {
+  if (llvm_enable_libcurl) {
+    public_configs = [ ":curl_config" ]
+  }
+}

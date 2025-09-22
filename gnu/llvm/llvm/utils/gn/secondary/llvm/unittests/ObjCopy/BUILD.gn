@@ -1,0 +1,11 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ObjCopyTests") {
+  deps = [
+    "//llvm/lib/ObjCopy",
+    "//llvm/lib/Object",
+    "//llvm/lib/ObjectYAML",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [ "ObjCopyTest.cpp" ]
+}

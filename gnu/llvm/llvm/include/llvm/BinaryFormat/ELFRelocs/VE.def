@@ -1,0 +1,48 @@
+
+#ifndef ELF_RELOC
+#error "ELF_RELOC must be defined"
+#endif
+
+// Relocation types defined in following documents.
+//
+//  - System V Application Binary Interface - VE Architecture
+//    Processor Supplement
+//  - ELF Handling For Thread-Local Storage - VE Architecture
+//    Processor Supplement
+
+ELF_RELOC(R_VE_NONE,         0)
+ELF_RELOC(R_VE_REFLONG,      1)
+ELF_RELOC(R_VE_REFQUAD,      2)
+ELF_RELOC(R_VE_SREL32,       3)
+ELF_RELOC(R_VE_HI32,         4)
+ELF_RELOC(R_VE_LO32,         5)
+ELF_RELOC(R_VE_PC_HI32,      6)
+ELF_RELOC(R_VE_PC_LO32,      7)
+ELF_RELOC(R_VE_GOT32,        8)
+ELF_RELOC(R_VE_GOT_HI32,     9)
+ELF_RELOC(R_VE_GOT_LO32,     10)
+ELF_RELOC(R_VE_GOTOFF32,     11)
+ELF_RELOC(R_VE_GOTOFF_HI32,  12)
+ELF_RELOC(R_VE_GOTOFF_LO32,  13)
+ELF_RELOC(R_VE_PLT32,        14)
+ELF_RELOC(R_VE_PLT_HI32,     15)
+ELF_RELOC(R_VE_PLT_LO32,     16)
+ELF_RELOC(R_VE_RELATIVE,     17)
+ELF_RELOC(R_VE_GLOB_DAT,     18)
+ELF_RELOC(R_VE_JUMP_SLOT,    19)
+ELF_RELOC(R_VE_COPY,         20)
+ELF_RELOC(R_VE_DTPMOD64,     22)
+ELF_RELOC(R_VE_DTPOFF64,     23)
+// ELF_RELOC(R_VE_TPOFF64,     24)
+ELF_RELOC(R_VE_TLS_GD_HI32,  25)
+ELF_RELOC(R_VE_TLS_GD_LO32,  26)
+// ELF_RELOC(R_VE_TLS_LD_HI32,  27)
+// ELF_RELOC(R_VE_TLS_LD_LO32,  28)
+// ELF_RELOC(R_VE_DTPOFF32,     29)
+// ELF_RELOC(R_VE_TLS_IE_HI32,  30)
+// ELF_RELOC(R_VE_TLS_IE_LO32,  31)
+ELF_RELOC(R_VE_TPOFF_HI32,   32)
+ELF_RELOC(R_VE_TPOFF_LO32,   33)
+// ELF_RELOC(R_VE_TPOFF32,      34)
+ELF_RELOC(R_VE_CALL_HI32,    35)
+ELF_RELOC(R_VE_CALL_LO32,    36)

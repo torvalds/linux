@@ -1,0 +1,107 @@
+.\"	$OpenBSD: open_memstream.3,v 1.4 2013/06/05 03:39:23 tedu Exp $
+.\"
+.\" Copyright (c) 2011 Martin Pieuchot <mpi@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt OPEN_MEMSTREAM 3
+.Os
+.Sh NAME
+.Nm open_memstream ,
+.Nm open_wmemstream
+.Nd open a memory buffer stream
+.Sh SYNOPSIS
+.In stdio.h
+.Ft FILE *
+.Fn open_memstream "char **pbuf" "size_t *psize"
+.In wchar.h
+.Ft FILE *
+.Fn open_wmemstream "wchar_t **pbuf" "size_t *psize"
+.Sh DESCRIPTION
+The
+.Fn open_memstream
+and
+.Fn open_wmemstream
+functions create, respectively, a seekable byte-oriented or wide-oriented
+stream for writing.
+A dynamically allocated buffer, using
+.Xr malloc 3 ,
+is then wrapped to the pointer referenced by
+.Fa pbuf
+and grows automatically as required.
+.Pp
+When the stream is either closed or flushed, the address of the buffer is
+stored in the pointer referenced by
+.Fa pbuf .
+At the same time the smaller of the current position and the buffer length is
+written in the variable pointed to by
+.Fa psize .
+This value represents, respectively,
+the number of bytes or wide characters contained in the buffer,
+not including the terminating null character.
+.Pp
+The buffer memory should be released after the stream is closed.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn open_memstream
+and
+.Fn open_wmemstream
+return a
+.Dv FILE
+pointer.
+Otherwise,
+.Dv NULL
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa pbuf
+or the
+.Fa psize
+argument is
+.Dv NULL .
+.El
+.Pp
+The
+.Fn open_memstream
+and
+.Fn open_wmemstream
+functions
+may also fail and set
+.Va errno
+for any of the errors
+specified for the routine
+.Xr malloc 3 .
+.Sh SEE ALSO
+.Xr fmemopen 3 ,
+.Xr fopen 3 ,
+.Xr funopen 3 ,
+.Xr malloc 3
+.Sh STANDARDS
+The functions
+.Fn open_memstream
+and
+.Fn open_wmemstream ,
+conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn open_memstream
+and
+.Fn open_wmemstream
+functions first appeared in
+.Ox 5.4 .

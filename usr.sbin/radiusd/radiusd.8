@@ -1,0 +1,78 @@
+.\"	$OpenBSD: radiusd.8,v 1.9 2019/11/10 20:51:53 landry Exp $
+.\"
+.\" Copyright (c) 2013 Internet Initiative Japan Inc.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 10 2019 $
+.Dt RADIUSD 8
+.Os
+.Sh NAME
+.Nm radiusd
+.Nd Remote Authentication Dial In User Service (RADIUS) daemon
+.Sh SYNOPSIS
+.Nm radiusd
+.Op Fl dn
+.Op Fl f Ar file
+.Sh DESCRIPTION
+The
+.Nm
+daemon implements the RADIUS protocol.
+.Pp
+To have
+.Nm
+enabled at boot time, use
+.Dq rcctl enable radiusd ,
+which sets
+.Pp
+.Dl radiusd_flags=\(dq\(dq
+.Pp
+in
+.Xr rc.conf.local 8 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize, log to
+.Dv stderr
+instead of
+.Xr syslog 3 ,
+and produce some additional debugging output.
+.It Fl f Ar file
+Specify an alternative configuration file.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/radiusd.confXX" -compact
+.It Pa /etc/radiusd.conf
+Default configuration file.
+.El
+.Sh SEE ALSO
+.Xr radiusd.conf 5 ,
+.Xr radiusctl 8 ,
+.Xr rc.conf 8
+.Sh STANDARDS
+.Rs
+.%R RFC 2865
+.%T "Remote Authentication Dial In User Service (RADIUS)"
+.%D June 2000
+.Re
+.Sh HISTORY
+The
+.Nm
+daemon first appeared in
+.Ox 5.8 .
+.Sh AUTHORS
+.An YASUOKA Masahiko Aq Mt yasuoka@openbsd.org

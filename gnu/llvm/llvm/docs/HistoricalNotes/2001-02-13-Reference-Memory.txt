@@ -1,0 +1,39 @@
+Date: Tue, 13 Feb 2001 13:29:52 -0600 (CST)
+From: Chris Lattner <sabre@nondot.org>
+To: Vikram S. Adve <vadve@cs.uiuc.edu>
+Subject: LLVM Concerns...
+
+
+I've updated the documentation to include load store and allocation
+instructions (please take a look and let me know if I'm on the right
+track):
+
+file:/home/vadve/lattner/llvm/docs/LangRef.html#memoryops
+
+I have a couple of concerns I would like to bring up:
+
+1. Reference types
+   Right now, I've spec'd out the language to have a pointer type, which
+   works fine for lots of stuff... except that Java really has
+   references: constrained pointers that cannot be manipulated: added and
+   subtracted, moved, etc... Do we want to have a type like this?  It
+   could be very nice for analysis (pointer always points to the start of
+   an object, etc...) and more closely matches Java semantics.  The
+   pointer type would be kept for C++ like semantics.  Through analysis,
+   C++ pointers could be promoted to references in the LLVM
+   representation.
+
+2. Our "implicit" memory references in assembly language:
+   After thinking about it, this model has two problems:
+      A. If you do pointer analysis and realize that two stores are
+         independent and can share the same memory source object, there is
+         no way to represent this in either the bytecode or assembly.
+      B. When parsing assembly/bytecode, we effectively have to do a full
+         SSA generation/PHI node insertion pass to build the dependencies
+         when we don't want the "pinned" representation.  This is not
+         cool.
+   I'm tempted to make memory references explicit in both the assembly and
+   bytecode to get around this... what do you think?
+
+-Chris
+

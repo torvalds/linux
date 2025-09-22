@@ -1,0 +1,313 @@
+# $OpenBSD: files.arm64,v 1.79 2025/09/17 09:32:55 kettenis Exp $
+
+maxpartitions	16
+maxusers	2 8 128
+
+major	{wd = 0}
+major	{sd = 4}
+major	{cd = 6}
+major	{rd = 17}
+
+file	arch/arm64/arm64/autoconf.c
+file	arch/arm64/arm64/copy.S
+file	arch/arm64/arm64/copystr.S
+file	arch/arm64/arm64/cpuswitch.S
+file	arch/arm64/arm64/conf.c
+file	arch/arm64/arm64/disksubr.c
+file	arch/arm64/arm64/locore.S
+file	arch/arm64/arm64/machdep.c
+file	arch/arm64/arm64/mem.c
+file	arch/arm64/arm64/pmap.c
+file	arch/arm64/arm64/vm_machdep.c
+file	arch/arm64/arm64/process_machdep.c
+file	arch/arm64/arm64/sig_machdep.c
+file	arch/arm64/arm64/syscall.c
+file	arch/arm64/arm64/sys_machdep.c
+
+file	arch/arm64/arm64/cpu.c
+file	arch/arm64/arm64/fpu.c
+file	arch/arm64/arm64/intr.c
+file	arch/arm64/arm64/exception.S
+file	arch/arm64/arm64/trampoline.S
+file	arch/arm64/arm64/trap.c
+file	arch/arm64/arm64/ast.c
+
+file	arch/arm64/arm64/cpufunc_asm.S
+file	arch/arm64/arm64/lse.S
+file	arch/arm64/arm64/support.S
+file	arch/arm64/arm64/bus_dma.c
+file	arch/arm64/arm64/bus_space.c
+
+file	arch/arm64/dev/pci_machdep.c
+
+file	arch/arm64/arm64/cryptox.c		crypto
+file	arch/arm64/arm64/aesv8-armx.S		crypto
+
+file	arch/arm64/arm64/db_disasm.c		ddb
+file	arch/arm64/arm64/db_interface.c		ddb
+file	arch/arm64/arm64/db_trace.c		ddb
+file	arch/arm64/arm64/disasm.c		ddb
+
+pseudo-device	openprom
+file	arch/arm64/arm64/openprom.c		openprom needs-flag
+
+# mainbus files
+define	mainbus {}
+device	mainbus: fdt
+attach	mainbus at root
+file	arch/arm64/dev/mainbus.c		mainbus
+
+device	simplebus: fdt
+attach	simplebus at fdt
+file	arch/arm64/dev/simplebus.c		simplebus
+
+# EFI
+include "dev/efi/files.efi"
+attach	efi at fdt
+file	arch/arm64/dev/efi_machdep.c		efi
+
+device	smbios
+attach	smbios at efi
+file	arch/arm64/dev/smbios.c			smbios
+
+# FDT support
+include "dev/ofw/files.ofw"
+
+# Machine-independent SCSI drivers
+include "scsi/files.scsi"
+include "dev/atapiscsi/files.atapiscsi"
+
+# Machine-independent ATA drivers
+include "dev/ata/files.ata"
+
+# Include WSCONS stuff
+include "dev/wscons/files.wscons"
+include "dev/rasops/files.rasops"
+include "dev/wsfont/files.wsfont"
+
+device  cpu {}
+attach  cpu at mainbus
+
+#
+# Machine-independent HID support
+#
+include	"dev/hid/files.hid"
+
+# Machine-independent I2C drivers
+include "dev/i2c/files.i2c"
+
+# Include USB stuff
+include "dev/usb/files.usb"
+
+# Machine-independent GPIO drivers
+include "dev/gpio/files.gpio"
+
+# Machine-independent 1-Wire drivers
+include "dev/onewire/files.onewire"
+
+file	netinet/in_cksum.c
+file	netinet/in4_cksum.c
+
+# Paravirtual device bus and virtio
+include "dev/pv/files.pv"
+
+# MII and PCI
+include "dev/mii/files.mii"
+include "dev/pci/files.pci"
+include "dev/sdmmc/files.sdmmc"
+
+# Machine-independent FDT drivers
+include "dev/fdt/files.fdt"
+
+define	rtkit
+file	arch/arm64/dev/rtkit.c			rtkit
+
+device	ampintc: fdt
+attach	ampintc at fdt
+device	ampintcmsi
+attach	ampintcmsi at fdt
+file	arch/arm64/dev/ampintc.c		ampintc | ampintcmsi
+
+device	agintc: fdt
+attach	agintc at fdt
+device	agintcmsi
+attach	agintcmsi at fdt
+file	arch/arm64/dev/agintc.c			agintc | agintcmsi
+
+device	agtimer
+attach	agtimer at fdt
+file	arch/arm64/dev/agtimer.c		agtimer
+
+device	aplaudio: audio
+attach	aplaudio at fdt
+file	arch/arm64/dev/aplaudio.c		aplaudio
+
+device	aplcpu
+attach	aplcpu at fdt
+file	arch/arm64/dev/aplcpu.c			aplcpu
+
+device	apldart
+attach	apldart at fdt
+file	arch/arm64/dev/apldart.c		apldart
+
+device	apldc: fdt
+attach	apldc at fdt
+device	apldchidev {}
+attach	apldchidev at fdt
+device	apldckbd: hid, hidkbd, wskbddev
+attach	apldckbd at apldchidev
+device	apldcms: hid, hidms, wsmousedev
+attach	apldcms at apldchidev
+file	arch/arm64/dev/apldc.c			apldc | aplhidev | apldckbd | apldcms needs-flag
+
+device	apldma
+attach	apldma at fdt
+file	arch/arm64/dev/apldma.c			apldma
+
+device	apldog
+attach	apldog at fdt
+file	arch/arm64/dev/apldog.c			apldog
+
+device	aplefuse
+attach	aplefuse at fdt
+file	arch/arm64/dev/aplefuse.c		aplefuse
+
+device	apliic: i2cbus
+attach	apliic at fdt
+file	arch/arm64/dev/apliic.c			apliic
+
+device	aplintc
+attach	aplintc at fdt
+file	arch/arm64/dev/aplintc.c		aplintc
+
+device	aplhidev {}
+attach	aplhidev at spi
+device	aplkbd: hid, hidkbd, wskbddev
+attach	aplkbd at aplhidev
+device	aplms: hid, hidms, wsmousedev
+attach	aplms at aplhidev
+file	arch/arm64/dev/aplhidev.c		aplhidev | aplkbd | aplms needs-flag
+
+device	aplmbox
+attach	aplmbox at fdt
+file	arch/arm64/dev/aplmbox.c		aplmbox
+
+device	aplmca
+attach	aplmca at fdt
+file	arch/arm64/dev/aplmca.c			aplmca
+
+device	aplnco
+attach	aplnco at fdt
+file	arch/arm64/dev/aplnco.c			aplnco
+
+device	aplpcie: pcibus
+attach	aplpcie at fdt
+file	arch/arm64/dev/aplpcie.c		aplpcie
+
+device	aplpinctrl
+attach	aplpinctrl at fdt
+file	arch/arm64/dev/aplpinctrl.c		aplpinctrl
+
+device	aplpmgr
+attach	aplpmgr at fdt
+file	arch/arm64/dev/aplpmgr.c		aplpmgr
+
+device	aplpwm
+attach	aplpwm at fdt
+file	arch/arm64/dev/aplpwm.c			aplpwm
+
+device	aplrtk
+attach	aplrtk at fdt
+file	arch/arm64/dev/aplrtk.c			aplrtk
+
+# Apple NVME Storage
+device	aplns {}: rtkit
+attach	aplns at fdt
+attach	nvme at aplns with nvme_ans
+file	arch/arm64/dev/aplns.c			aplns | nvme_ans
+
+device	aplsart
+attach	aplsart at fdt
+file	arch/arm64/dev/aplsart.c		aplsart | aplns
+
+device	aplsmc
+attach	aplsmc at fdt
+file	arch/arm64/dev/aplsmc.c			aplsmc
+
+device	aplpmu
+attach	aplpmu at spmi
+file	arch/arm64/dev/aplpmu.c			aplpmu
+
+device	aplspi: spi
+attach	aplspi at fdt
+file	arch/arm64/dev/aplspi.c			aplspi
+
+device	aplspmi: spmi
+attach	aplspmi at fdt
+file	arch/arm64/dev/aplspmi.c		aplspmi
+
+device	bcmintc
+attach	bcmintc at fdt
+file	arch/arm64/dev/bcm2836_intr.c		bcmintc
+
+device	bcmmip
+attach	bcmmip at fdt
+file	arch/arm64/dev/bcm2712_mip.c		bcmmip
+
+device	pciecam: pcibus
+attach	pciecam at fdt
+file	dev/fdt/pciecam.c			pciecam
+
+device	smmu
+attach	smmu at fdt with smmu_fdt
+file	arch/arm64/dev/smmu.c			smmu
+file	arch/arm64/dev/smmu_fdt.c		smmu_fdt
+
+# Raspberry Pi RP1
+device	rpone: fdt
+attach	rpone at pci
+file	arch/arm64/dev/rpone.c			rpone
+
+device	rpiclock
+attach	rpiclock at fdt
+file	arch/arm64/dev/rpiclock.c		rpiclock
+
+device	rpigpio
+attach	rpigpio at fdt
+file	arch/arm64/dev/rpigpio.c		rpigpio
+
+device	rpipwm
+attach	rpipwm at fdt
+file	arch/arm64/dev/rpipwm.c			rpipwm
+
+device	rpirtc
+attach	rpirtc at fdt
+file	arch/arm64/dev/rpirtc.c			rpirtc
+
+# ACPI
+include "dev/acpi/files.acpi"
+
+attach	acpi at fdt with acpi_fdt
+file	arch/arm64/arm64/acpi_machdep.c		acpi_fdt
+file	arch/arm64/dev/acpicpu.c		acpicpu
+
+define	acpiiort {}
+device	acpiiort: acpiiort
+attach	acpiiort at acpi
+file	arch/arm64/dev/acpiiort.c		acpiiort
+
+device	acpipci: pcibus
+attach	acpipci at acpi
+file	arch/arm64/dev/acpipci.c		acpipci
+
+attach	smmu at acpiiort with smmu_acpi
+file	arch/arm64/dev/smmu_acpi.c		smmu_acpi
+
+device	ampchwm
+attach	ampchwm at acpi
+file	arch/arm64/dev/ampchwm.c		ampchwm
+
+device  apm
+attach  apm at mainbus
+file	arch/arm64/dev/apm.c			apm		needs-flag
+file	arch/arm64/arm64/acpiapm.c		apm

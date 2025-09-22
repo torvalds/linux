@@ -1,0 +1,439 @@
+import("//llvm/utils/gn/build/toolchain/compiler.gni")
+
+unix_copy_command = "ln -f {{source}} {{output}} 2>/dev/null || (rm -rf {{output}} && cp -af {{source}} {{output}})"
+
+template("unix_toolchain") {
+  toolchain(target_name) {
+    # https://groups.google.com/a/chromium.org/g/gn-dev/c/F_lv5T-tNDM
+    forward_variables_from(invoker.toolchain_args, "*")
+    not_needed("*")
+
+    forward_variables_from(invoker, "*")
+
+    cc = "cc"
+    cxx = "c++"
+
+    if (clang_base_path != "") {
+      cc = rebase_path(clang_base_path, root_build_dir) + "/bin/clang"
+      cxx = rebase_path(clang_base_path, root_build_dir) + "/bin/clang++"
+    }
+
+    ld = cxx  # Don't use compiler wrapper for linking.
+    if (compiler_wrapper != "") {
+      cc = "$compiler_wrapper $cc"
+      cxx = "$compiler_wrapper $cxx"
+    }
+
+    tool("cc") {
+      depfile = "{{output}}.d"
+      command = "$cc -MMD -MF $depfile -o {{output}} -c {{source}} {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}}"
+      depsformat = "gcc"
+      description = "CC {{output}}"
+      outputs = [ "{{source_out_dir}}/{{label_name}}.{{source_name_part}}.o" ]
+    }
+
+    tool("cxx") {
+      depfile = "{{output}}.d"
+      command = "$cxx -MMD -MF $depfile -o {{output}} -c {{source}} {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}"
+      depsformat = "gcc"
+      description = "CXX {{output}}"
+      outputs = [ "{{source_out_dir}}/{{label_name}}.{{source_name_part}}.o" ]
+    }
+
+    tool("objcxx") {
+      depfile = "{{output}}.d"
+      command = "$cxx -MMD -MF $depfile -o {{output}} -c {{source}} {{defines}} {{include_dirs}} {{cflags}} {{cflags_objcc}}"
+      depsformat = "gcc"
+      description = "OBJCXX {{output}}"
+      outputs = [ "{{source_out_dir}}/{{label_name}}.{{source_name_part}}.o" ]
+    }
+
+    tool("asm") {
+      depfile = "{{output}}.d"
+      command = "$cc -MMD -MF $depfile -o {{output}} -c {{source}} {{defines}} {{include_dirs}} {{asmflags}}"
+      depsformat = "gcc"
+      description = "ASM {{output}}"
+      outputs = [ "{{source_out_dir}}/{{label_name}}.{{source_name_part}}.o" ]
+    }
+
+    tool("alink") {
+      if (current_os == "ios" || current_os == "mac") {
+        command = "libtool -D -static -no_warning_for_no_symbols {{arflags}} -o {{output}} {{inputs}}"
+      } else {
+        # Remove the output file first so that ar doesn't try to modify the
+        # existing file.
+        command =
+            "rm -f {{output}} && $ar rcsD {{arflags}} {{output}} {{inputs}}"
+      }
+      description = "AR {{output}}"
+      outputs = [ "{{output_dir}}/{{target_output_name}}.a" ]
+      output_prefix = "lib"
+      default_output_dir = "{{root_out_dir}}/lib"
+    }
+
+    if (current_os == "ios" || current_os == "mac") {
+      # gn < 1693 (e214b5d35898) doesn't support |frameworks|, requiring
+      # frameworks to be listed in |libs|, but gn >= 1808 (3028c6a426a4) forbids
+      # frameworks from appearing in |libs|. This assertion provides a helpful
+      # cue to upgrade, and is much more user-friendly than the failure that
+      # occurs when an older gn encounters |frameworks|.
+      #
+      # gn_version doesn’t actually exist in gn < 1709 (52cb644a3fb4), and
+      # defined(gn_version) doesn't actually work as expected
+      # (https://crbug.com/gn/183), so 1709 is the true minimum enforced by
+      # this construct, and if gn_version is not available, this line will still
+      # be blamed, making the resolution somewhat discoverable.
+      assert(gn_version >= 1693,
+             "Your GN is too old! " +
+                 "Update it, perhaps by running llvm/utils/gn/get.py")
+    }
+
+    # Make these apply to all tools below.
+    lib_switch = "-l"
+    lib_dir_switch = "-L"
+
+    tool("solink") {
+      outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
+      if (current_os == "ios" || current_os == "mac") {
+        command = "$ld -shared {{ldflags}} -o $outfile {{inputs}} {{libs}} {{frameworks}}"
+        default_output_extension = ".dylib"
+      } else {
+        command = "$ld -shared {{ldflags}} -Wl,-soname,{{target_output_name}}{{output_extension}} -o $outfile {{inputs}} {{libs}}"
+        default_output_extension = ".so"
+      }
+      description = "SOLINK $outfile"
+      outputs = [ outfile ]
+      output_prefix = "lib"
+      default_output_dir = "{{root_out_dir}}/lib"
+    }
+
+    tool("solink_module") {
+      outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
+      if (current_os == "ios" || current_os == "mac") {
+        command = "$ld -shared {{ldflags}} -Wl,-flat_namespace -Wl,-undefined,suppress -o $outfile {{inputs}} {{libs}} {{frameworks}}"
+        default_output_extension = ".dylib"
+      } else {
+        command = "$ld -shared {{ldflags}} -Wl,-soname,{{target_output_name}}{{output_extension}} -o $outfile {{inputs}} {{libs}}"
+        default_output_extension = ".so"
+      }
+      description = "SOLINK $outfile"
+      outputs = [ outfile ]
+      default_output_dir = "{{root_out_dir}}/lib"
+    }
+
+    tool("link") {
+      outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
+      if (current_os == "ios" || current_os == "mac") {
+        command =
+            "$ld {{ldflags}} -o $outfile {{inputs}} {{libs}} {{frameworks}}"
+      } else {
+        command = "$ld {{ldflags}} -o $outfile -Wl,--start-group {{inputs}} -Wl,--end-group {{libs}}"
+      }
+      description = "LINK $outfile"
+      outputs = [ outfile ]
+
+      # Setting this allows targets to override the default executable output by
+      # setting output_dir.
+      default_output_dir = "{{root_out_dir}}/bin"
+    }
+
+    tool("copy") {
+      command = unix_copy_command
+      description = "COPY {{source}} {{output}}"
+    }
+
+    if (current_os == "ios" || current_os == "mac") {
+      tool("copy_bundle_data") {
+        # https://github.com/nico/hack/blob/master/notes/copydir.md
+        _copydir = "cd {{source}} && " +
+                   "find . | cpio -pdl \"\$OLDPWD\"/{{output}} 2>/dev/null"
+        command = "rm -rf {{output}} && if [[ -d {{source}} ]]; then " +
+                  _copydir + "; else " + unix_copy_command + "; fi"
+        description = "COPY_BUNDLE_DATA {{source}} {{output}}"
+      }
+      tool("compile_xcassets") {
+        command = "false"
+        description = "The LLVM build doesn't use any xcasset files"
+      }
+    }
+
+    tool("stamp") {
+      command = "touch {{output}}"
+      description = "STAMP {{output}}"
+    }
+  }
+}
+
+unix_toolchain("unix") {
+  if (current_os != "ios" && current_os != "mac") {
+    if (clang_base_path != "") {
+      ar = rebase_path(clang_base_path, root_build_dir) + "/bin/llvm-ar"
+    } else {
+      ar = "ar"
+    }
+  }
+
+  toolchain_args = {
+    current_os = host_os
+    current_cpu = host_cpu
+  }
+}
+
+# This template defines a toolchain that uses just-built clang and lld
+# as compiler and linker.
+template("stage2_unix_toolchain") {
+  unix_toolchain(target_name) {
+    toolchain_args = {
+      forward_variables_from(invoker.toolchain_args, "*")
+
+      clang_base_path = root_build_dir
+      llvm_enable_zstd = false
+    }
+
+    deps = [
+      "//:clang($host_toolchain)",
+      "//:lld($host_toolchain)",
+    ]
+    if (toolchain_args.current_os != "ios" &&
+        toolchain_args.current_os != "mac") {
+      ar = "bin/llvm-ar"
+      deps += [ "//:llvm-ar($host_toolchain)" ]
+    }
+  }
+}
+
+stage2_unix_toolchain("stage2_unix") {
+  toolchain_args = {
+    current_os = host_os
+    current_cpu = host_cpu
+  }
+}
+
+if (android_ndk_path != "") {
+  # Android compiler-rt libraries don't really work with per-target runtime
+  # directories yet so force it off.
+  # https://discourse.llvm.org/t/handling-version-numbers-in-per-target-runtime-directories/62717.
+  stage2_unix_toolchain("stage2_android_aarch64") {
+    toolchain_args = {
+      current_os = "android"
+      current_cpu = "arm64"
+      clang_enable_per_target_runtime_dir = false
+    }
+  }
+
+  stage2_unix_toolchain("stage2_android_arm") {
+    toolchain_args = {
+      current_os = "android"
+      current_cpu = "arm"
+      clang_enable_per_target_runtime_dir = false
+    }
+  }
+
+  stage2_unix_toolchain("stage2_android_x64") {
+    toolchain_args = {
+      current_os = "android"
+      current_cpu = "x64"
+      clang_enable_per_target_runtime_dir = false
+    }
+  }
+
+  stage2_unix_toolchain("stage2_android_x86") {
+    toolchain_args = {
+      current_os = "android"
+      current_cpu = "x86"
+      clang_enable_per_target_runtime_dir = false
+    }
+  }
+}
+
+if (host_os == "mac") {
+  stage2_unix_toolchain("stage2_ios_aarch64") {
+    toolchain_args = {
+      current_os = "ios"
+      current_cpu = "arm64"
+    }
+  }
+
+  stage2_unix_toolchain("stage2_iossim_x64") {
+    toolchain_args = {
+      current_os = "ios"
+      current_cpu = "x64"
+    }
+  }
+}
+
+stage2_unix_toolchain("stage2_baremetal_aarch64") {
+  toolchain_args = {
+    current_os = "baremetal"
+    current_cpu = "arm64"
+
+    # FIXME: These should be set in all toolchains building sanitizers,
+    # see discussion at https://reviews.llvm.org/D127906#3587329
+    use_asan = false
+    use_tsan = false
+    use_ubsan = false
+  }
+}
+
+template("win_toolchain") {
+  toolchain(target_name) {
+    # https://groups.google.com/a/chromium.org/d/msg/gn-dev/F_lv5T-tNDM
+    forward_variables_from(invoker.toolchain_args, "*")
+    not_needed("*")
+
+    forward_variables_from(invoker, "*")
+
+    cl = "cl"
+    link = "link"
+
+    if (clang_base_path != "") {
+      cl = rebase_path(clang_base_path, root_build_dir) + "/bin/clang-cl"
+      if (use_lld) {
+        link = rebase_path(clang_base_path, root_build_dir) + "/bin/lld-link"
+      }
+    }
+
+    if (compiler_wrapper != "") {
+      cl = "$compiler_wrapper $cl"
+    }
+
+    tool("cc") {
+      command = "$cl /nologo /showIncludes /Fo{{output}} /c {{source}} {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}}"
+      depsformat = "msvc"
+      description = "CC {{output}}"
+      outputs = [ "{{source_out_dir}}/{{label_name}}.{{source_name_part}}.obj" ]
+    }
+
+    tool("cxx") {
+      command = "$cl /nologo /showIncludes /Fo{{output}} /c {{source}} {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}"
+      depsformat = "msvc"
+      description = "CXX {{output}}"
+      outputs = [ "{{source_out_dir}}/{{label_name}}.{{source_name_part}}.obj" ]
+    }
+
+    tool("alink") {
+      command = "$link /lib /nologo {{arflags}} /out:{{output}} {{inputs}}"
+      description = "LIB {{output}}"
+      outputs = [ "{{output_dir}}/{{target_output_name}}.lib" ]
+      default_output_dir = "{{root_out_dir}}/lib"
+    }
+
+    # Make these apply to all tools below.
+    lib_switch = ""
+    lib_dir_switch = "/LIBPATH:"
+
+    tool("solink") {
+      outprefix = "{{output_dir}}/{{target_output_name}}"
+      dllfile = "$outprefix{{output_extension}}"
+      libfile = "$outprefix.lib"
+      pdbfile = "$outprefix.pdb"
+      command = "$link /nologo /dll {{ldflags}} /out:$dllfile /implib:$libfile /pdb:$pdbfile {{inputs}} {{libs}} "
+      description = "LINK $dllfile"
+      link_output = libfile
+      depend_output = libfile
+      runtime_outputs = [ dllfile ]
+      outputs = [
+        dllfile,
+        libfile,
+      ]
+      default_output_extension = ".dll"
+      restat = true
+
+      # Put dlls next to the executables in bin/ on Windows, since Windows
+      # doesn't have a configurable rpath. This matches initialization of
+      # module_dir to bin/ in AddLLVM.cmake's set_output_directory().
+      default_output_dir = "{{root_out_dir}}/bin"
+    }
+
+    # Plugins for opt and clang and so on don't work in LLVM's Windows build
+    # since the code doesn't have export annotations, but there are a few
+    # standalone loadable modules used for unit-testing LLVM's dynamic library
+    # loading code.
+    tool("solink_module") {
+      outprefix = "{{output_dir}}/{{target_output_name}}"
+      dllfile = "$outprefix{{output_extension}}"
+      pdbfile = "$outprefix.pdb"
+      command = "$link /nologo /dll {{ldflags}} /out:$dllfile /pdb:$pdbfile {{inputs}} {{libs}} "
+      description = "LINK_MODULE $dllfile"
+      outputs = [ dllfile ]
+      runtime_outputs = outputs
+      default_output_extension = ".dll"
+
+      # No default_output_dir, all clients set output_dir.
+    }
+
+    tool("link") {
+      outprefix = "{{output_dir}}/{{target_output_name}}"
+      outfile = "$outprefix{{output_extension}}"
+      pdbfile = "$outprefix.pdb"
+      command = "$link /nologo {{ldflags}} /out:$outfile /pdb:$pdbfile {{inputs}} {{libs}}"
+      description = "LINK $outfile"
+      outputs = [ outfile ]
+      default_output_extension = ".exe"
+
+      # Setting this allows targets to override the default executable output by
+      # setting output_dir.
+      default_output_dir = "{{root_out_dir}}/bin"
+    }
+
+    tool("copy") {
+      if (host_os == "win") {
+        # GN hands out slash-using paths, but cmd's copy needs backslashes.
+        # Use cmd's %foo:a=b% substitution feature to convert.
+        command = "cmd /c set source=\"{{source}}\" & set output=\"{{output}}\" & call copy /Y %source:/=\% %output:\=/% > nul"
+      } else {
+        command = unix_copy_command
+      }
+
+      description = "COPY {{source}} {{output}}"
+    }
+
+    tool("stamp") {
+      if (host_os == "win") {
+        command = "cmd /c type nul > {{output}}"
+      } else {
+        command = "touch {{output}}"
+      }
+      description = "STAMP {{output}}"
+    }
+  }
+}
+
+win_toolchain("win") {
+  toolchain_args = {
+    current_os = "win"
+    current_cpu = host_cpu
+  }
+}
+
+win_toolchain("stage2_win_x64") {
+  toolchain_args = {
+    current_os = "win"
+    current_cpu = "x64"
+
+    if (host_os != "win") {
+      sysroot = win_sysroot
+    }
+    clang_base_path = root_build_dir
+  }
+  deps = [
+    "//:clang($host_toolchain)",
+    "//:lld($host_toolchain)",
+  ]
+}
+
+win_toolchain("stage2_win_x86") {
+  toolchain_args = {
+    current_os = "win"
+    current_cpu = "x86"
+
+    if (host_os != "win") {
+      sysroot = win_sysroot
+    }
+    clang_base_path = root_build_dir
+  }
+  deps = [
+    "//:clang($host_toolchain)",
+    "//:lld($host_toolchain)",
+  ]
+}

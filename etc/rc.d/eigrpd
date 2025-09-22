@@ -1,0 +1,9 @@
+#!/bin/ksh
+#
+# $OpenBSD: eigrpd,v 1.4 2018/01/11 19:52:12 rpe Exp $
+
+daemon="/usr/sbin/eigrpd"
+
+. /etc/rc.d/rc.subr
+
+rc_cmd $1

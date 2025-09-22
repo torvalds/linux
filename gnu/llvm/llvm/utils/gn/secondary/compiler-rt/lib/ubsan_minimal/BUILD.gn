@@ -1,0 +1,19 @@
+import("//compiler-rt/target.gni")
+
+source_set("sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+}
+
+static_library("ubsan_minimal") {
+  output_dir = crt_current_out_dir
+  output_name = "clang_rt.ubsan_minimal$crt_current_target_suffix"
+  complete_static_lib = true
+  configs -= [
+    "//llvm/utils/gn/build:llvm_code",
+    "//llvm/utils/gn/build:thin_archive",
+  ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  sources = [ "ubsan_minimal_handlers.cpp" ]
+  defines = [ "SANITIZER_COMMON_NO_REDEFINE_BUILTINS" ]
+}

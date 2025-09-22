@@ -1,0 +1,2 @@
+match out on lo0 inet from 1.2.3.4 to 5.6.7.8 nat-to 127.0.0.1 static-port
+match in on lo0 inet from 5.6.7.8 to 127.0.0.1 rdr-to 1.2.3.4

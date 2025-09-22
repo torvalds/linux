@@ -1,0 +1,464 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_SHARED_MUTEX
+#define _LIBCPP_SHARED_MUTEX
+
+/*
+    shared_mutex synopsis
+
+// C++1y
+
+namespace std
+{
+
+class shared_mutex      // C++17
+{
+public:
+    shared_mutex();
+    ~shared_mutex();
+
+    shared_mutex(const shared_mutex&) = delete;
+    shared_mutex& operator=(const shared_mutex&) = delete;
+
+    // Exclusive ownership
+    void lock(); // blocking
+    bool try_lock();
+    void unlock();
+
+    // Shared ownership
+    void lock_shared(); // blocking
+    bool try_lock_shared();
+    void unlock_shared();
+
+    typedef implementation-defined native_handle_type; // See 30.2.3
+    native_handle_type native_handle(); // See 30.2.3
+};
+
+class shared_timed_mutex
+{
+public:
+    shared_timed_mutex();
+    ~shared_timed_mutex();
+
+    shared_timed_mutex(const shared_timed_mutex&) = delete;
+    shared_timed_mutex& operator=(const shared_timed_mutex&) = delete;
+
+    // Exclusive ownership
+    void lock(); // blocking
+    bool try_lock();
+    template <class Rep, class Period>
+        bool try_lock_for(const chrono::duration<Rep, Period>& rel_time);
+    template <class Clock, class Duration>
+        bool try_lock_until(const chrono::time_point<Clock, Duration>& abs_time);
+    void unlock();
+
+    // Shared ownership
+    void lock_shared(); // blocking
+    bool try_lock_shared();
+    template <class Rep, class Period>
+        bool
+        try_lock_shared_for(const chrono::duration<Rep, Period>& rel_time);
+    template <class Clock, class Duration>
+        bool
+        try_lock_shared_until(const chrono::time_point<Clock, Duration>& abs_time);
+    void unlock_shared();
+};
+
+template <class Mutex>
+class shared_lock
+{
+public:
+    typedef Mutex mutex_type;
+
+    // Shared locking
+    shared_lock() noexcept;
+    explicit shared_lock(mutex_type& m); // blocking
+    shared_lock(mutex_type& m, defer_lock_t) noexcept;
+    shared_lock(mutex_type& m, try_to_lock_t);
+    shared_lock(mutex_type& m, adopt_lock_t);
+    template <class Clock, class Duration>
+        shared_lock(mutex_type& m,
+                    const chrono::time_point<Clock, Duration>& abs_time);
+    template <class Rep, class Period>
+        shared_lock(mutex_type& m,
+                    const chrono::duration<Rep, Period>& rel_time);
+    ~shared_lock();
+
+    shared_lock(shared_lock const&) = delete;
+    shared_lock& operator=(shared_lock const&) = delete;
+
+    shared_lock(shared_lock&& u) noexcept;
+    shared_lock& operator=(shared_lock&& u) noexcept;
+
+    void lock(); // blocking
+    bool try_lock();
+    template <class Rep, class Period>
+        bool try_lock_for(const chrono::duration<Rep, Period>& rel_time);
+    template <class Clock, class Duration>
+        bool try_lock_until(const chrono::time_point<Clock, Duration>& abs_time);
+    void unlock();
+
+    // Setters
+    void swap(shared_lock& u) noexcept;
+    mutex_type* release() noexcept;
+
+    // Getters
+    bool owns_lock() const noexcept;
+    explicit operator bool () const noexcept;
+    mutex_type* mutex() const noexcept;
+};
+
+template <class Mutex>
+    void swap(shared_lock<Mutex>& x, shared_lock<Mutex>& y) noexcept;
+
+}  // std
+
+*/
+
+#include <__config>
+
+#if !defined(_LIBCPP_HAS_NO_THREADS)
+
+#  include <__chrono/duration.h>
+#  include <__chrono/steady_clock.h>
+#  include <__chrono/time_point.h>
+#  include <__condition_variable/condition_variable.h>
+#  include <__memory/addressof.h>
+#  include <__mutex/mutex.h>
+#  include <__mutex/tag_types.h>
+#  include <__mutex/unique_lock.h>
+#  include <__system_error/system_error.h>
+#  include <__utility/swap.h>
+#  include <cerrno>
+#  include <version>
+
+_LIBCPP_PUSH_MACROS
+#  include <__undef_macros>
+
+#  if _LIBCPP_STD_VER >= 14
+
+#    if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#      pragma GCC system_header
+#    endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+struct _LIBCPP_EXPORTED_FROM_ABI __shared_mutex_base {
+  mutex __mut_;
+  condition_variable __gate1_;
+  condition_variable __gate2_;
+  unsigned __state_;
+
+  static const unsigned __write_entered_ = 1U << (sizeof(unsigned) * __CHAR_BIT__ - 1);
+  static const unsigned __n_readers_     = ~__write_entered_;
+
+  __shared_mutex_base();
+  _LIBCPP_HIDE_FROM_ABI ~__shared_mutex_base() = default;
+
+  __shared_mutex_base(const __shared_mutex_base&)            = delete;
+  __shared_mutex_base& operator=(const __shared_mutex_base&) = delete;
+
+  // Exclusive ownership
+  void lock(); // blocking
+  bool try_lock();
+  void unlock();
+
+  // Shared ownership
+  void lock_shared(); // blocking
+  bool try_lock_shared();
+  void unlock_shared();
+
+  //     typedef implementation-defined native_handle_type; // See 30.2.3
+  //     native_handle_type native_handle(); // See 30.2.3
+};
+
+#    if _LIBCPP_STD_VER >= 17
+class _LIBCPP_EXPORTED_FROM_ABI _LIBCPP_THREAD_SAFETY_ANNOTATION(__capability__("shared_mutex")) shared_mutex {
+  __shared_mutex_base __base_;
+
+public:
+  _LIBCPP_HIDE_FROM_ABI shared_mutex() : __base_() {}
+  _LIBCPP_HIDE_FROM_ABI ~shared_mutex() = default;
+
+  shared_mutex(const shared_mutex&)            = delete;
+  shared_mutex& operator=(const shared_mutex&) = delete;
+
+  // Exclusive ownership
+  _LIBCPP_HIDE_FROM_ABI void lock() _LIBCPP_THREAD_SAFETY_ANNOTATION(__acquire_capability__()) {
+    return __base_.lock();
+  }
+  _LIBCPP_HIDE_FROM_ABI bool try_lock() _LIBCPP_THREAD_SAFETY_ANNOTATION(__try_acquire_capability__(true)) {
+    return __base_.try_lock();
+  }
+  _LIBCPP_HIDE_FROM_ABI void unlock() _LIBCPP_THREAD_SAFETY_ANNOTATION(__release_capability__()) {
+    return __base_.unlock();
+  }
+
+  // Shared ownership
+  _LIBCPP_HIDE_FROM_ABI void lock_shared() _LIBCPP_THREAD_SAFETY_ANNOTATION(__acquire_shared_capability__()) {
+    return __base_.lock_shared();
+  }
+  _LIBCPP_HIDE_FROM_ABI bool try_lock_shared()
+      _LIBCPP_THREAD_SAFETY_ANNOTATION(__try_acquire_shared_capability__(true)) {
+    return __base_.try_lock_shared();
+  }
+  _LIBCPP_HIDE_FROM_ABI void unlock_shared() _LIBCPP_THREAD_SAFETY_ANNOTATION(__release_shared_capability__()) {
+    return __base_.unlock_shared();
+  }
+
+  //     typedef __shared_mutex_base::native_handle_type native_handle_type;
+  //     _LIBCPP_HIDE_FROM_ABI native_handle_type native_handle() { return __base::unlock_shared(); }
+};
+#    endif
+
+class _LIBCPP_EXPORTED_FROM_ABI
+_LIBCPP_THREAD_SAFETY_ANNOTATION(__capability__("shared_timed_mutex")) shared_timed_mutex {
+  __shared_mutex_base __base_;
+
+public:
+  shared_timed_mutex();
+  _LIBCPP_HIDE_FROM_ABI ~shared_timed_mutex() = default;
+
+  shared_timed_mutex(const shared_timed_mutex&)            = delete;
+  shared_timed_mutex& operator=(const shared_timed_mutex&) = delete;
+
+  // Exclusive ownership
+  void lock() _LIBCPP_THREAD_SAFETY_ANNOTATION(__acquire_capability__());
+  bool try_lock() _LIBCPP_THREAD_SAFETY_ANNOTATION(__try_acquire_capability__(true));
+  template <class _Rep, class _Period>
+  _LIBCPP_HIDE_FROM_ABI bool try_lock_for(const chrono::duration<_Rep, _Period>& __rel_time)
+      _LIBCPP_THREAD_SAFETY_ANNOTATION(__try_acquire_capability__(true)) {
+    return try_lock_until(chrono::steady_clock::now() + __rel_time);
+  }
+  template <class _Clock, class _Duration>
+  _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS bool
+  try_lock_until(const chrono::time_point<_Clock, _Duration>& __abs_time)
+      _LIBCPP_THREAD_SAFETY_ANNOTATION(__try_acquire_capability__(true));
+  void unlock() _LIBCPP_THREAD_SAFETY_ANNOTATION(__release_capability__());
+
+  // Shared ownership
+  void lock_shared() _LIBCPP_THREAD_SAFETY_ANNOTATION(__acquire_shared_capability__());
+  bool try_lock_shared() _LIBCPP_THREAD_SAFETY_ANNOTATION(__try_acquire_shared_capability__(true));
+  template <class _Rep, class _Period>
+  _LIBCPP_HIDE_FROM_ABI bool try_lock_shared_for(const chrono::duration<_Rep, _Period>& __rel_time)
+      _LIBCPP_THREAD_SAFETY_ANNOTATION(__try_acquire_shared_capability__(true)) {
+    return try_lock_shared_until(chrono::steady_clock::now() + __rel_time);
+  }
+  template <class _Clock, class _Duration>
+  _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS bool
+  try_lock_shared_until(const chrono::time_point<_Clock, _Duration>& __abs_time)
+      _LIBCPP_THREAD_SAFETY_ANNOTATION(__try_acquire_shared_capability__(true));
+  void unlock_shared() _LIBCPP_THREAD_SAFETY_ANNOTATION(__release_shared_capability__());
+};
+
+template <class _Clock, class _Duration>
+bool shared_timed_mutex::try_lock_until(const chrono::time_point<_Clock, _Duration>& __abs_time) {
+  unique_lock<mutex> __lk(__base_.__mut_);
+  if (__base_.__state_ & __base_.__write_entered_) {
+    while (true) {
+      cv_status __status = __base_.__gate1_.wait_until(__lk, __abs_time);
+      if ((__base_.__state_ & __base_.__write_entered_) == 0)
+        break;
+      if (__status == cv_status::timeout)
+        return false;
+    }
+  }
+  __base_.__state_ |= __base_.__write_entered_;
+  if (__base_.__state_ & __base_.__n_readers_) {
+    while (true) {
+      cv_status __status = __base_.__gate2_.wait_until(__lk, __abs_time);
+      if ((__base_.__state_ & __base_.__n_readers_) == 0)
+        break;
+      if (__status == cv_status::timeout) {
+        __base_.__state_ &= ~__base_.__write_entered_;
+        __base_.__gate1_.notify_all();
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+template <class _Clock, class _Duration>
+bool shared_timed_mutex::try_lock_shared_until(const chrono::time_point<_Clock, _Duration>& __abs_time) {
+  unique_lock<mutex> __lk(__base_.__mut_);
+  if ((__base_.__state_ & __base_.__write_entered_) ||
+      (__base_.__state_ & __base_.__n_readers_) == __base_.__n_readers_) {
+    while (true) {
+      cv_status __status = __base_.__gate1_.wait_until(__lk, __abs_time);
+      if ((__base_.__state_ & __base_.__write_entered_) == 0 &&
+          (__base_.__state_ & __base_.__n_readers_) < __base_.__n_readers_)
+        break;
+      if (__status == cv_status::timeout)
+        return false;
+    }
+  }
+  unsigned __num_readers = (__base_.__state_ & __base_.__n_readers_) + 1;
+  __base_.__state_ &= ~__base_.__n_readers_;
+  __base_.__state_ |= __num_readers;
+  return true;
+}
+
+template <class _Mutex>
+class shared_lock {
+public:
+  typedef _Mutex mutex_type;
+
+private:
+  mutex_type* __m_;
+  bool __owns_;
+
+public:
+  _LIBCPP_HIDE_FROM_ABI shared_lock() _NOEXCEPT : __m_(nullptr), __owns_(false) {}
+
+  _LIBCPP_HIDE_FROM_ABI explicit shared_lock(mutex_type& __m) : __m_(std::addressof(__m)), __owns_(true) {
+    __m_->lock_shared();
+  }
+
+  _LIBCPP_HIDE_FROM_ABI shared_lock(mutex_type& __m, defer_lock_t) _NOEXCEPT
+      : __m_(std::addressof(__m)),
+        __owns_(false) {}
+
+  _LIBCPP_HIDE_FROM_ABI shared_lock(mutex_type& __m, try_to_lock_t)
+      : __m_(std::addressof(__m)), __owns_(__m.try_lock_shared()) {}
+
+  _LIBCPP_HIDE_FROM_ABI shared_lock(mutex_type& __m, adopt_lock_t) : __m_(std::addressof(__m)), __owns_(true) {}
+
+  template <class _Clock, class _Duration>
+  _LIBCPP_HIDE_FROM_ABI shared_lock(mutex_type& __m, const chrono::time_point<_Clock, _Duration>& __abs_time)
+      : __m_(std::addressof(__m)), __owns_(__m.try_lock_shared_until(__abs_time)) {}
+
+  template <class _Rep, class _Period>
+  _LIBCPP_HIDE_FROM_ABI shared_lock(mutex_type& __m, const chrono::duration<_Rep, _Period>& __rel_time)
+      : __m_(std::addressof(__m)), __owns_(__m.try_lock_shared_for(__rel_time)) {}
+
+  _LIBCPP_HIDE_FROM_ABI ~shared_lock() {
+    if (__owns_)
+      __m_->unlock_shared();
+  }
+
+  shared_lock(shared_lock const&)            = delete;
+  shared_lock& operator=(shared_lock const&) = delete;
+
+  _LIBCPP_HIDE_FROM_ABI shared_lock(shared_lock&& __u) _NOEXCEPT : __m_(__u.__m_), __owns_(__u.__owns_) {
+    __u.__m_    = nullptr;
+    __u.__owns_ = false;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI shared_lock& operator=(shared_lock&& __u) _NOEXCEPT {
+    if (__owns_)
+      __m_->unlock_shared();
+    __m_        = nullptr;
+    __owns_     = false;
+    __m_        = __u.__m_;
+    __owns_     = __u.__owns_;
+    __u.__m_    = nullptr;
+    __u.__owns_ = false;
+    return *this;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI void lock();
+  _LIBCPP_HIDE_FROM_ABI bool try_lock();
+  template <class _Rep, class _Period>
+  _LIBCPP_HIDE_FROM_ABI bool try_lock_for(const chrono::duration<_Rep, _Period>& __rel_time);
+  template <class _Clock, class _Duration>
+  _LIBCPP_HIDE_FROM_ABI bool try_lock_until(const chrono::time_point<_Clock, _Duration>& __abs_time);
+  _LIBCPP_HIDE_FROM_ABI void unlock();
+
+  // Setters
+  _LIBCPP_HIDE_FROM_ABI void swap(shared_lock& __u) _NOEXCEPT {
+    std::swap(__m_, __u.__m_);
+    std::swap(__owns_, __u.__owns_);
+  }
+
+  _LIBCPP_HIDE_FROM_ABI mutex_type* release() _NOEXCEPT {
+    mutex_type* __m = __m_;
+    __m_            = nullptr;
+    __owns_         = false;
+    return __m;
+  }
+
+  // Getters
+  _LIBCPP_HIDE_FROM_ABI bool owns_lock() const _NOEXCEPT { return __owns_; }
+
+  _LIBCPP_HIDE_FROM_ABI explicit operator bool() const _NOEXCEPT { return __owns_; }
+
+  _LIBCPP_HIDE_FROM_ABI mutex_type* mutex() const _NOEXCEPT { return __m_; }
+};
+_LIBCPP_CTAD_SUPPORTED_FOR_TYPE(shared_lock);
+
+template <class _Mutex>
+void shared_lock<_Mutex>::lock() {
+  if (__m_ == nullptr)
+    __throw_system_error(EPERM, "shared_lock::lock: references null mutex");
+  if (__owns_)
+    __throw_system_error(EDEADLK, "shared_lock::lock: already locked");
+  __m_->lock_shared();
+  __owns_ = true;
+}
+
+template <class _Mutex>
+bool shared_lock<_Mutex>::try_lock() {
+  if (__m_ == nullptr)
+    __throw_system_error(EPERM, "shared_lock::try_lock: references null mutex");
+  if (__owns_)
+    __throw_system_error(EDEADLK, "shared_lock::try_lock: already locked");
+  __owns_ = __m_->try_lock_shared();
+  return __owns_;
+}
+
+template <class _Mutex>
+template <class _Rep, class _Period>
+bool shared_lock<_Mutex>::try_lock_for(const chrono::duration<_Rep, _Period>& __d) {
+  if (__m_ == nullptr)
+    __throw_system_error(EPERM, "shared_lock::try_lock_for: references null mutex");
+  if (__owns_)
+    __throw_system_error(EDEADLK, "shared_lock::try_lock_for: already locked");
+  __owns_ = __m_->try_lock_shared_for(__d);
+  return __owns_;
+}
+
+template <class _Mutex>
+template <class _Clock, class _Duration>
+bool shared_lock<_Mutex>::try_lock_until(const chrono::time_point<_Clock, _Duration>& __t) {
+  if (__m_ == nullptr)
+    __throw_system_error(EPERM, "shared_lock::try_lock_until: references null mutex");
+  if (__owns_)
+    __throw_system_error(EDEADLK, "shared_lock::try_lock_until: already locked");
+  __owns_ = __m_->try_lock_shared_until(__t);
+  return __owns_;
+}
+
+template <class _Mutex>
+void shared_lock<_Mutex>::unlock() {
+  if (!__owns_)
+    __throw_system_error(EPERM, "shared_lock::unlock: not locked");
+  __m_->unlock_shared();
+  __owns_ = false;
+}
+
+template <class _Mutex>
+inline _LIBCPP_HIDE_FROM_ABI void swap(shared_lock<_Mutex>& __x, shared_lock<_Mutex>& __y) _NOEXCEPT {
+  __x.swap(__y);
+}
+
+_LIBCPP_END_NAMESPACE_STD
+
+#  endif // _LIBCPP_STD_VER >= 14
+
+_LIBCPP_POP_MACROS
+
+#endif // !defined(_LIBCPP_HAS_NO_THREADS)
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <system_error>
+#endif
+
+#endif // _LIBCPP_SHARED_MUTEX

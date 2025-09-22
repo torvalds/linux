@@ -1,0 +1,32 @@
+
+BGP routing table entry for 192.0.2.0/24
+    4200000001 4200000001 4200000001 4200000001 4200000001
+    Nexthop 1.2.3.4 (via 1.2.3.4) Neighbor 0.0.0.0 (0.0.0.0)
+    Origin EGP, metric 42, localpref 15, weight 0, ovs not-found, avs unknown, external
+
+BGP routing table entry for 198.51.100.0/24
+    Nexthop 0.0.0.0 (via 0.0.0.0) Neighbor 0.0.0.0 (0.0.0.0)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external
+    Communities: 42:1 GRACEFUL_SHUTDOWN
+    Ext. Communities: ovs invalid rt 127.0.0.1:15
+    Large Communities: 4200000001:2:4200000001 4200000001:42:1
+
+BGP routing table entry for 203.0.113.0/24
+    Nexthop 0.0.0.0 (via 0.0.0.0) Neighbor 0.0.0.0 (0.0.0.0)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external
+
+BGP routing table entry for 2001:db8:1::/48
+    4200000001 4200000001 4200000001 4200000001 4200000001
+    Nexthop 2001:db8:42::1 (via 2001:db8:42::1) Neighbor :: (0.0.0.0)
+    Origin EGP, metric 42, localpref 15, weight 0, ovs not-found, avs unknown, external
+
+BGP routing table entry for 2001:db8:2::/48
+    Nexthop :: (via ::) Neighbor :: (0.0.0.0)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external
+    Communities: 42:1 GRACEFUL_SHUTDOWN
+    Ext. Communities: ovs invalid rt 127.0.0.1:15
+    Large Communities: 4200000001:2:4200000001 4200000001:42:1
+
+BGP routing table entry for 2001:db8:3::/48
+    Nexthop :: (via ::) Neighbor :: (0.0.0.0)
+    Origin IGP, metric 0, localpref 100, weight 0, ovs not-found, avs unknown, external

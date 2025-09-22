@@ -1,0 +1,265 @@
+.\" $OpenBSD: mbrtoc16.3,v 1.1 2023/08/20 15:02:51 schwarze Exp $
+.\"
+.\" Copyright 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright 2010 Stefan Sperling <stsp@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 20 2023 $
+.Dt MBRTOC16 3
+.Os
+.Sh NAME
+.Nm mbrtoc16
+.Nd convert one UTF-8 encoded character to UTF-16
+.Sh SYNOPSIS
+.In uchar.h
+.Ft size_t
+.Fo mbrtoc16
+.Fa "char16_t * restrict pc16"
+.Fa "const char * restrict s"
+.Fa "size_t n"
+.Fa "mbstate_t * restrict mbs"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn mbrtoc16
+function examines at most
+.Fa n
+bytes of the multibyte character byte string pointed to by
+.Fa s ,
+converts those bytes to a wide character,
+and encodes the wide character using UTF-16.
+In some cases, it is necessary to call this function
+twice to convert a single character.
+.Pp
+Conversion happens in accordance with the conversion state
+.Pf * Fa mbs ,
+which must be initialized to zero before the application's first call to
+.Fn mbrtoc16 .
+For this function,
+.Pf * Fa mbs
+stores information about both the state of the UTF-8 input encoding
+and the state of the UTF-16 output encoding.
+If the previous call did not return
+.Po Vt size_t Pc Ns \-1 ,
+.Fa mbs
+can safely be reused without reinitialization.
+.Pp
+The input encoding that
+.Fn mbrtoc16
+uses for
+.Fa s
+is determined by the
+.Dv LC_CTYPE
+category of the current locale.
+If the locale is changed without reinitialization of
+.Pf * Fa mbs ,
+the behaviour is undefined.
+.Pp
+Unlike
+.Xr mbtowc 3 ,
+.Fn mbrtoc16
+accepts an incomplete byte sequence pointed to by
+.Fa s
+which does not form a complete character but is potentially part of
+a valid character.
+In this case, the function consumes all such bytes.
+The conversion state saved in
+.Pf * Fa mbs
+will be used to restart the suspended conversion during the next call.
+.Pp
+On systems other than
+.Ox
+that support state-dependent encodings,
+.Fa s
+may point to a special sequence of bytes called a
+.Dq shift sequence ;
+see
+.Xr mbrtowc 3
+for details.
+.Pp
+The following arguments cause special processing:
+.Bl -tag -width 012345678901
+.It Fa pc16 No == Dv NULL
+The conversion from a multibyte character to a wide character is performed
+and the conversion state may be affected, but the resulting wide character
+is discarded.
+.It Fa s No == Dv NULL
+The arguments
+.Fa pc16
+and
+.Fa n
+are ignored and starting or continuing the conversion with an empty string
+is attempted, discarding the conversion result.
+.It Fa mbs No == Dv NULL
+An internal
+.Vt mbstate_t
+object specific to the
+.Fn mbrtoc16
+function is used instead of the
+.Fa mbs
+argument.
+This internal object is automatically initialized at program startup
+and never changed by any
+.Em libc
+function except
+.Fn mbrtoc16 .
+.Pp
+If
+.Fn mbrtoc16
+is called with a
+.Dv NULL
+.Fa mbs
+argument and that call returns
+.Po Vt size_t Pc Ns \-1 ,
+the internal conversion state of
+.Fn mbrtoc16
+becomes permanently undefined and there is no way
+to reset it to any defined state.
+Consequently, after such a mishap, it is not safe to call
+.Fn mbrtoc16
+with a
+.Dv NULL
+.Fa mbs
+argument ever again until the program is terminated.
+.El
+.Sh RETURN VALUES
+.Bl -tag -width 012345678901
+.It 0
+The bytes pointed to by
+.Fa s
+form a terminating NUL character.
+If
+.Fa pc16
+is not
+.Dv NULL ,
+a NUL wide character has been stored in
+.Pf * Fa pc16 .
+.It positive
+.Fa s
+points to a valid character, and the value returned is the number of
+bytes completing the character.
+If
+.Fa pc16
+is not
+.Dv NULL ,
+the first UTF-16 code unit of the corresponding wide character
+has been stored in
+.Pf * Fa pc16 .
+If it is an UTF-16 high surrogate, the function needs to be called
+again to retrieve a second UTF-16 code unit, the low surrogate.
+On
+.Ox ,
+this happens if and only if the return value is 4,
+but this equivalence does not hold on other operating systems
+that support input encodings other than UTF-8.
+.It Po Vt size_t Pc Ns \-1
+.Fa s
+points to an illegal byte sequence which does not form a valid multibyte
+character in the current locale, or
+.Fa mbs
+points to an invalid or uninitialized object.
+.Va errno
+is set to
+.Er EILSEQ
+or
+.Er EINVAL ,
+respectively.
+The conversion state object pointed to by
+.Fa mbs
+is left in an undefined state and must be reinitialized before being
+used again.
+.It Po Vt size_t Pc Ns \-2
+.Fa s
+points to an incomplete byte sequence of length
+.Fa n
+which has been consumed and contains part of a valid multibyte character.
+The character may be completed by calling the same function again with
+.Fa s
+pointing to one or more subsequent bytes of the multibyte character and
+.Fa mbs
+pointing to the conversion state object used during conversion of the
+incomplete byte sequence.
+.It Po Vt size_t Pc Ns \-3
+The second 16-bit code unit resulting from a previous call
+has been stored into
+.Pf * Fa pc16 ,
+without consuming any additional bytes from
+.Fa s .
+.El
+.Sh ERRORS
+.Fn mbrtoc16
+causes an error in the following cases:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+.Fa s
+points to an invalid multibyte character.
+.It Bq Er EINVAL
+.Fa mbs
+points to an invalid or uninitialized
+.Vt mbstate_t
+object.
+.El
+.Sh SEE ALSO
+.Xr c16rtomb 3 ,
+.Xr mbrtowc 3 ,
+.Xr setlocale 3
+.Sh STANDARDS
+.Fn mbrtoc16
+conforms to
+.St -isoC-2011 .
+.Sh HISTORY
+.Fn mbrtoc16
+has been available since
+.Ox 7.4 .
+.Sh CAVEATS
+On operating systems other than
+.Ox
+that support input encodings other than UTF-8, inspecting the return value
+is insufficient to tell whether the function needs to be called again.
+If the return value is positive, inspecting
+.Pf * Fa pc16
+is also required to make that decision.
+Consequently, passing a
+.Dv NULL
+pointer for the
+.Fa pc16
+argument is discouraged because it can result
+in a well-defined but unknown output encoding state.
+The simplest way to recover from such an unknown state is to
+reinitialize the object pointed to by
+.Fa mbs .
+.Pp
+The C11 standard only requires the
+.Fa pc16
+argument to be encoded according to UTF-16
+if the predefined environment macro
+.Dv __STDC_UTF_16__
+is defined with a value of 1.
+On
+.Ox ,
+.In uchar.h
+provides this definition.
+Other operating systems which do not define
+.Dv __STDC_UTF_16__
+could theoretically use a different,
+implementation-defined output encoding for
+.Fa pc16
+instead of UTF-16.
+Writing portable code for an arbitrary output encoding is impossible
+because the rules when and how often the function needs to be called
+again depend on the output encoding; the rules explained above are
+specific to UTF-16.
+Using UTF-16 as the output encoding of
+.Fn wcrtoc16
+becomes mandatory in C23.

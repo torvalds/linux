@@ -1,0 +1,296 @@
+.\"	$OpenBSD: clockintr_bind.9,v 1.1 2024/02/24 16:21:32 cheloha Exp $
+.\"
+.\" Copyright (c) 2023-2024 Scott Cheloha <cheloha@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 24 2024 $
+.Dt CLOCKINTR_BIND 9
+.Os
+.Sh NAME
+.Nm clockintr_bind ,
+.Nm clockintr_schedule ,
+.Nm clockintr_advance ,
+.Nm clockintr_cancel ,
+.Nm clockintr_unbind ,
+.Nm clockintr_stagger ,
+.Nm clockrequest_advance
+.Nd execute a function in a clock interrupt context
+.Sh SYNOPSIS
+.In sys/clockintr.h
+.Ft void
+.Fo clockintr_bind
+.Fa "struct clockintr *cl"
+.Fa "struct cpu_info *cpu"
+.Fa "void (*callback)(struct clockrequest *cr, void *cf, void *arg)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo clockintr_schedule
+.Fa "struct clockintr *cl"
+.Fa "uint64_t abs"
+.Fc
+.Ft uint64_t
+.Fo clockintr_advance
+.Fa "struct clockintr *cl"
+.Fa "uint64_t interval"
+.Fc
+.Ft void
+.Fo clockintr_cancel
+.Fa "struct clockintr *cl"
+.Fc
+.Ft void
+.Fo clockintr_unbind
+.Fa "struct clockintr *cl"
+.Fa "uint32_t flags"
+.Fc
+.Ft void
+.Fo clockintr_stagger
+.Fa "struct clockintr *cl"
+.Fa "uint64_t interval"
+.Fa "uint32_t numer"
+.Fa "uint32_t denom"
+.Fc
+.Ft uint64_t
+.Fo clockrequest_advance
+.Fa "struct clockrequest *cr"
+.Fa "uint64_t interval"
+.Fc
+.\" .Fn clockrequest_advance_random is intentionally undocumented.
+.\"  It may be removed in the future.  New code should not use it.
+.Sh DESCRIPTION
+The clock interrupt subsystem schedules functions for asynchronous execution
+from the clock interrupt context on a particular CPU.
+.Pp
+Clock interrupts are well-suited for timekeeping,
+scheduling,
+and statistical profiling.
+Applications with more relaxed latency requirements should use timeouts
+to schedule asynchronous execution;
+see
+.Xr timeout_add 9
+for details.
+.Pp
+The
+.Fn clockintr_bind
+function initializes the clock interrupt object
+.Fa cl .
+When
+.Fa cl
+expires,
+its
+.Fa callback
+function is executed from the
+.Dv IPL_CLOCK
+context on its host
+.Fa cpu
+without any locks or mutexes.
+The callback function must not block.
+Its parameters are as follows:
+.Bl -tag -width indent
+.It Fa cr
+A private
+.Vt clockrequest
+object.
+May be used to request rescheduling;
+see
+.Fn clockrequest_advance
+below.
+.It Fa cf
+The
+.Fa cpu Ns 's
+current machine-dependent clockframe.
+.It Fa arg
+The
+.Fa arg
+given to
+.Fn clockintr_bind .
+.El
+.Pp
+The memory pointed to by
+.Fa cl
+must be zeroed before it is first bound.
+It is an error to use
+.Fa cl
+as argument to any other function in the
+.Vt clockintr
+API before it is bound.
+It is an error to rebind
+.Fa cl
+without first unbinding it;
+see
+.Fn clockintr_unbind
+below.
+.Pp
+The
+.Fn clockintr_schedule
+function schedules
+.Fa cl
+to expire at the absolute time
+.Fa abs
+on the system uptime clock.
+The subsystem will never execute
+.Fa cl Ns 's
+callback function before this expiration time,
+though its execution may be delayed by other activity on the system.
+.Pp
+The
+.Fn clockintr_advance
+function schedules
+.Fa cl
+to expire at the next terminus of the given
+.Fa interval ,
+a non-zero count of nanoseconds,
+relative to
+.Fa cl Ns 's
+current expiration time.
+Periodic clock interrupts should be scheduled with
+.Fn clockintr_advance
+to keep the execution period from drifting.
+.Pp
+The
+.Fn clockintr_cancel
+function cancels any pending expiration of
+.Fa cl .
+.Pp
+The
+.Fn clockintr_unbind
+function cancels any pending expiration of
+.Fa cl
+and severs the binding between
+.Fa cl
+and its host
+.Fa cpu .
+Upon return,
+.Fa cl
+may be rebound with
+.Fn clockintr_bind .
+The call may be configured with zero or more of the following
+.Fa flags :
+.Bl -tag -width CL_BARRIER
+.It Dv CL_BARRIER
+If
+.Fa cl Ns 's
+callback function is executing,
+block until it returns.
+By default,
+the caller does not block.
+Useful when
+.Fa arg
+is a shared reference.
+.El
+.Pp
+The
+.Fn clockintr_stagger
+function resets
+.Fa cl Ns 's
+expiration time to a fraction of the given
+.Fa interval ,
+a count of nanoseconds.
+Specifically,
+.Fa cl Ns 's
+expiration time is reset to
+.Pq Fa interval Ms / Fa denom Ms * Fa numer .
+Periodic clock interrupts bound to multiple CPUs may be staggered
+to reduce the likelihood that their callback functions will execute
+simultaneously and compete for a shared resource.
+It is an error if
+.Fa numer
+is greater than or equal to
+.Fa denom .
+It is an error if
+.Fa cl
+is already scheduled to expire.
+.Pp
+The
+.Fn clockrequest_advance
+function is similar to
+.Fn clockintr_advance ,
+except that
+(a) it may only be called during the execution of a
+.Fa callback
+function,
+(b) it accepts a
+.Vt clockrequest
+pointer as argument,
+and (c) scheduling requests submitted with the interface are not fulfilled
+until the callback function returns.
+When the callback function returns,
+scheduling requests are only committed to the underlying clock interrupt
+object if that object was not manipulated during the execution of the
+callback function.
+Otherwise,
+outstanding requests are discarded.
+.Sh CONTEXT
+The
+.Fn clockintr_bind
+function may only be called from process context.
+.Pp
+The
+.Fn clockintr_advance ,
+.Fn clockintr_cancel ,
+.Fn clockintr_schedule ,
+and
+.Fn clockintr_stagger
+functions may be called from process context or from interrupt context.
+.Pp
+The
+.Fn clockintr_unbind
+function may normally be called from process context or from interrupt context.
+However,
+if the
+.Dv CL_BARRIER
+flag is set in
+.Fa flags ,
+the function may only be called from process context.
+.Pp
+The
+.Fn clockrequest_advance
+function may only be called during execution of a
+.Fa callback
+function.
+.Sh RETURN VALUES
+The
+.Fn clockintr_advance
+and
+.Fn clockrequest_advance
+functions return the number of
+.Fa interval Ns s
+that have elapsed since
+.Fa cl
+was scheduled to expire,
+or zero if
+.Fa cl
+has not yet expired.
+.Sh CODE REFERENCES
+.Pa sys/kern/kern_clockintr.c
+.Sh SEE ALSO
+.Xr microtime 9 ,
+.Xr spl 9 ,
+.Xr timeout 9
+.Rs
+.%A Richard McDougall
+.%A Jim Mauro
+.%B Solaris Internals: Solaris 10 and OpenSolaris Kernel Architecture
+.%I Prentice Hall
+.%I Sun Microsystems Press
+.%D 2nd Edition, 2007
+.%P pp. 912\(en925
+.Re
+.Sh HISTORY
+The
+.Vt clockintr
+and
+.Vt clockrequest
+APIs first appeared in
+.Ox 7.5 .

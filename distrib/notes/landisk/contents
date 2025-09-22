@@ -1,0 +1,34 @@
+dnl	$OpenBSD: contents,v 1.20 2025/03/25 08:17:47 miod Exp $
+TopPart
+
+dnl can't use OpenBSDminiroot here - comment is inappropriate
+	miniroot{:--:}OSrev.img	A miniroot filesystem image to be copied to
+			the beginning of the disk to allow installing
+			OpenBSD OSREV.
+
+OpenBSDdistsets
+
+OpenBSDbsd
+
+OpenBSDrd
+dnl not yet...
+dnl OpenBSDcd
+dnl XXX describe boot, mbr, and xxboot. Or stop providing them?
+
+DistributionDescription(eight)
+
+OpenBSDbase(81863848,188907455)
+
+OpenBSDcomp(46210950,147333665)
+
+OpenBSDgame(2848877,6312507)
+
+OpenBSDman(8521484,31777559)
+
+OpenBSDxbase(11332665,27209641)
+
+OpenBSDxfont(23603391,35814089)
+
+OpenBSDxserv(1937842,3580879)
+
+OpenBSDxshare(4718743,23908631)

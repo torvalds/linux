@@ -1,0 +1,68 @@
+.\" $OpenBSD: oce.4,v 1.4 2018/01/28 12:59:12 jmc Exp $
+.\"
+.\" Copyright (c) 2012 Mike Belopuhov
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 28 2018 $
+.Dt OCE 4
+.Os
+.Sh NAME
+.Nm oce
+.Nd Emulex OneConnect 10Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "oce* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Emulex OneConnect 10Gb Ethernet adapters based on
+the BladeEngine 2, BladeEngine 3 and Lancer chipsets, including the
+following:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Emulex OCe11102 (SPF+/10GbaseSR or 10GbaseT)
+.It
+Emulex OCe10102 (SPF+/10GbaseSR)
+.It
+HP NC550M Flex-10 (10GbaseKR)
+.It
+HP NC552M Flex-10 (10GbaseKR)
+.It
+HP NC550SFP (SPF+/10GbaseSR)
+.It
+HP NC552SFP (SPF+/10GbaseSR)
+.It
+IBM System x 10GbE (SPF+/10GbaseSR)
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by Emulex and ported from
+.Fx
+by
+.An Mike Belopuhov .

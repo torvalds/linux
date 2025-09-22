@@ -1,0 +1,70 @@
+.\"	$OpenBSD: rpc.rstatd.8,v 1.12 2015/12/01 22:35:13 jmc Exp $
+.\"
+.\" Copyright (c) 1985, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 1 2015 $
+.Dt RPC.RSTATD 8
+.Os
+.Sh NAME
+.Nm rpc.rstatd
+.Nd kernel statistics server
+.Sh SYNOPSIS
+.Nm rpc.rstatd
+.Op Ar closedown
+.Sh DESCRIPTION
+.Nm rpc.rstatd
+is a server which returns performance statistics obtained from the kernel.
+Some of these statistics may be read using the
+.Xr rup 1
+command.
+The
+.Nm rpc.rstatd
+daemon is normally invoked by
+.Xr inetd 8 .
+At startup,
+.Nm
+performs a
+.Xr chroot 2
+to
+.Pa /var/empty
+and switches to user
+.Va _rstatd .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Ar closedown
+Number of seconds before going dormant.
+Defaults to 20 seconds.
+.El
+.Pp
+.Nm rpc.rstatd
+uses an RPC protocol defined in
+.Pa /usr/include/rpcsvc/rstat.x .
+.Sh SEE ALSO
+.Xr rup 1 ,
+.Xr inetd 8

@@ -1,0 +1,29 @@
+LIB1ASMSRC = sparc/lb1spc.asm
+LIB1ASMFUNCS = _mulsi3 _divsi3 _modsi3
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+# MULTILIB_OPTIONS should have msparclite too, but we'd have to make
+# gas build...
+MULTILIB_OPTIONS = msoft-float mcpu=v8
+MULTILIB_DIRNAMES = soft v8
+MULTILIB_MATCHES = msoft-float=mno-fpu mcpu?v8=mv8
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+# Assemble startup files.
+crti.o: $(srcdir)/config/sparc/sol2-ci.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -c -o crti.o -x assembler-with-cpp $(srcdir)/config/sparc/sol2-ci.asm
+crtn.o: $(srcdir)/config/sparc/sol2-cn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -c -o crtn.o -x assembler-with-cpp $(srcdir)/config/sparc/sol2-cn.asm

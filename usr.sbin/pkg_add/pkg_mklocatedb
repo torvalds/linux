@@ -1,0 +1,238 @@
+#! /usr/bin/perl
+# Copyright (c) 2005-2010 Marc Espie <espie@openbsd.org>
+# $OpenBSD: pkg_mklocatedb,v 1.48 2023/05/29 07:35:39 espie Exp $
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+use v5.36;
+no lib ('/usr/local/libdata/perl5/site_perl');
+
+use OpenBSD::PackageInfo;
+use OpenBSD::PackingList;
+use OpenBSD::Getopt;
+use OpenBSD::Error;
+use OpenBSD::Paths;
+use OpenBSD::AddCreateDelete;
+
+package OpenBSD::Pkgmklocatedb::State;
+our @ISA = qw(OpenBSD::AddCreateDelete::State);
+
+sub handle_options($state)
+{
+	$state->{no_exports} = 1;
+	$state->SUPER::handle_options('ad:Knqp:Pu', 
+	    '[-aKnPqu] [-d repository] [-p portsdir] [pkg-name ...]');
+	$state->{portsdir} = $state->opt('p');
+	$state->{pkgdir} = $state->opt('d');
+	$state->{quiet} = $state->opt('q');
+	$state->{pkgpath} = $state->opt('P');
+	$state->{allinfo} = $state->opt('a');
+	$state->{nopipe} = $state->opt('n');
+	$state->{full} = $state->opt('K');
+	$state->{update} = $state->opt('u');
+}
+
+package OpenBSD::PackingElement;
+sub print_name($, $) {}
+sub set_header($, $) {}
+
+package OpenBSD::PackingElement::Name;
+sub set_header($self, $state)
+{
+	$state->{currentheader} = $self->{name}.':';
+}
+
+package OpenBSD::PackingElement::ExtraInfo;
+sub set_header($self, $state)
+{
+	if ($state->{allinfo}) {
+		$state->{currentheader} .=  $self->{subdir}.':';
+	} elsif ($state->{pkgpath}) {
+		$state->{currentheader} = $self->{subdir}.':';
+	}
+	$state->{done}{$self->{subdir}} = 1;
+	$state->errsay($state->{currentheader}) unless $state->{quiet};
+}
+
+package OpenBSD::PackingElement::FileObject;
+sub object_name($self, $state)
+{
+	if ($state->{full}) {
+		if ($self->needs_keyword) {
+			return "\@".$self->keyword." ".$self->fullname;
+		}
+	}
+	return $self->fullname;
+}
+
+sub print_name($self, $state)
+{
+	print {$state->{out}} $state->{currentheader}, 
+	    $self->object_name($state), "\n";
+}
+
+package OpenBSD::PackingElement::Action;
+sub print_name($self, $state)
+{
+	print {$state->{out}} $state->{currentheader}, $self->fullstring, "\n";
+}
+
+package OpenBSD::PackingElement::ExeclikeAction;
+sub print_name($self, $state)
+{
+	print {$state->{out}} $state->{currentheader}, "\@". 
+	    $self->keyword, " ", $self->{expanded}, "\n";
+}
+
+package OpenBSD::PackingElement::Conflict;
+sub print_name
+{
+	&OpenBSD::PackingElement::Action::print_name;
+}
+
+package OpenBSD::PackingElement::NoDefaultConflict;
+sub print_name
+{
+	&OpenBSD::PackingElement::Action::print_name;
+}
+
+package OpenBSD::PackingElement::TagBase;
+sub print_name($self, $state)
+{
+	print {$state->{out}} $state->{currentheader}, "\@". 
+	    join(' ', $self->keyword, $self->name, $self->{params}), "\n";
+}
+
+package OpenBSD::PackingElement::Tag;
+sub print_name($self, $state)
+{
+	print {$state->{out}} $state->{currentheader}, "\@". 
+	    join(' ', $self->keyword, $self->name, $self->{expanded}), "\n";
+}
+
+package OpenBSD::PackingElement::DirBase;
+sub print_name($self, $state)
+{
+	print {$state->{out}} $state->{currentheader}, 
+	    $self->object_name($state), "/\n";
+}
+
+package main;
+
+sub open_output($state)
+{
+	if ($state->{nopipe} or -t STDOUT) {
+		$state->{out} = \*STDOUT;
+	} else {
+		my $MKLOCATEDB = OpenBSD::Paths->mklocatedb;
+
+		open $state->{out}, "|-", $MKLOCATEDB, $MKLOCATEDB or 
+		    $state->fatal("couldn't open pipe to mklocatedb: #1", $!);
+	}
+}
+
+sub print_out($plist, $state)
+{
+	$plist->set_header($state);
+	$plist->print_name($state);
+}
+
+sub do_portsdir($state)
+{
+	my $make = $ENV{MAKE} || 'make';
+	my $target = defined $ENV{SUBDIRLIST} ? 
+	    'print-plist' : 'print-plist-all';
+	delete $ENV{FLAVOR};
+	delete $ENV{SUBPACKAGE};
+	open my $in, "cd $state->{portsdir} && $make $target |";
+	my $done = 0;
+	while (!$done) {
+		my $plist = OpenBSD::PackingList->read($in,
+		    sub {
+			my ($fh, $cont) = @_;
+			while (<$fh>) {
+				return if m/^\=\=\=\> /o;
+				&$cont($_);
+			}
+			$done = 1;
+		    });
+		if (defined $plist && defined $plist->pkgname) {
+			print_out($plist, $state);
+		}
+	}
+	close($in);
+}
+
+sub do_pkgdir($state)
+{
+	require File::Find;
+	no warnings qw(once);
+	$state->fatal("Bad argument: #1 is not a directory", $state->{pkgdir})
+	    unless -d $state->{pkgdir};
+	File::Find::find(
+	    sub() {
+		return unless -f $_;
+		my $plist = $state->repo->grabPlist($File::Find::name);
+		return unless defined $plist;
+		print_out($plist, $state);
+	    }, $state->{pkgdir});
+}
+
+sub copy_stdin($state)
+{
+	while (<STDIN>) {
+		# if we find something that looks like a pkgpath we've done
+		# assume we were updating it
+		if (m,([^:]*/[^:]*)\:,) {
+			next if defined $state->{done}{$1};
+		}
+		print {$state->{out}} $_;
+	}
+}
+
+my $state = OpenBSD::Pkgmklocatedb::State->new;
+$state->handle_options;
+
+open_output($state);
+
+if ($state->{fatals}) {
+	$state->fatal("Files not found, can't continue");
+}
+
+if ($state->{portsdir}) {
+	do_portsdir($state);
+} elsif ($state->{pkgdir}) {
+	do_pkgdir($state);
+} elsif (@ARGV == 0) {
+	if (!$state->{update}) {
+		$state->progress->for_list("Scanning installation",
+		    [installed_packages()], sub {
+			my $pkgname = shift;
+			my $plist = 
+			    OpenBSD::PackingList->from_installation($pkgname);
+			return unless defined $plist;
+			print_out($plist, $state);
+		    });
+	}
+} else {
+	$state->progress->for_list("Scanning packages", \@ARGV,
+	    sub {
+	    	my $pkgname = shift;
+		my $plist = $state->repo->grabPlist($pkgname);
+		next unless $plist;
+		print_out($plist, $state);
+	    });
+}
+if ($state->{update}) {
+	copy_stdin($state);
+}

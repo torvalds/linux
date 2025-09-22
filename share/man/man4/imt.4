@@ -1,0 +1,47 @@
+.\"	$OpenBSD: imt.4,v 1.2 2016/07/30 15:44:45 jcs Exp $
+.\"
+.\" Copyright (c) 2016 joshua stein <jcs@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 30 2016 $
+.Dt IMT 4
+.Os
+.Sh NAME
+.Nm imt
+.Nd I2C HID multitouch touchpad support
+.Sh SYNOPSIS
+.Cd "imt* at ihidev?"
+.Cd "wsmouse* at imt? mux 0"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for I2C HID touchpads conforming to the
+Windows Precision Touchpad standard.
+Access to these devices is through the
+.Xr wscons 4
+driver.
+.Sh SEE ALSO
+.Xr ihidev 4 ,
+.Xr ims 4 ,
+.Xr wsmouse 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An joshua stein Aq Mt jcs@openbsd.org .

@@ -1,0 +1,329 @@
+.\"	$OpenBSD: utimes.2,v 1.28 2020/09/30 16:27:16 deraadt Exp $
+.\"	$NetBSD: utimes.2,v 1.9 1996/04/23 10:34:16 mycroft Exp $
+.\"
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)utimes.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: September 30 2020 $
+.Dt UTIMES 2
+.Os
+.Sh NAME
+.Nm utimes ,
+.Nm futimes ,
+.Nm utimensat ,
+.Nm futimens
+.Nd set file access and modification times
+.Sh SYNOPSIS
+.In sys/time.h
+.Ft int
+.Fn utimes "const char *path" "const struct timeval times[2]"
+.Ft int
+.Fn futimes "int fd" "const struct timeval times[2]"
+.In sys/stat.h
+.In fcntl.h
+.Ft int
+.Fn utimensat "int fd" "const char *path" "const struct timespec times[2]" "int flag"
+.Ft int
+.Fn futimens "int fd" "const struct timespec times[2]"
+.Sh DESCRIPTION
+The access and modification times of the file named by
+.Fa path
+or referenced by
+.Fa fd
+are changed as specified by the argument
+.Fa times .
+.Pp
+If
+.Fa times
+is
+.Dv NULL ,
+the access and modification times are set to the current time.
+The caller must be the owner of the file, have permission to
+write the file, or be the superuser.
+.Pp
+If
+.Fa times
+is non-null,
+it is assumed to point to an array of two timeval structures.
+The access time is set to the value of the first element, and the
+modification time is set to the value of the second element.
+The caller must be the owner of the file or be the superuser.
+.Pp
+In either case, the file status change time is set to the current time.
+.Pp
+The
+.Fn utimensat
+and
+.Fn futimens
+are equivalent to
+.Fn utimes
+and
+.Fn futimes ,
+respectively, with the following differences.
+.Pp
+Both
+.Fn utimensat
+and
+.Fn futimens
+take two timespec values instead of two timeval values.
+Further, either of the
+.Fa tv_nsec
+fields can be set to one of the following special values defined in
+.In sys/stat.h ,
+in which case the value of
+.Fa tv_sec
+is ignored:
+.Pp
+.Bl -tag -width UTIME_OMIT -offset indent -compact
+.It Dv UTIME_NOW
+Set the respective timestamp to the greatest value supported
+that is not greater than the current time.
+.It Dv UTIME_OMIT
+Do not change the respective timestamp.
+.El
+.Pp
+Additionally, if the
+.Fa path
+argument to
+.Fn utimensat
+specifies a relative path,
+the file whose timestamps are changed is determined relative to
+the directory associated with file descriptor
+.Fa fd
+instead of the current working directory.
+.Pp
+If
+.Fn utimensat
+is passed the special value
+.Dv AT_FDCWD
+(defined in
+.In fcntl.h )
+in the
+.Fa fd
+parameter, the current working directory is used.
+.Pp
+The
+.Fa flag
+argument is the bitwise OR of zero or more of the following values:
+.Pp
+.Bl -tag -width AT_SYMLINK_NOFOLLOW -offset indent -compact
+.It Dv AT_SYMLINK_NOFOLLOW
+If
+.Fa path
+names a symbolic link, then the timestamps of the symbolic link are changed.
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn utimes
+and
+.Fn utimensat
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix;
+or the
+.Fa times
+argument is
+.Dv NULL
+and the effective user ID of the process does not
+match the owner of the file, and is not the superuser, and write
+access is denied.
+.It Bq Er EFAULT
+.Fa path
+or
+.Fa times
+points outside the process's allocated address space.
+.It Bq Er EIO
+An I/O error occurred while reading or writing the affected inode.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Dv NAME_MAX
+characters, or an entire pathname (including the terminating NUL)
+exceeded
+.Dv PATH_MAX
+bytes.
+.It Bq Er ENOENT
+The named file does not exist.
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er EPERM
+The
+.Fa times
+argument is not
+.Dv NULL
+and the calling process's effective user ID
+does not match the owner of the file and is not the superuser.
+.It Bq Er EROFS
+The file system containing the file is mounted read-only.
+.El
+.Pp
+Additionally,
+.Fn utimensat
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument was neither zero nor
+.Dv AT_SYMLINK_NOFOLLOW .
+.It Bq Er EBADF
+The
+.Fa path
+argument specifies a relative path and the
+.Fa fd
+argument is neither
+.Dv AT_FDCWD
+nor a valid file descriptor.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument specifies a relative path and the
+.Fa fd
+argument is a valid file descriptor but it does not reference a directory.
+.It Bq Er EACCES
+The
+.Fa path
+argument specifies a relative path but search permission is denied
+for the directory which the
+.Fa fd
+file descriptor references.
+.El
+.Pp
+.Fn futimes
+and
+.Fn futimens
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+.Fa fd
+does not refer to a valid descriptor.
+.It Bq Er EACCES
+The
+.Fa times
+argument is
+.Dv NULL
+and the effective user ID of the process does not
+match the owner of the file, and is not the superuser, and write
+access is denied.
+.It Bq Er EFAULT
+.Fa times
+points outside the process's allocated address space.
+.It Bq Er EIO
+An I/O error occurred while reading or writing the affected inode.
+.It Bq Er EPERM
+The
+.Fa times
+argument is not
+.Dv NULL
+and the calling process's effective user ID
+does not match the owner of the file and is not the superuser.
+.It Bq Er EROFS
+The file system containing the file is mounted read-only.
+.El
+.Pp
+.Fn utimes
+and
+.Fn futimes
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Either of the
+.Fa times
+arguments specified a microsecond value less than zero or greater
+than or equal to 1 million, or a second value less than zero.
+.El
+.Pp
+.Fn utimesat
+and
+.Fn futimens
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Either of the
+.Fa times
+argument specified a nanosecond value less than zero or greater
+than or equal to 1000 million, or a second value less than zero.
+.El
+.Sh SEE ALSO
+.Xr clock_gettime 2 ,
+.Xr stat 2 ,
+.Xr utime 3
+.Sh STANDARDS
+The
+.Fn utimes ,
+.Fn utimensat ,
+and
+.Fn futimens
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The predecessors of
+.Fn utimes
+were
+.Fn smdate
+in
+.At v1 ,
+.Fn mdate
+in
+.At v3 ,
+and
+.Fn utime
+in
+.At v7 ;
+the latter first supported the concept of an access time
+in addition to the modification time.
+.Pp
+The
+.Fn utimes
+function call appeared in
+.Bx 4.2 .
+The
+.Fn futimes
+function call appeared in
+.Nx 1.2 .
+The
+.Fn utimensat
+and
+.Fn futimens
+function calls appeared in
+.Ox 5.0 .
+.Sh CAVEATS
+Some filesystems, such as FAT, use the same timestamp for both
+modification and file status change;
+on those filesystems, the file status change timestamp will not be
+updated if
+.Dv UTIME_OMIT
+is specified for the modification timestamp argument.
+Similarly, on NFS the file status change timestamp will not be
+updated if
+.Dv UTIME_OMIT
+is specified for both the access and the modification timestamp arguments.

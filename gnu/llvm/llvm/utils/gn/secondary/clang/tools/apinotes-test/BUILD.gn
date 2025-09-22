@@ -1,0 +1,8 @@
+executable("apinotes-test") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/APINotes",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "APINotesTest.cpp" ]
+}

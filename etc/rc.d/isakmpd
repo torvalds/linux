@@ -1,0 +1,17 @@
+#!/bin/ksh
+#
+# $OpenBSD: isakmpd,v 1.4 2024/09/23 20:54:01 kn Exp $
+
+daemon="/sbin/isakmpd"
+
+. /etc/rc.d/rc.subr
+
+pexp="isakmpd: monitor \[priv\]"
+
+rc_pre() {
+	if [[ ${sasyncd_flags} != NO ]]; then
+		daemon_flags="-S ${daemon_flags}"
+	fi
+}
+
+rc_cmd $1

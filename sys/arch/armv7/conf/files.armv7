@@ -1,0 +1,77 @@
+#	$OpenBSD: files.armv7,v 1.39 2025/05/10 10:11:02 visa Exp $
+
+maxpartitions	16
+maxusers	2 8 64
+
+major	{wd = 16}
+major	{sd = 24}
+major	{cd = 26}
+major	{rd = 18}
+
+file	arch/arm/arm/conf.c
+file	arch/arm/arm/locore.S
+
+#interrupt API layer
+file	arch/armv7/armv7/intr.c
+
+# CPU support and integrated peripherals
+file	arch/arm/arm/irq_dispatch.S
+
+# Generic MD files
+file	arch/armv7/armv7/armv7.c
+file	arch/armv7/armv7/armv7_machdep.c
+file	arch/armv7/armv7/armv7_start.S
+file	arch/armv7/armv7/autoconf.c
+file	arch/armv7/armv7/platform.c
+file	arch/arm/arm/disksubr.c			disk
+
+include "dev/sdmmc/files.sdmmc"
+
+# Media Independent Interface (mii)
+include "dev/mii/files.mii"
+
+# Machine-independent HID support
+include "dev/hid/files.hid"
+
+# Machine-independent I2C drivers
+include "dev/i2c/files.i2c"
+
+# Machine-independent SCSI drivers
+include "scsi/files.scsi"
+include "dev/atapiscsi/files.atapiscsi"
+
+# Machine-independent ATA drivers
+include "dev/ata/files.ata"
+
+# Include WSCONS stuff
+include "dev/wscons/files.wscons"
+include "dev/rasops/files.rasops"
+include "dev/wsfont/files.wsfont"
+
+# Include USB stuff
+include "dev/usb/files.usb"
+
+# Paravirtual device bus and virtio
+include "dev/pv/files.pv"
+
+# PCI bus
+include "dev/pci/files.pci"
+
+# Machine-independent GPIO drivers
+include "dev/gpio/files.gpio"
+
+# Machine-independent 1-Wire drivers
+include "dev/onewire/files.onewire"
+
+# Machine-independent FDT drivers
+include "dev/fdt/files.fdt"
+
+# SoC includes
+include "arch/armv7/imx/files.imx"
+include "arch/armv7/omap/files.omap"
+include "arch/armv7/sunxi/files.sunxi"
+include "arch/armv7/exynos/files.exynos"
+include "arch/armv7/vexpress/files.vexpress"
+include "arch/armv7/broadcom/files.broadcom"
+include "arch/armv7/marvell/files.marvell"
+include "arch/armv7/xilinx/files.xilinx"

@@ -1,0 +1,188 @@
+# $OpenBSD: GENERIC,v 1.60 2023/03/12 22:18:58 cheloha Exp $
+#
+# For further information on compiling OpenBSD kernels, see the config(8)
+# man page.
+#
+# For further information on hardware support for this architecture, see
+# the intro(4) man page.  For further information about kernel options
+# for this architecture, see the options(4) man page.  For an explanation
+# of each device driver in this file see the section 4 man page for the
+# device.
+
+machine		landisk	sh
+include		"../../../conf/GENERIC"
+maxusers	32			# estimated number of users
+
+option		HZ=64
+
+option	 	SH4			# processor family; MANDATORY
+option 		SH7751R			# processor type; MANDATORY
+
+# CPU-related options.
+option	 	PCLOCK=33333333		# 33.33MHz clock
+option	 	DONT_INIT_BSC
+#option	 	DONT_INIT_PCIBSC
+
+option		PCIVERBOSE
+option		USER_PCICONF		# user-space PCI configuration
+option		USBVERBOSE
+
+config		bsd	swap generic
+
+mainbus0 at root
+cpu0	at mainbus?
+
+# PCI bus support
+shpcic*	at mainbus?			# SH7751 PCIC
+pci0	at shpcic?
+
+# SH bus
+shb*	at mainbus?
+
+# on-board I/O bus
+obio0	at mainbus?
+
+# Serial Devices
+option	SCIFCONSOLE
+option	SCIFCN_SPEED=9600
+scif0	at shb?
+
+# Power switch
+power0	at obio?
+
+rsclock0 at shb?
+
+wdc0	at obio? port 0x14000000 irq 10		# CF
+wd*	at wdc? flags 0x0000
+
+# Network Interfaces
+
+# PCI network interfaces
+re*	at pci?				# Realtek 8139C+/8169/8169S/8110S
+rl*	at pci?				# Realtek 8129/8139
+
+# MII/PHY support
+acphy*	at mii?				# Altima AC101 PHYs
+amphy*	at mii?				# AMD 79C873 PHYs
+eephy*	at mii?				# Marvell 88E1000 series PHY
+rgephy*	at mii?				# Realtek 8169S/8110S PHY
+rlphy*	at mii? 			# Realtek 8139/8201L PHYs
+urlphy*	at mii?				# Realtek RTL8150L internal PHYs
+ukphy*	at mii?				# generic unknown PHYs
+
+# PCIIDE 
+pciide*		at pci?
+wd*		at pciide?
+atapiscsi*	at pciide? flags 0x0000
+
+# USB Controller and Devices
+
+# PCI USB controllers
+ehci*	at pci?				# Enhanced Host Controller
+ohci*	at pci?				# Open Host Controller
+
+# USB bus support
+usb*	at ehci?
+usb*	at ohci?
+
+# USB Hubs
+uhub*	at usb?
+uhub*	at uhub? port ? configuration ? interface ?
+urng*	at uhub?		# USB Random Number Generator
+uonerng* at uhub?		# Moonbase Otago OneRNG
+umodem*	at uhub?		# USB Modems/Serial
+ucom*	at umodem?
+uvisor*	at uhub?		# Handspring Visor
+ucom*	at uvisor?
+uvscom*	at uhub?		# SUNTAC Slipper U VS-10U serial
+ucom*	at uvscom?
+ubsa*	at uhub?		# Belkin serial adapter
+ucom*	at ubsa?
+uftdi*	at uhub?		# FTDI FT8U100AX serial adapter
+ucom*	at uftdi?
+uplcom* at uhub?		# I/O DATA USB-RSAQ2 serial adapter
+ucom*	at uplcom?
+umct*	at uhub?		# MCT USB-RS232 serial adapter
+ucom*	at umct?
+uslcom*	at uhub?		# Silicon Laboratories CP210x serial
+ucom*	at uslcom?
+uscom*	at uhub?		# Simple USB serial adapters
+ucom*	at uscom?
+ucrcom*	at uhub?		# Chromebook serial
+ucom*	at ucrcom?
+uark*	at uhub?		# Arkmicro ARK3116 serial
+ucom*	at uark?
+moscom*	at uhub?		# MosChip MCS7703 serial
+ucom*	at moscom?
+umcs*	at uhub?		# MosChip MCS78x0 serial
+ucom*	at umcs?
+uipaq*	at uhub?		# iPAQ serial adapter
+ucom*	at uipaq?
+umsm*	at uhub?		# Qualcomm MSM EVDO
+ucom*	at umsm?
+uchcom*	at uhub?		# WinChipHead CH341/340 serial
+ucom*	at uchcom?
+uaudio* at uhub?		# USB Audio
+audio*	at uaudio?
+#umidi*	at uhub?		# USB MIDI
+#midi*	at umidi?
+ulpt*	at uhub?		# USB Printers
+umass*	at uhub?		# USB Mass Storage devices
+uhidev*	at uhub?		# Human Interface Devices
+ums*	at uhidev?		# USB mouse
+wsmouse* at ums? mux 0
+ukbd*	at uhidev?		# USB keyboard
+wskbd*	at ukbd? mux 1
+ucycom*	at uhidev?		# Cypress serial
+ucom*	at ucycom?
+uslhcom* at uhidev?		# Silicon Labs CP2110 USB HID UART
+ucom*	at uslhcom?
+uhid*	at uhidev?		# USB generic HID support
+fido*	at uhidev?		# FIDO/U2F security key support
+#ucc*	at uhidev?		# Consumer Control keyboards
+#wskbd*	at ucc? mux 1
+ujoy*	at uhidev?		# USB joystick/gamecontroller support
+uhidpp*	at uhidev?		# Logitech HID++ Devices
+upd*	at uhidev?		# USB Power Devices sensors
+aue*	at uhub?		# ADMtek AN986 Pegasus Ethernet
+atu*	at uhub?		# Atmel AT76c50x based 802.11b
+axe*	at uhub?		# ASIX Electronics AX88172 USB Ethernet
+axen*	at uhub?		# ASIX Electronics AX88179 USB Ethernet
+cue*	at uhub?		# CATC USB-EL1201A based Ethernet
+kue*	at uhub?		# Kawasaki KL5KUSB101B based Ethernet
+smsc*	at uhub?		# SMSC LAN95xx Ethernet
+cdce*	at uhub?		# CDC Ethernet
+urndis*	at uhub?		# Remote NDIS Ethernet
+upl*	at uhub?		# Prolific PL2301/PL2302 host-to-host `network'
+ugl*	at uhub?		# Genesys Logic GL620USB-A host-to-host `network'
+udav*	at uhub?		# Davicom DM9601 based Ethernet
+url*	at uhub?		# Realtek RTL8150L based adapters
+ure*	at uhub?		# Realtek RTL8152 based adapters
+wi*	at uhub?		# WaveLAN IEEE 802.11DS
+udsbr*	at uhub?		# D-Link DSB-R100 radio
+radio*	at udsbr?		# USB radio
+ugen*	at uhub?		# USB Generic driver
+uath*	at uhub?		# Atheros AR5005UG/AR5005UX
+athn*	at uhub?		# Atheros AR9002U
+ural*	at uhub?		# Ralink RT2500USB
+rum*	at uhub?		# Ralink RT2501USB/RT2601USB
+run*	at uhub?		# Ralink RT2700U/RT2800U/RT3000U
+rsu*	at uhub?		# Realtek RTL8188SU/RTL8191SU/RTL8192SU
+urtwn*	at uhub?		# Realtek RTL8188CU/RTL8192CU
+zyd*	at uhub?		# Zydas ZD1211
+udcf*	at uhub?		# Gude Expert mouseCLOCK
+uthum*	at uhidev?		# TEMPerHUM sensor
+ugold*	at uhidev?		# gold TEMPer sensor
+utwitch* at uhidev?		# YUREX BBU sensor
+#uow*	at uhub?		# Maxim/Dallas DS2490 1-Wire adapter
+#onewire* at uow?
+
+udl*		at uhub?
+wsdisplay*	at udl?
+
+scsibus* at scsi?
+sd*	at scsibus?			# SCSI disk drives
+cd*	at scsibus?			# SCSI CD-ROM drives
+
+pseudo-device	hotplug		1	# devices hot plugging
+pseudo-device	wsmux		2	# mouse & keyboard multiplexor

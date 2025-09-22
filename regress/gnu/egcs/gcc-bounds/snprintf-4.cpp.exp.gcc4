@@ -1,0 +1,3 @@
+snprintf-4.cpp: In function 'int main(int, char**)':
+snprintf-4.cpp:12: warning: array size (10) smaller than bound length (96)
+snprintf-4.cpp:12: warning: array size (10) smaller than bound length (96)

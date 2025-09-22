@@ -1,0 +1,48 @@
+//===- llvm/CodeGen/DIEValue.def - DIEValue types ---------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Macros for running through all types of DIEValue.
+//
+//===----------------------------------------------------------------------===//
+
+#if !(defined HANDLE_DIEVALUE || defined HANDLE_DIEVALUE_SMALL ||              \
+      defined HANDLE_DIEVALUE_LARGE)
+#error "Missing macro definition of HANDLE_DIEVALUE"
+#endif
+
+// Handler for all values.
+#ifndef HANDLE_DIEVALUE
+#define HANDLE_DIEVALUE(T)
+#endif
+
+// Handler for small values.
+#ifndef HANDLE_DIEVALUE_SMALL
+#define HANDLE_DIEVALUE_SMALL(T) HANDLE_DIEVALUE(T)
+#endif
+
+// Handler for large values.
+#ifndef HANDLE_DIEVALUE_LARGE
+#define HANDLE_DIEVALUE_LARGE(T) HANDLE_DIEVALUE(T)
+#endif
+
+HANDLE_DIEVALUE_SMALL(Integer)
+HANDLE_DIEVALUE_SMALL(String)
+HANDLE_DIEVALUE_SMALL(Expr)
+HANDLE_DIEVALUE_SMALL(Label)
+HANDLE_DIEVALUE_LARGE(BaseTypeRef)
+HANDLE_DIEVALUE_LARGE(Delta)
+HANDLE_DIEVALUE_SMALL(Entry)
+HANDLE_DIEVALUE_LARGE(Block)
+HANDLE_DIEVALUE_LARGE(Loc)
+HANDLE_DIEVALUE_SMALL(LocList)
+HANDLE_DIEVALUE_LARGE(InlineString)
+HANDLE_DIEVALUE_LARGE(AddrOffset)
+
+#undef HANDLE_DIEVALUE
+#undef HANDLE_DIEVALUE_SMALL
+#undef HANDLE_DIEVALUE_LARGE

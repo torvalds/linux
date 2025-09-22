@@ -1,0 +1,44 @@
+# Top level configure fragment for GNU Objective-C++.
+#   Copyright (C) 2005 Free Software Foundation, Inc.
+#   Contributed by Ziemowit Laski <zlaski@apple.com>
+
+#This file is part of GCC.
+
+#GCC is free software; you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation; either version 2, or (at your option)
+#any later version.
+
+#GCC is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with GCC; see the file COPYING.  If not, write to
+#the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+#Boston, MA 02110-1301, USA.
+
+# Configure looks for the existence of this file to auto-config each language.
+# We define several parameters used by configure:
+#
+# language	- name of language as it would appear in $(LANGUAGES)
+# compilers	- value to add to $(COMPILERS)
+# stagestuff	- files to add to $(STAGESTUFF)
+
+language="obj-c++"
+
+compilers="cc1objplus\$(exeext)"
+
+stagestuff=""
+
+# Per GCC Steering Committee.
+build_by_default="no"
+
+# By building the Objective-C and C++ front-ends, we will get
+# the object files we need, along with the libraries (libstdc++,
+# libobjc).
+lang_requires="objc c++"
+subdir_requires="objc cp"
+
+gtfiles="\$(srcdir)/objcp/objcp-decl.c \$(srcdir)/objc/objc-act.c \$(srcdir)/objc/objc-act.h \$(srcdir)/cp/rtti.c \$(srcdir)/cp/mangle.c \$(srcdir)/cp/name-lookup.h \$(srcdir)/cp/name-lookup.c \$(srcdir)/cp/cp-tree.h \$(srcdir)/cp/decl.h \$(srcdir)/cp/call.c \$(srcdir)/cp/decl.c \$(srcdir)/cp/decl2.c \$(srcdir)/cp/pt.c \$(srcdir)/cp/repo.c \$(srcdir)/cp/semantics.c \$(srcdir)/cp/tree.c \$(srcdir)/cp/parser.c \$(srcdir)/cp/method.c \$(srcdir)/cp/typeck2.c \$(srcdir)/c-common.c \$(srcdir)/c-common.h \$(srcdir)/c-lex.c \$(srcdir)/c-pragma.c \$(srcdir)/cp/cp-objcp-common.c"

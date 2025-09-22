@@ -1,0 +1,154 @@
+.\"     $OpenBSD: file.9,v 1.23 2024/11/09 15:54:14 matthieu Exp $
+.\"
+.\" Copyright (c) 2002 Artur Grabowski <art@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 9 2024 $
+.Dt FALLOC 9
+.Os
+.Sh NAME
+.Nm falloc ,
+.Nm fdrelease ,
+.Nm FREF ,
+.Nm FRELE ,
+.Nm fd_getfile ,
+.Nm fd_getfile_mode ,
+.Nm fd_checkclosed ,
+.Nm getsock ,
+.Nm getvnode
+.Nd an overview of file descriptor handling
+.Sh SYNOPSIS
+.In sys/file.h
+.In sys/filedesc.h
+.Ft int
+.Fn falloc "struct proc *p" "struct file **resultfp" "int *resultfd"
+.Ft int
+.Fn fdrelease "struct proc *p" "int fd"
+.Ft void
+.Fn FREF "struct file *fp"
+.Ft int
+.Fn FRELE "struct file *fp" "struct proc *p"
+.Ft struct file *
+.Fn fd_getfile "struct filedesc *fdp" "int fd"
+.Ft struct file *
+.Fn fd_getfile_mode "struct filedesc *fdp" "int fd" "int mode"
+.Ft int
+.Fn fd_checkclosed "struct filedesc *fdp" "int fd" "struct file *fp"
+.Ft int
+.Fn getsock "struct proc *p" "int fd" "struct file **fpp"
+.In sys/file.h
+.In sys/filedesc.h
+.In sys/vnode.h
+.Ft int
+.Fn getvnode "struct proc *p" "int fd" "struct file **fpp"
+.Sh DESCRIPTION
+These functions provide the interface for the UNIX file descriptors.
+File descriptors can be used to access vnodes (see
+.Xr vnode 9 ) ,
+sockets (see
+.Xr socket 2 ) ,
+pipes (see
+.Xr pipe 2 ) ,
+kqueues (see
+.Xr kqueue 2 ) ,
+and various special purpose communication endpoints.
+.Pp
+A new file and a file descriptor for it are allocated with the function
+.Fn falloc .
+The larval file and fd are returned via
+.Fa resultfp
+and
+.Fa resultfd ,
+which must not be
+.Dv NULL .
+.Fn falloc
+initializes the new file to have a reference count of two:
+one for the reference from the file descriptor table and one
+for the caller to release with
+.Fn FRELE
+when it's done initializing it.
+.Pp
+A file descriptor is freed with
+.Fn fdrelease .
+This releases the reference that it holds to the underlying file;
+if that's the last reference then the file will be freed.
+.\" with
+.\" .Xr closef 9 .
+The file descriptor table has to be locked on entry.
+.Fn fdrelease
+unlocks the table on return.
+.Pp
+The files are extracted from the file descriptor table using the
+function
+.Fn fd_getfile .
+.Fn fd_getfile
+performs all necessary checks to see if the file descriptor number is
+within the range of file descriptor table, and if the descriptor is
+valid.
+It also increases the descriptor's use count with
+.Fn FREF .
+.Pp
+.Fn fd_getfile_mode
+is like
+.Fn fd_getfile
+but also checks if the file has been opened with the given mode.
+.Pp
+.Fn fd_checkclosed
+checks if file descriptor
+.Fa fd
+has been closed and no longer points to file
+.Fa fp .
+The file must have been retrieved from the descriptor previously.
+.Pp
+The files are extracted from the process context using the
+function
+.Fn getsock
+and
+.Fn getvnode .
+These functions are special cases that besides doing
+.Fn fd_getfile
+also check if the descriptor is a socket or a vnode respectively,
+and return the proper errno on error.
+.Sh CONCURRENT ACCESS
+Since multiple processes can share the same file descriptor table,
+it's important that the file is not freed in one process while some
+other process is still accessing it.
+To solve that problem a special use count is kept with the functions
+.Fn FREF
+and
+.Fn FRELE .
+The function
+.Fn FREF
+increases the use count of a file descriptor.
+The function
+.Fn FRELE
+decreases the use count, and releases the file descriptor if the use count
+becomes zero.
+.Sh CODE REFERENCES
+The majority of those functions are implemented in
+.Pa sys/kern/kern_descrip.c .
+The function prototypes and the macros are located in
+.Pa sys/sys/file.h
+and
+.Pa sys/sys/filedesc.h .
+.Sh SEE ALSO
+.Xr vnode 9

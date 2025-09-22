@@ -1,0 +1,12 @@
+/*	$OpenBSD: ifaddrref.bt,v 1.1 2025/07/21 21:15:05 bluhm Exp $	*/
+
+/*
+ * ifaddrref: trace kernel reference counter
+ *  - probe: ethmulti, ifaddr, ifmaddr, inpcb, rtentry, socket, syncache, tdb
+ *  - arg0: pointer to struct refcnt
+ *  - arg1: current reference count
+ *  - arg2: increment or decrement
+ */
+tracepoint:refcnt:ifaddr {
+	printf("%s %x %u %+d%s", probe, arg0, arg1, arg2, kstack)
+}

@@ -1,0 +1,151 @@
+.\"	$OpenBSD: RSA_private_encrypt.3,v 1.11 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL RSA_private_encrypt.pod b41f6b64 Mar 10 15:49:04 2017 +0000
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_PRIVATE_ENCRYPT 3
+.Os
+.Sh NAME
+.Nm RSA_private_encrypt ,
+.Nm RSA_public_decrypt
+.Nd low level signature operations
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft int
+.Fo RSA_private_encrypt
+.Fa "int flen"
+.Fa "const unsigned char *from"
+.Fa "unsigned char *to"
+.Fa "RSA *rsa"
+.Fa "int padding"
+.Fc
+.Ft int
+.Fo RSA_public_decrypt
+.Fa "int flen"
+.Fa "const unsigned char *from"
+.Fa "unsigned char *to"
+.Fa "RSA *rsa"
+.Fa "int padding"
+.Fc
+.Sh DESCRIPTION
+These functions handle RSA signatures at a low level.
+.Pp
+.Fn RSA_private_encrypt
+signs the
+.Fa flen
+bytes at
+.Fa from
+(usually a message digest with an algorithm identifier) using the
+private key
+.Fa rsa
+and stores the signature in
+.Fa to .
+.Fa to
+must point to
+.Fn RSA_size rsa
+bytes of memory.
+.Pp
+.Fa padding
+denotes one of the following modes:
+.Bl -tag -width Ds
+.It Dv RSA_PKCS1_PADDING
+PKCS #1 v1.5 padding.
+This function does not handle the
+.Sy algorithmIdentifier
+specified in PKCS #1.
+When generating or verifying PKCS #1 signatures,
+.Xr RSA_sign 3
+and
+.Xr RSA_verify 3
+should be used.
+.It Dv RSA_NO_PADDING
+Raw RSA signature.
+This mode should only be used to implement cryptographically sound
+padding modes in the application code.
+Signing user data directly with RSA is insecure.
+.El
+.Pp
+.Fn RSA_public_decrypt
+recovers the message digest from the
+.Fa flen
+bytes long signature at
+.Fa from
+using the signer's public key
+.Fa rsa .
+.Fa to
+must point to a memory section large enough to hold the message digest
+(which is smaller than
+.Fn RSA_size rsa
+- 11).
+.Fa padding
+is the padding mode that was used to sign the data.
+.Sh RETURN VALUES
+.Fn RSA_private_encrypt
+returns the size of the signature (i.e.\&
+.Fn RSA_size rsa ) .
+.Fn RSA_public_decrypt
+returns the size of the recovered message digest.
+.Pp
+On error, -1 is returned; the error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr RSA_meth_set_priv_enc 3 ,
+.Xr RSA_new 3 ,
+.Xr RSA_sign 3 ,
+.Xr RSA_verify 3
+.Sh HISTORY
+.Fn RSA_private_encrypt
+and
+.Fn RSA_public_decrypt
+appeared in SSLeay 0.4 or earlier and have been available since
+.Ox 2.4 .
+.Pp
+.Dv RSA_NO_PADDING
+is available since SSLeay 0.9.0.

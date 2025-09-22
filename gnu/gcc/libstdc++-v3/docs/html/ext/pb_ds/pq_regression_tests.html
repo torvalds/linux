@@ -1,0 +1,52 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Priority-Queue Regression Tests</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Priority-Queue Regression Tests</h1>
+
+    <h2><a name="assoc_desc" id="assoc_desc">Description</a></h2>
+
+    <p>The library contains a single comprehensive regression test.
+    For a given container type in <tt>pb_ds</tt>, the test creates
+    an object of the container type and an object of the
+    corresponding STL type (<i>i.e.</i>,
+    <tt>std::priority_queue</tt>). It then performs a random
+    sequence of methods with random arguments (<i>e.g.</i>, pushes,
+    pops, and so forth) on both objects. At each operation, the
+    test checks the return value of the method, and optionally both
+    compares <tt>pb_ds</tt>'s object with the STL's object as well
+    as performing other consistency checks on <tt>pb_ds</tt>'s
+    object (<i>e.g.</i>, that the size returned by the
+    <tt>size</tt> method corresponds to the distance between its
+    <tt>begin</tt> and end iterators).</p>
+
+    <p>Additionally, the test integrally checks exception safety
+    and resource leaks. This is done as follows. A special
+    allocator type, written for the purpose of the test, both
+    randomly throws an exceptions when allocations are performed,
+    and tracks allocations and de-allocations. The exceptions thrown
+    at allocations simulate memory-allocation failures; the
+    tracking mechanism checks for memory-related bugs (<i>e.g.</i>,
+    resource leaks and multiple de-allocations). Both
+    <tt>pb_ds</tt>'s containers and the containers' value-types are
+    configured to use this allocator.</p>
+
+    <h2><a name="pq_tests" id="pq_tests">Tests</a></h2>
+
+    <p><a href=
+    "../../../../testsuite/ext/pb_ds/regression/priority_queue_rand.cc"><tt>priority_queue_rand.cc</tt></a>
+    checks all priority queue types.</p>
+  </div>
+</body>
+</html>

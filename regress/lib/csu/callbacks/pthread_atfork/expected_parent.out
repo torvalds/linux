@@ -1,0 +1,37 @@
+testp atfork3_prepare
+libab atfork_prepare
+testp atfork2_prepare
+libaa atfork_prepare
+testp atfork1_prepare
+testp atfork1_parent
+libaa atfork_parent
+testp atfork2_parent
+libab atfork_parent
+testp atfork3_parent
+finished 0
+
+testp atfork3_prepare
+testp atfork2_prepare
+testp atfork1_prepare
+testp atfork1_parent
+testp atfork2_parent
+testp atfork3_parent
+finished 1
+
+testp atfork3_prepare
+libab atfork_prepare
+exe atfork_dlclose begin
+exe atfork_dlclose end
+testp atfork1_prepare
+testp atfork1_parent
+testp atfork3_parent
+finished 2
+
+exe atfork_dlclose begin
+exe atfork_dlclose end
+testp atfork2_prepare
+testp atfork1_prepare
+testp atfork1_parent
+testp atfork2_parent
+finished 3
+

@@ -1,0 +1,50 @@
+/* Definitions of target machine for GNU compiler, for MMIX.
+   Copyright (C) 2002, 2004 Free Software Foundation, Inc.
+   Contributed by Hans-Peter Nilsson (hp@bitrange.com)
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GCC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
+
+/* Node: Condition Code */
+
+/* Like other non-CC0 ports, MMIX need to code which combination of
+   comparison insn and branch insn or conditional-set insn to use into the
+   condition mode.  The CC mode depends partly on which condition is used
+   and partly on the type of the operands.  */
+
+/* The "usual" CC mode is used for a signed operands integer comparison,
+   where the CMP insn is used and the result is (integer) -1, 0 or 1 for
+   respectively a < b, a == b and a > b.  */
+
+/* The CC_UNS mode is for an unsigned operands integer comparison using
+   the CMPU insn.  Result values correspond to those in CCmode.  */
+CC_MODE (CC_UNS);
+
+/* The CC_FP mode is for a non-equality floating-point comparison, using
+   the FCMP or FCMPE insn.  The result is (integer) -1 or 1 for
+   respectively a < b and a > b, otherwise 0.  */
+CC_MODE (CC_FP);
+
+/* The CC_FPEQ mode is for an equality floating-point comparison, using
+   the FEQL or FEQLE insn.  The result is (integer) 1 for a == b,
+   otherwise 0 (including NaN:s).  */
+CC_MODE (CC_FPEQ);
+
+/* The CC_FUN mode is for an ordering comparison, using the FUN or FUNE
+   insn.  The result is (integer) 1 if a is unordered to b, otherwise the
+   result is 0.  */
+CC_MODE (CC_FUN);

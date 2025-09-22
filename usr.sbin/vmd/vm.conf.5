@@ -1,0 +1,554 @@
+.\" $OpenBSD: vm.conf.5,v 1.69 2025/07/06 15:45:02 schwarze Exp $
+.\"
+.\" Copyright (c) 2015 Mike Larkin <mlarkin@openbsd.org>
+.\" Copyright (c) 2015 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 6 2025 $
+.Dt VM.CONF 5
+.Os
+.Sh NAME
+.Nm vm.conf
+.Nd virtual machine configuration
+.Sh DESCRIPTION
+.Nm
+is the configuration file for the virtual machine monitor,
+.Xr vmm 4 ,
+which is responsible for creating, destroying, and executing
+virtual machines (VMs).
+.Pp
+.Nm
+is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global settings for
+.Xr vmd 8 .
+.It Sx VM configuration No and Sx VM instances
+Configuration for each individual virtual machine.
+.It Sx Switch configuration
+Configuration for virtual switches.
+.El
+.Pp
+The current line can be extended over multiple lines using a backslash
+.Pq Sq \e .
+Comments can be put anywhere in the file using a hash mark
+.Pq Sq #
+and extend to the end of the current line.
+Care should be taken when commenting out multi-line text:
+the comment is effective until the end of the entire block.
+.Pp
+Arguments not beginning with a letter, digit, underscore, or slash
+must be quoted.
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/vm1.example.com.conf"
+.Ed
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and
+cannot be a reserved word (for example,
+.Ic vm ,
+.Ic memory ,
+or
+.Ic disk ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+ramdisk="/bsd.rd"
+vm "vm1.example.com" {
+	memory 512M
+	boot $ramdisk
+}
+.Ed
+.Ss Global configuration
+The following settings can be configured globally:
+.Bl -tag -width Ds
+.It Ic agentx Oo Cm context Ar context Oc Op Cm path Ar socket
+Export vm metrics via an AgentX compatible
+.Xr snmpd 8
+by connecting to the
+.Ar socket .
+Metrics can be found under the vmMIB subtree
+.Pq mib-2.236 .
+If
+.Ar socket
+is omitted it defaults to
+.Pa /var/agentx/master .
+.Ar context
+is the SNMPv3 context and can usually be omitted.
+.It Ic local Cm prefix Ar address Ns / Ns Ar prefix
+Set the IPv4 network prefix that is used to allocate subnets for
+local interfaces, see
+.Ic local interface
+in the
+.Sx VM configuration
+section below.
+The default is 100.64.0.0/10.
+.It Ic local Cm inet6 Op Cm prefix Ar address Ns / Ns Ar prefix
+Enable IPv6 on local interfaces and allocate routable subnets.
+If the prefix is not specified,
+a random prefix from the
+.Dq unique local
+network range fd00::/8 is generated on startup.
+The specified prefix length must be /64 or smaller.
+.It Ic socket Cm owner Ar user : Ns Ar group
+Set the
+.Xr vmd 8
+control socket owner to the specified
+.Ar user
+and
+.Ar group .
+Users with access to the control socket are allowed to use
+.Xr vmctl 8
+for restricted access to
+.Xr vmd 8 .
+If only
+.Ar user
+is given,
+only the user is set.
+If only
+.Pf : Ar group
+is given,
+only the group is set.
+The default is root:wheel.
+.It Ic staggered start Cm parallel Ar parallelism Cm delay Ar delay
+Start all configured VMs in a staggered fashion with
+.Ar parallelism
+instances in parallel every
+.Ar delay
+seconds.
+Defaults to
+.Ar parallelism
+equal to number of online CPUs and a
+.Ar delay
+of 30 seconds.
+.El
+.Ss VM configuration
+Each
+.Ic vm
+section starts with the declaration of a virtual machine
+.Ar name :
+.Bl -tag -width Ds
+.It Ic vm Ar name Brq ...
+The
+.Ar name
+starts with a letter and can contain alphanumeric characters, dots
+.Pq Sq .\& ,
+dashes
+.Pq Sq \- ,
+and underscores
+.Pq Sq _ .
+Typically this is a hostname.
+.El
+.Pp
+The block enclosed in curly braces can contain the following parameters:
+.Bl -tag -width Ds
+.It Ic allow instance Brq ...
+Set the permissions to create
+.Sx VM instances .
+.It Ic boot Ar path
+Kernel or BIOS image to load when booting the VM.
+If not specified, the default is to boot using the BIOS image in
+.Pa /etc/firmware/vmm-bios .
+.It Ic boot Cm device Ar device
+Force VM to boot from
+.Ar device .
+Valid values are:
+.Bl -tag -width "cdrom"
+.It Cm cdrom
+Boot the ISO image file specified using the
+.Ic cdrom
+parameter.
+.It Cm disk
+Boot from the disk image file specified using the
+.Ic disk
+parameter.
+.It Cm net
+Boot the kernel specified using the
+.Ic boot
+parameter as if the VM was network booted.
+In addition, the DHCP lease advertises
+.Dq auto_install
+in the bootfile option making it suitable for use with
+.Xr autoinstall 8 .
+Note, this is not to be confused with
+.Xr pxeboot 8
+but rather a simulated network boot.
+.El
+.Pp
+Currently
+.Cm disk
+and
+.Cm cdrom
+only work with VMs booted using BIOS.
+.It Ic cdrom Ar path
+ISO image file.
+.It Ic enable
+Automatically start the VM.
+This is the default if neither
+.Ic enable
+nor
+.Ic disable
+is specified.
+.It Ic disable
+Do not automatically start this VM.
+.It Ic disk Ar path Op Cm format Ar fmt
+Disk image file (may be specified multiple times to add multiple disk images).
+The format may be specified as either
+.Cm qcow2
+(a sparse file format which reduces storage) or
+.Cm raw .
+If left unspecified, the format defaults to
+.Cm raw
+if it cannot be derived automatically.
+.It Oo Ic local Oc Ic interface Oo Ar name Oc Op Brq ...
+Network interface to add to the VM.
+The optional
+.Ar name
+can be either
+.Cm tap
+to select the next available
+.Xr tap 4
+interface on the VM host side (the default) or
+.Cm tap Ns Ar N
+to select a specific one.
+.Pp
+Valid options are:
+.Bl -tag -width Ds
+.It Ic group Ar group-name
+Assign the interface to a specific interface
+.Dq group .
+For example, this can be used to write
+.Xr pf.conf 5
+rules for several VM interfaces in the same group.
+The
+.Ar group-name
+must not be longer than 15 characters or end with a digit,
+as described in
+.Xr ifconfig 8 .
+.It Oo Ic locked Oc Ic lladdr Op Ar etheraddr
+Change the link layer address (MAC address) of the interface on the
+VM guest side.
+If not specified, a randomized address is assigned by
+.Xr vmd 8 .
+If the
+.Ic locked
+keyword is specified,
+.Xr vmd 8
+drops packets from the VM with altered source addresses.
+.It Cm rdomain Ar rdomainid
+Attach the interface to the routing domain with the specified
+.Ar rdomainid .
+If attaching to a switch that also has an
+.Ar rdomainid
+set, the
+.Ar rdomainid
+configured for the interface takes precedence.
+.It Ic switch Ar name
+Set the virtual switch by
+.Ar name .
+See the
+.Sx Switch configuration
+section about virtual switches.
+This option is ignored if a switch with a matching name cannot be found.
+.It Ic up
+Start the interface forwarding packets.
+This is the default.
+.It Ic down
+Stop the interface from forwarding packets.
+.El
+.Pp
+A
+.Ic local
+interface auto-generates an IPv4 subnet for the interface,
+configures a gateway address on the VM host side,
+and runs a simple DHCP/BOOTP server for the VM.
+This option can be used for layer 3 mode without configuring a switch.
+.Pp
+If the global
+.Ic local Cm inet6
+option is enabled, a routable IPv6 gateway address is generated
+on the host side.
+Unlike the IPv4 option,
+.Xr vmd 8
+does not respond to DHCPv6 or router solicitation messages itself.
+Use
+.Xr rad 8
+listening on the interface group, e.g.\&
+.Ic interface Cm tap
+for auto-configuring the VMs accordingly.
+.It Ic interfaces Ar count
+Optional minimum number of network interfaces to add to the VM.
+If the
+.Ar count
+is greater than the number of
+.Ic interface
+statements, additional default interfaces are added.
+.It Ic memory Ar bytes
+Memory size of the VM in bytes, rounded to megabytes.
+A scale multiplier can be used as described in
+.Xr scan_scaled 3 .
+The default is 512M.
+.It Ic owner Ar user : Ns Ar group
+Set the owner of the VM to the specified
+.Ar user
+and
+.Ar group .
+The owner is allowed to start or stop the VM, pause or unpause the VM,
+and open the VM's console.
+If only
+.Ar user
+is given,
+only the user is set.
+If only
+.Pf : Ar group
+is given,
+only the group is set.
+.It Ic sev
+Enables AMD Secure Encrypted Virtualization (SEV) for the guest.
+.Xr vmd 8
+uses
+.Xr psp 4
+to configure the guest for SEV.
+.It Ic seves
+Enables AMD Encrypted State (SEV-ES) for the guest.
+This implicitly enables SEV, too.
+.El
+.Ss VM instances
+It is possible to use configured or running VMs as a template for
+additional instances of the VM.
+An instance is just like a normal
+.Ic vm
+and is configured with the following declaration of the virtual machine
+.Ar name :
+.Bl -tag -width Ds
+.It Ic vm Ar parent Ic instance Ar name Brq ...
+A virtual machine can be created as an instance of any other configured VM.
+.El
+.Pp
+The new instance inherits settings from the VM
+.Ar parent ,
+except for exclusive options such as
+.Ic disk ,
+.Ic interface lladdr ,
+or
+.Ic interface Ar name .
+The configuration options are identical to the
+.Sx VM configuration ,
+but restricted to the allowed instance options.
+.Pp
+The allowed instance options are configured in the
+.Ar parent
+VM:
+.Bl -tag -width Ds
+.It Ic allow instance Brq ...
+Allow users to use this VM as a template for VM instances.
+By default, the root user can always create instances without
+restrictions and users or non-root owners cannot create instances.
+An instance inherits the configuration from the VM and the user,
+if permitted, is allowed to configure individual VM options.
+.El
+.Pp
+Valid options are:
+.Bl -tag -width Ds
+.It Ic boot
+Allow user to configure the kernel or BIOS image.
+The user needs read access to the image.
+.It Ic cdrom
+Allow user to configure the ISO file.
+The user needs read access to the file.
+.It Ic disk
+Allow user to configure the disk images.
+The user needs read and write access to image and instances are not
+allowed to reuse disks from the parent VM.
+.It Ic instance
+Allow user to create additional instances from the instances.
+.It Ic interface
+Allow user to change network interface settings.
+.It Ic memory
+Allow user to configure the memory size.
+.It Ic owner Ar user Ns Op : Ns Ar group
+Allow the specified user or group to create the instances.
+The owner is allowed to create VM instances, start or stop the
+instances, pause or unpause the instances, and open the instances'
+consoles.
+.It Ic owner Pf : Ar group
+Set the owner to the specified group.
+.El
+.Ss Switch configuration
+A virtual switch allows VMs to communicate with other network interfaces on the
+host system via either
+.Xr bridge 4
+or
+.Xr veb 4 .
+The network interface for each virtual switch defined in
+.Nm
+is pre-configured using
+.Xr hostname.if 5
+or
+.Xr ifconfig 8
+(see the BRIDGE and VEB sections in
+.Xr ifconfig 8
+accordingly).
+When a VM is started, virtual network interfaces which are assigned to a
+virtual switch have their
+.Xr tap 4
+interface automatically added into the corresponding
+.Xr bridge 4
+or
+.Xr veb 4
+interface underlying the virtual switch.
+.Pp
+Virtual switches can be configured at any point in the configuration file.
+Each
+.Ic switch
+section starts with a declaration of the virtual switch:
+.Bl -tag -width Ds
+.It Ic switch Ar name Brq ...
+This name can be any string, and is typically a network name.
+.El
+.Pp
+The block enclosed in curly braces can contain the following parameters:
+.Bl -tag -width Ds
+.It Ic enable
+Automatically configure the switch.
+This is the default if neither
+.Ic enable
+nor
+.Ic disable
+is specified.
+.It Ic locked lladdr
+If this option is specified,
+.Xr vmd 8
+drops packets with altered source addresses that do not match the
+link layer addresses (MAC addresses) of the VM interfaces in this switch.
+.It Ic disable
+Do not automatically configure this switch.
+.It Ic group Ar group-name
+Assign each interface to a specific interface
+.Dq group .
+For example, this can be used to write
+.Xr pf.conf 5
+rules for several VM interfaces in the same group.
+The
+.Ar group-name
+must not be longer than 15 characters or end with a digit,
+as described in
+.Xr ifconfig 8 .
+.It Ic interface Ar name
+Set the
+.Xr bridge 4
+or
+.Xr veb 4
+network interface of this switch.
+.It Ic rdomain Ar rdomainid
+Set the routing domain of the switch and all of its VM interfaces to
+.Ar rdomainid .
+.It Ic up
+Start the switch forwarding packets.
+This is the default.
+.It Ic down
+Stop the switch from forwarding packets.
+.El
+.Sh FILES
+.Bl -tag -width /etc/firmware/vmm-bios -compact
+.It Pa /etc/vm.conf
+default
+.Xr vmd 8
+and
+.Xr vmctl 8
+configuration file
+.It Pa /etc/examples/vm.conf
+example configuration file
+.It Pa /var/run/vmd.sock
+Unix domain
+.Xr socket 2
+where
+.Xr vmd 8
+listens
+.It Pa /etc/firmware/vmm-bios
+default BIOS image for booting
+.It Pa /var/agentx/master
+default Unix domain
+.Xr socket 2
+where
+.Xr snmpd 8
+listens
+.El
+.Sh EXAMPLES
+Create a new VM with 1GB memory, 1 network interface connected to
+.Dq uplink ,
+with one disk image
+.Pa /home/joe/vm2-disk.img ,
+owned by user
+.Sq joe :
+.Bd -literal -offset indent
+vm "vm2.example.com" {
+	memory 1G
+	disk "/home/joe/vm2-disk.img"
+	interface { switch "uplink" }
+	owner joe
+}
+.Ed
+.Pp
+Create a new VM as an instance from
+.Sq vm2.example.com :
+.Bd -literal -offset indent
+vm "vm2.example.com" instance "vm3.example.com" {
+	disk "/home/joe/vm3-disk.img"
+}
+.Ed
+.Pp
+Create the switch "uplink" with an additional physical network interface:
+.Bd -literal -offset indent
+switch "uplink" {
+	interface bridge0
+}
+.Ed
+.Sh SEE ALSO
+.Xr vmm 4 ,
+.Xr MAKEDEV 8 ,
+.Xr vmctl 8 ,
+.Xr vmd 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+.An -nosplit
+.An Mike Larkin Aq Mt mlarkin@openbsd.org
+and
+.An Reyk Floeter Aq Mt reyk@openbsd.org .
+.Sh CAVEATS
+Each guest requires one
+.Xr tap 4
+device per assigned interface and one
+.Xr pty 4
+device.
+Administrators may need to create additional devices using
+.Xr MAKEDEV 8 .

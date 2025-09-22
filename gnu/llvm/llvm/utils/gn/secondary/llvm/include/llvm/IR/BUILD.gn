@@ -1,0 +1,141 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Attributes") {
+  visibility = [ ":public_tablegen" ]
+  args = [ "-gen-attrs" ]
+  tblgen_target = "//llvm/utils/TableGen:llvm-min-tblgen"
+}
+
+tablegen("IntrinsicImpl") {
+  visibility = [ "//llvm/lib/IR" ]
+  args = [ "-gen-intrinsic-impl" ]
+  td_file = "Intrinsics.td"
+  tblgen_target = "//llvm/utils/TableGen:llvm-min-tblgen"
+}
+
+tablegen("IntrinsicEnums") {
+  visibility = [ ":public_tablegen" ]
+  args = [ "-gen-intrinsic-enums" ]
+  td_file = "Intrinsics.td"
+  tblgen_target = "//llvm/utils/TableGen:llvm-min-tblgen"
+}
+
+template("gen_arch_intrinsics") {
+  tablegen(target_name) {
+    visibility = [ ":public_tablegen" ]
+    output_name = "$target_name.h"
+    args = [
+      "-gen-intrinsic-enums",
+      "-intrinsic-prefix=${invoker.intrinsic_prefix}",
+    ]
+    td_file = "Intrinsics.td"
+    tblgen_target = "//llvm/utils/TableGen:llvm-min-tblgen"
+  }
+}
+
+gen_arch_intrinsics("IntrinsicsAArch64") {
+  intrinsic_prefix = "aarch64"
+}
+
+gen_arch_intrinsics("IntrinsicsAMDGPU") {
+  intrinsic_prefix = "amdgcn"
+}
+
+gen_arch_intrinsics("IntrinsicsARM") {
+  intrinsic_prefix = "arm"
+}
+
+gen_arch_intrinsics("IntrinsicsBPF") {
+  intrinsic_prefix = "bpf"
+}
+
+gen_arch_intrinsics("IntrinsicsDirectX") {
+  intrinsic_prefix = "dx"
+}
+
+gen_arch_intrinsics("IntrinsicsHexagon") {
+  intrinsic_prefix = "hexagon"
+}
+
+gen_arch_intrinsics("IntrinsicsLoongArch") {
+  intrinsic_prefix = "loongarch"
+}
+
+gen_arch_intrinsics("IntrinsicsMips") {
+  intrinsic_prefix = "mips"
+}
+
+gen_arch_intrinsics("IntrinsicsNVPTX") {
+  intrinsic_prefix = "nvvm"
+}
+
+gen_arch_intrinsics("IntrinsicsPowerPC") {
+  intrinsic_prefix = "ppc"
+}
+
+gen_arch_intrinsics("IntrinsicsR600") {
+  intrinsic_prefix = "r600"
+}
+
+gen_arch_intrinsics("IntrinsicsRISCV") {
+  intrinsic_prefix = "riscv"
+}
+
+gen_arch_intrinsics("IntrinsicsS390") {
+  intrinsic_prefix = "s390"
+}
+
+gen_arch_intrinsics("IntrinsicsSPIRV") {
+  intrinsic_prefix = "spv"
+}
+
+gen_arch_intrinsics("IntrinsicsVE") {
+  intrinsic_prefix = "ve"
+}
+
+gen_arch_intrinsics("IntrinsicsWebAssembly") {
+  intrinsic_prefix = "wasm"
+}
+
+gen_arch_intrinsics("IntrinsicsX86") {
+  intrinsic_prefix = "x86"
+}
+
+gen_arch_intrinsics("IntrinsicsXCore") {
+  intrinsic_prefix = "xcore"
+}
+
+# Groups all tablegen() calls that create .inc files that are included in
+# IR's public headers.  //llvm/lib/IR has this as a public_dep, so targets
+# depending on //llvm/lib/IR don't need to depend on this.  This exists
+# solely for targets that use IR's public headers but don't link against IR.
+group("public_tablegen") {
+  public_deps = [
+    # IR's public headers include Attributes.inc.
+    ":Attributes",
+
+    # IR's public headers include IntrinsicEnums.inc.
+    ":IntrinsicEnums",
+
+    # FIXME: These are only included from .cpp files at first glance.
+    # Try removing them from the public_tablegen target.
+    ":IntrinsicsAArch64",
+    ":IntrinsicsAMDGPU",
+    ":IntrinsicsARM",
+    ":IntrinsicsBPF",
+    ":IntrinsicsDirectX",
+    ":IntrinsicsHexagon",
+    ":IntrinsicsLoongArch",
+    ":IntrinsicsMips",
+    ":IntrinsicsNVPTX",
+    ":IntrinsicsPowerPC",
+    ":IntrinsicsR600",
+    ":IntrinsicsRISCV",
+    ":IntrinsicsS390",
+    ":IntrinsicsSPIRV",
+    ":IntrinsicsVE",
+    ":IntrinsicsWebAssembly",
+    ":IntrinsicsX86",
+    ":IntrinsicsXCore",
+  ]
+}

@@ -1,0 +1,7 @@
+# Create two directories for further comparison.
+# RUN: rm -rf %t/dir1 %t/dir2
+# RUN: mkdir -p %t/dir1 %t/dir2
+
+# An extra file in one of the directories, "diff -r" should fail.
+# RUN: echo extra > %t/dir2/extrafile
+# RUN: diff -r %t/dir1 %t/dir2

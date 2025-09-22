@@ -1,0 +1,6 @@
+foo = "ssh, ftp"
+bar = "other thing"
+inside="10.0.0.0/8"
+
+block in proto udp from $inside port { echo, $foo, ident } \
+	to 12.34.56.78 port { 6667, 0x10 }

@@ -1,0 +1,120 @@
+.\"     $OpenBSD: if_addrhook_add.9,v 1.3 2024/02/22 08:10:08 jsg Exp $
+.\"
+.\"  Copyright (c) 2019 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 22 2024 $
+.Dt IF_ADDRHOOK_ADD 9
+.Os
+.Sh NAME
+.Nm if_addrhook_add ,
+.Nm if_addrhook_del ,
+.\" .Nm if_addrhooks_run ,
+.Nm if_detachhook_add ,
+.Nm if_detachhook_del ,
+.Nm if_linkstatehook_add ,
+.Nm if_linkstatehook_del
+.Nd interface event hook API
+.Sh SYNOPSIS
+.In net/if_var.h
+.Ft void
+.Fn if_addrhook_add "struct ifnet *ifp" "struct task *t"
+.Ft void
+.Fn if_addrhook_del "struct ifnet *ifp" "struct task *t"
+.\" .Ft void
+.\" .Fn if_addrhooks_run "struct ifnet *ifp"
+.Ft void
+.Fn if_detachhook_add "struct ifnet *ifp" "struct task *t"
+.Ft void
+.Fn if_detachhook_del "struct ifnet *ifp" "struct task *t"
+.Ft void
+.Fn if_linkstatehook_add "struct ifnet *ifp" "struct task *t"
+.Ft void
+.Fn if_linkstatehook_del "struct ifnet *ifp" "struct task *t"
+.Sh DESCRIPTION
+The interface hook API allows for the registration of a task that
+will be called when an IP address change, link state, or detach event
+occurs on the specified interface.
+Tasks should be initialised with
+.Xr task_add 9
+or
+.Xr TASK_INITIALIZER 9
+before being used with the following functions.
+.Pp
+The
+.Fn if_addrhook_add
+function registers the task
+.Fa t
+on the
+.Fa ifp
+interface.
+The event will fire every time an IPv4 or IPv6 address change occurs
+on the interface until explicitly removed with
+.Fn if_addrhook_del .
+.Pp
+The
+.Fn if_addrhook_del
+function removes the task
+.Fa t
+from the
+.Fa ifp
+interface.
+.Pp
+The
+.Fn if_detachhook_add
+function registers the task
+.Fa t
+on the
+.Fa ifp
+interface.
+The event will fire when the interface is being destroyed.
+.Pp
+The
+.Fn if_detachhook_del
+function removes the task
+.Fa t
+from the
+.Fa ifp
+interface.
+.Pp
+The
+.Fn if_linkstatehook_add
+function registers the task
+.Fa t
+on the
+.Fa ifp
+interface.
+The event will fire for every link state change, or when the interface
+is brought up or down, until explicitly removed with
+.Fn if_linkstatehook_del .
+.Pp
+The
+.Fn if_linkstatehook_del
+function removes the task
+.Fa t
+from the
+.Fa ifp
+interface.
+.Sh CONTEXT
+.Fn if_addrhook_add ,
+.Fn if_addrhook_del ,
+.\" .Fn if_addrhooks_run ,
+.Fn if_detachhook_add ,
+.Fn if_detachhook_del ,
+.Fn if_linkstatehook_add ,
+and
+.Fn if_linkstatehook_del
+can be called during autoconf, from process context, or from interrupt context.
+.Sh SEE ALSO
+.Xr task_set 9

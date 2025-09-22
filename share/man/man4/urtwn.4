@@ -1,0 +1,203 @@
+.\" $OpenBSD: urtwn.4,v 1.58 2025/03/27 15:12:14 jmc Exp $
+.\"
+.\" Copyright (c) 2010 Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt URTWN 4
+.Os
+.Sh NAME
+.Nm urtwn
+.Nd Realtek RTL8188CU/RTL8188EU/RTL8188FTV/RTL8192CU/RTL8192EU USB IEEE 802.11b/g/n wireless
+network device
+.Sh SYNOPSIS
+.Cd "urtwn* at uhub? port ?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 2.0 wireless network devices based on Realtek
+RTL8188CU, RTL8188CE-VAU, RTL8188EU, RTL8188FTV, RTL8188RU, RTL8192CU
+and RTL8192EU chipsets.
+.Pp
+The RTL8188CU, RTL8188EU and RTL8188FTV are highly integrated 802.11n adapters
+that combine a MAC, a 1T1R capable baseband and an RF in a single chip.
+They operate in the 2GHz spectrum only.
+The RTL8188RU is a high-power variant of the RTL8188CU.
+The RTL8188CE-VAU is a PCI Express Mini Card adapter that attaches
+to the USB interface.
+.Pp
+The RTL8192CU and RTL8192EU are highly integrated multiple-in, multiple-out
+(MIMO) 802.11n adapters that combine a MAC, a 2T2R capable baseband and an
+RF in a single chip.
+They operate in the 2GHz spectrum only.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The adapter needs firmware files to run, which are loaded on demand by
+the driver when the device is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/urtwn-rtl8192cT
+.It Pa /etc/firmware/urtwn-rtl8192cU
+.It Pa /etc/firmware/urtwn-rtl8192eu
+.It Pa /etc/firmware/urtwn-rtl8188eu
+.It Pa /etc/firmware/urtwn-rtl8188ftv
+.El
+.Sh HARDWARE
+The following adapters should work:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Airlink101 AWLL5088
+.It Alfa AWUS036NHR
+.It Approx APPUSB300NANO V1
+.It Aus. Linx AL-9604R1S
+.It Asus USB-N10 NANO
+.It Asus USB-N10 NANO B1
+.It B-Link BL-LW05-5R
+.It Belkin F7D1102 Surf Wireless Micro
+.It Comfast CF-WU710N v4
+.It D-Link DWA-121
+.It D-Link DWA-123 rev \&D1
+.It D-Link DWA-125 rev \&D1
+.It D-Link DWA-131 rev B, E1
+.It D-Link DWA-133
+.It D-Link DWA-135
+.It Digitus DN-7042
+.It Edimax EW-7811Un
+.It Edimax EW-7811Un v2
+.It EDUP EP-N8508
+.It Elecom WDC-150SU2M
+.It Full River FR-W100NUL
+.It Hercules Wireless N USB Pico HWNUp-150
+.It IO-DATA WN-G150UM
+.It ISY IWL4000 USB Wireless Micro Adapter
+.It Mercusys MW150US V2
+.It Netgear WNA1000A
+.It Netgear WNA1000M
+.It Netgear WNA1000Mv2
+.It On Networks N300MA
+.It Patriot PCUSBW1150
+.It Planex GW-USEco300
+.It Planex GW-USNano2
+.It Planex GW-USValue-EZ
+.It Planex GW-USWExtreme
+.It POWCHIP POW-N18
+.It Prolink WN2201
+.It Sitecom WL-365
+.It Sitecom WLA-2100 v2
+.It Solwise NET-WL-UMD-606N
+.It TP-LINK TL-WN722N v2
+.It TP-LINK TL-WN723N v3
+.It TP-LINK TL-WN725N v2
+.It TP-LINK TL-WN821N v4
+.It TP-LINK TL-WN821N v5
+.It TP-LINK TL-WN822N v4
+.It TP-LINK TL-WN822N v5
+.It TRENDnet TEW-648UBM
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig urtwn0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures urtwn0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "urtwn0: error N, could not read firmware ..."
+For some reason, the driver was unable to read the microcode file from the
+filesystem.
+The file might be missing or corrupted.
+.It "urtwn0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.Sh CAVEATS
+The
+.Nm
+driver does not support any of the 802.11n capabilities offered by the
+adapters.
+Additional work is required in
+.Xr ieee80211 9
+before those features can be supported.

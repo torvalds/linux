@@ -1,0 +1,55 @@
+.\" $OpenBSD: fido.4,v 1.4 2020/08/21 19:02:46 mglocker Exp $
+.\"
+.\" Copyright (c) 2019 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 21 2020 $
+.Dt FIDO 4
+.Os
+.Sh NAME
+.Nm fido
+.Nd FIDO/U2F security keys
+.Sh SYNOPSIS
+.Cd "fido* at uhidev?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for FIDO/U2F-compatible USB security keys.
+They are Human Interface Devices (HID) which can be accessed via the
+.Pa /dev/fido/N
+interface.
+.Pp
+The driver is compatible with the
+.Xr read 2 ,
+.Xr write 2 ,
+and
+.Xr ioctl 2
+operations of the generic
+.Xr uhid 4
+device but only accepts the optional HID
+.Xr ioctl 2
+calls from root.
+.Sh FILES
+.Bl -tag -width /dev/fido/* -compact
+.It Pa /dev/fido/*
+.El
+.Sh SEE ALSO
+.Xr uhid 4 ,
+.Xr uhidev 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.7 .

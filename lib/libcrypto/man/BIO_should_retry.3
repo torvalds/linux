@@ -1,0 +1,302 @@
+.\" $OpenBSD: BIO_should_retry.3,v 1.12 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\" selective merge up to: OpenSSL 57fd5170 May 13 11:24:11 2018 +0200
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2010, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_SHOULD_RETRY 3
+.Os
+.Sh NAME
+.Nm BIO_should_read ,
+.Nm BIO_should_write ,
+.Nm BIO_should_io_special ,
+.Nm BIO_retry_type ,
+.Nm BIO_should_retry ,
+.Nm BIO_get_retry_BIO ,
+.Nm BIO_get_retry_reason ,
+.Nm BIO_set_retry_reason
+.Nd BIO retry functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.Ft int
+.Fo BIO_should_read
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_should_write
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_should_io_special
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_retry_type
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_should_retry
+.Fa "BIO *b"
+.Fc
+.Fd #define BIO_FLAGS_READ			0x01
+.Fd #define BIO_FLAGS_WRITE			0x02
+.Fd #define BIO_FLAGS_IO_SPECIAL		0x04
+.Fd #define BIO_FLAGS_RWS \e
+.Fd \&	(BIO_FLAGS_READ|BIO_FLAGS_WRITE|BIO_FLAGS_IO_SPECIAL)
+.Fd #define BIO_FLAGS_SHOULD_RETRY	0x08
+.Ft BIO *
+.Fo BIO_get_retry_BIO
+.Fa "BIO *bio"
+.Fa "int *reason"
+.Fc
+.Ft int
+.Fo BIO_get_retry_reason
+.Fa "BIO *bio"
+.Fc
+.Ft void
+.Fo BIO_set_retry_reason
+.Fa "BIO *bio"
+.Fa "int reason"
+.Fc
+.Sh DESCRIPTION
+These functions determine why a BIO is not able to read or write data.
+They will typically be called after a failed
+.Xr BIO_read 3
+or
+.Xr BIO_write 3
+call.
+.Pp
+.Fn BIO_should_retry
+returns 1 if the call that produced this condition should be retried
+at a later time, or 0 if an error occurred.
+.Pp
+.Fn BIO_should_read
+returns 1 if the cause of the retry condition is that a BIO needs
+to read data, or 0 otherwise.
+.Pp
+.Fn BIO_should_write
+returns 1 if the cause of the retry condition is that a BIO needs
+to write data, or 0 otherwise.
+.Pp
+.Fn BIO_should_io_special
+returns 1 if some special condition (i.e. a reason other than reading
+or writing) is the cause of the retry condition, or 0 otherwise.
+.Pp
+.Fn BIO_retry_type
+returns the bitwise OR of one or more of the flags
+.Dv BIO_FLAGS_READ ,
+.Dv BIO_FLAGS_WRITE ,
+and
+.Dv BIO_FLAGS_IO_SPECIAL
+representing the cause of the current retry condition,
+or 0 if there is no retry condition.
+Current BIO types only set one of the flags at a time.
+.Pp
+.Fn BIO_get_retry_BIO
+determines the precise reason for the special condition.
+It walks the BIO chain starting at
+.Fa bio
+and returns the BIO that caused this condition.
+If there is no special condition,
+.Fa bio
+itself is returned.
+If
+.Fa reason
+is not a
+.Dv NULL
+pointer,
+.Pf * Fa reason
+is set to one of the following reason codes:
+.Bl -tag -width 1n -offset 3n
+.It 0
+There is no special condition.
+.It Dv BIO_RR_ACCEPT
+.Xr accept 2
+would have blocked.
+This can occur for BIOs created from
+.Xr BIO_s_accept 3
+or
+.Xr BIO_f_ssl 3 .
+.It Dv BIO_RR_CONNECT
+.Xr connect 2
+would have blocked.
+This can occur for BIOs created from
+.Xr BIO_s_connect 3
+or
+.Xr BIO_f_ssl 3 .
+.It Dv BIO_RR_SSL_X509_LOOKUP
+An application callback set by
+.Xr SSL_CTX_set_client_cert_cb 3
+has asked to be called again.
+This can occur for BIOs created from
+.Xr BIO_f_ssl 3 .
+.El
+.Pp
+.Fn BIO_get_retry_reason
+returns one of the above reason codes for a special condition that occurred in
+.Fa bio .
+It does not walk the chain and returns 0 if no special condition occurred in
+.Fa bio
+itself.
+.Pp
+.Fn BIO_set_retry_reason
+sets the retry reason for a special condition for the given
+.Fa bio .
+It is intended to be called by functions implementing a BIO type
+rather than by functions merely using BIOs.
+.Pp
+.Fn BIO_should_retry ,
+.Fn BIO_should_read ,
+.Fn BIO_should_write ,
+.Fn BIO_should_io_special ,
+and
+.Fn BIO_retry_type
+are implemented as macros.
+.Pp
+If
+.Fn BIO_should_retry
+returns false, then the precise "error condition" depends on
+the BIO type that caused it and the return code of the BIO operation.
+For example if a call to
+.Xr BIO_read 3
+on a socket BIO returns 0 and
+.Fn BIO_should_retry
+is false, then the cause will be that the connection closed.
+A similar condition on a file BIO will mean that it has reached EOF.
+Some BIO types may place additional information on the error queue.
+For more details see the individual BIO type manual pages.
+.Pp
+If the underlying I/O structure is in a blocking mode,
+almost all current BIO types will not request a retry,
+because the underlying I/O calls will not.
+If the application knows that the BIO type will never
+signal a retry then it need not call
+.Fn BIO_should_retry
+after a failed BIO I/O call.
+This is typically done with file BIOs.
+.Pp
+SSL BIOs are the only current exception to this rule:
+they can request a retry even if the underlying I/O structure
+is blocking, if a handshake occurs during a call to
+.Xr BIO_read 3 .
+An application can retry the failed call immediately
+or avoid this situation by setting
+.Dv SSL_MODE_AUTO_RETRY
+on the underlying SSL structure.
+.Pp
+While an application may retry a failed non-blocking call immediately,
+this is likely to be very inefficient because the call will fail
+repeatedly until data can be processed or is available.
+An application will normally wait until the necessary condition
+is satisfied.
+How this is done depends on the underlying I/O structure.
+.Pp
+For example if the cause is ultimately a socket and
+.Fn BIO_should_read
+is true then a call to
+.Xr select 2
+may be made to wait until data is available
+and then retry the BIO operation.
+By combining the retry conditions of several non-blocking BIOs in a single
+.Xr select 2
+call it is possible to service several BIOs in a single thread,
+though the performance may be poor if SSL BIOs are present because
+long delays can occur during the initial handshake process.
+.Pp
+It is possible for a BIO to block indefinitely if the underlying I/O
+structure cannot process or return any data.
+This depends on the behaviour of the platforms I/O functions.
+This is often not desirable: one solution is to use non-blocking I/O
+and use a timeout on the
+.Xr select 2
+(or equivalent) call.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr BIO_read 3
+.Sh HISTORY
+.Fn BIO_should_read ,
+.Fn BIO_should_write ,
+.Fn BIO_retry_type ,
+and
+.Fn BIO_should_retry
+first appeared in SSLeay 0.6.0.
+.Fn BIO_should_io_special ,
+.Fn BIO_get_retry_BIO ,
+and
+.Fn BIO_get_retry_reason
+first appeared in SSLeay 0.8.0.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn BIO_set_retry_reason
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 7.1 .
+.Sh BUGS
+The OpenSSL ASN.1 functions cannot gracefully deal with non-blocking I/O:
+they cannot retry after a partial read or write.
+This is usually worked around by only passing the relevant data to ASN.1
+functions when the entire structure can be read or written.

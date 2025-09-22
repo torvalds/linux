@@ -1,0 +1,219 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>Priority Queue Text Push Timing Test</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1>Priority Queue Text <tt>push</tt> Timing Test</h1>
+<h2><a name="description" id="description">Description</a></h2>
+<p>This test inserts a number of values with keys from an
+    arbitrary text ([ <a href="references.html#wickland96thirty">wickland96thirty</a> ]) into
+    a container using <tt>push</tt> . It measures the average time
+    for <tt>push</tt> as a function of the number of values
+    pushed.</p>
+<p>(The test was executed with <a href="../../../../testsuite/performance/ext/pb_ds/priority_queue_text_push_timing.cc"><tt>priority_queue_text_push_timing_test</tt></a>
+    thirty_years_among_the_dead_preproc.txt 200 200 2100)</p>
+<h2><a name="purpose" id="purpose">Purpose</a></h2>
+<p>The test checks the effect of different underlying
+    data structures (see <a href="pq_design.html#pq_imp">Design::Priority
+    Queues::Implementations</a>).</p>
+<h2><a name="results" id="results">Results</a></h2>
+<p>Figures <a href="#NPG">NPG</a>, <a href="#NPM">NPM</a>, and
+    <a href="#NPL">NPL</a> show the results for the native priority
+    queues and <tt>pb_ds</tt> 's priority queues in <a href="pq_performance_tests.html#gcc"><u>g++</u></a>, <a href="pq_performance_tests.html#msvc"><u>msvc++</u></a>, and
+    <a href="pq_performance_tests.html#local"><u>local</u></a>,
+    respectively; Figures <a href="#NBRG">NBRG</a>, <a href="#NBRM">NBRM</a>, and <a href="#NBRL">NBRL</a> shows the
+    results for the binary-heap based native priority queues and
+    <tt>pb_ds</tt>'s pairing-heap priority queues in <a href="pq_performance_tests.html#gcc"><u>g++</u></a>, <a href="pq_performance_tests.html#msvc"><u>msvc++</u></a>, and
+    <a href="pq_performance_tests.html#local"><u>local</u></a>,
+    respectively</p>
+<div id="NPG_res_div">
+<div id="NPG_gcc">
+<div id="NPG_priority_queue_text_push_timing_test">
+<div id="NPG_pq">
+<div id="NPG_Native_and__tt_pb_ds_455tt__priority_queue__tt_push_455tt__timing_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPG" id="NPG"><img src="priority_queue_text_push_timing_test_gcc.png" alt="no image" /></a></h6>NPG: Native and <tt>pb ds</tt> priority queue <tt>push</tt> timing test - <a href="pq_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_pq_vector-
+<tt>std::priority_queue</tt> adapting <tt>std::vector</tt></li>
+<li>
+n_pq_deque-
+<tt>std::priority_queue</tt> adapting <tt>std::deque</tt></li>
+<li>
+binary_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binary_heap_tag.html"><tt>binary_heap_tag</tt></a>
+</li>
+<li>
+rc_binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="rc_binomial_heap_tag.html"><tt>rc_binomial_heap_tag</tt></a>
+</li>
+<li>
+thin_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="thin_heap_tag.html"><tt>thin_heap_tag</tt></a>
+</li>
+<li>
+binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binomial_heap_tag.html"><tt>binomial_heap_tag</tt></a>
+</li>
+<li>
+pairing_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NPM_res_div">
+<div id="NPM_msvc">
+<div id="NPM_priority_queue_text_push_timing_test">
+<div id="NPM_pq">
+<div id="NPM_Native_and__tt_pb_ds_455tt__priority_queue__tt_push_455tt__timing_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPM" id="NPM"><img src="priority_queue_text_push_timing_test_msvc.png" alt="no image" /></a></h6>NPM: Native and <tt>pb ds</tt> priority queue <tt>push</tt> timing test - <a href="pq_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_pq_deque-
+<tt>std::priority_queue</tt> adapting <tt>std::deque</tt></li>
+<li>
+rc_binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="rc_binomial_heap_tag.html"><tt>rc_binomial_heap_tag</tt></a>
+</li>
+<li>
+binary_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binary_heap_tag.html"><tt>binary_heap_tag</tt></a>
+</li>
+<li>
+binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binomial_heap_tag.html"><tt>binomial_heap_tag</tt></a>
+</li>
+<li>
+n_pq_vector-
+<tt>std::priority_queue</tt> adapting <tt>std::vector</tt></li>
+<li>
+pairing_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a>
+</li>
+<li>
+thin_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="thin_heap_tag.html"><tt>thin_heap_tag</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NPL_res_div">
+<div id="NPL_local">
+<div id="NPL_priority_queue_text_push_timing_test">
+<div id="NPL_pq">
+<div id="NPL_Native_and__tt_pb_ds_455tt__priority_queue__tt_push_455tt__timing_test"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPL" id= "NPL"><img src="priority_queue_text_push_timing_test_local.png" alt="no image" /></a></h6>NPL: Native and <tt>pb ds</tt> priority queue <tt>push</tt> timing test - <a href = "pq_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NBRG_res_div">
+<div id="NBRG_gcc">
+<div id="NBRG_pairing_priority_queue_text_push_timing_test">
+<div id="NBRG_pq">
+<div id="NBRG_Native_and__tt_pb_ds_455tt__pairing_priority_queue__tt_push_455tt__timing_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NBRG" id="NBRG"><img src="pairing_priority_queue_text_push_timing_test_gcc.png" alt="no image" /></a></h6>NBRG: Native and <tt>pb ds</tt> pairing priority queue <tt>push</tt> timing test - <a href="pq_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_pq_vector-
+<tt>std::priority_queue</tt> adapting <tt>std::vector</tt></li>
+<li>
+n_pq_deque-
+<tt>std::priority_queue</tt> adapting <tt>std::deque</tt></li>
+<li>
+thin_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="thin_heap_tag.html"><tt>thin_heap_tag</tt></a>
+</li>
+<li>
+pairing_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NBRM_res_div">
+<div id="NBRM_msvc">
+<div id="NBRM_pairing_priority_queue_text_push_timing_test">
+<div id="NBRM_pq">
+<div id="NBRM_Native_and__tt_pb_ds_455tt__pairing_priority_queue__tt_push_455tt__timing_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NBRM" id="NBRM"><img src="pairing_priority_queue_text_push_timing_test_msvc.png" alt="no image" /></a></h6>NBRM: Native and <tt>pb ds</tt> pairing priority queue <tt>push</tt> timing test - <a href="pq_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_pq_deque-
+<tt>std::priority_queue</tt> adapting <tt>std::deque</tt></li>
+<li>
+n_pq_vector-
+<tt>std::priority_queue</tt> adapting <tt>std::vector</tt></li>
+<li>
+pairing_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a>
+</li>
+<li>
+thin_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="thin_heap_tag.html"><tt>thin_heap_tag</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NBRL_res_div">
+<div id="NBRL_local">
+<div id="NBRL_pairing_priority_queue_text_push_timing_test">
+<div id="NBRL_pq">
+<div id="NBRL_Native_and__tt_pb_ds_455tt__pairing_priority_queue__tt_push_455tt__timing_test"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NBRL" id= "NBRL"><img src="pairing_priority_queue_text_push_timing_test_local.png" alt="no image" /></a></h6>NBRL: Native and <tt>pb ds</tt> pairing priority queue <tt>push</tt> timing test - <a href = "pq_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<h2><a name="observations" id="observations">Observations</a></h2>
+<p>Pairing heaps (<a href="priority_queue.html"><tt>priority_queue</tt></a> with
+    <tt>Tag</tt> = <a href="pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a>)
+    are the most suited for sequences of <tt>push</tt> and
+    <tt>pop</tt> operations of non-primitive types (<i>e.g.</i>
+<tt>std::string</tt>s). (see also <a href="priority_queue_text_push_pop_timing_test.html">Priority Queue
+    Text <tt>push</tt> and <tt>pop</tt> Timing Test</a>.) They are
+    less constrained than binomial heaps, <i>e.g.</i>, and since
+    they are node-based, they outperform binary heaps. (See
+    <a href="priority_queue_random_int_push_timing_test.html">Priority
+    Queue Random Integer <tt>push</tt> Timing Test</a> for the case
+    of primitive types.)</p>
+<p>The STL's priority queues do not seem to perform well in
+    this case: the <tt>std::vector</tt> implementation needs to
+    perform a logarithmic sequence of string operations for each
+    operation, and the deque implementation is possibly hampered by
+    its need to manipulate a relatively-complex type (deques
+    support a <i>O(1)</i> <tt>push_front</tt>, even though it is
+    not used by <tt>std::priority_queue</tt>.)</p>
+<p><a href="pq_performance_tests.html#pq_observations">Priority-Queue
+    Performance Tests::Observations</a> discusses this further and
+    summarizes.</p>
+</div>
+</body>
+</html>

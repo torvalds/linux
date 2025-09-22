@@ -1,0 +1,199 @@
+.\"	$OpenBSD: radiusd_ipcp.8,v 1.7 2025/06/23 23:57:48 yasuoka Exp $
+.\"
+.\" Copyright (c) 2024 Internet Initiative Japan Inc.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The following requests are required for all man pages.
+.\"
+.Dd $Mdocdate: June 23 2025 $
+.Dt RADIUSD_IPCP 8
+.Os
+.Sh NAME
+.Nm radiusd_ipcp
+.Nd provides IP configuration and manages IP address pool
+.Sh SYNOPSIS
+.Nm radiusd_ipcp
+.Sh DESCRIPTION
+The
+.Nm
+module is executed by
+.Xr radiusd 8
+as a module to provide IP configuration through RADIUS Access-Accept messages
+and manages the IP address pool through RADIUS accounting messages.
+The internal sessions can be shown or monitored by
+.Xr radiusctl 8 .
+.Nm
+also provides session timeouts and disconnects requested by
+.Xr radiusctl 8
+through the Dynamic Authorization Extension
+.Pq DAE, RFC 5176 .
+.Sh CONFIGURATIONS
+To use the
+.Nm
+module,
+it should be configured as a decoration module of the authentication
+and as an accounting module.
+.Bd -literal -offset indent
+authenticate * by (any auth module) decorate-by ipcp
+account      * to ipcp
+.Ed
+.Pp
+The
+.Nm
+module supports the following configuration keys and values:
+.Bl -tag -width Ds
+.It Ic address pool Ar address-space ...
+Specify the IP address spaces that is pooled.
+The
+.Ar address-space
+can be specified by an address range
+.Pq e.g. 192.168.1.1-192.168.1.199
+or an address mask
+.Pq e.g. 192.168.1.0/24 .
+The pooled addresses are used for dynamic assignment.
+.It Ic address static Ar address-space ...
+Specify the IP address spaces that is pooled for static assignment.
+The
+.Ar address-space
+is the same syntax as
+.Ic address pool ,
+above.
+.It Ic name-server Ar primary-address Op Ar secondary-address
+Specify the DNS servers' IP addresses.
+.It Ic netbios-server Ar primary-address Op Ar secondary-address
+Specify the NetBIOS name servers' IP addresses.
+.It Ic session-timeout Ar seconds | Do radius Dc
+Specify the session-timeout in seconds,
+or
+.Dq radius .
+.Nm
+disconnects the session through DAE at the specified time after starting.
+When
+.Dq radius
+is specified,
+the value of the Session-Timeout attribute in Access-Accept is used for
+the timeout.
+When the value is specified in seconds and the Session-Timeout attribute is
+specified for a session,
+the Session-Timeout attribute value is used to disconnect the session in
+preference.
+Configure
+.Ic dae server
+to use this option.
+.It Ic dae server Ar address Ns Oo Ar :port Oc Ar secret Op Ar nas-id
+Configure a DAE server which
+.Nm
+requests disconnection for sessions.
+Specify the
+.Ar address ,
+optionally the
+.Ar port
+number,
+and the
+.Ar secret .
+If the optional
+.Ar nas-id
+is specified,
+the server is selected only for the session which NAS-Identifier is
+matched the specified value.
+The default port number is 3799.
+.It Ic max-sessions Ar number
+Specify the maximum number of sessions.
+.Sq 0
+means no limit.
+The default value is 0.
+.It Ic user-max-sessions Ar number
+Specify the maximum number of sessions per a user.
+.Sq 0
+means no limit.
+The default value is 0.
+.It Ic start-wait Ar seconds
+Specify the seconds waiting for the RADIUS Accounting Start for the
+session after Access-Accept.
+.Nm
+preserves the assigned IP address for that period.
+The default value is 60 seconds.
+.El
+.Sh FILES
+.Bl -tag -width "/usr/libexec/radiusd/radiusd_ipcp" -compact
+.It Pa /usr/libexec/radiusd/radiusd_ipcp
+.Dq ipcp
+module executable.
+.El
+.Sh EXAMPLES
+An example with
+.Nm
+working with
+.Xr npppd 8 :
+.Pp
+.Pa /etc/radiusd.conf :
+.Bd -literal -offset indent
+listen on 127.0.0.1
+listen on 127.0.0.1 accounting
+
+client 127.0.0.1/32 {
+	secret "SECRET"
+}
+
+module radius {
+    set secret "SECRET2"
+    set server 192.168.0.4:1812
+}
+
+module ipcp {
+    set address pool      192.168.1.0/24
+    set name-server       192.168.0.4
+    set max-sessions      128
+    set user-max-sessions 2
+    set dae server        127.0.0.1 "SECRET3"
+    set session-timeout   radius
+}
+
+authenticate * by radius decorate-by ipcp
+account      * to ipcp
+.Ed
+.Pp
+.Pa /etc/npppd/npppd.conf :
+.Bd -literal -offset indent
+tunnel L2TP protocol l2tp {
+    listen on 192.0.2.51
+}
+ipcp IPCP {
+    pool-address 192.168.1.2-192.168.1.255 for dynamic
+}
+interface pppac0 address 192.168.1.1 ipcp IPCP
+authentication RADIUS type radius {
+    authentication-server {
+	address 127.0.0.1 secret "SECRET"
+    }
+    accounting-server {
+	address 127.0.0.1 secret "SECRET"
+    }
+}
+bind tunnel from L2TP authenticated by RADIUS to pppac0
+
+radius dae listen on 127.0.0.1
+radius dae client 127.0.0.1 secret "SECRET3"
+.Ed
+.Sh SEE ALSO
+.Xr authenticate 3 ,
+.Xr radiusd.conf 5 ,
+.Xr npppd 8 ,
+.Xr radiusctl 8 ,
+.Xr radiusd 8
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Ox 7.6 .

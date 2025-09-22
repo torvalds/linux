@@ -1,0 +1,62 @@
+.\"	$OpenBSD: lmenv.4,v 1.13 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 Theo de Raadt <deraadt@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt LMENV 4
+.Os
+.Sh NAME
+.Nm lmenv
+.Nd National Semiconductor LM87 temperature, voltage, and fan sensor
+.Sh SYNOPSIS
+.Cd "lmenv* at iic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the National Semiconductor LM87,
+National Semiconductor LM81, Analog Devices ADM9240, and
+Dallas Semiconductor 1780 temperature sensors.
+The sensor possesses a collection of sensor values which are
+made available through the
+.Xr sysctl 8
+interface:
+.Bd -literal -offset indent
+$ sysctl hw.sensors.lmenv0
+hw.sensors.lmenv0.temp0=-128.00 degC (External)
+hw.sensors.lmenv0.temp1=29.00 degC (Internal)
+hw.sensors.lmenv0.fan0=3220 RPM
+hw.sensors.lmenv0.volt0=2.62 V DC (+2.5Vin)
+hw.sensors.lmenv0.volt1=1.49 V DC (Vccp)
+hw.sensors.lmenv0.volt2=3.28 V DC (+Vcc)
+hw.sensors.lmenv0.volt3=5.03 V DC (+5Vin/Vcc)
+hw.sensors.lmenv0.volt4=12.00 V DC (+12Vin)
+hw.sensors.lmenv0.volt5=1.20 V DC (Vccp)
+.Ed
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

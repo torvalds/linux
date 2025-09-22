@@ -1,0 +1,7 @@
+executable("llvm-jitlink-executor") {
+  deps = [
+    "//llvm/lib/ExecutionEngine/Orc/TargetProcess",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-jitlink-executor.cpp" ]
+}

@@ -1,0 +1,7 @@
+# DEFINE:
+# RUN: echo Hello World
+
+#      CHECK: Substitution's definition does not contain '='
+# CHECK-NEXT: in {{DEFINE}}: directive on test line [[#@LINE-4]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

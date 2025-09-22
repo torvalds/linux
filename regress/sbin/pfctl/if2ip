@@ -1,0 +1,57 @@
+#!/bin/ksh
+# simple script that compare and display interface to address translation
+# done by the userland pfctl tool and by the kernel PF dynamic code.
+
+PFCTL="${PFCTL:=/sbin/pfctl}"
+
+if2ip_user() {
+    echo "pass in from $1" | $PFCTL -o none -nvf- 2>/dev/null \
+	| awk '{print  "   "(($3=="on")?$7:$5)}' | sort -u
+}
+
+kernel_spec() {
+    set -- `echo $1 | sed "s;/; ;"`
+    if [ "X$2" == "X" ]; then
+	echo "($1)"
+    else
+	echo "($1)/$2"
+    fi
+}
+
+if2ip_kernel() {
+    T=`echo "pass in on tun100 from $1" | $PFCTL -a regress/if2ip -f- \
+	-vf- | awk '{ print $6}' | tr -d "()"`
+    $PFCTL -a _pf -t "$T" -Ts | sort
+    $PFCTL -a regress/if2ip -qFr
+}
+
+while [ "X$1" != "X" ]; do
+    if [ "$1" == "-q" ]; then
+	QUIET=1
+	shift
+    fi
+    if [ "$1" == "-v" ]; then
+	QUIET=0
+	shift
+    fi
+
+    UIP=`if2ip_user $1`
+    KIF=`kernel_spec $1`
+    KIP=`if2ip_kernel $KIF`
+
+    if [ "$QUIET" == "1" ]; then
+	if [ "$UIP" == "$KIP" ]; then
+	    echo "$1 and $KIF match."
+	else
+	    echo "$1 and $KIF mismatch."
+	fi
+    else
+	echo "$1:"$UIP
+	echo "$KIF:"$KIP
+    fi
+
+    if [ "$UIP" != "$KIP" ]; then
+	exit 1
+    fi
+    shift
+done

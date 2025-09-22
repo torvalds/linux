@@ -1,0 +1,165 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <title>Implicit Checks</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+  <script type="text/javascript" src="scripts/menu.js"></script>
+  <script type="text/javascript" src="scripts/expandcollapse.js"></script>
+  <style type="text/css">
+  tr:first-child { width:20%; }
+  </style>
+</head>
+<body onload="initExpandCollapse()">
+
+<div id="page">
+<!--#include virtual="menu.html.incl"-->
+
+<div id="content">
+<h1>Implicit Checkers</h1>
+Even though the implicit checkers do not produce any warnings, they are used to
+support the analyzer core and model known APIs. See also
+<a href = "available_checks.html">Default Checkers</a>
+and <a href = "alpha_checks.html">Experimental (Alpha) Checkers</a>.
+<ul>
+<li><a href="#core_implicit_checkers">Core Implicit Checkers</a></li>
+<li><a href="#osx_implicit_checkers">OS X Implicit Checkers</a></li>
+</ul>
+
+<!-- =========================== core implicit =========================== -->
+<h3 id="core_implicit_checkers">Core Implicit Checkers</h3>
+<table class="checkers">
+<colgroup><col class="namedescr"><col class="example"></colgroup>
+<thead><tr><td>Name, Description</td><td>Example</td></tr></thead>
+
+<tbody>
+<tr><td><div class="namedescr expandable"><span class="name">
+core.DynamicTypePropagation</span><span class="lang">
+(C++, ObjC)</span><div class="descr">
+Generate dynamic type information.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+// C++
+class A {
+public:
+  A(int x) {}
+  virtual int foo();
+};
+
+class B: public A {
+public:
+  B()
+  :A(foo())
+  // DynamicTypeInfo for 'this' rigion will wrap type 'A'
+  // unless the base constructor call expression is processed
+  {}
+  virtual int foo();
+};
+</pre></div><div class="separator"></div>
+<div class="example"><pre>
+// Objective-C
+@interface MyClass : NSObject {}
+@end
+
+@implementation MyClass
++ (void)foo {
+  MyClass *x = [[self alloc] init];
+  // DynamicTypeInfo from a cast: from 'id' to 'MyClass *'
+}
+@end
+
+void test() {
+  MyClass *x = [MyClass alloc];
+  // DynamicTypeInfo from a call to alloc:
+  // from 'id' to 'MyClass *'
+}
+</pre></div></div></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+core.builtin.BuiltinFunctions</span><span class="lang">
+(C)</span><div class="descr">
+Evaluate compiler builtin functions (e.g., <code>alloca()</code>)</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test(int x) {
+  int *p = (int *)__builtin_alloca(8);
+    // evaluates to AllocaRegion
+
+  if(__builtin_expect(x > 10, 0)) // evaluates to 'x > 10'
+    x = 0;
+}
+</pre></div></div></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+core.builtin.NoReturnFunctions</span><span class="lang">
+(C, ObjC)</span><div class="descr">
+Evaluate "panic" functions that are known to not return to the caller.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+// C
+void test() {
+  panic(); // generate sink
+}
+</pre></div><div class="separator"></div>
+<div class="example"><pre>
+// Objective-C
+@interface MyObj : NSObject {}
+- (void)foo;
+@end
+
+@implementation MyObj
+- (void)foo {
+  [[NSAssertionHandler currentHandler] handleFailureInMethod:_cmd
+                                       object:self
+                                       file:(@"somefile.m")
+                                       lineNumber:1
+                                       description:(@"some text")];
+    // generate sink
+}
+@end
+</pre></div></div></td></tr>
+
+</tbody></table>
+
+<!-- =========================== OS X implicit =========================== -->
+<h3 id="osx_implicit_checkers">OS X Implicit Checkers</h3>
+<table class="checkers">
+<colgroup><col class="namedescr"><col class="example"></colgroup>
+<thead><tr><td>Name, Description</td><td>Example</td></tr></thead>
+
+<tbody>
+<tr><td><div class="namedescr expandable"><span class="name">
+osx.cocoa.Loops</span><span class="lang">
+(ObjC)</span><div class="descr">
+Improved modeling of loops using Cocoa collection types.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test() {
+  id x;
+  for (x in [NSArray testObject]) {
+    // assume the value of 'x' is non-nil
+  }
+}
+</pre></div></div></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+osx.cocoa.NonNilReturnValue</span><span class="lang">
+(ObjC)</span><div class="descr">
+Model the APIs that are guaranteed to return a non-nil value.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test(NSArray *A) {
+  id subscriptObj = A[1]; // assume the value is non-nil
+}
+</pre></div></div></td></tr>
+
+</tbody></table>
+
+</div> <!-- page -->
+</div> <!-- content -->
+</body>
+</html>

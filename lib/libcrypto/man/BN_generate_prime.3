@@ -1,0 +1,376 @@
+.\" $OpenBSD: BN_generate_prime.3,v 1.26 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL f987a4dd Jun 27 10:12:08 2019 +0200
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Ulf Moeller <ulf@openssl.org>
+.\" Bodo Moeller <bodo@openssl.org>, and Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2000, 2003, 2013, 2014, 2018 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_GENERATE_PRIME 3
+.Os
+.Sh NAME
+.Nm BN_is_prime_ex ,
+.Nm BN_is_prime_fasttest_ex ,
+.Nm BN_generate_prime_ex ,
+.Nm BN_GENCB_call ,
+.Nm BN_GENCB_new ,
+.Nm BN_GENCB_free ,
+.Nm BN_GENCB_set ,
+.Nm BN_GENCB_get_arg ,
+.Nm BN_GENCB_set_old
+.\" Nm BN_prime_checks_for_size is intentionally undocumented
+.\" because it should not be used outside of libcrypto.
+.Nd generate primes and test for primality
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft int
+.Fo BN_is_prime_ex
+.Fa "const BIGNUM *a"
+.Fa "int nchecks"
+.Fa "BN_CTX *ctx"
+.Fa "BN_GENCB *cb"
+.Fc
+.Ft int
+.Fo BN_is_prime_fasttest_ex
+.Fa "const BIGNUM *a"
+.Fa "int nchecks"
+.Fa "BN_CTX *ctx"
+.Fa "int do_trial_division"
+.Fa "BN_GENCB *cb"
+.Fc
+.Ft int
+.Fo BN_generate_prime_ex
+.Fa "BIGNUM *ret"
+.Fa "int bits"
+.Fa "int safe"
+.Fa "const BIGNUM *modulus"
+.Fa "const BIGNUM *remainder"
+.Fa "BN_GENCB *cb"
+.Fc
+.Ft int
+.Fo BN_GENCB_call
+.Fa "BN_GENCB *cb"
+.Fa "int state_code"
+.Fa "int serial_number"
+.Fc
+.Ft BN_GENCB *
+.Fn BN_GENCB_new void
+.Ft void
+.Fo BN_GENCB_free
+.Fa "BN_GENCB *cb"
+.Fc
+.Ft void
+.Fo BN_GENCB_set
+.Fa "BN_GENCB *cb"
+.Fa "int (*cb_fp)(int, int, BN_GENCB *)"
+.Fa "void *cb_arg"
+.Fc
+.Ft void *
+.Fo BN_GENCB_get_arg
+.Fa "BN_GENCB *cb"
+.Fc
+.Pp
+Deprecated:
+.Pp
+.Ft void
+.Fo BN_GENCB_set_old
+.Fa "BN_GENCB *cb"
+.Fa "void (*cb_fp)(int, int, void *)"
+.Fa "void *cb_arg"
+.Fc
+.Sh DESCRIPTION
+.Fn BN_is_prime_ex
+and
+.Fn BN_is_prime_fasttest_ex
+test whether the number
+.Fa a
+is prime.
+In LibreSSL, both functions behave identically
+and use the Baillie-Pomerance-Selfridge-Wagstaff algorithm
+combined with
+.Fa checks
+Miller-Rabin rounds.
+The
+.Fa do_trial_division
+argument is ignored.
+.Pp
+It is unknown whether any composite number exists that the
+Baillie-PSW algorithm misclassifies as a prime.
+Some suspect that there may be infinitely many such numbers,
+but not a single one is currently known.
+It is known that no such number exists below 2\(ha64.
+.Pp
+In order to reduce the likelihood of a composite number
+passing the primality tests
+.Fn BN_is_prime_fasttest_ex
+and
+.Fn BN_is_prime_ex ,
+a number of rounds of the probabilistic Miller-Rabin test is performed.
+If
+.Fa checks
+is positive, it is used as the number of rounds;
+if it is zero or the special value
+.Dv BN_prime_checks ,
+a suitable number of rounds is calculated from the bit length of
+.Fa a .
+.Pp
+If
+.Dv NULL
+is passed for the
+.Fa ctx
+argument, these function allocate a
+.Vt BN_CTX
+object internally when they need one and free it before returning.
+Alternatively, to save the overhead of allocating and freeing
+that object for each call, the caller can pre-allocate a
+.Vt BN_CTX
+object and pass it in the
+.Fa ctx
+argument.
+.Pp
+.Fn BN_generate_prime_ex
+generates a pseudo-random prime number of at least bit length
+.Fa bits
+and places it in
+.Fa ret .
+Primality of
+.Fa ret
+is tested internally using
+.Fn BN_is_prime_ex .
+Consequently, for
+.Fa bits
+larger than 64, it is theoretically possible
+that this function might place a composite number into
+.Fa ret ;
+the probability of such an event is unknown but very small.
+.Pp
+The prime may have to fulfill additional requirements for use in
+Diffie-Hellman key exchange:
+.Bl -bullet
+.It
+If
+.Fa modulus
+is not
+.Dv NULL ,
+a prime is generated that fulfills the condition
+.Fa ret No % Fa modulus No = Fa remainder .
+If the
+.Fa remainder
+argument is
+.Dv NULL ,
+1 is used as the desired remainder.
+.It
+If the
+.Fa safe
+argument is non-zero, a safe prime is generated, that is,
+.Po Fa ret No \- 1 Pc Ns /2
+is also prime.
+.El
+.Pp
+If
+.Fa cb
+is not
+.Dv NULL ,
+it is used as follows:
+.Bl -bullet
+.It
+.Fn BN_GENCB_call cb 0 serial_number
+is called after generating a potential prime number.
+.It
+The
+.Fa state_code
+of 1 is reserved for callbacks during primality testing,
+but LibreSSL performs no such callbacks.
+.It
+When
+.Fa safe
+is non-zero and a safe prime has been found,
+.Fn BN_GENCB_call cb 2 serial_number
+is called.
+.It
+The callers of
+.Fn BN_generate_prime_ex
+may call
+.Fn BN_GENCB_call
+with other values as described in their respective manual pages; see
+.Sx SEE ALSO .
+.El
+.Pp
+In all cases, the
+.Fa serial_number
+is the number of candidates that have already been discarded
+for not being prime; that is,
+.Fa serial_number
+is 0 for the first candidate
+and then incremented whenever a new candidate is generated.
+.Pp
+.Fn BN_GENCB_call
+calls the callback function held in
+.Fa cb
+and passes the
+.Fa state_code
+and the
+.Fa serial_number
+as arguments.
+If
+.Fa cb
+is
+.Dv NULL
+or does not contain a callback function, no action occurs.
+.Pp
+.Fn BN_GENCB_new
+allocates a new
+.Vt BN_GENCB
+object.
+.Pp
+.Fn BN_GENCB_free
+frees
+.Fa cb .
+If
+.Fa cb
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+.Fn BN_GENCB_set
+initialises
+.Fa cb
+to use the callback function pointer
+.Fa cb_fp
+and the additional callback argument
+.Fa cb_arg .
+.Pp
+The deprecated function
+.Fn BN_GENCB_set_old
+initialises
+.Fa cb
+to use the old-style callback function pointer
+.Fa cb_fp
+and the additional callback argument
+.Fa cb_arg .
+.Sh RETURN VALUES
+.Fn BN_is_prime_ex
+and
+.Fn BN_is_prime_fasttest_ex
+return 0 if the number is composite, 1 if it is prime with a very small
+error probability, or \-1 on error.
+.Pp
+.Fn BN_generate_prime_ex
+returns 1 on success or 0 on error.
+.Pp
+.Fn BN_GENCB_call
+returns 1 on success, including when
+.Fa cb
+is
+.Dv NULL
+or does not contain a callback function,
+or 0 on error.
+.Pp
+.Fn BN_GENCB_new
+returns a pointer to the newly allocated
+.Vt BN_GENCB
+object or
+.Dv NULL
+if memory allocation fails.
+.Pp
+The callback functions pointed to by the
+.Fa cb_fp
+arguments are supposed to return 1 on success or 0 on error.
+.Pp
+.Fn BN_GENCB_get_arg
+returns the
+.Fa cb_arg
+pointer that was previously stored in
+.Fa cb
+using
+.Fn BN_GENCB_set
+or
+.Fn BN_GENCB_set_old .
+.Pp
+In some cases, error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr BN_new 3 ,
+.Xr DH_generate_parameters 3 ,
+.Xr DSA_generate_parameters_ex 3 ,
+.Xr RSA_generate_key 3
+.Sh HISTORY
+.Fn BN_generate_prime_ex ,
+.Fn BN_is_prime_ex ,
+.Fn BN_is_prime_fasttest_ex ,
+.Fn BN_GENCB_call ,
+.Fn BN_GENCB_set_old ,
+and
+.Fn BN_GENCB_set
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Pp
+.Fn BN_GENCB_new ,
+.Fn BN_GENCB_free ,
+and
+.Fn BN_GENCB_get_arg
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.3 .

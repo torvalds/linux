@@ -1,0 +1,11 @@
+Use a NFS mount via loopback for testing file system operations.
+By changing files directly on the server and accessing them on the
+client or vice versa, specific kernel behavior can be triggered.
+Using file mmap(2) over NFS is tested.
+UNIX domain sockets are created and used on NFS file systems.
+Write ktrace output files onto NFS mounted file systems.  Especially
+test system calls used by true and TCP netcat.
+
+These tests must be run as root, on a system with a free vnd0 slot.
+They create an entry in /etc/exports and start NFS server daemons
+for a loopback mount.

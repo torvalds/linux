@@ -1,0 +1,122 @@
+.\"	$OpenBSD: ipsecctl.8,v 1.29 2017/11/20 10:51:24 mpi Exp $
+.\"
+.\" Copyright (c) 2004, 2005 Hans-Joerg Hoexer <hshoexer@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 20 2017 $
+.Dt IPSECCTL 8
+.Os
+.Sh NAME
+.Nm ipsecctl
+.Nd control flows for IPsec
+.Sh SYNOPSIS
+.Nm ipsecctl
+.Op Fl cdFkmnv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Op Fl i Ar fifo
+.Op Fl s Ar modifier
+.Sh DESCRIPTION
+The
+.Nm
+utility controls flows that determine which packets are to be processed by
+IPsec.
+It allows ruleset configuration, and retrieval of status information from the
+kernel's SPD (Security Policy Database) and SAD (Security Association
+Database).
+It also can control
+.Xr isakmpd 8
+and establish tunnels using automatic keying with
+.Xr isakmpd 8 .
+The ruleset grammar is described in
+.Xr ipsec.conf 5 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c
+Use in combination with the
+.Fl s
+option to collapse flow output.
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the ruleset.
+.It Fl d
+When the
+.Fl d
+option is set, specified flows will be deleted from the SPD.
+Otherwise,
+.Nm
+will add flows.
+.It Fl F
+The
+.Fl F
+option flushes the SPD and the SAD.
+.It Fl f Ar file
+Load the rules contained in
+.Ar file .
+.It Fl i Ar fifo
+If given, the
+.Fl i
+option specifies an alternate FIFO instead of
+.Pa /var/run/isakmpd.fifo ,
+used to talk to
+.Xr isakmpd 8 .
+.It Fl k
+Show secret keying material when printing the active SAD entries.
+.It Fl m
+Continuously display all
+.Dv PF_KEY
+messages exchanged with the kernel.
+.It Fl n
+Do not actually load rules, just parse them.
+.It Fl s Ar modifier
+Show the kernel's databases, specified by
+.Ar modifier
+(may be abbreviated):
+.Pp
+.Bl -tag -width xxxxxxxxxxxxx -compact
+.It Fl s Cm flow
+Show the ruleset loaded into the SPD.
+.It Fl s Cm sa
+Show the active SAD entries.
+.It Fl s Cm all
+Show all of the above.
+.El
+.It Fl v
+Produce more verbose output.
+A second use of
+.Fl v
+will produce even more verbose output.
+.El
+.Sh SEE ALSO
+.Xr ipsec 4 ,
+.Xr tcp 4 ,
+.Xr ipsec.conf 5 ,
+.Xr isakmpd 8
+.\" .Sh STANDARDS
+.\" .Sh HISTORY
+.\" .Sh AUTHORS
+.\" .Sh CAVEATS
+.\" .Sh BUGS
+.Sh HISTORY
+The
+.Nm ipsecctl
+program first appeared in
+.Ox 3.8 .

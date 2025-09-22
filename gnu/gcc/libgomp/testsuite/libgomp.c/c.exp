@@ -1,0 +1,24 @@
+if [info exists lang_library_path] then {
+    unset lang_library_path
+    unset lang_test_file
+    unset lang_link_flags
+}
+
+load_lib libgomp-dg.exp
+
+# If a testcase doesn't have special options, use these.
+if ![info exists DEFAULT_CFLAGS] then {
+    set DEFAULT_CFLAGS "-O2 -fopenmp"
+}
+
+# Initialize dg.
+dg-init
+
+# Gather a list of all tests.
+set tests [lsort [find $srcdir/$subdir *.c]]
+
+# Main loop.
+dg-runtest $tests "" $DEFAULT_CFLAGS
+
+# All done.
+dg-finish

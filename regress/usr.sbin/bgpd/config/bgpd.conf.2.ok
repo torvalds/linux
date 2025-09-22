@@ -1,0 +1,17 @@
+AS 1
+router-id 127.0.0.1
+socket "/var/run/bgpd.sock.0"
+listen on 0.0.0.0
+listen on ::
+
+
+rde rib Adj-RIB-In no evaluate
+rde rib Loc-RIB rtable 0 fib-update yes
+
+allow from any community local-as:neighbor-as 
+allow from any ext-community rt 1:2 
+allow from any ext-community l2vid 192.0.2.1:2 
+allow from any ext-community ovs valid 
+allow from any ext-community ovs invalid 
+allow from any ext-community ovs not-found 
+allow from any large-community local-as:neighbor-as:* 

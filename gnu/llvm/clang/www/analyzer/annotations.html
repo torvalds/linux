@@ -1,0 +1,779 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <title>Source Annotations</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+  <script type="text/javascript" src="scripts/menu.js"></script>
+</head>
+<body>
+
+<div id="page">
+<!--#include virtual="menu.html.incl"-->
+
+<div id="content">
+
+<h1>Source Annotations</h1>
+
+<p>The Clang frontend supports several source-level annotations in the form of
+<a href="https://gcc.gnu.org/onlinedocs/gcc/Attribute-Syntax.html">GCC-style
+attributes</a> and pragmas that can help make using the Clang Static Analyzer
+more useful. These annotations can both help suppress false positives as well as
+enhance the analyzer's ability to find bugs.</p>
+
+<p>This page gives a practical overview of such annotations. For more technical
+specifics regarding Clang-specific annotations please see the Clang's list of <a
+href="https://clang.llvm.org/docs/LanguageExtensions.html">language
+extensions</a>. Details of &quot;standard&quot; GCC attributes (that Clang also
+supports) can be found in the <a href="https://gcc.gnu.org/onlinedocs/gcc/">GCC
+manual</a>, with the majority of the relevant attributes being in the section on
+<a href="https://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html">function
+attributes</a>.</p>
+
+<p>Note that attributes that are labeled <b>Clang-specific</b> are not
+recognized by GCC. Their use can be conditioned using preprocessor macros
+(examples included on this page).</p>
+
+<h4>Specific Topics</h4>
+
+<ul>
+<li><a href="#generic">Annotations to Enhance Generic Checks</a>
+  <ul>
+    <li><a href="#null_checking"><span>Null Pointer Checking</span></a>
+    <ul>
+      <li><a href="#attr_nonnull"><span>Attribute 'nonnull'</span></a></li>
+    </ul>
+    </li>
+  </ul>
+</li>
+<li><a href="#macosx">Mac OS X API Annotations</a>
+  <ul>
+    <li><a href="#cocoa_mem">Cocoa &amp; Core Foundation Memory Management Annotations</a>
+    <ul>
+      <li><a href="#attr_ns_returns_retained">Attribute 'ns_returns_retained'</a></li>
+      <li><a href="#attr_ns_returns_not_retained">Attribute 'ns_returns_not_retained'</a></li>
+      <li><a href="#attr_cf_returns_retained">Attribute 'cf_returns_retained'</a></li>
+      <li><a href="#attr_cf_returns_not_retained">Attribute 'cf_returns_not_retained'</a></li>
+      <li><a href="#attr_ns_consumed">Attribute 'ns_consumed'</a></li>
+      <li><a href="#attr_cf_consumed">Attribute 'cf_consumed'</a></li>
+      <li><a href="#attr_ns_consumes_self">Attribute 'ns_consumes_self'</a></li>
+    </ul>
+    </li>
+    <li><a href="#osobject_mem">Libkern Memory Management Annotations</a>
+      <ul>
+        <li><a href="#attr_os_returns_retained">Attribute 'os_returns_retained'</a></li>
+        <li><a href="#attr_os_returns_not_retained">Attribute 'os_returns_not_retained'</a></li>
+        <li><a href="#attr_os_consumed">Attribute 'os_consumed'</a></li>
+        <li><a href="#attr_os_consumes_this">Attribute 'os_consumes_this'</a></li>
+        <li><a href="#os_out_parameters">Out Parameters</a></li>
+      </ul>
+
+    </li>
+  </ul>
+</li>
+<li><a href="#custom_assertions">Custom Assertion Handlers</a>
+  <ul>
+    <li><a href="#attr_noreturn">Attribute 'noreturn'</a></li>
+    <li><a href="#attr_analyzer_noreturn">Attribute 'analyzer_noreturn'</a></li>
+  </ul>
+  </li>
+</ul>
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<h2 id="generic">Annotations to Enhance Generic Checks</h2>
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+
+<h3 id="null_checking">Null Pointer Checking</h3>
+
+<h4 id="attr_nonnull">Attribute 'nonnull'</h4>
+
+<p>The analyzer recognizes the GCC attribute 'nonnull', which indicates that a
+function expects that a given function parameter is not a null pointer. Specific
+details of the syntax of using the 'nonnull' attribute can be found in <a
+href="https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-nonnull-function-attribute">GCC's
+documentation</a>.</p>
+
+<p>Both the Clang compiler and GCC will flag warnings for simple cases where a
+null pointer is directly being passed to a function with a 'nonnull' parameter
+(e.g., as a constant). The analyzer extends this checking by using its deeper
+symbolic analysis to track what pointer values are potentially null and then
+flag warnings when they are passed in a function call via a 'nonnull'
+parameter.</p>
+
+<p><b>Example</b></p>
+
+<pre class="code_example">
+<span class="command">$ cat test.m</span>
+int bar(int*p, int q, int *r) __attribute__((nonnull(1,3)));
+
+int foo(int *p, int *q) {
+   return !p ? bar(q, 2, p)
+             : bar(p, 2, q);
+}
+</pre>
+
+<p>Running <tt>scan-build</tt> over this source produces the following
+output:</p>
+
+<img src="images/example_attribute_nonnull.png" alt="example attribute nonnull">
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<h2 id="macosx">Mac OS X API Annotations</h2>
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+
+<h3 id="cocoa_mem">Cocoa &amp; Core Foundation Memory Management
+Annotations</h3>
+
+<!--
+<p>As described in <a href="/available_checks.html#retain_release">Available
+Checks</a>,
+-->
+<p>The analyzer supports the proper management of retain counts for
+both Cocoa and Core Foundation objects. This checking is largely based on
+enforcing Cocoa and Core Foundation naming conventions for Objective-C methods
+(Cocoa) and C functions (Core Foundation). Not strictly following these
+conventions can cause the analyzer to miss bugs or flag false positives.</p>
+
+<p>One can educate the analyzer (and others who read your code) about methods or
+functions that deviate from the Cocoa and Core Foundation conventions using the
+attributes described here. However, you should consider using proper naming
+conventions or the <a
+href="https://clang.llvm.org/docs/LanguageExtensions.html#the-objc-method-family-attribute"><tt>objc_method_family</tt></a>
+attribute, if applicable.</p>
+
+<h4 id="attr_ns_returns_retained">Attribute 'ns_returns_retained'
+(Clang-specific)</h4>
+
+<p>The GCC-style (Clang-specific) attribute 'ns_returns_retained' allows one to
+annotate an Objective-C method or C function as returning a retained Cocoa
+object that the caller is responsible for releasing (via sending a
+<tt>release</tt> message to the object). The Foundation framework defines a
+macro <b><tt>NS_RETURNS_RETAINED</tt></b> that is functionally equivalent to the
+one shown below.</p>
+
+<p><b>Placing on Objective-C methods</b>: For Objective-C methods, this
+annotation essentially tells the analyzer to treat the method as if its name
+begins with &quot;alloc&quot; or &quot;new&quot; or contains the word
+&quot;copy&quot;.</p>
+
+<p><b>Placing on C functions</b>: For C functions returning Cocoa objects, the
+analyzer typically does not make any assumptions about whether or not the object
+is returned retained. Explicitly adding the 'ns_returns_retained' attribute to C
+functions allows the analyzer to perform extra checking.</p>
+
+<p><b>Example</b></p>
+
+<pre class="code_example">
+<span class="command">$ cat test.m</span>
+#import &lt;Foundation/Foundation.h&gt;
+
+#ifndef __has_feature      // Optional.
+#define __has_feature(x) 0 // Compatibility with non-clang compilers.
+#endif
+
+#ifndef NS_RETURNS_RETAINED
+#if __has_feature(attribute_ns_returns_retained)
+<span class="code_highlight">#define NS_RETURNS_RETAINED __attribute__((ns_returns_retained))</span>
+#else
+#define NS_RETURNS_RETAINED
+#endif
+#endif
+
+@interface MyClass : NSObject {}
+- (NSString*) returnsRetained <span class="code_highlight">NS_RETURNS_RETAINED</span>;
+- (NSString*) alsoReturnsRetained;
+@end
+
+@implementation MyClass
+- (NSString*) returnsRetained {
+  return [[NSString alloc] initWithCString:"no leak here"];
+}
+- (NSString*) alsoReturnsRetained {
+  return [[NSString alloc] initWithCString:"flag a leak"];
+}
+@end
+</pre>
+
+<p>Running <tt>scan-build</tt> on this source file produces the following output:</p>
+
+<img src="images/example_ns_returns_retained.png" alt="example returns retained">
+
+<h4 id="attr_ns_returns_not_retained">Attribute 'ns_returns_not_retained'
+(Clang-specific)</h4>
+
+<p>The 'ns_returns_not_retained' attribute is the complement of '<a
+href="#attr_ns_returns_retained">ns_returns_retained</a>'. Where a function or
+method may appear to obey the Cocoa conventions and return a retained Cocoa
+object, this attribute can be used to indicate that the object reference
+returned should not be considered as an &quot;owning&quot; reference being
+returned to the caller. The Foundation framework defines a
+macro <b><tt>NS_RETURNS_NOT_RETAINED</tt></b> that is functionally equivalent to
+the one shown below.</p>
+
+<p>Usage is identical to <a
+href="#attr_ns_returns_retained">ns_returns_retained</a>.  When using the
+attribute, be sure to declare it within the proper macro that checks for
+its availability, as it is not available in earlier versions of the analyzer:</p>
+
+<pre class="code_example">
+<span class="command">$ cat test.m</span>
+#ifndef __has_feature      // Optional.
+#define __has_feature(x) 0 // Compatibility with non-clang compilers.
+#endif
+
+#ifndef NS_RETURNS_NOT_RETAINED
+#if __has_feature(attribute_ns_returns_not_retained)
+<span class="code_highlight">#define NS_RETURNS_NOT_RETAINED __attribute__((ns_returns_not_retained))</span>
+#else
+#define NS_RETURNS_NOT_RETAINED
+#endif
+#endif
+</pre>
+
+<h4 id="attr_cf_returns_retained">Attribute 'cf_returns_retained'
+(Clang-specific)</h4>
+
+<p>The GCC-style (Clang-specific) attribute 'cf_returns_retained' allows one to
+annotate an Objective-C method or C function as returning a retained Core
+Foundation object that the caller is responsible for releasing. The
+CoreFoundation framework defines a macro <b><tt>CF_RETURNS_RETAINED</tt></b>
+that is functionally equivalent to the one shown below.</p>
+
+<p><b>Placing on Objective-C methods</b>: With respect to Objective-C methods.,
+this attribute is identical in its behavior and usage to 'ns_returns_retained'
+except for the distinction of returning a Core Foundation object instead of a
+Cocoa object.
+
+This distinction is important for the following reason:
+as Core Foundation is a C API,
+the analyzer cannot always tell that a pointer return value refers to a
+Core Foundation object.
+In contrast, it is
+trivial for the analyzer to recognize if a pointer refers to a Cocoa object
+(given the Objective-C type system).
+
+<p><b>Placing on C functions</b>: When placing the attribute
+'cf_returns_retained' on the declarations of C functions, the analyzer
+interprets the function as:</p>
+
+<ol>
+  <li>Returning a Core Foundation Object</li>
+  <li>Treating the function as if it its name
+contained the keywords &quot;create&quot; or &quot;copy&quot;. This means the
+returned object as a +1 retain count that must be released by the caller, either
+by sending a <tt>release</tt> message (via toll-free bridging to an Objective-C
+object pointer), or calling <tt>CFRelease</tt> or a similar function.</li>
+</ol>
+
+<p><b>Example</b></p>
+
+<pre class="code_example">
+<span class="command">$ cat test.m</span>
+$ cat test.m
+#import &lt;Cocoa/Cocoa.h&gt;
+
+#ifndef __has_feature      // Optional.
+#define __has_feature(x) 0 // Compatibility with non-clang compilers.
+#endif
+
+#ifndef CF_RETURNS_RETAINED
+#if __has_feature(attribute_cf_returns_retained)
+<span class="code_highlight">#define CF_RETURNS_RETAINED __attribute__((cf_returns_retained))</span>
+#else
+#define CF_RETURNS_RETAINED
+#endif
+#endif
+
+@interface MyClass : NSObject {}
+- (NSDate*) returnsCFRetained <span class="code_highlight">CF_RETURNS_RETAINED</span>;
+- (NSDate*) alsoReturnsRetained;
+- (NSDate*) returnsNSRetained <span class="code_highlight">NS_RETURNS_RETAINED</span>;
+@end
+
+<span class="code_highlight">CF_RETURNS_RETAINED</span>
+CFDateRef returnsRetainedCFDate()  {
+  return CFDateCreate(0, CFAbsoluteTimeGetCurrent());
+}
+
+@implementation MyClass
+- (NSDate*) returnsCFRetained {
+  return (NSDate*) returnsRetainedCFDate(); <b><i>// No leak.</i></b>
+}
+
+- (NSDate*) alsoReturnsRetained {
+  return (NSDate*) returnsRetainedCFDate(); <b><i>// Always report a leak.</i></b>
+}
+
+- (NSDate*) returnsNSRetained {
+  return (NSDate*) returnsRetainedCFDate(); <b><i>// Report a leak when using GC.</i></b>
+}
+@end
+</pre>
+
+<p>Running <tt>scan-build</tt> on this example produces the following output:</p>
+
+<img src="images/example_cf_returns_retained.png" alt="example returns retained">
+
+<h4 id="attr_cf_returns_not_retained">Attribute 'cf_returns_not_retained'
+(Clang-specific)</h4>
+
+<p>The 'cf_returns_not_retained' attribute is the complement of '<a
+href="#attr_cf_returns_retained">cf_returns_retained</a>'. Where a function or
+method may appear to obey the Core Foundation or Cocoa conventions and return
+a retained Core Foundation object, this attribute can be used to indicate that
+the object reference returned should not be considered as an
+&quot;owning&quot; reference being returned to the caller. The
+CoreFoundation framework defines a macro <b><tt>CF_RETURNS_NOT_RETAINED</tt></b>
+that is functionally equivalent to the one shown below.</p>
+
+<p>Usage is identical to <a
+href="#attr_cf_returns_retained">cf_returns_retained</a>.  When using the
+attribute, be sure to declare it within the proper macro that checks for
+its availability, as it is not available in earlier versions of the analyzer:</p>
+
+<pre class="code_example">
+<span class="command">$ cat test.m</span>
+#ifndef __has_feature      // Optional.
+#define __has_feature(x) 0 // Compatibility with non-clang compilers.
+#endif
+
+#ifndef CF_RETURNS_NOT_RETAINED
+#if __has_feature(attribute_cf_returns_not_retained)
+<span class="code_highlight">#define CF_RETURNS_NOT_RETAINED __attribute__((cf_returns_not_retained))</span>
+#else
+#define CF_RETURNS_NOT_RETAINED
+#endif
+#endif
+</pre>
+
+<h4 id="attr_ns_consumed">Attribute 'ns_consumed'
+(Clang-specific)</h4>
+
+<p>The 'ns_consumed' attribute can be placed on a specific parameter in either
+the declaration of a function or an Objective-C method. It indicates to the
+static analyzer that a <tt>release</tt> message is implicitly sent to the
+parameter upon completion of the call to the given function or method. The
+Foundation framework defines a macro <b><tt>NS_RELEASES_ARGUMENT</tt></b> that
+is functionally equivalent to the <tt>NS_CONSUMED</tt> macro shown below.</p>
+
+<p><b>Example</b></p>
+
+<pre class="code_example">
+<span class="command">$ cat test.m</span>
+#ifndef __has_feature      // Optional.
+#define __has_feature(x) 0 // Compatibility with non-clang compilers.
+#endif
+
+#ifndef NS_CONSUMED
+#if __has_feature(attribute_ns_consumed)
+<span class="code_highlight">#define NS_CONSUMED __attribute__((ns_consumed))</span>
+#else
+#define NS_CONSUMED
+#endif
+#endif
+
+void consume_ns(id <span class="code_highlight">NS_CONSUMED</span> x);
+
+void test() {
+  id x = [[NSObject alloc] init];
+  consume_ns(x); <b><i>// No leak!</i></b>
+}
+
+@interface Foo : NSObject
++ (void) releaseArg:(id) <span class="code_highlight">NS_CONSUMED</span> x;
++ (void) releaseSecondArg:(id)x second:(id) <span class="code_highlight">NS_CONSUMED</span> y;
+@end
+
+void test_method() {
+  id x = [[NSObject alloc] init];
+  [Foo releaseArg:x]; <b><i>// No leak!</i></b>
+}
+
+void test_method2() {
+  id a = [[NSObject alloc] init];
+  id b = [[NSObject alloc] init];
+  [Foo releaseSecondArg:a second:b]; <b><i>// 'a' is leaked, but 'b' is released.</i></b>
+}
+</pre>
+
+<h4 id="attr_cf_consumed">Attribute 'cf_consumed'
+(Clang-specific)</h4>
+
+<p>The 'cf_consumed' attribute is practically identical to <a
+href="#attr_ns_consumed">ns_consumed</a>. The attribute can be placed on a
+specific parameter in either the declaration of a function or an Objective-C
+method. It indicates to the static analyzer that the object reference is
+implicitly passed to a call to <tt>CFRelease</tt> upon completion of the call
+to the given function or method. The CoreFoundation framework defines a macro
+<b><tt>CF_RELEASES_ARGUMENT</tt></b> that is functionally equivalent to the
+<tt>CF_CONSUMED</tt> macro shown below.</p>
+
+<p>Operationally this attribute is nearly identical to 'ns_consumed'.</p>
+
+<p><b>Example</b></p>
+
+<pre class="code_example">
+<span class="command">$ cat test.m</span>
+#ifndef __has_feature      // Optional.
+#define __has_feature(x) 0 // Compatibility with non-clang compilers.
+#endif
+
+#ifndef CF_CONSUMED
+#if __has_feature(attribute_cf_consumed)
+<span class="code_highlight">#define CF_CONSUMED __attribute__((cf_consumed))</span>
+#else
+#define CF_CONSUMED
+#endif
+#endif
+
+void consume_cf(id <span class="code_highlight">CF_CONSUMED</span> x);
+void consume_CFDate(CFDateRef <span class="code_highlight">CF_CONSUMED</span> x);
+
+void test() {
+  id x = [[NSObject alloc] init];
+  consume_cf(x); <b><i>// No leak!</i></b>
+}
+
+void test2() {
+  CFDateRef date = CFDateCreate(0, CFAbsoluteTimeGetCurrent());
+  consume_CFDate(date); <b><i>// No leak, including under GC!</i></b>
+
+}
+
+@interface Foo : NSObject
++ (void) releaseArg:(CFDateRef) <span class="code_highlight">CF_CONSUMED</span> x;
+@end
+
+void test_method() {
+  CFDateRef date = CFDateCreate(0, CFAbsoluteTimeGetCurrent());
+  [Foo releaseArg:date]; <b><i>// No leak!</i></b>
+}
+</pre>
+
+<h4 id="attr_ns_consumes_self">Attribute 'ns_consumes_self'
+(Clang-specific)</h4>
+
+<p>The 'ns_consumes_self' attribute can be placed only on an Objective-C method
+declaration. It indicates that the receiver of the message is
+&quot;consumed&quot; (a single reference count decremented) after the message
+is sent. This matches the semantics of all &quot;init&quot; methods.</p>
+
+<p>One use of this attribute is declare your own init-like methods that do not
+follow the standard Cocoa naming conventions.</p>
+
+<p><b>Example</b></p>
+
+<pre class="code_example">
+#ifndef __has_feature
+#define __has_feature(x) 0 // Compatibility with non-clang compilers.
+#endif
+
+#ifndef NS_CONSUMES_SELF
+#if __has_feature((attribute_ns_consumes_self))
+<span class="code_highlight">#define NS_CONSUMES_SELF __attribute__((ns_consumes_self))</span>
+#else
+#define NS_CONSUMES_SELF
+#endif
+#endif
+
+@interface MyClass : NSObject
+- initWith:(MyClass *)x;
+- nonstandardInitWith:(MyClass *)x <span class="code_highlight">NS_CONSUMES_SELF</span> NS_RETURNS_RETAINED;
+@end
+</pre>
+
+<p>In this example, <tt>-nonstandardInitWith:</tt> has the same ownership
+semantics as the init method <tt>-initWith:</tt>. The static analyzer will
+observe that the method consumes the receiver, and then returns an object with
+a +1 retain count.</p>
+
+<p>The Foundation framework defines a macro <b><tt>NS_REPLACES_RECEIVER</tt></b>
+which is functionally equivalent to the combination of <tt>NS_CONSUMES_SELF</tt>
+and <tt>NS_RETURNS_RETAINED</tt> shown above.</p>
+
+<h3 id="osobject_mem">Libkern Memory Management Annotations</h3>
+
+<p><a
+  href="https://developer.apple.com/documentation/kernel/osobject?language=objc">Libkern</a>
+requires developers to inherit all heap allocated objects from <tt>OSObject</tt>
+and to perform manual reference counting.
+The reference counting model is very similar to MRR (manual retain-release) mode in
+<a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/MemoryMgmt/Articles/mmRules.html">Objective-C</a>
+or to CoreFoundation reference counting.
+Freshly-allocated objects start with a reference count of 1,
+and calls to <tt>retain</tt> increment it,
+while calls to <tt>release</tt> decrement it.
+The object is deallocated whenever its reference count reaches zero.</p>
+
+<p>Manually incrementing and decrementing reference counts is error-prone:
+over-retains lead to leaks, and over-releases lead to uses-after-free.
+The analyzer can help the programmer to check for unbalanced
+retain/release calls.</p>
+
+<p>The reference count checking is based on the principle of
+<em>locality</em>: it should be possible to establish correctness
+(lack of leaks/uses after free) by looking at each function body,
+and the declarations (not the definitions) of all the functions it interacts
+with.</p>
+
+<p>In order to support such reasoning, it should be possible to <em>summarize</em>
+the behavior of each function, with respect to reference count
+of its returned values and attributes.</p>
+
+<p>By default, the following summaries are assumed:</p>
+<ul>
+  <li>All functions starting with <tt>get</tt> or <tt>Get</tt>,
+    unless they are returning subclasses of <tt>OSIterator</tt>,
+  are assumed to be returning at +0.
+  That is, the caller has no reference
+  count <em>obligations</em> with respect to the reference count of the returned object
+  and should leave it untouched.
+  </li>
+
+  <li>
+    All other functions are assumed to return at +1.
+    That is, the caller has an <em>obligation</em> to release such objects.
+  </li>
+
+  <li>
+    Functions are assumed not to change the reference count of their parameters,
+    including the implicit <tt>this</tt> parameter.
+  </li>
+</ul>
+
+<p>These summaries can be overriden with the following
+<a href="https://clang.llvm.org/docs/AttributeReference.html#os-returns-not-retained">attributes</a>:</p>
+
+<h4 id="attr_os_returns_retained">Attribute 'os_returns_retained'</h4>
+
+<p>The <tt>os_returns_retained</tt> attribute (accessed through the macro <tt>
+LIBKERN_RETURNS_RETAINED</tt>) plays a role identical to <a
+href="#attr_ns_returns_retained">ns_returns_retained</a> for functions
+returning <tt>OSObject</tt> subclasses.
+The attribute indicates that it is a callers responsibility to release the
+returned object.
+</p>
+
+
+<h4 id="attr_os_returns_not_retained">Attribute 'os_returns_not_retained'</h4>
+
+<p>The <tt>os_returns_not_retained</tt> attribute (accessed through the macro <tt>
+LIBKERN_RETURNS_NOT_RETAINED</tt>) plays a role identical to <a
+href="#attr_ns_returns_not_retained">ns_returns_not_retained</a> for functions
+returning <tt>OSObject</tt> subclasses.
+The attribute indicates that the caller should not change the retain
+count of the returned object.
+</p>
+
+<h5>Example</h5>
+
+<pre class="code_example">
+class MyClass {
+  OSObject *f;
+  LIBKERN_RETURNS_NOT_RETAINED OSObject *myFieldGetter();
+}
+
+
+// Note that the annotation only has to be applied to the function declaration.
+OSObject * MyClass::myFieldGetter() {
+  return f;
+}
+</pre>
+
+<h4 id="attr_os_consumed">Attribute 'os_consumed'</h4>
+
+<p>Similarly to <a href="#attr_ns_consumed">ns_consumed</a> attribute,
+<tt>os_consumed</tt> (accessed through <tt>LIBKERN_CONSUMED</tt>) attribute,
+applied to a parameter,
+indicates that the call to the function <em>consumes</em> the parameter:
+the callee should either release it or store it and release it in the destructor,
+while the caller should assume one is subtracted from the reference count
+after the call.</p>
+
+<pre class="code_example">
+IOReturn addToList(LIBKERN_CONSUMED IOPMinformee *newInformee);
+</pre>
+
+<h4 id="attr_os_consumes_this">Attribute 'os_consumes_this'</h4>
+
+<p>Similarly to <a href="#attr_ns_consumes_self">ns_consumes_self</a>,
+the <tt>os_consumes_self</tt> attribute indicates that the method call
+<em>consumes</em> the implicit <tt>this</tt> argument: the caller
+should assume one was subtracted from the reference count of the object
+after the call, and the callee has on obligation to either
+release the argument, or store it and eventually release it in the
+destructor.</p>
+
+<pre class="code_example">
+void addThisToList(OSArray *givenList) LIBKERN_CONSUMES_THIS;
+</pre>
+
+<h4 id="os_out_parameters">Out Parameters</h4>
+
+A function can also return an object to a caller by a means of an out parameter
+(a pointer-to-OSObject-pointer is passed, and a callee writes a pointer to an
+object into an argument).
+Currently the analyzer does not track unannotated out
+parameters by default, but with annotations we distinguish four separate cases:
+
+<p><b>1. Non-retained out parameters</b>, identified using
+    <tt>LIBKERN_RETURNS_NOT_RETAINED</tt> applied to parameters, e.g.:</p>
+
+<pre class="code_example">
+void getterViaOutParam(LIBKERN_RETURNS_NOT_RETAINED OSObject **obj)
+</pre>
+
+<p>Such functions write a non-retained object into an out parameter, and the
+caller has no further obligations.</p>
+
+<p><b>2. Retained out parameters</b>,
+identified using <tt>LIBKERN_RETURNS_RETAINED</tt>:</p>
+<pre class="code_example">
+void getterViaOutParam(LIBKERN_RETURNS_NOT_RETAINED OSObject **obj)
+</pre>
+<p>
+In such cases a retained object is written into an out parameter, which the caller has then to release in order to avoid a leak.
+</p>
+
+<p>These two cases are simple - but in practice a functions returning an out-parameter usually also return a return code, and then an out parameter may or may not be written, which conditionally depends on the exit code, e.g.:</p>
+
+<pre class="code_example">
+bool maybeCreateObject(LIBKERN_RETURNS_RETAINED OSObject **obj);
+</pre>
+
+<p>For such functions, the usual semantics is that an object is written into on "success", and not written into on "failure".<p>
+
+<p>For <tt>LIBKERN_RETURNS_RETAINED</tt> we assume the following definition of
+success:</p>
+
+<p>For functions returning <tt>OSReturn</tt> or <tt>IOReturn</tt>
+(any typedef to <tt>kern_return_t</tt>) success is defined as having an output of zero (<tt>kIOReturnSuccess</tt> is zero).
+For all others, success is non-zero (e.g. non-nullptr for pointers)</p>
+
+<p><b>3. Retained out parameters on zero return</b>
+The annotation <tt>LIBKERN_RETURNS_RETAINED_ON_ZERO</tt> states
+that a retained object is written into if and only if the function returns a zero value:</p>
+
+<pre class="code_example">
+bool OSUnserializeXML(void *data, LIBKERN_RETURNS_RETAINED_ON_ZERO OSString **errString);
+</pre>
+
+<p>Then the caller has to release an object if the function has returned zero.</p>
+
+<p><b>4. Retained out parameters on non-zero return</b>
+Similarly, <tt>LIBKERN_RETURNS_RETAINED_ON_NONZERO</tt> specifies that a
+retained object is written into the parameter if and only if the function has
+returned a non-zero value.</p>
+
+<p>Note that for non-retained out parameters conditionals do not matter, as the
+caller has no obligations regardless of whether an object is written into or
+not.</p>
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<h2 id="custom_assertions">Custom Assertion Handlers</h2>
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+
+<p>The analyzer exploits code assertions by pruning off paths where the
+assertion condition is false. The idea is capture any program invariants
+specified in the assertion that the developer may know but is not immediately
+apparent in the code itself. In this way assertions make implicit assumptions
+explicit in the code, which not only makes the analyzer more accurate when
+finding bugs, but can help others better able to understand your code as well.
+It can also help remove certain kinds of analyzer false positives by pruning off
+false paths.</p>
+
+<p>In order to exploit assertions, however, the analyzer must understand when it
+encounters an &quot;assertion handler.&quot; Typically assertions are
+implemented with a macro, with the macro performing a check for the assertion
+condition and, when the check fails, calling an assertion handler.  For example, consider the following code
+fragment:</p>
+
+<pre class="code_example">
+void foo(int *p) {
+  assert(p != NULL);
+}
+</pre>
+
+<p>When this code is preprocessed on Mac OS X it expands to the following:</p>
+
+<pre class="code_example">
+void foo(int *p) {
+  (__builtin_expect(!(p != NULL), 0) ? __assert_rtn(__func__, "t.c", 4, "p != NULL") : (void)0);
+}
+</pre>
+
+<p>In this example, the assertion handler is <tt>__assert_rtn</tt>. When called,
+most assertion handlers typically print an error and terminate the program. The
+analyzer can exploit such semantics by ending the analysis of a path once it
+hits a call to an assertion handler.</p>
+
+<p>The trick, however, is that the analyzer needs to know that a called function
+is an assertion handler; otherwise the analyzer might assume the function call
+returns and it will continue analyzing the path where the assertion condition
+failed. This can lead to false positives, as the assertion condition usually
+implies a safety condition (e.g., a pointer is not null) prior to performing
+some action that depends on that condition (e.g., dereferencing a pointer).</p>
+
+<p>The analyzer knows about several well-known assertion handlers, but can
+automatically infer if a function should be treated as an assertion handler if
+it is annotated with the 'noreturn' attribute or the (Clang-specific)
+'analyzer_noreturn' attribute. Note that, currently, clang does not support
+these attributes on Objective-C methods and C++ methods.</p>
+
+<h4 id="attr_noreturn">Attribute 'noreturn'</h4>
+
+<p>The 'noreturn' attribute is a GCC-attribute that can be placed on the
+declarations of functions. It means exactly what its name implies: a function
+with a 'noreturn' attribute should never return.</p>
+
+<p>Specific details of the syntax of using the 'noreturn' attribute can be found
+in <a
+href="https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-noreturn-function-attribute">GCC's
+documentation</a>.</p>
+
+<p>Not only does the analyzer exploit this information when pruning false paths,
+but the compiler also takes it seriously and will generate different code (and
+possibly better optimized) under the assumption that the function does not
+return.</p>
+
+<p><b>Example</b></p>
+
+<p>On Mac OS X, the function prototype for <tt>__assert_rtn</tt> (declared in
+<tt>assert.h</tt>) is specifically annotated with the 'noreturn' attribute:</p>
+
+<pre class="code_example">
+void __assert_rtn(const char *, const char *, int, const char *) <span class="code_highlight">__attribute__((__noreturn__))</span>;
+</pre>
+
+<h4 id="attr_analyzer_noreturn">Attribute 'analyzer_noreturn' (Clang-specific)</h4>
+
+<p>The Clang-specific 'analyzer_noreturn' attribute is almost identical to
+'noreturn' except that it is ignored by the compiler for the purposes of code
+generation.</p>
+
+<p>This attribute is useful for annotating assertion handlers that actually
+<em>can</em> return, but for the purpose of using the analyzer we want to
+pretend that such functions do not return.</p>
+
+<p>Because this attribute is Clang-specific, its use should be conditioned with
+the use of preprocessor macros.</p>
+
+<p><b>Example</b>
+
+<pre class="code_example">
+#ifndef CLANG_ANALYZER_NORETURN
+#if __has_feature(attribute_analyzer_noreturn)
+<span class="code_highlight">#define CLANG_ANALYZER_NORETURN __attribute__((analyzer_noreturn))</span>
+#else
+#define CLANG_ANALYZER_NORETURN
+#endif
+#endif
+
+void my_assert_rtn(const char *, const char *, int, const char *) <span class="code_highlight">CLANG_ANALYZER_NORETURN</span>;
+</pre>
+
+</div>
+</div>
+</body>
+</html>

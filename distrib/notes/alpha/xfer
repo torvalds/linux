@@ -1,0 +1,31 @@
+dnl	$OpenBSD: xfer,v 1.35 2020/05/17 17:04:27 deraadt Exp $
+Installation is supported from several media types, including:
+
+	CD-ROM
+	FFS partitions
+	HTTP
+
+If you can burn the bootable CD-ROM mini image, you can boot from it.
+
+OpenBSDXferCDROM
+
+If you do not have a CD-ROM drive on your alpha:
+
+	You can copy the miniroot image onto the hard disk you intend to
+	install OpenBSD on.  Doing so will overwrite the disk's old contents,
+	however.
+
+	You must use a Unix-like system to write the miniroot image
+	to the hard disk you will be using for OpenBSD/MACHINE.  You
+	should use the "dd" command to copy the file system image
+	(miniroot{:--:}OSrev.img) directly to the raw 'c'
+	device (whole disk) of the target hard disk.  It is suggested
+	that you read the dd(1) manual page or ask your system
+	administrator to determine the correct set of arguments to use;
+	it will be slightly different from system to system, and a
+	comprehensive list of the possibilities is beyond the scope of
+	this document.
+
+OpenBSDXferShortPrelude
+
+OpenBSDXferFFS

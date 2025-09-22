@@ -1,0 +1,89 @@
+> But in fact, if you read the entire answer carefully, he came to the same
+> conclusion I do: that you have to go with familiar syntax over logical
+> syntax because familiarity is such a strong force:
+>       "However, familiarity is a strong force. To compare, in English, we
+live
+> more or less happily with the absurd rules for "to be" (am, are, is, been,
+> was, were, ...) and all attempts to simplify are treated with contempt or
+> (preferably) humor. It be a curious world and it always beed."
+
+Although you have to remember that his situation was considerably
+different than ours.  He was in a position where he was designing a high
+level language that had to be COMPATIBLE with C.  Our language is such
+that a new person would have to learn the new, different, syntax
+anyways.  Making them learn about the type system does not seem like much
+of a stretch from learning the opcodes and how SSA form works, and how
+everything ties together...
+
+> > Basically, my argument for this type construction system is that it is
+> > VERY simple to use and understand (although it IS different than C, it is
+> > very simple and straightforward, which C is NOT).  In fact, I would assert
+> > that most programmers TODAY do not understand pointers to member
+> > functions, and have to look up an example when they have to write them.
+
+> Again, I don't disagree with this at all.  But to some extent this
+> particular problem is inherently difficult.  Your syntax for the above
+> example may be easier for you to read because this is the way you have been
+> thinking about it.  Honestly, I don't find it much easier than the C syntax.
+> In either case, I would have to look up an example to write pointers to
+> member functions.
+
+I would argue that because the lexical structure of the language is self
+consistent, any person who spent a significant amount of time programming
+in LLVM directly would understand how to do it without looking it up in a
+manual.  The reason this does not work for C is because you rarely have to
+declare these pointers, and the syntax is inconsistent with the method
+declaration and calling syntax.
+
+> But pointers to member functions are nowhere near as common as arrays.
+
+Very true.  If you're implementing an object oriented language, however,
+remember that you have to do all the pointer to member function stuff
+yourself.... so every time you invoke a virtual method one is involved
+(instead of having C++ hide it for you behind "syntactic sugar").
+
+> And the old array syntax:
+>       type [ int, int, ...]
+> is just much more familiar and clear to people than anything new you
+> introduce, no matter how logical it is.  
+
+Erm... excuse me but how is this the "old array syntax"?  If you are
+arguing for consistency with C, you should be asking for 'type int []',
+which is significantly different than the above (beside the above
+introduces a new operator and duplicates information
+needlessly).  Basically what I am suggesting is exactly the above without
+the fluff.  So instead of:
+
+       type [ int, int, ...]
+
+you use:
+
+       type [ int ]
+
+> Introducing a new syntax that may
+> make function pointers easier but makes arrays much more difficult seems
+> very risky to me.
+
+This is not about function pointers.  This is about consistency in the
+type system, and consistency with the rest of the language.  The point
+above does not make arrays any more difficult to use, and makes the
+structure of types much more obvious than the "c way".
+
+> > In my opinion, it is critically important to have clear and concise type
+> > specifications, because types are going to be all over the programs.
+> 
+> I absolutely agree.  But the question is, what is more clear and concise?
+> The syntax programmers are used to out of years of experience or a new
+> syntax that they have never seen that has a more logical structure.  I think
+> the answer is the former.  Sometimes, you have to give up a better idea
+> because you can't overcome sociological barriers to it.  Qwerty keyboards
+> and Windows are two classic examples of bad technology that are difficult to
+> root out.
+
+Very true, but you seem to be advocating a completely different Type
+system than C has, in addition to it not offering the advantages of clear
+structure that the system I recommended does... so you seem to not have a
+problem with changing this, just with what I change it to.  :)
+
+-Chris
+

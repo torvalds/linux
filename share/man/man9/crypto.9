@@ -1,0 +1,518 @@
+.\"	$OpenBSD: crypto.9,v 1.43 2020/03/28 13:16:09 krw Exp $
+.\"
+.\" The author of this man page is Angelos D. Keromytis (angelos@cis.upenn.edu)
+.\"
+.\" Copyright (c) 2000, 2001 Angelos D. Keromytis
+.\"
+.\" Permission to use, copy, and modify this software with or without fee
+.\" is hereby granted, provided that this entire notice is included in
+.\" all source code copies of any software which is or includes a copy or
+.\" modification of this software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTY. IN PARTICULAR, NONE OF THE AUTHORS MAKES ANY
+.\" REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE
+.\" MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
+.\" PURPOSE.
+.\"
+.Dd $Mdocdate: March 28 2020 $
+.Dt CRYPTO_GET_DRIVERID 9
+.Os
+.Sh NAME
+.Nm crypto_get_driverid ,
+.Nm crypto_register ,
+.Nm crypto_unregister ,
+.Nm crypto_done ,
+.Nm crypto_newsession ,
+.Nm crypto_freesession ,
+.Nm crypto_dispatch ,
+.Nm crypto_getreq ,
+.Nm crypto_freereq
+.Nd API for cryptographic services in the kernel
+.Sh SYNOPSIS
+.In crypto/cryptodev.h
+.Ft int32_t
+.Fn crypto_get_driverid "u_int8_t"
+.Ft int
+.Fn crypto_register "u_int32_t" "int *" "int (*)(u_int32_t *, struct cryptoini *)" "int (*)(u_int64_t)" "int (*)(struct cryptop *)"
+.Ft int
+.Fn crypto_unregister "u_int32_t" "int"
+.Ft void
+.Fn crypto_done "struct cryptop *"
+.Ft int
+.Fn crypto_newsession "u_int64_t *" "struct cryptoini *" "int"
+.Ft int
+.Fn crypto_freesession "u_int64_t"
+.Ft int
+.Fn crypto_dispatch "struct cryptop *"
+.Ft struct cryptop *
+.Fn crypto_getreq "int"
+.Ft void
+.Fn crypto_freereq "struct cryptop *"
+.Bd -literal
+
+#define EALG_MAX_BLOCK_LEN      16
+
+struct cryptoini {
+	int                cri_alg;
+	int                cri_klen;
+	int                cri_rnd;
+	caddr_t            cri_key;
+	u_int8_t           cri_iv[EALG_MAX_BLOCK_LEN];
+	struct cryptoini  *cri_next;
+};
+
+struct cryptodesc {
+	int                crd_skip;
+	int                crd_len;
+	int                crd_inject;
+	int                crd_flags;
+	struct cryptoini   CRD_INI;
+	struct cryptodesc *crd_next;
+};
+
+struct cryptop {
+	u_int64_t          crp_sid;
+	int                crp_ilen;
+	int                crp_olen;
+	int                crp_alloctype;
+	int                crp_etype;
+	int                crp_flags;
+	void              *crp_buf;
+	void              *crp_opaque;
+	struct cryptodesc *crp_desc;
+	int              (*crp_callback)(struct cryptop *);
+	struct cryptop    *crp_next;
+	caddr_t            crp_mac;
+};
+.Ed
+.Sh DESCRIPTION
+.Nm
+is a framework for drivers of cryptographic hardware to register with
+the kernel so
+.Dq consumers
+(other kernel subsystems, and eventually
+users through an appropriate device) are able to make use of it.
+Drivers register with the framework the algorithms they support,
+and provide entry points (functions) the framework may call to
+establish, use, and tear down sessions.
+Sessions are used to cache cryptographic information in a particular driver
+(or associated hardware), so initialization is not needed with every request.
+Consumers of cryptographic services pass a set of
+descriptors that instruct the framework (and the drivers registered
+with it) of the operations that should be applied on the data (more
+than one cryptographic operation can be requested).
+.Pp
+Since the consumers may not be associated with a process, drivers may
+not use
+.Xr tsleep 9 .
+The same holds for the framework.
+Thus, a callback mechanism is used
+to notify a consumer that a request has been completed (the
+callback is specified by the consumer on a per-request basis).
+The callback is invoked by the framework whether the request was
+successfully completed or not.
+An error indication is provided in the latter case.
+A specific error code,
+.Er EAGAIN ,
+is used to indicate that a session number has changed and that the
+request may be re-submitted immediately with the new session number.
+Errors are only returned to the invoking function if not
+enough information to call the callback is available (meaning, there
+was a fatal error in verifying the arguments).
+For session initialization and teardown there is no callback mechanism used.
+.Pp
+The
+.Fn crypto_newsession
+routine is called by consumers of cryptographic services (such as the
+.Xr ipsec 4
+stack) that wish to establish a new session with the framework.
+On success, the first argument will contain the Session Identifier (SID).
+The second argument contains all the necessary information for
+the driver to establish the session.
+The third argument indicates whether a
+hardware driver should be used (1) or not (0).
+The various fields in the
+.Fa cryptoini
+structure are:
+.Bl -tag -width foobarmoocow
+.It Fa cri_alg
+Contains an algorithm identifier.
+Currently supported encryption algorithms are:
+.Bd -literal
+CRYPTO_3DES_CBC
+CRYPTO_BLF_CBC
+CRYPTO_CAST_CBC
+CRYPTO_AES_CBC
+CRYPTO_AES_CTR
+CRYPTO_AES_XTS
+.Ed
+.Pp
+Authentication algorithms are:
+.Bd -literal
+CRYPTO_MD5_HMAC
+CRYPTO_SHA1_HMAC
+CRYPTO_RIPEMD160_HMAC
+CRYPTO_SHA2_256_HMAC
+CRYPTO_SHA2_384_HMAC
+CRYPTO_SHA2_512_HMAC
+.Ed
+.Pp
+Algorithms performing authenticated encryption are:
+.Bd -literal
+CRYPTO_AES_GCM_16
+CRYPTO_AES_GMAC
+CRYPTO_CHACHA20_POLY1305
+.Ed
+.It Fa cri_klen
+Specifies the length of the key in bits, for variable-size key
+algorithms.
+.It Fa cri_rnd
+Specifies the number of rounds to be used with the algorithm, for
+variable-round algorithms.
+.It Fa cri_key
+Contains the key to be used with the algorithm.
+.It Fa cri_iv
+Contains an explicit initialization vector (IV), if it does not prefix
+the data.
+This field is ignored during initialization.
+If no IV is explicitly passed (see below on details), a random IV is used
+by the device driver processing the request.
+.Pp
+In the case of the CRYPTO_AES_XTS transform, the IV should be provided
+as a 64-bit block number in host byte order.
+.It Fa cri_next
+Contains a pointer to another
+.Fa cryptoini
+structure.
+Multiple such structures may be linked to establish multi-algorithm sessions
+.Pf ( Xr ipsec 4
+is an example consumer of such a feature).
+.El
+.Pp
+The
+.Fa cryptoini
+structure and its contents will not be modified by the framework (or
+the drivers used).
+Subsequent requests for processing that use the
+SID returned will avoid the cost of re-initializing the hardware (in
+essence, SID acts as an index in the session cache of the driver).
+.Pp
+.Fn crypto_freesession
+is called with the SID returned by
+.Fn crypto_newsession
+to disestablish the session.
+.Pp
+.Fn crypto_dispatch
+is called to process a request.
+The various fields in the
+.Fa cryptop
+structure are:
+.Bl -tag -width crp_alloctype
+.It Fa crp_sid
+Contains the SID.
+.It Fa crp_ilen
+Indicates the total length in bytes of the buffer to be processed.
+.It Fa crp_olen
+On return, contains the length of the result, not including
+.Fa crd_skip .
+For symmetric crypto operations, this will be the same as the input length.
+.It Fa crp_alloctype
+Indicates the type of buffer, as used in the kernel
+.Xr malloc 9
+routine.
+This will be used if the framework needs to allocate a new
+buffer for the result (or for re-formatting the input).
+.It Fa crp_callback
+This routine is invoked upon completion of the request, whether
+successful or not.
+It is invoked through the
+.Fn crypto_done
+routine.
+If the request was not successful, an error code is set in the
+.Fa crp_etype
+field.
+It is the responsibility of the callback routine to set the appropriate
+.Xr spl 9
+level.
+.It Fa crp_etype
+Contains the error type, if any errors were encountered, or zero if
+the request was successfully processed.
+If the
+.Er EAGAIN
+error code is returned, the SID has changed (and has been recorded in the
+.Fa crp_sid
+field).
+The consumer should record the new SID and use it in all subsequent requests.
+In this case, the request may be re-submitted immediately.
+This mechanism is used by the framework to perform
+session migration (move a session from one driver to another, because
+of availability, performance, or other considerations).
+.Pp
+Note that this field only makes sense when examined by
+the callback routine specified in
+.Fa crp_callback .
+Errors are returned to the invoker of
+.Fn crypto_process
+only when enough information is not present to call the callback
+routine (i.e., if the pointer passed is
+.Dv NULL
+or if no callback routine was specified).
+.It Fa crp_flags
+Is a bitmask of flags associated with this request.
+Currently defined flags are:
+.Bl -tag -width CRYPTO_F_IMBUF
+.It Dv CRYPTO_F_IMBUF
+The buffer pointed to by
+.Fa crp_buf
+is an mbuf chain.
+.El
+.It Fa crp_buf
+Points to the input buffer.
+On return (when the callback is invoked),
+it contains the result of the request.
+The input buffer may be an mbuf
+chain or a struct uio depending on
+.Fa crp_flags .
+.It Fa crp_opaque
+This is passed through the crypto framework untouched and is
+intended for the invoking application's use.
+.It Fa crp_desc
+This is a linked list of descriptors.
+Each descriptor provides
+information about what type of cryptographic operation should be done
+on the input buffer.
+The various fields are:
+.Bl -tag -width "crd_inject"
+.It Fa crd_skip
+The offset in the input buffer where processing should start.
+.It Fa crd_len
+How many bytes, after
+.Fa crd_skip ,
+should be processed.
+.It Fa crd_inject
+Offset from the beginning of the buffer to insert any results.
+For encryption algorithms, this is where the initialization vector
+(IV) will be inserted when encrypting or where it can be found when
+decrypting (subject to
+.Fa crd_flags ) .
+For MAC algorithms, this is where the result of the keyed hash will be
+inserted.
+.It Fa crd_flags
+The following flags are defined:
+.Bl -tag -width CRD_F_IV_EXPLICIT
+.It Dv CRD_F_ENCRYPT
+For encryption algorithms, this bit is set when encryption is required
+(when not set, decryption is performed).
+.It Dv CRD_F_IV_PRESENT
+For encryption algorithms, this bit is set when the IV already
+precedes the data, so the
+.Fa crd_inject
+value will be ignored and no IV will be written in the buffer.
+Otherwise, the IV used to encrypt the packet will be written
+at the location pointed to by
+.Fa crd_inject .
+The IV length is assumed to be equal to the blocksize of the
+encryption algorithm.
+Some applications that do special
+.Dq IV cooking ,
+such as the half-IV mode in
+.Xr ipsec 4 ,
+can use this flag to indicate that the IV should not be written on the packet.
+This flag is typically used in conjunction with the
+.Dv CRD_F_IV_EXPLICIT
+flag.
+.It Dv CRD_F_IV_EXPLICIT
+For encryption algorithms, this bit is set when the IV is explicitly
+provided by the consumer in the
+.Fa crd_iv
+fields.
+Otherwise, for encryption operations the IV is provided for by
+the driver used to perform the operation, whereas for decryption
+operations it is pointed to by the
+.Fa crd_inject
+field.
+This flag is typically used when the IV is calculated
+.Dq on the fly
+by the consumer, and does not precede the data (some
+.Xr ipsec 4
+configurations, and the encrypted swap are two such examples).
+.It Dv CRD_F_COMP
+For compression algorithms, this bit is set when compression is required (when
+not set, decompression is performed).
+.El
+.It Fa CRD_INI
+This
+.Fa cryptoini
+structure will not be modified by the framework or the device drivers.
+Since this information accompanies every cryptographic
+operation request, drivers may re-initialize state on-demand
+(typically an expensive operation).
+Furthermore, the cryptographic
+framework may re-route requests as a result of full queues or hardware
+failure, as described above.
+.It Fa crd_next
+Point to the next descriptor.
+Linked operations are useful in protocols such as
+.Xr ipsec 4 ,
+where multiple cryptographic transforms may be applied on the same
+block of data.
+.El
+.El
+.Pp
+.Fn crypto_getreq
+allocates a
+.Fa cryptop
+structure with a linked list of as many
+.Fa cryptodesc
+structures as were specified in the argument passed to it.
+.Pp
+.Fn crypto_freereq
+deallocates a structure
+.Fa cryptop
+and any
+.Fa cryptodesc
+structures linked to it.
+Note that it is the responsibility of the
+callback routine to do the necessary cleanups associated with the
+opaque field in the
+.Fa cryptop
+structure.
+.Sh DRIVER-SIDE API
+The
+.Fn crypto_get_driverid ,
+.Fn crypto_register ,
+.Fn crypto_unregister ,
+and
+.Fn crypto_done
+routines are used by drivers that provide support for cryptographic
+primitives to register and unregister with the kernel crypto services
+framework.
+Drivers must first use the
+.Fn crypto_get_driverid
+function to acquire a driver identifier, specifying the
+.Fa cc_flags
+as an argument (normally 0, but software-only drivers should specify
+.Dv CRYPTOCAP_F_SOFTWARE ) .
+For each algorithm the driver supports, it must then call
+.Fn crypto_register .
+The first argument is the driver identifier.
+The second argument is an array of
+.Dv CRYPTO_ALGORITHM_MAX + 1
+elements, indicating which algorithms are supported.
+The last three arguments are pointers to three
+driver-provided functions that the framework may call to establish new
+cryptographic context with the driver, free already established
+context, and ask for a request to be processed (encrypt, decrypt, etc.\&)
+.Fn crypto_unregister
+is called by drivers that wish to withdraw support for an algorithm.
+The two arguments are the driver and algorithm identifiers, respectively.
+Typically, drivers for
+.Xr pcmcia 4
+crypto cards that are being ejected will invoke this routine for all
+algorithms supported by the card.
+If called with
+.Dv CRYPTO_ALGORITHM_MAX + 1 ,
+all algorithms registered for a driver will be unregistered in one go
+and the driver will be disabled (no new sessions will be allocated on
+that driver, and any existing sessions will be migrated to other
+drivers).
+The same will be done if all algorithms associated with a driver are
+unregistered one by one.
+.Pp
+The calling convention for the three driver-supplied routines is:
+.Bd -literal
+int (*newsession) (u_int32_t *, struct cryptoini *);
+int (*freesession) (u_int64_t);
+int (*process) (struct cryptop *);
+.Ed
+.Pp
+On invocation, the first argument to
+.Fn newsession
+contains the driver identifier obtained via
+.Fn crypto_get_driverid .
+On successfully returning, it should contain a driver-specific session
+identifier.
+The second argument is identical to that of
+.Fn crypto_newsession .
+.Pp
+The
+.Fn freesession
+routine takes as argument the SID (which is the concatenation of the
+driver identifier and the driver-specific session identifier).
+It should clear any context associated with the session (clear hardware
+registers, memory, etc.).
+.Pp
+The
+.Fn process
+routine is invoked with a request to perform crypto processing.
+This routine must not block, but should queue the request and return
+immediately.
+Upon processing the request, the callback routine should be invoked.
+In case of error, the error indication must be placed in the
+.Fa crp_etype
+field of the
+.Fa cryptop
+structure.
+When the request is completed, or an error is detected, the
+.Fn process
+routine should invoke
+.Fn crypto_done .
+Session migration may be performed, as mentioned previously.
+.Sh RETURN VALUES
+.Fn crypto_register ,
+.Fn crypto_unregister ,
+.Fn crypto_newsession ,
+and
+.Fn crypto_freesession
+return 0 on success, or an error code on failure.
+.Fn crypto_get_driverid
+returns a non-negative value on error, and \-1 on failure.
+.Fn crypto_getreq
+returns a pointer to a
+.Fa cryptop
+structure and
+.Dv NULL
+on failure.
+.Fn crypto_dispatch
+returns
+.Er EINVAL
+if its argument or the callback function was
+.Dv NULL ,
+and 0 otherwise.
+The callback is provided with an error code in case of failure, in the
+.Fa crp_etype
+field.
+.Sh FILES
+.Bl -tag -width sys/crypto/crypto.c
+.It Pa sys/crypto/crypto.c
+most of the framework code
+.El
+.Sh SEE ALSO
+.Xr ipsec 4 ,
+.Xr pcmcia 4 ,
+.Xr malloc 9 ,
+.Xr tsleep 9
+.Sh HISTORY
+The cryptographic framework first appeared in
+.Ox 2.7
+and was written by
+.An Angelos D. Keromytis Aq Mt angelos@openbsd.org .
+.Sh BUGS
+The framework currently assumes that all the algorithms in a
+.Fn crypto_newsession
+operation must be available by the same driver.
+If that's not the case, session initialization will fail.
+.Pp
+The framework also needs a mechanism for determining which driver is
+best for a specific set of algorithms associated with a session.
+Some type of benchmarking is in order here.
+.Pp
+Multiple instances of the same algorithm in the same session are not
+supported.
+.Pp
+A queue for completed operations should be implemented and processed
+at some software
+.Xr spl 9
+level, to avoid overall system latency issues, and potential kernel
+stack exhaustion while processing a callback.

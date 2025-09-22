@@ -1,0 +1,10 @@
+# This target represents the library dependencies that are implicitly linked by
+# the compiler.
+if (current_os == "android") {
+  group("implicit") {
+    deps = [
+      "//compiler-rt/lib/builtins",
+      "//libunwind/src:unwind_static",
+    ]
+  }
+}

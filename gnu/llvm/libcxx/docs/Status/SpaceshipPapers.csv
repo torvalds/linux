@@ -1,0 +1,12 @@
+"Number","Name","Status","First released version"
+`P1614R2 <https://wg21.link/P1614R2>`_,The Mothership has Landed,|Complete|,19.0
+`P2404R3 <https://wg21.link/P2404R3>`_,"Relaxing ``equality_comparable_with``'s, ``totally_ordered_with``'s, and ``three_way_comparable_with``'s common reference requirements to support move-only types",,
+`LWG3330 <https://wg21.link/LWG3330>`_,Include ``<compare>`` from most library headers,"|Complete|","13.0"
+`LWG3347 <https://wg21.link/LWG3347>`_,"``std::pair<T, U>`` now requires ``T`` and ``U`` to be *less-than-comparable*",|Nothing To Do|,
+`LWG3350 <https://wg21.link/LWG3350>`_,Simplify return type of ``lexicographical_compare_three_way``,|Nothing To Do|,
+`LWG3360 <https://wg21.link/LWG3360>`_,``three_way_comparable_with`` is inconsistent with similar concepts,|Nothing To Do|,
+`LWG3380 <https://wg21.link/LWG3380>`_,``common_type`` and comparison categories,|Nothing To Do|,
+`LWG3395 <https://wg21.link/LWG3395>`_,Definition for *three-way* comparison needs to be updated,|Nothing To Do|,
+`P0905R1 <https://wg21.link/P0905R1>`_,Symmetry for spaceship,|Complete|,7.0
+`P1120R0 <https://wg21.link/P1120R0>`_,Consistency improvements for ``<=>`` and other comparison operators,,
+`LWG3431 <https://wg21.link/LWG3431>`_,``<=>`` for containers should require ``three_way_comparable<T>`` instead of ``<=>``,,

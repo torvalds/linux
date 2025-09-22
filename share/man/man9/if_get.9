@@ -1,0 +1,80 @@
+.\" $OpenBSD: if_get.9,v 1.3 2021/01/18 09:55:43 mvs Exp $
+.\"
+.\" Copyright (c) 2015 Martin Pieuchot
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 18 2021 $
+.Dt IF_GET 9
+.Os
+.Sh NAME
+.Nm if_get ,
+.Nm if_unit ,
+.Nm if_put
+.Nd get an interface pointer from an interface index
+.Sh SYNOPSIS
+.In net/if.h
+.Ft struct ifnet *
+.Fn if_get "unsigned int ifidx"
+.Ft struct ifnet *
+.Fn if_unit "const char *name"
+.Ft void
+.Fn if_put "struct ifnet *ifp"
+.Sh DESCRIPTION
+The
+.Fn if_get
+function returns a pointer to the interface descriptor corresponding to the
+unique index
+.Fa ifidx .
+This descriptor is guaranteed to be valid until
+.Fn if_put
+is called on the returned pointer.
+.Pp
+The index value
+.Dv 0
+is never associated with an interface descriptor and can be used to determine if
+an interface index is valid or not.
+.Pp
+The
+.Fn if_unit
+function returns a pointer to the interface descriptor corresponding to the
+unique name
+.Fa name .
+This descriptor is guaranteed to be valid until
+.Fn if_put
+is called on the returned pointer.
+.Pp
+The
+.Fn if_put
+function releases a reference on the interface descriptor pointed by
+.Fa ifp .
+If
+.Fa ifp
+is a
+.Dv NULL
+pointer, no action occurs.
+.Sh CONTEXT
+.Fn if_get ,
+.Fn if_unit
+and
+.Fn if_put
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn if_get
+returns a pointer to an interface descriptor if the index is valid, otherwise
+.Dv NULL .
+.Pp
+.Fn if_unit
+returns a pointer to an interface descriptor if the interface with present
+name exists, otherwise
+.Dv NULL .

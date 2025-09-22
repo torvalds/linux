@@ -1,0 +1,66 @@
+.\"     $OpenBSD: vrele.9,v 1.9 2013/06/04 19:27:17 schwarze Exp $
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/vrele.9,v 1.9 2001/10/01 16:09:25 ru Exp $
+.\"
+.Dd $Mdocdate: June 4 2013 $
+.Dt VRELE 9
+.Os
+.Sh NAME
+.Nm vrele
+.Nd decrement the use count for a vnode
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn vrele "struct vnode *vp"
+.Sh DESCRIPTION
+Decrement the
+.Fa v_usecount
+field of the vnode specified by
+.Fa vp .
+.Pp
+Any code in the system which uses a vnode should call
+.Fn vrele
+when it is finished with the vnode.
+If the
+.Va v_usecount
+field of the vnode reaches zero, the vnode will be placed on the free list.
+.Sh RETURN VALUES
+.Fn vrele
+returns 0 if it can guarantee that it did not sleep.
+.Sh SEE ALSO
+.Xr vget 9 ,
+.Xr vnode 9 ,
+.Xr vput 9 ,
+.Xr vref 9
+.Sh AUTHORS
+This man page was originally written by
+.An Doug Rabson
+for
+.Fx .

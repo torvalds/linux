@@ -1,0 +1,101 @@
+# Build a shared libgcc library with the darwin linker.
+SHLIB_SOVERSION = 1
+SHLIB_VERSTRING = -compatibility_version $(SHLIB_SOVERSION) -current_version $(SHLIB_SOVERSION).0
+SHLIB_EXT = .dylib
+SHLIB_SUFFIX = `if test @multilib_dir@ = ppc64 ; then echo _@multilib_dir@ ; fi`
+SHLIB_INSTALL_NAME = @shlib_base_name@$(SHLIB_SUFFIX).$(SHLIB_SOVERSION)$(SHLIB_EXT)
+SHLIB_SONAME = @shlib_base_name@.$(SHLIB_SOVERSION)$(SHLIB_EXT)
+SHLIB_SOLINK = @shlib_base_name@.so
+SHLIB_MAP = @shlib_map_file@
+SHLIB_OBJS = @shlib_objs@
+SHLIB_DIR = @multilib_dir@
+SHLIB_LC = -lc
+
+# Darwin only searches in /usr/lib for shared libraries, not in subdirectories,
+# so the libgcc variants have different names not different locations.
+# Note that this version is used for the loader, not the linker; the linker
+# uses the stub versions named by $(LIBGCC).
+SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -dynamiclib -nodefaultlibs \
+	-Wl,-install_name,$(slibdir)/$(SHLIB_INSTALL_NAME) \
+	-single_module -o $(SHLIB_DIR)/$(SHLIB_SONAME).tmp \
+	-Wl,-exported_symbols_list,$(SHLIB_MAP) \
+	$(SHLIB_VERSTRING) \
+	@multilib_flags@ $(SHLIB_OBJS) $(SHLIB_LC)
+
+# $(slibdir) double quoted to protect it from expansion while building
+# libgcc.mk.  We want this delayed until actual install time.
+SHLIB_INSTALL = \
+	$$(mkinstalldirs) $$(DESTDIR)$$(slibdir); \
+	$(INSTALL_DATA) $(SHLIB_SONAME) \
+	  $$(DESTDIR)$$(slibdir)/$(SHLIB_SONAME)
+
+SHLIB_MKMAP = $(srcdir)/mkmap-flat.awk
+SHLIB_MKMAP_OPTS = -v leading_underscore=1
+SHLIB_MAPFILES += $(srcdir)/libgcc-std.ver
+
+# Must use a different directive for hidden visibility in assembly sources.
+ASM_HIDDEN_OP = .private_extern
+
+# In order to support -mmacosx-version-min, you need to have multiple
+# different libgcc_s libraries that actually get linked against, one for
+# each system version supported.  They are 'stub' libraries that
+# contain no code, just a list of exported symbols.
+# The actual use of the libraries is controlled by REAL_LIBGCC_SPEC.
+#
+# This assumes each multilib corresponds to a different architecture.
+libgcc_s.%.dylib : $(SHLIB_VERPFX).%.ver stmp-multilib
+	# When building multilibbed target libraries, all the required
+	# libraries are expected to exist in the multilib directory.
+	MLIBS=`$(GCC_FOR_TARGET) --print-multi-lib \
+		| sed -e 's/;.*$$//' -e '/^\.$$/d'` ; \
+	for mlib in $$MLIBS ; do \
+	  rm -f $${mlib}/$@ || exit 1 ; \
+	  $(LN_S) ../$@ $${mlib}/$@ || exit 1 ; \
+	done
+	MLIBS=`$(GCC_FOR_TARGET) --print-multi-lib \
+		| sed -e 's/;.*$$//' -e '/^\.$$/d'` ; \
+	for mlib in '' $$MLIBS ; do \
+	  $(STRIP_FOR_TARGET) -o $(@)_T$${mlib} \
+	    -s $(SHLIB_VERPFX).$(*).ver -c -u \
+	    ./$${mlib}/libgcc_s.$(SHLIB_SOVERSION)$(SHLIB_EXT).tmp || exit 1 ; \
+	done
+	$(LIPO_FOR_TARGET) -output $@ -create $(@)_T*
+	rm $(@)_T*
+
+libgcc_s.$(SHLIB_SOVERSION)$(SHLIB_EXT): stmp-multilib libgcc_s.10.4.dylib \
+	libgcc_s.10.5.dylib
+	# When building multilibbed target libraries, all the required
+	# libraries are expected to exist in the multilib directory.
+	MLIBS=`$(GCC_FOR_TARGET) --print-multi-lib \
+		| sed -e 's/;.*$$//' -e '/^\.$$/d'` ; \
+	for mlib in '' $$MLIBS ; do \
+	  cp ./$${mlib}/libgcc_s.$(SHLIB_SOVERSION)$(SHLIB_EXT).tmp \
+	    ./libgcc_s.$(SHLIB_SOVERSION)$(SHLIB_EXT)_T_$${mlib} || exit 1 ; \
+	done
+	$(LIPO_FOR_TARGET) -output libgcc_s.$(SHLIB_SOVERSION)$(SHLIB_EXT) \
+	  -create libgcc_s.$(SHLIB_SOVERSION)$(SHLIB_EXT)_T*
+	rm libgcc_s.$(SHLIB_SOVERSION)$(SHLIB_EXT)_T*
+
+# From the point-of-view of the Makefiles, libgcc is built by the 'strip'
+# and 'lipo' commands above.
+LIBGCC=libgcc_s.$(SHLIB_SOVERSION)$(SHLIB_EXT) libgcc_s.10.4.dylib \
+	libgcc_s.10.5.dylib stmp-multilib
+
+INSTALL_FILES=libgcc_s.10.4.dylib libgcc_s.10.5.dylib libgcc_s.1.dylib
+
+install-darwin-libgcc-stubs : $(INSTALL_FILES) installdirs
+	for d in $(INSTALL_FILES) ; do \
+	  $(INSTALL_DATA) $$d $(DESTDIR)$(slibdir)/$$d || exit 1 ; \
+	done
+	if [ -f $(DESTDIR)$(slibdir)/libgcc_s_ppc64.1.dylib ]; then \
+	  rm -f $(DESTDIR)$(slibdir)/libgcc_s_ppc64.1.dylib; \
+	else true; fi
+	$(LN_S) libgcc_s.1.dylib \
+		$(DESTDIR)$(slibdir)/libgcc_s_ppc64.1.dylib
+	if [ -f $(DESTDIR)$(slibdir)/libgcc_s_x86_64.1.dylib ]; then \
+	  rm -f $(DESTDIR)$(slibdir)/libgcc_s_x86_64.1.dylib; \
+	else true; fi
+	$(LN_S) libgcc_s.1.dylib \
+		$(DESTDIR)$(slibdir)/libgcc_s_x86_64.1.dylib
+
+INSTALL_LIBGCC = install-darwin-libgcc-stubs install-multilib

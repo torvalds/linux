@@ -1,0 +1,2 @@
+"llvm" directory contains a VS Code Extension for doing syntax highlighting of
+TableGen files and LLVM IR files.

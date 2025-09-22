@@ -1,0 +1,99 @@
+.\"	$OpenBSD: psignal.3,v 1.14 2019/05/16 13:35:16 schwarze Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 16 2019 $
+.Dt PSIGNAL 3
+.Os
+.Sh NAME
+.Nm psignal ,
+.Nm sys_siglist ,
+.Nm sys_signame
+.Nd system signal messages
+.Sh SYNOPSIS
+.In signal.h
+.Ft void
+.Fn psignal "unsigned int sig" "const char *s"
+.Vt extern char *sys_siglist[];
+.Vt extern char *sys_signame[];
+.Sh DESCRIPTION
+The
+.Fn psignal
+function locates the descriptive message
+string for the given signal number
+.Fa sig
+and writes it to the standard error.
+.Pp
+If the argument
+.Fa s
+is not
+.Dv NULL
+it is written to the standard error file descriptor
+prior to the message string,
+immediately followed by a colon and a space.
+If the signal number is not recognized
+(see
+.Xr sigaction 2
+for a list),
+the string
+.Dq Unknown signal
+is produced.
+.Pp
+The message strings can be accessed directly using the external array
+.Va sys_siglist ,
+indexed by recognized signal numbers.
+The external array
+.Va sys_signame
+is used similarly and contains short, upper-case abbreviations for signals
+which are useful for recognizing signal names in user input.
+The defined value
+.Dv NSIG
+contains a count of the strings in
+.Va sys_siglist
+and
+.Va sys_signame .
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr perror 3 ,
+.Xr setlocale 3 ,
+.Xr strsignal 3
+.Sh HISTORY
+The
+.Fn psignal
+function appeared in
+.Bx 4.2 .
+.Sh CAVEATS
+On systems other than
+.Ox ,
+the
+.Dv LC_MESSAGES
+.Xr locale 1
+category can cause different strings to be printed instead of the
+normal signal descriptions; see CAVEATS in
+.Xr setlocale 3
+for details.

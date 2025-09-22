@@ -1,0 +1,377 @@
+# `mfdg' - overrides parts of general purpose testcase driver.
+# Copyright (C) 1994 - 2001, 2003 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
+
+# This is a modified excerpt of dejagnu/lib/dg.exp.
+
+load_lib dg.exp
+
+
+# dg-test -- runs a new style DejaGnu test
+#
+# Syntax: dg-test [-keep-output] prog tool_flags default_extra_tool_flags
+#
+# PROG is the full path name of the file to pass to the tool (eg: compiler).
+# TOOL_FLAGS is a set of options to always pass.
+# DEFAULT_EXTRA_TOOL_FLAGS are additional options if the testcase has none.
+
+#proc dg-test { prog tool_flags default_extra_tool_flags } {
+proc dg-test { args } {
+    global dg-do-what-default dg-interpreter-batch-mode dg-linenum-format
+    global errorCode errorInfo
+    global tool
+    global srcdir		;# eg: /calvin/dje/build/gcc/./testsuite/
+    global host_triplet target_triplet
+
+    set keep 0
+    set i 0
+    set dg-repetitions 1 ;# may be overridden by { dg-repetitions N }
+    global dg-timeout
+    set dg-timeout 0 ;# likewise by { dg-timeout N }
+
+    if { [string index [lindex $args 0] 0] == "-" } {
+	for { set i 0 } { $i < [llength $args] } { incr i } {
+	    if { [lindex $args $i] == "--" } {
+		incr i
+		break
+	    } elseif { [lindex $args $i] == "-keep-output" } {
+		set keep 1
+	    } elseif { [string index [lindex $args $i] 0] == "-" } {
+		clone_output "ERROR: dg-test: illegal argument: [lindex $args $i]"
+		return
+	    } else {
+		break
+	    }
+	}
+    }
+
+    if { $i + 3 != [llength $args] } {
+	clone_output "ERROR: dg-test: missing arguments in call"
+	return
+    }
+    set prog [lindex $args $i]
+    set tool_flags [lindex $args [expr $i + 1]]
+    set default_extra_tool_flags [lindex $args [expr $i + 2]]
+
+    set text "\[- A-Za-z0-9\.\;\"\_\:\'\`\(\)\!\#\=\+\?\&\*]*"
+
+    set name [dg-trim-dirname $srcdir $prog]
+    # If we couldn't rip $srcdir out of `prog' then just do the best we can.
+    # The point is to reduce the unnecessary noise in the logs.  Don't strip
+    # out too much because different testcases with the same name can confuse
+    # `test-tool'.
+    if [string match "/*" $name] {
+	set name "[file tail [file dirname $prog]]/[file tail $prog]"
+    }
+
+    if {$tool_flags != ""} {
+	append name " ($tool_flags)"
+    }
+
+    # Process any embedded dg options in the testcase.
+
+    # Use "" for the second element of dg-do-what so we can tell if it's been
+    # explicitly set to "S".
+    set dg-do-what [list ${dg-do-what-default} "" P]
+    set dg-excess-errors-flag 0
+    set dg-messages ""
+    set dg-extra-tool-flags $default_extra_tool_flags
+    set dg-final-code ""
+
+    # `dg-output-text' is a list of two elements: pass/fail and text.
+    # Leave second element off for now (indicates "don't perform test")
+    set dg-output-text "P"
+
+    # Define our own "special function" `unknown' so we catch spelling errors.
+    # But first rename the existing one so we can restore it afterwards.
+    catch {rename dg-save-unknown ""}
+    rename unknown dg-save-unknown
+    proc unknown { args } {
+	return -code error "unknown dg option: $args"
+    }
+
+    set tmp [dg-get-options $prog]
+    foreach op $tmp {
+	verbose "Processing option: $op" 3
+	set status [catch "$op" errmsg]
+	if { $status != 0 } {
+	    if { 0 && [info exists errorInfo] } {
+		# This also prints a backtrace which will just confuse
+		# testcase writers, so it's disabled.
+		perror "$name: $errorInfo\n"
+	    } else {
+		perror "$name: $errmsg for \"$op\"\n"
+	    }
+	    # ??? The call to unresolved here is necessary to clear `errcnt'.
+	    # What we really need is a proc like perror that doesn't set errcnt.
+	    # It should also set exit_status to 1.
+	    unresolved "$name: $errmsg for \"$op\""
+	    return
+	}
+    }
+
+    # Restore normal error handling.
+    rename unknown ""
+    rename dg-save-unknown unknown
+
+    # If we're not supposed to try this test on this target, we're done.
+    if { [lindex ${dg-do-what} 1] == "N" } {
+	unsupported "$name"
+	verbose "$name not supported on this target, skipping it" 3
+	return
+    }
+
+    # Run the tool and analyze the results.
+    # The result of ${tool}-dg-test is in a bit of flux.
+    # Currently it is the name of the output file (or "" if none).
+    # If we need more than this it will grow into a list of things.
+    # No intention is made (at this point) to preserve upward compatibility
+    # (though at some point we'll have to).
+
+    set results [${tool}-dg-test $prog [lindex ${dg-do-what} 0] "$tool_flags ${dg-extra-tool-flags}"];
+
+    set comp_output [lindex $results 0];
+    set output_file [lindex $results 1];
+
+    #send_user "\nold_dejagnu.exp: comp_output1 = :$comp_output:\n\n"
+    #send_user "\nold_dejagnu.exp: message = :$message:\n\n"
+    #send_user "\nold_dejagnu.exp: message length = [llength $message]\n\n"
+
+    foreach i ${dg-messages} {
+	verbose "Scanning for message: $i" 4
+
+	# Remove all error messages for the line [lindex $i 0]
+	# in the source file.  If we find any, success!
+	set line [lindex $i 0]
+	set pattern [lindex $i 2]
+	set comment [lindex $i 3]
+	#send_user "Before:\n$comp_output\n"
+	if [regsub -all "(^|\n)(\[^\n\]+$line\[^\n\]*($pattern)\[^\n\]*\n?)+" $comp_output "\n" comp_output] {
+            set comp_output [string trimleft $comp_output]
+	    set ok pass
+	    set uhoh fail
+	} else {
+	    set ok fail
+	    set uhoh pass
+	}
+	#send_user "After:\n$comp_output\n"
+
+	# $line will either be a formatted line number or a number all by
+	# itself.  Delete the formatting.
+	scan $line ${dg-linenum-format} line
+	switch [lindex $i 1] {
+	    "ERROR" {
+		$ok "$name $comment (test for errors, line $line)"
+	    }
+	    "XERROR" {
+		x$ok "$name $comment (test for errors, line $line)"
+	    }
+	    "WARNING" {
+		$ok "$name $comment (test for warnings, line $line)"
+	    }
+	    "XWARNING" {
+		x$ok "$name $comment (test for warnings, line $line)"
+	    }
+	    "BOGUS" {
+		$uhoh "$name $comment (test for bogus messages, line $line)"
+	    }
+	    "XBOGUS" {
+		x$uhoh "$name $comment (test for bogus messages, line $line)"
+	    }
+	    "BUILD" {
+		$uhoh "$name $comment (test for build failure, line $line)"
+	    }
+	    "XBUILD" {
+		x$uhoh "$name $comment (test for build failure, line $line)"
+	    }
+	    "EXEC" { }
+	    "XEXEC" { }
+	}
+	#send_user "\nold_dejagnu.exp: comp_output2= :$comp_output:\n\n"
+    }
+    #send_user "\nold_dejagnu.exp: comp_output3 = :$comp_output:\n\n"
+
+    # Remove messages from the tool that we can ignore.
+    #send_user "comp_output: $comp_output\n"
+    set comp_output [prune_warnings $comp_output]
+
+    if { [info proc ${tool}-dg-prune] != "" } {
+	set comp_output [${tool}-dg-prune $target_triplet $comp_output]
+	switch -glob $comp_output {
+	    "::untested::*" {
+		regsub "::untested::" $comp_output "" message
+		untested "$name: $message"
+		return
+	    }
+	    "::unresolved::*" {
+		regsub "::unresolved::" $comp_output "" message
+		unresolved "$name: $message"
+		return
+	    }
+	    "::unsupported::*" {
+		regsub "::unsupported::" $comp_output "" message
+		unsupported "$name: $message"
+		return
+	    }
+	}
+    }
+
+    # See if someone forgot to delete the extra lines.
+    regsub -all "\n+" $comp_output "\n" comp_output
+    regsub "^\n+" $comp_output "" comp_output
+    #send_user "comp_output: $comp_output\n"
+
+    # Don't do this if we're testing an interpreter.
+    # FIXME: why?
+    if { ${dg-interpreter-batch-mode} == 0 } {
+	# Catch excess errors (new bugs or incomplete testcases).
+	if ${dg-excess-errors-flag} {
+	    setup_xfail "*-*-*"
+	}
+	if ![string match "" $comp_output] {
+	    fail "$name (test for excess errors)"
+	    send_log "Excess errors:\n$comp_output\n"
+	} else {
+	    pass "$name (test for excess errors)"
+	}
+    }
+
+    # Run the executable image if asked to do so.
+    # FIXME: This is the only place where we assume a standard meaning to
+    # the `keyword' argument of dg-do.  This could be cleaned up.
+    if { [lindex ${dg-do-what} 0] == "run" } {
+	if ![file exists $output_file] {
+	    warning "$name compilation failed to produce executable"
+	} else {
+	    set testname $name
+	    for {set rep 0} {$rep < ${dg-repetitions}} {incr rep} {
+		# include repetition number in test name
+		if {$rep > 0} { set name "$testname (rerun $rep)" }
+
+		set status -1
+		set result [${tool}_load $output_file]
+		set status [lindex $result 0];
+		set output [lindex $result 1];
+		#send_user "After exec, status: $status\n"
+
+		if { "$status" == "pass" } {
+		    verbose "Exec succeeded." 3
+		} elseif { "$status" == "fail" } {
+		    # It would be nice to get some info out of errorCode.
+		    if [info exists errorCode] {
+			verbose "Exec failed, errorCode: $errorCode" 3
+		    } else {
+			verbose "Exec failed, errorCode not defined!" 3
+		    }
+		}
+		
+		if { [lindex ${dg-do-what} 2] == "F" } {
+		    # Instead of modelling this as an xfail (via setup_xfail), 
+		    # treat an expected crash as a success.
+		    if { $status == "pass" } then { set status fail } else { set status pass }
+		    set testtype "crash"
+		} else { set testtype "execution" }
+		
+		$status "$name $testtype test"
+		
+		if { [llength ${dg-output-text}] > 1 } {
+		    #send_user "${dg-output-text}\n"
+		    if { [lindex ${dg-output-text} 0] == "F" } {
+			setup_xfail "*-*-*"
+		    }
+		    set texttmp [lindex ${dg-output-text} 1]
+		    if { ![regexp $texttmp ${output}] } {
+			fail "$name output pattern test"
+		    } else {
+			pass "$name output pattern test"
+		    }
+		    verbose -log "Output pattern $texttmp"
+		    unset texttmp
+		}
+	    }
+	}
+    }
+
+    # Are there any further tests to perform?
+    # Note that if the program has special run-time requirements, running
+    # of the program can be delayed until here.  Ditto for other situations.
+    # It would be a bit cumbersome though.
+
+    if ![string match ${dg-final-code} ""] {
+	regsub -all "\\\\(\[{}\])" ${dg-final-code} "\\1" dg-final-code
+	# Note that the use of `args' here makes this a varargs proc.
+	proc dg-final-proc { args } ${dg-final-code}
+	verbose "Running dg-final tests." 3
+	verbose "dg-final-proc:\n[info body dg-final-proc]" 4
+	if [catch "dg-final-proc $prog" errmsg] {
+	    perror "$name: error executing dg-final: $errmsg"
+	    # ??? The call to unresolved here is necessary to clear `errcnt'.
+	    # What we really need is a proc like perror that doesn't set errcnt.
+	    # It should also set exit_status to 1.
+	    unresolved "$name: error executing dg-final: $errmsg"
+	}
+    }
+
+    # Do some final clean up.
+    # When testing an interpreter, we don't compile something and leave an
+    # output file.
+    if { ! ${keep} && ${dg-interpreter-batch-mode} == 0 } {
+	catch "exec rm -f $output_file"
+    }
+}
+
+
+
+# 
+# Indicate that this test case is to be rerun several times.  This
+# is useful if it is nondeterministic.  This applies to rerunning the
+# test program only, not rebuilding it.
+# The embedded format is "{ dg-repetitions N }", where N is the number
+# of repetitions.  It better be greater than zero.
+#
+proc dg-repetitions { line value } {
+    upvar dg-repetitions repetitions
+    set repetitions $value
+}
+
+
+# 
+# Indicate that this test case is to be run with a short timeout.
+# The embedded format is "{ dg-timeout N }", where N is in seconds.
+#
+proc dg-timeout { line value } {
+    global dg-timeout
+    set dg-timeout $value
+}
+
+
+# dejagnu's config/unix.exp hard-codes 300 seconds as the timeout
+# for any natively run executable.  That's too long for tests run
+# multiple times and that may possibly hang.  So we override it here
+# to provide some degree of control.
+rename standard_wait hooked_standard_wait
+proc standard_wait { dest timeout } {
+    global dg-timeout
+    if {[info exists dg-timeout]} {
+	if {${dg-timeout} > 0} {
+	    verbose -log "Overriding timeout = ${dg-timeout}"
+	    set timeout ${dg-timeout}
+	}
+    }
+
+    hooked_standard_wait $dest $timeout
+}

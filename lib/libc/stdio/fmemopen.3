@@ -1,0 +1,198 @@
+.\"	$OpenBSD: fmemopen.3,v 1.5 2025/06/01 08:40:54 op Exp $
+.\"	$NetBSD: fmemopen.3,v 1.5 2010/10/07 00:14:14 enami Exp $
+.\"
+.\" Copyright (c) 2010 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Christos Zoulas.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"        This product includes software developed by the NetBSD
+.\"        Foundation, Inc. and its contributors.
+.\" 4. Neither the name of The NetBSD Foundation nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 1 2025 $
+.Dt FMEMOPEN 3
+.Os
+.Sh NAME
+.Nm fmemopen
+.Nd open a stream that points to the given buffer
+.Sh SYNOPSIS
+.In stdio.h
+.Ft FILE *
+.Fn fmemopen "void *buffer" "size_t size" "const char *mode"
+.Sh DESCRIPTION
+The
+.Fn fmemopen
+function associates a stream with the given
+.Fa buffer
+and
+.Fa size .
+The
+.Fa buffer
+can be either
+.Dv NULL ,
+or must be of the given
+.Fa size .
+If the
+.Fa buffer
+is
+.Dv NULL ,
+a
+.Fa buffer
+of the given
+.Fa size
+will be dynamically allocated using
+.Xr malloc 3
+and released when
+.Xr fclose 3
+is called.
+.Pp
+The
+.Fa mode
+argument has the same meaning as in
+.Xr fopen 3 .
+.Pp
+The stream treats the buffer as it would treat a file tracking the current
+position to perform I/O operations.
+For example, in the beginning the stream points to the beginning of the buffer,
+unless
+.Sq a
+was specified in the
+.Fa mode
+argument, and then it points to the first
+.Dv NUL
+byte.
+If a
+.Dv NULL
+.Fa buffer
+was specified, then the stream will always point at the first byte of the
+.Fa buffer .
+.Pp
+The stream also keeps track of the
+.Fa size
+of the
+.Fa buffer .
+The
+.Fa size
+is initialized depending on the mode:
+.Bl -tag -width "r/w+XXX" -offset indent
+.It Dv r/r+
+Set to the
+.Fa size
+argument.
+.It Dv w/w+
+Set to
+.Dv 0 .
+.It Dv a/a+
+Set to the first
+.Dv NUL
+byte, or the
+.Fa size
+argument if one is not found.
+.El
+.Pp
+Read or write operations advance the buffer, but not to exceed the given
+.Fa size
+of the
+.Fa buffer .
+Trying to read beyond the
+.Fa size
+of the
+.Fa buffer
+results in
+.Dv EOF
+returned.
+.Dv NUL
+bytes are read normally.
+Trying to write beyond the
+.Fa size
+of the
+.Fa buffer
+has no effect.
+.Pp
+When a stream open for writing is either flushed or closed, a
+.Dv NUL
+byte is written at the current position or at the end of the current
+.Fa size
+as kept internally.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn fmemopen
+returns a
+.Dv FILE
+pointer.
+Otherwise,
+.Dv NULL
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa size
+was
+.Dv 0 ;
+or the
+.Fa mode
+argument is invalid;
+or the
+.Fa buffer
+argument is
+.Dv NULL
+and the
+.Fa mode
+argument does not specify a
+.Sq + .
+.El
+.Pp
+The
+.Fn fmemopen
+function
+may also fail and set
+.Va errno
+for any of the errors
+specified for the routine
+.Xr malloc 3 .
+.Sh SEE ALSO
+.Xr fclose 3 ,
+.Xr fflush 3 ,
+.Xr fopen 3 ,
+.Xr funopen 3 ,
+.Xr malloc 3 ,
+.Xr open_memstream 3
+.Sh STANDARDS
+The function
+.Fn fmemopen
+conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn fmemopen
+function first appeared in
+.Ox 5.4 .

@@ -1,0 +1,80 @@
+.\"	$OpenBSD: pw_dup.3,v 1.10 2019/01/25 00:19:25 millert Exp $
+.\"
+.\" Copyright (c) 2000 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 25 2019 $
+.Dt PW_DUP 3
+.Os
+.Sh NAME
+.Nm pw_dup
+.Nd make a copy of a struct passwd
+.Sh SYNOPSIS
+.In pwd.h
+.Ft struct passwd *
+.Fn pw_dup "const struct passwd *pw"
+.Sh DESCRIPTION
+The
+.Fn pw_dup
+function allocates sufficient memory for a copy of the struct passwd
+.Fa pw ,
+does the copy, and returns a pointer to it.
+This is useful as subsequent calls to
+.Fn getpwent ,
+.Fn getpwnam ,
+and
+.Fn getpwuid
+will overwrite the data they returned from previous calls.
+.Pp
+The returned pointer should be deallocated by a single call to
+.Xr free 3 .
+Since
+.Fn pw_dup
+allocates space for the copy in one chunk, it is not necessary to free
+the individual strings contained in the returned struct passwd.
+.Pp
+If insufficient memory is available,
+.Dv NULL
+is returned.
+.Sh EXAMPLES
+The following will make a copy of the struct passwd for root and
+store it in
+.Qq pw_save :
+.Bd -literal -offset indent
+struct passwd *pw, *pw_save;
+
+if ((pw = getpwnam("root")) == NULL) {
+	fprintf(stderr, "Cannot find root in the password file.\en");
+	exit(1);
+}
+if ((pw_save = pw_dup(pw)) == NULL) {
+	fprintf(stderr, "Out of memory.\en");
+	exit(1);
+}
+.Ed
+.Sh ERRORS
+.Fn pw_dup
+function may fail and set the external variable
+.Va errno
+for any of the errors specified for the library function
+.Xr malloc 3 .
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr getpwent 3 ,
+.Xr malloc 3
+.Sh HISTORY
+The
+.Fn pw_dup
+function first appeared in
+.Ox 2.9 .

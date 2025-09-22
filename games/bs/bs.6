@@ -1,0 +1,97 @@
+.\"	$OpenBSD: bs.6,v 1.16 2022/02/18 23:17:13 jsg Exp $
+.\"
+.\" Copyright (c) 1997, Jason Downs.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt BS 6
+.Os
+.Sh NAME
+.Nm bs
+.Nd battleships game
+.Sh SYNOPSIS
+.Nm bs
+.Op Fl b | s
+.Op Fl c
+.Sh DESCRIPTION
+This program allows you to play the familiar Battleships game against the
+computer on a 10x10 board.
+The interface is visual and largely self-explanatory;
+you place your ships and pick your shots by moving the cursor around the
+.Sq sea
+with the
+.Xr hack 6
+motion keys
+.Em hjklyubn .
+.Pp
+Note that when selecting a ship to place, you must type the capital letter
+(these are, after all, capital ships).
+During ship placement, the
+.Sq r
+command may be used to ignore the current position and randomly place your
+currently selected ship.
+The
+.Sq R
+command will place all remaining ships randomly.
+The ^L command
+.Pq form feed, ASCII 12
+will force a screen redraw.
+.Pp
+The command-line arguments control game modes:
+.Bl -tag -width XxXXX
+.It Fl b
+Selects a
+.Sq blitz
+variant.
+This allows a side to shoot for as long as it continues to score hits.
+.It Fl c
+Permits ships to be placed adjacently.
+Normally, ships must be separated by at least one square of open water.
+This disables that check and allows them to close-pack.
+.It Fl s
+Selects a
+.Sq salvo
+variant.
+This allows players one shot per turn for each of their
+ships still afloat.
+This puts a premium on scoring hits early and knocking out
+some ships and also makes it much harder, for example, when you face a superior
+force with only your PT-boat.
+.El
+.Sh AUTHORS
+.An -nosplit
+Originally written by one
+.An Bruce Holloway
+in 1986.
+Salvo mode added by
+.An Chuck A. DeGaul Aq Mt cbosgd!cad .
+Visual user interface,
+.Sq closepack
+option, code rewrite
+and manual page by
+.An Eric S. Raymond Aq Mt esr@snark.thyrsus.com ,
+August 1989.
+.Sh NOTES
+The algorithm the computer uses once it has found a ship to sink is provably
+optimal.
+The dispersion criterion for the random-fire algorithm may not be.

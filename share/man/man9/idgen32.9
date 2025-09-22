@@ -1,0 +1,56 @@
+.\"	$OpenBSD: idgen32.9,v 1.4 2015/11/23 17:53:57 jmc Exp $
+.\"
+.\" Copyright (c) 2008 Damien Miller <djm@mindrot.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 23 2015 $
+.Dt IDGEN32 9
+.Os
+.Sh NAME
+.Nm idgen32 ,
+.Nm idgen32_init
+.Nd non-repeating ID generation
+.Sh SYNOPSIS
+.In crypto/idgen.h
+.Ft void
+.Fn idgen32_init "struct idgen32_ctx *ctx"
+.Ft uint32_t
+.Fn idgen32 "struct idgen32_ctx *ctx"
+.Sh DESCRIPTION
+The
+.Fn idgen32
+functions provide a facility to generate a stream of 32-bit numbers
+that are strongly unpredictable and have a repetition cycle close to
+2^32.
+Such numbers are useful as protocol identifiers where there are negative
+consequences to reusing an ID within a short time period, as may happen
+if they are simply assigned at random.
+.Pp
+The
+.Fn idgen32_init
+function prepares a context structure for use.
+.Pp
+The
+.Fn idgen32
+function returns a new ID in host byte order.
+Note that this function will never return 0 as it often has a special
+meaning in network protocols.
+.Sh SEE ALSO
+.Xr arc4random 9
+.Sh HISTORY
+The
+.Nm
+functions were added in
+.Ox 4.4 .

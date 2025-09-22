@@ -1,0 +1,157 @@
+.\"	$OpenBSD: wb.4,v 1.21 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 1997, 1998
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$FreeBSD: wb.4,v 1.2 1998/12/05 09:31:25 rnordier Exp $
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt WB 4
+.Os
+.Sh NAME
+.Nm wb
+.Nd Winbond W89C840F 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "wb* at pci?"
+.Cd "amphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Ethernet adapters and embedded
+controllers based on the Winbond W89C840F Fast Ethernet controller chip.
+This includes the TRENDnet TE100-PCIE and various other cheap boards.
+The 840F should not be confused with the 940F, which is
+an NE2000 clone and only supports 10Mbps speeds.
+.Pp
+The Winbond controller uses bus master DMA and is designed to be
+a DEC "tulip" work-alike.
+It differs from the standard DEC design
+in several ways: the control and status registers are spaced 4
+bytes apart instead of 8, and the receive filter is programmed through
+registers rather than by downloading a special setup frame via
+the transmit DMA engine.
+Using an external PHY, the Winbond chip
+supports both 10 and 100Mbps speeds in either full or half duplex.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width full-duplex
+.It autoselect
+Enable autoselection of the media type and options.
+This is only supported if the PHY chip attached to the Winbond controller
+supports NWAY autonegotiation.
+The user can manually override
+the autoselected mode by adding media options to the appropriate
+.Xr hostname.if 5
+file.
+.It 10baseT
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It full-duplex
+Force full duplex operation.
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+Note that the 100baseTX media type is only available if supported
+by the adapter.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "wb0: couldn't map memory"
+A fatal initialization error has occurred.
+.It "wb0: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "wb0: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "wb0: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.It "wb0: no memory for tx list"
+The driver failed to allocate an mbuf for the transmitter ring when
+allocating a pad buffer or collapsing an mbuf chain into a cluster.
+.El
+.Sh SEE ALSO
+.Xr amphy 4 ,
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Ox
+support first appeared in
+.Ox 2.5 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .
+.Sh BUGS
+The Winbond chip seems to behave strangely in some cases when the
+link partner switches modes.
+If, for example, both sides are set to 10Mbps half-duplex, and the other end
+is changed to 100Mbps full-duplex, the Winbond's receiver suddenly starts
+writing trash all over the RX descriptors.
+The
+.Nm
+driver handles this by forcing a reset of both the controller
+chip and attached PHY.
+This is drastic, but it appears to be the only way to recover properly from
+this condition.

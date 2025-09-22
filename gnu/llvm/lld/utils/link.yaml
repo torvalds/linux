@@ -1,0 +1,39 @@
+format_version: '2'
+name: link
+run_fields:
+  - name: llvm_project_revision
+    order: true
+machine_fields:
+  - name: hardware
+  - name: os
+metrics:
+ - name: branch-misses
+   bigger_is_better: false
+   type: Real
+ - name: stalled-cycles-frontend
+   bigger_is_better: false
+   type: Real
+ - name: branches
+   bigger_is_better: false
+   type: Real
+ - name: context-switches
+   bigger_is_better: false
+   type: Real
+ - name: cpu-migrations
+   bigger_is_better: false
+   type: Real
+ - name: cycles
+   bigger_is_better: false
+   type: Real
+ - name: instructions
+   bigger_is_better: false
+   type: Real
+ - name: seconds-elapsed
+   bigger_is_better: false
+   type: Real
+ - name: page-faults
+   bigger_is_better: false
+   type: Real
+ - name: task-clock
+   bigger_is_better: false
+   type: Real

@@ -1,0 +1,250 @@
+.\" $OpenBSD: SSL_get_ciphers.3,v 1.12 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\" selective merge up to: OpenSSL 83cf7abf May 29 13:07:08 2018 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Lutz Jaenicke <jaenicke@openssl.org>,
+.\" Nick Mathewson <nickm@torproject.org>, Kurt Roeckx <kurt@roeckx.be>,
+.\" Kazuki Yamaguchi <k@rhe.jp>, and Benjamin Kaduk <bkaduk@akamai.com>.
+.\" Copyright (c) 2000, 2005, 2015, 2016, 2017 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_GET_CIPHERS 3
+.Os
+.Sh NAME
+.Nm SSL_get_ciphers ,
+.Nm SSL_CTX_get_ciphers ,
+.Nm SSL_get1_supported_ciphers ,
+.Nm SSL_get_client_ciphers ,
+.Nm SSL_get_cipher_list
+.Nd get lists of available SSL_CIPHERs
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft STACK_OF(SSL_CIPHER) *
+.Fn SSL_get_ciphers "const SSL *ssl"
+.Ft STACK_OF(SSL_CIPHER) *
+.Fn SSL_CTX_get_ciphers "const SSL_CTX *ctx"
+.Ft STACK_OF(SSL_CIPHER) *
+.Fn SSL_get1_supported_ciphers "SSL *ssl"
+.Ft STACK_OF(SSL_CIPHER) *
+.Fn SSL_get_client_ciphers "const SSL *ssl"
+.Ft const char *
+.Fn SSL_get_cipher_list "const SSL *ssl" "int priority"
+.Sh DESCRIPTION
+.Fn SSL_get_ciphers
+returns the stack of available
+.Vt SSL_CIPHER Ns s
+for
+.Fa ssl ,
+sorted by preference.
+.Pp
+.Fn SSL_CTX_get_ciphers
+returns the stack of available
+.Vt SSL_CIPHER Ns s
+for
+.Fa ctx .
+.Pp
+.Fn SSL_get1_supported_ciphers
+returns a stack of enabled
+.Vt SSL_CIPHER Ns s
+for
+.Fa ssl
+as it would be sent in a ClientHello, sorted by preference.
+The list depends on settings like the cipher list, the supported
+protocol versions, the security level, and the enabled signature
+algorithms.
+The list of ciphers that would be sent in a ClientHello can differ
+from the list of ciphers that would be acceptable when acting as a
+server.
+For example,
+additional ciphers may be usable by a server if there is a gap in the
+list of supported protocols, and some ciphers may not be usable by a
+server if there is not a suitable certificate configured.
+.Pp
+.Fn SSL_get_client_ciphers
+returns the stack of available
+.Vt SSL_CIPHER Ns s
+matching the list received from the client on
+.Fa ssl .
+.Pp
+The details of the ciphers obtained by
+.Fn SSL_get_ciphers ,
+.Fn SSL_CTX_get_ciphers ,
+.Fn SSL_get1_supported_ciphers ,
+and
+.Fn SSL_get_client_ciphers
+can be obtained using the
+.Xr SSL_CIPHER_get_name 3
+family of functions.
+.Pp
+.Fn SSL_get_cipher_list
+is deprecated \(em use
+.Fn SSL_get_ciphers
+instead \(em and badly misnamed; it does not return a list
+but the name of one element of the return value of
+.Fn SSL_get_ciphers ,
+with the index given by the
+.Fa priority
+argument.
+Passing 0 selects the cipher with the highest priority.
+To iterate over all available ciphers in decreasing priority,
+repeatedly increment the argument by 1 until
+.Dv NULL
+is returned.
+.Sh RETURN VALUES
+.Fn SSL_get_ciphers
+returns an internal pointer to a list of ciphers or
+.Dv NULL
+if
+.Fa ssl
+is
+.Dv NULL
+or if no ciphers are available.
+The returned pointer may not only become invalid when
+.Fa ssl
+is destroyed or when
+.Xr SSL_set_cipher_list 3
+is called on it, but also when the
+.Vt SSL_CTX
+object in use by
+.Fa ssl
+at the time of the call is freed or when
+.Xr SSL_CTX_set_cipher_list 3
+is called on that context object.
+.Pp
+.Fn SSL_CTX_get_ciphers
+returns an internal pointer to a list of ciphers or
+.Dv NULL
+if
+.Fa ctx
+is
+.Dv NULL
+or if no ciphers are available.
+The returned pointer becomes invalid when
+.Fa ctx
+is destroyed or when
+.Xr SSL_CTX_set_cipher_list 3
+is called on it.
+.Pp
+.Fn SSL_get1_supported_ciphers
+returns a newly allocated list of ciphers or
+.Dv NULL
+if
+.Fa ssl
+is
+.Dv NULL ,
+if no ciphers are available, or if an error occurs.
+When the returned pointer is no longer needed, the caller is
+responsible for freeing it using
+.Fn sk_SSL_CIPHER_free .
+.Pp
+.Fn SSL_get_client_ciphers
+returns an internal pointer to a list of ciphers or
+.Dv NULL
+if
+.Fa ssl
+is
+.Dv NULL ,
+has no active session,
+or is not operating in server mode.
+The returned pointer becomes invalid when the
+.Vt SSL_SESSION
+object is destroyed, even if the
+.Fa ssl
+object remains valid.
+It may also become invalid in other circumstances,
+for example when processing a new ClientHello.
+.Pp
+.Fn SSL_get_cipher_list
+returns an internal pointer to a string or
+.Dv NULL
+if
+.Fa ssl
+is
+.Dv NULL ,
+if no ciphers are available, or if
+.Fa priority
+is greater than or equal to the number of available ciphers.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CIPHER_get_name 3 ,
+.Xr SSL_CTX_set_cipher_list 3
+.Sh HISTORY
+.Fn SSL_get_cipher_list
+first appeared in SSLeay 0.5.2.
+.Fn SSL_get_ciphers
+first appeared in SSLeay 0.8.0.
+Both functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_CTX_get_ciphers
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .
+.Pp
+.Fn SSL_get1_supported_ciphers
+and
+.Fn SSL_get_client_ciphers
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.5 .

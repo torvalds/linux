@@ -1,0 +1,512 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_SYNCSTREAM
+#define _LIBCPP_SYNCSTREAM
+
+/*
+    syncstream synopsis
+
+#include <ostream>  // see [ostream.syn]
+
+namespace std {
+    template<class charT, class traits, class Allocator>
+    class basic_syncbuf;
+
+    // [syncstream.syncbuf.special], specialized algorithms
+    template<class charT, class traits, class Allocator>
+      void swap(basic_syncbuf<charT, traits, Allocator>&,
+                basic_syncbuf<charT, traits, Allocator>&);
+
+    using syncbuf = basic_syncbuf<char>;
+    using wsyncbuf = basic_syncbuf<wchar_t>;
+
+    template<class charT, class traits, class Allocator>
+    class basic_osyncstream;
+
+    using osyncstream = basic_osyncstream<char>;
+    using wosyncstream = basic_osyncstream<wchar_t>;
+
+    template<class charT, class traits, class Allocator>
+    class basic_syncbuf : public basic_streambuf<charT, traits> {
+    public:
+        using char_type      = charT;
+        using int_type       = typename traits::int_type;
+        using pos_type       = typename traits::pos_type;
+        using off_type       = typename traits::off_type;
+        using traits_type    = traits;
+        using allocator_type = Allocator;
+
+        using streambuf_type = basic_streambuf<charT, traits>;
+
+        // [syncstream.syncbuf.cons], construction and destruction
+        explicit basic_syncbuf(streambuf_type* obuf = nullptr)
+          : basic_syncbuf(obuf, Allocator()) {}
+        basic_syncbuf(streambuf_type*, const Allocator&);
+        basic_syncbuf(basic_syncbuf&&);
+        ~basic_syncbuf();
+
+        // [syncstream.syncbuf.assign], assignment and swap
+        basic_syncbuf& operator=(basic_syncbuf&&);
+        void swap(basic_syncbuf&);
+
+        // [syncstream.syncbuf.members], member functions
+        bool emit();
+        streambuf_type* get_wrapped() const noexcept;
+        allocator_type get_allocator() const noexcept;
+        void set_emit_on_sync(bool) noexcept;
+
+    protected:
+        // [syncstream.syncbuf.virtuals], overridden virtual functions
+        int sync() override;
+
+    private:
+        streambuf_type* wrapped;    // exposition only
+        bool emit_on_sync{};        // exposition only
+    };
+
+    // [syncstream.syncbuf.special], specialized algorithms
+    template<class charT, class traits, class Allocator>
+    void swap(basic_syncbuf<charT, traits, Allocator>&,
+              basic_syncbuf<charT, traits, Allocator>&);
+
+    template<class charT, class traits, class Allocator>
+    class basic_osyncstream : public basic_ostream<charT, traits> {
+    public:
+        using char_type   = charT;
+        using int_type    = typename traits::int_type;
+        using pos_type    = typename traits::pos_type;
+        using off_type    = typename traits::off_type;
+        using traits_type = traits;
+
+        using allocator_type = Allocator;
+        using streambuf_type = basic_streambuf<charT, traits>;
+        using syncbuf_type   = basic_syncbuf<charT, traits, Allocator>;
+
+        // [syncstream.osyncstream.cons], construction and destruction
+        basic_osyncstream(streambuf_type*, const Allocator&);
+        explicit basic_osyncstream(streambuf_type* obuf)
+          : basic_osyncstream(obuf, Allocator()) {}
+        basic_osyncstream(basic_ostream<charT, traits>& os, const Allocator& allocator)
+          : basic_osyncstream(os.rdbuf(), allocator) {}
+        explicit basic_osyncstream(basic_ostream<charT, traits>& os)
+          : basic_osyncstream(os, Allocator()) {}
+        basic_osyncstream(basic_osyncstream&&) noexcept;
+        ~basic_osyncstream();
+
+        // [syncstream.osyncstream.assign], assignment
+        basic_osyncstream& operator=(basic_osyncstream&&);
+
+        // [syncstream.osyncstream.members], member functions
+        void emit();
+        streambuf_type* get_wrapped() const noexcept;
+        syncbuf_type* rdbuf() const noexcept { return const_cast<syncbuf_type*>(addressof(sb)); }
+
+    private:
+        syncbuf_type sb;    // exposition only
+    };
+}
+
+*/
+
+#include <__config>
+#include <__utility/move.h>
+#include <ios>
+#include <iosfwd> // required for declaration of default arguments
+#include <streambuf>
+#include <string>
+
+#ifndef _LIBCPP_HAS_NO_THREADS
+#  include <map>
+#  include <mutex>
+#  include <shared_mutex>
+#endif
+
+// standard-mandated includes
+
+// [syncstream.syn]
+#include <ostream>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#if _LIBCPP_STD_VER >= 20 && !defined(_LIBCPP_HAS_NO_EXPERIMENTAL_SYNCSTREAM)
+
+// [syncstream.syncbuf.overview]/1
+//   Class template basic_syncbuf stores character data written to it,
+//   known as the associated output, into internal buffers allocated
+//   using the object's allocator. The associated output is transferred
+//   to the wrapped stream buffer object *wrapped when emit() is called
+//   or when the basic_syncbuf object is destroyed. Such transfers are
+//   atomic with respect to transfers by other basic_syncbuf objects
+//   with the same wrapped stream buffer object.
+//
+// This helper singleton is used to implement the required
+// synchronisation guarantees.
+#  ifndef _LIBCPP_HAS_NO_THREADS
+class __wrapped_streambuf_mutex {
+  _LIBCPP_HIDE_FROM_ABI __wrapped_streambuf_mutex() = default;
+
+public:
+  __wrapped_streambuf_mutex(const __wrapped_streambuf_mutex&)            = delete;
+  __wrapped_streambuf_mutex& operator=(const __wrapped_streambuf_mutex&) = delete;
+
+  _LIBCPP_HIDE_FROM_ABI void __inc_reference([[maybe_unused]] void* __ptr) {
+    _LIBCPP_ASSERT_INTERNAL(__ptr != nullptr, "non-wrapped streambufs are never written to");
+    unique_lock __lock{__mutex_};
+    ++__lut_[reinterpret_cast<uintptr_t>(__ptr)].__count;
+  }
+
+  // pre: __ptr is in __lut_
+  _LIBCPP_HIDE_FROM_ABI void __dec_reference([[maybe_unused]] void* __ptr) noexcept {
+    unique_lock __lock{__mutex_};
+
+    auto __it = __get_it(__ptr);
+    if (__it->second.__count == 1)
+      __lut_.erase(__it);
+    else
+      --__it->second.__count;
+  }
+
+  // TODO
+  // This function causes emit() aquire two mutexes:
+  // - __mutex_ shared
+  // _ __get_it(__ptr)->second.__mutex exclusive
+  //
+  // Instead store a pointer to __get_it(__ptr)->second.__mutex when
+  // calling __inc_reference.
+  //
+  // pre: __ptr is in __lut_
+  [[nodiscard]] _LIBCPP_HIDE_FROM_ABI lock_guard<mutex> __get_lock([[maybe_unused]] void* __ptr) noexcept {
+    shared_lock __lock{__mutex_};
+    return lock_guard{__get_it(__ptr)->second.__mutex};
+  }
+
+  // This function is used for testing.
+  //
+  // It is allowed to call this function with a non-registered pointer.
+  [[nodiscard]] _LIBCPP_HIDE_FROM_ABI size_t __get_count([[maybe_unused]] void* __ptr) noexcept {
+    _LIBCPP_ASSERT_INTERNAL(__ptr != nullptr, "non-wrapped streambufs are never written to");
+    shared_lock __lock{__mutex_};
+
+    auto __it = __lut_.find(reinterpret_cast<uintptr_t>(__ptr));
+    return __it != __lut_.end() ? __it->second.__count : 0;
+  }
+
+  [[nodiscard]] static _LIBCPP_HIDE_FROM_ABI __wrapped_streambuf_mutex& __instance() noexcept {
+    static __wrapped_streambuf_mutex __result;
+    return __result;
+  }
+
+private:
+  struct __value {
+    mutex __mutex;
+    size_t __count{0};
+  };
+
+  shared_mutex __mutex_;
+  map<uintptr_t, __value> __lut_;
+
+  [[nodiscard]] _LIBCPP_HIDE_FROM_ABI map<uintptr_t, __value>::iterator __get_it(void* __ptr) noexcept {
+    _LIBCPP_ASSERT_INTERNAL(__ptr != nullptr, "non-wrapped streambufs are never written to");
+
+    auto __it = __lut_.find(reinterpret_cast<uintptr_t>(__ptr));
+    _LIBCPP_ASSERT_INTERNAL(__it != __lut_.end(), "using a wrapped streambuf that has not been registered");
+    _LIBCPP_ASSERT_INTERNAL(__it->second.__count >= 1, "found an inactive streambuf wrapper");
+    return __it;
+  }
+};
+#  endif // _LIBCPP_HAS_NO_THREADS
+
+// basic_syncbuf
+
+// The class uses a basic_string<_CharT, _Traits, _Allocator> as
+// internal buffer. Per [syncstream.syncbuf.cons]/4
+//   Remarks: A copy of allocator is used to allocate memory for
+//   internal buffers holding the associated output.
+//
+// Therefore the allocator used in the constructor is passed to the
+// basic_string. The class does not keep a copy of this allocator.
+template <class _CharT, class _Traits, class _Allocator>
+class _LIBCPP_TEMPLATE_VIS basic_syncbuf : public basic_streambuf<_CharT, _Traits> {
+public:
+  using char_type      = _CharT;
+  using traits_type    = _Traits;
+  using int_type       = typename traits_type::int_type;
+  using pos_type       = typename traits_type::pos_type;
+  using off_type       = typename traits_type::off_type;
+  using allocator_type = _Allocator;
+
+  using streambuf_type = basic_streambuf<_CharT, _Traits>;
+
+  // [syncstream.syncbuf.cons], construction and destruction
+
+  _LIBCPP_HIDE_FROM_ABI explicit basic_syncbuf(streambuf_type* __obuf = nullptr)
+      : basic_syncbuf(__obuf, _Allocator()) {}
+
+  _LIBCPP_HIDE_FROM_ABI basic_syncbuf(streambuf_type* __obuf, _Allocator const& __alloc)
+      : __wrapped_(__obuf), __str_(__alloc) {
+    __inc_reference();
+  }
+
+  _LIBCPP_HIDE_FROM_ABI basic_syncbuf(basic_syncbuf&& __other)
+      : __wrapped_(__other.get_wrapped()), __str_(std::move(__other.__str_)), __emit_on_sync_(__other.__emit_on_sync_) {
+    __move_common(__other);
+  }
+
+  _LIBCPP_HIDE_FROM_ABI ~basic_syncbuf() {
+#  ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+    try {
+#  endif // _LIBCPP_HAS_NO_EXCEPTIONS
+      emit();
+#  ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+    } catch (...) {
+    }
+#  endif // _LIBCPP_HAS_NO_EXCEPTIONS
+    __dec_reference();
+  }
+
+  // [syncstream.syncbuf.assign], assignment and swap
+
+  _LIBCPP_HIDE_FROM_ABI basic_syncbuf& operator=(basic_syncbuf&& __other) {
+    // The function is specified to call emit. This call should
+    // propagate the exception thrown.
+    emit();
+    __dec_reference();
+
+    __wrapped_      = __other.get_wrapped();
+    __str_          = std::move(__other.__str_);
+    __emit_on_sync_ = __other.__emit_on_sync_;
+
+    __move_common(__other);
+
+    return *this;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI void swap(basic_syncbuf& __other) {
+    _LIBCPP_ASSERT_COMPATIBLE_ALLOCATOR(
+        allocator_traits<_Allocator>::propagate_on_container_swap::value || get_allocator() == __other.get_allocator(),
+        "violates the mandated swap precondition");
+
+    basic_syncbuf __tmp(std::move(__other));
+    __other = std::move(*this);
+    *this   = std::move(__tmp);
+  }
+
+  // [syncstream.syncbuf.members], member functions
+
+  _LIBCPP_HIDE_FROM_ABI bool emit() { return emit(false); }
+
+  _LIBCPP_HIDE_FROM_ABI streambuf_type* get_wrapped() const noexcept { return __wrapped_; }
+
+  _LIBCPP_HIDE_FROM_ABI allocator_type get_allocator() const noexcept { return __str_.get_allocator(); }
+
+  _LIBCPP_HIDE_FROM_ABI void set_emit_on_sync(bool __b) noexcept { __emit_on_sync_ = __b; }
+
+protected:
+  // [syncstream.syncbuf.virtuals], overridden virtual functions
+
+  _LIBCPP_HIDE_FROM_ABI_VIRTUAL
+  int sync() override {
+    if (__emit_on_sync_ && !emit(true))
+      return -1;
+    return 0;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI_VIRTUAL
+  int_type overflow(int_type __c = traits_type::eof()) override {
+    if (traits_type::eq_int_type(__c, traits_type::eof()))
+      return traits_type::not_eof(__c);
+
+    if (this->pptr() == this->epptr()) {
+#  ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+      try {
+#  endif
+        size_t __size = __str_.size();
+        __str_.resize(__str_.capacity() + 1);
+        _LIBCPP_ASSERT_INTERNAL(__str_.size() > __size, "the buffer hasn't grown");
+
+        char_type* __p = static_cast<char_type*>(__str_.data());
+        this->setp(__p, __p + __str_.size());
+        this->pbump(__size);
+
+#  ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+      } catch (...) {
+        return traits_type::eof();
+      }
+#  endif
+    }
+
+    return this->sputc(traits_type::to_char_type(__c));
+  }
+
+private:
+  streambuf_type* __wrapped_;
+
+  // TODO Use a more generic buffer.
+  // That buffer should be light with almost no additional headers. Then
+  // it can be use here, the __retarget_buffer, and place that use
+  // the now deprecated get_temporary_buffer
+
+  basic_string<_CharT, _Traits, _Allocator> __str_;
+  bool __emit_on_sync_{false};
+
+  _LIBCPP_HIDE_FROM_ABI bool emit(bool __flush) {
+    if (!__wrapped_)
+      return false;
+
+#  ifndef _LIBCPP_HAS_NO_THREADS
+    lock_guard<mutex> __lock = __wrapped_streambuf_mutex::__instance().__get_lock(__wrapped_);
+#  endif
+
+    bool __result = true;
+    if (this->pptr() != this->pbase()) {
+      _LIBCPP_ASSERT_INTERNAL(this->pbase() && this->pptr() && this->epptr(), "all put area pointers shold be valid");
+
+      // The __str_ does not know how much of its buffer is used. This
+      // information is extracted from the information of the base class.
+      __result &= (__wrapped_->sputn(this->pbase(), this->pptr() - this->pbase()) != -1);
+      // Clears the buffer, but keeps the contents (and) size of the
+      // internal buffer.
+      this->setp(this->pbase(), this->epptr());
+    }
+
+    if (__flush)
+      __result &= (__wrapped_->pubsync() != -1);
+
+    return __result;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI void __move_common(basic_syncbuf& __other) {
+    // Adjust the put area pointers to our buffer.
+    char_type* __p = static_cast<char_type*>(__str_.data());
+    this->setp(__p, __p + __str_.size());
+    this->pbump(__other.pptr() - __other.pbase());
+
+    // Clear __other_ so the destructor will act as a NOP.
+    __other.setp(nullptr, nullptr);
+    __other.__wrapped_ = nullptr;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI void __inc_reference() {
+#  ifndef _LIBCPP_HAS_NO_THREADS
+    if (__wrapped_)
+      __wrapped_streambuf_mutex::__instance().__inc_reference(__wrapped_);
+#  endif
+  }
+
+  _LIBCPP_HIDE_FROM_ABI void __dec_reference() noexcept {
+#  ifndef _LIBCPP_HAS_NO_THREADS
+    if (__wrapped_)
+      __wrapped_streambuf_mutex::__instance().__dec_reference(__wrapped_);
+#  endif
+  }
+};
+
+using std::syncbuf;
+#  ifndef _LIBCPP_HAS_NO_WIDE_CHARACTERS
+using std::wsyncbuf;
+#  endif
+
+// [syncstream.syncbuf.special], specialized algorithms
+template <class _CharT, class _Traits, class _Allocator>
+_LIBCPP_HIDE_FROM_ABI void
+swap(basic_syncbuf<_CharT, _Traits, _Allocator>& __lhs, basic_syncbuf<_CharT, _Traits, _Allocator>& __rhs) {
+  __lhs.swap(__rhs);
+}
+
+// basic_osyncstream
+
+template <class _CharT, class _Traits, class _Allocator>
+class _LIBCPP_TEMPLATE_VIS basic_osyncstream : public basic_ostream<_CharT, _Traits> {
+public:
+  using char_type   = _CharT;
+  using traits_type = _Traits;
+  using int_type    = typename traits_type::int_type;
+  using pos_type    = typename traits_type::pos_type;
+  using off_type    = typename traits_type::off_type;
+
+  using allocator_type = _Allocator;
+  using streambuf_type = basic_streambuf<char_type, traits_type>;
+  using syncbuf_type   = basic_syncbuf<char_type, traits_type, allocator_type>;
+
+  // [syncstream.osyncstream.cons], construction and destruction
+
+  _LIBCPP_HIDE_FROM_ABI basic_osyncstream(streambuf_type* __obuf, allocator_type const& __alloc)
+      : basic_ostream<_CharT, _Traits>(std::addressof(__sb_)), __sb_(__obuf, __alloc) {}
+
+  _LIBCPP_HIDE_FROM_ABI explicit basic_osyncstream(streambuf_type* __obuf)
+      : basic_osyncstream(__obuf, allocator_type()) {}
+
+  _LIBCPP_HIDE_FROM_ABI basic_osyncstream(basic_ostream<char_type, traits_type>& __os, allocator_type const& __alloc)
+      : basic_osyncstream(__os.rdbuf(), __alloc) {}
+
+  _LIBCPP_HIDE_FROM_ABI explicit basic_osyncstream(basic_ostream<char_type, traits_type>& __os)
+      : basic_osyncstream(__os, allocator_type()) {}
+
+  _LIBCPP_HIDE_FROM_ABI basic_osyncstream(basic_osyncstream&& __other) noexcept
+      : basic_ostream<_CharT, _Traits>(std::addressof(__sb_)), __sb_(std::move(__other.__sb_)) {
+    this->set_rdbuf(std::addressof(__sb_));
+  }
+
+  // [syncstream.osyncstream.assign], assignment
+
+  _LIBCPP_HIDE_FROM_ABI basic_osyncstream& operator=(basic_osyncstream&& __other) = default;
+
+  // [syncstream.osyncstream.members], member functions
+
+  _LIBCPP_HIDE_FROM_ABI void emit() {
+    // The basic_ostream::put places the sentry in a try
+    // catch, this does not match the wording of the standard
+    // [ostream.unformatted]
+    // TODO validate other unformatted output functions.
+    typename basic_ostream<char_type, traits_type>::sentry __s(*this);
+    if (__s) {
+#  ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+      try {
+#  endif
+
+        if (__sb_.emit() == false)
+          this->setstate(ios::badbit);
+#  ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+      } catch (...) {
+        this->__set_badbit_and_consider_rethrow();
+      }
+#  endif
+    }
+  }
+
+  _LIBCPP_HIDE_FROM_ABI streambuf_type* get_wrapped() const noexcept { return __sb_.get_wrapped(); }
+
+  _LIBCPP_HIDE_FROM_ABI syncbuf_type* rdbuf() const noexcept {
+    return const_cast<syncbuf_type*>(std::addressof(__sb_));
+  }
+
+private:
+  syncbuf_type __sb_;
+};
+
+using std::osyncstream;
+#  ifndef _LIBCPP_HAS_NO_WIDE_CHARACTERS
+using std::wosyncstream;
+#  endif
+
+#endif // _LIBCPP_STD_VER >= 20 && !defined(_LIBCPP_HAS_NO_EXPERIMENTAL_SYNCSTREAM)
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#endif // _LIBCPP_SYNCSTREAM

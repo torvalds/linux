@@ -1,0 +1,434 @@
+.\"	$OpenBSD: mount.2,v 1.53 2025/08/06 13:23:27 schwarze Exp $
+.\"	$NetBSD: mount.2,v 1.12 1996/02/29 23:47:48 jtc Exp $
+.\"
+.\" Copyright (c) 1980, 1989, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mount.2	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: August 6 2025 $
+.Dt MOUNT 2
+.Os
+.Sh NAME
+.Nm mount ,
+.Nm unmount
+.Nd mount or dismount a filesystem
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/mount.h
+.Ft int
+.Fn mount "const char *type" "const char *dir" "int flags" "void *data"
+.Ft int
+.Fn unmount "const char *dir" "int flags"
+.Sh DESCRIPTION
+The
+.Fn mount
+function grafts
+a filesystem object onto the system file tree
+at the point
+.Fa dir .
+The argument
+.Fa data
+describes the filesystem object to be mounted.
+The argument
+.Fa type
+tells the kernel how to interpret
+.Fa data
+(see
+.Fa type
+below).
+The contents of the filesystem
+become available through the new mount point
+.Fa dir .
+Any files in
+.Fa dir
+at the time
+of a successful mount are swept under the carpet, so to speak, and
+are unavailable until the filesystem is unmounted.
+.Pp
+The following
+.Fa flags
+may be specified to
+suppress default semantics which affect filesystem access.
+.Bl -tag -width MNT_SYNCHRONOUS
+.It Dv MNT_RDONLY
+The filesystem should be treated as read-only:
+even the superuser may not write to it.
+.It Dv MNT_NOATIME
+Do not update the access time on files in the filesystem unless
+the modification or status change times are also being updated.
+.It Dv MNT_NOEXEC
+Do not allow files to be executed from the filesystem.
+.It Dv MNT_NOSUID
+Do not honor setuid or setgid bits on files when executing them.
+.It Dv MNT_NODEV
+Do not interpret special files on the filesystem.
+.It Dv MNT_SYNCHRONOUS
+All I/O to the filesystem should be done synchronously.
+.It Dv MNT_ASYNC
+All I/O to the filesystem should be done asynchronously.
+.It Dv MNT_SOFTDEP
+Use soft dependencies on an FFS filesystem.
+This flag is provided for compatibility only and has no effect on
+.Ox .
+.It Dv MNT_WXALLOWED
+Processes that ask for memory to be made writeable plus executable
+using the
+.Xr mmap 2
+and
+.Xr mprotect 2
+system calls are killed by default.
+This option allows those processes to continue operation.
+The option is typically used on the
+.Pa /usr/local
+filesystem.
+.El
+.Pp
+The flag
+.Dv MNT_UPDATE
+indicates that the mount command is being applied
+to an already mounted filesystem.
+This allows the mount flags to be changed without requiring
+that the filesystem be unmounted and remounted.
+Some filesystems may not allow all flags to be changed.
+For example,
+most filesystems will not allow a change from read-write to read-only.
+.Pp
+The
+.Fa type
+argument defines the type of the filesystem.
+The types of filesystems known to the system are defined in
+.In sys/mount.h .
+.Fa data
+is a pointer to a structure that contains the type
+specific arguments to mount.
+The currently supported types of filesystems and
+their type specific data are:
+.Pp
+.Dv MOUNT_CD9660
+.Bd -literal -offset indent -compact
+struct iso_args {
+    char	*fspec;	    /* block special device to mount */
+    struct	export_args export_info;
+    			    /* network export info */
+    int	flags;		    /* mounting flags, see below */
+};
+#define	ISOFSMNT_NORRIP	  0x00000001 /* disable Rock Ridge Ext.*/
+#define	ISOFSMNT_GENS	  0x00000002 /* enable generation numbers */
+#define	ISOFSMNT_EXTATT	  0x00000004 /* enable extended attributes */
+#define	ISOFSMNT_NOJOLIET 0x00000008 /* disable Joliet Ext.*/
+#define	ISOFSMNT_SESS	  0x00000010 /* use iso_args.sess */
+.Ed
+.Pp
+.Dv MOUNT_FFS
+.Bd -literal -offset indent -compact
+struct ufs_args {
+      char      *fspec;             /* block special file to mount */
+      struct    export_args export_info;
+      				    /* network export information */
+};
+.Ed
+.Pp
+.Dv MOUNT_MFS
+.Bd -literal -offset indent -compact
+struct mfs_args {
+      char	*fspec;             /* name to export for statfs */
+      struct	export_args export_info;
+      				    /* if we can export an MFS */
+      caddr_t	base;               /* base of filesystem in mem */
+      u_long	size;               /* size of filesystem */
+};
+.Ed
+.Pp
+.Dv MOUNT_MSDOS
+.Bd -literal -offset indent -compact
+struct msdosfs_args {
+	char	*fspec;	   /* blocks special holding fs to mount */
+	struct	export_args export_info;
+			   /* network export information */
+	uid_t	uid;	   /* uid that owns msdosfs files */
+	gid_t	gid;	   /* gid that owns msdosfs files */
+	mode_t  mask;	   /* mask to be applied for msdosfs perms */
+	int	flags;	   /* see below */
+};
+
+/*
+ * Msdosfs mount options:
+ */
+#define	MSDOSFSMNT_SHORTNAME 1  /* Force old DOS short names only */
+#define	MSDOSFSMNT_LONGNAME  2  /* Force Win'95 long names */
+#define	MSDOSFSMNT_NOWIN95   4  /* Completely ignore Win95 entries */
+.Ed
+.Pp
+.Dv MOUNT_NFS
+.Bd -literal -offset indent -compact
+struct nfs_args {
+      int	version;	/* args structure version */
+      struct sockaddr *addr;	/* file server address */
+      int	addrlen;	/* length of address */
+      int	sotype;       	/* Socket type */
+      int	proto;        	/* and Protocol */
+      u_char	*fh;          	/* File handle to be mounted */
+      int	fhsize;       	/* Size, in bytes, of fh */
+      int	flags;        	/* flags */
+      int	wsize;        	/* write size in bytes */
+      int	rsize;        	/* read size in bytes */
+      int	readdirsize;  	/* readdir size in bytes */
+      int	timeo;        	/* initial timeout in .1 secs */
+      int	retrans;      	/* times to retry send */
+      int	maxgrouplist; 	/* Max. size of group list */
+      int	readahead;    	/* # of blocks to readahead */
+      int	leaseterm;    	/* Term (sec) of lease */
+      int	deadthresh;   	/* Retrans threshold */
+      char	*hostname;    	/* server's name */
+      int	acregmin;     /* Attr cache file recently modified */
+      int	acregmax;     	/* ac file not recently modified */
+      int	acdirmin;     	/* ac for dir recently modified */
+      int	acdirmax;     /* ac for dir not recently modified */
+};
+.Ed
+.Pp
+.Dv MOUNT_NTFS
+.Bd -literal -offset indent -compact
+struct ntfs_args {
+        char    *fspec;	/* block special device to mount */
+        struct  export_args export_info;
+			/* network export information */
+        uid_t   uid;	/* uid that owns ntfs files */
+        gid_t   gid;	/* gid that owns ntfs files */
+        mode_t  mode;	/* mask to be applied for ntfs perms */
+        u_long  flag;	/* additional flags */
+};
+
+/*
+ * ntfs mount options:
+ */
+#define     NTFS_MFLAG_CASEINS      0x00000001
+#define     NTFS_MFLAG_ALLNAMES     0x00000002
+.Ed
+.Pp
+.Dv MOUNT_UDF
+.Bd -literal -offset indent -compact
+struct udf_args {
+	char	*fspec;	/* block special device to mount */
+};
+.Ed
+.Pp
+The
+.Fn unmount
+function call disassociates the filesystem from the specified
+mount point
+.Fa dir .
+.Pp
+The
+.Fa flags
+argument may specify
+.Dv MNT_FORCE
+to specify that the filesystem should be forcibly unmounted even if files are
+still active.
+Active special devices continue to work,
+but any further accesses to any other active files result in errors
+even if the filesystem is later remounted.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn mount
+will fail when one of the following occurs:
+.Bl -tag -width [ENAMETOOLONG]
+.It Bq Er EPERM
+The caller is not the superuser.
+.It Bq Er ENAMETOOLONG
+The pathname exceeded
+.Dv MNAMELEN
+characters.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating a pathname.
+.It Bq Er ENOENT
+A component of
+.Fa dir
+does not exist.
+.It Bq Er ENOTDIR
+A component of
+.Fa dir
+is not a directory,
+or a path prefix of
+.Fa fspec
+is not a directory.
+.It Bq Er EINVAL
+An argument given was invalid.
+.It Bq Er EBUSY
+Another process currently holds a reference to
+.Fa dir .
+.It Bq Er EFAULT
+.Fa dir
+points outside the process's allocated address space.
+.It Bq Er EOPNOTSUPP
+.Fa type
+is not supported by the kernel.
+.El
+.Pp
+The following errors can occur for a
+.Dq ufs
+filesystem mount:
+.Bl -tag -width [ENOTBLK]
+.It Bq Er ENODEV
+A component of ufs_args
+.Fa fspec
+does not exist.
+.It Bq Er ENOTBLK
+.Fa fspec
+is not a block device.
+.It Bq Er ENXIO
+The major device number of
+.Fa fspec
+is out of range (this indicates no device driver exists
+for the associated hardware).
+.It Bq Er EBUSY
+.Fa fspec
+is already mounted.
+.It Bq Er EINVAL
+The super block for the filesystem had a bad magic number, an out of range
+block size, or an invalid combination of flags.
+.It Bq Er ENOMEM
+Not enough memory was available to read the cylinder
+group information for the filesystem.
+.It Bq Er EIO
+An I/O error occurred while reading the super block or
+cylinder group information.
+.It Bq Er EFAULT
+.Fa fspec
+points outside the process's allocated address space.
+.It Bq Er EROFS
+The filesystem was not unmounted cleanly and
+.Dv MNT_FORCE
+was not specified.
+.It Bq Er EROFS
+An attempt was made to mount a
+.Bx 4.2
+filesystem without the
+.Dv MNT_RDONLY
+flag.
+.El
+.Pp
+The following errors can occur for an
+.Em NFS
+filesystem mount:
+.Bl -tag -width [ETIMEDOUT]
+.It Bq Er ETIMEDOUT
+.Em NFS
+timed out trying to contact the server.
+.It Bq Er EFAULT
+Some part of the information described by nfs_args
+points outside the process's allocated address space.
+.El
+.Pp
+The following errors can occur for a
+.Em mfs
+filesystem mount:
+.Bl -tag -width [EMFILE]
+.It Bq Er EMFILE
+No space remains in the mount table.
+.It Bq Er EINVAL
+The super block for the filesystem had a bad magic
+number or an out of range block size.
+.It Bq Er ENOMEM
+Not enough memory was available to read the cylinder
+group information for the filesystem.
+.It Bq Er EIO
+A paging error occurred while reading the super block or
+cylinder group information.
+.It Bq Er EFAULT
+.Em Name
+points outside the process's allocated address space.
+.El
+.Pp
+.Fn unmount
+may fail with one of the following errors:
+.Bl -tag -width [ENAMETOOLONG]
+.It Bq Er EPERM
+The caller is not the superuser.
+.It Bq Er ENOTDIR
+A component of the path is not a directory.
+.It Bq Er EINVAL
+An argument given was invalid.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Dv NAME_MAX
+characters, or an entire pathname (including the terminating NUL)
+exceeded
+.Dv PATH_MAX
+bytes.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EINVAL
+The requested directory is not in the mount table.
+.It Bq Er EBUSY
+A process is holding a reference to a file located
+on the filesystem.
+.It Bq Er EIO
+An I/O error occurred while writing cached filesystem information.
+.It Bq Er EFAULT
+.Fa dir
+points outside the process's allocated address space.
+.El
+.Sh SEE ALSO
+.Xr statfs 2 ,
+.Xr mount 8 ,
+.Xr mount_mfs 8 ,
+.Xr umount 8
+.Sh HISTORY
+The
+.Fn mount
+and
+.Fn umount
+system calls first appeared in
+.At v1 ;
+.Fn umount
+was renamed to
+.Fn unmount
+in
+.Bx 4.3 Reno .
+.Pp
+The
+.Fa flags
+argument is supported by
+.Fn mount
+since
+.At v5
+and by
+.Fn unmount
+since
+.Bx 4.3 Reno .
+The current calling convention involving
+.Fa type
+and
+.Fa data
+arguments was introduced by
+.Bx 4.3 Reno
+as well.
+.Sh BUGS
+Some of the error codes need translation to more obvious messages.

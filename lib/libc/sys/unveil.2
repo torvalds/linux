@@ -1,0 +1,176 @@
+.\" $OpenBSD: unveil.2,v 1.22 2021/09/06 08:03:08 deraadt Exp $
+.\"
+.\" Copyright (c) 2018 Bob Beck <beck@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 6 2021 $
+.Dt UNVEIL 2
+.Os
+.Sh NAME
+.Nm unveil
+.Nd unveil parts of a restricted filesystem view
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn unveil "const char *path" "const char *permissions"
+.Sh DESCRIPTION
+The first call to
+.Fn unveil
+that specifies a
+.Fa path
+removes visibility of the entire filesystem from all other
+filesystem-related system calls (such as
+.Xr open 2 ,
+.Xr chmod 2
+and
+.Xr rename 2 ) ,
+except for the specified
+.Fa path
+and
+.Fa permissions .
+.Pp
+The
+.Fn unveil
+system call remains capable of traversing to any
+.Fa path
+in the filesystem, so additional calls can set permissions at other
+points in the filesystem hierarchy.
+.Pp
+After establishing a collection of
+.Fa path
+and
+.Fa permissions
+rules, future calls to
+.Fn unveil
+can be disabled by passing two
+.Dv NULL
+arguments.
+Alternatively,
+.Xr pledge 2
+may be used to remove the
+.Qq unveil
+promise.
+.Pp
+The
+.Fa permissions
+argument points to a string consisting of zero or more of the following
+characters:
+.Pp
+.Bl -tag -width "XXXX" -offset indent -compact
+.It Cm r
+Make
+.Fa path
+available for read operations, corresponding to the
+.Xr pledge 2
+promise
+.Qq rpath .
+.It Cm w
+Make
+.Fa path
+available for write operations, corresponding to the
+.Xr pledge 2
+promise
+.Qq wpath .
+.It Cm x
+Make
+.Fa path
+available for execute operations, corresponding to the
+.Xr pledge 2
+promise
+.Qq exec .
+.It Cm c
+Allow
+.Fa path
+to be created and removed, corresponding to the
+.Xr pledge 2
+promise
+.Qq cpath .
+.El
+.Pp
+A
+.Fa path
+that is a directory will enable all filesystem access underneath
+.Fa path
+using
+.Fa permissions
+if and only if no more specific matching
+.Fn unveil
+exists at a lower level.
+Directories are remembered at the time of a call to
+.Fn unveil .
+This means that a directory that is removed and recreated after a call to
+.Fn unveil
+will appear to not exist.
+.Pp
+Non-directory paths are remembered by name within their containing
+directory, and so may be created, removed, or re-created after a call to
+.Fn unveil
+and still appear to exist.
+.Pp
+Attempts to access paths not allowed by
+.Fn unveil
+will result in an error of
+.Er EACCES
+when the
+.Fa permissions
+argument does not match the attempted operation.
+.Er ENOENT
+is returned for paths for which no
+.Fn unveil
+permissions qualify.
+After a process has terminated,
+.Xr lastcomm 1
+will mark it with the
+.Sq U
+flag if file access was prevented by
+.Fn unveil .
+.Pp
+.Fn unveil
+use can be tricky because programs misbehave badly when their files
+unexpectedly disappear.
+In many cases it is easier to unveil the directories in which an
+application makes use of files.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er E2BIG
+The addition of
+.Fa path
+would exceed the per-process limit for unveiled paths.
+.It Bq Er EFAULT
+.Fa path
+or
+.Fa permissions
+points outside the process's allocated address space.
+.It Bq Er ENOENT
+A directory in
+.Fa path
+did not exist.
+.It Bq Er EINVAL
+An invalid value of
+.Fa permissions
+was used.
+.It Bq Er EPERM
+An attempt to increase permissions was made, or the
+.Fa path
+was not accessible, or
+.Fn unveil
+was called after locking.
+.El
+.Sh HISTORY
+The
+.Fn unveil
+system call first appeared in
+.Ox 6.4 .

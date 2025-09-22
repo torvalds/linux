@@ -1,0 +1,30 @@
+exe cleanup3
+libab cleanup
+exe cleanup2
+libaa cleanup
+exe cleanup1
+finished 0
+
+libaa cleanup
+libab cleanup
+exe cleanup3
+exe cleanup2
+exe cleanup1
+finished 1
+
+exe cleanup3
+libab cleanup
+exe cleanup_dlclose begin
+libaa cleanup
+exe cleanup_dlclose end
+exe cleanup1
+finished 2
+
+exe cleanup_dlclose begin
+libaa cleanup
+libab cleanup
+exe cleanup_dlclose end
+exe cleanup2
+exe cleanup1
+finished 3
+

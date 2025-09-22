@@ -1,0 +1,56 @@
+.\"	$OpenBSD: dwmshc.4,v 1.1 2023/04/19 00:07:21 dlg Exp $
+.\"
+.\" Copyright (c) 2023 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 19 2023 $
+.Dt DWMSHC 4
+.Os
+.Sh NAME
+.Nm dwmshc
+.Nd Synopsys DesignWare Mobile Storage Host Controller
+.Sh SYNOPSIS
+.Cd "dwmshc* at fdt?"
+.Cd "sdmmc* at dwmshc?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Synopsys DesignWare Mobile Storage
+Host Controller core.
+This core is used on the Rockchip RK3566 and RK3568
+.\" and RK3588
+SoCs as the eMMC controller.
+.Pp
+The Synopsys DesignWare Mobile Storage Host Controller core implements
+the SD Host Controller Standard Simplified Specification, but
+requires non-standard support for high clock rates.
+.\" The
+.\" .Nm
+.\" driver is a wrapper around the
+.\" .Xr sdhc 4
+.\" driver.
+.Pp
+The
+.Xr sdmmc 4
+subsystem performs SD/MMC transactions to communicate with the
+MMC/SD/SDIO devices connected to the controller.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sdhc 4 ,
+.Xr sdmmc 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.4 .

@@ -1,0 +1,42 @@
+static_library("Core") {
+  output_name = "LLVMBOLTCore"
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [
+    "//bolt/lib/Utils",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/utils/gn/build/libs/pthread",
+  ]
+  sources = [
+    "AddressMap.cpp",
+    "BinaryBasicBlock.cpp",
+    "BinaryContext.cpp",
+    "BinaryData.cpp",
+    "BinaryEmitter.cpp",
+    "BinaryFunction.cpp",
+    "BinaryFunctionCallGraph.cpp",
+    "BinaryFunctionProfile.cpp",
+    "BinarySection.cpp",
+    "CallGraph.cpp",
+    "CallGraphWalker.cpp",
+    "DIEBuilder.cpp",
+    "DebugData.cpp",
+    "DebugNames.cpp",
+    "DynoStats.cpp",
+    "Exceptions.cpp",
+    "FunctionLayout.cpp",
+    "GDBIndex.cpp",
+    "HashUtilities.cpp",
+    "JumpTable.cpp",
+    "MCPlusBuilder.cpp",
+    "ParallelUtilities.cpp",
+    "Relocation.cpp",
+  ]
+}

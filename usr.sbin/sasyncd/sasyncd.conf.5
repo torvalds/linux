@@ -1,0 +1,194 @@
+.\" $OpenBSD: sasyncd.conf.5,v 1.20 2021/02/01 16:39:50 sthen Exp $
+.\"
+.\" Copyright (c) 2005 Håkan Olsson.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" This code was written under funding by Multicom Security AB.
+.\"
+.\" Manual page for sasyncd.conf
+.\"
+.Dd $Mdocdate: February 1 2021 $
+.Dt SASYNCD.CONF 5
+.Os
+.Sh NAME
+.Nm sasyncd.conf
+.Nd configuration file for sasyncd
+.Sh DESCRIPTION
+.Nm
+is the configuration file for the
+.Xr sasyncd 8
+daemon.
+.Pp
+The current line can be extended over multiple lines using a backslash
+.Pq Sq \e .
+Comments can be put anywhere in the file using a hash mark
+.Pq Sq # ,
+and extend to the end of the current line.
+Care should be taken when commenting out multi-line text:
+the comment is effective until the end of the entire block.
+.Pp
+Since the file contains the shared secret key used to encrypt data
+between this host and the others,
+.Pa /etc/sasyncd.conf
+must be owned either by
+.Dq root
+or the
+.Dq _isakmpd
+pseudo user and be readable only by this owner, e.g.\&
+.Bd -literal -offset indent
+# chown root /etc/sasyncd.conf
+# chmod 0600 /etc/sasyncd.conf
+.Ed
+.Pp
+The following configuration settings are understood:
+.Bl -tag -width Ds
+.It Xo
+.Ic interface
+.Ar interface
+.Xc
+Specify which
+.Xr carp 4
+interface
+.Xr sasyncd 8
+should track master/slave state on.
+.It Xo
+.Ic group
+.Ar group
+.Xc
+Specify on which interface group
+.Xr sasyncd 8
+should increase the demotion counter.
+This has the effect of suppressing
+.Xr carp 4
+preemption while initial
+.Xr sasyncd 8
+state is established.
+The default is to use the
+.Dq carp
+group.
+.Pp
+For more information on interface groups,
+see the
+.Ic group
+keyword in
+.Xr ifconfig 8 .
+.It Ic flushmode sync | startup | never
+Controls how the
+.Xr sasyncd 8
+master host handles SADB_FLUSH messages to its slaves.
+.Pp
+.Bl -tag -width "startupXX" -offset indent -compact
+.It Ic sync
+Pass any SADB_FLUSH messages along.
+For example, in this mode
+.Xr sasyncd 8
+will synchronize an
+.Ic ipsecctl -F
+command to all connected slaves.
+For more information, see
+.Xr ipsecctl 8 .
+.It Ic startup
+Send a SADB_FLUSH message to the slaves as they connect, and act as
+.Ic sync
+afterwards.
+This is the default.
+.It Ic never
+Never send SADB_FLUSH messages.
+.El
+.It Xo
+.Ic listen on Ar address
+.Op Ar family
+.Op Ic port Ar port
+.Xc
+Specify a local IP address, hostname, or interface the
+.Xr sasyncd 8
+daemon should listen on.
+The default is to listen on all local addresses.
+When using an interface name,
+.Ar family
+may be given as
+.Dq inet
+or
+.Dq inet6
+to only bind using the specified address family.
+Finally,
+.Ar port
+can be used to specify which TCP port
+.Xr sasyncd 8
+should listen to.
+The default is to listen to port 500.
+.It Ic mode master | slave
+Force the daemon to run as master or slave.
+Normally only intended for debugging use.
+.It Ic mode skipslave
+Prevent the daemon from syncing SA or SPD messages where the source or
+destination address is one of the configured peers.
+Intended to permit IPsec
+.Xr pfsync 4
+protection.
+This mode is experimental.
+.It Ic peer Ar address
+Specify a
+.Xr sasyncd 8
+peer IP address or hostname.
+May be specified multiple times.
+For example:
+.Bd -literal -offset indent
+peer 10.0.0.2
+peer 10.0.0.3
+peer 10.0.0.4
+.Ed
+.It Ic sharedkey Ar key
+The shared AES key used to encrypt messages between
+.Xr sasyncd 8
+hosts.
+This configuration setting is required and must be either 16, 24 or 32
+bytes long (corresponding to AES using a 128, 192 or 256 bit key).
+.It Ic control isakmpd | iked | all | none
+By default,
+.Xr sasyncd 8
+tracks its local master/slave mode and toggles the passive mode of
+.Xr isakmpd 8
+accordingly.
+This option can be changed to control
+.Xr iked 8
+instead,
+to control all supported daemons at the same time,
+or to turn it off to synchronize SAs only.
+.El
+.Sh FILES
+.Bl -tag -width /etc/examples/sasyncd.conf -compact
+.It Pa /etc/sasyncd.conf
+.It Pa /etc/examples/sasyncd.conf
+.El
+.Sh SEE ALSO
+.Xr chmod 1 ,
+.Xr carp 4 ,
+.Xr chown 8 ,
+.Xr ipsecctl 8 ,
+.Xr sasyncd 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 3.8 .

@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Concepts</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Concepts</h1>
+
+    <h2><a name="concepts_find_and_range_iterators" id=
+    "concepts_find_and_range_iterators">Point and Range Methods and
+    Iterators</a></h2>
+
+    <p>A point-type iterator is an iterator that refers to a
+    specific element, <i>e.g.</i> as returned through an
+    associative-container's <tt>find</tt> method; a range-type
+    iterator is an iterator that is used to go over a sequence of
+    elements, <i>e.g.</i>, as returned by a container's
+    <tt>find</tt> method. A point-type method is a method that
+    returns a point-type iterator; a range-type method is a method
+    that returns a range-type iterator.</p>
+
+    <p>For most containers, these types are synonymous; for
+    self-organizing containers, such as hash-based containers or
+    priority queues, these are inherently different (in any
+    implementation, including that of the STL), but in
+    <tt>pb_ds</tt> this is made explicit - they are distinct
+    types.</p>
+
+ 
+    <h2><a name="invalidation_guarantees" id=
+    "invalidation_guarantees">Invalidation Guarantees</a></h2>
+
+    <p>If one manipulates a container object, then iterators
+    previously obtained from it can be invalidated. In some cases a
+    previously-obtained iterator cannot be de-referenced; in other
+    cases, the iterator's next or previous element might have
+    changed unpredictably. This corresponds exactly to the question
+    whether a point-type or range-type iterator (see previous
+    concept) is valid or not. In <tt>pb_ds</tt> one can query a
+    container (in compile time) what are its invalidation
+    guarantees.</p>
+
+     <h2><a name="prm_sec" id="prm_sec">Primary and Secondary Keys
+    and Associative Containers</a></h2>
+
+    <p>In <tt>pb_ds</tt> there are no associative containers which
+    allow multiple values with equivalent keys (such as the STL's
+    <tt>std::multimap</tt>, for example). Instead, one maps the
+    unique part of a key - the primary key, into an
+    associative-container of the (originally) non-unique parts of
+    the key - the secondary key. A primary associative-container is
+    an associative container of primary keys; a secondary
+    associative-container is an associative container of secondary
+    keys.</p>
+
+ 
+    <h2><a name="concepts_null_policies" id=
+    "concepts_null_policies">Null Policy Classes</a></h2>
+
+    <p>Associative containers are typically parametrized by
+    various policies. For example, a hash-based associative
+    container is parametrized by a hash-functor, transforming each
+    key into an non-negative numerical type. Each such value is
+    then further mapped into a position within the table. The
+    mapping of a key into a position within the table is therefore
+    a two-step process.</p>
+
+    <p>In some cases, instantiations are <i>redundant</i>. For
+    example, when the keys are integers, it is possible to use a
+    <i>redundant</i> hash policy, which transforms each key into
+    its value.</p>
+
+    <p>In some other cases, these policies are <i>irrelevant</i>.
+    For example, a hash-based associative container might transform
+    keys into positions within a table by a different method than
+    the two-step method described above. In such a case, the hash
+    functor is simply irrelevant.</p>
+
+    <p><tt>pb_ds</tt> uses special pre-defined "null policies"
+    classes for these cases. Some null policies in <tt>pb_ds</tt>
+    are:</p>
+
+    <ol>
+      <li><a href=
+      "null_mapped_type.html"><tt>null_mapped_type</tt></a></li>
+
+      <li><a href=
+      "null_tree_node_update.html"><tt>null_tree_node_update</tt></a></li>
+
+      <li><a href=
+      "null_trie_node_update.html"><tt>null_trie_node_update</tt></a></li>
+
+      <li><a href=
+      "null_hash_fn.html"><tt>null_hash_fn</tt></a></li>
+
+      <li><a href=
+      "null_probe_fn.html"><tt>null_probe_fn</tt></a></li>
+    </ol>
+
+    <p>A "set" in <tt>pb_ds</tt>, for example, is an associative
+    container with its <tt>Data_Parameter</tt> instantiated by
+    <a href="null_mapped_type.html"><tt>null_mapped_type</tt></a>.
+    <a href=
+    "tree_based_containers.html#invariants">Design::Tree-Based
+    Containers::Node Invariants</a> explains another case where a
+    null policy is needed.</p>
+  </div>
+</body>
+</html>

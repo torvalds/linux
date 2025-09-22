@@ -1,0 +1,108 @@
+# CHECK: -- Testing:{{.*}}
+# CHECK-NEXT: PASS: shtest-if-else :: test.txt (1 of 1)
+#      CHECK: Command Output (stdout):
+# CHECK-NEXT: --
+
+# RUN: %if feature %{ echo "test-1" %}
+#      CHECK: # {{RUN}}: at line [[#@LINE-1]]
+# CHECK-NEXT: echo "test-1"
+
+# If %else is not present it is treated like %else %{%}. Empty commands
+# are ignored.
+#
+# RUN: %if nofeature %{ echo "fail" %}
+#     CHECK: # {{RUN}}: at line [[#@LINE-1]] has no command after substitutions
+# CHECK-NOT: fail
+
+# RUN: %if nofeature %{ echo "fail" %} %else %{ echo "test-2" %}
+#      CHECK: # {{RUN}}: at line [[#@LINE-1]]
+# CHECK-NEXT: echo "test-2"
+
+# Spaces inside curly braces are not ignored
+#
+# RUN: echo test-%if feature %{ 3 %} %else %{ fail %}-test
+# RUN: echo test-%if feature %{ 4 4 %} %else %{ fail %}-test
+# RUN: echo test-%if nofeature %{ fail %} %else %{ 5 5 %}-test
+#      CHECK: # {{RUN}}: at line [[#@LINE-3]]
+# CHECK-NEXT: echo test- 3 -test
+#      CHECK: # {{RUN}}: at line [[#@LINE-4]]
+# CHECK-NEXT: echo test- 4 4 -test
+#      CHECK: # {{RUN}}: at line [[#@LINE-5]]
+# CHECK-NEXT: echo test- 5 5 -test
+
+# Escape line breaks for multi-line expressions
+#
+# RUN: %if feature  \
+# RUN:   %{ echo     \
+# RUN:     "test-5" \
+# RUN:   %}
+#      CHECK: # {{RUN}}: at line [[#@LINE-4]]
+# CHECK-NEXT: echo "test-5"
+
+# RUN: %if nofeature       \
+# RUN:   %{ echo "fail" %}   \
+# RUN: %else               \
+# RUN:   %{ echo "test-6" %}
+#      CHECK: # {{RUN}}: at line [[#@LINE-4]]
+# CHECK-NEXT: echo "test-6"
+
+# RUN: echo "test%if feature %{%} %else %{%}-7"
+#      CHECK: # {{RUN}}: at line [[#@LINE-1]]
+# CHECK-NEXT: echo "test-7"
+
+# Escape %if. Without %if..%else context '%{' and '%}' are treated
+# literally.
+#
+# RUN: echo %%if feature %{ echo "test-8" %}
+#      CHECK: # {{RUN}}: at line [[#@LINE-1]]
+# CHECK-NEXT: echo %if feature %{ echo "test-8" %}
+
+# Nested expressions are supported:
+#
+# RUN: echo %if feature %{ %if feature %{ %if nofeature %{"fail"%} %else %{"test-9"%} %} %}
+#      CHECK: # {{RUN}}: at line [[#@LINE-1]]
+# CHECK-NEXT: echo "test-9"
+
+# Binary expression evaluation and regex match can be used as
+# conditions.
+#
+# RUN: echo %if feature && !nofeature %{ "test-10" %}
+# RUN: echo %if feature && nofeature %{ "fail" %} %else %{ "test-11" %}
+# RUN: echo %if {{fea.+}} %{ "test-12" %} %else %{ "fail" %}
+#      CHECK: # {{RUN}}: at line [[#@LINE-3]]
+# CHECK-NEXT: echo "test-10"
+#      CHECK: # {{RUN}}: at line [[#@LINE-4]]
+# CHECK-NEXT: echo "test-11"
+#      CHECK: # {{RUN}}: at line [[#@LINE-5]]
+# CHECK-NEXT: echo "test-12"
+
+# Spaces between %if and %else are ignored. If there is no %else -
+# space after %if %{...%} is not ignored.
+#
+# RUN: echo XX %if feature %{YY%} ZZ
+# RUN: echo AA %if feature %{BB%} %else %{CC%} DD
+# RUN: echo AA %if nofeature %{BB%} %else %{CC%} DD
+#      CHECK: # {{RUN}}: at line [[#@LINE-3]]
+# CHECK-NEXT: echo XX YY ZZ
+#      CHECK: # {{RUN}}: at line [[#@LINE-4]]
+# CHECK-NEXT: echo AA BB DD
+#      CHECK: # {{RUN}}: at line [[#@LINE-5]]
+# CHECK-NEXT: echo AA CC DD
+
+# '{' and '}' can be used without escaping
+#
+# RUN: %if feature %{echo {}%}
+#      CHECK: # {{RUN}}: at line [[#@LINE-1]]
+# CHECK-NEXT: echo {}
+
+# Spaces are not required
+#
+# RUN: echo %if feature%{"ok"%}%else%{"fail"%}
+#      CHECK: # {{RUN}}: at line [[#@LINE-1]]
+# CHECK-NEXT: echo "ok"
+
+# Substitutions with braces are handled correctly
+#
+# RUN: echo %{sub} %if feature%{test-%{sub}%}%else%{"fail"%}
+#      CHECK: # {{RUN}}: at line [[#@LINE-1]]
+# CHECK-NEXT: echo ok test-ok

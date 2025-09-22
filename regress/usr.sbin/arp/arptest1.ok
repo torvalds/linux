@@ -1,0 +1,4 @@
+Host                                 Ethernet Address    Netif Expire    Flags
+192.0.2.1                            fe:e1:ba:d2:a3:18 vether10001 permanent l
+192.0.2.42                           00:90:27:bb:cc:dd vether10001 static    
+192.0.2.42                           fe:88:33:11:bb:aa vether10001 static    p

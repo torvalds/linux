@@ -1,0 +1,233 @@
+.\" $OpenBSD: wsmouse.4,v 1.25 2025/08/16 11:28:25 matthieu Exp $
+.\" $NetBSD: wsmouse.4,v 1.3 1999/12/06 14:52:08 augustss Exp $
+.\"
+.\" Copyright (c) 2018 Ulf Brosziewski <bru@openbsd.org>
+.\" Copyright (c) 1999
+.\" 	Matthias Drochner.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 16 2025 $
+.Dt WSMOUSE 4
+.Os
+.Sh NAME
+.Nm wsmouse
+.Nd generic mouse support in wscons
+.Sh SYNOPSIS
+.Cd "wsmouse* at ..."
+.Sh DESCRIPTION
+The
+.Nm
+driver is an abstraction layer for mice and other pointing devices within the
+.Xr wscons 4
+framework.
+It is attached to the hardware specific drivers and
+provides a character device interface which returns
+.Fa struct wscons_event
+via
+.Xr read 2 .
+For use with X servers,
+.Dq mouse events
+or
+.Dq touch events
+can be generated.
+.Pp
+The
+.Nm
+driver provides a number of ioctl functions to control various parameters (see
+.Pa /usr/include/dev/wscons/wsconsio.h ) .
+The
+.Xr wsconsctl 8
+utility gives access to these variables.
+.Pp
+Touchpad input is processed in one of two modes:
+In
+.Dq absolute mode ,
+the
+.Nm
+driver generates touch events.
+Absolute mode is activated by
+.Xr synaptics 4 .
+In
+.Dq compatibility mode ,
+which is the default,
+.Nm
+converts the input internally and generates mouse events.
+.Xr wsconsctl 8
+can query and set several configuration parameters for this mode.
+The composite field names have the form
+.Cm mouse Ns Oo Ar N Oc . Ns Cm tp . Ns Ar field
+where
+.Ar N
+is the index of the
+.Nm
+device.
+If
+.Ar N
+is omitted, commands apply to
+.Pa /dev/wsmouse0 .
+.Bl -tag -width Ds
+.It Cm mouse.reverse_scrolling
+Reverse direction of scrolling.
+.It Cm mouse.scaling
+The value is a scale coefficient that is applied to the relative
+coordinates.
+It determines the base speed of the pointer.
+.It Cm mouse.tp.tapping
+Contacts on the touchpad that are immediately released again can
+be mapped to mouse button clicks.
+This list of three parameters configures these mappings, in the order:
+.Bd -literal -offset indent
+.Sm off
+.Ar one-finger , two-finger , three-finger
+.Sm on
+.Ed
+.Pp
+Setting a parameter to a positive value enables that tap gesture
+and maps it to the given mouse button.
+To disable all three tap gestures at once, provide the single value of 0.
+Conversely, a single non-zero value will enable one-finger, two-finger, and
+three-finger tap gestures with their default mappings of left
+button, right button, and middle button, respectively.
+If, within a short time interval, a second touch follows a tap gesture
+mapped to a left-button click, the button-up event is not issued
+until that touch ends
+.Pq Dq tap-and-drag .
+.It Cm mouse.tp.mtbuttons
+This feature is supported for some clickpads.
+If enabled, two-finger clicks - with the fingers side by side - generate
+left-button events, and three-finger clicks generate middle-button events.
+.It Cm mouse.tp.swapsides
+If this parameter has a non-zero value, the order of software
+button areas is inverted.
+If edge scrolling is enabled, the scroll area is set up at the left
+edge of the touchpad.
+.It Cm mouse.tp.disable
+A non-zero value disables pointer movement, tapping, and scrolling.
+Software buttons (and external physical buttons) will work as usual.
+.It Cm mouse.tp.edges
+This field contains a list of four values that define the relative
+sizes of the edge areas, in the order:
+.Bd -literal -offset indent
+.Sm off
+.Ar top , right , bottom , left
+.Sm on
+.Ed
+.Pp
+The unit is percent of the total height of the touchpad surface, or
+of its total width, respectively.
+In order to mitigate the effects of accidental touches, the driver
+ignores most types of input from an edge area (see below).
+If an edge area contains software buttons, they fill up the space
+provided.
+.El
+.Pp
+The automatic configuration enables two-finger scrolling and sets up
+edge areas at the vertical edges.
+On clickpads - where the device surface serves as a single, large
+button - it provides three software button areas at the bottom edge,
+for left-button, middle-button, and right-button clicks.
+On some laptops with a trackpoint, the software buttons are at the
+top edge.
+Vertical edge scrolling will be enabled on older touchpads that do not
+report contact counts.
+.Pp
+A touch that starts and remains in an edge area does not trigger pointer
+movement.
+At the vertical edges and the top edge, tapping and two-finger scrolling
+require that at least one touch is in the main area of the touchpad (the
+exact behaviour of a single-touch device depends on its firmware in this
+case).
+When multi-touch input is available, a touch is ignored if it rests in
+the bottom area while there are other inputs - movement, scrolling, or
+tapping -, and the driver continues to ignore it as long as and whenever
+other touches are present.
+.Ss Ioctls
+The following
+.Xr ioctl 2
+calls are provided by the
+.Nm
+driver or by devices which use it.
+Their definitions are found in
+.Pa dev/wscons/wsconsio.h .
+.Bl -tag -width Dv
+.It Dv WSKBDIO_GTYPE
+Get the mouse or device type.
+.It Dv WSMOUSEIO_SRES Pq Vt "int"
+Set the resolution of the pointer.
+Not applicable to all mouse types.
+.It Dv WSMOUSEIO_GCALIBCOORDS, WSMOUSEIO_SCALIBCOORDS Pq Vt "struct wsmouse_calibcoords"
+Get and set device calibration data for touchscreens.
+.It Dv WSMOUSEIO_SETMODE Pq Vt "int"
+Sets the mode of a touchpad device
+.Po Li WSMOUSE_COMPAT
+or
+.Li WSMOUSE_NATIVE Pc
+.It Dv WSMOUSEIO_GETPARAMS, WSMOUSEIO_SETPARAMS Pq Vt "struct wsmouse_parameters"
+Obtain and set various mouse parameters as a key/value set.
+Currently these primarily relate to touchpads.
+The structure
+.Vt struct wsmouse_parameters
+is defined as follows:
+.Bd -literal -offset indent
+struct wsmouse_param {
+	enum wsmousecfg key;
+	int value;
+};
+
+struct wsmouse_parameters {
+	struct wsmouse_param *params;
+	unsigned int nparams;
+};
+.Ed
+.Pp
+The number of parameters to read or write must be specified in
+.Va nparams .
+For each parameter, when
+.Dv WSMOUSEIO_GETPARAMS 
+is used, a key must be specified.
+When
+.Dv WSMOUSEIO_SETPARAMS
+is used, a key and a value must be specified.
+A single ioctl may retrieve up to
+.Dv WSMOUSECFG_MAX
+.Va nparams .
+.El
+.Sh FILES
+.Bl -tag -width /usr/include/dev/wscons/wsconsio.h -compact
+.It Pa /dev/wsmouse*
+.It Pa /usr/include/dev/wscons/wsconsio.h
+.El
+.Sh SEE ALSO
+.Xr ams 4 ,
+.Xr hilms 4 ,
+.Xr intro 4 ,
+.Xr lms 4 ,
+.Xr mms 4 ,
+.Xr pms 4 ,
+.Xr ubcmtp 4 ,
+.Xr ums 4 ,
+.Xr utpms 4 ,
+.Xr wscons 4 ,
+.Xr wsmux 4 ,
+.Xr wsconsctl 8 ,
+.Xr wsmoused 8

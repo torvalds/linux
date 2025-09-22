@@ -1,0 +1,6 @@
+interval:hz:100
+{
+	printf("%d %s %d %s %d %s %d %s %d %s\n",
+	       arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+	exit();
+}

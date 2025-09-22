@@ -1,0 +1,249 @@
+.\" $OpenBSD: OBJ_create.3,v 1.11 2025/06/08 22:37:23 schwarze Exp $
+.\" full merge up to:
+.\" OpenSSL OBJ_nid2obj.pod 9b86974e Aug 17 15:21:33 2015 -0400
+.\" selective merge up to:
+.\" OpenSSL OBJ_nid2obj.pod 0c5bc96f Mar 15 13:57:22 2022 +0000
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2017, 2021, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2006 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OBJ_CREATE 3
+.Os
+.Sh NAME
+.Nm OBJ_new_nid ,
+.Nm OBJ_add_object ,
+.Nm OBJ_create ,
+.Nm OBJ_create_objects ,
+.Nm OBJ_cleanup
+.Nd modify the table of ASN.1 object identifiers
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/objects.h
+.Ft int
+.Fn OBJ_new_nid "int increment"
+.Ft int
+.Fn OBJ_add_object "const ASN1_OBJECT *object"
+.Ft int
+.Fo OBJ_create
+.Fa "const char *oid"
+.Fa "const char *sn"
+.Fa "const char *ln"
+.Fc
+.Ft int
+.Fn OBJ_create_objects "BIO *in_bio"
+.Ft void
+.Fn OBJ_cleanup void
+.Sh DESCRIPTION
+.Fn OBJ_new_nid
+returns the smallest currently unassigned ASN.1 numeric
+object identifier (NID) and reserves
+.Fa increment
+consecutive NIDs starting with it.
+Passing an argument of 1 is usually recommended.
+The return value can be assigned to a new object by passing it as the
+.Fa nid
+argument to
+.Xr ASN1_OBJECT_create 3
+and by passing the resulting object to
+.Fn OBJ_add_object .
+.Pp
+.Fn OBJ_add_object
+adds a copy of the
+.Fa object
+to the internal table of ASN.1 object identifiers for use by
+.Xr OBJ_nid2obj 3
+and related functions.
+.Pp
+.Fn OBJ_create
+provides a simpler way to add a new object to the internal table.
+.Fa oid
+is the numerical form of the object,
+.Fa sn
+the short name and
+.Fa ln
+the long name.
+A new NID is automatically assigned using
+.Fn OBJ_new_nid .
+.Pp
+.Fn OBJ_create_objects
+reads text lines of the form
+.Pp
+.D1 Fa oid sn ln
+.Pp
+from
+.Fa in_bio
+and calls
+.Fn OBJ_create oid sn ln
+for every line read.
+The three fields of the input lines
+are separated by one or more whitespace characters.
+.Pp
+For all three functions, the objects added to the internal table and
+all the data contained in them is marked as not dynamically allocated.
+Consequently, retrieving them with
+.Xr OBJ_nid2obj 3
+or a similar function and then calling
+.Xr ASN1_OBJECT_free 3
+on the returned pointer will have no effect.
+.Pp
+.Fn OBJ_cleanup
+resets the internal object table to its default state,
+removing and freeing all objects that were added with
+.Fn OBJ_add_object ,
+.Fn OBJ_create ,
+or
+.Fn OBJ_create_objects .
+.Sh RETURN VALUES
+.Fn OBJ_new_nid
+returns the new NID.
+.Pp
+.Fn OBJ_add_object
+returns the NID of the added
+.Fa object
+or
+.Dv NID_undef
+if no object was added because the
+.Fa object
+argument was
+.Dv NULL ,
+did not contain an NID, or memory allocation failed.
+.Pp
+.Fn OBJ_create
+returns the new NID or
+.Dv NID_undef
+if
+.Fa oid
+is not a valid representation of an object identifier
+or if memory allocation fails.
+.Pp
+.Fn OBJ_create_objects
+returns the number of objects added.
+.Pp
+In some cases of failure of
+.Fn OBJ_add_object ,
+.Fn OBJ_create ,
+and
+.Fn OBJ_create_objects ,
+the reason can be determined with
+.Xr ERR_get_error 3 .
+.Sh EXAMPLES
+Create a new NID and initialize an object from it:
+.Bd -literal -offset indent
+int new_nid;
+ASN1_OBJECT *obj;
+
+new_nid = OBJ_create("1.2.3.4", "NewOID", "New Object Identifier");
+obj = OBJ_nid2obj(new_nid);
+.Ed
+.Sh SEE ALSO
+.Xr ASN1_OBJECT_new 3 ,
+.Xr OBJ_nid2obj 3
+.Sh HISTORY
+.Fn OBJ_new_nid ,
+.Fn OBJ_add_object ,
+and
+.Fn OBJ_cleanup
+first appeared in SSLeay 0.8.0 and
+.Fn OBJ_create
+in SSLeay 0.9.0.
+These functions have been available since
+.Ox 2.4 .
+.Sh CAVEATS
+.Fn OBJ_add_object
+indicates success even after adding an incomplete object that was created with
+.Xr ASN1_OBJECT_create 3
+but lacks a short name, a long name, or an OID.
+.Pp
+Even
+.Fn OBJ_create
+tolerates
+.Dv NULL
+pointers being passed for the
+.Fa sn
+and/or
+.Fa ln
+arguments, in which case
+.Xr OBJ_nid2sn 3
+and
+.Xr OBJ_sn2nid 3
+or
+.Xr OBJ_nid2ln 3
+and
+.Xr OBJ_ln2nid 3
+will not work on the added object, respectively.
+.Sh BUGS
+.Fn OBJ_new_nid
+does not reserve any return value to indicate an error.
+Consequently, to avoid conflicting NID assignments and integer overflows,
+care must be taken to not pass negative, zero, or large arguments to
+.Fn OBJ_new_nid .
+.Pp
+.Fn OBJ_create_objects
+does not distinguish between end of file, I/O errors, temporary
+unavailability of data on a non-blocking BIO, invalid input syntax,
+and memory allocation failure.
+In all these cases, reading is aborted and the number of objects
+that were already added is returned.

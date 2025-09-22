@@ -1,0 +1,225 @@
+.\" $OpenBSD: EVP_PKEY_size.3,v 1.5 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL eed9d03b Jan 8 11:04:15 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2022, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Richard Levitte <levitte@openssl.org>.
+.\" Copyright (c) 2020 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_SIZE 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_size ,
+.Nm EVP_PKEY_bits ,
+.Nm EVP_PKEY_security_bits
+.Nd EVP_PKEY information functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_PKEY_size
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft int
+.Fo EVP_PKEY_bits
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft int
+.Fo EVP_PKEY_security_bits
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_PKEY_size
+returns the maximum size in bytes needed for the output buffer
+for almost any operation that can be done with
+.Fa pkey .
+The primary use is with
+.Xr EVP_SignFinal 3
+and
+.Xr EVP_SealInit 3 .
+The returned size is also large enough for the output buffer of
+.Xr EVP_PKEY_sign 3 ,
+.Xr EVP_PKEY_encrypt 3 ,
+.Xr EVP_PKEY_decrypt 3 ,
+and
+.Xr EVP_PKEY_derive 3 .
+.Pp
+Unless the documentation for the operation says otherwise,
+the size returned by
+.Fn EVP_PKEY_size
+is only an upper limit and the final content of the target
+buffer may be smaller.
+It is therefore crucial to take note of the size given back by the
+function that performs the operation.
+For example,
+.Xr EVP_PKEY_sign 3
+returns that length in the
+.Pf * Fa siglen
+argument.
+.Pp
+Using
+.Fn EVP_PKEY_size
+is discouraged with
+.Xr EVP_DigestSignFinal 3 .
+.Pp
+Most functions using an output buffer support passing
+.Dv NULL
+for the buffer and a pointer to an integer
+to get the exact size that this function call delivers
+in the context that it is called in.
+This allows those functions to be called twice, once to find out the
+exact buffer size, then allocate the buffer in between, and call that
+function again to actually output the data.
+For those functions, it isn't strictly necessary to call
+.Fn EVP_PKEY_size
+to find out the buffer size, but it may still be useful in cases
+where it's desirable to know the upper limit in advance.
+.Pp
+.Fn EVP_PKEY_size
+is supported for the following algorithms:
+.Bl -column ED25519 "EVP_MAX_BLOCK_LENGTH = 32"
+.It        Ta same result as from:
+.It CMAC   Ta Dv EVP_MAX_BLOCK_LENGTH No = 32
+.It DH     Ta Xr DH_size 3
+.It DSA    Ta Xr DSA_size 3
+.It EC     Ta Xr ECDSA_size 3
+.It ED25519 Ta 64, but see below
+.It HMAC   Ta Dv EVP_MAX_MD_SIZE No = 64
+.It RSA    Ta Xr RSA_size 3
+.It X25519 Ta Dv X25519_KEYLEN No = 32
+.El
+.Pp
+For
+.Dv EVP_PKEY_ED25519 ,
+the situation is special: while the key size is
+.Dv ED25519_KEYLEN No = 32 bytes ,
+.Fn EVP_PKEY_size
+returns 64 because the signature is longer than the keys.
+.Pp
+.Fn EVP_PKEY_bits
+returns the cryptographic length of the cryptosystem to which the key in
+.Fa pkey
+belongs, in bits.
+The definition of cryptographic length is specific to the key cryptosystem.
+The following algorithms are supported:
+.Bl -column ED25519 "the public domain parameter p" DSA_bits(3)
+.It        Ta cryptographic length = Ta same result as from:
+.It        Ta significant bits in ... Ta
+.It DH     Ta the public domain parameter Fa p Ta Xr DH_bits 3
+.It DSA    Ta the public domain parameter Fa p Ta Xr DSA_bits 3
+.It EC     Ta the order of the group Ta Xr EC_GROUP_order_bits 3
+.It ED25519 Ta 253 Ta \(em
+.It RSA    Ta the public modulus Ta Xr RSA_bits 3
+.It X25519 Ta 253 Ta \(em
+.El
+.Pp
+.Fn EVP_PKEY_security_bits
+returns the security strength measured in bits of the given
+.Fa pkey
+as defined in NIST SP800-57.
+The following algorithms are supported:
+.Bl -column ED25519 DSA_security_bits(3)
+.It        Ta same result as from:
+.It DH     Ta Xr DH_security_bits 3
+.It DSA    Ta Xr DSA_security_bits 3
+.It EC     Ta Xr EC_GROUP_order_bits 3 divided by 2
+.It ED25519 Ta 128
+.It RSA    Ta Xr RSA_security_bits 3
+.It X25519 Ta 128
+.El
+.Pp
+For EC keys, if the result is greater than 80, it is rounded down
+to 256, 192, 128, 112, or 80.
+.Sh RETURN VALUES
+.Fn EVP_PKEY_size
+and
+.Fn EVP_PKEY_bits
+return a positive number or 0 if this size isn't available.
+.Pp
+.Fn EVP_PKEY_security_bits
+returns a number in the range from 0 to 256 inclusive
+or \-2 if this function is unsupported for the algorithm used by
+.Fa pkey .
+It returns 0 if
+.Fa pkey
+is
+.Dv NULL .
+.Sh SEE ALSO
+.Xr EVP_PKEY_decrypt 3 ,
+.Xr EVP_PKEY_derive 3 ,
+.Xr EVP_PKEY_encrypt 3 ,
+.Xr EVP_PKEY_new 3 ,
+.Xr EVP_PKEY_sign 3 ,
+.Xr EVP_SealInit 3 ,
+.Xr EVP_SignFinal 3
+.Sh HISTORY
+.Fn EVP_PKEY_size
+first appeared in SSLeay 0.6.0 and
+.Fn EVP_PKEY_bits
+in SSLeay 0.9.0.
+Both functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_PKEY_security_bits
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 7.2 .

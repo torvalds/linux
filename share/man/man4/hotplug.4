@@ -1,0 +1,104 @@
+.\"	$OpenBSD: hotplug.4,v 1.6 2015/09/14 17:09:26 schwarze Exp $
+.\"
+.\" Copyright (c) 2004 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 14 2015 $
+.Dt HOTPLUG 4
+.Os
+.Sh NAME
+.Nm hotplug
+.Nd devices hot plugging
+.Sh SYNOPSIS
+.Cd "pseudo-device hotplug 1"
+.Pp
+.In sys/types.h
+.In sys/device.h
+.In sys/hotplug.h
+.Sh DESCRIPTION
+The
+.Nm
+pseudo-device passes device attachment and detachment events to
+userland.
+When a device attaches or detaches, the corresponding event is queued.
+The events can then be obtained from the queue through the
+.Xr read 2
+call on the
+.Pa /dev/hotplug
+device file.
+Once an event has been read, it's deleted from the queue.
+The event queue has a limited size and if it's full all new events will be
+dropped.
+Each event is described with the following structure declared in the
+.In sys/hotplug.h
+header file:
+.Bd -literal -offset indent
+struct hotplug_event {
+	int		he_type;	/* event type		*/
+	enum devclass	he_devclass;	/* device class		*/
+	char		he_devname[16];	/* device name		*/
+};
+
+.Ed
+The
+.Va he_type
+field describes the event type and can be either
+.Dv HOTPLUG_DEVAT
+for device attachment or
+.Dv HOTPLUG_DEVDT
+for detachment.
+The
+.Va he_devclass
+field describes the device class.
+All device classes can be found in the
+.In sys/device.h
+header file:
+.Bd -literal -offset indent
+enum devclass {
+	DV_DULL,	/* generic, no special info */
+	DV_CPU,		/* CPU (carries resource utilization) */
+	DV_DISK,	/* disk drive (label, etc) */
+	DV_IFNET,	/* network interface */
+	DV_TAPE,	/* tape device */
+	DV_TTY		/* serial line interface */
+};
+
+.Ed
+The
+.Va he_devname
+is a device name including unit number, e.g.\&
+.Pa sd1 .
+.Pp
+Only one structure can be read per call.
+If there are no events in the queue, the
+.Xr read 2
+call will block until an event appears.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "hotplug: event lost, queue full"
+New events will be dropped until all pending events have been read.
+.El
+.Sh SEE ALSO
+.Xr read 2 ,
+.Xr hotplugd 8
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

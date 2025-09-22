@@ -1,0 +1,111 @@
+.\"	$OpenBSD: oosiop.4,v 1.11 2022/02/17 12:24:08 jsg Exp $
+.\"	$NetBSD: osiop.4,v 1.2 2001/09/22 01:44:55 wiz Exp $
+.\"
+.\" Copyright (c) 2001 Izumi Tsutsui.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 17 2022 $
+.Dt OOSIOP 4
+.Os
+.Sh NAME
+.Nm oosiop
+.Nd Symbios/NCR 53C700 SCSI driver
+.Sh SYNOPSIS
+.Cd "# hppa"
+.Cd "oosiop* at gsc? irq 9"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Tn Symbios/NCR
+53C700
+.Tn SCSI
+controller chip.
+.Pp
+The
+.Tn Symbios/NCR
+53C710
+.Tn SCSI
+controller is handled by the
+.Xr osiop 4
+driver, while the
+.Tn Symbios/NCR
+53C8xx
+.Tn PCI
+.Tn SCSI
+host adapters are handled by the
+.Xr siop 4
+driver.
+.\" .Sh CONFIGURATION
+.\" The
+.\" .Nm
+.\" driver supports the following
+.\" .Sy flags
+.\" for use in
+.\" .Xr config 8
+.\" files:
+.\" .Pp
+.\" .Bl -tag -compact -width "bits 8-15:"
+.\" .It bits 0-7 :
+.\" disable disconnect/reselect for the corresponding
+.\" .Tn SCSI
+.\" target
+.\" .It bits 8-15 :
+.\" disable synchronous negotiation for
+.\" .Tn SCSI
+.\" target
+.\" .It bits 16 :
+.\" disable DMA interrupts
+.\" .El
+.\" .Pp
+.\" .Qq Target
+.\" is synonymous with
+.\" .Tn SCSI
+.\" ID number.
+.\" .Pp
+.\" Note that
+.\" .Tn SCSI
+.\" tape drives should be allowed to perform disconnect/reselect or performance
+.\" will suffer.
+.\" .Sh BUGS
+.\" Neither
+.\" .Tn DMA
+.\" or synchronous data transfers are currently supported.
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr intro 4 ,
+.Xr osiop 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr siop 4 ,
+.Xr st 4 ,
+.Xr uk 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Nx 1.6 ,
+and was ported to
+.Ox 3.5 .

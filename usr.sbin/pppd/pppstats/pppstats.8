@@ -1,0 +1,235 @@
+.\" $OpenBSD: pppstats.8,v 1.12 2013/01/17 21:39:29 jmc Exp $
+.\"
+.\" Contributed by Van Jacobson (van@ee.lbl.gov), Dec 31, 1989.
+.\"
+.\" Copyright (c) 1989, 1990, 1991, 1992 Regents of the University of
+.\" California. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 17 2013 $
+.Dt PPPSTATS 8
+.Os
+.Sh NAME
+.Nm pppstats
+.Nd report statistics for the specified PPP interface
+.Sh SYNOPSIS
+.Nm pppstats
+.Op Fl adrvz
+.Op Fl c Ar count
+.Op Fl w Ar wait
+.Op Ar interface
+.Sh DESCRIPTION
+The
+.Nm pppstats
+utility reports PPP-related statistics at regular intervals for the
+specified PPP
+.Ar interface .
+If the
+.Ar interface
+is unspecified, it will default to ppp0.
+The display is split horizontally
+into input and output sections containing columns of statistics
+describing the properties and volume of packets received and
+transmitted by the interface.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Display absolute values rather than deltas.
+If this option is specified with the
+.Fl c
+and/or
+.Fl w
+options, the second and subsequent reports (as well as the first) will
+show statistics for the time since the link was initiated.
+.It Fl c Ar count
+Repeat the display
+.Ar count
+times.
+The first display is for the time since the link was initiated
+(that is, since the corresponding
+.Xr pppd 8
+was started), and each
+subsequent report is for the time period since the last display
+(unless the
+.Fl a
+option is specified).
+If this option is not specified, the default repeat
+.Ar count
+is 1 if the
+.Fl w
+option is not specified, otherwise infinity.
+.It Fl d
+Display values in terms of data rate (KB/s) rather than in bytes.
+.It Fl r
+Display additional statistics summarizing the compression ratio
+achieved by the packet compression algorithm in use.
+.It Fl v
+Display additional statistics demonstrating the efficiency of VJ header
+compression and provide more explicit information on the operation
+of the algorithm.
+.It Fl w Ar wait
+Pause
+.Ar wait
+seconds between each display.
+.It Fl z
+Instead of the standard display, show statistics indicating the
+performance of the packet compression algorithm in use.
+.El
+.Pp
+The following fields are printed on the input side when the
+.Fl z
+option is not used:
+.Bl -tag -width search
+.It Li IN
+The total number of bytes received by this interface.
+.It Li PACK
+The total number of packets received by this interface.
+.It Li VJCOMP
+The number of compressed TCP packets received by this interface.
+.It Li VJUNC
+The number of uncompressed TCP packets received by this interface.
+Not reported when the
+.Fl r
+option is specified.
+.It Li VJERR
+The number of corrupted or bogus TCP packets received by this interface.
+Not reported when the
+.Fl r
+option is specified.
+.It Li VJTOSS
+The number of VJ header-compressed TCP packets dropped on reception by
+this interface because of preceding errors.
+Only reported when the
+.Fl v
+option is specified.
+.It Li NON-VJ
+The total number of non-VJ packets received by this interface.
+Only reported when the
+.Fl v
+option is specified.
+.It Li RATIO
+The compression ratio achieved for received packets by the
+packet compression scheme in use, defined as the uncompressed size
+divided by the compressed size.
+Only reported when the
+.Fl r
+option is specified.
+.It Li UBYTE
+The total number of bytes received, after decompression of compressed
+packets.
+Only reported when the
+.Fl r
+option is specified.
+.El
+.Pp
+The following fields are printed on the output side:
+.Bl -tag -width search
+.It Li OUT
+The total number of bytes transmitted from this interface.
+.It Li PACK
+The total number of packets transmitted from this interface.
+.It Li VJCOMP
+The number of TCP packets transmitted from this interface with
+VJ-compressed TCP headers.
+.It Li VJUNC
+The number of TCP packets transmitted from this interface with
+VJ-uncompressed TCP headers.
+Not reported when the
+.Fl r
+option is specified.
+.It Li NON-VJ
+The total number of non-VJ packets transmitted from this interface.
+Not reported when the
+.Fl r
+option is specified.
+.It Li VJSRCH
+The number of searches for the cached header entry for a VJ header
+compressed TCP packet.
+Only reported when the
+.Fl v
+option is specified.
+.It Li VJMISS
+The number of failed searches for the cached header entry for a
+VJ header compressed TCP packet.
+Only reported when the
+.Fl v
+option is specified.
+.It Li RATIO
+The compression ratio achieved for transmitted packets by the
+packet compression scheme in use, defined as the size
+before compression divided by the compressed size.
+Only reported when the
+.Fl r
+option is specified.
+.It Li UBYTE
+The total number of bytes to be transmitted, before packet compression
+is applied.
+Only reported when the
+.Fl r
+option is specified.
+.El
+.Pp
+When the
+.Fl z
+option is specified,
+.Nm
+instead displays the following fields, relating to the packet
+compression algorithm currently in use.
+If packet compression is not in use, these fields will all display zeroes.
+The fields displayed on the input side are:
+.Bl -tag -width search
+.It Li COMPRESSED BYTE
+The number of bytes of compressed packets received.
+.It Li COMPRESSED PACK
+The number of compressed packets received.
+.It Li INCOMPRESSIBLE BYTE
+The number of bytes of incompressible packets (that is, those which
+were transmitted in uncompressed form) received.
+.It Li INCOMPRESSIBLE PACK
+The number of incompressible packets received.
+.It Li COMP RATIO
+The recent compression ratio for incoming packets, defined as the
+uncompressed size divided by the compressed size (including both
+compressible and incompressible packets).
+.El
+.Pp
+The fields displayed on the output side are:
+.Bl -tag -width search
+.It Li COMPRESSED BYTE
+The number of bytes of compressed packets transmitted.
+.It Li COMPRESSED PACK
+The number of compressed packets transmitted.
+.It Li INCOMPRESSIBLE BYTE
+The number of bytes of incompressible packets transmitted (that is,
+those which were transmitted in uncompressed form).
+.It Li INCOMPRESSIBLE PACK
+The number of incompressible packets transmitted.
+.It Li COMP RATIO
+The recent compression ratio for outgoing packets.
+.El
+.Sh SEE ALSO
+.Xr pppd 8

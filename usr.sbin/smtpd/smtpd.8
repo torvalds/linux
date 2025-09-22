@@ -1,0 +1,167 @@
+.\"	$OpenBSD: smtpd.8,v 1.33 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2012, Eric Faurot <eric@openbsd.org>
+.\" Copyright (c) 2008, Gilles Chehade <gilles@poolp.org>
+.\" Copyright (c) 2008, Pierre-Yves Ritschard <pyr@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt SMTPD 8
+.Os
+.Sh NAME
+.Nm smtpd
+.Nd Simple Mail Transfer Protocol (SMTP) daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dFhnv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Op Fl P Ar system
+.Op Fl T Ar trace
+.Sh DESCRIPTION
+.Nm
+is a Simple Mail Transfer Protocol
+.Pq SMTP
+daemon which can be used as a machine's primary mail system.
+.Nm
+can listen on a network interface and handle SMTP
+transactions; it can also be fed messages through the standard
+.Xr sendmail 8
+interface.
+It can relay messages through remote mail transfer agents or store them
+locally using either the mbox or maildir format.
+This implementation supports SMTP as defined by RFC 5321 as well as several
+extensions.
+A running
+.Nm
+can be controlled through
+.Xr smtpctl 8 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl F
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Xr syslogd 8 .
+.It Fl f Ar file
+Specify an alternative configuration file.
+.It Fl h
+Display version and usage.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl P Ar system
+Pause a specific subsystem at startup.
+Normal operation can be resumed using
+.Xr smtpctl 8 .
+This option can be used multiple times.
+The accepted values are:
+.Pp
+.Bl -tag -width "smtpXXX" -compact
+.It mda
+Do not schedule local deliveries.
+.It mta
+Do not schedule remote transfers.
+.It smtp
+Do not listen on SMTP sockets.
+.El
+.It Fl T Ar trace
+Enables real-time tracing at startup.
+Normal operation can be resumed using
+.Xr smtpctl 8 .
+This option can be used multiple times.
+The accepted values are:
+.Pp
+.Bl -bullet -compact
+.It
+imsg
+.It
+io
+.It
+smtp (incoming sessions)
+.It
+filters
+.It
+transfer (outgoing sessions)
+.It
+bounce
+.It
+scheduler
+.It
+expand (aliases/virtual/forward expansion)
+.It
+lookup (user/credentials lookups)
+.It
+stat
+.It
+rules (matched by incoming sessions)
+.It
+mproc
+.It
+all
+.El
+.It Fl v
+Produce more verbose output.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/mail/smtpd.confXXX" -compact
+.It Pa /etc/mail/mailname
+Alternate server name to use.
+.It Pa /etc/mail/smtpd.conf
+Default
+.Nm
+configuration file.
+.It Pa /var/run/smtpd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr smtpctl 8 .
+.It Pa /var/spool/smtpd/
+Spool directories for mail during processing.
+.It Pa ~/.forward
+User email forwarding information.
+.El
+.Sh SEE ALSO
+.Xr forward 5 ,
+.Xr smtpd.conf 5 ,
+.Xr mailwrapper 8 ,
+.Xr smtpctl 8
+.Sh STANDARDS
+.Rs
+.%A J. Klensin
+.%D October 2008
+.%R RFC 5321
+.%T Simple Mail Transfer Protocol
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.6 .

@@ -1,0 +1,361 @@
+.\" $OpenBSD: openssl.cnf.5,v 1.11 2024/07/08 15:02:28 jmc Exp $
+.\" full merge up to: OpenSSL man5/config b53338cb Feb 28 12:30:28 2017 +0100
+.\" selective merge up to: OpenSSL a8c5ed81 Jul 18 13:57:25 2017 -0400
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 1999, 2000, 2004, 2013, 2015, 2016, 2017 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 8 2024 $
+.Dt OPENSSL.CNF 5
+.Os
+.Sh NAME
+.Nm openssl.cnf
+.Nd OpenSSL configuration files
+.Sh DESCRIPTION
+The OpenSSL CONF library can be used to read configuration files; see
+.Xr CONF_modules_load_file 3 .
+It is used for the OpenSSL master configuration file
+.Pa /etc/ssl/openssl.cnf
+and in a few other places such as certificate extension files for the
+.Xr openssl 1
+.Cm x509
+utility.
+OpenSSL applications can also use the CONF library for their own
+purposes.
+.Pp
+A configuration file is divided into a number of sections.
+Each section starts with a line
+.Bq Ar section_name
+and ends when a new section is started or the end of the file is reached.
+A section name can consist of alphanumeric characters and underscores.
+.Pp
+The first section of a configuration file is special and is referred to
+as the
+.Dq default section .
+It is usually unnamed and extends from the start of file to the
+first named section.
+When a name is being looked up, it is first looked up in a named
+section (if any) and then in the default section.
+.Pp
+The environment is mapped onto a section called
+.Ic ENV .
+.Pp
+Comments can be included by preceding them with the
+.Ql #
+character.
+.Pp
+Each section in a configuration file consists of a number of name and
+value pairs of the form
+.Ar name Ns = Ns Ar value .
+.Pp
+The
+.Ar name
+string can contain any alphanumeric characters as well as a few
+punctuation symbols such as
+.Ql \&.
+.Ql \&,
+.Ql \&;
+and
+.Ql _ .
+.Pp
+The
+.Ar value
+string consists of the string following the
+.Ql =
+character until the end of the line with any leading and trailing
+whitespace removed.
+.Pp
+The value string undergoes variable expansion.
+This can be done by including substrings of the form
+.Pf $ Ar name
+or
+.Pf $ Brq Ar name :
+this will substitute the value of the named variable in the current
+section.
+It is also possible to substitute a value from another section using the
+syntax
+.Pf $ Ar section Ns :: Ns Ar name
+or
+.Pf $ Brq Ar section Ns :: Ns Ar name .
+By using the form
+.Pf $ Ic ENV Ns :: Ns Ar name ,
+environment variables can be substituted.
+It is also possible to assign values to environment variables by using
+the name
+.Ic ENV Ns :: Ns Ar name .
+This will work if the program looks up environment variables using
+the CONF library instead of calling
+.Xr getenv 3
+directly.
+The value string must not exceed 64k in length after variable expansion or an
+error will occur.
+.Pp
+It is possible to escape certain characters by using any kind of quote
+or the
+.Ql \e
+character.
+By making the last character of a line a
+.Ql \e ,
+a
+.Ar value
+string can be spread across multiple lines.
+In addition the sequences
+.Ql \en ,
+.Ql \er ,
+.Ql \eb ,
+and
+.Ql \et
+are recognized.
+.Sh OPENSSL LIBRARY CONFIGURATION
+Applications can automatically configure certain aspects of OpenSSL
+using the master OpenSSL configuration file, or optionally an
+alternative configuration file.
+The
+.Xr openssl 1
+utility includes this functionality: any sub command uses the master
+OpenSSL configuration file unless an option is used in the sub command
+to use an alternative configuration file.
+.Pp
+To enable library configuration, the default section needs to contain
+an appropriate line which points to the main configuration section.
+The default name is
+.Ic openssl_conf ,
+which is used by the
+.Xr openssl 1
+utility.
+Other applications may use an alternative name such as
+.Sy myapplication_conf .
+All library configuration lines appear in the default section
+at the start of the configuration file.
+.Pp
+The configuration section should consist of a set of name value pairs
+which contain specific module configuration information.
+The
+.Ar name
+represents the name of the configuration module.
+The meaning of the
+.Ar value
+is module specific: it may, for example, represent a further
+configuration section containing configuration module specific
+information.
+For example:
+.Bd -literal -offset indent
+# The following line must be in the default section.
+openssl_conf = openssl_init
+
+[openssl_init]
+oid_section = new_oids
+
+[new_oids]
+\&... new oids here ...
+.Ed
+.Pp
+The features of each configuration module are described below.
+.Ss ASN1 Object Configuration Module
+This module has the name
+.Ic oid_section .
+The value of this variable points to a section containing name value
+pairs of OIDs: the name is the OID short and long name, and the value is the
+numerical form of the OID.
+Although some of the
+.Xr openssl 1
+utility subcommands already have their own ASN1 OBJECT section
+functionality, not all do.
+By using the ASN1 OBJECT configuration module, all the
+.Xr openssl 1
+utility subcommands can see the new objects as well as any compliant
+applications.
+For example:
+.Bd -literal -offset indent
+[new_oids]
+some_new_oid = 1.2.3.4
+some_other_oid = 1.2.3.5
+.Ed
+.Pp
+It is also possible to set the value to the long name followed by a
+comma and the numerical OID form.
+For example:
+.Pp
+.Dl shortName = some object long name, 1.2.3.4
+.Sh FILES
+.Bl -tag -width /etc/ssl/openssl.cnf -compact
+.It Pa /etc/ssl/openssl.cnf
+standard configuration file
+.El
+.Sh EXAMPLES
+Here is a sample configuration file using some of the features
+mentioned above:
+.Bd -literal -offset indent
+# This is the default section.
+HOME=/temp
+RANDFILE= ${ENV::HOME}/.rnd
+configdir=$ENV::HOME/config
+
+[ section_one ]
+# We are now in section one.
+
+# Quotes permit leading and trailing whitespace
+any = " any variable name "
+
+other = A string that can \e
+cover several lines \e
+by including \e\e characters
+
+message = Hello World\en
+
+[ section_two ]
+greeting = $section_one::message
+.Ed
+.Pp
+This next example shows how to expand environment variables safely.
+.Pp
+Suppose you want a variable called
+.Sy tmpfile
+to refer to a temporary filename.
+The directory it is placed in can determined by the
+.Ev TEMP
+or
+.Ev TMP
+environment variables but they may not be set to any value at all.
+If you just include the environment variable names and the variable
+doesn't exist then this will cause an error when an attempt is made to
+load the configuration file.
+By making use of the default section both values can be looked up with
+.Ev TEMP
+taking priority and
+.Pa /tmp
+used if neither is defined:
+.Bd -literal -offset indent
+TMP=/tmp
+# The above value is used if TMP isn't in the environment
+TEMP=$ENV::TMP
+# The above value is used if TEMP isn't in the environment
+tmpfile=${ENV::TEMP}/tmp.filename
+.Ed
+.Pp
+More complex OpenSSL library configuration.
+Add OID:
+.Bd -literal -offset indent
+# Default appname: should match "appname" parameter (if any)
+# supplied to CONF_modules_load_file et al.
+openssl_conf = openssl_conf_section
+
+[openssl_conf_section]
+# Configuration module list
+oid_section = new_oids
+
+[new_oids]
+# New OID, just short name
+newoid1 = 1.2.3.4.1
+# New OID shortname and long name
+newoid2 = New OID 2 long name, 1.2.3.4.2
+.Ed
+.Pp
+The above examples can be used with any application supporting library
+configuration if "openssl_conf" is modified to match the appropriate
+"appname".
+.Pp
+For example if the second sample file above is saved to "example.cnf"
+then the command line:
+.Pp
+.Dl OPENSSL_CONF=example.cnf openssl asn1parse -genstr OID:1.2.3.4.1
+.Pp
+will output:
+.Dl 0:d=0  hl=2 l=   4 prim: OBJECT            :newoid1
+.Pp
+showing that the OID "newoid1" has been added as "1.2.3.4.1".
+.Sh SEE ALSO
+.Xr openssl 1 ,
+.Xr CONF_modules_load_file 3 ,
+.Xr OPENSSL_config 3 ,
+.Xr x509v3.cnf 5
+.Sh CAVEATS
+If a configuration file attempts to expand a variable that doesn't
+exist, then an error is flagged and the file will not load.
+This can also happen if an attempt is made to expand an environment
+variable that doesn't exist.
+For example, in a previous version of OpenSSL the default OpenSSL
+master configuration file used the value of
+.Ev HOME
+which may not be defined on non Unix systems and would cause an error.
+.Pp
+This can be worked around by including a default section to provide
+a default value: then if the environment lookup fails, the default
+value will be used instead.
+For this to work properly, the default value must be defined earlier
+in the configuration file than the expansion.
+See the
+.Sx EXAMPLES
+section for an example of how to do this.
+.Pp
+If the same variable is defined more than once in the same section,
+then all but the last value will be silently ignored.
+In certain circumstances such as with DNs, the same field may occur
+multiple times.
+This is usually worked around by ignoring any characters before an
+initial
+.Ql \&. ,
+for example:
+.Bd -literal -offset indent
+1.OU="My first OU"
+2.OU="My Second OU"
+.Ed
+.Sh BUGS
+Currently there is no way to include characters using the octal
+.Pf \e Ar nnn
+form.
+Strings are all NUL terminated, so NUL bytes cannot form part of
+the value.
+.Pp
+The escaping isn't quite right: if you want to use sequences like
+.Ql \en ,
+you can't use any quote escaping on the same line.
+.Pp
+Files are loaded in a single pass.
+This means that a variable expansion will only work if the variables
+referenced are defined earlier in the file.

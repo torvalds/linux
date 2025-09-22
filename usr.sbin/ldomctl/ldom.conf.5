@@ -1,0 +1,167 @@
+.\" $OpenBSD: ldom.conf.5,v 1.18 2022/10/06 21:35:52 kn Exp $
+.\"
+.\" Copyright (c) 2012 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 6 2022 $
+.Dt LDOM.CONF 5 sparc64
+.Os
+.Sh NAME
+.Nm ldom.conf
+.Nd Logical Domain configuration
+.Sh DESCRIPTION
+.Nm
+is the configuration file to configure logical domains.
+.Pp
+Domains are defined in the following format:
+.Bl -tag -width Ds
+.It Ic domain Ar name Brq ...
+Declare a scope for resources assigned to the specified domain.
+The scope must be opened and closed with curly braces and contains
+one or more of the following keywords, each on a separate line.
+A scope with
+.Ar name
+.Dq primary
+configures resources for the primary domain.
+If no configuration for the primary domain exists, it is assigned
+all CPU and memory resources not used by any guest domains.
+.It Ic vcpu Ar number Ns Op : Ns Ar stride
+Declare the number of virtual CPUs assigned to a domain.
+Optionally a stride can be specified to allocate
+.Ar stride
+VCPUs at a time but assign only
+.Ar number
+VCPUs to the domain.
+This can be used to distribute virtual CPUs over the available CPU cores.
+.It Ic memory Ar bytes
+Declare the amount of memory assigned to a domain, in bytes.
+.Ar bytes
+can be specified with a human-readable scale, using the format described in
+.Xr scan_scaled 3 ,
+e.g. 512M.
+.It Ic iodevice Ar device
+Assign the specified PCIe device to the guest domain.
+.Ar device
+may be either a device path
+.Pq Pa /@400/@2/@0/@8
+or a pseudonym
+.Pq Pa /SYS/MB/PCIE0 .
+This keyword can be used multiple times.
+.It Ic variable Ar name Ns = Ns Ar value
+Set the specified NVRAM variable for the domain.
+See
+.Xr eeprom 8
+for a list of OpenPROM variables.
+This keyword can be used multiple times.
+.It Ic vdisk Ar file Op Ar keyword Ns = Ns Ar value ...
+The specified file is used to back a virtual disk of the guest
+domain.
+.Ar file
+can be a block device node or a disk image file created with the
+.Cm create-vdisk
+command.
+This keyword can be used multiple times.
+Unless
+.Ar boot-device
+is set with the
+.Cm variable
+command, the first disk will be the default boot device.
+Valid options are:
+.Bl -tag -width Ds
+.It Ic devalias Ns = Ns Ar name
+Alias the virtual disk as
+.Ar name .
+.El
+.It Ic vnet Op Ar keyword Ns = Ns Ar value ...
+Assign a
+.Xr vnet 4
+network interface to the guest domain.
+This keyword can be used multiple times.
+Valid options are:
+.Bl -tag -width Ds
+.It Ic mac-addr Ns = Ns Ar address
+Configure the MAC address of the interface.
+.It Ic mtu Ns = Ns Ar number
+Configure the MTU of the interface.
+.It Ic devalias Ns = Ns Ar name
+Alias the interface as
+.Ar name .
+.El
+.El
+.Sh EXAMPLES
+Define a domain with 12 virtual cores, 4GB memory, two file based virtual disks
+and one virtual network interface:
+.Bd -literal -offset indent
+domain "puffy" {
+	vcpu 12
+	memory 4G
+	vdisk "/home/puffy/vdisk0"
+	vdisk "/home/puffy/vdisk1"
+	vnet
+}
+.Ed
+.Pp
+Define another one with slightly less resources:
+.Bd -literal -offset indent
+domain "salmah" {
+	vcpu 8
+	memory 2G
+	vdisk "/home/salmah/vdisk0"
+	vdisk "/home/salmah/vdisk1"
+	vnet
+}
+.Ed
+.Pp
+On a machine with 32 cores and 64GB physical memory, this leaves 12 cores and
+58GB memory to the primary domain.
+.Pp
+Use a
+.Ar stride
+step size to distribute VCPUs:
+.Bd -literal -offset indent
+domain "marlus" {
+	vcpu 2:4
+	memory 4G
+	vdisk "/home/marlus/vdisk0"
+}
+.Ed
+.Pp
+On a machine with eight threads per physical core, this allocates two strides
+of four VCPUs each for the guest domain but assigns only two VCPUs to it, i.e.\&
+makes it occupy an entire physical core while running on two threads only.
+.Sh SEE ALSO
+.Xr eeprom 8 ,
+.Xr ldomctl 8 ,
+.Xr ldomd 8
+.Sh BUGS
+The hypervisor requires a machine dependent amount of physical memory that is
+reserved automatically.
+Although the Physical Resource Inventory
+.Pq PRI
+seems to account for this by presenting less available memory, using the entire
+amount via
+.Ic memory
+is not always successful, e.g. the hypervisor would reject the configuration and
+fallback to
+.Dq factory-default
+upon resetting the machine.
+.Pp
+If in doubt, assign
+.Ic memory
+to the
+.Dq primary
+.Ic domain
+explicitly,
+such that enough memory remains unused for the hypervisor to reserve.
+On T4 based machines, 1024 megabytes has proven to suffice.

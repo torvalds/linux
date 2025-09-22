@@ -1,0 +1,34 @@
+static_library("Tooling") {
+  output_name = "clangTooling"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/include/clang/Driver:Options",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Driver",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "AllTUsExecution.cpp",
+    "ArgumentsAdjusters.cpp",
+    "CommonOptionsParser.cpp",
+    "CompilationDatabase.cpp",
+    "Execution.cpp",
+    "ExpandResponseFilesCompilationDatabase.cpp",
+    "FileMatchTrie.cpp",
+    "FixIt.cpp",
+    "GuessTargetAndModeCompilationDatabase.cpp",
+    "InterpolatingCompilationDatabase.cpp",
+    "JSONCompilationDatabase.cpp",
+    "Refactoring.cpp",
+    "RefactoringCallbacks.cpp",
+    "StandaloneExecution.cpp",
+    "Tooling.cpp",
+  ]
+}

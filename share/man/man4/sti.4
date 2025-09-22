@@ -1,0 +1,275 @@
+.\"	$OpenBSD: sti.4,v 1.27 2024/08/20 05:52:04 jsg Exp $
+.\"
+.\" Copyright (c) 2001 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR OR HIS RELATIVES BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF MIND, USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 20 2024 $
+.Dt STI 4
+.Os
+.Sh NAME
+.Nm sti
+.Nd HP Standard Text Interface
+.Sh SYNOPSIS
+.Cd "sti*	at mainbus0"
+.Cd "sti*	at pci?"
+.Cd "sti*	at phantomas0"
+.Cd "wsdisplay*	at sti?"
+.Sh DESCRIPTION
+The
+.Nm
+was created by HP to provide uniform frame-buffer access operations
+for their 9000/300 and 9000/700 series of workstations.
+.Pp
+The following models are supported
+(though not all features or frame buffer depths may be available):
+.Bl -column "Visualize FX4/FX6" "Bits" "Mem" "3D" "Machines/Cards" -offset left
+.It Sy "Model" Ta Sy "Bits" Ta Sy "Mem" Ta Sy "3D" Ta Sy "Machines/Cards"
+.It "VRX" Ta 8 Ta "2" Ta "" Ta "HP9000/362/382"
+.It "EVRX" Ta "8" Ta "2" Ta "" Ta "HP9000/425e"
+.It "Timber" Ta "8" Ta "2" Ta "" Ta "HP9000/705/710"
+.It "GRX" Ta "8g" Ta "2" Ta "" Ta "SGC"
+.It "CRX" Ta "8" Ta "2" Ta "" Ta "SGC"
+.It "Tomcat" Ta "8" Ta "2" Ta "" Ta "SGC"
+.It "Stinger" Ta "8" Ta "2" Ta "" Ta "HP9000/7[12]5/74[257]i"
+.It "Artist" Ta "8" Ta "2" Ta "" Ta "HP9000/712/7[12]5/74[38]i"
+.It "CRX-24" Ta "24" Ta "16" Ta "" Ta "SGC"
+.\" .It "CRX-24Z" Ta "24" Ta "16" Ta "y" Ta "SGC"
+.\" .It "CRX-48Z" Ta "24" Ta "16" Ta "y" Ta "SGC/GSC"
+.It "HCRX-8" Ta "8" Ta "2" Ta "" Ta "GSC"
+.\" .It "HCRX-8Z" Ta "8" Ta "2" Ta "y" Ta "GSC"
+.It "HCRX-24" Ta "24" Ta "16" Ta "" Ta "GSC"
+.\" .It "HCRX-24Z" Ta "24" Ta "16" Ta "y" Ta "GSC"
+.\" .It "Visualize 8" Ta "8" Ta "2" Ta "y" Ta "GSC"
+.It "Visualize EG" Ta "16" Ta "2" Ta "" Ta "HP B/C-class, GSC/PCI"
+.\" .It "Visualize 24" Ta "24" Ta "16" Ta "y" Ta "GSC"
+.\" .It "Visualize 48" Ta "24" Ta "16" Ta "y" Ta "GSC"
+.\" .It "Visualize 48XP" Ta "24" Ta "16" Ta "y" Ta "GSC"
+.It "Visualize FXe" Ta "24" Ta "24" Ta "y" Ta "PCI 32/66"
+.It "Visualize FX2" Ta "24" Ta "24" Ta "y" Ta "PCI 64/66"
+.It "Visualize FX4/FX6" Ta "24" Ta "32" Ta "y" Ta "PCI 64/66"
+.\" .It "Visualize FX5pro" Ta "24" Ta "64" Ta "y" Ta "PCI 64/66"
+.\" .It "Visualize FX10pro" Ta "24" Ta "128" Ta "y" Ta "PCI 64/66"
+.El
+.Pp
+Implementation consists of a set of functions burnt in to the PROM
+on the card and providing the following set of functions (see below
+for PROM revision history on functions supported by particular PROM
+revision):
+.Pp
+.Bl -bullet -compact
+.It
+Initialize graphics.
+.It
+State management.
+.It
+Print a character onto the screen using currently selected font.
+.It
+Copy a region of the frame-buffer to another location.
+.It
+Self testing.
+.It
+Exception handling.
+.It
+Frame-buffer configuration enquiry.
+.It
+Setting colour-map entry.
+.It
+DMA parameters.
+.It
+Flow control.
+.It
+User timing.
+.It
+Processing management.
+.It
+Miscellaneous utility functions.
+.El
+.Pp
+There are two modes for accessing the PROM:
+.Dq byte
+and
+.Dq word
+mode.
+In
+.Dq byte
+mode each 4-byte word contains only the low-ordered big-endian
+byte of data; i.e., to compose one word of data 4 words should be read
+and low-ordered bytes of those should be shifted correspondingly.
+In
+.Dq word
+mode each word contains all 4 bytes of valid data.
+.Pp
+PROM revision history:
+.Bl -tag -width "00.00" -compact
+.It 8.02
+Original release.
+.It 8.03
+.Bl -bullet -compact
+.It
+OSF-extended self test (a.k.a fast).
+.It
+Restore display.
+.El
+.It 8.04
+.Bl -bullet -compact
+.\" global cfg
+.\" rename global cfg ext
+.\" global cfg ext
+.It
+Implement
+.Nm curr_mon
+function.
+.It
+Graphical boot screen.
+.\" sti_mem_addr
+.\" dd
+.\" num mons
+.\" mon tbl
+.\" user data
+.\" sti mem req
+.\" user data size
+.\" maxtime
+.\" mon tbl desc struct
+.\" init_inptr
+.\" rename init_inptr_ext
+.\" init_inptr_ext
+.\" config mon type
+.\" cmt change
+.\" font unpmv
+.\" non text
+.It
+Implement
+.Dq block move .
+.\" non-text
+.It
+Implement
+.Dq set colour-map entry .
+.It
+Implement word mode.
+.It
+Support for multiple monitors.
+.It
+Support
+.Nm user_data
+.Nm
+space usage.
+.It
+Support for extra memory.
+.It
+Support for
+.Nm Windows NT (tm) .
+.It
+Monitor frequency reference.
+.It
+Early console.
+.It
+Support added for: PCXL,
+.Nm GSC
+bus, ROM-less operation.
+.El
+.It 8.05
+.Bl -bullet -compact
+.It
+Interrupt support.
+.It
+Report card's power usage.
+.It
+Birds of Prey.
+.It
+User interrupts.
+.El
+.It 8.06
+.Bl -bullet -compact
+.It
+Multiple fonts.
+.It
+Monitor table descriptor strings.
+.It
+PCXL2 and PCXU monitor descriptors.
+.El
+.It 8.08
+.Bl -bullet -compact
+.It
+HP-UX 10 support for Visualize FX
+.It
+.Nm dma_ctrl
+function added.
+.It
+.Nm flow_ctrl
+function added.
+.It
+.Nm user_timing
+function added.
+.El
+.It 8.09
+.Bl -bullet -compact
+.It
+Addition changes for
+.Nm Visualize FX
+due to rearchitecture for performance.
+.It
+.Nm process_mgr
+function added.
+.El
+.It 8.10
+PCXL2 and PCXU dual
+.Nm PCI
+EPROM map mode, implemented on
+.Nm Visualize EG .
+.It 8.11
+Support for HP-UX non-implicit locking DMA, implemented on
+.Nm Visualize FXe .
+.It 8.12
+.Nm sti_util
+function added (flashing under HP-UX and other sideband traffic).
+.It 8.13
+Colour frame buffer support.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr phantomas 4 ,
+.Xr wsdisplay 4
+.Pp
+.Rs
+.%T Standard Text Interface For Graphics Devices
+.%N Revision 8.13
+.%D March 1, 2000
+.%I Hewlett-Packard
+.Re
+.Sh HISTORY
+The
+.Nm
+driver was written by
+.An Michael Shalayeff Aq Mt mickey@openbsd.org
+for HPPA
+port for
+.Ox 2.7 .
+.\" .Pp
+.\" .Xr pci 4
+.\" attachment code was written by
+.\" .An Miod Vallat .
+.Sh BUGS
+Currently, neither scroll back nor screen blanking functions
+are implemented.

@@ -1,0 +1,20 @@
+static_library("lib") {
+  output_name = "clangPseudo"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/pseudo/lib/grammar",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ "../include" ]
+  sources = [
+    "Bracket.cpp",
+    "DirectiveTree.cpp",
+    "Disambiguate.cpp",
+    "Forest.cpp",
+    "GLR.cpp",
+    "Lex.cpp",
+    "Token.cpp",
+  ]
+}

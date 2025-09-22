@@ -1,0 +1,76 @@
+.\" $OpenBSD: SSL_num_renegotiations.3,v 1.6 2025/06/08 22:52:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_NUM_RENEGOTIATIONS 3
+.Os
+.Sh NAME
+.Nm SSL_num_renegotiations ,
+.Nm SSL_clear_num_renegotiations ,
+.Nm SSL_total_renegotiations
+.Nd renegotiation counters
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft long
+.Fo SSL_num_renegotiations
+.Fa "SSL *ssl"
+.Fc
+.Ft long
+.Fo SSL_clear_num_renegotiations
+.Fa "SSL *ssl"
+.Fc
+.Ft long
+.Fo SSL_total_renegotiations
+.Fa "SSL *ssl"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_num_renegotiations
+reports the number of renegotiations initiated in
+.Fa ssl
+since
+.Xr SSL_new 3 ,
+.Xr SSL_clear 3 ,
+or
+.Fn SSL_clear_num_renegotiations
+was last called on that object.
+.Pp
+.Fn SSL_clear_num_renegotiations
+does the same and additionally resets the renegotiation counter to 0.
+.Pp
+.Fn SSL_total_renegotiations
+reports the number of renegotiations initiated in
+.Fa ssl
+since
+.Xr SSL_new 3
+or
+.Xr SSL_clear 3
+was last called on that object.
+.Pp
+These functions are implemented as macros.
+.Sh RETURN VALUES
+All these functions return a number of renegotiations.
+.Sh SEE ALSO
+.Xr BIO_set_ssl_renegotiate_bytes 3 ,
+.Xr ssl 3 ,
+.Xr SSL_ctrl 3 ,
+.Xr SSL_read 3 ,
+.Xr SSL_renegotiate 3 ,
+.Xr SSL_write 3
+.Sh HISTORY
+These functions first appeared in SSLeay 0.9.0
+and have been available since
+.Ox 2.4 .

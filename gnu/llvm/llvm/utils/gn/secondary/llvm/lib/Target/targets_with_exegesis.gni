@@ -1,0 +1,9 @@
+import("//llvm/lib/Target/targets.gni")
+
+targets_with_exegesis = []
+foreach(target, llvm_targets_to_build) {
+  if (target == "AArch64" || target == "Mips" || target == "PowerPC" ||
+      target == "X86") {
+    targets_with_exegesis += [ target ]
+  }
+}

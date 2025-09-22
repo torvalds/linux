@@ -1,0 +1,6 @@
+static_library("Annotations") {
+  output_name = "LLVMTestingAnnotations"
+  deps = [ "//llvm/lib/Support" ]
+  sources = [ "Annotations.cpp" ]
+  testonly = true
+}

@@ -1,0 +1,61 @@
+.\" $OpenBSD: ixv.4,v 1.5 2025/05/08 23:04:35 yasuoka Exp $
+.\"
+.\" Copyright (c) 2024 YASUOKA Masahiko <yasuoka@yasuoka.net>
+.\" Copyright (c) 2019 Jonathan Matthew <jmatthew@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 8 2025 $
+.Dt IXV 4
+.Os
+.Sh NAME
+.Nm ixv
+.Nd Intel 10Gb Ethernet virtual function device
+.Sh SYNOPSIS
+.Cd "ixv* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the SR-IOV virtual functions of Intel 82598EB,
+82599, and X540-based Ethernet controller devices.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr ix 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.7 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+Intel Corporation and ported to
+.Ox
+by
+.An NAITO Yuichiro .
+.Sh BUGS
+The VF relies on
+.Dq vlan-filter
+to receive VLAN-tagged packets.
+Because the current driver doesn't have a way to configure it,
+any VLAN-tagged packets will not be passed.
+Alternatively,
+on the host running the primary function,
+there might be a way to configure a VLAN ID.

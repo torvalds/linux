@@ -1,0 +1,184 @@
+.\"	$OpenBSD: chflags.1,v 1.19 2019/09/02 21:18:41 deraadt Exp $
+.\"	$NetBSD: chflags.1,v 1.4 1995/08/31 22:50:22 jtc Exp $
+.\"
+.\" Copyright (c) 1989, 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)chflags.1	8.4 (Berkeley) 5/2/95
+.\"
+.Dd $Mdocdate: September 2 2019 $
+.Dt CHFLAGS 1
+.Os
+.Sh NAME
+.Nm chflags
+.Nd change file flags
+.Sh SYNOPSIS
+.Nm chflags
+.Op Fl h
+.Oo
+.Fl R
+.Op Fl H | L | P
+.Oc
+.Ar flags
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility modifies the file flags of the listed files
+as specified by the
+.Ar flags
+operand.
+The
+.Ar flags
+of a file dictate special restrictions beyond those enforced by its
+mode/permissions.
+Only the superuser can change the user flags on block and
+character devices.
+.Pp
+You can use
+.Sy ls Fl lo
+to see the flags of existing files.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl H
+If the
+.Fl R
+option is also specified, symbolic links on the command line are followed.
+Symbolic links encountered in the tree traversal are not followed.
+.It Fl h
+Treat symbolic links like other files: modify links instead of
+following them.
+The
+.Fl h
+and
+.Fl R
+options are mutually exclusive.
+.It Fl L
+If the
+.Fl R
+option is also specified, all symbolic links are followed.
+.It Fl P
+If the
+.Fl R
+option is also specified, no symbolic links are followed.
+.It Fl R
+Recurse.
+Where
+.Ar file
+is a directory,
+change the flags of the directory and all the files and directories
+in the file hierarchy below it.
+.El
+.Pp
+Flags are a comma separated list of keywords.
+The following keywords are currently defined:
+.Pp
+.Bl -tag -width "nodump" -compact -offset indent
+.It Cm arch
+set the archived flag (superuser only)
+.It Cm nodump
+set the nodump flag (owner or superuser only)
+.It Cm sappnd
+set the system append-only flag (superuser only)
+.It Cm schg
+set the system immutable flag (superuser only)
+.It Cm uappnd
+set the user append-only flag (owner or superuser only)
+.It Cm uchg
+set the user immutable flag (owner or superuser only)
+.El
+.Pp
+The
+.Cm arch
+flag is for compatibility only,
+and currently has no effect.
+.Pp
+A file with the
+.Cm nodump
+flag set will by default only be backed up by
+.Xr dump 8
+during full backups.
+The
+.Fl h
+option of
+.Xr dump 8
+can be used to alter this.
+.Pp
+An immutable file may not be changed, moved, or deleted.
+An append-only file is immutable except that data may be appended to it.
+.Pp
+The
+superuser-settable
+.Cm sappnd
+and
+.Cm schg
+flags can be set at any time, but may only be cleared when the system is
+running at security level 0 or \-1
+(insecure or permanently insecure mode, respectively).
+For more information on setting the system security level,
+see
+.Xr securelevel 7 .
+.Pp
+Putting the letters
+.Cm no
+before a flag name causes the flag to be turned off.
+For example:
+.Pp
+.Bl -tag -width "nouchg" -compact -offset indent
+.It Cm nouchg
+the immutable bit should be cleared
+.El
+.Pp
+The
+.Fl H ,
+.Fl L ,
+and
+.Fl P
+options are ignored unless the
+.Fl R
+option is specified.
+In addition, these options override each other and the
+command's actions are determined by the last one specified.
+.Sh EXIT STATUS
+.Ex -std chflags
+.Sh SEE ALSO
+.Xr ls 1 ,
+.Xr chflags 2 ,
+.Xr stat 2 ,
+.Xr fts_open 3 ,
+.Xr securelevel 7 ,
+.Xr symlink 7 ,
+.Xr dump 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Bx 4.4 .

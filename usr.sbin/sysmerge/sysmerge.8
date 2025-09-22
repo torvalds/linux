@@ -1,0 +1,174 @@
+.\"	$OpenBSD: sysmerge.8,v 1.80 2024/09/05 06:39:53 jmc Exp $
+.\"
+.\" Copyright (c) 2008 Antoine Jacoutot <ajacoutot@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 5 2024 $
+.Dt SYSMERGE 8
+.Os
+.Sh NAME
+.Nm sysmerge
+.Nd update system configuration files
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl bdp
+.Ek
+.Sh DESCRIPTION
+.Nm
+is a utility designed to help the administrator update configuration files
+after upgrading to a new release or snapshot.
+.Pp
+.Nm
+works by comparing a reference root directory against currently installed files.
+.Pp
+.Nm
+will work through the fileset,
+offering the chance to merge any differences using
+.Xr sdiff 1 .
+Merged files may be edited using the default editor or be left to deal
+with at a later date.
+Should any problems occur,
+such as a failure to upgrade a file,
+the user will be notified and will have to deal with the issue by hand.
+.Pp
+By default (if
+.Fl d
+is not used)
+.Nm
+only compares files whose reference sources have changed since the last run
+and attempts to automatically upgrade them to the newest version,
+provided that they have no local changes.
+It automatically installs missing files and binaries,
+and updates files differing only by CVS Id.
+Files whose reference sources have matching CVS Id are skipped from comparison.
+.Pa /etc/fbtab
+and
+.Pa /etc/ttys
+are created using helper scripts and are
+.Sy always
+compared.
+Users and groups that are missing from the current installation but
+present in the new
+.Xr master.passwd 5
+and
+.Xr group 5
+files will
+.Sy always
+be automatically (re)created.
+.Pp
+.Nm
+will finish by running
+.Xr mtree 8
+to make sure the directory structure has correct permissions.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl b
+Batch mode.
+.Nm
+runs non-interactively,
+saving differing files for later manual processing.
+.It Fl d
+Diff mode.
+.Nm
+does not take any automatic action, allowing for a full diff comparison.
+.It Fl p
+Package mode.
+.Nm
+only compares the default configuration files of installed
+.Xr packages 7
+against their target on the system (@sample).
+.El
+.Pp
+Files can be excluded from comparison by listing them in
+.Pa /etc/sysmerge.ignore .
+Checksum files stored under
+.Pa /var/sysmerge
+as well as the following files will always be skipped from direct comparison:
+.Pa /etc/group ,
+.Pa /etc/localtime ,
+.Pa /etc/master.passwd ,
+.Pa /etc/motd ,
+.Pa /etc/passwd ,
+.Pa /etc/pwd.db ,
+.Pa /etc/spwd.db ,
+.Pa /var/db/locate.database ,
+.Pa /var/mail/root .
+.Sh ENVIRONMENT
+.Bl -tag -width "EDITORXXVISUAL"
+.It Ev EDITOR , VISUAL
+Specifies an editor to use.
+If both
+.Ev EDITOR
+and
+.Ev VISUAL
+are set,
+.Ev VISUAL
+takes precedence.
+If neither
+.Ev EDITOR
+nor
+.Ev VISUAL
+are set,
+the default is
+.Xr vi 1 .
+.It Ev PAGER
+Specifies the pagination program to use.
+If
+.Ev PAGER
+is empty or not set,
+.Xr more 1
+will be used.
+.El
+.Sh FILES
+.Bl -tag -width "/var/sysmerge/xetc.tgz" -compact
+.It Pa /etc/sysmerge.ignore
+Files and directories to ignore from comparison.
+.It Pa /var/sysmerge/backups
+Directory containing backup of
+.Nm
+last run modified files.
+Rotated automatically in order of increasing age from
+.Pa backups.0
+to
+.Pa backups.3 .
+.It Pa /var/sysmerge/etc.tgz
+Base system set containing the reference files
+corresponding to the currently installed release.
+.It Pa /var/sysmerge/xetc.tgz
+.Xr X 7
+set containing the reference files
+corresponding to the currently installed release.
+.El
+.Sh SEE ALSO
+.Xr more 1 ,
+.Xr sdiff 1 ,
+.Xr sysupgrade 8
+.Pp
+.Lk https://www.openbsd.org/faq/current.html
+.Lk https://www.openbsd.org/faq/upgradeXX.html
+.Sh HISTORY
+The
+.Nm
+script first appeared in
+.Ox 4.4 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was written by
+.An Antoine Jacoutot Aq Mt ajacoutot@openbsd.org .
+It was originally started as a friendly fork from
+mergemaster by
+.An Douglas Barton Aq Mt DougB@FreeBSD.org .

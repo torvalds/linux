@@ -1,0 +1,86 @@
+#	$OpenBSD: files.pv,v 1.19 2025/05/17 08:36:01 sf Exp $
+#
+# Config file and device description for paravirtual devices.
+# Included by ports that need it.
+
+define	pvbus {}
+device	pvbus
+attach	pvbus at mainbus
+file	dev/pv/pvbus.c			pvbus	needs-flag
+
+# KVM clock
+device	pvclock
+attach	pvclock at pvbus
+file	dev/pv/pvclock.c		pvclock
+
+# VMware Tools
+device	vmt
+attach	vmt at pvbus
+file	dev/pv/vmt.c			vmt
+
+# Xen
+device	xen {}
+attach	xen at pvbus
+file	dev/pv/xen.c			xen	needs-flag
+file	dev/pv/xenstore.c		xen
+
+# Xen Netfront
+device	xnf: ether, ifnet, ifmedia
+attach	xnf at xen
+file	dev/pv/if_xnf.c			xnf
+
+# Xen Blkfront
+device	xbf: scsi
+attach	xbf at xen
+file	dev/pv/xbf.c			xbf
+
+# Hyper-V
+device	hyperv {}
+attach	hyperv at pvbus
+file	dev/pv/hyperv.c			hyperv	needs-flag
+file	dev/pv/hypervic.c		hyperv
+
+# Hyper-V NetVSC
+device	hvn: ether, ifnet, ifmedia
+attach	hvn at hyperv
+file	dev/pv/if_hvn.c			hvn
+
+# Hyper-V StorVSC
+device	hvs: scsi
+attach	hvs at hyperv
+file	dev/pv/hvs.c			hvs
+
+# VirtIO
+file	dev/pv/virtio.c			virtio
+
+device	vio: ether, ifnet, ifmedia, intrmap
+attach	vio at virtio
+file	dev/pv/if_vio.c			vio
+
+device	vioblk: scsi
+attach	vioblk at virtio
+file	dev/pv/vioblk.c			vioblk
+
+device	viocon
+attach	viocon at virtio
+file	dev/pv/viocon.c			viocon		needs-flag
+
+device	viomb
+attach	viomb at virtio
+file	dev/pv/viomb.c			viomb
+
+device	viornd
+attach	viornd at virtio
+file	dev/pv/viornd.c			viornd
+
+device	vioscsi: scsi
+attach	vioscsi at virtio
+file	dev/pv/vioscsi.c		vioscsi
+
+device	vmmci
+attach	vmmci at virtio
+file	dev/pv/vmmci.c			vmmci
+
+device	viogpu: drmbase, wsemuldisplaydev, rasops32
+attach	viogpu at virtio
+file	dev/pv/viogpu.c			viogpu

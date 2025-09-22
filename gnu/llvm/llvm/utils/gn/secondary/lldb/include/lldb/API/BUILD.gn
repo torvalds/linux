@@ -1,0 +1,10 @@
+action("SBLanguages") {
+  script = "//lldb/scripts/generate-sbapi-dwarf-enum.py"
+  outputs = [ "$target_gen_dir/SBLanguages.h" ]
+  sources = [ "//llvm/include/llvm/BinaryFormat/Dwarf.def" ]
+  args = [
+    rebase_path(sources[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}

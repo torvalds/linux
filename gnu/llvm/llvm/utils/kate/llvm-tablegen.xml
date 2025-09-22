@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE language SYSTEM "language.dtd">
+<language name="LLVM TableGen" section="Sources" version="1.00" kateversion="3.4.4" extensions="*.td" mimetype="" author="LLVM Team" license="LLVM Release License">
+  <highlighting>
+    <list name="keywords">
+      <item> foreach </item>
+      <item> field </item>
+      <item> if </item>
+      <item> then </item>
+      <item> else </item>
+    </list>
+    <list name="operator-keywords">
+      <item> in </item>
+    </list>
+    <list name="bang-operators">
+      <item> !eq </item>
+      <item> !if </item>
+      <item> !head </item>
+      <item> !tail </item>
+      <item> !con </item>
+      <item> !add </item>
+      <item> !mul </item>
+      <item> !shl </item>
+      <item> !sra </item>
+      <item> !srl </item>
+      <item> !and </item>
+      <item> !or </item>
+      <item> !empty </item>
+      <item> !subst </item>
+      <item> !foreach </item>
+      <item> !strconcat </item>
+      <item> !cast </item>
+      <item> !listconcat </item>
+      <item> !listremove </item>
+      <item> !listsplat </item>
+      <item> !size </item>
+      <item> !foldl </item>
+      <item> !isa </item>
+      <item> !dag </item>
+      <item> !le </item>
+      <item> !lt </item>
+      <item> !ge </item>
+      <item> !gt </item>
+      <item> !ne </item>
+      <item> !tolower </item>
+      <item> !toupper </item>
+      <item> !repr </item>
+    </list>
+    <list name="objects">
+      <item> class </item>
+      <item> def </item>
+      <item> defm </item>
+      <item> defset </item>
+      <item> let </item>
+      <item> defvar </item>
+      <item> multiclass </item>
+      <item> assert </item>
+      <item> dump </item>
+    </list>
+    <list name="class-like">
+      <item> class </item>
+      <item> def </item>
+      <item> defm </item>
+      <item> defset </item>
+      <item> multiclass </item>
+    </list>
+    <list name="variable-like">
+      <item> let </item>
+    </list>
+    <list name="types">
+      <item> string </item>
+      <item> code </item>
+      <item> bit </item>
+      <item> int </item>
+      <item> dag </item>
+      <item> bits </item>
+      <item> list </item>
+    </list>
+    <contexts>
+      <context name="llvm tablegen" attribute="Normal Text" lineEndContext="#stay">
+        <DetectSpaces/>
+        <Detect2Chars attribute="Comment" context="Single-line comment" char="/" char1="/"/>
+        <Detect2Chars attribute="Comment" context="Multi-line comment" char="/" char1="*" beginRegion="Comment"/>
+        <keyword attribute="Keyword" context="Definition" String="class-like"/>
+        <keyword attribute="Keyword" context="Let expression" String="variable-like"/>
+        <keyword attribute="Keyword" String="objects"/>
+        <keyword attribute="Keyword" String="keywords"/>
+        <keyword attribute="Keyword" String="operator-keywords"/>
+        <keyword attribute="Keyword" String="bang-operators"/>
+        <keyword attribute="Data Type" String="types"/>
+        <DetectChar attribute="Symbol" context="#stay" char="{" beginRegion="Brace1"/>
+        <DetectChar attribute="Symbol" context="#stay" char="}" endRegion="Brace1"/>
+        <Int attribute="Int" context="#stay"/>
+        <RegExpr attribute="Normal Text" String="[a-zA-Z_][a-zA-Z_0-9]{2,}" context="#stay"/>
+      </context>
+      <context attribute="Comment" lineEndContext="#pop" name="Single-line comment">
+        <IncludeRules context="##Alerts"/>
+        <LineContinue attribute="Comment" context="#stay"/>
+      </context>
+      <context attribute="Comment" lineEndContext="#stay" name="Multi-line comment">
+        <Detect2Chars attribute="Comment" context="Multi-line comment" char="/" char1="*" beginRegion="Comment"/>
+        <IncludeRules context="##Alerts"/>
+        <Detect2Chars attribute="Comment" context="#pop" char="*" char1="/" endRegion="Comment"/>
+      </context>
+      <context attribute="Normal Text" lineEndContext="#stay" name="Definition">
+        <DetectSpaces/>
+        <RegExpr attribute="Type" context="#stay" String="[a-zA-Z0-9_]+"/>
+        <DetectSpaces/>
+        <DetectChar char=":" />
+        <DetectSpaces/>
+        <RegExpr attribute="Type" context="#stay" String="[a-zA-Z0-9_]+"/>
+        <AnyChar context="#pop" lookAhead="true" String=" :;{&lt;" />
+      </context>
+      <context attribute="Normal Text" lineEndContext="#stay" name="Let expression">
+        <DetectSpaces/>
+        <RegExpr attribute="Variable" context="#pop" String="[a-zA-Z0-9_]+"/>
+      </context>
+    </contexts>
+    <itemDatas>
+      <itemData name="Normal Text" defStyleNum="dsNormal" spellChecking="false"/>
+      <itemData name="Operator" defStyleNum="dsOperator" spellChecking="false"/>
+      <itemData name="Keyword" defStyleNum="dsKeyword" spellChecking="false"/>
+      <itemData name="Data Type" defStyleNum="dsDataType" spellChecking="false"/>
+      <itemData name="Type" defStyleNum="dsDataType" spellChecking="false"/>
+      <itemData name="Variable" defStyleNum="dsVariable" spellChecking="false"/>
+      <itemData name="Int" defStyleNum="dsDecVal"/>
+      <itemData name="Hex" defStyleNum="dsBaseN"/>
+      <itemData name="Float" defStyleNum="dsFloat"/>
+      <itemData name="String" defStyleNum="dsString"/>
+      <itemData name="Comment" defStyleNum="dsComment"/>
+      <itemData name="Function" defStyleNum="dsFunction"/>
+      <itemData name="Symbol" defStyleNum="dsNormal" spellChecking="false"/>
+      <itemData name="SPECIAL" defStyleNum="dsAlert" strikeout="true" bold="true" underline="true" italic="true"/>
+    </itemDatas>
+  </highlighting>
+  <general>
+    <comments>
+      <comment name="singleLine" start="//"/>
+      <comment name="multiLine" start="/*" end="*/"/>
+    </comments>
+    <keywords casesensitive="1" weakDeliminator=".!"/>
+  </general>
+</language>
+<!--
+// kate: space-indent on; indent-width 2; replace-tabs on;
+-->

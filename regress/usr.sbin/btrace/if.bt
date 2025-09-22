@@ -1,0 +1,50 @@
+BEGIN {
+	if (0)
+		printf("nothing");
+
+	@var = 0;
+	if (@var)
+		printf("not printed\n");
+
+	if (1) {
+		printf("printed!\n");
+	}
+
+	if (0)
+		printf("simple if\n");
+	else
+		printf("simple else\n");
+
+	if (0) {
+		printf("disabled if\n");
+	} else if (1) {
+		printf("multiple statements in ");
+		printf("else-if branch\n");
+	} else {
+		printf("no else\n");
+	}
+}
+
+END {
+	if (42) {
+		printf("multiple ");
+		@var = 4;
+		printf("(%d) ", @var);
+		printf("statements\n");
+	}
+
+	if (0) printf("single-line if\n"); else printf("single-line else\n");
+
+	if (0) {
+		printf("not printed\n");
+	} else {
+		if (0) {
+			printf("nested not printed\n");
+		} else {
+			printf("nested printed\n");
+			exit();
+			printf("nested not printed\n");
+		}
+		printf("also not printed\n");
+	}
+}

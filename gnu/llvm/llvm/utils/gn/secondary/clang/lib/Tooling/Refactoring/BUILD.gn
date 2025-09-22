@@ -1,0 +1,30 @@
+static_library("Refactoring") {
+  output_name = "clangToolingRefactoring"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Index",
+    "//clang/lib/Lex",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "ASTSelection.cpp",
+    "ASTSelectionRequirements.cpp",
+    "AtomicChange.cpp",
+    "Extract/Extract.cpp",
+    "Extract/SourceExtraction.cpp",
+    "Lookup.cpp",
+    "RefactoringActions.cpp",
+    "Rename/RenamingAction.cpp",
+    "Rename/SymbolOccurrences.cpp",
+    "Rename/USRFinder.cpp",
+    "Rename/USRFindingAction.cpp",
+    "Rename/USRLocFinder.cpp",
+  ]
+}

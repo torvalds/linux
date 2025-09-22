@@ -1,0 +1,40 @@
+import("//llvm/utils/gn/build/driver_executable.gni")
+import("//llvm/utils/gn/build/symlink_or_copy.gni")
+
+symlinks = [
+  "lld-link",
+  "ld.lld",
+  "ld64.lld",
+  "wasm-ld",
+]
+foreach(target, symlinks) {
+  symlink_or_copy(target) {
+    deps = [ ":lld" ]
+    source = "lld"
+    output = "$root_out_dir/bin/$target"
+  }
+}
+
+# //:lld depends on this symlink target, see comment in //BUILD.gn.
+group("symlinks") {
+  deps = [ ":lld" ]
+  foreach(target, symlinks) {
+    deps += [ ":$target" ]
+  }
+}
+
+driver_executable("lld") {
+  configs += [ "//llvm/utils/gn/build:lld_code" ]
+  deps = [
+    "//lld/COFF",
+    "//lld/ELF",
+    "//lld/MachO:MachO",
+    "//lld/MinGW",
+    "//lld/wasm",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/utils/gn/build/libs/xar",
+  ]
+  assert_no_deps = [ "//llvm/lib/Debuginfod" ]
+  sources = [ "lld.cpp" ]
+}

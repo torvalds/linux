@@ -1,0 +1,71 @@
+Date: Fri, 1 Jun 2001 17:08:44 -0500 (CDT)
+From: Chris Lattner <sabre@nondot.org>
+To: Vikram S. Adve <vadve@cs.uiuc.edu>
+Subject: RE: Interesting: GCC passes
+
+> That is very interesting.  I agree that some of these could be done on LLVM
+> at link-time, but it is the extra time required that concerns me.  Link-time
+> optimization is severely time-constrained.
+
+If we were to reimplement any of these optimizations, I assume that we
+could do them a translation unit at a time, just as GCC does now.  This
+would lead to a pipeline like this:
+
+Static optimizations, xlation unit at a time:
+.c --GCC--> .llvm --llvmopt--> .llvm 
+
+Link time optimizations:
+.llvm --llvm-ld--> .llvm --llvm-link-opt--> .llvm 
+
+Of course, many optimizations could be shared between llvmopt and
+llvm-link-opt, but the wouldn't need to be shared...  Thus compile time
+could be faster, because we are using a "smarter" IR (SSA based).
+
+> BTW, about SGI, "borrowing" SSA-based optimizations from one compiler and
+> putting it into another is not necessarily easier than re-doing it.
+> Optimization code is usually heavily tied in to the specific IR they use.
+
+Understood.  The only reason that I brought this up is because SGI's IR is
+more similar to LLVM than it is different in many respects (SSA based,
+relatively low level, etc), and could be easily adapted.  Also their
+optimizations are written in C++ and are actually somewhat
+structured... of course it would be no walk in the park, but it would be
+much less time consuming to adapt, say, SSA-PRE than to rewrite it.
+
+> But your larger point is valid that adding SSA based optimizations is
+> feasible and should be fun.  (Again, link time cost is the issue.)
+
+Assuming linktime cost wasn't an issue, the question is: 
+Does using GCC's backend buy us anything?
+
+> It also occurs to me that GCC is probably doing quite a bit of back-end
+> optimization (step 16 in your list).  Do you have a breakdown of that?
+
+Not really.  The irritating part of GCC is that it mixes it all up and
+doesn't have a clean separation of concerns.  A lot of the "back end
+optimization" happens right along with other data optimizations (ie, CSE
+of machine specific things).
+
+As far as REAL back end optimizations go, it looks something like this:
+
+1. Instruction combination: try to make CISCy instructions, if available
+2. Register movement: try to get registers in the right places for the
+architecture to avoid register to register moves.  For example, try to get
+the first argument of a function to naturally land in %o0 for sparc.
+3. Instruction scheduling: 'nuff said :)
+4. Register class preferencing: ??
+5. Local register allocation
+6. global register allocation
+7. Spilling
+8. Local regalloc
+9. Jump optimization
+10. Delay slot scheduling
+11. Branch shorting for CISC machines
+12. Instruction selection & peephole optimization
+13. Debug info output
+
+But none of this would be usable for LLVM anyways, unless we were using
+GCC as a static compiler.
+
+-Chris
+

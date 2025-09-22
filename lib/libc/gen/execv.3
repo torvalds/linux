@@ -1,0 +1,264 @@
+.\"	$OpenBSD: execv.3,v 1.2 2023/05/13 16:36:40 kn Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 13 2023 $
+.Dt EXECV 3
+.Os
+.Sh NAME
+.Nm execl ,
+.Nm execlp ,
+.Nm execle ,
+.Nm execv ,
+.Nm execvp ,
+.Nm execvpe
+.Nd execute a file
+.Sh SYNOPSIS
+.In unistd.h
+.Vt extern char **environ;
+.Ft int
+.Fn execl "const char *path" "const char *arg" ...
+.Ft int
+.Fn execlp "const char *file" "const char *arg" ...
+.Ft int
+.Fn execle "const char *path" "const char *arg" ... "char *const envp[]"
+.Ft int
+.Fn execv "const char *path" "char *const argv[]"
+.Ft int
+.Fn execvp "const char *file" "char *const argv[]"
+.Ft int
+.Fn execvpe "const char *file" "char *const argv[]" "char *const envp[]"
+.Sh DESCRIPTION
+This family of functions replace the current process image with a
+new process image.
+The functions described in this manual page are front-ends for the
+.Xr execve 2
+system call; see that manual page for detailed information
+about the replacement of the current process.
+.Pp
+The initial argument for these functions is the pathname of a file which
+is to be executed.
+.Pp
+The
+.Fa "const char *arg"
+and subsequent ellipses in the
+.Fn execl ,
+.Fn execlp ,
+and
+.Fn execle
+functions can be thought of as
+.Fa arg0 ,
+.Fa arg1 ,
+\&...,
+.Fa argn .
+Together they describe a list of one or more pointers to
+NUL-terminated
+strings that represent the argument list available to the executed program.
+The first argument, by convention, should point to the file name associated
+with the file being executed.
+The list of arguments
+.Em must
+be terminated by a null pointer.
+.Pp
+The
+.Fn execv ,
+.Fn execvp
+and
+.Fn execvpe
+functions provide an array of pointers to
+NUL-terminated strings that
+represent the argument list available to the new program.
+The first argument, by convention, should point to the file name associated
+with the file being executed.
+The array of pointers
+.Em must
+be terminated by a null pointer itself.
+.Pp
+The
+.Fn execle
+and
+.Fn execvpe
+functions also specify the environment of the executed process by following
+the null
+pointer that terminates the list of arguments in the parameter list
+or the pointer to the
+.Va argv
+array with an additional parameter.
+This additional parameter is an array of pointers to NUL-terminated
+strings and
+.Em must
+be terminated by a null pointer itself.
+The other functions take the environment for the new process image from the
+external variable
+.Va environ
+in the current process.
+.Pp
+Some of these functions have special semantics.
+.Pp
+The functions
+.Fn execlp ,
+.Fn execvp
+and
+.Fn execvpe
+will duplicate the actions of the shell in searching for an executable file
+if the specified file name does not contain a slash
+.Pq Sq \&/
+character.
+The search path is the path specified in the environment by
+.Ev PATH
+variable.
+If this variable isn't specified,
+.Dv _PATH_DEFPATH
+from
+.In paths.h
+is used instead, consisting of
+.Pa /usr/bin ,
+.Pa /bin ,
+.Pa /usr/sbin ,
+.Pa /sbin ,
+.Pa /usr/X11R6/bin ,
+.Pa /usr/local/bin ,
+.Pa /usr/local/sbin .
+.Pp
+In addition, certain errors are treated specially.
+.Pp
+If permission is denied for a file (the attempted
+.Xr execve 2
+returned
+.Er EACCES ) ,
+these functions will continue searching the rest of
+the search path.
+If no other file is found, however, they will return with the global variable
+.Va errno
+set to
+.Er EACCES .
+.Pp
+If the header of a file isn't recognized (the attempted
+.Xr execve 2
+returned
+.Er ENOEXEC ) ,
+these functions will execute the shell with the path of
+the file as its first argument.
+(If this attempt fails, no further searching is done.)
+.Sh RETURN VALUES
+If any of these functions return, an error has occurred.
+The return value is \-1, and the global variable
+.Va errno
+will be set to indicate the error.
+.Sh FILES
+.Bl -tag -width /bin/sh -compact
+.It Pa /bin/sh
+default shell program
+.El
+.Sh ERRORS
+.Fn execl ,
+.Fn execle ,
+.Fn execlp ,
+.Fn execvp ,
+and
+.Fn execvpe
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr execve 2
+and
+.Xr malloc 3 .
+.Pp
+.Fn execv
+may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr execve 2 .
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr execve 2 ,
+.Xr fork 2 ,
+.Xr ktrace 2 ,
+.Xr ptrace 2 ,
+.Xr environ 7
+.Sh STANDARDS
+Historically, the default path for the
+.Fn execlp
+and
+.Fn execvp
+functions was
+.Pa \&. ,
+.Pa /bin ,
+.Pa /usr/bin .
+This was changed to improve security and behaviour.
+.Pp
+The behavior of
+.Fn execlp
+and
+.Fn execvp
+when errors occur while attempting to execute the file is historic
+practice, but has not traditionally been documented and is not specified
+by the
+.Tn POSIX
+standard.
+.Pp
+Traditionally, the functions
+.Fn execlp
+and
+.Fn execvp
+ignored all errors except for the ones described above and
+.Er ENOMEM
+and
+.Er E2BIG ,
+upon which they returned.
+They now return if any error other than the ones described above occurs.
+.Pp
+.Fn execl ,
+.Fn execv ,
+.Fn execle ,
+.Fn execlp
+and
+.Fn execvp
+conform to
+.St -p1003.1-88 .
+.Fn execvpe
+is a GNU extension.
+.Sh HISTORY
+The functions
+.Fn execl
+and
+.Fn execv
+first appeared in
+.At v2 .
+A predecessor to
+.Fn execvp ,
+.Fn pexec ,
+first appeared in the Programmer's Workbench (PWB/UNIX).
+The functions
+.Fn execle ,
+.Fn execlp ,
+.Fn execve ,
+and
+.Fn execvp
+first appeared in
+.At v7 .

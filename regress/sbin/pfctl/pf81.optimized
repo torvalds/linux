@@ -1,0 +1,96 @@
+@0 pass inet6 from (lo0:2) to ::1 flags S/SA
+  [ Skip steps: i=end d=end r=end f=9 p=end sa=3 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass inet6 from (lo0:2) to ::2 flags S/SA
+  [ Skip steps: i=end d=end r=end f=9 p=end sa=3 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 pass inet6 from (lo0:2) to ::3 flags S/SA
+  [ Skip steps: i=end d=end r=end f=9 p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass inet6 from <foo:*> to ::1 flags S/SA
+  [ Skip steps: i=end d=end r=end f=9 p=end sa=6 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass inet6 from <foo:*> to ::2 flags S/SA
+  [ Skip steps: i=end d=end r=end f=9 p=end sa=6 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 pass inet6 from <foo:*> to ::3 flags S/SA
+  [ Skip steps: i=end d=end r=end f=9 p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 pass inet6 from no-route to ::1 flags S/SA
+  [ Skip steps: i=end d=end r=end f=9 p=end sa=9 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 pass inet6 from no-route to ::2 flags S/SA
+  [ Skip steps: i=end d=end r=end f=9 p=end sa=9 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 pass inet6 from no-route to ::3 flags S/SA
+  [ Skip steps: i=end d=end r=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 pass inet from (lo0:1) to 0.0.0.1 flags S/SA
+  [ Skip steps: i=end d=end r=end f=18 p=end sa=12 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 pass inet from (lo0:1) to 0.0.0.2 flags S/SA
+  [ Skip steps: i=end d=end r=end f=18 p=end sa=12 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 pass inet from (lo0:1) to 0.0.0.3 flags S/SA
+  [ Skip steps: i=end d=end r=end f=18 p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@12 pass inet from <foo:*> to 0.0.0.1 flags S/SA
+  [ Skip steps: i=end d=end r=end f=18 p=end sa=15 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@13 pass inet from <foo:*> to 0.0.0.2 flags S/SA
+  [ Skip steps: i=end d=end r=end f=18 p=end sa=15 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@14 pass inet from <foo:*> to 0.0.0.3 flags S/SA
+  [ Skip steps: i=end d=end r=end f=18 p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@15 pass inet from no-route to 0.0.0.1 flags S/SA
+  [ Skip steps: i=end d=end r=end f=18 p=end sa=21 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@16 pass inet from no-route to 0.0.0.2 flags S/SA
+  [ Skip steps: i=end d=end r=end f=18 p=end sa=21 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@17 pass inet from no-route to 0.0.0.3 flags S/SA
+  [ Skip steps: i=end d=end r=end p=end sa=21 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@18 pass from no-route to <bar1:*> flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=21 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@19 pass from no-route to <bar2:*> flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=21 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@20 pass from no-route to <bar3:*> flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@21 pass from <foo:*> to <bar1:*> flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@22 pass from <foo:*> to <bar2:*> flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@23 pass from <foo:*> to <bar3:*> flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

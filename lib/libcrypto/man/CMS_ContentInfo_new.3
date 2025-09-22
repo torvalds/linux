@@ -1,0 +1,136 @@
+.\" $OpenBSD: CMS_ContentInfo_new.3,v 1.5 2025/06/08 22:40:29 schwarze Exp $
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CMS_CONTENTINFO_NEW 3
+.Os
+.Sh NAME
+.Nm CMS_ContentInfo_new ,
+.Nm CMS_ContentInfo_free ,
+.Nm CMS_ContentInfo_print_ctx ,
+.Nm CMS_ReceiptRequest_new ,
+.Nm CMS_ReceiptRequest_free
+.Nd Cryptographic Message Syntax data structures
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cms.h
+.Ft CMS_ContentInfo *
+.Fn CMS_ContentInfo_new void
+.Ft void
+.Fn CMS_ContentInfo_free "CMS_ContentInfo *cms"
+.Ft int
+.Fo CMS_ContentInfo_print_ctx
+.Fa "BIO *out"
+.Fa "CMS_ContentInfo *cms"
+.Fa "int indent"
+.Fa "const ASN1_PCTX *pctx"
+.Fc
+.Ft CMS_ReceiptRequest *
+.Fn CMS_ReceiptRequest_new void
+.Ft void
+.Fn CMS_ReceiptRequest_free "CMS_ReceiptRequest *rr"
+.Sh DESCRIPTION
+.Fn CMS_ContentInfo_new
+allocates and initializes an empty
+.Vt CMS_ContentInfo
+object, representing an ASN.1
+.Vt ContentInfo
+structure defined in RFC 5652 section 3.
+It can hold a pointer to an ASN.1 OBJECT IDENTIFIER
+and a pointer to either a
+.Vt SignedData ,
+.Vt EnvelopedData ,
+.Vt DigestedData ,
+.Vt EncryptedData ,
+.Vt AuthenticatedData ,
+or
+.Vt CompressedData
+object or to an arbitrary ASN.1 object.
+.Fn CMS_ContentInfo_free
+frees
+.Fa cms .
+.Pp
+.Fn CMS_ContentInfo_print_ctx
+prints a human readable representation of
+.Fa cms
+to
+.Fa out .
+.Pp
+.Fn CMS_ReceiptRequest_new
+allocates and initializes an empty
+.Vt CMS_ReceiptRequest
+object, representing an ASN.1
+.Vt ReceiptRequest
+structure defined in RFC 2634 section 2.7.
+It can contain a content identifier, a list of recipients requested
+to return a signed receipt, and a list of users to send the receipt to.
+.Fn CMS_ReceiptRequest_free
+frees
+.Fa rr .
+.Sh RETURN VALUES
+.Fn CMS_ContentInfo_new
+and
+.Fn CMS_ReceiptRequest_new
+return the new
+.Vt CMS_ContentInfo
+or
+.Vt CMS_ReceiptRequest
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr BIO_new_CMS 3 ,
+.Xr CMS_add0_cert 3 ,
+.Xr CMS_add1_recipient_cert 3 ,
+.Xr CMS_add1_signer 3 ,
+.Xr CMS_compress 3 ,
+.Xr CMS_decrypt 3 ,
+.Xr CMS_encrypt 3 ,
+.Xr CMS_final 3 ,
+.Xr CMS_get0_RecipientInfos 3 ,
+.Xr CMS_get0_SignerInfos 3 ,
+.Xr CMS_get0_type 3 ,
+.Xr CMS_get1_ReceiptRequest 3 ,
+.Xr CMS_sign 3 ,
+.Xr CMS_sign_receipt 3 ,
+.Xr CMS_signed_add1_attr 3 ,
+.Xr CMS_uncompress 3 ,
+.Xr CMS_verify 3 ,
+.Xr CMS_verify_receipt 3 ,
+.Xr crypto 3 ,
+.Xr d2i_CMS_ContentInfo 3 ,
+.Xr i2d_CMS_bio_stream 3 ,
+.Xr PEM_read_bio_PrivateKey 3 ,
+.Xr PEM_write_bio_CMS_stream 3 ,
+.Xr SMIME_read_CMS 3 ,
+.Xr SMIME_write_CMS 3
+.Sh STANDARDS
+RFC 5652: Cryptographic Message Syntax, section 3: General Syntax
+.Pp
+RFC 3274: Compressed Data Content Type for Cryptographic Message Syntax (CMS)
+.Pp
+RFC 2634: Enhanced Security Services for S/MIME,
+section 2.7: Receipt Request Syntax
+.Sh HISTORY
+.Fn CMS_ContentInfo_new ,
+.Fn CMS_ContentInfo_free ,
+.Fn CMS_ReceiptRequest_new ,
+and
+.Fn CMS_ReceiptRequest_free
+first appeared in OpenSSL 0.9.8h and
+.Fn CMS_ContentInfo_print_ctx
+in OpenSSL 1.0.0.
+This functions have been available since
+.Ox 6.7 .

@@ -1,0 +1,156 @@
+.\" $OpenBSD: ahd.4,v 1.18 2012/08/14 01:08:19 dlg Exp $
+.\"
+.\" Copyright (c) 1995, 1996, 1997, 1998, 2000
+.\" 	Justin T. Gibbs.  All rights reserved.
+.\" Copyright (c) 2002
+.\"	Scott Long.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: /repoman/r/ncvs/src/share/man/man4/ahd.4,v 1.5 2004/07/04 14:17:41 simon Exp $
+.\"
+.Dd $Mdocdate: August 14 2012 $
+.Dt AHD 4
+.Os
+.Sh NAME
+.Nm ahd
+.Nd Adaptec PCI/PCI-X AIC79xx-based Ultra320 SCSI interface
+.Sh SYNOPSIS
+.Cd "ahd* at pci?"
+.Sh DESCRIPTION
+.Nm
+provides access to the
+.Tn SCSI
+bus(es) connected to Adaptec
+.Tn AIC79xx
+host adapter chips.
+.Pp
+.Nm
+supports narrow and wide buses; synchronous and
+asynchronous operation; fast, ultra, ultra2, ultra160, and ultra320
+(packetized) transfers; tagged queuing and 512 SCBs.
+.Pp
+.Nm
+does not support target mode operation.
+.Pp
+The
+.Nm
+driver supports the following:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Adaptec
+.Tn AIC7901
+host adapter chip
+.It
+Adaptec
+.Tn AIC7901A
+host adapter chip
+.It
+Adaptec
+.Tn AIC7902
+host adapter chip
+.It
+Adaptec
+.Tn 29320
+host adapter
+.It
+Adaptec
+.Tn 39320
+host adapter
+.It
+Many motherboards with on-board
+.Tn SCSI
+support
+.El
+.Pp
+To compile in debugging code:
+.Bd -ragged -offset indent
+.Cd option AHD_DEBUG
+.Cd option AHD_DEBUG_OPTS=<bitmask of options>
+.Ed
+.Pp
+The
+.Dv AHD_DEBUG_OPTS
+option is used to control which diagnostic messages are printed to the
+console when
+.Dv AHD_DEBUG
+is enabled.
+Logically OR the following bits together:
+.Bl -column "0x0001" "Function" -offset indent
+.It Em Value Ta Em Function
+.It 0x0001 Ta "Show miscellaneous information"
+.It 0x0002 Ta "Show sense data"
+.It 0x0004 Ta "Show Serial EEPROM contents"
+.It 0x0008 Ta "Show bus termination settings"
+.It 0x0010 Ta "Show host memory usage"
+.It 0x0020 Ta "Show SCSI protocol messages"
+.It 0x0040 Ta "Show mode pointer of the chip register window"
+.It 0x0080 Ta "Show selection timeouts"
+.It 0x0100 Ta "Show FIFO usage messages"
+.It 0x0200 Ta "Show Queue Full status"
+.It 0x0400 Ta "Show SCB queue status"
+.It 0x0800 Ta "Show inbound packet information"
+.It 0x1000 Ta "Show S/G list information"
+.It 0x2000 Ta "Enable extra diagnostic code in the firmware"
+.El
+.Pp
+Per target configuration performed in the
+.Tn SCSI-Select
+menu, accessible at boot,
+is honored by this driver.
+This includes synchronous/asynchronous transfers,
+maximum synchronous negotiation rate,
+wide transfers,
+disconnection,
+and the host adapters
+.Tn SCSI
+ID.
+.Sh SEE ALSO
+.Xr ahc 4 ,
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr st 4 ,
+.Xr uk 4
+.Sh HISTORY
+The
+.Nm
+driver was ported from
+.Fx 4.7
+and first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+The
+.Nm
+driver, the
+.Tn AIC7xxx
+sequencer-code assembler,
+and the firmware running on the aic79xx chips was written by
+.An Justin T. Gibbs .
+.Pp
+.Ox
+port by Milos Urbanek, Kenneth R. Westerback & Marco Peereboom.

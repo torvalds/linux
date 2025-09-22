@@ -1,0 +1,48 @@
+.\"	$OpenBSD: bmtphy.4,v 1.10 2020/01/24 05:08:02 jsg Exp $
+.\"
+.\" Copyright (c) 2000 Theo de Raadt
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 24 2020 $
+.Dt BMTPHY 4
+.Os
+.Sh NAME
+.Nm bmtphy
+.Nd Broadcom Mini-Theta Ethernet PHY
+.Sh SYNOPSIS
+.Cd "bmtphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the Broadcom Mini-Theta BCM5201 and BCM5202 10/100
+Ethernet PHYs and their derivatives such as BCM4401, BCM5214, and BCM522x.
+It also supports the internal PHY on the 3Com 3C905C-TX 10/100 Ethernet
+interface, and the internal PHY on some 3Com 3C905B-TX 10/100 Ethernet
+interfaces.
+These PHYs are found on a variety of Ethernet interfaces.
+.Sh SEE ALSO
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr mii 4 ,
+.Xr ifconfig 8

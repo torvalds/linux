@@ -1,0 +1,87 @@
+.\"	$OpenBSD: feenableexcept.3,v 1.4 2025/06/07 10:33:06 schwarze Exp $
+.\"
+.\" Copyright (c) 2011 Martynas Venckus <martynas@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt FEENABLEEXCEPT 3
+.Os
+.Sh NAME
+.Nm feenableexcept ,
+.Nm fedisableexcept ,
+.Nm fegetexcept
+.Nd control floating-point exception masks
+.Sh SYNOPSIS
+.Lb libm
+.In fenv.h
+.Ft int
+.Fn feenableexcept "int excepts"
+.Ft int
+.Fn fedisableexcept "int excepts"
+.Ft int
+.Fn fegetexcept void
+.Sh DESCRIPTION
+These functions provide control of the floating-point exception
+masks.
+The
+.Fa excepts
+input argument is a bitmask specifying an exception type and
+containing any of the values listed in
+.Xr feclearexcept 3 .
+.Pp
+The
+.Fn feenableexcept
+function unmasks the floating-point exceptions represented by
+.Fa excepts .
+The future floating-point operations that produce
+.Fa excepts
+will trap, and a
+.Dv SIGFPE
+will be delivered to the process.
+.Pp
+The
+.Fn fedisableexcept
+function masks the floating-point exceptions represented by
+.Fa excepts .
+All exceptions are masked by default.
+.Pp
+The
+.Fn fegetexcept
+function returns the current exception mask.
+.Sh RETURN VALUES
+The
+.Fn feenableexcept ,
+and
+.Fn fedisableexcept
+functions return the previous exception mask.
+The
+.Fn fegetexcept
+function returns the current exception mask.
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr feclearexcept 3 ,
+.Xr fegetenv 3 ,
+.Xr fegetround 3
+.Sh STANDARDS
+The
+.Fn feenableexcept ,
+.Fn fedisableexcept ,
+and
+.Fn fegetexcept
+functions are
+.Ox
+extensions.
+.Sh HISTORY
+These functions first appeared in
+.Ox 5.0 .

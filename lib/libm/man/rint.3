@@ -1,0 +1,85 @@
+.\"	$OpenBSD: rint.3,v 1.15 2025/06/07 10:33:06 schwarze Exp $
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)rint.3	5.1 (Berkeley) 5/2/91
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt RINT 3
+.Os
+.Sh NAME
+.Nm nearbyint ,
+.Nm nearbyintf ,
+.Nm nearbyintl ,
+.Nm rint ,
+.Nm rintf ,
+.Nm rintl
+.Nd round to integral value in floating-point format
+.Sh SYNOPSIS
+.Lb libm
+.In math.h
+.Ft double
+.Fn nearbyint "double x"
+.Ft float
+.Fn nearbyintf "float x"
+.Ft long double
+.Fn nearbyintl "long double x"
+.Ft double
+.Fn rint "double x"
+.Ft float
+.Fn rintf "float x"
+.Ft long double
+.Fn rintl "long double x"
+.Sh DESCRIPTION
+The
+.Fn rint ,
+.Fn rintf ,
+and
+.Fn rintl
+functions return the integral value nearest to
+.Fa x
+according to the prevailing rounding mode.
+.Pp
+The
+.Fn nearbyint ,
+.Fn nearbyintf ,
+and
+.Fn nearbyintl
+functions do the same,
+but without raising the
+.Dq inexact
+floating-point exception.
+.Sh SEE ALSO
+.Xr abs 3 ,
+.Xr ceil 3 ,
+.Xr fabs 3 ,
+.Xr floor 3
+.Sh HISTORY
+A
+.Fn rint
+function appeared in
+.At v6 .

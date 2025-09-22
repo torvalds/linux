@@ -1,0 +1,101 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===---------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_BIT
+#define _LIBCPP_BIT
+
+/*
+    bit synopsis
+
+namespace std {
+  // [bit.cast], bit_cast
+  template<class To, class From>
+    constexpr To bit_cast(const From& from) noexcept; // C++20
+
+  // [bit.byteswap], byteswap
+  template<class T>
+    constexpr T byteswap(T value) noexcept;      // C++23
+
+  // [bit.pow.two], integral powers of 2
+  template <class T>
+    constexpr bool has_single_bit(T x) noexcept; // C++20
+  template <class T>
+    constexpr T bit_ceil(T x);                   // C++20
+  template <class T>
+    constexpr T bit_floor(T x) noexcept;         // C++20
+  template <class T>
+    constexpr int bit_width(T x) noexcept;       // C++20
+
+  // [bit.rotate], rotating
+  template<class T>
+    constexpr T rotl(T x, int s) noexcept; // C++20
+  template<class T>
+    constexpr T rotr(T x, int s) noexcept; // C++20
+
+  // [bit.count], counting
+  template<class T>
+    constexpr int countl_zero(T x) noexcept;  // C++20
+  template<class T>
+    constexpr int countl_one(T x) noexcept;   // C++20
+  template<class T>
+    constexpr int countr_zero(T x) noexcept;  // C++20
+  template<class T>
+    constexpr int countr_one(T x) noexcept;   // C++20
+  template<class T>
+    constexpr int popcount(T x) noexcept;     // C++20
+
+  // [bit.endian], endian
+  enum class endian {
+    little = see below,        // C++20
+    big = see below,           // C++20
+    native = see below         // C++20
+  };
+
+} // namespace std
+
+*/
+
+#include <__config>
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__bit/bit_cast.h>
+#  include <__bit/bit_ceil.h>
+#  include <__bit/bit_floor.h>
+#  include <__bit/bit_log2.h>
+#  include <__bit/bit_width.h>
+#  include <__bit/countl.h>
+#  include <__bit/countr.h>
+#  include <__bit/endian.h>
+#  include <__bit/has_single_bit.h>
+#  include <__bit/popcount.h>
+#  include <__bit/rotate.h>
+#endif
+
+#if _LIBCPP_STD_VER >= 23
+#  include <__bit/byteswap.h>
+#endif
+
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 17
+#  include <cstdint>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cstdlib>
+#  include <iosfwd>
+#  include <limits>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_BIT

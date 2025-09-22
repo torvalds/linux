@@ -1,0 +1,37 @@
+2a01:c00::/24 source-as 6805 is not found
+2a01:c00::/24 source-as 42 is not found
+2a01:c00::/26 source-as 6805 is VALID
+2a01:c00::/26 source-as 42 is invalid
+2a01:c00::/28 source-as 6805 is invalid
+2a01:c00::/28 source-as 42 is invalid
+2a01:c50::/28 source-as 12479 is not found
+2a01:c500::/31 source-as 12479 is VALID
+2a01:c500::/32 source-as 12479 is VALID
+2a01:c500::/42 source-as 12479 is VALID
+2a01:c500::/42 source-as 6805 is invalid
+2a01:c500::/42 source-as 42 is invalid
+2a01:c500::/46 source-as 12479 is VALID
+2a01:c500::/48 source-as 12479 is invalid
+2a01:c500::/48 source-as 6805 is invalid
+2a01:c500::/48 source-as 42 is invalid
+80.128.0.0/11 source-as 0 is invalid
+80.128.0.0/11 source-as 3320 is VALID
+80.128.0.0/11 source-as 42 is invalid
+80.128.0.0/12 source-as 3320 is VALID
+80.128.0.0/12 source-as 42 is invalid
+80.128.0.0/13 source-as 3320 is invalid
+80.128.0.0/13 source-as 42 is invalid
+80.144.0.0/13 source-as 3320 is VALID
+80.144.0.0/14 source-as 3320 is invalid
+80.157.16.0/20 source-as 3320 is VALID
+80.157.16.0/21 source-as 3320 is invalid
+80.158.0.0/17 source-as 34086 is VALID
+80.158.120.0/21 source-as 34086 is VALID
+80.158.0.0/17 source-as 3320 is invalid
+80.158.120.0/21 source-as 42 is invalid
+80.159.224.0/19 source-as 2792 is VALID
+80.159.225.0/24 source-as 2792 is VALID
+80.159.224.0/19 source-as 3320 is invalid
+80.159.225.0/24 source-as 3320 is invalid
+80.159.224.0/19 source-as 42 is invalid
+80.159.225.0/24 source-as 42 is invalid

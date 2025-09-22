@@ -1,0 +1,132 @@
+.\"     $OpenBSD: vinvalbuf.9,v 1.13 2020/11/14 10:35:58 jmc Exp $
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/vinvalbuf.9,v 1.6 2001/10/06 11:19:41 sheldonh Exp $
+.\"
+.Dd $Mdocdate: November 14 2020 $
+.Dt VINVALBUF 9
+.Os
+.Sh NAME
+.Nm vinvalbuf
+.Nd flush and invalidate all buffers associated with a vnode
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn vinvalbuf "struct vnode *vp" "int flags" "struct ucred *cred" \
+    "struct proc *p" "int slpflag" "uint64_t slptimeo"
+.Sh DESCRIPTION
+The
+.Fn vinvalbuf
+function invalidates all of the buffers associated with the given vnode.
+This includes buffers on the clean list and the dirty list.
+If the
+.Dv V_SAVE
+flag is specified then the buffers on the dirty list are synced prior to being
+released.
+If the
+.Dv V_SAVEMETA
+flag is set, indirect blocks will not be flushed.
+.Pp
+Its arguments are:
+.Bl -tag -width "slptimeo"
+.It Fa vp
+A pointer to the vnode whose buffers will be invalidated.
+.It Fa flags
+The supported flags are
+.Dv V_SAVE
+and
+.Dv V_SAVEMETA .
+.Dv V_SAVE
+indicates that dirty buffers should be synced with the disk.
+.Dv V_SAVEMETA
+indicates that indirect blocks should not be flushed.
+.It Fa cred
+The user credentials that are used to
+.Xr VOP_FSYNC 9
+buffers if
+.Dv V_SAVE
+is set.
+.It Fa p
+The process responsible for this call.
+.It Fa slpflag
+The slp flag that will be used in the priority of any calls to
+.Xr tsleep_nsec 9
+in the function.
+.It Fa slptimeo
+The timeout for any calls to
+.Xr tsleep_nsec 9
+in the function.
+.El
+.Sh LOCKS
+The vnode is assumed to be locked prior to the call and remains locked upon
+return.
+.Sh RETURN VALUES
+A value of 0 is returned on success.
+.Sh PSEUDOCODE
+.Bd -literal -offset indent
+vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
+error = vinvalbuf(devvp, V_SAVE, cred, p, 0, 0);
+VOP_UNLOCK(devvp);
+if (error)
+	return (error);
+.Ed
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENOSPC
+The file system is full.
+(With
+.Dv V_SAVE )
+.It Bq Er EDQUOT
+Disc quota exceeded.
+(With
+.Dv V_SAVE )
+.It Bq Er EWOULDBLOCK
+Sleep operation timed out.
+(See
+.Fa slptimeo )
+.It Bq Er ERESTART
+A signal needs to be delivered and the system call should be restarted.
+(With
+.Dv PCATCH
+set in
+.Fa slpflag )
+.It Bq Er EINTR
+The system has been interrupted by a signal.
+(With
+.Dv PCATCH
+set in
+.Fa slpflag )
+.El
+.Sh SEE ALSO
+.Xr tsleep 9 ,
+.Xr vnode 9
+.Sh AUTHORS
+This man page was originally written by
+.An Chad David Aq Mt davidc@acns.ab.ca
+for
+.Fx .

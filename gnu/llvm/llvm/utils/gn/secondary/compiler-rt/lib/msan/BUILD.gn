@@ -1,0 +1,68 @@
+import("//compiler-rt/target.gni")
+
+static_library("msan") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+
+  output_dir = crt_current_out_dir
+  assert(current_os == "linux", "MSan only works on Linux")
+  output_name = "clang_rt.msan$crt_current_target_suffix"
+
+  deps = [
+    "//compiler-rt/lib/interception:sources",
+    "//compiler-rt/lib/sanitizer_common:sources",
+    "//compiler-rt/lib/ubsan:sources",
+  ]
+
+  complete_static_lib = true
+  configs -= [ "//llvm/utils/gn/build:thin_archive" ]
+  deps += [ ":msan_cxx" ]
+
+  sources = [
+    "msan.cpp",
+    "msan.h",
+    "msan_allocator.cpp",
+    "msan_allocator.h",
+    "msan_chained_origin_depot.cpp",
+    "msan_chained_origin_depot.h",
+    "msan_dl.cpp",
+    "msan_dl.h",
+    "msan_flags.h",
+    "msan_flags.inc",
+    "msan_interceptors.cpp",
+    "msan_interface_internal.h",
+    "msan_linux.cpp",
+    "msan_origin.h",
+    "msan_poisoning.cpp",
+    "msan_poisoning.h",
+    "msan_report.cpp",
+    "msan_report.h",
+    "msan_thread.cpp",
+    "msan_thread.h",
+  ]
+
+  cflags = [ "-fPIE" ]
+
+  # Prevent clang from generating libc calls.
+  cflags += [ "-ffreestanding" ]
+
+  # FIXME: link rt dl m pthread log
+  # FIXME: need libclang_rt.msan*.a.syms?
+  # FIXME: msan_ignorelist.txt
+}
+
+static_library("msan_cxx") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+
+  output_dir = crt_current_out_dir
+  assert(current_os == "linux", "MSan only works on Linux")
+  output_name = "clang_rt.msan_cxx$crt_current_target_suffix"
+
+  complete_static_lib = true
+  configs -= [ "//llvm/utils/gn/build:thin_archive" ]
+
+  deps = [ "//compiler-rt/lib/ubsan:cxx_sources" ]
+
+  sources = [ "msan_new_delete.cpp" ]
+}

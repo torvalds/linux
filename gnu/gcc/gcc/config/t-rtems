@@ -1,0 +1,7 @@
+# RTEMS always has limits.h.
+LIMITS_H_TEST = true
+
+# If we are building next to newlib, this will let us find the RTEMS
+# limits.h when building libgcc2.  Otherwise, newlib must be installed
+# first.
+LIBGCC2_INCLUDES = -I$(srcdir)/../newlib/libc/sys/rtems/include

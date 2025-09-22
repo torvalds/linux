@@ -1,0 +1,107 @@
+.\"	$OpenBSD: boot_luna88k.8,v 1.8 2023/01/12 19:37:53 miod Exp $
+.\"
+.\" Copyright (c) 2004, Miodrag Vallat.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistribution of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 12 2023 $
+.Dt BOOT_LUNA88K 8 luna88k
+.Os
+.Sh NAME
+.Nm boot_luna88k
+.Nd luna88k system bootstrapping procedures
+.Sh DESCRIPTION
+.Ss Boot process description
+When powered on, or after a system reboot, the luna88k ROM monitor will
+proceed to its initialization, and will boot the operating system
+configured in nvram if autoboot is enabled.
+.Ss DIP switches description
+The behaviour of the ROM monitor, as well as some kernel options, are
+controlled through the SW1 set of DIP switches on the front panel.
+.Pp
+The switch positions are not the same on LUNA-88K and LUNA-88K2 models.
+On LUNA-88K, a switch is enabled when in the
+.Em down
+position, while on the LUNA-88K2, a switch is enabled when in the
+.Em up
+position.
+.Pp
+The following SW1 switches alter the ROM monitor behaviour:
+.Bl -column "Switch" "interact with ROM monitor" "Disabled"
+.It Sy Switch Ta Sy Enabled Ta Sy Disabled
+.It Li 1 Ta "interact with ROM monitor" Ta "auto-boot"
+.It Li 2 Ta "serial console" Ta "graphics console"
+.El
+.Pp
+The following switches alter the kernel behaviour:
+.Bl -column "Switch" "interact with ROM monitor" "Disabled"
+.It Sy Switch Ta Sy Enabled Ta Sy Disabled
+.It Li 1 Ta "boot in single-user mode" Ta "boot in multi-user mode"
+.It Li 3 Ta "prompt for root device" Ta "do not prompt for root device"
+.It Li 4 Ta "enter UKC mode" Ta "do not enter UKC mode"
+.El
+Note that the same behaviour can be used by passing the
+.Fl s ,
+.Fl a ,
+and
+.Fl c
+options respectively in the boot loader, rather than using the switches.
+.Pp
+For more details about the
+.Dq User Kernel Configuration
+mode
+.Pq UKC ,
+see
+.Xr boot_config 8 .
+.Pp
+Note that the first switch controls both the kernel and the ROM monitor
+behaviour.
+.Ss Abnormal system termination
+In case of system crashes, the kernel will usually enter the kernel
+debugger,
+.Xr ddb 4 ,
+unless it is not present in the kernel, or it is disabled via the
+.Em ddb.panic
+sysctl.
+Upon leaving ddb, or if ddb was not entered, the kernel will halt the system
+if it was still in device configuration phase, or attempt a dump to the
+configured dump device, if possible.
+The crash dump will then be recovered by
+.Xr savecore 8
+during the next multi-user boot cycle.
+It is also possible to force other behaviours from ddb.
+.Sh FILES
+.Bl -tag -width /bsd.rd -compact
+.It Pa /bsd
+default system kernel
+.It Pa /bsd.rd
+standalone installation kernel, suitable for disaster recovery
+.El
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr boot 8 ,
+.Xr boot_config 8 ,
+.Xr halt 8 ,
+.Xr init 8 ,
+.Xr reboot 8 ,
+.Xr savecore 8 ,
+.Xr shutdown 8

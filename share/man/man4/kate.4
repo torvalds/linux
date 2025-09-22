@@ -1,0 +1,98 @@
+.\"	$OpenBSD: kate.4,v 1.6 2019/04/23 18:23:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2008 Constantine A. Murenin <cnst+openbsd@bugmail.mojo.ru>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 23 2019 $
+.Dt KATE 4
+.Os
+.Sh NAME
+.Nm kate
+.Nd AMD K8 temperature sensor
+.Sh SYNOPSIS
+.Cd "kate* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the temperature sensors available in the
+AMD K8 family of processors.
+.Pp
+These sensors were officially introduced with
+Revision F Family 0Fh processors,
+and provide 1 degC accuracy.
+Precision was improved in Revision G chips,
+which provide two more bits for 0.25 degC steppings.
+Each core may have two temperature sensors, and
+there may be up to two cores per package.
+.Pp
+Multiprocessor systems would have one instance of
+.Nm
+per each chip.
+In each instance,
+.Va temp0
+and
+.Va temp1
+sensors
+correspond to the temperature sensors on the first core,
+whereas
+.Va temp2
+and
+.Va temp3
+correspond to the temperature sensors on the second core.
+As such, single core chips may have two sensors,
+and dual-core dual-processor systems may have as many as 8
+temperature sensors in total.
+.Pp
+Since many prior revisions of the chips appear to have
+valid readings for at least some temperature sensors
+in the same address space as the aforementioned revisions,
+the driver may also attach on such older revisions provided
+that it finds some sensor readings that appear valid.
+However, in such cases
+.Nm
+would not print the core revision information into the dmesg.
+.Pp
+Sensor values are made available through the
+.Xr sysctl 8
+interface.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Rs
+.%T "BIOS and Kernel Developer's Guide for AMD NPT Family 0Fh Processors"
+.%D July 2007
+.%R Publication # 32559
+.%P pp. 21\(en23 and pp. 179\(en184
+.\" .%O http://support.amd.com/us/Processor_TechDocs/32559.pdf
+.Re
+.Rs
+.%T "Revision Guide for AMD NPT Family 0Fh Processors"
+.%D February 2008
+.%R Publication # 33610
+.\" .%O http://support.amd.com/us/Processor_TechDocs/33610.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Constantine A. Murenin Aq Mt cnst@openbsd.org
+whilst at the University of Waterloo.

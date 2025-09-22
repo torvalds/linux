@@ -1,0 +1,89 @@
+.\"	$OpenBSD: esm.4,v 1.6 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: July 16 2013 $
+.Dt ESM 4 i386
+.Os
+.Sh NAME
+.Nm esm
+.Nd Dell Embedded Server Management
+.Sh SYNOPSIS
+.Cd "esm0 at mainbus?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the monitoring of the environmental sensors
+present in a variety of Dell servers.
+The hardware monitoring is accessed via the
+.Va hw.sensors
+.Xr sysctl 8
+variable.
+.Pp
+Devices compatible with the
+.Nm
+driver can provide an arbitrary set of sensors which may include the
+following types:
+.Bl -column "temperature" "Units" -offset indent
+.It Sy "Sensor" Ta Sy "Units"
+.It Li "temperature" Ta "uK"
+.It Li "fan" Ta "RPM"
+.It Li "volts" Ta "uVDC"
+.El
+.Pp
+Sensor data is updated every 10 seconds.
+.Pp
+The Embedded Server Management framework has been replaced in more recent
+Dell systems with the Intelligent Platform Management Interface.
+Servers using the Intelligent Platform Management Interface may be
+monitored by the
+.Xr ipmi 4
+driver.
+.Sh WATCHDOG
+ESM provides
+.Xr watchdog 4
+timer functionality.
+Once configured, if the watchdog is not reset within
+a certain period of time,
+it will timeout and the server will reset.
+The reset will occur regardless of the recoverability of the hang or crash.
+.Pp
+Example of enabling a watchdog:
+.Pp
+.Dl # sysctl kern.watchdog.period=10
+.Pp
+In this case if the watchdog is not reset,
+it'll reboot the server after roughly 10 seconds.
+.Pp
+Example of disabling the watchdog:
+.Pp
+.Dl # sysctl kern.watchdog.period=0
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr ipmi 4 ,
+.Xr watchdog 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jordan Hargrave Aq Mt jordan@openbsd.org
+and
+.An David Gwynne Aq Mt dlg@openbsd.org .

@@ -1,0 +1,3 @@
+memcpy-2.c: In function 'main':
+memcpy-2.c:6: warning: array size (8) smaller than bound length (10)
+memcpy-2.c:6: warning: array size (8) smaller than bound length (10)

@@ -1,0 +1,93 @@
+ECHO:/*      $OpenBSD: busop_h.in,v 1.2 2010/04/04 12:49:30 miod Exp $   */
+ECHO:
+ECHO:/*
+ECHO: * Copyright (c) 2003 Henric Jungheim
+ECHO: * All rights reserved.
+ECHO: *
+ECHO: * Redistribution and use in source and binary forms, with or without
+ECHO: * modification, are permitted provided that the following conditions
+ECHO: * are met:
+ECHO: * 1. Redistributions of source code must retain the above copyright
+ECHO: *    notice, this list of conditions and the following disclaimer.
+ECHO: * 2. Redistributions in binary form must reproduce the above copyright
+ECHO: *    notice, this list of conditions and the following disclaimer in the
+ECHO: *    documentation and/or other materials provided with the distribution.
+ECHO: * 3. The name of the author may not be used to endorse or promote products
+ECHO: *    derived from this software without specific prior written permission.
+ECHO: *
+ECHO: * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ECHO: * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ECHO: * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ECHO: * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ECHO: * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ECHO: * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ECHO: * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ECHO: * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ECHO: * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ECHO: * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ECHO: */
+ECHO:
+
+static inline <TYPE> bus_space_read_<RAW><NUM>(bus_space_tag_t,
+    bus_space_handle_t, bus_size_t);
+static inline void bus_space_write_<RAW><NUM>(bus_space_tag_t,
+    bus_space_handle_t, bus_size_t, <TYPE>);
+void bus_space_read_<RAW>multi_<NUM>(bus_space_tag_t, bus_space_handle_t,
+    bus_size_t,
+NRAW:    <TYPE> *, bus_size_t);
+RAW:    void *, size_t);
+void bus_space_write_<RAW>multi_<NUM>(bus_space_tag_t, bus_space_handle_t,
+    bus_size_t,
+NRAW:    const <TYPE> *, bus_size_t);
+RAW:    const void *, size_t);
+void bus_space_set_<RAW>multi_<NUM>(bus_space_tag_t, bus_space_handle_t,
+    bus_size_t, <TYPE>,
+NRAW:    bus_size_t);
+RAW:    size_t);
+void bus_space_read_<RAW>region_<NUM>(bus_space_tag_t, bus_space_handle_t,
+    bus_size_t,
+NRAW:    <TYPE> *, bus_size_t);
+RAW:    void *, size_t);
+void bus_space_write_<RAW>region_<NUM>(bus_space_tag_t, bus_space_handle_t,
+    bus_size_t,
+NRAW:    const <TYPE> *, bus_size_t);
+RAW:    const void *, size_t);
+void bus_space_set_<RAW>region_<NUM>(bus_space_tag_t, bus_space_handle_t,
+    bus_size_t, <TYPE>,
+NRAW:    bus_size_t);
+RAW:    size_t);
+NRAW:void bus_space_copy_<RAW><NUM>(bus_space_tag_t, bus_space_handle_t,
+NRAW:    bus_size_t, bus_space_handle_t, bus_size_t,
+NRAW:    bus_size_t);
+
+static inline
+<TYPE> bus_space_read_<RAW><NUM>(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o)
+{
+	<TYPE> r;
+
+	BUS_SPACE_ASSERT(t, h, o, <NUM>);
+	r = <LOAD>(h.bh_ptr + o, t-><ASI>);
+	BUS_SPACE_TRACE(t, h,
+	    ("bsr<NUM>(%llx + %llx, %x) -> <FMT>\n",
+	    (long long)h.bh_ptr,
+	    (long long)o,
+	    t-><ASI>,
+	    r));
+	return (r);
+}
+
+static inline
+void bus_space_write_<RAW><NUM>(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, <TYPE> v)
+{
+	BUS_SPACE_ASSERT(t, h, o, <NUM>);
+	BUS_SPACE_TRACE(t, h,
+	    ("bsw<NUM>(%llx + %llx, %x) <- <FMT>\n",
+	    (long long)h.bh_ptr,
+	    (long long)o,
+	    t-><ASI>,
+	    v));
+	<STORE>(h.bh_ptr + o, t-><ASI>, v);
+}
+

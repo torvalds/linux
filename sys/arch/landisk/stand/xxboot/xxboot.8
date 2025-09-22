@@ -1,0 +1,65 @@
+.\"	$OpenBSD: xxboot.8,v 1.7 2022/08/17 13:49:57 miod Exp $
+.\"
+.\" Copyright (c) 2006 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF MIND, USE, DATA OR PROFITS, WHETHER IN
+.\" AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 17 2022 $
+.Dt XXBOOT 8 landisk
+.Os
+.Sh NAME
+.Nm xxboot
+.Nd LANDISK-specific primary boot loader
+.Sh DESCRIPTION
+This small program, residing in the reserved sectors at the beginning
+of the root file system of the system, is responsible for loading
+the second-stage
+.Xr boot 8
+program (typically /boot), which in turn will load the kernel.
+.Pp
+When
+.Nm
+receives control from the master boot record (MBR), it will print a banner:
+.Pp
+.Dl OpenBSD MBR
+.Pp
+followed by a little twiddler while reading the second-stage boot.
+.Pp
+.Nm
+must be installed by
+.Xr installboot 8 .
+.Sh FILES
+.Bl -tag -width /usr/mdec/xxboot -compact
+.It Pa /usr/mdec/mbr
+Master Boot Record block
+.It Pa /usr/mdec/xxboot
+primary bootstrap
+.It Pa /boot
+secondary bootstrap
+.It Pa /bsd
+.Ox
+kernel
+.It Pa /bsd.rd
+.Ox
+kernel for installation/recovery
+.El
+.Sh DIAGNOSTICS
+.Nm
+will print messages indicating errors as returned from the firmware.
+.Sh SEE ALSO
+.Xr boot 8 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr installboot 8 ,
+.Xr mbr 8

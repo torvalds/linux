@@ -1,0 +1,57 @@
+import("//llvm/tools/binutils_symlinks.gni")
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/driver_executable.gni")
+import("//llvm/utils/gn/build/symlink_or_copy.gni")
+
+tablegen("Opts") {
+  visibility = [ ":llvm-readobj" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+symlinks = [ "llvm-readelf" ]
+if (llvm_install_binutils_symlinks) {
+  symlinks += [ "readelf" ]
+}
+foreach(target, symlinks) {
+  symlink_or_copy(target) {
+    deps = [ ":llvm-readobj" ]
+    source = "llvm-readobj"
+    output = "$root_out_dir/bin/$target"
+  }
+}
+
+# //:llvm-readobj depends on this symlink target, see comment in //BUILD.gn.
+group("symlinks") {
+  deps = [ ":llvm-readobj" ]
+  foreach(target, symlinks) {
+    deps += [ ":$target" ]
+  }
+}
+
+driver_executable("llvm-readobj") {
+  deps = [
+    ":Opts",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/DebugInfo/CodeView",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/DebugInfo/MSF",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "ARMWinEHPrinter.cpp",
+    "COFFDumper.cpp",
+    "COFFImportDumper.cpp",
+    "ELFDumper.cpp",
+    "MachODumper.cpp",
+    "ObjDumper.cpp",
+    "WasmDumper.cpp",
+    "Win64EHDumper.cpp",
+    "WindowsResourceDumper.cpp",
+    "XCOFFDumper.cpp",
+    "llvm-readobj.cpp",
+  ]
+}

@@ -1,0 +1,21 @@
+TEST_LIST1 = "{ 192.168.1.5, 192.168.1.6, 192.168.1.7 }"
+TEST_LIST2 = "{ 172.6.1.1, 172.14.1.2/32, 172.16.2.0/24 }"
+match out on lo0 inet from 192.168.1.1 to any nat-to 10.0.0.1
+match out on lo0 inet proto tcp from 192.168.1.2 to any nat-to 10.0.0.2
+match out on lo0 inet proto udp from 192.168.1.3 to any nat-to 10.0.0.3
+match out on lo0 inet proto icmp from 192.168.1.4 to any nat-to 10.0.0.4
+match out on lo0 inet from 192.168.1.5 to 172.6.1.1 nat-to 127.0.0.1
+match out on lo0 inet from 192.168.1.5 to 172.14.1.2 nat-to 127.0.0.1
+match out on lo0 inet from 192.168.1.5 to 172.16.2.0/24 nat-to 127.0.0.1
+match out on lo0 inet from 192.168.1.6 to 172.6.1.1 nat-to 127.0.0.1
+match out on lo0 inet from 192.168.1.6 to 172.14.1.2 nat-to 127.0.0.1
+match out on lo0 inet from 192.168.1.6 to 172.16.2.0/24 nat-to 127.0.0.1
+match out on lo0 inet from 192.168.1.7 to 172.6.1.1 nat-to 127.0.0.1
+match out on lo0 inet from 192.168.1.7 to 172.14.1.2 nat-to 127.0.0.1
+match out on lo0 inet from 192.168.1.7 to 172.16.2.0/24 nat-to 127.0.0.1
+match out on lo0 inet from 192.168.0.0/24 to any nat-to (lo0) round-robin
+match out on lo0 inet from 192.168.1.8 to ! 172.17.0.0/16 nat-to 10.0.0.8
+match out on ! lo0 inet proto udp all nat-to 10.0.0.8 static-port
+match out on ! lo0 inet proto tcp all nat-to 10.0.0.8 static-port
+match out on lo0 inet all nat-to 10.0.0.8
+match out on tun1000000 inet all nat-to 10.0.0.8

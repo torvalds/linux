@@ -1,0 +1,392 @@
+.\" $OpenBSD: X509_NAME_ENTRY_get_object.3,v 1.17 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL aebb9aac Jul 19 09:27:53 2016 -0400
+.\" selective merge up to: OpenSSL ca34e08d Dec 12 07:38:07 2018 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016, 2018, 2019, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2005, 2006, 2017 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_NAME_ENTRY_GET_OBJECT 3
+.Os
+.Sh NAME
+.Nm X509_NAME_ENTRY_new ,
+.Nm X509_NAME_ENTRY_free ,
+.Nm X509_NAME_ENTRY_get_object ,
+.Nm X509_NAME_ENTRY_get_data ,
+.Nm X509_NAME_ENTRY_set ,
+.Nm X509_NAME_ENTRY_set_object ,
+.Nm X509_NAME_ENTRY_set_data ,
+.Nm X509_NAME_ENTRY_create_by_txt ,
+.Nm X509_NAME_ENTRY_create_by_NID ,
+.Nm X509_NAME_ENTRY_create_by_OBJ
+.\" In the following line, "X.501" is not a typo.
+.\" This object defined in X.501, not in X.509.
+.Nd X.501 relative distinguished name
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_NAME_ENTRY *
+.Fn X509_NAME_ENTRY_new void
+.Ft void
+.Fo X509_NAME_ENTRY_free
+.Fa "X509_NAME_ENTRY* ne"
+.Fc
+.Ft ASN1_OBJECT *
+.Fo X509_NAME_ENTRY_get_object
+.Fa "const X509_NAME_ENTRY *ne"
+.Fc
+.Ft ASN1_STRING *
+.Fo X509_NAME_ENTRY_get_data
+.Fa "const X509_NAME_ENTRY *ne"
+.Fc
+.Ft int
+.Fo X509_NAME_ENTRY_set
+.Fa "const X509_NAME_ENTRY *ne"
+.Fc
+.Ft int
+.Fo X509_NAME_ENTRY_set_object
+.Fa "X509_NAME_ENTRY *ne"
+.Fa "const ASN1_OBJECT *obj"
+.Fc
+.Ft int
+.Fo X509_NAME_ENTRY_set_data
+.Fa "X509_NAME_ENTRY *ne"
+.Fa "int type"
+.Fa "const unsigned char *bytes"
+.Fa "int len"
+.Fc
+.Ft X509_NAME_ENTRY *
+.Fo X509_NAME_ENTRY_create_by_txt
+.Fa "X509_NAME_ENTRY **ne"
+.Fa "const char *field"
+.Fa "int type"
+.Fa "const unsigned char *bytes"
+.Fa "int len"
+.Fc
+.Ft X509_NAME_ENTRY *
+.Fo X509_NAME_ENTRY_create_by_NID
+.Fa "X509_NAME_ENTRY **ne"
+.Fa "int nid"
+.Fa "int type"
+.Fa "const unsigned char *bytes"
+.Fa "int len"
+.Fc
+.Ft X509_NAME_ENTRY *
+.Fo X509_NAME_ENTRY_create_by_OBJ
+.Fa "X509_NAME_ENTRY **ne"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "int type"
+.Fa "const unsigned char *bytes"
+.Fa "int len"
+.Fc
+.Sh DESCRIPTION
+An X.501
+.Vt RelativeDistinguishedName
+is an ordered set of field type and value pairs.
+It is the building block for constructing X.501
+.Vt Name
+objects.
+The
+.Vt X509_NAME_ENTRY
+object stores one such pair, containing one field type and one value.
+.Pp
+.Vt X509_NAME_ENTRY
+objects are intended for use by the
+.Vt X509_NAME
+objects documented in
+.Xr X509_NAME_new 3 .
+Since part of the information about how several
+.Vt X509_NAME_ENTRY
+objects combine to form an X.501
+.Vt Name
+is stored in the individual
+.Vt X509_NAME_ENTRY
+objects rather than in the
+.Vt X509_NAME
+object, any given
+.Vt X509_NAME_ENTRY
+object can only be used by one
+.Vt X509_NAME
+object at a time.
+.Pp
+.Fn X509_NAME_ENTRY_new
+allocates and initializes an empty
+.Vt X509_NAME_ENTRY
+object, representing an ASN.1
+.Vt RelativeDistinguishedName
+structure defined in RFC 5280 section 4.1.2.4, but containing not more
+than one type-value-pair.
+.Pp
+.Fn X509_NAME_ENTRY_free
+frees
+.Fa ne
+and the type and value contained in it.
+.Pp
+.Fn X509_NAME_ENTRY_get_object
+retrieves the field type of
+.Fa ne
+in an
+.Vt ASN1_OBJECT
+structure.
+.Fn X509_NAME_ENTRY_get_data
+retrieves the field value of
+.Fa ne
+in an
+.Vt ASN1_STRING
+structure.
+These two functions can be used to examine an
+.Vt X509_NAME_ENTRY
+object as returned by
+.Xr X509_NAME_get_entry 3 .
+.Pp
+.Fn X509_NAME_ENTRY_set
+retrieves the index of the X.501
+.Vt RelativeDistinguishedName Pq RDN
+that
+.Fa ne
+is part of in the X.501
+.Vt Name
+object using it.
+The first RDN has index 0.
+If an RDN consists of more than one
+.Vt X509_NAME_ENTRY
+object, they all share the same index.
+In practice, RDNs containing more than one type-value-pair are rarely
+used, so if an
+.Va X509_NAME *name
+object uses
+.Fa ne ,
+then
+.Fn X509_NAME_ENTRY_set ne
+usually agrees with
+.Fn sk_X509_NAME_ENTRY_find name->entries ne ,
+but when multi-pair RDNs are used, it may be smaller.
+.Pp
+.Fn X509_NAME_ENTRY_set_object
+sets the field type of
+.Fa ne
+to
+.Fa obj .
+.Pp
+.Fn X509_NAME_ENTRY_set_data
+sets the field value of
+.Fa ne
+to the given string
+.Fa type
+and the value determined by
+.Fa bytes
+and
+.Fa len .
+If the
+.Fa type
+argument is positive and includes the
+.Fa MBSTRING_FLAG
+bit,
+.Xr ASN1_STRING_set_by_NID 3
+is used for setting the value, passing the
+.Fa type
+as the
+.Fa inform
+argument and using the
+.Fa nid
+corresponding to
+.Fa ne .
+Otherwise, if the
+.Fa type
+argument is
+.Dv V_ASN1_APP_CHOOSE ,
+the type of
+.Fa ne
+is set to the return value of
+.Xr ASN1_PRINTABLE_type 3 .
+.Pp
+.Fn X509_NAME_ENTRY_create_by_txt ,
+.Fn X509_NAME_ENTRY_create_by_NID ,
+and
+.Fn X509_NAME_ENTRY_create_by_OBJ
+create and return an
+.Vt X509_NAME_ENTRY
+structure.
+.Pp
+Except for
+.Fn X509_NAME_ENTRY_get_object
+and
+.Fn X509_NAME_ENTRY_get_data ,
+these functions are rarely used because
+.Vt X509_NAME_ENTRY
+structures are almost always part of
+.Vt X509_NAME
+structures and the functions described in
+.Xr X509_NAME_add_entry_by_txt 3
+are typically used to create and add new entries in a single operation.
+.Pp
+The arguments of these functions support similar options to the
+similarly named ones described in
+.Xr X509_NAME_add_entry_by_txt 3 .
+So for example
+.Fa type
+can be set to
+.Dv MBSTRING_ASC ,
+but in the case of
+.Fn X509_NAME_ENTRY_set_data
+the field type must be set first so the relevant field information
+can be looked up internally.
+.Sh RETURN VALUES
+The
+.Fn X509_NAME_ENTRY_new
+function returns a valid
+.Vt X509_NAME_ENTRY
+structure if successful; otherwise
+.Dv NULL
+is returned and an error code can be retrieved with
+.Xr ERR_get_error 3 .
+.Pp
+.Fn X509_NAME_ENTRY_get_object
+returns a valid
+.Vt ASN1_OBJECT
+structure if it is set or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn X509_NAME_ENTRY_get_data
+returns a valid
+.Vt ASN1_STRING
+structure if it is set or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn X509_NAME_ENTRY_set
+returns the zero-based index of the RDN
+.Fa ne
+is used in, or 0 if
+.Fa ne
+is not yet used by any
+.Vt X509_NAME
+object.
+.Pp
+The
+.Fn X509_NAME_ENTRY_set_object
+function returns 1 if successful;
+otherwise 0 is returned and an error code can be retrieved with
+.Xr ERR_get_error 3 .
+.Pp
+.Fn X509_NAME_ENTRY_set_data
+returns 1 on success or 0 on error.
+In some cases of failure, the reason can be determined with
+.Xr ERR_get_error 3 .
+.Pp
+.Fn X509_NAME_ENTRY_create_by_txt ,
+.Fn X509_NAME_ENTRY_create_by_NID ,
+and
+.Fn X509_NAME_ENTRY_create_by_OBJ
+return a valid
+.Vt X509_NAME_ENTRY
+structure on success or
+.Dv NULL
+if an error occurred.
+In some cases of failure, the reason can be determined with
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr OBJ_nid2obj 3 ,
+.Xr X509_NAME_add_entry 3 ,
+.Xr X509_NAME_get_entry 3 ,
+.Xr X509_NAME_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Pp
+ITU-T Recommendation X.501, also known as ISO/IEC 9594-2: Information
+Technology  Open Systems Interconnection  The Directory: Models,
+section 9.3: Relative distinguished name
+.Sh HISTORY
+.Fn X509_NAME_ENTRY_new
+and
+.Fn X509_NAME_ENTRY_free
+first appeared in SSLeay 0.5.1.
+.Fn X509_NAME_ENTRY_get_object ,
+.Fn X509_NAME_ENTRY_get_data ,
+.Fn X509_NAME_ENTRY_set_object ,
+.Fn X509_NAME_ENTRY_set_data ,
+.Fn X509_NAME_ENTRY_create_by_NID ,
+and
+.Fn X509_NAME_ENTRY_create_by_OBJ
+first appeared in SSLeay 0.8.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_NAME_ENTRY_create_by_txt
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Pp
+.Fn X509_NAME_ENTRY_set
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .
+.Sh CAVEATS
+Despite its name,
+.Fn X509_NAME_ENTRY_set
+does not set anything.
+Something like
+.Dq X509_NAME_ENTRY_get_set
+would have been a better name.

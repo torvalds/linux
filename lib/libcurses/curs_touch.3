@@ -1,0 +1,129 @@
+.\" $OpenBSD: curs_touch.3,v 1.8 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_touch.3,v 1.8 2023/10/17 09:52:08 nicm Exp $
+.TH curs_touch 3 2023-07-01 "ncurses 6.4" "Library calls"
+.na
+.hy 0
+.SH NAME
+\fBtouchwin\fP,
+\fBtouchline\fP,
+\fBuntouchwin\fP,
+\fBwtouchln\fP,
+\fBis_linetouched\fP,
+\fBis_wintouched\fP \- \fBcurses\fP refresh control routines
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint touchline(WINDOW *\fIwin\fB, int \fIstart\fB, int \fIcount\fB);\fR
+.sp
+\fBint touchwin(WINDOW *\fIwin\fB);\fR
+.br
+\fBint wtouchln(WINDOW *\fIwin\fB, int \fIy\fB, int \fIn\fB, int \fIchanged\fB);\fR
+.sp
+\fBint untouchwin(WINDOW *\fIwin\fB);\fR
+.sp
+\fBbool is_linetouched(WINDOW *\fIwin\fB, int \fIline\fB);\fR
+.br
+\fBbool is_wintouched(WINDOW *\fIwin\fB);\fR
+.SH DESCRIPTION
+The \fBtouchwin\fP and \fBtouchline\fP routines throw away all
+optimization information about which parts of the window have been
+touched, by pretending that the entire window has been drawn on.
+This
+is sometimes necessary when using overlapping windows, since a change
+to one window affects the other window, but the records of which lines
+have been changed in the other window do not reflect the change.
+The
+routine \fBtouchline\fP only pretends that \fIcount\fP lines have been
+changed, beginning with line \fIstart\fP.
+.PP
+The \fBuntouchwin\fP routine marks all lines in the window as unchanged since
+the last call to \fBwrefresh\fP.
+.PP
+The \fBwtouchln\fP routine makes \fIn\fP lines in the window, starting
+at line \fIy\fR, look as if they have (\fIchanged\fB=1\fR) or have
+not (\fIchanged\fB=0\fR) been changed since the last call to
+\fBwrefresh\fP.
+.PP
+The \fBis_linetouched\fP and \fBis_wintouched\fP routines return
+\fBTRUE\fP if the specified line/window was modified since the last
+call to \fBwrefresh\fP; otherwise they return \fBFALSE\fP.  In
+addition, \fBis_linetouched\fP returns \fBERR\fP if \fIline\fP is not
+valid for the given window.
+.SH RETURN VALUE
+All routines return the integer \fBERR\fP upon failure and an integer value
+other than \fBERR\fP upon successful completion, unless otherwise noted in the
+preceding routine descriptions.
+.PP
+X/Open does not define any error conditions.
+In this implementation
+.RS 3
+.TP 5
+\fBis_linetouched\fP
+returns an error
+if the window pointer is null, or
+if the line number is outside the window.
+.IP
+The constant \fBERR\fP is distinct from \fBTRUE\fP and \fBFALSE\fP,
+which are the normal return values of this function.
+Because the function returns a \fBbool\fP,
+returning \fBERR\fP (which is neither \fBTRUE\fP nor \fBFALSE\fP)
+may not be supported by the compiler.
+.IP
+To provide error-checking and also match the X/Open function prototype,
+the \fBERR\fP is provided by a macro named \fBis_linetouched\fP.
+The actual function returns \fBFALSE\fP when it detects an error.
+.TP 5
+\fBwtouchln\fP
+returns an error
+if the window pointer is null, or
+if the line number is outside the window.
+.RE
+.SH PORTABILITY
+These functions were introduced by SVr4.
+The Solaris curses header file,
+for instance, defines both an actual function and macro for each.
+The macros give the same result as the actual functions.
+SVr4 curses does not check the window parameter \fIwin\fP to ensure
+that it is not \fBNULL\fP;
+otherwise this implementation behaves the same as SVr4.
+.PP
+The XSI Curses standard, Issue 4 describes these functions,
+but defines no error conditions.
+.SH NOTES
+All of these routines except \fBwtouchln\fP may be macros.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_refresh\fP(3),
+\fBcurs_variables\fP(3).

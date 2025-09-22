@@ -1,0 +1,261 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CWCHAR
+#define _LIBCPP_CWCHAR
+
+/*
+    cwchar synopsis
+
+Macros:
+
+    NULL
+    WCHAR_MAX
+    WCHAR_MIN
+    WEOF
+
+namespace std
+{
+
+Types:
+
+    mbstate_t
+    size_t
+    tm
+    wint_t
+
+int fwprintf(FILE* restrict stream, const wchar_t* restrict format, ...);
+int fwscanf(FILE* restrict stream, const wchar_t* restrict format, ...);
+int swprintf(wchar_t* restrict s, size_t n, const wchar_t* restrict format, ...);
+int swscanf(const wchar_t* restrict s, const wchar_t* restrict format, ...);
+int vfwprintf(FILE* restrict stream, const wchar_t* restrict format, va_list arg);
+int vfwscanf(FILE* restrict stream, const wchar_t* restrict format, va_list arg);  // C99
+int vswprintf(wchar_t* restrict s, size_t n, const wchar_t* restrict format, va_list arg);
+int vswscanf(const wchar_t* restrict s, const wchar_t* restrict format, va_list arg);  // C99
+int vwprintf(const wchar_t* restrict format, va_list arg);
+int vwscanf(const wchar_t* restrict format, va_list arg);  // C99
+int wprintf(const wchar_t* restrict format, ...);
+int wscanf(const wchar_t* restrict format, ...);
+wint_t fgetwc(FILE* stream);
+wchar_t* fgetws(wchar_t* restrict s, int n, FILE* restrict stream);
+wint_t fputwc(wchar_t c, FILE* stream);
+int fputws(const wchar_t* restrict s, FILE* restrict stream);
+int fwide(FILE* stream, int mode);
+wint_t getwc(FILE* stream);
+wint_t getwchar();
+wint_t putwc(wchar_t c, FILE* stream);
+wint_t putwchar(wchar_t c);
+wint_t ungetwc(wint_t c, FILE* stream);
+double wcstod(const wchar_t* restrict nptr, wchar_t** restrict endptr);
+float wcstof(const wchar_t* restrict nptr, wchar_t** restrict endptr);         // C99
+long double wcstold(const wchar_t* restrict nptr, wchar_t** restrict endptr);  // C99
+long wcstol(const wchar_t* restrict nptr, wchar_t** restrict endptr, int base);
+long long wcstoll(const wchar_t* restrict nptr, wchar_t** restrict endptr, int base);  // C99
+unsigned long wcstoul(const wchar_t* restrict nptr, wchar_t** restrict endptr, int base);
+unsigned long long wcstoull(const wchar_t* restrict nptr, wchar_t** restrict endptr, int base);  // C99
+wchar_t* wcscpy(wchar_t* restrict s1, const wchar_t* restrict s2);
+wchar_t* wcsncpy(wchar_t* restrict s1, const wchar_t* restrict s2, size_t n);
+wchar_t* wcscat(wchar_t* restrict s1, const wchar_t* restrict s2);
+wchar_t* wcsncat(wchar_t* restrict s1, const wchar_t* restrict s2, size_t n);
+int wcscmp(const wchar_t* s1, const wchar_t* s2);
+int wcscoll(const wchar_t* s1, const wchar_t* s2);
+int wcsncmp(const wchar_t* s1, const wchar_t* s2, size_t n);
+size_t wcsxfrm(wchar_t* restrict s1, const wchar_t* restrict s2, size_t n);
+const wchar_t* wcschr(const wchar_t* s, wchar_t c);
+      wchar_t* wcschr(      wchar_t* s, wchar_t c);
+size_t wcscspn(const wchar_t* s1, const wchar_t* s2);
+size_t wcslen(const wchar_t* s);
+const wchar_t* wcspbrk(const wchar_t* s1, const wchar_t* s2);
+      wchar_t* wcspbrk(      wchar_t* s1, const wchar_t* s2);
+const wchar_t* wcsrchr(const wchar_t* s, wchar_t c);
+      wchar_t* wcsrchr(      wchar_t* s, wchar_t c);
+size_t wcsspn(const wchar_t* s1, const wchar_t* s2);
+const wchar_t* wcsstr(const wchar_t* s1, const wchar_t* s2);
+      wchar_t* wcsstr(      wchar_t* s1, const wchar_t* s2);
+wchar_t* wcstok(wchar_t* restrict s1, const wchar_t* restrict s2, wchar_t** restrict ptr);
+const wchar_t* wmemchr(const wchar_t* s, wchar_t c, size_t n);
+      wchar_t* wmemchr(      wchar_t* s, wchar_t c, size_t n);
+int wmemcmp(wchar_t* restrict s1, const wchar_t* restrict s2, size_t n);
+wchar_t* wmemcpy(wchar_t* restrict s1, const wchar_t* restrict s2, size_t n);
+wchar_t* wmemmove(wchar_t* s1, const wchar_t* s2, size_t n);
+wchar_t* wmemset(wchar_t* s, wchar_t c, size_t n);
+size_t wcsftime(wchar_t* restrict s, size_t maxsize, const wchar_t* restrict format,
+                const tm* restrict timeptr);
+wint_t btowc(int c);
+int wctob(wint_t c);
+int mbsinit(const mbstate_t* ps);
+size_t mbrlen(const char* restrict s, size_t n, mbstate_t* restrict ps);
+size_t mbrtowc(wchar_t* restrict pwc, const char* restrict s, size_t n, mbstate_t* restrict ps);
+size_t wcrtomb(char* restrict s, wchar_t wc, mbstate_t* restrict ps);
+size_t mbsrtowcs(wchar_t* restrict dst, const char** restrict src, size_t len,
+                 mbstate_t* restrict ps);
+size_t wcsrtombs(char* restrict dst, const wchar_t** restrict src, size_t len,
+                 mbstate_t* restrict ps);
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__type_traits/copy_cv.h>
+#include <__type_traits/is_constant_evaluated.h>
+#include <__type_traits/is_equality_comparable.h>
+#include <__type_traits/is_same.h>
+#include <__type_traits/remove_cv.h>
+#include <cwctype>
+
+#include <wchar.h>
+
+#ifndef _LIBCPP_WCHAR_H
+#   error <cwchar> tried including <wchar.h> but didn't find libc++'s <wchar.h> header. \
+          This usually means that your header search paths are not configured properly. \
+          The header search paths should contain the C++ Standard Library headers before \
+          any C Standard Library, and you are probably using compiler flags that make that \
+          not be the case.
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::mbstate_t _LIBCPP_USING_IF_EXISTS;
+using ::size_t _LIBCPP_USING_IF_EXISTS;
+using ::tm _LIBCPP_USING_IF_EXISTS;
+using ::wint_t _LIBCPP_USING_IF_EXISTS;
+using ::FILE _LIBCPP_USING_IF_EXISTS;
+using ::fwprintf _LIBCPP_USING_IF_EXISTS;
+using ::fwscanf _LIBCPP_USING_IF_EXISTS;
+using ::swprintf _LIBCPP_USING_IF_EXISTS;
+using ::vfwprintf _LIBCPP_USING_IF_EXISTS;
+using ::vswprintf _LIBCPP_USING_IF_EXISTS;
+using ::swscanf _LIBCPP_USING_IF_EXISTS;
+using ::vfwscanf _LIBCPP_USING_IF_EXISTS;
+using ::vswscanf _LIBCPP_USING_IF_EXISTS;
+using ::fgetwc _LIBCPP_USING_IF_EXISTS;
+using ::fgetws _LIBCPP_USING_IF_EXISTS;
+using ::fputwc _LIBCPP_USING_IF_EXISTS;
+using ::fputws _LIBCPP_USING_IF_EXISTS;
+using ::fwide _LIBCPP_USING_IF_EXISTS;
+using ::getwc _LIBCPP_USING_IF_EXISTS;
+using ::putwc _LIBCPP_USING_IF_EXISTS;
+using ::ungetwc _LIBCPP_USING_IF_EXISTS;
+using ::wcstod _LIBCPP_USING_IF_EXISTS;
+using ::wcstof _LIBCPP_USING_IF_EXISTS;
+using ::wcstold _LIBCPP_USING_IF_EXISTS;
+using ::wcstol _LIBCPP_USING_IF_EXISTS;
+using ::wcstoll _LIBCPP_USING_IF_EXISTS;
+using ::wcstoul _LIBCPP_USING_IF_EXISTS;
+using ::wcstoull _LIBCPP_USING_IF_EXISTS;
+using ::wcscpy _LIBCPP_USING_IF_EXISTS;
+using ::wcsncpy _LIBCPP_USING_IF_EXISTS;
+using ::wcscat _LIBCPP_USING_IF_EXISTS;
+using ::wcsncat _LIBCPP_USING_IF_EXISTS;
+using ::wcscmp _LIBCPP_USING_IF_EXISTS;
+using ::wcscoll _LIBCPP_USING_IF_EXISTS;
+using ::wcsncmp _LIBCPP_USING_IF_EXISTS;
+using ::wcsxfrm _LIBCPP_USING_IF_EXISTS;
+using ::wcschr _LIBCPP_USING_IF_EXISTS;
+using ::wcspbrk _LIBCPP_USING_IF_EXISTS;
+using ::wcsrchr _LIBCPP_USING_IF_EXISTS;
+using ::wcsstr _LIBCPP_USING_IF_EXISTS;
+using ::wmemchr _LIBCPP_USING_IF_EXISTS;
+using ::wcscspn _LIBCPP_USING_IF_EXISTS;
+using ::wcslen _LIBCPP_USING_IF_EXISTS;
+using ::wcsspn _LIBCPP_USING_IF_EXISTS;
+using ::wcstok _LIBCPP_USING_IF_EXISTS;
+using ::wmemcmp _LIBCPP_USING_IF_EXISTS;
+using ::wmemcpy _LIBCPP_USING_IF_EXISTS;
+using ::wmemmove _LIBCPP_USING_IF_EXISTS;
+using ::wmemset _LIBCPP_USING_IF_EXISTS;
+using ::wcsftime _LIBCPP_USING_IF_EXISTS;
+using ::btowc _LIBCPP_USING_IF_EXISTS;
+using ::wctob _LIBCPP_USING_IF_EXISTS;
+using ::mbsinit _LIBCPP_USING_IF_EXISTS;
+using ::mbrlen _LIBCPP_USING_IF_EXISTS;
+using ::mbrtowc _LIBCPP_USING_IF_EXISTS;
+using ::wcrtomb _LIBCPP_USING_IF_EXISTS;
+using ::mbsrtowcs _LIBCPP_USING_IF_EXISTS;
+using ::wcsrtombs _LIBCPP_USING_IF_EXISTS;
+
+using ::getwchar _LIBCPP_USING_IF_EXISTS;
+using ::vwscanf _LIBCPP_USING_IF_EXISTS;
+using ::wscanf _LIBCPP_USING_IF_EXISTS;
+
+using ::putwchar _LIBCPP_USING_IF_EXISTS;
+using ::vwprintf _LIBCPP_USING_IF_EXISTS;
+using ::wprintf _LIBCPP_USING_IF_EXISTS;
+
+inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14 size_t __constexpr_wcslen(const wchar_t* __str) {
+#if __has_builtin(__builtin_wcslen)
+  return __builtin_wcslen(__str);
+#else
+  if (!__libcpp_is_constant_evaluated())
+    return std::wcslen(__str);
+
+  size_t __len = 0;
+  for (; *__str != L'\0'; ++__str)
+    ++__len;
+  return __len;
+#endif
+}
+
+inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14 int
+__constexpr_wmemcmp(const wchar_t* __lhs, const wchar_t* __rhs, size_t __count) {
+#if __has_builtin(__builtin_wmemcmp)
+  return __builtin_wmemcmp(__lhs, __rhs, __count);
+#else
+  if (!__libcpp_is_constant_evaluated())
+    return std::wmemcmp(__lhs, __rhs, __count);
+
+  for (; __count; --__count, ++__lhs, ++__rhs) {
+    if (*__lhs < *__rhs)
+      return -1;
+    if (*__rhs < *__lhs)
+      return 1;
+  }
+  return 0;
+#endif
+}
+
+template <class _Tp, class _Up>
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14 _Tp* __constexpr_wmemchr(_Tp* __str, _Up __value, size_t __count) {
+  static_assert(sizeof(_Tp) == sizeof(wchar_t)&& _LIBCPP_ALIGNOF(_Tp) >= _LIBCPP_ALIGNOF(wchar_t) &&
+                    __libcpp_is_trivially_equality_comparable<_Tp, _Tp>::value,
+                "Calling wmemchr on non-trivially equality comparable types is unsafe.");
+
+#if __has_builtin(__builtin_wmemchr)
+  if (!__libcpp_is_constant_evaluated()) {
+    wchar_t __value_buffer = 0;
+    __builtin_memcpy(&__value_buffer, &__value, sizeof(wchar_t));
+    return reinterpret_cast<_Tp*>(
+        __builtin_wmemchr(reinterpret_cast<__copy_cv_t<_Tp, wchar_t>*>(__str), __value_buffer, __count));
+  }
+#  if _LIBCPP_STD_VER >= 17
+  else if constexpr (is_same_v<remove_cv_t<_Tp>, wchar_t>)
+    return __builtin_wmemchr(__str, __value, __count);
+#  endif
+#endif // __has_builtin(__builtin_wmemchr)
+
+  for (; __count; --__count) {
+    if (*__str == __value)
+      return __str;
+    ++__str;
+  }
+  return nullptr;
+}
+
+_LIBCPP_END_NAMESPACE_STD
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cstddef>
+#endif
+
+#endif // _LIBCPP_CWCHAR

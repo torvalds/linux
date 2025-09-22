@@ -1,0 +1,46 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ClangAnalysisFlowSensitiveTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Analysis",
+    "//clang/lib/Analysis/FlowSensitive",
+    "//clang/lib/Analysis/FlowSensitive/Models",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Testing",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+    "//llvm/lib/Testing/Annotations",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "ASTOpsTest.cpp",
+    "ArenaTest.cpp",
+    "CFGMatchSwitchTest.cpp",
+    "ChromiumCheckModelTest.cpp",
+    "DataflowAnalysisContextTest.cpp",
+    "DataflowEnvironmentTest.cpp",
+    "DebugSupportTest.cpp",
+    "DeterminismTest.cpp",
+    "LoggerTest.cpp",
+    "MapLatticeTest.cpp",
+    "MatchSwitchTest.cpp",
+    "MultiVarConstantPropagationTest.cpp",
+    "RecordOpsTest.cpp",
+    "SignAnalysisTest.cpp",
+    "SimplifyConstraintsTest.cpp",
+    "SingleVarConstantPropagationTest.cpp",
+    "TestingSupport.cpp",
+    "TestingSupportTest.cpp",
+    "TransferBranchTest.cpp",
+    "TransferTest.cpp",
+    "TypeErasedDataflowAnalysisTest.cpp",
+    "UncheckedOptionalAccessModelTest.cpp",
+    "ValueTest.cpp",
+    "WatchedLiteralsSolverTest.cpp",
+  ]
+}

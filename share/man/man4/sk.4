@@ -1,0 +1,210 @@
+.\"	$OpenBSD: sk.4,v 1.70 2022/02/17 12:24:08 jsg Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man4/man4.i386/sk.4,v 1.3 1999/08/28 00:20:29 peter Exp $
+.\"
+.Dd $Mdocdate: February 17 2022 $
+.Dt SK 4
+.Os
+.Sh NAME
+.Nm sk ,
+.Nm skc
+.Nd SysKonnect XMAC II and Marvell Yukon 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "skc* at pci?"
+.Cd "sk* at skc?"
+.Cd "brgphy* at mii?"
+.Cd "eephy* at mii?"
+.Cd "xmphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for SysKonnect GEnesis and Marvell Yukon
+88E8001, 88E8003 and 88E8010 based Gigabit Ethernet adapters,
+including the following:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+3Com 3c940 single port, copper adapter
+.It
+3Com 3c2000-T single port, copper adapter
+.It
+Allied Telesis AT-2916T, copper adapter
+.It
+Belkin F5D5005 v1000, copper adapter
+.It
+D-Link DGE-530T A1, copper adapter
+.It
+D-Link DGE-530T B1, copper adapter
+.It
+Fujitsu PP028GE1U, multimode fiber adapter
+.It
+Fujitsu PP028GE1X, multimode fiber adapter
+.It
+Fujitsu PW008GE1U, copper adapter
+.It
+Fujitsu PW008GE1X, copper adapter
+.It
+Linksys EG1032v2, copper adapter
+.It
+Linksys EG1064v2, copper adapter
+.It
+SMC 9452TX, copper adapter
+.It
+SysKonnect SK-9521 V2.0 single port, copper adapter
+.It
+SysKonnect SK-9821 single port, copper adapter
+.It
+SysKonnect SK-9821 V2.0 single port, copper adapter
+.It
+SysKonnect SK-9822 dual port, copper adapter
+.It
+SysKonnect SK-9841 single port, single mode fiber adapter
+.It
+SysKonnect SK-9842 dual port, single mode fiber adapter
+.It
+SysKonnect SK-9843 single port, multimode fiber adapter
+.It
+SysKonnect SK-9843 V2.0 single port, copper adapter
+.It
+SysKonnect SK-9844 dual port, multimode fiber adapter
+.El
+.Pp
+The SysKonnect based adapters consist of two main components: the
+XaQti Corp.\&
+XMAC II Gigabit MAC (sk) and the SysKonnect GEnesis controller ASIC (skc).
+The XMAC provides the Gigabit MAC and PHY support
+while the GEnesis provides an interface to the PCI bus, DMA support,
+packet buffering and arbitration.
+The GEnesis can control up to two XMACs simultaneously,
+allowing dual-port NIC configurations.
+.Pp
+The Marvell based adapters are a single integrated circuit, but are
+still presented as a separate MAC (sk) and controller ASIC (skc).
+.Pp
+The GEnesis and Yukon 88E8001, 88E8003 and 88E8010 also support
+jumbo frames.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width 1000baseSX
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the appropriate
+.Xr hostname.if 5
+file.
+.It Cm 10baseT
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Ic mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Ic mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseT
+Set 1000baseT (Gigabit Ethernet) operation over twisted pair.
+Both
+.Cm full-duplex
+and
+.Cm half-duplex
+modes are supported.
+.It Cm 1000baseSX
+Set 1000Mbps (Gigabit Ethernet) operation.
+Both
+.Cm full-duplex
+and
+.Cm half-duplex
+modes are supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+To view a list of media types and options supported by the card, try
+.Ic ifconfig <device> media .
+For example,
+.Ic ifconfig sk0 media .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr brgphy 4 ,
+.Xr eephy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr xmphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T XaQti XMAC II datasheet
+.Re
+.Rs
+.%T SysKonnect GEnesis programming manual
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 ,
+and
+.Ox
+support was added in
+.Ox 2.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .

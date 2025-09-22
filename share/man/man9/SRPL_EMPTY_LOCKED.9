@@ -1,0 +1,155 @@
+.\"	$OpenBSD: SRPL_EMPTY_LOCKED.9,v 1.3 2016/11/21 07:11:13 dlg Exp $
+.\"
+.\" Copyright (c) 2015 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 21 2016 $
+.Dt SRPL_EMPTY_LOCKED 9
+.Os
+.Sh NAME
+.Nm SRPL_EMPTY_LOCKED ,
+.Nm SRPL_FIRST_LOCKED ,
+.Nm SRPL_NEXT_LOCKED ,
+.Nm SRPL_FOREACH_LOCKED ,
+.Nm SRPL_FOREACH_SAFE_LOCKED ,
+.Nm SRPL_INSERT_HEAD_LOCKED ,
+.Nm SRPL_INSERT_AFTER_LOCKED ,
+.Nm SRPL_REMOVE_LOCKED
+.Nd serialised singly-linked shared reference pointer list operations
+.Sh SYNOPSIS
+.In sys/srp.h
+.Ft int
+.Fn "SRPL_EMPTY_LOCKED" "SRPL_HEAD *sl"
+.Ft void *
+.Fn "SRPL_FIRST_LOCKED" "SRPL_HEAD *sl"
+.Ft void *
+.Fn "SRPL_NEXT_LOCKED" "struct TYPE *listelm" "FIELDNAME"
+.Fn "SRPL_FOREACH_LOCKED" "VARNAME" "SRPL_HEAD *sl" "FIELDNAME"
+.Fo "SRPL_FOREACH_SAFE_LOCKED"
+.Fa "VARNAME"
+.Fa "SRPL_HEAD *sl"
+.Fa "FIELDNAME"
+.Fa "TEMP_VARNAME"
+.Fc
+.Ft void
+.Fo "SRPL_INSERT_HEAD_LOCKED"
+.Fa "struct srpl_rc *rc"
+.Fa "SRPL_HEAD *sl"
+.Fa "struct TYPE *elm"
+.Fa "FIELDNAME"
+.Fc
+.Ft void
+.Fo "SRPL_INSERT_AFTER_LOCKED"
+.Fa "struct srpl_rc *rc"
+.Fa "struct TYPE *listelm"
+.Fa "struct TYPE *elm"
+.Fa "FIELDNAME"
+.Fc
+.Ft void
+.Fo "SRPL_REMOVE_LOCKED"
+.Fa "struct srpl_rc *rc"
+.Fa "SRPL_HEAD *sl"
+.Fa "struct TYPE *listelm"
+.Fa "TYPE"
+.Fa "FIELDNAME"
+.Fc
+.Sh DESCRIPTION
+The SRP list
+macros build a linked list on top of shared reference pointers.
+These macros allow manipulation and traversal of the linked list while
+access to the list is serialised by the caller.
+.Pp
+.Fn SRPL_EMPTY_LOCKED
+tests whether the SRP list
+.Fa sl
+is empty.
+.Pp
+.Fn SRPL_FIRST_LOCKED
+accesses the first element in the SRP list
+.Fa sl .
+.Pp
+.Fn SRPL_NEXT_LOCKED
+accesses the next element in the SRP list after
+.Fa listelm .
+.Pp
+.Fn SRPL_FOREACH_LOCKED
+creates a loop for traversing the elements in the SRP list
+.Fa sl .
+.Pp
+.Fn SRPL_FOREACH_SAFE_LOCKED
+creates a loop for traversing the elements in the SRP list
+.Fa sl ,
+permitting it to remove
+.Fa VARNAME
+as well as freeing it from within the loop safely without interfering with the
+traversal.
+.Pp
+.Fn SRPL_INSERT_HEAD_LOCKED
+inserts
+.Fa elm
+into the SRP list
+.Fa sl .
+Reference counts are adjusted on the list items using the functions
+specified by
+.Fa rc .
+.Pp
+.Fn SRPL_INSERT_AFTER_LOCKED
+inserts
+.Fa elm
+into an SRP list after the element
+.Fa listelm .
+Reference counts are adjusted on the list items using the functions
+specified by
+.Fa rc .
+.Pp
+.Fn SRPL_REMOVE_LOCKED
+iterates over the SRP list
+.Fa sl
+until it finds
+.Fa listelm
+and then removes it.
+Reference counts are adjusted on the list items using the functions
+specified by
+.Fa rc .
+.Sh CONTEXT
+.Fn SRPL_EMPTY_LOCKED ,
+.Fn SRPL_FIRST_LOCKED ,
+.Fn SRPL_NEXT_LOCKED ,
+.Fn SRPL_FOREACH_LOCKED ,
+.Fn SRPL_INSERT_HEAD_LOCKED ,
+.Fn SRPL_INSERT_AFTER_LOCKED ,
+and
+.Fn SRPL_REMOVE_LOCKED
+may be called during autoconf or from process context.
+An appropriate lock must be held that prevents concurrent modifications
+to the list.
+.Sh RETURN VALUES
+.Fn SRPL_FIRST_LOCKED ,
+and
+.Fn SRPL_NEXT_LOCKED
+return a pointer to elements in the SRP list, or
+.Dv NULL
+if there are no more elements.
+.Pp
+.Fn SRPL_EMPTY_LOCKED
+returns non-zero when the list is empty, otherwise 0.
+.Sh SEE ALSO
+.Xr SRPL_FIRST 9
+.Sh HISTORY
+The srp API was originally written by
+.An Jonathan Matthew Aq Mt jmatthew@openbsd.org
+and
+.An David Gwynne Aq Mt dlg@openbsd.org .
+The SRP list API first appeared in
+.Ox 5.9 .

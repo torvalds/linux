@@ -1,0 +1,40 @@
+Files in this directory:
+
+o importcmd.py:
+
+Python module which provides implementation for the 'import' command.
+
+o README:
+
+The file you are reading now.
+
+================================================================================
+The import command defined by importcmd.py can be used in LLDB to load a Python
+module given its full pathname.
+The command works by extending Python's sys.path lookup to include the path to
+the module to be imported when required, and then going through the language
+ordinary 'import' mechanism. In this respect, modules imported from LLDB command
+line should not be distinguishable from those imported using the script interpreter. 
+The following terminal output shows an interaction with lldb using this new command.
+
+Enrico-Granatas-MacBook-Pro:Debug enricogranata$ ./lldb
+(lldb) script import importcmd
+(lldb) command script add import -f importcmd.pyimport_cmd
+(lldb) import ../demo.py
+(lldb) script demo.test_function('hello world')
+I am a Python function that says hello world
+(lldb) quit
+Enrico-Granatas-MacBook-Pro:Debug enricogranata$ 
+
+Of course, the commands to import the importcmd.py module and to define the import
+command, can be included in the .lldbinit file to make this feature available at
+debugger startup
+
+WARNING: The import command defined by importcmd.py is now obsolete
+In TOT LLDB, you can say:
+(lldb) command script import ../demo.py
+(lldb) script demo.test_function('hello world')
+I am a Python function that says hello world
+(lldb) quit
+
+using the native "command script import" command, which offers a superset of what the import command provided by importcmd.py does

@@ -1,0 +1,211 @@
+.\" $OpenBSD: vlan.4,v 1.53 2022/09/12 09:15:29 jsg Exp $
+.\"
+.\" Copyright (c) 2000 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe of Zembu Labs, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 12 2022 $
+.Dt VLAN 4
+.Os
+.Sh NAME
+.Nm vlan ,
+.Nm svlan
+.Nd IEEE 802.1Q and 802.1ad pseudo-device
+.Sh SYNOPSIS
+.Cd "pseudo-device vlan"
+.Sh DESCRIPTION
+The
+.Nm vlan
+driver provides network interfaces supporting Virtual Local Area
+Networks (VLANs) on Ethernet networks.
+.Nm vlan
+interfaces implement virtual networks using the IEEE 802.1Q protocol.
+.Nm svlan
+interfaces implement virtual networks using the IEEE 802.1ad protocol.
+.Pp
+.Nm svlan
+interfaces allow construction of IEEE 802.1ad-compliant provider bridges.
+.Nm vlan
+and
+.Nm svlan
+interfaces can be configured to provide QinQ or stacked VLANs.
+.Pp
+The interfaces can be created at runtime using the
+.Ic ifconfig vlan Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+The interface itself can be configured with
+.Xr ifconfig 8 ;
+see its manual page for more information.
+.Pp
+.Nm vlan
+and
+.Nm svlan
+interfaces must be configured with a parent Ethernet interface to
+operate, and a virtual network identifier.
+Packets transmitted through a
+.Nm vlan
+or
+.Nm svlan
+interface will be encapsulated in their respective protocols and
+transmitted on the specified physical interface.
+802.1Q and 802.1ad packets received on the parent interface will be
+matched to the
+.Nm vlan
+and
+.Nm svlan
+interfaces by their respective protocol and virtual network
+identifiers, and decapsulated for reception on the associated virtual
+interfaces.
+.Pp
+The 802.1Q and 802.1ad protocols include a priority field.
+By default, the 802.1p priority in a transmitted packet is based on the
+priority of packets sent over the interface, which may
+be altered via
+.Xr pf.conf 5 ;
+see the
+.Cm prio
+option for more information.
+Alternatively,
+.Cm txprio
+can set a specific priority for transmitted packets.
+.Pp
+.Nm vlan
+and
+.Nm svlan
+interfaces support the following
+.Xr ioctl 2 Ns s :
+.Bl -tag -width indent -offset 3n
+.It Dv SIOCSIFPARENT Fa "struct if_parent *"
+Set the parent interface.
+The parent may only be configured while the virtual interface is
+administratively down.
+.It Dv SIOCGIFPARENT Fa "struct if_parent *"
+Get the currently configured parent interface.
+.It Dv SIOCDIFPARENT Fa "struct ifreq *"
+Delete the parent interface configuration.
+The parent may only be removed while the virtual interface is
+administratively down.
+.It Dv SIOCSVNETID Fa "struct ifreq *"
+Set the virtual network identifier.
+Valid identifiers are in the range 1 to 4094.
+.It Dv SIOCGVNETID Fa "struct ifreq *"
+Get the currently configured virtual network identifier.
+.It Dv SIOCDVNETID Fa "struct ifreq *"
+Clear the current virtual network identifier.
+Virtual interfaces without a configured virtual network identifier
+will use 0 in their protocols tag field.
+.It Dv SIOCSIFLLADDR Fa "struct ifreq *"
+Configure a custom MAC address on the virtual interface.
+When the virtual interface is using a custom MAC address, the parent
+interface will be configured to promiscuously receive packets.
+When operating without a custom MAC address, the virtual interface
+will inherit the parent interfaces MAC address.
+Configuring 00:00:00:00:00:00 as the MAC address will clear the
+custom MAC address configuration and resume operation with the
+parents MAC address.
+.El
+.Pp
+.Nm vlan
+and
+.Nm svlan
+interfaces use the following capability on parent interfaces:
+.Bl -tag -width "IFCAP_VLAN_HWTAGGING" -offset 3n
+.It IFCAP_VLAN_MTU
+The parent interface can handle full sized frames, plus the size
+of the vlan tag.
+.El
+.Pp
+.Nm vlan
+interfaces use the following capability on parent interfaces:
+.Bl -tag -width "IFCAP_VLAN_HWTAGGING" -offset 3n
+.It IFCAP_VLAN_HWTAGGING
+The parent interface will offload the encapsulation and decapsulation
+of 802.1Q frames.
+.El
+.Sh EXAMPLES
+Create an 802.1Q virtual interface on top of the physical interface
+em0, with virtual network identifier 5:
+.Bd -literal -offset indent
+# ifconfig vlan0 create
+# ifconfig vlan0 parent em0 vnetid 5
+# ifconfig vlan0 10.1.1.100/24
+.Ed
+.Pp
+Create an 802.1Q VLAN interface on network 10, on top of an 802.1ad
+provider bridge on network 8, on top of the physical interface bge0:
+.Bd -literal -offset indent
+# ifconfig svlan0 create
+# ifconfig svlan0 parent bge0 vnetid 8
+# ifconfig svlan0 up
+# ifconfig vlan0 create
+# ifconfig vlan0 parent svlan0 vnetid 10
+# ifconfig vlan0 10.1.1.101/24
+.Ed
+.Pp
+Configure an 802.1Q VLAN interface with a custom MAC address:
+.Bd -literal -offset indent
+# ifconfig vlan0 lladdr fe:e1:ba:d0:84:0e
+.Ed
+.Pp
+Remove a custom MAC address from an 802.1Q VLAN interface:
+.Bd -literal -offset indent
+# ifconfig vlan0 lladdr 00:00:00:00:00:00
+.Ed
+.Pp
+Force the use of priority 1 for transmitted packets, regardless of
+the packet priority:
+.Bd -literal -offset indent
+# ifconfig vlan0 txprio 1
+.Ed
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr ip 4 ,
+.Xr netintro 4 ,
+.Xr hostname.if 5 ,
+.Xr pf.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Rs
+.%T IEEE 802.1Q standard
+.%U https://standards.ieee.org/standard/802_1Q-2018.html
+.Re
+.Rs
+.%Q Provider Bridges, QinQ
+.%T IEEE 802.1ad standard
+.Re
+.Sh AUTHORS
+Originally
+.An Garrett Wollman Aq Mt wollman@freebsd.org .
+.Sh CAVEATS
+Some Ethernet chips will either discard or truncate
+Ethernet frames that are larger than 1514 bytes.
+This causes a problem as 802.1Q and 802.1ad tagged frames can be
+up to 1518 bytes.
+Most controller chips can be told not to discard large frames
+and/or to increase the allowed frame size.

@@ -1,0 +1,119 @@
+.\"	$OpenBSD: mopd.8,v 1.20 2022/11/27 14:35:27 schwarze Exp $
+.\"
+.\" Copyright (c) 1993-96 Mats O Jansson.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 27 2022 $
+.Dt MOPD 8
+.Os
+.Sh NAME
+.Nm mopd
+.Nd MOP loader daemon
+.Sh SYNOPSIS
+.Nm mopd
+.Op Fl 3 | 4
+.Op Fl adfv
+.Ar interface
+.Sh DESCRIPTION
+.Nm
+services MOP Load requests on the Ethernet connected to
+.Ar interface
+or all interfaces if
+.Fl a
+is given.
+In a load request received by
+.Nm
+a filename can be given.
+This is the normal case for, e.g., terminal servers.
+If a filename isn't given,
+.Nm
+must know what image to load.
+.Pp
+Upon receiving a request,
+.Nm
+checks if the requested file exists in
+.Pa /tftpboot/mop .
+The filename is normally all uppercase and with an extension of
+.Pa .SYS .
+If the filename isn't given, the Ethernet address of the target is used as
+filename (e.g.,
+.Pa 08002b09f4de.SYS ) ,
+and it might be a soft link to another file.
+.Pp
+.Nm
+supports two kinds of files.
+The file is first checked to see if it is in a.out format.
+If not, a few of Digital's formats are checked.
+.Pp
+In normal operation,
+.Nm
+forks a copy of itself and runs in
+the background.
+Anomalies and errors are reported via
+.Xr syslog 3 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 3
+Ignore MOP V3 messages (Ethernet II).
+.It Fl 4
+Ignore MOP V4 messages (Ethernet 802.3).
+.It Fl a
+Listen on all the Ethernets attached to the system.
+If
+.Fl a
+is omitted, an interface must be specified.
+.It Fl d
+Run in debug mode, with all the output to stdout.
+The process will run in the foreground.
+.It Fl f
+Run in the foreground.
+.It Fl v
+Show version of
+.Nm .
+.El
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /tftpboot/mop
+.El
+.Sh SEE ALSO
+.Xr mopa.out 1 ,
+.Xr mopchk 1 ,
+.Xr mopprobe 1 ,
+.Xr moptrace 1 ,
+.Xr bpf 4
+.Rs
+.%B DECnet Digital Network Architecture Phase IV
+.%R Maintenance Operations Functional Specification V3.0.0
+.%N AA-X436A-TK
+.Re
+.Rs
+.%B DECnet Digital Network Architecture
+.%R Maintenance Operations Protocol Functional Specification V4.0.0
+.%N EK-DNA11-FS-001
+.Re
+.Sh AUTHORS
+.An Mats O Jansson Aq Mt moj@stacken.kth.se
+.Sh BUGS
+a.out isn't supported yet on
+.Pf non- Bx
+implementations (otherOS).

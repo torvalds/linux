@@ -1,0 +1,66 @@
+Making HFS bootable CDs
+
+It *may* be possible to make the hybrid CD bootable on a Mac. As I do not
+have easy access to a CD-R (nor a Mac) at the moment, I have not actually
+created and written a bootable hybrid to CD - however, I *think* it will work!
+
+A bootable HFS CD requires an Apple CD-ROM (or compatible) driver, a bootable
+HFS partition and the necessary System, Finder, etc. files.
+
+A driver can be obtained from any other Mac bootable CD-ROM using the
+"apple_driver" utility (to make, type "make apple_driver"). This file can
+then be used with the -boot-hfs-file option. See below for usage.
+
+The HFS partition (i.e. the hybrid disk in our case) must contain a
+suitable System Folder, again from another CD-ROM or disk.
+
+For a partition to be bootable, it must have it's "boot block" set. The boot
+block is in the first two blocks of a partition. For a non-bootable partition
+the boot block is full of zeros. Normally, when a System file is copied to
+partition on a Mac disk, the boot block is filled with a number of required
+settings - unfortunately I don't know the full spec for the boot block ...
+
+I'm guessing that this will work OK ...
+
+Therefore, the utility "apple_driver" also extracts the boot block from the
+first HFS partition it finds on the given CD-ROM and this is used for the
+HFS partition created by mkhybrid.
+
+To extract the driver and boot block:
+
+apple_driver CDROM_device > HFS_driver_file
+
+where CDROM_device is the device name used by the CD-ROM (e.g. /dev/cdrom)
+
+The format of the HFS driver file is:
+
+	HFS CD Label Block                              512 bytes
+	Driver Partition Map (for 2048 byte blocks)     512 bytes
+	Driver Partition Map (for 512 byte blocks)      512 bytes
+	Empty                                           512 bytes
+	Driver Partition                                N x 2048 bytes
+	HFS Partition Boot Block                        1024 bytes
+
+The Perl script "hdisk.pl" can be used to give a listing of what's on
+a Mac CD. hdisk.pl is part of hfsutils.
+
+A hybrid CD is made using the option "-boot-hfs-file" e.g.
+
+mkhybrid -boot-hfs-file HFS_driver_file -o hfs.raw src_files/
+
+The -boot-hfs-file implies the -hfs option.
+
+PLEASE NOTE:
+
+By using a driver from an Apple CD and copying Apple software to your CD,
+you become liable to obey Apple Computer, Inc. Software License Agreements.
+
+The driver code (both extracting the driver and creating partitions etc.
+is based on code from "mkisofs 1.05 PLUS" by Andy Polyakov
+<appro@fy.chalmers.se> (see http://fy.chalmers.se/~appro/mkisofs_plus.html)
+
+
+Any comments, bug reports/fixes to the address below
+
+James Pearson (j.pearson@ge.ucl.ac.uk)
+18/5/98

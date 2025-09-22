@@ -1,0 +1,133 @@
+.\" $OpenBSD: a64l.3,v 1.13 2019/01/25 00:19:25 millert Exp $
+.\"
+.\" Copyright (c) 1997 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 25 2019 $
+.Dt A64L 3
+.Os
+.Sh NAME
+.Nm a64l ,
+.Nm l64a
+.Nd convert between 32-bit integer and radix-64 ASCII string
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft long
+.Fn a64l "const char *s"
+.Ft char *
+.Fn l64a "long l"
+.Sh DESCRIPTION
+The
+.Fn a64l
+and
+.Fn l64a
+functions are used to maintain numbers stored in radix-64
+.Tn ASCII
+characters.
+This is a notation by which 32-bit integers
+can be represented by up to six characters; each character represents a
+.Dq digit
+in a radix-64 notation.
+.Pp
+The characters used to represent digits are
+.Ql \&.
+for 0,
+.Ql /
+for 1,
+.Ql 0
+through
+.Ql 9
+for 2-11,
+.Ql A
+through
+.Ql Z
+for 12-37, and
+.Ql a
+through
+.Ql z
+for 38-63.
+.Pp
+The
+.Fn a64l
+function takes a pointer to a NUL-terminated radix-64 representation
+and returns a corresponding 32-bit value.
+If the string pointed to by
+.Fa s
+contains more than six characters,
+.Fn a64l
+will use the first six.
+.Fn a64l
+scans the character string from left to right, decoding
+each character as a 6-bit radix-64 number.
+If a long integer is
+larger than 32 bits, the return value will be sign-extended.
+.Pp
+.Fn l64a
+takes a long integer argument
+.Fa l
+and returns a pointer to the corresponding radix-64 representation.
+.Sh RETURN VALUES
+On success,
+.Fn a64l
+returns a 32-bit representation of
+.Fa s .
+If
+.Fa s
+is a null pointer or if it contains digits other than those described above,
+.Fn a64l
+returns \-1 and sets the global variable
+.Va errno
+to
+.Er EINVAL .
+.Pp
+On success,
+.Fn l64a
+returns a pointer to a string containing the radix-64 representation of
+.Fa l .
+If
+.Fa l
+is 0,
+.Fn l64a
+returns a pointer to the empty string.
+If
+.Fa l
+is negative,
+.Fn l64a
+returns a null pointer and sets the global variable
+.Va errno
+to
+.Er EINVAL .
+.Sh STANDARDS
+The
+.Fn a64l
+and
+.Fn l64a
+functions conform to
+.St -xpg4.2 .
+.Sh CAVEATS
+The value returned by
+.Fn l64a
+is a pointer into a static buffer, the contents of which
+will be overwritten by subsequent calls.
+.Pp
+The value returned by
+.Fn a64l
+may be incorrect if the value is too large; for that reason, only strings
+that resulted from a call to
+.Fn l64a
+should be used to call
+.Fn a64l .
+.Pp
+If a long integer is larger than 32 bits, only the low-order
+32 bits are used.

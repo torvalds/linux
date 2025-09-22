@@ -1,0 +1,20 @@
+/*	$OpenBSD: netlock.bt,v 1.1 2025/07/21 21:15:05 bluhm Exp $	*/
+
+/*
+ * netlock: stack traces where exclusive net lock is taken
+ *  - probe: netlock, solock
+ *  - arg0: pointer to struct rwlock
+ *  - arg1: lock type
+ *    - 1: read lock
+ *    - 2: write lock
+ *  - arg2: success status
+ *    - 1: locked immediately
+ *    - 2: locked after spinning
+ *    - 3: locked after sleeping
+ *    - 4: locking failed
+ */
+tracepoint:rwlock:netlock {
+	if (arg1 == 2) {
+		printf("%s %x %u %d%s", probe, arg0, arg1, arg2, kstack);
+	}
+}

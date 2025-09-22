@@ -1,0 +1,133 @@
+.\"	$OpenBSD: ldpctl.8,v 1.14 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2009 Michele Marchetto <michele@openbsd.org>
+.\" Copyright (c) 2004, 2005 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt LDPCTL 8
+.Os
+.Sh NAME
+.Nm ldpctl
+.Nd control the LDP routing daemon
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr ldpd 8
+daemon.
+Commands may be abbreviated to the minimum unambiguous prefix; for example,
+.Cm s i
+for
+.Cm show interfaces .
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Xo
+.Cm clear neighbors
+.Op Ar address
+.Xc
+Delete entries from the neighbor table.
+.Ar address
+can be used to limit the scope of the command to the given neighbor.
+.It Cm fib couple
+Insert the learned labels into the Label Forwarding Information Base a.k.a.
+the kernel routing table.
+.It Cm fib decouple
+Remove the learned labels from the Label Forwarding Information Base a.k.a.
+the kernel routing table.
+.It Cm log brief
+Disable verbose debug logging.
+.It Cm log verbose
+Enable verbose debug logging.
+.It Cm reload
+Reload the configuration file.
+.It Xo
+.Cm show fib
+.Op Cm family Ar family
+.Op Ar destination | filter
+.Xc
+Show the Label Forwarding Information Base.
+.Ar family ,
+if given, limit the output to the given address family.
+.Ar destination
+can be specified to show the route matching a destination IP address.
+.Ar filter
+can be any of the following:
+.Pp
+.Bl -tag -width "interfaceXXinterfaceXX" -compact
+.It Cm connected
+Show only connected routes.
+.It Cm interface
+Show only interfaces.
+.It Cm static
+Show only static routes.
+.El
+.Pp
+.Cm connected ,
+and
+.Cm static
+may be specified together.
+.It Xo
+.Cm show interfaces
+.Op Cm family Ar family
+.Xc
+Show details for all interfaces.
+.Ar family ,
+if given, limit the output to the given address family.
+.It Xo
+.Cm show discovery
+.Op Cm family Ar family
+.Xc
+Show adjacencies.
+.Ar family ,
+if given, limit the output to the given address family.
+.It Xo
+.Cm show neighbor
+.Op Cm family Ar family
+.Xc
+Show neighbors.
+.Ar family ,
+if given, limit the output to the given address family.
+.It Xo
+.Cm show lib
+.Op Cm family Ar family
+.Xc
+Show the Label Information Base.
+.Ar family ,
+if given, limit the output to the given address family.
+.It Cm show l2vpn bindings
+Show the PWID Label Information Base.
+.It Cm show l2vpn pseudowires
+Show the status of the configured pseudowires.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/ldpd.sockXX" -compact
+.It Pa /var/run/ldpd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr ldpd 8 .
+.El
+.Sh SEE ALSO
+.Xr ldpd.conf 5 ,
+.Xr ldpd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.6 .

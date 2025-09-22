@@ -1,0 +1,106 @@
+.\"	$OpenBSD: issetugid.2,v 1.21 2015/09/10 17:55:21 schwarze Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 10 2015 $
+.Dt ISSETUGID 2
+.Os
+.Sh NAME
+.Nm issetugid
+.Nd is current executable running setuid or setgid
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn issetugid void
+.Sh DESCRIPTION
+The
+.Fn issetugid
+function returns 1 if the process was made setuid or setgid as
+the result of the last or other previous
+.Fn execve
+system calls.
+Otherwise it returns 0.
+.Pp
+This system call exists so that library routines (inside libtermlib, libc,
+or other libraries) can guarantee safe behavior when used inside
+setuid or setgid programs.
+Some library routines may be passed insufficient information and hence
+not know whether the current program was started setuid or setgid
+because higher level calling code may have made changes to the uid, euid,
+gid, or egid.
+Hence these low-level library routines are unable to determine if they
+are being run with elevated or normal privileges.
+.Pp
+In particular, it is wise to use this call to determine if a
+pathname returned from a
+.Fn getenv
+call may safely be used to
+.Fn open
+the specified file.
+Quite often this is not wise because the status of the effective uid
+is not known.
+.Pp
+The
+.Fn issetugid
+system call's result is unaffected by calls to
+.Fn setuid ,
+.Fn setgid ,
+or other such calls.
+In case of a
+.Fn fork ,
+the child process inherits the same status.
+.Pp
+The status of
+.Fn issetugid
+is only affected by
+.Fn execve .
+If a child process executes a new executable file, a new issetugid
+status will be determined.
+This status is based on the existing process's uid, euid, gid,
+and egid permissions and on the modes of the executable file.
+If the new executable file modes are setuid or setgid, or if
+the existing process is executing the new image with
+uid != euid or gid != egid, the new process will be considered
+issetugid.
+.Sh ERRORS
+The
+.Fn issetugid
+function is always successful, and no return value is reserved to
+indicate an error.
+.Sh SEE ALSO
+.Xr execve 2 ,
+.Xr setegid 2 ,
+.Xr seteuid 2 ,
+.Xr setgid 2 ,
+.Xr setuid 2 ,
+.Xr getenv 3
+.Sh HISTORY
+The
+.Fn issetugid
+function call first appeared in
+.Ox 2.0 .

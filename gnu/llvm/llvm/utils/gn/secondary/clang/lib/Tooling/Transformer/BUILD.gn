@@ -1,0 +1,22 @@
+static_library("Transformer") {
+  output_name = "clangToolingTransformer"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/Tooling/Core",
+    "//clang/lib/Tooling/Refactoring",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "Parsing.cpp",
+    "RangeSelector.cpp",
+    "RewriteRule.cpp",
+    "SourceCode.cpp",
+    "SourceCodeBuilders.cpp",
+    "Stencil.cpp",
+    "Transformer.cpp",
+  ]
+}

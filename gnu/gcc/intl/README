@@ -1,0 +1,21 @@
+GNU toolchain edition of GNU libintl 0.12.1
+
+Most of the content of this directory is taken from gettext 0.12.1
+and is owned by that project.  Patches should be directed to the
+gettext developers first.  However, note the following:
+
+* libintl.h comes from gettext, but is named libgnuintl.h.in in that
+  project's source tree.
+
+* The files COPYING.LIB-2.0 and COPYING.LIB-2.1 are redundant with the
+  top-level COPYING.LIB and have therefore been removed.
+
+* The files config.charset, ref-add.sin, ref-del.sin, os2compat.c,
+  and os2compat.h are not used in this setup and have therefore been 
+  removed.
+
+* aclocal.m4 was constructed using automake's "aclocal -I ../config".
+
+* configure.ac, config.intl.in, and Makefile.in were written for this
+  directory layout, by Zack Weinberg <zack@codesourcery.com>.  Please
+  direct patches for these files to gcc-patches@gcc.gnu.org.

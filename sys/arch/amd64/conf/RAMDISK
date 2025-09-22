@@ -1,0 +1,114 @@
+#	$OpenBSD: RAMDISK,v 1.89 2025/05/18 05:28:47 jsg Exp $
+
+machine		amd64
+maxusers	4
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		RAMDISK_HOOKS
+option		MINIROOTSIZE=4480
+
+option		PCIVERBOSE
+option		SCSITERSE
+
+option		FFS
+option		FFS2
+
+config		bsd root on rd0a swap on rd0b and wd0b and sd0b
+
+mainbus0	at root
+bios0		at mainbus?
+
+acpi0		at bios?
+#acpitimer*	at acpi?
+acpihpet*	at acpi?
+#acpiac*	at acpi?
+#acpibat*	at acpi?
+#acpibtn*	at acpi?
+#acpicpu*	at acpi?
+acpicmos*	at acpi?
+acpiec*		at acpi?
+acpipci*	at acpi?
+acpiprt*	at acpi?
+acpimadt0	at acpi?
+#acpitz*	at acpi?
+com0		at acpi? addr 0x3f8
+com1		at acpi? addr 0x2f8
+com*		at acpi?
+pckbc*		at acpi?
+
+mpbios0		at bios0
+
+cpu0		at mainbus0
+ioapic*		at mainbus?
+isa0		at mainbus0
+#isa0		at pcib?
+pci*		at mainbus0
+
+pchb*		at pci?			# PCI-Host bridges
+aapic*		at pci?			# AMD 8131 IO apic
+ppb*		at pci?			# PCI-PCI bridges
+pci*		at ppb?
+pci*		at pchb?
+#pcib*		at pci?			# PCI-ISA bridge
+
+xhci*		at pci?
+ehci*		at pci?
+uhci*		at pci?
+#ohci*		at pci?
+usb*		at xhci?
+usb*		at ehci?
+usb*		at uhci?
+#usb*		at ohci?
+
+uhub*		at usb?
+uhub*		at uhub?
+uhidev*		at uhub?
+ukbd*		at uhidev?
+wskbd*		at ukbd? mux 1
+umass*		at uhub?
+
+pckbc0		at isa?		# PC keyboard controller
+pckbd*		at pckbc?	# PC keyboard
+wskbd*		at pckbd? mux 1
+vga0		at isa?
+vga*		at pci?
+wsdisplay0	at vga? console 1
+
+com0		at isa? port 0x3f8 irq 4	# standard PC serial ports
+com1		at isa? port 0x2f8 irq 3
+
+#mpi*		at pci?			# LSI Logic Message Passing Interface
+#mfi*		at pci?			# LSI MegaRAID SAS controllers
+
+scsibus*	at scsi?
+sd*		at scsibus?		# SCSI disk drives
+#cd*		at scsibus?		# SCSI CD-ROM drives
+
+pciide*		at pci? flags 0x0000
+wd*		at pciide? flags 0x0000
+#atapiscsi*	at pciide?
+
+#fxp*		at pci?			# EtherExpress 10/100B ethernet
+#rl*		at pci?			# Realtek 81[23]9 ethernet
+re*		at pci?			# Realtek 8169/8169S/8110S
+em*		at pci?			# Intel Pro/1000 ethernet
+bge*		at pci?			# Broadcom BCM570x (aka Tigon3)
+
+#inphy*		at mii?			# Intel 82555 PHYs
+#iophy*		at mii?			# Intel 82553 PHYs
+#lxtphy*	at mii?			# Level1 LXT970 PHYs
+#nsphy*		at mii?			# NS and compatible PHYs
+#nsphyter*	at mii?			# NS and compatible PHYs
+rlphy*		at mii?			# Realtek 8139 internal PHYs
+brgphy*		at mii?			# Broadcom Gigabit PHYs
+rgephy*		at mii?			# Realtek 8169S/8110S PHY
+#ciphy*		at mii?			# Cicada CS8201 10/100/1000 copper PHY
+ukphy*		at mii?			# "unknown" PHYs
+
+pseudo-device	loop 1
+pseudo-device	bpfilter 1
+pseudo-device	rd 1
+pseudo-device	wsmux 2

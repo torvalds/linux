@@ -1,0 +1,178 @@
+.\"	$OpenBSD: apm.4,v 1.6 2023/01/30 14:43:29 jcs Exp $
+.\"
+.\"	Copyright (c) 1998 Marco S. Hyman
+.\"
+.\"	Permission to copy all or part of this material for any purpose is
+.\"	granted provided that the above copyright notice and this paragraph
+.\"	are duplicated in all copies.  THIS SOFTWARE IS PROVIDED ``AS IS''
+.\"	AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
+.\"	LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\"	FOR A PARTICULAR PURPOSE.
+.\"
+.Dd $Mdocdate: January 30 2023 $
+.Dt APM 4 arm64
+.Os
+.Sh NAME
+.Nm apm
+.Nd power management interface
+.Sh SYNOPSIS
+.Cd "apm0 at mainbus?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides an interface which simulates the Advanced Power Management
+.Pq APM
+BIOS functions.
+.Pp
+Suspend/resume and other power events are
+.Em NOT YET SUPPORTED .
+.Pp
+The
+.Nm
+driver implements the following
+.Xr ioctl 2
+calls.
+They are defined in
+.In machine/apmvar.h .
+.Bl -tag -width Ds
+.It Dv APM_IOC_REJECT
+.Em Not implemented . DO NOT USE .
+.It Dv APM_IOC_STANDBY
+.Em NOT YET SUPPORTED on arm64 .
+.Pp
+.Pq Li "no parameters"
+Request
+.Dq standby
+mode.
+.It Dv APM_IOC_SUSPEND
+.Em NOT YET SUPPORTED on arm64 .
+.Pp
+.Pq Li "no parameters"
+Request
+.Dq suspend
+mode.
+.It Dv APM_IOC_HIBERNATE
+.Em NOT YET SUPPORTED on arm64 .
+.Pp
+.Pq Li "no parameters"
+Request
+.Dq hibernate
+mode.
+.It Dv APM_IOC_GETPOWER
+.Pq Li "struct apm_power_info"
+Request the current power state.
+The argument structure is as follows:
+.Bd -literal -offset indent
+struct apm_power_info {
+	u_char battery_state;
+	u_char ac_state;
+	u_char battery_life;
+	u_char spare1;
+	u_int minutes_left;
+	u_int spare2[6];
+};
+.Ed
+.Pp
+The following values are defined for
+.Va battery_state :
+.Bl -tag -width Ds
+.It Dv APM_BATT_HIGH
+Battery has a high state of charge.
+.It Dv APM_BATT_LOW
+Battery has a low state of charge.
+.It Dv APM_BATT_CRITICAL
+Battery has a critical state of charge.
+.It Dv APM_BATT_CHARGING
+Battery is not high, low, or critical and is currently charging.
+.It Dv APM_BATT_UNKNOWN
+Cannot read the current battery state.
+.It Dv APM_BATTERY_ABSENT
+No battery installed.
+.El
+.Pp
+The following values are defined for
+.Va ac_state :
+.Bl -tag -width Ds
+.It Dv APM_AC_OFF
+External power not detected.
+.It Dv APM_AC_ON
+External power detected.
+.It Dv APM_AC_BACKUP
+Backup power in use.
+.It Dv APM_AC_UNKNOWN
+External power state unknown.
+.El
+.Pp
+The
+.Va battery_life
+value contains the estimated percentage of battery life available.
+100% indicates a full charge.
+.Pp
+The
+.Va minutes_left
+value contains the estimated number of minutes of battery life
+remaining.
+.It Dv APM_IOC_DEV_CTL
+.Em NOT YET SUPPORTED on arm64 .
+.Pp
+.Pq Li "struct apm_ctl"
+Allows an application to directly set the
+APM operating mode.
+The argument structure is as follows:
+.Bd -literal -offset indent
+struct apm_ctl {
+	u_int dev;
+	u_int mode;
+};
+.Ed
+.Pp
+.Va dev
+indicates the device, typically
+.Dv APM_DEV_ALLDEVS .
+.Pp
+.Va mode
+indicates the desired operating mode.
+Possible values are
+.Bl -tag -width Ds -compact -offset indent
+.It Dv APM_SYS_READY
+.It Dv APM_SYS_STANDBY
+.It Dv APM_SYS_SUSPEND
+.It Dv APM_SYS_OFF
+.It Dv APM_LASTREQ_INPROG
+.It Dv APM_LASTREQ_REJECTED
+.El
+.It Dv APM_IOC_PRN_CTL
+.Pq Li "int"
+This
+.Xr ioctl 2
+controls message output by the APM
+driver when a power change event is detected.
+The integer parameter is one of:
+.Bl -tag -width Ds
+.It Dv APM_PRINT_ON
+All power change events result in a message.
+This is the normal operating mode for the driver.
+.It Dv APM_PRINT_OFF
+Power change event messages are suppressed.
+.It Dv APM_PRINT_PCT
+Power change event messages are suppressed unless the estimated
+battery life percentage changes.
+.El
+.El
+.Sh FILES
+.Bl -tag -width "/dev/apmctlXXX"
+.It /dev/apm
+Power management data device.
+May only be opened read-only.
+May be opened by multiple concurrent users.
+.It /dev/apmctl
+Power management control device.
+May be opened read-write or write-only.
+May only be opened by one user at a time.
+An attempt to open the file when in use will fail, returning
+.Er EBUSY .
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr intro 4 ,
+.Xr halt 8

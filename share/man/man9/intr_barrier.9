@@ -1,0 +1,42 @@
+.\" $OpenBSD: intr_barrier.9,v 1.2 2015/09/13 17:55:42 jmc Exp $
+.\"
+.\" Copyright (c) 2015 Mark Kettenis
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 13 2015 $
+.Dt INTR_BARRIER 9
+.Os
+.Sh NAME
+.Nm intr_barrier
+.Nd interrupt barrier
+.Sh SYNOPSIS
+.In machine/intr.h
+.Ft void
+.Fn intr_barrier "void *ih"
+.Sh DESCRIPTION
+This function guarantees that any interrupt handler invocations for the
+interrupt handler specified by
+.Fa ih
+has finished before it returns.
+The cookie passed to
+.Fn intr_barrier
+should be the value returned when the interrupt handler was established,
+for example the return value of
+.Xr pci_intr_establish 9 .
+.Sh CONTEXT
+.Fn intr_barrier
+can be called from process context.
+.Sh SEE ALSO
+.Xr pci_intr_establish 9 ,
+.Xr spl 9

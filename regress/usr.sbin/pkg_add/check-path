@@ -1,0 +1,79 @@
+#! /usr/bin/perl
+
+# $OpenBSD: check-path,v 1.5 2011/05/28 13:44:20 espie Exp $
+
+# unit test the matching of extra-info and @pkgpath between packing-lists.
+
+use Test::Simple tests => 19;
+use OpenBSD::PackingList;
+
+sub make_plist
+{
+	my $p = OpenBSD::PackingList->new;
+	OpenBSD::PackingElement::ExtraInfo->add($p, shift, '', '');
+	for my $path (@_) {
+		OpenBSD::PackingElement::PkgPath->add($p, $path);
+	}
+	return $p;
+}
+
+sub symetry
+{
+	while (my $p = pop @_) {
+		if (!$p->match_pkgpath($p)) {
+			return 0;
+		}
+		for my $p2 (@_) {
+			my $t1 = !$p->match_pkgpath($p2);
+			my $t2 = !$p2->match_pkgpath($p);
+			if ($t1 ^ $t2) {
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
+
+my @p = (
+	make_plist('p1'), 			# 0
+	make_plist('p1'), 			# 1
+	make_plist('p2'), 			# 2
+	make_plist('p2', 'p1'),			# 3
+	make_plist('p3', 'p1'),			# 4 
+	make_plist('p4,flavor'),		# 5
+	make_plist('newp4', 'p4,flavor'),	# 6
+	make_plist('newp4', 'p4,otherflavor'),	# 7
+	make_plist('p5,f1,f2'),			# 8
+	make_plist('newp5', 'p5,f1,f2'),	# 9
+	make_plist('newp5', 'p5,f2'),		# 10
+	make_plist('newp5', 'p5,f2,f1'),	# 11
+	make_plist('newp5', 'other,f1,f2'),	# 12
+	make_plist('newp5', 'p5,f1[,f2]'),	# 13
+	make_plist('p5,f1'),			# 14
+	make_plist('p5,f1,f3'),			# 15
+	make_plist('p5,f1,f2,f3'),		# 16
+	make_plist('newp5', 'p5,f1,f1,f2'),	# 17
+	make_plist('newp5', 'p5[,f1][,f2]'),	# 18
+	make_plist('newp5', 'p5[,f1,f2][,f1,f3]'),	# 19
+	make_plist('newp5', 'p5[,f1,f4][,f3]'),	# 20
+);
+
+ok(symetry(@p), "match_pkgpath is symetric");
+ok($p[0]->match_pkgpath($p[1]), "same path matches");
+ok(!$p[0]->match_pkgpath($p[2]), "different paths don't");
+ok($p[0]->match_pkgpath($p[3]), "look into the list too");
+ok(!$p[3]->match_pkgpath($p[4]), "extra elements can't match by themselves");
+ok($p[5]->match_pkgpath($p[6]), "paths with same flavors do match");
+ok(!$p[5]->match_pkgpath($p[7]), "paths with distinct flavor do not match");
+ok($p[8]->match_pkgpath($p[9]), "same flavor combo does match");
+ok(!$p[8]->match_pkgpath($p[10]), "different flavor combo does not match");
+ok($p[8]->match_pkgpath($p[11]), "reordered flavors should match");
+ok(!$p[8]->match_pkgpath($p[12]), "same flavor but distinct dir does not match");
+ok($p[8]->match_pkgpath($p[13]), "optional parts should match");
+ok($p[14]->match_pkgpath($p[13]), "optional parts should match");
+ok(!$p[15]->match_pkgpath($p[13]), "detect bad parts");
+ok(!$p[16]->match_pkgpath($p[13]), "detect bad parts");
+ok($p[8]->match_pkgpath($p[17]), "duplicate flavors");
+ok($p[8]->match_pkgpath($p[18]), "several optional parts");
+ok($p[16]->match_pkgpath($p[19]), "several optional parts");
+ok(!$p[20]->match_pkgpath($p[14]), "missing flavor");

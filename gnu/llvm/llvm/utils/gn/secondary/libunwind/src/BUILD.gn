@@ -1,0 +1,155 @@
+import("//clang/runtimes.gni")
+import("//compiler-rt/target.gni")
+
+declare_args() {
+  # Build libunwind as a shared library.
+  libunwind_enable_shared = true
+
+  # Build libunwind as a static library.
+  libunwind_enable_static = true
+}
+
+unwind_headers = [
+  "../include/libunwind.h",
+  "../include/unwind.h",
+]
+if (current_os == "mac") {
+  unwind_headers += [
+    # Make `gn format` not collapse this, for sync_source_lists_from_cmake.py.
+    "../include/mach-o/compact_unwind_encoding.h",
+  ]
+}
+
+unwind_sources = [
+  "../include/unwind_arm_ehabi.h",
+  "../include/unwind_itanium.h",
+  "AddressSpace.hpp",
+  "CompactUnwinder.hpp",
+  "DwarfInstructions.hpp",
+  "DwarfParser.hpp",
+  "RWMutex.hpp",
+  "Registers.hpp",
+  "Unwind-EHABI.cpp",
+  "Unwind-EHABI.h",
+  "Unwind-seh.cpp",
+  "Unwind-sjlj.c",
+  "Unwind-wasm.c",
+  "UnwindCursor.hpp",
+  "UnwindLevel1-gcc-ext.c",
+  "UnwindLevel1.c",
+  "UnwindRegistersRestore.S",
+  "UnwindRegistersSave.S",
+  "assembly.h",
+  "cet_unwind.h",
+  "config.h",
+  "dwarf2.h",
+  "libunwind.cpp",
+  "libunwind_ext.h",
+]
+if (current_os == "aix") {
+  unwind_sources += [ "Unwind_AIXExtras.cpp" ]
+}
+
+if (current_os == "android") {
+  if (current_cpu == "arm64") {
+    unwind_output_dir = "$crt_current_out_dir/aarch64"
+  } else if (current_cpu == "arm") {
+    unwind_output_dir = "$crt_current_out_dir/arm"
+  } else if (current_cpu == "x64") {
+    unwind_output_dir = "$crt_current_out_dir/x86_64"
+  } else if (current_cpu == "x86") {
+    unwind_output_dir = "$crt_current_out_dir/i386"
+  }
+} else {
+  unwind_output_dir = runtimes_dir
+}
+
+config("unwind_config") {
+  cflags = []
+  cflags_c = [ "-std=c99" ]
+  cflags_cc = [ "-fno-rtti" ]
+  defines = [ "_LIBUNWIND_IS_NATIVE_ONLY" ]
+  include_dirs = [ "//libunwind/include" ]
+  if (current_os == "mac") {
+    cflags += [ "-U__STRICT_ANSI__" ]
+  }
+  if (current_os == "android") {
+    defines += [ "_LIBUNWIND_USE_DLADDR=0" ]
+  }
+}
+
+if (libunwind_enable_shared && current_os != "android") {
+  shared_library("unwind_shared") {
+    output_dir = unwind_output_dir
+    output_name = "unwind"
+    if (current_os == "linux" || current_os == "mac") {
+      cflags = [ "-fPIC" ]
+      ldflags = [ "-nostdlib++" ]
+      libs = [
+        "dl",
+        "pthread",
+      ]
+    }
+    if (current_os == "mac") {
+      cflags += [ "-fno-stack-protector" ]
+      ldflags += [
+        "-Wl,-compatibility_version,1",
+        "-Wl,-install_name,/usr/lib/libunwind.1.dylib",
+      ]
+    }
+    sources = unwind_sources
+    public = unwind_headers
+    deps = [ "//compiler-rt/lib/builtins" ]
+    configs += [ ":unwind_config" ]
+    configs -= [
+      "//llvm/utils/gn/build:no_exceptions",
+      "//llvm/utils/gn/build:no_rtti",
+    ]
+  }
+}
+
+if (libunwind_enable_static) {
+  template("libunwind_static_library") {
+    static_library(target_name) {
+      output_dir = unwind_output_dir
+      output_name = invoker.output_name
+      complete_static_lib = true
+      configs -= [ "//llvm/utils/gn/build:thin_archive" ]
+      sources = unwind_sources
+      public = unwind_headers
+      if (!invoker.export) {
+        cflags = [ "-fvisibility=hidden" ]
+        cflags_cc = [ "-fvisibility-global-new-delete=force-hidden" ]
+        defines = [ "_LIBUNWIND_HIDE_SYMBOLS" ]
+      }
+      deps = [ "//compiler-rt/lib/builtins" ]
+      configs += [ ":unwind_config" ]
+      configs -= [
+        "//llvm/utils/gn/build:no_exceptions",
+        "//llvm/utils/gn/build:no_rtti",
+      ]
+    }
+  }
+
+  libunwind_static_library("unwind_static_exported") {
+    output_name = "unwind-exported"
+    export = true
+  }
+  libunwind_static_library("unwind_static") {
+    output_name = "unwind"
+    export = false
+  }
+}
+
+group("src") {
+  deps = []
+  if (libunwind_enable_shared && current_os != "android") {
+    deps += [ ":unwind_shared" ]
+  }
+  if (libunwind_enable_static) {
+    deps += [
+      ":unwind_static",
+      ":unwind_static_exported",
+    ]
+  }
+}

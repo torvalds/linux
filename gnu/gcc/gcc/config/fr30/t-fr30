@@ -1,0 +1,38 @@
+LIB1ASMSRC    = fr30/lib1funcs.asm
+LIB1ASMFUNCS  = _udivsi3 _divsi3 _umodsi3 _modsi3
+
+# Assemble startup files.
+crti.o: $(srcdir)/config/fr30/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -c -o crti.o -x assembler $(srcdir)/config/fr30/crti.asm
+
+crtn.o: $(srcdir)/config/fr30/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -c -o crtn.o -x assembler $(srcdir)/config/fr30/crtn.asm
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+# If any special flags are necessary when building libgcc2 put them here.
+#
+# TARGET_LIBGCC2_CFLAGS
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+# Enable the following if multilibs are needed.
+# See gcc/genmultilib, gcc/gcc.texi and gcc/tm.texi for a
+# description of the options and their values.
+#
+# MULTILIB_OPTIONS    = 
+# MULTILIB_DIRNAMES   = 
+# MULTILIB_MATCHES    =
+# MULTILIB_EXCEPTIONS =
+# MULTILIB_EXTRA_OPTS = 
+#
+# LIBGCC = stmp-multilib
+# INSTALL_LIBGCC = install-multilib

@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Id="3cb18a5e-97e9-11e7-abc4-cec278b6b50a" Version="@CLANG_FORMAT_VS_VERSION@" Language="en-US" Publisher="LLVM"/>
+    <DisplayName>ClangFormat</DisplayName>
+    <Description xml:space="preserve">A tool to format C/C++/Obj-C code.</Description>
+    <MoreInfo>http://clang.llvm.org/docs/ClangFormat.html</MoreInfo>
+    <License>license.txt</License>
+  </Metadata>
+  <Installation InstalledByMsi="false">
+    <InstallationTarget Id="Microsoft.VisualStudio.Pro" Version="[11.0, 17.0)" />
+  </Installation>
+  <Dependencies>
+    <Dependency Id="Microsoft.VisualStudio.MPF" MinVersion="11.0" DisplayName="Visual Studio MPF" />
+  </Dependencies>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[11.0,)" DisplayName="Visual Studio core editor" />
+  </Prerequisites>
+</PackageManifest>

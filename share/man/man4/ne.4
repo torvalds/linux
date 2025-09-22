@@ -1,0 +1,154 @@
+.\"	$OpenBSD: ne.4,v 1.35 2011/09/03 22:59:07 jmc Exp $
+.\"	$NetBSD: ne.4,v 1.4 1998/02/22 05:21:20 enami Exp $
+.\"
+.\" Copyright (c) 1997 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+.\" NASA Ames Research Center.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 3 2011 $
+.Dt NE 4
+.Os
+.Sh NAME
+.Nm ne
+.Nd NE2000 and compatible 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "ne0 at isa? port 0x240 irq 9"
+.Cd "ne1 at isa? port 0x300 irq 10"
+.Cd "ne2 at isa? port 0x280 irq 9"
+.Cd "ne* at isapnp?"
+.Cd "ne* at pci?"
+.Cd "ne* at pcmcia?"
+.Cd "acphy* at mii?"
+.Cd "bmtphy* at mii?"
+.Cd "lxtphy* at mii?"
+.Cd "nsphyter* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports NE2000 and compatible (including NE1000) Ethernet
+cards, including:
+.Bl -column "Linksys Trust Combo EthernetCard, EtherFast 10/100" "PCMCIA"
+.It Em "Name" Ta Em "Bus"
+.It Li "Accton EN2212, EN2216" Ta PCMCIA
+.It Li "Addtron W89C926 Ethernet" Ta PCMCIA
+.It Li "Allied Telesis LA-PCM" Ta PCMCIA
+.It Li "AmbiCom AMB8002T" Ta PCMCIA
+.It Li "Arowana FE" Ta PCMCIA
+.It Li "Belkin F5D5020" Ta PCMCIA
+.It Li "Billionton Systems CFLT2-10B" Ta CF
+.It Li "Billionton Systems CFLT2-10N" Ta CF
+.It Li "Billionton Systems LNT-10TN" Ta PCMCIA
+.It Li "Buffalo LPC-CF-CLT" Ta CF
+.It Li "Buffalo LPC4-CLX" Ta PCMCIA
+.It Li "Buffalo LPC3-CLT" Ta PCMCIA
+.It Li "CNet NE2000, FastEthernet" Ta PCMCIA
+.It Li "Compex PCI Ethernet" Ta PCI
+.It Li "Compex Linkport ENET-B" Ta PCMCIA
+.It Li "Corega PCC-T, PCC-TD, EtherII PCC-T" Ta PCMCIA
+.It Li "Corega FastEther PCC-T, FastEther PCC-TX" Ta PCMCIA
+.It Li "Corega FastEther PCC-TXD, FastEther PCC-TXF" Ta PCMCIA
+.It Li "D-Link DE-650, DE-660, DE-660+, DFE-670TXD" Ta PCMCIA
+.It Li "Dayna CommuniCard E" Ta PCMCIA
+.It Li "Digital DEPCM-XX" Ta PCMCIA
+.It Li "Dual NE2000" Ta PCMCIA
+.It Li "Edimax NE2000" Ta PCMCIA
+.It Li "Genius ME 3000II SE" Ta PCMCIA
+.It Li "Grey Cell GCS2000 Gold II" Ta PCMCIA
+.It Li "GVC NIC-2000p, NP0335" Ta PCMCIA
+.It Li "Hawking CF686TX" Ta CF
+.It Li "Hawking PN650TX" Ta PCMCIA
+.It Li "I-O DATA PCLA, PCLA/TE" Ta PCMCIA
+.It Li "I-O DATA PCET/TX-R" Ta PCMCIA
+.It Li "IC-Card" Ta PCMCIA
+.It Li "Kingston KNE-PC2" Ta PCMCIA
+.It Li "KTI PCI Ethernet" Ta PCI
+.It Li "Linksys PCMPC100, EC2T Combo" Ta PCMCIA
+.It Li "Linksys EthernetCard, Combo EthernetCard" Ta PCMCIA
+.It Li "Linksys Trust Combo EthernetCard, EtherFast 10/100" Ta PCMCIA
+.It Li "MACNICA ME1 for JEIDA" Ta PCMCIA
+.It Li "Melco LPC3-TX" Ta PCMCIA
+.It Li "National Semiconductor InfoMover" Ta PCMCIA
+.It Li "NDC Instant-Link" Ta PCMCIA
+.It Li "Netgear FA410TX, FA410TXC, FA411" Ta PCMCIA
+.It Li "NetVin NV5000" Ta PCI
+.It Li "Network Everywhere NP10T" Ta PCMCIA
+.It Li "New Media LiveWire 10/100" Ta PCMCIA
+.It Li "Planet SmartCom 2000" Ta PCMCIA
+.It Li "Planex FNW-3600-T, FNW-3700-T" Ta PCMCIA
+.It Li "Premax PE-200" Ta PCMCIA
+.It Li "Realtek RT8029" Ta PCI
+.It Li "Relia Technologies Ethernet" Ta PCMCIA
+.It Li "RPTI EP-400, EP-401" Ta PCMCIA
+.It Li "Seiko Epson EN10B" Ta PCMCIA
+.It Li "SMC EZCard, 8041" Ta PCMCIA
+.It Li "SMC EZCard, 8041TX" Ta PCMCIA
+.It Li "Socket Communications LP-CF, LP-E" Ta PCMCIA
+.It Li "Socket Communications CF 10/100" Ta CF
+.It Li "SVEC PN650TX, ComboCard, LANCard" Ta PCMCIA
+.It Li "Surecom NE-34" Ta PCI
+.It Li "Synergy S21810" Ta PCMCIA
+.It Li "Tamarack TC3299CE" Ta CF
+.It Li "Tamarack NE2000" Ta PCMCIA
+.It Li "Telecom Device TCD-HPC100" Ta PCMCIA
+.It Li "TRENDnet TE-CF100" Ta CF
+.It Li "VIA Technologies VT86C926" Ta PCI
+.It Li "Winbond W89C940" Ta PCI
+.It Li "Winbond W89C940F" Ta PCI
+.It Li "Wisecom T210CT, iPort" Ta PCMCIA
+.It Li "Xircom CFE-10" Ta PCMCIA
+.El
+.Sh MEDIA SELECTION
+The Realtek 8019 (ISA, ISAPnP, some PCMCIA) and Realtek 8029 (PCI)
+NE2000-compatible Ethernet chips include support for software media
+selection.
+If one of these chips is detected by the driver, the list of supported media
+will be displayed.
+.Pp
+For all other chips supported by the
+.Nm
+driver, media selection must be performed either via card jumper settings or
+by vendor-supplied configuration programs.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ne0: where did the card go?"
+The driver found the card, but was unable to make the card respond
+to complete the configuration sequence.
+.El
+.Sh SEE ALSO
+.Xr acphy 4 ,
+.Xr bmtphy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr isapnp 4 ,
+.Xr lxtphy 4 ,
+.Xr netintro 4 ,
+.Xr nsphyter 4 ,
+.Xr pci 4 ,
+.Xr pcmcia 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8

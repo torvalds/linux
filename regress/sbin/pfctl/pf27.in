@@ -1,0 +1,17 @@
+# test af detection logic
+
+match out on lo0 from any to 127.0.0.1 nat-to lo0
+match out on lo0 from 127.0.0.1 to any nat-to lo0
+match out on lo0 from any to lo0 nat-to 127.0.0.1
+
+match out on lo0 from any to 127.0.0.1 nat-to (lo0)
+match out on lo0 from 127.0.0.1 to any nat-to (lo0)
+match out on lo0 from any to (lo0) nat-to 127.0.0.1
+
+match in on lo0 from any to 127.0.0.1 rdr-to lo0
+match in on lo0 from 127.0.0.1 to any rdr-to lo0
+match in on lo0 from any to lo0 rdr-to 127.0.0.1
+
+match in on lo0 from any to 127.0.0.1 rdr-to (lo0)
+match in on lo0 from 127.0.0.1 to any rdr-to (lo0)
+match in on lo0 from any to (lo0) rdr-to 127.0.0.1

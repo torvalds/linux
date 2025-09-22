@@ -1,0 +1,251 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <title>Open Projects</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+  <script type="text/javascript" src="scripts/menu.js"></script>
+</head>
+<body>
+
+<div id="page">
+<!--#include virtual="menu.html.incl"-->
+<div id="content">
+
+<h1>Open Projects</h1>
+
+<p>This page lists several projects that would boost analyzer's usability and
+power. Most of the projects listed here are infrastructure-related so this list
+is an addition to the <a href="potential_checkers.html">potential checkers
+list</a>. If you are interested in tackling one of these, please send an email
+to the <a href=https://lists.llvm.org/mailman/listinfo/cfe-dev>cfe-dev
+mailing list</a> to notify other members of the community.</p>
+
+<ul>
+  <li>Release checkers from "alpha"
+    <p>New checkers which were contributed to the analyzer,
+    but have not passed a rigorous evaluation process,
+    are committed as "alpha checkers" (from "alpha version"),
+    and are not enabled by default.</p>
+
+    <p>Ideally, only the checkers which are actively being worked on should be in
+    "alpha",
+    but over the years the development of many of those has stalled.
+    Such checkers should either be improved
+    up to a point where they can be enabled by default,
+    or removed from the analyzer entirely.
+
+    <ul>
+      <li><code>alpha.security.ArrayBound</code> and
+      <code>alpha.security.ArrayBoundV2</code>
+      <p>Array bounds checking is a desired feature,
+      but having an acceptable rate of false positives might not be possible
+      without a proper
+      <a href="https://en.wikipedia.org/wiki/Widening_(computer_science)">loop widening</a> support.
+      Additionally, it might be more promising to perform index checking based on
+      <a href="https://en.wikipedia.org/wiki/Taint_checking">tainted</a> index values.
+      <p><i>(Difficulty: Medium)</i></p></p>
+      </li>
+    </ul>
+  </li>
+
+  <li>Improve C++ support
+  <ul>
+    <li>Handle construction as part of aggregate initialization.
+      <p><a href="https://en.cppreference.com/w/cpp/language/aggregate_initialization">Aggregates</a>
+      are objects that can be brace-initialized without calling a
+      constructor (that is, <code><a href="https://clang.llvm.org/doxygen/classclang_1_1CXXConstructExpr.html">
+      CXXConstructExpr</a></code> does not occur in the AST),
+      but potentially calling
+      constructors for their fields and base classes
+      These
+      constructors of sub-objects need to know what object they are constructing.
+      Moreover, if the aggregate contains
+      references, lifetime extension needs to be properly modeled.
+
+      One can start untangling this problem by trying to replace the
+      current ad-hoc <code><a href="https://clang.llvm.org/doxygen/classclang_1_1ParentMap.html">
+      ParentMap</a></code> lookup in <a href="https://clang.llvm.org/doxygen/ExprEngineCXX_8cpp_source.html#l00430">
+      <code>CXXConstructionKind::NonVirtualBase</code></a> branch of
+      <code>ExprEngine::VisitCXXConstructExpr()</code>
+      with proper support for the feature.
+      <p><i>(Difficulty: Medium) </i></p></p>
+    </li>
+
+    <li>Handle array constructors.
+      <p>When an array of objects is allocated (say, using the
+         <code>operator new[]</code> or defining a stack array),
+         constructors for all elements of the array are called.
+         We should model (potentially some of) such evaluations,
+         and the same applies for destructors called from
+         <code>operator delete[]</code>.
+         See tests cases in <a href="https://github.com/llvm/llvm-project/tree/main/clang/test/Analysis/handle_constructors_with_new_array.cpp">handle_constructors_with_new_array.cpp</a>.
+      </p>
+      <p>
+      Constructing an array requires invoking multiple (potentially unknown)
+      amount of constructors with the same construct-expression.
+      Apart from the technical difficulties of juggling program points around
+      correctly to avoid accidentally merging paths together, we'll have to
+      be a judge on when to exit the loop and how to widen it.
+      Given that the constructor is going to be a default constructor,
+      a nice 95% solution might be to execute exactly one constructor and
+      then default-bind the resulting LazyCompoundVal to the whole array;
+      it'll work whenever the default constructor doesn't touch global state
+      but only initializes the object to various default values.
+      But if, say, we're making an array of strings,
+      depending on the implementation you might have to allocate a new buffer
+      for each string, and in this case default-binding won't cut it.
+      We might want to come up with an auxiliary analysis in order to perform
+      widening of these simple loops more precisely.
+      </p>
+    </li>
+
+    <li>Handle constructors that can be elided due to Named Return Value Optimization (NRVO)
+      <p>Local variables which are returned by values on all return statements
+         may be stored directly at the address for the return value,
+         eliding the copy or move constructor call.
+         Such variables can be identified using the AST call <code>VarDecl::isNRVOVariable</code>.
+      </p>
+    </li>
+
+    <li>Handle constructors of lambda captures
+      <p>Variables which are captured by value into a lambda require a call to
+         a copy constructor.
+         This call is not currently modeled.
+      </p>
+    </li>
+
+    <li>Handle constructors for default arguments
+      <p>Default arguments in C++ are recomputed at every call,
+         and are therefore local, and not static, variables.
+         See tests cases in <a href="https://github.com/llvm/llvm-project/tree/main/clang/test/Analysis/handle_constructors_for_default_arguments.cpp">handle_constructors_for_default_arguments.cpp</a>.
+      </p>
+      <p>
+      Default arguments are annoying because the initializer expression is
+      evaluated at the call site but doesn't syntactically belong to the
+      caller's AST; instead it belongs to the ParmVarDecl for the default
+      parameter. This can lead to situations when the same expression has to
+      carry different values simultaneously -
+      when multiple instances of the same function are evaluated as part of the
+      same full-expression without specifying the default arguments.
+      Even simply calling the function twice (not necessarily within the
+      same full-expression) may lead to program points agglutinating because
+      it's the same expression. There are some nasty test cases already
+      in temporaries.cpp (struct DefaultParam and so on). I recommend adding a
+      new LocationContext kind specifically to deal with this problem. It'll
+      also help you figure out the construction context when you evaluate the
+      construct-expression (though you might still need to do some additional
+      CFG work to get construction contexts right).
+      </p>
+    </li>
+
+    <li>Enhance the modeling of the standard library.
+      <p>The analyzer needs a better understanding of STL in order to be more
+      useful on C++ codebases.
+      While full library modeling is not an easy task,
+      large gains can be achieved by supporting only a few cases:
+      e.g. calling <code>.length()</code> on an empty
+      <code>std::string</code> always yields zero.
+    <p><i>(Difficulty: Medium)</i></p><p>
+    </li>
+
+    <li>Enhance CFG to model exception-handling.
+      <p>Currently exceptions are treated as "black holes", and exception-handling
+      control structures are poorly modeled in order to be conservative.
+      This could be improved for both C++ and Objective-C exceptions.
+      <p><i>(Difficulty: Hard)</i></p></p>
+    </li>
+  </ul>
+  </li>
+
+  <li>Core Analyzer Infrastructure
+  <ul>
+    <li>Handle unions.
+      <p>Currently in the analyzer the value of a union is always regarded as
+      an unknown.
+      This problem was
+      previously <a href="https://lists.llvm.org/pipermail/cfe-dev/2017-March/052864.html">discussed</a>
+      on the mailing list, but no solution was implemented.
+      <p><i> (Difficulty: Medium) </i></p></p>
+    </li>
+
+    <li>Floating-point support.
+      <p>Currently, the analyzer treats all floating-point values as unknown.
+      This project would involve adding a new <code>SVal</code> kind
+      for constant floats, generalizing the constraint manager to handle floats,
+      and auditing existing code to make sure it doesn't
+      make incorrect assumptions (most notably, that <code>X == X</code>
+      is always true, since it does not hold for <code>NaN</code>).
+      <p><i> (Difficulty: Medium)</i></p></p>
+    </li>
+
+    <li>Improved loop execution modeling.
+      <p>The analyzer simply unrolls each loop <tt>N</tt> times before
+      dropping the path, for a fixed constant <tt>N</tt>.
+      However, that results in lost coverage in cases where the loop always
+      executes more than <tt>N</tt> times.
+      A Google Summer Of Code
+      <a href="https://summerofcode.withgoogle.com/archive/2017/projects/6071606019358720/">project</a>
+      was completed to make the loop bound parameterizable,
+      but the <a href="https://en.wikipedia.org/wiki/Widening_(computer_science)">widening</a>
+      problem still remains open.
+
+      <p><i> (Difficulty: Hard)</i></p></p>
+    </li>
+
+    <li>Basic function summarization support
+      <p>The analyzer performs inter-procedural analysis using
+      either inlining or "conservative evaluation" (invalidating all data
+      passed to the function).
+      Often, a very simple summary
+      (e.g. "this function is <a href="https://en.wikipedia.org/wiki/Pure_function">pure</a>") would be
+      enough to be a large improvement over conservative evaluation.
+      Such summaries could be obtained either syntactically,
+      or using a dataflow framework.
+      <p><i>(Difficulty: Hard)</i></p><p>
+    </li>
+
+    <li>Implement a dataflow flamework.
+      <p>The analyzer core
+      implements a <a href="https://en.wikipedia.org/wiki/Symbolic_execution">symbolic execution</a>
+      engine, which performs checks
+      (use-after-free, uninitialized value read, etc.)
+      over a <em>single</em> program path.
+      However, many useful properties
+      (dead code, check-after-use, etc.) require
+      reasoning over <em>all</em> possible in a program.
+      Such reasoning requires a
+      <a href="https://en.wikipedia.org/wiki/Data-flow_analysis">dataflow analysis</a> framework.
+      Clang already implements
+      a few dataflow analyses (most notably, liveness),
+      but they implemented in an ad-hoc fashion.
+      A proper framework would enable us writing many more useful checkers.
+      <p><i> (Difficulty: Hard) </i></p></p>
+    </li>
+
+    <li>Track type information through casts more precisely.
+      <p>The <code>DynamicTypePropagation</code>
+      checker is in charge of inferring a region's
+      dynamic type based on what operations the code is performing.
+      Casts are a rich source of type information that the analyzer currently ignores.
+      <p><i>(Difficulty: Medium)</i></p></p>
+    </li>
+
+  </ul>
+  </li>
+
+  <li>Fixing miscellaneous bugs
+    <p>Apart from the open projects listed above,
+       contributors are welcome to fix any of the outstanding
+       <a href="https://bugs.llvm.org/buglist.cgi?component=Static%20Analyzer&list_id=147756&product=clang&resolution=---">bugs</a>
+       in the Bugzilla.
+       <p><i>(Difficulty: Anything)</i></p></p>
+  </li>
+
+</ul>
+
+</div>
+</div>
+</body>
+</html>

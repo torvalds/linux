@@ -1,0 +1,573 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_SCOPED_ALLOCATOR
+#define _LIBCPP_SCOPED_ALLOCATOR
+
+/*
+    scoped_allocator synopsis
+
+namespace std
+{
+
+template <class OuterAlloc, class... InnerAllocs>
+class scoped_allocator_adaptor : public OuterAlloc
+{
+    typedef allocator_traits<OuterAlloc> OuterTraits; // exposition only
+    scoped_allocator_adaptor<InnerAllocs...> inner;   // exposition only
+public:
+
+    typedef OuterAlloc outer_allocator_type;
+    typedef see below inner_allocator_type;
+
+    typedef typename OuterTraits::value_type value_type;
+    typedef typename OuterTraits::size_type size_type;
+    typedef typename OuterTraits::difference_type difference_type;
+    typedef typename OuterTraits::pointer pointer;
+    typedef typename OuterTraits::const_pointer const_pointer;
+    typedef typename OuterTraits::void_pointer void_pointer;
+    typedef typename OuterTraits::const_void_pointer const_void_pointer;
+
+    typedef see below propagate_on_container_copy_assignment;
+    typedef see below propagate_on_container_move_assignment;
+    typedef see below propagate_on_container_swap;
+    typedef see below is_always_equal;
+
+    template <class Tp>
+        struct rebind
+        {
+            typedef scoped_allocator_adaptor<
+                OuterTraits::template rebind_alloc<Tp>, InnerAllocs...> other;
+        };
+
+    scoped_allocator_adaptor();
+    template <class OuterA2>
+        scoped_allocator_adaptor(OuterA2&& outerAlloc,
+                                 const InnerAllocs&... innerAllocs) noexcept;
+    scoped_allocator_adaptor(const scoped_allocator_adaptor& other) noexcept;
+    scoped_allocator_adaptor(scoped_allocator_adaptor&& other) noexcept;
+    template <class OuterA2>
+        scoped_allocator_adaptor(const scoped_allocator_adaptor<OuterA2, InnerAllocs...>& other) noexcept;
+    template <class OuterA2>
+        scoped_allocator_adaptor(const scoped_allocator_adaptor<OuterA2, InnerAllocs...>&& other) noexcept;
+
+    scoped_allocator_adaptor& operator=(const scoped_allocator_adaptor&) = default;
+    scoped_allocator_adaptor& operator=(scoped_allocator_adaptor&&) = default;
+    ~scoped_allocator_adaptor();
+
+    inner_allocator_type& inner_allocator() noexcept;
+    const inner_allocator_type& inner_allocator() const noexcept;
+
+    outer_allocator_type& outer_allocator() noexcept;
+    const outer_allocator_type& outer_allocator() const noexcept;
+
+    pointer allocate(size_type n);                           // [[nodiscard]] in C++20
+    pointer allocate(size_type n, const_void_pointer hint);  // [[nodiscard]] in C++20
+    void deallocate(pointer p, size_type n) noexcept;
+
+    size_type max_size() const;
+    template <class T, class... Args> void construct(T* p, Args&& args);
+    template <class T1, class T2, class... Args1, class... Args2>
+        void construct(pair<T1, T2>* p, piecewise_construct t, tuple<Args1...> x,
+                       tuple<Args2...> y);
+    template <class T1, class T2>
+        void construct(pair<T1, T2>* p);
+    template <class T1, class T2, class U, class V>
+        void construct(pair<T1, T2>* p, U&& x, V&& y);
+    template <class T1, class T2, class U, class V>
+        void construct(pair<T1, T2>* p, const pair<U, V>& x);
+    template <class T1, class T2, class U, class V>
+        void construct(pair<T1, T2>* p, pair<U, V>&& x);
+    template <class T> void destroy(T* p);
+
+    template <class T> void destroy(T* p) noexcept;
+
+    scoped_allocator_adaptor select_on_container_copy_construction() const noexcept;
+};
+
+template<class OuterAlloc, class... InnerAllocs>
+    scoped_allocator_adaptor(OuterAlloc, InnerAllocs...)
+        -> scoped_allocator_adaptor<OuterAlloc, InnerAllocs...>;
+
+template <class OuterA1, class OuterA2, class... InnerAllocs>
+    bool
+    operator==(const scoped_allocator_adaptor<OuterA1, InnerAllocs...>& a,
+               const scoped_allocator_adaptor<OuterA2, InnerAllocs...>& b) noexcept;
+
+template <class OuterA1, class OuterA2, class... InnerAllocs>
+    bool
+    operator!=(const scoped_allocator_adaptor<OuterA1, InnerAllocs...>& a,
+               const scoped_allocator_adaptor<OuterA2, InnerAllocs...>& b) noexcept; // removed in C++20
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__memory/allocator_traits.h>
+#include <__memory/uses_allocator_construction.h>
+#include <__type_traits/common_type.h>
+#include <__type_traits/enable_if.h>
+#include <__type_traits/integral_constant.h>
+#include <__type_traits/is_constructible.h>
+#include <__type_traits/remove_reference.h>
+#include <__utility/declval.h>
+#include <__utility/forward.h>
+#include <__utility/move.h>
+#include <__utility/pair.h>
+#include <__utility/piecewise_construct.h>
+#include <tuple>
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#if !defined(_LIBCPP_CXX03_LANG)
+
+// scoped_allocator_adaptor
+
+template <class... _Allocs>
+class scoped_allocator_adaptor;
+
+template <class... _Allocs>
+struct __get_poc_copy_assignment;
+
+template <class _A0>
+struct __get_poc_copy_assignment<_A0> {
+  static const bool value = allocator_traits<_A0>::propagate_on_container_copy_assignment::value;
+};
+
+template <class _A0, class... _Allocs>
+struct __get_poc_copy_assignment<_A0, _Allocs...> {
+  static const bool value = allocator_traits<_A0>::propagate_on_container_copy_assignment::value ||
+                            __get_poc_copy_assignment<_Allocs...>::value;
+};
+
+template <class... _Allocs>
+struct __get_poc_move_assignment;
+
+template <class _A0>
+struct __get_poc_move_assignment<_A0> {
+  static const bool value = allocator_traits<_A0>::propagate_on_container_move_assignment::value;
+};
+
+template <class _A0, class... _Allocs>
+struct __get_poc_move_assignment<_A0, _Allocs...> {
+  static const bool value = allocator_traits<_A0>::propagate_on_container_move_assignment::value ||
+                            __get_poc_move_assignment<_Allocs...>::value;
+};
+
+template <class... _Allocs>
+struct __get_poc_swap;
+
+template <class _A0>
+struct __get_poc_swap<_A0> {
+  static const bool value = allocator_traits<_A0>::propagate_on_container_swap::value;
+};
+
+template <class _A0, class... _Allocs>
+struct __get_poc_swap<_A0, _Allocs...> {
+  static const bool value =
+      allocator_traits<_A0>::propagate_on_container_swap::value || __get_poc_swap<_Allocs...>::value;
+};
+
+template <class... _Allocs>
+struct __get_is_always_equal;
+
+template <class _A0>
+struct __get_is_always_equal<_A0> {
+  static const bool value = allocator_traits<_A0>::is_always_equal::value;
+};
+
+template <class _A0, class... _Allocs>
+struct __get_is_always_equal<_A0, _Allocs...> {
+  static const bool value = allocator_traits<_A0>::is_always_equal::value && __get_is_always_equal<_Allocs...>::value;
+};
+
+template <class... _Allocs>
+class __scoped_allocator_storage;
+
+template <class _OuterAlloc, class... _InnerAllocs>
+class __scoped_allocator_storage<_OuterAlloc, _InnerAllocs...> : public _OuterAlloc {
+  typedef _OuterAlloc outer_allocator_type;
+
+protected:
+  typedef scoped_allocator_adaptor<_InnerAllocs...> inner_allocator_type;
+
+private:
+  inner_allocator_type __inner_;
+
+protected:
+  _LIBCPP_HIDE_FROM_ABI __scoped_allocator_storage() _NOEXCEPT {}
+
+  template <class _OuterA2, __enable_if_t<is_constructible<outer_allocator_type, _OuterA2>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI
+  __scoped_allocator_storage(_OuterA2&& __outer_alloc, const _InnerAllocs&... __inner_allocs) _NOEXCEPT
+      : outer_allocator_type(std::forward<_OuterA2>(__outer_alloc)),
+        __inner_(__inner_allocs...) {}
+
+  template <class _OuterA2, __enable_if_t<is_constructible<outer_allocator_type, const _OuterA2&>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI
+  __scoped_allocator_storage(const __scoped_allocator_storage<_OuterA2, _InnerAllocs...>& __other) _NOEXCEPT
+      : outer_allocator_type(__other.outer_allocator()),
+        __inner_(__other.inner_allocator()) {}
+
+  template <class _OuterA2, __enable_if_t<is_constructible<outer_allocator_type, _OuterA2>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI
+  __scoped_allocator_storage(__scoped_allocator_storage<_OuterA2, _InnerAllocs...>&& __other) _NOEXCEPT
+      : outer_allocator_type(std::move(__other.outer_allocator())),
+        __inner_(std::move(__other.inner_allocator())) {}
+
+  template <class _OuterA2, __enable_if_t<is_constructible<outer_allocator_type, _OuterA2>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI __scoped_allocator_storage(_OuterA2&& __o, const inner_allocator_type& __i) _NOEXCEPT
+      : outer_allocator_type(std::forward<_OuterA2>(__o)),
+        __inner_(__i) {}
+
+  _LIBCPP_HIDE_FROM_ABI inner_allocator_type& inner_allocator() _NOEXCEPT { return __inner_; }
+  _LIBCPP_HIDE_FROM_ABI const inner_allocator_type& inner_allocator() const _NOEXCEPT { return __inner_; }
+
+  _LIBCPP_HIDE_FROM_ABI outer_allocator_type& outer_allocator() _NOEXCEPT {
+    return static_cast<outer_allocator_type&>(*this);
+  }
+  _LIBCPP_HIDE_FROM_ABI const outer_allocator_type& outer_allocator() const _NOEXCEPT {
+    return static_cast<const outer_allocator_type&>(*this);
+  }
+
+  scoped_allocator_adaptor<outer_allocator_type, _InnerAllocs...> _LIBCPP_HIDE_FROM_ABI
+  select_on_container_copy_construction() const _NOEXCEPT {
+    return scoped_allocator_adaptor<outer_allocator_type, _InnerAllocs...>(
+        allocator_traits<outer_allocator_type>::select_on_container_copy_construction(outer_allocator()),
+        allocator_traits<inner_allocator_type>::select_on_container_copy_construction(inner_allocator()));
+  }
+
+  template <class...>
+  friend class __scoped_allocator_storage;
+};
+
+template <class _OuterAlloc>
+class __scoped_allocator_storage<_OuterAlloc> : public _OuterAlloc {
+  typedef _OuterAlloc outer_allocator_type;
+
+protected:
+  typedef scoped_allocator_adaptor<_OuterAlloc> inner_allocator_type;
+
+  _LIBCPP_HIDE_FROM_ABI __scoped_allocator_storage() _NOEXCEPT {}
+
+  template <class _OuterA2, __enable_if_t<is_constructible<outer_allocator_type, _OuterA2>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI __scoped_allocator_storage(_OuterA2&& __outer_alloc) _NOEXCEPT
+      : outer_allocator_type(std::forward<_OuterA2>(__outer_alloc)) {}
+
+  template <class _OuterA2, __enable_if_t<is_constructible<outer_allocator_type, const _OuterA2&>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI __scoped_allocator_storage(const __scoped_allocator_storage<_OuterA2>& __other) _NOEXCEPT
+      : outer_allocator_type(__other.outer_allocator()) {}
+
+  template <class _OuterA2, __enable_if_t<is_constructible<outer_allocator_type, _OuterA2>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI __scoped_allocator_storage(__scoped_allocator_storage<_OuterA2>&& __other) _NOEXCEPT
+      : outer_allocator_type(std::move(__other.outer_allocator())) {}
+
+  _LIBCPP_HIDE_FROM_ABI inner_allocator_type& inner_allocator() _NOEXCEPT {
+    return static_cast<inner_allocator_type&>(*this);
+  }
+  _LIBCPP_HIDE_FROM_ABI const inner_allocator_type& inner_allocator() const _NOEXCEPT {
+    return static_cast<const inner_allocator_type&>(*this);
+  }
+
+  _LIBCPP_HIDE_FROM_ABI outer_allocator_type& outer_allocator() _NOEXCEPT {
+    return static_cast<outer_allocator_type&>(*this);
+  }
+  _LIBCPP_HIDE_FROM_ABI const outer_allocator_type& outer_allocator() const _NOEXCEPT {
+    return static_cast<const outer_allocator_type&>(*this);
+  }
+
+  _LIBCPP_HIDE_FROM_ABI scoped_allocator_adaptor<outer_allocator_type>
+  select_on_container_copy_construction() const _NOEXCEPT {
+    return scoped_allocator_adaptor<outer_allocator_type>(
+        allocator_traits<outer_allocator_type>::select_on_container_copy_construction(outer_allocator()));
+  }
+
+  __scoped_allocator_storage(const outer_allocator_type& __o, const inner_allocator_type& __i) _NOEXCEPT;
+
+  template <class...>
+  friend class __scoped_allocator_storage;
+};
+
+// __outermost
+
+template <class _Alloc>
+decltype(std::declval<_Alloc>().outer_allocator(), true_type()) __has_outer_allocator_test(_Alloc&& __a);
+
+template <class _Alloc>
+false_type __has_outer_allocator_test(const volatile _Alloc& __a);
+
+template <class _Alloc>
+struct __has_outer_allocator
+    : public common_type< decltype(std::__has_outer_allocator_test(std::declval<_Alloc&>()))>::type {};
+
+template <class _Alloc, bool = __has_outer_allocator<_Alloc>::value>
+struct __outermost {
+  typedef _Alloc type;
+  _LIBCPP_HIDE_FROM_ABI type& operator()(type& __a) const _NOEXCEPT { return __a; }
+};
+
+template <class _Alloc>
+struct __outermost<_Alloc, true> {
+  typedef __libcpp_remove_reference_t< decltype(std::declval<_Alloc>().outer_allocator()) > _OuterAlloc;
+  typedef typename __outermost<_OuterAlloc>::type type;
+  _LIBCPP_HIDE_FROM_ABI type& operator()(_Alloc& __a) const _NOEXCEPT {
+    return __outermost<_OuterAlloc>()(__a.outer_allocator());
+  }
+};
+
+template <class _OuterAlloc, class... _InnerAllocs>
+class _LIBCPP_TEMPLATE_VIS scoped_allocator_adaptor<_OuterAlloc, _InnerAllocs...>
+    : public __scoped_allocator_storage<_OuterAlloc, _InnerAllocs...> {
+  typedef __scoped_allocator_storage<_OuterAlloc, _InnerAllocs...> _Base;
+  typedef allocator_traits<_OuterAlloc> _OuterTraits;
+
+public:
+  typedef _OuterAlloc outer_allocator_type;
+  typedef typename _Base::inner_allocator_type inner_allocator_type;
+  typedef typename _OuterTraits::size_type size_type;
+  typedef typename _OuterTraits::difference_type difference_type;
+  typedef typename _OuterTraits::pointer pointer;
+  typedef typename _OuterTraits::const_pointer const_pointer;
+  typedef typename _OuterTraits::void_pointer void_pointer;
+  typedef typename _OuterTraits::const_void_pointer const_void_pointer;
+
+  typedef integral_constant< bool, __get_poc_copy_assignment<outer_allocator_type, _InnerAllocs...>::value >
+      propagate_on_container_copy_assignment;
+  typedef integral_constant< bool, __get_poc_move_assignment<outer_allocator_type, _InnerAllocs...>::value >
+      propagate_on_container_move_assignment;
+  typedef integral_constant< bool, __get_poc_swap<outer_allocator_type, _InnerAllocs...>::value >
+      propagate_on_container_swap;
+  typedef integral_constant< bool, __get_is_always_equal<outer_allocator_type, _InnerAllocs...>::value >
+      is_always_equal;
+
+  template <class _Tp>
+  struct rebind {
+    typedef scoped_allocator_adaptor< typename _OuterTraits::template rebind_alloc<_Tp>, _InnerAllocs... > other;
+  };
+
+  _LIBCPP_HIDE_FROM_ABI scoped_allocator_adaptor() _NOEXCEPT {}
+  template <class _OuterA2, __enable_if_t<is_constructible<outer_allocator_type, _OuterA2>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI
+  scoped_allocator_adaptor(_OuterA2&& __outer_alloc, const _InnerAllocs&... __inner_allocs) _NOEXCEPT
+      : _Base(std::forward<_OuterA2>(__outer_alloc), __inner_allocs...) {}
+  // scoped_allocator_adaptor(const scoped_allocator_adaptor& __other) = default;
+  template <class _OuterA2, __enable_if_t<is_constructible<outer_allocator_type, const _OuterA2&>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI
+  scoped_allocator_adaptor(const scoped_allocator_adaptor<_OuterA2, _InnerAllocs...>& __other) _NOEXCEPT
+      : _Base(__other) {}
+  template <class _OuterA2, __enable_if_t<is_constructible<outer_allocator_type, _OuterA2>::value, int> = 0>
+  _LIBCPP_HIDE_FROM_ABI
+  scoped_allocator_adaptor(scoped_allocator_adaptor<_OuterA2, _InnerAllocs...>&& __other) _NOEXCEPT
+      : _Base(std::move(__other)) {}
+
+  // scoped_allocator_adaptor& operator=(const scoped_allocator_adaptor&) = default;
+  // scoped_allocator_adaptor& operator=(scoped_allocator_adaptor&&) = default;
+  // ~scoped_allocator_adaptor() = default;
+
+  _LIBCPP_HIDE_FROM_ABI inner_allocator_type& inner_allocator() _NOEXCEPT { return _Base::inner_allocator(); }
+  _LIBCPP_HIDE_FROM_ABI const inner_allocator_type& inner_allocator() const _NOEXCEPT {
+    return _Base::inner_allocator();
+  }
+
+  _LIBCPP_HIDE_FROM_ABI outer_allocator_type& outer_allocator() _NOEXCEPT { return _Base::outer_allocator(); }
+  _LIBCPP_HIDE_FROM_ABI const outer_allocator_type& outer_allocator() const _NOEXCEPT {
+    return _Base::outer_allocator();
+  }
+
+  _LIBCPP_NODISCARD _LIBCPP_HIDE_FROM_ABI pointer allocate(size_type __n) {
+    return allocator_traits<outer_allocator_type>::allocate(outer_allocator(), __n);
+  }
+  _LIBCPP_NODISCARD _LIBCPP_HIDE_FROM_ABI pointer allocate(size_type __n, const_void_pointer __hint) {
+    return allocator_traits<outer_allocator_type>::allocate(outer_allocator(), __n, __hint);
+  }
+
+  _LIBCPP_HIDE_FROM_ABI void deallocate(pointer __p, size_type __n) _NOEXCEPT {
+    allocator_traits<outer_allocator_type>::deallocate(outer_allocator(), __p, __n);
+  }
+
+  _LIBCPP_HIDE_FROM_ABI size_type max_size() const {
+    return allocator_traits<outer_allocator_type>::max_size(outer_allocator());
+  }
+
+#  if _LIBCPP_STD_VER >= 20
+  template <class _Type, class... _Args>
+  _LIBCPP_HIDE_FROM_ABI void construct(_Type* __ptr, _Args&&... __args) {
+    using _OM = __outermost<outer_allocator_type>;
+    std::apply(
+        [__ptr, this](auto&&... __newargs) {
+          allocator_traits<typename _OM::type>::construct(
+              _OM()(outer_allocator()), __ptr, std::forward<decltype(__newargs)>(__newargs)...);
+        },
+        std::uses_allocator_construction_args<_Type>(inner_allocator(), std::forward<_Args>(__args)...));
+  }
+#  else
+  template <class _Tp, class... _Args>
+  _LIBCPP_HIDE_FROM_ABI void construct(_Tp* __p, _Args&&... __args) {
+    __construct(__uses_alloc_ctor<_Tp, inner_allocator_type&, _Args...>(), __p, std::forward<_Args>(__args)...);
+  }
+
+  template <class _T1, class _T2, class... _Args1, class... _Args2>
+  _LIBCPP_HIDE_FROM_ABI void
+  construct(pair<_T1, _T2>* __p, piecewise_construct_t, tuple<_Args1...> __x, tuple<_Args2...> __y) {
+    typedef __outermost<outer_allocator_type> _OM;
+    allocator_traits<typename _OM::type>::construct(
+        _OM()(outer_allocator()),
+        __p,
+        piecewise_construct,
+        __transform_tuple(typename __uses_alloc_ctor< _T1, inner_allocator_type&, _Args1... >::type(),
+                          std::move(__x),
+                          typename __make_tuple_indices<sizeof...(_Args1)>::type{}),
+        __transform_tuple(typename __uses_alloc_ctor< _T2, inner_allocator_type&, _Args2... >::type(),
+                          std::move(__y),
+                          typename __make_tuple_indices<sizeof...(_Args2)>::type{}));
+  }
+
+  template <class _T1, class _T2>
+  _LIBCPP_HIDE_FROM_ABI void construct(pair<_T1, _T2>* __p) {
+    construct(__p, piecewise_construct, tuple<>{}, tuple<>{});
+  }
+
+  template <class _T1, class _T2, class _Up, class _Vp>
+  _LIBCPP_HIDE_FROM_ABI void construct(pair<_T1, _T2>* __p, _Up&& __x, _Vp&& __y) {
+    construct(__p,
+              piecewise_construct,
+              std::forward_as_tuple(std::forward<_Up>(__x)),
+              std::forward_as_tuple(std::forward<_Vp>(__y)));
+  }
+
+  template <class _T1, class _T2, class _Up, class _Vp>
+  _LIBCPP_HIDE_FROM_ABI void construct(pair<_T1, _T2>* __p, const pair<_Up, _Vp>& __x) {
+    construct(__p, piecewise_construct, std::forward_as_tuple(__x.first), std::forward_as_tuple(__x.second));
+  }
+
+  template <class _T1, class _T2, class _Up, class _Vp>
+  _LIBCPP_HIDE_FROM_ABI void construct(pair<_T1, _T2>* __p, pair<_Up, _Vp>&& __x) {
+    construct(__p,
+              piecewise_construct,
+              std::forward_as_tuple(std::forward<_Up>(__x.first)),
+              std::forward_as_tuple(std::forward<_Vp>(__x.second)));
+  }
+#  endif
+
+  template <class _Tp>
+  _LIBCPP_HIDE_FROM_ABI void destroy(_Tp* __p) {
+    typedef __outermost<outer_allocator_type> _OM;
+    allocator_traits<typename _OM::type>::destroy(_OM()(outer_allocator()), __p);
+  }
+
+  _LIBCPP_HIDE_FROM_ABI scoped_allocator_adaptor select_on_container_copy_construction() const _NOEXCEPT {
+    return _Base::select_on_container_copy_construction();
+  }
+
+private:
+  _LIBCPP_HIDE_FROM_ABI explicit scoped_allocator_adaptor(
+      outer_allocator_type&& __o, inner_allocator_type&& __i) _NOEXCEPT : _Base(std::move(__o), std::move(__i)) {}
+
+  template <class _Tp, class... _Args>
+  _LIBCPP_HIDE_FROM_ABI void __construct(integral_constant<int, 0>, _Tp* __p, _Args&&... __args) {
+    typedef __outermost<outer_allocator_type> _OM;
+    allocator_traits<typename _OM::type>::construct(_OM()(outer_allocator()), __p, std::forward<_Args>(__args)...);
+  }
+
+  template <class _Tp, class... _Args>
+  _LIBCPP_HIDE_FROM_ABI void __construct(integral_constant<int, 1>, _Tp* __p, _Args&&... __args) {
+    typedef __outermost<outer_allocator_type> _OM;
+    allocator_traits<typename _OM::type>::construct(
+        _OM()(outer_allocator()), __p, allocator_arg, inner_allocator(), std::forward<_Args>(__args)...);
+  }
+
+  template <class _Tp, class... _Args>
+  _LIBCPP_HIDE_FROM_ABI void __construct(integral_constant<int, 2>, _Tp* __p, _Args&&... __args) {
+    typedef __outermost<outer_allocator_type> _OM;
+    allocator_traits<typename _OM::type>::construct(
+        _OM()(outer_allocator()), __p, std::forward<_Args>(__args)..., inner_allocator());
+  }
+
+  template <class... _Args, size_t... _Idx>
+  _LIBCPP_HIDE_FROM_ABI tuple<_Args&&...>
+  __transform_tuple(integral_constant<int, 0>, tuple<_Args...>&& __t, __tuple_indices<_Idx...>) {
+    return std::forward_as_tuple(std::get<_Idx>(std::move(__t))...);
+  }
+
+  template <class... _Args, size_t... _Idx>
+  _LIBCPP_HIDE_FROM_ABI tuple<allocator_arg_t, inner_allocator_type&, _Args&&...>
+  __transform_tuple(integral_constant<int, 1>, tuple<_Args...>&& __t, __tuple_indices<_Idx...>) {
+    using _Tup = tuple<allocator_arg_t, inner_allocator_type&, _Args&&...>;
+    return _Tup(allocator_arg, inner_allocator(), std::get<_Idx>(std::move(__t))...);
+  }
+
+  template <class... _Args, size_t... _Idx>
+  _LIBCPP_HIDE_FROM_ABI tuple<_Args&&..., inner_allocator_type&>
+  __transform_tuple(integral_constant<int, 2>, tuple<_Args...>&& __t, __tuple_indices<_Idx...>) {
+    using _Tup = tuple<_Args&&..., inner_allocator_type&>;
+    return _Tup(std::get<_Idx>(std::move(__t))..., inner_allocator());
+  }
+
+  template <class...>
+  friend class __scoped_allocator_storage;
+};
+
+#  if _LIBCPP_STD_VER >= 17
+template <class _OuterAlloc, class... _InnerAllocs>
+scoped_allocator_adaptor(_OuterAlloc, _InnerAllocs...) -> scoped_allocator_adaptor<_OuterAlloc, _InnerAllocs...>;
+#  endif
+
+template <class _OuterA1, class _OuterA2>
+inline _LIBCPP_HIDE_FROM_ABI bool
+operator==(const scoped_allocator_adaptor<_OuterA1>& __a, const scoped_allocator_adaptor<_OuterA2>& __b) _NOEXCEPT {
+  return __a.outer_allocator() == __b.outer_allocator();
+}
+
+template <class _OuterA1, class _OuterA2, class _InnerA0, class... _InnerAllocs>
+inline _LIBCPP_HIDE_FROM_ABI bool
+operator==(const scoped_allocator_adaptor<_OuterA1, _InnerA0, _InnerAllocs...>& __a,
+           const scoped_allocator_adaptor<_OuterA2, _InnerA0, _InnerAllocs...>& __b) _NOEXCEPT {
+  return __a.outer_allocator() == __b.outer_allocator() && __a.inner_allocator() == __b.inner_allocator();
+}
+
+#  if _LIBCPP_STD_VER <= 17
+
+template <class _OuterA1, class _OuterA2, class... _InnerAllocs>
+inline _LIBCPP_HIDE_FROM_ABI bool operator!=(const scoped_allocator_adaptor<_OuterA1, _InnerAllocs...>& __a,
+                                             const scoped_allocator_adaptor<_OuterA2, _InnerAllocs...>& __b) _NOEXCEPT {
+  return !(__a == __b);
+}
+
+#  endif // _LIBCPP_STD_VER <= 17
+
+#endif // !defined(_LIBCPP_CXX03_LANG)
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <atomic>
+#  include <climits>
+#  include <concepts>
+#  include <cstring>
+#  include <ctime>
+#  include <iterator>
+#  include <memory>
+#  include <ratio>
+#  include <stdexcept>
+#  include <type_traits>
+#  include <variant>
+#endif
+
+#endif // _LIBCPP_SCOPED_ALLOCATOR

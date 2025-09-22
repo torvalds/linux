@@ -1,0 +1,25 @@
+Run relayd regressions tests.  The framework runs a client, and a
+server, and a relayd.  Currently the tcp and http forwarding code
+path is covered.  Each test creates a special relayd.conf and starts
+those three processes.  All processes write log files that are
+checked for certain messages.  The test arguments are kept in the
+args-*.pl files.  To find socket splicing bugs, each test is run
+in both copy and splice mode.
+
+SUDO=doas
+As relayd needs root privileges either run the tests as root or set
+this variable and run make as a regular user.  Only the code that
+requires it, is run as root.
+
+KTRACE=ktrace
+Set this variable if you want a ktrace output from relayd.  Note that
+ktrace is invoked after sudo as sudo would disable it.
+
+RELAYD=/usr/src/usr.sbin/relayd/obj/relayd
+Start an alternative relayd program that is not in the path.
+
+LOCAL_ADDR, REMOTE_ADDR, REMOTE_SSH
+Set these to run the relayd on a remote machine.  As the client and
+server run locally, network timing may influence the test results.
+
+Changes here have to be discussed with bluhm@, reyk@ or benno@.

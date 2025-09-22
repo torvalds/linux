@@ -1,0 +1,379 @@
+.\"	$OpenBSD: script.7,v 1.9 2022/02/06 00:29:02 jsg Exp $
+.\"
+.\"	$NetBSD: script.7,v 1.1 2005/05/07 02:20:34 perry Exp $
+.\"
+.\" Copyright (c) 2005 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This document was originally contributed to The NetBSD Foundation
+.\" by Perry E. Metzger of Metzger, Dowdeswell & Co. LLC.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 6 2022 $
+.Dt SCRIPT 7
+.Os
+.Sh NAME
+.Nm script
+.Nd interpreter script execution
+.Sh DESCRIPTION
+The system is capable of treating a text file containing commands
+intended for an interpreter, such as
+.Xr sh 1
+or
+.Xr awk 1 ,
+as an executable program.
+.Pp
+An
+.Dq interpreter script
+is a file which has been set executable (see
+.Xr chmod 2 )
+and which has a first line of the form:
+.Pp
+.D1 Li #! Ar pathname Op Ar argument
+.Pp
+The
+.Sq #!
+must appear as the first two characters of the file.
+A space between the
+.Sq #!
+and
+.Ar pathname
+is optional.
+At most one
+.Ar argument
+may follow
+.Ar pathname ,
+and the length of the entire line is limited (see below).
+.Pp
+If such a file is executed (such as via the
+.Xr execve 2
+system call), the interpreter specified by the
+.Ar pathname
+is executed by the system.
+(The
+.Ar pathname
+is executed without regard to the
+.Ev PATH
+variable, so in general
+.Ar pathname
+should be an absolute path.)
+.Pp
+The arguments passed to the interpreter will be as follows.
+.Va argv[0]
+will be the path to the interpreter itself, as specified on the first
+line of the script.
+If there is an
+.Ar argument
+following
+.Ar pathname
+on the first line of the script, it will be passed as
+.Va argv[1] .
+The subsequent elements of
+.Va argv
+will be the path to the interpreter script file itself (i.e. the
+original
+.Va argv[0] )
+followed by any further arguments passed when
+.Xr execve 2
+was invoked to execute the script file.
+.Pp
+By convention, it is expected that an interpreter will open the script
+file passed as an argument and process the commands within it.
+Typical interpreters treat
+.Sq #
+as a comment character, and thus will ignore the initial line of the script
+because it begins
+.Sq #! ,
+but there is no requirement for this per se.
+.Pp
+On
+.Ox ,
+the length of the interpreter line following the
+.Sq #!
+is limited to
+.Dv MAXINTERP ,
+as defined in
+.In sys/param.h .
+Other operating systems impose different limits on the length of
+the
+.Sq #!
+line (see below).
+.Pp
+Note that the interpreter may not itself be an interpreter script.
+If
+.Ar pathname
+does not point to an executable binary, execution of the interpreter
+script will fail.
+.Ss Trampolines and Portable Scripts
+Different operating systems often have interpreters located in
+different locations, and the kernel executes the passed interpreter
+without regard to the setting of environment variables such as
+.Ev PATH .
+This makes it somewhat challenging to set the
+.Sq #!
+line of a script so that it will run identically on different systems.
+.Pp
+Since the
+.Xr env 1
+utility executes a command passed to it on its command line, it is
+often used as a
+.Dq trampoline
+to render scripts portable.
+If the leading line of a script reads
+.Pp
+.Dl #! /usr/bin/env interp
+.Pp
+then the
+.Xr env 1
+command will execute the
+.Dq interp
+command it finds in its
+.Ev PATH ,
+passing on to it all subsequent arguments with which it itself was called.
+Since
+.Pa /usr/bin/env
+is found on almost all
+.Tn POSIX
+style systems, this trick is frequently exploited by authors who need
+a script to execute without change on multiple systems.
+.Ss Historical Note: Scripts without `#!'
+Shell scripts predate the invention of the
+.Sq #!
+convention, which is implemented in the kernel.
+In the days of
+.At v7 ,
+there was only one interpreter used on the system,
+.Pa /bin/sh ,
+and the shell treated any file that failed to execute with an
+.Er ENOEXEC
+error
+(see
+.Xr intro 2 )
+as a shell script.
+.Pp
+Most shells (such as
+.Xr sh 1 )
+and certain other facilities (including
+.Xr execlp 3
+and
+.Xr execvp 3 )
+still pass interpreter scripts that do not include the
+.Sq #!
+(and thus fail to execute with
+.Er ENOEXEC )
+to
+.Pa /bin/sh .
+.Pp
+As this behavior is implemented outside the kernel, there is no
+mechanism that forces it to be respected by all programs that execute
+other programs.
+It is thus not completely reliable.
+It is therefore important to always include
+.Pp
+.Dl #!/bin/sh
+.Pp
+in front of Bourne shell scripts, and to treat the traditional
+behavior as obsolete.
+.Sh EXAMPLES
+Suppose that an executable binary exists in
+.Pa /bin/interp
+and that the file
+.Pa /tmp/script
+contains:
+.Bd -literal -offset indent
+#!/bin/interp -arg
+
+[...]
+.Ed
+.Pp
+and that
+.Pa /tmp/script
+is set mode 755.
+.Pp
+Executing
+.Pp
+.Dl $ /tmp/script one two three
+.Pp
+at the shell will result in
+.Pa /bin/interp
+being executed, receiving the following arguments in
+.Va argv
+(numbered from 0):
+.Bd -ragged -offset indent
+.Qq /bin/interp ,
+.Qq "-arg" ,
+.Qq /tmp/script ,
+.Qq one ,
+.Qq two ,
+.Qq three
+.Ed
+.Ss Portability Note: Multiple arguments
+The behavior of multiple arguments on the
+.Sq #!
+line is highly non-portable between different systems.
+In general, only one argument can be assumed to work consistently.
+.Pp
+Consider the following variation on the previous example.
+Suppose that an executable binary exists in
+.Pa /bin/interp
+and that the file
+.Pa /tmp/script
+contains:
+.Bd -literal -offset indent
+#!/bin/interp -x -y
+
+[...]
+.Ed
+.Pp
+and that
+.Pa /tmp/script
+is set mode 755.
+.Pp
+Executing
+.Pp
+.Dl $ /tmp/script one two three
+.Pp
+at the shell will result in
+.Pa /bin/interp
+being executed, receiving the following arguments in
+.Va argv
+(numbered from 0):
+.Bd -ragged -offset indent
+.Qq /bin/interp ,
+.Qq "-x -y" ,
+.Qq /tmp/script ,
+.Qq one ,
+.Qq two ,
+.Qq three
+.Ed
+.Pp
+Note that
+.Qq "-x -y"
+will be passed on
+.Ox
+as a single argument.
+.Pp
+Although most
+.Tn POSIX
+style operating systems will pass only one
+.Ar argument ,
+the behavior when multiple arguments are included is not
+consistent between platforms.
+Some, such as
+.Ox ,
+will concatenate multiple arguments into a single argument (as above),
+some will truncate them, and at least one will pass them as multiple
+arguments.
+.Pp
+The
+.Ox
+behavior is common but not universal.
+Sun's
+.Tn Solaris
+would present the above argument as
+.Qq -x ,
+dropping the
+.Qq " -y"
+entirely.
+Perhaps uniquely, recent versions of Apple's
+.Tn OS X
+will actually pass multiple arguments properly, i.e.:
+.Bd -ragged -offset indent
+.Qq /bin/interp ,
+.Qq -x ,
+.Qq -y ,
+.Qq /tmp/script ,
+.Qq one ,
+.Qq two ,
+.Qq three
+.Ed
+.Pp
+The behavior of the system in the face of multiple arguments is thus
+not currently standardized, should not be relied on, and may be
+changed in future releases.
+In general, pass at most one argument, and do not rely on multiple
+arguments being concatenated.
+.Sh SEE ALSO
+.Xr awk 1 ,
+.Xr csh 1 ,
+.Xr ksh 1 ,
+.Xr sh 1 ,
+.Xr chmod 2 ,
+.Xr execve 2 ,
+.Xr intro 2 ,
+.Xr execlp 3 ,
+.Xr execvp 3
+.Sh STANDARDS
+The behavior of interpreter scripts is obliquely referred to, but
+never actually described in,
+.St -p1003.1-2004 .
+.Pp
+The behavior is partially (but not completely) described in the
+.St -svid4 .
+.Pp
+Although it has never been formally standardized, the behavior
+described is largely portable across
+.Tn POSIX
+style systems, with two significant exceptions: the maximum length of the
+.Sq #!
+line, and the behavior if multiple arguments are passed.
+Be aware that the behavior in the
+face of multiple arguments is not consistent across systems.
+.Sh HISTORY
+The behavior of the kernel when encountering scripts that start in
+.Sq #!
+was not present in
+.At v7 .
+A Usenet posting to net.unix by Guy Harris on October 16, 1984 claims
+that the idea for the
+.Sq #!
+behavior was first proposed by Dennis Ritchie but that the first
+implementation was on
+.Bx .
+.Pp
+Historical manuals (specifically the exec man page) indicate that the
+behavior was present in
+.Bx 4
+at least as early as April, 1981.
+Information on precisely when it was first implemented, and in which
+version of
+.Ux ,
+is solicited.
+.Sh CAVEATS
+Numerous security problems are associated with setuid interpreter
+scripts.
+.Pp
+In addition to the fact that many interpreters (and scripts) are
+simply not designed to be robust in a setuid context, a race condition
+exists between the moment that the kernel examines the interpreter
+script file and the moment that the newly invoked interpreter opens
+the file itself.
+.Pp
+Subtle techniques can be used to subvert even seemingly well written scripts.
+Scripts executed by Bourne type shells can be subverted in numerous
+ways, such as by setting the
+.Ev IFS
+variable before executing the script.
+Other interpreters possess their own vulnerabilities.
+Setting the Set-user-ID on execution (SUID) bit
+is therefore very dangerous, and should not be done lightly, if at all.

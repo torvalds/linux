@@ -1,0 +1,14 @@
+static_library("MCA") {
+  output_name = "LLVMTargetRISCVMCA"
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/MCA",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/RISCV/MCTargetDesc",
+    "//llvm/lib/Target/RISCV/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "RISCVCustomBehaviour.cpp" ]
+}

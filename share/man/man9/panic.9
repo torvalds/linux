@@ -1,0 +1,76 @@
+.\"	$OpenBSD: panic.9,v 1.10 2021/05/16 15:11:08 deraadt Exp $
+.\"     $NetBSD: panic.9,v 1.2 1996/10/09 17:20:04 explorer Exp $
+.\"
+.\" Copyright (c) 1996 Michael Graff.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Michael Graff
+.\"      for the NetBSD Project.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 16 2021 $
+.Dt PANIC 9
+.Os
+.Sh NAME
+.Nm panic
+.Nd Bring down system on fatal error
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.Ft void
+.Fn panic "const char *fmt" ...
+.Sh DESCRIPTION
+The
+.Fn panic
+function makes the
+.Ox
+system terminate.
+The message
+.Fa fmt
+is a
+.Xr printf 9
+style format string.
+The message is printed to the console (with a newline) and the location
+pointed to by the global char pointer
+.Fa panicstr
+is set to the address of the message text for retrieval from the OS
+core dump.
+.Pp
+If the kernel debugger is installed, control is passed to it.
+Otherwise, an attempt is made to save a core dump of the OS to a configured
+dump device.
+.Pp
+If
+.Fn panic
+is called twice (from the disk sync routines, for example) the system is
+rebooted without syncing the disks.
+.Sh RETURN VALUES
+The
+.Fn panic
+function does not return.
+.Sh SEE ALSO
+.Xr printf 3 ,
+.Xr boot 9 ,
+.Xr printf 9

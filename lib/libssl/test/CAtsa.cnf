@@ -1,0 +1,163 @@
+
+#
+# This config is used by the Time Stamp Authority tests.
+#
+
+RANDFILE		= ./.rnd
+
+# Extra OBJECT IDENTIFIER info:
+oid_section		= new_oids
+
+TSDNSECT		= ts_cert_dn
+INDEX			= 1
+
+[ new_oids ]
+
+# Policies used by the TSA tests.
+tsa_policy1 = 1.2.3.4.1
+tsa_policy2 = 1.2.3.4.5.6
+tsa_policy3 = 1.2.3.4.5.7
+
+#----------------------------------------------------------------------
+[ ca ]
+default_ca	= CA_default		# The default ca section
+
+[ CA_default ]
+
+dir		= ./demoCA
+certs		= $dir/certs		# Where the issued certs are kept
+database	= $dir/index.txt	# database index file.
+new_certs_dir	= $dir/newcerts		# default place for new certs.
+
+certificate	= $dir/cacert.pem 	# The CA certificate
+serial		= $dir/serial 		# The current serial number
+private_key	= $dir/private/cakey.pem# The private key
+RANDFILE	= $dir/private/.rand	# private random number file
+
+default_days	= 365			# how long to certify for
+default_md	= sha1			# which md to use.
+preserve	= no			# keep passed DN ordering
+
+policy		= policy_match
+
+# For the CA policy
+[ policy_match ]
+countryName		= supplied
+stateOrProvinceName	= supplied
+organizationName	= supplied
+organizationalUnitName	= optional
+commonName		= supplied
+emailAddress		= optional
+
+#----------------------------------------------------------------------
+[ req ]
+default_bits		= 1024
+default_md		= sha1
+distinguished_name	= $ENV::TSDNSECT
+encrypt_rsa_key		= no
+prompt 			= no
+# attributes		= req_attributes
+x509_extensions	= v3_ca	# The extensions to add to the self signed cert
+
+string_mask = nombstr
+
+[ ts_ca_dn ]
+countryName			= HU
+stateOrProvinceName		= Budapest
+localityName			= Budapest
+organizationName		= Gov-CA Ltd.
+commonName			= ca1
+
+[ ts_cert_dn ]
+countryName			= HU
+stateOrProvinceName		= Budapest
+localityName			= Buda
+organizationName		= Hun-TSA Ltd.
+commonName			= tsa$ENV::INDEX
+
+[ tsa_cert ]
+
+# TSA server cert is not a CA cert.
+basicConstraints=CA:FALSE
+
+# The following key usage flags are needed for TSA server certificates.
+keyUsage = nonRepudiation, digitalSignature
+extendedKeyUsage = critical,timeStamping
+
+# PKIX recommendations harmless if included in all certificates.
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer:always
+
+[ non_tsa_cert ]
+
+# This is not a CA cert and not a TSA cert, either (timeStamping usage missing)
+basicConstraints=CA:FALSE
+
+# The following key usage flags are needed for TSA server certificates.
+keyUsage = nonRepudiation, digitalSignature
+# timeStamping is not supported by this certificate
+# extendedKeyUsage = critical,timeStamping
+
+# PKIX recommendations harmless if included in all certificates.
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer:always
+
+[ v3_req ]
+
+# Extensions to add to a certificate request
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature
+
+[ v3_ca ]
+
+# Extensions for a typical CA
+
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints = critical,CA:true
+keyUsage = cRLSign, keyCertSign
+
+#----------------------------------------------------------------------
+[ tsa ]
+
+default_tsa = tsa_config1	# the default TSA section
+
+[ tsa_config1 ]
+
+# These are used by the TSA reply generation only.
+dir		= .			# TSA root directory
+serial		= $dir/tsa_serial	# The current serial number (mandatory)
+signer_cert	= $dir/tsa_cert1.pem 	# The TSA signing certificate
+					# (optional)
+certs		= $dir/tsaca.pem	# Certificate chain to include in reply
+					# (optional)
+signer_key	= $dir/tsa_key1.pem	# The TSA private key (optional)
+
+default_policy	= tsa_policy1		# Policy if request did not specify it
+					# (optional)
+other_policies	= tsa_policy2, tsa_policy3	# acceptable policies (optional)
+digests		= md5, sha1		# Acceptable message digests (mandatory)
+accuracy	= secs:1, millisecs:500, microsecs:100	# (optional)
+ordering		= yes	# Is ordering defined for timestamps?
+				# (optional, default: no)
+tsa_name		= yes	# Must the TSA name be included in the reply?
+				# (optional, default: no)
+ess_cert_id_chain	= yes	# Must the ESS cert id chain be included?
+				# (optional, default: no)
+
+[ tsa_config2 ]
+
+# This configuration uses a certificate which doesn't have timeStamping usage.
+# These are used by the TSA reply generation only.
+dir		= .			# TSA root directory
+serial		= $dir/tsa_serial	# The current serial number (mandatory)
+signer_cert	= $dir/tsa_cert2.pem 	# The TSA signing certificate
+					# (optional)
+certs		= $dir/demoCA/cacert.pem# Certificate chain to include in reply
+					# (optional)
+signer_key	= $dir/tsa_key2.pem	# The TSA private key (optional)
+
+default_policy	= tsa_policy1		# Policy if request did not specify it
+					# (optional)
+other_policies	= tsa_policy2, tsa_policy3	# acceptable policies (optional)
+digests		= md5, sha1		# Acceptable message digests (mandatory)

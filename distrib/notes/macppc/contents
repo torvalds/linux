@@ -1,0 +1,36 @@
+dnl	$OpenBSD: contents,v 1.40 2025/03/25 08:17:47 miod Exp $
+TopPart
+
+OpenBSDdistsets
+
+OpenBSDbsd
+
+OpenBSDbsdmp
+
+OpenBSDrd
+
+OpenBSDinstalliso
+
+OpenBSDcd
+
+	ofwboot		The OpenBSD/MACHINE secondary boot loader.
+dnl
+dnl	bsd.tbxi
+
+DistributionDescription(eight)
+
+OpenBSDbase(218979657,525096574)
+
+OpenBSDcomp(68488724,231735684)
+
+OpenBSDgame(2867074,6669515)
+
+OpenBSDman(8497038,31752448)
+
+OpenBSDxbase(48240106,138312284)
+
+OpenBSDxfont(23585622,35814089)
+
+OpenBSDxserv(13245824,43494063)
+
+OpenBSDxshare(4696966,23908631)

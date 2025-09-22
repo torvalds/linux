@@ -1,0 +1,8 @@
+static_library("HLSL") {
+  output_name = "LLVMFrontendHLSL"
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "HLSLResource.cpp" ]
+}

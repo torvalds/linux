@@ -1,0 +1,16 @@
+static_library("Rewrite") {
+  output_name = "clangRewrite"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "DeltaTree.cpp",
+    "HTMLRewrite.cpp",
+    "RewriteRope.cpp",
+    "Rewriter.cpp",
+    "TokenRewriter.cpp",
+  ]
+}

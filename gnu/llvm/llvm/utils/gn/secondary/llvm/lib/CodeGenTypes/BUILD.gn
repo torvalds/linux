@@ -1,0 +1,13 @@
+static_library("CodeGenTypes") {
+  output_name = "LLVMCodeGenTypes"
+  public_deps = [
+    # Must be a public_dep because CodeGen's headers include llvm-config.h.
+    "//llvm/include/llvm/Config:llvm-config",
+  ]
+  deps = [
+    "//llvm/include/llvm/CodeGen:GenVT",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "LowLevelType.cpp" ]
+}
+

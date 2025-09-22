@@ -1,0 +1,24 @@
+static_library("Rewrite") {
+  output_name = "clangRewriteFrontend"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Edit",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Serialization",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "FixItRewriter.cpp",
+    "FrontendActions.cpp",
+    "HTMLPrint.cpp",
+    "InclusionRewriter.cpp",
+    "RewriteMacros.cpp",
+    "RewriteModernObjC.cpp",
+    "RewriteObjC.cpp",
+    "RewriteTest.cpp",
+  ]
+}

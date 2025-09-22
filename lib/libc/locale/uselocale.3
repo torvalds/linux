@@ -1,0 +1,101 @@
+.\"	$OpenBSD: uselocale.3,v 1.1 2017/09/05 03:16:13 schwarze Exp $
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 5 2017 $
+.Dt USELOCALE 3
+.Os
+.Sh NAME
+.Nm uselocale
+.Nd select the locale for the current thread
+.Sh SYNOPSIS
+.In locale.h
+.Ft locale_t
+.Fo uselocale
+.Fa "locale_t newloc"
+.Fc
+.Sh DESCRIPTION
+The function
+.Fn uselocale
+selects
+.Fa newloc
+for use by functions in the current thread that do not take a
+.Vt locale_t
+argument.
+Neither the global locale set by
+.Xr setlocale 3
+nor locales used by other threads change.
+.Pp
+The current thread uses
+.Fa newloc
+until
+.Fn uselocale
+is called again successfully with a non-null argument
+in the same thread, and passing
+.Fa newloc
+to
+.Xr freelocale 3
+or
+.Xr newlocale 3
+before that results in undefined behaviour.
+.Pp
+To revoke the use of
+.Fa newloc
+in the current thread without installing another thread-specific locale,
+instead reverting to the global locale, call
+.Fn uselocale
+with the special argument
+.Dv LC_GLOBAL_LOCALE .
+.Pp
+When called with the argument
+.Po Vt locale_t Pc Ns 0 ,
+the thread-specific locale remains unchanged.
+.Sh RETURN VALUES
+The function
+.Fn uselocale
+returns the thread-specific locale which is in use right before the call,
+or the special return value
+.Dv LC_GLOBAL_LOCALE
+if the thread used the global locale before the call.
+.Sh ERRORS
+The function
+.Fn uselocale
+fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa newloc
+argument is neither a valid locale object nor
+.Po Vt locale_t Pc Ns 0 .
+.El
+.Sh SEE ALSO
+.Xr iswalnum 3 ,
+.Xr iswctype 3 ,
+.Xr newlocale 3 ,
+.Xr towctrans 3 ,
+.Xr towlower 3 ,
+.Xr wcscasecmp 3 ,
+.Xr wctrans 3 ,
+.Xr wctype 3
+.Sh STANDARDS
+The function
+.Fn uselocale
+conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The function
+.Fn uselocale
+has been available since
+.Ox 6.2 .

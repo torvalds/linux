@@ -1,0 +1,99 @@
+.\"	$OpenBSD: url.4,v 1.21 2013/07/16 16:05:49 schwarze Exp $
+.\"	$NetBSD: url.4,v 1.4 2002/04/02 20:45:40 augustss Exp $
+.\"
+.\" Copyright (c) 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt URL 4
+.Os
+.Sh NAME
+.Nm url
+.Nd Realtek RTL8150L 10/100 USB Ethernet device
+.Sh SYNOPSIS
+.Cd "url*    at uhub?"
+.Cd "urlphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB
+.Tn Ethernet
+adapters based on the Realtek RTL8150L USB-ether bridge chip.
+.Pp
+The
+.Nm
+driver supports the following adapters:
+.Pp
+.Bl -tag -width Dv -offset indent -compact
+.It Tn Abocom RTL8151
+.It Tn BAFO BF-310
+.It Tn Billionton USBKR-100
+.It Tn Compex UE202-B
+.It Tn GreenHouse GH-USB100B
+.It Tn GreenHouse GH-USB100B with HomePNA
+.It Tn Hawking Technology HUF11
+.It Tn Linksys USB100M
+.It Tn Longshine LCS-8138TX
+.It Tn Melco Inc. LUA-KTX
+.It Tn Micronet SP128AR
+.It Tn NetComm NP1010
+.It Tn OQO model 01 (10/100) Ethernet
+.It Tn Repotec RP-USB100-A
+.It Tn SMC 2208USB/ETH
+.It Tn TRENDnet TU-ET100C
+.It Tn Zt USB10/100
+.It Tn ZyXEL Prestige
+.It Tn Z-TEK ZK-R02
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "url0: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.It "url0: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr mii 4 ,
+.Xr netintro 4 ,
+.Xr uhub 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.2 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Shingo WATANABE Aq Mt nabe@nabechan.org .

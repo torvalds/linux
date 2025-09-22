@@ -1,0 +1,61 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("AVRGenCallingConv") {
+  visibility = [ ":LLVMAVRCodeGen" ]
+  args = [ "-gen-callingconv" ]
+  td_file = "AVR.td"
+}
+
+tablegen("AVRGenDAGISel") {
+  visibility = [ ":LLVMAVRCodeGen" ]
+  args = [ "-gen-dag-isel" ]
+  td_file = "AVR.td"
+}
+
+static_library("LLVMAVRCodeGen") {
+  deps = [
+    ":AVRGenCallingConv",
+    ":AVRGenDAGISel",
+    "MCTargetDesc",
+    "TargetInfo",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "AVRAsmPrinter.cpp",
+    "AVRExpandPseudoInsts.cpp",
+    "AVRFrameLowering.cpp",
+    "AVRISelDAGToDAG.cpp",
+    "AVRISelLowering.cpp",
+    "AVRInstrInfo.cpp",
+    "AVRMCInstLower.cpp",
+    "AVRRegisterInfo.cpp",
+    "AVRShiftExpand.cpp",
+    "AVRSubtarget.cpp",
+    "AVRTargetMachine.cpp",
+    "AVRTargetObjectFile.cpp",
+  ]
+}
+
+# This is a bit different from most build files: Due to this group
+# having the directory's name, "//llvm/lib/Target/AVR" will refer to this
+# target, which pulls in the code in this directory *and all subdirectories*.
+# For most other directories, "//llvm/lib/Foo" only pulls in the code directly
+# in "llvm/lib/Foo". The forwarding targets in //llvm/lib/Target expect this
+# different behavior.
+group("AVR") {
+  deps = [
+    ":LLVMAVRCodeGen",
+    "AsmParser",
+    "Disassembler",
+    "MCTargetDesc",
+    "TargetInfo",
+  ]
+}

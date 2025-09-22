@@ -1,0 +1,147 @@
+.\"	$OpenBSD: sigio_init.9,v 1.4 2020/01/08 16:27:40 visa Exp $
+.\"
+.\" Copyright (c) 2018 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 8 2020 $
+.Dt SIGIO_INIT 9
+.Os
+.Sh NAME
+.Nm sigio_init ,
+.Nm sigio_free ,
+.Nm sigio_copy ,
+.Nm sigio_setown ,
+.Nm sigio_getown
+.Nd asynchronous IO signal API
+.Sh SYNOPSIS
+.In sys/sigio.h
+.Ft void
+.Fn "sigio_init" "struct sigio_ref *sir"
+.Ft void
+.Fn "sigio_free" "struct sigio_ref *sir"
+.Ft void
+.Fn "sigio_copy" "struct sigio_ref *dst" "struct sigio_ref *src"
+.Ft int
+.Fn "sigio_setown" "struct sigio_ref *sir" "u_long cmd" "caddr_t data"
+.Ft pid_t
+.Fn "sigio_getown" "struct sigio_ref *sir" "u_long cmd" "caddr_t data"
+.Sh DESCRIPTION
+The asynchronous IO signal API provides a means to manage signal registrations.
+It associates a process or process group with a signal source.
+The association is revoked automatically when the process or process group
+is deleted.
+.Pp
+.Fn sigio_init
+initializes the sigio reference
+.Fa sir .
+.Pp
+.Fn sigio_free
+clears any process or process group associated with reference
+.Fa sir .
+.Pp
+.Fn sigio_copy
+copies registration from reference
+.Fa src
+to reference
+.Fa dst .
+.Pp
+.Fn sigio_setown
+associates the reference
+.Fa sir
+with a process or process group.
+.Fa cmd
+is one of ioctl commands
+.Dv FIOSETOWN ,
+.Dv SIOCSPGRP
+and
+.Dv TIOCSPGRP .
+.Fa data
+is a pointer to a signed integer that represents the ID of the owner
+of the registration.
+For
+.Dv FIOSETOWN
+and
+.Dv SIOCSPGRP ,
+a positive ID is taken as a process ID,
+and a negative ID is taken as a process group ID.
+If
+.Fa cmd
+is
+.Dv TIOCSPGRP ,
+a positive ID is taken as a process group ID,
+and negative ID values are not allowed.
+For all values of
+.Fa cmd ,
+the reference
+.Fa sir
+is cleared if the ID is zero.
+.Pp
+When
+.Fn sigio_setown
+is called, the invoking process' credentials are stored in the reference.
+These credentials are checked when the reference is used with
+.Xr pgsigio 9 .
+.Pp
+.Fn sigio_getown
+stores the ID of the process or process group associated with the reference
+.Fa sir
+to the signed integer pointed by
+.Fa data .
+.Fa cmd
+is one of ioctl commands
+.Dv FIOGETOWN ,
+.Dv SIOCGPGRP
+and
+.Dv TIOCGPGRP .
+For
+.Dv FIOGETOWN
+and
+.Dv SIOCGPGRP ,
+a process ID is stored as a positive ID,
+and a process group ID is stored as a negative ID.
+For
+.Dv TIOCGPGRP ,
+a process ID is stored as a negative ID,
+and a process group ID is stored as a positive ID.
+If there is no registered owner, a zero is stored in the integer.
+.Sh CONTEXT
+.Fn sigio_init ,
+.Fn sigio_free ,
+.Fn sigio_copy ,
+.Fn sigio_setown
+and
+.Fn sigio_getown
+can be called during autoconf, or from process context.
+.Sh RETURN VALUES
+.Fn sigio_setown
+returns 0 on success.
+Otherwise, the following error values are returned:
+.Bl -tag -width [EINVAL]
+.It Bq Er EINVAL
+The process group ID is invalid.
+.It Bq Er EPERM
+The invoking process belongs to another session than the process
+or process group.
+.It Bq Er ESRCH
+The process or process group does not exist.
+.It Bq Er ESRCH
+The process is exiting.
+.El
+.Sh SEE ALSO
+.Xr pgsigio 9
+.Sh HISTORY
+The sigio routines were adapted from
+.Fx
+and first appeared in
+.Ox 6.5 .

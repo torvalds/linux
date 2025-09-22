@@ -1,0 +1,56 @@
+dnl     $OpenBSD: install,v 1.4 2023/03/16 18:04:08 miod Exp $
+OpenBSDInstallPrelude
+
+OpenBSDInstallPart2
+
+OpenBSDInstallPart3(,"sd0")
+
+OpenBSDInstallPart4
+
+OpenBSDInstallMBRPart1
+
+dnl OpenBSDInstallMBRPart2(indeed)
+	The fdisk(8) utility will be invoked to let you edit your MBR
+	partitioning.  The current MBR partitions defined will be
+	displayed and you will be allowed to modify them, and add new
+	partitions.
+
+	The setup will need two partitions, one 'OpenBSD' for the
+	OpenBSD/MACHINE installation, and one 'MSDOS' for the
+	U-Boot scripts/bootloader.
+
+	If you use the whole disk option, the install script
+	will create a small 'MSDOS' partition and use the rest of
+	the disk for the OpenBSD installation.
+
+	After your OpenBSD MBR partition has been set up, the real
+	partition setup can follow.
+
+OpenBSDInstallPart5
+
+OpenBSDInstallPart6({:-CD-ROM, -:})
+
+OpenBSDURLInstall
+
+OpenBSDCDROMInstall
+
+OpenBSDDISKInstall(,,{:-, Linux (ext2) or MS-DOS-:})
+
+OpenBSDCommonInstall
+
+OpenBSDInstallWrapup
+
+OpenBSDCongratulations
+
+As you may have seen during installation, on some systems OpenBSD/MACHINE
+will configure the system console (displaying kernel messages, panics, and
+so on) to use the serial interface even though it has video hardware.
+To use video output on the framebuffer instead, you may add "set tty fb0"
+to /etc/boot.conf.
+
+In these cases the installer question about running X11 is not displayed;
+to start an X11 display manager at boot, use "rcctl enable xenodm".
+
+
+
+OpenBSDUnattendedInstallation

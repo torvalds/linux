@@ -1,0 +1,15 @@
+static_library("Coverage") {
+  output_name = "LLVMCoverage"
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/ProfileData",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "CoverageMapping.cpp",
+    "CoverageMappingReader.cpp",
+    "CoverageMappingWriter.cpp",
+  ]
+}

@@ -1,0 +1,132 @@
+.\" $OpenBSD: envy.4,v 1.17 2020/05/17 05:48:39 ratchov Exp $
+.\"
+.\" Copyright (c) 2007 Alexandre Ratchov <alex@caoua.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 17 2020 $
+.Dt ENVY 4
+.Os
+.Sh NAME
+.Nm envy
+.Nd VIA Envy24 audio device
+.Sh SYNOPSIS
+.Cd "envy* at pci?"
+.Cd "audio* at envy?"
+.Cd "midi* at envy?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports sound cards based on VIA Envy24 and Envy24HT PCI chips.
+The following sound cards are currently supported:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Dynex DX-SC51
+.It
+ESI Julia
+.It
+M-Audio Delta 1010, 1010LT, 66 and 44
+.It
+M-Audio Audiophile 2496
+.It
+M-Audio Revolution 5.1
+.It
+M-Audio Audiophile 192k
+.It
+Terratec EWX 24/96
+.It
+VIA Tremor 5.1
+.El
+.Ss Mixer device
+The chip features a digital mixer that routes and mixes the
+streams below as follows:
+.Bl -tag -width playback
+.It Dv inputs
+There are 8 streams corresponding to data received by the
+device from the codecs.
+They are labelled
+.Va line0
+\(en
+.Va line7 .
+.It Dv outputs
+There are 8 streams corresponding to data sent by the device to the codecs.
+They are labelled
+.Va line0
+\(en
+.Va line7 .
+Each of them can be individually configured to use any of
+the external inputs or its corresponding playback stream as source.
+Additionally, outputs
+.Va line0
+and
+.Va line1
+can be configured to use
+.Va mon0
+or
+.Va mon1
+as sources.
+.It Dv monitor
+There are 2 streams that can be configured to contain any linear
+superposition of any of the 10 playback and 10 external input streams.
+They are labelled
+.Va mon0
+and
+.Va mon1 .
+From the mixer's point of view they are input streams,
+so they can be used as sources of output streams.
+This feature is specific to Envy24 based cards.
+.It Dv playback
+There are 10 streams corresponding to samples transferred
+from the host to the device.
+They are labelled
+.Va play0
+\(en
+.Va play9 .
+From the mixer's point of view they are input streams,
+so they are usable as sources of output streams.
+.It Dv record
+There are 12 streams corresponding to samples transferred
+from the device to the host.
+They are not controllable by the mixer.
+Streams 0 to 7 are hardwired to external inputs
+.Va line0
+\(en
+.Va line7
+and streams 10 and 11 are hardwired to
+.Va mon0
+and
+.Va mon1 .
+.El
+.Ss Playback and record data formats
+Both playback and record use linear encoding.
+Samples are represented by 32-bit signed numbers in little endian order.
+Only the first 24 most significant bits are used.
+On Envy24-based cards, playback uses 10 channels and record uses 12 channels,
+while on Envy24HT-based cards the number of streams depend on the
+number of codecs physically present on the card.
+.Sh SEE ALSO
+.Xr audio 4 ,
+.Xr intro 4 ,
+.Xr midi 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.3 .
+.Sh BUGS
+S/PDIF transmitter/receiver is not supported.
+.Pp
+Ring buffer sizes are limited to 64kB,
+which can be limiting at high sample rates.

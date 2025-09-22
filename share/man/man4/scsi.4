@@ -1,0 +1,183 @@
+.\"	$OpenBSD: scsi.4,v 1.39 2015/11/21 17:43:33 jmc Exp $
+.\"
+.\" Copyright (c) 1996
+.\"	Julian Elischer <julian@freebsd.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 21 2015 $
+.Dt SCSI 4
+.Os
+.Sh NAME
+.Nm scsi ,
+.Nm scsibus
+.Nd SCSI system
+.Sh SYNOPSIS
+.Cd "cd* at scsibus?"
+.Cd "ch* at scsibus?"
+.Cd "safte* at scsibus?"
+.Cd "sd* at scsibus?"
+.Cd "ses* at scsibus?"
+.Cd "st* at scsibus?"
+.Cd "uk* at scsibus?"
+.Pp
+.Cd "# multipath support"
+.Cd "emc* at scsibus?"
+.Cd "hds* at scsibus?"
+.Cd "rdac* at scsibus?"
+.Cd "sym* at scsibus?"
+.Sh DESCRIPTION
+The
+.Em SCSI
+system provides a uniform and modular system for the implementation
+of drivers to control various SCSI devices, and to utilize different
+SCSI host adapters through host adapter drivers.
+When the system probes the
+.Em SCSI
+buses, it attaches any devices it finds to the appropriate
+drivers.
+If no driver seems appropriate, then it attaches the device to the
+uk (unknown) driver so that user level SCSI ioctls may
+still be performed against the device.
+.Sh KERNEL CONFIGURATION
+The option SCSIDEBUG enables the debug ioctl.
+.Pp
+All devices and the SCSI buses support boot time allocation so that
+an upper number of devices and controllers does not need to be configured;
+.Cd "sd* at scsibus?"
+will suffice for any number of disk drivers.
+.Pp
+The devices are either
+.Em wired
+so they appear as a particular device unit or
+.Em counted
+so that they appear as the next available unused unit.
+.Pp
+To configure a driver in the kernel without wiring down the device use a
+config line similar to
+.Cd "ch* at scsibus?"
+to include the changer driver.
+.Pp
+To wire down a unit use a config line similar to
+.Cd "ch1 at scsibus0 target 4 lun 0"
+to assign changer 1 as the changer with SCSI ID 4,
+SCSI logical unit 0 on SCSI bus 0.
+Individual scsibuses can be wired down to specific controllers with
+a config line similar to
+.Cd "scsibus0 at ahc0"
+which assigns SCSI bus 0 to the first unit using the ahc driver.
+For controllers supporting more than one bus,
+the particular bus can be specified as in
+.Cd "scsibus3 at ahc1 bus 1"
+which assigns scsibus 1 to the second bus probed on the ahc1 device.
+.Pp
+When there is a mixture of wired down and counted devices then the
+counting begins with the first non-wired down unit for a particular
+type.
+That is, if a disk is wired down as
+.Cd "sd1 at scsibus?" ,
+then the first non-wired disk shall come on line as
+.Em sd2 .
+.Sh IOCTLS
+There are a number of ioctls that work on any
+.Em SCSI
+device.
+They are defined in
+.In sys/scsiio.h
+and can be applied against any SCSI device that permits them.
+For the tape, it must be applied against the control
+device.
+See the manual page for each device type for more information about
+how generic SCSI ioctls may be applied to a specific device.
+.Bl -tag -width DIOCSDINFO____
+.It Dv SCIOCRESET
+Reset a device.
+.It Dv SCIOCDEBUG Fa "int *"
+Turn on debugging.
+All SCSI operations originating from this device's driver
+will be traced to the console, along with other information.
+Debugging is controlled by four bits, described in the header file.
+If no debugging is configured into the kernel, debugging will have
+no effect.
+.Em SCSI
+debugging is controlled by the configuration option
+.Em SCSIDEBUG .
+.It Dv SCIOCCOMMAND Fa "scsireq_t *"
+Take a SCSI command and data from a user process and apply them to the SCSI
+device.
+Return all status information and return data to the process.
+The ioctl will return a successful status even if the device rejected the
+command.
+As all status is returned to the user, it is up to the user
+process to examine this information to decide the success of the command.
+.It Dv SCIOCIDENTIFY Fa "struct scsi_addr *"
+Ask the driver what its bus, target and lun are.
+In addition, the device type, ATAPI or SCSI, is returned.
+.El
+.Sh ADAPTERS
+The system allows common device drivers to work through many different
+types of adapters.
+The adapters take requests from the upper layers and do all I/O between the
+.Em SCSI
+bus and the system.
+The maximum size of a transfer is governed by the adapter.
+Most adapters can transfer 64KB in a single operation, and many can transfer
+larger amounts.
+.Sh DIAGNOSTICS
+When the kernel is compiled with option SCSIDEBUG, the SCIOCDEBUG ioctl
+can be used to enable various amounts of tracing information on any
+specific device.
+Devices not being traced will not produce trace information.
+The four bits that make up the debug level each control certain types
+of debugging information.
+.Bl -tag -width "Bit 0"
+.It Dv Bit 0
+shows all SCSI bus operations including SCSI commands,
+error information and the first 48 bytes of any data transferred.
+.It Dv Bit 1
+shows routines called.
+.It Dv Bit 2
+shows information about what branches are taken and often some
+of the return values of functions.
+.It Dv Bit 3
+shows more detailed information including DMA scatter-gather logs.
+.El
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr emc 4 ,
+.Xr hds 4 ,
+.Xr intro 4 ,
+.Xr mpath 4 ,
+.Xr rdac 4 ,
+.Xr safte 4 ,
+.Xr sd 4 ,
+.Xr ses 4 ,
+.Xr st 4 ,
+.Xr sym 4 ,
+.Xr uk 4 ,
+.Xr scsi 8
+.Sh HISTORY
+This
+.Nm
+system appeared in MACH 2.5 at TRW.

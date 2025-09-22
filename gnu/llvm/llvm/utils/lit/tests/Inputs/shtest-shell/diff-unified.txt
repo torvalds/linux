@@ -1,0 +1,38 @@
+# RUN: echo 1 > %t.foo
+# RUN: echo 2 >> %t.foo
+# RUN: echo 3 >> %t.foo
+# RUN: echo 4 >> %t.foo
+# RUN: echo 5 >> %t.foo
+# RUN: echo 6 foo >> %t.foo
+# RUN: echo 7 >> %t.foo
+# RUN: echo 8 >> %t.foo
+# RUN: echo 9 >> %t.foo
+# RUN: echo 10 >> %t.foo
+# RUN: echo 11 >> %t.foo
+
+# RUN: echo 1 > %t.bar
+# RUN: echo 2 >> %t.bar
+# RUN: echo 3 >> %t.bar
+# RUN: echo 4 >> %t.bar
+# RUN: echo 5 >> %t.bar
+# RUN: echo 6 bar >> %t.bar
+# RUN: echo 7 >> %t.bar
+# RUN: echo 8 >> %t.bar
+# RUN: echo 9 >> %t.bar
+# RUN: echo 10 >> %t.bar
+# RUN: echo 11 >> %t.bar
+
+# Default is 3 lines of context.
+# RUN: diff -u %t.foo %t.bar && false || true
+
+# Override default of 3 lines of context.
+# RUN: diff -U 2 %t.foo %t.bar && false || true
+# RUN: diff -U4 %t.foo %t.bar && false || true
+# RUN: diff -U0 %t.foo %t.bar && false || true
+
+# Check bad -U argument.
+# RUN: diff -U 30.1 %t.foo %t.foo && false || true
+# RUN: diff -U-1 %t.foo %t.foo && false || true
+
+# Fail so lit will print output.
+# RUN: false

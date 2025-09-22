@@ -1,0 +1,113 @@
+import("//compiler-rt/target.gni")
+
+scudo_cflags = [
+  "-Werror=conversion",
+  "-nostdinc++",
+]
+
+source_set("sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  cflags = scudo_cflags
+  sources = [
+    "allocator_common.h",
+    "allocator_config.h",
+    "allocator_config_wrapper.h",
+    "atomic_helpers.h",
+    "bytemap.h",
+    "checksum.cpp",
+    "checksum.h",
+    "chunk.h",
+    "combined.h",
+    "common.cpp",
+    "common.h",
+    "condition_variable.h",
+    "condition_variable_base.h",
+    "condition_variable_linux.cpp",
+    "condition_variable_linux.h",
+    "crc32_hw.cpp",
+    "flags.cpp",
+    "flags.h",
+    "flags_parser.cpp",
+    "flags_parser.h",
+    "fuchsia.cpp",
+    "fuchsia.h",
+    "include/scudo/interface.h",
+    "internal_defs.h",
+    "linux.cpp",
+    "linux.h",
+    "list.h",
+    "local_cache.h",
+    "mem_map.cpp",
+    "mem_map.h",
+    "mem_map_base.h",
+    "mem_map_fuchsia.cpp",
+    "mem_map_fuchsia.h",
+    "mem_map_linux.cpp",
+    "mem_map_linux.h",
+    "memtag.h",
+    "mutex.h",
+    "options.h",
+    "platform.h",
+    "primary32.h",
+    "primary64.h",
+    "quarantine.h",
+    "release.cpp",
+    "release.h",
+    "report.cpp",
+    "report.h",
+    "report_linux.cpp",
+    "report_linux.h",
+    "secondary.h",
+    "size_class_map.h",
+    "stack_depot.h",
+    "stats.h",
+    "string_utils.cpp",
+    "string_utils.h",
+    "timing.cpp",
+    "timing.h",
+    "tsd.h",
+    "tsd_exclusive.h",
+    "tsd_shared.h",
+    "vector.h",
+    "wrappers_c.h",
+    "wrappers_c_checks.h",
+  ]
+
+  if (current_cpu == "arm" || current_cpu == "arm64") {
+    cflags += [ "-mcrc" ]
+  }
+  if (current_cpu == "x64") {
+    cflags += [ "-msse4.2" ]
+  }
+
+  public_configs = [ ":scudo_config" ]
+}
+
+source_set("c_wrapper_sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  cflags = scudo_cflags
+  sources = [ "wrappers_c.cpp" ]
+
+  public_configs = [ ":scudo_config" ]
+}
+
+source_set("cxx_wrapper_sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  cflags = scudo_cflags
+  sources = [ "wrappers_cpp.cpp" ]
+
+  public_configs = [ ":scudo_config" ]
+}
+
+config("scudo_config") {
+  include_dirs = [
+    ".",
+    "include",
+  ]
+  if (current_os == "android") {
+    cflags = [ "-fno-emulated-tls" ]
+  }
+}

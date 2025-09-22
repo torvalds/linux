@@ -1,0 +1,5 @@
+# REQUIRES with a false clause. Test should not run.
+REQUIRES: true
+REQUIRES: a-missing-feature, true
+REQUIRES: true
+RUN: false

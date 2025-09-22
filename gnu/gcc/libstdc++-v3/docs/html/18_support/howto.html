@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="HOWTO for the libstdc++ chapter 18." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 HOWTO:  Chapter 18: Library Support</title>
+<link rel="StyleSheet" href="../lib3styles.css" type="text/css" />
+<link rel="Start" href="../documentation.html" type="text/html"
+  title="GNU C++ Standard Library" />
+<link rel="Prev" href="../17_intro/howto.html" type="text/html"
+  title="Library Introduction" />
+<link rel="Next" href="../19_diagnostics/howto.html" type="text/html"
+  title="Diagnostics" />
+<link rel="Copyright" href="../17_intro/license.html" type="text/html" />
+<link rel="Help" href="../faq/index.html" type="text/html" title="F.A.Q." />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Chapter 18:  Library Support</a></h1>
+
+<p>Chapter 18 deals with the functions called and objects created
+   automatically during the course of a program's existence.
+</p>
+<p>While we can't reproduce the contents of the Standard here (you need to
+   get your own copy from your nation's member body; see our homepage for
+   help), we can mention a couple of changes in what kind of support a C++
+   program gets from the Standard Library.
+</p>
+
+
+<!-- ####################################################### -->
+<hr />
+<h1>Contents</h1>
+<ul>
+   <li><a href="#1">Types</a></li>
+   <li><a href="#2">Implementation properties</a></li>
+   <li><a href="#3">Start and Termination</a></li>
+   <li><a href="#4">Verbose <code>terminate</code></a></li>
+   <li><a href="#5">Dynamic memory management</a></li>
+   <li><a href="#6">RTTI, the ABI, and demangling</a></li>
+</ul>
+
+<hr />
+
+<!-- ####################################################### -->
+
+<h2><a name="1">Types</a></h2>
+   <p>All the types that you're used to in C are here in one form or
+      another.  The only change that might affect people is the type of
+      NULL:  while it is required to be a macro, the definition of that
+      macro is <em>not</em> allowed to be <code>(void*)0</code>, which is
+      often used in C.
+   </p>
+   <p>In g++, NULL is #define'd to be <code>__null</code>, a magic keyword
+      extension of g++.
+   </p>
+   <p>The biggest problem of #defining NULL to be something like
+      &quot;0L&quot; is that the compiler will view that as a long integer
+      before it views it as a pointer, so overloading won't do what you
+      expect.  (This is why g++ has a magic extension, so that NULL is
+      always a pointer.)
+   </p>
+   <p>In his book
+      <a href="http://www.awprofessional.com/titles/0-201-92488-9/"><em>Effective C++</em></a>,
+      Scott Meyers points out that the best way to solve this problem is to
+      not overload on pointer-vs-integer types to begin with.  He also
+      offers a way to make your own magic NULL that will match pointers
+      before it matches integers:
+   </p>
+   <pre>
+   const                             // this is a const object...
+   class {
+   public:
+     template&lt;class T&gt;               // convertible to any type
+       operator T*() const           // of null non-member
+       { return 0; }                 // pointer...
+
+     template&lt;class C, class T&gt;      // or any type of null
+       operator T C::*() const       // member pointer...
+       { return 0; }
+
+   private:
+     void operator&amp;() const;         // whose address can't be
+                                     // taken (see Item 27)...
+
+   } NULL;                           // and whose name is NULL
+   </pre>
+   <p>(Cribbed from the published version of
+      <a href="http://www.awprofessional.com/titles/0-201-31015-5/">the
+      Effective C++ CD</a>, reproduced here with permission.)
+   </p>
+   <p>If you aren't using g++ (why?), but you do have a compiler which
+      supports member function templates, then you can use this definition
+      of NULL (be sure to #undef any existing versions).  It only helps if
+      you actually use NULL in function calls, though; if you make a call of
+      <code>foo(0);</code> instead of <code>foo(NULL);</code>, then you're back
+      where you started.
+   </p>
+   <p><strong>Added Note:</strong>  When we contacted Dr. Meyers to ask
+      permission to
+      print this stuff, it prompted him to run this code through current
+      compilers to see what the state of the art is with respect to member
+      template functions.  He posted
+      <a href="http://groups.google.com/groups?oi=djq&selm=an_644660779">an
+      article to Usenet</a> after discovering that the code above is not
+      valid!  Even though it has no data members, it still needs a
+      user-defined constructor (which means that the class needs a type name
+      after all).  The ctor can have an empty body; it just needs to be
+      there.  (Stupid requirement?  We think so too, and this will probably
+      be changed in the language itself.)
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="2">Implementation properties</a></h2>
+   <h3><code>&lt;limits&gt;</code></h3>
+   <p>This header mainly defines traits classes to give access to various
+   implementation defined-aspects of the fundamental types.  The
+   traits classes -- fourteen in total -- are all specializations of the 
+   template class <code>numeric_limits</code>, documented
+   <a href="http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/structstd_1_1numeric__limits.html">here</a>
+   and defined as follows:
+   </p>
+   <pre>
+   template&lt;typename T&gt; struct class {
+      static const bool is_specialized;
+      static T max() throw();
+      static T min() throw();
+
+      static const int digits;
+      static const int digits10;
+      static const bool is_signed;
+      static const bool is_integer;
+      static const bool is_exact;
+      static const int radix;
+      static T epsilon() throw();
+      static T round_error() throw();
+
+      static const int min_exponent;
+      static const int min_exponent10;
+      static const int max_exponent;
+      static const int max_exponent10;
+
+      static const bool has_infinity;
+      static const bool has_quiet_NaN;
+      static const bool has_signaling_NaN;
+      static const float_denorm_style has_denorm;
+      static const bool has_denorm_loss;
+      static T infinity() throw();
+      static T quiet_NaN() throw();
+      static T denorm_min() throw();
+
+      static const bool is_iec559;
+      static const bool is_bounded;
+      static const bool is_modulo;
+
+      static const bool traps;
+      static const bool tinyness_before;
+      static const float_round_style round_style;
+   };</pre>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="3">Start and Termination</a></h2>
+   <p>Not many changes here to <code>&lt;cstdlib&gt;</code> (the old stdlib.h).
+      You should note that the <code>abort()</code> function does not call
+      the destructors of automatic nor static objects, so if you're depending
+      on those to do cleanup, it isn't going to happen.  (The functions
+      registered with <code>atexit()</code> don't get called either, so you
+      can forget about that possibility, too.)
+   </p>
+   <p>The good old <code>exit()</code> function can be a bit funky, too, until
+      you look closer.  Basically, three points to remember are:
+   </p>
+      <ol>
+        <li>Static objects are destroyed in reverse order of their creation.
+        </li>
+        <li>Functions registered with <code>atexit()</code> are called in
+            reverse order of registration, once per registration call.
+            (This isn't actually new.)
+        </li>
+        <li>The previous two actions are &quot;interleaved,&quot; that is,
+            given this pseudocode:
+            <pre>
+              extern "C or C++" void  f1 (void);
+              extern "C or C++" void  f2 (void);
+
+              static Thing obj1;
+              atexit(f1);
+              static Thing obj2;
+              atexit(f2);
+            </pre>
+            then at a call of <code>exit()</code>, f2 will be called, then
+            obj2 will be destroyed, then f1 will be called, and finally obj1
+            will be destroyed.  If f1 or f2 allow an exception to propagate
+            out of them, Bad Things happen.
+        </li>
+      </ol>
+   <p>Note also that <code>atexit()</code> is only required to store 32
+      functions, and the compiler/library might already be using some of
+      those slots.  If you think you may run out, we recommend using
+      the xatexit/xexit combination from libiberty, which has no such limit.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="4">Verbose <code>terminate</code></a></h2>
+   <p>If you are having difficulty with uncaught exceptions and want a
+      little bit of help debugging the causes of the core dumps, you can
+      make use of a GNU extension in GCC 3.1 and later:
+   </p>
+   <pre>
+   #include &lt;exception&gt;
+
+   int main()
+   {
+       std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
+       ...
+       throw <em>anything</em>;
+   }</pre>
+   <p>The <code> __verbose_terminate_handler </code> function obtains the name
+      of the current exception, attempts to demangle it, and prints it to
+      stderr.  If the exception is derived from <code> std::exception </code>
+      then the output from <code>what()</code> will be included.
+   </p>
+   <p>Any replacement termination function is required to kill the program
+      without returning; this one calls abort.
+   </p>
+   <p>For example:
+   </p>
+   <pre>
+   #include &lt;exception&gt;
+   #include &lt;stdexcept&gt;
+
+   struct argument_error : public std::runtime_error
+   {  
+     argument_error(const std::string& s): std::runtime_error(s) { }
+   };
+
+   int main(int argc)
+   {
+     std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
+     if (argc &gt; 5)
+       throw argument_error(&quot;argc is greater than 5!&quot;);
+     else
+       throw argc;
+   }
+   </pre>
+   <p>In GCC 3.1 and later, this gives
+   </p>
+   <pre>
+   % ./a.out
+   terminate called after throwing a `int'
+   Aborted
+   % ./a.out f f f f f f f f f f f
+   terminate called after throwing an instance of `argument_error'
+   what(): argc is greater than 5!
+   Aborted
+   %</pre>
+   <p>The 'Aborted' line comes from the call to abort(), of course.
+   </p>
+   <p><strong>UPDATE:</strong> Starting with GCC 3.4, this is the default
+      termination handler; nothing need be done to use it.  To go back to
+      the previous &quot;silent death&quot; method, simply include
+      <code>&lt;exception&gt;</code> and <code>&lt;cstdlib&gt;</code>,
+      and call
+   </p>
+   <pre>
+       std::set_terminate(std::abort);</pre>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<p>
+   This function will attempt to write to stderr.  If your application
+    closes stderr or redirects it to an inappropriate location,
+    <code>__verbose_terminate_handler</code> will behave in an
+    unspecified manner.
+</p>
+
+<hr />
+<h2><a name="5">Dynamic memory management</a></h2>
+   <p>There are six flavors each of <code>new</code> and
+      <code>delete</code>, so make certain that you're using the right
+      ones!  Here are quickie descriptions of <code>new</code>:
+        </p>
+   <ul>
+      <li>single object form, throwing a <code>bad_alloc</code> on errors;
+          this is what most people are used to using</li>
+      <li>single object &quot;nothrow&quot; form, returning NULL on errors</li>
+      <li>array new, throwing <code>bad_alloc</code> on errors</li>
+      <li>array nothrow new, returning NULL on errors</li>
+      <li>placement new, which does nothing (like it's supposed to)</li>
+      <li>placement array new, which also does nothing</li>
+   </ul>
+   <p>They are distinguished by the parameters that you pass to them, like
+      any other overloaded function.  The six flavors of <code>delete</code>
+      are distinguished the same way, but none of them are allowed to throw
+      an exception under any circumstances anyhow.  (They match up for
+      completeness' sake.)
+   </p>
+   <p>Remember that it is perfectly okay to call <code>delete</code> on a
+      NULL pointer!  Nothing happens, by definition.  That is not the
+      same thing as deleting a pointer twice.
+   </p>
+   <p>By default, if one of the &quot;throwing <code>new</code>s&quot; can't
+      allocate the memory requested, it tosses an instance of a
+      <code>bad_alloc</code> exception (or, technically, some class derived
+      from it).  You can change this by writing your own function (called a
+      new-handler) and then registering it with <code>set_new_handler()</code>:
+        </p>
+   <pre>
+   typedef void (*PFV)(void);
+
+   static char*  safety;
+   static PFV    old_handler;
+
+   void my_new_handler ()
+   {
+       delete[] safety;
+       popup_window ("Dude, you are running low on heap memory.  You
+                      should, like, close some windows, or something.
+                      The next time you run out, we're gonna burn!");
+       set_new_handler (old_handler);
+       return;
+   }
+
+   int main ()
+   {
+       safety = new char[500000];
+       old_handler = set_new_handler (&amp;my_new_handler);
+       ...
+   }
+   </pre>
+   <p><code>bad_alloc</code> is derived from the base <code>exception</code>
+      class defined in Chapter 19.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="6">RTTI, the ABI, and demangling</a></h2>
+   <p>If you have read the <a href="../documentation.html#4">source
+      documentation</a> for <code> namespace abi </code> then you are aware
+      of the cross-vendor C++ ABI which we use.  One of the exposed
+      functions is the one which we use for demangling in programs like
+      <code>c++filt</code>, and you can use it yourself as well.
+   </p>
+   <p>(The function itself might use different demanglers, but that's the
+      whole point of abstract interfaces.  If we change the implementation,
+      you won't notice.)
+   </p>
+   <p>Probably the only times you'll be interested in demangling at runtime
+      are when you're seeing <code>typeid</code> strings in RTTI, or when
+      you're handling the runtime-support exception classes.  For example:
+   </p>
+   <pre>
+#include &lt;exception&gt;
+#include &lt;iostream&gt;
+#include &lt;cxxabi.h&gt;
+
+struct empty { };
+
+template &lt;typename T, int N&gt;
+  struct bar { };
+
+
+int main()
+{
+  int     status;
+  char   *realname;
+
+  // exception classes not in &lt;stdexcept&gt;, thrown by the implementation
+  // instead of the user
+  std::bad_exception  e;
+  realname = abi::__cxa_demangle(e.what(), 0, 0, &amp;status);
+  std::cout &lt;&lt; e.what() &lt;&lt; "\t=&gt; " &lt;&lt; realname &lt;&lt; "\t: " &lt;&lt; status &lt;&lt; '\n';
+  free(realname);
+
+
+  // typeid
+  bar&lt;empty,17&gt;          u;
+  const std::type_info  &amp;ti = typeid(u);
+
+  realname = abi::__cxa_demangle(ti.name(), 0, 0, &amp;status);
+  std::cout &lt;&lt; ti.name() &lt;&lt; "\t=&gt; " &lt;&lt; realname &lt;&lt; "\t: " &lt;&lt; status &lt;&lt; '\n';
+  free(realname);
+
+  return 0;
+}</pre>
+   <p>With GCC 3.1 and later, this prints
+   </p>
+   <pre>
+      St13bad_exception       =&gt; std::bad_exception   : 0
+      3barI5emptyLi17EE       =&gt; bar&lt;empty, 17&gt;       : 0 </pre>
+   <p>The demangler interface is described in the source documentation
+      linked to above.  It is actually written in C, so you don't need to
+      be writing C++ in order to demangle C++.  (That also means we have to
+      use crummy memory management facilities, so don't forget to free()
+      the returned char array.)
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="../17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

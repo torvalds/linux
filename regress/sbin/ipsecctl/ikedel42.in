@@ -1,0 +1,1 @@
+ike esp proto udp from 1.1.1.1 port ntp to 2.2.2.2

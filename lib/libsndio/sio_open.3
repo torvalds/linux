@@ -1,0 +1,850 @@
+.\" $OpenBSD: sio_open.3,v 1.58 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2007 Alexandre Ratchov <alex@caoua.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt SIO_OPEN 3
+.Os
+.Sh NAME
+.Nm sio_open ,
+.Nm sio_close ,
+.Nm sio_setpar ,
+.Nm sio_getpar ,
+.Nm sio_getcap ,
+.Nm sio_start ,
+.Nm sio_stop ,
+.Nm sio_flush ,
+.Nm sio_read ,
+.Nm sio_write ,
+.Nm sio_onmove ,
+.Nm sio_nfds ,
+.Nm sio_pollfd ,
+.Nm sio_revents ,
+.Nm sio_eof ,
+.Nm sio_setvol ,
+.Nm sio_onvol ,
+.Nm sio_initpar ,
+.Nm SIO_BPS
+.Nd sndio interface to audio devices
+.Sh SYNOPSIS
+.Lb libsndio
+.In sndio.h
+.Ft struct sio_hdl *
+.Fn sio_open "const char *name" "unsigned int mode" "int nbio_flag"
+.Ft void
+.Fn sio_close "struct sio_hdl *hdl"
+.Ft int
+.Fn sio_setpar "struct sio_hdl *hdl" "struct sio_par *par"
+.Ft int
+.Fn sio_getpar "struct sio_hdl *hdl" "struct sio_par *par"
+.Ft int
+.Fn sio_getcap "struct sio_hdl *hdl" "struct sio_cap *cap"
+.Ft int
+.Fn sio_start "struct sio_hdl *hdl"
+.Ft int
+.Fn sio_stop "struct sio_hdl *hdl"
+.Ft int
+.Fn sio_flush "struct sio_hdl *hdl"
+.Ft size_t
+.Fn sio_read "struct sio_hdl *hdl" "void *addr" "size_t nbytes"
+.Ft size_t
+.Fn sio_write "struct sio_hdl *hdl" "const void *addr" "size_t nbytes"
+.Ft void
+.Fo sio_onmove
+.Fa "struct sio_hdl *hdl"
+.Fa "void (*cb)(void *arg, int delta)"
+.Fa "void *arg"
+.Fc
+.Ft int
+.Fn sio_nfds "struct sio_hdl *hdl"
+.Ft int
+.Fn sio_pollfd "struct sio_hdl *hdl" "struct pollfd *pfd" "int events"
+.Ft int
+.Fn sio_revents "struct sio_hdl *hdl" "struct pollfd *pfd"
+.Ft int
+.Fn sio_eof "struct sio_hdl *hdl"
+.Ft int
+.Fn sio_setvol "struct sio_hdl *hdl" "unsigned int vol"
+.Ft int
+.Fo sio_onvol
+.Fa "struct sio_hdl *hdl"
+.Fa "void (*cb)(void *arg, unsigned int vol)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fn sio_initpar "struct sio_par *par"
+.Ft unsigned int
+.Fn SIO_BPS "unsigned int bits"
+.Sh DESCRIPTION
+The
+.Nm sndio
+library allows user processes to access
+.Xr audio 4
+hardware and the
+.Xr sndiod 8
+audio server in a uniform way.
+.Ss Opening and closing an audio device
+First the application must call the
+.Fn sio_open
+function to obtain a handle to the device;
+later it will be passed as the
+.Fa hdl
+argument of most other functions.
+The
+.Fa name
+parameter gives the device string discussed in
+.Xr sndio 7 .
+In most cases it should be set to
+.Dv SIO_DEVANY
+to allow the user to select it using the
+.Ev AUDIODEVICE
+environment variable.
+.Pp
+The following values of the
+.Fa mode
+parameter are supported:
+.Bl -tag -width "SIO_PLAY | SIO_REC"
+.It Dv SIO_PLAY
+Play-only mode: data written will be played by the device.
+.It Dv SIO_REC
+Record-only mode: samples are recorded by the device and must be read.
+.It Dv SIO_PLAY | SIO_REC
+The device plays and records synchronously; this means that
+the n-th recorded sample was physically sampled exactly when
+the n-th played sample was actually played.
+.El
+.Pp
+If the
+.Fa nbio_flag
+argument is true (i.e. non-zero), then the
+.Fn sio_read
+and
+.Fn sio_write
+functions (see below) will be non-blocking.
+.Pp
+The
+.Fn sio_close
+function stops the device as if
+.Fn sio_stop
+is called and frees the handle.
+Thus, no samples submitted with
+.Fn sio_write
+are discarded.
+.Ss Negotiating audio parameters
+Audio samples are interleaved.
+A frame consists of one sample for each channel.
+For example, a 16-bit stereo encoding has two samples per frame
+and, two bytes per sample (thus 4 bytes per frame).
+.Pp
+The set of parameters of the device that can be controlled
+is given by the following structure:
+.Bd -literal
+struct sio_par {
+	unsigned int bits;	/* bits per sample */
+	unsigned int bps;	/* bytes per sample */
+	unsigned int sig;	/* 1 = signed, 0 = unsigned int */
+	unsigned int le;	/* 1 = LE, 0 = BE byte order */
+	unsigned int msb;	/* 1 = MSB, 0 = LSB aligned */
+	unsigned int rchan;	/* number channels for recording */
+	unsigned int pchan;	/* number channels for playback */
+	unsigned int rate;	/* frames per second */
+	unsigned int appbufsz;	/* minimum buffer size without xruns */
+	unsigned int bufsz;	/* end-to-end buffer size (read-only) */
+	unsigned int round;	/* optimal buffer size divisor */
+#define SIO_IGNORE	0	/* pause during xrun */
+#define SIO_SYNC	1	/* resync after xrun */
+#define SIO_ERROR	2	/* terminate on xrun */
+	unsigned int xrun;	/* what to do on overrun/underrun */
+};
+.Ed
+.Pp
+The parameters are as follows:
+.Bl -tag -width "appbufsz"
+.It Fa bits
+Number of bits per sample: must be between 1 and 32.
+.It Fa bps
+Bytes per samples; if specified, it must be large enough to hold all bits.
+By default it's set to the smallest power of two large enough to hold
+.Fa bits .
+.It Fa sig
+If set (i.e. non-zero) then the samples are signed, else unsigned.
+.It Fa le
+If set, then the byte order is little endian, else big endian;
+it's meaningful only if
+.Fa bps No > 1 .
+.It Fa msb
+If set, then the
+.Fa bits
+are aligned in the packet to the most significant bit
+(i.e. lower bits are padded),
+else to the least significant bit
+(i.e. higher bits are padded);
+it's meaningful only if
+.Fa bits No < Fa bps No * 8 .
+.It Fa rchan
+The number of recorded channels; meaningful only if
+.Dv SIO_REC
+mode was selected.
+.It Fa pchan
+The number of played channels; meaningful only if
+.Dv SIO_PLAY
+mode was selected.
+.It Fa rate
+The sampling frequency in Hz.
+.It Fa appbufsz
+Size of the buffer in frames the application must maintain non-empty
+(on the play end) or non-full (on the record end) by calling
+.Fn sio_write
+or
+.Fn sio_read
+fast enough to avoid overrun or underrun conditions.
+The audio subsystem may use additional buffering, thus this
+parameter cannot be used for latency calculations.
+.It Fa bufsz
+The maximum number of frames that may be buffered.
+This parameter takes into account any buffers, and
+can be used for latency calculations.
+It is read-only.
+.It Fa round
+Optimal number of frames that the application buffers
+should be a multiple of, to get best performance.
+Applications can use this parameter to round their block size.
+.It Fa xrun
+The action when the client doesn't accept
+recorded data or doesn't provide data to play fast enough;
+it can be set to one of the
+.Dv SIO_IGNORE ,
+.Dv SIO_SYNC ,
+or
+.Dv SIO_ERROR
+constants.
+.El
+.Pp
+The following approach is recommended to negotiate device parameters:
+.Bl -bullet
+.It
+Initialize a
+.Vt sio_par
+structure using
+.Fn sio_initpar
+and fill it with
+the desired parameters.
+Then call
+.Fn sio_setpar
+to request the device to use them.
+Parameters left unset in the
+.Vt sio_par
+structure will be set to device-specific defaults.
+.It
+Call
+.Fn sio_getpar
+to retrieve the actual parameters of the device
+and check that they are usable.
+If they are not, then fail or set up a conversion layer.
+Sometimes the rate set can be slightly different to what was requested.
+A difference of about 0.5% is not audible and should be ignored.
+.El
+.Pp
+Parameters cannot be changed after
+.Fn sio_start
+has been called,
+.Fn sio_stop
+or
+.Fn sio_flush
+must be called before parameters can be changed.
+.Pp
+If the device is exposed by the
+.Xr sndiod 8
+server, which is the default configuration,
+a transparent emulation layer will
+automatically be set up, and in this case any combination of
+rate, encoding and numbers of channels is supported.
+.Pp
+To ease filling the
+.Vt sio_par
+structure, the
+following macros can be used:
+.Bl -tag -width "SIO_BPS(bits)"
+.It Fn SIO_BPS bits
+Return the smallest value for
+.Fa bps
+that is a power of two and that is large enough to
+hold
+.Fa bits .
+.It Dv SIO_LE_NATIVE
+Can be used to set the
+.Fa le
+parameter when native byte order is required.
+It is 1 if the native byte order is little endian or 0 otherwise.
+.El
+.Ss Getting device capabilities
+There's no way to get an exhaustive list of all parameter
+combinations the device supports.
+Applications that need to have a set of working
+parameter combinations in advance can use the
+.Fn sio_getcap
+function.
+However, for most new applications it's generally
+not recommended to use
+.Fn sio_getcap .
+Instead, follow the recommendations for negotiating
+device parameters (see above).
+.Pp
+The
+.Vt sio_cap
+structure contains the list of parameter configurations.
+Each configuration contains multiple parameter sets.
+The application must examine all configurations, and
+choose its parameter set from
+.Em one
+of the configurations.
+Parameters of different configurations
+.Em are not
+usable together.
+.Bd -literal
+struct sio_cap {
+	struct sio_enc {		/* allowed encodings */
+		unsigned int bits;
+		unsigned int bps;
+		unsigned int sig;
+		unsigned int le;
+		unsigned int msb;
+	} enc[SIO_NENC];
+	unsigned int rchan[SIO_NCHAN];	/* allowed rchans */
+	unsigned int pchan[SIO_NCHAN];	/* allowed pchans */
+	unsigned int rate[SIO_NRATE];	/* allowed rates */
+	unsigned int nconf;		/* num. of confs[] */
+	struct sio_conf {
+		unsigned int enc;	/* bitmask of enc[] indexes */
+		unsigned int rchan;	/* bitmask of rchan[] indexes */
+		unsigned int pchan;	/* bitmask of pchan[] indexes */
+		unsigned int rate;	/* bitmask of rate[] indexes */
+	} confs[SIO_NCONF];
+};
+.Ed
+.Pp
+The parameters are as follows:
+.Bl -tag -width "rchan[SIO_NCHAN]"
+.It Fa enc Ns Bq Dv SIO_NENC
+Array of supported encodings.
+The tuple of
+.Fa bits ,
+.Fa bps ,
+.Fa sig ,
+.Fa le ,
+and
+.Fa msb
+parameters are usable in the corresponding parameters
+of the
+.Vt sio_par
+structure.
+.It Fa rchan Ns Bq Dv SIO_NCHAN
+Array of supported channel numbers for recording usable
+in the
+.Vt sio_par
+structure.
+.It Fa pchan Ns Bq Dv SIO_NCHAN
+Array of supported channel numbers for playback usable
+in the
+.Vt sio_par
+structure.
+.It Fa rate Ns Bq Dv SIO_NRATE
+Array of supported sample rates usable
+in the
+.Vt sio_par
+structure.
+.It Fa nconf
+Number of different configurations available, i.e. number
+of filled elements of the
+.Fa confs Ns Bq
+array.
+.It Fa confs Ns Bq Dv SIO_NCONF
+Array of available configurations.
+Each configuration contains bitmasks indicating which
+elements of the above parameter arrays are valid for the
+given configuration.
+For instance, if the second bit of
+.Fa rate
+is set, in the
+.Vt sio_conf
+structure, then the second element of the
+.Fa rate Ns Bq Dv SIO_NRATE
+array of the
+.Vt sio_cap
+structure is valid for this configuration.
+As such, when reading the array elements in the
+.Vt sio_cap
+structure, the corresponding
+.Vt sio_conf
+bitmasks should always be used.
+.El
+.Ss Starting and stopping the device
+The
+.Fn sio_start
+function prepares the device to start.
+Once the play buffer is full, i.e.\&
+.Fa sio_par.bufsz
+samples are queued with
+.Fn sio_write ,
+playback starts automatically.
+If record-only mode is selected, then
+.Fn sio_start
+starts recording immediately.
+In full-duplex mode, playback and recording will start
+synchronously as soon as the play buffer is full.
+.Pp
+The
+.Fn sio_stop
+function puts the audio subsystem
+in the same state as before
+.Fn sio_start
+was called.
+It stops recording, drains the play buffer and then stops playback.
+If samples to play are queued but playback hasn't started yet
+then playback is forced immediately; playback will actually stop
+once the buffer is drained.
+In no case are samples in the play buffer discarded.
+.Pp
+The
+.Fn sio_flush
+function stops playback and recording immediately,
+possibly discarding play buffer contents, and puts the audio subsystem
+in the same state as before
+.Fn sio_start
+was called.
+.Ss Playing and recording
+When record mode is selected, the
+.Fn sio_read
+function must be called to retrieve recorded data; it must be called
+often enough to ensure that internal buffers will not overrun.
+It will store at most
+.Fa nbytes
+bytes at the
+.Fa addr
+location and return the number of bytes stored.
+Unless the
+.Fa nbio_flag
+flag is set, it will block until data becomes available and
+will return zero only on error.
+.Pp
+Similarly, when play mode is selected, the
+.Fn sio_write
+function must be called to provide data to play.
+Unless the
+.Fa nbio_flag
+is set,
+.Fn sio_write
+will block until the requested amount of data is written.
+.Ss Non-blocking mode operation
+If the
+.Fa nbio_flag
+is set on
+.Fn sio_open ,
+then the
+.Fn sio_read
+and
+.Fn sio_write
+functions will never block; if no data is available, they will
+return zero immediately.
+.Pp
+The
+.Xr poll 2
+system call can be used to check if data can be
+read from or written to the device.
+The
+.Fn sio_pollfd
+function fills the array
+.Fa pfd
+of
+.Vt pollfd
+structures, used by
+.Xr poll 2 ,
+with
+.Fa events ;
+the latter is a bit-mask of
+.Dv POLLIN
+and
+.Dv POLLOUT
+constants; refer to
+.Xr poll 2
+for more details.
+The
+.Fn sio_revents
+function returns the bit-mask set by
+.Xr poll 2
+in the
+.Fa pfd
+array of
+.Vt pollfd
+structures.
+If
+.Dv POLLIN
+is set, recorded samples are available in the device buffer
+and can be read with
+.Fn sio_read .
+If
+.Dv POLLOUT
+is set, space is available in the device buffer and new samples
+to play can be submitted with
+.Fn sio_write .
+.Dv POLLHUP
+may be set if an error occurs, even if
+it is not selected with
+.Fn sio_pollfd .
+.Pp
+The size of the
+.Fa pfd
+array, which the caller must pre-allocate, is provided by the
+.Fn sio_nfds
+function.
+.Ss Synchronizing non-audio events to the audio stream in real-time
+In order to perform actions at precise positions of the audio stream,
+such as displaying video in sync with the audio stream,
+the application must be notified in real-time of the exact
+position in the stream the hardware is processing.
+.Pp
+The
+.Fn sio_onmove
+function can be used to register the
+.Fn cb
+callback function called at regular time intervals.
+The
+.Fa delta
+argument contains the number of frames the hardware played and/or recorded
+since the last call of
+.Fn cb .
+It is called by
+.Fn sio_read ,
+.Fn sio_write ,
+and
+.Fn sio_revents .
+When the first sample is played and/or recorded, right after the device starts,
+the callback is invoked with a zero
+.Fa delta
+argument.
+The value of the
+.Fa arg
+pointer is passed to the callback and can contain anything.
+.Pp
+If desired, the application can maintain the current position by
+starting from zero (when
+.Fn sio_start
+is called) and adding to the current position
+.Fa delta
+every time
+.Fn cb
+is called.
+.Ss Measuring the latency and buffers usage
+The playback latency is the delay it will take for the
+frame just written to become audible, expressed in number of frames.
+The exact playback
+latency can be obtained by subtracting the current position
+from the number of frames written.
+Once playback is actually started (first sample audible),
+the latency will never exceed the
+.Fa bufsz
+parameter (see the sections above).
+There's a phase during which
+.Fn sio_write
+only queues data;
+once there's enough data, actual playback starts.
+During this phase talking about latency is meaningless.
+.Pp
+In any cases, at most
+.Fa bufsz
+frames are buffered.
+This value takes into account all buffers.
+The number of frames stored is equal to the number of frames
+written minus the current position.
+.Pp
+The recording latency is obtained similarly, by subtracting
+the number of frames read from the current position.
+.Pp
+Note that
+.Fn sio_write
+might block even if there is buffer space left;
+using the buffer usage to guess if
+.Fn sio_write
+would block is false and leads to unreliable programs \(en consider using
+.Xr poll 2
+for this.
+.Ss Handling buffer overruns and underruns
+When the application cannot accept recorded data fast enough,
+the record buffer (of size
+.Fa appbufsz )
+might overrun; in this case recorded data is lost.
+Similarly if the application cannot provide data to play
+fast enough, the play buffer underruns and silence is played
+instead.
+Depending on the
+.Fa xrun
+parameter of the
+.Vt sio_par
+structure, the audio subsystem will behave as follows:
+.Bl -tag -width "SIO_IGNORE"
+.It Dv SIO_IGNORE
+The device pauses during overruns and underruns,
+thus the current position (obtained through
+.Fn sio_onmove )
+stops being incremented.
+Once the overrun and/or underrun condition is gone, the device resumes;
+play and record are always kept in sync.
+With this mode, the application cannot notice
+underruns and/or overruns and shouldn't care about them.
+.Pp
+This mode is the default.
+It's suitable for applications,
+like audio players and telephony, where time
+is not important and overruns or underruns are not short.
+.It Dv SIO_SYNC
+If the play buffer underruns, then silence is played,
+but in order to reach the right position in time,
+the same amount of written samples will be
+discarded once the application is unblocked.
+Similarly, if the record buffer overruns, then
+samples are discarded, but the same amount of silence will be
+returned later.
+The current position (obtained through
+.Fn sio_onmove )
+is still incremented.
+When the play buffer underruns the play latency might become negative;
+when the record buffer overruns, the record latency might become
+larger than
+.Fa bufsz .
+.Pp
+This mode is suitable for applications, like music production,
+where time is important and where underruns or overruns are
+short and rare.
+.It Dv SIO_ERROR
+With this mode, on the first play buffer underrun or
+record buffer overrun, playback and/or recording is terminated and
+no other function than
+.Fn sio_close
+will succeed.
+.Pp
+This mode is mostly useful for testing.
+.El
+.Ss Controlling the volume
+The
+.Fn sio_setvol
+function can be used to set playback attenuation.
+The
+.Fa vol
+parameter takes a value between 0 (maximum attenuation)
+and
+.Dv SIO_MAXVOL
+(no attenuation).
+It specifies the weight the audio subsystem will
+give to this stream.
+It is not meant to control hardware parameters like
+speaker gain; the
+.Xr mixerctl 8
+interface should be used for that purpose instead.
+.Pp
+An application can use the
+.Fn sio_onvol
+function to register a callback function that
+will be called each time the volume is changed,
+including when
+.Fn sio_setvol
+is used.
+The callback is always invoked when
+.Fn sio_onvol
+is called in order to provide the initial volume.
+An application can safely assume that once
+.Fn sio_onvol
+has returned a non-zero value,
+the callback has been invoked and thus
+the current volume is available.
+If there's no volume setting available,
+.Fn sio_onvol
+returns 0 and the callback is never invoked and calls to
+.Fn sio_setvol
+are ignored.
+.Pp
+The
+.Fn sio_onvol
+function can be called with a
+.Dv NULL
+argument to check whether a volume knob is available.
+.Ss Error handling
+Errors related to the audio subsystem
+(like hardware errors, dropped connections) and
+programming errors (e.g. call to
+.Fn sio_read
+on a play-only stream) are considered fatal.
+Once an error occurs, all functions taking a
+.Fa sio_hdl
+argument, except
+.Fn sio_close
+and
+.Fn sio_eof ,
+stop working (i.e. always return 0).
+The
+.Fn sio_eof
+function can be used at any stage.
+.Ss Use with Xr pledge 2
+If the
+.Nm sndio
+library is used in combination with
+.Xr pledge 2 ,
+then the
+.Fn sio_open
+function needs the
+.Cm stdio ,
+.Cm rpath ,
+.Cm wpath ,
+.Cm cpath ,
+.Cm inet ,
+.Cm unix ,
+.Cm dns ,
+and
+.Cm audio
+.Xr pledge 2
+promises.
+.Bl -bullet
+.It
+.Cm rpath ,
+.Cm wpath ,
+and
+.Cm cpath
+are needed to read, write or create the authentication cookie
+.Pa ~/.sndio/cookie .
+.It
+.Cm rpath ,
+.Cm wpath ,
+and
+.Cm audio
+are needed when the device is a local raw device.
+.It
+.Cm unix
+is needed when the device is a local
+.Xr sndiod 8
+sub-device.
+.It
+.Cm inet
+and
+.Cm dns
+are needed when the device is a remote
+.Xr sndiod 8
+sub-device.
+.El
+.Pp
+Once no further calls to
+.Fn sio_open
+will be made, all these
+.Xr pledge 2
+promises may be dropped, except for the
+.Cm audio
+promise.
+.Sh RETURN VALUES
+The
+.Fn sio_open
+function returns the newly created handle on success or
+.Dv NULL
+on failure.
+.Pp
+The
+.Fn sio_setpar ,
+.Fn sio_getpar ,
+.Fn sio_getcap ,
+.Fn sio_start ,
+.Fn sio_stop ,
+.Fn sio_flush ,
+and
+.Fn sio_setvol
+functions return 1 on success and 0 on failure.
+.Pp
+The
+.Fn sio_pollfd
+function returns the number of
+.Vt pollfd
+structures filled.
+The
+.Fn sio_nfds
+function returns the number of
+.Vt pollfd
+structures the caller must preallocate in order to be sure
+that
+.Fn sio_pollfd
+will never overrun.
+.Pp
+The
+.Fn sio_read
+and
+.Fn sio_write
+functions return the number of bytes transferred.
+.Pp
+The
+.Fn sio_eof
+function returns 0 if there's no pending error, and a non-zero
+value if there's an error.
+.Sh ENVIRONMENT
+.Bl -tag -width "SNDIO_DEBUGXXX" -compact
+.It Ev AUDIODEVICE
+Device to use if
+.Fn sio_open
+is called with
+.Dv SIO_DEVANY
+as the
+.Fa name
+argument.
+.It Ev SNDIO_DEBUG
+The debug level:
+may be a value between 0 and 2.
+.El
+.Sh SEE ALSO
+.Xr pledge 2 ,
+.Xr mio_open 3 ,
+.Xr sioctl_open 3 ,
+.Xr audio 4 ,
+.Xr sndio 7 ,
+.Xr sndiod 8 ,
+.Xr audio 9
+.Sh HISTORY
+These functions first appeared in
+.Ox 4.5 .
+.Sh AUTHORS
+.An Alexandre Ratchov Aq Mt ratchov@openbsd.org
+.Sh BUGS
+The
+.Xr audio 4
+driver doesn't drain playback buffers, thus if sndio
+is used to directly access an
+.Xr audio 4
+device,
+the
+.Fn sio_stop
+function will stop playback immediately.
+.Pp
+If the application doesn't consume recorded data fast enough then
+.Dq "control messages"
+from the
+.Xr sndiod 8
+server are delayed and consequently
+.Fn sio_onmove
+callback or volume changes may be delayed.
+.Pp
+The
+.Fn sio_open ,
+.Fn sio_setpar ,
+.Fn sio_getpar ,
+.Fn sio_getcap ,
+.Fn sio_start ,
+.Fn sio_stop ,
+and
+.Fn sio_flush
+functions may block for a very short period of time, thus they should
+be avoided in code sections where blocking is not desirable.

@@ -1,0 +1,6 @@
+group("libcxx") {
+  deps = [
+    "include",
+    "src(//llvm/utils/gn/build/toolchain:stage2_unix)",
+  ]
+}

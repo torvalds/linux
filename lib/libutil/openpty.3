@@ -1,0 +1,219 @@
+.\"	$OpenBSD: openpty.3,v 1.21 2025/06/06 22:01:40 schwarze Exp $
+.\" Copyright (c) 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software developed by the Computer Systems
+.\" Engineering group at Lawrence Berkeley Laboratory under DARPA contract
+.\" BG 91-66 and contributed to Berkeley.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt OPENPTY 3
+.Os
+.Sh NAME
+.Nm getptmfd ,
+.Nm openpty ,
+.Nm fdopenpty ,
+.Nm login_tty ,
+.Nm forkpty ,
+.Nm fdforkpty
+.Nd tty utility functions
+.Sh SYNOPSIS
+.Lb libutil
+.In termios.h
+.In util.h
+.Ft int
+.Fn getptmfd "void"
+.Ft int
+.Fn openpty "int *amaster" "int *aslave" "char *name" "const struct termios *termp" "const struct winsize *winp"
+.Ft int
+.Fn fdopenpty "int ptmfd" "int *amaster" "int *aslave" "char *name" "const struct termios *termp" "const struct winsize *winp"
+.Ft int
+.Fn login_tty "int fd"
+.Ft pid_t
+.Fn forkpty "int *amaster" "char *name" "const struct termios *termp" "const struct winsize *winp"
+.Ft pid_t
+.Fn fdforkpty "int ptmfd" "int *amaster" "char *name" "const struct termios *termp" "const struct winsize *winp"
+.Sh DESCRIPTION
+The
+.Fn openpty ,
+.Fn login_tty ,
+and
+.Fn forkpty
+functions perform manipulations on ttys and pseudo-ttys.
+.Pp
+The
+.Fn openpty
+function finds an available pseudo-tty and returns file descriptors
+for the master and slave in
+.Fa amaster
+and
+.Fa aslave .
+If
+.Fa name
+is non-null, the filename of the slave is returned in
+.Fa name
+(a string of at least 16 characters).
+If
+.Fa termp
+is non-null, the terminal parameters of the slave will be set to the
+values in
+.Fa termp .
+If
+.Fa winp
+is non-null, the window size of the slave will be set to the values in
+.Fa winp .
+.Pp
+The
+.Fn openpty
+function allocates the pseudo-tty through the
+.Pa /dev/ptm
+device (see
+.Xr pty 4
+for details) which means that its ownership is changed to the UID of
+the caller, permissions are set to correct values, and all earlier
+uses of that device are revoked (see
+.Xr revoke 2
+for details).
+.Pp
+The
+.Fn fdopenpty
+and
+.Fn fdforkpty
+functions work like
+.Fn openpty
+and
+.Fn forkpty
+but expect a
+.Pa /dev/ptm
+file descriptor
+.Fa ptmfd
+obtained from the
+.Fn getptmfd
+function.
+.Pp
+The
+.Fn login_tty
+function prepares for a login on the tty
+.Fa fd
+(which may be a real tty device, or the slave of a pseudo-tty as
+returned by
+.Fn openpty )
+by creating a new session, making
+.Fa fd
+the controlling terminal for the current process, setting
+.Fa fd
+to be the standard input, output, and error streams of the current
+process, and closing
+.Fa fd .
+.Pp
+The
+.Fn forkpty
+function combines
+.Fn openpty ,
+.Fn fork ,
+and
+.Fn login_tty
+to create a new process operating in a pseudo-tty.
+The file
+descriptor of the master side of the pseudo-tty is returned in
+.Fa amaster ,
+and the filename of the slave in
+.Fa name
+if it is non-null.
+The
+.Fa termp
+and
+.Fa winp
+parameters, if non-null, will determine the terminal attributes and
+window size of the slave side of the pseudo-tty.
+.Sh RETURN VALUES
+If a call to
+.Fn openpty ,
+.Fn login_tty ,
+or
+.Fn forkpty
+is not successful, \-1 is returned and
+.Va errno
+is set to indicate the error.
+Otherwise,
+.Fn openpty ,
+.Fn login_tty ,
+and the child process of
+.Fn forkpty
+return 0, and the parent process of
+.Fn forkpty
+returns the process ID of the child process.
+.Sh FILES
+.Bl -tag -width /dev/tty[p-zP-T][0-9a-zA-Z]x -compact
+.It Pa /dev/pty[p-zP-T][0-9a-zA-Z]
+master pseudo terminals
+.It Pa /dev/tty[p-zP-T][0-9a-zA-Z]
+slave pseudo terminals
+.It Pa /dev/ptm
+pseudo terminal management device
+.El
+.Sh ERRORS
+.Fn getptmfd
+may fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr open 2 .
+.Pp
+.Fn openpty
+and
+.Fn fdopenpty
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOENT
+There are no available ttys.
+.El
+.Pp
+.Fn fdopenpty
+and
+.Fn fdforkpty
+will fail if
+.Fn getptmfd
+fails.
+.Fn forkpty
+and
+.Fn fdforkpty
+will fail if either
+.Fn openpty
+or
+.Fn fork
+fails.
+.Pp
+.Fn login_tty
+will fail if
+.Fn ioctl
+fails to set
+.Fa fd
+to the controlling terminal of the current process.
+.Sh SEE ALSO
+.Xr fork 2 ,
+.Xr revoke 2 ,
+.Xr pty 4

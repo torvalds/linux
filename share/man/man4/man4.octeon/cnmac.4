@@ -1,0 +1,86 @@
+.\" $OpenBSD: cnmac.4,v 1.11 2021/02/06 09:33:41 visa Exp $
+.\"
+.\" Copyright (c) 2015 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: February 6 2021 $
+.Dt CNMAC 4 octeon
+.Os
+.Sh NAME
+.Nm cnmac
+.Nd Cavium OCTEON built-in Ethernet device
+.Sh SYNOPSIS
+.Cd "cnmac* at octgmx?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports built-in Ethernet ports on Cavium OCTEON CN30xx,
+Cavium OCTEON Plus CN50xx, Cavium OCTEON II CN61xx, and
+Cavium OCTEON III CN71xx system on chips.
+Among the routers based on these chips are the following:
+.Pp
+.Bl -item -offset indent -compact
+.It
+D-Link DSR-500
+.It
+Netgear ProSecure UTM25
+.It
+Portwell CAM-0100
+.It
+Rhino Labs Inc. SDNA Shasta
+.It
+Rhino Labs Inc. SDNA-7130
+.It
+Ubiquiti Networks EdgeRouter
+.It
+Ubiquiti Networks EdgeRouter 4
+.It
+Ubiquiti Networks EdgeRouter 6
+.It
+Ubiquiti Networks EdgeRouter LITE
+.It
+Ubiquiti Networks EdgeRouter PoE
+.It
+Ubiquiti Networks EdgeRouter PRO
+.It
+Ubiquiti Networks UniFi Security Gateway
+.It
+Ubiquiti Networks UniFi Security Gateway PRO-4
+.El
+.Pp
+The
+.Nm
+driver supports TCP/UDP checksum offload on IPv4/IPv6 reception and
+transmission, and IPv4 checksum offload on reception.
+The driver additionally supports jumbo frames.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr octgmx 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Internet Initiative Japan Inc .

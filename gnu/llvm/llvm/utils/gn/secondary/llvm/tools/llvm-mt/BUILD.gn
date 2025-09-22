@@ -1,0 +1,17 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/driver_executable.gni")
+
+tablegen("Opts") {
+  visibility = [ ":llvm-mt" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+driver_executable("llvm-mt") {
+  deps = [
+    ":Opts",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/WindowsManifest",
+  ]
+  sources = [ "llvm-mt.cpp" ]
+}

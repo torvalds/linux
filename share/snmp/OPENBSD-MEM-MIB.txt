@@ -1,0 +1,113 @@
+-- $OpenBSD: OPENBSD-MEM-MIB.txt,v 1.3 2016/09/02 12:17:33 tb Exp $
+--
+-- Copyright (c) 2008 Reyk Floeter <reyk@openbsd.org>
+--
+-- Permission to use, copy, modify, and distribute this document for any
+-- purpose with or without fee is hereby granted, provided that the above
+-- copyright notice and this permission notice appear in all copies.
+--
+-- THE DOCUMENT IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+-- WITH REGARD TO THIS DOCUMENT INCLUDING ALL IMPLIED WARRANTIES OF
+-- MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+-- ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+-- WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+-- ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+-- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS DOCUMENT.
+
+OPENBSD-MEM-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+	MODULE-IDENTITY, NOTIFICATION-TYPE, OBJECT-TYPE, Counter64, Integer32
+	    FROM SNMPv2-SMI
+	DisplayString
+	    FROM SNMPv2-TC
+	ifIndex, ifNumber
+	    FROM IF-MIB
+	openBSD
+	    FROM OPENBSD-BASE-MIB
+	MODULE-COMPLIANCE, OBJECT-GROUP
+	    FROM SNMPv2-CONF;
+
+memMIBObjects MODULE-IDENTITY
+	LAST-UPDATED "201202090000Z"
+	ORGANIZATION "OpenBSD"
+	CONTACT-INFO
+	    "Editor:     Reyk Floeter
+	    EMail:      reyk@openbsd.org
+	    WWW:        https://www.openbsd.org/"
+	DESCRIPTION
+	    "The MIB module exporting OpenBSD memory statistics."
+	REVISION "201202090000Z"
+	DESCRIPTION
+	    "Correct problems reported by smilint."
+	REVISION "200812230000Z"
+	DESCRIPTION
+	    "Add the OPENBSD-MEM-MIB to snmpd."
+	::= { openBSD 5 }
+
+--
+-- Core MIB elements
+--
+
+-- memMIBVersion	OBJECT IDENTIFIER ::= { memMIBObjects 1 }
+-- memIfTable		OBJECT IDENTIFIER ::= { memMIBObjects 2 }
+
+--
+-- MIB details
+--
+
+memMIBVersion OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	    "The current version of this MIB supported by the agent.
+	    The memory MIB might be updated frequently to export
+	    statistics specific to the latest version of OpenBSD.
+	    The client should check this version."
+	::= { memMIBObjects 1 }    
+
+memIfTable OBJECT-TYPE
+	SYNTAX		SEQUENCE OF MemIfEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	    "A list of interface entries.  The number of entries is given
+	    by the value of ifNumber."
+	::= { memMIBObjects 2 }    
+
+memIfEntry OBJECT-TYPE
+	SYNTAX		MemIfEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	    "An entry containing memory and systems statistics applicable
+	    to a particular interface."
+	INDEX		{ ifIndex }
+	::= { memIfTable 1 }    
+
+MemIfEntry ::= SEQUENCE {
+	memIfName	DisplayString,
+	memIfLiveLocks	Counter64
+}
+
+memIfName OBJECT-TYPE
+	SYNTAX		DisplayString
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	    "The textual name of the interface as assigned by the operating
+	    system.  For example, `lo0' for the first loopback device or
+	    `em1' for the second Ethernet device using the `em' driver."
+	::= { memIfEntry 1 } 
+
+memIfLiveLocks OBJECT-TYPE
+	SYNTAX      Counter64
+	MAX-ACCESS  read-only
+	STATUS      current
+	DESCRIPTION
+	    "The number of times the growth of the interface receive ring
+	    was limited as a response to high system load."
+	::= { memIfEntry 2 } 
+
+END

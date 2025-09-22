@@ -1,0 +1,80 @@
+Section,Description,Assignee,Complete
+| `[adjacent.difference] <https://wg21.link/adjacent.difference>`_,std::adjacent_difference,Nikolas Klauser,|Not Started|
+| `[alg.adjacent.find] <https://wg21.link/alg.adjacent.find>`_,std::adjacent_find,Nikolas Klauser,|Not Started|
+| `[alg.all.of] <https://wg21.link/alg.all.of>`_,std::all_of,Nikolas Klauser,|Complete|
+| `[alg.any.of] <https://wg21.link/alg.any.of>`_,std::any_of,Nikolas Klauser,|Complete|
+| `[alg.copy] <https://wg21.link/alg.copy>`_,std::copy,Nikolas Klauser,|Complete|
+| `[alg.copy] <https://wg21.link/alg.copy>`_,std::copy_if,Nikolas Klauser,|Not Started|
+| `[alg.copy] <https://wg21.link/alg.copy>`_,std::copy_n,Nikolas Klauser,|Complete|
+| `[alg.count] <https://wg21.link/alg.count>`_,std::count,Nikolas Klauser,|Complete|
+| `[alg.count] <https://wg21.link/alg.count>`_,std::count_if,Nikolas Klauser,|Complete|
+| `[alg.equal] <https://wg21.link/alg.equal>`_,std::equal,Nikolas Klauser,|Complete|
+| `[alg.exclusive.scan] <https://wg21.link/alg.exclusive.scan>`_,std::exclusive_scan,Nikolas Klauser,|Not Started|
+| `[alg.exclusive.scan] <https://wg21.link/alg.exclusive.scan>`_,std::exclusive_scan,Nikolas Klauser,|Not Started|
+| `[alg.fill] <https://wg21.link/alg.fill>`_,std::fill,Nikolas Klauser,|Complete|
+| `[alg.fill] <https://wg21.link/alg.fill>`_,std::fill_n,Nikolas Klauser,|Complete|
+| `[alg.find] <https://wg21.link/alg.find>`_,std::find,Nikolas Klauser,|Complete|
+| `[alg.find.end] <https://wg21.link/alg.find.end>`_,std::find_end,Nikolas Klauser,|Not Started|
+| `[alg.find.first.of] <https://wg21.link/alg.find.first.of>`_,std::find_first_of,Nikolas Klauser,|Not Started|
+| `[alg.find] <https://wg21.link/alg.find>`_,std::find_if,Nikolas Klauser,|Complete|
+| `[alg.find] <https://wg21.link/alg.find>`_,std::find_if_not,Nikolas Klauser,|Complete|
+| `[alg.foreach] <https://wg21.link/alg.foreach>`_,std::for_each,Nikolas Klauser,|Complete|
+| `[alg.foreach] <https://wg21.link/alg.foreach>`_,std::for_each_n,Nikolas Klauser,|Complete|
+| `[alg.generate] <https://wg21.link/alg.generate>`_,std::generate,Nikolas Klauser,|Complete|
+| `[alg.generate] <https://wg21.link/alg.generate>`_,std::generate_n,Nikolas Klauser,|Complete|
+| `[alg.set.operations] <https://wg21.link/alg.set.operations>`_,std::includes,Nikolas Klauser,|Not Started|
+| `[alg.inclusive.scan] <https://wg21.link/alg.inclusive.scan>`_,std::inclusive_scan,Nikolas Klauser,|Not Started|
+| `[alg.merge] <https://wg21.link/alg.merge>`_,std::inplace_merge,Nikolas Klauser,|Not Started|
+| `[alg.heap.operations] <https://wg21.link/alg.heap.operations>`_,std::is_heap,Nikolas Klauser,|Not Started|
+| `[alg.heap.operations] <https://wg21.link/alg.heap.operations>`_,std::is_heap_until,Nikolas Klauser,|Not Started|
+| `[alg.partitions] <https://wg21.link/alg.partitions>`_,std::is_partitioned,Nikolas Klauser,|Complete|
+| `[alg.sort] <https://wg21.link/alg.sort>`_,std::is_sorted,Nikolas Klauser,|Not Started|
+| `[alg.sort] <https://wg21.link/alg.sort>`_,std::is_sorted_until,Nikolas Klauser,|Not Started|
+| `[alg.lex.comparison] <https://wg21.link/alg.lex.comparison>`_,std::lexicographical_compare,Nikolas Klauser,|Not Started|
+| `[alg.min.max] <https://wg21.link/alg.min.max>`_,std::max_element,Nikolas Klauser,|Not Started|
+| `[alg.merge] <https://wg21.link/alg.merge>`_,std::merge,Nikolas Klauser,|Complete|
+| `[alg.min.max] <https://wg21.link/alg.min.max>`_,std::min_element,Nikolas Klauser,|Not Started|
+| `[alg.min.max] <https://wg21.link/alg.min.max>`_,std::minmax_element,Nikolas Klauser,|Not Started|
+| `[mismatch] <https://wg21.link/mismatch>`_,std::mismatch,Nikolas Klauser,|Not Started|
+| `[alg.move] <https://wg21.link/alg.move>`_,std::move,Nikolas Klauser,|Complete|
+| `[alg.none.of] <https://wg21.link/alg.none.of>`_,std::none_of,Nikolas Klauser,|Complete|
+| `[alg.nth.element] <https://wg21.link/alg.nth.element>`_,std::nth_element,Nikolas Klauser,|Not Started|
+| `[alg.sort] <https://wg21.link/alg.sort>`_,std::partial_sort,Nikolas Klauser,|Not Started|
+| `[alg.sort] <https://wg21.link/alg.sort>`_,std::partial_sort_copy,Nikolas Klauser,|Not Started|
+| `[alg.partitions] <https://wg21.link/alg.partitions>`_,std::partition,Nikolas Klauser,|Not Started|
+| `[alg.partitions] <https://wg21.link/alg.partitions>`_,std::partition_copy,Nikolas Klauser,|Not Started|
+| `[reduce] <https://wg21.link/reduce>`_,std::reduce,Nikolas Klauser,|Complete|
+| `[alg.remove] <https://wg21.link/alg.remove>`_,std::remove,Nikolas Klauser,|Not Started|
+| `[alg.remove] <https://wg21.link/alg.remove>`_,std::remove_copy,Nikolas Klauser,|Not Started|
+| `[alg.remove] <https://wg21.link/alg.remove>`_,std::remove_copy_if,Nikolas Klauser,|Not Started|
+| `[alg.remove] <https://wg21.link/alg.remove>`_,std::remove_if,Nikolas Klauser,|Not Started|
+| `[alg.replace] <https://wg21.link/alg.replace>`_,std::replace,Nikolas Klauser,|Complete|
+| `[alg.replace] <https://wg21.link/alg.replace>`_,std::replace_copy,Nikolas Klauser,|Complete|
+| `[alg.replace] <https://wg21.link/alg.replace>`_,std::replace_copy_if,Nikolas Klauser,|Complete|
+| `[alg.replace] <https://wg21.link/alg.replace>`_,std::replace_if,Nikolas Klauser,|Complete|
+| `[alg.reverse] <https://wg21.link/alg.reverse>`_,std::reverse,Nikolas Klauser,|Not Started|
+| `[alg.reverse] <https://wg21.link/alg.reverse>`_,std::reverse_copy,Nikolas Klauser,|Not Started|
+| `[alg.rotate] <https://wg21.link/alg.rotate>`_,std::rotate,Nikolas Klauser,|Not Started|
+| `[alg.rotate] <https://wg21.link/alg.rotate>`_,std::rotate_copy,Nikolas Klauser,|Complete|
+| `[alg.search] <https://wg21.link/alg.search>`_,std::search,Nikolas Klauser,|Not Started|
+| `[alg.search] <https://wg21.link/alg.search>`_,std::search_n,Nikolas Klauser,|Not Started|
+| `[alg.set.operations] <https://wg21.link/alg.set.operations>`_,std::set_difference,Nikolas Klauser,|Not Started|
+| `[alg.set.operations] <https://wg21.link/alg.set.operations>`_,std::set_intersection,Nikolas Klauser,|Not Started|
+| `[alg.set.operations] <https://wg21.link/alg.set.operations>`_,std::set_symmetric_difference,Nikolas Klauser,|Not Started|
+| `[alg.set.operations] <https://wg21.link/alg.set.operations>`_,std::set_union,Nikolas Klauser,|Not Started|
+| `[alg.sort] <https://wg21.link/alg.sort>`_,std::sort,Nikolas Klauser,|Complete|
+| `[alg.partitions] <https://wg21.link/alg.partitions>`_,std::stable_partition,Nikolas Klauser,|Not Started|
+| `[alg.sort] <https://wg21.link/alg.sort>`_,std::stable_sort,Nikolas Klauser,|Complete|
+| `[alg.swap] <https://wg21.link/alg.swap>`_,std::swap_ranges,Nikolas Klauser,|Not Started|
+| `[alg.transform] <https://wg21.link/alg.transform>`_,std::transform,Nikolas Klauser,|Complete|
+| `[alg.transform.exclusive.scan] <https://wg21.link/alg.transform.exclusive.scan>`_,std::transform_exclusive_scan,Nikolas Klauser,|Not Started|
+| `[alg.transform.inclusive.scan] <https://wg21.link/alg.transform.inclusive.scan>`_,std::transform_inclusive_scan,Nikolas Klauser,|Not Started|
+| `[transform.reduce] <https://wg21.link/transform.reduce>`_,std::transform_reduce,Nikolas Klauser,|Complete|
+| `[uninitialized.copy] <https://wg21.link/uninitialized.copy>`_,std::uninitialized_copy,Nikolas Klauser,|Not Started|
+| `[uninitialized.copy] <https://wg21.link/uninitialized.copy>`_,std::uninitialized_copy_n,Nikolas Klauser,|Not Started|
+| `[uninitialized.fill] <https://wg21.link/uninitialized.fill>`_,std::uninitialized_fill,Nikolas Klauser,|Not Started|
+| `[uninitialized.fill] <https://wg21.link/uninitialized.fill>`_,std::uninitialized_fill_n,Nikolas Klauser,|Not Started|
+| `[uninitialized.move] <https://wg21.link/uninitialized.move>`_,std::uninitialized_move,Nikolas Klauser,|Not Started|
+| `[uninitialized.move] <https://wg21.link/uninitialized.move>`_,std::uninitialized_move_n,Nikolas Klauser,|Not Started|
+| `[alg.unique] <https://wg21.link/alg.unique>`_,std::unique,Nikolas Klauser,|Not Started|
+| `[alg.unique] <https://wg21.link/alg.unique>`_,std::unique_copy,Nikolas Klauser,|Not Started|

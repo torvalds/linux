@@ -1,0 +1,3 @@
+# Check error on an unsupported ":". (cannot be part of a pipeline)
+#
+# RUN: : | echo "hello"

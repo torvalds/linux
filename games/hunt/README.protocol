@@ -1,0 +1,272 @@
+
+THE HUNT PROTOCOL
+=================
+
+These are some notes on the traditional INET protocol between hunt(6) and 
+huntd(6) as divined from the source code.
+
+(In the original hunt, AF_UNIX sockets were used, but they are not 
+considered here.)
+
+The game of hunt is played with one server and several clients. The clients
+act as dumb 'graphics' clients in that they mostly only ever relay the
+user's keystrokes to the server, and the server usually only ever sends
+screen-drawing commands to the client. ie, the server does all the work.
+
+The game server (huntd) listens on three different network ports which 
+I'll refer to as W, S and P, described as follows:
+
+	W	well known UDP port (26740, or 'udp/hunt' in netdb)
+	S	statistics TCP port
+	P	game play TCP port
+
+The protocol on each port is different and are described separately in
+the following sections.
+
+Lines starting with "C:" and "S:" will indicate messages sent from the 
+client (hunt) or server (huntd) respectively.
+
+W - well known port
+-------------------
+	This server port is used only to query simple information about the 
+	game such as the port numbers of the other two ports (S and P),
+	and to find out how many players are still in the game.
+
+	All datagrams sent to (and possibly from) this UDP port consist of 
+	a single unsigned 16-bit integer, encoded in network byte order.
+
+	Server response datagrams should be sent to the source address
+	of the client request datagrams.
+
+	It is not useful to run multiple hunt servers on the one host
+	interface, each of which perhaps listen to the well known port and
+	respond appropriately. This is because clients will not be able to
+	disambiguate which game is which.
+
+	It is reasonable (and expected) to have servers listen to a 
+	broadcast or multicast network address and respond, since the
+	clients can extract a particular server's network address from
+	the reply packet's source field.
+
+    Player port request
+
+	A client requests the game play port P with the C_PLAYER message.
+	This is useful for clients broadcasting for any available games. eg:
+		
+		C: {uint16: 0 (C_PLAYER)}
+		S: {uint16: P (TCP port number for the game play port)}
+
+	The TCP address of the game play port should be formed from the
+	transmitted port number and the source address as received by
+	the client.
+
+    Monitor port request
+
+	A client can request the game play port P with the C_MONITOR message.
+	However, the server will NOT reply if there are no players in
+	the game. This is useful for broadcasting for 'active' games. eg:
+
+		C: {uint16: 1 (C_MONITOR)}
+		S: {uint16: P (TCP port number for the game play port)}
+
+    Message port request
+
+	If the server receives the C_MESSAGE message it will
+	respond with the number of players currently in its game, unless
+	there are 0 players, in which case it remains silent. This
+	is used when a player wishes to send a text message to all other
+	players, but doesn't want to connect if the game is over. eg:
+
+		C: {uint16: 2 (C_MESSAGE)}
+		S: {uint16: n (positive number of players)}
+
+    Statistics port request
+
+	The server's statistics port is queried with the C_SCORES message.
+	eg:
+
+		C: {uint16: 3 (C_SCORES)}
+		S: {uint16: S (TCP port number for the statistics port)}
+
+
+S - statistics port
+-------------------
+	The statistics port accepts a TCP connection, and keeps
+	it alive for long enough to send a text stream to the client.
+	This text consists of the game statistics. Lines in the
+	text message are terminated with the \n (LF) character. 
+
+		C: <connect>
+		S: <accept>
+		S: {char[]: lines of text, each terminated with <LF>}
+		S: <close>
+
+	The client is not to send any data to the server with this
+	connection.
+
+P - game play port
+------------------
+	This port provides the TCP channel for the main game play between
+	the client and the server.
+
+	All integers are unsigned, 32-bit and in network byte order.
+	All fixed sized octet strings are ASCII encoded, NUL terminated.
+
+    Initial connection
+
+	The initial setup protocol between the client and server is as follows.
+	The client sends some of its own details, and then the server replies
+	with the version number of the server (currently (uint32)-1).
+
+		C: <connect>
+		S: <accept>
+		C: {uint32:   uid}
+		C: {char[20]: name}
+		C: {char[1]:  team}
+		C: {uint32:   'enter status'}
+		C: {char[20]: ttyname}
+		C: {uint32:   'connect mode'}
+		S: {uint32:   server version (-1)}
+
+	If the 'connect mode' is C_MESSAGE (2) then the server will wait
+	for a single packet (no longer than 1024 bytes) containing
+	a text message to be displayed to all players. (The message is not
+	nul-terminated.)
+
+		C: {char[]:	client's witty message of abuse}
+		S: <close>
+
+	The only other valid 'connect mode's are C_MONITOR and C_PLAYER.
+	The server will attempt to allocate a slot for the client. 
+	If allocation fails, the server will reply immediately with 
+	"Too many monitors\n" or "Too many players\n', e.g.:
+
+		S: Too many players<LF>
+		S: <close>
+
+	The 'enter status' integer is one of the following:
+
+		1 (Q_CLOAK)	the player wishes to enter cloaked
+		2 (Q_FLY)	the player wishes to enter flying
+		3 (Q_SCAN)	the player wishes to enter scanning
+
+	Any other value indicates that the player wishes to enter in
+	'normal' mode.
+
+	A team value of 32 (space character) means no team, otherwise
+	it is the ASCII value of a team's symbol.
+
+	On successful allocation, the server will immediately enter the 
+	following phase of the protocol.
+
+    Game play protocol
+
+	The client provides a thin 'graphical' client to the server, and
+	only ever relays keystrokes typed by the user:
+
+		C: {char[]:	user keystrokes}
+
+	Each character must be sent by the client as soon as it is typed.
+
+
+	The server only ever sends screen drawing commands to the client.
+	The server assumes the initial state of the client is a clear
+	80x24 screen with the cursor at the top left (position y=0, x=0)
+
+	    Literal character	225 (ADDCH)
+
+		S: {uint8: 225} {uint8: c}
+
+		The client must draw the character with ASCII value c
+		at the cursor position, then advance the cursor to the right.
+		If the cursor goes past the rightmost column of the screen,
+		it wraps, moving to the first column of the next line down.
+		The cursor should never be advanced past the bottom row.
+
+		(ADDCH is provided as an escape prefix.)
+
+	    Cursor motion	237 (MOVE)
+
+		S: {uint8: 237} {uint8: y} {uint8: x}
+
+		The client must move its cursor to the absolute screen
+		location y, x, where y=0 is the top of the screen and
+		x=0 is the left of the screen.
+
+	    Refresh screen	242 (REFRESH)
+
+		S: {uint8: 242}
+
+		This indicates to the client that a burst of screen
+		drawing has ended. Typically the client will flush its
+		own drawing output so that the user can see the results.
+
+		Refreshing is the only time that the client must
+		ensure that the user can see the current screen. (This
+		is intended for use with curses' refresh() function.)
+
+	    Clear to end of line 227 (CLRTOEOL)
+
+		S: {uint8: 227}
+
+		The client must replace all columns underneath and
+		to the right of the cursor (on the one row) with 
+		space characters. The cursor must not move.
+
+	    End game		229 (ENDWIN)
+
+		S: {uint8: 229} {uint8: 32}
+		S,C: <close>
+
+		S: {uint8: 229} {uint8: 236}
+		S,C: <close>
+
+		The client and server must immediately close the connection.
+		The client should also refresh the screen.
+		If the second octet is 236 (LAST_PLAYER), then 
+		the client should give the user an opportunity to quickly 
+		re-enter the game. Otherwise the client should quit.
+
+	    Clear screen	195 (CLEAR)
+
+		S: {uint8: 195}
+
+		The client must erase all characters from the screen
+		and move the cursor to the top left (x=0, y=0).
+
+	    Redraw screen	210 (REDRAW)
+
+		S: {uint8: 210}
+
+		The client should attempt to re-draw its screen.
+
+	    Audible bell	226 (BELL)
+
+		S: {uint8: 226}
+
+		The client should generate a short audible tone for
+		the user.
+
+	    Server ready	231 (READY)
+
+		S: {uint8: 231} {uint8: n}
+
+		The client must refresh its screen.
+
+		The server indicates to the client that it has
+		processed n of its characters in order, and is ready
+		for more commands. This permits the client to 
+		synchronise user actions with server responses if need be.
+
+	    Characters other than the above.
+
+		S: {uint8: c}
+
+		The client must draw the character with ASCII value c
+		in the same way as if it were preceded with ADDCH
+		(see above).
+
+
+David Leonard, 1999.
+
+$OpenBSD: README.protocol,v 1.1 1999/12/12 14:51:03 d Exp $

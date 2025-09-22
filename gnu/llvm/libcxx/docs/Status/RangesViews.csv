@@ -1,0 +1,38 @@
+Standard,View,Assignee,CL,Status
+C++20,`empty <https://wg21.link/P0896R4>`_,Zoe Carver,`D103208 <https://llvm.org/D103208>`_,✅
+C++20,`single <https://wg21.link/P0896R4>`_,Zoe Carver,`D106840 <https://llvm.org/D106840>`_,✅
+C++20,`iota (view) <https://wg21.link/P0896R4>`_,Zoe Carver,`D107396 <https://llvm.org/D107396>`_,✅
+C++20,`all <https://wg21.link/P0896R4>`_,Zoe Carver,`D102028 <https://llvm.org/D102028>`_,✅
+C++20,`ref_view <https://wg21.link/P0896R4>`_,Zoe Carver,`D102020 <https://llvm.org/D102020>`_,✅
+C++20,`owning_view <https://wg21.link/P0896R4>`_,Arthur O'Dwyer,`D116894 <https://llvm.org/D116894>`_,✅
+C++20,`filter <https://wg21.link/P0896R4>`_,Louis Dionne,`D109086 <https://llvm.org/D109086>`_,✅
+C++20,`transform <https://wg21.link/P0896R4>`_,Zoe Carver,`D103056 <https://llvm.org/D103056>`_,✅
+C++20,`take <https://wg21.link/P0896R4>`_,Zoe Carver,`D106507 <https://llvm.org/D106507>`_,✅
+C++20,`take_while <https://wg21.link/P1035R7>`_,Hui Xie,`D134952 <https://llvm.org/D134952>`_,✅
+C++20,`drop <https://wg21.link/P1035R7>`_,Zoe Carver,`D102037 <https://llvm.org/D102037>`_,✅
+C++20,`drop_while <https://wg21.link/P1035R7>`_,Hui Xie,`D135460 <https://llvm.org/D135460>`_,✅
+C++20,`join <https://wg21.link/P0896R4>`_,Zoe Carver,`D107671 <https://llvm.org/D107671>`_,✅
+C++20,`split <https://wg21.link/P2210R2>`_,Hui Xie,`D142063 <https://llvm.org/D142063>`_,✅
+C++20,`lazy_split <https://wg21.link/P0896R4>`_,Zoe Carver and Konstantin Varlamov,`D107500 <https://llvm.org/D107500>`_,✅
+C++20,`counted <https://wg21.link/P0896R4>`_,Zoe Carver,`D106923 <https://llvm.org/D106923>`_,✅
+C++20,`common <https://wg21.link/P0896R4>`_,Zoe Carver,`D105753 <https://llvm.org/D105753>`_,✅
+C++20,`reverse <https://wg21.link/P0896R4>`_,Zoe Carver,`D107096 <https://llvm.org/D107096>`_,✅
+C++20,`elements / keys / values <https://wg21.link/P1035R7>`_,Hui Xie,`D136268 <https://llvm.org/D136268>`_,✅
+C++20,`istream <https://wg21.link/P1035R7>`_,Hui Xie,`D133317 <https://llvm.org/D133317>`_,✅
+,,,,
+,,,,
+,,,,
+C++23,`repeat <https://wg21.link/P2474R2>`_,Yrong,`D141699 <https://llvm.org/D141699>`_,✅
+C++23,`cartesian_product <https://wg21.link/P2374R4>`_,Unassigned,No patch yet,Not started
+C++23,`zip <https://wg21.link/P2321R2>`_,Hui Xie,`D122806 <https://llvm.org/D122806>`_,✅
+C++23,`zip_transform <https://wg21.link/P2321R2>`_,Hui Xie,No patch yet,Not started
+C++23,`adjacent <https://wg21.link/P2321R2>`_,Hui Xie,No patch yet,Not started
+C++23,`adjacent_transform <https://wg21.link/P2321R2>`_,Hui Xie,No patch yet,Not started
+C++23,`join_with <https://wg21.link/P2441R2>`_,Jakub Mazurkiewicz,`65536 <https://github.com/llvm/llvm-project/pull/65536>`_,In progress
+C++23,`slide <https://wg21.link/P2442R1>`_,Will Hawkins,`67146 <https://github.com/llvm/llvm-project/pull/67146>`_,In Progress
+C++23,`chunk <https://wg21.link/P2442R1>`_,Unassigned,No patch yet,Not started
+C++23,`chunk_by <https://wg21.link/P2443R1>`_,Jakub Mazurkiewicz,`D144767 <https://llvm.org/D144767>`_,✅
+C++23,`as_const <https://wg21.link/P2278R4>`_,Unassigned,No patch yet,Not started
+C++23,`as_rvalue <https://wg21.link/P2446R2>`_,Nikolas Klauser,`D137637 <https://llvm.org/D137637>`_,✅
+C++23,`stride <https://wg21.link/P1899R3>`_,Hristo Hristov and Will Hawkins,`D156924 <https://llvm.org/D156924>`_,In Progress
+C++23,`enumerate <https://wg21.link/P2164R9>`_,Hristo Hristov,`D157193 <https://reviews.llvm.org/D157193>`_,In Progress

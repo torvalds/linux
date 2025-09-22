@@ -1,0 +1,30 @@
+# Build the libraries for both hard & soft floating point and ppc/common.
+
+MULTILIB_OPTIONS = msoft-float mcpu=common
+MULTILIB_DIRNAMES = soft-float common
+
+# This is probably the correct define, to override the Makefile
+# default, but using it causes more problems than it solves.
+#
+# Using it will cause fixincludes to try and fix some of the
+# mwcc header files, which it seems to do a poor job of.  On
+# the other hand, not using it will only cause the gcc version
+# of limits.h to lack the header and trailer parts that are
+# tacked on to it when there is a limits.h in the system header
+# dir.
+#
+# For now it is probably better to change the rule for
+# LIMITS_H_TEST to explicitly look for the BeOS limits.h.
+# If the gcc limits.h is not set up to #include_next the
+# BeOS limits.h, then some things will go undefined, like
+# PATH_MAX.
+
+#SYSTEM_HEADER_DIR=/boot/develop/headers/posix
+# Test to see whether <limits.h> exists in the system header files.
+LIMITS_H_TEST = [ -f /boot/develop/headers/posix/limits.h ]
+
+# Aix 3.2.x needs milli.exp for -mcpu=common
+EXTRA_PARTS = milli.exp
+milli.exp: $(srcdir)/config/rs6000/milli.exp
+	rm -f milli.exp
+	cp $(srcdir)/config/rs6000/milli.exp ./milli.exp

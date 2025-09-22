@@ -1,0 +1,32 @@
+static_library("android") {
+  output_name = "clangTidyAndroidModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "AndroidTidyModule.cpp",
+    "CloexecAccept4Check.cpp",
+    "CloexecAcceptCheck.cpp",
+    "CloexecCheck.cpp",
+    "CloexecCreatCheck.cpp",
+    "CloexecDupCheck.cpp",
+    "CloexecEpollCreate1Check.cpp",
+    "CloexecEpollCreateCheck.cpp",
+    "CloexecFopenCheck.cpp",
+    "CloexecInotifyInit1Check.cpp",
+    "CloexecInotifyInitCheck.cpp",
+    "CloexecMemfdCreateCheck.cpp",
+    "CloexecOpenCheck.cpp",
+    "CloexecPipe2Check.cpp",
+    "CloexecPipeCheck.cpp",
+    "CloexecSocketCheck.cpp",
+    "ComparisonInTempFailureRetryCheck.cpp",
+  ]
+}

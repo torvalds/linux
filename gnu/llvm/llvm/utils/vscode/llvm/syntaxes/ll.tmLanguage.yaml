@@ -1,0 +1,367 @@
+# https://macromates.com/manual/en/language_grammars
+# https://macromates.com/manual/en/regular_expressions
+# https://www.sublimetext.com/docs/3/scope_naming.html
+
+# Coloring
+# https://code.visualstudio.com/docs/getstarted/themes
+# https://code.visualstudio.com/api/extension-guides/color-theme#syntax-colors
+# https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide
+# https://code.visualstudio.com/docs/cpp/colorization-cpp
+
+$schema: https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json
+name: LLVM IR
+scopeName: source.llvm
+patterns:
+  - match: "\\bvoid\\b|\
+            \\bhalf\\b|\
+            \\bbfloat\\b|\
+            \\bfloat\\b|\
+            \\bdouble\\b|\
+            \\bx86_fp80\\b|\
+            \\bfp128\\b|\
+            \\bppc_fp128\\b|\
+            \\blabel\\b|\
+            \\bmetadata\\b|\
+            \\bx86_mmx\\b|\
+            \\bx86_amx\\b|\
+            \\btype\\b|\
+            \\blabel\\b|\
+            \\bopaque\\b|\
+            \\btoken\\b|\
+            \\bi\\d+\\**"
+    name: storage.type.llvm
+  - match: "!([a-zA-Z]+)\\s*\\("
+    captures:
+      1:
+        name: storage.type.llvm
+  - match: "(?<=\\s|^)#dbg_(assign|declare|label|value)\\b|\
+            \\badd\\b|\
+            \\baddrspacecast\\b|\
+            \\balloca\\b|\
+            \\band\\b|\
+            \\barcp\\b|\
+            \\bashr\\b|\
+            \\batomicrmw\\b|\
+            \\bbitcast\\b|\
+            \\bbr\\b|\
+            \\bcatchpad\\b|\
+            \\bcatchswitch\\b|\
+            \\bcatchret\\b|\
+            \\bcall\\b|\
+            \\bcallbr\\b|\
+            \\bcleanuppad\\b|\
+            \\bcleanupret\\b|\
+            \\bcmpxchg\\b|\
+            \\beq\\b|\
+            \\bexact\\b|\
+            \\bextractelement\\b|\
+            \\bextractvalue\\b|\
+            \\bfadd\\b|\
+            \\bfast\\b|\
+            \\bfcmp\\b|\
+            \\bfdiv\\b|\
+            \\bfence\\b|\
+            \\bfmul\\b|\
+            \\bfpext\\b|\
+            \\bfptosi\\b|\
+            \\bfptoui\\b|\
+            \\bfptrunc\\b|\
+            \\bfree\\b|\
+            \\bfrem\\b|\
+            \\bfreeze\\b|\
+            \\bfsub\\b|\
+            \\bfneg\\b|\
+            \\bgetelementptr\\b|\
+            \\bicmp\\b|\
+            \\binbounds\\b|\
+            \\bindirectbr\\b|\
+            \\binsertelement\\b|\
+            \\binsertvalue\\b|\
+            \\binttoptr\\b|\
+            \\binvoke\\b|\
+            \\blandingpad\\b|\
+            \\bload\\b|\
+            \\blshr\\b|\
+            \\bmalloc\\b|\
+            \\bmax\\b|\
+            \\bmin\\b|\
+            \\bmul\\b|\
+            \\bnand\\b|\
+            \\bne\\b|\
+            \\bninf\\b|\
+            \\bnnan\\b|\
+            \\bnsw\\b|\
+            \\bnsz\\b|\
+            \\bnuw\\b|\
+            \\boeq\\b|\
+            \\boge\\b|\
+            \\bogt\\b|\
+            \\bole\\b|\
+            \\bolt\\b|\
+            \\bone\\b|\
+            \\bor\\b|\
+            \\bord\\b|\
+            \\bphi\\b|\
+            \\bptrtoint\\b|\
+            \\bresume\\b|\
+            \\bret\\b|\
+            \\bsdiv\\b|\
+            \\bselect\\b|\
+            \\bsext\\b|\
+            \\bsge\\b|\
+            \\bsgt\\b|\
+            \\bshl\\b|\
+            \\bshufflevector\\b|\
+            \\bsitofp\\b|\
+            \\bsle\\b|\
+            \\bslt\\b|\
+            \\bsrem\\b|\
+            \\bstore\\b|\
+            \\bsub\\b|\
+            \\bswitch\\b|\
+            \\btrunc\\b|\
+            \\budiv\\b|\
+            \\bueq\\b|\
+            \\buge\\b|\
+            \\bugt\\b|\
+            \\buitofp\\b|\
+            \\bule\\b|\
+            \\bult\\b|\
+            \\bumax\\b|\
+            \\bumin\\b|\
+            \\bune\\b|\
+            \\buno\\b|\
+            \\bunreachable\\b|\
+            \\bunwind\\b|\
+            \\burem\\b|\
+            \\bva_arg\\b|\
+            \\bxchg\\b|\
+            \\bxor\\b|\
+            \\bzext\\b"
+    name: keyword.instruction.llvm
+  - match: "\\bacq_rel\\b|\
+            \\bacquire\\b|\
+            \\baddrspace\\b|\
+            \\balias\\b|\
+            \\balign\\b|\
+            \\balignstack\\b|\
+            \\ballocsize\\b|\
+            \\balwaysinline\\b|\
+            \\bappending\\b|\
+            \\bargmemonly\\b|\
+            \\barm_aapcs_vfpcc\\b|\
+            \\barm_aapcscc\\b|\
+            \\barm_apcscc\\b|\
+            \\basm\\b|\
+            \\batomic\\b|\
+            \\bavailable_externally\\b|\
+            \\bblockaddress\\b|\
+            \\bbuiltin\\b|\
+            \\bbyref\\b|\
+            \\bbyval\\b|\
+            \\bc\\b|\
+            \\bcaller\\b|\
+            \\bcatch\\b|\
+            \\bcc\\b|\
+            \\bccc\\b|\
+            \\bcleanup\\b|\
+            \\bcold\\b|\
+            \\bcoldcc\\b|\
+            \\bcomdat\\b|\
+            \\bcommon\\b|\
+            \\bconstant\\b|\
+            \\bconvergent\\b|\
+            \\bdatalayout\\b|\
+            \\bdeclare\\b|\
+            \\bdefault\\b|\
+            \\bdefine\\b|\
+            \\bdeplibs\\b|\
+            \\bdereferenceable\\b|\
+            \\bdereferenceable_or_null\\b|\
+            \\bdistinct\\b|\
+            \\bdllexport\\b|\
+            \\bdllimport\\b|\
+            \\bdso_local\\b|\
+            \\bdso_preemptable\\b|\
+            \\bexcept\\b|\
+            \\bextern_weak\\b|\
+            \\bexternal\\b|\
+            \\bexternally_initialized\\b|\
+            \\bfastcc\\b|\
+            \\bfilter\\b|\
+            \\bfrom\\b|\
+            \\bgc\\b|\
+            \\bglobal\\b|\
+            \\bhhvm_ccc\\b|\
+            \\bhhvmcc\\b|\
+            \\bhidden\\b|\
+            \\bhot\\b|\
+            \\bimmarg\\b|\
+            \\binaccessiblemem_or_argmemonly\\b|\
+            \\binaccessiblememonly\\b|\
+            \\binalloc\\b|\
+            \\binitialexec\\b|\
+            \\binlinehint\\b|\
+            \\binreg\\b|\
+            \\bintel_ocl_bicc\\b|\
+            \\binteldialect\\b|\
+            \\binternal\\b|\
+            \\bjumptable\\b|\
+            \\blinkonce\\b|\
+            \\blinkonce_odr\\b|\
+            \\blocal_unnamed_addr\\b|\
+            \\blocaldynamic\\b|\
+            \\blocalexec\\b|\
+            \\bminsize\\b|\
+            \\bmodule\\b|\
+            \\bmonotonic\\b|\
+            \\bmsp430_intrcc\\b|\
+            \\bmustprogress\\b|\
+            \\bmusttail\\b|\
+            \\bnaked\\b|\
+            \\bnest\\b|\
+            \\bnoalias\\b|\
+            \\bnobuiltin\\b|\
+            \\bnocallback\\b|\
+            \\bnocapture\\b|\
+            \\bnocf_check\\b|\
+            \\bnoduplicate\\b|\
+            \\bnofree\\b|\
+            \\bnoimplicitfloat\\b|\
+            \\bnoinline\\b|\
+            \\bnomerge\\b|\
+            \\bnonlazybind\\b|\
+            \\bnonnull\\b|\
+            \\bnoprofile\\b|\
+            \\bnorecurse\\b|\
+            \\bnoredzone\\b|\
+            \\bnoreturn\\b|\
+            \\bnosync\\b|\
+            \\bnoundef\\b|\
+            \\bnounwind\\b|\
+            \\bnosanitize_bounds\\b|\
+            \\bnosanitize_coverage\\b|\
+            \\bnull_pointer_is_valid\\b|\
+            \\boptforfuzzing\\b|\
+            \\boptnone\\b|\
+            \\boptsize\\b|\
+            \\bpersonality\\b|\
+            \\bpreallocated\\b|\
+            \\bprivate\\b|\
+            \\bprotected\\b|\
+            \\bptx_device\\b|\
+            \\bptx_kernel\\b|\
+            \\breadnone\\b|\
+            \\breadonly\\b|\
+            \\brelease\\b|\
+            \\breturned\\b|\
+            \\breturns_twice\\b|\
+            \\bsafestack\\b|\
+            \\bsanitize_address\\b|\
+            \\bsanitize_hwaddress\\b|\
+            \\bsanitize_memory\\b|\
+            \\bsanitize_memtag\\b|\
+            \\bsanitize_thread\\b|\
+            \\bsection\\b|\
+            \\bseq_cst\\b|\
+            \\bshadowcallstack\\b|\
+            \\bsideeffect\\b|\
+            \\bsignext\\b|\
+            \\bsource_filename\\b|\
+            \\bspeculatable\\b|\
+            \\bspeculative_load_hardening\\b|\
+            \\bspir_func\\b|\
+            \\bspir_kernel\\b|\
+            \\bsret\\b|\
+            \\bssp\\b|\
+            \\bsspreq\\b|\
+            \\bsspstrong\\b|\
+            \\bstrictfp\\b|\
+            \\bswiftcc\\b|\
+            \\bswifterror\\b|\
+            \\bswiftself\\b|\
+            \\bsyncscope\\b|\
+            \\btail\\b|\
+            \\btailcc\\b|\
+            \\btarget\\b|\
+            \\bthread_local\\b|\
+            \\bto\\b|\
+            \\btriple\\b|\
+            \\bunnamed_addr\\b|\
+            \\bunordered\\b|\
+            \\buselistorder\\b|\
+            \\buselistorder_bb\\b|\
+            \\buwtable\\b|\
+            \\bvolatile\\b|\
+            \\bweak\\b|\
+            \\bweak_odr\\b|\
+            \\bwillreturn\\b|\
+            \\bwin64cc\\b|\
+            \\bwithin\\b|\
+            \\bwriteonly\\b|\
+            \\bx86_64_sysvcc\\b|\
+            \\bx86_fastcallcc\\b|\
+            \\bx86_stdcallcc\\b|\
+            \\bx86_thiscallcc\\b|\
+            \\bzeroext\\b"
+    name: storage.modifier.llvm
+  - match: "@[-a-zA-Z$._][-a-zA-Z$._0-9]*"
+    name: entity.name.function.llvm
+  - match: "[%@!]\\d+\\b"
+    name: variable.llvm
+  - match: "%[-a-zA-Z$._][-a-zA-Z$._0-9]*"
+    name: variable.llvm
+  - match: "(![-a-zA-Z$._][-a-zA-Z$._0-9]*)\\s*$"
+    captures:
+      1:
+        name: variable.llvm
+  - match: "(![-a-zA-Z$._][-a-zA-Z$._0-9]*)\\s*[=!]"
+    captures:
+      1:
+        name: variable.llvm
+  - begin: "\""
+    end: "\""
+    patterns:
+      - name: "constant.character.escape.untitled"
+        match: "\\."
+    name: string.quoted.double.llvm
+  - match: "[-a-zA-Z$._][-a-zA-Z$._0-9]*:"
+    name: entity.name.label.llvm
+  - match: "-?\\b\\d+\\.\\d*(e[+-]\\d+)?\\b"
+    name: constant.numeric.float
+  - match: "\\b0x\\x+\\b"
+    name: constant.numeric.float
+  - match: "-?\\b\\d+\\b"
+    name: constant.numeric.integer
+  - match: "\\btrue\\b|\
+            \\bfalse\\b|\
+            \\bnull\\b|\
+            \\bzeroinitializer\\b|\
+            \\bundef\\b|\
+            \\bpoison\\b|\
+            \\bnull\\b|\
+            \\bnone\\b"
+    name: constant.language
+  - match: "\\bDW_TAG_[a-z_]+\\b|\
+            \\bDW_ATE_[a-zA-Z_]+\\b|\
+            \\bDW_OP_[a-zA-Z0-9_]+\\b|\
+            \\bDW_LANG_[a-zA-Z0-9_]+\\b|\
+            \\bDW_VIRTUALITY_[a-z_]+\\b|\
+            \\bDIFlag[A-Za-z]+\\b"
+    name: constant.other
+  - match: ";\\s*PR\\d*\\s*$"
+    name: string.regexp
+  - match: ";\\s*REQUIRES:.*$"
+    name: string.regexp
+  - match: ";\\s*RUN:.*$"
+    name: string.regexp
+  - match: ";\\s*ALLOW_RETRIES:.*$"
+    name: string.regexp
+  - match: ";\\s*CHECK:.*$"
+    name: string.regexp
+  - match: ";\\s*CHECK-(NEXT|NOT|DAG|SAME|LABEL):.*$"
+    name: string.regexp
+  - match: ";\\s*XFAIL:.*$"
+    name: string.regexp
+  - match: ;.*$
+    name: comment.line.llvm

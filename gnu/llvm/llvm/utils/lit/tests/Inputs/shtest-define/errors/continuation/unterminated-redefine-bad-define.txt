@@ -1,0 +1,13 @@
+# You cannot continue a REDEFINE with a DEFINE.  In this case, the DEFINE is
+# wrong on its own because it's written as a continuation, so the bad DEFINE is
+# reported.
+
+# REDEFINE: %{global:what}=echo \
+# DEFINE: Hello World
+# REDEFINE: too late to continue
+# RUN: %{foo}
+
+#      CHECK: Substitution's definition does not contain '='
+# CHECK-NEXT: in {{DEFINE}}: directive on test line [[#@LINE-5]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

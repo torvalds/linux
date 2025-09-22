@@ -1,0 +1,386 @@
+.\"	$OpenBSD: mille.6,v 1.14 2022/02/18 23:17:14 jsg Exp $
+.\"
+.\" Copyright (c) 1983, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mille.6	8.3 (Berkeley) 6/1/94
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt MILLE 6
+.Os
+.Sh NAME
+.Nm mille
+.Nd play Mille Bornes
+.Sh SYNOPSIS
+.Nm mille
+.Op Ar file
+.Sh DESCRIPTION
+.Nm
+plays a two-handed game reminiscent of
+the Parker Brother's game of Mille Bornes with you.
+The rules are described below.
+If a file name is given on the command line,
+the game saved in that file is started.
+.Pp
+When a game is started up,
+the bottom of the score window will contain a list of commands.
+They are:
+.Bl -tag -width indent
+.It P
+Pick a card from the deck.
+This card is placed in the
+.Sq P
+slot in your hand.
+.It D
+Discard a card from your hand.
+To indicate which card, type the number of the card in the hand
+.Po
+or
+.Dq P
+for the just-picked card
+.Pc
+followed by a
+.Aq RETURN
+or
+.Aq SPACE .
+The
+.Aq RETURN
+or
+.Aq SPACE
+is required to allow recovery from typos, which can be very expensive.
+.It U
+Use a card.
+The card is again indicated by its number, followed by a
+.Aq RETURN
+or
+.Aq SPACE .
+.It O
+Toggle ordering the hand.
+By default off, if turned on it will sort the cards in your hand appropriately.
+This is not recommended for the impatient on slow terminals.
+.It Q
+Quit the game.
+This will ask for confirmation.
+.It S
+Save the game in a file.
+If the game was started from a file,
+you will be given an opportunity to save it to the same file.
+If you don't wish to, or you did not start from a file,
+you will be asked for the file name.
+If you type a
+.Aq RETURN
+without a name, the save will be terminated and the game resumed.
+.It R
+Redraw the screen from scratch.
+The command ^L
+.Pq control-L
+will also work.
+.It W
+Toggle window type.
+This switches the score window between the startup window
+.Pq with all the command names
+and the end-of-game window.
+Using the end-of-game window
+saves time by eliminating the switch at the end of the game
+to show the final score.
+Recommended for hackers and other miscreants.
+.El
+.Pp
+If you make a mistake, an error message will be printed
+on the last line of the score window, and a bell will beep.
+.Pp
+At the end of each hand or game,
+you will be asked if you wish to play another.
+If not, it will ask you if you want to save the game.
+If you do, and the save is unsuccessful,
+play will be resumed as if you had said you wanted to play another hand/game.
+This allows you to use the
+.Dq S
+command to reattempt the save.
+.Sh CARDS
+Here is some useful information.
+The number in parentheses after the card name
+is the number of that card in the deck:
+.Bl -column "Speed Limit (3)" "End of Limit (6)" "Puncture Proof (1)"
+.It Sy Hazard Ta Sy Repair Ta Sy Safety
+.It "Out of Gas (2)" Ta "Gasoline (6)" Ta "Extra Tank (1)"
+.It "Flat Tire (2)" Ta "Spare Tire (6)" Ta "Puncture Proof (1)"
+.It "Accident (2)" Ta "Repairs (6)" Ta "Driving Ace (1)"
+.It "Stop (4)" Ta "Go (14)" Ta "Right of Way (1)"
+.It "Speed Limit (3)" Ta "End of Limit (6)" Ta ""
+.El
+.Pp
+.Sy Mileage
+.br
+25 \- (10), 50 \- (10), 75 \- (10), 100 \- (12), 200 \- (4)
+.Sh RULES
+.Ss Object
+The point of this game is to get a total of 5000 points in several hands.
+Each hand is a race to put down exactly 700 miles before your opponent does.
+Beyond the points gained by putting down milestones,
+there are several other ways of making points.
+.Ss Overview
+The game is played with a deck of 101 cards.
+.Em Distance
+cards represent a number of miles traveled.
+They come in denominations of 25, 50, 75, 100, and 200.
+When one is played,
+it adds that many miles to the player's trip so far this hand.
+.Em Hazard
+cards are used to prevent your opponent from putting down Distance cards.
+They can only be played if your opponent has a
+.Em Go
+card on top of the Battle pile.
+The cards are
+.Em Out of Gas ,
+.Em Accident ,
+.Em Flat Tire ,
+.Em Speed Limit ,
+and
+.Em Stop .
+.Em Remedy
+cards fix problems caused by Hazard cards played on you by your opponent.
+The cards are
+.Em Gasoline ,
+.Em Repairs ,
+.Em Spare Tire ,
+.Em End of Limit ,
+and
+.Em Go .
+.Em Safety
+cards prevent your opponent from putting specific Hazard cards on you
+in the first place.
+They are
+.Em Extra Tank ,
+.Em Driving Ace ,
+.Em Puncture Proof ,
+and
+.Em Right of Way ,
+and there is only one of each in the deck.
+.Ss Board Layout
+The board is split into several areas.
+From top to bottom, they are:
+.Pp
+.Bl -hang -offset indent -compact -width "SAFETY AREA "
+.It Sy SAFETY AREA
+(unlabeled): This is where the safeties will be placed as they are played.
+.It Sy HAND
+These are the cards in your hand.
+.It Sy BATTLE
+This is the Battle pile.
+All the Hazard and Remedy Cards are played here, except the
+.Em Speed Limit
+and
+.Em End of Limit
+cards.
+Only the top card is displayed, as it is the only effective one.
+.It Sy SPEED
+The Speed pile.
+The
+.Em Speed Limit
+and
+.Em End of Limit
+cards are played here
+to control the speed at which the player is allowed to put down miles.
+.It Sy MILEAGE
+Miles are placed here.
+The total of the numbers shown here is the distance traveled so far.
+.El
+.Ss Play
+The first pick alternates between the two players.
+Each turn usually starts with a pick from the deck.
+The player then plays a card, or if this is not possible or desirable,
+discards one.
+Normally, a play or discard of a single card constitutes a turn.
+If the card played is a safety, however,
+the same player takes another turn immediately.
+.Pp
+This repeats until one of the players reaches 700 miles or the deck runs out.
+If someone reaches 700, they have the option of going for an
+.Sy Extension ,
+which means that the play continues until someone reaches 1000 miles.
+.Ss Hazard and Remedy Cards
+Hazard Cards are played on your opponent's Battle and Speed piles.
+Remedy Cards are used for undoing the effects of your opponent's nastiness.
+.Pp
+.Bl -hang -offset indent -compact -width "End of Limit "
+.It Sy Go
+(Green Light)
+must be the top card on your Battle pile for you to play any mileage,
+unless you have played the
+.Em Right of Way
+card
+.Pq see below .
+.It Sy Stop
+is played on your opponent's
+.Em Go
+card to prevent them from playing mileage until they play a
+.Em Go
+card.
+.It Sy Speed Limit
+is played on your opponent's Speed pile.
+Until they play an
+.Em End of Limit
+they can only play 25 or 50 mile cards, presuming their
+.Em Go
+card allows them to do even that.
+.It Sy End of Limit
+is played on your Speed pile to nullify a
+.Em Speed Limit
+played by your opponent.
+.It Sy Out of Gas
+is played on your opponent's
+.Em Go
+card.
+They must then play a
+.Em Gasoline
+card, and then a
+.Em Go
+card before they can play any more mileage.
+.It Sy Flat Tire
+is played on your opponent's
+.Em Go
+card.
+They must then play a
+.Em Spare Tire
+card, and then a
+.Em Go
+card before they can play any more mileage.
+.It Sy Accident
+is played on your opponent's
+.Em Go
+card.
+They must then play a
+.Em Repairs
+card, and then a
+.Em Go
+card before they can play any more mileage.
+.El
+.Ss Safety Cards
+Safety cards prevent your opponent
+from playing the corresponding Hazard cards on you for the rest of the hand.
+It cancels an attack in progress, and
+.Em always entitles the player to an extra turn .
+.Pp
+.Bl -hang -offset indent -compact -width "Puncture Proof "
+.It Sy Right of Way
+Prevents your opponent from playing both
+.Em Stop
+and
+.Em Speed Limit
+cards on you.
+It also acts as a permanent
+.Em Go
+card for the rest of the hand, so you can play mileage
+as long as there is not a Hazard card on top of your Battle pile.
+In this case only, your opponent can play Hazard cards directly on a Remedy card
+other than a Go card.
+.It Sy Extra Tank
+When played, your opponent cannot play an
+.Em Out of Gas
+on your Battle Pile.
+.It Sy Puncture Proof
+When played, your opponent cannot play a
+.Em Flat Tire
+on your Battle Pile.
+.It Sy Driving Ace
+When played, your opponent cannot play an
+.Em Accident
+on your Battle Pile.
+.El
+.Ss Distance Cards
+Distance cards are played when you have a
+.Em Go
+card on your Battle pile,
+or a
+.Em Right of Way
+in your Safety area and are not stopped by a Hazard Card.
+They can be played in any combination that totals exactly 700 miles,
+except that
+.Em "you cannot play more than two 200 mile cards in one hand" .
+A hand ends whenever one player gets exactly 700 miles or the deck runs out.
+In that case, play continues until either someone reaches 700,
+or neither player can use any cards in their hand.
+If the trip is completed after the deck runs out, this is called
+.Em Delayed Action .
+.Ss Coup Fourre
+This is a French fencing term for a counter-thrust move as part of a parry
+to an opponent's attack.
+In current French colloquial language it means a sneaky, underhand blow.
+In Mille Bornes, it is used as follows:
+If an opponent plays a Hazard card,
+and you have the corresponding Safety in your hand,
+you play it immediately, even
+.Em before
+you draw.
+This immediately removes the Hazard card from your Battle pile,
+and protects you from that card for the rest of the game.
+This gives you more points
+.Pq see Scoring below .
+.Ss Scoring
+Scores are totalled at the end of each hand,
+whether or not anyone completed the trip.
+The terms used in the Score window have the following meanings:
+.Bl -hang -offset indent -compact -width "Milestones Played :"
+.It Sy Milestones Played :
+Each player scores as many miles as they played before the trip ended.
+.It Sy Each Safety :
+100 points for each safety in the Safety area.
+.It Sy All 4 Safeties :
+300 points if all four safeties are played.
+.It Sy Each Coup Fourre :
+300 points for each Coup Fourre accomplished.
+.El
+.Pp
+The following bonus scores can apply only to the winning player:
+.Bl -hang -offset indent -compact -width "Trip Completed :"
+.It Sy Trip Completed :
+400 points bonus for completing the trip to 700 or 1000.
+.It Sy Safe Trip :
+300 points bonus for completing the trip without using any 200 mile cards.
+.It Sy Delayed Action :
+300 points bonus for finishing after the deck was exhausted.
+.It Sy Extension :
+200 points bonus for completing a 1000 mile trip.
+.It Sy Shut-Out :
+500 points bonus for completing the trip
+before your opponent played any mileage cards.
+.El
+.Pp
+Running totals are also kept for the current score for each player
+for the hand
+.Sy ( Hand Total ) ,
+the game
+.Sy ( Overall Total ) ,
+and number of games won
+.Sy ( Games ) .
+.Sh AUTHORS
+.An Ken Arnold
+.Pp
+.Po
+The game itself is a product of Parker Brothers, Inc.
+.Pc

@@ -1,0 +1,369 @@
+Thu Apr  7 20:29:04 BST 1999  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12b5.1
+
+	Fixed bugs with MacBinary names and symbolic links to HFS files
+	when using the -f option
+
+	Re-introduced some minor changes "lost" from v1.12b4.8
+
+	Forgot to add -hide-hfs-list option in previous version ...
+
+Tue Mar 30 08:31:13 BST 1999  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12b5.0
+
+	Now based on mkisofs v1.12b5
+
+	Option -mac-name now only uses the HFS name if the file is one
+	of the known HFS file types
+
+	Added -hide-list, -hide-joliet-list, -hide-hfs-list, -exclude-list
+	and -path-list options. Allows a list of filenames to be excluded or
+	hidden to be given in a file instead of on the command line.
+
+	Added option -hfs-volid to give the HFS volume its own name (not
+	using the ISO9660 volume name).
+	
+
+Tue Jan  5 15:44:24 GMT 1999  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12b4.8
+
+	Fixed an AppleDouble bug and added better support for more Unix
+	flavours.
+
+	Fixed -hide-hfs bug that corrupted some HFS hidden files
+
+	Made the verbose output less verbose.
+
+	Added initial support for the AutoStart feature.
+
+	HFS partition maps can now be added without having to create
+	a bootable HFS CD (as pre-v1.12a4.7).
+
+	Added option to specify the PC Exchange "cluster size".
+
+Mon Aug 24 23:18:38 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a4.7
+
+	Fixed SGI/XINET and PC Exchange bugs
+
+	By default, the output image no longer has an HFS partition map
+	(as pre-v1.12a3.4). Partition maps are only added if making a
+	bootable HFS CD
+
+	Fixed possible bug with odd-length structure alignment with gcc on
+	some architectures
+
+Tue Aug  4 23:09:17 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a4.6
+
+	Made a couple of Netatalk changes
+
+	Altered way Apple/Unix associated files are excluded - e.g.
+	if just --cap is selected, then files associated with the other
+	Apple/Unix encodings are processed as normal files. Previously they
+	would have been ignored
+
+	Added option (-no-desktop) to prevent the (empty) HFS desktop files
+	being created. These will be created when the CD is used on a
+	Macintosh (and stored in the System Folder).
+
+Sun Jul 26 09:44:50 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a4.5
+
+	Fixed serious bug that could cause corrupt output when used with
+	the -J option
+
+Tue Jul 21 14:33:20 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a4.4
+
+	HFS file/directory names that share the first 31 characters have
+	'_N' (N == decimal number) substituted for the last few characters
+	to generate unique names.
+
+	1 year since the first release ...
+
+Sat Jul 11 12:57:04 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a4.3
+
+	Added options to "hide" (options -hide and -hide-joliet) files
+	or directories from the ISO9660/RockRidge and/or Joliet directory
+	trees.
+
+	Renamed the -hfs-exclude option to -hide-hfs to be compatible
+	with the above options.
+
+	Fixed a bug with the -hide-hfs option (very rare case ...)
+	
+Thu Jun 25 20:02:20 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a4.2
+
+	Fixed an HFS bug introduced with v1.12a3.4 that created some
+	corrupt HFS volumes over about 400Mb
+
+	Tighten up checking for MacBinary files to prevent false matches
+
+Sun Jun 21 11:55:09 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a4.1
+
+	Default TYPE and CREATOR can now be set via the .mkisofsrc file
+
+	Order of magic and mapping file on the command line is now
+	important. This defines the order in which TYPE and CREATOR are set.
+
+	Apple/Unix file types found are logged as part of the verbose output
+	(need to give -v twice)
+
+	Added option (-log-file) to redirect stderr messages
+
+	Added option (-hfs-exclude) to exclude files/directories from
+	the HFS part of the CD.
+
+	Fixed a couple of MacBinary/AppleSingle bugs.
+
+Thu Jun  8 23:40:56 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a4.0
+
+	Resource fork file names not added to TRANS.TBL
+
+	Re-enabled support of non-regular Win32 files. GNU-Win32 can
+	create symbolic links etc. These are now recognised.
+
+	mkhybrid man page added.
+
+	Based on mkisofs v1.12b4
+
+Wed May 20 12:54:36 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a3.5
+
+	Added support for using a "magic" file to set CREATOR/TYPE for
+	a file - see README.hfs_magic for details.
+
+Mon May 18 16:22:32 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a3.4
+
+	Added possible support for bootable Mac CDs - see README.hfs_boot 
+	or details.
+
+	Fixed -x bug (mkisofs v1.12 bug)
+
+Mon May  4 14:23:46 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a3.3
+
+	Added support for UShare Mac/Unix files
+
+	Individual Mac/Unix file types can now be selected instead
+	of searching for all possible types. See README.mkhybrid for
+	details.
+
+Fri May  1 10:34:29 BST 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a3.2
+
+	Various bug fixes to Mac file names
+
+Tue Mar 10 14:42:03 GMT 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a3.1
+
+	Added -no-hfs-files option that assumes there are no Unix/Mac
+	files (CAP, Netatalk, etc) - speeds up processing in these cases
+
+	Case insensitive HFS file/folder names that are the same are now
+	allowed - one or more '_' characters are added to one or more of
+	the filenames.
+
+	(Changed -macname option to -mac-name option)
+
+Mon Feb 23 16:09:27 GMT 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a3.0
+
+	Based on mkisofs v1.12b3
+
+	Fixed serious HFS bug that crept in from v1.11 -> v1.12
+
+Tue Feb 17 16:20:12 GMT 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a2.0
+
+	Based on mkisofs v1.12b2
+
+	Improved Win32 support: using -r now makes all files executable
+	when run under Win95/NT4
+	
+Tue Feb  3 10:30:18 GMT 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a1.2
+
+	Fixed memory bug when used without any HFS options
+
+	Improved PC Exchange support (although still needs testing)
+
+Tue Jan 27 10:32:26 GMT 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a1.1
+
+	Can now handle multiple hard linked source files with the -hfs option
+	(multiple hard linked source files are handled as separate files)
+
+	configure script changed to check for ranlib
+
+	Fixed a couple of AppleSingle bugs.
+
+	Added option to use Mac names as starting point for ISO9660, Joliet
+	and RockRidge names
+
+Wed Jan 21 14:00:56 GMT 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.12a1
+
+	See README.mkhybrid for details
+
+Fri Jan 16 17:09:48 GMT 1998  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 1.11
+
+	Changed version numbering to be the same as mkisofs
+
+	Code no longer considered beta level
+
+	Minor changes to allow the code to be complied and run
+	on Win95/NT using Cygnus' GNU-Win32 (available from
+	http://www.cygnus.com/misc/gnu-win32/)
+	
+Thu Dec  4 17:17:45 GMT 1997  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 0.49b
+
+	Fixed an HFS bug that caused a failure with directory names that
+	had special AUFS characters
+
+	Fixed mkisofs bug in eltorito.c that wrote warning messages
+	to stdout not stderr
+
+	Code no longer considered alpha level
+
+Thu Nov 27 19:00:02 GMT 1997  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 0.48a
+
+	Added Apple's extensions to ISO9660 that can be used instead of
+	the HFS options (see README.mkhybrid for more details).
+
+	Added more verbose HFS error messages.
+
+	Changed the Joliet option flag to -J (-j still works) to be
+	compatible the with next release of mkisofs (v1.12)
+
+Wed Oct 15 11:16:21 BST 1997  James Pearson <j.pearson@ge.ucl.ac.uk>
+
+	Version 0.47a
+
+	Fixed bug that prevented volume_space_size not being set in the
+	PVD (or SVD)
+	
+Mon Oct  6 15:46:24 BST 1997  James Pearson <j.pearson@ps.ucl.ac.uk>
+
+	Version 0.46a
+
+	Small Joliet bug fix - source directories that are not readable
+	are set to empty ordinary files in the ISO9660 filesystem - this
+	is now true for the Joliet directory (partially responsible
+	for NT4 having problems with CDs where this happened)
+
+	Minor documentation updates.
+
+Mon Sep 15 14:15:11 BST 1997  James Pearson <j.pearson@ps.ucl.ac.uk>
+
+	Version 0.45a
+
+	Attempt to prevent the HFS Catalog file growing (see
+	"Implementation" in README.mkhybrid for more details)
+	This is only likely to be a problem where folders have lots
+	of small files.
+
+Mon Aug 18 12:00:24 BST 1997  James Pearson <j.pearson@ps.ucl.ac.uk>
+
+	Version 0.44a
+
+	If the directories were deeper than 8 and the -D flag was not
+	used, then the "rr_moved" directory was not added to the Joliet
+	directory tree. This has now been fixed - but one day, the deep
+	Joliet directories may not have to be relocated ...
+
+	Fixed memcmp problem with possible uninitialised memory in
+	j_compare_paths(), which *might* cause incorrect Joliet directory
+	sort order
+
+Wed Aug 13 14:58:56 BST 1997  James Pearson <j.pearson@ps.ucl.ac.uk>
+
+	Version 0.43a
+
+	Fixed bug for incorrect Joliet path table size
+
+	Fixed some old minor mkisofs bugs (TRANS.TBL not having a
+	version number by default and incorrect date in the PVD).
+
+Mon Aug 11 17:17:07 BST 1997  James Pearson <j.pearson@ps.ucl.ac.uk>
+
+	Version 0.42a
+
+	Now will not try to create the HFS "Desktop DB" and "Desktop DF"
+	if they already exist when used with the HFS options.
+
+	Fixed a serious bug in the hfs code that truncated some files.
+
+	"TRANS.TBL" was missed out of the Joliet directory if the -T
+	option was given (previously an empty file with no name was used
+	which could cause problems on NT 4)
+
+Fri Aug  8 10:19:46 BST 1997  James Pearson <j.pearson@ps.ucl.ac.uk>
+
+	Version 0.41a
+
+	Fixed bug which created invalid HFS/ISO9660 volumes if the -j (Joliet)
+	option was not used
+
+Mon Aug  4 15:08:43 BST 1997  James Pearson <j.pearson@ps.ucl.ac.uk>
+
+	Version 0.4a
+
+	Added (partial?) Joliet support.
+
+	Now based on mkisofs v1.11
+
+Tue Jul 29 11:57:14 BST 1997  James Pearson <j.pearson@ps.ucl.ac.uk>
+
+	Version 0.32a
+
+	Allocation sizes improved to cut down on wasted space. Now uses
+	the HFS "allocation" size rounded up to the nearest 2048 bytes.
+	Savings can be significant with a large volume containing lots
+	of smallish files.
+
+Wed Jul 23 15:36:08 BST 1997  James Pearson <j.pearson@ps.ucl.ac.uk>
+
+	Version 0.31a
+
+	Deep directories (greater than RR_relocation_depth) cause core
+	dump in "copy_to_mac_volume" as the relocated directory was not
+	marked as an HFS folder. Fixed by putting deep HFS folders in
+	their correct location. 
+
+Mon Jul 21 15:50:05 BST 1997  James Pearson <j.pearson@ps.ucl.ac.uk>
+
+	Version 0.3a, first public release.

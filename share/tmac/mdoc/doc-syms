@@ -1,0 +1,478 @@
+.\"	$OpenBSD: doc-syms,v 1.60 2009/10/04 07:24:48 jmc Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)doc-syms	8.1 (Berkeley) 6/8/93
+.\"
+.\"     %beginstrip%
+.\" NS Ux macro - UNIX
+.de Ux
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.as b1 \&\\*(tNUNIX\\*(aa
+.rm aa
+.if \\n(aC==0 \{\
+.       if \\n(.$>0 .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.\}
+.ie \\n(aC>\\n(aP \{\
+.       nr aP \\n(aP+1
+.       ie \\n(C\\n(aP==1 \{\
+.               \\*(A\\n(aP
+.       \}
+.       el .nR
+.\}
+.el .aZ
+..
+.\" NS Bx macro -BSD (fix smaller nroff version)
+.de Bx
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.if \\n(aC==0 \{\
+.\" .       ie \\n(.$==0 \&\\*(tNBSD\\*(aa \\*(tNUNIX\\*(aa
+.       ie \\n(.$==0 \&\\*(tNBSD\\*(aa
+.       el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.\}
+.if "\\$1"-alpha" \{\
+\&currently in alpha test.
+.	aY
+.\}
+.if "\\$1"-beta" \{\
+\&currently in beta test.
+.	aY
+.\}
+.if "\\$1"-devel" \{\
+\&currently under development.
+.	aY
+.\}
+.if \\n(aC>\\n(aP \{\
+.       nr aP \\n(aP+1
+.	ie \\n(C\\n(aP==2 \{\
+.		as b1 \&\\*(A\\n(aP\&\\*(tNBSD\\*(aa
+.		ie \\n(aC>\\n(aP \{\
+.			nr jj \\n(aP+1
+.			ie \\n(C\\n(jj==2 \{\
+.				if "\\*(A\\n(jj"Reno" \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-\\*(A\\n(jj
+.				\}
+.				if "\\*(A\\n(jj"reno" \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-Reno
+.				\}
+.				if "\\*(A\\n(jj"Tahoe" \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-\\*(A\\n(jj
+.				\}
+.				if "\\*(A\\n(jj"tahoe" \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-Tahoe
+.				\}
+.				ie \\n(aC>\\n(aP \{\
+.					nr aP \\n(aP+1
+.					nR
+.				\}
+.				el .aZ
+.			\}
+.			el \{\
+.				nr aP \\n(aP+1
+.				nR
+.			\}
+.			rr jj
+.		\}
+.		el .aZ
+.	\}
+.	el \{\
+.	       as b1 \&\\*(tNBSD\\*(aa
+.	       nR
+.	\}
+.\}
+..
+.\" Ns Ud macro - prints "currently under development" (HISTORY section)
+.de Ud
+\&currently under development.
+..
+.\" NS Nx macro - NetBSD
+.de Nx
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.if \\n(aC==0 \{\
+.	ie \\n(.$==0 \&NetBSD\\*(aa
+.	el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.\}
+.if \\n(aC>\\n(aP \{\
+.	nr aP \\n(aP+1
+.	ie \\n(C\\n(aP==2 \{\
+.		if "\\*(A\\n(aP"0.8"    .as b1 \&NetBSD\ 0.8\\*(aa
+.		if "\\*(A\\n(aP"0.8a"   .as b1 \&NetBSD\ 0.8A\\*(aa
+.		if "\\*(A\\n(aP"0.9"    .as b1 \&NetBSD\ 0.9\\*(aa
+.		if "\\*(A\\n(aP"0.9a"   .as b1 \&NetBSD\ 0.9A\\*(aa
+.		if "\\*(A\\n(aP"1.0"    .as b1 \&NetBSD\ 1.0\\*(aa
+.		if "\\*(A\\n(aP"1.0a"   .as b1 \&NetBSD\ 1.0A\\*(aa
+.		if "\\*(A\\n(aP"1.1"    .as b1 \&NetBSD\ 1.1\\*(aa
+.		if "\\*(A\\n(aP"1.1a"   .as b1 \&NetBSD\ 1.1A\\*(aa
+.		if "\\*(A\\n(aP"1.2"    .as b1 \&NetBSD\ 1.2\\*(aa
+.		if "\\*(A\\n(aP"1.2a"   .as b1 \&NetBSD\ 1.2A\\*(aa
+.		if "\\*(A\\n(aP"1.2b"   .as b1 \&NetBSD\ 1.2B\\*(aa
+.		if "\\*(A\\n(aP"1.2c"   .as b1 \&NetBSD\ 1.2C\\*(aa
+.		if "\\*(A\\n(aP"1.2d"   .as b1 \&NetBSD\ 1.2D\\*(aa
+.		if "\\*(A\\n(aP"1.2e"   .as b1 \&NetBSD\ 1.2E\\*(aa
+.		if "\\*(A\\n(aP"1.3"    .as b1 \&NetBSD\ 1.3\\*(aa
+.		if "\\*(A\\n(aP"1.3a"   .as b1 \&NetBSD\ 1.3A\\*(aa
+.		if "\\*(A\\n(aP"1.4"    .as b1 \&NetBSD\ 1.4\\*(aa
+.		if "\\*(A\\n(aP"1.5"    .as b1 \&NetBSD\ 1.5\\*(aa
+.		if "\\*(A\\n(aP"1.5.1"  .as b1 \&NetBSD\ 1.5.1\\*(aa
+.		if "\\*(A\\n(aP"1.6"    .as b1 \&NetBSD\ 1.6\\*(aa
+.		if "\\*(A\\n(aP"1.6.2"  .as b1 \&NetBSD\ 1.6.2\\*(aa
+.		if "\\*(A\\n(aP"2.0"    .as b1 \&NetBSD\ 2.0\\*(aa
+.		if "\\*(A\\n(aP"3.0"    .as b1 \&NetBSD\ 3.0\\*(aa
+.		if "\\*(A\\n(aP"4.0"    .as b1 \&NetBSD\ 4.0\\*(aa
+.		if "\\*(A\\n(aP"5.0"    .as b1 \&NetBSD\ 5.0\\*(aa
+.		ie \\n(aC>\\n(aP \{\
+.			nr aP \\n(aP+1
+.			nR
+.		\}
+.		el .aZ
+.	\}
+.	el \{\
+.		as b1 \&NetBSD\\*(aa
+.		nR
+.	\}
+.\}
+..
+.\" NS Ox macro - OpenBSD
+.de Ox
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.if \\n(aC==0 \{\
+.	ie \\n(.$==0 \&OpenBSD\\*(aa
+.	el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.\}
+.if \\n(aC>\\n(aP \{\
+.	nr aP \\n(aP+1
+.	ie \\n(C\\n(aP==2 \{\
+.		as b1 \&OpenBSD\ \&\\*(A\\n(aP\\*(aa
+.		ie \\n(aC>\\n(aP \{\
+.			nr aP \\n(aP+1
+.			nR
+.		\}
+.		el .aZ
+.	\}
+.	el \{\
+.		as b1 \&OpenBSD\\*(aa
+.		nR
+.	\}
+.\}
+..
+.\" NS Fx macro -- FreeBSD
+.de Fx
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.if \\n(aC==0 \{\
+.       ie \\n(.$==0 \&FreeBSD\\*(aa
+.       el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.\}
+.if \\n(aC>\\n(aP \{\
+.       nr aP \\n(aP+1
+.	ie \\n(C\\n(aP==2 \{\
+.		as b1 \&FreeBSD\ \&\\*(A\\n(aP\\*(aa
+.		ie \\n(aC>\\n(aP \{\
+.			nr aP \\n(aP+1
+.			nR
+.		\}
+.		el .aZ
+.	\}
+.	el \{\
+.	       as b1 \&FreeBSD\\*(aa
+.	       nR
+.	\}
+.\}
+..
+.\" NS Bsx macro -- BSDI BSD/OS
+.de Bsx
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.if \\n(aC==0 \{\
+.       ie \\n(.$==0 \&\\*(tNBSDI BSD/OS\\*(aa
+.       el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.\}
+.if \\n(aC>\\n(aP \{\
+.       nr aP \\n(aP+1
+.	ie \\n(C\\n(aP==2 \{\
+.		as b1 \&\\*(tNBSDI BSD/OS\ \&\\*(A\\n(aP\\*(aa
+.		ie \\n(aC>\\n(aP \{\
+.			nr aP \\n(aP+1
+.			nR
+.		\}
+.		el .aZ
+.	\}
+.	el \{\
+.	       as b1 \&\\*(tNBSDI BSD/OS\\*(aa
+.	       nR
+.	\}
+.\}
+..
+.\" Ns At macro - AT&T UNIX (this macro does not handle punctuation)
+.de At
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.if \\n(.$==2 \{\
+.	if "\\$1"32v" \&Version 32V \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"v1"  \&Version 1 \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"v2"  \&Version 2 \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"v3"  \&Version 3 \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"v4"  \&Version 4 \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"v5"  \&Version 5 \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"v6"  \&Version 6 \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"v7"  \&Version 7 \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"V"  \&\\*(tNAT&T\\*(aa System V \\*(tNUNIX\\*(aa\\$2
+.	if "\\$1"V.1"  \&\\*(tNAT&T\\*(aa System V.1 \\*(tNUNIX\\*(aa\\$2
+.	if "\\$1"V.2"  \&\\*(tNAT&T\\*(aa System V.2 \\*(tNUNIX\\*(aa\\$2
+.	if "\\$1"V.3"  \&\\*(tNAT&T\\*(aa System V.3 \\*(tNUNIX\\*(aa\\$2
+.	if "\\$1"V.4"  \&\\*(tNAT&T\\*(aa System V.4 \\*(tNUNIX\\*(aa\\$2
+.\}
+.if \\n(.$==1 \{\
+.	if "\\$1"32v" \&Version 32V \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"v1"  \&Version 1 \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"v2"  \&Version 2 \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"v3"  \&Version 3 \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"v4"  \&Version 4 \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"v5"  \&Version 5 \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"v6"  \&Version 6 \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"v7"  \&Version 7 \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"V"  \&\\*(tNAT&T\\*(aa System V \\*(tNUNIX\\*(aa
+.	if "\\$1"V.1"  \&\\*(tNAT&T\\*(aa System V.1 \\*(tNUNIX\\*(aa
+.	if "\\$1"V.2"  \&\\*(tNAT&T\\*(aa System V.2 \\*(tNUNIX\\*(aa
+.	if "\\$1"V.3"  \&\\*(tNAT&T\\*(aa System V.3 \\*(tNUNIX\\*(aa
+.	if "\\$1"V.4"  \&\\*(tNAT&T\\*(aa System V.4 \\*(tNUNIX\\*(aa
+.\}
+.if \\n(.$==0 \{\
+\&\\*(tNAT&T UNIX\\*(aa
+.\}
+..
+.\" The Bt macro should go away now
+.\" Ns Bt macro - prints "is currently in beta test." (HISTORY section)
+.de Bt
+\&is currently in beta test.
+..
+.\" NS St macro - standards (posix, ansi - formal standard names)
+.ds Px \\*(tNPOSIX
+.ds Ai \\*(tNANSI
+.de St
+.if \\n(aC==0 \{\
+.	ie \\n(.$==0 \{\
+.tm Usage: .St [-p1003.1-88 | -p1003.1-90 | -p1003.1-96 | -p1003.1-2001 | -p1003.1-2004 | -p1003.1-2008 | -p1003.1 | -p1003.1b | -p1003.1b-93 | -p1003.1c-95 | -p1003.1g-2000 | -p1003.2-92 | -p1003.2-95 | -p1003.2 | -p1387.2 | -isoC-90 | -isoC-amd1 | -isoC-tcor1 | -isoC-tcor2 | -isoC-99 | -ansiC | -ansiC-89 | -ansiC-99 | -ieee754 | -iso8802-3 | -xpg3 | -xpg4 | -xpg4.2 | -xpg4.3 | -xbd5 | -xcu5 | -xsh5 | -xns5 | -xns5.2d2.0 | -xcurses4.2 | -susv2 | -susv3 | -svid4] \\*(Pu ... (#\\n(.c)
+.	\}
+.	el \{\
+.		ds mN St
+.		nr aP 0
+.		ds A1 \\$1
+.		ds A2 \\$2
+.		ds A3 \\$3
+.		ds A4 \\$4
+.		ds A5 \\$5
+.		ds A6 \\$6
+.		ds A7 \\$7
+.		ds A8 \\$8
+.		ds A9 \\$9
+.		nr fV \\n(.$
+.		fV
+.	\}
+.\}
+.if \\n(aC>\\n(aP \{\
+.	nr cF \\n(.f
+.	nr cZ \\n(.s
+.	ds aa \&\f\\n(cF\s\\n(cZ
+.	nr aP \\n(aP+1
+.       if "\\*(A\\n(aP"-p1003.1-88" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1-1988\\*(sV
+.		as b1 (``\\*(tN\\*(Px\\*(aa'')
+.	\}
+.       if "\\*(A\\n(aP"-p1003.1-90" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1-1990\\*(sV
+.		as b1 (``\\*(tN\\*(Px\\*(aa'')
+.       \}
+.	if "\\*(A\\n(aP"-p1003.1-96" \{\
+.		ds b1 \&\\*(tNISO/IEC \\*(aa9945-1:1996\\*(sV
+.		as b1 (``\\*(tN\\*(Px\\*(aa'')
+.	\}
+.       if "\\*(A\\n(aP"-p1003.1-2001" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1-2001\\*(sV
+.		as b1 (``\\*(tN\\*(Px\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-p1003.1-2004" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1-2004\\*(sV
+.		as b1 (``\\*(tN\\*(Px\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-p1003.1-2008" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1-2008\\*(sV
+.		as b1 (``\\*(tN\\*(Px\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-p1003.1" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1\\*(sV
+.		as b1 (``\\*(tN\\*(Px\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-p1003.1b" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1b\\*(sV
+.		as b1 (``\\*(tN\\*(Px\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-p1003.1b-93" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1b-1993\\*(sV
+.		as b1 (``\\*(tN\\*(Px\\*(aa'')
+.       \}
+.	if "\\*(A\\n(aP"-p1003.1c-95" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1c-1995\\*(sV
+.		as b1 (``\\*(tN\\*(Px\\*(aa'')
+.	\}
+.       if "\\*(A\\n(aP"-p1003.1g-2000" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1g-2000\\*(sV
+.		as b1 (``\\*(tN\\*(Px\\*(aa'')
+.	\}
+.       if "\\*(A\\n(aP"-p1003.2-92" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.2-1992\\*(sV
+.		as b1 (``\\*(tN\\*(Px.2\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-p1387.2-95" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1387.2-1995\\*(sV
+.		as b1 (``\\*(tN\\*(Px.7.2\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-p1003.2" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.2\\*(sV
+.		as b1 (``\\*(tN\\*(Px.2\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-p1387.2" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1387.2\\*(sV
+.		as b1 (``\\*(tN\\*(Px.7.2\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-isoC-90" \{\
+.		ds b1 \&\\*(tNISO/IEC \\*(aa9899:1990\\*(sV
+.		as b1 (``\\*(tNISO C90\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-isoC-amd1" \{\
+.		ds b1 \&\\*(tNISO/IEC \\*(aa9899/AMD1:1995\\*(sV
+.		as b1 (``\\*(tNISO C90\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-isoC-tcor1" \{\
+.		ds b1 \&\\*(tNISO/IEC \\*(aa9899/TCOR1:1994\\*(sV
+.		as b1 (``\\*(tNISO C90\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-isoC-tcor2" \{\
+.		ds b1 \&\\*(tNISO/IEC \\*(aa9899/TCOR2:1995\\*(sV
+.		as b1 (``\\*(tNISO C90\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-isoC-99" \{\
+.		ds b1 \&\\*(tNISO/IEC \\*(aa9899:1999\\*(sV
+.		as b1 (``\\*(tNISO C99\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-ansiC" \{\
+.		ds b1 \&\\*(tNANSI \\*(aaX3.159-1989\\*(sV
+.		as b1 (``\\*(tNANSI C\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-ansiC-89" \{\
+.		ds b1 \&\\*(tNANSI \\*(aaX3.159-1989\\*(sV
+.		as b1 (``\\*(tNANSI C\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-ansiC-99" \{\
+.		ds b1 \&\\*(tNANSI/ISO/IEC \\*(aa9899-1999\\*(sV
+.		as b1 (``\\*(tNANSI C99\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-ieee754" \{\
+.		ds b1 \&\\*(tNIEEE Std \\*(aa754-1985
+.       \}
+.       if "\\*(A\\n(aP"-iso8802-3" \{\
+.		ds b1 \&\\*(tNISO \\*(aa8802-3: 1989\\*(sV
+.\" .		as b1 (``\\*(tNANSI C\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-xpg3" \{\
+.		ds b1 \&X/Open Portability Guide Issue 3\\*(aa\\*(sV
+.		as b1 (``\\*(tNXPG3\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-xpg4" \{\
+.		ds b1 \&X/Open Portability Guide Issue 4\\*(aa\\*(sV
+.		as b1 (``\\*(tNXPG4\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-xpg4.2" \{\
+.		ds b1 \&X/Open Portability Guide Issue 4.2\\*(aa\\*(sV
+.		as b1 (``\\*(tNXPG4.2\\*(aa'')
+.       \}
+.       if "\\*(A\\n(aP"-xpg4.3" \{\
+.		ds b1 \&X/Open Portability Guide Issue 4.3\\*(aa\\*(sV
+.		as b1 (``\\*(tNXPG4.3\\*(aa'')
+.       \}
+.	if "\\*(A\\n(aP"-xbd5" \{\
+.		ds b1 \&X/Open System Interface Definitions Issue 5\\*(sV
+.		as b1 (``\\*(tNXBD5\\*(aa'')
+.	\}
+.	if "\\*(A\\n(aP"-xcu5" \{\
+.		ds b1 \&X/Open Commands and Utilities Issue 5\\*(sV
+.		as b1 (``\\*(tNXCU5\\*(aa'')
+.	\}
+.	if "\\*(A\\n(aP"-xsh5" \{\
+.		ds b1 \&X/Open System Interfaces and Headers Issue 5\\*(sV
+.		as b1 (``\\*(tNXSH5\\*(aa'')
+.	\}
+.	if "\\*(A\\n(aP"-xns5" \{\
+.		ds b1 \&X/Open Networking Services Issue 5\\*(sV
+.		as b1 (``\\*(tNXNS5\\*(aa'')
+.	\}
+.	if "\\*(A\\n(aP"-xns5.2d2.0" \{\
+.		ds b1 \&X/Open Networking Services Issue 5.2 Draft 2.0\\*(sV
+.		as b1 (``\\*(tNXNS5.2D2.0\\*(aa'')
+.	\}
+.	if "\\*(A\\n(aP"-xcurses4.2" \{\
+.		ds b1 \&X/Open Curses Issue 4 Version 2\\*(sV
+.		as b1 (``\\*(tNXCURSES4.2\\*(aa'')
+.	\}
+.	if "\\*(A\\n(aP"-susv2" \{\
+.		ds b1 \&Version 2 of the Single\\*(aa\\*(sV
+.		as b1 \&\\*(tNUNIX\\*(aa\\*(sV
+.		as b1 \&Specification\\*(aa
+.	\}
+.	if "\\*(A\\n(aP"-susv3" \{\
+.		ds b1 \&Version 3 of the Single\\*(aa\\*(sV
+.		as b1 \&\\*(tNUNIX\\*(aa\\*(sV
+.		as b1 \&Specification\\*(aa
+.	\}
+.       if "\\*(A\\n(aP"-svid4" \{\
+.		ds b1 System V Interface Definition
+.		as b1 , Fourth Edition\\*(sV
+.		as b1 (``\\*(tNSVID4\\*(aa'')
+.       \}
+.	ie \\n(aC>\\n(aP \{\
+.		nr aP \\n(aP+1
+.		nR
+.	\}
+.	el .aZ
+.\}
+..

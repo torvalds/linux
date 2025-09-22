@@ -1,0 +1,218 @@
+.\"	$OpenBSD: environ.7,v 1.22 2020/02/09 00:11:23 jsg Exp $
+.\"	$NetBSD: environ.7,v 1.4 1995/07/03 19:45:07 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)environ.7	8.3 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: February 9 2020 $
+.Dt ENVIRON 7
+.Os
+.Sh NAME
+.Nm environ
+.Nd user environment
+.Sh SYNOPSIS
+.Vt extern char **environ ;
+.Sh DESCRIPTION
+An array of strings called the
+.Dq environment
+is made available by
+.Xr execve 2
+when a process begins.
+By convention these strings have the form
+.Ar name Ns = Ns Ar value .
+The following variables are recognized by various commands:
+.Bl -tag -width BLOCKSIZE
+.It Ev BLOCKSIZE
+The size of the block units used by several commands, most notably
+.Xr df 1 ,
+.Xr du 1 ,
+and
+.Xr ls 1 .
+May be specified in units of a byte by specifying a number,
+in units of a kilobyte by specifying a number followed by
+.Sq K
+or
+.Sq k ,
+in units of a megabyte by specifying a number followed by
+.Sq M
+or
+.Sq m ,
+or in units of a gigabyte by specifying a number followed
+by
+.Sq G
+or
+.Sq g .
+Sizes less than 512 bytes or greater than a gigabyte are ignored.
+.It Ev EXINIT
+A list of startup commands read by
+.Xr ex 1
+and
+.Xr vi 1 .
+.It Ev HOME
+The user's login directory, set by
+.Xr login 1
+from the password file
+.Xr passwd 5 .
+.It Ev LOGNAME
+The login name of the user.
+.It Ev PATH
+The sequence of directories, separated by colons, searched by
+.Xr csh 1 ,
+.Xr sh 1 ,
+.Xr ksh 1 ,
+.Xr system 3 ,
+.Xr execvp 3 ,
+etc. when looking for an executable file.
+Initially set to the value of
+.Dv _PATH_DEFPATH
+by
+.Xr login 1 ,
+traditionally
+.Pa /usr/bin:/bin ,
+but expanded to include
+.Pa /usr/sbin ,
+.Pa /sbin ,
+.Pa /usr/X11R6/bin ,
+.Pa /usr/local/bin ,
+and
+.Pa /usr/local/sbin
+in
+.Ox .
+.It Ev PRINTER
+The name of the default printer to be used by
+.Xr lpq 1 ,
+.Xr lpr 1 ,
+and
+.Xr lprm 1 .
+.It Ev PWD
+The current working directory.
+.It Ev SHELL
+The full pathname of the user's login shell.
+.It Ev TERM
+The kind of terminal for which output is to be prepared.
+This information is used by commands such as
+.Xr mandoc 1
+which may exploit special terminal capabilities.
+See
+.Pa /usr/share/misc/termcap
+.Pq Xr termcap 5
+for a list of terminal types.
+.It Ev TERMCAP
+The string describing the terminal in
+.Ev TERM ,
+or, if it begins with a
+.Ql / ,
+the name of the termcap file.
+See
+.Ev TERMPATH
+below,
+.Xr termcap 5 ,
+and
+.Xr termcap 3 .
+.It Ev TERMPATH
+A sequence of pathnames of termcap files, separated by colons or spaces,
+which are searched for terminal descriptions in the order listed.
+Having no
+.Ev TERMPATH
+is equivalent to a
+.Ev TERMPATH
+of
+.Pa $HOME/.termcap:/etc/termcap .
+.Ev TERMPATH
+is ignored if
+.Ev TERMCAP
+contains a full pathname.
+.It Ev TMPDIR
+The directory in which to store temporary files.
+Most applications use either
+.Pa /tmp
+or
+.Pa /var/tmp .
+Setting this variable will make them use another directory.
+.It Ev TZ
+The time zone to use when displaying dates.
+The normal format is a pathname relative to
+.Pa /usr/share/zoneinfo .
+For example, the command
+.Ic env TZ=America/Los_Angeles date
+displays the current time in California.
+See
+.Xr tzset 3
+for more information.
+.It Ev USER
+Deprecated synonym of
+.Ev LOGNAME
+(for backwards compatibility).
+.El
+.Pp
+Further names may be placed in the environment by the
+.Ic export
+command and
+.Ar name Ns = Ns Ar value
+arguments in
+.Xr sh 1 ,
+or by the
+.Ic setenv
+command if you use
+.Xr csh 1 .
+It is unwise to change certain
+.Xr sh 1
+variables that are frequently exported by
+.Pa .profile
+files, such as
+.Ev MAIL ,
+.Ev PS1 ,
+.Ev PS2 ,
+and
+.Ev IFS ,
+unless you know what you are doing.
+.Pp
+The current environment variables can be printed with
+.Xr env 1
+or
+.Xr printenv 1 .
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr env 1 ,
+.Xr ex 1 ,
+.Xr login 1 ,
+.Xr printenv 1 ,
+.Xr sh 1 ,
+.Xr execve 2 ,
+.Xr execle 3 ,
+.Xr getenv 3 ,
+.Xr system 3 ,
+.Xr termcap 3 ,
+.Xr tzset 3 ,
+.Xr termcap 5
+.Sh HISTORY
+An
+.Nm
+manual page appeared in
+.At v7 .

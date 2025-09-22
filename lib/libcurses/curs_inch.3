@@ -1,0 +1,120 @@
+'\" t
+.\" $OpenBSD: curs_inch.3,v 1.5 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_inch.3,v 1.5 2023/10/17 09:52:08 nicm Exp $
+.TH curs_inch 3 2023-08-19 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fBinch\fP,
+\fBwinch\fP,
+\fBmvinch\fP,
+\fBmvwinch\fP \- get a character and attributes from a \fBcurses\fP window
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBchtype inch(void);\fP
+.br
+\fBchtype winch(WINDOW *\fIwin\fB);\fR
+.sp
+\fBchtype mvinch(int \fIy\fB, int \fIx\fB);\fR
+.br
+\fBchtype mvwinch(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB);\fR
+.SH DESCRIPTION
+These routines return the character, of type \fBchtype\fP, at the current
+position in the named window.
+If any attributes are set for that position,
+their values are OR'ed into the value returned.
+Constants defined in
+\fB<curses.h>\fP can be used with the \fB&\fP (logical AND) operator to
+extract the character or attributes alone.
+.
+.SS Attributes
+The following bit-masks may be AND-ed with characters returned by \fBwinch\fP.
+.PP
+.TS
+l l .
+\fBA_CHARTEXT\fP	Bit-mask to extract character
+\fBA_ATTRIBUTES\fP	Bit-mask to extract attributes
+\fBA_COLOR\fP	Bit-mask to extract color-pair field information
+.TE
+.SH RETURN VALUE
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.PP
+The \fBwinch\fP function does not return an error if the window contains
+characters larger than 8-bits (255).
+Only the low-order 8 bits of the character are used by \fBwinch\fP.
+.SH NOTES
+Note that all of these routines may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+.PP
+Very old systems (before standardization) provide a different function
+with the same name:
+.bP
+The \fBwinch\fP function was part of the original BSD curses library,
+which stored a 7-bit character combined with the \fIstandout\fP attribute.
+.IP
+In BSD curses, \fBwinch\fP returned only the character (as an integer)
+with the \fIstandout\fP attribute removed.
+.bP
+System V curses added support for several video attributes which
+could be combined with characters in the window.
+.IP
+Reflecting this improvement, the function was altered to return the
+character combined with all video attributes in a \fBchtype\fP value.
+.PP
+X/Open Curses does not specify
+the size and layout of attributes, color and character values in
+\fBchtype\fP; it is implementation-dependent.
+This implementation uses 8 bits for character values.
+An application using more bits, e.g., a Unicode value,
+should use the wide-character equivalents to these functions.
+.SH SEE ALSO
+.TP 5
+\fBcurses\fP(3)
+gives an overview of the WINDOW and \fBchtype\fP data types.
+.TP 5
+\fBcurs_attr\fP(3)
+goes into more detail, pointing out portability problems and
+constraints on the use of \fBchtype\fP for returning window information.
+.TP 5
+\fBcurs_in_wch\fP(3)
+describes comparable functions for the wide-character (ncursesw) library.

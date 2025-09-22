@@ -1,0 +1,125 @@
+.\" $OpenBSD: intrmap_create.9,v 1.4 2022/07/31 12:55:31 denis Exp $
+.\"
+.\" Copyright (c) 2020 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 31 2022 $
+.Dt INTRMAP_CREATE 9
+.Os
+.Sh NAME
+.Nm intrmap_create ,
+.Nm intrmap_destroy ,
+.Nm intrmap_count ,
+.Nm intrmap_cpu
+.Nd interrupt to CPU mapping API
+.Sh SYNOPSIS
+.In sys/intrmap.h
+.Ft struct intrmap *
+.Fo intrmap_create
+.Fa "const struct device *dv"
+.Fa "unsigned int nintr"
+.Fa "unsigned int maxintr"
+.Fa "unsigned int flags"
+.Fc
+.Ft void
+.Fn intrmap_destroy "struct intrmap *im"
+.Ft unsigned int
+.Fn intrmap_count "struct intrmap *im"
+.Ft struct cpu_info *
+.Fn intrmap_cpu "struct intrmap *im" "unsigned int index"
+.Sh DESCRIPTION
+The interrupt to CPU mapping API supports the use of multiple CPUs
+by hardware drivers.
+Drivers that can use multiple interrupts use the API to request a
+set of CPUs that they can establish those interrupts on.
+The API limits the requested number of interrupts to what is available
+on the system, and attempts to distribute the requested interrupts
+over those CPUs.
+On some platforms the API will filter the set of available CPUs.
+.\" to avoid hyperthreads, basically.
+.Pp
+.Fn intrmap_create
+allocates an interrupt map data structure for use by the driver
+identified by
+.Fa dv .
+The number of interrupts the hardware supports is specified via the
+.Fa nintr
+argument.
+The driver supplies the maximum number of interrupts it can support
+via
+.Fa maxintr ,
+which, along with the number of available CPUs at the time the
+function is called, is used as a constraint on the number of requested
+interrupts.
+.Fa nintr
+may be zero to use the driver limit as the number of requested
+interrupts.
+The
+.Fa flags
+argument may have the following defines OR'ed together:
+.Bl -tag -width xxx -offset indent
+.It Dv INTRMAP_POWEROF2
+The hardware only supports a power of 2 number of interrupts, so
+constrain the number of supplied interrupts after the system and
+driver limits are applied.
+.El
+.Pp
+.Fn intrmap_destroy
+frees the memory associated with the interrupt map data structure
+passed via
+.Fa im .
+.Pp
+.Fn intrmap_count
+returns the number of interrupts that the driver can establish
+according to the
+.Fa im
+interrupt map.
+.Pp
+.Fn intrmap_cpu
+returns which CPU the interrupt specified in
+.Fa index
+should be established on according to the
+.Fa im
+interrupt map.
+Interrupts are identified as a number from 0 to the value returned by
+.Fn intrmap_count .
+.Sh CONTEXT
+.Fn intrmap_create ,
+.Fn intrmap_destroy ,
+.Fn intrmap_count ,
+and
+.Fn intrmap_cpu
+can be called during autoconf, or from process context.
+.Sh RETURN VALUES
+.Fn intrmap_create
+returns a pointer to an interrupt mapping structure on success, or
+.Dv NULL
+on failure.
+.Pp
+.Fn intrmap_count
+returns the number of interrupts that were allocated for the driver
+to use.
+.Pp
+.Fn intrmap_cpu
+returns a pointer to the cpu_info structure for the CPU that the
+interrupt should be established on.
+.\" .Sh SEE ALSO
+.\" .Xr pci_intr_establish_cpuid 9
+.Sh HISTORY
+The interrupt mapping API is based on the if_ringmap API in
+.Dx .
+It was ported to
+.Ox 6.8
+by
+.An David Gwynne Aq Mt dlg@openbsd.org .

@@ -1,0 +1,3 @@
+# Check error on a unsupported mkdir (missing operand).
+#
+# RUN: mkdir -p

@@ -1,0 +1,23 @@
+This is meant to be a general place to list things that should be done "someday"
+
+CXX Runtime Library Tasks
+=========================
+* Look into mirroring libsupc++'s typeinfo vtable layout when libsupc++/libstdc++
+  is used as the runtime library.
+* Investigate and document interoperability between libc++ and libstdc++ on
+  linux. Do this for every supported c++ runtime library.
+
+Atomic Related Tasks
+====================
+* future should use <atomic> for synchronization.
+
+Test Suite Tasks
+================
+* Improve the quality and portability of the locale test data.
+* Convert failure tests to use Clang Verify.
+
+Misc Tasks
+==========
+* Find all sequences of >2 underscores and eradicate them.
+* run clang-tidy on libc++
+* Document the "conditionally-supported" bits of libc++

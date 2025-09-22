@@ -1,0 +1,480 @@
+.\" $OpenBSD: SSL_CTX_set_verify.3,v 1.10 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL 9b86974e Aug 17 15:21:33 2015 -0400
+.\" selective merge up to: OpenSSL 1cb7eff4 Sep 10 13:56:40 2019 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2000, 2001, 2002, 2003, 2014 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_VERIFY 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_verify ,
+.Nm SSL_set_verify ,
+.Nm SSL_CTX_set_verify_depth ,
+.Nm SSL_set_verify_depth
+.Nd set peer certificate verification parameters
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft void
+.Fo SSL_CTX_set_verify
+.Fa "SSL_CTX *ctx"
+.Fa "int mode"
+.Fa "int (*verify_callback)(int, X509_STORE_CTX *)"
+.Fc
+.Ft void
+.Fo SSL_set_verify
+.Fa "SSL *s"
+.Fa "int mode"
+.Fa "int (*verify_callback)(int, X509_STORE_CTX *)"
+.Fc
+.Ft void
+.Fn SSL_CTX_set_verify_depth "SSL_CTX *ctx" "int depth"
+.Ft void
+.Fn SSL_set_verify_depth "SSL *s" "int depth"
+.Ft int
+.Fn verify_callback "int preverify_ok" "X509_STORE_CTX *x509_ctx"
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_verify
+sets the verification flags for
+.Fa ctx
+to be
+.Fa mode
+and
+specifies the
+.Fa verify_callback
+function to be used.
+If no callback function shall be specified, the
+.Dv NULL
+pointer can be used for
+.Fa verify_callback .
+.Pp
+.Fn SSL_set_verify
+sets the verification flags for
+.Fa ssl
+to be
+.Fa mode
+and specifies the
+.Fa verify_callback
+function to be used.
+If no callback function shall be specified, the
+.Dv NULL
+pointer can be used for
+.Fa verify_callback .
+In this case last
+.Fa verify_callback
+set specifically for this
+.Fa ssl
+remains.
+If no special callback was set before, the default callback for the underlying
+.Fa ctx
+is used, that was valid at the time
+.Fa ssl
+was created with
+.Xr SSL_new 3 .
+Within the callback function,
+.Xr SSL_get_ex_data_X509_STORE_CTX_idx 3
+can be called to get the data index of the current
+.Vt SSL
+object that is doing the verification.
+.Pp
+.Fn SSL_CTX_set_verify_depth
+sets the maximum
+.Fa depth
+for the certificate chain verification that shall be allowed for
+.Fa ctx .
+(See the
+.Sx BUGS
+section.)
+.Pp
+.Fn SSL_set_verify_depth
+sets the maximum
+.Fa depth
+for the certificate chain verification that shall be allowed for
+.Fa ssl .
+(See the
+.Sx BUGS
+section.)
+.Pp
+The verification of certificates can be controlled by a set of bitwise ORed
+.Fa mode
+flags:
+.Bl -tag -width Ds
+.It Dv SSL_VERIFY_NONE
+.Em Server mode :
+the server will not send a client certificate request to the client,
+so the client will not send a certificate.
+.Pp
+.Em Client mode :
+if not using an anonymous cipher (by default disabled),
+the server will send a certificate which will be checked.
+The result of the certificate verification process can be checked after the
+TLS/SSL handshake using the
+.Xr SSL_get_verify_result 3
+function.
+The handshake will be continued regardless of the verification result.
+.It Dv SSL_VERIFY_PEER
+.Em Server mode :
+the server sends a client certificate request to the client.
+The certificate returned (if any) is checked.
+If the verification process fails,
+the TLS/SSL handshake is immediately terminated with an alert message
+containing the reason for the verification failure.
+The behaviour can be controlled by the additional
+.Dv SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+and
+.Dv SSL_VERIFY_CLIENT_ONCE
+flags.
+.Pp
+.Em Client mode :
+the server certificate is verified.
+If the verification process fails,
+the TLS/SSL handshake is immediately terminated with an alert message
+containing the reason for the verification failure.
+If no server certificate is sent, because an anonymous cipher is used,
+.Dv SSL_VERIFY_PEER
+is ignored.
+.It Dv SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+.Em Server mode :
+if the client did not return a certificate, the TLS/SSL
+handshake is immediately terminated with a
+.Dq handshake failure
+alert.
+This flag must be used together with
+.Dv SSL_VERIFY_PEER .
+.Pp
+.Em Client mode :
+ignored
+.It Dv SSL_VERIFY_CLIENT_ONCE
+.Em Server mode :
+only request a client certificate on the initial TLS/SSL handshake.
+Do not ask for a client certificate again in case of a renegotiation.
+This flag must be used together with
+.Dv SSL_VERIFY_PEER .
+.Pp
+.Em Client mode :
+ignored
+.El
+.Pp
+Exactly one of the
+.Fa mode
+flags
+.Dv SSL_VERIFY_NONE
+and
+.Dv SSL_VERIFY_PEER
+must be set at any time.
+.Pp
+The actual verification procedure is performed either using the built-in
+verification procedure or using another application provided verification
+function set with
+.Xr SSL_CTX_set_cert_verify_callback 3 .
+The following descriptions apply in the case of the built-in procedure.
+An application provided procedure also has access to the verify depth
+information and the
+.Fa verify_callback Ns ()
+function, but the way this information is used may be different.
+.Pp
+.Fn SSL_CTX_set_verify_depth
+and
+.Fn SSL_set_verify_depth
+set the limit up to which depth certificates in a chain are used during the
+verification procedure.
+If the certificate chain is longer than allowed,
+the certificates above the limit are ignored.
+Error messages are generated as if these certificates would not be present,
+most likely a
+.Dv X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
+will be issued.
+The depth count is
+.Dq level 0: peer certificate ,
+.Dq level 1: CA certificate ,
+.Dq level 2: higher level CA certificate ,
+and so on.
+Setting the maximum depth to 2 allows the levels 0, 1, and 2.
+The default depth limit is 100,
+allowing for the peer certificate and an additional 100 CA certificates.
+.Pp
+The
+.Fa verify_callback
+function is used to control the behaviour when the
+.Dv SSL_VERIFY_PEER
+flag is set.
+It must be supplied by the application and receives two arguments:
+.Fa preverify_ok
+indicates whether the verification of the certificate in question was passed
+(preverify_ok=1) or not (preverify_ok=0).
+.Fa x509_ctx
+is a pointer to the complete context used
+for the certificate chain verification.
+.Pp
+The certificate chain is checked starting with the deepest nesting level
+(the root CA certificate) and worked upward to the peer's certificate.
+At each level signatures and issuer attributes are checked.
+Whenever a verification error is found, the error number is stored in
+.Fa x509_ctx
+and
+.Fa verify_callback
+is called with
+.Fa preverify_ok
+equal to 0.
+By applying
+.Fn X509_CTX_store_*
+functions
+.Fa verify_callback
+can locate the certificate in question and perform additional steps (see
+.Sx EXAMPLES ) .
+If no error is found for a certificate,
+.Fa verify_callback
+is called with
+.Fa preverify_ok
+equal to 1 before advancing to the next level.
+.Pp
+The return value of
+.Fa verify_callback
+controls the strategy of the further verification process.
+If
+.Fa verify_callback
+returns 0, the verification process is immediately stopped with
+.Dq verification failed
+state.
+If
+.Dv SSL_VERIFY_PEER
+is set, a verification failure alert is sent to the peer and the TLS/SSL
+handshake is terminated.
+If
+.Fa verify_callback
+returns 1, the verification process is continued.
+If
+.Fa verify_callback
+always returns 1,
+the TLS/SSL handshake will not be terminated with respect to verification
+failures and the connection will be established.
+The calling process can however retrieve the error code of the last
+verification error using
+.Xr SSL_get_verify_result 3
+or by maintaining its own error storage managed by
+.Fa verify_callback .
+.Pp
+If no
+.Fa verify_callback
+is specified, the default callback will be used.
+Its return value is identical to
+.Fa preverify_ok ,
+so that any verification
+failure will lead to a termination of the TLS/SSL handshake with an
+alert message, if
+.Dv SSL_VERIFY_PEER
+is set.
+.Sh EXAMPLES
+The following code sequence realizes an example
+.Fa verify_callback
+function that will always continue the TLS/SSL handshake regardless of
+verification failure, if wished.
+The callback realizes a verification depth limit with more informational output.
+.Pp
+All verification errors are printed;
+information about the certificate chain is printed on request.
+The example is realized for a server that does allow but not require client
+certificates.
+.Pp
+The example makes use of the ex_data technique to store application data
+into/retrieve application data from the
+.Vt SSL
+structure (see
+.Xr SSL_get_ex_new_index 3 ,
+.Xr SSL_get_ex_data_X509_STORE_CTX_idx 3 ) .
+.Bd -literal
+\&...
+
+typedef struct {
+	int	verbose_mode;
+	int	verify_depth;
+	int	always_continue;
+} mydata_t;
+int mydata_index;
+\&...
+static int
+verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
+{
+	char buf[256];
+	X509 *err_cert;
+	int err, depth;
+	SSL *ssl;
+	mydata_t *mydata;
+
+	err_cert = X509_STORE_CTX_get_current_cert(ctx);
+	err = X509_STORE_CTX_get_error(ctx);
+	depth = X509_STORE_CTX_get_error_depth(ctx);
+
+	/*
+	 * Retrieve the pointer to the SSL of the connection currently
+	 * treated * and the application specific data stored into the
+	 * SSL object.
+	 */
+	ssl = X509_STORE_CTX_get_ex_data(ctx,
+	    SSL_get_ex_data_X509_STORE_CTX_idx());
+	mydata = SSL_get_ex_data(ssl, mydata_index);
+
+	X509_NAME_oneline(X509_get_subject_name(err_cert), buf, 256);
+
+	/*
+	 * Catch a too long certificate chain. The depth limit set using
+	 * SSL_CTX_set_verify_depth() is by purpose set to "limit+1" so
+	 * that whenever the "depth>verify_depth" condition is met, we
+	 * have violated the limit and want to log this error condition.
+	 * We must do it here, because the CHAIN_TOO_LONG error would not
+	 * be found explicitly; only errors introduced by cutting off the
+	 * additional certificates would be logged.
+	 */
+	if (depth > mydata->verify_depth) {
+		preverify_ok = 0;
+		err = X509_V_ERR_CERT_CHAIN_TOO_LONG;
+		X509_STORE_CTX_set_error(ctx, err);
+	}
+	if (!preverify_ok) {
+		printf("verify error:num=%d:%s:depth=%d:%s\en", err,
+		    X509_verify_cert_error_string(err), depth, buf);
+	} else if (mydata->verbose_mode) {
+		printf("depth=%d:%s\en", depth, buf);
+	}
+
+	/*
+	 * At this point, err contains the last verification error.
+	 * We can use it for something special
+	 */
+	if (!preverify_ok && (err ==
+	    X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT)) {
+		X509_NAME_oneline(X509_get_issuer_name(ctx->current_cert),
+		    buf, 256);
+		printf("issuer= %s\en", buf);
+	}
+
+	if (mydata->always_continue)
+		return 1;
+	else
+		return preverify_ok;
+}
+\&...
+
+mydata_t mydata;
+
+\&...
+
+mydata_index = SSL_get_ex_new_index(0, "mydata index", NULL, NULL, NULL);
+
+\&...
+
+SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER|SSL_VERIFY_CLIENT_ONCE,
+    verify_callback);
+
+/*
+ * Let the verify_callback catch the verify_depth error so that we get
+ * an appropriate error in the logfile.
+ */
+SSL_CTX_set_verify_depth(verify_depth + 1);
+
+/*
+ * Set up the SSL specific data into "mydata" and store it into the SSL
+ * structure.
+ */
+mydata.verify_depth = verify_depth; ...
+SSL_set_ex_data(ssl, mydata_index, &mydata);
+
+\&...
+
+SSL_accept(ssl); /* check of success left out for clarity */
+if (peer = SSL_get_peer_certificate(ssl)) {
+	if (SSL_get_verify_result(ssl) == X509_V_OK) {
+		/* The client sent a certificate which verified OK */
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_get_verify_mode 3 ,
+.Xr SSL_CTX_load_verify_locations 3 ,
+.Xr SSL_CTX_set_cert_verify_callback 3 ,
+.Xr SSL_get_ex_data_X509_STORE_CTX_idx 3 ,
+.Xr SSL_get_ex_new_index 3 ,
+.Xr SSL_get_peer_certificate 3 ,
+.Xr SSL_get_verify_result 3 ,
+.Xr SSL_new 3 ,
+.Xr SSL_set1_host 3
+.Sh HISTORY
+.Fn SSL_set_verify
+appeared in SSLeay 0.4 or earlier.
+.Fn SSL_CTX_set_verify
+first appeared in SSLeay 0.6.4.
+Both functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_CTX_set_verify_depth
+and
+.Fn SSL_set_verify_depth
+first appeared in OpenSSL 0.9.3 and have been available since
+.Ox 2.6 .
+.Sh BUGS
+In client mode, it is not checked whether the
+.Dv SSL_VERIFY_PEER
+flag is set, but whether
+.Dv SSL_VERIFY_NONE
+is not set.
+This can lead to unexpected behaviour, if the
+.Dv SSL_VERIFY_PEER
+and
+.Dv SSL_VERIFY_NONE
+are not used as required (exactly one must be set at any time).
+.Pp
+The certificate verification depth set with
+.Fn SSL[_CTX]_verify_depth
+stops the verification at a certain depth.
+The error message produced will be that of an incomplete certificate chain and
+not
+.Dv X509_V_ERR_CERT_CHAIN_TOO_LONG
+as may be expected.

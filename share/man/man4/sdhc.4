@@ -1,0 +1,39 @@
+.\"	$OpenBSD: sdhc.4,v 1.7 2020/08/06 10:10:16 jsg Exp $
+.\"
+.\" Theo de Raadt, 2006. Public Domain.
+.\"
+.Dd $Mdocdate: August 6 2020 $
+.Dt SDHC 4
+.Os
+.Sh NAME
+.Nm sdhc
+.Nd SD Host Controller
+.Sh SYNOPSIS
+.Cd "sdhc* at acpi?"
+.Cd "sdhc* at fdt?"
+.Cd "sdhc* at pci?"
+.Cd "sdmmc* at sdhc?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for SD controllers following the
+SD Host Controller Standard Simplified Specification.
+.Pp
+The
+.Xr sdmmc 4
+subsystem performs SD/MMC transactions to communicate with
+whatever MMC, SD, SDHC, or SDIO devices are inserted into the SD slot.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sdmmc 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Uwe Stuehler Aq Mt uwe@openbsd.org .

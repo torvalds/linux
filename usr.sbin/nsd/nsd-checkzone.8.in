@@ -1,0 +1,67 @@
+.TH "nsd\-checkzone" "8" "Sep  3, 2025" "NLnet Labs" "nsd 4.13.0"
+.\" Copyright (c) 2014-2024, NLnet Labs. All rights reserved.
+.\" See LICENSE for the license.
+.SH "NAME"
+.B nsd\-checkzone
+\- NSD zone file syntax checker.
+.SH "SYNOPSIS"
+.B nsd\-checkzone
+.RB [ \-h ]
+.I zonename
+.I zonefile
+.SH "DESCRIPTION"
+.B nsd\-checkzone
+reads a DNS zone file and checks it for errors.  It prints errors to
+stderr.  On failure it exits with nonzero exit status.
+.P
+This is used to check files before feeding them to the nsd(8) daemon.
+.SH "OPTIONS"
+.TP
+.B \-h
+Print usage help information and exit.
+.TP
+.I zonename
+The name of the zone to check, eg. "example.com".
+.TP
+.I zonefile
+The file to read, eg. "zones/example.com.zone.signed". Use "-" to read
+from stdin.
+.TP
+.B \-p
+Print the zone contents to stdout if the zone is ok. This prints the
+contents as it has been parsed, not literally a copy of the input, but
+as printed by the formatting routines in NSD, much like the nsd-control
+command write does.
+.TP
+.B \-i \fI<oldzonefile>
+Create an IXFR from the differences between the old zone file and the
+new zone file. The argument to the \-i option is the old zone file,
+the other zonefile argument passed is the new zonefile.
+.sp
+The difference is computed between the two zonefiles by keeping one
+version of the zone in memory, and another version in a temporary
+file. The temporary file is located at the zonefile directory. This is
+also where the result is written, to a file with the zonefile name,
+ending with '.ixfr'. This is also where NSD reads it when IXFRs are
+configured for the zone.
+.sp
+The other existing ixfr files are renamed to become older IXFR contents
+for the zone, if any such files exist.  If the output file already exists
+with the correct contents, no new file is created. The contents of the
+header of the output file are checked for that, if it already exists.
+.TP
+.B \-n \fI<ixfr number>
+The number of IXFR versions to store, at most. Default 5. This is the number
+of files that is created with ixfr contents for the zone. Older stored IXFR
+versions are deleted when the number is exceeded.
+.TP
+.B \-s \fI<ixfr size>
+The number of bytes of storage to use for IXFRs. Default is 1048576. If an
+IXFR is bigger it is not created, and if the sum of IXFR storage exceeds it,
+older IXFRs versions are deleted.
+.SH "SEE ALSO"
+\fInsd\fR(8), \fInsd-checkconf\fR(8)
+.SH "AUTHORS"
+.B NSD
+was written by NLnet Labs and RIPE NCC joint team. Please see
+CREDITS file in the distribution for further details.

@@ -1,0 +1,120 @@
+.\"	$OpenBSD: pkg_mklocatedb.1,v 1.18 2021/11/26 12:08:35 espie Exp $
+.\" Copyright (c) 2005-2007 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 26 2021 $
+.Dt PKG_MKLOCATEDB 1
+.Os
+.Sh NAME
+.Nm pkg_mklocatedb
+.Nd create a locate database for packages
+.Sh SYNOPSIS
+.Nm pkg_mklocatedb
+.Bk -words
+.Op Fl aKnPqu
+.Op Fl d Ar repository
+.Op Fl p Ar portsdir
+.Op Ar pkg-name ...
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+command is used to create a file database for binary packages,
+which can be searched using the
+.Xr locate 1
+utility.
+.Pp
+Entries created for each package will have the package name prepended:
+.Li kdelibs-3.3.2p2:/usr/local/bin/meinproc .
+.Pp
+If the
+.Fl p
+option is used,
+and
+.Ev SUBDIRLIST
+is not defined,
+.Nm
+will retrieve all package entries from the ports tree.
+.Pp
+If the
+.Fl p
+option is used
+together with
+.Ev SUBDIRLIST ,
+.Nm
+will retrieve the package entries listed in
+.Ev SUBDIRLIST
+from the ports tree.
+.Pp
+Otherwise,
+.Nm
+will build database entries for every file object for each
+.Ar pkg-name
+given on the command line,
+or for every package in a
+.Ar repository
+specified as the
+.Fl d
+option.
+If no package name is given,
+.Nm
+will build database entries for all currently installed packages.
+.Pp
+By default (unless standard output is a terminal),
+the list of names is fed to
+.Pa /usr/libexec/locate.mklocatedb
+and the end result should be redirected to a file.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Prepend file names with pkgpath information and package names.
+.It Fl d Ar repository
+Scan directory
+.Ar repository
+for packages.
+.It Fl K
+Include keyword in each object full name.
+This is more accurate, but defeats
+.Xr locate 1
+compression.
+.Pp
+However, note that some meta annotations always make it into the database:
+.Cm @*exec* ,
+.Cm @define-tag ,
+.Cm @newgroup ,
+.Cm @newuser ,
+.Cm @option Ar no-default-conflict
+and
+.Cm @tag .
+.It Fl n
+Do not pipe output to
+.Pa /usr/libexec/locate.mklocatedb
+(default if standard output is a terminal).
+.It Fl P
+Prepend file names with pkgpath information instead of package name.
+.It Fl p Ar portsdir
+Retrieve packing-lists from the ports tree instead of binary packages.
+.It Fl q
+Be quiet: do not report every package processed to standard error.
+.It Fl u
+Update an existing list.
+The list must come from standard input, and contain pkgpath information
+for items to be replaced.
+.El
+.Sh SEE ALSO
+.Xr locate 1 ,
+.Xr pkg_info 1
+.Sh AUTHORS
+.An Marc Espie

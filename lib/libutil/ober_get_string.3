@@ -1,0 +1,191 @@
+.\" $OpenBSD: ober_get_string.3,v 1.8 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2007, 2012 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt OBER_GET_STRING 3
+.Os
+.Sh NAME
+.Nm ober_get_null ,
+.Nm ober_get_eoc ,
+.Nm ober_get_integer ,
+.Nm ober_get_enumerated ,
+.Nm ober_get_boolean ,
+.Nm ober_get_string ,
+.Nm ober_get_nstring ,
+.Nm ober_get_ostring ,
+.Nm ober_get_bitstring ,
+.Nm ober_get_oid ,
+.Nm ober_getpos ,
+.Nm ober_scanf_elements
+.Nd access properties of ASN.1 objects decoded from BER
+.Sh SYNOPSIS
+.Lb libutil
+.In sys/types.h
+.In ber.h
+.Ft int
+.Fn "ober_get_null" "struct ber_element *root"
+.Ft int
+.Fn "ober_get_eoc" "struct ber_element *root"
+.Ft int
+.Fn "ober_get_integer" "struct ber_element *root" "long long *val"
+.Ft int
+.Fn "ober_get_enumerated" "struct ber_element *root" "long long *val"
+.Ft int
+.Fn "ober_get_boolean" "struct ber_element *root" "int *bool"
+.Ft int
+.Fn "ober_get_string" "struct ber_element *root" "char **charbuf"
+.Ft int
+.Fn "ober_get_nstring" "struct ber_element *root" "void **buf" "size_t *size"
+.Ft int
+.Fn "ober_get_ostring" "struct ber_element *root" "struct ber_octetstring *ostring"
+.Ft int
+.Fn "ober_get_bitstring" "struct ber_element *root" "void **buf" "size_t *size"
+.Ft int
+.Fn "ober_get_oid" "struct ber_element *root" "struct ber_oid *oid"
+.Ft off_t
+.Fn "ober_getpos" "struct ber_element *elm"
+.Ft int
+.Fn "ober_scanf_elements" "struct ber_element *root" "char *format" "..."
+.Sh DESCRIPTION
+Functions which take two arguments save the value contained in the
+.Fa root
+element into the storage location pointed to by the second argument.
+If the storage location is
+.Dv NULL
+then only a type check is performed.
+Additionally,
+.Fn ober_get_nstring
+and
+.Fn ober_get_bitstring
+save the number of bytes contained in the string into
+.Pf * Fa size .
+If
+.Fa buf
+is
+.Dv NULL
+and size is not
+.Dv NULL ,
+size is set.
+.Fa size
+must not be
+.Dv NULL
+to return a valid
+.Fa buf .
+.Pp
+.Fn ober_scanf_elements
+retrieves the values from zero or more elements starting at
+.Fa root .
+For each character in
+.Fa fmt ,
+arguments of the types given in the following table are consumed
+and passed to the function listed, processing one
+.Vt ber_element
+per character.
+The following characters are valid:
+.Bl -column -offset indent\
+ characte ober_get_enumerated_ "1: struct ber_element **"
+.It Sy character Ta Sy function Ta Sy arguments
+.It $ Ta see below              Ta 0
+.It B Ta Fn ober_get_bitstring  Ta 2: Vt void ** , size_t *
+.It b Ta Fn ober_get_boolean    Ta 1: Vt int *
+.It d Ta Fn ober_get_integer    Ta 1: Vt int *
+.It E Ta Fn ober_get_enumerated Ta 1: Vt long long *
+.It e Ta see below              Ta 1: Vt struct ber_element **
+.It i Ta Fn ober_get_integer    Ta 1: Vt long long *
+.It o Ta Fn ober_get_oid        Ta 1: Vt struct ber_oid *
+.It p Ta Fn ober_getpos         Ta 1: Vt off_t *
+.It S Ta see below              Ta 0
+.It s Ta Fn ober_get_string     Ta 1: Vt char **
+.It t Ta see below              Ta 2: Vt int * , unsigned int *
+.It x Ta Fn ober_get_nstring    Ta 2: Vt void **, size_t *
+.It \&( or { Ta see below       Ta 0
+.It \&) or } Ta see below       Ta 0
+.It \&. Ta Fn ober_get_eoc      Ta 0
+.It 0 Ta Fn ober_get_null       Ta 0
+.El
+.Pp
+For
+.Sq e ,
+.Sq p ,
+.Sq S ,
+and
+.Sq t ,
+the type of the element is not checked.
+For
+.Sq p
+and
+.Sq t ,
+the pointer is not incremented to the next element.
+For
+.Sq e ,
+a pointer to the element is stored in the corresponding pointer variable.
+For
+.Sq S ,
+the element is skipped without extracting any information from it.
+For
+.Sq t ,
+the class and type of the element are stored in the two corresponding
+variables, but if the element contains a value, that value is ignored.
+A
+.Sq $
+mandates the end of a sequence or set.
+.Pp
+For an opening parenthesis or brace, it is checked that the element
+is a sequence or a set, and parsing continues with its children.
+For a closing parenthesis or brace, parsing of the current sequence
+or set is ended and parsing continues with the element following
+the sequence or set.
+.Sh RETURN VALUES
+.Fn ober_getpos
+returns the value of
+.Vt be_offs .
+.Pp
+.Fn ober_scanf_elements
+returns 0 for success or \-1 when encountering elements that do not
+agree with the expectations of
+.Fa fmt
+or when
+.Fa fmt
+is syntactically invalid.
+Even when
+.Fn ober_scanf_elements
+fails, some of the arguments may already have been filled in.
+.Pp
+The other functions return 0 if
+.Va root
+is of the requested type or \-1 otherwise.
+.Sh SEE ALSO
+.Xr ober_add_string 3 ,
+.Xr ober_oid_cmp 3 ,
+.Xr ober_read_elements 3 ,
+.Xr ober_set_header 3
+.Sh STANDARDS
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules.
+.Sh HISTORY
+These functions first appeared as internal functions in
+.Xr snmpd 8
+in
+.Ox 4.2
+and were moved to libutil in
+.Ox 6.6 .
+.Sh AUTHORS
+.An -nosplit
+The BER library was written by
+.An Claudio Jeker Aq Mt claudio@openbsd.org ,
+.An Marc Balmer Aq Mt marc@openbsd.org
+and
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

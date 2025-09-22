@@ -1,0 +1,100 @@
+.\"	$OpenBSD: gus.4,v 1.15 2008/06/26 05:42:07 ray Exp $
+.\"	$NetBSD: gus.4,v 1.7 1997/10/08 21:59:55 jtc Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by John T. Kohl.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 26 2008 $
+.Dt GUS 4 i386
+.Os
+.Sh NAME
+.Nm gus
+.Nd Gravis UltraSound/UltraSound MAX audio device
+.Sh SYNOPSIS
+.Cd "gus0 at isa? port 0x220 irq 7 drq 1 drq2 6"
+.Cd "gus* at isapnp?"
+.Cd "audio* at gus?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Gravis UltraSound (GUS) and GUS MAX
+audio cards.
+Both cards have on-board memory which is used for seamless playback of samples.
+They can play back 8- or 16-bit samples at up to 44.1kHz.
+They can record 8-bit samples at up to 44.1kHz.
+The UltraSound MAX is a full-duplex sound device, and if configured with two
+DRQ channels can be used for simultaneous playback and recording.
+The I/O port base is jumper-selected, and may be chosen from 0x210-0x260 in
+steps of 0x10.
+(The normal setting is 0x220.)
+The GUS takes 16 ports at its base address and 8 ports at its base address +
+0x100.
+.Pp
+The IRQ is software programmed, so you may select any IRQ from the set
+{3,5,7,9,11,12,15}.
+The DRQ lines are software programmed, and may be chosen from {1,3,5,6,7}.
+The
+.Dq drq2
+field in the configuration file line specifies a second DRQ line for recording.
+If there is no drq2 field in the config file, the playback channel will be
+used for recording DMA and only half-duplex mode will be available.
+.Pp
+The Gravis UltraSound MAX has an additional CODEC onboard which is
+addressed with four ports at an offset of 0x10C from the base ports
+(0x31C-0x36C).
+.Sh SEE ALSO
+.Xr audio 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr isapnp 4
+.Sh REFERENCES
+Gravis UltraSound Low-Level Toolkit, Revision 2.01, 20 May 1993,
+published by Advanced Gravis and Forte Technologies.
+.Pp
+If you wish to use
+.Xr wdc 4
+on the ISAPNP version of the card, and it comes up as DISABLED,
+Gravis has a PNPCFG.EXE program which re-enables it.
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Nx 1.1 .
+.Sh BUGS
+The full-duplex features of the GUS MAX have not been fully tested, and
+full-duplex on the original GUS may not be possible at all.
+.Pp
+Only two voices on the GF1 synthesizer chip are used by this driver (for
+left and right channels).
+.Pp
+Manipulating the mixer while audio samples are playing can lead to
+device driver confusion (and maybe even a system panic).
+.Pp
+Manipulating the mixer device seems to create pregnant system pauses,
+probably due to excessive interrupt masking.
+.Pp
+The joystick and MIDI port interfaces are not supported.

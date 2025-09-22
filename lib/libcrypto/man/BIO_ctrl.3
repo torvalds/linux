@@ -1,0 +1,638 @@
+.\" $OpenBSD: BIO_ctrl.3,v 1.26 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 24a535eaf Tue Sep 22 13:14:20 2020 +0100
+.\" selective merge up to: OpenSSL 0c5bc96f Tue Mar 15 13:57:22 2022 +0000
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_CTRL 3
+.Os
+.Sh NAME
+.Nm BIO_ctrl ,
+.Nm BIO_callback_ctrl ,
+.Nm BIO_ptr_ctrl ,
+.Nm BIO_int_ctrl ,
+.Nm BIO_reset ,
+.Nm BIO_seek ,
+.Nm BIO_tell ,
+.Nm BIO_flush ,
+.Nm BIO_eof ,
+.Nm BIO_set_close ,
+.Nm BIO_get_close ,
+.Nm BIO_pending ,
+.Nm BIO_wpending ,
+.Nm BIO_ctrl_pending ,
+.Nm BIO_ctrl_wpending ,
+.Nm BIO_get_info_callback ,
+.Nm BIO_set_info_callback ,
+.Nm BIO_info_cb ,
+.Nm bio_info_cb
+.Nd BIO control operations
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.Ft long
+.Fo BIO_ctrl
+.Fa "BIO *b"
+.Fa "int cmd"
+.Fa "long larg"
+.Fa "void *parg"
+.Fc
+.Ft long
+.Fo BIO_callback_ctrl
+.Fa "BIO *b"
+.Fa "int cmd"
+.Fa "BIO_info_cb *cb"
+.Fc
+.Ft char *
+.Fo BIO_ptr_ctrl
+.Fa "BIO *b"
+.Fa "int cmd"
+.Fa "long larg"
+.Fc
+.Ft long
+.Fo BIO_int_ctrl
+.Fa "BIO *b"
+.Fa "int cmd"
+.Fa "long larg"
+.Fa "int iarg"
+.Fc
+.Ft int
+.Fo BIO_reset
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_seek
+.Fa "BIO *b"
+.Fa "int ofs"
+.Fc
+.Ft int
+.Fo BIO_tell
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_flush
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_eof
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_set_close
+.Fa "BIO *b"
+.Fa "long flag"
+.Fc
+.Ft int
+.Fo BIO_get_close
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_pending
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_wpending
+.Fa "BIO *b"
+.Fc
+.Ft size_t
+.Fo BIO_ctrl_pending
+.Fa "BIO *b"
+.Fc
+.Ft size_t
+.Fo BIO_ctrl_wpending
+.Fa "BIO *b"
+.Fc
+.Ft int
+.Fo BIO_get_info_callback
+.Fa "BIO *b"
+.Fa "BIO_info_cb **cbp"
+.Fc
+.Ft int
+.Fo BIO_set_info_callback
+.Fa "BIO *b"
+.Fa "BIO_info_cb *cb"
+.Fc
+.Ft typedef int
+.Fo BIO_info_cb
+.Fa "BIO *b"
+.Fa "int state"
+.Fa "int res"
+.Fc
+.Ft typedef int
+.Fo bio_info_cb
+.Fa "BIO *b"
+.Fa "int state"
+.Fa "int res"
+.Fc
+.Sh DESCRIPTION
+.Fn BIO_ctrl ,
+.Fn BIO_callback_ctrl ,
+.Fn BIO_ptr_ctrl ,
+and
+.Fn BIO_int_ctrl
+are BIO "control" operations taking arguments of various types.
+These functions are not normally called directly -
+various macros are used instead.
+The standard macros are described below.
+Macros specific to a particular type of BIO
+are described in the specific BIO's manual page
+as well as any special features of the standard calls.
+.Pp
+Depending on the
+.Fa cmd
+and on the type of
+.Fa b ,
+.Fn BIO_ctrl
+may have a read-only effect on
+.Fa b
+or change data in
+.Fa b
+or in its sub-structures.
+It may also have a side effect of changing the memory pointed to by
+.Fa parg .
+.Pp
+.Fn BIO_callback_ctrl
+does not call
+.Fn BIO_ctrl
+but instead requires that the BIO type of
+.Fa b
+provides a dedicated
+.Fa callback_ctrl
+function pointer, which is built into the library for some standard BIO
+types and can be provided with
+.Xr BIO_meth_set_callback_ctrl 3
+for application-defined BIO types.
+The only
+.Fa cmd
+supported by
+.Fn BIO_callback_ctrl
+is
+.Dv BIO_CTRL_SET_CALLBACK .
+.Pp
+.Fn BIO_ptr_ctrl
+calls
+.Fn BIO_ctrl
+with
+.Fa parg
+pointing to the location of a temporary pointer variable initialized to
+.Dv NULL .
+.Pp
+.Fn BIO_int_ctrl
+calls
+.Fn BIO_ctrl
+with
+.Fa parg
+pointing to the location of a temporary
+.Vt int
+variable initialized to
+.Fa iarg .
+If
+.Fn BIO_ctrl
+changes the value stored at
+.Pf * Fa parg ,
+the new value is ignored.
+.Pp
+.Fn BIO_reset
+typically resets a BIO to some initial state.
+In the case of file related BIOs, for example,
+it rewinds the file pointer to the start of the file.
+.Pp
+.Fn BIO_seek
+resets a file related BIO's (that is file descriptor and
+FILE BIOs) file position pointer to
+.Fa ofs
+bytes from start of file.
+.Pp
+.Fn BIO_tell
+returns the current file position of a file related BIO.
+.Pp
+.Fn BIO_flush
+normally writes out any internally buffered data.
+In some cases it is used to signal EOF and that no more data will be written.
+.Pp
+.Fn BIO_eof
+returns 1 if the BIO has read EOF.
+The precise meaning of "EOF" varies according to the BIO type.
+.Pp
+.Fn BIO_set_close
+sets the BIO
+.Fa b
+close flag to
+.Fa flag .
+.Fa flag
+can take the value
+.Dv BIO_CLOSE
+or
+.Dv BIO_NOCLOSE .
+Typically
+.Dv BIO_CLOSE
+is used in a source/sink BIO to indicate that the underlying I/O stream
+should be closed when the BIO is freed.
+.Pp
+.Fn BIO_get_close
+returns the BIO's close flag.
+.Pp
+.Fn BIO_pending ,
+.Fn BIO_ctrl_pending ,
+.Fn BIO_wpending ,
+and
+.Fn BIO_ctrl_wpending
+return the number of pending characters in the BIO's read and write buffers.
+Not all BIOs support these calls.
+.Fn BIO_ctrl_pending
+and
+.Fn BIO_ctrl_wpending
+return a
+.Vt size_t
+type and are functions.
+.Pp
+.Fn BIO_set_info_callback
+installs the function pointer
+.Fa cb
+as an info callback in
+.Fa b
+by calling
+.Fn BIO_callback_ctrl
+with a command of
+.Dv BIO_CTRL_SET_CALLBACK .
+Among the BIO types built into the library, only
+.Xr BIO_s_connect 3
+and
+.Xr BIO_f_ssl 3
+support this functionality.
+Some filter BIO types forward this control call
+to the next BIO in the chain instead of processing it themselves.
+.Pp
+.Fn BIO_get_info_callback
+places the function pointer to the info callback into
+.Pf * Fa cbp
+if any was installed using
+.Fn BIO_set_info_callback
+or
+.Fn BIO_callback_ctrl .
+If the type of
+.Fa b
+supports setting an info callback but none was installed, it stores a
+.Dv NULL
+pointer in
+.Pf * Fa cbp .
+.Pp
+The function type name
+.Vt bio_info_cb
+is a deprecated synonym for
+.Vt BIO_info_cb
+provided for backward compatibility with some existing application software.
+.Pp
+The following
+.Fa cmd
+constants correspond to macros:
+.Bl -column BIO_C_SET_SSL_RENEGOTIATE_TIMEOUT BIO_set_ssl_renegotiate_timeout(3)
+.It Fa cmd No constant                   Ta corresponding macro
+.It Dv BIO_C_DESTROY_BIO_PAIR            Ta Xr BIO_destroy_bio_pair 3
+.It Dv BIO_C_DO_STATE_MACHINE            Ta Xr BIO_do_handshake 3
+.It Dv BIO_C_FILE_SEEK                   Ta Fn BIO_seek
+.It Dv BIO_C_FILE_TELL                   Ta Fn BIO_tell
+.It Dv BIO_C_GET_ACCEPT                  Ta Xr BIO_get_accept_port 3
+.It Dv BIO_C_GET_BIND_MODE               Ta Xr BIO_get_bind_mode 3
+.It Dv BIO_C_GET_BUF_MEM_PTR             Ta Xr BIO_get_mem_ptr 3
+.It Dv BIO_C_GET_BUFF_NUM_LINES          Ta Xr BIO_get_buffer_num_lines 3
+.It Dv BIO_C_GET_CIPHER_CTX              Ta Xr BIO_get_cipher_ctx 3
+.It Dv BIO_C_GET_CIPHER_STATUS           Ta Xr BIO_get_cipher_status 3
+.It Dv BIO_C_GET_FD                      Ta Xr BIO_get_fd 3
+.It Dv BIO_C_GET_FILE_PTR                Ta Xr BIO_get_fp 3
+.It Dv BIO_C_GET_MD                      Ta Xr BIO_get_md 3
+.It Dv BIO_C_GET_MD_CTX                  Ta Xr BIO_get_md_ctx 3
+.It Dv BIO_C_GET_READ_REQUEST            Ta Xr BIO_get_read_request 3
+.It Dv BIO_C_GET_SSL                     Ta Xr BIO_get_ssl 3
+.It Dv BIO_C_GET_SSL_NUM_RENEGOTIATES    Ta Xr BIO_get_num_renegotiates 3
+.It Dv BIO_C_GET_WRITE_BUF_SIZE          Ta Xr BIO_get_write_buf_size 3
+.It Dv BIO_C_GET_WRITE_GUARANTEE         Ta Xr BIO_get_write_guarantee 3
+.It Dv BIO_C_MAKE_BIO_PAIR               Ta Xr BIO_make_bio_pair 3
+.It Dv BIO_C_RESET_READ_REQUEST          Ta Xr BIO_ctrl_reset_read_request 3
+.It Dv BIO_C_SET_BIND_MODE               Ta Xr BIO_set_bind_mode 3
+.It Dv BIO_C_SET_BUF_MEM                 Ta Xr BIO_set_mem_buf 3
+.It Dv BIO_C_SET_BUF_MEM_EOF_RETURN      Ta Xr BIO_set_mem_eof_return 3
+.It Dv BIO_C_SET_BUFF_READ_DATA          Ta Xr BIO_set_buffer_read_data 3
+.It Dv BIO_C_SET_FD                      Ta Xr BIO_set_fd 3
+.It Dv BIO_C_SET_FILE_PTR                Ta Xr BIO_set_fp 3
+.It Dv BIO_C_SET_MD                      Ta Xr BIO_set_md 3
+.It Dv BIO_C_SET_MD_CTX                  Ta Xr BIO_set_md_ctx 3
+.It Dv BIO_C_SET_NBIO                    Ta Xr BIO_set_nbio 3
+.It Dv BIO_C_SET_SSL                     Ta Xr BIO_set_ssl 3
+.It Dv BIO_C_SET_SSL_RENEGOTIATE_BYTES   Ta Xr BIO_set_ssl_renegotiate_bytes 3
+.It Dv BIO_C_SET_SSL_RENEGOTIATE_TIMEOUT Ta Xr BIO_set_ssl_renegotiate_timeout 3
+.It Dv BIO_C_SET_WRITE_BUF_SIZE          Ta Xr BIO_set_write_buf_size 3
+.It Dv BIO_C_SHUTDOWN_WR                 Ta Xr BIO_shutdown_wr 3
+.It Dv BIO_C_SSL_MODE                    Ta Xr BIO_set_ssl_mode 3
+.It Dv BIO_CTRL_DGRAM_CONNECT            Ta Xr BIO_ctrl_dgram_connect 3
+.It Dv BIO_CTRL_DGRAM_GET_PEER           Ta Xr BIO_dgram_get_peer 3
+.It Dv BIO_CTRL_DGRAM_GET_RECV_TIMER_EXP Ta Xr BIO_dgram_recv_timedout 3
+.It Dv BIO_CTRL_DGRAM_GET_SEND_TIMER_EXP Ta Xr BIO_dgram_send_timedout 3
+.It Dv BIO_CTRL_DGRAM_SET_CONNECTED      Ta Xr BIO_ctrl_set_connected 3
+.It Dv BIO_CTRL_DGRAM_SET_PEER           Ta Xr BIO_dgram_set_peer 3
+.It Dv BIO_CTRL_DUP                      Ta Xr BIO_dup_state 3
+.It Dv BIO_CTRL_EOF                      Ta Fn BIO_eof
+.It Dv BIO_CTRL_FLUSH                    Ta Fn BIO_flush
+.It Dv BIO_CTRL_GET_CALLBACK             Ta Fn BIO_get_info_callback
+.It Dv BIO_CTRL_GET_CLOSE                Ta Fn BIO_get_close
+.It Dv BIO_CTRL_INFO                     Ta Xr BIO_get_mem_data 3
+.It Dv BIO_CTRL_PENDING                  Ta Fn BIO_pending
+.It Dv BIO_CTRL_RESET                    Ta Fn BIO_reset
+.It Dv BIO_CTRL_SET_CALLBACK             Ta Fn BIO_set_info_callback
+.It Dv BIO_CTRL_SET_CLOSE                Ta Fn BIO_set_close
+.It Dv BIO_CTRL_WPENDING                 Ta Fn BIO_wpending
+.El
+.Pp
+A few
+.Fa cmd
+constants serve more than one macro each
+and are documented in the following manual pages:
+.Bl -column BIO_C_SET_BUFF_SIZE BIO_s_connect(3) -offset 3n
+.It Fa cmd No constant     Ta manual page
+.It Dv BIO_C_GET_CONNECT   Ta Xr BIO_s_connect 3
+.It Dv BIO_C_SET_ACCEPT    Ta Xr BIO_s_accept 3
+.It Dv BIO_C_SET_BUFF_SIZE Ta Xr BIO_f_buffer 3
+.It Dv BIO_C_SET_CONNECT   Ta Xr BIO_s_connect 3
+.It Dv BIO_C_SET_FILENAME  Ta Xr BIO_s_file 3
+.El
+.Pp
+Some
+.Fa cmd
+constants are not associated with any macros.
+They are documented in the following manual pages:
+.Bl -column BIO_CTRL_DGRAM_SET_RECV_TIMEOUT BIO_dgram_recv_timedout(3)\
+ -offset 3n
+.It Fa cmd No constant                 Ta manual page
+.\" The following constants are intentionally undocumented because
+.\" BIO_f_asn1 has been removed from the public API.
+.\" .It Dv BIO_C_GET_EX_ARG                Ta Xr BIO_f_asn1 3
+.\" .It Dv BIO_C_SET_EX_ARG                Ta Xr BIO_f_asn1 3
+.It Dv BIO_CTRL_DGRAM_GET_FALLBACK_MTU Ta Xr BIO_dgram_set_peer 3
+.It Dv BIO_CTRL_DGRAM_GET_MTU          Ta Xr BIO_dgram_set_peer 3
+.It Dv BIO_CTRL_DGRAM_GET_RECV_TIMEOUT Ta Xr BIO_dgram_recv_timedout 3
+.It Dv BIO_CTRL_DGRAM_GET_SEND_TIMEOUT Ta Xr BIO_dgram_send_timedout 3
+.It Dv BIO_CTRL_DGRAM_SET_MTU          Ta Xr BIO_dgram_set_peer 3
+.It Dv BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT Ta Xr BIO_dgram_recv_timedout 3
+.It Dv BIO_CTRL_DGRAM_SET_RECV_TIMEOUT Ta Xr BIO_dgram_recv_timedout 3
+.It Dv BIO_CTRL_DGRAM_SET_SEND_TIMEOUT Ta Xr BIO_dgram_send_timedout 3
+.It Dv BIO_CTRL_DGRAM_MTU_EXCEEDED     Ta Xr BIO_s_datagram 3
+.It Dv BIO_CTRL_POP                    Ta Xr BIO_pop 3
+.It Dv BIO_CTRL_PUSH                   Ta Xr BIO_push 3
+.El
+.Sh RETURN VALUES
+The meaning of the return values of
+.Fn BIO_ctrl ,
+.Fn BIO_callback_ctrl ,
+and
+.Fn BIO_int_ctrl
+depends on both the type of
+.Fa b
+and on the
+.Fa cmd .
+If
+.Fa b
+is a
+.Dv NULL
+pointer, no action occurs and 0 is returned.
+The return value \-2 usually indicates a fatal error.
+In particular, it is returned if the
+.Fa cmd
+is unsupported by the type of
+.Fa b .
+.Pp
+.Fn BIO_callback_ctrl
+and
+.Fn BIO_set_info_callback
+return 1 on success, 0 if
+.Fa b
+is
+.Dv NULL
+or to indicate failure of a valid
+.Fa cmd ,
+or \-2 if the
+.Fa cmd
+is not supported by
+.Fa b .
+.Pp
+.Fn BIO_ptr_ctrl
+returns
+.Dv NULL
+if the
+.Fn BIO_ctrl
+call returns a negative value or does not change
+.Pf * Fa parg ,
+or the pointer it puts into
+.Pf * Fa parg
+otherwise.
+.Pp
+.Fn BIO_int_ctrl
+returns the return value of
+.Fn BIO_ctrl .
+.Pp
+.Fn BIO_reset
+normally returns 1 for success and 0 or -1 for failure.
+File BIOs are an exception, returning 0 for success and -1 for failure.
+.Pp
+.Fn BIO_seek
+and
+.Fn BIO_tell
+both return the current file position on success
+and -1 for failure, except file BIOs which for
+.Fn BIO_seek
+always return 0 for success and -1 for failure.
+.Pp
+.Fn BIO_flush
+returns 1 for success and 0 or -1 for failure.
+.Pp
+.Fn BIO_eof
+returns 1 if EOF has been reached or 0 otherwise.
+.Pp
+.Fn BIO_set_close
+always returns 1.
+.Pp
+.Fn BIO_get_close
+returns the close flag value
+.Dv BIO_CLOSE
+or
+.Dv BIO_NOCLOSE .
+.Pp
+.Fn BIO_pending ,
+.Fn BIO_ctrl_pending ,
+.Fn BIO_wpending ,
+and
+.Fn BIO_ctrl_wpending
+return the amount of pending data.
+.Pp
+.Fn BIO_get_info_callback
+returns 1 on success, including when the type of
+.Fa b
+supports an info callback but none is installed,
+0 if
+.Fa b
+is
+.Dv NULL
+or \-2 if the type of
+.Fa b
+does not support an info callback.
+.Pp
+If a callback was installed in
+.Fa b
+using
+.Xr BIO_set_callback_ex 3
+or
+.Xr BIO_set_callback 3 ,
+it can modify the return values of all these functions.
+.Sh NOTES
+Because it can write data,
+.Fn BIO_flush
+may return 0 or -1 indicating that the call should be retried later
+in a similar manner to
+.Xr BIO_write 3 .
+The
+.Xr BIO_should_retry 3
+call should be used and appropriate action taken if the call fails.
+.Pp
+The return values of
+.Fn BIO_pending
+and
+.Fn BIO_wpending
+may not reliably determine the amount of pending data in all cases.
+For example in the case of a file BIO some data may be available in the
+.Vt FILE
+structure's internal buffers but it is not possible
+to determine this in a portable way.
+For other types of BIO they may not be supported.
+.Pp
+If they do not internally handle a particular
+.Fn BIO_ctrl
+operation, filter BIOs usually pass the operation
+to the next BIO in the chain.
+This often means there is no need to locate the required BIO for
+a particular operation: it can be called on a chain and it will
+be automatically passed to the relevant BIO.
+However, this can cause unexpected results.
+For example no current filter BIOs implement
+.Fn BIO_seek ,
+but this may still succeed if the chain ends
+in a FILE or file descriptor BIO.
+.Pp
+Source/sink BIOs return a 0 if they do not recognize the
+.Fn BIO_ctrl
+operation.
+.Sh SEE ALSO
+.Xr BIO_meth_new 3 ,
+.Xr BIO_new 3
+.Sh HISTORY
+.Fn BIO_ctrl ,
+.Fn BIO_reset ,
+.Fn BIO_flush ,
+.Fn BIO_eof ,
+.Fn BIO_set_close ,
+.Fn BIO_get_close ,
+and
+.Fn BIO_pending
+first appeared in SSLeay 0.6.0.
+.Fn BIO_wpending
+first appeared in SSLeay 0.8.1.
+.Fn BIO_ptr_ctrl ,
+.Fn BIO_int_ctrl ,
+.Fn BIO_get_info_callback
+and
+.Fn BIO_set_info_callback
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn BIO_seek
+and
+.Fn BIO_tell
+first appeared in SSLeay 0.9.1.
+.Fn BIO_ctrl_pending
+and
+.Fn BIO_ctrl_wpending
+first appeared in OpenSSL 0.9.4.
+These functions have been available since
+.Ox 2.6 .
+.Pp
+.Fn BIO_callback_ctrl
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Pp
+.Fn bio_info_cb
+first appeared with a more complicated prototype in OpenSSL 0.9.6
+and has been available since
+.Ox 2.9 .
+.Pp
+.Fn BIO_info_cb
+first appeared in OpenSSL 1.1.0h and has been available since
+.Ox 6.3 .
+.Sh BUGS
+Some of the return values are ambiguous and care should be taken.
+In particular a return value of 0 can be returned if an operation
+is not supported, if an error occurred, if EOF has not been reached
+and in the case of
+.Fn BIO_seek
+on a file BIO for a successful operation.

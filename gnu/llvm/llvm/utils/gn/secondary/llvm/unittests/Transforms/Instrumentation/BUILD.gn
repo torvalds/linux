@@ -1,0 +1,14 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("InstrumentationTests") {
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/Transforms/Instrumentation",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [ "PGOInstrumentationTest.cpp" ]
+}

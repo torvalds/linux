@@ -1,0 +1,214 @@
+.\"	$OpenBSD: aue.4,v 1.39 2022/02/17 12:24:08 jsg Exp $
+.\"	$NetBSD: aue.4,v 1.9 2002/07/11 00:23:31 rh Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999
+.\"     Bill Paul <wpaul@ee.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"     This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man4/aue.4,v 1.2 2000/01/07 22:18:47 wpaul Exp $
+.\"
+.Dd $Mdocdate: February 17 2022 $
+.Dt AUE 4
+.Os
+.Sh NAME
+.Nm aue
+.Nd ADMtek AN986/ADM8511 Pegasus family 10/100 USB Ethernet device
+.Sh SYNOPSIS
+.Cd "aue* at uhub?"
+.Cd "acphy* at mii?"
+.Cd "bmtphy* at mii?"
+.Cd "sqphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the ADMtek
+AN986 ("Pegasus") and ADM8511 ("Pegasus II") chipsets.
+This includes the following adapters:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Tn 3Com 3c460b
+.It Tn Abocom UFE1000
+.It Tn Abocom DSB650TX
+.It Tn Accton USB320-EC
+.It Tn Accton SpeedStream Ethernet
+.It Tn Admtek Pegasus
+.It Tn Admtek Pegasus II
+.It Tn AEI USB Fast Ethernet
+.It Tn Allied Telesyn AT-USB100
+.It Tn ATEN UC-110T
+.It Tn Belkin F5D5050
+.It Tn Billionton Systems USB100
+.It Tn Billionton Systems USB100EL
+.It Tn Billionton Systems USB100LP
+.It Tn Billionton Systems USBE100
+.It Tn Corega FEther USB-TX
+.It Tn Corega FEther USB-TXS
+.It Tn D-Link DSB-650
+.It Tn D-Link DSB-650TX
+.It Tn D-Link DSB-650TX-PNA
+.It Tn ELCON Systemtechnik Goldpfeil P-LAN
+.It Tn Elecom LD-USB/TX
+.It Tn Elecom LD-USB20
+.It Tn Elecom LD-USBL/TX
+.It Tn Elsa Microlink USB2Ethernet
+.It Tn GIGABYTE GN-BR402W
+.It Tn Hawking UF100
+.It Tn HP HN210E
+.It Tn I/O DATA USB ET/TX
+.It Tn I/O DATA USB ET/TX-S
+.It Tn I/O DATA ETX-US2
+.It Tn Kingston KNU101TX
+.It Tn Laneed LD-USBL/TX
+.It Tn Linksys USB100TX
+.It Tn Linksys USB100H1
+.It Tn Linksys USB10T
+.It Tn Linksys USB10TA
+.It Tn Linksys USB10TX
+.It Tn Logitec LAN-TX/U1H2
+.It Tn Melco Inc. LUA-TX
+.It Tn Melco Inc. LUA2-TX
+.It Tn Microsoft MN110
+.It Tn Mobility EasiDock Ethernet
+.It Tn Netgear FA101
+.It Tn Omnidirectional Control Technology USB TO Ethernet
+.It Tn Siemens SpeedStream USB
+.It Tn Smartbridges smartNIC 2
+.It Tn SMC 2202USB/ETH
+.It Tn SMC 2206USB/ETH
+.It Tn SOHOware NUB100
+.It Tn SOHOware NUB110
+.El
+.Pp
+The Pegasus family of chipsets contain a 10/100
+.Tn Ethernet
+MAC with an MII interface and are designed to work with both
+.Tn Ethernet
+and HomePNA transceivers.
+Although the chipsets are designed to interface with
+100Mbps peripherals, the USB 1.x standards specify a maximum
+transfer speed of 12Mbps.
+Users should therefore not expect to actually
+achieve 100Mbps speeds with these devices.
+.Pp
+The Pegasus chipsets support a 64-bit multicast hash table, single perfect
+filter entry for the station address and promiscuous mode.
+Packets are
+received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width tenletters
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the appropriate
+.Xr hostname.if 5
+file.
+.It 10baseT
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to enable
+.Ar full-duplex
+operation.
+Not specifying
+.Ar full duplex
+implies
+.Ar half-duplex
+mode.
+.It 100baseTX
+Set 100Mbps (Fast
+.Tn Ethernet )
+operation.
+The
+.Ar mediaopt
+option can also be used to enable
+.Ar full-duplex
+operation.
+Not specifying
+.Ar full duplex
+implies
+.Ar half-duplex
+mode.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width tenletters
+.It full-duplex
+Force full duplex operation.
+The interface will operate in
+half duplex mode if this media option is not specified.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "aue0: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.It "aue0: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.El
+.Sh SEE ALSO
+.Xr acphy 4 ,
+.Xr arp 4 ,
+.Xr bmtphy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr sqphy 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T ADMtek AN986 and ADM8511 data sheets
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.0 .
+.Ox
+support was added in
+.Ox 2.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu
+and ported to
+.Ox
+by
+.An Aaron Campbell Aq Mt aaron@openbsd.org .

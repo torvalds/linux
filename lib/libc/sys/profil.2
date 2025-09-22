@@ -1,0 +1,183 @@
+.\"	$OpenBSD: profil.2,v 1.17 2025/07/13 23:38:55 jsg Exp $
+.\"	$NetBSD: profil.2,v 1.3 1995/11/22 23:07:23 cgd Exp $
+.\"
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Donn Seeley of BSDI.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)profil.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: July 13 2025 $
+.Dt PROFIL 2
+.Os
+.Sh NAME
+.Nm profil
+.Nd control process profiling
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn profil "void *buf" "size_t buflen" "size_t samplesize" "u_long offset" "u_int scale" "int dirfd"
+.Sh DESCRIPTION
+The
+.Fn profil
+function is only available inside programs compiled with the
+.Fl pg
+compiler / linker option.
+.Fl pg
+selects the profiling version of the C-run-time code
+.Pa ( gcrt0.o ) ,
+which places an ELF note into the binary which enables the system call.
+The profiling subsystem only works with static binaries, so the
+.Fl static
+link option is also required.
+.Pp
+The first call to
+.Fn profil
+happens at startup inside
+.Pa gcrt0.o
+and sets up a region of memory
+.Fa buf
+that is
+.Fa buflen
+bytes long to contain a
+.Va struct gmonhdr ,
+a samples buffer of size
+.Fa samplesize ,
+and a sufficiently-sized arc-table.
+.Pp
+.Fa dirfd
+can indicate the path for placing the output file
+(environment variable
+.Ev PROFDIR
+is the usual choice).
+Otherwise, \-1 indicates the current (starting) directory location.
+.Pp
+Program execution then continues with profiling operational.
+During execution, profiling can be selectively stopped and restarted using
+.Xr moncontrol 3 .
+.Pp
+While profiling is enabled, at every clock tick, the kernel updates an
+appropriate count in the samples buffer.
+.Pp
+The samples buffer contains
+.Fa samplesize
+bytes and is divided into a series of 16-bit bins.
+Each bin counts the number of times the program counter was in a particular
+address range in the process when a clock tick occurred while profiling
+was enabled.
+For a given program counter address, the number of the corresponding bin
+is given by the relation:
+.Bd -literal -offset indent
+[(pc - offset) / 2] * scale / 65536
+.Ed
+.Pp
+The
+.Fa offset
+parameter is the lowest address at which the kernel takes program
+counter samples.
+The
+.Fa scale
+parameter ranges from 1 to 65536 and can be used to change the
+span of the bins.
+A scale of 65536 maps each bin to 2 bytes of address range;
+a scale of 32768 gives 4 bytes, 16384 gives 8 bytes and so on.
+Intermediate values provide approximate intermediate ranges.
+A
+.Fa scale
+value of 0 disables profiling.
+.Pp
+At normal program termination, the C-run-time completes the data in the
+buffer to final format, and proceeds into
+.Xr _exit 2 .
+The kernel then constructs a pathname
+.Pa gmon.progname.pid.out
+and stores the data to the filesystem (either at the starting directory,
+or the optional directory indicated by the environment variable
+.Ev PROFDIR ) .
+.Pp
+Further processing is then done using
+.Xr gprof 1 .
+.Sh RETURN VALUES
+.Rv -std
+.Sh FILES
+.Bl -tag -width gmon.progname.pid.out -compact
+.It Pa /usr/lib/gcrt0.o
+profiling C run-time startup file
+.It Pa gmon.progname.pid.out
+conventional name for profiling output file
+.El
+.Sh ERRORS
+The following error may be reported:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The program was not linked with
+.Fl pg .
+.It Bq Er EALREADY
+An attempt was made to change the profile buffer.
+.It Bq Er EBADF
+The
+.Fa dirfd
+argument is not a valid file descriptor.
+.It Bq Er ENOTDIR
+The
+.Fa dirfd
+argument does not refer to a directory.
+.It Bq Er EINVAL
+The
+.Fa scale
+value is too large.
+.El
+.Sh SEE ALSO
+.Xr gprof 1
+.Sh HISTORY
+The
+.Fn profil
+system call first appeared in
+.At v5 .
+.Pp
+Historically, profile information was written to the file by the C-run-time
+exit processing code using
+.Xr open 2 ,
+.Xr write 2 ,
+and such \(em which is incompatible with modern privilege separation practices
+like
+.Xr chroot 2 ,
+.Xr pledge 2 ,
+.Xr setresuid 2 ,
+and
+.Xr unveil 2 .
+This replacement
+.Fn profil
+interface was redesigned so the kernel writes out the profiling information
+on behalf of the terminating process.
+.Sh BUGS
+The
+.Fa samples
+argument should really be a vector of type
+.Fa "unsigned short" .

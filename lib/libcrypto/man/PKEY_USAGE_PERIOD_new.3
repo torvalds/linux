@@ -1,0 +1,75 @@
+.\"	$OpenBSD: PKEY_USAGE_PERIOD_new.3,v 1.6 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKEY_USAGE_PERIOD_NEW 3
+.Os
+.Sh NAME
+.Nm PKEY_USAGE_PERIOD_new ,
+.Nm PKEY_USAGE_PERIOD_free
+.Nd X.509 certificate private key usage period extension
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft PKEY_USAGE_PERIOD *
+.Fn PKEY_USAGE_PERIOD_new void
+.Ft void
+.Fn PKEY_USAGE_PERIOD_free "PKEY_USAGE_PERIOD *period"
+.Sh DESCRIPTION
+.Fn PKEY_USAGE_PERIOD_new
+allocates and initializes an empty
+.Vt PKEY_USAGE_PERIOD
+object, representing an ASN.1
+.Vt PrivateKeyUsagePeriod
+structure defined in RFC 3280 section 4.2.1.4.
+It could be used in
+.Vt X509
+certificates to specify a validity period for the private key
+that differed from the validity period of the certificate.
+.Pp
+.Fn PKEY_USAGE_PERIOD_free
+frees
+.Fa period .
+.Sh RETURN VALUES
+.Fn PKEY_USAGE_PERIOD_new
+returns the new
+.Vt PKEY_USAGE_PERIOD
+object or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr d2i_PKEY_USAGE_PERIOD 3 ,
+.Xr EXTENDED_KEY_USAGE_new 3 ,
+.Xr X509_CINF_new 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_new 3
+.Sh STANDARDS
+RFC 3280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile,
+section 4.2.1.4: Private Key Usage Period
+.Pp
+RFC 3280 was obsoleted by RFC 5280, which says: "Section 4.2.1.4
+in RFC 3280, which specified the
+.Vt PrivateKeyUsagePeriod
+certificate extension but deprecated its use, was removed.
+Use of this ISO standard extension is neither deprecated
+nor recommended for use in the Internet PKI."
+.Sh HISTORY
+.Fn PKEY_USAGE_PERIOD_new
+and
+.Fn PKEY_USAGE_PERIOD_free
+first appeared in OpenSSL 0.9.2b and have been available since
+.Ox 2.6 .

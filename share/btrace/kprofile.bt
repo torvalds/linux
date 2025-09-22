@@ -1,0 +1,12 @@
+/*	$OpenBSD: kprofile.bt,v 1.2 2022/05/01 20:23:11 bluhm Exp $	*/
+
+/*
+ * kprofile.bt	Kernel profiling (stack sampling) at 100Hz.
+ *
+ * To produce a FlameGraph process the output with stackcollapse-bpftrace.pl
+ * and flamegraph.pl found in:
+ *	https://github.com/brendangregg/FlameGraph
+ */
+profile:hz:100 {
+	@[kstack] = count();
+}

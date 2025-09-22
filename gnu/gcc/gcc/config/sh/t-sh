@@ -1,0 +1,109 @@
+sh-c.o: $(srcdir)/config/sh/sh-c.c \
+  $(CONFIG_H) $(SYSTEM_H) $(TREE_H) $(TM_H) $(TM_P_H) coretypes.h
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/sh/sh-c.c
+
+LIB1ASMSRC = sh/lib1funcs.asm
+LIB1ASMFUNCS = _ashiftrt _ashiftrt_n _ashiftlt _lshiftrt _movmem \
+  _movmem_i4 _mulsi3 _sdivsi3 _sdivsi3_i4 _udivsi3 _udivsi3_i4 _set_fpscr \
+  _udiv_qrnnd_16 \
+  $(LIB1ASMFUNCS_CACHE)
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#ifdef __LITTLE_ENDIAN__' > dp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >>dp-bit.c
+	echo '#endif' 		>> dp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	echo '#ifdef __LITTLE_ENDIAN__' >> fp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >>fp-bit.c
+	echo '#endif' 		>> fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+MULTILIB_ENDIAN = ml/mb
+MULTILIB_CPUS= $(ML_sh1)$(ML_sh2a)$(ML_sh2a_nofpu)$(ML_sh2a_single_only)$(ML_sh2a_single)$(ML_sh2e)$(ML_sh2)$(ML_sh3e)$(ML_sh3)$(ML_sh4_nofpu)$(ML_sh4_single_only)$(ML_sh4_single)$(ML_sh4)$(ML_sh4a_nofpu)$(ML_sh4a_single_only)$(ML_sh4a_single)$(ML_sh4a)$(ML_sh5_32media)$(ML_sh5_32media_nofpu)$(ML_sh5_compact)$(ML_sh5_compact_nofpu)$(ML_sh5_64media)$(ML_sh5_64media_nofpu)
+
+MULTILIB_OPTIONS= $(MULTILIB_ENDIAN) $(MULTILIB_CPUS:/=)
+MULTILIB_DIRNAMES= 
+
+# The separate entries for m2a-nofpu and m2a-single-only with
+# duplicate base libraries are there to make sure we don't ever use an
+# m4* multilib for m2a or vice-versa; they are not compatible.  This
+# is why sh2a and sh2a-single need their own multilibs.
+MULTILIB_MATCHES = $(shell \
+  multilibs="$(MULTILIB_OPTIONS)" ; \
+  for abi in m1,m2,m3,m4-nofpu,m4-400,m4-500,m4al,m4a-nofpu m1,m2,m2a-nofpu \
+             m2e,m3e,m4-single-only,m4-100-single-only,m4-200-single-only,m4a-single-only \
+             m2e,m2a-single-only \
+             m4-single,m4-100-single,m4-200-single,m4a-single \
+             m4,m4-100,m4-200,m4a \
+             m5-32media,m5-compact,m5-32media \
+             m5-32media-nofpu,m5-compact-nofpu,m5-32media-nofpu; do \
+    subst= ; \
+    for lib in `echo $$abi|tr , ' '` ; do \
+      if test "`echo $$multilibs|sed s/$$lib//`" != "$$multilibs"; then \
+        subst=$$lib ; \
+      elif test x$$subst != x ; then \
+        echo $$subst=$$lib ; \
+      fi \
+    done \
+  done)
+
+# SH1 only supports big endian.
+MULTILIB_EXCEPTIONS = ml/m1 ml/m2a*
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+$(T)crt1.o: $(srcdir)/config/sh/crt1.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crt1.o -x assembler-with-cpp $(srcdir)/config/sh/crt1.asm
+$(T)crti.o: $(srcdir)/config/sh/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crti.o -x assembler-with-cpp $(srcdir)/config/sh/crti.asm
+$(T)crtn.o: $(srcdir)/config/sh/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crtn.o -x assembler-with-cpp $(srcdir)/config/sh/crtn.asm
+
+$(out_object_file): gt-sh.h
+gt-sh.h : s-gtype ; @true
+
+# These are not suitable for COFF.
+# EXTRA_MULTILIB_PARTS= crt1.o crti.o crtn.o crtbegin.o crtend.o
+
+IC_EXTRA_PARTS= libic_invalidate_array_4-100.a libic_invalidate_array_4-200.a \
+libic_invalidate_array_4a.a
+OPT_EXTRA_PARTS= libgcc-Os-4-200.a
+EXTRA_MULTILIB_PARTS= $(IC_EXTRA_PARTS) $(OPT_EXTRA_PARTS)
+
+$(T)ic_invalidate_array_4-100.o: $(srcdir)/config/sh/lib1funcs.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)ic_invalidate_array_4-100.o -DL_ic_invalidate_array -DWAYS=1 -DWAY_SIZE=0x2000 -x assembler-with-cpp $(srcdir)/config/sh/lib1funcs.asm
+$(T)libic_invalidate_array_4-100.a: $(T)ic_invalidate_array_4-100.o $(GCC_PASSES)
+	$(AR_CREATE_FOR_TARGET) $(T)libic_invalidate_array_4-100.a $(T)ic_invalidate_array_4-100.o
+
+$(T)ic_invalidate_array_4-200.o: $(srcdir)/config/sh/lib1funcs.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)ic_invalidate_array_4-200.o -DL_ic_invalidate_array -DWAYS=2 -DWAY_SIZE=0x2000 -x assembler-with-cpp $(srcdir)/config/sh/lib1funcs.asm
+$(T)libic_invalidate_array_4-200.a: $(T)ic_invalidate_array_4-200.o $(GCC_PASSES)
+	$(AR_CREATE_FOR_TARGET) $(T)libic_invalidate_array_4-200.a $(T)ic_invalidate_array_4-200.o
+
+$(T)ic_invalidate_array_4a.o: $(srcdir)/config/sh/lib1funcs.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)ic_invalidate_array_4a.o -DL_ic_invalidate_array -D__FORCE_SH4A__ -x assembler-with-cpp $(srcdir)/config/sh/lib1funcs.asm
+$(T)libic_invalidate_array_4a.a: $(T)ic_invalidate_array_4a.o $(GCC_PASSES)
+	$(AR_CREATE_FOR_TARGET) $(T)libic_invalidate_array_4a.a $(T)ic_invalidate_array_4a.o
+
+$(T)sdivsi3_i4i-Os-4-200.o: $(srcdir)/config/sh/lib1funcs-Os-4-200.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $@ -DL_sdivsi3_i4i -x assembler-with-cpp $<
+$(T)udivsi3_i4i-Os-4-200.o: $(srcdir)/config/sh/lib1funcs-Os-4-200.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $@ -DL_udivsi3_i4i -x assembler-with-cpp $<
+$(T)unwind-dw2-Os-4-200.o: $(srcdir)/unwind-dw2.c $(srcdir)/unwind-generic.h unwind-pe.h unwind.inc unwind-dw2-fde.h unwind-dw2.h $(CONFIG_H) coretypes.h $(TM_H) $(MACHMODE_H) longlong.h config.status stmp-int-hdrs tsystem.h $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) $(vis_hide) -fexceptions -Os -c -o $@ $<
+OBJS_Os_4_200=$(T)sdivsi3_i4i-Os-4-200.o $(T)udivsi3_i4i-Os-4-200.o $(T)unwind-dw2-Os-4-200.o
+$(T)libgcc-Os-4-200.a: $(OBJS_Os_4_200) $(GCC_PASSES)
+	$(AR_CREATE_FOR_TARGET) $@ $(OBJS_Os_4_200)
+
+# Local Variables:
+# mode: Makefile
+# End:

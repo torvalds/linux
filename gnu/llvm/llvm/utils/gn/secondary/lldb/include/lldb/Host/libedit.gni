@@ -1,0 +1,9 @@
+declare_args() {
+  # Whether lldb links against libedit. Set to `true` or `false`, or to
+  # `"default"` to get the platform default.
+  lldb_enable_libedit = "default"
+}
+
+if (lldb_enable_libedit == "default") {
+  lldb_enable_libedit = current_os == "mac"
+}

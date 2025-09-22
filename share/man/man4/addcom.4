@@ -1,0 +1,87 @@
+.\"	$OpenBSD: addcom.4,v 1.8 2008/05/21 19:05:51 kettenis Exp $
+.\"
+.\" Copyright (c) 2001 Jason L. Wright (jason@thought.net)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: May 21 2008 $
+.Dt ADDCOM 4
+.Os
+.Sh NAME
+.Nm addcom
+.Nd multiplexing serial communications interface
+.Sh SYNOPSIS
+.Cd "addcom0 at isa? port 0x108 irq 5"
+.Cd "com* at addcom?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Addonics FlexPort 8/S (and probably FlexPort 4/S)
+boards that multiplex together up to eight (or four)
+.Tn EIA
+.Tn RS-232C
+.Pf ( Tn CCITT
+.Tn V.28 )
+communications interfaces.
+.Pp
+Each
+.Nm
+device is the master device for up to eight
+.Nm com
+devices.
+The kernel configuration specifies these
+.Nm com
+devices as slave devices of the
+.Nm
+device, as shown in
+.Sx SYNOPSIS .
+The slave ID given for each
+.Nm com
+device determines which bit in the interrupt multiplexing register is
+tested to find interrupts for that device.
+The
+.Tn port
+specification for the
+.Nm
+device is used to compute the base addresses for the
+.Nm com
+subdevices.
+The port for the interrupt multiplexing register is fixed,
+so it is doubtful that more than one
+.Nm
+can be used in a machine.
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa /dev/tty??
+.El
+.Sh SEE ALSO
+.Xr com 4 ,
+.Xr intro 4 ,
+.Xr isa 4
+.Sh HISTORY
+.Ox
+support for
+.Nm
+devices first appeared in
+.Ox 3.0 .

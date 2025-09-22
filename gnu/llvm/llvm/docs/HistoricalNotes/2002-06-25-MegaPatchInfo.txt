@@ -1,0 +1,72 @@
+Changes:
+* Change the casting code to be const correct.  Now, doing this is invalid:
+     const Value *V = ...;
+     Instruction *I = dyn_cast<Instruction>(V);
+  instead, the second line should be:
+     const Instruction *I = dyn_cast<Instruction>(V);
+
+* Change the casting code to allow casting a reference value thus:
+     const Value &V = ...;
+     Instruction &I = cast<Instruction>(V);
+
+  dyn_cast does not work with references, because it must return a null pointer
+  on failure.
+
+* Fundamentally change how instructions and other values are represented.
+  Before, every llvm container was an instance of the ValueHolder template,
+  instantiated for each container type.  This ValueHolder was effectively a
+  wrapper around a vector of pointers to the sub-objects.
+
+  Now, instead of having a vector to pointers of objects, the objects are
+  maintained in a doubly linked list of values (ie each Instruction now has
+  Next & Previous fields).  The containers are now instances of ilist (intrusive
+  linked list class), which use the next and previous fields to chain them
+  together.  The advantage of this implementation is that iterators can be
+  formed directly from pointers to the LLVM value, and invalidation is much
+  easier to handle.
+
+* As part of the above change, dereferencing an iterator (for example:
+  BasicBlock::iterator) now produces a reference to the underlying type (same
+  example: Instruction&) instead of a pointer to the underlying object.  This
+  makes it much easier to write nested loops that iterator over things, changing
+  this:
+
+    for (Function::iterator BI = Func->begin(); BI != Func->end(); ++BI)
+      for (BasicBlock::iterator II = (*BI)->begin(); II != (*BI)->end(); ++II)
+        (*II)->dump();
+
+  into:
+
+    for (Function::iterator BI = Func->begin(); BI != Func->end(); ++BI)
+      for (BasicBlock::iterator II = BI->begin(); II != BI->end(); ++II)
+        II->dump();
+
+  which is much more natural and what users expect.
+
+* Simplification of #include's: Before, it was necessary for a .cpp file to
+  include every .h file that it used.  Now things are batched a little bit more
+  to make it easier to use.  Specifically, the include graph now includes these
+  edges:
+    Module.h -> Function.h, GlobalVariable.h
+    Function.h -> BasicBlock.h, Argument.h
+    BasicBlock.h -> Instruction.h
+
+  Which means that #including Function.h is usually sufficient for getting the
+  lower level #includes.
+
+* Printing out a Value* has now changed: Printing a Value* will soon print out
+  the address of the value instead of the contents of the Value.  To print out
+  the contents, you must convert it to a reference with (for example)
+  'cout << *I' instead of 'cout << I;'.  This conversion is not yet complete,
+  but will be eventually.  In the mean time, both forms print out the contents.
+
+* References are used much more throughout the code base.  In general, if a
+  pointer is known to never be null, it is passed in as a reference instead of a
+  pointer.  For example, the instruction visitor class uses references instead
+  of pointers, and that Pass subclasses now all receive references to Values
+  instead of pointers, because they may never be null.
+
+* The Function class now has helper functions for accessing the Arguments list.
+  Instead of having to go through getArgumentList for simple things like
+  iterator over the arguments, now the a*() methods can be used to access them.
+

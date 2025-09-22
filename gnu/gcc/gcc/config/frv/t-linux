@@ -1,0 +1,12 @@
+# We don't want multilibs.
+MULTILIB_OPTIONS=
+MULTILIB_DIRNAMES=
+MULTILIB_MATCHES=
+MULTILIB_EXCEPTIONS=
+MULTILIB_EXTRA_OPTS=
+
+CRTSTUFF_T_CFLAGS = -fPIC
+TARGET_LIBGCC2_CFLAGS = -fPIC
+
+SHLIB_MAPFILES = $(srcdir)/libgcc-std.ver \
+		 $(srcdir)/config/frv/libgcc-frv.ver

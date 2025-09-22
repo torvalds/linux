@@ -1,0 +1,10 @@
+sync_fetch_and_add_8
+sync_fetch_and_sub_8
+sync_fetch_and_and_8
+sync_fetch_and_or_8
+sync_fetch_and_xor_8
+sync_fetch_and_nand_8
+sync_fetch_and_max_8
+sync_fetch_and_umax_8
+sync_fetch_and_min_8
+sync_fetch_and_umin_8

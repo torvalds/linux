@@ -1,0 +1,230 @@
+.\"	$OpenBSD: SSL_CTX_set_tmp_dh_callback.3,v 1.12 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2001, 2014, 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_TMP_DH_CALLBACK 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_tmp_dh_callback ,
+.Nm SSL_CTX_set_tmp_dh ,
+.Nm SSL_set_tmp_dh_callback ,
+.Nm SSL_set_tmp_dh
+.Nd handle DH keys for ephemeral key exchange
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft void
+.Fo SSL_CTX_set_tmp_dh_callback
+.Fa "SSL_CTX *ctx"
+.Fa "DH *(*tmp_dh_callback)(SSL *ssl, int is_export, int keylength)"
+.Fc
+.Ft long
+.Fn SSL_CTX_set_tmp_dh "SSL_CTX *ctx" "DH *dh"
+.Ft void
+.Fo SSL_set_tmp_dh_callback
+.Fa "SSL *ssl"
+.Fa "DH *(*tmp_dh_callback)(SSL *ssl, int is_export, int keylength"
+.Fc
+.Ft long
+.Fn SSL_set_tmp_dh "SSL *ssl" "DH *dh"
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_tmp_dh_callback
+sets the callback function for
+.Fa ctx
+to be used when a DH parameters are required to
+.Fa tmp_dh_callback .
+The callback is inherited by all
+.Vt ssl
+objects created from
+.Fa ctx .
+.Pp
+.Fn SSL_CTX_set_tmp_dh
+sets DH parameters to be used by
+.Fa ctx .
+The key is inherited by all
+.Fa ssl
+objects created from
+.Fa ctx .
+.Pp
+.Fn SSL_set_tmp_dh_callback
+sets the callback only for
+.Fa ssl .
+.Pp
+.Fn SSL_set_tmp_dh
+sets the parameters only for
+.Fa ssl .
+.Pp
+These functions apply to SSL/TLS servers only.
+.Pp
+When using a cipher with RSA authentication,
+an ephemeral DH key exchange can take place.
+In these cases, the session data are negotiated using the ephemeral/temporary
+DH key and the key supplied and certified by the certificate chain is only used
+for signing.
+Anonymous ciphers (without a permanent server key) also use ephemeral DH keys.
+.Pp
+Using ephemeral DH key exchange yields forward secrecy,
+as the connection can only be decrypted when the DH key is known.
+By generating a temporary DH key inside the server application that is lost
+when the application is left, it becomes impossible for attackers to decrypt
+past sessions, even if they get hold of the normal (certified) key,
+as this key was only used for signing.
+.Pp
+In order to perform a DH key exchange, the server must use a DH group
+(DH parameters) and generate a DH key.
+The server will always generate a new DH key during the negotiation.
+.Pp
+As generating DH parameters is extremely time consuming, an application should
+not generate the parameters on the fly but supply the parameters.
+DH parameters can be reused,
+as the actual key is newly generated during the negotiation.
+The risk in reusing DH parameters is that an attacker may specialize on a very
+often used DH group.
+Applications should therefore generate their own DH parameters during the
+installation process using the
+.Xr openssl 1
+.Cm dhparam
+application.
+This application guarantees that "strong" primes are used.
+.Pp
+Files
+.Pa dh2048.pem
+and
+.Pa dh4096.pem
+in the
+.Pa apps
+directory of the current version of the OpenSSL distribution contain the
+.Sq SKIP
+DH parameters,
+which use safe primes and were generated verifiably pseudo-randomly.
+These files can be converted into C code using the
+.Fl C
+option of the
+.Xr openssl 1
+.Cm dhparam
+application.
+Generation of custom DH parameters during installation should still
+be preferred to stop an attacker from specializing on a commonly
+used group.
+The file
+.Pa dh1024.pem
+contains old parameters that must not be used by applications.
+.Pp
+An application may either directly specify the DH parameters or can supply the
+DH parameters via a callback function.
+.Pp
+Previous versions of the callback used
+.Fa is_export
+and
+.Fa keylength
+parameters to control parameter generation for export and non-export
+cipher suites.
+Modern servers that do not support export ciphersuites are advised
+to either use
+.Fn SSL_CTX_set_tmp_dh
+or alternatively, use the callback but ignore
+.Fa keylength
+and
+.Fa is_export
+and simply supply at least 2048-bit parameters in the callback.
+.Sh RETURN VALUES
+.Fn SSL_CTX_set_tmp_dh
+and
+.Fn SSL_set_tmp_dh
+do return 1 on success and 0 on failure.
+Check the error queue to find out the reason of failure.
+.Sh EXAMPLES
+Set up DH parameters with a key length of 2048 bits.
+Error handling is partly left out.
+.Pp
+Command-line parameter generation:
+.Pp
+.Dl openssl dhparam -out dh_param_2048.pem 2048
+.Pp
+Code for setting up parameters during server initialization:
+.Bd -literal
+SSL_CTX ctx = SSL_CTX_new();
+\&...
+
+/* Set up ephemeral DH parameters. */
+DH *dh_2048 = NULL;
+FILE *paramfile;
+paramfile = fopen("dh_param_2048.pem", "r");
+if (paramfile) {
+	dh_2048 = PEM_read_DHparams(paramfile, NULL, NULL, NULL);
+	fclose(paramfile);
+} else {
+	/* Error. */
+}
+if (dh_2048 == NULL) {
+	/* Error. */
+}
+if (SSL_CTX_set_tmp_dh(ctx, dh_2048) != 1) {
+	/* Error. */
+}
+.Ed
+.Sh SEE ALSO
+.Xr openssl 1 ,
+.Xr ssl 3 ,
+.Xr SSL_CTX_set_cipher_list 3 ,
+.Xr SSL_CTX_set_options 3 ,
+.Xr SSL_set_tmp_ecdh 3
+.Sh HISTORY
+.Fn SSL_CTX_set_tmp_dh_callback
+and
+.Fn SSL_CTX_set_tmp_dh
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_set_tmp_dh_callback
+and
+.Fn SSL_set_tmp_dh
+first appeared in OpenSSL 0.9.2b and have been available since
+.Ox 2.6 .

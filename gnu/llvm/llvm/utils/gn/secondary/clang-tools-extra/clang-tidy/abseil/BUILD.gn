@@ -1,0 +1,37 @@
+static_library("abseil") {
+  output_name = "clangTidyAbseilModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "AbseilTidyModule.cpp",
+    "CleanupCtadCheck.cpp",
+    "DurationAdditionCheck.cpp",
+    "DurationComparisonCheck.cpp",
+    "DurationConversionCastCheck.cpp",
+    "DurationDivisionCheck.cpp",
+    "DurationFactoryFloatCheck.cpp",
+    "DurationFactoryScaleCheck.cpp",
+    "DurationRewriter.cpp",
+    "DurationSubtractionCheck.cpp",
+    "DurationUnnecessaryConversionCheck.cpp",
+    "FasterStrsplitDelimiterCheck.cpp",
+    "NoInternalDependenciesCheck.cpp",
+    "NoNamespaceCheck.cpp",
+    "RedundantStrcatCallsCheck.cpp",
+    "StrCatAppendCheck.cpp",
+    "StringFindStartswithCheck.cpp",
+    "StringFindStrContainsCheck.cpp",
+    "TimeComparisonCheck.cpp",
+    "TimeSubtractionCheck.cpp",
+    "UpgradeDurationConversionsCheck.cpp",
+  ]
+}

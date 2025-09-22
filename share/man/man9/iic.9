@@ -1,0 +1,360 @@
+.\"	$OpenBSD: iic.9,v 1.10 2022/02/09 07:58:24 visa Exp $
+.\"
+.\" Copyright (c) 2003 Wasabi Systems, Inc.
+.\" All rights reserved.
+.\"
+.\" Written by Jason R. Thorpe for Wasabi Systems, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed for the NetBSD Project by
+.\"	Wasabi Systems, Inc.
+.\" 4. The name of Wasabi Systems, Inc. may not be used to endorse
+.\"    or promote products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY WASABI SYSTEMS, INC. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL WASABI SYSTEMS, INC
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 9 2022 $
+.Dt IIC_ACQUIRE_BUS 9
+.Os
+.Sh NAME
+.Nm iic_acquire_bus ,
+.Nm iic_release_bus ,
+.Nm iic_exec ,
+.Nm iic_smbus_write_byte ,
+.Nm iic_smbus_read_byte ,
+.Nm iic_smbus_receive_byte ,
+.Nm iic_is_compatible
+.Nd Inter IC (I2C) bus
+.Sh SYNOPSIS
+.In dev/i2c/i2cvar.h
+.Ft int
+.Fo iic_acquire_bus
+.Fa "i2c_tag_t ic"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo iic_release_bus
+.Fa "i2c_tag_t ic"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo iic_exec
+.Fa "i2c_tag_t ic"
+.Fa "i2c_op_t op"
+.Fa "i2c_addr_t addr"
+.Fa "const void *cmdbuf"
+.Fa "size_t cmdlen"
+.Fa "void *buf"
+.Fa "size_t len"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo iic_smbus_write_byte
+.Fa "i2c_tag_t ic"
+.Fa "i2c_addr_t addr"
+.Fa "uint8_t cmd"
+.Fa "uint8_t data"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo iic_smbus_read_byte
+.Fa "i2c_tag_t ic"
+.Fa "i2c_addr_t addr"
+.Fa "uint8_t cmd"
+.Fa "uint8_t *datap"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo iic_smbus_receive_byte
+.Fa "i2c_tag_t ic"
+.Fa "i2c_addr_t addr"
+.Fa "uint8_t *datap"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo iic_is_compatible
+.Fa "const struct i2c_attach_args *ia"
+.Fa "const char *name"
+.Fc
+.Sh DESCRIPTION
+I2C is a two-wire bus developed by Philips used for connecting
+integrated circuits.
+It is commonly used for connecting devices such as EEPROMs,
+temperature sensors, fan controllers, real-time clocks, tuners,
+and other types of integrated circuits.
+The
+.Nm iic
+interface provides a means of communicating with I2C-connected devices.
+The System Management Bus, or SMBus, is a variant of the I2C bus with
+a simplified command protocol and some electrical differences.
+.Sh DATA TYPES
+Drivers for devices attached to the I2C bus will make use of the
+following data types:
+.Bl -tag -width i2c_addr_t
+.It Fa i2c_tag_t
+Controller tag for the I2C bus.
+This is a pointer to a
+.Fa struct i2c_controller ,
+consisting of function pointers filled in by the I2C
+controller driver.
+.It Fa i2c_op_t
+I2C bus operation.
+The following I2C bus operations are defined:
+.Bl -tag -width XXXX
+.It I2C_OP_READ
+Perform a read operation.
+.It I2C_OP_READ_WITH_STOP
+Perform a read operation and send a STOP condition on the I2C bus at
+the conclusion of the read.
+.It I2C_OP_WRITE
+Perform a write operation.
+.It I2C_OP_WRITE_WITH_STOP
+Perform a write operation and send a STOP condition on the I2C bus at
+the conclusion of the write.
+.El
+.It Fa i2c_addr_t
+I2C device address.
+.It Fa struct i2c_attach_args
+Devices are attached to an I2C bus using this structure.
+The structure is defined as follows:
+.Bd -literal
+struct i2c_attach_args {
+	i2c_tag_t ia_tag;	/* controller */
+	i2c_addr_t ia_addr;	/* address of device */
+	int ia_size;		/* size (for EEPROMs) */
+	char *ia_name;		/* chip name */
+	size_t ia_namelen	/* length of name concatenation */
+	void *ia_cookie;	/* pass extra info from
+				   bus to dev */
+	void *ia_intr		/* interrupt info */
+	int ia_poll;		/* to force polling */
+};
+.Ed
+.El
+.Sh FUNCTIONS
+The following functions comprise the API provided to drivers of
+I2C-connected devices:
+.Bl -tag -width iic_exec
+.It Fn iic_acquire_bus "ic" "flags"
+Acquire an exclusive lock on the I2C bus.
+This is required since only one device may communicate on the
+I2C bus at a time.
+Drivers should acquire the bus lock, perform the I2C bus operations
+necessary, and then release the bus lock.
+Passing the
+.Fa I2C_F_POLL
+flag indicates to
+.Fn iic_acquire_bus
+that sleeping is not permitted.
+.It Fn iic_release_bus "ic" "flags"
+Release an exclusive lock on the I2C bus.
+If the
+.Fa I2C_F_POLL
+flag was passed to
+.Fn iic_acquire_bus ,
+it must also be passed to
+.Fn iic_release_bus .
+.It Xo
+.Fo iic_exec
+.Fa "ic"
+.Fa "op"
+.Fa "addr"
+.Fa "cmdbuf"
+.Fa "cmdlen"
+.Fa "buf"
+.Fa "len"
+.Fa "flags"
+.Fc
+.Xc
+Perform a series of I2C transactions on the bus.
+.Fn iic_exec
+initiates the operation by sending a START condition on the I2C
+bus and then transmitting the address of the target device along
+with the transaction type.
+If
+.Fa cmdlen
+is non-zero, the command pointed to by
+.Fa cmdbuf
+is then sent to the device.
+If
+.Fa buflen
+is non-zero,
+.Fn iic_exec
+will then transmit or receive the data, as indicated by
+.Fa op .
+If
+.Fa op
+indicates a read operation,
+.Fn iic_exec
+will send a REPEATED START before transferring the data.
+If
+.Fa op
+so indicates, a STOP condition will be sent on the I2C
+bus at the conclusion of the operation.
+Passing the
+.Fa I2C_F_POLL
+flag indicates to
+.Fn iic_exec
+that sleeping is not permitted.
+.It Fn iic_smbus_write_byte "ic" "addr" "cmd" "data" "flags"
+Perform an SMBus WRITE BYTE operation.
+This is equivalent to
+I2C_OP_WRITE_WITH_STOP with
+.Fa cmdlen
+of 1 and
+.Fa len
+of 1.
+.It Fn iic_smbus_read_byte "ic" "addr" "cmd" "datap" "flags"
+Perform an SMBus READ BYTE operation.
+This is equivalent to
+I2C_OP_READ_WITH_STOP with
+.Fa cmdlen
+of 1 and
+.Fa len
+of 1.
+.It Fn iic_smbus_receive_byte "ic" "addr" "datap" "flags"
+Perform an SMBus RECEIVE BYTE operation.
+This is equivalent to
+I2C_OP_READ_WITH_STOP with
+.Fa cmdlen
+of 0 and
+.Fa len
+of 1.
+.It Fn iic_is_compatible "ia" "name"
+Test if the device is compatible with
+.Fa name .
+.El
+.Sh CONTROLLER INTERFACE
+The I2C controller driver must fill in the function pointers of
+an
+.Fa i2c_controller
+structure, which is defined as follows:
+.Bd -literal
+struct i2c_controller {
+	void	*ic_cookie;	/* controller private */
+
+	int	(*ic_acquire_bus)(void *, int);
+	void	(*ic_release_bus)(void *, int);
+
+	int	(*ic_exec)(void *, i2c_op_t, i2c_addr_t,
+		   const void *, size_t, void *, size_t, int);
+
+	int	(*ic_send_start)(void *, int);
+	int	(*ic_send_stop)(void *, int);
+	int	(*ic_initiate_xfer)(void *, i2c_addr_t, int);
+	int	(*ic_read_byte)(void *, uint8_t *, int);
+	int	(*ic_write_byte)(void *, uint8_t, int);
+};
+.Ed
+.Pp
+The
+.Fn (*ic_acquire_bus)
+and
+.Fn (*ic_release_bus)
+functions must always be provided.
+.Pp
+The controller driver may elect to provide an
+.Fn (*ic_exec)
+function.
+This function is intended for use by automated controllers
+that do not provide manual control over I2C bus conditions
+such as START and STOP.
+.Pp
+If the
+.Fn (*ic_exec)
+function is not provided, the following 5 functions will be
+used by
+.Fn iic_exec
+in order to execute the I2C bus operation:
+.Bl -tag -width XXXX
+.It Fn (*ic_send_start) "cookie" "flags"
+Send a START condition on the I2C bus.
+The
+.Fa I2C_F_POLL
+flag indicates that sleeping is not permitted.
+.It Fn (*ic_send_stop) "cookie" "flags"
+Send a STOP condition on the I2C bus.
+The
+.Fa I2C_F_POLL
+flag indicates that sleeping is not permitted.
+.It Fn (*ic_initiate_xfer) "cookie" "addr" "flags"
+Initiate a transfer on the I2C bus by sending a START condition and
+then transmitting the I2C device address and transfer type.
+The
+.Fa I2C_F_READ
+flag indicates a read transfer; the lack of this flag indicates a
+write transfer.
+The
+.Fa I2C_F_POLL
+flag indicates that sleeping is not permitted.
+The error code
+.Dv ETIMEDOUT
+should be returned if a timeout that would indicate that the
+device is not present occurs.
+.It Fn (*ic_read_byte) "cookie" "datap" "flags"
+Read a byte from the I2C bus into the memory location referenced by
+.Fa datap .
+The
+.Fa I2C_F_LAST
+flag indicates that this is the final byte of the transfer, and that
+a NACK condition should be sent on the I2C bus following the transfer
+of the byte.
+The
+.Fa I2C_F_STOP
+flag indicates that a STOP condition should be sent on the I2C bus following
+the transfer of the byte.
+The
+.Fa I2C_F_POLL
+flag indicates that sleeping is not permitted.
+.It Fn (*ic_write_byte) "cookie" "data" "flags"
+Write the byte contained in
+.Fa data
+to the I2C bus.
+The
+.Fa I2C_F_STOP
+flag indicates that a STOP condition should be sent on the I2C bus following
+the transfer of the byte.
+The
+.Fa I2C_F_POLL
+flag indicates that sleeping is not permitted.
+.El
+.Sh SEE ALSO
+.Xr iic 4
+.Sh HISTORY
+The
+.Nm iic
+API first appeared in
+.Nx 2.0 .
+.Ox
+support was added in
+.Ox 3.6 .
+.Sh AUTHORS
+The
+.Nm iic
+API was written by
+Steve C. Woodford and Jason R. Thorpe for
+.Nx
+and then ported to
+.Ox
+by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

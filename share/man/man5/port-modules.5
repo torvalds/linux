@@ -1,0 +1,1340 @@
+.\"	$OpenBSD: port-modules.5,v 1.276 2025/08/17 11:05:22 rsadowski Exp $
+.\"
+.\" Copyright (c) 2008 Marc Espie
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 17 2025 $
+.Dt PORT-MODULES 5
+.Os
+.Sh NAME
+.Nm port-modules
+.Nd documentation and conventions used in port modules
+.Sh DESCRIPTION
+The
+.Ox
+Ports framework is based on a gigantic makefile named
+.Xr bsd.port.mk 5 .
+.Pp
+In order to curb unwieldy growth, parts of the framework
+that are not always needed have been set apart in optional
+files called
+.Nm port modules ,
+which are retrieved as needed through the
+.Ev MODULES
+variable of
+.Xr bsd.port.mk 5 .
+.Pp
+Some of these modules correspond to basic mechanisms which are not
+always needed, such as GNU autoconf, or perl5.
+.Pp
+For convenience, setting
+.Ev CONFIGURE_STYLE
+in a port's main Makefile is enough to get perl5 or autoconf support, but
+.Ar gnu ,
+.Ar imake
+and
+.Ar perl5
+are actually modules, and there is some glue in
+.Xr bsd.port.mk 5
+that magically adds the required module in that case.
+This doesn't work when parsing modules.
+For instance, if you set
+.Li CONFIGURE_STYLE=gnu
+in a module, you also need to
+.Li MODULES += gnu .
+.Pp
+Other modules correspond to shortcuts for using some other ports as
+dependencies without needing to hardcode too much, such as
+the qt ports.
+.Sh THE MODULES LOOK-UP MECHANISM
+The variable
+.Ev MODULES
+should contain a list of module names.
+Some core modules are a single word, all other modules should be
+${PKGPATH}.
+If the module is
+.Pa some/dir/portname ,
+the ports framework will look for a file named
+.Pa ${PORTSDIR}/some/dir/portname/portname.port.mk
+and include it.
+.Pp
+Most modules should conform to this syntax.
+The historic practice of having a redirection file directly under
+.Pa ${PORTSDIR}/infrastructure/mk
+is deprecated for new modules.
+.Pp
+Modules may refer to each other.
+The modules mechanism has specific recursion handling such that
+adding
+.Li MODULES += foo/bar
+to a module will work as expected.
+.Sh NAMING CONVENTIONS
+Since there is no actual scope in makefiles, everything defined within
+a module will be global to the ports framework, and thus may interfere
+with other ports.
+.Pp
+As far as possible, all variables and targets belonging to a module named
+.Pa some/dir/foo
+should be named
+.Ev MODFOO_*
+and
+.Ar modfoo_* .
+.Pp
+Following the same conventions as
+.Xr bsd.port.mk 5 ,
+internal variables and targets not intended for user consumption should be
+named
+.Ev _MODFOO_*
+and
+.Ar _modfoo_* .
+.Pp
+For instance, if a module wants some value to be available for the rest
+of the world, it should define
+.Ev MODFOO_VARNAME ,
+with a name matching the basic infrastructure as far as possible.
+That is, a port that defines specific dependencies will usually
+define
+.Ev MODFOO_WANTLIB ,
+.Ev MODFOO_LIB_DEPENDS ,
+and
+.Ev MODFOO_RUN_DEPENDS ,
+as appropriate.
+.Pp
+As an exception to the naming mechanism, some ports have several distinct
+versions in the ports tree, say
+.Pa x11/qt5
+and
+.Pa x11/qt6 .
+Instead of using the namespace
+.Ev MODQT5* ,
+variables will usually drop the version suffix and be simply called
+.Ev MODQT_*
+so that a port using the module can be switched from version to version
+without needing to change everything.
+.Pp
+It is highly desirable to define names in both namespaces for such ports,
+for example to define both
+.Ev MODQT4_LIB_DEPENDS
+and
+.Ev MODQT_LIB_DEPENDS .
+Normal client ports will use
+.Ev MODQT_LIB_DEPENDS ,
+but a port may exceptionally import both modules with
+.Li MODULES += x11/qt5 x11/qt6
+and differentiate between qt5 and qt6 needs with
+.Ev MODQT5_LIB_DEPENDS
+and
+.Ev MODQT6_LIB_DEPENDS .
+See
+.Pa print/poppler
+for an example.
+.Sh OVERRIDING TARGET BEHAVIOR
+The main framework contains several hooks that allow ports to override
+normal behavior.
+This evolved as an ad-hoc framework, where only hooks that turned out
+to be needed were added.
+If several modules define the same hook, hook behaviors will be
+invoked in sequence.
+.Bl -tag -width do-configure
+.It Cm extract
+There is a
+.Cm post-extract
+hook that can be activated by defining
+.Ev MODFOO_post-extract .
+It will be run right after
+.Cm post-extract .
+.It Cm patch
+There is a
+.Cm post-patch
+hook that can be activated by defining
+.Ev MODFOO_post-patch .
+It will be run right after
+.Cm post-patch .
+.It Cm gen
+There is a
+.Cm gen
+hook that can be activated by defining
+.Ev MODFOO_gen .
+It will be run right after
+.Cm do-gen
+and before
+.Ev REORDER_DEPENDENCIES
+touches things.
+.It Cm configure
+There is a
+.Cm pre-configure
+hook that can be activated by defining
+.Ev MODFOO_pre-configure .
+It will be run right after
+.Cm pre-configure .
+The normal
+.Cm do-configure
+behavior is to invoke all
+.Ev MODFOO_configure
+contents that are defined in
+.Ev CONFIGURE_STYLE .
+By default,
+.Cm configure
+will do nothing.
+.Pp
+Some
+.Ev CONFIGURE_STYLE
+values, namely perl, gnu, imake, and autoconf,
+will automatically import the correct module.
+User-defined modules must both add to
+.Ev CONFIGURE_STYLE
+and import the correct module to override behavior.
+.Pp
+Contrary to other hooks, module behavior is not invoked in
+addition to
+.Cm do-configure ,
+but as the normal configure process.
+If
+.Cm do-configure
+is overridden, normal hook processing will not happen.
+.It Cm fake
+There is a
+.Cm pre-fake
+hook that can be activated by defining
+.Ev MODFOO_pre-fake .
+This will be invoked right after
+.Xr mtree 8 ,
+and before the normal
+.Cm pre-fake
+behavior.
+.Pp
+This can occasionally be used for ports that require some specific
+fake installation setup that will be provided by runtime dependencies.
+.It Cm install
+There is a
+.Cm post-install
+hook that can be activated by defining
+.Ev MODFOO_post-install .
+This will be invoked at the end of
+.Cm install ,
+right after the normal
+.Cm post-install
+behavior.
+.El
+.Pp
+Some targets, such as
+.Cm do-build
+or
+.Cm do-install ,
+can't be overridden simply.
+A module that, for instance, requires specific
+.Cm do-build
+behavior should do so in two steps:
+.Bl -bullet
+.It
+Define a variable named
+.Ev MODFOO_BUILD_TARGET
+that contains the commands necessary for
+.Cm do-build :
+.Bd -literal -offset indent
+MODFOO_BUILD_TARGET = cmd1; cmd2
+.Ed
+.It
+Override
+.Cm do-build
+only if it's not already defined by the port proper:
+.Bd -literal -offset indent
+\&.if !target(do-build)
+do-build:
+	@${MODFOO_BUILD_TARGET}
+\&.endif
+.Ed
+.El
+That way, if several modules require specific actions for those targets,
+the end user can choose the appropriate order in which to run the actions:
+.Bd -literal -offset indent
+do-build:
+	@${MODBAR_BUILD_TARGET}
+	@${MODFOO_BUILD_TARGET}
+	...
+.Ed
+.Sh OVERRIDING VARIABLE BEHAVIOR
+Some variables can be overridden by modules.
+Be very cautious, as this can make the module difficult to use,
+or interact badly with other modules.
+As a rule, always provide the override as:
+.Pp
+.Dl VARIABLE ?= value
+.Pp
+and provide a module-specific variable with the same value:
+.Pp
+.Dl MODFOO_VARIABLE = value .
+.Pp
+The following variables can be overridden in a relatively safe fashion:
+.Ev ALL_TARGET ,
+.Ev CONFIGURE_SCRIPT ,
+.Ev DESTDIRNAME ,
+.Ev DIST_SUBDIR ,
+.Ev DISTNAME ,
+.Ev DISTFILES ,
+.Ev EXTRACT_SUFX ,
+.Ev FAKE_FLAGS ,
+.Ev FETCH_MANUALLY ,
+.Ev HOMEPAGE ,
+.Ev IGNORE ,
+.Ev IS_INTERACTIVE ,
+.Ev LIBTOOL_FLAGS ,
+.Ev MAKE_FILE ,
+.Ev MULTI_PACKAGES ,
+.Ev NO_BUILD ,
+.Ev NO_TEST ,
+.Ev PATCH_LIST ,
+.Ev PKG_ARCH ,
+.Ev PKGNAME* ,
+.Ev PREFIX ,
+.Ev TEST_TARGET ,
+.Ev TEST_IS_INTERACTIVE ,
+.Ev REORDER_DEPENDENCIES ,
+.Ev SEPARATE_BUILD ,
+.Ev SITES ,
+.Ev USE_GMAKE ,
+.Ev USE_LIBTOOL .
+.Pp
+The following variables can be added to in a relatively safe fashion:
+.Ev BUILD_DEPENDS ,
+.Ev CATEGORIES ,
+.Ev CONFIGURE_ARGS ,
+.Ev CONFIGURE_ENV ,
+.Ev ERRORS ,
+.Ev FAKE_FLAGS ,
+.Ev FLAVOR ,
+.Ev FLAVORS ,
+.Ev INSTALL_TARGET ,
+.Ev LIB_DEPENDS ,
+.Ev MAKE_ENV ,
+.Ev MAKE_FLAGS ,
+.Ev PKG_ARGS ,
+.Ev PSEUDO_FLAVORS ,
+.Ev TEST_DEPENDS ,
+.Ev REORDER_DEPENDENCIES ,
+.Ev RUN_DEPENDS ,
+.Ev SUBST_VARS ,
+.Ev WANTLIB .
+.Sh SPECIFIC MODULE INTERACTIONS
+Some modules correspond to extra ports that will be used mostly as
+.Ev BUILD_DEPENDS
+or
+.Ev RUN_DEPENDS .
+Such modules can safely append values directly to the
+.Ev BUILD_DEPENDS ,
+.Ev RUN_DEPENDS ,
+.Ev LIB_DEPENDS ,
+and
+.Ev WANTLIB
+variables, as long as they also define module-specific variables for
+all runtime dependencies.
+.Pp
+Simple client ports will use the module directly, and thus inherit extra
+build and runtime dependencies.
+.Pp
+More sophisticated ports can use
+.Ev MULTI_PACKAGES
+to select specific behavior: build-time dependencies will always be
+needed.
+Runtime dependencies will be selected on a subpackage basis,
+since runtime dependencies such as
+.Ev LIB_DEPENDS-sub
+do not inherit the default
+.Ev LIB_DEPENDS
+value.
+The client port's author must only bear in mind that external modules
+may add values to the default
+.Ev WANTLIB ,
+.Ev LIB_DEPENDS ,
+and
+.Ev RUN_DEPENDS ,
+and thus that it is not safe to inherit from it blindly.
+.Pp
+Modules are imported during
+.Pp
+.Dl .include <bsd.port.mk>
+.Pp
+Thus they can be affected by user choices such as setting a variable
+to Yes or No.
+Modules may make decisions based on documented
+.Ev MODFOO_BEHAVIOR
+values.
+.Pp
+When modules are processed, only a few
+.Xr bsd.port.mk 5
+variables are already defined.
+Modules may depend upon the following variables already having a sane
+value:
+.Ev DISTDIR ,
+.Ev LOCALBASE ,
+.Ev NO_DEPENDS ,
+.Ev PKGPATH ,
+.Ev PORTSDIR ,
+.Ev X11BASE
+and all arch-dependent constants from
+.Xr bsd.port.arch.mk 5 ,
+such as
+.Ev PROPERTIES
+or
+.Ev LP64_ARCHS .
+Note that this is only relevant for tests.
+It is perfectly okay to define variables or targets that depend on the
+basic ports framework without having to care whether that variable is
+already defined, since
+.Xr make 1
+performs lazy evaluation.
+.Sh CORE MODULES DOCUMENTATION
+The following modules are available.
+.Bl -tag -width do-configure
+.It cpan
+For perl ports coming from CPAN.
+Wrapper around the normal perl module that fetches the file from
+the correct location depending on
+.Ev DISTNAME ,
+and sets a default
+.Ev PKGNAME .
+Also affects
+.Ev TEST_DEPENDS ,
+.Ev CONFIGURE_STYLE ,
+.Ev PKG_ARCH ,
+and
+.Ev CATEGORIES .
+.Pp
+Some CPAN modules are only indexed by author, set
+.Li CPAN_AUTHOR=ID
+to locate the right directory.
+.Pp
+If no
+.Ev HOMEPAGE
+is defined, it will default to
+.Pa http://search.cpan.org/dist/${DISTNAME:C/-[^-]*$//}/
+.Pp
+User settings: set
+.Ev CPAN_REPORT
+to Yes,
+.Ev CPAN_REPORT_DB
+to a valid directory,
+and
+.Ev CPAN_REPORT_FROM
+to a valid email address to automate the reporting
+of regression tests to CPAN.
+.Pp
+If
+.Ev MODCPAN_EXAMPLES
+is set, the following variables will be set.
+.Ev MODCPAN_EXAMPLES_DIST
+will hold the default directory in the distfile with
+example scripts.
+.Ev MODCPAN_EXAMPLES_DIR
+will be set to the standard installation directory for
+examples.
+Sets the
+.Cm post-install
+target if none has been defined to install the examples,
+otherwise
+.Ev MODCPAN_POST_INSTALL
+should be used as such:
+.Bd -literal
+post-install:
+	...
+	${MODCPAN_POST_INSTALL}
+.Ed
+.It databases/mariadb
+Adds small framework for testing ports that require running MariaDB.
+Defines
+.Ev MODMARIADB_TEST_TARGET
+which consists actual commands to run in
+.Cm do-test
+target.
+If this target isn't defined, it will be added automatically.
+.Pp
+The actual test command to be run could be specified in the
+.Ev MODMARIADB_TEST_CMD .
+Default is similar to what
+.Xr bsd.port.mk 5
+runs itself.
+.Pp
+The MariaDB server being started will listen on UNIX domain socket
+only, minimizing impact on running system.
+The path to socket is recorded in
+.Ev MODMARIADB_TEST_SOCKET .
+Any local user will be able to connect without password.
+.Pp
+If the
+.Ev MODMARIADB_TEST_DBNAME
+variable is set, the database with such name will be set up before
+running actual test command.
+Otherwise (default), the test is responsible to call
+.Xr mysqladmin 1
+itself, if needed.
+.Pp
+The
+.Pa databases/mariadb,-server
+will get added to
+.Ev TEST_DEPENDS ,
+but not to any other
+.Ev *_DEPENDS .
+The
+.Ev MODMARIADB_CLIENT_ARGS
+and
+.Ev MODMARIADB_ADMIN_ARGS
+variables hold arguments for
+.Xr mysql 1
+and
+.Xr mysqladmin 1 ,
+respectively; those argument lists could be used in test scripts
+for connecting to test server, if they aren't satisfied by environment.
+.It databases/postgresql
+Adds small framework for testing ports that require running Postgres.
+Defines
+.Ev MODPOSTGRESQL_TEST_TARGET
+which consists actual commands to run in
+.Cm do-test
+target.
+If this target isn't defined, it will be added automatically.
+.Pp
+The actual test command to be run could be specified in the
+.Ev MODPOSTGRESQL_TEST_CMD .
+Default is similar to what
+.Xr bsd.port.mk 5
+runs itself.
+.Pp
+The Postgres server being started will listen on UNIX domain socket
+only, minimizing impact on running system.
+The path to directory where socket will be created is set by
+.Ev MODPOSTGRESQL_TEST_PGHOST ,
+defaulting to
+.Pa ${WRKDIR} .
+Any local user will be able to connect without password.
+.Pp
+If the
+.Ev MODPOSTGRESQL_TEST_DBNAME
+variable is set, the database with such name will be set up before
+running actual test command.
+Otherwise (default), the test is responsible to call
+.Xr initdb 1
+itself.
+.Pp
+The
+.Pa databases/postgresql,-server
+will get added to
+.Ev TEST_DEPENDS ,
+but not to any other
+.Ev *_DEPENDS .
+.It devel/cmake
+Adds
+.Pa devel/cmake
+to
+.Ev BUILD_DEPENDS
+and fills up
+.Ev CONFIGURE_ARGS ,
+.Ev CONFIGURE_ENV
+and
+.Ev MAKE_ENV .
+Sets up
+.Cm configure
+target.
+If
+.Ev CONFIGURE_STYLE
+was not set before, sets its value to `cmake'.
+Changes default value of
+.Ev SEPARATE_BUILD
+to `Yes' because modern CMake requires out-of-source build anyway.
+Changes
+.Ev TEST_TARGET
+to `test' as this is standard for CMake projects.
+Also this module has the following knobs:
+.Bl -tag -width Ds
+.It MODCMAKE_WANTCOLOR
+If set to `Yes', CMake will colorize its output.
+Should not be used in ports Makefiles.
+Default value is `No'.
+.It MODCMAKE_VERBOSE
+If set to `Yes', CMake will print details during configure and build
+stages about exact command being run, etc.
+Should not be used in ports Makefiles.
+Default value is `Yes'.
+.It MODCMAKE_DEBUG
+If set to `Yes', CMake will produce a debug build instead of a release
+build.
+The exact effects on the build process depend on settings specified in
+the CMake config files.
+Default value is `No'.
+.El
+Also,
+.Sq nojunk
+is added to DPB_PROPERTIES because CMake's include files parser cheats
+too much.
+.It devel/cabal
+See
+.Xr cabal-module 5
+for porting Haskell applications.
+.It devel/cargo
+See
+.Xr cargo-module 5 .
+.It devel/dconf
+Sets
+.Ev CONFIGURE_ARGS ,
+.Ev BUILD_DEPENDS
+and
+.Ev RUN_DEPENDS .
+This module is used by ports installing gsettings schemas under
+.Pa ${PREFIX}/share/glib-2.0/schemas/ .
+PLIST must contain:
+.Bd -literal -offset indent
+@tag glib-compile-schemas
+.Ed
+.It devel/gconf2
+A link from
+.Xr gconftool-2 1
+to
+.Xr true 1
+will be put at the front of the
+.Ev PATH .
+Sets
+.Ev CONFIGURE_ARGS ,
+.Ev BUILD_DEPENDS
+and
+.Ev RUN_DEPENDS .
+According to the values of
+.Ev MODGCONF2_LIBDEP ,
+sets
+.Ev LIB_DEPENDS .
+User settings: set
+.Ev MODGCONF2_SCHEMAS_DIR
+to the directory name under
+.Pa ${LOCALBASE}/share/schemas/
+where schemas files will be installed.
+.It devel/meson
+Adds
+.Pa devel/meson
+and
+.Pa devel/ninja
+to
+.Ev BUILD_DEPENDS .
+Sets up
+.Cm configure
+target.
+If
+.Ev CONFIGURE_STYLE
+was not set before, sets its value to `meson'.
+Changes default value of
+.Ev SEPARATE_BUILD
+to `Yes' because meson requires out-of-source build.
+If
+.Ev CONFIGURE_STYLE
+is 'meson',
+.Ev MODMESON_CONFIGURE_ARGS
+and
+.Ev MODMESON_CONFIGURE_ENV
+will add default values to
+.Ev CONFIGURE_ARGS
+and
+.Ev CONFIGURE_ENV .
+.Pp
+To figure out some dependencies,
+.Xr meson 1
+uses
+.Xr pkg-config 1
+then falls back to
+.Xr cmake 1 .
+As we do not want to enforce a dependency on devel/cmake/core,
+.Xr dpb 1
+might junk it if it's found.
+This could create a race between finding foo.cmake and junking
+.Xr cmake 1
+at
+configure time.
+To prevent this, unless devel/cmake/core is explicitly part of
+.Ev BUILD_DEPENDS ,
+.Xr cmake 1
+will be disabled by creating a link to false in ${WRKDIR}/bin/.
+.Pp
+This module supports the following knob:
+.Bl -tag -width Ds
+.It MODMESON_WANTCOLOR
+If set to `Yes', meson will colorize its output.
+Should not be used in ports Makefiles.
+Default value is `No'.
+.El
+.It devel/qmake
+See
+.Xr qmake-module 5 .
+.It devel/scons
+Adds
+.Pa devel/scons
+to
+.Ev BUILD_DEPENDS .
+Sets
+.Ev MODSCONS_BIN
+and
+.Ev MODSCONS_ENV .
+Also defines an overridable
+.Ev MODSCONS_FLAGS .
+It provides a
+.Cm do-build
+and
+.Cm do-install
+targets that can be overridden in the port Makefile.
+.It font
+Used for ports which primarily install fonts.
+Affects
+.Ev PKG_ARCH
+and
+.Ev EXTRACT_SUFX .
+Appends to
+.Ev CATEGORIES .
+When
+.Ev MODFONT_FAMILY
+is set in combination with
+.Ev MODFONT_VERSION ,
+it sets
+.Ev PKGNAME .
+.Ev MODFONT_FAMILY
+should be set to the name of the font family.
+This sets
+.Ev MODFONT_FONTDIR
+and
+.Ev MODFONT_DOCDIR
+using said family name.
+A
+.Cm do-install
+target is provided if the port itself does not provide it.
+This installs fonts from
+.Ev WRKSRC
+in the distribution.
+If one or more filenames (relative to
+.Ev WRKSRC )
+are listed in
+.Ev MODFONT_FONTFILES ,
+they will be installed to
+.Ev MODFONT_FONTDIR .
+Otherwise, otf files in
+.Ev WRKSRC
+will be installed, with a fallback to ttf.
+If filenames (relative to
+.Ev WRKSRC )
+are listed in
+.Ev MODFONT_DOCFILES ,
+they will be installed to
+.Ev MODFONT_DOCDIR .
+.It fortran
+Sets
+.Ev MODFORTRAN_LIB_DEPENDS ,
+.Ev MODFORTRAN_WANTLIB ,
+.Ev MODFORTRAN_BUILD_DEPENDS .
+Set
+.Ev MODFORTRAN_COMPILER
+to `gfortran', or `flang', depending on what the port requires.
+The default is `gfortran'.
+The dependencies are chosen according to
+.Ev MODFORTRAN_COMPILER .
+.It gcc4
+If
+.Ev COMPILER_VERSION
+is not gcc4 (defined by
+.Pa /usr/share/mk/bsd.own.mk ) ,
+and architecture is in
+.Ev MODGCC4_ARCHS ,
+then the gcc4 compilers will be put at the front of the path.
+By default, only C language support is included by this module.
+If other languages are needed, they must be listed in
+.Ev MODGCC4_LANGS
+(e.g. c++, fortran).
+The
+.Ev MODGCC4_VERSION
+variable can be used to change the version of gcc.
+By default gcc 4.9 is used.
+If
+.Ev MODGCC4_LANGS
+contains c++, this module provides
+.Ev MODGCC4_CPPLIBDEP
+and
+.Ev MODGCC4_CPPWANTLIB .
+.It gnu
+This module is documented in the main
+.Xr bsd.port.mk 5
+manpage.
+.It imake
+This module is documented in the main
+.Xr bsd.port.mk 5
+manpage.
+.It java
+Set
+.Li MODJAVA_VER=x.y
+to use exactly the JDK x.y,
+.Li MODJAVA_VER=x.y+
+to use any x.y or higher version.
+Set
+.Li MODJAVA_JRERUN=Yes
+if the port only needs the JRE at runtime.
+The module sets
+.Ev JAVA_HOME ,
+.Ev ONLY_FOR_ARCHS ,
+.Ev MODJAVA_RUN_DEPENDS ,
+.Ev MODJAVA_SHARE_DIR ,
+.Ev MODJAVA_JAR_DIR ,
+.Ev MODJAVA_EXAMPLE_DIR
+and
+.Ev MODJAVA_DOC_DIR .
+It appends to
+.Ev BUILD_DEPENDS ,
+.Ev RUN_DEPENDS ,
+.Ev CATEGORIES
+and
+.Ev SUBST_VARS .
+If
+.Li MODJAVA_BUILD=ant
+then this module provides
+.Ev MODJAVA_BUILD_DIR ,
+.Ev MODJAVA_BUILD_FILE
+and
+.Ev MODJAVA_BUILD_TARGET_NAME ,
+as well as a
+.Cm do-build
+target (if not already defined).
+It heeds
+.Ev NO_BUILD .
+.It lang/clang
+Similar to gcc4 module.
+If architecture is in MODCLANG_ARCHS, the Clang compilers will be
+put at the front of the path.
+By default, only C language support is included by this module.
+If other languages are needed, they must be listed in
+.Ev MODCLANG_LANGS
+(e.g. c++).
+Sets
+.Ev MODCLANG_VERSION
+which is also appended to
+.Ev SUBST_VARS .
+.It lang/erlang
+.It lang/go
+See
+.Xr go-module 5 .
+.It lang/lua
+Sets
+.Ev MODLUA_BIN ,
+.Ev MODLUA_DATADIR ,
+.Ev MODLUA_DEP ,
+.Ev MODLUA_DEP_VERSION ,
+.Ev MODLUA_DOCDIR ,
+.Ev MODLUA_EXAMPLEDIR ,
+.Ev MODLUA_INCL_DIR ,
+.Ev MODLUA_LIB ,
+.Ev MODLUA_LIBDIR ,
+.Ev MODLUA_VERSION ,
+.Ev MODLUA_WANTLIB .
+Appends to
+.Ev CATEGORIES .
+Also appends to
+.Ev BUILD_DEPENDS ,
+unless
+.Ev NO_BUILD
+has been set to Yes.
+Also appends to
+.Ev RUN_DEPENDS ,
+unless
+.Ev MODLUA_RUNDEP
+is set to No.
+Appends
+.Ev MODLUA_VERSION ,
+.Ev MODLUA_LIB ,
+.Ev MODLUA_INCL_DIR ,
+.Ev MODLUA_EXAMPLEDIR ,
+.Ev MODLUA_DOCDIR ,
+.Ev MODLUA_LIBDIR ,
+.Ev MODLUA_DATADIR ,
+.Ev MODLUA_DEP ,
+.Ev MODLUA_DEP_VERSION ,
+.Ev MODLUA_BIN
+to
+.Ev SUBST_VARS .
+.Ev MODLUA_DEFAULT_VERSION
+is set to 5.1.
+.Ev MODLUA_VERSION is set to
+.Ev MODLUA_DEFAULT_VERSION
+by default.
+Ports can be built with several lua versions.
+If no FLAVOR is set, it defaults to MODLUA_DEFAULT_VERSION.
+Otherwise the FULLPKGNAME is adjusted, if MODLUA_SA is not set.
+In order to set a build, run or test dependency on a lua port,
+use the following, which will propagate the currently used flavor:
+.Ev MODLUA_BUILD_DEPENDS ,
+.Ev MODLUA_TEST_DEPENDS ,
+.Ev MODLUA_RUN_DEPENDS .
+.It lang/mono
+Sets
+.Ev MODMONO_ONLY_FOR_ARCHS ,
+.Ev CONFIGURE_ENV ,
+.Ev MAKE_FLAGS ,
+.Ev MODMONO_BUILD_DEPENDS
+and
+.Ev MODMONO_RUN_DEPENDS .
+If
+.Ev MODMONO_DEPS
+is set to Yes,
+.Pa lang/mono
+is appended to
+.Ev BUILD_DEPENDS
+and
+.Ev RUN_DEPENDS .
+.Ev DLLMAP_FILES
+defines in which files the module will substitute hardcoded
+shared library versions using a
+.Cm post-configure
+target.
+.It lang/ocaml
+Appends to
+.Ev BUILD_DEPENDS
+and
+.Ev MAKE_ENV .
+Appends to
+.Ev RUN_DEPENDS
+unless
+.Ev MODOCAML_RUNDEP
+is set to No, or set to if-not-native and native compilation
+is supported on this architecture.
+Including this module selects a %%native%% plist fragment and
+.Ev ocaml_native
+property depending on whether the architecture supports native
+compilation.
+If dynamic linking is supported on the native architecture,
+the %%dynlink%% plist fragment and
+.Ev ocaml_native_dynlink
+property is set.
+When
+.Ev CONFIGURE_STYLE
+is set to `oasis',
+overrides for the
+.Cm do-build ,
+.Cm do-install ,
+and
+.Cm do-test
+targets are added.
+.It lang/php
+Used for ports using PHP in some way:
+either extensions to PHP, or software written in PHP.
+Sets
+.Ev MODPHP_RUN_DEPENDS ,
+.Ev MODPHP_LIB_DEPENDS ,
+.Ev MODPHP_WANTLIB ,
+.Ev MODPHP_BIN ,
+.Ev MODPHP_PHPIZE ,
+.Ev MODPHP_PHP_CONFIG ,
+.Ev MODPHP_INCDIR
+and
+.Ev MODPHP_LIBDIR .
+Adds to
+.Ev RUN_DEPENDS
+unless
+.Ev MODPHP_RUNDEP
+is set to No.
+Adds to
+.Ev BUILD_DEPENDS
+if
+.Ev MODPHP_BUILDDEP
+is set to Yes.
+If
+.Ev MODPHP_DO_PHPIZE
+is set, prepares a build environment for extensions that use phpize.
+.Pp
+Ports using PDO for database connectivity often have a choice of
+dependencies (pdo_sqlite, pdo_mysql, pdo_pgsql and others).
+The module constructs
+.Ev MODPHP_PDO_DEPENDS
+from the PDO types listed in
+.Ev MODPHP_PDO_ALLOWED
+(defaulting to "sqlite mysql pgsql").
+This can be added to
+.Ev RUN_DEPENDS
+and allows any of these PDO packages to satisfy the dependency, with
+.Ev MODPHP_PDO_PREF
+(sqlite by default) chosen if none are installed.
+.It lang/php/pecl
+Used for ports for PHP PECL extensions.
+Sets default
+.Ev SITES ,
+.Ev HOMEPAGE ,
+.Ev EXTRACT_SUFX ,
+.Ev DESTDIRNAME ,
+.Ev MODPHP_DO_SAMPLE ,
+.Ev MODPHP_DO_PHPIZE ,
+.Ev AUTOCONF_VERSION ,
+.Ev AUTOMAKE_VERSION ,
+.Ev LIBTOOL_FLAGS .
+Provides a default
+.Ev TEST_TARGET
+and
+.Ev TEST_FLAGS
+unless
+.Ev NO_TEST
+or a
+.Cm do-test
+target is defined.
+Adds common dependencies to
+.Ev RUN_DEPENDS
+and
+.Ev BUILD_DEPENDS .
+Sets a default
+.Ev PKGNAME
+and appends to
+.Ev CATEGORIES .
+.It lang/python
+See
+.Xr python-module 5 .
+.It lang/ruby
+See
+.Xr ruby-module 5 .
+.It lang/rust
+Ports using Rust must use this module so a rebuild can be triggered via
+.Ev SYSTEM_VERSION-rust
+on updates of the lang/rust port or changes to the Rust standard library.
+Sets
+.Ev MODRUST_WANTLIB
+as appropriate for the architecture so it can be added to
+.Ev WANTLIB .
+It adds lang/rust to the
+.Ev BUILD_DEPENDS
+unless
+.Ev MODRUST_BUILDDEP
+is set to anything but
+.Dq yes .
+.It lang/tcl
+Sets
+.Ev MODTCL_VERSION ,
+.Ev MODTCL_BIN ,
+.Ev MODTCL_INCDIR ,
+.Ev MODTCL_LIBDIR ,
+.Ev MODTCL_BUILD_DEPENDS ,
+.Ev MODTCL_RUN_DEPENDS ,
+.Ev MODTCL_LIB ,
+.Ev MODTCL_LIB_DEPENDS ,
+and
+.Ev MODTCL_CONFIG .
+.Ev MODTCL_VERSION
+is the default version used by all Tcl ports and may be overridden.
+Provides
+.Ev MODTCL_TCLSH_ADJ
+and
+.Ev MODTCL_WISH_ADJ
+shell fragments to patch the interpreter path in executable scripts.
+Also affects
+.Ev CATEGORIES
+and
+.Ev SUBST_VARS .
+.It perl
+This module is documented in the main
+.Xr bsd.port.mk 5
+manpage.
+.It security/heimdal
+A link from ${LOCALBASE}/heimdal/bin/krb5-config
+to
+.Xr krb5-config 1
+will be put at the front of the path.
+Sets
+.Ev LIB_DEPENDS
+and
+.Ev WANTLIB
+according to the values of
+.Ev MODHEIMDAL_LIB_DEPENDS ,
+and
+.Ev MODHEIMDAL_WANTLIB .
+.It textproc/intltool
+Sets
+.Ev MODINTLTOOL_OVERRIDE .
+.Pa textproc/intltool
+is added to
+.Ev BUILD_DEPENDS .
+.Ev MODINTLTOOL_OVERRIDE
+changes the paths of
+.Ev INTLTOOL_EXTRACT ,
+.Ev INTLTOOL_MERGE
+and
+.Ev INTLTOOL_UPDATE
+to use the installed versions of intltool-extract,
+intltool-merge and intltool-update, instead of the version's packages into the
+distfile of the port using this module.
+Also affects
+.Ev CONFIGURE_ENV ,
+.Ev MAKE_ENV
+and
+.Ev MAKE_FLAGS
+by appending
+.Ev MODINTLTOOL_OVERRIDE
+to them.
+.It www/mozilla
+Sets
+.Ev PKGNAME ,
+.Ev HOMEPAGE ,
+.Ev SITES ,
+.Ev DISTNAME ,
+.Ev USE_GMAKE ,
+and
+.Ev ONLY_FOR_ARCHS .
+.Ev EXTRACT_SUFX
+defaults to .tar.bz2.
+.Pp
+Adds common dependencies to
+.Ev LIB_DEPENDS ,
+.Ev WANTLIB ,
+.Ev RUN_DEPENDS
+and
+.Ev BUILD_DEPENDS .
+Sets common
+.Ev CONFIGURE_ARGS ,
+.Ev MAKE_ENV
+and
+.Ev CONFIGURE_ENV .
+Sets
+.Ev MOB
+variable as source directory
+and
+.Ev MOZ
+as target directory within
+.Cm do-install .
+.Pp
+Individual port Makefile must set
+.Ev MOZILLA_PROJECT ,
+.Ev MOZILLA_CODENAME ,
+.Ev MOZILLA_VERSION ,
+.Ev MOZILLA_BRANCH ,
+.Ev MOZILLA_LIBS
+and
+.Ev MOZILLA_DATADIRS
+variables.
+Port can also append values to
+.Ev MOZILLA_SUBST_FILES
+which contains the list of
+files to run
+.Ev SUBST_CMD
+on during
+.Cm pre-configure ,
+and
+.Ev MOZILLA_AUTOCONF_DIRS
+which
+contains the list of dirs where
+.Ev AUTOCONF
+will be run during
+.Cm pre-configure .
+.It wayland/wlroots
+Used for Wayland ports using the wlroots library.
+Sets
+.Ev MODWLROOTS_LIB_DEPENDS ,
+.Ev MODWLROOTS_WANTLIB
+and
+.Ev MODWLROOTS_VERSION .
+Appends the corresponding values to
+.Ev LIB_DEPENDS
+and
+.Ev WANTLIB ,
+unless
+. Ev MODWLROOTS_LIBDEP
+is set to No.
+.It www/pear
+Used for PHP PEAR ports.
+Sets default
+.Ev SITES ,
+.Ev EXTRACT_SUFX ,
+.Ev PKGNAME .
+Sets
+.Ev PREFIX
+to
+.Pa /var/www .
+Sets
+.Ev NO_TEST
+unless a
+.Cm do-test
+target is defined.
+Adds common dependencies to
+.Ev RUN_DEPENDS
+and
+.Ev BUILD_DEPENDS ,
+sets
+.Ev MAKE_FILE
+and
+.Ev FAKE_FLAGS
+appropriately.
+Makes
+.Ev PEAR_LIBDIR
+and
+.Ev PEAR_PHPBIN
+available for use in the port.
+Sets a default
+.Ev PKGNAME
+and appends to
+.Ev CATEGORIES .
+.It x11/gnome
+See
+.Xr gnome-module 5 .
+.It x11/gnustep
+.It x11/qt5 and x11/qt6
+All qt* modules share a common
+.Ev MODQT_*
+namespace for simple ports.
+The qt5 module also defines the same variables under
+.Ev MODQT5_*
+and the qt6 module also defines the same variables under
+.Ev MODQT6_* ,
+to allow ports to use both modules, such as
+.Pa print/poppler .
+.Pp
+Those modules define
+.Ev MODQT*_LIBDIR
+as the libraries location,
+.Ev MODQT*_INCDIR
+as the include files location,
+.Ev MODQT*_QTDIR
+as the global qt directory location,
+.Ev MODQT*_CONFIGURE_ARGS
+as standard GNU configure-style parameters to locate the include and libraries.
+.Pp
+The location of Qt-specific tools
+.Nm lrelease ,
+.Nm moc ,
+.Nm qmake
+and
+.Nm uic
+is available through
+.Ev MODQT*_LRELEASE ,
+.Ev MODQT*_MOC ,
+.Ev MODQT*_QMAKE
+and
+.Ev MODQT*_UIC .
+.Ev MODQT*_OVERRIDE_UIC
+controls whether the default setup will force a value of
+.Ev UIC
+or not.
+The value of
+.Ev MOC
+is always forced to ${MODQT*_MOC}.
+.Pp
+In most cases the
+.Pa devel/qmake
+module should be used instead of using
+.Ev MODQT*_QMAKE
+directly.
+.Pp
+The modules add to
+.Ev CONFIGURE_ENV , MAKE_ENV
+and
+.Ev MAKE_FLAGS .
+They define appropriate
+.Ev MODQT*_LIB_DEPENDS
+and
+.Ev MODQT*_WANTLIB .
+.Pp
+Note that Qt5 and Qt6 have their code split over several libraries.
+Both modules qt5 and qt6 doesn't set
+.Ev MODQT*_WANTLIB
+at all.
+Qt5 and Qt6 consist of many so called Qt modules, these Qt modules should be
+added to
+.Ev LIB_DEPENDS ,
+.Ev BUILD_DEPENDS
+or
+.Ev RUN_DEPENDS
+manually.
+.It x11/tk
+Sets
+.Ev MODTK_VERSION ,
+.Ev MODTK_BIN ,
+.Ev MODTK_INCDIR ,
+.Ev MODTK_LIBDIR ,
+.Ev MODTK_BUILD_DEPENDS ,
+.Ev MODTK_RUN_DEPENDS ,
+.Ev MODTK_LIB ,
+.Ev MODTK_LIB_DEPENDS ,
+and
+.Ev MODTK_CONFIG .
+.Ev MODTK_VERSION
+is the default version used by all Tk ports and
+may be overridden.
+Automatically adds the
+.Pa lang/tcl
+module, provides a default
+.Ev MODTCL_VERSION
+to match
+.Ev MODTK_VERSION ,
+and affects
+.Ev CATEGORIES
+and
+.Ev SUBST_VARS .
+Note the
+.Ev MODTCL_WISH_ADJ
+shell fragment in the
+.Pa lang/tcl
+module.
+.It x11/xfce4
+Sets
+.Ev DIST_SUBDIR ,
+.Ev EXTRACT_SUFX ,
+.Ev CONFIGURE_STYLE ,
+.Ev CONFIGURE_ENV
+and
+.Ev USE_GMAKE .
+If
+.Ev MODXFCE_ICON_CACHE
+is set to yes, it adds
+.Pa x11/gtk+4,-guic
+to
+.Ev RUN_DEPENDS .
+Unless
+.Ev XFCE_NO_SRC
+is set,
+.Pa textproc/intltool
+is added to
+.Ev MODULES .
+Also affects
+.Ev CATEGORIES .
+.Pp
+Xfce ports can be divided into five categories: core libraries and
+applications, goodies, artwork, thunar plugins, and panel plugins.
+.Ev HOMEPAGE ,
+.Ev SITES
+and
+.Ev DISTNAME
+are built using
+.Ev XFCE_VERSION
+(which defaults to
+.Ev XFCE_DESKTOP_VERSION
+if not set) and either
+.Ev XFCE_PROJECT ,
+.Ev XFCE_GOODIE ,
+.Ev XFCE_ARTWORK ,
+.Ev THUNAR_PLUGIN
+or
+.Ev XFCE_PLUGIN .
+One of the latter has to be provided by the port Makefile.
+.El
+.Sh SEE ALSO
+.Xr make 1 ,
+.Xr bsd.port.mk 5 ,
+.Xr cabal-module 5 ,
+.Xr cargo-module 5 ,
+.Xr gnome-module 5 ,
+.Xr go-module 5 ,
+.Xr python-module 5 ,
+.Xr qmake-module 5 ,
+.Xr ruby-module 5 ,
+.Xr ports 7

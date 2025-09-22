@@ -1,0 +1,73 @@
+.\" $OpenBSD: sv.4,v 1.16 2009/11/02 22:31:50 sobrado Exp $
+.\"
+.\" Copyright (c) 1998 Constantine Paul Sapuntzakis
+.\" All rights reserved
+.\"
+.\" Author: Constantine Paul Sapuntzakis (csapuntz@cvs.openbsd.org)
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The author's name or those of the contributors may not be used to
+.\"    endorse or promote products derived from this software without
+.\"    specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 2 2009 $
+.Dt SV 4
+.Os
+.Sh NAME
+.Nm sv
+.Nd S3 SonicVibes audio device
+.Sh SYNOPSIS
+.Cd "sv* at pci?"
+.Cd "audio* at sv?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for S3 SonicVibes (S3-617) chipset-based
+cards.
+Disabling the SRS 3-D spatial feature of the chip is recommended for higher
+quality audio.
+This can be done in software by issuing the following command:
+.Bd -literal -offset indent
+$ mixerctl outputs.spatial=off
+.Ed
+.Sh SEE ALSO
+.Xr audio 4 ,
+.Xr intro 4 ,
+.Xr pci 4
+.Sh HISTORY
+This driver is based on the
+.Xr eap 4
+driver by Lennart Augustsson.
+The
+.Nm
+device driver first appeared in
+.Ox 2.6 .
+.Sh BUGS
+The "FM" DAC, wavetable synth, and MIDI port are not
+supported.
+Recording at a rate different from playback is supported by
+the chip but not the driver.
+The mixer does not allow control of reverb, digital loopback, or 3-D SRS
+features.
+The chip does not support exact record speeds (it seems) of 11025Hz,
+22050Hz, and so on, used by Windows audio.
+Usually, the actual record is rate is around +/- 50Hz of the specified.

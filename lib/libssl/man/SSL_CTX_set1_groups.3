@@ -1,0 +1,164 @@
+.\"	$OpenBSD: SSL_CTX_set1_groups.3,v 1.3 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL SSL_CTX_set1_curves.pod de4d764e Nov 9 14:51:06 2016 +0000
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2013, 2014, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET1_GROUPS 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set1_groups ,
+.Nm SSL_CTX_set1_groups_list ,
+.Nm SSL_set1_groups ,
+.Nm SSL_set1_groups_list ,
+.Nm SSL_CTX_set1_curves ,
+.Nm SSL_CTX_set1_curves_list ,
+.Nm SSL_set1_curves ,
+.Nm SSL_set1_curves_list
+.Nd choose supported EC groups
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fo SSL_CTX_set1_groups
+.Fa "SSL_CTX *ctx"
+.Fa "const int *glist"
+.Fa "size_t glistlen"
+.Fc
+.Ft int
+.Fo SSL_CTX_set1_groups_list
+.Fa "SSL_CTX *ctx"
+.Fa "const char *list"
+.Fc
+.Ft int
+.Fo SSL_set1_groups
+.Fa "SSL *ssl"
+.Fa "const int *glist"
+.Fa "size_t glistlen"
+.Fc
+.Ft int
+.Fo SSL_set1_groups_list
+.Fa "SSL *ssl"
+.Fa "const char *list"
+.Fc
+.Ft int
+.Fo SSL_CTX_set1_curves
+.Fa "SSL_CTX *ctx"
+.Fa "const int *clist"
+.Fa "size_t clistlen"
+.Fc
+.Ft int
+.Fo SSL_CTX_set1_curves_list
+.Fa "SSL_CTX *ctx"
+.Fa "const char *list"
+.Fc
+.Ft int
+.Fo SSL_set1_curves
+.Fa "SSL *ssl"
+.Fa "const int *clist"
+.Fa "size_t clistlen"
+.Fc
+.Ft int
+.Fo SSL_set1_curves_list
+.Fa "SSL *ssl"
+.Fa "const char *list"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_CTX_set1_groups
+sets the supported groups for
+.Fa ctx
+to the
+.Fa glistlen
+groups in the array
+.Fa glist .
+The array consists of group NIDs in preference order.
+For a TLS client, the groups are used directly in the supported groups
+extension.
+For a TLS server, the groups are used to determine the set of shared
+groups.
+.Pp
+.Fn SSL_CTX_set1_groups_list
+sets the supported groups for
+.Fa ctx
+to the
+.Fa list
+represented as a colon separated list of group NIDs or names, for example
+"P-521:P-384:P-256".
+.Pp
+.Fn SSL_set1_groups
+and
+.Fn SSL_set1_groups_list
+are similar except that they set supported groups for the SSL structure
+.Fa ssl
+only.
+.Pp
+The curve functions are deprecated synonyms for the equivalently
+named group functions and are identical in every respect except
+that they are implemented as macros.
+They exist because prior to TLS1.3, there was only the concept of
+supported curves.
+In TLS1.3, this was renamed to supported groups and extended to include
+Diffie Hellman groups.
+.Pp
+If an application wishes to make use of several of these functions for
+configuration purposes either on a command line or in a file, it should
+consider using the SSL_CONF interface instead of manually parsing
+options.
+.Sh RETURN VALUES
+All these functions return 1 for success or 0 for failure.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_add_extra_chain_cert 3 ,
+.Xr SSL_CTX_set_cipher_list 3 ,
+.Xr SSL_CTX_set_options 3 ,
+.Xr SSL_new 3
+.Sh HISTORY
+The curve functions first appeared in OpenSSL 1.0.2
+and the group functions in OpenSSL 1.1.1.
+Both have been available since
+.Ox 6.1 .

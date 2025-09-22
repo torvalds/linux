@@ -1,0 +1,470 @@
+.\"	$OpenBSD: open.2,v 1.52 2025/08/04 04:59:31 guenther Exp $
+.\"	$NetBSD: open.2,v 1.8 1995/02/27 12:35:14 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)open.2	8.2 (Berkeley) 11/16/93
+.\"
+.Dd $Mdocdate: August 4 2025 $
+.Dt OPEN 2
+.Os
+.Sh NAME
+.Nm open ,
+.Nm openat
+.Nd open or create a file for reading or writing
+.Sh SYNOPSIS
+.In fcntl.h
+.Ft int
+.Fn open "const char *path" "int flags" ...
+.Ft int
+.Fn openat "int fd" "const char *path" "int flags" ...
+.Sh DESCRIPTION
+The file name specified by
+.Fa path
+is opened
+for reading and/or writing as specified by the
+argument
+.Fa flags
+and the file descriptor returned to the calling process.
+The
+.Fa flags
+argument may indicate the file is to be
+created if it does not exist (by specifying the
+.Dv O_CREAT
+flag), in which case the file is created with a mode
+specified by an additional argument of type
+.Vt mode_t
+as described in
+.Xr chmod 2
+and modified by the process' umask value (see
+.Xr umask 2 ) .
+.Pp
+The
+.Fa flags
+specified are a bitwise OR of the following values.
+Exactly one of the first three values (file access modes) must be specified:
+.Pp
+.Bl -tag -width O_DIRECTORY -offset indent -compact
+.It Dv O_RDONLY
+Open for reading only.
+.It Dv O_WRONLY
+Open for writing only.
+.It Dv O_RDWR
+Open for reading and writing.
+.El
+.Pp
+Any combination of the following flags may additionally be used:
+.Pp
+.Bl -tag -width O_DIRECTORY -offset indent -compact
+.It Dv O_NONBLOCK
+Do not block on open or for data to become available.
+.It Dv O_APPEND
+Append on each write.
+.It Dv O_CREAT
+Create file if it does not exist.
+An additional argument of type
+.Vt mode_t
+must be supplied to the call.
+.It Dv O_TRUNC
+Truncate size to 0.
+.It Dv O_EXCL
+Error if
+.Dv O_CREAT
+is set and file exists.
+.It Dv O_SYNC
+Perform synchronous I/O operations.
+.It Dv O_SHLOCK
+Atomically obtain a shared lock.
+.It Dv O_EXLOCK
+Atomically obtain an exclusive lock.
+.It Dv O_NOFOLLOW
+If last path element is a symlink, don't follow it.
+.It Dv O_CLOEXEC
+Set
+.Dv FD_CLOEXEC
+(the close-on-exec flag)
+on the new file descriptor.
+.It Dv O_CLOFORK
+Set
+.Dv FD_CLOFORK
+(the close-on-fork flag)
+on the new file descriptor.
+.It Dv O_DIRECTORY
+Error if
+.Fa path
+does not name a directory.
+.El
+.Pp
+Opening a file with
+.Dv O_APPEND
+set causes each write on the file
+to be appended to the end.
+If
+.Dv O_TRUNC
+and a writing mode are specified and the
+file exists, the file is truncated to zero length.
+If
+.Dv O_EXCL
+is set with
+.Dv O_CREAT
+and the file already
+exists,
+.Fn open
+returns an error.
+This may be used to implement a simple exclusive access locking mechanism.
+If either of
+.Dv O_EXCL
+or
+.Dv O_NOFOLLOW
+are set and the last component of the pathname is
+a symbolic link,
+.Fn open
+will fail even if the symbolic
+link points to a non-existent name.
+If the
+.Dv O_NONBLOCK
+flag is specified, do not wait for the device or file to be ready or
+available.
+If the
+.Fn open
+call would result
+in the process being blocked for some reason (e.g., waiting for
+carrier on a dialup line),
+.Fn open
+returns immediately.
+This flag also has the effect of making all subsequent I/O on the open file
+non-blocking.
+If the
+.Dv O_SYNC
+flag is set, all I/O operations on the file will be done synchronously.
+.Pp
+A FIFO should either be opened with
+.Dv O_RDONLY
+or with
+.Dv O_WRONLY .
+The behavior for opening a FIFO with
+.Dv O_RDWR
+is undefined.
+.Pp
+When opening a file, a lock with
+.Xr flock 2
+semantics can be obtained by setting
+.Dv O_SHLOCK
+for a shared lock, or
+.Dv O_EXLOCK
+for an exclusive lock.
+If creating a file with
+.Dv O_CREAT ,
+the request for the lock will never fail
+(provided that the underlying filesystem supports locking).
+.Pp
+If
+.Fn open
+is successful, the file pointer used to mark the current position within
+the file is set to the beginning of the file.
+.Pp
+When a new file is created, it is given the group of the directory
+which contains it.
+.Pp
+The new descriptor is set to remain open across
+.Xr execve 2
+system calls; see
+.Xr close 2
+and
+.Xr fcntl 2 .
+.Pp
+The system imposes a limit on the number of file descriptors
+open simultaneously by one process.
+.Xr getdtablesize 3
+returns the current system limit.
+.Pp
+The
+.Fn openat
+function is equivalent to
+.Fn open
+except that where
+.Fa path
+specifies a relative path,
+the file to be opened is determined relative to
+the directory associated with file descriptor
+.Fa fd
+instead of the current working directory.
+.Pp
+If
+.Fn openat
+is passed the special value
+.Dv AT_FDCWD
+(defined in
+.In fcntl.h )
+in the
+.Fa fd
+parameter, the current working directory is used
+and the behavior is identical to a call to
+.Fn open .
+.Sh RETURN VALUES
+If successful,
+.Fn open
+returns a non-negative integer, termed a file descriptor.
+Otherwise, a value of \-1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn open
+and
+.Fn openat
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENOTDIR
+.Dv O_DIRECTORY
+is specified and
+.Fa path
+does not name a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Dv NAME_MAX
+characters, or an entire pathname (including the terminating NUL)
+exceeded
+.Dv PATH_MAX
+bytes.
+.It Bq Er ENOENT
+.Dv O_CREAT
+is not set and the named file does not exist.
+.It Bq Er ENOENT
+A component of the pathname that must exist does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.It Bq Er EACCES
+The required permissions (for reading and/or writing)
+are denied for the given
+.Fa flags .
+.It Bq Er EACCES
+.Dv O_CREAT
+is specified,
+the file does not exist,
+and the directory in which it is to be created
+does not permit writing.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname,
+or the
+.Dv O_NOFOLLOW
+flag was specified and the target is a symbolic link.
+.It Bq Er EISDIR
+The named file is a directory, and the arguments specify
+it is to be opened for writing.
+.It Bq Er EINVAL
+The
+.Fa flags
+specified for opening the file are not valid.
+.It Bq Er EROFS
+The named file resides on a read-only file system,
+and the file is to be modified.
+.It Bq Er EMFILE
+The process has already reached its limit for open file descriptors.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er ENXIO
+The named file is a character special or block
+special file, and the device associated with this special file
+does not exist.
+.It Bq Er ENXIO
+The named file is a FIFO, the
+.Dv O_NONBLOCK
+and
+.Dv O_WRONLY
+flags are set, and no process has the file open for reading.
+.It Bq Er EINTR
+The
+.Fn open
+operation was interrupted by a signal.
+.It Bq Er EOPNOTSUPP
+.Dv O_SHLOCK
+or
+.Dv O_EXLOCK
+is specified but the underlying filesystem does not support locking.
+.It Bq Er EWOULDBLOCK
+.Dv O_NONBLOCK
+and one of
+.Dv O_SHLOCK
+or
+.Dv O_EXLOCK
+is specified and the file is already locked.
+.It Bq Er ENOSPC
+.Dv O_CREAT
+is specified,
+the file does not exist,
+and the directory in which the entry for the new file is being placed
+cannot be extended because there is no space left on the file
+system containing the directory.
+.It Bq Er ENOSPC
+.Dv O_CREAT
+is specified,
+the file does not exist,
+and there are no free inodes on the file system on which the
+file is being created.
+.It Bq Er EDQUOT
+.Dv O_CREAT
+is specified,
+the file does not exist,
+and the directory in which the entry for the new file
+is being placed cannot be extended because the
+user's quota of disk blocks on the file system
+containing the directory has been exhausted.
+.It Bq Er EDQUOT
+.Dv O_CREAT
+is specified,
+the file does not exist,
+and the user's quota of inodes on the file system on
+which the file is being created has been exhausted.
+.It Bq Er EIO
+An I/O error occurred while making the directory entry or
+allocating the inode for
+.Dv O_CREAT .
+.It Bq Er ETXTBSY
+The file is a pure procedure (shared text) file that is being
+executed and the
+.Fn open
+call requests write access.
+.It Bq Er EFAULT
+.Fa path
+points outside the process's allocated address space.
+.It Bq Er EEXIST
+.Dv O_CREAT
+and
+.Dv O_EXCL
+were specified and the file exists.
+.It Bq Er EPERM
+The file named by
+.Fa path
+is flagged append-only but
+.Dv O_APPEND
+was not specified in
+.Fa flags .
+.It Bq Er EOPNOTSUPP
+An attempt was made to open a socket (not currently implemented).
+.It Bq Er EBUSY
+An attempt was made to open a terminal device that requires exclusive
+access and the specified device has already be opened.
+.El
+.Pp
+Additionally, the
+.Fn openat
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa path
+argument specifies a relative path and the
+.Fa fd
+argument is neither
+.Dv AT_FDCWD
+nor a valid file descriptor.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument specifies a relative path and the
+.Fa fd
+argument is a valid file descriptor but it does not reference a directory.
+.It Bq Er EACCES
+The
+.Fa path
+argument specifies a relative path but search permission is denied
+for the directory which the
+.Fa fd
+file descriptor references.
+.El
+.Sh SEE ALSO
+.Xr chflags 2 ,
+.Xr chmod 2 ,
+.Xr close 2 ,
+.Xr dup 2 ,
+.Xr flock 2 ,
+.Xr lseek 2 ,
+.Xr read 2 ,
+.Xr umask 2 ,
+.Xr write 2 ,
+.Xr getdtablesize 3
+.Sh STANDARDS
+The
+.Fn open
+and
+.Fn openat
+functions conform to
+.St -p1003.1-2008 .
+.Pp
+.Dv POSIX
+specifies three different flavors for synchronous I/O:
+.Dv O_SYNC ,
+.Dv O_DSYNC ,
+and
+.Dv O_RSYNC .
+In
+.Ox ,
+these are all equivalent.
+.Pp
+The
+.Dv O_SHLOCK
+and
+.Dv O_EXLOCK
+flags are non-standard extensions and should not be used if portability
+is of concern.
+.Sh HISTORY
+An
+.Fn open
+system call first appeared in
+.At v1 .
+The
+.Fa flags
+argument has been supported since
+.Bx 4.2 .
+Before that, a dedicated
+.Fn creat
+system call had to be used to create new files;
+it appeared in
+.At v1 ,
+was deprecated in
+.Bx 4.3 Reno ,
+and removed in
+.Ox 5.0 .
+.Pp
+The
+.Fn openat
+system call has been available since
+.Ox 5.0 .
+.Sh CAVEATS
+The
+.Dv O_TRUNC
+flag requires that one of
+.Dv O_RDWR
+or
+.Dv O_WRONLY
+also be specified, else
+.Er EINVAL
+is returned.

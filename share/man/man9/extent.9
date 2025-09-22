@@ -1,0 +1,425 @@
+.\"	$OpenBSD: extent.9,v 1.20 2024/01/19 22:12:24 kettenis Exp $
+.\"	$NetBSD: extent.9,v 1.15 1999/03/16 00:40:47 garbled Exp $
+.\"
+.\" Copyright (c) 1996, 1998 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe and Greg Hudson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 19 2024 $
+.Dt EXTENT 9
+.Os
+.Sh NAME
+.Nm extent_create ,
+.Nm extent_destroy ,
+.Nm extent_alloc ,
+.Nm extent_alloc_with_descr ,
+.Nm extent_alloc_subregion ,
+.Nm extent_alloc_subregion_with_descr ,
+.Nm extent_alloc_region ,
+.Nm extent_alloc_region_with_descr ,
+.Nm extent_free ,
+.Nm extent_print
+.Nd general purpose extent manager
+.Sh SYNOPSIS
+.In sys/malloc.h
+.In sys/extent.h
+.Ft struct extent *
+.Fn extent_create "char *name" "u_long start" "u_long end" "int mtype" "caddr_t storage" "size_t storagesize" "int flags"
+.Ft void
+.Fn extent_destroy "struct extent *ex"
+.Ft int
+.Fn extent_alloc "struct extent *ex" "u_long size" "u_long alignment" "u_long skew" "u_long boundary" "int flags" "u_long *result"
+.Ft int
+.Fn extent_alloc_with_descr "struct extent *ex" "u_long size" "u_long alignment" "u_long skew" "u_long boundary" "int flags" "struct extent_region *rp" "u_long *result"
+.Ft int
+.\" too many arguments for a single .Fn
+.Fo extent_alloc_subregion
+.Fa "struct extent *ex"
+.Fa "u_long substart"
+.Fa "u_long subend"
+.Fa "u_long size"
+.Fa "u_long alignment"
+.Fa "u_long skew"
+.Fa "u_long boundary"
+.Fa "int flags"
+.Fa "u_long *result"
+.Fc
+.Ft int
+.\" way too many arguments for a single .Fn
+.Fo extent_alloc_subregion_with_descr
+.Fa "struct extent *ex"
+.Fa "u_long substart"
+.Fa "u_long subend"
+.Fa "u_long size"
+.Fa "u_long alignment"
+.Fa "u_long skew"
+.Fa "u_long boundary"
+.Fa "int flags"
+.Fa "struct extent_region *rp"
+.Fa "u_long *result"
+.Fc
+.Ft int
+.Fn extent_alloc_region "struct extent *ex" "u_long start" "u_long size" "int flags"
+.Ft int
+.Fn extent_alloc_region_with_descr "struct extent *ex" "u_long start" "u_long size" "int flags" "struct extent_region *rp"
+.Ft int
+.Fn extent_free "struct extent *ex" "u_long start" "u_long size" "int flags"
+.Ft void
+.Fn extent_print "struct extent *ex"
+.Sh DESCRIPTION
+The extent manager provides management of areas of memory or
+other enumerable spaces (such as I/O ports).
+An opaque structure called an
+.Nm extent map
+keeps track of allocated regions within the enumerable space.
+.Pp
+.Fn extent_create
+creates an extent map managing the space from
+.Fa start
+to
+.Fa end
+inclusive.
+All memory allocation will use the memory type
+.Fa mtype
+.Po
+see
+.Xr malloc 9
+.Pc .
+The extent map will have the name
+.Fa name ,
+used for identification in case of errors or in
+.Xr ddb 4
+.Ic show extents .
+If the flag
+.Dv EX_NOCOALESCE
+is set, internal coalescing of regions is disabled,
+and only entire regions may be freed within the extent map, so that
+.Fn extent_free
+will never have to allocate a region descriptor.
+If the flag
+.Dv EX_FILLED
+is set, the entire space managed by the extent map will be allocated
+upon creation of the extent map, such that selected regions may be
+made available through calls to
+.Fn extent_free .
+.Pp
+Some applications may want to use an extent map but
+can't use
+.Fn malloc
+and
+.Fn free .
+These applications may provide pre-allocated storage for
+all descriptor overhead with the arguments
+.Fa storage
+and
+.Fa storagesize .
+An extent of this type is called a
+.Nm fixed extent .
+If the application can safely use
+.Fn malloc
+and
+.Fn free ,
+.Fa storage
+should be
+.Dv NULL .
+A fixed extent has a fixed number of region descriptors, so care
+should be taken to provide enough storage for them; alternatively, the
+flag
+.Dv EX_MALLOCOK
+may be passed to extent requests to indicate that a fixed extent
+map may be extended using a call to
+.Fn malloc .
+Note that passing the flag
+.Dv EX_FILLED
+to
+.Fn extent_create
+will consume a region descriptor upon creation of the extent map.
+.Pp
+The caller should pass the flag
+.Dv EX_WAITOK
+or
+.Dv EX_NOWAIT
+to extent functions that have a memory overhead, to specify whether
+it is okay to wait.
+These functions are
+.Fn extent_create
+(non fixed extents),
+.Fn extent_free
+(unless
+.Dv EX_NOCOALESCE
+is set),
+.Fn extent_alloc ,
+.Fn extent_alloc_subregion
+and
+.Fn extent_alloc_region .
+.Pp
+.Fn extent_destroy
+destroys the extent map
+.Fa ex ,
+freeing all allocated regions.
+If the extent is not a fixed extent,
+the region and internal extent descriptors themselves are freed.
+This function always succeeds.
+.Pp
+.Fn extent_alloc
+allocates a region in the extent map
+.Fa ex
+of size
+.Fa size
+that fits the provided parameters.
+There are two distinct allocation policies, which are selected by the
+.Fa flags
+argument:
+.Bl -tag -offset indent -width "XXXXXXXXX"
+.It Dv EX_FAST
+Allocate the first region that fits the provided parameters, regardless
+of resulting extent fragmentation.
+.It default
+Allocate the smallest region that is capable of holding the request,
+thus minimizing fragmentation of the extent.
+.El
+.Pp
+The caller may specify that it is okay to wait for space to become free in the
+extent by setting the flag
+.Dv EX_WAITSPACE .
+If
+.Dv EX_WAITSPACE
+is not set, the allocation will fail if the request cannot be
+satisfied without sleeping.
+.Pp
+The request will be aligned to a multiple of
+.Fa alignment .
+That value must be a power of 2.
+If no alignment is necessary, the value
+.Dv EX_NOALIGN
+should be specified.
+If
+.Fa skew
+is non-zero, it modifies the requested alignment result in the following way:
+the value
+.Pq Fa result No - Fa skew
+is aligned to
+.Fa alignment
+boundaries.
+.Fa skew
+must be a smaller number than
+.Fa alignment .
+If
+.Fa boundary
+is not
+.Dv EX_NOBOUNDARY ,
+the allocated region will not cross any boundary lines, spaced
+.Fa boundary
+apart.
+If the caller specifies the
+.Dv EX_BOUNDZERO
+flag, boundary lines begin at zero.
+Otherwise, boundary lines begin at the beginning of the extent.
+The allocated region may begin on a
+boundary line, but the end of the region will not touch nor cross a
+boundary line.
+A
+.Fa boundary
+argument smaller than the sum of the requested skew and the size of
+the request is invalid.
+Upon successful completion,
+.Fa *result
+will contain the start of the allocated region.
+.Pp
+.Fn extent_alloc_with_descr
+is similar to
+.Fn extent_alloc
+but allows the caller to provide a pre-allocated region descriptor instead
+of having the function allocate one.
+This function can only be used with extents that have the
+.Dv EX_NOCOALESCE
+property.
+.Pp
+.Fn extent_alloc_subregion
+and
+.Fn extent_alloc_subregion_with_descr
+are generalized versions of
+.Fn extent_alloc
+and
+.Fn extent_alloc_with_descr
+that allow the caller to specify that the allocated region must fall
+within the subregion from
+.Fa substart
+to
+.Fa subend
+inclusive.
+.Pp
+.Fn extent_alloc_region
+allocates the specific region in the extent map
+.Fa ex
+beginning at
+.Fa start
+with the size
+.Fa size .
+If the caller specifies the
+.Dv EX_CONFLICTOK
+flag, the allocation will succeed even if part of the requested region
+has already been allocated.
+The caller may specify that it is okay to wait for the indicated
+region to be free by setting the flag
+.Dv EX_WAITSPACE .
+If neither
+.Dv EX_WAITSPACE
+nor
+.Dv EX_CONFLICTOK
+is set, the allocation will fail if the request cannot be
+satisfied without sleeping.
+.Pp
+.Fn extent_alloc_region_with_descr
+is similar to
+.Fn extent_alloc_region
+but allows the caller to provide a pre-allocated region descriptor instead
+of having the function allocate one.
+This function can only be used with extents that have the
+.Dv EX_NOCOALESCE
+property.
+.Pp
+.Fn extent_free
+frees a region of
+.Fa size
+bytes starting at
+.Fa start
+in the extent map
+.Fa ex .
+If the extent has the
+.Dv EX_NOCOALESCE
+property, only entire regions may be freed.
+If the extent has the
+.Dv EX_NOCOALESCE
+property and the caller attempts to free a partial region, behavior is
+undefined.
+If called on an extent without the
+.Dv EX_NOCOALESCE
+property, this function can fail with error codes listed below, otherwise
+this function will always succeed.
+.Pp
+.Fn extent_print
+Prints out information about extent
+.Fa ex .
+This function always succeeds.
+.Sh RETURN VALUES
+The behavior of all extent manager functions is undefined if given
+invalid arguments.
+.Fn extent_create
+returns the extent map on success, or
+.Dv NULL
+if it fails to allocate storage for the extent map.
+It always succeeds when creating a fixed extent or when given the flag
+.Dv EX_WAITOK .
+.Fn extent_alloc ,
+.Fn extent_alloc_region ,
+.Fn extent_alloc_subregion ,
+and
+.Fn extent_free
+return one of the following values:
+.Bl -tag -offset indent -width "XXXXXXXX"
+.It Dv 0
+Operation was successful.
+.It Dv ENOMEM
+If
+.Dv EX_NOWAIT
+is specified, the extent manager was not able to allocate a region
+descriptor for the new region or to split a region when freeing a
+partial region.
+.It Dv EAGAIN
+Requested region is not available and
+.Dv EX_WAITSPACE
+was not specified.
+.It Dv EINTR
+Process received a signal while waiting for the requested region to
+become available in the extent.
+.El
+.Sh EXAMPLES
+Here is an example of a (useless) function that uses several of the
+extent manager routines.
+.Bd -literal
+void
+func()
+{
+	struct extent *foo_ex;
+	u_long region_start;
+	int error;
+
+	/*
+	 * Extent "foo" manages a 256k region starting at 0x0 and
+	 * only allows complete regions to be freed so that
+	 * extent_free() never needs to allocate memory.
+	 */
+	foo_ex = extent_create("foo", 0x0, 0x3ffff, M_DEVBUF,
+	    NULL, 0, EX_WAITOK | EX_NOCOALESCE);
+
+	/*
+	 * Allocate an 8k region, aligned to a 4k boundary, which
+	 * does not cross any of the 3 64k boundaries (at 64k,
+	 * 128k, and 192k) within the extent.
+	 */
+	error = extent_alloc(foo_ex, 0x2000, 0x1000, 0x10000,
+	    EX_NOWAIT, &region_start);
+	if (error)
+		panic("you lose");
+
+	/*
+	 * Give up the extent.
+	 */
+	extent_destroy(foo_ex);
+}
+.Ed
+.\"
+.\" Yeah, right... document EX_CATCH first...
+.\"
+.\" .Sh LIMITATIONS
+.\" The flag
+.\" .Dv EX_CATCH
+.\" cannot be used to catch signals in all circumstances since
+.\" .Xr malloc 9
+.\" does not provide such a functionality.
+.Sh CODE REFERENCES
+The extent manager itself is implemented within the file
+.Pa sys/kern/subr_extent.c .
+.Pp
+The i386 bus management code uses the extent manager for managing I/O
+ports and I/O memory.
+See
+.Pa sys/arch/i386/i386/machdep.c .
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr malloc 9
+.Sh HISTORY
+The extent manager appeared in
+.Nx 1.3 .
+.Sh AUTHORS
+.An -nosplit
+The extent manager was designed and implemented by
+.An Jason R. Thorpe Aq Mt thorpej@NetBSD.ORG .
+.An Matthias Drochner Aq Mt drochner@zelux6.zel.kfa-juelich.de
+contributed to the initial testing and optimization of the implementation.
+.An Chris Demetriou Aq Mt cgd@NetBSD.ORG
+contributed many architectural suggestions.

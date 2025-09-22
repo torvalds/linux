@@ -1,0 +1,122 @@
+.\" $OpenBSD: memconfig.8,v 1.12 2014/01/20 05:07:48 schwarze Exp $
+.\"
+.\" Copyright (c) 1999 Chris Costello
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: /home/ncvs/src/usr.sbin/memcontrol/memcontrol.8,v 1.9 2002/09/15 15:07:55 dwmalone Exp $
+.\"
+.Dd $Mdocdate: January 20 2014 $
+.Dt MEMCONFIG 8
+.Os
+.Sh NAME
+.Nm memconfig
+.Nd control system cache behaviour with respect to memory
+.Sh SYNOPSIS
+.Nm memconfig
+.Ar list
+.Op Fl a
+.Nm memconfig
+.Ar set
+.Fl b Ar base
+.Fl l Ar length
+.Fl o Ar owner
+.Ar attribute
+.Nm memconfig
+.Ar clear
+.Fl o Ar owner
+.Nm memconfig
+.Ar clear
+.Fl b Ar base
+.Fl l Ar length
+.Sh DESCRIPTION
+A number of supported system architectures allow the behaviour of the CPU
+cache to be programmed to behave differently depending on the region being
+written.
+.Pp
+.Nm
+provides an interface to this facility, allowing CPU cache behavior to
+be altered for ranges of system physical memory.
+.Pp
+These ranges are typically power-of-2 aligned and sized, however the specific
+rules governing their layout vary between architectures.
+The
+.Nm
+program does not attempt to enforce these rules, however the system will
+reject any attempt to set an illegal combination.
+.Pp
+The operands and their options are as follows:
+.Bl -tag -width clear
+.It Ar list
+List range slots.
+.Bl -tag -width xxxxxx
+.It Fl a
+List all range slots, even those that are inactive.
+.El
+.It Ar set
+Set memory range attributes.
+.Bl -tag -width xxxxxx
+.It Fl b Ar base
+Memory range base address.
+.It Fl l Ar length
+Length of memory range in bytes, power of 2.
+.It Fl o Ar owner
+Text identifier for this setting (7 char max).
+.It Ar attribute
+Attributes applied to this range; combinations of
+.Ar force ,
+.Ar uncacheable ,
+.Ar write-combine ,
+.Ar write-through ,
+.Ar write-back ,
+or
+.Ar write-protect .
+.El
+.It Ar clear
+Clear memory range attributes.
+Ranges may be cleared by owner or by base/length combination.
+.Pp
+To clear based on ownership:
+.Bl -tag -width xxxxxx
+.It Fl o Ar owner
+All ranges with this owner will be cleared.
+.El
+.Pp
+To clear based on the base/length combination:
+.Bl -tag -width xxxxxx
+.It Fl b Ar base
+Memory range base address.
+.It Fl l Ar length
+Length of memory range in bytes, power of 2.
+.El
+.Pp
+Base and length must exactly match an existing range.
+.El
+.Sh SEE ALSO
+.Xr mtrr 4
+.Sh HISTORY
+.Nm
+was originally introduced in
+.Fx 3.3
+as
+.Sy memcontrol .

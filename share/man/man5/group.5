@@ -1,0 +1,176 @@
+.\"	$OpenBSD: group.5,v 1.15 2012/06/20 22:15:13 schwarze Exp $
+.\"	$NetBSD: group.5,v 1.4 1995/07/28 06:41:39 phil Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\" Portions Copyright(c) 1994, Jason Downs. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)group.5	8.3 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: June 20 2012 $
+.Dt GROUP 5
+.Os
+.Sh NAME
+.Nm group
+.Nd format of the group permissions file
+.Sh DESCRIPTION
+The file
+.Pa /etc/group
+consists of newline separated
+.Tn ASCII
+records, one per group, containing four colon
+.Pq Ql \&:
+separated fields.
+These fields are as follows:
+.Pp
+.Bl -tag -width password -offset indent -compact
+.It group
+Name of the group.
+.It passwd
+Group's encrypted password.
+.It gid
+The group's decimal ID.
+.It member
+Group members.
+.El
+.Pp
+The
+.Ar group
+field is the group name used for granting file access to users
+who are members of the group.
+The
+.Ar gid
+field is the number associated with the group name.
+They should both be unique across the system (and often
+across a group of systems) since they control file access.
+The
+.Ar passwd
+field is an optional encrypted password.
+This field is rarely used and an asterisk is normally placed in it
+rather than leaving it blank.
+The
+.Ar member
+field contains the names of users granted the privileges of
+.Ar group .
+The member names are separated by commas without spaces or newlines.
+A user is automatically in a group if that group was specified in their
+.Xr passwd 5
+entry and does not need to be added to that group in the
+.Nm
+file.
+.\" .Pp
+.\" When the system reads the file
+.\" .Pa /etc/group
+.\" the fields are read into the structure
+.\" .Fa group
+.\" declared in
+.\" .Aq Pa grp.h :
+.\" .Bd -literal -offset indent
+.\" struct group {
+.\"	char    *gr_name;        /* group name */
+.\"	char    *gr_passwd;      /* group password */
+.\"	int     gr_gid;          /* group id */
+.\"	char    **gr_mem;        /* group members */
+.\" };
+.\" .Ed
+.Sh YP SUPPORT
+If YP is active, the
+.Nm
+file also supports YP exclusions and inclusions.
+.Pp
+Lines beginning with a
+.Ql \&-
+(minus sign) are entries marked as being excluded from any following
+inclusions, which are marked with a `+' (plus sign).
+.Pp
+Lines of the format
+.Bd -literal -offset indent
++name:*::
+.Ed
+.Pp
+cause the specified group to be included from the
+.Pa group.byname
+YP map.
+If no group name is specified, or the
+.Ql +
+(plus sign) appears alone on a line, all groups are included from the YP map.
+.Pp
+YP references may appear anywhere in the file, but the single
+.Ql +
+form should be on the last line, for historical reasons.
+Only the first group with a specific name encountered, whether in the
+.Nm
+file itself, or included via YP, will be used.
+.Pp
+Proper YP group support requires consistent
+.Pa group.byname ,
+.Pa group.bygid
+and
+.Pa netid.byname
+YP maps.
+See
+.Xr getgrent 3
+and
+.Xr getgrouplist 3
+for details.
+.Pp
+When YP is enabled but temporarily unavailable, login becomes impossible
+for all users except those having an entry in the
+.Xr netid 5
+file.
+.Sh FILES
+.Bl -tag -width /etc/group -compact
+.It Pa /etc/group
+.El
+.Sh SEE ALSO
+.Xr passwd 1 ,
+.Xr setgroups 2 ,
+.Xr crypt 3 ,
+.Xr initgroups 3 ,
+.Xr netid 5 ,
+.Xr passwd 5 ,
+.Xr yp 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.At v6 .
+.Pp
+The YP file format first appeared in SunOS.
+.Sh BUGS
+The
+.Xr passwd 1
+command does not change the
+.Nm
+passwords.
+.Pp
+Lines in
+.Pa /etc/group
+are limited to 1024 characters.
+YP groups are not affected by this limit.
+.Pp
+Groups are limited to a maximum of 200 members per group.

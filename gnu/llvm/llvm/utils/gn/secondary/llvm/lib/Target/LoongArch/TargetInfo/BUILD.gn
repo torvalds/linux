@@ -1,0 +1,6 @@
+static_library("TargetInfo") {
+  output_name = "LLVMLoongArchInfo"
+  deps = [ "//llvm/lib/Support" ]
+  include_dirs = [ ".." ]
+  sources = [ "LoongArchTargetInfo.cpp" ]
+}

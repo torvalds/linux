@@ -1,0 +1,18 @@
+Run ftpd regression tests.  The framework runs a client and an ftpd.
+
+SUDO=doas
+As ftpd needs root privileges, either run the tests as root or set
+this variable and run make as a regular user.  Only the code that
+requires it is run as root.
+
+KTRACE=ktrace
+Set this variable if you want a ktrace output from ftpd.  Note that
+ktrace is invoked after SUDO as SUDO would disable it.
+
+FTPD=/usr/libexec/ftpd
+Start an alternative ftpd program that is not in the path.
+
+Requirements:
+
+The test needs the port net/ucspi-tcp and the user "ftp" for anonymous
+logins.

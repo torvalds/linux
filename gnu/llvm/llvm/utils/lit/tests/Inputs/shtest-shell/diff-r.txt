@@ -1,0 +1,20 @@
+# Check recursive diff ("diff -r").
+
+# Create two directories for further comparison.
+# RUN: rm -rf %t/dir1 %t/dir2
+# RUN: mkdir -p %t/dir1 %t/dir2
+
+# Create same files in both of the dirs.
+# RUN: echo "hello" > %t/dir1/f1
+# RUN: echo "hello" > %t/dir2/f1
+
+# Create same subdirectories with same contents.
+# RUN: mkdir -p %t/dir1/subdir %t/dir2/subdir
+# RUN: echo "12345" > %t/dir1/subdir/f01
+# RUN: echo "12345" > %t/dir2/subdir/f01
+# RUN: echo -e "xxx\nzzz\nyyy" > %t/dir1/subdir/f02
+# RUN: echo -e "xxx\nzzz\nyyy" > %t/dir2/subdir/f02
+
+# Create empty subdirectories with same names.
+# RUN: mkdir -p %t/dir1/empty_subdir %t/dir2/empty_subdir
+# RUN: diff -r %t/dir1 %t/dir2

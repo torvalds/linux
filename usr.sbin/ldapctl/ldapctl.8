@@ -1,0 +1,103 @@
+.\"	$OpenBSD: ldapctl.8,v 1.7 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2009, 2010 Martin Hedenfalk <martin@bzero.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt LDAPCTL 8
+.Os
+.Sh NAME
+.Nm ldapctl
+.Nd control the LDAP daemon
+.Sh SYNOPSIS
+.Nm ldapctl
+.Op Fl v
+.Op Fl f Ar file
+.Op Fl r Ar directory
+.Op Fl s Ar socket
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr ldapd 8
+daemon.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl f Ar file
+Use
+.Ar file
+as the configuration file, instead of the default
+.Pa /etc/ldapd.conf .
+.It Fl r Ar directory
+Store and read database files in
+.Ar directory ,
+instead of the default
+.Pa /var/db/ldap .
+.It Fl s Ar socket
+Use
+.Ar socket
+instead of the default
+.Pa /var/run/ldapd.sock
+to communicate with
+.Xr ldapd 8 .
+.It Fl v
+Produce more verbose output.
+.El
+.Pp
+The commands are as follows:
+.Bl -tag -width xxxxxx
+.It Cm stats
+Show statistics counters.
+.It Cm log brief
+Disable verbose debug logging.
+.It Cm log verbose
+Enable verbose debug logging.
+.It Cm compact
+Compact all databases.
+.Xr ldapd 8
+does not have to be running.
+When compaction of a database file is complete, a special marker is appended
+to the database file that tells
+.Xr ldapd 8
+to reopen the file and perform new requests against the compacted database.
+A write transaction is opened to force other processes to buffer write
+requests while performing compaction.
+Read requests are handled without disruption.
+.It Cm index
+Re-index all databases.
+.Xr ldapd 8
+does not have to be running.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/ldapd.sockXXXXXXX" -compact
+.It Pa /var/run/ldapd.sock
+default
+.Nm
+control socket
+.It Pa /etc/ldapd.conf
+default
+.Xr ldapd 8
+configuration file
+.El
+.Sh SEE ALSO
+.Xr ldapd.conf 5 ,
+.Xr ldapd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.8 .

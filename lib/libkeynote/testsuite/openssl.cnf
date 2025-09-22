@@ -1,0 +1,24 @@
+#
+# SSLeay example configuration file.
+#
+
+RANDFILE                = $ENV::HOME/.rnd
+
+[ req ]
+default_bits            = 1024
+default_keyfile         = privkey.pem
+distinguished_name      = req_distinguished_name
+
+[ req_distinguished_name ]
+countryName                     = Country Name (2 letter code)
+countryName_value               = GB
+
+organizationName                = Organization Name (eg, company; recommended)
+organizationName_value          = BenCo
+
+commonName                      = server name (eg. ssl.domain.tld; required!!!)
+commonName_value                = BenCo CA
+
+emailAddress                    = Email Address
+emailAddress_value              = ben@algroup.co.uk
+

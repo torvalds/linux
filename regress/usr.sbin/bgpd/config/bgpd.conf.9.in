@@ -1,0 +1,49 @@
+# $OpenBSD: bgpd.conf.9.in,v 1.2 2018/09/29 08:14:42 claudio Exp $
+# test roa-set blocks
+
+AS 1
+
+roa-set { }
+roa-set { 1.2.3/24 source-as 0 }
+roa-set {
+	10/8 source-as 1
+	10/8 source-as 2
+	10/8 source-as 3
+	10/8 source-as 4
+	10/8 maxlen 24 source-as 3
+	10/8 maxlen 24 source-as 4
+	10/8 maxlen 24 source-as 5
+}
+
+origin-set empty1 {
+	# comment
+}
+origin-set one1 { 1.2.3/24 source-as 0 }
+origin-set one2 {
+	# comment
+	1.2.3/24 source-as 42
+}
+origin-set test2 { 1.2.3/24 source-as 1, 1.2.8.0/22 source-as 3 }
+
+origin-set test3 {
+	10/8 source-as 1
+	10/8 source-as 2
+	10/8 source-as 3
+	10/8 source-as 4
+	10/8 maxlen 24 source-as 3
+	10/8 maxlen 24 source-as 4
+	10/8 maxlen 24 source-as 5
+}
+
+origin-set test4 {
+	10.1/16 source-as 1
+	10.2/16 maxlen 24 source-as 1
+	10.3/16 prefixlen <= 24 source-as 1
+	10.4/16 prefixlen < 24 source-as 1
+}
+
+match from any ovs not-found
+match from any ovs invalid
+match from any ovs valid
+match from any origin-set empty1
+match from any origin-set test3

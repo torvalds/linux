@@ -1,0 +1,216 @@
+#	$OpenBSD: special,v 1.129 2023/09/19 15:02:55 naddy Exp $
+#
+# Hand-crafted mtree specification for the dangerous files.
+#
+
+.		type=dir mode=0755 uname=root gname=wheel
+
+dev		type=dir mode=0755 uname=root gname=wheel
+fd		type=dir mode=0555 uname=root gname=wheel ignore
+..	#dev/fd
+kmem		type=char mode=0640 uname=root gname=kmem
+mem		type=char mode=0640 uname=root gname=kmem
+..	#dev
+
+etc		type=dir mode=0755 uname=root gname=wheel
+acme-client.conf	type=file mode=0644 uname=root gname=wheel optional
+bgpd.conf	type=file mode=0600 uname=root gname=wheel optional
+chio.conf	type=file mode=0644 uname=root gname=operator optional
+crontab		type=file mode=0600 uname=root gname=wheel optional
+csh.cshrc	type=file mode=0644 uname=root gname=wheel optional
+csh.login	type=file mode=0644 uname=root gname=wheel optional
+csh.logout	type=file mode=0644 uname=root gname=wheel optional
+daily		type=file mode=0644 uname=root gname=wheel
+daily.local	type=file mode=0644 uname=root gname=wheel optional
+dhcpd.conf	type=file mode=0644 uname=root gname=wheel optional
+dvmrpd.conf	type=file mode=0600 uname=root gname=wheel optional
+exports		type=file mode=0644 uname=root gname=wheel optional
+fbtab		type=file mode=0644 uname=root gname=wheel
+fstab		type=file mode=0644 uname=root gname=wheel
+ftpchroot	type=file mode=0644 uname=root gname=wheel optional
+ftpusers	type=file mode=0644 uname=root gname=wheel
+group		type=file mode=0644 uname=root gname=wheel
+hostapd.conf	type=file mode=0600 uname=root gname=wheel optional
+hosts		type=file mode=0644 uname=root gname=wheel
+httpd.conf	type=file mode=0644 uname=root gname=wheel optional
+ifstated.conf	type=file mode=0644 uname=root gname=wheel optional
+iked		type=dir mode=0755 uname=root gname=wheel
+..	#iked
+iked.conf	type=file mode=0600 uname=root gname=wheel optional
+inetd.conf	type=file mode=0644 uname=root gname=wheel optional
+ipsec.conf	type=file mode=0600 uname=root gname=wheel optional
+isakmpd		type=dir mode=0755 uname=root gname=wheel
+isakmpd.conf	type=file mode=0600 uname=root gname=wheel optional
+isakmpd.policy	type=file mode=0600 uname=root gname=wheel optional
+..	#isakmpd
+ldapd.conf	type=file mode=0600 uname=root gname=wheel optional
+ldpd.conf	type=file mode=0600 uname=root gname=wheel optional
+login.conf	type=file mode=0644 uname=root gname=wheel
+login.conf.d	type=dir mode=0755 uname=root gname=wheel
+..	#login.conf.d
+login_ldap.conf	type=file mode=0640 uname=root gname=auth optional
+mail.rc		type=file mode=0644 uname=root gname=wheel
+mailer.conf	type=file mode=0644 uname=root gname=wheel
+master.passwd	type=file mode=0600 uname=root gname=wheel
+monthly		type=file mode=0644 uname=root gname=wheel
+monthly.local	type=file mode=0644 uname=root gname=wheel optional
+mrouted.conf	type=file mode=0644 uname=root gname=wheel optional
+mail		type=dir mode=0755 uname=root gname=wheel
+aliases		type=file mode=0644 uname=root gname=wheel optional
+aliases.db	type=file mode=0644 uname=root gname=wheel optional
+secrets		type=file mode=0640 uname=root gname=_smtpd optional
+secrets.db	type=file mode=0640 uname=root gname=_smtpd optional
+smtpd.conf	type=file mode=0644 uname=root gname=wheel
+spamd.conf	type=file mode=0644 uname=root gname=wheel optional
+..	#mail
+mtree		type=dir mode=0755 uname=root gname=wheel
+special		type=file mode=0600 uname=root gname=wheel
+..	#mtree
+moduli		type=file mode=0644 uname=root gname=wheel
+netstart	type=file mode=0644 uname=root gname=wheel
+npppd		type=dir mode=0755 uname=root gname=wheel
+npppd.conf	type=file mode=0600 uname=root gname=wheel
+npppd-users	type=file mode=0600 uname=root gname=wheel
+..	#npppd
+ntpd.conf	type=file mode=0644 uname=root gname=wheel optional
+ospfd.conf	type=file mode=0600 uname=root gname=wheel optional
+ospf6d.conf	type=file mode=0600 uname=root gname=wheel optional
+passwd		type=file mode=0644 uname=root gname=wheel
+pf.conf		type=file mode=0600 uname=root gname=wheel optional
+printcap	mode=0644 uname=root gname=wheel optional
+radiusd.conf	type=file mode=0600 uname=root gname=wheel optional
+rc		type=file mode=0644 uname=root gname=wheel
+rc.conf		type=file mode=0644 uname=root gname=wheel
+rc.conf.local	type=file mode=0644 uname=root gname=wheel optional
+rc.local	type=file mode=0644 uname=root gname=wheel optional
+rc.securelevel	type=file mode=0644 uname=root gname=wheel optional
+rc.shutdown	type=file mode=0644 uname=root gname=wheel optional
+relayd.conf	type=file mode=0600 uname=root gname=wheel optional
+remote		type=file mode=0644 uname=root gname=wheel optional
+resolv.conf	type=file mode=0644 uname=root gname=wheel optional
+resolv.conf.tail type=file mode=0644 uname=root gname=wheel optional
+rbootd.conf	type=file mode=0644 uname=root gname=wheel optional
+ripd.conf	type=file mode=0600 uname=root gname=wheel optional
+sasyncd.conf	type=file mode=0600 uname=root gname=wheel optional
+sensorsd.conf	type=file mode=0644 uname=root gname=wheel optional
+shells		type=file mode=0644 uname=root gname=wheel
+skey		type=dir mode=01730 uname=root gname=auth optional
+..	#skey
+snmpd.conf	type=file mode=0600 uname=root gname=wheel optional
+soii.key	type=file mode=0600 uname=root gname=wheel optional
+spwd.db		type=file mode=0640 uname=root gname=_shadow
+ssh		type=dir mode=0755 uname=root gname=wheel optional
+ssh_config	type=file mode=0644 uname=root gname=wheel
+ssh_host_ecdsa_key	type=file mode=0600 uname=root gname=wheel optional
+ssh_host_ecdsa_key.pub	type=file mode=0644 uname=root gname=wheel optional
+ssh_host_ed25519_key	type=file mode=0600 uname=root gname=wheel optional
+ssh_host_ed25519_key.pub	type=file mode=0644 uname=root gname=wheel optional
+ssh_host_key	type=file mode=0600 uname=root gname=wheel optional
+ssh_host_key.pub	type=file mode=0644 uname=root gname=wheel optional
+ssh_host_rsa_key	type=file mode=0600 uname=root gname=wheel optional
+ssh_host_rsa_key.pub	type=file mode=0644 uname=root gname=wheel optional
+sshd_config	type=file mode=0644 uname=root gname=wheel
+..	#ssh
+syslog.conf	type=file mode=0644 uname=root gname=wheel
+ttys		type=file mode=0644 uname=root gname=wheel
+vm.conf		type=file mode=0644 uname=root gname=wheel optional
+weekly		type=file mode=0644 uname=root gname=wheel
+weekly.local	type=file mode=0644 uname=root gname=wheel optional
+ypldap.conf	type=file mode=0600 uname=root gname=wheel optional
+..	#etc
+
+root		type=dir mode=0700 uname=root gname=wheel
+.cshrc		type=file mode=0644 uname=root gname=wheel
+.login		type=file mode=0644 uname=root gname=wheel
+.profile	type=file mode=0644 uname=root gname=wheel
+.rhosts		type=file mode=0600 uname=root gname=wheel optional
+.ssh		type=dir mode=0700 uname=root gname=wheel
+authorized_keys	type=file mode=0600 uname=root gname=wheel
+..	#root/.ssh
+..	#root
+
+sbin		type=dir mode=0755 uname=root gname=wheel ignore
+..	#sbin
+
+usr		type=dir mode=0755 uname=root gname=wheel
+bin		type=dir mode=0755 uname=root gname=wheel ignore
+..	#usr/bin
+games		type=dir mode=0755 uname=root gname=wheel optional
+..	#usr/games
+include		type=dir mode=0755 uname=root gname=bin ignore
+..	#usr/include
+lib		type=dir mode=0755 uname=root gname=wheel ignore
+..	#usr/lib
+libdata		type=dir mode=0755 uname=root gname=wheel ignore
+..	#usr/libdata
+libexec		type=dir mode=0755 uname=root gname=wheel
+auth		type=dir mode=0750 uname=root gname=auth ignore
+..	#usr/libexec/auth
+..	#usr/libexec
+local		type=dir mode=0755 uname=root gname=wheel
+bin		type=dir mode=0755 uname=root gname=wheel ignore
+..	#usr/local/bin
+lib		type=dir mode=0755 uname=root gname=wheel ignore
+..	#usr/local/lib
+..	#usr/local
+sbin		type=dir mode=0755 uname=root gname=wheel ignore
+..	#usr/sbin
+share		type=dir mode=0755 uname=root gname=wheel ignore
+..	#usr/share
+..	#usr
+
+var		type=dir mode=0755 uname=root gname=wheel
+account		type=dir mode=0755 uname=root gname=wheel
+acct		type=file mode=0644 uname=root gname=wheel optional
+..	#var/account
+yp		type=dir mode=0755 uname=root gname=wheel optional ignore
+..	#var/yp
+backups		type=dir mode=0700 uname=root gname=wheel ignore
+..	#var/backups
+cron		type=dir mode=0555 uname=root gname=wheel
+log		type=file mode=0600 uname=root gname=wheel
+atjobs		type=dir mode=01770 uname=root gname=crontab ignore
+..	#var/cron/atjobs
+tabs		type=dir mode=01730 uname=root gname=crontab ignore
+..	#var/cron/tabs
+..	#var/cron
+db		type=dir mode=0755 uname=root gname=wheel
+host.random	type=file mode=0600 uname=root gname=wheel optional
+kvm_bsd.db	type=file mode=0640 uname=root gname=kmem
+..	#var/db
+log		type=dir mode=0755 uname=root gname=wheel
+authlog		type=file mode=0640 uname=root gname=wheel
+secure		type=file mode=0600 uname=root gname=wheel
+wtmp		type=file mode=0644 uname=root gname=wheel
+lastlog		type=file mode=0644 uname=root gname=wheel
+..	#var/log
+mail		type=dir mode=0755 uname=root gname=wheel ignore
+..	#var/mail
+nsd		type=dir mode=0755 uname=root gname=wheel
+etc		type=dir mode=0750 uname=root gname=_nsd
+..	#var/nsd/etc
+..	#var/nsd
+run		type=dir mode=0755 uname=root gname=wheel
+utmp		type=file mode=0664 uname=root gname=utmp
+..	#var/run
+spool		type=dir mode=0755 uname=root gname=wheel
+ftp		type=dir mode=0555 uname=root gname=wheel optional
+bin		type=dir mode=0511 uname=root gname=wheel optional
+..	#var/spool/ftp/bin
+etc		type=dir mode=0511 uname=root gname=wheel optional
+group		type=file mode=0444 uname=root gname=wheel optional
+localtime	type=file mode=0444 uname=root gname=wheel optional
+master.passwd	type=file mode=0400 uname=root gname=wheel optional
+spwd.db		type=file mode=0400 uname=root gname=wheel optional
+motd		type=file mode=0444 uname=root gname=wheel optional
+passwd		type=file mode=0444 uname=root gname=wheel optional
+pwd.db		type=file mode=0444 uname=root gname=wheel optional
+..	#var/spool/ftp/etc
+hidden		type=dir mode=0111 uname=root gname=wheel optional ignore
+..	#var/spool/ftp/hidden
+pub		type=dir mode=0555 uname=root gname=wheel optional ignore
+..	#var/spool/ftp/pub
+..	#var/spool/ftp
+output		type=dir mode=0755 uname=root gname=wheel ignore
+..	#var/spool/output
+..	#var/spool

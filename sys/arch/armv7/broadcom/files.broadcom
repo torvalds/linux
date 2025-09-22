@@ -1,0 +1,5 @@
+#	$OpenBSD: files.broadcom,v 1.3 2020/05/14 15:44:07 kettenis Exp $
+
+device bcmintc
+attach bcmintc at fdt
+file	arch/armv7/broadcom/bcm2836_intr.c		bcmintc

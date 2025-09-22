@@ -1,0 +1,11 @@
+# basic manipulation of IPv4 addresses
+pass add 1.1.1.1 1.1.1.2 1.1.1.3
+pass delete 1.1.1.1 1.1.1.2 1.1.1.4
+pass replace 1.1.1.1 1.1.1.2 1.1.1.3
+pass test 1.1.1.1 1.1.1.2 1.1.1.3
+fail test 1.1.1.1 1.1.1.2 1.1.1.4
+pass zero
+pass show
+pass flush
+pass show
+pass list

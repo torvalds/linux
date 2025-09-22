@@ -1,0 +1,5 @@
+__mcount
+fabsl
+frexpl
+ldexpl
+modfl

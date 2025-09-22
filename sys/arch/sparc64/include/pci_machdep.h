@@ -1,0 +1,137 @@
+/*	$OpenBSD: pci_machdep.h,v 1.38 2020/06/23 01:21:29 jmatthew Exp $	*/
+/* $NetBSD: pci_machdep.h,v 1.7 2001/07/20 00:07:14 eeh Exp $ */
+
+/*
+ * Copyright (c) 1999 Matthew R. Green
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#ifndef _MACHINE_PCI_MACHDEP_H_
+#define _MACHINE_PCI_MACHDEP_H_
+
+/*
+ * Forward declarations.
+ */
+struct pci_attach_args;
+
+/*
+ * define some bits used to glue into the common PCI code.
+ */
+
+#define __HAVE_PCI_MSIX
+
+typedef struct sparc_pci_chipset *pci_chipset_tag_t;
+
+#define PCI_INTR_INTX		0x00000000
+#define PCI_INTR_MSI		0x80000000
+#define PCI_INTR_MSIX		0x40000000
+#define PCI_INTR_TYPE_MASK	0xc0000000
+#define PCI_INTR_TYPE(_ih)	((_ih) & PCI_INTR_TYPE_MASK)
+
+#define PCI_INTR_TAG_MASK	0x00ffff00
+#define PCI_INTR_TAG(_ih)	((_ih) & PCI_INTR_TAG_MASK)
+
+#define PCI_INTR_VEC_MASK	0x000000ff
+#define PCI_INTR_VEC(_ih)	((_ih) & PCI_INTR_VEC_MASK)
+typedef u_int pci_intr_handle_t;
+
+/* 
+ * The stuuuuuuupid allegedly MI PCI code expects pcitag_t to be a
+ * scalar type.  But we really need to store both the OFW node and
+ * the bus/device/function info in it.  (We'd like to store more, 
+ * like all the ofw properties, but we don't need to.)  Luckily,
+ * both are 32-bit values, so we can squeeze them into a u_int64_t
+ * with a little help from some macros.
+ */
+
+#define	PCITAG_NODE(x)		(int)(((x)>>32)&0xffffffff)
+#define	PCITAG_OFFSET(x)	((x)&0xffffffff)
+#define	PCITAG_BUS(t)		((PCITAG_OFFSET(t)>>16)&0xff)
+#define	PCITAG_DEV(t)		((PCITAG_OFFSET(t)>>11)&0x1f)
+#define	PCITAG_FUN(t)		((PCITAG_OFFSET(t)>>8)&0x7)
+#define	PCITAG_CREATE(n,b,d,f)	(((u_int64_t)(n)<<32)|((b)<<16)|((d)<<11)|((f)<<8))
+#define	PCITAG_SETNODE(t,n)	((t)&0xffffffff)|(((n)<<32)
+typedef u_int64_t pcitag_t; 
+
+struct sparc_pci_chipset {
+	void			*cookie;
+	bus_space_tag_t		bustag;
+	bus_space_handle_t	bushandle;
+	int			rootnode;	/* PCI controller */
+	int			busnode[256];
+	int (*conf_size)(pci_chipset_tag_t, pcitag_t);
+	pcireg_t (*conf_read)(pci_chipset_tag_t, pcitag_t, int);
+	void (*conf_write)(pci_chipset_tag_t, pcitag_t, int, pcireg_t);
+	int (*intr_map)(struct pci_attach_args *, pci_intr_handle_t *);
+	int (*probe_device_hook)(void *, struct pci_attach_args *);
+};
+
+void		pci_attach_hook(struct device *, struct device *,
+				     struct pcibus_attach_args *);
+int		pci_probe_device_hook(pci_chipset_tag_t,
+		    struct pci_attach_args *);
+int		pci_bus_maxdevs(pci_chipset_tag_t, int);
+pcitag_t	pci_make_tag(pci_chipset_tag_t, int, int, int);
+void		pci_decompose_tag(pci_chipset_tag_t, pcitag_t, int *, int *,
+		    int *);
+int		pci_conf_size(pci_chipset_tag_t, pcitag_t);
+pcireg_t	pci_conf_read(pci_chipset_tag_t, pcitag_t, int);
+void		pci_conf_write(pci_chipset_tag_t, pcitag_t, int,
+				    pcireg_t);
+int		pci_intr_map(struct pci_attach_args *, pci_intr_handle_t *);
+int		pci_intr_map_msi(struct pci_attach_args *, pci_intr_handle_t *);
+int		pci_intr_map_msix(struct pci_attach_args *, int,
+		    pci_intr_handle_t *);
+int		pci_intr_line(pci_chipset_tag_t, pci_intr_handle_t);
+const char	*pci_intr_string(pci_chipset_tag_t, pci_intr_handle_t);
+void		*pci_intr_establish(pci_chipset_tag_t, pci_intr_handle_t,
+				 int, int (*)(void *), void *, const char *);
+void		*pci_intr_establish_cpu(pci_chipset_tag_t, pci_intr_handle_t,
+		    int, struct cpu_info *,
+		    int (*)(void *), void *, const char *);
+void		pci_intr_disestablish(pci_chipset_tag_t, void *);
+
+void		pci_msi_enable(pci_chipset_tag_t, pcitag_t, bus_addr_t, int);
+void		pci_msix_enable(pci_chipset_tag_t, pcitag_t, bus_space_tag_t,
+		    int, bus_addr_t, uint32_t);
+int		pci_msix_table_map(pci_chipset_tag_t, pcitag_t,
+		    bus_space_tag_t, bus_space_handle_t *);
+void		pci_msix_table_unmap(pci_chipset_tag_t, pcitag_t,
+		    bus_space_tag_t, bus_space_handle_t);
+
+int		sparc64_pci_enumerate_bus(struct pci_softc *,
+		    int (*match)(struct pci_attach_args *),
+		    struct pci_attach_args *);
+
+#define PCI_MACHDEP_ENUMERATE_BUS sparc64_pci_enumerate_bus
+
+#define	pci_min_powerstate(c, t)	(PCI_PMCSR_STATE_D3)
+#define	pci_set_powerstate_md(c, t, s, p)
+
+#define pciide_machdep_compat_intr_establish(a, b, c, d, e) (NULL)
+#define pciide_machdep_compat_intr_disestablish(a, b) do { } while (0)
+
+#define	pci_dev_postattach(a, b)
+
+#endif /* _MACHINE_PCI_MACHDEP_H_ */

@@ -1,0 +1,10 @@
+;; The -mboard and -mruntime options need only be accepted here, they are
+;; actually processed by supplementary specs files.
+
+mboard=
+Target RejectNegative Joined
+Board name [and memory region].
+
+mruntime=
+Target RejectNegative Joined
+Runtime name.

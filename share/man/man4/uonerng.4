@@ -1,0 +1,71 @@
+.\"	$OpenBSD: uonerng.4,v 1.4 2022/02/18 10:24:32 jsg Exp $
+.\"
+.\" Copyright (c) 2015 Devin Reade <gdr@gno.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt ONERNG 4
+.Os
+.Sh NAME
+.Nm uonerng
+.Nd Moonbase Otago OneRNG TRNG
+.Sh SYNOPSIS
+.Cd "uonerng* at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Moonbase Otago OneRNG, a USB true random
+number generator (TRNG).
+.Nm
+reads raw entropy from the OneRNG and uses
+.Xr enqueue_randomness 9
+to add it to the system entropy pool.
+.Pp
+The OneRNG is capable of operating in one of several modes, some of
+which are intended for production use and some of which are for testing
+and validating the hardware.
+.Pp
+.Nm
+operates in the
+.Qq Avalanche noise with whitener
+mode,
+which is also the manufacturer's default mode.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr usb 4 ,
+.Xr enqueue_randomness 9
+.Pp
+Moonbase Otago:
+.Lk https://onerng.info/onerng
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Devin Reade Aq Mt gdr@gno.org .
+.Sh BUGS
+The OneRNG permits downloading of the device firmware so that one may check
+the firmware's cryptographic signature as provided by the manufacturer.
+The
+.Nm
+driver does not perform nor support this action.
+In order to currently perform such a validation,
+it would be necessary to disable
+.Nm
+in the kernel and then download the firmware via the OneRNG's
+emulated AT modem command set.

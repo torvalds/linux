@@ -1,0 +1,194 @@
+'\" e
+.\"	$OpenBSD: lgamma.3,v 1.29 2025/06/07 10:33:06 schwarze Exp $
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)lgamma.3	6.6 (Berkeley) 12/3/92
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt LGAMMA 3
+.Os
+.Sh NAME
+.Nm lgamma ,
+.Nm lgammaf ,
+.Nm lgammal ,
+.Nm lgamma_r ,
+.Nm lgammaf_r ,
+.Nm lgammal_r ,
+.Nm tgamma ,
+.Nm tgammaf ,
+.Nm tgammal ,
+.Nm gamma ,
+.Nm gammaf
+.Nd log gamma functions
+.Sh SYNOPSIS
+.Lb libm
+.In math.h
+.Vt extern int signgam ;
+.Ft double
+.Fn lgamma "double x"
+.Ft float
+.Fn lgammaf "float x"
+.Ft long double
+.Fn lgammal "long double x"
+.Ft double
+.Fn lgamma_r "double x" "int *signgamp"
+.Ft float
+.Fn lgammaf_r "float x" "int *signgamp"
+.Ft long double
+.Fn lgammal_r "long double x" "int *signgamp"
+.Ft double
+.Fn tgamma "double x"
+.Ft float
+.Fn tgammaf "float x"
+.Ft long double
+.Fn tgammal "long double x"
+.Sh DESCRIPTION
+.Fn lgamma x
+returns ln\||\(*G(x)| where
+.Bd -filled -offset indent
+.EQ
+GAMMA left ( x right ) =
+int from 0 to inf t sup {x - 1} e sup -t dt
+.EN
+\ \ \ for x > 0 and
+.br
+.EQ
+GAMMA left ( x right ) =
+pi over { GAMMA left ( 1 - x right ) sin left ( pi x right ) }
+.EN
+\ \ \ for x < 1.
+.Ed
+.Pp
+The external integer
+.Va signgam
+returns the sign of \(*G(x).
+The
+.Fn lgammaf
+function is a single precision version of
+.Fn lgamma .
+The
+.Fn lgammal
+function is an extended precision version of
+.Fn lgamma .
+.Pp
+The
+.Fn lgamma_r ,
+.Fn lgammaf_r ,
+and
+.Fn lgammal_r
+functions are thread-safe versions of
+.Fn lgamma ,
+.Fn lgammaf ,
+and
+.Fn lgammal
+that return the sign via the
+.Fa signgamp
+pointer instead of modifying
+.Va signgam .
+.Pp
+The
+.Fn tgamma x ,
+.Fn tgammaf x
+and
+.Fn tgammal x
+functions return \(*G(x), with no effect on
+.Va signgam .
+.Sh IDIOSYNCRASIES
+Do not use the expression
+.Sq Li signgam*exp(lgamma(x))
+to compute g := \(*G(x).
+Instead use a program like this (in C):
+.Bd -literal -offset indent
+lg = lgamma(x); g = signgam*exp(lg);
+.Ed
+.Pp
+Only after
+.Fn lgamma
+has returned can
+.Va signgam
+be correct.
+.Pp
+For arguments in its range,
+.Fn tgamma
+is preferred, as for positive arguments
+it is accurate to within one unit in the last place.
+.Sh RETURN VALUES
+.Fn lgamma
+returns appropriate values unless an argument is out of range.
+Overflow will occur for sufficiently large positive values, and
+non-positive integers.
+For large non-integer negative values,
+.Fn tgamma
+will underflow.
+.Sh STANDARDS
+The
+.Fn lgamma ,
+.Fn lgammaf ,
+.Fn lgammal ,
+.Fn tgamma ,
+.Fn tgammaf ,
+and
+.Fn tgammal
+functions are expected to conform to
+.St -isoC-99 .
+.Pp
+The
+.Fn lgamma_r ,
+.Fn lgammaf_r ,
+and
+.Fn lgammal_r
+functions are
+.Bx
+extensions.
+.Pp
+.Fn gamma
+and
+.Fn gammaf
+are deprecated aliases for
+.Fn lgamma
+and
+.Fn lgammaf ,
+respectively.
+.Sh HISTORY
+A
+.Fn gamma
+function first appeared in
+.At v5 .
+The
+.Fn lgamma
+function first appeared in
+.Bx 4.3 .
+The
+.Fn tgamma
+function first appeared in
+.Ox 4.4 ,
+and is based on the
+.Fn gamma
+function that appeared in
+.Bx 4.4
+as a function to compute \(*G(x).

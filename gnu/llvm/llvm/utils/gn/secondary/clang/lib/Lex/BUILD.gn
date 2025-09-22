@@ -1,0 +1,34 @@
+static_library("Lex") {
+  output_name = "clangLex"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/Basic",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "DependencyDirectivesScanner.cpp",
+    "HeaderMap.cpp",
+    "HeaderSearch.cpp",
+    "InitHeaderSearch.cpp",
+    "Lexer.cpp",
+    "LiteralSupport.cpp",
+    "MacroArgs.cpp",
+    "MacroInfo.cpp",
+    "ModuleMap.cpp",
+    "PPCaching.cpp",
+    "PPCallbacks.cpp",
+    "PPConditionalDirectiveRecord.cpp",
+    "PPDirectives.cpp",
+    "PPExpressions.cpp",
+    "PPLexerChange.cpp",
+    "PPMacroExpansion.cpp",
+    "Pragma.cpp",
+    "PreprocessingRecord.cpp",
+    "Preprocessor.cpp",
+    "PreprocessorLexer.cpp",
+    "ScratchBuffer.cpp",
+    "TokenConcatenation.cpp",
+    "TokenLexer.cpp",
+  ]
+}

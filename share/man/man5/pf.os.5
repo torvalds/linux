@@ -1,0 +1,220 @@
+.\"	$OpenBSD: pf.os.5,v 1.8 2007/05/31 19:19:58 jmc Exp $
+.\"
+.\" Copyright (c) 2003 Mike Frantzen <frantzen@w4g.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: May 31 2007 $
+.Dt PF.OS 5
+.Os
+.Sh NAME
+.Nm pf.os
+.Nd format of the operating system fingerprints file
+.Sh DESCRIPTION
+The
+.Xr pf 4
+firewall and the
+.Xr tcpdump 8
+program can both fingerprint the operating system of hosts that
+originate an IPv4 TCP connection.
+The file consists of newline-separated records, one per fingerprint,
+containing nine colon
+.Pq Ql \&:
+separated fields.
+These fields are as follows:
+.Pp
+.Bl -tag -width Description -offset indent -compact
+.It window
+The TCP window size.
+.It TTL
+The IP time to live.
+.It df
+The presence of the IPv4 don't fragment bit.
+.It packet size
+The size of the initial TCP packet.
+.It TCP options
+An ordered list of the TCP options.
+.It class
+The class of operating system.
+.It version
+The version of the operating system.
+.It subtype
+The subtype of patchlevel of the operating system.
+.It description
+The overall textual description of the operating system, version and subtype.
+.El
+.Pp
+The
+.Ar window
+field corresponds to the th->th_win field in the TCP header and is the
+source host's advertised TCP window size.
+It may be between zero and 65,535 inclusive.
+The window size may be given as a multiple of a constant by prepending
+the size with a percent sign
+.Sq %
+and the value will be used as a modulus.
+Three special values may be used for the window size:
+.Pp
+.Bl -tag -width xxx -offset indent -compact
+.It *
+An asterisk will wildcard the value so any window size will match.
+.It S
+Allow any window size which is a multiple of the maximum segment size (MSS).
+.It T
+Allow any window size which is a multiple of the maximum transmission unit
+(MTU).
+.El
+.Pp
+The
+.Ar ttl
+value is the initial time to live in the IP header.
+The fingerprint code will account for the volatility of the packet's TTL
+as it traverses a network.
+.Pp
+The
+.Ar df
+bit corresponds to the Don't Fragment bit in an IPv4 header.
+It tells intermediate routers not to fragment the packet and is used for
+path MTU discovery.
+It may be either a zero or a one.
+.Pp
+The
+.Ar packet size
+is the literal size of the full IP packet and is a function of all of
+the IP and TCP options.
+.Pp
+The
+.Ar TCP options
+field is an ordered list of the individual TCP options that appear in the
+SYN packet.
+Each option is described by a single character separated by a comma and
+certain ones may include a value.
+The options are:
+.Pp
+.Bl -tag -width Description -offset indent -compact
+.It Mnnn
+maximum segment size (MSS) option.
+The value is the maximum packet size of the network link which may
+include the
+.Sq %
+modulus or match all MSSes with the
+.Sq *
+value.
+.It N
+the NOP option (NO Operation).
+.It T[0]
+the timestamp option.
+Certain operating systems always start with a zero timestamp in which
+case a zero value is added to the option; otherwise no value is appended.
+.It S
+the Selective ACKnowledgement OK (SACKOK) option.
+.It Wnnn
+window scaling option.
+The value is the size of the window scaling which may include the
+.Sq %
+modulus or match all window scalings with the
+.Sq *
+value.
+.El
+.Pp
+No TCP options in the fingerprint may be given with a single dot
+.Sq \&. .
+.Pp
+An example of OpenBSD's TCP options are:
+.Pp
+.Dl M*,N,N,S,N,W0,N,N,T
+.Pp
+The first option
+.Ar M*
+is the MSS option and will match all values.
+The second and third options
+.Ar N
+will match two NOPs.
+The fourth option
+.Ar S
+will match the SACKOK option.
+The fifth
+.Ar N
+will match another NOP.
+The sixth
+.Ar W0
+will match a window scaling option with a zero scaling size.
+The seventh and eighth
+.Ar N
+options will match two NOPs.
+And the ninth and final option
+.Ar T
+will match the timestamp option with any time value.
+.Pp
+The TCP options in a fingerprint will only match packets with the
+exact same TCP options in the same order.
+.Pp
+The
+.Ar class
+field is the class, genre or vendor of the operating system.
+.Pp
+The
+.Ar version
+is the version of the operating system.
+It is used to distinguish between different fingerprints of operating
+systems of the same class but different versions.
+.Pp
+The
+.Ar subtype
+is the subtype or patch level of the operating system version.
+It is used to distinguish between different fingerprints of operating
+systems of the same class and same version but slightly different
+patches or tweaking.
+.Pp
+The
+.Ar description
+is a general description of the operating system, its version,
+patchlevel and any further useful details.
+.Sh EXAMPLES
+The fingerprint of a plain
+.Ox 3.3
+host is:
+.Bd -literal
+  16384:64:1:64:M*,N,N,S,N,W0,N,N,T:OpenBSD:3.3::OpenBSD 3.3
+.Ed
+.Pp
+The fingerprint of an
+.Ox 3.3
+host behind a PF scrubbing firewall with a no-df rule would be:
+.Bd -literal
+  16384:64:0:64:M*,N,N,S,N,W0,N,N,T:OpenBSD:3.3:!df:OpenBSD 3.3 scrub no-df
+.Ed
+.Pp
+An absolutely braindead embedded operating system fingerprint could be:
+.Bd -literal
+  65535:255:0:40:.:DUMMY:1.1:p3:Dummy embedded OS v1.1p3
+.Ed
+.Pp
+The
+.Xr tcpdump 8
+output of
+.Bd -literal
+  # tcpdump -s128 -c1 -nv 'tcp[13] == 2'
+  03:13:48.118526 10.0.0.1.3377 > 10.0.0.2.80: S [tcp sum ok] \e
+      534596083:534596083(0) win 57344 <mss 1460> (DF) [tos 0x10] \e
+      (ttl 64, id 11315, len 44)
+.Ed
+.Pp
+almost translates into the following fingerprint
+.Bd -literal
+  57344:64:1:44:M1460:	exampleOS:1.0::exampleOS 1.0
+.Ed
+.Sh SEE ALSO
+.Xr pf 4 ,
+.Xr pf.conf 5 ,
+.Xr pfctl 8 ,
+.Xr tcpdump 8

@@ -1,0 +1,191 @@
+.\"	$OpenBSD: pkg_check-problems.1,v 1.1 2018/07/10 09:05:47 espie Exp $
+.\"
+.\" Copyright (c) 2010-2015 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 10 2018 $
+.Dt PKG_CHECK-PROBLEMS 1
+.Os
+.Sh NAME
+.Nm pkg_check-problems
+.Nd verify problems in package collections
+.Sh SYNOPSIS
+.Nm
+.Op Fl CDesv
+.Op Fl d Ar plist_dir
+.Op Fl o Ar output
+.Op Fl p Ar ports_dir
+.Op Ar pkgname ...
+.Sh DESCRIPTION
+.Nm
+is used to check a collection of packages for problems that cannot be
+noticed in individual packages, such as conflict and directory registration
+issues.
+.Pp
+A conflict is a file that belongs to two distinct packages.
+.Pp
+By default, packages with the same stem
+.Po
+see
+.Xr packages-specs 7
+.Pc
+are registered to conflict.
+This can be changed to add or remove extra conflict registration with
+.Cm @option no-default-conflict
+or
+.Cm @conflict
+.Po
+see
+.Xr pkg_create 1
+.Pc .
+.Pp
+Conflicts between packages mean that a user can't have both packages installed
+at the same time.
+In some cases (same software, different version), this is expected, but
+the packages should be marked as conflicting, so that
+.Xr pkg_add 1
+knows how to deal with it.
+In other cases, this is an oversight from the ports maintainer, and action
+should be taken to make sure both packages can be installed simultaneously.
+Conflicts also interact with dependencies, and sometimes a missing dependency
+will show up as an unregistered conflict.
+.Pp
+Directories can belong to distinct packages, as long as they are registered
+somewhere.
+Every directory that is not part of the standard
+.Xr mtree 8
+set should appear in a packing-list somewhere.
+.Pp
+Contrary to files, directories can be shared between several packages.
+.Pp
+.Nm
+knows enough about packages to trace directories back to a common dependency,
+or to not flag two packages as conflicting when they depend on already
+conflicting packages.
+.Pp
+.Nm
+requires a set of packing-lists to operate, which it can obtain from
+several sources.
+The preferred source is the packing-list databases
+.Po
+see
+.Ar PACKAGE_REPOSITORY
+in
+.Xr bsd.port.mk 5
+and
+.Xr register-plist 1
+.Pc ,
+as it persists over time and can be used to fix update information as well
+as current version information.
+.Pp
+It should be supplemented with the ports tree itself in order to figure
+out current versions.
+.Pp
+Options are as follows:
+.Bl -tag -width packing-list
+.It Fl C
+Do not compute conflict information.
+.It Fl D
+Do not compute common dir information.
+.It Fl e
+Check for extra logical conflicts, by adding supplementary
+formatted/unformatted manpages, as same name manpages under the
+same base directory will shadow one another.
+.It Fl o Ar output
+Save results to output file as well as writing it on the screen.
+.It Fl s
+Be silent.
+.It Fl v
+Be verbose.
+.It Fl d Ar plist-dir
+Scan directory
+.Ar plist-dir
+for packing-lists.
+.It Fl p Ar portsdir
+Traverse the ports directory for packing-lists, using
+.Ar print-plist-all .
+More than one directory could be specified by delimiting them by colon,
+e.g.:
+.Pa /usr/ports/x11/kde:/usr/ports/x11/kde4 .
+.Pp
+If
+.Fl d Ar plist-dir
+is also used, traverse only the directories corresponding to the packages
+under
+.Ar plist-dir
+to figure out current pkgnames, and annotate those with a
+.Sq \&!
+in the report.
+.El
+.Sh SAMPLE OUTPUT
+.Bd -literal
+Dependency not found zarafa-webaccess-7.1.11p2
+Dependency not found kwebkitpart-1.2p3
+[...]
+Common dirs:
+!claws-mail-gdata-3.11.1p1-ldap(mail/claws-mail,-gdata,ldap): /usr/local/lib/claws-mail
+!claws-mail-pdfviewer-3.11.1p1-ldap(mail/claws-mail,-pdfviewer,ldap): /usr/local/lib/claws-mail
+[...]
+Conflicts:
+!arm-none-eabi-gdb-7.9.1(devel/arm-none-eabi/gdb),!gdb-7.9.1(devel/gdb)
+	/usr/local/include/gdb/jit-reader.h
+	/usr/local/share/gdb/system-gdbinit/elinos.py
+	/usr/local/share/gdb/system-gdbinit/wrs-linux.py
+!libnet-1.0.2ap0v0(net/libnet/1.0),libnet-1.0.2ap2(net/libnet/1.0),libnet-1.0.2av0(net/libnet/1.0)
+	/usr/local/bin/libnet-config-1.0
+	/usr/local/include/libnet-1.0/libnet.h
+	/usr/local/include/libnet-1.0/libnet/libnet-asn1.h
+	/usr/local/include/libnet-1.0/libnet/libnet-functions.h
+	/usr/local/include/libnet-1.0/libnet/libnet-headers.h
+	/usr/local/include/libnet-1.0/libnet/libnet-macros.h
+	/usr/local/include/libnet-1.0/libnet/libnet-ospf.h
+	/usr/local/include/libnet-1.0/libnet/libnet-structures.h
+	/usr/local/lib/libnet-1.0/libnet.a
+	/usr/local/lib/libnet-1.0/libnet.so.0.0
+	/usr/local/lib/libnet-1.0/libpwrite.a
+	/usr/local/lib/libnet.so.0.0
+	/usr/local/man/cat3/libnet.0
+[...]
+zathura-pdf-mupdf-0.2.7(textproc/zathura/plugins/mupdf),zathura-pdf-poppler-0.2.5(textproc/zathura/plugins/poppler)
+	/usr/local/lib/zathura/pdf.so
+.Ed
+.Bl -bullet
+.It
+Dependency not found: means some package names could not be found.
+Most often happens because of panic issues, and fsck not recovering some
+dependency files.
+.It
+claws-mail directory: missing directory registration.
+.Nm
+could not find a common ancestor to claws-mail-gdata and claws-mail-pdfviewer,
+so it should be added to both.
+.It
+Conflict between arm-non-eabi-gdb and gdb:
+note that both packages are current.
+Two choices: either remove the offending files from one package (might break
+the other), or mark an explicit conflict between the packages (will prevent
+people from installing both at the same time).
+.It
+Conflict between libnet-...v0 and libnet:
+Note that only the v0 version is current.
+People forgot to augment the
+.Cm @option no-default-conflict
+with conflicts against the old version when bumping the
+.Ar EPOCH .
+.El
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr bsd.port.mk 5 ,
+.Xr packages-specs 7

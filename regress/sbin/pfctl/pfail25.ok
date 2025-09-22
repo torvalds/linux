@@ -1,0 +1,6 @@
+stdin:1: no-df cannot be respecified
+stdin:2: min-ttl cannot be respecified
+stdin:3: illegal min-ttl value 256
+stdin:4: illegal min-ttl value 65536
+stdin:5: max-mss cannot be respecified
+stdin:6: random-id cannot be respecified

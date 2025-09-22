@@ -1,0 +1,136 @@
+import("//bolt/test/bolt_lit_site_cfg_files.gni")
+import("//clang-tools-extra/clangd/test/clangd_lit_site_cfg_files.gni")
+import("//clang-tools-extra/pseudo/test/clang_pseudo_lit_site_cfg_files.gni")
+import("//clang-tools-extra/test/clang_tools_extra_lit_site_cfg_files.gni")
+import("//clang/test/clang_lit_site_cfg_files.gni")
+import("//lld/test/lld_lit_site_cfg_files.gni")
+import("//lldb/test/lldb_lit_site_cfg_files.gni")
+import("//llvm/test/llvm_lit_site_cfg_files.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+import("//llvm/utils/llvm-lit/lit_path_function.gni")
+
+write_cmake_config("llvm-lit") {
+  input = "llvm-lit.in"
+  output = "$root_out_dir/bin/llvm-lit"
+
+  if (host_os == "win") {
+    # llvm-lit needs suffix.py for multiprocess to find a main module.
+    output = "${output}.py"
+  }
+
+  # lit's lit/llvm/config.py shells out to llvm-config.
+  deps = [ "//llvm/tools/llvm-config" ]
+
+  deps += [
+    "//clang-tools-extra/clangd/test:lit_site_cfg",
+    "//clang-tools-extra/clangd/test:lit_unit_site_cfg",
+    "//clang-tools-extra/pseudo/test:lit_site_cfg",
+    "//clang-tools-extra/pseudo/test:lit_unit_site_cfg",
+    "//clang-tools-extra/test:lit_site_cfg",
+    "//clang-tools-extra/test:lit_unit_site_cfg",
+    "//clang/test:lit_site_cfg",
+    "//clang/test:lit_unit_site_cfg",
+    "//lld/test:lit_site_cfg",
+    "//lld/test:lit_unit_site_cfg",
+    "//lldb/test:lit_api_site_cfg",
+    "//lldb/test:lit_shell_site_cfg",
+    "//lldb/test:lit_site_cfg",
+    "//lldb/test:lit_unit_site_cfg",
+    "//llvm/test:lit_site_cfg",
+    "//llvm/test:lit_unit_site_cfg",
+  ]
+
+  entries = [
+    [
+      "//bolt/test/lit.cfg.py",
+      bolt_lit_site_cfg_file,
+    ],
+    [
+      "//bolt/test/Unit/lit.cfg.py",
+      bolt_lit_unit_site_cfg_file,
+    ],
+    [
+      "//clang-tools-extra/test/lit.cfg.py",
+      clang_tools_extra_lit_site_cfg_file,
+    ],
+    [
+      "//clang-tools-extra/test/Unit/lit.cfg.py",
+      clang_tools_extra_lit_unit_site_cfg_file,
+    ],
+    [
+      "//clang-tools-extra/clangd/test/lit.cfg.py",
+      clangd_lit_site_cfg_file,
+    ],
+    [
+      "//clang-tools-extra/clangd/unittests/lit.cfg.py",
+      clangd_lit_unit_site_cfg_file,
+    ],
+    [
+      "//clang-tools-extra/pseudo/test/lit.cfg.py",
+      clang_pseudo_lit_site_cfg_file,
+    ],
+    [
+      "//clang-tools-extra/pseudo/test/Unit/lit.cfg.py",
+      clang_pseudo_lit_unit_site_cfg_file,
+    ],
+    [
+      "//clang/test/lit.cfg.py",
+      clang_lit_site_cfg_file,
+    ],
+    [
+      "//clang/test/Unit/lit.cfg.py",
+      clang_lit_unit_site_cfg_file,
+    ],
+    [
+      "//lld/test/lit.cfg.py",
+      lld_lit_site_cfg_file,
+    ],
+    [
+      "//lld/test/Unit/lit.cfg.py",
+      lld_lit_unit_site_cfg_file,
+    ],
+    [
+      "//lldb/test/lit.cfg.py",
+      lldb_lit_site_cfg_file,
+    ],
+    [
+      "//lldb/test/API/lit.cfg.py",
+      lldb_lit_api_site_cfg_file,
+    ],
+    [
+      "//lldb/test/Shell/lit.cfg.py",
+      lldb_lit_shell_site_cfg_file,
+    ],
+    [
+      "//lldb/test/Unit/lit.cfg.py",
+      lldb_lit_unit_site_cfg_file,
+    ],
+    [
+      "//llvm/test/lit.cfg.py",
+      llvm_lit_site_cfg_file,
+    ],
+    [
+      "//llvm/test/Unit/lit.cfg.py",
+      llvm_lit_unit_site_cfg_file,
+    ],
+  ]
+
+  # Generate LLVM_LIT_CONFIG_MAP parameter.
+  # llvm-lit contains a mapping from each lit.cfg.py file to the corresponding
+  # generated llvm.site.cfg.py file, so llvm-lit depends on all the targets to
+  # generate the site.cfg.py file.
+  # Note: \n is converted to a newline by write_cmake_config.py, not by gn.
+  config_map = lit_path_function + "\n"
+  dir = get_path_info(output, "dir")
+  foreach(entry, entries) {
+    config_map += "\nmap_config(\n    path(r'" + rebase_path(entry[0], dir) +
+                  "'),\n    path(r'" + rebase_path(entry[1], dir) + "'))"
+  }
+
+  values = [
+    "LLVM_SOURCE_DIR=" + rebase_path("//llvm", dir),
+    "Python3_EXECUTABLE=/usr/bin/env $python_path",
+    "BUILD_MODE=.",
+    "LLVM_LIT_CONFIG_MAP=" + config_map,
+  ]
+}

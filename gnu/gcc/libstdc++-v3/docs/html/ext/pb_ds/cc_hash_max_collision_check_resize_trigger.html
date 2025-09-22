@@ -1,0 +1,532 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>cc_hash_max_collision_check_resize_trigger
+  Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>cc_hash_max_collision_check_resize_trigger</tt>
+    Interface</h1>
+
+    <p>A resize trigger policy based on collision checks. It keeps
+    the simulated load factor lower than some given load
+    factor.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/hash_policy.hpp"><tt>hash_policy.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Template Parameters</a></h2>
+
+    <table class="c1" width="100%" border="1" summary=
+    "Template Parameters">
+      <tr>
+        <td width="20%" align="left"><b>Parameter</b></td>
+
+        <td width="50%" align="left"><b>Description</b></td>
+
+        <td width="30%" align="left"><b>Default Value</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="External_Load_Access1313998607" id=
+"External_Load_Access1313998607"><b>bool</b> External_Load_Access </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Specifies whether the load factor can be accessed
+          externally. The two options have different trade-offs in
+          terms of flexibility, genericity, and encapsulation.</p>
+        </td>
+
+        <td><tt><b>false</b></tt></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Size_Type42920436" id=
+"Size_Type42920436"><b>typename</b> Size_Type </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Size type.</p>
+        </td>
+
+        <td>size_t</td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link3" id="link3">General Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="size_type55424436" id="size_type55424436">size_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Size_Type42920436"><tt>Size_Type</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Size type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="external_load_access3976598639" id=
+"external_load_access3976598639">external_load_access</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href=
+"#External_Load_Access1313998607"><tt>External_Load_Access</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Indicates whether loads can be accessed externally</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link4" id="link4">Public Methods</a></h2>
+
+    <h3><a name="link5" id="link5">Constructors, Destructor, and
+    Related</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  cc_hash_max_collision_check_resize_trigger
+  (float load = 0.5)
+</pre>
+        </td>
+
+        <td>
+          <p>Default constructor, or constructor taking
+          <span class="c1"><tt>load</tt></span>, a load factor
+          which it will attempt to maintain.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b>
+  swap
+  (<span class=
+"c2"><tt>cc_hash_max_collision_check_resize_trigger</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Swaps content.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link6" id="link6">Load Access Methods</a></h3>
+
+    <p>These methods are only available if the external access
+    parameter is set.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> float
+  get_load
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the current load.</p>
+
+          <p>Calling this method will not compile when <a href=
+          "#External_Load_Access1313998607"><tt>External_Load_Access</tt></a>
+          == <tt><b>false</b></tt>.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b> 
+  set_load
+  (float load)
+</pre>
+        </td>
+
+        <td>
+          <p>Sets the <span class="c1"><tt>load</tt></span>; does
+          not resize the container.</p>
+
+          <p>It is the responsibility of the user to pass an
+          appropriate <span class="c1"><tt>load</tt></span> to this
+          function. Calling this method will not compile when
+          <a href=
+          "#External_Load_Access1313998607"><tt>External_Load_Access</tt></a>
+          == <tt><b>false</b></tt>.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link7" id="link7">Protected Methods</a></h2>
+
+    <h3><a name="link8" id="link8">Insert Search
+    Notifications.</a></h3>
+
+    <p>Notifications called during an insert operation.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_insert_search_start
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search started.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_insert_search_collision
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search encountered a collision.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_insert_search_end
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search ended.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link9" id="link9">Find Search
+    Notifications.</a></h3>
+
+    <p>Notifications called during a find operation.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_find_search_start
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search started.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_find_search_collision
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search encountered a collision.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_find_search_end
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search ended.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link10" id="link10">Erase Search
+    Notifications.</a></h3>
+
+    <p>Notifications called during an insert operation.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_erase_search_start
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search started.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_erase_search_collision
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search encountered a collision.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_erase_search_end
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search ended.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link11" id="link11">Content Change
+    Notifications</a></h3>
+
+    <p>Notifications called when the content of the table changes
+    in a way that can affect the resize policy.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_inserted
+  (<a href="#size_type55424436"><tt>size_type</tt></a> num_entries)
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies an element was inserted.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_erased
+  (<a href="#size_type55424436"><tt>size_type</tt></a> num_entries)
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies an element was erased.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b> 
+  notify_cleared
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies the table was cleared.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link12" id="link12">Size Change
+    Notifications</a></h3>
+
+    <p>Notifications called when the table changes size.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b>
+  notify_resized
+  (<a href="#size_type55424436"><tt>size_type</tt></a> new_size)
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies the table was resized as a result of this
+          object's signifying that a resize is needed.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b>
+  notify_externally_resized
+  (<a href="#size_type55424436"><tt>size_type</tt></a> new_size)
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies the table was resized externally.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link13" id="link13">Queries</a></h3>
+
+    <p>Called to query whether/how to resize.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>bool</b> 
+  is_resize_needed
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Queries whether a resize is needed.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>bool</b>
+  is_grow_needed
+  (<a href=
+"#size_type55424436"><tt>size_type</tt></a> size, <a href=
+"#size_type55424436"><tt>size_type</tt></a> num_entries) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Queries whether a grow is needed.</p>
+
+          <p>This method is called only if this object indicated is
+          needed.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

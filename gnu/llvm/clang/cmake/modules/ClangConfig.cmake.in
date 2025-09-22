@@ -1,0 +1,22 @@
+# This file allows users to call find_package(Clang) and pick up our targets.
+
+@CLANG_CONFIG_CODE@
+
+set(LLVM_VERSION @LLVM_VERSION_MAJOR@.@LLVM_VERSION_MINOR@.@LLVM_VERSION_PATCH@)
+find_package(LLVM ${LLVM_VERSION} EXACT REQUIRED CONFIG
+             HINTS "@CLANG_CONFIG_LLVM_CMAKE_DIR@")
+
+set(CLANG_EXPORTED_TARGETS "@CLANG_EXPORTS@")
+set(CLANG_CMAKE_DIR "@CLANG_CONFIG_CMAKE_DIR@")
+set(CLANG_INCLUDE_DIRS "@CLANG_CONFIG_INCLUDE_DIRS@")
+set(CLANG_LINK_CLANG_DYLIB "@CLANG_LINK_CLANG_DYLIB@")
+
+# Provide all our library targets to users.
+@CLANG_CONFIG_INCLUDE_EXPORTS@
+
+# By creating clang-tablegen-targets here, subprojects that depend on Clang's
+# tablegen-generated headers can always depend on this target whether building
+# in-tree with Clang or not.
+if(NOT TARGET clang-tablegen-targets)
+  add_custom_target(clang-tablegen-targets)
+endif()

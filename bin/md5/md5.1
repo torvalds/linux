@@ -1,0 +1,150 @@
+.\"	$OpenBSD: md5.1,v 1.50 2023/10/31 20:42:14 millert Exp $
+.\"
+.\" Copyright (c) 2003, 2004, 2006 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Sponsored in part by the Defense Advanced Research Projects
+.\" Agency (DARPA) and Air Force Research Laboratory, Air Force
+.\" Materiel Command, USAF, under agreement number F39502-99-1-0512.
+.\"
+.Dd $Mdocdate: October 31 2023 $
+.Dt MD5 1
+.Os
+.Sh NAME
+.Nm md5 ,
+.Nm sha1 ,
+.Nm sha256 ,
+.Nm sha512
+.Nd calculate a message digest (checksum) for a file
+.Sh SYNOPSIS
+.Nm md5
+.Op Fl bcpqrtx
+.Op Fl C Ar checklist
+.Op Fl h Ar hashfile
+.Op Fl s Ar string
+.Op Ar
+.Nm sha1
+.Op Fl bcpqrtx
+.Op Fl C Ar checklist
+.Op Fl h Ar hashfile
+.Op Fl s Ar string
+.Op Ar
+.Nm sha256
+.Op Fl bcpqrtx
+.Op Fl C Ar checklist
+.Op Fl h Ar hashfile
+.Op Fl s Ar string
+.Op Ar
+.Nm sha512
+.Op Fl bcpqrtx
+.Op Fl C Ar checklist
+.Op Fl h Ar hashfile
+.Op Fl s Ar string
+.Op Ar
+.Sh DESCRIPTION
+These utilities take as input a message of arbitrary length and produce
+as output a message digest (checksum) of the input.
+.Pp
+Two messages having the same message digest (a collision) have been produced
+for MD5 and for SHA-1, so their use is deprecated.
+.Pp
+The options for use with each command are as follows:
+.Bl -tag -width Ds
+.It Fl b
+Output checksums in base64 notation, not hexadecimal.
+.It Fl C Ar checklist
+Compare the checksum of each
+.Ar file
+against the checksums in the
+.Ar checklist .
+Any specified
+.Ar file
+that is not listed in the
+.Ar checklist
+will generate an error.
+.It Fl c
+If this option is specified, the
+.Ar file
+options become checklists.
+Each checklist should contain hash results, which will be verified
+against the specified paths.
+Both normal (BSD) and reverse (GNU) forms are supported in either
+hexadecimal or base64 format.
+Output consists of the digest used, the file name,
+and an OK, FAILED, or MISSING for the result of the comparison.
+Entries in normal format can be validated using any of the supported checksums
+(see
+.Xr cksum 1 ) .
+Entries in reverse format are validated using the default algorithm.
+If no file is given, stdin is used.
+.It Fl h Ar hashfile
+Place the checksum into
+.Ar hashfile
+instead of stdout.
+.It Fl p
+Echo stdin to stdout and append the
+checksum to stdout.
+.It Fl q
+Only print the checksum (quiet mode) or if used in conjunction with the
+.Fl c
+flag, only print the failed cases.
+.It Fl r
+Reverse the format of the hash algorithm output, similar to
+the output format used by
+.Xr cksum 1
+(but without the number of octets).
+This is also the format used by the GNU
+.Xr cksum 1
+utility.
+.It Fl s Ar string
+Print a checksum of the given
+.Ar string .
+.It Fl t
+Run a built-in time trial.
+Specifying
+.Fl t
+multiple times results in the number of rounds being multiplied
+by 10 for each additional flag.
+.It Fl x
+Run a built-in test script.
+.El
+.Sh EXIT STATUS
+These utilities exit 0 on success,
+and \*(Gt0 if an error occurs.
+.Sh SEE ALSO
+.Xr cksum 1
+.Sh STANDARDS
+.Rs
+.%A R. Rivest
+.%D April 1992
+.%R RFC 1321
+.%T The MD5 Message-Digest Algorithm
+.Re
+.Rs
+.%A J. Burrows
+.%O FIPS PUB 180-1
+.%T The Secure Hash Standard
+.Re
+.Pp
+.Rs
+.%A D. Eastlake
+.%A P. Jones
+.%D September 2001
+.%R RFC 3174
+.%T US Secure Hash Algorithm 1 (SHA1)
+.Re
+.Rs
+.%T Secure Hash Standard
+.%O FIPS PUB 180-2
+.Re

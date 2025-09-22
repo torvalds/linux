@@ -1,0 +1,15 @@
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+import("//llvm/version.gni")
+
+# Configure the Version.inc file.
+write_cmake_config("version") {
+  input = "Version.inc.in"
+  output = "$target_gen_dir/Version.inc"
+  values = [
+    "LLDB_VERSION=$llvm_version",
+    "LLDB_VERSION_MAJOR=$llvm_version_major",
+    "LLDB_VERSION_MINOR=$llvm_version_minor",
+    "LLDB_VERSION_PATCH=$llvm_version_patch",
+    "LLDB_FULL_VERSION_STRING=",
+  ]
+}

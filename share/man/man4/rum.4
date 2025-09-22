@@ -1,0 +1,226 @@
+.\" $OpenBSD: rum.4,v 1.64 2025/03/27 15:12:14 jmc Exp $
+.\"
+.\" Copyright (c) 2005-2007
+.\"	Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt RUM 4
+.Os
+.Sh NAME
+.Nm rum
+.Nd Ralink Technology/MediaTek USB IEEE 802.11a/b/g wireless network device
+.Sh SYNOPSIS
+.Cd "rum* at uhub? port ?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 2.0 and PCI Express Mini Card wireless adapters based on the
+Ralink RT2501USB and RT2601USB chipsets.
+.Pp
+Ralink PCI Express Mini Card adapters show up as normal USB 2.0 devices and are
+thus handled by the
+.Nm
+driver.
+.Pp
+The RT2501USB chipset is the second generation of 802.11a/b/g adapters from
+Ralink.
+It consists of two integrated chips, an RT2571W MAC/BBP and an RT2528 or
+RT5226 radio transceiver.
+.Pp
+The RT2601USB chipset consists of two integrated chips, an RT2671 MAC/BBP and
+an RT2527 or RT5225 radio transceiver.
+This chipset uses the MIMO (multiple-input multiple-output) technology with
+multiple antennas to extend the operating range of the adapter and to achieve
+higher throughput.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It IBSS mode
+Also known as
+.Em IEEE ad-hoc
+mode or
+.Em peer-to-peer
+mode.
+This is the standardized method of operating without an access point.
+Stations associate with a service set.
+However, actual connections between stations are peer-to-peer.
+.It Host AP
+In this mode the driver acts as an access point (base station)
+for other cards.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+The
+.Nm
+driver relies on the software 802.11 stack for both encryption and decryption
+of data frames.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The following firmware file is loaded when an interface is brought up:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It /etc/firmware/rum-rt2573
+.El
+.Sh HARDWARE
+The following adapters should work:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 3Com Aolynk WUB320g
+.It Abocom WUG2700
+.It Airlink101 AWLL5025
+.It ASUS WL-167g ver 2
+.It Atlantis Land A02-UP1-W54
+.It Belkin F5D7050 ver 3
+.It Belkin F5D9050 ver 3
+.It Belkin F5D9050C
+.It Buffalo WLI-U2-SG54HG
+.It Buffalo WLI-U2-SG54HP
+.It Buffalo WLI-U2-G54HP
+.It CNet CWD-854 ver F
+.It Conceptronic C54RU ver 2
+.It Corega CG-WLUSB2GL
+.It Corega CG-WLUSB2GO
+.It Corega CG-WLUSB2GPX
+.It D-Link DWA-110
+.It D-Link DWA-111
+.It "D-Link DWL-G122 rev C1"
+.It D-Link WUA-1340
+.It Digitus DN-7003GR
+.It Edimax EW-7318Ug
+.It Edimax EW-7318USg
+.It Edimax EW-7618Ug
+.It Gigabyte GN-WB01GS
+.It Gigabyte GN-WI05GS
+.It Hawking HWUG1
+.It Hawking HWU54DM
+.It Hercules HWGUSB2-54-LB
+.It Hercules HWGUSB2-54V2-AP
+.It LevelOne WNC-0301USB v3
+.It Linksys WUSB200
+.It Linksys WUSB54G rev C
+.It Linksys WUSB54GR
+.It Planex GW-US54HP
+.It Planex GW-US54Mini2
+.It Planex GW-USMM
+.It Senao NUB-3701
+.It Sitecom WL-113 ver 2
+.It Sitecom WL-172
+.It Sweex LW053
+.It TP-LINK TL-WN321G
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig rum0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures rum0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+nwid mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Pp
+The following
+.Xr hostname.if 5
+example creates a host-based access point on boot:
+.Bd -literal -offset indent
+mediaopt hostap
+nwid mynwid wpakey mywpakey
+inet 192.168.1.1 255.255.255.0
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "rum0: error N, could not read firmware ..."
+For some reason, the driver was unable to read the microcode file from the
+filesystem.
+The file might be missing or corrupted.
+.It "rum0: could not load 8051 microcode"
+An error occurred while attempting to upload the microcode to the onboard 8051
+microcontroller unit.
+.It "rum0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Niall O'Higgins Aq Mt niallo@openbsd.org
+and
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.Sh CAVEATS
+The
+.Nm
+driver supports automatic control of the transmit speed in BSS mode only.
+Therefore the use of a
+.Nm
+adapter in Host AP mode is discouraged.

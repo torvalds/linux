@@ -1,0 +1,56 @@
+//=- UnsafeBufferUsageGadgets.def - List of ways to use a buffer --*- C++ -*-=//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+/// A gadget is an individual operation in the code that may be of interest to
+/// the UnsafeBufferUsage analysis.
+#ifndef GADGET
+#define GADGET(name)
+#endif
+
+/// Unsafe gadgets correspond to unsafe code patterns that warrant
+/// an immediate warning.
+#ifndef WARNING_GADGET
+#define WARNING_GADGET(name) GADGET(name)
+#endif
+
+/// A `WARNING_GADGET` subset, where the code pattern of each gadget
+/// corresponds uses of a (possibly hardened) contatiner (e.g., `std::span`).
+#ifndef WARNING_CONTAINER_GADGET
+#define WARNING_CONTAINER_GADGET(name) WARNING_GADGET(name)
+#endif
+
+/// Safe gadgets correspond to code patterns that aren't unsafe but need to be
+/// properly recognized in order to emit correct warnings and fixes over unsafe
+/// gadgets.
+#ifndef FIXABLE_GADGET
+#define FIXABLE_GADGET(name) GADGET(name)
+#endif
+
+WARNING_GADGET(Increment)
+WARNING_GADGET(Decrement)
+WARNING_GADGET(ArraySubscript)
+WARNING_GADGET(PointerArithmetic)
+WARNING_GADGET(UnsafeBufferUsageAttr)
+WARNING_GADGET(UnsafeBufferUsageCtorAttr)
+WARNING_GADGET(DataInvocation)
+WARNING_CONTAINER_GADGET(SpanTwoParamConstructor) // Uses of `std::span(arg0, arg1)`
+FIXABLE_GADGET(ULCArraySubscript)          // `DRE[any]` in an Unspecified Lvalue Context
+FIXABLE_GADGET(DerefSimplePtrArithFixable)
+FIXABLE_GADGET(PointerDereference)
+FIXABLE_GADGET(UPCAddressofArraySubscript) // '&DRE[any]' in an Unspecified Pointer Context
+FIXABLE_GADGET(UPCStandalonePointer)
+FIXABLE_GADGET(UPCPreIncrement)            // '++Ptr' in an Unspecified Pointer Context
+FIXABLE_GADGET(UUCAddAssign)            // 'Ptr += n' in an Unspecified Untyped Context
+FIXABLE_GADGET(PtrToPtrAssignment)
+FIXABLE_GADGET(CArrayToPtrAssignment)
+FIXABLE_GADGET(PointerInit)
+
+#undef FIXABLE_GADGET
+#undef WARNING_GADGET
+#undef WARNING_CONTAINER_GADGET
+#undef GADGET

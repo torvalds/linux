@@ -1,0 +1,209 @@
+.\" $OpenBSD: atu.4,v 1.41 2021/10/24 12:32:42 kn Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999
+.\" Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 24 2021 $
+.Dt ATU 4
+.Os
+.Sh NAME
+.Nm atu
+.Nd Atmel AT76C50x USB IEEE 802.11b wireless network device
+.Sh SYNOPSIS
+.Cd "atu* at uhub? port ?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for wireless network adapters based around
+the Atmel AT76C503, AT76C503A, AT76C505, and AT76C505A USB chipsets and four
+companion radio chipsets.
+.Pp
+The
+.Nm
+driver encapsulates all IP and ARP traffic as 802.11 frames,
+though it can receive either 802.11 or 802.3 frames.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It IBSS mode
+Also known as
+.Em IEEE ad-hoc
+mode or
+.Em peer-to-peer
+mode.
+This is the standardized method of operating without an access point.
+Stations associate with a service set.
+However, actual connections between stations are peer-to-peer.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use hardware
+Wired Equivalent Privacy (WEP).
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The adapter needs some firmware files, which are loaded on demand by the
+driver when the device is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/atu-at76c503-i3863-int
+.It Pa /etc/firmware/atu-at76c503-i3863-ext
+.It Pa /etc/firmware/atu-at76c503-rfmd-acc-int
+.It Pa /etc/firmware/atu-at76c503-rfmd-acc-ext
+.It Pa /etc/firmware/atu-at76c505-rfmd-int
+.It Pa /etc/firmware/atu-at76c505-rfmd-ext
+.It Pa /etc/firmware/atu-intersil-int
+.It Pa /etc/firmware/atu-intersil-ext
+.It Pa /etc/firmware/atu-rfmd-int
+.It Pa /etc/firmware/atu-rfmd-ext
+.It Pa /etc/firmware/atu-rfmd2958-int
+.It Pa /etc/firmware/atu-rfmd2958-ext
+.It Pa /etc/firmware/atu-rfmd2958smc-int
+.It Pa /etc/firmware/atu-rfmd2958smc-ext
+.El
+.Sh HARDWARE
+The following devices are known to be supported by the
+.Nm
+driver:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Tn 3Com 3CRSHEW696
+.It Tn AboCom BWU613
+.It Tn Accton 2664W
+.It Tn Acer Peripherals AWL300
+.It Tn Acer Peripherals AWL400
+.It Tn Actiontec 802UAT1
+.It Tn Addtron AWU120
+.It Tn Aincomm AWU2000B
+.It Tn Askey Computer Voyager 1010
+.It Tn Askey Computer WLL013 (Intersil Radio)
+.It Tn Askey Computer WLL013 (RFMD Radio)
+.It Tn Atmel AT76C503 (Intersil Radio)
+.It Tn Atmel AT76C503 (RFMD Radio)
+.It Tn Atmel AT76C505 (RFMD Radio)
+.It Tn Atmel AT76C505 (RFMD 2958 Radio)
+.It Tn Atmel AT76C505A (RFMD 2958 Radio)
+.It Tn Atmel AT76C505AS (RFMD 2958 Radio)
+.It Tn Belkin F5D6050
+.It Tn Bluetake BW002
+.It Tn Compaq iPAQ h54xx/h55xx Internal WLAN
+.It Tn Conceptronic C11U
+.It Tn Conceptronic WL210
+.It Tn Corega WLAN USB Stick 11
+.It Tn Dick Smith Electronics CHUSB 611G
+.It Tn Dick Smith Electronics WL200U
+.It Tn Dick Smith Electronics WL240U
+.It Tn Dick Smith Electronics XH1153
+.It Tn D-Link DWL-120 rev E
+.It Tn Geowave GW-US11S
+.It Tn Gigabyte GN-WLBM101
+.It Tn Gigaset WLAN
+.It Tn Hewlett-Packard HN210W
+.It Tn Intel AP310 AnyPoint II
+.It Tn I/O DATA USB WN-B11
+.It Tn Lexar 2662W-AR
+.It Tn Linksys WUSB11 802.11b
+.It Tn Linksys WUSB11 802.11b v2.8
+.It Tn MSI WLAN
+.It Tn Netgear MA101
+.It Tn Netgear MA101 rev B
+.It Tn OQO model 01 WiFi
+.It Tn Ovislink AirLive WL-1120USB
+.It Tn OvisLink AirLive WL-1130USB
+.It Tn Planex Communications GW-US11S
+.It Tn Samsung SWL2100W
+.It Tn Siemens WLL013
+.It Tn SMC EZ Connect 11Mbps (SMC2662w)
+.It Tn SMC EZ Connect 11Mbps v2 (SMC2662wV2)
+.It Tn Tekram U-300C
+.It Tn TRENDnet TEW-229UB
+.It Tn W-Buddie WN210
+.It Tn Z-Com M4Y-750
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig atu0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures atu0 to join network
+.Dq mynwid ,
+using WEP key
+.Dq mywepkey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid nwkey mywepkey
+inet autoconf
+.Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Daan Vreeken
+and ported to
+.Ox
+by
+.An Theo de Raadt
+and
+.An David Gwynne .
+.Sh CAVEATS
+The
+.Nm
+driver does not support a lot of the functionality available in the hardware.
+More work is required to properly support the IBSS, power management,
+and selectable transmission rate features.

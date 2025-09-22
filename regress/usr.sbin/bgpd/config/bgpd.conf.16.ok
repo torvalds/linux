@@ -1,0 +1,53 @@
+AS 1
+router-id 127.0.0.1
+socket "/var/run/bgpd.sock.0"
+listen on 0.0.0.0
+listen on ::
+
+
+rde rib Adj-RIB-In no evaluate
+rde rib Loc-RIB rtable 0 fib-update yes
+
+neighbor 192.0.2.1 {
+	remote-as 64496
+	role peer
+	enforce neighbor-as yes
+	enforce local-as yes
+	announce IPv4 unicast
+	announce IPv6 unicast
+	announce IPv4 vpn
+	announce IPv6 vpn
+	announce IPv4 flowspec
+	announce IPv6 flowspec
+	announce enhanced refresh yes
+	announce add-path recv yes
+	announce add-path send all
+	announce policy yes
+}
+neighbor 192.0.2.2 {
+	remote-as 64496
+	role peer
+	enforce neighbor-as yes
+	enforce local-as yes
+	announce IPv4 none
+	announce IPv6 none
+	announce refresh no
+	announce restart no
+	announce as4byte no
+	announce policy no
+}
+neighbor 192.0.2.3 {
+	remote-as 64496
+	role peer
+	enforce neighbor-as yes
+	enforce local-as yes
+	announce IPv4 unicast enforce
+	announce IPv6 unicast enforce
+	announce refresh enforce
+	announce enhanced refresh enforce
+	announce restart enforce
+	announce as4byte enforce
+	announce add-path recv enforce
+	announce add-path send best plus 3 enforce
+	announce policy enforce
+}

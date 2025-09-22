@@ -1,0 +1,22 @@
+import("//llvm/utils/gn/build/write_vcsrevision.gni")
+
+write_vcsrevision("write_vcsrevision") {
+  header = "$target_gen_dir/VCSRevision.h"
+}
+
+# Corresponds to process_llvm_pass_plugins() in the CMake build.
+# For now, just turn everything off.
+# If we ever add real support for this, the GN way for this is probably
+# to have a declare_args() list with plugin names that people can override
+# in their args.gn and with empty defaults (similar to llvm_targets_to_build).
+action("write_extension_def") {
+  script = "//llvm/utils/gn/secondary/llvm/include/llvm/Support/write_extension_def.py"
+  outputs = [ "$target_gen_dir/Extension.def" ]
+
+  # If any extensions should be enabled, they'd be passed as additional
+  # arguments, e.g. `args += [ "Bye", "Polly" ]`.
+  args = [
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}

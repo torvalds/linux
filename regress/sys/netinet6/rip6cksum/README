@@ -1,0 +1,6 @@
+Test IPv6 raw sockets with checksum calculation in kernel.
+
+The C program rip6cksum creates a raw socket, binds and connects
+it, and sets the checksum option.  Then it forks the scapy program
+sendrecv.  It sends a protocol 255 packet and expects an answer or
+ICMP6 error.

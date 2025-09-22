@@ -1,0 +1,129 @@
+.\"	$OpenBSD: ast.4,v 1.13 2008/05/21 19:05:51 kettenis Exp $
+.\"	$NetBSD: ast.4,v 1.7 1996/03/16 00:07:07 thorpej Exp $
+.\"
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Systems Programming Group of the University of Utah Computer
+.\" Science Department.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
+.\"	from: Id: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
+.\"
+.Dd $Mdocdate: May 21 2008 $
+.Dt AST 4
+.Os
+.Sh NAME
+.Nm ast
+.Nd multiplexing serial communications interface
+.Sh SYNOPSIS
+.Cd "ast0 at isa? port 0x1a0 irq 5"
+.Cd "ast1 at isa? port 0x2a0 irq 6"
+.Cd "com* at ast?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for boards that multiplex together up to four
+.Tn EIA
+.Tn RS-232C
+.Pf ( Tn CCITT
+.Tn V.28 )
+communications interfaces.
+Apparently the original master of hardware using this multiplexing protocol
+was AST.
+.Pp
+Each
+.Nm
+device is the master device for up to four
+.Nm com
+devices.
+The kernel configuration specifies these
+.Nm com
+devices as slave devices of the
+.Nm
+device, as shown in
+.Sx SYNOPSIS .
+The slave ID given for each
+.Nm com
+device determines which bit in the interrupt multiplexing register is
+tested to find interrupts for that device.
+The
+.Tn port
+specification for the
+.Nm
+device is used to compute the base addresses for the
+.Nm com
+subdevices and the port for the interrupt multiplexing register.
+.Pp
+On a real AST card, the jumpers are as follows:
+.Bl -tag -width xxxxx
+.It SW1-1
+Turn ON for irq 2.
+Default is OFF.
+.It SW1-2
+Turn ON for irq 3.
+Default is OFF.
+.It SW1-3
+Turn ON for irq 4.
+Default is OFF.
+.It SW2-1
+Turn ON for irq 5.
+This is ON for the first card, OFF otherwise.
+.It SW2-2
+Turn ON for irq 6.
+This is ON for the second card, OFF otherwise.
+.It SW2-3
+Turn ON for irq 7.
+Default is OFF.
+.It SW3-1
+.Dq Compatible mode .
+The
+.Nm ast
+driver needs extended mode, so leave this OFF.
+.It SW3-2
+I/O Address.
+In extended mode, this should be OFF for the first card at
+0x1a0-0x1a7 and ON for the second card at 0x2a0-0x2a7.
+.It SW3-3
+Interrupt sharing.
+Default is OFF.
+.It SW3-4
+Reserved, must be OFF.
+.El
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa /dev/tty0?
+.El
+.Sh SEE ALSO
+.Xr com 4 ,
+.Xr intro 4 ,
+.Xr isa 4
+.Sh HISTORY
+The
+.Nm
+driver was written by Roland McGrath and placed into the public
+domain.

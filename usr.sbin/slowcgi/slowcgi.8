@@ -1,0 +1,129 @@
+.\"   $OpenBSD: slowcgi.8,v 1.17 2022/08/06 17:11:36 op Exp $
+.\"
+.\" Copyright (c) 2013 Florian Obser <florian@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 6 2022 $
+.Dt SLOWCGI 8
+.Os
+.Sh NAME
+.Nm slowcgi
+.Nd a FastCGI to CGI wrapper server
+.Sh SYNOPSIS
+.Nm
+.Op Fl dv
+.Op Fl p Ar path
+.Op Fl s Ar socket
+.Op Fl t Ar timeout
+.Op Fl U Ar user
+.Op Fl u Ar user
+.Sh DESCRIPTION
+.Nm
+is a server which implements the FastCGI Protocol to execute CGI scripts.
+FastCGI was designed to overcome the CGI protocol's scalability
+and resource sharing limitations.
+While CGI scripts need to be forked for every request, FastCGI scripts
+can be kept running and handle many HTTP requests.
+.Pp
+.Nm
+is a simple server that translates FastCGI requests to the CGI protocol.
+It executes the requested CGI script and translates its output back to the
+FastCGI protocol.
+.Pp
+Modern web frameworks and web applications usually come with the
+capability to run as FastCGI servers.
+.Nm
+is not intended for these applications.
+.Pp
+.Nm
+opens a socket at
+.Pa /var/www/run/slowcgi.sock ,
+owned by www:www,
+with permissions 0660.
+It will then
+.Xr chroot 8
+to
+.Pa /var/www
+and drop privileges to user
+.Qq www .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to stderr.
+.It Fl p Ar path
+.Xr chroot 2
+to
+.Ar path .
+A
+.Ar path
+of
+.Pa /
+effectively disables the chroot.
+.It Fl s Ar socket
+Create and bind to alternative local socket at
+.Ar socket .
+.It Fl t Ar timeout
+Terminate the request after
+.Ar timeout
+seconds instead of the default 120 seconds.
+The CGI script is left to run but its standard input, output and error
+will be closed.
+.It Fl U Ar user
+Change the owner of
+.Pa /var/www/run/slowcgi.sock
+to
+.Ar user
+and its primary group instead of the default www:www.
+.It Fl u Ar user
+Drop privileges to
+.Ar user
+instead of default user www and
+.Xr chroot 8
+to
+the home directory of
+.Ar user .
+.It Fl v
+Enable more verbose (debug) logging.
+.El
+.Sh SEE ALSO
+.Xr httpd 8
+.Sh STANDARDS
+.Rs
+.%A Mark R. Brown
+.%D April 1996
+.%T FastCGI Specification
+.Re
+.Pp
+.Rs
+.%A D. Robinson, K. Coar
+.%D October 2004
+.%R RFC 3875
+.%T The Common Gateway Interface (CGI) Version 1.1
+.Re
+.Sh HISTORY
+The
+.Nm
+server first appeared in
+.Ox 5.4 .
+.Sh AUTHORS
+.An Florian Obser Aq Mt florian@openbsd.org
+.Sh BUGS
+.Nm
+only implements the parts of the FastCGI standard needed to execute
+CGI scripts.
+This is intentional.

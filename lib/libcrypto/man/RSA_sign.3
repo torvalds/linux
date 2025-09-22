@@ -1,0 +1,148 @@
+.\"	$OpenBSD: RSA_sign.3,v 1.10 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL aa90ca11 Aug 20 15:48:56 2016 -0400
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000, 2005, 2014, 2015, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_SIGN 3
+.Os
+.Sh NAME
+.Nm RSA_sign ,
+.Nm RSA_verify
+.Nd RSA signatures
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft int
+.Fo RSA_sign
+.Fa "int type"
+.Fa "const unsigned char *m"
+.Fa "unsigned int m_len"
+.Fa "unsigned char *sigret"
+.Fa "unsigned int *siglen"
+.Fa "RSA *rsa"
+.Fc
+.Ft int
+.Fo RSA_verify
+.Fa "int type"
+.Fa "const unsigned char *m"
+.Fa "unsigned int m_len"
+.Fa "unsigned char *sigbuf"
+.Fa "unsigned int siglen"
+.Fa "RSA *rsa"
+.Fc
+.Sh DESCRIPTION
+.Fn RSA_sign
+signs the message digest
+.Fa m
+of size
+.Fa m_len
+using the private key
+.Fa rsa
+using RSASSA-PKCS1-v1_5 as specified in RFC 3447.
+It stores the signature in
+.Fa sigret
+and the signature size in
+.Fa siglen .
+.Fa sigret
+must point to
+.Fn RSA_size rsa
+bytes of memory.
+Note that PKCS #1 adds meta-data, placing limits on the size of the key
+that can be used.
+See
+.Xr RSA_private_encrypt 3
+for lower-level operations.
+.Pp
+.Fa type
+denotes the message digest algorithm that was used to generate
+.Fa m .
+If
+.Fa type
+is
+.Sy NID_md5_sha1 ,
+an SSL signature (MD5 and SHA-1 message digests with PKCS #1 padding and
+no algorithm identifier) is created.
+.Pp
+.Fn RSA_verify
+verifies that the signature
+.Fa sigbuf
+of size
+.Fa siglen
+matches a given message digest
+.Fa m
+of size
+.Fa m_len .
+.Fa type
+denotes the message digest algorithm that was used to generate the
+signature.
+.Fa rsa
+is the signer's public key.
+.Sh RETURN VALUES
+.Fn RSA_sign
+returns 1 on success.
+.Fn RSA_verify
+returns 1 on successful verification.
+.Pp
+The error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr RSA_meth_set_sign 3 ,
+.Xr RSA_new 3 ,
+.Xr RSA_private_encrypt 3 ,
+.Xr RSA_public_decrypt 3
+.Sh STANDARDS
+SSL, PKCS #1 v2.0
+.Sh HISTORY
+.Fn RSA_sign
+first appeared in SSLeay 0.4.4.
+.Fn RSA_verify
+first appeared in SSLeay 0.6.0.
+Both functions have been available since
+.Ox 2.4 .

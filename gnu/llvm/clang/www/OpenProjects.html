@@ -1,0 +1,168 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Clang - Open Projects</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+</head>
+<body>
+
+<!--#include virtual="menu.html.incl"-->
+
+<div id="content">
+
+<h1>Open Clang Projects</h1>
+
+<p>Here are a few tasks that are available for anyone to work on, depending
+on what your interests are. This list is provided to generate ideas, it is not
+intended to be comprehensive. Please ask on
+<a href="https://discourse.llvm.org/c/clang">Discourse</a> for more specifics
+or to verify that one of these isn't already completed.</p>
+
+<ul>
+<li><b>Refresh and improve Clang's documentation</b>: Clang is inconsistent
+with documenting implementation-defined behaviors. We have significant
+documentation in the <a href="https://clang.llvm.org/docs/LanguageExtensions.html">
+Language Extensions</a> page, but the information is incomplete and the page is
+difficult to navigate. We would appreciate help with:
+<ul>
+  <li>improving the way this information is presented to users,</li>
+  <li><a href="https://llvm.org/docs/TableGen/">table generating</a>
+      documentation where possible, such as for implementation limits or other
+      target-specific information,</li>
+  <li>adding documentation for currently
+     <a href="https://github.com/llvm/llvm-project/blob/main/clang/include/clang/Basic/AttrDocs.td">
+     undocumented attributes</a>,</li>
+  <li>documenting <a href="https://github.com/llvm/llvm-project/blob/main/clang/include/clang/Basic/DiagnosticDocs.td">
+      diagnostic group flags</a> (adding code examples of what is diagnosed, or
+      other relevant information), or</li>
+  <li>documenting <a href="https://github.com/llvm/llvm-project/blob/main/clang/include/clang/Driver/Options.td">
+      command line options</a>, or</li>
+  <li>help with completing other missing documentation.</li>
+</ul>
+These projects are independent of each other.</li>
+
+<li><b>Complete the investigation into Clang's C conformance</b>: Clang's
+<a href="c_status.html">C status page</a> contain a number of entries marked as
+<code>Unknown</code>. Completing the investigation involves adding
+<a href="https://github.com/llvm/llvm-project/tree/main/clang/test/C">test
+coverage</a> for the various standards papers and updating the documentation
+accordingly.
+</li>
+
+<li><b>Improve Clang's C and C++ standard conformance test coverage</b>:
+Clang's test suite is structured such that most tests are written to provide
+coverage for what part of the compiler the feature's implementation exists in;
+we have parsing tests in <code>clang/test/Parser</code>, and semantic analysis
+tests in <code>clang/test/Sema*</code>, etc. We also have tests written to
+provide coverage for the standard requirements (<code>clang/test/CXX</code> and
+<code>clang/test/C</code>). The standards coverage is not structured in a way
+that makes it easy to maintain as the standards change over time. No commercial
+conformance test suite has a license model suitable for open source projects,
+so we would appreciate help in improving the existing coverage we have both in
+terms of layout of the tests as well as in coverage of the various standard
+modes.</li>
+
+<li><b>Complete the investigation into Clang's C and C++ Defect Report
+conformance</b>: Separate from (but related to) general conformance testing is
+determining which <a href="c_dr_status.html">C defect reports</a> and
+<a href="cxx_dr_status.html">C++ defect reports</a> Clang implements. These
+lists currently have a number of entries marked as <code>Unknown</code>.
+Completing the investigation involves adding test coverage for
+<a href="https://github.com/llvm/llvm-project/tree/main/clang/test/C/drs">C</a>
+and
+<a href="https://github.com/llvm/llvm-project/tree/main/clang/test/CXX/drs">C++</a>
+defect reports and updating the documentation accordingly.</li>
+
+<li><b>Bug triage</b>: Clang's <a href="https://github.com/llvm/llvm-project/issues">
+issue tracker</a>currently has over 20,000 open issues, many of which are not
+appropriately tagged, are no longer reproducible, could use a reduced test case,
+or otherwise needs some manual interaction. We can always use help with
+<a href="https://llvm.org/docs/BugLifeCycle.html#triaging-bugs">bug triage and
+issue tracker maintenance</a>.
+</li>
+
+<li><b>Improve build times with Clang</b>: the time it takes Clang to process a
+translation unit is very important to our users; the lower the build time, the
+better the overall user experience. It would be good to improve Clang's
+performance as well as to find ways to proactively alert us when we've
+introduced a change that has significant negative impact on build times.</li>
+
+<li><b>Complete support for the experimental constant expression interpreter
+</b>: Clang's production constant expression interpreter computes a constant
+expression result by walking over AST nodes, performing calculations as it
+goes. This does not have good performance properties, and so we've begun work
+on an <a href="https://clang.llvm.org/docs/ConstantInterpreter.html">
+experimental constant expression interpreter</a> that works by converting the
+AST into bytecode that is interpreted. This effort has a long tail of work left
+to complete because it requires implementing byte code for every kind of
+expression and type that can be used in a constant expression for C++ and C.
+</li>
+
+<li><b>Improve clang-doc</b>: Clang's library-based design allows it to be used
+by a variety of tools that reason about source code.
+<a href="https://clang.llvm.org/extra/clang-doc.html">clang-doc</a> is one
+great application of this functionality, which generates code documentation
+from source code. The tool is in early stages of development and could use more
+dedicated effort to complete the implementation.</li>
+
+<li><b>Self-testing using clang</b>: There are several neat ways to
+improve the quality of clang by self-testing. Some examples:
+<ul>
+  <li>Improve the reliability of AST printing and serialization by
+  ensuring that the AST produced by clang on an input doesn't change
+  when it is reparsed or unserialized.
+
+  <li>Improve parser reliability and error generation by automatically
+  or randomly changing the input checking that clang doesn't crash and
+  that it doesn't generate excessive errors for small input
+  changes. Manipulating the input at both the text and token levels is
+  likely to produce interesting test cases.
+</ul>
+</li>
+
+<li><b>Continue work on C++20, C++23, C++2c, and C23 support</b>:
+  There are still several C++20 features to complete, and work has begun on
+  supporting the latest language standards. Please see the
+  <a href="cxx_status.html">C++ status report page</a> to find out what is
+  missing.</li>
+
+<li><b>StringRef'ize APIs</b>: A thankless but incredibly useful project is
+StringRef'izing (converting to use <tt>llvm::StringRef</tt> instead of <tt>const
+char *</tt> or <tt>std::string</tt>) various clang interfaces. This generally
+simplifies the code and makes it more efficient.</li>
+
+<li><b>Configuration Manager</b>: Clang/LLVM works on a large number of
+architectures and operating systems and can cross-compile to a similarly large
+number of configurations, but the pitfalls of choosing the command-line
+options, making sure the right sub-architecture is chosen and that the correct
+optional elements of your particular system can be a pain.
+
+<p>A tool that would investigate hosts and targets, and store the configuration
+in files that can later be used by Clang itself to avoid command-line options,
+especially the ones regarding which target options to use, would greatly alleviate
+this problem. A simple tool, with little or no dependency on LLVM itself, that
+will investigate a target architecture by probing hardware, software, libraries
+and compiling and executing code to identify all properties that would be relevant
+to command-line options (VFP, SSE, NEON, ARM vs. Thumb etc), triple settings etc.</p>
+
+<p>The first stage is to build a CFLAGS for Clang that would produce code on the
+current Host to the identified Target.</p>
+
+<p>The second stage would be to produce a configuration file (that can be used
+independently of the Host) so that Clang can read it and not need a gazillion
+of command-line options. Such file should be simple JSON / INI or anything that
+a text editor could change.</p></li>
+</ul>
+
+<p>If you hit a bug with Clang, it is very useful for us if you reduce the code
+that demonstrates the problem down to something small. There are many ways to
+do this; ask on <a href="https://discourse.llvm.org/c/clang">Discourse</a>,
+<a href="https://discord.com/channels/636084430946959380/636725486533345280">Discord</a>,
+or <a href="https://llvm.org/docs/GettingInvolved.html#irc"IRC</a> for advice.</p>
+
+</div>
+</body>
+</html>

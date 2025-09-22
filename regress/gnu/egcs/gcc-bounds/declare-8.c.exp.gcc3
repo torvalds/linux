@@ -1,0 +1,1 @@
+declare-8.c:2: error: wrong number of arguments specified for `__bounded__' attribute

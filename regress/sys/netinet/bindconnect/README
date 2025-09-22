@@ -1,0 +1,29 @@
+Stress test bind(2) and connect(2) system calls in OpenBSD regress.
+
+bindconnect [-r] [-b bind] [-c connect] [-d delroute] [-f family] [-N addr/net]
+[-n num] [-o close] [-p proto] [-s socket] [-t time]
+    -b bind      threads binding sockets, default 1
+    -c connect   threads connecting sockets, default 1
+    -d delroute  threads deleting cloned routes, default 0
+    -f family    address family inet or inet6, default inet
+    -N addr/net  connect to any address within network
+    -n num       number of file descriptors, default 128
+    -o close     threads closing sockets, default 1
+    -p proto     protocol udp, tcp, name or number, default udp
+    -r           set reuse port socket option
+    -s socket    threads creating sockets, default 1
+    -t time      run time in seconds, default 10
+
+Separate threads are started to run socket(2), close(2), bind(2),
+and connect(2) system calls concurrently.  The number of sockets
+is controlled by the process limit of open file descriptors.  All
+system calls operate on random file descriptors.  By setting the
+number of threads for each system call and the number of available
+file descriptors, the focus for the stress test can be changed.
+
+Currently IPv4 and IPv6 UDP sockets are supported.  Per default the
+address to bind and connect is 127.0.0.1 or ::1.  LOCAL_NET or
+LOCAL_NET6 environment variable allows to bind on a local address
+and connect to all directly attached hosts.  This triggers creation
+of cloned routes during source address selection.  To stress test
+routing table, these routes can be deleted in another thread.

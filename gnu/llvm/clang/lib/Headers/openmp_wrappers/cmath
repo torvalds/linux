@@ -1,0 +1,132 @@
+/*===-- __clang_openmp_device_functions.h - OpenMP math declares -*- c++ -*-===
+ *
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+ *
+ *===-----------------------------------------------------------------------===
+ */
+
+#ifndef __CLANG_OPENMP_CMATH_H__
+#define __CLANG_OPENMP_CMATH_H__
+
+#ifndef _OPENMP
+#error "This file is for OpenMP compilation only."
+#endif
+
+#include_next <cmath>
+
+// Make sure we include our math.h overlay, it probably happend already but we
+// need to be sure.
+#include <math.h>
+
+// We (might) need cstdlib because __clang_cuda_cmath.h below declares `abs`
+// which might live in cstdlib.
+#include <cstdlib>
+
+// We need limits because __clang_cuda_cmath.h below uses `std::numeric_limit`.
+#include <limits>
+
+#pragma omp begin declare variant match(                                       \
+    device = {arch(nvptx, nvptx64)}, implementation = {extension(match_any, allow_templates)})
+
+#define __CUDA__
+#define __OPENMP_NVPTX__
+#include <__clang_cuda_cmath.h>
+#undef __OPENMP_NVPTX__
+#undef __CUDA__
+
+// Overloads not provided by the CUDA wrappers but by the CUDA system headers.
+// Since we do not include the latter we define them ourselves.
+#define __DEVICE__ static constexpr __attribute__((always_inline, nothrow))
+
+__DEVICE__ float acosh(float __x) { return ::acoshf(__x); }
+__DEVICE__ float asinh(float __x) { return ::asinhf(__x); }
+__DEVICE__ float atanh(float __x) { return ::atanhf(__x); }
+__DEVICE__ float cbrt(float __x) { return ::cbrtf(__x); }
+__DEVICE__ float erf(float __x) { return ::erff(__x); }
+__DEVICE__ float erfc(float __x) { return ::erfcf(__x); }
+__DEVICE__ float exp2(float __x) { return ::exp2f(__x); }
+__DEVICE__ float expm1(float __x) { return ::expm1f(__x); }
+__DEVICE__ float fdim(float __x, float __y) { return ::fdimf(__x, __y); }
+__DEVICE__ float hypot(float __x, float __y) { return ::hypotf(__x, __y); }
+__DEVICE__ int ilogb(float __x) { return ::ilogbf(__x); }
+__DEVICE__ float lgamma(float __x) { return ::lgammaf(__x); }
+__DEVICE__ long long int llrint(float __x) { return ::llrintf(__x); }
+__DEVICE__ long long int llround(float __x) { return ::llroundf(__x); }
+__DEVICE__ float log1p(float __x) { return ::log1pf(__x); }
+__DEVICE__ float log2(float __x) { return ::log2f(__x); }
+__DEVICE__ float logb(float __x) { return ::logbf(__x); }
+__DEVICE__ long int lrint(float __x) { return ::lrintf(__x); }
+__DEVICE__ long int lround(float __x) { return ::lroundf(__x); }
+__DEVICE__ float nextafter(float __x, float __y) {
+  return ::nextafterf(__x, __y);
+}
+__DEVICE__ float remainder(float __x, float __y) {
+  return ::remainderf(__x, __y);
+}
+__DEVICE__ float scalbln(float __x, long int __y) {
+  return ::scalblnf(__x, __y);
+}
+__DEVICE__ float scalbn(float __x, int __y) { return ::scalbnf(__x, __y); }
+__DEVICE__ float tgamma(float __x) { return ::tgammaf(__x); }
+
+#undef __DEVICE__
+
+#pragma omp end declare variant
+
+#ifdef __AMDGCN__
+#pragma omp begin declare variant match(device = {arch(amdgcn)})
+
+#pragma push_macro("__constant__")
+#define __constant__ __attribute__((constant))
+#define __OPENMP_AMDGCN__
+
+#include <__clang_hip_cmath.h>
+
+#pragma pop_macro("__constant__")
+#undef __OPENMP_AMDGCN__
+
+// Define overloads otherwise which are absent
+#define __DEVICE__ static constexpr __attribute__((always_inline, nothrow))
+
+__DEVICE__ float acos(float __x) { return ::acosf(__x); }
+__DEVICE__ float acosh(float __x) { return ::acoshf(__x); }
+__DEVICE__ float asin(float __x) { return ::asinf(__x); }
+__DEVICE__ float asinh(float __x) { return ::asinhf(__x); }
+__DEVICE__ float atan(float __x) { return ::atanf(__x); }
+__DEVICE__ float atan2(float __x, float __y) { return ::atan2f(__x, __y); }
+__DEVICE__ float atanh(float __x) { return ::atanhf(__x); }
+__DEVICE__ float cbrt(float __x) { return ::cbrtf(__x); }
+__DEVICE__ float cosh(float __x) { return ::coshf(__x); }
+__DEVICE__ float erf(float __x) { return ::erff(__x); }
+__DEVICE__ float erfc(float __x) { return ::erfcf(__x); }
+__DEVICE__ float exp2(float __x) { return ::exp2f(__x); }
+__DEVICE__ float expm1(float __x) { return ::expm1f(__x); }
+__DEVICE__ float fdim(float __x, float __y) { return ::fdimf(__x, __y); }
+__DEVICE__ float hypot(float __x, float __y) { return ::hypotf(__x, __y); }
+__DEVICE__ int ilogb(float __x) { return ::ilogbf(__x); }
+__DEVICE__ float ldexp(float __arg, int __exp) {
+  return ::ldexpf(__arg, __exp);
+}
+__DEVICE__ float lgamma(float __x) { return ::lgammaf(__x); }
+__DEVICE__ float log1p(float __x) { return ::log1pf(__x); }
+__DEVICE__ float logb(float __x) { return ::logbf(__x); }
+__DEVICE__ float nextafter(float __x, float __y) {
+  return ::nextafterf(__x, __y);
+}
+__DEVICE__ float remainder(float __x, float __y) {
+  return ::remainderf(__x, __y);
+}
+__DEVICE__ float scalbn(float __x, int __y) { return ::scalbnf(__x, __y); }
+__DEVICE__ float sinh(float __x) { return ::sinhf(__x); }
+__DEVICE__ float tan(float __x) { return ::tanf(__x); }
+__DEVICE__ float tanh(float __x) { return ::tanhf(__x); }
+__DEVICE__ float tgamma(float __x) { return ::tgammaf(__x); }
+
+#undef __DEVICE__
+
+#pragma omp end declare variant
+#endif // __AMDGCN__
+
+#endif

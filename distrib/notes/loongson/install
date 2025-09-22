@@ -1,0 +1,196 @@
+dnl	$OpenBSD: install,v 1.16 2020/07/05 22:27:47 tj Exp $
+OpenBSDInstallPrelude
+
+Booting the installation media:
+
+The easiest way to boot into the OpenBSD installer is to copy the miniroot
+image to a USB stick using dd(1) and boot bsd.rd from the PMON prompt:
+
+    PMON> boot -k /dev/fs/ext2@usb0/bsd.rd
+
+on Lemote systems, and
+
+    PMON> load /dev/fs/ext2@usb0/bsd.rd
+    PMON> g
+
+on Gdium systems.
+
+Another way to boot into the OpenBSD installer is to copy the bsd.rd
+installation kernel to the main Linux partition, and boot from it.
+
+Assuming the installation kernel has been copied to /boot/bsd.rd on the
+Linux system, at the PMON prompt, enter
+
+    PMON> boot -k /dev/fs/ext2@wd0/boot/bsd.rd
+
+on Lemote systems, and
+
+    PMON> load /dev/fs/ext2@usbg0/boot/bsd.rd
+    PMON> g
+
+on Gdium systems.
+dnl
+dnl Alternatively, if your particular PMON flavour supports `fat' filesystems,
+dnl you can boot the kernel from an usb key with:
+dnl 
+dnl    PMON> boot /dev/fs/fat@usb0:/bsd.rd
+
+Netbooting the installation kernel can be done as well. First, check the name
+of the PMON device for the onboard interface using the ``devls'' command.
+This is likely to be either rtl0 (on Yeeloong) or rtk0 (on Fuloong). Then,
+assign it an address and fetch the installation kernel from a tftp server:
+
+    PMON> ifaddr <device name> <your ip>
+    PMON> boot -k tftp://<server ip>/bsd.rd
+
+OpenBSDInstallPart2
+
+OpenBSDInstallPart3(,"sd0 for USB storage, or wd0 for internal storage
+	(either a disk drive or an SSD)")
+
+OpenBSDInstallPart4
+
+OpenBSDInstallMBRPart1
+
+dnl OpenBSDInstallMBRPart2
+	The fdisk(8) utility will be invoked to let you edit your MBR
+	partitioning.  The current MBR partitions defined will be
+	displayed and you will be allowed to modify them, and add new
+	partitions.
+
+	The setup will need one 'Linux files' partition and an 'OpenBSD'
+	partition. If you use the whole disk option, the install script
+	will create a small 'Linux files' partition and use the rest of
+	the disk for the OpenBSD installation.
+
+	After your OpenBSD MBR partition has been set up, the real
+	partition setup can follow.
+
+OpenBSDInstallPart5({:-
+	Linux partitions defined on the disk will usually show up as
+	partition 'i', 'j' and so on.-:})
+
+OpenBSDInstallPart6({:-CD-ROM, -:})
+
+OpenBSDURLInstall
+
+OpenBSDCDROMInstall
+
+OpenBSDNFSInstall
+
+OpenBSDDISKInstall({:-"wdN" or -:},,{:-, Linux (ext2) or MS-DOS-:})
+
+OpenBSDCommonInstall
+
+OpenBSDInstallWrapup
+
+Lemote systems final steps:
+
+	Lemote systems ship with a boot menu.  After an installation
+	preserving the Linux partitions is complete, you can add an OpenBSD
+	entry to the boot menu to be able to boot OpenBSD more easily.
+
+	The boot menu contents are found in /boot/boot.cfg on the Linux
+	partition. To add an OpenBSD entry, simply add a new entry in the
+	file, such as:
+
+		title OpenBSD
+			kernel /dev/fs/ext2@wd0/boot/boot
+			args ""
+
+	In the example above, /dev/fs/ext2@wd0/boot/boot is the PMON path
+	to the OpenBSD bootloader, which is copied to that location by the
+	install script.
+
+	You may make OpenBSD the default option by changing the ``default''
+	line near the top of the file. The value on this line is the index
+	of the default entry, starting at zero. So if you added the OpenBSD
+	entry as the fourth entry in the file, it would become the default
+	choice with:
+
+		default 3
+
+	The timeout until the default choice is selected, in seconds, can
+	be modified on the ``timeout'' line.
+
+	However, due to side effects of PMON operation, automatic loading
+	of OpenBSD binaries (bootloader or kernel) causes a register dump
+	to be silently displayed by PMON; while it won't be visible on
+	screen, PMON will gladly wait for user input to continue if it
+	believes it has written too much output.
+
+	To overcome this annoyance, simply change the `moresz' environment
+	variable to a large value (30 or larger will do):
+
+	    PMON> set moresz 30
+
+	The bootloader will attempt to load the kernel file set in the `bsd'
+	environment variable. Should this fail, it will wait for user
+	commands. The value of `bsd' should be a path within the OpenBSD
+	root filesystem on the disk, such as:
+
+	    PMON> set bsd /bsd
+
+	If you have removed the Linux installation or if you do not want to
+	use the boot menu, you may simply disable it in the environment, and
+	set the `al' variable to point to the bootloader path:
+
+	    PMON> set ShowBootMenu no
+	    PMON> set al /dev/fs/ext2@wd0/boot/boot
+
+	Alternatively, you might want to create a /boot/boot.cfg file in the
+	small Linux partition created by the installation.
+
+	On the Fuloong 2F, getting PMON to use the serial console is tricky,
+	due to PMON bugs and design decisions made by Lemote. PMON's default
+	serial speed is 115200, and OpenBSD will also use that speed. By
+	default, it is only possible to use serial input if no USB keyboard is
+	attached. PMON will nevertheless display its output on the VGA display.
+	To get full serial access, the first step is to boot into PMON> with
+	both serial console and VGA display but no USB keyboard attached.
+	You can type on the serial console, but output will be shown on the
+	VGA display. Next enter the following commands:
+
+	    PMON> set novga 1
+	    PMON> set nokbd 1
+	    PMON> set al ""
+	    PMON> set ShowBootMenu no
+
+	If you have a dual boot setup, mount the Linux boot partition and
+	rename /boot/boot.cfg so that it does not get found by PMON. This
+	will enable full serial access to PMON on the Fuloong 2F.
+
+Gdium systems final steps:
+
+	Gdium systems do not have a boot menu, and directly boot the system
+	(Linux, by default). Unfortunately, the OpenBSD bootloader operation
+	is very limited on this machine, as it can not access USB devices
+	(which means no keyboard input as well).
+
+	To overcome this and be able to boot OpenBSD nevertheless, the
+	bootloader relies upon PMON's ability to load a Linux so-called
+	``initrd'' image. By making PMON load the kernel as the ``initrd''i
+	image, and then run the bootloader, the bootloader will be able to
+	``load'' the OpenBSD kernel correctly.
+
+	The path to the file booted by default is set in the `al' environment
+	variable, and the path to the initrd image is set in the `rd'
+	environment variable.
+
+	To boot the bsd kernel on the G-Key by default, assuming it has been
+	copied to /boot/bsd on the first ext3 partition, and the bootloader
+	has been copied to /boot/boot on the same filesystem, the settings
+	are:
+
+	    PMON> set al /dev/fs/ext2@usbg0/boot/boot
+	    PMON> set rd /dev/fs/ext2@usbg0/boot/bsd
+
+	Alternatively, you can disable autoboot by removing this variable:
+
+	    PMON> unset al
+
+OpenBSDCongratulations
+
+
+
+OpenBSDUnattendedInstallation

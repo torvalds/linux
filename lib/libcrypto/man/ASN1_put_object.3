@@ -1,0 +1,227 @@
+.\" $OpenBSD: ASN1_put_object.3,v 1.6 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2019, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_PUT_OBJECT 3
+.Os
+.Sh NAME
+.Nm ASN1_put_object ,
+.Nm ASN1_put_eoc ,
+.Nm ASN1_object_size
+.Nd start and end the BER encoding of an arbitrary ASN.1 data element
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft void
+.Fo ASN1_put_object
+.Fa "unsigned char **ber_out"
+.Fa "int constructed"
+.Fa "int content_length"
+.Fa "int tag"
+.Fa "int class"
+.Fc
+.Ft int
+.Fo ASN1_put_eoc
+.Fa "unsigned char **ber_out"
+.Fc
+.Ft int
+.Fo ASN1_object_size
+.Fa "int constructed"
+.Fa "int content_length"
+.Fa "int tag"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_put_object
+begins writing the BER encoding of an arbitrary ASN.1 data element
+to the buffer
+.Pf * ber_out
+by writing the identifier and the length bytes.
+Making sure that there is sufficient space in the buffer
+is the responsibility of the caller.
+This function does not write any content bytes
+nor any end-of-content bytes.
+.Pp
+The tag
+.Fa class
+can be
+.Dv V_ASN1_UNIVERSAL ,
+.Dv V_ASN1_APPLICATION ,
+.Dv V_ASN1_CONTEXT_SPECIFIC ,
+or
+.Dv V_ASN1_PRIVATE
+and is written to the two most significant bits of the first byte written.
+.Pp
+The
+.Fa constructed
+argument can have the following values:
+.Bl -tag -width 1n -offset 2n -compact
+.It 0
+Start a primitive value by setting the third most significant bit
+of the first byte written to 0.
+Always use the definite form.
+.It 1
+Start a constructed value by setting the third most significant bit
+of the first byte written to 1, and use the definite form.
+.It 2
+Start a constructed value and use the indefinite form,
+.El
+.Pp
+If the
+.Fa tag
+is less than
+.Dv V_ASN1_PRIMITIVE_TAG Pq = 0x1f ,
+it is written to the five least significant bits
+of the only identifier byte written.
+Otherwise, these five bits are all set to 1, and the
+.Fa tag
+is encoded in one or more following identifier bytes as needed.
+.Pp
+After completing the identifier byte(s),
+when using the definite form, the given
+.Fa content_length
+is encoded in one or more bytes as needed,
+using the long form if and only if the
+.Fa content_length
+is greater than 127.
+When using the indefinite form,
+the special byte 0x80 is written instead and the
+.Fa content_length
+argument is ignored.
+.Pp
+At the end,
+.Pf * Fa ber_out
+is set to the byte following the last byte written.
+The calling code can then start writing content bytes.
+.Pp
+If the indefinite form was selected,
+the calling code is also responsible for calling
+.Fn ASN1_put_eoc
+which writes an end-of-content marker to
+.Pf * Fa ber_out ,
+consisting of two NUL bytes, and advances
+.Pf * Fa ber_out
+by two bytes.
+.Pp
+.Fn ASN1_object_size
+calculates the total length in bytes of the BER encoding
+of an ASN.1 data element with the given
+.Fa tag
+and the number of content bytes given by
+.Fa content_length .
+The
+.Fa constructed
+argument has the same meaning as for
+.Fn ASN1_put_object .
+The return value includes the identifier, length, and content bytes.
+If
+.Fa constructed
+is 2, it also includes the end-of-content bytes.
+For the definite form, only the short form is supported if the
+.Fa content_length
+is less than 128.
+.Sh RETURN VALUES
+.Fn ASN1_put_eoc
+returns the number of bytes written, which is always 2.
+.Pp
+.Fn ASN1_object_size
+returns the total number of bytes in the encoding of the data element.
+.Sh SEE ALSO
+.Xr ASN1_item_i2d 3 ,
+.Xr ASN1_TYPE_get 3 ,
+.Xr i2d_ASN1_NULL 3 ,
+.Xr i2d_ASN1_OBJECT 3 ,
+.Xr i2d_ASN1_OCTET_STRING 3 ,
+.Xr i2d_ASN1_SEQUENCE_ANY 3
+.Sh STANDARDS
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules:
+Specification of Basic Encoding Rules (BER), Canonical Encoding
+Rules (CER) and Distinguished Encoding Rules (DER),
+section 8.1: General rules for encoding
+.Sh HISTORY
+.Fn ASN1_put_object
+and
+.Fn ASN1_object_size
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn ASN1_put_eoc
+first appeared in OpenSSL 0.9.8 and has been available since
+.Ox 4.5 .
+.Sh CAVEATS
+None of these functions do any sanity checking.
+When called in inconsistent ways, invalid content may result in
+.Pf * Fa ber_out ,
+for example
+.Bl -dash -compact
+.It
+a
+.Fa tag
+number less than
+.Dv V_ASN1_PRIMITIVE_TAG
+with a
+.Fa class
+other than
+.Dv V_ASN1_UNIVERSAL
+.It
+a
+.Fa tag
+number equal to
+.Dv V_ASN1_EOC Pq 0x00
+or
+.Dv V_ASN1_PRIMITIVE_TAG Pq 0x1f
+.It
+a
+.Vt BOOLEAN ,
+.Vt INTEGER ,
+.Vt NULL
+etc. with the
+.Fa constructed
+bit set
+.It
+a
+.Vt SEQUENCE
+or
+.Vt SET
+etc. without the
+.Fa constructed
+bit set
+.It
+a
+.Fa content_length
+that makes no sense for the given
+.Fa tag
+.It
+a
+.Fa content_length
+that disagrees with the following data
+.It
+a
+.Vt BOOLEAN ,
+.Vt INTEGER ,
+.Vt NULL
+etc. in indefinite form
+.It
+an end-of-content marker even though no indefinite form was started
+.It
+\&...
+.El
+.Pp
+If the calling code wants to find out how many bytes were written,
+it needs to save a copy of the pointer
+.Pf * Fa ber_out
+before calling
+.Fn ASN1_put_object .

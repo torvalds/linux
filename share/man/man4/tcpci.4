@@ -1,0 +1,46 @@
+.\"	$OpenBSD: tcpci.4,v 1.1 2020/04/27 21:36:07 patrick Exp $
+.\"
+.\" Copyright (c) 2020 Patrick Wildt <patrick@blueri.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 27 2020 $
+.Dt TCPCI 4
+.Os
+.Sh NAME
+.Nm tcpci
+.Nd USB Type-C Port Controller Interface
+.Sh SYNOPSIS
+.Cd "tcpci* at iic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the USB Type-C Port Controller Interface.
+It takes care of plug and unplug events on the USB Type-C port and discovers
+the orientation of the plug so that the USB SuperSpeed pins can be routed
+correctly.
+Additionally it enables power on the USB Type-C port when a sink
+is connected to power attached devices.
+.Sh SEE ALSO
+.Xr iic 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Patrick Wildt Aq Mt patrick@blueri.se .

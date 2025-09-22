@@ -1,0 +1,19 @@
+static_library("Profile") {
+  output_name = "LLVMBOLTProfile"
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [
+    "//bolt/lib/Core",
+    "//bolt/lib/Passes",
+    "//bolt/lib/Utils",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "BoltAddressTranslation.cpp",
+    "DataAggregator.cpp",
+    "DataReader.cpp",
+    "Heatmap.cpp",
+    "StaleProfileMatching.cpp",
+    "YAMLProfileReader.cpp",
+    "YAMLProfileWriter.cpp",
+  ]
+}

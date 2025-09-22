@@ -1,0 +1,120 @@
+import("//llvm/utils/gn/build/symlink_or_copy.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+
+# create_clangd_xpc_framework() in cmake creates both the ClangdXPC.framework
+# bundle and the clangd.xpc bundle within it in a single action.
+# Since GN has some native support for macOS bundles, it's more natural
+# to have one create_bundle() each for both ClangdXPC.framework and clangd.xpc.
+# See `llvm/utils/gn/gn.py help create_bundle` and ../cmake/modules.
+
+######################################################################
+# clangd.xpc bundle
+
+write_cmake_config("XPCServiceInfo.plist") {
+  input = "../cmake/XPCServiceInfo.plist.in"
+  output = "$target_gen_dir/XPCServiceInfo.plist"
+  service_name = "clangd"
+  values = [
+    "CLANGD_XPC_SERVICE_NAME=$service_name",
+    "CLANGD_XPC_SERVICE_BUNDLE_NAME=org.llvm.$service_name",
+  ]
+}
+
+bundle_data("clangxpc_bundle_xpc_service_info_plist") {
+  public_deps = [ ":XPCServiceInfo.plist" ]
+  sources = [ "$target_gen_dir/XPCServiceInfo.plist" ]
+  outputs = [ "{{bundle_contents_dir}}/Info.plist" ]
+}
+
+bundle_data("clangxpc_bundle_xpc_service_executable") {
+  public_deps = [ "//clang-tools-extra/clangd/tool:clangd" ]
+  sources = [ "$root_out_dir/bin/clangd" ]
+  outputs = [ "{{bundle_executable_dir}}/{{source_file_part}}" ]
+}
+
+create_bundle("clangd.xpc") {
+  # .app directory structure.
+  # Since this target only exists to be copied into ClangdXPC.framework,
+  # put it in $target_gen_dir, not $root_out_dir.
+  bundle_root_dir = "$target_gen_dir/$target_name"
+  bundle_contents_dir = "$bundle_root_dir/Contents"
+  bundle_executable_dir = "$bundle_contents_dir/MacOS"
+
+  deps = [
+    ":clangxpc_bundle_xpc_service_executable",
+    ":clangxpc_bundle_xpc_service_info_plist",
+  ]
+}
+
+######################################################################
+# ClangdXPC.framework
+
+write_cmake_config("Info.plist") {
+  input = "../cmake/Info.plist.in"
+  output = "$target_gen_dir/Info.plist"
+  values = [ "CLANGD_XPC_FRAMEWORK_NAME=ClangdXPC" ]
+}
+
+bundle_data("clangdxpc_bundle_info_plist") {
+  public_deps = [ ":Info.plist" ]
+  sources = [ "$target_gen_dir/Info.plist" ]
+  outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+}
+
+shared_library("ClangdXPCLib") {
+  deps = [ "//clang-tools-extra/clangd/tool:clangd" ]
+  sources = [ "ClangdXPC.cpp" ]
+}
+
+bundle_data("clangdxpc_bundle_executable") {
+  public_deps = [ ":ClangdXPCLib" ]
+  sources = [ "$root_out_dir/lib/libClangdXPCLib.dylib" ]
+  outputs = [ "{{bundle_executable_dir}}/ClangdXPC" ]
+}
+
+bundle_data("clangdxpc_bundle_xpc") {
+  public_deps = [ ":clangd.xpc" ]
+  sources = [ "$target_gen_dir/clangd.xpc" ]
+  outputs = [ "{{bundle_contents_dir}}/XPCServices/{{source_file_part}}" ]
+}
+
+# .framework bundle symlinks:
+# - ./ClangdXPC -> Versions/Current/ClangdXPC
+# - ./Resources -> Versions/Current/Resources
+# - ./XPCServices -> Versions/Current/XPCServices
+# - ./Versions/Current -> Versions/A
+# Since bundles are a mac thing, we know that symlink_or_copy() will symlink
+# and not copy, and hence creating the symlink before the target exists is safe.
+symlinks = [
+  "ClangdXPC",
+  "Resources",
+  "XPCServices",
+]
+foreach(target, symlinks) {
+  symlink_or_copy("clangdxpc_symlink_$target") {
+    source = "Versions/Current/$target"
+    output = "$root_out_dir/lib/ClangdXPC.framework/$target"
+  }
+}
+symlink_or_copy("clangdxpc_symlink_Versions_Current") {
+  source = "A"
+  output = "$root_out_dir/lib/ClangdXPC.framework/Versions/Current"
+}
+
+create_bundle("ClangdXPC.framework") {
+  # .framework directory structure.
+  bundle_root_dir = "$root_out_dir/lib/$target_name"
+  bundle_contents_dir = "$bundle_root_dir/Versions/A"
+  bundle_executable_dir = "$bundle_contents_dir"
+  bundle_resources_dir = "$bundle_contents_dir/Resources"
+
+  deps = [
+    ":clangdxpc_bundle_executable",
+    ":clangdxpc_bundle_info_plist",
+    ":clangdxpc_bundle_xpc",
+    ":clangdxpc_symlink_Versions_Current",
+  ]
+  foreach(target, symlinks) {
+    deps += [ ":clangdxpc_symlink_$target" ]
+  }
+}

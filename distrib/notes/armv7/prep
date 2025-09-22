@@ -1,0 +1,106 @@
+dnl	$OpenBSD: prep,v 1.21 2023/04/10 12:57:15 jsg Exp $
+Please be aware that OpenBSD support for this platform is far from
+complete.
+
+To perform an installation you must be able to interact with the serial
+console of the machine in most cases.  USB OTG ports such as the one
+found on the BeagleBone will not function as a console.  You need to be
+able to interact with the firmware on the console.  Often this requires
+a 3.3V TTL level adapter connected to pins or a header on the board.
+
+On systems supporting the simplefb(4) driver, such as the Cubieboard2,
+it is possible to install the system using the framebuffer console.
+You will need to enter the following at the ``boot>'' prompt:
+
+	boot> set tty fb0
+
+Firmware which provides an EFI interface with a Device Tree Blob (DTB)
+file is required to boot.  In most cases this is provided by images of
+U-Boot 2016.07 or newer on SD/MMC devices or in SPI flash.  If the
+miniroot images are used, U-Boot and DTB files are distributed as part
+of the miniroot disk images.
+
+OpenBSD can be installed onto a disk by copying the miniroot for your
+board "miniroot-board-{:--:}OSrev.img" image to an SD card.
+
+Booting from an SD card:
+
+  To use the miniroot image you will need another machine to plug the
+  SD card in to. Any machine type will do, as long as it supports SD card
+  storage devices.  Under OpenBSD, it will appear as a ``sd'' device, for
+  example sd1.
+  
+  Use the dd(1) utility to copy the miniroot to the hard drive.
+  The command would likely be, under OpenBSD:
+  	dd if=miniroot-am335x-{:--:}OSrev.img of=/dev/rsd1c
+  
+  When you have connected the BeagleBone to your computer, a command such
+  as "cu -l cuaU0 -s 115200" (assuming cuaU0 is your serial port device)
+  should connect you to the board's console.
+  
+  Note: By default the BeagleBone Black will boot from the internal emmc.
+  In order to make it boot from the micro SD card, you will need to hold down
+  the small button located by the SD card slot while powering on the board.
+  Once you have done this the board will boot from the SD card as the default.
+
+Running EFI payloads with U-Boot:
+
+If the U-Boot target supports "distro_bootcmd" efiboot will automatically
+be loaded by placing bootarm.efi into /efi/boot/bootarm.efi on a FAT
+filesystem.  With dtb files placed in /, /dtbs/, or /dtb/current/.
+
+If the U-Boot target supports bootefi but not automatically finding it with
+"distro_bootcmd" then it must be loaded manually or by U-Boot commands or
+script.
+	=> run findfdt
+	=> load mmc 0:1 ${fdt_addr_r} ${fdtfile}
+	=> load mmc 0:1 ${kernel_addr_r} efi/boot/bootarm.efi
+	=> bootefi ${kernel_addr_r} ${fdt_addr_r}
+The bootloader will then run and try to load sd0a:/bsd off an FFS
+filesystem after a timeout.
+
+Install on systems without a supported miniroot:
+
+  If a miniroot is not available for your system you will have to modify
+  an existing image before booting it.
+
+  To do so first install the u-boot-arm and dtb packages.  Write one of the
+  provided miniroot images to an SD card:
+
+ 	dd if=miniroot-am335x-{:--:}OSrev.img of=/dev/rsdXc
+
+  Add a board specific DTB file (Allwinner and Rockchip U-Boot images
+  come with a default DTB):
+
+ 	mount /dev/sdXi /mnt
+ 	cp /usr/local/share/dtb/arm/board.dtb /mnt/
+ 	umount /mnt
+
+  For systems based on Texas Instruments OMAP and AMxxxx SoCs:
+
+ 	mount /dev/sdXi /mnt
+ 	cp /usr/local/share/u-boot/board/{MLO,u-boot.img} /mnt/
+ 	umount /mnt
+
+  For systems based on Freescale/NXP i.MX SoCs:
+
+ 	dd if=/usr/local/share/u-boot/board/SPL of=/dev/sdXc bs=1024 seek=1
+ 	dd if=/usr/local/share/u-boot/board/u-boot.img \
+ 	    of=/dev/sdXc bs=1024 seek=69
+
+  For systems based on Allwinner Axx SoCs:
+
+ 	dd if=/usr/local/share/u-boot/board/u-boot-sunxi-with-spl.bin \
+ 	    of=/dev/sdXc bs=1024 seek=8
+
+  For systems based on Rockchip RK3288 SoCs:
+
+ 	dd if=/usr/local/share/u-boot/board/idbloader.img \
+ 	    of=/dev/sdXc seek=64
+ 	dd if=/usr/local/share/u-boot/board/u-boot.img \
+ 	    of=/dev/sdXc seek=16384
+
+  For systems based on Marvell ARMADA 38x SoCs:
+
+ 	dd if=/usr/local/share/u-boot/board/u-boot-spl.kwb \
+ 	    of=/dev/sdXc bs=512 seek=1

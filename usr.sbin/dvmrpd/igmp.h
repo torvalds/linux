@@ -1,0 +1,111 @@
+/*	$OpenBSD: igmp.h,v 1.2 2009/03/06 18:39:13 michele Exp $ */
+
+/*
+ * Copyright (c) 2005, 2006 Esben Norby <norby@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/* IGMP protocol definitions */
+
+#ifndef _IGMP_H_
+#define _IGMP_H_
+
+/* misc */
+#define AllSystems				"224.0.0.1"
+#define AllRouters				"224.0.0.2"
+#define AllIGMPv3Routers			"224.0.0.22"
+
+#define DEFAULT_ROBUSTNESS			2
+#define MIN_ROBUSTNESS				1
+#define MAX_ROBUSTNESS				4
+
+#define DEFAULT_QUERY_INTERVAL			125
+#define MIN_QUERY_INTERVAL			1
+#define MAX_QUERY_INTERVAL			65535
+
+/* must be less than QUERY_INTERVAL */
+#define DEFAULT_QUERY_RESP_INTERVAL		100		/* 10 seconds */
+#define MIN_QUERY_RESP_INTERVAL			1
+#define MAX_QUERY_RESP_INTERVAL			65535
+
+#define DEFAULT_STARTUP_QUERY_INTERVAL		DEFAULT_QUERY_INTERVAL / 4
+#define MIN_STARTUP_QUERY_INTERVAL		MIN_QUERY_INTERVAL
+#define MAX_STARTUP_QUERY_INTERVAL		MAX_QUERY_INTERVAL
+
+#define DEFAULT_STARTUP_QUERY_CNT		DEFAULT_ROBUSTNESS
+#define MIN_STARTUP_QUERY_CNT			MIN_ROBUSTNESS	/* XXX */
+#define MAX_STARTUP_QUERY_CNT			MAX_ROBUSTNESS	/* XXX */
+
+#define DEFAULT_LAST_MEMBER_QUERY_INTERVAL	10		/* 1 second */
+#define MIN_LAST_MEMBER_QUERY_INTERVAL		1
+#define MAX_LAST_MEMBER_QUERY_INTERVAL		65535
+
+#define DEFAULT_LAST_MEMBER_QUERY_CNT		DEFAULT_ROBUSTNESS
+#define MIN_LAST_MEMBER_QUERY_CNT		1
+#define MAX_LAST_MEMBER_QUERY_CNT		255
+
+/* IGMP packet types */
+#define PKT_TYPE_MEMBER_QUERY			0x11
+#define PKT_TYPE_MEMBER_REPORTv1		0x12
+#define PKT_TYPE_MEMBER_REPORTv2		0x16
+#define PKT_TYPE_LEAVE_GROUPv2			0x17
+#define PKT_TYPE_MEMBER_REPORTv3		0x22
+
+#define DEFAULT_IGMP_VERSION			2
+#define MIN_IGMP_VERSION			1
+#define MAX_IGMP_VERSION			2
+
+/* IGMP header */
+struct igmp_hdr {
+	u_int8_t		type;
+	u_int8_t		max_resp_time;
+	u_int16_t		chksum;
+	u_int32_t		grp_addr;
+};
+
+/* group states */
+#define	GRP_STA_NO_MEMB_PRSNT	0x01
+#define	GRP_STA_MEMB_PRSNT	0x02
+#define GRP_STA_V1_MEMB_PRSNT	0x04
+#define	GRP_STA_CHECK_MEMB	0x08
+#define	GRP_STA_ANY		0x0e
+
+/* group events */
+enum group_event {
+	GRP_EVT_V2_REPORT_RCVD,
+	GRP_EVT_V1_REPORT_RCVD,
+	GRP_EVT_LEAVE_RCVD,
+	GRP_EVT_TMR_EXPIRED,
+	GRP_EVT_RETRANS_TMR_EXP,
+	GRP_EVT_V1_HOST_TMR_EXP,
+	GRP_EVT_REPORT_RCVD,
+	GRP_EVT_QUERY_RCVD,
+	GRP_EVT_NOTHING
+};
+
+/* group actions */
+enum group_action {
+	GRP_ACT_END,
+	GRP_ACT_START_TMR,
+	GRP_ACT_START_TMR_ALL,
+	GRP_ACT_START_RETRANS_TMR,
+	GRP_ACT_START_V1_HOST_TMR,
+	GRP_ACT_SEND_GRP_QUERY,
+	GRP_ACT_ADD_GROUP,
+	GRP_ACT_DEL_GROUP,
+	GRP_ACT_CLR_RETRANS_TMR,
+	GRP_ACT_NOTHING
+};
+
+#endif /* _IGMP_H_ */

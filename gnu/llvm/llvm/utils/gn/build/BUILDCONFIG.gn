@@ -1,0 +1,70 @@
+# All targets will get this list of configs by default.
+# Targets can opt out of a config by removing it from their local configs list.
+# If you're adding global flags and don't need targets to be able to opt out,
+# add the flags to compiler_defaults, not to a new config.
+shared_binary_target_configs = [
+  "//llvm/utils/gn/build:compiler_defaults",
+  "//llvm/utils/gn/build:llvm_code",
+  "//llvm/utils/gn/build:no_exceptions",
+  "//llvm/utils/gn/build:no_rtti",
+  "//llvm/utils/gn/build:thin_archive",
+  "//llvm/utils/gn/build:warn_covered_switch_default",
+]
+
+# Apply that default list to the binary target types.
+set_defaults("executable") {
+  configs = shared_binary_target_configs
+}
+set_defaults("loadable_module") {
+  configs = shared_binary_target_configs
+}
+set_defaults("static_library") {
+  configs = shared_binary_target_configs
+}
+set_defaults("shared_library") {
+  configs = shared_binary_target_configs + [ "//llvm/utils/gn/build:zdefs" ]
+}
+set_defaults("source_set") {
+  configs = shared_binary_target_configs
+}
+
+if (target_os == "") {
+  target_os = host_os
+}
+if (current_os == "") {
+  current_os = target_os
+}
+
+if (target_cpu == "") {
+  target_cpu = host_cpu
+}
+if (current_cpu == "") {
+  current_cpu = target_cpu
+}
+
+if (host_os == "win") {
+  host_toolchain = "//llvm/utils/gn/build/toolchain:win"
+} else {
+  host_toolchain = "//llvm/utils/gn/build/toolchain:unix"
+}
+
+set_default_toolchain(host_toolchain)
+
+if (current_os == "android") {
+  foreach(target_type,
+          [
+            "executable",
+            "loadable_module",
+            "shared_library",
+          ]) {
+    template(target_type) {
+      target(target_type, target_name) {
+        forward_variables_from(invoker, "*")
+        if (!defined(deps)) {
+          deps = []
+        }
+        deps += [ "//llvm/utils/gn/build/libs/implicit" ]
+      }
+    }
+  }
+}

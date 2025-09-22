@@ -1,0 +1,218 @@
+$OpenBSD: style.pod,v 1.3 2023/09/12 09:01:04 jsg Exp $
+
+=head1 NAME
+
+OpenBSD::style - Perl source file style guide
+
+=head1 DESCRIPTION
+
+This file specifies the preferred style for Perl source files
+in the OpenBSD source tree.
+
+The suggestions in L<style(9)> also apply as far as they make sense
+for Perl code and unless they are overridden in the present manual page.
+
+Just as for L<style(9)>, indentation is an 8 character tab,
+and statements continuing on the next line are indented
+by four more spaces.
+
+Systematically C<use v5.36> or later which yields C<strict>, C<warnings>,
+C<say> and function signatures.
+
+=head2 Subroutines and methods
+
+Prefer object-oriented over procedural style for new code.
+Define a package under either C<OpenBSD::> or C<DPB::>.
+If no state variables are needed, call methods directly on the class name.
+Otherwise, define the state variables as member variables
+and call methods on a constructed object.
+Name the constructor new() unless there are better options.
+
+	my $pkgpath = DPB::PkgPath->new('devel/quirks');
+	say "Normalized version is ", $pkgpath->fullpkgpath;
+
+	$state->errsay(OpenBSD::Temp->last_error);
+
+Inside methods, call the object C<$self> unless there are reasons not to.
+
+Use signatures for every function (except delegations), so that the number
+of parameters can be checked.
+
+	sub m3($self, $p1, $p2)
+	{
+		...
+	}
+
+Accordingly, avoid calling code refs without parentheses, since this creates
+an implicit C<@_> reference.
+
+Note that signatures can also absorb an arbitrary number of parameters with
+C<@l> and set default parameter values like in C++, e.g.
+
+	sub do_backsubst($subst, $string, $unsubst = undef,
+	    $context = 'OpenBSD::PackingElement');
+
+For methods that take no argument apart from the object itself, remove
+trailing parentheses for the method call:
+
+	my $columns = $object->width;
+
+If a function passes on an arbitrary number of arguments
+to another function:
+
+	sub wrapper_method($self, @p)
+	{
+		...
+		do_something_with(@p);
+	}
+
+Anonymous subs should also use signatures
+
+	$state->{opt}{x} =
+	    sub($opt) {
+		push ${$state->{xlist}}, $opt);
+	    };
+
+(Exception: signal handlers are currently not specified and may take an
+arbitrary number of parameters for C<__DIE__> and C<__WARN__>.
+
+Mark the last expression at the end of a function with an explicit
+B<return> unless the function is not intended to return anything,
+or for "constant" methods
+
+	sub isFile($)
+	{
+		1;
+	}
+
+Do not name parameters to methods unless actually used.
+For documentation, use a comment in that case (especially useful
+for base methods)
+
+	# $self->foo($state):
+	# 	explain what foo does
+	sub foo($, $)
+	{
+	}
+
+Avoid using old-style function prototypes unless absolutely necessary
+to create syntax:
+
+	sub try :prototype(&@)
+	{
+		my ($try, $catch) = @_;
+		eval { &$try() };
+		dienow($@, $catch);
+	}
+
+Only use the wantarray() built-in as an optimization;
+it should never change the semantics of the subroutine.
+For example, suppose there is a function returning a list,
+and while the question whether the list is empty sometimes
+needs to be asked, the number of elements never matters.
+Such a function can be structured and used as follows:
+
+	sub get_list
+	{
+		if (wantarray) {
+			# build the complete list and return it
+		} else {
+			# only figure out whether the list is empty
+			# and return 0 if it is or 1 otherwise
+		}
+	}
+
+	if (get_list) {
+		# do something that doesn't need the actual elements
+	}
+
+Let methods that tweak an object return the object itself,
+such that methods can be chained:
+
+	$object->polish->paint('blue')->attach(@decorations);
+
+Since there are no access control restrictions in Perl,
+simply mark internal methods by prefixing their names with C<_>.
+
+Treat anonymous subroutines just like other code,
+indenting them by one tab:
+
+	my $s = sub($self) {
+		...
+		};
+
+When passing an anonymous function as an argument, start it on a new line:
+
+	f($a1, $a2,
+	    sub($self) {
+		...
+		});
+
+=head2 Files and packages
+
+Putting several closely related classes
+into the same source file is fine.
+
+Avoid multiple inheritance unless absolutely necessary
+because it almost always turns into a mess.
+Including some behavior from a different class (mixin)
+is best done on a per-method basis, but explicitly annotate the mixins
+as such.
+
+Delegating from one method of one class to a method of another class,
+passing C<@_> completely unchanged, can be done with the following syntax:
+
+	package Borrower;
+
+	sub visit_notary
+	{
+		&Lender::visit_notary;  # no parentheses here
+	}
+
+This is the only case where a code ref should be called without explicit
+parameters, and where a method can be declared without a prototype.
+
+If a program often uses fork(), set
+
+	$DB::inhibit_exit = 0;
+
+right after each fork() and before the following exec(),
+such that a user trying to debug the main program isn't
+prompted each time one of the child processes exits.
+
+=head2 Data structures
+
+Autovivification is welcome:
+
+	push @{$self->{list}}, $value;
+
+is fine without defining C<$self-E<gt>{list}> first.
+Note that
+
+	if (@{$self->{list}} > 0)
+
+will not autovivify C<$self-E<gt>{list}>,
+so it can be used to check that the list exists and is not empty
+without testing C<if (exists $self-E<gt>{list})> first.
+
+Don't put quotes around hash subscripts unless necessary;
+they are not necessary for simple identifiers that are not keywords.
+Avoid using keywords as hash keys.
+
+Avoid needless arrows in chained lookups.
+Rather than C<$self-E<gt>{a}-E<gt>{b}>, write:
+
+	$self->{a}{b}
+
+=head2 Syntax details
+
+This style guide makes no recommendation to put parentheses
+where they are not required.
+For example, calling built-in or prototyped functions
+does not require parentheses.
+
+Modern Perl operators are preferred.
+Rather than C<defined $value or $value = $something;>
+or C<$value = $something unless defined $value;>, write:
+
+	$value //= $something;

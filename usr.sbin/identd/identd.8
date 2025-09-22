@@ -1,0 +1,104 @@
+.\"   $OpenBSD: identd.8,v 1.11 2013/07/17 15:38:47 okan Exp $
+.\"
+.\" Copyright (c) 2013 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 17 2013 $
+.Dt IDENTD 8
+.Os
+.Sh NAME
+.Nm identd
+.Nd Identification Protocol daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl 46deHhNn
+.Op Fl l Ar address
+.Op Fl t Ar timeout
+.Sh DESCRIPTION
+.Nm
+is a server which implements the Identification Protocol as specified in
+RFC 1413.
+.Pp
+.Nm
+operates by looking up specific TCP/IP connections and returning
+the name of the user running the process responsible for the connection.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to stderr.
+.It Fl e
+Always return
+.Dq UNKNOWN-ERROR
+instead of the
+.Dq NO-USER
+or
+.Dq INVALID-PORT
+errors.
+.It Fl H
+Hide information about existing and non-existent users.
+This flag implies
+.Fl h .
+.It Fl h
+Hide the actual information about the user by providing an opaque
+token instead.
+This token is entered into the local system logs
+so that the administrator can later discover who the real user was.
+.It Fl l Ar address
+Listen on the specified address.
+By default
+.Nm
+listens on wildcard addresses.
+.It Fl N
+When replying with a user name or ID, first
+check for a file
+.Pa .noident
+in the user's home directory.
+If this file is accessible, return
+.Dq HIDDEN-USER
+instead of the normal USERID response.
+.It Fl n
+Always return UID numbers instead of usernames.
+.It Fl t Ar timeout
+Specifies the idle timeout for client connections,
+in seconds.
+The default timeout is 120 seconds.
+.El
+.\" .Sh SEE ALSO
+.Sh STANDARDS
+.Rs
+.%A M. St. Johns
+.%D February 1993
+.%R RFC 1413
+.%T Identification Protocol
+.Re
+.Sh HISTORY
+The
+.Nm
+command was originally a process run via
+.Xr inetd 8 .
+It was rewritten for
+.Ox 5.4
+as a persistent non-blocking daemon.

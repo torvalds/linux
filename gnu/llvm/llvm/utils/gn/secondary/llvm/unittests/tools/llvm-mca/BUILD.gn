@@ -1,0 +1,24 @@
+import("//llvm/lib/Target/targets.gni")
+import("//third-party/unittest/unittest.gni")
+
+unittest("LLVMMCATests") {
+  deps = [
+    "//llvm/lib/MC",
+    "//llvm/lib/MCA",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  if (llvm_build_X86) {
+    deps += [ "X86" ]
+  }
+
+  sources = [ "MCATestBase.cpp" ]
+
+  # FIXME: Why is this so complicated in the cmake file?
+  mca_views_sources = [ "SummaryView.cpp" ]
+  foreach(s, mca_views_sources) {
+    sources += [ "//llvm/tools/llvm-mca/Views/" + s ]
+  }
+  include_dirs = [ "//llvm/tools/llvm-mca" ]
+}

@@ -1,0 +1,349 @@
+#	$OpenBSD: files.hppa,v 1.99 2024/11/04 22:08:03 jsg Exp $
+#
+# hppa-specific configuration info
+
+# maxpartitions must be the first item in files.${ARCH}
+maxpartitions 16
+
+maxusers 2 8 128
+
+# 
+# "workstation console" routines
+#
+include "dev/wscons/files.wscons"
+file	arch/hppa/hppa/wscons_machdep.c	wsdisplay
+
+include "dev/rasops/files.rasops"
+include "dev/wsfont/files.wsfont"
+
+#
+# Media Independent Interface (mii)
+#
+include "dev/mii/files.mii"
+
+#
+# Machine-independent SCSI drivers
+#
+include "scsi/files.scsi"
+major	{sd = 4}
+major	{cd = 6}
+
+#
+# MI ATAPI drivers
+#
+include "dev/atapiscsi/files.atapiscsi"
+include "dev/ata/files.ata"
+major	{wd = 8}
+
+#
+# ISA Bus support
+#
+include "dev/isa/files.isa"
+include "dev/isa/files.isapnp"
+
+#
+# EISA Bus support
+#
+include "dev/eisa/files.eisa"
+
+#
+# PCI Bus support
+#
+include "dev/pci/files.pci"
+
+device	hme: ether, ifnet, mii, ifmedia
+file	dev/ic/hme.c			hme
+attach	hme at pci with hme_pci
+file	dev/pci/if_hme_pci.c		hme_pci
+
+#
+# CardBus support
+#
+include	"dev/cardbus/files.cardbus"
+
+#
+# Machine-independent PCMCIA drivers
+#
+include	"dev/pcmcia/files.pcmcia"
+
+#
+# Machine-independent HID support
+#
+include	"dev/hid/files.hid"
+
+#
+# Machine-independent USB drivers
+#
+include "dev/usb/files.usb"
+
+#
+# HIL Human Interface Loop devices
+#
+include "dev/hil/files.hil"
+
+#
+# Machine-independent 1-Wire drivers
+#
+include "dev/onewire/files.onewire"
+
+#
+# Gonzo System Connect Bus
+#	(GSC, GSC-1X, GSC+, GSC-1.5X, GSC-2X)
+#
+define	gscbus	{}
+
+#
+# Mainbus
+#
+
+define	gedoens {[offset = -1], [irq = -1]}
+device	mainbus: gedoens
+attach	mainbus at root
+file	arch/hppa/hppa/mainbus.c		mainbus
+
+device	pdc
+attach	pdc at gedoens
+file	arch/hppa/dev/pdc.c			pdc
+
+device	power
+attach	power at gedoens
+file	arch/hppa/dev/power.c			power needs-flag
+
+device	lcd
+attach	lcd at gedoens
+file	arch/hppa/dev/lcd.c			lcd needs-flag
+
+device	mem
+attach	mem at gedoens
+file	arch/hppa/hppa/mem.c			mem
+
+device	cpu
+attach	cpu at gedoens
+file	arch/hppa/dev/cpu.c			cpu
+
+device	fpu
+attach	fpu at gedoens
+file	arch/hppa/dev/fpu.c			fpu
+
+# Phantom PseudoBC GSC+ Port
+device	phantomas: gedoens
+attach	phantomas at gedoens
+file	arch/hppa/dev/phantomas.c		phantomas
+
+# GeckoBOA BC GSC+ port
+device	gecko: gedoens
+attach	gecko at gedoens
+file	arch/hppa/dev/gecko.c			gecko
+
+# U2/Uturn, Runway to GSC Bus bridge & IOA
+device	uturn: gedoens
+attach	uturn at gedoens
+file	arch/hppa/dev/uturn.c			uturn
+
+# Astro memory & I/O controller
+device	astro: gedoens
+attach	astro at gedoens
+file	arch/hppa/dev/astro.c			astro
+
+# 1FT1-0002, 1FU2-0002
+# as goes w/ 7100LC, 7300LC, 7200 and some of 8000, 8200, 8500
+device	lasi: gscbus
+attach	lasi at gedoens
+file	arch/hppa/dev/lasi.c			lasi
+
+# all the older systems
+device	asp: gscbus
+attach	asp at gedoens
+file	arch/hppa/dev/asp.c			asp
+
+# 1FT4-0001, ASIC used on gecko cards
+device	wax: gscbus, isabus, eisabus
+attach	wax at gedoens
+file	arch/hppa/dev/wax.c			wax
+
+device	mongoose: isabus, eisabus
+attach	mongoose at gedoens with mg_gedoens
+file	arch/hppa/dev/mongoose.c		mongoose
+
+define	dinobus {[offset = -1], [irq = -1]}
+
+# Dino, GSC-PCI bridge. Includes ps/2, cereal and a flying toaster interfaces
+# Cujo is a 64-bit data path Dino
+device	dino: pcibus, dinobus
+attach	dino at gedoens
+file	arch/hppa/dev/dino.c			dino
+
+attach	com at dinobus with com_dino
+file	arch/hppa/dev/com_dino.c		com_dino
+
+# Elroy, Ropes to PCI Bridge. Supports 4X PCI and dual address cycle.
+# Mercury; QuickSilver is an AGP also
+device	elroy: pcibus
+attach	elroy at gedoens
+file	arch/hppa/dev/elroy.c		elroy
+file	arch/hppa/dev/apic.c		elroy
+
+attach	sti at gedoens with sti_gedoens
+file	arch/hppa/dev/sti_sgc.c			sti_gedoens
+file	arch/hppa/dev/sti_pci_machdep.c		sti_pci
+
+attach	siop at gedoens with siop_gedoens
+file	arch/hppa/dev/siop_sgc.c		siop_gedoens
+
+device	ssio {[irq = -1]}
+attach	ssio at pci
+file	arch/hppa/dev/ssio.c			ssio
+
+attach	com at ssio with com_ssio
+file	arch/hppa/dev/com_ssio.c		com_ssio
+
+attach	lpt at ssio with lpt_ssio
+file	arch/hppa/dev/lpt_ssio.c		lpt_ssio
+
+###
+
+major	{vnd = 2}
+major	{rd = 3}
+
+#
+# GSC bus devices
+#
+
+device	gsc {[offset = -1], [irq = -1]}
+attach	gsc at gscbus
+file	arch/hppa/gsc/gscbus.c			gsc
+
+# com and lpt are both on WD 16C552
+attach	com at gsc with com_gsc
+file	arch/hppa/gsc/com_gsc.c			com_gsc
+
+attach	lpt at gsc with lpt_gsc
+file	arch/hppa/gsc/lpt_gsc.c			lpt_gsc
+
+attach	mongoose at gsc with mg_gsc
+file	arch/hppa/gsc/mongoose_gsc.c		mg_gsc
+
+#include "dev/fdc/files.fdc"
+#major	{fd = 7}
+#attach	fdc at gsc with fdc_gsc
+#file	arch/hppa/gsc/fdc_gsc.c			fdc_gsc
+
+attach	ie at gsc with ie_gsc
+file	arch/hppa/gsc/if_ie_gsc.c		ie_gsc
+
+attach	siop at gsc with siop_gsc
+file	arch/hppa/gsc/siop_gsc.c		siop_gsc
+
+attach	osiop at gsc with osiop_gsc
+file	arch/hppa/gsc/osiop_gsc.c		osiop_gsc
+
+attach	oosiop at gsc with oosiop_gsc
+file	arch/hppa/gsc/oosiop_gsc.c		oosiop_gsc
+
+attach	hil at gsc with hil_gsc
+file	arch/hppa/gsc/hil_gsc.c			hil_gsc
+
+# PSB 2160-N based 8bit mono audio (705, 710, 745i/*, 747i/*)
+attach	arcofi at gsc with arcofi_gsc
+file	arch/hppa/gsc/arcofi_gsc.c		arcofi_gsc
+
+# CS4215/AD1849 based 16bit mono/stereo audio iface (most of others not w/ aone)
+# a.k.a. Audio Type 2 (optional beeper)
+device	harmony: audio
+attach	harmony at gsc
+file	arch/hppa/gsc/harmony.c			harmony
+
+# PS/2 input ports
+device	gsckbc: pckbcslot
+attach	gsckbc at gsc
+file	arch/hppa/gsc/gsckbc.c			gsckbc
+
+# PS/2 keyboard and mouse
+include	"dev/pckbc/files.pckbc"
+
+#
+# Non-device files
+#
+
+file	arch/hppa/hppa/autoconf.c
+file	arch/hppa/hppa/conf.c
+file	arch/hppa/hppa/db_interface.c		ddb
+file	arch/hppa/hppa/db_disasm.c		ddb
+file	arch/hppa/hppa/disksubr.c		disk
+file	arch/hppa/hppa/fpu.c
+file	arch/hppa/hppa/ipi.c			multiprocessor
+file	arch/hppa/hppa/lock_machdep.c		multiprocessor
+file	arch/hppa/hppa/machdep.c
+file	arch/hppa/hppa/mutex.c
+file	arch/hppa/hppa/pmap.c
+file	arch/hppa/hppa/process_machdep.c
+file	arch/hppa/hppa/sys_machdep.c
+file	arch/hppa/hppa/trap.c
+file	arch/hppa/hppa/intr.c
+file	arch/hppa/hppa/vm_machdep.c
+file	arch/hppa/hppa/in_cksum.c
+file	arch/hppa/hppa/locore.S
+file	netinet/in4_cksum.c
+file	arch/hppa/dev/clock.c
+file	arch/hppa/hppa/fpemu.S			fpemul
+
+# quad support is necessary for 32 bit architectures
+file	lib/libkern/adddi3.c
+file	lib/libkern/anddi3.c
+file	lib/libkern/ashldi3.c
+file	lib/libkern/ashrdi3.c
+file	lib/libkern/cmpdi2.c
+file	lib/libkern/divdi3.c
+file	lib/libkern/iordi3.c
+file	lib/libkern/lshldi3.c
+file	lib/libkern/lshrdi3.c
+file	lib/libkern/moddi3.c
+file	lib/libkern/muldi3.c
+file	lib/libkern/negdi2.c
+file	lib/libkern/notdi2.c
+file	lib/libkern/qdivrem.c
+file	lib/libkern/subdi3.c
+file	lib/libkern/ucmpdi2.c
+file	lib/libkern/udivdi3.c
+file	lib/libkern/umoddi3.c
+file	lib/libkern/xordi3.c
+
+# kern..
+file	lib/libkern/arch/hppa/milli.S
+file	lib/libkern/arch/hppa/spcopy.S
+
+# fpu emulation
+file	arch/hppa/spmath/dfadd.c	fpemul
+file	arch/hppa/spmath/dfcmp.c	fpemul
+file	arch/hppa/spmath/dfdiv.c	fpemul
+file	arch/hppa/spmath/dfmpy.c	fpemul
+file	arch/hppa/spmath/dfrem.c	fpemul
+file	arch/hppa/spmath/dfsqrt.c	fpemul
+file	arch/hppa/spmath/dfsub.c	fpemul
+file	arch/hppa/spmath/divsfm.c	fpemul
+file	arch/hppa/spmath/divsfr.c	fpemul
+file	arch/hppa/spmath/divsim.c	fpemul
+file	arch/hppa/spmath/divsir.c	fpemul
+file	arch/hppa/spmath/divufr.c	fpemul
+file	arch/hppa/spmath/divuir.c	fpemul
+file	arch/hppa/spmath/fcnvff.c	fpemul
+file	arch/hppa/spmath/fcnvfx.c	fpemul
+file	arch/hppa/spmath/fcnvfxt.c	fpemul
+file	arch/hppa/spmath/fcnvxf.c	fpemul
+file	arch/hppa/spmath/frnd.c		fpemul
+file	arch/hppa/spmath/mpyaccs.c	fpemul
+file	arch/hppa/spmath/mpyaccu.c	fpemul
+file	arch/hppa/spmath/mpys.c		fpemul
+file	arch/hppa/spmath/mpyscv.c	fpemul
+file	arch/hppa/spmath/mpyu.c		fpemul
+file	arch/hppa/spmath/mpyucv.c	fpemul
+file	arch/hppa/spmath/sfadd.c	fpemul
+file	arch/hppa/spmath/sfcmp.c	fpemul
+file	arch/hppa/spmath/sfdiv.c	fpemul
+file	arch/hppa/spmath/sfmpy.c	fpemul
+file	arch/hppa/spmath/sfrem.c	fpemul
+file	arch/hppa/spmath/sfsqrt.c	fpemul
+file	arch/hppa/spmath/sfsub.c	fpemul
+file	arch/hppa/spmath/divu.S		fpemul
+file	arch/hppa/spmath/impys.S	fpemul
+file	arch/hppa/spmath/impyu.S	fpemul

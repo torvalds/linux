@@ -1,0 +1,65 @@
+.\"	$OpenBSD: ahci.4,v 1.13 2018/07/02 15:39:33 kettenis Exp $
+.\"
+.\" Copyright (c) 2006 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 2 2018 $
+.Dt AHCI 4
+.Os
+.Sh NAME
+.Nm ahci
+.Nd Advanced Host Controller Interface for Serial ATA
+.Sh SYNOPSIS
+.Cd "ahci* at acpi?"
+.Cd "ahci* at fdt?"
+.Cd "ahci* at pci?"
+.Cd "ahci* at jmb?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Serial ATA controllers conforming to the
+Advanced Host Controller Interface specification.
+.Pp
+Several AHCI capable controllers also provide a compatibility mode that
+causes them to appear as a traditional ATA controller supported by
+.Xr pciide 4 .
+.Pp
+Although
+.Nm
+controllers are actual ATA controllers, the driver emulates SCSI via a
+translation layer.
+.Pp
+Setting the lowest bit (0x1) of the driver flags forces
+.Nm
+to negotiate SATA 1 (1.5 Gb/s) transfer speeds only.
+It may be useful where higher speeds are unstable.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr jmb 4 ,
+.Xr pci 4 ,
+.Xr pciide 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An David Gwynne Aq Mt dlg@openbsd.org
+and
+.An Christopher Pascoe Aq Mt pascoe@openbsd.org .

@@ -1,0 +1,26 @@
+static_library("clang-include-fixer") {
+  output_name = "clangIncludeFixer"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-include-fixer/find-all-symbols",
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Parse",
+    "//clang/lib/Sema",
+    "//clang/lib/Serialization",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "FuzzySymbolIndex.cpp",
+    "InMemorySymbolIndex.cpp",
+    "IncludeFixer.cpp",
+    "IncludeFixerContext.cpp",
+    "SymbolIndexManager.cpp",
+    "YamlSymbolIndex.cpp",
+  ]
+}

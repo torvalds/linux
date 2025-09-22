@@ -1,0 +1,578 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta name="AUTHOR" content="gregod@cs.rpi.edu (Doug Gregor)" />
+   <meta name="KEYWORDS" content="C++, GCC, libstdc++, g++, debug" />
+   <meta name="DESCRIPTION" content="Design of the libstdc++ debug mode." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>Design of the libstdc++ debug mode</title>
+<link rel="StyleSheet" href="lib3styles.css" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Design of the libstdc++ debug mode</a></h1>
+
+<p class="fineprint"><em>
+   The latest version of this document is always available at
+   <a href="http://gcc.gnu.org/onlinedocs/libstdc++/debug_mode.html">
+   http://gcc.gnu.org/onlinedocs/libstdc++/debug_mode.html</a>.
+</em></p>
+
+<p><em>
+   To the <a href="http://gcc.gnu.org/libstdc++/">libstdc++-v3 homepage</a>.
+</em></p>
+
+
+<!-- ####################################################### -->
+
+<hr />
+<h1>Debug mode design</h1>
+<p> The libstdc++ debug mode replaces unsafe (but efficient) standard
+  containers and iterators with semantically equivalent safe standard
+  containers and iterators to aid in debugging user programs. The
+  following goals directed the design of the libstdc++ debug mode:</p>
+
+  <ul>
+
+    <li><b>Correctness</b>: the libstdc++ debug mode must not change
+    the semantics of the standard library for all cases specified in
+    the ANSI/ISO C++ standard. The essence of this constraint is that
+    any valid C++ program should behave in the same manner regardless
+    of whether it is compiled with debug mode or release mode. In
+    particular, entities that are defined in namespace std in release
+    mode should remain defined in namespace std in debug mode, so that
+    legal specializations of namespace std entities will remain
+    valid. A program that is not valid C++ (e.g., invokes undefined
+    behavior) is not required to behave similarly, although the debug
+    mode will abort with a diagnostic when it detects undefined
+    behavior.</li>
+
+    <li><b>Performance</b>: the additional of the libstdc++ debug mode
+    must not affect the performance of the library when it is compiled
+    in release mode. Performance of the libstdc++ debug mode is
+    secondary (and, in fact, will be worse than the release
+    mode).</li>
+
+    <li><b>Usability</b>: the libstdc++ debug mode should be easy to
+    use. It should be easily incorporated into the user's development
+    environment (e.g., by requiring only a single new compiler switch)
+    and should produce reasonable diagnostics when it detects a
+    problem with the user program. Usability also involves detection
+    of errors when using the debug mode incorrectly, e.g., by linking
+    a release-compiled object against a debug-compiled object if in
+    fact the resulting program will not run correctly.</li>
+
+    <li><b>Minimize recompilation</b>: While it is expected that
+    users recompile at least part of their program to use debug
+    mode, the amount of recompilation affects the
+    detect-compile-debug turnaround time. This indirectly affects the
+    usefulness of the debug mode, because debugging some applications
+    may require rebuilding a large amount of code, which may not be
+    feasible when the suspect code may be very localized. There are
+    several levels of conformance to this requirement, each with its
+    own usability and implementation characteristics. In general, the
+    higher-numbered conformance levels are more usable (i.e., require
+    less recompilation) but are more complicated to implement than
+    the lower-numbered conformance levels. 
+      <ol>
+	<li><b>Full recompilation</b>: The user must recompile his or
+	her entire application and all C++ libraries it depends on,
+	including the C++ standard library that ships with the
+	compiler. This must be done even if only a small part of the
+	program can use debugging features.</li>
+
+	<li><b>Full user recompilation</b>: The user must recompile
+	his or her entire application and all C++ libraries it depends
+	on, but not the C++ standard library itself. This must be done
+	even if only a small part of the program can use debugging
+	features. This can be achieved given a full recompilation
+	system by compiling two versions of the standard library when
+	the compiler is installed and linking against the appropriate
+	one, e.g., a multilibs approach.</li>
+
+	<li><b>Partial recompilation</b>: The user must recompile the
+	parts of his or her application and the C++ libraries it
+	depends on that will use the debugging facilities
+	directly. This means that any code that uses the debuggable
+	standard containers would need to be recompiled, but code
+	that does not use them (but may, for instance, use IOStreams)
+	would not have to be recompiled.</li>
+
+	<li><b>Per-use recompilation</b>: The user must recompile the
+	parts of his or her application and the C++ libraries it
+	depends on where debugging should occur, and any other code
+	that interacts with those containers. This means that a set of
+	translation units that accesses a particular standard
+	container instance may either be compiled in release mode (no
+	checking) or debug mode (full checking), but must all be
+	compiled in the same way; a translation unit that does not see
+	that standard container instance need not be recompiled. This
+	also means that a translation unit <em>A</em> that contains a
+	particular instantiation
+	(say, <code>std::vector&lt;int&gt;</code>) compiled in release
+	mode can be linked against a translation unit <em>B</em> that
+	contains the same instantiation compiled in debug mode (a
+	feature not present with partial recompilation). While this
+	behavior is technically a violation of the One Definition
+	Rule, this ability tends to be very important in
+	practice. The libstdc++ debug mode supports this level of
+	recompilation. </li>
+
+	<li><b>Per-unit recompilation</b>: The user must only
+	recompile the translation units where checking should occur,
+	regardless of where debuggable standard containers are
+	used. This has also been dubbed "<code>-g</code> mode",
+	because the <code>-g</code> compiler switch works in this way,
+	emitting debugging information at a per--translation-unit
+	granularity. We believe that this level of recompilation is in
+	fact not possible if we intend to supply safe iterators, leave
+	the program semantics unchanged, and not regress in
+	performance under release mode because we cannot associate
+	extra information with an iterator (to form a safe iterator)
+	without either reserving that space in release mode
+	(performance regression) or allocating extra memory associated
+	with each iterator with <code>new</code> (changes the program
+	semantics).</li>
+      </ol>
+    </li>
+  </ul>
+
+<h2><a name="other">Other implementations</a></h2>
+<p> There are several existing implementations of debug modes for C++
+  standard library implementations, although none of them directly
+  supports debugging for programs using libstdc++. The existing
+  implementations include:</p>
+<ul>
+  <li><a
+  href="http://www.mathcs.sjsu.edu/faculty/horstman/safestl.html">SafeSTL</a>:
+  SafeSTL was the original debugging version of the Standard Template
+  Library (STL), implemented by Cay S. Horstmann on top of the
+  Hewlett-Packard STL. Though it inspired much work in this area, it
+  has not been kept up-to-date for use with modern compilers or C++
+  standard library implementations.</li>
+
+  <li><a href="http://www.stlport.org/">STLport</a>: STLport is a free
+  implementation of the C++ standard library derived from the <a
+  href="http://www.sgi.com/tech/stl/">SGI implementation</a>, and
+  ported to many other platforms. It includes a debug mode that uses a
+  wrapper model (that in some way inspired the libstdc++ debug mode
+  design), although at the time of this writing the debug mode is
+  somewhat incomplete and meets only the "Full user recompilation" (2)
+  recompilation guarantee by requiring the user to link against a
+  different library in debug mode vs. release mode.</li>
+
+  <li><a href="http://www.metrowerks.com/mw/default.htm">Metrowerks
+  CodeWarrior</a>: The C++ standard library that ships with Metrowerks
+  CodeWarrior includes a debug mode. It is a full debug-mode
+  implementation (including debugging for CodeWarrior extensions) and
+  is easy to use, although it meets only the "Full recompilation" (1)
+  recompilation guarantee.</li>
+</ul>
+
+<h2><a name="design">Debug mode design methodology</a></h2>
+<p>This section provides an overall view of the design of the
+  libstdc++ debug mode and details the relationship between design
+  decisions and the stated design goals.</p>
+
+<h3><a name="wrappers">The wrapper model</a></h3>
+<p>The libstdc++ debug mode uses a wrapper model where the debugging
+  versions of library components (e.g., iterators and containers) form
+  a layer on top of the release versions of the library
+  components. The debugging components first verify that the operation
+  is correct (aborting with a diagnostic if an error is found) and
+  will then forward to the underlying release-mode container that will
+  perform the actual work. This design decision ensures that we cannot
+  regress release-mode performance (because the release-mode
+  containers are left untouched) and partially enables <a
+  href="#mixing">mixing debug and release code</a> at link time,
+  although that will not be discussed at this time.</p>
+
+<p>Two types of wrappers are used in the implementation of the debug
+  mode: container wrappers and iterator wrappers. The two types of
+  wrappers interact to maintain relationships between iterators and
+  their associated containers, which are necessary to detect certain
+  types of standard library usage errors such as dereferencing
+  past-the-end iterators or inserting into a container using an
+  iterator from a different container.</p>
+
+<h4><a name="safe_iterator">Safe iterators</a></h4>
+<p>Iterator wrappers provide a debugging layer over any iterator that
+  is attached to a particular container, and will manage the
+  information detailing the iterator's state (singular,
+  dereferenceable, etc.) and tracking the container to which the
+  iterator is attached. Because iterators have a well-defined, common
+  interface the iterator wrapper is implemented with the iterator
+  adaptor class template <code>__gnu_debug::_Safe_iterator</code>,
+  which takes two template parameters:</p>
+
+<ul>
+  <li><code>Iterator</code>: The underlying iterator type, which must
+    be either the <code>iterator</code> or <code>const_iterator</code>
+    typedef from the sequence type this iterator can reference.</li>
+  
+  <li><code>Sequence</code>: The type of sequence that this iterator
+  references. This sequence must be a safe sequence (discussed below)
+  whose <code>iterator</code> or <code>const_iterator</code> typedef
+  is the type of the safe iterator.</li>
+</ul>
+
+<h4><a name="safe_sequence">Safe sequences (containers)</a></h4>
+<p>Container wrappers provide a debugging layer over a particular
+  container type. Because containers vary greatly in the member
+  functions they support and the semantics of those member functions
+  (especially in the area of iterator invalidation), container
+  wrappers are tailored to the container they reference, e.g., the
+  debugging version of <code>std::list</code> duplicates the entire
+  interface of <code>std::list</code>, adding additional semantic
+  checks and then forwarding operations to the
+  real <code>std::list</code> (a public base class of the debugging
+  version) as appropriate. However, all safe containers inherit from
+  the class template <code>__gnu_debug::_Safe_sequence</code>,
+  instantiated with the type of the safe container itself (an instance
+  of the curiously recurring template pattern).</p>
+
+<p>The iterators of a container wrapper will be 
+  <a href="#safe_iterator">safe iterators</a> that reference sequences
+  of this type and wrap the iterators provided by the release-mode
+  base class. The debugging container will use only the safe
+  iterators within its own interface (therefore requiring the user to
+  use safe iterators, although this does not change correct user
+  code) and will communicate with the release-mode base class with
+  only the underlying, unsafe, release-mode iterators that the base
+  class exports.</p>
+
+<p> The debugging version of <code>std::list</code> will have the
+  following basic structure:</p>
+
+<pre>
+template&lt;typename _Tp, typename _Allocator = allocator&lt;_Tp&gt;
+  class debug-list :
+    public release-list&lt;_Tp, _Allocator&gt;,
+    public __gnu_debug::_Safe_sequence&lt;debug-list&lt;_Tp, _Allocator&gt; &gt;
+  {
+    typedef release-list&lt;_Tp, _Allocator&gt; _Base;
+    typedef debug-list&lt;_Tp, _Allocator&gt;   _Self;
+
+  public:
+    typedef __gnu_debug::_Safe_iterator&lt;typename _Base::iterator, _Self&gt;       iterator;
+    typedef __gnu_debug::_Safe_iterator&lt;typename _Base::const_iterator, _Self&gt; const_iterator;
+
+    // duplicate std::list interface with debugging semantics
+  };
+</pre>
+
+<h3><a name="precondition">Precondition checking</a></h3>
+<p>The debug mode operates primarily by checking the preconditions of
+  all standard library operations that it supports. Preconditions that
+  are always checked (regardless of whether or not we are in debug
+  mode) are checked via the <code>__check_xxx</code> macros defined
+  and documented in the source
+  file <code>include/debug/debug.h</code>. Preconditions that may or
+  may not be checked, depending on the debug-mode
+  macro <code>_GLIBCXX_DEBUG</code>, are checked via
+  the <code>__requires_xxx</code> macros defined and documented in the
+  same source file. Preconditions are validated using any additional
+  information available at run-time, e.g., the containers that are
+  associated with a particular iterator, the position of the iterator
+  within those containers, the distance between two iterators that may
+  form a valid range, etc. In the absence of suitable information,
+  e.g., an input iterator that is not a safe iterator, these
+  precondition checks will silently succeed.</p>
+
+<p>The majority of precondition checks use the aforementioned macros,
+  which have the secondary benefit of having prewritten debug
+  messages that use information about the current status of the
+  objects involved (e.g., whether an iterator is singular or what
+  sequence it is attached to) along with some static information
+  (e.g., the names of the function parameters corresponding to the
+  objects involved). When not using these macros, the debug mode uses
+  either the debug-mode assertion
+  macro <code>_GLIBCXX_DEBUG_ASSERT</code> , its pedantic
+  cousin <code>_GLIBCXX_DEBUG_PEDASSERT</code>, or the assertion
+  check macro that supports more advance formulation of error
+  messages, <code>_GLIBCXX_DEBUG_VERIFY</code>. These macros are
+  documented more thoroughly in the debug mode source code.</p>
+
+<h3><a name="coexistence">Release- and debug-mode coexistence</a></h3>
+<p>The libstdc++ debug mode is the first debug mode we know of that
+  is able to provide the "Per-use recompilation" (4) guarantee, that
+  allows release-compiled and debug-compiled code to be linked and
+  executed together without causing unpredictable behavior. This
+  guarantee minimizes the recompilation that users are required to
+  perform, shortening the detect-compile-debug bughunting cycle
+  and making the debug mode easier to incorporate into development
+  environments by minimizing dependencies.</p>
+
+<p>Achieving link- and run-time coexistence is not a trivial
+  implementation task. To achieve this goal we required a small
+  extension to the GNU C++ compiler (described in the GCC Manual for
+  C++ Extensions, see <a
+  href="http://gcc.gnu.org/onlinedocs/gcc/Strong-Using.html">strong
+  using</a>), and a complex organization of debug- and
+  release-modes. The end result is that we have achieved per-use
+  recompilation but have had to give up some checking of the
+  <code>std::basic_string</code> class template (namely, safe
+  iterators).
+</p>
+
+<h4><a name="compile_coexistence">Compile-time coexistence of release- and
+    debug-mode components</a></h4>
+<p>Both the release-mode components and the debug-mode
+  components need to exist within a single translation unit so that
+  the debug versions can wrap the release versions. However, only one
+  of these components should be user-visible at any particular
+  time with the standard name, e.g., <code>std::list</code>. </p>
+
+<p>In release mode, we define only the release-mode version of the
+  component with its standard name and do not include the debugging
+  component at all. The release mode version is defined within the
+  namespace <code>std</code>. Minus the namespace associations, this
+  method leaves the behavior of release mode completely unchanged from
+  its behavior prior to the introduction of the libstdc++ debug
+  mode. Here's an example of what this ends up looking like, in
+  C++.</p>
+
+<pre>
+namespace std
+{
+  template&lt;typename _Tp, typename _Alloc = allocator&lt;_Tp&gt; &gt;
+    class list
+    {
+      // ...
+     };
+} // namespace std
+</pre>
+  
+<p>In debug mode we include the release-mode container (which is now
+defined in in the namespace <code>__norm</code>) and also the
+debug-mode container. The debug-mode container is defined within the
+namespace <code>__debug</code>, which is associated with namespace
+<code>std</code> via the GNU namespace association extension.  This
+method allows the debug and release versions of the same component to
+coexist at compile-time and link-time without causing an unreasonable
+maintenance burden, while minimizing confusion. Again, this boils down
+to C++ code as follows:</p>
+
+<pre>
+namespace std
+{
+  namespace __norm
+  {
+    template&lt;typename _Tp, typename _Alloc = allocator&lt;_Tp&gt; &gt;
+      class list
+      {
+        // ...
+      };
+  } // namespace __gnu_norm
+
+  namespace __debug
+  {
+    template&lt;typename _Tp, typename _Alloc = allocator&lt;_Tp&gt; &gt;
+      class list
+      : public __norm::list&lt;_Tp, _Alloc&gt;,
+        public __gnu_debug::_Safe_sequence&lt;list&lt;_Tp, _Alloc&gt; &gt;
+      {
+        // ...
+      };
+  } // namespace __norm
+
+  using namespace __debug __attribute__ ((strong));
+}
+</pre>
+
+<h4><a name="mixing">Link- and run-time coexistence of release- and
+    debug-mode components</a></h4>
+
+<p>Because each component has a distinct and separate release and
+debug implementation, there are are no issues with link-time
+coexistence: the separate namespaces result in different mangled
+names, and thus unique linkage.</p>
+
+<p>However, components that are defined and used within the C++
+standard library itself face additional constraints. For instance,
+some of the member functions of <code> std::moneypunct</code> return
+<code>std::basic_string</code>. Normally, this is not a problem, but
+with a mixed mode standard library that could be using either
+debug-mode or release-mode <code> basic_string</code> objects, things
+get more complicated.  As the return value of a function is not
+encoded into the mangled name, there is no way to specify a
+release-mode or a debug-mode string. In practice, this results in
+runtime errors. A simplified example of this problem is as follows.
+</p>
+
+<p> Take this translation unit, compiled in debug-mode: </p>
+<pre>
+// -D_GLIBCXX_DEBUG
+#include &lt;string&gt;
+
+std::string test02();
+ 
+std::string test01()
+{
+  return test02();
+}
+ 
+int main()
+{
+  test01();
+  return 0;
+}
+</pre>
+
+<p> ... and linked to this translation unit, compiled in release mode:</p>
+
+<pre>
+#include &lt;string&gt;
+ 
+std::string
+test02()
+{
+  return std::string("toast");
+}
+</pre>
+
+<p> For this reason we cannot easily provide safe iterators for
+  the <code>std::basic_string</code> class template, as it is present
+  throughout the C++ standard library. For instance, locale facets
+  define typedefs that include <code>basic_string</code>: in a mixed
+  debug/release program, should that typedef be based on the
+  debug-mode <code>basic_string</code> or the
+  release-mode <code>basic_string</code>? While the answer could be
+  "both", and the difference hidden via renaming a la the
+  debug/release containers, we must note two things about locale
+  facets:</p>
+
+<ol>
+  <li>They exist as shared state: one can create a facet in one
+  translation unit and access the facet via the same type name in a
+  different translation unit. This means that we cannot have two
+  different versions of locale facets, because the types would not be
+  the same across debug/release-mode translation unit barriers.</li>
+
+  <li>They have virtual functions returning strings: these functions
+  mangle in the same way regardless of the mangling of their return
+  types (see above), and their precise signatures can be relied upon
+  by users because they may be overridden in derived classes.</li>
+</ol>
+
+<p>With the design of libstdc++ debug mode, we cannot effectively hide
+  the differences between debug and release-mode strings from the
+  user. Failure to hide the differences may result in unpredictable
+  behavior, and for this reason we have opted to only
+  perform <code>basic_string</code> changes that do not require ABI
+  changes. The effect on users is expected to be minimal, as there are
+  simple alternatives (e.g., <code>__gnu_debug::basic_string</code>),
+  and the usability benefit we gain from the ability to mix debug- and
+  release-compiled translation units is enormous.</p>
+
+<h4><a name="coexistence_alt">Alternatives for Coexistence</a></h4>
+<p>The coexistence scheme above was chosen over many alternatives,
+  including language-only solutions and solutions that also required
+  extensions to the C++ front end. The following is a partial list of
+  solutions, with justifications for our rejection of each.</p>
+
+<ul>
+  <li><em>Completely separate debug/release libraries</em>: This is by
+  far the simplest implementation option, where we do not allow any
+  coexistence of debug- and release-compiled translation units in a
+  program. This solution has an extreme negative affect on usability,
+  because it is quite likely that some libraries an application
+  depends on cannot be recompiled easily. This would not meet
+  our <b>usability</b> or <b>minimize recompilation</b> criteria
+  well.</li>
+
+  <li><em>Add a <code>Debug</code> boolean template parameter</em>:
+  Partial specialization could be used to select the debug
+  implementation when <code>Debug == true</code>, and the state
+  of <code>_GLIBCXX_DEBUG</code> could decide whether the
+  default <code>Debug</code> argument is <code>true</code>
+  or <code>false</code>. This option would break conformance with the
+  C++ standard in both debug <em>and</em> release modes. This would
+  not meet our <b>correctness</b> criteria. </li>
+
+  <li><em>Packaging a debug flag in the allocators</em>: We could
+    reuse the <code>Allocator</code> template parameter of containers
+    by adding a sentinel wrapper <code>debug&lt;&gt;</code> that
+    signals the user's intention to use debugging, and pick up
+    the <code>debug&lt;&gt;</code> allocator wrapper in a partial
+    specialization. However, this has two drawbacks: first, there is a
+    conformance issue because the default allocator would not be the
+    standard-specified <code>std::allocator&lt;T&gt;</code>. Secondly
+    (and more importantly), users that specify allocators instead of
+    implicitly using the default allocator would not get debugging
+    containers. Thus this solution fails the <b>correctness</b>
+    criteria.</li>
+
+  <li><em>Define debug containers in another namespace, and employ
+      a <code>using</code> declaration (or directive)</em>: This is an
+      enticing option, because it would eliminate the need for
+      the <code>link_name</code> extension by aliasing the
+      templates. However, there is no true template aliasing mechanism
+      is C++, because both <code>using</code> directives and using
+      declarations disallow specialization. This method fails
+      the <b>correctness</b> criteria.</li>
+
+  <li><em> Use implementation-specific properties of anonymous
+    namespaces. </em>
+    See <a
+    href="http://gcc.gnu.org/ml/libstdc++/2003-08/msg00004.html"> this post
+    </a>
+    This method fails the <b>correctness</b> criteria.</li>
+
+  <li><em>Extension: allow reopening on namespaces</em>: This would
+    allow the debug mode to effectively alias the
+    namespace <code>std</code> to an internal namespace, such
+    as <code>__gnu_std_debug</code>, so that it is completely
+    separate from the release-mode <code>std</code> namespace. While
+    this will solve some renaming problems and ensure that
+    debug- and release-compiled code cannot be mixed unsafely, it ensures that
+    debug- and release-compiled code cannot be mixed at all. For
+    instance, the program would have two <code>std::cout</code>
+    objects! This solution would fails the <b>minimize
+    recompilation</b> requirement, because we would only be able to
+    support option (1) or (2).</li>
+
+  <li><em>Extension: use link name</em>: This option involves
+    complicated re-naming between debug-mode and release-mode
+    components at compile time, and then a g++ extension called <em>
+    link name </em> to recover the original names at link time. There
+    are two drawbacks to this approach. One, it's very verbose,
+    relying on macro renaming at compile time and several levels of
+    include ordering. Two, ODR issues remained with container member
+    functions taking no arguments in mixed-mode settings resulting in
+    equivalent link names, <code> vector::push_back() </code> being
+    one example. 
+    See <a
+    href="http://gcc.gnu.org/ml/libstdc++/2003-08/msg00177.html">link
+    name</a> </li>
+</ul>
+
+<p>Other options may exist for implementing the debug mode, many of
+  which have probably been considered and others that may still be
+  lurking. This list may be expanded over time to include other
+  options that we could have implemented, but in all cases the full
+  ramifications of the approach (as measured against the design goals
+  for a libstdc++ debug mode) should be considered first. The DejaGNU
+  testsuite includes some testcases that check for known problems with
+  some solutions (e.g., the <code>using</code> declaration solution
+  that breaks user specialization), and additional testcases will be
+  added as we are able to identify other typical problem cases. These
+  test cases will serve as a benchmark by which we can compare debug
+  mode implementations.</p>
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

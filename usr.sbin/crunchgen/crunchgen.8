@@ -1,0 +1,327 @@
+.\"	$OpenBSD: crunchgen.8,v 1.10 2017/06/11 16:58:49 schwarze Exp $
+.\"
+.\"
+.\" Copyright (c) 1994 University of Maryland
+.\" All Rights Reserved.
+.\"
+.\" Permission to use, copy, modify, distribute, and sell this software and its
+.\" documentation for any purpose is hereby granted without fee, provided that
+.\" the above copyright notice appear in all copies and that both that
+.\" copyright notice and this permission notice appear in supporting
+.\" documentation, and that the name of U.M. not be used in advertising or
+.\" publicity pertaining to distribution of the software without specific,
+.\" written prior permission.  U.M. makes no representations about the
+.\" suitability of this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.\" U.M. DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL U.M.
+.\" BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+.\" IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Author: James da Silva, Systems Design and Analysis Group
+.\"			   Computer Science Department
+.\"			   University of Maryland at College Park
+.\"
+.Dd $Mdocdate: June 11 2017 $
+.Dt CRUNCHGEN 8
+.Os
+.Sh NAME
+.Nm crunchgen
+.Nd generates build environment for a crunched binary
+.Sh SYNOPSIS
+.Nm crunchgen
+.Bk -words
+.Op Fl EfMq
+.Op Fl c Ar c-file-name
+.Op Fl D Ar src-root
+.Op Fl e Ar exec-file-name
+.Op Fl L Ar lib-dir
+.Op Fl m Ar makefile-name
+.Op Fl O Ar objdir-name
+.Ar conf-file
+.Ek
+.Nm crunchgen
+.Fl h
+.Op Fl f Ar keep-list-file
+.Op Fl k Ar keep-symbol
+.Ar object-file ...
+.Sh DESCRIPTION
+A crunched binary is a program made up of many other programs linked
+together into a single executable.
+The crunched binary
+.Fn main
+function determines which component program
+to run by the contents of argv[0].
+The main reason to crunch programs together is for fitting as many programs
+as possible onto an installation or system recovery floppy.
+.Pp
+.Nm
+reads in the specifications in
+.Ar conf-file
+for a crunched binary, and generates a Makefile and accompanying
+top-level C source file that when built create the crunched executable
+file from the component programs.
+For each component program,
+.Nm
+can optionally attempt to determine the object (.o) files that make up
+the program from its source directory Makefile.
+This information is cached in a file named
+.Pa <conf-name>.cache
+between runs.
+.Pp
+.Nm
+is later run again with the
+.Fl h
+flag to eliminate link-time conflicts between the component programs by
+hiding all unnecessary symbols.
+Some symbols may be left visible via the
+.Fl k Ar keep-symbol
+and
+.Fl f Ar keep-list-file
+options.
+The
+.Ar keep-list-file
+must contain a list of symbols to keep visible, one symbol per line.
+Note that the C compiler prepends an underscore in front of
+symbols, so to keep the C function
+.Dq foo
+visible, the option
+.Dq -k _foo
+must be used.
+.Pp
+After
+.Nm
+is run, the crunched binary can be built by running
+.Dq make -f <conf-name>.mk .
+The component programs' object files must already be built.
+An
+.Dq objs
+target, included in the output makefile,
+will run make in each component program's source dir to build the object
+files for the user.
+This is not done automatically since in release engineering circumstances
+it is generally not desirable to be modifying objects in other directories.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c Ar c-file-name
+Set output C file name to
+.Ar c-file-name .
+The default name is
+.Dq Ao conf-name Ac Ns \&.c .
+.It Fl D Ar src-root
+Assume that relative source directory specifications begin with
+.Ar src-root .
+.It Fl E
+Don't prepend stub names with an underscore.
+Used for architectures that don't have underscore prepended to symbol names,
+such as ELF architectures.
+.It Fl e Ar exec-file-name
+Set crunched binary executable file name to
+.Ar exec-file-name .
+The default name is
+.Dq Aq conf-name .
+.It Fl f
+Flush cache.
+Forces the recalculation of cached parameters.
+.It Fl h
+Hide all unnecessary symbols.
+Note that this is done on some ELF architectures by marking the symbol
+local, while the
+.Fl M
+option causes it to mangle the symbol name to hide the symbol.
+It is therefore not advisable to try to run
+.Xr nm 1
+on a crunched object file.
+This is due to the nature of the ELF symbol table
+and how some architectures use the symbol attributes for their GOT build.
+.It Fl L Ar lib-dir
+Try to obtain libraries from
+.Ar lib-dir .
+.It Fl M
+On ELF architectures mangle the symbol instead of marking it global;
+necessary for some architectures due to GOT usage.
+.It Fl m Ar makefile-name
+Set output Makefile name to
+.Ar makefile-name .
+The default name is
+.Dq Ao conf-name Ac Ns \&.mk .
+.It Fl O Ar objdir-name
+Specify an object directory to use.
+It defaults to
+.Dq obj ,
+though for cross building purposes it can be used to specify
+obj.${HOST}.${MACHINE}.
+Normally used with the make variable ${MAKEOBJDIR}.
+.It Fl q
+Quiet operation.
+Status messages are suppressed.
+.El
+.Sh CRUNCHGEN CONFIGURATION FILE COMMANDS
+.Nm
+reads specifications from the
+.Ar conf-file
+that describe the components of the crunched binary.
+In its simplest use, the component program names are merely listed
+along with the top-level source directories in which their sources
+can be found.
+.Nm
+then calculates (via the source makefiles) and caches the
+list of object files and their locations.
+For more specialized situations, the user can specify by hand
+all the parameters that
+.Nm
+needs.
+.Pp
+The
+.Ar conf-file
+commands are as follows:
+.Bl -tag -width indent
+.It srcdirs Ar dirname ...
+A list of source trees in which the source directories of the
+component programs can be found.
+These dirs are searched using the
+.Bx
+.Dq <source-dir>/<progname>/
+convention.
+Multiple srcdirs lines can be specified.
+The directories are searched in the order they are given.
+.It libdirs Ar dirname
+A list of source trees in which the source directories for supplementary
+libraries can be found.
+.It progs Ar progname ...
+A list of programs that make up the crunched binary.
+Multiple progs lines can be specified.
+.It libs Ar libspec ...
+A list of library specifications to be included in the crunched binary link.
+Multiple libs lines can be specified.
+.It ln Ar progname linkname
+Causes the crunched binary to invoke
+.Ar progname
+whenever
+.Ar linkname
+appears in argv[0].
+This allows programs that change their behavior when
+run under different names to operate correctly.
+.El
+.Pp
+To handle specialized situations, such as when the source is not
+available or not built via a conventional Makefile, the following
+.Ic special
+commands can be used to set
+.Nm
+parameters for a component program.
+.Bl -tag -width indent
+.It special Ar progname No srcdir Ar pathname
+Set the source directory for
+.Ar progname .
+This is normally calculated by searching the specified srcdirs
+for a directory named
+.Ar progname .
+.It special Ar progname No objdir Ar pathname
+Set the obj directory for
+.Ar progname .
+This is normally calculated by looking for a directory named
+.Dq obj
+under the
+.Ar srcdir ,
+and if that is not found, the
+.Ar srcdir
+itself becomes the objdir.
+.It special Ar progname No objs Ar object-file-name ...
+Set the list of object files for program
+.Ar progname .
+This is normally calculated by constructing a temporary makefile that includes
+.Dq srcdir/Makefile
+and outputs the value of $(OBJS).
+.It special Ar progname No objpaths Ar full-pathname-to-object-file ...
+Sets the pathnames of the object files for program
+.Ar progname .
+This is normally calculated by prepending the objdir
+pathname to each file in the objs list.
+.El
+.Pp
+Only the objpaths parameter is actually needed by
+.Nm crunchgen ,
+but it is calculated from objdir and objs,
+which are in turn calculated from srcdir,
+so it is sometimes convenient to specify the earlier parameters and let
+.Nm
+calculate forward from there if it can.
+.Pp
+The makefile produced by
+.Nm
+contains an optional
+.Ar objs
+target that will build the object files for each component program by
+running make inside that program's source directory.
+For this to work the srcdir and objs parameters must also be valid.
+If they are not valid for a particular program, that program is skipped in the
+.Ar objs
+target.
+.Sh EXAMPLES
+Here is an example
+.Nm
+input conf file, named
+.Pa kcopy.conf :
+.Bd -literal -offset indent
+srcdirs /usr/src/bin /usr/src/sbin
+
+progs test cp echo sh fsck halt init mount umount myinstall
+ln test [       # test can be invoked via [
+ln sh -sh       # init invokes the shell with "-sh" in argv[0]
+
+special myprog objpaths /homes/leroy/src/myinstall.o # no sources
+
+libs -lutil -lcrypt
+.Ed
+.Pp
+This conf file specifies a small crunched binary consisting of some
+basic system utilities plus a home-grown install program
+.Dq myinstall ,
+for which no source directory is specified, but its object file is
+specified directly with the
+.Ic special
+line.
+.Pp
+The crunched binary
+.Dq kcopy
+can be built as follows:
+.Bd -literal -offset indent
+% crunchgen -m Makefile kcopy.conf    # gen Makefile and kcopy.c
+% make objs		# build the component programs' .o files
+% make			# build the crunched binary kcopy
+% kcopy sh		# test that this invokes a sh shell
+$			# it works!
+.Ed
+.Pp
+At this point the binary
+.Dq kcopy
+can be copied onto an install floppy
+and hard-linked to the names of the component programs.
+.Sh AUTHORS
+.Nm
+was written by
+.An James da Silva Aq Mt jds@cs.umd.edu
+at the University of Maryland.
+.Sh CAVEATS
+While
+.Nm
+takes care to eliminate link conflicts between the component programs
+of a crunched binary, conflicts are still possible between the
+libraries that are linked in.
+Some shuffling in the order of libraries may be required,
+and in some rare cases two libraries may
+have an unresolvable conflict and thus cannot be crunched together.
+.Pp
+Some versions of the
+.Bx
+build environment do not by default build the
+intermediate object file for single-source file programs.
+The
+.Dq make objs
+target must then be used to get those object files built,
+or some other arrangements made.

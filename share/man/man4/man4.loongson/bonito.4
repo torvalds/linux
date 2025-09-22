@@ -1,0 +1,48 @@
+.\"	$OpenBSD: bonito.4,v 1.2 2010/02/10 08:35:31 jmc Exp $
+.\"
+.\" Copyright (c) 2010 Miodrag Vallat.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 10 2010 $
+.Dt BONITO 4 loongson
+.Os
+.Sh NAME
+.Nm bonito
+.Nd memory and PCI or PCI-X controller
+.Sh SYNOPSIS
+.Cd "bonito0 at mainbus0"
+.Cd "pci0 at bonito?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports both the Algorithmics Bonito64 memory and PCI controller
+on Loongson 2E-based systems, or the onboard memory and PCI-X controller
+found on Loongson 2F-based systems, which is a very close design, albeit
+not compatible with the original Bonito.
+.Pp
+Differences between the two models of controllers are hidden at the
+.Nm
+driver level.
+.Pp
+The
+.Nm
+driver also handles PCI interrupt routing; on systems featuring a
+.Xr glxpcib 4
+PCI-ISA bridge to which legacy devices are connected, it will also
+handle legacy interrupts.
+.Sh SEE ALSO
+.Xr glxpcib 4 ,
+.Xr intro 4 ,
+.Xr mainbus 4 ,
+.Xr pci 4

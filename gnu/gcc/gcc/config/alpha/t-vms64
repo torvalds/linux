@@ -1,0 +1,8 @@
+# Assemble startup files.
+vcrt0.o: $(CRT0_S) $(GCC_PASSES)
+	decc -c /names=as_is /pointer_size=64  \
+	     $(srcdir)/config/alpha/vms-crt0-64.c -o vcrt0.o
+
+pcrt0.o: $(CRT0_S) $(GCC_PASSES)
+	decc -c /names=as_is /pointer_size=64 \
+	     $(srcdir)/config/alpha/vms-psxcrt0-64.c -o pcrt0.o

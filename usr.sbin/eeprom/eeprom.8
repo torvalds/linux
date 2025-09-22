@@ -1,0 +1,236 @@
+.\"	$OpenBSD: eeprom.8,v 1.24 2022/11/09 07:20:12 miod Exp $
+.\"	$NetBSD: eeprom.8,v 1.2 1996/02/28 01:13:24 thorpej Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 9 2022 $
+.Dt EEPROM 8
+.Os
+.Sh NAME
+.Nm eeprom
+.Nd display or modify contents of the OpenPROM
+.Sh SYNOPSIS
+.Nm eeprom
+.Op Fl pv
+.Op Fl f Ar device
+.Oo
+.Ar field Ns Op = Ns Ar value
+.Ar ...
+.Oc
+.Sh DESCRIPTION
+.Nm eeprom
+provides an interface for displaying and changing the contents of the
+OpenPROM.
+Without any arguments,
+.Nm eeprom
+will list all of the known fields and their corresponding values.
+When given the name of a specific field,
+.Nm eeprom
+will display that value or set it if the field name is followed by
+.Sq =
+and a value.
+Only the superuser may modify the contents of the OpenPROM.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl
+Commands are taken from stdin and displayed on stdout.
+.It Fl f Ar device
+Use
+.Ar device
+instead of the default
+.Pa /dev/openprom .
+.It Fl p
+Display the tree derived from the OpenPROM and exit.
+.It Fl v
+Be verbose when setting a value.
+.El
+.Sh FIELDS AND VALUES
+Since the OpenPROM is designed such that the field names are arbitrary,
+explaining them here is dubious.
+Below are field names and values that one is likely to see.
+NOTE: this list
+may be incomplete or incorrect due to differences between revisions
+of the OpenPROM.
+.Bl -tag -width "network-boot-arguments  "
+.It Ar sunmon-compat?
+If true, the old EEPROM-style interface will be used while in the monitor,
+rather than the OpenPROM-style interface.
+.It Ar selftest-#megs
+A 32-bit integer specifying the number of megabytes of memory to
+test upon power-up.
+.It Ar oem-logo
+A 64bitx64bit bitmap in Sun Iconedit format.
+To set the bitmap, give the pathname of the file containing the image.
+NOTE: this property is not yet supported.
+.It Ar oem-logo?
+If true, enables the use of the bitmap stored in
+.Ar oem-logo
+rather than the default Sun logo.
+.It Ar oem-banner
+A string to use at power-up, rather than the default Sun banner.
+.It Ar oem-banner?
+If true, enables the use of the banner stored in
+.Ar oem-banner
+rather than the default Sun banner.
+.It Ar ttya-mode
+A string of five comma separated fields in the format
+.Dq 9600,8,n,1,- .
+The first field is the baud rate.
+The second field is the number of data bits.
+The third field is the parity; acceptable values for parity are
+.Dq n
+(none),
+.Dq e
+(even),
+.Dq o
+(odd),
+.Dq m
+(mark), and
+.Dq s
+(space).
+The fourth field is the number of stop bits.
+The fifth field is the
+.Dq handshake
+field; acceptable values are
+.Dq -
+(none),
+.Dq h
+(RTS/CTS), and
+.Dq s
+(XON/XOFF).
+.It Ar ttya-rts-dtr-off
+If true, the system will ignore RTS/DTR.
+.It Ar ttya-ignore-cd
+If true, the system will ignore carrier detect.
+.It Ar ttyb-mode
+Similar to
+.Ar ttya-mode ,
+but for ttyb.
+.It Ar ttyb-rts-dtr-off
+Similar to
+.Ar ttya-rts-dtr-off ,
+but for ttyb.
+.It Ar ttyb-ignore-cd
+Similar to
+.Ar ttya-ignore-cd ,
+but for ttyb.
+.It Ar sbus-probe-list
+Four digits in the format
+.Dq 0123
+specifying which order to probe the SBus at power-up.
+It is unlikely that this value should ever be changed.
+.It Ar screen-#columns
+An 8-bit integer specifying the number of columns on the console.
+.It Ar screen-#rows
+An 8-bit integer specifying the number of rows on the console.
+.It Ar boot-device
+Space separated list of device aliases or device paths to boot from,
+in the given order.
+.It Ar boot-file
+File to boot.
+The empty string lets the second-stage boot program
+.Sy ofwboot
+choose the default.
+.It Ar auto-boot?
+If true, the system will boot automatically at power-up.
+.It Ar watchdog-reboot?
+If true, the system will reboot upon reset.
+Otherwise, the system will fall into the monitor.
+.It Ar input-device
+One of the strings
+.Dq keyboard ,
+.Dq ttya ,
+or
+.Dq ttyb
+specifying the default console input device.
+.It Ar output-device
+One of the strings
+.Dq screen ,
+.Dq ttya ,
+or
+.Dq ttyb
+specifying the default console output device.
+.It Ar keyboard-click?
+If true, the keys click annoyingly.
+.It Ar network-boot-arguments
+Comma separated list of arguments for booting over RARP or BOOTP/DHCP and TFTP.
+.It Ar sd-targets
+A string in the format
+.Dq 31204567
+describing the translation of physical to logical target.
+.It Ar st-targets
+Similar to
+.Ar sd-targets ,
+but for tapes.
+The default translation is
+.Dq 45670123 .
+.It Ar scsi-initiator-id
+The SCSI ID of the on-board SCSI controller.
+.It Ar hardware-revision
+A 7-character string describing a date, such as
+.Dq 25May95 .
+.It Ar last-hardware-update
+Similar to
+.Ar hardware-revision ,
+describing when the CPU was last updated.
+.It Ar diag-switch?
+If true, the system will boot and run in diagnostic mode.
+.It Ar local-mac-address?
+When set to
+.Em false ,
+all Ethernet devices will use the same system default MAC address.
+When
+.Em true ,
+Ethernet devices which have a unique MAC address will use it
+rather than the system default MAC address.
+This option only really affects FCode-based Ethernet devices.
+On Sparc64, all on-board devices,
+as well as plug-in
+.Xr hme 4
+boards, will respect this setting;
+other hardware will not.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/openprom" -compact
+.It /dev/openprom
+the OpenPROM device
+.El
+.Sh SEE ALSO
+.Xr openprom 4
+.Sh CAVEATS
+The fields and their values are not necessarily well defined on
+systems with an OpenPROM.
+Your mileage may vary.
+.Pp
+There are a few fields known to exist in some revisions of the
+OpenPROM that are not yet supported.
+Most notable are those
+relating to password protection of the OpenPROM.
+.Pp
+The date parser isn't very intelligent.

@@ -1,0 +1,47 @@
+.\"	$OpenBSD: raptor.4,v 1.3 2011/02/24 11:18:44 kettenis Exp $
+.\"
+.\" Copyright (c) 2009 Mark Kettenis.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies. And
+.\" I won't mind if you keep the disclaimer below.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 24 2011 $
+.Dt RAPTOR 4 sparc64
+.Os
+.Sh NAME
+.Nm raptor
+.Nd accelerated color frame buffer
+.Sh SYNOPSIS
+.Cd "raptor* at pci?"
+.Cd "wsdisplay* at raptor?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Tech Source Raptor PCI frame buffer cards based on the
+Number 9
+.Sq Imagine-128
+chips, such as the
+Tech Source
+Raptor GFX-4M
+and
+Raptor GFX-8M
+boards.
+It does not provide direct device driver entry points
+but makes its functions available via the internal
+.Xr wsdisplay 4
+interface.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4

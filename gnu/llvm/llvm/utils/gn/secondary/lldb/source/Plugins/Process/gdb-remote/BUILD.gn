@@ -1,0 +1,50 @@
+import("//lldb/utils/TableGen/lldb_tablegen.gni")
+
+lldb_tablegen("ProcessGDBRemoteProperties") {
+  args = [ "-gen-lldb-property-defs" ]
+}
+
+lldb_tablegen("ProcessGDBRemotePropertiesEnum") {
+  args = [ "-gen-lldb-property-enum-defs" ]
+  td_file = "ProcessGDBRemoteProperties.td"
+}
+
+static_library("gdb-remote") {
+  output_name = "lldbPluginProcessGDBRemote"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    ":ProcessGDBRemoteProperties",
+    ":ProcessGDBRemotePropertiesEnum",
+    "//lldb/source/Breakpoint",
+    "//lldb/source/Core",
+    "//lldb/source/DataFormatters",
+    "//lldb/source/Host",
+    "//lldb/source/Interpreter",
+    "//lldb/source/Plugins/Platform/MacOSX",
+    "//lldb/source/Plugins/Process/Utility",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+
+  # XXX if (have_libcompression) { deps += [ compression } }
+  # Reaches into Plugins/Process/Utility.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "GDBRemoteClientBase.cpp",
+    "GDBRemoteCommunication.cpp",
+    "GDBRemoteCommunicationClient.cpp",
+    "GDBRemoteCommunicationHistory.cpp",
+    "GDBRemoteCommunicationServer.cpp",
+    "GDBRemoteCommunicationServerCommon.cpp",
+    "GDBRemoteCommunicationServerLLGS.cpp",
+    "GDBRemoteCommunicationServerPlatform.cpp",
+    "GDBRemoteRegisterContext.cpp",
+    "GDBRemoteRegisterFallback.cpp",
+    "ProcessGDBRemote.cpp",
+    "ProcessGDBRemoteLog.cpp",
+    "ThreadGDBRemote.cpp",
+  ]
+}

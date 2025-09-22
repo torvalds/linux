@@ -1,0 +1,50 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("CodeGenTests") {
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/MIRParser",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/FileCheck",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "AArch64SelectionDAGTest.cpp",
+    "AMDGPUMetadataTest.cpp",
+    "AllocationOrderTest.cpp",
+    "AsmPrinterDwarfTest.cpp",
+    "CCStateTest.cpp",
+    "DIEHashTest.cpp",
+    "DIETest.cpp",
+    "DwarfStringPoolEntryRefTest.cpp",
+    "InstrRefLDVTest.cpp",
+    "LexicalScopesTest.cpp",
+    "LowLevelTypeTest.cpp",
+    "MLRegAllocDevelopmentFeatures.cpp",
+    "MachineBasicBlockTest.cpp",
+    "MachineDomTreeUpdaterTest.cpp",
+    "MachineInstrBundleIteratorTest.cpp",
+    "MachineInstrTest.cpp",
+    "MachineOperandTest.cpp",
+    "PassManagerTest.cpp",
+    "RegAllocScoreTest.cpp",
+    "ScalableVectorMVTsTest.cpp",
+    "SchedBoundary.cpp",
+    "SelectionDAGAddressAnalysisTest.cpp",
+    "SelectionDAGPatternMatchTest.cpp",
+    "TargetOptionsTest.cpp",
+    "TestAsmPrinter.cpp",
+    "TypeTraitsTest.cpp",
+  ]
+  has_custom_main = true
+}

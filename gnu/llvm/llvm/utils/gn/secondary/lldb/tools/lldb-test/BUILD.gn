@@ -1,0 +1,29 @@
+executable("lldb-test") {
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//lldb/source/Breakpoint",
+    "//lldb/source/Core",
+    "//lldb/source/DataFormatters",
+    "//lldb/source/Expression",
+    "//lldb/source/Host",
+    "//lldb/source/Initialization",
+    "//lldb/source/Interpreter",
+    "//lldb/source/Plugins:LldbAllPlugins",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//lldb/source/Version",
+    "//llvm/lib/Support",
+  ]
+
+  # XXX commment
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "FormatUtil.cpp",
+    "SystemInitializerTest.cpp",
+    "lldb-test.cpp",
+  ]
+}

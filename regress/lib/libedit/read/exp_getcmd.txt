@@ -1,0 +1,3 @@
+OK insert L'i' macro[0]=ic(1)
+OK command L'c'
+EOF

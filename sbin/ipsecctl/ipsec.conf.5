@@ -1,0 +1,1019 @@
+.\"	$OpenBSD: ipsec.conf.5,v 1.165 2025/07/07 20:56:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2004 Mathieu Sauve-Frankel  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt IPSEC.CONF 5
+.Os
+.Sh NAME
+.Nm ipsec.conf
+.Nd IPsec configuration file
+.Sh DESCRIPTION
+The
+.Nm
+file specifies rules and definitions for IPsec,
+which provides security services for IP datagrams.
+IPsec itself is a pair of protocols:
+Encapsulating Security Payload (ESP),
+which provides integrity and confidentiality;
+and Authentication Header (AH),
+which provides integrity.
+The IPsec protocol itself is described in
+.Xr ipsec 4 .
+.Pp
+In its most basic form, a
+.Em flow
+is established between hosts and/or networks,
+and then Security Associations (SAs) are established,
+which detail how the desired protection will be achieved.
+IPsec uses flows
+to determine whether to apply security services to an IP packet or not.
+.Pp
+Generally speaking
+an automated keying daemon,
+such as
+.Xr isakmpd 8 ,
+is used to set up flows and establish SAs,
+by specifying an
+.Sq ike
+line in
+.Nm
+(see
+.Sx AUTOMATIC KEYING ,
+below).
+An authentication method,
+such as public key authentication,
+will also have to be set up:
+see the PKI section of
+.Xr isakmpd 8
+for information on the types of authentication available,
+and the procedures for setting them up.
+.Pp
+The keying daemon,
+.Xr isakmpd 8 ,
+can be enabled to run at boot time via
+.Dq rcctl enable isakmpd .
+Note that to avoid
+.Xr keynote 4
+policy checking, it will probably need to be run with at least the
+.Fl K
+option via the
+.Dq rcctl set isakmpd flags -K
+command which sets
+.Pp
+.Dl isakmpd_flags=\(dq-K\(dq
+.Pp
+in
+.Xr rc.conf.local 8 .
+The
+.Nm
+configuration itself is loaded at boot time
+if IPsec is enabled by using
+.Dq rcctl enable ipsec ,
+which sets
+.Pp
+.Dl ipsec=YES
+.Pp
+in
+.Xr rc.conf.local 8 .
+A utility called
+.Xr ipsecctl 8
+is also available to load
+.Nm
+configurations, and can additionally be used
+to view and modify IPsec flows.
+.Pp
+An alternative method of setting up SAs is also possible using
+manual keying.
+Manual keying is not recommended,
+but can be convenient for quick setups and testing.
+Those procedures are documented within this page.
+.Sh IPSEC.CONF FILE FORMAT
+The current line can be extended over multiple lines using a backslash
+.Pq Sq \e .
+Comments can be put anywhere in the file using a hash mark
+.Pq Sq # ,
+and extend to the end of the current line.
+Care should be taken when commenting out multi-line text:
+the comment is effective until the end of the entire block.
+.Pp
+Argument names not beginning with a letter, digit, or underscore
+must be quoted.
+.Pp
+Addresses can be specified in CIDR notation (matching netblocks),
+as symbolic host names, interface names, or interface group names.
+.Pp
+Certain parameters can be expressed as lists, in which case
+.Xr ipsecctl 8
+generates all the necessary combinations.
+For example:
+.Bd -literal -offset indent
+ike esp from {192.168.1.1, 192.168.1.2} to \e
+	{10.0.0.17, 10.0.0.18} peer 192.168.10.1
+.Ed
+.Pp
+Will expand to:
+.Bd -literal -offset indent
+ike esp from 192.168.1.1 to 10.0.0.17 peer 192.168.10.1
+ike esp from 192.168.1.1 to 10.0.0.18 peer 192.168.10.1
+ike esp from 192.168.1.2 to 10.0.0.17 peer 192.168.10.1
+ike esp from 192.168.1.2 to 10.0.0.18 peer 192.168.10.1
+.Ed
+.Pp
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic flow ,
+.Ic from ,
+or
+.Ic esp ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+remote_gw = "192.168.3.12"
+flow esp from 192.168.7.0/24 to 192.168.8.0/24 peer $remote_gw
+.Ed
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/macros.conf"
+.Ed
+.Sh AUTOMATIC KEYING
+In this scenario,
+.Nm
+is used to set up flows and SAs automatically using
+.Xr isakmpd 8
+with the ISAKMP/Oakley a.k.a. IKEv1 protocol.
+To configure automatic keying using the IKEv2 protocol, see
+.Xr iked.conf 5
+instead.
+Some examples of setting up automatic keying:
+.Bd -literal -offset 3n
+# Set up a VPN:
+# First between the gateway machines 192.168.3.1 and 192.168.3.2
+# Second between the networks 10.1.1.0/24 and 10.1.2.0/24
+ike esp from 192.168.3.1 to 192.168.3.2
+ike esp from 10.1.1.0/24 to 10.1.2.0/24 peer 192.168.3.2
+.Ed
+.Pp
+The commands are as follows:
+.Bl -tag -width xxxx
+.It Xo
+.Ic ike
+.Op Ar mode
+.Op Ar encap
+.Op Ar tmode
+.Xc
+.Ar mode
+specifies the IKEv1 mode to use:
+one of
+.Ar passive ,
+.Ar active ,
+or
+.Ar dynamic .
+When
+.Ar passive
+is specified,
+.Xr isakmpd 8
+will not immediately start negotiation of this tunnel, but wait for an incoming
+request from the remote peer.
+When
+.Ar active
+or
+.Ar dynamic
+is specified, negotiation will be started at once.
+The
+.Ar dynamic
+mode will additionally enable Dead Peer Detection (DPD) and use the
+local hostname as the identity of the local peer, if not specified by
+the
+.Ic srcid
+parameter.
+.Ar dynamic
+mode should be used for hosts with dynamic IP addresses like road
+warriors or dialup hosts.
+If omitted,
+.Ar active
+mode will be used.
+.Pp
+.Ar encap
+specifies the encapsulation protocol to be used.
+Possible protocols are
+.Ar esp
+and
+.Ar ah ;
+the default is
+.Ar esp .
+.Pp
+.Ar tmode
+describes the encapsulation mode to be used.
+Possible modes are
+.Ar tunnel
+and
+.Ar transport ;
+the default is
+.Ar tunnel .
+.It Ic proto Ar protocol
+The optional
+.Ic proto
+parameter restricts the flow to a specific IP protocol.
+Common protocols are
+.Xr icmp 4 ,
+.Xr tcp 4 ,
+and
+.Xr udp 4 .
+For a list of all the protocol name to number mappings used by
+.Xr ipsecctl 8 ,
+see the file
+.Pa /etc/protocols .
+.It Xo
+.Ic from Ar src
+.Op Ic port Ar sport
+.Op Pq Ar srcnat
+.Ic to Ar dst
+.Op Ic port Ar dport
+.Xc
+This rule applies for packets with source address
+.Ar src
+and destination address
+.Ar dst .
+The keyword
+.Ar any
+will match any address (i.e. 0.0.0.0/0).
+If the
+.Ar src
+argument specifies a fictional source ID,
+the
+.Ar srcnat
+parameter can be used to specify the actual source address.
+This can be used in outgoing NAT/BINAT scenarios as described below in
+.Sx OUTGOING NETWORK ADDRESS TRANSLATION .
+Host addresses are parsed as type
+.Dq IPV4_ADDR ;
+adding the suffix /32 will change the type to
+.Dq IPV4_ADDR_SUBNET ,
+which can improve interoperability with some IKEv1 implementations.
+.Pp
+The optional
+.Ic port
+modifiers restrict the flows to the specified ports.
+They are only valid in conjunction with the
+.Xr tcp 4
+and
+.Xr udp 4
+protocols.
+Ports can be specified by number or by name.
+For a list of all port name to number mappings used by
+.Xr ipsecctl 8 ,
+see the file
+.Pa /etc/services .
+.It Ic local Ar localip Ic peer Ar remote
+The
+.Ic local
+parameter specifies the address or FQDN of the local endpoint.
+Unless we are multi-homed or have aliases,
+this parameter is generally not needed.
+This parameter does not affect the set of IP addresses
+.Xr isakmpd 8
+will listen on and send packets from.
+The
+.Em Listen-on
+directive in
+.Xr isakmpd.conf 5
+should additionally be used to ensure that the local endpoint will
+send IKE messages with an appropriate source IP address.
+.Pp
+The
+.Ic peer
+parameter specifies the address or FQDN of the remote endpoint.
+For host-to-host connections where
+.Ar dst
+is identical to
+.Ar remote ,
+this option is generally not needed as it will be set to
+.Ar dst
+automatically.
+If it is not specified or if the keyword
+.Ar any
+is given, the default peer is used.
+.It Xo
+.Ar mode
+.Ic auth Ar algorithm
+.Ic enc Ar algorithm
+.Ic group Ar group
+.Ic lifetime Ar time
+.Xc
+These parameters define the mode and cryptographic transforms to be
+used for the phase 1 negotiation.
+During phase 1
+the machines authenticate and set up an encrypted channel.
+.Pp
+The mode can be either
+.Ar main ,
+which specifies main mode, or
+.Ar aggressive ,
+which specifies aggressive mode.
+Possible values for
+.Ic auth ,
+.Ic enc ,
+and
+.Ic group
+are described below in
+.Sx CRYPTO TRANSFORMS .
+.Pp
+The
+.Ic lifetime
+parameter specifies the phase 1 lifetime in seconds.
+Two unit specifiers are recognized (ignoring case):
+.Ql m
+and
+.Ql h
+for minutes and hours, respectively.
+.Pp
+If omitted,
+.Xr ipsecctl 8
+will use the default values
+.Ar main ,
+.Ar hmac-sha1 ,
+.Ar aes ,
+.Ar modp3072 ,
+and
+.Ar 3600 .
+.It Xo
+.Ic quick auth Ar algorithm
+.Ic enc Ar algorithm
+.Ic group Ar group
+.Ic lifetime Ar time
+.Xc
+These parameters define the cryptographic transforms to be used for
+the phase 2 negotiation.
+During phase 2
+the actual IPsec negotiations happen.
+.Pp
+Possible values for
+.Ic auth ,
+.Ic enc ,
+and
+.Ic group
+are described below in
+.Sx CRYPTO TRANSFORMS .
+Perfect Forward Secrecy (PFS) is enabled unless
+.Ic group Ar none
+is specified.
+.Pp
+The
+.Ic lifetime
+parameter specifies the phase 2 lifetime in seconds.
+Two unit specifiers are recognized (ignoring case):
+.Ql m
+and
+.Ql h
+for minutes and hours, respectively.
+.Pp
+If omitted,
+.Xr ipsecctl 8
+will use the default values
+.Ar hmac-sha2-256
+and
+.Ar aes ;
+PFS will only be used if the remote side requests it.
+The default phase 2 lifetime value is
+.Ar 1200 .
+.It Ic srcid Ar string Ic dstid Ar string
+.Ic srcid
+defines an ID of type
+.Dq USER_FQDN
+or
+.Dq FQDN
+that will be used by
+.Xr isakmpd 8
+as the identity of the local peer.
+If the argument is an email address (bob@example.com),
+.Xr ipsecctl 8
+will use USER_FQDN as the ID type.
+Anything else is considered to be an FQDN.
+If
+.Ic srcid
+is omitted,
+the default is to use the IP address of the connecting machine.
+.Pp
+.Ic dstid
+is similar to
+.Ic srcid ,
+but instead specifies the ID to be used
+by the remote peer.
+.It Ic psk Ar string
+Use a pre-shared key
+.Ar string
+for authentication.
+If this option is not specified,
+public key authentication is used (see
+.Xr isakmpd 8 ) .
+.It Ic tag Ar string
+Add a
+.Xr pf 4
+tag to all packets of phase 2 SAs created for this connection.
+This will allow matching packets for this connection by defining
+rules in
+.Xr pf.conf 5
+using the
+.Cm tagged
+keyword.
+.Pp
+The following variables can be used in tags to include information
+from the remote peer on runtime:
+.Pp
+.Bl -tag -width $domain -compact -offset indent
+.It Ar $id
+The remote phase 1 ID.
+It will be expanded to
+.Ar id-type/id-value ,
+e.g.\&
+.Ar fqdn/foo.bar.org .
+.It Ar $domain
+Extract the domain from IDs of type FQDN or UFQDN.
+.El
+.Pp
+For example, if the ID is
+.Ar fqdn/foo.bar.org
+or
+.Ar ufqdn/user@bar.org ,
+.Dq ipsec-$domain
+expands to
+.Dq ipsec-bar.org .
+The variable expansion for the
+.Ar tag
+directive occurs only at runtime (not when the file is parsed)
+and must be quoted, or it will be interpreted as a macro.
+.El
+.Sh PACKET FILTERING
+IPsec traffic appears unencrypted on the
+.Xr enc 4
+interface
+and can be filtered accordingly using the
+.Ox
+packet filter,
+.Xr pf 4 .
+The grammar for the packet filter is described in
+.Xr pf.conf 5 .
+.Pp
+The following components are relevant to filtering IPsec traffic:
+.Bl -ohang -offset indent
+.It external interface
+Interface for ISAKMP traffic and encapsulated IPsec traffic.
+.It proto udp port 500
+ISAKMP traffic on the external interface.
+.It proto udp port 4500
+ISAKMP NAT-Traversal traffic on the external interface.
+.It proto ah | esp
+Encapsulated IPsec traffic
+on the external interface.
+.It enc0
+Interface for outgoing traffic before it's been encapsulated,
+and incoming traffic after it's been decapsulated.
+State on this interface should be interface bound;
+see
+.Xr enc 4
+for further information.
+.It proto ipencap
+[tunnel mode only]
+IP-in-IP traffic flowing between gateways
+on the enc0 interface.
+.It tagged ipsec-example.org
+Match traffic of phase 2 SAs using the
+.Ic tag
+keyword.
+.El
+.Pp
+If the filtering rules specify to block everything by default,
+the following rule
+would ensure that IPsec traffic never hits the packet filtering engine,
+and is therefore passed:
+.Bd -literal -offset indent
+set skip on enc0
+.Ed
+.Pp
+In the following example, all traffic is blocked by default.
+IPsec-related traffic from gateways {192.168.3.1, 192.168.3.2} and
+networks {10.0.1.0/24, 10.0.2.0/24} is permitted.
+.Bd -literal -offset indent
+block on sk0
+block on enc0
+
+pass  in on sk0 proto udp from 192.168.3.2 to 192.168.3.1 \e
+	port {500, 4500}
+pass out on sk0 proto udp from 192.168.3.1 to 192.168.3.2 \e
+	port {500, 4500}
+
+pass  in on sk0 proto esp from 192.168.3.2 to 192.168.3.1
+pass out on sk0 proto esp from 192.168.3.1 to 192.168.3.2
+
+pass  in on enc0 proto ipencap from 192.168.3.2 to 192.168.3.1 \e
+	keep state (if-bound)
+pass out on enc0 proto ipencap from 192.168.3.1 to 192.168.3.2 \e
+	keep state (if-bound)
+pass  in on enc0 from 10.0.2.0/24 to 10.0.1.0/24 \e
+	keep state (if-bound)
+pass out on enc0 from 10.0.1.0/24 to 10.0.2.0/24 \e
+	keep state (if-bound)
+.Ed
+.Pp
+.Xr pf 4
+has the ability to filter IPsec-related packets
+based on an arbitrary
+.Em tag
+specified within a ruleset.
+The tag is used as an internal marker
+which can be used to identify the packets later on.
+This could be helpful,
+for example,
+in scenarios where users are connecting in from differing IP addresses,
+or to support queue-based bandwidth control,
+since the enc0 interface does not support it.
+.Pp
+The following
+.Xr pf.conf 5
+fragment uses queues for all IPsec traffic with special
+handling for developers and employees:
+.Bd -literal -offset indent
+queue std on sk0 bandwidth 100M
+queue   deflt parent std bandwidth 10M default
+queue   developers parent std bandwidth 75M
+queue   employees parent std bandwidth 5M
+queue   ipsec parent std bandwidth 10M
+
+pass out on sk0 proto esp set queue ipsec
+
+pass out on sk0 tagged ipsec-developers.bar.org set queue developers
+pass out on sk0 tagged ipsec-employees.bar.org set queue employees
+.Ed
+.Pp
+The tags will be assigned by the following
+.Nm
+example:
+.Bd -literal -offset indent
+ike esp from 10.1.1.0/24 to 10.1.2.0/24 peer 192.168.3.2 \e
+	tag "ipsec-$domain"
+.Ed
+.Sh OUTGOING NETWORK ADDRESS TRANSLATION
+In some network topologies it is desirable to perform NAT on traffic leaving
+through the VPN tunnel.
+In order to achieve that,
+the
+.Ar src
+argument is used to negotiate the desired network ID with the peer
+and the
+.Ar srcnat
+parameter defines the true local subnet,
+so that a correct SA can be installed on the local side.
+.Pp
+For example,
+if the local subnet is 192.168.1.0/24 and all the traffic
+for a specific VPN peer should appear as coming from 10.10.10.1,
+the following configuration is used:
+.Bd -literal -offset indent
+ike esp from 10.10.10.1 (192.168.1.0/24) to 192.168.2.0/24 \e
+	peer 10.10.20.1
+.Ed
+.Pp
+Naturally,
+a relevant NAT rule is required in
+.Xr pf.conf 5 .
+For the example above,
+this would be:
+.Bd -literal -offset indent
+match out on enc0 from 192.168.1.0/24 to 192.168.2.0/24 \e
+	nat-to 10.10.10.1
+.Ed
+.Pp
+From the peer's point of view,
+the local end of the VPN tunnel is declared to be 10.10.10.1
+and all the traffic arrives with that source address.
+.Sh CRYPTO TRANSFORMS
+It is very important that keys are not guessable.
+One practical way of generating keys is to use
+.Xr openssl 1 .
+The following generates a 160-bit (20-byte) key:
+.Bd -literal -offset indent
+$ openssl rand -hex 20
+.Ed
+.Pp
+The following authentication types are permitted with the
+.Ic auth
+keyword:
+.Bl -column "Authentication" "Key Length" "Description" -offset indent
+.It Em "Authentication" Ta Em "Key Length" Ta ""
+.It Li hmac-md5 Ta "128 bits" Ta ""
+.It Li hmac-ripemd160 Ta "160 bits" Ta "[phase 2 only]"
+.It Li hmac-sha1 Ta "160 bits" Ta ""
+.It Li hmac-sha2-256 Ta "256 bits" Ta ""
+.It Li hmac-sha2-384 Ta "384 bits" Ta ""
+.It Li hmac-sha2-512 Ta "512 bits" Ta ""
+.El
+.Pp
+The following cipher types are permitted with the
+.Ic enc
+keyword:
+.Bl -column "chacha20-poly1305" "128-256 bits" "Description" -offset indent
+.It Em "Cipher" Ta Em "Key Length" Ta ""
+.It Li 3des Ta "168 bits" Ta ""
+.It Li aes Ta "128-256 bits" Ta ""
+.It Li aes-128 Ta "128 bits" Ta ""
+.It Li aes-192 Ta "192 bits" Ta ""
+.It Li aes-256 Ta "256 bits" Ta ""
+.It Li aesctr Ta "160 bits" Ta "[phase 2 only, IKE only]"
+.It Li aes-128-ctr Ta "160 bits" Ta "[phase 2 only, IKE only]"
+.It Li aes-192-ctr Ta "224 bits" Ta "[phase 2 only, IKE only]"
+.It Li aes-256-ctr Ta "288 bits" Ta "[phase 2 only, IKE only]"
+.It Li aes-128-gcm Ta "160 bits" Ta "[phase 2 only, IKE only]"
+.It Li aes-192-gcm Ta "224 bits" Ta "[phase 2 only, IKE only]"
+.It Li aes-256-gcm Ta "288 bits" Ta "[phase 2 only, IKE only]"
+.It Li blowfish Ta "160 bits" Ta ""
+.It Li cast128 Ta "128 bits" Ta ""
+.It Li chacha20-poly1305 Ta "288 bits" Ta ""
+.El
+.Pp
+The following cipher types provide only authentication, not encryption:
+.Bl -column "chacha20-poly1305" "128-256 bits" "Description" -offset indent
+.It Li aes-128-gmac Ta "160 bits" Ta "[phase 2 only, IKE only]"
+.It Li aes-192-gmac Ta "224 bits" Ta "[phase 2 only, IKE only]"
+.It Li aes-256-gmac Ta "288 bits" Ta "[phase 2 only, IKE only]"
+.It Li null Ta "(none)" Ta "[phase 2 only]"
+.El
+.Pp
+Transforms followed by
+.Bq IKE only
+can only be used with the
+.Ic ike
+keyword; transforms with
+.Bq phase 2 only
+can only be used with the
+.Ic quick
+keyword.
+.Pp
+3DES requires 24 bytes to form its 168-bit key.
+This is because the most significant bit of each byte is used for parity.
+.Pp
+The keysize of AES-CTR can be 128, 192, or 256 bits.
+However as well as the key, a 32-bit nonce has to be supplied.
+Thus 160, 224, or 288 bits of key material, respectively, have to be supplied.
+The same applies to AES-GCM, AES-GMAC and ChaCha20-Poly1305,
+however in the latter case the keysize is 256 bits.
+.Pp
+Using AES-GMAC or NULL with ESP will only provide authentication.
+This is useful in setups where AH cannot be used, e.g. when NAT is involved.
+.Pp
+The following group types are permitted with the
+.Ic group
+keyword:
+.Bl -column "modp1024" "Size" "Description" -offset indent
+.It Em Group Ta Em Size Ta ""
+.It Li modp768 Ta 768 Ta "[DH group 1]"
+.It Li modp1024 Ta 1024 Ta "[DH group 2]"
+.It Li modp1536 Ta 1536 Ta "[DH group 5]"
+.It Li modp2048 Ta 2048 Ta "[DH group 14]"
+.It Li modp3072 Ta 3072 Ta "[DH group 15]"
+.It Li modp4096 Ta 4096 Ta "[DH group 16]"
+.It Li modp6144 Ta 6144 Ta "[DH group 17]"
+.It Li modp8192 Ta 8192 Ta "[DH group 18]"
+.It Li ecp256 Ta 256 Ta "[DH group 19]"
+.It Li ecp384 Ta 384 Ta "[DH group 20]"
+.It Li ecp521 Ta 512 Ta "[DH group 21]"
+.It Li ecp224 Ta 224 Ta "[DH group 26]"
+.It Li bp224 Ta 224 Ta "[DH group 27]"
+.It Li bp256 Ta 256 Ta "[DH group 28]"
+.It Li bp384 Ta 384 Ta "[DH group 29]"
+.It Li bp512 Ta 512 Ta "[DH group 30]"
+.It Li none Ta 0 Ta "[phase 2 only]"
+.El
+.Sh MANUAL FLOWS
+In this scenario,
+.Nm
+is used to set up flows manually.
+IPsec uses flows
+to determine whether to apply security services to an IP packet or not.
+Some examples of setting up flows:
+.Bd -literal -offset 3n
+# Set up two flows:
+# First between the machines 192.168.3.14 and 192.168.3.100
+# Second between the networks 192.168.7.0/24 and 192.168.8.0/24
+flow esp from 192.168.3.14 to 192.168.3.100
+flow esp from 192.168.7.0/24 to 192.168.8.0/24 peer 192.168.3.12
+.Ed
+.Pp
+The following types of flow are available:
+.Bl -tag -width xxxx
+.It Ic flow esp
+ESP can provide the following properties:
+authentication, integrity, replay protection, and confidentiality of the data.
+If no flow type is specified,
+this is the default.
+.It Ic flow ah
+AH provides authentication, integrity, and replay protection, but not
+confidentiality.
+.It Ic flow ipip
+IPIP does not provide authentication, integrity, replay protection, or
+confidentiality.
+However, it does allow tunnelling of IP traffic over IP, without setting up
+.Xr gif 4
+interfaces.
+.El
+.Pp
+The commands are as follows:
+.Bl -tag -width xxxx
+.It Ic in No or Ic out
+This rule applies to incoming or outgoing packets.
+If neither
+.Ic in
+nor
+.Ic out
+are specified,
+.Xr ipsecctl 8
+will assume the direction
+.Ic out
+for this rule and will construct a proper
+.Ic in
+rule.
+Thus packets in both directions will be matched.
+.It Ic proto Ar protocol
+The optional
+.Ic proto
+parameter restricts the flow to a specific IP protocol.
+Common protocols are
+.Xr icmp 4 ,
+.Xr tcp 4 ,
+and
+.Xr udp 4 .
+For a list of all the protocol name to number mappings used by
+.Xr ipsecctl 8 ,
+see the file
+.Pa /etc/protocols .
+.It Xo
+.Ic from Ar src
+.Op Ic port Ar sport
+.Ic to Ar dst
+.Op Ic port Ar dport
+.Xc
+This rule applies for packets with source address
+.Ar src
+and destination address
+.Ar dst .
+The keyword
+.Ar any
+will match any address (i.e. 0.0.0.0/0).
+The optional
+.Ic port
+modifiers restrict the flows to the specified ports.
+They are only valid in conjunction with the
+.Xr tcp 4
+and
+.Xr udp 4
+protocols.
+Ports can be specified by number or by name.
+For a list of all port name to number mappings used by
+.Xr ipsecctl 8 ,
+see the file
+.Pa /etc/services .
+.It Ic local Ar localip
+The
+.Ic local
+parameter specifies the address or FQDN of the local endpoint of this
+flow and can be usually left out.
+.It Ic peer Ar remote
+The
+.Ic peer
+parameter specifies the address or FQDN of the remote endpoint of this
+flow.
+For host-to-host connections where
+.Ar dst
+is identical to
+.Ar remote ,
+the
+.Ic peer
+specification can be left out as it will be set to
+.Ar dst
+automatically.
+Only if the keyword
+.Ar any
+is given is a flow without peer created.
+.It Ic type Ar modifier
+This optional parameter sets up special flows using modifiers.
+By default,
+.Xr ipsecctl 8
+will automatically set up normal flows with the corresponding type.
+.Ar modifier
+may be one of the following:
+.Pp
+.Bl -tag -width "acquireXX" -offset indent -compact
+.It acquire
+Use IPsec and establish SAs dynamically.
+Unencrypted traffic is permitted until it is protected by IPsec.
+.It bypass
+Matching packets are not processed by IPsec.
+.It deny
+Matching packets are dropped.
+.It dontacq
+Use IPsec.
+If no SAs are available,
+does not trigger
+.Xr isakmpd 8 .
+.It require
+Use IPsec and establish SAs dynamically.
+Unencrypted traffic is not permitted until it is protected by IPsec.
+.It use
+Use IPsec.
+Unencrypted traffic is permitted.
+Does not trigger
+.Xr isakmpd 8 .
+.El
+.El
+.Sh MANUAL SECURITY ASSOCIATIONS (SAs)
+In this scenario,
+.Nm
+is used to set up SAs manually.
+The security parameters for a flow
+are stored in the Security Association Database (SADB).
+An example of setting up an SA:
+.Bd -literal -offset 3n
+# Set up an IPsec SA for flows between 192.168.3.14 and 192.168.3.12
+esp from 192.168.3.14 to 192.168.3.12 spi 0xdeadbeef:0xbeefdead \e
+	authkey file "auth14:auth12" enckey file "enc14:enc12"
+.Ed
+.Pp
+Parameters specify the peers, Security Parameter Index (SPI),
+cryptographic transforms, and key material to be used.
+The following rules enter SAs in the SADB:
+.Pp
+.Bl -tag -width "tcpmd5XX" -offset indent -compact
+.It Ic esp
+Enter an ESP SA.
+.It Ic ah
+Enter an AH SA.
+.It Ic ipcomp
+Enter an IPCOMP SA.
+.It Ic ipip
+Enter an IPIP pseudo SA.
+.It Ic tcpmd5
+Enter a TCP MD5 SA.
+.El
+.Pp
+The commands are as follows:
+.Bl -tag -width xxxx
+.It Ar mode
+For ESP and AH
+.\".Ic ipcomp
+the encapsulation mode can be specified.
+Possible modes are
+.Ar tunnel
+and
+.Ar transport .
+When left out,
+.Ar tunnel
+is chosen.
+For details on modes see
+.Xr ipsec 4 .
+.It Ic from Ar src Ic to Ar dst
+This SA is for a
+.Ar flow
+between the peers
+.Ar src
+and
+.Ar dst .
+.It Ic spi Ar number
+The SPI identifies a specific SA.
+.Ar number
+is a 32-bit value and needs to be unique.
+.It Ic udpencap Op Ic port Ar dport
+For NAT-Traversal encapsulate the IPsec traffic in UDP.
+The port number of the peer can be set to
+.Ar dport .
+.It Ic auth Ar algorithm
+For ESP and AH
+an authentication algorithm can be specified.
+Possible values
+are described above in
+.Sx CRYPTO TRANSFORMS .
+.Pp
+If no algorithm is specified,
+.Xr ipsecctl 8
+will choose
+.Ar hmac-sha2-256
+by default.
+.It Ic enc Ar algorithm
+For ESP
+an encryption algorithm can be specified.
+Possible values
+are described above in
+.Sx CRYPTO TRANSFORMS .
+.Pp
+If no algorithm is specified,
+.Xr ipsecctl 8
+will choose
+.Ar aes
+by default.
+.It Ic authkey Ar keyspec
+.Ar keyspec
+defines the authentication key to be used.
+It is either a hexadecimal string or a path to a file containing the key.
+The filename may be given as either an absolute path to the file
+or a relative pathname,
+and is specified as follows:
+.Bd -literal -offset indent
+authkey file "filename"
+.Ed
+.It Ic enckey Ar keyspec
+The encryption key is defined similarly to
+.Ic authkey .
+.It Ic bundle Ar identifier
+Several SAs can be attached to a single flow.
+The cryptographic transforms are applied in order.
+The type of the first SA has to match the type of the flow.
+All SAs with identical
+.Ar src , dst ,
+and
+.Ar identifier
+are grouped together.
+.It Xo
+.Ic tcpmd5
+.Ic from Ar src
+.Ic to Ar dst
+.Ic spi Ar number
+.Ic authkey Ar keyspec
+.Xc
+TCP MD5 signatures are generally used between BGP daemons, such as
+.Xr bgpd 8 .
+Since
+.Xr bgpd 8
+itself already provides this functionality,
+this option is generally not needed.
+More information on TCP MD5 signatures can be found in
+.Xr tcp 4 ,
+.Xr bgpd.conf 5 ,
+and RFC 2385.
+.Pp
+This rule applies for packets with source address
+.Ar src
+and destination address
+.Ar dst .
+The parameter
+.Ic spi
+is a 32-bit value defining the Security Parameter Index (SPI) for this SA.
+The encryption key is defined similarly to
+.Ic authkey .
+.El
+.Pp
+Since an SA is directional, a second SA is normally configured in the
+reverse direction.
+This is done by adding a second, colon-separated, value to
+.Ic spi ,
+.Ic authkey ,
+and
+.Ic enckey .
+.Sh FILES
+.Bl -tag -width /etc/examples/ipsec.conf -compact
+.It Pa /etc/ipsec.conf
+.It Pa /etc/examples/ipsec.conf
+.El
+.Sh SEE ALSO
+.Xr openssl 1 ,
+.Xr enc 4 ,
+.Xr ipcomp 4 ,
+.Xr ipsec 4 ,
+.Xr tcp 4 ,
+.Xr pf.conf 5 ,
+.Xr ipsecctl 8 ,
+.Xr isakmpd 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 3.8 .

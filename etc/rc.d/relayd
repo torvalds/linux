@@ -1,0 +1,14 @@
+#!/bin/ksh
+#
+# $OpenBSD: relayd,v 1.8 2022/08/29 19:14:25 ajacoutot Exp $
+
+daemon="/usr/sbin/relayd"
+
+. /etc/rc.d/rc.subr
+
+rc_configtest() {
+	# use rc_exec here since daemon_flags may contain arguments with spaces
+	rc_exec "${daemon} -n ${daemon_flags}"
+}
+
+rc_cmd $1

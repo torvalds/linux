@@ -1,0 +1,419 @@
+.\" $OpenBSD: event_set.3,v 1.5 2025/06/07 20:50:40 schwarze Exp $
+.\" Copyright (c) 2023 Ted Bullock <tbullock@comore.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt EVENT_SET 3
+.Os
+.Sh NAME
+.Nm event_set ,
+.Nm evtimer_set ,
+.Nm signal_set ,
+.Nm event_base_set ,
+.Nm event_add ,
+.Nm evtimer_add ,
+.Nm signal_add ,
+.Nm event_del ,
+.Nm evtimer_del ,
+.Nm signal_del ,
+.Nm event_base_once ,
+.Nm event_once
+.Nd configure an event
+.Sh SYNOPSIS
+.Lb libevent
+.In event.h
+.Ft void
+.Fo event_set
+.Fa "struct event *event"
+.Fa "int fd"
+.Fa "short flags"
+.Fa "void (*callback)(int, short, void *)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo evtimer_set
+.Fa "struct event *event"
+.Fa "void (*callback)(int, short, void *)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo signal_set
+.Fa "struct event *event"
+.Fa "int signal"
+.Fa "void (*callback)(int, short, void *)"
+.Fa "void *arg"
+.Fc
+.Ft int
+.Fn event_base_set "struct event_base *base" "struct event *event"
+.Ft int
+.Fn event_add "struct event *event" "const struct timeval *tv"
+.Ft int
+.Fn evtimer_add "struct event *event" "const struct timeval *tv"
+.Ft int
+.Fn signal_add "struct event *event" "const struct timeval *tv"
+.Ft int
+.Fn event_del "struct event *event"
+.Ft int
+.Fn evtimer_del "struct event *event"
+.Ft int
+.Fn signal_del "struct event *event"
+.Ft int
+.Fo event_base_once
+.Fa "struct event_base *base"
+.Fa "int fd"
+.Fa "short flags"
+.Fa "void (*callback)(int, short, void *)"
+.Fa "void *arg"
+.Fa "const struct timeval *tv"
+.Fc
+.Ft int
+.Fo event_once
+.Fa "int fd"
+.Fa "short flags"
+.Fa "void (*callback)(int, short, void *)"
+.Fa "void *arg"
+.Fa "const struct timeval *tv"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn event_set
+function initializes an uninitialized, unused,
+.Fa event
+structure to monitor a file descriptor, signal, or timeout.
+Once initialized, the event can be scheduled using
+.Fn event_add .
+The event becomes activated and the
+.Fa callback
+is triggered when the file descriptor state changes, the signal arrives,
+or the timeout expires.
+Refer to
+.Xr event_base_loop 3
+for documentation on running an event loop.
+.Pp
+Arguments for
+.Fn event_set
+are as follows:
+.Bl -tag -width Ds
+.It Fa event
+The event structure to initialize.
+If
+.Fa event
+is
+.Dv NULL
+the behavior is undefined.
+.It Fa fd
+The file descriptor or signal to monitor.
+Unassociated timeout events require this set to \-1.
+.It Fa flags
+Flags indicating how to monitor events.
+Unassociated timeout events require this set to 0.
+.Bl -tag -width EV_PERSIST
+.It Dv EV_READ
+Triggered when data is available for reading from the file descriptor.
+.It Dv EV_WRITE
+Triggered when the file descriptor is ready for writing.
+Can be combined with
+.Dv EV_READ
+to indicate that the program can read from or write to the file descriptor
+without blocking.
+.It Dv EV_SIGNAL
+Refers to a signal event that is triggered when a specified signal is
+received.
+Cannot be used together with either
+.Dv EV_READ
+or
+.Dv EV_WRITE .
+.It Dv EV_PERSIST
+Indicates that the event should persist after it triggers.
+That is, it should remain active until it is removed by calling
+.Fn event_del .
+Signal events typically require this flag.
+.El
+.It Fa callback
+A user-defined function that is executed when the event triggers.
+.Pp
+.Bl -enum -width Ds -compact
+.It
+The first parameter is the file descriptor or signal to monitor.
+.It
+The second parameter is an event flag composed of at least one of
+.Dv EV_TIMEOUT ,
+.Dv EV_READ ,
+.Dv EV_WRITE ,
+.Dv EV_SIGNAL
+and
+.Dv EV_PERSIST
+combined with a binary OR operation.
+.It
+The third parameter corresponds to a user-specified pointer passed as a
+.Vt void * .
+.El
+.It Fa arg
+User-specified pointer to pass to the
+.Fa callback
+function.
+.El
+.Pp
+There are several helper macros that make it easier to set up timeout and
+signal events in the library.
+The helper macros share a distinct naming convention.
+For example, the macros
+.Fn evtimer_set
+and
+.Fn signal_set
+are named consistently with the library function
+.Fn event_set .
+The following macro and function calls are equivalent:
+.Bd -literal -offset indent
+evtimer_set(event, callback, arg);
+event_set(event, \-1, 0, callback, arg);
+.Ed
+.Pp
+Likewise, configuring a signal event with
+.Fn signal_set
+has an equivalent call to
+.Fn event_set :
+.Bd -literal -offset indent
+signal_set(event, signal, callback, arg);
+event_set(event, signal, EV_SIGNAL|EV_PERSIST, callback, arg);
+.Ed
+.Pp
+If
+.Xr event_init 3
+was called earlier,
+.Fn event_set
+associates the
+.Fa event
+with the
+.Vt event_base
+structure it created; otherwise, the
+.Fa event
+is not associated with any
+.Vt event_base
+structure.
+If a program needs to assign an event to a specific
+.Vt event_base
+structure, it should call
+.Fn event_base_set
+after calling
+.Fn event_set .
+The first argument of
+.Fn event_base_set
+is the target
+.Vt event_base
+structure, and the second argument is the
+.Fa event
+to be reassigned.
+The behavior is undefined if either argument is
+.Dv NULL .
+Only events that have not been scheduled with
+.Fn event_add
+or corresponding helper macros or functions can be assigned to a new
+.Vt event_base
+structure.
+.Pp
+.Fn event_add
+schedules the
+.Fa event
+using the kernel notification method of its associated
+.Vt event_base
+structure; see
+.Xr event_base_new 3
+for information about kernel notification methods.
+If a timeout is specified, it is added to the event timeout list.
+Events can register as timeout events without attaching to file
+descriptors or signals.
+Programs can set the
+.Fa tv
+argument to
+.Dv NULL
+to specify that an event has no timeout.
+The behavior is undefined if the
+.Fa event
+is
+.Dv NULL
+or uninitialized.
+The effect of the macros
+.Fn evtimer_add
+and
+.Fn signal_add
+is identical to
+.Fn event_add .
+.Pp
+If
+.Fn event_add
+is called again with a new or updated timeout value before the event trigger
+is processed, the function:
+.Bl -enum
+.It
+Unschedules the existing timeout if it exists.
+.It
+Sets a new timeout starting from when the function was most recently invoked.
+.It
+Reschedules the event with the event loop.
+.El
+.Pp
+.Fn event_del
+removes the
+.Fa event
+from the event loop of its associated
+.Vt event_base
+structure.
+The behavior of the function is undefined if the
+.Fa event
+is
+.Dv NULL .
+On success, it removes the event from internal event queues and unregisters it
+with the kernel notification method.
+The function fails if the library was neither initialized with
+.Xr event_init 3
+nor was the event previously assigned to an
+.Vt event_base
+with
+.Fn event_base_set .
+The function does not free memory assigned to user-defined data structures,
+nor does it close open file descriptors.
+The effect of the macros
+.Fn evtimer_del
+and
+.Fn signal_del
+is identical to
+.Fn event_del .
+.Pp
+.Fn event_base_once
+is used to schedule a
+.Fa callback
+function to be executed exactly once without
+requiring the caller to create and manage an
+.Vt event
+structure.
+The arguments are as follows:
+.Bl -tag -width Ds
+.It Fa base
+A pointer to an
+.Vt event_base
+structure initialized by
+.Xr event_base_new 3 .
+The behavior is undefined if
+.Fa base
+is
+.Dv NULL .
+.It Fa fd
+A file descriptor to monitor.
+.It Fa flags
+.Dv EV_TIMEOUT ,
+.Dv EV_READ ,
+.Dv EV_WRITE ,
+or
+.Dv EV_READ | EV_WRITE .
+.It Fa callback
+A user-defined function that is executed when the event triggers.
+This callback matches the same prototype and design used in
+.Fn event_set .
+.It Fa arg
+A user-specified pointer to pass to the
+.Fa callback
+function.
+.It Fa tv
+A pointer to an optional timeout
+.Vt timeval
+structure, ignored if
+.Dv NULL .
+.El
+.Pp
+.Fn event_once
+behaves similar to
+.Fn event_base_once
+and requires that the library is initialized with
+.Xr event_init 3 .
+.Pp
+To check the status of a scheduled event, refer to the
+.Xr event_pending 3
+manual page.
+If a program needs to manually trigger an event, refer to
+.Xr event_active 3 .
+.Sh RETURN VALUES
+These functions return 0 on success or \-1 on failure.
+.Pp
+.Fn event_base_set
+returns \-1 if the
+.Fa event
+has already been processed by
+.Fn event_add .
+.Pp
+.Fn event_add
+returns \-1 if a memory allocation fault occurs,
+.Va errno
+is set.
+Other internal library errors terminate the program with
+.Xr exit 3
+after reporting to the log callback (see
+.Xr event_set_log_callback 3 ) .
+.Sh ERRORS
+On failure
+.Fn event_add
+can set errno
+as follows:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+The system has insufficient memory to add the
+.Fa event
+to the event loop.
+.El
+.Sh SEE ALSO
+.Xr event_active 3 ,
+.Xr event_base_loop 3 ,
+.Xr event_base_new 3 ,
+.Xr event_pending 3
+.Sh HISTORY
+.Fn event_set ,
+.Fn event_add
+and
+.Fn event_del
+first appeared in libevent-0.1,
+.Fn signal_set ,
+.Fn signal_add ,
+and
+.Fn signal_del
+in libevent-0.5 ,
+and
+.Fn evtimer_set ,
+.Fn evtimer_add
+and
+.Fn evtimer_del
+in libevent-0.6.
+These functions have been available since
+.Ox 3.2 .
+.Pp
+.Fn event_once
+first appeared in libevent-0.8 and has been available since
+.Ox 3.6 .
+.Pp
+.Fn event_base_set
+first appeared in libevent-1.0 and has been available since
+.Ox 3.8 .
+.Pp
+.Fn event_base_once
+first appeared in libevent-1.3c and has been available since
+.Ox 4.4 .
+.Sh AUTHORS
+.An -nosplit
+.An Niels Provos
+wrote the event library and these functions except for
+.Fn event_base_once
+which was also created by
+.An Wouter Wijngaards .
+.Pp
+This manual page was written by
+.An Ted Bullock Aq Mt tbullock@comlore.com .

@@ -1,0 +1,16 @@
+static_library("grammar") {
+  output_name = "clangPseudoGrammar"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/include/clang/Basic:RegularKeywordAttrInfo",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ "../../include" ]
+  sources = [
+    "Grammar.cpp",
+    "GrammarBNF.cpp",
+    "LRGraph.cpp",
+    "LRTable.cpp",
+    "LRTableBuild.cpp",
+  ]
+}

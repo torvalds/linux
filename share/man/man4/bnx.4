@@ -1,0 +1,181 @@
+.\"	$OpenBSD: bnx.4,v 1.32 2021/09/08 20:29:21 jmc Exp $
+.\"
+.\"Copyright (c) 2006 Broadcom Corporation
+.\" David Christensen <davidch@broadcom.com>.  All rights reserved.
+.\"
+.\"Redistribution and use in source and binary forms, with or without
+.\"modification, are permitted provided that the following conditions
+.\"are met:
+.\"
+.\"1. Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\"2. Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\"3. Neither the name of Broadcom Corporation nor the name of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written consent.
+.\"
+.\"THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
+.\"AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+.\"BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\"CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\"SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\"INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\"CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\"ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\"THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: /repoman/r/ncvs/src/share/man/man4/bce.4,v 1.2 2006/04/10 20:12:17 brueffer Exp $
+.\"
+.Dd $Mdocdate: September 8 2021 $
+.Dt BNX 4
+.Os
+.Sh NAME
+.Nm bnx
+.Nd Broadcom NetXtreme II 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "bnx* at pci?"
+.Cd "brgphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Broadcom's NetXtreme II product family which is made up of
+the BCM5706, BCM5708, BCM5709, and BCM5716 Ethernet controller chips.
+Products using these controller chips include:
+.Pp
+.Bl -bullet -compact
+.It
+HP NC370F PCI-X Multifunction Gigabit server adapter (1000baseSX)
+.It
+HP NC370T PCI-X Multifunction Gigabit server adapter (10/100/1000baseT)
+.It
+HP Dual NC370i Multifunction Gigabit embedded server adapter (10/100/1000baseT)
+.It
+HP NC373F PCI Express Multifunction Gigabit server adapter (1000baseSX)
+.It
+HP NC373i PCI Express Multifunction Gigabit embedded server adapter (10/100/1000baseT)
+.It
+HP NC374m PCI Express Multifunction Gigabit embedded server adapter (10/100/1000baseT)
+.It
+HP NC373T PCI Express Multifunction Gigabit server adapter (10/100/1000baseT)
+.It
+HP NC380T PCI Express Dual Port Multifunction Gigabit server adapter (10/100/1000baseT)
+.It
+HP NC382T PCI Express Dual Port server adapter (10/100/1000baseT)
+.El
+.Pp
+The NetXtreme II product family is composed of various Converged NIC (or CNIC)
+Ethernet controllers which support a TCP Offload Engine (TOE),
+Remote DMA (RDMA), and iSCSI acceleration,
+in addition to standard L2 Ethernet traffic,
+all on the same controller.
+The following features are supported in the
+.Nm
+driver under
+.Ox :
+.Bd -literal -offset indent
+IPv4 receive IP/TCP/UDP checksum offload
+IPv4 transmit TCP/UDP checksum offload
+.\"jumbo frames
+VLAN tag insertion and stripping
+interrupt coalescing
+10/100/1000Mbps operation in full-duplex mode
+10/100Mbps operation in half-duplex mode
+.Ed
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width "10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode via
+.Xr ifconfig 8 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Ic mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Ic mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseT
+Set 1000baseT operation over twisted pair.
+Only
+.Cm full-duplex
+mode is supported.
+.It Cm 1000baseSX
+Set 1000Mbps (Gigabit Ethernet) operation.
+Only
+.Cm full-duplex
+mode is supported.
+.It Cm 2500baseSX
+Set 2500Mbps operation.
+Only
+.Cm full-duplex
+mode is supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width "full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh FILES
+The adapter needs firmware files to run, which are loaded on demand by the
+driver when the device is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/bnx-b06
+.It Pa /etc/firmware/bnx-b09
+.It Pa /etc/firmware/bnx-rv2p
+.It Pa /etc/firmware/bnx-xi-rv2p
+.It Pa /etc/firmware/bnx-xi90-rv2p
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr brgphy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An David Christensen Aq Mt davidch@broadcom.com
+and ported to
+.Ox
+by
+.An Brad Smith Aq Mt brad@openbsd.org .

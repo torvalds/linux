@@ -1,0 +1,286 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_STDEXCEPT
+#define _LIBCPP_STDEXCEPT
+
+/*
+    stdexcept synopsis
+
+namespace std
+{
+
+class logic_error;
+class domain_error;
+class invalid_argument;
+class length_error;
+class out_of_range;
+class runtime_error;
+class range_error;
+class overflow_error;
+class underflow_error;
+
+for each class xxx_error:
+
+class xxx_error : public exception // at least indirectly
+{
+public:
+    explicit xxx_error(const string& what_arg);
+    explicit xxx_error(const char*   what_arg);
+
+    virtual const char* what() const noexcept // returns what_arg
+};
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__exception/exception.h>
+#include <__fwd/string.h>
+#include <__verbose_abort>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#ifndef _LIBCPP_ABI_VCRUNTIME
+class _LIBCPP_HIDDEN __libcpp_refstring {
+  const char* __imp_;
+
+  bool __uses_refcount() const;
+
+public:
+  explicit __libcpp_refstring(const char* __msg);
+  __libcpp_refstring(const __libcpp_refstring& __s) _NOEXCEPT;
+  __libcpp_refstring& operator=(const __libcpp_refstring& __s) _NOEXCEPT;
+  ~__libcpp_refstring();
+
+  _LIBCPP_HIDE_FROM_ABI const char* c_str() const _NOEXCEPT { return __imp_; }
+};
+#endif // !_LIBCPP_ABI_VCRUNTIME
+
+_LIBCPP_END_NAMESPACE_STD
+
+namespace std // purposefully not using versioning namespace
+{
+
+class _LIBCPP_EXPORTED_FROM_ABI logic_error : public exception {
+#ifndef _LIBCPP_ABI_VCRUNTIME
+
+private:
+  std::__libcpp_refstring __imp_;
+
+public:
+  explicit logic_error(const string&);
+  explicit logic_error(const char*);
+
+  logic_error(const logic_error&) _NOEXCEPT;
+  logic_error& operator=(const logic_error&) _NOEXCEPT;
+
+  ~logic_error() _NOEXCEPT override;
+
+  const char* what() const _NOEXCEPT override;
+#else
+
+public:
+  explicit logic_error(const std::string&); // Symbol uses versioned std::string
+  _LIBCPP_HIDE_FROM_ABI explicit logic_error(const char* __s) : exception(__s) {}
+#endif
+};
+
+class _LIBCPP_EXPORTED_FROM_ABI runtime_error : public exception {
+#ifndef _LIBCPP_ABI_VCRUNTIME
+
+private:
+  std::__libcpp_refstring __imp_;
+
+public:
+  explicit runtime_error(const string&);
+  explicit runtime_error(const char*);
+
+  runtime_error(const runtime_error&) _NOEXCEPT;
+  runtime_error& operator=(const runtime_error&) _NOEXCEPT;
+
+  ~runtime_error() _NOEXCEPT override;
+
+  const char* what() const _NOEXCEPT override;
+#else
+
+public:
+  explicit runtime_error(const std::string&); // Symbol uses versioned std::string
+  _LIBCPP_HIDE_FROM_ABI explicit runtime_error(const char* __s) : exception(__s) {}
+#endif // _LIBCPP_ABI_VCRUNTIME
+};
+
+class _LIBCPP_EXPORTED_FROM_ABI domain_error : public logic_error {
+public:
+  _LIBCPP_HIDE_FROM_ABI explicit domain_error(const string& __s) : logic_error(__s) {}
+  _LIBCPP_HIDE_FROM_ABI explicit domain_error(const char* __s) : logic_error(__s) {}
+
+#ifndef _LIBCPP_ABI_VCRUNTIME
+  _LIBCPP_HIDE_FROM_ABI domain_error(const domain_error&) _NOEXCEPT            = default;
+  _LIBCPP_HIDE_FROM_ABI domain_error& operator=(const domain_error&) _NOEXCEPT = default;
+  ~domain_error() _NOEXCEPT override;
+#endif
+};
+
+class _LIBCPP_EXPORTED_FROM_ABI invalid_argument : public logic_error {
+public:
+  _LIBCPP_HIDE_FROM_ABI explicit invalid_argument(const string& __s) : logic_error(__s) {}
+  _LIBCPP_HIDE_FROM_ABI explicit invalid_argument(const char* __s) : logic_error(__s) {}
+
+#ifndef _LIBCPP_ABI_VCRUNTIME
+  _LIBCPP_HIDE_FROM_ABI invalid_argument(const invalid_argument&) _NOEXCEPT            = default;
+  _LIBCPP_HIDE_FROM_ABI invalid_argument& operator=(const invalid_argument&) _NOEXCEPT = default;
+  ~invalid_argument() _NOEXCEPT override;
+#endif
+};
+
+class _LIBCPP_EXPORTED_FROM_ABI length_error : public logic_error {
+public:
+  _LIBCPP_HIDE_FROM_ABI explicit length_error(const string& __s) : logic_error(__s) {}
+  _LIBCPP_HIDE_FROM_ABI explicit length_error(const char* __s) : logic_error(__s) {}
+#ifndef _LIBCPP_ABI_VCRUNTIME
+  _LIBCPP_HIDE_FROM_ABI length_error(const length_error&) _NOEXCEPT            = default;
+  _LIBCPP_HIDE_FROM_ABI length_error& operator=(const length_error&) _NOEXCEPT = default;
+  ~length_error() _NOEXCEPT override;
+#endif
+};
+
+class _LIBCPP_EXPORTED_FROM_ABI out_of_range : public logic_error {
+public:
+  _LIBCPP_HIDE_FROM_ABI explicit out_of_range(const string& __s) : logic_error(__s) {}
+  _LIBCPP_HIDE_FROM_ABI explicit out_of_range(const char* __s) : logic_error(__s) {}
+
+#ifndef _LIBCPP_ABI_VCRUNTIME
+  _LIBCPP_HIDE_FROM_ABI out_of_range(const out_of_range&) _NOEXCEPT            = default;
+  _LIBCPP_HIDE_FROM_ABI out_of_range& operator=(const out_of_range&) _NOEXCEPT = default;
+  ~out_of_range() _NOEXCEPT override;
+#endif
+};
+
+class _LIBCPP_EXPORTED_FROM_ABI range_error : public runtime_error {
+public:
+  _LIBCPP_HIDE_FROM_ABI explicit range_error(const string& __s) : runtime_error(__s) {}
+  _LIBCPP_HIDE_FROM_ABI explicit range_error(const char* __s) : runtime_error(__s) {}
+
+#ifndef _LIBCPP_ABI_VCRUNTIME
+  _LIBCPP_HIDE_FROM_ABI range_error(const range_error&) _NOEXCEPT            = default;
+  _LIBCPP_HIDE_FROM_ABI range_error& operator=(const range_error&) _NOEXCEPT = default;
+  ~range_error() _NOEXCEPT override;
+#endif
+};
+
+class _LIBCPP_EXPORTED_FROM_ABI overflow_error : public runtime_error {
+public:
+  _LIBCPP_HIDE_FROM_ABI explicit overflow_error(const string& __s) : runtime_error(__s) {}
+  _LIBCPP_HIDE_FROM_ABI explicit overflow_error(const char* __s) : runtime_error(__s) {}
+
+#ifndef _LIBCPP_ABI_VCRUNTIME
+  _LIBCPP_HIDE_FROM_ABI overflow_error(const overflow_error&) _NOEXCEPT            = default;
+  _LIBCPP_HIDE_FROM_ABI overflow_error& operator=(const overflow_error&) _NOEXCEPT = default;
+  ~overflow_error() _NOEXCEPT override;
+#endif
+};
+
+class _LIBCPP_EXPORTED_FROM_ABI underflow_error : public runtime_error {
+public:
+  _LIBCPP_HIDE_FROM_ABI explicit underflow_error(const string& __s) : runtime_error(__s) {}
+  _LIBCPP_HIDE_FROM_ABI explicit underflow_error(const char* __s) : runtime_error(__s) {}
+
+#ifndef _LIBCPP_ABI_VCRUNTIME
+  _LIBCPP_HIDE_FROM_ABI underflow_error(const underflow_error&) _NOEXCEPT            = default;
+  _LIBCPP_HIDE_FROM_ABI underflow_error& operator=(const underflow_error&) _NOEXCEPT = default;
+  ~underflow_error() _NOEXCEPT override;
+#endif
+};
+
+} // namespace std
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+// in the dylib
+_LIBCPP_NORETURN _LIBCPP_EXPORTED_FROM_ABI void __throw_runtime_error(const char*);
+
+_LIBCPP_NORETURN inline _LIBCPP_HIDE_FROM_ABI void __throw_logic_error(const char* __msg) {
+#ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+  throw logic_error(__msg);
+#else
+  _LIBCPP_VERBOSE_ABORT("logic_error was thrown in -fno-exceptions mode with message \"%s\"", __msg);
+#endif
+}
+
+_LIBCPP_NORETURN inline _LIBCPP_HIDE_FROM_ABI void __throw_domain_error(const char* __msg) {
+#ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+  throw domain_error(__msg);
+#else
+  _LIBCPP_VERBOSE_ABORT("domain_error was thrown in -fno-exceptions mode with message \"%s\"", __msg);
+#endif
+}
+
+_LIBCPP_NORETURN inline _LIBCPP_HIDE_FROM_ABI void __throw_invalid_argument(const char* __msg) {
+#ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+  throw invalid_argument(__msg);
+#else
+  _LIBCPP_VERBOSE_ABORT("invalid_argument was thrown in -fno-exceptions mode with message \"%s\"", __msg);
+#endif
+}
+
+_LIBCPP_NORETURN inline _LIBCPP_HIDE_FROM_ABI void __throw_length_error(const char* __msg) {
+#ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+  throw length_error(__msg);
+#else
+  _LIBCPP_VERBOSE_ABORT("length_error was thrown in -fno-exceptions mode with message \"%s\"", __msg);
+#endif
+}
+
+_LIBCPP_NORETURN inline _LIBCPP_HIDE_FROM_ABI void __throw_out_of_range(const char* __msg) {
+#ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+  throw out_of_range(__msg);
+#else
+  _LIBCPP_VERBOSE_ABORT("out_of_range was thrown in -fno-exceptions mode with message \"%s\"", __msg);
+#endif
+}
+
+_LIBCPP_NORETURN inline _LIBCPP_HIDE_FROM_ABI void __throw_range_error(const char* __msg) {
+#ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+  throw range_error(__msg);
+#else
+  _LIBCPP_VERBOSE_ABORT("range_error was thrown in -fno-exceptions mode with message \"%s\"", __msg);
+#endif
+}
+
+_LIBCPP_NORETURN inline _LIBCPP_HIDE_FROM_ABI void __throw_overflow_error(const char* __msg) {
+#ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+  throw overflow_error(__msg);
+#else
+  _LIBCPP_VERBOSE_ABORT("overflow_error was thrown in -fno-exceptions mode with message \"%s\"", __msg);
+#endif
+}
+
+_LIBCPP_NORETURN inline _LIBCPP_HIDE_FROM_ABI void __throw_underflow_error(const char* __msg) {
+#ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+  throw underflow_error(__msg);
+#else
+  _LIBCPP_VERBOSE_ABORT("underflow_error was thrown in -fno-exceptions mode with message \"%s\"", __msg);
+#endif
+}
+
+_LIBCPP_END_NAMESPACE_STD
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cstdlib>
+#  include <exception>
+#  include <iosfwd>
+#endif
+
+#endif // _LIBCPP_STDEXCEPT

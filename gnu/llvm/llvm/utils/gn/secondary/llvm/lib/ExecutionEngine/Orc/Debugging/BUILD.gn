@@ -1,0 +1,21 @@
+static_library("Debugging") {
+  output_name = "LLVMOrcDebugging"
+  deps = [
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/ExecutionEngine/Orc",
+    "//llvm/lib/ExecutionEngine/Orc/Shared",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "DebugInfoSupport.cpp",
+    "DebuggerSupport.cpp",
+    "DebuggerSupportPlugin.cpp",
+    "LLJITUtilsCBindings.cpp",
+    "PerfSupportPlugin.cpp",
+    "VTuneSupportPlugin.cpp",
+  ]
+  if (current_os == "linux") {
+    libs = [ "rt" ]
+  }
+}

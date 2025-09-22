@@ -1,0 +1,24 @@
+#!/bin/ksh
+#
+# $OpenBSD: pflogd,v 1.3 2018/01/11 19:52:12 rpe Exp $
+
+daemon="/sbin/pflogd"
+
+. /etc/rc.d/rc.subr
+
+pexp="pflogd: \[priv\]"
+
+rc_pre() {
+	if pfctl -si | grep -q Enabled; then
+		ifconfig pflog0 create
+		if ifconfig pflog0; then
+			ifconfig pflog0 up
+		else
+			return 1
+		fi
+	else
+		return 1
+	fi
+}
+
+rc_cmd $1

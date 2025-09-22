@@ -1,0 +1,65 @@
+.\"	$OpenBSD: uturn.4,v 1.8 2008/04/27 19:33:39 jmc Exp $
+.\"
+.\" Copyright (c) 2004 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF MIND,
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 27 2008 $
+.Dt UTURN 4 hppa
+.Os
+.Sh NAME
+.Nm uturn
+.Nd U2/Uturn, Runway to GSC Bus bridge & IOA
+.Sh SYNOPSIS
+.Cd "uturn* at mainbus?"
+.Cd "astro* at uturn?"
+.Cd "dino* at uturn?"
+.Cd "lasi* at uturn?"
+.Cd "gecko* at uturn?"
+.Cd "sti* at uturn?"
+.Sh DESCRIPTION
+.Nm
+provides the functionality of IOA (not currently supported) as a bridge
+from the Runway bus (see
+.Xr runway 4
+for more information) to GSC.
+Modern systems, based on the PA-8000 and later 64-bit CPUs, use the
+.Nm U-Turn
+version, whilst earlier systems, based on the PA-7200 CPU, used
+a different version of the chip called
+.Nm U2 .
+.Sh SEE ALSO
+.Xr astro 4 ,
+.Xr cpu 4 ,
+.Xr dino 4 ,
+.Xr gecko 4 ,
+.Xr gsc 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr runway 4 ,
+.Xr sti 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Ox 3.7 .

@@ -1,0 +1,131 @@
+.\"	$OpenBSD: RSA_check_key.3,v 1.11 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL 6859cf74 Sep 25 13:33:28 2002 +0000
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org> and
+.\" Geoff Thorpe <geoff@openssl.org>.
+.\" Copyright (c) 2000, 2002 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_CHECK_KEY 3
+.Os
+.Sh NAME
+.Nm RSA_check_key
+.Nd validate private RSA keys
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft int
+.Fo RSA_check_key
+.Fa "RSA *rsa"
+.Fc
+.Sh DESCRIPTION
+This function validates RSA keys.
+It checks that
+.Fa rsa->p
+and
+.Fa rsa->q
+are in fact prime, and that
+.Fa rsa->n
+satisfies n = p*q.
+.Pp
+It also checks that
+.Fa rsa->d
+and
+.Fa rsa->e
+satisfy d*e = 1 mod ((p-1)*(q-1)),
+and that
+.Fa rsa->dmp1 ,
+.Fa rsa->dmq1 ,
+and
+.Fa resa->iqmp
+are set correctly or are
+.Dv NULL .
+.Pp
+This function does not work on RSA public keys that have only the
+modulus and public exponent elements populated.
+It performs integrity checks on all the RSA key material, so the
+.Vt RSA
+key structure must contain all the private key data too.
+Therefore, it cannot be used with any arbitrary
+.Vt RSA
+key object, even if it is otherwise fit for regular RSA operation.
+.Sh RETURN VALUES
+.Fn RSA_check_key
+returns 1 if
+.Fa rsa
+is a valid RSA key, and 0 otherwise.
+-1 is returned if an error occurs while checking the key.
+.Pp
+If the key is invalid or an error occurred, the reason code can be
+obtained using
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr BN_is_prime_ex 3 ,
+.Xr RSA_get0_key 3 ,
+.Xr RSA_new 3
+.Sh HISTORY
+.Fn RSA_check_key
+first appeared in OpenSSL 0.9.4 and has been available since
+.Ox 2.6 .
+.Sh BUGS
+A method of verifying the RSA key using opaque RSA API functions might
+need to be considered.
+Right now
+.Fn RSA_check_key
+simply uses the
+.Vt RSA
+structure elements directly, bypassing the
+.Vt RSA_METHOD
+table altogether (and completely violating encapsulation and
+object-orientation in the process).
+The best fix will probably be to introduce a
+.Fn check_key
+handler
+to the
+.Vt RSA_METHOD
+function table so that alternative implementations can also provide
+their own verifiers.

@@ -1,0 +1,11 @@
+=== Start 800MB disk ===
+Writing MBR at offset 0.
+
+  a:             0.8G              128  4.2BSD   2048 16384     1 # /
+  a:          1627968              128  4.2BSD   2048 16384     1 
+  b:             0.0G          1628096    swap                    
+  b:            12352          1628096    swap                    
+
+/dev/vnd0a / ffs rw 1 1
+/dev/vnd0b none swap sw
+=== End 800MB disk ===

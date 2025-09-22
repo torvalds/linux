@@ -1,0 +1,182 @@
+.\"	$OpenBSD: d2i_SSL_SESSION.3,v 1.8 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2001, 2005, 2014 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_SSL_SESSION 3
+.Os
+.Sh NAME
+.Nm d2i_SSL_SESSION ,
+.Nm i2d_SSL_SESSION
+.Nd convert SSL_SESSION object from/to ASN1 representation
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft  SSL_SESSION *
+.Fn d2i_SSL_SESSION "SSL_SESSION **a" "const unsigned char **pp" "long length"
+.Ft  int
+.Fn i2d_SSL_SESSION "SSL_SESSION *in" "unsigned char **pp"
+.Sh DESCRIPTION
+.Fn d2i_SSL_SESSION
+transforms the external ASN1 representation of an SSL/TLS session,
+stored as binary data at location
+.Fa pp
+with length
+.Fa length ,
+into
+an
+.Vt SSL_SESSION
+object.
+.Pp
+.Fn i2d_SSL_SESSION
+transforms the
+.Vt SSL_SESSION
+object
+.Fa in
+into the ASN1 representation and stores it into the memory location pointed to
+by
+.Fa pp .
+The length of the resulting ASN1 representation is returned.
+If
+.Fa pp
+is the
+.Dv NULL
+pointer, only the length is calculated and returned.
+.Pp
+The
+.Vt SSL_SESSION
+object is built from several
+.Xr malloc 3 Ns
+-ed parts; it can therefore not be moved, copied or stored directly.
+In order to store session data on disk or into a database,
+it must be transformed into a binary ASN1 representation.
+.Pp
+When using
+.Fn d2i_SSL_SESSION ,
+the
+.Vt SSL_SESSION
+object is automatically allocated.
+The reference count is 1, so that the session must be explicitly removed using
+.Xr SSL_SESSION_free 3 ,
+unless the
+.Vt SSL_SESSION
+object is completely taken over, when being called inside the
+.Fn get_session_cb ,
+see
+.Xr SSL_CTX_sess_set_get_cb 3 .
+.Pp
+.Vt SSL_SESSION
+objects keep internal link information about the session cache list when being
+inserted into one
+.Vt SSL_CTX
+object's session cache.
+One
+.Vt SSL_SESSION
+object, regardless of its reference count, must therefore only be used with one
+.Vt SSL_CTX
+object (and the
+.Vt SSL
+objects created from this
+.Vt SSL_CTX
+object).
+.Pp
+When using
+.Fn i2d_SSL_SESSION ,
+the memory location pointed to by
+.Fa pp
+must be large enough to hold the binary representation of the session.
+There is no known limit on the size of the created ASN1 representation,
+so call
+.Fn i2d_SSL_SESSION
+first with
+.Fa pp Ns = Ns Dv NULL
+to obtain the encoded size, before allocating the required amount of memory and
+calling
+.Fn i2d_SSL_SESSION
+again.
+Note that this will advance the value contained in
+.Fa *pp
+so it is necessary to save a copy of the original allocation.
+For example:
+.Bd -literal -offset indent
+char	*p, *pp;
+int	 elen, len;
+
+elen = i2d_SSL_SESSION(sess, NULL);
+p = pp = malloc(elen);
+if (p != NULL) {
+	len = i2d_SSL_SESSION(sess, &pp);
+	assert(elen == len);
+	assert(p + len == pp);
+}
+.Ed
+.Sh RETURN VALUES
+.Fn d2i_SSL_SESSION
+returns a pointer to the newly allocated
+.Vt SSL_SESSION
+object.
+In case of failure a
+.Dv NULL
+pointer is returned and the error message can be retrieved from the error
+stack.
+.Pp
+.Fn i2d_SSL_SESSION
+returns the size of the ASN1 representation in bytes.
+When the session is not valid, 0 is returned and no operation is performed.
+.Sh SEE ALSO
+.Xr d2i_X509 3 ,
+.Xr ssl 3 ,
+.Xr SSL_CTX_sess_set_get_cb 3 ,
+.Xr SSL_SESSION_free 3
+.Sh HISTORY
+.Fn d2i_SSL_SESSION
+and
+.Fn i2d_SSL_SESSION
+first appeared in SSLeay 0.5.2 and have been available since
+.Ox 2.4 .

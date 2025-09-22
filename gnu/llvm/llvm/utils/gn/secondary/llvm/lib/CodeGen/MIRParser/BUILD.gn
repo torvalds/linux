@@ -1,0 +1,17 @@
+static_library("MIRParser") {
+  output_name = "LLVMMIRParser"
+  deps = [
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+  ]
+  sources = [
+    "MILexer.cpp",
+    "MIParser.cpp",
+    "MIRParser.cpp",
+  ]
+}

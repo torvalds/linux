@@ -1,0 +1,201 @@
+.\" $OpenBSD: CMS_add1_recipient_cert.3,v 1.8 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL e9b77246 Jan 20 19:58:49 2017 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CMS_ADD1_RECIPIENT_CERT 3
+.Os
+.Sh NAME
+.Nm CMS_add1_recipient_cert ,
+.Nm CMS_add0_recipient_key
+.Nd add recipients to a CMS EnvelopedData structure
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cms.h
+.Ft CMS_RecipientInfo *
+.Fo CMS_add1_recipient_cert
+.Fa "CMS_ContentInfo *cms"
+.Fa "X509 *certificate"
+.Fa "unsigned int flags"
+.Fc
+.Ft CMS_RecipientInfo *
+.Fo CMS_add0_recipient_key
+.Fa "CMS_ContentInfo *cms"
+.Fa "int nid"
+.Fa "unsigned char *key"
+.Fa "size_t keylen"
+.Fa "unsigned char *id"
+.Fa "size_t idlen"
+.Fa "ASN1_GENERALIZEDTIME *date"
+.Fa "ASN1_OBJECT *otherTypeId"
+.Fa "ASN1_TYPE *otherType"
+.Fc
+.Sh DESCRIPTION
+These functions add a new
+.Vt RecipientInfo
+structure to the
+.Fa recipientInfos
+field of the
+.Vt EnvelopedData
+structure
+.Fa cms ,
+which should have been obtained from an initial call to
+.Xr CMS_encrypt 3
+with the flag
+.Dv CMS_PARTIAL
+set.
+.Pp
+.Fn CMS_add1_recipient_cert
+adds the recipient
+.Fa certificate
+as a
+.Vt KeyTransRecipientInfo
+structure.
+.Pp
+.Fn CMS_add0_recipient_key
+adds the symmetric
+.Fa key
+of length
+.Fa keylen
+using the wrapping algorithm
+.Fa nid ,
+the identifier
+.Fa id
+of length
+.Fa idlen ,
+and the optional values
+.Fa date ,
+.Fa otherTypeId
+and
+.Fa otherType
+as a
+.Vt KEKRecipientInfo
+structure.
+.Pp
+The main purpose of these functions is to provide finer control over a CMS
+.Vt EnvelopedData
+structure where the simpler
+.Xr CMS_encrypt 3
+function defaults are not appropriate,
+for example if one or more
+.Vt KEKRecipientInfo
+structures need to be added.
+New attributes can also be added using the returned
+.Vt CMS_RecipientInfo
+structure and the CMS attribute utility functions.
+.Pp
+By default, recipient certificates are identified using issuer
+name and serial number.
+If the flag
+.Dv CMS_USE_KEYID
+is set, the subject key identifier value is used instead.
+An error occurs if all recipient certificates do not have a subject key
+identifier extension.
+.Pp
+Currently only AES based key wrapping algorithms are supported for
+.Fa nid ,
+specifically
+.Dv NID_id_aes128_wrap ,
+.Dv NID_id_aes192_wrap ,
+and
+.Dv NID_id_aes256_wrap .
+If
+.Fa nid
+is set to
+.Dv NID_undef ,
+then an AES wrap algorithm will be used consistent with
+.Fa keylen .
+.Sh RETURN VALUES
+.Fn CMS_add1_recipient_cert
+and
+.Fn CMS_add0_recipient_key
+return an internal pointer to the
+.Vt CMS_RecipientInfo
+structure just added or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr CMS_ContentInfo_new 3 ,
+.Xr CMS_encrypt 3 ,
+.Xr CMS_final 3 ,
+.Xr ERR_get_error 3
+.Sh STANDARDS
+RFC 5652: Cryptographic Message Syntax
+.Bl -dash -compact -offset indent
+.It
+section 6.1: EnvelopedData Type
+.It
+section 6.2.1: KeyTransRecipientInfo Type
+.It
+section 6.2.3: KEKRecipientInfo Type
+.El
+.Sh HISTORY
+.Fn CMS_add1_recipient_cert
+and
+.Fn CMS_add0_recipient_key
+first appeared in OpenSSL 0.9.8h
+and have been available since
+.Ox 6.7 .

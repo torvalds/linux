@@ -1,0 +1,22 @@
+#
+#	$OpenBSD: ttys,v 1.6 2013/06/04 02:30:29 mpi Exp $
+#
+# name	getty				type	status		comments
+#
+console	"/usr/libexec/getty std.57600"	unknown	off secure	# for serial
+ttya	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyb	"/usr/libexec/getty std.9600"	unknown	off
+tty00	"/usr/libexec/getty std.9600"	unknown	off
+tty01	"/usr/libexec/getty std.9600"	unknown	off
+ttyC0	"/usr/libexec/getty std.9600"	vt220	on  secure
+ttyC1	"/usr/libexec/getty std.9600"	vt220	on  secure
+ttyC2	"/usr/libexec/getty std.9600"	vt220	on  secure
+ttyC3	"/usr/libexec/getty std.9600"	vt220	on  secure
+ttyC4	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyC5	"/usr/libexec/getty std.9600"	vt220	on  secure
+ttyC6	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyC7	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyC8	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyC9	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyCa	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyCb	"/usr/libexec/getty std.9600"	vt220	off secure

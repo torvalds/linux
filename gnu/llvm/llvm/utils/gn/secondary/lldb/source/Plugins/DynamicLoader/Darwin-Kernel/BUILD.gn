@@ -1,0 +1,33 @@
+import("//lldb/utils/TableGen/lldb_tablegen.gni")
+
+lldb_tablegen("DynamicLoaderDarwinKernelProperties") {
+  args = [ "-gen-lldb-property-defs" ]
+}
+
+lldb_tablegen("DynamicLoaderDarwinKernelPropertiesEnum") {
+  args = [ "-gen-lldb-property-enum-defs" ]
+  td_file = "DynamicLoaderDarwinKernelProperties.td"
+}
+
+static_library("Darwin-Kernel") {
+  output_name = "lldbPluginDynamicLoaderDarwinKernel"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    ":DynamicLoaderDarwinKernelProperties",
+    ":DynamicLoaderDarwinKernelPropertiesEnum",
+    "//lldb/source/Breakpoint",
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Interpreter",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+
+    # "//lldb/source/Plugins/Platform/MacOSX", # Dependency cycle
+    "//llvm/lib/Support",
+  ]
+
+  # Reaches into Plugins/Platform/MacOSX.
+  include_dirs = [ "//lldb/source" ]
+  sources = [ "DynamicLoaderDarwinKernel.cpp" ]
+}

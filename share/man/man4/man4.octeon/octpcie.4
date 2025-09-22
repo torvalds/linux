@@ -1,0 +1,50 @@
+.\"	$OpenBSD: octpcie.4,v 1.2 2019/10/07 14:59:59 visa Exp $
+.\"
+.\" Copyright (c) 2019 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 7 2019 $
+.Dt OCTPCIE 4 octeon
+.Os
+.Sh NAME
+.Nm octpcie
+.Nd OCTEON PCIe controller
+.Sh SYNOPSIS
+.Cd "octpcie* at iobus?"
+.Cd "pci* at octpcie?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the OCTEON PCIe controller found
+on OCTEON II and III.
+It provides a host interface to the
+.Xr pci 4
+bus.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "octpcie0 port N: link timeout"
+The PCIe link did not establish.
+This happens if the PCIe slot is empty.
+.It "octpcie0 port N: reset timeout"
+The PCIe port failed to reset.
+This can happen if the PCIe port has not been wired.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.6 .

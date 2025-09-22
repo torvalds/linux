@@ -1,0 +1,102 @@
+.\"	$OpenBSD: aliases.5,v 1.17 2021/02/13 07:20:49 jmc Exp $
+.\"
+.\" Copyright (c) 2012 Gilles Chehade <gilles@poolp.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 13 2021 $
+.Dt ALIASES 5
+.Os
+.Sh NAME
+.Nm aliases
+.Nd aliases file for smtpd
+.Sh DESCRIPTION
+This manual page describes the format of the
+.Nm
+file, as used by
+.Xr smtpd 8 .
+An alias, in its simplest form, is used to assign an arbitrary name
+to an email address or a group of email addresses.
+This provides a convenient way to send mail.
+For example an alias could refer to all users of a group:
+email to that alias would be sent to all members of the group.
+Much more complex aliases can be defined however:
+an alias can refer to other aliases,
+be used to send mail to a file instead of another person,
+or to execute various commands.
+.Pp
+Within the file,
+.Ql #
+is a comment delimiter; anything placed after it is discarded.
+The file consists of key/value mappings of the form:
+.Bd -filled -offset indent
+key: value1, value2, value3, ...
+.Ed
+.Pp
+.Em key
+is always folded to lowercase before alias lookups to ensure that
+there can be no ambiguity.
+The key is expanded to the corresponding values,
+which consist of one or more of the following:
+.Bl -tag -width Ds
+.It Em user
+A user on the host machine.
+The user must have a valid entry in the
+.Xr passwd 5
+database file.
+.It Ar /path/to/file
+Append messages to
+.Ar file ,
+specified by its absolute pathname.
+.It | Ns Ar command
+Pipe the message to
+.Ar command
+on its standard input.
+The command is run under the privileges of the daemon's unprivileged account.
+.It : Ns Ar include : Ns Ar /path/to/file
+Include any definitions in
+.Ar file
+as alias entries.
+The format of the file is identical to this one.
+.It Ar user-part@domain-part
+An email address in RFC 5322 format.
+If an address extension is appended to the user-part,
+it is first compared for an exact match.
+It is then stripped so that an address such as user+ext@example.com
+will only use the part that precedes
+.Sq +
+as a
+.Em key .
+.It Ar error : Ns Ar code message
+A status code and message to return.
+The code must be 3 digits,
+starting 4XX (TempFail) or 5XX (PermFail).
+The message must be present and can be freely chosen.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/mail/aliasesXXX" -compact
+.It Pa /etc/mail/aliases
+Default
+.Nm
+file.
+.El
+.Sh SEE ALSO
+.Xr smtpd.conf 5 ,
+.Xr makemap 8 ,
+.Xr newaliases 8 ,
+.Xr smtpd 8
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.0 .

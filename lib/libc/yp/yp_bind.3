@@ -1,0 +1,355 @@
+.\"	$OpenBSD: yp_bind.3,v 1.2 2020/12/03 22:47:21 jmc Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 3 2020 $
+.Dt YP_BIND 3
+.Os
+.Sh NAME
+.Nm yp_all ,
+.Nm yp_bind ,
+.Nm yp_first ,
+.Nm yp_get_default_domain ,
+.Nm yp_maplist ,
+.Nm yp_master ,
+.Nm yp_match ,
+.Nm yp_next ,
+.Nm yp_order ,
+.Nm yp_unbind ,
+.Nm yperr_string ,
+.Nm ypprot_err
+.Nd Interface to the YP subsystem
+.Sh SYNOPSIS
+.In sys/types.h
+.In rpc/rpc.h
+.In rpcsvc/ypclnt.h
+.In rpcsvc/yp_prot.h
+.Ft int
+.Fn yp_all "char *indomain" "char *inmap" "struct ypall_callback *incallback"
+.Ft int
+.Fn yp_bind "char *dom"
+.Ft int
+.Fn yp_first "char *indomain" "char *inmap" "char **outkey" "int *outkeylen" "char **outval" "int *outvallen"
+.Ft int
+.Fn yp_get_default_domain "char **domp"
+.Ft int
+.Fn yp_maplist "char *indomain" "struct ypmaplist **outmaplist"
+.Ft int
+.Fn yp_master "char *indomain" "char *inmap" "char **outname"
+.Ft int
+.Fn yp_match "char *indomain" "char *inmap" "const char *inkey" "int inkeylen" "char **outval" "int *outvallen"
+.Ft int
+.Fn yp_next "char *indomain" "char *inmap" "char *inkey" "int inkeylen" "char **outkey" "int *outkeylen" "char **outval" "int *outvallen"
+.Ft int
+.Fn yp_order "char *indomain" "char *inmap" "char *outorder"
+.Ft void
+.Fn yp_unbind "char *dom"
+.Ft char *
+.Fn yperr_string "int incode"
+.Ft int
+.Fn ypprot_err "unsigned int incode"
+.Sh DESCRIPTION
+This function suite provides an interface to the YP subsystem.
+For a general description of the YP subsystem, see
+.Xr yp 8 .
+.Pp
+For all functions, input values begin with
+.Sq in
+and output values begin with
+.Sq out .
+Any output values of type
+.Em char **
+should be the addresses of uninitialized character pointers.
+Only if a call succeeds will memory be allocated by the YP client routines
+using
+.Fn malloc .
+This memory can later be freed by the user if there is no additional need for
+the data stored there.
+For
+.Fa outkey
+and
+.Fa outval ,
+two extra bytes of memory are allocated for a
+.Ql \en
+and
+.Ql \e0 ,
+which are not
+reflected in the values of
+.Fa outkeylen
+or
+.Fa outvallen .
+All occurrences of
+.Fa indomain
+and
+.Fa inmap
+must be non-null, NUL-terminated strings.
+All input strings which also have
+a corresponding length parameter cannot be null unless the corresponding
+length value is zero.
+Such strings need not be NUL-terminated.
+.Pp
+All YP lookup calls (the functions
+.Fn yp_all ,
+.Fn yp_first ,
+.Fn yp_master ,
+.Fn yp_match ,
+.Fn yp_next ,
+.Fn yp_order )
+require a YP domain name and a YP map name.
+The default domain name may be obtained by calling
+.Fn yp_get_default_domain ,
+and should thus be used before all other YP calls in a client program.
+The value it places
+.Fa outdomain
+is suitable for use as the
+.Fa indomain
+parameter to all subsequent YP calls.
+.Pp
+In order for YP lookup calls to succeed, the client process must be bound
+to a YP server process.
+The client process need not explicitly bind to the server, as it happens
+automatically whenever a lookup occurs.
+The function
+.Fn yp_bind
+is provided for a backup strategy, e.g., a local file, when a YP server process
+is not available.
+Each binding uses one socket descriptor on the client process, which may
+be explicitly freed using
+.Fn yp_unbind ,
+which frees all per-process and per-node resources to bind the domain and
+marks the domain unbound.
+.Pp
+If, during a YP lookup, an RPC failure occurs, the domain used in the lookup
+is automatically marked unbound and the layer retries the lookup as long as
+.Xr ypbind 8
+is running and either the client process cannot bind to a server for the domain
+specified in the lookup, or RPC requests to the YP server process fail.
+If an error is not RPC-related, one of the YP error codes described below
+is returned and control given back to the user code.
+.Pp
+The suite provides the following functionality:
+.Bl -tag -width "yperr_string()"
+.It Fn yp_match
+Provides the value associated with the given key.
+.It Fn yp_first
+Provides the first key-value pair from the given map in the named domain.
+.It Fn yp_next
+Provides the next key-value pair in the given map.
+To obtain the second pair, the
+.Fa inkey
+value should be the
+.Fa outkey
+value provided by the initial call to
+.Fn yp_first .
+In the general case, the next key-value pair may be obtained by using the
+.Fa outkey
+value from the previous call to
+.Fn yp_next
+as the value for
+.Fa inkey .
+.Pp
+Of course, the notions of
+.Dq first
+and
+.Dq next
+are particular to the
+type of YP map being accessed, and thus there is no guarantee of lexical
+order.
+The only guarantees provided with
+.Fn yp_first
+and
+.Fn yp_next ,
+providing that the same map on the same server is polled repeatedly
+until
+.Fn yp_next
+returns YPERR_NOMORE, are that all key-value pairs in that map will be accessed
+exactly once, and if the entire procedure is repeated, the order will be
+the same.
+.Pp
+If the server is heavily loaded or the server fails for some reason, the
+domain being used may become unbound.
+If this happens, and the client process
+re-binds, the retrieval rules will break: some entries may be seen twice, and
+others not at all.
+For this reason, the function
+.Fn yp_all
+provides a better solution for reading all of the entries in a particular
+map.
+.It Fn yp_all
+This function provides a way to transfer an entire map from
+the server to the client process with a single request.
+This transfer method uses TCP, unlike all other functions which use UDP.
+The entire transaction occurs in a single RPC request-response.
+The third argument to this function provides a way to supply the name
+of a function to process each key-value pair in the map.
+.Fn yp_all
+returns after the entire transaction is complete, or the
+.Fn foreach
+function decides that it does not want any more key-value pairs.
+The third argument to
+.Fn yp_all
+is:
+.Bd -literal -offset indent
+struct ypall_callback *incallback {
+	int (*foreach)();
+	char *data;
+};
+.Ed
+.Pp
+The
+.Vt char * Ns Va data
+argument is an opaque pointer for use by the callback function.
+The
+.Fn foreach
+function should return non-zero when it no longer wishes to process
+key-value pairs, at which time
+.Fn yp_all
+returns a value of 0, and is called with the following arguments:
+.Bd -literal -offset indent
+int foreach (
+	unsigned long instatus,
+	char *inkey,
+	int inkeylen,
+	char *inval,
+	int invallen,
+	char *indata
+);
+.Ed
+.Pp
+Where:
+.Bl -tag -width "inkey, inval"
+.It Fa instatus
+Holds one of the return status values described in
+.In rpcsvc/yp_prot.h :
+see
+.Fn ypprot_err
+below for a function that will translate YP protocol errors into a
+error code as described in
+.In rpcsvc/ypclnt.h .
+.It Fa inkey , inval
+The key and value arguments are somewhat different here than described
+above.
+In this case, the memory pointed to by
+.Fa inkey
+and
+.Fa inval
+is private to
+.Fn yp_all ,
+and is overwritten with each subsequent key-value pair; therefore, the
+.Fn foreach
+function should do something useful with the contents of that memory during
+each iteration.
+If the key-value pairs are not terminated with either
+.Ql \en
+or
+.Ql \e0
+in the map, then they will not be terminated as such when given to the
+.Fn foreach
+function, either.
+.It Fa indata
+This is the contents of the
+.Fa incallback Ns -> Ns Va data
+element of the callback structure.
+It is provided as a means to share state between the
+.Fn foreach
+function and the user code.
+Its use is completely optional: cast it to something useful or simply
+ignore it.
+.El
+.It Fn yp_order
+Returns the order number for a map.
+.It Fn yp_master
+Returns the hostname for the machine on which the master YP server process for
+a map is running.
+.It Fn yp_maplist
+Returns a singly-linked list of the names of all the maps available in the
+named domain.
+The second argument to
+.Fn yp_maplist
+is:
+.Bd -literal -offset indent
+struct ypmaplist {
+	char *map;
+	struct ypmaplist *next;
+};
+.Ed
+.It Fn yperr_string
+Returns a pointer to a NUL-terminated error string that does not contain a
+.Ql \&.
+or
+.Ql \en .
+.It Fn ypprot_err
+Converts a YP protocol error code to an error code suitable for
+.Fn yperr_string .
+.El
+.Sh RETURN VALUES
+All functions which are of type
+.Em int
+return 0 upon success or one of the following error codes upon failure:
+.Bl -tag -width "YPERR_BADARGS   "
+.It Bq Er YPERR_BADARGS
+The passed arguments to the function are invalid.
+.It Bq Er YPERR_BADDB
+The YP map that was polled is defective.
+.It Bq Er YPERR_DOMAIN
+Client process cannot bind to server on this YP domain.
+.It Bq Er YPERR_KEY
+The key passed does not exist.
+.It Bq Er YPERR_MAP
+There is no such map in the server's domain.
+.It Bq Er YPERR_NODOM
+The local YP domain is not set.
+.It Bq Er YPERR_NOMORE
+There are no more records in the queried map.
+.It Bq Er YPERR_PMAP
+Cannot communicate with portmap.
+.It Bq Er YPERR_RESRC
+A resource allocation failure occurred.
+.It Bq Er YPERR_RPC
+An RPC failure has occurred.
+The domain has been marked unbound.
+.It Bq Er YPERR_VERS
+Client/server version mismatch.
+If the server is running version 1 of the YP protocol,
+.Fn yp_all
+functionality does not exist.
+.It Bq Er YPERR_YPBIND
+Cannot communicate with
+.Xr ypbind 8 .
+.It Bq Er YPERR_YPERR
+An internal server or client error has occurred.
+.It Bq Er YPERR_YPSERV
+The client cannot communicate with the YP server process.
+.El
+.Sh SEE ALSO
+.Xr malloc 3 ,
+.Xr yp 8 ,
+.Xr ypbind 8 ,
+.Xr ypserv 8
+.Sh AUTHORS
+.An Theo de Raadt

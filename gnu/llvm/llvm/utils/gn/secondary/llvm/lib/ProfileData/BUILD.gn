@@ -1,0 +1,28 @@
+static_library("ProfileData") {
+  output_name = "LLVMProfileData"
+  deps = [
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "GCOV.cpp",
+    "InstrProf.cpp",
+    "InstrProfCorrelator.cpp",
+    "InstrProfReader.cpp",
+    "InstrProfWriter.cpp",
+    "ItaniumManglingCanonicalizer.cpp",
+    "MemProf.cpp",
+    "MemProfReader.cpp",
+    "PGOCtxProfReader.cpp",
+    "PGOCtxProfWriter.cpp",
+    "ProfileSummaryBuilder.cpp",
+    "SampleProf.cpp",
+    "SampleProfReader.cpp",
+    "SampleProfWriter.cpp",
+    "SymbolRemappingReader.cpp",
+  ]
+}

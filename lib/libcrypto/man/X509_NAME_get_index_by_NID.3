@@ -1,0 +1,266 @@
+.\"	$OpenBSD: X509_NAME_get_index_by_NID.3,v 1.17 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL aebb9aac Jul 19 09:27:53 2016 -0400
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2006, 2014, 2015, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_NAME_GET_INDEX_BY_NID 3
+.Os
+.Sh NAME
+.Nm X509_NAME_get_index_by_NID ,
+.Nm X509_NAME_get_index_by_OBJ ,
+.Nm X509_NAME_entry_count ,
+.Nm X509_NAME_get_entry ,
+.Nm X509_NAME_get_text_by_NID ,
+.Nm X509_NAME_get_text_by_OBJ
+.Nd X509_NAME lookup and enumeration functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_NAME_get_index_by_NID
+.Fa "const X509_NAME *name"
+.Fa "int nid"
+.Fa "int lastpos"
+.Fc
+.Ft int
+.Fo X509_NAME_get_index_by_OBJ
+.Fa "const X509_NAME *name"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "int lastpos"
+.Fc
+.Ft int
+.Fo X509_NAME_entry_count
+.Fa "const X509_NAME *name"
+.Fc
+.Ft X509_NAME_ENTRY *
+.Fo X509_NAME_get_entry
+.Fa "const X509_NAME *name"
+.Fa "int loc"
+.Fc
+.Ft int
+.Fo X509_NAME_get_text_by_NID
+.Fa "X509_NAME *name"
+.Fa "int nid"
+.Fa "char *buf"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo X509_NAME_get_text_by_OBJ
+.Fa "X509_NAME *name"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "char *buf"
+.Fa "int len"
+.Fc
+.Sh DESCRIPTION
+These functions allow an
+.Vt X509_NAME
+structure to be examined.
+The
+.Vt X509_NAME
+structure is the same as the ASN.1
+.Vt Name
+type defined in RFC 2459 (and elsewhere) and used, for example,
+in certificate subject and issuer names.
+.Pp
+.Fn X509_NAME_get_index_by_NID
+and
+.Fn X509_NAME_get_index_by_OBJ
+retrieve the next index matching
+.Fa nid
+or
+.Fa obj
+after
+.Fa lastpos .
+.Fa lastpos
+should initially be set to -1.
+.Pp
+.Fn X509_NAME_get_entry
+retrieves the
+.Vt X509_NAME_ENTRY
+from
+.Fa name
+corresponding to index
+.Fa loc .
+Acceptable values for
+.Fa loc
+run from 0 to
+.Fn X509_NAME_entry_count name
+- 1.
+.Pp
+.Fn X509_NAME_get_text_by_NID
+and
+.Fn X509_NAME_get_text_by_OBJ
+retrieve the bytes encoded as UTF-8 from the first entry in
+.Fa name
+which matches
+.Fa nid
+or
+.Fa obj .
+If
+.Fa buf
+is
+.Dv NULL ,
+nothing is written, but the return value is calculated as usual.
+If
+.Fa buf
+is not
+.Dv NULL ,
+no more than
+.Fa len
+bytes will be written and the text written to
+.Fa buf
+will be NUL terminated.
+.Pp
+If
+.Fa len
+is not large enough to hold the NUL byte terminated UTF-8 encoding of
+the text, or if the UTF-8 encoding of the text would contains a NUL
+byte, no data will be written and the call will return failure.
+.Pp
+All relevant
+.Dv NID_*
+and
+.Dv OBJ_*
+codes can be found in the
+.In openssl/objects.h
+header file.
+.Pp
+Applications which could pass invalid NIDs to
+.Fn X509_NAME_get_index_by_NID
+should check for the return value of -2.
+Alternatively the NID validity can be determined first by checking that
+.Fn OBJ_nid2obj nid
+is not
+.Dv NULL .
+.Sh RETURN VALUES
+.Fn X509_NAME_get_index_by_NID
+returns the index of the next matching entry, -1 if not found, or -2 if the
+.Fa nid
+does not correspond to a valid OID.
+.Pp
+.Fn X509_NAME_get_index_by_OBJ
+returns the index of the next matching entry or -1 if not found.
+.Pp
+.Fn X509_NAME_entry_count
+returns the total number of entries in
+.Fa name .
+.Pp
+.Fn X509_NAME_get_entry
+returns an internal pointer which must not be freed by the caller or
+.Dv NULL
+if the index is invalid.
+.Pp
+.Fn X509_NAME_get_text_by_NID
+and
+.Fn X509_NAME_get_text_by_OBJ
+return the length of the output UTF-8 string written, not counting the
+terminating NUL, or -1 in the case of an error or no match being found.
+.Pp
+In some cases of failure of
+.Fn X509_NAME_get_index_by_NID
+and
+.Fn X509_NAME_get_text_by_NID ,
+the reason can be determined with
+.Xr ERR_get_error 3 .
+.Sh EXAMPLES
+Process all entries:
+.Bd -literal
+int i;
+X509_NAME_ENTRY *e;
+
+for (i = 0; i < X509_NAME_entry_count(nm); i++) {
+	e = X509_NAME_get_entry(nm, i);
+	/* Do something with e */
+}
+.Ed
+.Pp
+Process all commonName entries:
+.Bd -literal
+int lastpos = -1;
+X509_NAME_ENTRY *e;
+
+for (;;) {
+	lastpos = X509_NAME_get_index_by_NID(nm, NID_commonName, lastpos);
+	if (lastpos == -1)
+		break;
+	e = X509_NAME_get_entry(nm, lastpos);
+	/* Do something with e */
+}
+.Ed
+.Sh SEE ALSO
+.Xr d2i_X509_NAME 3 ,
+.Xr X509_NAME_ENTRY_get_object 3 ,
+.Xr X509_NAME_new 3
+.Sh HISTORY
+These functions first appeared in SSLeay 0.8.0
+and have been available since
+.Ox 2.4 .
+.Sh CAVEATS
+.Fn X509_NAME_get_text_by_NID
+and
+.Fn X509_NAME_get_text_by_OBJ
+are legacy functions which have various limitations which make them of
+minimal use in practice.
+They can only find the first matching entry and will copy the contents
+of the field verbatim: this can be highly confusing if the target is a
+multicharacter string type like a
+.Vt BMPString
+or a
+.Vt UTF8String .
+.Pp
+For a more general solution,
+.Fn X509_NAME_get_index_by_NID
+or
+.Fn X509_NAME_get_index_by_OBJ
+should be used, followed by
+.Fn X509_NAME_get_entry
+on any matching indices and then the various
+.Vt X509_NAME_ENTRY
+utility functions on the result.

@@ -1,0 +1,312 @@
+.\"	$OpenBSD: socreate.9,v 1.11 2022/09/11 06:38:11 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/socket.9,v 1.2 2006/12/16 10:32:10 rwatson Exp $
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt SOCREATE 9
+.Os
+.Sh NAME
+.Nm sobind ,
+.Nm soclose ,
+.Nm soconnect ,
+.Nm socreate ,
+.Nm soreceive ,
+.Nm so_upcall ,
+.Nm sosetopt ,
+.Nm sogetopt ,
+.Nm sosend ,
+.Nm soshutdown
+.Nd kernel socket interface
+.Sh SYNOPSIS
+.In sys/socket.h
+.In sys/socketvar.h
+.Ft int
+.Fn sobind "struct socket *so" "struct mbuf *nam" "struct proc *p"
+.Ft void
+.Fn soclose "struct socket *so" "int flags"
+.Ft int
+.Fn soconnect "struct socket *so" "struct mbuf *nam"
+.Ft int
+.Fo socreate
+.Fa "int dom" "struct socket **aso" "int type" "int proto"
+.Fc
+.Ft int
+.Fo soreceive
+.Fa "struct socket *so" "struct mbuf **paddr" "struct uio *uio"
+.Fa "struct mbuf **mp0" "struct mbuf **controlp" "int *flagsp"
+.Fa "socklen_t controllen"
+.Fc
+.Ft void
+.Fn (*so_upcall) "struct socket *so" "caddr_t arg" "int waitflag"
+.Ft int
+.Fn sosetopt "struct socket *so" "int level" "int optname" "struct mbuf *m"
+.Ft int
+.Fn sogetopt "struct socket *so" "int level" "int optname" "struct mbuf *m"
+.Ft int
+.Fo sosend
+.Fa "struct socket *so" "struct mbuf *addr" "struct uio *uio"
+.Fa "struct mbuf *top" "struct mbuf *control" "int flags"
+.Fc
+.Ft int
+.Fn soshutdown "struct socket *so" "int how"
+.Sh DESCRIPTION
+The kernel socket
+programming interface permits in-kernel consumers to interact with
+local and network socket objects in a manner similar to that permitted using
+the
+.Xr socket 2
+user API.
+These interfaces are appropriate for use by distributed file systems and
+other network-aware kernel services.
+While the user API operates on file descriptors, the kernel interfaces
+operate directly on
+.Vt struct socket
+pointers.
+.Pp
+Except where otherwise indicated,
+.Nm
+functions may sleep.
+.Ss Creating and Destroying Sockets
+A new socket may be created using
+.Fn socreate .
+As with
+.Xr socket 2 ,
+arguments specify the requested domain, type, and protocol via
+.Fa dom , type ,
+and
+.Fa proto .
+The socket is returned via
+.Fa aso
+on success.
+.Em Warning :
+authorization of the socket creation operation will be performed
+using
+.Dv curproc
+for some protocols (such as raw sockets).
+.Pp
+Sockets may be closed and freed using
+.Fn soclose ,
+which has similar semantics to
+.Xr close 2 .
+.Ss Connections and Addresses
+The
+.Fn sobind
+function is equivalent to the
+.Xr bind 2
+system call, and binds the socket
+.Fa so
+to the address
+.Fa nam .
+The operation would be authorized using the credential on process
+.Fa p .
+.Pp
+The
+.Fn soconnect
+function is equivalent to the
+.Xr connect 2
+system call, and initiates a connection on the socket
+.Fa so
+to the address
+.Fa nam .
+The operation will be authorized using the credential on
+.Dv curproc .
+Unlike the user system call,
+.Fn soconnect
+returns immediately; the caller may
+.Xr tsleep 9
+on
+.Fa so->so_timeo
+and wait for the
+.Dv SS_ISCONNECTING
+flag to clear or
+.Fa so->so_error
+to become non-zero.
+If
+.Fn soconnect
+fails, the caller must manually clear the
+.Dv SS_ISCONNECTING
+flag.
+.Pp
+The
+.Fn soshutdown
+function is equivalent to the
+.Xr shutdown 2
+system call, and causes part or all of a connection on a socket to be closed
+down.
+.Ss Socket Options
+The
+.Fn sogetopt
+function is equivalent to the
+.Xr getsockopt 2
+system call, and retrieves a socket option on socket
+.Fa so .
+The
+.Fn sosetopt
+function is equivalent to the
+.Xr setsockopt 2
+system call, and sets a socket option on socket
+.Fa so .
+.Pp
+The next two arguments in both
+.Fn sogetopt
+and
+.Fn sosetopt
+are
+.Fa level
+and
+.Fa optname
+describing the protocol level and socket option.
+The last argument
+.Fa m
+is either a pointer to a prefilled mbuf or a pointer to an mbuf to retrieve
+data.
+.Ss Socket I/O
+The
+.Fn soreceive
+function is equivalent to the
+.Xr recvmsg 2
+system call, and attempts to receive bytes of data from the socket
+.Fa so ,
+optionally blocking and awaiting data if none is ready to read.
+Data may be retrieved directly to kernel or user memory via the
+.Fa uio
+argument, or as an mbuf chain returned to the caller via
+.Fa mp0 ,
+avoiding a data copy.
+If
+.Fa mp0
+is not
+.Dv NULL ,
+.Fa uio
+must still be passed with uio_resid set to specify the maximum
+amount of data to be returned to the caller via an mbuf chain.
+The caller may optionally retrieve a socket address on a protocol with the
+.Dv PR_ADDR
+capability by providing storage via a
+.Pf non- Dv NULL
+.Fa paddr
+argument.
+The caller may optionally retrieve up to
+.Fa controllen
+bytes of control data in mbufs via a
+.Pf non- Dv NULL
+.Fa controlp
+argument.
+Optional flags may be passed to
+.Fn soreceive
+via a
+.Pf non- Dv NULL
+.Fa flagsp
+argument, and use the same flag name space as the
+.Xr recvmsg 2
+system call.
+.Pp
+When the
+.Fn so_upcall
+function pointer is not
+.Dv NULL ,
+it is called when
+.Fn soreceive
+matches an incoming connection.
+.Pp
+The
+.Fn sosend
+function is equivalent to the
+.Xr sendmsg 2
+system call, and attempts to send bytes of data via the socket
+.Fa so ,
+optionally blocking if data cannot be immediately sent.
+Data may be sent directly from kernel or user memory via the
+.Fa uio
+argument, or as an mbuf chain via
+.Fa top ,
+avoiding a data copy.
+Only one of the
+.Fa uio
+or
+.Fa top
+pointers may be
+.Pf non- Dv NULL .
+An optional destination address may be specified via a
+.Pf non- Dv NULL
+.Fa addr
+argument, which may result in an implicit connect if supported by the
+protocol.
+The caller may optionally send control data mbufs via a
+.Pf non- Dv NULL
+.Fa control
+argument.
+Flags may be passed to
+.Fn sosend
+using the
+.Fa flags
+argument, and use the same flag name space as the
+.Xr sendmsg 2
+system call.
+.Pp
+Kernel callers running in interrupt context, or with a mutex held, will wish to
+use non-blocking sockets and pass the
+.Dv MSG_DONTWAIT
+flag in order to prevent these functions from sleeping.
+.Sh SEE ALSO
+.Xr bind 2 ,
+.Xr close 2 ,
+.Xr connect 2 ,
+.Xr getsockopt 2 ,
+.Xr recv 2 ,
+.Xr send 2 ,
+.Xr setsockopt 2 ,
+.Xr shutdown 2 ,
+.Xr socket 2 ,
+.Xr tsleep 9
+.Sh HISTORY
+The
+.Xr socket 2
+system call appeared in
+.Bx 4.2 .
+This manual page was introduced in
+.Fx 7.0
+and ported to
+.Ox 4.5 .
+.Sh AUTHORS
+This manual page was written by
+.An Robert Watson .
+.Sh BUGS
+The use of credentials hung from explicitly passed processes,
+and the credential on
+.Dv curproc ,
+and the cached credential from socket creation time is inconsistent, and may
+lead to unexpected behaviour.
+.Pp
+The caller may need to manually clear
+.Dv SS_ISCONNECTING
+if
+.Fn soconnect
+returns an error.
+.Pp
+This manual page does not describe how to register socket upcalls or monitor
+a socket for readability/writability without using blocking I/O.

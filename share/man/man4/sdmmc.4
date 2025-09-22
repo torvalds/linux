@@ -1,0 +1,66 @@
+.\"	$OpenBSD: sdmmc.4,v 1.15 2022/01/19 13:45:22 visa Exp $
+.\"
+.\" Theo de Raadt, 2006. Public Domain.
+.\"
+.Dd $Mdocdate: January 19 2022 $
+.Dt SDMMC 4
+.Os
+.Sh NAME
+.Nm sdmmc
+.Nd SD bus
+.Sh SYNOPSIS
+.Cd "# arm64"
+.Cd "sdmmc* at amlmmc?"
+.Cd "sdmmc* at bcmsdhost?"
+.Cd "sdmmc* at dwmmc?"
+.Cd "sdmmc* at imxesdhc?"
+.Cd "sdmmc* at sximmc?"
+.Pp
+.Cd "# armv7"
+.Cd "sdmmc* at bcmsdhost?"
+.Cd "sdmmc* at dwmmc?"
+.Cd "sdmmc* at imxesdhc?"
+.Cd "sdmmc* at mvpxa?"
+.Cd "sdmmc* at ommmc?"
+.Cd "sdmmc* at sximmc?"
+.Pp
+.Cd "# octeon"
+.Cd "sdmmc* at octmmc?"
+.Pp
+.Cd "# riscv64"
+.Cd "sdmmc* at cdsdhc?"
+.Cd "sdmmc* at dwmmc?"
+.Pp
+.Cd "# sparc64"
+.Cd "sdmmc* at wbsd?"
+.Pp
+.Cd "# all architectures"
+.Cd "sdmmc* at rtsx?"
+.Cd "sdmmc* at sdhc?"
+.Sh DESCRIPTION
+The
+.Nm
+subsystem provides machine-independent bus support and drivers for
+SD/MMC devices.
+.Pp
+Standard SD/SDHC memory devices will show up as a fake SCSI disk, using
+.Xr scsibus 4
+and
+.Xr sd 4 .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr rtsx 4 ,
+.Xr scsibus 4 ,
+.Xr sd 4 ,
+.Xr sdhc 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Uwe Stuehler Aq Mt uwe@openbsd.org .

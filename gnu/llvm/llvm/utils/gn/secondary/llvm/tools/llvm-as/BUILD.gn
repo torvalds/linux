@@ -1,0 +1,9 @@
+executable("llvm-as") {
+  deps = [
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-as.cpp" ]
+}

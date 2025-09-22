@@ -1,0 +1,146 @@
+.\"	$OpenBSD: getthrname.2,v 1.2 2023/02/22 06:31:51 guenther Exp $
+.\"
+.\" Copyright (c) 2023 Philip Guenther <guenther@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 22 2023 $
+.Dt GETTHRNAME 2
+.Os
+.Sh NAME
+.Nm getthrname ,
+.Nm setthrname
+.Nd get or set thread name
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fo getthrname
+.Fa "pid_t tid"
+.Fa "char *name"
+.Fa "size_t namelen"
+.Fc
+.Ft int
+.Fo setthrname
+.Fa "pid_t tid"
+.Fa "const char *name"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn getthrname
+system call stores the name of
+.Fa tid ,
+a thread in the current process,
+into the buffer
+.Fa name ,
+which must be of at least
+.Fa namelen
+bytes long.
+The buffer should be large enough to store the thread name and a
+trailing NUL
+(typically
+.Dv MAXCOMLEN+1
+bytes).
+The
+.Fn setthrname
+system call sets the name of
+.Fa tid
+to the supplied
+.Fa name .
+For both functions, if
+.Fa tid
+is zero then the current thread is operated on.
+.Pp
+Thread names have no inherent meaning in the system and are
+intended for display and debugging only.
+They are not secret but rather are visible to other processes using
+.Xr sysctl 2
+or
+.Xr kvm_getprocs 3
+and in
+.Ic ps Fl H
+output.
+.Pp
+After
+.Xr execve 2 ,
+the name of the process's only thread is reset to the empty string.
+Similarly, additional threads created with
+.Xr __tfork 3
+start with the empty name.
+After
+.Xr fork 2 ,
+the new process's only thread has the same name as the thread that
+invoked
+.Xr fork 2 .
+.Sh RETURN VALUES
+Upon successful completion, the value 0 is returned;
+otherwise the error number is returned.
+.Sh ERRORS
+.Fn getthrname
+and
+.Fn setthrname
+will succeed unless:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa name
+argument points to an
+invalid address.
+.El
+.Pp
+In addition,
+.Fn getthrname
+may return the following error:
+.Bl -tag -width Er
+.It Bq Er ERANGE
+The value of
+.Fa namelen
+is not large enough to store the thread name and a trailing NUL.
+.El
+.Pp
+.Fn setthrname
+may return the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa name
+argument
+pointed to a string that was too long.
+Thread names are limited to
+.Dv MAXCOMLEN
+characters, currently 23.
+.El
+.Sh SEE ALSO
+.Xr execve 2 ,
+.Xr fork 2 ,
+.Xr sysctl 2 ,
+.Xr __tfork 3 ,
+.Xr kvm_getprocs 3 ,
+.Xr pthread_set_name_np 3
+.Sh STANDARDS
+The
+.Fn getthrname
+and
+.Fn setthrname
+system calls are specific to
+.Ox ;
+.Xr pthread_get_name_np 3
+and
+.Xr pthread_set_name_np 3
+operate on the same thread name in a more portable way.
+.Sh HISTORY
+The
+.Fn getthrname
+and
+.Fn setthrname
+system calls first appeared in
+.Ox 7.3 .

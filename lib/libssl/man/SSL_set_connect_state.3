@@ -1,0 +1,154 @@
+.\" $OpenBSD: SSL_set_connect_state.3,v 1.7 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\" selective merge up to: OpenSSL dbd007d7 Jul 28 13:31:27 2017 +0800
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>
+.\" and Paul Yang <yang.yang@baishancloud.com>.
+.\" Copyright (c) 2001, 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_SET_CONNECT_STATE 3
+.Os
+.Sh NAME
+.Nm SSL_set_connect_state ,
+.Nm SSL_set_accept_state ,
+.Nm SSL_is_server
+.Nd prepare SSL object to work in client or server mode
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft void
+.Fn SSL_set_connect_state "SSL *ssl"
+.Ft void
+.Fn SSL_set_accept_state "SSL *ssl"
+.Ft int
+.Fn SSL_is_server "const SSL *ssl"
+.Sh DESCRIPTION
+.Fn SSL_set_connect_state
+sets
+.Fa ssl
+to work in client mode.
+.Pp
+.Fn SSL_set_accept_state
+sets
+.Fa ssl
+to work in server mode.
+.Pp
+.Fn SSL_is_server
+checks whether
+.Fa ssl
+is set to server mode.
+.Pp
+When the
+.Vt SSL_CTX
+object was created with
+.Xr SSL_CTX_new 3 ,
+it was either assigned a dedicated client method, a dedicated server method, or
+a generic method, that can be used for both client and server connections.
+(The method might have been changed with
+.Xr SSL_CTX_set_ssl_version 3
+or
+.Xr SSL_set_ssl_method 3 . )
+.Pp
+When beginning a new handshake, the SSL engine must know whether it must call
+the connect (client) or accept (server) routines.
+Even though it may be clear from the method chosen whether client or server
+mode was requested, the handshake routines must be explicitly set.
+.Pp
+When using the
+.Xr SSL_connect 3
+or
+.Xr SSL_accept 3
+routines, the correct handshake routines are automatically set.
+When performing a transparent negotiation using
+.Xr SSL_write 3
+or
+.Xr SSL_read 3 ,
+the handshake routines must be explicitly set in advance using either
+.Fn SSL_set_connect_state
+or
+.Fn SSL_set_accept_state .
+.Pp
+If
+.Fn SSL_is_server
+is called before
+.Fn SSL_set_connect_state
+or
+.Fn SSL_set_accept_state
+was called either automatically or explicitly,
+the result depends on what method was used when the
+.Fa SSL_CTX
+was created.
+If a generic method or a dedicated server method was passed to
+.Xr SSL_CTX_new 3 ,
+.Fn SSL_is_server
+returns 1; otherwise, it returns 0.
+.Sh RETURN VALUES
+.Fn SSL_is_server
+returns 1 if
+.Fa ssl
+is set to server mode or 0 if it is set to client mode.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_accept 3 ,
+.Xr SSL_connect 3 ,
+.Xr SSL_CTX_new 3 ,
+.Xr SSL_CTX_set_ssl_version 3 ,
+.Xr SSL_do_handshake 3 ,
+.Xr SSL_new 3 ,
+.Xr SSL_read 3 ,
+.Xr SSL_write 3
+.Sh HISTORY
+.Fn SSL_set_connect_state
+and
+.Fn SSL_set_accept_state
+first appeared in SSLeay 0.6.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_is_server
+first appeared in OpenSSL 1.0.2 and has been available since
+.Ox 6.3 .

@@ -1,0 +1,142 @@
+.\"	$OpenBSD: time2posix.3,v 1.20 2015/02/23 19:05:36 bentley Exp $
+.Dd $Mdocdate: February 23 2015 $
+.Dt TIME2POSIX 3
+.Os
+.Sh NAME
+.Nm time2posix ,
+.Nm posix2time
+.Nd convert seconds since the Epoch
+.Sh SYNOPSIS
+.In sys/types.h
+.In time.h
+.Ft time_t
+.Fn time2posix "time_t t"
+.Ft time_t
+.Fn posix2time "time_t t"
+.Sh DESCRIPTION
+.St -p1003.1
+legislates that a
+.Vt time_t
+value of
+536457599 shall correspond to
+.Dq Wed Dec 31 23:59:59 UTC 1986 .
+This effectively implies that a POSIX
+.Vt time_t
+cannot include leap seconds and, therefore,
+that the system time must be adjusted as each leap occurs.
+.Pp
+If the time package is configured with leap-second support
+enabled,
+however,
+no such adjustment is needed and
+.Vt time_t
+values continue to increase over leap events
+.Po
+as a true
+.Sq seconds since...
+value
+.Pc .
+This means that these values will differ from those required by POSIX
+by the net number of leap seconds inserted since the Epoch.
+.Pp
+Typically this is not a problem as the type
+.Vt time_t
+is intended to be
+.Pq mostly
+opaque.
+.Vt time_t
+values should only be obtained from and
+passed to functions such as
+.Xr time 3 ,
+.Xr localtime 3 ,
+.Xr mktime 3 ,
+and
+.Xr difftime 3 .
+However,
+POSIX gives an arithmetic
+expression for directly computing a
+.Vt time_t
+value from a given date/time,
+and the same relationship is assumed by some
+.Pq usually older
+applications.
+Any programs creating/dissecting
+.Vt time_t
+values
+using such a relationship will typically not handle intervals
+over leap seconds correctly.
+.Pp
+The
+.Fn time2posix
+and
+.Fn posix2time
+functions are provided to address this
+.Vt time_t
+mismatch by converting
+between local
+.Vt time_t
+values and their POSIX equivalents.
+This is done by accounting for the number of time-base changes that
+would have taken place on a POSIX system as leap seconds were inserted
+or deleted.
+These converted values can then be used in lieu of correcting the older
+applications,
+or when communicating with POSIX-compliant systems.
+.Pp
+.Fn time2posix
+is single-valued.
+That is,
+every local
+.Vt time_t
+corresponds to a single POSIX
+.Vt time_t .
+.Fn posix2time
+is less well-behaved:
+for a positive leap second hit the result is not unique,
+and for a negative leap second hit the corresponding
+POSIX
+.Vt time_t
+doesn't exist so an adjacent value is returned.
+Both of these are good indicators of the inferiority of the
+POSIX representation.
+.Pp
+The following table summarizes the relationship between a time
+T and its conversion to,
+and back from,
+the POSIX representation over the leap second inserted at the end of June,
+1993.
+.Bl -column 93/06/30 23:59:59 A+0 X=time2posix(T) posix2time(X) -offset indent
+.It Em DATE Ta Em TIME Ta Em T Ta Em X=time2posix(T) Ta Em posix2time(X)
+.It 93/06/30 Ta 23:59:59 Ta A+0 Ta B+0 Ta A+0
+.It 93/06/30 Ta 23:59:60 Ta A+1 Ta B+1 Ta A+1 or A+2
+.It 93/07/01 Ta 00:00:00 Ta A+2 Ta B+1 Ta A+1 or A+2
+.It 93/07/01 Ta 00:00:01 Ta A+3 Ta B+2 Ta A+3
+.El
+.Pp
+A leap second deletion would look like...
+.Bl -column ??/06/30 23:59:58 A+0 X=time2posix(T) posix2time(X) -offset indent
+.It Em DATE Ta Em TIME Ta Em T Ta Em X=time2posix(T) Ta Em posix2time(X)
+.It ??/06/30 Ta 23:59:58 Ta A+0 Ta B+0 Ta A+0
+.It ??/07/01 Ta 00:00:00 Ta A+1 Ta B+2 Ta A+1
+.It ??/07/01 Ta 00:00:01 Ta A+2 Ta B+3 Ta A+2
+.El
+.Pp
+[Note: posix2time(B+1) => A+0 or A+1]
+.Pp
+If leap-second support is not enabled, local
+.Vt time_t
+and
+POSIX
+.Vt time_t
+are equivalent, and both
+.Fn time2posix
+and
+.Fn posix2time
+degenerate to the identity function.
+.Sh SEE ALSO
+.Xr difftime 3 ,
+.Xr localtime 3 ,
+.Xr mktime 3 ,
+.Xr time 3
+.\" This file is in the public domain, so clarified as of
+.\" 1996-06-05 by Arthur David Olson.

@@ -1,0 +1,125 @@
+.\" $OpenBSD: kstat_kv_init.9,v 1.2 2020/08/10 11:33:58 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 10 2020 $
+.Dt KSTAT_KV_INIT 9
+.Os
+.Sh NAME
+.Nm kstat_kv_init ,
+.Nm kstat_kv_unit_init ,
+.Nm KSTAT_KV_INITIALIZER ,
+.Nm KSTAT_KV_UNIT_INITIALIZER
+.Nd kernel statistic key/value data API
+.Sh SYNOPSIS
+.In sys/kstat.h
+.Ft void
+.Fo kstat_kv_init
+.Fa "struct kstat_kv *kv"
+.Fa "const char *key"
+.Fa "enum kstat_kv_type type"
+.Fc
+.Ft void
+.Fo kstat_kv_unit_init
+.Fa "struct kstat_kv *kv"
+.Fa "const char *key"
+.Fa "enum kstat_kv_type type"
+.Fa "enum kstat_kv_unit unit"
+.Fc
+.Fo KSTAT_KV_INITIALIZER
+.Fa "const char *name"
+.Fa "enum kstat_kv_type type"
+.Fc
+.Fo KSTAT_KV_UNIT_INITIALIZER
+.Fa "const char *name"
+.Fa "enum kstat_kv_type type"
+.Fa "enum kstat_kv_unit unit"
+.Fc
+.Sh DESCRIPTION
+The kstat key/value data API supports the creation and maintenance of
+.Vt kstat_kv
+structures that can be exported to userland using the kstat API.
+.Pp
+A kstat key/value data payload for a
+.Vt kstat
+structure
+.Po
+created using
+.Xr kstat_create 9
+with
+.Dv KSTAT_T_KV
+as the
+.Fa type
+argument
+.Pc
+is a series of
+.Vt kstat_kv
+structures in memory.
+kstat_kv values are typed, and the memory used to store values of
+different types is either inline as part of the structure, or is
+extra bytes following a structure of a specified length.
+.\" .Pp
+.\" kstat_kv structures contain the following fields:
+.Pp
+.Fn kstat_kv_init
+initialises
+.Fa kv
+with a name specified as
+.Fa key .
+The type of the value is specified as
+.Fa type .
+.Pp
+.Fn kstat_kv_unit_init
+initialises
+.Fa kv
+with a name specified as
+.Fa key .
+The integer or counter type of the value is specified as
+.Fa type ,
+and specifies the units for the values in
+.Fa unit .
+.Pp
+A
+.Vt kstat_kv
+structure can be initialised at compile time with the
+.Fn KSTAT_KV_INITIALIZER
+macro.
+The
+.Vt kstat_kv
+structure will be declared with the name
+.Fa key
+with the type of the values as
+.Fa type .
+.Pp
+A
+.Vt kstat_kv
+structure can be initialised at compile time with the
+.Fn KSTAT_KV_UNIT_INITIALIZER
+macro.
+The
+.Vt kstat_kv
+structure will be declared with the name
+.Fa key
+with the integer or counter type of the values as
+.Fa type ,
+and specifies the units for the values in
+.Fa unit .
+.Sh SEE ALSO
+.Xr kstat_create 9
+.Sh HISTORY
+These functions first appeared in
+.Ox 6.8 .
+.Sh AUTHORS
+.An David Gwynne Aq Mt dlg@openbsd.org

@@ -1,0 +1,6 @@
+static_library("TargetInfo") {
+  output_name = "LLVMARMInfo"
+  deps = [ "//llvm/lib/Support" ]
+  include_dirs = [ ".." ]
+  sources = [ "ARMTargetInfo.cpp" ]
+}

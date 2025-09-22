@@ -1,0 +1,21 @@
+LIB1ASMSRC = m68k/lb1sf68.asm
+LIB1ASMFUNCS = _mulsi3 _udivsi3 _divsi3 _umodsi3 _modsi3 \
+   _double _float _floatex \
+   _eqdf2 _nedf2 _gtdf2 _gedf2 _ltdf2 _ledf2 \
+   _eqsf2 _nesf2 _gtsf2 _gesf2 _ltsf2 _lesf2
+
+LIB2FUNCS_EXTRA = fpgnulib.c xfgnulib.c
+
+fpgnulib.c: $(srcdir)/config/m68k/fpgnulib.c
+	cp $(srcdir)/config/m68k/fpgnulib.c fpgnulib.c
+xfgnulib.c: $(srcdir)/config/m68k/fpgnulib.c
+	echo '#define EXTFLOAT' > xfgnulib.c
+	cat $(srcdir)/config/m68k/fpgnulib.c >> xfgnulib.c
+
+MULTILIB_OPTIONS = m68000/m68020/m5200/mcpu32/m68040/m68060 m68881/msoft-float
+MULTILIB_DIRNAMES =
+MULTILIB_MATCHES = m68000=mc68000 m68000=m68302 mcpu32=m68332 m68020=mc68020 
+MULTILIB_EXCEPTIONS = m68000/msoft-float m5200/m68881 m5200/msoft-float mcpu32/m68881 mcpu32/msoft-float m68040/m68881 m68060/m68881
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib

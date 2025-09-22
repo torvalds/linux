@@ -1,0 +1,63 @@
+dnl	$OpenBSD: packages,v 1.52 2023/10/19 02:43:58 kn Exp $
+As complete as your OpenBSD system is, you may want to add any of several
+excellent third party software applications.  There are several ways to do
+this.  You can:
+
+1) Use the OpenBSD package collection to grab a pre-compiled
+   and tested version of the application for your hardware.
+
+2) Use the OpenBSD ports collection to automatically get any
+   needed source file, apply any required patches, create the
+   application, and install it for you.
+
+3) Obtain the source code and build the application based
+   upon whatever installation procedures are provided with the
+   application.
+
+Instructions for installing applications from the various sources using
+the different installation methods follow.
+
+You should also refer to the packages(7) manual page.
+
+Installing applications from the ftp.OpenBSD.org package collection:
+
+	All available packages for your architecture have been placed on
+	ftp.OpenBSD.org in the directory pub/OpenBSD/OSREV/packages/MACHINE_ARCH/
+	You may want to peruse this to see what packages are available.  The
+	packages are also on the OpenBSD mirror sites.  See
+
+		https://www.OpenBSD.org/ftp.html
+
+	for a list of current mirror sites.
+
+	Installation of a package is very easy.
+	1) become the superuser (root)
+	2) use the "pkg_add" command to install the software
+
+	"pkg_add" is smart enough to know how to download the software
+	from the OpenBSD HTTP server.  Example:
+
+    $ su
+    Password: <enter your root password>
+    # pkg_add emacs
+
+Installing applications from the OpenBSD ports collection:
+
+	See https://www.openbsd.org/faq/faq15.html#Ports for current
+	instructions on obtaining and installing OpenBSD ports.
+
+	You should also refer to the ports(7) manual page.
+
+Installing other applications:
+
+	If an OpenBSD package or port does not exist for an application
+	you're pretty much on your own.  The first thing to do is ask
+	<ports@OpenBSD.org> if anyone is working on a port -- there may
+	be one in progress.  If no such port exists, you might want to
+	look at the FreeBSD ports or NetBSD pkgsrc for inspiration.
+
+	If you can't find an existing port, try to make your own and
+	feed it back to OpenBSD.  That's how our ports collection grows.
+	Some details can be found in the OpenBSD Porter's Handbook at
+	https://www.openbsd.org/faq/ports/
+	with more help coming from the mailing list, <ports@OpenBSD.org>.

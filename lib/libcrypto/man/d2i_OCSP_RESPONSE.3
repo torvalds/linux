@@ -1,0 +1,249 @@
+.\"	$OpenBSD: d2i_OCSP_RESPONSE.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_OCSP_RESPONSE 3
+.Os
+.Sh NAME
+.Nm d2i_OCSP_RESPONSE ,
+.Nm i2d_OCSP_RESPONSE ,
+.Nm d2i_OCSP_RESPBYTES ,
+.Nm i2d_OCSP_RESPBYTES ,
+.Nm d2i_OCSP_BASICRESP ,
+.Nm i2d_OCSP_BASICRESP ,
+.Nm d2i_OCSP_RESPDATA ,
+.Nm i2d_OCSP_RESPDATA ,
+.Nm d2i_OCSP_RESPID ,
+.Nm i2d_OCSP_RESPID ,
+.Nm d2i_OCSP_SINGLERESP ,
+.Nm i2d_OCSP_SINGLERESP ,
+.Nm d2i_OCSP_CERTSTATUS ,
+.Nm i2d_OCSP_CERTSTATUS ,
+.Nm d2i_OCSP_REVOKEDINFO ,
+.Nm i2d_OCSP_REVOKEDINFO ,
+.Nm d2i_OCSP_CRLID ,
+.Nm i2d_OCSP_CRLID
+.Nd decode and encode OCSP responses
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ocsp.h
+.Ft OCSP_RESPONSE *
+.Fo d2i_OCSP_RESPONSE
+.Fa "OCSP_RESPONSE **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_RESPONSE
+.Fa "OCSP_RESPONSE *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_RESPBYTES *
+.Fo d2i_OCSP_RESPBYTES
+.Fa "OCSP_RESPBYTES **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_RESPBYTES
+.Fa "OCSP_RESPBYTES *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_BASICRESP *
+.Fo d2i_OCSP_BASICRESP
+.Fa "OCSP_BASICRESP **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_BASICRESP
+.Fa "OCSP_BASICRESP *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_RESPDATA *
+.Fo d2i_OCSP_RESPDATA
+.Fa "OCSP_RESPDATA **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_RESPDATA
+.Fa "OCSP_RESPDATA *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_RESPID *
+.Fo d2i_OCSP_RESPID
+.Fa "OCSP_RESPID **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_RESPID
+.Fa "OCSP_RESPID *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_SINGLERESP *
+.Fo d2i_OCSP_SINGLERESP
+.Fa "OCSP_SINGLERESP **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_SINGLERESP
+.Fa "OCSP_SINGLERESP *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_CERTSTATUS *
+.Fo d2i_OCSP_CERTSTATUS
+.Fa "OCSP_CERTSTATUS **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_CERTSTATUS
+.Fa "OCSP_CERTSTATUS *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_REVOKEDINFO *
+.Fo d2i_OCSP_REVOKEDINFO
+.Fa "OCSP_REVOKEDINFO **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_REVOKEDINFO
+.Fa "OCSP_REVOKEDINFO *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft OCSP_CRLID *
+.Fo d2i_OCSP_CRLID
+.Fa "OCSP_CRLID **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_OCSP_CRLID
+.Fa "OCSP_CRLID *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode ASN.1 structures used for OCSP
+responses.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_OCSP_RESPONSE
+and
+.Fn i2d_OCSP_RESPONSE
+decode and encode an ASN.1
+.Vt OCSPResponse
+structure defined in RFC 6960 section 4.2.1.
+.Pp
+.Fn d2i_OCSP_RESPBYTES
+and
+.Fn i2d_OCSP_RESPBYTES
+decode and encode an ASN.1
+.Vt ResponseBytes
+structure defined in RFC 6960 section 4.2.1.
+.Pp
+.Fn d2i_OCSP_BASICRESP
+and
+.Fn i2d_OCSP_BASICRESP
+decode and encode an ASN.1
+.Vt BasicOCSPResponse
+structure defined in RFC 6960 section 4.2.1.
+.Pp
+.Fn d2i_OCSP_RESPDATA
+and
+.Fn i2d_OCSP_RESPDATA
+decode and encode an ASN.1
+.Vt ResponseData
+structure defined in RFC 6960 section 4.2.1.
+.Pp
+.Fn d2i_OCSP_RESPID
+and
+.Fn i2d_OCSP_RESPID
+decode and encode an ASN.1
+.Vt ResponderID
+structure defined in RFC 6960 section 4.2.1.
+.Pp
+.Fn d2i_OCSP_SINGLERESP
+and
+.Fn i2d_OCSP_SINGLERESP
+decode and encode an ASN.1
+.Vt SingleResponse
+structure defined in RFC 6960 section 4.2.1.
+.Pp
+.Fn d2i_OCSP_CERTSTATUS
+and
+.Fn i2d_OCSP_CERTSTATUS
+decode and encode an ASN.1
+.Vt CertStatus
+structure defined in RFC 6960 section 4.2.1.
+.Pp
+.Fn d2i_OCSP_REVOKEDINFO
+and
+.Fn i2d_OCSP_REVOKEDINFO
+decode and encode an ASN.1
+.Vt RevokedInfo
+structure defined in RFC 6960 section 4.2.1.
+.Pp
+.Fn d2i_OCSP_CRLID
+and
+.Fn i2d_OCSP_CRLID
+decode and encode an ASN.1
+.Vt CrlID
+structure defined in RFC 6960 section 4.4.2.
+.Sh RETURN VALUES
+.Fn d2i_OCSP_RESPONSE ,
+.Fn d2i_OCSP_RESPBYTES ,
+.Fn d2i_OCSP_BASICRESP ,
+.Fn d2i_OCSP_RESPDATA ,
+.Fn d2i_OCSP_RESPID ,
+.Fn d2i_OCSP_SINGLERESP ,
+.Fn d2i_OCSP_CERTSTATUS ,
+.Fn d2i_OCSP_REVOKEDINFO ,
+and
+.Fn d2i_OCSP_CRLID
+return an object of the respective type or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_OCSP_RESPONSE ,
+.Fn i2d_OCSP_RESPBYTES ,
+.Fn i2d_OCSP_BASICRESP ,
+.Fn i2d_OCSP_RESPDATA ,
+.Fn i2d_OCSP_RESPID ,
+.Fn i2d_OCSP_SINGLERESP ,
+.Fn i2d_OCSP_CERTSTATUS ,
+.Fn i2d_OCSP_REVOKEDINFO ,
+and
+.Fn i2d_OCSP_CRLID
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr OCSP_CRLID_new 3 ,
+.Xr OCSP_REQUEST_new 3 ,
+.Xr OCSP_RESPONSE_new 3 ,
+.Xr OCSP_SINGLERESP_new 3
+.Sh STANDARDS
+RFC 6960: X.509 Internet Public Key Infrastructure Online Certificate
+Status Protocol, section 4.2: Response Syntax
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.7
+and have been available since
+.Ox 3.2 .

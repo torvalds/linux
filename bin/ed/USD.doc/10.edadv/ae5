@@ -1,0 +1,359 @@
+.\"	$OpenBSD: ae5,v 1.2 2003/06/26 16:24:16 mickey Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ae5	8.1 (Berkeley) 8/14/93
+.\"
+.NH
+CUT AND PASTE WITH UNIX COMMANDS
+.PP
+One editing area in which non-programmers
+seem not very confident
+is in what might be called
+`cut and paste' operations _
+changing the name of a file,
+making a copy of a file somewhere else,
+moving a few lines from one place to another in a file,
+inserting one file in the middle of another,
+splitting a file into pieces,
+and
+splicing two or more files together.
+.PP
+Yet most of these operations are actually quite easy,
+if you keep your wits about you
+and go cautiously.
+The next several sections talk about cut and paste.
+We will begin with the
+.UX
+commands
+for moving entire files around,
+then discuss
+.UL ed
+commands
+for operating on pieces of files.
+.SH
+Changing the Name of a File
+.PP
+You have a file named 
+`memo'
+and you want it to be called
+`paper'
+instead.
+How is it done?
+.PP
+The
+.UX
+program that renames files
+is called
+.UL mv
+(for `move');
+it `moves' the file from one name to another, like this:
+.P1
+mv  memo  paper
+.P2
+That's all there is to it:
+.UL mv
+from the old name to the new name.
+.P1
+mv  oldname  newname
+.P2
+Warning: if there is already a file around with the new name,
+its present contents will be
+silently
+clobbered
+by the information from the other file.
+The one exception is that you can't move a file
+to itself _
+.P1
+mv  x  x
+.P2
+is illegal.
+.SH
+Making a Copy of a File
+.PP
+Sometimes what you want is a copy of a file _
+an entirely fresh version.
+This might be because you want to work on a file, and
+yet save a copy in case something gets fouled up,
+or just because you're paranoid.
+.PP
+In any case, the way to do it is with the
+.UL cp
+command.
+.UL cp \& (
+stands for `copy';
+the
+UNIX
+system
+is big on short command names,
+which are appreciated by heavy users,
+but sometimes a strain for novices.)
+Suppose you have a file called
+`good'
+and
+you want to save a copy before you make some
+dramatic editing changes.
+Choose a name _
+`savegood'
+might be acceptable _ then type
+.P1
+cp  good  savegood
+.P2
+This copies
+`good'
+onto
+`savegood',
+and you now have two identical copies of the file
+`good'.
+(If
+`savegood'
+previously contained something,
+it gets overwritten.)
+.PP
+Now if you decide at some time that you want to get
+back to the original state of
+`good',
+you can say
+.P1
+mv  savegood  good
+.P2
+(if you're not interested in
+`savegood'
+any more), or
+.P1
+cp  savegood  good
+.P2
+if you still want to retain a safe copy.
+.PP
+In summary, 
+.UL mv
+just renames a file;
+.UL cp
+makes a duplicate copy.
+Both of them clobber the `target' file
+if it already exists, so you had better
+be sure that's what you want to do
+.ul
+before
+you do it.
+.SH
+Removing a File
+.PP
+If you decide you are really done with a file
+forever, you can remove it
+with the
+.UL rm
+command:
+.P1
+rm  savegood
+.P2
+throws away (irrevocably) the file called
+`savegood'.
+.SH
+Putting Two or More Files Together
+.PP
+The next step is the familiar one of collecting two or more
+files into one big one.
+This will be needed, for example,
+when the author of a paper
+decides that several sections need to be combined
+into one.
+There are several ways to do it,
+of which the cleanest, once you get used to it,
+is a program called
+.UL cat .
+(Not 
+.ul
+all
+UNIX 
+programs have two-letter names.)
+.UL cat
+is short for
+`concatenate', which is exactly
+what we want to do.
+.PP
+Suppose the job is to combine the files
+`file1'
+and
+`file2'
+into a single file called
+`bigfile'.
+If you say
+.P1
+cat  file
+.P2
+the contents of
+`file'
+will get printed on your terminal.
+If you say
+.P1
+cat  file1  file2
+.P2
+the contents of
+`file1'
+and then the contents of
+`file2'
+will
+.ul
+both
+be printed on your terminal,
+in that order.
+So
+.UL cat
+combines the files, all right,
+but it's not much help to print them on the terminal _
+we want them in 
+`bigfile'.
+.PP
+Fortunately, there is a way.
+You can tell
+the system
+that instead of printing on your terminal,
+you want the same information put in a file. 
+The way to do it is to add to the command line
+the character
+.UL >
+and the name of the file
+where you want the output to go.
+Then you can say
+.P1
+cat  file1  file2  >bigfile
+.P2
+and the job is done.
+(As with
+.UL cp
+and
+.UL mv ,
+you're putting something into
+`bigfile',
+and anything that was already there is destroyed.)
+.PP
+This ability to
+`capture' the output of a program
+is one of the most useful aspects of
+the 
+UNIX
+system.
+Fortunately it's not limited to the
+.UL cat 
+program _
+you can use it with 
+.ul
+any
+program that prints on your terminal.
+We'll see some more uses for it in a moment.
+.PP
+Naturally, you can combine several files,
+not just two:
+.P1
+cat  file1  file2  file3  ...  >bigfile
+.P2
+collects a whole bunch.
+.PP
+Question:
+is there any difference between
+.P1
+cp  good  savegood
+.P2
+and
+.P1
+cat  good  >savegood
+.P2
+Answer: for most purposes, no.
+You might reasonably ask why there are two programs
+in that case,
+since
+.UL cat
+is obviously all you need.
+The answer is that 
+.UL cp
+can do some other things as well,
+which you can investigate for yourself
+by reading the manual.
+For now we'll stick to simple usages.
+.SH
+Adding Something to the End of a File
+.PP
+Sometimes you want to add one file to the end of another.
+We have enough building blocks now that you can do it;
+in fact before reading further it would be valuable
+if you figured out how.
+To be specific,
+how would you use
+.UL cp ,
+.UL mv
+and/or
+.UL cat
+to add the file
+`good1'
+to the end of the file
+`good'?
+.PP
+You could try
+.P1
+cat  good  good1  >temp
+mv  temp  good
+.P2
+which is probably most direct.
+You should also understand why
+.P1
+cat  good  good1  >good
+.P2
+doesn't work.
+(Don't practice with a good `good'!)
+.PP
+The easy way is to use a variant of
+.UL > ,
+called
+.UL >> .
+In fact,
+.UL >> 
+is identical to
+.UL >
+except that instead of clobbering the old file,
+it simply tacks stuff on at the end.
+Thus you could say
+.P1
+cat  good1  >>good
+.P2
+and
+`good1'
+is added to the end of
+`good'.
+(And if
+`good'
+didn't exist,
+this makes a copy of
+`good1'
+called
+`good'.)

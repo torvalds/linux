@@ -1,0 +1,57 @@
+.\"	$OpenBSD: glxsb.4,v 1.7 2014/08/20 11:23:41 mikeb Exp $
+.\"
+.\"Copyright (c) 2006 Tom Cosgrove <tom@openbsd.org>
+.\"
+.\"Permission to use, copy, modify, and distribute this software for any
+.\"purpose with or without fee is hereby granted, provided that the above
+.\"copyright notice and this permission notice appear in all copies.
+.\"
+.\"THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\"WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\"MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\"ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\"WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\"ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\"OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: August 20 2014 $
+.Dt GLXSB 4 i386
+.Os
+.Sh NAME
+.Nm glxsb
+.Nd Geode LX Security Block crypto accelerator
+.Sh SYNOPSIS
+.Cd "glxsb* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the security block of the Geode LX series processors.
+The Geode LX is a member of the AMD Geode family
+of integrated x86 system chips.
+.Pp
+Driven by periodic checks for available data from the generator,
+.Nm
+supplies entropy to the
+.Xr random 4
+driver for common usage.
+.Pp
+.Nm
+also supports acceleration of AES-CBC operations for
+.Xr ipsec 4 .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr ipsec 4 ,
+.Xr pci 4 ,
+.Xr random 4 ,
+.Xr crypto 9
+.Sh HISTORY
+Support for
+.Nm
+was added in
+.Ox 4.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Tom Cosgrove .

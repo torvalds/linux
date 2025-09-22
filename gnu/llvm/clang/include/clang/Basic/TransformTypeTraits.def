@@ -1,0 +1,29 @@
+//==--- TransformTypeTraits.def - type trait transformations --------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines transform type traits' names.
+//
+//===----------------------------------------------------------------------===//
+
+TRANSFORM_TYPE_TRAIT_DEF(AddLvalueReference, add_lvalue_reference)
+TRANSFORM_TYPE_TRAIT_DEF(AddPointer, add_pointer)
+TRANSFORM_TYPE_TRAIT_DEF(AddRvalueReference, add_rvalue_reference)
+TRANSFORM_TYPE_TRAIT_DEF(Decay, decay)
+TRANSFORM_TYPE_TRAIT_DEF(MakeSigned, make_signed)
+TRANSFORM_TYPE_TRAIT_DEF(MakeUnsigned, make_unsigned)
+TRANSFORM_TYPE_TRAIT_DEF(RemoveAllExtents, remove_all_extents)
+TRANSFORM_TYPE_TRAIT_DEF(RemoveConst, remove_const)
+TRANSFORM_TYPE_TRAIT_DEF(RemoveCV, remove_cv)
+TRANSFORM_TYPE_TRAIT_DEF(RemoveCVRef, remove_cvref)
+TRANSFORM_TYPE_TRAIT_DEF(RemoveExtent, remove_extent)
+TRANSFORM_TYPE_TRAIT_DEF(RemovePointer, remove_pointer)
+TRANSFORM_TYPE_TRAIT_DEF(RemoveReference, remove_reference_t)
+TRANSFORM_TYPE_TRAIT_DEF(RemoveRestrict, remove_restrict)
+TRANSFORM_TYPE_TRAIT_DEF(RemoveVolatile, remove_volatile)
+TRANSFORM_TYPE_TRAIT_DEF(EnumUnderlyingType, underlying_type)
+#undef TRANSFORM_TYPE_TRAIT_DEF

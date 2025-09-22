@@ -1,0 +1,239 @@
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_ASSERT_SET_AUTHDATA 3
+.Os
+.Sh NAME
+.Nm fido_assert_set_authdata ,
+.Nm fido_assert_set_authdata_raw ,
+.Nm fido_assert_set_clientdata ,
+.Nm fido_assert_set_clientdata_hash ,
+.Nm fido_assert_set_count ,
+.Nm fido_assert_set_extensions ,
+.Nm fido_assert_set_hmac_salt ,
+.Nm fido_assert_set_hmac_secret ,
+.Nm fido_assert_set_up ,
+.Nm fido_assert_set_uv ,
+.Nm fido_assert_set_rp ,
+.Nm fido_assert_set_sig
+.Nd set parameters of a FIDO2 assertion
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Bd -literal
+typedef enum {
+	FIDO_OPT_OMIT = 0, /* use authenticator's default */
+	FIDO_OPT_FALSE,    /* explicitly set option to false */
+        FIDO_OPT_TRUE,     /* explicitly set option to true */
+} fido_opt_t;
+.Ed
+.Ft int
+.Fn fido_assert_set_authdata "fido_assert_t *assert" "size_t idx" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_assert_set_authdata_raw "fido_assert_t *assert" "size_t idx" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_assert_set_clientdata "fido_assert_t *assert" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_assert_set_clientdata_hash "fido_assert_t *assert" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_assert_set_count "fido_assert_t *assert" "size_t n"
+.Ft int
+.Fn fido_assert_set_extensions "fido_assert_t *assert" "int flags"
+.Ft int
+.Fn fido_assert_set_hmac_salt "fido_assert_t *assert" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_assert_set_hmac_secret "fido_assert_t *assert" "size_t idx" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_assert_set_up "fido_assert_t *assert" "fido_opt_t up"
+.Ft int
+.Fn fido_assert_set_uv "fido_assert_t *assert" "fido_opt_t uv"
+.Ft int
+.Fn fido_assert_set_rp "fido_assert_t *assert" "const char *id"
+.Ft int
+.Fn fido_assert_set_sig "fido_assert_t *assert" "size_t idx" "const unsigned char *ptr" "size_t len"
+.Sh DESCRIPTION
+The
+.Nm
+set of functions define the various parameters of a FIDO2
+assertion, allowing a
+.Fa fido_assert_t
+type to be prepared for a subsequent call to
+.Xr fido_dev_get_assert 3
+or
+.Xr fido_assert_verify 3 .
+For the complete specification of a FIDO2 assertion and the format
+of its constituent parts, please refer to the Web Authentication
+(webauthn) standard.
+.Pp
+The
+.Fn fido_assert_set_count
+function sets the number of assertion statements in
+.Fa assert
+to
+.Fa n .
+.Pp
+The
+.Fn fido_assert_set_authdata
+and
+.Fn fido_assert_set_sig
+functions set the authenticator data and signature parts of the
+statement with index
+.Fa idx
+of
+.Fa assert
+to
+.Fa ptr ,
+where
+.Fa ptr
+points to
+.Fa len
+bytes.
+A copy of
+.Fa ptr
+is made, and no references to the passed pointer are kept.
+Please note that the first assertion statement of
+.Fa assert
+has an
+.Fa idx
+of
+.Em 0 .
+The authenticator data passed to
+.Fn fido_assert_set_authdata
+must be a CBOR-encoded byte string, as obtained from
+.Fn fido_assert_authdata_ptr .
+Alternatively, a raw binary blob may be passed to
+.Fn fido_assert_set_authdata_raw .
+.Pp
+The
+.Fn fido_assert_set_clientdata_hash
+function sets the client data hash of
+.Fa assert
+to
+.Fa ptr ,
+where
+.Fa ptr
+points to
+.Fa len
+bytes.
+A copy of
+.Fa ptr
+is made, and no references to the passed pointer are kept.
+.Pp
+The
+.Fn fido_assert_set_clientdata
+function allows an application to set the client data hash of
+.Fa assert
+by specifying the assertion's unhashed client data.
+This is required by Windows Hello, which calculates the client data
+hash internally.
+For compatibility with Windows Hello, applications should use
+.Fn fido_assert_set_clientdata
+instead of
+.Fn fido_assert_set_clientdata_hash .
+.Pp
+The
+.Fn fido_assert_set_rp
+function sets the relying party
+.Fa id
+of
+.Fa assert ,
+where
+.Fa id
+is a NUL-terminated UTF-8 string.
+The content of
+.Fa id
+is copied, and no references to the passed pointer are kept.
+.Pp
+The
+.Fn fido_assert_set_extensions
+function sets the extensions of
+.Fa assert
+to the bitmask
+.Fa flags .
+At the moment, only the
+.Dv FIDO_EXT_CRED_BLOB ,
+.Dv FIDO_EXT_HMAC_SECRET ,
+and
+.Dv FIDO_EXT_LARGEBLOB_KEY
+extensions are supported.
+If
+.Fa flags
+is zero, the extensions of
+.Fa assert
+are cleared.
+.Pp
+The
+.Fn fido_assert_set_hmac_salt
+and
+.Fn fido_assert_set_hmac_secret
+functions set the hmac-salt and hmac-secret parts of
+.Fa assert
+to
+.Fa ptr ,
+where
+.Fa ptr
+points to
+.Fa len
+bytes.
+A copy of
+.Fa ptr
+is made, and no references to the passed pointer are kept.
+The HMAC Secret
+.Pq hmac-secret
+Extension is a CTAP 2.0 extension.
+Note that the resulting hmac-secret varies according to whether
+user verification was performed by the authenticator.
+The
+.Fn fido_assert_set_hmac_secret
+function is normally only useful when writing tests.
+.Pp
+The
+.Fn fido_assert_set_up
+and
+.Fn fido_assert_set_uv
+functions set the
+.Fa up
+(user presence) and
+.Fa uv
+(user verification)
+attributes of
+.Fa assert .
+Both are
+.Dv FIDO_OPT_OMIT
+by default, allowing the authenticator to use its default settings.
+.Pp
+Use of the
+.Nm
+set of functions may happen in two distinct situations:
+when asking a FIDO2 device to produce a series of assertion
+statements, prior to
+.Xr fido_dev_get_assert 3
+(i.e, in the context of a FIDO2 client), or when verifying assertion
+statements using
+.Xr fido_assert_verify 3
+(i.e, in the context of a FIDO2 server).
+.Pp
+For a complete description of the generation of a FIDO2 assertion
+and its verification, please refer to the FIDO2 specification.
+An example of how to use the
+.Nm
+set of functions can be found in the
+.Pa examples/assert.c
+file shipped with
+.Em libfido2 .
+.Sh RETURN VALUES
+The
+.Nm
+functions return
+.Dv FIDO_OK
+on success.
+The error codes returned by the
+.Nm
+set of functions are defined in
+.In fido/err.h .
+.Sh SEE ALSO
+.Xr fido_assert_allow_cred 3 ,
+.Xr fido_assert_verify 3 ,
+.Xr fido_dev_get_assert 3

@@ -1,0 +1,40 @@
+.\"	$OpenBSD: mpfiic.4,v 1.1 2022/02/16 13:07:36 visa Exp $
+.\"
+.\" Copyright (c) 2022 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 16 2022 $
+.Dt MPFIIC 4 riscv64
+.Os
+.Sh NAME
+.Nm mpfiic
+.Nd Microchip PolarFire SoC MSS I2C controller
+.Sh SYNOPSIS
+.Cd "mpfiic* at fdt?"
+.Cd "iic* at mpfiic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the Microchip PolarFire SoC MSS I2C controller
+for use with the
+.Xr iic 4
+framework.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.1 .

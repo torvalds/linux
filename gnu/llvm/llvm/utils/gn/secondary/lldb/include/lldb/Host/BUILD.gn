@@ -1,0 +1,74 @@
+import("//llvm/utils/gn/build/libs/xml/enable.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+import("libedit.gni")
+
+# In lldb/cmake/modules/LLDBGenerateConfig.cmake,
+# brought in by lldb/cmake/modules/LLDBConfig.cmake,
+# brought in by lldb/CMakeLists.txt in the CMake build.
+write_cmake_config("Config") {
+  input = "Config.h.cmake"
+  output = "$target_gen_dir/Config.h"
+  values = [
+    # FIXME: Actual values for everything.
+    "LLDB_EDITLINE_USE_WCHAR=",
+    "LLDB_HAVE_EL_RFUNC_T=",
+    "HAVE_PTSNAME_R=",
+    "HAVE_NR_PROCESS_VM_READV=",
+    "LLDB_ENABLE_LZMA=",
+    "LLDB_ENABLE_CURSES=",
+    "CURSES_HAVE_NCURSES_CURSES_H=",
+    "LLDB_ENABLE_LUA=",
+    "LLDB_ENABLE_PYTHON=",
+    "LLDB_ENABLE_FBSDVMCORE=",
+    "LLDB_EMBED_PYTHON_HOME=",
+    "LLDB_INSTALL_LIBDIR_BASENAME=lib",
+    "LLDB_GLOBAL_INIT_DIRECTORY=",
+
+    "LLDB_PYTHON_HOME=",
+    "LLDB_BUG_REPORT_URL=https://github.com/llvm/llvm-project/issues/",
+
+    "HAVE_LIBCOMPRESSION=",
+  ]
+
+  if (lldb_enable_libedit) {
+    values += [ "LLDB_ENABLE_LIBEDIT=1" ]
+  } else {
+    values += [ "LLDB_ENABLE_LIBEDIT=" ]
+  }
+
+  if (llvm_enable_libxml2) {
+    values += [ "LLDB_ENABLE_LIBXML2=1" ]
+  } else {
+    values += [ "LLDB_ENABLE_LIBXML2=" ]
+  }
+
+  if (current_os == "win") {
+    values += [
+      "LLDB_ENABLE_POSIX=",
+      "LLDB_ENABLE_TERMIOS=",
+    ]
+  } else {
+    values += [
+      "LLDB_ENABLE_POSIX=1",
+      "LLDB_ENABLE_TERMIOS=1",
+    ]
+  }
+
+  if (current_os == "win" || current_os == "linux" || current_os == "android") {
+    values += [ "HAVE_SYS_EVENT_H=" ]
+  } else {
+    values += [ "HAVE_SYS_EVENT_H=1" ]
+  }
+
+  if (current_os == "linux" || current_os == "android") {
+    values += [
+      "HAVE_PPOLL=1",
+      "HAVE_PROCESS_VM_READV=1",
+    ]
+  } else {
+    values += [
+      "HAVE_PPOLL=",
+      "HAVE_PROCESS_VM_READV=",
+    ]
+  }
+}

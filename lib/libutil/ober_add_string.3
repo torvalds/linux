@@ -1,0 +1,238 @@
+.\" $OpenBSD: ober_add_string.3,v 1.4 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2007, 2012 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt OBER_ADD_STRING 3
+.Os
+.Sh NAME
+.Nm ober_get_element ,
+.Nm ober_add_sequence ,
+.Nm ober_add_set ,
+.Nm ober_add_null ,
+.Nm ober_add_eoc ,
+.Nm ober_add_integer ,
+.Nm ober_add_enumerated ,
+.Nm ober_add_boolean ,
+.Nm ober_add_string ,
+.Nm ober_add_nstring ,
+.Nm ober_add_ostring ,
+.Nm ober_add_bitstring ,
+.Nm ober_add_oid ,
+.Nm ober_add_noid ,
+.Nm ober_add_oidstring ,
+.Nm ober_printf_elements
+.Nd create ASN.1 objects for BER encoding
+.Sh SYNOPSIS
+.Lb libutil
+.In sys/types.h
+.In ber.h
+.Ft struct ber_element *
+.Fn "ober_get_element" "unsigned int encoding"
+.Ft struct ber_element *
+.Fn "ober_add_sequence" "struct ber_element *prev"
+.Ft struct ber_element *
+.Fn "ober_add_set" "struct ber_element *prev"
+.Ft struct ber_element *
+.Fn "ober_add_null" "struct ber_element *prev"
+.Ft struct ber_element *
+.Fn "ober_add_eoc" "struct ber_element *prev"
+.Ft struct ber_element *
+.Fn "ober_add_integer" "struct ber_element *prev" "long long val"
+.Ft struct ber_element *
+.Fn "ober_add_enumerated" "struct ber_element *prev" "long long val"
+.Ft struct ber_element *
+.Fn "ober_add_boolean" "struct ber_element *prev" "int bool"
+.Ft struct ber_element *
+.Fn "ober_add_string" "struct ber_element *prev" "const char *string"
+.Ft struct ber_element *
+.Fn "ober_add_nstring" "struct ber_element *prev" "const char *string" "size_t size"
+.Ft struct ber_element *
+.Fo "ober_add_ostring"
+.Fa "struct ber_element *prev"
+.Fa "struct ber_octetstring *ostring"
+.Fc
+.Ft struct ber_element *
+.Fo "ober_add_bitstring"
+.Fa "struct ber_element *prev"
+.Fa "const void *buf"
+.Fa "size_t size"
+.Fc
+.Ft struct ber_element *
+.Fn "ober_add_oid" "struct ber_element *prev" "struct ber_oid *oid"
+.Ft struct ber_element *
+.Fn "ober_add_noid" "struct ber_element *prev" "struct ber_oid *oid" "int n"
+.Ft struct ber_element *
+.Fn "ober_add_oidstring" "struct ber_element *prev" "const char *string"
+.Ft struct ber_element *
+.Fn "ober_printf_elements" "struct ber_element *prev" "char *format" "..."
+.Sh DESCRIPTION
+Intermediary storage of BER elements during encoding and decoding uses the
+following structure:
+.Bd -literal
+struct ber_element {
+	struct ber_element	*be_next;
+	unsigned int		 be_type;
+	unsigned int		 be_encoding;
+	size_t			 be_len;
+	off_t			 be_offs;
+	int			 be_free;
+	u_int8_t		 be_class;
+	void			(*be_cb)(void *, size_t);
+	void			*be_cbarg;
+	union {
+		struct ber_element	*bv_sub;
+		void			*bv_val;
+		long long		 bv_numeric;
+	} be_union;
+#define be_sub		be_union.bv_sub
+#define be_val		be_union.bv_val
+#define be_numeric	be_union.bv_numeric
+};
+.Ed
+.Pp
+.Fn ober_get_element
+creates a new
+.Vt ber_element
+with default values, dynamically allocates required storage, and sets
+.Fa be_encoding
+to
+.Fa encoding .
+.Pp
+The
+.Fn ober_add_*
+functions allocate a new
+.Vt ber_element
+of the respective type.
+If
+.Fa prev
+is an empty sequence or set, they put the new element into that
+sequence or set.
+Otherwise, unless
+.Fa prev
+is
+.Dv NULL ,
+they put it behind
+.Fa prev .
+Those functions taking a second argument initialize the content
+of the new element from the second argument.
+.Pp
+.Fn ober_printf_elements
+creates zero or more
+.Vt ber_element
+structures.
+For each byte in
+.Fa fmt ,
+arguments of the types given in the following table are consumed
+and passed to the listed function, creating one
+.Vt ber_element
+per byte.
+The following bytes are valid:
+.Bl -column -offset indent byte ober_add_enumerated "struct ber_element *"
+.It Sy byte Ta Sy function Ta Sy arguments
+.It B   Ta Fn ober_add_bitstring  Ta 2: Vt void * , size_t
+.It b   Ta Fn ober_add_boolean    Ta 1: Vt int
+.It d   Ta Fn ober_add_integer    Ta 1: Vt int
+.It E   Ta Fn ober_add_enumerated Ta 1: Vt long long
+.It e   Ta see below              Ta 1: Vt struct ber_element *
+.It i   Ta Fn ober_add_integer    Ta 1: Vt long long
+.It O   Ta Fn ober_add_oid        Ta 1: Vt struct ber_oid *
+.It o   Ta Fn ober_add_oidstring  Ta 1: Vt char *
+.It s   Ta Fn ober_add_string     Ta 1: Vt char *
+.It t   Ta Xr ober_set_header 3   Ta 2: Vt int , unsigned int
+.It x   Ta Fn ober_add_nstring    Ta 2: Vt char * , size_t
+.It \&( Ta Fn ober_add_set        Ta 0
+.It \&) Ta see below              Ta 0
+.It \&. Ta Fn ober_add_eoc        Ta 0
+.It 0   Ta Fn ober_add_null       Ta 0
+.It {   Ta Fn ober_add_sequence   Ta 0
+.It }   Ta see below              Ta 0
+.El
+.Pp
+The
+.Sq e
+and
+.Sq t
+bytes are special in so far as they do not create new elements.
+The
+.Sq e
+byte adds an element that was already created earlier into or behind
+the previous element, or into and behind
+.Fa ber
+if the
+.Sq e
+is the first byte in
+.Fa fmt ,
+just like the
+.Fn ober_add_*
+functions would add a new element.
+The
+.Sq t
+byte changes the class and type of the last element, or of
+.Fa ber
+if
+.Sq t
+is the first byte in
+.Fa fmt ,
+without changing its position relative to other elements.
+.Pp
+A closing brace or parenthesis closes an open sequence or set,
+if any, such that the next element will be added behind rather
+than into the sequence or set.
+Only one sequence or set can be open at any time.
+Nesting is not supported without multiple function calls.
+.Sh RETURN VALUES
+Upon successful completion,
+these functions return a pointer to a populated
+.Vt ber_element .
+Otherwise
+.Dv NULL
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+.Fn ober_printf_elements
+returns
+.Dv NULL
+without setting
+.Va errno
+if
+.Fa fmt
+is an empty string and
+.Fa ber
+is
+.Dv NULL .
+.Sh SEE ALSO
+.Xr ober_get_string 3 ,
+.Xr ober_oid_cmp 3 ,
+.Xr ober_read_elements 3 ,
+.Xr ober_set_header 3
+.Sh STANDARDS
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules.
+.Sh HISTORY
+These functions first appeared as internal functions in
+.Xr snmpd 8
+in
+.Ox 4.2
+and were moved to libutil in
+.Ox 6.6 .
+.Sh AUTHORS
+.An -nosplit
+The BER library was written by
+.An Claudio Jeker Aq Mt claudio@openbsd.org ,
+.An Marc Balmer Aq Mt marc@openbsd.org
+and
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

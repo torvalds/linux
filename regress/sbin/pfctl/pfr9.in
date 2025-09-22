@@ -1,0 +1,8 @@
+# duplicate handling
+pass add 1.2.3.4 ::1 1.2.3.4 ::1
+pass add 1.2.3.4 ::1 1.2.3.4 ::1
+pass delete 1.2.3.4 ::1 1.2.3.4 ::1
+pass delete 1.2.3.4 ::1 1.2.3.4 ::1
+pass replace 1.2.3.4 ::1 1.2.3.4 ::1
+pass replace 1.2.3.4 ::1 1.2.3.4 ::1
+pass show

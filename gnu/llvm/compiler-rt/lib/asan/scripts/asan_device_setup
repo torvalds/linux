@@ -1,0 +1,466 @@
+#!/usr/bin/env bash
+#===- lib/asan/scripts/asan_device_setup -----------------------------------===#
+#
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# Prepare Android device to run ASan applications.
+#
+#===------------------------------------------------------------------------===#
+
+set -e
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+
+revert=no
+extra_options=
+device=
+lib=
+use_su=0
+
+function usage {
+    echo "usage: $0 [--revert] [--device device-id] [--lib path] [--extra-options options]"
+    echo "  --revert: Uninstall ASan from the device."
+    echo "  --lib: Path to ASan runtime library."
+    echo "  --extra-options: Extra ASAN_OPTIONS."
+    echo "  --device: Install to the given device. Use 'adb devices' to find"
+    echo "            device-id."
+    echo "  --use-su: Use 'su -c' prefix for every adb command instead of using"
+    echo "            'adb root' once."
+    echo
+    exit 1
+}
+
+function adb_push {
+  if [ $use_su -eq 0 ]; then
+    $ADB push "$1" "$2"
+  else
+    local FILENAME=$(basename $1)
+    $ADB push "$1" "/data/local/tmp/$FILENAME"
+    $ADB shell su -c "rm \\\"$2/$FILENAME\\\"" >&/dev/null
+    $ADB shell su -c "cat \\\"/data/local/tmp/$FILENAME\\\" > \\\"$2/$FILENAME\\\""
+    $ADB shell su -c "rm \\\"/data/local/tmp/$FILENAME\\\""
+  fi
+}
+
+function adb_remount {
+  if [ $use_su -eq 0 ]; then
+    $ADB remount
+  else
+    local STORAGE=`$ADB shell mount | grep /system | cut -d ' ' -f1`
+    if [ "$STORAGE" != "" ]; then
+      echo Remounting $STORAGE at /system
+      $ADB shell su -c "mount -o rw,remount $STORAGE /system"
+    else
+      echo Failed to get storage device name for "/system" mount point
+    fi
+  fi
+}
+
+function adb_shell {
+  if [ $use_su -eq 0 ]; then
+    $ADB shell $@
+  else
+    $ADB shell su -c "$*"
+  fi
+}
+
+function adb_root {
+  if [ $use_su -eq 0 ]; then
+    $ADB root
+  fi
+}
+
+function adb_wait_for_device {
+  $ADB wait-for-device
+}
+
+function adb_pull {
+  if [ $use_su -eq 0 ]; then
+    $ADB pull "$1" "$2"
+  else
+    local FILENAME=$(basename $1)
+    $ADB shell rm "/data/local/tmp/$FILENAME" >&/dev/null
+    $ADB shell su -c "[ -f \\\"$1\\\" ] && cat \\\"$1\\\" > \\\"/data/local/tmp/$FILENAME\\\" && chown root.shell \\\"/data/local/tmp/$FILENAME\\\" && chmod 755 \\\"/data/local/tmp/$FILENAME\\\"" &&
+    $ADB pull "/data/local/tmp/$FILENAME" "$2" >&/dev/null && $ADB shell "rm \"/data/local/tmp/$FILENAME\""
+  fi
+}
+
+function get_device_arch { # OUT OUT64
+    local _outvar=$1
+    local _outvar64=$2
+    local _ABI=$(adb_shell getprop ro.product.cpu.abi)
+    local _ARCH=
+    local _ARCH64=
+    if [[ $_ABI == x86* ]]; then
+        _ARCH=i686
+    elif [[ $_ABI == armeabi* ]]; then
+        _ARCH=arm
+    elif [[ $_ABI == arm64-v8a* ]]; then
+        _ARCH=arm
+        _ARCH64=aarch64
+    else
+        echo "Unrecognized device ABI: $_ABI"
+        exit 1
+    fi
+    eval $_outvar=\$_ARCH
+    eval $_outvar64=\$_ARCH64
+}
+
+while [[ $# > 0 ]]; do
+  case $1 in
+    --revert)
+      revert=yes
+      ;;
+    --extra-options)
+      shift
+      if [[ $# == 0 ]]; then
+        echo "--extra-options requires an argument."
+        exit 1
+      fi
+      extra_options="$1"
+      ;;
+    --lib)
+      shift
+      if [[ $# == 0 ]]; then
+        echo "--lib requires an argument."
+        exit 1
+      fi
+      lib="$1"
+      ;;
+    --device)
+      shift
+      if [[ $# == 0 ]]; then
+        echo "--device requires an argument."
+        exit 1
+      fi
+      device="$1"
+      ;;
+    --use-su)
+      use_su=1
+      ;;
+    *)
+      usage
+      ;;
+  esac
+  shift
+done
+
+ADB=${ADB:-adb}
+if [[ x$device != x ]]; then
+    ADB="$ADB -s $device"
+fi
+
+if [ $use_su -eq 1 ]; then
+  # Test if 'su' is present on the device
+  SU_TEST_OUT=`$ADB shell su -c "echo foo" 2>&1 | sed 's/\r$//'`
+  if [ $? != 0 -o "$SU_TEST_OUT" != "foo" ]; then
+    echo "ERROR: Cannot use 'su -c':"
+    echo "$ adb shell su -c \"echo foo\""
+    echo $SU_TEST_OUT
+    echo "Check that 'su' binary is correctly installed on the device or omit"
+    echo "            --use-su flag"
+    exit 1
+  fi
+fi
+
+echo '>> Remounting /system rw'
+adb_wait_for_device
+adb_root
+adb_wait_for_device
+adb_remount
+adb_wait_for_device
+
+get_device_arch ARCH ARCH64
+echo "Target architecture: $ARCH"
+ASAN_RT="libclang_rt.asan-$ARCH-android.so"
+if [[ -n $ARCH64 ]]; then
+  echo "Target architecture: $ARCH64"
+  ASAN_RT64="libclang_rt.asan-$ARCH64-android.so"
+fi
+
+RELEASE=$(adb_shell getprop ro.build.version.release)
+PRE_L=0
+if echo "$RELEASE" | grep '^4\.' >&/dev/null; then
+    PRE_L=1
+fi
+ANDROID_O=0
+if echo "$RELEASE" | grep '^8\.0\.' >&/dev/null; then
+    # 8.0.x is for Android O
+    ANDROID_O=1
+fi
+
+if [[ x$revert == xyes ]]; then
+    echo '>> Uninstalling ASan'
+
+    if ! adb_shell ls -l /system/bin/app_process | grep -o '\->.*app_process' >&/dev/null; then
+      echo '>> Pre-L device detected.'
+      adb_shell mv /system/bin/app_process.real /system/bin/app_process
+      adb_shell rm /system/bin/asanwrapper
+    elif ! adb_shell ls -l /system/bin/app_process64.real | grep -o 'No such file or directory' >&/dev/null; then
+      # 64-bit installation.
+      adb_shell mv /system/bin/app_process32.real /system/bin/app_process32
+      adb_shell mv /system/bin/app_process64.real /system/bin/app_process64
+      adb_shell rm /system/bin/asanwrapper
+      adb_shell rm /system/bin/asanwrapper64
+    else
+      # 32-bit installation.
+      adb_shell rm /system/bin/app_process.wrap
+      adb_shell rm /system/bin/asanwrapper
+      adb_shell rm /system/bin/app_process
+      adb_shell ln -s /system/bin/app_process32 /system/bin/app_process
+    fi
+
+    if [[ ANDROID_O -eq 1 ]]; then
+      adb_shell mv /system/etc/ld.config.txt.saved /system/etc/ld.config.txt
+    fi
+
+    echo '>> Restarting shell'
+    adb_shell stop
+    adb_shell start
+
+    # Remove the library on the last step to give a chance to the 'su' binary to
+    # be executed without problem.
+    adb_shell rm /system/lib/$ASAN_RT
+
+    echo '>> Done'
+    exit 0
+fi
+
+if [[ -d "$lib" ]]; then
+    ASAN_RT_PATH="$lib"
+elif [[ -f "$lib" && "$lib" == *"$ASAN_RT" ]]; then
+    ASAN_RT_PATH=$(dirname "$lib")
+elif [[ -f "$HERE/$ASAN_RT" ]]; then
+    ASAN_RT_PATH="$HERE"
+elif [[ $(basename "$HERE") == "bin" ]]; then
+    # We could be in the toolchain's base directory.
+    # Consider ../lib, ../lib/asan, ../lib/linux,
+    # ../lib/clang/$VERSION/lib/linux, and ../lib64/clang/$VERSION/lib/linux.
+    P=$(ls "$HERE"/../lib/"$ASAN_RT" \
+           "$HERE"/../lib/asan/"$ASAN_RT" \
+           "$HERE"/../lib/linux/"$ASAN_RT" \
+           "$HERE"/../lib/clang/*/lib/linux/"$ASAN_RT" \
+           "$HERE"/../lib64/clang/*/lib/linux/"$ASAN_RT" 2>/dev/null | sort | tail -1)
+    if [[ -n "$P" ]]; then
+        ASAN_RT_PATH="$(dirname "$P")"
+    fi
+fi
+
+if [[ -z "$ASAN_RT_PATH" || ! -f "$ASAN_RT_PATH/$ASAN_RT" ]]; then
+    echo ">> ASan runtime library not found"
+    exit 1
+fi
+
+if [[ -n "$ASAN_RT64" ]]; then
+  if [[ -z "$ASAN_RT_PATH" || ! -f "$ASAN_RT_PATH/$ASAN_RT64" ]]; then
+    echo ">> ASan runtime library not found"
+    exit 1
+  fi
+fi
+
+TMPDIRBASE=$(mktemp -d)
+TMPDIROLD="$TMPDIRBASE/old"
+TMPDIR="$TMPDIRBASE/new"
+mkdir "$TMPDIROLD"
+
+if ! adb_shell ls -l /system/bin/app_process | grep -o '\->.*app_process' >&/dev/null; then
+
+    if adb_pull /system/bin/app_process.real /dev/null >&/dev/null; then
+        echo '>> Old-style ASan installation detected. Reverting.'
+        adb_shell mv /system/bin/app_process.real /system/bin/app_process
+    fi
+
+    echo '>> Pre-L device detected. Setting up app_process symlink.'
+    adb_shell mv /system/bin/app_process /system/bin/app_process32
+    adb_shell ln -s /system/bin/app_process32 /system/bin/app_process
+fi
+
+echo '>> Copying files from the device'
+if [[ -n "$ASAN_RT64" ]]; then
+  adb_pull /system/lib/"$ASAN_RT" "$TMPDIROLD" || true
+  adb_pull /system/lib64/"$ASAN_RT64" "$TMPDIROLD" || true
+  adb_pull /system/bin/app_process32 "$TMPDIROLD" || true
+  adb_pull /system/bin/app_process32.real "$TMPDIROLD" || true
+  adb_pull /system/bin/app_process64 "$TMPDIROLD" || true
+  adb_pull /system/bin/app_process64.real "$TMPDIROLD" || true
+  adb_pull /system/bin/asanwrapper "$TMPDIROLD" || true
+  adb_pull /system/bin/asanwrapper64 "$TMPDIROLD" || true
+else
+  adb_pull /system/lib/"$ASAN_RT" "$TMPDIROLD" || true
+  adb_pull /system/bin/app_process32 "$TMPDIROLD" || true
+  adb_pull /system/bin/app_process.wrap "$TMPDIROLD" || true
+  adb_pull /system/bin/asanwrapper "$TMPDIROLD" || true
+fi
+cp -r "$TMPDIROLD" "$TMPDIR"
+
+if [[ -f "$TMPDIR/app_process.wrap" || -f "$TMPDIR/app_process64.real" ]]; then
+    echo ">> Previous installation detected"
+else
+    echo ">> New installation"
+fi
+
+echo '>> Generating wrappers'
+
+cp "$ASAN_RT_PATH/$ASAN_RT" "$TMPDIR/"
+if [[ -n "$ASAN_RT64" ]]; then
+  cp "$ASAN_RT_PATH/$ASAN_RT64" "$TMPDIR/"
+fi
+
+ASAN_OPTIONS=start_deactivated=1
+
+# The name of a symlink to libclang_rt.asan-$ARCH-android.so used in LD_PRELOAD.
+# The idea is to have the same name in lib and lib64 to keep it from falling
+# apart when a 64-bit process spawns a 32-bit one, inheriting the environment.
+ASAN_RT_SYMLINK=symlink-to-libclang_rt.asan
+
+function generate_zygote_wrapper { # from, to
+  local _from=$1
+  local _to=$2
+  if [[ PRE_L -eq 0 ]]; then
+    # LD_PRELOAD parsing is broken in N if it starts with ":". Luckily, it is
+    # unset in the system environment since L.
+    local _ld_preload=$ASAN_RT_SYMLINK
+  else
+    local _ld_preload=\$LD_PRELOAD:$ASAN_RT_SYMLINK
+  fi
+  cat <<EOF >"$TMPDIR/$_from"
+#!/system/bin/sh-from-zygote
+ASAN_OPTIONS=$ASAN_OPTIONS \\
+ASAN_ACTIVATION_OPTIONS=include_if_exists=/data/local/tmp/asan.options.%b \\
+LD_PRELOAD=$_ld_preload \\
+exec $_to "\$@"
+
+EOF
+}
+
+# On Android-L not allowing user segv handler breaks some applications.
+# Since ~May 2017 this is the default setting; included for compatibility with
+# older library versions.
+if [[ PRE_L -eq 0 ]]; then
+    ASAN_OPTIONS="$ASAN_OPTIONS,allow_user_segv_handler=1"
+fi
+
+if [[ x$extra_options != x ]] ; then
+    ASAN_OPTIONS="$ASAN_OPTIONS,$extra_options"
+fi
+
+# Zygote wrapper.
+if [[ -f "$TMPDIR/app_process64" ]]; then
+  # A 64-bit device.
+  if [[ ! -f "$TMPDIR/app_process64.real" ]]; then
+    # New installation.
+    mv "$TMPDIR/app_process32" "$TMPDIR/app_process32.real"
+    mv "$TMPDIR/app_process64" "$TMPDIR/app_process64.real"
+  fi
+  generate_zygote_wrapper "app_process32" "/system/bin/app_process32.real"
+  generate_zygote_wrapper "app_process64" "/system/bin/app_process64.real"
+else
+  # A 32-bit device.
+  generate_zygote_wrapper "app_process.wrap" "/system/bin/app_process32"
+fi
+
+# General command-line tool wrapper (use for anything that's not started as
+# zygote).
+cat <<EOF >"$TMPDIR/asanwrapper"
+#!/system/bin/sh
+LD_PRELOAD=$ASAN_RT_SYMLINK \\
+exec \$@
+
+EOF
+
+if [[ -n "$ASAN_RT64" ]]; then
+  cat <<EOF >"$TMPDIR/asanwrapper64"
+#!/system/bin/sh
+LD_PRELOAD=$ASAN_RT_SYMLINK \\
+exec \$@
+
+EOF
+fi
+
+function install { # from, to, chmod, chcon
+  local _from=$1
+  local _to=$2
+  local _mode=$3
+  local _context=$4
+  local _basename="$(basename "$_from")"
+  echo "Installing $_to/$_basename $_mode $_context"
+  adb_push "$_from" "$_to/$_basename"
+  adb_shell chown root.shell "$_to/$_basename"
+  if [[ -n "$_mode" ]]; then
+    adb_shell chmod "$_mode" "$_to/$_basename"
+  fi
+  if [[ -n "$_context" ]]; then
+    adb_shell chcon "$_context" "$_to/$_basename"
+  fi
+}
+
+if ! ( cd "$TMPDIRBASE" && diff -qr old/ new/ ) ; then
+    # Make SELinux happy by keeping app_process wrapper and the shell
+    # it runs on in zygote domain.
+    ENFORCING=0
+    if adb_shell getenforce | grep Enforcing >/dev/null; then
+        # Sometimes shell is not allowed to change file contexts.
+        # Temporarily switch to permissive.
+        ENFORCING=1
+        adb_shell setenforce 0
+    fi
+
+    if [[ PRE_L -eq 1 ]]; then
+        CTX=u:object_r:system_file:s0
+    else
+        CTX=u:object_r:zygote_exec:s0
+    fi
+
+    echo '>> Pushing files to the device'
+
+    if [[ -n "$ASAN_RT64" ]]; then
+      install "$TMPDIR/$ASAN_RT" /system/lib 644
+      install "$TMPDIR/$ASAN_RT64" /system/lib64 644
+      install "$TMPDIR/app_process32" /system/bin 755 $CTX
+      install "$TMPDIR/app_process32.real" /system/bin 755 $CTX
+      install "$TMPDIR/app_process64" /system/bin 755 $CTX
+      install "$TMPDIR/app_process64.real" /system/bin 755 $CTX
+      install "$TMPDIR/asanwrapper" /system/bin 755
+      install "$TMPDIR/asanwrapper64" /system/bin 755
+
+      adb_shell rm -f /system/lib/$ASAN_RT_SYMLINK
+      adb_shell ln -s $ASAN_RT /system/lib/$ASAN_RT_SYMLINK
+      adb_shell rm -f /system/lib64/$ASAN_RT_SYMLINK
+      adb_shell ln -s $ASAN_RT64 /system/lib64/$ASAN_RT_SYMLINK
+    else
+      install "$TMPDIR/$ASAN_RT" /system/lib 644
+      install "$TMPDIR/app_process32" /system/bin 755 $CTX
+      install "$TMPDIR/app_process.wrap" /system/bin 755 $CTX
+      install "$TMPDIR/asanwrapper" /system/bin 755 $CTX
+
+      adb_shell rm -f /system/lib/$ASAN_RT_SYMLINK
+      adb_shell ln -s $ASAN_RT /system/lib/$ASAN_RT_SYMLINK
+
+      adb_shell rm /system/bin/app_process
+      adb_shell ln -s /system/bin/app_process.wrap /system/bin/app_process
+    fi
+
+    adb_shell cp /system/bin/sh /system/bin/sh-from-zygote
+    adb_shell chcon $CTX /system/bin/sh-from-zygote
+
+    if [[ ANDROID_O -eq 1 ]]; then
+      # For Android O, the linker namespace is temporarily disabled.
+      adb_shell mv /system/etc/ld.config.txt /system/etc/ld.config.txt.saved
+    fi
+
+    if [ $ENFORCING == 1 ]; then
+        adb_shell setenforce 1
+    fi
+
+    echo '>> Restarting shell (asynchronous)'
+    adb_shell stop
+    adb_shell start
+
+    echo '>> Please wait until the device restarts'
+else
+    echo '>> Device is up to date'
+fi
+
+rm -r "$TMPDIRBASE"

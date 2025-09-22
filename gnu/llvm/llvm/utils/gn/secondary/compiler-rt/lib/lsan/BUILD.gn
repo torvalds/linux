@@ -1,0 +1,42 @@
+source_set("common_sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  defines = [ "UBSAN_CAN_USE_CXXABI" ]
+  deps = [
+    "//compiler-rt/lib/interception:sources",
+    "//compiler-rt/lib/sanitizer_common:sources",
+  ]
+  sources = [
+    "lsan_common.cpp",
+    "lsan_common.h",
+    "lsan_common_fuchsia.cpp",
+    "lsan_common_linux.cpp",
+    "lsan_common_mac.cpp",
+  ]
+}
+
+source_set("sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  defines = [ "UBSAN_CAN_USE_CXXABI" ]
+  deps = [
+    "//compiler-rt/lib/interception:sources",
+    "//compiler-rt/lib/sanitizer_common:sources",
+  ]
+  sources = [
+    "lsan.cpp",
+    "lsan.h",
+    "lsan_allocator.cpp",
+    "lsan_allocator.h",
+    "lsan_flags.inc",
+    "lsan_fuchsia.cpp",
+    "lsan_interceptors.cpp",
+    "lsan_linux.cpp",
+    "lsan_mac.cpp",
+    "lsan_malloc_mac.cpp",
+    "lsan_posix.cpp",
+    "lsan_preinit.cpp",
+    "lsan_thread.cpp",
+    "lsan_thread.h",
+  ]
+}

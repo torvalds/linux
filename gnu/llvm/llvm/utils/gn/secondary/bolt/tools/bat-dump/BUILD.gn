@@ -1,0 +1,9 @@
+executable("llvm-bat-dump") {
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [
+    "//bolt/lib/Profile",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "bat-dump.cpp" ]
+}

@@ -1,0 +1,10 @@
+___ctors
+___ctors_end
+___dtors
+___dtors_end
+__floatundidf
+__mcount
+fabsl
+frexpl
+ldexpl
+modfl

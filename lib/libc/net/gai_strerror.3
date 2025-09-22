@@ -1,0 +1,95 @@
+.\"	$OpenBSD: gai_strerror.3,v 1.11 2025/06/13 18:34:00 schwarze Exp $
+.\"	$KAME: gai_strerror.3,v 1.1 2005/01/05 03:04:47 itojun Exp $
+.\"
+.\" Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000, 2001  Internet Software Consortium.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt GAI_STRERROR 3
+.Os
+.Sh NAME
+.Nm gai_strerror
+.Nd get error message string from EAI_xxx error code
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netdb.h
+.Ft const char *
+.Fn gai_strerror "int ecode"
+.Sh DESCRIPTION
+The
+.Fn gai_strerror
+function returns an error message string corresponding to the error code
+returned by
+.Xr getaddrinfo 3
+or
+.Xr getnameinfo 3 .
+.Pp
+The following error codes and their meaning are defined in
+.In netdb.h :
+.Pp
+.Bl -tag -width "EAI_ADDRFAMILYXX" -offset indent -compact
+.It Dv EAI_ADDRFAMILY
+address family for
+.Fa name
+not supported
+.It Dv EAI_AGAIN
+temporary failure in name resolution
+.It Dv EAI_BADFLAGS
+invalid value for
+.Fa ai_flags
+.It Dv EAI_BADHINTS
+invalid value for
+.Fa hints
+.It Dv EAI_FAIL
+non-recoverable failure in name resolution
+.It Dv EAI_FAMILY
+.Fa ai_family
+not supported
+.It Dv EAI_MEMORY
+memory allocation failure
+.It Dv EAI_NODATA
+no address associated with
+.Fa name
+.It Dv EAI_NONAME
+.Fa name
+or
+.Fa service
+not provided, or not known
+.It Dv EAI_OVERFLOW
+argument buffer overflow
+.It Dv EAI_PROTOCOL
+resolved protocol is unknown
+.It Dv EAI_SERVICE
+.Fa service
+not supported for
+.Fa ai_socktype
+.It Dv EAI_SOCKTYPE
+.Fa ai_socktype
+not supported
+.It Dv EAI_SYSTEM
+system error (returned in
+.Va errno )
+.El
+.Sh RETURN VALUES
+.Fn gai_strerror
+returns a pointer to the error message string corresponding to
+.Fa ecode .
+If
+.Fa ecode
+is out of range, an implementation-specific error message string is returned.
+.Sh SEE ALSO
+.Xr getaddrinfo 3 ,
+.Xr getnameinfo 3

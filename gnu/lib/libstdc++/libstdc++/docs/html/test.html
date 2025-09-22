@@ -1,0 +1,599 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta name="AUTHOR" content="bkoz@gcc.gnu.org (Benjamin Kosnik)" />
+   <meta name="KEYWORDS" content="c++, libstdc++, test, regression, g++" />
+   <meta name="DESCRIPTION" content="README for the GNU libstdc++ effort." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 Testing Instructions</title>
+<link rel="StyleSheet" href="lib3styles.css" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Testing Details</a></h1>
+
+<p class="fineprint"><em>
+   The latest version of this document is always available at
+   <a href="http://gcc.gnu.org/onlinedocs/libstdc++/test.html">
+   http://gcc.gnu.org/onlinedocs/libstdc++/test.html</a>.
+</em></p>
+
+<p><em>
+   To the <a href="http://gcc.gnu.org/libstdc++/">libstdc++-v3 homepage</a>.
+</em></p>
+
+<!-- ####################################################### -->
+<hr />
+<h2>Contents</h2>
+<ul>
+   <li><a href="#org">Testsuite organization and naming conventions</a></li>
+   <li><a href="#util">Utilities: abicheck and libv3test</a></li>
+   <li><a href="#new">How to write a new test case</a></li>
+   <li><a href="#check">Options for running the tests</a></li>
+   <li><a href="#future">Future</a></li>
+</ul>
+
+<hr />
+
+<!-- ####################################################### -->
+
+<h2><a name="org">Testsuite organization and naming conventions</a></h2>
+   <p>
+      The directory <em>libsrcdir/testsuite</em> contains the test
+      files, test harness, and utility information for verifying the
+      correctness of C++ library on a given host. It includes the
+      following directories, each named after a specific chapter of
+      the C++ standard, and each containing test files or
+      subdirectories of test files that test for that particular part
+      of the standard.
+   </p>
+
+   <pre>
+17_intro
+18_support
+19_diagnostics
+20_util
+21_strings
+22_locale
+23_containers
+25_algorithms
+26_numerics
+27_io
+   </pre>
+
+   <p>
+      In addition, the following directories include test files:
+   </p>
+
+   <pre>
+backward	  Tests for backwards compatibility and deprecated features.
+demangle	  Tests for __cxa_demangle, the IA 64 C++ ABI demangler
+ext		  Tests for extensions.
+performance	  Tests for performance analysis, and performance regressions.
+thread		  Tests for threads.
+   </pre>
+   
+   <p>
+      Some directories don't have test files, but instead contain
+      auxiliary information:
+   </p>
+
+   <pre>
+config		  Files for the dejagnu test harness.
+lib		  Files for the dejagnu test harness.
+libstdc++-v3.dg	  Files for the dejagnu test harness.
+data		  Sample text files for testing input and output.
+   </pre>
+
+   <p>
+      Within a directory that includes test files, there may be
+      additional subdirectories, or files: this particular point is in
+      flux. Originally, test cases were appended to one file that
+      represented a particular section of the chapter under test, and
+      was named accordingly. For instance, to test items related to
+      <code> 21.3.6.1 - basic_string::find [lib.string::find]</code>
+      in the standard, the following was used:
+   </p>
+   <pre>
+21_strings/find.cc
+   </pre>   
+   <p>
+      However, that practice soon became a liability as the test cases
+      became huge and unwieldy, and testing new or extended
+      functionality (like wide characters or named locales) became
+      frustrating, leading to aggressive pruning of test cases on some
+      platforms that covered up implementation errors. Now, the test
+      suite is converging on a policy of one file, one test case,
+      which solves the above issues and gives finer grained results
+      and more manageable error debugging. As an example, the test case
+      quoted above becomes:
+   </p>
+   <pre>
+21_strings/basic_string/find/char/1.cc
+21_strings/basic_string/find/char/2.cc
+21_strings/basic_string/find/char/3.cc
+21_strings/basic_string/find/wchar_t/1.cc
+21_strings/basic_string/find/wchar_t/2.cc
+21_strings/basic_string/find/wchar_t/3.cc
+   </pre>   
+
+   <p>
+      All new tests should be written with the policy of one test
+      case, one file in mind. At some point the entire testsuite will
+      be converted: the current status is that the 21_string,
+      22_locale, 27_io, and demangle directories have all been
+      transitioned.
+   </p>
+
+   <p>
+      In addition, there are some special names and suffixes that are
+      used within the testsuite to designate particular kinds of
+      tests.
+   </p>
+ 
+<ul>
+<li>
+   <em>_xin.cc</em>
+   <p>
+      This test case expects some kind of interactive input in order
+      to finish or pass. At the moment, the interactive tests are not
+      run by default. Instead, they are run by hand, like:
+   </p>
+      <pre> 
+g++ 27_io/objects/char/3_xin.cc
+cat 27_io/objects/char/3_xin.in | a.out
+     </pre> 
+</li>
+<li>
+   <em>.in</em>
+   <p>
+      This file contains the expected input for the corresponding <em>
+      _xin.cc</em> test case.
+   </p>
+</li>
+<li>
+   <em>_neg.cc</em>
+   <p>
+      This test case is expected to fail: it's a negative test. At the
+      moment, these are almost always compile time errors.
+   </p>
+</li>
+<li>
+   <em>char</em>
+   <p>
+      This can either be a directory name or part of a longer file
+      name, and indicates that this file, or the files within this
+      directory are testing the <code>char</code> instantiation of a
+      template.
+   </p>
+</li>
+<li>
+   <em>wchar_t</em>
+   <p>
+      This can either be a directory name or part of a longer file
+      name, and indicates that this file, or the files within this
+      directory are testing the <code>wchar_t</code> instantiation of
+      a template. Some hosts do not support <code>wchar_t</code>
+      functionality, so for these targets, all of these tests will not
+      be run.
+   </p>
+</li>
+<li>
+   <em>performance</em>
+   <p>
+      This can either be an enclosing directory name or part of a
+      specific file name. This indicates a test that is used to
+      analyze runtime performance, for performance regression testing,
+      or for other optimization related analysis. At the moment, these
+      test cases are not run by default.
+   </p>
+</li>
+</ul>
+
+<hr />
+<h2><a name="util">Utilities: abicheck and libv3test</a></h2>
+  <p>
+   The testsuite directory also contains some files that implement
+   functionality that is intended to make writing test cases easier,
+   or to avoid duplication, or to provide error checking in a way that
+   is consistent across platforms and test harnesses. A stand-alone
+   executable, called <em>abi_check</em>, and a static library called
+   <em>libv3test</em> are constructed during the build. Both of these
+   items are not installed, and only used during testing.
+  </p>
+
+  <p>
+  These files include the following functionality:
+  </p>
+
+  <ul>
+     <li>
+       <em>abi_check.cc</em>
+       <p>
+        Creates the executable <em>abi_check</em>.
+        Used to check correctness of symbol versioning, visibility of
+        exported symbols, and compatibility on symbols in the shared
+        library, for hosts that support this feature. More information
+	can be found in the ABI documentation <a href="abi.txt"> here</a>
+       </p>
+     </li>
+     <li>
+       <em>testsuite_allocator.h and </em>
+       <em>testsuite_allocator.cc</em>
+       <p>
+        Specialized allocators that keep track of construction and destruction
+       </p>
+     </li>
+     <li>
+       <em>testsuite_hooks.h and </em>
+       <em>testsuite_hooks.cc</em>
+       <p>
+       A large number of utilities, including:
+       </p>
+       <ul>
+         <li>VERIFY</li>
+         <li>set_memory_limits</li>
+         <li>verify_demangle</li>
+         <li>run_tests_wrapped_locale</li>
+         <li>run_tests_wrapped_env</li>
+         <li>try_named_locale</li>
+         <li>counter</li>
+         <li>copy_constructor</li>
+         <li>assignment_operator</li>
+         <li>destructor</li>
+         <li>copy_tracker</li>
+         <li>pod_char, pod_int and associated char_traits specializations</li>
+       </ul>
+       <p></p>
+     </li>
+     <li>
+       <em>testsuite_performance.h</em>
+       <p>
+       A number of class abstractions for performance counters, and
+       reporting functions including:
+       </p>
+      <ul>
+         <li>time_counter</li>
+         <li>resource_counter</li>
+         <li>report_performance</li>
+      </ul>	
+       <p></p> 
+     </li>
+     <li>
+       <em>printnow.c</em>
+       <p>
+        A cross-platform timer for use in one of the older harnesses
+        to determine compilation and link time.
+       </p>
+     </li>
+  </ul>
+
+<hr />
+<h2><a name="new">How to write a new test case</a></h2>
+
+   <p>
+    The first step in making a new test case is to choose the correct
+    directory and file name, given the organization as previously
+    described. 
+   </p>
+
+   <p>
+    All files are copyright the FSF, and GPL'd: this is very
+    important.  The first copyright year should correspond to the date
+    the file was checked in to CVS.
+   </p>
+
+   <p>
+     As per the dejagnu instructions, always return 0 from main to
+     indicate success.
+   </p>
+
+   <p>
+   A bunch of utility functions and classes have already been
+   abstracted out into the testsuite utility library, <code>
+   libv3test</code>. To use this functionality, just include the
+   appropriate header file: the library will automatically be linked
+   in as part of the testsuite run.
+   </p>
+
+   <p>
+   For a test that needs to take advantage of the dejagnu test
+   harness, what follows below is a list of special keyword that
+   harness uses. Basically, a test case contains dg-keywords (see
+   dg.exp) indicating what to do and what kinds of behavior are to be
+   expected.  New test cases should be written with the new style
+   DejaGnu framework in mind.
+   </p>
+
+   <p>
+    To ease transition, here is the list of dg-keyword documentation
+    lifted from dg.exp.
+   </p>
+
+<pre>
+# The currently supported options are:
+#
+# dg-prms-id N
+#	set prms_id to N
+#
+# dg-options "options ..." [{ target selector }]
+#	specify special options to pass to the tool (eg: compiler)
+#
+# dg-do do-what-keyword [{ target/xfail selector }]
+#	`do-what-keyword' is tool specific and is passed unchanged to
+#	${tool}-dg-test.  An example is gcc where `keyword' can be any of:
+#	preprocess|compile|assemble|link|run
+#	and will do one of: produce a .i, produce a .s, produce a .o,
+#	produce an a.out, or produce an a.out and run it (the default is
+#	compile).
+#
+# dg-error regexp comment [{ target/xfail selector } [{.|0|linenum}]]
+#	indicate an error message &lt;regexp&gt; is expected on this line
+#	(the test fails if it doesn't occur)
+#	Linenum=0 for general tool messages (eg: -V arg missing).
+#	"." means the current line.
+#
+# dg-warning regexp comment [{ target/xfail selector } [{.|0|linenum}]]
+#	indicate a warning message &lt;regexp&gt; is expected on this line
+#	(the test fails if it doesn't occur)
+#
+# dg-bogus regexp comment [{ target/xfail selector } [{.|0|linenum}]]
+#	indicate a bogus error message &lt;regexp&gt; use to occur here
+#	(the test fails if it does occur)
+#
+# dg-build regexp comment [{ target/xfail selector }]
+#	indicate the build use to fail for some reason
+#	(errors covered here include bad assembler generated, tool crashes,
+#	and link failures)
+#	(the test fails if it does occur)
+#
+# dg-excess-errors comment [{ target/xfail selector }]
+#	indicate excess errors are expected (any line)
+#	(this should only be used sparingly and temporarily)
+#
+# dg-output regexp [{ target selector }]
+#	indicate the expected output of the program is &lt;regexp&gt;
+#	(there may be multiple occurrences of this, they are concatenated)
+#
+# dg-final { tcl code }
+#	add some tcl code to be run at the end
+#	(there may be multiple occurrences of this, they are concatenated)
+#	(unbalanced braces must be \-escaped)
+#
+# "{ target selector }" is a list of expressions that determine whether the
+# test succeeds or fails for a particular target, or in some cases whether the
+# option applies for a particular target.  If the case of `dg-do' it specifies
+# whether the test case is even attempted on the specified target.
+#
+# The target selector is always optional.  The format is one of:
+#
+# { xfail *-*-* ... } - the test is expected to fail for the given targets
+# { target *-*-* ... } - the option only applies to the given targets
+#
+# At least one target must be specified, use *-*-* for "all targets".
+# At present it is not possible to specify both `xfail' and `target'.
+# "native" may be used in place of "*-*-*".
+
+Example 1: Testing compilation only
+// { dg-do compile }
+
+Example 2: Testing for expected warnings on line 36, which all targets fail
+// { dg-warning "string literals" "" { xfail *-*-* } 36
+
+Example 3: Testing for expected warnings on line 36
+// { dg-warning "string literals" "" { target *-*-* } 36
+
+Example 4: Testing for compilation errors on line 41
+// { dg-do compile }
+// { dg-error "no match for" "" { target *-*-* } 41 }
+</pre>
+
+   <p>
+    More examples can be found in the libstdc++-v3/testsuite/*/*.cc files.
+   </p>
+
+<hr />
+<h2><a name="check">Options for running the tests</a></h2>
+
+   <p> There are several ways to run the testsuite. There are two
+   harnesses, one using dejagnu and one using bash. In addition, there
+   is a special rule for checking the ABI of the shared library.
+   </p>
+
+   <p>You can check the status of the build without installing it
+   using the dejagnu harness, much like the rest of the gcc tools.</p>
+   <pre> make check</pre>
+   <p>in the <em>libbuilddir</em> directory.</p>
+   <p>or</p>
+   <pre> make check-target-libstdc++-v3</pre>
+   <p>in the <em>gccbuilddir</em> directory.</p>
+
+   <p>
+      These commands are equivalent and will create a 'testsuite'
+      directory underneath <em>libbuilddir</em> containing the results
+      of the tests. Two results files will be generated: <em>
+      libstdc++-v3.sum</em>, which is a PASS/FAIL summary for each
+      test, and <em>libstdc++.log</em> which is a log of the exact
+      command line passed to the compiler, the compiler output, and
+      the executable output (if any). In addition, four files are
+      generated that determine what test files are run. These files
+      are:
+   </p>
+
+   <ul>
+     <li>
+     <em>testsuite_files </em>
+     <p> This is a list of all the test cases that will be run. Each
+      test case is on a separate line, given with an absolute path
+      from the <em>libsrcdir/testsuite</em> directory.
+     </p>
+     </li>
+
+     <li>
+     <em>testsuite_files_interactive </em>
+     <p> This is a list of all the interactive test cases, using the
+     same format as the file list above. These tests are not run by default.
+     </p>
+     </li>
+
+     <li>
+     <em>testsuite_files_performance</em>
+     <p> This is a list of all the performance test cases, using the
+     same format as the file list above. These tests are not run by default.
+     </p>
+     </li>
+
+     <li>
+     <em>testsuite_wchar_t </em>
+     <p> This file indicates that the host system can run the wchar_t
+     tests, and corresponds to the macro definition <code>
+     _GLIBCPP_USE_WCHAR_T</code> in the file c++config.h.
+     </p>
+     </li>
+    </ul>
+
+<p>
+To debug the dejagnu test harness during runs, try invoking with a
+specific argument to the variable RUNTESTFLAGS, as below.
+</p>
+
+<pre>
+make check-target-libstdc++-v3 RUNTESTFLAGS="-v"
+</pre>
+or
+<pre>
+make check-target-libstdc++-v3 RUNTESTFLAGS="-v -v"
+</pre>
+
+There are two ways to run on a simulator: set up DEJAGNU to point to a
+specially crafted site.exp, or pass down --target_board flags.
+
+Example flags to pass down for various embedded builds are as follows:
+
+<pre>
+--target=powerpc-eabism (libgloss/sim)
+make check-target-libstdc++-v3 RUNTESTFLAGS="--target_board=powerpc-sim"
+
+--target=calmrisc32 (libgloss/sid)
+make check-target-libstdc++-v3 RUNTESTFLAGS="--target_board=calmrisc32-sid"
+
+--target=xscale-elf (newlib/sim)
+make check-target-libstdc++-v3 RUNTESTFLAGS="--target_board=arm-sim"
+</pre>
+   
+   <p> In addition, there are some testing options that are mostly of
+   interest to library maintainers and system integrators. As such,
+   these tests may not work on all cpu and host combinations, and must
+   be executed in the <em>libbuilddir/testsuite</em> directory.  These options
+   include, but are not necessarily limited to, the following:
+   </p>
+
+   <p>
+   The library can also be tested using a bash script, instead of
+   the default dejagnu test harness.
+   </p> 
+   <pre>
+   make check-script</pre>
+   <p>
+      These commands use the generated test_file lists as above, but
+      run all the tests using both shared and static linking, and in
+      addition provide some additional diffing of expected output
+      files for the input/output tests. (This added diff may or may
+      not be useful or necessary at the moment.) In addition, these
+      tests provide size information for all the generated test cases,
+      so that size data for new compiler or linker features can be
+      collected. At one time timing information was attempted, so that
+      compile speeds, link speeds, etc. could be measured, however at
+      the moment all timing information is currently disabled.
+   </p>
+
+   <pre>
+   make check-script-install</pre>
+   <p> As directly above, but tests an installed library, not the
+      library and compiler in the build tree.
+   </p>
+
+   <pre>
+   make check-abi</pre>
+   <p>The library ABI can be tested. This involves testing the shared
+   library against an ABI-defining previous version. </p>
+
+   <pre>
+   make check-performance</pre>
+   <p>This rule runs through the <em>testsuite_files_performance</em>
+   test cases and collects information for performance analysis and
+   can be used to spot performance regressions. Various timing
+   information is collected, as well as number of hard page faults,
+   and memory used. This is not run by default, and the implementation
+   is in flux.
+</p>
+
+   <p>
+      We are interested in any strange failures of the
+      testsuite; please see <a href="faq/index.html#2_4">FAQ 2.4</a>
+      for which files to examine.
+   </p>
+
+<hr />
+<h2><a name="future">Future</a></h2>
+
+<p>
+Shared runs need to be implemented, for targets that support shared libraries.
+</p>
+
+<p>
+Diffing of expected output to standard streams needs to be finished off.
+</p>
+
+<p>
+The V3 testing framework supports, or will eventually support,
+additional keywords for the purpose of easing the job of writing
+test cases.  All V3-keywords are of the form <code>@xxx@</code>.
+Currently plans for supported keywords include:
+</p>
+
+<dl>
+<dt> <code> @require@ &lt;files&gt; </code> </dt>
+<dd>
+   <p>
+      The existence of &lt;files&gt; is essential for the test to complete
+      successfully.  For example, a test case foo.C using bar.baz as
+      input file could say
+   </p>
+   <pre>
+	    // @require@ bar.baz</pre>
+   <p>
+      The special variable % stands for the rootname, e.g. the
+      file-name without its `.C' extension.  Example of use (taken
+      verbatim from 27_io/filebuf.cc)
+   </p>
+   <pre>
+	   // @require@ %-*.tst %-*.txt</pre>
+</dd>
+<dt> <code> @diff@ &lt;first-list&gt; &lt;second-list&gt; </code> </dt>
+<dd>
+   <p>
+      After the test case compiles and ran successfully, diff
+      &lt;first-list&gt; against &lt;second-list&gt;, these lists should
+      have the same length.  The test fails if diff returns non-zero a
+      pair of files.
+   </p>
+</dd>
+</dl>
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

@@ -1,0 +1,377 @@
+.\"	$OpenBSD: mmap.2,v 1.70 2022/10/07 16:31:36 jmc Exp $
+.\"	$NetBSD: mmap.2,v 1.5 1995/06/24 10:48:59 cgd Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mmap.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: October 7 2022 $
+.Dt MMAP 2
+.Os
+.Sh NAME
+.Nm mmap
+.Nd map files or devices into memory
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft void *
+.Fn mmap "void *addr" "size_t len" "int prot" "int flags" "int fd" "off_t offset"
+.Sh DESCRIPTION
+The
+.Fn mmap
+function causes the contents of
+.Fa fd ,
+starting at
+.Fa offset ,
+to be mapped in memory at the given
+.Fa addr .
+The mapping will extend at least
+.Fa len
+bytes, subject to page alignment restrictions.
+.Pp
+The
+.Fa addr
+argument describes the address where the system should place the mapping.
+If the
+.Dv MAP_FIXED
+flag is specified, the allocation will happen at the specified address,
+replacing any previously established mappings in its range.
+Otherwise, the mapping will be placed at the available spot at
+.Fa addr ;
+failing that it will be placed "close by".
+If
+.Fa addr
+is
+.Dv NULL ,
+the system can pick any address.
+Except for
+.Dv MAP_FIXED
+mappings, the system will never replace existing mappings.
+.Pp
+The
+.Fa len
+argument describes the minimum amount of bytes the mapping will span.
+Since
+.Fn mmap
+maps pages into memory,
+.Fa len
+may be rounded up to hit a page boundary.
+If
+.Fa len
+is 0, the mapping will fail with
+.Er EINVAL .
+.Pp
+If an
+.Fa fd
+and
+.Fa offset
+are specified, the resulting address may end up not on a page boundary,
+in order to align the page offset in the
+.Fa addr
+to the page offset in
+.Fa offset .
+.Pp
+The protections (region accessibility) are specified in the
+.Fa prot
+argument.
+It should either be
+.Dv PROT_NONE
+.Pq no permissions
+or the bitwise OR of one or more of the following values:
+.Pp
+.Bl -tag -width "PROT_WRITEXX" -offset indent -compact
+.It Dv PROT_EXEC
+Pages may be executed.
+.It Dv PROT_READ
+Pages may be read.
+.It Dv PROT_WRITE
+Pages may be written.
+.El
+.Pp
+The
+.Fa flags
+parameter specifies the type of the mapped object, mapping options, and
+whether modifications made to the mapped copy of the page are private
+to the process or are to be shared with other references.
+Sharing, mapping type, and options are specified in the
+.Fa flags
+argument by OR'ing the following values.
+Exactly one of the first two values must be specified:
+.Bl -tag -width MAP_ANONYMOUS -offset indent
+.It Dv MAP_PRIVATE
+Modifications are private.
+.It Dv MAP_SHARED
+Modifications are shared.
+.El
+.Pp
+Any combination of the following flags may additionally be used:
+.Bl -tag -width MAP_ANONYMOUS -offset indent
+.It Dv MAP_ANON
+Map anonymous memory not associated with any specific file.
+The file descriptor used for creating
+.Dv MAP_ANON
+must currently be \-1 indicating no name is associated with the
+region.
+.It Dv MAP_ANONYMOUS
+Synonym for
+.Dv MAP_ANON .
+.It Dv MAP_FIXED
+Demand that the mapping is placed at
+.Fa addr ,
+rather than having the system select a location.
+.Fa addr ,
+.Fa len
+and
+.Fa offset
+(in the case of
+.Fa fd
+mappings)
+must be multiples of the page size.
+Existing mappings in the address range will be replaced.
+Use of this option is discouraged.
+.It Dv MAP_STACK
+Indicate that the mapping is used as a stack.
+This flag must be used in combination with
+.Dv MAP_ANON
+and
+.Dv MAP_PRIVATE .
+.It Dv MAP_CONCEAL
+Exclude the mapping from core dumps.
+.El
+.Pp
+Finally, the following flags are also provided for
+source compatibility with code written for other operating systems,
+but are not recommended for use in new
+.Ox
+code:
+.Bl -tag -width MAP_ANONYMOUS -offset indent
+.It Dv MAP_COPY
+Modifications are private and, unlike
+.Dv MAP_PRIVATE ,
+modifications made by others are not visible.
+On
+.Ox
+this behaves just like
+.Dv MAP_PRIVATE .
+.It Dv MAP_FILE
+Mapped from a regular file, character special file, or block special file
+specified by file descriptor
+.Fa fd .
+On
+.Ox
+and all systems conforming to
+.St -p1003.1-2008
+this is the default mapping type and need not be specified.
+.It Dv MAP_HASSEMAPHORE
+Notify the kernel that the region may contain semaphores and that special
+handling may be necessary.
+On
+.Ox
+this flag is ignored.
+.It Dv MAP_INHERIT
+Permit regions to be inherited across
+.Xr execve 2
+system calls.
+On
+.Ox
+this flag is ignored.
+.It Dv MAP_TRYFIXED
+Attempt to use the hint provided by
+.Fa addr .
+On
+.Ox
+this is the default behavior.
+.El
+.Pp
+The
+.Xr close 2
+function does not unmap pages; see
+.Xr munmap 2
+for further information.
+.Sh RETURN VALUES
+The
+.Fn mmap
+function returns a pointer to the mapped region if successful;
+otherwise the value
+.Dv MAP_FAILED
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+A successful return from
+.Fn mmap
+will never return the value
+.Dv MAP_FAILED .
+.Sh ERRORS
+.Fn mmap
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+The flag
+.Dv PROT_READ
+was specified as part of the
+.Fa prot
+parameter and
+.Fa fd
+was not open for reading.
+The flags
+.Dv MAP_SHARED
+and
+.Dv PROT_WRITE
+were specified as part
+of the
+.Fa flags
+and
+.Fa prot
+parameters and
+.Fa fd
+was not open for writing.
+.It Bq Er EBADF
+.Fa fd
+is not a valid open file descriptor.
+.It Bq Er EINVAL
+.Dv MAP_PRIVATE
+and
+.Dv MAP_SHARED
+were both specified.
+.It Bq Er EINVAL
+.Dv MAP_FIXED
+was specified and the
+.Fa addr
+parameter was not page aligned.
+.It Bq Er EINVAL
+.Fa addr
+and
+.Fa len
+specified a region that would extend beyond the end of the address space.
+.It Bq Er EINVAL
+.Fa fd
+did not specify a regular, character special, or block special file.
+.It Bq Er EINVAL
+.Fa fd
+specified a character special or block special file and the underlying
+device does not support memory mapping.
+.It Bq Er EINVAL
+The allocation
+.Fa len
+was 0.
+.It Bq Er ENOMEM
+.Dv MAP_FIXED
+was specified and the
+.Fa addr
+parameter wasn't available.
+.Dv MAP_ANON
+was specified and insufficient memory was available.
+.It Bq Er ENOTSUP
+The accesses requested in the
+.Fa prot
+argument are not allowed.
+In particular,
+.Dv PROT_WRITE | PROT_EXEC
+mappings are not permitted unless the filesystem is mounted
+.Cm wxallowed
+and the process is link-time tagged with
+.Cm wxneeded .
+(See also
+.Dv kern.wxabort
+in
+.Xr sysctl 2
+for a method to diagnose failure).
+.It Bq Er EPERM
+The
+.Fa addr
+and
+.Fa len
+parameters
+specify a region which contains at least one page marked immutable.
+.El
+.Sh SEE ALSO
+.Xr madvise 2 ,
+.Xr mimmutable 2 ,
+.Xr mlock 2 ,
+.Xr mprotect 2 ,
+.Xr mquery 2 ,
+.Xr msync 2 ,
+.Xr munmap 2 ,
+.Xr getpagesize 3 ,
+.Xr core 5
+.Sh STANDARDS
+The
+.Fn mmap
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+.\" A mmap() system call stub appeared in 4.1c BSD,
+.\" but the functionality wasn't implemented.
+A fully functional
+.Fn mmap
+system call first appeared in SunOS 4.0
+and has been available since
+.Bx 4.3 Net/2 .
+.Sh CAVEATS
+.St -p1003.1-2008
+specifies that references to pages beyond the end of a mapped object
+shall generate a
+.Dv SIGBUS
+signal; however, on some architectures
+.Ox
+generates a
+.Dv SIGSEGV
+signal in this case instead.
+.Pp
+Additionally,
+.St -p1003.1-2008
+specifies that
+.Fn mmap
+shall fail with
+.Er EINVAL
+if neither
+.Dv MAP_PRIVATE
+nor
+.Dv MAP_SHARED
+is specified by
+.Fa flags ;
+however, for compatibility with old programs,
+.Ox
+instead defaults to
+.Dv MAP_SHARED
+for mappings of character special files, and to
+.Dv MAP_PRIVATE
+for all other mappings.
+New programs should not rely on this behavior.
+.Sh BUGS
+Due to a limitation of the current vm system (see
+.Xr uvm_init 9 ) ,
+mapping descriptors
+.Dv PROT_WRITE
+without also specifying
+.Dv PROT_READ
+is useless
+(results in a segmentation fault when first accessing the mapping).
+This means that such descriptors must be opened with
+.Dv O_RDWR ,
+which requires both read and write permissions on the underlying
+object.

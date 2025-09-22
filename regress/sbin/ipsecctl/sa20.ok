@@ -1,0 +1,4 @@
+ipcomp tunnel from 3ffe::1 to 3ffe::2 spi 0x00001000 comp deflate
+ipcomp tunnel from 3ffe::2 to 3ffe::1 spi 0x00001001 comp deflate
+ipcomp tunnel from 3ffe::3 to 3ffe::4 spi 0x00002000 comp deflate
+ipcomp tunnel from 3ffe::4 to 3ffe::3 spi 0x00002001 comp deflate

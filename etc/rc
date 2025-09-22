@@ -1,0 +1,683 @@
+#	$OpenBSD: rc,v 1.586 2025/09/17 10:13:15 deraadt Exp $
+
+# System startup script run by init on autoboot or after single-user.
+# Output and error are redirected to console by init, and the console is the
+# controlling terminal.
+
+# Turn off Strict Bourne shell.
+set +o sh
+
+# Subroutines (have to come first).
+
+# Strip in- and whole-line comments from a file.
+# Strip leading and trailing whitespace if IFS is set.
+# Usage: stripcom /path/to/file
+stripcom() {
+	local _file=$1 _line
+
+	[[ -s $_file ]] || return
+
+	while read _line ; do
+		_line=${_line%%#*}
+		[[ -n $_line ]] && print -r -- "$_line"
+	done <$_file
+}
+
+# Update resource limits based on login.conf settings.
+# Usage: update_limit -flag capability
+update_limit() {
+	local _flag=$1		# ulimit flag
+	local _cap=$2 _val	# login.conf capability and its value
+	local _suffix
+
+	for _suffix in {,-max,-cur}; do
+		_val=$(getcap -f /etc/login.conf -s ${_cap}${_suffix} daemon 2>/dev/null)
+		[[ -n $_val ]] || continue
+		[[ $_val == infinity ]] && _val=unlimited
+
+		case $_suffix in
+		-cur)	ulimit -S $_flag $_val
+			;;
+		-max)	ulimit -H $_flag $_val
+			;;
+		*)	ulimit $_flag $_val
+			return
+			;;
+		esac
+	done
+}
+
+# Apply sysctl.conf(5) settings.
+sysctl_conf() {
+	[[ -s /etc/sysctl.conf ]] && sysctl -f /etc/sysctl.conf
+	update_limit -p maxproc   $(sysctl -n kern.maxproc)
+	update_limit -n openfiles $(sysctl -n kern.maxfiles)
+}
+
+# Apply mixerctl.conf(5) settings.
+mixerctl_conf() {
+	stripcom /etc/mixerctl.conf |
+	while read _line; do
+		mixerctl -q "$_line" 2>/dev/null
+	done
+}
+
+# Apply wsconsctl.conf(5) settings.
+wsconsctl_conf() {
+	[[ -x /sbin/wsconsctl ]] || return
+
+	stripcom /etc/wsconsctl.conf |
+	while read _line; do
+		eval "wsconsctl $_line"
+	done
+}
+
+# Push the old seed into the kernel and create future seeds for the bootloader,
+# the installer and rc(8).
+store_random() {
+	local _bootseed=/etc/random.seed _hostseed=/var/db/host.random
+
+	dd if=$_hostseed of=/dev/random bs=65536 count=1 status=none
+
+	dd if=/dev/random of=$_bootseed bs=512   count=1 status=none
+	dd if=/dev/random of=$_hostseed bs=65536 count=1 status=none
+
+	# Removal of the sticky bit indicates the file has fresh contents for
+	# use by a subsequent bootloader (who sets the sticky bit to prevent
+	# content reuse).
+	chmod u=rw-t,go= $_bootseed $_hostseed
+}
+
+# Populate net.inet.(tcp|udp).baddynamic with the contents of /etc/services so
+# as to avoid randomly allocating source ports that correspond to well-known
+# services.
+# Usage: fill_baddynamic tcp|udp
+fill_baddynamic() {
+	local _service=$1
+	local _sysctl="net.inet.${_service}.baddynamic"
+
+	stripcom /etc/services |
+	{
+		_ban=
+		while IFS=" 	/" read _name _port _srv _junk; do
+			[[ $_srv == $_service ]] || continue
+
+			_ban="${_ban:+$_ban,}+$_port"
+
+			# Flush before argv gets too long
+			if ((${#_ban} > 1024)); then
+				sysctl -q "$_sysctl=$_ban"
+				_ban=
+			fi
+		done
+		[[ -n $_ban ]] && sysctl -q "$_sysctl=$_ban"
+	}
+}
+
+# Start daemon using the rc.d daemon control scripts.
+# Usage: start_daemon daemon1 daemon2 daemon3
+start_daemon() {
+	local _daemon
+
+	for _daemon; do
+		eval "_do=\${${_daemon}_flags}"
+		[[ $_do != NO ]] && /etc/rc.d/${_daemon} start
+	done
+}
+
+# Generate keys for isakmpd, iked and sshd if they don't exist yet.
+make_keys() {
+	local _isakmpd_key=/etc/isakmpd/private/local.key
+	local _isakmpd_pub=/etc/isakmpd/local.pub
+	local _iked_key=/etc/iked/private/local.key
+	local _iked_pub=/etc/iked/local.pub
+	local _ssh_pub=/etc/ssh/ssh_host_ed25519_key.pub _show_ssh_fp=false
+
+	if [[ ! -f $_isakmpd_key ]]; then
+		echo -n "openssl: generating isakmpd RSA keys... "
+		if openssl genrsa -out $_isakmpd_key 2048 >/dev/null 2>&1 &&
+			chmod 600 $_isakmpd_key &&
+			openssl rsa -out $_isakmpd_pub -in $_isakmpd_key \
+			    -pubout >/dev/null 2>&1; then
+			echo done.
+		else
+			echo failed.
+		fi
+	fi
+
+	if [[ ! -f $_iked_key ]]; then
+		echo -n "openssl: generating iked ECDSA keys... "
+		if openssl ecparam -genkey -name prime256v1 -out $_iked_key >/dev/null 2>&1 &&
+			chmod 600 $_iked_key &&
+			openssl ec -out $_iked_pub -in $_iked_key \
+			    -pubout >/dev/null 2>&1; then
+			echo done.
+		else
+			echo failed.
+		fi
+	fi
+
+	[[ -f $_ssh_pub ]] || _show_ssh_fp=true
+	ssh-keygen -A
+	$_show_ssh_fp && ssh-keygen -lf $_ssh_pub |
+	    (read sz fp comm type && echo "sshd: $type $fp")
+
+	if [[ ! -f /etc/soii.key ]]; then
+		openssl rand -hex 16 > /etc/soii.key && chmod 600 /etc/soii.key
+	fi
+}
+
+# Re-link libraries, placing the objects in a random order.
+reorder_libs() {
+	local _error=false _dkdev _liba _libas _mp _ro_list _tmpdir
+	local _relink=/usr/share/relink
+
+	[[ $library_aslr == NO ]] && return
+
+	# Skip if /usr/lib, /usr/libexec or /usr/share/relink are on nfs mounted
+	# filesystems, otherwise record which ones are mounted read-only.
+	for _dkdev in $(df /usr/{lib,libexec} $_relink |
+	    sed '1d;s/ .*//' | sort -u); do
+		_mp=$(mount -t ffs | grep "^$_dkdev") || return
+		if [[ $_mp == *read-only* ]]; then
+			_ro_list="$_ro_list ${_mp%% *}"
+		fi
+	done
+
+	echo 'reordering:'
+
+	# Remount the (read-only) filesystems in _ro_list as read-write.
+	for _mp in $_ro_list; do
+		if ! mount -u -w $_mp; then
+			echo '(failed).'
+			return
+		fi
+	done
+
+	# Only choose the latest version of the libraries.
+	for _liba in $_relink/usr/lib/lib{c,crypto}; do
+		_libas="$_libas $(ls $_liba.so.+([0-9.]).a | sort -rV | head -1)"
+	done
+
+	for _liba in $_relink/usr/libexec/ld.so.a $_libas; do
+		_tmpdir=$(mktemp -dq $_relink/_rebuild.XXXXXXXXXXXX) &&
+		(
+		set -o errexit
+		_install='install -F -o root -g bin -m 0444'
+		_lib=${_liba##*/}
+		_lib=${_lib%.a}
+		_lib_dir=${_liba#$_relink}
+		_lib_dir=${_lib_dir%/*}
+		cd $_tmpdir
+		ar x $_liba
+		if [[ $_lib == ld.so ]]; then
+			echo " $_lib"
+			args="-g -x -e _dl_start \
+			    --version-script=Symbols.map --shared -Bsymbolic \
+			    --no-undefined"
+			[[ -f ld.script ]] && args="$args -T ld.script"
+			ld $args -o ld.so.test $(ls *.o | sort -R)
+			chmod u+x test-ld.so
+			[[ $(./test-ld.so ok) == './test-ld.so: ok!' ]]
+			$_install /usr/libexec/ld.so /usr/libexec/ld.so.save
+			$_install ld.so.test $_lib_dir/ld.so
+		else
+			echo " ${_lib%%.*}"
+			cc -shared -o $_lib $(ls *.so | sort -R) $(<.ldadd)
+			[[ -s $_lib ]] && file $_lib | fgrep -q 'shared object'
+			LD_BIND_NOW=1 LD_LIBRARY_PATH=$_tmpdir awk 'BEGIN {exit 0}'
+			LD_BIND_NOW=1 LD_LIBRARY_PATH=$_tmpdir openssl \
+			    x509 -in /etc/ssl/cert.pem -out /dev/null
+			$_install $_lib $_lib_dir/$_lib
+		fi
+		) || { _error=true; break; }
+	done
+
+	for _bin in $_relink/usr/sbin/sshd $_relink/usr/libexec/sshd-session \
+	    $_relink/usr/libexec/sshd-auth $_relink/usr/bin/ssh-agent; do
+		_tmpdir=$(mktemp -dq $_relink/_rebuild.XXXXXXXXXXXX) &&
+		(
+		set -o errexit
+		cd $_tmpdir
+		_binn=${_bin##*/}
+		_bint=${_bin}/${_binn}.tar
+		if [[ -f $_bint ]]; then
+			echo " $_binn"
+			tar xf $_bint
+			if [[ -f install.sh ]]; then
+				sh install.sh >/dev/null 2>&1
+			else
+				make -f Makefile.relink relink >/dev/null 2>&1
+			fi
+		fi
+		) || { _error=true; break; }
+	done
+
+	rm -rf $_relink/_rebuild.*
+
+	# Restore previous mount state if it was changed.
+	for _mp in $_ro_list; do
+		mount -u -r $_mp || _error=true
+	done
+
+	if $_error; then
+		echo '(failed).'
+	else
+		echo '.'
+	fi
+}
+
+# Read output of reorder_libs co-process and output on console.
+wait_reorder_libs() {
+	local _line
+
+	[[ $library_aslr == NO ]] && return
+
+	while IFS= read -p _line; do
+		echo -n "$_line"
+	done
+	echo
+}
+
+# Run rc.* script and email output to root.
+# Usage: run_upgrade_script firsttime|sysmerge
+run_upgrade_script() {
+	local _suffix=$1
+
+	[[ -n $_suffix ]] || return 1
+
+	if [[ -f /etc/rc.$_suffix ]]; then
+		echo "running rc.$_suffix"
+		mv /etc/rc.$_suffix /etc/rc.$_suffix.run
+		. /etc/rc.$_suffix.run 2>&1 | tee /dev/tty |
+			mail -Es "$(hostname) rc.$_suffix output" root >/dev/null
+	fi
+	rm -f /etc/rc.$_suffix.run
+}
+
+# If system still has old 16-partition disklabel, create fallback device nodes
+# for the root filesystem to allow repair in a future kernel with 64-partition
+# disklabel.  This is important if root isn't on sd0 or wd0.  When things fail:
+#   fsck /dev/rrootdisk
+#   mount -uw /dev/rootdisk /
+#   cd /dev && ./MAKEDEV redodisks
+rootdisk_nodes() {
+	if [ $(sysctl -n kern.maxpartitions) = 16 ]; then
+		_rootdev=$(mount | grep ' / ' | cut -d' ' -f1)
+		_maj=$(stat -f "%Hr" $_rootdev)
+		_min=$(stat -f "%Lr" $_rootdev)
+		_rrootdev=$(echo $_rootdev | sed -e 's,dev/,dev/r,')
+		_rmaj=$(stat -f "%Hr" $_rrootdev)
+		_min=$((_min / 16 * 64))
+		rm -f /dev/rrootdisk /dev/rootdisk
+		mknod -m 600 /dev/rrootdisk c $_rmaj $_min
+		mknod -m 600 /dev/rootdisk b $_maj $_min
+	fi
+}
+
+# Check filesystems, optionally by using a fsck(8) flag.
+# Usage: do_fsck [-flag]
+do_fsck() {
+	fsck -p "$@"
+	case $? in
+	0)	;;
+	2)	exit 1
+		;;
+	4)	echo "Rebooting..."
+		reboot
+		echo "Reboot failed; help!"
+		exit 1
+		;;
+	8)	echo "Automatic file system check failed; help!"
+		exit 1
+		;;
+	12)	echo "Boot interrupted."
+		exit 1
+		;;
+	130)	# Interrupt before catcher installed.
+		exit 1
+		;;
+	*)	echo "Unknown error; help!"
+		exit 1
+		;;
+	esac
+}
+
+# End subroutines.
+
+stty status '^T'
+
+# Set shell to ignore SIGINT (2), but not children; shell catches SIGQUIT (3)
+# and returns to single user after fsck.
+trap : 2
+trap : 3	# Shouldn't be needed.
+
+export HOME=/
+export INRC=1
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+# /etc/myname contains my symbolic name.
+if [[ -f /etc/myname ]]; then
+	hostname "$(stripcom /etc/myname)"
+fi
+
+# Must set the domainname before rc.conf, so YP startup choices can be made.
+if [[ -s /etc/defaultdomain && -z "$(sysctl -n kern.domainname)" ]]; then
+	domainname "$(stripcom /etc/defaultdomain)"
+fi
+
+# Get local functions from rc.subr to load rc.conf into scope.
+FUNCS_ONLY=1 . /etc/rc.d/rc.subr
+_rc_parse_conf
+
+# If executed with the 'shutdown' parameter by the halt, reboot or shutdown:
+# - update seed files
+# - execute the rc.d scripts specified by $pkg_scripts in reverse order
+# - bring carp interfaces down gracefully
+if [[ $1 == shutdown ]]; then
+	store_random 2>/dev/null ||
+		echo 'warning: cannot write random seed to disk'
+
+	# If we are in secure level 0, assume single user mode.
+	if (($(sysctl -n kern.securelevel) == 0)); then
+		echo 'single user: not running shutdown scripts'
+	else
+		set -A _d -- $pkg_scripts
+		_i=${#_d[*]}
+		if ((_i)); then
+			echo -n 'stopping package daemons:'
+			while ((--_i >= 0)); do
+				[[ -x /etc/rc.d/${_d[_i]} ]] &&
+					/etc/rc.d/${_d[_i]} stop
+			done
+			echo '.'
+		fi
+
+		if /etc/rc.d/vmd check > /dev/null; then
+			echo -n 'stopping VMs'
+			/etc/rc.d/vmd stop > /dev/null
+			echo '.'
+		fi
+
+		[[ -f /etc/rc.shutdown ]] && sh /etc/rc.shutdown
+	fi
+
+	ifconfig | while read _if _junk; do
+		[[ $_if == carp+([0-9]): ]] && ifconfig ${_if%:} down
+	done
+
+	exit 0
+fi
+
+# If bootblocks failed to give us random, try to cause some churn
+(dmesg; sysctl hw.{uuid,serialno,sensors} ) >/dev/random 2>&1
+
+# Add swap block-devices.
+swapctl -A -t blk
+
+# Run filesystem check unless a /fastboot file exists.
+if [[ -e /fastboot ]]; then
+	echo "Fast boot: skipping disk checks."
+elif [[ $1 == autoboot ]]; then
+	echo "Automatic boot in progress: starting file system checks."
+	do_fsck
+fi
+
+# From now on, allow user to interrupt (^C) the boot process.
+trap "echo 'Boot interrupted.'; exit 1" 3
+
+# Unmount all filesystems except root.
+umount -a >/dev/null 2>&1
+
+# Mount all filesystems except those of type NFS and VND.
+mount -a -t nonfs,vnd
+
+# Re-mount the root filesystem read/writeable. (root on nfs requires this,
+# others aren't hurt.)
+mount -uw /
+chmod og-rwx /bsd
+ln -fh /bsd /bsd.booted
+
+rm -f /fastboot
+
+rootdisk_nodes
+
+# Set flags on ttys.
+ttyflags -a
+
+# Set keyboard encoding.
+if [[ -x /sbin/kbd && -s /etc/kbdtype ]]; then
+	kbd "$(</etc/kbdtype)"
+fi
+
+wsconsctl_conf
+
+# Set initial temporary pf rule set.
+if [[ $pf != NO ]]; then
+	RULES="
+	block all
+	pass on lo0
+	pass in proto tcp from any to any port ssh keep state
+	pass out proto { tcp, udp } from any to any port domain keep state
+	pass out inet proto icmp all icmp-type echoreq keep state
+	pass out inet proto udp from any port bootpc to any port bootps
+	pass in inet proto udp from any port bootps to any port bootpc"
+
+	if ifconfig lo0 inet6 >/dev/null 2>&1; then
+		RULES="$RULES
+		pass out inet6 proto icmp6 all icmp6-type neighbrsol
+		pass inet6 proto icmp6 all icmp6-type neighbradv no state
+		pass out inet6 proto icmp6 all icmp6-type routersol
+		pass in inet6 proto icmp6 all icmp6-type routeradv
+		pass out inet6 proto udp from any port dhcpv6-client to any port dhcpv6-server
+		pass in inet6 proto udp from any port dhcpv6-server to any port dhcpv6-client"
+	fi
+
+	RULES="$RULES
+	pass in proto carp keep state (no-sync)
+	pass out proto carp !received-on any keep state (no-sync)"
+
+	if (($(sysctl -n vfs.mounts.nfs 2>/dev/null)+0 > 0)); then
+		# Don't kill NFS.
+		RULES="set reassemble yes no-df
+		$RULES
+		pass in proto { tcp, udp } from any port { sunrpc, nfsd } to any
+		pass out proto { tcp, udp } from any to any port { sunrpc, nfsd } !received-on any"
+	fi
+
+	print -- "$RULES" | pfctl -f -
+	pfctl -e
+fi
+
+fill_baddynamic udp
+fill_baddynamic tcp
+
+sysctl_conf
+
+mount -s /var >/dev/null 2>&1		# cannot be on NFS
+mount -s /var/log >/dev/null 2>&1	# cannot be on NFS
+mount -s /usr >/dev/null 2>&1		# if NFS, fstab must use IP address
+
+reorder_libs 2>&1 |&
+
+start_daemon slaacd dhcpleased resolvd >/dev/null 2>&1
+
+echo 'starting network'
+
+# Set carp interlock by increasing the demotion counter.
+# Prevents carp from preempting until the system is booted.
+ifconfig -g carp carpdemote 128
+
+sh /etc/netstart
+
+start_daemon unwind >/dev/null 2>&1
+
+store_random
+
+wait_reorder_libs
+
+# Load pf rules and bring up pfsync interface.
+if [[ $pf != NO ]]; then
+	if [[ -f /etc/pf.conf ]]; then
+		pfctl -f /etc/pf.conf
+	fi
+	if [[ -f /etc/hostname.pfsync0 ]]; then
+		sh /etc/netstart pfsync0
+	fi
+fi
+
+# Clean up left-over files.
+rm -f /etc/nologin /var/spool/lock/LCK.*
+(cd /var/run && { rm -rf -- *; install -c -m 664 -g utmp /dev/null utmp; })
+(cd /var/authpf && rm -rf -- *)
+
+# Save a copy of the boot messages.
+dmesg >/var/run/dmesg.boot
+
+make_keys
+
+echo -n 'starting early daemons:'
+start_daemon syslogd ldattach bpflogd pflogd nsd unbound ntpd
+start_daemon iscsid isakmpd iked sasyncd ldapd npppd
+echo '.'
+
+# Load IPsec rules.
+if [[ $ipsec != NO && -f /etc/ipsec.conf ]]; then
+	ipsecctl -f /etc/ipsec.conf
+fi
+
+echo -n 'starting RPC daemons:'
+start_daemon portmap
+if [[ -n $(domainname) ]]; then
+	start_daemon ypldap ypserv ypbind
+fi
+start_daemon mountd nfsd lockd statd amd
+echo '.'
+
+# Check and mount remaining file systems and enable additional swap.
+mount -a
+swapctl -A -t noblk
+do_fsck -N
+mount -a -N
+
+# Build kvm(3) and /dev databases.
+kvm_mkdb
+dev_mkdb
+
+# /var/crash should be a directory or a symbolic link to the crash directory
+# if core dumps are to be saved.
+if [[ -d /var/crash ]]; then
+	savecore $savecore_flags /var/crash
+fi
+
+# Store ACPI tables in /var/db/acpi to be used by sendbug(1).
+if [[ -x /usr/sbin/acpidump ]]; then
+	acpidump -q -o /var/db/acpi/
+fi
+
+if [[ $check_quotas == YES ]]; then
+	echo -n 'checking quotas:'
+	quotacheck -a
+	echo ' done.'
+	quotaon -a
+fi
+
+# Set proper permission for the tty device files.
+chmod 666 /dev/tty[pqrstuvwxyzPQRST]*
+chown root:wheel /dev/tty[pqrstuvwxyzPQRST]*
+
+# Check for the password temp/lock file.
+if [[ -f /etc/ptmp ]]; then
+	logger -s -p auth.err \
+	    'password file may be incorrect -- /etc/ptmp exists'
+fi
+
+echo clearing /tmp
+
+# Prune quickly with one rm, then use find to clean up /tmp/[lqv]*
+# (not needed with mfs /tmp, but doesn't hurt there...).
+(cd /tmp && rm -rf [a-km-pr-uw-zA-Z]*)
+(cd /tmp &&
+    find . -maxdepth 1 ! -name . ! -name lost+found ! -name quota.user \
+	! -name quota.group ! -name vi.recover -execdir rm -rf -- {} \;)
+
+# Create Unix sockets directories for X if needed and make sure they have
+# correct permissions.
+[[ -d /usr/X11R6/lib ]] && mkdir -m 1777 /tmp/.{X11,ICE}-unix
+
+[[ -f /etc/rc.securelevel ]] && sh /etc/rc.securelevel
+
+# rc.securelevel did not specifically set -1 or 2, so select the default: 1.
+(($(sysctl -n kern.securelevel) == 0)) && sysctl kern.securelevel=1
+
+
+# Patch /etc/motd.
+if [[ ! -f /etc/motd ]]; then
+	install -c -o root -g wheel -m 664 /dev/null /etc/motd
+fi
+if T=$(mktemp /tmp/_motd.XXXXXXXXXX); then
+	sysctl -n kern.version | sed 1q >$T
+	sed -n '/^$/,$p' </etc/motd >>$T
+	cmp -s $T /etc/motd || cp $T /etc/motd
+	rm -f $T
+fi
+
+if [[ $accounting == YES ]]; then
+	[[ ! -f /var/account/acct ]] && touch /var/account/acct
+	echo 'turning on accounting'
+	accton /var/account/acct
+fi
+
+if [[ -x /sbin/ldconfig ]]; then
+	echo 'creating runtime link editor directory cache.'
+	[[ -d /usr/local/lib ]] && shlib_dirs="/usr/local/lib $shlib_dirs"
+	[[ -d /usr/X11R6/lib ]] && shlib_dirs="/usr/X11R6/lib $shlib_dirs"
+	ldconfig $shlib_dirs
+fi
+
+echo 'preserving editor files.'; /usr/libexec/vi.recover
+
+# If rc.sysmerge exists, run it just once, and make sure it is deleted.
+run_upgrade_script sysmerge
+
+echo -n 'starting network daemons:'
+start_daemon ldomd sshd snmpd ldpd ripd ospfd ospf6d bgpd ifstated
+start_daemon relayd dhcpd dhcrelay mrouted dvmrpd radiusd eigrpd route6d
+start_daemon dhcp6leased rad hostapd lpd smtpd slowcgi bgplgd httpd ftpd
+start_daemon ftpproxy ftpproxy6 tftpd tftpproxy identd inetd rarpd bootparamd
+start_daemon rbootd mopd vmd spamd spamlogd sndiod
+echo '.'
+
+# If rc.firsttime exists, run it just once, and make sure it is deleted.
+run_upgrade_script firsttime
+
+# Run rc.d(8) scripts from packages.
+if [[ -n $pkg_scripts ]]; then
+	echo -n 'starting package daemons:'
+	for _daemon in $pkg_scripts; do
+		if [[ -x /etc/rc.d/$_daemon ]]; then
+			start_daemon $_daemon
+		else
+			echo -n " ${_daemon}(absent)"
+		fi
+	done
+	echo '.'
+fi
+
+[[ -f /etc/rc.local ]] && sh /etc/rc.local
+
+# Disable carp interlock.
+ifconfig -g carp -carpdemote 128
+
+mixerctl_conf
+
+echo -n 'starting local daemons:'
+start_daemon apmd sensorsd hotplugd watchdogd cron wsmoused xenodm
+echo '.'
+
+# Re-link the kernel, placing the objects in a random order.
+# Replace current with relinked kernel and inform root about it.
+/usr/libexec/reorder_kernel &
+
+date
+exit 0

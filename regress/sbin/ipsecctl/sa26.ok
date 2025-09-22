@@ -1,0 +1,20 @@
+ipip from 1.1.1.1 to 2.2.2.2 spi 0x1a000000
+ipip from 2.2.2.2 to 1.1.1.1 spi 0x1b000000
+ipcomp transport from 1.1.1.1 to 2.2.2.2 spi 0x00002a00 comp deflate
+[bundle ipip to 2.2.2.2 spi 0x1a000000 with ipcomp to 2.2.2.2 spi 0x00002a00]
+ipcomp transport from 2.2.2.2 to 1.1.1.1 spi 0x00002b00 comp deflate
+[bundle ipip to 1.1.1.1 spi 0x1b000000 with ipcomp to 1.1.1.1 spi 0x00002b00]
+esp transport from 1.1.1.1 to 2.2.2.2 spi 0x3a000000 auth hmac-sha2-256 enc aes \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+	enckey 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+[bundle ipcomp to 2.2.2.2 spi 0x00002a00 with esp to 2.2.2.2 spi 0x3a000000]
+esp transport from 2.2.2.2 to 1.1.1.1 spi 0x3b000000 auth hmac-sha2-256 enc aes \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+	enckey 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+[bundle ipcomp to 1.1.1.1 spi 0x00002b00 with esp to 1.1.1.1 spi 0x3b000000]
+ah transport from 1.1.1.1 to 2.2.2.2 spi 0x4a000000 auth hmac-sha2-256 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+[bundle esp to 2.2.2.2 spi 0x3a000000 with ah to 2.2.2.2 spi 0x4a000000]
+ah transport from 2.2.2.2 to 1.1.1.1 spi 0x4b000000 auth hmac-sha2-256 \
+	authkey 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+[bundle esp to 1.1.1.1 spi 0x3b000000 with ah to 1.1.1.1 spi 0x4b000000]

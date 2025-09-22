@@ -1,0 +1,7 @@
+# illegal table definitions
+table <foo> file "/does/not/exists"
+table <foo> const { <bar> }
+table <foo> { (lo0) }
+table <foo> persist file "/dev/null" { ::1 no-route }
+table <foo> { 1.1.1.1.1 }
+table <foo> { 1.1.1.1.1 1.1.1.1.2 }

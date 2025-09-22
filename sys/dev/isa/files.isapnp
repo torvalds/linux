@@ -1,0 +1,57 @@
+#	$OpenBSD: files.isapnp,v 1.36 2016/09/03 21:51:52 tedu Exp $
+#	$NetBSD: files.isapnp,v 1.7 1997/10/16 17:16:36 matt Exp $
+#
+# Config file and device description for machine-independent ISAPnP code.
+# Included by ports that need it.
+
+device	isapnp {[port = -1], [size = 0],
+	     [iomem = -1], [iosiz = 0],
+	     [irq = -1], [drq = -1]}
+
+attach	isapnp at isa
+file	dev/isa/isapnp.c		isapnp needs-flag
+file	dev/isa/isapnpdebug.c		isapnp
+file	dev/isa/isapnpres.c		isapnp
+
+#
+# MI PnP devices go here...
+#
+
+attach	mpu at isapnp with mpu_isapnp
+file	dev/isa/mpu_isapnp.c		mpu_isapnp & midi
+
+attach	com at isapnp with com_isapnp
+file	dev/isa/com_isapnp.c		com_isapnp
+
+attach	wdc at isapnp with wdc_isapnp: isa_dma
+file	dev/isa/wdc_isapnp.c		wdc_isapnp
+
+attach	aic at isapnp with aic_isapnp
+file	dev/isa/aic_isapnp.c		aic_isapnp
+
+attach	sb at isapnp with sb_isapnp
+file	dev/isa/sb_isapnp.c		sb_isapnp
+
+attach	ess at isapnp with ess_isapnp
+file	dev/isa/ess_isapnp.c		ess_isapnp
+attach	gus at isapnp with gus_isapnp
+file	dev/isa/gus_isapnp.c		gus_isapnp
+
+
+attach	an at isapnp with an_isapnp
+file	dev/isa/if_an_isapnp.c		an_isapnp
+
+attach	le at isapnp with le_isapnp: le24
+file	dev/isa/if_le_isapnp.c		le_isapnp
+
+attach	ep at isapnp with ep_isapnp
+file	dev/isa/if_ep_isapnp.c		ep_isapnp
+
+device	ef: isa_dma, ether, ifnet, ifmedia, mii
+attach	ef at isapnp with ef_isapnp
+file	dev/isa/if_ef_isapnp.c		ef_isapnp
+
+attach	ne at isapnp with ne_isapnp: rtl80x9
+file	dev/isa/if_ne_isapnp.c		ne_isapnp
+
+attach	we at isapnp with we_isapnp

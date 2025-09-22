@@ -1,0 +1,411 @@
+.\"/* Copyright 1988,1990,1993,1994 by Paul Vixie
+.\" * All rights reserved
+.\" */
+.\"
+.\" Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (c) 1997,2000 by Internet Software Consortium, Inc.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $OpenBSD: crontab.5,v 1.43 2024/07/06 15:33:17 jmc Exp $
+.\"
+.Dd $Mdocdate: July 6 2024 $
+.Dt CRONTAB 5
+.Os
+.Sh NAME
+.Nm crontab
+.Nd tables for driving cron
+.Sh DESCRIPTION
+A
+.Nm
+file contains instructions to the
+.Xr cron 8
+daemon of the general form:
+.Dq at these times on these dates run this command .
+There may be a system
+.Nm
+and each user may have their own
+.Nm .
+Commands in any given
+.Nm
+will be
+executed either as the user who owns the
+.Nm
+or, in the case of the system
+.Nm crontab ,
+as the user specified on the command line.
+.Pp
+While a
+.Nm
+is a text file, it is not intended to be directly edited.
+Creation, modification, and removal of a
+.Nm
+should be done using
+.Xr crontab 1 .
+.Pp
+Blank lines, leading spaces, and tabs are ignored.
+Lines whose first non-space character is a pound sign
+.Pq Ql #
+are comments, and are ignored.
+Note that comments are not allowed on the same line as
+.Xr cron 8
+commands, since
+they will be taken to be part of the command.
+Similarly, comments are not
+allowed on the same line as environment variable settings.
+.Pp
+An active line in a
+.Nm
+is either an environment variable setting or a
+.Xr cron 8
+command.
+.Pp
+Environment variable settings create the environment
+any command in the
+.Nm
+is run in.
+An environment variable setting is of the form:
+.Pp
+.Dl name = value
+.Pp
+The spaces around the equal sign
+.Pq Ql =
+are optional, and any subsequent non-leading spaces in
+.Ar value
+will be part of the value assigned to
+.Ar name .
+The
+.Ar value
+string may be placed in quotes
+.Pq single or double , but matching
+to preserve leading or trailing blanks.
+.Pp
+Lines in the system
+.Nm
+have six fixed fields, an optional flags field, and a command, in the form:
+.Bd -ragged -offset indent
+.Ar minute
+.Ar hour
+.Ar day-of-month
+.Ar month
+.Ar day-of-week
+.Ar user
+.Op Ar flags
+.Ar command
+.Ed
+.Pp
+While lines in a user
+.Nm
+have five fixed fields, an optional flags field, and a command, in the form:
+.Bd -ragged -offset indent
+.Ar minute
+.Ar hour
+.Ar day-of-month
+.Ar month
+.Ar day-of-week
+.Op Ar flags
+.Ar command
+.Ed
+.Pp
+Fields are separated by blanks or tabs.
+The command may be one or more fields long.
+The allowed values for the fields are:
+.Bl -column "day-of-month" "allowed values" -offset indent
+.It Sy field Ta Sy allowed values
+.It Ar minute Ta *, ~, or 0\(en59
+.It Ar hour Ta *, ~, or 0\(en23
+.It Ar day-of-month Ta *, ~, or 1\(en31
+.It Ar month Ta *, ~, 1\(en12, or a name (see below)
+.It Ar day-of-week Ta *, ~, 0\(en7, or a name (0 or 7 is Sunday)
+.It Ar user Ta a valid username
+.It Op Ar flags Ta runtime flags, denoted with '-'
+.It Ar command Ta text
+.El
+.Pp
+Lists are allowed.
+A list is a set of numbers (or ranges) separated by commas.
+For example,
+.Dq 1,2,5,9
+or
+.Dq 0\(en4,8\(en12 .
+.Pp
+Ranges of numbers are allowed.
+Ranges are two numbers separated with a hyphen.
+The specified range is inclusive.
+For example,
+8\(en11 for an
+.Ar hour
+entry specifies execution at hours 8, 9, 10 and 11.
+.Pp
+A random value for a field may be obtained using the
+.Ql ~
+character.
+A value is generated every time the tab is loaded.
+On its own,
+it denotes a random value appropriate for the field.
+It can also be used in a range to make the interval more specific.
+If either of the numbers in a range are omitted,
+the appropriate limit (low or high) for that field will be used.
+For example, both
+.Dq 0~30
+and
+.Dq ~30
+in the
+.Ar minute
+field would result in a random value between 0 and 30.
+.Pp
+Step values can be used in conjunction with ranges.
+Following a range with
+.No / Ns Ar number
+specifies skips of
+.Ar number
+through the range.
+For example,
+.Dq 0\(en23/2
+can be used in the
+.Ar hour
+field to specify command execution every other hour.
+Steps are also permitted after an asterisk, so to say
+.Dq every two hours ,
+just use
+.Dq */2 .
+A step value after a random range will execute the command at a random
+offset less than the step size.
+For example, to avoid a thundering herd at the top and bottom of the hour,
+.Dq 0~59/30
+.Po
+or simply
+.Dq ~/30
+.Pc
+can be used in the
+.Ar minute
+field to specify that command execution happen twice an hour at
+consistent intervals.
+.Pp
+An asterisk
+.Pq Ql *
+is short form for a range of all allowed values.
+.Pp
+Names can be used in the
+.Ar month
+and
+.Ar day-of-week
+fields.
+Use the first three letters of the particular
+day or month (case doesn't matter).
+Ranges or lists of names are not allowed.
+.Pp
+Some
+.Ar flags
+relating to process operation can be provided before the
+.Ar command
+field.
+Flags are denoted with '-' and may be combined.
+.Bl -tag -width Ds
+.It Fl n Ar command
+No mail is sent after a successful run.
+The execution output will only be mailed if the command exits with a non-zero
+exit code.
+The
+.Fl n
+option is an attempt to cure potentially copious volumes of mail coming from
+.Xr cron 8 .
+.It Fl q Ar command
+Execution will not be logged.
+.It Fl s Ar command
+Only a single instance of
+.Ar command
+will be run concurrently.
+Additional instances of
+.Ar command
+will not be scheduled until the earlier one completes.
+.El
+.Pp
+The
+.Ar command
+field (the rest of the line) is the command to be
+run.
+The entire command portion of the line, up to a newline or %
+character, will be executed by
+.Pa /bin/sh
+or by the shell
+specified in the
+.Ev SHELL
+variable of the
+.Nm crontab .
+Percent signs
+.Pq Ql %
+in the command, unless escaped with a backslash
+.Pq Ql \e ,
+will be changed into newline characters, and all data
+after the first
+.Ql %
+will be sent to the command as standard input.
+.Pp
+Commands are executed by
+.Xr cron 8
+when the
+.Ar minute ,
+.Ar hour ,
+and
+.Ar month
+fields match the current time,
+.Em and
+when at least one of the two day fields
+.Po Ar day-of-month
+or
+.Ar day-of-week Pc ,
+match the current time.
+.Pp
+Note: The day of a command's execution can be specified by two
+fields \(em
+.Ar day-of-month
+and
+.Ar day-of-week .
+If both fields are restricted (i.e. aren't *),
+the command will be run when
+.Em either
+field matches the current time.
+For example,
+.Pp
+.Dl 30 4 1,15 * 5
+.Pp
+would cause a command to be run at 4:30 am on the 1st and 15th of each
+month, plus every Friday.
+.Pp
+Instead of the first five fields, one of eight special strings may appear:
+.Bl -column "@midnight" "meaning" -offset indent
+.It Sy string Ta Sy meaning
+.It @reboot Ta Run once, at startup.
+.It @yearly Ta Run every January 1 (0 0 1 1 *).
+.It @annually Ta The same as @yearly.
+.It @monthly Ta Run the first day of every month (0 0 1 * *).
+.It @weekly Ta Run every Sunday (0 0 * * 0).
+.It @daily Ta Run every midnight (0 0 * * *).
+.It @midnight Ta The same as @daily.
+.It @hourly Ta Run every hour, on the hour (0 * * * *).
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width "LOGNAMEXXX"
+.It Ev HOME
+Set from the user's
+.Pa /etc/passwd
+entry.
+May be overridden by settings in the
+.Nm .
+.It Ev LOGNAME
+Set from the user's
+.Pa /etc/passwd
+entry.
+May not be overridden by settings in the
+.Nm .
+.It Ev MAILTO
+If
+.Ev MAILTO
+is defined and non-empty,
+mail is sent to the user so named.
+If
+.Ev MAILTO
+is defined but empty
+.Pq Ev MAILTO = Qq ,
+no mail will be sent.
+Otherwise mail is sent to the owner of the
+.Nm .
+This is useful for pseudo-users that lack an alias
+that would otherwise redirect the mail to a real person.
+.It Ev SHELL
+Set to
+.Pa /bin/sh .
+May be overridden by settings in the
+.Nm .
+.It Ev USER
+Set from the user's
+.Pa /etc/passwd
+entry.
+May not be overridden by settings in the
+.Nm .
+.El
+.Sh FILES
+.Bl -tag -width "/var/cron/tabs/<user>XXX" -compact
+.It Pa /etc/crontab
+System crontab.
+.It Pa /var/cron/tabs/ Ns Aq Ar user
+User crontab.
+.El
+.Sh EXAMPLES
+.Bd -literal
+# use /bin/sh to run commands, no matter what /etc/passwd says
+SHELL=/bin/sh
+# mail any output to `paul', no matter whose crontab this is
+MAILTO=paul
+#
+# run five minutes after midnight, every day
+5 0 * * *       $HOME/bin/daily.job >> $HOME/tmp/out 2>&1
+
+# run at 2:15pm on the first of every month -- job output will be sent
+# to paul, but only if $HOME/bin/monthly exits with a non-zero exit code
+15 14 1 * *     -n $HOME/bin/monthly
+
+# run at 10 pm on weekdays, annoy Joe
+0 22 * * 1-5	mail -s "It's 10pm" joe%Joe,%%Where are your kids?%
+
+23 0-23/2 * * * echo "run 23 minutes after midn, 2am, 4am ..., everyday"
+
+5 4 * * sun     echo "run at 5 after 4 every sunday"
+
+# run hourly at a random time within the first 30 minutes of the hour
+0~30 * * * *   /usr/libexec/spamd-setup
+.Ed
+.Sh SEE ALSO
+.Xr crontab 1 ,
+.Xr cron 8
+.Sh STANDARDS
+The
+.Nm
+file format is compliant with the
+.St -p1003.1-2008
+specification.
+The behaviours described below are all extensions to that standard:
+.Bl -dash
+.It
+The
+.Ar day-of-week
+field may use 7 to represent Sunday.
+.It
+Ranges may include
+.Dq steps .
+.It
+Random intervals are supported using the
+.Ql ~
+character.
+.It
+Months or days of the week can be specified by name.
+.It
+Environment variables can be set in a crontab.
+.It
+Command output can be mailed to a person other than the crontab
+owner, or the feature can be turned off and no mail will be sent
+at all.
+.It
+All of the
+.Ql @
+commands that can appear in place of the first five fields.
+.It
+All of the
+.Op Fl nqs
+flags.
+.El
+.Sh AUTHORS
+.Nm
+was written by
+.An Paul Vixie Aq Mt vixie@isc.org .

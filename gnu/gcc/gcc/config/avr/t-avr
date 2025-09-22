@@ -1,0 +1,119 @@
+LIB1ASMSRC = avr/libgcc.S
+LIB1ASMFUNCS = \
+	_mulqi3 \
+	_mulhi3 \
+	_mulsi3 \
+	_udivmodqi4 \
+	_divmodqi4 \
+	_udivmodhi4 \
+	_divmodhi4 \
+	_udivmodsi4 \
+	_divmodsi4 \
+	_prologue \
+	_epilogue \
+	_exit \
+	_cleanup \
+	_tablejump \
+	_copy_data \
+	_clear_bss \
+	_ctors \
+	_dtors
+
+# We do not have the DF type.
+# Most of the C functions in libgcc2 use almost all registers,
+# so use -mcall-prologues for smaller code size.
+TARGET_LIBGCC2_CFLAGS = -DDF=SF -Dinhibit_libc -mcall-prologues -Os
+
+fp-bit.c: $(srcdir)/config/fp-bit.c $(srcdir)/config/avr/t-avr
+	echo '#define FLOAT' > fp-bit.c
+	echo '#define FLOAT_ONLY' >> fp-bit.c
+	echo '#define CMPtype QItype' >> fp-bit.c
+	echo '#define DF SF' >> fp-bit.c
+	echo '#define DI SI' >> fp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >> fp-bit.c
+	echo '#define SMALL_MACHINE' >> fp-bit.c
+	echo 'typedef int QItype __attribute__ ((mode (QI)));' >> fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+FPBIT = fp-bit.c
+
+MULTILIB_OPTIONS = mmcu=avr2/mmcu=avr25/mmcu=avr3/mmcu=avr4/mmcu=avr5
+MULTILIB_DIRNAMES = avr2 avr25 avr3 avr4 avr5
+
+# The many avr2 matches are not listed here - this is the default.
+MULTILIB_MATCHES = \
+	mmcu?avr25=mmcu?attiny13 \
+	mmcu?avr25=mmcu?attiny2313 \
+	mmcu?avr25=mmcu?attiny24 \
+	mmcu?avr25=mmcu?attiny44 \
+	mmcu?avr25=mmcu?attiny84 \
+	mmcu?avr25=mmcu?attiny25 \
+	mmcu?avr25=mmcu?attiny45 \
+	mmcu?avr25=mmcu?attiny85 \
+	mmcu?avr25=mmcu?attiny261 \
+	mmcu?avr25=mmcu?attiny461 \
+	mmcu?avr25=mmcu?attiny861 \
+	mmcu?avr25=mmcu?at86rf401 \
+	mmcu?avr3=mmcu?atmega103 \
+	mmcu?avr3=mmcu?atmega603 \
+	mmcu?avr3=mmcu?at43usb320 \
+	mmcu?avr3=mmcu?at43usb355 \
+	mmcu?avr3=mmcu?at76c711 \
+	mmcu?avr4=mmcu?atmega48 \
+	mmcu?avr4=mmcu?atmega8 \
+	mmcu?avr4=mmcu?atmega8515 \
+	mmcu?avr4=mmcu?atmega8535 \
+	mmcu?avr4=mmcu?atmega88 \
+	mmcu?avr4=mmcu?atmega8hva \
+	mmcu?avr4=mmcu?at90pwm1 \
+	mmcu?avr4=mmcu?at90pwm2 \
+	mmcu?avr4=mmcu?at90pwm3 \
+	mmcu?avr5=mmcu?atmega16 \
+	mmcu?avr5=mmcu?atmega161 \
+	mmcu?avr5=mmcu?atmega162 \
+	mmcu?avr5=mmcu?atmega163 \
+	mmcu?avr5=mmcu?atmega164p \
+	mmcu?avr5=mmcu?atmega165 \
+	mmcu?avr5=mmcu?atmega165p \
+	mmcu?avr5=mmcu?atmega168 \
+	mmcu?avr5=mmcu?atmega169 \
+	mmcu?avr5=mmcu?atmega169p \
+	mmcu?avr5=mmcu?atmega32 \
+	mmcu?avr5=mmcu?atmega323 \
+	mmcu?avr5=mmcu?atmega324p \
+	mmcu?avr5=mmcu?atmega325 \
+	mmcu?avr5=mmcu?atmega325p \
+	mmcu?avr5=mmcu?atmega3250 \
+	mmcu?avr5=mmcu?atmega3250p \
+	mmcu?avr5=mmcu?atmega329 \
+	mmcu?avr5=mmcu?atmega329p \
+	mmcu?avr5=mmcu?atmega3290 \
+	mmcu?avr5=mmcu?atmega3290p \
+	mmcu?avr5=mmcu?atmega406 \
+	mmcu?avr5=mmcu?atmega64  \
+	mmcu?avr5=mmcu?atmega640 \
+	mmcu?avr5=mmcu?atmega644 \
+	mmcu?avr5=mmcu?atmega644p \
+	mmcu?avr5=mmcu?atmega645 \
+	mmcu?avr5=mmcu?atmega6450 \
+	mmcu?avr5=mmcu?atmega649 \
+	mmcu?avr5=mmcu?atmega6490 \
+	mmcu?avr5=mmcu?atmega128 \
+	mmcu?avr5=mmcu?atmega1280 \
+	mmcu?avr5=mmcu?atmega1281 \
+	mmcu?avr5=mmcu?atmega16hva \
+	mmcu?avr5=mmcu?at90can32 \
+	mmcu?avr5=mmcu?at90can64 \
+	mmcu?avr5=mmcu?at90can128 \
+	mmcu?avr5=mmcu?at90usb82 \
+	mmcu?avr5=mmcu?at90usb162 \
+	mmcu?avr5=mmcu?at90usb646 \
+	mmcu?avr5=mmcu?at90usb647 \
+	mmcu?avr5=mmcu?at90usb1286 \
+	mmcu?avr5=mmcu?at90usb1287 \
+	mmcu?avr5=mmcu?at94k
+
+MULTILIB_EXCEPTIONS =
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib

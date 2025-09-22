@@ -1,0 +1,30 @@
+$OpenBSD: Mtree.pod,v 1.2 2023/05/16 14:04:16 espie Exp $
+
+=head1 NAME
+
+OpenBSD::Mtree - simple C<mtree(8)> spec parser
+
+=head1 SYNOPSIS
+
+    use OpenBSD::Mtree;
+
+    my %hier;
+
+    OpenBSD::Mtree::parse(\%hier, "/", "/etc/mtree/4.4BSD.dist", $extra);
+
+=head1 DESCRIPTION
+
+C<OpenBSD::Mtree> is a parser for C<mtree(8)> specifications that
+can reconstruct directory hierarchies.
+
+The basic function C<OpenBSD::Mtree::parse_fh(\%hash, $basedir, $fh, $extra)>
+will populate the hash C<$hash> with defined entries for each directory
+seen while reading from C<$fh>, assuming the specification is to be interpreted
+relative to C<$basedir> (some canonicalization of directory names will
+occur).
+
+If C<$extra> is non null, each entry will itself be an empty hash.
+
+C<OpenBSD::Mtree:parse(\%hash, $basedir, $filename, $extra)> is a convenience
+function which also handles opening the filehandle from C<$filename>
+and closing it after reading the specification.

@@ -1,0 +1,2 @@
+dnl	$OpenBSD: upgrade,v 1.1 2013/09/04 20:00:27 patrick Exp $
+OpenBSDUpgrade({:-your usual boot device-:})

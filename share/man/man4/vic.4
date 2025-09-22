@@ -1,0 +1,106 @@
+.\"	$OpenBSD: vic.4,v 1.25 2018/01/04 20:09:56 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 4 2018 $
+.Dt VIC 4
+.Os
+.Sh NAME
+.Nm vic
+.Nd VMware VMXnet Virtual Interface Controller device
+.Sh SYNOPSIS
+.Cd vic* at pci?
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the VMXnet virtual NIC available in virtual
+machines by VMware.
+It appears as a simple Ethernet device but is actually a virtual network
+interface to the underlying host operating system.
+.Pp
+This driver supports the
+.Ic vmxnet
+driver protocol, as an alternative to the emulated
+.Xr pcn 4
+and
+.Xr em 4
+interfaces also available in the VMware environment.
+The
+.Nm vic
+driver is optimized for the virtual machine, it can provide advanced
+capabilities depending on the underlying host operating system and
+the physical network interface controller of the host.
+.Pp
+The
+.Nm
+driver supports VMware virtual NICs provided by the following products:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+VMware ESX 2.0 and newer
+.It
+VMware GSX 2.5 and newer
+.It
+VMware Server 1.0 and newer
+.It
+VMware Workstation 4.5 and newer
+.It
+VMware Fusion 1.0 and newer
+.El
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width autoselect
+.It autoselect
+Enable autoselection of the media type and options.
+The driver always uses the fastest available speed and the media
+options provided by the underlying host of the virtual machine.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh EXAMPLES
+The following entry must be added to the VMware configuration file
+to provide the
+.Nm
+device:
+.Bd -literal -offset indent
+ethernet0.virtualDev = "vmxnet"
+.Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr em 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr pcn 4 ,
+.Xr vmx 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org
+and
+.An David Gwynne Aq Mt dlg@openbsd.org .

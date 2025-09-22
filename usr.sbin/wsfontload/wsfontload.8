@@ -1,0 +1,146 @@
+.\"	$OpenBSD: wsfontload.8,v 1.22 2020/09/14 09:34:08 fcambus Exp $
+.\"	$NetBSD: wsfontload.8,v 1.5 1999/04/06 04:54:22 cgd Exp $
+.\"
+.\" Copyright (c) 1999, 2001
+.\" 	Matthias Drochner.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 14 2020 $
+.Dt WSFONTLOAD 8
+.Os
+.Sh NAME
+.Nm wsfontload
+.Nd load a font bitmap into a wscons display device
+.Sh SYNOPSIS
+.Nm wsfontload
+.Bk -words
+.Op Fl Bbl
+.Op Fl e Ar encoding
+.Op Fl f Ar file
+.Op Fl h Ar height
+.Op Fl N Ar name
+.Op Fl w Ar width
+.Op Ar fontfile
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+utility loads a font bitmap to a wscons device if the device driver
+supports it.
+The font gets assigned a name in this process which it can be referred to
+by later for use on a display screen.
+The font is loaded from the specified
+.Ar fontfile ,
+or from
+.Pa stdin
+if
+.Ar fontfile
+is not provided.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl B
+Specifies that the font data is ordered right-to-left byte wise.
+The default is left-to-right.
+.It Fl b
+Specifies that the font data is ordered right-to-left bit wise.
+The default is left-to-right.
+.It Fl e Ar encoding
+Sets the encoding of the font.
+This can be either a symbolic abbreviation or a numeric value.
+Currently recognized abbreviations are
+.Dq iso
+for ISO 8859-1 or ISO-10646
+.Pq Unicode
+encoding
+and
+.Dq ibm
+for IBM encoded fonts.
+Per default,
+.Dq iso
+is assumed.
+.It Fl f Ar file
+Specify the control device of the wscons display to operate on.
+Default is
+.Pa /dev/ttyCcfg .
+.It Fl h Ar height
+Sets the height of a font character in pixels.
+Default is to match the currently loaded font height for raster displays,
+and 16 for text-mode VGA compatible displays.
+.It Fl l
+Specifies to print out a list of loaded fonts, no other
+arguments should be specified.
+.It Fl N Ar name
+Specifies a name which can be used later to refer to the font.
+If none is given, the
+.Ar fontfile
+name is used to create one.
+.It Fl w Ar width
+Sets the width of a font character in pixels.
+Default is to match the currently loaded font width for raster displays,
+and 8 for text-mode VGA compatible displays.
+.El
+.Pp
+.\" Typically, the
+.\" .Nm
+.\" utility will be executed in system startup by the
+.\" .Pa /etc/rc.wscons
+.\" script, controlled by the
+.\" .Pa /etc/wscons.conf
+.\" configuration file.
+.\" .Pp
+No font files are provided with the wscons framework.
+The fonts installed by PCVT can be used instead, as can raw font files from
+other operating system distributions.
+.Pp
+A maximum of 8 fonts can be loaded.
+The maximum size of a font is currently 512 KiB.
+.Sh FILES
+.Bl -tag -width "/usr/share/misc/pcvtfonts/XX" -compact
+.\" .It Pa /etc/wscons.conf
+.\" wscons configuration file
+.It Pa /usr/share/misc/pcvtfonts/
+fonts directory.
+.El
+.Sh EXAMPLES
+Load the IBM-encoded 8x8-font from the PCVT distribution.
+This (or another 8x8-font) is necessary to use the 50-line screen type on
+.Xr vga 4
+displays.
+.Bd -literal -offset indent
+# wsfontload -N myname -h 8 -e ibm \e
+	/usr/share/misc/pcvtfonts/vt220l.808
+.Ed
+.Sh SEE ALSO
+.Xr wscons 4 ,
+.Xr wsconscfg 8 ,
+.Xr wsconsctl 8
+.Sh HISTORY
+The
+.Nm
+program appeared in
+.Ox 2.8 .
+.Sh BUGS
+Many features are missing.
+.Pp
+There is no way to remove a loaded font.

@@ -1,0 +1,88 @@
+.TH "unbound\-streamtcp" "1" "Mar 21, 2013" "NLnet Labs" "unbound"
+.\"
+.\" unbound-streamtcp.1 -- unbound DNS lookup utility
+.\"
+.SH "NAME"
+.LP
+.B unbound\-streamtcp
+\- unbound DNS lookup utility
+.SH "SYNOPSIS"
+.LP
+.B unbound\-streamtcp
+.RB [ \-unsh ]
+.RB [ \-f 
+.IR ipaddr[@port] ]
+.RB [ \-d
+.IR secs ]
+.I name
+.I type
+.I class
+.SH "DESCRIPTION"
+.LP
+.B unbound\-streamtcp
+sends a DNS Query of the given \fBtype\fR and \fBclass\fR for the given \fBname\fR
+to the DNS server over TCP and displays the response.
+.P
+If the server to query is not given using the \fB\-f\fR option then localhost
+(127.0.0.1) is used. More queries can be given on one commandline, they
+are resolved in sequence.
+.P
+The available options are:
+.TP
+.I name
+This name is resolved (looked up in the DNS).
+.TP
+.I type
+Specify the type of data to lookup.
+.TP
+.I class
+Specify the class to lookup for.
+.TP
+.B \-u
+Use UDP instead of TCP. No retries are attempted.
+.TP
+.B \-n
+Do not wait for the answer.
+.TP
+.B \-a
+Print answers on arrival.  This mean queries are sent in sequence without
+waiting for answer but if answers arrive in this time they are printed out. 
+After sending queries the program waits and prints the remainder.
+.TP
+.B \-s
+Use SSL.
+.TP
+.B \-h
+Print program usage.
+.TP
+.B \-f \fIipaddr[@port]
+Specify the server to send the queries to. If not specified localhost (127.0.0.1) is used.
+.TP
+.B \-d \fIsecs
+Delay after the connection before sending query.  This tests the timeout
+on the other side, eg. if shorter the connection is closed.
+.TP
+.B \-p \fIclient
+Use proxy protocol to send the query. Specify the ipaddr@portnr of the client
+to include in PROXYv2.
+.TP
+.B IXFR=serial
+Pass the type of the query as IXFR=N to send an IXFR query with serial N.
+.TP
+.B NOTIFY[=serial]
+Pass the type of the query as NOTIFY[=N] to send a notify packet. The serial N
+of the new zone can be included.
+.SH "EXAMPLES"
+.LP
+Some examples of use.
+.P
+$ unbound\-streamtcp www.example.com A IN
+.P
+$ unbound\-streamtcp \-f 192.168.1.1 www.example.com SOA IN
+.P
+$ unbound\-streamtcp \-f 192.168.1.1@1234 153.1.168.192.in\-addr.arpa. PTR IN
+.SH "EXIT CODE"
+The unbound\-streamtcp program exits with status code 1 on error, 
+0 on no error.
+.SH "AUTHOR"
+This manual page was written by Tomas Hozza <thozza@redhat.com>.

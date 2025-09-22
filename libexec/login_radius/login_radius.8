@@ -1,0 +1,170 @@
+.\" $OpenBSD: login_radius.8,v 1.16 2022/03/31 17:27:18 naddy Exp $
+.\"
+.\" Copyright (c) 1996 Berkeley Software Design, Inc. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Berkeley Software Design,
+.\"	Inc.
+.\" 4. The name of Berkeley Software Design, Inc.  may not be used to endorse
+.\"    or promote products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN, INC. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	BSDI $From: login_radius.8,v 1.2 1996/11/11 18:42:02 prb Exp $
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt LOGIN_RADIUS 8
+.Os
+.Sh NAME
+.Nm login_radius
+.Nd provide RADIUS authentication type
+.Sh SYNOPSIS
+.Nm login_radius
+.Op Fl d
+.Op Fl s Ar service
+.Op Fl v Ar name Ns = Ns Ar value
+.Ar user
+.Op Ar class
+.Sh DESCRIPTION
+The
+.Nm
+utility contacts a RADIUS server to authenticate a
+.Ar user .
+If no
+.Ar class
+is specified, the login class will be obtained from the password database.
+.Pp
+When executed as the name
+.Pa login_ Ns Ar style ,
+.Nm
+will request that the RADIUS server use the authentication specified by
+.Ar style .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d
+Debug mode.
+Output is sent to the standard output instead of the
+.Bx
+Authentication backchannel.
+.It Fl s Ar service
+Specify the service.
+Currently only
+.Li challenge ,
+.Li login ,
+and
+.Li response
+are supported.
+.It Fl v Ar name Ns = Ns Ar value
+This option and its value are ignored.
+.El
+.Pp
+The
+.Nm
+utility needs to know a shared secret for each RADIUS server it talks to.
+Shared secrets are stored in the file
+.Pa /etc/raddb/servers
+with the format:
+.Bd -literal -offset indent
+server shared_secret
+.Ed
+.Pp
+It is expected that rather than requesting the RADIUS style directly
+(in which case the server uses a default style) that
+.Nm
+will be linked to the various mechanisms desired.
+For instance, to have all CRYPTOCard and ActivCard authentication take
+place on a remote server via the RADIUS protocol, remove the
+.Pa login_activ
+and
+.Pa login_crypto
+modules and link
+.Pa login_radius
+to both of those names.
+Now when the user requests one of those authentication styles,
+.Nm
+will automatically forward the request to the remote RADIUS server
+and request it do the requested style of authentication.
+.Sh LOGIN.CONF VARIABLES
+The
+.Nm
+utility uses the following RADIUS-specific
+.Pa /etc/login.conf
+variables:
+.Bl -tag -width radius-challenge-styles
+.It radius-port
+Port name or number to connect to on the RADIUS server.
+.It radius-server
+Hostname of the RADIUS server to contact.
+.It radius-server-alt
+Alternate RADIUS server to use when the primary is not responding.
+.It radius-challenge-styles
+Comma-separated list of authentication styles that the RADIUS server
+knows about.
+If the user's authentication style is in this list, the challenge will
+be provided by the RADIUS server.
+If not,
+.Nm
+will prompt the user for the password before sending the request
+(along with the password) to the RADIUS server.
+.It radius-timeout
+Number of seconds to wait for a response from the RADIUS server.
+Defaults to 2 seconds.
+.It radius-retries
+Number of times to attempt to contact the RADIUS server before giving up
+(or falling back to the alternate server if there is one).
+Defaults to 6 tries.
+.El
+.Sh FILES
+.Bl -tag -compact -width xetcxraddbxserversxx
+.It Pa /etc/login.conf
+login configuration database
+.It Pa /etc/raddb/servers
+list of RADIUS servers and their associated shared secrets
+.El
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr login.conf 5 ,
+.Xr radiusd 8
+.Sh STANDARDS
+.Rs
+.%A C. Rigney
+.%A S. Willens
+.%A A. Rubens
+.%A W. Simpson
+.%D June 2000
+.%R RFC 2865
+.%T "Remote Authentication Dial In User Service (RADIUS)"
+.Re
+.Sh CAVEATS
+For
+.Nm
+to function, the
+.Pa /etc/raddb
+directory must be owned by group
+.Dq _radius
+and have group-execute permissions.
+Likewise, the
+.Pa /etc/raddb/servers
+file must be readable by group
+.Dq _radius .

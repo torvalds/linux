@@ -1,0 +1,10 @@
+import("//llvm/lib/Target/targets.gni")
+
+# A single string with all built targets, separated by spaces.
+llvm_targets_to_build_string = ""
+foreach(target, llvm_targets_to_build) {
+  if (llvm_targets_to_build_string != "") {
+    llvm_targets_to_build_string += " "
+  }
+  llvm_targets_to_build_string += target
+}

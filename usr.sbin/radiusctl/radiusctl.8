@@ -1,0 +1,138 @@
+.\"	$OpenBSD: radiusctl.8,v 1.10 2024/09/15 05:26:05 yasuoka Exp $
+.\"
+.\" Copyright (c) YASUOKA Masahiko <yasuoka@yasuoka.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: September 15 2024 $
+.Dt RADIUSCTL 8
+.Os
+.Sh NAME
+.Nm radiusctl
+.Nd control the RADIUS protocol daemon
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+utility controls the
+.Xr radiusd 8
+daemon.
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Xo
+.Cm test
+.Ar hostname
+.Ar radius_secret
+.Ar user_name
+.Op options
+.Xc
+Sends a RADIUS authentication request packet and shows the result.
+The request is for the user specified by
+.Ar user_name
+and sent to the RADIUS server specified by
+.Ar hostname .
+.Ar radius_secret
+is the shared secret with the server.
+The options are as follows:
+.Bl -tag -width Ds
+.It Cm interval Ar seconds
+Specifies how many seconds to wait before resending a packet.
+The default is 2.
+.It Cm maxwait Ar seconds
+Specifies the maximum amount of time to wait for a valid reply packet.
+The default is 8.
+.It Cm method Ar method
+Use
+.Ar method
+for authentication.
+It can be either
+.Cm pap ,
+.Cm chap ,
+or
+.Cm mschapv2 .
+If this option is omitted,
+.Cm pap
+is used.
+.It Cm nas-port Ar nas-port
+Specify an integer value for the NAS-Port attribute in the packet.
+If this option is omitted, 0 is used.
+.It Cm password Ar password
+Use
+.Ar password
+for
+.Ar user_name .
+.It Cm port Ar port
+Use
+.Ar port
+when sending a packet to
+.Ar hostname .
+If the port is omitted,
+the default port number 1812 is used.
+.It Cm tries Ar number
+Specifies the number of packets to try sending.
+The default is 3.
+.It Cm msgauth Ar yes | no
+Specifies if Message-Authenticator is given for the access request packet.
+The default is yes.
+.El
+.It Cm ipcp show
+Show all ipcp sessions in the database of
+.Xr radiusd_ipcp 8
+briefly.
+.It Cm ipcp dump Op Cm -json
+Dump all ipcp sessions in the database of
+.Xr radiusd_ipcp 8 .
+When
+.Cm -json
+is specified,
+.Nm
+shows the sessions in JSON format.
+.It Cm ipcp monitor Op Cm -json
+Monitor the database of
+.Xr radiusd_ipcp 8 ,
+show newly created sessions and deleted sessions.
+When
+.Cm -json
+is specified,
+.Nm
+shows the sessions in JSON format.
+.It Cm ipcp disconnect Ar sequence
+Request to disconnect the session specified by the
+.Ar sequence .
+.It Cm ipcp delete Ar sequence
+Request to delete the session specified by the
+.Ar sequence
+without requesting disconnection.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+(show all sessions)
+$ doas radiusctl ipcp show
+Seq Assigned        Username               Start    Tunnel From
+--- --------------- ---------------------- -------- -------------------------
+ 21 192.168.1.99    mifune@example.jp      11:35AM  203.0.113.32:34859
+ 22 192.168.1.103   nakadai@example.jp     11:56AM  192.0.2.4:61794
+$
+
+(disconnect Nakadai's session)
+$ doas radiusctl ipcp disconnect 22
+$
+.Ed
+.Sh SEE ALSO
+.Xr radiusd 8 ,
+.Xr radiusd_ipcp 8

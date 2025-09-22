@@ -1,0 +1,520 @@
+.\"	$OpenBSD: audio.4,v 1.87 2022/03/31 17:27:20 naddy Exp $
+.\"	$NetBSD: audio.4,v 1.20 1998/05/28 17:27:15 augustss Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by John T. Kohl.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt AUDIO 4
+.Os
+.Sh NAME
+.Nm audio ,
+.Nm audioctl
+.Nd device-independent audio driver layer
+.Sh SYNOPSIS
+.Cd "audio* at ..."
+.Pp
+.In sys/types.h
+.In sys/ioctl.h
+.In sys/audioio.h
+.In string.h
+.Sh DESCRIPTION
+The
+.Nm audio
+driver provides support for various audio peripherals.
+It provides a uniform programming interface layer above different
+underlying audio hardware drivers.
+.Pp
+In addition to hardware mixer controls like those
+documented in
+.Xr azalia 4 ,
+the
+.Nm
+driver exposes the
+.Va record.enable
+control.
+The superuser can change it with
+.Xr mixerctl 8 .
+It accepts the following values:
+.Pp
+.Bl -tag -offset indent -width "sysctl" -compact
+.It Cm on
+Recording is enabled.
+.It Cm off
+Silence is returned instead of the recorded samples.
+.It Cm sysctl
+Behavior is controlled by the
+.Va kern.audio.record
+.Xr sysctl 2
+variable.
+This is the default.
+.El
+.Pp
+There are two types of device files available for audio operation:
+.Bl -dash -offset indent
+.It
+Audio devices are used for recording or playback of digital samples.
+.It
+Control devices are used to manipulate audio device
+parameters like volume or recording source.
+They can also read certain
+.Nm
+driver variables while it is in use.
+.El
+.Sh AUDIO DEVICES
+When audio devices are opened,
+they attempt to maintain the previous audio sample format and record/playback mode.
+In addition, if one is opened read-only
+(write-only) the device is set to record-only (play-only) mode with
+recording (playing) unpaused.
+.Pp
+If a writing process does not call
+.Xr write 2
+frequently enough to provide samples at the pace the hardware
+consumes them, silence is inserted.
+If a reading process does not call
+.Xr read 2
+frequently enough, it will simply miss samples.
+.Pp
+The following
+.Xr ioctl 2
+commands are supported on the sample devices:
+.Pp
+.Bl -tag -width Ds -compact
+.It Dv AUDIO_GETDEV Fa "audio_device_t *"
+This command fetches the current hardware device information into the
+.Vt audio_device_t *
+argument.
+.Bd -literal
+typedef struct audio_device {
+        char name[MAX_AUDIO_DEV_LEN];
+        char version[MAX_AUDIO_DEV_LEN];
+        char config[MAX_AUDIO_DEV_LEN];
+} audio_device_t;
+.Ed
+.Pp
+.It Dv AUDIO_SETPAR Fa "struct audio_swpar *"
+.It Dv AUDIO_GETPAR Fa "struct audio_swpar *"
+Set or get audio parameters as encoded in the
+.Vt audio_swpar
+structure.
+.Bd -literal
+struct audio_swpar {
+	unsigned int sig;	/* if 1, encoding is signed */
+	unsigned int le;	/* if 1, encoding is little-endian */
+	unsigned int bits;	/* bits per sample */
+	unsigned int bps;	/* bytes per sample */
+	unsigned int msb;	/* if 1, bits are msb-aligned */
+	unsigned int rate;	/* common play & rec sample rate */
+	unsigned int pchan;	/* play channels */
+	unsigned int rchan;	/* rec channels */
+	unsigned int nblks;	/* number of blocks in play buffer */
+	unsigned int round;	/* common frames per block */
+};
+.Ed
+.Pp
+When setting the device parameters with
+.Dv AUDIO_SETPAR ,
+the
+.Vt audio_swpar
+structure should first be initialized with
+.Bd -literal
+struct audio_swpar ap;
+
+AUDIO_INITPAR(&ap);
+.Ed
+.Pp
+and then only the values to be changed should be set.
+This ensures that the software will work with future versions
+of the driver.
+The driver will attempt to set the given parameters; if the
+device doesn't support them, it will choose other parameters.
+Then the software must call
+.Dv AUDIO_GETPAR
+to obtain the parameters in use.
+.Pp
+The parameters are as follows:
+.Bl -tag -width "round"
+.It Va bits
+Number of bits per sample: must be between 1 and 32.
+.It Va bps
+Bytes per sample; if specified, it must be large enough to hold all bits.
+By default it's set to the smallest power of two large enough to hold
+.Va bits .
+.It Va sig
+If set (i.e. non-zero) then the samples are signed;
+otherwise they are unsigned.
+.It Va le
+If set then the byte order is little endian;
+if not, it is big endian.
+It is meaningful only if
+.Va bps
+> 1.
+.It Va msb
+If set, then the
+.Va bits
+are aligned in the packet to the most significant bit
+(i.e. lower bits are padded),
+otherwise to the least significant bit
+(i.e. higher bits are padded).
+It's meaningful only if
+.Va bits
+<
+.Va bps
+* 8.
+.It Va rchan
+The number of recorded channels; meaningful only if the
+device is opened for reading.
+.It Va pchan
+The number of channels playing; meaningful only if
+the device is opened for writing.
+.It Va rate
+The sampling frequency in Hz.
+.It Va nblks
+The number of blocks in the play buffer.
+.It Va round
+The audio block size.
+.El
+.Pp
+.It Dv AUDIO_START
+Start playback and/or recording immediately.
+If the device is open for writing (playback), then
+the play buffer must be filled with the
+.Xr write 2
+syscall.
+The buffer size is obtained by multiplying
+the
+.Va nblks ,
+.Va round ,
+and
+.Va bps
+parameters obtained with
+.Dv AUDIO_GETPAR .
+.Pp
+.It Dv AUDIO_STOP
+Stop playback and recording immediately.
+.Pp
+.It Dv AUDIO_GETPOS Fa "struct audio_pos *"
+Fetch an atomic snapshot of device timing information in the
+.Vt audio_pos
+structure.
+.Bd -literal
+struct audio_pos {
+	unsigned int play_pos;	/* total bytes played */
+	unsigned int play_xrun;	/* bytes of silence inserted */
+	unsigned int rec_pos;	/* total bytes recorded */
+	unsigned int rec_xrun;	/* bytes dropped */
+};
+.Ed
+.Pp
+The properties have the following meaning:
+.Bl -tag -width "play_xrun"
+.It Va play_pos
+Total number of bytes played by the device since playback started
+(a.k.a the device wall clock).
+.It Va play_xrun
+The number of bytes corresponding to silence played because
+.Xr write 2
+wasn't called fast enough.
+.It Va rec_pos
+Total number of bytes recorded by the device since recording started
+(a.k.a the device wall clock).
+.It Va rec_xrun
+The number of bytes dropped because
+.Xr read 2
+wasn't called fast enough.
+.El
+.Pp
+.It Dv AUDIO_GETSTATUS Fa "struct audio_status *"
+Fetch the current device status from the audio driver in the
+.Vt audio_status
+structure.
+This
+.Xr ioctl 2
+is intended for use with diagnostic tools
+and is of no use to audio programs.
+.Bd -literal
+struct audio_status {
+#define AUMODE_PLAY	0x01
+#define AUMODE_RECORD	0x02
+	int mode;	/* current mode */
+	int pause;	/* not started yet */
+	int active;	/* playing/recording in progress */
+};
+.Ed
+.Pp
+The properties have the following meaning:
+.Bl -tag -width "active"
+.It Va mode
+The current mode determined by
+.Xr open 2
+flags.
+.It Va pause
+If set, indicates that
+.Dv AUDIO_STOP
+was called, and the device is not attempting to start.
+.It Va active
+If set, indicates that the device is playing and/or recording.
+.El
+.El
+.Sh CONTROL DEVICES
+Control devices support the following
+.Xr ioctl 2
+commands:
+.Pp
+.Bl -tag -width Ds -compact
+.It Dv AUDIO_GETDEV Fa "audio_device_t *"
+.It Dv AUDIO_GETPOS Fa "struct audio_pos *"
+.It Dv AUDIO_GETSTATUS Fa "struct audio_status *"
+.It Dv AUDIO_GETPAR Fa "struct audio_swpar *"
+.It Dv AUDIO_SETPAR Fa "struct audio_swpar *"
+These commands are the same as described above for the audio devices.
+While the audio device is open,
+.Dv AUDIO_SETPAR
+may not be used.
+.Pp
+.It Dv AUDIO_MIXER_READ Fa "mixer_ctrl_t *"
+.It Dv AUDIO_MIXER_WRITE Fa "mixer_ctrl_t *"
+These commands read the current mixer state or set new mixer state for
+the specified device
+.Va dev .
+.Va type
+identifies which type of value is supplied in the
+.Vt mixer_ctrl_t *
+argument.
+.Bd -literal
+#define AUDIO_MIXER_CLASS  0
+#define AUDIO_MIXER_ENUM   1
+#define AUDIO_MIXER_SET    2
+#define AUDIO_MIXER_VALUE  3
+typedef struct mixer_ctrl {
+	int dev;			/* input: nth device */
+	int type;
+	union {
+		int ord;		/* enum */
+		int mask;		/* set */
+		mixer_level_t value;	/* value */
+	} un;
+} mixer_ctrl_t;
+
+#define AUDIO_MIN_GAIN  0
+#define AUDIO_MAX_GAIN  255
+typedef struct mixer_level {
+	int num_channels;
+	u_char level[8];		/* [num_channels] */
+} mixer_level_t;
+#define AUDIO_MIXER_LEVEL_MONO	0
+#define AUDIO_MIXER_LEVEL_LEFT	0
+#define AUDIO_MIXER_LEVEL_RIGHT	1
+.Ed
+.Pp
+For a mixer value, the
+.Va value
+field specifies both the number of channels and the values for each
+channel.
+If the channel count does not match the current channel count, the
+attempt to change the setting may fail (depending on the hardware
+device driver implementation).
+For an enumeration value, the
+.Va ord
+field should be set to one of the possible values as returned by a prior
+.Dv AUDIO_MIXER_DEVINFO
+command.
+The type
+.Dv AUDIO_MIXER_CLASS
+is only used for classifying particular
+.Nm mixer
+device types and is not used for
+.Dv AUDIO_MIXER_READ
+or
+.Dv AUDIO_MIXER_WRITE .
+.Pp
+.It Dv AUDIO_MIXER_DEVINFO Fa "mixer_devinfo_t *"
+This command is used iteratively to fetch audio
+.Nm mixer
+device information into the input/output
+.Vt mixer_devinfo_t *
+argument.
+To query all the supported devices, start with an index field of
+0 and continue with successive devices (1, 2, ...) until the
+command returns an error.
+.Bd -literal
+typedef struct mixer_devinfo {
+	int index;		/* input: nth mixer device */
+	audio_mixer_name_t label;
+	int type;
+	int mixer_class;
+	int next, prev;
+#define AUDIO_MIXER_LAST	-1
+	union {
+		struct audio_mixer_enum {
+			int num_mem;
+			struct {
+				audio_mixer_name_t label;
+				int ord;
+			} member[32];
+		} e;
+		struct audio_mixer_set {
+			int num_mem;
+			struct {
+				audio_mixer_name_t label;
+				int mask;
+			} member[32];
+		} s;
+		struct audio_mixer_value {
+			audio_mixer_name_t units;
+			int num_channels;
+			int delta;
+		} v;
+	} un;
+} mixer_devinfo_t;
+.Ed
+.Pp
+The
+.Va label
+field identifies the name of this particular mixer control.
+The
+.Va index
+field may be used as the
+.Va dev
+field in
+.Dv AUDIO_MIXER_READ
+and
+.Dv AUDIO_MIXER_WRITE
+commands.
+The
+.Va type
+field identifies the type of this mixer control.
+Enumeration types are typically used for on/off style controls (e.g., a
+mute control) or for input/output device selection (e.g., select
+recording input source from CD, line in, or microphone).
+Set types are similar to enumeration types but any combination
+of the mask bits can be used.
+.Pp
+The
+.Va mixer_class
+field identifies what class of control this is.
+This value is set to the index value used to query the class itself.
+The
+.Pq arbitrary
+value set by the hardware driver may be determined by examining the
+.Va mixer_class
+field of the class itself,
+a mixer of type
+.Dv AUDIO_MIXER_CLASS .
+For example, a mixer level controlling the input gain on the
+.Dq line in
+circuit would have a
+.Va mixer_class
+that matches an input class device with the name
+.Dq inputs
+.Dv ( AudioCinputs )
+and would have a
+.Va label
+of
+.Dq line
+.Dv ( AudioNline ) .
+Mixer controls which control audio circuitry for a particular audio
+source (e.g., line-in, CD in, DAC output) are collected under the input class,
+while those which control all audio sources (e.g., master volume,
+equalization controls) are under the output class.
+Hardware devices capable of recording typically also have a record class,
+for controls that only affect recording,
+and also a monitor class.
+.Pp
+The
+.Va next
+and
+.Va prev
+may be used by the hardware device driver to provide hints for the next
+and previous devices in a related set (for example, the line in level
+control would have the line in mute as its
+.Dq next
+value).
+If there is no relevant next or previous value,
+.Dv AUDIO_MIXER_LAST
+is specified.
+.Pp
+For
+.Dv AUDIO_MIXER_ENUM
+mixer control types,
+the enumeration values and their corresponding names are filled in.
+For example, a mute control would return appropriate values paired with
+.Dv AudioNon
+and
+.Dv AudioNoff .
+For the
+.Dv AUDIO_MIXER_VALUE
+and
+.Dv AUDIO_MIXER_SET
+mixer control types, the channel count is
+returned; the units name specifies what the level controls (typical
+values are
+.Dv AudioNvolume ,
+.Dv AudioNtreble ,
+and
+.Dv AudioNbass ) .
+.\" For AUDIO_MIXER_SET mixer control types, what is what?
+.El
+.Pp
+A process may read the control device to get notifications about
+mixer changes.
+Whenever a control changes, the
+.Xr read 2
+function fetches an integer identifying the control.
+It may be used in the
+.Va dev
+field of the
+.Va mixer_ctrl
+structure to call
+.Dv AUDIO_MIXER_READ .
+.Pp
+In contrast to audio devices, which have the exclusive open property,
+control devices can be opened at any time in write-only mode.
+Only one reader is allowed at a time.
+.Sh FILES
+.Bl -tag -width /dev/audioctlN -compact
+.It Pa /dev/audio Ns Ar N
+Audio device.
+.It Pa /dev/audioctl Ns Ar N
+Control device.
+.El
+.Sh SEE ALSO
+.Xr aucat 1 ,
+.Xr cdio 1 ,
+.Xr sndioctl 1 ,
+.Xr ioctl 2 ,
+.Xr sio_open 3 ,
+.Xr sioctl_open 3 ,
+.Xr ac97 4 ,
+.Xr uaudio 4 ,
+.Xr sndio 7 ,
+.Xr audioctl 8 ,
+.Xr mixerctl 8 ,
+.Xr sndiod 8 ,
+.Xr audio 9
+.\" .Sh BUGS

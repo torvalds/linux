@@ -1,0 +1,394 @@
+.\"	$OpenBSD: ruby-module.5,v 1.50 2025/06/28 00:37:02 jeremy Exp $
+.\"
+.\" Copyright (c) 2011-2015, 2023 Jeremy Evans <jeremy@openbsd.org>
+.\" Copyright (c) 2008, 2011 Marc Espie <espie@openbsd.org>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 28 2025 $
+.Dt RUBY-MODULE 5
+.Os
+.Sh NAME
+.Nm ruby-module
+.Nd lang/ruby port module
+.Sh DESCRIPTION
+This manual page documents the behavior of setting
+.Ev MODULES Ns Li =lang/ruby
+in the
+.Xr ports 7
+tree.
+.Pp
+The main usage of the lang/ruby module is to allow a single Ruby gem-based
+port to build packages for multiple versions of Ruby.
+The lang/ruby module also simplifies ports that depend on Ruby by
+automatically setting up the correct dependencies and defining commonly
+needed variables.
+.Pp
+To allow a single Ruby gem-based port to build packages for multiple versions
+of Ruby, set a specific
+.Ev CONFIGURE_STYLE ,
+which modifies some additional parameters:
+.Bl -tag -width Ds
+.It Ev CONFIGURE_STYLE Ns = Ns Qq ruby gem
+For pure Ruby gems without C extensions.
+This adds
+.Ev PKG_ARCH
+= * to the port.
+.It Ev CONFIGURE_STYLE Ns = Ns Qq ruby gem ext
+For Ruby gems with C extensions.
+To pass additional arguments to
+.Sy gem Cm install
+when building the port, set
+those via
+.Ev CONFIGURE_ARGS .
+.El
+.Pp
+.Ev CONFIGURE_STYLE Ns = Ns Qq ruby gem
+and
+.Ev CONFIGURE_STYLE Ns = Ns Qq ruby gem ext
+both add ruby32, ruby33, and ruby34
+.Ev FLAVOR Ns s
+to the port.
+They also cause the
+.Ev FULLPKGNAME
+to use the
+.Ev FLAVOR Ns \-
+instead of ruby\- as the package prefix.
+.Pp
+The ports system defaults to using Ruby 3.4 if the version of Ruby is not
+specified.
+To specify a version for a gem port, use a specific
+.Ev FLAVOR ,
+such as ruby33 to use Ruby 3.3.
+To specify the Ruby version to use for a non Ruby-gem port, set
+.Ev MODRUBY_REV
+to 3.2, 3.3, or 3.4.
+.Pp
+To ensure that dependencies use the same Ruby implementation as the
+current port, all Ruby gem dependencies specified in the port
+should use this format:
+.Pp
+.Dl category/ruby\-foo,${MODRUBY_FLAVOR}
+.Pp
+To prevent the ports system from automatically setting up
+.Ev FLAVOR Ns s
+in a gem port, set
+.Ev MODRUBY_HANDLE_FLAVORS
+to
+.Cm \&No .
+Similarly, to let the ports system automatically set up
+.Ev FLAVOR Ns s
+in a non-gem port, set
+.Ev MODRUBY_HANDLE_FLAVORS
+to
+.Cm Yes .
+When
+.Ev MODRUBY_HANDLE_FLAVORS
+is
+.Cm Yes ,
+the ports system automatically adds the appropriate prefix to the
+.Ev FULLPKGNAME
+(e.g. ruby33\- for ruby 3.3, ruby34\- for ruby 3.4).
+.Pp
+For Ruby gem ports that can work on multiple Ruby versions, append
+.Ev GEM_BIN_SUFFIX
+to every binary file entry in the PLIST.
+This is because the gem binaries for multiple Ruby versions are all
+installed to
+.Pa ${LOCALBASE}/bin ,
+and the binaries all use a version-specific suffix.
+Any man pages and other files that would be installed to locations not
+specific to a Ruby implementation (such as under
+.Pa ${LOCALBASE}/share ) ,
+should use
+.Ev GEM_MAN_SUFFIX
+before the extension so the different
+.Ev FLAVOR Ns s
+do not conflict.
+.Pp
+make update\-plist may remove
+.Ev GEM_BIN_SUFFIX
+and
+.Ev GEM_MAN_SUFFIX
+from the PLIST, or use them in inappropriate places, so be careful when
+updating gem ports with binaries or man pages.
+Additionally, for gem ports with C extensions, make update\-plist will add back
+files used by the specific
+.Ev FLAVOR
+(such as files under the extension source directory), which may
+not exist for other
+.Ev FLAVOR Ns s ,
+so always manually check the result of make update\-plist and manually test that
+all supported
+.Ev FLAVOR Ns s
+are buildable before committing.
+Additionally, for gems with C extensions, make update\-plist may add back the
+extension source files, which shouldn't be included in the files, so make sure
+to double check that all files added by make update\-plist should be included
+in the package.
+.Pp
+The lang/ruby module creates a do\-test target if
+.Ev MODRUBY_TEST
+is used and one is not already defined.
+.Pp
+The lang/ruby module appends to the following variables:
+.Bl -tag -width Ds
+.It Ev BUILD_DEPENDS
+Adds dependency on version of Ruby in use unless
+.Ev MODRUBY_BUILDDEP
+is set to
+.Cm \&No ,
+or
+.Ev NO_BUILD
+is set to
+.Cm Yes .
+.It Ev CATEGORIES
+Adds the lang/ruby category.
+.It Ev RUN_DEPENDS
+Adds dependency on version of Ruby in use unless
+.Ev MODRUBY_RUNDEP
+is set to
+.Cm \&No .
+.It Ev TEST_DEPENDS
+Adds the rspec dependency if
+.Ev MODRUBY_TEST
+is set to rspec3.
+.It Ev SUBST_VARS
+Adds
+.Ev GEM_EXTENSIONS_DIR ,
+.Ev MODRUBY_RELEXAMPLEDIR ,
+.Ev MODRUBY_SITEARCHDIR ,
+.Ev MODRUBY_SITEDIR ,
+.Ev MODRUBY_LIBREV ,
+.Ev MODRUBY_ARCH ,
+.Ev GEM_LIB ,
+.Ev GEM_BIN ,
+and
+.Ev DISTNAME .
+.It Ev UPDATE_PLIST_ARGS
+Adds options so that
+.Ev MODRUBY_RELEXAMPLEDIR ,
+.Ev MODRUBY_SITEARCHDIR ,
+.Ev MODRUBY_SITEDIR ,
+.Ev GEM_LIB ,
+and
+.Ev GEM_BIN
+are only substituted at the start of paths.
+.El
+.Pp
+If using
+.Ev CONFIGURE_STYLE Ns = Ns Qq ruby gem
+or
+.Ev CONFIGURE_STYLE Ns = Ns Qq ruby gem ext ,
+it also appends to the following variables:
+.Bl -tag -width Ds
+.It Ev EXTRACT_CASES
+Adds support for extracting .gem files.
+.El
+.Pp
+If using
+.Ev CONFIGURE_STYLE Ns = Ns Qq ruby gem ext ,
+it also appends to the following variables:
+.Bl -tag -width Ds
+.It Ev WANTLIB
+Adds libraries used by Ruby.
+.It Ev LIB_DEPENDS
+Adds
+.Ev MODRUBY_LIB_DEPENDS .
+.It Ev PKG_ARGS
+Adds additional PLIST so that loading native extensions will not attempt to
+rebuild them at runtime.
+.It Ev SUBST_VARS
+Adds
+.Ev GEM_EXTENSIONS_DIR .
+.El
+.Pp
+If using
+.Ev MODRUBY_HANDLE_FLAVORS Ns = Ns Yes ,
+it also appends to the following variables:
+.Bl -tag -width Ds
+.It Ev SUBST_VARS
+Adds
+.Ev GEM_BIN_SUFFIX
+and
+.Ev GEM_MAN_SUFFIX
+to
+.Ev SUBST_VARS
+so that the PLISTs work on multiple Ruby versions.
+.El
+.Pp
+The lang/ruby module sets the following variables:
+.Bl -tag -width Ds
+.It Ev GEM
+The path to the appropriate
+.Sy gem
+binary for the current Ruby version (/usr/local/bin/gem${MODRUBY_BINREV}).
+.It Ev GEM_BASE_BIN
+The absolute path where the
+.Sy gem
+program will install the executable
+files provided by the gem (if any) during the fake target.
+.It Ev GEM_BASE_LIB
+The absolute path where the
+.Sy gem
+program will install library files
+provided by the gem during the fake target.
+.It Ev GEM_BIN
+The relative path under
+.Ev PREFIX
+where the package installs the gem's executable files.
+.It Ev GEM_BIN_SUFFIX
+The suffix to use for the gem's executable files, so that separate
+.Ev FLAVOR Ns s
+of the port do not conflict.
+.It Ev GEM_EXTENSIONS_DIR
+The relative path under
+.Ev PREFIX
+where the package installs Ruby-version specific files for Ruby gems
+with C extensions.
+.It Ev GEM_FLAGS
+Option flags for
+.Sy gem Cm install
+when building the port.
+.It Ev GEM_LIB
+The relative path under
+.Ev PREFIX
+where Ruby gem files are stored for the Ruby version in use.
+.It Ev GEM_MAN_SUFFIX
+The suffix to use for the gem's manual pages, so that separate
+.Ev FLAVOR Ns s
+of the port do not conflict.
+.It Ev MODRUBY_ADJ_FILES
+A list of filename patterns that will automatically have
+.Ev MODRUBY_RUBY_ADJ
+called on them during pre\-configure.
+.It Ev MODRUBY_ARCH
+The platform-specific string used by Ruby for files installed
+into platform-specific directories.
+.It Ev MODRUBY_BINREV
+The same as
+.Ev MODRUBY_REV
+except without the dot
+.Pq Ql \&. ,
+reflecting the suffix used by the
+programs for the Ruby version in use.
+.It Ev MODRUBY_BIN_RSPEC
+The path to the rspec (rspec 3) binaries for the Ruby
+version in use.
+.It Ev MODRUBY_BUILD_DEPENDS
+The same as
+.Ev MODRUBY_RUN_DEPENDS .
+It is designed to be used in
+.Ev BUILD_DEPENDS
+values for other ports depending on Ruby.
+.It Ev MODRUBY_BUILDDEP
+If Ruby does not need to be installed
+while building the package(s), set to
+.Cm \&No .
+The default is
+.Cm Yes .
+.It Ev MODRUBY_FLAVOR
+The FLAVOR to use for Ruby dependencies to ensure that
+they use the same version of Ruby as the current port.
+.It Ev MODRUBY_HANDLE_FLAVORS
+Determines whether the port allows building with multiple
+.Ev FLAVOR Ns s,
+with each
+.Ev FLAVOR
+supporting a separate Ruby version.
+.It Ev MODRUBY_LIBREV
+The same as
+.Ev MODRUBY_REV .
+.It Ev MODRUBY_LIB_DEPENDS
+The same as
+.Ev MODRUBY_RUN_DEPENDS .
+It is designed to be used in
+.Ev LIB_DEPENDS
+values for other ports depending on Ruby.
+.It Ev MODRUBY_PKG_PREFIX
+The prefix to use for packages built using the lang/ruby module,
+if the port support building with multiple Ruby versions.
+.It Ev MODRUBY_RELEXAMPLEDIR
+The relative path under
+.Ev PREFIX
+where the package installs example files for non-Ruby gem ports.
+.It Ev MODRUBY_REV
+Includes the major and minor versions of the version of Ruby in use,
+separated by a dot
+.Pq Ql \&. .
+The port can override the value to specify which Ruby version to use,
+if the port sets or defaults to
+.Ev MODRUBY_HANDLE_FLAVORS Ns =Yes .
+.It Ev MODRUBY_RUBY_ADJ
+A command that takes filename arguments and replaces
+the
+.Pa /usr/bin/env
+ruby shebang lines with
+.Ev RUBY .
+.It Ev MODRUBY_RUN_DEPENDS
+The port path for the Ruby version in use.
+It is designed to be used in
+.Ev RUN_DEPENDS
+values for other ports depending on Ruby.
+.It Ev MODRUBY_RUNDEP
+If the packages do not depend on Ruby at runtime, set to
+.Cm \&No .
+The default is
+.Cm Yes .
+.It Ev MODRUBY_SITEARCHDIR
+The relative path under
+.Ev PREFIX
+where the package installs platform-specific library files for non-Ruby gem
+ports.
+.It Ev MODRUBY_SITEDIR
+The relative path under
+.Ev PREFIX
+where the package installs non-platform-specific library files for non-Ruby
+gem ports.
+.It Ev MODRUBY_TEST
+Set to
+.Cm ruby ,
+.Cm rake ,
+.Cm rspec3 ,
+or
+.Cm testrb
+to choose the appropriate program to run the regress tests, if the port
+includes tests.
+.It Ev MODRUBY_TEST_ENV
+Sets environment variables for the regress tests.
+.It Ev MODRUBY_TEST_TARGET
+Sets the argument to the regress test program.
+.It Ev MODRUBY_WANTLIB
+Includes the library-specs for the Ruby version in use.
+.It Ev RAKE
+The path to the
+.Sy rake
+program for the Ruby version in use (/usr/local/bin/rake${MODRUBY_BINREV}).
+.It Ev RUBY
+The path to the
+.Xr ruby 1
+program for the Ruby version in use (/usr/local/bin/ruby${MODRUBY_BINREV}).
+.El
+.Sh SEE ALSO
+.Xr bsd.port.mk 5 ,
+.Xr port-modules 5

@@ -1,0 +1,118 @@
+/*	$OpenBSD: pvreg.h,v 1.6 2019/05/13 15:40:34 pd Exp $	*/
+
+/*
+ * Copyright (c) 2015 Reyk Floeter <reyk@openbsd.org>
+ * Copyright (c) 2015 Stefan Fritsch <sf@sfritsch.de>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef _DEV_PV_PVBUS_H_
+#define _DEV_PV_PVBUS_H_
+
+#define	CPUID_HV_SIGNATURE_START	0x40000000
+#define	CPUID_HV_SIGNATURE_END		0x40010000
+#define	CPUID_HV_SIGNATURE_STEP		0x100
+#define CPUID_HV_SIGNATURE_STRLEN	12
+
+/*
+ * KVM
+ */
+#define	CPUID_OFFSET_KVM_FEATURES		0x1
+
+#define	KVM_FEATURE_CLOCKSOURCE			0	/* deprecated */
+#define	KVM_FEATURE_NOP_IO_DELAY		1
+#define	KVM_FEATURE_MMU_OP			2	/* deprecated */
+#define	KVM_FEATURE_CLOCKSOURCE2		3
+#define	KVM_FEATURE_ASYNC_PF			4
+#define	KVM_FEATURE_STEAL_TIME			5
+#define	KVM_FEATURE_PV_EOI			6
+#define	KVM_FEATURE_PV_UNHALT			7
+#define	KVM_FEATURE_CLOCKSOURCE_STABLE_BIT	24
+
+#define	KVM_MSR_EOI_EN				0x4b564d04
+#define KVM_PV_EOI_BIT				0
+
+#define KVM_MSR_WALL_CLOCK			0x4b564d00
+#define KVM_MSR_SYSTEM_TIME			0x4b564d01
+
+struct pvclock_wall_clock {
+	uint32_t		 wc_version;
+	uint32_t		 wc_sec;
+	uint32_t		 wc_nsec;
+} __packed;
+
+struct pvclock_time_info {
+	uint32_t		 ti_version;
+	uint32_t		 ti_pad0;
+	uint64_t		 ti_tsc_timestamp;
+	uint64_t		 ti_system_time;
+	uint32_t		 ti_tsc_to_system_mul;
+	int8_t			 ti_tsc_shift;
+	uint8_t			 ti_flags;
+	uint8_t			 ti_pad[2];
+} __packed;
+
+#define PVCLOCK_FLAG_TSC_STABLE			0x01
+#define PVCLOCK_SYSTEM_TIME_ENABLE		0x01
+
+/*
+ * Hyper-V
+ */
+#define CPUID_OFFSET_HYPERV_INTERFACE		0x1
+#define CPUID_OFFSET_HYPERV_VERSION		0x2
+#define CPUID_OFFSET_HYPERV_FEATURES		0x3
+#define CPUID_OFFSET_HYPERV_ENLIGHTENMENT_INFO	0x4
+#define CPUID_OFFSET_HYPERV_IMPL_LIMITS		0x5
+
+#define HYPERV_VERSION_EAX_BUILD_NUMBER		0
+#define HYPERV_VERSION_EBX_MAJOR_M		0xffff0000
+#define HYPERV_VERSION_EBX_MAJOR_S		16
+#define HYPERV_VERSION_EBX_MINOR_M		0x0000ffff
+#define HYPERV_VERSION_EBX_MINOR_S		0
+#define HYPERV_VERSION_ECX_SERVICE_PACK		0
+#define HYPERV_VERSION_EDX_SERVICE_BRANCH_M	0xff000000
+#define HYPERV_VERSION_EDX_SERVICE_BRANCH_S	24
+#define HYPERV_VERSION_EDX_SERVICE_NUMBER_M	0x00ffffff
+#define HYPERV_VERSION_EDX_SERVICE_NUMBER_S	0
+
+#define HYPERV_VERSION_WS2008			0x00060000
+#define HYPERV_VERSION_WIN7			0x00060001
+#define HYPERV_VERSION_WIN8			0x00060002
+#define HYPERV_VERSION_WIN8_1			0x00060003
+#define HYPERV_VERSION_WIN10			0x00100000
+
+#define HYPERV_FEATURE_EAX_VP_RUNTIME		0
+#define HYPERV_FEATURE_EAX_TIME_REF_COUNT	1
+#define HYPERV_FEATURE_EAX_SYNIC		2
+#define HYPERV_FEATURE_EAX_STIMER		3
+#define HYPERV_FEATURE_EAX_APIC			4
+#define HYPERV_FEATURE_EAX_HYPERCALL		5
+#define HYPERV_FEATURE_EAX_VP_INDEX		6
+#define HYPERV_FEATURE_EAX_MSR_RESET		7
+#define HYPERV_FEATURE_EAX_STATS_PAGES		8
+#define HYPERV_FEATURE_EAX_REF_TSC		9
+#define HYPERV_FEATURE_EAX_GUEST_IDLE		10
+#define HYPERV_FEATURE_EAX_TIMER_FREQ		11
+#define HYPERV_FEATURE_EAX_DEBUG		12
+
+/*
+ * Xen
+ */
+#define CPUID_OFFSET_XEN_VERSION		0x1
+#define CPUID_OFFSET_XEN_HYPERCALL		0x2
+
+#define XEN_VERSION_MAJOR_S			16
+#define XEN_VERSION_MINOR_M			0xffff
+
+#endif /* _DEV_PV_PVBUS_H_ */

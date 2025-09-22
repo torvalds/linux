@@ -1,0 +1,77 @@
+.\"	$OpenBSD: xen.4,v 1.3 2021/10/21 15:56:17 denis Exp $
+.\"
+.\" Copyright (c) 2015 Mike Belopuhov
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 21 2021 $
+.Dt XEN 4
+.Os
+.Sh NAME
+.Nm xen
+.Nd Xen domU nexus device
+.Sh SYNOPSIS
+.Cd "xen0 at pvbus?"
+.Sh DESCRIPTION
+.Nm
+driver performs HVM domU guest initialization, provides abstraction for
+virtual Xen interrupts, access to the XenStore configuration storage as
+well as a device probing facility for paravirtualized devices such as
+disk and network interfaces.
+.Pp
+When running under XenServer, to let the host know that the guest has
+finished initializing and to allow graceful shutdown, set the following
+XenStore properties with
+.Xr hostctl 8
+in
+.Xr rc.local 8 :
+.Bd -literal -offset indent
+ostype=$(sysctl -n kern.ostype)
+osrelease=$(sysctl -n kern.osrelease)
+
+# XenServer Tools version
+hostctl attr/PVAddons/MajorVersion 6
+hostctl attr/PVAddons/MinorVersion 2
+hostctl attr/PVAddons/MicroVersion 0
+hostctl attr/PVAddons/BuildVersion 76888
+hostctl attr/PVAddons/Installed 1
+
+# OS version
+hostctl data/os_name "$ostype $osrelease"
+hostctl data/os_uname $osrelease
+hostctl data/os_distro $ostype
+
+# Inform Xen of IPs bound to the VM
+hostctl attr/vif/0/ipv4/0 192.0.2.1
+hostctl attr/vif/0/ipv6/0 2001:db8::1
+
+# Update XenStore
+hostctl data/updated 1
+.Ed
+.Sh SEE ALSO
+.Xr autoconf 4 ,
+.Xr intro 4 ,
+.Xr pvbus 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mike Belopuhov Aq Mt mikeb@openbsd.org
+from scratch, inspired by the
+.Fx
+implementation.

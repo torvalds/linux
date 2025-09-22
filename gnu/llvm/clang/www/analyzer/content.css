@@ -1,0 +1,100 @@
+html { margin: 0px; } body { margin: 8px; }
+
+html, body {
+  padding:0px;
+  margin:0px;
+  font-size:small; font-family:"Lucida Grande", "Lucida Sans Unicode", Arial, Verdana, Helvetica, sans-serif; background-color: #fff; color: #222;
+  line-height:1.5;
+  background-color: #808080;
+  
+}
+
+h1, h2, h3, tt { color: #000 }
+
+h1 { padding-top:0px; margin-top:0px;}
+h2 { color:#333333; padding-top:0.5em; }
+h3 { padding-top: 0.5em; margin-bottom: -0.25em; color:#2d58b7 }
+h4 { color:#2d58b7 }
+h4.faq { color:#2d58b7 }
+li { padding-bottom: 0.5em }
+ul { padding-left:1.5em; }
+
+.command { font-weight:bold }
+.code_highlight { font-weight:bold; color:#2d58b7 }
+.code_example { border-width:1px; border-style:solid; border-color:#cccccc; 
+                background-color:#eeeeee; padding:10px }
+
+/* Slides */
+IMG.img_slide {
+    display: block;
+    margin-left: auto;
+    margin-right: auto
+}
+
+#page { width:930px;  text-align: left; margin: 0 auto; padding:0;
+        background-color: white; height:100%;
+        border-left: 1px solid #EBF0FA;
+}
+
+#content {
+  clear: left;
+  padding: 1em 2em 1em 2em;
+  background-color: #ffffff;
+}
+
+.itemTitle { color:#2d58b7 }
+
+
+/* Tables */
+tr { vertical-align:top }
+
+table.options thead {
+  background-color:#eee; color:#666666;
+  font-weight: bold; cursor: default;
+  text-align:left;
+  border-top: 2px solid #cccccc;
+  border-bottom: 2px solid #cccccc;
+  font-weight: bold; font-family: Verdana
+}
+table.options { border: 1px #cccccc solid }
+table.options { border-collapse: collapse; border-spacing: 0px }
+table.options { margin-left:0px; margin-top:20px; margin-bottom:20px }
+table.options td { border-bottom: 1px #cccccc dotted }
+table.options td { padding:5px; padding-left:8px; padding-right:8px }
+table.options td { text-align:left; font-size:9pt }
+
+table.checkers { 
+  border: 1px #cccccc solid;
+  border-collapse: collapse;
+  margin:0px; margin-top:20px; margin-bottom:20px;
+  text-align:left;
+  table-layout: fixed;
+  width: 100%;
+  word-wrap :break-word;
+  font-size: 100%;
+}
+table.checkers thead {
+  background-color:#eee; color:#666666;
+  border-top: 2px solid #cccccc;
+  border-bottom: 2px solid #cccccc;
+  font-weight: bold; font-family: Verdana;
+}
+table.checkers td { border-right: 1px #cccccc dotted; border-bottom: 1px #cccccc dotted; }
+table.checkers td.aligned { text-align: center; vertical-align: middle; }
+table.checkers col.namedescr { width: 45% }
+table.checkers col.example { width: 55% }
+table.checkers col.progress { width: 84px }
+table.checkers thead td,
+table.checkers div.namedescr,
+table.checkers div.exampleContainer { overflow: hidden; padding: 5px 8px 10px 8px }
+/* table.checkers tbody div.example { font-family: monospace; white-space: pre } */
+table.checkers div.example { border-top:1px #cccccc dashed; width:100%; padding-top: 5px; margin-top: 5px }
+table.checkers div.example:first-child { border-top:none; padding-top: 0px; margin-top: 0px }
+table.checkers span.name { font-weight: bold }
+table.checkers span.lang { font-weight: bold; padding-left: 7px; /* display:block; */ }
+table.checkers div.descr { margin-top:7px }
+table.checkers div.functions { margin-top: 2px; font-style: italic; font-size: 90%; color:#00B }
+table.checkers pre { margin: 1px; font-size: 100%; word-wrap: break-word }
+table.checkers p { margin: 10px 0px 0px 0px; }
+table.checkers ul, li { margin: 0 }
+

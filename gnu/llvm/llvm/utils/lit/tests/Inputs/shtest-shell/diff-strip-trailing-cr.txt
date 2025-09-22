@@ -1,0 +1,10 @@
+# Check behavior of --strip-trailing-cr.
+
+# RUN: diff -u diff-in.dos diff-in.unix && false || true
+# RUN: diff -u diff-in.unix diff-in.dos && false || true
+
+# RUN: diff -u --strip-trailing-cr diff-in.dos diff-in.unix && false || true
+# RUN: diff -u --strip-trailing-cr diff-in.unix diff-in.dos && false || true
+
+# Fail so lit will print output.
+# RUN: false

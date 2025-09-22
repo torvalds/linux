@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>Tree Order Statistics Timing Test</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1>Tree Order-Statistics Timing Test</h1>
+<h2><a name="description" id="description">Description</a></h2>
+<p>This test creates a container, inserts random integers into
+    the the container, and then checks the order-statistics of the
+    container's values. (If the container is one of <tt>pb_ds</tt>
+    's trees, it does this with the <tt>order_of_key</tt> method of
+    <a href="tree_order_statistics_node_update.html"><tt>tree_order_statistics_node_update</tt></a>
+    ; otherwise, it uses the <tt>find</tt> method and
+    <tt>std::distance</tt> .) It measures the average time for such
+    queries as a function of the number of values inserted.</p>
+<p>(The test was executed with <a href="../../../../testsuite/performance/ext/pb_ds/tree_order_statistics_timing.cc"><tt>tree_order_statistics_timing_test</tt></a>
+    200 200 2100)</p>
+<h2><a name="purpose" id="purpose">Purpose</a></h2>
+<p>The test checks the performance difference of policies based
+    on node-invariant as opposed to a external functions. (see
+    <a href="tree_based_containers.html#invariants">Design::Associative
+    Containers::Tree-Based Containers::Node Invariants</a> .)</p>
+<h2><a name="results" id="results">Results</a></h2>
+<p>Figures <a href="#NTG">NTG</a>, <a href="#NTM">NTM</a>, and
+    <a href="#NTL">NTL</a> show the results for the native and
+    tree-based containers in <a href="assoc_performance_tests.html#gcc"><u>g++</u></a>, <a href="assoc_performance_tests.html#msvc"><u>msvc++</u></a>, and
+    <a href="assoc_performance_tests.html#local"><u>local</u></a>,
+    respectively.</p>
+<div id="NTG_res_div">
+<div id="NTG_gcc">
+<div id="NTG_tree_order_statistics_timing_test">
+<div id="NTG_assoc">
+<div id="NTG_Native_and_tree-based_container_order-statistics_queries"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTG" id="NTG"><img src="tree_order_statistics_timing_test_gcc.png" alt="no image" /></a></h6>NTG: Native and tree-based container order-statistics queries - <a href="assoc_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_set-
+<tt>std::set</tt></li>
+<li>
+splay_tree_ost_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="tree_order_statistics_node_update.html"><tt>tree_order_statistics_node_update</tt></a>
+</li>
+<li>
+rb_tree_ost_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="tree_order_statistics_node_update.html"><tt>tree_order_statistics_node_update</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NTM_res_div">
+<div id="NTM_msvc">
+<div id="NTM_tree_order_statistics_timing_test">
+<div id="NTM_assoc">
+<div id="NTM_Native_and_tree-based_container_order-statistics_queries"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTM" id="NTM"><img src="tree_order_statistics_timing_test_msvc.png" alt="no image" /></a></h6>NTM: Native and tree-based container order-statistics queries - <a href="assoc_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_set-
+<tt>std::set</tt></li>
+<li>
+splay_tree_ost_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="tree_order_statistics_node_update.html"><tt>tree_order_statistics_node_update</tt></a>
+</li>
+<li>
+rb_tree_ost_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="tree_order_statistics_node_update.html"><tt>tree_order_statistics_node_update</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NTL_res_div">
+<div id="NTL_local">
+<div id="NTL_tree_order_statistics_timing_test">
+<div id="NTL_assoc">
+<div id="NTL_Native_and_tree-based_container_order-statistics_queries"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTL" id= "NTL"><img src="tree_order_statistics_timing_test_local.png" alt="no image" /></a></h6>NTL: Native and tree-based container order-statistics queries - <a href = "assoc_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<h2><a name="observations" id="observations">Observations</a></h2>
+<p>In this test, the native red-black tree can support
+    order-statistics queries only externally, by performing a
+    <tt>find</tt> (alternatively, <tt>lower_bound</tt> or
+    <tt>upper_bound</tt> ) and then using <tt>std::distance</tt> .
+    This is clearly linear, and it is not that surprising that the
+    cost is high.</p>
+<p><tt>pb_ds</tt> 's tree-based containers use in this test the
+    <tt>order_of_key</tt> method of <a href="tree_order_statistics_node_update.html"><tt>tree_order_statistics_node_update</tt></a>.
+    This method has only linear complexity in the length of the
+    root-node path. Unfortunately, the average path of a splay tree
+    (<a href="tree.html"><tt>tree</tt></a>
+    with <tt>Tag =</tt> <a href="splay_tree_tag.html"><tt>splay_tree_tag</tt></a> ) can
+    be higher than logarithmic; the longest path of a red-black
+    tree (<a href="tree.html"><tt>tree</tt></a>
+    with <tt>Tag =</tt> <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a> ) is
+    logarithmic in the number of elements. Consequently, the splay
+    tree has worse performance than the red-black tree.</p>
+</div>
+</body>
+</html>

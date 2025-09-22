@@ -1,0 +1,485 @@
+.\" $OpenBSD: bgpd.8,v 1.86 2025/05/22 08:55:11 job Exp $
+.\"
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 22 2025 $
+.Dt BGPD 8
+.Os
+.Sh NAME
+.Nm bgpd
+.Nd Border Gateway Protocol (BGP) routing daemon
+.Sh SYNOPSIS
+.Nm bgpd
+.Bk -words
+.Op Fl cdnvV
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Ek
+.Sh DESCRIPTION
+.Nm
+is a Border Gateway Protocol
+.Pq BGP
+daemon which manages the network routing tables.
+Its main purpose is to exchange information
+concerning
+.Qq network reachability
+with other BGP systems.
+.Nm
+uses the Border Gateway Protocol, Version 4,
+as described in RFC 4271.
+.Pp
+BGP is an exterior gateway protocol using a multiple step decision process
+to find the best path.
+Advanced filtering can be used to influence the route
+decision for traffic engineering.
+The session engine of
+.Nm
+is responsible for maintaining the TCP session with each neighbor.
+Updates are passed to the Route Decision Engine (RDE) where the paths
+are filtered and used to compute a Routing Information Base (RIB).
+The parent process is responsible for keeping the RIB in sync with
+the kernel routing table.
+.Pp
+The route decision process selects the best path by evaluating all paths to
+the same destination.
+The decision process continues to the next step if paths have equal attributes.
+Paths that are less preferred are taken out of consideration until there is
+only one path left.
+.Bl -enum -width 42 -offset bula
+.It
+All paths with errors or loops are not eligible.
+.It
+Paths with an unreachable nexthop are not eligible.
+After this step all remaining paths are valid.
+.It
+The path with the highest
+.Em LOCAL_PREF
+is selected.
+.It
+The path with the shortest
+.Em AS path
+attribute is selected.
+.It
+The
+.Em ORIGIN
+attribute is compared.
+The order is IGP before EGP before incomplete origins.
+.It
+The path with the lowest
+.Em MULTI_EXIT_DISC
+metric is selected.
+Normally, this value is only considered when choosing between multiple
+routes sent by the same neighbouring AS.
+However, if
+.Dq Li rde med compare always
+is set in the configuration, the metric is compared for routes sent by any AS.
+.It
+Comparison of the BGP session type.
+Paths learned over an external (EBGP) session are preferred over those
+learned via an internal (IBGP) session.
+.It
+The path with the highest local
+.Em weight
+is selected.
+.It
+If
+.Dq Li rde route-age evaluate
+is set then the oldest path is selected.
+.It
+The path coming from the neighbor with the lowest
+.Em BGP ID
+wins.
+If the
+.Em ORIGINATOR_ID
+attribute is present, that value will be used in the comparison instead.
+.It
+The path with the shortest
+.Em CLUSTER_LIST
+attribute is selected.
+If it is not present then a length of 0 is used in the comparison.
+.It
+The path coming from the peer with the lowest IP address is selected.
+IPv4 sessions will be preferred over IPv6 ones.
+.El
+.Pp
+Attributes set by filters can be used to tip the decision process to prefer
+particular paths over others.
+This can be achieved by changing the
+.Em localpref ,
+.Em med ,
+or
+.Em weight
+attributes.
+AS path prepending or changing the
+.Em med
+or
+.Em origin
+attribute can be used to influence the routing behaviour on remote systems.
+.Pp
+To have
+.Nm
+enabled at boot time, use
+.Dq rcctl enable bgpd ,
+which sets
+.Pp
+.Dl bgpd_flags=\(dq\(dq
+.Pp
+in
+.Xr rc.conf.local 8 .
+.Pp
+When
+.Nm
+starts up, it reads settings from a configuration file,
+typically
+.Xr bgpd.conf 5 .
+A running
+.Nm
+process can be controlled using the
+.Xr bgpctl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width "-f fileXXX"
+.It Fl c
+Force
+.Nm
+to do
+.Xr carp 4
+demotion at startup when the
+.Em demote
+functionality is used.
+Normally,
+.Nm
+will only do demotion at startup when the demotion counter for the group
+in question is already greater than 0.
+.Nm
+will start handling demotion after all sessions with demotion configured for
+the given group have been successfully established.
+At system startup,
+.Xr rc 8
+has the demotion counter for the group
+.Em carp
+increased until after
+.Nm
+is started, so this option should
+.Em not
+be used in
+.Xr rc.conf 8 .
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Use
+.Ar file
+as the configuration file,
+instead of the default
+.Pa /etc/bgpd.conf .
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl v
+Produce more verbose output.
+.It Fl V
+Show the version and exit.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/bgpd.sock.<rdomain>" -compact
+.It Pa /etc/bgpd.conf
+Default
+.Nm
+configuration file.
+.It Pa /var/run/bgpd.sock.<rdomain>
+Default
+.Nm
+control socket, where
+.Ar <rdomain>
+is the routing domain in which
+.Nm
+has been started.
+.El
+.Sh SEE ALSO
+.Xr bgpd.conf 5 ,
+.Xr bgpctl 8 ,
+.Xr bgplg 8 ,
+.Xr bgplgsh 8
+.Sh STANDARDS
+.Rs
+.%D August 1996
+.%R RFC 1997
+.%T BGP Communities Attribute
+.Re
+.Pp
+.Rs
+.%D August 1998
+.%R RFC 2385
+.%T Protection of BGP Sessions via the TCP MD5 Signature Option
+.Re
+.Pp
+.Rs
+.%D March 1999
+.%R RFC 2545
+.%T Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing
+.Re
+.Pp
+.Rs
+.%D September 2000
+.%R RFC 2918
+.%T Route Refresh Capability for BGP-4
+.Re
+.Pp
+.Rs
+.%D April 2004
+.%R RFC 3765
+.%T NOPEER Community for Border Gateway Protocol (BGP) Route Scope Control
+.Re
+.Pp
+.Rs
+.%D January 2006
+.%R RFC 4271
+.%T A Border Gateway Protocol 4 (BGP-4)
+.Re
+.Pp
+.Rs
+.%D February 2006
+.%R RFC 4360
+.%T BGP Extended Communities Attribute
+.Re
+.Pp
+.Rs
+.%D February 2006
+.%R RFC 4364
+.%T BGP/MPLS IP Virtual Private Networks (VPNs)
+.Re
+.Pp
+.Rs
+.%D April 2006
+.%R RFC 4456
+.%T "BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP)"
+.Re
+.Pp
+.Rs
+.%D April 2006
+.%R RFC 4486
+.%T Subcodes for BGP Cease Notification Message
+.Re
+.Pp
+.Rs
+.%D January 2007
+.%R RFC 4724
+.%T Graceful Restart Mechanism for BGP
+.Re
+.Pp
+.Rs
+.%D January 2007
+.%R RFC 4760
+.%T Multiprotocol Extensions for BGP-4
+.Re
+.Pp
+.Rs
+.%D October 2007
+.%R RFC 5082
+.%T The Generalized TTL Security Mechanism (GTSM)
+.Re
+.Pp
+.Rs
+.%D February 2009
+.%R RFC 5492
+.%T Capabilities Advertisement with BGP-4
+.Re
+.Pp
+.Rs
+.%D October 2009
+.%R RFC 5668
+.%T 4-Octet AS Specific BGP Extended Community
+.Re
+.Pp
+.Rs
+.%D June 2011
+.%R RFC 6286
+.%T Autonomous-System-Wide Unique BGP Identifier for BGP-4
+.Re
+.Pp
+.Rs
+.%D May 2012
+.%R RFC 6608
+.%T Subcodes for BGP Finite State Machine Error
+.Re
+.Pp
+.Rs
+.%D Dec 2012
+.%R RFC 6793
+.%T BGP Support for Four-Octet Autonomous System (AS) Number Space
+.Re
+.Pp
+.Rs
+.%D August 2015
+.%R RFC 7606
+.%T Revised Error Handling for BGP UPDATE Messages
+.Re
+.Pp
+.Rs
+.%D October 2011
+.%R RFC 6396
+.%T Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format
+.Re
+.Pp
+.Rs
+.%D May 2012
+.%R RFC 6608
+.%T Subcodes for BGP Finite State Machine Error
+.Re
+.Pp
+.Rs
+.%D July 2014
+.%R RFC 7313
+.%T Enhanced Route Refresh Capability for BGP-4
+.Re
+.Pp
+.Rs
+.%D August 2015
+.%R RFC 7607
+.%T Codification of AS 0 Processing
+.Re
+.Pp
+.Rs
+.%D July 2016
+.%R RFC 7911
+.%T Advertisement of Multiple Paths in BGP
+.Re
+.Pp
+.Rs
+.%D September 2016
+.%R RFC 7947
+.%T Internet Exchange BGP Route Server
+.Re
+.Pp
+.Rs
+.%D May 2017
+.%R RFC 8050
+.%T Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions
+.Re
+.Pp
+.Rs
+.%D February 2017
+.%R RFC 8092
+.%T BGP Large Communities Attribute
+.Re
+.Pp
+.Rs
+.%D March 2017
+.%R RFC 8097
+.%T BGP Prefix Origin Validation State Extended Community
+.Re
+.Pp
+.Rs
+.%D July 2017
+.%R RFC 8203
+.%T BGP Administrative Shutdown Communication
+.Re
+.Pp
+.Rs
+.%D September 2017
+.%R RFC 8210
+.%T The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1
+.Re
+.Pp
+.Rs
+.%D July 2017
+.%R RFC 8212
+.%T Default External BGP (EBGP) Route Propagation Behavior without Policies
+.Re
+.Pp
+.Rs
+.%D March 2018
+.%R RFC 8326
+.%T Graceful BGP Session Shutdown
+.Re
+.Pp
+.Rs
+.%D March 2019
+.%R RFC 8538
+.%T Notification Message Support for BGP Graceful Restart
+.Re
+.Pp
+.Rs
+.%D October 2019
+.%R RFC 8654
+.%T Extended Message Support for BGP
+.Re
+.Pp
+.Rs
+.%D November 2020
+.%R RFC 8950
+.%T Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop
+.Re
+.Pp
+.Rs
+.%D December 2020
+.%R RFC 8955
+.%T Dissemination of Flow Specification Rules
+.Re
+.Pp
+.Rs
+.%D December 2020
+.%R RFC 8956
+.%T Dissemination of Flow Specification Rules for IPv6
+.Re
+.Pp
+.Rs
+.%D July 2021
+.%R RFC 9072
+.%T Extended Optional Parameters Length for BGP OPEN Message
+.Re
+.Pp
+.Rs
+.%D May 2022
+.%R RFC 9234
+.%T Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages
+.Re
+.Pp
+.Rs
+.%D November 2024
+.%R RFC 9687
+.%T Border Gateway Protocol 4 (BGP-4) Send Hold Timer
+.Re
+.Pp
+.Rs
+.%D May 2025
+.%R RFC 9774
+.%T Deprecation of AS_SET and AS_CONFED_SET in BGP
+.Re
+.Pp
+.Rs
+.%D October 2022
+.%R draft-ietf-sidrops-aspa-verification
+.%T BGP AS_PATH Verification Based on Resource Public Key Infrastructure (RPKI) Autonomous System Provider Authorization (ASPA) Objects
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 3.5 .

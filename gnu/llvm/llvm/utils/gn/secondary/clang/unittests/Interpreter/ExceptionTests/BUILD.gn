@@ -1,0 +1,20 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ClangReplInterpreterExceptionTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  configs -= [
+    "//llvm/utils/gn/build:no_exceptions",
+    "//llvm/utils/gn/build:no_rtti",
+  ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Interpreter",
+    "//llvm/lib/ExecutionEngine/Orc",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+  ]
+  sources = [ "InterpreterExceptionTest.cpp" ]
+}

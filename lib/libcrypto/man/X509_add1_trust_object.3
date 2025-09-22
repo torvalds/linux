@@ -1,0 +1,100 @@
+.\" $OpenBSD: X509_add1_trust_object.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_ADD1_TRUST_OBJECT 3
+.Os
+.Sh NAME
+.Nm X509_add1_trust_object ,
+.Nm X509_trust_clear ,
+.Nm X509_add1_reject_object ,
+.Nm X509_reject_clear
+.Nd mark an X.509 certificate as intended for a specific purpose
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_add1_trust_object
+.Fa "X509 *x"
+.Fa "const ASN1_OBJECT *purpose"
+.Fc
+.Ft void
+.Fo X509_trust_clear
+.Fa "X509 *x"
+.Fc
+.Ft int
+.Fo X509_add1_reject_object
+.Fa "X509 *x"
+.Fa "const ASN1_OBJECT *purpose"
+.Fc
+.Ft void
+.Fo X509_reject_clear
+.Fa "X509 *x"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_add1_trust_object
+appends a deep copy of the
+.Fa purpose
+object to the set of intended purposes that
+.Fa x
+contains as non-standard auxiliary data.
+The function
+.Xr OBJ_nid2obj 3
+can be used to create appropriate purpose objects from the
+.Dv NID_*
+constants mentioned in
+.Xr X509_check_purpose 3 ,
+even though the
+.Dv X509_PURPOSE_*
+constants listed in that manual page are not intended for use with
+.Fn X509_add1_trust_object .
+.Pp
+.Fn X509_trust_clear
+frees and removes all purpose objects from the set of intended
+purposes in the non-standard auxiliary data of
+.Fa x .
+.Pp
+.Fn X509_add1_reject_object
+and
+.Fn X509_reject_clear
+are similar except that they operate on a set of unintended purposes.
+.Pp
+As an alternative to using the functions documented in the present
+manual page, X.509 certificate extensions can be used.
+At the price of higher complexity, those allow storing the purpose
+inside the certificate itself in a standard-conforming way rather than
+merely in non-standard auxiliary data associated with the certificate.
+See
+.Xr EXTENDED_KEY_USAGE_new 3
+for details.
+.Sh RETURN VALUES
+.Fn X509_add1_trust_object
+and
+.Fn X509_add1_reject_object
+return the new number of purposes in the respective set
+or 0 if an error occurs, in particular if memory
+allocation fails or if
+.Fa x
+does not contain a sub-object that can hold non-standard auxiliary data.
+.Sh SEE ALSO
+.Xr ASN1_OBJECT_new 3 ,
+.Xr EXTENDED_KEY_USAGE_new 3 ,
+.Xr OBJ_nid2obj 3 ,
+.Xr X509_CERT_AUX_new 3 ,
+.Xr X509_new 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.4 and have been available since
+.Ox 2.7 .

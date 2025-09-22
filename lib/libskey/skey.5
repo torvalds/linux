@@ -1,0 +1,88 @@
+.\" $OpenBSD: skey.5,v 1.9 2020/10/24 10:33:44 jmc Exp $
+.\"
+.\" Copyright (c) 2002 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Sponsored in part by the Defense Advanced Research Projects
+.\" Agency (DARPA) and Air Force Research Laboratory, Air Force
+.\" Materiel Command, USAF, under agreement number F39502-99-1-0512.
+.\"
+.Dd $Mdocdate: October 24 2020 $
+.Dt SKEY 5
+.Os
+.Sh NAME
+.Nm skey
+.Nd one-time password user database
+.Sh DESCRIPTION
+The
+.Pa /etc/skey
+directory contains user records for the S/Key one-time password authentication
+system.
+.Pp
+Records take the form of files within
+.Pa /etc/skey ,
+where each file is named for the user whose record it contains.
+For example,
+.Pa /etc/skey/root
+would hold root's S/Key record.
+.Pp
+The mode for
+.Pa /etc/skey
+should be 01730 and it should be owned by root and group auth.
+Individual records within
+.Pa /etc/skey
+should be owned by the user they describe and be mode 0600.
+To access S/Key records, a process must run as group auth.
+.Pp
+Each record consists of five lines:
+.Bl -enum
+.It
+The name of the user the record describes.
+This should be the same as the name of the file.
+.It
+The hash type used for this entry:
+one of md5, sha1, or rmd160.
+The default is md5.
+.It
+The sequence number.
+This is a decimal number between one and one thousand.
+Each time the user authenticates via S/Key this number is decremented by one.
+.It
+A seed used along with the sequence number and the six S/Key words to
+compute the value.
+.It
+The value expected from the crunching of the user's seed, sequence number,
+and the six S/Key words.
+When the result matches this value, authentication is considered to have
+been successful.
+.El
+.Sh FILES
+.Bl -tag -width /etc/skey -compact
+.It Pa /etc/skey
+.El
+.Sh EXAMPLES
+Here is a sample
+.Pa /etc/skey
+file for root:
+.Bd -literal -offset indent
+root
+md5
+99
+obsd36521
+1f4359a3764b675d
+.Ed
+.Sh SEE ALSO
+.Xr skey 1 ,
+.Xr skeyinit 1 ,
+.Xr skey 3

@@ -1,0 +1,92 @@
+.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_CRED_VERIFY 3
+.Os
+.Sh NAME
+.Nm fido_cred_verify ,
+.Nm fido_cred_verify_self
+.Nd verify the attestation signature of a FIDO2 credential
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft int
+.Fn fido_cred_verify "const fido_cred_t *cred"
+.Ft int
+.Fn fido_cred_verify_self "const fido_cred_t *cred"
+.Sh DESCRIPTION
+The
+.Fn fido_cred_verify
+and
+.Fn fido_cred_verify_self
+functions verify whether the attestation signature contained in
+.Fa cred
+matches the attributes of the credential.
+Before using
+.Fn fido_cred_verify
+or
+.Fn fido_cred_verify_self
+in a sensitive context, the reader is strongly encouraged to make
+herself familiar with the FIDO2 credential attestation process
+as defined in the Web Authentication (webauthn) standard.
+.Pp
+The
+.Fn fido_cred_verify
+function verifies whether the client data hash, relying party ID,
+credential ID, type, protection policy, minimum PIN length, and
+resident/discoverable key and user verification attributes of
+.Fa cred
+have been attested by the holder of the private counterpart of
+the public key contained in the credential's x509 certificate.
+.Pp
+Please note that the x509 certificate itself is not verified.
+.Pp
+The attestation statement formats supported by
+.Fn fido_cred_verify
+are
+.Em packed ,
+.Em fido-u2f ,
+and
+.Em tpm .
+The attestation type implemented by
+.Fn fido_cred_verify
+is
+.Em Basic Attestation .
+.Pp
+The
+.Fn fido_cred_verify_self
+function verifies whether the client data hash, relying party ID,
+credential ID, type, protection policy, minimum PIN length, and
+resident/discoverable key and user verification attributes of
+.Fa cred
+have been attested by the holder of the credential's private key.
+.Pp
+The attestation statement formats supported by
+.Fn fido_cred_verify_self
+are
+.Em packed
+and
+.Em fido-u2f .
+The attestation type implemented by
+.Fn fido_cred_verify_self
+is
+.Em Self Attestation .
+.Pp
+Other attestation formats and types are not supported.
+.Sh RETURN VALUES
+The error codes returned by
+.Fn fido_cred_verify
+and
+.Fn fido_cred_verify_self
+are defined in
+.In fido/err.h .
+If
+.Fa cred
+passes verification, then
+.Dv FIDO_OK
+is returned.
+.Sh SEE ALSO
+.Xr fido_cred_new 3 ,
+.Xr fido_cred_set_authdata 3

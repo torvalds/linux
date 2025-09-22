@@ -1,0 +1,210 @@
+.\" $OpenBSD: BIO_f_cipher.3,v 1.17 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL e9b77246 Jan 20 19:58:49 2017 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2003, 2015, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_F_CIPHER 3
+.Os
+.Sh NAME
+.Nm BIO_f_cipher ,
+.Nm BIO_set_cipher ,
+.Nm BIO_get_cipher_status ,
+.Nm BIO_get_cipher_ctx
+.\" .Nm BIO_CTRL_SET is intentionally undocumented because it has no effect.
+.Nd cipher BIO filter
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.In openssl/evp.h
+.Ft const BIO_METHOD *
+.Fo BIO_f_cipher
+.Fa void
+.Fc
+.Ft int
+.Fo BIO_set_cipher
+.Fa "BIO *b"
+.Fa "const EVP_CIPHER *cipher"
+.Fa "unsigned char *key"
+.Fa "unsigned char *iv"
+.Fa "int enc"
+.Fc
+.Ft long
+.Fo BIO_get_cipher_status
+.Fa "BIO *b"
+.Fc
+.Ft long
+.Fo BIO_get_cipher_ctx
+.Fa "BIO *b"
+.Fa "EVP_CIPHER_CTX **pctx"
+.Fc
+.Sh DESCRIPTION
+.Fn BIO_f_cipher
+returns the cipher BIO method.
+This is a filter BIO that encrypts any data written through it,
+and decrypts any data read from it.
+It is a BIO wrapper for the cipher routines
+.Xr EVP_CipherInit 3 ,
+.Xr EVP_CipherUpdate 3 ,
+and
+.Xr EVP_CipherFinal 3 .
+.Pp
+Cipher BIOs do not support
+.Xr BIO_gets 3
+or
+.Xr BIO_puts 3 .
+.Pp
+.Xr BIO_flush 3
+on an encryption BIO that is being written through
+is used to signal that no more data is to be encrypted:
+this is used to flush and possibly pad the final block through the BIO.
+.Pp
+.Fn BIO_set_cipher
+sets the cipher of BIO
+.Fa b
+to
+.Fa cipher
+using key
+.Fa key
+and IV
+.Fa iv .
+.Fa enc
+should be set to 1 for encryption and zero for decryption.
+.Pp
+When reading from an encryption BIO, the final block is automatically
+decrypted and checked when EOF is detected.
+.Fn BIO_get_cipher_status
+is a
+.Xr BIO_ctrl 3
+macro which can be called to determine
+whether the decryption operation was successful.
+.Pp
+.Fn BIO_get_cipher_ctx
+is a
+.Xr BIO_ctrl 3
+macro which retrieves the internal BIO cipher context.
+The retrieved context can be used in conjunction
+with the standard cipher routines to set it up.
+This is useful when
+.Fn BIO_set_cipher
+is not flexible enough for the applications needs.
+.Pp
+When a chain containing a cipher BIO is copied with
+.Xr BIO_dup_chain 3 ,
+the cipher context is automatically copied from the existing BIO object
+to the new one and the init flag that can be retrieved with
+.Xr BIO_get_init 3
+is set to 1.
+.Pp
+When encrypting,
+.Xr BIO_flush 3
+must be called to flush the final block through the BIO.
+If it is not, then the final block will fail a subsequent decrypt.
+.Pp
+When decrypting, an error on the final block is signalled
+by a zero return value from the read operation.
+A successful decrypt followed by EOF
+will also return zero for the final read.
+.Fn BIO_get_cipher_status
+should be called to determine if the decrypt was successful.
+.Pp
+As always, if
+.Xr BIO_gets 3
+or
+.Xr BIO_puts 3
+support is needed, then it can be achieved
+by preceding the cipher BIO with a buffering BIO.
+.Pp
+.Xr BIO_ctrl 3
+.Fa cmd
+arguments correspond to macros as follows:
+.Bl -column BIO_C_GET_CIPHER_STATUS BIO_get_cipher_status() -offset 3n
+.It Fa cmd No constant          Ta corresponding macro
+.It Dv BIO_C_GET_CIPHER_CTX     Ta Fn BIO_get_cipher_ctx
+.It Dv BIO_C_GET_CIPHER_STATUS  Ta Fn BIO_get_cipher_status
+.It Dv BIO_CTRL_FLUSH           Ta Xr BIO_flush 3
+.It Dv BIO_CTRL_PENDING         Ta Xr BIO_pending 3
+.It Dv BIO_CTRL_RESET           Ta Xr BIO_reset 3
+.It Dv BIO_CTRL_WPENDING        Ta Xr BIO_wpending 3
+.El
+.Sh RETURN VALUES
+.Fn BIO_f_cipher
+returns the cipher BIO method.
+.Pp
+When called on a cipher BIO object,
+.Xr BIO_method_type 3
+returns the constant
+.Dv BIO_TYPE_CIPHER
+and
+.Xr BIO_method_name 3
+returns a pointer to the static string
+.Qq cipher .
+.Pp
+.Fn BIO_set_cipher
+returns 1 on success and 0 on error.
+.Pp
+.Fn BIO_get_cipher_status
+returns 1 for a successful decrypt and 0 for failure.
+.Pp
+.Fn BIO_get_cipher_ctx
+currently always returns 1.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr EVP_EncryptInit 3
+.Sh HISTORY
+.Fn BIO_f_cipher ,
+.Fn BIO_set_cipher ,
+and
+.Fn BIO_get_cipher_status
+first appeared in SSLeay 0.6.5 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn BIO_get_cipher_ctx
+first appeared in SSLeay 0.9.1 and has been available since
+.Ox 2.6 .

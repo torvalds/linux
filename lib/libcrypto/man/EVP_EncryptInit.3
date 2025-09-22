@@ -1,0 +1,814 @@
+.\" $OpenBSD: EVP_EncryptInit.3,v 1.57 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 5211e094 Nov 11 14:39:11 2014 -0800
+.\"   EVP_bf_cbc.pod EVP_cast5_cbc.pod EVP_idea_cbc.pod EVP_rc2_cbc.pod
+.\"   7c6d372a Nov 20 13:20:01 2018 +0000
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2019, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>
+.\" and Richard Levitte <levitte@openssl.org>.
+.\" Copyright (c) 2000-2002, 2005, 2012-2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_ENCRYPTINIT 3
+.Os
+.Sh NAME
+.Nm EVP_CIPHER_CTX_new ,
+.Nm EVP_CIPHER_CTX_reset ,
+.Nm EVP_CIPHER_CTX_free ,
+.Nm EVP_CIPHER_CTX_copy ,
+.Nm EVP_EncryptInit_ex ,
+.Nm EVP_EncryptUpdate ,
+.Nm EVP_EncryptFinal_ex ,
+.Nm EVP_DecryptInit_ex ,
+.Nm EVP_DecryptUpdate ,
+.Nm EVP_DecryptFinal_ex ,
+.Nm EVP_CipherInit_ex ,
+.Nm EVP_CipherUpdate ,
+.Nm EVP_CipherFinal_ex ,
+.Nm EVP_EncryptInit ,
+.Nm EVP_EncryptFinal ,
+.Nm EVP_DecryptInit ,
+.Nm EVP_DecryptFinal ,
+.Nm EVP_CipherInit ,
+.Nm EVP_CipherFinal ,
+.Nm EVP_CIPHER_CTX_encrypting ,
+.Nm EVP_get_cipherbyname ,
+.Nm EVP_get_cipherbynid ,
+.Nm EVP_get_cipherbyobj ,
+.Nm EVP_CIPHER_CTX_cipher ,
+.Nm EVP_enc_null ,
+.Nm EVP_idea_cbc ,
+.Nm EVP_idea_ecb ,
+.Nm EVP_idea_cfb64 ,
+.Nm EVP_idea_cfb ,
+.Nm EVP_idea_ofb ,
+.Nm EVP_bf_cbc ,
+.Nm EVP_bf_ecb ,
+.Nm EVP_bf_cfb64 ,
+.Nm EVP_bf_cfb ,
+.Nm EVP_bf_ofb ,
+.Nm EVP_cast5_cbc ,
+.Nm EVP_cast5_ecb ,
+.Nm EVP_cast5_cfb64 ,
+.Nm EVP_cast5_cfb ,
+.Nm EVP_cast5_ofb
+.Nd EVP cipher routines
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft EVP_CIPHER_CTX *
+.Fn EVP_CIPHER_CTX_new void
+.Ft int
+.Fo EVP_CIPHER_CTX_reset
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fc
+.Ft void
+.Fo EVP_CIPHER_CTX_free
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_copy
+.Fa "EVP_CIPHER_CTX *out"
+.Fa "const EVP_CIPHER_CTX *in"
+.Fc
+.Ft int
+.Fo EVP_EncryptInit_ex
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "const EVP_CIPHER *type"
+.Fa "ENGINE *engine"
+.Fa "const unsigned char *key"
+.Fa "const unsigned char *iv"
+.Fc
+.Ft int
+.Fo EVP_EncryptUpdate
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *out_len"
+.Fa "const unsigned char *in"
+.Fa "int in_len"
+.Fc
+.Ft int
+.Fo EVP_EncryptFinal_ex
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *out_len"
+.Fc
+.Ft int
+.Fo EVP_DecryptInit_ex
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "const EVP_CIPHER *type"
+.Fa "ENGINE *engine"
+.Fa "const unsigned char *key"
+.Fa "const unsigned char *iv"
+.Fc
+.Ft int
+.Fo EVP_DecryptUpdate
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *out_len"
+.Fa "const unsigned char *in"
+.Fa "int in_len"
+.Fc
+.Ft int
+.Fo EVP_DecryptFinal_ex
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *out_len"
+.Fc
+.Ft int
+.Fo EVP_CipherInit_ex
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "const EVP_CIPHER *type"
+.Fa "ENGINE *engine"
+.Fa "const unsigned char *key"
+.Fa "const unsigned char *iv"
+.Fa "int enc"
+.Fc
+.Ft int
+.Fo EVP_CipherUpdate
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *out_len"
+.Fa "const unsigned char *in"
+.Fa "int in_len"
+.Fc
+.Ft int
+.Fo EVP_CipherFinal_ex
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *out_len"
+.Fc
+.Ft int
+.Fo EVP_EncryptInit
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "const EVP_CIPHER *type"
+.Fa "const unsigned char *key"
+.Fa "const unsigned char *iv"
+.Fc
+.Ft int
+.Fo EVP_EncryptFinal
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *out_len"
+.Fc
+.Ft int
+.Fo EVP_DecryptInit
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "const EVP_CIPHER *type"
+.Fa "const unsigned char *key"
+.Fa "const unsigned char *iv"
+.Fc
+.Ft int
+.Fo EVP_DecryptFinal
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *out_len"
+.Fc
+.Ft int
+.Fo EVP_CipherInit
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "const EVP_CIPHER *type"
+.Fa "const unsigned char *key"
+.Fa "const unsigned char *iv"
+.Fa "int enc"
+.Fc
+.Ft int
+.Fo EVP_CipherFinal
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *out_len"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_encrypting
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fc
+.Ft const EVP_CIPHER *
+.Fo EVP_get_cipherbyname
+.Fa "const char *name"
+.Fc
+.Ft const EVP_CIPHER *
+.Fo EVP_get_cipherbynid
+.Fa "int nid"
+.Fc
+.Ft const EVP_CIPHER *
+.Fo EVP_get_cipherbyobj
+.Fa "const ASN1_OBJECT *a"
+.Fc
+.Ft const EVP_CIPHER *
+.Fo EVP_CIPHER_CTX_cipher
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+The EVP cipher routines are a high level interface to certain symmetric
+ciphers.
+.Pp
+.Fn EVP_CIPHER_CTX_new
+creates a new, empty cipher context.
+.Pp
+.Fn EVP_CIPHER_CTX_reset
+clears all information from
+.Fa ctx
+and frees all allocated memory associated with it, except the
+.Fa ctx
+object itself, such that it can be reused for another series of calls to
+.Fn EVP_CipherInit ,
+.Fn EVP_CipherUpdate ,
+and
+.Fn EVP_CipherFinal .
+.Pp
+.Fn EVP_CIPHER_CTX_free
+clears all information from
+.Fa ctx
+and frees all allocated memory associated with it, including
+.Fa ctx
+itself.
+This function should be called after all operations using a cipher
+are complete, so sensitive information does not remain in memory.
+If
+.Fa ctx
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn EVP_CIPHER_CTX_copy
+calls
+.Fn EVP_CIPHER_CTX_reset
+on
+.Fa out
+and copies all the data from
+.Fa in
+to
+.Fa out ,
+except that the
+.Vt EVP_CIPHER
+object used by
+.Fa in
+and any application specific data set with
+.Xr EVP_CIPHER_CTX_set_app_data 3
+are not copied and
+.Fa out
+will point to the same two objects.
+The algorithm- and implementation-specific cipher data described in
+.Xr EVP_CIPHER_CTX_get_cipher_data 3
+is copied with
+.Xr malloc 3
+and
+.Xr memcpy 3 ,
+i.e. assuming that it does not contain pointers to any sub-objects.
+If the bit
+.Dv EVP_CIPH_CUSTOM_COPY
+has been set with
+.Xr EVP_CIPHER_meth_set_flags 3 ,
+.Xr EVP_CIPHER_CTX_ctrl 3
+is called at the end with arguments
+.Fa in ,
+.Dv EVP_CTRL_COPY ,
+.No 0 ,
+and
+.Fa out
+such that the cipher implementation can perform further algorithm-
+and implementation-specific initializations after the algorithm-
+and implementation-specific cipher data has been copied.
+Among the cipher algorithms built into the library,
+.Dv EVP_CIPH_CUSTOM_COPY
+and
+.Dv EVP_CTRL_COPY
+are used by some of the ciphers documented in the
+.Xr EVP_aes_256_gcm 3
+manual page.
+.Pp
+.Fn EVP_EncryptInit
+and
+.Fn EVP_EncryptInit_ex
+set up the cipher context
+.Fa ctx
+for encryption with cipher
+.Fa type .
+.Fa type
+is normally supplied by a function such as
+.Xr EVP_aes_256_cbc 3 .
+.Fa key
+is the symmetric key to use and
+.Fa iv
+is the IV to use (if necessary).
+The actual number of bytes used for the
+key and IV depends on the cipher.
+The
+.Fa ENGINE *engine
+argument is always ignored and passing
+.Dv NULL
+is recommended.
+It is possible to set all parameters to
+.Dv NULL
+except
+.Fa type
+in an initial call and supply the remaining parameters in subsequent
+calls, all of which have
+.Fa type
+set to
+.Dv NULL .
+This is done when the default cipher parameters are not appropriate.
+.Pp
+.Fn EVP_EncryptUpdate
+encrypts
+.Fa in_len
+bytes from the buffer
+.Fa in
+and writes the encrypted version to
+.Fa out .
+This function can be called multiple times to encrypt successive blocks
+of data.
+The amount of data written depends on the block alignment of the
+encrypted data: as a result the amount of data written may be anything
+from zero bytes to
+.Pq Fa in_len No + cipher_block_size - 1
+so
+.Fa out
+should contain sufficient room.
+The actual number of bytes written is placed in
+.Pf * Fa out_len .
+.Pp
+If padding is enabled (the default) then
+.Fn EVP_EncryptFinal
+and
+.Fn EVP_EncryptFinal_ex ,
+which behave identically,
+encrypt the "final" data, that is any data that remains in a partial
+block.
+It uses NOTES (aka PKCS padding).
+The encrypted final data is written to
+.Fa out
+which should have sufficient space for one cipher block.
+The number of bytes written is placed in
+.Pf * Fa out_len .
+After this function is called, the encryption operation is finished and
+no further calls to
+.Fn EVP_EncryptUpdate
+should be made.
+.Pp
+If padding is disabled then
+.Fn EVP_EncryptFinal
+and
+.Fn EVP_EncryptFinal_ex
+do not encrypt any more data and return an error if any data
+remains in a partial block: that is if the total data length is not a
+multiple of the block size.
+.Pp
+.Fn EVP_DecryptInit ,
+.Fn EVP_DecryptInit_ex ,
+.Fn EVP_DecryptUpdate ,
+.Fn EVP_DecryptFinal ,
+and
+.Fn EVP_DecryptFinal_ex
+are the corresponding decryption operations.
+.Fn EVP_DecryptFinal
+and
+.Fn EVP_DecryptFinal_ex
+return an error code if padding is enabled and the final block is
+not correctly formatted.
+The parameters and restrictions are identical to the encryption
+operations except that if padding is enabled the decrypted data buffer
+.Fa out
+passed to
+.Fn EVP_DecryptUpdate
+should have sufficient room for
+.Pq Fa in_len No + cipher_block_size
+bytes unless the cipher block size is 1 in which case
+.Fa in_len
+bytes is sufficient.
+.Pp
+.Fn EVP_CipherInit ,
+.Fn EVP_CipherInit_ex ,
+.Fn EVP_CipherUpdate ,
+.Fn EVP_CipherFinal ,
+and
+.Fn EVP_CipherFinal_ex
+are functions that can be used for decryption or encryption.
+The operation performed depends on the value of the
+.Fa enc
+parameter.
+It should be set to 1 for encryption, 0 for decryption and -1 to leave
+the value unchanged (the actual value of
+.Fa enc
+being supplied in a previous call).
+.Pp
+.Fn EVP_get_cipherbyname ,
+.Fn EVP_get_cipherbynid ,
+and
+.Fn EVP_get_cipherbyobj
+return an
+.Vt EVP_CIPHER
+structure when passed a cipher name, a NID or an
+.Vt ASN1_OBJECT
+structure.
+.Pp
+.Fn EVP_CIPHER_CTX_cipher
+returns the
+.Vt EVP_CIPHER
+structure when passed an
+.Vt EVP_CIPHER_CTX
+structure.
+.Pp
+Where possible the EVP interface to symmetric ciphers should be
+used in preference to the low level interfaces.
+This is because the code then becomes transparent to the cipher used and
+much more flexible.
+.Pp
+PKCS padding works by adding n padding bytes of value n to make the
+total length of the encrypted data a multiple of the block size.
+Padding is always added so if the data is already a multiple of the
+block size n will equal the block size.
+For example if the block size is 8 and 11 bytes are to be encrypted then
+5 padding bytes of value 5 will be added.
+.Pp
+When decrypting, the final block is checked to see if it has the correct
+form.
+.Pp
+Although the decryption operation can produce an error if padding is
+enabled, it is not a strong test that the input data or key is correct.
+A random block has better than 1 in 256 chance of being of the correct
+format and problems with the input data earlier on will not produce a
+final decrypt error.
+.Pp
+If padding is disabled then the decryption operation will always succeed
+if the total amount of data decrypted is a multiple of the block size.
+.Pp
+.Fn EVP_get_cipherbynid
+and
+.Fn EVP_get_cipherbyobj
+are implemented as macros.
+.Sh RETURN VALUES
+.Fn EVP_CIPHER_CTX_new
+returns a pointer to a newly created
+.Vt EVP_CIPHER_CTX
+for success or
+.Dv NULL
+for failure.
+.Pp
+.Fn EVP_CIPHER_CTX_reset ,
+.Fn EVP_CIPHER_CTX_copy ,
+.Fn EVP_EncryptInit_ex ,
+.Fn EVP_EncryptUpdate ,
+.Fn EVP_EncryptFinal_ex ,
+.Fn EVP_DecryptInit_ex ,
+.Fn EVP_DecryptUpdate ,
+.Fn EVP_DecryptFinal_ex ,
+.Fn EVP_CipherInit_ex ,
+.Fn EVP_CipherUpdate ,
+.Fn EVP_CipherFinal_ex ,
+.Fn EVP_EncryptInit ,
+.Fn EVP_EncryptFinal ,
+.Fn EVP_DecryptInit ,
+.Fn EVP_DecryptFinal ,
+.Fn EVP_CipherInit ,
+and
+.Fn EVP_CipherFinal
+return 1 for success or 0 for failure.
+.Pp
+.Fn EVP_CIPHER_CTX_encrypting
+returns 1 if
+.Fa ctx
+is initialized for encryption or 0 otherwise, in which case
+it may be uninitialized or initialized for decryption.
+.Pp
+.Fn EVP_get_cipherbyname ,
+.Fn EVP_get_cipherbynid ,
+and
+.Fn EVP_get_cipherbyobj
+return an
+.Vt EVP_CIPHER
+structure or
+.Dv NULL
+on error.
+.Pp
+.Fn EVP_CIPHER_CTX_cipher
+returns an
+.Vt EVP_CIPHER
+structure.
+.Sh CIPHER LISTING
+.Bl -tag -width Ds
+.It Fn EVP_enc_null
+Null cipher: does nothing.
+.It Xo
+.Fn EVP_idea_cbc ,
+.Fn EVP_idea_ecb ,
+.Fn EVP_idea_cfb64 ,
+.Fn EVP_idea_ofb
+.Xc
+IDEA encryption algorithm in CBC, ECB, CFB and OFB modes respectively.
+IDEA is a block cipher operating on 64 bit blocks using a 128 bit
+.Fa key .
+.Fn EVP_idea_cfb
+is an alias for
+.Fn EVP_idea_cfb64 ,
+implemented as a macro.
+.It Xo
+.Fn EVP_bf_cbc ,
+.Fn EVP_bf_ecb ,
+.Fn EVP_bf_cfb64 ,
+.Fn EVP_bf_ofb
+.Xc
+Blowfish encryption algorithm in CBC, ECB, CFB and OFB modes
+respectively.
+Blowfish is a block cipher operating on 64 bit blocks using a variable
+.Fa key
+length.
+The default key length is 128 bits.
+.Fn EVP_bf_cfb
+is an alias for
+.Fn EVP_bf_cfb64 ,
+implemented as a macro.
+.It Xo
+.Fn EVP_cast5_cbc ,
+.Fn EVP_cast5_ecb ,
+.Fn EVP_cast5_cfb64 ,
+.Fn EVP_cast5_ofb
+.Xc
+CAST-128 encryption algorithm in CBC, ECB, CFB and OFB modes respectively.
+CAST-128 is a block cipher operating on 64 bit blocks using a variable
+.Fa key
+length.
+The default and maximum key length is 128 bits.
+.Fn EVP_cast5_cfb
+is an alias for
+.Fn EVP_cast5_cfb64 ,
+implemented as a macro.
+.El
+.Pp
+Some algorithms are documented in separate manual pages:
+.Pp
+.Bl -column "EVP_camellia_128_cbc(3)" "block size" -compact
+.It manual page               Ta block size Ta Fa key No size Pq in bits
+.It Xr EVP_aes_128_cbc 3      Ta 128        Ta 128, 192, 256
+.It Xr EVP_aes_128_ccm 3      Ta 128        Ta 128, 192, 256
+.It Xr EVP_aes_128_gcm 3      Ta 128        Ta 128, 192, 256
+.It Xr EVP_camellia_128_cbc 3 Ta 128        Ta 128, 192, 256
+.It Xr EVP_chacha20 3         Ta stream     Ta 256
+.It Xr EVP_des_cbc 3          Ta 64         Ta 64
+.It Xr EVP_rc2_cbc 3          Ta 64         Ta variable, default 128
+.It Xr EVP_rc4 3              Ta stream     Ta variable, default 128
+.It Xr EVP_sm4_cbc 3          Ta 128        Ta 128
+.El
+.Sh EXAMPLES
+Encrypt a string using blowfish:
+.Bd -literal -offset 3n
+int
+do_crypt(char *out_filename)
+{
+	unsigned char out_buf[1024];
+	int out_len, tmp_len;
+	/*
+	 * Bogus key and IV: we'd normally set these from
+	 * another source.
+	 */
+	unsigned char key[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+	unsigned char iv[] = {1,2,3,4,5,6,7,8};
+	const char in_text[] = "Some Crypto Text";
+	EVP_CIPHER_CTX *ctx;
+	FILE *out_fileptr;
+
+	ctx = EVP_CIPHER_CTX_new();
+	EVP_EncryptInit_ex(ctx, EVP_bf_cbc(), NULL, key, iv);
+
+	if (!EVP_EncryptUpdate(ctx, out_buf, &out_len, in_text,
+	    strlen(in_text))) {
+		/* Error */
+		EVP_CIPHER_CTX_free(ctx);
+		return 0;
+	}
+	/*
+	 * Buffer passed to EVP_EncryptFinal() must be after data just
+	 * encrypted to avoid overwriting it.
+	 */
+	if (!EVP_EncryptFinal_ex(ctx, out_buf + out_len, &tmp_len)) {
+		/* Error */
+		EVP_CIPHER_CTX_free(ctx);
+		return 0;
+	}
+	out_len += tmp_len;
+	EVP_CIPHER_CTX_free(ctx);
+	/*
+	 * Need binary mode for fopen because encrypted data is
+	 * binary data. Also cannot use strlen() on it because
+	 * it won't be NUL terminated and may contain embedded
+	 * NULs.
+	 */
+	out_fileptr = fopen(out_filename, "wb");
+	if (out_fileptr == NULL) {
+		/* Error */
+		return 0;
+	}
+	fwrite(out_buf, 1, out_len, out_fileptr);
+	fclose(out_fileptr);
+	return 1;
+}
+.Ed
+.Pp
+The ciphertext from the above example can be decrypted using the
+.Xr openssl 1
+utility with the command line:
+.Bd -literal -offset indent
+openssl bf -in cipher.bin -K 000102030405060708090A0B0C0D0E0F \e
+           -iv 0102030405060708 -d
+.Ed
+.Pp
+General encryption, decryption function example using FILE I/O and AES128
+with a 128-bit key:
+.Bd -literal
+int
+do_crypt(FILE *in_fileptr, FILE *out_fileptr, int do_encrypt)
+{
+	/* Allow enough space in output buffer for additional block */
+	unsigned char in_buf[1024], out_buf[1024 + EVP_MAX_BLOCK_LENGTH];
+	int in_len, out_len;
+	EVP_CIPHER_CTX *ctx;
+
+	/*
+	 * Bogus key and IV: we'd normally set these from
+	 * another source.
+	 */
+	unsigned char key[] = "0123456789abcdeF";
+	unsigned char iv[] = "1234567887654321";
+
+	ctx = EVP_CIPHER_CTX_new();
+	EVP_CipherInit_ex(ctx, EVP_aes_128_cbc(), NULL, NULL, NULL,
+	    do_encrypt);
+	EVP_CipherInit_ex(ctx, NULL, NULL, key, iv, do_encrypt);
+
+	for (;;) {
+		in_len = fread(in_buf, 1, 1024, in_fileptr);
+		if (in_len <= 0)
+			break;
+		if (!EVP_CipherUpdate(ctx, out_buf, &out_len, in_buf,
+		    in_len)) {
+			/* Error */
+			EVP_CIPHER_CTX_free(ctx);
+			return 0;
+		}
+		fwrite(out_buf, 1, out_len, out_fileptr);
+	}
+	if (!EVP_CipherFinal_ex(ctx, out_buf, &out_len)) {
+		/* Error */
+		EVP_CIPHER_CTX_free(ctx);
+		return 0;
+	}
+	fwrite(out_buf, 1, out_len, out_fileptr);
+
+	EVP_CIPHER_CTX_free(ctx);
+	return 1;
+}
+.Ed
+.Sh SEE ALSO
+.Xr BIO_f_cipher 3 ,
+.Xr evp 3 ,
+.Xr EVP_AEAD_CTX_init 3 ,
+.Xr EVP_aes_128_cbc 3 ,
+.Xr EVP_aes_128_ccm 3 ,
+.Xr EVP_aes_128_gcm 3 ,
+.Xr EVP_camellia_128_cbc 3 ,
+.Xr EVP_chacha20 3 ,
+.Xr EVP_CIPHER_CTX_ctrl 3 ,
+.Xr EVP_CIPHER_CTX_get_cipher_data 3 ,
+.Xr EVP_CIPHER_CTX_init 3 ,
+.Xr EVP_CIPHER_CTX_set_flags 3 ,
+.Xr EVP_CIPHER_nid 3 ,
+.Xr EVP_des_cbc 3 ,
+.Xr EVP_OpenInit 3 ,
+.Xr EVP_rc2_cbc 3 ,
+.Xr EVP_rc4 3 ,
+.Xr EVP_SealInit 3 ,
+.Xr EVP_sm4_cbc 3
+.Sh HISTORY
+.Fn EVP_EncryptInit ,
+.Fn EVP_EncryptUpdate ,
+.Fn EVP_EncryptFinal ,
+.Fn EVP_DecryptInit ,
+.Fn EVP_DecryptUpdate ,
+.Fn EVP_DecryptFinal ,
+.Fn EVP_CipherInit ,
+.Fn EVP_CipherUpdate ,
+.Fn EVP_CipherFinal ,
+.Fn EVP_get_cipherbyname ,
+.Fn EVP_idea_cbc ,
+.Fn EVP_idea_ecb ,
+.Fn EVP_idea_cfb ,
+and
+.Fn EVP_idea_ofb
+first appeared in SSLeay 0.5.1.
+.Fn EVP_bf_cbc ,
+.Fn EVP_bf_ecb ,
+.Fn EVP_bf_cfb ,
+and
+.Fn EVP_bf_ofb
+first appeared in SSLeay 0.6.6.
+.Fn EVP_get_cipherbyobj ,
+.Fn EVP_CIPHER_CTX_cipher ,
+and
+.Fn EVP_enc_null
+first appeared in SSLeay 0.8.0.
+.Fn EVP_get_cipherbynid
+first appeared in SSLeay 0.8.1.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_EncryptInit_ex ,
+.Fn EVP_EncryptFinal_ex ,
+.Fn EVP_DecryptInit_ex ,
+.Fn EVP_DecryptFinal_ex ,
+.Fn EVP_CipherInit_ex ,
+and
+.Fn EVP_CipherFinal_ex
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn EVP_bf_cfb64 ,
+.Fn EVP_cast5_cfb64 ,
+and
+.Fn EVP_idea_cfb64
+first appeared in OpenSSL 0.9.7e and have been available since
+.Ox 3.8 .
+.Pp
+.Fn EVP_CIPHER_CTX_new
+and
+.Fn EVP_CIPHER_CTX_free
+first appeared in OpenSSL 0.9.8b and have been available since
+.Ox 4.5 .
+.Pp
+.Fn EVP_CIPHER_CTX_copy
+first appeared in OpenSSL 1.0.0
+and has been available since
+.Ox 4.9 .
+.Pp
+.Fn EVP_CIPHER_CTX_reset
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .
+.Pp
+.Fn EVP_CIPHER_CTX_encrypting
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.4 .
+.Sh BUGS
+.Fn EVP_CIPHER_CTX_copy
+may already have cleared the data in
+.Fa out
+and copied some new data into it even if it fails and returns 0.

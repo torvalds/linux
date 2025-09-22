@@ -1,0 +1,193 @@
+.\"	$OpenBSD: sigaltstack.2,v 1.28 2024/06/22 17:19:05 deraadt Exp $
+.\"	$NetBSD: sigaltstack.2,v 1.3 1995/02/27 10:41:52 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)sigaltstack.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: June 22 2024 $
+.Dt SIGALTSTACK 2
+.Os
+.Sh NAME
+.Nm sigaltstack
+.Nd set and/or get signal stack context
+.Sh SYNOPSIS
+.In signal.h
+.Bd -literal
+typedef struct sigaltstack {
+	void	*ss_sp;
+	size_t	 ss_size;
+	int	 ss_flags;
+} stack_t;
+.Ed
+.Ft int
+.Fn sigaltstack "const stack_t *ss" "stack_t *oss"
+.Sh DESCRIPTION
+.Fn sigaltstack
+allows users to define an alternate stack on which signals
+delivered to this thread
+are to be processed.
+If
+.Fa ss
+is non-zero and
+.Dv SS_DISABLE
+is set in
+.Fa ss_flags ,
+the signal stack will be disabled.
+A disabled stack will cause all signals to be
+taken on the regular user stack.
+Trying to disable an active stack will cause
+.Fn sigaltstack
+to return \-1 with
+.Va errno
+set to
+.Er EPERM .
+.Pp
+Otherwise,
+.Fa ss_sp
+specifies a pointer to a space to be used as the signal stack and
+.Fa ss_size
+specifies the size of that space.
+When a signal's action indicates its handler
+should execute on the signal stack (specified with a
+.Xr sigaction 2
+call), the system checks to see
+if the thread is currently executing on that stack.
+If the thread is not currently executing on the signal stack,
+the system arranges a switch to the signal stack for the
+duration of the signal handler's execution.
+.Pp
+If
+.Fa oss
+is non-zero, the current signal stack state is returned.
+The
+.Fa ss_flags
+field will contain the value
+.Dv SS_ONSTACK
+if the thread is currently on a signal stack and
+.Dv SS_DISABLE
+if the signal stack is currently disabled.
+.Pp
+The value
+.Dv SIGSTKSZ
+is defined to be the number of bytes/chars that would be used to cover
+the usual case when allocating an alternate stack area.
+The following code fragment is typically used to allocate an alternate stack.
+.Bd -literal -offset indent
+if ((sigstk.ss_sp = mmap(NULL, SIGSTKSZ, PROT_READ|PROT_WRITE,
+    MAP_ANON|MAP_PRIVATE, -1, 0)) == MAP_FAILED)
+	/* error return */
+sigstk.ss_size = SIGSTKSZ;
+sigstk.ss_flags = 0;
+if (sigaltstack(&sigstk, NULL) == -1)
+	perror("sigaltstack");
+.Ed
+.Pp
+An alternative approach is provided for programs with signal handlers
+that require a specific amount of stack space other than the default size.
+The value
+.Dv MINSIGSTKSZ
+is defined to be the number of bytes/chars that is required by
+the operating system to implement the alternate stack feature.
+In computing an alternate stack size,
+programs should add
+.Dv MINSIGSTKSZ
+to their stack requirements to allow for the operating system overhead.
+.Pp
+Signal stacks are automatically adjusted for the direction of stack
+growth and alignment requirements.
+Signal stacks may or may not be protected by the hardware and
+are not
+.Dq grown
+automatically as is done for the normal stack.
+If the stack overflows and this space is not protected,
+unpredictable results may occur.
+.Pp
+On
+.Ox
+some additional restrictions prevent dangerous address space modifications.
+The proposed space at
+.Fa ss_sp
+is verified to be contiguously mapped for read-write permissions without
+execute.
+If those conditions are met, a page-aligned inner region will be freshly mapped
+(all zero) with
+.Dv MAP_STACK
+(see
+.Xr mmap 2 ) ,
+destroying the pre-existing data in the region.
+Once the sigaltstack is disabled, the
+.Dv MAP_STACK
+attribute remains on the memory, so it is best to deallocate the memory
+via a method that results in
+.Xr munmap 2 .
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn sigaltstack
+will fail and the signal stack context will remain unchanged
+if one of the following occurs.
+.Bl -tag -width [ENOMEM]
+.It Bq Er EFAULT
+Either
+.Fa ss
+or
+.Fa oss
+points to memory that is not a valid part of the process
+address space.
+.It Bq Er EINVAL
+The
+.Fa ss_flags
+member pointed to by the
+.Fa ss
+argument contains flags other than
+.Dv SS_DISABLE .
+.It Bq Er EINVAL
+The memory region is not acceptable for use as a stack;
+see above.
+.It Bq Er ENOMEM
+Size of alternate stack area is less than or equal to
+.Dv MINSIGSTKSZ .
+.It Bq Er EPERM
+An attempt was made to disable an active stack.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr setjmp 3
+.Sh STANDARDS
+The
+.Fn sigaltstack
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The predecessor to
+.Fn sigaltstack ,
+the
+.Fn sigstack
+system call, appeared in
+.Bx 4.2 .

@@ -1,0 +1,69 @@
+.\"	$OpenBSD: myname.5,v 1.13 2025/03/29 11:24:02 schwarze Exp $
+.\"
+.\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 29 2025 $
+.Dt MYNAME 5
+.Os
+.Sh NAME
+.Nm myname
+.Nd default hostname
+.Sh DESCRIPTION
+The
+.Nm myname
+file is read by
+.Xr rc 8
+at system startup time.
+.Pp
+.Pa /etc/myname
+contains the symbolic name of the host machine.
+The file should contain a single line specifying the
+fully qualified domain name
+.Pq FQDN
+of the system
+.Pq e.g. host.example.com .
+The name must be resolvable, either by matching a hostname specified in
+.Pa /etc/hosts
+(see
+.Xr hosts 5 )
+or through DNS
+(see
+.Xr resolv.conf 5 ) .
+The hostname is set via the
+.Xr hostname 1
+utility at boot time.
+See
+.Xr hostname 7
+for a description of hostname resolution.
+.Pp
+Empty lines and lines beginning with
+.Sq #
+are ignored.
+.Sh FILES
+.Bl -tag -width "/etc/myname" -compact
+.It Pa /etc/myname
+Default hostname.
+.El
+.Sh SEE ALSO
+.Xr hostname 1 ,
+.Xr hostname.if 5 ,
+.Xr hosts 5 ,
+.Xr resolv.conf 5 ,
+.Xr hostname 7 ,
+.Xr rc 8
+.Sh HISTORY
+Support for the file
+.Pa /etc/myname
+first appeared in 386BSD 0.1.

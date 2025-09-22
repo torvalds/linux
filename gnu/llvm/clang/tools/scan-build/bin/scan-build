@@ -1,0 +1,1974 @@
+#!/usr/bin/env perl
+#
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+##===----------------------------------------------------------------------===##
+#
+# A script designed to wrap a build so that all calls to gcc are intercepted
+# and piped to the static analyzer.
+#
+##===----------------------------------------------------------------------===##
+
+use strict;
+use warnings;
+use FindBin qw($RealBin);
+use File::Basename;
+use File::Find;
+use File::Copy qw(copy);
+use File::Path qw( rmtree mkpath );
+use Term::ANSIColor;
+use Term::ANSIColor qw(:constants);
+use Cwd qw/ getcwd abs_path /;
+use Sys::Hostname;
+use Hash::Util qw(lock_keys);
+
+my $Prog = "scan-build";
+my $BuildName;
+my $BuildDate;
+
+my $TERM = $ENV{'TERM'};
+my $UseColor = (defined $TERM and $TERM =~ 'xterm-.*color' and -t STDOUT
+                and defined $ENV{'SCAN_BUILD_COLOR'});
+
+# Portability: getpwuid is not implemented for Win32 (see Perl language
+# reference, perlport), use getlogin instead.
+my $UserName = HtmlEscape(getlogin() || getpwuid($<) || 'unknown');
+my $HostName = HtmlEscape(hostname() || 'unknown');
+my $CurrentDir = HtmlEscape(getcwd());
+
+my $CmdArgs;
+
+my $Date = localtime();
+
+# Command-line/config arguments.
+my %Options = (
+  Verbose => 0,              # Verbose output from this script.
+  AnalyzeHeaders => 0,
+  OutputDir => undef,        # Parent directory to store HTML files.
+  HtmlTitle => basename($CurrentDir)." - scan-build results",
+  IgnoreErrors => 0,         # Ignore build errors.
+  KeepCC => 0,               # Do not override CC and CXX make variables
+  ViewResults => 0,          # View results when the build terminates.
+  ExitStatusFoundBugs => 0,  # Exit status reflects whether bugs were found
+  ShowDescription => 0,      # Display the description of the defect in the list
+  KeepEmpty => 0,            # Don't remove output directory even with 0 results.
+  EnableCheckers => {},
+  DisableCheckers => {},
+  SilenceCheckers => {},
+  Excludes => [],
+  UseCC => undef,            # C compiler to use for compilation.
+  UseCXX => undef,           # C++ compiler to use for compilation.
+  AnalyzerTarget => undef,
+  ConstraintsModel => undef,
+  InternalStats => undef,
+  OutputFormat => "html",
+  ConfigOptions => [],       # Options to pass through to the analyzer's -analyzer-config flag.
+  ReportFailures => undef,
+  AnalyzerStats => 0,
+  MaxLoop => 0,
+  PluginsToLoad => [],
+  AnalyzerDiscoveryMethod => undef,
+  OverrideCompiler => 0,     # The flag corresponding to the --override-compiler command line option.
+  ForceAnalyzeDebugCode => 0,
+  GenerateIndex => 0         # Skip the analysis, only generate index.html.
+);
+lock_keys(%Options);
+
+##----------------------------------------------------------------------------##
+# Diagnostics
+##----------------------------------------------------------------------------##
+
+sub Diag {
+  if ($UseColor) {
+    print BOLD, MAGENTA "$Prog: @_";
+    print RESET;
+  }
+  else {
+    print "$Prog: @_";
+  }
+}
+
+sub ErrorDiag {
+  if ($UseColor) {
+    print STDERR BOLD, RED "$Prog: ";
+    print STDERR RESET, RED @_;
+    print STDERR RESET;
+  } else {
+    print STDERR "$Prog: @_";
+  }
+}
+
+sub DiagCrashes {
+  my $Dir = shift;
+  Diag ("The analyzer encountered problems on some source files.\n");
+  Diag ("Preprocessed versions of these sources were deposited in '$Dir/failures'.\n");
+  Diag ("Please consider submitting a bug report using these files:\n");
+  Diag ("  http://clang-analyzer.llvm.org/filing_bugs.html\n")
+}
+
+sub DieDiag {
+  if ($UseColor) {
+    print STDERR BOLD, RED "$Prog: ";
+    print STDERR RESET, RED @_;
+    print STDERR RESET;
+  }
+  else {
+    print STDERR "$Prog: ", @_;
+  }
+  exit 1;
+}
+
+##----------------------------------------------------------------------------##
+# Print default checker names
+##----------------------------------------------------------------------------##
+
+if (grep /^--help-checkers$/, @ARGV) {
+    my @options = qx($0 -h);
+    foreach (@options) {
+    next unless /^ \+/;
+    s/^\s*//;
+    my ($sign, $name, @text) = split ' ', $_;
+    print $name, $/ if $sign eq '+';
+    }
+    exit 0;
+}
+
+##----------------------------------------------------------------------------##
+# Declaration of Clang options.  Populated later.
+##----------------------------------------------------------------------------##
+
+my $Clang;
+my $ClangSB;
+my $ClangCXX;
+my $ClangVersion;
+
+##----------------------------------------------------------------------------##
+# GetHTMLRunDir - Construct an HTML directory name for the current sub-run.
+##----------------------------------------------------------------------------##
+
+sub GetHTMLRunDir {
+  die "Not enough arguments." if (@_ == 0);
+  my $Dir = shift @_;
+  my $TmpMode = 0;
+  if (!defined $Dir) {
+    $Dir = $ENV{'TMPDIR'} || $ENV{'TEMP'} || $ENV{'TMP'} || "/tmp";
+    $TmpMode = 1;
+  }
+
+  # Chop off any trailing '/' characters.
+  while ($Dir =~ /\/$/) { chop $Dir; }
+
+  # Get current date and time.
+  my @CurrentTime = localtime();
+  my $year  = $CurrentTime[5] + 1900;
+  my $day   = $CurrentTime[3];
+  my $month = $CurrentTime[4] + 1;
+  my $hour =  $CurrentTime[2];
+  my $min =   $CurrentTime[1];
+  my $sec =   $CurrentTime[0];
+
+  my $TimeString = sprintf("%02d%02d%02d", $hour, $min, $sec);
+  my $DateString = sprintf("%d-%02d-%02d-%s-$$",
+                           $year, $month, $day, $TimeString);
+
+  # Determine the run number.
+  my $RunNumber;
+
+  if (-d $Dir) {
+    if (! -r $Dir) {
+      DieDiag("directory '$Dir' exists but is not readable.\n");
+    }
+    # Iterate over all files in the specified directory.
+    my $max = 0;
+    opendir(DIR, $Dir);
+    my @FILES = grep { -d "$Dir/$_" } readdir(DIR);
+    closedir(DIR);
+
+    foreach my $f (@FILES) {
+      # Strip the prefix '$Prog-' if we are dumping files to /tmp.
+      if ($TmpMode) {
+        next if (!($f =~ /^$Prog-(.+)/));
+        $f = $1;
+      }
+
+      my @x = split/-/, $f;
+      next if (scalar(@x) != 4);
+      next if ($x[0] != $year);
+      next if ($x[1] != $month);
+      next if ($x[2] != $day);
+      next if ($x[3] != $TimeString);
+      next if ($x[4] != $$);
+
+      if ($x[5] > $max) {
+        $max = $x[5];
+      }
+    }
+
+    $RunNumber = $max + 1;
+  }
+  else {
+
+    if (-x $Dir) {
+      DieDiag("'$Dir' exists but is not a directory.\n");
+    }
+
+    if ($TmpMode) {
+      DieDiag("The directory '/tmp' does not exist or cannot be accessed.\n");
+    }
+
+    # $Dir does not exist.  It will be automatically created by the
+    # clang driver.  Set the run number to 1.
+
+    $RunNumber = 1;
+  }
+
+  die "RunNumber must be defined!" if (!defined $RunNumber);
+
+  # Append the run number.
+  my $NewDir;
+  if ($TmpMode) {
+    $NewDir = "$Dir/$Prog-$DateString-$RunNumber";
+  }
+  else {
+    $NewDir = "$Dir/$DateString-$RunNumber";
+  }
+
+  # Make sure that the directory does not exist in order to avoid hijack.
+  if (-e $NewDir) {
+      DieDiag("The directory '$NewDir' already exists.\n");
+  }
+
+  mkpath($NewDir);
+  return $NewDir;
+}
+
+sub SetHtmlEnv {
+
+  die "Wrong number of arguments." if (scalar(@_) != 2);
+
+  my $Args = shift;
+  my $Dir = shift;
+
+  die "No build command." if (scalar(@$Args) == 0);
+
+  my $Cmd = $$Args[0];
+
+  if ($Cmd =~ /configure/ || $Cmd =~ /autogen/) {
+    return;
+  }
+
+  if ($Options{Verbose}) {
+    Diag("Emitting reports for this run to '$Dir'.\n");
+  }
+
+  $ENV{'CCC_ANALYZER_HTML'} = $Dir;
+}
+
+##----------------------------------------------------------------------------##
+#  UpdatePrefix - Compute the common prefix of files.
+##----------------------------------------------------------------------------##
+
+my $Prefix;
+
+sub UpdatePrefix {
+  my $x = shift;
+  my $y = basename($x);
+  $x =~ s/\Q$y\E$//;
+
+  if (!defined $Prefix) {
+    $Prefix = $x;
+    return;
+  }
+
+  chop $Prefix while (!($x =~ /^\Q$Prefix/));
+}
+
+sub GetPrefix {
+  return $Prefix;
+}
+
+##----------------------------------------------------------------------------##
+#  UpdateInFilePath - Update the path in the report file.
+##----------------------------------------------------------------------------##
+
+sub UpdateInFilePath {
+  my $fname = shift;
+  my $regex = shift;
+  my $newtext = shift;
+
+  open (RIN, $fname) or die "cannot open $fname";
+  open (ROUT, ">", "$fname.tmp") or die "cannot open $fname.tmp";
+
+  while (<RIN>) {
+    s/$regex/$newtext/;
+    print ROUT $_;
+  }
+
+  close (ROUT);
+  close (RIN);
+  rename("$fname.tmp", $fname)
+}
+
+##----------------------------------------------------------------------------##
+# AddStatLine - Decode and insert a statistics line into the database.
+##----------------------------------------------------------------------------##
+
+sub AddStatLine {
+  my $Line  = shift;
+  my $Stats = shift;
+  my $File  = shift;
+
+  print $Line . "\n";
+
+  my $Regex = qr/(.*?)\ ->\ Total\ CFGBlocks:\ (\d+)\ \|\ Unreachable
+      \ CFGBlocks:\ (\d+)\ \|\ Exhausted\ Block:\ (yes|no)\ \|\ Empty\ WorkList:
+      \ (yes|no)/x;
+
+  if ($Line !~ $Regex) {
+    return;
+  }
+
+  # Create a hash of the interesting fields
+  my $Row = {
+    Filename    => $File,
+    Function    => $1,
+    Total       => $2,
+    Unreachable => $3,
+    Aborted     => $4,
+    Empty       => $5
+  };
+
+  # Add them to the stats array
+  push @$Stats, $Row;
+}
+
+##----------------------------------------------------------------------------##
+# ScanFile - Scan a report file for various identifying attributes.
+##----------------------------------------------------------------------------##
+
+# Sometimes a source file is scanned more than once, and thus produces
+# multiple error reports.  We use a cache to solve this problem.
+
+sub ScanFile {
+
+  my $Index = shift;
+  my $Dir = shift;
+  my $FName = shift;
+  my $Stats = shift;
+
+  # At this point the report file is not world readable.  Make it happen.
+  chmod(0644, "$Dir/$FName");
+
+  # Scan the report file for tags.
+  open(IN, "$Dir/$FName") or DieDiag("Cannot open '$Dir/$FName'\n");
+
+  my $BugType        = "";
+  my $BugFile        = "";
+  my $BugFunction    = "";
+  my $BugCategory    = "";
+  my $BugDescription = "";
+  my $BugPathLength  = 1;
+  my $BugLine        = 0;
+
+  while (<IN>) {
+    last if (/<!-- BUGMETAEND -->/);
+
+    if (/<!-- BUGTYPE (.*) -->$/) {
+      $BugType = $1;
+    }
+    elsif (/<!-- BUGFILE (.*) -->$/) {
+      $BugFile = abs_path($1);
+      if (!defined $BugFile) {
+         # The file no longer exists: use the original path.
+         $BugFile = $1;
+      }
+
+      # Get just the path
+      my $p = dirname($BugFile);
+      # Check if the path is found in the list of exclude
+      if (grep { $p =~ m/$_/ } @{$Options{Excludes}}) {
+         if ($Options{Verbose}) {
+             Diag("File '$BugFile' deleted: part of an ignored directory.\n");
+         }
+
+       # File in an ignored directory. Remove it
+       unlink("$Dir/$FName");
+       return;
+      }
+
+      UpdatePrefix($BugFile);
+    }
+    elsif (/<!-- BUGPATHLENGTH (.*) -->$/) {
+      $BugPathLength = $1;
+    }
+    elsif (/<!-- BUGLINE (.*) -->$/) {
+      $BugLine = $1;
+    }
+    elsif (/<!-- BUGCATEGORY (.*) -->$/) {
+      $BugCategory = $1;
+    }
+    elsif (/<!-- BUGDESC (.*) -->$/) {
+      $BugDescription = $1;
+    }
+    elsif (/<!-- FUNCTIONNAME (.*) -->$/) {
+      $BugFunction = $1;
+    }
+
+  }
+
+
+  close(IN);
+
+  if (!defined $BugCategory) {
+    $BugCategory = "Other";
+  }
+
+  # Don't add internal statistics to the bug reports
+  if ($BugCategory =~ /statistics/i) {
+    AddStatLine($BugDescription, $Stats, $BugFile);
+    return;
+  }
+
+  push @$Index,[ $FName, $BugCategory, $BugType, $BugFile, $BugFunction, $BugLine,
+                 $BugPathLength ];
+
+  if ($Options{ShowDescription}) {
+      push @{ $Index->[-1] }, $BugDescription
+  }
+}
+
+##----------------------------------------------------------------------------##
+# CopyFiles - Copy resource files to target directory.
+##----------------------------------------------------------------------------##
+
+sub CopyFiles {
+
+  my $Dir = shift;
+
+  my $JS = Cwd::realpath("$RealBin/../share/scan-build/sorttable.js");
+
+  DieDiag("Cannot find 'sorttable.js'.\n")
+    if (! -r $JS);
+
+  copy($JS, "$Dir");
+
+  DieDiag("Could not copy 'sorttable.js' to '$Dir'.\n")
+    if (! -r "$Dir/sorttable.js");
+
+  my $CSS = Cwd::realpath("$RealBin/../share/scan-build/scanview.css");
+
+  DieDiag("Cannot find 'scanview.css'.\n")
+    if (! -r $CSS);
+
+  copy($CSS, "$Dir");
+
+  DieDiag("Could not copy 'scanview.css' to '$Dir'.\n")
+    if (! -r $CSS);
+}
+
+##----------------------------------------------------------------------------##
+# CalcStats - Calculates visitation statistics and returns the string.
+##----------------------------------------------------------------------------##
+
+sub CalcStats {
+  my $Stats = shift;
+
+  my $TotalBlocks = 0;
+  my $UnreachedBlocks = 0;
+  my $TotalFunctions = scalar(@$Stats);
+  my $BlockAborted = 0;
+  my $WorkListAborted = 0;
+  my $Aborted = 0;
+
+  # Calculate the unique files
+  my $FilesHash = {};
+
+  foreach my $Row (@$Stats) {
+    $FilesHash->{$Row->{Filename}} = 1;
+    $TotalBlocks += $Row->{Total};
+    $UnreachedBlocks += $Row->{Unreachable};
+    $BlockAborted++ if $Row->{Aborted} eq 'yes';
+    $WorkListAborted++ if $Row->{Empty} eq 'no';
+    $Aborted++ if $Row->{Aborted} eq 'yes' || $Row->{Empty} eq 'no';
+  }
+
+  my $TotalFiles = scalar(keys(%$FilesHash));
+
+  # Calculations
+  my $PercentAborted = sprintf("%.2f", $Aborted / $TotalFunctions * 100);
+  my $PercentBlockAborted = sprintf("%.2f", $BlockAborted / $TotalFunctions
+      * 100);
+  my $PercentWorkListAborted = sprintf("%.2f", $WorkListAborted /
+      $TotalFunctions * 100);
+  my $PercentBlocksUnreached = sprintf("%.2f", $UnreachedBlocks / $TotalBlocks
+      * 100);
+
+  my $StatsString = "Analyzed $TotalBlocks blocks in $TotalFunctions functions"
+    . " in $TotalFiles files\n"
+    . "$Aborted functions aborted early ($PercentAborted%)\n"
+    . "$BlockAborted had aborted blocks ($PercentBlockAborted%)\n"
+    . "$WorkListAborted had unfinished worklists ($PercentWorkListAborted%)\n"
+    . "$UnreachedBlocks blocks were never reached ($PercentBlocksUnreached%)\n";
+
+  return $StatsString;
+}
+
+##----------------------------------------------------------------------------##
+# Postprocess - Postprocess the results of an analysis scan.
+##----------------------------------------------------------------------------##
+
+my @filesFound;
+my $baseDir;
+sub FileWanted {
+    my $baseDirRegEx = quotemeta $baseDir;
+    my $file = $File::Find::name;
+
+    # The name of the file is generated by clang binary (HTMLDiagnostics.cpp)
+    if ($file =~ /report-.*\.html$/) {
+       my $relative_file = $file;
+       $relative_file =~ s/$baseDirRegEx//g;
+       push @filesFound, $relative_file;
+    }
+}
+
+sub Postprocess {
+
+  my $Dir           = shift;
+  my $BaseDir       = shift;
+  my $AnalyzerStats = shift;
+  my $KeepEmpty     = shift;
+
+  die "No directory specified." if (!defined $Dir);
+
+  if (! -d $Dir) {
+    Diag("No bugs found.\n");
+    return 0;
+  }
+
+  $baseDir = $Dir . "/";
+  find({ wanted => \&FileWanted, follow => 0}, $Dir);
+
+  if (scalar(@filesFound) == 0 and ! -e "$Dir/failures") {
+    if (! $KeepEmpty) {
+      Diag("Removing directory '$Dir' because it contains no reports.\n");
+      rmtree($Dir) or die "Cannot rmtree '$Dir' : $!";
+    }
+    Diag("No bugs found.\n");
+    return 0;
+  }
+
+  # Scan each report file, in alphabetical order, and build an index.
+  my @Index;
+  my @Stats;
+
+  @filesFound = sort @filesFound;
+  foreach my $file (@filesFound) { ScanFile(\@Index, $Dir, $file, \@Stats); }
+
+  # Scan the failures directory and use the information in the .info files
+  # to update the common prefix directory.
+  my @failures;
+  my @attributes_ignored;
+  if (-d "$Dir/failures") {
+    opendir(DIR, "$Dir/failures");
+    @failures = grep { /[.]info.txt$/ && !/attribute_ignored/; } readdir(DIR);
+    closedir(DIR);
+    opendir(DIR, "$Dir/failures");
+    @attributes_ignored = grep { /^attribute_ignored/; } readdir(DIR);
+    closedir(DIR);
+    foreach my $file (@failures) {
+      open IN, "$Dir/failures/$file" or DieDiag("cannot open $file\n");
+      my $Path = <IN>;
+      if (defined $Path) { UpdatePrefix($Path); }
+      close IN;
+    }
+  }
+
+  # Generate an index.html file.
+  my $FName = "$Dir/index.html";
+  open(OUT, ">", $FName) or DieDiag("Cannot create file '$FName'\n");
+
+  # Print out the header.
+
+print OUT <<ENDTEXT;
+<html>
+<head>
+<title>${Options{HtmlTitle}}</title>
+<link type="text/css" rel="stylesheet" href="scanview.css"/>
+<script src="sorttable.js"></script>
+<script language='javascript' type="text/javascript">
+function SetDisplay(RowClass, DisplayVal)
+{
+  var Rows = document.getElementsByTagName("tr");
+  for ( var i = 0 ; i < Rows.length; ++i ) {
+    if (Rows[i].className == RowClass) {
+      Rows[i].style.display = DisplayVal;
+    }
+  }
+}
+
+function CopyCheckedStateToCheckButtons(SummaryCheckButton) {
+  var Inputs = document.getElementsByTagName("input");
+  for ( var i = 0 ; i < Inputs.length; ++i ) {
+    if (Inputs[i].type == "checkbox") {
+      if(Inputs[i] != SummaryCheckButton) {
+        Inputs[i].checked = SummaryCheckButton.checked;
+        Inputs[i].onclick();
+      }
+    }
+  }
+}
+
+function returnObjById( id ) {
+    if (document.getElementById)
+        var returnVar = document.getElementById(id);
+    else if (document.all)
+        var returnVar = document.all[id];
+    else if (document.layers)
+        var returnVar = document.layers[id];
+    return returnVar;
+}
+
+var NumUnchecked = 0;
+
+function ToggleDisplay(CheckButton, ClassName) {
+  if (CheckButton.checked) {
+    SetDisplay(ClassName, "");
+    if (--NumUnchecked == 0) {
+      returnObjById("AllBugsCheck").checked = true;
+    }
+  }
+  else {
+    SetDisplay(ClassName, "none");
+    NumUnchecked++;
+    returnObjById("AllBugsCheck").checked = false;
+  }
+}
+</script>
+<!-- SUMMARYENDHEAD -->
+</head>
+<body>
+<h1>${Options{HtmlTitle}}</h1>
+
+<table>
+<tr><th>User:</th><td>${UserName}\@${HostName}</td></tr>
+<tr><th>Working Directory:</th><td>${CurrentDir}</td></tr>
+<tr><th>Command Line:</th><td>${CmdArgs}</td></tr>
+<tr><th>Clang Version:</th><td>${ClangVersion}</td></tr>
+<tr><th>Date:</th><td>${Date}</td></tr>
+ENDTEXT
+
+print OUT "<tr><th>Version:</th><td>${BuildName} (${BuildDate})</td></tr>\n"
+  if (defined($BuildName) && defined($BuildDate));
+
+print OUT <<ENDTEXT;
+</table>
+ENDTEXT
+
+  if (scalar(@filesFound)) {
+    # Print out the summary table.
+    my %Totals;
+
+    for my $row ( @Index ) {
+      my $bug_type = ($row->[2]);
+      my $bug_category = ($row->[1]);
+      my $key = "$bug_category:$bug_type";
+
+      if (!defined $Totals{$key}) { $Totals{$key} = [1,$bug_category,$bug_type]; }
+      else { $Totals{$key}->[0]++; }
+    }
+
+    print OUT "<h2>Bug Summary</h2>";
+
+    if (defined $BuildName) {
+      print OUT "\n<p>Results in this analysis run are based on analyzer build <b>$BuildName</b>.</p>\n"
+    }
+
+  my $TotalBugs = scalar(@Index);
+print OUT <<ENDTEXT;
+<table>
+<thead><tr><td>Bug Type</td><td>Quantity</td><td class="sorttable_nosort">Display?</td></tr></thead>
+<tr style="font-weight:bold"><td class="SUMM_DESC">All Bugs</td><td class="Q">$TotalBugs</td><td><center><input type="checkbox" id="AllBugsCheck" onClick="CopyCheckedStateToCheckButtons(this);" checked/></center></td></tr>
+ENDTEXT
+
+    my $last_category;
+
+    for my $key (
+      sort {
+        my $x = $Totals{$a};
+        my $y = $Totals{$b};
+        my $res = $x->[1] cmp $y->[1];
+        $res = $x->[2] cmp $y->[2] if ($res == 0);
+        $res
+      } keys %Totals )
+    {
+      my $val = $Totals{$key};
+      my $category = $val->[1];
+      if (!defined $last_category or $last_category ne $category) {
+        $last_category = $category;
+        print OUT "<tr><th>$category</th><th colspan=2></th></tr>\n";
+      }
+      my $x = lc $key;
+      $x =~ s/[ ,'":\/()]+/_/g;
+      print OUT "<tr><td class=\"SUMM_DESC\">";
+      print OUT $val->[2];
+      print OUT "</td><td class=\"Q\">";
+      print OUT $val->[0];
+      print OUT "</td><td><center><input type=\"checkbox\" onClick=\"ToggleDisplay(this,'bt_$x');\" checked/></center></td></tr>\n";
+    }
+
+  # Print out the table of errors.
+
+print OUT <<ENDTEXT;
+</table>
+
+<h2>Filter Results by File</h2>
+<input
+  type="text"
+  id="file_input"
+  onkeyup="searchFiles()"
+  placeholder="Enter a path or filename"
+  title="Enter a path or filename">
+
+<h2>Reports</h2>
+
+<table id="reports_table" class="sortable" style="table-layout:automatic">
+<thead><tr>
+  <td>Bug Group</td>
+  <td class="sorttable_sorted">Bug Type<span id="sorttable_sortfwdind">&nbsp;&#x25BE;</span></td>
+  <td>File</td>
+  <td>Function/Method</td>
+  <td class="Q">Line</td>
+  <td class="Q">Path Length</td>
+ENDTEXT
+
+if ($Options{ShowDescription}) {
+print OUT <<ENDTEXT;
+    <td class="Q">Description</td>
+ENDTEXT
+}
+
+print OUT <<ENDTEXT;
+  <td class="sorttable_nosort"></td>
+  <!-- REPORTBUGCOL -->
+</tr></thead>
+<tbody>
+ENDTEXT
+
+    my $prefix = GetPrefix();
+    my $regex;
+    my $InFileRegex;
+    my $InFilePrefix = "File:</td><td>";
+
+    if (defined $prefix) {
+      $regex = qr/^\Q$prefix\E/is;
+      $InFileRegex = qr/\Q$InFilePrefix$prefix\E/is;
+    }
+
+    for my $row ( sort { $a->[2] cmp $b->[2] } @Index ) {
+      my $x = "$row->[1]:$row->[2]";
+      $x = lc $x;
+      $x =~ s/[ ,'":\/()]+/_/g;
+
+      my $ReportFile = $row->[0];
+
+      print OUT "<tr class=\"bt_$x\">";
+      print OUT "<td class=\"DESC\">";
+      print OUT $row->[1]; # $BugCategory
+      print OUT "</td>";
+      print OUT "<td class=\"DESC\">";
+      print OUT $row->[2]; # $BugType
+      print OUT "</td>";
+
+      # Update the file prefix.
+      my $fname = $row->[3];
+
+      if (defined $regex) {
+        $fname =~ s/$regex//;
+        UpdateInFilePath("$Dir/$ReportFile", $InFileRegex, $InFilePrefix)
+      }
+
+      print OUT "<td>";
+      my @fname = split /\//,$fname;
+      if ($#fname > 0) {
+        while ($#fname >= 0) {
+          my $x = shift @fname;
+          print OUT $x;
+          if ($#fname >= 0) {
+            print OUT "/";
+          }
+        }
+      }
+      else {
+        print OUT $fname;
+      }
+      print OUT "</td>";
+
+      print OUT "<td class=\"DESC\">";
+      print OUT $row->[4]; # Function
+      print OUT "</td>";
+
+      # Print out the quantities.
+      for my $j ( 5 .. 6 ) { # Line & Path length
+        print OUT "<td class=\"Q\">$row->[$j]</td>";
+      }
+
+      # Print the rest of the columns.
+      for (my $j = 7; $j <= $#{$row}; ++$j) {
+        print OUT "<td>$row->[$j]</td>"
+      }
+
+      # Emit the "View" link.
+      print OUT "<td><a href=\"$ReportFile#EndPath\">View Report</a></td>";
+
+      # Emit REPORTBUG markers.
+      print OUT "\n<!-- REPORTBUG id=\"$ReportFile\" -->\n";
+
+      # End the row.
+      print OUT "</tr>\n";
+    }
+
+    print OUT "</tbody>\n</table>\n\n";
+  }
+
+  if (scalar (@failures) || scalar(@attributes_ignored)) {
+    print OUT "<h2>Analyzer Failures</h2>\n";
+
+    if (scalar @attributes_ignored) {
+      print OUT "The analyzer's parser ignored the following attributes:<p>\n";
+      print OUT "<table>\n";
+      print OUT "<thead><tr><td>Attribute</td><td>Source File</td><td>Preprocessed File</td><td>STDERR Output</td></tr></thead>\n";
+      foreach my $file (sort @attributes_ignored) {
+        die "cannot demangle attribute name\n" if (! ($file =~ /^attribute_ignored_(.+).txt/));
+        my $attribute = $1;
+        # Open the attribute file to get the first file that failed.
+        next if (!open (ATTR, "$Dir/failures/$file"));
+        my $ppfile = <ATTR>;
+        chomp $ppfile;
+        close ATTR;
+        next if (! -e "$Dir/failures/$ppfile");
+        # Open the info file and get the name of the source file.
+        open (INFO, "$Dir/failures/$ppfile.info.txt") or
+          die "Cannot open $Dir/failures/$ppfile.info.txt\n";
+        my $srcfile = <INFO>;
+        chomp $srcfile;
+        close (INFO);
+        # Print the information in the table.
+        my $prefix = GetPrefix();
+        if (defined $prefix) { $srcfile =~ s/^\Q$prefix//; }
+        print OUT "<tr><td>$attribute</td><td>$srcfile</td><td><a href=\"failures/$ppfile\">$ppfile</a></td><td><a href=\"failures/$ppfile.stderr.txt\">$ppfile.stderr.txt</a></td></tr>\n";
+        my $ppfile_clang = $ppfile;
+        $ppfile_clang =~ s/[.](.+)$/.clang.$1/;
+        print OUT "  <!-- REPORTPROBLEM src=\"$srcfile\" file=\"failures/$ppfile\" clangfile=\"failures/$ppfile_clang\" stderr=\"failures/$ppfile.stderr.txt\" info=\"failures/$ppfile.info.txt\" -->\n";
+      }
+      print OUT "</table>\n";
+    }
+
+    if (scalar @failures) {
+      print OUT "<p>The analyzer had problems processing the following files:</p>\n";
+      print OUT "<table>\n";
+      print OUT "<thead><tr><td>Problem</td><td>Source File</td><td>Preprocessed File</td><td>STDERR Output</td></tr></thead>\n";
+      foreach my $file (sort @failures) {
+        $file =~ /(.+).info.txt$/;
+        # Get the preprocessed file.
+        my $ppfile = $1;
+        # Open the info file and get the name of the source file.
+        open (INFO, "$Dir/failures/$file") or
+          die "Cannot open $Dir/failures/$file\n";
+        my $srcfile = <INFO>;
+        chomp $srcfile;
+        my $problem = <INFO>;
+        chomp $problem;
+        close (INFO);
+        # Print the information in the table.
+        my $prefix = GetPrefix();
+        if (defined $prefix) { $srcfile =~ s/^\Q$prefix//; }
+        print OUT "<tr><td>$problem</td><td>$srcfile</td><td><a href=\"failures/$ppfile\">$ppfile</a></td><td><a href=\"failures/$ppfile.stderr.txt\">$ppfile.stderr.txt</a></td></tr>\n";
+        my $ppfile_clang = $ppfile;
+        $ppfile_clang =~ s/[.](.+)$/.clang.$1/;
+        print OUT "  <!-- REPORTPROBLEM src=\"$srcfile\" file=\"failures/$ppfile\" clangfile=\"failures/$ppfile_clang\" stderr=\"failures/$ppfile.stderr.txt\" info=\"failures/$ppfile.info.txt\" -->\n";
+      }
+      print OUT "</table>\n";
+    }
+    print OUT "<p>Please consider submitting preprocessed files as <a href=\"http://clang-analyzer.llvm.org/filing_bugs.html\">bug reports</a>. <!-- REPORTCRASHES --> </p>\n";
+  }
+
+  print OUT "</body></html>\n";
+  close(OUT);
+  CopyFiles($Dir);
+
+  # Make sure $Dir and $BaseDir are world readable/executable.
+  chmod(0755, $Dir);
+  if (defined $BaseDir) { chmod(0755, $BaseDir); }
+
+  # Print statistics
+  print CalcStats(\@Stats) if $AnalyzerStats;
+
+  my $Num = scalar(@Index);
+  if ($Num == 1) {
+    Diag("$Num bug found.\n");
+  } else {
+    Diag("$Num bugs found.\n");
+  }
+  if ($Num > 0 && -r "$Dir/index.html") {
+    Diag("Run 'scan-view $Dir' to examine bug reports.\n");
+  }
+
+  DiagCrashes($Dir) if (scalar @failures || scalar @attributes_ignored);
+
+  return $Num;
+}
+
+sub Finalize {
+  my $BaseDir = shift;
+  my $ExitStatus = shift;
+
+  Diag "Analysis run complete.\n";
+  if (defined $Options{OutputFormat}) {
+    if ($Options{OutputFormat} =~ /plist/ ||
+        $Options{OutputFormat} =~ /sarif/) {
+      Diag "Analysis results (" .
+        ($Options{OutputFormat} =~ /plist/ ? "plist" : "sarif") .
+        " files) deposited in '$Options{OutputDir}'\n";
+    }
+    if ($Options{OutputFormat} =~ /html/) {
+      # Postprocess the HTML directory.
+      my $NumBugs = Postprocess($Options{OutputDir}, $BaseDir,
+                                $Options{AnalyzerStats}, $Options{KeepEmpty});
+
+      if ($Options{ViewResults} and -r "$Options{OutputDir}/index.html") {
+        Diag "Viewing analysis results in '$Options{OutputDir}' using scan-view.\n";
+        my $ScanView = Cwd::realpath("$RealBin/scan-view");
+        if (! -x $ScanView) { $ScanView = "scan-view"; }
+        if (! -x $ScanView) { $ScanView = Cwd::realpath("$RealBin/../../scan-view/bin/scan-view"); }
+        if (! -x $ScanView) { $ScanView = `which scan-view`; chomp $ScanView; }
+        exec $ScanView, "$Options{OutputDir}";
+      }
+
+      if ($Options{ExitStatusFoundBugs}) {
+        exit 1 if ($NumBugs > 0);
+        exit $ExitStatus;
+      }
+    }
+  }
+
+  exit $ExitStatus;
+}
+
+##----------------------------------------------------------------------------##
+# RunBuildCommand - Run the build command.
+##----------------------------------------------------------------------------##
+
+sub AddIfNotPresent {
+  my $Args = shift;
+  my $Arg = shift;
+  my $found = 0;
+
+  foreach my $k (@$Args) {
+    if ($k eq $Arg) {
+      $found = 1;
+      last;
+    }
+  }
+
+  if ($found == 0) {
+    push @$Args, $Arg;
+  }
+}
+
+sub SetEnv {
+  my $EnvVars = shift @_;
+  foreach my $var ('CC', 'CXX', 'CLANG', 'CLANG_CXX',
+                   'CCC_ANALYZER_ANALYSIS', 'CCC_ANALYZER_PLUGINS',
+                   'CCC_ANALYZER_CONFIG') {
+    die "$var is undefined\n" if (!defined $var);
+    $ENV{$var} = $EnvVars->{$var};
+  }
+  foreach my $var ('CCC_ANALYZER_CONSTRAINTS_MODEL',
+                   'CCC_ANALYZER_INTERNAL_STATS',
+                   'CCC_ANALYZER_OUTPUT_FORMAT',
+                   'CCC_CC',
+                   'CCC_CXX',
+                   'CCC_REPORT_FAILURES',
+                   'CLANG_ANALYZER_TARGET',
+                   'CCC_ANALYZER_FORCE_ANALYZE_DEBUG_CODE') {
+    my $x = $EnvVars->{$var};
+    if (defined $x) { $ENV{$var} = $x }
+  }
+  my $Verbose = $EnvVars->{'VERBOSE'};
+  if ($Verbose >= 2) {
+    $ENV{'CCC_ANALYZER_VERBOSE'} = 1;
+  }
+  if ($Verbose >= 3) {
+    $ENV{'CCC_ANALYZER_LOG'} = 1;
+  }
+}
+
+sub RunXcodebuild {
+  my $Args = shift;
+  my $IgnoreErrors = shift;
+  my $CCAnalyzer = shift;
+  my $CXXAnalyzer = shift;
+  my $EnvVars = shift;
+
+  if ($IgnoreErrors) {
+    AddIfNotPresent($Args,"-PBXBuildsContinueAfterErrors=YES");
+  }
+
+  # Detect the version of Xcode.  If Xcode 4.6 or higher, use new
+  # in situ support for analyzer interposition without needed to override
+  # the compiler.
+  open(DETECT_XCODE, "-|", $Args->[0], "-version") or
+    die "error: cannot detect version of xcodebuild\n";
+
+  my $oldBehavior = 1;
+
+  while(<DETECT_XCODE>) {
+    if (/^Xcode (.+)$/) {
+      my $ver = $1;
+      if ($ver =~ /^([0-9]+[.][0-9]+)[^0-9]?/) {
+        if ($1 >= 4.6) {
+          $oldBehavior = 0;
+          last;
+        }
+      }
+    }
+  }
+  close(DETECT_XCODE);
+
+  # If --override-compiler is explicitly requested, resort to the old
+  # behavior regardless of Xcode version.
+  if ($Options{OverrideCompiler}) {
+    $oldBehavior = 1;
+  }
+
+  if ($oldBehavior == 0) {
+    my $OutputDir = $EnvVars->{"OUTPUT_DIR"};
+    my $CLANG = $EnvVars->{"CLANG"};
+    my $OtherFlags = $EnvVars->{"CCC_ANALYZER_ANALYSIS"} . " "
+                   . $EnvVars->{"CCC_ANALYZER_CONFIG"};
+    push @$Args,
+        "RUN_CLANG_STATIC_ANALYZER=YES",
+        "CLANG_ANALYZER_OUTPUT=plist-html",
+        "CLANG_ANALYZER_EXEC=$CLANG",
+        "CLANG_ANALYZER_OUTPUT_DIR=$OutputDir",
+        "CLANG_ANALYZER_OTHER_FLAGS=$OtherFlags";
+
+    return (system(@$Args) >> 8);
+  }
+
+  # Default to old behavior where we insert a bogus compiler.
+  SetEnv($EnvVars);
+
+  # Check if using iPhone SDK 3.0 (simulator).  If so the compiler being
+  # used should be gcc-4.2.
+  if (!defined $ENV{"CCC_CC"}) {
+    for (my $i = 0 ; $i < scalar(@$Args); ++$i) {
+      if ($Args->[$i] eq "-sdk" && $i + 1 < scalar(@$Args)) {
+        if (@$Args[$i+1] =~ /^iphonesimulator3/) {
+          $ENV{"CCC_CC"} = "gcc-4.2";
+          $ENV{"CCC_CXX"} = "g++-4.2";
+        }
+      }
+    }
+  }
+
+  # Disable PCH files until clang supports them.
+  AddIfNotPresent($Args,"GCC_PRECOMPILE_PREFIX_HEADER=NO");
+
+  # When 'CC' is set, xcodebuild uses it to do all linking, even if we are
+  # linking C++ object files.  Set 'LDPLUSPLUS' so that xcodebuild uses 'g++'
+  # (via c++-analyzer) when linking such files.
+  $ENV{"LDPLUSPLUS"} = $CXXAnalyzer;
+
+  return (system(@$Args) >> 8);
+}
+
+sub RunBuildCommand {
+  my $Args = shift;
+  my $IgnoreErrors = shift;
+  my $KeepCC = shift;
+  my $Cmd = $Args->[0];
+  my $CCAnalyzer = shift;
+  my $CXXAnalyzer = shift;
+  my $EnvVars = shift;
+
+  if ($Cmd =~ /\bxcodebuild$/) {
+    return RunXcodebuild($Args, $IgnoreErrors, $CCAnalyzer, $CXXAnalyzer, $EnvVars);
+  }
+
+  # Setup the environment.
+  SetEnv($EnvVars);
+
+  if ($Cmd =~ /(.*\/?gcc[^\/]*$)/ or
+      $Cmd =~ /(.*\/?cc[^\/]*$)/ or
+      $Cmd =~ /(.*\/?llvm-gcc[^\/]*$)/ or
+      $Cmd =~ /(.*\/?clang[^\/]*$)/ or
+      $Cmd =~ /(.*\/?ccc-analyzer[^\/]*$)/) {
+
+    if (!($Cmd =~ /ccc-analyzer/) and !defined $ENV{"CCC_CC"}) {
+      $ENV{"CCC_CC"} = $1;
+    }
+
+    shift @$Args;
+    unshift @$Args, $CCAnalyzer;
+  }
+  elsif ($Cmd =~ /(.*\/?g\+\+[^\/]*$)/ or
+        $Cmd =~ /(.*\/?c\+\+[^\/]*$)/ or
+        $Cmd =~ /(.*\/?llvm-g\+\+[^\/]*$)/ or
+        $Cmd =~ /(.*\/?clang\+\+$)/ or
+        $Cmd =~ /(.*\/?c\+\+-analyzer[^\/]*$)/) {
+    if (!($Cmd =~ /c\+\+-analyzer/) and !defined $ENV{"CCC_CXX"}) {
+      $ENV{"CCC_CXX"} = $1;
+    }
+    shift @$Args;
+    unshift @$Args, $CXXAnalyzer;
+  }
+  elsif ($Cmd eq "make" or $Cmd eq "gmake" or $Cmd eq "mingw32-make") {
+    if (!$KeepCC) {
+      AddIfNotPresent($Args, "CC=$CCAnalyzer");
+      AddIfNotPresent($Args, "CXX=$CXXAnalyzer");
+    }
+    if ($IgnoreErrors) {
+      AddIfNotPresent($Args,"-k");
+      AddIfNotPresent($Args,"-i");
+    }
+  }
+
+  return (system(@$Args) >> 8);
+}
+
+##----------------------------------------------------------------------------##
+# DisplayHelp - Utility function to display all help options.
+##----------------------------------------------------------------------------##
+
+sub DisplayHelp {
+
+  my $ArgClangNotFoundErrMsg = shift;
+print <<ENDTEXT;
+USAGE: $Prog [options] <build command> [build options]
+
+ENDTEXT
+
+  if (defined $BuildName) {
+    print "ANALYZER BUILD: $BuildName ($BuildDate)\n\n";
+  }
+
+print <<ENDTEXT;
+OPTIONS:
+
+ -analyze-headers
+
+   Also analyze functions in #included files.  By default, such functions
+   are skipped unless they are called by functions within the main source file.
+
+ --force-analyze-debug-code
+
+   Tells analyzer to enable assertions in code even if they were disabled
+   during compilation to enable more precise results.
+
+ -o <output location>
+
+   Specifies the output directory for analyzer reports. Subdirectories will be
+   created as needed to represent separate "runs" of the analyzer. If this
+   option is not specified, a directory is created in /tmp (TMPDIR on Mac OS X)
+   to store the reports.
+
+ -h
+ --help
+
+   Display this message.
+
+ -k
+ --keep-going
+
+   Add a "keep on going" option to the specified build command. This option
+   currently supports make and xcodebuild. This is a convenience option; one
+   can specify this behavior directly using build options.
+
+ --keep-cc
+
+   Do not override CC and CXX make variables. Useful when running make in
+   autoconf-based (and similar) projects where configure can add extra flags
+   to those variables.
+
+ --html-title [title]
+ --html-title=[title]
+
+   Specify the title used on generated HTML pages. If not specified, a default
+   title will be used.
+
+ --show-description
+
+   Display the description of defects in the list
+
+ -sarif
+
+  By default the output of scan-build is a set of HTML files. This option
+  outputs the results in SARIF format.
+ 
+ -plist
+
+   By default the output of scan-build is a set of HTML files. This option
+   outputs the results as a set of .plist files.
+
+ -plist-html
+
+   By default the output of scan-build is a set of HTML files. This option
+   outputs the results as a set of HTML and .plist files.
+
+ --status-bugs
+
+   By default, the exit status of scan-build is the same as the executed build
+   command. Specifying this option causes the exit status of scan-build to be 1
+   if it found potential bugs and the exit status of the build itself otherwise.
+
+ --exclude <path>
+
+   Do not run static analyzer against files found in this
+   directory (You can specify this option multiple times).
+   Could be useful when project contains 3rd party libraries.
+
+ --use-cc [compiler path]
+ --use-cc=[compiler path]
+
+   scan-build analyzes a project by interposing a "fake compiler", which
+   executes a real compiler for compilation and the static analyzer for analysis.
+   Because of the current implementation of interposition, scan-build does not
+   know what compiler your project normally uses.  Instead, it simply overrides
+   the CC environment variable, and guesses your default compiler.
+
+   In the future, this interposition mechanism to be improved, but if you need
+   scan-build to use a specific compiler for *compilation* then you can use
+   this option to specify a path to that compiler.
+
+   If the given compiler is a cross compiler, you may also need to provide
+   --analyzer-target option to properly analyze the source code because static
+   analyzer runs as if the code is compiled for the host machine by default.
+
+ --use-c++ [compiler path]
+ --use-c++=[compiler path]
+
+   This is the same as "--use-cc" but for C++ code.
+
+ --analyzer-target [target triple name for analysis]
+ --analyzer-target=[target triple name for analysis]
+
+   This provides target triple information to clang static analyzer.
+   It only changes the target for analysis but doesn't change the target of a
+   real compiler given by --use-cc and --use-c++ options.
+
+ -v
+
+   Enable verbose output from scan-build. A second and third '-v' increases
+   verbosity.
+
+ -V
+ --view
+
+   View analysis results in a web browser when the build completes.
+
+ --generate-index-only <output location>
+
+   Do not perform the analysis, but only regenerate the index.html file
+   from existing report.html files. Useful for making a custom Static Analyzer
+   integration into a build system that isn't otherwise supported by scan-build.
+
+ADVANCED OPTIONS:
+
+ -no-failure-reports
+
+   Do not create a 'failures' subdirectory that includes analyzer crash reports
+   and preprocessed source files.
+
+ -stats
+
+   Generates visitation statistics for the project being analyzed.
+
+ -maxloop <loop count>
+
+   Specify the number of times a block can be visited before giving up.
+   Default is 4. Increase for more comprehensive coverage at a cost of speed.
+
+ -internal-stats
+
+   Generate internal analyzer statistics.
+
+ --use-analyzer [Xcode|path to clang]
+ --use-analyzer=[Xcode|path to clang]
+
+   scan-build uses the 'clang' executable relative to itself for static
+   analysis. One can override this behavior with this option by using the
+   'clang' packaged with Xcode (on OS X) or from the PATH.
+
+ --keep-empty
+
+   Don't remove the build results directory even if no issues were reported.
+
+ --override-compiler
+   Always resort to the ccc-analyzer even when better interposition methods
+   are available.
+
+ -analyzer-config <options>
+
+   Provide options to pass through to the analyzer's -analyzer-config flag.
+   Several options are separated with comma: 'key1=val1,key2=val2'
+
+   Available options:
+     * stable-report-filename=true or false (default)
+       Switch the page naming to:
+       report-<filename>-<function/method name>-<id>.html
+       instead of report-XXXXXX.html
+
+CONTROLLING CHECKERS:
+
+ A default group of checkers are always run unless explicitly disabled.
+ Checkers may be enabled/disabled using the following options:
+
+ -enable-checker [checker name]
+ -disable-checker [checker name]
+
+LOADING CHECKERS:
+
+ Loading external checkers using the clang plugin interface:
+
+ -load-plugin [plugin library]
+ENDTEXT
+
+  if (defined $Clang && -x $Clang) {
+    # Query clang for list of checkers that are enabled.
+
+    # create a list to load the plugins via the 'Xclang' command line
+    # argument
+    my @PluginLoadCommandline_xclang;
+    foreach my $param ( @{$Options{PluginsToLoad}} ) {
+      push ( @PluginLoadCommandline_xclang, "-Xclang" );
+      push ( @PluginLoadCommandline_xclang, "-load" );
+      push ( @PluginLoadCommandline_xclang, "-Xclang" );
+      push ( @PluginLoadCommandline_xclang, $param );
+    }
+
+    my %EnabledCheckers;
+    foreach my $lang ("c", "objective-c", "objective-c++", "c++") {
+      my $ExecLine = join(' ', qq/"$Clang"/, @PluginLoadCommandline_xclang, "--analyze", "-x", $lang, "-", "-###", "2>&1", "|");
+      open(PS, $ExecLine);
+      while (<PS>) {
+        foreach my $val (split /\s+/) {
+          $val =~ s/\"//g;
+          if ($val =~ /-analyzer-checker\=([^\s]+)/) {
+            $EnabledCheckers{$1} = 1;
+          }
+        }
+      }
+    }
+
+    # Query clang for complete list of checkers.
+    my @PluginLoadCommandline;
+    foreach my $param ( @{$Options{PluginsToLoad}} ) {
+      push ( @PluginLoadCommandline, "-load" );
+      push ( @PluginLoadCommandline, $param );
+    }
+
+    my $ExecLine = join(' ', qq/"$Clang"/, "-cc1", @PluginLoadCommandline, "-analyzer-checker-help", "2>&1", "|");
+    open(PS, $ExecLine);
+    my $foundCheckers = 0;
+    while (<PS>) {
+      if (/CHECKERS:/) {
+        $foundCheckers = 1;
+        last;
+      }
+    }
+    if (!$foundCheckers) {
+      print "  *** Could not query Clang for the list of available checkers.";
+    }
+    else {
+      print("\nAVAILABLE CHECKERS:\n\n");
+      my $skip = 0;
+       while(<PS>) {
+        if (/experimental/) {
+          $skip = 1;
+          next;
+        }
+        if ($skip) {
+          next if (!/^\s\s[^\s]/);
+          $skip = 0;
+        }
+        s/^\s\s//;
+        if (/^([^\s]+)/) {
+          # Is the checker enabled?
+          my $checker = $1;
+          my $enabled = 0;
+          my $aggregate = "";
+          foreach my $domain (split /\./, $checker) {
+            $aggregate .= $domain;
+            if ($EnabledCheckers{$aggregate}) {
+              $enabled =1;
+              last;
+            }
+            # append a dot, if an additional domain is added in the next iteration
+            $aggregate .= ".";
+          }
+
+          if ($enabled) {
+            print " + ";
+          }
+          else {
+            print "   ";
+          }
+        }
+        else {
+          print "   ";
+        }
+        print $_;
+      }
+      print "\nNOTE: \"+\" indicates that an analysis is enabled by default.\n";
+    }
+    close PS;
+  }
+  else {
+    print "  *** Could not query Clang for the list of available checkers.\n";
+    if (defined  $ArgClangNotFoundErrMsg) {
+      print "  *** Reason: $ArgClangNotFoundErrMsg\n";
+    }
+  }
+
+print <<ENDTEXT
+
+BUILD OPTIONS
+
+ You can specify any build option acceptable to the build command.
+
+EXAMPLE
+
+ scan-build -o /tmp/myhtmldir make -j4
+
+The above example causes analysis reports to be deposited into a subdirectory
+of "/tmp/myhtmldir" and to run "make" with the "-j4" option. A different
+subdirectory is created each time scan-build analyzes a project. The analyzer
+should support most parallel builds, but not distributed builds.
+
+ENDTEXT
+}
+
+##----------------------------------------------------------------------------##
+# HtmlEscape - HTML entity encode characters that are special in HTML
+##----------------------------------------------------------------------------##
+
+sub HtmlEscape {
+  # copy argument to new variable so we don't clobber the original
+  my $arg = shift || '';
+  my $tmp = $arg;
+  $tmp =~ s/&/&amp;/g;
+  $tmp =~ s/</&lt;/g;
+  $tmp =~ s/>/&gt;/g;
+  return $tmp;
+}
+
+##----------------------------------------------------------------------------##
+# ShellEscape - backslash escape characters that are special to the shell
+##----------------------------------------------------------------------------##
+
+sub ShellEscape {
+  # copy argument to new variable so we don't clobber the original
+  my $arg = shift || '';
+  if ($arg =~ /["\s]/) { return "'" . $arg . "'"; }
+  return $arg;
+}
+
+##----------------------------------------------------------------------------##
+# FindXcrun - searches for the 'xcrun' executable. Returns "" if not found.
+##----------------------------------------------------------------------------##
+
+sub FindXcrun {
+  my $xcrun = `which xcrun`;
+  chomp $xcrun;
+  return $xcrun;
+}
+
+##----------------------------------------------------------------------------##
+# FindClang - searches for 'clang' executable.
+##----------------------------------------------------------------------------##
+
+sub FindClang {
+  if (!defined $Options{AnalyzerDiscoveryMethod}) {
+    $Clang = Cwd::realpath("$RealBin/bin/clang") if (-f "$RealBin/bin/clang");
+    if (!defined $Clang || ! -x $Clang) {
+      $Clang = Cwd::realpath("$RealBin/clang") if (-f "$RealBin/clang");
+      if (!defined $Clang || ! -x $Clang) {
+        # When an Xcode toolchain is present, look for a clang in the sibling bin
+        # of the parent of the bin directory. So if scan-build is at
+        # $TOOLCHAIN/usr/local/bin/scan-build look for clang at
+        # $TOOLCHAIN/usr/bin/clang.
+        my $has_xcode_toolchain = FindXcrun() ne "";
+        if ($has_xcode_toolchain && -f "$RealBin/../../bin/clang") {
+          $Clang = Cwd::realpath("$RealBin/../../bin/clang");
+        }
+      }
+    }
+    if (!defined $Clang || ! -x $Clang) {
+      return "error: Cannot find an executable 'clang' relative to" .
+             " scan-build. Consider using --use-analyzer to pick a version of" .
+             " 'clang' to use for static analysis.\n";
+    }
+  }
+  else {
+    if ($Options{AnalyzerDiscoveryMethod} =~ /^[Xx]code$/) {
+      my $xcrun = FindXcrun();
+      if ($xcrun eq "") {
+        return "Cannot find 'xcrun' to find 'clang' for analysis.\n";
+      }
+      $Clang = `$xcrun -toolchain XcodeDefault -find clang`;
+      chomp $Clang;
+      if ($Clang eq "") {
+        return "No 'clang' executable found by 'xcrun'\n";
+      }
+    }
+    else {
+      $Clang = $Options{AnalyzerDiscoveryMethod};
+      if (!defined $Clang or not -x $Clang) {
+        return "Cannot find an executable clang at '$Options{AnalyzerDiscoveryMethod}'\n";
+      }
+    }
+  }
+  return undef;
+}
+
+##----------------------------------------------------------------------------##
+# Process command-line arguments.
+##----------------------------------------------------------------------------##
+
+my $RequestDisplayHelp = 0;
+my $ForceDisplayHelp = 0;
+
+sub ProcessArgs {
+  my $Args = shift;
+  my $NumArgs = 0;
+
+  while (@$Args) {
+
+    $NumArgs++;
+
+    # Scan for options we recognize.
+
+    my $arg = $Args->[0];
+
+    if ($arg eq "-h" or $arg eq "--help") {
+      $RequestDisplayHelp = 1;
+      shift @$Args;
+      next;
+    }
+
+    if ($arg eq '-analyze-headers') {
+      shift @$Args;
+      $Options{AnalyzeHeaders} = 1;
+      next;
+    }
+
+    if ($arg eq "-o") {
+      if (defined($Options{OutputDir})) {
+        DieDiag("Only one of '-o' or '--generate-index-only' can be specified.\n");
+      }
+
+      shift @$Args;
+
+      if (!@$Args) {
+        DieDiag("'-o' option requires a target directory name.\n");
+      }
+
+      # Construct an absolute path.  Uses the current working directory
+      # as a base if the original path was not absolute.
+      my $OutDir = shift @$Args;
+      mkpath($OutDir) unless (-e $OutDir);  # abs_path wants existing dir
+      $Options{OutputDir} = abs_path($OutDir);
+
+      next;
+    }
+
+    if ($arg eq "--generate-index-only") {
+      if (defined($Options{OutputDir})) {
+        DieDiag("Only one of '-o' or '--generate-index-only' can be specified.\n");
+      }
+
+      shift @$Args;
+
+      if (!@$Args) {
+        DieDiag("'--generate-index-only' option requires a target directory name.\n");
+      }
+
+      # Construct an absolute path.  Uses the current working directory
+      # as a base if the original path was not absolute.
+      my $OutDir = shift @$Args;
+      mkpath($OutDir) unless (-e $OutDir);  # abs_path wants existing dir
+      $Options{OutputDir} = abs_path($OutDir);
+      $Options{GenerateIndex} = 1;
+
+      next;
+    }
+
+    if ($arg =~ /^--html-title(=(.+))?$/) {
+      shift @$Args;
+
+      if (!defined $2 || $2 eq '') {
+        if (!@$Args) {
+          DieDiag("'--html-title' option requires a string.\n");
+        }
+
+        $Options{HtmlTitle} = shift @$Args;
+      } else {
+        $Options{HtmlTitle} = $2;
+      }
+
+      next;
+    }
+
+    if ($arg eq "-k" or $arg eq "--keep-going") {
+      shift @$Args;
+      $Options{IgnoreErrors} = 1;
+      next;
+    }
+
+    if ($arg eq "--keep-cc") {
+      shift @$Args;
+      $Options{KeepCC} = 1;
+      next;
+    }
+
+    if ($arg =~ /^--use-cc(=(.+))?$/) {
+      shift @$Args;
+      my $cc;
+
+      if (!defined $2 || $2 eq "") {
+        if (!@$Args) {
+          DieDiag("'--use-cc' option requires a compiler executable name.\n");
+        }
+        $cc = shift @$Args;
+      }
+      else {
+        $cc = $2;
+      }
+
+      $Options{UseCC} = $cc;
+      next;
+    }
+
+    if ($arg =~ /^--use-c\+\+(=(.+))?$/) {
+      shift @$Args;
+      my $cxx;
+
+      if (!defined $2 || $2 eq "") {
+        if (!@$Args) {
+          DieDiag("'--use-c++' option requires a compiler executable name.\n");
+        }
+        $cxx = shift @$Args;
+      }
+      else {
+        $cxx = $2;
+      }
+
+      $Options{UseCXX} = $cxx;
+      next;
+    }
+
+    if ($arg =~ /^--analyzer-target(=(.+))?$/) {
+      shift @ARGV;
+      my $AnalyzerTarget;
+
+      if (!defined $2 || $2 eq "") {
+        if (!@ARGV) {
+          DieDiag("'--analyzer-target' option requires a target triple name.\n");
+        }
+        $AnalyzerTarget = shift @ARGV;
+      }
+      else {
+        $AnalyzerTarget = $2;
+      }
+
+      $Options{AnalyzerTarget} = $AnalyzerTarget;
+      next;
+    }
+
+    if ($arg eq "-v") {
+      shift @$Args;
+      $Options{Verbose}++;
+      next;
+    }
+
+    if ($arg eq "-V" or $arg eq "--view") {
+      shift @$Args;
+      $Options{ViewResults} = 1;
+      next;
+    }
+
+    if ($arg eq "--status-bugs") {
+      shift @$Args;
+      $Options{ExitStatusFoundBugs} = 1;
+      next;
+    }
+
+    if ($arg eq "--show-description") {
+      shift @$Args;
+      $Options{ShowDescription} = 1;
+      next;
+    }
+
+    if ($arg eq "-constraints") {
+      shift @$Args;
+      $Options{ConstraintsModel} = shift @$Args;
+      next;
+    }
+
+    if ($arg eq "-internal-stats") {
+      shift @$Args;
+      $Options{InternalStats} = 1;
+      next;
+    }
+
+    if ($arg eq "-sarif") {
+      shift @$Args;
+      $Options{OutputFormat} = "sarif";
+      next;
+    }
+
+    if ($arg eq "-plist") {
+      shift @$Args;
+      $Options{OutputFormat} = "plist";
+      next;
+    }
+
+    if ($arg eq "-plist-html") {
+      shift @$Args;
+      $Options{OutputFormat} = "plist-html";
+      next;
+    }
+
+    if ($arg eq "-analyzer-config") {
+      shift @$Args;
+      push @{$Options{ConfigOptions}}, shift @$Args;
+      next;
+    }
+
+    if ($arg eq "-no-failure-reports") {
+      shift @$Args;
+      $Options{ReportFailures} = 0;
+      next;
+    }
+
+    if ($arg eq "-stats") {
+      shift @$Args;
+      $Options{AnalyzerStats} = 1;
+      next;
+    }
+
+    if ($arg eq "-maxloop") {
+      shift @$Args;
+      $Options{MaxLoop} = shift @$Args;
+      next;
+    }
+
+    if ($arg eq "-enable-checker") {
+      shift @$Args;
+      my $Checker = shift @$Args;
+      # Store $NumArgs to preserve the order the checkers were enabled.
+      $Options{EnableCheckers}{$Checker} = $NumArgs;
+      delete $Options{DisableCheckers}{$Checker};
+      next;
+    }
+
+    if ($arg eq "-disable-checker") {
+      shift @$Args;
+      my $Checker = shift @$Args;
+      # Store $NumArgs to preserve the order the checkers are disabled/silenced.
+      # See whether it is a core checker to disable. That means we do not want
+      # to emit a report from that checker so we have to silence it.
+      if (index($Checker, "core") == 0) {
+        $Options{SilenceCheckers}{$Checker} = $NumArgs;
+      } else {
+        $Options{DisableCheckers}{$Checker} = $NumArgs;
+        delete $Options{EnableCheckers}{$Checker};
+      }
+      next;
+    }
+
+    if ($arg eq "--exclude") {
+      shift @$Args;
+      my $arg = shift @$Args;
+      # Remove the trailing slash if any
+      $arg =~ s|/$||;
+      push @{$Options{Excludes}}, $arg;
+      next;
+    }
+
+    if ($arg eq "-load-plugin") {
+      shift @$Args;
+      push @{$Options{PluginsToLoad}}, shift @$Args;
+      next;
+    }
+
+    if ($arg eq "--use-analyzer") {
+      shift @$Args;
+      $Options{AnalyzerDiscoveryMethod} = shift @$Args;
+      next;
+    }
+
+    if ($arg =~ /^--use-analyzer=(.+)$/) {
+      shift @$Args;
+      $Options{AnalyzerDiscoveryMethod} = $1;
+      next;
+    }
+
+    if ($arg eq "--keep-empty") {
+      shift @$Args;
+      $Options{KeepEmpty} = 1;
+      next;
+    }
+
+    if ($arg eq "--override-compiler") {
+      shift @$Args;
+      $Options{OverrideCompiler} = 1;
+      next;
+    }
+
+    if ($arg eq "--force-analyze-debug-code") {
+      shift @$Args;
+      $Options{ForceAnalyzeDebugCode} = 1;
+      next;
+    }
+
+    DieDiag("unrecognized option '$arg'\n") if ($arg =~ /^-/);
+
+    $NumArgs--;
+    last;
+  }
+  return $NumArgs;
+}
+
+if (!@ARGV) {
+  $ForceDisplayHelp = 1
+}
+
+ProcessArgs(\@ARGV);
+# All arguments are now shifted from @ARGV. The rest is a build command, if any.
+
+my $ClangNotFoundErrMsg = FindClang();
+
+if ($ForceDisplayHelp || $RequestDisplayHelp) {
+  DisplayHelp($ClangNotFoundErrMsg);
+  exit $ForceDisplayHelp;
+}
+
+$CmdArgs = HtmlEscape(join(' ', map(ShellEscape($_), @ARGV)));
+
+if ($Options{GenerateIndex}) {
+  $ClangVersion = "unknown";
+  Finalize($Options{OutputDir}, 0);
+}
+
+# Make sure to use "" to handle paths with spaces.
+$ClangVersion = HtmlEscape(`"$Clang" --version`);
+
+if (!@ARGV and !$RequestDisplayHelp) {
+  ErrorDiag("No build command specified.\n\n");
+  $ForceDisplayHelp = 1;
+}
+
+# Determine the output directory for the HTML reports.
+my $BaseDir = $Options{OutputDir};
+$Options{OutputDir} = GetHTMLRunDir($Options{OutputDir});
+
+DieDiag($ClangNotFoundErrMsg) if (defined $ClangNotFoundErrMsg);
+
+$ClangCXX = $Clang;
+if ($Clang !~ /\+\+(\.exe)?$/) {
+  # If $Clang holds the name of the clang++ executable then we leave
+  # $ClangCXX and $Clang equal, otherwise construct the name of the clang++
+  # executable from the clang executable name.
+
+  # Determine operating system under which this copy of Perl was built.
+  my $IsWinBuild = ($^O =~/msys|cygwin|MSWin32/);
+  if($IsWinBuild) {
+    $ClangCXX =~ s/.exe$/++.exe/;
+  }
+  else {
+    $ClangCXX =~ s/\-\d+(\.\d+)?$//;
+    $ClangCXX .= "++";
+  }
+}
+
+# Determine the location of ccc-analyzer.
+my $AbsRealBin = Cwd::realpath($RealBin);
+my $Cmd = "$AbsRealBin/../libexec/ccc-analyzer";
+my $CmdCXX = "$AbsRealBin/../libexec/c++-analyzer";
+
+# Portability: use less strict but portable check -e (file exists) instead of
+# non-portable -x (file is executable). On some windows ports -x just checks
+# file extension to determine if a file is executable (see Perl language
+# reference, perlport)
+if (!defined $Cmd || ! -e $Cmd) {
+  $Cmd = "$AbsRealBin/ccc-analyzer";
+  DieDiag("'ccc-analyzer' does not exist at '$Cmd'\n") if(! -e $Cmd);
+}
+if (!defined $CmdCXX || ! -e $CmdCXX) {
+  $CmdCXX = "$AbsRealBin/c++-analyzer";
+  DieDiag("'c++-analyzer' does not exist at '$CmdCXX'\n") if(! -e $CmdCXX);
+}
+
+Diag("Using '$Clang' for static analysis\n");
+
+SetHtmlEnv(\@ARGV, $Options{OutputDir});
+
+my @AnalysesToRun;
+foreach (sort { $Options{EnableCheckers}{$a} <=> $Options{EnableCheckers}{$b} }
+         keys %{$Options{EnableCheckers}}) {
+  # Push checkers in order they were enabled.
+  push @AnalysesToRun, "-analyzer-checker", $_;
+}
+foreach (sort { $Options{DisableCheckers}{$a} <=> $Options{DisableCheckers}{$b} }
+         keys %{$Options{DisableCheckers}}) {
+  # Push checkers in order they were disabled.
+  push @AnalysesToRun, "-analyzer-disable-checker", $_;
+}
+if ($Options{AnalyzeHeaders}) { push @AnalysesToRun, "-analyzer-opt-analyze-headers"; }
+if ($Options{AnalyzerStats}) { push @AnalysesToRun, '-analyzer-checker=debug.Stats'; }
+if ($Options{MaxLoop} > 0) { push @AnalysesToRun, "-analyzer-max-loop $Options{MaxLoop}"; }
+
+# Delay setting up other environment variables in case we can do true
+# interposition.
+my $CCC_ANALYZER_ANALYSIS = join ' ', @AnalysesToRun;
+my $CCC_ANALYZER_PLUGINS = join ' ', map { "-load ".$_ } @{$Options{PluginsToLoad}};
+my $CCC_ANALYZER_CONFIG = join ' ', map { "-analyzer-config ".$_ } @{$Options{ConfigOptions}};
+
+if (%{$Options{SilenceCheckers}}) {
+  $CCC_ANALYZER_CONFIG =
+      $CCC_ANALYZER_CONFIG." -analyzer-config silence-checkers="
+                          .join(';', sort {
+                                            $Options{SilenceCheckers}{$a} <=>
+                                            $Options{SilenceCheckers}{$b}
+                                          } keys %{$Options{SilenceCheckers}});
+}
+
+my %EnvVars = (
+  'CC' => $Cmd,
+  'CXX' => $CmdCXX,
+  'CLANG' => $Clang,
+  'CLANG_CXX' => $ClangCXX,
+  'VERBOSE' => $Options{Verbose},
+  'CCC_ANALYZER_ANALYSIS' => $CCC_ANALYZER_ANALYSIS,
+  'CCC_ANALYZER_PLUGINS' => $CCC_ANALYZER_PLUGINS,
+  'CCC_ANALYZER_CONFIG' => $CCC_ANALYZER_CONFIG,
+  'OUTPUT_DIR' => $Options{OutputDir},
+  'CCC_CC' => $Options{UseCC},
+  'CCC_CXX' => $Options{UseCXX},
+  'CCC_REPORT_FAILURES' => $Options{ReportFailures},
+  'CCC_ANALYZER_CONSTRAINTS_MODEL' => $Options{ConstraintsModel},
+  'CCC_ANALYZER_INTERNAL_STATS' => $Options{InternalStats},
+  'CCC_ANALYZER_OUTPUT_FORMAT' => $Options{OutputFormat},
+  'CLANG_ANALYZER_TARGET' => $Options{AnalyzerTarget},
+  'CCC_ANALYZER_FORCE_ANALYZE_DEBUG_CODE' => $Options{ForceAnalyzeDebugCode}
+);
+
+# Run the build.
+my $ExitStatus = RunBuildCommand(\@ARGV, $Options{IgnoreErrors}, $Options{KeepCC},
+	                        $Cmd, $CmdCXX, \%EnvVars);
+
+Finalize($BaseDir, $ExitStatus);

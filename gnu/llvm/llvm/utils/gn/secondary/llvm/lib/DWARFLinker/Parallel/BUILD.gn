@@ -1,0 +1,26 @@
+static_library("Parallel") {
+  output_name = "LLVMDWARFLinkerParallel"
+  deps = [
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/DWARFLinker",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "AcceleratorRecordsSaver.cpp",
+    "DIEAttributeCloner.cpp",
+    "DWARFEmitterImpl.cpp",
+    "DWARFLinker.cpp",
+    "DWARFLinkerCompileUnit.cpp",
+    "DWARFLinkerImpl.cpp",
+    "DWARFLinkerTypeUnit.cpp",
+    "DWARFLinkerUnit.cpp",
+    "DependencyTracker.cpp",
+    "OutputSections.cpp",
+    "SyntheticTypeNameBuilder.cpp",
+  ]
+}

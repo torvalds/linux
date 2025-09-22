@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!DOCTYPE MODE SYSTEM "xmode.dtd">
+<MODE>
+	<PROPS>
+		<PROPERTY NAME="lineComment" VALUE="//" />
+		<PROPERTY NAME="commentStart" VALUE="/*" />
+		<PROPERTY NAME="commentEnd" VALUE="*/" />
+		<PROPERTY NAME="indentOpenBrackets" VALUE="{" />
+		<PROPERTY NAME="indentCloseBrackets" VALUE="}" />
+		<PROPERTY NAME="wordBreakChars" VALUE=",+-=&lt;&gt;/?^&amp;*" />
+		<PROPERTY NAME="unalignedOpenBrackets" VALUE="(&lt;" />
+		<PROPERTY NAME="unalignedCloseBrackets" VALUE=")&gt;" />
+	</PROPS>
+	<RULES IGNORE_CASE="FALSE" HIGHLIGHT_DIGITS="TRUE">
+		<EOL_SPAN TYPE="COMMENT1">//</EOL_SPAN>
+		<SPAN TYPE="COMMENT1">
+		    <BEGIN>/*</BEGIN>
+		    <END>*/</END>
+		</SPAN>
+		<SPAN TYPE="LITERAL1" NO_LINE_BREAK="TRUE" ESCAPE="\">
+		    <BEGIN>"</BEGIN>
+		    <END>"</END>
+		</SPAN>
+		<KEYWORDS>
+			<KEYWORD1>let</KEYWORD1>
+			<KEYWORD1>def</KEYWORD1>
+			<KEYWORD1>class</KEYWORD1>
+			<KEYWORD1>include</KEYWORD1>
+
+			<KEYWORD3>bit</KEYWORD3>
+			<KEYWORD3>int</KEYWORD3>
+			<KEYWORD3>string</KEYWORD3>
+			<KEYWORD3>bits</KEYWORD3>
+			<KEYWORD3>list</KEYWORD3>
+			<KEYWORD3>dag</KEYWORD3>
+			<KEYWORD3>code</KEYWORD3>
+		</KEYWORDS>
+	</RULES>
+</MODE>

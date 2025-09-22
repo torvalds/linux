@@ -1,0 +1,446 @@
+.\"	$OpenBSD: recv.2,v 1.52 2025/08/11 05:36:18 guenther Exp $
+.\"	$NetBSD: recv.2,v 1.6 1995/02/27 12:36:08 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)recv.2	8.3 (Berkeley) 2/21/94
+.\"
+.Dd $Mdocdate: August 11 2025 $
+.Dt RECV 2
+.Os
+.Sh NAME
+.Nm recv ,
+.Nm recvfrom ,
+.Nm recvmsg ,
+.Nm recvmmsg
+.Nd receive a message from a socket
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft ssize_t
+.Fn recv "int s" "void *buf" "size_t len" "int flags"
+.Ft ssize_t
+.Fn recvfrom "int s" "void *buf" "size_t len" "int flags" "struct sockaddr *from" "socklen_t *fromlen"
+.Ft ssize_t
+.Fn recvmsg "int s" "struct msghdr *msg" "int flags"
+.Ft int
+.Fn recvmmsg "int s" "struct mmsghdr *mmsg" "unsigned int vlen" "int flags" "struct timespec *timeout"
+.Sh DESCRIPTION
+.Fn recv ,
+.Fn recvfrom ,
+.Fn recvmsg ,
+and
+.Fn recvmmsg
+are used to receive messages from a socket,
+.Fa s .
+.Fn recv
+is normally used only on a
+.Em connected
+socket (see
+.Xr connect 2 ) .
+.Fn recvfrom ,
+.Fn recvmsg ,
+and
+.Fn recvmmsg
+may be used to receive
+data on a socket whether or not it is connection-oriented.
+.Pp
+.Fn recv
+is identical to
+.Fn recvfrom
+with a null
+.Fa from
+parameter.
+.Pp
+If
+.Fa from
+is non-null and the socket is not connection-oriented,
+the source address of the message is filled in.
+.Fa fromlen
+is a value-result parameter, initialized to the size of
+the buffer associated with
+.Fa from ,
+and modified on return to indicate the actual size of the
+address stored there.
+.Pp
+If no messages are available at the socket, the
+receive call waits for a message to arrive, unless
+the socket is nonblocking (see
+.Xr fcntl 2 )
+in which case the value
+\-1 is returned and the external variable
+.Va errno
+set to
+.Er EAGAIN .
+The receive calls normally return any data available,
+up to the requested amount,
+rather than waiting for receipt of the full amount requested;
+this behavior is affected by the socket-level options
+.Dv SO_RCVLOWAT
+and
+.Dv SO_RCVTIMEO
+described in
+.Xr getsockopt 2 .
+.Pp
+The
+.Xr select 2
+or
+.Xr poll 2
+system calls may be used to determine when more data arrive.
+.Pp
+The
+.Fa flags
+argument is the bitwise OR of zero or more of the following values:
+.Pp
+.Bl -tag -width "MSG_CMSG_CLOEXECXX" -offset indent -compact
+.It Dv MSG_OOB
+process out-of-band data
+.It Dv MSG_PEEK
+peek at incoming message
+.It Dv MSG_WAITALL
+wait for full request or error
+.It Dv MSG_DONTWAIT
+don't block
+.It Dv MSG_CMSG_CLOEXEC
+set the close-on-exec flag on received file descriptors
+.It Dv MSG_CMSG_CLOFORK
+set the close-on-fork flag on received file descriptors
+.El
+.Pp
+The
+.Dv MSG_OOB
+flag requests receipt of out-of-band data
+that would not be received in the normal data stream.
+Some protocols place expedited data at the head of the normal
+data queue, and thus this flag cannot be used with such protocols.
+The
+.Dv MSG_PEEK
+flag causes the receive operation to return data
+from the beginning of the receive queue without removing that
+data from the queue.
+Thus, a subsequent receive call will return the same data.
+The
+.Dv MSG_WAITALL
+flag requests that the operation block until
+the full request is satisfied.
+However, the call may still return less data than requested
+if a signal is caught, an error or disconnect occurs,
+or the next data to be received is of a different type than that returned.
+The
+.Dv MSG_DONTWAIT
+flag requests the call to return when it would block otherwise.
+If no data is available,
+.Va errno
+is set to
+.Er EAGAIN .
+This flag is not available in strict ANSI or C99 compilation mode.
+The
+.Dv MSG_CMSG_CLOEXEC
+and
+.Dv MSG_CMSG_CLOFORK
+flags request that any file descriptors received as ancillary data with
+.Fn recvmsg
+and
+.Fn recvmmsg
+(see below)
+have their close-on-exec flag or close-on-fork flag, respectively, set.
+.Pp
+The
+.Fn recvmsg
+call uses a
+.Fa msghdr
+structure to minimize the number of directly supplied parameters.
+This structure has the following form, as defined in
+.In sys/socket.h :
+.Bd -literal
+struct msghdr {
+	void		*msg_name;	 /* optional address */
+	socklen_t	 msg_namelen;	 /* size of address */
+	struct iovec	*msg_iov;	 /* scatter/gather array */
+	unsigned int	 msg_iovlen;	 /* # elements in msg_iov */
+	void		*msg_control;	 /* ancillary data, see below */
+	socklen_t	 msg_controllen; /* ancillary data buffer len */
+	int		 msg_flags;	 /* flags on received message */
+};
+.Ed
+.Pp
+Here
+.Fa msg_name
+and
+.Fa msg_namelen
+specify the source address if the socket is unconnected;
+.Fa msg_name
+may be given as a null pointer if no names are desired or required.
+.Fa msg_iov
+and
+.Fa msg_iovlen
+describe scatter gather locations, as discussed in
+.Xr read 2 .
+.Fa msg_control ,
+which has length
+.Fa msg_controllen ,
+points to a buffer for other protocol control related messages
+or other miscellaneous ancillary data.
+The messages are of the form:
+.Bd -literal
+struct cmsghdr {
+	socklen_t	cmsg_len;   /* data byte count, including hdr */
+	int		cmsg_level; /* originating protocol */
+	int		cmsg_type;  /* protocol-specific type */
+/* followed by u_char	cmsg_data[]; */
+};
+.Ed
+.Pp
+See
+.Xr CMSG_DATA 3
+for how these messages are constructed and decomposed.
+.Pp
+Open file descriptors are now passed as ancillary data for
+.Dv AF_UNIX
+domain and
+.Xr socketpair 2
+sockets, with
+.Fa cmsg_level
+set to
+.Dv SOL_SOCKET
+and
+.Fa cmsg_type
+set to
+.Dv SCM_RIGHTS .
+.Pp
+The
+.Fa msg_flags
+field is set on return according to the message received.
+It will contain zero or more of the following values:
+.Pp
+.Bl -tag -width MSG_CTRUNC -offset indent -compact
+.It Dv MSG_OOB
+Returned to indicate that expedited or out-of-band data was received.
+.It Dv MSG_EOR
+Indicates end-of-record;
+the data returned completed a record (generally used with sockets of type
+.Dv SOCK_SEQPACKET ) .
+.It Dv MSG_TRUNC
+Indicates that
+the trailing portion of a datagram was discarded because the datagram
+was larger than the buffer supplied.
+.It Dv MSG_CTRUNC
+Indicates that some
+control data were discarded due to lack of space in the buffer
+for ancillary data.
+.It Dv MSG_BCAST
+Indicates that the packet was received as broadcast.
+.It Dv MSG_MCAST
+Indicates that the packet was received as multicast.
+.El
+.Pp
+The
+.Fn recvmmsg
+call uses an array of the
+.Fa mmsghdr
+structure of length
+.Fa vlen
+to group multiple
+.Fa msghdr
+structures into a single system call.
+.Fa vlen
+is capped at maximum
+.Dv 1024
+messages that are received in a single call.
+The
+.Fa flags
+field allows setting
+.Dv MSG_WAITFORONE
+to wait for one
+.Fa msghdr ,
+and set
+.Dv MSG_DONTWAIT
+for all subsequent messages.
+A provided
+.Fa timeout
+limits the time spent in the function but it does not limit the
+time spent in lower parts of the kernel.
+.Pp
+The
+.Fa mmsghdr
+structure has the following form, as defined in
+.In sys/socket.h :
+.Bd -literal
+struct mmsghdr {
+	struct msghdr msg_hdr;
+	unsigned int msg_len;
+};
+.Ed
+.Pp
+Here
+.Fa msg_len
+indicated the number of bytes received for each
+.Fa msg_hdr
+member.
+.Sh RETURN VALUES
+The
+.Fn recv ,
+.Fn recvfrom ,
+and
+.Fn recvmsg
+calls return the number of bytes received, or \-1 if an error occurred.
+The
+.Fn recvmmsg
+call returns the number of messages received, or \-1
+if an error occurred before the first message has been received.
+.Sh ERRORS
+.Fn recv ,
+.Fn recvfrom ,
+.Fn recvmsg ,
+and
+.Fn recvmmsg
+fail if:
+.Bl -tag -width "[EHOSTUNREACH]"
+.It Bq Er EBADF
+The argument
+.Fa s
+is an invalid descriptor.
+.It Bq Er ENOTCONN
+The socket is associated with a connection-oriented protocol
+and has not been connected (see
+.Xr connect 2
+and
+.Xr accept 2 ) .
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+does not refer to a socket.
+.It Bq Er EAGAIN
+The socket is marked non-blocking, and the receive operation
+would block, or
+a receive timeout had been set,
+and the timeout expired before data were received.
+.It Bq Er EINTR
+The receive was interrupted by delivery of a signal before
+any data were available.
+.It Bq Er EFAULT
+The receive buffer pointer(s) point outside the process's
+address space.
+.It Bq Er EHOSTUNREACH
+A socket operation was attempted to an unreachable host.
+.It Bq Er EHOSTDOWN
+A socket operation failed
+because the destination host was down.
+.It Bq Er ENETDOWN
+A socket operation encountered a dead network.
+.It Bq Er ECONNREFUSED
+The socket is associated with a connection-oriented protocol
+and the connection was forcefully rejected (see
+.Xr connect 2 ) .
+.El
+.Pp
+In addition,
+.Fn recv
+and
+.Fn recvfrom
+may return the following error:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa len
+was larger than
+.Dv SSIZE_MAX .
+.El
+.Pp
+And
+.Fn recvmsg
+and
+.Fn recvmmsg
+may return one of the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The sum of the
+.Fa iov_len
+values in the
+.Fa msg_iov
+array overflowed an
+.Em ssize_t .
+.It Bq Er EMSGSIZE
+The
+.Fa msg_iovlen
+member of
+.Fa msg
+was less than 0 or larger than
+.Dv IOV_MAX .
+.It Bq Er EMSGSIZE
+The receiving program did not have sufficient
+free file descriptor slots.
+The descriptors are closed
+and any pending data can be returned
+by another call to
+.Fn recvmsg .
+.El
+.Sh SEE ALSO
+.Xr connect 2 ,
+.Xr fcntl 2 ,
+.Xr getsockopt 2 ,
+.Xr poll 2 ,
+.Xr read 2 ,
+.Xr select 2 ,
+.Xr socket 2 ,
+.Xr socketpair 2 ,
+.Xr CMSG_DATA 3 ,
+.Xr sockatmark 3
+.Sh STANDARDS
+The
+.Fn recv ,
+.Fn recvfrom ,
+and
+.Fn recvmsg
+functions conform to
+.St -p1003.1-2024 .
+The
+.Dv MSG_DONTWAIT ,
+.Dv MSG_BCAST ,
+and
+.Dv MSG_MCAST
+flags are extensions to that specification.
+.Sh HISTORY
+The
+.Fn recv
+function call appeared in
+.Bx 4.1c .
+The
+.Fn recvmmsg
+syscall first appeared in Linux 2.6.33 and was added to
+.Ox 7.2 .
+.Sh CAVEATS
+Calling
+.Fn recvmsg
+with a control message having no or an empty scatter/gather array
+exposes variations in implementations.
+To avoid these, always use an
+.Fa iovec
+with at least a one-byte buffer and set
+.Fa msg_iov
+and an
+.Fa msg_iovlen
+to use this vector.

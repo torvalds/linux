@@ -1,0 +1,16 @@
+# RUN: echo 'foo' > %t.foo0
+# RUN: echo 'foo' > %t.foo1
+# RUN: echo 'bar' > %t.bar
+
+# diff fails.
+# RUN: not diff %t.foo0 %t.bar
+# RUN: not not not diff %t.foo0 %t.bar
+# RUN: not not not not not diff %t.foo0 %t.bar
+
+# diff succeeds.
+# RUN: diff %t.foo0 %t.foo1
+# RUN: not not diff %t.foo0 %t.foo1
+# RUN: not not not not diff %t.foo0 %t.foo1
+
+# diff succeeds but we expect failure.
+# RUN: not diff %t.foo0 %t.foo1

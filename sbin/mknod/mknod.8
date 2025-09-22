@@ -1,0 +1,143 @@
+.\"	$OpenBSD: mknod.8,v 1.22 2016/10/06 11:43:30 schwarze Exp $
+.\"	$NetBSD: mknod.8,v 1.9 1995/08/10 23:47:32 jtc Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mknod.8	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: October 6 2016 $
+.Dt MKNOD 8
+.Os
+.Sh NAME
+.Nm mknod
+.Nd make device special files
+.Sh SYNOPSIS
+.Nm mknod
+.Op Fl m Ar mode
+.Ar name
+.Cm b Ns | Ns Cm c
+.Ar major minor
+.Nm mknod
+.Op Fl m Ar mode
+.Ar name
+.Cm p
+.Sh DESCRIPTION
+The
+.Nm
+command creates device special files.
+Normally the shell script
+.Pa /dev/MAKEDEV
+is used to create special files for commonly known devices; it executes
+.Nm
+with the appropriate arguments and can make all the files required for the
+device.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl m Ar mode
+Set the file permission bits of newly created device special files to
+.Ar mode .
+The mode argument can be in any of the formats specified to the
+.Xr chmod 1
+utility.
+If a symbolic mode is specified, the operators
+.Ql +
+and
+.Ql -
+are interpreted relative to an initial mode of
+.Dq a=rw .
+.El
+.Pp
+To make nodes manually, the arguments are:
+.Bl -tag -width majorx
+.It Ar name
+Device or FIFO name.
+For example
+.Dq sd
+for a SCSI disk or a
+.Dq pty
+for pseudo-devices.
+FIFOs may be named arbitrarily by the user.
+.It Cm b | c | p
+Type of device or FIFO.
+If the device is a block type device such as a tape or disk drive which needs
+both cooked and raw special files,
+the type is
+.Cm b .
+All other devices are character type devices, such as terminal
+and pseudo devices, and are type
+.Cm c .
+A FIFO (also known as a named pipe) is type
+.Cm p .
+.It Ar major
+The major device number is an integer number which tells the kernel
+which device driver entry point to use.
+To learn what major device number to use for a particular device,
+check the file
+.Pa /dev/MAKEDEV
+to see if the device is known.
+.It Ar minor
+The minor device number tells the kernel which subunit
+the node corresponds to on the device; for example,
+a subunit may be a filesystem partition
+or a tty line.
+.Pp
+Major and minor device numbers can be given in any format acceptable to
+.Xr strtoul 3 ,
+so that a leading
+.Dq 0x
+indicates a hexadecimal number, and a leading
+.Dq 0
+will cause the number to be interpreted as octal.
+.El
+.Sh SEE ALSO
+.Xr chmod 1 ,
+.Xr mkfifo 1 ,
+.Xr mkfifo 2 ,
+.Xr mknod 2 ,
+.Xr MAKEDEV 8
+.Sh STANDARDS
+As an extension,
+.Nm
+can also take multiple lists of parameters in one go.
+Note that
+.Fl m
+is not reset from one list to the next so, for example, in
+.Pp
+.Dl mknod -m 700 name b 12 5 name2 b 12 6
+.Pp
+both
+.Ar name
+and
+.Ar name2
+will be mode 700.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v4 .

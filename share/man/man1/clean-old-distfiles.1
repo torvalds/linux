@@ -1,0 +1,120 @@
+.\"	$OpenBSD: clean-old-distfiles.1,v 1.5 2023/07/06 10:43:37 espie Exp $
+.\"
+.\" Copyright (c) 2012 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 6 2023 $
+.Dt CLEAN-OLD-DISTFILES 1
+.Os
+.Sh NAME
+.Nm clean-old-distfiles
+.Nd remove obsolete ports distfiles
+.Sh SYNOPSIS
+.Nm clean-old-distfiles
+.Op Fl mnvx
+.Op Fl e Ar except
+.Op Fl h Ar history
+.Op Ar timestamp
+.Sh DESCRIPTION
+Each time
+.Xr dpb 1
+is run for a full scan of the
+.Xr ports 7
+tree, it appends to the
+.Pa history
+log, listing files in the
+.Pa distfiles
+directory that are not, or no longer,
+needed for building the complete tree.
+It can also be run solely for that purpose, by using:
+.Pp
+.D1 $ Sy dpb Fl D Cm HISTORY_ONLY
+.Pp
+When
+.Nm
+is run later, it uses the information from the history log
+to delete unneeded files.
+When a file is deleted, the corresponding entry is also deleted
+from the history log.
+.Pp
+By default,
+.Nm
+deletes all files listed in the history log.
+.Pp
+If a
+.Ar timestamp
+is given, it is interpreted as a number of seconds since the Epoch,
+similar to the
+.Xr date 1
+.Fl r
+argument, and only those files are deleted that were recorded as
+obsolete at that time or earlier.
+It can also be set to a date in ISO8601 format, like
+.Sq 2023-07-01
+or
+.Sq 2023-07-02T12:00:00Z .
+.Pp
+For normal files,
+.Nm
+verifies
+.Xr sha256 1
+checksums prior to removal.
+It also removes links under
+.Pa by_cipher/sha256 ,
+but it trusts that the checksums for these are accurate.
+.Pp
+Options are as follows:
+.Bl -tag -width nnnn
+.It Fl e Ar except
+Read exception list from file
+.Ar except .
+Each line is the name of a file that shouldn't be removed.
+.It Fl h Ar history
+Read log from history file
+.Ar history
+instead of the default
+.Pa /usr/ports/distfiles/history .
+Turns on
+.Fl nv ,
+as this is a testing option.
+.It Fl m
+Causes
+.Nm
+to display the progress meter even if not on a terminal.
+.It Fl n
+Don't really remove files.
+.It Fl v
+Display what will be removed, as
+.Ql rm file
+lines.
+.It Fl x
+Causes
+.Nm
+to not display the progress meter.
+.El
+.Sh FILES
+.Bl -tag -width /usr/ports
+.It Pa /usr/ports
+base of the ports tree, can be overridden with env variable
+.Ev PORTSDIR .
+.It Pa /usr/ports/distfiles
+location of the distfiles repository, can be overridden with env variable
+.Ev DISTDIR .
+.It Pa /usr/ports/distfiles/history
+log of obsolete distfiles.
+.El
+.Sh SEE ALSO
+.Xr dpb 1 ,
+.Xr sha256 1 ,
+.Xr mirroring-ports 7

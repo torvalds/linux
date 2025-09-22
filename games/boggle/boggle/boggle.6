@@ -1,0 +1,162 @@
+.\"	$OpenBSD: boggle.6,v 1.22 2022/03/31 17:27:14 naddy Exp $
+.\"	$NetBSD: boggle.6,v 1.2 1995/03/21 12:14:35 cgd Exp $
+.\"
+.\" Copyright (c) 1997, Jason Downs.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Barry Brachman.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)boggle.6	8.1 (Berkeley) 6/11/93
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt BOGGLE 6
+.Os
+.Sh NAME
+.Nm boggle
+.Nd word search game
+.Sh SYNOPSIS
+.Nm boggle
+.Op Fl Bbcd
+.Op Fl t Ar time
+.Op Fl w Ar length
+.Op Cm + Ns Op Cm +
+.Op Ar boardspec
+.Sh DESCRIPTION
+The object of
+.Nm
+is to find as many words as possible on the Boggle board within the three
+minute time limit.
+A Boggle board is a four by four arrangement of Boggle cubes, each side of
+each cube displaying a letter of the alphabet or
+.Sq qu .
+Words are formed by finding a sequence of cubes (letters) that are in the
+game's dictionary.
+The (N+1)th cube in the word must be horizontally,
+vertically, or diagonally adjacent to the Nth cube.
+Cubes cannot be reused.
+Words consist solely of lower case letters and must be at least 3 letters long.
+.Pp
+Command line flags can be given to change the rules of the game:
+.Bl -tag -width boardspec
+.It Fl B
+Use an alternate five by five arrangement of Boggle cubes.
+In this mode the default minimum word length is 4 letters.
+This arrangement has been marketed over the years under the names
+.Em Big Boggle ,
+.Em Super Boggle
+and
+.Em Boggle Deluxe .
+.It Fl b
+Run
+.Nm
+in batch mode.
+A
+.Ar boardspec
+must also be given.
+The dictionary is read from stdin and a list of words appearing in
+.Ar boardspec
+is printed to stdout.
+.It Fl c
+Add a so-called
+.Em challenge cube
+to the board, which contains less commonly used letters.
+The challenge cube will be displayed in boldface on the board.
+Depending on the terminal capabilities, it may be displayed in
+underline or a different color (such as red).
+.It Fl d
+Enable debugging output.
+.It Fl t Ar time
+Change the time limit for each game from the default 3 minutes to
+.Ar time
+seconds.
+.It Fl w Ar length
+Change the minimum word length from 3 letters to
+.Ar length .
+.It Cm +
+Allow a cube to be used multiple times, but not in succession.
+.It Cm ++
+Allow a cube to be considered adjacent to itself.
+.El
+.Pp
+A starting board position,
+.Ar boardspec ,
+can be specified on the command line by
+listing the board left to right and top to bottom, in lower case.
+.Pp
+Help is available during play by typing
+.Sq \&? .
+More detailed information on the game is given there.
+.Sh FILES
+.Bl -tag -width 36n -compact
+.It Pa /usr/share/games/boggle/dictionary
+compressed dictionary
+.It Pa /usr/share/games/boggle/dictindex
+dictionary index
+.It Pa /usr/share/games/boggle/helpfile
+online help file
+.El
+.Sh AUTHORS
+Boggle is a trademark of Parker Brothers.
+.Pp
+.An Barry Brachman ,
+Dept. of Computer Science, University of British Columbia
+.Sh BUGS
+No word can contain a
+.Sq q
+that is not immediately followed by a
+.Sq u .
+.Pp
+When using the
+.Cm +
+or
+.Cm ++
+options, the display of words found in the board doesn't clearly indicate
+reused cubes.

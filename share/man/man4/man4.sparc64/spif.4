@@ -1,0 +1,103 @@
+.\"     $OpenBSD: spif.4,v 1.15 2013/07/16 16:05:50 schwarze Exp $
+.\"
+.\" Copyright (c) 1999-2002 Jason L. Wright (jason@thought.net)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt SPIF 4 sparc64
+.Os
+.Sh NAME
+.Nm spif
+.Nd SBus (spiffy) Serial/Parallel Interface
+.Sh SYNOPSIS
+.Cd "spif* at sbus?"
+.Cd "stty* at spif?"
+.Cd "sbpp* at spif?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Sun Serial/Parallel Interface card
+(Sun part number 501-1931)
+based around the
+Cirrus Logic CD180 octal serial controller
+and the
+Cirrus Logic PPC2 parallel port controller.
+.Pp
+The device minor numbers for this driver are encoded as follows:
+.Bd -literal
+    +---+---+---+---+---+---+---+---+
+    | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+    +---+---+---+---+---+---+---+---+
+      |   |   |   |   |   |   |   |
+      |   |   |   |   |   +---+---+---> port number
+      |   |   |   |   |
+      |   |   |   |   +---------------> unused
+      |   |   |   |
+      |   |   |   +-------------------> dial-out (on tty ports)
+      |   |   |
+      |   |   +-----------------------> unused
+      |   |
+      +---+---------------------------> card number
+.Ed
+.Pp
+Up to four cards are supported in the system.
+.Pp
+Each of the serial ports has an 8 byte FIFO for receive and transmit as
+well as automatic hardware (RTS/CTS) flow control.
+.Sh FILES
+.Bl -tag -width /dev/tty[jkl][0-7] -compact
+.It /dev/tty[jkl][0-7]
+Serial ports
+.It /dev/sbpp[0-3]
+Parallel ports
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "spif0: ccr timeout"
+A timeout occurred while writing to one of the CD180 registers.
+.It "stty0-N: ring overflow"
+Incoming characters were discarded because the application
+in control of the device did not read the input fast enough.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sbus 4 ,
+.Xr tty 4
+.Sh HISTORY
+The
+.Nm
+driver was first supported in
+.Ox 3.1 .
+.Sh AUTHORS
+.An -nosplit
+The driver was written by
+.An Jason Wright Aq Mt jason@thought.net ,
+and is heavily based on the
+.Xr magma 4
+driver written by
+.An Iain Hibbert Aq Mt plunky@skate.demon.co.uk .
+.Sh TODO
+The parallel port is not supported yet.
+.Pp
+Dial-out (cua) devices are not yet supported.

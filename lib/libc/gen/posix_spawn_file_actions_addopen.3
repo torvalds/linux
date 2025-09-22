@@ -1,0 +1,106 @@
+.\"	$OpenBSD: posix_spawn_file_actions_addopen.3,v 1.9 2022/03/29 18:15:52 naddy Exp $
+.\"
+.\" Copyright (c) 2012 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 29 2022 $
+.Dt POSIX_SPAWN_FILE_ACTIONS_ADDOPEN 3
+.Os
+.Sh NAME
+.Nm posix_spawn_file_actions_addclose ,
+.Nm posix_spawn_file_actions_adddup2 ,
+.Nm posix_spawn_file_actions_addopen
+.Nd add action to close, dup2 or open file descriptor to file actions object
+.Sh SYNOPSIS
+.In spawn.h
+.Ft int
+.Fn posix_spawn_file_actions_addclose "posix_spawn_file_actions_t *file_actions" "int fildes"
+.Ft int
+.Fn posix_spawn_file_actions_adddup2 "posix_spawn_file_actions_t *file_actions" "int fildes" "int newfildes"
+.Ft int
+.Fn posix_spawn_file_actions_addopen "posix_spawn_file_actions_t *file_actions" "int fildes" "const char *restrict path" "int oflag" "mode_t mode"
+.Sh DESCRIPTION
+These function add an action to
+.Xr close 2 ,
+.Xr dup2 2 ,
+or
+.Xr open 2
+a file descriptor
+to a
+.Xr posix_spawn 3
+file actions object.
+.Pp
+Actions are executed in order in the child process:
+.Bl -dash
+.It
+The
+.Fn posix_spawn_file_actions_addclose
+function adds an action that causes
+.Bd -literal -offset indent
+close(fildes);
+.Ed
+.Pp
+to be called.
+.It
+The
+.Fn posix_spawn_file_actions_adddup2
+function adds an action that causes
+.Bd -literal -offset indent
+dup2(fildes, newfildes);
+.Ed
+.Pp
+to be called.
+In addition, the action will cause the close-on-exec flag to be cleared on
+.Fa newfildes ,
+even if
+.Fa newfildes
+equals
+.Fa fildes .
+.It
+The
+.Fn posix_spawn_file_actions_addopen
+function adds an action that causes
+.Bd -literal -offset indent
+open(path, oflag, mode);
+.Ed
+.Pp
+to be called and the result to be forced as
+.Fa fildes
+(if
+.Fa fildes
+was already open before this action, the old file descriptor
+is closed before the action is performed).
+.Pp
+Note that
+.Fn posix_spawn_file_actions_addopen
+makes a copy of the
+.Fa path
+argument.
+.El
+.Sh RETURN VALUES
+Upon successful completion, these functions return zero.
+Otherwise they may return
+.Er EINVAL
+for negative file descriptors, or
+.Er ENOMEM
+if they run out of memory.
+.Sh SEE ALSO
+.Xr posix_spawn 3 ,
+.Xr posix_spawn_file_actions_init 3 ,
+.Xr posix_spawnp 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2001 .
+.Sh AUTHORS
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org

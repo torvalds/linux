@@ -1,0 +1,133 @@
+.\"	$OpenBSD: pci_mapreg_map.9,v 1.2 2023/04/13 15:07:42 miod Exp $
+.\"
+.\" Copyright (c) 2019 David Gwynne <dlg@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 13 2023 $
+.Dt PCI_MAPREG_MAP 9
+.Os
+.Sh NAME
+.Nm pci_mapreg_map ,
+.Nm pci_mapreg_info ,
+.Nm pci_mapreg_probe ,
+.Nm pci_mapreg_type
+.Nd PCI register mappings
+.Sh SYNOPSIS
+.In dev/pci/pcivar.h
+.Ft int
+.Fo pci_mapreg_map
+.Fa "struct pci_attach_args *paa"
+.Fa "int reg"
+.Fa "pcireg_t type"
+.Fa "int flags"
+.Fa "bus_space_tag_t *tagp"
+.Fa "bus_space_handle_t *handlep"
+.Fa "bus_addr_t *basep"
+.Fa "bus_size_t *sizep"
+.Fa "bus_size_t maxsize"
+.Fc
+.Ft int
+.Fo pci_mapreg_info
+.Fa "pci_chipset_tag_t pc"
+.Fa "pcitag_t tag"
+.Fa "int reg"
+.Fa "pcireg_t type"
+.Fa "bus_addr_t *basep"
+.Fa "bus_size_t *sizep"
+.Fa "int *flagsp"
+.Fc
+.Ft int
+.Fo pci_mapreg_probe
+.Fa "pci_chipset_tag_t pc"
+.Fa "pcitag_t tag"
+.Fa "int reg"
+.Fa "pcireg_t *typep"
+.Fc
+.Ft pcireg_t
+.Fo pci_mapreg_type
+.Fa "pci_chipset_tag_t pc"
+.Fa "pcitag_t tag"
+.Fa "int reg"
+.Fc
+.Sh DESCRIPTION
+These functions provide wrappers and helpers around
+.Xr bus_space 9
+mappings for device registers described by the Base Address Registers
+(BARs) in a PCI devices configuration space.
+.Pp
+.Nm pci_mapreg_map
+wraps a call to
+.Xr bus_space_map 9
+using information from the BAR referenced by
+.Fa reg
+for the device being attached with
+.Fa paa .
+Memory or I/O mappings are derived from the
+.Fa type
+argument.
+The size of the register mapping can be restricted by specifying a
+non-zero value in
+.Fa maxsize .
+The bus space tag and handle used for the mapping, as well
+as the base address and size of the mapping, will be provided
+to the caller via the optional
+.Fa tagp ,
+.Fa handlep ,
+.Fa basep ,
+and
+.Fa sizep
+pointers.
+.Pp
+.Nm pci_mapreg_info
+provides bus space mapping information from the BAR referenced by
+.Fa reg .
+The
+.Fa type
+argument specifies whether the mapping provides Memory or I/O access.
+The base address, size, and bus space flags are optionally provided
+to the caller via the
+.Fa basep ,
+.Fa sizep ,
+and
+.Fa flagsp
+pointers.
+.Pp
+.Nm pci_mapreg_probe
+attempts to determine if the BAR referenced by
+.Fa reg
+describes a valid register mapping.
+.Pp
+.Nm pci_mapreg_type
+returns the type of register access for the registers at the BAR
+referenced by
+.Fa reg .
+.Sh RETURN VALUES
+.Nm pci_mapreg_map ,
+.Nm pci_mapreg_info ,
+and
+.Nm pci_mapreg_probe
+return 0 on success, or an
+.Xr errno 2
+style value on failure.
+.Pp
+.Nm pci_mapreg_type
+returns either
+.Dv PCI_MAPREG_TYPE_IO
+or
+.Dv PCI_MAPREG_TYPE_MEM .
+.Sh SEE ALSO
+.Xr pci 4 ,
+.Xr bus_space 9 ,
+.Xr pci_conf_read 9

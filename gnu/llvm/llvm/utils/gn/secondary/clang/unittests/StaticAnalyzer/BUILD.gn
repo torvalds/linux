@@ -1,0 +1,35 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("StaticAnalysisTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/Analysis",
+    "//clang/lib/Basic",
+    "//clang/lib/StaticAnalyzer/Core",
+    "//clang/lib/StaticAnalyzer/Frontend",
+    "//clang/lib/Testing",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "APSIntTypeTest.cpp",
+    "AnalyzerOptionsTest.cpp",
+    "BugReportInterestingnessTest.cpp",
+    "CallDescriptionTest.cpp",
+    "CallEventTest.cpp",
+    "ConflictingEvalCallsTest.cpp",
+    "ExprEngineVisitTest.cpp",
+    "FalsePositiveRefutationBRVisitorTest.cpp",
+    "IsCLibraryFunctionTest.cpp",
+    "MemRegionDescriptiveNameTest.cpp",
+    "NoStateChangeFuncVisitorTest.cpp",
+    "ParamRegionTest.cpp",
+    "RangeSetTest.cpp",
+    "RegisterCustomCheckersTest.cpp",
+    "SValTest.cpp",
+    "StoreTest.cpp",
+    "SymbolReaperTest.cpp",
+    "TestReturnValueUnderConstruction.cpp",
+    "Z3CrosscheckOracleTest.cpp",
+  ]
+}

@@ -1,0 +1,244 @@
+.\" $OpenBSD: frame.4,v 1.3 2025/05/16 02:50:12 dlg Exp $
+.\"
+.\" Copyright (c) 2024 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 16 2025 $
+.Dt FRAME 4
+.Os
+.Sh NAME
+.Nm frame
+.Nd frame protocol family
+.Sh SYNOPSIS
+.Cd "pseudo-device af_frame"
+.Pp
+.In sys/types.h
+.In net/frame.h
+.Sh DESCRIPTION
+The
+.Nm
+protocol family provides an interface for sending and receiving low
+level network interface frames through the normal
+.Xr socket 2
+mechanisms.
+.Pp
+The
+.Nm
+protocol family supports the
+.Dv SOCK_DGRAM
+socket type.
+Only root may create
+.Nm
+protocol family sockets.
+.Pp
+.Nm
+protocol family sockets are designed as an alternative to
+.Xr bpf 4
+for handling low data and packet rate communication protocols.
+Rather than filtering every frame entering the system before the
+network stack, like
+.Xr bpf 4 ,
+processing of the
+.Nm
+protocol family runs after the built in protocol handlers in the kernel,
+thus avoiding the overhead.
+For this reason, it is not possible to handle IPv4 or IPv6 packets
+with
+.Nm
+protocol sockets because the kernel network stack consumes them
+before the receive handling for
+.Nm
+sockets is run.
+.Pp
+Sockets can be created in the
+.Nm
+protocol family by using
+.Dv AF_FRAME
+as the
+.Fa domain
+argument to
+.Xr socket 2 .
+The type of interface, as per
+.In net/if_types.h ,
+is specified as the socket
+.Fa protocol .
+Currently only Ethernet interfaces are supported.
+.Pp
+Sockets bound to the
+.Nm
+family use the following address structure:
+.Bd -literal -offset indent
+#define FRAME_ADDRLEN	8
+#define FRAME_DATALEN	32
+
+struct sockaddr_frame {
+	uint8_t		sfrm_len;
+	uint8_t		sfrm_family;
+	uint16_t	sfrm_proto;
+	unsigned int	sfrm_ifindex;
+	uint8_t		sfrm_addr[FRAME_ADDRLEN];
+	char		sfrm_ifname[IFNAMSIZ];
+	uint8_t		sfrm_data[FRAME_DATALEN];
+};
+.Ed
+.Pp
+The interface used for transmitting or receiving frames with a
+.Nm
+domain socket may be specified by using an interface index with
+.Fa sfrm_ifindex ,
+or by name with
+.Fa sfrm_ifname .
+The use of other
+.Vt struct sockaddr_frame
+fields depends on the type of interface.
+.Ss Ethernet frame sockets
+A
+.Nm
+socket for use with Ethernet interfaces can be created using
+.Dv IFT_ETHER
+as the
+.Fa protocol
+argument to
+.Xr socket 2 :
+.Bd -literal -offset indent
+int sock = socket(AF_FRAME, SOCK_DGRAM, IFT_ETHER);
+.Ed
+.Pp
+The Ethernet protocol is specified with
+.Fa sfrm_proto
+in network byte order.
+Ethernet addresses are specified using the first 6 bytes of
+.Fa sfrm_addr .
+.Pp
+Ethernet
+.Nm
+sockets may receive frames on all interfaces by specifying 0 for
+.Va sfrm_ifindex
+when using
+.Xr bind 2 .
+Similarly, a
+.Dq wildcard
+local address of all zeros can be specified in
+.Fa sfrm_addr .
+.Pp
+An interface and address must be specified when sending Ethernet frames.
+.Pp
+Ethernet sockets support the following
+.Nm
+socket options
+using
+.Dv IFT_ETHER
+as the
+.Fa level
+argument with
+.Xr setsockopt 2
+and
+.Xr getsockopt 2 :
+.Bl -tag -width Ds
+.It Dv FRAME_RECVDSTADDR Ft int
+Enable or disable the reception of the Ethernet destination address as a
+.Vt struct ether_addr
+control message for frames received with
+.Xr recvmsg 2 .
+.It Dv FRAME_RECVPRIO Ft int
+Enable or disable the reception of the mbuf packet priority field as an
+.Vt int
+sized control message for frames received with
+.Xr recvmsg 2 .
+.It Dv FRAME_ADD_MEMBERSHIP Ft struct frame_mreq
+Configure an Ethernet interface to enable reception of
+frames destined to the specified multicast Ethernet address.
+.Bd -literal -offset indent
+struct frame_mreq {
+	unsigned int	fmr_ifindex;
+	uint8_t		fmr_addr[FRAME_ADDRLEN];
+	char		fmr_ifname[IFNAMSIZ];
+};
+.Ed
+.Pp
+An interface must be specified using either
+.Fa fmr_ifindex
+or
+.Fa fmr_ifname .
+The multicast Ethernet address is specified in the first 6 bytes of
+.Fa fmr_addr .
+.It Dv FRAME_DEL_MEMBERSHIP Ft struct frame_mreq
+Configure an Ethernet interface to disable reception of frames destined
+to the specified multicast Ethernet address.
+.It Dv FRAME_SENDPRIO Ft int
+Specify an mbuf priority value between
+.Dv IF_HDRPRIO_MIN
+.Pq 0
+and
+.Dv IF_HDRPRIO_MAX
+.Pq 7
+for frames sent with the Ethernet
+.Nm
+socket, or
+.Dv IF_HDRPRIO_PACKET
+to use the existing mbuf priority value.
+The default is
+.Dv IF_HDRPRIO_PACKET .
+.El
+.Sh EXAMPLES
+To receive LLDP frames on the em0 Ethernet interface:
+.Bd -literal -offset indent
+struct sockaddr_frame sfrm = {
+	.sfrm_family = AF_FRAME,
+	.sfrm_ifname = "em0",
+	.sfrm_proto = htons(ETHERTYPE_LLDP),
+};
+struct frame_mreq fmr = {
+	.fmr_ifname = "em0",
+	.fmr_addr = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x0e },
+};
+int sock;
+
+sock = socket(AF_FRAME, SOCK_DGRAM, IFT_ETHER);
+if (sock == -1)
+	err(1, "ethernet frame socket");
+if (bind(sock, (struct sockaddr *)&sfrm, sizeof(sfrm)) == -1)
+	err(1, "bind");
+if (setsockopt(sock, IFT_ETHER, FRAME_ADD_MEMBERSHIP,
+    &fmr, sizeof(fmr)) == -1)
+	err(1, "join lldp multicast group");
+
+for (;;) {
+	socklen_t sfrmlen = sizeof(sfrm);
+	uint8_t frame[2048];
+	ssize_t rv;
+
+	rv = recvfrom(sock, frame, sizeof(frame), 0,
+	    (struct sockaddr *)&sfrm, &sfrmlen);
+	if (rv == -1)
+		err(1, "lldp recv");
+	printf("received %zd bytes from %s", rv,
+	    ether_ntoa((struct ether_addr *)sfrm.sfrm_addr));
+}
+.Ed
+.Sh SEE ALSO
+.Xr socket 2 ,
+.Xr netintro 4
+.Sh HISTORY
+.Nm
+domain sockets appeared in
+.Ox 7.7 .
+.\" The
+.\" .Ox
+.\" implementation was influenced by the Linux
+.\" .Dv AF_PACKET
+.\" .Dq packet interface on device level
+.\" socket interface, but is not compatible with it.
+.Sh AUTHORS
+.An David Gwynne Aq Mt dlg@openbsd.org .

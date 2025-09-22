@@ -1,0 +1,92 @@
+'\" t
+.\" $OpenBSD: menu_items.3,v 1.9 2023/10/17 09:52:10 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2012,2015 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: menu_items.3,v 1.9 2023/10/17 09:52:10 nicm Exp $
+.TH menu_items 3 2023-07-01 "ncurses 6.4" "Library calls"
+.SH NAME
+\fBset_menu_items\fP,
+\fBmenu_items\fP,
+\fBitem_count\fP \- make and break connections between items and menus
+.SH SYNOPSIS
+\fB#include <menu.h>\fP
+.sp
+\fBint set_menu_items(MENU *\fImenu\fB, ITEM **\fIitems\fB);\fR
+.br
+\fBITEM **menu_items(const MENU *\fImenu\fB);\fR
+.br
+\fBint item_count(const MENU *\fImenu\fB);\fR
+.SH DESCRIPTION
+The function \fBset_menu_items\fP changes the item pointer array of the given
+\fImenu\fP.  The array must be terminated by a \fBNULL\fP.
+.PP
+The function \fBmenu_items\fP returns the item array of the given menu.
+.PP
+The function \fBitem_count\fP returns the count of items in \fImenu\fP.
+.SH RETURN VALUE
+The function \fBmenu_items\fP returns a pointer (which may be \fBNULL\fP).
+It does not set \fBerrno\fP.
+.PP
+The function \fBitem_count\fP returns \fBERR\fP (the general \fBcurses\fP error
+return value) if its \fImenu\fP parameter is \fBNULL\fP.
+.PP
+The function \fBset_menu_items\fP returns one of the following codes on error:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_NOT_CONNECTED
+No items are connected to the menu.
+.TP 5
+.B E_POSTED
+The menu is already posted.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fP(3)).
+.
+.SH SEE ALSO
+\fBcurses\fP(3), \fBmenu\fP(3).
+.SH NOTES
+The header file \fB<menu.h>\fP automatically includes the header file
+\fB<curses.h>\fP.
+.SH PORTABILITY
+These routines emulate the System V menu library.
+They were not supported on
+Version 7 or BSD versions.
+.PP
+The SVr4 menu library documentation specifies the \fBitem_count\fP error value
+as \-1 (which is the value of \fBERR\fP).
+.SH AUTHORS
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

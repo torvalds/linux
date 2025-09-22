@@ -1,0 +1,8 @@
+static_library("IRPrinter") {
+  output_name = "LLVMIRPrinter"
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "IRPrintingPasses.cpp" ]
+}

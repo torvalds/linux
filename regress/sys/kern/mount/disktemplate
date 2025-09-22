@@ -1,0 +1,15 @@
+/mnt					1G
+/mnt/b					100k
+/mnt/d					100k
+/mnt/d/e				100k
+/mnt/d/e/f				100k
+/mnt/d/e/f/g				100k
+/mnt/d/e/f/g/h				100k
+/mnt/d/e/f/g/h/i			100k
+/mnt/d/e/f/g/h/i/j			100k
+/mnt/d/e/f/g/h/i/j/k			100k
+/mnt/d/e/f/g/h/i/j/k/l			100k
+/mnt/d/e/f/g/h/i/j/k/l/m		100k
+/mnt/d/e/f/g/h/i/j/k/l/m/n		100k
+/mnt/d/e/f/g/h/i/j/k/l/m/n/o		100k
+/mnt/d/e/f/g/h/i/j/k/l/m/n/o/p		100k

@@ -1,0 +1,2 @@
+# RUN: printf "line 1: failed test output on stdout\nline 2: failed test output on stdout"
+# RUN: false

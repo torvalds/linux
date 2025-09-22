@@ -1,0 +1,328 @@
+.\" $OpenBSD: X509v3_asid_add_id_or_range.3,v 1.10 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509V3_ASID_ADD_ID_OR_RANGE 3
+.Os
+.Sh NAME
+.Nm X509v3_asid_add_id_or_range ,
+.Nm X509v3_asid_add_inherit ,
+.Nm X509v3_asid_canonize ,
+.Nm X509v3_asid_is_canonical
+.Nd RFC 3779 autonomous system identifier delegation extension
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft int
+.Fo X509v3_asid_add_id_or_range
+.Fa "ASIdentifiers *asid"
+.Fa "int type"
+.Fa "ASN1_INTEGER *min"
+.Fa "ASN1_INTEGER *max"
+.Fc
+.Ft int
+.Fo X509v3_asid_add_inherit
+.Fa "ASIdentifiers *asid"
+.Fa "int type"
+.Fc
+.Ft int
+.Fo X509v3_asid_canonize
+.Fa "ASIdentifiers *asid"
+.Fc
+.Ft int
+.Fo X509v3_asid_is_canonical
+.Fa "ASIdentifiers *asid"
+.Fc
+.Sh DESCRIPTION
+An
+.Vt ASIdentifiers
+object represents the content of the certificate extension
+defined in RFC 3779, section 3.2.3.1.
+It can be instantiated with
+.Xr ASIdentifiers_new 3
+and its internals are documented in
+.Xr ASRange_new 3 .
+.Pp
+An autonomous system is identified by an unsigned 32-bit integer,
+called an AS identifier or AS number.
+An
+.Vt ASIdentifiers
+object can hold two lists:
+a list of
+.Fa type
+.Dv V3_ASID_ASNUM
+containing individual AS identifiers and ranges of AS identifiers,
+and an obsolete list of
+.Fa type
+.Dv V3_ASID_RDI
+containing routing domain identifiers (RDIs).
+Either of these lists may be absent, or it may contain nothing
+but a special
+.Dq inherit
+marker that indicates that the list is inherited from the issuer
+of the certificate.
+.Pp
+.Fn X509v3_asid_add_id_or_range
+adds an individual identifier or a range of identifiers to the list of
+.Fa type
+(either
+.Dv V3_ASID_ASNUM
+or
+.Dv V3_ASID_RDI )
+in
+.Fa asid .
+If no such list exists, it is created first.
+If a list of
+.Fa type
+already exists and contains the
+.Dq inherit
+marker, the call fails.
+.Fa min
+must be a
+.Pf non- Dv NULL
+.Vt ASN1_INTEGER .
+If
+.Fa max
+is
+.Dv NULL ,
+.Fa min
+is added as an individual identifier.
+Ownership of
+.Fa min
+and
+.Fa max
+is transferred to
+.Fa asid
+on success.
+It is the responsibility of the caller to ensure that
+the resulting
+.Fa asid
+does not contain lists with overlapping ranges and that
+.Fa min
+is strictly less than
+.Fa max
+if both are
+.Pf non- Dv NULL .
+The caller should also ensure that the AS identifiers are
+32-bit integers.
+Failure to do so may result in an
+.Fa asid
+that cannot be brought into canonical form by
+.Fn X509v3_asid_canonize .
+.Pp
+.Fn X509v3_asid_add_inherit
+adds the list of
+.Fa type
+(either
+.Dv V3_ASID_ASNUM
+or
+.Dv V3_ASID_RDI )
+in
+.Fa asid
+if necessary and marks it
+.Dq inherit .
+This fails if
+.Fa asid
+already contains a list of
+.Fa type
+that is not marked
+.Dq inherit .
+.Pp
+.Fn X509v3_asid_canonize
+attempts to bring both lists in
+.Fa asid
+into canonical form.
+If
+.Fa asid
+is
+.Dv NULL
+the call succeeds and no action occurs.
+A list is in canonical form if it is either one of
+.Bl -dash -compact
+.It
+absent,
+.It
+marked
+.Dq inherit ,
+.It
+non-empty and all identifiers and ranges are listed in increasing order.
+Ranges must not overlap,
+.\" the following is not currently specified and leads to ambiguity:
+.\" contain at least two elements,
+and adjacent ranges must be fully merged.
+.El
+.Pp
+.Fn X509v3_asid_canonize
+merges adjacent ranges
+but refuses to merge overlapping ranges or to discard duplicates.
+For example, the adjacent ranges [a,b] and [b+1,c] are merged
+into the single range [a,c], but if both [a,b] and [b,c] appear in a list,
+this results in an error since they are considered overlapping.
+Likewise, the identifier a is absorbed into the adjacent
+range [a+1,b] to yield [a,b].
+.Fn X509v3_asid_canonize
+errors if the minimum of any range is larger than the maximum.
+In contrast, minimum and maximum of a range may be equal.
+.Pp
+.Fn X509v3_asid_is_canonical
+checks whether
+.Fa asid
+is in canonical form.
+Once
+.Fn X509v3_asid_canonize
+is called successfully on
+.Fa asid ,
+all subsequent calls to
+.Fn X509v3_asid_is_canonical
+succeed on an unmodified
+.Fa asid
+unless memory allocation fails.
+.Sh RETURN VALUES
+All these functions return 1 on success and 0 on failure.
+.Pp
+.Fn X509v3_asid_add_id_or_range
+and
+.Fn X509v3_asid_add_inherit
+fail if
+.Fa asid
+is
+.Dv NULL
+or if
+.Fa type
+is distinct from
+.Dv V3_ASID_ASNUM
+and
+.Dv V3_ASID_RDI ,
+or on memory allocation failure.
+In addition,
+.Fn X509v3_asid_add_id_or_range
+fails if
+.Fa asid
+contains a list of
+.Fa type
+that is marked
+.Dq inherit ,
+and
+.Fn X509v3_asid_add_inherit
+fails if
+.Fa asid
+contains a list of
+.Fa type
+that is not marked
+.Dq inherit .
+.Pp
+.Fn X509v3_asid_canonize
+fails if either list is empty and not marked
+.Dq inherit ,
+or if it is malformed, or if memory allocation fails.
+Malformed lists include lists containing duplicate, overlapping,
+or malformed elements, for example AS ranges where the minimum is
+larger than the maximum.
+Some of these failure modes result in an error being pushed onto the
+error stack.
+.Pp
+.Fn X509v3_asid_is_canonical
+returns 1 if
+.Fa asid
+is canonical and 0 if it is not canonical or on memory allocation
+failure.
+.Sh SEE ALSO
+.Xr ASIdentifiers_new 3 ,
+.Xr crypto 3 ,
+.Xr s2i_ASN1_INTEGER 3 ,
+.Xr X509_new 3 ,
+.Xr X509v3_addr_add_inherit 3 ,
+.Xr X509v3_addr_validate_path 3
+.Sh STANDARDS
+RFC 3779: X.509 Extensions for IP Addresses and AS Identifiers,
+.Bl -dash -compact
+.It
+section 3: Autonomous System Delegation Extension
+.El
+.Pp
+.Rs
+.%T Autonomous System (AS) Numbers
+.%U https://www.iana.org/assignments/as-numbers
+.Re
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8e
+and have been available since
+.Ox 7.1 .
+.Sh BUGS
+.Fn X509v3_asid_add_id_or_range
+does not check for inverted range bounds and overlaps
+on insertion.
+It is very easy to create an
+.Fa asid
+that fails to be canonized by
+.Fn X509v3_asid_canonize
+and it is very hard to diagnose why.
+.Pp
+Both
+.Fn X509v3_asid_add_id_or_range
+and
+.Fn X509v3_asid_add_inherit
+can leave
+.Fa asid
+in a corrupted state if memory allocation fails during their execution.
+In addition,
+.Fn X509v3_asid_add_id_or_range
+may already have freed the
+.Fa min
+and
+.Fa max
+arguments on failure.
+.Pp
+RFC 3779 does not explicitly disallow ranges where the minimum
+is equal to the maximum.
+The isolated AS identifier
+.Fa min
+and the AS range
+.Bq Fa min , Ns Fa min
+where the minimum and the maximum are equal to
+.Fa min
+have the same semantics.
+.Fn X509v3_asid_is_canonical
+accepts both representations as valid and
+.Fn X509v3_asid_canonize
+does not prefer either representation over the other.
+The encodings of the two representations produced by
+.Xr i2d_ASIdentifiers 3
+are distinct.
+.Pp
+.Fn X509v3_asid_is_canonical
+does not fully check inheriting lists to be well formed.
+It only checks the
+.Fa type
+to be
+.Dv ASIdentifierChoice_inherit
+and ignores the presence or absence of the
+.Fa inherit
+element.
+.Fn X509v3_asid_canonize
+does not fix that up.
+This can lead to incorrect or unexpected DER encoding of
+.Dq canonical
+.Vt ASIdentifiers
+objects.
+In particular, it is possible to construct an
+.Vt ASIdentifiers
+object for which both
+.Fn X509v3_asid_is_canonical
+and
+.Xr X509v3_asid_inherits 3
+return 1, and after a round trip through DER the latter
+returns 0.

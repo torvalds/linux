@@ -1,0 +1,96 @@
+.\"	$OpenBSD: sb.4,v 1.16 2016/08/31 13:54:58 jmc Exp $
+.\"	$NetBSD: sb.4,v 1.13 1997/10/31 15:02:33 augustss Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by John T. Kohl.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 31 2016 $
+.Dt SB 4 i386
+.Os
+.Sh NAME
+.Nm sb
+.Nd SoundBlaster family audio device
+.Sh SYNOPSIS
+.Cd "sb0 at isa? port 0x220 irq 5 drq 1"
+.Cd "sb1 at isa? port 0x240 irq 7 drq 1 flags 1"
+.Cd "sb* at isapnp?"
+.Cd "audio* at sb?"
+.Cd "midi* at sb?" Pq "MPU401 port"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the
+SoundBlaster 16, Jazz 16, SoundBlaster AWE 32, SoundBlaster AWE 64,
+and hardware register-level compatible audio cards.
+.Pp
+The SoundBlaster series are half-duplex cards, capable of 8- and 16-bit
+audio sample recording and playback at rates up to 44.1kHz (depending on
+the particular model).
+.Pp
+The base I/O port address is usually jumper-selected to either 0x220 or
+0x240 (newer cards may provide software configuration, but this driver
+does not directly support them--you must configure the card for its I/O
+addresses with other software).
+The SoundBlaster takes 16 I/O ports.
+For the SoundBlaster and SoundBlaster Pro, the IRQ and DRQ channels are
+jumper-selected.
+For the SoundBlaster 16, the IRQ and DRQ channels are set by this driver
+to the values specified in the config file.
+The IRQ must be selected from the set {5,7,9,10}.
+.Pp
+The configuration file must set the value of
+.Cm flags
+to 1 to enable the Jazz16 support.
+This is to avoid potential conflicts with other devices when probing the
+Jazz 16 because it requires use of extra I/O ports not in the base port range.
+.Pp
+The joystick interface (if enabled by a jumper) is handled by the
+.Xr joy 4
+driver, and the optional SCSI CD-ROM interface is handled by the
+.Xr aic 4
+driver.
+.Sh SEE ALSO
+.Xr aic 4 ,
+.Xr audio 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr isapnp 4 ,
+.Xr joy 4 ,
+.Xr midi 4
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Nx 1.0 .
+.Sh BUGS
+With a SoundBlaster 16 card the device is full duplex, but it can
+only sensibly handle a precision of 8 bits.
+It does so by extending
+the output 8 bit samples to 16 bits and using the 8 bit DMA channel
+for input and the 16 bit channel for output.
+.Pp
+The non-SCSI CD-ROM interfaces found on some older cards are not supported.

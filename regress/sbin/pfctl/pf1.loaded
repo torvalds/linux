@@ -1,0 +1,32 @@
+@0 pass in all flags S/SA
+  [ Skip steps: i=end d=end r=end f=4 p=2 sa=4 da=4 sp=2 dp=3 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass in all no state
+  [ Skip steps: i=end d=end r=end f=4 sa=4 da=4 dp=3 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 pass in proto tcp from any port <= 1024 to any flags S/SA label "foo_bar"
+  [ Skip steps: i=end d=end r=end f=4 p=5 sa=4 da=4 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass in proto tcp from any to any port = 25 flags S/SA
+  [ Skip steps: i=end d=end r=end p=5 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass in inet proto tcp from 10.0.0.0/8 port > 1024 to ! 10.1.2.3 port != 22 flags S/SA
+  [ Skip steps: i=end d=end r=end f=end sa=6 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 pass in inet proto igmp from 10.0.0.0/8 to 10.1.1.1 allow-opts
+  [ Skip steps: i=end d=end r=end f=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 pass in inet proto tcp from 1.2.3.4 to any flags S/SA label "6:tcp:1.2.3.4::any:"
+  [ Skip steps: i=end d=end r=end f=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 pass in inet proto tcp from 1.2.3.5 to any flags S/SA label "7:tcp:1.2.3.5::any:"
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

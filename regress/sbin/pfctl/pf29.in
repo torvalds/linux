@@ -1,0 +1,3 @@
+match in on lo0 proto tcp from any to 192.168.0.0/24 port 8000:8010 rdr-to 127.0.0.1 port 8000:*
+match in on lo0 proto tcp from any to 192.168.0.0/24 port ftp:ssh rdr-to 127.0.0.1 port bgp:*
+match in on lo0 proto tcp from any to 192.168.0.0/24 port 1000:3000 rdr-to 127.0.0.1 port 22

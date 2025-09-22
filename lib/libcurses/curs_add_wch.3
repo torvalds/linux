@@ -1,0 +1,357 @@
+'\" t
+.\" $OpenBSD: curs_add_wch.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.\"***************************************************************************
+.\" Copyright 2019-2021,2023 Thomas E. Dickey                                *
+.\" Copyright 2001-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_add_wch.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.TH curs_add_wch 3 2023-08-19 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fBadd_wch\fP,
+\fBwadd_wch\fP,
+\fBmvadd_wch\fP,
+\fBmvwadd_wch\fP,
+\fBecho_wchar\fP,
+\fBwecho_wchar\fP \- add a complex character and rendition to a \fBcurses\fP window, then advance the cursor
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+.B "int add_wch( const cchar_t *\fIwch\fB );"
+.br
+.B "int wadd_wch( WINDOW *\fIwin\fP, const cchar_t *\fIwch\fB );"
+.br
+.B "int mvadd_wch( int \fIy\fP, int \fIx\fP, const cchar_t *\fIwch\fB );"
+.br
+.B "int mvwadd_wch( WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const cchar_t *\fIwch\fB );"
+.sp
+.B "int echo_wchar( const cchar_t *\fIwch\fB );"
+.br
+.B "int wecho_wchar( WINDOW *\fIwin\fP, const cchar_t *\fIwch\fB );"
+.SH DESCRIPTION
+.SS add_wch
+The
+\fBadd_wch\fP,
+\fBwadd_wch\fP,
+\fBmvadd_wch\fP, and
+\fBmvwadd_wch\fP
+functions put the complex character \fIwch\fP into the given
+window at its current position,
+which is then advanced.
+These functions perform
+wrapping and special-character processing as follows:
+.bP
+If \fIwch\fP refers to a spacing character,
+then any previous character at that location is removed.
+A new character specified by \fIwch\fP is
+placed at that location with rendition specified by \fIwch\fP.
+The cursor then advances after this spacing character,
+to prepare for writing the next character on the screen.
+.IP
+The newly added spacing character is the base of the active complex character.
+Subsequent non-spacing characters can be combined with this base
+until another spacing character is written to the screen,
+or the cursor is moved, e.g., using \fBwmove\fP.
+.bP
+If \fIwch\fP refers to a non-spacing character,
+it is appended to the active complex character,
+retaining the previous characters at that location.
+The rendition specified by \fIwch\fP is ignored.
+.IP
+The cursor is not advanced after adding a non-spacing character.
+Subsequent calls to add non-spacing characters will update the same position.
+.bP
+If the character part of \fIwch\fP is
+a tab, newline, backspace or other control character,
+the window is updated and the cursor moves as if \fBaddch\fP were called.
+.SS echo_wchar
+The \fBecho_wchar\fP
+function is functionally equivalent to a call to
+\fBadd_wch\fP
+followed by a call to
+\fBrefresh\fP(3).
+Similarly, the
+\fBwecho_wchar\fP
+is functionally equivalent to a call to
+\fBwadd_wch\fP
+followed by a call to
+\fBwrefresh\fP.
+The knowledge
+that only a single character is being output is taken into consideration and,
+for non-control characters, a considerable performance gain might be seen
+by using the *\fBecho\fP* functions instead of their equivalents.
+.SS Line Graphics
+Like \fBaddch\fP(3),
+\fBaddch_wch\fP accepts symbols which make it simple to draw lines and other
+frequently used special characters.
+These symbols correspond to the same VT100 line-drawing set as
+\fBaddch\fP(3).
+.PP
+.TS
+l l l l l
+l l l l l
+_ _ _ _ _
+lw(1.5i) lw5 lw5 lw5 lw20.
+\fBACS\fP	\fBUnicode\fP	\fBASCII\fP	\fBacsc\fP	\fBGlyph\fP
+\fBName\fP	\fBDefault\fP	\fBDefault\fP	\fBchar\fP	\fBName\fP
+WACS_BLOCK	0x25ae 	#	0	solid square block
+WACS_BOARD	0x2592 	#	h	board of squares
+WACS_BTEE	0x2534 	+	v	bottom tee
+WACS_BULLET	0x00b7 	o	~	bullet
+WACS_CKBOARD	0x2592 	:	a	checker board (stipple)
+WACS_DARROW	0x2193 	v	.	arrow pointing down
+WACS_DEGREE	0x00b0 	'	f	degree symbol
+WACS_DIAMOND	0x25c6 	+	`	diamond
+WACS_GEQUAL	0x2265 	>	>	greater-than-or-equal-to
+WACS_HLINE	0x2500 	\-	q	horizontal line
+WACS_LANTERN	0x2603 	#	i	lantern symbol
+WACS_LARROW	0x2190 	<	,	arrow pointing left
+WACS_LEQUAL	0x2264 	<	y	less-than-or-equal-to
+WACS_LLCORNER	0x2514 	+	m	lower left-hand corner
+WACS_LRCORNER	0x2518 	+	j	lower right-hand corner
+WACS_LTEE	0x2524 	+	t	left tee
+WACS_NEQUAL	0x2260 	!	|	not-equal
+WACS_PI	0x03c0 	*	{	greek pi
+WACS_PLMINUS	0x00b1 	#	g	plus/minus
+WACS_PLUS	0x253c 	+	n	plus
+WACS_RARROW	0x2192 	>	+	arrow pointing right
+WACS_RTEE	0x251c 	+	u	right tee
+WACS_S1	0x23ba 	\-	o	scan line 1
+WACS_S3	0x23bb 	\-	p	scan line 3
+WACS_S7	0x23bc 	\-	r	scan line 7
+WACS_S9	0x23bd 	\&_	s	scan line 9
+WACS_STERLING	0x00a3 	f	}	pound-sterling symbol
+WACS_TTEE	0x252c 	+	w	top tee
+WACS_UARROW	0x2191  	^	\-	arrow pointing up
+WACS_ULCORNER	0x250c 	+	l	upper left-hand corner
+WACS_URCORNER	0x2510 	+	k	upper right-hand corner
+WACS_VLINE	0x2502 	|	x	vertical line
+.TE
+.PP
+The wide-character configuration of ncurses also defines symbols
+for thick lines (\fBacsc\fP \*(``J\*('' to \*(``V\*(''):
+.PP
+.TS
+l l l l l
+l l l l l
+_ _ _ _ _
+lw(1.5i) lw5 lw5 lw5 lw20.
+\fBACS\fP	\fBUnicode\fP	\fBASCII\fP	\fBacsc\fP	\fBGlyph\fP
+\fBName\fP	\fBDefault\fP	\fBDefault\fP	\fBchar\fP	\fBName\fP
+WACS_T_BTEE	0x253b	+	V	thick tee pointing up
+WACS_T_HLINE	0x2501	-	Q	thick horizontal line
+WACS_T_LLCORNER	0x2517	+	M	thick lower left corner
+WACS_T_LRCORNER	0x251b	+	J	thick lower right corner
+WACS_T_LTEE	0x252b	+	T	thick tee pointing right
+WACS_T_PLUS	0x254b	+	N	thick large plus
+WACS_T_RTEE	0x2523	+	U	thick tee pointing left
+WACS_T_TTEE	0x2533	+	W	thick tee pointing down
+WACS_T_ULCORNER	0x250f	+	L	thick upper left corner
+WACS_T_URCORNER	0x2513	+	K	thick upper right corner
+WACS_T_VLINE	0x2503	|	X	thick vertical line
+.TE
+.PP
+and for double-lines (\fBacsc\fP \*(``A\*('' to \*(``I\*(''):
+.PP
+.TS
+l l l l l
+l l l l l
+_ _ _ _ _
+lw(1.5i) lw5 lw5 lw5 lw20.
+\fBACS\fP	\fBUnicode\fP	\fBASCII\fP	\fBacsc\fP	\fBGlyph\fP
+\fBName\fP	\fBDefault\fP	\fBDefault\fP	\fBchar\fP	\fBName\fP
+WACS_D_BTEE	0x2569	+	H	double tee pointing up
+WACS_D_HLINE	0x2550	-	R	double horizontal line
+WACS_D_LLCORNER	0x255a	+	D	double lower left corner
+WACS_D_LRCORNER	0x255d	+	A	double lower right corner
+WACS_D_LTEE	0x2560	+	F	double tee pointing right
+WACS_D_PLUS	0x256c	+	E	double large plus
+WACS_D_RTEE	0x2563	+	G	double tee pointing left
+WACS_D_TTEE	0x2566	+	I	double tee pointing down
+WACS_D_ULCORNER	0x2554	+	C	double upper left corner
+WACS_D_URCORNER	0x2557	+	B	double upper right corner
+WACS_D_VLINE	0x2551	|	Y	double vertical line
+.TE
+.PP
+Unicode's descriptions for these characters differs slightly from ncurses,
+by introducing the term \*(``light\*('' (along with less important details).
+Here are its descriptions for the normal, thick, and double horizontal lines:
+.bP
+U+2500 BOX DRAWINGS LIGHT HORIZONTAL
+.bP
+U+2501 BOX DRAWINGS HEAVY HORIZONTAL
+.bP
+U+2550 BOX DRAWINGS DOUBLE HORIZONTAL
+.SH RETURN VALUE
+All routines return the integer \fBERR\fP upon failure and \fBOK\fP on success.
+.PP
+X/Open does not define any error conditions.
+This implementation returns an error
+.bP
+if the window pointer is null or
+.bP
+if it is not possible to add a complete character in the window.
+.PP
+The latter may be due to different causes:
+.bP
+If \fBscrollok\fP(3) is not enabled,
+writing a character at the lower right margin succeeds.
+However, an error is returned because
+it is not possible to wrap to a new line
+.bP
+If an error is detected when converting a multibyte character to a sequence
+of bytes,
+or if it is not possible to add all of the resulting bytes in the window,
+an error is returned.
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+Note that
+\fBadd_wch\fP,
+\fBmvadd_wch\fP,
+\fBmvwadd_wch\fP, and
+\fBecho_wchar\fP
+may be macros.
+.SH PORTABILITY
+All of these functions are described in the XSI Curses standard, Issue 4.
+The defaults specified for line-drawing characters apply in the POSIX locale.
+.SS WACS Symbols
+X/Open Curses makes it clear that the WACS_ symbols should be defined as
+a pointer to \fBcchar_t\fP data, e.g., in the discussion of \fBborder_set\fP.
+A few implementations are problematic:
+.bP
+NetBSD curses defines the symbols as a \fBwchar_t\fP within a \fBcchar_t\fP.
+.bP
+HPUX curses equates some of the \fBACS_\fP symbols
+to the analogous \fBWACS_\fP symbols as if the \fBACS_\fP symbols were
+wide characters.
+The misdefined symbols are the arrows
+and other symbols which are not used for line-drawing.
+.PP
+X/Open Curses does not define symbols for thick- or double-lines.
+SVr4 curses implementations defined their line-drawing symbols in
+terms of intermediate symbols.
+This implementation extends those symbols, providing new definitions
+which are not in the SVr4 implementations.
+.PP
+Not all Unicode-capable terminals provide support for VT100-style
+alternate character sets (i.e., the \fBacsc\fP capability),
+with their corresponding line-drawing characters.
+X/Open Curses did not address the aspect of integrating Unicode with
+line-drawing characters.
+Existing implementations of Unix curses (AIX, HPUX, Solaris)
+use only the \fBacsc\fP character-mapping to provide this feature.
+As a result, those implementations can only use single-byte line-drawing
+characters.
+Ncurses 5.3 (2002) provided a table of Unicode values to solve these problems.
+NetBSD curses incorporated that table in 2010.
+.PP
+In this implementation, the Unicode values are used instead of the
+terminal description's \fBacsc\fP mapping as discussed in ncurses(3)
+for the environment variable \fBNCURSES_NO_UTF8_ACS\fP.
+In contrast, for the same cases, the line-drawing characters
+described in \fBcurs_addch\fP(3) will use only the ASCII default values.
+.PP
+Having Unicode available does not solve all of the problems with
+line-drawing for curses:
+.bP
+The closest Unicode equivalents to the
+VT100 graphics \fIS1\fP, \fIS3\fP, \fIS7\fP and \fIS9\fP
+frequently are not displayed at
+the regular intervals which the terminal used.
+.bP
+The \fIlantern\fP is a special case.
+It originated with the AT&T 4410 terminal in the early 1980s.
+There is no accessible documentation depicting the lantern symbol
+on the AT&T terminal.
+.IP
+Lacking documentation, most readers assume that a \fIstorm lantern\fP
+was intended.
+But there are several possibilities, all with problems.
+.IP
+Unicode 6.0 (2010) does provide two lantern symbols: U+1F383 and U+1F3EE.
+Those were not available in 2002, and are irrelevant since
+they lie outside the BMP and as a result are not generally available
+in terminals.
+They are not storm lanterns, in any case.
+.IP
+Most \fIstorm lanterns\fP have a tapering glass chimney
+(to guard against tipping);
+some have a wire grid protecting the chimney.
+.IP
+For the tapering appearance, \[u2603] U+2603 was adequate.
+In use on a terminal, no one can tell what the image represents.
+Unicode calls it a snowman.
+.IP
+Others have suggested these alternatives:
+\[sc] U+00A7 (section mark),
+\[u0398] U+0398 (theta),
+\[u03A6] U+03A6 (phi),
+\[u03B4] U+03B4 (delta),
+\[u2327] U+2327 (x in a rectangle),
+\[u256C] U+256C (forms double vertical and horizontal), and
+\[u2612] U+2612 (ballot box with x).
+.SS Complex Characters
+The complex character type \fBcchar_t\fR
+can store more than one wide character (\fBwchar_t\fR).
+The X/Open Curses description does not mention this possibility,
+describing only the cases where \fIwch\fP is a spacing character
+or a non-spacing character.
+.PP
+This implementation assumes that \fIwch\fP is constructed using
+\fBsetcchar\fP(3), and in turn that the result
+.bP
+contains at most one spacing character in the beginning of its list of wide
+characters,
+and zero or more non-spacing characters
+or
+.bP
+may hold one non-spacing character.
+.PP
+In the latter case, ncurses adds the non-spacing character to the active
+(base) spacing character.
+.SH SEE ALSO
+.na
+.hy 0
+\fBcurses\fP(3),
+\fBcurs_addch\fP(3),
+\fBcurs_attr\fP(3),
+\fBcurs_clear\fP(3),
+\fBcurs_getcchar\fP(3),
+\fBcurs_outopts\fP(3),
+\fBcurs_refresh\fP(3),
+\fBputwc\fP(3)

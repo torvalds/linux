@@ -1,0 +1,12 @@
+@0 match in on lo0 inet proto tcp from any to 192.168.0.0/24 port 8000:8010 rdr-to 127.0.0.1 port 8000:8010
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 match in on lo0 inet proto tcp from any to 192.168.0.0/24 port 21:22 rdr-to 127.0.0.1 port 179:180
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 match in on lo0 inet proto tcp from any to 192.168.0.0/24 port 1000:3000 rdr-to 127.0.0.1 port 22
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

@@ -1,0 +1,20 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Options") {
+  visibility = [ ":MinGW" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+static_library("MinGW") {
+  output_name = "lldMinGW"
+  configs += [ "//llvm/utils/gn/build:lld_code" ]
+  deps = [
+    ":Options",
+    "//lld/COFF",
+    "//lld/Common",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "Driver.cpp" ]
+}

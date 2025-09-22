@@ -1,0 +1,9 @@
+source_set("unimplemented") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clangd/support",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ "../../.." ]
+  sources = [ "UnimplementedClient.cpp" ]
+}

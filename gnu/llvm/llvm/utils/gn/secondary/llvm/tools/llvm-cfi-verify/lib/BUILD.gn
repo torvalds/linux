@@ -1,0 +1,19 @@
+static_library("lib") {
+  output_name = "LLVMCFIVerify"
+  deps = [
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "FileAnalysis.cpp",
+    "FileAnalysis.h",
+    "GraphBuilder.cpp",
+    "GraphBuilder.h",
+  ]
+}

@@ -1,0 +1,173 @@
+/*	$OpenBSD: snmp.h,v 1.21 2024/02/08 17:34:09 martijn Exp $	*/
+
+/*
+ * Copyright (c) 2007, 2008, 2012 Reyk Floeter <reyk@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef SNMPD_SNMP_H
+#define SNMPD_SNMP_H
+
+#include <sys/types.h>
+
+/*
+ * SNMP IMSG interface
+ */
+
+#define SNMP_MAX_OID_STRLEN	128	/* max size of the OID _string_ */
+
+enum snmp_type {
+	SNMP_IPADDR		= 0,
+	SNMP_COUNTER32		= 1,
+	SNMP_GAUGE32		= 2,
+	SNMP_UNSIGNED32		= 2,
+	SNMP_TIMETICKS		= 3,
+	SNMP_OPAQUE		= 4,
+	SNMP_NSAPADDR		= 5,
+	SNMP_COUNTER64		= 6,
+	SNMP_UINTEGER32		= 7,
+
+	SNMP_INTEGER32		= 100,
+	SNMP_BITSTRING		= 101,
+	SNMP_OCTETSTRING	= 102,
+	SNMP_NULL		= 103,
+	SNMP_OBJECT		= 104
+};
+
+enum snmp_imsg_ctl {
+	IMSG_SNMP_DUMMY		= 1000,	/* something that works everywhere */
+	IMSG_SNMP_ELEMENT,
+	IMSG_SNMP_END,
+	IMSG_SNMP_LOCK,			/* enable restricted mode */
+};
+
+struct snmp_imsg_hdr {
+	u_int32_t	 imsg_type;
+	u_int16_t	 imsg_len;
+	u_int16_t	 imsg_flags;
+	u_int32_t	 imsg_peerid;
+	u_int32_t	 imsg_pid;
+};
+
+struct snmp_imsg {
+	char		 snmp_oid[SNMP_MAX_OID_STRLEN];
+	u_int8_t	 snmp_type;
+	u_int16_t	 snmp_len;
+};
+
+/*
+ * SNMP BER types
+ */
+
+enum snmp_version {
+	SNMP_V1			= 0,
+	SNMP_V2			= 1,	/* SNMPv2c */
+	SNMP_V3			= 3
+};
+
+enum snmp_pdutype {
+	SNMP_C_GETREQ		= 0,
+	SNMP_C_GETNEXTREQ	= 1,
+	SNMP_C_RESPONSE		= 2,
+	SNMP_C_SETREQ		= 3,
+	SNMP_C_TRAP		= 4,
+
+	/* SNMPv2 */
+	SNMP_C_GETBULKREQ	= 5,
+	SNMP_C_INFORMREQ	= 6,
+	SNMP_C_TRAPV2		= 7,
+	SNMP_C_REPORT		= 8
+};
+
+enum snmp_varbindtype {
+	SNMP_V_NOSUCHOBJECT	= 0,
+	SNMP_V_NOSUCHINSTANCE	= 1,
+	SNMP_V_ENDOFMIBVIEW	= 2
+};
+
+enum snmp_application {
+	SNMP_T_IPADDR		= 0,
+	SNMP_T_COUNTER32	= 1,
+	SNMP_T_GAUGE32		= 2,
+	SNMP_T_UNSIGNED32	= 2,
+	SNMP_T_TIMETICKS	= 3,
+	SNMP_T_OPAQUE		= 4,
+	SNMP_T_NSAPADDR		= 5,
+	SNMP_T_COUNTER64	= 6,
+	SNMP_T_UINTEGER32	= 7
+};
+
+enum snmp_generic_trap {
+	SNMP_TRAP_COLDSTART	= 0,
+	SNMP_TRAP_WARMSTART	= 1,
+	SNMP_TRAP_LINKDOWN	= 2,
+	SNMP_TRAP_LINKUP	= 3,
+	SNMP_TRAP_AUTHFAILURE	= 4,
+	SNMP_TRAP_EGPNEIGHLOSS	= 5,
+	SNMP_TRAP_ENTERPRISE	= 6
+};
+
+enum snmp_error {
+	SNMP_ERROR_NONE		= 0,
+	SNMP_ERROR_TOOBIG	= 1,
+	SNMP_ERROR_NOSUCHNAME	= 2,
+	SNMP_ERROR_BADVALUE	= 3,
+	SNMP_ERROR_READONLY	= 4,
+	SNMP_ERROR_GENERR	= 5,
+
+	/* SNMPv2 */
+	SNMP_ERROR_NOACCESS	= 6,
+	SNMP_ERROR_WRONGTYPE	= 7,
+	SNMP_ERROR_WRONGLENGTH	= 8,
+	SNMP_ERROR_WRONGENC	= 9,
+	SNMP_ERROR_WRONGVALUE	= 10,
+	SNMP_ERROR_NOCREATION	= 11,
+	SNMP_ERROR_INCONVALUE	= 12,
+	SNMP_ERROR_RESUNAVAIL	= 13, /* EGAIN */
+	SNMP_ERROR_COMMITFAILED	= 14,
+	SNMP_ERROR_UNDOFAILED	= 15,
+	SNMP_ERROR_AUTHERROR	= 16,
+	SNMP_ERROR_NOTWRITABLE	= 17,
+	SNMP_ERROR_INCONNAME	= 18
+};
+
+enum snmp_security_model {
+	SNMP_SEC_ANY = 0,
+	SNMP_SEC_SNMPv1 = 1,
+	SNMP_SEC_SNMPv2c = 2,
+	SNMP_SEC_USM = 3,
+	SNMP_SEC_TSM = 4
+};
+
+#define SNMP_MSGFLAG_AUTH	0x01
+#define SNMP_MSGFLAG_PRIV	0x02
+#define SNMP_MSGFLAG_SECMASK	(SNMP_MSGFLAG_AUTH | SNMP_MSGFLAG_PRIV)
+#define SNMP_MSGFLAG_REPORT	0x04
+
+#define SNMP_MAX_TIMEWINDOW	150	/* RFC3414 */
+
+/* RFC2578 */
+#define SMI_INTEGER_MIN		INT32_MIN
+#define SMI_INTEGER_MAX		INT32_MAX
+#define SMI_OCTETSTRING_MAX	65535
+#define SMI_IPADDRESS_MAX	4
+#define SMI_COUNTER32_MIN	0
+#define SMI_COUNTER32_MAX	UINT32_MAX
+#define SMI_GAUGE32_MIN		0
+#define SMI_GAUGE32_MAX		UINT32_MAX
+#define SMI_TIMETICKS_MIN	0
+#define SMI_TIMETICKS_MAX	UINT32_MAX
+
+
+#endif /* SNMPD_SNMP_H */

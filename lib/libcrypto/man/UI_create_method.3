@@ -1,0 +1,285 @@
+.\"	$OpenBSD: UI_create_method.3,v 1.7 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL UI_create_method.pod 8e3d46e5 Mar 11 10:51:04 2017 +0100
+.\"
+.\" This file was written by Richard Levitte <levitte@openssl.org>.
+.\" Copyright (c) 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt UI_CREATE_METHOD 3
+.Os
+.Sh NAME
+.Nm UI_create_method ,
+.Nm UI_destroy_method ,
+.Nm UI_method_set_opener ,
+.Nm UI_method_set_writer ,
+.Nm UI_method_set_flusher ,
+.Nm UI_method_set_reader ,
+.Nm UI_method_set_closer ,
+.Nm UI_method_set_prompt_constructor ,
+.Nm UI_method_get_opener ,
+.Nm UI_method_get_writer ,
+.Nm UI_method_get_flusher ,
+.Nm UI_method_get_reader ,
+.Nm UI_method_get_closer ,
+.Nm UI_method_get_prompt_constructor
+.Nd user interface method creation and destruction
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ui.h
+.Ft UI_METHOD *
+.Fo UI_create_method
+.Fa "const char *name"
+.Fc
+.Ft void
+.Fo UI_destroy_method
+.Fa "UI_METHOD *ui_method"
+.Fc
+.Ft int
+.Fo UI_method_set_opener
+.Fa "UI_METHOD *method"
+.Fa "int (*opener)(UI *ui)"
+.Fc
+.Ft int
+.Fo UI_method_set_writer
+.Fa "UI_METHOD *method"
+.Fa "int (*writer)(UI *ui, UI_STRING *uis)"
+.Fc
+.Ft int
+.Fo UI_method_set_flusher
+.Fa "UI_METHOD *method"
+.Fa "int (*flusher)(UI *ui)"
+.Fc
+.Ft int
+.Fo UI_method_set_reader
+.Fa "UI_METHOD *method"
+.Fa "int (*reader)(UI *ui, UI_STRING *uis)"
+.Fc
+.Ft int
+.Fo UI_method_set_closer
+.Fa "UI_METHOD *method"
+.Fa "int (*closer)(UI *ui)"
+.Fc
+.Ft int
+.Fo UI_method_set_prompt_constructor
+.Fa "UI_METHOD *method"
+.Fa "char *(*prompt_constructor)(UI *ui, const char *object_desc,\
+ const char *object_name)"
+.Fc
+.Ft int
+.Fo "(*UI_method_get_opener(const UI_METHOD *method))"
+.Fa "UI *"
+.Fc
+.Ft int
+.Fo "(*UI_method_get_writer(const UI_METHOD *method))"
+.Fa "UI *"
+.Fa "UI_STRING *"
+.Fc
+.Ft int
+.Fo "(*UI_method_get_flusher(const UI_METHOD *method))"
+.Fa "UI *"
+.Fc
+.Ft int
+.Fo "(*UI_method_get_reader(const UI_METHOD *method))"
+.Fa "UI *"
+.Fa "UI_STRING *"
+.Fc
+.Ft int
+.Fo "(*UI_method_get_closer(const UI_METHOD *method))"
+.Fa "UI *"
+.Fc
+.Ft char *
+.Fo "(*UI_method_get_prompt_constructor(UI_METHOD *method))"
+.Fa "UI *"
+.Fa "const char *"
+.Fa "const char *"
+.Fc
+.Sh DESCRIPTION
+A method contains a few functions that implement the low level of the
+User Interface.
+These functions are:
+.Bl -tag -width Ds
+.It an opener
+This function takes a reference to a UI and starts a session, for
+example by opening a channel to a tty, or by creating a dialog box.
+.It a writer
+This function takes a reference to a UI and a UI String, and writes the
+string where appropriate, maybe to the tty, maybe added as a field label
+in a dialog box.
+Note that this gets fed all strings associated with a UI, one after the
+other, so care must be taken which ones it actually uses.
+.It a flusher
+This function takes a reference to a UI, and flushes everything that has
+been output so far.
+For example, if the method builds up a dialog box, this can be used to
+actually display it and accepting input ended with a pressed button.
+.It a reader
+This function takes a reference to a UI and a UI string and reads off
+the given prompt, maybe from the tty, maybe from a field in a dialog
+box.
+Note that this gets fed all strings associated with a UI, one after the
+other, so care must be taken which ones it actually uses.
+.It a closer
+This function takes a reference to a UI, and closes the session, maybe
+by closing the channel to the tty, maybe by destroying a dialog box.
+.El
+.Pp
+All of these functions are expected to return 0 on error, 1 on success,
+or -1 on out-off-band events, for example if some prompting has been
+cancelled (by pressing Ctrl-C, for example).
+Only the flusher or the reader are expected to return -1.
+If returned by another of the functions, it's treated as if 0 was returned.
+.Pp
+Regarding the writer and the reader, don't assume the former should only
+write and don't assume the latter should only read.
+This depends on the needs of the method.
+.Pp
+For example, a typical tty reader wouldn't write the prompts in the
+write, but would rather do so in the reader, because of the sequential
+nature of prompting on a tty.
+This is how the
+.Xr UI_OpenSSL 3
+method does it.
+.Pp
+In contrast, a method that builds up a dialog box would add all prompt
+text in the writer, have all input read in the flusher and store the
+results in some temporary buffer, and finally have the reader just fetch
+those results.
+.Pp
+The central function that uses these method functions is
+.Xr UI_process 3 ,
+and it does it in five steps:
+.Bl -enum
+.It
+Open the session using the opener function if that one is defined.
+If an error occurs, jump to 5.
+.It
+For every UI String associated with the UI, call the writer function if
+that one is defined.
+If an error occurs, jump to 5.
+.It
+Flush everything using the flusher function if that one is defined.
+If an error occurs, jump to 5.
+.It
+For every UI String associated with the UI, call the reader function if
+that one is defined.
+If an error occurs, jump to 5.
+.It
+Close the session using the closer function if that one is defined.
+.El
+.Pp
+.Fn UI_create_method
+creates a new UI method with a given
+.Fa name .
+.Pp
+.Fn UI_destroy_method
+destroys the given
+.Fa ui_method .
+.Pp
+.Fn UI_method_set_opener ,
+.Fn UI_method_set_writer ,
+.Fn UI_method_set_flusher ,
+.Fn UI_method_set_reader
+and
+.Fn UI_method_set_closer
+set one of the five main methods to the given function pointer.
+.Pp
+.Fn UI_method_set_prompt_constructor
+sets the prompt constructor, see
+.Xr UI_construct_prompt 3 .
+.Sh RETURN VALUES
+.Fn UI_create_method
+returns a
+.Vt UI_METHOD
+pointer on success or
+.Dv NULL
+on error.
+.Pp
+.Fn UI_method_set_opener ,
+.Fn UI_method_set_writer ,
+.Fn UI_method_set_flusher ,
+.Fn UI_method_set_reader ,
+.Fn UI_method_set_closer ,
+and
+.Fn UI_method_set_prompt_constructor
+return 0 on success or -1 if the given method is
+.Dv NULL .
+.Pp
+.Fn UI_method_get_opener ,
+.Fn UI_method_get_writer ,
+.Fn UI_method_get_flusher ,
+.Fn UI_method_get_reader ,
+.Fn UI_method_get_closer ,
+and
+.Fn UI_method_get_prompt_constructor
+return the requested function pointer if it is set in the method,
+or otherwise
+.Dv NULL .
+.Sh SEE ALSO
+.Xr UI_get_string_type 3 ,
+.Xr UI_new 3
+.Sh HISTORY
+.Fn UI_create_method ,
+.Fn UI_destroy_method ,
+.Fn UI_method_set_opener ,
+.Fn UI_method_set_writer ,
+.Fn UI_method_set_flusher ,
+.Fn UI_method_set_reader ,
+.Fn UI_method_set_closer ,
+.Fn UI_method_get_opener ,
+.Fn UI_method_get_writer ,
+.Fn UI_method_get_flusher ,
+.Fn UI_method_get_reader ,
+and
+.Fn UI_method_get_closer
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn UI_method_set_prompt_constructor
+and
+.Fn UI_method_get_prompt_constructor
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .

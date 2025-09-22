@@ -1,0 +1,57 @@
+#	$OpenBSD: Makefile.bsd-wrapper,v 1.20 2023/09/06 11:49:11 jca Exp $
+
+LIB=		iberty
+CPPFLAGS+=	-DHAVE_CONFIG_H -I$(.CURDIR)/src -I$(.CURDIR)/include -I$(.OBJDIR)
+CFLAGS+=	-std=gnu89
+XCFLAGS=	CC="${CC}" CFLAGS="${CFLAGS} ${COPTS}" LDFLAGS="${LDFLAGS}"
+
+HOST_FILES!=	cat $(.OBJDIR)/needed-list 2>/dev/null||true
+
+.PATH: ${.CURDIR}/src
+
+SRCS=		argv.c choose-temp.c concat.c cplus-dem.c cp-demangle.c \
+		cp-demint.c \
+		dyn-string.c fdmatch.c fopen_unlocked.c \
+		getopt.c getopt1.c getpwd.c getruntime.c \
+		hashtab.c hex.c fibheap.c partition.c \
+		floatformat.c make-temp-file.c make-relative-prefix.c \
+		md5.c objalloc.c obstack.c \
+		pex-common.c pex-unix.c pexecute.c \
+		regex.c safe-ctype.c spaces.c splay-tree.c \
+		strerror.c strsignal.c strverscmp.c \
+		xatexit.c xexit.c xmalloc.c xmemdup.c xstrerror.c xstrdup.c \
+		physmem.c lbasename.c lrealpath.c unlink-if-ordinary.c \
+		$(HOST_FILES)
+
+# XXX -- These files are generated during the PREREQ variable assignment.
+CLEANFILES+=	config.h config.status needed-list 
+
+# and more
+CLEANFILES+=	Makefile config.cache config.log stamp-h xhost-mkfrag \
+		testsuite/Makefile libiberty.info
+
+
+BUILDFIRST = needed-list
+
+needed-list: config.status
+	${MAKE} ${XCFLAGS} needed-list
+
+config.status: Makefile.in configure 
+	PATH="/bin:/usr/bin:/sbin:/usr/sbin" \
+	INSTALL_PROGRAM="${INSTALL} ${INSTALL_COPY} ${INSTALL_STRIP}" \
+	MAKEINFO='makeinfo --no-split' \
+	${XCFLAGS} \
+	/bin/sh ${.CURDIR}/src/configure \
+		--prefix=/usr --with-local-prefix=/usr ${CF} \
+		&& touch config.status
+
+all:	libiberty.info
+
+libiberty.info:
+	makeinfo --no-split -I${.CURDIR}/src ${.CURDIR}/src/libiberty.texi
+
+afterinstall:
+	${INSTALL} ${INSTALL_COPY} -o ${DOCOWN} -g ${DOCGRP} -m ${DOCMODE} \
+	    libiberty.info $(DESTDIR)/usr/share/info
+
+.include <bsd.lib.mk>

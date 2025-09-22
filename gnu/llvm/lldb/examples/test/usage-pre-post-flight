@@ -1,0 +1,65 @@
+#
+# The following examples first show a bad pre/post flight config file followed by a good pre/post config file.
+#
+
+[11:31:19] johnny:/Volumes/data/lldb/svn/ToT/test $ ./dotest.py -A x86_64 -v -c ../examples/test/.lldb-pre-post-flight.bad  functionalities/watchpoint/hello_watchpoint
+config: {'pre_flight': 'I am not callable', 'post_flight': <function post_flight at 0x1071871b8>}
+fatal error: pre_flight is not callable, exiting.
+[11:32:48] johnny:/Volumes/data/lldb/svn/ToT/test $ ./dotest.py -A x86_64 -v -c ../examples/test/.lldb-pre-post-flight  functionalities/watchpoint/hello_watchpoint
+config: {'pre_flight': <function pre_flight at 0x1098541b8>, 'post_flight': <function post_flight at 0x109854230>}
+LLDB build dir: /Volumes/data/lldb/svn/ToT/build/Debug
+LLDB-139
+Path: /Volumes/data/lldb/svn/ToT
+URL: https://johnny@llvm.org/svn/llvm-project/lldb/trunk
+Repository Root: https://johnny@llvm.org/svn/llvm-project
+Repository UUID: 91177308-0d34-0410-b5e6-96231b3b80d8
+Revision: 154753
+Node Kind: directory
+Schedule: normal
+Last Changed Author: gclayton
+Last Changed Rev: 154730
+Last Changed Date: 2012-04-13 18:42:46 -0700 (Fri, 13 Apr 2012)
+
+
+lldb.pre_flight: def pre_flight(test):
+    __import__("lldb")
+    __import__("lldbtest")
+    print "\nRunning pre-flight function:"
+    print "for test case:", test
+
+lldb.post_flight: def post_flight(test):
+    __import__("lldb")
+    __import__("lldbtest")
+    print "\nRunning post-flight function:"
+    print "for test case:", test
+
+
+Session logs for test failures/errors/unexpected successes will go into directory '2012-04-16-11_34_08'
+Command invoked: python ./dotest.py -A x86_64 -v -c ../examples/test/.lldb-pre-post-flight functionalities/watchpoint/hello_watchpoint
+compilers=['clang']
+
+Configuration: arch=x86_64 compiler=clang
+----------------------------------------------------------------------
+Collected 2 tests
+
+1: test_hello_watchpoint_with_dsym_using_watchpoint_set (TestMyFirstWatchpoint.HelloWatchpointTestCase)
+   Test a simple sequence of watchpoint creation and watchpoint hit. ... 
+Running pre-flight function:
+for test case: test_hello_watchpoint_with_dsym_using_watchpoint_set (TestMyFirstWatchpoint.HelloWatchpointTestCase)
+
+Running post-flight function:
+for test case: test_hello_watchpoint_with_dsym_using_watchpoint_set (TestMyFirstWatchpoint.HelloWatchpointTestCase)
+ok
+2: test_hello_watchpoint_with_dwarf_using_watchpoint_set (TestMyFirstWatchpoint.HelloWatchpointTestCase)
+   Test a simple sequence of watchpoint creation and watchpoint hit. ... 
+Running pre-flight function:
+for test case: test_hello_watchpoint_with_dwarf_using_watchpoint_set (TestMyFirstWatchpoint.HelloWatchpointTestCase)
+
+Running post-flight function:
+for test case: test_hello_watchpoint_with_dwarf_using_watchpoint_set (TestMyFirstWatchpoint.HelloWatchpointTestCase)
+ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 1.584s
+
+OK

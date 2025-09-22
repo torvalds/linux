@@ -1,0 +1,53 @@
+.\"	$OpenBSD: ujoy.4,v 1.2 2021/01/27 14:58:06 jmc Exp $
+.\"
+.\" Copyright (c) 2020 Thomas Frohwein	<thfr@openbsd.org>
+.\" Copyright (c) 2020 Bryan Steele	<brynet@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 27 2021 $
+.Dt UJOY 4
+.Os
+.Sh NAME
+.Nm ujoy
+.Nd USB joystick/gamecontroller
+.Sh SYNOPSIS
+.Cd "ujoy* at uhidev?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB joysticks and other gamecontrollers.
+They are Human Interface Devices (HID) which can be accessed via the
+.Pa /dev/ujoy/N
+interface.
+.Pp
+The driver is compatible with
+.Xr read 2 ,
+and a subset of
+.Xr ioctl 2
+operations of the generic
+.Xr uhid 4
+device.
+.Sh FILES
+.Bl -tag -width /dev/ujoy/* -compact
+.It Pa /dev/ujoy/*
+.El
+.Sh SEE ALSO
+.Xr uhid 4 ,
+.Xr uhidev 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.9 .

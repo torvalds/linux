@@ -1,0 +1,169 @@
+.\"	$OpenBSD: SSL_CTX_sess_number.3,v 1.10 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL SSL_CTX_sess_number.pod 7bd27895 Mar 29 11:45:29 2017 +1000
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SESS_NUMBER 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_sess_number ,
+.Nm SSL_CTX_sess_connect ,
+.Nm SSL_CTX_sess_connect_good ,
+.Nm SSL_CTX_sess_connect_renegotiate ,
+.Nm SSL_CTX_sess_accept ,
+.Nm SSL_CTX_sess_accept_good ,
+.Nm SSL_CTX_sess_accept_renegotiate ,
+.Nm SSL_CTX_sess_hits ,
+.Nm SSL_CTX_sess_cb_hits ,
+.Nm SSL_CTX_sess_misses ,
+.Nm SSL_CTX_sess_timeouts ,
+.Nm SSL_CTX_sess_cache_full
+.Nd obtain session cache statistics
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft long
+.Fn SSL_CTX_sess_number "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_CTX_sess_connect "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_CTX_sess_connect_good "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_CTX_sess_connect_renegotiate "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_CTX_sess_accept "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_CTX_sess_accept_good "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_CTX_sess_accept_renegotiate "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_CTX_sess_hits "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_CTX_sess_cb_hits "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_CTX_sess_misses "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_CTX_sess_timeouts "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_CTX_sess_cache_full "SSL_CTX *ctx"
+.Sh DESCRIPTION
+.Fn SSL_CTX_sess_number
+returns the current number of sessions in the internal session cache.
+.Pp
+.Fn SSL_CTX_sess_connect
+returns the number of started SSL/TLS handshakes in client mode.
+.Pp
+.Fn SSL_CTX_sess_connect_good
+returns the number of successfully established SSL/TLS sessions in client mode.
+.Pp
+.Fn SSL_CTX_sess_connect_renegotiate
+returns the number of started renegotiations in client mode.
+.Pp
+.Fn SSL_CTX_sess_accept
+returns the number of started SSL/TLS handshakes in server mode.
+.Pp
+.Fn SSL_CTX_sess_accept_good
+returns the number of successfully established SSL/TLS sessions in server mode.
+.Pp
+.Fn SSL_CTX_sess_accept_renegotiate
+returns the number of started renegotiations in server mode.
+.Pp
+.Fn SSL_CTX_sess_hits
+returns the number of successfully reused sessions.
+In client mode a session set with
+.Xr SSL_set_session 3
+successfully reused is counted as a hit.
+In server mode a session successfully retrieved from internal or external cache
+is counted as a hit.
+.Pp
+.Fn SSL_CTX_sess_cb_hits
+returns the number of successfully retrieved sessions from the external session
+cache in server mode.
+.Pp
+.Fn SSL_CTX_sess_misses
+returns the number of sessions proposed by clients that were not found in the
+internal session cache in server mode.
+.Pp
+.Fn SSL_CTX_sess_timeouts
+returns the number of sessions proposed by clients and either found in the
+internal or external session cache in server mode,
+but that were invalid due to timeout.
+These sessions are not included in the
+.Fn SSL_CTX_sess_hits
+count.
+.Pp
+.Fn SSL_CTX_sess_cache_full
+returns the number of sessions that were removed because the maximum session
+cache size was exceeded.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_ctrl 3 ,
+.Xr SSL_CTX_sess_set_cache_size 3 ,
+.Xr SSL_CTX_set_session_cache_mode 3 ,
+.Xr SSL_set_session 3
+.Sh HISTORY
+.Fn SSL_CTX_sess_number ,
+.Fn SSL_CTX_sess_connect ,
+.Fn SSL_CTX_sess_connect_good ,
+.Fn SSL_CTX_sess_accept ,
+.Fn SSL_CTX_sess_accept_good ,
+.Fn SSL_CTX_sess_hits ,
+.Fn SSL_CTX_sess_misses ,
+and
+.Fn SSL_CTX_sess_timeouts
+first appeared in SSLeay 0.5.2.
+.Fn SSL_CTX_sess_cb_hits
+first appeared in SSLeay 0.6.0.
+.Fn SSL_CTX_sess_connect_renegotiate ,
+.Fn SSL_CTX_sess_accept_renegotiate ,
+and
+.Fn SSL_CTX_sess_cache_full
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .

@@ -1,0 +1,140 @@
+//===-- AArch64SVEACLETypes.def - Metadata about SVE types ------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file defines various SVE builtin types.  The macros are:
+//
+//    SVE_TYPE(Name, Id, SingletonId) - A builtin type that has not been
+//    covered by any other #define.  Defining this macro covers all
+//    the builtins.
+//
+//    SVE_VECTOR_TYPE(Name, Id, SingletonId, ElKind, ElBits, IsSigned, IsFP) -
+//    An SVE scalable vector.
+//
+//    SVE_PREDICATE_TYPE(Name, Id, SingletonId, ElKind) - An SVE scalable
+//    predicate.
+//
+// where:
+//
+//  - Name is the name of the builtin type.
+//
+//  - BuiltinType::Id is the enumerator defining the type.
+//
+//  - Context.SingletonId is the global singleton of this type.
+//
+//  - ElKind enumerates the type of the elements.
+//
+//  - ElBits is the size of one element in bits.
+//
+//  - IsSigned is true for vectors of signed integer elements and
+//    for vectors of floating-point elements.
+//
+//  - IsFP is true for vectors of floating-point elements.
+//
+//  - IsBF true for vector of brain float elements.
+//===----------------------------------------------------------------------===//
+
+#ifndef SVE_VECTOR_TYPE
+#define SVE_VECTOR_TYPE(Name, MangledName, Id, SingletonId, NumEls, ElBits,    \
+                        IsSigned, IsFP, IsBF)                                  \
+  SVE_TYPE(Name, Id, SingletonId)
+#endif
+
+#ifndef SVE_PREDICATE_TYPE
+#define SVE_PREDICATE_TYPE(Name, MangledName, Id, SingletonId, NumEls)         \
+  SVE_TYPE(Name, Id, SingletonId)
+#endif
+
+#ifndef SVE_OPAQUE_TYPE
+#define SVE_OPAQUE_TYPE(Name, MangledName, Id, SingletonId)                    \
+  SVE_TYPE(Name, Id, SingletonId)
+#endif
+
+//===- Vector point types -----------------------------------------------===//
+
+
+SVE_VECTOR_TYPE("__SVInt8_t", "__SVInt8_t",  SveInt8, SveInt8Ty, 16, 8, true, false, false)
+SVE_VECTOR_TYPE("__SVInt16_t", "__SVInt16_t", SveInt16, SveInt16Ty, 8, 16, true, false, false)
+SVE_VECTOR_TYPE("__SVInt32_t", "__SVInt32_t", SveInt32, SveInt32Ty, 4, 32, true, false, false)
+SVE_VECTOR_TYPE("__SVInt64_t", "__SVInt64_t", SveInt64, SveInt64Ty, 2, 64, true, false, false)
+
+SVE_VECTOR_TYPE("__SVUint8_t", "__SVUint8_t",  SveUint8, SveUint8Ty, 16, 8, false, false, false)
+SVE_VECTOR_TYPE("__SVUint16_t", "__SVUint16_t", SveUint16, SveUint16Ty, 8, 16, false, false, false)
+SVE_VECTOR_TYPE("__SVUint32_t", "__SVUint32_t", SveUint32, SveUint32Ty, 4, 32, false, false, false)
+SVE_VECTOR_TYPE("__SVUint64_t", "__SVUint64_t", SveUint64, SveUint64Ty, 2, 64, false, false, false)
+
+SVE_VECTOR_TYPE("__SVFloat16_t", "__SVFloat16_t", SveFloat16, SveFloat16Ty, 8, 16, true, true, false)
+SVE_VECTOR_TYPE("__SVFloat32_t", "__SVFloat32_t", SveFloat32, SveFloat32Ty, 4, 32, true, true, false)
+SVE_VECTOR_TYPE("__SVFloat64_t", "__SVFloat64_t", SveFloat64, SveFloat64Ty, 2, 64, true, true, false)
+
+SVE_VECTOR_TYPE("__SVBfloat16_t", "__SVBfloat16_t", SveBFloat16, SveBFloat16Ty, 8, 16, true, false, true)
+
+//
+// x2
+//
+SVE_VECTOR_TYPE("__clang_svint8x2_t", "svint8x2_t",  SveInt8x2, SveInt8x2Ty, 32, 8, true, false, false)
+SVE_VECTOR_TYPE("__clang_svint16x2_t", "svint16x2_t", SveInt16x2, SveInt16x2Ty, 16, 16, true, false, false)
+SVE_VECTOR_TYPE("__clang_svint32x2_t", "svint32x2_t", SveInt32x2, SveInt32x2Ty, 8, 32, true, false, false)
+SVE_VECTOR_TYPE("__clang_svint64x2_t", "svint64x2_t", SveInt64x2, SveInt64x2Ty, 4, 64, true, false, false)
+
+SVE_VECTOR_TYPE("__clang_svuint8x2_t", "svuint8x2_t",  SveUint8x2, SveUint8x2Ty, 32, 8, false, false, false)
+SVE_VECTOR_TYPE("__clang_svuint16x2_t", "svuint16x2_t", SveUint16x2, SveUint16x2Ty, 16, 16, false, false, false)
+SVE_VECTOR_TYPE("__clang_svuint32x2_t", "svuint32x2_t", SveUint32x2, SveUint32x2Ty, 8, 32, false, false, false)
+SVE_VECTOR_TYPE("__clang_svuint64x2_t", "svuint64x2_t", SveUint64x2, SveUint64x2Ty, 4, 64, false, false, false)
+
+SVE_VECTOR_TYPE("__clang_svfloat16x2_t", "svfloat16x2_t", SveFloat16x2, SveFloat16x2Ty, 16, 16, true, true, false)
+SVE_VECTOR_TYPE("__clang_svfloat32x2_t", "svfloat32x2_t", SveFloat32x2, SveFloat32x2Ty, 8, 32, true, true, false)
+SVE_VECTOR_TYPE("__clang_svfloat64x2_t", "svfloat64x2_t", SveFloat64x2, SveFloat64x2Ty, 4, 64, true, true, false)
+
+SVE_VECTOR_TYPE("__clang_svbfloat16x2_t", "svbfloat16x2_t", SveBFloat16x2, SveBFloat16x2Ty, 16, 16, true, false, true)
+//
+// x3
+//
+SVE_VECTOR_TYPE("__clang_svint8x3_t", "svint8x3_t",  SveInt8x3, SveInt8x3Ty, 48, 8, true, false, false)
+SVE_VECTOR_TYPE("__clang_svint16x3_t", "svint16x3_t", SveInt16x3, SveInt16x3Ty, 24, 16, true, false, false)
+SVE_VECTOR_TYPE("__clang_svint32x3_t", "svint32x3_t", SveInt32x3, SveInt32x3Ty, 12, 32, true, false, false)
+SVE_VECTOR_TYPE("__clang_svint64x3_t", "svint64x3_t", SveInt64x3, SveInt64x3Ty, 6, 64, true, false, false)
+
+SVE_VECTOR_TYPE("__clang_svuint8x3_t", "svuint8x3_t",  SveUint8x3, SveUint8x3Ty, 48, 8, false, false, false)
+SVE_VECTOR_TYPE("__clang_svuint16x3_t", "svuint16x3_t", SveUint16x3, SveUint16x3Ty, 24, 16, false, false, false)
+SVE_VECTOR_TYPE("__clang_svuint32x3_t", "svuint32x3_t", SveUint32x3, SveUint32x3Ty, 12, 32, false, false, false)
+SVE_VECTOR_TYPE("__clang_svuint64x3_t", "svuint64x3_t", SveUint64x3, SveUint64x3Ty, 6, 64, false, false, false)
+
+SVE_VECTOR_TYPE("__clang_svfloat16x3_t", "svfloat16x3_t", SveFloat16x3, SveFloat16x3Ty, 24, 16, true, true, false)
+SVE_VECTOR_TYPE("__clang_svfloat32x3_t", "svfloat32x3_t", SveFloat32x3, SveFloat32x3Ty, 12, 32, true, true, false)
+SVE_VECTOR_TYPE("__clang_svfloat64x3_t", "svfloat64x3_t", SveFloat64x3, SveFloat64x3Ty, 6, 64, true, true, false)
+
+SVE_VECTOR_TYPE("__clang_svbfloat16x3_t", "svbfloat16x3_t", SveBFloat16x3, SveBFloat16x3Ty, 24, 16, true, false, true)
+//
+// x4
+//
+SVE_VECTOR_TYPE("__clang_svint8x4_t", "svint8x4_t",  SveInt8x4, SveInt8x4Ty, 64, 8, true, false, false)
+SVE_VECTOR_TYPE("__clang_svint16x4_t", "svint16x4_t", SveInt16x4, SveInt16x4Ty, 32, 16, true, false, false)
+SVE_VECTOR_TYPE("__clang_svint32x4_t", "svint32x4_t", SveInt32x4, SveInt32x4Ty, 16, 32, true, false, false)
+SVE_VECTOR_TYPE("__clang_svint64x4_t", "svint64x4_t", SveInt64x4, SveInt64x4Ty, 8, 64, true, false, false)
+
+SVE_VECTOR_TYPE("__clang_svuint8x4_t", "svuint8x4_t",  SveUint8x4, SveUint8x4Ty, 64, 8, false, false, false)
+SVE_VECTOR_TYPE("__clang_svuint16x4_t", "svuint16x4_t", SveUint16x4, SveUint16x4Ty, 32, 16, false, false, false)
+SVE_VECTOR_TYPE("__clang_svuint32x4_t", "svuint32x4_t", SveUint32x4, SveUint32x4Ty, 16, 32, false, false, false)
+SVE_VECTOR_TYPE("__clang_svuint64x4_t", "svuint64x4_t", SveUint64x4, SveUint64x4Ty, 8, 64, false, false, false)
+
+SVE_VECTOR_TYPE("__clang_svfloat16x4_t", "svfloat16x4_t", SveFloat16x4, SveFloat16x4Ty, 32, 16, true, true, false)
+SVE_VECTOR_TYPE("__clang_svfloat32x4_t", "svfloat32x4_t", SveFloat32x4, SveFloat32x4Ty, 16, 32, true, true, false)
+SVE_VECTOR_TYPE("__clang_svfloat64x4_t", "svfloat64x4_t", SveFloat64x4, SveFloat64x4Ty, 8, 64, true, true, false)
+
+SVE_VECTOR_TYPE("__clang_svbfloat16x4_t", "svbfloat16x4_t", SveBFloat16x4, SveBFloat16x4Ty, 32, 16, true, false, true)
+
+SVE_PREDICATE_TYPE("__SVBool_t", "__SVBool_t", SveBool, SveBoolTy, 16)
+SVE_PREDICATE_TYPE("__clang_svboolx2_t", "svboolx2_t", SveBoolx2, SveBoolx2Ty, 32)
+SVE_PREDICATE_TYPE("__clang_svboolx4_t", "svboolx4_t", SveBoolx4, SveBoolx4Ty, 64)
+
+SVE_OPAQUE_TYPE("__SVCount_t", "__SVCount_t", SveCount, SveCountTy)
+
+#undef SVE_VECTOR_TYPE
+#undef SVE_PREDICATE_TYPE
+#undef SVE_OPAQUE_TYPE
+#undef SVE_TYPE

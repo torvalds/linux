@@ -1,0 +1,71 @@
+.\"	$OpenBSD: lisa.4,v 1.4 2018/01/12 04:36:44 deraadt Exp $
+.\"
+.\" Copyright (c) 2009 Constantine A. Murenin <cnst+openbsd@bugmail.mojo.ru>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 12 2018 $
+.Dt LISA 4
+.Os
+.Sh NAME
+.Nm lisa
+.Nd STMicroelectronics LIS331DL MEMS motion sensor
+.Sh SYNOPSIS
+.Cd "lisa* at iic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the ST LIS331DL
+3-axis digital output accelerometer.
+A total of 3 sensors are provided, one for each axis
+(X, Y and Z).
+Each reading from LIS331DL is represented by an
+8-bit 2's complement number.
+.Pp
+Sensor values are made available through the
+.Dv HW_SENSORS
+.Xr sysctl 2
+interface,
+and can be monitored with the
+.Xr systat 1
+.Ar sensors
+view,
+.Xr sensorsd 8
+and
+.Xr sysctl 8
+.Ar hw.sensors .
+.Sh SEE ALSO
+.Xr systat 1 ,
+.Xr sysctl 2 ,
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Rs
+.%T LIS331DL MEMS motion sensor
+.%N Rev 3
+.%D April 2008
+.%I STMicroelectronics
+.\" .%U http://www.stm.com/stonline/products/literature/ds/13951.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.7 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Constantine A. Murenin Aq Mt cnst@openbsd.org ,
+University of Waterloo.

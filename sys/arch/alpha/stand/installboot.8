@@ -1,0 +1,134 @@
+.\"	$OpenBSD: installboot.8,v 1.11 2010/03/06 16:16:42 jmc Exp $
+.\"	$NetBSD: installboot.8,v 1.2 1997/04/06 08:41:11 cgd Exp $
+.\"
+.\" Copyright (c) 1996, 1997 Christopher G. Demetriou.  All rights reserved.
+.\" Copyright (c) 1995 Paul Kranenburg
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Paul Kranenburg.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 6 2010 $
+.Dt INSTALLBOOT 8 alpha
+.Os
+.Sh NAME
+.Nm installboot
+.Nd install disk bootstrap software
+.Sh SYNOPSIS
+.Nm installboot
+.Op Fl nv
+.Ar boot
+.Ar bootxx
+.Ar rawdiskdevice
+.Sh DESCRIPTION
+The
+.Nm installboot
+utility prepares a disk for bootstrapping.
+.Pp
+The OpenBSD/alpha disk bootstrap software is split into two parts:
+a small first-stage boot program that is written into the disklabel
+area of a disk
+.Po
+and hence is limited in size to 7680 bytes
+.Pc ,
+and a second-stage boot program that resides in the filesystem proper
+.Po
+typically with the name
+.Pa /boot
+.Pc .
+The first-stage boot program is loaded into memory by the SRM console
+software.
+After receiving control of the system, it loads the second-stage boot
+program from a set of filesystem block numbers that have been
+hard-coded into it by
+.Nm installboot .
+The second-stage boot program locates and loads the kernel.
+.Pp
+The second-stage boot program and the prototype code for the
+first-stage boot program can be found in
+.Pa /usr/mdec/boot
+and
+.Pa /usr/mdec/bootxx ,
+respectively.
+.Pa /usr/mdec/boot
+may be installed simply by copying it to the root directory of the
+partition you wish to boot from, but after it is installed
+.Nm installboot
+.Em must
+be run.
+.Pp
+The options recognized by
+.Nm installboot
+are as follows:
+.Bl -tag -width flag
+.It Fl n
+Do not actually write anything on the disk.
+.It Fl v
+Verbose mode.
+.El
+.Pp
+The arguments are:
+.Bl -tag -width rawdiskdevice
+.It Ar boot
+The name of the second-stage boot program in the file system
+where the first-stage boot program is to be installed.
+.It Ar bootxx
+The name of the prototype file for the first-stage boot program.
+.It Ar rawdiskdevice
+The name of the device corresponding to the raw whole-disk partition (the
+.Dq raw partition )
+of the disk on which the first-stage boot program is to be installed.
+.El
+.Sh EXAMPLES
+.Pa boot
+resides in the FFS file system mounted on
+.Pa /
+from
+.Dq sd0a ,
+you would install the first-stage boot program on the disk
+(and therefore make the disk bootable) by using the command:
+.Bd -literal -offset indent
+# cp /usr/mdec/boot /boot
+# /usr/mdec/installboot -n -v /boot /usr/mdec/bootxx /dev/rsd0c
+.Ed
+.Pp
+And if the information supplied looks right, run the above without the
+.Fl n
+flag.
+.Sh SEE ALSO
+.Xr disklabel 8 ,
+.Xr init 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The alpha
+.Nm
+command first appeared in
+.Nx 1.2 .
+.Sh BUGS
+The OpenBSD/alpha boot blocks can only load kernels from disks'
+.Dq a
+partitions.
+(However, the second-stage boot program may be located on any FFS file system
+partition on the disk.)

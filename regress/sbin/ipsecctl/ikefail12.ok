@@ -1,0 +1,5 @@
+stdin: 4: reached end of file while parsing quoted string
+stdin: 4: syntax error
+ipsecctl: Syntax error in config file: ipsec rules not loaded
+remote_gw = "192.168.0.1"
+remote_net = "{ 10.0.100.0/22, 10.0.2/24 }"

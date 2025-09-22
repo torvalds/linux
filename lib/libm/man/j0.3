@@ -1,0 +1,161 @@
+.\"	$OpenBSD: j0.3,v 1.18 2025/06/07 10:33:06 schwarze Exp $
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)j0.3	6.7 (Berkeley) 4/19/91
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt J0 3
+.Os
+.Sh NAME
+.Nm j0 ,
+.Nm j0f ,
+.Nm j1 ,
+.Nm j1f ,
+.Nm jn ,
+.Nm jnf ,
+.Nm y0 ,
+.Nm y0f ,
+.Nm y1 ,
+.Nm y1f ,
+.Nm yn ,
+.Nm ynf
+.Nd Bessel functions of first and second kind
+.Sh SYNOPSIS
+.Lb libm
+.In math.h
+.Ft double
+.Fn j0 "double x"
+.Ft float
+.Fn j0f "float x"
+.Ft double
+.Fn j1 "double x"
+.Ft float
+.Fn j1f "float x"
+.Ft double
+.Fn jn "int n" "double x"
+.Ft float
+.Fn jnf "int n" "float x"
+.Ft double
+.Fn y0 "double x"
+.Ft float
+.Fn y0f "float x"
+.Ft double
+.Fn y1 "double x"
+.Ft float
+.Fn y1f "float x"
+.Ft double
+.Fn yn "int n" "double x"
+.Ft float
+.Fn ynf "int n" "float x"
+.Sh DESCRIPTION
+The functions
+.Fn j0
+and
+.Fn j1
+compute the
+.Em Bessel function of the first kind of the order
+0 and the
+.Em order
+1, respectively,
+for the
+real value
+.Fa x ;
+the function
+.Fn jn
+computes the
+.Em Bessel function of the first kind of the integer order
+.Fa n
+for the real value
+.Fa x .
+The functions
+.Fn j0f ,
+.Fn j1f ,
+and
+.Fn jnf
+are single precision versions of
+.Fn j0 ,
+.Fn j1 ,
+and
+.Fn jn ,
+respectively.
+.Pp
+The functions
+.Fn y0
+and
+.Fn y1
+compute the linearly independent
+.Em Bessel function of the second kind of the order
+0 and the
+.Em order
+1, respectively,
+for the
+positive
+.Em integer
+value
+.Fa x
+(expressed as a double);
+the function
+.Fn yn
+computes the
+.Em Bessel function of the second kind for the integer order
+.Fa n
+for the positive
+.Em integer
+value
+.Fa x
+(expressed as a double).
+The functions
+.Fn y0f ,
+.Fn y1f ,
+and
+.Fn ynf
+are single precision versions of
+.Fn y0 ,
+.Fn y1 ,
+and
+.Fn yn ,
+respectively.
+.Sh RETURN VALUES
+If these functions are successful,
+the computed value is returned, otherwise the global variable
+.Va errno
+is set to
+.Er EDOM
+or
+.Er ERANGE .
+.Sh HISTORY
+The functions
+.Fn j0 ,
+.Fn j1 ,
+.Fn jn ,
+.Fn y0 ,
+.Fn y1 ,
+and
+.Fn yn
+first appeared in
+.At v7 .

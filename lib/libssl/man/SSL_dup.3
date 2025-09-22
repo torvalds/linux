@@ -1,0 +1,63 @@
+.\" $OpenBSD: SSL_dup.3,v 1.6 2025/06/08 22:52:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_DUP 3
+.Os
+.Sh NAME
+.Nm SSL_dup
+.Nd deep copy of an SSL object
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft SSL *
+.Fo SSL_dup
+.Fa "SSL *ssl"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_dup
+constructs a new
+.Vt SSL
+object in the same context as
+.Fa ssl
+and copies much of the contained data from
+.Fa ssl
+to the new
+.Vt SSL
+object, but many fields, for example tlsext data, are not copied.
+.Pp
+As an exception from deep copying, if a session is already established,
+the new object shares
+.Fa ssl->cert
+with the original object.
+.Sh RETURN VALUES
+.Fn SSL_dup
+returns the new
+.Vt SSL
+object or
+.Dv NULL
+on failure.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_clear 3 ,
+.Xr SSL_copy_session_id 3 ,
+.Xr SSL_free 3 ,
+.Xr SSL_new 3 ,
+.Xr SSL_set_security_level 3
+.Sh HISTORY
+.Fn SSL_dup
+first appeared in SSLeay 0.8.0 and has been available since
+.Ox 2.4 .

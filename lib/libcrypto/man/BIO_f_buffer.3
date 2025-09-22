@@ -1,0 +1,263 @@
+.\" $OpenBSD: BIO_f_buffer.3,v 1.18 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2010, 2015, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_F_BUFFER 3
+.Os
+.Sh NAME
+.Nm BIO_f_buffer ,
+.Nm BIO_get_buffer_num_lines ,
+.Nm BIO_set_read_buffer_size ,
+.Nm BIO_set_write_buffer_size ,
+.Nm BIO_set_buffer_size ,
+.Nm BIO_set_buffer_read_data
+.\" .Nm BIO_buffer_get_num_lines and
+.\" .Nm BIO_CTRL_GET are intentionally undocumented.
+.\" Contrary to what bio.h says, they do not *not* get some "IO type",
+.\" whatever that is supposed to be, but are NOOPs, and nothing uses them.
+.Nd buffering BIO
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.Ft const BIO_METHOD *
+.Fo BIO_f_buffer
+.Fa void
+.Fc
+.Ft long
+.Fo BIO_get_buffer_num_lines
+.Fa "BIO *b"
+.Fc
+.Ft long
+.Fo BIO_set_read_buffer_size
+.Fa "BIO *b"
+.Fa "long size"
+.Fc
+.Ft long
+.Fo BIO_set_write_buffer_size
+.Fa "BIO *b"
+.Fa "long size"
+.Fc
+.Ft long
+.Fo BIO_set_buffer_size
+.Fa "BIO *b"
+.Fa "long size"
+.Fc
+.Ft long
+.Fo BIO_set_buffer_read_data
+.Fa "BIO *b"
+.Fa "void *buf"
+.Fa "long num"
+.Fc
+.Sh DESCRIPTION
+.Fn BIO_f_buffer
+returns the buffering BIO method.
+.Pp
+Data written to a buffering BIO is buffered and periodically written
+to the next BIO in the chain.
+Data read from a buffering BIO comes from an internal buffer
+which is filled from the next BIO in the chain.
+Both
+.Xr BIO_gets 3
+and
+.Xr BIO_puts 3
+are supported.
+.Pp
+Calling
+.Xr BIO_reset 3
+on a buffering BIO clears any buffered data.
+.Pp
+.Fn BIO_get_buffer_num_lines
+returns the number of lines currently buffered.
+.Pp
+.Fn BIO_set_read_buffer_size ,
+.Fn BIO_set_write_buffer_size ,
+and
+.Fn BIO_set_buffer_size
+set the read, write or both read and write buffer sizes to
+.Fa size .
+The initial buffer size is
+.Dv DEFAULT_BUFFER_SIZE ,
+currently 4096.
+Any attempt to reduce the buffer size below
+.Dv DEFAULT_BUFFER_SIZE
+is ignored.
+Any buffered data is cleared when the buffer is resized.
+.Pp
+.Fn BIO_set_buffer_read_data
+clears the read buffer and fills it with
+.Fa num
+bytes of
+.Fa buf .
+If
+.Fa num
+is larger than the current buffer size, the buffer is expanded.
+.Pp
+Buffering BIOs implement
+.Xr BIO_gets 3
+by using
+.Xr BIO_read 3
+operations on the next BIO in the chain.
+By prepending a buffering BIO to a chain
+it is therefore possible to provide the functionality of
+.Xr BIO_gets 3
+if the following BIOs do not support it (for example SSL BIOs).
+.Pp
+Data is only written to the next BIO in the chain
+when the write buffer fills or when
+.Xr BIO_flush 3
+is called.
+It is therefore important to call
+.Xr BIO_flush 3
+whenever any pending data should be written
+such as when removing a buffering BIO using
+.Xr BIO_pop 3 .
+.Xr BIO_flush 3
+may need to be retried if the ultimate source/sink BIO is non-blocking.
+.Pp
+When a chain containing a buffering BIO is copied with
+.Xr BIO_dup_chain 3 ,
+.Fn BIO_set_read_buffer_size
+and
+.Fn BIO_set_write_buffer_size
+are called internally to automatically copy both buffer sizes from the
+original BIO object to the new one.
+.Pp
+.Xr BIO_ctrl 3
+.Fa cmd
+arguments correspond to macros as follows:
+.Bl -column BIO_C_GET_BUFF_NUM_LINES BIO_get_buffer_num_lines() -offset 3n
+.It Fa cmd No constant          Ta corresponding macro
+.It Dv BIO_C_GET_BUFF_NUM_LINES Ta Fn BIO_get_buffer_num_lines
+.It Dv BIO_C_SET_BUFF_READ_DATA Ta Fn BIO_set_buffer_read_data
+.It Dv BIO_C_SET_BUFF_SIZE      Ta Fn BIO_set_buffer_size
+.It Dv BIO_CTRL_FLUSH           Ta Xr BIO_flush 3
+.It Dv BIO_CTRL_PENDING         Ta Xr BIO_pending 3
+.It Dv BIO_CTRL_RESET           Ta Xr BIO_reset 3
+.It Dv BIO_CTRL_WPENDING        Ta Xr BIO_wpending 3
+.El
+.Pp
+The
+.Fa cmd
+constant
+.Dv BIO_C_SET_BUFF_SIZE
+is special.
+It is also used for
+.Xr BIO_int_ctrl 3
+with the following
+.Fa iarg
+arguments:
+.Bl -column BIO_C_SET_BUFF_SIZE iarg BIO_set_write_buffer_size() -offset 3n
+.It Fa cmd No constant     Ta Fa iarg Ta corresponding macro
+.It Dv BIO_C_SET_BUFF_SIZE Ta 0       Ta Fn BIO_set_read_buffer_size
+.It                        Ta 1       Ta Fn BIO_set_write_buffer_size
+.El
+.Sh RETURN VALUES
+.Fn BIO_f_buffer
+returns the buffering BIO method.
+.Pp
+When called on a buffering BIO object,
+.Xr BIO_method_type 3
+returns the constant
+.Dv BIO_TYPE_BUFFER
+and
+.Xr BIO_method_name 3
+returns a pointer to the static string
+.Qq buffer .
+.Pp
+.Fn BIO_get_buffer_num_lines
+returns the number of lines buffered (may be 0).
+.Pp
+.Fn BIO_set_read_buffer_size ,
+.Fn BIO_set_write_buffer_size ,
+and
+.Fn BIO_set_buffer_size
+return 1 if the buffer was successfully resized or 0 for failure.
+.Pp
+.Fn BIO_set_buffer_read_data
+returns 1 if the data was set correctly or 0 if there was an error.
+.Sh SEE ALSO
+.Xr BIO_ctrl 3 ,
+.Xr BIO_flush 3 ,
+.Xr BIO_new 3 ,
+.Xr BIO_pop 3 ,
+.Xr BIO_reset 3
+.Sh HISTORY
+.Fn BIO_f_buffer
+first appeared in SSLeay 0.6.0.
+.Fn BIO_get_buffer_num_lines
+and
+.Fn BIO_set_buffer_size
+first appeared in SSLeay 0.6.5.
+.Fn BIO_set_read_buffer_size
+and
+.Fn BIO_set_write_buffer_size
+first appeared in SSLeay 0.8.0.
+.Fn BIO_set_buffer_read_data
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .

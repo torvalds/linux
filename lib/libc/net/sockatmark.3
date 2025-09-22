@@ -1,0 +1,122 @@
+.\" Copyright (c) 2002 William C. Fenner.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" From FreeBSD: r108087 2002-12-19 01:40:28 -0800
+.\" $OpenBSD: sockatmark.3,v 1.2 2019/06/20 14:19:25 deraadt Exp $
+.\"
+.Dd $Mdocdate: June 20 2019 $
+.Dt SOCKATMARK 3
+.Os
+.Sh NAME
+.Nm sockatmark
+.Nd determine whether the read pointer is at the out-of-band data mark
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn sockatmark "int s"
+.Sh DESCRIPTION
+The
+.Fn sockatmark
+function returns 1 if the read pointer for the socket
+.Fa s
+is currently at the out-of-band data mark.
+Otherwise, it returns 0 if the socket doesn't have an out-of-band
+data mark or if there is normal data to be received before the mark.
+.Sh RETURN VALUES
+Upon successful completion, the
+.Fn sockatmark
+function returns the value 1 if the read pointer is pointing at
+the out-of-band data mark, 0 if it is not.
+Otherwise the value \-1 is returned
+and the global variable
+.Va errno
+is set to
+indicate the error.
+.Sh EXAMPLES
+The routine used in the historical remote login process to flush
+output on receipt of an interrupt or quit signal is shown below.
+It reads the normal data up to the mark (to discard it),
+then reads the out-of-band byte.
+.Bd -literal -offset indent
+#include <sys/socket.h>
+\&...
+oob()
+{
+	int mark;
+	char waste[BUFSIZ];
+
+	for (;;) {
+		if ((mark = sockatmark(rem)) == -1) {
+			perror("sockatmark");
+			break;
+		}
+		if (mark)
+			break;
+		(void) read(rem, waste, sizeof (waste));
+	}
+	if (recv(rem, &mark, 1, MSG_OOB) == -1) {
+		perror("recv");
+		...
+	}
+	...
+}
+.Ed
+.Sh ERRORS
+The
+.Fn sockatmark
+call fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+.Fa s
+is not a valid descriptor.
+.It Bq Er ENOTTY
+.Fa s
+is valid but does not refer to a socket.
+.El
+.Sh SEE ALSO
+.Xr recv 2 ,
+.Xr send 2
+.Sh STANDARDS
+The
+.Fn sockatmark
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn sockatmark
+function was introduced by
+.St -p1003.1-2001
+to standardize the historical
+.Dv SIOCATMARK
+.Xr ioctl 2 .
+The
+.Fn sockatmark
+function appeared in
+.Ox 5.7 .
+.Pp
+The
+.Er ENOTTY
+error is returned instead of the usual
+.Er ENOTSOCK
+error to match the historical behavior of
+.Dv SIOCATMARK .

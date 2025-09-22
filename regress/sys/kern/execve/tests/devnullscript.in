@@ -1,0 +1,5 @@
+#! /dev/null
+#	$OpenBSD: devnullscript.in,v 1.2 2001/01/29 02:05:56 niklas Exp $
+
+
+echo succeeded

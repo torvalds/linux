@@ -1,0 +1,41 @@
+.\"	$OpenBSD: xlights.4,v 1.4 2022/03/31 17:27:22 naddy Exp $
+.\"
+.\" Copyright (c) 2007 Gordon Willem Klok <gwk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt XLIGHTS 4 macppc
+.Os
+.Sh NAME
+.Nm xlights
+.Nd Xserve G4 and G5 front panel LEDs
+.Sh SYNOPSIS
+.Cd "xlights* at macobio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the on-board i2s virtual sound device
+that drives the front panel LEDs of Apple G4 and G5 Xserve machines.
+.Pp
+The lights provide an indication of system load and health.
+System load is indicated by three dots travelling in a ring around the sixteen
+LEDs found on the front panel.
+When the system is lightly loaded, these dots travel quickly and slow down
+as system load increases.
+System health is indicated by the absence of the dots which
+means a hung machine or one that is in
+.Xr ddb 4 .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr macobio 4

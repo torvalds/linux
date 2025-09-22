@@ -1,0 +1,32 @@
+README unbound tests
+
+For a quick test that runs unit tests and state machine tests, use
+	make test
+
+There is a long test setup for unbound that needs tools installed. Use
+	make longtest
+To make and run the long tests. The results are summarized at the end.
+
+You need to have the following programs installed and in your PATH.
+* dig - from the bind-tools package. Used to send DNS queries.
+* splint (optional) - for lint test
+* doxygen (optional) - for doc completeness test
+* ldns-testns - from ldns examples. Used as DNS auth server.
+* xxd and nc (optional) - for (malformed) packet transmission.
+The optional programs are detected and can be omitted.
+
+You can also use prepared Dockerfile to run tests inside docker based on latest gcc image:
+* build container: docker build -t unbound-tester -f contrib/Dockerfile.tests .
+* run container: docker run -it --mount type=bind,source="$(pwd)",target=/usr/src/unbound --rm unbound-tester
+* configure environment: ./configure
+* run test: make test
+* run long tests: make longtest
+It is worth to mention that you need to enable [ipv6 in your docker daemon configuration](https://docs.docker.com/config/daemon/ipv6/) because some tests need ipv6 network stack.
+
+testdata/ contains the data for tests. 
+testcode/ contains scripts and c code for the tests.
+
+do-tests.sh : runs all the tests in the testdata directory.
+testbed.sh : compiles on a set of (user specific) hosts and runs do-tests.
+
+Tests are run using testcode/mini_tpkg.sh.

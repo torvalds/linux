@@ -1,0 +1,74 @@
+.\" $OpenBSD: wsconsctl.conf.5,v 1.7 2020/02/10 13:18:20 schwarze Exp $
+.\"
+.\" Copyright (c) 2001 Brian J. Kifiak <bk@rt.fm>
+.\" All rights reserved.
+.\"
+.\" Based on sysctl.conf.5 found in OpenBSD 2.3+:
+.\" Copyright (c) 1998 Todd C. Miller <millert@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 10 2020 $
+.Dt WSCONSCTL.CONF 5
+.Os
+.Sh NAME
+.Nm wsconsctl.conf
+.Nd wsconsctl variables to set at system startup
+.Sh DESCRIPTION
+.Nm
+contains a list of
+.Xr wsconsctl 8
+variable assignments that is read at system startup by
+.Xr rc 8
+during the boot sequence.
+.Pp
+The file is made up of
+.Xr wsconsctl 8
+variable assignments
+.Pq Ar variable Ns = Ns Ar value
+with comments designated by a hash mark
+.Pq Sq # .
+.Sh FILES
+.Bl -tag -width /etc/examples/wsconsctl.conf -compact
+.It Pa /etc/wsconsctl.conf
+.It Pa /etc/examples/wsconsctl.conf
+.El
+.Sh EXAMPLES
+To load a Russian keyboard encoding, one would use the following line:
+.Bd -literal -offset indent
+keyboard.encoding=ru
+.Ed
+.Pp
+To set the screen burner timeout to 60 seconds, the following can be used:
+.Bd -literal -offset indent
+display.screen_off=60000
+.Ed
+.Sh SEE ALSO
+.Xr rc 8 ,
+.Xr wsconsctl 8
+.Sh HISTORY
+A
+.Nm
+file first appeared in
+.Ox 3.0 .

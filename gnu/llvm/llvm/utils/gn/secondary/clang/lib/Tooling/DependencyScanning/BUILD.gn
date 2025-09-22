@@ -1,0 +1,27 @@
+static_library("DependencyScanning") {
+  output_name = "clangToolingDependencyScanning"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/CodeGen",
+    "//clang/lib/Driver",
+    "//clang/lib/Frontend",
+    "//clang/lib/FrontendTool",
+    "//clang/lib/Lex",
+    "//clang/lib/Parse",
+    "//clang/lib/Serialization",
+    "//clang/lib/Tooling",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "DependencyScanningFilesystem.cpp",
+    "DependencyScanningService.cpp",
+    "DependencyScanningTool.cpp",
+    "DependencyScanningWorker.cpp",
+    "ModuleDepCollector.cpp",
+  ]
+}

@@ -1,0 +1,76 @@
+.\"	$OpenBSD: yppush.8,v 1.18 2015/11/30 17:03:06 jmc Exp $
+.\"
+.\" Copyright (c) 1995 Mats O Jansson <moj@stacken.kth.se>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 30 2015 $
+.Dt YPPUSH 8
+.Os
+.Sh NAME
+.Nm yppush
+.Nd force distribution of one YP map
+.Sh SYNOPSIS
+.Nm yppush
+.Op Fl v
+.Op Fl d Ar domainname
+.Op Fl h Ar hostname
+.\" .Op Fl p Ar paralleljobs
+.\" .Op Fl t Ar timeout
+.Ar mapname
+.Sh DESCRIPTION
+The
+.Nm
+utility distributes one YP map from the master server to all
+slave servers in the domain.
+All servers of the domain are fetched from the YP map
+.Pa ypservers .
+Before starting distribution, the master server is told to reread its
+Berkeley DB map files from disk.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d Ar domainname
+Don't use the default domain, use the specified domain.
+.It Fl h Ar hostname
+Distribute the map only to one host and not to the hosts in the
+.Pa ypservers
+map.
+.\" .It Fl p Ar paralleljobs
+.\"Set the number of parallel transfers.
+.\".It Fl t Ar timeout
+.\"Set the amount of time to elapse before a timeout is registered.
+.It Fl v
+Verbose.
+Announce what the program is doing.
+.El
+.Sh SEE ALSO
+.Xr dbopen 3 ,
+.Xr Makefile.yp 8 ,
+.Xr yp 8 ,
+.Xr ypserv 8
+.Sh AUTHORS
+.An Mats O Jansson Aq Mt moj@stacken.kth.se
+.Sh BUGS
+The map is also pushed from the master server to itself,
+which has no effect other than slowing down operation.

@@ -1,0 +1,1104 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* apply the noreturn attribute to a function that exits the program */
+#undef ATTR_NORETURN
+
+/* apply the weak attribute to a symbol */
+#undef ATTR_WEAK
+
+/* Define this to enable BIND8 like NSTATS & XSTATS. */
+#undef BIND8_STATS
+
+/* NSD default chroot directory */
+#undef CHROOTDIR
+
+/* Command line arguments used with configure */
+#undef CONFCMDLINE
+
+/* NSD config dir */
+#undef CONFIGDIR
+
+/* Pathname to the NSD configuration file */
+#undef CONFIGFILE
+
+/* Pathname to the NSD cookies secrets file. */
+#undef COOKIESECRETSFILE
+
+/* number of arguments for CPU_OR is three */
+#undef CPU_OR_THREE_ARGS
+
+/* Define this if on macOSX10.4-darwin8 and setreuid and setregid do not work
+   */
+#undef DARWIN_BROKEN_SETREUID
+
+/* Whether ERR_load_SSL_strings is deprecated */
+#undef DEPRECATED_ERR_LOAD_SSL_STRINGS
+
+/* Whether SHA1_Init is deprecated */
+#undef DEPRECATED_SHA1_INIT
+
+/* default dnstap socket path */
+#undef DNSTAP_SOCKET_PATH
+
+/* Define to the default maximum message length with EDNS. */
+#undef EDNS_MAX_MESSAGE_LEN
+
+/* Define to the default facility for syslog. */
+#undef FACILITY
+
+/* Define to 1 if you have the 'accept4' function. */
+#undef HAVE_ACCEPT4
+
+/* Define to 1 if you have the 'alarm' function. */
+#undef HAVE_ALARM
+
+/* Define to 1 if you have the 'arc4random' function. */
+#undef HAVE_ARC4RANDOM
+
+/* Define to 1 if you have the 'arc4random_uniform' function. */
+#undef HAVE_ARC4RANDOM_UNIFORM
+
+/* Define to 1 if you have the <arpa/inet.h> header file. */
+#undef HAVE_ARPA_INET_H
+
+/* Define to 1 if you have the 'ASN1_STRING_get0_data' function. */
+#undef HAVE_ASN1_STRING_GET0_DATA
+
+/* Whether the C compiler accepts the "format" attribute */
+#undef HAVE_ATTR_FORMAT
+
+/* Whether the C compiler accepts the "noreturn" attribute */
+#undef HAVE_ATTR_NORETURN
+
+/* Whether the C compiler accepts the "unused" attribute */
+#undef HAVE_ATTR_UNUSED
+
+/* Whether the C compiler accepts the "weak" attribute */
+#undef HAVE_ATTR_WEAK
+
+/* Define to 1 if you have the 'b64_ntop' function. */
+#undef HAVE_B64_NTOP
+
+/* Define to 1 if you have the 'b64_pton' function. */
+#undef HAVE_B64_PTON
+
+/* Define to 1 if you have the 'basename' function. */
+#undef HAVE_BASENAME
+
+/* Define to 1 if your system has a working 'chown' function. */
+#undef HAVE_CHOWN
+
+/* Define to 1 if you have the 'chroot' function. */
+#undef HAVE_CHROOT
+
+/* Define to 1 if you have the 'clock_gettime' function. */
+#undef HAVE_CLOCK_GETTIME
+
+/* Define to 1 if the system has the type 'cpuid_t'. */
+#undef HAVE_CPUID_T
+
+/* Define to 1 if the system has the type 'cpuset_t'. */
+#undef HAVE_CPUSET_T
+
+/* Define to 1 if the system has the type 'cpu_set_t'. */
+#undef HAVE_CPU_SET_T
+
+/* Define to 1 if you have the 'CRYPTO_memcmp' function. */
+#undef HAVE_CRYPTO_MEMCMP
+
+/* if time.h provides ctime_r prototype */
+#undef HAVE_CTIME_R_PROTO
+
+/* Define to 1 if you have the declaration of 'reallocarray', and to 0 if you
+   don't. */
+#undef HAVE_DECL_REALLOCARRAY
+
+/* Define to 1 if you have the declaration of 'SSL_CTX_set_ecdh_auto', and to
+   0 if you don't. */
+#undef HAVE_DECL_SSL_CTX_SET_ECDH_AUTO
+
+/* Define to 1 if you have the declaration of 'SSL_CTX_set_tmp_ecdh', and to 0
+   if you don't. */
+#undef HAVE_DECL_SSL_CTX_SET_TMP_ECDH
+
+/* Define to 1 if you have the 'dup2' function. */
+#undef HAVE_DUP2
+
+/* Define to 1 if you have the 'EC_KEY_new_by_curve_name' function. */
+#undef HAVE_EC_KEY_NEW_BY_CURVE_NAME
+
+/* Define to 1 if you have the <endian.h> header file. */
+#undef HAVE_ENDIAN_H
+
+/* Define to 1 if you have the 'endpwent' function. */
+#undef HAVE_ENDPWENT
+
+/* Define to 1 if you have the 'ERR_load_crypto_strings' function. */
+#undef HAVE_ERR_LOAD_CRYPTO_STRINGS
+
+/* Define to 1 if you have the 'ERR_load_SSL_strings' function. */
+#undef HAVE_ERR_LOAD_SSL_STRINGS
+
+/* Define to 1 if you have the 'event_base_free' function. */
+#undef HAVE_EVENT_BASE_FREE
+
+/* Define to 1 if you have the 'event_base_get_method' function. */
+#undef HAVE_EVENT_BASE_GET_METHOD
+
+/* Define to 1 if you have the 'event_base_new' function. */
+#undef HAVE_EVENT_BASE_NEW
+
+/* Define to 1 if you have the 'event_base_once' function. */
+#undef HAVE_EVENT_BASE_ONCE
+
+/* Define to 1 if you have the <event.h> header file. */
+#undef HAVE_EVENT_H
+
+/* Define to 1 if you have the 'evhttp_free' function. */
+#undef HAVE_EVHTTP_FREE
+
+/* Define to 1 if you have the 'EVP_cleanup' function. */
+#undef HAVE_EVP_CLEANUP
+
+/* Define to 1 if you have the 'EVP_MAC_CTX_get_mac_size' function. */
+#undef HAVE_EVP_MAC_CTX_GET_MAC_SIZE
+
+/* Define to 1 if you have the 'EVP_MAC_CTX_new' function. */
+#undef HAVE_EVP_MAC_CTX_NEW
+
+/* Define to 1 if you have the 'EVP_MAC_CTX_set_params' function. */
+#undef HAVE_EVP_MAC_CTX_SET_PARAMS
+
+/* Define to 1 if you have the 'EVP_PKEY_get0_type_name' function. */
+#undef HAVE_EVP_PKEY_GET0_TYPE_NAME
+
+/* Define to 1 if you have the 'ev_default_loop' function. */
+#undef HAVE_EV_DEFAULT_LOOP
+
+/* Define to 1 if you have the 'ev_loop' function. */
+#undef HAVE_EV_LOOP
+
+/* Define to 1 if you have the 'explicit_bzero' function. */
+#undef HAVE_EXPLICIT_BZERO
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#undef HAVE_FCNTL_H
+
+/* Define to 1 if you have the 'fork' function. */
+#undef HAVE_FORK
+
+/* Define to 1 if you have the 'freeaddrinfo' function. */
+#undef HAVE_FREEADDRINFO
+
+/* Define to 1 if fseeko (and ftello) are declared in stdio.h. */
+#undef HAVE_FSEEKO
+
+/* Define to 1 if you have the 'gai_strerror' function. */
+#undef HAVE_GAI_STRERROR
+
+/* Define to 1 if you have the 'getaddrinfo' function. */
+#undef HAVE_GETADDRINFO
+
+/* Define to 1 if you have the 'gethostname' function. */
+#undef HAVE_GETHOSTNAME
+
+/* Define to 1 if you have the 'getifaddrs' function. */
+#undef HAVE_GETIFADDRS
+
+/* Define to 1 if you have the 'getnameinfo' function. */
+#undef HAVE_GETNAMEINFO
+
+/* Define to 1 if you have the 'getpwnam' function. */
+#undef HAVE_GETPWNAM
+
+/* Define to 1 if you have the 'getrandom' function. */
+#undef HAVE_GETRANDOM
+
+/* Define to 1 if you have the 'glob' function. */
+#undef HAVE_GLOB
+
+/* Define to 1 if you have the <glob.h> header file. */
+#undef HAVE_GLOB_H
+
+/* Define to 1 if you have the <grp.h> header file. */
+#undef HAVE_GRP_H
+
+/* Define to 1 if you have the 'HMAC_CTX_new' function. */
+#undef HAVE_HMAC_CTX_NEW
+
+/* Define to 1 if you have the 'HMAC_CTX_reset' function. */
+#undef HAVE_HMAC_CTX_RESET
+
+/* Define to 1 if you have the <ifaddrs.h> header file. */
+#undef HAVE_IFADDRS_H
+
+/* Define to 1 if you have the 'inet_aton' function. */
+#undef HAVE_INET_ATON
+
+/* Define to 1 if you have the 'inet_ntop' function. */
+#undef HAVE_INET_NTOP
+
+/* Define to 1 if you have the 'inet_pton' function. */
+#undef HAVE_INET_PTON
+
+/* Define to 1 if you have the 'initgroups' function. */
+#undef HAVE_INITGROUPS
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the 'crypto' library (-lcrypto). */
+#undef HAVE_LIBCRYPTO
+
+/* Define to 1 if you have the <limits.h> header file. */
+#undef HAVE_LIMITS_H
+
+/* Define to 1 if you have the 'localtime_r' function. */
+#undef HAVE_LOCALTIME_R
+
+/* Define to 1 if you have the <login_cap.h> header file. */
+#undef HAVE_LOGIN_CAP_H
+
+/* Define to 1 if your system has a GNU libc compatible 'malloc' function, and
+   to 0 otherwise. */
+#undef HAVE_MALLOC
+
+/* Define to 1 if you have the 'memcpy' function. */
+#undef HAVE_MEMCPY
+
+/* Define to 1 if you have the 'memmove' function. */
+#undef HAVE_MEMMOVE
+
+/* Define to 1 if you have the 'memset' function. */
+#undef HAVE_MEMSET
+
+/* Define to 1 if you have the <minix/config.h> header file. */
+#undef HAVE_MINIX_CONFIG_H
+
+/* Define to 1 if you have the 'mmap' function. */
+#undef HAVE_MMAP
+
+/* If sys/socket.h has a struct mmsghdr. */
+#undef HAVE_MMSGHDR
+
+/* Define to 1 if you have the 'munmap' function. */
+#undef HAVE_MUNMAP
+
+/* Define to 1 if you have the <netdb.h> header file. */
+#undef HAVE_NETDB_H
+
+/* Define to 1 if you have the <netinet/in.h> header file. */
+#undef HAVE_NETINET_IN_H
+
+/* Define to 1 if you have the <netinet/tcp.h> header file. */
+#undef HAVE_NETINET_TCP_H
+
+/* Define to 1 if you have the <openssl/core_names.h> header file. */
+#undef HAVE_OPENSSL_CORE_NAMES_H
+
+/* Define to 1 if you have the <openssl/err.h> header file. */
+#undef HAVE_OPENSSL_ERR_H
+
+/* Define to 1 if you have the 'OPENSSL_init_crypto' function. */
+#undef HAVE_OPENSSL_INIT_CRYPTO
+
+/* Define to 1 if you have the 'OPENSSL_init_ssl' function. */
+#undef HAVE_OPENSSL_INIT_SSL
+
+/* Define to 1 if you have the <openssl/ocsp.h> header file. */
+#undef HAVE_OPENSSL_OCSP_H
+
+/* Define to 1 if you have the <openssl/rand.h> header file. */
+#undef HAVE_OPENSSL_RAND_H
+
+/* Define to 1 if you have the <openssl/ssl.h> header file. */
+#undef HAVE_OPENSSL_SSL_H
+
+/* Define to 1 if you have the <openssl/x509v3.h> header file. */
+#undef HAVE_OPENSSL_X509V3_H
+
+/* Define to 1 if you have the 'ppoll' function. */
+#undef HAVE_PPOLL
+
+/* Define to 1 if you have the 'pselect' function. */
+#undef HAVE_PSELECT
+
+/* if sys/select.h provides pselect prototype */
+#undef HAVE_PSELECT_PROTO
+
+/* Define to 1 if you have the 'pwrite' function. */
+#undef HAVE_PWRITE
+
+/* If we have reallocarray(3) */
+#undef HAVE_REALLOCARRAY
+
+/* Define if recvmmsg is implemented */
+#undef HAVE_RECVMMSG
+
+/* Define to 1 if you have the <sched.h> header file. */
+#undef HAVE_SCHED_H
+
+/* Define this if sched_setaffinity is available */
+#undef HAVE_SCHED_SETAFFINITY
+
+/* Define if sendmmsg is implemented */
+#undef HAVE_SENDMMSG
+
+/* Define to 1 if you have the 'setproctitle' function. */
+#undef HAVE_SETPROCTITLE
+
+/* Define to 1 if you have the 'setregid' function. */
+#undef HAVE_SETREGID
+
+/* Define to 1 if you have the 'setresgid' function. */
+#undef HAVE_SETRESGID
+
+/* Define to 1 if you have the 'setresuid' function. */
+#undef HAVE_SETRESUID
+
+/* Define to 1 if you have the 'setreuid' function. */
+#undef HAVE_SETREUID
+
+/* Define to 1 if you have the 'setusercontext' function. */
+#undef HAVE_SETUSERCONTEXT
+
+/* Define to 1 if you have the 'SHA1_Init' function. */
+#undef HAVE_SHA1_INIT
+
+/* Define to 1 if you have the 'sigaction' function. */
+#undef HAVE_SIGACTION
+
+/* Define to 1 if you have the <signal.h> header file. */
+#undef HAVE_SIGNAL_H
+
+/* Define to 1 if you have the 'sigprocmask' function. */
+#undef HAVE_SIGPROCMASK
+
+/* Define to 1 if you have the 'snprintf' function. */
+#undef HAVE_SNPRINTF
+
+/* Define to 1 if you have the 'socket' function. */
+#undef HAVE_SOCKET
+
+/* Define if you have the SSL libraries installed. */
+#undef HAVE_SSL
+
+/* Define to 1 if you have the 'SSL_CTX_set_security_level' function. */
+#undef HAVE_SSL_CTX_SET_SECURITY_LEVEL
+
+/* Define to 1 if you have the 'SSL_get1_peer_certificate' function. */
+#undef HAVE_SSL_GET1_PEER_CERTIFICATE
+
+/* Define to 1 if you have the <stdarg.h> header file. */
+#undef HAVE_STDARG_H
+
+/* Define to 1 if you have the <stddef.h> header file. */
+#undef HAVE_STDDEF_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the 'strcasecmp' function. */
+#undef HAVE_STRCASECMP
+
+/* Define to 1 if you have the 'strchr' function. */
+#undef HAVE_STRCHR
+
+/* Define to 1 if you have the 'strdup' function. */
+#undef HAVE_STRDUP
+
+/* Define to 1 if you have the 'strerror' function. */
+#undef HAVE_STRERROR
+
+/* Define to 1 if you have the 'strftime' function. */
+#undef HAVE_STRFTIME
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the 'strlcat' function. */
+#undef HAVE_STRLCAT
+
+/* Define to 1 if you have the 'strlcpy' function. */
+#undef HAVE_STRLCPY
+
+/* Define to 1 if you have the 'strncasecmp' function. */
+#undef HAVE_STRNCASECMP
+
+/* Define to 1 if you have the 'strptime' function. */
+#undef HAVE_STRPTIME
+
+/* Define to 1 if you have the 'strtol' function. */
+#undef HAVE_STRTOL
+
+/* Define to 1 if 'sun_len' is a member of 'struct sockaddr_un'. */
+#undef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
+
+/* Define to 1 if 'st_mtimensec' is a member of 'struct stat'. */
+#undef HAVE_STRUCT_STAT_ST_MTIMENSEC
+
+/* Define to 1 if 'st_mtim.tv_nsec' is a member of 'struct stat'. */
+#undef HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
+
+/* If time.h has a struct timespec (for pselect). */
+#undef HAVE_STRUCT_TIMESPEC
+
+/* Define to 1 if you have the 'sysconf' function. */
+#undef HAVE_SYSCONF
+
+/* Define to 1 if you have the <syslog.h> header file. */
+#undef HAVE_SYSLOG_H
+
+/* Define to 1 if systemd should be used */
+#undef HAVE_SYSTEMD
+
+/* Define to 1 if you have the <sys/bitypes.h> header file. */
+#undef HAVE_SYS_BITYPES_H
+
+/* Define to 1 if you have the <sys/cpuset.h> header file. */
+#undef HAVE_SYS_CPUSET_H
+
+/* Define to 1 if you have the <sys/mman.h> header file. */
+#undef HAVE_SYS_MMAN_H
+
+/* Define to 1 if you have the <sys/param.h> header file. */
+#undef HAVE_SYS_PARAM_H
+
+/* Define to 1 if you have the <sys/random.h> header file. */
+#undef HAVE_SYS_RANDOM_H
+
+/* Define to 1 if you have the <sys/select.h> header file. */
+#undef HAVE_SYS_SELECT_H
+
+/* Define to 1 if you have the <sys/socket.h> header file. */
+#undef HAVE_SYS_SOCKET_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <sys/un.h> header file. */
+#undef HAVE_SYS_UN_H
+
+/* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
+#undef HAVE_SYS_WAIT_H
+
+/* Define to 1 if you have the <tcpd.h> header file. */
+#undef HAVE_TCPD_H
+
+/* Define to 1 if you have the <time.h> header file. */
+#undef HAVE_TIME_H
+
+/* Define if TLS 1.3 is supported by OpenSSL */
+#undef HAVE_TLS_1_3
+
+/* Define to 1 if you have the 'tzset' function. */
+#undef HAVE_TZSET
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define this if you have double va_list definitions. */
+#undef HAVE_VA_LIST_DOUBLE_DEF
+
+/* Define to 1 if you have the 'vfork' function. */
+#undef HAVE_VFORK
+
+/* Define to 1 if you have the <vfork.h> header file. */
+#undef HAVE_VFORK_H
+
+/* Define to 1 if you have the <wchar.h> header file. */
+#undef HAVE_WCHAR_H
+
+/* Define to 1 if 'fork' works. */
+#undef HAVE_WORKING_FORK
+
+/* Define to 1 if 'vfork' works. */
+#undef HAVE_WORKING_VFORK
+
+/* Define to 1 if you have the 'writev' function. */
+#undef HAVE_WRITEV
+
+/* Define to the default nsd identity. */
+#undef IDENTITY
+
+/* Define this to enable IPv6 support. */
+#undef INET6
+
+/* If flex defines yy_current_buffer as a macro */
+#undef LEX_DEFINES_YY_CURRENT_BUFFER
+
+/* Define to the maximum message length to pass to syslog. */
+#undef MAXSYSLOGMSGLEN
+
+/* Define this to cleanup memory at exit (eg. for valgrind, etc.) */
+#undef MEMCLEAN
+
+/* Define if memcmp() does not compare unsigned bytes */
+#undef MEMCMP_IS_BROKEN
+
+/* Define this to enable response minimalization to reduce truncation. */
+#undef MINIMAL_RESPONSES
+
+/* Define if mkdir has one argument. */
+#undef MKDIR_HAS_ONE_ARG
+
+/* Undefine this to enable internal runtime checks. */
+#undef NDEBUG
+
+/* Define if the network stack does not fully support nonblocking io (causes
+   lower performance). */
+#undef NONBLOCKING_IS_BROKEN
+
+/* Define to the default nsd-control port. */
+#undef NSD_CONTROL_PORT
+
+/* Define to nsd-control proto version. */
+#undef NSD_CONTROL_VERSION
+
+/* Define the default metrics HTTP endpoint port. */
+#undef NSD_METRICS_PORT
+
+/* Pathname to start nsd from nsd-control */
+#undef NSD_START_PATH
+
+/* Define this to enable NSEC3 support. */
+#undef NSEC3
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define this to use packed structure alignment. */
+#undef PACKED_STRUCTS
+
+/* Pathname to the NSD pidfile */
+#undef PIDFILE
+
+/* Define this to enable rate limiting. */
+#undef RATELIMIT
+
+/* Define this to set ratelimit to off by default. */
+#undef RATELIMIT_DEFAULT_OFF
+
+/* If reallocarray needs defines to appear in the headers */
+#undef REALLOCARRAY_NEEDS_DEFINES
+
+/* Return type of signal handlers, but autoconf 2.70 says 'your code may
+   safely assume C89 semantics that RETSIGTYPE is void.' */
+#undef RETSIGTYPE
+
+/* NSD shared files dir */
+#undef SHAREDFILESDIR
+
+/* The size of 'off_t', as computed by sizeof. */
+#undef SIZEOF_OFF_T
+
+/* The size of 'void*', as computed by sizeof. */
+#undef SIZEOF_VOIDP
+
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
+#undef STDC_HEADERS
+
+/* strptime is available from time.h with some defines. */
+#undef STRPTIME_NEEDS_DEFINES
+
+/* use default strptime. */
+#undef STRPTIME_WORKS
+
+/* Define to the backlog to be used with listen. */
+#undef TCP_BACKLOG
+
+/* Define to the default maximum message length. */
+#undef TCP_MAX_MESSAGE_LEN
+
+/* Define to the default tcp port. */
+#undef TCP_PORT
+
+/* Define to the default tcp timeout. */
+#undef TCP_TIMEOUT
+
+/* Define to the default DNS over TLS port. */
+#undef TLS_PORT
+
+/* Define to the default maximum udp message length. */
+#undef UDP_MAX_MESSAGE_LEN
+
+/* Define to the default udp port. */
+#undef UDP_PORT
+
+/* the user name to drop privileges to */
+#undef USER
+
+/* Define to 1 to enable dnstap support */
+#undef USE_DNSTAP
+
+/* Define this to show the role of processes in the logfile for debugging
+   purposes. */
+#undef USE_LOG_PROCESS_ROLE
+
+/* Define this to expose NSD statistics via a prometheus metrics HTTP
+   endpoint. */
+#undef USE_METRICS
+
+/* Define if you want to use internal select based events */
+#undef USE_MINI_EVENT
+
+/* Define this to enable mmap instead of malloc. Experimental. */
+#undef USE_MMAP_ALLOC
+
+/* Define this to configure to use the radix tree. */
+#undef USE_RADIX_TREE
+
+/* Enable extensions on AIX, Interix, z/OS.  */
+#ifndef _ALL_SOURCE
+# undef _ALL_SOURCE
+#endif
+/* Enable general extensions on macOS.  */
+#ifndef _DARWIN_C_SOURCE
+# undef _DARWIN_C_SOURCE
+#endif
+/* Enable general extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# undef __EXTENSIONS__
+#endif
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# undef _GNU_SOURCE
+#endif
+/* Enable X/Open compliant socket functions that do not require linking
+   with -lxnet on HP-UX 11.11.  */
+#ifndef _HPUX_ALT_XOPEN_SOCKET_API
+# undef _HPUX_ALT_XOPEN_SOCKET_API
+#endif
+/* Identify the host operating system as Minix.
+   This macro does not affect the system headers' behavior.
+   A future release of Autoconf may stop defining this macro.  */
+#ifndef _MINIX
+# undef _MINIX
+#endif
+/* Enable general extensions on NetBSD.
+   Enable NetBSD compatibility extensions on Minix.  */
+#ifndef _NETBSD_SOURCE
+# undef _NETBSD_SOURCE
+#endif
+/* Enable OpenBSD compatibility extensions on NetBSD.
+   Oddly enough, this does nothing on OpenBSD.  */
+#ifndef _OPENBSD_SOURCE
+# undef _OPENBSD_SOURCE
+#endif
+/* Define to 1 if needed for POSIX-compatible behavior.  */
+#ifndef _POSIX_SOURCE
+# undef _POSIX_SOURCE
+#endif
+/* Define to 2 if needed for POSIX-compatible behavior.  */
+#ifndef _POSIX_1_SOURCE
+# undef _POSIX_1_SOURCE
+#endif
+/* Enable POSIX-compatible threading on Solaris.  */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# undef _POSIX_PTHREAD_SEMANTICS
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-5:2014.  */
+#ifndef __STDC_WANT_IEC_60559_ATTRIBS_EXT__
+# undef __STDC_WANT_IEC_60559_ATTRIBS_EXT__
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-1:2014.  */
+#ifndef __STDC_WANT_IEC_60559_BFP_EXT__
+# undef __STDC_WANT_IEC_60559_BFP_EXT__
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-2:2015.  */
+#ifndef __STDC_WANT_IEC_60559_DFP_EXT__
+# undef __STDC_WANT_IEC_60559_DFP_EXT__
+#endif
+/* Enable extensions specified by C23 Annex F.  */
+#ifndef __STDC_WANT_IEC_60559_EXT__
+# undef __STDC_WANT_IEC_60559_EXT__
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-4:2015.  */
+#ifndef __STDC_WANT_IEC_60559_FUNCS_EXT__
+# undef __STDC_WANT_IEC_60559_FUNCS_EXT__
+#endif
+/* Enable extensions specified by C23 Annex H and ISO/IEC TS 18661-3:2015.  */
+#ifndef __STDC_WANT_IEC_60559_TYPES_EXT__
+# undef __STDC_WANT_IEC_60559_TYPES_EXT__
+#endif
+/* Enable extensions specified by ISO/IEC TR 24731-2:2010.  */
+#ifndef __STDC_WANT_LIB_EXT2__
+# undef __STDC_WANT_LIB_EXT2__
+#endif
+/* Enable extensions specified by ISO/IEC 24747:2009.  */
+#ifndef __STDC_WANT_MATH_SPEC_FUNCS__
+# undef __STDC_WANT_MATH_SPEC_FUNCS__
+#endif
+/* Enable extensions on HP NonStop.  */
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
+#endif
+/* Enable X/Open extensions.  Define to 500 only if necessary
+   to make mbstate_t available.  */
+#ifndef _XOPEN_SOURCE
+# undef _XOPEN_SOURCE
+#endif
+
+
+/* Define this to enable TCP fast open. */
+#undef USE_TCP_FASTOPEN
+
+/* Define this to enable the use of AF_XDP sockets. */
+#undef USE_XDP
+
+/* Define this to enable per-zone statistics gathering. */
+#undef USE_ZONE_STATS
+
+/* Define to the default zone verification udp port. */
+#undef VERIFY_PORT
+
+/* Define to the NSD version to answer version.server query. */
+#undef VERSION
+
+/* Pathname to the NSD xfrd zone timer state file. */
+#undef XFRDFILE
+
+/* Pathname to where the NSD transfer dir is created. */
+#undef XFRDIR
+
+/* Define to 1 if 'lex' declares 'yytext' as a 'char *' by default, not a
+   'char[]'. */
+#undef YYTEXT_POINTER
+
+/* Pathname to the NSD zone list file. */
+#undef ZONELISTFILE
+
+/* NSD default location for zone files. Empty string or NULL to disable. */
+#undef ZONESDIR
+
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
+
+/* Define to 1 if necessary to make fseeko visible. */
+#undef _LARGEFILE_SOURCE
+
+/* Define to 1 on platforms where this makes off_t a 64-bit type. */
+#undef _LARGE_FILES
+
+/* Enable for compile on Minix */
+#undef _NETBSD_SOURCE
+
+/* Number of bits in time_t, on hosts where this is settable. */
+#undef _TIME_BITS
+
+/* Define to 1 on platforms where this makes time_t a 64-bit type. */
+#undef __MINGW_USE_VC2005_COMPAT
+
+/* Define to empty if 'const' does not conform to ANSI C. */
+#undef const
+
+/* Define as 'int' if <sys/types.h> doesn't define. */
+#undef gid_t
+
+/* in_addr_t */
+#undef in_addr_t
+
+/* Define to '__inline__' or '__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
+#undef inline
+#endif
+
+/* Define "int16_t" to "short" if "int16_t" is missing */
+#undef int16_t
+
+/* Define "int32_t" to "int" if "int32_t" is missing */
+#undef int32_t
+
+/* Define "int64_t" to "long long" if "int64_t" is missing */
+#undef int64_t
+
+/* Define "int8_t" to "char" if "int8_t" is missing */
+#undef int8_t
+
+/* Define to rpl_malloc if the replacement function should be used. */
+#undef malloc
+
+/* Define to 'long int' if <sys/types.h> does not define. */
+#undef off_t
+
+/* Define as a signed integer type capable of holding a process identifier. */
+#undef pid_t
+
+/* Define "sig_atomic_t" to "int" if "sig_atomic_t" is missing */
+#undef sig_atomic_t
+
+/* Define as 'unsigned int' if <stddef.h> doesn't define. */
+#undef size_t
+
+/* Define "socklen_t" to "int" if "socklen_t" is missing */
+#undef socklen_t
+
+/* Fallback member name for socket family in struct sockaddr_storage */
+#undef ss_family
+
+/* Define "ssize_t" to "int" if "ssize_t" is missing */
+#undef ssize_t
+
+/* Define "suseconds_t" to "time_t" if "suseconds_t" is missing */
+#undef suseconds_t
+
+/* Define as 'int' if <sys/types.h> doesn't define. */
+#undef uid_t
+
+/* Define "uint16_t" to "unsigned short" if "uint16_t" is missing */
+#undef uint16_t
+
+/* Define "uint32_t" to "unsigned int" if "uint32_t" is missing */
+#undef uint32_t
+
+/* Define "uint64_t" to "unsigned long long" if "uint64_t" is missing */
+#undef uint64_t
+
+/* Define "uint8_t" to "unsigned char" if "uint8_t" is missing */
+#undef uint8_t
+
+/* Define "uintptr_t" to "void*" if "uintptr_t" is missing */
+#undef uintptr_t
+
+/* Define as 'fork' if 'vfork' does not work. */
+#undef vfork
+
+
+/* define before includes as it specifies what standard to use. */
+#if (defined(HAVE_PSELECT) && !defined (HAVE_PSELECT_PROTO)) \
+	|| !defined (HAVE_CTIME_R_PROTO) \
+	|| defined (STRPTIME_NEEDS_DEFINES) || defined(REALLOCARRAY_NEEDS_DEFINES)
+#  ifndef _XOPEN_SOURCE
+#    define _XOPEN_SOURCE 600
+#  endif
+#  ifndef _POSIX_C_SOURCE
+#    define _POSIX_C_SOURCE 200112
+#  endif
+#  ifndef _BSD_SOURCE
+#    define _BSD_SOURCE 1
+#  endif
+#  ifndef _OPENBSD_SOURCE
+#    define _OPENBSD_SOURCE 1
+#  endif
+#  ifndef _DEFAULT_SOURCE
+#    define _DEFAULT_SOURCE 1
+#  endif
+#  ifndef __EXTENSIONS__
+#    define __EXTENSIONS__ 1
+#  endif
+#  ifndef _STDC_C99
+#    define _STDC_C99 1
+#  endif
+#  ifndef _ALL_SOURCE
+#    define _ALL_SOURCE 1
+#  endif
+#endif
+
+
+
+
+/* provide timespec def if not available */
+#ifndef CONFIG_DEFINES
+#define CONFIG_DEFINES
+#ifndef HAVE_STRUCT_TIMESPEC
+#ifndef __timespec_defined
+#define __timespec_defined 1
+	struct timespec {
+		long    tv_sec;         /* seconds */
+		long    tv_nsec;        /* nanoseconds */
+	};
+#endif /* !__timespec_defined */
+#endif /* !HAVE_STRUCT_TIMESPEC */
+#endif /* !CONFIG_DEFINES */
+
+#ifdef PACKED_STRUCTS
+#define ATTR_PACKED __attribute__((packed))
+#else
+#define ATTR_PACKED
+#endif
+
+
+
+#ifdef HAVE_VA_LIST_DOUBLE_DEF
+/* workaround double va_list definition on some platforms */
+#  ifndef _VA_LIST_DEFINED
+#    define _VA_LIST_DEFINED
+#  endif
+#endif
+
+
+
+#include <sys/types.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <string.h>
+
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
+
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+
+#ifdef HAVE_NETINET_TCP_H
+#include <netinet/tcp.h>
+#endif
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
+/* For Tru64 */
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif
+
+
+
+#ifdef HAVE_ATTR_FORMAT
+#define ATTR_FORMAT(archetype, string_index, first_to_check) \
+    __attribute__ ((format (archetype, string_index, first_to_check)))
+#else /* !HAVE_ATTR_FORMAT */
+#define ATTR_FORMAT(archetype, string_index, first_to_check) /* empty */
+#endif /* !HAVE_ATTR_FORMAT */
+#if defined(__cplusplus)
+#define ATTR_UNUSED(x)
+#elif defined(HAVE_ATTR_UNUSED)
+#define ATTR_UNUSED(x)  x __attribute__((unused))
+#else /* !HAVE_ATTR_UNUSED */
+#define ATTR_UNUSED(x)  x
+#endif /* !HAVE_ATTR_UNUSED */
+
+
+
+#ifndef IPV6_MIN_MTU
+#define IPV6_MIN_MTU 1280
+#endif /* IPV6_MIN_MTU */
+
+#ifndef AF_INET6
+#define AF_INET6	28
+#endif /* AF_INET6 */
+
+
+
+/* maximum nesting of included files */
+#define MAXINCLUDES 10
+
+
+
+int __b64_ntop(uint8_t const *src, size_t srclength,
+	     char *target, size_t targsize);
+int __b64_pton(char const *src, uint8_t *target, size_t targsize);
+
+
+
+#ifndef HAVE_FSEEKO
+#define fseeko fseek
+#define ftello ftell
+#endif /* HAVE_FSEEKO */
+#ifndef HAVE_SNPRINTF
+#include <stdarg.h>
+int snprintf (char *str, size_t count, const char *fmt, ...);
+int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
+#endif /* HAVE_SNPRINTF */
+#ifndef HAVE_INET_PTON
+int inet_pton(int af, const char* src, void* dst);
+#endif /* HAVE_INET_PTON */
+#ifndef HAVE_INET_NTOP
+const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+#endif
+#ifndef HAVE_INET_ATON
+int inet_aton(const char *cp, struct in_addr *addr);
+#endif
+#ifndef HAVE_MEMMOVE
+void *memmove(void *dest, const void *src, size_t n);
+#endif
+#ifndef HAVE_EXPLICIT_BZERO
+#define explicit_bzero nsd_explicit_bzero
+void explicit_bzero(void* buf, size_t len);
+#endif
+#ifndef HAVE_STRLCAT
+size_t strlcat(char *dst, const char *src, size_t siz);
+#endif
+#ifndef HAVE_STRLCPY
+size_t strlcpy(char *dst, const char *src, size_t siz);
+#endif
+#ifndef HAVE_REALLOCARRAY
+void* reallocarray(void *ptr, size_t nmemb, size_t size);
+#endif
+#ifndef HAVE_GETADDRINFO
+#include "compat/fake-rfc2553.h"
+#endif
+#ifndef HAVE_STRPTIME
+#define HAVE_STRPTIME 1
+char *strptime(const char *s, const char *format, struct tm *tm);
+#endif
+#ifndef STRPTIME_WORKS
+#define STRPTIME_WORKS 1
+char *nsd_strptime(const char *s, const char *format, struct tm *tm);
+#define strptime(a,b,c) nsd_strptime((a),(b),(c))
+#endif
+#if (HAVE_CPU_SET_T || HAVE_CPUSET_T)
+#include "compat/cpuset.h"
+#endif
+#ifndef HAVE_SETPROCTITLE
+#ifdef __linux__
+#define HAVE_SETPROCTITLE 1
+#include <stdarg.h>
+void setproctitle(const char *fmt, ...);
+#endif
+#endif
+
+
+
+#ifdef MEMCMP_IS_BROKEN
+#include "compat/memcmp.h"
+#define memcmp memcmp_nsd
+int memcmp(const void *x, const void *y, size_t n);
+#endif
+
+
+#ifndef MAXHOSTNAMELEN
+#define MAXHOSTNAMELEN 256
+#endif
+
+

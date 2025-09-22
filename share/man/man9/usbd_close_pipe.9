@@ -1,0 +1,48 @@
+.\" $OpenBSD: usbd_close_pipe.9,v 1.2 2018/09/04 12:46:32 mpi Exp $
+.\"
+.\" Copyright (c) 2015 Sean Levy <attila@stalphonsos.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 4 2018 $
+.Dt USBD_CLOSE_PIPE 9
+.Os
+.Sh NAME
+.Nm usbd_close_pipe , usbd_abort_pipe
+.Nd delete or abort transfers on a USB pipe
+.Sh SYNOPSIS
+.In dev/usb/usb.h
+.In dev/usb/usbdi.h
+.Ft usbd_status
+.Fn usbd_close_pipe "struct usbd_pipe *pipe"
+.Ft void
+.Fn usbd_abort_pipe "struct usbd_pipe *pipe"
+.Sh DESCRIPTION
+The
+.Fn usbd_abort_pipe
+function aborts any transfers queued on
+.Fa pipe .
+.Pp
+The
+.Fn usbd_close_pipe
+function aborts any transfers queued on
+.Fa pipe
+then deletes it.
+.Sh CONTEXT
+.Fn usbd_abort_pipe
+and
+.Fn usbd_close_pipe
+can be called during autoconf or from process context.
+.Sh SEE ALSO
+.Xr usb 4 ,
+.Xr usbd_open_pipe 9

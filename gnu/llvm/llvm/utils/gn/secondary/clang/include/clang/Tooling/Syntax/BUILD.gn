@@ -1,0 +1,9 @@
+import("//clang/utils/TableGen/clang_tablegen.gni")
+
+clang_tablegen("Nodes") {
+  args = [ "-gen-clang-syntax-node-list" ]
+}
+clang_tablegen("NodeClasses") {
+  td_file = "Nodes.td"
+  args = [ "-gen-clang-syntax-node-classes" ]
+}

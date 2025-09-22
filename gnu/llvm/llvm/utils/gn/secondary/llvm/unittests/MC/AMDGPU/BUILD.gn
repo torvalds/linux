@@ -1,0 +1,31 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("AMDGPUMCTests") {
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/AMDGPU:LLVMAMDGPUCodeGen",
+    "//llvm/lib/Target/AMDGPU/Disassembler",
+    "//llvm/lib/Target/AMDGPU/MCTargetDesc",
+    "//llvm/lib/Target/AMDGPU/TargetInfo",
+    "//llvm/lib/TargetParser",
+
+    # SIProgramInfoMCExprs.cpp includes AMDGPUTargetMachine.h, which includes
+    # the generated AMDGPUGenRegisterBank.inc file :/
+    "//llvm/lib/Target/AMDGPU:AMDGPUGenRegisterBank",
+
+    # SIProgramInfoMCExprs.cpp includes AMDGPUTargetMachine.h, which includes
+    # the generated AMDGPUGenSearchableTables.inc file :/
+    "//llvm/lib/Target/AMDGPU/Utils:AMDGPUGenSearchableTables",
+  ]
+
+  # AMDGPUMCTests heavily reaches into lib/Target/AMDGPU internals.
+  include_dirs = [ "//llvm/lib/Target/AMDGPU" ]
+  sources = [
+    "Disassembler.cpp",
+    "DwarfRegMappings.cpp",
+  ]
+}

@@ -1,0 +1,61 @@
+.\"     $OpenBSD: mbr.8,v 1.7 2017/07/06 17:24:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF MIND, USE, DATA OR PROFITS, WHETHER IN
+.\" AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 6 2017 $
+.Dt MBR 8 landisk
+.Os
+.Sh NAME
+.Nm mbr
+.Nd LANDISK-specific Master Boot Record
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm MBR
+program comprises only one sector (512 bytes) and includes
+a partition table, since the disk is located in the 0th sector of the disk.
+Upon receiving control from the system firmware
+.Nm
+will scan the partition table for an active partition and continue
+loading the Primary Boot Record (PBR) from the beginning of the
+partition, if found.
+.Pp
+.Nm
+is installed on the disk by
+.Xr fdisk 8 ,
+which is also used to operate the partition table.
+.Pp
+The partition table consists of four entries, only one of which may be
+marked as
+.Dq active .
+The PBR is loaded from there.
+.Sh DIAGNOSTICS
+A few messages are printed in case of errors:
+.Bl -tag -width "no_active_partitionXX"
+.It "No active partition"
+Indicates that none of the partitions are marked
+.Dq active .
+.It Read error
+An error occurred while fetching the primary boot loader.
+.It "No O/S"
+The partition table is empty.
+.El
+.Sh SEE ALSO
+.Xr boot 8 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr xxboot 8

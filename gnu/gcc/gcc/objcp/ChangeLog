@@ -1,0 +1,124 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-05-13  Release Manager
+
+	* GCC 4.2.0 released.
+
+2006-10-10  Brooks Moses  <bmoses@stanford.edu>
+
+	* Make-lang.in: Added empty "obj-c++.pdf" target.
+
+2006-08-20  Mark Mitchell  <mark@codesourcery.com>
+
+	* objcp-lang.c (objcp_tsubst_copy_and_build): Adjust call to
+	tsubst_copy_and_build.
+
+2006-07-28  Volker Reichelt  <reichelt@igpm.rwth-aachen.de>
+
+	* Make-lang.in: Use $(HEADER_H) instead of header.h in dependencies.
+
+2006-07-03  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR other/27063
+	* config-lang.in: Add subdir_requires.
+
+2006-06-30  Jason Merrill  <jason@redhat.com>
+
+	* objcp-decl.c (objcp_start_struct): Pass null attributes argument
+	to begin_class_definition.
+
+2006-05-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Make-lang.in (objcp/objcp-decl.o): Add dependency on
+	$(TARGET_H).
+
+2006-02-20 Rafael Ávila de Espíndola <rafael.espindola@gmail.com>
+
+	* Make-lang.in (OBJ-C++): Remove
+	(.PHONY): Remove Obj-c++ and obj-C++. Add obj-c++
+
+2005-12-14  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* Make-lang.in (objcp/objcp-decl.o): Add depends on $(EXPR_H).
+
+2005-12-07  Rafael Ávila de Espíndola  <rafael.espindola@gmail.com>
+
+	* Make-lang.in (obj-c++.all.build, obj-c++.install-normal): Remove.
+
+2005-12-07  Rafael Ávila de Espíndola  <rafael.espindola@gmail.com>
+
+	* Make-lang.in: Remove all dependencies on s-gtype.
+
+2005-11-22  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* objcp-decl.c (objcp_lookup_name): Remove.
+	* objcp-decl.h (objcp_lookup_name): Delete.
+	(lookup_name): Kill define.
+
+2005-09-11  Richard Henderson  <rth@redhat.com>
+
+	* objcp-lang.c (objcxx_init_ts): Remove ALIAS_DECL.
+
+2005-07-09  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	* config-lang.in (gtfiles): Add cp-objcp-common.c.
+	* objcp-lang.c (objcxx_init_ts): New function.
+	(LANG_HOOKS_INIT_TS): Define.
+
+2005-07-03  Kazu Hirata  <kazu@codesourcery.com>
+
+	* Make-lang.in (cc1plus-checksum.c): Use
+	build/genchecksum$(build_exeext), not build/genchecksum$(exeext).
+
+2005-06-30  Zack Weinberg  <zack@codesourcery.com>
+	    Jakub Jelinek  <jakub@redhat.com>
+
+	* objcp-lang.c: No need to include cxx-pretty-print.h.
+	* Make-lang.in: Update dependencies.
+
+2005-06-25  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* all files: Update FSF in copyright headers.
+
+2005-06-20  Ziemowit Laski  <zlaski@apple.com>
+
+	* config-lang.in (gtfiles): Add cp/rtti.c.
+
+2005-05-24  Ziemowit Laski  <zlaski@apple.com>
+
+	* objcp-decl.c (objcp_start_struct, objcp_xref_tag): Adjust
+	call to xref_tag().
+	(objcp_build_component_ref): Remove function.
+	* objcp-decl.h (objcp_build_component_ref): Remove prototype.
+	(build_component_ref): Remove macro.
+	* objcp-lang.c (LANG_HOOKS_TYPES_COMPATIBLE_P): Remove.
+
+2005-05-18  Geoffrey Keating  <geoffk@apple.com>
+
+	* Make-lang.in (cc1objplus-dummy): New.
+	(cc1objplus-checksum.c): New.
+	(cc1objplus-checksum.o): New.
+	(cc1objplus): Add cc1objplus-checksum.o.
+
+2005-05-17  Ziemowit Laski  <zlaski@apple.com>
+	    Mike Stump  <mrs@apple.com>
+
+	Yet more Objective-C++...
+	
+	* Make-lang.in (objcp/objcp-lang.o): Add tree-gimple.h
+	(objcp/objcp-decl.o): Likewise.
+	(objcp/objcp-act.o): Likewise.
+	* objcp-lang.c (LANG_HOOKS_GIMPLIFY_EXPR): Add.
+
+2005-04-21  Ziemowit Laski  <zlaski@apple.com>
+	    Mike Stump  <mrs@apple.com>
+
+	* ChangeLog: New.
+	* Make-lang.in: Likewise.
+	* config-lang.in: Likewise.
+	* lang-specs.h: Likewise.
+	* objcp-decl.c: Likewise.
+	* objcp-decl.h: Likewise.
+	* objcp-lang.c: Likewise.

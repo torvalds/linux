@@ -1,0 +1,286 @@
+.\"	$OpenBSD: SHA1.3,v 1.10 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org> and
+.\" Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2000, 2006, 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SHA1 3
+.Os
+.Sh NAME
+.Nm SHA1 ,
+.Nm SHA1_Init ,
+.Nm SHA1_Update ,
+.Nm SHA1_Final ,
+.Nm SHA224 ,
+.Nm SHA224_Init ,
+.Nm SHA224_Update ,
+.Nm SHA224_Final ,
+.Nm SHA256 ,
+.Nm SHA256_Init ,
+.Nm SHA256_Update ,
+.Nm SHA256_Final ,
+.Nm SHA384 ,
+.Nm SHA384_Init ,
+.Nm SHA384_Update ,
+.Nm SHA384_Final ,
+.Nm SHA512 ,
+.Nm SHA512_Init ,
+.Nm SHA512_Update ,
+.Nm SHA512_Final
+.Nd Secure Hash Algorithm
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/sha.h
+.Ft unsigned char *
+.Fo SHA1
+.Fa "const unsigned char *d"
+.Fa "size_t n"
+.Fa "unsigned char *md"
+.Fc
+.Ft int
+.Fo SHA1_Init
+.Fa "SHA_CTX *c"
+.Fc
+.Ft int
+.Fo SHA1_Update
+.Fa "SHA_CTX *c"
+.Fa "const void *data"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo SHA1_Final
+.Fa "unsigned char *md"
+.Fa "SHA_CTX *c"
+.Fc
+.Ft unsigned char *
+.Fo SHA224
+.Fa "const unsigned char *d"
+.Fa "size_t n"
+.Fa "unsigned char *md"
+.Fc
+.Ft int
+.Fo SHA224_Init
+.Fa "SHA256_CTX *c"
+.Fc
+.Ft int
+.Fo SHA224_Update
+.Fa "SHA256_CTX *c"
+.Fa "const void *data"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo SHA224_Final
+.Fa "unsigned char *md"
+.Fa "SHA256_CTX *c"
+.Fc
+.Ft unsigned char *
+.Fo SHA256
+.Fa "const unsigned char *d"
+.Fa "size_t n"
+.Fa "unsigned char *md"
+.Fc
+.Ft int
+.Fo SHA256_Init
+.Fa "SHA256_CTX *c"
+.Fc
+.Ft int
+.Fo SHA256_Update
+.Fa "SHA256_CTX *c"
+.Fa "const void *data"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo SHA256_Final
+.Fa "unsigned char *md"
+.Fa "SHA256_CTX *c"
+.Fc
+.Ft unsigned char *
+.Fo SHA384
+.Fa "const unsigned char *d"
+.Fa "size_t n"
+.Fa "unsigned char *md"
+.Fc
+.Ft int
+.Fo SHA384_Init
+.Fa "SHA512_CTX *c"
+.Fc
+.Ft int
+.Fo SHA384_Update
+.Fa "SHA512_CTX *c"
+.Fa "const void *data"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo SHA384_Final
+.Fa "unsigned char *md"
+.Fa "SHA512_CTX *c"
+.Fc
+.Ft unsigned char *
+.Fo SHA512
+.Fa "const unsigned char *d"
+.Fa "size_t n"
+.Fa "unsigned char *md"
+.Fc
+.Ft int
+.Fo SHA512_Init
+.Fa "SHA512_CTX *c"
+.Fc
+.Ft int
+.Fo SHA512_Update
+.Fa "SHA512_CTX *c"
+.Fa "const void *data"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo SHA512_Final
+.Fa "unsigned char *md"
+.Fa "SHA512_CTX *c"
+.Fc
+.Sh DESCRIPTION
+SHA-1 (Secure Hash Algorithm) is a cryptographic hash function with a
+160-bit output.
+.Pp
+.Fn SHA1
+computes the SHA-1 message digest of the
+.Fa n
+bytes at
+.Fa d
+and places it in
+.Fa md ,
+which must have space for
+.Dv SHA_DIGEST_LENGTH
+== 20 bytes of output.
+.Pp
+The following functions may be used if the message is not completely
+stored in memory:
+.Pp
+.Fn SHA1_Init
+initializes a
+.Vt SHA_CTX
+structure.
+.Pp
+.Fn SHA1_Update
+can be called repeatedly with chunks of the message to be hashed
+.Pq Fa len No bytes at Fa data .
+.Pp
+.Fn SHA1_Final
+places the message digest in
+.Fa md ,
+which must have space for
+.Dv SHA_DIGEST_LENGTH
+== 20 bytes of output, and erases the
+.Vt SHA_CTX .
+.Pp
+The SHA224, SHA256, SHA384, and SHA512 families of functions operate
+in the same way as the SHA1 functions.
+Note that SHA224 and SHA256 use a
+.Vt SHA256_CTX
+object instead of
+.Vt SHA_CTX ,
+and SHA384 and SHA512 use
+.Vt SHA512_CTX .
+The buffer
+.Fa md
+must have space for the output from the SHA variant being used:
+.Dv SHA224_DIGEST_LENGTH ,
+.Dv SHA256_DIGEST_LENGTH ,
+.Dv SHA384_DIGEST_LENGTH ,
+or
+.Dv SHA512_DIGEST_LENGTH
+bytes.
+.Pp
+Applications should use the higher level functions
+.Xr EVP_DigestInit 3
+etc.  instead of calling the hash functions directly.
+.Sh RETURN VALUES
+.Fn SHA1 ,
+.Fn SHA224 ,
+.Fn SHA256 ,
+.Fn SHA384 ,
+and
+.Fn SHA512
+return a pointer to the hash value.
+The other functions return 1 for success or 0 otherwise.
+.Sh SEE ALSO
+.Xr EVP_DigestInit 3 ,
+.Xr HMAC 3 ,
+.Xr RIPEMD160 3
+.Sh STANDARDS
+.Rs
+.%T Secure Hash Standard (SHS)
+.%R NIST FIPS Publication
+.%N 180-4
+.%U https://doi.org/10.6028/NIST.FIPS.180-4
+.%D 2015
+.Re
+.Sh HISTORY
+.Fn SHA1 ,
+.Fn SHA1_Init ,
+.Fn SHA1_Update ,
+and
+.Fn SHA1_Final
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .
+.Pp
+The other functions first appeared in OpenSSL 0.9.8
+and have been available since
+.Ox 4.5 .
+.Sh CAVEATS
+Other implementations allow
+.Fa md
+in
+.Fn SHA1 ,
+.Fn SHA224 ,
+.Fn SHA256 ,
+.Fn SHA384 ,
+and
+.Fn SHA512
+to be
+.Dv NULL
+and return a static array, which is not thread safe.

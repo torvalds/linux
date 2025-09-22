@@ -1,0 +1,189 @@
+.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_DEV_INFO_MANIFEST 3
+.Os
+.Sh NAME
+.Nm fido_dev_info_manifest ,
+.Nm fido_dev_info_new ,
+.Nm fido_dev_info_free ,
+.Nm fido_dev_info_ptr ,
+.Nm fido_dev_info_path ,
+.Nm fido_dev_info_product ,
+.Nm fido_dev_info_vendor ,
+.Nm fido_dev_info_manufacturer_string ,
+.Nm fido_dev_info_product_string ,
+.Nm fido_dev_info_set
+.Nd FIDO2 device discovery functions
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft int
+.Fn fido_dev_info_manifest "fido_dev_info_t *devlist" "size_t ilen" "size_t *olen"
+.Ft fido_dev_info_t *
+.Fn fido_dev_info_new "size_t n"
+.Ft void
+.Fn fido_dev_info_free "fido_dev_info_t **devlist_p" "size_t n"
+.Ft const fido_dev_info_t *
+.Fn fido_dev_info_ptr "const fido_dev_info_t *devlist" "size_t i"
+.Ft const char *
+.Fn fido_dev_info_path "const fido_dev_info_t *di"
+.Ft int16_t
+.Fn fido_dev_info_product "const fido_dev_info_t *di"
+.Ft int16_t
+.Fn fido_dev_info_vendor "const fido_dev_info_t *di"
+.Ft const char *
+.Fn fido_dev_info_manufacturer_string "const fido_dev_info_t *di"
+.Ft const char *
+.Fn fido_dev_info_product_string "const fido_dev_info_t *di"
+.Ft int
+.Fn fido_dev_info_set "fido_dev_info_t *devlist" "size_t i" "const char *path" "const char *manufacturer" "const char *product" "const fido_dev_io_t *io" "const fido_dev_transport_t *transport"
+.Sh DESCRIPTION
+The
+.Fn fido_dev_info_manifest
+function fills
+.Fa devlist
+with up to
+.Fa ilen
+FIDO2 devices found by the underlying operating system.
+Currently only USB HID devices are supported.
+The number of discovered devices is returned in
+.Fa olen ,
+where
+.Fa olen
+is an addressable pointer.
+.Pp
+The
+.Fn fido_dev_info_new
+function returns a pointer to a newly allocated, empty device list
+with
+.Fa n
+available slots.
+If memory is not available, NULL is returned.
+.Pp
+The
+.Fn fido_dev_info_free
+function releases the memory backing
+.Fa *devlist_p ,
+where
+.Fa *devlist_p
+must have been previously allocated by
+.Fn fido_dev_info_new .
+The number
+.Fa n
+of allocated slots must also be provided.
+On return,
+.Fa *devlist_p
+is set to NULL.
+Either
+.Fa devlist_p
+or
+.Fa *devlist_p
+may be NULL, in which case
+.Fn fido_dev_info_free
+is a NOP.
+.Pp
+The
+.Fn fido_dev_info_ptr
+function returns a pointer to slot number
+.Fa i
+of
+.Fa devlist .
+It is the caller's responsibility to ensure that
+.Fa i
+is bounded.
+Please note that the first slot has index 0.
+.Pp
+The
+.Fn fido_dev_info_path
+function returns the filesystem path or subsystem-specific identification
+string of
+.Fa di .
+.Pp
+The
+.Fn fido_dev_info_product
+function returns the product ID of
+.Fa di .
+.Pp
+The
+.Fn fido_dev_info_vendor
+function returns the vendor ID of
+.Fa di .
+.Pp
+The
+.Fn fido_dev_info_manufacturer_string
+function returns the manufacturer string of
+.Fa di .
+If
+.Fa di
+does not have an associated manufacturer string,
+.Fn fido_dev_info_manufacturer_string
+returns an empty string.
+.Pp
+The
+.Fn fido_dev_info_product_string
+function returns the product string of
+.Fa di .
+If
+.Fa di
+does not have an associated product string,
+.Fn fido_dev_info_product_string
+returns an empty string.
+.Pp
+An example of how to use the functions described in this document
+can be found in the
+.Pa examples/manifest.c
+file shipped with
+.Em libfido2 .
+.Pp
+The
+.Fn fido_dev_info_set
+function initializes an entry in a device list allocated by
+.Fn fido_dev_info_new
+with the specified path, manufacturer, and product strings, and with
+the specified I/O handlers and, optionally, transport functions, as
+described in
+.Xr fido_dev_set_io_functions 3 .
+The
+.Fa io
+argument must be specified; the
+.Fa transport
+argument may be
+.Dv NULL .
+The path, I/O handlers, and transport functions will be used
+automatically by
+.Xr fido_dev_new_with_info 3
+and
+.Xr fido_dev_open_with_info 3 .
+An application can use this, for example, to substitute mock FIDO2
+devices in testing for the real ones that
+.Fn fido_dev_info_manifest
+would discover.
+.Sh RETURN VALUES
+The
+.Fn fido_dev_info_manifest
+function always returns
+.Dv FIDO_OK .
+If a discovery error occurs, the
+.Fa olen
+pointer is set to 0.
+.Pp
+On success, the
+.Fn fido_dev_info_set
+function returns
+.Dv FIDO_OK .
+On error, a different error code defined in
+.In fido/err.h
+is returned.
+.Pp
+The pointers returned by
+.Fn fido_dev_info_ptr ,
+.Fn fido_dev_info_path ,
+.Fn fido_dev_info_manufacturer_string ,
+and
+.Fn fido_dev_info_product_string
+are guaranteed to exist until
+.Fn fido_dev_info_free
+is called on the corresponding device list.

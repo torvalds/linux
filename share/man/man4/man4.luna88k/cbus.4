@@ -1,0 +1,50 @@
+.\"	$OpenBSD: cbus.4,v 1.5 2020/06/08 00:56:19 aoyama Exp $
+.\"
+.\" Copyright (c) 2014 Kenji Aoyama.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: June 8 2020 $
+.Dt CBUS 4 luna88k
+.Os
+.Sh NAME
+.Nm cbus
+.Nd NEC PC-9801 extension board slot bus
+.Sh SYNOPSIS
+.Cd "cbus0 at mainbus0"
+.Sh DESCRIPTION
+.Nm
+is a bus interface of "NEC PC-9801 extension board slot" (so-called
+"C-bus" in Japan) on LUNA-88K2.
+The original LUNA-88K does not have this slot.
+.Sh LIST OF DEVICES
+The devices currently supported on
+.Nm
+are:
+.Pp
+.Bl -tag -width 10n -offset 3n -compact
+.It Xr ne 4
+Allied Telesis CentreCOM LA-98 series
+.It Xr necsb 4
+NEC PC-9801-86 sound board
+.It Xr pcexmem 4
+NEC PC-9801 extension board slot
+.It Xr pcmcia 4
+PCMCIA (PC Card) support
+.El
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+bus interface first appeared in
+.Ox 5.7 .

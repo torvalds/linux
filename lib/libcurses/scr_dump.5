@@ -1,0 +1,417 @@
+.\"***************************************************************************
+.\" Copyright 2018-2021,2023 Thomas E. Dickey                                *
+.\" Copyright 2017 Free Software Foundation, Inc.                            *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: scr_dump.5,v 1.1 2023/10/17 09:52:08 nicm Exp $
+.TH scr_dump 5 2023-07-01 "ncurses 6.4" "File formats"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de NS
+.ie n  .sp
+.el    .sp .5
+.ie n  .in +4
+.el    .in +2
+.nf
+.ft CR			\" Courier
+..
+.de NE
+.fi
+.ft R
+.ie n  .in -4
+.el    .in -2
+..
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+scr_dump \- format of curses screen-dumps.
+.SH SYNOPSIS
+.B scr_dump
+.SH DESCRIPTION
+The curses library provides applications with the ability to write the
+contents of a window to an external file using \fBscr_dump\fP or \fBputwin\fP,
+and read it back using \fBscr_restore\fP or \fBgetwin\fP.
+.PP
+The \fBputwin\fP and \fBgetwin\fP functions do the work;
+while \fBscr_dump\fP and \fBscr_restore\fP conveniently save and restore
+the whole screen, i.e., \fBstdscr\fP.
+.SS ncurses6
+A longstanding implementation of screen-dump was
+revised with ncurses6 to remedy problems with the earlier approach:
+.bP
+A \*(``magic number\*('' is written to the beginning of the dump file,
+allowing applications (such as \fBfile\fP(1)) to recognize curses dump files.
+.IP
+Because ncurses6 uses a new format,
+that requires a new magic number
+was unused by other applications.
+This 16-bit number was unused:
+.NS
+0x8888 (octal \*(``\\210\\210\*('')
+.NE
+.IP
+but to be more certain, this 32-bit number was chosen:
+.NS
+0x88888888 (octal \*(``\\210\\210\\210\\210\*('')
+.NE
+.IP
+This is the pattern submitted to the maintainers of the \fBfile\fP program:
+.NS
+#
+# ncurses5 (and before) did not use a magic number,
+# making screen dumps "data".
+#
+# ncurses6 (2015) uses this format, ignoring byte-order
+0    string    \\210\\210\\210\\210ncurses    ncurses6 screen image
+#
+.NE
+.bP
+The screen dumps are written in textual form,
+so that internal data sizes are not directly related to the dump-format, and
+enabling the library to read dumps from either narrow- or wide-character-
+configurations.
+.IP
+The \fInarrow\fP library configuration holds characters and video attributes
+in a 32-bit \fBchtype\fP, while the \fIwide-character\fP library stores
+this information in the \fBcchar_t\fP structure, which is much larger than
+32-bits.
+.bP
+It is possible to read a screen dump into a terminal with a different
+screen-size,
+because the library truncates or fills the screen as necessary.
+.bP
+The ncurses6 \fBgetwin\fP reads the legacy screen dumps from ncurses5.
+.SS ncurses5 (legacy)
+The screen-dump feature was added to ncurses in June 1995.
+While there were fixes and improvements in succeeding years,
+the basic scheme was unchanged:
+.bP
+The \fBWINDOW\fP structure was written in binary form.
+.bP
+The \fBWINDOW\fP structure refers to lines of data,
+which were written as an array of binary data following the \fBWINDOW\fP.
+.bP
+When \fBgetwin\fP restored the window,
+it would keep track of offsets into the array of line-data
+and adjust the \fBWINDOW\fP structure which was read back into memory.
+.PP
+This is similar to Unix SystemV,
+but does not write a \*(``magic number\*('' to identify the file format.
+.SH PORTABILITY
+There is no standard format for \fBputwin\fP.
+This section gives a brief description of the existing formats.
+.SS X/Open Curses
+Refer to \fIX/Open Curses, Issue 7\fP (2009).
+.PP
+X/Open's documentation for \fIenhanced curses\fP says only:
+.RS 3
+.PP
+The \fBgetwin(\ ) \fPfunction reads window-related data
+stored in the file by \fIputwin(\ )\fP.
+The function
+then creates and initializes a new window using that data.
+.PP
+The \fBputwin(\ )\fP function writes all data associated
+with \fIwin\fP into the \fBstdio\fP(3) stream to which \fIfilep\fP
+points, using an \fBunspecified format\fP.
+This information can be retrieved later using \fBgetwin(\ )\fP.
+.RE
+.PP
+In the mid-1990s when the X/Open Curses document was written,
+there were still systems using older, less capable curses libraries
+(aside from the BSD curses library which was not relevant to X/Open
+because it did not meet the criteria for \fIbase curses\fP).
+The document explained the term \*(``enhanced\*('' as follows:
+.RS 3
+.bP
+Shading is used to identify \fIX/Open Enhanced Curses\fP material,
+relating to interfaces included to provide enhanced capabilities
+for applications originally written to be compiled on systems
+based on the UNIX operating system.
+Therefore, the features described may not be present on systems
+that conform to \fBXPG4 or to earlier XPG releases\fP.
+The relevant reference pages may provide additional
+or more specific portability warnings about use of the material.
+.RE
+.PP
+In the foregoing, emphasis was added to \fBunspecified format\fP
+and to \fBXPG4 or to earlier XPG releases\fP,
+for clarity.
+.SS Unix SystemV
+Unix SystemV curses identified the file format by writing a
+\*(``magic number\*('' at the beginning of the dump.
+The \fBWINDOW\fP data and the lines of text follow, all in binary form.
+.PP
+The Solaris curses source has these definitions:
+.NS
+/* terminfo magic number */
+#define MAGNUM  0432
+
+/* curses screen dump magic number */
+#define SVR2_DUMP_MAGIC_NUMBER  0433
+#define SVR3_DUMP_MAGIC_NUMBER  0434
+.NE
+.PP
+That is, the feature was likely introduced in SVr2 (1984),
+and improved in SVr3 (1987).
+The Solaris curses source has no magic number for SVr4 (1989).
+Other operating systems (AIX and HPUX) use a magic number which would
+correspond to this definition:
+.NS
+/* curses screen dump magic number */
+#define SVR4_DUMP_MAGIC_NUMBER  0435
+.NE
+.PP
+That octal number in bytes is 001, 035.
+Because most Unix vendors use big-endian hardware,
+the magic number is written with the high-order byte first, e.g.,
+.NS
+\001\035
+.NE
+.PP
+After the magic number, the \fBWINDOW\fP structure and line-data are
+written in binary format.
+While the magic number used by the Unix systems can be seen using \fBod\fP(1),
+none of the Unix systems documents the format used for screen-dumps.
+.PP
+The Unix systems do not use identical formats.
+While collecting information for for this manual page,
+the \fIsavescreen\fP test-program
+produced dumps of different size
+(all on 64-bit hardware, on 40x80 screens):
+.bP
+AIX (51817 bytes)
+.bP
+HPUX (90093 bytes)
+.bP
+Solaris 10 (13273 bytes)
+.bP
+ncurses5 (12888 bytes)
+.SS Solaris
+As noted above, Solaris curses has no magic number corresponding
+to SVr4 curses.
+This is odd since Solaris was the first operating system
+to pass the SVr4 guidelines.
+Solaris has two versions of curses:
+.bP
+The default curses library uses the SVr3 magic number.
+.bP
+There is an alternate curses library in \fB/usr/xpg4\fP.
+This uses a textual format with no magic number.
+.IP
+According to the copyright notice, the \fIxpg4\fP Solaris curses library was
+developed by MKS (Mortice Kern Systems) from 1990 to 1995.
+.IP
+Like ncurses6, there is a file-header with parameters.
+Unlike ncurses6, the contents of the window are written piecemeal,
+with coordinates and attributes for each chunk of text rather
+than writing the whole window from top to bottom.
+.SS PDCurses
+PDCurses added support for screen dumps in version 2.7 (2005).
+Like Unix SystemV and ncurses5,
+it writes the \fBWINDOW\fP structure in binary,
+but begins the file with its three-byte identifier \*(``PDC\*('',
+followed by a one-byte version,
+e.g.,
+.NS
+	\*(``PDC\\001\*(''
+.NE
+.SS NetBSD
+As of April 2017, NetBSD curses does
+not support \fBscr_dump\fP and \fBscr_restore\fP
+(or \fBscr_init\fP, \fBscr_set\fP),
+although it has \fBputwin\fP and \fBgetwin\fP.
+.PP
+Like ncurses5, NetBSD \fBputwin\fP does not identify its dumps with a
+useful magic number.
+It writes
+.bP
+the curses shared library major and minor versions
+as the first two bytes (e.g., 7 and 1),
+.bP
+followed by a binary dump of the \fBWINDOW\fP,
+.bP
+some data for wide-characters referenced by the \fBWINDOW\fP structure, and
+.bP
+finally, lines as done by other implementations.
+.SH EXAMPLE
+Given a simple program which writes text to the screen
+(and for the sake of example, limiting the screen-size to 10x20):
+.NS
+#include <curses.h>
+
+int
+main(void)
+{
+    putenv("LINES=10");
+    putenv("COLUMNS=20");
+    initscr();
+    start_color();
+    init_pair(1, COLOR_WHITE, COLOR_BLUE);
+    init_pair(2, COLOR_RED, COLOR_BLACK);
+    bkgd(COLOR_PAIR(1));
+    move(4, 5);
+    attron(A_BOLD);
+    addstr("Hello");
+    move(5, 5);
+    attroff(A_BOLD);
+    attrset(A_REVERSE | COLOR_PAIR(2));
+    addstr("World!");
+    refresh();
+    scr_dump("foo.out");
+    endwin();
+    return 0;
+}
+.NE
+.PP
+When run using ncurses6, the output looks like this:
+.NS
+\\210\\210\\210\\210ncurses 6.0.20170415
+_cury=5
+_curx=11
+_maxy=9
+_maxx=19
+_flags=14
+_attrs=\\{REVERSE|C2}
+flag=_idcok
+_delay=-1
+_regbottom=9
+_bkgrnd=\\{NORMAL|C1}\\s
+rows:
+1:\\{NORMAL|C1}\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s
+2:\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s
+3:\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s
+4:\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s
+5:\\s\\s\\s\\s\\s\\{BOLD}Hello\\{NORMAL}\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s
+6:\\s\\s\\s\\s\\s\\{REVERSE|C2}World!\\{NORMAL|C1}\\s\\s\\s\\s\\s\\s\\s\\s\\s
+7:\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s
+8:\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s
+9:\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s
+10:\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s
+.NE
+.PP
+The first four octal escapes are actually nonprinting characters,
+while the remainder of the file is printable text.
+You may notice:
+.bP
+The actual color pair values are not written to the file.
+.bP
+All characters are shown in printable form; spaces are \*(``\\s\*('' to
+ensure they are not overlooked.
+.bP
+Attributes are written in escaped curly braces, e.g., \*(``\\{BOLD}\*('',
+and may include a color-pair (C1 or C2 in this example).
+.bP
+The parameters in the header are written out only if they are nonzero.
+When reading back, order does not matter.
+.ne 10
+.PP
+Running the same program with Solaris \fIxpg4\fP curses gives this dump:
+.NS
+MAX=10,20
+BEG=0,0
+SCROLL=0,10
+VMIN=1
+VTIME=0
+FLAGS=0x1000
+FG=0,0
+BG=0,0,
+0,0,0,1,
+0,19,0,0,
+1,0,0,1,
+1,19,0,0,
+2,0,0,1,
+2,19,0,0,
+3,0,0,1,
+3,19,0,0,
+4,0,0,1,
+4,5,0x20,0,Hello
+4,10,0,1,
+4,19,0,0,
+5,0,0,1,
+5,5,0x4,2,World!
+5,11,0,1,
+5,19,0,0,
+6,0,0,1,
+6,19,0,0,
+7,0,0,1,
+7,19,0,0,
+8,0,0,1,
+8,19,0,0,
+9,0,0,1,
+9,19,0,0,
+CUR=11,5
+.NE
+.PP
+Solaris \fBgetwin\fP requires that all parameters are present, and
+in the same order.
+The \fIxpg4\fP curses library does not know about the \fBbce\fP
+(back color erase) capability, and does not color the window background.
+.ne 10
+.PP
+On the other hand, the SVr4 curses library does know about the background color.
+However, its screen dumps are in binary.
+Here is the corresponding dump (using \*(``od -t x1\*(''):
+.NS
+0000000 1c 01 c3 d6 f3 58 05 00 0b 00 0a 00 14 00 00 00
+0000020 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00
+0000040 00 00 b8 1a 06 08 cc 1a 06 08 00 00 09 00 10 00
+0000060 00 00 00 80 00 00 20 00 00 00 ff ff ff ff 00 00
+0000100 ff ff ff ff 00 00 00 00 20 80 00 00 20 80 00 00
+0000120 20 80 00 00 20 80 00 00 20 80 00 00 20 80 00 00
+*
+0000620 20 80 00 00 20 80 00 00 20 80 00 00 48 80 00 04
+0000640 65 80 00 04 6c 80 00 04 6c 80 00 04 6f 80 00 04
+0000660 20 80 00 00 20 80 00 00 20 80 00 00 20 80 00 00
+*
+0000740 20 80 00 00 20 80 00 00 20 80 00 00 57 00 81 00
+0000760 6f 00 81 00 72 00 81 00 6c 00 81 00 64 00 81 00
+0001000 21 00 81 00 20 80 00 00 20 80 00 00 20 80 00 00
+0001020 20 80 00 00 20 80 00 00 20 80 00 00 20 80 00 00
+*
+0001540 20 80 00 00 20 80 00 00 00 00 f6 d1 01 00 f6 d1
+0001560 08 00 00 00 40 00 00 00 00 00 00 00 00 00 00 07
+0001600 00 04 00 01 00 01 00 00 00 01 00 00 00 00 00 00
+0001620 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+*
+0002371
+.NE
+.SH SEE ALSO
+\fBcurs_scr_dump\fP(3),
+\fBcurs_util\fP(3).
+.SH AUTHORS
+Thomas E. Dickey
+.br
+extended screen-dump format for ncurses 6.0 (2015)
+.sp
+Eric S. Raymond
+.br
+screen dump feature in ncurses 1.9.2d (1995)

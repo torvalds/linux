@@ -1,0 +1,139 @@
+.\"	$OpenBSD: SSL_set_shutdown.3,v 1.8 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2001, 2005 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_SET_SHUTDOWN 3
+.Os
+.Sh NAME
+.Nm SSL_set_shutdown ,
+.Nm SSL_get_shutdown
+.Nd manipulate shutdown state of an SSL connection
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft void
+.Fn SSL_set_shutdown "SSL *ssl" "int mode"
+.Ft int
+.Fn SSL_get_shutdown "const SSL *ssl"
+.Sh DESCRIPTION
+.Fn SSL_set_shutdown
+sets the shutdown state of
+.Fa ssl
+to
+.Fa mode .
+.Pp
+.Fn SSL_get_shutdown
+returns the shutdown mode of
+.Fa ssl .
+.Pp
+The shutdown state of an ssl connection is a bitmask of:
+.Bl -tag -width Ds
+.It 0
+No shutdown setting, yet.
+.It Dv SSL_SENT_SHUTDOWN
+A
+.Dq close notify
+shutdown alert was sent to the peer; the connection is being considered closed
+and the session is closed and correct.
+.It Dv SSL_RECEIVED_SHUTDOWN
+A shutdown alert was received from the peer, either a normal
+.Dq close notify
+or a fatal error.
+.El
+.Pp
+.Dv SSL_SENT_SHUTDOWN
+and
+.Dv SSL_RECEIVED_SHUTDOWN
+can be set at the same time.
+.Pp
+The shutdown state of the connection is used to determine the state of the
+.Fa ssl
+session.
+If the session is still open when
+.Xr SSL_clear 3
+or
+.Xr SSL_free 3
+is called, it is considered bad and removed according to RFC 2246.
+The actual condition for a correctly closed session is
+.Dv SSL_SENT_SHUTDOWN
+(according to the TLS RFC, it is acceptable to only send the
+.Dq close notify
+alert but to not wait for the peer's answer when the underlying connection is
+closed).
+.Fn SSL_set_shutdown
+can be used to set this state without sending a close alert to the peer (see
+.Xr SSL_shutdown 3 ) .
+.Pp
+If a
+.Dq close notify
+was received,
+.Dv SSL_RECEIVED_SHUTDOWN
+will be set, but to set
+.Dv SSL_SENT_SHUTDOWN
+the application must still call
+.Xr SSL_shutdown 3
+or
+.Fn SSL_set_shutdown
+itself.
+.Sh RETURN VALUES
+.Fn SSL_get_shutdown
+returns the current setting.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_clear 3 ,
+.Xr SSL_CTX_set_quiet_shutdown 3 ,
+.Xr SSL_free 3 ,
+.Xr SSL_shutdown 3
+.Sh HISTORY
+.Fn SSL_set_shutdown
+and
+.Fn SSL_get_shutdown
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .

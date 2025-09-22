@@ -1,0 +1,90 @@
+$OpenBSD: tcdevs,v 1.7 2002/05/03 20:27:44 miod Exp $
+/* $NetBSD: tcdevs,v 1.17 2000/12/17 13:56:05 ad Exp $ */
+
+/*
+ * Copyright (c) 1996 Christopher G. Demetriou
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Christopher G. Demetriou
+ *	for the NetBSD Project.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+device	AV01B-AA	lofi	DecAudio \"LoFi\" audio/isdn
+device	AV300-AA	???	Video capture option card
+device	DGLTA-FA	otto	DGLTA ATM
+device	FORE_ATM	fa	Fore TCA-100 ATM
+device	KZTSA-AA	tza	TZA FWD SCSI
+device	OTTO		otto	DEC SRC \"OTTO\" ATM
+device	PMAD-AA		le	LANCE Ethernet
+device	PMAD-AB		le	LANCE Ethernet
+device	PMAF-AA		fza	DEC FDDIcontroller 700 (DEFZA; fiber optic)
+device	PMAF-FA		fta	DEFTA FDDI
+device	PMAG-AA		mfb	Monochrome Frame Buffer
+device	PMAG-BA		cfb	Color Frame Buffer
+device	PMAG-CA		px	2D Graphics (PX 2DA)
+device	PMAG-CB		px	2D Graphics (PX 2DA)
+device	PMAG-DA		pxg	3D Graphics (PXG LM-3DA)
+device	PMAG-DB		pxg	3D Graphics (PXG LM-3DA)
+device	PMAG-EB		pxg	3D Graphics (PXG MID-3DA)
+device	PMAG-FA		pxg	3D Graphics (PXG HE-3DA)
+device	PMAG-FB		pxg	3D Graphics (PXG HE+3DA)
+device	PMAGB-BA	sfb	Smart Frame Buffer (HX8)
+device	PMAGB-FA	pxg	3D Graphics (PXG HE+3DA)
+device	PMAGB-FB	pxg	3D Graphics (PXG HE+3DA)
+device	PMAGC-AA	pvg	2D Graphics (PV-LO)
+device	PMAGC-BA	pvg	2D Graphics (PV-MID)
+device	PMAGD-AA	sfbp	Smart Frame Buffer Plus, 8bpp (ZLX-E1)
+device	PMAGD-BA	sfbp	Smart Frame Buffer Plus, 32bpp (ZLX-E2)
+device	PMAGD-CA	sfbp	Smart Frame Buffer Plus, 32bpp (ZLX-E3)
+device	PMAZ-AB		asc	53c94 SCSI Controller
+
+# the following entry may be incorrect
+device	KWS_TD		???	Kubota Denali
+device	PMABV-AA	vba	VME Adapter
+device	PMAG-DV		xcfb	Maxine Color Frame Buffer
+device	PMAG-JA		???	24-plane True Color Frame Buffer (TX)
+device	PMAGD		sfbp	Smart Frame Buffer Plus, unknown bpp
+device	PMAP-AA		???	Prestoserve
+device	PMAT-AA 	tra	DEC TurboChannel Token Ring Controller
+device	PMAZ-AA		asc	53c94 SCSI Controller
+device	PMAZ-DS		tcds	53c94 TCDS SCSI Controller (baseboard)
+device	PMAZ-FS		tcds	53c94 TCDS Fast SCSI Controller (baseboard)
+device	PMAZB-AA	tcds	53c94 TCDS SCSI Controller option card
+device	PMAZB-AB	tcds	53c94 TCDS SCSI Controller option card
+device	PMAZC-AA	tcds	53c94 TCDS Fast SCSI Controller option card
+device	PMTNV-AA	???	Non-volatile RAM option card
+device	T1D4PKT		ds	DECWRL Turbochannel T1
+device	T3PKT		tt	DECWRL Turbochannel T3
+
+# the following entries are unconfirmed
+#device	PMAF-CA		fza	DEC FDDIcontroller 700C (DEFZA; copper)
+#device	PMAG-AB		mx	Monochrome Graphics Adapter (MX)
+#device	PMAG-JB		tx	24-plane True Color Frame Buffer (TX)
+#device	PMAGB-BB	hx	8-plane Color/Grayscale 2D SFB (HX)
+#device	PMAGB-BC	hx	8-plane Color/Grayscale 2D SFB (HX)
+#define	PMAGB-BD	hx	8-plane Color/Grayscale 2D SFB (HX)
+#define	PMAGB-BE	hx	8-plane Color/Grayscale 2D SFB (HX)
+#device	PMAGB-JB	tx	24-plane True Color Frame Buffer (TX)

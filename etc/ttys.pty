@@ -1,0 +1,27 @@
+#! /bin/sh
+#
+# $OpenBSD: ttys.pty,v 1.6 2014/07/16 14:34:33 okan Exp $
+#
+# Copyright (c) 2004 Dale Rahn <drahn@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+letters="p q r s t u v w x y z P Q R S T"
+suffixes="0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q \
+    r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z"
+
+for i in ${letters}; do
+    for j in ${suffixes}; do
+	echo "tty${i}${j}	none				network"
+    done
+done

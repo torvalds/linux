@@ -1,0 +1,1254 @@
+
+This is some preliminary documentation for OpenSSL.
+
+Contents:
+
+ OpenSSL X509V3 extension configuration
+ X509V3 Extension code: programmers guide
+ PKCS#12 Library
+
+
+==============================================================================
+               OpenSSL X509V3 extension configuration
+==============================================================================
+
+OpenSSL X509V3 extension configuration: preliminary documentation.
+
+INTRODUCTION.
+
+For OpenSSL 0.9.2 the extension code has be considerably enhanced. It is now
+possible to add and print out common X509 V3 certificate and CRL extensions.
+
+BEGINNERS NOTE
+
+For most simple applications you don't need to know too much about extensions:
+the default openssl.cnf values will usually do sensible things.
+
+If you want to know more you can initially quickly look through the sections
+describing how the standard OpenSSL utilities display and add extensions and
+then the list of supported extensions.
+
+For more technical information about the meaning of extensions see:
+
+http://www.imc.org/ietf-pkix/
+http://home.netscape.com/eng/security/certs.html
+
+PRINTING EXTENSIONS.
+
+Extension values are automatically printed out for supported extensions.
+
+openssl x509 -in cert.pem -text
+openssl crl -in crl.pem -text
+
+will give information in the extension printout, for example:
+
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:TRUE
+            X509v3 Subject Key Identifier: 
+                73:FE:F7:59:A7:E1:26:84:44:D6:44:36:EE:79:1A:95:7C:B1:4B:15
+            X509v3 Authority Key Identifier: 
+                keyid:73:FE:F7:59:A7:E1:26:84:44:D6:44:36:EE:79:1A:95:7C:B1:4B:15, DirName:/C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/Email=email@1.address/Email=email@2.address, serial:00
+            X509v3 Key Usage: 
+                Certificate Sign, CRL Sign
+            X509v3 Subject Alternative Name: 
+                email:email@1.address, email:email@2.address
+
+CONFIGURATION FILES.
+
+The OpenSSL utilities 'ca' and 'req' can now have extension sections listing
+which certificate extensions to include. In each case a line:
+
+x509_extensions = extension_section
+
+indicates which section contains the extensions. In the case of 'req' the
+extension section is used when the -x509 option is present to create a
+self signed root certificate.
+
+The 'x509' utility also supports extensions when it signs a certificate.
+The -extfile option is used to set the configuration file containing the
+extensions. In this case a line with:
+
+extensions = extension_section
+
+in the nameless (default) section is used. If no such line is included then
+it uses the default section.
+
+You can also add extensions to CRLs: a line
+
+crl_extensions = crl_extension_section
+
+will include extensions when the -gencrl option is used with the 'ca' utility.
+You can add any extension to a CRL but of the supported extensions only
+issuerAltName and authorityKeyIdentifier make any real sense. Note: these are
+CRL extensions NOT CRL *entry* extensions which cannot currently be generated.
+CRL entry extensions can be displayed.
+
+NB. At this time Netscape Communicator rejects V2 CRLs: to get an old V1 CRL
+you should not include a crl_extensions line in the configuration file.
+
+As with all configuration files you can use the inbuilt environment expansion
+to allow the values to be passed in the environment. Therefore if you have
+several extension sections used for different purposes you can have a line:
+
+x509_extensions = $ENV::ENV_EXT
+
+and set the ENV_EXT environment variable before calling the relevant utility.
+
+EXTENSION SYNTAX.
+
+Extensions have the basic form:
+
+extension_name=[critical,] extension_options
+
+the use of the critical option makes the extension critical. Extreme caution
+should be made when using the critical flag. If an extension is marked
+as critical then any client that does not understand the extension should
+reject it as invalid. Some broken software will reject certificates which
+have *any* critical extensions (these violates PKIX but we have to live
+with it).
+
+There are three main types of extension: string extensions, multi-valued
+extensions, and raw extensions.
+
+String extensions simply have a string which contains either the value itself
+or how it is obtained.
+
+For example:
+
+nsComment="This is a Comment"
+
+Multi-valued extensions have a short form and a long form. The short form
+is a list of names and values:
+
+basicConstraints=critical,CA:true,pathlen:1
+
+The long form allows the values to be placed in a separate section:
+
+basicConstraints=critical,@bs_section
+
+[bs_section]
+
+CA=true
+pathlen=1
+
+Both forms are equivalent. However it should be noted that in some cases the
+same name can appear multiple times, for example,
+
+subjectAltName=email:steve@here,email:steve@there
+
+in this case an equivalent long form is:
+
+subjectAltName=@alt_section
+
+[alt_section]
+
+email.1=steve@here
+email.2=steve@there
+
+This is because the configuration file code cannot handle the same name
+occurring twice in the same section.
+
+The syntax of raw extensions is governed by the extension code: it can
+for example contain data in multiple sections. The correct syntax to
+use is defined by the extension code itself: check out the certificate
+policies extension for an example.
+
+There are two ways to encode arbitrary extensions.
+
+The first way is to use the word ASN1 followed by the extension content
+using the same syntax as ASN1_generate_nconf(). For example:
+
+1.2.3.4=critical,ASN1:UTF8String:Some random data
+
+1.2.3.4=ASN1:SEQUENCE:seq_sect
+
+[seq_sect]
+
+field1 = UTF8:field1
+field2 = UTF8:field2
+
+It is also possible to use the word DER to include arbitrary data in any
+extension.
+
+1.2.3.4=critical,DER:01:02:03:04
+1.2.3.4=DER:01020304
+
+The value following DER is a hex dump of the DER encoding of the extension
+Any extension can be placed in this form to override the default behaviour.
+For example:
+
+basicConstraints=critical,DER:00:01:02:03
+
+WARNING: DER should be used with caution. It is possible to create totally
+invalid extensions unless care is taken.
+
+CURRENTLY SUPPORTED EXTENSIONS.
+
+If you aren't sure about extensions then they can be largely ignored: its only
+when you want to do things like restrict certificate usage when you need to
+worry about them. 
+
+The only extension that a beginner might want to look at is Basic Constraints.
+If in addition you want to try Netscape object signing the you should also
+look at Netscape Certificate Type.
+
+Literal String extensions.
+
+In each case the 'value' of the extension is placed directly in the
+extension. Currently supported extensions in this category are: nsBaseUrl,
+nsRevocationUrl, nsCaRevocationUrl, nsRenewalUrl, nsCaPolicyUrl,
+nsSslServerName and nsComment.
+
+For example:
+
+nsComment="This is a test comment"
+
+Bit Strings.
+
+Bit string extensions just consist of a list of supported bits, currently
+two extensions are in this category: PKIX keyUsage and the Netscape specific
+nsCertType.
+
+nsCertType (netscape certificate type) takes the flags: client, server, email,
+objsign, reserved, sslCA, emailCA, objCA.
+
+keyUsage (PKIX key usage) takes the flags: digitalSignature, nonRepudiation,
+keyEncipherment, dataEncipherment, keyAgreement, keyCertSign, cRLSign,
+encipherOnly, decipherOnly.
+
+For example:
+
+nsCertType=server
+
+keyUsage=digitalSignature, nonRepudiation
+
+Hints on Netscape Certificate Type.
+
+Other than Basic Constraints this is the only extension a beginner might
+want to use, if you want to try Netscape object signing, otherwise it can
+be ignored.
+
+If you want a certificate that can be used just for object signing then:
+
+nsCertType=objsign
+
+will do the job. If you want to use it as a normal end user and server
+certificate as well then
+
+nsCertType=objsign,email,server
+
+is more appropriate. You cannot use a self signed certificate for object
+signing (well Netscape signtool can but it cheats!) so you need to create
+a CA certificate and sign an end user certificate with it.
+
+Side note: If you want to conform to the Netscape specifications then you
+should really also set:
+
+nsCertType=objCA
+
+in the *CA* certificate for just an object signing CA and
+
+nsCertType=objCA,emailCA,sslCA
+
+for everything. Current Netscape software doesn't enforce this so it can
+be omitted.
+
+Basic Constraints.
+
+This is generally the only extension you need to worry about for simple
+applications. If you want your certificate to be usable as a CA certificate
+(in addition to an end user certificate) then you set this to:
+
+basicConstraints=CA:TRUE
+
+if you want to be certain the certificate cannot be used as a CA then do:
+
+basicConstraints=CA:FALSE
+
+The rest of this section describes more advanced usage.
+
+Basic constraints is a multi-valued extension that supports a CA and an
+optional pathlen option. The CA option takes the values true and false and
+pathlen takes an integer. Note if the CA option is false the pathlen option
+should be omitted. 
+
+The pathlen parameter indicates the maximum number of CAs that can appear
+below this one in a chain. So if you have a CA with a pathlen of zero it can
+only be used to sign end user certificates and not further CAs. This all
+assumes that the software correctly interprets this extension of course.
+
+Examples:
+
+basicConstraints=CA:TRUE
+basicConstraints=critical,CA:TRUE, pathlen:0
+
+NOTE: for a CA to be considered valid it must have the CA option set to
+TRUE. An end user certificate MUST NOT have the CA value set to true.
+According to PKIX recommendations it should exclude the extension entirely,
+however some software may require CA set to FALSE for end entity certificates.
+
+Extended Key Usage.
+
+This extensions consists of a list of usages.
+
+These can either be object short names of the dotted numerical form of OIDs.
+While any OID can be used only certain values make sense. In particular the
+following PKIX, NS and MS values are meaningful:
+
+Value			Meaning
+-----			-------
+serverAuth		SSL/TLS Web Server Authentication.
+clientAuth		SSL/TLS Web Client Authentication.
+codeSigning		Code signing.
+emailProtection		E-mail Protection (S/MIME).
+timeStamping		Trusted Timestamping
+msCodeInd		Microsoft Individual Code Signing (authenticode)
+msCodeCom		Microsoft Commercial Code Signing (authenticode)
+msCTLSign		Microsoft Trust List Signing
+msSGC			Microsoft Server Gated Crypto
+msEFS			Microsoft Encrypted File System
+nsSGC			Netscape Server Gated Crypto
+
+For example, under IE5 a CA can be used for any purpose: by including a list
+of the above usages the CA can be restricted to only authorised uses.
+
+Note: software packages may place additional interpretations on certificate 
+use, in particular some usages may only work for selected CAs. Don't for example
+expect just including msSGC or nsSGC will automatically mean that a certificate
+can be used for SGC ("step up" encryption) otherwise anyone could use it.
+
+Examples:
+
+extendedKeyUsage=critical,codeSigning,1.2.3.4
+extendedKeyUsage=nsSGC,msSGC
+
+Subject Key Identifier.
+
+This is really a string extension and can take two possible values. Either
+a hex string giving details of the extension value to include or the word
+'hash' which then automatically follow PKIX guidelines in selecting and
+appropriate key identifier. The use of the hex string is strongly discouraged.
+
+Example: subjectKeyIdentifier=hash
+
+Authority Key Identifier.
+
+The authority key identifier extension permits two options. keyid and issuer:
+both can take the optional value "always".
+
+If the keyid option is present an attempt is made to copy the subject key
+identifier from the parent certificate. If the value "always" is present
+then an error is returned if the option fails.
+
+The issuer option copies the issuer and serial number from the issuer
+certificate. Normally this will only be done if the keyid option fails or
+is not included: the "always" flag will always include the value.
+
+Subject Alternative Name.
+
+The subject alternative name extension allows various literal values to be
+included in the configuration file. These include "email" (an email address)
+"URI" a uniform resource indicator, "DNS" (a DNS domain name), RID (a
+registered ID: OBJECT IDENTIFIER), IP (and IP address) and otherName.
+
+Also the email option include a special 'copy' value. This will automatically
+include and email addresses contained in the certificate subject name in
+the extension.
+
+otherName can include arbitrary data associated with an OID: the value
+should be the OID followed by a semicolon and the content in standard
+ASN1_generate_nconf() format.
+
+Examples:
+
+subjectAltName=email:copy,email:my@other.address,URI:http://my.url.here/
+subjectAltName=email:my@other.address,RID:1.2.3.4
+subjectAltName=otherName:1.2.3.4;UTF8:some other identifier
+
+Issuer Alternative Name.
+
+The issuer alternative name option supports all the literal options of
+subject alternative name. It does *not* support the email:copy option because
+that would not make sense. It does support an additional issuer:copy option
+that will copy all the subject alternative name values from the issuer 
+certificate (if possible).
+
+Example:
+
+issuserAltName = issuer:copy
+
+Authority Info Access.
+
+The authority information access extension gives details about how to access
+certain information relating to the CA. Its syntax is accessOID;location
+where 'location' has the same syntax as subject alternative name (except
+that email:copy is not supported). accessOID can be any valid OID but only
+certain values are meaningful for example OCSP and caIssuers. OCSP gives the
+location of an OCSP responder: this is used by Netscape PSM and other software.
+
+Example:
+
+authorityInfoAccess = OCSP;URI:http://ocsp.my.host/
+authorityInfoAccess = caIssuers;URI:http://my.ca/ca.html
+
+CRL distribution points.
+
+This is a multi-valued extension that supports all the literal options of
+subject alternative name. Of the few software packages that currently interpret
+this extension most only interpret the URI option.
+
+Currently each option will set a new DistributionPoint with the fullName
+field set to the given value.
+
+Other fields like cRLissuer and reasons cannot currently be set or displayed:
+at this time no examples were available that used these fields.
+
+If you see this extension with <UNSUPPORTED> when you attempt to print it out
+or it doesn't appear to display correctly then let me know, including the
+certificate (mail me at steve@openssl.org) .
+
+Examples:
+
+crlDistributionPoints=URI:http://www.myhost.com/myca.crl
+crlDistributionPoints=URI:http://www.my.com/my.crl,URI:http://www.oth.com/my.crl
+
+Certificate Policies.
+
+This is a RAW extension. It attempts to display the contents of this extension:
+unfortunately this extension is often improperly encoded.
+
+The certificate policies extension will rarely be used in practice: few
+software packages interpret it correctly or at all. IE5 does partially
+support this extension: but it needs the 'ia5org' option because it will
+only correctly support a broken encoding. Of the options below only the
+policy OID, explicitText and CPS options are displayed with IE5.
+
+All the fields of this extension can be set by using the appropriate syntax.
+
+If you follow the PKIX recommendations of not including any qualifiers and just
+using only one OID then you just include the value of that OID. Multiple OIDs
+can be set separated by commas, for example:
+
+certificatePolicies= 1.2.4.5, 1.1.3.4
+
+If you wish to include qualifiers then the policy OID and qualifiers need to
+be specified in a separate section: this is done by using the @section syntax
+instead of a literal OID value.
+
+The section referred to must include the policy OID using the name
+policyIdentifier, cPSuri qualifiers can be included using the syntax:
+
+CPS.nnn=value
+
+userNotice qualifiers can be set using the syntax:
+
+userNotice.nnn=@notice
+
+The value of the userNotice qualifier is specified in the relevant section.
+This section can include explicitText, organization and noticeNumbers
+options. explicitText and organization are text strings, noticeNumbers is a
+comma separated list of numbers. The organization and noticeNumbers options
+(if included) must BOTH be present. If you use the userNotice option with IE5
+then you need the 'ia5org' option at the top level to modify the encoding:
+otherwise it will not be interpreted properly.
+
+Example:
+
+certificatePolicies=ia5org,1.2.3.4,1.5.6.7.8,@polsect
+
+[polsect]
+
+policyIdentifier = 1.3.5.8
+CPS.1="http://my.host.name/"
+CPS.2="http://my.your.name/"
+userNotice.1=@notice
+
+[notice]
+
+explicitText="Explicit Text Here"
+organization="Organisation Name"
+noticeNumbers=1,2,3,4
+
+TECHNICAL NOTE: the ia5org option changes the type of the 'organization' field,
+according to PKIX it should be of type DisplayText but Verisign uses an 
+IA5STRING and IE5 needs this too.
+
+Display only extensions.
+
+Some extensions are only partially supported and currently are only displayed
+but cannot be set. These include private key usage period, CRL number, and
+CRL reason.
+
+==============================================================================
+		X509V3 Extension code: programmers guide
+==============================================================================
+
+The purpose of the extension code is twofold. It allows an extension to be
+created from a string or structure describing its contents and it prints out an
+extension in a human or machine readable form.
+
+1. Initialisation and cleanup.
+
+No special initialisation is needed before calling the extension functions.
+You used to have to call X509V3_add_standard_extensions(); but this is no longer
+required and this function no longer does anything.
+
+void X509V3_EXT_cleanup(void);
+
+This function should be called to cleanup the extension code if any custom
+extensions have been added. If no custom extensions have been added then this
+call does nothing. After this call all custom extension code is freed up but
+you can still use the standard extensions.
+
+2. Printing and parsing extensions.
+
+The simplest way to print out extensions is via the standard X509 printing
+routines: if you use the standard X509_print() function, the supported
+extensions will be printed out automatically.
+
+The following functions allow finer control over extension display:
+
+int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, int flag, int indent);
+int X509V3_EXT_print_fp(FILE *out, X509_EXTENSION *ext, int flag, int indent);
+
+These two functions print out an individual extension to a BIO or FILE pointer.
+Currently the flag argument is unused and should be set to 0. The 'indent'
+argument is the number of spaces to indent each line.
+
+void *X509V3_EXT_d2i(X509_EXTENSION *ext);
+
+This function parses an extension and returns its internal structure. The
+precise structure you get back depends on the extension being parsed. If the
+extension if basicConstraints you will get back a pointer to a
+BASIC_CONSTRAINTS structure. Check out the source in crypto/x509v3 for more
+details about the structures returned. The returned structure should be freed
+after use using the relevant free function, BASIC_CONSTRAINTS_free() for 
+example.
+
+void	*	X509_get_ext_d2i(X509 *x, int nid, int *crit, int *idx);
+void	*	X509_CRL_get_ext_d2i(X509_CRL *x, int nid, int *crit, int *idx);
+void	*	X509_REVOKED_get_ext_d2i(X509_REVOKED *x, int nid, int *crit, int *idx);
+void 	*	X509V3_get_d2i(STACK_OF(X509_EXTENSION) *x, int nid, int *crit, int *idx);
+
+These functions combine the operations of searching for extensions and
+parsing them. They search a certificate, a CRL a CRL entry or a stack
+of extensions respectively for extension whose NID is 'nid' and return
+the parsed result of NULL if an error occurred. For example:
+
+BASIC_CONSTRAINTS *bs;
+bs = X509_get_ext_d2i(cert, NID_basic_constraints, NULL, NULL);
+
+This will search for the basicConstraints extension and either return
+it value or NULL. NULL can mean either the extension was not found, it
+occurred more than once or it could not be parsed.
+
+If 'idx' is NULL then an extension is only parsed if it occurs precisely
+once. This is standard behaviour because extensions normally cannot occur
+more than once. If however more than one extension of the same type can
+occur it can be used to parse successive extensions for example:
+
+int i;
+void *ext;
+
+i = -1;
+for(;;) {
+	ext = X509_get_ext_d2i(x, nid, crit, &idx);
+	if(ext == NULL) break;
+	 /* Do something with ext */
+}
+
+If 'crit' is not NULL and the extension was found then the int it points to
+is set to 1 for critical extensions and 0 for non critical. Therefore if the
+function returns NULL but 'crit' is set to 0 or 1 then the extension was
+found but it could not be parsed.
+
+The int pointed to by crit will be set to -1 if the extension was not found
+and -2 if the extension occurred more than once (this will only happen if
+idx is NULL). In both cases the function will return NULL.
+
+3. Generating extensions.
+
+An extension will typically be generated from a configuration file, or some
+other kind of configuration database.
+
+int X509V3_EXT_add_conf(LHASH *conf, X509V3_CTX *ctx, char *section,
+								 X509 *cert);
+int X509V3_EXT_CRL_add_conf(LHASH *conf, X509V3_CTX *ctx, char *section,
+								 X509_CRL *crl);
+
+These functions add all the extensions in the given section to the given
+certificate or CRL. They will normally be called just before the certificate
+or CRL is due to be signed. Both return 0 on error on non zero for success.
+
+In each case 'conf' is the LHASH pointer of the configuration file to use
+and 'section' is the section containing the extension details.
+
+See the 'context functions' section for a description of the ctx parameter.
+
+
+X509_EXTENSION *X509V3_EXT_conf(LHASH *conf, X509V3_CTX *ctx, char *name,
+								 char *value);
+
+This function returns an extension based on a name and value pair, if the
+pair will not need to access other sections in a config file (or there is no
+config file) then the 'conf' parameter can be set to NULL.
+
+X509_EXTENSION *X509V3_EXT_conf_nid(char *conf, X509V3_CTX *ctx, int nid,
+								 char *value);
+
+This function creates an extension in the same way as X509V3_EXT_conf() but
+takes the NID of the extension rather than its name.
+
+For example to produce basicConstraints with the CA flag and a path length of
+10:
+
+x = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints,"CA:TRUE,pathlen:10");
+
+
+X509_EXTENSION *X509V3_EXT_i2d(int ext_nid, int crit, void *ext_struc);
+
+This function sets up an extension from its internal structure. The ext_nid
+parameter is the NID of the extension and 'crit' is the critical flag.
+
+4. Context functions.
+
+The following functions set and manipulate an extension context structure.
+The purpose of the extension context is to allow the extension code to
+access various structures relating to the "environment" of the certificate:
+for example the issuers certificate or the certificate request.
+
+void X509V3_set_ctx(X509V3_CTX *ctx, X509 *issuer, X509 *subject,
+                                 X509_REQ *req, X509_CRL *crl, int flags);
+
+This function sets up an X509V3_CTX structure with details of the certificate
+environment: specifically the issuers certificate, the subject certificate,
+the certificate request and the CRL: if these are not relevant or not
+available then they can be set to NULL. The 'flags' parameter should be set
+to zero.
+
+X509V3_set_ctx_test(ctx)
+
+This macro is used to set the 'ctx' structure to a 'test' value: this is to
+allow the syntax of an extension (or configuration file) to be tested.
+
+X509V3_set_ctx_nodb(ctx)
+
+This macro is used when no configuration database is present.
+
+void X509V3_set_conf_lhash(X509V3_CTX *ctx, LHASH *lhash);
+
+This function is used to set the configuration database when it is an LHASH
+structure: typically a configuration file.
+
+The following functions are used to access a configuration database: they
+should only be used in RAW extensions.
+
+char * X509V3_get_string(X509V3_CTX *ctx, char *name, char *section);
+
+This function returns the value of the parameter "name" in "section", or NULL
+if there has been an error.
+
+void X509V3_string_free(X509V3_CTX *ctx, char *str);
+
+This function frees up the string returned by the above function.
+
+STACK_OF(CONF_VALUE) * X509V3_get_section(X509V3_CTX *ctx, char *section);
+
+This function returns a whole section as a STACK_OF(CONF_VALUE) .
+
+void X509V3_section_free( X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *section);
+
+This function frees up the STACK returned by the above function.
+
+Note: it is possible to use the extension code with a custom configuration
+database. To do this the "db_meth" element of the X509V3_CTX structure should
+be set to an X509V3_CTX_METHOD structure. This structure contains the following
+function pointers:
+
+char * (*get_string)(void *db, char *section, char *value);
+STACK_OF(CONF_VALUE) * (*get_section)(void *db, char *section);
+void (*free_string)(void *db, char * string);
+void (*free_section)(void *db, STACK_OF(CONF_VALUE) *section);
+
+these will be called and passed the 'db' element in the X509V3_CTX structure
+to access the database. If a given function is not implemented or not required
+it can be set to NULL.
+
+5. String helper functions.
+
+There are several "i2s" and "s2i" functions that convert structures to and
+from ASCII strings. In all the "i2s" cases the returned string should be
+freed using Free() after use. Since some of these are part of other extension
+code they may take a 'method' parameter. Unless otherwise stated it can be
+safely set to NULL.
+
+char *i2s_ASN1_OCTET_STRING(X509V3_EXT_METHOD *method, ASN1_OCTET_STRING *oct);
+
+This returns a hex string from an ASN1_OCTET_STRING.
+
+char * i2s_ASN1_INTEGER(X509V3_EXT_METHOD *meth, ASN1_INTEGER *aint);
+char * i2s_ASN1_ENUMERATED(X509V3_EXT_METHOD *meth, ASN1_ENUMERATED *aint);
+
+These return a string decimal representations of an ASN1_INTEGER and an
+ASN1_ENUMERATED type, respectively.
+
+ASN1_OCTET_STRING *s2i_ASN1_OCTET_STRING(X509V3_EXT_METHOD *method,
+                                                   X509V3_CTX *ctx, char *str);
+
+This converts an ASCII hex string to an ASN1_OCTET_STRING.
+
+ASN1_INTEGER * s2i_ASN1_INTEGER(X509V3_EXT_METHOD *meth, char *value);
+
+This converts a decimal ASCII string into an ASN1_INTEGER.
+
+6. Multi valued extension helper functions.
+
+The following functions can be used to manipulate STACKs of CONF_VALUE
+structures, as used by multi valued extensions.
+
+int X509V3_get_value_bool(CONF_VALUE *value, int *asn1_bool);
+
+This function expects a boolean value in 'value' and sets 'asn1_bool' to
+it. That is it sets it to 0 for FALSE or 0xff for TRUE. The following
+strings are acceptable: "TRUE", "true", "Y", "y", "YES", "yes", "FALSE"
+"false", "N", "n", "NO" or "no".
+
+int X509V3_get_value_int(CONF_VALUE *value, ASN1_INTEGER **aint);
+
+This accepts a decimal integer of arbitrary length and sets an ASN1_INTEGER.
+
+int X509V3_add_value(const char *name, const char *value,
+						STACK_OF(CONF_VALUE) **extlist);
+
+This simply adds a string name and value pair.
+
+int X509V3_add_value_uchar(const char *name, const unsigned char *value,
+                          			STACK_OF(CONF_VALUE) **extlist);
+
+The same as above but for an unsigned character value.
+
+int X509V3_add_value_bool(const char *name, int asn1_bool,
+						STACK_OF(CONF_VALUE) **extlist);
+
+This adds either "TRUE" or "FALSE" depending on the value of 'asn1_bool'
+
+int X509V3_add_value_bool_nf(char *name, int asn1_bool,
+						STACK_OF(CONF_VALUE) **extlist);
+
+This is the same as above except it adds nothing if asn1_bool is FALSE.
+
+int X509V3_add_value_int(const char *name, ASN1_INTEGER *aint,
+						STACK_OF(CONF_VALUE) **extlist);
+
+This function adds the value of the ASN1_INTEGER in decimal form.
+
+7. Other helper functions.
+
+<to be added>
+
+ADDING CUSTOM EXTENSIONS.
+
+Currently there are three types of supported extensions. 
+
+String extensions are simple strings where the value is placed directly in the
+extensions, and the string returned is printed out.
+
+Multi value extensions are passed a STACK_OF(CONF_VALUE) name and value pairs
+or return a STACK_OF(CONF_VALUE).
+
+Raw extensions are just passed a BIO or a value and it is the extensions
+responsibility to handle all the necessary printing.
+
+There are two ways to add an extension. One is simply as an alias to an already
+existing extension. An alias is an extension that is identical in ASN1 structure
+to an existing extension but has a different OBJECT IDENTIFIER. This can be
+done by calling:
+
+int X509V3_EXT_add_alias(int nid_to, int nid_from);
+
+'nid_to' is the new extension NID and 'nid_from' is the already existing
+extension NID.
+
+Alternatively an extension can be written from scratch. This involves writing
+the ASN1 code to encode and decode the extension and functions to print out and
+generate the extension from strings. The relevant functions are then placed in
+a X509V3_EXT_METHOD structure and int X509V3_EXT_add(X509V3_EXT_METHOD *ext);
+called.
+
+The X509V3_EXT_METHOD structure is described below.
+
+struct {
+int ext_nid;
+int ext_flags;
+X509V3_EXT_NEW ext_new;
+X509V3_EXT_FREE ext_free;
+X509V3_EXT_D2I d2i;
+X509V3_EXT_I2D i2d;
+X509V3_EXT_I2S i2s;
+X509V3_EXT_S2I s2i;
+X509V3_EXT_I2V i2v;
+X509V3_EXT_V2I v2i;
+X509V3_EXT_R2I r2i;
+X509V3_EXT_I2R i2r;
+
+void *usr_data;
+};
+
+The elements have the following meanings.
+
+ext_nid		is the NID of the object identifier of the extension.
+
+ext_flags	is set of flags. Currently the only external flag is
+		X509V3_EXT_MULTILINE which means a multi valued extensions
+		should be printed on separate lines.
+
+usr_data	is an extension specific pointer to any relevant data. This
+		allows extensions to share identical code but have different
+		uses. An example of this is the bit string extension which uses
+		usr_data to contain a list of the bit names.
+
+All the remaining elements are function pointers.
+
+ext_new		is a pointer to a function that allocates memory for the
+		extension ASN1 structure: for example ASN1_OBJECT_new().
+
+ext_free	is a pointer to a function that free up memory of the extension
+		ASN1 structure: for example ASN1_OBJECT_free().
+
+d2i		is the standard ASN1 function that converts a DER buffer into
+		the internal ASN1 structure: for example d2i_ASN1_IA5STRING().
+
+i2d		is the standard ASN1 function that converts the internal
+		structure into the DER representation: for example
+		i2d_ASN1_IA5STRING().
+
+The remaining functions are depend on the type of extension. One i2X and
+one X2i should be set and the rest set to NULL. The types set do not need
+to match up, for example the extension could be set using the multi valued
+v2i function and printed out using the raw i2r.
+
+All functions have the X509V3_EXT_METHOD passed to them in the 'method'
+parameter and an X509V3_CTX structure. Extension code can then access the
+parent structure via the 'method' parameter to for example make use of the value
+of usr_data. If the code needs to use detail relating to the request it can
+use the 'ctx' parameter.
+
+A note should be given here about the 'flags' member of the 'ctx' parameter.
+If it has the value CTX_TEST then the configuration syntax is being checked
+and no actual certificate or CRL exists. Therefore any attempt in the config
+file to access such information should silently succeed. If the syntax is OK
+then it should simply return a (possibly bogus) extension, otherwise it
+should return NULL.
+
+char *i2s(struct v3_ext_method *method, void *ext);
+
+This function takes the internal structure in the ext parameter and returns
+a Malloc'ed string representing its value.
+
+void * s2i(struct v3_ext_method *method, struct v3_ext_ctx *ctx, char *str);
+
+This function takes the string representation in the ext parameter and returns
+an allocated internal structure: ext_free() will be used on this internal
+structure after use.
+
+i2v and v2i handle a STACK_OF(CONF_VALUE):
+
+typedef struct
+{
+        char *section;
+        char *name;
+        char *value;
+} CONF_VALUE;
+
+Only the name and value members are currently used.
+
+STACK_OF(CONF_VALUE) * i2v(struct v3_ext_method *method, void *ext);
+
+This function is passed the internal structure in the ext parameter and
+returns a STACK of CONF_VALUE structures. The values of name, value,
+section and the structure itself will be freed up with Free after use.
+Several helper functions are available to add values to this STACK.
+
+void * v2i(struct v3_ext_method *method, struct v3_ext_ctx *ctx,
+						STACK_OF(CONF_VALUE) *values);
+
+This function takes a STACK_OF(CONF_VALUE) structures and should set the
+values of the external structure. This typically uses the name element to
+determine which structure element to set and the value element to determine
+what to set it to. Several helper functions are available for this
+purpose (see above).
+
+int i2r(struct v3_ext_method *method, void *ext, BIO *out, int indent);
+
+This function is passed the internal extension structure in the ext parameter
+and sends out a human readable version of the extension to out. The 'indent'
+parameter should be noted to determine the necessary amount of indentation
+needed on the output.
+
+void * r2i(struct v3_ext_method *method, struct v3_ext_ctx *ctx, char *str);
+
+This is just passed the string representation of the extension. It is intended
+to be used for more elaborate extensions where the standard single and multi
+valued options are insufficient. They can use the 'ctx' parameter to parse the
+configuration database themselves. See the context functions section for details
+of how to do this.
+
+Note: although this type takes the same parameters as the "r2s" function there
+is a subtle difference. Whereas an "r2i" function can access a configuration
+database an "s2i" function MUST NOT. This is so the internal code can safely
+assume that an "s2i" function will work without a configuration database.
+
+==============================================================================
+                            PKCS#12 Library
+==============================================================================
+
+This section describes the internal PKCS#12 support. There are very few
+differences between the old external library and the new internal code at
+present. This may well change because the external library will not be updated
+much in future.
+
+This version now includes a couple of high level PKCS#12 functions which
+generally "do the right thing" and should make it much easier to handle PKCS#12
+structures.
+
+HIGH LEVEL FUNCTIONS.
+
+For most applications you only need concern yourself with the high level
+functions. They can parse and generate simple PKCS#12 files as produced by
+Netscape and MSIE or indeed any compliant PKCS#12 file containing a single
+private key and certificate pair.
+
+1. Initialisation and cleanup.
+
+No special initialisation is needed for the internal PKCS#12 library: the 
+standard SSLeay_add_all_algorithms() is sufficient. If you do not wish to
+add all algorithms (you should at least add SHA1 though) then you can manually
+initialise the PKCS#12 library with:
+
+PKCS12_PBE_add();
+
+The memory allocated by the PKCS#12 library is freed up when EVP_cleanup() is
+called or it can be directly freed with:
+
+EVP_PBE_cleanup();
+
+after this call (or EVP_cleanup() ) no more PKCS#12 library functions should
+be called.
+
+2. I/O functions.
+
+i2d_PKCS12_bio(bp, p12)
+
+This writes out a PKCS12 structure to a BIO.
+
+i2d_PKCS12_fp(fp, p12)
+
+This is the same but for a FILE pointer.
+
+d2i_PKCS12_bio(bp, p12)
+
+This reads in a PKCS12 structure from a BIO.
+
+d2i_PKCS12_fp(fp, p12)
+
+This is the same but for a FILE pointer.
+
+3. High level functions.
+
+3.1 Parsing with PKCS12_parse().
+
+int PKCS12_parse(PKCS12 *p12, char *pass, EVP_PKEY **pkey, X509 **cert,
+								 STACK **ca);
+
+This function takes a PKCS12 structure and a password (ASCII, null terminated)
+and returns the private key, the corresponding certificate and any CA
+certificates. If any of these is not required it can be passed as a NULL.
+The 'ca' parameter should be either NULL, a pointer to NULL or a valid STACK
+structure. Typically to read in a PKCS#12 file you might do:
+
+p12 = d2i_PKCS12_fp(fp, NULL);
+PKCS12_parse(p12, password, &pkey, &cert, NULL); 	/* CAs not wanted */
+PKCS12_free(p12);
+
+3.2 PKCS#12 creation with PKCS12_create().
+
+PKCS12 *PKCS12_create(char *pass, char *name, EVP_PKEY *pkey, X509 *cert,
+			STACK *ca, int nid_key, int nid_cert, int iter,
+						 int mac_iter, int keytype);
+
+This function will create a PKCS12 structure from a given password, name,
+private key, certificate and optional STACK of CA certificates. The remaining
+5 parameters can be set to 0 and sensible defaults will be used.
+
+The parameters nid_key and nid_cert are the key and certificate encryption
+algorithms, iter is the encryption iteration count, mac_iter is the MAC
+iteration count and keytype is the type of private key. If you really want
+to know what these last 5 parameters do then read the low level section.
+
+Typically to create a PKCS#12 file the following could be used:
+
+p12 = PKCS12_create(pass, "My Certificate", pkey, cert, NULL, 0,0,0,0,0);
+i2d_PKCS12_fp(fp, p12);
+PKCS12_free(p12);
+
+3.3 Changing a PKCS#12 structure password.
+
+int PKCS12_newpass(PKCS12 *p12, char *oldpass, char *newpass);
+
+This changes the password of an already existing PKCS#12 structure. oldpass
+is the old password and newpass is the new one. An error occurs if the old
+password is incorrect.
+
+LOW LEVEL FUNCTIONS.
+
+In some cases the high level functions do not provide the necessary
+functionality. For example if you want to generate or parse more complex
+PKCS#12 files. The sample pkcs12 application uses the low level functions
+to display details about the internal structure of a PKCS#12 file.
+
+Introduction.
+
+This is a brief description of how a PKCS#12 file is represented internally:
+some knowledge of PKCS#12 is assumed.
+
+A PKCS#12 object contains several levels.
+
+At the lowest level is a PKCS12_SAFEBAG. This can contain a certificate, a
+CRL, a private key, encrypted or unencrypted, a set of safebags (so the
+structure can be nested) or other secrets (not documented at present). 
+A safebag can optionally have attributes, currently these are: a unicode
+friendlyName (a Unicode string) or a localKeyID (a string of bytes).
+
+At the next level is an authSafe which is a set of safebags collected into
+a PKCS#7 ContentInfo. This can be just plain data, or encrypted itself.
+
+At the top level is the PKCS12 structure itself which contains a set of
+authSafes in an embedded PKCS#7 Contentinfo of type data. In addition it
+contains a MAC which is a kind of password protected digest to preserve
+integrity (so any unencrypted stuff below can't be tampered with).
+
+The reason for these levels is so various objects can be encrypted in various
+ways. For example you might want to encrypt a set of private keys with
+triple-DES and then include the related certificates either unencrypted or
+with lower encryption. Yes it's the dreaded crypto laws at work again which
+allow strong encryption on private keys and only weak encryption on other
+stuff.
+
+To build one of these things you turn all certificates and keys into safebags
+(with optional attributes). You collect the safebags into (one or more) STACKS
+and convert these into authsafes (encrypted or unencrypted).  The authsafes
+are collected into a STACK and added to a PKCS12 structure.  Finally a MAC
+inserted.
+
+Pulling one apart is basically the reverse process. The MAC is verified against
+the given password. The authsafes are extracted and each authsafe split into
+a set of safebags (possibly involving decryption). Finally the safebags are
+decomposed into the original keys and certificates and the attributes used to
+match up private key and certificate pairs.
+
+Anyway here are the functions that do the dirty work.
+
+1. Construction functions.
+
+1.1 Safebag functions.
+
+M_PKCS12_x5092certbag(x509)
+
+This macro takes an X509 structure and returns a certificate bag. The
+X509 structure can be freed up after calling this function.
+
+M_PKCS12_x509crl2certbag(crl)
+
+As above but for a CRL.
+
+PKCS8_PRIV_KEY_INFO *PKEY2PKCS8(EVP_PKEY *pkey)
+
+Take a private key and convert it into a PKCS#8 PrivateKeyInfo structure.
+Works for both RSA and DSA private keys. NB since the PKCS#8 PrivateKeyInfo
+structure contains a private key data in plain text form it should be free'd
+up as soon as it has been encrypted for security reasons (freeing up the
+structure zeros out the sensitive data). This can be done with
+PKCS8_PRIV_KEY_INFO_free().
+
+PKCS8_add_keyusage(PKCS8_PRIV_KEY_INFO *p8, int usage)
+
+This sets the key type when a key is imported into MSIE or Outlook 98. Two
+values are currently supported: KEY_EX and KEY_SIG. KEY_EX is an exchange type
+key that can also be used for signing but its size is limited in the export
+versions of MS software to 512 bits, it is also the default. KEY_SIG is a
+signing only key but the keysize is unlimited (well 16K is supposed to work).
+If you are using the domestic version of MSIE then you can ignore this because
+KEY_EX is not limited and can be used for both.
+
+PKCS12_SAFEBAG *PKCS12_MAKE_KEYBAG(PKCS8_PRIV_KEY_INFO *p8)
+
+Convert a PKCS8 private key structure into a keybag. This routine embeds the
+p8 structure in the keybag so p8 should not be freed up or used after it is
+called.  The p8 structure will be freed up when the safebag is freed.
+
+PKCS12_SAFEBAG *PKCS12_MAKE_SHKEYBAG(int pbe_nid, unsigned char *pass, int passlen, unsigned char *salt, int saltlen, int iter, PKCS8_PRIV_KEY_INFO *p8)
+
+Convert a PKCS#8 structure into a shrouded key bag (encrypted). p8 is not
+embedded and can be freed up after use.
+
+int PKCS12_add_localkeyid(PKCS12_SAFEBAG *bag, unsigned char *name, int namelen)
+int PKCS12_add_friendlyname(PKCS12_SAFEBAG *bag, unsigned char *name, int namelen)
+
+Add a local key id or a friendlyname to a safebag.
+
+1.2 Authsafe functions.
+
+PKCS7 *PKCS12_pack_p7data(STACK *sk)
+Take a stack of safebags and convert them into an unencrypted authsafe. The
+stack of safebags can be freed up after calling this function.
+
+PKCS7 *PKCS12_pack_p7encdata(int pbe_nid, unsigned char *pass, int passlen, unsigned char *salt, int saltlen, int iter, STACK *bags);
+
+As above but encrypted.
+
+1.3 PKCS12 functions.
+
+PKCS12 *PKCS12_init(int mode)
+
+Initialise a PKCS12 structure (currently mode should be NID_pkcs7_data).
+
+M_PKCS12_pack_authsafes(p12, safes)
+
+This macro takes a STACK of authsafes and adds them to a PKCS#12 structure.
+
+int PKCS12_set_mac(PKCS12 *p12, unsigned char *pass, int passlen, unsigned char *salt, int saltlen, int iter, EVP_MD *md_type);
+
+Add a MAC to a PKCS12 structure. If EVP_MD is NULL use SHA-1, the spec suggests
+that SHA-1 should be used.
+
+2. Extraction Functions.
+
+2.1 Safebags.
+
+M_PKCS12_bag_type(bag)
+
+Return the type of "bag". Returns one of the following
+
+NID_keyBag
+NID_pkcs8ShroudedKeyBag			7
+NID_certBag				8
+NID_crlBag				9
+NID_secretBag				10
+NID_safeContentsBag			11
+
+M_PKCS12_cert_bag_type(bag)
+
+Returns type of certificate bag, following are understood.
+
+NID_x509Certificate			14
+NID_sdsiCertificate			15
+
+M_PKCS12_crl_bag_type(bag)
+
+Returns crl bag type, currently only NID_crlBag is recognised.
+
+M_PKCS12_certbag2x509(bag)
+
+This macro extracts an X509 certificate from a certificate bag.
+
+M_PKCS12_certbag2x509crl(bag)
+
+As above but for a CRL.
+
+EVP_PKEY * PKCS82PKEY(PKCS8_PRIV_KEY_INFO *p8)
+
+Extract a private key from a PKCS8 private key info structure.
+
+M_PKCS12_decrypt_skey(bag, pass, passlen) 
+
+Decrypt a shrouded key bag and return a PKCS8 private key info structure.
+Works with both RSA and DSA keys
+
+char *PKCS12_get_friendlyname(bag)
+
+Returns the friendlyName of a bag if present or NULL if none. The returned
+string is a null terminated ASCII string allocated with Malloc(). It should 
+thus be freed up with Free() after use.
+
+2.2 AuthSafe functions.
+
+M_PKCS12_unpack_p7data(p7)
+
+Extract a STACK of safe bags from a PKCS#7 data ContentInfo.
+
+#define M_PKCS12_unpack_p7encdata(p7, pass, passlen)
+
+As above but for an encrypted content info.
+
+2.3 PKCS12 functions.
+
+M_PKCS12_unpack_authsafes(p12)
+
+Extract a STACK of authsafes from a PKCS12 structure.
+
+M_PKCS12_mac_present(p12)
+
+Check to see if a MAC is present.
+
+int PKCS12_verify_mac(PKCS12 *p12, unsigned char *pass, int passlen)
+
+Verify a MAC on a PKCS12 structure. Returns an error if MAC not present.
+
+
+Notes.
+
+1. All the function return 0 or NULL on error.
+2. Encryption based functions take a common set of parameters. These are
+described below.
+
+pass, passlen
+ASCII password and length. The password on the MAC is called the "integrity
+password" the encryption password is called the "privacy password" in the
+PKCS#12 documentation. The passwords do not have to be the same. If -1 is
+passed for the length it is worked out by the function itself (currently
+this is sometimes done whatever is passed as the length but that may change).
+
+salt, saltlen
+A 'salt' if salt is NULL a random salt is used. If saltlen is also zero a
+default length is used.
+
+iter
+Iteration count. This is a measure of how many times an internal function is
+called to encrypt the data. The larger this value is the longer it takes, it
+makes dictionary attacks on passwords harder. NOTE: Some implementations do
+not support an iteration count on the MAC. If the password for the MAC and
+encryption is the same then there is no point in having a high iteration
+count for encryption if the MAC has no count. The MAC could be attacked
+and the password used for the main decryption.
+
+pbe_nid
+This is the NID of the password based encryption method used. The following are
+supported.
+NID_pbe_WithSHA1And128BitRC4
+NID_pbe_WithSHA1And40BitRC4
+NID_pbe_WithSHA1And3_Key_TripleDES_CBC
+NID_pbe_WithSHA1And2_Key_TripleDES_CBC
+NID_pbe_WithSHA1And128BitRC2_CBC
+NID_pbe_WithSHA1And40BitRC2_CBC
+
+Which you use depends on the implementation you are exporting to. "Export
+grade" (i.e. cryptographically challenged) products cannot support all
+algorithms. Typically you may be able to use any encryption on shrouded key
+bags but they must then be placed in an unencrypted authsafe. Other authsafes
+may only support 40bit encryption. Of course if you are using SSLeay
+throughout you can strongly encrypt everything and have high iteration counts
+on everything.
+
+3. For decryption routines only the password and length are needed.
+
+4. Unlike the external version the nid's of objects are the values of the
+constants: that is NID_certBag is the real nid, therefore there is no 
+PKCS12_obj_offset() function.  Note the object constants are not the same as
+those of the external version. If you use these constants then you will need
+to recompile your code.
+
+5. With the exception of PKCS12_MAKE_KEYBAG(), after calling any function or 
+macro of the form PKCS12_MAKE_SOMETHING(other) the "other" structure can be
+reused or freed up safely.
+

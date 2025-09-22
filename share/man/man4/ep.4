@@ -1,0 +1,152 @@
+.\"	$OpenBSD: ep.4,v 1.35 2013/08/14 06:32:34 jmc Exp $
+.\"
+.\" Copyright (c) 1994 Herb Peyerl
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Herb Peyerl
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 14 2013 $
+.Dt EP 4
+.Os
+.Sh NAME
+.Nm ep
+.Nd 3Com EtherLink III and Fast EtherLink III 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "ep* at eisa?"
+.Cd "ep* at isa?"
+.Cd "ep* at pci?"
+.Cd "ep* at pcmcia?"
+.Cd "ep* at isapnp?"
+.Cd "tqphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports the 3Com EtherLink III and Fast EtherLink III family
+of Ethernet cards.
+This includes, among others, the following models:
+.Pp
+.Bl -tag -width 3CXXXX -offset indent -compact
+.It 3C509
+EtherLink III ISA
+.It 3C509B
+EtherLink III ISA (Plug-and-Play)
+.It 3C556
+EtherLink III LAN+Modem PC Card (PCMCIA)
+.It 3C562
+EtherLink III LAN+33.6K Modem PC Card (PCMCIA)
+.It 3C574
+Fast EtherLink III 10/100 LAN PC Card (PCMCIA)
+.It 3C579
+EtherLink III EISA
+.It 3C589
+EtherLink III LAN PC Card (PCMCIA)
+.It 3C590
+Fast EtherLink III PCI
+.It 3C592
+EtherLink III EISA Bus Master
+.It 3C595
+Fast EtherLink III PCI 10/100
+.It 3C597
+Fast EtherLink III EISA 10/100
+.El
+.Pp
+Category 3, 4 or 5 unshielded twisted-pair (UTP) cable should be used for
+RJ-45 (10baseT), thick Ethernet coaxial (RG59 B/U, 50 ohm) for AUI/DIX, and
+thin Ethernet coaxial (RG58 A/U or C/U, 50 ohm +/- 4) for BNC (10base2).
+Some 3Com NICs also support MII connectors (switchable 10/100Mbps UTP).
+.Pp
+The following media types and options (as given to
+.Xr ifconfig 8 )
+are supported:
+.Bl -tag -width xxx -offset indent
+.It Cm media No autoselect
+Enable autoselection of media type and options.
+.It Cm media No 100baseTX Cm mediaopt No full-duplex
+Set 100Mbps (Fast Ethernet) operation and force full-duplex mode.
+.It Cm media No 100baseTX Cm mediaopt No half-duplex
+Set 100Mbps (Fast Ethernet) operation and force half-duplex mode.
+.It Cm media No 10baseT Cm mediaopt No full-duplex
+Set 10baseT (UTP) operation and force full-duplex mode.
+.It Cm media No 10baseT Cm mediaopt No half-duplex
+Set 10baseT (UTP) operation and force half-duplex mode.
+.It Cm media No 10base5
+Set 10base5 (thick-net) operation (half-duplex only).
+.It Cm media No 10base2
+Set 10base2 (thin-net) operation (half-duplex only).
+.El
+.Pp
+Note that the 100baseTX media type is only available if supported by the
+adapter.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+To view a list of media types and options supported by your card try
+.Dq ifconfig <device> media .
+For example,
+.Dq ifconfig ep0 media .
+.Pp
+If more than one of the supported cards is installed, they are probed for
+in the following order:
+.Pp
+.Bl -enum -offset indent -compact
+.It
+PCI cards based on PCI function number order.
+.It
+EISA cards based on EISA slot number order.
+.It
+ISA cards based on increasing Ethernet address order.
+.It
+Any ISA cards in Plug-and-Play mode, in Plug-and-Play order.
+.El
+.Pp
+You may specify the port and IRQ numbers where the cards are expected to
+be found, but it is not necessary.
+The cards are intelligent enough to let us know where they live on the bus.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It ep0: reset (status: %x)
+The driver has encountered a FIFO underrun or overrun.
+The driver will reset the card and the packet will be lost.
+This is not fatal.
+.It ep0: eeprom failed to come ready
+The EEPROM failed to come ready.
+This probably means the card is wedged.
+.It ep0: erase pencil mark, or disable PnP mode!
+This means that someone has scribbled with pencil in the test area on the
+card.
+Erase the pencil mark and reboot.
+(This is not a joke).
+.El
+.Sh SEE ALSO
+.Xr eisa 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr isapnp 4 ,
+.Xr pci 4 ,
+.Xr pcmcia 4 ,
+.Xr tqphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8

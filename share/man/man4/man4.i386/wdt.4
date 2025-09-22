@@ -1,0 +1,68 @@
+.\" Copyright (c) 1998,1999 Alex Nash
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: wdt.4,v 1.15 2007/05/31 19:19:55 jmc Exp $
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt WDT 4 i386
+.Os
+.Sh NAME
+.Nm wdt
+.Nd ICS PCI-WDT500/501 watchdog timer device
+.Sh SYNOPSIS
+.Cd "wdt0 at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Industrial Computer Source
+PCI-WDT500 and PCI-WDT501 boards.
+.Pp
+For PCI-WDT500 boards, basic watchdog timer functionality is supported.
+For PCI-WDT501 boards, the onboard buzzer will sound when the watchdog
+counter expires.
+The sensors are not yet supported.
+.Pp
+If the kernel crashes, the watchdog
+timer is not reset and the system will reboot (assuming a proper connection
+is made between the WDT50x and motherboard).
+Alternatively, the watchdog
+can be reinitialized via a userland process which ensures that process
+scheduling, not just kernel timeout processing, is still taking place.
+See
+.Xr watchdog 4
+and
+.Xr watchdogd 8
+for more information.
+.Pp
+The timer can be configured to have a timeout from 2 to 1800 seconds.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr watchdog 4 ,
+.Xr watchdogd 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 2.6 .

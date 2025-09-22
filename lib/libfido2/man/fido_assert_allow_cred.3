@@ -1,0 +1,48 @@
+.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_ASSERT_ALLOW_CRED 3
+.Os
+.Sh NAME
+.Nm fido_assert_allow_cred
+.Nd allow a credential in a FIDO2 assertion
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft int
+.Fn fido_assert_allow_cred "fido_assert_t *assert" "const unsigned char *ptr" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn fido_assert_allow_cred
+function adds
+.Fa ptr
+to the list of credentials allowed in
+.Fa assert ,
+where
+.Fa ptr
+points to a credential ID of
+.Fa len
+bytes.
+A copy of
+.Fa ptr
+is made, and no references to the passed pointer are kept.
+If
+.Fn fido_assert_allow_cred
+fails, the existing list of allowed credentials is preserved.
+.Pp
+For the format of a FIDO2 credential ID, please refer to the
+Web Authentication (webauthn) standard.
+.Sh RETURN VALUES
+The error codes returned by
+.Fn fido_assert_allow_cred
+are defined in
+.In fido/err.h .
+On success,
+.Dv FIDO_OK
+is returned.
+.Sh SEE ALSO
+.Xr fido_assert_new 3 ,
+.Xr fido_assert_set_authdata 3 ,
+.Xr fido_dev_get_assert 3

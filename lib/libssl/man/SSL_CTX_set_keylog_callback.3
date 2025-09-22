@@ -1,0 +1,57 @@
+.\" $OpenBSD: SSL_CTX_set_keylog_callback.3,v 1.4 2025/06/08 22:52:00 schwarze Exp $
+.\" OpenSSL pod checked up to: 61f805c1 Jan 16 01:01:46 2018 +0800
+.\"
+.\" Copyright (c) 2021 Bob Beck <beck@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_KEYLOG_CALLBACK 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_keylog_callback ,
+.Nm SSL_CTX_get_keylog_callback
+.Nd set and get the unused key logging callback
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft typedef void
+.Fo (*SSL_CTX_keylog_cb_func)
+.Fa "const SSL *ssl"
+.Fa "const char *line"
+.Fc
+.Ft void
+.Fn SSL_CTX_set_keylog_callback "SSL_CTX *ctx" "SSL_CTX_keylog_cb_func cb"
+.Ft SSL_CTX_keylog_cb_func
+.Fn SSL_CTX_get_keylog_callback "const SSL_CTX *ctx"
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_keylog_callback
+sets the TLS key logging callback.
+This callback is never called in LibreSSL.
+.Pp
+.Fn SSL_CTX_get_keylog_callback
+retrieves the previously set TLS key logging callback.
+.Pp
+These functions are provided only for compatibility with OpenSSL.
+.Sh RETURN VALUES
+.Fn SSL_CTX_get_keylog_callback
+returns the previously set TLS key logging callback, or
+.Dv NULL
+if no callback has been set.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_new 3
+.Sh HISTORY
+These function first appeared in OpenSSL 1.1.1
+and have been available since
+.Ox 7.1 .

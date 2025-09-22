@@ -1,0 +1,234 @@
+.\"	$OpenBSD: SSL_CTX_set_info_callback.3,v 1.5 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2001, 2005, 2014 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_INFO_CALLBACK 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_info_callback ,
+.Nm SSL_CTX_get_info_callback ,
+.Nm SSL_set_info_callback ,
+.Nm SSL_get_info_callback
+.Nd handle information callback for SSL connections
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft void
+.Fo SSL_CTX_set_info_callback
+.Fa "SSL_CTX *ctx"
+.Fa "void (*callback)(const SSL *ssl, int where, int ret)"
+.Fc
+.Ft void
+.Fo "(*SSL_CTX_get_info_callback(const SSL_CTX *ctx))"
+.Fa "const SSL *ssl"
+.Fa "int where"
+.Fa "int ret"
+.Fc
+.Ft void
+.Fo SSL_set_info_callback
+.Fa "SSL *ssl"
+.Fa "void (*callback)(const SSL *ssl, int where, int ret)"
+.Fc
+.Ft void
+.Fo "(*SSL_get_info_callback(const SSL *ssl))"
+.Fa "const SSL *ssl"
+.Fa "int where"
+.Fa "int ret"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_info_callback
+sets the
+.Fa callback
+function that can be used to obtain state information for SSL objects created
+from
+.Fa ctx
+during connection setup and use.
+The setting for
+.Fa ctx
+is overridden from the setting for a specific SSL object, if specified.
+When
+.Fa callback
+is
+.Dv NULL ,
+no callback function is used.
+.Pp
+.Fn SSL_set_info_callback
+sets the
+.Fa callback
+function that can be used to
+obtain state information for
+.Fa ssl
+during connection setup and use.
+When
+.Fa callback
+is
+.Dv NULL ,
+the callback setting currently valid for
+.Fa ctx
+is used.
+.Pp
+.Fn SSL_CTX_get_info_callback
+returns a pointer to the currently set information callback function for
+.Fa ctx .
+.Pp
+.Fn SSL_get_info_callback
+returns a pointer to the currently set information callback function for
+.Fa ssl .
+.Pp
+When setting up a connection and during use,
+it is possible to obtain state information from the SSL/TLS engine.
+When set, an information callback function is called whenever the state changes,
+an alert appears, or an error occurs.
+.Pp
+The callback function is called as
+.Fn callback "SSL *ssl" "int where" "int ret" .
+The
+.Fa where
+argument specifies information about where (in which context)
+the callback function was called.
+If
+.Fa ret
+is 0, an error condition occurred.
+If an alert is handled,
+.Dv SSL_CB_ALERT
+is set and
+.Fa ret
+specifies the alert information.
+.Pp
+.Fa where
+is a bitmask made up of the following bits:
+.Bl -tag -width Ds
+.It Dv SSL_CB_LOOP
+Callback has been called to indicate state change inside a loop.
+.It Dv SSL_CB_EXIT
+Callback has been called to indicate error exit of a handshake function.
+(May be soft error with retry option for non-blocking setups.)
+.It Dv SSL_CB_READ
+Callback has been called during read operation.
+.It Dv SSL_CB_WRITE
+Callback has been called during write operation.
+.It Dv SSL_CB_ALERT
+Callback has been called due to an alert being sent or received.
+.It Dv SSL_CB_READ_ALERT
+.It Dv SSL_CB_WRITE_ALERT
+.It Dv SSL_CB_ACCEPT_LOOP
+.It Dv SSL_CB_ACCEPT_EXIT
+.It Dv SSL_CB_CONNECT_LOOP
+.It Dv SSL_CB_CONNECT_EXIT
+.It Dv SSL_CB_HANDSHAKE_START
+Callback has been called because a new handshake is started.
+.It Dv SSL_CB_HANDSHAKE_DONE
+Callback has been called because a handshake is finished.
+.El
+.Pp
+The current state information can be obtained using the
+.Xr SSL_state_string 3
+family of functions.
+.Pp
+The
+.Fa ret
+information can be evaluated using the
+.Xr SSL_alert_type_string 3
+family of functions.
+.Sh RETURN VALUES
+.Fn SSL_CTX_get_info_callback
+and
+.Fn SSL_get_info_callback
+return a pointer to the current callback or
+.Dv NULL
+if none is set.
+.Sh EXAMPLES
+The following example callback function prints state strings,
+information about alerts being handled and error messages to the
+.Va bio_err
+.Vt BIO .
+.Bd -literal
+void
+apps_ssl_info_callback(SSL *s, int where, int ret)
+{
+	const char *str;
+	int w;
+
+	w = where & ~SSL_ST_MASK;
+
+	if (w & SSL_ST_CONNECT)
+		str = "SSL_connect";
+	else if (w & SSL_ST_ACCEPT)
+		str = "SSL_accept";
+	else
+		str = "undefined";
+
+	if (where & SSL_CB_LOOP) {
+		BIO_printf(bio_err, "%s:%s\en", str,
+		    SSL_state_string_long(s));
+	} else if (where & SSL_CB_ALERT) {
+		str = (where & SSL_CB_READ) ? "read" : "write";
+		BIO_printf(bio_err, "SSL3 alert %s:%s:%s\en", str,
+			SSL_alert_type_string_long(ret),
+			SSL_alert_desc_string_long(ret));
+	} else if (where & SSL_CB_EXIT) {
+		if (ret == 0)
+			BIO_printf(bio_err, "%s:failed in %s\en",
+				str, SSL_state_string_long(s));
+		else if (ret < 0) {
+			BIO_printf(bio_err, "%s:error in %s\en",
+				str, SSL_state_string_long(s));
+		}
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_alert_type_string 3 ,
+.Xr SSL_state_string 3
+.Sh HISTORY
+These functions first appeared in SSLeay 0.6.0
+and have been available since
+.Ox 2.4 .

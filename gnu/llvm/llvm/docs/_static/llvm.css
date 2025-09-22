@@ -1,0 +1,112 @@
+/*
+ * LLVM documentation style sheet
+ */
+
+/* Common styles */
+.body { color: black; background: white; margin: 0 0 0 0 }
+
+/* No borders on image links */
+a:link img, a:visited img { border-style: none }
+
+address img { float: right; width: 88px; height: 31px; }
+address     { clear: right; }
+
+table       { text-align: center; border: 2px solid black;
+              border-collapse: collapse; margin-top: 1em; margin-left: 1em;
+              margin-right: 1em; margin-bottom: 1em; }
+tr, td      { border: 2px solid gray; padding: 4pt 4pt 2pt 2pt; }
+th          { border: 2px solid gray; font-weight: bold; font-size: 105%;
+              background: url("lines.gif");
+              font-family: "Georgia,Palatino,Times,Roman,SanSerif";
+              text-align: center; vertical-align: middle; }
+/*
+ * Documentation
+ */
+/* Common for title and header */
+.doc_title, .doc_section, .doc_subsection, h1, h2, h3 {
+  color: black; background: url("lines.gif");
+  font-family: "Georgia,Palatino,Times,Roman,SanSerif"; font-weight: bold;
+  border-width: 1px;
+  border-style: solid none solid none;
+  text-align: center;
+  vertical-align: middle;
+  padding-left: 8pt;
+  padding-top: 1px;
+  padding-bottom: 2px
+}
+
+h1, .doc_title, .title { text-align: left;   font-size: 25pt }
+
+h2, .doc_section   { text-align: center; font-size: 22pt;
+                     margin: 20pt 0pt 5pt 0pt; }
+
+h3, .doc_subsection { width: 75%;
+                      text-align: left;  font-size: 12pt;
+                      padding: 4pt 4pt 4pt 4pt;
+                      margin: 1.5em 0.5em 0.5em 0.5em }
+
+h4, .doc_subsubsection { margin: 2.0em 0.5em 0.5em 0.5em;
+                         font-weight: bold; font-style: oblique;
+                         border-bottom: 1px solid #999999; font-size: 12pt;
+                         width: 75%; }
+
+.doc_author     { text-align: left; font-weight: bold; padding-left: 20pt }
+.doc_text       { text-align: left; padding-left: 20pt; padding-right: 10pt }
+
+.doc_footer     { text-align: left; padding: 0 0 0 0 }
+
+.doc_hilite     { color: blue; font-weight: bold; }
+
+.doc_table      { text-align: center; width: 90%;
+                  padding: 1px 1px 1px 1px; border: 1px; }
+
+.doc_warning    { color: red; font-weight: bold }
+
+/* <div class="doc_code"> would use this class, and <div> adds more padding */
+.doc_code, .literal-block
+                { border: solid 1px gray; background: #eeeeee;
+                  margin: 0 1em 0 1em;
+                  padding: 0 1em 0 1em;
+                  display: table;
+                }
+
+blockquote pre {
+        padding: 1em 2em 1em 1em;
+        border: solid 1px gray;
+        background: #eeeeee;
+        margin: 0 1em 0 1em;
+        display: table;
+}
+
+h2+div, h2+p {text-align: left; padding-left: 20pt; padding-right: 10pt;}
+h3+div, h3+p {text-align: left; padding-left: 20pt; padding-right: 10pt;}
+h4+div, h4+p {text-align: left; padding-left: 20pt; padding-right: 10pt;}
+
+/* It is preferable to use <pre class="doc_code"> everywhere instead of the
+ * <div class="doc_code"><pre>...</ptr></div> construct.
+ *
+ * Once all docs use <pre> for code regions, this style can  be merged with the
+ * one above, and we can drop the [pre] qualifier.
+ */
+pre.doc_code, .literal-block { padding: 1em 2em 1em 1em }
+
+.doc_notes      { background: #fafafa; border: 1px solid #cecece;
+                  display: table; padding: 0 1em 0 .1em }
+
+table.layout    { text-align: left; border: none; border-collapse: collapse;
+                  padding: 4px 4px 4px 4px; }
+tr.layout, td.layout, td.left, td.right
+                { border: none; padding: 4pt 4pt 2pt 2pt; vertical-align: top; }
+td.left         { text-align: left }
+td.right        { text-align: right }
+th.layout       { border: none; font-weight: bold; font-size: 105%;
+                  text-align: center; vertical-align: middle; }
+
+/* Left align table cell */
+.td_left        { border: 2px solid gray; text-align: left; }
+
+/* ReST-specific */
+.title { margin-top: 0 }
+.topic-title{ display: none }
+div.contents ul { list-style-type: decimal }
+.toc-backref    { color: black; text-decoration: none; }

@@ -1,0 +1,11 @@
+executable("llvm-cxxdump") {
+  deps = [
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+  ]
+  sources = [
+    "Error.cpp",
+    "llvm-cxxdump.cpp",
+  ]
+}

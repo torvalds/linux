@@ -1,0 +1,151 @@
+.\" $OpenBSD: SSL_get_client_random.3,v 1.3 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL e9b77246 Jan 20 19:58:49 2017 +0100
+.\"
+.\" This file was written by Nick Mathewson <nickm@torproject.org>
+.\" Copyright (c) 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_GET_CLIENT_RANDOM 3
+.Os
+.Sh NAME
+.Nm SSL_get_client_random ,
+.Nm SSL_get_server_random ,
+.Nm SSL_SESSION_get_master_key
+.Nd get internal TLS handshake random values and master key
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft size_t
+.Fo SSL_get_client_random
+.Fa "const SSL *ssl"
+.Fa "unsigned char *out"
+.Fa "size_t outlen"
+.Fc
+.Ft size_t
+.Fo SSL_get_server_random
+.Fa "const SSL *ssl"
+.Fa "unsigned char *out"
+.Fa "size_t outlen"
+.Fc
+.Ft size_t
+.Fo SSL_SESSION_get_master_key
+.Fa "const SSL_SESSION *session"
+.Fa "unsigned char *out"
+.Fa "size_t outlen"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_get_client_random
+extracts the random value that was sent from the client to the server
+during the initial TLS handshake.
+It copies at most
+.Fa outlen
+bytes of this value into the buffer
+.Fa out .
+If
+.Fa outlen
+is zero, nothing is copied.
+.Pp
+.Fn SSL_get_server_random
+behaves the same, but extracts the random value that was sent
+from the server to the client during the initial TLS handshake.
+.Pp
+.Fn SSL_SESSION_get_master_key
+behaves the same, but extracts the master secret used to guarantee the
+security of the TLS session.
+The security of the TLS session depends on keeping the master key
+secret: do not expose it, or any information about it, to anybody.
+To calculate another secret value that depends on the master secret,
+use
+.Xr SSL_export_keying_material 3
+instead.
+.Pp
+All these functions expose internal values from the TLS handshake,
+for use in low-level protocols.
+Avoid using them unless implementing a feature
+that requires access to the internal protocol details.
+.Pp
+Despite the names of
+.Fn SSL_get_client_random
+and
+.Fn SSL_get_server_random ,
+they are not random number generators.
+Instead, they return the mostly-random values that were already
+generated and used in the TLS protocol.
+.Pp
+In current versions of the TLS protocols,
+the length of client_random and server_random is always
+.Dv SSL3_RANDOM_SIZE
+bytes.
+Support for other
+.Fa outlen
+arguments is provided for the unlikely event that a future
+version or variant of TLS uses some other length.
+.Pp
+Finally, though the client_random and server_random values are called
+.Dq random ,
+many TLS implementations generate four bytes of those values
+based on their view of the current time.
+.Sh RETURN VALUES
+If
+.Fa outlen
+is greater than 0, these functions return the number of bytes
+actually copied, which is less than or equal to
+.Fa outlen .
+If
+.Fa outlen
+is 0, these functions return the maximum number of bytes they would
+copy \(em that is, the length of the underlying field.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_export_keying_material 3 ,
+.Xr SSL_SESSION_get_id 3 ,
+.Xr SSL_SESSION_get_time 3 ,
+.Xr SSL_SESSION_new 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.1.0
+and have been available since
+.Ox 6.3 .

@@ -1,0 +1,23 @@
+static_library("TargetParser") {
+  output_name = "LLVMTargetParser"
+  deps = [ "//llvm/lib/Support" ]
+  public_deps = [ "//llvm/include/llvm/TargetParser:gen" ]
+  include_dirs = [
+    "Unix",
+    "Windows",
+  ]
+  sources = [
+    "AArch64TargetParser.cpp",
+    "ARMTargetParser.cpp",
+    "ARMTargetParserCommon.cpp",
+    "CSKYTargetParser.cpp",
+    "Host.cpp",
+    "LoongArchTargetParser.cpp",
+    "RISCVISAInfo.cpp",
+    "RISCVTargetParser.cpp",
+    "SubtargetFeature.cpp",
+    "TargetParser.cpp",
+    "Triple.cpp",
+    "X86TargetParser.cpp",
+  ]
+}

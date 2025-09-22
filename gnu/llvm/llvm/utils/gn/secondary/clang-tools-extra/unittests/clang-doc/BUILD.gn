@@ -1,0 +1,31 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ClangDocTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-doc",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Serialization",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ "//clang-tools-extra/clang-doc" ]
+  sources = [
+    "BitcodeTest.cpp",
+    "ClangDocTest.cpp",
+    "GeneratorTest.cpp",
+    "HTMLGeneratorTest.cpp",
+    "MDGeneratorTest.cpp",
+    "MergeTest.cpp",
+    "SerializeTest.cpp",
+    "YAMLGeneratorTest.cpp",
+  ]
+}

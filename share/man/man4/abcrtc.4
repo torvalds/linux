@@ -1,0 +1,45 @@
+.\"	$OpenBSD: abcrtc.4,v 1.3 2023/12/23 02:42:51 jsg Exp $
+.\"
+.\" Copyright (c) 2006 Theo de Raadt <deraadt@openbsd.org>
+.\" Copyright (c) 2018 Mark Kettenis <kettenis@openbsd.org>
+.\" Copyright (c) 2018 Patrick Wildt <patrick@blueri.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 23 2023 $
+.Dt ABCRTC 4
+.Os
+.Sh NAME
+.Nm abcrtc
+.Nd Abracon AB1805 real-time clock
+.Sh SYNOPSIS
+.Cd "abcrtc* at iic? addr 0x69"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Abracon AB1805 real-time clock chip
+and similar variants.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Patrick Wildt Aq Mt patrick@blueri.se .

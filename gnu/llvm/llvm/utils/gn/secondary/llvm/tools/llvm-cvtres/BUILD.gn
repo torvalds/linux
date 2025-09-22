@@ -1,0 +1,16 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Opts") {
+  visibility = [ ":llvm-cvtres" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+executable("llvm-cvtres") {
+  deps = [
+    ":Opts",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-cvtres.cpp" ]
+}

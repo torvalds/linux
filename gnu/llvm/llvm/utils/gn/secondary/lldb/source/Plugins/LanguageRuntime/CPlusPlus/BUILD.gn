@@ -1,0 +1,10 @@
+static_library("CPlusPlus") {
+  output_name = "lldbPluginCPPRuntime"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+  ]
+  sources = [ "CPPLanguageRuntime.cpp" ]
+}

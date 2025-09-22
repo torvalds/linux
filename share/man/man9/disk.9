@@ -1,0 +1,366 @@
+.\"	$OpenBSD: disk.9,v 1.35 2022/09/07 05:36:59 jsg Exp $
+.\"	$NetBSD: disk.9,v 1.2 1996/04/08 20:41:25 jtc Exp $
+.\"
+.\" Copyright (c) 1995, 1996 Jason R. Thorpe.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed for the NetBSD Project
+.\"	by Jason R. Thorpe.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 7 2022 $
+.Dt DISK_INIT 9
+.Os
+.Sh NAME
+.Nm disk_init ,
+.Nm disk_attach ,
+.Nm disk_detach ,
+.Nm disk_busy ,
+.Nm disk_unbusy
+.Nd generic disk framework
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/disklabel.h
+.In sys/disk.h
+.Ft void
+.Fn disk_init "void"
+.Ft void
+.Fn disk_attach "struct disk *"
+.Ft void
+.Fn disk_detach "struct disk *"
+.Ft void
+.Fn disk_busy "struct disk *"
+.Ft void
+.Fn disk_unbusy "struct disk *" "long bcount" "int read"
+.Sh DESCRIPTION
+The
+.Ox
+generic disk framework is designed to provide flexible,
+scalable, and consistent handling of disk state and metrics information.
+The fundamental component of this framework is the
+.Nm
+structure, which is defined as follows:
+.Bd -literal
+struct disk {
+	TAILQ_ENTRY(disk) dk_link;	/* link in global disklist */
+	struct rwlock   dk_lock;        /* disk lock */
+	struct mutex	dk_mtx;		/* busy/unbusy mtx */
+	char	        *dk_name;	/* disk name */
+	struct device	*dk_device;	/* disk device structure. */
+	dev_t		dk_devno;	/* disk device number. */
+	int             dk_flags;       /* disk flags */
+#define DKF_CONSTRUCTED  0x0001
+#define DKF_OPENED       0x0002
+#define DKF_NOLABELREAD  0x0004
+
+	/*
+	 * Metrics data; note that some metrics may have no meaning
+	 * on certain types of disks.
+	 */
+	int	  dk_busy;	/* busy counter */
+	u_int64_t dk_rxfer;	/* total number of read transfers */
+	u_int64_t dk_wxfer;	/* total number of write transfers */
+	u_int64_t dk_seek;	/* total independent seek operations */
+	u_int64_t dk_rbytes;	/* total bytes read */
+	u_int64_t dk_wbytes;	/* total bytes written */
+	struct timeval	dk_attachtime;	/* time disk was attached */
+	struct timeval	dk_timestamp; /*time of first busy or any unbusy*/
+	struct timeval	dk_time;	/* total time spent busy */
+
+        int             dk_bopenmask;   /* block devices open */
+        int             dk_copenmask;   /* character devices open */
+        int             dk_openmask;    /* composite (bopen|copen) */
+        int             dk_state;       /* label state   ### */
+        int             dk_blkshift; /*shift to convert DEV_BSIZE to blks*/
+        int             dk_byteshift; /* shift to convert bytes to blks */
+
+	/*
+	 * Disk label information.  Storage for the in-core disk label
+	 * must be dynamically allocated, otherwise the size of this
+	 * structure becomes machine-dependent.
+	 */
+	struct disklabel *dk_label;
+};
+.Ed
+.Pp
+The system maintains a global linked-list of all disks attached to the
+system.
+This list, called
+.Nm disklist ,
+may grow or shrink over time as disks are dynamically added and removed
+from the system.
+An example of a driver which currently makes use of the detachment
+capability of the framework is the
+.Xr vnd 4
+pseudo-device driver.
+.Pp
+The following is a brief description of each function in the framework:
+.Bl -tag -width "disk_unbusy()"
+.It Fn disk_init
+Initialize the disklist and other data structures used by the framework.
+Called by
+.Fn main
+before autoconfiguration.
+.It Fn disk_attach
+Attach a disk; allocate storage for the disklabel, set the
+.Dq attached time
+timestamp, insert the disk into the disklist, and increment the
+system disk count.
+.It Fn disk_detach
+Detach a disk; free storage for the disklabel, remove the disk
+from the disklist, and decrement the system disk count.
+If the count drops below zero, panic.
+.It Fn disk_busy
+Increment the disk's
+.Dq busy counter .
+If this counter goes from 0 to 1, set the timestamp corresponding to
+this transfer.
+.It Fn disk_unbusy
+Decrement a disk's busy counter.
+If the count drops below zero, print a warning message.
+Get the current time, subtract it from the disk's timestamp, and add
+the difference to the disk's running total.
+Set the disk's timestamp to the current time.
+If the provided byte count is greater than 0,
+add it to the disk's running total and increment the number of transfers
+performed by the disk.
+The third argument
+.Ar read
+specifies the direction of I/O;
+if non-zero it means reading from the disk,
+otherwise it means writing to the disk.
+.El
+.Pp
+The functions typically called by device drivers are
+.Fn disk_attach ,
+.Fn disk_detach ,
+.Fn disk_busy
+and
+.Fn disk_unbusy .
+.Sh USING THE FRAMEWORK
+This section includes a description on basic use of the framework
+and example usage of its functions.
+Actual implementation of
+a device driver which utilizes the framework may vary.
+.Pp
+A special routine,
+.Fn disk_init ,
+is provided to perform basic initialization of data structures used by
+the framework.
+It is called exactly once by the system, in
+.Fn main ,
+before device autoconfiguration.
+.Pp
+Each device in the system uses a
+.Dq softc
+structure which contains autoconfiguration and state information for that
+device.
+In the case of disks, the softc should also contain one instance
+of the disk structure, e.g.:
+.Bd -literal
+struct foo_softc {
+	struct	device *sc_dev;		/* generic device information */
+	struct	disk *sc_dk;		/* generic disk information */
+	[ . . . more . . . ]
+};
+.Ed
+.Pp
+In order for the system to gather metrics data about a disk, the disk must
+be registered with the system.
+The
+.Fn disk_attach
+routine performs all of the functions currently required to register a disk
+with the system including allocation of disklabel storage space,
+recording of the time since boot that the disk was attached, and insertion
+into the disklist.
+Note that since this function allocates storage space
+for the disklabel, it must be called before the disklabel is read from the
+media or used in any other way.
+Before
+.Fn disk_attach
+is called, a portion of the disk structure must be initialized with
+data specific to that disk.
+For example, in the
+.Dq foo
+disk driver, the following would be performed in the autoconfiguration
+.Dq attach
+routine:
+.Bd -literal
+void
+fooattach(struct device *parent, struct device *self, void *aux)
+{
+	struct foo_softc *sc = (struct foo_softc *)self;
+	[ . . . ]
+
+	/* Initialize and attach the disk structure. */
+	sc->sc_dk.dk_driver = &foodkdriver;
+	sc->sc_dk.dk_name = sc->sc_dev.dv_xname;
+	disk_attach(&sc->sc_dk);
+
+	/* Read geometry and fill in pertinent parts of disklabel. */
+	[ . . . ]
+}
+.Ed
+.Pp
+The
+.Nm foodkdriver
+above is the disk's
+.Dq driver
+switch.
+This switch currently includes a pointer to the disk's
+.Dq strategy
+routine.
+This switch needs to have global scope and should be initialized as follows:
+.Bd -literal
+void	foostrategy(struct buf *);
+struct	dkdriver foodkdriver = { foostrategy };
+.Ed
+.Pp
+Once the disk is attached, metrics may be gathered on that disk.
+In order to gather metrics data, the driver must tell the framework
+when the disk starts and stops operations.
+This functionality is provided by the
+.Fn disk_busy
+and
+.Fn disk_unbusy
+routines.
+The
+.Fn disk_busy
+routine should be called immediately before a command to the disk is
+sent, e.g.:
+.Bd -literal
+void
+foostart(struct foo_softc *sc)
+{
+	[ . . . ]
+
+	/* Get buffer from drive's transfer queue. */
+	[ . . . ]
+
+	/* Build command to send to drive. */
+	[ . . . ]
+
+	/* Tell the disk framework we're going busy. */
+	disk_busy(&sc->sc_dk);
+
+	/* Send command to the drive. */
+	[ . . . ]
+}
+.Ed
+.Pp
+When
+.Fn disk_busy
+is called, a timestamp is taken if the disk's busy counter moves from
+0 to 1, indicating the disk has gone from an idle to non-idle state.
+Note that
+.Fn disk_busy
+must be called at
+.Fn splbio .
+At the end of a transaction, the
+.Fn disk_unbusy
+routine should be called.
+This routine performs some consistency checks,
+such as ensuring that the calls to
+.Fn disk_busy
+and
+.Fn disk_unbusy
+are balanced.
+This routine also performs the actual metrics calculation.
+A timestamp is taken, and the difference from the timestamp taken in
+.Fn disk_busy
+is added to the disk's total running time.
+The disk's timestamp is then
+updated in case there is more than one pending transfer on the disk.
+A byte count is also added to the disk's running total, and if greater than
+zero, the number of transfers the disk has performed is incremented.
+.Bd -literal
+void
+foodone(struct foo_xfer *xfer)
+{
+	struct foo_softc = (struct foo_softc *)xfer->xf_softc;
+	struct buf *bp = xfer->xf_buf;
+	long nbytes;
+	[ . . . ]
+
+	/*
+	 * Get number of bytes transferred.  If there is no buf
+	 * associated with the xfer, we are being called at the
+	 * end of a non-I/O command.
+	 */
+	if (bp == NULL)
+		nbytes = 0;
+	else
+		nbytes = bp->b_bcount - bp->b_resid;
+
+	[ . . . ]
+
+	/* Notify the disk framework that we've completed the transfer. */
+	disk_unbusy(&sc->sc_dk, nbytes);
+
+	[ . . . ]
+}
+.Ed
+.Pp
+Like
+.Fn disk_busy ,
+.Fn disk_unbusy
+must be called at
+.Fn splbio .
+.Sh CODE REFERENCES
+The disk framework itself is implemented within the file
+.Pa sys/kern/subr_disk.c .
+Data structures and function prototypes for the framework are located in
+.Pa sys/sys/disk.h .
+.Pp
+The
+.Ox
+machine-independent SCSI disk and CD-ROM drivers utilize the disk framework.
+They are located in
+.Pa sys/scsi/sd.c
+and
+.Pa sys/scsi/cd.c .
+.Pp
+The
+.Ox
+.Xr vnd 4
+driver utilizes the detachment capability of the framework.
+This is located in
+.Pa sys/dev/vnd.c .
+.Sh SEE ALSO
+.Xr vnd 4 ,
+.Xr spl 9
+.Sh HISTORY
+The
+.Ox
+generic disk framework first appeared in
+.Nx 1.2 .
+.Sh AUTHORS
+The
+.Ox
+generic disk framework was architected and implemented within
+.Nx
+by
+.An Jason R. Thorpe Aq Mt thorpej@NetBSD.ORG .

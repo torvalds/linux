@@ -1,0 +1,20 @@
+router 1 in rdomain 11
+flags: * = Valid, > = Selected, I = via IBGP, A = Announced,
+       S = Stale, E = Error, F = Filtered, L = Leaked
+origin validation state: N = not-found, V = valid, ! = invalid
+aspa validation state: ? = unknown, V = valid, ! = invalid
+origin: i = IGP, e = EGP, ? = Incomplete
+
+flags  vs destination          gateway          lpref   med aspath origin
+*>    N-? 192.168.1.0/24       2001:db8:57::2    100     0 4200000002 i
+*>    N-? 192.168.2.0/24       2001:db8:57::3    100     0 4200000003 i
+router 2_1 in rdomain 12
+flags: * = Valid, > = Selected, I = via IBGP, A = Announced,
+       S = Stale, E = Error, F = Filtered, L = Leaked
+origin validation state: N = not-found, V = valid, ! = invalid
+aspa validation state: ? = unknown, V = valid, ! = invalid
+origin: i = IGP, e = EGP, ? = Incomplete
+
+flags  vs destination          gateway          lpref   med aspath origin
+AI*>  N-? 192.168.1.0/24       0.0.0.0           100     0 i
+*>    N-? 192.168.2.0/24       2001:db8:57::3    100     0 4200000001 4200000003 i

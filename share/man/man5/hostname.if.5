@@ -1,0 +1,273 @@
+.\"	$OpenBSD: hostname.if.5,v 1.82 2022/12/16 04:04:25 afresh1 Exp $
+.\"	$NetBSD: hosts.5,v 1.4 1994/11/30 19:31:20 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)hosts.5	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: December 16 2022 $
+.Dt HOSTNAME.IF 5
+.Os
+.Sh NAME
+.Nm hostname.if
+.Nd interface-specific configuration files
+.Sh DESCRIPTION
+The
+.Nm hostname.*\&
+files contain information regarding the configuration of each network interface.
+Interfaces are referenced by name and unit,
+such as
+.Dq hostname.fxp0 .
+For some machines,
+autoconfiguration makes this system inconsistent,
+so interfaces can alternatively be referenced by
+their link layer address (lladdr),
+such as
+.Dq hostname.00:00:5e:00:53:af .
+Priority is given to configuration by interface lladdr over name/unit.
+A configuration file is not needed for lo0.
+.Pp
+The configuration information is expressed in a line-by-line packed format
+which makes the most common cases simpler; those dense formats are described
+below.
+Any lines not matching these packed formats are passed directly to
+.Xr ifconfig 8 .
+The packed formats are converted using a somewhat inflexible parser and
+the administrator should not expect magic \(em if in doubt study
+.Xr ifconfig 8
+and the
+per-driver manual pages to see what arguments are permitted.
+.Pp
+Arguments containing either whitespace or single quote
+characters must be double quoted.
+For example:
+.Bd -literal -offset indent
+inet 10.0.0.1 255.255.255.0 10.0.0.255 description "Bob's uplink"
+.Ed
+.Pp
+Each line is processed separately and in order.
+For example:
+.Bd -literal -offset indent
+join mynwid wpakey mywpakey
+inet6 autoconf
+inet autoconf
+.Ed
+.Pp
+would run ifconfig three times to add a wireless network using WPA to the
+join list and enable dynamic address configuration for IPv6 and IPv4.
+.Sh STATIC ADDRESS CONFIGURATION
+The following packed formats are valid for configuring network
+interfaces with static addresses.
+.Pp
+Regular IPv4 network setup:
+.Bd -ragged -offset indent
+.Li inet
+.Op Li alias
+.Va addr
+.Va netmask
+.Va broadcast_addr
+.Va options
+.br
+.Li dest
+.Va dest_addr
+.Ed
+.Pp
+Regular IPv6 network setup:
+.Bd -ragged -offset indent
+.Li inet6
+.Op Li alias
+.Va addr
+.Va prefixlen
+.Va options
+.br
+.Li dest
+.Va dest_addr
+.Ed
+.Pp
+Other network setup:
+.Bd -ragged -offset indent
+.Va addr_family
+.Va options
+.Ed
+.Pp
+A typical file contains only one line, but more extensive files are possible,
+for example:
+.Bd -literal -offset 1n
+media 100baseTX description Uplink
+inet 10.0.1.12 255.255.255.0 10.0.1.255
+inet alias 10.0.1.13 255.255.255.255 10.0.1.13
+inet alias 10.0.1.14 255.255.255.255 NONE
+inet alias 10.0.1.15 255.255.255.255
+inet alias 10.0.1.16 0xffffffff
+# This is an example comment line.
+inet6 alias fec0::1 64
+inet6 alias fec0::2 64 anycast
+!route add 65.65.65.65 10.0.1.13
+up
+.Ed
+.Pp
+The above formats have the following field values:
+.Bl -tag -width indent -offset indent
+.It Va addr_family
+The address family of the interface, generally
+.Dq inet
+or
+.Dq inet6 .
+.It Li alias
+The literal string
+.Dq alias
+if this is an additional network address for the interface.
+.It Va addr
+The optional address that belongs to the interface, such as
+190.191.192.1 or fe80:2::1.
+It is also feasible to use a hostname as specified in
+.Pa /etc/hosts .
+It is recommended that an address be used instead of symbolic information,
+since the latter might activate resolver library routines.
+.Pp
+If no address is specified, the
+.Va netmask ,
+.Va broadcast_addr ,
+.Li dest ,
+and
+.Va dest_addr
+options are invalid and will be ignored.
+.It Va netmask
+The optional network mask for the interface, e.g.,
+255.255.255.0.
+If
+.Va addr
+is specified but
+.Va netmask
+is not, the classful mask based on
+.Va addr
+is used.
+.It Va broadcast_addr
+The optional broadcast address for the interface, e.g.,
+190.191.192.255.
+The word
+.Dq NONE
+can also be specified in order to configure the broadcast address based
+on the
+.Va netmask .
+The
+.Va netmask
+option must be present in order to use this option.
+.It Va options
+Miscellaneous options to set on the interface, e.g.,
+.Dq media 100baseTX mediaopt full-duplex .
+Valid options for a particular interface type can be found in
+.Xr ifconfig 8 .
+When used, the
+.Va netmask
+and
+.Va broadcast_addr
+options must also be present.
+.It Li dest
+If the interface needs a destination address set, this is the literal text
+.Dq dest .
+As shown in the example, this declaration should start on a separate line.
+.It Va dest_addr
+The destination address to be set on the interface, such as
+190.191.192.2.
+It is also feasible to use a hostname as specified in
+.Pa /etc/hosts .
+It is recommended that an address be used instead of symbolic information
+which might activate resolver library routines.
+.It Va prefixlen
+The prefixlen number, or number of bits in the netmask, to be set on
+the interface, such as 64.
+.It Li #
+Comments are allowed.
+Anything following a comment character is treated as a comment.
+.It Li \&! Ns Ar command
+Arbitrary shell commands can be executed using this directive, as
+long as they are available in the single-user environment (for
+instance,
+.Pa /bin
+or
+.Pa /sbin ) .
+Useful for doing interface-specific configuration such as
+setting up custom routes or default source IP address using
+.Xr route 8
+or establishing tunnels using
+.Xr ifconfig 8 .
+It is worth noting that
+.Dq \e$if
+in a command line will be replaced by the interface name.
+.Pp
+For example,
+to set 192.0.2.1 and 2001:db8::1 as source IP addresses for
+outgoing connections:
+.Bd -literal -offset indent
+inet 192.0.2.1/32
+inet6 2001:db8::1/128
+up
+!route sourceaddr -ifp \e$if
+.Ed
+.El
+.Sh DYNAMIC ADDRESS CONFIGURATION
+IPv4 dynamic addressing via DHCP is requested using
+.Dq inet autoconf
+followed by any options to be passed to
+.Xr ifconfig 8 .
+.Bd -ragged -offset indent
+.Li inet autoconf
+.Op Va ifconfig_options
+.Ed
+.Pp
+The token
+.Dq dhcp
+on its own line without any options is short for
+.Dq inet autoconf .
+.Pp
+IPv6 stateless address autoconfiguration is requested using
+the literal string
+.Dq inet6 autoconf
+followed by any options to be passed to
+.Xr ifconfig 8 .
+.Bd -ragged -offset indent
+.Li inet6 autoconf
+.Op Va ifconfig_options
+.Ed
+.Pp
+The
+.Va autoconf
+configurations will communicate learned DNS information to
+.Xr resolvd 8 .
+.Sh FILES
+.Bl -tag -width "/etc/hostname.XXXXXX"
+.It Pa /etc/hostname.XXX
+Interface-specific configuration files.
+.El
+.Sh SEE ALSO
+.Xr hosts 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8 ,
+.Xr rc 8 ,
+.Xr slaacd 8

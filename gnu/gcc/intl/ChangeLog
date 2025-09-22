@@ -1,0 +1,135 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-05-13  Release Manager
+
+	* GCC 4.2.0 released.
+
+2006-09-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in (distclean): Delete config files.
+
+2006-09-13  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR other/23541
+	PR other/26507
+	Backport from gettext repository:
+
+	2003-09-04  Bruno Haible  <bruno@clisp.org>
+	* dgettext.c: Include <locale.h> after gettextP.h, not before. This
+	ensures that libintl_dcgettext is correctly declared on Solaris.
+	(Needed because Solaris <locale.h> includes libintl.h.)
+	* dngettext.c: Likewise, for the libintl_dcngettext declaration.
+
+2006-06-07  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* Makefile.in (install-info, install-dvi, install-ps, install-pdf):
+	New dummy targets.
+
+2005-05-23  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* Makefile.in: Add info dvi ps pdf html install-html to .PHONY
+	Add install-html target.
+
+2005-05-13  Nick Clifton  <nickc@redhat.com>
+
+	* Update the address and phone number of the FSF organization in
+	the GPL notices in the following files:
+	Makefile.in, bindtextdom.c, dcgettext.c, dcigettext.c,
+	dcngettext.c, dgettext.c, dngettext.c, eval-plural.h,
+	explodename.c, finddomain.c, gettext.c, gettextP.h, gmo.h,
+	hash-string.h, intl-compat.c, l10nflist.c, libgnuintl.h,
+	loadinfo.h, loadmsgcat.c, localcharset.c, localcharset.h,
+	locale.alias, localealias.c, localename.c, log.c, ngettext.c,
+	osdep.c, plural-exp.c, plural-exp.h, plural.c, plural.y,
+	relocatable.c, relocatable.h, textdomain.c
+
+2004-11-24  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* aclocal.m4: Regenerate.
+
+2004-09-23  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Makefile.in (config.h.in): Correct dependencies.
+	(stamp-h1): Likewise.
+	(config.intl): Likewise.
+
+2004-09-22  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* configure.ac (AC_CONFIG_MACRO_DIR): New.
+	(ACLOCAL, AUTOCONF, AUTOHEADER, MAINT): Substitute.
+	* Makefile.in: Update with maintainer mode rules.
+	* README: Update aclocal regeneration instructions.
+	* aclocal.m4, configure: Regenerate.
+
+2004-09-22  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* .cvsignore: Ignore autom4te.cache
+
+2004-04-25  Paolo Bonzini  <bonzini@gnu.org>
+
+        * configure.ac: Point config.intl to the parent directory of
+        ${top_builddir}.
+	* configure: Regenerate.
+
+2004-03-10  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* configure.ac: Bump AC_PREREQ to 2.59.
+	* configure: Regenerate.
+	* config.h.in: Regenerate.
+
+2004-02-29  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* configure.in: Convert to autoconf 2.57, gratuitous stylistic
+	cleanup, rename to configure.ac.
+	* configure.ac: Renamed from configure.in.
+	* config.h.in: Rebuilt with autoheader 2.57.
+	* configure: Rebuilt with autoconf 2.57
+	* README: Update to reflect rename of configure.in to configure.ac.
+
+2003-07-07  Zack Weinberg  <zack@codesourcery.com>
+
+	* README: Update.
+	* Makefile.in (INSTALL, INSTALL_DATA, MKINSTALLDIRS,
+	mkinstalldirs, gettextsrcdir, l): Delete.
+	(COMPILE): Add $(DEFS-$@), remove $(XCFLAGS).
+	(HEADERS): libgnuintl.h not libgnuintl.h.in.  Remove os2compat.h.
+	(SOURCES): Remove os2compat.c.
+	(DEFS-dcigettext.o, DEFS-localealias.o, DEFS-localcharset.o,
+	DEFS-relocatable.o): New.
+	(all-yes): Add config.intl.
+	(libintl.h): Use cp, not cat.
+	(INCLUDES): Remove -I..
+	(TAGS, CTAGS, ID): Word wrap.
+	(mostlyclean, distclean): Remove junk.
+	(config.intl): New rule.
+	* aclocal.m4: sinclude ../config/progtest.m4 instead of
+	including it inline.
+	* config.intl.in: New file.
+	* configure.in: Take out unnecessary AC_CONFIG_AUX_DIR.
+	Take out AC_DEFINEs for LOCALEDIR, LOCALE_ALIAS_PATH,
+	LIBDIR, INSTALLDIR.  Set LIBINTL_DEP and INCINTL and AC_SUBST
+	them.  Add config.intl to AC_OUTPUT.
+	* os2compat.c, os2compat.h: Delete, unused.
+
+2003-07-04  Zack Weinberg  <zack@codesourcery.com>
+
+	* Makefile.in: Remove unnecessary capabilities for
+	installation, build of shared libraries, generation of
+	distribution tarballs, etc.  Fix all the places that rely on
+	the parent directory.  Don't generate libgnuintl.h from
+	anything; do generate $(objdir)/libintl.h from libgnuintl.h if
+	necessary.  Adjust DEFS for use of config.h.
+	* libgnuintl.h.in: Rename libgnuintl.h.
+	* README: New file.
+	* config.charset, ref-add.sin, ref-del.sin: Delete (unused).
+	* COPYING.LIB-2.0, COPYING.LIB-2.1: Delete (redundant).
+	* aclocal.m4: New; generated per instructions in gettext manual.
+	* configure.in: New; written from scratch for this configuration.
+	* configure, config.h.in: Generated.
+
+2003-05-22  GNU  <bug-gnu-gettext@gnu.org>
+
+	* Version 0.12.1 released.
+

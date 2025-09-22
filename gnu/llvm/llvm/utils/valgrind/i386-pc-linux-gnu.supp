@@ -1,0 +1,48 @@
+{
+   False leak under RegisterPass
+   Memcheck:Leak
+   ...
+   fun:_ZN83_GLOBAL_*PassRegistrar12RegisterPassERKN4llvm8PassInfoE
+   fun:_ZN4llvm8PassInfo12registerPassEv
+}
+
+# Python false positives according to
+# http://svn.python.org/projects/python/trunk/Misc/README.valgrind
+
+{
+   ADDRESS_IN_RANGE/Invalid read of size 4
+   Memcheck:Addr4
+   obj:/usr/bin/python*
+}
+
+{
+   ADDRESS_IN_RANGE/Invalid read of size 4
+   Memcheck:Value4
+   obj:/usr/bin/python*
+}
+
+{
+   ADDRESS_IN_RANGE/Conditional jump or move depends on uninitialised value
+   Memcheck:Cond
+   obj:/usr/bin/python*
+}
+
+{
+   We don't care if as leaks
+   Memcheck:Leak
+   obj:/usr/bin/as
+}
+
+{
+   We don't care if python leaks
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/bin/python*
+}
+
+{
+   We don't care about anything ld.so does.
+   Memcheck:Cond
+   obj:/lib/ld*.so
+}
+

@@ -1,0 +1,13 @@
+executable("llvm-rtdyld") {
+  deps = [
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/ExecutionEngine",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "llvm-rtdyld.cpp" ]
+}

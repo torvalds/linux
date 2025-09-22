@@ -1,0 +1,18 @@
+#	$OpenBSD: tests.out,v 1.14 2024/04/26 04:44:43 jsg Exp $
+test(test_nop): pledge=("",NULL) status=0 exit=0
+test(test_inet): pledge=("",NULL) status=134 signal=6 coredump=present pledged_syscall=97
+test(test_inet): pledge=("abort",NULL) status=5632 exit=22 (errno: "Invalid argument")
+test(test_inet): pledge=("stdio",NULL) status=134 signal=6 coredump=present pledged_syscall=97
+test(test_inet): pledge=("inet",NULL) status=134 signal=6 coredump=present pledged_syscall=6
+test(test_inet): pledge=("stdio inet",NULL) status=0 exit=0
+test(test_kill): pledge=("fattr",NULL) status=134 signal=6 coredump=present pledged_syscall=122
+test(test_kill): pledge=("stdio",NULL) status=2 signal=2
+test(test_rpath): pledge=("stdio rpath",NULL) status=0 exit=0
+test(test_wpath): pledge=("stdio wpath",NULL) status=0 exit=0
+test(test_cpath): pledge=("cpath",NULL) status=0 exit=0
+test(test_pledge): pledge=("stdio rpath",NULL) status=0 exit=0
+test(test_pledge): pledge=("stdio rpath wpath",NULL) status=0 exit=0
+test(test_pledge): pledge=("stdio",NULL) status=256 exit=1 (errno: "Operation not permitted")
+test(test_pledge): pledge=("stdio unix",NULL) status=256 exit=1 (errno: "Operation not permitted")
+test(test_request_stdio): pledge=skip status=0 exit=0
+test(test_request_tty): pledge=skip status=0 exit=0

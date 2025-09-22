@@ -1,0 +1,93 @@
+.\" $OpenBSD: pthread_schedparam.3,v 1.7 2025/06/07 00:16:52 schwarze Exp $
+.\" Copyright (C) 2000 Jason Evans <jasone@freebsd.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/lib/libc_r/man/pthread_schedparam.3,v 1.4 2001/07/15 07:53:27 dd Exp $
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_SETSCHEDPARAM 3
+.Os
+.Sh NAME
+.Nm pthread_setschedparam ,
+.Nm pthread_getschedparam
+.Nd thread scheduling parameter manipulation
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_setschedparam "pthread_t thread" "int policy" "const struct sched_param *param"
+.Ft int
+.Fn pthread_getschedparam "pthread_t thread" "int *policy" "struct sched_param *param"
+.Sh DESCRIPTION
+The
+.Fn pthread_setschedparam
+and
+.Fn pthread_getschedparam
+functions set and get the scheduling parameters of individual threads.
+The scheduling policy for a thread can either be
+.Dv SCHED_FIFO
+(first in, first out) or
+.Dv SCHED_RR
+(round-robin).
+The thread priority (accessed via
+.Va param->sched_priority )
+must be within the range returned by the
+.Fn sched_get_priority_min
+and
+.Fn sched_get_priority_max
+functions.
+.Sh RETURN VALUES
+If successful, these functions return 0.
+Otherwise, an error number is returned to indicate the error.
+.Sh ERRORS
+.Fn pthread_setschedparam
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Va policy .
+.It Bq Er ENOTSUP
+Invalid value for scheduling parameters.
+.It Bq Er ESRCH
+Non-existent thread
+.Va thread .
+.El
+.Pp
+.Fn pthread_getschedparam
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+Non-existent thread
+.Va thread .
+.El
+.Sh SEE ALSO
+.Xr sched_get_priority_max 3
+.Sh STANDARDS
+.Fn pthread_setschedparam
+and
+.Fn pthread_getschedparam
+conform to
+.St -susv2

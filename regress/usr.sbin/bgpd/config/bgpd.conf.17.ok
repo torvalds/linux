@@ -1,0 +1,102 @@
+AS 1
+router-id 127.0.0.1
+socket "/var/run/bgpd.sock.0"
+listen on 0.0.0.0
+listen on ::
+
+rtr 127.0.1.2 {
+	descr "127.0.1.2"
+	port 323
+	tcp md5sig
+}
+
+rtr 127.0.1.3 {
+	descr "127.0.1.3"
+	port 323
+	tcp md5sig
+}
+
+rtr 127.0.1.4 {
+	descr "127.0.1.4"
+	port 323
+	ipsec ah ike
+}
+
+rtr 127.0.1.5 {
+	descr "127.0.1.5"
+	port 323
+	ipsec esp ike
+}
+
+rtr 127.0.1.6 {
+	descr "127.0.1.6"
+	port 323
+	ipsec ah in spi 12706 sha1 XXXXXX
+	ipsec ah out spi 12707 sha1 XXXXXX
+}
+
+rtr 127.0.1.7 {
+	descr "127.0.1.7"
+	port 323
+	ipsec esp in spi 12742 sha1 XXXXXX aes XXXXXX
+	ipsec esp out spi 12743 sha1 XXXXXX aes XXXXXX
+}
+
+
+rde rib Adj-RIB-In no evaluate
+rde rib Loc-RIB rtable 0 fib-update yes
+
+neighbor 127.0.0.2 {
+	remote-as 2
+	enforce neighbor-as yes
+	enforce local-as yes
+	tcp md5sig
+	announce IPv4 unicast
+	announce policy no
+}
+neighbor 127.0.0.3 {
+	remote-as 3
+	enforce neighbor-as yes
+	enforce local-as yes
+	tcp md5sig
+	announce IPv4 unicast
+	announce policy no
+}
+neighbor 127.0.0.4 {
+	remote-as 4
+	local-address 127.0.0.1
+	enforce neighbor-as yes
+	enforce local-as yes
+	ipsec ah ike
+	announce IPv4 unicast
+	announce policy no
+}
+neighbor 127.0.0.5 {
+	remote-as 5
+	local-address 127.0.0.1
+	enforce neighbor-as yes
+	enforce local-as yes
+	ipsec esp ike
+	announce IPv4 unicast
+	announce policy no
+}
+neighbor 127.0.0.6 {
+	remote-as 6
+	local-address 127.0.0.1
+	enforce neighbor-as yes
+	enforce local-as yes
+	ipsec ah in spi 12706 sha1 XXXXXX
+	ipsec ah out spi 12707 sha1 XXXXXX
+	announce IPv4 unicast
+	announce policy no
+}
+neighbor 127.0.0.7 {
+	remote-as 7
+	local-address 127.0.0.1
+	enforce neighbor-as yes
+	enforce local-as yes
+	ipsec esp in spi 12742 sha1 XXXXXX aes XXXXXX
+	ipsec esp out spi 12743 sha1 XXXXXX aes XXXXXX
+	announce IPv4 unicast
+	announce policy no
+}

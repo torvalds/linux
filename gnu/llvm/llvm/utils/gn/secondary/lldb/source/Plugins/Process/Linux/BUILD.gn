@@ -1,0 +1,38 @@
+static_library("Linux") {
+  output_name = "lldbPluginProcessLinux"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Plugins/Process/POSIX",
+    "//lldb/source/Plugins/Process/Utility",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+
+  # Uses source-relative includes for own headers.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "IntelPTCollector.cpp",
+    "IntelPTMultiCoreTrace.cpp",
+    "IntelPTPerThreadProcessTrace.cpp",
+    "IntelPTSingleBufferTrace.cpp",
+    "IntelPTThreadTraceCollection.cpp",
+    "NativeProcessLinux.cpp",
+    "NativeRegisterContextLinux.cpp",
+    "NativeRegisterContextLinux_arm.cpp",
+    "NativeRegisterContextLinux_arm64.cpp",
+    "NativeRegisterContextLinux_loongarch64.cpp",
+    "NativeRegisterContextLinux_ppc64le.cpp",
+    "NativeRegisterContextLinux_riscv64.cpp",
+    "NativeRegisterContextLinux_s390x.cpp",
+    "NativeRegisterContextLinux_x86_64.cpp",
+    "NativeThreadLinux.cpp",
+    "Perf.cpp",
+    "Procfs.cpp",
+    "SingleStepCheck.cpp",
+  ]
+}

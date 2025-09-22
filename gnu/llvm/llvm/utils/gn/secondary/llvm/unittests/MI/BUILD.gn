@@ -1,0 +1,16 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("MITests") {
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/MIRParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "LiveIntervalTest.cpp" ]
+  has_custom_main = true
+}

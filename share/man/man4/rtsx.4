@@ -1,0 +1,45 @@
+.\"	$OpenBSD: rtsx.4,v 1.10 2017/09/06 13:07:38 jcs Exp $
+.\"
+.\" Theo de Raadt, 2006. Public Domain.
+.\" Stefan Sperling, 2012. Public Domain.
+.\"
+.Dd $Mdocdate: September 6 2017 $
+.Dt RTSX 4
+.Os
+.Sh NAME
+.Nm rtsx
+.Nd Realtek SD card reader
+.Sh SYNOPSIS
+.Cd "rtsx* at pci?"
+.Cd "sdmmc* at rtsx?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Realtek RTS5209, RTS5227, RTS5229,
+RTS522A, RTS5249, RTS525A, RTL8402, RTL8411, and RTL8411B SD card readers.
+.Pp
+The
+.Xr sdmmc 4
+subsystem performs SD/MMC transactions to communicate with SD
+or SDHC devices inserted into the SD slot.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sdmmc 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Stefan Sperling Aq Mt stsp@openbsd.org .
+.Sh BUGS
+The
+.Nm
+driver does not support MS (Memory Stick) and xD (Extreme Digital) devices
+even though the hardware supports them.
+.Pp
+Support for SDIO interrupts is not implemented.

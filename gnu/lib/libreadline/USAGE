@@ -1,0 +1,37 @@
+From rms@gnu.org Thu Jul 22 20:37:55 1999
+Flags: 10
+Return-Path: rms@gnu.org
+Received: from arthur.INS.CWRU.Edu (root@arthur.INS.CWRU.Edu [129.22.8.215]) by odin.INS.CWRU.Edu with ESMTP (8.8.6+cwru/CWRU-2.4-ins)
+	id UAA25349; Thu, 22 Jul 1999 20:37:54 -0400 (EDT) (from rms@gnu.org for <chet@odin.INS.CWRU.Edu>)
+Received: from nike.ins.cwru.edu (root@nike.INS.CWRU.Edu [129.22.8.219]) by arthur.INS.CWRU.Edu with ESMTP (8.8.8+cwru/CWRU-3.6)
+	id UAA05311; Thu, 22 Jul 1999 20:37:51 -0400 (EDT) (from rms@gnu.org for <chet@po.cwru.edu>)
+Received: from pele.santafe.edu (pele.santafe.edu [192.12.12.119]) by nike.ins.cwru.edu with ESMTP (8.8.7/CWRU-2.5-bsdi)
+	id UAA13350; Thu, 22 Jul 1999 20:37:50 -0400 (EDT) (from rms@gnu.org for <chet@nike.ins.cwru.edu>)
+Received: from wijiji.santafe.edu (wijiji [192.12.12.5])
+	by pele.santafe.edu (8.9.1/8.9.1) with ESMTP id SAA10831
+	for <chet@nike.ins.cwru.edu>; Thu, 22 Jul 1999 18:37:47 -0600 (MDT)
+Received: (from rms@localhost)
+	by wijiji.santafe.edu (8.9.1b+Sun/8.9.1) id SAA01089;
+	Thu, 22 Jul 1999 18:37:46 -0600 (MDT)
+Date: Thu, 22 Jul 1999 18:37:46 -0600 (MDT)
+Message-Id: <199907230037.SAA01089@wijiji.santafe.edu>
+X-Authentication-Warning: wijiji.santafe.edu: rms set sender to rms@gnu.org using -f
+From: Richard Stallman <rms@gnu.org>
+To: chet@nike.ins.cwru.edu
+Subject: Use of Readline
+Reply-to: rms@gnu.org
+
+I think Allbery's suggestion is a good one.  So please add this text
+in a suitable place.  Please don't put it in the GPL itself; that
+should be the same as the GPL everywhere else.  Putting it in the
+README and/or the documentation would be a good idea.
+
+
+======================================================================
+Our position on the use of Readline through a shared-library linking
+mechanism is that there is no legal difference between shared-library
+linking and static linking--either kind of linking combines various
+modules into a single larger work.  The conditions for using Readline
+in a larger work are stated in section 3 of the GNU GPL.
+
+

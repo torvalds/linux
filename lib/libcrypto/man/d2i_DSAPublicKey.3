@@ -1,0 +1,413 @@
+.\"	$OpenBSD: d2i_DSAPublicKey.3,v 1.15 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL bb9ad09e Jun 6 00:43:05 2016 -0400
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2003, 2013, 2015, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_DSAPUBLICKEY 3
+.Os
+.Sh NAME
+.Nm d2i_DSAPublicKey ,
+.Nm i2d_DSAPublicKey ,
+.Nm d2i_DSA_PUBKEY ,
+.Nm i2d_DSA_PUBKEY ,
+.Nm d2i_DSA_PUBKEY_bio ,
+.Nm d2i_DSA_PUBKEY_fp ,
+.Nm i2d_DSA_PUBKEY_bio ,
+.Nm i2d_DSA_PUBKEY_fp ,
+.Nm d2i_DSAPrivateKey ,
+.Nm i2d_DSAPrivateKey ,
+.Nm d2i_DSAPrivateKey_bio ,
+.Nm d2i_DSAPrivateKey_fp ,
+.Nm i2d_DSAPrivateKey_bio ,
+.Nm i2d_DSAPrivateKey_fp ,
+.Nm d2i_DSAparams ,
+.Nm i2d_DSAparams ,
+.Nm d2i_DSAparams_bio ,
+.Nm i2d_DSAparams_bio ,
+.Nm d2i_DSAparams_fp ,
+.Nm i2d_DSAparams_fp ,
+.Nm DSAparams_dup ,
+.Nm d2i_DSA_SIG ,
+.Nm i2d_DSA_SIG
+.Nd decode and encode DSA keys
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/dsa.h
+.Ft DSA *
+.Fo d2i_DSAPublicKey
+.Fa "DSA **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_DSAPublicKey
+.Fa "const DSA *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.In openssl/x509.h
+.Ft DSA *
+.Fo d2i_DSA_PUBKEY
+.Fa "DSA **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_DSA_PUBKEY
+.Fa "const DSA *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft DSA *
+.Fo d2i_DSA_PUBKEY_bio
+.Fa "BIO *in_bio"
+.Fa "DSA **val_out"
+.Fc
+.Ft DSA *
+.Fo d2i_DSA_PUBKEY_fp
+.Fa "FILE *in_fp"
+.Fa "DSA **val_out"
+.Fc
+.Ft int
+.Fo i2d_DSA_PUBKEY_bio
+.Fa "BIO *out_bio"
+.Fa "DSA *val_in"
+.Fc
+.Ft int
+.Fo i2d_DSA_PUBKEY_fp
+.Fa "FILE *out_fp"
+.Fa "DSA *val_in"
+.Fc
+.In openssl/dsa.h
+.Ft DSA *
+.Fo d2i_DSAPrivateKey
+.Fa "DSA **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_DSAPrivateKey
+.Fa "const DSA *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.In openssl/x509.h
+.Ft DSA *
+.Fo d2i_DSAPrivateKey_bio
+.Fa "BIO *in_bio"
+.Fa "DSA **val_out"
+.Fc
+.Ft DSA *
+.Fo d2i_DSAPrivateKey_fp
+.Fa "FILE *in_fp"
+.Fa "DSA **val_out"
+.Fc
+.Ft int
+.Fo i2d_DSAPrivateKey_bio
+.Fa "BIO *out_bio"
+.Fa "DSA *val_in"
+.Fc
+.Ft int
+.Fo i2d_DSAPrivateKey_fp
+.Fa "FILE *out_fp"
+.Fa "DSA *val_in"
+.Fc
+.In openssl/dsa.h
+.Ft DSA *
+.Fo d2i_DSAparams
+.Fa "DSA **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_DSAparams
+.Fa "const DSA *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft DSA *
+.Fo d2i_DSAparams_bio
+.Fa "BIO *in_bio"
+.Fa "DSA **val_out"
+.Fc
+.Ft int
+.Fo i2d_DSAparams_bio
+.Fa "BIO *out_bio"
+.Fa "DSA *val_in"
+.Fc
+.Ft DSA *
+.Fo d2i_DSAparams_fp
+.Fa "FILE *in_fp"
+.Fa "DSA **val_out"
+.Fc
+.Ft int
+.Fo i2d_DSAparams_fp
+.Fa FILE *out_fp
+.Fa "DSA *val_in"
+.Fc
+.Ft DSA *
+.Fo DSAparams_dup
+.Fa "DSA *val_in"
+.Fc
+.Ft DSA_SIG *
+.Fo d2i_DSA_SIG
+.Fa "DSA_SIG **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_DSA_SIG
+.Fa "const DSA_SIG *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode DSA keys and parameters.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_DSAPublicKey
+and
+.Fn i2d_DSAPublicKey
+decode and encode the DSA public key components using a non-standard
+format, so consider using
+.Fn d2i_DSA_PUBKEY
+and
+.Fn i2d_DSA_PUBKEY
+instead.
+The actual data encoded depends on the value of
+.Fa val_in->write_params .
+If
+.Fa val_in->write_params
+is zero, only the
+.Fa val_in->pub_key
+field is encoded as an ASN.1 INTEGER.
+If
+.Fa val_in->write_params
+is 1, then a SEQUENCE consisting of the
+.Fa val_in->p ,
+.Fa val_in->q ,
+.Fa val_in->g ,
+and
+.Fa val_in->pub_key
+fields is encoded.
+.Pp
+.Fn d2i_DSA_PUBKEY
+and
+.Fn i2d_DSA_PUBKEY
+decode and encode a DSA public key using an ASN.1
+.Vt SubjectPublicKeyInfo
+structure defined in RFC 5280 section 4.1
+and documented in
+.Xr X509_PUBKEY_new 3 .
+.Fn d2i_DSA_PUBKEY_bio ,
+.Fn d2i_DSA_PUBKEY_fp ,
+.Fn i2d_DSA_PUBKEY_bio ,
+and
+.Fn i2d_DSA_PUBKEY_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn d2i_DSAPrivateKey
+and
+.Fn i2d_DSAPrivateKey
+decode and encode the DSA private key components.
+The
+.Vt DSA
+object passed to the private key encoding functions should have all
+the private key components present.
+These functions use a non-standard structure consisting of a
+SEQUENCE containing the
+.Fa val_in->p ,
+.Fa val_in->q ,
+.Fa val_in->g ,
+.Fa val_in->pub_key ,
+and
+.Fa val_in->priv_key
+fields.
+This data format is unencrypted.
+For private key security when writing private keys to files,
+consider using
+.Xr PEM_write_DSAPrivateKey 3
+instead.
+.Fn d2i_DSAPrivateKey_bio ,
+.Fn d2i_DSAPrivateKey_fp ,
+.Fn i2d_DSAPrivateKey_bio ,
+and
+.Fn i2d_DSAPrivateKey_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn d2i_DSAparams
+and
+.Fn i2d_DSAparams
+decode and encode the DSA parameters using an ASN.1
+.Vt Dss-Parms
+structure defined in RFC 3279 section 2.3.2
+and used for the parameters field of the ASN.1
+.Vt AlgorithmIdentifier
+structure defined in RFC 5280 section 4.1.1.2.
+.Fn d2i_DSAparams_bio ,
+.Fn i2d_DSAparams_bio ,
+.Fn d2i_DSAparams_fp ,
+.Fn i2d_DSAparams_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn DSAparams_dup
+allocates and initializes an empty
+.Vt DSA
+object and copies the DSA parameters from
+.Fa val_in
+to it by calling
+.Fn i2d_DSAparams
+and
+.Fn d2i_DSAparams .
+If a private or public key are present in
+.Fa val_in ,
+they are not copied.
+.Pp
+.Fn d2i_DSA_SIG
+and
+.Fn i2d_DSA_SIG
+decode and encode a DSA signature using an ASN.1
+.Vt Dss-Sig-Value
+structure as defined in RFC 3279 section 2.2.2
+and used for the signatureValue field of the ASN.1
+.Vt Certificate
+structure described in RFC 5280 sections 4.1.1.3 and 5.1.1.3.
+.Sh RETURN VALUES
+.Fn d2i_DSAPublicKey ,
+.Fn d2i_DSA_PUBKEY ,
+.Fn d2i_DSA_PUBKEY_bio ,
+.Fn d2i_DSA_PUBKEY_fp ,
+.Fn d2i_DSAPrivateKey ,
+.Fn d2i_DSAPrivateKey_bio ,
+.Fn d2i_DSAPrivateKey_fp ,
+.Fn d2i_DSAparams ,
+.Fn d2i_DSAparams_bio ,
+.Fn d2i_DSAparams_fp ,
+and
+.Fn DSAparams_dup
+return a valid
+.Vt DSA
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn d2i_DSA_SIG
+returns a valid
+.Vt DSA_SIG
+object or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr DSA_new 3 ,
+.Xr DSA_SIG_new 3 ,
+.Xr EVP_PKEY_set1_DSA 3 ,
+.Xr PEM_write_DSAPrivateKey 3 ,
+.Xr X509_PUBKEY_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile,
+section 4.1: Basic Certificate Fields
+.Pp
+RFC 3279: Algorithms and Identifiers for the Internet X.509 Public
+Key Infrastructure Certificate and Certificate Revocation List (CRL)
+Profile:
+.Bl -dash -compact
+.It
+section 2.2.2: DSA Signature Algorithm
+.It
+section 2.3.2: DSA Signature Keys
+.El
+.Sh HISTORY
+.Fn d2i_DSAPublicKey ,
+.Fn i2d_DSAPublicKey ,
+.Fn d2i_DSAPrivateKey ,
+and
+.Fn i2d_DSAPrivateKey
+first appeared in SSLeay 0.6.0.
+.Fn d2i_DSAPrivateKey_bio ,
+.Fn d2i_DSAPrivateKey_fp ,
+.Fn i2d_DSAPrivateKey_bio ,
+.Fn i2d_DSAPrivateKey_fp ,
+.Fn d2i_DSAparams ,
+.Fn i2d_DSAparams ,
+.Fn d2i_DSAparams_bio ,
+.Fn i2d_DSAparams_bio ,
+.Fn d2i_DSAparams_fp ,
+.Fn i2d_DSAparams_fp ,
+and
+.Fn DSAparams_dup
+first appeared in SSLeay 0.8.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn d2i_DSA_SIG
+and
+.Fn i2d_DSA_SIG
+first appeared in OpenSSL 0.9.3 and have been available since
+.Ox 2.6 .
+.Pp
+.Fn d2i_DSA_PUBKEY ,
+.Fn i2d_DSA_PUBKEY ,
+.Fn d2i_DSA_PUBKEY_bio ,
+.Fn d2i_DSA_PUBKEY_fp ,
+.Fn i2d_DSA_PUBKEY_bio ,
+and
+.Fn i2d_DSA_PUBKEY_fp
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .

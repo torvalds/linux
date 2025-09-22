@@ -1,0 +1,137 @@
+.\"	$OpenBSD: uiomove.9,v 1.19 2016/03/15 06:49:21 jmc Exp $
+.\"	$NetBSD: uiomove.9,v 1.6 2001/12/26 00:16:30 wiz Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 15 2016 $
+.Dt UIOMOVE 9
+.Os
+.Sh NAME
+.Nm uiomove
+.Nd move data described by a struct uio
+.Sh SYNOPSIS
+.In sys/systm.h
+.Ft int
+.Fn uiomove "void *buf" "size_t n" "struct uio *uio"
+.Sh DESCRIPTION
+The
+.Nm
+function copies up to
+.Fa n
+bytes between the kernel-space address pointed
+to by
+.Fa buf
+and the addresses described by
+.Fa uio ,
+which may be in user-space or kernel-space.
+.Pp
+The
+.Fa uio
+argument is a pointer to a
+.Fa struct uio
+as defined by
+.In sys/uio.h :
+.Bd -literal
+struct uio {
+	struct	iovec *uio_iov;	/* pointer to array of iovecs */
+	int	uio_iovcnt;	/* number of iovecs in array */
+	off_t	uio_offset;	/* offset into file this uio corresponds to */
+	size_t	uio_resid;	/* residual i/o count */
+	enum	uio_seg uio_segflg;
+	enum	uio_rw uio_rw;
+	struct	proc *uio_procp;/* associated process or NULL */
+};
+.Ed
+.Pp
+A
+.Fa struct uio
+typically describes data in motion.
+Several of the fields described below reflect that expectation.
+.Bl -tag -width uio_xxxxxx
+.It uio_iov
+Pointer to array of
+.Fa struct iovecs :
+.Bd -literal
+struct iovec {
+	void	*iov_base;	/* Base address. */
+	size_t	 iov_len;	/* Length. */
+};
+.Ed
+.It uio_iovcnt
+The number of iovecs in the array.
+.It uio_offset
+An offset into the corresponding object.
+.It uio_resid
+The amount of data remaining to be transferred.
+.It uio_segflg
+A flag indicating whether the space described is in user-space
+(UIO_USERSPACE) or kernel-space (UIO_SYSSPACE).
+.It uio_rw
+A flag indicating whether data should be read into the space
+(UIO_READ) or written from the space (UIO_WRITE).
+.It uio_procp
+A pointer to a process whose data area is described by the
+structure, or which is having the I/O done on its behalf if
+the area is in kernel-space.
+.Nm uiomove
+itself does not use this field if the area is in kernel-space,
+but other functions that take a
+.Fa struct uio
+may depend on this information.
+.El
+.Pp
+The value of
+.Fa uio->uio_rw
+controls whether
+.Nm
+copies data from
+.Fa buf
+to
+.Fa uio
+or vice versa.
+.Pp
+The lesser of
+.Fa n
+or
+.Fa uio->uio_resid
+bytes are copied.
+.Pp
+.Nm
+changes fields of the structure pointed to by
+.Fa uio ,
+such that
+.Fa uio->uio_resid
+is decremented by the amount of data moved,
+.Fa uio->uio_offset
+is incremented by the same amount, and the array of iovecs is adjusted
+to point that much farther into the region described.
+This allows multiple calls to
+.Nm
+to easily be used to fill or drain the region of data.
+.Sh RETURN VALUES
+.Nm
+returns 0 on success or EFAULT if a bad address is encountered.
+.Sh SEE ALSO
+.Xr copy 9

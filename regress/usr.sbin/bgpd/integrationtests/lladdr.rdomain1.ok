@@ -1,0 +1,36 @@
+flags: * = Valid, > = Selected, I = via IBGP, A = Announced,
+       S = Stale, E = Error, F = Filtered, L = Leaked
+origin validation state: N = not-found, V = valid, ! = invalid
+aspa validation state: ? = unknown, V = valid, ! = invalid
+origin: i = IGP, e = EGP, ? = Incomplete
+
+flags  vs destination          gateway          lpref   med aspath origin
+AI*>  N-? 2001:db8:1::/48      ::                100     0 i
+*>    N-? 2001:db8:2::/48      fe80::c0fe:2%pair11   100     0 4200000002 i
+AI*>  N-? 2001:db8:11::/48     ::                100     0 i
+*>    N-? 2001:db8:12::/48     fe80::beef:2%gif11   100     0 4200000002 i
+flags: B = BGP, C = Connected, S = Static
+       N = BGP Nexthop reachable via this route
+       r = reject route, b = blackhole route
+
+flags prio destination                      gateway                         
+B       48 2001:db8:2::/48                  fe80::c0fe:2%pair11
+B       48 2001:db8:12::/48                 fe80::beef:2%gif11
+   route to: 2001:db8:2::
+destination: 2001:db8:2::
+       mask: ffff:ffff:ffff::
+    gateway: fe80::c0fe:2%pair11
+  interface: pair11
+   priority: 48 (bgp)
+      flags: <UP,GATEWAY,DONE>
+     use       mtu    expire
+       0         0         0 
+   route to: 2001:db8:12::
+destination: 2001:db8:12::
+       mask: ffff:ffff:ffff::
+    gateway: fe80::beef:2%gif11
+  interface: gif11
+   priority: 48 (bgp)
+      flags: <UP,GATEWAY,DONE>
+     use       mtu    expire
+       0         0         0 

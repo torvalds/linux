@@ -1,0 +1,206 @@
+// Predefined symbols and macros -*- C++ -*-
+
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+// 2006, 2007
+// Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+/** @file c++config.h
+ *  This is an internal header file, included by other library headers.
+ *  You should not attempt to use it directly.
+ */
+
+#ifndef _CXXCONFIG
+#define _CXXCONFIG 1
+
+// Pick up any OS-specific definitions.
+#include <bits/os_defines.h>
+
+// Pick up any CPU-specific definitions.
+#include <bits/cpu_defines.h>
+
+// The current version of the C++ library in compressed ISO date format.
+#define __GLIBCXX__ 
+
+// Macros for visibility.
+#define _GLIBCXX_HAVE_ATTRIBUTE_VISIBILITY
+
+#if _GLIBCXX_HAVE_ATTRIBUTE_VISIBILITY
+#define _GLIBCXX_VISIBILITY(V) __attribute__ ((__visibility__ (#V)))
+#else
+#define _GLIBCXX_VISIBILITY(V) 
+#endif
+
+// Macros for controlling various namespace association schemes and modes.
+#ifdef _GLIBCXX_DEBUG
+# define _GLIBCXX_NAMESPACE_ASSOCIATION_DEBUG 1
+#endif
+
+#define _GLIBCXX_NAMESPACE_ASSOCIATION_VERSION 
+
+// Macros for namespace scope.
+// _GLIBCXX_BEGIN_NAMESPACE
+// _GLIBCXX_END_NAMESPACE
+// _GLIBCXX_BEGIN_NESTED_NAMESPACE
+// _GLIBCXX_END_NESTED_NAMESPACE
+#if _GLIBCXX_NAMESPACE_ASSOCIATION_VERSION
+# define _GLIBCXX_BEGIN_NESTED_NAMESPACE(X, Y)  namespace X { namespace Y _GLIBCXX_VISIBILITY(default) {
+# define _GLIBCXX_END_NESTED_NAMESPACE } }
+# define _GLIBCXX_BEGIN_NAMESPACE(X) _GLIBCXX_BEGIN_NESTED_NAMESPACE(X, _6)
+# define _GLIBCXX_END_NAMESPACE _GLIBCXX_END_NESTED_NAMESPACE
+#else
+# define _GLIBCXX_BEGIN_NAMESPACE(X) namespace X _GLIBCXX_VISIBILITY(default) { 
+# define _GLIBCXX_END_NAMESPACE } 
+# if _GLIBCXX_NAMESPACE_ASSOCIATION_DEBUG
+#  define _GLIBCXX_BEGIN_NESTED_NAMESPACE(X, Y) namespace X { namespace Y _GLIBCXX_VISIBILITY(default) {
+#  define _GLIBCXX_END_NESTED_NAMESPACE  } }
+# else
+#  define _GLIBCXX_BEGIN_NESTED_NAMESPACE(X, Y) _GLIBCXX_BEGIN_NAMESPACE(X)
+#  define _GLIBCXX_END_NESTED_NAMESPACE _GLIBCXX_END_NAMESPACE
+# endif
+#endif
+
+// Namespace associations for versioning mode.
+#if _GLIBCXX_NAMESPACE_ASSOCIATION_VERSION
+namespace std
+{
+  namespace _6 { }
+  using namespace _6 __attribute__ ((strong));
+}
+
+// In addition, other supported namespace configurations.
+namespace __gnu_cxx 
+{ 
+  namespace _6 { }
+  using namespace _6 __attribute__ ((strong));
+}
+
+namespace std
+{
+  namespace tr1 
+  { 
+    namespace _6 { }
+    using namespace _6 __attribute__ ((strong));
+  }
+}
+#endif
+
+// Namespace associations for debug mode.
+#if _GLIBCXX_NAMESPACE_ASSOCIATION_DEBUG
+namespace std
+{ 
+  namespace __norm { }
+  namespace __debug { }
+  using namespace __debug __attribute__ ((strong)); 
+}
+
+namespace __gnu_cxx
+{
+  namespace __norm { }
+  namespace __debug { }
+  using namespace __debug __attribute__ ((strong)); 
+}
+
+# define _GLIBCXX_STD __norm
+# define _GLIBCXX_EXT __norm
+# define _GLIBCXX_EXTERN_TEMPLATE 0
+# if __NO_INLINE__ && !__GXX_WEAK__
+#  warning debug mode without inlining may fail due to lack of weak symbols
+# endif
+#else
+#if _GLIBCXX_NAMESPACE_ASSOCIATION_VERSION
+# define _GLIBCXX_STD _6
+# define _GLIBCXX_EXT _6
+#else
+# define _GLIBCXX_STD std
+# define _GLIBCXX_EXT __gnu_cxx
+#endif
+#endif
+
+/* Define if compatibility should be provided for -mlong-double-64. */
+#undef _GLIBCXX_LONG_DOUBLE_COMPAT
+
+// XXX GLIBCXX_ABI Deprecated
+// Namespace associations for long double 128 mode.
+_GLIBCXX_BEGIN_NAMESPACE(std)
+#if defined _GLIBCXX_LONG_DOUBLE_COMPAT && defined __LONG_DOUBLE_128__
+# define _GLIBCXX_LDBL_NAMESPACE __gnu_cxx_ldbl128::
+# define _GLIBCXX_BEGIN_LDBL_NAMESPACE namespace __gnu_cxx_ldbl128 {
+# define _GLIBCXX_END_LDBL_NAMESPACE }
+  namespace __gnu_cxx_ldbl128 { }
+  using namespace __gnu_cxx_ldbl128 __attribute__((__strong__));
+#else
+# define _GLIBCXX_LDBL_NAMESPACE
+# define _GLIBCXX_BEGIN_LDBL_NAMESPACE
+# define _GLIBCXX_END_LDBL_NAMESPACE
+#endif
+_GLIBCXX_END_NAMESPACE
+
+
+// Allow use of "export template." This is currently not a feature
+// that g++ supports.
+// #define _GLIBCXX_EXPORT_TEMPLATE 1
+
+// Allow use of the GNU syntax extension, "extern template." This
+// extension is fully documented in the g++ manual, but in a nutshell,
+// it inhibits all implicit instantiations and is used throughout the
+// library to avoid multiple weak definitions for required types that
+// are already explicitly instantiated in the library binary. This
+// substantially reduces the binary size of resulting executables.
+#ifndef _GLIBCXX_EXTERN_TEMPLATE
+# define _GLIBCXX_EXTERN_TEMPLATE 1
+#endif
+
+
+// Certain function definitions that are meant to be overridable from
+// user code are decorated with this macro.  For some targets, this
+// macro causes these definitions to be weak.
+#ifndef _GLIBCXX_WEAK_DEFINITION
+# define _GLIBCXX_WEAK_DEFINITION
+#endif
+
+// The remainder of the prewritten config is automatic; all the
+// user hooks are listed above.
+
+// Create a boolean flag to be used to determine if --fast-math is set.
+#ifdef __FAST_MATH__
+# define _GLIBCXX_FAST_MATH 1
+#else
+# define _GLIBCXX_FAST_MATH 0
+#endif
+
+// This marks string literals in header files to be extracted for eventual
+// translation.  It is primarily used for messages in thrown exceptions; see
+// src/functexcept.cc.  We use __N because the more traditional _N is used
+// for something else under certain OSes (see BADNAMES).
+#define __N(msgid)     (msgid)
+
+// For example, <windows.h> is known to #define min and max as macros...
+#undef min
+#undef max
+
+// End of prewritten config; the discovered settings follow.

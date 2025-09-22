@@ -1,0 +1,370 @@
+.\" $OpenBSD: tls_load_file.3,v 1.15 2025/07/07 10:54:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2014 Ted Unangst <tedu@openbsd.org>
+.\" Copyright (c) 2015 Reyk Floeter <reyk@openbsd.org>
+.\" Copyright (c) 2015 Bob Beck <beck@openbsd.org>
+.\" Copyright (c) 2016, 2017 Joel Sing <jsing@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt TLS_LOAD_FILE 3
+.Os
+.Sh NAME
+.Nm tls_load_file ,
+.Nm tls_unload_file ,
+.Nm tls_config_set_ca_file ,
+.Nm tls_config_set_ca_path ,
+.Nm tls_config_set_ca_mem ,
+.Nm tls_config_set_cert_file ,
+.Nm tls_config_set_cert_mem ,
+.Nm tls_config_set_crl_file ,
+.Nm tls_config_set_crl_mem ,
+.Nm tls_config_set_key_file ,
+.Nm tls_config_set_key_mem ,
+.Nm tls_config_set_ocsp_staple_mem ,
+.Nm tls_config_set_ocsp_staple_file ,
+.Nm tls_config_set_keypair_file ,
+.Nm tls_config_set_keypair_mem ,
+.Nm tls_config_set_keypair_ocsp_file ,
+.Nm tls_config_set_keypair_ocsp_mem ,
+.Nm tls_config_add_keypair_file ,
+.Nm tls_config_add_keypair_ocsp_mem ,
+.Nm tls_config_add_keypair_ocsp_file ,
+.Nm tls_config_add_keypair_mem ,
+.Nm tls_config_clear_keys ,
+.Nm tls_config_set_verify_depth ,
+.Nm tls_config_verify_client ,
+.Nm tls_config_verify_client_optional ,
+.Nm tls_default_ca_cert_file
+.Nd TLS certificate and key configuration
+.Sh SYNOPSIS
+.Lb libtls libssl libcrypto
+.In tls.h
+.Ft uint8_t *
+.Fo tls_load_file
+.Fa "const char *file"
+.Fa "size_t *len"
+.Fa "char *password"
+.Fc
+.Ft void
+.Fo tls_unload_file
+.Fa "uint8_t *buf"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo tls_config_set_ca_file
+.Fa "struct tls_config *config"
+.Fa "const char *ca_file"
+.Fc
+.Ft int
+.Fo tls_config_set_ca_path
+.Fa "struct tls_config *config"
+.Fa "const char *ca_path"
+.Fc
+.Ft int
+.Fo tls_config_set_ca_mem
+.Fa "struct tls_config *config"
+.Fa "const uint8_t *cert"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo tls_config_set_cert_file
+.Fa "struct tls_config *config"
+.Fa "const char *cert_file"
+.Fc
+.Ft int
+.Fo tls_config_set_cert_mem
+.Fa "struct tls_config *config"
+.Fa "const uint8_t *cert"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo tls_config_set_crl_file
+.Fa "struct tls_config *config"
+.Fa "const char *crl_file"
+.Fc
+.Ft int
+.Fo tls_config_set_crl_mem
+.Fa "struct tls_config *config"
+.Fa "const uint8_t *crl"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo tls_config_set_key_file
+.Fa "struct tls_config *config"
+.Fa "const char *key_file"
+.Fc
+.Ft int
+.Fo tls_config_set_key_mem
+.Fa "struct tls_config *config"
+.Fa "const uint8_t *key"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo tls_config_set_ocsp_staple_mem
+.Fa "struct tls_config *config"
+.Fa "const uint8_t *staple"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo tls_config_set_ocsp_staple_file
+.Fa "struct tls_config *config"
+.Fa "const char *staple_file"
+.Fc
+.Ft int
+.Fo tls_config_set_keypair_file
+.Fa "struct tls_config *config"
+.Fa "const char *cert_file"
+.Fa "const char *key_file"
+.Fc
+.Ft int
+.Fo tls_config_set_keypair_mem
+.Fa "struct tls_config *config"
+.Fa "const uint8_t *cert"
+.Fa "size_t cert_len"
+.Fa "const uint8_t *key"
+.Fa "size_t key_len"
+.Fc
+.Ft int
+.Fo tls_config_set_keypair_ocsp_file
+.Fa "struct tls_config *config"
+.Fa "const char *cert_file"
+.Fa "const char *key_file"
+.Fa "const char *staple_file"
+.Fc
+.Ft int
+.Fo tls_config_set_keypair_ocsp_mem
+.Fa "struct tls_config *config"
+.Fa "const uint8_t *cert"
+.Fa "size_t cert_len"
+.Fa "const uint8_t *key"
+.Fa "size_t key_len"
+.Fa "const uint8_t *staple"
+.Fa "size_t staple_len"
+.Fc
+.Ft int
+.Fo tls_config_add_keypair_file
+.Fa "struct tls_config *config"
+.Fa "const char *cert_file"
+.Fa "const char *key_file"
+.Fc
+.Ft int
+.Fo tls_config_add_keypair_mem
+.Fa "struct tls_config *config"
+.Fa "const uint8_t *cert"
+.Fa "size_t cert_len"
+.Fa "const uint8_t *key"
+.Fa "size_t key_len"
+.Fc
+.Ft int
+.Fo tls_config_add_keypair_ocsp_file
+.Fa "struct tls_config *config"
+.Fa "const char *cert_file"
+.Fa "const char *key_file"
+.Fa "const char *staple_file"
+.Fc
+.Ft int
+.Fo tls_config_add_keypair_ocsp_mem
+.Fa "struct tls_config *config"
+.Fa "const uint8_t *cert"
+.Fa "size_t cert_len"
+.Fa "const uint8_t *key"
+.Fa "size_t key_len"
+.Fa "const uint8_t *staple"
+.Fa "size_t staple_len"
+.Fc
+.Ft void
+.Fn tls_config_clear_keys "struct tls_config *config"
+.Ft int
+.Fo tls_config_set_verify_depth
+.Fa "struct tls_config *config"
+.Fa "int verify_depth"
+.Fc
+.Ft void
+.Fn tls_config_verify_client "struct tls_config *config"
+.Ft void
+.Fn tls_config_verify_client_optional "struct tls_config *config"
+.Ft const char *
+.Fn tls_default_ca_cert_file "void"
+.Sh DESCRIPTION
+.Fn tls_load_file
+loads a certificate or key from disk into memory to be used with
+.Fn tls_config_set_ca_mem ,
+.Fn tls_config_set_cert_mem ,
+.Fn tls_config_set_crl_mem
+or
+.Fn tls_config_set_key_mem .
+A private key will be decrypted if the optional
+.Ar password
+argument is specified.
+.Pp
+.Fn tls_unload_file
+unloads the memory that was returned from an earlier
+.Fn tls_load_file
+call, ensuring that the memory contents is discarded.
+.Pp
+.Fn tls_default_ca_cert_file
+returns the path of the file that contains the default root certificates.
+.Pp
+.Fn tls_config_set_ca_file
+loads a file containing the root certificates.
+.Pp
+.Fn tls_config_set_ca_path
+sets the path (directory) which should be searched for root
+certificates.
+.Pp
+.Fn tls_config_set_ca_mem
+sets the root certificates directly from memory.
+.Pp
+.Fn tls_config_set_cert_file
+loads a file containing the public certificate.
+.Pp
+.Fn tls_config_set_cert_mem
+sets the public certificate directly from memory.
+.Pp
+.Fn tls_config_set_crl_file
+loads a file containing the Certificate Revocation List (CRL).
+.Pp
+.Fn tls_config_set_crl_mem
+sets the CRL directly from memory.
+.Pp
+.Fn tls_config_set_key_file
+loads a file containing the private key.
+.Pp
+.Fn tls_config_set_key_mem
+directly sets the private key from memory.
+.Pp
+.Fn tls_config_set_ocsp_staple_file
+loads a file containing a DER-encoded OCSP response to be stapled
+during the TLS handshake.
+.Pp
+.Fn tls_config_set_ocsp_staple_mem
+sets a DER-encoded OCSP response to be stapled during the TLS handshake from
+memory.
+.Pp
+.Fn tls_config_set_keypair_file
+loads two files from which the public certificate and private key will be read.
+.Pp
+.Fn tls_config_set_keypair_mem
+directly sets the public certificate and private key from memory.
+.Pp
+.Fn tls_config_set_keypair_ocsp_file
+loads three files containing the public certificate, private key,
+and DER-encoded OCSP staple.
+.Pp
+.Fn tls_config_set_keypair_ocsp_mem
+directly sets the public certificate, private key, and DER-encoded OCSP staple
+from memory.
+.Pp
+.Fn tls_config_add_keypair_file
+adds an additional public certificate and private key from the specified files,
+used as an alternative certificate for Server Name Indication (server only).
+.Pp
+.Fn tls_config_add_keypair_mem
+adds an additional public certificate and private key from memory, used as an
+alternative certificate for Server Name Indication (server only).
+.Pp
+.Fn tls_config_add_keypair_ocsp_file
+adds an additional public certificate, private key, and DER-encoded OCSP staple
+from the specified files, used as an alternative certificate for Server Name
+Indication (server only).
+.Pp
+.Fn tls_config_add_keypair_ocsp_mem
+adds an additional public certificate, private key, and DER-encoded OCSP staple
+from memory, used as an alternative certificate for Server Name Indication
+(server only).
+.Pp
+.Fn tls_config_clear_keys
+clears any secret keys from memory.
+.Pp
+.Fn tls_config_set_verify_depth
+limits the number of intermediate certificates that will be followed during
+certificate validation.
+.Pp
+.Fn tls_config_verify_client
+enables client certificate verification, requiring the client to send
+a certificate (server only).
+.Pp
+.Fn tls_config_verify_client_optional
+enables client certificate verification, without requiring the client
+to send a certificate (server only).
+.Sh RETURN VALUES
+.Fn tls_load_file
+returns
+.Dv NULL
+on error or an out of memory condition.
+.Pp
+The other functions return 0 on success or -1 on error.
+.Sh SEE ALSO
+.Xr tls_config_ocsp_require_stapling 3 ,
+.Xr tls_config_set_protocols 3 ,
+.Xr tls_config_set_session_id 3 ,
+.Xr tls_configure 3 ,
+.Xr tls_init 3
+.Sh HISTORY
+.Fn tls_config_set_ca_file ,
+.Fn tls_config_set_ca_path ,
+.Fn tls_config_set_cert_file ,
+.Fn tls_config_set_cert_mem ,
+.Fn tls_config_set_key_file ,
+.Fn tls_config_set_key_mem ,
+and
+.Fn tls_config_set_verify_depth
+appeared in
+.Ox 5.6
+and got their final names in
+.Ox 5.7 .
+.Pp
+.Fn tls_load_file ,
+.Fn tls_config_set_ca_mem ,
+and
+.Fn tls_config_clear_keys
+appeared in
+.Ox 5.7 .
+.Pp
+.Fn tls_config_verify_client
+and
+.Fn tls_config_verify_client_optional
+appeared in
+.Ox 5.9 .
+.Pp
+.Fn tls_config_set_keypair_file
+and
+.Fn tls_config_set_keypair_mem
+appeared in
+.Ox 6.0 ,
+and
+.Fn tls_config_add_keypair_file
+and
+.Fn tls_config_add_keypair_mem
+in
+.Ox 6.1 .
+.Pp
+.Fn tls_config_set_crl_file
+and
+.Fn tls_config_set_crl_mem
+appeared in
+.Ox 6.2 .
+.Sh AUTHORS
+.An Joel Sing Aq Mt jsing@openbsd.org
+with contributions from
+.An Ted Unangst Aq Mt tedu@openbsd.org
+and
+.An Bob Beck Aq Mt beck@openbsd.org .
+.Pp
+.Fn tls_load_file
+and
+.Fn tls_config_set_ca_mem
+were written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

@@ -1,0 +1,40 @@
+static_library("Instrumentation") {
+  output_name = "LLVMInstrumentation"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/ProfileData",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "AddressSanitizer.cpp",
+    "BlockCoverageInference.cpp",
+    "BoundsChecking.cpp",
+    "CGProfile.cpp",
+    "ControlHeightReduction.cpp",
+    "DataFlowSanitizer.cpp",
+    "GCOVProfiling.cpp",
+    "HWAddressSanitizer.cpp",
+    "IndirectCallPromotion.cpp",
+    "InstrOrderFile.cpp",
+    "InstrProfiling.cpp",
+    "Instrumentation.cpp",
+    "KCFI.cpp",
+    "LowerAllowCheckPass.cpp",
+    "MemProfiler.cpp",
+    "MemorySanitizer.cpp",
+    "NumericalStabilitySanitizer.cpp",
+    "PGOCtxProfLowering.cpp",
+    "PGOForceFunctionAttrs.cpp",
+    "PGOInstrumentation.cpp",
+    "PGOMemOPSizeOpt.cpp",
+    "PoisonChecking.cpp",
+    "SanitizerBinaryMetadata.cpp",
+    "SanitizerCoverage.cpp",
+    "ThreadSanitizer.cpp",
+    "ValueProfileCollector.cpp",
+  ]
+}

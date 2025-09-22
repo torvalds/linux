@@ -1,0 +1,103 @@
+.\"	$OpenBSD: mfi.4,v 1.20 2013/11/08 11:07:42 mikeb Exp $
+.\"
+.\" Written by Marco Peereboom <marco@peereboom.us>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY WASABI SYSTEMS, INC. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL WASABI SYSTEMS, INC
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 8 2013 $
+.Dt MFI 4
+.Os
+.Sh NAME
+.Nm mfi
+.Nd LSI Logic & Dell MegaRAID SAS RAID controller
+.Sh SYNOPSIS
+.Cd "mfi* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the MegaRAID SAS family of RAID controllers,
+including:
+.Pp
+.Bl -dash -offset indent -compact
+.It
+Dell PERC 5/e,
+PERC 5/i,
+PERC 6/e,
+PERC 6/i,
+PERC H310,
+PERC H700,
+PERC H800
+.It
+IBM ServeRAID M1115
+.It
+Intel RAID Controller SRCSAS18E,
+SRCSAS144E
+.It
+LSI Logic MegaRAID SAS 8300XLP,
+MegaRAID SAS 8308ELP,
+MegaRAID SAS 8344ELP,
+MegaRAID SAS 8408E,
+MegaRAID SAS 8480E,
+MegaRAID SAS 8880EM2,
+MegaRAID SAS 8888ELP,
+MegaRAID SAS 9240-4i,
+MegaRAID SAS 9240-8i,
+MegaRAID SAS 9260-16i,
+MegaRAID SAS 9260-4i,
+MegaRAID SAS 9260-8i,
+MegaRAID SAS 9260CV-4i,
+MegaRAID SAS 9260CV-8i,
+MegaRAID SAS 9261-8i,
+MegaRAID SAS 9265-8i,
+MegaRAID SAS 9280-16i4e,
+MegaRAID SAS 9280-24i4e,
+MegaRAID SAS 9280-4i4e,
+MegaRAID SAS 9280-8e,
+MegaRAID SAS 9285-8e
+.El
+.Pp
+These controllers support RAID 0, RAID 1, RAID 5, RAID 6, RAID 10, RAID 50 and
+RAID 60 using either SAS or SATA II drives.
+.Pp
+Although the controllers are actual RAID controllers,
+the driver makes them look just like SCSI controllers.
+All RAID configuration is done through the controllers' BIOSes.
+.Sh SEE ALSO
+.Xr bio 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr bioctl 8 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Marco Peereboom Aq Mt marco@openbsd.org .

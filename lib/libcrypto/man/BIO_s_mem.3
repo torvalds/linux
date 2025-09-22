@@ -1,0 +1,307 @@
+.\" $OpenBSD: BIO_s_mem.3,v 1.20 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 8711efb4 Mon Apr 20 11:33:12 2009 +0000
+.\" selective merge up to: OpenSSL 36359cec Mar 7 14:37:23 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_S_MEM 3
+.Os
+.Sh NAME
+.Nm BIO_s_mem ,
+.Nm BIO_set_mem_eof_return ,
+.Nm BIO_get_mem_data ,
+.Nm BIO_set_mem_buf ,
+.Nm BIO_get_mem_ptr ,
+.Nm BIO_new_mem_buf
+.Nd memory BIO
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.Ft const BIO_METHOD *
+.Fo BIO_s_mem
+.Fa "void"
+.Fc
+.Ft long
+.Fo BIO_set_mem_eof_return
+.Fa "BIO *b"
+.Fa "int v"
+.Fc
+.Ft long
+.Fo BIO_get_mem_data
+.Fa "BIO *b"
+.Fa "char **pp"
+.Fc
+.Ft long
+.Fo BIO_set_mem_buf
+.Fa "BIO *b"
+.Fa "BUF_MEM *bm"
+.Fa "int c"
+.Fc
+.Ft long
+.Fo BIO_get_mem_ptr
+.Fa "BIO *b"
+.Fa "BUF_MEM **pp"
+.Fc
+.Ft BIO *
+.Fo BIO_new_mem_buf
+.Fa "const void *buf"
+.Fa "int len"
+.Fc
+.Sh DESCRIPTION
+.Fn BIO_s_mem
+returns the memory BIO method function.
+.Pp
+A memory BIO is a source/sink BIO which uses memory for its I/O.
+Data written to a memory BIO is stored in a
+.Vt BUF_MEM
+structure which is extended as appropriate to accommodate the stored data.
+.Pp
+Any data written to a memory BIO can be recalled by reading from it.
+Unless the memory BIO is read only,
+any data read from it is deleted from the BIO.
+To find out whether a memory BIO is read only,
+.Xr BIO_test_flags 3
+can be called with an argument of
+.Dv BIO_FLAGS_MEM_RDONLY .
+.Pp
+Memory BIOs support
+.Xr BIO_gets 3
+and
+.Xr BIO_puts 3 .
+.Pp
+If the
+.Dv BIO_CLOSE
+flag is set when a memory BIO is freed, the underlying
+.Dv BUF_MEM
+structure is also freed.
+.Pp
+Calling
+.Xr BIO_reset 3
+on a read/write memory BIO clears any data in it.
+On a read only BIO it restores the BIO to its original state
+and the read only data can be read again.
+.Pp
+.Xr BIO_eof 3
+is true if no data is in the BIO.
+.Pp
+.Xr BIO_ctrl_pending 3
+returns the number of bytes currently stored.
+.Pp
+.Fn BIO_set_mem_eof_return
+sets the behaviour of memory BIO
+.Fa b
+when it is empty.
+If
+.Fa v
+is zero, then an empty memory BIO will return EOF:
+it will return zero and
+.Fn BIO_should_retry
+will be false.
+If
+.Fa v
+is non-zero then it will return
+.Fa v
+when it is empty and it will set the read retry flag:
+.Fn BIO_read_retry
+is true.
+To avoid ambiguity with a normal positive return value
+.Fa v
+should be set to a negative value, typically -1.
+.Pp
+.Fn BIO_get_mem_data
+sets
+.Pf * Fa pp
+to a pointer to the start of the memory BIO's data
+and returns the total amount of data available.
+.Pp
+.Fn BIO_set_mem_buf
+sets the internal BUF_MEM structure to
+.Fa bm
+and sets the close flag to
+.Fa c .
+That is,
+.Fa c
+should be either
+.Dv BIO_CLOSE
+or
+.Dv BIO_NOCLOSE .
+.Pp
+.Fn BIO_get_mem_ptr
+places the underlying
+.Vt BUF_MEM
+structure in
+.Pf * Fa pp .
+.Pp
+.Fn BIO_new_mem_buf
+creates a memory BIO using
+.Fa len
+bytes of data at
+.Fa buf .
+If
+.Fa len
+is -1, then
+.Fa buf
+is assumed to be NUL terminated and its length is determined by
+.Xr strlen 3 .
+The BIO is set to a read only state and as a result cannot be written to.
+This is useful when some data needs to be made available
+from a static area of memory in the form of a BIO.
+The supplied data is read directly from the supplied buffer:
+it is
+.Em not
+copied first, so the supplied area of memory must be unchanged
+until the BIO is freed.
+.Pp
+Writes to memory BIOs will always succeed if memory is available:
+their size can grow indefinitely.
+.Pp
+.Xr BIO_ctrl 3
+.Fa cmd
+arguments correspond to macros as follows:
+.Bl -column BIO_C_SET_BUF_MEM_EOF_RETURN BIO_set_mem_eof_return() -offset 3n
+.It Fa cmd No constant              Ta corresponding macro
+.It Dv BIO_C_GET_BUF_MEM_PTR        Ta Fn BIO_get_mem_ptr
+.It Dv BIO_C_SET_BUF_MEM            Ta Fn BIO_set_mem_buf
+.It Dv BIO_C_SET_BUF_MEM_EOF_RETURN Ta Fn BIO_set_mem_eof_return
+.It Dv BIO_CTRL_EOF                 Ta Xr BIO_eof 3
+.It Dv BIO_CTRL_GET_CLOSE           Ta Xr BIO_get_close 3
+.It Dv BIO_CTRL_INFO                Ta Fn BIO_get_mem_data
+.It Dv BIO_CTRL_PENDING             Ta Xr BIO_pending 3
+.It Dv BIO_CTRL_RESET               Ta Xr BIO_reset 3
+.It Dv BIO_CTRL_SET_CLOSE           Ta Xr BIO_set_close 3
+.It Dv BIO_CTRL_WPENDING            Ta Xr BIO_wpending 3
+.El
+.Sh RETURN VALUES
+.Fn BIO_s_mem
+returns a pointer to a static object.
+.Pp
+When called on a memory BIO object,
+.Xr BIO_method_type 3
+returns the constant
+.Dv BIO_TYPE_MEM
+and
+.Xr BIO_method_name 3
+returns a pointer to the static string
+.Qq memory buffer .
+.Pp
+.Fn BIO_set_mem_eof_return ,
+.Fn BIO_get_mem_data ,
+.Fn BIO_set_mem_buf ,
+and
+.Fn BIO_get_mem_ptr
+return 1 on success or a value less than or equal to 0 if an error occurred.
+.Pp
+.Fn BIO_new_mem_buf
+returns a newly allocated
+.Vt BIO
+object on success or
+.Dv NULL
+on error.
+.Sh EXAMPLES
+Create a memory BIO and write some data to it:
+.Bd -literal -offset indent
+BIO *mem = BIO_new(BIO_s_mem());
+BIO_puts(mem, "Hello World\en");
+.Ed
+.Pp
+Create a read only memory BIO:
+.Bd -literal -offset indent
+char data[] = "Hello World";
+BIO *mem;
+mem = BIO_new_mem_buf(data, -1);
+.Ed
+.Pp
+Extract the
+.Vt BUF_MEM
+structure from a memory BIO and then free up the BIO:
+.Bd -literal -offset indent
+BUF_MEM *bptr;
+BIO_get_mem_ptr(mem, &bptr);
+/* Make sure BIO_free() leaves BUF_MEM alone. */
+BIO_set_close(mem, BIO_NOCLOSE);
+BIO_free(mem);
+.Ed
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr BUF_MEM_new 3
+.Sh HISTORY
+.Fn BIO_s_mem
+first appeared in SSLeay 0.6.0.
+.Fn BIO_set_mem_buf
+and
+.Fn BIO_get_mem_ptr
+first appeared in SSLeay 0.6.5.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn BIO_set_mem_eof_return
+and
+.Fn BIO_get_mem_data
+first appeared in SSLeay 0.9.1 and have been available since
+.Ox 2.6 .
+.Pp
+.Fn BIO_new_mem_buf
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Sh CAVEATS
+Do not manually switch a writable memory BIO to read-only mode: calling
+.Xr BIO_set_flags 3
+with an argument of
+.Dv BIO_FLAGS_MEM_RDONLY
+will ultimately result in a memory leak when the BIO object is
+finally handed to
+.Xr BIO_free 3 .
+It might also cause security issues because it prevents
+.Xr BIO_reset 3
+from clearing the data.
+.Sh BUGS
+There should be an option to set the maximum size of a memory BIO.
+.Pp
+There should be a way to "rewind" a read/write BIO without destroying
+its contents.

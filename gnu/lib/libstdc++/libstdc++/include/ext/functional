@@ -1,0 +1,395 @@
+// Functional extensions -*- C++ -*-
+
+// Copyright (C) 2002 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+/*
+ *
+ * Copyright (c) 1994
+ * Hewlett-Packard Company
+ *
+ * Permission to use, copy, modify, distribute and sell this software
+ * and its documentation for any purpose is hereby granted without fee,
+ * provided that the above copyright notice appear in all copies and
+ * that both that copyright notice and this permission notice appear
+ * in supporting documentation.  Hewlett-Packard Company makes no
+ * representations about the suitability of this software for any
+ * purpose.  It is provided "as is" without express or implied warranty.
+ *
+ *
+ * Copyright (c) 1996
+ * Silicon Graphics Computer Systems, Inc.
+ *
+ * Permission to use, copy, modify, distribute and sell this software
+ * and its documentation for any purpose is hereby granted without fee,
+ * provided that the above copyright notice appear in all copies and
+ * that both that copyright notice and this permission notice appear
+ * in supporting documentation.  Silicon Graphics makes no
+ * representations about the suitability of this software for any
+ * purpose.  It is provided "as is" without express or implied warranty.
+ */
+
+/** @file ext/functional
+ *  This file is a GNU extension to the Standard C++ Library (possibly
+ *  containing extensions from the HP/SGI STL subset).  You should only
+ *  include this header if you are using GCC 3 or later.
+ */
+
+#ifndef _EXT_FUNCTIONAL
+#define _EXT_FUNCTIONAL
+
+#pragma GCC system_header
+#include <functional>
+
+namespace __gnu_cxx
+{
+using std::unary_function;
+using std::binary_function;
+using std::mem_fun1_t;
+using std::const_mem_fun1_t;
+using std::mem_fun1_ref_t;
+using std::const_mem_fun1_ref_t;
+
+/** The @c identity_element functions are not part of the C++ standard; SGI
+ *  provided them as an extension.  Its argument is an operation, and its
+ *  return value is the identity element for that operation.  It is overloaded
+ *  for addition and multiplication, and you can overload it for your own
+ *  nefarious operations.
+ *
+ *  @addtogroup SGIextensions
+ *  @{
+*/
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Tp> inline _Tp identity_element(std::plus<_Tp>) {
+  return _Tp(0);
+}
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Tp> inline _Tp identity_element(std::multiplies<_Tp>) {
+  return _Tp(1);
+}
+/** @}  */
+
+/** As an extension to the binders, SGI provided composition functors and
+ *  wrapper functions to aid in their creation.  The @c unary_compose
+ *  functor is constructed from two functions/functors, @c f and @c g.
+ *  Calling @c operator() with a single argument @c x returns @c f(g(x)).
+ *  The function @c compose1 takes the two functions and constructs a
+ *  @c unary_compose variable for you.
+ *  
+ *  @c binary_compose is constructed from three functors, @c f, @c g1,
+ *  and @c g2.  Its @c operator() returns @c f(g1(x),g2(x)).  The function
+ *  @compose2 takes f, g1, and g2, and constructs the @c binary_compose
+ *  instance for you.  For example, if @c f returns an int, then
+ *  \code
+ *  int answer = (compose2(f,g1,g2))(x);
+ *  \endcode
+ *  is equivalent to
+ *  \code
+ *  int temp1 = g1(x);
+ *  int temp2 = g2(x);
+ *  int answer = f(temp1,temp2);
+ *  \endcode
+ *  But the first form is more compact, and can be passed around as a
+ *  functor to other algorithms.
+ *
+ *  @addtogroup SGIextensions
+ *  @{
+*/
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Operation1, class _Operation2>
+class unary_compose
+  : public unary_function<typename _Operation2::argument_type,
+		       typename _Operation1::result_type> 
+{
+protected:
+  _Operation1 _M_fn1;
+  _Operation2 _M_fn2;
+public:
+  unary_compose(const _Operation1& __x, const _Operation2& __y) 
+    : _M_fn1(__x), _M_fn2(__y) {}
+  typename _Operation1::result_type
+  operator()(const typename _Operation2::argument_type& __x) const {
+    return _M_fn1(_M_fn2(__x));
+  }
+};
+
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Operation1, class _Operation2>
+inline unary_compose<_Operation1,_Operation2> 
+compose1(const _Operation1& __fn1, const _Operation2& __fn2)
+{
+  return unary_compose<_Operation1,_Operation2>(__fn1, __fn2);
+}
+
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Operation1, class _Operation2, class _Operation3>
+class binary_compose
+  : public unary_function<typename _Operation2::argument_type,
+                          typename _Operation1::result_type> {
+protected:
+  _Operation1 _M_fn1;
+  _Operation2 _M_fn2;
+  _Operation3 _M_fn3;
+public:
+  binary_compose(const _Operation1& __x, const _Operation2& __y, 
+                 const _Operation3& __z) 
+    : _M_fn1(__x), _M_fn2(__y), _M_fn3(__z) { }
+  typename _Operation1::result_type
+  operator()(const typename _Operation2::argument_type& __x) const {
+    return _M_fn1(_M_fn2(__x), _M_fn3(__x));
+  }
+};
+
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Operation1, class _Operation2, class _Operation3>
+inline binary_compose<_Operation1, _Operation2, _Operation3> 
+compose2(const _Operation1& __fn1, const _Operation2& __fn2, 
+         const _Operation3& __fn3)
+{
+  return binary_compose<_Operation1,_Operation2,_Operation3>
+    (__fn1, __fn2, __fn3);
+}
+/** @}  */
+
+/** As an extension, SGI provided a functor called @c identity.  When a
+ *  functor is required but no operations are desired, this can be used as a
+ *  pass-through.  Its @c operator() returns its argument unchanged.
+ *
+ *  @addtogroup SGIextensions
+*/
+template <class _Tp> struct identity : public std::_Identity<_Tp> {};
+
+/** @c select1st and @c select2nd are extensions provided by SGI.  Their
+ *  @c operator()s
+ *  take a @c std::pair as an argument, and return either the first member
+ *  or the second member, respectively.  They can be used (especially with
+ *  the composition functors) to "strip" data from a sequence before
+ *  performing the remainder of an algorithm.
+ *
+ *  @addtogroup SGIextensions
+ *  @{
+*/
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Pair> struct select1st : public std::_Select1st<_Pair> {};
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Pair> struct select2nd : public std::_Select2nd<_Pair> {};
+/** @}  */
+
+// extension documented next
+template <class _Arg1, class _Arg2>
+struct _Project1st : public binary_function<_Arg1, _Arg2, _Arg1> {
+  _Arg1 operator()(const _Arg1& __x, const _Arg2&) const { return __x; }
+};
+
+template <class _Arg1, class _Arg2>
+struct _Project2nd : public binary_function<_Arg1, _Arg2, _Arg2> {
+  _Arg2 operator()(const _Arg1&, const _Arg2& __y) const { return __y; }
+};
+
+/** The @c operator() of the @c project1st functor takes two arbitrary
+ *  arguments and returns the first one, while @c project2nd returns the
+ *  second one.  They are extensions provided by SGI.
+ *
+ *  @addtogroup SGIextensions
+ *  @{
+*/
+
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Arg1, class _Arg2> 
+struct project1st : public _Project1st<_Arg1, _Arg2> {};
+
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Arg1, class _Arg2>
+struct project2nd : public _Project2nd<_Arg1, _Arg2> {};
+/** @}  */
+
+// extension documented next
+template <class _Result>
+struct _Constant_void_fun {
+  typedef _Result result_type;
+  result_type _M_val;
+
+  _Constant_void_fun(const result_type& __v) : _M_val(__v) {}
+  const result_type& operator()() const { return _M_val; }
+};  
+
+template <class _Result, class _Argument>
+struct _Constant_unary_fun {
+  typedef _Argument argument_type;
+  typedef  _Result  result_type;
+  result_type _M_val;
+
+  _Constant_unary_fun(const result_type& __v) : _M_val(__v) {}
+  const result_type& operator()(const _Argument&) const { return _M_val; }
+};
+
+template <class _Result, class _Arg1, class _Arg2>
+struct _Constant_binary_fun {
+  typedef  _Arg1   first_argument_type;
+  typedef  _Arg2   second_argument_type;
+  typedef  _Result result_type;
+  _Result _M_val;
+
+  _Constant_binary_fun(const _Result& __v) : _M_val(__v) {}
+  const result_type& operator()(const _Arg1&, const _Arg2&) const {
+    return _M_val;
+  }
+};
+
+/** These three functors are each constructed from a single arbitrary
+ *  variable/value.  Later, their @c operator()s completely ignore any
+ *  arguments passed, and return the stored value.
+ *  - @c constant_void_fun's @c operator() takes no arguments
+ *  - @c constant_unary_fun's @c operator() takes one argument (ignored)
+ *  - @c constant_binary_fun's @c operator() takes two arguments (ignored)
+ *
+ *  The helper creator functions @c constant0, @c constant1, and
+ *  @c constant2 each take a "result" argument and construct variables of
+ *  the appropriate functor type.
+ *
+ *  @addtogroup SGIextensions
+ *  @{
+*/
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Result>
+struct constant_void_fun : public _Constant_void_fun<_Result> {
+  constant_void_fun(const _Result& __v) : _Constant_void_fun<_Result>(__v) {}
+};  
+
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Result,
+          class _Argument = _Result>
+struct constant_unary_fun : public _Constant_unary_fun<_Result, _Argument>
+{
+  constant_unary_fun(const _Result& __v)
+    : _Constant_unary_fun<_Result, _Argument>(__v) {}
+};
+
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Result,
+          class _Arg1 = _Result,
+          class _Arg2 = _Arg1>
+struct constant_binary_fun
+  : public _Constant_binary_fun<_Result, _Arg1, _Arg2>
+{
+  constant_binary_fun(const _Result& __v)
+    : _Constant_binary_fun<_Result, _Arg1, _Arg2>(__v) {}
+};
+
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Result>
+inline constant_void_fun<_Result> constant0(const _Result& __val)
+{
+  return constant_void_fun<_Result>(__val);
+}
+
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Result>
+inline constant_unary_fun<_Result,_Result> constant1(const _Result& __val)
+{
+  return constant_unary_fun<_Result,_Result>(__val);
+}
+
+/// An \link SGIextensions SGI extension \endlink.
+template <class _Result>
+inline constant_binary_fun<_Result,_Result,_Result> 
+constant2(const _Result& __val)
+{
+  return constant_binary_fun<_Result,_Result,_Result>(__val);
+}
+/** @}  */
+
+/** The @c subtractive_rng class is documented on
+ *  <a href="http://www.sgi.com/tech/stl/">SGI's site</a>.
+ *  Note that this code assumes that @c int is 32 bits.
+ *
+ *  @ingroup SGIextensions
+*/
+class subtractive_rng : public unary_function<unsigned int, unsigned int> {
+private:
+  unsigned int _M_table[55];
+  size_t _M_index1;
+  size_t _M_index2;
+public:
+  /// Returns a number less than the argument.
+  unsigned int operator()(unsigned int __limit) {
+    _M_index1 = (_M_index1 + 1) % 55;
+    _M_index2 = (_M_index2 + 1) % 55;
+    _M_table[_M_index1] = _M_table[_M_index1] - _M_table[_M_index2];
+    return _M_table[_M_index1] % __limit;
+  }
+
+  void _M_initialize(unsigned int __seed)
+  {
+    unsigned int __k = 1;
+    _M_table[54] = __seed;
+    size_t __i;
+    for (__i = 0; __i < 54; __i++) {
+        size_t __ii = (21 * (__i + 1) % 55) - 1;
+        _M_table[__ii] = __k;
+        __k = __seed - __k;
+        __seed = _M_table[__ii];
+    }
+    for (int __loop = 0; __loop < 4; __loop++) {
+        for (__i = 0; __i < 55; __i++)
+            _M_table[__i] = _M_table[__i] - _M_table[(1 + __i + 30) % 55];
+    }
+    _M_index1 = 0;
+    _M_index2 = 31;
+  }
+
+  /// Ctor allowing you to initialize the seed.
+  subtractive_rng(unsigned int __seed) { _M_initialize(__seed); }
+  /// Default ctor; initializes its state with some number you don't see.
+  subtractive_rng() { _M_initialize(161803398u); }
+};
+
+// Mem_fun adaptor helper functions mem_fun1 and mem_fun1_ref, 
+// provided for backward compatibility, they are no longer part of
+// the C++ standard.
+
+template <class _Ret, class _Tp, class _Arg>
+inline mem_fun1_t<_Ret,_Tp,_Arg> mem_fun1(_Ret (_Tp::*__f)(_Arg))
+  { return mem_fun1_t<_Ret,_Tp,_Arg>(__f); }
+
+template <class _Ret, class _Tp, class _Arg>
+inline const_mem_fun1_t<_Ret,_Tp,_Arg> mem_fun1(_Ret (_Tp::*__f)(_Arg) const)
+  { return const_mem_fun1_t<_Ret,_Tp,_Arg>(__f); }
+
+template <class _Ret, class _Tp, class _Arg>
+inline mem_fun1_ref_t<_Ret,_Tp,_Arg> mem_fun1_ref(_Ret (_Tp::*__f)(_Arg))
+  { return mem_fun1_ref_t<_Ret,_Tp,_Arg>(__f); }
+
+template <class _Ret, class _Tp, class _Arg>
+inline const_mem_fun1_ref_t<_Ret,_Tp,_Arg>
+mem_fun1_ref(_Ret (_Tp::*__f)(_Arg) const)
+  { return const_mem_fun1_ref_t<_Ret,_Tp,_Arg>(__f); }
+
+} // namespace __gnu_cxx
+
+#endif /* _EXT_FUNCTIONAL */
+

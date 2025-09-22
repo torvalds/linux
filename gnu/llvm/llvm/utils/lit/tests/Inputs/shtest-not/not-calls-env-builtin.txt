@@ -1,0 +1,4 @@
+# Other tests thoroughly check that 'not' cannot call various builtin commands.
+# Pick one and make sure it fails even if there's an 'env' in the way.
+
+# RUN: not --crash env -u FOO BAR=3 rm %t.no-such-file

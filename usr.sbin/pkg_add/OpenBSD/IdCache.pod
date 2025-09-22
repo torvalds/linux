@@ -1,0 +1,39 @@
+$OpenBSD: IdCache.pod,v 1.2 2023/05/16 11:20:00 espie Exp $
+
+=head1 NAME
+
+OpenBSD::IdCache - cache for user and group look-ups
+
+=head1 SYNOPSIS
+
+    use OpenBSD::IdCache;
+
+    my $ucache = OpenBSD::UidCache->new;
+    my $uid = $ucache->lookup("espie");
+
+    my $gcache = OpenBSD::GidCache->new;
+    my $gid = $gcache->lookup("wheel", 0);
+
+    my $unamecache = OpenBSD::UnameCache->new;
+    my $name = $unamecache->lookup($uid);
+
+    my $gnamecache = OpenBSD::GnameCache->new;
+    my $grname = $gnamecache->lookup($gid);
+
+=head1 DESCRIPTION
+
+C<OpenBSD::IdCache> provides four classes: C<OpenBSD::UidCache> for UIDs,
+C<OpenBSD::GidCache> for GIDs, C<OpenBSD::UnameCache> for user names, and
+C<OpenBSD::GnameCache> for group names.
+
+C<UidCache::new> creates a UID cache, which can be used to look up user
+names by using the C<lookup> method.  Looking up a numeric user name
+is a no-op. Non-existing IDs return a default value, which is normally
+C<undef> but can be provided as an extra argument to C<lookup>.
+
+C<GidCache::new> provides the same service for GIDs.
+
+C<UnameCache::new> creates a user name cache, which can be used to look up
+UIDs.
+
+C<GnameCache::new> provides the same service for group names.

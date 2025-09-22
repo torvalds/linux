@@ -1,0 +1,82 @@
+.\"	$OpenBSD: initgroups.3,v 1.16 2015/02/05 02:33:09 schwarze Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 5 2015 $
+.Dt INITGROUPS 3
+.Os
+.Sh NAME
+.Nm initgroups
+.Nd initialize supplementary group IDs
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn initgroups "const char *name" "gid_t basegid"
+.Sh DESCRIPTION
+The
+.Fn initgroups
+function uses the
+.Xr getgrouplist 3
+function to calculate the supplementary group IDs for the user specified in
+.Fa name .
+This group list is then set up for the current process using
+.Xr setgroups 2 .
+The
+.Fa basegid
+is automatically included in the group list.
+Typically this value is given as the group number from the password file.
+.Pp
+If the groups database lists more than
+.Dv NGROUPS_MAX
+groups for
+.Fa name
+(including one for
+.Fa basegid ) ,
+the later groups are ignored.
+.Sh RETURN VALUES
+The
+.Fn initgroups
+function returns \-1 if it was not invoked by the superuser.
+.Sh SEE ALSO
+.Xr setgroups 2 ,
+.Xr getgrouplist 3
+.Sh HISTORY
+The
+.Fn initgroups
+function appeared in
+.Bx 4.2 .
+.Sh BUGS
+The
+.Xr getgrouplist 3
+function called by
+.Fn initgroups
+uses the routines based on
+.Xr getgrent 3 .
+If the invoking program uses any of these routines, the group structure
+will be overwritten in the call to
+.Fn initgroups .

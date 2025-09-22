@@ -1,0 +1,365 @@
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: getopt.3,v 1.48 2022/07/25 02:25:55 jsg Exp $
+.\"
+.Dd $Mdocdate: July 25 2022 $
+.Dt GETOPT 3
+.Os
+.Sh NAME
+.Nm getopt
+.Nd get option character from command line argument list
+.Sh SYNOPSIS
+.In unistd.h
+.Vt extern char *optarg;
+.Vt extern int   opterr;
+.Vt extern int   optind;
+.Vt extern int   optopt;
+.Vt extern int   optreset;
+.Ft int
+.Fn getopt "int argc" "char * const *argv" "const char *optstring"
+.Sh DESCRIPTION
+The
+.Fn getopt
+function incrementally parses a command line argument list
+.Fa argv
+and returns the next
+.Em known
+option character.
+An option character is
+.Em known
+if it has been specified in the string of accepted option characters,
+.Fa optstring .
+.Pp
+The option string
+.Fa optstring
+may contain the following elements: individual characters,
+characters followed by a colon, and characters followed by two colons.
+A character followed by a single colon indicates that an argument
+is to follow the option on the command line.
+Two colons indicates that the argument is optional \- this is an
+extension not covered by POSIX.
+For example, an option string
+.Qq x
+recognizes an option
+.Fl x ,
+and an option string
+.Qq Li x:
+recognizes an option and argument
+.Fl x Ar argument .
+It does not matter to
+.Fn getopt
+if a following argument has leading whitespace; except in the case where
+the argument is optional, denoted with two colons, no leading whitespace
+is permitted.
+.Pp
+On return from
+.Fn getopt ,
+.Va optarg
+points to an option argument, if it is anticipated,
+and the variable
+.Va optind
+contains the index to the next
+.Fa argv
+argument for a subsequent call
+to
+.Fn getopt .
+.Pp
+The variables
+.Va opterr
+and
+.Va optind
+are both initialized to 1.
+The
+.Va optind
+variable may be set to another value larger than 0 before a set of calls to
+.Fn getopt
+in order to skip over more or less
+.Fa argv
+entries.
+An
+.Va optind
+value of 0 is reserved for compatibility with GNU
+.Fn getopt .
+.Pp
+In order to use
+.Fn getopt
+to evaluate multiple sets of arguments, or to evaluate a single set of
+arguments multiple times,
+the variable
+.Va optreset
+must be set to 1 before the second and each additional set of calls to
+.Fn getopt ,
+and the variable
+.Va optind
+must be reinitialized.
+.Pp
+The
+.Fn getopt
+function returns \-1 when the argument list is exhausted.
+The interpretation of options in the argument list may be cancelled
+by the option
+.Ql --
+(double dash) which causes
+.Fn getopt
+to signal the end of argument processing and return \-1.
+When all options have been processed (i.e., up to the first non-option
+argument),
+.Fn getopt
+returns \-1.
+.Sh RETURN VALUES
+The
+.Fn getopt
+function returns the next known option character in
+.Fa optstring .
+If
+.Fn getopt
+encounters a character not found in
+.Fa optstring
+or if it detects a missing option argument,
+it returns
+.Sq \&?
+(question mark).
+If
+.Fa optstring
+has a leading
+.Sq \&:
+then a missing option argument causes
+.Sq \&:
+to be returned instead of
+.Sq \&? .
+In either case, the variable
+.Va optopt
+is set to the character that caused the error.
+The
+.Fn getopt
+function returns \-1 when the argument list is exhausted.
+.Sh EXAMPLES
+The following code accepts the options
+.Fl b
+and
+.Fl f Ar argument
+and adjusts
+.Va argc
+and
+.Va argv
+after option argument processing has completed.
+.Bd -literal -offset indent
+int bflag, ch, fd;
+
+bflag = 0;
+while ((ch = getopt(argc, argv, "bf:")) != -1) {
+	switch (ch) {
+	case 'b':
+		bflag = 1;
+		break;
+	case 'f':
+		if ((fd = open(optarg, O_RDONLY)) == -1)
+			err(1, "%s", optarg);
+		break;
+	default:
+		usage();
+	}
+}
+argc -= optind;
+argv += optind;
+.Ed
+.Sh DIAGNOSTICS
+If the
+.Fn getopt
+function encounters a character not found in the string
+.Fa optstring
+or detects
+a missing option argument, it writes an error message to
+.Em stderr
+and returns
+.Ql \&? .
+Setting
+.Va opterr
+to a zero will disable these error messages.
+If
+.Fa optstring
+has a leading
+.Ql \&:
+then a missing option argument causes a
+.Ql \&:
+to be returned in addition to suppressing any error messages.
+.Pp
+Option arguments are allowed to begin with
+.Ql - ;
+this is reasonable but reduces the amount of error checking possible.
+.Sh SEE ALSO
+.Xr getopt 1 ,
+.Xr getopt_long 3 ,
+.Xr getsubopt 3
+.Sh STANDARDS
+The
+.Fn getopt
+function implements a superset of the functionality specified by
+.St -p1003.1 .
+.Pp
+The following extensions are supported:
+.Bl -bullet
+.It
+The
+.Va optreset
+variable was added to make it possible to call the
+.Fn getopt
+function multiple times.
+.It
+If the
+.Va optind
+variable is set to 0,
+.Fn getopt
+will behave as if the
+.Va optreset
+variable has been set.
+This is for compatibility with
+.Tn GNU
+.Fn getopt .
+New code should use
+.Va optreset
+instead.
+.It
+If the first character of
+.Fa optstring
+is a plus sign
+.Pq Ql + ,
+it will be ignored.
+This is for compatibility with
+.Tn GNU
+.Fn getopt .
+.It
+If the first character of
+.Fa optstring
+is a dash
+.Pq Ql - ,
+non-options will be returned as arguments to the option character
+.Ql \e1 .
+This is for compatibility with
+.Tn GNU
+.Fn getopt .
+.It
+A single dash
+.Pq Ql -
+may be specified as a character in
+.Fa optstring ,
+however it should
+.Em never
+have an argument associated with it.
+This allows
+.Fn getopt
+to be used with programs that expect
+.Ql -
+as an option flag.
+This practice is wrong, and should not be used in any current development.
+It is provided for backward compatibility
+.Em only .
+Care should be taken not to use
+.Ql -
+as the first character in
+.Fa optstring
+to avoid a semantic conflict with
+.Tn GNU
+.Fn getopt
+semantics (see above).
+By default, a single dash causes
+.Fn getopt
+to return \-1.
+.El
+.Pp
+Historic
+.Bx
+versions of
+.Fn getopt
+set
+.Fa optopt
+to the last option character processed.
+However, this conflicts with
+.St -p1003.1
+which stipulates that
+.Fa optopt
+be set to the last character that caused an error.
+.Sh HISTORY
+The
+.Fn getopt
+function first appeared in
+.At III
+and was reimplemented for
+.Bx 4.3 .
+.Sh BUGS
+The
+.Fn getopt
+function was once specified to return
+.Dv EOF
+instead of \-1.
+This was changed by
+.St -p1003.2-92
+to decouple
+.Fn getopt
+from
+.In stdio.h .
+.Pp
+It is possible to handle digits as option letters.
+This allows
+.Fn getopt
+to be used with programs that expect a number
+.Pq Dq Li \-3
+as an option.
+This practice is wrong, and should not be used in any current development.
+It is provided for backward compatibility
+.Em only .
+The following code fragment works in most cases and can handle mixed
+number and letter arguments.
+.Bd -literal -offset indent
+int aflag = 0, bflag = 0, ch, lastch = '\e0';
+int length = -1, newarg = 1, prevoptind = 1;
+
+while ((ch = getopt(argc, argv, "0123456789ab")) != -1) {
+	switch (ch) {
+	case '0': case '1': case '2': case '3': case '4':
+	case '5': case '6': case '7': case '8': case '9':
+		if (newarg || !isdigit(lastch))
+			length = 0;
+		else if (length > INT_MAX / 10)
+			usage();
+		length = (length * 10) + (ch - '0');
+		break;
+	case 'a':
+		aflag = 1;
+		break;
+	case 'b':
+		bflag = 1;
+		break;
+	default:
+		usage();
+	}
+	lastch = ch;
+	newarg = optind != prevoptind;
+	prevoptind = optind;
+}
+.Ed

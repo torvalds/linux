@@ -1,0 +1,156 @@
+.\"	$OpenBSD: sbus.4,v 1.55 2021/09/08 20:29:21 jmc Exp $
+.\"	$NetBSD: sbus.4,v 1.5 2002/01/21 17:54:10 wiz Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 8 2021 $
+.Dt SBUS 4
+.Os
+.Sh NAME
+.Nm sbus
+.Nd introduction to SBus bus support
+.Sh SYNOPSIS
+.Cd "sbus* at mainbus?"
+.Cd "sbus* at xbox?"
+.Sh DESCRIPTION
+These
+.Nm
+attachments are specific to the sparc64 port.
+.Pp
+.Nm
+is an I/O interconnect bus mostly found in SPARC workstations
+and small to medium server class systems.
+It supports both on-board peripherals and extension boards.
+The
+.Nm
+specifications define the bus protocol as well as the electrical and
+mechanical properties of the extension slots.
+.Pp
+.Ox
+provides support for the following devices.
+Note that not all architectures support all devices.
+.Ss Audio interfaces
+.Bl -tag -width 13n -offset ind -compact
+.It Xr audiocs 4
+SPARC CS4231 audio device
+.El
+.Ss SCSI interfaces
+.Bl -tag -width 13n -offset ind -compact
+.It Xr esp 4
+ESP NCR 53c94 on-board or SBus SCSI interface
+.It Xr qla 4
+QLogic ISP2100/2200/2300 Fibre Channel controller
+.It Xr qlw 4
+QLogic ISP1000/1020/1x40/1x80/1x160 SCSI controller
+.El
+.Ss Network interfaces
+.Bl -tag -width 13n -offset ind -compact
+.It Xr be 4
+SPARC 10/100 Ethernet device
+.It Xr gem 4
+GEM 10/100/1Gb Ethernet device
+.It Xr hme 4
+Sun Happy Meal 10/100 Ethernet device
+.It Xr le 4
+AMD LANCE Ethernet device
+.It Xr lebuffer 4 , Xr ledma 4
+AMD LANCE Ethernet device
+.It Xr qe 4
+SPARC 10/100 Ethernet device
+.It Xr qec 4
+SPARC Quad Ethernet Controller
+.It Xr ti 4
+Alteon Networks Tigon I and II Gigabit Ethernet device
+.El
+.Ss Bridges
+.Bl -tag -width 13n -offset ind -compact
+.It Xr stp 4
+SBus PCMCIA bridge
+.El
+.Ss Graphics devices
+.Bl -tag -width 13n -offset ind -compact
+.It Xr agten 4
+Fujitsu AG-10e accelerated 24-bit color frame buffer
+.It Xr bwtwo 4
+Monochromatic frame buffer
+.It Xr cgsix 4
+Accelerated 8-bit color frame buffer
+.It Xr cgthree 4
+8-bit color frame buffer
+.It Xr cgtwelve 4
+Accelerated 24-bit color frame buffer
+.It Xr mgx 4
+SMS MGX and MGXPlus accelerated 24-bit color frame buffers
+.It Xr rfx 4
+Vitec/Connectware/AP&D
+RasterFlex framebuffer series
+.It Xr tvtwo 4
+Accelerated 24-bit color frame buffer
+.It Xr vigra 4
+8-bit SBus color frame buffer with VGA-compatible modes
+.It Xr zx 4
+Accelerated 24-bit color frame buffer
+.El
+.Ss Serial and parallel interfaces
+.Bl -tag -width 13n -offset ind -compact
+.It Xr apio 4
+Aurora Technologies pio1 parallel port card
+.It Xr asio 4
+Aurora Technologies pio2 serial port card
+.It Xr bpp 4
+parallel port
+.It Xr magma 4
+Magma LC series Serial/Parallel Interface cards
+.It Xr spif 4
+Sun Serial/Parallel Interface card
+.It Xr zs 4
+Zilog 8530 (ZSCC) serial communications driver
+.El
+.Ss Miscellaneous devices
+.Bl -tag -width 13n -offset ind -compact
+.It Xr auxio 4
+Miscellaneous I/O controls
+.It Xr clock 4
+real-time clock
+.It Xr fdc 4
+NEC765 compatible floppy disk driver
+.It Xr uperf 4
+Performance counters on the host bridge
+.It Xr xbox 4
+SBus Expansion subsystem
+.El
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The machine-independent
+.Nm sbus
+subsystem appeared in
+.Nx 1.3 .
+.Ox
+support first appeared in
+.Ox 2.0 .

@@ -1,0 +1,151 @@
+.\"	$OpenBSD: disktab.5,v 1.23 2022/11/07 10:21:17 krw Exp $
+.\"	$NetBSD: disktab.5,v 1.4 1994/11/30 19:31:15 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)disktab.5	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: November 7 2022 $
+.Dt DISKTAB 5
+.Os
+.Sh NAME
+.Nm disktab
+.Nd disk description file
+.Sh DESCRIPTION
+.Nm
+is a simple database which describes disk geometries and
+disk partition characteristics.
+It is used
+to initialize the disk label on the disk.
+The format is patterned after the
+.Xr termcap 5
+terminal database.
+Entries in
+.Nm
+consist of a number of colon
+.Pq Ql \&:
+separated fields.
+The first entry for each disk gives the names which are
+known for the disk, separated by
+.Dq \&|
+characters.
+The last name given should be a long name fully identifying the disk.
+.Pp
+The following list indicates the normal values stored for each disk entry:
+.Bl -column "d[0-4]" "bool" "Description"
+.It Sy Name Ta Sy Type Ta Sy Description
+.It \&dt Ta str Ta "Type of controller (e.g., SMD, ESDI, floppy)."
+.It \&ns Ta num Ta "Number of sectors per track."
+.It \&nt Ta num Ta "Number of tracks per cylinder."
+.It \&nc Ta num Ta "Total number of cylinders on the disk."
+.It \&sc Ta num Ta "Number of sectors per cylinder (default: ns*nt)."
+.It \&su Ta num Ta "Number of sectors per unit (default: sc*nc)."
+.It \&se Ta num Ta "Sector size in bytes (default:"
+.Dv DEV_BSIZE ) .
+.Pp
+.It \&ba Ta num Ta "Block size for partition"
+.Dq a
+(bytes).
+.It \&bd Ta num Ta "Block size for partition"
+.Dq d
+(bytes).
+.It \&be Ta num Ta "Block size for partition"
+.Dq e
+(bytes).
+.It [...] Ta "" Ta ""
+.It \&bp Ta num Ta "Block size for partition"
+.Dq p
+(bytes).
+.Pp
+.It \&fa Ta num Ta "Fragment size for partition"
+.Dq a
+(bytes).
+.It \&fd Ta num Ta "Fragment size for partition"
+.Dq d
+(bytes).
+.It \&fe Ta num Ta "Fragment size for partition"
+.Dq e
+(bytes).
+.It [...] Ta "" Ta ""
+.It \&fp Ta num Ta "Fragment size for partition"
+.Dq p
+(bytes).
+.Pp
+.It \&oa Ta num Ta "Offset of partition"
+.Dq a
+(sectors).
+.It \&ob Ta num Ta "Offset of partition"
+.Dq b
+(sectors).
+.It \&oc Ta num Ta "Offset of partition"
+.Dq c
+(sectors).
+.It [...] Ta "" Ta ""
+.It \&op Ta num Ta "Offset of partition"
+.Dq p
+(sectors).
+.Pp
+.It \&pa Ta num Ta "Size of partition"
+.Dq a
+(sectors).
+.It \&pb Ta num Ta "Size of partition"
+.Dq b
+(sectors).
+.It \&pc Ta num Ta "Size of partition"
+.Dq c
+(sectors).
+.It [...] Ta "" Ta ""
+.It \&pp Ta num Ta "Size of partition"
+.Dq p
+(sectors).
+.Pp
+.It \&ta Ta str Ta "Type of partition"
+.Dq a
+(4.2BSD, swap, etc.).
+.It \&tb Ta str Ta "Type of partition"
+.Dq b .
+.It \&tc Ta str Ta "Type of partition"
+.Dq c .
+.It [...] Ta "" Ta ""
+.It \&tp Ta str Ta "Type of partition"
+.Dq p .
+.El
+.Sh FILES
+.Bl -tag -width /etc/disktab -compact
+.It Pa /etc/disktab
+.El
+.Sh SEE ALSO
+.Xr getdiskbyname 3 ,
+.Xr disklabel 5 ,
+.Xr disklabel 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+description file appeared in
+.Bx 4.2 .

@@ -1,0 +1,929 @@
+.\"	$OpenBSD: editline.7,v 1.2 2016/05/10 11:07:53 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 10 2016 $
+.Dt EDITLINE 7
+.Os
+.Sh NAME
+.Nm editline
+.Nd line editing user interface
+.Sh DESCRIPTION
+When a program using the
+.Xr editline 3
+library prompts for an input string using the function
+.Xr el_wgets 3 ,
+it reads characters from the terminal.
+Invalid input bytes that do not form characters are silently
+discarded.
+For each character read, one editor command is executed.
+The mapping of input characters to editor commands depends on the
+editing mode.
+There are three editing modes:  vi insert mode, vi command mode,
+and emacs mode.
+The default is vi insert mode.
+The program can switch the default to emacs mode by using the
+.Xr el_set 3
+or
+.Xr el_parse 3
+functions, and the user can switch to emacs mode either in the
+.Xr editrc 5
+configuration file or interactively with the
+.Ic ed-command
+editor command, in all three cases executing the
+.Ic bind Fl e
+builtin command.
+.Pp
+If trying to read from the terminal results in end of file or an
+error, the library signals end of file to the program and does not
+return a string.
+.Ss Input character bindings
+All default bindings described below can be overridden by individual
+programs and can be changed with the
+.Xr editrc 5
+.Ic bind
+builtin command.
+.Pp
+In the following tables,
+.Sq Ctrl-
+indicates a character with the bit 0x40 flipped, and
+.Sq Meta-
+indicates a character with the bit 0x80 set.
+In vi insert mode and in emacs mode, all Meta-characters considered
+printable by the current
+.Xr locale 1
+are bound to
+.Ic ed-insert
+instead of to the editor command listed below.
+Consequently, in UTF-8 mode, most of the Meta-characters are not
+directly accessible because their code points are occupied by
+printable Unicode characters, and Meta-characters are usually input
+using the
+.Ic em-meta-next
+editor command.
+For example, to enter
+.Sq Meta-B
+in order to call the
+.Ic ed-prev-word
+editor command in emacs mode, call
+.Ic em-meta-next
+by pressing and releasing the escape key (or equivalently, Ctrl-[),
+then press and release the
+.Sq B
+key.
+If you have configured a Meta-key on your keyboard, for example
+with
+.Ql setxkbmap -option altwin:left_meta_win ,
+the Ctrl-Meta-characters are directly accessible.
+For example, to enter
+.Sq Ctrl-Meta-H
+in order to call the
+.Ic ed-delete-prev-word
+editor command in emacs mode, hold down the keys
+.Sq Ctrl ,
+.Sq Meta ,
+and
+.Sq H
+at the same time.
+Alternatively, press and release the escape key, then press and
+release
+.Sq Ctrl-H .
+.Pp
+In vi input mode, input characters are bound to the following editor
+commands by default:
+.Bl -column -offset indent "Ctrl-Z, TSTP" "ed-search-next-history"
+.It Ctrl-D, EOF Ta Ic vi-list-or-eof
+.It Ctrl-H, BS Ta Ic vi-delete-prev-char
+.It Ctrl-J, LF Ta Ic ed-newline
+.It Ctrl-M, CR Ta Ic ed-newline
+.It Ctrl-Q Ta Ic ed-tty-start-output
+.It Ctrl-S Ta Ic ed-tty-stop-output
+.It Ctrl-U Ta Ic vi-kill-line-prev
+.It Ctrl-V Ta Ic ed-quoted-insert
+.It Ctrl-W Ta Ic ed-delete-prev-word
+.It Ctrl-[, ESC Ta Ic vi-command-mode
+.It Ctrl-\e, QUIT Ta Ic ed-tty-sigquit
+.It Ctrl-?, DEL Ta Ic vi-delete-prev-char
+.El
+.Pp
+All other input characters except the NUL character (Ctrl-@) are
+bound to
+.Ic ed-insert .
+.Pp
+In vi command mode, input characters are bound to the following
+editor commands by default:
+.Bl -column -offset indent "Ctrl-Z, TSTP" "ed-search-next-history"
+.It Ctrl-A Ta Ic ed-move-to-beg
+.It Ctrl-C, INT Ta Ic ed-tty-sigint
+.It Ctrl-E Ta Ic ed-move-to-end
+.It Ctrl-H, BS Ta Ic ed-delete-prev-char
+.It Ctrl-J, LF Ta Ic ed-newline
+.It Ctrl-K Ta Ic ed-kill-line
+.It Ctrl-L, FF Ta Ic ed-clear-screen
+.It Ctrl-M, CR Ta Ic ed-newline
+.It Ctrl-N Ta Ic ed-next-history
+.It Ctrl-O Ta Ic ed-tty-flush-output
+.It Ctrl-P Ta Ic ed-prev-history
+.It Ctrl-Q Ta Ic ed-tty-start-output
+.It Ctrl-R Ta Ic ed-redisplay
+.It Ctrl-S Ta Ic ed-tty-stop-output
+.It Ctrl-U Ta Ic vi-kill-line-prev
+.It Ctrl-W Ta Ic ed-delete-prev-word
+.It Ctrl-[, ESC Ta Ic em-meta-next
+.It Ctrl-\e, QUIT Ta Ic ed-tty-sigquit
+.It Space Ta Ic ed-next-char
+.It # Ta Ic vi-comment-out
+.It $ Ta Ic ed-move-to-end
+.It % Ta Ic vi-match
+.It + Ta Ic ed-next-history
+.It \&, Ta Ic vi-repeat-prev-char
+.It - Ta Ic ed-prev-history
+.It \&. Ta Ic vi-redo
+.It / Ta Ic vi-search-prev
+.It 0 Ta Ic vi-zero
+.It 1 to 9 Ta Ic ed-argument-digit
+.It \&: Ta Ic ed-command
+.It \&; Ta Ic vi-repeat-next-char
+.It \&? Ta Ic vi-search-next
+.It @ Ta Ic vi-alias
+.It A Ta Ic vi-add-at-eol
+.It B Ta Ic vi-prev-big-word
+.It C Ta Ic vi-change-to-eol
+.It D Ta Ic ed-kill-line
+.It E Ta Ic vi-end-big-word
+.It F Ta Ic vi-prev-char
+.It G Ta Ic vi-to-history-line
+.It I Ta Ic vi-insert-at-bol
+.It J Ta Ic ed-search-next-history
+.It K Ta Ic ed-search-prev-history
+.It N Ta Ic vi-repeat-search-prev
+.It O Ta Ic ed-sequence-lead-in
+.It P Ta Ic vi-paste-prev
+.It R Ta Ic vi-replace-mode
+.It S Ta Ic vi-substitute-line
+.It T Ta Ic vi-to-prev-char
+.It U Ta Ic vi-undo-line
+.It W Ta Ic vi-next-big-word
+.It X Ta Ic ed-delete-prev-char
+.It Y Ta Ic vi-yank-end
+.It \&[ Ta Ic ed-sequence-lead-in
+.It ^ Ta Ic ed-move-to-beg
+.It _ Ta Ic vi-history-word
+.It a Ta Ic vi-add
+.It b Ta Ic vi-prev-word
+.It c Ta Ic vi-change-meta
+.It d Ta Ic vi-delete-meta
+.It e Ta Ic vi-end-word
+.It f Ta Ic vi-next-char
+.It h Ta Ic ed-prev-char
+.It i Ta Ic vi-insert
+.It j Ta Ic ed-next-history
+.It k Ta Ic ed-prev-history
+.It l Ta Ic ed-next-char
+.It n Ta Ic vi-repeat-search-next
+.It p Ta Ic vi-paste-next
+.It r Ta Ic vi-replace-char
+.It s Ta Ic vi-substitute-char
+.It t Ta Ic vi-to-next-char
+.It u Ta Ic vi-undo
+.It v Ta Ic vi-histedit
+.It w Ta Ic vi-next-word
+.It x Ta Ic ed-delete-next-char
+.It y Ta Ic vi-yank
+.It \&| Ta Ic vi-to-column
+.It ~ Ta Ic vi-change-case
+.It Ctrl-?, DEL Ta Ic ed-delete-prev-char
+.It Meta-O Ta Ic ed-sequence-lead-in
+.It Meta-[ Ta Ic ed-sequence-lead-in
+.El
+.Pp
+In emacs mode, input characters are bound to the following editor
+commands by default:
+.Bl -column -offset indent "Ctrl-Z, TSTP" "ed-search-next-history"
+.It 0 to 9 Ta Ic ed-digit
+.It Ctrl-@, NUL Ta Ic em-set-mark
+.It Ctrl-A Ta Ic ed-move-to-beg
+.It Ctrl-B Ta Ic ed-prev-char
+.It Ctrl-C, INT Ta Ic ed-tty-sigint
+.It Ctrl-D, EOF Ta Ic em-delete-or-list
+.It Ctrl-E Ta Ic ed-move-to-end
+.It Ctrl-F Ta Ic ed-next-char
+.It Ctrl-H, BS Ta Ic em-delete-prev-char
+.It Ctrl-J, LF Ta Ic ed-newline
+.It Ctrl-K Ta Ic ed-kill-line
+.It Ctrl-L, FF Ta Ic ed-clear-screen
+.It Ctrl-M, CR Ta Ic ed-newline
+.It Ctrl-N Ta Ic ed-next-history
+.It Ctrl-O Ta Ic ed-tty-flush-output
+.It Ctrl-P Ta Ic ed-prev-history
+.It Ctrl-Q Ta Ic ed-tty-start-output
+.It Ctrl-R Ta Ic ed-redisplay
+.It Ctrl-S Ta Ic ed-tty-stop-output
+.It Ctrl-T Ta Ic ed-transpose-chars
+.It Ctrl-U Ta Ic ed-kill-line
+.It Ctrl-V Ta Ic ed-quoted-insert
+.It Ctrl-W Ta Ic em-kill-region
+.It Ctrl-X Ta Ic ed-sequence-lead-in
+.It Ctrl-Y Ta Ic em-yank
+.It Ctrl-Z, TSTP Ta Ic ed-tty-sigtstp
+.It Ctrl-[, ESC Ta Ic em-meta-next
+.It Ctrl-\e, QUIT Ta Ic ed-tty-sigquit
+.It Ctrl-] Ta Ic ed-tty-dsusp
+.It Ctrl-?, DEL Ta Ic em-delete-prev-char
+.It Ctrl-Meta-H Ta Ic ed-delete-prev-word
+.It Ctrl-Meta-L Ta Ic ed-clear-screen
+.It Ctrl-Meta-_ Ta Ic em-copy-prev-word
+.It Meta-0 to 9 Ta Ic ed-argument-digit
+.It Meta-B Ta Ic ed-prev-word
+.It Meta-C Ta Ic em-capitol-case
+.It Meta-D Ta Ic em-delete-next-word
+.It Meta-F Ta Ic em-next-word
+.It Meta-L Ta Ic em-lower-case
+.It Meta-N Ta Ic ed-search-next-history
+.It Meta-O Ta Ic ed-sequence-lead-in
+.It Meta-P Ta Ic ed-search-prev-history
+.It Meta-U Ta Ic em-upper-case
+.It Meta-W Ta Ic em-copy-region
+.It Meta-X Ta Ic ed-command
+.It Meta-[ Ta Ic ed-sequence-lead-in
+.It Meta-b Ta Ic ed-prev-word
+.It Meta-c Ta Ic em-capitol-case
+.It Meta-d Ta Ic em-delete-next-word
+.It Meta-f Ta Ic em-next-word
+.It Meta-l Ta Ic em-lower-case
+.It Meta-n Ta Ic ed-search-next-history
+.It Meta-p Ta Ic ed-search-prev-history
+.It Meta-u Ta Ic em-upper-case
+.It Meta-w Ta Ic em-copy-region
+.It Meta-x Ta Ic ed-command
+.It Ctrl-Meta-? Ta Ic ed-delete-prev-word
+.El
+.Pp
+The remaining
+.Xr ascii 7
+characters in the range 0x20 to 0x7e are bound to
+.Ic ed-insert .
+.Pp
+If standard output is not connected to a terminal device
+or
+.Xr el_set 3
+was used to set
+.Dv EL_EDITMODE
+to 0, all input character bindings are disabled and all characters
+typed are appended to the edit buffer.
+In that case, the edit buffer is returned to the program after a
+newline or carriage return character is typed, or after the first
+character typed if
+.Xr el_set 3
+was used to set
+.Dv EL_UNBUFFERED
+to non-zero.
+.Ss Editor commands
+Most editor commands accept an optional argument.
+The argument is entered by prefixing the editor command with one
+or more of the editor commands
+.Ic ed-argument-digit ,
+.Ic ed-digit ,
+.Ic em-universal-argument ,
+or
+.Ic vi-zero .
+When an argument is not provided, it defaults to 1.
+For most editor commands, the effect of an argument is to repeatedly
+execute the command that number of times.
+.Pp
+When talking about a character string from a left character to a
+right character, the left character is included in the string, while
+the right character is not included.
+.Pp
+If an editor command causes an error, the input character is discarded,
+no action occurs, and the terminal bell is rung.
+In case of a non-fatal error, the terminal bell is also rung,
+but the editor command takes effect anyway.
+.Pp
+In the following list, the default key bindings are listed after
+each editor command.
+.Bl -tag -width 4n
+.It Ic ed-argument-digit Pq vi command: 1 to 9; emacs: Meta-0 to Meta-9
+If in argument input mode, append the input digit to the argument
+being read.
+Otherwise, switch to argument input mode and use the input digit
+as the most significant digit of the argument.
+It is an error if the input character is not a digit or if the
+existing argument is already greater than a million.
+.It Ic ed-clear-screen Pq vi command: Ctrl-L; emacs: Ctrl-L, Ctrl-Meta-L
+Clear the screen and display the edit buffer at the top.
+Ignore any argument.
+.It Ic ed-command Pq vi command: So \&: Sc ; emacs: Meta-X, Meta-x
+Read a line from the terminal bypassing the normal line editing
+functionality and execute that line as an
+.Xr editrc 5
+builtin command.
+If in vi command mode, also switch back to vi insert mode.
+Ignore any argument.
+.It Ic ed-delete-next-char Pq vi command: x
+Delete the character at the cursor position.
+With an argument, delete that number of characters.
+In emacs mode, it is an error if the cursor is at the end of the
+edit buffer.
+In vi mode, the last character in the edit buffer is deleted in
+that case, and it is an error if the buffer is empty.
+.It Ic ed-delete-prev-char Pq vi command: X, Ctrl-H, BS, Ctrl-?, DEL
+Delete the character to the left of the cursor position.
+With an argument, delete that number of characters.
+It is an error if the cursor is at the beginning of the edit buffer.
+.It Ic ed-delete-prev-word Pq vi: Ctrl-W; emacs: Ctrl-Meta-H, Ctrl-Meta-?
+Move to the left to the closest beginning of a word, delete the
+string from that position to the cursor, and save it to the cut
+buffer.
+With an argument, delete that number of words.
+It is an error if the cursor is at the beginning of the edit buffer.
+.It Ic ed-digit Pq emacs: 0 to 9
+If in argument input mode, append the input digit to the argument
+being read.
+Otherwise, call
+.Ic ed-insert .
+It is an error if the input character is not a digit or if the
+existing argument is already greater than a million.
+.It Ic ed-end-of-file Pq not bound by default
+Discard the edit buffer and indicate end of file to the program.
+Ignore any argument.
+.It Ic ed-ignore Pq various
+Discard the input character and do nothing.
+.It Ic ed-insert Pq vi input: almost all; emacs: printable characters
+In insert mode, insert the input character left of the cursor
+position.
+In replace mode, overwrite the character at the cursor and move the
+cursor to the right by one character position.
+Accept an argument to do this repeatedly.
+It is an error if the input character is the NUL character (Ctrl-@).
+Failure to enlarge the edit buffer also results in an error.
+.It Ic ed-kill-line Pq vi command: D, Ctrl-K; emacs: Ctrl-K, Ctrl-U
+Delete the string from the cursor position to the end of the line
+and save it to the cut buffer.
+Ignore any argument.
+.It Ic ed-move-to-beg Pq vi command: ^, Ctrl-A; emacs: Ctrl-A
+In vi mode, move the cursor to the first non-space character in the
+edit buffer.
+In emacs mode, move the cursor to the beginning of the edit buffer.
+Ignore any argument.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+.It Ic ed-move-to-end Pq vi command: $, Ctrl-E; emacs: Ctrl-E
+Move the cursor to the end of the edit buffer.
+Ignore any argument.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+.It Ic ed-newline Pq all modes: Ctrl-J, LF, Ctrl-M, CR
+Append a newline character to the edit buffer and return the edit
+buffer to the program.
+Ignore any argument.
+.It Ic ed-next-char Pq vi command: Space, l; emacs: Ctrl-F
+Move the cursor one character position to the right.
+With an argument, move by that number of characters.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+It is an error if the cursor is already at the end of the edit
+buffer.
+.It Ic ed-next-history Pq vi command: j, +, Ctrl-N; emacs: Ctrl-N
+Replace the edit buffer with the next history line.
+That line is older than the current line.
+With an argument, go forward by that number of history lines.
+It is a non-fatal error to advance by more lines than are available.
+.It Ic ed-next-line Pq not bound by default
+Move the cursor down one line.
+With an argument, move down by that number of lines.
+It is an error if the edit buffer does not contain enough newline
+characters to the right of the cursor position.
+.It Ic ed-prev-char Pq vi command: h; emacs: Ctrl-B
+Move the cursor one character position to the left.
+With an argument, move by that number of characters.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+It is an error if the cursor is already at the beginning of the
+edit buffer.
+.It Ic ed-prev-history Pq vi command: k, -, Ctrl-P; emacs: Ctrl-P
+Replace the edit buffer with the previous history line.
+That line is newer than the current line.
+With an argument, go back by that number of lines.
+It is a non-fatal error to back up by more lines than are available.
+.It Ic ed-prev-line Pq not bound by default
+Move the cursor up one line.
+With an argument, move up by that number of lines.
+It is an error if the edit buffer does not contain enough newline
+characters to the left of the cursor position.
+.It Ic ed-prev-word Pq emacs: Meta-B, Meta-b
+Move the cursor to the left to the closest beginning of a word.
+With an argument, repeat that number of times.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+It is an error if the cursor is already at the beginning of the
+edit buffer.
+.It Ic ed-quoted-insert Pq vi insert, emacs: Ctrl-V
+Read one character from the terminal bypassing the normal line
+editing functionality and call
+.Ic ed-insert
+on it.
+If trying to read the character returns end of file or an error,
+call
+.Ic ed-end-of-file
+instead.
+.It Ic ed-redisplay Pq vi command, emacs: Ctrl-R
+Redisplay everything.
+Ignore any argument.
+.It Ic ed-search-next-history Pq vi command: J; emacs: Meta-N, Meta-n
+Replace the edit buffer with the next matching history entry.
+.It Ic ed-search-prev-history Pq vi command: K; emacs: Meta-P, Meta-p
+Replace the edit buffer with the previous matching history entry.
+.It Ic ed-sequence-lead-in Pq vi cmd: O, \&[; emacs: Ctrl-X;\
+ both: Meta-O, Meta-[
+Call a macro.
+See the section about
+.Sx Macros
+below for details.
+.It Ic ed-start-over Pq not bound by default
+Discard the contents of the edit buffer and start from scratch.
+Ignore any argument.
+.It Ic ed-transpose-chars Pq emacs: Ctrl-T
+Exchange the character at the cursor position with the one to the
+left of it and move the cursor to the character to the right of the
+two exchanged characters.
+Ignore any argument.
+It is an error if the cursor is at the beginning of the edit buffer
+or if the edit buffer contains less than two characters.
+.It Ic ed-unassigned Pq all characters not listed
+This editor command always results in an error.
+.It Ic em-capitol-case Pq emacs: Meta-C, Meta-c
+Capitalize the string from the cursor to the end of the current
+word.
+That is, if it contains at least one alphabetic character, convert
+the first alphabetic character to upper case, and convert all
+characters to the right of it to lower case.
+In any case, move the cursor to the next character after the end
+of the current word.
+.It Ic em-copy-prev-word Pq emacs: Ctrl-Meta-_
+Copy the string from the beginning of the current word to the cursor
+and insert it to the left of the cursor.
+Move the cursor to the character after the inserted string.
+It is an error if the cursor is at the beginning of the edit buffer.
+.It Ic em-copy-region Pq emacs: Meta-W, Meta-w
+Copy the string from the cursor to the mark to the cut buffer.
+It is an error if the mark is not set.
+.It Ic em-delete-next-word Pq emacs: Meta-D, Meta-d
+Delete the string from the cursor to the end of the current word
+and save it to the cut buffer.
+It is an error if the cursor is at the end of the edit buffer.
+.It Ic em-delete-or-list Pq emacs: Ctrl-D, EOF
+If the cursor is not at the end of the line, delete the character
+at the cursor.
+If the edit buffer is empty, indicate end of file to the program.
+It is an error if the cursor is at the end of the edit buffer and
+the edit buffer is not empty.
+.It Ic em-delete-prev-char Pq emacs: Ctrl-H, BS, Ctrl-?, DEL
+Delete the character to the left of the cursor.
+It is an error if the cursor is at the beginning of the edit buffer.
+.It Ic em-exchange-mark Pq not bound by default
+Exchange the cursor and the mark.
+.It Ic em-gosmacs-transpose Pq not bound by default
+Exchange the two characters to the left of the cursor.
+It is an error if the cursor is on the first or second character
+of the edit buffer.
+.It Ic em-inc-search-next Pq not bound by default
+Emacs incremental next search.
+.It Ic em-inc-search-prev Pq not bound by default
+Emacs incremental reverse search.
+.It Ic em-kill-line Pq not bound by default
+Delete the entire contents of the edit buffer and save it to the
+cut buffer.
+.It Ic em-kill-region Pq emacs: Ctrl-W
+Delete the string from the cursor to the mark and save it to the
+cut buffer.
+It is an error if the mark is not set.
+.It Ic em-lower-case Pq emacs: Meta-L, Meta-l
+Convert the characters from the cursor to the end of the current
+word to lower case.
+.It Ic em-meta-next Pq vi command, emacs: Ctrl-[, ESC
+Set the bit 0x80 on the next character typed.
+Unless the resulting code point is printable, holding down the
+.Sq Meta-
+key while typing that character is a simpler way to achieve the
+same effect.
+.It Ic em-next-word Pq Meta-F, Meta-f
+Move the cursor to the end of the current word.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+It is an error if the cursor is already at the end of the edit
+buffer.
+.It Ic em-set-mark Pq emacs: Ctrl-Q, NUL
+Set the mark at the current cursor position.
+.It Ic em-toggle-overwrite Pq not bound by default
+Switch from insert to overwrite mode or vice versa.
+.It Ic em-universal-argument Pq not bound by default
+If in argument input mode, multiply the argument by 4.
+Otherwise, switch to argument input mode and set the argument to 4.
+It is an error if the existing argument is already greater than a
+million.
+.It Ic em-upper-case Pq emacs: Meta-U, Meta-u
+Convert the characters from the cursor to the end of the current
+word to upper case.
+.It Ic em-yank Pq emacs: Ctrl-Y
+Paste the cut buffer to the left of the cursor.
+.It Ic vi-add Pq vi command: a
+Switch to vi insert mode.
+Unless the cursor is already at the end of the edit buffer, move
+it one character position to the right.
+.It Ic vi-add-at-eol Pq vi command: A
+Switch to vi insert mode and move the cursor to the end of the edit
+buffer.
+.It Ic vi-alias Pq vi command: @
+If an alias function was defined by calling the
+.Xr el_set 3
+or
+.Xr el_wset 3
+function with the argument
+.Dv EL_ALIAS_TEXT ,
+read one character from the terminal bypassing the normal line
+editing functionality, call the alias function passing the argument that was specified with
+.Dv EL_ALIAS_TEXT
+as the first argument and the character read, with an underscore
+prepended, as the second argument, and pass the string returned
+from the alias function to
+.Xr el_wpush 3 .
+It is an error if no alias function is defined or if trying to read
+the character results in end of file or an error.
+.It Ic vi-change-case Pq vi command: ~
+Change the case of the character at the cursor and move the cursor
+one character position to the right.
+It is an error if the cursor is already at the end of the edit
+buffer.
+.It Ic vi-change-meta Pq vi command: c
+Delete the string from the cursor to the position specified by the
+following movement command and save a copy of it to the cut buffer.
+When given twice in a row, instead delete the whole contents of the
+edit buffer and save a copy of it to the cut buffer.
+In either case, switch to vi insert mode after that.
+.It Ic vi-change-to-eol Pq vi command: C
+Delete the string from the cursor position to the end of the line
+and save it to the cut buffer, then switch to vi insert mode.
+.It Ic vi-command-mode Pq vi insert: Ctrl-[, ESC
+Discard pending actions and arguments and switch to vi command mode.
+Unless the cursor is already at the beginning of the edit buffer,
+move it to the left by one character position.
+.It Ic vi-comment-out Pq vi command: #
+Insert a
+.Sq #
+character at the beginning of the edit buffer and return the edit
+buffer to the program.
+.It Ic vi-delete-meta Pq vi command: d
+Delete the string from the cursor to the position specified by the
+following movement command and save a copy of it to the cut buffer.
+When given twice in a row, instead delete the whole contents of the
+edit buffer and save a copy of it to the cut buffer.
+.It Ic vi-delete-prev-char Pq vi insert: Ctrl-H, BS, Ctrl-?, DEL
+Delete the character to the left of the cursor.
+It is an error if the cursor is already at the beginning of the
+edit buffer.
+.It Ic vi-end-big-word Pq vi command: E
+Move the cursor to the end of the current space delimited word.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+It is an error if the cursor is already at the end of the edit
+buffer.
+.It Ic vi-end-word Pq vi command: e
+Move the cursor to the end of the current word.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+It is an error if the cursor is already at the end of the edit
+buffer.
+.It Ic vi-history-word Pq vi command: _
+Insert the first word from the most recent history entry after the
+cursor, move the cursor after to the character after the inserted
+word, and switch to vi insert mode.
+It is an error if there is no history entry or the most recent
+history entry is empty.
+.It Ic vi-insert Pq vi command: i
+Enter insert mode.
+.It Ic vi-insert-at-bol Pq vi command: I
+Move the cursor to the beginning of the edit buffer and switch to
+vi insert mode.
+.It Ic vi-kill-line-prev Pq vi: Ctrl-U
+Delete the string from the beginning of the edit buffer to the
+cursor and save it to the cut buffer.
+.It Ic vi-list-or-eof Pq vi insert: Ctrl-D, EOF
+If the edit buffer is empty, indicate end of file to the program.
+It is an error if the edit buffer is not empty.
+.It Ic vi-match Pq vi command: %
+Consider opening and closing parentheses, braces, and brackets as
+delimiters.
+If the cursor is not at a delimiter, move it to the right until it
+gets to one, then move it to the matching delimiter.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+It is an error if there is no delimiter at the cursor or in the
+string to the right of the cursor, or if the first such delimiter
+has no matching delimiter.
+.It Ic vi-next-big-word Pq vi command: W
+Move the cursor to the right to the beginning of the next space
+delimited word.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+It is an error if the cursor is already at the end of the edit
+buffer or on its last character.
+.It Ic vi-next-char Pq vi command: f
+Read one character from the terminal bypassing the normal line
+editing functionality and move the cursor to the right to the next
+instance of that character in the edit buffer.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+If trying to read the character results in end of file or an error,
+call
+.Ic ed-end-of-file
+instead.
+It is an error if the character is not found searching to the right
+in the edit buffer.
+.It Ic vi-next-word Pq vi command: w
+Move the cursor to the right to the beginning of the next word.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+It is an error if the cursor is already at the end of the edit
+buffer or on its last character.
+.It Ic vi-paste-next Pq vi command: p
+Insert a copy of the cut buffer to the right of the cursor.
+It is an error if the cut buffer is empty.
+.It Ic vi-paste-prev Pq vi command: P
+Insert a copy of the cut buffer to the left of the cursor.
+It is an error if the cut buffer is empty.
+.It Ic vi-prev-big-word Pq vi command: B
+Move the cursor to the left to the next beginning of a space delimited
+word.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+It is an error if the cursor is already at the beginning of the
+edit buffer.
+.It Ic vi-prev-char Pq vi command: F
+Read one character from the terminal bypassing the normal line
+editing functionality and move the cursor to the left to the next
+instance of that character in the edit buffer.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+If trying to read the character results in end of file or an error,
+call
+.Ic ed-end-of-file
+instead.
+It is an error if the character is not found searching to the left
+in the edit buffer.
+.It Ic vi-prev-word Pq vi command: b
+Move the cursor to the left to the next beginning of a word.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+It is an error if the cursor is already at the beginning of the
+edit buffer.
+.It Ic vi-redo Pq vi command: Sq \&.
+Redo the last non-motion command.
+.It Ic vi-repeat-next-char Pq vi command: Sq \&;
+Repeat the most recent character search in the same search direction.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+.It Ic vi-repeat-prev-char Pq vi command: Sq \&,
+Repeat the most recent character search in the opposite search
+direction.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+.It Ic vi-repeat-search-next Pq vi command: n
+Repeat the most recent history search in the same search direction.
+.It Ic vi-repeat-search-prev Pq vi command: N
+Repeat the most recent history search in the opposite search
+direction.
+.It Ic vi-replace-char Pq vi command: r
+Switch to vi replace mode, and automatically switch back to vi
+command mode after the next character typed.
+See
+.Ic ed-insert
+for a description of replace mode.
+It is an error if the cursor is at the end of the edit buffer.
+.It Ic vi-replace-mode Pq vi command: R
+Switch to vi replace mode.
+This is a variant of vi insert mode; see
+.Ic ed-insert
+for the difference.
+.It Ic vi-search-next Pq vi command: \&?
+Replace the edit buffer with the next matching history entry.
+.It Ic vi-search-prev Pq vi command: /
+Replace the edit buffer with the previous matching history entry.
+.It Ic vi-substitute-char Pq vi command: s
+Delete the character at the cursor and switch to vi insert mode.
+.It Ic vi-substitute-line Pq vi command: S
+Delete the entire contents of the edit buffer, save a copy of it
+in the cut buffer, and enter vi insert mode.
+.It Ic vi-to-column Pq vi command: \&|
+Move the cursor to the column specified as the argument.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+.It Ic vi-to-history-line Pq vi command: G
+Replace the edit buffer with the specified history entry.
+.It Ic vi-to-next-char Pq vi command: t
+Read one character from the terminal bypassing the normal line
+editing functionality and move the cursor to the right to the
+character before the next instance of that character in the edit
+buffer.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+If trying to read the character results in end of file or an error,
+call
+.Ic ed-end-of-file
+instead.
+It is an error if the character is not found searching to the right
+in the edit buffer.
+.It Ic vi-to-prev-char Pq vi command: T
+Read one character from the terminal bypassing the normal line
+editing functionality and move the cursor to the left to the character
+after the next instance of that character in the edit buffer.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+If trying to read the character results in end of file or an error,
+call
+.Ic ed-end-of-file
+instead.
+It is an error if the character is not found searching to the left
+in the edit buffer.
+.It Ic vi-undo Pq vi command: u
+Undo the last change.
+.It Ic vi-undo-line Pq vi command: U
+Undo all changes to the edit buffer.
+.It Ic vi-yank Pq vi command: y
+Copy the string from the cursor to the position specified by the
+following movement command to the cut buffer.
+When given twice in a row, instead copy the whole contents of the
+edit buffer to the cut buffer.
+.It Ic vi-yank-end Pq vi command: Y
+Copy the string from the cursor to the end of the edit buffer to
+the cut buffer.
+.It Ic vi-zero Pq vi command: 0
+If in argument input mode, multiply the argument by ten.
+Otherwise, move the cursor to the beginning of the edit buffer.
+Can be used as a movement command after
+.Ic vi_change_meta ,
+.Ic vi_delete_meta ,
+or
+.Ic vi_yank .
+.El
+.Ss Macros
+If an input character is bound to the editor command
+.Ic ed-sequence-lead-in ,
+.Nm
+attempts to call a macro.
+If the input character by itself forms the name of a macro, that
+macro is executed.
+Otherwise, additional input characters are read until the string
+read forms the name of a macro, in which case that macro is executed,
+or until the string read matches the beginning of none of the existing
+macro names, in which case the string including the final, mismatching
+character is discarded and the terminal bell is rung.
+.Pp
+There are two kinds of macros.
+Command macros execute a single editor command.
+Keyboard macros return a string of characters that is appended
+as a new line to the
+.Sx Input Queue .
+.Pp
+The following command macros are defined by default in vi command
+mode and in emacs mode:
+.Bl -column -offset indent "Esc O A, Esc O A" "em-exchange-mark"
+.It Esc \&[ A, Esc O A Ta Ic ed-prev-history
+.It Esc \&[ B, Esc O B Ta Ic ed-next-history
+.It Esc \&[ C, Esc O C Ta Ic ed-next-char
+.It Esc \&[ D, Esc O D Ta Ic ed-prev-char
+.It Esc \&[ F, Esc O F Ta Ic ed-move-to-end
+.It Esc \&[ H, Esc O H Ta Ic ed-move-to-beg
+.El
+.Pp
+In vi command mode, they are also defined by default without the
+initial escape character.
+.Pp
+In addition, the
+.Nm
+library tries to bind the strings generated by the arrow keys
+as reported by the
+.Xr terminfo 5
+database to these editor commands, unless that would clobber
+user settings.
+.Pp
+In emacs mode, the two-character string
+.Dq Ctrl-X Ctrl-X
+is bound to the
+.Ic em-exchange-mark
+editor command.
+.Ss Input Queue
+The
+.Nm
+library maintains an input queue operated in FIFO mode.
+Whenever it needs an input character, it takes the first character
+from the first line of the input queue.
+When the queue is empty, it reads from the terminal.
+.Pp
+A line can be appended to the end of the input queue in several ways:
+.Bl -dash -offset indent
+.It
+By calling one of the keyboard
+.Sx Macros .
+.It
+By calling the editor command
+.Ic vi-redo .
+.It
+By calling the editor command
+.Ic vi-alias .
+.It
+By pressing a key in emacs incremental search mode that doesn't
+have a special meaning in that mode but returns to normal emacs
+mode.
+.It
+If an application program directly calls the functions
+.Xr el_push 3
+or
+.Xr el_wpush 3 ,
+it can provide additional, program-specific ways
+of appending to the input queue.
+.El
+.Sh SEE ALSO
+.Xr mg 1 ,
+.Xr vi 1 ,
+.Xr editline 3 ,
+.Xr editrc 5
+.Sh HISTORY
+This manual page first appeared in
+.Ox 6.0 .
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org .

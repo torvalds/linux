@@ -1,0 +1,389 @@
+.\" $OpenBSD: EVP_CIPHER_meth_new.3,v 1.7 2025/06/08 22:40:29 schwarze Exp $
+.\" selective merge up to: OpenSSL b0edda11 Mar 20 13:00:17 2018 +0000
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Richard Levitte <levitte@openssl.org>
+.\" Copyright (c) 2015 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_CIPHER_METH_NEW 3
+.Os
+.Sh NAME
+.Nm EVP_CIPHER_meth_new ,
+.Nm EVP_CIPHER_meth_dup ,
+.Nm EVP_CIPHER_meth_free ,
+.Nm EVP_CIPHER_meth_set_iv_length ,
+.Nm EVP_CIPHER_meth_set_flags ,
+.Nm EVP_CIPHER_meth_set_impl_ctx_size ,
+.Nm EVP_CIPHER_meth_set_init ,
+.Nm EVP_CIPHER_meth_set_do_cipher ,
+.Nm EVP_CIPHER_meth_set_cleanup ,
+.Nm EVP_CIPHER_meth_set_set_asn1_params ,
+.Nm EVP_CIPHER_meth_set_get_asn1_params ,
+.Nm EVP_CIPHER_meth_set_ctrl
+.Nd Routines to build up EVP_CIPHER methods
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft EVP_CIPHER *
+.Fo EVP_CIPHER_meth_new
+.Fa "int cipher_type"
+.Fa "int block_size"
+.Fa "int key_len"
+.Fc
+.Ft EVP_CIPHER *
+.Fo EVP_CIPHER_meth_dup
+.Fa "const EVP_CIPHER *cipher"
+.Fc
+.Ft void
+.Fo EVP_CIPHER_meth_free
+.Fa "EVP_CIPHER *cipher"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_meth_set_iv_length
+.Fa "EVP_CIPHER *cipher"
+.Fa "int iv_len"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_meth_set_flags
+.Fa "EVP_CIPHER *cipher"
+.Fa "unsigned long flags"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_meth_set_impl_ctx_size
+.Fa "EVP_CIPHER *cipher"
+.Fa "int ctx_size"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_meth_set_init
+.Fa "EVP_CIPHER *cipher"
+.Fa "int (*init)(EVP_CIPHER_CTX *ctx, const unsigned char *key,\
+ const unsigned char *iv, int enc)"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_meth_set_do_cipher
+.Fa "EVP_CIPHER *cipher"
+.Fa "int (*do_cipher)(EVP_CIPHER_CTX *ctx, unsigned char *out,\
+ const unsigned char *in, size_t inl)"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_meth_set_cleanup
+.Fa "EVP_CIPHER *cipher"
+.Fa "int (*cleanup)(EVP_CIPHER_CTX *)"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_meth_set_set_asn1_params
+.Fa "EVP_CIPHER *cipher"
+.Fa "int (*set_asn1_parameters)(EVP_CIPHER_CTX *, ASN1_TYPE *)"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_meth_set_get_asn1_params
+.Fa "EVP_CIPHER *cipher"
+.Fa "int (*get_asn1_parameters)(EVP_CIPHER_CTX *, ASN1_TYPE *)"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_meth_set_ctrl
+.Fa "EVP_CIPHER *cipher"
+.Fa "int (*ctrl)(EVP_CIPHER_CTX *, int type, int arg, void *ptr)"
+.Fc
+.Sh DESCRIPTION
+The
+.Vt EVP_CIPHER
+type is a structure holding function pointers for
+a symmetric cipher implementation.
+.Pp
+.Fn EVP_CIPHER_meth_new
+allocates a new
+.Vt EVP_CIPHER
+structure.
+The cipher's NID (see
+.Xr EVP_CIPHER_nid 3 )
+is set to
+.Fa cipher_type ,
+the block size and key length are set to
+.Fa block_size
+and
+.Fa key_len ,
+respectively.
+.Pp
+.Fn EVP_CIPHER_meth_dup
+creates a copy of
+.Fa cipher .
+.Pp
+.Fn EVP_CIPHER_meth_free
+frees an
+.Vt EVP_CIPHER
+structure.
+.Pp
+.Fn EVP_CIPHER_meth_set_iv_length
+sets the length of the initialization vector.
+This is only needed when the implemented cipher mode requires it.
+.Pp
+.Fn EVP_CIPHER_meth_set_flags
+overwrites the flags to describe optional behaviours in
+.Fa cipher
+with
+.Fa flags .
+At most one of the following cipher modes can be set:
+.Dv EVP_CIPH_STREAM_CIPHER ,
+.Dv EVP_CIPH_ECB_MODE ,
+.Dv EVP_CIPH_CBC_MODE ,
+.Dv EVP_CIPH_CFB_MODE ,
+.Dv EVP_CIPH_OFB_MODE ,
+.Dv EVP_CIPH_CTR_MODE ,
+.Dv EVP_CIPH_GCM_MODE ,
+.Dv EVP_CIPH_CCM_MODE ,
+.Dv EVP_CIPH_XTS_MODE ,
+and
+.Dv EVP_CIPH_WRAP_MODE .
+.Pp
+Zero or more of the following flags can be OR'ed into the
+.Fa flags
+argument:
+.Bl -tag -width Ds
+.It Dv EVP_CIPH_VARIABLE_LENGTH
+This cipher has a variable key length, and the function
+.Xr EVP_CIPHER_CTX_set_key_length 3
+can be used with it.
+.It Dv EVP_CIPH_CUSTOM_IV
+Instruct
+.Xr EVP_CipherInit_ex 3
+and similar initialization functions to leave storing and initialising
+the IV entirely to the implementation.
+If this flag is set,
+the implementation is typically expected to do that in its
+.Fa init
+function.
+.It Dv EVP_CIPH_ALWAYS_CALL_INIT
+Instruct
+.Xr EVP_CipherInit_ex 3
+and similar initialization functions to call the implementation's
+.Fa init
+function even if the
+.Fa key
+argument is
+.Dv NULL .
+.It Dv EVP_CIPH_CTRL_INIT
+Instruct
+.Xr EVP_CipherInit_ex 3
+and similar initialization functions to call the implementation's
+.Fa ctrl
+function with a command
+.Fa type
+of
+.Dv EVP_CTRL_INIT
+early during the setup.
+.It Dv EVP_CIPH_NO_PADDING
+Instruct
+.Xr EVP_CipherFinal_ex 3
+and similar finalization functions to not use standard block padding
+but instead report an error if the total amount of data
+to be encrypted or decrypted is not a multiple of the block size.
+.It Dv EVP_CIPH_RAND_KEY
+Instruct
+.Xr EVP_CIPHER_CTX_rand_key 3
+to not generate a random key using
+.Xr arc4random_buf 3
+but instead leave that to the implementation by calling the
+.Fa ctrl
+function with a command
+.Fa type
+of
+.Dv EVP_CTRL_RAND_KEY
+and the pointer to the key memory storage in
+.Fa ptr .
+.It Dv EVP_CIPH_CUSTOM_COPY
+Instruct
+.Xr EVP_CIPHER_CTX_copy 3
+to call the implementation's
+.Fa ctrl
+function with a command
+.Fa type
+of
+.Dv EVP_CTRL_COPY
+and the destination
+.Fa "EVP_CIPHER_CTX *out"
+in the
+.Fa ptr
+argument immediately before returning successfully.
+The intended use is for further things to deal with after the
+implementation specific data block has been copied.
+The implementation-specific data block is reached with
+.Xr EVP_CIPHER_CTX_get_cipher_data 3 .
+.It Dv EVP_CIPH_FLAG_DEFAULT_ASN1
+Instruct
+.Xr EVP_CIPHER_param_to_asn1 3
+to use
+.Xr ASN1_TYPE_set_octetstring 3
+if no
+.Fa set_asn1_parameters
+function is installed, and instruct
+.Xr EVP_CIPHER_asn1_to_param 3
+to use
+.Xr ASN1_TYPE_get_octetstring 3
+if no
+.Fa get_asn1_parameters
+function is installed.
+.It Dv EVP_CIPH_FLAG_LENGTH_BITS
+Signals that the length of the input buffer for encryption / decryption
+is to be understood as the number of bits instead of bytes for this
+implementation.
+This is only useful for CFB1 ciphers.
+.It Dv EVP_CIPH_FLAG_CUSTOM_CIPHER
+Instruct
+.Xr EVP_CipherUpdate 3 ,
+.Xr EVP_CipherFinal_ex 3 ,
+and similar encryption, decryption, and finalization functions
+that the implementation's
+.Fa do_cipher
+function takes care of everything,
+including padding, buffering and finalization.
+.It Dv EVP_CIPH_FLAG_AEAD_CIPHER
+This indicates that this is an AEAD cipher implementation.
+.El
+.Pp
+.Fn EVP_CIPHER_meth_set_impl_ctx_size
+sets the size of the EVP_CIPHER's implementation context so that it can
+be automatically allocated.
+.Pp
+.Fn EVP_CIPHER_meth_set_init
+sets the
+.Fa init
+function for
+.Fa cipher .
+The cipher init function is called by
+.Xr EVP_CipherInit 3 ,
+.Xr EVP_CipherInit_ex 3 ,
+.Xr EVP_EncryptInit 3 ,
+.Xr EVP_EncryptInit_ex 3 ,
+.Xr EVP_DecryptInit 3 ,
+and
+.Xr EVP_DecryptInit_ex 3 .
+.Pp
+.Fn EVP_CIPHER_meth_set_do_cipher
+sets the cipher function for
+.Fa cipher .
+The cipher function is called by
+.Xr EVP_CipherUpdate 3 ,
+.Xr EVP_EncryptUpdate 3 ,
+.Xr EVP_DecryptUpdate 3 ,
+.Xr EVP_CipherFinal 3 ,
+.Xr EVP_EncryptFinal 3 ,
+.Xr EVP_EncryptFinal_ex 3 ,
+.Xr EVP_DecryptFinal 3
+and
+.Xr EVP_DecryptFinal_ex 3 .
+.Pp
+.Fn EVP_CIPHER_meth_set_cleanup
+sets the function for
+.Fa cipher
+to do extra cleanup before the method's private data structure is
+cleaned out and freed.
+Note that the cleanup function is passed a
+.Sy EVP_CIPHER_CTX * ,
+the private data structure is then available with
+.Xr EVP_CIPHER_CTX_get_cipher_data 3 .
+This cleanup function is called by
+.Xr EVP_CIPHER_CTX_reset 3
+and
+.Xr EVP_CIPHER_CTX_free 3 .
+.Pp
+.Fn EVP_CIPHER_meth_set_set_asn1_params
+sets the function for
+.Fa cipher
+to set the AlgorithmIdentifier "parameter" based on the passed cipher.
+This function is called by
+.Xr EVP_CIPHER_param_to_asn1 3 .
+.Fn EVP_CIPHER_meth_set_get_asn1_params
+sets the function for
+.Fa cipher
+that sets the cipher parameters based on an ASN.1 AlgorithmIdentifier
+"parameter".
+Both these functions are needed when there is a need for custom data
+(more or other than the cipher IV). They are called by
+.Xr EVP_CIPHER_param_to_asn1 3
+and
+.Xr EVP_CIPHER_asn1_to_param 3
+respectively if defined.
+.Pp
+.Fn EVP_CIPHER_meth_set_ctrl
+sets the control function for
+.Fa cipher .
+.Sh RETURN VALUES
+.Fn EVP_CIPHER_meth_new
+and
+.Fn EVP_CIPHER_meth_dup
+return a pointer to a newly created
+.Vt EVP_CIPHER ,
+or NULL on failure.
+.Pp
+All
+.Fn EVP_CIPHER_meth_set_*
+functions return 1.
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_EncryptInit 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 7.3 .

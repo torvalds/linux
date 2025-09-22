@@ -1,0 +1,281 @@
+.\"	$OpenBSD: sysctl_int.9,v 1.9 2020/09/01 01:57:15 gnezdo Exp $
+.\"
+.\" Copyright (c) 2006 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 1 2020 $
+.Dt SYSCTL_INT 9
+.Os
+.Sh NAME
+.Nm sysctl_int ,
+.Nm sysctl_bounded_arr ,
+.Nm sysctl_quad ,
+.Nm sysctl_string ,
+.Nm sysctl_tstring ,
+.Nm sysctl_rdint ,
+.Nm sysctl_rdquad ,
+.Nm sysctl_rdstring ,
+.Nm sysctl_rdstruct ,
+.Nm sysctl_struct
+.Nd kernel sysctl interface
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/sysctl.h
+.Ft int
+.Fo sysctl_int
+.Fa "void *oldp"
+.Fa "size_t *oldlenp"
+.Fa "void *newp"
+.Fa "size_t newlen"
+.Fa "int *valp"
+.Fc
+.Ft int
+.Fo sysctl_bounded_arr
+.Fa "const struct sysctl_bounded_args *valpp"
+.Fa "u_int valplen"
+.Fa "int *name"
+.Fa "u_int namelen"
+.Fa "void *oldp"
+.Fa "size_t *oldlenp"
+.Fa "void *newp"
+.Fa "size_t newlen"
+.Fc
+.Ft int
+.Fo sysctl_quad
+.Fa "void *oldp"
+.Fa "size_t *oldlenp"
+.Fa "void *newp"
+.Fa "size_t newlen"
+.Fa "int64_t *valp"
+.Fc
+.Ft int
+.Fo sysctl_string
+.Fa "void *oldp"
+.Fa "size_t *oldlenp"
+.Fa "void *newp"
+.Fa "size_t newlen"
+.Fa "char *str"
+.Fa "int maxlen"
+.Fc
+.Ft int
+.Fo sysctl_tstring
+.Fa "void *oldp"
+.Fa "size_t *oldlenp"
+.Fa "void *newp"
+.Fa "size_t newlen"
+.Fa "char *str"
+.Fa "int maxlen"
+.Fc
+.Ft int
+.Fo sysctl_rdint
+.Fa "void *oldp"
+.Fa "size_t *oldlenp"
+.Fa "void *newp"
+.Fa "int val"
+.Fc
+.Ft int
+.Fo sysctl_rdquad
+.Fa "void *oldp"
+.Fa "size_t *oldlenp"
+.Fa "void *newp"
+.Fa "int64_t val"
+.Fc
+.Ft int
+.Fo sysctl_rdstring
+.Fa "void *oldp"
+.Fa "size_t *oldlenp"
+.Fa "void *newp"
+.Fa "const char *str"
+.Fc
+.Ft int
+.Fo sysctl_rdstruct
+.Fa "void *oldp"
+.Fa "size_t *oldlenp"
+.Fa "void *newp"
+.Fa "const void *sp"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo sysctl_struct
+.Fa "void *oldp"
+.Fa "size_t *oldlenp"
+.Fa "void *newp"
+.Fa "size_t newlen"
+.Fa "void *sp"
+.Fa "int len"
+.Fc
+.Sh DESCRIPTION
+These functions and data structures aim to simplify and partially
+implement operations for the kernel and user implementations of the
+.Xr sysctl 2
+interface.
+A single
+.Xr syscall 9
+is used to request and modify kernel variables.
+The
+.Fa mib
+argument is recursively scanned as an array of integers, either calling
+further functions for parsing the rest of the MIB for nodes or operating
+on kernel data for leaf nodes.
+.Ss Data Structures
+For each level of the MIB tree, the kernel header files provide a
+.Xr cpp 1
+macro initialiser for an array of the following data structures:
+.Bd -literal -offset indent
+struct ctlname {
+	char	*ctl_name;	/* subsystem name */
+	int	ctl_type;	/* type of name */
+};
+.Ed
+.Pp
+For example:
+.Bd -literal -offset indent
+#define CTL_NAMES { \e
+	{ 0, 0 }, \e
+	{ "kern", CTLTYPE_NODE }, \e
+	{ "vm", CTLTYPE_NODE }, \e
+	{ "fs", CTLTYPE_NODE }, \e
+	{ "net", CTLTYPE_NODE }, \e
+	{ "debug", CTLTYPE_NODE }, \e
+	{ "hw", CTLTYPE_NODE }, \e
+	{ "machdep", CTLTYPE_NODE }, \e
+	{ "user", CTLTYPE_NODE }, \e
+	{ "ddb", CTLTYPE_NODE }, \e
+	{ "vfs", CTLTYPE_NODE }, \e
+}
+.Ed
+.Pp
+Each array element initialiser maps the correspondent MIB identifier.
+The
+.Fa ctl_name
+field provides a string name.
+The
+.Fa ctl_type
+field describes the identifier type, where possible values are:
+.Pp
+.Bl -tag -width CTLTYPE_STRING_ -compact -offset indent
+.It CTLTYPE_NODE
+The name is a node;
+.It CTLTYPE_INT
+The name describes an integer;
+.It CTLTYPE_STRING
+The name describes a string;
+.It CTLTYPE_QUAD
+The name describes a 64-bit number;
+.It CTLTYPE_STRUCT
+The name describes a structure.
+.El
+.Pp
+For each of the types there are two functions provided to perform both
+read and write or only a read operation on the identifier (see the
+following subsection).
+.Pp
+These data structures are used by the
+.Xr sysctl 8
+program to provide mapping into MIB identifiers.
+.Ss Functions
+All of the functions perform a write provided that
+.Ar newp
+is not a
+.Dv NULL
+pointer and
+.Ar newlen
+specifies an appropriate data length.
+All read-only versions of the functions return
+.Dv EPERM
+if a write operation is requested.
+.Pp
+The following helper functions are provided to aid operation on the
+kernel data variables referenced by the leaf nodes in the MIBs:
+.Bl -tag -width sysctl_
+.It Fn sysctl_int "void *oldp" "size_t *oldlenp" "void *newp" "size_t newlen" "int *valp"
+The variable referenced by
+.Ar valp
+is a 32-bit integer.
+Read or write returning the previous value in the user memory location
+pointed to by the
+.Ar oldp
+argument.
+The value pointed to by
+.Ar oldlenp
+has to be no less than four.
+.It Fn sysctl_rdint "void *oldp" "size_t *oldlenp" "void *newp" "int val"
+A read-only version of the above.
+.It Fn sysctl_bounded_arr "const struct sysctl_bounded_args *valpp" "u_int valplen" "int *name" "u_int namelen" "void *oldp" "size_t *oldlenp" "void *newp" "size_t newlen"
+Asserts the new value is in the range specified by the element of
+.Ar valpp
+with the value of the
+.Va mib
+field equal to
+.Ar name[0] ,
+before invoking
+.Fn sysctl_int
+to read/write as normal.
+.It Fn sysctl_quad "void *oldp" "size_t *oldlenp" "void *newp" "size_t newlen" "int64_t *valp"
+The variable referenced is a 64-bit integer.
+Read or write returning the previous value in the user memory location
+pointed to by the
+.Ar oldp
+argument.
+The value pointed to by
+.Ar oldlenp
+has to be no less than eight.
+.It Fn sysctl_rdquad "void *oldp" "size_t *oldlenp" "void *newp" "int64_t val"
+A read-only version of the above.
+.It Fn sysctl_string "void *oldp" "size_t *oldlenp" "void *newp" "size_t newlen" "char *str" "int maxlen"
+The variable referenced by the
+.Ar str
+argument is a string of maximum length of
+.Ar maxlen .
+The old value is copied out into a user buffer pointed to by the
+.Ar oldp
+argument.
+If there is not enough space to store it, an
+.Dv ENOMEM
+is returned.
+If
+.Ar newlen
+is larger than
+.Ar maxlen ,
+an
+.Dv EINVAL
+error is returned.
+.It Fn sysctl_tstring "void *oldp" "size_t *oldlenp" "void *newp" "size_t newlen" "char *str" "int maxlen"
+A version of the above that truncates the old value that does not fit
+into the buffer provided by
+.Ar oldp
+instead of returning
+.Dv ENOMEM .
+.It Fn sysctl_rdstring "void *oldp" "size_t *oldlenp" "void *newp" "const char *str"
+A read-only version of
+.Fn sysctl_string .
+.It Fn sysctl_struct "void *oldp" "size_t *oldlenp" "void *newp" "size_t newlen" "void *sp" "int len"
+Assume the area pointed to by the
+.Ar sp
+argument is an opaque array of bytes of size
+.Ar len .
+Old and new length checks are performed and data is copied in and/or out.
+.It Fn sysctl_rdstruct "void *oldp" "size_t *oldlenp" "void *newp" "const void *sp" "int len"
+A read-only version of the above.
+.El
+.Sh SEE ALSO
+.Xr sysctl 2 ,
+.Xr sysctl.conf 5 ,
+.Xr sysctl 8 ,
+.Xr syscall 9
+.Sh HISTORY
+These functions first appeared in
+.Bx 4.4 .
+.\" .Sh AUTHORS

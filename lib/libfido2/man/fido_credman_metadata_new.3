@@ -1,0 +1,327 @@
+.\" Copyright (c) 2019-2021 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_CREDMAN_METADATA_NEW 3
+.Os
+.Sh NAME
+.Nm fido_credman_metadata_new ,
+.Nm fido_credman_rk_new ,
+.Nm fido_credman_rp_new ,
+.Nm fido_credman_metadata_free ,
+.Nm fido_credman_rk_free ,
+.Nm fido_credman_rp_free ,
+.Nm fido_credman_rk_existing ,
+.Nm fido_credman_rk_remaining ,
+.Nm fido_credman_rk ,
+.Nm fido_credman_rk_count ,
+.Nm fido_credman_rp_id ,
+.Nm fido_credman_rp_name ,
+.Nm fido_credman_rp_count ,
+.Nm fido_credman_rp_id_hash_ptr ,
+.Nm fido_credman_rp_id_hash_len ,
+.Nm fido_credman_get_dev_metadata ,
+.Nm fido_credman_get_dev_rk ,
+.Nm fido_credman_set_dev_rk ,
+.Nm fido_credman_del_dev_rk ,
+.Nm fido_credman_get_dev_rp
+.Nd FIDO2 credential management API
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.In fido/credman.h
+.Ft fido_credman_metadata_t *
+.Fn fido_credman_metadata_new "void"
+.Ft fido_credman_rk_t *
+.Fn fido_credman_rk_new "void"
+.Ft fido_credman_rp_t *
+.Fn fido_credman_rp_new "void"
+.Ft void
+.Fn fido_credman_metadata_free "fido_credman_metadata_t **metadata_p"
+.Ft void
+.Fn fido_credman_rk_free "fido_credman_rk_t **rk_p"
+.Ft void
+.Fn fido_credman_rp_free "fido_credman_rp_t **rp_p"
+.Ft uint64_t
+.Fn fido_credman_rk_existing "const fido_credman_metadata_t *metadata"
+.Ft uint64_t
+.Fn fido_credman_rk_remaining "const fido_credman_metadata_t *metadata"
+.Ft const fido_cred_t *
+.Fn fido_credman_rk "const fido_credman_rk_t *rk" "size_t idx"
+.Ft size_t
+.Fn fido_credman_rk_count "const fido_credman_rk_t *rk"
+.Ft const char *
+.Fn fido_credman_rp_id "const fido_credman_rp_t *rp" "size_t idx"
+.Ft const char *
+.Fn fido_credman_rp_name "const fido_credman_rp_t *rp" "size_t idx"
+.Ft size_t
+.Fn fido_credman_rp_count "const fido_credman_rp_t *rp"
+.Ft const unsigned char *
+.Fn fido_credman_rp_id_hash_ptr "const fido_credman_rp_t *rp" "size_t idx"
+.Ft size_t
+.Fn fido_credman_rp_id_hash_len "const fido_credman_rp_t *" "size_t idx"
+.Ft int
+.Fn fido_credman_get_dev_metadata "fido_dev_t *dev" "fido_credman_metadata_t *metadata" "const char *pin"
+.Ft int
+.Fn fido_credman_get_dev_rk "fido_dev_t *dev" "const char *rp_id" "fido_credman_rk_t *rk" "const char *pin"
+.Ft int
+.Fn fido_credman_set_dev_rk "fido_dev_t *dev" "fido_cred_t *cred" "const char *pin"
+.Ft int
+.Fn fido_credman_del_dev_rk "fido_dev_t *dev" "const unsigned char *cred_id" "size_t cred_id_len" "const char *pin"
+.Ft int
+.Fn fido_credman_get_dev_rp "fido_dev_t *dev" "fido_credman_rp_t *rp" "const char *pin"
+.Sh DESCRIPTION
+The credential management API of
+.Em libfido2
+allows resident credentials on a FIDO2 authenticator to be listed,
+inspected, modified, and removed.
+Please note that not all FIDO2 authenticators support credential
+management.
+To obtain information on what an authenticator supports, please
+refer to
+.Xr fido_cbor_info_new 3 .
+.Pp
+The
+.Vt fido_credman_metadata_t
+type abstracts credential management metadata.
+.Pp
+The
+.Fn fido_credman_metadata_new
+function returns a pointer to a newly allocated, empty
+.Vt fido_credman_metadata_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_credman_metadata_free
+function releases the memory backing
+.Fa *metadata_p ,
+where
+.Fa *metadata_p
+must have been previously allocated by
+.Fn fido_credman_metadata_new .
+On return,
+.Fa *metadata_p
+is set to NULL.
+Either
+.Fa metadata_p
+or
+.Fa *metadata_p
+may be NULL, in which case
+.Fn fido_credman_metadata_free
+is a NOP.
+.Pp
+The
+.Fn fido_credman_get_dev_metadata
+function populates
+.Fa metadata
+with information retrieved from
+.Fa dev .
+A valid
+.Fa pin
+must be provided.
+.Pp
+The
+.Fn fido_credman_rk_existing
+function inspects
+.Fa metadata
+and returns the number of resident credentials on the
+authenticator.
+The
+.Fn fido_credman_rk_remaining
+function inspects
+.Fa metadata
+and returns the estimated number of resident credentials that can
+be created on the authenticator.
+.Pp
+The
+.Vt fido_credman_rk_t
+type abstracts the set of resident credentials belonging to a
+given relying party.
+.Pp
+The
+.Fn fido_credman_rk_new
+function returns a pointer to a newly allocated, empty
+.Vt fido_credman_rk_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_credman_rk_free
+function releases the memory backing
+.Fa *rk_p ,
+where
+.Fa *rk_p
+must have been previously allocated by
+.Fn fido_credman_rk_new .
+On return,
+.Fa *rk_p
+is set to NULL.
+Either
+.Fa rk_p
+or
+.Fa *rk_p
+may be NULL, in which case
+.Fn fido_credman_rk_free
+is a NOP.
+.Pp
+The
+.Fn fido_credman_get_dev_rk
+function populates
+.Fa rk
+with the set of resident credentials belonging to
+.Fa rp_id
+in
+.Fa dev .
+A valid
+.Fa pin
+must be provided.
+.Pp
+The
+.Fn fido_credman_rk_count
+function returns the number of resident credentials in
+.Fa rk .
+The
+.Fn fido_credman_rk
+function returns a pointer to the credential at index
+.Fa idx
+in
+.Fa rk .
+Please note that the first credential in
+.Fa rk
+has an
+.Fa idx
+(index) value of 0.
+.Pp
+The
+.Fn fido_credman_set_dev_rk
+function updates the credential pointed to by
+.Fa cred
+in
+.Fa dev .
+The credential id and user id attributes of
+.Fa cred
+must be set.
+See
+.Xr fido_cred_set_id 3
+and
+.Xr fido_cred_set_user 3
+for details.
+Only a credential's user attributes (name, display name)
+may be updated at this time.
+.Pp
+The
+.Fn fido_credman_del_dev_rk
+function deletes the resident credential identified by
+.Fa cred_id
+from
+.Fa dev ,
+where
+.Fa cred_id
+points to
+.Fa cred_id_len
+bytes.
+A valid
+.Fa pin
+must be provided.
+.Pp
+The
+.Vt fido_credman_rp_t
+type abstracts information about a relying party.
+.Pp
+The
+.Fn fido_credman_rp_new
+function returns a pointer to a newly allocated, empty
+.Vt fido_credman_rp_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_credman_rp_free
+function releases the memory backing
+.Fa *rp_p ,
+where
+.Fa *rp_p
+must have been previously allocated by
+.Fn fido_credman_rp_new .
+On return,
+.Fa *rp_p
+is set to NULL.
+Either
+.Fa rp_p
+or
+.Fa *rp_p
+may be NULL, in which case
+.Fn fido_credman_rp_free
+is a NOP.
+.Pp
+The
+.Fn fido_credman_get_dev_rp
+function populates
+.Fa rp
+with information about relying parties with resident credentials
+in
+.Fa dev .
+A valid
+.Fa pin
+must be provided.
+.Pp
+The
+.Fn fido_credman_rp_count
+function returns the number of relying parties in
+.Fa rp .
+.Pp
+The
+.Fn fido_credman_rp_id
+and
+.Fn fido_credman_rp_name
+functions return pointers to the id and name of relying party
+.Fa idx
+in
+.Fa rp .
+If not NULL, the values returned by these functions point to
+NUL-terminated UTF-8 strings.
+Please note that the first relying party in
+.Fa rp
+has an
+.Fa idx
+(index) value of 0.
+.Pp
+The
+.Fn fido_credman_rp_id_hash_ptr
+function returns a pointer to the hashed id of relying party
+.Fa idx
+in
+.Fa rp .
+The corresponding length can be obtained by
+.Fn fido_credman_rp_id_hash_len .
+Please note that the first relying party in
+.Fa rp
+has an
+.Fa idx
+(index) value of 0.
+.Sh RETURN VALUES
+The
+.Fn fido_credman_get_dev_metadata ,
+.Fn fido_credman_get_dev_rk ,
+.Fn fido_credman_set_dev_rk ,
+.Fn fido_credman_del_dev_rk ,
+and
+.Fn fido_credman_get_dev_rp
+functions return
+.Dv FIDO_OK
+on success.
+On error, a different error code defined in
+.In fido/err.h
+is returned.
+Functions returning pointers are not guaranteed to succeed, and
+should have their return values checked for NULL.
+.Sh SEE ALSO
+.Xr fido_cbor_info_new 3 ,
+.Xr fido_cred_new 3 ,
+.Xr fido_dev_supports_credman 3
+.Sh CAVEATS
+Resident credentials are called
+.Dq discoverable credentials
+in CTAP 2.1.

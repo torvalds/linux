@@ -1,0 +1,120 @@
+.\"	$OpenBSD: RAND_load_file.3,v 1.7 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000, 2001 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RAND_LOAD_FILE 3
+.Os
+.Sh NAME
+.Nm RAND_file_name ,
+.Nm RAND_load_file ,
+.Nm RAND_write_file
+.Nd PRNG seed file
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rand.h
+.Ft const char *
+.Fo RAND_file_name
+.Fa "char *buf"
+.Fa "size_t num"
+.Fc
+.Ft int
+.Fo RAND_load_file
+.Fa "const char *filename"
+.Fa "long max_bytes"
+.Fc
+.Ft int
+.Fo RAND_write_file
+.Fa "const char *filename"
+.Fc
+.Sh DESCRIPTION
+.Fn RAND_file_name
+returns a default path for the random seed file.
+.Fa buf
+points to a buffer of size
+.Fa num
+in which to store the filename.
+If
+.Fa num
+is too small for the path name, an error occurs.
+.Pp
+.Fn RAND_load_file
+used to allow for the state of the random number generator to be
+controlled by external sources.
+It is kept for ABI compatibility but is no longer functional, and should
+not be used in new programs.
+.Pp
+.Fn RAND_write_file
+writes a number of random bytes (currently 1024) to file
+.Fa filename .
+.Sh RETURN VALUES
+.Fn RAND_load_file
+returns
+.Fa max_bytes ,
+or a bogus positive value if
+.Fa max_bytes
+is -1.
+.Pp
+.Fn RAND_write_file
+returns the number of bytes written, or a number less than or equal
+to 1 if an error occurs.
+.Pp
+.Fn RAND_file_name
+returns a pointer to
+.Fa buf
+on success or
+.Dv NULL
+on error.
+.Sh HISTORY
+.Fn RAND_load_file ,
+.Fn RAND_write_file ,
+and
+.Fn RAND_file_name
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .

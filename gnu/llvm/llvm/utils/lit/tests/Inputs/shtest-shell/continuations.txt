@@ -1,0 +1,17 @@
+RUN: echo 'foo' \
+RUN:      'bar' >> %t.out
+CHECK: foo bar
+
+RUN: echo 'foo' \
+RUN:      'bar' \
+RUN:      'baz' >> %t.out
+CHECK: foo bar baz
+
+#                 v~~ intentional whitespace
+RUN: echo 'foo'  \   
+RUN:      'bar'  \ 
+#                 ^ intentional whitespace
+RUN:      'baz' >> %t.out
+CHECK: foo bar baz
+
+RUN: FileCheck -match-full-lines -input-file=%t.out %s

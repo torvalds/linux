@@ -1,0 +1,86 @@
+.\"	$OpenBSD: pppx.4,v 1.5 2020/01/23 00:31:40 dlg Exp $
+.\"
+.\" Copyright (c) 2013 YASUOKA Masahiko <yasuoka@yasuoka.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 23 2020 $
+.Dt PPPX 4
+.Os
+.Sh NAME
+.Nm pppx ,
+.Nm pppac
+.Nd PPP multiplexer device
+.Sh SYNOPSIS
+.Cd "pseudo-device pppx"
+.Pp
+.In sys/socket.h
+.In sys/ioctl.h
+.In net/pipex.h
+.Sh DESCRIPTION
+The
+.Nm pppx
+and
+.Nm pppac
+drivers works with the
+.Xr npppd 8
+daemon to provide network interfaces for Point-to-Point Protocol (PPP)
+sessions by request from the daemon.
+.Nm pppx
+operates by allocating a network interface for each PPP
+session.
+.Nm pppac
+concentrates multiple PPP sessions on a single network interface.
+The interfaces also work with
+.Xr pipex 4
+to accelerate the performance of data packet forwarding,
+and supports ioctls which are added by
+.Xr pipex 4 .
+.Pp
+To use
+.Nm pppx
+or
+.Nm pppac
+from
+.Xr npppd 8
+the administrator needs to configure the interface configuration in
+.Xr npppd.conf 5 .
+Also the administrator needs to enable
+.Xr pipex 4
+by setting
+.Va net.pipex.enable
+to
+.Sq 1
+using
+.Xr sysctl 8 .
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr pipex 4 ,
+.Xr hostname.if 5 ,
+.Xr npppd.conf 5 ,
+.Xr netstart 8 ,
+.Xr npppd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm pppx
+driver first appeared in
+.Ox 5.3 .
+The
+.Nm pppac
+interface driver first appeared in
+.Ox 6.7 .
+.Sh AUTHORS
+.An David Gwynne Aq Mt dlg@openbsd.org
+.An Claudio Jeker Aq Mt claudio@openbsd.org

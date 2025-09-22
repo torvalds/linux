@@ -1,0 +1,31 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+/*
+    cassert synopsis
+
+Macros:
+
+    assert
+
+*/
+
+#include <__config>
+
+// <assert.h> is not provided by libc++
+#if __has_include(<assert.h>)
+#  include <assert.h>
+#  ifdef _LIBCPP_ASSERT_H
+#    error "If libc++ starts defining <assert.h>, the __has_include check should move to libc++'s <assert.h>"
+#  endif
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif

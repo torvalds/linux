@@ -1,0 +1,126 @@
+.\"	$OpenBSD: quotaon.8,v 1.8 2007/05/31 19:20:28 jmc Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Robert Elz at The University of Melbourne.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)quotaon.8	8.2 (Berkeley) 12/11/93
+.\"	$Id: quotaon.8,v 1.8 2007/05/31 19:20:28 jmc Exp $
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt QUOTAON 8
+.Os
+.Sh NAME
+.Nm quotaon ,
+.Nm quotaoff
+.Nd turn filesystem quotas on and off
+.Sh SYNOPSIS
+.Nm quotaon
+.Op Fl aguv
+.Ar filesystem ...
+.Nm quotaoff
+.Op Fl aguv
+.Ar filesystem ...
+.Sh DESCRIPTION
+.Nm quotaon
+announces to the system that disk quotas should be enabled on one or more
+filesystems.
+.Nm quotaoff
+announces to the system that the specified
+filesystems should have any disk quotas
+turned off.
+The filesystems specified must have entries in
+.Pa /etc/fstab
+and be mounted.
+.Nm quotaon
+expects each filesystem to have quota files named
+.Pa quota.user
+and
+.Pa quota.group
+which are located at the root of the associated file system.
+These defaults may be overridden in
+.Pa /etc/fstab .
+By default both user and group quotas are enabled.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+If the
+.Fl a
+flag is supplied in place of any filesystem names,
+.Nm quotaon Ns / Ns Nm quotaoff
+will enable/disable all the filesystems indicated in
+.Pa /etc/fstab
+to be read-write with disk quotas.
+By default only the types of quotas listed in
+.Pa /etc/fstab
+are enabled.
+.It Fl g
+Only group quotas listed in
+.Pa /etc/fstab
+should be enabled/disabled.
+.It Fl u
+Only user quotas listed in
+.Pa /etc/fstab
+should be enabled/disabled.
+.It Fl v
+Causes
+.Nm quotaon
+and
+.Nm quotaoff
+to print a message for each filesystem where quotas are turned on or off.
+.El
+.Pp
+Specifying both
+.Fl g
+and
+.Fl u
+is equivalent to the default.
+.Sh FILES
+.Bl -tag -width quota.group -compact
+.It Pa quota.user
+at the filesystem root with user quotas
+.It Pa quota.group
+at the filesystem root with group quotas
+.It Pa /etc/fstab
+filesystem table
+.El
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr quotactl 2 ,
+.Xr fstab 5 ,
+.Xr edquota 8 ,
+.Xr quotacheck 8 ,
+.Xr repquota 8
+.Sh HISTORY
+The
+.Nm quotaon
+and
+.Nm quotaoff
+commands appeared in
+.Bx 4.2 .

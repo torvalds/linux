@@ -1,0 +1,52 @@
+//- WebAssemblyISD.def - WebAssembly ISD ---------------------------*- C++ -*-//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file describes the various WebAssembly ISD node types.
+///
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+HANDLE_NODETYPE(CALL)
+HANDLE_NODETYPE(RET_CALL)
+HANDLE_NODETYPE(RETURN)
+HANDLE_NODETYPE(ARGUMENT)
+HANDLE_NODETYPE(LOCAL_GET)
+HANDLE_NODETYPE(LOCAL_SET)
+// A wrapper node for TargetExternalSymbol, TargetGlobalAddress, and MCSymbol
+HANDLE_NODETYPE(Wrapper)
+// A special node for TargetGlobalAddress used in PIC code for
+// __memory_base/__table_base relative access.
+HANDLE_NODETYPE(WrapperREL)
+HANDLE_NODETYPE(BR_IF)
+HANDLE_NODETYPE(BR_TABLE)
+HANDLE_NODETYPE(SHUFFLE)
+HANDLE_NODETYPE(SWIZZLE)
+HANDLE_NODETYPE(VEC_SHL)
+HANDLE_NODETYPE(VEC_SHR_S)
+HANDLE_NODETYPE(VEC_SHR_U)
+HANDLE_NODETYPE(NARROW_U)
+HANDLE_NODETYPE(EXTEND_LOW_S)
+HANDLE_NODETYPE(EXTEND_LOW_U)
+HANDLE_NODETYPE(EXTEND_HIGH_S)
+HANDLE_NODETYPE(EXTEND_HIGH_U)
+HANDLE_NODETYPE(CONVERT_LOW_S)
+HANDLE_NODETYPE(CONVERT_LOW_U)
+HANDLE_NODETYPE(PROMOTE_LOW)
+HANDLE_NODETYPE(TRUNC_SAT_ZERO_S)
+HANDLE_NODETYPE(TRUNC_SAT_ZERO_U)
+HANDLE_NODETYPE(DEMOTE_ZERO)
+HANDLE_NODETYPE(MEMORY_COPY)
+HANDLE_NODETYPE(MEMORY_FILL)
+
+// Memory intrinsics
+HANDLE_MEM_NODETYPE(GLOBAL_GET)
+HANDLE_MEM_NODETYPE(GLOBAL_SET)
+HANDLE_MEM_NODETYPE(TABLE_GET)
+HANDLE_MEM_NODETYPE(TABLE_SET)

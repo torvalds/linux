@@ -1,0 +1,266 @@
+.\"	$OpenBSD: mk.conf.5,v 1.38 2019/08/08 12:06:50 jmc Exp $
+.\"
+.\" Copyright (c) 2003 Jason McIntyre
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 8 2019 $
+.Dt MK.CONF 5
+.Os
+.Sh NAME
+.Nm mk.conf
+.Nd system-specific configuration parameters
+.Sh SYNOPSIS
+.Fd .include <bsd.own.mk>
+.Sh DESCRIPTION
+To get system-specific configuration parameters,
+.In bsd.own.mk
+will try to include the file specified by the
+.Ev MAKECONF
+variable.
+If
+.Ev MAKECONF
+is not set, or no such file exists, the system make configuration file
+.Pa /etc/mk.conf
+is included, if it exists.
+By default, this file does not exist,
+and must be created from scratch.
+For more information on how the make process works,
+and details of the format of make files,
+see
+.Xr make 1 .
+.Pp
+.In bsd.own.mk
+is generally useful when building Makefiles, so that
+they use the same default owners, etc. as the rest of the tree.
+These files may define any of the variables described below.
+Additionally, see
+.Xr bsd.port.mk 5
+for a list of variables that can be set by the
+.Xr ports 7
+subsystem.
+.Sh VARIABLES
+The following variables are set by
+.In bsd.own.mk ,
+if they are not already defined.
+Defaults are in brackets.
+.Bl -tag -width INSTALL_STRIP
+.It Ev BINGRP
+Binary group.
+.Bq bin
+.It Ev BINMODE
+Binary mode.
+.Bq 555
+.It Ev BINOWN
+Binary owner.
+.Bq root
+.It Ev BSDOBJDIR
+The real path to the system "obj" tree, so that "make obj" will work correctly.
+.Bq Pa /usr/obj
+.It Ev BSDSRCDIR
+The real path to the system sources, so that "make obj" will work correctly.
+.Bq Pa /usr/src
+.It Ev DIRMODE
+Mode for new directories.
+.Bq 755
+.It Ev DOCDIR
+Base path for system documentation installation.
+.Bq Pa /usr/share/doc
+.It Ev DOCGRP
+Documentation group.
+.Bq bin
+.It Ev DOCMODE
+Documentation mode.
+.Bq Ev ${NONBINMODE}
+.It Ev DOCOWN
+Documentation owner.
+.Bq root
+.It Ev INSTALL_COPY
+The old usage of this flag is obsolescent, since
+.Xr install 1
+now copies by default.
+However, it can also be used to specify that a file not be copied unless it
+is different (via the
+.Fl p
+option).
+See
+.Xr install 1
+for details.
+This is to be used when building an install script so that the entire
+system can either be installed with copies, or copy-if-different using a
+single knob.
+.Bq Fl c
+.It Ev INSTALL_STRIP
+The flag passed to the install program to cause the binary to be stripped.
+This is to be used when building an install script so that the entire
+system can be made stripped/not-stripped using a single knob.
+Note that
+.Ev INSTALL_STRIP
+is not set if
+.Ev ${DEBUG}
+is defined.
+.Bq Fl s
+.It Ev LIBDIR
+Base path for library installation.
+.Bq Pa /usr/lib
+.It Ev LIBGRP
+Library group.
+.Bq Ev ${BINGRP}
+.It Ev LIBMODE
+Library mode.
+.Bq Ev ${NONBINMODE}
+.It Ev LIBOWN
+Library owner.
+.Bq Ev ${BINOWN}
+.It Ev MANDIR
+Base path for manual installation.
+.Bq Pa /usr/share/man/man
+.It Ev MANGRP
+Manual group.
+.Bq bin
+.It Ev MANMODE
+Manual mode.
+.Bq Ev ${NONBINMODE}
+.It Ev MANOWN
+Manual owner.
+.Bq root
+.It Ev NONBINMODE
+Mode for non-executable files.
+.Bq 444
+.It Ev XOBJDIR
+The real path to the "obj" tree for building the X Window System.
+.Bq Pa /usr/xobj
+.It Ev XSRCDIR
+The real path to the X Window System sources.
+.Bq Pa /usr/xenocara
+.El
+.Sh ADDITIONAL VARIABLES
+Additionally, the following variables may be set by
+.In bsd.own.mk
+or in a make configuration file to modify the behaviour of the system build
+process (default values are in brackets along with comments, if set by
+.In bsd.own.mk ) :
+.Bl -tag -width GLOBAL_AUTOCONF_CACHE
+.It Ev BUILDUSER
+De-escalate privileges to user
+.Ev BUILDUSER
+when building the base system from source
+or making release tarballs.
+.Bq build
+.It Ev DEBUG
+Added to assembly, C compiler and linking passes.
+Typically set to
+.Fl g
+to build with debugging symbols.
+Also doesn't set
+.Ev INSTALL_STRIP
+to
+.Fl s
+per default if defined.
+.It Ev GLOBAL_AUTOCONF_CACHE
+Set to the name of a file that all cached GNU autoconf test results will be
+saved in.
+Reduces redundant tests.
+Be careful!
+Redundant tests may not be redundant when installing substantially
+updated GNU programs.
+.It Ev KEEPKERNELS
+If set to "yes", the kernel object directories will not be cleaned out
+during "make build".
+.It Ev NOPIC
+Do not build shared libraries.
+.It Ev NOPIE
+Do not build PIE objects or executables.
+.It Ev NOPROFILE
+Do not build profiled versions of system libraries.
+.It Ev PIPE
+If set to
+.Qq -pipe ,
+.Xr gcc 1
+will be given the
+.Fl pipe
+option which can speed up compiles on machines with memory to spare.
+Instead of using temp files,
+.Xr gcc 1
+uses pipes for the temporary data.
+.It Ev SKEY
+Compile in support for S/key authentication.
+.Bq yes; set unconditionally
+.It Ev SKIPDIR
+A space separated list of directories,
+relative to
+.Ev BSDSRCDIR ,
+to be skipped during "make build".
+.It Ev SUDO
+Command run by
+.Xr make 1
+when doing certain operations requiring root privileges.
+.It Ev SYS_INCLUDE
+Copy or symlink kernel include files into
+.Pa /usr/include .
+Possible values are "symlinks" or "copies"
+(which is the same as the variable being unset).
+.It Ev WARNINGS
+Adds appropriate warning flags (defined in
+.Ev CDIAGFLAGS ,
+e.g.\&
+.Fl Wall . . . )
+to compiles.
+.Bq no
+.It Ev WOBJGROUP
+Group having write access to
+.Ev BSDOBJDIR
+and
+.Ev XOBJDIR .
+.Bq wobj
+.It Ev WOBJUMASK
+.Xr umask 2
+with which the "obj" tree will be created by "make obj".
+.Bq 007
+.It Ev XENOCARA_BUILD_DRI
+Build X with Direct Rendering Infrastructure (DRI) support,
+providing some hardware acceleration.
+This is on by default for amd64/i386 architectures.
+.It Ev XENOCARA_RERUN_AUTOCONF
+Forces X builds to re-run automake and autoconf in each module before
+configuring them.
+This option requires that the automake, autoconf and libtool
+packages are installed.
+.Bq no
+.El
+.Sh FILES
+.Bl -tag -width XXXXXXXXXXXXXXX -compact
+.It Pa /etc/mk.conf
+System make configuration file.
+.It Pa /usr/share/mk/*
+System include make files.
+.El
+.Sh SEE ALSO
+.Xr make 1 ,
+.Xr bsd.port.mk 5 ,
+.Xr ports 7
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Ox 3.4 .

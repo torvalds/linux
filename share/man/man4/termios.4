@@ -1,0 +1,1539 @@
+.\"	$OpenBSD: termios.4,v 1.40 2021/11/09 16:11:21 jmc Exp $
+.\"	$NetBSD: termios.4,v 1.5 1994/11/30 16:22:36 jtc Exp $
+.\"
+.\" Copyright (c) 1991, 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)termios.4	8.4 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: November 9 2021 $
+.Dt TERMIOS 4
+.Os
+.Sh NAME
+.Nm termios
+.Nd general terminal line discipline
+.Sh SYNOPSIS
+.In termios.h
+.Sh DESCRIPTION
+This describes a general terminal line discipline that is
+supported on tty asynchronous communication ports.
+.Ss Opening a Terminal Device File
+When a terminal file is opened, it normally causes the process to wait
+until a connection is established.
+For most hardware, the presence of a connection is indicated by the assertion
+of the hardware
+.Dv CARRIER line .
+If the termios structure associated with the terminal file has the
+.Dv CLOCAL
+flag set in the cflag, or if the
+.Dv O_NONBLOCK
+flag is set
+in the
+.Xr open 2
+call, then the open will succeed even without
+a connection being present.
+In practice, applications
+seldom open these files; they are opened by special programs, such
+as
+.Xr getty 8
+or
+.Xr sshd 8 ,
+and become
+an application's standard input, output, and error files.
+.Ss Job Control in a Nutshell
+Every process is associated with a particular process group and session.
+The grouping is hierarchical: every member of a particular process group is a
+member of the same session.
+This structuring is used in managing groups of related processes for purposes
+of
+.\" .Gw "job control" ;
+.Em "job control" ;
+that is, the
+ability from the keyboard (or from program control) to simultaneously
+stop or restart
+a complex command (a command composed of one or more related
+processes).
+The grouping into process groups allows delivering of signals that stop or
+start the group as a whole, along with arbitrating which process group has
+access to the single controlling terminal.
+The grouping at a higher layer into sessions is to restrict
+the job control related signals and system calls to within processes
+resulting from a particular instance of a "login".
+Typically, a session is created when a user logs in, and the login terminal
+is set up to be the controlling terminal; all processes spawned from that
+login shell are in the same session, and inherit the controlling
+terminal.
+A job control shell
+operating interactively (that is, reading commands from a terminal)
+normally groups related processes together by placing them into the
+same process group.
+A set of processes in the same process group is collectively referred to as
+a "job".
+When the foreground process group of the terminal is the same as the process
+group of a particular job, that job is said to be in the "foreground".
+When the process group of the terminal is different than the process group of
+a job (but is still the controlling terminal), that job is said
+to be in the "background".
+Normally the shell reads a command and starts the job that implements that
+command.
+If the command is to be started in the foreground (typical), it sets the
+process group of the terminal to the process group of the started job, waits
+for the job to complete, and then sets the process group of the terminal
+back to its own process group (it puts itself into the foreground).
+If the job is to be started in the background (as denoted by the shell
+operator "&"), it never changes the process group of the terminal and doesn't
+wait for the job to complete (that is, it immediately attempts to read the next
+command).
+If the job is started in the foreground, the user may type a key (usually
+.Ql \&^Z )
+which generates the terminal stop signal
+.Pq Dv SIGTSTP
+and has the effect of stopping the entire job.
+The shell will notice that the job stopped, and will resume running after
+placing itself in the foreground.
+The shell also has commands for placing stopped jobs in the background,
+and for placing stopped or background jobs into the foreground.
+.Ss Orphaned Process Groups
+An orphaned process group is a process group that has no process
+whose parent is in a different process group, yet is in the same
+session.
+Conceptually it means a process group that doesn't have
+a parent that could do anything if it were to be stopped.
+For example, the initial login shell is typically in an orphaned
+process group.
+Orphaned process groups are immune to keyboard generated stop
+signals and job control signals resulting from reads or writes to the
+controlling terminal.
+.Ss The Controlling Terminal
+A terminal may belong to a process as its controlling terminal.
+Each process of a session that has a controlling terminal has the same
+controlling terminal.
+A terminal may be the controlling terminal for at most one session.
+The controlling terminal for a session is allocated by the session leader
+by issuing the
+.Dv TIOCSCTTY
+ioctl.
+A controlling terminal is never acquired by merely opening a terminal device
+file.
+When a controlling terminal becomes
+associated with a session, its foreground process group is set to
+the process group of the session leader.
+.Pp
+The controlling terminal is inherited by a child process during a
+.Xr fork 2
+function call.
+A process relinquishes its controlling terminal when it creates a new session
+with the
+.Xr setsid 2
+function; other processes remaining in the old session that had this terminal
+as their controlling terminal continue to have it.
+A process does not relinquish its
+controlling terminal simply by closing all of its file descriptors
+associated with the controlling terminal if other processes continue to
+have it open.
+.Pp
+When a controlling process terminates, the controlling terminal is
+disassociated from the current session, allowing it to be acquired by a
+new session leader.
+Subsequent access to the terminal by other processes in the earlier session
+will be denied, with attempts to access the terminal treated as if modem
+disconnect had been sensed.
+.Ss Terminal Access Control
+If a process is in the foreground process group of its controlling
+terminal, read operations are allowed.
+Any attempts by a process
+in a background process group to read from its controlling terminal
+causes a
+.Dv SIGTTIN
+signal to be sent to
+the process's group
+unless one of the
+following special cases apply: If the reading process is ignoring or
+blocking the
+.Dv SIGTTIN
+signal, or if the process group of the reading process is orphaned, the
+.Xr read 2
+returns -1 with
+.Va errno
+set to
+.Er EIO
+and no
+signal is sent.
+The default action of the
+.Dv SIGTTIN
+signal is to stop the
+process to which it is sent.
+.Pp
+If a process is in the foreground process group of its controlling
+terminal, write operations are allowed.
+Attempts by a process in a background process group to write to its
+controlling terminal will cause the process group to be sent a
+.Dv SIGTTOU
+signal unless one of the following special cases apply:
+If
+.Dv TOSTOP
+is not
+set, or if
+.Dv TOSTOP
+is set and the process is ignoring or blocking the
+.Dv SIGTTOU
+signal, the process is allowed to write to the terminal and the
+.Dv SIGTTOU
+signal is not sent.
+If
+.Dv TOSTOP
+is set, and the process group of
+the writing process is orphaned, and the writing process is not ignoring
+or blocking
+.Dv SIGTTOU ,
+the
+.Xr write 2
+returns -1 with
+.Va errno
+set to
+.Er EIO
+and no signal is sent.
+.Pp
+Certain calls that set terminal parameters are treated in the same
+fashion as write, except that
+.Dv TOSTOP
+is ignored; that is, the effect is
+identical to that of terminal writes when
+.Dv TOSTOP
+is set.
+.Ss Input Processing and Reading Data
+A terminal device associated with a terminal device file may operate in
+full-duplex mode, so that data may arrive even while output is occurring.
+Each terminal device file has associated with it an input queue, into
+which incoming data is stored by the system before being read by a
+process.
+The system imposes a limit,
+.Dv MAX_INPUT ,
+on the number of
+bytes that may be stored in the input queue.
+The behavior of the system when this limit is exceeded depends on the
+setting of the
+.Dv IMAXBEL
+flag in the termios
+.Fa c_iflag .
+If this flag is set, the terminal
+is sent an ASCII BEL
+character each time a character is received
+while the input queue is full.
+Otherwise, the input queue is flushed upon receiving the character.
+.Pp
+Two general kinds of input processing are available, determined by
+whether the terminal device file is in canonical mode or noncanonical
+mode.
+Additionally, input characters are processed according to the
+.Fa c_iflag
+and
+.Fa c_lflag
+fields.
+Such processing can include echoing, which in general means transmitting
+input characters immediately back to the terminal when they are received
+from the terminal.
+This is useful for terminals that can operate in full-duplex mode.
+.Pp
+The manner in which data is provided to a process reading from a terminal
+device file is dependent on whether the terminal device file is in
+canonical or noncanonical mode.
+.Pp
+Another dependency is whether the
+.Dv O_NONBLOCK
+flag is set by
+.Fn open
+or
+.Fn fcntl .
+If the
+.Dv O_NONBLOCK
+flag is clear, then the read request is
+blocked until data is available or a signal has been received.
+If the
+.Dv O_NONBLOCK
+flag is set, then the read request is completed, without
+blocking, in one of three ways:
+.Bl -enum -offset indent
+.It
+If there is enough data available to satisfy the entire request,
+and the read completes successfully the number of bytes read is returned.
+.It
+If there is not enough data available to satisfy the entire
+request, and the read completes successfully, having read as
+much data as possible, the number of bytes read is returned.
+.It
+If there is no data available, the read returns -1, with
+.Va errno
+set to
+.Er EAGAIN .
+.El
+.Pp
+When data is available depends on whether the input processing mode is
+canonical or noncanonical.
+.Ss Canonical Mode Input Processing
+In canonical mode input processing, terminal input is processed in units
+of lines.
+A line is delimited by a newline
+.Ql \&\en
+character, an end-of-file
+.Pq Dv EOF
+character, or an end-of-line
+.Pq Dv EOL
+character.
+See the
+.Sx "Special Characters"
+section for
+more information on
+.Dv EOF
+and
+.Dv EOL .
+This means that a read request will
+not return until an entire line has been typed, or a signal has been
+received.
+Also, no matter how many bytes are requested in the read call,
+at most one line is returned.
+It is not, however, necessary to read a whole line at once; any number
+of bytes, even one, may be requested in a read without losing information.
+.Pp
+.Dv MAX_CANON
+is a limit on the
+number of bytes in a line.
+The behavior of the system when this limit is
+exceeded is the same as when the input queue limit
+.Dv MAX_INPUT ,
+is exceeded.
+.Pp
+Erase and kill processing occur when either of two special characters,
+the
+.Dv ERASE
+and
+.Dv KILL
+characters (see the
+.Sx "Special Characters section" ) ,
+is received.
+This processing affects data in the input queue that has not yet been
+delimited by a newline
+.Dv NL ,
+.Dv EOF ,
+or
+.Dv EOL
+character.
+This un-delimited data makes up the current line.
+The
+.Dv ERASE
+character deletes the last
+character in the current line, if there is any.
+The
+.Dv KILL
+character
+deletes all data in the current line, if there is any.
+The
+.Dv ERASE
+and
+.Dv KILL
+characters have no effect if there is no data in the current line.
+The
+.Dv ERASE
+and
+.Dv KILL
+characters themselves are not placed in the input
+queue.
+.Ss Noncanonical Mode Input Processing
+In noncanonical mode input processing, input bytes are not assembled into
+lines, and erase and kill processing does not occur.
+The values of the
+.Dv VMIN
+and
+.Dv VTIME
+members of the
+.Fa c_cc
+array are used to determine how to
+process the bytes received.
+.Pp
+.Dv VMIN
+represents the minimum number of bytes that should be received when
+the
+.Xr read 2
+function successfully returns.
+.Dv VTIME
+is a timer of 0.1 second
+granularity that is used to time out bursty and short term data
+transmissions.
+If
+.Dv VMIN
+is greater than
+.Dv MAX_INPUT ,
+the response to the
+request is undefined.
+The four possible values for
+.Dv VMIN
+and
+.Dv VTIME
+and
+their interactions are described below.
+.Ss "Case A: VMIN > 0, VTIME > 0"
+In this case
+.Dv VTIME
+serves as an inter-byte timer and is activated after
+the first byte is received.
+Since it is an inter-byte timer, it is reset after a byte is received.
+The interaction between
+.Dv VMIN
+and
+.Dv VTIME
+is as
+follows: as soon as one byte is received, the inter-byte timer is
+started.
+If
+.Dv VMIN
+bytes are received before the inter-byte timer expires
+(remember that the timer is reset upon receipt of each byte), the read is
+satisfied.
+If the timer expires before
+.Dv VMIN
+bytes are received, the
+characters received to that point are returned to the user.
+Note that if
+.Dv VTIME
+expires at least one byte is returned because the timer would
+not have been enabled unless a byte was received.
+In this case
+.Pf \&( Dv VMIN
+> 0,
+.Dv VTIME
+> 0) the read blocks until the
+.Dv VMIN
+and
+.Dv VTIME
+mechanisms are
+activated by the receipt of the first byte, or a signal is received.
+If data is in the buffer at the time of the read(), the result is as
+if data had been received immediately after the read().
+.Ss "Case B: VMIN > 0, VTIME = 0"
+In this case, since the value of
+.Dv VTIME
+is zero, the timer plays no role
+and only
+.Dv VMIN
+is significant.
+A pending read is not satisfied until
+.Dv VMIN
+bytes are received (i.e., the pending read blocks until
+.Dv VMIN
+bytes
+are received), or a signal is received.
+A program that uses this case to read record-based terminal I/O
+may block indefinitely in the read
+operation.
+.Ss "Case C: VMIN = 0, VTIME > 0"
+In this case, since
+.Dv VMIN
+= 0,
+.Dv VTIME
+no longer represents an inter-byte
+timer.
+It now serves as a read timer that is activated as soon as the
+read function is processed.
+A read is satisfied as soon as a single byte is received or the read
+timer expires.
+Note that in this case if the timer expires, no bytes are returned.
+If the timer does not expire, the only way the read can be satisfied is
+if a byte is received.
+In this case the read will not block indefinitely waiting for a byte; if
+no byte is received within
+.Dv VTIME Ns *0.1
+seconds after the read is initiated,
+the read returns a value of zero, having read no data.
+If data is in the buffer at the time of the read, the timer is started
+as if data had been received immediately after the read.
+.Ss Case D: VMIN = 0, VTIME = 0
+The minimum of either the number of bytes requested or the number of
+bytes currently available is returned without waiting for more
+bytes to be input.
+If no characters are available, read returns a value of zero, having
+read no data.
+.Ss Writing Data and Output Processing
+When a process writes one or more bytes to a terminal device file, they
+are processed according to the
+.Fa c_oflag
+field (see the
+.Sx Output Modes
+section).
+The
+implementation may provide a buffering mechanism; as such, when a call to
+write() completes, all of the bytes written have been scheduled for
+transmission to the device, but the transmission will not necessarily
+have been completed.
+.\" See also .Sx "6.4.2" for the effects of
+.\" .Dv O_NONBLOCK
+.\" on write.
+.Ss Special Characters
+Certain characters have special functions on input or output or both.
+These functions are summarized as follows:
+.Bl -tag -width indent
+.It Dv INTR
+Special character on input and is recognized if the
+.Dv ISIG
+flag (see the
+.Sx "Local Modes"
+section) is enabled.
+Generates a
+.Dv SIGINT
+signal which is sent to all processes in the foreground
+process group for which the terminal is the controlling
+terminal.
+If
+.Dv ISIG
+is set, the
+.Dv INTR
+character is
+discarded when processed.
+.It Dv QUIT
+Special character on input and is recognized if the
+.Dv ISIG
+flag is enabled.
+Generates a
+.Dv SIGQUIT
+signal which is
+sent to all processes in the foreground process group
+for which the terminal is the controlling terminal.
+If
+.Dv ISIG
+is set, the
+.Dv QUIT
+character is discarded when
+processed.
+.It Dv ERASE
+Special character on input and is recognized if the
+.Dv ICANON
+flag is set.
+Erases the last character in the current line; see
+.Sx "Canonical Mode Input Processing" .
+It does not erase beyond the start of a line, as delimited by a
+.Dv NL ,
+.Dv EOF ,
+or
+.Dv EOL
+character.
+If
+.Dv ICANON
+is set, the
+.Dv ERASE
+character is
+discarded when processed.
+.It Dv KILL
+Special character on input and is recognized if the
+.Dv ICANON
+flag is set.
+Deletes the entire line, as delimited by a
+.Dv NL ,
+.Dv EOF ,
+or
+.Dv EOL
+character.
+If
+.Dv ICANON
+is set, the
+.Dv KILL
+character is discarded when processed.
+.It Dv EOF
+Special character on input and is recognized if the
+.Dv ICANON
+flag is set.
+When received, all the bytes waiting to be read are immediately passed to the
+process, without waiting for a newline, and the
+.Dv EOF
+is discarded.
+Thus, if there are no bytes waiting (that
+is, the
+.Dv EOF
+occurred at the beginning of a line), a byte
+count of zero is returned from the read(),
+representing an end-of-file indication.
+If
+.Dv ICANON
+is
+set, the
+.Dv EOF
+character is discarded when processed.
+.It Dv NL
+Special character on input and is recognized if the
+.Dv ICANON
+flag is set.
+It is the line delimiter
+.Ql \&\en .
+.It Dv EOL
+Special character on input and is recognized if the
+.Dv ICANON
+flag is set.
+Is an additional line delimiter,
+like
+.Dv NL .
+.It Dv SUSP
+If the
+.Dv ISIG
+flag is enabled, receipt of the
+.Dv SUSP
+character causes a
+.Dv SIGTSTP
+signal to be sent to all processes in the
+foreground process group for which the terminal is the
+controlling terminal, and the
+.Dv SUSP
+character is
+discarded when processed.
+.It Dv STOP
+Special character on both input and output and is
+recognized if the
+.Dv IXON
+(output control) or
+.Dv IXOFF
+(input
+control) flag is set.
+Can be used to temporarily suspend output.
+It is useful with fast terminals to prevent output from disappearing
+before it can be read.
+If
+.Dv IXON
+is set, the
+.Dv STOP
+character is discarded when
+processed.
+.It Dv START
+Special character on both input and output and is
+recognized if the
+.Dv IXON
+(output control) or
+.Dv IXOFF
+(input
+control) flag is set.
+Can be used to resume output that has been suspended by a
+.Dv STOP
+character.
+If
+.Dv IXON
+is set, the
+.Dv START
+character is discarded when processed.
+.It Dv CR
+Special character on input and is recognized if the
+.Dv ICANON
+flag is set; it is the
+.Ql \&\er ,
+as denoted in the C Standard {2}.
+When
+.Dv ICANON
+and
+.Dv ICRNL
+are set and
+.Dv IGNCR
+is not set, this character is translated into a
+.Dv NL ,
+and
+has the same effect as a
+.Dv NL
+character.
+.El
+.Pp
+The following special characters are extensions defined by this
+system and are not a part of 1003.1 termios.
+.Bl -tag -width indent
+.It Dv EOL2
+Secondary
+.Dv EOL
+character.
+Same function as
+.Dv EOL .
+.It Dv WERASE
+Special character on input and is recognized if the
+.Dv ICANON
+flag is set.
+Erases the last word in the current
+line according to one of two algorithms.
+If the
+.Dv ALTWERASE
+flag is not set, first any preceding whitespace is
+erased, and then the maximal sequence of non-whitespace
+characters.
+If
+.Dv ALTWERASE
+is set, first any preceding
+whitespace is erased, and then the maximal sequence
+of alphabetic/underscores or non alphabetic/underscores.
+As a special case in this second algorithm, the first previous
+non-whitespace character is skipped in determining
+whether the preceding word is a sequence of
+alphabetic/underscores.
+This sounds confusing but turns out to be quite practical.
+.It Dv REPRINT
+Special character on input and is recognized if the
+.Dv ICANON
+flag is set.
+Causes the current input edit line
+to be retyped.
+.It Dv DSUSP
+Has similar actions to the
+.Dv SUSP
+character, except that
+the
+.Dv SIGTSTP
+signal is delivered when one of the processes
+in the foreground process group issues a read() to the
+controlling terminal.
+.It Dv LNEXT
+Special character on input and is recognized if the
+.Dv IEXTEN
+flag is set.
+Receipt of this character causes the next character to be taken literally.
+.It Dv DISCARD
+Special character on input and is recognized if the
+.Dv IEXTEN
+flag is set.
+Receipt of this character toggles the flushing of terminal output.
+.It Dv STATUS
+Special character on input and is recognized if the
+.Dv ICANON
+flag is set.
+Receipt of this character causes a
+.Dv SIGINFO
+signal to be sent to the foreground process group of the
+terminal.
+Also, if the
+.Dv NOKERNINFO
+flag is not set, it
+causes the kernel to write a status message to the terminal
+that displays the current load average, the name of the
+command in the foreground, its process ID, the symbolic
+wait channel, the number of user and system seconds used,
+the percentage of CPU the process is getting, and the resident
+set size of the process.
+.El
+.Pp
+The
+.Dv NL
+and
+.Dv CR
+characters cannot be changed.
+The values for all the remaining characters can be set and are
+described later in the document under
+.Sx Special Control Characters .
+.Pp
+Special
+character functions associated with changeable special control characters
+can be disabled individually by setting their value to
+.Dv _POSIX_VDISABLE ;
+see
+.Sx "Special Control Characters" .
+.Pp
+If two or more special characters have the same value, the function
+performed when that character is received is undefined.
+.Ss Modem Disconnect
+If a modem disconnect is detected by the terminal interface for a
+controlling terminal, and if
+.Dv CLOCAL
+is not set in the
+.Fa c_cflag
+field for
+the terminal, the
+.Dv SIGHUP
+signal is sent to the controlling
+process associated with the terminal.
+Unless other arrangements have been made, this causes the controlling
+process to terminate.
+Any subsequent call to the read() function returns the value zero,
+indicating end of file.
+Thus, processes that read a terminal file and test for end-of-file can
+terminate appropriately after a disconnect.
+.\" If the
+.\" .Er EIO
+.\" condition specified in 6.1.1.4 that applies
+.\" when the implementation supports job control also exists, it is
+.\" unspecified whether the
+.\" .Dv EOF
+.\" condition or the
+.\" .Pf [ Dv EIO
+.\" ] is returned.
+Any
+subsequent write() to the terminal device returns -1, with
+.Va errno
+set to
+.Er EIO ,
+until the device is closed.
+.Sh General Terminal Interface
+.Ss Closing a Terminal Device File
+The last process to close a terminal device file causes any output
+to be sent to the device and any input to be discarded.
+Then, if
+.Dv HUPCL
+is set in the control modes, and the communications port supports a
+disconnect function, the terminal device performs a disconnect.
+.Ss Parameters That Can Be Set
+Routines that need to control certain terminal I/O characteristics
+do so by using the termios structure as defined in the header
+.In termios.h .
+This structure contains minimally four scalar elements of bit flags
+and one array of special characters.
+The scalar flag elements are
+named:
+.Fa c_iflag ,
+.Fa c_oflag ,
+.Fa c_cflag ,
+and
+.Fa c_lflag .
+The character array is named
+.Fa c_cc ,
+and its maximum index is
+.Dv NCCS .
+.Ss Input Modes
+Values of the
+.Fa c_iflag
+field describe the basic
+terminal input control, and are composed of
+following masks:
+.Pp
+.Bl -tag -width IMAXBEL -offset indent -compact
+.It Dv IGNBRK
+/* ignore BREAK condition */
+.It Dv BRKINT
+/* map BREAK to SIGINT */
+.It Dv IGNPAR
+/* ignore (discard) parity errors */
+.It Dv PARMRK
+/* mark parity and framing errors */
+.It Dv INPCK
+/* enable checking of parity errors */
+.It Dv ISTRIP
+/* strip 8th bit off chars */
+.It Dv INLCR
+/* map NL into CR */
+.It Dv IGNCR
+/* ignore CR */
+.It Dv ICRNL
+/* map CR to NL (ala CRMOD) */
+.It Dv IXON
+/* enable output flow control */
+.It Dv IXOFF
+/* enable input flow control */
+.It Dv IXANY
+/* any char will restart after stop */
+.It Dv IMAXBEL
+/* ring bell on input queue full */
+.It Dv IUCLC
+/* translate upper case to lower case */
+.El
+.Pp
+In the context of asynchronous serial data transmission, a break
+condition is defined as a sequence of zero-valued bits that continues for
+more than the time to send one byte.
+The entire sequence of zero-valued bits is interpreted as a single break
+condition, even if it continues for a time equivalent to more than one byte.
+In contexts other than asynchronous serial data transmission the definition
+of a break condition is implementation defined.
+.Pp
+If
+.Dv IGNBRK
+is set, a break condition detected on input is ignored, that
+is, not put on the input queue and therefore not read by any process.
+If
+.Dv IGNBRK
+is not set and
+.Dv BRKINT
+is set, the break condition flushes the
+input and output queues and if the terminal is the controlling terminal
+of a foreground process group, the break condition generates a
+single
+.Dv SIGINT
+signal to that foreground process group.
+If neither
+.Dv IGNBRK
+nor
+.Dv BRKINT
+is set, a break condition is read as a single
+.Ql \&\e0 ,
+or if
+.Dv PARMRK
+is set, as
+.Ql \&\e377 ,
+.Ql \&\e0 ,
+.Ql \&\e0 .
+.Pp
+If
+.Dv IGNPAR
+is set, a byte with a framing or parity error (other than
+break) is ignored.
+.Pp
+If
+.Dv PARMRK
+is set, and
+.Dv IGNPAR
+is not set, a byte with a framing or parity
+error (other than break) is given to the application as the
+three-character sequence
+.Ql \&\e377 ,
+.Ql \&\e0 ,
+X, where
+.Ql \&\e377 ,
+.Ql \&\e0
+is a two-character
+flag preceding each sequence and X is the data of the character received
+in error.
+To avoid ambiguity in this case, if
+.Dv ISTRIP
+is not set, a valid
+character of
+.Ql \&\e377
+is given to the application as
+.Ql \&\e377 ,
+.Ql \&\e377 .
+If
+neither
+.Dv PARMRK
+nor
+.Dv IGNPAR
+is set, a framing or parity error (other than
+break) is given to the application as a single character
+.Ql \&\e0 .
+.Pp
+If
+.Dv INPCK
+is set, input parity checking is enabled.
+If
+.Dv INPCK
+is not set,
+input parity checking is disabled, allowing output parity generation
+without input parity errors.
+Note that whether input parity checking is enabled or disabled is independent
+of whether parity detection is enabled or disabled (see
+.Sx "Control Modes" ) .
+If parity detection is enabled but input
+parity checking is disabled, the hardware to which the terminal is
+connected recognizes the parity bit, but the terminal special file
+does not check whether this bit is set correctly or not.
+.Pp
+If
+.Dv ISTRIP
+is set, valid input bytes are first stripped to seven bits,
+otherwise all eight bits are processed.
+.Pp
+If
+.Dv INLCR
+is set, a received
+.Dv NL
+character is translated into a
+.Dv CR
+character.
+If
+.Dv IGNCR
+is set, a received
+.Dv CR
+character is ignored (not
+read).
+If
+.Dv IGNCR
+is not set and
+.Dv ICRNL
+is set, a received
+.Dv CR
+character is
+translated into a
+.Dv NL
+character.
+.Pp
+If
+.Dv IXON
+is set, start/stop output control is enabled.
+A received
+.Dv STOP
+character suspends output and a received
+.Dv START
+character
+restarts output.
+If
+.Dv IXANY
+is also set, then any character may
+restart output.
+When
+.Dv IXON
+is set,
+.Dv START
+and
+.Dv STOP
+characters are not
+read, but merely perform flow control functions.
+When
+.Dv IXON
+is not set,
+the
+.Dv START
+and
+.Dv STOP
+characters are read.
+.Pp
+If
+.Dv IXOFF
+is set, start/stop input control is enabled.
+The system shall transmit one or more
+.Dv STOP
+characters, which are intended to cause the
+terminal device to stop transmitting data, as needed to prevent the input
+queue from overflowing and causing the undefined behavior described in
+.Sx "Input Processing and Reading Data" ,
+and shall transmit one or more
+.Dv START
+characters, which are
+intended to cause the terminal device to resume transmitting data, as
+soon as the device can continue transmitting data without risk of
+overflowing the input queue.
+The precise conditions under which
+.Dv STOP
+and
+.Dv START
+characters are transmitted are implementation defined.
+.Pp
+If
+.Dv IMAXBEL
+is set and the input queue is full, subsequent input shall cause an
+ASCII BEL character to be transmitted to
+the output queue.
+.Pp
+If
+.Dv IUCLC
+is set, characters will be translated from upper to lower case on
+input.
+.Pp
+The initial input control value after open() is implementation defined.
+.Ss Output Modes
+Values of the
+.Fa c_oflag
+field describe the basic terminal output control,
+and are composed of the following masks:
+.Pp
+.Bl -tag -width OXTABS -offset indent -compact
+.It Dv OPOST
+/* enable following output processing */
+.It Dv ONLCR
+/* map NL to CR-NL (ala
+.Dv CRMOD )
+*/
+.It Dv OXTABS
+/* expand tabs to spaces */
+.It Dv ONOEOT
+/* discard
+.Dv EOT Ns 's
+.Pq ^D
+on output */
+.It Dv OCRNL
+/* map CR to NL */
+.It Dv OLCUC
+/* translate lower case to upper case */
+.It Dv ONOCR
+/* No CR output at column 0 */
+.It Dv ONLRET
+/* NL performs the CR function */
+.El
+.Pp
+If
+.Dv OPOST
+is set, the remaining flag masks are interpreted as follows;
+otherwise characters are transmitted without change.
+.Pp
+If
+.Dv ONLCR
+is set, newlines are translated to carriage return, linefeeds.
+.Pp
+If
+.Dv OXTABS
+is set, tabs are expanded to the appropriate number of
+spaces (assuming 8 column tab stops).
+.Pp
+If
+.Dv ONOEOT
+is set, ASCII EOT characters are discarded on output.
+.Pp
+If
+.Dv OCRNL
+is set, carriage returns are translated to newlines.
+.Pp
+If
+.Dv OLCUC
+is set, lower case is translated to upper case on output.
+.Pp
+If
+.Dv ONOCR
+is set, no CR character is output when at column 0.
+.Pp
+If
+.Dv ONLRET
+is set, NL also performs CR on output, and reset current
+column to 0.
+.Ss Control Modes
+Values of the
+.Fa c_cflag
+field describe the basic
+terminal hardware control, and are composed of the
+following masks.
+Not all values
+specified are supported by all hardware.
+.Pp
+.Bl -tag -width CRTSXIFLOW -offset indent -compact
+.It Dv CSIZE
+/* character size mask */
+.It Dv CS5
+/* 5 bits (pseudo) */
+.It Dv CS6
+/* 6 bits */
+.It Dv CS7
+/* 7 bits */
+.It Dv CS8
+/* 8 bits */
+.It Dv CSTOPB
+/* send 2 stop bits */
+.It Dv CREAD
+/* enable receiver */
+.It Dv PARENB
+/* parity enable */
+.It Dv PARODD
+/* odd parity, else even */
+.It Dv HUPCL
+/* hang up on last close */
+.It Dv CLOCAL
+/* ignore modem status lines */
+.It Dv CCTS_OFLOW
+/*
+.Dv CTS
+flow control of output */
+.It Dv CRTSCTS
+/* same as
+.Dv CCTS_OFLOW
+*/
+.It Dv CRTS_IFLOW
+/* RTS flow control of input */
+.It Dv MDMBUF
+/* flow control output via Carrier */
+.El
+.Pp
+The
+.Dv CSIZE
+bits specify the byte size in bits for both transmission and
+reception.
+The
+.Fa c_cflag
+is masked with
+.Dv CSIZE
+and compared with the
+values
+.Dv CS5 ,
+.Dv CS6 ,
+.Dv CS7 ,
+or
+.Dv CS8 .
+This size does not include the parity bit, if any.
+If
+.Dv CSTOPB
+is set, two stop bits are used, otherwise one stop bit.
+For example, at 110 baud, two stop bits are normally used.
+.Pp
+If
+.Dv CREAD
+is set, the receiver is enabled.
+Otherwise, no character is received.
+Not all hardware supports this bit.
+In fact, this flag is pretty silly and if it were not part of the
+.Nm
+specification it would be omitted.
+.Pp
+If
+.Dv PARENB
+is set, parity generation and detection are enabled and a parity
+bit is added to each character.
+If parity is enabled,
+.Dv PARODD
+specifies
+odd parity if set, otherwise even parity is used.
+.Pp
+If
+.Dv HUPCL
+is set, the modem control lines for the port are lowered
+when the last process with the port open closes the port or the process
+terminates.
+The modem connection is broken.
+.Pp
+If
+.Dv CLOCAL
+is set, a connection does not depend on the state of the modem
+status lines.
+If
+.Dv CLOCAL
+is clear, the modem status lines are
+monitored.
+.Pp
+Under normal circumstances, a call to the open() function waits for
+the modem connection to complete.
+However, if the
+.Dv O_NONBLOCK
+flag is set
+or if
+.Dv CLOCAL
+has been set, the open() function returns
+immediately without waiting for the connection.
+.Pp
+If
+.Dv CCTS_OFLOW
+.Pf ( Dv CRTSCTS )
+is set,
+transmission is stopped when
+.Dv CTS
+is lowered and resumed when
+.Dv CTS
+is raised.
+.Pp
+If
+.Dv MDMBUF
+is set then output flow control is controlled by the state
+of Carrier Detect.
+.Pp
+If the object for which the control modes are set is not an asynchronous
+serial connection, some of the modes may be ignored; for example, if an
+attempt is made to set the baud rate on a network connection to a
+terminal on another host, the baud rate may or may not be set on the
+connection between that terminal and the machine it is directly connected
+to.
+.Ss Local Modes
+Values of the
+.Fa c_lflag
+field describe the control of
+various functions, and are composed of the following
+masks.
+.Pp
+.Bl -tag -width NOKERNINFO -offset indent -compact
+.It Dv ECHOKE
+/* visual erase for line kill */
+.It Dv ECHOE
+/* visually erase chars */
+.It Dv ECHOK
+/* echo NL after line kill */
+.It Dv ECHO
+/* enable echoing */
+.It Dv ECHONL
+/* echo
+.Dv NL
+even if
+.Dv ECHO
+is off */
+.It Dv ECHOPRT
+/* visual erase mode for hardcopy */
+.It Dv ECHOCTL
+/* echo control chars as ^(Char) */
+.It Dv ISIG
+/* enable signals
+.Dv INTR ,
+.Dv QUIT ,
+.Dv [D]SUSP
+*/
+.It Dv ICANON
+/* canonicalize input lines */
+.It Dv ALTWERASE
+/* use alternate
+.Dv WERASE
+algorithm */
+.It Dv IEXTEN
+/* enable
+.Dv DISCARD
+and
+.Dv LNEXT
+*/
+.It Dv EXTPROC
+/* external processing */
+.It Dv TOSTOP
+/* stop background jobs from output */
+.It Dv FLUSHO
+/* output being flushed (state) */
+.It Dv NOKERNINFO
+/* no kernel output from
+.Dv VSTATUS
+*/
+.It Dv PENDIN
+/* XXX retype pending input (state) */
+.It Dv NOFLSH
+/* don't flush after interrupt */
+.It Dv XCASE
+/* canonical upper/lower case */
+.El
+.Pp
+If
+.Dv ECHO
+is set, input characters are echoed back to the terminal.
+If
+.Dv ECHO
+is not set, input characters are not echoed.
+.Pp
+If
+.Dv ECHOE
+and
+.Dv ICANON
+are set, the
+.Dv ERASE
+character causes the terminal
+to erase the last character in the current line from the display, if
+possible.
+If there is no character to erase, an implementation may echo
+an indication that this was the case or do nothing.
+.Pp
+If
+.Dv ECHOK
+and
+.Dv ICANON
+are set, the
+.Dv KILL
+character causes
+the current line to be discarded and the system echoes the
+.Ql \&\en
+character after the
+.Dv KILL
+character.
+.Pp
+If
+.Dv ECHOKE
+and
+.Dv ICANON
+are set, the
+.Dv KILL
+character causes the current line to be discarded and the system causes
+the terminal to erase the line from the display.
+.Pp
+If
+.Dv ECHOPRT
+and
+.Dv ICANON
+are set, the system assumes that the display is a printing device and prints a
+backslash and the erased characters when processing
+.Dv ERASE
+characters, followed by a forward slash.
+.Pp
+If
+.Dv ECHOCTL
+is set, the system echoes control characters
+in a visible fashion using a caret followed by the control character.
+.Pp
+If
+.Dv ALTWERASE
+is set, the system uses an alternative algorithm
+for determining what constitutes a word when processing
+.Dv WERASE
+characters (see
+.Dv WERASE ) .
+.Pp
+If
+.Dv ECHONL
+and
+.Dv ICANON
+are set, the
+.Ql \&\en
+character echoes even if
+.Dv ECHO
+is not set.
+.Pp
+If
+.Dv ICANON
+is set, canonical processing is enabled.
+This enables the erase and kill edit functions, and the assembly of input
+characters into lines delimited by
+.Dv NL ,
+.Dv EOF ,
+and
+.Dv EOL ,
+as described in
+.Sx "Canonical Mode Input Processing" .
+.Pp
+If
+.Dv ICANON
+is not set, read requests are satisfied directly from the input
+queue.
+A read is not satisfied until at least
+.Dv VMIN
+bytes have been received or the timeout value
+.Dv VTIME
+expired between bytes.
+The time value represents tenths of seconds.
+See
+.Sx "Noncanonical Mode Input Processing"
+for more details.
+.Pp
+If
+.Dv ISIG
+is set, each input character is checked against the special
+control characters
+.Dv INTR ,
+.Dv QUIT ,
+and
+.Dv SUSP
+(job control only).
+If an input character matches one of these control characters, the function
+associated with that character is performed.
+If
+.Dv ISIG
+is not set, no
+checking is done.
+Thus these special input functions are possible only
+if
+.Dv ISIG
+is set.
+.Pp
+If
+.Dv IEXTEN
+is set, implementation-defined functions are recognized
+from the input data.
+How
+.Dv IEXTEN
+being set
+interacts with
+.Dv ICANON ,
+.Dv ISIG ,
+.Dv IXON ,
+or
+.Dv IXOFF
+is implementation defined.
+If
+.Dv IEXTEN
+is not set, then
+implementation-defined functions are not recognized, and the
+corresponding input characters are not processed as described for
+.Dv ICANON ,
+.Dv ISIG ,
+.Dv IXON ,
+and
+.Dv IXOFF .
+.Pp
+If
+.Dv NOFLSH
+is set, the normal flush of the input and output queues
+associated with the
+.Dv INTR ,
+.Dv QUIT ,
+and
+.Dv SUSP
+characters
+is not done.
+.Pp
+If
+.Dv XCASE
+and
+.Dv ICANON
+is set, an upper case character is preserved on input if prefixed by
+a \e character.
+In addition, this prefix is added to upper case characters on output.
+.Pp
+In addition, the following special character translations are in effect:
+.Bl -column "for:" "use:" -offset indent
+.It Em "for:" Ta Em "use:"
+.It Dv ` Ta \&\e'
+.It Dv \&| Ta \&\e!
+.It Dv ~ Ta \&\e^
+.It Dv { Ta \&\e(
+.It Dv } Ta \&\e)
+.It Dv \&\e Ta \&\e\e
+.El
+.Pp
+If
+.Dv TOSTOP
+is set, the signal
+.Dv SIGTTOU
+is sent to the process group of a process that tries to write to
+its controlling terminal if it is not in the foreground process group for
+that terminal.
+This signal, by default, stops the members of the process group.
+Otherwise, the output generated by that process is output to the
+current output stream.
+Processes that are blocking or ignoring
+.Dv SIGTTOU
+signals are excepted and allowed to produce output and the
+.Dv SIGTTOU
+signal
+is not sent.
+.Pp
+If
+.Dv NOKERNINFO
+is set, the kernel does not produce a status message
+when processing
+.Dv STATUS
+characters (see
+.Dv STATUS ) .
+.Ss Special Control Characters
+The special control characters values are defined by the array
+.Fa c_cc .
+This table lists the array index, the corresponding special character,
+and the system default value.
+For an accurate list of the system defaults, consult the header file
+.In sys/ttydefaults.h .
+.Bl -column "Index Name" "Special Character" -offset indent
+.It Em "Index Name" Ta Em "Special Character" Ta Em "Default Value"
+.It Dv VEOF Ta EOF Ta \&^D
+.It Dv VEOL Ta EOL Ta _POSIX_VDISABLE
+.It Dv VEOL2 Ta EOL2 Ta _POSIX_VDISABLE
+.It Dv VERASE Ta ERASE Ta \&^? Ql \&\e177
+.It Dv VWERASE  Ta WERASE Ta \&^W
+.It Dv VKILL Ta KILL Ta \&^U
+.It Dv VREPRINT Ta REPRINT Ta \&^R
+.It Dv VINTR Ta INTR Ta \&^C
+.It Dv VQUIT Ta QUIT Ta \&^\e\e Ql \&\e34
+.It Dv VSUSP Ta SUSP Ta \&^Z
+.It Dv VDSUSP Ta DSUSP Ta \&^Y
+.It Dv VSTART Ta START Ta \&^Q
+.It Dv VSTOP Ta STOP Ta \&^S
+.It Dv VLNEXT Ta LNEXT Ta \&^V
+.It Dv VDISCARD Ta DISCARD Ta \&^O
+.It Dv VMIN Ta --- Ta \&1
+.It Dv VTIME Ta --- Ta \&0
+.It Dv VSTATUS Ta STATUS Ta \&^T
+.El
+.Pp
+If the
+value of one of the changeable special control characters (see
+.Sx "Special Characters" )
+is
+.Dv _POSIX_VDISABLE ,
+that function is disabled; that is, no input
+data is recognized as the disabled special character.
+If
+.Dv ICANON
+is
+not set, the value of
+.Dv _POSIX_VDISABLE
+has no special meaning for the
+.Dv VMIN
+and
+.Dv VTIME
+entries of the
+.Fa c_cc
+array.
+.Pp
+The initial values of the flags and control characters
+after open() is set according to the values in the header
+.In sys/ttydefaults.h .
+.Sh SEE ALSO
+.Xr tcgetattr 3 ,
+.Xr tcsetattr 3

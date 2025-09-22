@@ -1,0 +1,160 @@
+.\"	$OpenBSD: hash.3,v 1.21 2022/03/31 17:27:15 naddy Exp $
+.\"	$NetBSD: hash.3,v 1.6 1996/05/03 21:26:50 cgd Exp $
+.\"
+.\" Copyright (c) 1997, Phillip F Knaack. All rights reserved.
+.\"
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)hash.3	8.6 (Berkeley) 8/18/94
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt HASH 3
+.Os
+.Sh NAME
+.Nm hash
+.Nd hash database access method
+.Sh SYNOPSIS
+.In sys/types.h
+.In db.h
+.Sh DESCRIPTION
+The
+.Fn dbopen
+routine is the library interface to database files.
+One of the supported file formats is hash files.
+The general description of the database access methods is in
+.Xr dbopen 3 .
+This manual page describes only the hash specific information.
+.Pp
+The hash data structure is an extensible, dynamic hashing scheme.
+.Pp
+The access method specific data structure provided to
+.Fn dbopen
+is defined in the
+.In db.h
+include file as follows:
+.Bd -literal -offset indent
+typedef struct {
+	unsigned int bsize;
+	unsigned int ffactor;
+	unsigned int nelem;
+	unsigned int cachesize;
+	u_int32_t (*hash)(const void *, size_t);
+	int lorder;
+} HASHINFO;
+.Ed
+.Pp
+The elements of this structure are as follows:
+.Bl -tag -width XXXXXX -offset indent
+.It Fa bsize
+.Fa bsize
+defines the hash table bucket size, and is, by default,
+the block size of the underlying filesystem.
+It may be preferable to increase the page size for disk-resident tables
+and tables with large data items.
+.It Fa ffactor
+.Fa ffactor
+indicates a desired density within the hash table.
+It is an approximation of the number of keys allowed to accumulate in any
+one bucket, determining when the hash table grows or shrinks.
+The default value is the same as
+.Fa bsize .
+.It Fa nelem
+.Fa nelem
+is an estimate of the final size of the hash table.
+If not set or set too low, hash tables will expand gracefully as keys
+are entered, although a slight performance degradation may be noticed.
+The default value is 1.
+.It Fa cachesize
+A suggested maximum size, in bytes, of the memory cache.
+This value is
+.Em only
+advisory, and the access method will allocate more memory rather
+than fail.
+.It Fa hash
+.Fa hash
+is a user defined hash function.
+Since no hash function performs equally well on all possible data, the
+user may find that the built-in hash function does poorly on a particular
+data set.
+User specified hash functions must take two arguments (a pointer to a byte
+string and a length) and return a 32-bit quantity to be used as the hash
+value.
+.It Fa lorder
+The byte order for integers in the stored database metadata.
+The number should represent the order as an integer; for example,
+big endian order would be the number 4,321.
+If
+.Fa lorder
+is 0 (no order is specified), the current host order is used.
+If the file already exists, the specified value is ignored and the
+value specified when the tree was created is used.
+.El
+.Pp
+If the file already exists (and the
+.Dv O_TRUNC
+flag is not specified), the
+values specified for the parameters
+.Fa bsize , ffactor , lorder
+and
+.Fa nelem
+are ignored and the values specified when the tree was created are used.
+.Pp
+If a hash function is specified,
+.Fn hash_open
+will attempt to determine if the hash function specified is the same as
+the one with which the database was created, and will fail if it is not.
+.Pp
+Backward compatible interfaces to the routines described in
+.Xr ndbm 3
+are provided, although these interfaces are not compatible with
+previous file formats.
+.Sh ERRORS
+The
+.Nm
+access method routines may fail and set
+.Va errno
+for any of the errors specified for the library routine
+.Xr dbopen 3 .
+.Sh SEE ALSO
+.Xr btree 3 ,
+.Xr dbopen 3 ,
+.Xr recno 3
+.Rs
+.%T "Dynamic Hash Tables"
+.%A Per-Ake Larson
+.%J Communications of the ACM
+.%D April 1988
+.Re
+.Rs
+.%T "A New Hash Package for UNIX"
+.%A Margo Seltzer
+.%J USENIX Proceedings
+.%D Winter 1991
+.Re
+.Sh BUGS
+Only big and little endian byte order is supported.

@@ -1,0 +1,2 @@
+# invalid NAT flow combinations
+ike from 192.168.1.0/24 (1::2/24) to 172.16.0.0/12 peer 5.5.5.5

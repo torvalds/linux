@@ -1,0 +1,205 @@
+.\" $OpenBSD: SSL_CTX_set_mode.3,v 1.8 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL 8671b898 Jun 3 02:48:34 2008 +0000
+.\" selective merge up to: OpenSSL df75c2bf Dec 9 01:02:36 2018 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org> and
+.\" Ben Laurie <ben@openssl.org>.
+.\" Copyright (c) 2001, 2008 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_MODE 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_mode ,
+.Nm SSL_set_mode ,
+.Nm SSL_CTX_clear_mode ,
+.Nm SSL_clear_mode ,
+.Nm SSL_CTX_get_mode ,
+.Nm SSL_get_mode
+.Nd manipulate SSL engine mode
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft long
+.Fn SSL_CTX_set_mode "SSL_CTX *ctx" "long mode"
+.Ft long
+.Fn SSL_set_mode "SSL *ssl" "long mode"
+.Ft long
+.Fn SSL_CTX_clear_mode "SSL_CTX *ctx" "long mode"
+.Ft long
+.Fn SSL_clear_mode "SSL *ssl" "long mode"
+.Ft long
+.Fn SSL_CTX_get_mode "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_get_mode "SSL *ssl"
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_mode
+and
+.Fn SSL_set_mode
+enable the options contained in the bitmask
+.Fa mode
+for the
+.Fa ctx
+or
+.Fa ssl
+object, respectively.
+Options that were already enabled before the call are not disabled.
+.Pp
+.Fn SSL_CTX_clear_mode
+and
+.Fn SSL_clear_mode
+disable the options contained in the bitmask
+.Fa mode
+for the
+.Fa ctx
+or
+.Fa ssl
+object.
+.Pp
+.Fn SSL_CTX_get_mode
+and
+.Fn SSL_get_mode
+return a bitmask representing the options
+that are currently enabled for the
+.Fa ctx
+or
+.Fa ssl
+object.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Dv SSL_MODE_ENABLE_PARTIAL_WRITE
+Allow
+.Fn SSL_write ... n
+to return
+.Ms r
+with
+.EQ
+0 < r < n
+.EN
+(i.e., report success when just a single record has been written).
+When not set (the default),
+.Xr SSL_write 3
+will only report success once the complete chunk was written.
+Once
+.Xr SSL_write 3
+returns with
+.Ms r ,
+.Ms r
+bytes have been successfully written and the next call to
+.Xr SSL_write 3
+must only send the
+.Ms n \(mi r
+bytes left, imitating the behaviour of
+.Xr write 2 .
+.It Dv SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
+Make it possible to retry
+.Xr SSL_write 3
+with changed buffer location (the buffer contents must stay the same).
+This is not the default to avoid the misconception that non-blocking
+.Xr SSL_write 3
+behaves like non-blocking
+.Xr write 2 .
+.It Dv SSL_MODE_AUTO_RETRY
+Never bother the application with retries if the transport is blocking.
+If a renegotiation takes place during normal operation, a
+.Xr SSL_read 3
+or
+.Xr SSL_write 3
+would return
+with \(mi1 and indicate the need to retry with
+.Dv SSL_ERROR_WANT_READ .
+In a non-blocking environment applications must be prepared to handle
+incomplete read/write operations.
+In a blocking environment, applications are not always prepared to deal with
+read/write operations returning without success report.
+The flag
+.Dv SSL_MODE_AUTO_RETRY
+will cause read/write operations to only return after the handshake and
+successful completion.
+.It Dv SSL_MODE_RELEASE_BUFFERS
+When we no longer need a read buffer or a write buffer for a given
+.Vt SSL ,
+then release the memory we were using to hold it.
+Using this flag can save around 34k per idle SSL connection.
+This flag has no effect on SSL v2 connections, or on DTLS connections.
+.El
+.Sh RETURN VALUES
+.Fn SSL_CTX_set_mode ,
+.Fn SSL_set_mode ,
+.Fn SSL_CTX_clear_mode ,
+and
+.Fn SSL_clear_mode
+return the new mode bitmask after adding or clearing
+.Fa mode .
+.Pp
+.Fn SSL_CTX_get_mode
+and
+.Fn SSL_get_mode
+return the current bitmask.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_ctrl 3 ,
+.Xr SSL_read 3 ,
+.Xr SSL_write 3
+.Sh HISTORY
+.Fn SSL_CTX_set_mode ,
+.Fn SSL_set_mode ,
+.Fn SSL_CTX_get_mode ,
+and
+.Fn SSL_get_mode
+first appeared in OpenSSL 0.9.4 and have been available since
+.Ox 2.6 .
+.Pp
+.Fn SSL_CTX_clear_mode
+and
+.Fn SSL_clear_mode
+first appeared in OpenSSL 0.9.8m and have been available since
+.Ox 4.9 .
+.Pp
+.Dv SSL_MODE_AUTO_RETRY
+was added in OpenSSL 0.9.6.

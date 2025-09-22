@@ -1,0 +1,155 @@
+.\"     $OpenBSD: portbump.1,v 1.1 2018/06/26 05:38:49 espie Exp $
+.\"
+.\" Copyright (c) 2014 Vadim Zhukov
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 26 2018 $
+.Dt PORTBUMP 1
+.Os
+.Sh NAME
+.Nm portbump
+.Nd tweaks port revisions and library versions
+.Sh SYNOPSIS
+.Nm
+.Op Fl lMmnrv
+.Op Fl W Ar wlib
+.Op Fl w Ar wlib
+.Op Ar portref ...
+.Pp
+.Nm
+.Fl o Ar file
+.Op Fl lMmnrv
+.Op Fl W Ar addlib
+.Op Fl w Ar rmlib
+.Op Ar portref ...
+.Sh DESCRIPTION
+.Nm
+is used to increase ('bump')
+.Ev REVISION
+and
+.Ev SHARED_LIBS
+values in
+.Ox
+ports.
+It also can remove
+.Ev REVISION
+marks and add, update or remove
+.Ev WANTLIB
+items.
+.Pp
+.Ar portref
+has the same syntax as
+.Ev FULLPKGPATH
+port variable, see
+.Xr bsd.port.mk 5 .
+Actually, you can feed a list of pkgpaths as parameters; flavor
+information will be ignored.
+.Nm
+doesn't care about actual subdirectory portion of
+.Ar portref ,
+so you can freely pass
+.Pa \&. ,
+.Pa ../foo
+or anything else like this.
+.Pp
+If subpackage is not specified in port reference, then all subpackages
+of a port will be processed.
+If no port references are given, the port in current directory will
+be processed.
+.Pp
+Default mode of operation is increasing
+.Ev REVISION
+mark values (
+.Fl r ) .
+Operations on
+.Ev REVISION
+marks and on
+.Ev SHARED_LIBS
+could be combined by explicit specifying corresponding flags, see below.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl d
+Delete all
+.Ev REVISION
+marks in
+.Pa Makefile .
+Mutually exclusive with
+.Fl r .
+.It Fl l
+Recreate all
+.Ev WANTLIB
+items based on output of
+.Sq make port-lib-depends-check .
+If used twice or more, the
+.Sq make lib-depends-check
+will be used instead.
+The
+.Fl l
+mode is incompatible with
+.Fl W
+and
+.Fl w .
+.It Fl M
+Increment by one major component of all
+.Ev SHARED_LIBS ,
+resetting minor one to zero if needed.
+Mutually exclusive with
+.Fl m .
+.It Fl m
+Increment by one minor component of all
+.Ev SHARED_LIBS .
+Mutually exclusive with
+.Fl M .
+.It Fl n
+Do not replace
+.Pa Makefile
+but save modified version in the
+.Pa Makefile.bump
+instead.
+.It Fl o Ar file
+Send modified Makefile contents to a given file instead of creating
+.Pa Makefile.bump
+in port's directory.
+This could be only used if not more than one port is specified;
+multiple subpackages of a single port could be specified, though.
+.It Fl r
+Increment
+.Ev REVISION
+values for all subpackages, or only for given ones.
+Mutually exclusive with
+.Fl d .
+.It Fl W Ar wlib
+.It Fl w Ar wlib
+Adds or updates (the
+.Fl W
+flag) or removes (the
+.Fl w
+flag)
+.Ev WANTLIB
+items in whole port, or in particular subpackages, if given.
+Both options could be specified multiple times, accumulating
+corresponding lists.
+The
+.Ev WANTLIB
+entries will be fully re-generated based on previous contents.
+Those modes are incompatible with
+.Fl l .
+.It Fl v
+Enable printing of diagnostic messages to standard error output.
+.El
+.Sh HISTORY
+.Nm
+first appeared in
+.Ox 5.6 .

@@ -1,0 +1,7 @@
+galley front:bow
+galley rear:stern
+watertight galley body:hull
+fabric for wind propulsion:sail
+blade for water propulsion:oar
+galley's main weapon:ram
+vertical spar:mast

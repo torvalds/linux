@@ -1,0 +1,1406 @@
+.TH "nsd.conf" "5" "Sep  3, 2025" "NLnet Labs" "nsd 4.13.0"
+.\" Copyright (c) 2001\-2024, NLnet Labs. All rights reserved.
+.\" See LICENSE for the license.
+.SH "NAME"
+.B nsd.conf
+\- NSD configuration file
+.SH "SYNOPSIS"
+.B nsd.conf
+.SH "DESCRIPTION"
+This file is used to configure nsd(8). It specifies options for the nsd
+server, zone files, primaries and secondaries.
+.sp
+The file format has attributes and values. Some attributes have attributes
+inside them. The notation is:
+.sp
+attribute: value
+.sp
+Comments start with # and last to the end of line. Empty lines are
+ignored, as is whitespace at the beginning of a line. Quotes must be used
+for values with spaces in them, eg. "file name.zone".
+.SH "EXAMPLE"
+An example of a short nsd.conf file is below.
+.sp
+.nf
+# Example nsd.conf file for example.com.
+# This is a comment.
+.sp
+server:
+	server-count: 1 # use this number of cpu cores
+	username: @user@
+	zonelistfile: @zonelistfile@
+	logfile: @logfile@
+	xfrdfile: @xfrdfile@
+.sp
+zone:
+	name: example.com
+	zonefile: @configdir@/example.com.zone
+.sp
+zone:
+	# this server is the primary and 192.0.2.1 is the secondary.
+	name: primaryzone.com
+	zonefile: @configdir@/primaryzone.com.zone
+	notify: 192.0.2.1 NOKEY
+	provide-xfr: 192.0.2.1 NOKEY
+.sp
+zone:
+	# this server is the secondary and 192.0.2.2 is the primary.
+	name: secondaryzone.com
+	zonefile: @configdir@/secondaryzone.com.zone
+	allow-notify: 192.0.2.2 NOKEY
+	request-xfr: 192.0.2.2 NOKEY
+.fi
+.sp
+Then, use kill \-HUP to reload changes from primary zone files.
+And use kill \-TERM to stop the server.
+.SH "FILE FORMAT"
+There must be whitespace between keywords. Attribute keywords end
+with a colon ':'. An attribute is followed by its containing
+attributes, or a value.
+.sp
+At the top level, only
+.BR server: ,
+.BR verify: ,
+.BR key: ,
+.BR pattern: ,
+.BR zone: ,
+.BR tls-auth: ,
+and
+.B remote-control:
+are allowed. These are followed by their attributes or a new top-level keyword. The
+.B zone:
+attribute is followed by zone options. The
+.B server:
+attribute is followed by global options for the
+.B NSD
+server. The
+.B verify:
+attribute is used to control zone verification. A
+.B key:
+attribute is used to define keys for authentication. The
+.B pattern:
+attribute is followed by the zone options for zones that use the pattern.
+A
+.B tls-auth:
+attribute is used to define authentication attributes for TLS connections used
+for XFR-over-TLS.
+.sp
+Files can be included using the
+.B include:
+directive. It can appear anywhere, and takes a single filename as an
+argument. Processing continues as if the text from the included file
+were copied into the config file at that point.  If a chroot is used,
+an absolute filename is needed (with the chroot prepended), so that
+the include can be parsed before and after application of the chroot (and
+the knowledge of what that chroot is).  You can use '*' to include a
+wildcard match of files, eg. "foo/nsd.d/*.conf".  Also '?', '{}', '[]',
+and '~' work, see \fBglob\fR(7).  If no files match the pattern, this
+is not an error.
+.SS "Server Options"
+The global options (if not overridden from the NSD command-line) are
+taken from the
+.B server:
+clause. There may only be one
+.B server:
+clause.
+.TP
+.B ip\-address:\fR <ip4 or ip6>[@port] [servers] [bindtodevice] [setfib]
+NSD will bind to the listed ip\-address. Can be given multiple times
+to bind multiple ip\-addresses. Optionally, a port number can be given.
+If none are given NSD listens to the wildcard interface. Same as command-line option
+.BR \-a.
+.sp
+To limit which NSD server(s) listen on the given interface, specify one or
+more servers separated by whitespace after <ip>[@port]. Ranges can be used as
+a shorthand to specify multiple consecutive servers. By default every server
+will listen.
+.sp
+If an interface name is used instead of ip4 or ip6, the list of IP addresses
+associated with that interface is picked up and used at server start.
+.sp
+For servers with multiple IP addresses that can be used to send traffic
+to the internet, list them one by one, or the source address of replies
+could be wrong.  This is because if the udp socket associates a source
+address of 0.0.0.0 then the kernel picks an ip-address with which to
+send to the internet, and it picks the wrong one.  Typically needed for
+anycast instances.  Use ip-transparent to be able to list addresses that
+turn on later (typical for certain load-balancing).
+.TP
+.B interface:\fR <ip4 or ip6>[@port] [servers] [bindtodevice] [setfib]
+Same as ip\-address (for ease of compatibility with unbound.conf).
+.TP
+.B ip\-transparent:\fR <yes or no>
+Allows NSD to bind to non local addresses. This is useful to have NSD
+listen to IP addresses that are not (yet) added to the network interface, so
+that it can answer immediately when the address is added. Default is no.
+.TP
+.B ip\-freebind:\fR <yes or no>
+Set the IP_FREEBIND option to bind to nonlocal addresses and interfaces
+that are down.  Similar to ip\-transparent.  Default is no.
+.TP
+.B reuseport:\fR <yes or no>
+Use the SO_REUSEPORT socket option, and create file descriptors for every
+server in the server\-count.  This improves performance of the network
+stack.  Only really useful if you also configure a server\-count higher
+than 1 (such as, equal to the number of cpus).  The default is no.
+It works on Linux, but does not work on FreeBSD, and likely does not
+work on other systems.
+.TP
+.B send\-buffer\-size:\fR <number>
+Set the send buffer size for query-servicing sockets.  Set to 0 to use the default settings.
+It needs some space to be able to deal with packets that wait for local
+address resolution, from like ARP and NDP discovery, before they are sent
+out, hence it is elevated above the system default by default.
+The default is 4194304 bytes (4m).
+.TP
+.B receive\-buffer\-size:\fR <number>
+Set the receive buffer size for query-servicing sockets.  Set to 0 to use the default settings.
+The default is 1048576 bytes (1m).
+.TP
+.B debug\-mode:\fR <yes or no>
+Turns on debugging mode for nsd, does not fork a daemon process.
+Default is no. Same as command-line option
+.BR \-d.
+If set to yes it does not fork and stays in the foreground, which can
+be helpful for command-line debugging, but is also used by certain
+server supervisor processes to ascertain that the server is running.
+.TP
+.B do\-ip4:\fR <yes or no>
+If yes, NSD listens to IPv4 connections.  Default yes.
+.TP
+.B do\-ip6:\fR <yes or no>
+If yes, NSD listens to IPv6 connections.  Default yes.
+.TP
+.B database:\fR <filename>
+This option is ignored by NSD versions 4.8.0 and newer, because the database feature has been removed.
+.TP
+.B zonelistfile:\fR <filename>
+By default
+.I @zonelistfile@
+is used. The specified file is used to store the dynamically added
+list of zones.  The list is written to by NSD to add and delete zones.
+It is a text file with a zone\-name and pattern\-name on each line.
+This file is used for the nsd\-control addzone and delzone commands.
+.TP
+.B identity:\fR <string>
+Returns the specified identity when asked for CH TXT ID.SERVER.
+Default is the name as returned by gethostname(3). Same as
+command-line option
+.BR \-i .
+See hide\-identity to set the server to not respond to such queries.
+.TP
+.B version:\fR <string>
+Returns the specified version string when asked for CH TXT version.server,
+and version.bind queries.  Default is the compiled package version.
+See hide\-version to set the server to not respond to such queries.
+.TP
+.B nsid:\fR <string>
+Add the specified nsid to the EDNS section of the answer when queried
+with an NSID EDNS enabled packet.  As a sequence of hex characters or
+with ascii_ prefix and then an ascii string.  Same as command-line option
+.BR \-I .
+.TP
+.B logfile:\fR <filename>
+Log messages to the logfile. The default is to log to stderr and
+syslog (with facility LOG_DAEMON). Same as command-line option
+.BR \-l .
+.TP
+.B log\-only\-syslog:\fR <yes or no>
+Log messages only to syslog.  Useful with systemd so that print to stderr
+does not cause duplicate log strings in journald.  Before syslog has
+been opened, the server uses stderr.  Stderr is also used if syslog is
+not available.  Default is no.
+.TP
+.B server\-count:\fR <number>
+Start this many NSD servers. Default is 1. Same as command-line
+option
+.BR \-N .
+.TP
+.B cpu\-affinity:\fR <number> <number> ...
+Overall CPU affinity for NSD server(s). Default is no affinity.
+.TP
+.B server\-N\-cpu\-affinity:\fR <number>
+Bind NSD server specified by N to a specific core. Default is to have affinity
+set to every core specified in cpu\-affinity. This setting only takes effect
+if cpu\-affinity is enabled.
+.TP
+.B xfrd\-cpu\-affinity:\fR <number>
+Bind xfrd to a specific core. Default is to have affinity set to every core
+specified in cpu\-affinity. This setting only takes effect if cpu\-affinity is
+enabled.
+.TP
+.B tcp\-count:\fR <number>
+The maximum number of concurrent, active TCP connections by each server.
+Default is 100. Same as command-line option
+.BR \-n .
+That is the number of requests from clients to this server.
+.TP
+.B tcp\-reject\-overflow:\fR <yes or no>
+If set to yes, TCP connections made beyond the maximum set by tcp-count will
+be dropped immediately (accepted and closed).  Default is no.
+.TP
+.B tcp\-query\-count:\fR <number>
+The maximum number of queries served on a single TCP connection.
+Default is 0, meaning there is no maximum.
+.TP
+.B tcp\-timeout:\fR <number>
+Overrides the default TCP timeout. This also affects zone transfers over TCP.
+The default is 120 seconds.
+.TP
+.B tcp-mss:\fR <number>
+Maximum segment size (MSS) of TCP socket on which the server responds
+to queries. Value lower than common MSS on Ethernet
+(1220 for example) will address path MTU problem.
+Note that not all platform supports socket option to set MSS (TCP_MAXSEG).
+Default is system default MSS determined by interface MTU and
+negotiation between server and client.
+.TP
+.B outgoing\-tcp\-mss:\fR <number>
+Maximum segment size (MSS) of TCP socket for outgoing XFR request
+to other nameservers. Value lower than
+common MSS on Ethernet (1220 for example) will
+address path MTU problem.
+Note that not all platform supports socket option to set MSS (TCP_MAXSEG).
+Default is system default MSS determined by interface MTU and
+negotiation between NSD and other servers.
+.TP
+.B xfrd\-tcp\-max:\fR <number>
+Number of sockets for xfrd to use for outgoing zone transfers. Default 128.
+Increase it to allow more zone transfer sockets, like to 256.
+That is for zone transfers requested by this server from other servers.
+To save memory, this can be lowered, set it lower together with some other
+settings to have reduced memory footprint for NSD. xfrd\-tcp\-max: 32
+and xfrd\-tcp\-pipeline: 128 and rrl\-size: 1000
+.sp
+This reduces memory footprint, other memory usage is caused mainly by
+the server\-count setting, the number of server processes, and the
+tcp\-count setting, which keeps buffers per server process, and by the
+size of the zone data.
+.TP
+.B xfrd\-tcp\-pipeline:\fR <number>
+Number of simultaneous outgoing zone transfers that are possible on the
+tcp sockets of xfrd. Max is 65536, default is 128. That is for zone transfers
+requested by this server from other servers.
+.TP
+.B ipv4\-edns\-size:\fR <number>
+Preferred EDNS buffer size for IPv4.  Default 1232.
+.TP
+.B ipv6\-edns\-size:\fR <number>
+Preferred EDNS buffer size for IPv6.  Default 1232.
+.TP
+.B pidfile:\fR <filename>
+Use the pid file instead of the platform specific default.
+Same as command-line option
+.BR \-P .
+With "" there is no pidfile, for some startup management setups,
+where a pidfile is not useful to have.
+The default can be set at compile time, sometimes to "". Then the config
+option and commandline option can be used to specify that a pidfile is
+used, different from its compile time default value.
+The file is not chowned to the user from the \fBusername:\fR option, for
+permission safety reasons. It remains owned to the user by which the
+server was started. The file may not be removed after the server is
+finished and quit, since permissions for the username may not make
+this possible.
+.TP
+.B port:\fR <number>
+Answer queries on the specified port. Default is 53. Same as
+command-line option
+.BR \-p .
+.TP
+.B statistics:\fR <number>
+If not present no statistics are dumped. Statistics are produced
+every number seconds. Same as command-line option
+.BR \-s .
+.TP
+.B chroot:\fR <directory>
+NSD will chroot on startup to the specified directory. Note that if
+elsewhere in the configuration you specify an absolute pathname to a file
+inside the chroot, you have to prepend the \fBchroot\fR path. That way,
+you can switch the chroot option on and off without having to modify
+anything else in the configuration. Set the value to "" (the empty string)
+to disable the chroot. By default "\fI@chrootdir@\fR" is used. Same as
+command-line option
+.BR \-t .
+.TP
+.B username:\fR <username>
+After binding the socket, drop user privileges and assume the
+username. Can be username, id or id.gid. Same as command-line option
+.BR \-u .
+.TP
+.B zonesdir:\fR <directory>
+Change the working directory to the specified directory before accessing
+zone files. Also, NSD will access \fBzonelistfile\fR, \fBlogfile\fR,
+\fBpidfile\fR, \fBxfrdfile\fR, \fBxfrdir\fR, \fBserver-key-file\fR,
+\fBserver-cert-file\fR, \fBcontrol-key-file\fR and \fBcontrol-cert-file\fR
+relative to this directory. Set the value to "" (the empty string)
+to disable the change of working directory. By default "\fI@zonesdir@\fR"
+is used.
+.TP
+.B difffile:\fR <filename>
+Ignored, for compatibility with NSD3 config files.
+.TP
+.B xfrdfile:\fR <filename>
+The soa timeout and zone transfer daemon in NSD will save its state to
+this file. State is read back after a restart. The state file can be
+deleted without too much harm, but timestamps of zones will be gone.
+If it is configured as "", the state file is not used, all secondary zones
+are checked for updates upon startup.  For more details see the section
+on zone expiry behavior of NSD. Default is
+.IR @xfrdfile@ .
+.TP
+.B xfrdir:\fR <directory>
+The zone transfers are stored here before they are processed.  A directory
+is created here that is removed when NSD exits.  Default is
+.IR @xfrdir@ .
+.TP
+.B xfrd\-reload\-timeout:\fR <number>
+If this value is \-1, xfrd will not trigger a reload after a zone
+transfer. If positive xfrd will trigger a reload after a zone
+transfer, then it will wait for the number of seconds before it will
+trigger a new reload. Setting this value throttles the reloads to
+once per the number of seconds. The default is 1 second.
+.TP
+.B verbosity:\fR <level>
+This value specifies the verbosity level for (non\-debug) logging.
+Default is 0. 1 gives more information about incoming notifies and
+zone transfers. 2 lists soft warnings that are encountered. 3 prints
+more information. Same as command-line option
+.BR \-V .
+.sp
+Verbosity 0 will print warnings and errors, and other events that are
+important to keep NSD running.
+.sp
+Verbosity 1 prints additionally messages of interest.  Successful notifies,
+successful incoming zone transfer (the zone is updated), failed incoming
+zone transfers or the inability to process zone updates.
+.sp
+Verbosity 2 prints additionally soft errors, like connection resets over TCP.
+And notify refusal, and axfr request refusals.
+.TP
+.B hide\-version:\fR <yes or no>
+Prevent NSD from replying with the version string on CHAOS class
+queries.  Default is no.
+.TP
+.B hide\-identity:\fR <yes or no>
+Prevent NSD from replying with the identity string on CHAOS class
+queries.  Default is no.
+.TP
+.B drop\-updates:\fR <yes or no>
+If set to yes, drop received packets with the UPDATE opcode.  Default is no.
+.TP
+.B use\-systemd:\fR <yes or no>
+This option is deprecated and ignored.  If compiled with libsystemd,
+NSD signals readiness to systemd and use of the option is not necessary.
+.TP
+.B log\-time\-ascii:\fR <yes or no>
+Log time in ascii, if "no" then in seconds epoch.  Default is yes.
+This chooses the format when logging to file.  The printout via syslog
+has a timestamp formatted by syslog.
+.TP
+.B log\-time\-iso:\fR <yes or no>
+Log time in ISO8601 format, if \fBlog\-time\-ascii:\fR yes is also set.
+Default is no.
+.TP
+.B round\-robin:\fR <yes or no>
+Enable round robin rotation of records in the answer.  This changes the
+order of records in the answer and this may balance load across them.
+The default is no.
+.TP
+.B minimal\-responses:\fR <yes or no>
+Enable minimal responses for smaller answers.  This makes packets smaller.
+Extra data is only added for referrals, when it is really necessary.
+This is different from the \-\-enable-minimal-responses configure time option,
+that reduces packets, but exactly to the fragmentation length, the nsd.conf
+option reduces packets as small as possible.
+The default is yes.
+.TP
+.B confine\-to\-zone:\fR <yes or no>
+If set to yes, additional information will not be added to the response if the
+apex zone of the additional information does not match the apex zone of the
+initial query (E.G. CNAME resolution). Default is no.
+.TP
+.B refuse\-any:\fR <yes or no>
+Refuse queries of type ANY.  This is useful to stop query floods trying
+to get large responses.  Note that rrl ratelimiting also has type ANY as
+a ratelimiting type.  It sends truncation in response to UDP type ANY queries,
+and it allows TCP type ANY queries like normal.
+The default is yes.
+With the option turned off, NSD behaves according to RFC 8482 4.1. It minimizes
+the response with one RRset. Popular and not large types, like A, AAAA and
+MX are preferred, and large types, like DNSKEY and RRSIG are picked with a
+lower preference than other types. This makes the response smaller.
+.TP
+.B reload\-config:\fR <yes or no>
+Reload configuration file and update TSIG keys and zones on SIGHUP.
+Default is no.
+.TP
+.B zonefiles\-check:\fR <yes or no>
+Make NSD check the mtime of zone files on start and sighup.  If you
+disable it it starts faster (less disk activity in case of a lot of zones).
+The default is yes.  The nsd\-control reload command reloads zone files
+regardless of this option.
+.TP
+.B zonefiles\-write:\fR <seconds>
+Write updated secondary zones to their zonefile every N seconds.  If the
+zone or pattern's "zonefile" option is set to "" (empty string), no zonefile
+is written. The default is 3600 (1 hour).
+.TP
+.B rrl\-size:\fR <numbuckets>
+This option gives the size of the hashtable. Default 1000000. More buckets
+use more memory, and reduce the chance of hash collisions.
+.TP
+.B rrl\-ratelimit:\fR <qps>
+The max qps allowed (from one query source). Default is @ratelimit_default@ (with a suggested 200 qps). If set to 0
+then it is disabled (unlimited rate), also set the whitelist\-ratelimit
+to 0 to disable ratelimit processing.  If you set verbosity to 2 the
+blocked and unblocked subnets are logged.  Blocked queries are blocked
+and some receive TCP fallback replies.  Once the rate limit is reached,
+NSD begins dropping responses. However, one in every "rrl\-slip" number
+of responses is allowed, with the TC bit set. If slip is set to 2, the
+returned response rate will be halved. If it's set to 3, the returned
+response rate will be one\-third, and so on.  If you set rrl\-slip to 10,
+traffic is reduced to 1/10th.  Ratelimit options rrl\-ratelimit, rrl\-size and
+rrl\-whitelist\-ratelimit are updated when nsd\-control reconfig is done (also
+the zone\-specific ratelimit options are updated).
+If not compiled in the option is ignored, the ratelimit can be on or off
+by default by compile time configuration.
+.TP
+.B rrl\-slip:\fR <numpackets>
+This option controls the number of packets discarded before we send back a SLIP response
+(a response with "truncated" bit set to one). 0 disables the sending of SLIP packets,
+1 means every query will get a SLIP response.  Default is 2, cuts traffic in
+half and legit users have a fair chance to get a +TC response.
+.TP
+.B rrl\-ipv4\-prefix\-length:\fR <subnet>
+IPv4 prefix length. Addresses are grouped by netblock.  Default 24.
+.TP
+.B rrl\-ipv6\-prefix\-length:\fR <subnet>
+IPv6 prefix length. Addresses are grouped by netblock.  Default 64.
+.TP
+.B rrl\-whitelist\-ratelimit:\fR <qps>
+The max qps for query sorts for a source, which have been
+whitelisted. Default @ratelimit_default@ (with a suggested 2000 qps). With the rrl\-whitelist option you can set
+specific queries to receive this qps limit instead of the normal limit.
+With the value 0 the rate is unlimited.
+.TP
+.B answer\-cookie:\fR <yes or no>
+Enable to answer to requests containing DNS Cookies as specified in RFC7873.
+Default is yes.
+.sp
+DNS Cookies increase transaction security and provide limited protection 
+against denial-off-service amplification attacks. Server cookies will be
+created and included in responses. Server cookies are created based on the
+client cookie in the request, the current time, the client's IP address and
+a secret. When a client includes a valid server cookie in successive requests,
+the client will not be subjected to Request Rate Limiting (see \fBrrl\-ratelimit\fR).
+.sp
+Servers in an anycast deployment need to be able to verify each other's server
+cookies. For this they need to share the secret used to construct and verify
+the cookies. These cookie secrets can be specified in the configuration files
+with the \fBcookie\-secret\fR and \fBcookie\-staging\-secret\fR options.
+.sp
+If no cookie secrets are provided via configuration file, server cookie secrets
+can be added, dropped and activated with the \fInsd\-control\fR(8) tool.
+These secrets will be stored persistently in the cookie secret file for which
+the location can be specified with the \fBcookie\-secret\-file\fR option.
+.sp
+If no cookie secrets are provided via configuration file, and there is no or an
+empty cookie secret file, a random cookie secret is generated.
+.TP
+.B cookie\-secret:\fR <128 bit hex string>
+The cookie secret with which server cookies are created and can be verified.
+If a \fBcookie\-secret\fR is specified via configuration file, cookie secrets
+from the cookie secret file will be ignored. 
+.TP
+.B cookie\-staging\-secret:\fR <128 bit hex string>
+A cookie secret with which server cookies can be verified, but will not be
+created. This is helpful in rolling cookie secrets in anycast setups.
+.sp
+A \fBcookie\-staging\-secret\fR can only be configured when there is also a
+\fBcookie\-secret\fR configured.
+.TP
+.B cookie\-secret\-file:\fR <filename>
+File from which the secrets are read used in DNS Cookie calculations. Secrets
+will only be read from this file if no cookie secrets are given in the
+configuration file via the \fBcookie\-secret\fR and
+\fBcookie\-staging\-secret\fR options.
+Default is "@cookiesecretsfile@"
+.sp
+In NSD version 4.10.1 and earlier, the default location of the cookie secret
+file was "@configdir@/nsd_cookiesecrets.txt". For migration purposes, cookie
+secrets will be read from that location if no value is given for the
+\fBcookie\-secret\-file\fR option and when the current default location
+("@cookiesecretsfile@") does not exist.
+.sp
+The content of the cookie secret file must be manipulated with the
+\fBadd_cookie_secret\fR, \fBdrop_cookie_secret\fR and
+\fBactivate_cookie_secret\fR commands to the \fInsd\-control\fR(8) tool.
+Please see that manpage how to perform a safe cookie secret rollover.
+.TP
+.B tls\-service\-key:\fR <filename>
+If enabled, the server provides TLS service on TCP sockets with the TLS
+service port number.  The port number (853) is configured with tls\-port.
+To turn it on, create an interface: option line in config with @port
+appended to the IP-address.  This creates the extra socket on which the
+DNS over TLS service is provided.
+.sp
+The file is the private key for the TLS session. The public certificate is
+in the tls-service-pem file. Default is "", turned off. Requires a
+restart (a reload is not enough) if changed, because the private key is
+read while root permissions are held and before chroot (if any).
+.TP
+.B tls\-service\-pem:\fR <filename>
+The public key certificate pem file for the tls service. Default is "", turned off.
+.TP
+.B tls\-service\-ocsp:\fR <filename>
+The ocsp pem file for the tls service, for OCSP stapling.  Default is "",
+turned off.  An external process prepares and updates the OCSP stapling data.
+Like this,
+.sp
+.nf
+openssl ocsp -no_nonce \\
+	-respout /path/to/ocsp.pem \\
+	-CAfile /path/to/ca_and_any_intermediate.pem \\
+	-issuer /path/to/direct_issuer.pem \\
+	-cert /path/to/cert.pem \\
+	-url "$( openssl x509 -noout -ocsp_uri -in /path/to/cert.pem )"
+.fi
+.TP
+.B tls\-port:\fR <number>
+The port number on which to provide TCP TLS service, default is 853, only
+interfaces configured with that port number as @number get DNS over TLS service.
+.TP
+.B tls\-auth\-port:\fR <number>
+The port number on which to provide TCP TLS service to authenticated clients only.
+If you want to use mutual TLS authentication in Transfer over TLS (XoT) connections,
+this is where the primary server enables a dedicated port for this purpose. Certificates in
+.BR tls-cert-bundle
+are used for verifying the authenticity of a client or a secondary server.
+.sp
+Client (secondary) must enable
+.BR tls-auth ,
+configure
+.BR client-cert
+and
+.BR client-key
+and enable
+.BR tls-auth
+in zone configuration in order to authenticate to a remote (primary) server.
+.TP
+.B tls\-auth\-xfr\-only:\fR <yes or no>
+Allow zone transfers only on the
+.BR tls-auth-port
+port and only to authenticated clients. This works globally for all zones.
+A
+.BR provide-xfr
+access control list with
+.BR tls-auth
+is also required to allow and verify a connection.
+Requests for zone transfers on other ports are refused.
+.TP
+.B tls\-cert\-bundle:\fR <filename>
+If null or "", the default verify locations are used. Set it to the certificate
+bundle file, for example "/etc/pki/tls/certs/ca-bundle.crt". These certificates
+are used for authenticating Transfer over TLS (XoT) connections.
+.TP
+.B proxy\-protocol\-port:\fR <number>
+The port number for proxy protocol service. If the statement is given multiple
+times, additional port numbers can be used for proxy protocol service. The
+interface definitions that use this port number expect PROXYv2 proxy protocol
+traffic, for UDP, TCP and for TLS service.
+.TP
+.B xdp\-interface:\fR <string>
+The interface to use XDP with. This enables the use of AF_XDP sockets for UDP
+queries. Default is "", disabled. (EXPERIMENTAL)
+
+.\" Considerations probably need improvement in format and wording
+Considerations:
+.br
+\(bu If \fBcpu-affinity\fR is configured, please be aware of the cpu affinity
+of network device queues.
+.br
+\(bu The number of spawned servers depends on the number of combined rx/tx
+channels/queues of the selected interface. As many processes as there are
+combined channels on the specified interface will receive traffic via XDP.
+\fBserver-count\fR will be increased if necessary. If \fBserver-count\fR is
+higher, the excess processes will not use XDP.
+.br
+\(bu The PROXYv2 protocol, DNSTAP, and ratelimiting are currently not supported
+via XDP.
+.TP
+.B xdp\-program\-path:\fR <string>
+The eBPF XDP program to extract the XSKMAP from. Specify your own program here,
+if you want to use a custom XDP program. The default program shipped with NSD
+only redirects UDP (over Ethernet[+VLAN]+IPv4/6) traffic to port 53.
+When using your own XDP program, it needs to define a BPF_MAP_TYPE_XSKMAP
+named "xsks_map".
+
+This option needs to be set, even when NSD is configured not to load the
+specified XDP program (see \fBxdp-program-load\fR), to be able to determine the
+XSKMAP structure. In this case your XDP program needs to pin the above
+mentioned map in a bpffs (see \fBxdp-bpffs-path\fR).
+
+Default is "@sharedfilesdir@/xdp-dns-redirect_kern.o".
+.TP
+.B xdp\-program\-load:\fR <yes or no>
+Specify whether NSD should load the XDP program. If set to no, you need
+to load the XDP program yourself. Default is yes, if xdp-interface is set.
+.TP
+.B xdp\-bpffs\-path:\fR <string>
+The path to the bpffs to store/read the xsks_map pin. The default XDP
+program loaded by NSD doesn't need this option, it is only necessary if you
+load a program that pins its BPF map.
+
+If NSD is configured to load an XDP program that pins its map, NSD needs to have
+read/write/execute access to the specified bpffs to be able to create and later
+delete the map pin. If you load the XDP program yourself, NSD only needs read
+and write access to the pin file itself (but at least execute access to the
+parent directories). The default bpffs (/sys/fs/bpf) usually doesn't have the
+necessary permissions set for non-root users. You can either set the necessary
+permissions or mount your own bpffs.
+
+Default is "/sys/fs/bpf".
+.TP
+.B xdp\-force\-copy:\fR <yes or no>
+Force the use of XDP_COPY mode instead of zero copy for AF_XDP sockets. This
+can help with drivers with broken AF_XDP support. Default is no.
+.TP
+.B metrics\-enable:\fR <yes or no>
+Enable the prometheus metrics HTTP endpoint. It exposes the same statistics as
+the \fInsd\-control\fR(8) stats_noreset command, but with metric names
+following the prometheus specification. (Requires libevent2)
+
+To generate per zone metrics, specify the \fBzonestats\fR option on the desired
+zones.
+
+Beware, that when using \fInsd\-control\fR(8) stats (instead of stats_noreset),
+the statistics will be reset for the HTTP metrics endpoint as well.
+.TP
+.B metrics\-interface:\fR <ip4 or ip6 | interface name>
+NSD will bind to the listed addresses or interfaces to serve the prometheus
+metrics. Can be given multiple times to bind multiple ip\-addresses. Use
+0.0.0.0 and ::0 to bind to the wildcard interface.
+
+If an interface name is used instead of ip4 or ip6, the list of IP addresses
+associated with that interface is picked up and used at server start.
+
+Default is 127.0.0.1 and ::1.
+.TP
+.B metrics\-port:\fR <number>
+The port number for the HTTP service. Default is 9100.
+.TP
+.B metrics\-path:\fR <string>
+The HTTP path to expose the metrics at. Default is "/metrics".
+.SS "Remote Control"
+The
+.B remote\-control:
+clause is used to set options for using the \fInsd\-control\fR(8)
+tool to give commands to the running NSD server.  It is disabled by
+default, and listens for localhost by default.  It uses TLS over TCP
+where the server and client authenticate to each other with self\-signed
+certificates.  The self\-signed certificates can be generated with the
+\fInsd\-control\-setup\fR tool.  The key files are read by NSD before
+the chroot and before dropping user permissions, so they can be outside
+the chroot and readable by the superuser only.
+.TP
+.B control\-enable:\fR <yes or no>
+Enable remote control, default is no.
+.TP
+.B control\-interface:\fR <ip4 or ip6 | interface name | absolute path>
+NSD will bind to the listed addresses to service control requests
+(on TCP).  Can be given multiple times to bind multiple ip\-addresses.
+Use 0.0.0.0 and ::0 to service the wildcard interface.  If none are given
+NSD listens to the localhost 127.0.0.1 and ::1 interfaces for control,
+if control is enabled with control\-enable.
+
+If an interface name is used instead of ip4 or ip6, the list of IP addresses
+associated with that interface is picked up and used at server start.
+
+With an absolute path, a unix local named pipe is used for control.  The
+file is created with user and group that is configured and access bits
+are set to allow members of the group access.  Further access can be
+controlled by setting permissions on the directory containing the control
+socket file.  The key and cert files are not used when control is via the
+named pipe, because access control is via file and directory permission.
+.TP
+.B control\-port:\fR <number>
+The port number for remote control service. 8952 by default.
+.TP
+.B server\-key\-file:\fR <filename>
+Path to the server private key, by default
+.IR @configdir@/nsd_server.key .
+This file is generated by the \fInsd\-control\-setup\fR utility.
+This file is used by the nsd server, but not by \fInsd\-control\fR.
+.TP
+.B server\-cert\-file:\fR <filename>
+Path to the server self signed certificate, by default
+.IR @configdir@/nsd_server.pem .
+This file is generated by the \fInsd\-control\-setup\fR utility.
+This file is used by the nsd server, and also by \fInsd\-control\fR.
+.TP
+.B control\-key\-file:\fR <filename>
+Path to the control client private key, by default
+.IR @configdir@/nsd_control.key .
+This file is generated by the \fInsd\-control\-setup\fR utility.
+This file is used by \fInsd\-control\fR.
+.TP
+.B control\-cert\-file:\fR <filename>
+Path to the control client certificate, by default
+.IR @configdir@/nsd_control.pem .
+This certificate has to be signed with the server certificate.
+This file is generated by the \fInsd\-control\-setup\fR utility.
+This file is used by \fInsd\-control\fR.
+.SS "Verifier options"
+The
+.B verify:
+clause is used to enable or disable zone verification, configure listen
+interfaces and control the global defaults.
+.TP
+.B enable:\fR <yes or no>
+Enable zone verification. Default is no.
+.TP
+.B port:\fR <number>
+The port to answer verifier queries on. Default is 5347.
+.TP
+.B ip\-address:\fR
+Interfaces to bind for zone verification (default are the localhost
+interfaces, usually 127.0.0.1 and ::1). To bind to multiple IP addresses,
+list them one by one. Optionally,  Socket options cannot be specified for verify
+ip-address
+.TP
+.B verify\-zones:\fR <yes or no>
+Verify zones by default.
+.TP
+.B verifier:\fR <command>
+When an update is received for the zone (by IXFR or AXFR) this program will be
+run to assess the zone with the update. If the program exits with a status
+code of 0, the zone is considered good and will be served. Any other status
+code will designate the zone bad and the received update will be discarded.
+The zone will continue to be served but without the update.
+.sp
+The following environment variables are available to verifiers:
+.sp
+.B VERIFY_ZONE
+.br
+The domain name of the zone to be verified.
+.sp
+.B VERIFY_ZONE_ON_STDIN
+.br
+When the zone can be read from standard input (stdin), this variable is set
+to "yes", otherwise it is set to "no".
+.sp
+.B VERIFY_IP_ADDRESSES
+.br
+The first address on which the zones to be assessed will be served.
+If IPv6 is available an IPv6 address will be preferred over IPv4.
+.sp
+.B VERIFY_PORT
+.br
+The port number for \fBVERIFY_IP_ADDRESS\fR.
+.sp
+.B VERIFY_IPV6_ADDRESS
+.br
+The first IPv6 address on which the zones to be assessed will be served.
+.sp
+.B VERIFY_IPV6_PORT
+.br
+The port number for \fBVERIFY_IPV6_ADDRESS\fR.
+.sp
+.B VERIFY_IPV4_ADDRESS
+.br
+The first IPv4 address of which the zones to be assessed will be served.
+.sp
+.B VERIFY_IPV4_PORT
+.br
+The port number for \fBVERIFY_IPV4_ADDRESS\fR.
+.TP
+.B verifier\-count:\fR <number>
+Maximum number of verifiers to run concurrently. Default is 1.
+.TP
+.B verifier\-feed\-zone:\fR <yes or no>
+Feed the updated zone to the verifier over standard input (stdin).
+.TP
+.B verifier\-timeout:\fR <seconds>
+The maximum number of seconds a verifier is allowed to run for assessing one
+zone. If the verifier takes longer, it will be terminated and the zone update
+will be discarded. The default is 0 seconds which means the verifier may take
+as long as it needs.
+.SS "Pattern Options"
+The
+.B pattern:
+clause is used to denote a set of options to apply to some zones.
+The same zone options as for a zone are allowed.
+.TP
+.B name:\fR <string>
+The name of the pattern.  This is a (case sensitive) string.  The pattern
+names that start with "_implicit_" are used internally for zones that
+have no pattern (they are defined in nsd.conf directly).
+.TP
+.B include\-pattern:\fR <pattern\-name>
+The options from the given pattern are included at this point in
+this pattern.  The referenced pattern must be defined above this one.
+.TP
+.B <zone option>:\fR <value>
+The zone options such as
+.BR zonefile ,
+.BR allow\-query ,
+.BR allow\-notify ,
+.BR request\-xfr ,
+.BR allow\-axfr\-fallback ,
+.BR notify ,
+.BR notify\-retry ,
+.BR provide\-xfr ,
+.BR store\-ixfr ,
+.BR ixfr\-number ,
+.BR ixfr\-size ,
+.BR create\-ixfr ,
+.BR zonestats ,
+.BR outgoing\-interface ,
+.BR verify\-zone ,
+.BR verifier ,
+.BR verifier\-feed\-zone ,
+.BR verifier\-timeout ,
+.BR catalog ,
+and
+.B catalog\-member\-pattern
+can be given.  They are applied to the patterns and zones that include
+this pattern.
+.SS "Zone Options"
+.LP
+For every zone the options need to be specified in one
+.B zone:
+clause. The access control list elements can be given multiple
+times to add multiple servers. These elements need to be added
+explicitly.
+.LP
+For zones that are configured in the \fInsd.conf\fR config file their
+settings are hardcoded (in an implicit pattern for themselves only)
+and they cannot be deleted via delzone, but remove them from the config
+file and repattern.
+.TP
+.B name:\fR <string>
+The name of the zone. This is the domain name of the apex of the
+zone. May end with a '.' (in FQDN notation). For example
+"example.com", "sub.example.net.". This attribute must be present in
+each zone.
+.TP
+.B zonefile:\fR <filename>
+The file containing the zone information. If this attribute is present
+it is used to read and write the zone contents. If the attribute is
+absent it prevents writing out of the zone.
+.sp
+The string is processed so that one string can be used (in a pattern)
+for a lot of different zones.  If the label or character does not exist the
+percent-character is replaced with a period for output (i.e. for the
+third character in a two letter domain name).
+.sp
+.B %s\fR is replaced with the zone name.
+.sp
+.B %1\fR is replaced with the first character of the zone name.
+.sp
+.B %2\fR is replaced with the second character of the zone name.
+.sp
+.B %3\fR is replaced with the third character of the zone name.
+.sp
+.B %z\fR is replaced with the toplevel domain name of the zone.
+.sp
+.B %y\fR is replaced with the next label under the toplevel domain.
+.sp
+.B %x\fR is replaced with the next-next label under the toplevel domain.
+.TP
+.B allow\-query:\fR <ip\-spec> <key\-name | NOKEY | BLOCKED>
+Access control list.  When at least one \fBallow\-query\fR option is
+specified, then the specified addresses in the \fBallow\-query\fR options
+are allowed to query the server for the zone.  Queries from unlisted or
+specifically BLOCKED addresses are discarded. If NOKEY is given no TSIG
+signature is required.  BLOCKED supersedes other entries, other entries are
+scanned for a match in the order of the statements.  Without
+\fBallow\-query\fR options, queries are allowed from any IP address
+without TSIG key (which is the default).
+.sp
+The ip\-spec is either a plain IP address (IPv4 or IPv6), or can be
+a subnet of the form 1.2.3.4/24, or masked like
+1.2.3.4&255.255.255.0 or a range of the form 1.2.3.4\-1.2.3.25.
+Note the ip\-spec ranges do not use spaces around the /, &, @ and \-
+symbols.
+.TP
+.B allow\-notify:\fR <ip\-spec> <key\-name | NOKEY | BLOCKED>
+Access control list. The listed (primary) address is allowed to
+send notifies to this (secondary) server via UDP or TCP. Notifies from unlisted or
+specifically BLOCKED addresses are discarded. If NOKEY is given no
+TSIG signature is required.
+BLOCKED supersedes other entries, other entries are scanned for a match
+in the order of the statements.
+.sp
+The ip\-spec is either a plain IP address (IPv4 or IPv6), or can be
+a subnet of the form 1.2.3.4/24, or masked like
+1.2.3.4&255.255.255.0 or a range of the form 1.2.3.4\-1.2.3.25.
+A port number can be added using a suffix of @number, for example
+1.2.3.4@5300 or 1.2.3.4/24@5300 for port 5300.
+Note the ip\-spec ranges do not use spaces around the /, &, @ and \-
+symbols.
+.RE
+.TP
+.B request\-xfr:\fR [AXFR|UDP] <ip\-address> <key\-name | NOKEY> [tls\-auth\-name]
+Access control list. The listed address (the primary) is queried for
+AXFR/IXFR on update. A port number can be added using a suffix of @number,
+for example 1.2.3.4@5300. The specified key is used during AXFR/IXFR. If
+tls-auth-name is included, the specified tls-auth clause will be used to
+perform authenticated XFR-over-TLS.
+.sp
+If the AXFR option is given, the server will not be contacted with
+IXFR queries but only AXFR requests will be made to the server. This
+allows an NSD secondary to have a primary server that runs NSD. If
+the AXFR option is left out then both IXFR and AXFR requests are
+made to the primary server.
+.sp
+If the UDP option is given, the secondary will use UDP to transmit the IXFR
+requests. You should deploy TSIG when allowing UDP transport, to authenticate
+notifies and zone transfers. Otherwise, NSD is more vulnerable for
+Kaminsky\-style attacks. If the UDP option is left out then IXFR will be
+transmitted using TCP.
+.sp
+If a tls-auth-name is given then TLS (by default on port 853) will be used
+for all zone transfers for the zone. If authentication of the primary, based on
+the specified tls-auth authentication information, fails the XFR request will
+not be sent. Support for TLS 1.3 is required for XFR-over-TLS.
+.TP
+.B allow\-axfr\-fallback:\fR <yes or no>
+This option should be accompanied by request\-xfr. It (dis)allows NSD (as secondary)
+to fallback to AXFR if the primary name server does not support IXFR. Default is yes.
+.TP
+.B size\-limit\-xfr:\fR <number>
+This option should be accompanied by request\-xfr. It specifies XFR temporary file size limit.  It can be used to stop very large zone retrieval, that could otherwise use up a lot of memory and disk space.
+If this option is 0, unlimited. Default value is 0.
+.TP
+.B notify:\fR <ip\-address> <key\-name | NOKEY>
+Access control list. The listed address (a secondary) is notified
+of updates to this zone via UDP. A port number can be added using a suffix of @number,
+for example 1.2.3.4@5300. The specified key is used to sign the
+notify. Only on secondary configurations will NSD be able to detect
+zone updates (as it gets notified itself, or refreshes after a
+time).
+.TP
+.B notify\-retry:\fR <number>
+This option should be accompanied by notify. It sets the number of retries
+when sending notifies.
+.TP
+.B provide\-xfr:\fR <ip\-spec> <key\-name | NOKEY | BLOCKED> [tls\-auth\-name]
+Access control list. The listed address (a secondary) is allowed to
+request XFR from this server. Zone data will be provided to the
+address. The specified key is used during XFR. For unlisted or
+BLOCKED addresses no data is provided and requests are discarded.
+BLOCKED supersedes other entries and other entries are scanned for a match
+in the order of the statements.
+.sp
+The ip\-spec is either a plain IP address (IPv4 or IPv6), or can be
+a subnet of the form 1.2.3.4/24, or masked like
+1.2.3.4&255.255.255.0 or a range of the form 1.2.3.4\-1.2.3.25.
+A port number can be added using a suffix of @number, for example
+1.2.3.4@5300 or 1.2.3.4/24@5300 for port 5300. Note the ip\-spec
+ranges do not use spaces around the /, &, @ and \- symbols.
+.sp
+If a tls-auth-name is given then TLS authentication of the secondary will be performed
+for zone transfer requests for the zone. The remote end must connect to the
+.BR tls-auth-port
+and must present a certificate with a
+SAN (Subject Alternative Name) DNS entry or CN (Common Name) entry equal to
+.BR auth-domain-name
+of the defined
+.BR tls-auth .
+The certificate validify is also verified with
+.BR tls-cert-bundle .
+If authentication of the secondary, based on the specified tls-auth authentication
+information, fails the XFR zone transfer will be refused. If the connection is performed
+on the
+.BR tls-port
+then no authentication will be performed and the transfer will not be refused.
+To enforce only authenticated zone transfers,
+.BR tls-auth-xfr-only
+should also be enabled. Support for TLS 1.3 is required for XFR-over-TLS.
+.TP
+.B outgoing\-interface:\fR <ip\-address>
+Access control list. The listed address is used to request AXFR|IXFR (in case of
+a secondary) or used to send notifies (in case of a primary).
+.sp
+The ip\-address is a plain IP address (IPv4 or IPv6).
+A port number can be added using a suffix of @number, for example
+1.2.3.4@5300.
+.TP
+.B store\-ixfr:\fR <yes or no>
+If enabled, IXFR contents are stored and provided to the set of clients
+specified in the provide\-xfr statement. Default is no. IXFR content is
+a smaller set of changes that differ between zone versions, whereas an AXFR
+contains the full contents of the zone.
+.TP
+.B ixfr\-number:\fR <number>
+The number of IXFR versions to store for this zone, at most. Default is 5.
+.TP
+.B ixfr\-size:\fR <number>
+The max storage to use for IXFR versions for this zone, in bytes.
+Default is 1048576. A value of 0 means unlimited. If you want to turn off
+IXFR storage, set the store\-ixfr option to no.
+NSD does not elide IXFR contents from versions that add and remove the same
+data. It stores and transmits IXFRs as they were transmitted by the upstream server.
+.TP
+.B create\-ixfr:\fR <yes or no>
+If enabled, IXFR data is created when a zonefile is read by the server.
+This requires store\-ixfr to be set to yes, so that the IXFR contents are saved to disk.
+Default is off. If the server is not running, the nsd\-checkzone \-i
+option can be used to create an IXFR file. When an IXFR is created, the server
+spools a version of the zone to a temporary file, at the location where the
+ixfr files are stored. This creates IXFR data when the zone is read from file,
+but not when a zone is read by AXFR transfer from a server, because then
+the topmost server that originates the data is the one place where IXFR
+differences are computed and those differences are then transmitted verbatim
+to all the other servers.
+.TP
+.B max\-refresh\-time:\fR <seconds>
+Limit refresh time for secondary zones.  This is the timer which checks to see
+if the zone has to be refetched when it expires.  Normally the value from the
+SOA record is used, but this option restricts that value.
+.TP
+.B min\-refresh\-time:\fR <seconds>
+Limit refresh time for secondary zones.
+.TP
+.B max\-retry\-time:\fR <seconds>
+Limit retry time for secondary zones.  This is the timer which retries after
+a failed fetch attempt for the zone.  Normally the value from the SOA record is
+used, followed by an exponential backoff, but this option restricts that value.
+.TP
+.B min\-retry\-time:\fR <seconds>
+Limit retry time for secondary zones.
+.TP
+.B min\-expire\-time:\fR <seconds or refresh+retry+1>
+Limit expire time for secondary zones.  The value can be expressed either by a
+number of seconds, or the string "refresh+retry+1".  With the latter the expire
+time will be lower bound to the refresh plus the retry value from the SOA
+record, plus 1.  The refresh and retry values will be subject to the bounds
+configured with max\-refresh\-time, min\-refresh\-time, max\-retry\-time and
+min\-retry\-time if given.
+.TP
+.B zonestats:\fR <name>
+When not compiled without zone\-stats NSD can collect statistics per zone.
+This name gives the group where statistics are added to.  The groups are
+output from nsd\-control stats and stats_noreset.  Default is "".
+You can use "%s" to use the name of the zone to track its statistics.
+If not compiled in, the option can be given but is ignored.
+.TP
+.B include\-pattern:\fR <pattern\-name>
+The options from the given pattern are included at this point.
+The referenced pattern must be defined above this zone.
+.TP
+.B rrl\-whitelist:\fR <rrltype>
+This option causes queries of this rrltype to be whitelisted, for this
+zone. They receive the whitelist\-ratelimit. You can give multiple lines,
+each enables a new rrltype to be whitelisted for the zone. Default has
+none whitelisted. The rrltype is the query classification that the NSD RRL
+employs to make different types not interfere with one another.  The types
+are logged in the loglines when a subnet is blocked (in verbosity 2).
+The RRL classification types are: nxdomain, error, referral, any, rrsig,
+wildcard, nodata, dnskey, positive, all.
+.TP
+.B multi\-primary\-check:\fR <yes or no>
+Default no.  If enabled, checks all primaries for the last version.  It uses
+the higher version of all the configured primaries.  Useful if you have multiple
+primaries that have different version numbers served.
+.TP
+.B verify\-zone:\fR <yes or no>
+Enable or disable verification for this zone. Default is value\-zones
+configured in
+.B verify:\fR.
+.TP
+.B verifier:\fR <command>
+Command to execute to assess this zone. Default is verifier configured in
+.B verify:\fR.
+.TP
+.B verifier-feed-zone:\fR <yes or no>
+Feed updated zone to verifier over standard input. Default is
+verifier\-feed\-zone configured in
+.B verify:\fR.
+.TP
+.B verifier\-timeout:\fR <seconds>
+Number of seconds before verifier is forcefully terminated. Specify 0 (zero)
+to not use a specific timeout. Default is verifier\-timeout from
+.B verify:\fR.
+.TP
+.B catalog:\fR <consumer or producer>
+If set to \fIconsumer\fR, catalog zone processing is enabled for the zone.
+Only a single zone may be configured as a catalog consumer zone. When more than
+one catalog consumer zone is configured, none of them will be processed.
+Member zones of the catalog will use the pattern specified by the group
+property, or if a group property is missing or invalid, the pattern specified
+by the \fBcatalog\-member\-pattern\fR option is used. Group properties are valid
+if there is only a single value matching the name of a for member zones valid
+pattern.
+.sp
+A zone with the option set to \fIproducer\fR, can be used to produce a
+catalog zone.  Member zones for catalog producer zones can be added with
+"\fInsd\-control addzone <zone> <pattern>\fR", where <pattern> has a
+\fBcatalog\-producer\-zone\fR option pointing to a catalog producer zone.
+Members will get a group property with the pattern name as value.
+Catalog producer zones must be primary zones and may not have a
+\fBrequest\-xfr\fR option. Catalog producer zones will \fInot\fR read content
+from zone files, but will reconstruct the zone on startup from the member zone
+entries in @zonelistfile@, specified with the \fBzonelistfile\fR option.
+.sp
+The status of both catalog consumer and producer zones can be verified with
+\fInsd\-control zonestatus\fR. It will show the number of member zones and, if
+the catalog zone is invalid, the reason for it to be invalid is shown.
+\fInsd\-control zonestatus\fR will also show the entry of a catalog member zone
+in the catalog (consumer or producer) zone as \fBcatalog-member-id:\fR.
+.sp
+A catalog zone can either be catalog consumer zone or a catalog producer zone
+but not both. Likewise, catalog member zones can be either a member of catalog
+consumer zone or a catalog producer zone but not both.
+.sp
+Catalog zones contain a list of zones that are served. Use \fBallow\-query:
+0.0.0.0/0 BLOCKED\fR and \fBallow\-query: ::0/0 BLOCKED\fR in a catalog zone 
+zone or pattern clause to prevent revealing the catalog. Also consider using
+transfers over TLS to further protect the catalog against eavesdroppers.
+.TP
+.B catalog\-member\-pattern:\fR <pattern\-name>
+If this option is provided for a catalog consumer zone, members of that catalog
+that have a missing or an invalid group property will be added using pattern 
+<pattern\-name>.
+.TP
+.B catalog\-producer\-zone:\fR <zone\-name>
+This option can only be used in a pattern. Adding a zone using
+"\fInsd\-control addzone <zone> <pattern>\fR" with a <pattern> containing this
+option, will cause a catalog member entry to be created in the catalog producer
+zone <zone\-name>.  <zone\-name> must exist and must be a valid catalog
+producer zone.
+.SS "Key Declarations"
+The
+.B key:
+clause establishes a key for use in access control lists. It has
+the following attributes.
+.TP
+.B name:\fR <string>
+The key name. Used to refer to this key in the access control list.
+The key name has to be correct for tsig to work.
+This is because the key name is output on the wire.
+.TP
+.B algorithm:\fR <string>
+Authentication algorithm for this key.  Such as hmac\-md5, hmac\-sha1,
+hmac\-sha224, hmac\-sha256, hmac\-sha384 and hmac\-sha512.  Can also be
+abbreviated as 'sha1', 'sha256'.  Default is sha256.
+Algorithms are only available when they were compiled in (available in the
+crypto library).
+.TP
+.B secret:\fR <base64 blob>
+The base64 encoded shared secret. It is possible to put the
+.B secret:
+declaration (and base64 blob) into a different file, and then to
+.B include:
+that file. In this way the key secret and the rest of the configuration
+file, which may have different security policies, can be split apart.
+The content of the secret is the agreed base64 secret content.  To make it
+up, enter a password (its length must be a multiple of 4 characters, A\-Za\-z0\-9), or use
+dev-random output through a base64 encode filter.
+.SS "TLS Auth Declarations"
+The
+.B tls-auth:
+clause establishes attributes to use when authenticating the far end of a TLS connection
+as well as to define credentials to authenticate to a remote server. It is used in
+access control lists for XFR-over-TLS. It has the following attributes.
+.TP
+.B name:\fR <string>
+The tls-auth name. Used to refer to this TLS authentication information in the
+access control list.
+.TP
+.B auth\-domain\-name:\fR <string>
+The authentication domain name as defined in RFC8310. Used to verify the certificate
+of the remote connecting server. When used by a primary server in
+.BR provide-xfr
+it verifies the secondary. When used by a secondary server in
+.BR request-xfr
+it verifies the primary.
+.TP
+.B client\-cert: <file name of clientcert.pem>
+If you want to use mutual TLS authentication, this is where the client
+certificates can be configured that NSD uses to connect to the upstream
+server to download the zone. The client public key pem cert file can
+be configured here. Also configure a private key with client\-key.
+.TP
+.B client\-key: <file name of clientkey.key>
+If you want to use mutual TLS authentication, the private key file can
+be configured here for the client authentication.
+.TP
+.B client\-key\-pw: <string>
+If the client\-key file uses a password to decrypt the key before it can
+be used, then the password can be specified here as a string.
+It is possible to include other config files with the include: option, and
+this can be used to move that sensitive data to another file, if you wish.
+.SS DNSTAP Logging Options
+DNSTAP support, when compiled in, is enabled in the \fBdnstap:\fR section.
+This starts a collector process that writes the log information to the
+destination.
+.TP
+.B dnstap-enable:\fR <yes or no>
+If dnstap is enabled.  Default no.  If yes, it connects to the dnstap server
+and if any of the dnstap-log-..-messages options is enabled it sends logs
+for those messages to the server.
+.TP
+.B dnstap-socket-path:\fR <file name>
+Sets the unix socket file name for connecting to the server that is
+listening on that socket.  Default is "@dnstap_socket_path@".
+.TP
+.B dnstap-ip:\fR <"" or addr[@port]>
+If disabled with "", the socket path is used. With a value, like address or
+address@port, like "127.0.0.1@3333" TCP or TLS is used. Default is "".
+.TP
+.B dnstap-tls:\fR <yes or no>
+If enabled, TLS is used to the address specified in \fBdnstap-ip\fR. Otherwise,
+TCP is used. Default is yes.
+.TP
+.B dnstap-tls-server-name:\fR <string>
+The name for authenticating the upstream server. With "" disabled.
+.TP
+.B dnstap-tls-client-key-file:\fR <file name>
+The key file for client authentication, or "" disabled.
+.TP
+.B dnstap-tls-client-cert-file:\fR <file name>
+The cert file for client authentication, or "" disabled.
+.TP
+.B dnstap-send-identity:\fR <yes or no>
+If enabled, the server identity is included in the log messages.
+Default is no.
+.TP
+.B dnstap-send-version:\fR <yes or no>
+If enabled, the server version if included in the log messages.
+Default is no.
+.TP
+.B dnstap-identity:\fR <string>
+The identity to send with messages, if "" the hostname is used.
+Default is "".
+.TP
+.B dnstap-version:\fR <string>
+The version to send with messages, if "" the package version is used.
+Default is "".
+.TP
+.B dnstap-log-auth-query-messages:\fR <yes or no>
+Enable to log auth query messages.  Default is no.
+These are client queries to NSD.
+.TP
+.B dnstap-log-auth-response-messages:\fR <yes or no>
+Enable to log auth response messages.  Default is no.
+These are responses from NSD to clients.
+.SH "NSD CONFIGURATION FOR BIND9 HACKERS"
+BIND9 is a name server implementation with its own configuration
+file format, named.conf(5). BIND9 types zones as 'Primary' or 'Secondary'.
+.SS "Secondary zones"
+For a secondary zone, the primary servers are listed. The primary servers are
+queried for zone data, and are listened to for update notifications.
+In NSD these two properties need to be configured separately, by listing
+the primary address in allow\-notify and request\-xfr statements.
+.sp
+In BIND9 you only need to provide allow\-notify elements for
+any extra sources of notifications (i.e. the operators), NSD needs to have
+allow\-notify for both primaries and operators. BIND9 allows
+additional transfer sources, in NSD you list those as request\-xfr.
+.sp
+Here is an example of a secondary zone in BIND9 syntax.
+.sp
+.nf
+# Config file for example.org
+options {
+	dnssec\-enable yes;
+};
+.sp
+key tsig.example.org. {
+	algorithm hmac\-md5;
+	secret "aaaaaabbbbbbccccccdddddd";
+};
+.sp
+server 162.0.4.49 {
+	keys { tsig.example.org. ; };
+};
+.sp
+zone "example.org" {
+	type secondary;
+	file "secondary/example.org.signed";
+	primaries { 162.0.4.49; };
+};
+.fi
+For NSD, DNSSEC is enabled automatically for zones that are signed. The
+dnssec\-enable statement in the options clause is not needed. In NSD
+keys are associated with an IP address in the access control list
+statement, therefore the server{} statement is not needed. Below is
+the same example in an NSD config file.
+.sp
+.nf
+# Config file for example.org
+key:
+	name: tsig.example.org.
+	algorithm: hmac\-md5
+	secret: "aaaaaabbbbbbccccccdddddd"
+.sp
+zone:
+	name: "example.org"
+	zonefile: "secondary/example.org.signed"
+	# the primary is allowed to notify and will provide zone data.
+	allow\-notify: 162.0.4.49 NOKEY
+	request\-xfr: 162.0.4.49 tsig.example.org.
+.fi
+.sp
+Notice that the primary is listed twice, once to allow it to send notifies
+to this secondary server and once to tell the secondary server where to look for
+updates zone data. More allow\-notify and request\-xfr lines can be
+added to specify more primaries.
+.sp
+It is possible to specify extra allow\-notify lines for addresses
+that are also allowed to send notifications to this secondary server.
+.SS "Primary zones"
+For a primary zone in BIND9, the secondary servers are listed. These secondary
+servers are sent notifications of updated and are allowed to request
+transfer of the zone data. In NSD these two properties need to be
+configured separately.
+.sp
+Here is an example of a primary zone in BIND9 syntax.
+.sp
+.nf
+zone "example.nl" {
+	type primary;
+	file "example.nl";
+};
+.fi
+.sp
+In NSD syntax this becomes:
+.sp
+.nf
+zone:
+	name: "example.nl"
+	zonefile: "example.nl"
+	# allow anybody to request xfr.
+	provide\-xfr: 0.0.0.0/0 NOKEY
+	provide\-xfr: ::0/0 NOKEY
+.sp
+# to list a secondary server you would in general give
+# provide\-xfr: 1.2.3.4 tsig\-key.name.
+# notify: 1.2.3.4 NOKEY
+.fi
+.SS "Other"
+NSD is an authoritative only DNS server. This means that it is
+meant as a primary or secondary server for zones, providing DNS
+data to DNS resolvers and caches. BIND9 can function as an
+authoritative DNS server, the configuration options for that are
+compared with those for NSD in this section. However, BIND9 can
+also function as a resolver or cache. The configuration options that
+BIND9 has for the resolver or caching thus have no equivalents for NSD.
+.SH "FILES"
+.TP
+@nsdconfigfile@
+default
+.B NSD
+configuration file
+.SH "SEE ALSO"
+\fInsd\fR(8), \fInsd\-checkconf\fR(8), \fInsd\-checkzone\fR(8), \fInsd\-control\fR(8)
+.SH "AUTHORS"
+.B NSD
+was written by a combined team from NLnet Labs and RIPE NCC. Please see the
+CREDITS file in the distribution for further details.
+.SH "BUGS"
+.B nsd.conf
+is parsed by a primitive parser. Error messages may not be to the point.

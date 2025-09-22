@@ -1,0 +1,124 @@
+.\" $OpenBSD: curs_add_wchstr.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.\"***************************************************************************
+.\" Copyright 2019-2021,2022 Thomas E. Dickey                                *
+.\" Copyright 2002-2012,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_add_wchstr.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.TH curs_add_wchstr 3 2022-02-12 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.na
+.hy 0
+.SH NAME
+\fBadd_wchstr\fP,
+\fBadd_wchnstr\fP,
+\fBwadd_wchstr\fP,
+\fBwadd_wchnstr\fP,
+\fBmvadd_wchstr\fP,
+\fBmvadd_wchnstr\fP,
+\fBmvwadd_wchstr\fP,
+\fBmvwadd_wchnstr\fP \- add an array of complex characters (and attributes) to a curses window
+.ad
+.hy
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>\fP
+.PP
+\fBint add_wchstr(const cchar_t *\fIwchstr\fB);\fR
+.br
+\fBint add_wchnstr(const cchar_t *\fIwchstr\fB, int \fIn\fB);\fR
+.br
+\fBint wadd_wchstr(WINDOW *\fR \fIwin\fB, const cchar_t *\fIwchstr\fB);\fR
+.br
+\fBint wadd_wchnstr(WINDOW *\fR \fIwin\fB, const cchar_t *\fIwchstr\fB, int \fIn\fB);\fR
+.sp
+\fBint mvadd_wchstr(int \fIy\fB, int \fIx\fB, const cchar_t *\fIwchstr\fB);\fR
+.br
+\fBint mvadd_wchnstr(int \fIy\fB, int \fIx\fB, const cchar_t *\fIwchstr\fB, int \fIn\fB);\fR
+.br
+\fBint mvwadd_wchstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, const cchar_t *\fIwchstr\fB);\fR
+.br
+\fBint mvwadd_wchnstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, const cchar_t *\fIwchstr\fB, int \fIn\fB);\fR
+.fi
+.SH DESCRIPTION
+These functions copy the (null-terminated)
+array of complex characters \fIwchstr\fP
+into the window image structure
+starting at the current cursor position.
+The four functions with \fIn\fP as the last
+argument copy at most \fIn\fP elements,
+but no more than will fit on the line.
+If \fBn\fP=\fB\-1\fP then the whole array is copied,
+to the maximum number of characters that will fit on the line.
+.PP
+The window cursor is \fInot\fP advanced.
+These functions work faster than \fBwaddnstr\fP.
+On the other hand:
+.bP
+they do not perform checking
+(such as for the newline, backspace, or carriage return characters),
+.bP
+they do not advance the current cursor position,
+.bP
+they do not expand other control characters to ^-escapes, and
+.bP
+they truncate the string if it crosses the right margin,
+rather than wrapping it around to the new line.
+.PP
+These functions end successfully
+on encountering a null \fBcchar_t\fP, or
+when they have filled the current line.
+If a complex character cannot completely fit at the end of the current line,
+the remaining columns are filled with the background character and rendition.
+.SH RETURN VALUE
+All functions return the integer \fBERR\fP upon failure and \fBOK\fP on success.
+.PP
+X/Open does not define any error conditions.
+This implementation returns an error
+if the window pointer is null.
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+All functions except \fBwadd_wchnstr\fP may be macros.
+.SH PORTABILITY
+These entry points are described in the XSI Curses standard, Issue 4.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_addwstr\fP(3).
+.PP
+Comparable functions in the narrow-character (ncurses) library are
+described in
+\fBcurs_addchstr\fP(3).

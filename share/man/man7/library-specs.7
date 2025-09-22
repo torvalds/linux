@@ -1,0 +1,150 @@
+.\" $OpenBSD: library-specs.7,v 1.13 2018/07/09 15:34:10 jmc Exp $
+.\"
+.\" Copyright (c) 2001-2010 Marc Espie
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 9 2018 $
+.Dt LIBRARY-SPECS 7
+.Os
+.Sh NAME
+.Nm library-specs
+.Nd shared library name specifications
+.Sh DESCRIPTION
+Each
+.Ev WANTLIB
+item in the ports tree conforms to
+.Bd -literal -offset indent
+[path/]libname[=major[.minor]]
+.Ed
+.Pp
+or
+.Bd -literal -offset indent
+[path/]libname[>=major[.minor]]
+.Ed
+.Pp
+All libraries that a package needs must be mentioned in that list.
+Except for system and X11 libraries, they all must be reachable through
+.Ev LIB_DEPENDS
+and
+.Ev RUN_DEPENDS ,
+directly, or indirectly through recursive dependencies.
+.Pp
+Conversely, the ports tree
+uses
+.Ev WANTLIB
+to check whether a given
+.Ev LIB_DEPENDS
+will be required at runtime for shared libraries, and thus turn it into a
+.Cm @depend
+line
+.Po
+see
+.Xr pkg_create 1
+.Pc .
+.Pp
+The package system will embed correct dependency checks in the built
+package in the form of
+.Cm @wantlib
+lines, according to the normal shared library semantics: any library with
+the same major number, and a greater or equal minor number will do.
+.Pp
+Note that static libraries can only satisfy a library specification if
+no shared library has been found.
+Thus, if WANTLIB = foo>=5, and both libfoo.so.4.0 and libfoo.a are present,
+the check will fail.
+.Pp
+Therefore, porters must strive to respect correct shared library semantics
+in their own ports: by bumping the minor number each time the interface is
+augmented, and by bumping the major number each time the interface changes.
+Note that adding functions to a library is an interface augmentation.
+Removing functions is an interface change.
+.Pp
+The major.minor components of the library specification are used only as a
+build-time check, the run-time checks are computed by
+.Xr port-resolve-lib-helper 1 .
+For
+.Sq libname>=major[.minor] ,
+any library which is more recent than the given major.minor version will
+do.
+If a specific major number is needed, use the form
+.Sq libname=major[.minor] .
+If the minor component is left empty, any minor will do.
+If both components are left empty, any version will do.
+.Pp
+Most specifications won't mention a
+.Pa path :
+.Xr port-resolve-lib-helper 1
+will look in the default
+.Xr ldconfig 8
+path automatically, namely
+.Pa /usr/local/lib ,
+.Pa /usr/X11R6/lib ,
+.Pa /usr/lib .
+It is generally a bad idea to put libraries elsewhere as they won't be
+reached directly.
+.Pp
+However, distinct ports may install different major versions of the same
+library in
+.Pa /usr/local/lib ,
+and disambiguate the build by creating a link in a separate directory,
+and specifying the right options to the linker.
+.Pp
+These libraries will require a
+.Pa path
+component in the corresponding
+.Ev WANTLIB
+to make sure the right library is resolved.
+This path is rooted under
+.Pa /usr/local .
+For instance, to refer to
+.Pa /usr/local/lib/qt3/libqt-mt.so.33.0 ,
+one would use
+.Sq lib/qt3/qt-mt>=33 .
+.Sh SEE ALSO
+.Xr check-lib-depends 1 ,
+.Xr ld 1 ,
+.Xr ld.so 1 ,
+.Xr pkg_add 1 ,
+.Xr port-resolve-lib-helper 1 ,
+.Xr bsd.port.mk 5 ,
+.Xr packages 7 ,
+.Xr packages-specs 7 ,
+.Xr ports 7 ,
+.Xr ldconfig 8
+.Sh HISTORY
+Full support for library specifications first appeared in
+.Ox 3.1 .
+The format of specifications changed slightly to include
+.Sq >=
+before
+.Ox 4.0 .
+The interactions between
+.Ev LIB_DEPENDS
+and
+.Ev WANTLIB
+were modified and clarified for
+.Ox 4.8 .
+The format of specifications changed again before
+.Ox 4.9
+to remove extra noise.

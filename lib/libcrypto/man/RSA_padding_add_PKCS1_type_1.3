@@ -1,0 +1,237 @@
+.\"	$OpenBSD: RSA_padding_add_PKCS1_type_1.3,v 1.9 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL 1e3f62a3 Jul 17 16:47:13 2017 +0200
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_PADDING_ADD_PKCS1_TYPE_1 3
+.Os
+.Sh NAME
+.Nm RSA_padding_add_PKCS1_type_1 ,
+.Nm RSA_padding_check_PKCS1_type_1 ,
+.Nm RSA_padding_add_PKCS1_type_2 ,
+.Nm RSA_padding_check_PKCS1_type_2 ,
+.Nm RSA_padding_add_PKCS1_OAEP ,
+.Nm RSA_padding_check_PKCS1_OAEP ,
+.Nm RSA_padding_add_none ,
+.Nm RSA_padding_check_none
+.Nd asymmetric encryption padding
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft int
+.Fo RSA_padding_add_PKCS1_type_1
+.Fa "unsigned char *to"
+.Fa "int tlen"
+.Fa "unsigned char *f"
+.Fa "int fl"
+.Fc
+.Ft int
+.Fo RSA_padding_check_PKCS1_type_1
+.Fa "unsigned char *to"
+.Fa "int tlen"
+.Fa "unsigned char *f"
+.Fa "int fl"
+.Fa "int rsa_len"
+.Fc
+.Ft int
+.Fo RSA_padding_add_PKCS1_type_2
+.Fa "unsigned char *to"
+.Fa "int tlen"
+.Fa "unsigned char *f"
+.Fa "int fl"
+.Fc
+.Ft int
+.Fo RSA_padding_check_PKCS1_type_2
+.Fa "unsigned char *to"
+.Fa "int tlen"
+.Fa "unsigned char *f"
+.Fa "int fl"
+.Fa "int rsa_len"
+.Fc
+.Ft int
+.Fo RSA_padding_add_PKCS1_OAEP
+.Fa "unsigned char *to"
+.Fa "int tlen"
+.Fa "unsigned char *f"
+.Fa "int fl"
+.Fa "unsigned char *p"
+.Fa "int pl"
+.Fc
+.Ft int
+.Fo RSA_padding_check_PKCS1_OAEP
+.Fa "unsigned char *to"
+.Fa "int tlen"
+.Fa "unsigned char *f"
+.Fa "int fl"
+.Fa "int rsa_len"
+.Fa "unsigned char *p"
+.Fa "int pl"
+.Fc
+.Ft int
+.Fo RSA_padding_add_none
+.Fa "unsigned char *to"
+.Fa "int tlen"
+.Fa "unsigned char *f"
+.Fa "int fl"
+.Fc
+.Ft int
+.Fo RSA_padding_check_none
+.Fa "unsigned char *to"
+.Fa "int tlen"
+.Fa "unsigned char *f"
+.Fa "int fl"
+.Fa "int rsa_len"
+.Fc
+.Sh DESCRIPTION
+These functions are called from the RSA encrypt, decrypt, sign, and
+verify functions.
+Normally they should not be called from application programs.
+.Pp
+However, they can also be called directly to implement padding for other
+asymmetric ciphers.
+.Fn RSA_padding_add_PKCS1_OAEP
+and
+.Fn RSA_padding_check_PKCS1_OAEP
+may be used in an application combined with
+.Dv RSA_NO_PADDING
+in order to implement OAEP with an encoding parameter.
+.Pp
+.Fn RSA_padding_add_*
+encodes
+.Fa fl
+bytes from
+.Fa f
+so as to fit into
+.Fa tlen
+bytes and stores the result at
+.Fa to .
+An error occurs if
+.Fa fl
+does not meet the size requirements of the encoding method.
+.Pp
+The following encoding methods are implemented:
+.Pp
+.Bl -tag -width PKCS1_type_2 -compact
+.It PKCS1_type_1
+PKCS #1 v2.0 EMSA-PKCS1-v1_5 (PKCS #1 v1.5 block type 1);
+used for signatures
+.It PKCS1_type_2
+PKCS #1 v2.0 EME-PKCS1-v1_5 (PKCS #1 v1.5 block type 2)
+.It PKCS1_OAEP
+PKCS #1 v2.0 EME-OAEP
+.It none
+simply copy the data
+.El
+.Pp
+.Fn RSA_padding_check_*
+verifies that the
+.Fa fl
+bytes at
+.Fa f
+contain a valid encoding for a
+.Fa rsa_len
+byte RSA key in the respective encoding method and stores the recovered
+data of at most
+.Fa tlen
+bytes (for
+.Dv RSA_NO_PADDING :
+of size
+.Fa tlen )
+at
+.Fa to .
+.Pp
+For
+.Fn RSA_padding_*_OAEP ,
+.Fa p
+points to the encoding parameter of length
+.Fa pl .
+.Fa p
+may be
+.Dv NULL
+if
+.Fa pl
+is 0.
+.Sh RETURN VALUES
+The
+.Fn RSA_padding_add_*
+functions return 1 on success or 0 on error.
+The
+.Fn RSA_padding_check_*
+functions return the length of the recovered data or -1 on error.
+Error codes can be obtained by calling
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr RSA_new 3 ,
+.Xr RSA_private_decrypt 3 ,
+.Xr RSA_public_encrypt 3 ,
+.Xr RSA_sign 3 ,
+.Xr RSA_verify 3
+.Sh HISTORY
+.Fn RSA_padding_add_PKCS1_type_1 ,
+.Fn RSA_padding_check_PKCS1_type_1 ,
+.Fn RSA_padding_add_PKCS1_type_2 ,
+.Fn RSA_padding_check_PKCS1_type_2 ,
+.Fn RSA_padding_add_none ,
+and
+.Fn RSA_padding_check_none
+first appeared in SSLeay 0.9.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn RSA_padding_add_PKCS1_OAEP
+and
+.Fn RSA_padding_check_PKCS1_OAEP
+first appeared in OpenSSL 0.9.2b and have been available since
+.Ox 2.6 .
+.Sh BUGS
+The
+.Fn RSA_padding_check_PKCS1_type_2
+padding check leaks timing information which can potentially be
+used to mount a Bleichenbacher padding oracle attack.
+This is an inherent weakness in the PKCS #1 v1.5 padding design.
+Prefer PKCS1_OAEP padding.

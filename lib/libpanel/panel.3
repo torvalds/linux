@@ -1,0 +1,278 @@
+.\" $OpenBSD: panel.3,v 1.11 2023/10/17 09:52:10 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: panel.3,v 1.11 2023/10/17 09:52:10 nicm Exp $
+.TH panel 3 2023-08-19 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+panel \- panel stack extension for curses
+.SH SYNOPSIS
+\fB#include <panel.h>\fP
+.P
+\fBcc [flags] sourcefiles \-lpanel \-lncurses\fP
+.P
+\fBPANEL *new_panel(WINDOW *\fIwin\fB);\fR
+.sp
+\fBint bottom_panel(PANEL *\fIpan\fB);\fR
+.br
+\fBint top_panel(PANEL *\fIpan\fB);\fR
+.br
+\fBint show_panel(PANEL *\fIpan\fB);\fR
+.br
+\fBvoid update_panels(void);\fP
+.br
+\fBint hide_panel(PANEL *\fIpan\fB);\fR
+.sp
+\fBWINDOW *panel_window(const PANEL *\fIpan\fB);\fR
+.br
+\fBint replace_panel(PANEL *\fIpan\fB, WINDOW *\fIwindow\fB);\fR
+.br
+\fBint move_panel(PANEL *\fIpan\fB, int \fIstarty\fB, int \fIstartx\fB);\fR
+.br
+\fBint panel_hidden(const PANEL *\fIpan\fB);\fR
+.sp
+\fBPANEL *panel_above(const PANEL *\fIpan\fB);\fR
+.br
+\fBPANEL *panel_below(const PANEL *\fIpan\fB);\fR
+.sp
+\fBint set_panel_userptr(PANEL *\fIpan\fB, const void *\fIptr\fB);\fR
+.br
+\fBconst void *panel_userptr(const PANEL *\fIpan\fB);\fR
+.sp
+\fBint del_panel(PANEL *\fIpan\fB);\fR
+.sp
+\fR/* ncurses-extensions */\fP
+.br
+\fBPANEL *ground_panel(SCREEN *\fIsp\fB);\fR
+.br
+\fBPANEL *ceiling_panel(SCREEN *\fIsp\fB);\fR
+.br
+.SH DESCRIPTION
+Panels are \fBcurses\fP(3) windows with the added feature of
+depth.
+Panel functions allow the use of stacked windows and ensure
+the proper portions of each window and the curses \fBstdscr\fP window are
+hidden or displayed when panels are added, moved, modified or removed.
+The set of currently visible panels is the stack of panels.
+The
+\fBstdscr\fP window is beneath all panels, and is not considered part
+of the stack.
+.P
+A window is associated with every panel.
+The panel routines enable
+you to create, move, hide, and show panels, as well as position a
+panel at any desired location in the stack.
+.P
+Panel routines are a functional layer added to \fBcurses\fP(3), make only
+high-level curses calls, and work anywhere terminfo curses does.
+.SH FUNCTIONS
+.\" ---------
+.SS bottom_panel
+\fBbottom_panel(\fIpan\fB)\fR
+puts panel \fIpan\fP at the bottom of all panels.
+.\" ---------
+.SS ceiling_panel
+\fBceiling_panel(\fIsp\fB)\fR
+acts like \fBpanel_below(NULL)\fP, for the given \fBSCREEN\fP \fIsp\fP.
+.\" ---------
+.SS del_panel
+\fBdel_panel(\fIpan\fB)\fR
+removes the given panel \fIpan\fP from the  stack and deallocates the
+\fBPANEL\fP structure (but not its associated window).
+.\" ---------
+.SS ground_panel
+\fBground_panel(\fIsp\fB)\fR
+acts like \fBpanel_above(NULL)\fP, for the given \fBSCREEN\fP \fIsp\fP.
+.\" ---------
+.SS hide_panel
+\fBhide_panel(\fIpan\fB)\fR
+removes the given panel \fIpan\fP from the panel stack
+and thus hides it from view.
+The \fBPANEL\fP structure is not lost, merely removed from the stack.
+.\" ---------
+.SS move_panel
+\fBmove_panel(\fIpan\fB,\fIstarty\fB,\fIstartx\fB)\fR
+moves the given panel \fIpan\fP's window so that its upper-left corner is at
+\fIstarty\fP, \fIstartx\fP.
+It does not change the position of the panel in the stack.
+Be sure to use this function, not \fBmvwin\fP(3), to move a panel window.
+.\" ---------
+.SS new_panel
+\fBnew_panel(\fIwin\fB)\fR allocates a \fBPANEL\fR structure,
+associates it with \fIwin\fP, places the panel on the top of the stack
+(causes  it to  be  displayed above any other panel) and returns a
+pointer to the new panel.
+.\" ---------
+.SS panel_above
+\fBpanel_above(\fIpan\fB)\fR
+returns a pointer to the panel above \fIpan\fP.
+If the panel argument is
+\fB(PANEL *)0\fP, it returns a pointer to the bottom panel in the stack.
+.\" ---------
+.SS panel_below
+\fBpanel_below(\fIpan\fB)\fR
+returns a pointer to the panel just below \fIpan\fP.
+If the panel argument
+is \fB(PANEL *)0\fP, it returns a pointer to the top panel in the stack.
+.\" ---------
+.SS panel_hidden
+\fBpanel_hidden(\fIpan\fB)\fR
+returns \fBFALSE\fP if the panel \fIpan\fP is in the panel stack,
+\fBTRUE\fP if it is not.
+If the panel is a null pointer, return \fBERR\fP.
+.\" ---------
+.SS panel_userptr
+\fBpanel_userptr(\fIpan\fB)\fR
+returns the user pointer for a given panel \fIpan\fP.
+.\" ---------
+.SS panel_window
+\fBpanel_window(\fIpan\fB)\fR
+returns a pointer to the window of the given panel \fIpan\fP.
+.\" ---------
+.SS replace_panel
+\fBreplace_panel(\fIpan\fB,\fIwindow\fB)\fR
+replaces the current window of panel \fIpan\fP with \fIwindow\fP
+This is useful, for example if you want to resize a panel.
+In \fBncurses\fP, you can call \fBreplace_panel\fP
+to resize a panel using a window resized with \fBwresize\fP(3).
+It does not change the position of the panel in the stack.
+.\" ---------
+.SS set_panel_userptr
+\fBset_panel_userptr(\fIpan\fB,\fIptr\fB)\fR
+sets the panel's user pointer.
+.\" ---------
+.SS show_panel
+\fBshow_panel(\fIpan\fB)\fR
+makes a hidden panel visible by placing it on top of the panels in the
+panel stack.
+See \fBCOMPATIBILITY\fP below.
+.\" ---------
+.SS top_panel
+\fBtop_panel(\fIpan\fB)\fR
+puts the given visible panel \fIpan\fP on top of all panels in the stack.
+See \fBCOMPATIBILITY\fP below.
+.\" ---------
+.SS update_panels
+\fBupdate_panels()\fR
+refreshes the \fIvirtual screen\fP to reflect the relations between the
+panels in the stack, but does not call \fBdoupdate\fP(3) to refresh the
+\fIphysical screen\fP.
+Use this function and not \fBwrefresh\fP(3) or \fBwnoutrefresh\fP(3).
+.PP
+\fBupdate_panels\fP may be called more than once before a call to
+\fBdoupdate\fP, but \fBdoupdate\fP is the function responsible for updating
+the \fIphysical screen\fP.
+.SH DIAGNOSTICS
+Each routine that returns a pointer returns \fBNULL\fP if an error
+occurs.
+Each routine that returns an int value returns \fBOK\fP if it
+executes successfully and \fBERR\fP if not.
+.PP
+Except as noted, the \fIpan\fP and \fIwindow\fP parameters must be non-null.
+If those are null, an error is returned.
+.PP
+The \fBmove_panel\fP function uses \fBmvwin\fP(3),
+and will return an error if \fBmvwin\fP returns an error.
+.SH COMPATIBILITY
+Reasonable care has been taken to  ensure  compatibility
+with  the  native  panel facility introduced in System V (inspection of
+the SVr4 manual pages suggests the programming interface is unchanged).
+The \fBPANEL\fP data structures are merely  similar.
+The  programmer
+is cautioned not to directly use \fBPANEL\fP fields.
+.P
+The functions \fBshow_panel\fP and \fBtop_panel\fP are identical
+in this implementation, and work equally well with displayed or hidden
+panels.
+In the native System V implementation, \fBshow_panel\fP is
+intended for making a hidden panel visible (at the top of the stack)
+and \fBtop_panel\fP is intended for making an already-visible panel
+move to the top of the stack.
+You are cautioned to use the correct
+function to ensure compatibility with native panel libraries.
+.SH NOTE
+In your library list, libpanel.a should be before libncurses.a; that is,
+you should say \*(``\-lpanel \-lncurses\*('', not the other way around
+(which would give a link-error with static libraries).
+.SH PORTABILITY
+The panel facility was documented in SVr4.2 in
+\fICharacter User Interface Programming (UNIX SVR4.2)\fP.
+.PP
+It is not part of X/Open Curses.
+.PP
+A few implementations exist:
+.bP
+Systems based on SVr4 source code,
+e.g., Solaris, provide this library.
+.bP
+\fBncurses\fP (since version 0.6 in 1993)
+and \fBPDCurses\fP (since version 2.2 in 1995)
+provide a panel library whose common ancestor
+was a public domain implementation by Warren Tucker
+published in \fIu386mon\fP 2.20 (1990).
+.IP
+According to Tucker, the SystemV panel library
+was first released in SVr3.2 (1988),
+and his implementation helped with a port to SVr3.1 (1987).
+.IP
+Several developers have improved each of these;
+they are no longer the same as Tucker's implementation.
+.bP
+NetBSD 8 (2018)
+has a panel library begun by Valery Ushakov in 2015.
+This is based on the AT&T documentation.
+.SH FILES
+panel.h
+interface for the panels library
+.P
+libpanel.a
+the panels library itself
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_variables\fP(3),
+.PP
+This describes \fBncurses\fP
+version 6.4 (patch 20230826).
+.SH AUTHOR
+Originally written by Warren Tucker <wht@n4hgf.mt-park.ga.us>,
+primarily to assist in porting \fIu386mon\fP to systems without a native
+panels library.
+.PP
+Repackaged for ncurses by Zeyd ben-Halim.
+.PP
+Juergen Pfeifer and Thomas E. Dickey revised/improved the library.

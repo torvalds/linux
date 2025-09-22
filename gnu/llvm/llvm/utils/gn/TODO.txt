@@ -1,0 +1,27 @@
+Ideas for things to do:
+
+- more projects (lldb, check- targets for compiler-rt's asan/ubsan/msan/tsan)
+  - once there are more projects, have an llvm_enable_projects arg, modeled
+    after llvm_targets_to_build in the GN build
+  - a check-all build target that runs test of all projects
+- more targets (ARC MSP430 XCore)
+  - example: https://reviews.llvm.org/D56416
+- investigate feasibility of working `gn check`
+
+- "optimized tblgen" mode
+  - either just always build tablegen and support with opt config
+  - or use opt toolchain and build tablegen twice in debug builds, like cmake
+
+- cross builds using GN's toolchain feature
+
+- move clang_tablegen into lib/ for private files
+- add dead code stripping
+- move run_tablegen.py from build to tablegen folder
+- figure out why -Iclang/Support gets added so often
+  => https://groups.google.com/a/chromium.org/forum/?oldui=1#!msg/gn-dev/0S7KRGIXcDI/E4ahA1jQFQAJ
+  => Fixed in https://gn-review.googlesource.com/c/gn/+/11701 !
+     `llvm/utils/gn/get.py` to get new gn binary with the fix
+- plugin() template with working rpath, exports thingers
+  - then port clang_build_examples and enable by default so that clang
+    plugin tests run by default
+- plugin_host() template

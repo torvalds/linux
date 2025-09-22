@@ -1,0 +1,12 @@
+LIB2FUNCS_STATIC_EXTRA = \
+ tmpabi_symbol.c $(srcdir)/config/cris/mulsi3.asm
+
+MULTILIB_OPTIONS = melinux
+MULTILIB_DIRNAMES = elinux
+MULTILIB_EXTRA_OPTS = mbest-lib-options
+
+INSTALL_LIBGCC = install-multilib
+LIBGCC = stmp-multilib
+
+tmpabi_symbol.c: $(srcdir)/config/cris/cris_abi_symbol.c
+	cp $(srcdir)/config/cris/cris_abi_symbol.c $@

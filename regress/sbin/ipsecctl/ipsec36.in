@@ -1,0 +1,2 @@
+flow esp from 3ffe:1::0/24 to 3ffe:2::/24 local 3ffe::1 peer 3ffe:100::1
+flow esp from 3ffe:1::0/24 to 3ffe:2::/24 peer 3ffe:100::1 local 3ffe::1

@@ -1,0 +1,40 @@
+## Target part of the Makefile
+
+LIB1ASMSRC = bfin/lib1funcs.asm
+LIB1ASMFUNCS = _divsi3 _udivsi3 _umodsi3 _modsi3
+
+EXTRA_PARTS = crtbegin.o crtend.o crtbeginS.o crtendS.o crti.o crtn.o crtlibid.o
+
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+CRTSTUFF_T_CFLAGS = -fpic
+TARGET_LIBGCC2_CFLAGS = -fpic
+
+MULTILIB_OPTIONS=mid-shared-library mfdpic
+MULTILIB_DEFAULTS=
+MULTILIB_DIRNAMES=
+MULTILIB_EXCEPTIONS=mid-shared-library/mfdpic
+
+# Assemble startup files.
+$(T)crti.o: $(srcdir)/config/bfin/crti.s $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crti.o -x assembler-with-cpp $(srcdir)/config/bfin/crti.s
+
+$(T)crtn.o: $(srcdir)/config/bfin/crtn.s $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crtn.o -x assembler-with-cpp $(srcdir)/config/bfin/crtn.s
+
+$(T)crtlibid.o: $(srcdir)/config/bfin/crtlibid.s $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crtlibid.o -x assembler-with-cpp \
+	$(srcdir)/config/bfin/crtlibid.s
+
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o crtbeginS.o crtendS.o crti.o crtn.o crtlibid.o

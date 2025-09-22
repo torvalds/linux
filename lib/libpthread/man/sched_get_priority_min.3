@@ -1,0 +1,74 @@
+.\" $OpenBSD: sched_get_priority_min.3,v 1.3 2025/06/07 00:16:52 schwarze Exp $
+.\"
+.\" Copyright (c) 2010 Federico G. Schwindt <fgsch@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for
+.\" any purpose with or without fee is hereby granted, provided that
+.\" the above copyright notice and this permission notice appear in all
+.\" copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+.\" WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+.\" AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA
+.\" OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+.\" TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt SCHED_GET_PRIORITY_MIN 3
+.Os
+.Sh NAME
+.Nm sched_get_priority_max ,
+.Nm sched_get_priority_min
+.Nd get priority limits
+.Sh SYNOPSIS
+.Lb libpthread
+.In sched.h
+.Ft int
+.Fn sched_get_priority_max "int policy"
+.Ft int
+.Fn sched_get_priority_min "int policy"
+.Sh DESCRIPTION
+The
+.Fn sched_get_priority_max
+and
+.Fn sched_get_priority_min
+functions return the maximum and minimum priority values, respectively,
+for the scheduling policy specified by
+.Fa policy .
+.Pp
+The scheduling policy for a thread can either be
+.Dv SCHED_FIFO
+(first in, first out),
+.Dv SCHED_RR
+(round-robin) or
+.Dv SCHED_OTHER .
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn sched_get_priority_max
+and
+.Fn sched_get_priority_min
+return the maximum and minimum priority values, respectively.
+Otherwise, a value of \-1 is returned and errno is set to indicate the error.
+.Sh ERRORS
+The
+.Fn sched_get_priority_max
+and
+.Fn sched_get_priority_min
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa policy .
+.El
+.Sh STANDARDS
+The
+.Fn sched_get_priority_max
+and
+.Fn sched_get_priority_min
+functions conform to
+.St -p1003.1-2008 .
+.Pp
+This implementation does not support process scheduling.

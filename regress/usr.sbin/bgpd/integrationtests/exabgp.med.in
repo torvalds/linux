@@ -1,0 +1,61 @@
+process reader {
+	run "##OBJDIR##/api-exabgp" "##OBJDIR##/med.fifo";
+	encoder text;
+}
+
+neighbor 10.12.57.1 {
+	router-id 10.12.57.2;
+	local-address 10.12.57.2;
+	local-as 64501;
+	peer-as 64500;
+	group-updates;
+	adj-rib-in false;
+	passive false;
+
+	family {
+		ipv4 unicast;
+	}
+
+	api {
+		processes [ reader ];
+		neighbor-changes;
+	}
+}
+
+neighbor 10.12.57.1 {
+	router-id 10.12.57.3;
+	local-address 10.12.57.3;
+	local-as 64502;
+	peer-as 64500;
+	group-updates;
+	adj-rib-in false;
+	passive false;
+
+	family {
+		ipv4 unicast;
+	}
+
+	api {
+		processes [ reader ];
+		neighbor-changes;
+	}
+}
+
+neighbor 10.12.57.1 {
+	router-id 10.12.57.4;
+	local-address 10.12.57.4;
+	local-as 64501;
+	peer-as 64500;
+	group-updates;
+	adj-rib-in false;
+	passive false;
+
+	family {
+		ipv4 unicast;
+	}
+
+	api {
+		processes [ reader ];
+		neighbor-changes;
+	}
+}

@@ -1,0 +1,40 @@
+.\"	$OpenBSD: auglx.4,v 1.2 2010/02/25 00:18:12 schwarze Exp $
+.\"
+.\" Copyright (c) 2008 Marc Balmer <mbalmer@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 25 2010 $
+.Dt AUGLX 4
+.Os
+.Sh NAME
+.Nm auglx
+.Nd AMD Geode LX CS5536 integrated AC'97 audio device
+.Sh SYNOPSIS
+.Cd "auglx* at pci?"
+.Cd "audio* at auglx?"
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports the integrated AC'97 audio controller
+of the AMD Geode LX CS5536 companion chip.
+.Sh SEE ALSO
+.Xr ac97 4 ,
+.Xr audio 4 ,
+.Xr intro 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 4.4 .

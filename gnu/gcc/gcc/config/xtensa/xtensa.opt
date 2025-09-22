@@ -1,0 +1,40 @@
+; Options for the Tensilica Xtensa port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+mconst16
+Target Report Mask(CONST16)
+Use CONST16 instruction to load constants
+
+mfused-madd
+Target Report Mask(FUSED_MADD)
+Enable fused multiply/add and multiply/subtract FP instructions
+
+mlongcalls
+Target
+Use indirect CALLXn instructions for large programs
+
+mtarget-align
+Target
+Automatically align branch targets to reduce branch penalties
+
+mtext-section-literals
+Target
+Intersperse literal pools with code in the text section

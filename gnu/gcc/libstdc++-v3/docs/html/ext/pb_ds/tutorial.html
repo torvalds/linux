@@ -1,0 +1,670 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Tutorial</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Short Tutorial</h1>
+
+    <p>Following is a short tutorial illustrating the main points
+    of <tt>pb_ds</tt>. <a href="concepts.html">Concepts</a>
+    describes and summarizes some concepts.</p>
+
+    <h2><a name="assoc_main" id="assoc_main">Associative
+    Containers</a></h2>
+
+    <h3><a name="assoc_basic" id="assoc_basic">Basic Use</a></h3>
+
+    <p>For the most part, <tt>pb_ds</tt>'s containers have the same
+    interface as the STL's, except for the names used for the
+    container classes themselves. For example, this shows basic
+    operations on a collision-chaining hash-based container:</p>
+
+    <pre>
+<a href=
+"cc_hash_table.html">cc_hash_table</a>&lt;<b>int</b>, <b>char</b>&gt; c;
+
+c[2] = 'b';
+
+assert(c.find(1) == c.end());
+</pre>
+
+    <p>The container is called <a href=
+    "cc_hash_table.html"><tt>cc_hash_table</tt></a> as
+    opposed to <tt>unordered_map</tt>, since "unordered map" does
+    not necessarily mean a hash-based map (as the STL implicitly
+    implies). For example, list-based associative containers, which
+    are very useful for the construction of "multimaps" (see
+    <a href=
+    "assoc_performance_tests.html#msc">Associative-Container
+    Performance Tests::Observations::Mapping-Semantics
+    Considerations</a>), are also unordered. It is also not called
+    <tt>hash_map</tt> since there are more ways than one to
+    implement hash tables.</p>
+
+    <p>This snippet shows a red-black tree based container:</p>
+    <pre>
+<a href=
+"tree.html">tree</a>&lt;<b>int</b>, <b>char</b>&gt; c;
+
+c[2] = 'b';
+
+assert(c.find(2) != c.end());
+</pre>
+
+    <p>The container is called <a href=
+    "tree.html"><tt>tree</tt></a>
+    as opposed to <tt>map</tt>, since "map" doesn't say that
+    much.</p>
+
+    <p>Most of the STL's familiar methods are unchanged.
+    <i>E.g.</i>, <tt>being</tt>, <tt>end</tt>, <tt>size</tt>,
+    <tt>empty</tt>, and <tt>clear</tt>, do just the same as is
+    customary. <a href=
+    "assoc_examples.html#basic_usage">Associative-Container
+    Examples::Basic use</a>, and especially <a href=
+    "../../../../testsuite/ext/pb_ds/example/basic_map.cc"><tt>basic_map.cc</tt></a>,
+    show examples of this.</p>
+
+<p>This isn't to say that things are exactly as one would expect,
+given the container requirments and interfaces in the C++
+standard.</p>
+
+
+    <p>The names of containers' policies and policy accessors are
+    different than those of the STL. For example, if <tt>C</tt> is
+    some type of hash-based container, then</p>
+    <pre>
+C::hash_fn
+</pre>gives the type of its hash functor, and if <tt>c</tt> is some
+hash-based container object, then
+    <pre>
+c.get_hash_fn()
+</pre>
+
+    <p>will return a reference to its hash-functor object.</p>
+
+    <p>Similarly, if <tt>C</tt> is some type of tree-based
+    container, then</p>
+    <pre>
+C::cmp_fn
+</pre>gives the type of its comparison functor, and if <tt>c</tt>
+is some tree-based container object, then
+    <pre>
+c.get_cmp_fn()
+</pre>
+
+    <p>will return a reference to its comparison-functor
+    object.</p>
+
+    <p>It would be nice to give names consistent with those in the
+    existing C++ standard (inclusive of TR1). Unfortunately, these
+    standard containers don't consistently name types and
+    methods. For example, <tt>std::tr1::unordered_map</tt> uses
+    <tt>hasher</tt> for the hash functor, but <tt>std::map</tt> uses
+    <tt>key_compare</tt> for the comparison functor. Also, we could
+    not find an accessor for <tt>std::tr1::unordered_map</tt>'s hash
+    functor, but <tt>std::map</tt> uses <tt>compare</tt> for accessing
+    the comparison functor.</p> 
+
+<p>Instead, <tt>pb_ds</tt> attempts to be internally consistent, and
+uses standard-derived terminology if possible.
+</p>
+
+    <p>Another source of difference is in scope: <tt>pb_ds</tt>
+    contains more types of associative containers than the STL, and
+    more opportunities to configure these new containers, since
+    different types of associative containers are useful in different
+    settings (see <a href=
+    "assoc_performance_tests.html#dss_family_choice">Associative-Container
+    Performance Tests::Observations::Underlying Data-Structure
+    Families</a>).</p>
+
+    <p><tt>pb_ds</tt> contains different classes for hash-based containers,
+    tree-based containers, trie-based containers, and list-based
+    containers. <a href=
+    "interface.html#containers_assoc">Inteface::Containers::Associative
+    Containers</a> lists the containers. <a href=
+    "hash_based_containers.html">Design::Associative
+    Containers::Hash-Based Containers</a>, <a href=
+    "tree_based_containers.html">Design::Associative
+    Containers::Tree-Based Containers</a>, <a href=
+    "trie_based_containers.html">Design::Associative
+    Containers::Trie-Based Containers</a>, and <a href=
+    "lu_based_containers.html">Design::Associative
+    Containers::List-Based Containers</a>, explain some more about
+    these types of containers, respectively.</p>
+
+    <p>Since associative containers share parts of their interface,
+    they are organized as a class hierarchy; it is shown in Figure
+    <a href="#cd">Class hierarchy</a>.</p>
+
+    <h6 class="c1"><a name="cd" id="cd"><img src="container_cd.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Class hierarchy.</h6>
+
+    <p>Each type or method is defined in the most-common ancestor
+    in which it makes sense:
+  <a href=
+    "../../../../testsuite/ext/pb_ds/example/basic_map.cc"><tt>basic_map.cc</tt></a>
+    shows an example of most of the associative-container
+    types.</p>
+
+ 
+    <p>For example, all associative containers support iteration.
+    Consequently, <a href=
+    "container_base.html"><tt>container_base</tt></a> has the
+    interface:</p>
+    <pre>
+<b>template</b>&lt;...&gt;
+<b>class</b> <a href="container_base.html">container_base</a>
+{
+    ...
+    
+<b>public</b>:
+    ...
+    
+    const_iterator
+    begin() <b>const</b>;
+    
+    iterator
+    begin();
+
+    const_iterator
+    end() <b>const</b>;
+    
+    iterator
+    end();
+        
+    ...
+};
+</pre>
+
+    <p>and so all associative containers inherent this method.
+    Conversely, both collision-chaining and (general) probing
+    hash-based associative containers have a hash functor, so
+    <a href=
+    "basic_hash_table.html"><tt>basic_hash_table</tt></a>
+    has the interface:</p>
+    <pre>
+<b>template</b>&lt;...&gt;
+<b>class</b> <a href="basic_hash_table.html">basic_hash_table</a> : <b>public</b> <a href="container_base.html">container_base</a>
+{
+    ...
+    
+<b>public</b>:
+    ...
+    
+    const hash_fn&amp;
+    get_hash_fn() const;
+        
+    hash_fn&amp;
+    get_hash_fn();
+    ...
+};
+</pre>
+
+    <p>and so all hash-based associative containers inherit the
+    same hash-functor accessor methods.</p>
+
+    <p>This is discussed further in <a href=
+    "ds_gen.html">Design::Associative Containers::Data-Structure
+    Genericity</a>.</p>
+
+    <h3><a name="assoc_policies" id="assoc_policies">Configuring
+    Associative Containers</a></h3>
+
+    <p>In general, each of <tt>pb_ds</tt>'s containers is
+    parametrized by more policies than those of the STL's. For
+    example, the STL's hash-based container is parametrized as
+    follows:</p>
+    <pre>
+<b>template</b>&lt;
+    <b>typename</b> Key,
+    <b>typename</b> Mapped,
+    <b>typename</b> Hash,
+    <b>typename</b> Pred,
+    <b>typename</b> Allocator,
+    <b>bool</b> Cache_Hashe_Code&gt;
+<b>class</b> unordered_map;
+</pre>
+
+    <p>and so can be configured by key type, mapped type, a functor
+    that translates keys to unsigned integral types, an equivalence
+    predicate, an allocator, and an indicator whether to store hash
+    values with each entry. <tt>pb_ds</tt>'s collision-chaining
+    hash-based container is parametrized as</p>
+    <pre>
+<b>template</b>&lt;
+    <b>typename</b> Key,
+    <b>typename</b> Mapped,
+    <b>typename</b> Hash_Fn,
+    <b>typename</b> Eq_Fn,
+    <b>typename</b> Comb_Hash_Fn,
+    <b>typename</b> Resize_Policy
+    <b>bool</b> Store_Hash
+    <b>typename</b> Allocator&gt;
+<b>class</b> <a href=
+"cc_hash_table.html">cc_hash_table</a>;
+</pre>
+
+    <p>and so can be configured by the first four types of
+    <tt>std::tr1::unordered_map</tt>, then a policy for translating
+    the key-hash result into a position within the table, then a
+    policy by which the table resizes, an indicator whether to
+    store hash values with each entry, and an allocator (which is
+    typically the last template parameter in STL containers).</p>
+
+    <p>Nearly all policy parameters have default values, so this
+    need not be considered for casual use. It is important to note,
+    however, that hash-based containers' policies can dramatically
+    alter their performance in different settings, and that
+    tree-based containers' policies can make them useful for other
+    purposes than just look-up.</p>
+
+    <p><a href="hash_based_containers.html">Design::Associative
+    Containers::Hash-Based Containers</a>, <a href=
+    "tree_based_containers.html">Design::Associative
+    Containers::Tree-Based Containers</a>, <a href=
+    "trie_based_containers.html">Design::Associative
+    Containers::Trie-Based Containers</a>, and <a href=
+    "lu_based_containers.html">Design::Associative
+    Containers::List-Based Containers</a>, explain some more about
+    configuring hash based, tree based, trie based, and list base
+    containers, respectively. <a href=
+    "interface.html#ds_policy_classes">Interface::Container Policy
+    Classes</a> shows the different policy classes for configuring
+    associative containers. <a href=
+    "assoc_examples.html#hash_based">Examples::Hash-Based
+    Containers</a>, <a href=
+    "assoc_examples.html#tree_like_based">Examples::Tree-Like-Based
+    Containers</a>, and <a href=
+    "assoc_examples.html#trie_based">Examples::Trie-Based
+    Containers</a> show examples for this.</p>
+
+    <h3><a name="assoc_ds_gen" id="assoc_ds_gen">Determining
+    Containers' Attributes</a></h3>
+
+    <p>Associative-containers' underlying data structures obviously
+    affect their performance; Unfortunately, they can also affect
+    their interface. When manipulating generically associative
+    containers, it is often useful to be able to statically
+    determine what they can support and what the cannot. (This was
+    discussed in <a href=
+    "motivation.html#assoc_ds_genericity">Motivation::Associative
+    Containers::Data-Structure Genericity</a>.)</p>
+
+    <p>Happily, the STL provides a good solution to a similar
+    problem - that of the different behavior of iterators. If
+    <tt>It</tt> is an iterator, then</p>
+    <pre>
+<b>typename</b> std::iterator_traits&lt;It&gt;::iterator_category
+</pre>
+
+    <p>is one of a small number of pre-defined
+    <tt><b>struct</b></tt>s, and,</p>
+    <pre>
+<b>typename</b> std::iterator_traits&lt;It&gt;::value_type
+</pre>
+
+    <p>is the value type to which the iterator "points".</p>
+
+    <p>Similarly, in <tt>pb_ds</tt>, if <tt>C</tt> is an
+    associative container, then</p>
+    <pre>
+<b>typename</b> <a href=
+"assoc_container_traits.html"><tt>container_traits</tt></a>&lt;C&gt;::container_category
+</pre>is one of a small number of pre-defined
+<tt><b>struct</b></tt>s, each one corresponding to a class in
+Figure <a href="#cd">Class hierarchy</a>. These tags are listed in
+<a href="interface.html#ds_ts_assoc">Interface::Associative
+Containers::Data-Structure Tags and Traits::Data-Structure
+Tags::Associative-Containers</a>; <a href="ds_gen.html#container_traits">
+    Design::Associative Containers::Data-Structure Tags and
+    Traits</a> explains this further; <a href=
+    "ds_gen.html#tag_cd">Design::Associative
+    Containers::Data-Structure Tags and Traits::Data-structure tag
+    class hierarchy</a> shows a class diagram.
+
+    <p>In most cases, however, the exact underlying data structure
+    is not really important, but only one of its attributes:
+    whether it guarantees storing elements by key order, for
+    example. For this one can use</p>
+    <pre>
+<b>typename</b> <a href=
+"assoc_container_traits.html"><tt>container_traits</tt></a>&lt;C&gt;::order_preserving
+</pre>
+
+    <p>This is described further in <a href=
+    "ds_gen.html">Design::Data-Structure Genericity</a>; <a href=
+    "../../../../testsuite/ext/pb_ds/example/assoc_container_traits.cc"><tt>assoc_container_traits.cc</tt></a>
+    shows an example of querying containers' attributes.</p>
+
+    <h3><a name="assoc_find_range" id="assoc_find_range">Point-Type
+    and Range-Type Methods and Iterators</a></h3>(This subsection
+    addresses points from <a href=
+    "motivation.html#assoc_diff_it">Motivation::Associative
+    Containers::Differentiating between Iterator Types</a>.)
+
+    <p><tt>pb_ds</tt> differentiates between two types of methods
+    and iterators: point-type, and range-type. For example,
+    <tt>find</tt> and <tt>insert</tt> are point-type methods, since
+    they each deal with a specific element; their returned
+    iterators are point-type iterators. <tt>begin</tt> and
+    <tt>end</tt> are range-type methods, since they are not used to
+    find a specific element, but rather to go over all elements in
+    a container object; their returned iterators are range-type
+    iterators.</p>
+
+    <p>Most containers store elements in an order that is
+    determined by their interface. Correspondingly, it is fine that
+    their point-type iterators are synonymous with their range-type
+    iterators. For example, in the following snippet</p>
+    <pre>
+std::for_each(c.find(1), c.find(5), foo);
+</pre>two point-type iterators (returned by <tt>find</tt>) are used
+for a range-type purpose - going over all elements whose key is
+between 1 and 5.
+
+    <p>Conversely, the above snippet makes no sense for
+    self-organizing containers - ones that order (and reorder)
+    their elements by implementation. It would be nice to have a
+    uniform iterator system that would allow the above snippet to
+    compile only if it made sense.</p>
+
+    <p>This could trivially be done by specializing
+    <tt>std::for_each</tt> for the case of iterators returned by
+    <tt>std::tr1::unordered_map</tt>, but this would only solve the
+    problem for one algorithm and one container. Fundamentally, the
+    problem is that one can loop using a self-organizing
+    container's point-type iterators.</p>
+
+    <p><tt>pb_ds</tt>'s containers define two families of
+    iterators: <tt>const_point_iterator</tt> and
+    <tt>point_iterator</tt> are the iterator types returned by
+    point-type methods; <tt>const_iterator</tt> and
+    <tt>iterator</tt> are the iterator types returned by range-type
+    methods.</p>
+    <pre>
+<b>class</b> <i>&lt;- some container -&gt;</i>
+{
+<b>public</b>:
+    ...
+
+    <b>typedef</b> <i>&lt;- something -&gt;</i> const_iterator;
+
+    <b>typedef</b> <i>&lt;- something -&gt;</i> iterator;
+
+    <b>typedef</b> <i>&lt;- something -&gt;</i> const_point_iterator;
+
+    <b>typedef</b> <i>&lt;- something -&gt;</i> point_iterator;
+ 
+    ...
+
+<b>public</b>:
+    ...
+
+    const_iterator begin () <b>const</b>;
+
+    iterator begin();
+
+    const_point_iterator find(...) <b>const</b>;
+
+    point_iterator find(...);
+};
+</pre>
+
+    <p><a href="ds_gen.html#find_range">Design::Associative
+    Containers::Data-Structure Genericity::Point-Type and
+    Range-Type Methods and Iterators</a> discusses the relationship
+    between point-type and range-type iterators in general; for
+    containers whose interface defines sequence order, however, it
+    is very simple: point-type and range-type iterators are exactly
+    the same, which means that the above snippet will compile if it
+    is used for an order-preserving associative container.</p>
+
+    <p>For self-organizing containers, however, (hash-based
+    containers as a special example), the preceding snippet will
+    not compile, because their point-type iterators do not support
+    <tt><b>operator</b>++</tt>.</p>
+
+    <p>In any case, both for order-preserving and self-organizing
+    containers, the following snippet will compile:</p>
+    <pre>
+<b>typename</b> Cntnr::point_iterator it = c.find(2);
+</pre>
+
+    <p>because a range-type iterator can always be converted to a
+    point-type iterator.</p>
+
+    <p><a href="ds_gen.html#find_range">Design::Associative
+    Containers::Data-Structure Genericity::Point-Type and
+    Range-Type Methods and Iterators</a> discusses this
+    further.</p>
+
+    <p><a href=
+    "motivation.html#assoc_diff_it">Motivation::Associative
+    Containers::Differentiating between Iterator Types</a> also
+    raised the point that a container's iterators might have
+    different invalidation rules concerning their de-referencing
+    abilities and movement abilities. This now corresponds exactly
+    to the question of whether point-type and range-type iterators
+    are valid. As explained in <a href="#assoc_ds_gen">Determining
+    Containers' Attributes</a>, <a href=
+    "assoc_container_traits.html"><tt>container_traits</tt></a> allows
+    querying a container for its data structure attributes. The
+    iterator-invalidation guarantees are certainly a property of
+    the underlying data structure, and so</p>
+    <pre>
+<a href=
+"assoc_container_traits.html">container_traits</a>&lt;C&gt;::invalidation_guarantee
+</pre>
+
+    <p>gives one of three pre-determined types that answer this
+    query. This is explained further in <a href=
+    "ds_gen.html#find_range">Design::Associative
+    Containers::Data-Structure Genericity::Point-Type and
+    Range-Type Methods and Iterators</a>.</p>
+
+    <h3><a name="assoc_ms" id="assoc_ms">Distinguishing between Maps and Sets</a></h3>
+
+    <p>Anyone familiar with the STL knows that there are four kinds
+    of associative containers: maps, sets, multimaps, and
+    multisets. <a href="#assoc_basic">Basic Use</a> discussed how
+    to use maps, <i>i.e.</i> containers that associate each key to
+    some data.</p>
+
+    <p>Sets are associative containers that simply store keys -
+    they do not map them to anything. In the STL, each map class
+    has a corresponding set class. <i>E.g.</i>,
+    <tt>std::map&lt;<b>int</b>, <b>char</b>&gt;</tt> maps each
+    <tt><b>int</b></tt> to a <tt><b>char</b></tt>, but
+    <tt>std::set&lt;<b>int</b>, <b>char</b>&gt;</tt> simply stores
+    <tt><b>int</b></tt>s. In <tt>pb_ds</tt>, however, there are no
+    distinct classes for maps and sets. Instead, an associative
+    container's <tt>Mapped</tt> template parameter is a policy: if
+    it is instantiated by <a href=
+    "null_mapped_type.html"><tt>null_mapped_type</tt></a>, then it
+    is a "set"; otherwise, it is a "map". <i>E.g.</i>,</p>
+    <pre>
+<a href="cc_hash_table.html">cc_hash_table</a>&lt;<b>int</b>, <b>char</b>&gt;
+</pre>is a "map" mapping each <tt><b>int</b></tt> value to a <tt>
+    <b>char</b></tt>, but
+    <pre>
+<a href="cc_hash_table.html">cc_hash_table</a>&lt;<b>int</b>, <a href="null_mapped_type.html">null_mapped_type</a>&gt;
+</pre>is a type that uniquely stores <tt><b>int</b></tt> values.
+
+    <p>Once the <tt>Mapped</tt> template parameter is instantiated
+    by <a href="null_mapped_type.html">null_mapped_type</a>, then
+    the "set" acts very similarly to the STL's sets - it does not
+    map each key to a distinct <a href=
+    "null_mapped_type.html">null_mapped_type</a> object. Also,
+   , the container's <tt>value_type</tt> is essentially
+    its <tt>key_type</tt> - just as with the STL's sets. For a simple example, see <a href=
+    "../../../../testsuite/ext/pb_ds/example/basic_set.cc"><tt>basic_set.cc</tt></a>
+   .</p>
+
+    <p>The STL's multimaps and multisets allow, respectively,
+    non-uniquely mapping keys and non-uniquely storing keys. As
+    discussed in <a href=
+    "motivation.html#assoc_mapping_semantics">Motivation::Associative
+    Containers::Alternative to Multiple Equivalent Keys</a>, the
+    reasons why this might be necessary are 1) that a key might be
+    decomposed into a primary key and a secondary key, 2) that a
+    key might appear more than once, or 3) any arbitrary
+    combination of 1)s and 2)s. Correspondingly,
+    one should use 1) "maps" mapping primary keys to secondary
+    keys, 2) "maps" mapping keys to size types, or 3) any arbitrary
+    combination of 1)s and 2)s. Thus, for example, an
+    <tt>std::multiset&lt;<b>int</b>&gt;</tt> might be used to store
+    multiple instances of integers, but using <tt>pb_ds</tt>'s
+    containers, one might use</p>
+    <pre>
+<a href=
+"tree.html">tree</a>&lt;<b>int</b>, size_t&gt;
+</pre><i>i.e.</i>, a "map" of <tt><b>int</b></tt>s to
+<tt>size_t</tt>s.
+
+    <p><a href="assoc_examples.html#mmaps">Associative-Container
+    Examples::"Multimaps" and "Multisets"</a> shows some simple
+    examples.</p>
+
+    <p>These "multimaps" and "multisets" might be confusing to
+    anyone familiar with the STL's <tt>std::multimap</tt> and
+    <tt>std::multiset</tt>, because there is no clear
+    correspondence between the two. For example, in some cases
+    where one uses <tt>std::multiset</tt> in the STL, one might use
+    in <tt>pb_ds</tt> a "multimap" of "multisets" - <i>i.e.</i>, a
+    container that maps primary keys each to an associative
+    container that maps each secondary key to the number of times
+    it occurs.</p>
+
+    <p>When one uses a "multimap," one should choose with care the
+    type of container used for secondary keys. This is further
+    explained in <a href=
+    "assoc_performance_tests.html#msc">Associative-Container
+    Performance Tests::Observations::Mapping-Semantics
+    Considerations</a>.</p>
+
+<hr>
+    <h2><a name="pq" id="pq">Priority Queues</a></h2>
+
+    <h3><a name="pq_basic" id="pq_basic">Basic Use</a></h3>
+
+    <p><tt>pb_ds</tt>'s priority_queue container is
+    similar to the STL's in interface. For example:</p>
+    <pre>
+<a href=
+"priority_queue.html">priority_queue</a>&lt;<b>int</b>&gt; p;
+
+p.push(2);
+p.push(4);
+p.push(1);
+
+assert(p.top() == 4);
+
+p.pop();
+
+assert(p.top() == 2);
+
+assert(p.size() == 2);
+assert(!p.empty());
+</pre>
+
+    <h3><a name="pq_policies" id="pq_policies">Configuring Priority
+    Queues</a></h3>
+
+    <p>As opposed to associative containers, priority queues have
+    relatively few configuration options. The priority queue is
+    parametrized as follows:</p>
+    <pre>
+<b>template</b>&lt;
+    <b>typename</b> Value_Type,
+    <b>typename</b> Cmp_Fn,
+    <b>typename</b> Tag,
+    <b>typename</b> Allocator&gt;
+<b>class</b> <a href="priority_queue.html">priority_queue</a>;
+</pre>
+
+    <p>The <tt>Value_Type</tt>, <tt>Cmp_Fn</tt>, and
+    <tt>Allocator</tt> parameters are the container's value type,
+    comparison-functor type, and allocator type, respectively;
+    these are very similar to the STL's priority queue. The
+    <tt>Tag</tt> parameter is different: there are a number of
+    pre-defined tag types corresponding to binary heaps, binomial
+    heaps, <i>etc.</i>, and <tt>Tag</tt> should be instantiated
+    by one of them. <a href=
+    "interface.html#ds_ts_pq">Interface::Data-Structure Tags and
+    Traits::Data Structure Tags::Priority-Queues</a> lists the
+    possible types, <a href="pq_design.html">Priority-Queue
+    Design</a> explains this further, and <a href=
+    "../../../../testsuite/ext/pb_ds/example/basic_priority_queue.cc"><tt>basic_priority_queue.cc</tt></a>
+    shows an example.</p>
+
+    <p>Note that as opposed to the STL's priority queue, <a href=
+    "priority_queue.html"><tt>priority_queue</tt></a> is not a
+    sequence-adapter; it is a regular container.</p>
+
+    <h3><a name="pq_ds_more_ops" id="pq_ds_more_ops">Supporting
+    More Operations</a></h3>
+
+    <p><a href="priority_queue.html"><tt>priority_queue</tt></a>'s
+    <tt>push</tt> method returns a point-type iterator, which can
+    be used for modifying or erasing arbitrary values. For
+    example:</p>
+    <pre>
+<a href=
+"priority_queue.html">priority_queue</a>&lt;<b>int</b>&gt; p;
+
+<a href=
+"priority_queue.html">priority_queue</a>&lt;<b>int</b>&gt;::point_iterator it = p.push(3);
+
+p.modify(it, 4);
+</pre>
+
+    <p>These types of operations are necessary for making priority
+    queues useful for different applications, especially graph
+    applications. <a href="pq_examples.html#xref">Priority-Queue
+    Examples::Cross-Referencing</a> gives some examples.</p>
+
+    <h3><a name="pq_ds_gen" id="pq_ds_gen">Determining Container
+    Attributes</a></h3>
+
+    <p>Similarly to <a href=
+    "assoc_container_traits.html"><tt>container_traits</tt></a> (described
+    in <a href="#assoc_ds_gen">Associative Containers::Determining
+    Containers' Attributes</a>), <a href=
+    "pq_container_traits.html"><tt>container_traits</tt></a> can be used to
+    statically determine priority-queues' attributes:</p>
+    <pre>
+<a href=
+"pq_container_traits.html">container_traits</a>&lt;C&gt;::container_category
+</pre>is one of a small number of predefined tag structures that
+identifies the underlying data structure, and
+    <pre>
+<a href=
+"pq_container_traits.html">container_traits</a>&lt;C&gt;::invalidation_guarantee
+</pre>
+
+    <p>is its invalidation guarantee. Invalidation guarantees are
+    especially important regarding priority queues, since in
+    <tt>pb_ds</tt>'s design, iterators are practically the only way
+    to manipulate them.</p>
+
+    <p><a href="pq_design.html#pq_traits">Design::Priority
+    Queues::Traits</a> discusses this further. <a href=
+    "pq_examples.html#generics">Priority-Queue
+    Examples::Generics</a> shows an example.</p>
+  </div>
+</body>
+</html>

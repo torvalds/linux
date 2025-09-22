@@ -1,0 +1,41 @@
+Files in this directory:
+
+o .lldbinit:
+
+An example lldb init file that imports the utils.py module and adds the
+following commands: 'pwd', 'cd', and 'system'.
+
+o utils.py:
+
+Python module which provides implementation for the 'cd' and 'system' commands.
+
+o README:
+
+The file you are reading now.
+
+================================================================================
+The following terminal output shows an interaction with lldb using the .lldbinit
+and the utils.py files which are located in my HOME directory.  The lldb init
+file imports the utils Python module and adds the 'pwd', 'cd', and 'system'
+commands.
+
+Johnnys-MacBook-Pro:multiple_threads johnny$ pwd
+/Volumes/data/lldb/svn/trunk/test/functionalities/watchpoint/multiple_threads
+Johnnys-MacBook-Pro:multiple_threads johnny$ lldb
+(lldb) pwd
+/Volumes/data/lldb/svn/trunk/test/functionalities/watchpoint/multiple_threads
+(lldb) cd ..
+Current working directory: /Volumes/data/lldb/svn/trunk/test/functionalities/watchpoint
+(lldb) help system
+
+Execute the command (a string) in a subshell.
+Syntax: system
+(lldb) system ls -l
+total 0
+drwxr-xr-x  7 johnny  admin  238 Oct 11 17:24 hello_watchlocation
+drwxr-xr-x  7 johnny  admin  238 Oct 11 17:24 hello_watchpoint
+drwxr-xr-x  7 johnny  admin  238 Oct 11 17:24 multiple_threads
+drwxr-xr-x  7 johnny  admin  238 Oct 11 17:24 watchpoint_commands
+
+retcode: 0
+(lldb) 

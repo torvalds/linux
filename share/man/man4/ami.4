@@ -1,0 +1,136 @@
+.\"	$OpenBSD: ami.4,v 1.45 2022/02/19 23:45:51 jsg Exp $
+.\"
+.\" Michael Shalayeff, 2001. Public Domain.
+.\"
+.Dd $Mdocdate: February 19 2022 $
+.Dt AMI 4
+.Os
+.Sh NAME
+.Nm ami
+.Nd American Megatrends Inc. MegaRAID PATA/SATA/SCSI RAID controller
+.Sh SYNOPSIS
+.Cd "ami* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the MegaRAID family of RAID controllers,
+including:
+.Pp
+.Bl -dash -offset indent -compact
+.It
+ACER MegaRAID ROMB-2E
+.It
+Apple Xserve G5 PCI Hardware RAID Card
+.It
+Dell CERC-PATA,
+PERC 2/DC,
+PERC 2/SC,
+PERC 3/DC,
+PERC 3/DCL,
+PERC 3/QC,
+PERC 3/SC,
+PERC 4/DC,
+PERC 4/Di,
+PERC 4/SC,
+PERC 4e/DC,
+PERC 4e/Di,
+PERC 4e/SC,
+PERC 4e/Si
+.It
+FSC MegaRAID PCI Express ROMB
+.It
+Hewlett-Packard 438,
+466,
+T[567]
+.It
+Intel RAID Controller SRCS16,
+SRCS28X,
+SRCU41L,
+SRCU42E,
+SRCU42X,
+SROMBU42E,
+SRCZCRX
+.It
+LSI Logic/AMI/Symbios MegaRAID,
+523 SATA,
+i4 133 RAID,
+ATA 133-2
+Elite 1400,
+Elite 1600,
+Elite 1650,
+Enterprise 1200,
+Enterprise 1300,
+Enterprise 1400,
+Enterprise 1500,
+Enterprise 1600,
+Express 100,
+Express 200,
+Express 300,
+Express 500,
+Series 418,
+SCSI 320-0,
+SCSI 320-0X,
+SCSI 320-1,
+SCSI 320-1E,
+SCSI 320-1LP,
+SCSI 320-2,
+SCSI 320-2E,
+SCSI 320-2X,
+SCSI 320-4X,
+SATA 150-4,
+SATA 150-6,
+SATA 300-4X,
+SATA 300-8ELP,
+SATA 300-8X,
+SATA 300-8XLP
+.It
+NEC MegaRAID PCI Express ROMB
+.El
+.Pp
+These controllers support RAID 0, RAID 1, RAID 5, JBOD,
+and superpositions of those configurations.
+.Pp
+Although the controllers are actual RAID controllers,
+the driver makes them look just like SCSI controllers.
+All RAID configuration is done through the controllers' BIOSes.
+.Pp
+RAID management is done through the
+.Xr bio 4
+device with the
+.Xr bioctl 8
+command.
+Logical disk status is exposed under the
+.Va hw.sensors
+.Xr sysctl 8
+and can be monitored using
+.Xr sensorsd 8 .
+For example:
+.Bd -literal -offset indent
+$ sysctl hw.sensors.ami0
+hw.sensors.ami0.drive0=online (sd0), OK
+hw.sensors.ami0.drive1=degraded (sd1), WARNING
+hw.sensors.ami0.drive2=failed (sd2), CRITICAL
+.Ed
+.Sh SEE ALSO
+.Xr bio 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr bioctl 8 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 2.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Michael Shalayeff Aq Mt mickey@openbsd.org .
+.Pp
+Management functions were implemented by
+.An Marco Peereboom Aq Mt marco@openbsd.org .

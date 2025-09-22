@@ -1,0 +1,23 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("X86GenExegesis") {
+  args = [ "-gen-exegesis" ]
+  td_file = "//llvm/lib/Target/X86/X86.td"
+}
+
+static_library("X86") {
+  output_name = "LLVMExegesisX86"
+  deps = [
+    ":X86GenExegesis",
+    "//llvm/lib/TargetParser",
+
+    # Exegesis reaches inside the Target/X86 tablegen internals and must
+    # depend on this Target/X86-internal build target.
+    "//llvm/lib/Target/X86/MCTargetDesc",
+  ]
+  sources = [
+    "Target.cpp",
+    "X86Counter.cpp",
+  ]
+  include_dirs = [ "//llvm/lib/Target/X86" ]
+}

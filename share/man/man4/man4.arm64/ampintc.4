@@ -1,0 +1,36 @@
+.\"	$OpenBSD: ampintc.4,v 1.3 2022/10/20 08:52:22 jsg Exp $
+.\"
+.\" Copyright (c) 2016 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 20 2022 $
+.Dt AMPINTC 4 arm64
+.Os
+.Sh NAME
+.Nm ampintc ,
+.Nm ampintcmsi
+.Nd Arm generic interrupt controller v1/v2
+.Sh SYNOPSIS
+.Cd "ampintc* at fdt?"
+.Cd "ampintcmsi* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Arm Generic Interrupt Controller (GIC)
+version 1 and version 2.
+.Sh SEE ALSO
+.Rs
+.%T ARM Generic Interrupt Controller Architecture Specification
+.%N ARM IHI 0048
+.Re

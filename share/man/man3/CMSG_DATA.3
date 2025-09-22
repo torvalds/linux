@@ -1,0 +1,158 @@
+.\"	$OpenBSD: CMSG_DATA.3,v 1.6 2017/04/03 19:40:43 otto Exp $
+.\" Written by Jared Yanovich <jaredy@openbsd.org>
+.\" Public domain, July 3, 2005
+.Dd $Mdocdate: April 3 2017 $
+.Dt CMSG_DATA 3
+.Os
+.Sh NAME
+.Nm CMSG_DATA ,
+.Nm CMSG_FIRSTHDR ,
+.Nm CMSG_LEN ,
+.Nm CMSG_NXTHDR ,
+.Nm CMSG_SPACE
+.Nd socket control message routines
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft void *
+.Fn CMSG_DATA "struct cmsghdr *"
+.Ft struct cmsghdr *
+.Fn CMSG_FIRSTHDR "struct msghdr *"
+.Ft size_t
+.Fn CMSG_LEN "size_t"
+.Ft struct cmsghdr *
+.Fn CMSG_NXTHDR "struct msghdr *" "struct cmsghdr *"
+.Ft size_t
+.Fn CMSG_SPACE "size_t"
+.Sh DESCRIPTION
+The control message API is used to construct ancillary data objects for
+use in control messages sent and received across sockets.
+.Pp
+Control messages are passed around by the
+.Xr recvmsg 2
+and
+.Xr sendmsg 2
+system calls.
+The
+.Vt cmsghdr
+structure, described in
+.Xr recvmsg 2 ,
+is used to specify a chain of control messages.
+.Pp
+These routines should be used instead of directly accessing the control
+message header members and data buffers as they ensure that necessary
+alignment constraints are met.
+.Pp
+The following routines are provided:
+.Bl -tag -width Ds
+.It Fn CMSG_DATA cmsg
+This routine accesses the data portion of the control message header
+.Fa cmsg .
+It ensures proper alignment constraints on the beginning of ancillary
+data are met.
+.It Fn CMSG_FIRSTHDR mhdr
+This routine accesses the first control message attached to the
+message
+.Fa msg .
+If no control messages are attached to the message, this routine
+returns
+.Dv NULL .
+.It Fn CMSG_LEN len
+This routine determines the size in bytes of a control message,
+which includes the control message header.
+.Fa len
+specifies the length of the data held by the control message.
+This value is what is normally stored in the
+.Fa cmsg_len
+of each control message.
+This routine accounts for any alignment constraints on the beginning of
+ancillary data.
+.It Fn CMSG_NXTHDR mhdr cmsg
+This routine returns the location of the control message following
+.Fa cmsg
+in the message
+.Fa mhdr .
+If
+.Fa cmsg
+is the last control message in the chain, this routine returns
+.Dv NULL .
+.It Fn CMSG_SPACE len
+This routine determines the size in bytes needed to hold a control
+message and its contents of length
+.Fa len ,
+which includes the control message header.
+This value is what is normally stored in
+.Fa msg_msgcontrollen .
+This routine accounts for any alignment constraints on the beginning of
+ancillary data as well as any needed to pad the next control message.
+.El
+.Sh EXAMPLES
+The following example constructs a control message containing a file
+descriptor and passes it over a socket:
+.Bd -literal -offset indent
+struct msghdr	 msg;
+struct cmsghdr	*cmsg;
+union {
+	struct cmsghdr hdr;
+	unsigned char	 buf[CMSG_SPACE(sizeof(int))];
+} cmsgbuf;
+struct iovec io_vector[1];
+
+io_vector[0].iov_base = &ch;
+io_vector[0].iov_len = 1;
+
+memset(&msg, 0, sizeof(msg));
+msg.msg_control = &cmsgbuf.buf;
+msg.msg_controllen = sizeof(cmsgbuf.buf);
+msg.msg_iov = io_vector;
+msg.msg_iovlen = 1;
+
+cmsg = CMSG_FIRSTHDR(&msg);
+cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+cmsg->cmsg_level = SOL_SOCKET;
+cmsg->cmsg_type = SCM_RIGHTS;
+*(int *)CMSG_DATA(cmsg) = fd;
+
+if (sendmsg(s, &msg, 0) == -1)
+	err(1, "sendmsg");
+.Ed
+.Pp
+And an example that receives and decomposes the control message:
+.Bd -literal -offset indent
+struct msghdr	 msg;
+struct cmsghdr	*cmsg;
+union {
+	struct cmsghdr hdr;
+	unsigned char	 buf[CMSG_SPACE(sizeof(int))];
+} cmsgbuf;
+struct iovec io_vector[1];
+
+io_vector[0].iov_base = &ch;
+io_vector[0].iov_len = 1;
+
+memset(&msg, 0, sizeof(msg));
+msg.msg_control = &cmsgbuf.buf;
+msg.msg_controllen = sizeof(cmsgbuf.buf);
+msg.msg_iov = io_vector;
+msg.msg_iovlen = 1;
+
+if (recvmsg(s, &msg, 0) == -1)
+	err(1, "recvmsg");
+if ((msg.msg_flags & MSG_TRUNC) || (msg.msg_flags & MSG_CTRUNC))
+	errx(1, "control message truncated");
+for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
+    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+	if (cmsg->cmsg_len == CMSG_LEN(sizeof(int)) &&
+	    cmsg->cmsg_level == SOL_SOCKET &&
+	    cmsg->cmsg_type == SCM_RIGHTS) {
+		fd = *(int *)CMSG_DATA(cmsg);
+		/* Do something with the descriptor. */
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr recvmsg 2 ,
+.Xr sendmsg 2 ,
+.Xr socket 2
+.Sh HISTORY
+The control message API first appeared in
+.Bx 4.2 .

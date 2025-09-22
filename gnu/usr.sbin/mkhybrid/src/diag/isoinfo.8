@@ -1,0 +1,124 @@
+.\"
+.\" $Id: isoinfo.8,v 1.1 2000/10/10 20:40:28 beck Exp $
+.\"
+.\" -*- nroff -*-
+.TH ISOINFO 8 "23 Feb 1997" "Version 1.12b5"
+.SH NAME
+isoinfo, isovfy, isodump \- Utility programs for dumping and verifying iso9660
+images.
+.SH SYNOPSIS
+.B isodump 
+.I isoimage
+.PP
+.B isoinfo
+[
+.B \-R
+]
+[
+.B \-f
+]
+[
+.B \-l
+]
+[
+.B \-T
+]
+[
+.B \-N
+]
+[
+.B \-i
+.I isoimage
+]
+[
+.B \-x
+.I path
+]
+.PP
+.B isovfy 
+.I isoimage
+.SH DESCRIPTION
+.B isodump
+is a crude utility to interactively display the contents of iso9660 images
+in order to verify directory integrity.  The initial screen is a display
+of the first part of the root directory, and the prompt shows you the
+extent number and offset in the extent.  You can use the 'a' and 'b'
+commands to move backwards and forwards within the image.  The 'g' command
+allows you to goto an arbitrary extent, and the 'f' command  specifies
+a search string to be used.  The '+' command searches forward for the next
+instance of the search string, and the 'q' command exits
+.B isodump.
+.PP
+.B isoinfo
+is a utility to perform directory like listings of iso9660 images.
+.PP
+.B isovfy
+is a utility to verify the integrity of an iso9660 image.  Most of the tests
+in
+.B isovfy
+were added after bugs were discovered in early versions of
+.B mkisofs.
+It isn't all that clear how useful this is anymore, but it doesn't hurt to
+have this around.
+
+.SH OPTIONS
+Only the
+.B isoinfo
+program has any command line options.  These are:
+.TP
+.I  -f
+generate  output as if a 'find . -print' command had been run on the iso9660
+image.  You should  not  use the
+.B -l
+image with the
+.B -f
+option.
+.TP
+.I  -i iso_image
+Specifies the path of the iso9660 image that we wish to examine.
+.TP
+.I  -l
+generate output as if a 'ls -lR' command had been run on the iso9660 image.
+You should  not  use the
+.B -f
+image with the
+.B -l
+option.
+.TP
+.I  -N sector
+Quick hack to help examine single session disc files that are to be written to
+a multi-session disc.  The sector number specified is the sector number at
+which the iso9660 image should be written when send to the cd-writer.  Not
+used for the first session on the disc.
+.TP
+.I \-R
+Extract information from Rock Ridge extensions (if present) for permissions,
+file names and ownerships.
+.TP
+.I  -T sector
+Quick hack to help examine multi-session images that have already been burned
+to a multi-session disc.  The sector number specified is the  sector number for
+the start of the session we wish to display.
+.TP
+.I  -x pathname
+Extract specified file to stdout.
+.SH AUTHOR
+Eric Youngdale <ericy@gnu.ai.mit.edu> or <eric@andante.jic.com> is  to blame
+for these shoddy hacks.  Patches to improve general usability would be
+gladly accepted.
+.SH BUGS
+The user interface really sucks.
+.SH FUTURE IMPROVEMENTS
+These utilities are really quick hacks, which are very useful for debugging
+problems in mkisofs or in an iso9660 filesystem.  In the long run, it would
+be nice to have a daemon that would NFS export a iso9660 image.
+.PP
+The isoinfo program is probably the program that is of the most use to
+the general user.
+.SH AVAILABILITY
+These utilities come with the mkisofs package, and the primary ftp site
+is tsx-11.mit.edu in /pub/linux/BETA/cdrom/mkisofs and many other mirror
+sites.  Despite the name, the software is not beta.
+.SH SEE ALSO
+mkisofs(8)
+

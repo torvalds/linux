@@ -1,0 +1,133 @@
+//===----------------------------------------------------------------------===//
+// Representing sign/zero extension of function results
+//===----------------------------------------------------------------------===//
+
+Mar 25, 2009  - Initial Revision
+
+Most ABIs specify that functions which return small integers do so in a
+specific integer GPR.  This is an efficient way to go, but raises the question:
+if the returned value is smaller than the register, what do the high bits hold?
+
+There are three (interesting) possible answers: undefined, zero extended, or
+sign extended.  The number of bits in question depends on the data-type that
+the front-end is referencing (typically i1/i8/i16/i32).
+
+Knowing the answer to this is important for two reasons: 1) we want to be able
+to implement the ABI correctly.  If we need to sign extend the result according
+to the ABI, we really really do need to do this to preserve correctness.  2)
+this information is often useful for optimization purposes, and we want the
+mid-level optimizers to be able to process this (e.g. eliminate redundant
+extensions).
+
+For example, lets pretend that X86 requires the caller to properly extend the
+result of a return (I'm not sure this is the case, but the argument doesn't
+depend on this).  Given this, we should compile this:
+
+int a();
+short b() { return a(); }
+
+into:
+
+_b:
+	subl	$12, %esp
+	call	L_a$stub
+	addl	$12, %esp
+	cwtl
+	ret
+
+An optimization example is that we should be able to eliminate the explicit
+sign extension in this example:
+
+short y();
+int z() {
+  return ((int)y() << 16) >> 16;
+}
+
+_z:
+	subl	$12, %esp
+	call	_y
+	;;  movswl %ax, %eax   -> not needed because eax is already sext'd
+	addl	$12, %esp
+	ret
+
+//===----------------------------------------------------------------------===//
+// What we have right now.
+//===----------------------------------------------------------------------===//
+
+Currently, these sorts of things are modelled by compiling a function to return
+the small type and a signext/zeroext marker is used.  For example, we compile
+Z into:
+
+define i32 @z() nounwind {
+entry:
+	%0 = tail call signext i16 (...)* @y() nounwind
+	%1 = sext i16 %0 to i32
+	ret i32 %1
+}
+
+and b into:
+
+define signext i16 @b() nounwind {
+entry:
+	%0 = tail call i32 (...)* @a() nounwind		; <i32> [#uses=1]
+	%retval12 = trunc i32 %0 to i16		; <i16> [#uses=1]
+	ret i16 %retval12
+}
+
+This has some problems: 1) the actual precise semantics are really poorly
+defined (see PR3779).  2) some targets might want the caller to extend, some
+might want the callee to extend 3) the mid-level optimizer doesn't know the
+size of the GPR, so it doesn't know that %0 is sign extended up to 32-bits 
+here, and even if it did, it could not eliminate the sext. 4) the code
+generator has historically assumed that the result is extended to i32, which is
+a problem on PIC16 (and is also probably wrong on alpha and other 64-bit
+targets).
+
+//===----------------------------------------------------------------------===//
+// The proposal
+//===----------------------------------------------------------------------===//
+
+I suggest that we have the front-end fully lower out the ABI issues here to
+LLVM IR.  This makes it 100% explicit what is going on and means that there is
+no cause for confusion.  For example, the cases above should compile into:
+
+define i32 @z() nounwind {
+entry:
+        %0 = tail call i32 (...)* @y() nounwind
+	%1 = trunc i32 %0 to i16
+        %2 = sext i16 %1 to i32
+        ret i32 %2
+}
+define i32 @b() nounwind {
+entry:
+	%0 = tail call i32 (...)* @a() nounwind
+	%retval12 = trunc i32 %0 to i16
+	%tmp = sext i16 %retval12 to i32
+	ret i32 %tmp
+}
+
+In this model, no functions will return an i1/i8/i16 (and on a x86-64 target
+that extends results to i64, no i32).  This solves the ambiguity issue, allows us 
+to fully describe all possible ABIs, and now allows the optimizers to reason
+about and eliminate these extensions.
+
+The one thing that is missing is the ability for the front-end and optimizer to
+specify/infer the guarantees provided by the ABI to allow other optimizations.
+For example, in the y/z case, since y is known to return a sign extended value,
+the trunc/sext in z should be eliminable.
+
+This can be done by introducing new sext/zext attributes which mean "I know
+that the result of the function is sign extended at least N bits.  Given this,
+and given that it is stuck on the y function, the mid-level optimizer could
+easily eliminate the extensions etc with existing functionality.
+
+The major disadvantage of doing this sort of thing is that it makes the ABI
+lowering stuff even more explicit in the front-end, and that we would like to
+eventually move to having the code generator do more of this work.  However,
+the sad truth of the matter is that this is a) unlikely to happen anytime in
+the near future, and b) this is no worse than we have now with the existing
+attributes.
+
+C compilers fundamentally have to reason about the target in many ways.  
+This is ugly and horrible, but a fact of life.
+

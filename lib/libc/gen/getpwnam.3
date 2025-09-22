@@ -1,0 +1,291 @@
+.\"	$OpenBSD: getpwnam.3,v 1.14 2022/09/11 06:38:10 jmc Exp $
+.\"
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt GETPWNAM 3
+.Os
+.Sh NAME
+.Nm getpwnam ,
+.Nm getpwuid ,
+.Nm getpwnam_r ,
+.Nm getpwuid_r ,
+.Nm getpwnam_shadow ,
+.Nm getpwuid_shadow ,
+.Nm setpassent
+.Nd password database operations
+.Sh SYNOPSIS
+.In pwd.h
+.Ft struct passwd *
+.Fn getpwnam "const char *login"
+.Ft struct passwd *
+.Fn getpwuid "uid_t uid"
+.Ft int
+.Fn getpwnam_r "const char *login" "struct passwd *pwstore" "char *buf" "size_t bufsize" "struct passwd **result"
+.Ft int
+.Fn getpwuid_r "uid_t uid" "struct passwd *pwstore" "char *buf" "size_t bufsize" "struct passwd **result"
+.Ft struct passwd *
+.Fn getpwnam_shadow "const char *login"
+.Ft struct passwd *
+.Fn getpwuid_shadow "uid_t uid"
+.Ft int
+.Fn setpassent "int stayopen"
+.Sh DESCRIPTION
+These functions operate on the password database file which is described in
+.Xr passwd 5 .
+Each entry in the database is defined by the structure
+.Vt struct passwd
+found in the include file
+.In pwd.h :
+.Bd -literal -offset indent
+struct passwd {
+	char	*pw_name;	/* user name */
+	char	*pw_passwd;	/* encrypted password */
+	uid_t	pw_uid;		/* user uid */
+	gid_t	pw_gid;		/* user gid */
+	time_t	pw_change;	/* password change time */
+	char	*pw_class;	/* user access class */
+	char	*pw_gecos;	/* Honeywell login info */
+	char	*pw_dir;	/* home directory */
+	char	*pw_shell;	/* default shell */
+	time_t	pw_expire;	/* account expiration */
+};
+.Ed
+.Pp
+The functions
+.Fn getpwnam
+and
+.Fn getpwuid
+search the password database for the given login name or user ID,
+respectively, always returning the first one encountered.
+.Pp
+The
+.Fn getpwnam_r
+and
+.Fn getpwuid_r
+functions both update the passwd structure pointed to by
+.Fa pwstore
+and store a pointer to that structure at the location pointed to by
+.Fa result .
+The structure is filled with an entry from the password database with a
+matching
+.Fa name
+or
+.Fa uid .
+Storage referenced by the passwd structure will be allocated from
+the memory provided with the
+.Fa buf
+parameter, which is
+.Fa bufsiz
+characters in size.
+The maximum size needed for this buffer can be determined with
+.Fn sysconf _SC_GETPW_R_SIZE_MAX .
+.Pp
+.Fn setpassent
+accomplishes two purposes.
+First, it causes
+.Xr getpwent 3
+to
+.Dq rewind
+to the beginning of the database.
+Additionally, if
+.Fa stayopen
+is non-zero, file descriptors are left open, significantly speeding
+up subsequent accesses for the lookup routines.
+These file descriptors can be closed by a call to
+.Xr endpwent 3 .
+.Pp
+It is dangerous for long-running programs to keep the file descriptors
+open as the database will become out of date if it is updated while the
+program is running.
+However the file descriptors are automatically closed when
+.Xr execve 2
+is called.
+.Pp
+These routines have been written to
+.Dq shadow
+the password file, that is,
+allow only certain programs to have access to the encrypted password.
+The default functions will not return the true encrypted password, but
+instead only the string
+.Ql * .
+If the process which calls them has an effective UID of 0 or has the
+.Dq _shadow
+group in its group vector, and wishes to access the encrypted password,
+it should use the
+.Fn getpwnam_shadow
+and
+.Fn getpwuid_shadow
+functions.
+.Ss YP support
+If YP is active, the functions
+.Fn getpwnam
+and
+.Fn getpwnam_r
+also use the
+.Pa master.passwd.byname
+YP map (if available) or the
+.Pa passwd.byname
+YP map; and the functions
+.Fn getpwuid
+and
+.Fn getpwuid_r
+also use the
+.Pa master.passwd.byuid
+YP map (if available) or the
+.Pa passwd.byuid
+YP map.
+This is in addition to the passwd file,
+and respects the order of both normal and YP
+entries in the passwd file.
+.Sh RETURN VALUES
+The functions
+.Fn getpwnam ,
+.Fn getpwnam_shadow ,
+.Fn getpwuid ,
+and
+.Fn getpwuid_shadow
+return a pointer to a passwd structure if a match is found or a null
+pointer if no match is found or an error occurs.
+Subsequent calls to
+.Fn getpwent ,
+.Fn getpwnam ,
+.Fn getpwnam_shadow ,
+.Fn getpwuid
+or
+.Fn getpwuid_shadow
+may invalidate the returned pointer or overwrite the contents
+of the passwd structure it points to.
+.Pp
+The functions
+.Fn getpwnam_r
+and
+.Fn getpwuid_r
+update
+.Fa result
+to point to
+.Fa pwstore
+if a match is found or set it to
+.Dv NULL
+if no match is found or an error occurs.
+They return 0 on success, even if no match is found,
+or an error number if an error occurs; see
+.Sx ERRORS .
+.Pp
+The
+.Fn setpassent
+function returns 0 on failure or 1 on success.
+.Sh FILES
+.Bl -tag -width /etc/master.passwd -compact
+.It Pa /etc/pwd.db
+insecure password database file
+.It Pa /etc/spwd.db
+secure password database file
+.It Pa /etc/master.passwd
+current password file
+.It Pa /etc/passwd
+legacy password file
+.El
+.Sh ERRORS
+The
+.Fn getpwnam_r
+and
+.Fn getpwuid_r
+functions may fail if:
+.Bl -tag -width Er
+.It Bq Er ERANGE
+The storage supplied via
+.Fa buf
+and
+.Fa bufsize
+is too small and cannot contain all the strings to be returned in
+.Fa pwstore .
+.El
+.Pp
+The
+.Fn getpwnam ,
+.Fn getpwnam_r ,
+.Fn getpwuid ,
+and
+.Fn getpwuid_r
+functions may also fail for any of the errors specified for
+.Xr dbopen 3
+and its
+.Fn get
+routine.
+.Pp
+If YP is active, they may also fail due to errors caused by the YP
+subsystem.
+.Sh SEE ALSO
+.Xr getlogin 2 ,
+.Xr getgrent 3 ,
+.Xr getgrouplist 3 ,
+.Xr getpwent 3 ,
+.Xr pw_dup 3 ,
+.Xr sysconf 3 ,
+.Xr passwd 5 ,
+.Xr Makefile.yp 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8 ,
+.Xr yp 8
+.Sh STANDARDS
+The
+.Fn getpwnam ,
+.Fn getpwnam_r ,
+.Fn getpwuid ,
+and
+.Fn getpwuid_r
+functions are compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+.Sx YP support
+and the
+.Fn setpassent
+function are extensions to that specification.
+.Sh HISTORY
+A predecessor to
+.Fn getpwuid ,
+.Fn getpw ,
+first appeared in
+.At v4 .
+The
+.Fn getpwnam
+and
+.Fn getpwuid
+functions appeared in
+.At v7 ,
+.Fn setpassent
+in
+.Bx 4.3 Reno ,
+and
+.Fn getpwnam_shadow
+and
+.Fn getpwuid_shadow
+in
+.Ox 5.9 .

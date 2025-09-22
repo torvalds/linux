@@ -1,0 +1,23 @@
+static_library("find-all-symbols") {
+  output_name = "findAllSymbols"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "FindAllMacros.cpp",
+    "FindAllSymbols.cpp",
+    "FindAllSymbolsAction.cpp",
+    "HeaderMapCollector.cpp",
+    "PathConfig.cpp",
+    "PragmaCommentHandler.cpp",
+    "STLPostfixHeaderMap.cpp",
+    "SymbolInfo.cpp",
+  ]
+}

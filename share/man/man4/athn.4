@@ -1,0 +1,274 @@
+.\" $OpenBSD: athn.4,v 1.45 2025/03/27 10:21:53 jmc Exp $
+.\"
+.\" Copyright (c) 2009 Damien Bergamini <damien.bergamini@free.fr>.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt ATHN 4
+.Os
+.Sh NAME
+.Nm athn
+.Nd Atheros IEEE 802.11a/b/g/n wireless network device
+.Sh SYNOPSIS
+.Cd "athn* at cardbus?"
+.Cd "athn* at pci?"
+.Cd "athn* at uhub? port ?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for a wide variety of
+Atheros 802.11n devices, ranging from the AR5008 up to the AR9287.
+.Pp
+The AR5008 (codenamed Owl) is the first generation of
+Atheros 802.11n solutions.
+It consists of two chips, a MAC/Baseband Processor and a Radio-on-a-Chip.
+The MAC/Baseband Processor can be an AR5416 (PCI and CardBus form factors)
+or an AR5418 (PCIe Mini Card form factor).
+The radio can be an AR2122, AR2133, AR5122 or an AR5133 chip.
+The AR2122 chip operates in the 2GHz spectrum and supports up to 2
+transmit paths and 2 receiver paths (2T2R).
+The AR2133 chip operates in the 2GHz spectrum and supports up to 3
+transmit paths and 3 receiver paths (3T3R).
+The AR5122 chip operates in the 2GHz and 5GHz spectra and supports
+up to 2 transmit paths and 2 receiver paths (2T2R).
+The AR5133 chip operates in the 2GHz and 5GHz spectra and supports
+up to 3 transmit paths and 3 receiver paths (3T3R).
+.Pp
+The AR9001 (codenamed Sowl) is a Mini-PCI 802.11n solution.
+It consists of two chips, an AR9160 MAC/Baseband Processor and an
+AR9103 or AR9106 Radio-on-a-Chip.
+The AR9103 chip operates in the 2GHz spectrum and supports up to 3
+transmit paths and 3 receiver paths (3T3R).
+The AR9106 chip operates in the 2GHz and 5GHz spectra and supports
+up to 3 transmit paths and 3 receiver paths (3T3R).
+.Pp
+The AR9220, AR9223 and AR9280 (codenamed Merlin) are the
+first generation of
+Atheros single-chip 802.11n solutions.
+The AR9220 and AR9223 exist in PCI and Mini-PCI form factors.
+The AR9280 exists in PCIe (DT92), PCIe Mini Card (XB92),
+half Mini Card (HB92) and USB 2.0 (AR9280+AR7010) form factors.
+The AR9220 and AR9280 operate in the 2GHz and 5GHz spectra and
+support 2 transmit paths and 2 receiver paths (2T2R).
+The AR9223 operates in the 2GHz spectrum and supports 2
+transmit paths and 2 receiver paths (2T2R).
+.Pp
+The AR9281 is a single-chip PCIe 802.11n solution.
+It exists in PCIe Mini Card (XB91) and half Mini Card (HB91) form
+factors.
+It operates in the 2GHz spectrum and supports 1 transmit path and
+2 receiver paths (1T2R).
+.Pp
+The AR9285 (codenamed Kite) is a single-chip PCIe 802.11n solution that
+targets the value PC market.
+It exists in PCIe half Mini Card (HB95) form factor only.
+It operates in the 2GHz spectrum and supports a single stream (1T1R).
+It can be combined with the AR3011 chip to form a combo WiFi/Bluetooth
+device (WB195).
+.Pp
+The AR9271 is a single-chip USB 2.0 802.11n solution.
+It operates in the 2GHz spectrum and supports a single stream (1T1R).
+.Pp
+The AR2427 is a single-chip PCIe 802.11b/g solution similar to the other
+AR9280 solutions but with 802.11n capabilities removed.
+It exists in PCIe Mini Card form factor only.
+It operates in the 2GHz spectrum.
+.Pp
+The AR9227 and AR9287 are single-chip 802.11n solutions that
+target mid-tier PCs.
+The AR9227 exists in PCI and Mini-PCI form factors.
+The AR9287 exists in PCIe half Mini Card (HB97)
+and USB 2.0 (AR9287+AR7010) form factors.
+They operate in the 2GHz spectrum and support 2 transmit paths and 2
+receiver paths (2T2R).
+.Pp
+The following table summarizes the supported chips and their capabilities.
+.Bl -column "AR9001-3NX2 (AR9160+AR9106)" "2GHz/5GHz" "3x3:3" "PCI/CardBus" -offset 6n
+.It Em Chipset Ta Em Spectrum Ta Em TxR:S Ta Em Bus
+.It "AR5008-2NG (AR5416+AR2122)" Ta 2GHz Ta 2x2:2 Ta PCI/CardBus
+.It "AR5008-3NG (AR5416+AR2133)" Ta 2GHz Ta 3x3:2 Ta PCI/CardBus
+.It "AR5008-2NX (AR5416+AR5122)" Ta 2GHz/5GHz Ta 2x2:2 Ta PCI/CardBus
+.It "AR5008-3NX (AR5416+AR5133)" Ta 2GHz/5GHz Ta 3x3:2 Ta PCI/CardBus
+.It "AR5008E-2NG (AR5418+AR2122)" Ta 2GHz Ta 2x2:2 Ta PCIe
+.It "AR5008E-3NG (AR5418+AR2133)" Ta 2GHz Ta 3x3:2 Ta PCIe
+.It "AR5008E-2NX (AR5418+AR5122)" Ta 2GHz/5GHz Ta 2x2:2 Ta PCIe
+.It "AR5008E-3NX (AR5418+AR5133)" Ta 2GHz/5GHz Ta 3x3:2 Ta PCIe
+.It "AR9001-2NG (AR9160+AR9103)" Ta 2GHz Ta 2x2:2 Ta PCI
+.It "AR9001-3NG (AR9160+AR9103)" Ta 2GHz Ta 3x3:2 Ta PCI
+.It "AR9001-3NX2 (AR9160+AR9106)" Ta 2GHz/5GHz Ta 3x3:2 Ta PCI
+.It "AR9220" Ta 2GHz/5GHz Ta 2x2:2 Ta PCI
+.It "AR9223" Ta 2GHz Ta 2x2:2 Ta PCI
+.It "AR9280" Ta 2GHz/5GHz Ta 2x2:2 Ta PCIe
+.It "AR9280+AR7010" Ta 2GHz/5GHz Ta 2x2:2 Ta USB 2.0
+.It "AR9281" Ta 2GHz Ta 1x2:2 Ta PCIe
+.It "AR9285" Ta 2GHz Ta 1x1:1 Ta PCIe
+.It "AR9271" Ta 2GHz Ta 1x1:1 Ta USB 2.0
+.It "AR2427" Ta 2GHz Ta 1x1:1 Ta PCIe
+.It "AR9227" Ta 2GHz Ta 2x2:2 Ta PCI
+.It "AR9287" Ta 2GHz Ta 2x2:2 Ta PCIe
+.It "AR9287+AR7010" Ta 2GHz Ta 2x2:2 Ta USB 2.0
+.El
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It Host AP
+In this mode the driver acts as an access point (base station)
+for other cards.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+The
+.Nm
+driver offloads both encryption and decryption to the hardware for the
+CCMP cipher.
+.Pp
+The transmit speed is user-selectable or can be adapted automatically by the
+driver depending on the number of hardware transmission retries.
+.Pp
+In Host AP mode,
+the driver is compatible with clients using powersave, except on AR7010
+and AR9287 USB devices.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+For USB devices, the driver needs at least version 1.1p4 of the following
+firmware files, which are loaded when an interface is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/athn-open-ar7010
+.It Pa /etc/firmware/athn-open-ar9271
+.El
+.Pp
+A prepackaged version of the firmware can be installed using
+.Xr fw_update 8 .
+Firmware source code is available under a mix of BSD and GPLv2 licences.
+A port which cross-compiles the firmware can be found in
+.Pa /usr/ports/devel/open-ath9k-htc-firmware .
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig athn0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures athn0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+nwid mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Pp
+The following
+.Xr hostname.if 5
+example creates a host-based access point on boot:
+.Bd -literal -offset indent
+mediaopt hostap
+nwid mynwid wpakey mywpakey
+inet 192.168.1.1 255.255.255.0
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "athn0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.It "athn0: radio is disabled by hardware switch"
+The radio transmitter is off and thus no packet can go out.
+The driver will reset the hardware.
+Make sure the laptop radio switch is on.
+.It "athn0: radio switch turned off"
+The radio switch has been turned off while the interface was up and running.
+The driver will turn the interface down.
+.It "athn0: error N, could not read firmware ..."
+For some reason, the driver was unable to read the firmware file from the
+filesystem.
+The file might be missing or corrupted.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr cardbus 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.7 .
+Support for USB 2.0 devices first appeared in
+.Ox 4.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr
+based on source code licensed under the ISC released in 2008 by
+Atheros Communications for Linux.
+.An Anthony J. Bentley Aq Mt bentley@openbsd.org
+added the open source USB firmware and its cross-compiler to the ports tree.
+.An Stefan Sperling Aq Mt stsp@openbsd.org
+implemented driver support for the open source USB firmware.
+.Sh CAVEATS
+Support for 802.11n 40MHz channels and Tx aggregation is not yet implemented.
+Additional work is required in
+.Xr ieee80211 9
+before those features can be supported.
+.Pp
+On USB devices, Host AP mode is limited to 7 concurrent clients and does
+not support power saving.
+Clients attempting to use power saving mode may experience significant
+packet loss.

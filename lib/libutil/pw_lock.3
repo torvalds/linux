@@ -1,0 +1,159 @@
+.\"	$OpenBSD: pw_lock.3,v 1.21 2025/06/06 22:01:40 schwarze Exp $
+.\"
+.\" Copyright (c) 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software developed by the Computer Systems
+.\" Engineering group at Lawrence Berkeley Laboratory under DARPA contract
+.\" BG 91-66 and contributed to Berkeley.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt PW_LOCK 3
+.Os
+.Sh NAME
+.Nm pw_lock ,
+.Nm pw_mkdb ,
+.Nm pw_abort
+.Nd passwd file update functions
+.Sh SYNOPSIS
+.Lb libutil
+.In util.h
+.Ft int
+.Fn pw_lock "int retries"
+.Ft int
+.Fn pw_mkdb "char *username" "int pwflags"
+.Ft void
+.Fn pw_abort void
+.Sh DESCRIPTION
+The
+.Fn pw_lock ,
+.Fn pw_mkdb ,
+and
+.Fn pw_abort
+functions allow a program to update the system passwd database.
+.Pp
+The
+.Fn pw_lock
+function attempts to lock the passwd database by creating the file
+.Pa /etc/ptmp ,
+and returns the file descriptor of that file.
+If
+.Fa retries
+is greater than zero,
+.Fn pw_lock
+will try multiple times to open
+.Pa /etc/ptmp ,
+waiting one second between tries.
+In addition to being a lock file,
+.Pa /etc/ptmp
+will also hold the contents of the new passwd file.
+A different lock file can be specified with
+.Xr pw_file 3 .
+.Pp
+.Xr pw_init 3
+must be called before
+.Fn pw_lock .
+.Pp
+The
+.Fn pw_mkdb
+function updates the passwd file from the contents of
+.Pa /etc/ptmp
+via
+.Xr pwd_mkdb 8 .
+If a
+.Fa username
+is specified, only the record for the specified user will be updated.
+The
+.Fa pwflags
+are specified by OR'ing the following values:
+.Pp
+.Bl -tag -width _PASSWORD_SECUREONLY -offset "xxxx" -compact
+.It Dv _PASSWORD_SECUREONLY
+only update the secure database file
+.Pq Pa /etc/spwd.db .
+.It Dv _PASSWORD_OMITV7
+do not update the legacy password file
+.Pq Pa /etc/passwd .
+.El
+.Pp
+By default the secure and insecure password databases and
+the legacy password file
+.Pa /etc/passwd
+are updated.
+You should finish writing to and close the file descriptor returned by
+.Fn pw_lock
+before calling
+.Fn pw_mkdb .
+If
+.Fn pw_mkdb
+fails and you do not wish to retry, you should make sure to call
+.Fn pw_abort
+to clean up the lock file.
+.Pp
+The
+.Fn pw_abort
+function aborts a passwd file update by deleting
+.Pa /etc/ptmp .
+The passwd database remains unchanged.
+.Sh RETURN VALUES
+The
+.Fn pw_lock
+function returns \-1 on error and sets
+.Va errno .
+The
+.Fn pw_mkdb
+function returns \-1 if it is unable to complete properly.
+.Sh FILES
+.Bl -tag -width "/etc/master.passwdXXX" -compact
+.It Pa /etc/master.passwd
+Current password file.
+.It Pa /etc/passwd
+Legacy password file.
+.It Pa /etc/ptmp
+Password lock file.
+.It Pa /etc/pwd.db
+Insecure password database file.
+.It Pa /etc/spwd.db
+Secure password database file.
+.El
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fn pw_lock
+was called before
+.Xr pw_init 3 .
+.El
+.Pp
+.Fn pw_lock
+may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr open 2 .
+.Sh SEE ALSO
+.Xr pw_file 3 ,
+.Xr pw_init 3 ,
+.Xr pwd_mkdb 8

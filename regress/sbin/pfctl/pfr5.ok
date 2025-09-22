@@ -1,0 +1,821 @@
+# create
+# pass replace -n ::/0 ::/1 ::/2 ::/3 ::/4 ::/5 ::/6 ::/7
+8 addresses added (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+# pass replace -nqv ::/0 ::/1 ::/2 ::/3 ::/4 ::/5 ::/6 ::/7
+A  ::/0
+A  ::/1
+A  ::/2
+A  ::/3
+A  ::/4
+A  ::/5
+A  ::/6
+A  ::/7
+# pass replace -nqvv ::/0 ::/1 ::/2 ::/3 ::/4 ::/5 ::/6 ::/7
+A  ::/0
+A  ::/1
+A  ::/2
+A  ::/3
+A  ::/4
+A  ::/5
+A  ::/6
+A  ::/7
+# pass replace ::/0 ::/1 ::/2 ::/3 ::/4 ::/5 ::/6 ::/7
+8 addresses added.
+# pass show 
+   ::/7
+   ::/6
+   ::/5
+   ::/4
+   ::/3
+   ::/2
+   ::/1
+   ::/0
+# pass replace -n ::/8 ::/9 ::/10 ::/11 ::/12 ::/13 ::/14 ::/15
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/8 ::/9 ::/10 ::/11 ::/12 ::/13 ::/14 ::/15
+A  ::/10
+A  ::/11
+A  ::/12
+A  ::/13
+A  ::/14
+A  ::/15
+A  ::/8
+A  ::/9
+D  ::/0
+D  ::/1
+D  ::/2
+D  ::/3
+D  ::/4
+D  ::/5
+D  ::/6
+D  ::/7
+# pass replace -nqvv ::/8 ::/9 ::/10 ::/11 ::/12 ::/13 ::/14 ::/15
+A  ::/10
+A  ::/11
+A  ::/12
+A  ::/13
+A  ::/14
+A  ::/15
+A  ::/8
+A  ::/9
+D  ::/0
+D  ::/1
+D  ::/2
+D  ::/3
+D  ::/4
+D  ::/5
+D  ::/6
+D  ::/7
+# pass replace ::/8 ::/9 ::/10 ::/11 ::/12 ::/13 ::/14 ::/15
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/15
+   ::/14
+   ::/13
+   ::/12
+   ::/11
+   ::/10
+   ::/9
+   ::/8
+# pass replace -n ::/16 ::/17 ::/18 ::/19 ::/20 ::/21 ::/22 ::/23
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/16 ::/17 ::/18 ::/19 ::/20 ::/21 ::/22 ::/23
+A  ::/16
+A  ::/17
+A  ::/18
+A  ::/19
+A  ::/20
+A  ::/21
+A  ::/22
+A  ::/23
+D  ::/10
+D  ::/11
+D  ::/12
+D  ::/13
+D  ::/14
+D  ::/15
+D  ::/8
+D  ::/9
+# pass replace -nqvv ::/16 ::/17 ::/18 ::/19 ::/20 ::/21 ::/22 ::/23
+A  ::/16
+A  ::/17
+A  ::/18
+A  ::/19
+A  ::/20
+A  ::/21
+A  ::/22
+A  ::/23
+D  ::/10
+D  ::/11
+D  ::/12
+D  ::/13
+D  ::/14
+D  ::/15
+D  ::/8
+D  ::/9
+# pass replace ::/16 ::/17 ::/18 ::/19 ::/20 ::/21 ::/22 ::/23
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/23
+   ::/22
+   ::/21
+   ::/20
+   ::/19
+   ::/18
+   ::/17
+   ::/16
+# pass replace -n ::/24 ::/25 ::/26 ::/27 ::/28 ::/29 ::/30 ::/31
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/24 ::/25 ::/26 ::/27 ::/28 ::/29 ::/30 ::/31
+A  ::/24
+A  ::/25
+A  ::/26
+A  ::/27
+A  ::/28
+A  ::/29
+A  ::/30
+A  ::/31
+D  ::/16
+D  ::/17
+D  ::/18
+D  ::/19
+D  ::/20
+D  ::/21
+D  ::/22
+D  ::/23
+# pass replace -nqvv ::/24 ::/25 ::/26 ::/27 ::/28 ::/29 ::/30 ::/31
+A  ::/24
+A  ::/25
+A  ::/26
+A  ::/27
+A  ::/28
+A  ::/29
+A  ::/30
+A  ::/31
+D  ::/16
+D  ::/17
+D  ::/18
+D  ::/19
+D  ::/20
+D  ::/21
+D  ::/22
+D  ::/23
+# pass replace ::/24 ::/25 ::/26 ::/27 ::/28 ::/29 ::/30 ::/31
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/31
+   ::/30
+   ::/29
+   ::/28
+   ::/27
+   ::/26
+   ::/25
+   ::/24
+# pass replace -n ::/32 ::/33 ::/34 ::/35 ::/36 ::/37 ::/38 ::/39
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/32 ::/33 ::/34 ::/35 ::/36 ::/37 ::/38 ::/39
+A  ::/32
+A  ::/33
+A  ::/34
+A  ::/35
+A  ::/36
+A  ::/37
+A  ::/38
+A  ::/39
+D  ::/24
+D  ::/25
+D  ::/26
+D  ::/27
+D  ::/28
+D  ::/29
+D  ::/30
+D  ::/31
+# pass replace -nqvv ::/32 ::/33 ::/34 ::/35 ::/36 ::/37 ::/38 ::/39
+A  ::/32
+A  ::/33
+A  ::/34
+A  ::/35
+A  ::/36
+A  ::/37
+A  ::/38
+A  ::/39
+D  ::/24
+D  ::/25
+D  ::/26
+D  ::/27
+D  ::/28
+D  ::/29
+D  ::/30
+D  ::/31
+# pass replace ::/32 ::/33 ::/34 ::/35 ::/36 ::/37 ::/38 ::/39
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/39
+   ::/38
+   ::/37
+   ::/36
+   ::/35
+   ::/34
+   ::/33
+   ::/32
+# pass replace -n ::/40 ::/41 ::/42 ::/43 ::/44 ::/45 ::/46 ::/47
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/40 ::/41 ::/42 ::/43 ::/44 ::/45 ::/46 ::/47
+A  ::/40
+A  ::/41
+A  ::/42
+A  ::/43
+A  ::/44
+A  ::/45
+A  ::/46
+A  ::/47
+D  ::/32
+D  ::/33
+D  ::/34
+D  ::/35
+D  ::/36
+D  ::/37
+D  ::/38
+D  ::/39
+# pass replace -nqvv ::/40 ::/41 ::/42 ::/43 ::/44 ::/45 ::/46 ::/47
+A  ::/40
+A  ::/41
+A  ::/42
+A  ::/43
+A  ::/44
+A  ::/45
+A  ::/46
+A  ::/47
+D  ::/32
+D  ::/33
+D  ::/34
+D  ::/35
+D  ::/36
+D  ::/37
+D  ::/38
+D  ::/39
+# pass replace ::/40 ::/41 ::/42 ::/43 ::/44 ::/45 ::/46 ::/47
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/47
+   ::/46
+   ::/45
+   ::/44
+   ::/43
+   ::/42
+   ::/41
+   ::/40
+# pass replace -n ::/48 ::/49 ::/50 ::/51 ::/52 ::/53 ::/54 ::/55
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/48 ::/49 ::/50 ::/51 ::/52 ::/53 ::/54 ::/55
+A  ::/48
+A  ::/49
+A  ::/50
+A  ::/51
+A  ::/52
+A  ::/53
+A  ::/54
+A  ::/55
+D  ::/40
+D  ::/41
+D  ::/42
+D  ::/43
+D  ::/44
+D  ::/45
+D  ::/46
+D  ::/47
+# pass replace -nqvv ::/48 ::/49 ::/50 ::/51 ::/52 ::/53 ::/54 ::/55
+A  ::/48
+A  ::/49
+A  ::/50
+A  ::/51
+A  ::/52
+A  ::/53
+A  ::/54
+A  ::/55
+D  ::/40
+D  ::/41
+D  ::/42
+D  ::/43
+D  ::/44
+D  ::/45
+D  ::/46
+D  ::/47
+# pass replace ::/48 ::/49 ::/50 ::/51 ::/52 ::/53 ::/54 ::/55
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/55
+   ::/54
+   ::/53
+   ::/52
+   ::/51
+   ::/50
+   ::/49
+   ::/48
+# pass replace -n ::/56 ::/57 ::/58 ::/59 ::/60 ::/61 ::/62 ::/63
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/56 ::/57 ::/58 ::/59 ::/60 ::/61 ::/62 ::/63
+A  ::/56
+A  ::/57
+A  ::/58
+A  ::/59
+A  ::/60
+A  ::/61
+A  ::/62
+A  ::/63
+D  ::/48
+D  ::/49
+D  ::/50
+D  ::/51
+D  ::/52
+D  ::/53
+D  ::/54
+D  ::/55
+# pass replace -nqvv ::/56 ::/57 ::/58 ::/59 ::/60 ::/61 ::/62 ::/63
+A  ::/56
+A  ::/57
+A  ::/58
+A  ::/59
+A  ::/60
+A  ::/61
+A  ::/62
+A  ::/63
+D  ::/48
+D  ::/49
+D  ::/50
+D  ::/51
+D  ::/52
+D  ::/53
+D  ::/54
+D  ::/55
+# pass replace ::/56 ::/57 ::/58 ::/59 ::/60 ::/61 ::/62 ::/63
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/63
+   ::/62
+   ::/61
+   ::/60
+   ::/59
+   ::/58
+   ::/57
+   ::/56
+# pass replace -n ::/64 ::/65 ::/66 ::/67 ::/68 ::/69 ::/70 ::/71
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/64 ::/65 ::/66 ::/67 ::/68 ::/69 ::/70 ::/71
+A  ::/64
+A  ::/65
+A  ::/66
+A  ::/67
+A  ::/68
+A  ::/69
+A  ::/70
+A  ::/71
+D  ::/56
+D  ::/57
+D  ::/58
+D  ::/59
+D  ::/60
+D  ::/61
+D  ::/62
+D  ::/63
+# pass replace -nqvv ::/64 ::/65 ::/66 ::/67 ::/68 ::/69 ::/70 ::/71
+A  ::/64
+A  ::/65
+A  ::/66
+A  ::/67
+A  ::/68
+A  ::/69
+A  ::/70
+A  ::/71
+D  ::/56
+D  ::/57
+D  ::/58
+D  ::/59
+D  ::/60
+D  ::/61
+D  ::/62
+D  ::/63
+# pass replace ::/64 ::/65 ::/66 ::/67 ::/68 ::/69 ::/70 ::/71
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/71
+   ::/70
+   ::/69
+   ::/68
+   ::/67
+   ::/66
+   ::/65
+   ::/64
+# pass replace -n ::/72 ::/73 ::/74 ::/75 ::/76 ::/77 ::/78 ::/79
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/72 ::/73 ::/74 ::/75 ::/76 ::/77 ::/78 ::/79
+A  ::/72
+A  ::/73
+A  ::/74
+A  ::/75
+A  ::/76
+A  ::/77
+A  ::/78
+A  ::/79
+D  ::/64
+D  ::/65
+D  ::/66
+D  ::/67
+D  ::/68
+D  ::/69
+D  ::/70
+D  ::/71
+# pass replace -nqvv ::/72 ::/73 ::/74 ::/75 ::/76 ::/77 ::/78 ::/79
+A  ::/72
+A  ::/73
+A  ::/74
+A  ::/75
+A  ::/76
+A  ::/77
+A  ::/78
+A  ::/79
+D  ::/64
+D  ::/65
+D  ::/66
+D  ::/67
+D  ::/68
+D  ::/69
+D  ::/70
+D  ::/71
+# pass replace ::/72 ::/73 ::/74 ::/75 ::/76 ::/77 ::/78 ::/79
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/79
+   ::/78
+   ::/77
+   ::/76
+   ::/75
+   ::/74
+   ::/73
+   ::/72
+# pass replace -n ::/80 ::/81 ::/82 ::/83 ::/84 ::/85 ::/86 ::/87
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/80 ::/81 ::/82 ::/83 ::/84 ::/85 ::/86 ::/87
+A  ::/80
+A  ::/81
+A  ::/82
+A  ::/83
+A  ::/84
+A  ::/85
+A  ::/86
+A  ::/87
+D  ::/72
+D  ::/73
+D  ::/74
+D  ::/75
+D  ::/76
+D  ::/77
+D  ::/78
+D  ::/79
+# pass replace -nqvv ::/80 ::/81 ::/82 ::/83 ::/84 ::/85 ::/86 ::/87
+A  ::/80
+A  ::/81
+A  ::/82
+A  ::/83
+A  ::/84
+A  ::/85
+A  ::/86
+A  ::/87
+D  ::/72
+D  ::/73
+D  ::/74
+D  ::/75
+D  ::/76
+D  ::/77
+D  ::/78
+D  ::/79
+# pass replace ::/80 ::/81 ::/82 ::/83 ::/84 ::/85 ::/86 ::/87
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/87
+   ::/86
+   ::/85
+   ::/84
+   ::/83
+   ::/82
+   ::/81
+   ::/80
+# pass replace -n ::/88 ::/89 ::/90 ::/91 ::/92 ::/93 ::/94 ::/95
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/88 ::/89 ::/90 ::/91 ::/92 ::/93 ::/94 ::/95
+A  ::/88
+A  ::/89
+A  ::/90
+A  ::/91
+A  ::/92
+A  ::/93
+A  ::/94
+A  ::/95
+D  ::/80
+D  ::/81
+D  ::/82
+D  ::/83
+D  ::/84
+D  ::/85
+D  ::/86
+D  ::/87
+# pass replace -nqvv ::/88 ::/89 ::/90 ::/91 ::/92 ::/93 ::/94 ::/95
+A  ::/88
+A  ::/89
+A  ::/90
+A  ::/91
+A  ::/92
+A  ::/93
+A  ::/94
+A  ::/95
+D  ::/80
+D  ::/81
+D  ::/82
+D  ::/83
+D  ::/84
+D  ::/85
+D  ::/86
+D  ::/87
+# pass replace ::/88 ::/89 ::/90 ::/91 ::/92 ::/93 ::/94 ::/95
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/95
+   ::/94
+   ::/93
+   ::/92
+   ::/91
+   ::/90
+   ::/89
+   ::/88
+# pass replace -n ::/96 ::/97 ::/98 ::/99 ::/100 ::/101 ::/102 ::/103
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/96 ::/97 ::/98 ::/99 ::/100 ::/101 ::/102 ::/103
+A  ::/100
+A  ::/101
+A  ::/102
+A  ::/103
+A  ::/96
+A  ::/97
+A  ::/98
+A  ::/99
+D  ::/88
+D  ::/89
+D  ::/90
+D  ::/91
+D  ::/92
+D  ::/93
+D  ::/94
+D  ::/95
+# pass replace -nqvv ::/96 ::/97 ::/98 ::/99 ::/100 ::/101 ::/102 ::/103
+A  ::/100
+A  ::/101
+A  ::/102
+A  ::/103
+A  ::/96
+A  ::/97
+A  ::/98
+A  ::/99
+D  ::/88
+D  ::/89
+D  ::/90
+D  ::/91
+D  ::/92
+D  ::/93
+D  ::/94
+D  ::/95
+# pass replace ::/96 ::/97 ::/98 ::/99 ::/100 ::/101 ::/102 ::/103
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/103
+   ::/102
+   ::/101
+   ::/100
+   ::/99
+   ::/98
+   ::/97
+   ::/96
+# pass replace -n ::/104 ::/105 ::/106 ::/107 ::/108 ::/109 ::/110 ::/111
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/104 ::/105 ::/106 ::/107 ::/108 ::/109 ::/110 ::/111
+A  ::/104
+A  ::/105
+A  ::/106
+A  ::/107
+A  ::/108
+A  ::/109
+A  ::/110
+A  ::/111
+D  ::/100
+D  ::/101
+D  ::/102
+D  ::/103
+D  ::/96
+D  ::/97
+D  ::/98
+D  ::/99
+# pass replace -nqvv ::/104 ::/105 ::/106 ::/107 ::/108 ::/109 ::/110 ::/111
+A  ::/104
+A  ::/105
+A  ::/106
+A  ::/107
+A  ::/108
+A  ::/109
+A  ::/110
+A  ::/111
+D  ::/100
+D  ::/101
+D  ::/102
+D  ::/103
+D  ::/96
+D  ::/97
+D  ::/98
+D  ::/99
+# pass replace ::/104 ::/105 ::/106 ::/107 ::/108 ::/109 ::/110 ::/111
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/111
+   ::/110
+   ::/109
+   ::/108
+   ::/107
+   ::/106
+   ::/105
+   ::/104
+# pass replace -n ::/112 ::/113 ::/114 ::/115 ::/116 ::/117 ::/118 ::/119
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/112 ::/113 ::/114 ::/115 ::/116 ::/117 ::/118 ::/119
+A  ::/112
+A  ::/113
+A  ::/114
+A  ::/115
+A  ::/116
+A  ::/117
+A  ::/118
+A  ::/119
+D  ::/104
+D  ::/105
+D  ::/106
+D  ::/107
+D  ::/108
+D  ::/109
+D  ::/110
+D  ::/111
+# pass replace -nqvv ::/112 ::/113 ::/114 ::/115 ::/116 ::/117 ::/118 ::/119
+A  ::/112
+A  ::/113
+A  ::/114
+A  ::/115
+A  ::/116
+A  ::/117
+A  ::/118
+A  ::/119
+D  ::/104
+D  ::/105
+D  ::/106
+D  ::/107
+D  ::/108
+D  ::/109
+D  ::/110
+D  ::/111
+# pass replace ::/112 ::/113 ::/114 ::/115 ::/116 ::/117 ::/118 ::/119
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/119
+   ::/118
+   ::/117
+   ::/116
+   ::/115
+   ::/114
+   ::/113
+   ::/112
+# pass replace -n ::/120 ::/121 ::/122 ::/123 ::/124 ::/125 ::/126 ::/127
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nf-
+8 addresses added (dummy).
+8 addresses deleted (dummy).
+# pass replace -nqv ::/120 ::/121 ::/122 ::/123 ::/124 ::/125 ::/126 ::/127
+A  ::/120
+A  ::/121
+A  ::/122
+A  ::/123
+A  ::/124
+A  ::/125
+A  ::/126
+A  ::/127
+D  ::/112
+D  ::/113
+D  ::/114
+D  ::/115
+D  ::/116
+D  ::/117
+D  ::/118
+D  ::/119
+# pass replace -nqvv ::/120 ::/121 ::/122 ::/123 ::/124 ::/125 ::/126 ::/127
+A  ::/120
+A  ::/121
+A  ::/122
+A  ::/123
+A  ::/124
+A  ::/125
+A  ::/126
+A  ::/127
+D  ::/112
+D  ::/113
+D  ::/114
+D  ::/115
+D  ::/116
+D  ::/117
+D  ::/118
+D  ::/119
+# pass replace ::/120 ::/121 ::/122 ::/123 ::/124 ::/125 ::/126 ::/127
+8 addresses added.
+8 addresses deleted.
+# pass show 
+   ::/127
+   ::/126
+   ::/125
+   ::/124
+   ::/123
+   ::/122
+   ::/121
+   ::/120
+# kill
+1 tables deleted.
+rules cleared
+ktable: 83 allocated, 83 released, 0 leaked.
+pfrke_plain: 640 allocated, 640 released, 0 leaked.
+pfrke_route: 0 allocated, 0 released, 0 leaked.
+pfrke_cost: 0 allocated, 0 released, 0 leaked.

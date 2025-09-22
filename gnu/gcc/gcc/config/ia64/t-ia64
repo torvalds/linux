@@ -1,0 +1,54 @@
+LIB1ASMSRC    = ia64/lib1funcs.asm
+
+# We use different names for the DImode div/mod files so that they won't
+# conflict with libgcc2.c files.  We used to use __ia64 as a prefix, now
+# we use __ as the prefix.  Note that L_divdi3 in libgcc2.c actually defines
+# a TImode divide function, so there is no actual overlap here between
+# libgcc2.c and lib1funcs.asm.
+LIB1ASMFUNCS  = __divxf3 __divdf3 __divsf3 \
+	__divdi3 __moddi3 __udivdi3 __umoddi3 \
+	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
+	__nonlocal_goto __restore_stack_nonlocal __trampoline \
+	_fixtfdi _fixunstfdi _floatditf
+
+# ??? Hack to get -P option used when compiling lib1funcs.asm, because Intel
+# assembler does not accept # line number as a comment.
+# ??? This breaks C++ pragma interface/implementation, which is used in the
+# C++ part of libgcc2, hence it had to be disabled.  Must find some other way
+# to support the Intel assembler.
+#LIBGCC2_DEBUG_CFLAGS = -g1 -P
+
+SHLIB_MAPFILES += $(srcdir)/config/ia64/libgcc-ia64.ver
+
+# Effectively disable the crtbegin/end rules using crtstuff.c
+T = disable
+
+# Assemble startup files.
+crtbegin.o: $(srcdir)/config/ia64/crtbegin.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -I. -c -o crtbegin.o -x assembler-with-cpp \
+		$(srcdir)/config/ia64/crtbegin.asm
+crtend.o: $(srcdir)/config/ia64/crtend.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -I. -c -o crtend.o -x assembler-with-cpp \
+		$(srcdir)/config/ia64/crtend.asm
+crtbeginS.o: $(srcdir)/config/ia64/crtbegin.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -I. -DSHARED -c -o crtbeginS.o \
+		-x assembler-with-cpp \
+		$(srcdir)/config/ia64/crtbegin.asm
+crtendS.o: $(srcdir)/config/ia64/crtend.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -I. -DSHARED -c -o crtendS.o -x assembler-with-cpp \
+		$(srcdir)/config/ia64/crtend.asm
+crtfastmath.o: $(srcdir)/config/ia64/crtfastmath.c $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -c -o crtfastmath.o \
+		$(srcdir)/config/ia64/crtfastmath.c
+
+LIB2ADDEH = $(srcdir)/config/ia64/unwind-ia64.c $(srcdir)/unwind-sjlj.c \
+  $(srcdir)/unwind-c.c
+
+ia64-c.o: $(srcdir)/config/ia64/ia64-c.c $(CONFIG_H) $(SYSTEM_H) \
+    coretypes.h $(TM_H) $(TREE_H) $(CPPLIB_H) $(C_COMMON_H) c-pragma.h toplev.h
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/ia64/ia64-c.c
+
+# genattrtab generates very long string literals.
+insn-attrtab.o-warn = -Wno-error
+
+ia64.o: debug.h $(PARAMS_H)

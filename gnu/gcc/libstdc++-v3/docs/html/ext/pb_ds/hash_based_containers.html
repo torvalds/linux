@@ -1,0 +1,835 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Hash-Based Containers</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Hash Table Design</h1>
+
+    <h2><a name="overview" id="overview">Overview</a></h2>
+
+    <p>The collision-chaining hash-based container has the
+    following declaration.</p>
+    <pre>
+<b>template</b>&lt;
+    <b>typename</b> Key,
+    <b>typename</b> Mapped,
+    <b>typename</b> Hash_Fn = std::hash&lt;Key&gt;,
+    <b>typename</b> Eq_Fn = std::equal_to&lt;Key&gt;,
+    <b>typename</b> Comb_Hash_Fn = <a href=
+"direct_mask_range_hashing.html">direct_mask_range_hashing</a>&lt;&gt;
+    <b>typename</b> Resize_Policy = <i>default explained below.</i>
+     <b>bool</b> Store_Hash = <b>false</b>,
+     <b>typename</b> Allocator = std::allocator&lt;<b>char</b>&gt; &gt;
+<b>class</b> <a href=
+"cc_hash_table.html">cc_hash_table</a>;
+</pre>
+
+    <p>The parameters have the following meaning:</p>
+
+    <ol>
+      <li><tt>Key</tt> is the key type.</li>
+
+      <li><tt>Mapped</tt> is the mapped-policy, and is explained in
+      <a href="tutorial.html#assoc_ms">Tutorial::Associative
+      Containers::Associative Containers Others than Maps</a>.</li>
+
+      <li><tt>Hash_Fn</tt> is a key hashing functor.</li>
+
+      <li><tt>Eq_Fn</tt> is a key equivalence functor.</li>
+
+      <li><tt>Comb_Hash_Fn</tt> is a <i>range-hashing_functor</i>;
+      it describes how to translate hash values into positions
+      within the table. This is described in <a href=
+      "#hash_policies">Hash Policies</a>.</li>
+
+      <li><tt>Resize_Policy</tt> describes how a container object
+      should change its internal size. This is described in
+      <a href="#resize_policies">Resize Policies</a>.</li>
+
+      <li><tt>Store_Hash</tt> indicates whether the hash value
+      should be stored with each entry. This is described in
+      <a href="#policy_interaction">Policy Interaction</a>.</li>
+
+      <li><tt>Allocator</tt> is an allocator
+      type.</li>
+    </ol>
+
+    <p>The probing hash-based container has the following
+    declaration.</p>
+    <pre>
+<b>template</b>&lt;
+    <b>typename</b> Key,
+    <b>typename</b> Mapped,
+    <b>typename</b> Hash_Fn = std::hash&lt;Key&gt;,
+    <b>typename</b> Eq_Fn = std::equal_to&lt;Key&gt;,
+    <b>typename</b> Comb_Probe_Fn = <a href=
+"direct_mask_range_hashing.html">direct_mask_range_hashing</a>&lt;&gt;
+    <b>typename</b> Probe_Fn = <i>default explained below.</i>
+    <b>typename</b> Resize_Policy = <i>default explained below.</i>
+    <b>bool</b> Store_Hash = <b>false</b>,
+    <b>typename</b> Allocator =  std::allocator&lt;<b>char</b>&gt; &gt;
+<b>class</b> <a href=
+"gp_hash_table.html">gp_hash_table</a>;
+</pre>
+
+    <p>The parameters are identical to those of the
+    collision-chaining container, except for the following.</p>
+
+    <ol>
+      <li><tt>Comb_Probe_Fn</tt> describes how to transform a probe
+      sequence into a sequence of positions within the table.</li>
+
+      <li><tt>Probe_Fn</tt> describes a probe sequence policy.</li>
+    </ol>
+
+    <p>Some of the default template values depend on the values of
+    other parameters, and are explained in <a href=
+    "#policy_interaction">Policy Interaction</a>.</p>
+
+    <h2><a name="hash_policies" id="hash_policies">Hash
+    Policies</a></h2>
+
+    <h3><a name="general_terms" id="general_terms">General
+    Terms</a></h3>
+
+    <p>Following is an explanation of some functions which hashing
+    involves. Figure <a href=
+    "#hash_ranged_hash_range_hashing_fns">Hash functions,
+    ranged-hash functions, and range-hashing functions</a>)
+    illustrates the discussion.</p>
+
+    <h6 class="c1"><a name="hash_ranged_hash_range_hashing_fns" id=
+    "hash_ranged_hash_range_hashing_fns"><img src=
+    "hash_ranged_hash_range_hashing_fns.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Hash functions, ranged-hash functions, and
+    range-hashing functions.</h6>
+
+    <p>Let <i>U</i> be a domain (<i>e.g.</i>, the integers, or the
+    strings of 3 characters). A hash-table algorithm needs to map
+    elements of <i>U</i> "uniformly" into the range <i>[0,..., m -
+    1]</i> (where <i>m</i> is a non-negative integral value, and
+    is, in general, time varying). <i>I.e.</i>, the algorithm needs
+    a <i>ranged-hash</i> function</p>
+
+    <p><i>f : U &times; Z<sub>+</sub> &rarr; Z<sub>+</sub></i>
+    ,</p>
+
+    <p>such that for any <i>u</i> in <i>U</i> ,</p>
+
+    <p><i>0 &le; f(u, m) &le; m - 1</i> ,</p>
+
+    <p>and which has "good uniformity" properties [<a href=
+    "references.html#knuth98sorting">knuth98sorting</a>]. One
+    common solution is to use the composition of the hash
+    function</p>
+
+    <p><i>h : U &rarr; Z<sub>+</sub></i> ,</p>
+
+    <p>which maps elements of <i>U</i> into the non-negative
+    integrals, and</p>
+
+    <p class="c2">g : Z<sub>+</sub> &times; Z<sub>+</sub> &rarr;
+    Z<sub>+</sub>,</p>
+
+    <p>which maps a non-negative hash value, and a non-negative
+    range upper-bound into a non-negative integral in the range
+    between 0 (inclusive) and the range upper bound (exclusive),
+    <i>i.e.</i>, for any <i>r</i> in <i>Z<sub>+</sub></i>,</p>
+
+    <p><i>0 &le; g(r, m) &le; m - 1</i> .</p>
+
+    <p>The resulting ranged-hash function, is</p>
+
+    <p><i><a name="ranged_hash_composed_of_hash_and_range_hashing"
+    id="ranged_hash_composed_of_hash_and_range_hashing">f(u , m) =
+    g(h(u), m)</a></i> (1) .</p>
+
+    <p>From the above, it is obvious that given <i>g</i> and
+    <i>h</i>, <i>f</i> can always be composed (however the converse
+    is not true). The STL's hash-based containers allow specifying
+    a hash function, and use a hard-wired range-hashing function;
+    the ranged-hash function is implicitly composed.</p>
+
+    <p>The above describes the case where a key is to be mapped
+    into a <i>single position</i> within a hash table, <i>e.g.</i>,
+    in a collision-chaining table. In other cases, a key is to be
+    mapped into a <i>sequence of positions</i> within a table,
+    <i>e.g.</i>, in a probing table. Similar terms apply in this
+    case: the table requires a <i>ranged probe</i> function,
+    mapping a key into a sequence of positions withing the table.
+    This is typically achieved by composing a <i>hash function</i>
+    mapping the key into a non-negative integral type, a
+    <i>probe</i> function transforming the hash value into a
+    sequence of hash values, and a <i>range-hashing</i> function
+    transforming the sequence of hash values into a sequence of
+    positions.</p>
+
+    <h3><a name="range_hashing_fns" id=
+    "range_hashing_fns">Range-Hashing Functions</a></h3>
+
+    <p>Some common choices for range-hashing functions are the
+    division, multiplication, and middle-square methods [<a href=
+    "references.html#knuth98sorting">knuth98sorting</a>], defined
+    as</p>
+
+    <p><i><a name="division_method" id="division_method">g(r, m) =
+    r mod m</a></i> (2) ,</p>
+
+    <p><i>g(r, m) = &lceil; u/v ( a r mod v ) &rceil;</i> ,</p>
+
+    <p>and</p>
+
+    <p><i>g(r, m) = &lceil; u/v ( r<sup>2</sup> mod v ) &rceil;</i>
+    ,</p>
+
+    <p>respectively, for some positive integrals <i>u</i> and
+    <i>v</i> (typically powers of 2), and some <i>a</i>. Each of
+    these range-hashing functions works best for some different
+    setting.</p>
+
+    <p>The division method <a href="#division_method">(2)</a> is a
+    very common choice. However, even this single method can be
+    implemented in two very different ways. It is possible to
+    implement <a href="#division_method">(2)</a> using the low
+    level <i>%</i> (modulo) operation (for any <i>m</i>), or the
+    low level <i>&amp;</i> (bit-mask) operation (for the case where
+    <i>m</i> is a power of 2), <i>i.e.</i>,</p>
+
+    <p><i><a name="division_method_prime_mod" id=
+    "division_method_prime_mod">g(r, m) = r % m</a></i> (3) ,</p>
+
+    <p>and</p>
+
+    <p><i><a name="division_method_bit_mask" id=
+    "division_method_bit_mask">g(r, m) = r &amp; m - 1, (m =
+    2<sup>k</sup>)</a></i> for some <i>k)</i> (4),</p>
+
+    <p>respectively.</p>
+
+    <p>The <i>%</i> (modulo) implementation <a href=
+    "#division_method_prime_mod">(3)</a> has the advantage that for
+    <i>m</i> a prime far from a power of 2, <i>g(r, m)</i> is
+    affected by all the bits of <i>r</i> (minimizing the chance of
+    collision). It has the disadvantage of using the costly modulo
+    operation. This method is hard-wired into SGI's implementation
+    [<a href="references.html#sgi_stl">sgi_stl</a>].</p>
+
+    <p>The <i>&amp;</i> (bit-mask) implementation <a href=
+    "#division_method_bit_mask">(4)</a> has the advantage of
+    relying on the fast bit-wise and operation. It has the
+    disadvantage that for <i>g(r, m)</i> is affected only by the
+    low order bits of <i>r</i>. This method is hard-wired into
+    Dinkumware's implementation [<a href=
+    "references.html#dinkumware_stl">dinkumware_stl</a>].</p>
+
+    <h3><a name="hash_policies_ranged_hash_policies" id=
+    "hash_policies_ranged_hash_policies">Ranged-Hash
+    Functions</a></h3>
+
+    <p>In cases it is beneficial to allow the
+    client to directly specify a ranged-hash hash function. It is
+    true, that the writer of the ranged-hash function cannot rely
+    on the values of <i>m</i> having specific numerical properties
+    suitable for hashing (in the sense used in [<a href=
+    "references.html#knuth98sorting">knuth98sorting</a>]), since
+    the values of <i>m</i> are determined by a resize policy with
+    possibly orthogonal considerations.</p>
+
+    <p>There are two cases where a ranged-hash function can be
+    superior. The firs is when using perfect hashing [<a href=
+    "references.html#knuth98sorting">knuth98sorting</a>]; the
+    second is when the values of <i>m</i> can be used to estimate
+    the "general" number of distinct values required. This is
+    described in the following.</p>
+
+    <p>Let</p>
+
+    <p class="c2">s = [ s<sub>0</sub>,..., s<sub>t - 1</sub>]</p>
+
+    <p>be a string of <i>t</i> characters, each of which is from
+    domain <i>S</i>. Consider the following ranged-hash
+    function:</p>
+
+    <p><a name="total_string_dna_hash" id=
+    "total_string_dna_hash"><i>f<sub>1</sub>(s, m) = &sum; <sub>i =
+    0</sub><sup>t - 1</sup> s<sub>i</sub> a<sup>i</sup></i> mod
+    <i>m</i></a> (5) ,</p>
+
+    <p>where <i>a</i> is some non-negative integral value. This is
+    the standard string-hashing function used in SGI's
+    implementation (with <i>a = 5</i>) [<a href=
+    "references.html#sgi_stl">sgi_stl</a>]. Its advantage is that
+    it takes into account all of the characters of the string.</p>
+
+    <p>Now assume that <i>s</i> is the string representation of a
+    of a long DNA sequence (and so <i>S = {'A', 'C', 'G',
+    'T'}</i>). In this case, scanning the entire string might be
+    prohibitively expensive. A possible alternative might be to use
+    only the first <i>k</i> characters of the string, where</p>
+
+    <p>k <sup>|S|</sup> &ge; m ,</p>
+
+    <p><i>i.e.</i>, using the hash function</p>
+
+    <p><a name="only_k_string_dna_hash" id=
+    "only_k_string_dna_hash"><i>f<sub>2</sub>(s, m) = &sum; <sub>i
+    = 0</sub><sup>k - 1</sup> s<sub>i</sub> a<sup>i</sup></i> mod
+    <i>m</i></a> , (6)</p>
+
+    <p>requiring scanning over only</p>
+
+    <p><i>k =</i> log<i><sub>4</sub>( m )</i></p>
+
+    <p>characters.</p>
+
+    <p>Other more elaborate hash-functions might scan <i>k</i>
+    characters starting at a random position (determined at each
+    resize), or scanning <i>k</i> random positions (determined at
+    each resize), <i>i.e.</i>, using</p>
+
+    <p><i>f<sub>3</sub>(s, m) = &sum; <sub>i =
+    r</sub>0</i><sup>r<sub>0</sub> + k - 1</sup> s<sub>i</sub>
+    a<sup>i</sup> mod <i>m</i> ,</p>
+
+    <p>or</p>
+
+    <p><i>f<sub>4</sub>(s, m) = &sum; <sub>i = 0</sub><sup>k -
+    1</sup> s<sub>r</sub>i</i> a<sup>r<sub>i</sub></sup> mod
+    <i>m</i> ,</p>
+
+    <p>respectively, for <i>r<sub>0</sub>,..., r<sub>k-1</sub></i>
+    each in the (inclusive) range <i>[0,...,t-1]</i>.</p>
+
+    <p>It should be noted that the above functions cannot be
+    decomposed as <a href=
+    "#ranged_hash_composed_of_hash_and_range_hashing">(1)</a> .</p>
+
+    <h3><a name="pb_ds_imp" id="pb_ds_imp">Implementation</a></h3>
+
+    <p>This sub-subsection describes the implementation of the
+    above in <tt>pb_ds</tt>. It first explains range-hashing
+    functions in collision-chaining tables, then ranged-hash
+    functions in collision-chaining tables, then probing-based
+    tables, and, finally, lists the relevant classes in
+    <tt>pb_ds</tt>.</p>
+
+    <h4>Range-Hashing and Ranged-Hashes in Collision-Chaining
+    Tables</h4>
+
+    <p><a href=
+    "cc_hash_table.html"><tt>cc_hash_table</tt></a> is
+    parametrized by <tt>Hash_Fn</tt> and <tt>Comb_Hash_Fn</tt>, a
+    hash functor and a combining hash functor, respectively.</p>
+
+    <p>In general, <tt>Comb_Hash_Fn</tt> is considered a
+    range-hashing functor. <a href=
+    "cc_hash_table.html"><tt>cc_hash_table</tt></a>
+    synthesizes a ranged-hash function from <tt>Hash_Fn</tt> and
+    <tt>Comb_Hash_Fn</tt> (see <a href=
+    "#ranged_hash_composed_of_hash_and_range_hashing">(1)</a>
+    above). Figure <a href="#hash_range_hashing_seq_diagram">Insert
+    hash sequence diagram</a> shows an <tt>insert</tt> sequence
+    diagram for this case. The user inserts an element (point A),
+    the container transforms the key into a non-negative integral
+    using the hash functor (points B and C), and transforms the
+    result into a position using the combining functor (points D
+    and E).</p>
+
+    <h6 class="c1"><a name="hash_range_hashing_seq_diagram" id=
+    "hash_range_hashing_seq_diagram"><img src=
+    "hash_range_hashing_seq_diagram.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">Insert hash sequence diagram.</h6>
+
+    <p>If <a href=
+    "cc_hash_table.html"><tt>cc_hash_table</tt></a>'s
+    hash-functor, <tt>Hash_Fn</tt> is instantiated by <a href=
+    "null_hash_fn.html"><tt>null_hash_fn</tt></a> (see <a href=
+    "concepts.html#concepts_null_policies">Interface::Concepts::Null
+    Policy Classes</a>), then <tt>Comb_Hash_Fn</tt> is taken to be
+    a ranged-hash function. Figure <a href=
+    "#hash_range_hashing_seq_diagram2">Insert hash sequence diagram
+    with a null hash policy</a> shows an <tt>insert</tt> sequence
+    diagram. The user inserts an element (point A), the container
+    transforms the key into a position using the combining functor
+    (points B and C).</p>
+
+    <h6 class="c1"><a name="hash_range_hashing_seq_diagram2" id=
+    "hash_range_hashing_seq_diagram2"><img src=
+    "hash_range_hashing_seq_diagram2.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Insert hash sequence diagram with a null hash
+    policy.</h6>
+
+    <h4>Probing Tables</h4>
+
+    <p><a href=
+    "gp_hash_table.html"></a><tt>gp_hash_table</tt> is
+    parametrized by <tt>Hash_Fn</tt>, <tt>Probe_Fn</tt>, and
+    <tt>Comb_Probe_Fn</tt>. As before, if <tt>Probe_Fn</tt> and
+    <tt>Comb_Probe_Fn</tt> are, respectively, <a href=
+    "null_hash_fn.html"><tt>null_hash_fn</tt></a> and <a href=
+    "null_probe_fn.html"><tt>null_probe_fn</tt></a>, then
+    <tt>Comb_Probe_Fn</tt> is a ranged-probe functor. Otherwise,
+    <tt>Hash_Fn</tt> is a hash functor, <tt>Probe_Fn</tt> is a
+    functor for offsets from a hash value, and
+    <tt>Comb_Probe_Fn</tt> transforms a probe sequence into a
+    sequence of positions within the table.</p>
+
+    <h4>Pre-Defined Policies</h4>
+
+    <p><tt>pb_ds</tt> contains some pre-defined classes
+    implementing range-hashing and probing functions:</p>
+
+    <ol>
+      <li><a href=
+      "direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+      and <a href=
+      "direct_mod_range_hashing.html"><tt>direct_mod_range_hashing</tt></a>
+      are range-hashing functions based on a bit-mask and a modulo
+      operation, respectively.</li>
+
+      <li><a href=
+      "linear_probe_fn.html"><tt>linear_probe_fn</tt></a>, and
+      <a href=
+      "quadratic_probe_fn.html"><tt>quadratic_probe_fn</tt></a> are
+      a linear probe and a quadratic probe function,
+      respectively.</li>
+    </ol>Figure <a href="#hash_policy_cd">Hash policy class
+    diagram</a> shows a class diagram.
+
+    <h6 class="c1"><a name="hash_policy_cd" id=
+    "hash_policy_cd"><img src="hash_policy_cd.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Hash policy class diagram.</h6>
+
+    <h2><a name="resize_policies" id="resize_policies">Resize
+    Policies</a></h2>
+
+    <h3><a name="general" id="general">General Terms</a></h3>
+
+    <p>Hash-tables, as opposed to trees, do not naturally grow or
+    shrink. It is necessary to specify policies to determine how
+    and when a hash table should change its size. Usually, resize
+    policies can be decomposed into orthogonal policies:</p>
+
+    <ol>
+      <li>A <i>size policy</i> indicating <i>how</i> a hash table
+      should grow (<i>e.g.,</i> it should multiply by powers of
+      2).</li>
+
+      <li>A <i>trigger policy</i> indicating <i>when</i> a hash
+      table should grow (<i>e.g.,</i> a load factor is
+      exceeded).</li>
+    </ol>
+
+    <h3><a name="size_policies" id="size_policies">Size
+    Policies</a></h3>
+
+    <p>Size policies determine how a hash table changes size. These
+    policies are simple, and there are relatively few sensible
+    options. An exponential-size policy (with the initial size and
+    growth factors both powers of 2) works well with a mask-based
+    range-hashing function (see <a href=
+    "#hash_policies">Range-Hashing Policies</a>), and is the
+    hard-wired policy used by Dinkumware [<a href=
+    "references.html#dinkumware_stl">dinkumware_stl</a>]. A
+    prime-list based policy works well with a modulo-prime range
+    hashing function (see <a href="#hash_policies">Range-Hashing
+    Policies</a>), and is the hard-wired policy used by SGI's
+    implementation [<a href=
+    "references.html#sgi_stl">sgi_stl</a>].</p>
+
+    <h3><a name="trigger_policies" id="trigger_policies">Trigger
+    Policies</a></h3>
+
+    <p>Trigger policies determine when a hash table changes size.
+    Following is a description of two policies: <i>load-check</i>
+    policies, and collision-check policies.</p>
+
+    <p>Load-check policies are straightforward. The user specifies
+    two factors, <i>&alpha;<sub>min</sub></i> and
+    <i>&alpha;<sub>max</sub></i>, and the hash table maintains the
+    invariant that</p>
+
+    <p><i><a name="load_factor_min_max" id=
+    "load_factor_min_max">&alpha;<sub>min</sub> &le; (number of
+    stored elements) / (hash-table size) &le;
+    &alpha;<sub>max</sub></a></i> (1) .</p>
+
+    <p>Collision-check policies work in the opposite direction of
+    load-check policies. They focus on keeping the number of
+    collisions moderate and hoping that the size of the table will
+    not grow very large, instead of keeping a moderate load-factor
+    and hoping that the number of collisions will be small. A
+    maximal collision-check policy resizes when the longest
+    probe-sequence grows too large.</p>
+
+    <p>Consider Figure <a href="#balls_and_bins">Balls and
+    bins</a>. Let the size of the hash table be denoted by
+    <i>m</i>, the length of a probe sequence be denoted by
+    <i>k</i>, and some load factor be denoted by &alpha;. We would
+    like to calculate the minimal length of <i>k</i>, such that if
+    there were <i>&alpha; m</i> elements in the hash table, a probe
+    sequence of length <i>k</i> would be found with probability at
+    most <i>1/m</i>.</p>
+
+    <h6 class="c1"><a name="balls_and_bins" id=
+    "balls_and_bins"><img src="balls_and_bins.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Balls and bins.</h6>
+
+    <p>Denote the probability that a probe sequence of length
+    <i>k</i> appears in bin <i>i</i> by <i>p<sub>i</sub></i>, the
+    length of the probe sequence of bin <i>i</i> by
+    <i>l<sub>i</sub></i>, and assume uniform distribution. Then</p>
+
+    <p><a name="prob_of_p1" id=
+    "prob_of_p1"><i>p<sub>1</sub></i></a> = (3)</p>
+
+    <p class="c2"><b>P</b>(l<sub>1</sub> &ge; k) =</p>
+
+    <p><i><b>P</b>(l<sub>1</sub> &ge; &alpha; ( 1 + k / &alpha; - 1
+    ) &le;</i> (a)</p>
+
+    <p><i>e ^ ( - ( &alpha; ( k / &alpha; - 1 )<sup>2</sup> ) /2
+    )</i> ,</p>
+
+    <p>where (a) follows from the Chernoff bound [<a href=
+    "references.html#motwani95random">motwani95random</a>]. To
+    calculate the probability that <i>some</i> bin contains a probe
+    sequence greater than <i>k</i>, we note that the
+    <i>l<sub>i</sub></i> are negatively-dependent [<a href=
+    "references.html#dubhashi98neg">dubhashi98neg</a>]. Let
+    <i><b>I</b>(.)</i> denote the indicator function. Then</p>
+
+    <p><a name="at_least_k_i_n_some_bin" id=
+    "at_least_k_i_n_some_bin"><i><b>P</b>( exists<sub>i</sub>
+    l<sub>i</sub> &ge; k ) =</i> (3)</a></p>
+
+    <p class="c2"><b>P</b> ( &sum; <sub>i = 1</sub><sup>m</sup>
+    <b>I</b>(l<sub>i</sub> &ge; k) &ge; 1 ) =</p>
+
+    <p><i><b>P</b> ( &sum; <sub>i = 1</sub><sup>m</sup> <b>I</b> (
+    l<sub>i</sub> &ge; k ) &ge; m p<sub>1</sub> ( 1 + 1 / (m
+    p<sub>1</sub>) - 1 ) ) &le;</i> (a)</p>
+
+    <p class="c2">e ^ ( ( - m p<sub>1</sub> ( 1 / (m p<sub>1</sub>)
+    - 1 ) <sup>2</sup> ) / 2 ) ,</p>
+
+    <p>where (a) follows from the fact that the Chernoff bound can
+    be applied to negatively-dependent variables [<a href=
+    "references.html#dubhashi98neg">dubhashi98neg</a>]. Inserting
+    <a href="#prob_of_p1">(2)</a> into <a href=
+    "#at_least_k_i_n_some_bin">(3)</a>, and equating with
+    <i>1/m</i>, we obtain</p>
+
+    <p><i>k ~ &radic; ( 2 &alpha;</i> ln <i>2 m</i> ln<i>(m) )
+    )</i> .</p>
+
+    <h3><a name="imp_pb_ds" id="imp_pb_ds">Implementation</a></h3>
+
+    <p>This sub-subsection describes the implementation of the
+    above in <tt>pb_ds</tt>. It first describes resize policies and
+    their decomposition into trigger and size policies, then
+    describes pre-defined classes, and finally discusses controlled
+    access the policies' internals.</p>
+
+    <h4>Resize Policies and Their Decomposition</h4>
+
+    <p>Each hash-based container is parametrized by a
+    <tt>Resize_Policy</tt> parameter; the container derives
+    <tt><b>public</b></tt>ly from <tt>Resize_Policy</tt>. For
+    example:</p>
+    <pre>
+<a href="cc_hash_table.html">cc_hash_table</a>&lt;
+    <b>typename</b> Key,
+    <b>typename</b> Mapped,
+    ...
+    <b>typename</b> Resize_Policy
+    ...&gt; :
+        <b>public</b> Resize_Policy
+</pre>
+
+    <p>As a container object is modified, it continuously notifies
+    its <tt>Resize_Policy</tt> base of internal changes
+    (<i>e.g.</i>, collisions encountered and elements being
+    inserted). It queries its <tt>Resize_Policy</tt> base whether
+    it needs to be resized, and if so, to what size.</p>
+
+    <p>Figure <a href="#insert_resize_sequence_diagram1">Insert
+    resize sequence diagram</a> shows a (possible) sequence diagram
+    of an insert operation. The user inserts an element; the hash
+    table notifies its resize policy that a search has started
+    (point A); in this case, a single collision is encountered -
+    the table notifies its resize policy of this (point B); the
+    container finally notifies its resize policy that the search
+    has ended (point C); it then queries its resize policy whether
+    a resize is needed, and if so, what is the new size (points D
+    to G); following the resize, it notifies the policy that a
+    resize has completed (point H); finally, the element is
+    inserted, and the policy notified (point I).</p>
+
+    <h6 class="c1"><a name="insert_resize_sequence_diagram1" id=
+    "insert_resize_sequence_diagram1"><img src=
+    "insert_resize_sequence_diagram1.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Insert resize sequence diagram.</h6>
+
+    <p>In practice, a resize policy can be usually orthogonally
+    decomposed to a size policy and a trigger policy. Consequently,
+    the library contains a single class for instantiating a resize
+    policy: <a href=
+    "hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+    is parametrized by <tt>Size_Policy</tt> and
+    <tt>Trigger_Policy</tt>, derives <tt><b>public</b></tt>ly from
+    both, and acts as a standard delegate [<a href=
+    "references.html#gamma95designpatterns">gamma95designpatterns</a>]
+    to these policies.</p>
+
+    <p>Figures <a href="#insert_resize_sequence_diagram2">Standard
+    resize policy trigger sequence diagram</a> and <a href=
+    "#insert_resize_sequence_diagram3">Standard resize policy size
+    sequence diagram</a> show sequence diagrams illustrating the
+    interaction between the standard resize policy and its trigger
+    and size policies, respectively.</p>
+
+    <h6 class="c1"><a name="insert_resize_sequence_diagram2" id=
+    "insert_resize_sequence_diagram2"><img src=
+    "insert_resize_sequence_diagram2.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Standard resize policy trigger sequence
+    diagram.</h6>
+
+    <h6 class="c1"><a name="insert_resize_sequence_diagram3" id=
+    "insert_resize_sequence_diagram3"><img src=
+    "insert_resize_sequence_diagram3.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Standard resize policy size sequence
+    diagram.</h6>
+
+    <h4>Pre-Defined Policies</h4>
+
+    <p>The library includes the following
+    instantiations of size and trigger policies:</p>
+
+    <ol>
+      <li><a href=
+      "hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+      implements a load check trigger policy.</li>
+
+      <li><a href=
+      "cc_hash_max_collision_check_resize_trigger.html"><tt>cc_hash_max_collision_check_resize_trigger</tt></a>
+      implements a collision check trigger policy.</li>
+
+      <li><a href=
+      "hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+      implements an exponential-size policy (which should be used
+      with mask range hashing).</li>
+
+      <li><a href=
+      "hash_prime_size_policy.html"><tt>hash_prime_size_policy</tt></a>
+      implementing a size policy based on a sequence of primes
+      [<a href="references.html#sgi_stl">sgi_stl</a>] (which should
+      be used with mod range hashing</li>
+    </ol>
+
+    <p>Figure <a href="#resize_policy_cd">Resize policy class
+    diagram</a> gives an overall picture of the resize-related
+    classes. <a href=
+    "basic_hash_table.html"><tt>basic_hash_table</tt></a>
+    is parametrized by <tt>Resize_Policy</tt>, which it subclasses
+    publicly. This class is currently instantiated only by <a href=
+    "hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>.
+    <a href=
+    "hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+    itself is parametrized by <tt>Trigger_Policy</tt> and
+    <tt>Size_Policy</tt>. Currently, <tt>Trigger_Policy</tt> is
+    instantiated by <a href=
+    "hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>,
+    or <a href=
+    "cc_hash_max_collision_check_resize_trigger.html"><tt>cc_hash_max_collision_check_resize_trigger</tt></a>;
+    <tt>Size_Policy</tt> is instantiated by <a href=
+    "hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>,
+    or <a href=
+    "hash_prime_size_policy.html"><tt>hash_prime_size_policy</tt></a>.</p>
+
+    <h6 class="c1"><a name="resize_policy_cd" id=
+    "resize_policy_cd"><img src="resize_policy_cd.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Resize policy class diagram.</h6>
+
+    <h4>Controlled Access to Policies' Internals</h4>
+
+    <p>There are cases where (controlled) access to resize
+    policies' internals is beneficial. <i>E.g.</i>, it is sometimes
+    useful to query a hash-table for the table's actual size (as
+    opposed to its <tt>size()</tt> - the number of values it
+    currently holds); it is sometimes useful to set a table's
+    initial size, externally resize it, or change load factors.</p>
+
+    <p>Clearly, supporting such methods both decreases the
+    encapsulation of hash-based containers, and increases the
+    diversity between different associative-containers' interfaces.
+    Conversely, omitting such methods can decrease containers'
+    flexibility.</p>
+
+    <p>In order to avoid, to the extent possible, the above
+    conflict, the hash-based containers themselves do not address
+    any of these questions; this is deferred to the resize policies,
+    which are easier to change or replace. Thus, for example,
+    neither <a href=
+    "cc_hash_table.html"><tt>cc_hash_table</tt></a> nor
+    <a href=
+    "gp_hash_table.html"><tt>gp_hash_table</tt></a>
+    contain methods for querying the actual size of the table; this
+    is deferred to <a href=
+    "hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>.</p>
+
+    <p>Furthermore, the policies themselves are parametrized by
+    template arguments that determine the methods they support
+    ([<a href=
+    "references.html#alexandrescu01modern">alexandrescu01modern</a>]
+    shows techniques for doing so). <a href=
+    "hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+    is parametrized by <tt>External_Size_Access</tt> that
+    determines whether it supports methods for querying the actual
+    size of the table or resizing it. <a href=
+    "hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+    is parametrized by <tt>External_Load_Access</tt> that
+    determines whether it supports methods for querying or
+    modifying the loads. <a href=
+    "cc_hash_max_collision_check_resize_trigger.html"><tt>cc_hash_max_collision_check_resize_trigger</tt></a>
+    is parametrized by <tt>External_Load_Access</tt> that
+    determines whether it supports methods for querying the
+    load.</p>
+
+    <p>Some operations, for example, resizing a container at
+    run time, or changing the load factors of a load-check trigger
+    policy, require the container itself to resize. As mentioned
+    above, the hash-based containers themselves do not contain
+    these types of methods, only their resize policies.
+    Consequently, there must be some mechanism for a resize policy
+    to manipulate the hash-based container. As the hash-based
+    container is a subclass of the resize policy, this is done
+    through virtual methods. Each hash-based container has a
+    <tt><b>private</b></tt> <tt><b>virtual</b></tt> method:</p>
+    <pre>
+<b>virtual void</b>
+    do_resize
+    (size_type new_size);
+</pre>
+
+    <p>which resizes the container. Implementations of
+    <tt>Resize_Policy</tt> can export public methods for resizing
+    the container externally; these methods internally call
+    <tt>do_resize</tt> to resize the table.</p>
+
+    <h2><a name="policy_interaction" id="policy_interaction">Policy
+    Interaction</a></h2>
+
+    <p>Hash-tables are unfortunately especially susceptible to
+    choice of policies. One of the more complicated aspects of this
+    is that poor combinations of good policies can form a poor
+    container. Following are some considerations.</p>
+
+    <h3><a name="policy_interaction_probe_size_trigger" id=
+    "policy_interaction_probe_size_trigger">Probe Policies, Size
+    Policies, and Trigger Policies</a></h3>
+
+    <p>Some combinations do not work well for probing containers.
+    For example, combining a quadratic probe policy with an
+    exponential size policy can yield a poor container: when an
+    element is inserted, a trigger policy might decide that there
+    is no need to resize, as the table still contains unused
+    entries; the probe sequence, however, might never reach any of
+    the unused entries.</p>
+
+    <p>Unfortunately, <tt>pb_ds</tt> cannot detect such problems at
+    compilation (they are halting reducible). It therefore defines
+    an exception class <a href=
+    "insert_error.html"><tt>insert_error</tt></a> to throw an
+    exception in this case.</p>
+
+    <h3><a name="policy_interaction_hash_trigger" id=
+    "policy_interaction_hash_trigger">Hash Policies and Trigger
+    Policies</a></h3>
+
+    <p>Some trigger policies are especially susceptible to poor
+    hash functions. Suppose, as an extreme case, that the hash
+    function transforms each key to the same hash value. After some
+    inserts, a collision detecting policy will always indicate that
+    the container needs to grow.</p>
+
+    <p>The library, therefore, by design, limits each operation to
+    one resize. For each <tt>insert</tt>, for example, it queries
+    only once whether a resize is needed.</p>
+
+    <h3><a name="policy_interaction_eq_sth_hash" id=
+    "policy_interaction_eq_sth_hash">Equivalence Functors, Storing
+    Hash Values, and Hash Functions</a></h3>
+
+    <p><a href=
+    "cc_hash_table.html"><tt>cc_hash_table</tt></a> and
+    <a href=
+    "gp_hash_table.html"><tt>gp_hash_table</tt></a> are
+    parametrized by an equivalence functor and by a
+    <tt>Store_Hash</tt> parameter. If the latter parameter is
+    <tt><b>true</b></tt>, then the container stores with each entry
+    a hash value, and uses this value in case of collisions to
+    determine whether to apply a hash value. This can lower the
+    cost of collision for some types, but increase the cost of
+    collisions for other types.</p>
+
+    <p>If a ranged-hash function or ranged probe function is
+    directly supplied, however, then it makes no sense to store the
+    hash value with each entry. <tt>pb_ds</tt>'s container will
+    fail at compilation, by design, if this is attempted.</p>
+
+    <h3><a name="policy_interaction_size_load_check" id=
+    "policy_interaction_size_load_check">Size Policies and
+    Load-Check Trigger Policies</a></h3>
+
+    <p>Assume a size policy issues an increasing sequence of sizes
+    <i>a, a q, a q<sup>1</sup>, a q<sup>2</sup>, ...</i> For
+    example, an exponential size policy might issue the sequence of
+    sizes <i>8, 16, 32, 64, ...</i></p>
+
+    <p>If a load-check trigger policy is used, with loads
+    <i>&alpha;<sub>min</sub></i> and <i>&alpha;<sub>max</sub></i>,
+    respectively, then it is a good idea to have:</p>
+
+    <ol>
+      <li><i>&alpha;<sub>max</sub> ~ 1 / q</i></li>
+
+      <li><i>&alpha;<sub>min</sub> &lt; 1 / (2 q)</i></li>
+    </ol>
+
+    <p>This will ensure that the amortized hash cost of each
+    modifying operation is at most approximately 3.</p>
+
+    <p><i>&alpha;<sub>min</sub> ~ &alpha;<sub>max</sub></i> is, in
+    any case, a bad choice, and <i>&alpha;<sub>min</sub> &gt;
+    &alpha;<sub>max</sub></i> is horrendous.</p>
+  </div>
+</body>
+</html>

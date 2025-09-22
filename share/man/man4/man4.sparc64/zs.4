@@ -1,0 +1,183 @@
+.\"	$OpenBSD: zs.4,v 1.18 2015/11/21 08:04:21 jmc Exp $
+.\"
+.\" Copyright (c) 1998, 2002 The OpenBSD Project
+.\" All rights reserved.
+.\"
+.\"
+.Dd $Mdocdate: November 21 2015 $
+.Dt ZS 4 sparc64
+.Os
+.Sh NAME
+.Nm zs ,
+.Nm zstty ,
+.Nm zskbd ,
+.Nm zsms
+.Nd Zilog 8530 (ZSCC) serial communications driver
+.Sh SYNOPSIS
+.Cd "zs* at fhc?"
+.Cd "zs* at sbus?"
+.Cd "zstty* at zs?"
+.Cd "zskbd* at zs?"
+.Cd "wskbd* at zskbd?"
+.Cd "zsms* at zs?"
+.Cd "wsmouse* at zsms?"
+.Cd "option SUNKBD_LAYOUT=XXX"
+.Cd "option SUNKBD5_LAYOUT=XXX"
+.Sh DESCRIPTION
+The
+.Nm
+is a Zilog 8530 serial interface chip used in SBus-based UltraSPARC
+.Tn Sun
+workstations.
+The Zilog 8530 provides two input/output channels per instance.
+Most
+.Tn Sun
+workstations include two of these interfaces.
+One of the interfaces is usually hardwired for use by the keyboard and mouse
+attached to the workstation console.
+The
+.Nm zskbd
+devices connect keyboard devices to the generic keyboard driver
+.Nm wskbd .
+The
+.Nm zsms
+devices connect mice to the generic mouse driver
+.Xr wsmouse 4 .
+The remaining additional
+.Nm zs
+interfaces provide RS-423
+and RS-232 serial ports for general purpose use.
+.Pp
+The
+.Nm
+driver supports all of the standard
+.Xr tty 4
+ioctl calls.
+The status of the DTR, RTS, CTS, and DCD signals can be queried with
+TIOCMGET command, but, due to limitations in the hardware,
+only the DTR and RTS signals can be modified with TIOCMSET, TIOCMBIC,
+and TIOCMBIS
+.Xr ioctl 2
+commands.
+.Pp
+The
+.Nm zskbd
+driver supports a number of different key mappings.
+By default, the layout corresponding to the keyboard model
+as probed by the
+.Nm zskbd
+driver will be used.
+A different layout can be chosen either with the kernel options
+.Dq SUNKBD_LAYOUT
+(for type 4 keyboards)
+and
+.Dq SUNKBD5_LAYOUT
+(for type 5 keyboards)
+at compile time or with the utility
+.Xr wsconsctl 8
+(variable:
+.Dq keyboard.encoding )
+at runtime.
+.Pp
+Other mappings can be used if the whole keymap is replaced by means of
+.Xr wsconsctl 8 .
+The built-in mappings are at this time:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It KB_BE
+.Pq be
+Belgium French (type 4 only).
+.It KB_DE
+.Pq de
+German.
+.It KB_DK
+.Pq dk
+Danish.
+.It KB_ES
+.Pq es
+Spanish.
+.It KB_FR
+.Pq fr
+French (type 5 only).
+.It KB_IT
+.Pq it
+Italian.
+.It KB_JP
+.Pq jp
+Japanese (type 5 only).
+.It KB_NL
+.Pq \&nl
+Dutch.
+.It KB_NO
+.Pq no
+Norwegian.
+.It KB_PT
+.Pq pt
+Portuguese.
+.It KB_SF
+.Pq sf
+Swiss French.
+.It KB_SG
+.Pq sg
+Swiss German.
+.It KB_SV
+.Pq sv
+Swedish with
+.Dq dead accents .
+.It KB_UK
+.Pq uk
+British.
+.It KB_US
+.Pq us
+English/US keyboard mapping.
+.El
+.Pp
+The KB_SV mapping can be used in
+the KB_NODEAD
+.Pq .nodead
+variant.
+This switches off the
+.Dq dead accents .
+.Sh EXAMPLES
+To set a German keyboard layout, use
+.Ic wsconsctl keyboard.encoding=de .
+To set it at kernel build time, add
+the following to the kernel configuration file for a type 4 keyboard:
+.Bd -literal -offset indent
+option SUNKBD_LAYOUT="KB_DE"
+.Ed
+.Pp
+For a type 5 keyboard:
+.Bd -literal -offset indent
+option SUNKBD5_LAYOUT="KB_DE"
+.Ed
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr fhc 4 ,
+.Xr intro 4 ,
+.Xr sbus 4 ,
+.Xr tty 4 ,
+.Xr wskbd 4 ,
+.Xr wsmouse 4 ,
+.Xr wsconsctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Bx 4.4 .
+Support for the TIOCM*
+.Xr ioctl 2 Ns s
+appeared in
+.Ox 2.3 .
+.Sh BUGS
+The
+.Nm
+driver now supports cua minor devices, but with this known deficiency
+in the simultaneous outgoing/incoming aspect of the driver:
+The first outgoing connection succeeds, but second and subsequent
+connections fail, apparently due to a getty hang.
+The hung getty apparently prevents the cua device from being re-opened.
+.Pp
+The kernel does not provide a keyboard layout for all manufactured
+.Tn Sun
+keyboard models.

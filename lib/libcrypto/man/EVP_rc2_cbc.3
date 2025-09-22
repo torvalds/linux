@@ -1,0 +1,202 @@
+.\" $OpenBSD: EVP_rc2_cbc.3,v 1.2 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_RC2_CBC 3
+.Os
+.Sh NAME
+.Nm EVP_rc2_cbc ,
+.Nm EVP_rc2_ecb ,
+.Nm EVP_rc2_cfb64 ,
+.Nm EVP_rc2_cfb ,
+.Nm EVP_rc2_ofb ,
+.Nm EVP_rc2_40_cbc ,
+.Nm EVP_rc2_64_cbc
+.Nd Rivest Cipher 2 in the EVP framework
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft const EVP_CIPHER *
+.Fn EVP_rc2_cbc void
+.Ft const EVP_CIPHER *
+.Fn EVP_rc2_ecb void
+.Ft const EVP_CIPHER *
+.Fn EVP_rc2_cfb64 void
+.Ft const EVP_CIPHER *
+.Fn EVP_rc2_cfb void
+.Ft const EVP_CIPHER *
+.Fn EVP_rc2_ofb void
+.Ft const EVP_CIPHER *
+.Fn EVP_rc2_40_cbc void
+.Ft const EVP_CIPHER *
+.Fn EVP_rc2_64_cbc void
+.In openssl/rc2.h
+.Fd #define RC2_BLOCK 8
+.Fd #define RC2_KEY_LENGTH 16
+.Sh DESCRIPTION
+RC2 is a block cipher operating on blocks of
+.Dv RC2_BLOCK No = 8
+bytes, equivalent to 64 bits, using a variable
+.Fa key
+length with an additional parameter called
+.Dq effective key bits
+or
+.Dq effective key length .
+.Pp
+.Fn EVP_rc2_cbc ,
+.Fn EVP_rc2_ecb ,
+.Fn EVP_rc2_cfb64 ,
+and
+.Fn EVP_rc2_ofb
+provide the RC2 encryption algorithm in CBC, ECB, CFB and OFB mode,
+respectively.
+.Fn EVP_rc2_cfb
+is an alias for
+.Fn EVP_rc2_cfb64 ,
+implemented as a macro.
+.Pp
+By default, these functions set both the key length
+and the effective key length to
+.Dv RC2_KEY_LENGTH No = 16
+bytes, which is not a very useful value because it is quite short.
+.Pp
+Configuring normally requires a multi-step process:
+.Bl -enum -width 2n
+.It
+Create a new, empty
+.Vt EVP_CIPHER_CTX
+object with
+.Xr EVP_CIPHER_CTX_new 3 .
+.It
+Select the operation mode by calling
+.Xr EVP_EncryptInit 3
+with the desired
+.Fa type
+argument, passing
+.Dv NULL
+pointers for the
+.Fa key
+and
+.Fa iv
+arguments.
+.It
+Select the
+.Fa key
+length by passing the desired number of bytes to
+.Xr EVP_CIPHER_CTX_set_key_length 3 .
+Doing so overrides the default key length of
+.Dv RC2_KEY_LENGTH No = 16 .
+Valid values for
+.Fa keylen
+are positive and less than or equal to 128.
+.It
+Select the effective key length by calling
+.Xr EVP_CIPHER_CTX_ctrl 3
+with a
+.Fa type
+argument of
+.Dv EVP_CTRL_SET_RC2_KEY_BITS ,
+passing the desired number of bits in
+.Fa arg .
+Doing so overrides the default effective key length of 128 bits.
+Valid values for
+.Fa arg
+are positive and less than or equal to 1024.
+The
+.Fa ptr
+argument is ignored; passing
+.Dv NULL
+is recommended.
+.It
+Call
+.Xr EVP_EncryptInit 3
+a second time, this time passing
+.Dv NULL
+for the type argument.
+The
+.Fa key
+argument points to an array containing the number of bytes that was passed to
+.Xr EVP_CIPHER_CTX_set_key_length 3 ,
+and the
+.Fa iv
+argument points to an array of eight bytes.
+.It
+Finally,
+.Xr EVP_EncryptUpdate 3
+and
+.Xr EVP_EncryptFinal 3
+can be used in the normal way.
+.El
+.Pp
+Once a
+.Fa ctx
+object is fully configured, calling
+.Xr EVP_CIPHER_CTX_ctrl 3
+with a
+.Fa type
+argument of
+.Dv EVP_CTRL_GET_RC2_KEY_BITS
+interprets
+.Fa ptr
+as a pointer to
+.Vt int
+and stores the effective key length in bits at that location.
+In this case,
+.Fa arg
+is ignored and passing 0 is recommended.
+.Pp
+In the CFB and OFB modes, the minimum required total length in bytes
+of the output buffer is equal to the total number of input bytes to
+be encoded.
+In the CBC and ECB modes, the minimum required total length
+of the output buffer has to be rounded up to the next multiple
+of the block size of eight bytes.
+.Pp
+.Fn EVP_rc2_40_cbc
+and
+.Fn EVP_rc2_64_cbc
+are obsolete functions that provide the RC2 algorithm in CBC mode
+with a key length and an effective key length of 40 and 64 bits,
+respectively.
+.Sh RETURN VALUES
+With the
+.Vt EVP_CIPHER
+objects documented in the present manual page,
+.Fn EVP_CIPHER_CTX_ctrl
+returns 1 for success or 0 if an error occurs.
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_CIPHER_CTX_set_key_length 3 ,
+.Xr EVP_EncryptInit 3 ,
+.Xr RC2_encrypt 3
+.Sh HISTORY
+.Fn EVP_rc2_cbc ,
+.Fn EVP_rc2_ecb ,
+.Fn EVP_rc2_cfb ,
+and
+.Fn EVP_rc2_ofb
+first appeared in SSLeay 0.5.2 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_rc2_40_cbc
+and
+.Fn EVP_rc2_64_cbc
+first appeared in SSLeay 0.9.1 and have been available since
+.Ox 2.6 .
+.Pp
+.Fn EVP_rc2_cfb64
+first appeared in OpenSSL 0.9.7e and has been available since
+.Ox 3.8 .

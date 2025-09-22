@@ -1,0 +1,22 @@
+dnl	$OpenBSD: hardware,v 1.9 2023/03/16 18:04:08 miod Exp $
+The following machines are targeted by OpenBSD/MACHINE:
+
+	D-Link DSR-500 and DSR-500N
+	Netgear ProSecure UTM25
+	Portwell CAM-0100
+	Rhino Labs Inc. SDNA Shasta
+	Rhino Labs Inc. SDNA-7130
+	Ubiquiti Networks EdgeRouter
+	Ubiquiti Networks EdgeRouter 12
+	Ubiquiti Networks EdgeRouter 4
+	Ubiquiti Networks EdgeRouter 6P
+	Ubiquiti Networks EdgeRouter Infinity
+	Ubiquiti Networks EdgeRouter LITE
+	Ubiquiti Networks EdgeRouter Lite / PoE
+	Ubiquiti Networks EdgeRouter PRO
+	Ubiquiti Networks EdgeRouter PoE
+	Ubiquiti Networks UniFi Security Gateway
+	Ubiquiti Networks UniFi Security Gateway PRO-4
+
+The onboard CompactFlash on D-Link DSR-500 and DSR-500N is not supported
+yet.

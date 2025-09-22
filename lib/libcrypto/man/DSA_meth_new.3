@@ -1,0 +1,231 @@
+.\" $OpenBSD: DSA_meth_new.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\" selective merge up to: OpenSSL c4d3c19b Apr 3 13:57:12 2018 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2018, 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt DSA_METH_NEW 3
+.Os
+.Sh NAME
+.Nm DSA_meth_new ,
+.Nm DSA_meth_free ,
+.Nm DSA_meth_dup ,
+.Nm DSA_meth_get0_name ,
+.Nm DSA_meth_set1_name ,
+.Nm DSA_meth_set_sign ,
+.Nm DSA_meth_set_finish
+.Nd build up DSA methods
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/dsa.h
+.Ft DSA_METHOD *
+.Fo DSA_meth_new
+.Fa "const char *name"
+.Fa "int flags"
+.Fc
+.Ft void
+.Fo DSA_meth_free
+.Fa "DSA_METHOD *meth"
+.Fc
+.Ft DSA_METHOD *
+.Fo DSA_meth_dup
+.Fa "const DSA_METHOD *meth"
+.Fc
+.Ft const char *
+.Fo DSA_meth_get0_name
+.Fa "const DSA_METHOD *meth"
+.Fc
+.Ft int
+.Fo DSA_meth_set1_name
+.Fa "DSA_METHOD *meth"
+.Fa "const char *name"
+.Fc
+.Ft int
+.Fo DSA_meth_set_sign
+.Fa "DSA_METHOD *meth"
+.Fa "DSA_SIG *(*sign)(const unsigned char *, int, DSA *)"
+.Fc
+.Ft int
+.Fo DSA_meth_set_finish
+.Fa "DSA_METHOD *meth"
+.Fa "int (*finish)(DSA *)"
+.Fc
+.Sh DESCRIPTION
+The
+.Vt DSA_METHOD
+structure holds function pointers for custom DSA implementations.
+.Pp
+.Fn DSA_meth_new
+creates a new
+.Vt DSA_METHOD
+structure.
+A copy of the NUL-terminated
+.Fa name
+is stored in the new
+.Vt DSA_METHOD
+object.
+Any new
+.Vt DSA
+object constructed from this
+.Vt DSA_METHOD
+will have the given
+.Fa flags
+set by default.
+.Pp
+.Fn DSA_meth_dup
+creates a deep copy of
+.Fa meth .
+This might be useful for creating a new
+.Vt DSA_METHOD
+based on an existing one, but with some differences.
+.Pp
+.Fn DSA_meth_free
+destroys
+.Fa meth
+and frees any memory associated with it.
+.Pp
+.Fn DSA_meth_get0_name
+returns an internal pointer to the name of
+.Fa meth .
+.Fn DSA_meth_set1_name
+stores a copy of the NUL-terminated
+.Fa name
+in
+.Fa meth
+after freeing the previously stored name.
+Method names are ignored by the default DSA implementation but can be
+used by alternative implementations and by the application program.
+.Pp
+.Fn DSA_meth_set_sign
+sets the function used for creating a DSA signature.
+This function will be called from
+.Xr DSA_do_sign 3
+and indirectly from
+.Xr DSA_sign 3 .
+The parameters of
+.Fa sign
+have the same meaning as for
+.Xr DSA_do_sign 3 .
+.Pp
+.Fn DSA_meth_set_finish
+sets an optional function for destroying a
+.Vt DSA
+object.
+Unless
+.Fa finish
+is
+.Dv NULL ,
+it will be called from
+.Xr DSA_free 3 .
+It takes the same argument
+and is intended to do DSA implementation specific cleanup.
+The memory used by the
+.Vt DSA
+object itself should not be freed by the
+.Fa finish
+function.
+.Sh RETURN VALUES
+.Fn DSA_meth_new
+and
+.Fn DSA_meth_dup
+return the newly allocated
+.Vt DSA_METHOD
+object or
+.Dv NULL
+on failure.
+.Pp
+.Fn DSA_meth_get0_name
+returns an internal pointer which must not be freed by the caller.
+.Pp
+.Fn DSA_meth_set1_name
+and all
+.Fn DSA_meth_set_*
+functions return 1 on success or 0 on failure.
+In the current implementation, only
+.Fn DSA_meth_set1_name
+can actually fail.
+.Sh SEE ALSO
+.Xr DSA_do_sign 3 ,
+.Xr DSA_new 3 ,
+.Xr DSA_set_method 3 ,
+.Xr DSA_SIG_new 3 ,
+.Xr DSA_sign 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.1.0.
+.Pp
+.Fn DSA_meth_new ,
+.Fn DSA_meth_free ,
+.Fn DSA_meth_dup ,
+.Fn DSA_meth_set_sign ,
+and
+.Fn DSA_meth_set_finish
+have been available since
+.Ox 6.3 .
+.Pp
+.Fn DSA_meth_get0_name
+and
+.Fn DSA_meth_set1_name
+have been available since
+.Ox 7.2 .

@@ -1,0 +1,155 @@
+.\" $OpenBSD: RIPEMD160.3,v 1.9 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL 72a7a702 Feb 26 14:05:09 2019 +0000
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000, 2006, 2014 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RIPEMD160 3
+.Os
+.Sh NAME
+.Nm RIPEMD160 ,
+.Nm RIPEMD160_Init ,
+.Nm RIPEMD160_Update ,
+.Nm RIPEMD160_Final
+.Nd RIPEMD-160 hash function
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ripemd.h
+.Ft unsigned char *
+.Fo RIPEMD160
+.Fa "const unsigned char *d"
+.Fa "unsigned long n"
+.Fa "unsigned char *md"
+.Fc
+.Ft int
+.Fo RIPEMD160_Init
+.Fa "RIPEMD160_CTX *c"
+.Fc
+.Ft int
+.Fo RIPEMD160_Update
+.Fa "RIPEMD160_CTX *c"
+.Fa "const void *data"
+.Fa "unsigned long len"
+.Fc
+.Ft int
+.Fo RIPEMD160_Final
+.Fa "unsigned char *md"
+.Fa "RIPEMD160_CTX *c"
+.Fc
+.Sh DESCRIPTION
+RIPEMD-160 is a cryptographic hash function with a 160-bit output.
+.Pp
+.Fn RIPEMD160
+computes the RIPEMD-160 message digest of the
+.Fa n
+bytes at
+.Fa d
+and places it in
+.Fa md ,
+which must have space for
+.Dv RIPEMD160_DIGEST_LENGTH
+== 20 bytes of output.
+.Pp
+The following functions may be used if the message is not completely
+stored in memory:
+.Pp
+.Fn RIPEMD160_Init
+initializes a
+.Vt RIPEMD160_CTX
+structure.
+.Pp
+.Fn RIPEMD160_Update
+can be called repeatedly with chunks of the message to be hashed
+.Pq Fa len No bytes at Fa data .
+.Pp
+.Fn RIPEMD160_Final
+places the message digest in
+.Fa md ,
+which must have space for
+.Dv RIPEMD160_DIGEST_LENGTH
+== 20 bytes of output,
+and erases the
+.Vt RIPEMD160_CTX .
+.Pp
+Applications should use the higher level functions
+.Xr EVP_DigestInit 3
+etc. instead of calling the hash functions directly.
+.Sh RETURN VALUES
+.Fn RIPEMD160
+returns a pointer to the hash value.
+.Pp
+.Fn RIPEMD160_Init ,
+.Fn RIPEMD160_Update ,
+and
+.Fn RIPEMD160_Final
+return 1 for success or 0 otherwise.
+.Sh SEE ALSO
+.Xr EVP_DigestInit 3 ,
+.Xr HMAC 3
+.Sh STANDARDS
+.Bd -unfilled
+ISO/IEC 10118-3:2004/Cor 1:2011
+Hash-functions \(em Part 3: Dedicated hash-functions
+Clause 7: RIPEMD-160
+.Ed
+.Sh HISTORY
+.Fn RIPEMD160 ,
+.Fn RIPEMD160_Init ,
+.Fn RIPEMD160_Update ,
+and
+.Fn RIPEMD160_Final
+first appeared in SSLeay 0.9.0 and have been available since
+.Ox 2.4 .
+.Sh CAVEATS
+Other implementations allow
+.Fa md
+in
+.Fn RIPEMD160
+to be
+.Dv NULL
+and return a static array, which is not thread safe.

@@ -1,0 +1,88 @@
+.\" $OpenBSD: login_passwd.8,v 1.11 2019/01/25 00:19:26 millert Exp $
+.\"
+.\" Copyright (c) 2000 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 25 2019 $
+.Dt LOGIN_PASSWD 8
+.Os
+.Sh NAME
+.Nm login_passwd
+.Nd provide standard password authentication type
+.Sh SYNOPSIS
+.Nm login_passwd
+.Op Fl s Ar service
+.Op Fl v Cm wheel Ns = Ns Cm yes Ns | Ns Cm no
+.Op Fl v Cm lastchance Ns = Ns Cm yes Ns | Ns Cm no
+.Ar user
+.Op Ar class
+.Sh DESCRIPTION
+The
+.Nm
+utility is called by
+.Xr login 1 ,
+.Xr su 1 ,
+.Xr ftpd 8 ,
+and others to authenticate the
+.Ar user
+with passwd-style authentication.
+.Pp
+The
+.Ar user
+argument is the login name of the user to be authenticated.
+.Pp
+The
+.Ar service
+argument specifies which protocol to use with the
+invoking program.
+The allowed protocols are
+.Em login ,
+.Em challenge ,
+and
+.Em response .
+(The
+.Em challenge
+protocol is silently ignored but will report success as passwd-style
+authentication is not challenge-response based).
+.Pp
+If the
+.Cm wheel
+argument is specified and is not set to
+.Cm yes ,
+then the user will be rejected as not being in group
+.Dq wheel .
+This is used by
+.Xr su 1 .
+.Pp
+If the
+.Cm lastchance
+argument is specified and is equal to
+.Cm yes ,
+then if the user's password has expired, and it has not been
+expired longer than
+.Dq password-dead
+seconds (see
+.Xr login.conf 5 ) ,
+the user will be able to log in one last time to change the password.
+.Pp
+.Nm
+will prompt the user for a password and report back to the
+invoking program whether or not the authentication was
+successful.
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr passwd 1 ,
+.Xr su 1 ,
+.Xr login.conf 5 ,
+.Xr ftpd 8

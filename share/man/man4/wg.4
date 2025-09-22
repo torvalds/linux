@@ -1,0 +1,226 @@
+.\" $OpenBSD: wg.4,v 1.10 2021/03/14 10:08:38 jmc Exp $
+.\" Copyright (c) 2020 Matt Dunwoodie <ncon@noconroy.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 14 2021 $
+.Dt WG 4
+.Os
+.Sh NAME
+.Nm wg
+.Nd WireGuard pseudo-device
+.Sh SYNOPSIS
+.Cd "pseudo-device wg"
+.Sh DESCRIPTION
+The
+.Nm wg
+driver provides Virtual Private Network (VPN) interfaces for the secure
+exchange of layer 3 traffic with other WireGuard peers using the WireGuard
+protocol.
+.Pp
+A
+.Nm wg
+interface recognises one or more peers, establishes a secure tunnel with
+each on demand, and tracks each peer's UDP endpoint for exchanging encrypted
+traffic with.
+.Pp
+The interfaces can be created at runtime using the
+.Ic ifconfig Cm wg Ns Ar N Cm create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+The interface itself can be configured with
+.Xr ifconfig 8 .
+.Pp
+.Nm wg
+interfaces support the following
+.Xr ioctl 2 Ns s :
+.Bl -tag -width Ds -offset indent
+.It Dv SIOCSWG Fa "struct wg_data_io *"
+Set the device configuration.
+.It Dv SIOCGWG Fa "struct wg_data_io *"
+Get the device configuration.
+.El
+.Pp
+The following glossary provides a brief overview of WireGuard
+terminology:
+.Bl -tag -width indent -offset 3n
+.It Peer
+Peers exchange IPv4 or IPv6 traffic over secure tunnels.
+Each
+.Nm wg
+interface may be configured to recognise one or more peers.
+.It Key
+Each peer uses its private key and corresponding public key to
+identify itself to others.
+A peer configures a
+.Nm wg
+interface with its own private key and with the public keys of its peers.
+.It Preshared key
+In addition to the public keys, each peer pair may be configured with a
+unique pre-shared symmetric key.
+This is used in their handshake to guard against future compromise of the
+peers' encrypted tunnel if a quantum-computational attack on their
+Diffie-Hellman exchange becomes feasible.
+It is optional, but recommended.
+.It Allowed IPs
+A single
+.Nm wg
+interface may maintain concurrent tunnels connecting diverse networks.
+The interface therefore implements rudimentary routing and reverse-path
+filtering functions for its tunneled traffic.
+These functions reference a set of allowed IP ranges configured against
+each peer.
+.Pp
+The interface will route outbound tunneled traffic to the peer configured
+with the most specific matching allowed IP address range, or drop it
+if no such match exists.
+.Pp
+The interface will accept tunneled traffic only from the peer
+configured with the most specific matching allowed IP address range
+for the incoming traffic, or drop it if no such match exists.
+That is, tunneled traffic routed to a given peer cannot return through
+another peer of the same
+.Nm wg
+interface.
+This ensures that peers cannot spoof another's traffic.
+.It Handshake
+Two peers handshake to mutually authenticate each other and to
+establish a shared series of secret ephemeral encryption keys.
+Any peer may initiate a handshake.
+Handshakes occur only when there is traffic to send, and recur every
+two minutes during transfers.
+.It Connectionless
+Due to the handshake behavior, there is no connected or disconnected
+state.
+.El
+.Ss Keys
+Private keys for WireGuard can be generated from any sufficiently
+secure random source.
+The Curve25519 keys and the preshared keys are both 32 bytes
+long and are commonly encoded in base64 for ease of use.
+.Pp
+Keys can be generated with
+.Xr openssl 1
+as follows:
+.Pp
+.Dl $ openssl rand -base64 32
+.Pp
+Although a valid Curve25519 key must have 5 bits set to
+specific values, this is done by the interface and so it
+will accept any random 32-byte base64 string.
+.Pp
+When an interface has a private key set with
+.Nm wgkey ,
+the corresponding
+public key is shown in the status output of the interface:
+.Bd -literal -offset indent
+# ifconfig wg1 | grep wgpubkey
+	wgpubkey NW5l2q2MArV5ZXpVXSZwBOyqhohOf8ImDgUB+jPtJps=
+.Ed
+.Sh EXAMPLES
+Create two
+.Nm wg
+interfaces in separate
+.Xr rdomain 4 Ns s ,
+which is of no practical use
+but demonstrates two interfaces on the same machine:
+.Bd -literal -offset indent
+#!/bin/sh
+
+# create interfaces; set random private keys
+ifconfig wg1 create wgport 7111 wgkey `openssl rand -base64 32` rdomain 1
+ifconfig wg2 create wgport 7222 wgkey `openssl rand -base64 32` rdomain 2
+
+# retrieve the public keys associated with the private keys
+PUB1="`ifconfig wg1 | grep 'wgpubkey' | cut -d ' ' -f 2`"
+PUB2="`ifconfig wg2 | grep 'wgpubkey' | cut -d ' ' -f 2`"
+
+ifconfig wg1 wgpeer $PUB2 wgendpoint 127.0.0.1 7222 wgaip 192.168.5.2/32
+ifconfig wg2 wgpeer $PUB1 wgendpoint 127.0.0.1 7111 wgaip 192.168.5.1/32
+ifconfig wg1 192.168.5.1/24
+ifconfig wg2 192.168.5.2/24
+.Ed
+.Pp
+After this, ping one interface from the other:
+.Pp
+.Dl $ route -T1 exec ping 192.168.5.2
+.Pp
+The two interfaces are able to communicate through the UDP tunnel
+which resides in the default
+.Xr rdomain 4 .
+.Pp
+Show the listening sockets:
+.Pp
+.Dl $ netstat -ln
+.Sh DIAGNOSTICS
+The
+.Nm
+interface supports runtime debugging, which can be enabled with:
+.Pp
+.D1 Ic ifconfig Cm wg Ns Ar N Cm debug
+.Pp
+Some common error messages include:
+.Bl -diag
+.It "Handshake for peer X did not complete after 5 seconds, retrying"
+Peer X did not reply to our initiation packet, for example because:
+.Bl -bullet
+.It
+The peer does not have the local interface configured as a peer.
+Peers must be able to mutually authenticate each other.
+.It
+The peer endpoint IP address is incorrectly configured.
+.It
+There are firewall rules preventing communication between hosts.
+.El
+.It "Invalid handshake initiation"
+The incoming handshake packet could not be processed.
+This is likely due to the local interface not containing
+the correct public key for the peer.
+.It "Invalid initiation MAC"
+The incoming handshake initiation packet had an invalid MAC.
+This is likely because the initiation sender has the wrong public key
+for the handshake receiver.
+.It "Packet has unallowed src IP from peer X"
+After decryption, an incoming data packet has a source IP address that
+is not assigned to the allowed IPs of Peer X.
+.El
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr ip 4 ,
+.Xr netintro 4 ,
+.Xr hostname.if 5 ,
+.Xr pf.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Rs
+.%T WireGuard whitepaper
+.%U https://www.wireguard.com/papers/wireguard.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Ox
+.Nm
+driver was developed by
+.An Matt Dunwoodie Aq Mt ncon@noconroy.net
+and
+.An Jason A. Donenfeld Aq Mt Jason@zx2c4.com ,
+based on code written by
+.An Jason A. Donenfeld .

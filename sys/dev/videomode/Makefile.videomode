@@ -1,0 +1,14 @@
+#	$NetBSD: Makefile.videomode,v 1.2 2008/10/19 22:05:23 apb Exp $
+#
+# As per tron@NetBSD.org, the proper procedure is
+#
+# 1.) Change "src/sys/dev/videomode/modelines".
+# 2.) Commit "src/sys/dev/videomode/modelines".
+# 3.) Execute "make -f Makefile.videomode" in "src/sys/dev/videomode".
+# 4.) Commit "src/sys/dev/videomode/videomode.c"
+
+AWK=	awk
+
+videomode.c: modelines modelines2c.awk
+	/bin/rm -f videomode.c
+	${AWK} -f modelines2c.awk modelines > videomode.c

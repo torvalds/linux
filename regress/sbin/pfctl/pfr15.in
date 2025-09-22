@@ -1,0 +1,8 @@
+# weight loading from pf.conf
+pass list
+pass load table <regress> { 1.2.3.4 1.2.3.4 weight 1 4.3.2.1 weight 5 } persist
+pass show
+pass load table <regress> persist
+pass show
+pass load table <regress> persist {}
+pass show

@@ -1,0 +1,3 @@
+# REQUIRES line that uses target triple, which now works. Test should run
+REQUIRES: target=x86_64{{.*}}
+RUN: true

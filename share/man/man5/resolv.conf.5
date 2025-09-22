@@ -1,0 +1,321 @@
+.\"	$OpenBSD: resolv.conf.5,v 1.65 2023/11/25 08:14:43 florian Exp $
+.\"	$NetBSD: resolv.conf.5,v 1.7 1996/03/06 18:22:16 scottr Exp $
+.\"
+.\" Copyright (c) 1986, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)resolver.5	5.12 (Berkeley) 5/10/91
+.\"
+.Dd $Mdocdate: November 25 2023 $
+.Dt RESOLV.CONF 5
+.Os
+.Sh NAME
+.Nm resolv.conf
+.Nd resolver configuration files
+.Sh DESCRIPTION
+The
+.Nm
+file specifies how the resolver routines in the C library
+(which provide access to the Internet Domain Name System) should operate.
+The resolver configuration file contains information that is read
+by the resolver routines the first time they are invoked by a process.
+If the
+.Nm resolv.conf
+file does not exist, only the local host file
+.Pa /etc/hosts
+will be consulted,
+i.e. the Domain Name System will not be used to resolve hosts.
+.Pp
+The host "localhost" and all names underneath the localhost domain will
+always resolve to the loopback addresses 127.0.0.1 or ::1.
+.Pp
+The file is designed to be human readable and contains a list of
+keywords with values that provide various types of resolver information.
+A resolv.conf file is not required for some setups, so this file is optional.
+It can be created manually, and is also created as part of the
+.Ox
+install process
+if use of the DHCP protocol is specified for any interface
+or if any DNS name servers are configured.
+.Pp
+A keyword and its values must appear on a single line, and the keyword (e.g.\&
+.Ic nameserver )
+must start the line.
+The value follows the keyword, separated by whitespace.
+A hash mark
+.Pq #
+or semicolon
+.Pq \&;
+in the file indicates the beginning of a comment;
+subsequent characters up to the end of the line are not interpreted by
+the routines that read the file.
+.Pp
+The configuration options are:
+.Bl -tag -width nameserver
+.It Ic nameserver
+IPv4 address (in dot notation)
+or IPv6 address (in hex-and-colon notation)
+of a name server that the resolver should query.
+Scoped IPv6 address notation is accepted as well
+(see
+.Xr inet6 4
+for details).
+.Pp
+Up to
+.Dv ASR_MAXNS
+(currently 5) name servers may be listed, one per line.
+If there are multiple servers, the resolver library queries them in the
+order listed.
+If no
+.Ic nameserver
+entries are present, the default is to use the name server on the local machine.
+(The algorithm used is to try a name server, and if the query times out,
+try the next, until out of name servers, then repeat trying all name servers
+until a maximum number of retries are performed.)
+.It Ic domain
+Local domain name.
+Most queries for names within this domain can use short names
+relative to the local domain.
+If no
+.Ic domain
+entry is present, the domain is determined
+from the local host name returned by
+.Xr gethostname 3 \(en
+the domain part is taken to be everything after the first dot.
+Finally, if the host name does not contain a domain part, the root
+domain is assumed.
+.It Ic lookup
+This keyword is used by the library routines
+.Xr gethostbyname 3
+and
+.Xr gethostbyaddr 3 .
+It specifies which databases should be searched, and the order to do so.
+The legal space-separated values are:
+.Pp
+.Bl -tag -width bind -offset indent -compact
+.It Cm bind
+Query a domain name server.
+.It Cm file
+Search for entries in
+.Pa /etc/hosts .
+.El
+.Pp
+If the
+.Ic lookup
+keyword is not used in the system's
+.Nm resolv.conf
+file then the assumed order is
+.Cm bind file .
+Furthermore, if the system's
+.Nm resolv.conf
+file does not exist, then the only database used is
+.Cm file .
+.It Ic search
+Search list for hostname lookup.
+The search list is normally determined from the local domain name;
+by default, it begins with the local domain name, then successive
+parent domains that have at least two components in their names.
+This may be changed by listing the desired domain search path following the
+.Ic search
+keyword with spaces or tabs separating the names.
+Most resolver queries will be attempted using each component
+of the search path in turn until a match is found.
+Note that this process may be slow and will generate a lot of network
+traffic if the servers for the listed domains are not local,
+and that queries will time out if no server is available
+for one of the domains.
+.Pp
+The search list is currently limited to six domains
+with a total of 1024 characters.
+Only one
+.Ic search
+line should appear; if more than one is present, the last one found
+overwrites any values found in earlier lines.
+.It Ic sortlist
+Allows addresses returned by
+.Xr gethostbyname 3
+to be sorted.
+A
+.Ic sortlist
+is specified by IP address netmask pairs.
+The netmask is optional and defaults to the natural netmask of the net.
+The IP address and optional network pairs are separated by slashes.
+Up to 10 pairs may be specified.
+For example:
+.Pp
+.Dl sortlist 130.155.160.0/255.255.240.0 130.155.0.0
+.It Ic family
+Specify which type of Internet protocol family to prefer,
+if a host is reachable using different address families.
+By default IPv4 addresses are queried first,
+and then IPv6 addresses.
+The syntax is:
+.Bd -ragged -offset indent
+.Ic family Ar family Op Ar family
+.Ed
+.Pp
+A maximum of two families can be specified, where
+.Ar family
+can be any of:
+.Pp
+.Bl -tag -width "inet4XXX" -offset indent -compact
+.It Cm inet4
+IPv4 queries.
+.It Cm inet6
+IPv6 queries.
+.El
+.Pp
+If only one family is specified,
+only that family is tried.
+.It Ic options
+Allows certain internal resolver variables to be modified.
+The syntax is:
+.Bd -ragged -offset indent
+.Ic options Ar option ...
+.Ed
+.Pp
+Where
+.Ar option
+is one of the following:
+.Bl -tag -width insecure1
+.It Cm debug
+Print debugging messages,
+if libc is compiled with
+.Dv DEBUG .
+By default on
+.Ox
+this option does nothing.
+.It Cm edns0
+Attach an OPT pseudo-RR for the EDNS0 extension,
+as specified in RFC 2671.
+This informs DNS servers of a client's receive buffer size,
+allowing them to take advantage of a non-default receive buffer size,
+and thus send larger replies.
+DNS query packets with the EDNS0 extension are not compatible with
+non-EDNS0 DNS servers,
+so the option must be used only when all the servers listed in
+.Ic nameserver
+lines are able to handle the extension.
+.Pp
+To verify whether a server supports EDNS,
+query it using the
+.Xr dig 1
+query option
+.Li +edns=0 :
+the reply indicates compliance (EDNS version 0)
+and whether a UDP packet larger than 512 bytes can be used.
+Note that EDNS0 can cause the server to send packets
+large enough to require fragmentation.
+Other factors such as packet filters may impede these,
+particularly if there is a reduced MTU,
+as is often the case with
+.Xr pppoe 4
+or with tunnels.
+.It Cm inet6
+On
+.Ox
+this option does nothing.
+On some operating systems, this option enables IPv6 support in
+.Xr gethostbyname 3
+by setting RES_USE_INET6 in _res.options (see
+.Xr res_init 3 ) .
+.It Cm insecure1
+Do not require IP source address on the reply packet to be equal to the
+server's address.
+.It Cm insecure2
+Do not check if the query section of the reply packet is equal
+to that of the query packet.
+For testing purposes only.
+.It Cm ndots : Ns Ar n
+Sets a threshold for the number of dots which
+must appear in a name given to
+.Xr res_query 3
+before an initial absolute query will be made.
+The default for
+.Ar n
+is 1, meaning that if there are any dots in a name, the name will be tried
+first as an absolute name before any search list elements are appended to it.
+.It Cm tcp
+Forces the use of TCP for queries.
+Normal behaviour is to query via UDP but fall back to TCP on failure.
+.It Cm trust-ad
+A name server indicating that it performed DNSSEC validation by setting the
+Authentic Data (AD) flag in the answer can only be trusted if the
+name server itself is trusted and the network path is trusted.
+Generally this is not the case and the AD flag is cleared in the answer.
+The
+.Cm trust-ad
+option lets the system administrator indicate that the name server and the
+network path are trusted.
+This option is automatically enabled if
+.Nm resolv.conf
+only lists name servers on localhost.
+.El
+.El
+.Pp
+The
+.Ic domain
+and
+.Ic search
+keywords are mutually exclusive.
+If more than one instance of these keywords is present, the last instance
+will override.
+.Sh ENVIRONMENT
+.Bl -tag -width "RES_OPTIONSXXX"
+.It Ev LOCALDOMAIN
+A space-separated list of search domains,
+overriding the
+.Ic search
+keyword of a system's
+.Nm resolv.conf
+file.
+.It Ev RES_OPTIONS
+A space-separated list of resolver options,
+overriding the
+.Ic options
+keyword of a system's
+.Nm resolv.conf
+file.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/resolv.confXX" -compact
+.It Pa /etc/resolv.conf
+.El
+.Sh SEE ALSO
+.Xr gethostbyname 3 ,
+.Xr res_init 3 ,
+.Xr hosts 5 ,
+.Xr hostname 7 ,
+.Xr nsd 8 ,
+.Xr resolvd 8 ,
+.Xr unbound 8 ,
+.Xr unwind 8
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.3 .

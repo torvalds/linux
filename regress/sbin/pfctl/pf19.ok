@@ -1,0 +1,13 @@
+EVIL = "lo0"
+GOOD = "{ lo0, lo1000000 }"
+GOOD_NET = "{ 127.0.0.0/24, 10.0.1.0/24 }"
+DEST_NET = "{ 1.2.3.4/25, 2.4.6.8/30 }"
+match in on lo0 inet proto tcp from any to 1.2.3.4 port = 2222 rdr-to 10.0.0.10 port 22
+match in on lo0 inet proto tcp from 127.0.0.0/24 to 1.2.3.0/25 port = 21 rdr-to 127.0.0.1 port 8021
+match in on lo0 inet proto tcp from 127.0.0.0/24 to 2.4.6.8/30 port = 21 rdr-to 127.0.0.1 port 8021
+match in on lo0 inet proto tcp from 10.0.1.0/24 to 1.2.3.0/25 port = 21 rdr-to 127.0.0.1 port 8021
+match in on lo0 inet proto tcp from 10.0.1.0/24 to 2.4.6.8/30 port = 21 rdr-to 127.0.0.1 port 8021
+match in on lo1000000 inet proto tcp from 127.0.0.0/24 to 1.2.3.0/25 port = 21 rdr-to 127.0.0.1 port 8021
+match in on lo1000000 inet proto tcp from 127.0.0.0/24 to 2.4.6.8/30 port = 21 rdr-to 127.0.0.1 port 8021
+match in on lo1000000 inet proto tcp from 10.0.1.0/24 to 1.2.3.0/25 port = 21 rdr-to 127.0.0.1 port 8021
+match in on lo1000000 inet proto tcp from 10.0.1.0/24 to 2.4.6.8/30 port = 21 rdr-to 127.0.0.1 port 8021

@@ -1,0 +1,48 @@
+.\"	$OpenBSD: sxirsb.4,v 1.2 2017/12/16 18:28:16 jmc Exp $
+.\"
+.\" Copyright (c) 2017 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 16 2017 $
+.Dt SXIRSB 4
+.Os
+.Sh NAME
+.Nm sxirsb
+.Nd Allwinner Reduced Serial Bus controller
+.Sh SYNOPSIS
+.Cd "sxirsb* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Reduced Serial Bus (RSB) controller
+integrated on Allwinner A23/A33/A64/A80/A83T SoCs.
+RSB is a two-wire bus developed by X-Powers as a high-speed
+alternative to I2C for connecting integrated circuits.
+It is typically used for connecting devices such as power management
+ICs and audio codecs.
+.Sh SEE ALSO
+.Xr acrtc 4 ,
+.Xr iic 4 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

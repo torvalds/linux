@@ -1,0 +1,44 @@
+#	$OpenBSD: files.powerpc,v 1.57 2023/01/06 19:10:18 miod Exp $
+#
+
+file	arch/powerpc/powerpc/setjmp.S			ddb
+file	arch/powerpc/powerpc/cpu_subr.c
+file	arch/powerpc/powerpc/fpu.c
+file	arch/powerpc/powerpc/in_cksum.c
+file	arch/powerpc/powerpc/bus_dma.c
+file	arch/powerpc/powerpc/bus_space.c
+file	arch/powerpc/powerpc/pmap.c
+file	arch/powerpc/powerpc/process_machdep.c
+file	arch/powerpc/powerpc/sys_machdep.c
+file	arch/powerpc/powerpc/trap.c
+file	arch/powerpc/powerpc/vm_machdep.c
+file	arch/powerpc/powerpc/lock_machdep.c		multiprocessor
+file	arch/powerpc/powerpc/intr.c
+file	arch/powerpc/powerpc/softintr.c
+file	arch/powerpc/powerpc/vecast.S			altivec
+
+file	arch/powerpc/ddb/db_memrw.c			ddb
+file	arch/powerpc/ddb/db_disasm.c			ddb
+file	arch/powerpc/ddb/db_trace.c			ddb
+file	arch/powerpc/ddb/db_interface.c			ddb
+
+# quad support is necessary for 32 bit architectures
+file	lib/libkern/adddi3.c
+file	lib/libkern/anddi3.c
+file	lib/libkern/ashldi3.c
+file	lib/libkern/ashrdi3.c
+file	lib/libkern/cmpdi2.c
+file	lib/libkern/divdi3.c
+file	lib/libkern/iordi3.c
+file	lib/libkern/lshldi3.c
+file	lib/libkern/lshrdi3.c
+file	lib/libkern/moddi3.c
+file	lib/libkern/muldi3.c
+file	lib/libkern/negdi2.c
+file	lib/libkern/notdi2.c
+file	lib/libkern/qdivrem.c
+file	lib/libkern/subdi3.c
+file	lib/libkern/ucmpdi2.c
+file	lib/libkern/udivdi3.c
+file	lib/libkern/umoddi3.c
+file	lib/libkern/xordi3.c

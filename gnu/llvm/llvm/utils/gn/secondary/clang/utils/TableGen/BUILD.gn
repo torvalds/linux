@@ -1,0 +1,31 @@
+executable("clang-tblgen") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/Support",
+    "//llvm/lib/Support",
+    "//llvm/lib/TableGen",
+  ]
+  sources = [
+    "ASTTableGen.cpp",
+    "ClangASTNodesEmitter.cpp",
+    "ClangASTPropertiesEmitter.cpp",
+    "ClangAttrEmitter.cpp",
+    "ClangBuiltinsEmitter.cpp",
+    "ClangCommentCommandInfoEmitter.cpp",
+    "ClangCommentHTMLNamedCharacterReferenceEmitter.cpp",
+    "ClangCommentHTMLTagsEmitter.cpp",
+    "ClangDataCollectorsEmitter.cpp",
+    "ClangDiagnosticsEmitter.cpp",
+    "ClangOpcodesEmitter.cpp",
+    "ClangOpenCLBuiltinEmitter.cpp",
+    "ClangOptionDocEmitter.cpp",
+    "ClangSACheckersEmitter.cpp",
+    "ClangSyntaxEmitter.cpp",
+    "ClangTypeNodesEmitter.cpp",
+    "MveEmitter.cpp",
+    "NeonEmitter.cpp",
+    "RISCVVEmitter.cpp",
+    "SveEmitter.cpp",
+    "TableGen.cpp",
+  ]
+}

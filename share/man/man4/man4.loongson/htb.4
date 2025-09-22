@@ -1,0 +1,42 @@
+.\"	$OpenBSD: htb.4,v 1.2 2016/11/20 06:25:21 visa Exp $
+.\"
+.\" Copyright (c) 2016 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 20 2016 $
+.Dt HTB 4 loongson
+.Os
+.Sh NAME
+.Nm htb
+.Nd PCI host bridge
+.Sh SYNOPSIS
+.Cd "htb* at mainbus0"
+.Cd "pci* at htb?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Xr pci 4
+bus on Loongson 3A systems.
+.Sh SEE ALSO
+.Xr mainbus 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.1 .
+.Sh BUGS
+Add-on cards with a PCI bridge might not be fully functional because
+the system firmware does not provide complete interrupt routing information.

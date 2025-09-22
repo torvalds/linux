@@ -1,0 +1,14 @@
+executable("clang-rename") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Core",
+    "//clang/lib/Tooling/Refactoring",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "ClangRename.cpp" ]
+}

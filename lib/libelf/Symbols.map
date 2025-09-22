@@ -1,0 +1,103 @@
+/*
+ * In order to guarantee that static and shared archs see the same "public"
+ * symbols, this file should always include all the non-static symbols that
+ * are in the application namespace.  So, if a symbol starts with a letter,
+ * don't delete it from here without either making it static or renaming it
+ * to have a leading underbar.
+ */
+
+{
+	global:
+		elf32_checksum;
+		elf32_fsize;
+		elf32_getehdr;
+		elf32_getphdr;
+		elf32_getshdr;
+		elf32_newehdr;
+		elf32_newphdr;
+		elf32_xlatetof;
+		elf32_xlatetom;
+		elf64_checksum;
+		elf64_fsize;
+		elf64_getehdr;
+		elf64_getphdr;
+		elf64_getshdr;
+		elf64_newehdr;
+		elf64_newphdr;
+		elf64_xlatetof;
+		elf64_xlatetom;
+		elf_begin;
+		elf_cntl;
+		elf_end;
+		elf_errmsg;
+		elf_errno;
+		elf_fill;
+		elf_flagarhdr;
+		elf_flagdata;
+		elf_flagehdr;
+		elf_flagelf;
+		elf_flagphdr;
+		elf_flagscn;
+		elf_flagshdr;
+		elf_getarhdr;
+		elf_getarsym;
+		elf_getbase;
+		elf_getdata;
+		elf_getident;
+		elf_getphdrnum;
+		elf_getphnum;
+		elf_getscn;
+		elf_getshdrnum;
+		elf_getshdrstrndx;
+		elf_getshnum;
+		elf_getshstrndx;
+		elf_hash;
+		elf_kind;
+		elf_memory;
+		elf_ndxscn;
+		elf_newdata;
+		elf_newscn;
+		elf_next;
+		elf_nextscn;
+		elf_open;
+		elf_openmemory;
+		elf_rand;
+		elf_rawdata;
+		elf_rawfile;
+		elf_setshstrndx;
+		elf_strptr;
+		elf_update;
+		elf_version;
+		gelf_checksum;
+		gelf_fsize;
+		gelf_getcap;
+		gelf_getclass;
+		gelf_getdyn;
+		gelf_getehdr;
+		gelf_getmove;
+		gelf_getphdr;
+		gelf_getrel;
+		gelf_getrela;
+		gelf_getshdr;
+		gelf_getsym;
+		gelf_getsyminfo;
+		gelf_getsymshndx;
+		gelf_newehdr;
+		gelf_newphdr;
+		gelf_update_cap;
+		gelf_update_dyn;
+		gelf_update_ehdr;
+		gelf_update_move;
+		gelf_update_phdr;
+		gelf_update_rel;
+		gelf_update_rela;
+		gelf_update_shdr;
+		gelf_update_sym;
+		gelf_update_syminfo;
+		gelf_update_symshndx;
+		gelf_xlatetof;
+		gelf_xlatetom;
+
+	local:
+		*;
+};

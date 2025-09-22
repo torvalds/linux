@@ -1,0 +1,171 @@
+.\" $OpenBSD: tokeninit.8,v 1.14 2022/02/19 10:17:39 jsg Exp $
+.\"
+.\" Copyright (c) 1995 Migration Associates Corporation. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Berkeley Software Design,
+.\"	Inc.
+.\" 4. The name of Berkeley Software Design, Inc.  may not be used to endorse
+.\"    or promote products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN, INC. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	BSDI $From: tokeninit.8,v 1.3 1997/01/16 03:23:11 bostic Exp $
+.\"
+.Dd $Mdocdate: February 19 2022 $
+.Dt TOKENINIT 8
+.Os
+.Sh NAME
+.Nm activinit ,
+.Nm cryptoinit ,
+.Nm snkinit
+.Nd modify or add user in ActivCard, CRYPTOCard, or SNK-004 authentication system
+.Sh SYNOPSIS
+.Nm tokeninit
+.Op Fl fhsv
+.Op Fl m Ar mode
+.Ar user ...
+.Sh DESCRIPTION
+The
+.Nm tokeninit
+utility may also be invoked by one of the following names:
+.Nm activinit ,
+.Nm cryptoinit ,
+or
+.Nm snkinit .
+Depending on the name it was invoked as, it will
+initialize the system information to allow one to use the
+ActivCard, CRYPTOCard, or SNK-004 digital encryption token to login.
+The
+.Nm tokeninit
+utility is intended for use by the system administrator.
+.Pp
+Token card systems provide strong user authentication by combining a user's
+unique knowledge (a Personal Identification Number) and a physical object
+(the token) which the user must have in their possession to login.
+The system administrator programs the token with a secret encryption key
+which is also stored in the database.
+The user programs the token with a PIN.
+To discourage exhaustive attempts to guess the PIN,
+configuration options permit the token to be programmed
+to erase knowledge of the shared secret should the user enter
+an excessive number of incorrect PIN entries.
+.Pp
+The user activates the token by entering their PIN into the token.
+After activating the token, the user enters a random number challenge
+presented by the host computer into the token.
+The challenge is encrypted by the token and a response is displayed.
+The user then enters the response at the host computer's prompt,
+where it is compared with the anticipated response.
+.Pp
+Token cards typically support multiple unique encryption keys.
+This facility allows a single token to be used for multiple computer
+systems, or multiple user instances on the same system.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl f
+Force reinitialization of an existing account.
+The current shared secret stored in the database will be replaced with
+a new shared secret.
+The new shared secret must be entered into the token,
+replacing the current one.
+.It Fl h
+Read the shared secret as a 16 digit hexadecimal integer rather than
+a sequence of 8 octets.
+This is not supported when invoked as
+.Nm snkinit .
+.It Fl m Ar mode
+Specify the input modes allowed for this user.
+Possible modes are decimal (dec), hexadecimal (hex), phonebook (phone),
+and reduced-input (rim).
+Not all modes are available for all types of cards.
+Multiple
+.Fl m
+options may be specified to enable multiple modes.
+By default only the hexadecimal mode is enabled, except for the SNK-004
+token, which by default only enables the decimal mode.
+If an attempt is made to initialize a card with only reduced-input, the
+default mode for the card is silently included.
+.It Fl s
+By default,
+.Nm tokeninit
+prompts for a shared secret to enter into the authentication database.
+The
+.Fl s
+option generates a 64-bit cryptographically strong key for use in the token.
+This shared secret will be saved in the database for the user ID
+specified on the command line.
+After entering the shared secret into the token, determine that the
+checksum computed by the token matches the one displayed by
+.Nm tokeninit .
+.It Fl v
+Enable verbose mode.
+.Nm tokeninit
+will emit messages on the status of each user ID processed.
+.El
+.Sh REDUCED-INPUT MODE
+Reduced-input mode allows the token to predict the next challenge,
+given the current challenge.
+This may be used to eliminate the need to enter the challenge to the
+token or may also be used with a paper list.
+Using a program such as
+.Xr x99token 1
+many challenges could be precomputed and printed.
+This list should be kept secret.
+This list can then take the place of an actual token until
+the system has issued all the challenges printed.
+Challenges are predicted by the following algorithm:
+.Bd -unfilled -offset indent
+* Encrypt the last challenge with the shared secret key
+
+* AND each byte of the response with 0x0f
+
+* Modulo each byte by 10 (0x0a)
+
+* ADD 0x30 (ASCII value of '0') to each byte
+.Ed
+.Pp
+The resulting 8 bytes are all ASCII decimal digits and are the next challenge.
+.Sh FILES
+.Bl -tag -width xetcxcrypto.db -compact
+.It Pa /etc/activ.db
+database of information for ActivCard system
+.It Pa /etc/crypto.db
+database of information for CRYPTOCard system
+.It Pa /etc/snk.db
+database of information for SNK-004 system
+.El
+.Sh DIAGNOSTICS
+Diagnostic messages are logged via
+.Xr syslog 3
+with the LOG_AUTH facility.
+.Sh SEE ALSO
+.Xr x99token 1 ,
+.Xr syslog 3 ,
+.Xr login_token 8 ,
+.Xr tokenadm 8
+.Sh AUTHORS
+.An Jack Flory Aq Mt jpf@mig.com
+.Sh BUGS
+Not all modes of all cards are supported.

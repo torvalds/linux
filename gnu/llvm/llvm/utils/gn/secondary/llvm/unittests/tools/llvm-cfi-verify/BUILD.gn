@@ -1,0 +1,22 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("CFIVerifyTests") {
+  deps = [
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsAsmParsers",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsDisassemblers",
+    "//llvm/lib/Target:AllTargetsInfos",
+    "//llvm/lib/TargetParser",
+    "//llvm/tools/llvm-cfi-verify/lib",
+  ]
+  sources = [
+    "FileAnalysis.cpp",
+    "GraphBuilder.cpp",
+  ]
+  has_custom_main = true
+}

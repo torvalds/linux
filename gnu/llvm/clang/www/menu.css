@@ -1,0 +1,39 @@
+/***************/
+/* page layout */
+/***************/
+
+[id=menu] {
+	width:25ex;
+	float:left;
+}
+[id=content] {
+	/* *****  EDIT THIS VALUE IF CONTENT OVERLAPS MENU ***** */
+	margin-left:29ex;
+	padding-right:4ex;
+	word-wrap: break-word;
+}
+
+/**************/
+/* menu style */
+/**************/
+
+#menu .submenu {
+	padding-top:1em;
+	display:block;
+}
+
+#menu label {
+	display:block;
+	font-weight: bold;
+	text-align: center;
+	background-color: rgb(192,192,192);
+}
+#menu a {
+	padding:0 .2em;
+	display:block;
+	text-align: center;
+	background-color: rgb(235,235,235);
+}
+#menu a:visited {
+	color:rgb(100,50,100);
+}

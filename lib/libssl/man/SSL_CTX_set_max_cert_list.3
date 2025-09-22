@@ -1,0 +1,155 @@
+.\"	$OpenBSD: SSL_CTX_set_max_cert_list.3,v 1.7 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_MAX_CERT_LIST 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_max_cert_list ,
+.Nm SSL_CTX_get_max_cert_list ,
+.Nm SSL_set_max_cert_list ,
+.Nm SSL_get_max_cert_list
+.Nd manipulate allowed size for the peer's certificate chain
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft long
+.Fn SSL_CTX_set_max_cert_list "SSL_CTX *ctx" "long size"
+.Ft long
+.Fn SSL_CTX_get_max_cert_list "SSL_CTX *ctx"
+.Ft long
+.Fn SSL_set_max_cert_list "SSL *ssl" "long size"
+.Ft long
+.Fn SSL_get_max_cert_list "SSL *ctx"
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_max_cert_list
+sets the maximum size allowed for the peer's certificate chain for all
+.Vt SSL
+objects created from
+.Fa ctx
+to be
+.Fa size
+bytes.
+The
+.Vt SSL
+objects inherit the setting valid for
+.Fa ctx
+at the time
+.Xr SSL_new 3
+is being called.
+.Pp
+.Fn SSL_CTX_get_max_cert_list
+returns the currently set maximum size for
+.Fa ctx .
+.Pp
+.Fn SSL_set_max_cert_list
+sets the maximum size allowed for the peer's certificate chain for
+.Fa ssl
+to be
+.Fa size
+bytes.
+This setting stays valid until a new value is set.
+.Pp
+.Fn SSL_get_max_cert_list
+returns the currently set maximum size for
+.Fa ssl .
+.Pp
+During the handshake process, the peer may send a certificate chain.
+The TLS/SSL standard does not give any maximum size of the certificate chain.
+The OpenSSL library handles incoming data by a dynamically allocated buffer.
+In order to prevent this buffer from growing without bound due to data
+received from a faulty or malicious peer, a maximum size for the certificate
+chain is set.
+.Pp
+The default value for the maximum certificate chain size is 100kB (30kB
+on the 16bit DOS platform).
+This should be sufficient for usual certificate chains
+(OpenSSL's default maximum chain length is 10, see
+.Xr SSL_CTX_set_verify 3 ,
+and certificates without special extensions have a typical size of 1-2kB).
+.Pp
+For special applications it can be necessary to extend the maximum certificate
+chain size allowed to be sent by the peer.
+See for example the work on
+.%T "Internet X.509 Public Key Infrastructure Proxy Certificate Profile"
+and
+.%T "TLS Delegation Protocol"
+at
+.Lk https://www.ietf.org/
+and
+.Lk http://www.globus.org/ .
+.Pp
+Under normal conditions it should never be necessary to set a value smaller
+than the default, as the buffer is handled dynamically and only uses the
+memory actually required by the data sent by the peer.
+.Pp
+If the maximum certificate chain size allowed is exceeded, the handshake will
+fail with a
+.Dv SSL_R_EXCESSIVE_MESSAGE_SIZE
+error.
+.Sh RETURN VALUES
+.Fn SSL_CTX_set_max_cert_list
+and
+.Fn SSL_set_max_cert_list
+return the previously set value.
+.Pp
+.Fn SSL_CTX_get_max_cert_list
+and
+.Fn SSL_get_max_cert_list
+return the currently set value.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_ctrl 3 ,
+.Xr SSL_CTX_set_verify 3 ,
+.Xr SSL_new 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.7
+and have been available since
+.Ox 3.2 .

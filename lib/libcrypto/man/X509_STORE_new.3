@@ -1,0 +1,146 @@
+.\" $OpenBSD: X509_STORE_new.3,v 1.8 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL 05ea606a May 20 20:52:46 2016 -0400
+.\" selective merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2018 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by
+.\" Alessandro Ghedini <alessandro@ghedini.me>.
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_STORE_NEW 3
+.Os
+.Sh NAME
+.Nm X509_STORE_new ,
+.Nm X509_STORE_up_ref ,
+.Nm X509_STORE_free
+.Nd allocate and free X.509 certificate stores
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509_vfy.h
+.Ft X509_STORE *
+.Fn X509_STORE_new void
+.Ft int
+.Fo X509_STORE_up_ref
+.Fa "X509_STORE *store"
+.Fc
+.Ft void
+.Fo X509_STORE_free
+.Fa "X509_STORE *store"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_STORE_new
+allocates and initializes an empty X.509 certificate store
+and sets its reference count to 1.
+.Pp
+.Fn X509_STORE_up_ref
+increments the reference count of
+.Fa store
+by 1.
+.Pp
+.Fn X509_STORE_free
+decrements the reference count of
+.Fa store
+by 1.
+If the reference count reaches 0,
+all resources used by the store, including all certificates
+contained in it, are released and
+.Fa store
+itself is freed.
+If
+.Fa store
+is a
+.Dv NULL
+pointer, no action occurs.
+.Sh RETURN VALUES
+.Fn X509_STORE_new
+returns a newly created
+.Vt X509_STORE
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn X509_STORE_up_ref
+returns 1 for success and 0 for failure.
+.Sh SEE ALSO
+.Xr PKCS7_verify 3 ,
+.Xr SSL_CTX_set_cert_store 3 ,
+.Xr X509_load_cert_file 3 ,
+.Xr X509_LOOKUP_hash_dir 3 ,
+.Xr X509_OBJECT_get0_X509 3 ,
+.Xr X509_STORE_CTX_new 3 ,
+.Xr X509_STORE_get_ex_new_index 3 ,
+.Xr X509_STORE_load_locations 3 ,
+.Xr X509_STORE_set1_param 3 ,
+.Xr X509_STORE_set_verify_cb 3 ,
+.Xr X509_verify_cert 3
+.Sh HISTORY
+.Fn X509_STORE_new
+and
+.Fn X509_STORE_free
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_STORE_up_ref
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .

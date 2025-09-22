@@ -1,0 +1,215 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>"Multimap" Text Find Timing Test with Large Average
+  Secondary-Key to Primary-Key Ratio</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1>"Multimap" Text Find Timing Test with Large Average
+    Secondary-Key to Primary-Key Ratio</h1>
+<h2><a name="description" id="description">Description</a></h2>
+<p>This test inserts a number of pairs into a container. The
+    first item of each pair is a string from an arbitrary text
+    [<a href="references.html#wickland96thirty">wickland96thirty</a>], and
+    the second is a uniform i.i.d.integer. The container is a
+    "multimap" - it considers the first member of each pair as a
+    primary key, and the second member of each pair as a secondary
+    key (see <a href="motivation.html#assoc_mapping_semantics">Motivation::Associative
+    Containers::Alternative to Multiple Equivalent Keys</a>). There
+    are 100 distinct primary keys, and the ratio of secondary keys
+    to primary keys ranges to about 20.</p>
+<p>The test measures the average find-time as a function of the
+    number of values inserted. For <tt>pb_ds</tt>'s containers, it
+    finds the secondary key from a container obtained from finding
+    a primary key. For the native multimaps, it searches a range
+    obtained using <tt>std::equal_range</tt> on a primary key.</p>
+<p>(The test was executed with <a href="../../../../testsuite/performance/ext/pb_ds/multimap_text_find_timing.cc"><tt>multimap_text_find_timing_test</tt></a>
+    thirty_years_among_the_dead_preproc.txt 100 3 4 4)</p>
+<h2><a name="purpose" id="purpose">Purpose</a></h2>
+<p>The test checks the find-time scalability of different
+    "multimap" designs (see <a href="motivation.html#assoc_mapping_semantics">Motivation::Associative
+    Containers::Mapping Semantics</a>).</p>
+<h2><a name="results" id="results">Results</a></h2>
+<p>Figures <a href="#NTG">NTG</a>, <a href="#NTM">NTM</a>, and
+    <a href="#NTL">NTL</a> show the results for "multimaps" which
+    use a tree-based container for primary keys, in <a href="assoc_performance_tests.html#gcc"><u>g++</u></a>, <a href="assoc_performance_tests.html#msvc"><u>msvc++</u></a>, and
+    <a href="assoc_performance_tests.html#local"><u>local</u></a>,
+    respectively; Figures <a href="#NHG"></a>NHG, <a href="#NHM">NHM</a>, and <a href="#NHL">NHL</a> show the results for
+    "multimaps" which use a hash-based container for primary keys,
+    in <a href="assoc_performance_tests.html#gcc"><u>g++</u></a>,
+    <a href="assoc_performance_tests.html#msvc"><u>msvc++</u></a>,
+    and <a href="assoc_performance_tests.html#local"><u>local</u></a>,
+    respectively.</p>
+<div id="NTG_res_div">
+<div id="NTG_gcc">
+<div id="NTG_multimap_text_find_timing_test_large_s2p_tree">
+<div id="NTG_assoc">
+<div id="NTG_Native_and_primary_tree-based_multimap_types_find_timing_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTG" id="NTG"><img src="multimap_text_find_timing_test_large_s2p_tree_gcc.png" alt="no image" /></a></h6>NTG: Native and primary tree-based multimap types find timing test - <a href="assoc_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_mmap-
+<tt>std::multimap</tt></li>
+<li>
+rb_tree_mmap_lu_mtf_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+, mapping each key to <a href="list_update.html"><tt>list_update</tt></a>
+ with <tt>Update_Policy</tt> = <a href="move_to_front_lu_policy.html"><tt>move_to_front_lu_policy</tt></a>
+</li>
+<li>
+rb_tree_mmap_cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+, mapping each key to <a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NTM_res_div">
+<div id="NTM_msvc">
+<div id="NTM_multimap_text_find_timing_test_large_s2p_tree">
+<div id="NTM_assoc">
+<div id="NTM_Native_and_primary_tree-based_multimap_types_find_timing_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTM" id="NTM"><img src="multimap_text_find_timing_test_large_s2p_tree_msvc.png" alt="no image" /></a></h6>NTM: Native and primary tree-based multimap types find timing test - <a href="assoc_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_mmap-
+<tt>std::multimap</tt></li>
+<li>
+rb_tree_mmap_lu_mtf_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+, mapping each key to <a href="list_update.html"><tt>list_update</tt></a>
+ with <tt>Update_Policy</tt> = <a href="move_to_front_lu_policy.html"><tt>move_to_front_lu_policy</tt></a>
+</li>
+<li>
+rb_tree_mmap_cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_set-
+<a href="tree.html"><tt>tree</tt></a>
+ with <tt>Tag</tt> = <a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+, and <tt>Node_Update</tt> = <a href="null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+, mapping each key to <a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NTL_res_div">
+<div id="NTL_local">
+<div id="NTL_multimap_text_find_timing_test_large_s2p_tree">
+<div id="NTL_assoc">
+<div id="NTL_Native_and_primary_tree-based_multimap_types_find_timing_test"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NTL" id= "NTL"><img src="multimap_text_find_timing_test_large_s2p_tree_local.png" alt="no image" /></a></h6>NTL: Native and primary tree-based multimap types find timing test - <a href = "assoc_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NHG_res_div">
+<div id="NHG_gcc">
+<div id="NHG_multimap_text_find_timing_test_large_s2p_hash">
+<div id="NHG_assoc">
+<div id="NHG_Native_and_primary_hash-based_multimap_types_find_timing_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NHG" id="NHG"><img src="multimap_text_find_timing_test_large_s2p_hash_gcc.png" alt="no image" /></a></h6>NHG: Native and primary hash-based multimap types find timing test - <a href="assoc_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_hash_mmap-
+<tt>__gnucxx::hash_multimap</tt></li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_mmap_lu_mtf_set-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i>, mapping each key to <a href="list_update.html"><tt>list_update</tt></a>
+ with <tt>Update_Policy</tt> = <a href="move_to_front_lu_policy.html"><tt>move_to_front_lu_policy</tt></a>
+</li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_mmap_cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_set-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i>, mapping each key to <a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NHM_res_div">
+<div id="NHM_msvc">
+<div id="NHM_multimap_text_find_timing_test_large_s2p_hash">
+<div id="NHM_assoc">
+<div id="NHM_Native_and_primary_hash-based_multimap_types_find_timing_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NHM" id="NHM"><img src="multimap_text_find_timing_test_large_s2p_hash_msvc.png" alt="no image" /></a></h6>NHM: Native and primary hash-based multimap types find timing test - <a href="assoc_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_hash_mmap-
+<tt>stdext::hash_multimap</tt></li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_mmap_lu_mtf_set-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i>, mapping each key to <a href="list_update.html"><tt>list_update</tt></a>
+ with <tt>Update_Policy</tt> = <a href="move_to_front_lu_policy.html"><tt>move_to_front_lu_policy</tt></a>
+</li>
+<li>
+cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_mmap_cc_hash_mask_exp_nea_lc_1div8_1div2_nsth_set-
+<a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i>, mapping each key to <a href="cc_hash_table.html"><tt>cc_hash_table</tt></a>
+with <tt>Comb_Hash_Fn</tt> = <a href="direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+, and <tt>Resize_Policy</tt> = <a href="hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+ with <tt>Size_Policy</tt> = <a href="hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+, and <tt>Trigger_Policy</tt> = <a href="hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+ with <i>&alpha;<sub>min</sub></i> = <i>1/8</i> and <i>&alpha;<sub>max</sub></i> = <i>1/2</i></li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NHL_res_div">
+<div id="NHL_local">
+<div id="NHL_multimap_text_find_timing_test_large_s2p_hash">
+<div id="NHL_assoc">
+<div id="NHL__Native_and_primary_hash-based_multimap_types_find_timing_test"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NHL" id= "NHL"><img src="multimap_text_find_timing_test_large_s2p_hash_local.png" alt="no image" /></a></h6>NHL:  Native and primary hash-based multimap types find timing test - <a href = "assoc_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<h2><a name="observations" id="observations">Observations</a></h2>
+<p>See <a href="assoc_performance_tests.html#msc">Observations::Mapping-Semantics
+    Considerations</a>.</p>
+</div>
+</body>
+</html>

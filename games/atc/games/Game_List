@@ -1,0 +1,16 @@
+#	$OpenBSD: Game_List,v 1.2 2024/08/23 04:26:11 deraadt Exp $
+default
+easy
+crossover
+Killer
+game_2
+Atlantis
+OHare
+Tic-Tac-Toe
+airports
+box
+crosshatch
+game_3
+game_4
+novice
+two-corners

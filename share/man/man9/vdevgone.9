@@ -1,0 +1,81 @@
+.\"     $OpenBSD: vdevgone.9,v 1.8 2020/11/14 10:35:58 jmc Exp $
+.\"-
+.\" Copyright (c) 2002 Peter Werner
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: November 14 2020 $
+.Dt VDEVGONE 9
+.Os
+.Sh NAME
+.Nm vdevgone
+.Nd revoke all specified minor numbered vnodes for a device
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft void
+.Fo vdevgone
+.Fa "int maj"
+.Fa "int minl"
+.Fa "int minh"
+.Fa "enum vtype type"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vdevgone
+function will revoke all the vnodes corresponding to the specified minor
+number range for the device with a major number of
+.Fa maj
+and of type
+.Fa type .
+.Pp
+Its arguments are:
+.Bl -tag -width "type"
+.It Fa maj
+The major number of the device.
+.It Fa minl
+The lowest minor number for the device to be revoked.
+.It Fa minh
+The highest minor number for the device to be revoked.
+.It Fa type
+The type of the device; this must be one of:
+.Bl -tag -width "VBLK"
+.It Dv VBLK
+Device is a block device
+.It Dv VCHR
+Device is a character device
+.El
+.El
+.Pp
+The endpoints specified by
+.Fa minl
+and
+.Fa minh
+are inclusive.
+.Sh SEE ALSO
+.Xr vfinddev 9 ,
+.Xr vnode 9
+.Sh HISTORY
+This man page was originally written for
+.Ox .

@@ -1,0 +1,13 @@
+# You cannot continue a REDEFINE with a DEFINE.  In this case, the DEFINE
+# looks fine on its own, so the unterminated REDEFINE is reported.
+
+# DEFINE: %{name}=x
+# DEFINE: %{value}=3
+# REDEFINE: %{global:what}=echo \
+# DEFINE: %{name}=%{value}
+# REDEFINE: %{too-late-to-continue}=
+# RUN: %{deceptive-continue}
+
+# CHECK: Test has unterminated '{{REDEFINE}}:' directive (with '\') at line [[#@LINE-5]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

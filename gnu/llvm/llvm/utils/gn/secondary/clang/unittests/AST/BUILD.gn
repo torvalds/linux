@@ -1,0 +1,53 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ASTTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Analysis",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Testing",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Testing/Annotations",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "ASTContextParentMapTest.cpp",
+    "ASTDumperTest.cpp",
+    "ASTExprTest.cpp",
+    "ASTImporterFixtures.cpp",
+    "ASTImporterGenericRedeclTest.cpp",
+    "ASTImporterODRStrategiesTest.cpp",
+    "ASTImporterObjCTest.cpp",
+    "ASTImporterTest.cpp",
+    "ASTImporterVisibilityTest.cpp",
+    "ASTTraverserTest.cpp",
+    "ASTTypeTraitsTest.cpp",
+    "ASTVectorTest.cpp",
+    "AttrTest.cpp",
+    "CommentLexer.cpp",
+    "CommentParser.cpp",
+    "CommentTextTest.cpp",
+    "ConceptPrinterTest.cpp",
+    "DataCollectionTest.cpp",
+    "DeclPrinterTest.cpp",
+    "DeclTest.cpp",
+    "EvaluateAsRValueTest.cpp",
+    "ExternalASTSourceTest.cpp",
+    "NamedDeclPrinterTest.cpp",
+    "ProfilingTest.cpp",
+    "RandstructTest.cpp",
+    "RecursiveASTVisitorTest.cpp",
+    "SizelessTypesTest.cpp",
+    "SourceLocationTest.cpp",
+    "StmtPrinterTest.cpp",
+    "StructuralEquivalenceTest.cpp",
+    "TemplateNameTest.cpp",
+    "TypePrinterTest.cpp",
+    "UnresolvedSetTest.cpp",
+  ]
+}

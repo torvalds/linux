@@ -1,0 +1,402 @@
+.\"	$OpenBSD: ctime.3,v 1.49 2025/06/23 13:53:11 millert Exp $
+.\"
+.\"
+.Dd $Mdocdate: June 23 2025 $
+.Dt CTIME 3
+.Os
+.Sh NAME
+.Nm asctime ,
+.Nm asctime_r ,
+.Nm ctime ,
+.Nm ctime_r ,
+.Nm difftime ,
+.Nm gmtime ,
+.Nm gmtime_r ,
+.Nm localtime ,
+.Nm localtime_r ,
+.Nm mktime ,
+.Nm timegm ,
+.Nm timelocal
+.Nd convert date and time to ASCII
+.Sh SYNOPSIS
+.In sys/types.h
+.In time.h
+.Vt extern char *tzname[2] ;
+.Ft char *
+.Fn ctime "const time_t *clock"
+.Ft char *
+.Fn ctime_r "const time_t *clock" "char *buf"
+.Ft double
+.Fn difftime "time_t time1" "time_t time0"
+.Ft char *
+.Fn asctime "const struct tm *tm"
+.Ft char *
+.Fn asctime_r "const struct tm *tm" "char *buf"
+.Ft struct tm *
+.Fn localtime "const time_t *clock"
+.Ft struct tm *
+.Fn localtime_r "const time_t *clock" "struct tm *result"
+.Ft struct tm *
+.Fn gmtime "const time_t *clock"
+.Ft struct tm *
+.Fn gmtime_r "const time_t *clock" "struct tm *result"
+.Ft time_t
+.Fn mktime "struct tm *tm"
+.Ft time_t
+.Fn timegm "struct tm *tm"
+.Ft time_t
+.Fn timelocal "struct tm *tm"
+.Sh DESCRIPTION
+The
+.Fn ctime
+function converts a
+.Vt time_t ,
+pointed to by
+.Fa clock ,
+and returns a pointer to a
+string of the form
+.Pp
+.Dl Thu Nov 24 18:22:48 1986\en
+.Pp
+Years requiring fewer than four characters are padded with leading zeroes.
+For years longer than four characters, the string is of the form
+.Pp
+.Dl Thu Nov 24 18:22:48\ \ \ \ \ 81986\en
+.Pp
+with five spaces before the year.
+These unusual formats are designed to make it less likely that older
+software that expects exactly 26 bytes of output will mistakenly output
+misleading values for out-of-range years.
+.Pp
+The
+.Fa clock
+time stamp represents the time in seconds since 1970-01-01 00:00:00
+Coordinated Universal Time (UTC).
+The POSIX standard says that time stamps must be nonnegative
+and must ignore leap seconds.
+Many implementations extend POSIX by allowing negative time stamps,
+and can therefore represent time stamps that predate the
+introduction of UTC and are some other flavor of Universal Time (UT).
+Some implementations support leap seconds, in contradiction to POSIX.
+.Pp
+The
+.Fn ctime_r
+function converts the calendar time pointed to by
+.Fa clock
+to local time in exactly the same way as
+.Fn ctime
+and puts the string into the array pointed to by
+.Fa buf
+(which contains at least 26 bytes) and returns
+.Fa buf .
+Unlike
+.Fn ctime ,
+the thread-safe version
+.Fn ctime_r
+is not required to set
+.Va tzname .
+.Pp
+The
+.Fn localtime
+and
+.Fn gmtime
+functions return pointers to
+.Vt tm
+structures, described below.
+.Fn localtime
+corrects for the time zone and any time zone adjustments
+(such as Daylight Saving Time in the United States).
+After filling in the
+.Vt tm
+structure,
+.Fn localtime
+sets the
+.Fa tm_isdst Ns 'th
+element of
+.Va tzname
+to a pointer to an
+ASCII string that's the time zone abbreviation to be used with
+the return value of
+.Fn localtime .
+.Pp
+.Fn gmtime
+converts to Coordinated Universal Time.
+.Pp
+The
+.Fn localtime_r
+and
+.Fn gmtime_r
+functions convert the calendar time pointed to by
+.Fa clock
+into a broken-down time in exactly the same way as their non-reentrant
+counterparts,
+.Fn localtime
+and
+.Fn gmtime ,
+but instead store the result directly into the structure pointed to by
+.Fa result .
+Unlike
+.Fn localtime ,
+the reentrant version is not required to set
+.Va tzname .
+.Pp
+.Fn asctime
+converts a time value contained in a
+.Vt tm
+structure to a string,
+as shown in the above example,
+and returns a pointer to the string.
+.Fn asctime_r
+uses the buffer pointed to by
+.Fa buf
+(which should contain at least 26 bytes) and then
+returns
+.Fa buf .
+.Pp
+.Fn mktime
+converts the broken-down time,
+expressed as local time,
+in the structure pointed to by
+.Fa tm
+into a calendar time value with the same encoding as that of the values
+returned by the
+.Fn time
+function.
+The original values of the
+.Fa tm_wday
+and
+.Fa tm_yday
+components of the structure are ignored,
+and the original values of the other components are not restricted
+to their normal ranges.
+(A positive or zero value for
+.Fa tm_isdst
+causes
+.Fn mktime
+to presume initially that summer time (for example, Daylight Saving Time
+in the U.S.A.)\&
+respectively,
+is or is not in effect for the specified time.
+A negative value for
+.Fa tm_isdst
+causes the
+.Fn mktime
+function to attempt to divine whether summer time is in effect
+for the specified time; in this case it does not use a consistent
+rule and may give a different answer when later
+presented with the same argument.)
+On successful completion, the values of the
+.Fa tm_wday
+and
+.Fa tm_yday
+components of the structure are set appropriately,
+and the other components are set to represent the specified calendar time,
+but with their values forced to their normal ranges; the final value of
+.Fa tm_mday
+is not set until
+.Fa tm_mon
+and
+.Fa tm_year
+are determined.
+.Fn mktime
+returns the specified calendar time;
+if the calendar time cannot be represented,
+it returns \-1.
+.Pp
+.Fn timelocal
+is a deprecated interface that is equivalent to calling
+.Fn mktime
+with a negative value for
+.Fa tm_isdst .
+.Pp
+.Fn timegm
+converts the broken-down time, as returned by
+.Fn gmtime ,
+into a calendar time value with the same encoding as that of the values
+returned by the
+.Fn time
+function.
+.Pp
+.Fn difftime
+returns the difference between two calendar times,
+.Pf ( Fa time1 No \- Fa time0 ) ,
+expressed in seconds.
+.Pp
+Declarations of all the functions and externals, and the
+.Vt tm
+structure, are in the
+.In time.h
+header file.
+The structure (of type)
+.Vt struct tm
+includes the following fields:
+.Bd -literal -offset indent
+	int tm_sec;	/* seconds (0 \- 60) */
+	int tm_min;	/* minutes (0 \- 59) */
+	int tm_hour;	/* hours (0 \- 23) */
+	int tm_mday;	/* day of month (1 \- 31) */
+	int tm_mon;	/* month of year (0 \- 11) */
+	int tm_year;	/* year \- 1900 */
+	int tm_wday;	/* day of week (Sunday = 0) */
+	int tm_yday;	/* day of year (0 \- 365) */
+	int tm_isdst;	/* is summer time in effect? */
+	long tm_gmtoff;	/* offset from UT in seconds */
+	char *tm_zone;	/* abbreviation of timezone name */
+.Ed
+.Pp
+The
+.Fa tm_zone
+and
+.Fa tm_gmtoff
+fields exist, and are filled in by
+.Fn mktime ,
+.Fn localtime ,
+.Fn timegm ,
+and
+.Fn gmtime ,
+but are not standardized.
+There is no guarantee that these fields will continue to exist
+in this form and they may be altered or removed in a future release.
+.Pp
+.Fa tm_isdst
+is non-zero if summer time is in effect.
+.Pp
+.Fa tm_gmtoff
+is the offset (in seconds) of the time represented
+from UT, with positive values indicating east
+of the Prime Meridian.
+The field's name is derived from Greenwich Mean Time, a precursor of UT.
+.Sh RETURN VALUES
+The functions
+.Fn ctime ,
+.Fn ctime_r ,
+.Fn asctime ,
+.Fn asctime_r ,
+.Fn localtime ,
+.Fn localtime_r ,
+.Fn gmtime
+and
+.Fn gmtime_r
+return NULL on error.
+The function
+.Fn mktime
+returns \-1 on error.
+.Sh FILES
+.Bl -tag -width "/usr/share/zoneinfo/posixrules" -compact
+.It Pa /usr/share/zoneinfo
+time zone information directory
+.It Pa /etc/localtime
+local time zone file
+.It Pa /usr/share/zoneinfo/posixrules
+used with POSIX-style TZ's
+.It Pa /usr/share/zoneinfo/GMT
+for UTC leap seconds
+.El
+.Pp
+If
+.Pa /usr/share/zoneinfo/GMT
+is absent,
+UTC leap seconds are loaded from
+.Pa /usr/share/zoneinfo/posixrules .
+.Sh SEE ALSO
+.Xr getenv 3 ,
+.Xr strftime 3 ,
+.Xr time 3 ,
+.Xr tzset 3 ,
+.Xr tzfile 5 ,
+.Xr zic 8
+.Sh STANDARDS
+The functions
+.Fn asctime ,
+.Fn ctime ,
+.Fn difftime ,
+.Fn gmtime ,
+.Fn localtime ,
+and
+.Fn mktime
+conform to
+.St -ansiC .
+.Pp
+The functions
+.Fn asctime_r ,
+.Fn ctime_r ,
+.Fn gmtime_r ,
+and
+.Fn localtime_r
+conform to
+.St -p1003.1-2008 .
+.Pp
+The functions
+.Fn timegm
+and
+.Fn timelocal
+are extensions to these standards.
+.Sh HISTORY
+A
+.Fn ctime
+function first appeared in
+.At v1 .
+.Pp
+The functions
+.Fn asctime ,
+.Fn gmtime ,
+and
+.Fn localtime
+first appeared in
+.At v5 ,
+.Fn difftime
+and
+.Fn mktime
+in
+.Bx 4.3 Reno ,
+and
+.Fn timegm
+and
+.Fn timelocal
+in SunOS 4.0.
+.Pp
+The functions
+.Fn asctime_r ,
+.Fn ctime_r ,
+.Fn gmtime_r ,
+and
+.Fn localtime_r
+have been available since
+.Ox 2.5 .
+.Sh CAVEATS
+The return values
+of the non re-entrant functions
+point to static data;
+the data is overwritten by each call.
+The
+.Fa tm_zone
+field of a returned
+.Vt struct tm
+points to a static array of characters, which
+will also be overwritten at the next call
+(and by calls to
+.Xr tzset 3 ) .
+.Pp
+.Fn asctime
+and
+.Fn ctime
+behave strangely for years before 1000 or after 9999.
+The 1989 and 1999 editions of the C Standard say
+that years from \-99 through 999 are converted without
+extra spaces, but this conflicts with longstanding
+tradition and with this implementation.
+Traditional implementations of these two functions are
+restricted to years in the range 1900 through 2099.
+To avoid this portability mess, new programs should use
+.Fn strftime
+instead.
+.Pp
+The default system time zone may be set by running
+.Dq Li zic -l timezone
+as the superuser.
+.Pp
+Avoid using out-of-range values with
+.Fn mktime
+when setting up lunch with promptness sticklers in Riyadh.
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.

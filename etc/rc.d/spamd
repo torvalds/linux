@@ -1,0 +1,24 @@
+#!/bin/ksh
+#
+# $OpenBSD: spamd,v 1.11 2022/05/21 12:42:21 ajacoutot Exp $
+
+daemon="/usr/libexec/spamd"
+
+. /etc/rc.d/rc.subr
+
+pexp="spamd: \[priv\].*"
+rc_reload=NO
+
+rc_pre() {
+	if [[ ${spamd_black} != NO ]]; then
+		daemon_flags="-b ${daemon_flags}"
+		spamd_setup_flags="-b"
+	fi
+}
+
+rc_start() {
+	rc_exec "${daemon} ${daemon_flags}" || return 1
+	/usr/libexec/spamd-setup -D ${spamd_setup_flags}
+}
+
+rc_cmd $1

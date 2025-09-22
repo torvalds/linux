@@ -1,0 +1,41 @@
+static_library("lib") {
+  output_name = "LLVMOptDriver"
+  deps = [
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRPrinter",
+    "//llvm/lib/MC",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/AggressiveInstCombine",
+    "//llvm/lib/Transforms/Coroutines",
+    "//llvm/lib/Transforms/IPO",
+    "//llvm/lib/Transforms/Instrumentation",
+    "//llvm/lib/Transforms/ObjCARC",
+    "//llvm/lib/Transforms/Scalar",
+    "//llvm/lib/Transforms/Utils",
+    "//llvm/lib/Transforms/Vectorize",
+  ]
+  sources = [
+    "NewPMDriver.cpp",
+    "optdriver.cpp",
+  ]
+}
+
+executable("opt") {
+  sources = [ "opt.cpp" ]
+  deps = [ ":lib" ]
+
+  # Support plugins.
+  # FIXME: Disable dead stripping once other binaries are dead-stripped.
+  if (host_os != "mac" && host_os != "win") {
+    # Corresponds to export_executable_symbols() in cmake.
+    ldflags = [ "-rdynamic" ]
+  }
+}

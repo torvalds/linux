@@ -1,0 +1,174 @@
+.\" $OpenBSD: AES_encrypt.3,v 1.2 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt AES_ENCRYPT 3
+.Os
+.Sh NAME
+.Nm AES_set_encrypt_key ,
+.Nm AES_set_decrypt_key ,
+.Nm AES_encrypt ,
+.Nm AES_decrypt ,
+.Nm AES_cbc_encrypt
+.Nd low-level interface to the AES symmetric cipher
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/aes.h
+.Ft int
+.Fo AES_set_encrypt_key
+.Fa "const unsigned char *userKey"
+.Fa "const int bits"
+.Fa "AES_KEY *key"
+.Fc
+.Ft int
+.Fo AES_set_decrypt_key
+.Fa "const unsigned char *userKey"
+.Fa "const int bits"
+.Fa "AES_KEY *key"
+.Fc
+.Ft void
+.Fo AES_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "const AES_KEY *key"
+.Fc
+.Ft void
+.Fo AES_decrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "const AES_KEY *key"
+.Fc
+.Ft void
+.Fo AES_cbc_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "size_t length"
+.Fa "const AES_KEY *key"
+.Fa "unsigned char *ivec"
+.Fa "const int enc"
+.Fc
+.Sh DESCRIPTION
+These function provide a low-level interface to the AES symmetric
+cipher algorithm, also called Rijndael.
+For reasons of flexibility, it is recommended that application
+programs use the high-level interface described in
+.Xr EVP_EncryptInit 3
+and
+.Xr EVP_aes_128_cbc 3
+instead whenever possible.
+.Pp
+.Vt AES_KEY
+is a structure that can hold up to 60
+.Vt int
+values and a number of rounds.
+.Pp
+.Fn AES_set_encrypt_key
+expands the
+.Fa userKey ,
+which is
+.Fa bits
+long, into the
+.Fa key
+structure to prepare for encryption.
+The number of bits and bytes read from
+.Fa userKey ,
+the number of
+.Vt int
+values stored into
+.Fa key ,
+and the number of rounds are as follows:
+.Pp
+.Bl -column bits bytes ints rounds -offset indent -compact
+.It bits Ta bytes Ta ints Ta rounds
+.It 128  Ta 16    Ta 44   Ta 10
+.It 192  Ta 24    Ta 52   Ta 12
+.It 256  Ta 32    Ta 60   Ta 14
+.El
+.Pp
+.Fn AES_set_decrypt_key
+does the same, but in preparation for decryption.
+.Pp
+.Fn AES_encrypt
+reads a single 16 byte block from
+.Pf * Fa in ,
+encrypts it with the
+.Fa key ,
+and writes the 16 resulting bytes to
+.Pf * Fa out .
+The 16 byte buffers starting at
+.Fa in
+and
+.Fa out
+can overlap, and
+.Fa in
+and
+.Fa out
+can even point to the same memory location.
+.Pp
+.Fn AES_decrypt
+decrypts a single block and is otherwise identical to
+.Fn AES_encrypt .
+.Pp
+If
+.Fa enc
+is non-zero,
+.Fn AES_cbc_encrypt
+encrypts
+.Fa len
+bytes at
+.Fa in
+to
+.Fa out
+using the 128 bit
+.Fa key
+and the 128 bit
+initialization vector
+.Fa ivec
+in CBC mode.
+If
+.Fa enc
+is 0,
+.Fn AES_cbc_encrypt
+performs the corresponding decryption.
+.Sh RETURN VALUES
+.Fn AES_set_encrypt_key
+and
+.Fn AES_set_decrypt_key
+return 0 for success, -1 if
+.Fa userKey
+or
+.Fa key
+is
+.Dv NULL ,
+or -2 if the number of
+.Fa bits
+is unsupported.
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr EVP_aes_128_cbc 3 ,
+.Xr EVP_EncryptInit 3
+.Sh STANDARDS
+ISO/IEC 18033-3:2010
+Information technology \(em Security techniques \(em
+Encryption algorithms \(em Part 3: Block ciphers
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.7
+and have been available since
+.Ox 3.2 .
+.Sh AUTHORS
+.An Vincent Rijmen
+.An Antoon Bosselaers
+.An Paulo Barreto

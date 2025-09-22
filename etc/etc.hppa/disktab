@@ -1,0 +1,6 @@
+#	$OpenBSD: disktab,v 1.12 2023/03/06 18:12:47 krw Exp $
+
+rdroot|ramdiskroot|RAM-disk root FS image:\
+	:dt=rdroot:se#512:nc#18:nt#2:ns#220:\
+	:ta=4.2BSD:oa#0:pa#7920:fa#1024:ba#8192:\
+	:oc#0:pc#7920:

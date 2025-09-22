@@ -1,0 +1,103 @@
+'\" t
+.\" $OpenBSD: menu_hook.3,v 1.9 2023/10/17 09:52:10 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: menu_hook.3,v 1.9 2023/10/17 09:52:10 nicm Exp $
+.TH menu_hook 3 2023-07-01 "ncurses 6.4" "Library calls"
+.SH NAME
+\fBmenu_hook\fP \- set hooks for automatic invocation by applications
+.SH SYNOPSIS
+\fB#include <menu.h>\fP
+.sp
+\fBint set_item_init(MENU *\fImenu\fB, Menu_Hook \fIfunc);\fR
+.br
+\fBMenu_Hook item_init(const MENU *\fImenu);\fR
+.sp
+\fBint set_item_term(MENU *\fImenu\fB, Menu_Hook \fIfunc);\fR
+.br
+\fBMenu_Hook item_term(const MENU *\fImenu);\fR
+.sp
+\fBint set_menu_init(MENU *\fImenu\fB, Menu_Hook \fIfunc);\fR
+.br
+\fBMenu_Hook menu_init(const MENU *\fImenu);\fR
+.sp
+\fBint set_menu_term(MENU *\fImenu\fB, Menu_Hook \fIfunc);\fR
+.br
+\fBMenu_Hook menu_term(const MENU *\fImenu);\fR
+.SH DESCRIPTION
+These functions make it possible to set hook functions to be called at various
+points in the automatic processing of input event codes by \fBmenu_driver\fP.
+.PP
+The function \fBset_item_init\fP sets a hook to be called at menu-post time and
+each time the selected item changes (after the change).
+\fBitem_init\fP
+returns the current item init hook, if any (\fBNULL\fP if there is no such
+hook).
+.PP
+The function \fBset_item_term\fP sets a hook to be called at menu-unpost time
+and each time the selected item changes (before the change).
+\fBitem_term\fP
+returns the current item term hook, if any (\fBNULL\fP if there is no such
+hook).
+.PP
+The function \fBset_menu_init\fP sets a hook to be called at menu-post time and
+just after the top row on the menu changes once it is posted.
+\fBmenu_init\fP
+returns the current menu init hook, if any (\fBNULL\fP if there is no such
+hook).
+.PP
+The function \fBset_menu_term\fP sets a hook to be called at menu-unpost time
+and just before the top row on the menu changes once it is posted.
+\fBmenu_term\fP returns the current menu term hook, if any (\fBNULL\fP if there
+is no such hook).
+.SH RETURN VALUE
+Routines that return pointers return \fBNULL\fP on error.
+Other routines
+return one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fP(3)).
+.SH SEE ALSO
+\fBcurses\fP(3), \fBmenu\fP(3).
+.SH NOTES
+The header file \fB<menu.h>\fP automatically includes the header file
+\fB<curses.h>\fP.
+.SH PORTABILITY
+These routines emulate the System V menu library.
+They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric
+S. Raymond.

@@ -1,0 +1,226 @@
+.TH "NSD" "8" "Sep  3, 2025" "NLnet Labs" "NSD 4.13.0"
+.\" Copyright (c) 2001\-2024, NLnet Labs. All rights reserved.
+.\" See LICENSE for the license.
+.SH "NAME"
+.B nsd
+\- Name Server Daemon (NSD) version 4.13.0.
+.SH "SYNOPSIS"
+.B nsd
+.RB [ \-4 ] 
+.RB [ \-6 ] 
+.RB [ \-a 
+.IR ip\-address[@port] ]
+.RB [ \-c
+.IR configfile ]
+.RB [ \-d ] 
+.RB [ \-h ] 
+.RB [ \-i
+.IR identity ]
+.RB [ \-I
+.IR nsid ]
+.RB [ \-l
+.IR logfile ]
+.RB [ \-N
+.IR server\-count ]
+.RB [ \-n
+.IR noncurrent\-tcp\-count ]
+.RB [ \-P
+.IR pidfile ]
+.RB [ \-p
+.IR port ]
+.RB [ \-s
+.IR seconds ]
+.RB [ \-t
+.IR chrootdir ]
+.RB [ \-u
+.IR username ]
+.RB [ \-V
+.IR level ]
+.RB [ \-v ]
+.SH "DESCRIPTION"
+.B NSD
+is a complete implementation of an authoritative DNS nameserver. 
+Upon startup,
+.B NSD
+will read the configuration file and put itself into the background and
+answers queries on port 53 or a different port specified with
+.B \-p
+.I port
+option. By default,
+.B NSD 
+will bind to all local interfaces available. Use the 
+.B \-a
+.I ip\-address[@port]
+option to specify a single particular interface address to be bound. If this
+option is given more than once,
+.B NSD
+will bind its UDP and TCP sockets to all the specified ip\-addresses
+separately. If IPv6 is enabled when 
+.B NSD 
+is compiled an IPv6 address can also be specified.
+.SH "OPTIONS"
+All the options can be specified in the configfile (
+.B \-c 
+argument), except for the 
+.B \-v 
+and 
+.B \-h 
+options. If options are specified on the commandline, the options 
+on the commandline take precedence over the options in the 
+configfile.
+.P
+Normally
+.B NSD
+should be started with the `nsd\-control(8) start` command invoked from a
+.I /etc/rc.d/nsd.sh
+script or similar at the operating system startup.
+.TP
+.B \-4
+Only listen to IPv4 connections.
+.TP
+.B \-6
+Only listen to IPv6 connections.
+.TP
+.B \-a\fI ip\-address[@port]
+Listen to the specified
+.IR ip\-address .
+The
+.I ip\-address
+must be specified in numeric format (using the standard IPv4 or IPv6
+notation). Optionally, a port number can be given.
+This flag can be specified multiple times to listen to
+multiple IP addresses. If this flag is not specified, 
+.B NSD
+listens to the wildcard interface.
+.TP
+.B \-c\fI configfile
+Read specified 
+.I configfile
+instead of the default
+.IR @nsdconfigfile@ .
+For format description see nsd.conf(5).
+.TP
+.B \-d
+Do not fork, stay in the foreground.
+.TP
+.B \-h
+Print help information and exit.
+.TP
+.B \-i\fI identity
+Return the specified
+.I identity
+when asked for
+.I CH TXT ID.SERVER
+(This option is used to determine which server is answering the queries
+when they are anycast). The default is the name returned by gethostname(3).
+.TP
+.B \-I\fI nsid
+Add the specified
+.I nsid
+to the EDNS section of the answer when queried with an NSID EDNS 
+enabled packet.  As a sequence of hex characters or with ascii_ prefix
+and then an ascii string.
+.TP
+.B \-l\fI logfile
+Log messages to the specified 
+.IR logfile .
+The default is to log to stderr and syslog. If a 
+.B zonesdir: 
+is specified in the config file this path can be relative to that 
+directory.
+.TP
+.B \-N\fI count
+Start
+.I count
+.B NSD 
+servers. The default is 1. Starting more than a single server is 
+only useful on machines with multiple CPUs and/or network adapters. 
+.TP
+.B \-n\fI number
+The maximum
+.I number
+of concurrent TCP connection that can be handled by each server. The
+default is 100.
+.TP
+.B \-P\fI pidfile
+Use the specified
+.I pidfile
+instead of the platform specific default.
+If a 
+.B zonesdir: 
+is specified in the config file, this path can be relative to that 
+directory.
+.TP
+.B \-p\fI port
+Answer the queries on the specified
+.IR port .
+Normally this is port 53.
+.TP
+.B \-s\fI seconds
+Produce statistics dump every 
+.I seconds
+seconds. This is equal to sending
+.I SIGUSR1
+to the daemon periodically.
+.TP
+.B \-t\fI chroot
+Specifies a directory to 
+.I chroot 
+to upon startup. This option requires you to ensure that appropriate 
+syslogd(8) socket (e.g.
+.I chrootdir 
+/dev/log) is available, otherwise
+.B NSD
+won't produce any log output.
+.TP
+.B \-u\fI username
+Drop user and group privileges to those of
+.I username
+after binding the socket.
+The
+.I username
+must be one of: username, id, or id.gid. For example: nsd, 80, or 
+80.80.
+.TP
+.B \-V\fI level
+This value specifies the verbosity level for (non\-debug) logging. 
+Default is 0.
+.TP
+.B \-v
+Print the version number of 
+.B NSD 
+to standard error and exit.
+.LP
+.B NSD
+reacts to the following signals:
+.TP
+SIGTERM
+.br
+Stop answering queries, shutdown, and exit normally.
+.TP 
+SIGHUP
+.br
+Reopen logfile (assists rotation) and optionally update TSIG keys and zones.
+.TP
+SIGUSR1
+.br
+Dump BIND8\-style statistics into the log. Ignored otherwise.
+.SH "FILES"
+.TP
+@nsdconfigfile@
+default
+.B NSD
+configuration file
+.SH "DIAGNOSTICS"
+.B NSD
+will log all the problems via the standard syslog(8)
+.I daemon
+facility, unless the
+.B \-d
+option is specified.
+.SH "SEE ALSO"
+\fInsd.conf\fR(5), \fInsd\-checkconf\fR(8), \fInsd\-control\fR(8)
+.SH "AUTHORS"
+.B NSD
+was written by NLnet Labs and RIPE NCC joint team. Please see
+CREDITS file in the distribution for further details.

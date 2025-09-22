@@ -1,0 +1,22 @@
+#!/bin/sh
+# Like mv $1 $2, but if the files are the same, just delete $1.
+# Status is zero if successful, nonzero otherwise.
+
+usage="$0: usage: $0 SOURCE DEST"
+
+case $# in
+2) ;;
+*) echo "$usage" >&2; exit 1;;
+esac
+
+for arg in "$1" "$2"; do
+  case $arg in
+   -*) echo "$usage" >&2; exit 1;;
+  esac
+done
+
+if test -r "$2" && cmp -s "$1" "$2"; then
+  rm -f "$1"
+else
+  mv -f "$1" "$2"
+fi

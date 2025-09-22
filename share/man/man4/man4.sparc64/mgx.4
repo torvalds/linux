@@ -1,0 +1,93 @@
+.\"	$OpenBSD: mgx.4,v 1.14 2011/12/03 23:01:21 schwarze Exp $
+.\"
+.\" Copyright (c) 2003, 2005 Miodrag Vallat
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 3 2011 $
+.Dt MGX 4 sparc64
+.Os
+.Sh NAME
+.Nm mgx
+.Nd SMS MGX and MGXPlus accelerated 8/24-bit color frame buffers
+.Sh SYNOPSIS
+.Cd "mgx* at sbus?"
+.Cd "wsdisplay* at mgx?"
+.Sh DESCRIPTION
+The
+.Tn Southland Media Systems
+.Pq now Tn "Quantum 3D"
+MGX and MGXPlus are SBus color frame buffers, with graphics acceleration
+capabilities.
+.Pp
+The
+.Nm
+driver interfaces the frame buffer with the
+.Xr wscons 4
+console framework.
+It does not provide direct device driver entry points
+but makes its functions available via the internal
+.Xr wsdisplay 4
+interface.
+.Sh DISPLAY RESOLUTION
+The MGX and MGXPlus frame buffers will adapt their resolution to the monitor
+they are connected to.
+However, when not connected to a Sun monitor, the device will default to the
+.Xr cgthree 4 Ns -compatible
+1152x900 resolution, with a refresh rate of 66Hz.
+A different resolution can be forced using the set of DIP switches
+.Pq sometimes covered by metal foil
+located near the SBus connector on the board itself.
+.Pp
+The DIP switch settings are as follows:
+.Bl -column "OFF OFF OFF OFF" "Resolution" "Refresh Rate" "Details"
+.It Sy "Switches" Ta Sy "Resolution" Ta Sy "Refresh Rate" Ta Sy "Details"
+.It Sy "1   2   3   4" Ta "" Ta "" Ta ""
+.\" 0
+.It Li "OFF OFF OFF OFF" Ta 1024x768 Ta 77Hz Ta ""
+.\" 2
+.It Li "OFF ON  OFF OFF" Ta 1280x1024 Ta 76Hz Ta ""
+.\" 3 (exactly the same as #7. Not a typo)
+.It Li "ON  ON  OFF OFF" Ta 1152x900 Ta 66Hz Ta ""
+.\" 4
+.It Li "OFF OFF ON  OFF" Ta 1152x900 Ta 76Hz Ta ""
+.\" 6
+.It Li "OFF ON  ON  OFF" Ta 1152x900 Ta 77Hz Ta ""
+.\" 7
+.It Li "ON  ON  ON  OFF" Ta 1152x900 Ta 66Hz Ta "cgthree compatible"
+.\" 11
+.It Li "ON  ON  OFF ON " Ta 1152x900 Ta 66Hz Ta "cgsix compatible"
+.\" 12
+.It Li "OFF OFF ON  ON " Ta 1280x1024 Ta 67Hz Ta ""
+.\" 15
+.It Li "ON  ON  ON  ON " Ta probed Ta probed Ta "factory default"
+.El
+.Pp
+All other combinations are unsupported and may damage the hardware.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sbus 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4
+.Sh CAVEATS
+This driver does not support mode switching at the moment, and
+drives the card in PROM-compatible, 8 bit, mode only.

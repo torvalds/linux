@@ -1,0 +1,38 @@
+//===- BTF.def - BTF definitions --------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Macros for BTF.
+//
+//===----------------------------------------------------------------------===//
+
+#if !defined(HANDLE_BTF_KIND)
+#error "Missing macro definition of HANDLE_BTF_*"
+#endif
+
+HANDLE_BTF_KIND(0, UNKN)
+HANDLE_BTF_KIND(1, INT)
+HANDLE_BTF_KIND(2, PTR)
+HANDLE_BTF_KIND(3, ARRAY)
+HANDLE_BTF_KIND(4, STRUCT)
+HANDLE_BTF_KIND(5, UNION)
+HANDLE_BTF_KIND(6, ENUM)
+HANDLE_BTF_KIND(7, FWD)
+HANDLE_BTF_KIND(8, TYPEDEF)
+HANDLE_BTF_KIND(9, VOLATILE)
+HANDLE_BTF_KIND(10, CONST)
+HANDLE_BTF_KIND(11, RESTRICT)
+HANDLE_BTF_KIND(12, FUNC)
+HANDLE_BTF_KIND(13, FUNC_PROTO)
+HANDLE_BTF_KIND(14, VAR)
+HANDLE_BTF_KIND(15, DATASEC)
+HANDLE_BTF_KIND(16, FLOAT)
+HANDLE_BTF_KIND(17, DECL_TAG)
+HANDLE_BTF_KIND(18, TYPE_TAG)
+HANDLE_BTF_KIND(19, ENUM64)
+
+#undef HANDLE_BTF_KIND

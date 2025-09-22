@@ -1,0 +1,342 @@
+#	$OpenBSD: Makefile.yp,v 1.18 2018/04/26 12:53:09 schwarze Exp $
+
+# ----------------------------------------------------------------------
+# User-configurable settings; see Makefile.yp(8) for details.
+# ----------------------------------------------------------------------
+
+# Select the source directories to build YP maps from.
+DIR=/etc
+AMDDIR=$(DIR)/amd
+
+# Set this to disable automatic distribution of YP maps.
+NOPUSH=""
+
+# Unset this to exclude encrypted passwords from the passwd maps.
+UNSECURE="True"
+
+# Only include UIDs and GIDs inside certain ranges into the maps.
+MINUID=1000
+MAXUID=32765
+MINGID=1000
+MAXGID=32765
+
+# Set this to -b to have ypserv ask DNS for unknown hosts.
+USEDNS=
+
+all: passwd group hosts ethers rpc services protocols netid netgroup amd.home aliases
+	pkill -HUP ypserv
+
+# ----------------------------------------------------------------------
+# End of user-configurable settings; you may also add new targets, though.
+# ----------------------------------------------------------------------
+
+# The following is also hardcoded into ypserv(8) and other programs.
+YPDBDIR=/var/yp
+
+AWK=/usr/bin/awk
+CAT=/bin/cat
+CP=/bin/cp
+CUT=/usr/bin/cut
+ECHO=/bin/echo
+MAKEDBM=/usr/sbin/makedbm
+MAKEDBM-S=$(MAKEDBM) -s
+MKALIAS=/usr/sbin/mkalias
+MKNETID=/usr/sbin/mknetid
+REVNETGROUP=/usr/sbin/revnetgroup
+RM=/bin/rm
+SED=/usr/bin/sed
+SENDMAIL=/usr/sbin/sendmail
+TOUCH=/usr/bin/touch
+YPPUSH=/usr/sbin/yppush
+
+DOMAIN="`/usr/bin/basename ${.CURDIR}`"
+
+passwd.time: $(DIR)/master.passwd
+	-@if [ -f $(>) ]; then \
+		if [ ! $(UNSECURE) ]; then \
+			$(CAT) $(>) | $(CUT) -d: -f1-4,8-10 | \
+			$(AWK) -v minuid=${MINUID} -v maxuid=${MAXUID} \
+			'BEGIN { FS=":"; OFS="\t"; } /^[a-zA-Z0-9_]/ \
+			{ if (minuid <= $$3 && maxuid >= $$3) \
+			print $$1, $$1":*:"$$3":"$$4":"$$5":"$$6":"$$7 }' -|\
+			$(MAKEDBM) - passwd.byname; \
+			$(CAT) $(>) | $(CUT) -d: -f1-4,8-10 |\
+			$(AWK) -v minuid=${MINUID} -v maxuid=${MAXUID} \
+			'BEGIN { FS=":"; OFS="\t"; } /^[a-zA-Z0-9_]/ \
+			{ if (minuid <= $$3 && maxuid >= $$3) \
+			print $$3, $$1":*:"$$3":"$$4":"$$5":"$$6":"$$7 }' -|\
+			$(MAKEDBM) - passwd.byuid; \
+		else \
+			$(CAT) $(>) | $(CUT) -d: -f1-4,8-10 | \
+			$(AWK) -v minuid=${MINUID} -v maxuid=${MAXUID} \
+			'BEGIN { FS=":"; OFS="\t"; } /^[a-zA-Z0-9_]/ \
+			{ if (minuid <= $$3 && maxuid >= $$3) \
+			print $$1, $$0 }' - | \
+			$(MAKEDBM) - passwd.byname; \
+			$(CAT) $(>) | $(CUT) -d: -f1-4,8-10 |\
+			$(AWK) -v minuid=${MINUID} -v maxuid=${MAXUID} \
+			'BEGIN { FS=":"; OFS="\t"; } /^[a-zA-Z0-9_]/ \
+			{ if (minuid <= $$3 && maxuid >= $$3) \
+			print $$3, $$0 }' - | \
+			$(MAKEDBM) - passwd.byuid; \
+		fi; \
+		$(CAT) $(>) | \
+		$(AWK) -v minuid=${MINUID} -v maxuid=${MAXUID} \
+		'BEGIN { FS=":"; OFS="\t"; } /^[a-zA-Z0-9_]/ \
+		{ if (minuid <= $$3 && maxuid >= $$3) \
+		print $$1, $$0 }' - | $(MAKEDBM-S) - master.passwd.byname; \
+		$(CAT) $(>) | \
+		$(AWK) -v minuid=${MINUID} -v maxuid=${MAXUID} \
+		'BEGIN { FS=":"; OFS="\t"; } /^[a-zA-Z0-9_]/ \
+		{ if (minuid <= $$3 && maxuid >= $$3) \
+		print $$3, $$0 }' - | $(MAKEDBM-S) - master.passwd.byuid; \
+		$(TOUCH) $(@); \
+		$(ECHO) "updated passwd"; \
+		if [ ! $(NOPUSH) ]; then \
+			$(YPPUSH) -d $(DOMAIN) passwd.byname; \
+			$(YPPUSH) -d $(DOMAIN) passwd.byuid; \
+			$(YPPUSH) -d $(DOMAIN) master.passwd.byname; \
+			$(YPPUSH) -d $(DOMAIN) master.passwd.byuid; \
+			$(ECHO) "pushed passwd"; \
+		else \
+			: ; \
+		fi \
+	else \
+		$(ECHO) "couldn't find $(>)"; \
+	fi
+
+
+group.time: $(DIR)/group
+	-@if [ -f $(>) ]; then \
+		$(AWK) -v mingid=${MINGID} -v maxgid=${MAXGID} \
+		'BEGIN { FS=":"; OFS="\t"; } /^[a-zA-Z0-9_]/ \
+		{ if (mingid <= $$3 && maxgid >= $$3) print $$1, $$0 }' $(>) | \
+		$(MAKEDBM) - group.byname; \
+		$(AWK) -v mingid=${MINGID} -v maxgid=${MAXGID} \
+		'BEGIN { FS=":"; OFS="\t"; } /^[a-zA-Z0-9_]/ \
+		{ if (mingid <= $$3 && maxgid >= $$3) print $$3, $$0 }' $(>) | \
+		$(MAKEDBM) - group.bygid; \
+		$(TOUCH) $(@); \
+		$(ECHO) "updated group"; \
+		if [ ! $(NOPUSH) ]; then \
+			$(YPPUSH) -d $(DOMAIN) group.byname; \
+			$(YPPUSH) -d $(DOMAIN) group.bygid; \
+			$(ECHO) "pushed group"; \
+		else \
+			: ; \
+		fi \
+	else \
+		$(ECHO) "couldn't find $(>)"; \
+	fi
+
+hosts.time: $(DIR)/hosts
+	-@if [ -f $(DIR)/hosts ]; then \
+		$(SED) -E -e 's/[[:blank:]]*#.*$$//' -e '/^$$/d' $(>) | \
+		$(AWK) 'BEGIN { OFS="\t" } \
+		{ if (length() > 1024) next; for (i=2; i <= NF; i++) print $$i,$$0 }' | \
+		$(MAKEDBM) $(USEDNS) - hosts.byname; \
+		$(SED) -E -e 's/[[:blank:]]*#.*$$//' -e '/^$$/d' $(>) | \
+		$(AWK) 'BEGIN { OFS="\t" } \
+		{ if (length() > 1024) next; print $$1,$$0 }' | \
+		$(MAKEDBM) $(USEDNS) - hosts.byaddr; \
+		$(TOUCH) $(@); \
+		$(ECHO) "updated hosts"; \
+		if [ ! $(NOPUSH) ]; then \
+			$(YPPUSH) -d $(DOMAIN) hosts.byname; \
+			$(YPPUSH) -d $(DOMAIN) hosts.byaddr; \
+			$(ECHO) "pushed hosts"; \
+		else \
+			: ; \
+		fi \
+	else \
+		$(ECHO) "couldn't find $(>)"; \
+	fi
+
+ethers.time: $(DIR)/ethers
+	-@if [ -f $(DIR)/ethers ]; then \
+		$(SED) -E -e 's/[[:blank:]]*#.*$$//' -e '/^$$/d' $(>) | \
+		$(SED) -E -n '/^([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}[[:blank:]]/p' | \
+		$(AWK) 'BEGIN { OFS="\t" } { if (length() > 1024) next; print $$1,$$0 }' | \
+		$(MAKEDBM) - ethers.byaddr; \
+		$(SED) -E -e 's/[[:blank:]]*#.*$$//' -e '/^$$/d' $(>) | \
+		$(SED) -E -n '/^([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}[[:blank:]]/p' | \
+		$(AWK) 'BEGIN { OFS="\t" } { if (length() > 1024) next; print $$2,$$0 }' | \
+		$(MAKEDBM) - ethers.byname; \
+		$(TOUCH) $(@); \
+		$(ECHO) "updated ethers"; \
+		if [ ! $(NOPUSH) ]; then \
+			$(YPPUSH) -d $(DOMAIN) ethers.byaddr; \
+			$(YPPUSH) -d $(DOMAIN) ethers.byname; \
+			$(ECHO) "pushed ethers"; \
+		else \
+			: ; \
+		fi \
+	else \
+		$(ECHO) "couldn't find $(>)"; \
+	fi
+
+rpc.time: $(DIR)/rpc
+	-@if [ -f $(>) ]; then \
+		$(AWK) 'BEGIN { OFS="\t"; } $$1 !~ /^#/ { print $$2, $$0 }' $(>) | \
+		$(MAKEDBM) - rpc.bynumber; \
+		$(TOUCH) $(@); \
+		$(ECHO) "updated rpc"; \
+		if [ ! $(NOPUSH) ]; then \
+			$(YPPUSH) -d $(DOMAIN) rpc.bynumber; \
+			$(ECHO) "pushed rpc"; \
+		else \
+			: ; \
+		fi \
+	else \
+		$(ECHO) "couldn't find $(>)"; \
+	fi
+
+
+services.time: $(DIR)/services
+	-@if [ -f $(>) ]; then \
+		$(AWK) 'BEGIN { OFS="\t"; } $$1 !~ /^#/ { print $$2, $$0 }' $(>) | \
+		$(MAKEDBM) - services.byname; \
+		$(TOUCH) $(@); \
+		$(ECHO) "updated services"; \
+		if [ ! $(NOPUSH) ]; then \
+			$(YPPUSH) -d $(DOMAIN) services.byname; \
+			$(ECHO) "pushed services"; \
+		else \
+			: ; \
+		fi \
+	else \
+		$(ECHO) "couldn't find $(>)"; \
+	fi
+
+
+protocols.time: $(DIR)/protocols
+	-@if [ -f $(>) ]; then \
+		$(AWK) 'BEGIN { OFS="\t"; } $$1 !~ /^#/ { print $$2, $$0 }' $(>) | \
+		$(MAKEDBM) - protocols.bynumber; \
+		$(SED) -e "/^#/d" -e s/#.*$$// $(>) | \
+		$(AWK) '{print $$1, $$0; for (i = 3;i <= NF;i++) print $$i,$$0}' | \
+		$(MAKEDBM) - protocols.byname; \
+		$(TOUCH) $(@); \
+		$(ECHO) "updated protocols"; \
+		if [ ! $(NOPUSH) ]; then \
+			$(YPPUSH) -d $(DOMAIN) protocols.bynumber; \
+			$(YPPUSH) -d $(DOMAIN) protocols.byname; \
+			$(ECHO) "pushed protocols"; \
+		else \
+			: ; \
+		fi \
+	else \
+		$(ECHO) "couldn't find $(>)"; \
+	fi
+
+
+netid.time: $(DIR)/passwd $(DIR)/master.passwd $(DIR)/group $(DIR)/hosts $(DIR)/netid
+	-@$(MKNETID) -q -d $(DOMAIN) -p $(DIR)/passwd -P $(DIR)/master.passwd \
+		-g $(DIR)/group -h $(DIR)/hosts -m $(DIR)/netid | \
+	  $(MAKEDBM) - netid.byname; \
+	  $(TOUCH) $(@); \
+	  $(ECHO) "updated netid"; \
+	  if [ ! $(NOPUSH) ]; then \
+		$(YPPUSH) -d $(DOMAIN) netid.byname; \
+		$(ECHO) "pushed netid"; \
+	  else \
+		: ; \
+	  fi
+
+
+netgroup.time: $(DIR)/netgroup
+	-@if [ -f $(>) ]; then \
+		$(CAT) $(>) | $(MAKEDBM) - netgroup; \
+		$(CAT) $(>) | $(REVNETGROUP) -u -f - | \
+		$(MAKEDBM) - netgroup.byuser; \
+		$(CAT) $(>) | $(REVNETGROUP) -h -f - | \
+		$(MAKEDBM) - netgroup.byhost; \
+		$(TOUCH) $(@); \
+		$(ECHO) "updated netgroup"; \
+		if [ ! $(NOPUSH) ]; then \
+			$(YPPUSH) -d $(DOMAIN) netgroup; \
+			$(YPPUSH) -d $(DOMAIN) netgroup.byuser; \
+			$(YPPUSH) -d $(DOMAIN) netgroup.byhost; \
+			$(ECHO) "pushed netgroup"; \
+		else \
+			: ; \
+		fi \
+	else \
+		$(ECHO) "couldn't find $(>)"; \
+	fi
+
+
+amd.home.time: $(AMDDIR)/amd.home
+	-@if [ -f $(>) ]; then \
+		$(SED) -e "s/#.*$$//" -e "/^$$/d" $(>) | \
+		$(AWK) '{ \
+			    for (i = 1; i <= NF; i++) \
+				if (i == NF) { \
+				    if (substr($$i, length($$i), 1) == "\\") { \
+					printf("%s", substr($$i, 1, length($$i) - 1)); \
+				    } \
+				    else \
+					printf("%s\n", $$i); \
+				} \
+				else \
+				    printf("%s ", $$i); \
+			}' | \
+		$(MAKEDBM) - amd.home; \
+		$(TOUCH) $(@); \
+		$(ECHO) "updated amd.home"; \
+		if [ ! $(NOPUSH) ]; then \
+			$(YPPUSH) -d $(DOMAIN) amd.home; \
+			$(ECHO) "pushed amd.home"; \
+		else \
+			: ; \
+		fi \
+	else \
+		$(ECHO) "couldn't find $(>)"; \
+	fi
+
+
+aliases.time: $(DIR)/mail/aliases
+	-@if [ -f $(>) ]; then \
+		$(CP) -p $(>) $(DOMAIN)-aliases; \
+		$(SENDMAIL) -bi -oA$(PWD)/$(DOMAIN)-aliases; \
+		$(MAKEDBM) -U $(DOMAIN)-aliases | $(MAKEDBM) - mail.aliases; \
+		$(MKALIAS) mail.aliases mail.byaddr; \
+		$(TOUCH) $(@); \
+		$(RM) $(DOMAIN)-aliases.db $(DOMAIN)-aliases; \
+		$(ECHO) "updated aliases"; \
+		if [ ! $(NOPUSH) ]; then \
+			$(YPPUSH) -d $(DOMAIN) mail.aliases; \
+			$(YPPUSH) -d $(DOMAIN) mail.byaddr; \
+			$(ECHO) "pushed aliases"; \
+		else \
+			: ; \
+		fi \
+	else \
+		$(ECHO) "couldn't find $(>)"; \
+	fi
+
+
+
+passwd: passwd.time
+group: group.time
+hosts: hosts.time
+ethers: ethers.time
+rpc: rpc.time
+services: services.time
+protocols: protocols.time
+netid: netid.time
+netgroup: netgroup.time
+amd.home: amd.home.time
+aliases: aliases.time
+$(DIR)/passwd:
+$(DIR)/group:
+$(DIR)/hosts:
+$(DIR)/ethers:
+$(DIR)/rpc:
+$(DIR)/services:
+$(DIR)/protocols:
+$(DIR)/netid:
+$(DIR)/master.passwd:
+$(DIR)/netgroup:
+$(DIR)/mail/aliases:
+$(AMDDIR)/amd.home:

@@ -1,0 +1,53 @@
+; Options for the Blackfin port of the compiler
+;
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT
+; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+; License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+momit-leaf-frame-pointer
+Target Report Mask(OMIT_LEAF_FRAME_POINTER)
+Omit frame pointer for leaf functions
+
+mlow64k
+Target Report Mask(LOW_64K)
+Program is entirely located in low 64k of memory
+
+mcsync-anomaly
+Target Report Mask(CSYNC_ANOMALY)
+Work around a hardware anomaly by adding a number of NOPs before a
+CSYNC or SSYNC instruction.
+
+mspecld-anomaly
+Target Report Mask(SPECLD_ANOMALY)
+Avoid speculative loads to work around a hardware anomaly.
+
+mid-shared-library
+Target Report Mask(ID_SHARED_LIBRARY)
+Enabled ID based shared library
+
+mshared-library-id=
+Target RejectNegative Joined UInteger Var(bfin_library_id)
+ID of shared library to build
+
+mlong-calls
+Target Report Mask(LONG_CALLS)
+Avoid generating pc-relative calls; use indirection
+
+mfdpic
+Target Report Mask(FDPIC)
+Enable Function Descriptor PIC mode

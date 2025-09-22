@@ -1,0 +1,94 @@
+.\" $OpenBSD: sem_open.3,v 1.13 2025/06/07 00:16:52 schwarze Exp $
+.\"
+.\" Copyright (c) 2013 Ted Unangst <tedu@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt SEM_OPEN 3
+.Os
+.Sh NAME
+.Nm sem_open ,
+.Nm sem_close ,
+.Nm sem_unlink
+.Nd open and close named semaphores
+.Sh SYNOPSIS
+.Lb libpthread
+.In semaphore.h
+.Ft sem_t *
+.Fn sem_open "const char *name" "int oflag" "..."
+.Ft int
+.Fn sem_close "sem_t *sem"
+.Ft int
+.Fn sem_unlink "const char *name"
+.Sh DESCRIPTION
+The
+.Fn sem_open
+function opens and returns a named semaphore.
+The
+.Fn sem_close
+function closes a previously opened named semaphore without removing it.
+The
+.Fn sem_unlink
+function removes the named semaphore from the system without closing it.
+.Sh RETURN VALUES
+On success,
+.Fn sem_open
+returns a pointer to a semaphore.
+.Fn sem_close
+and
+.Fn sem_unlink
+return 0 on success.
+.Fn sem_open
+returns SEM_FAILED and sets
+.Va errno
+to indicate an error.
+.Fn sem_close
+and
+.Fn sem_unlink
+return -1 and set
+.Va errno
+to indicate an error.
+.Sh ERRORS
+It is an error to call
+.Fn sem_close
+with an unnamed semaphore or to call
+.Xr sem_destroy 3
+with a named semaphore.
+.Pp
+.Fn sem_open
+may fail if:
+.Bl -tag -width Er
+.It Bq Er ENOSPC
+Insufficient memory is available.
+.It Bq Er EPERM
+An attempt was made to open a shared semaphore owned by another user.
+.El
+.Pp
+.Fn sem_unlink
+may fail for any of the reasons listed in
+.Xr unlink 2 .
+.Sh SEE ALSO
+.Xr sem_destroy 3 ,
+.Xr sem_getvalue 3 ,
+.Xr sem_init 3 ,
+.Xr sem_post 3 ,
+.Xr sem_wait 3
+.Sh STANDARDS
+.Fn sem_open ,
+.Fn sem_close ,
+and
+.Fn sem_unlink
+appear in
+.St -p1003.1-96 .
+This implementation deviates from the standard by permitting less sharing.

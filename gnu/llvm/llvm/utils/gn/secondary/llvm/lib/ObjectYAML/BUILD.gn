@@ -1,0 +1,41 @@
+static_library("ObjectYAML") {
+  output_name = "LLVMObjectYAML"
+  deps = [
+    "//llvm/lib/DebugInfo/CodeView",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "ArchiveEmitter.cpp",
+    "ArchiveYAML.cpp",
+    "COFFEmitter.cpp",
+    "COFFYAML.cpp",
+    "CodeViewYAMLDebugSections.cpp",
+    "CodeViewYAMLSymbols.cpp",
+    "CodeViewYAMLTypeHashing.cpp",
+    "CodeViewYAMLTypes.cpp",
+    "DWARFEmitter.cpp",
+    "DWARFYAML.cpp",
+    "DXContainerEmitter.cpp",
+    "DXContainerYAML.cpp",
+    "ELFEmitter.cpp",
+    "ELFYAML.cpp",
+    "GOFFEmitter.cpp",
+    "GOFFYAML.cpp",
+    "MachOEmitter.cpp",
+    "MachOYAML.cpp",
+    "MinidumpEmitter.cpp",
+    "MinidumpYAML.cpp",
+    "ObjectYAML.cpp",
+    "OffloadEmitter.cpp",
+    "OffloadYAML.cpp",
+    "WasmEmitter.cpp",
+    "WasmYAML.cpp",
+    "XCOFFEmitter.cpp",
+    "XCOFFYAML.cpp",
+    "YAML.cpp",
+    "yaml2obj.cpp",
+  ]
+}

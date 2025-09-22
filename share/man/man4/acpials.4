@@ -1,0 +1,50 @@
+.\"	$OpenBSD: acpials.4,v 1.1 2016/07/30 16:25:04 jcs Exp $
+.\"
+.\" Copyright (c) 2016 joshua stein <jcs@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 30 2016 $
+.Dt ACPIALS 4
+.Os
+.Sh NAME
+.Nm acpials
+.Nd ACPI ambient light sensor
+.Sh SYNOPSIS
+.Cd "acpials* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports ACPI ambient light sensor devices and provides
+information about the ambient light environment in which the system is
+currently operating.
+Ambient light illuminance is read every second and can be monitored
+using
+.Xr sysctl 8
+or
+.Xr sensorsd 8 .
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An joshua stein Aq Mt jcs@openbsd.org .

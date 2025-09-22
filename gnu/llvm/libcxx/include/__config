@@ -1,0 +1,1228 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP___CONFIG
+#define _LIBCPP___CONFIG
+
+#include <__config_site>
+#include <__configuration/abi.h>
+#include <__configuration/availability.h>
+#include <__configuration/compiler.h>
+#include <__configuration/platform.h>
+
+#ifndef _LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER
+#  pragma GCC system_header
+#endif
+
+#ifdef __cplusplus
+
+// The attributes supported by clang are documented at https://clang.llvm.org/docs/AttributeReference.html
+
+// _LIBCPP_VERSION represents the version of libc++, which matches the version of LLVM.
+// Given a LLVM release LLVM XX.YY.ZZ (e.g. LLVM 17.0.1 == 17.00.01), _LIBCPP_VERSION is
+// defined to XXYYZZ.
+#  define _LIBCPP_VERSION 190107
+
+#  define _LIBCPP_CONCAT_IMPL(_X, _Y) _X##_Y
+#  define _LIBCPP_CONCAT(_X, _Y) _LIBCPP_CONCAT_IMPL(_X, _Y)
+
+#  if __STDC_HOSTED__ == 0
+#    define _LIBCPP_FREESTANDING
+#  endif
+
+// HARDENING {
+
+// This is for backward compatibility -- make enabling `_LIBCPP_ENABLE_ASSERTIONS` (which predates hardening modes)
+// equivalent to setting the extensive mode. This is deprecated and will be removed in LLVM 20.
+#  ifdef _LIBCPP_ENABLE_ASSERTIONS
+#    warning "_LIBCPP_ENABLE_ASSERTIONS is deprecated, please use _LIBCPP_HARDENING_MODE instead"
+#    if _LIBCPP_ENABLE_ASSERTIONS != 0 && _LIBCPP_ENABLE_ASSERTIONS != 1
+#      error "_LIBCPP_ENABLE_ASSERTIONS must be set to 0 or 1"
+#    endif
+#    if _LIBCPP_ENABLE_ASSERTIONS
+#      define _LIBCPP_HARDENING_MODE _LIBCPP_HARDENING_MODE_EXTENSIVE
+#    endif
+#  endif
+
+// The library provides the macro `_LIBCPP_HARDENING_MODE` which can be set to one of the following values:
+//
+// - `_LIBCPP_HARDENING_MODE_NONE`;
+// - `_LIBCPP_HARDENING_MODE_FAST`;
+// - `_LIBCPP_HARDENING_MODE_EXTENSIVE`;
+// - `_LIBCPP_HARDENING_MODE_DEBUG`.
+//
+// These values have the following effects:
+//
+// - `_LIBCPP_HARDENING_MODE_NONE` -- sets the hardening mode to "none" which disables all runtime hardening checks;
+//
+// - `_LIBCPP_HARDENING_MODE_FAST` -- sets that hardening mode to "fast". The fast mode enables security-critical checks
+//   that can be done with relatively little runtime overhead in constant time;
+//
+// - `_LIBCPP_HARDENING_MODE_EXTENSIVE` -- sets the hardening mode to "extensive". The extensive mode is a superset of
+//   the fast mode that additionally enables checks that are relatively cheap and prevent common types of logic errors
+//   but are not necessarily security-critical;
+//
+// - `_LIBCPP_HARDENING_MODE_DEBUG` -- sets the hardening mode to "debug". The debug mode is a superset of the extensive
+//   mode and enables all checks available in the library, including internal assertions. Checks that are part of the
+//   debug mode can be very expensive and thus the debug mode is intended to be used for testing, not in production.
+
+// Inside the library, assertions are categorized so they can be cherry-picked based on the chosen hardening mode. These
+// macros are only for internal use -- users should only pick one of the high-level hardening modes described above.
+//
+// - `_LIBCPP_ASSERT_VALID_INPUT_RANGE` -- checks that ranges (whether expressed as an iterator pair, an iterator and
+//   a sentinel, an iterator and a count, or a `std::range`) given as input to library functions are valid:
+//   - the sentinel is reachable from the begin iterator;
+//   - TODO(hardening): both iterators refer to the same container.
+//
+// - `_LIBCPP_ASSERT_VALID_ELEMENT_ACCESS` -- checks that any attempts to access a container element, whether through
+//   the container object or through an iterator, are valid and do not attempt to go out of bounds or otherwise access
+//   a non-existent element. For iterator checks to work, bounded iterators must be enabled in the ABI. Types like
+//   `optional` and `function` are considered one-element containers for the purposes of this check.
+//
+// - `_LIBCPP_ASSERT_NON_NULL` -- checks that the pointer being dereferenced is not null. On most modern platforms zero
+//   address does not refer to an actual location in memory, so a null pointer dereference would not compromize the
+//   memory security of a program (however, it is still undefined behavior that can result in strange errors due to
+//   compiler optimizations).
+//
+// - `_LIBCPP_ASSERT_NON_OVERLAPPING_RANGES` -- for functions that take several ranges as arguments, checks that the
+//   given ranges do not overlap.
+//
+// - `_LIBCPP_ASSERT_VALID_DEALLOCATION` -- checks that an attempt to deallocate memory is valid (e.g. the given object
+//   was allocated by the given allocator). Violating this category typically results in a memory leak.
+//
+// - `_LIBCPP_ASSERT_VALID_EXTERNAL_API_CALL` -- checks that a call to an external API doesn't fail in
+//   an unexpected manner. This includes triggering documented cases of undefined behavior in an external library (like
+//   attempting to unlock an unlocked mutex in pthreads). Any API external to the library falls under this category
+//   (from system calls to compiler intrinsics). We generally don't expect these failures to compromize memory safety or
+//   otherwise create an immediate security issue.
+//
+// - `_LIBCPP_ASSERT_COMPATIBLE_ALLOCATOR` -- checks any operations that exchange nodes between containers to make sure
+//   the containers have compatible allocators.
+//
+// - `_LIBCPP_ASSERT_ARGUMENT_WITHIN_DOMAIN` -- checks that the given argument is within the domain of valid arguments
+//   for the function. Violating this typically produces an incorrect result (e.g. the clamp algorithm returns the
+//   original value without clamping it due to incorrect functors) or puts an object into an invalid state (e.g.
+//   a string view where only a subset of elements is possible to access). This category is for assertions violating
+//   which doesn't cause any immediate issues in the library -- whatever the consequences are, they will happen in the
+//   user code.
+//
+// - `_LIBCPP_ASSERT_PEDANTIC` -- checks prerequisites which are imposed by the Standard, but violating which happens to
+//   be benign in our implementation.
+//
+// - `_LIBCPP_ASSERT_SEMANTIC_REQUIREMENT` -- checks that the given argument satisfies the semantic requirements imposed
+//   by the Standard. Typically, there is no simple way to completely prove that a semantic requirement is satisfied;
+//   thus, this would often be a heuristic check and it might be quite expensive.
+//
+// - `_LIBCPP_ASSERT_INTERNAL` -- checks that internal invariants of the library hold. These assertions don't depend on
+//   user input.
+//
+// - `_LIBCPP_ASSERT_UNCATEGORIZED` -- for assertions that haven't been properly classified yet.
+
+// clang-format off
+#  define _LIBCPP_HARDENING_MODE_NONE      (1 << 1)
+#  define _LIBCPP_HARDENING_MODE_FAST      (1 << 2)
+#  define _LIBCPP_HARDENING_MODE_EXTENSIVE (1 << 4) // Deliberately not ordered.
+#  define _LIBCPP_HARDENING_MODE_DEBUG     (1 << 3)
+// clang-format on
+
+#  ifndef _LIBCPP_HARDENING_MODE
+
+#    ifndef _LIBCPP_HARDENING_MODE_DEFAULT
+#      error _LIBCPP_HARDENING_MODE_DEFAULT is not defined. This definition should be set at configuration time in the \
+`__config_site` header, please make sure your installation of libc++ is not broken.
+#    endif
+
+#    define _LIBCPP_HARDENING_MODE _LIBCPP_HARDENING_MODE_DEFAULT
+#  endif
+
+#  if _LIBCPP_HARDENING_MODE != _LIBCPP_HARDENING_MODE_NONE &&                                                         \
+      _LIBCPP_HARDENING_MODE != _LIBCPP_HARDENING_MODE_FAST &&                                                         \
+      _LIBCPP_HARDENING_MODE != _LIBCPP_HARDENING_MODE_EXTENSIVE &&                                                    \
+      _LIBCPP_HARDENING_MODE != _LIBCPP_HARDENING_MODE_DEBUG
+#    error _LIBCPP_HARDENING_MODE must be set to one of the following values: \
+_LIBCPP_HARDENING_MODE_NONE, \
+_LIBCPP_HARDENING_MODE_FAST, \
+_LIBCPP_HARDENING_MODE_EXTENSIVE, \
+_LIBCPP_HARDENING_MODE_DEBUG
+#  endif
+
+// } HARDENING
+
+#  define _LIBCPP_TOSTRING2(x) #x
+#  define _LIBCPP_TOSTRING(x) _LIBCPP_TOSTRING2(x)
+
+// NOLINTNEXTLINE(libcpp-cpp-version-check)
+#  if __cplusplus < 201103L
+#    define _LIBCPP_CXX03_LANG
+#  endif
+
+#  ifndef __has_constexpr_builtin
+#    define __has_constexpr_builtin(x) 0
+#  endif
+
+// This checks wheter a Clang module is built
+#  ifndef __building_module
+#    define __building_module(...) 0
+#  endif
+
+// '__is_identifier' returns '0' if '__x' is a reserved identifier provided by
+// the compiler and '1' otherwise.
+#  ifndef __is_identifier
+#    define __is_identifier(__x) 1
+#  endif
+
+#  ifndef __has_declspec_attribute
+#    define __has_declspec_attribute(__x) 0
+#  endif
+
+#  define __has_keyword(__x) !(__is_identifier(__x))
+
+#  ifndef __has_warning
+#    define __has_warning(...) 0
+#  endif
+
+#  if !defined(_LIBCPP_COMPILER_CLANG_BASED) && __cplusplus < 201103L
+#    error "libc++ only supports C++03 with Clang-based compilers. Please enable C++11"
+#  endif
+
+// FIXME: ABI detection should be done via compiler builtin macros. This
+// is just a placeholder until Clang implements such macros. For now assume
+// that Windows compilers pretending to be MSVC++ target the Microsoft ABI,
+// and allow the user to explicitly specify the ABI to handle cases where this
+// heuristic falls short.
+#  if defined(_LIBCPP_ABI_FORCE_ITANIUM) && defined(_LIBCPP_ABI_FORCE_MICROSOFT)
+#    error "Only one of _LIBCPP_ABI_FORCE_ITANIUM and _LIBCPP_ABI_FORCE_MICROSOFT can be defined"
+#  elif defined(_LIBCPP_ABI_FORCE_ITANIUM)
+#    define _LIBCPP_ABI_ITANIUM
+#  elif defined(_LIBCPP_ABI_FORCE_MICROSOFT)
+#    define _LIBCPP_ABI_MICROSOFT
+#  else
+#    if defined(_WIN32) && defined(_MSC_VER)
+#      define _LIBCPP_ABI_MICROSOFT
+#    else
+#      define _LIBCPP_ABI_ITANIUM
+#    endif
+#  endif
+
+#  if defined(_LIBCPP_ABI_MICROSOFT) && !defined(_LIBCPP_NO_VCRUNTIME)
+#    define _LIBCPP_ABI_VCRUNTIME
+#  endif
+
+#  if __has_feature(experimental_library)
+#    ifndef _LIBCPP_ENABLE_EXPERIMENTAL
+#      define _LIBCPP_ENABLE_EXPERIMENTAL
+#    endif
+#  endif
+
+// Incomplete features get their own specific disabling flags. This makes it
+// easier to grep for target specific flags once the feature is complete.
+#  if !defined(_LIBCPP_ENABLE_EXPERIMENTAL) && !defined(_LIBCPP_BUILDING_LIBRARY)
+#    define _LIBCPP_HAS_NO_INCOMPLETE_PSTL
+#    define _LIBCPP_HAS_NO_EXPERIMENTAL_STOP_TOKEN
+#    define _LIBCPP_HAS_NO_EXPERIMENTAL_TZDB
+#    define _LIBCPP_HAS_NO_EXPERIMENTAL_SYNCSTREAM
+#  endif
+
+#  if defined(__MVS__)
+#    include <features.h> // for __NATIVE_ASCII_F
+#  endif
+
+#  if defined(_WIN32)
+#    define _LIBCPP_WIN32API
+#    define _LIBCPP_SHORT_WCHAR 1
+// Both MinGW and native MSVC provide a "MSVC"-like environment
+#    define _LIBCPP_MSVCRT_LIKE
+// If mingw not explicitly detected, assume using MS C runtime only if
+// a MS compatibility version is specified.
+#    if defined(_MSC_VER) && !defined(__MINGW32__)
+#      define _LIBCPP_MSVCRT // Using Microsoft's C Runtime library
+#    endif
+#    if (defined(_M_AMD64) || defined(__x86_64__)) || (defined(_M_ARM) || defined(__arm__))
+#      define _LIBCPP_HAS_BITSCAN64
+#    endif
+#    define _LIBCPP_HAS_OPEN_WITH_WCHAR
+#  endif // defined(_WIN32)
+
+#  if defined(_AIX) && !defined(__64BIT__)
+// The size of wchar is 2 byte on 32-bit mode on AIX.
+#    define _LIBCPP_SHORT_WCHAR 1
+#  endif
+
+// Libc++ supports various implementations of std::random_device.
+//
+// _LIBCPP_USING_DEV_RANDOM
+//      Read entropy from the given file, by default `/dev/urandom`.
+//      If a token is provided, it is assumed to be the path to a file
+//      to read entropy from. This is the default behavior if nothing
+//      else is specified. This implementation requires storing state
+//      inside `std::random_device`.
+//
+// _LIBCPP_USING_ARC4_RANDOM
+//      Use arc4random(). This allows obtaining random data even when
+//      using sandboxing mechanisms. On some platforms like Apple, this
+//      is the recommended source of entropy for user-space programs.
+//      When this option is used, the token passed to `std::random_device`'s
+//      constructor *must* be "/dev/urandom" -- anything else is an error.
+//
+// _LIBCPP_USING_GETENTROPY
+//      Use getentropy().
+//      When this option is used, the token passed to `std::random_device`'s
+//      constructor *must* be "/dev/urandom" -- anything else is an error.
+//
+// _LIBCPP_USING_FUCHSIA_CPRNG
+//      Use Fuchsia's zx_cprng_draw() system call, which is specified to
+//      deliver high-quality entropy and cannot fail.
+//      When this option is used, the token passed to `std::random_device`'s
+//      constructor *must* be "/dev/urandom" -- anything else is an error.
+//
+// _LIBCPP_USING_NACL_RANDOM
+//      NaCl's sandbox (which PNaCl also runs in) doesn't allow filesystem access,
+//      including accesses to the special files under `/dev`. This implementation
+//      uses the NaCL syscall `nacl_secure_random_init()` to get entropy.
+//      When this option is used, the token passed to `std::random_device`'s
+//      constructor *must* be "/dev/urandom" -- anything else is an error.
+//
+// _LIBCPP_USING_WIN32_RANDOM
+//      Use rand_s(), for use on Windows.
+//      When this option is used, the token passed to `std::random_device`'s
+//      constructor *must* be "/dev/urandom" -- anything else is an error.
+#  if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) ||                     \
+      defined(__DragonFly__)
+#    define _LIBCPP_USING_ARC4_RANDOM
+#  elif defined(__wasi__) || defined(__EMSCRIPTEN__)
+#    define _LIBCPP_USING_GETENTROPY
+#  elif defined(__Fuchsia__)
+#    define _LIBCPP_USING_FUCHSIA_CPRNG
+#  elif defined(__native_client__)
+#    define _LIBCPP_USING_NACL_RANDOM
+#  elif defined(_LIBCPP_WIN32API)
+#    define _LIBCPP_USING_WIN32_RANDOM
+#  else
+#    define _LIBCPP_USING_DEV_RANDOM
+#  endif
+
+#  ifndef _LIBCPP_CXX03_LANG
+
+#    define _LIBCPP_ALIGNOF(_Tp) alignof(_Tp)
+#    define _ALIGNAS_TYPE(x) alignas(x)
+#    define _ALIGNAS(x) alignas(x)
+#    define _LIBCPP_NORETURN [[noreturn]]
+#    define _NOEXCEPT noexcept
+#    define _NOEXCEPT_(...) noexcept(__VA_ARGS__)
+#    define _LIBCPP_CONSTEXPR constexpr
+
+#  else
+
+#    define _LIBCPP_ALIGNOF(_Tp) _Alignof(_Tp)
+#    define _ALIGNAS_TYPE(x) __attribute__((__aligned__(_LIBCPP_ALIGNOF(x))))
+#    define _ALIGNAS(x) __attribute__((__aligned__(x)))
+#    define _LIBCPP_NORETURN __attribute__((__noreturn__))
+#    define _LIBCPP_HAS_NO_NOEXCEPT
+#    define nullptr __nullptr
+#    define _NOEXCEPT throw()
+#    define _NOEXCEPT_(...)
+#    define static_assert(...) _Static_assert(__VA_ARGS__)
+#    define decltype(...) __decltype(__VA_ARGS__)
+#    define _LIBCPP_CONSTEXPR
+
+typedef __char16_t char16_t;
+typedef __char32_t char32_t;
+
+#  endif
+
+#  define _LIBCPP_PREFERRED_ALIGNOF(_Tp) __alignof(_Tp)
+
+// Objective-C++ features (opt-in)
+#  if __has_feature(objc_arc)
+#    define _LIBCPP_HAS_OBJC_ARC
+#  endif
+
+#  if __has_feature(objc_arc_weak)
+#    define _LIBCPP_HAS_OBJC_ARC_WEAK
+#  endif
+
+#  if __has_extension(blocks)
+#    define _LIBCPP_HAS_EXTENSION_BLOCKS
+#  endif
+
+#  if defined(_LIBCPP_HAS_EXTENSION_BLOCKS) && defined(__APPLE__)
+#    define _LIBCPP_HAS_BLOCKS_RUNTIME
+#  endif
+
+#  if !__has_feature(address_sanitizer)
+#    define _LIBCPP_HAS_NO_ASAN
+#  endif
+
+#  define _LIBCPP_ALWAYS_INLINE __attribute__((__always_inline__))
+
+#  define _LIBCPP_DISABLE_EXTENSION_WARNING __extension__
+
+#  if defined(_LIBCPP_OBJECT_FORMAT_COFF)
+
+#    ifdef _DLL
+#      define _LIBCPP_CRT_FUNC __declspec(dllimport)
+#    else
+#      define _LIBCPP_CRT_FUNC
+#    endif
+
+#    if defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS) || (defined(__MINGW32__) && !defined(_LIBCPP_BUILDING_LIBRARY))
+#      define _LIBCPP_DLL_VIS
+#      define _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS
+#      define _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS
+#      define _LIBCPP_OVERRIDABLE_FUNC_VIS
+#      define _LIBCPP_EXPORTED_FROM_ABI
+#    elif defined(_LIBCPP_BUILDING_LIBRARY)
+#      define _LIBCPP_DLL_VIS __declspec(dllexport)
+#      if defined(__MINGW32__)
+#        define _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS _LIBCPP_DLL_VIS
+#        define _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS
+#      else
+#        define _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS
+#        define _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS _LIBCPP_DLL_VIS
+#      endif
+#      define _LIBCPP_OVERRIDABLE_FUNC_VIS _LIBCPP_DLL_VIS
+#      define _LIBCPP_EXPORTED_FROM_ABI __declspec(dllexport)
+#    else
+#      define _LIBCPP_DLL_VIS __declspec(dllimport)
+#      define _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS _LIBCPP_DLL_VIS
+#      define _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS
+#      define _LIBCPP_OVERRIDABLE_FUNC_VIS
+#      define _LIBCPP_EXPORTED_FROM_ABI __declspec(dllimport)
+#    endif
+
+#    define _LIBCPP_HIDDEN
+#    define _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+#    define _LIBCPP_TEMPLATE_VIS
+#    define _LIBCPP_TEMPLATE_DATA_VIS
+#    define _LIBCPP_TYPE_VISIBILITY_DEFAULT
+
+#  else
+
+#    if !defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS)
+#      define _LIBCPP_VISIBILITY(vis) __attribute__((__visibility__(vis)))
+#    else
+#      define _LIBCPP_VISIBILITY(vis)
+#    endif
+
+#    define _LIBCPP_HIDDEN _LIBCPP_VISIBILITY("hidden")
+#    define _LIBCPP_TEMPLATE_DATA_VIS _LIBCPP_VISIBILITY("default")
+#    define _LIBCPP_EXPORTED_FROM_ABI _LIBCPP_VISIBILITY("default")
+#    define _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS _LIBCPP_VISIBILITY("default")
+#    define _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS
+
+// TODO: Make this a proper customization point or remove the option to override it.
+#    ifndef _LIBCPP_OVERRIDABLE_FUNC_VIS
+#      define _LIBCPP_OVERRIDABLE_FUNC_VIS _LIBCPP_VISIBILITY("default")
+#    endif
+
+#    if !defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS)
+// The inline should be removed once PR32114 is resolved
+#      define _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS inline _LIBCPP_HIDDEN
+#    else
+#      define _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+#    endif
+
+// GCC doesn't support the type_visibility attribute, so we have to keep the visibility attribute on templates
+#    if !defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS) && !__has_attribute(__type_visibility__)
+#      define _LIBCPP_TEMPLATE_VIS __attribute__((__visibility__("default")))
+#    else
+#      define _LIBCPP_TEMPLATE_VIS
+#    endif
+
+#    if !defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS) && __has_attribute(__type_visibility__)
+#      define _LIBCPP_TYPE_VISIBILITY_DEFAULT __attribute__((__type_visibility__("default")))
+#    else
+#      define _LIBCPP_TYPE_VISIBILITY_DEFAULT
+#    endif
+
+#  endif // defined(_LIBCPP_OBJECT_FORMAT_COFF)
+
+#  if __has_attribute(exclude_from_explicit_instantiation)
+#    define _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION __attribute__((__exclude_from_explicit_instantiation__))
+#  else
+// Try to approximate the effect of exclude_from_explicit_instantiation
+// (which is that entities are not assumed to be provided by explicit
+// template instantiations in the dylib) by always inlining those entities.
+#    define _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION _LIBCPP_ALWAYS_INLINE
+#  endif
+
+#  ifdef _LIBCPP_COMPILER_CLANG_BASED
+#    define _LIBCPP_DIAGNOSTIC_PUSH _Pragma("clang diagnostic push")
+#    define _LIBCPP_DIAGNOSTIC_POP _Pragma("clang diagnostic pop")
+#    define _LIBCPP_CLANG_DIAGNOSTIC_IGNORED(str) _Pragma(_LIBCPP_TOSTRING(clang diagnostic ignored str))
+#    define _LIBCPP_GCC_DIAGNOSTIC_IGNORED(str)
+#  elif defined(_LIBCPP_COMPILER_GCC)
+#    define _LIBCPP_DIAGNOSTIC_PUSH _Pragma("GCC diagnostic push")
+#    define _LIBCPP_DIAGNOSTIC_POP _Pragma("GCC diagnostic pop")
+#    define _LIBCPP_CLANG_DIAGNOSTIC_IGNORED(str)
+#    define _LIBCPP_GCC_DIAGNOSTIC_IGNORED(str) _Pragma(_LIBCPP_TOSTRING(GCC diagnostic ignored str))
+#  else
+#    define _LIBCPP_DIAGNOSTIC_PUSH
+#    define _LIBCPP_DIAGNOSTIC_POP
+#    define _LIBCPP_CLANG_DIAGNOSTIC_IGNORED(str)
+#    define _LIBCPP_GCC_DIAGNOSTIC_IGNORED(str)
+#  endif
+
+#  if _LIBCPP_HARDENING_MODE == _LIBCPP_HARDENING_MODE_FAST
+#    define _LIBCPP_HARDENING_SIG f
+#  elif _LIBCPP_HARDENING_MODE == _LIBCPP_HARDENING_MODE_EXTENSIVE
+#    define _LIBCPP_HARDENING_SIG s
+#  elif _LIBCPP_HARDENING_MODE == _LIBCPP_HARDENING_MODE_DEBUG
+#    define _LIBCPP_HARDENING_SIG d
+#  else
+#    define _LIBCPP_HARDENING_SIG n // "none"
+#  endif
+
+#  ifdef _LIBCPP_HAS_NO_EXCEPTIONS
+#    define _LIBCPP_EXCEPTIONS_SIG n
+#  else
+#    define _LIBCPP_EXCEPTIONS_SIG e
+#  endif
+
+#  define _LIBCPP_ODR_SIGNATURE                                                                                        \
+    _LIBCPP_CONCAT(_LIBCPP_CONCAT(_LIBCPP_HARDENING_SIG, _LIBCPP_EXCEPTIONS_SIG), _LIBCPP_VERSION)
+
+// This macro marks a symbol as being hidden from libc++'s ABI. This is achieved
+// on two levels:
+// 1. The symbol is given hidden visibility, which ensures that users won't start exporting
+//    symbols from their dynamic library by means of using the libc++ headers. This ensures
+//    that those symbols stay private to the dynamic library in which it is defined.
+//
+// 2. The symbol is given an ABI tag that encodes the ODR-relevant properties of the library.
+//    This ensures that no ODR violation can arise from mixing two TUs compiled with different
+//    versions or configurations of libc++ (such as exceptions vs no-exceptions). Indeed, if the
+//    program contains two definitions of a function, the ODR requires them to be token-by-token
+//    equivalent, and the linker is allowed to pick either definition and discard the other one.
+//
+//    For example, if a program contains a copy of `vector::at()` compiled with exceptions enabled
+//    *and* a copy of `vector::at()` compiled with exceptions disabled (by means of having two TUs
+//    compiled with different settings), the two definitions are both visible by the linker and they
+//    have the same name, but they have a meaningfully different implementation (one throws an exception
+//    and the other aborts the program). This violates the ODR and makes the program ill-formed, and in
+//    practice what will happen is that the linker will pick one of the definitions at random and will
+//    discard the other one. This can quite clearly lead to incorrect program behavior.
+//
+//    A similar reasoning holds for many other properties that are ODR-affecting. Essentially any
+//    property that causes the code of a function to differ from the code in another configuration
+//    can be considered ODR-affecting. In practice, we don't encode all such properties in the ABI
+//    tag, but we encode the ones that we think are most important: library version, exceptions, and
+//    hardening mode.
+//
+//    Note that historically, solving this problem has been achieved in various ways, including
+//    force-inlining all functions or giving internal linkage to all functions. Both these previous
+//    solutions suffer from drawbacks that lead notably to code bloat.
+//
+// Note that we use _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION to ensure that we don't depend
+// on _LIBCPP_HIDE_FROM_ABI methods of classes explicitly instantiated in the dynamic library.
+//
+// Also note that the _LIBCPP_HIDE_FROM_ABI_VIRTUAL macro should be used on virtual functions
+// instead of _LIBCPP_HIDE_FROM_ABI. That macro does not use an ABI tag. Indeed, the mangled
+// name of a virtual function is part of its ABI, since some architectures like arm64e can sign
+// the virtual function pointer in the vtable based on the mangled name of the function. Since
+// we use an ABI tag that changes with each released version, the mangled name of the virtual
+// function would change, which is incorrect. Note that it doesn't make much sense to change
+// the implementation of a virtual function in an ABI-incompatible way in the first place,
+// since that would be an ABI break anyway. Hence, the lack of ABI tag should not be noticeable.
+//
+// The macro can be applied to record and enum types. When the tagged type is nested in
+// a record this "parent" record needs to have the macro too. Another use case for applying
+// this macro to records and unions is to apply an ABI tag to inline constexpr variables.
+// This can be useful for inline variables that are implementation details which are expected
+// to change in the future.
+//
+// TODO: We provide a escape hatch with _LIBCPP_NO_ABI_TAG for folks who want to avoid increasing
+//       the length of symbols with an ABI tag. In practice, we should remove the escape hatch and
+//       use compression mangling instead, see https://github.com/itanium-cxx-abi/cxx-abi/issues/70.
+#  ifndef _LIBCPP_NO_ABI_TAG
+#    define _LIBCPP_HIDE_FROM_ABI                                                                                      \
+      _LIBCPP_HIDDEN _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION                                                       \
+      __attribute__((__abi_tag__(_LIBCPP_TOSTRING(_LIBCPP_ODR_SIGNATURE))))
+#  else
+#    define _LIBCPP_HIDE_FROM_ABI _LIBCPP_HIDDEN _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION
+#  endif
+#  define _LIBCPP_HIDE_FROM_ABI_VIRTUAL _LIBCPP_HIDDEN _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION
+
+#  ifdef _LIBCPP_BUILDING_LIBRARY
+#    if _LIBCPP_ABI_VERSION > 1
+#      define _LIBCPP_HIDE_FROM_ABI_AFTER_V1 _LIBCPP_HIDE_FROM_ABI
+#    else
+#      define _LIBCPP_HIDE_FROM_ABI_AFTER_V1
+#    endif
+#  else
+#    define _LIBCPP_HIDE_FROM_ABI_AFTER_V1 _LIBCPP_HIDE_FROM_ABI
+#  endif
+
+// TODO: Remove this workaround once we drop support for Clang 16
+#  if __has_warning("-Wc++23-extensions")
+#    define _LIBCPP_CLANG_DIAGNOSTIC_IGNORED_CXX23_EXTENSION _LIBCPP_CLANG_DIAGNOSTIC_IGNORED("-Wc++23-extensions")
+#  else
+#    define _LIBCPP_CLANG_DIAGNOSTIC_IGNORED_CXX23_EXTENSION _LIBCPP_CLANG_DIAGNOSTIC_IGNORED("-Wc++2b-extensions")
+#  endif
+
+// Clang modules take a significant compile time hit when pushing and popping diagnostics.
+// Since all the headers are marked as system headers in the modulemap, we can simply disable this
+// pushing and popping when building with clang modules.
+#  if !__has_feature(modules)
+#    define _LIBCPP_PUSH_EXTENSION_DIAGNOSTICS                                                                         \
+      _LIBCPP_DIAGNOSTIC_PUSH                                                                                          \
+      _LIBCPP_CLANG_DIAGNOSTIC_IGNORED("-Wc++11-extensions")                                                           \
+      _LIBCPP_CLANG_DIAGNOSTIC_IGNORED("-Wc++14-extensions")                                                           \
+      _LIBCPP_CLANG_DIAGNOSTIC_IGNORED("-Wc++17-extensions")                                                           \
+      _LIBCPP_CLANG_DIAGNOSTIC_IGNORED("-Wc++20-extensions")                                                           \
+      _LIBCPP_CLANG_DIAGNOSTIC_IGNORED_CXX23_EXTENSION                                                                 \
+      _LIBCPP_GCC_DIAGNOSTIC_IGNORED("-Wc++14-extensions")                                                             \
+      _LIBCPP_GCC_DIAGNOSTIC_IGNORED("-Wc++17-extensions")                                                             \
+      _LIBCPP_GCC_DIAGNOSTIC_IGNORED("-Wc++20-extensions")                                                             \
+      _LIBCPP_GCC_DIAGNOSTIC_IGNORED("-Wc++23-extensions")
+#    define _LIBCPP_POP_EXTENSION_DIAGNOSTICS _LIBCPP_DIAGNOSTIC_POP
+#  else
+#    define _LIBCPP_PUSH_EXTENSION_DIAGNOSTICS
+#    define _LIBCPP_POP_EXTENSION_DIAGNOSTICS
+#  endif
+
+// Inline namespaces are available in Clang/GCC/MSVC regardless of C++ dialect.
+// clang-format off
+#  define _LIBCPP_BEGIN_NAMESPACE_STD _LIBCPP_PUSH_EXTENSION_DIAGNOSTICS                                               \
+                                      namespace _LIBCPP_TYPE_VISIBILITY_DEFAULT std {                                  \
+                               inline namespace _LIBCPP_ABI_NAMESPACE {
+#  define _LIBCPP_END_NAMESPACE_STD }} _LIBCPP_POP_EXTENSION_DIAGNOSTICS
+
+#ifdef _LIBCPP_ABI_NO_FILESYSTEM_INLINE_NAMESPACE
+#  define _LIBCPP_BEGIN_NAMESPACE_FILESYSTEM _LIBCPP_BEGIN_NAMESPACE_STD namespace filesystem {
+#  define _LIBCPP_END_NAMESPACE_FILESYSTEM } _LIBCPP_END_NAMESPACE_STD
+#else
+#  define _LIBCPP_BEGIN_NAMESPACE_FILESYSTEM _LIBCPP_BEGIN_NAMESPACE_STD                                               \
+                                             inline namespace __fs { namespace filesystem {
+
+#  define _LIBCPP_END_NAMESPACE_FILESYSTEM }} _LIBCPP_END_NAMESPACE_STD
+#endif
+
+// clang-format on
+
+#  if __has_attribute(__enable_if__)
+#    define _LIBCPP_PREFERRED_OVERLOAD __attribute__((__enable_if__(true, "")))
+#  endif
+
+#  if !defined(__SIZEOF_INT128__) || defined(_MSC_VER)
+#    define _LIBCPP_HAS_NO_INT128
+#  endif
+
+#  ifdef _LIBCPP_CXX03_LANG
+#    define _LIBCPP_DECLARE_STRONG_ENUM(x)                                                                             \
+      struct _LIBCPP_EXPORTED_FROM_ABI x {                                                                             \
+        enum __lx
+// clang-format off
+#    define _LIBCPP_DECLARE_STRONG_ENUM_EPILOG(x)                                                                      \
+      __lx __v_;                                                                                                       \
+      _LIBCPP_HIDE_FROM_ABI x(__lx __v) : __v_(__v) {}                                                                 \
+      _LIBCPP_HIDE_FROM_ABI explicit x(int __v) : __v_(static_cast<__lx>(__v)) {}                                      \
+      _LIBCPP_HIDE_FROM_ABI operator int() const { return __v_; }                                                      \
+      };
+// clang-format on
+
+#  else // _LIBCPP_CXX03_LANG
+#    define _LIBCPP_DECLARE_STRONG_ENUM(x) enum class x
+#    define _LIBCPP_DECLARE_STRONG_ENUM_EPILOG(x)
+#  endif // _LIBCPP_CXX03_LANG
+
+#  if defined(__APPLE__) || defined(__FreeBSD__) || defined(_LIBCPP_MSVCRT_LIKE) || defined(__NetBSD__)
+#    define _LIBCPP_LOCALE__L_EXTENSIONS 1
+#  endif
+
+#  ifdef __FreeBSD__
+#    define _DECLARE_C99_LDBL_MATH 1
+#  endif
+
+// If we are getting operator new from the MSVC CRT, then allocation overloads
+// for align_val_t were added in 19.12, aka VS 2017 version 15.3.
+#  if defined(_LIBCPP_MSVCRT) && defined(_MSC_VER) && _MSC_VER < 1912
+#    define _LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION
+#  elif defined(_LIBCPP_ABI_VCRUNTIME) && !defined(__cpp_aligned_new)
+// We're deferring to Microsoft's STL to provide aligned new et al. We don't
+// have it unless the language feature test macro is defined.
+#    define _LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION
+#  elif defined(__MVS__)
+#    define _LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION
+#  endif
+
+#  if defined(_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION) || (!defined(__cpp_aligned_new) || __cpp_aligned_new < 201606)
+#    define _LIBCPP_HAS_NO_ALIGNED_ALLOCATION
+#  endif
+
+// It is not yet possible to use aligned_alloc() on all Apple platforms since
+// 10.15 was the first version to ship an implementation of aligned_alloc().
+#  if defined(__APPLE__)
+#    if (defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) &&                                                     \
+         __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101500)
+#      define _LIBCPP_HAS_NO_C11_ALIGNED_ALLOC
+#    endif
+#  elif defined(__ANDROID__) && __ANDROID_API__ < 28
+// Android only provides aligned_alloc when targeting API 28 or higher.
+#    define _LIBCPP_HAS_NO_C11_ALIGNED_ALLOC
+#  endif
+
+#  if defined(__APPLE__) || defined(__FreeBSD__)
+#    define _LIBCPP_HAS_DEFAULTRUNELOCALE
+#  endif
+
+#  if defined(__APPLE__) || defined(__FreeBSD__)
+#    define _LIBCPP_WCTYPE_IS_MASK
+#  endif
+
+#  if _LIBCPP_STD_VER <= 17 || !defined(__cpp_char8_t)
+#    define _LIBCPP_HAS_NO_CHAR8_T
+#  endif
+
+// Deprecation macros.
+//
+// Deprecations warnings are always enabled, except when users explicitly opt-out
+// by defining _LIBCPP_DISABLE_DEPRECATION_WARNINGS.
+#  if !defined(_LIBCPP_DISABLE_DEPRECATION_WARNINGS)
+#    if __has_attribute(__deprecated__)
+#      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+#      define _LIBCPP_DEPRECATED_(m) __attribute__((__deprecated__(m)))
+#    elif _LIBCPP_STD_VER >= 14
+#      define _LIBCPP_DEPRECATED [[deprecated]]
+#      define _LIBCPP_DEPRECATED_(m) [[deprecated(m)]]
+#    else
+#      define _LIBCPP_DEPRECATED
+#      define _LIBCPP_DEPRECATED_(m)
+#    endif
+#  else
+#    define _LIBCPP_DEPRECATED
+#    define _LIBCPP_DEPRECATED_(m)
+#  endif
+
+#  if _LIBCPP_STD_VER < 20
+#    define _LIBCPP_DEPRECATED_ATOMIC_SYNC                                                                             \
+      _LIBCPP_DEPRECATED_("The C++20 synchronization library has been deprecated prior to C++20. Please update to "    \
+                          "using -std=c++20 if you need to use these facilities.")
+#  else
+#    define _LIBCPP_DEPRECATED_ATOMIC_SYNC /* nothing */
+#  endif
+
+#  if !defined(_LIBCPP_CXX03_LANG)
+#    define _LIBCPP_DEPRECATED_IN_CXX11 _LIBCPP_DEPRECATED
+#  else
+#    define _LIBCPP_DEPRECATED_IN_CXX11
+#  endif
+
+#  if _LIBCPP_STD_VER >= 14
+#    define _LIBCPP_DEPRECATED_IN_CXX14 _LIBCPP_DEPRECATED
+#  else
+#    define _LIBCPP_DEPRECATED_IN_CXX14
+#  endif
+
+#  if _LIBCPP_STD_VER >= 17
+#    define _LIBCPP_DEPRECATED_IN_CXX17 _LIBCPP_DEPRECATED
+#  else
+#    define _LIBCPP_DEPRECATED_IN_CXX17
+#  endif
+
+#  if _LIBCPP_STD_VER >= 20
+#    define _LIBCPP_DEPRECATED_IN_CXX20 _LIBCPP_DEPRECATED
+#  else
+#    define _LIBCPP_DEPRECATED_IN_CXX20
+#  endif
+
+#  if _LIBCPP_STD_VER >= 23
+#    define _LIBCPP_DEPRECATED_IN_CXX23 _LIBCPP_DEPRECATED
+#  else
+#    define _LIBCPP_DEPRECATED_IN_CXX23
+#  endif
+
+#  if _LIBCPP_STD_VER >= 26
+#    define _LIBCPP_DEPRECATED_IN_CXX26 _LIBCPP_DEPRECATED
+#  else
+#    define _LIBCPP_DEPRECATED_IN_CXX26
+#  endif
+
+#  if !defined(_LIBCPP_HAS_NO_CHAR8_T)
+#    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+#  else
+#    define _LIBCPP_DEPRECATED_WITH_CHAR8_T
+#  endif
+
+// Macros to enter and leave a state where deprecation warnings are suppressed.
+#  if defined(_LIBCPP_COMPILER_CLANG_BASED) || defined(_LIBCPP_COMPILER_GCC)
+#    define _LIBCPP_SUPPRESS_DEPRECATED_PUSH                                                                           \
+      _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wdeprecated\"")                                \
+          _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+#    define _LIBCPP_SUPPRESS_DEPRECATED_POP _Pragma("GCC diagnostic pop")
+#  else
+#    define _LIBCPP_SUPPRESS_DEPRECATED_PUSH
+#    define _LIBCPP_SUPPRESS_DEPRECATED_POP
+#  endif
+
+#  if _LIBCPP_STD_VER <= 11
+#    define _LIBCPP_EXPLICIT_SINCE_CXX14
+#  else
+#    define _LIBCPP_EXPLICIT_SINCE_CXX14 explicit
+#  endif
+
+#  if _LIBCPP_STD_VER >= 23
+#    define _LIBCPP_EXPLICIT_SINCE_CXX23 explicit
+#  else
+#    define _LIBCPP_EXPLICIT_SINCE_CXX23
+#  endif
+
+#  if _LIBCPP_STD_VER >= 14
+#    define _LIBCPP_CONSTEXPR_SINCE_CXX14 constexpr
+#  else
+#    define _LIBCPP_CONSTEXPR_SINCE_CXX14
+#  endif
+
+#  if _LIBCPP_STD_VER >= 17
+#    define _LIBCPP_CONSTEXPR_SINCE_CXX17 constexpr
+#  else
+#    define _LIBCPP_CONSTEXPR_SINCE_CXX17
+#  endif
+
+#  if _LIBCPP_STD_VER >= 20
+#    define _LIBCPP_CONSTEXPR_SINCE_CXX20 constexpr
+#  else
+#    define _LIBCPP_CONSTEXPR_SINCE_CXX20
+#  endif
+
+#  if _LIBCPP_STD_VER >= 23
+#    define _LIBCPP_CONSTEXPR_SINCE_CXX23 constexpr
+#  else
+#    define _LIBCPP_CONSTEXPR_SINCE_CXX23
+#  endif
+
+#  ifndef _LIBCPP_WEAK
+#    define _LIBCPP_WEAK __attribute__((__weak__))
+#  endif
+
+// Thread API
+// clang-format off
+#  if !defined(_LIBCPP_HAS_NO_THREADS) &&                                                                              \
+      !defined(_LIBCPP_HAS_THREAD_API_PTHREAD) &&                                                                      \
+      !defined(_LIBCPP_HAS_THREAD_API_WIN32) &&                                                                        \
+      !defined(_LIBCPP_HAS_THREAD_API_EXTERNAL)
+
+#    if defined(__FreeBSD__) ||                                                                                        \
+        defined(__wasi__) ||                                                                                           \
+        defined(__NetBSD__) ||                                                                                         \
+        defined(__OpenBSD__) ||                                                                                        \
+        defined(__NuttX__) ||                                                                                          \
+        defined(__linux__) ||                                                                                          \
+        defined(__GNU__) ||                                                                                            \
+        defined(__APPLE__) ||                                                                                          \
+        defined(__MVS__) ||                                                                                            \
+        defined(_AIX) ||                                                                                               \
+        defined(__EMSCRIPTEN__)
+// clang-format on
+#      define _LIBCPP_HAS_THREAD_API_PTHREAD
+#    elif defined(__Fuchsia__)
+// TODO(44575): Switch to C11 thread API when possible.
+#      define _LIBCPP_HAS_THREAD_API_PTHREAD
+#    elif defined(_LIBCPP_WIN32API)
+#      define _LIBCPP_HAS_THREAD_API_WIN32
+#    else
+#      error "No thread API"
+#    endif // _LIBCPP_HAS_THREAD_API
+#  endif   // _LIBCPP_HAS_NO_THREADS
+
+#  if defined(_LIBCPP_HAS_THREAD_API_PTHREAD)
+#    if defined(__ANDROID__) && __ANDROID_API__ >= 30
+#      define _LIBCPP_HAS_COND_CLOCKWAIT
+#    elif defined(_LIBCPP_GLIBC_PREREQ)
+#      if _LIBCPP_GLIBC_PREREQ(2, 30)
+#        define _LIBCPP_HAS_COND_CLOCKWAIT
+#      endif
+#    endif
+#  endif
+
+#  if defined(_LIBCPP_HAS_NO_THREADS) && defined(_LIBCPP_HAS_THREAD_API_PTHREAD)
+#    error _LIBCPP_HAS_THREAD_API_PTHREAD may only be defined when \
+       _LIBCPP_HAS_NO_THREADS is not defined.
+#  endif
+
+#  if defined(_LIBCPP_HAS_NO_THREADS) && defined(_LIBCPP_HAS_THREAD_API_EXTERNAL)
+#    error _LIBCPP_HAS_THREAD_API_EXTERNAL may not be defined when \
+       _LIBCPP_HAS_NO_THREADS is defined.
+#  endif
+
+#  if defined(_LIBCPP_HAS_NO_MONOTONIC_CLOCK) && !defined(_LIBCPP_HAS_NO_THREADS)
+#    error _LIBCPP_HAS_NO_MONOTONIC_CLOCK may only be defined when \
+       _LIBCPP_HAS_NO_THREADS is defined.
+#  endif
+
+#  if !defined(_LIBCPP_HAS_NO_THREADS) && !defined(__STDCPP_THREADS__)
+#    define __STDCPP_THREADS__ 1
+#  endif
+
+// The glibc and Bionic implementation of pthreads implements
+// pthread_mutex_destroy as nop for regular mutexes. Additionally, Win32
+// mutexes have no destroy mechanism.
+//
+// This optimization can't be performed on Apple platforms, where
+// pthread_mutex_destroy can allow the kernel to release resources.
+// See https://llvm.org/D64298 for details.
+//
+// TODO(EricWF): Enable this optimization on Bionic after speaking to their
+//               respective stakeholders.
+// clang-format off
+#  if (defined(_LIBCPP_HAS_THREAD_API_PTHREAD) && defined(__GLIBC__)) ||                                               \
+      (defined(_LIBCPP_HAS_THREAD_API_C11) && defined(__Fuchsia__)) ||                                                 \
+       defined(_LIBCPP_HAS_THREAD_API_WIN32)
+// clang-format on
+#    define _LIBCPP_HAS_TRIVIAL_MUTEX_DESTRUCTION
+#  endif
+
+// Destroying a condvar is a nop on Windows.
+//
+// This optimization can't be performed on Apple platforms, where
+// pthread_cond_destroy can allow the kernel to release resources.
+// See https://llvm.org/D64298 for details.
+//
+// TODO(EricWF): This is potentially true for some pthread implementations
+// as well.
+#  if (defined(_LIBCPP_HAS_THREAD_API_C11) && defined(__Fuchsia__)) || defined(_LIBCPP_HAS_THREAD_API_WIN32)
+#    define _LIBCPP_HAS_TRIVIAL_CONDVAR_DESTRUCTION
+#  endif
+
+#  if defined(__BIONIC__) || defined(__NuttX__) || defined(__Fuchsia__) || defined(__wasi__) ||                        \
+      defined(_LIBCPP_HAS_MUSL_LIBC) || defined(__OpenBSD__)
+#    define _LIBCPP_PROVIDES_DEFAULT_RUNE_TABLE
+#  endif
+
+#  if __has_feature(cxx_atomic) || __has_extension(c_atomic) || __has_keyword(_Atomic)
+#    define _LIBCPP_HAS_C_ATOMIC_IMP
+#  elif defined(_LIBCPP_COMPILER_GCC)
+#    define _LIBCPP_HAS_GCC_ATOMIC_IMP
+#  endif
+
+#  if !defined(_LIBCPP_HAS_C_ATOMIC_IMP) && !defined(_LIBCPP_HAS_GCC_ATOMIC_IMP) &&                                    \
+      !defined(_LIBCPP_HAS_EXTERNAL_ATOMIC_IMP)
+#    define _LIBCPP_HAS_NO_ATOMIC_HEADER
+#  else
+#    ifndef _LIBCPP_ATOMIC_FLAG_TYPE
+#      define _LIBCPP_ATOMIC_FLAG_TYPE bool
+#    endif
+#  endif
+
+#  if defined(__FreeBSD__) && defined(__clang__) && __has_attribute(__no_thread_safety_analysis__)
+#    define _LIBCPP_NO_THREAD_SAFETY_ANALYSIS __attribute__((__no_thread_safety_analysis__))
+#  else
+#    define _LIBCPP_NO_THREAD_SAFETY_ANALYSIS
+#  endif
+
+#  if defined(_LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS)
+#    if defined(__clang__) && __has_attribute(acquire_capability)
+// Work around the attribute handling in clang.  When both __declspec and
+// __attribute__ are present, the processing goes awry preventing the definition
+// of the types. In MinGW mode, __declspec evaluates to __attribute__, and thus
+// combining the two does work.
+#      if !defined(_MSC_VER)
+#        define _LIBCPP_HAS_THREAD_SAFETY_ANNOTATIONS
+#      endif
+#    endif
+#  endif
+
+#  ifdef _LIBCPP_HAS_THREAD_SAFETY_ANNOTATIONS
+#    define _LIBCPP_THREAD_SAFETY_ANNOTATION(x) __attribute__((x))
+#  else
+#    define _LIBCPP_THREAD_SAFETY_ANNOTATION(x)
+#  endif
+
+#  if _LIBCPP_STD_VER >= 20
+#    define _LIBCPP_CONSTINIT constinit
+#  elif __has_attribute(__require_constant_initialization__)
+#    define _LIBCPP_CONSTINIT __attribute__((__require_constant_initialization__))
+#  else
+#    define _LIBCPP_CONSTINIT
+#  endif
+
+#  if defined(__CUDACC__) || defined(__CUDA_ARCH__) || defined(__CUDA_LIBDEVICE__)
+// The CUDA SDK contains an unfortunate definition for the __noinline__ macro,
+// which breaks the regular __attribute__((__noinline__)) syntax. Therefore,
+// when compiling for CUDA we use the non-underscored version of the noinline
+// attribute.
+//
+// This is a temporary workaround and we still expect the CUDA SDK team to solve
+// this issue properly in the SDK headers.
+//
+// See https://github.com/llvm/llvm-project/pull/73838 for more details.
+#    define _LIBCPP_NOINLINE __attribute__((noinline))
+#  elif __has_attribute(__noinline__)
+#    define _LIBCPP_NOINLINE __attribute__((__noinline__))
+#  else
+#    define _LIBCPP_NOINLINE
+#  endif
+
+// We often repeat things just for handling wide characters in the library.
+// When wide characters are disabled, it can be useful to have a quick way of
+// disabling it without having to resort to #if-#endif, which has a larger
+// impact on readability.
+#  if defined(_LIBCPP_HAS_NO_WIDE_CHARACTERS)
+#    define _LIBCPP_IF_WIDE_CHARACTERS(...)
+#  else
+#    define _LIBCPP_IF_WIDE_CHARACTERS(...) __VA_ARGS__
+#  endif
+
+// clang-format off
+#  define _LIBCPP_PUSH_MACROS _Pragma("push_macro(\"min\")") _Pragma("push_macro(\"max\")") _Pragma("push_macro(\"refresh\")") _Pragma("push_macro(\"move\")") _Pragma("push_macro(\"erase\")")
+#  define _LIBCPP_POP_MACROS _Pragma("pop_macro(\"min\")") _Pragma("pop_macro(\"max\")") _Pragma("pop_macro(\"refresh\")") _Pragma("pop_macro(\"move\")") _Pragma("pop_macro(\"erase\")")
+// clang-format on
+
+#  ifndef _LIBCPP_NO_AUTO_LINK
+#    if defined(_LIBCPP_ABI_MICROSOFT) && !defined(_LIBCPP_BUILDING_LIBRARY)
+#      if !defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS)
+#        pragma comment(lib, "c++.lib")
+#      else
+#        pragma comment(lib, "libc++.lib")
+#      endif
+#    endif // defined(_LIBCPP_ABI_MICROSOFT) && !defined(_LIBCPP_BUILDING_LIBRARY)
+#  endif   // _LIBCPP_NO_AUTO_LINK
+
+// Configures the fopen close-on-exec mode character, if any. This string will
+// be appended to any mode string used by fstream for fopen/fdopen.
+//
+// Not all platforms support this, but it helps avoid fd-leaks on platforms that
+// do.
+#  if defined(__BIONIC__)
+#    define _LIBCPP_FOPEN_CLOEXEC_MODE "e"
+#  else
+#    define _LIBCPP_FOPEN_CLOEXEC_MODE
+#  endif
+
+#  if __has_cpp_attribute(msvc::no_unique_address)
+// MSVC implements [[no_unique_address]] as a silent no-op currently.
+// (If/when MSVC breaks its C++ ABI, it will be changed to work as intended.)
+// However, MSVC implements [[msvc::no_unique_address]] which does what
+// [[no_unique_address]] is supposed to do, in general.
+
+// Clang-cl does not yet (14.0) implement either [[no_unique_address]] or
+// [[msvc::no_unique_address]] though. If/when it does implement
+// [[msvc::no_unique_address]], this should be preferred though.
+#    define _LIBCPP_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#  elif __has_cpp_attribute(no_unique_address)
+#    define _LIBCPP_NO_UNIQUE_ADDRESS [[__no_unique_address__]]
+#  else
+#    define _LIBCPP_NO_UNIQUE_ADDRESS /* nothing */
+// Note that this can be replaced by #error as soon as clang-cl
+// implements msvc::no_unique_address, since there should be no C++20
+// compiler that doesn't support one of the two attributes at that point.
+// We generally don't want to use this macro outside of C++20-only code,
+// because using it conditionally in one language version only would make
+// the ABI inconsistent.
+#  endif
+
+// c8rtomb() and mbrtoc8() were added in C++20 and C23. Support for these
+// functions is gradually being added to existing C libraries. The conditions
+// below check for known C library versions and conditions under which these
+// functions are declared by the C library.
+#  define _LIBCPP_HAS_NO_C8RTOMB_MBRTOC8
+// GNU libc 2.36 and newer declare c8rtomb() and mbrtoc8() in C++ modes if
+// __cpp_char8_t is defined or if C2X extensions are enabled. Determining
+// the latter depends on internal GNU libc details that are not appropriate
+// to depend on here, so any declarations present when __cpp_char8_t is not
+// defined are ignored.
+#  if defined(_LIBCPP_GLIBC_PREREQ)
+#    if _LIBCPP_GLIBC_PREREQ(2, 36) && defined(__cpp_char8_t)
+#      undef _LIBCPP_HAS_NO_C8RTOMB_MBRTOC8
+#    endif
+#  endif
+
+// There are a handful of public standard library types that are intended to
+// support CTAD but don't need any explicit deduction guides to do so. This
+// macro is used to mark them as such, which suppresses the
+// '-Wctad-maybe-unsupported' compiler warning when CTAD is used in user code
+// with these classes.
+#  if _LIBCPP_STD_VER >= 17
+#    ifdef _LIBCPP_COMPILER_CLANG_BASED
+#      define _LIBCPP_CTAD_SUPPORTED_FOR_TYPE(_ClassName)                                                              \
+        template <class... _Tag>                                                                                       \
+        [[maybe_unused]] _ClassName(typename _Tag::__allow_ctad...)->_ClassName<_Tag...>
+#    else
+#      define _LIBCPP_CTAD_SUPPORTED_FOR_TYPE(ClassName)                                                               \
+        template <class... _Tag>                                                                                       \
+        ClassName(typename _Tag::__allow_ctad...)->ClassName<_Tag...>
+#    endif
+#  else
+#    define _LIBCPP_CTAD_SUPPORTED_FOR_TYPE(_ClassName) static_assert(true, "")
+#  endif
+
+// TODO(varconst): currently, there are bugs in Clang's intrinsics when handling Objective-C++ `id`, so don't use
+// compiler intrinsics in the Objective-C++ mode.
+#  ifdef __OBJC__
+#    define _LIBCPP_WORKAROUND_OBJCXX_COMPILER_INTRINSICS
+#  endif
+
+#  define _PSTL_PRAGMA(x) _Pragma(#x)
+
+// Enable SIMD for compilers that support OpenMP 4.0
+#  if (defined(_OPENMP) && _OPENMP >= 201307)
+
+#    define _PSTL_UDR_PRESENT
+#    define _PSTL_PRAGMA_SIMD _PSTL_PRAGMA(omp simd)
+#    define _PSTL_PRAGMA_DECLARE_SIMD _PSTL_PRAGMA(omp declare simd)
+#    define _PSTL_PRAGMA_SIMD_REDUCTION(PRM) _PSTL_PRAGMA(omp simd reduction(PRM))
+#    define _PSTL_PRAGMA_SIMD_SCAN(PRM) _PSTL_PRAGMA(omp simd reduction(inscan, PRM))
+#    define _PSTL_PRAGMA_SIMD_INCLUSIVE_SCAN(PRM) _PSTL_PRAGMA(omp scan inclusive(PRM))
+#    define _PSTL_PRAGMA_SIMD_EXCLUSIVE_SCAN(PRM) _PSTL_PRAGMA(omp scan exclusive(PRM))
+
+// Declaration of reduction functor, where
+// NAME - the name of the functor
+// OP - type of the callable object with the reduction operation
+// omp_in - refers to the local partial result
+// omp_out - refers to the final value of the combiner operator
+// omp_priv - refers to the private copy of the initial value
+// omp_orig - refers to the original variable to be reduced
+#    define _PSTL_PRAGMA_DECLARE_REDUCTION(NAME, OP)                                                                   \
+      _PSTL_PRAGMA(omp declare reduction(NAME:OP : omp_out(omp_in)) initializer(omp_priv = omp_orig))
+
+#  elif defined(_LIBCPP_COMPILER_CLANG_BASED)
+
+#    define _PSTL_PRAGMA_SIMD _Pragma("clang loop vectorize(enable) interleave(enable)")
+#    define _PSTL_PRAGMA_DECLARE_SIMD
+#    define _PSTL_PRAGMA_SIMD_REDUCTION(PRM) _Pragma("clang loop vectorize(enable) interleave(enable)")
+#    define _PSTL_PRAGMA_SIMD_SCAN(PRM) _Pragma("clang loop vectorize(enable) interleave(enable)")
+#    define _PSTL_PRAGMA_SIMD_INCLUSIVE_SCAN(PRM)
+#    define _PSTL_PRAGMA_SIMD_EXCLUSIVE_SCAN(PRM)
+#    define _PSTL_PRAGMA_DECLARE_REDUCTION(NAME, OP)
+
+#  else // (defined(_OPENMP) && _OPENMP >= 201307)
+
+#    define _PSTL_PRAGMA_SIMD
+#    define _PSTL_PRAGMA_DECLARE_SIMD
+#    define _PSTL_PRAGMA_SIMD_REDUCTION(PRM)
+#    define _PSTL_PRAGMA_SIMD_SCAN(PRM)
+#    define _PSTL_PRAGMA_SIMD_INCLUSIVE_SCAN(PRM)
+#    define _PSTL_PRAGMA_SIMD_EXCLUSIVE_SCAN(PRM)
+#    define _PSTL_PRAGMA_DECLARE_REDUCTION(NAME, OP)
+
+#  endif // (defined(_OPENMP) && _OPENMP >= 201307)
+
+#  define _PSTL_USE_NONTEMPORAL_STORES_IF_ALLOWED
+
+// Optional attributes - these are useful for a better QoI, but not required to be available
+
+#  if __has_attribute(__no_sanitize__) && !defined(_LIBCPP_COMPILER_GCC)
+#    define _LIBCPP_NO_CFI __attribute__((__no_sanitize__("cfi")))
+#  else
+#    define _LIBCPP_NO_CFI
+#  endif
+
+#  if __has_attribute(__malloc__)
+#    define _LIBCPP_NOALIAS __attribute__((__malloc__))
+#  else
+#    define _LIBCPP_NOALIAS
+#  endif
+
+#  if __has_attribute(__using_if_exists__)
+#    define _LIBCPP_USING_IF_EXISTS __attribute__((__using_if_exists__))
+#  else
+#    define _LIBCPP_USING_IF_EXISTS
+#  endif
+
+#  if __has_cpp_attribute(__nodiscard__)
+#    define _LIBCPP_NODISCARD [[__nodiscard__]]
+#  else
+// We can't use GCC's [[gnu::warn_unused_result]] and
+// __attribute__((warn_unused_result)), because GCC does not silence them via
+// (void) cast.
+#    define _LIBCPP_NODISCARD
+#  endif
+
+#  if __has_attribute(__no_destroy__)
+#    define _LIBCPP_NO_DESTROY __attribute__((__no_destroy__))
+#  else
+#    define _LIBCPP_NO_DESTROY
+#  endif
+
+#  if __has_attribute(__diagnose_if__)
+#    define _LIBCPP_DIAGNOSE_WARNING(...) __attribute__((__diagnose_if__(__VA_ARGS__, "warning")))
+#  else
+#    define _LIBCPP_DIAGNOSE_WARNING(...)
+#  endif
+
+// Use a function like macro to imply that it must be followed by a semicolon
+#  if __has_cpp_attribute(fallthrough)
+#    define _LIBCPP_FALLTHROUGH() [[fallthrough]]
+#  elif __has_attribute(__fallthrough__)
+#    define _LIBCPP_FALLTHROUGH() __attribute__((__fallthrough__))
+#  else
+#    define _LIBCPP_FALLTHROUGH() ((void)0)
+#  endif
+
+#  if __has_cpp_attribute(_Clang::__lifetimebound__)
+#    define _LIBCPP_LIFETIMEBOUND [[_Clang::__lifetimebound__]]
+#  else
+#    define _LIBCPP_LIFETIMEBOUND
+#  endif
+
+#  if __has_attribute(__nodebug__)
+#    define _LIBCPP_NODEBUG __attribute__((__nodebug__))
+#  else
+#    define _LIBCPP_NODEBUG
+#  endif
+
+#  if __has_attribute(__standalone_debug__)
+#    define _LIBCPP_STANDALONE_DEBUG __attribute__((__standalone_debug__))
+#  else
+#    define _LIBCPP_STANDALONE_DEBUG
+#  endif
+
+#  if __has_attribute(__preferred_name__)
+#    define _LIBCPP_PREFERRED_NAME(x) __attribute__((__preferred_name__(x)))
+#  else
+#    define _LIBCPP_PREFERRED_NAME(x)
+#  endif
+
+#  if __has_attribute(__no_sanitize__)
+#    define _LIBCPP_NO_SANITIZE(...) __attribute__((__no_sanitize__(__VA_ARGS__)))
+#  else
+#    define _LIBCPP_NO_SANITIZE(...)
+#  endif
+
+#  if __has_attribute(__init_priority__)
+#    define _LIBCPP_INIT_PRIORITY_MAX __attribute__((__init_priority__(100)))
+#  else
+#    define _LIBCPP_INIT_PRIORITY_MAX
+#  endif
+
+#  if __has_attribute(__format__)
+// The attribute uses 1-based indices for ordinary and static member functions.
+// The attribute uses 2-based indices for non-static member functions.
+#    define _LIBCPP_ATTRIBUTE_FORMAT(archetype, format_string_index, first_format_arg_index)                           \
+      __attribute__((__format__(archetype, format_string_index, first_format_arg_index)))
+#  else
+#    define _LIBCPP_ATTRIBUTE_FORMAT(archetype, format_string_index, first_format_arg_index) /* nothing */
+#  endif
+
+#  if __has_attribute(__packed__)
+#    define _LIBCPP_PACKED __attribute__((__packed__))
+#  else
+#    define _LIBCPP_PACKED
+#  endif
+
+#  if defined(_LIBCPP_ABI_MICROSOFT) && __has_declspec_attribute(empty_bases)
+#    define _LIBCPP_DECLSPEC_EMPTY_BASES __declspec(empty_bases)
+#  else
+#    define _LIBCPP_DECLSPEC_EMPTY_BASES
+#  endif
+
+// Allow for build-time disabling of unsigned integer sanitization
+#  if __has_attribute(no_sanitize) && !defined(_LIBCPP_COMPILER_GCC)
+#    define _LIBCPP_DISABLE_UBSAN_UNSIGNED_INTEGER_CHECK __attribute__((__no_sanitize__("unsigned-integer-overflow")))
+#  else
+#    define _LIBCPP_DISABLE_UBSAN_UNSIGNED_INTEGER_CHECK
+#  endif
+
+// Clang-18 has support for deducing this, but it does not set the FTM.
+#  if defined(__cpp_explicit_this_parameter) || (defined(_LIBCPP_CLANG_VER) && _LIBCPP_CLANG_VER >= 1800)
+#    define _LIBCPP_HAS_EXPLICIT_THIS_PARAMETER
+#  endif
+
+#endif // __cplusplus
+
+#endif // _LIBCPP___CONFIG

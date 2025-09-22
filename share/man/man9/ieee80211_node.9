@@ -1,0 +1,267 @@
+.\"	$OpenBSD: ieee80211_node.9,v 1.9 2015/11/23 17:53:57 jmc Exp $
+.\"
+.\" Copyright (c) 2004 Bruce M. Simpson <bms@spc.org>
+.\" Copyright (c) 2004 Darron Broad <darron@kewl.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/ieee80211_node.9,v 1.3 2004/07/07 12:59:39 ru Exp $
+.\" $Id: ieee80211_node.9,v 1.9 2015/11/23 17:53:57 jmc Exp $
+.\"
+.Dd $Mdocdate: November 23 2015 $
+.Dt IEEE80211_NODE_ATTACH 9
+.Os
+.Sh NAME
+.Nm ieee80211_node_attach ,
+.Nm ieee80211_node_lateattach ,
+.Nm ieee80211_node_detach ,
+.Nm ieee80211_begin_scan ,
+.Nm ieee80211_next_scan ,
+.Nm ieee80211_create_ibss ,
+.Nm ieee80211_end_scan ,
+.Nm ieee80211_alloc_node ,
+.Nm ieee80211_dup_bss ,
+.Nm ieee80211_find_node ,
+.Nm ieee80211_release_node ,
+.Nm ieee80211_free_node ,
+.Nm ieee80211_free_allnodes ,
+.Nm ieee80211_iterate_nodes
+.Nd software 802.11 stack node management functions
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.In net80211/ieee80211_proto.h
+.In net80211/ieee80211_node.h
+.Ft void
+.Fn ieee80211_node_attach "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_node_lateattach "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_node_detach "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_begin_scan "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_next_scan "struct ifnet *ifp"
+.Ft void
+.Fo ieee80211_create_ibss
+.Fa "struct ieee80211com *ic" "struct ieee80211_channel *chan"
+.Fc
+.Ft void
+.Fn ieee80211_end_scan "struct ifnet *ifp"
+.Ft struct ieee80211_node *
+.Fn ieee80211_alloc_node "struct ieee80211com *ic" "const u_int8_t *macaddr"
+.Ft struct ieee80211_node *
+.Fn ieee80211_dup_bss "struct ieee80211com *ic" "const u_int8_t *macaddr"
+.Ft struct ieee80211_node *
+.Fn ieee80211_find_node "struct ieee80211com *ic" "const u_int8_t *macaddr"
+.Ft void
+.Fn ieee80211_release_node "struct ieee80211com *ic" "struct ieee80211_node *ni"
+.Ft void
+.Fn ieee80211_free_node "struct ieee80211com *ic" "struct ieee80211_node *ni"
+.Ft void
+.Fn ieee80211_free_allnodes "struct ieee80211com *ic"
+.Ft void
+.Fo ieee80211_iterate_nodes
+.Fa "struct ieee80211com *ic" "ieee80211_iter_func *f" "void *arg"
+.Fc
+.Sh DESCRIPTION
+These functions are used to manage node lists within the software
+802.11 stack.
+These lists are typically used for implementing host-mode AP functionality,
+or providing signal quality information about neighbouring nodes.
+.Pp
+.\"
+The
+.Fn ieee80211_node_attach
+function is called from
+.Xr ieee80211_ifattach 9
+to initialize node database management callbacks for the interface
+.Fa ifp
+(specifically for memory allocation, node copying and node
+signal inspection).
+These functions may be overridden in special circumstances,
+as long as this is done after calling
+.Xr ieee80211_ifattach 9
+and prior to any other call which may allocate a node.
+.Pp
+.\"
+The
+.Fn ieee80211_node_lateattach
+function initialises the
+.Va ic_bss
+node element of the interface
+.Fa ifp
+during
+.Xr ieee80211_media_init 9 .
+This late attachment is to account for certain special cases described under
+.Fn ieee80211_node_attach .
+.Pp
+.\"
+The
+.Fn ieee80211_node_detach
+function destroys all node database state associated with the interface
+.Fa ifp ,
+and is usually called during device detach.
+.Pp
+.\"
+The
+.Fn ieee80211_begin_scan
+function initialises the node database in preparation of an active
+scan for an access point on the interface
+.Fa ifp .
+The scan begins on the next radio channel by calling
+.Fn ieee80211_next_scan
+internally.
+The actual scanning for an access point is not automated;
+the device driver itself only handles setting the radio frequency
+of the card and stepping through the channels.
+.Pp
+.\"
+The
+.Fn ieee80211_next_scan
+function is used to inform the
+.Xr ieee80211 9
+layer that the interface
+.Fa ifp
+is now scanning for an access point on the next radio channel.
+A device driver is expected to first call
+.Fn ieee80211_begin_scan ,
+to initialize the node database,
+then set the radio channel on the device;
+then, after a certain time has elapsed (200ms for example), call
+.Fn ieee80211_next_scan
+to move to the next channel.
+Typically, a timeout is used to automate this process; see
+.Xr timeout 9
+for more information on how to use timeouts.
+.Pp
+.\"
+The
+.Fn ieee80211_create_ibss
+function sets up the net80211-specific portion of an interface's softc,
+.Fa ic ,
+for use in IBSS mode.
+.Pp
+.\"
+The
+.Fn ieee80211_end_scan
+function is called by
+.Fn ieee80211_next_scan
+when the state machine has performed a full cycle of scanning on
+all available radio channels.
+Internally,
+.Fn ieee80211_end_scan
+will inspect the node cache associated with the interface
+.Fa ifp
+for suitable access points found during scanning, and associate with one,
+should the parameters of the node match those of the configuration
+requested from userland.
+.Pp
+.\"
+The
+.Fn ieee80211_alloc_node
+function allocates an instance of
+.Vt "struct ieee80211_node"
+for a node having the MAC address
+.Fa macaddr ,
+and associates it with the interface
+.Fa ic .
+If the allocation is successful, the node structure is initialised by
+.Fn ieee80211_setup_node ;
+otherwise,
+.Dv NULL
+is returned.
+.Pp
+.\"
+The
+.Fn ieee80211_dup_bss
+function is similar to
+.Fn ieee80211_alloc_node ,
+but is instead used to create a node database entry for the BSSID
+.Fa macaddr
+associated with the interface
+.Fa ic .
+If the allocation is successful, the node structure is initialised by
+.Fn ieee80211_setup_node ;
+otherwise,
+.Dv NULL
+is returned.
+.Pp
+.\"
+The
+.Fn ieee80211_find_node
+function will iterate through the node list associated with the interface
+.Fa ic ,
+searching for a node entry which matches
+.Fa macaddr .
+If the entry is found, its reference count is incremented, and
+a pointer to the node is returned; otherwise,
+.Dv NULL
+will be returned.
+.Pp
+.\"
+The
+.Fn ieee80211_free_node
+function will remove the node
+.Fa ni
+from the node database entries associated with the interface
+.Fa ic ,
+and free any memory associated with the node.
+This private method can be overridden in
+.Fn ieee80211_node_attach .
+.\"
+.Pp
+The
+.Fn ieee80211_free_allnodes
+function will iterate through the node list calling
+.Fn ieee80211_free_node
+for all nodes associated with the interface
+.Fa ic .
+.Pp
+.\"
+The
+.Fn ieee80211_iterate_nodes
+function will call the user-defined callback function
+.Fa f
+for all nodes in the node database associated with the interface
+.Fa ic .
+The callback is invoked with the with the user-supplied value
+.Fa arg
+and a pointer to the current node.
+.\"
+.Sh SEE ALSO
+.Xr ieee80211 9
+.Sh HISTORY
+The
+.Nm ieee80211
+series of functions first appeared in
+.Nx 1.5 ,
+and were later ported to
+.Fx 4.6
+and
+.Ox 3.6 .
+.Sh AUTHORS
+.An -nosplit
+This man page was written by
+.An Bruce M. Simpson Aq Mt bms@FreeBSD.org
+and
+.An Darron Broad Aq Mt darron@kewl.org .

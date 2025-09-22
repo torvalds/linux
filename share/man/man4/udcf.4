@@ -1,0 +1,101 @@
+.\" $OpenBSD: udcf.4,v 1.27 2015/06/07 20:13:13 claudio Exp $
+.\"
+.\" Copyright (c) 2006 - 2008 Marc Balmer <mbalmer@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2015 $
+.Dt UDCF 4
+.Os
+.Sh NAME
+.Nm udcf
+.Nd Gude ADS Expert mouseCLOCK USB timedelta sensor
+.Sh SYNOPSIS
+.Cd "udcf* at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Gude ADS Expert mouseCLOCK USB and
+the Expert mouseCLOCK USB II, receivers for the German DCF77.
+While receivers for the British MSF time signal station are also
+being made,
+.Nm
+lacks support for them.
+.Pp
+.Nm
+implements a timedelta sensor and the delta (in nanoseconds) between the
+received time information and the local time can be accessed through the
+.Xr sysctl 8
+interface.
+The clock type is indicated in the sensor description:
+.Bl -tag -width "CRITICALXX" -offset indent
+.It DCF77
+German DCF77 time signal station
+(77.5 kHz longwave transmitter located in Mainflingen near Frankfurt).
+.El
+.Pp
+The quality of the timedelta is reported as the sensor status:
+.Bl -tag -width "CRITICALXX" -offset indent
+.It UNKNOWN
+No valid time information has been received yet.
+.It OK
+The time information is valid and the timedelta is safe to use for
+applications like
+.Xr ntpd 8 .
+.It WARN
+The time information is still valid, but no new time information has been
+decoded for at least 5 minutes due to a reception or parity error.
+The timedelta should be used with care.
+.It CRITICAL
+No valid time information has been received for more than 15 minutes since
+the sensor state degraded from OK to WARN.
+This is an indication that hardware should be checked
+to see if it is still functional.
+The timedelta will eventually degrade to a lie
+as all computer internal clocks have a drift.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr uhub 4 ,
+.Xr usb 4 ,
+.Xr ntpd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Marc Balmer Aq Mt mbalmer@openbsd.org .
+.Sh CAVEATS
+DCF77 uses a 77.5 kHz long wave radio signal transmitted from near Frankfurt,
+Germany.
+Up to about 900 km, the radio signal can travel directly to the receiver,
+providing a linearly increasing time offset based on distance.
+Due to the curvature of the Earth, beyond this distance the signal must
+bounce off the lower ionosphere (residing at approximately 70 km elevation
+during the day, and 90 km at night), thus causing a non-linearly increasing
+time offset which can only be roughly calculated using trigonometry.
+Since the distance and transmission geometry is not known,
+the clock receivers and
+.Nm
+driver currently make no effort to calculate this offset.
+We simply assume that the offset is small.
+.Pp
+In Germany, the train system uses DCF77 clocks.
+As the distance from Frankfurt increases,
+trains can be expected to run later.

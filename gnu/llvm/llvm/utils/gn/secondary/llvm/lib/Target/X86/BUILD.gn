@@ -1,0 +1,164 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("X86GenCallingConv") {
+  visibility = [ ":LLVMX86CodeGen" ]
+  args = [ "-gen-callingconv" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenDAGISel") {
+  visibility = [ ":LLVMX86CodeGen" ]
+  args = [ "-gen-dag-isel" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenInstrMapping") {
+  visibility = [
+    ":LLVMX86CodeGen",
+    "AsmParser",
+  ]
+  args = [ "-gen-x86-instr-mapping" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenFastISel") {
+  visibility = [ ":LLVMX86CodeGen" ]
+  args = [ "-gen-fast-isel" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenFoldTables") {
+  visibility = [ ":LLVMX86CodeGen" ]
+  args = [
+    "-gen-x86-fold-tables",
+    "-asmwriternum=1",
+  ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenGlobalISel") {
+  visibility = [ ":LLVMX86CodeGen" ]
+  args = [ "-gen-global-isel" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenRegisterBank") {
+  visibility = [ ":LLVMX86CodeGen" ]
+  args = [ "-gen-register-bank" ]
+  td_file = "X86.td"
+}
+
+static_library("LLVMX86CodeGen") {
+  deps = [
+    ":X86GenCallingConv",
+    ":X86GenDAGISel",
+    ":X86GenFastISel",
+    ":X86GenFoldTables",
+    ":X86GenGlobalISel",
+    ":X86GenInstrMapping",
+    ":X86GenRegisterBank",
+    "MCTargetDesc",
+    "TargetInfo",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRPrinter",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/CFGuard",
+    "//llvm/lib/Transforms/Instrumentation",
+    "//llvm/lib/Transforms/Scalar",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "GISel/X86CallLowering.cpp",
+    "GISel/X86InstructionSelector.cpp",
+    "GISel/X86LegalizerInfo.cpp",
+    "GISel/X86RegisterBankInfo.cpp",
+    "X86ArgumentStackSlotRebase.cpp",
+    "X86AsmPrinter.cpp",
+    "X86AvoidStoreForwardingBlocks.cpp",
+    "X86AvoidTrailingCall.cpp",
+    "X86CallFrameOptimization.cpp",
+    "X86CallingConv.cpp",
+    "X86CmovConversion.cpp",
+    "X86CodeGenPassBuilder.cpp",
+    "X86CompressEVEX.cpp",
+    "X86DiscriminateMemOps.cpp",
+    "X86DomainReassignment.cpp",
+    "X86DynAllocaExpander.cpp",
+    "X86ExpandPseudo.cpp",
+    "X86FastISel.cpp",
+    "X86FastPreTileConfig.cpp",
+    "X86FastTileConfig.cpp",
+    "X86FixupBWInsts.cpp",
+    "X86FixupInstTuning.cpp",
+    "X86FixupLEAs.cpp",
+    "X86FixupSetCC.cpp",
+    "X86FixupVectorConstants.cpp",
+    "X86FlagsCopyLowering.cpp",
+    "X86FloatingPoint.cpp",
+    "X86FrameLowering.cpp",
+    "X86ISelDAGToDAG.cpp",
+    "X86ISelLowering.cpp",
+    "X86ISelLoweringCall.cpp",
+    "X86IndirectBranchTracking.cpp",
+    "X86IndirectThunks.cpp",
+    "X86InsertPrefetch.cpp",
+    "X86InsertWait.cpp",
+    "X86InstCombineIntrinsic.cpp",
+    "X86InstrFMA3Info.cpp",
+    "X86InstrFoldTables.cpp",
+    "X86InstrInfo.cpp",
+    "X86InterleavedAccess.cpp",
+    "X86LoadValueInjectionLoadHardening.cpp",
+    "X86LoadValueInjectionRetHardening.cpp",
+    "X86LowerAMXIntrinsics.cpp",
+    "X86LowerAMXType.cpp",
+    "X86LowerTileCopy.cpp",
+    "X86MCInstLower.cpp",
+    "X86MachineFunctionInfo.cpp",
+    "X86MacroFusion.cpp",
+    "X86OptimizeLEAs.cpp",
+    "X86PadShortFunction.cpp",
+    "X86PartialReduction.cpp",
+    "X86PreTileConfig.cpp",
+    "X86RegisterInfo.cpp",
+    "X86ReturnThunks.cpp",
+    "X86SelectionDAGInfo.cpp",
+    "X86ShuffleDecodeConstantPool.cpp",
+    "X86SpeculativeExecutionSideEffectSuppression.cpp",
+    "X86SpeculativeLoadHardening.cpp",
+    "X86Subtarget.cpp",
+    "X86TargetMachine.cpp",
+    "X86TargetObjectFile.cpp",
+    "X86TargetTransformInfo.cpp",
+    "X86TileConfig.cpp",
+    "X86VZeroUpper.cpp",
+    "X86WinEHState.cpp",
+    "X86WinFixupBufferSecurityCheck.cpp",
+  ]
+}
+
+# This is a bit different from most build files: Due to this group
+# having the directory's name, "//llvm/lib/Target/X86" will refer to this
+# target, which pulls in the code in this directory *and all subdirectories*.
+# For most other directories, "//llvm/lib/Foo" only pulls in the code directly
+# in "llvm/lib/Foo". The forwarding targets in //llvm/lib/Target expect this
+# different behavior.
+group("X86") {
+  deps = [
+    ":LLVMX86CodeGen",
+    "AsmParser",
+    "Disassembler",
+    "MCA",
+    "MCTargetDesc",
+    "TargetInfo",
+  ]
+}

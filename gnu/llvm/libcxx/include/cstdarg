@@ -1,0 +1,54 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CSTDARG
+#define _LIBCPP_CSTDARG
+
+/*
+    cstdarg synopsis
+
+Macros:
+
+    type va_arg(va_list ap, type);
+    void va_copy(va_list dest, va_list src);  // C99
+    void va_end(va_list ap);
+    void va_start(va_list ap, parmN);
+
+namespace std
+{
+
+Types:
+
+    va_list
+
+}  // std
+
+*/
+
+#include <__config>
+
+// <stdarg.h> is not provided by libc++
+#if __has_include(<stdarg.h>)
+#  include <stdarg.h>
+#  ifdef _LIBCPP_STDARG_H
+#    error "If libc++ starts defining <stdarg.h>, the __has_include check should move to libc++'s <stdarg.h>"
+#  endif
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::va_list _LIBCPP_USING_IF_EXISTS;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_CSTDARG

@@ -1,0 +1,85 @@
+.\" $OpenBSD: a2d_ASN1_OBJECT.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt A2D_ASN1_OBJECT 3
+.Os
+.Sh NAME
+.Nm a2d_ASN1_OBJECT
+.Nd DER content octets of an ASN.1 object identifier
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft int
+.Fo a2d_ASN1_OBJECT
+.Fa "unsigned char *der_out"
+.Fa "int olen"
+.Fa "const char *val_in"
+.Fa "int ilen"
+.Fc
+.Sh DESCRIPTION
+.Fn a2d_ASN1_OBJECT
+accepts an ASCII string
+.Fa val_in
+of
+.Fa ilen
+bytes and interprets it as the numerical form of an ASN.1 object identifier.
+It writes the content octets of the DER encoding of the object identifier
+to the buffer
+.Fa der_out
+which is
+.Fa olen
+bytes long.
+The identifier and length octets of the DER encoding are not written.
+.Pp
+If
+.Fa ilen
+is \-1, the
+.Xr strlen 3
+of
+.Fa val_in
+is used instead.
+.Pp
+If
+.Fa der_out
+is a
+.Dv NULL
+pointer, writing the content octets is skipped
+and only the return value is calculated.
+.Sh RETURN VALUES
+.Fn a2d_ASN1_OBJECT
+returns the number of content octets that were or would be written or 0 if
+.Fa ilen
+is 0, if
+.Fa val_in
+is not a valid representation of an object identifier,
+if memory allocation fails, or if the number of content octets
+would be larger than
+.Fa olen .
+.Sh SEE ALSO
+.Xr ASN1_OBJECT_new 3 ,
+.Xr i2d_ASN1_OBJECT 3 ,
+.Xr OBJ_create 3
+.Sh STANDARDS
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules:
+Specification of Basic Encoding Rules (BER), Canonical Encoding
+Rules (CER) and Distinguished Encoding Rules (DER),
+section 8.19: Encoding of an object identifier value
+.Sh HISTORY
+.Fn a2d_ASN1_OBJECT
+first appeared in SSLeay 0.8.0 and has been available since
+.Ox 2.4 .

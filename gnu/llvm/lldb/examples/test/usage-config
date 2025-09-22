@@ -1,0 +1,10 @@
+# This is an example of using the "-c" option to source a config file to
+# reassign the system stderr and stdout and to exercise different combinations
+# of architectures and compilers.
+#
+# The config file is checked in as .lldbtest-config and the redirected stderr
+# and stdout are checked in as lldbtest-stderr and lldbtest-stdout, all in the
+# the same directory as this file.
+
+[15:36:32] johnny:/Volumes/data/lldb/svn/trunk/test $ ./dotest.py -v -c ~/.lldbtest-config persistent_variables
+[15:40:55] johnny:/Volumes/data/lldb/svn/trunk/test $ 

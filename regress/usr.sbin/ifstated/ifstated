@@ -1,0 +1,174 @@
+#!/bin/sh
+#
+# $OpenBSD: ifstated,v 1.9 2021/10/05 17:41:03 anton Exp $
+#/*
+# * Copyright (c) Rob Pierce <rob@openbsd.org>
+# *
+# * Permission to use, copy, modify, and distribute this software for any
+# * purpose with or without fee is hereby granted, provided that the above
+# * copyright notice and this permission notice appear in all copies.
+# *
+# * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+# */
+
+# Basic ifstated regression script to test interface changes.
+
+# Ensure OBJDIR is defined
+: ${OBJDIR?} || exit 1
+export OBJDIR
+
+# Global variables
+VHIDA=252
+VHIDB=253
+PREFIX=172.16.0
+DEMOTE=ifconfig
+PROMOTE=ifconfig
+EVERY=5
+SLEEP=10
+
+cleanup() {
+	ifconfig carp${VHIDA} destroy > /dev/null 2>&1
+	ifconfig carp${VHIDB} destroy > /dev/null 2>&1
+	ifconfig vether${VHIDB} destroy > /dev/null 2>&1
+	rm ${OBJDIR}/ifstated.conf >/dev/null 2>&1
+	rm ${OBJDIR}/ifstated.log >/dev/null 2>&1
+	rm ${OBJDIR}/output.test >/dev/null 2>&1
+	rm ${OBJDIR}/output.new >/dev/null 2>&1
+	rm ${OBJDIR}/nohup.out >/dev/null 2>&1
+}
+
+fail() {
+	echo FAILED
+	cleanup
+	exit 1
+}
+
+skip() {
+	echo SKIPPED
+	cleanup
+	exit 0
+}
+
+trap 'skip' INT
+
+ifconfig vether${VHIDB} create >/dev/null 2>&1
+if [ $? -ne 0 ]
+then
+	echo "Could not create temporary vether interface."
+	echo SKIPPED
+	exit 0
+else
+	ifconfig vether${VHIDB} up
+	NIC=vether${VHIDB}
+fi
+
+if [ "$(pgrep ifstated)" ]
+then
+	echo "The ifstated daemon is already running."
+	echo SKIPPED
+	exit 0
+fi
+
+for interface in carp${VHIDA} carp${VHIDB}
+do
+	ifconfig ${interface} > /dev/null 2>&1
+	if [ $? -eq 0 ]
+	then
+		echo "Interface $interface already exists."
+		echo SKIPPED
+		exit 0
+	fi
+done
+
+cat > ${OBJDIR}/ifstated.conf <<EOF
+# This is a config template for ifstated regression testing
+carp = "carp${VHIDA}.link.up"
+init-state primary
+net = '( "ping -q -c 1 -w 1 ${PREFIX}.${VHIDB} > /dev/null" every ${EVERY})'
+state primary {
+	init {
+		run "ifconfig"
+	}
+	if ! \$net
+		set-state demoted
+	if ! \$carp
+		set-state demoted
+}
+state demoted {
+	init {
+		run "ifconfig"
+	}
+	if \$net && ( ! carp${VHIDA}.link.down && ! carp${VHIDA}.link.unknown )
+		set-state primary
+}
+EOF
+
+ifconfig carp${VHIDA} inet ${PREFIX}.${VHIDA} netmask 255.255.255.0 broadcast \
+   ${PREFIX}.255 vhid ${VHIDA} carpdev ${NIC}
+ifconfig carp${VHIDB} inet ${PREFIX}.${VHIDB} netmask 255.255.255.0 broadcast \
+   ${PREFIX}.255 vhid ${VHIDB} carpdev ${NIC}
+
+# give the carp interface time to come up as MASTER
+sleep 5
+
+cat > ${OBJDIR}/output.test <<EOF
+changing state to primary
+changing state to demoted
+changing state to primary
+changing state to demoted
+changing state to primary
+changing state to demoted
+changing state to primary
+changing state to demoted
+changing state to primary
+changing state to primary
+EOF
+
+(cd ${OBJDIR} && nohup ifstated -dvf ./ifstated.conf > ifstated.log 2>&1) &
+
+sleep ${SLEEP}
+ifconfig carp${VHIDA} down
+sleep ${SLEEP}
+ifconfig carp${VHIDA} up
+sleep ${SLEEP}
+ifconfig carp${VHIDA} destroy
+sleep ${SLEEP}
+ifconfig carp${VHIDA} inet ${PREFIX}.${VHIDA} netmask 255.255.255.0 broadcast \
+   ${PREFIX}.255 vhid ${VHIDA} carpdev ${NIC}
+sleep ${SLEEP}
+ifconfig carp${VHIDB} destroy
+sleep ${SLEEP}
+ifconfig carp${VHIDB} inet ${PREFIX}.${VHIDB} netmask 255.255.255.0 broadcast \
+   ${PREFIX}.255 vhid ${VHIDB} carpdev ${NIC}
+sleep ${SLEEP}
+ifconfig carp${VHIDA} down
+sleep ${SLEEP}
+ifconfig carp${VHIDB} destroy
+sleep ${SLEEP}
+ifconfig carp${VHIDA} up
+sleep ${SLEEP}
+ifconfig carp${VHIDB} inet ${PREFIX}.${VHIDB} netmask 255.255.255.0 broadcast \
+   ${PREFIX}.255 vhid ${VHIDB} carpdev ${NIC}
+sleep ${SLEEP}
+kill -HUP $(pgrep ifstated) >/dev/null 2>&1
+sleep ${SLEEP}
+
+grep ^changing ${OBJDIR}/ifstated.log > ${OBJDIR}/output.new
+
+kill $(pgrep ifstated) >/dev/null 2>&1
+
+diff ${OBJDIR}/output.test ${OBJDIR}/output.new
+case $? in
+0)	echo PASSED
+	cleanup
+	exit 0
+	;;
+1)	fail
+	;;
+esac

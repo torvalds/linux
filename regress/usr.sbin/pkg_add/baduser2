@@ -1,0 +1,12 @@
+$OpenBSD: baduser2,v 1.1 2018/06/06 10:33:07 espie Exp $
+
+
+id  user		group		port options
+----------------------------------------------------
+500 _opennap		_opennap	audio/opennap
+501 _gnats				databases/gnats
+502 _mysql		_mysql		databases/mariadb,-server
+503 _postgresql		_postgresql	databases/postgresql,-server
+504 _mailman		_mailman	mail/mailman
+insert random line here
+506 _spamdaemon		_spamdaemon	mail/p5-Mail-SpamAssassin

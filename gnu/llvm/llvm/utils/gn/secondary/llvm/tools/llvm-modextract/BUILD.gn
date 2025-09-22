@@ -1,0 +1,10 @@
+executable("llvm-modextract") {
+  deps = [
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-modextract.cpp" ]
+}

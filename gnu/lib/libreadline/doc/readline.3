@@ -1,0 +1,1272 @@
+.\"
+.\" MAN PAGE COMMENTS to
+.\"
+.\"	Chet Ramey
+.\"	Information Network Services
+.\"	Case Western Reserve University
+.\"	chet@ins.CWRU.Edu
+.\"
+.\"	Last Change: Tue Jan 22 09:18:25 EST 2002
+.\"
+.TH READLINE 3 "2002 January 22" "GNU Readline 4.3"
+.\"
+.\" File Name macro.  This used to be `.PN', for Path Name,
+.\" but Sun doesn't seem to like that very much.
+.\"
+.de FN
+\fI\|\\$1\|\fP
+..
+.SH NAME
+readline \- get a line from a user with editing
+.SH SYNOPSIS
+.LP
+.nf
+.ft B
+#include <stdio.h>
+#include <readline/readline.h>
+#include <readline/history.h>
+.ft
+.fi
+.LP
+.nf
+\fIchar *\fP
+.br
+\fBreadline\fP (\fIconst char *prompt\fP);
+.fi
+.SH COPYRIGHT
+.if n Readline is Copyright (C) 1989\-2002 by the Free Software Foundation, Inc.
+.if t Readline is Copyright \(co 1989\-2002 by the Free Software Foundation, Inc.
+.SH DESCRIPTION
+.LP
+.B readline
+will read a line from the terminal
+and return it, using
+.B prompt
+as a prompt.  If 
+.B prompt
+is \fBNULL\fP or the empty string, no prompt is issued.
+The line returned is allocated with
+.IR malloc (3);
+the caller must free it when finished.  The line returned
+has the final newline removed, so only the text of the line
+remains.
+.LP
+.B readline
+offers editing capabilities while the user is entering the
+line.
+By default, the line editing commands
+are similar to those of emacs.
+A vi\-style line editing interface is also available.
+.LP
+This manual page describes only the most basic use of \fBreadline\fP.
+Much more functionality is available; see
+\fIThe GNU Readline Library\fP and \fIThe GNU History Library\fP
+for additional information.
+.SH RETURN VALUE
+.LP
+.B readline
+returns the text of the line read.  A blank line
+returns the empty string.  If
+.B EOF
+is encountered while reading a line, and the line is empty,
+.B NULL
+is returned.  If an
+.B EOF
+is read with a non\-empty line, it is
+treated as a newline.
+.SH NOTATION
+.LP
+An emacs-style notation is used to denote
+keystrokes.  Control keys are denoted by C\-\fIkey\fR, e.g., C\-n
+means Control\-N.  Similarly, 
+.I meta
+keys are denoted by M\-\fIkey\fR, so M\-x means Meta\-X.  (On keyboards
+without a 
+.I meta
+key, M\-\fIx\fP means ESC \fIx\fP, i.e., press the Escape key
+then the
+.I x
+key.  This makes ESC the \fImeta prefix\fP.
+The combination M\-C\-\fIx\fP means ESC\-Control\-\fIx\fP,
+or press the Escape key
+then hold the Control key while pressing the
+.I x
+key.)
+.PP
+Readline commands may be given numeric
+.IR arguments ,
+which normally act as a repeat count.  Sometimes, however, it is the
+sign of the argument that is significant.  Passing a negative argument
+to a command that acts in the forward direction (e.g., \fBkill\-line\fP)
+causes that command to act in a backward direction.  Commands whose
+behavior with arguments deviates from this are noted.
+.PP
+When a command is described as \fIkilling\fP text, the text
+deleted is saved for possible future retrieval
+(\fIyanking\fP).  The killed text is saved in a
+\fIkill ring\fP.  Consecutive kills cause the text to be
+accumulated into one unit, which can be yanked all at once. 
+Commands which do not kill text separate the chunks of text
+on the kill ring.
+.SH INITIALIZATION FILE
+.LP
+Readline is customized by putting commands in an initialization
+file (the \fIinputrc\fP file).
+The name of this file is taken from the value of the
+.B INPUTRC
+environment variable.  If that variable is unset, the default is
+.IR ~/.inputrc .
+When a program which uses the readline library starts up, the
+init file is read, and the key bindings and variables are set.
+There are only a few basic constructs allowed in the
+readline init file.  Blank lines are ignored.
+Lines beginning with a \fB#\fP are comments.
+Lines beginning with a \fB$\fP indicate conditional constructs.
+Other lines denote key bindings and variable settings.
+Each program using this library may add its own commands
+and bindings.
+.PP
+For example, placing
+.RS
+.PP
+M\-Control\-u: universal\-argument
+.RE
+or
+.RS
+C\-Meta\-u: universal\-argument
+.RE
+.sp
+into the 
+.I inputrc
+would make M\-C\-u execute the readline command
+.IR universal\-argument .
+.PP
+The following symbolic character names are recognized while
+processing key bindings:
+.IR DEL ,
+.IR ESC ,
+.IR ESCAPE ,
+.IR LFD ,
+.IR NEWLINE ,
+.IR RET ,
+.IR RETURN ,
+.IR RUBOUT ,
+.IR SPACE ,
+.IR SPC ,
+and
+.IR TAB .
+.PP
+In addition to command names, readline allows keys to be bound
+to a string that is inserted when the key is pressed (a \fImacro\fP).
+.PP
+.SS Key Bindings
+.PP
+The syntax for controlling key bindings in the
+.I inputrc
+file is simple.  All that is required is the name of the
+command or the text of a macro and a key sequence to which
+it should be bound. The name may be specified in one of two ways:
+as a symbolic key name, possibly with \fIMeta\-\fP or \fIControl\-\fP
+prefixes, or as a key sequence.
+.PP
+When using the form \fBkeyname\fP:\^\fIfunction-name\fP or \fImacro\fP,
+.I keyname
+is the name of a key spelled out in English.  For example:
+.sp
+.RS
+Control\-u: universal\-argument
+.br
+Meta\-Rubout: backward\-kill\-word
+.br
+Control\-o: "> output"
+.RE
+.LP
+In the above example,
+.I C\-u
+is bound to the function
+.BR universal\-argument ,
+.I M-DEL
+is bound to the function
+.BR backward\-kill\-word ,
+and
+.I C\-o
+is bound to run the macro
+expressed on the right hand side (that is, to insert the text
+.if t \f(CW> output\fP
+.if n ``> output''
+into the line).
+.PP
+In the second form, \fB"keyseq"\fP:\^\fIfunction\-name\fP or \fImacro\fP,
+.B keyseq
+differs from
+.B keyname
+above in that strings denoting
+an entire key sequence may be specified by placing the sequence
+within double quotes.  Some GNU Emacs style key escapes can be
+used, as in the following example, but the symbolic character names
+are not recognized.
+.sp
+.RS
+"\eC\-u": universal\-argument
+.br
+"\eC\-x\eC\-r": re\-read\-init\-file
+.br
+"\ee[11~": "Function Key 1"
+.RE
+.PP
+In this example,
+.I C-u
+is again bound to the function
+.BR universal\-argument .
+.I "C-x C-r"
+is bound to the function
+.BR re\-read\-init\-file ,
+and 
+.I "ESC [ 1 1 ~"
+is bound to insert the text
+.if t \f(CWFunction Key 1\fP.
+.if n ``Function Key 1''.
+.PP
+The full set of GNU Emacs style escape sequences available when specifying
+key sequences is
+.RS
+.PD 0
+.TP
+.B \eC\-
+control prefix
+.TP
+.B \eM\-
+meta prefix
+.TP
+.B \ee
+an escape character
+.TP
+.B \e\e
+backslash
+.TP
+.B \e"
+literal ", a double quote
+.TP
+.B \e'
+literal ', a single quote
+.RE
+.PD
+.PP
+In addition to the GNU Emacs style escape sequences, a second
+set of backslash escapes is available:
+.RS
+.PD 0
+.TP
+.B \ea
+alert (bell)
+.TP
+.B \eb
+backspace
+.TP
+.B \ed
+delete
+.TP
+.B \ef
+form feed
+.TP
+.B \en
+newline
+.TP
+.B \er
+carriage return
+.TP
+.B \et
+horizontal tab
+.TP
+.B \ev
+vertical tab
+.TP
+.B \e\fInnn\fP
+the eight-bit character whose value is the octal value \fInnn\fP
+(one to three digits)
+.TP
+.B \ex\fIHH\fP
+the eight-bit character whose value is the hexadecimal value \fIHH\fP
+(one or two hex digits)
+.RE
+.PD
+.PP
+When entering the text of a macro, single or double quotes should
+be used to indicate a macro definition.  Unquoted text
+is assumed to be a function name.
+In the macro body, the backslash escapes described above are expanded.
+Backslash will quote any other character in the macro text,
+including " and '.
+.PP
+.B Bash
+allows the current readline key bindings to be displayed or modified
+with the
+.B bind
+builtin command.  The editing mode may be switched during interactive
+use by using the
+.B \-o
+option to the
+.B set
+builtin command.  Other programs using this library provide
+similar mechanisms.  The
+.I inputrc
+file may be edited and re-read if a program does not provide
+any other means to incorporate new bindings.
+.SS Variables
+.PP
+Readline has variables that can be used to further customize its
+behavior.  A variable may be set in the
+.I inputrc
+file with a statement of the form
+.RS
+.PP
+\fBset\fP \fIvariable\-name\fP \fIvalue\fP
+.RE
+.PP
+Except where noted, readline variables can take the values
+.B On
+or
+.B Off
+(without regard to case).
+The variables and their default values are:
+.PP
+.PD 0
+.TP
+.B bell\-style (audible)
+Controls what happens when readline wants to ring the terminal bell.
+If set to \fBnone\fP, readline never rings the bell.  If set to
+\fBvisible\fP, readline uses a visible bell if one is available.
+If set to \fBaudible\fP, readline attempts to ring the terminal's bell.
+.TP
+.B comment\-begin (``#'')
+The string that is inserted in \fBvi\fP mode when the
+.B insert\-comment
+command is executed.
+This command is bound to
+.B M\-#
+in emacs mode and to
+.B #
+in vi command mode.
+.TP 
+.B completion\-ignore\-case (Off)
+If set to \fBOn\fP, readline performs filename matching and completion
+in a case\-insensitive fashion.
+.TP
+.B completion\-query\-items (100)
+This determines when the user is queried about viewing
+the number of possible completions
+generated by the \fBpossible\-completions\fP command.
+It may be set to any integer value greater than or equal to
+zero.  If the number of possible completions is greater than
+or equal to the value of this variable, the user is asked whether
+or not he wishes to view them; otherwise they are simply listed
+on the terminal.
+.TP
+.B convert\-meta (On)
+If set to \fBOn\fP, readline will convert characters with the
+eighth bit set to an ASCII key sequence
+by stripping the eighth bit and prefixing it with an
+escape character (in effect, using escape as the \fImeta prefix\fP).
+.TP
+.B disable\-completion (Off)
+If set to \fBOn\fP, readline will inhibit word completion.  Completion 
+characters will be inserted into the line as if they had been
+mapped to \fBself-insert\fP.
+.TP
+.B editing\-mode (emacs)
+Controls whether readline begins with a set of key bindings similar
+to emacs or vi.
+.B editing\-mode
+can be set to either
+.B emacs
+or
+.BR vi .
+.TP
+.B enable\-keypad (Off)
+When set to \fBOn\fP, readline will try to enable the application
+keypad when it is called.  Some systems need this to enable the
+arrow keys.
+.TP
+.B expand\-tilde (Off)
+If set to \fBon\fP, tilde expansion is performed when readline
+attempts word completion.
+.TP
+.B history-preserve-point     
+If set to \fBon\fP, the history code attempts to place point at the 
+same location on each history line retrived with \fBprevious-history\fP 
+or \fBnext-history\fP.
+.TP
+.B horizontal\-scroll\-mode (Off)
+When set to \fBOn\fP, makes readline use a single line for display,
+scrolling the input horizontally on a single screen line when it
+becomes longer than the screen width rather than wrapping to a new line.
+.TP
+.B input\-meta (Off)
+If set to \fBOn\fP, readline will enable eight-bit input (that is,
+it will not clear the eighth bit in the characters it reads),
+regardless of what the terminal claims it can support.  The name
+.B meta\-flag
+is a synonym for this variable.
+.TP
+.B isearch\-terminators (``C\-[ C\-J'')
+The string of characters that should terminate an incremental
+search without subsequently executing the character as a command.
+If this variable has not been given a value, the characters
+\fIESC\fP and \fIC\-J\fP will terminate an incremental search.
+.TP
+.B keymap (emacs)
+Set the current readline keymap.  The set of legal keymap names is
+\fIemacs, emacs-standard, emacs-meta, emacs-ctlx, vi, vi-move,
+vi-command\fP, and
+.IR vi-insert .
+\fIvi\fP is equivalent to \fIvi-command\fP; \fIemacs\fP is
+equivalent to \fIemacs-standard\fP.  The default value is
+.IR emacs .
+The value of
+.B editing\-mode
+also affects the default keymap.
+.TP
+.B mark\-directories (On)
+If set to \fBOn\fP, completed directory names have a slash
+appended.
+.TP
+.B mark\-modified\-lines (Off)
+If set to \fBOn\fP, history lines that have been modified are displayed
+with a preceding asterisk (\fB*\fP).
+.TP
+.B mark\-symlinked\-directories (Off)
+If set to \fBOn\fP, completed names which are symbolic links to directories
+have a slash appended (subject to the value of
+\fBmark\-directories\fP).
+.TP
+.B match\-hidden\-files (On)
+This variable, when set to \fBOn\fP, causes readline to match files whose 
+names begin with a `.' (hidden files) when performing filename     
+completion, unless the leading `.' is     
+supplied by the user in the filename to be completed.
+.TP
+.B output\-meta (Off)
+If set to \fBOn\fP, readline will display characters with the
+eighth bit set directly rather than as a meta-prefixed escape
+sequence.
+.TP
+.B page\-completions (On)
+If set to \fBOn\fP, readline uses an internal \fImore\fP-like pager
+to display a screenful of possible completions at a time.
+.TP
+.B print\-completions\-horizontally (Off)
+If set to \fBOn\fP, readline will display completions with matches
+sorted horizontally in alphabetical order, rather than down the screen.
+.TP
+.B show\-all\-if\-ambiguous (Off)
+This alters the default behavior of the completion functions.  If
+set to
+.BR on ,
+words which have more than one possible completion cause the
+matches to be listed immediately instead of ringing the bell.
+.TP
+.B visible\-stats (Off)
+If set to \fBOn\fP, a character denoting a file's type as reported  
+by \fIstat\fP(2) is appended to the filename when listing possible
+completions.
+.PD
+.SS Conditional Constructs
+.PP
+Readline implements a facility similar in spirit to the conditional
+compilation features of the C preprocessor which allows key
+bindings and variable settings to be performed as the result
+of tests.  There are four parser directives used.
+.IP \fB$if\fP
+The 
+.B $if
+construct allows bindings to be made based on the
+editing mode, the terminal being used, or the application using
+readline.  The text of the test extends to the end of the line;
+no characters are required to isolate it.
+.RS
+.IP \fBmode\fP
+The \fBmode=\fP form of the \fB$if\fP directive is used to test
+whether readline is in emacs or vi mode.
+This may be used in conjunction
+with the \fBset keymap\fP command, for instance, to set bindings in
+the \fIemacs-standard\fP and \fIemacs-ctlx\fP keymaps only if
+readline is starting out in emacs mode.
+.IP \fBterm\fP
+The \fBterm=\fP form may be used to include terminal-specific
+key bindings, perhaps to bind the key sequences output by the
+terminal's function keys.  The word on the right side of the
+.B =
+is tested against the full name of the terminal and the portion
+of the terminal name before the first \fB\-\fP.  This allows
+.I sun
+to match both
+.I sun
+and
+.IR sun\-cmd ,
+for instance.
+.IP \fBapplication\fP
+The \fBapplication\fP construct is used to include
+application-specific settings.  Each program using the readline
+library sets the \fIapplication name\fP, and an initialization
+file can test for a particular value.
+This could be used to bind key sequences to functions useful for
+a specific program.  For instance, the following command adds a
+key sequence that quotes the current or previous word in Bash:
+.sp 1
+.RS
+.nf
+\fB$if\fP Bash
+# Quote the current or previous word
+"\eC-xq": "\eeb\e"\eef\e""
+\fB$endif\fP
+.fi
+.RE
+.RE
+.IP \fB$endif\fP
+This command, as seen in the previous example, terminates an
+\fB$if\fP command.
+.IP \fB$else\fP
+Commands in this branch of the \fB$if\fP directive are executed if
+the test fails.
+.IP \fB$include\fP
+This directive takes a single filename as an argument and reads commands
+and bindings from that file.  For example, the following directive
+would read \fI/etc/inputrc\fP:
+.sp 1
+.RS
+.nf
+\fB$include\fP \^ \fI/etc/inputrc\fP
+.fi 
+.RE
+.SH SEARCHING
+.PP
+Readline provides commands for searching through the command history
+for lines containing a specified string.
+There are two search modes:
+.I incremental
+and
+.IR non-incremental .
+.PP
+Incremental searches begin before the user has finished typing the
+search string.
+As each character of the search string is typed, readline displays
+the next entry from the history matching the string typed so far.
+An incremental search requires only as many characters as needed to
+find the desired history entry.
+To search backward in the history for a particular string, type
+\fBC\-r\fP.  Typing \fBC\-s\fP searches forward through the history.
+The characters present in the value of the \fBisearch-terminators\fP
+variable are used to terminate an incremental search.
+If that variable has not been assigned a value the \fIEscape\fP and
+\fBC\-J\fP characters will terminate an incremental search.
+\fBC\-G\fP will abort an incremental search and restore the original
+line.
+When the search is terminated, the history entry containing the
+search string becomes the current line.
+.PP
+To find other matching entries in the history list, type \fBC\-s\fP or
+\fBC\-r\fP as appropriate.
+This will search backward or forward in the history for the next
+line matching the search string typed so far.
+Any other key sequence bound to a readline command will terminate
+the search and execute that command.
+For instance, a newline will terminate the search and accept
+the line, thereby executing the command from the history list.
+A movement command will terminate the search, make the last line found
+the current line, and begin editing.
+.PP
+Non-incremental searches read the entire search string before starting
+to search for matching history lines.  The search string may be
+typed by the user or be part of the contents of the current line.
+.SH EDITING COMMANDS
+.PP
+The following is a list of the names of the commands and the default
+key sequences to which they are bound.
+Command names without an accompanying key sequence are unbound by default.
+.PP
+In the following descriptions, \fIpoint\fP refers to the current cursor
+position, and \fImark\fP refers to a cursor position saved by the
+\fBset\-mark\fP command.
+The text between the point and mark is referred to as the \fIregion\fP.
+.SS Commands for Moving
+.PP
+.PD 0
+.TP
+.B beginning\-of\-line (C\-a)
+Move to the start of the current line.
+.TP
+.B end\-of\-line (C\-e)
+Move to the end of the line.
+.TP
+.B forward\-char (C\-f)
+Move forward a character.
+.TP
+.B backward\-char (C\-b)
+Move back a character.
+.TP
+.B forward\-word (M\-f)
+Move forward to the end of the next word.  Words are composed of
+alphanumeric characters (letters and digits).
+.TP
+.B backward\-word (M\-b)
+Move back to the start of the current or previous word.  Words are
+composed of alphanumeric characters (letters and digits).
+.TP
+.B clear\-screen (C\-l)
+Clear the screen leaving the current line at the top of the screen.
+With an argument, refresh the current line without clearing the
+screen.
+.TP
+.B redraw\-current\-line
+Refresh the current line.
+.PD
+.SS Commands for Manipulating the History
+.PP
+.PD 0
+.TP
+.B accept\-line (Newline, Return)
+Accept the line regardless of where the cursor is.
+If this line is
+non-empty, it may be added to the history list for future recall with
+\fBadd_history()\fP.
+If the line is a modified history line, the history line is restored to its original state.
+.TP
+.B previous\-history (C\-p)
+Fetch the previous command from the history list, moving back in
+the list.
+.TP
+.B next\-history (C\-n)
+Fetch the next command from the history list, moving forward in the
+list.
+.TP
+.B beginning\-of\-history (M\-<)
+Move to the first line in the history.
+.TP
+.B end\-of\-history (M\->)
+Move to the end of the input history, i.e., the line currently being
+entered.
+.TP
+.B reverse\-search\-history (C\-r)
+Search backward starting at the current line and moving `up' through
+the history as necessary.  This is an incremental search.
+.TP
+.B forward\-search\-history (C\-s)
+Search forward starting at the current line and moving `down' through
+the history as necessary.  This is an incremental search.
+.TP
+.B non\-incremental\-reverse\-search\-history (M\-p)
+Search backward through the history starting at the current line
+using a non-incremental search for a string supplied by the user.
+.TP
+.B non\-incremental\-forward\-search\-history (M\-n)
+Search forward through the history using a non-incremental search
+for a string supplied by the user.
+.TP
+.B history\-search\-forward
+Search forward through the history for the string of characters
+between the start of the current line and the current cursor
+position (the \fIpoint\fP).
+This is a non-incremental search.
+.TP
+.B history\-search\-backward
+Search backward through the history for the string of characters
+between the start of the current line and the point.
+This is a non-incremental search.
+.TP
+.B yank\-nth\-arg (M\-C\-y)
+Insert the first argument to the previous command (usually
+the second word on the previous line) at point.
+With an argument
+.IR n ,
+insert the \fIn\fPth word from the previous command (the words
+in the previous command begin with word 0).  A negative argument
+inserts the \fIn\fPth word from the end of the previous command.
+.TP
+.B
+yank\-last\-arg (M\-.\^, M\-_\^)
+Insert the last argument to the previous command (the last word of
+the previous history entry).  With an argument,
+behave exactly like \fByank\-nth\-arg\fP.
+Successive calls to \fByank\-last\-arg\fP move back through the history
+list, inserting the last argument of each line in turn.
+.PD
+.SS Commands for Changing Text
+.PP
+.PD 0
+.TP
+.B delete\-char (C\-d)
+Delete the character at point.  If point is at the
+beginning of the line, there are no characters in the line, and
+the last character typed was not bound to \fBdelete\-char\fP, then return
+.SM
+.BR EOF .
+.TP
+.B backward\-delete\-char (Rubout)
+Delete the character behind the cursor.  When given a numeric argument,
+save the deleted text on the kill ring.
+.TP
+.B forward\-backward\-delete\-char   
+Delete the character under the cursor, unless the cursor is at the
+end of the line, in which case the character behind the cursor is
+deleted.
+.TP
+.B quoted\-insert (C\-q, C\-v)
+Add the next character that you type to the line verbatim.  This is
+how to insert characters like \fBC\-q\fP, for example.
+.TP
+.B tab\-insert (M-TAB)
+Insert a tab character.
+.TP
+.B self\-insert (a,\ b,\ A,\ 1,\ !,\ ...)
+Insert the character typed.
+.TP
+.B transpose\-chars (C\-t)
+Drag the character before point forward over the character at point,
+moving point forward as well.
+If point is at the end of the line, then this transposes
+the two characters before point.
+Negative arguments have no effect.
+.TP
+.B transpose\-words (M\-t)
+Drag the word before point past the word after point,
+moving point over that word as well.
+If point is at the end of the line, this transposes
+the last two words on the line.
+.TP
+.B upcase\-word (M\-u)
+Uppercase the current (or following) word.  With a negative argument,
+uppercase the previous word, but do not move point.
+.TP
+.B downcase\-word (M\-l)
+Lowercase the current (or following) word.  With a negative argument,
+lowercase the previous word, but do not move point.
+.TP
+.B capitalize\-word (M\-c)
+Capitalize the current (or following) word.  With a negative argument,
+capitalize the previous word, but do not move point.
+.TP
+.B overwrite\-mode
+Toggle overwrite mode.  With an explicit positive numeric argument,
+switches to overwrite mode.  With an explicit non-positive numeric
+argument, switches to insert mode.  This command affects only
+\fBemacs\fP mode; \fBvi\fP mode does overwrite differently.
+Each call to \fIreadline()\fP starts in insert mode.
+In overwrite mode, characters bound to \fBself\-insert\fP replace   
+the text at point rather than pushing the text to the right.
+Characters bound to \fBbackward\-delete\-char\fP replace the character
+before point with a space.  By default, this command is unbound.
+.PD
+.SS Killing and Yanking
+.PP
+.PD 0
+.TP
+.B kill\-line (C\-k)
+Kill the text from point to the end of the line.
+.TP
+.B backward\-kill\-line (C\-x Rubout)
+Kill backward to the beginning of the line.
+.TP
+.B unix\-line\-discard (C\-u)
+Kill backward from point to the beginning of the line.
+The killed text is saved on the kill-ring.
+.\" There is no real difference between this and backward-kill-line
+.TP
+.B kill\-whole\-line
+Kill all characters on the current line, no matter where point is.
+.TP
+.B kill\-word  (M\-d)
+Kill from point the end of the current word, or if between
+words, to the end of the next word.  Word boundaries are the same as
+those used by \fBforward\-word\fP.
+.TP
+.B backward\-kill\-word (M\-Rubout)
+Kill the word behind point.
+Word boundaries are the same as those used by \fBbackward\-word\fP.
+.TP
+.B unix\-word\-rubout (C\-w)
+Kill the word behind point, using white space as a word boundary.
+The killed text is saved on the kill-ring.
+.TP
+.B delete\-horizontal\-space (M\-\e)
+Delete all spaces and tabs around point.
+.TP
+.B kill\-region
+Kill the text between the point and \fImark\fP (saved cursor position).
+This text is referred to as the \fIregion\fP.
+.TP
+.B copy\-region\-as\-kill
+Copy the text in the region to the kill buffer.
+.TP
+.B copy\-backward\-word
+Copy the word before point to the kill buffer.
+The word boundaries are the same as \fBbackward\-word\fP.
+.TP
+.B copy\-forward\-word
+Copy the word following point to the kill buffer.
+The word boundaries are the same as \fBforward\-word\fP.
+.TP
+.B yank (C\-y)
+Yank the top of the kill ring into the buffer at point.
+.TP
+.B yank\-pop (M\-y)
+Rotate the kill ring, and yank the new top.  Only works following
+.B yank
+or
+.BR yank\-pop .
+.PD
+.SS Numeric Arguments
+.PP
+.PD 0
+.TP
+.B digit\-argument (M\-0, M\-1, ..., M\-\-)
+Add this digit to the argument already accumulating, or start a new
+argument.  M\-\- starts a negative argument.
+.TP
+.B universal\-argument
+This is another way to specify an argument.
+If this command is followed by one or more digits, optionally with a
+leading minus sign, those digits define the argument.
+If the command is followed by digits, executing
+.B universal\-argument
+again ends the numeric argument, but is otherwise ignored.
+As a special case, if this command is immediately followed by a
+character that is neither a digit or minus sign, the argument count
+for the next command is multiplied by four.
+The argument count is initially one, so executing this function the
+first time makes the argument count four, a second time makes the
+argument count sixteen, and so on.
+.PD
+.SS Completing
+.PP
+.PD 0
+.TP
+.B complete (TAB)
+Attempt to perform completion on the text before point.
+The actual completion performed is application-specific.
+.BR Bash ,
+for instance, attempts completion treating the text as a variable
+(if the text begins with \fB$\fP), username (if the text begins with
+\fB~\fP), hostname (if the text begins with \fB@\fP), or
+command (including aliases and functions) in turn.  If none
+of these produces a match, filename completion is attempted.
+.BR Gdb ,
+on the other hand,
+allows completion of program functions and variables, and
+only attempts filename completion under certain circumstances.
+.TP
+.B possible\-completions (M\-?)
+List the possible completions of the text before point.
+.TP
+.B insert\-completions (M\-*)
+Insert all completions of the text before point
+that would have been generated by
+\fBpossible\-completions\fP.
+.TP
+.B menu\-complete
+Similar to \fBcomplete\fP, but replaces the word to be completed
+with a single match from the list of possible completions.
+Repeated execution of \fBmenu\-complete\fP steps through the list
+of possible completions, inserting each match in turn.
+At the end of the list of completions, the bell is rung
+(subject to the setting of \fBbell\-style\fP)
+and the original text is restored.
+An argument of \fIn\fP moves \fIn\fP positions forward in the list
+of matches; a negative argument may be used to move backward 
+through the list.
+This command is intended to be bound to \fBTAB\fP, but is unbound
+by default.
+.TP
+.B delete\-char\-or\-list
+Deletes the character under the cursor if not at the beginning or
+end of the line (like \fBdelete-char\fP).
+If at the end of the line, behaves identically to
+\fBpossible-completions\fP.
+.PD
+.SS Keyboard Macros
+.PP
+.PD 0
+.TP
+.B start\-kbd\-macro (C\-x (\^)
+Begin saving the characters typed into the current keyboard macro.
+.TP
+.B end\-kbd\-macro (C\-x )\^)
+Stop saving the characters typed into the current keyboard macro
+and store the definition.
+.TP
+.B call\-last\-kbd\-macro (C\-x e)
+Re-execute the last keyboard macro defined, by making the characters
+in the macro appear as if typed at the keyboard.
+.PD
+.SS Miscellaneous
+.PP
+.PD 0
+.TP
+.B re\-read\-init\-file (C\-x C\-r)
+Read in the contents of the \fIinputrc\fP file, and incorporate
+any bindings or variable assignments found there.
+.TP
+.B abort (C\-g)
+Abort the current editing command and
+ring the terminal's bell (subject to the setting of
+.BR bell\-style ).
+.TP
+.B do\-uppercase\-version (M\-a, M\-b, M\-\fIx\fP, ...)
+If the metafied character \fIx\fP is lowercase, run the command
+that is bound to the corresponding uppercase character.
+.TP
+.B prefix\-meta (ESC)
+Metafy the next character typed.
+.SM
+.B ESC
+.B f
+is equivalent to
+.BR Meta\-f .
+.TP
+.B undo (C\-_, C\-x C\-u)
+Incremental undo, separately remembered for each line.
+.TP
+.B revert\-line (M\-r)
+Undo all changes made to this line.  This is like executing the
+.B undo
+command enough times to return the line to its initial state.
+.TP
+.B tilde\-expand (M\-&)
+Perform tilde expansion on the current word.
+.TP
+.B set\-mark (C\-@, M\-<space>)
+Set the mark to the point.  If a
+numeric argument is supplied, the mark is set to that position.
+.TP
+.B exchange\-point\-and\-mark (C\-x C\-x)
+Swap the point with the mark.  The current cursor position is set to
+the saved position, and the old cursor position is saved as the mark.
+.TP
+.B character\-search (C\-])
+A character is read and point is moved to the next occurrence of that
+character.  A negative count searches for previous occurrences.
+.TP
+.B character\-search\-backward (M\-C\-])
+A character is read and point is moved to the previous occurrence of that
+character.  A negative count searches for subsequent occurrences.
+.TP
+.B insert\-comment (M\-#)
+Without a numeric argument, the value of the readline
+.B comment\-begin
+variable is inserted at the beginning of the current line.
+If a numeric argument is supplied, this command acts as a toggle:  if
+the characters at the beginning of the line do not match the value   
+of \fBcomment\-begin\fP, the value is inserted, otherwise             
+the characters in \fBcomment-begin\fP are deleted from the beginning of
+the line.
+In either case, the line is accepted as if a newline had been typed.
+The default value of
+.B comment\-begin
+makes the current line a shell comment.
+If a numeric argument causes the comment character to be removed, the line
+will be executed by the shell.
+.TP
+.B dump\-functions
+Print all of the functions and their key bindings to the
+readline output stream.  If a numeric argument is supplied,
+the output is formatted in such a way that it can be made part
+of an \fIinputrc\fP file.
+.TP
+.B dump\-variables
+Print all of the settable variables and their values to the
+readline output stream.  If a numeric argument is supplied,
+the output is formatted in such a way that it can be made part
+of an \fIinputrc\fP file.
+.TP
+.B dump\-macros
+Print all of the readline key sequences bound to macros and the
+strings they ouput.  If a numeric argument is supplied,
+the output is formatted in such a way that it can be made part
+of an \fIinputrc\fP file.
+.TP
+.B emacs\-editing\-mode (C\-e)
+When in
+.B vi
+command mode, this causes a switch to
+.B emacs
+editing mode.
+.TP
+.B vi\-editing\-mode (M\-C\-j)
+When in
+.B emacs
+editing mode, this causes a switch to
+.B vi
+editing mode.
+.PD
+.SH DEFAULT KEY BINDINGS
+.LP
+The following is a list of the default emacs and vi bindings.
+Characters with the eighth bit set are written as M\-<character>, and
+are referred to as
+.I metafied
+characters.
+The printable ASCII characters not mentioned in the list of emacs
+standard bindings are bound to the
+.B self\-insert
+function, which just inserts the given character into the input line.
+In vi insertion mode, all characters not specifically mentioned are
+bound to
+.BR self\-insert .
+Characters assigned to signal generation by
+.IR stty (1)
+or the terminal driver, such as C-Z or C-C,
+retain that function.
+Upper and lower case metafied characters are bound to the same function in
+the emacs mode meta keymap.
+The remaining characters are unbound, which causes readline
+to ring the bell (subject to the setting of the
+.B bell\-style
+variable).
+.SS Emacs Mode
+.RS +.6i
+.nf
+.ta 2.5i
+.sp
+Emacs Standard bindings
+.sp
+"C-@"  set-mark
+"C-A"  beginning-of-line
+"C-B"  backward-char
+"C-D"  delete-char
+"C-E"  end-of-line
+"C-F"  forward-char
+"C-G"  abort
+"C-H"  backward-delete-char
+"C-I"  complete
+"C-J"  accept-line
+"C-K"  kill-line
+"C-L"  clear-screen
+"C-M"  accept-line
+"C-N"  next-history
+"C-P"  previous-history
+"C-Q"  quoted-insert
+"C-R"  reverse-search-history
+"C-S"  forward-search-history
+"C-T"  transpose-chars
+"C-U"  unix-line-discard
+"C-V"  quoted-insert
+"C-W"  unix-word-rubout
+"C-Y"  yank
+"C-]"  character-search
+"C-_"  undo
+"\^ " to "/"  self-insert
+"0"  to "9"  self-insert
+":"  to "~"  self-insert
+"C-?"  backward-delete-char
+.PP
+Emacs Meta bindings
+.sp
+"M-C-G"  abort
+"M-C-H"  backward-kill-word
+"M-C-I"  tab-insert
+"M-C-J"  vi-editing-mode
+"M-C-M"  vi-editing-mode
+"M-C-R"  revert-line
+"M-C-Y"  yank-nth-arg
+"M-C-["  complete
+"M-C-]"  character-search-backward
+"M-space"  set-mark
+"M-#"  insert-comment
+"M-&"  tilde-expand
+"M-*"  insert-completions
+"M--"  digit-argument
+"M-."  yank-last-arg
+"M-0"  digit-argument
+"M-1"  digit-argument
+"M-2"  digit-argument
+"M-3"  digit-argument
+"M-4"  digit-argument
+"M-5"  digit-argument
+"M-6"  digit-argument
+"M-7"  digit-argument
+"M-8"  digit-argument
+"M-9"  digit-argument
+"M-<"  beginning-of-history
+"M-="  possible-completions
+"M->"  end-of-history
+"M-?"  possible-completions
+"M-B"  backward-word
+"M-C"  capitalize-word
+"M-D"  kill-word
+"M-F"  forward-word
+"M-L"  downcase-word
+"M-N"  non-incremental-forward-search-history
+"M-P"  non-incremental-reverse-search-history
+"M-R"  revert-line
+"M-T"  transpose-words
+"M-U"  upcase-word
+"M-Y"  yank-pop
+"M-\e"  delete-horizontal-space
+"M-~"  tilde-expand
+"M-C-?"  backward-kill-word
+"M-_"  yank-last-arg
+.PP
+Emacs Control-X bindings
+.sp
+"C-XC-G"  abort
+"C-XC-R"  re-read-init-file
+"C-XC-U"  undo
+"C-XC-X"  exchange-point-and-mark
+"C-X("  start-kbd-macro
+"C-X)"  end-kbd-macro
+"C-XE"  call-last-kbd-macro
+"C-XC-?"  backward-kill-line
+.sp
+.RE
+.SS VI Mode bindings
+.RS +.6i
+.nf
+.ta 2.5i
+.sp
+.PP
+VI Insert Mode functions
+.sp
+"C-D"  vi-eof-maybe
+"C-H"  backward-delete-char
+"C-I"  complete
+"C-J"  accept-line
+"C-M"  accept-line
+"C-R"  reverse-search-history
+"C-S"  forward-search-history
+"C-T"  transpose-chars
+"C-U"  unix-line-discard
+"C-V"  quoted-insert
+"C-W"  unix-word-rubout
+"C-Y"  yank
+"C-["  vi-movement-mode
+"C-_"  undo
+"\^ " to "~"  self-insert
+"C-?"  backward-delete-char
+.PP
+VI Command Mode functions
+.sp
+"C-D"  vi-eof-maybe
+"C-E"  emacs-editing-mode
+"C-G"  abort
+"C-H"  backward-char
+"C-J"  accept-line
+"C-K"  kill-line
+"C-L"  clear-screen
+"C-M"  accept-line
+"C-N"  next-history
+"C-P"  previous-history
+"C-Q"  quoted-insert
+"C-R"  reverse-search-history
+"C-S"  forward-search-history
+"C-T"  transpose-chars
+"C-U"  unix-line-discard
+"C-V"  quoted-insert
+"C-W"  unix-word-rubout
+"C-Y"  yank
+"C-_"  vi-undo
+"\^ "  forward-char
+"#"  insert-comment
+"$"  end-of-line
+"%"  vi-match
+"&"  vi-tilde-expand
+"*"  vi-complete
+"+"  next-history
+","  vi-char-search
+"-"  previous-history
+"."  vi-redo
+"/"  vi-search
+"0"  beginning-of-line
+"1" to "9"  vi-arg-digit
+";"  vi-char-search
+"="  vi-complete
+"?"  vi-search
+"A"  vi-append-eol
+"B"  vi-prev-word
+"C"  vi-change-to
+"D"  vi-delete-to
+"E"  vi-end-word
+"F"  vi-char-search
+"G"  vi-fetch-history
+"I"  vi-insert-beg
+"N"  vi-search-again
+"P"  vi-put
+"R"  vi-replace
+"S"  vi-subst
+"T"  vi-char-search
+"U"  revert-line
+"W"  vi-next-word
+"X"  backward-delete-char
+"Y"  vi-yank-to
+"\e"  vi-complete
+"^"  vi-first-print
+"_"  vi-yank-arg
+"`"  vi-goto-mark
+"a"  vi-append-mode
+"b"  vi-prev-word
+"c"  vi-change-to
+"d"  vi-delete-to
+"e"  vi-end-word
+"f"  vi-char-search
+"h"  backward-char
+"i"  vi-insertion-mode
+"j"  next-history
+"k"  prev-history
+"l"  forward-char
+"m"  vi-set-mark
+"n"  vi-search-again
+"p"  vi-put
+"r"  vi-change-char
+"s"  vi-subst
+"t"  vi-char-search
+"u"  vi-undo
+"w"  vi-next-word
+"x"  vi-delete
+"y"  vi-yank-to
+"|"  vi-column
+"~"  vi-change-case
+.RE
+.SH "SEE ALSO"
+.PD 0
+.TP
+\fIThe Gnu Readline Library\fP, Brian Fox and Chet Ramey
+.TP
+\fIThe Gnu History Library\fP, Brian Fox and Chet Ramey
+.TP
+\fIbash\fP(1)
+.PD
+.SH FILES
+.PD 0
+.TP
+.FN ~/.inputrc
+Individual \fBreadline\fP initialization file
+.PD
+.SH AUTHORS
+Brian Fox, Free Software Foundation
+.br
+bfox@gnu.org
+.PP
+Chet Ramey, Case Western Reserve University
+.br
+chet@ins.CWRU.Edu
+.SH BUG REPORTS
+If you find a bug in
+.B readline,
+you should report it.  But first, you should
+make sure that it really is a bug, and that it appears in the latest
+version of the
+.B readline
+library that you have.
+.PP
+Once you have determined that a bug actually exists, mail a
+bug report to \fIbug\-readline\fP@\fIgnu.org\fP.
+If you have a fix, you are welcome to mail that
+as well!  Suggestions and `philosophical' bug reports may be mailed
+to \fPbug-readline\fP@\fIgnu.org\fP or posted to the Usenet
+newsgroup
+.BR gnu.bash.bug .
+.PP
+Comments and bug reports concerning
+this manual page should be directed to
+.IR chet@ins.CWRU.Edu .
+.SH BUGS
+.PP
+It's too big and too slow.

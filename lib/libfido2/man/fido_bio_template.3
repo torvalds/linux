@@ -1,0 +1,180 @@
+.\" Copyright (c) 2019 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_BIO_TEMPLATE 3
+.Os
+.Sh NAME
+.Nm fido_bio_template ,
+.Nm fido_bio_template_array_count ,
+.Nm fido_bio_template_array_free ,
+.Nm fido_bio_template_array_new ,
+.Nm fido_bio_template_free ,
+.Nm fido_bio_template_id_len ,
+.Nm fido_bio_template_id_ptr ,
+.Nm fido_bio_template_name ,
+.Nm fido_bio_template_new ,
+.Nm fido_bio_template_set_id ,
+.Nm fido_bio_template_set_name
+.Nd FIDO2 biometric template API
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.In fido/bio.h
+.Ft fido_bio_template_t *
+.Fn fido_bio_template_new "void"
+.Ft void
+.Fn fido_bio_template_free "fido_bio_template_t **template_p"
+.Ft const char *
+.Fn fido_bio_template_name "const fido_bio_template_t *template"
+.Ft const unsigned char *
+.Fn fido_bio_template_id_ptr "const fido_bio_template_t *template"
+.Ft size_t
+.Fn fido_bio_template_id_len "const fido_bio_template_t *template"
+.Ft int
+.Fn fido_bio_template_set_id "fido_bio_template_t *template" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_bio_template_set_name "fido_bio_template_t *template" "const char *name"
+.Ft fido_bio_template_array_t *
+.Fn fido_bio_template_array_new "void"
+.Ft void
+.Fn fido_bio_template_array_free "fido_bio_template_array_t **array_p"
+.Ft size_t
+.Fn fido_bio_template_array_count "const fido_bio_template_array_t *array"
+.Ft const fido_bio_template_t *
+.Fn fido_bio_template "const fido_bio_template_array_t *array" "size_t idx"
+.Sh DESCRIPTION
+Existing FIDO2 biometric enrollments are abstracted in
+.Em libfido2
+by the
+.Vt fido_bio_template_t
+and
+.Vt fido_bio_template_array_t
+types.
+.Pp
+The functions described in this page allow a
+.Vt fido_bio_template_t
+type to be allocated, deallocated, changed, and inspected,
+and a
+.Vt fido_bio_template_array_t
+type to be allocated, deallocated, and inspected.
+For device operations on
+.Vt fido_bio_template_t
+and
+.Vt fido_bio_template_array_t ,
+please refer to
+.Xr fido_bio_dev_get_info 3 .
+.Pp
+The
+.Fn fido_bio_template_new
+function returns a pointer to a newly allocated, empty
+.Vt fido_bio_template_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_bio_template_free
+function releases the memory backing
+.Fa *template_p ,
+where
+.Fa *template_p
+must have been previously allocated by
+.Fn fido_bio_template_new .
+On return,
+.Fa *template_p
+is set to NULL.
+Either
+.Fa template_p
+or
+.Fa *template_p
+may be NULL, in which case
+.Fn fido_bio_template_free
+is a NOP.
+.Pp
+The
+.Fn fido_bio_template_name
+function returns a pointer to a NUL-terminated string containing
+the friendly name of
+.Fa template ,
+or NULL if
+.Fa template
+does not have a friendly name set.
+.Pp
+The
+.Fn fido_bio_template_id_ptr
+function returns a pointer to the template id of
+.Fa template ,
+or NULL if
+.Fa template
+does not have an id.
+The corresponding length can be obtained by
+.Fn fido_bio_template_id_len .
+.Pp
+The
+.Fn fido_bio_template_set_name
+function sets the friendly name of
+.Fa template
+to
+.Fa name .
+If
+.Fa name
+is NULL, the friendly name of
+.Fa template
+is unset.
+.Pp
+The
+.Fn fido_bio_template_array_new
+function returns a pointer to a newly allocated, empty
+.Vt fido_bio_template_array_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_bio_template_array_free
+function releases the memory backing
+.Fa *array_p ,
+where
+.Fa *array_p
+must have been previously allocated by
+.Fn fido_bio_template_array_new .
+On return,
+.Fa *array_p
+is set to NULL.
+Either
+.Fa array_p
+or
+.Fa *array_p
+may be NULL, in which case
+.Fn fido_bio_template_array_free
+is a NOP.
+.Pp
+The
+.Fn fido_bio_template_array_count
+function returns the number of templates in
+.Fa array .
+.Pp
+The
+.Fn fido_bio_template
+function returns a pointer to the template at index
+.Fa idx
+in
+.Fa array .
+Please note that the first template in
+.Fa array
+has an
+.Fa idx
+(index) value of 0.
+.Sh RETURN VALUES
+The error codes returned by
+.Fn fido_bio_template_set_id
+and
+.Fn fido_bio_template_set_name
+are defined in
+.In fido/err.h .
+On success,
+.Dv FIDO_OK
+is returned.
+.Sh SEE ALSO
+.Xr fido_bio_dev_get_info 3 ,
+.Xr fido_bio_enroll_new 3

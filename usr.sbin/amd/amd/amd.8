@@ -1,0 +1,225 @@
+.\"	$OpenBSD: amd.8,v 1.27 2022/07/30 07:19:31 jsg Exp $
+.\"
+.\" Copyright (c) 1989 Jan-Simon Pendry
+.\" Copyright (c) 1989 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)amd.8	5.10 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: July 30 2022 $
+.Dt AMD 8
+.Os
+.Sh NAME
+.Nm amd
+.Nd automatically mount file systems
+.Sh SYNOPSIS
+.Nm amd
+.Bk -words
+.Op Fl nprv
+.Op Fl a Ar mount_point
+.Op Fl C Ar cluster
+.Op Fl c Ar duration
+.Op Fl D Ar option
+.Op Fl d Ar domain
+.Op Fl k Ar kernel-arch
+.Op Fl l Ar logfile
+.Op Fl t Ar interval.interval
+.Op Fl w Ar interval
+.Op Fl x Ar log-option
+.Op Fl y Ar YP-domain
+.Op Ar directory mapname Op Fl map-options
+.Ar ...
+.Ek
+.Sh DESCRIPTION
+.Nm amd
+is a daemon that automatically mounts filesystems
+whenever a file or directory
+within that filesystem is accessed.
+Filesystems are automatically unmounted when they
+appear to be quiescent.
+.Pp
+.Nm amd
+operates by attaching itself as an NFS server to each of the specified
+.Ar directories .
+Lookups within the specified directories
+are handled by
+.Nm amd ,
+which uses the map defined by
+.Ar mapname
+to determine how to resolve the lookup.
+Generally, this will be a host name, some filesystem information
+and some mount options for the given filesystem.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a Ar mount_point
+Specify an alternative location for the real mount points.
+The default is
+.Pa /tmp_mnt .
+.It Fl C Ar cluster
+Specify an alternative
+.Ar cluster
+name.
+The default is the system domain name.
+This variable is available inside the configuration file as
+.Va ${cluster} .
+.It Fl c Ar duration
+Specify a
+.Ar duration ,
+in seconds, that a looked up name remains
+cached when not in use.
+The default is 5 minutes.
+.It Fl D Ar option
+Select from a variety of debug options.
+Prefixing an option with the string
+.Dq no
+reverses the effect of that option.
+Options are cumulative.
+The most useful option is
+.Ar all .
+.Pp
+Since
+.Fl D
+is only used for debugging, other options are not documented here:
+the current supported set of options is listed by the
+.Fl v
+option
+and a fuller description is available in the program source.
+.It Fl d Ar domain
+Specify the local domain name.
+If this option is not given, the domain name is determined from the hostname.
+.It Fl k Ar kernel-arch
+Specifies the kernel architecture.
+This is used solely to set the ${karch} selector.
+.It Fl l Ar logfile
+Specify a logfile in which to record mount and unmount events.
+If
+.Ar logfile
+is the string
+.Em syslog ,
+the log messages will be sent to the system log daemon by
+.Xr syslog 3 .
+.It Fl n
+Normalize hostnames.
+The name referred to by ${rhost} is normalized relative to the
+host database before being used.
+The effect is to translate aliases into
+.Dq official
+names.
+.It Fl p
+Print
+.Em PID .
+Outputs the process ID of
+.Nm amd
+to standard output where it can be saved into a file.
+.It Fl r
+Restart existing mounts.
+.Nm amd
+will scan the mount file table to determine which filesystems
+are currently mounted.
+Whenever one of these would have been auto-mounted,
+.Nm amd
+.Em inherits
+it.
+.It Fl t Ar interval.interval
+Specify the
+.Ar interval ,
+in tenths of a second, between NFS/RPC/UDP retries.
+The default is 0.8 seconds.
+The second value alters the retransmit counter.
+Useful defaults are supplied if either or both
+values are missing.
+.It Fl v
+Version.
+Displays version and configuration information on standard error.
+.It Fl w Ar interval
+Specify an
+.Ar interval ,
+in seconds, between attempts to dismount
+filesystems that have exceeded their cached times.
+The default is 2 minutes.
+.It Fl x Ar log-option
+Specify run-time logging options.
+The options are a comma separated
+list chosen from: fatal, error, user, warn, info, map, stats, all.
+.It Fl y Ar YP-domain
+Specify an alternative NIS domain from which to fetch the NIS maps.
+The default is the system domain name.
+This option is ignored if NIS support is not available.
+This variable is available inside the configuration file as
+.Va ${domain} .
+.El
+.Sh FILES
+.Bl -tag -width /tmp_mntxx
+.It Pa /tmp_mnt
+directory under which filesystems are dynamically mounted
+.El
+.Sh SEE ALSO
+.Xr hostname 1 ,
+.Xr amq 8 ,
+.\" .Xr fsinfo 8 ,
+.\".Xr mk-amd-map 8 ,
+.Xr mount 8 ,
+.Xr umount 8
+.Rs
+.\" 4.4BSD SMM:13
+.%A J-S. Pendry
+.%A N. Williams
+.%T Amd \(em The 4.4 BSD Automounter
+.%B 4.4BSD System Manager's Manual (SMM)
+.Re
+.Sh HISTORY
+The
+.Nm amd
+utility first appeared in
+.Bx 4.3 Reno .
+.Sh AUTHORS
+.An Jan-Simon Pendry Aq Mt jsp@doc.ic.ac.uk ,
+Department of Computing, Imperial College, London, UK.
+.Sh CAVEATS
+Some care may be required when creating a mount map.
+.Pp
+Symbolic links on an NFS filesystem can be incredibly inefficient.
+In most implementations of NFS, their interpolations are not cached by
+the kernel and each time a symbolic link is
+encountered during a
+.Em lookuppn
+translation it costs an RPC call to the NFS server.
+A large improvement in real-time
+performance could be gained by adding a cache somewhere.
+Replacing
+.Xr symlink 2
+with a suitable incarnation of the auto-mounter
+results in a large real-time speedup, but also causes a large
+number of process context switches.
+.Pp
+A weird imagination is most useful to gain full advantage of all
+the features.

@@ -1,0 +1,353 @@
+.\" $OpenBSD: ssl.3,v 1.26 2024/08/31 10:51:48 tb Exp $
+.\" full merge up to: OpenSSL e330f55d Nov 11 00:51:04 2016 +0100
+.\" selective merge up to: OpenSSL 322755cc Sep 1 08:40:51 2018 +0800
+.\"
+.\" This file was written by Ralf S. Engelschall <rse@openssl.org>,
+.\" Ben Laurie <ben@openssl.org>, and Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 1998-2002, 2005, 2013, 2015 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 31 2024 $
+.Dt SSL 3
+.Os
+.Sh NAME
+.Nm ssl
+.Nd OpenSSL TLS library
+.Sh DESCRIPTION
+The
+.Nm ssl
+library implements the Transport Layer Security (TLS) protocol,
+the successor to the Secure Sockets Layer (SSL) protocol.
+.Pp
+An
+.Vt SSL_CTX
+object is created as a framework to establish TLS/SSL enabled connections (see
+.Xr SSL_CTX_new 3 ) .
+Various options regarding certificates, algorithms, etc., can be set in this
+object.
+.Pp
+When a network connection has been created, it can be assigned to an
+.Vt SSL
+object.
+After the
+.Vt SSL
+object has been created using
+.Xr SSL_new 3 ,
+.Xr SSL_set_fd 3
+or
+.Xr SSL_set_bio 3
+can be used to associate the network connection with the object.
+.Pp
+Then the TLS/SSL handshake is performed using
+.Xr SSL_accept 3
+or
+.Xr SSL_connect 3
+respectively.
+.Xr SSL_read 3
+and
+.Xr SSL_write 3
+are used to read and write data on the TLS/SSL connection.
+.Xr SSL_shutdown 3
+can be used to shut down the TLS/SSL connection.
+.Sh DATA STRUCTURES
+Currently the
+.Nm ssl
+library functions deal with the following data structures:
+.Bl -tag -width Ds
+.It Vt SSL_METHOD No (SSL Method)
+That's a dispatch structure describing the internal
+.Nm ssl
+library methods/functions which implement the various protocol versions.
+It's needed to create an
+.Vt SSL_CTX .
+See
+.Xr TLS_method 3
+for constructors.
+.It Vt SSL_CIPHER No (SSL Cipher)
+This structure holds the algorithm information for a particular cipher which
+is a core part of the SSL/TLS protocol.
+The available ciphers are configured on an
+.Vt SSL_CTX
+basis and the actually used ones are then part of the
+.Vt SSL_SESSION .
+.It Vt SSL_CTX No (SSL Context)
+That's the global context structure which is created by a server or client
+once per program lifetime and which holds mainly default values for the
+.Vt SSL
+structures which are later created for the connections.
+.It Vt SSL_SESSION No (SSL Session)
+This is a structure containing the current TLS/SSL session details for a
+connection:
+.Vt SSL_CIPHER Ns s ,
+client and server certificates, keys, etc.
+.It Vt SSL No (SSL Connection)
+That's the main SSL/TLS structure which is created by a server or client per
+established connection.
+This actually is the core structure in the SSL API.
+At run-time the application usually deals with this structure which has
+links to mostly all other structures.
+.El
+.Sh HEADER FILES
+Currently the
+.Nm ssl
+library provides the following C header files containing the prototypes for the
+data structures and functions:
+.Bl -tag -width Ds
+.It Pa ssl.h
+That's the common header file for the SSL/TLS API.
+Include it into your program to make the API of the
+.Nm ssl
+library available.
+It internally includes both more private SSL headers and headers from the
+.Em crypto
+library.
+Whenever you need hardcore details on the internals of the SSL API, look inside
+this header file.
+.It Pa ssl3.h
+That's the sub header file dealing with the SSLv3 protocol only.
+.Bf Em
+Usually you don't have to include it explicitly because it's already included
+by
+.Pa ssl.h .
+.Ef
+.It Pa tls1.h
+That's the sub header file dealing with the TLSv1 protocol only.
+.Bf Em
+Usually you don't have to include it explicitly because it's already included
+by
+.Pa ssl.h .
+.Ef
+.El
+.Sh API FUNCTIONS
+.Ss Ciphers
+The following pages describe functions acting on
+.Vt SSL_CIPHER
+objects:
+.Xr SSL_get_ciphers 3 ,
+.Xr SSL_get_current_cipher 3 ,
+.Xr SSL_CIPHER_get_name 3
+.Ss Protocol contexts
+The following pages describe functions acting on
+.Vt SSL_CTX
+objects.
+.Pp
+Constructors and destructors:
+.Xr SSL_CTX_new 3 ,
+.Xr SSL_CTX_set_ssl_version 3 ,
+.Xr SSL_CTX_free 3
+.Pp
+Certificate configuration:
+.Xr SSL_CTX_add_extra_chain_cert 3 ,
+.Xr SSL_CTX_get0_certificate 3 ,
+.Xr SSL_CTX_load_verify_locations 3 ,
+.Xr SSL_CTX_set_cert_store 3 ,
+.Xr SSL_CTX_set_cert_verify_callback 3 ,
+.Xr SSL_CTX_set_client_cert_cb 3 ,
+.Xr SSL_CTX_set_default_passwd_cb 3 ,
+.Xr SSL_CTX_set_tlsext_status_cb 3
+.Pp
+Session configuration:
+.Xr SSL_CTX_add_session 3 ,
+.Xr SSL_CTX_flush_sessions 3 ,
+.Xr SSL_CTX_sess_number 3 ,
+.Xr SSL_CTX_sess_set_cache_size 3 ,
+.Xr SSL_CTX_sess_set_get_cb 3 ,
+.Xr SSL_CTX_sessions 3 ,
+.Xr SSL_CTX_set_session_cache_mode 3 ,
+.Xr SSL_CTX_set_timeout 3 ,
+.Xr SSL_CTX_set_tlsext_ticket_key_cb 3
+.Pp
+Various configuration:
+.Xr SSL_CTX_get_ex_new_index 3 ,
+.Xr SSL_CTX_set_tlsext_servername_callback 3
+.Ss Common configuration of contexts and connections
+The functions on the following pages each come in two variants:
+one to directly configure a single
+.Vt SSL
+connection and another to be called on an
+.Vt SSL_CTX
+object, to set up defaults for all future
+.Vt SSL
+connections created from that context.
+.Pp
+Protocol and algorithm configuration:
+.Xr SSL_CTX_set_alpn_select_cb 3 ,
+.Xr SSL_CTX_set_cipher_list 3 ,
+.Xr SSL_CTX_set_min_proto_version 3 ,
+.Xr SSL_CTX_set_options 3 ,
+.Xr SSL_CTX_set_security_level 3 ,
+.Xr SSL_CTX_set_tlsext_use_srtp 3 ,
+.Xr SSL_CTX_set_tmp_dh_callback 3 ,
+.Xr SSL_CTX_set1_groups 3
+.Pp
+Certificate configuration:
+.Xr SSL_CTX_add1_chain_cert 3 ,
+.Xr SSL_CTX_get_verify_mode 3 ,
+.Xr SSL_CTX_set_client_CA_list 3 ,
+.Xr SSL_CTX_set_max_cert_list 3 ,
+.Xr SSL_CTX_set_verify 3 ,
+.Xr SSL_CTX_use_certificate 3 ,
+.Xr SSL_get_client_CA_list 3
+.Xr SSL_set1_param 3
+.Pp
+Session configuration:
+.Xr SSL_CTX_set_generate_session_id 3 ,
+.Xr SSL_CTX_set_session_id_context 3
+.Pp
+Various configuration:
+.Xr SSL_CTX_ctrl 3 ,
+.Xr SSL_CTX_set_info_callback 3 ,
+.Xr SSL_CTX_set_mode 3 ,
+.Xr SSL_CTX_set_msg_callback 3 ,
+.Xr SSL_CTX_set_quiet_shutdown 3 ,
+.Xr SSL_CTX_set_read_ahead 3 ,
+.Xr SSL_set_max_send_fragment 3
+.Ss Sessions
+The following pages describe functions acting on
+.Vt SSL_SESSION
+objects.
+.Pp
+Constructors and destructors:
+.Xr SSL_SESSION_new 3 ,
+.Xr SSL_SESSION_free 3
+.Pp
+Accessors:
+.Xr SSL_SESSION_get_compress_id 3 ,
+.Xr SSL_SESSION_get_ex_new_index 3 ,
+.Xr SSL_SESSION_get_id 3 ,
+.Xr SSL_SESSION_get_protocol_version 3 ,
+.Xr SSL_SESSION_get_time 3 ,
+.Xr SSL_SESSION_get0_peer 3 ,
+.Xr SSL_SESSION_has_ticket 3 ,
+.Xr SSL_SESSION_set1_id_context 3
+.Pp
+Encoding and decoding:
+.Xr d2i_SSL_SESSION 3 ,
+.Xr PEM_read_SSL_SESSION 3 ,
+.Xr SSL_SESSION_print 3
+.Ss Connections
+The following pages describe functions acting on
+.Vt SSL
+connection objects:
+.Pp
+Constructors and destructors:
+.Xr SSL_new 3 ,
+.Xr SSL_dup 3 ,
+.Xr SSL_free 3 ,
+.Xr BIO_f_ssl 3
+.Pp
+To change the configuration:
+.Xr SSL_clear 3 ,
+.Xr SSL_set_SSL_CTX 3 ,
+.Xr SSL_copy_session_id 3 ,
+.Xr SSL_set_bio 3 ,
+.Xr SSL_set_connect_state 3 ,
+.Xr SSL_set_fd 3 ,
+.Xr SSL_set_session 3 ,
+.Xr SSL_set1_host 3 ,
+.Xr SSL_set_verify_result 3
+.Pp
+To inspect the configuration:
+.Xr SSL_get_certificate 3 ,
+.Xr SSL_get_default_timeout 3 ,
+.Xr SSL_get_ex_new_index 3 ,
+.Xr SSL_get_fd 3 ,
+.Xr SSL_get_rbio 3 ,
+.Xr SSL_get_SSL_CTX 3
+.Pp
+To transmit data:
+.Xr DTLSv1_listen 3 ,
+.Xr SSL_accept 3 ,
+.Xr SSL_connect 3 ,
+.Xr SSL_do_handshake 3 ,
+.Xr SSL_read 3 ,
+.Xr SSL_read_early_data 3 ,
+.Xr SSL_renegotiate 3 ,
+.Xr SSL_shutdown 3 ,
+.Xr SSL_write 3
+.Pp
+To inspect the state after a connection is established:
+.Xr SSL_export_keying_material 3 ,
+.Xr SSL_get_client_random 3 ,
+.Xr SSL_get_ex_data_X509_STORE_CTX_idx 3 ,
+.Xr SSL_get_peer_cert_chain 3 ,
+.Xr SSL_get_peer_certificate 3 ,
+.Xr SSL_get_server_tmp_key 3 ,
+.Xr SSL_get_servername 3 ,
+.Xr SSL_get_session 3 ,
+.Xr SSL_get_shared_ciphers 3 ,
+.Xr SSL_get_verify_result 3 ,
+.Xr SSL_get_version 3 ,
+.Xr SSL_session_reused 3
+.Pp
+To inspect the state during ongoing communication:
+.Xr SSL_get_error 3 ,
+.Xr SSL_get_shutdown 3 ,
+.Xr SSL_get_state 3 ,
+.Xr SSL_num_renegotiations 3 ,
+.Xr SSL_pending 3 ,
+.Xr SSL_rstate_string 3 ,
+.Xr SSL_state_string 3 ,
+.Xr SSL_want 3
+.Ss Utility functions
+.Xr SSL_alert_type_string 3 ,
+.Xr SSL_dup_CA_list 3 ,
+.Xr SSL_load_client_CA_file 3
+.Ss Obsolete functions
+.Xr OPENSSL_init_ssl 3 ,
+.Xr SSL_COMP_get_compression_methods 3 ,
+.Xr SSL_CTX_set_tmp_rsa_callback 3 ,
+.Xr SSL_library_init 3 ,
+.Xr SSL_set_tmp_ecdh 3
+.Sh SEE ALSO
+.Xr openssl 1 ,
+.Xr crypto 3 ,
+.Xr tls_init 3
+.Sh HISTORY
+The
+.Nm
+document appeared in OpenSSL 0.9.2.

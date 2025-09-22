@@ -1,0 +1,85 @@
+.\"	$OpenBSD: lo.4,v 1.29 2018/04/29 11:49:38 schwarze Exp $
+.\"	$NetBSD: lo.4,v 1.3 1994/11/30 16:22:23 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)lo.4	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: April 29 2018 $
+.Dt LO 4
+.Os
+.Sh NAME
+.Nm lo
+.Nd software loopback network interface
+.Sh SYNOPSIS
+.Cd "pseudo-device loop"
+.Sh DESCRIPTION
+The
+.Nm loop
+interface is a software loopback mechanism which may be
+used for performance analysis, software testing, and/or local
+communication.
+.Pp
+A
+.Nm loop
+interface can be created at runtime using the
+.Ic ifconfig lo Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+The
+.Nm lo0
+interface will always exist and cannot be destroyed using
+.Xr ifconfig 8 .
+.Pp
+As with other network interfaces, the loopback interface must have
+network addresses assigned for each address family with which it is to be used.
+These addresses
+may be set or changed with the
+.Dv SIOCSIFADDR
+.Xr ioctl 2 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It lo0: can't handle afX.
+The interface was handed
+a message with addresses formatted in an unsuitable address
+family; the packet was dropped.
+.El
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr netintro 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Sh HISTORY
+The
+.Nm
+device appeared in
+.Bx 4.2 .

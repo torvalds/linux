@@ -1,0 +1,85 @@
+.\"	$OpenBSD: vfs_busy.9,v 1.3 2018/06/04 04:57:09 guenther Exp $
+.\"
+.\" Copyright (c) 2006 Nikolay Sturm <sturm@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 4 2018 $
+.Dt VFS_BUSY 9
+.Os
+.Sh NAME
+.Nm vfs_busy ,
+.Nm vfs_isbusy ,
+.Nm vfs_unbusy
+.Nd VFS locking API
+.Sh SYNOPSIS
+.In sys/mount.h
+.Pp
+.Ft int
+.Fn vfs_busy "struct mount *mp" "int flags"
+.Ft int
+.Fn vfs_isbusy "struct mount *mp"
+.Ft void
+.Fn vfs_unbusy "struct mount *mp"
+.Sh DESCRIPTION
+The
+.Nm vfs_busy
+API is used to lock mount points to ensure consistent access.
+A read lock can be shared between multiple processes, while a write lock is
+exclusive.
+Normally a write lock is only acquired when unmounting.
+.Pp
+The
+.Fn vfs_busy
+function locks the mount point pointed to by
+.Fa mp ,
+where
+.Fa flags
+describes the type of lock to acquire and whether or not to wait for a
+conflicting lock to be released.
+The following flags are available:
+.Pp
+.Bl -tag -width "VB_NOWAITXX" -offset indent -compact
+.It VB_READ
+Acquire a read lock.
+.It VB_WRITE
+Acquire a write lock.
+.It VB_NOWAIT
+Return immediately; do not wait for the conflicting lock to be released.
+.It VB_WAIT
+Wait for the conflicting lock to be released.
+.It VB_DUPOK
+Prevent
+.Xr witness 4
+from logging when this thread already has a mount point locked.
+.El
+.Pp
+If a conflicting lock was encountered,
+.Fn vfs_busy
+returns an error.
+.Pp
+The
+.Fn vfs_isbusy
+function checks whether the given mount point is locked.
+.Pp
+.Fn vfs_unbusy
+unlocks the given mount point.
+.Pp
+The
+.Nm vfs_busy
+API is implemented in the file
+.Pa sys/kern/vfs_subr.c .
+.Sh SEE ALSO
+.Xr witness 4 ,
+.Xr rwlock 9 ,
+.Xr vfs 9

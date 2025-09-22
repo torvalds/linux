@@ -1,0 +1,71 @@
+process reader {
+	run "##OBJDIR##/api-exabgp" -t 10 "##OBJDIR##/as0.fifo";
+	encoder text;
+}
+
+neighbor 10.12.57.1 {
+	router-id 10.12.57.2;
+	local-address 10.12.57.2;
+	local-as 64501;
+	peer-as 64500;
+	group-updates;
+	adj-rib-in false;
+	passive false;
+
+	family {
+		ipv4 unicast;
+	}
+
+	api {
+		processes [ reader ];
+		neighbor-changes;
+		receive {
+			parsed;
+			update;
+			notification;
+		}
+	}
+}
+
+neighbor 10.12.57.1 {
+	router-id 10.12.57.3;
+	local-address 10.12.57.3;
+	local-as 64502;
+	peer-as 64500;
+	group-updates;
+	adj-rib-in false;
+	passive false;
+
+	family {
+		ipv4 unicast;
+	}
+
+	static {
+		route 10.12.1.0/24 next-hop self ;
+		route 10.12.2.0/24 next-hop self as-path [ 64502 0 64505 ];
+		route 10.12.3.0/24 next-hop self as-path [ 64502 64505 ] aggregator 0:127.0.0.1;
+	}
+}
+
+neighbor 10.12.57.1 {
+	router-id 10.12.57.4;
+	local-address 10.12.57.4;
+	local-as 64503;
+	peer-as 64500;
+	group-updates;
+	adj-rib-in false;
+	passive false;
+
+	family {
+		ipv4 unicast;
+	}
+	capability {
+		asn4 disable;
+	}
+
+	static {
+		route 10.13.1.0/24 next-hop self ;
+		route 10.13.2.0/24 next-hop self attribute [ 0x02 0x40 0x0203fbf75ba0fbf9 ] attribute [ 0x11 0xc0 0x02030000fbf7000000000000fbf9 ];
+		route 10.13.3.0/24 next-hop self as-path [ 64503 64505 ] aggregator 23456:127.0.0.1 attribute [ 0x12 0xc0 0x000000007f000001 ];
+	}
+}

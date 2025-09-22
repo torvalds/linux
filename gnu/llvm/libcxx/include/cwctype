@@ -1,0 +1,97 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CWCTYPE
+#define _LIBCPP_CWCTYPE
+
+/*
+    cwctype synopsis
+
+Macros:
+
+    WEOF
+
+namespace std
+{
+
+Types:
+
+    wint_t
+    wctrans_t
+    wctype_t
+
+int iswalnum(wint_t wc);
+int iswalpha(wint_t wc);
+int iswblank(wint_t wc);  // C99
+int iswcntrl(wint_t wc);
+int iswdigit(wint_t wc);
+int iswgraph(wint_t wc);
+int iswlower(wint_t wc);
+int iswprint(wint_t wc);
+int iswpunct(wint_t wc);
+int iswspace(wint_t wc);
+int iswupper(wint_t wc);
+int iswxdigit(wint_t wc);
+int iswctype(wint_t wc, wctype_t desc);
+wctype_t wctype(const char* property);
+wint_t towlower(wint_t wc);
+wint_t towupper(wint_t wc);
+wint_t towctrans(wint_t wc, wctrans_t desc);
+wctrans_t wctrans(const char* property);
+
+}  // std
+
+*/
+
+#include <__config>
+#include <cctype>
+
+#include <wctype.h>
+
+#ifndef _LIBCPP_WCTYPE_H
+#   error <cwctype> tried including <wctype.h> but didn't find libc++'s <wctype.h> header. \
+          This usually means that your header search paths are not configured properly. \
+          The header search paths should contain the C++ Standard Library headers before \
+          any C Standard Library, and you are probably using compiler flags that make that \
+          not be the case.
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#if defined(_LIBCPP_INCLUDED_C_LIBRARY_WCTYPE_H)
+using ::wint_t _LIBCPP_USING_IF_EXISTS;
+using ::wctrans_t _LIBCPP_USING_IF_EXISTS;
+using ::wctype_t _LIBCPP_USING_IF_EXISTS;
+using ::iswalnum _LIBCPP_USING_IF_EXISTS;
+using ::iswalpha _LIBCPP_USING_IF_EXISTS;
+using ::iswblank _LIBCPP_USING_IF_EXISTS;
+using ::iswcntrl _LIBCPP_USING_IF_EXISTS;
+using ::iswdigit _LIBCPP_USING_IF_EXISTS;
+using ::iswgraph _LIBCPP_USING_IF_EXISTS;
+using ::iswlower _LIBCPP_USING_IF_EXISTS;
+using ::iswprint _LIBCPP_USING_IF_EXISTS;
+using ::iswpunct _LIBCPP_USING_IF_EXISTS;
+using ::iswspace _LIBCPP_USING_IF_EXISTS;
+using ::iswupper _LIBCPP_USING_IF_EXISTS;
+using ::iswxdigit _LIBCPP_USING_IF_EXISTS;
+using ::iswctype _LIBCPP_USING_IF_EXISTS;
+using ::wctype _LIBCPP_USING_IF_EXISTS;
+using ::towlower _LIBCPP_USING_IF_EXISTS;
+using ::towupper _LIBCPP_USING_IF_EXISTS;
+using ::towctrans _LIBCPP_USING_IF_EXISTS;
+using ::wctrans _LIBCPP_USING_IF_EXISTS;
+#endif // _LIBCPP_INCLUDED_C_LIBRARY_WCTYPE_H
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_CWCTYPE

@@ -1,0 +1,135 @@
+.\"	$OpenBSD: chgrp.1,v 1.20 2025/04/29 17:44:00 jmc Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)chgrp.1	8.3 (Berkeley) 3/31/94
+.\"
+.Dd $Mdocdate: April 29 2025 $
+.Dt CHGRP 1
+.Os
+.Sh NAME
+.Nm chgrp
+.Nd change group
+.Sh SYNOPSIS
+.Nm chgrp
+.Op Fl h
+.Oo
+.Fl R
+.Op Fl H | L | P
+.Oc
+.Ar group
+.Ar
+.Sh DESCRIPTION
+.Nm
+sets the group ID of the specified files.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl H
+If the
+.Fl R
+option is specified, symbolic links on the command line are followed.
+Symbolic links encountered in the tree traversal are not followed.
+.It Fl h
+Treat symbolic links like other files: modify links instead of
+following them.
+The
+.Fl h
+and
+.Fl R
+options are mutually exclusive.
+.It Fl L
+If the
+.Fl R
+option is specified, all symbolic links are followed.
+.It Fl P
+If the
+.Fl R
+option is specified, no symbolic links are followed.
+.It Fl R
+Recurse.
+Where
+.Ar file
+is a directory,
+change the group ID of the directory and all the files and directories
+in the file hierarchy below it.
+.El
+.Pp
+The
+.Fl H ,
+.Fl L ,
+and
+.Fl P
+options are ignored unless the
+.Fl R
+option is specified;
+if none of them are given,
+the default is to not follow symbolic links.
+In addition, these options override each other and the
+command's actions are determined by the last one specified.
+.Pp
+The
+.Ar group
+operand can be either a group name from the group database,
+or a numeric group ID.
+If a group name is also a numeric group ID, the operand is used as a
+group name.
+.Pp
+By default,
+.Nm
+clears the set-user-ID and set-group-ID bits on the file
+to prevent accidental or mischievous creation of
+set-user-ID and set-group-ID programs.
+.Pp
+The user invoking
+.Nm
+must belong to the specified group and be the owner of the file,
+or be the superuser.
+.Sh FILES
+.Bl -tag -width /etc/group -compact
+.It Pa /etc/group
+group ID file
+.El
+.Sh EXIT STATUS
+.Ex -std chgrp
+.Sh SEE ALSO
+.Xr chown 2 ,
+.Xr fts_open 3 ,
+.Xr group 5 ,
+.Xr passwd 5 ,
+.Xr symlink 7 ,
+.Xr chown 8
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2024
+specification.

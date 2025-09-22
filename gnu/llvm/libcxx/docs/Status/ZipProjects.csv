@@ -1,0 +1,27 @@
+Section,Description,Dependencies,Assignee,Complete
+| `[tuple.syn] <https://wg21.link/tuple.syn>`_, "`[tuple] basic_common_reference, common_type <https://reviews.llvm.org/D116538>`_", None, Nikolas Klauser, |Complete|
+| `[tuple.tuple] <https://wg21.link/tuple.tuple>`_, "`[tuple] constructor, assignment and swap overloads <https://reviews.llvm.org/D116621>`_", None, Hui Xie, |Complete|
+| `[utility.syn] <https://wg21.link/utility.syn>`_, "[pair] basic_common_reference, common_type", None, Nikolas Klauser, |Complete|
+| `[pairs.pair] <https://wg21.link/pairs.pair>`_, "`[pair] constructor, assignment and swap overloads <https://reviews.llvm.org/D131495>`_", None, Hui Xie, |Complete|
+"| `[memory.syn] <https://wg21.link/memory.syn>`_
+| `[allocator.uses.construction] <https://wg21.link/allocator.uses.construction>`_", "[pair] uses_allocator_construction_args overloads", None, Nikolas Klauser, |Complete|
+| `[vector.bool] <https://wg21.link/vector.bool>`_, "[vector<bool>::reference] add const operator= overload", None, Hui Xie, |Not Started|
+| `[iterator.concept.winc] <https://wg21.link/iterator.concept.winc>`_, "Update weakly_comparable", None, Hui Xie, |Not Started|
+| `[range.zip] <https://wg21.link/ranges.syn>`_, "`zip_view <https://reviews.llvm.org/D122806>`_", "| `zip_view::iterator`
+| `zip_view::sentinel`", Hui Xie, |Complete|
+| `[range.zip.iterator] <https://wg21.link/range.zip.iterator>`_, "`zip_view::iterator <https://reviews.llvm.org/D122806>`_", None, Hui Xie, |Complete|
+| `[range.zip.sentinel] <https://wg21.link/range.zip.sentinel>`_, "`zip_view::sentinel <https://reviews.llvm.org/D122806>`_", None, Hui Xie, |Complete|
+| `[range.zip.transform.view] <https://wg21.link/range.zip.transform.view>`_, "zip_transform_view", "| `zip_transform_view::iterator`
+| `zip_transform_view::sentinel`", Hui Xie, |Not Started|
+| `[range.zip.transform.iterator] <https://wg21.link/range.zip.transform.iterator>`_, "zip_transform_view::iterator", None, Hui Xie, |Not Started|
+| `[range.zip.transform.sentinel] <https://wg21.link/range.zip.transform.sentinel>`_, "zip_transform_view::sentinel", None, Hui Xie, |Not Started|
+| `[range.adjacent.view] <https://wg21.link/range.adjacent.view>`_, "adjacent_view", "| `adjacent_view::iterator`
+| `adjacent_view::sentinel`", Hui Xie, |Not Started|
+| `[range.adjacent.iterator] <https://wg21.link/range.adjacent.iterator>`_, "adjacent_view::iterator", None, unassigned, |Not Started|
+| `[range.adjacent.sentinel] <https://wg21.link/range.adjacent.sentinel>`_, "adjacent_view::sentinel", None, unassigned, |Not Started|
+| `[range.adjacent.transform.view] <https://wg21.link/range.adjacent.transform.view>`_, "adjacent_transform_view", "| `adjacent_transform_view::iterator`,
+| `adjacent_transform_view::sentinel`", Hui Xie, |Not Started|
+| `[range.adjacent.transform.iterator] <https://wg21.link/range.adjacent.transform.iterator>`_, "adjacent_transform_view::iterator", None, Hui Xie, |Not Started|
+| `[range.adjacent.transform.sentinel] <https://wg21.link/range.adjacent.transform.sentinel>`_, "adjacent_transform_view::sentinel", None, Hui Xie, |Not Started|
+| `[ranges.syn] <https://wg21.link/ranges.syn>`_, "enable_borrowed_range zip_view and adjacent_view", "| `zip_view`
+| `adjacent_view`", Hui Xie, |Not Started|

@@ -1,0 +1,24 @@
+/*	$OpenBSD: freenull.c.tail,v 1.4 2024/08/30 05:00:38 tb Exp $	*/
+
+	BIO_free_all(NULL);
+
+	sk_ASN1_OBJECT_pop_free(NULL, NULL);
+	sk_CONF_VALUE_pop_free(NULL, NULL);
+	sk_GENERAL_NAME_pop_free(NULL, NULL);
+	sk_OCSP_CERTID_free(NULL);
+	sk_OPENSSL_STRING_free(NULL);
+	sk_PKCS12_SAFEBAG_pop_free(NULL, NULL);
+	sk_PKCS7_pop_free(NULL, NULL);
+	sk_X509_ATTRIBUTE_free(NULL);
+	sk_X509_CRL_pop_free(NULL, NULL);
+	sk_X509_EXTENSION_pop_free(NULL, NULL);
+	sk_X509_INFO_free(NULL);
+	sk_X509_INFO_pop_free(NULL, NULL);
+	sk_X509_NAME_ENTRY_pop_free(NULL, NULL);
+	sk_X509_free(NULL);
+	sk_X509_pop_free(NULL, NULL);
+
+	printf("PASS\n");
+
+	return 0;
+}

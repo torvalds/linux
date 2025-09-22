@@ -1,0 +1,50 @@
+.\"	$OpenBSD: pcfadc.4,v 1.7 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 Damien Miller <djm@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt PCFADC 4
+.Os
+.Sh NAME
+.Nm pcfadc
+.Nd Philips PCF8591 temperature sensor
+.Sh SYNOPSIS
+.Cd "pcfadc* at iic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the PCF8591 I2C analog to digital converter, making
+its readings available through a
+.Xr sysctl 8
+interface.
+.Pp
+The driver reads up to four A/D lines configured as temperature inputs.
+Sensor names, type and calibration information are read from OpenFirmware.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Damien Miller Aq Mt djm@openbsd.org .

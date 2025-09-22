@@ -1,0 +1,255 @@
+.\"	$OpenBSD: printf.9,v 1.26 2022/09/11 06:38:11 jmc Exp $
+.\"     $NetBSD: kprintf.9,v 1.6 1999/03/16 00:40:47 garbled Exp $
+.\"
+.\" Copyright (c) 1998 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jeremy Cooper.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt PRINTF 9
+.Os
+.Sh NAME
+.Nm printf ,
+.Nm snprintf ,
+.Nm vprintf ,
+.Nm vsnprintf ,
+.Nm uprintf ,
+.Nm ttyprintf ,
+.Nm db_printf ,
+.Nm db_vprintf
+.Nd kernel formatted output conversion
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.Ft int
+.Fo printf
+.Fa "const char *format"
+.Fa "..."
+.Fc
+.Ft int
+.Fo snprintf
+.Fa "char *buf"
+.Fa "size_t size"
+.Fa "const char *format"
+.Fa "..."
+.Fc
+.Ft int
+.Fo vprintf
+.Fa "const char *format"
+.Fa "va_list ap"
+.Fc
+.Ft int
+.Fo vsnprintf
+.Fa "char *buf"
+.Fa "size_t size"
+.Fa "const char *fmt"
+.Fa "va_list ap"
+.Fc
+.Ft void
+.Fo uprintf
+.Fa "const char *format"
+.Fa "..."
+.Fc
+.Ft void
+.Fo ttyprintf
+.Fa "struct tty *tty"
+.Fa "const char *format"
+.Fa "..."
+.Fc
+.In ddb/db_output.h
+.Ft void
+.Fn db_printf "const char *format" ...
+.Ft void
+.Fn db_vprintf "const char *format" "va_list ap"
+.Sh DESCRIPTION
+The
+.Fn printf ,
+.Fn snprintf ,
+.Fn vprintf ,
+.Fn vsnprintf ,
+.Fn uprintf ,
+.Fn ttyprintf ,
+.Fn db_printf ,
+and
+.Fn db_vprintf
+functions allow the kernel to send formatted messages to various output
+devices.
+The functions
+.Fn printf
+and
+.Fn vprintf
+send formatted strings to the system console and to the system log.
+The functions
+.Fn uprintf
+and
+.Fn ttyprintf
+send formatted strings to the current process's controlling tty and a specific
+tty,
+respectively.
+The functions
+.Fn db_printf
+and
+.Fn db_vprintf
+send formatted strings to the ddb console, and are only used to implement
+.Xr ddb 4 .
+.Pp
+Since each of these kernel functions is a variant of its user space
+counterpart, this page describes only the differences between the user
+space and kernel versions.
+.Pp
+Only a subset of the user space conversion specification is available to the
+kernel version:
+.Bd -filled -offset indent
+.Sm off
+.Cm %
+.Op Ar width
+.Op Ar size
+.Ar conversion
+.Sm on
+.Ed
+.Pp
+Refer to
+.Xr printf 3
+for functional details.
+.Ss FORMAT OPTIONS
+The kernel functions don't support as many formatting specifiers as their
+user space counterparts.
+In addition to the floating point formatting specifiers,
+the following integer type specifiers are not supported:
+.Bl -tag -width 5n
+.It Li %hh
+Argument of
+.Vt char
+type.
+This format specifier is accepted by the kernel but will be handled as
+.Li %h .
+.It Li %j
+Argument of
+.Vt intmax_t
+or
+.Vt uintmax_t
+type.
+.It Li %t
+Argument of
+.Vt ptrdiff_t
+type.
+.El
+.Pp
+The kernel functions support some additional formatting specifiers:
+.Bl -tag -width 5n
+.It Li %b
+Bit field expansion.
+This format specifier is useful for decoding bit fields in device registers.
+It displays an integer using a specified radix
+.Pq base
+and an interpretation of
+the bits within that integer as though they were flags.
+It requires two arguments from the argument vector, the first argument being
+the bit field to be decoded
+(of type
+.Vt int ,
+unless a width modifier has been specified)
+and the second being a decoding directive string.
+.Pp
+The decoding directive string describes how the bitfield is to be interpreted
+and displayed.
+The first character of the string is a binary character representation of the
+output numeral base in which the bitfield will be printed before it is decoded.
+Recognized radix values
+.Pq "in C escape-character format"
+are
+.Li \e10
+.Pq octal ,
+.Li \e12
+.Pq decimal ,
+and
+.Li \e20
+.Pq hexadecimal .
+.Pp
+The remaining characters in the decoding directive string are interpreted as a
+list of bit-position\(endescription pairs.
+A bit-position\(endescription pair begins with a binary character value
+that represents the position of the bit being described.
+A bit position value of one describes the least significant bit.
+Whereas a position value of 32
+.Pq "octal 40, hexadecimal 20, the ASCII space character"
+describes the most significant bit.
+.Pp
+To deal with more than 32 bits, the characters 128
+.Pq "octal 200, hexadecimal 80"
+through 255
+.Pq "octal 377, hexadecimal FF"
+are used.
+The value 127 is subtracted from the character to determine the
+bit position (1 is least significant, and 128 is most significant).
+.Pp
+The remaining characters in a bit-position\(endescription pair are the
+characters to print should the bit being described be set.
+Description strings are delimited by the next bit position value character
+encountered
+.Po
+distinguishable by its value being \*(Le 32 or \*(Ge 128
+.Pc ,
+or the end of the decoding directive string itself.
+.El
+.Sh RETURN VALUES
+The
+.Fn printf
+and
+.Fn vprintf
+functions return the number of characters printed.
+.Pp
+The
+.Fn snprintf
+and
+.Fn vsnprintf
+functions return the number of characters that would have been put into
+the buffer
+.Fa buf
+if the
+.Fa size
+were unlimited.
+.Sh EXAMPLES
+Use of the
+.Li %b
+format specifier for decoding device registers.
+.Bd -literal -offset indent
+printf("reg=%b\en", 3, "\e10\e2BITTWO\e1BITONE")
+\(rA "reg=3<BITTWO,BITONE>"
+
+printf("enablereg=%b\en", 0xe860,
+       "\e20\ex10NOTBOOT\ex0fFPP\ex0eSDVMA\ex0cVIDEO"
+       "\ex0bLORES\ex0aFPA\ex09DIAG\ex07CACHE"
+       "\ex06IOCACHE\ex05LOOPBACK\ex04DBGCACHE")
+\(rA "enablereg=e860<NOTBOOT,FPP,SDVMA,VIDEO,CACHE,IOCACHE>"
+.Ed
+.Sh CODE REFERENCES
+.Pa sys/kern/subr_prf.c
+.Sh SEE ALSO
+.Xr revoke 2 ,
+.Xr printf 3 ,
+.Xr ddb 4 ,
+.Xr log 9

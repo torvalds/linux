@@ -1,0 +1,57 @@
+.\"	$OpenBSD: owctr.4,v 1.3 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2010 John L. Scarfone <john@scarfone.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt OWCTR 4
+.Os
+.Sh NAME
+.Nm owctr
+.Nd 1-Wire counter device
+.Sh SYNOPSIS
+.Cd "owctr* at onewire?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the externally triggered counters on the
+DS2423 chip.
+The supported chip contains a 4096-bit SRAM and four 32-bit counters.
+The two externally triggered counters are accessible by the
+.Xr sysctl 8
+interface.
+.Pp
+The following chips are supported by the driver:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Maxim/Dallas DS2423
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr onewire 4 ,
+.Xr owsbm 4 ,
+.Xr owtemp 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An John L. Scarfone Aq Mt john@scarfone.net .

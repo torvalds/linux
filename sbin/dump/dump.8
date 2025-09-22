@@ -1,0 +1,492 @@
+.\"	$OpenBSD: dump.8,v 1.56 2022/10/13 21:37:05 jmc Exp $
+.\"	$NetBSD: dump.8,v 1.17 1997/06/05 11:15:06 lukem Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)dump.8	8.1 (Berkeley) 6/16/93
+.\"
+.Dd $Mdocdate: October 13 2022 $
+.Dt DUMP 8
+.Os
+.Sh NAME
+.Nm dump ,
+.Nm rdump
+.Nd filesystem backup
+.Sh SYNOPSIS
+.Nm dump
+.Bk -words
+.Op Fl 0123456789acnSuWw
+.Op Fl B Ar records
+.Op Fl b Ar blocksize
+.Op Fl d Ar density
+.Op Fl f Ar file
+.Op Fl h Ar level
+.Op Fl s Ar feet
+.Op Fl T Ar date
+.Ar files-to-dump
+.Ek
+.Sh DESCRIPTION
+.Nm
+examines files
+on a filesystem
+and determines which files
+need to be backed up.
+These files are copied to the given disk, tape or other
+storage medium for safe keeping.
+A dump that is larger than the output medium is broken into
+multiple volumes.
+On most media the size is determined by writing until an
+end-of-media indication is returned.
+This can be enforced by using the
+.Fl a
+option.
+.Pp
+.Nm
+works across networks,
+replacing the functionality of the old
+.Nm rdump
+program
+(though
+.Nm
+may still be invoked as
+.Nm rdump ) .
+See the
+.Fl f
+option for more on writing backups to remote hosts.
+.Pp
+Files can be marked with the
+.Dq nodump
+flag using
+.Xr chflags 1 ,
+settable only by the file's owner or the superuser.
+Files with this flag set will only be dumped during full backups.
+When set on a directory,
+.Dq nodump
+effectively deselects the whole subtree from being dumped,
+though it will still be scanned.
+See also the
+.Fl h
+option, below.
+.Pp
+On media that cannot reliably return an end-of-media indication
+(such as some cartridge tape drives),
+each volume is of a fixed size;
+the actual size is determined by the tape size, density and/or
+block count options below.
+By default, the same output file name is used for each volume
+after prompting the operator to change media.
+.Pp
+Rewinding or ejecting tape features after a close operation on
+a tape device depend on the name of the tape unit device used.
+See the
+.Fl f
+option and
+.Xr st 4
+for more information.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 0\-9
+Dump levels.
+A level 0, full backup,
+guarantees the entire file system is copied
+(but see also the
+.Fl h
+option below).
+A level number above 0,
+incremental backup,
+tells
+.Nm
+to
+copy all files new or modified since the
+last dump of a lower level.
+The default level is 0.
+.It Fl a
+.Dq auto-size .
+Bypass all tape length considerations, and enforce writing until
+an end-of-media indication is returned.
+This option is recommended for most modern tape drives.
+Use of this option is particularly
+recommended when appending to an existing tape, or using a tape
+drive with hardware compression (where you can never be sure about
+the compression ratio).
+.It Fl B Ar records
+The number of kilobytes per volume, rounded
+down to a multiple of the blocksize.
+This option overrides the calculation of tape size
+based on length and density.
+.It Fl b Ar blocksize
+The number of kilobytes per dump record.
+Since the I/O system slices all requests into chunks of MAXBSIZE
+(typically 64KB), it is not possible to use a larger blocksize
+without having problems later with
+.Xr restore 8 .
+Therefore
+.Nm
+will constrain writes to MAXBSIZE.
+.It Fl c
+Change the defaults for use with a cartridge tape drive, with a density
+of 8000 bpi, and a length of 1700 feet.
+.It Fl d Ar density
+Set tape density to
+.Ar density .
+The default is 1600BPI.
+.It Fl f Ar file
+Write the backup to
+.Ar file ;
+.Ar file
+may be a special device file
+like
+.Pa /dev/rst0
+(a tape drive),
+.Pa /dev/rsd1c
+(a disk drive),
+an ordinary file,
+or
+.Sq -
+(the standard output).
+See also the
+.Ev TAPE
+environment variable, below.
+.Pp
+Multiple file names may be given as a single argument separated by commas.
+Each file will be used for one dump volume in the order listed;
+if the dump requires more volumes than the number of names given,
+the last file name will be used for all remaining volumes after prompting
+for media changes.
+If the name of the file is of the form
+.Dq host:file
+or
+.Dq user@host:file ,
+.Nm
+writes to the named file on the remote host using
+.Xr rmt 8 .
+.It Fl h Ar level
+Honor the user
+.Dq nodump
+flag (see above),
+only for dumps at or above the given
+.Ar level .
+The default honor level is 1,
+so that incremental backups omit such files
+but full backups retain them.
+.It Fl n
+Whenever
+.Nm
+requires operator attention,
+notify all operators in the group
+.Dq operator
+by means similar to a
+.Xr wall 1 .
+.It Fl S
+Display an estimate of the backup size and the number of tapes
+required, and exit without actually performing the dump.
+.It Fl s Ar feet
+Attempt to calculate the amount of tape needed
+at a particular density.
+If this amount is exceeded,
+.Nm
+prompts for a new tape.
+It is recommended to be a bit conservative on this option.
+The default tape length is 2300 feet.
+.It Fl T Ar date
+Use the specified date as the starting time for the dump
+instead of the time determined from looking in
+.Pa /etc/dumpdates .
+The format of
+.Ar date
+is the same as that of
+.Xr ctime 3 .
+This option is useful for automated dump scripts that wish to
+dump over a specific period of time.
+The
+.Fl T
+flag is mutually exclusive from the
+.Fl u
+flag.
+.It Fl u
+Update the file
+.Pa /etc/dumpdates
+after a successful dump.
+The format of
+.Pa /etc/dumpdates
+is human readable, consisting of one
+free format record per line:
+filesystem name (defaults to
+.Xr disklabel 8
+UID when possible),
+increment level
+and
+.Xr ctime 3
+format dump date.
+There may be only one entry per filesystem at each level.
+The file
+.Pa /etc/dumpdates
+may be edited to change any of the fields,
+if necessary.
+If a list of files or subdirectories is being dumped
+(as opposed to an entire filesystem), then
+.Fl u
+is ignored.
+.It Fl W
+.Nm
+tells the operator what file systems need to be dumped.
+This information is gleaned from the files
+.Pa /etc/dumpdates
+and
+.Pa /etc/fstab .
+The
+.Fl W
+flag causes
+.Nm
+to print out, for each file system in
+.Pa /etc/dumpdates ,
+the most recent dump date and level,
+and highlights those file systems that should be dumped.
+If the
+.Fl W
+flag is set, all other options are ignored, and
+.Nm
+exits immediately.
+.It Fl w
+Same as
+.Fl W ,
+but prints only those filesystems which need to be dumped.
+.El
+.Pp
+.Ar files-to-dump
+is either a mount point of a filesystem
+or a list of files and directories on a single filesystem to be backed
+up as a subset of the filesystem.
+In the former case, either the path to a mounted filesystem,
+the device of an unmounted filesystem or the
+.Xr disklabel 8
+UID can be used.
+In the latter case, certain restrictions are placed on the backup:
+.Fl u
+is ignored, the only dump level that is supported is
+.Fl 0 ,
+and all of the files must reside on the same filesystem.
+If no options are specified, the first of the
+.Ar files-to-dump
+must contain a
+.Ql /
+character to prevent it from being interpreted as a
+.Bx 4.3
+option string.
+.Pp
+.Nm
+requires operator intervention on these conditions:
+end of tape,
+end of dump,
+tape write error,
+tape open error or
+disk read error (if there is more than a threshold of 32).
+In addition to alerting all operators implied by the
+.Fl n
+flag,
+.Nm
+interacts with the operator on
+.Nm dump Ns 's
+controlling terminal at times when
+.Nm
+can no longer proceed,
+or if something is grossly wrong.
+All questions
+.Nm
+poses
+.Em must
+be answered by typing
+.Dq yes
+or
+.Dq no ,
+appropriately.
+.Pp
+Since making a dump involves a lot of time and effort for full dumps,
+.Nm
+checkpoints itself at the start of each tape volume.
+If writing that volume fails for some reason,
+.Nm
+will,
+with operator permission,
+restart itself from the checkpoint
+after the old tape has been rewound and removed,
+and a new tape has been mounted.
+.Pp
+.Nm
+tells the operator what is going on at periodic intervals,
+including usually low estimates of the number of blocks to write,
+the number of tapes it will take, the time to completion, and
+the time to the tape change.
+The output is verbose,
+so that others know that the terminal
+controlling
+.Nm
+is busy,
+and will be for some time.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal
+(see the
+.Dq status
+argument of
+.Xr stty 1 )
+whilst a backup is in progress, statistics on the amount completed,
+current transfer rate, and estimated finished time, will be written
+to the standard error output.
+.Pp
+In the event of a catastrophic disk event, the time required
+to restore all the necessary backup tapes or files to disk
+is dependent on the levels of the dumps taken.
+A few methods of staggering incremental dumps to either minimize
+backup effort or restore effort follow:
+.Bl -bullet -offset indent
+.It
+Always start with a level 0 backup, for example:
+.Bd -literal -offset indent
+# /sbin/dump -0u -f /dev/nrst1 /usr/src
+.Ed
+.Pp
+This should be done at set intervals, say once a month or once every two months,
+and on a set of fresh tapes that is saved forever.
+.It
+After the level 0 dump,
+backups of active file systems are taken on each day in a cycle of a week.
+Once a week, a level 1 dump is taken.
+The other days of the week a higher level dump is done.
+.Pp
+The following cycle needs at most three tapes to restore to a given point
+in time,
+but the dumps at the end of the weekly cycle will require more
+time and space:
+.Bd -literal -offset indent
+1 2 2 2 2 2 2
+.Ed
+.Pp
+This sequence requires at most eight tapes to restore,
+but the size of the individual dumps will be smaller:
+.Bd -literal -offset indent
+1 2 3 4 5 6 7
+.Ed
+.Pp
+This sequence seeks a compromise between backup and restore effort:
+.Bd -literal -offset indent
+1 2 2 3 3 4 4
+.Ed
+.Pp
+The weekly level 1 dumps should be done on a set of tapes that
+is used cyclically.
+For the daily dumps a tape per day of the week can be used.
+.It
+After several months or so, the daily and weekly tapes should get
+rotated out of the dump cycle and fresh tapes brought in.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width /etc/dumpdates
+.It Ev TAPE
+The default file to use instead of
+.Pa /dev/rst0 .
+See also
+.Fl f ,
+above.
+.El
+.Sh FILES
+.Bl -tag -width /etc/dumpdates -compact
+.It Pa /dev/rst0
+default tape unit to dump to
+.It Pa /dev/rst*
+raw SCSI tape interface
+.It Pa /etc/dumpdates
+dump date records
+.It Pa /etc/fstab
+dump table: file systems and frequency
+.It Pa /etc/group
+to find group
+.Em operator
+.El
+.Sh EXIT STATUS
+.Nm
+exits with zero status on success.
+Startup errors are indicated with an exit code of 1;
+abnormal termination is indicated with an exit code of 3.
+.Sh DIAGNOSTICS
+Many, and verbose.
+.Sh SEE ALSO
+.Xr chflags 1 ,
+.Xr stty 1 ,
+.Xr fts_open 3 ,
+.Xr rcmd 3 ,
+.Xr st 4 ,
+.Xr fstab 5 ,
+.Xr restore 8 ,
+.Xr rmt 8
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v4 .
+.Pp
+The
+.Bx 4.3
+option syntax is implemented for backward compatibility but
+is not documented here.
+.Sh BUGS
+Fewer than 32 read errors on the filesystem are ignored.
+.Pp
+Each reel requires a new process, so parent processes for
+reels already written just hang around until the entire tape
+is written.
+.Pp
+.Nm
+with the
+.Fl W
+or
+.Fl w
+flag does not report filesystems that have never been recorded
+in
+.Pa /etc/dumpdates ,
+even if listed in
+.Pa /etc/fstab .
+.Pp
+When dumping a list of files or subdirectories, access privileges are
+required to scan the directory (as this is done via the
+.Xr fts_open 3
+routines rather than directly accessing the filesystem).
+.Pp
+It would be nice if
+.Nm
+knew about the dump sequence,
+kept track of the tapes scribbled on,
+told the operator which tape to mount when,
+and provided more assistance
+for the operator running
+.Xr restore 8 .

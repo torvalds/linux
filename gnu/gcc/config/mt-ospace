@@ -1,0 +1,3 @@
+# Build libraries optimizing for space, not speed.
+ CFLAGS_FOR_TARGET = -g -Os
+ CXXFLAGS_FOR_TARGET = -g -Os

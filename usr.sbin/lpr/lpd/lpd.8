@@ -1,0 +1,363 @@
+.\"	$OpenBSD: lpd.8,v 1.33 2023/06/17 15:35:08 jmc Exp $
+.\"	$NetBSD: lpd.8,v 1.23 2002/02/08 01:38:50 ross Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)lpd.8	8.3 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: June 17 2023 $
+.Dt LPD 8
+.Os
+.Sh NAME
+.Nm lpd
+.Nd line printer spooler daemon
+.Sh SYNOPSIS
+.Nm lpd
+.Op Fl dlrs
+.Op Fl b Ar bind-address
+.Op Fl n Ar maxchild
+.Op Fl w Ar maxwait
+.Op Ar port
+.Sh DESCRIPTION
+.Nm
+is the line printer daemon (spool area handler) and is normally invoked
+at boot time from the
+.Xr rc 8
+file.
+It makes a single pass through the
+.Xr printcap 5
+file to find out about the existing printers and prints any files
+left after a crash.
+It then uses the system calls
+.Xr listen 2
+and
+.Xr accept 2
+to receive requests to print files in the queue, transfer files to
+the spooling area, display the queue, or remove jobs from the queue.
+In each case, it forks a child to handle the request so the parent
+can continue to listen for more requests.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl b Ar bind-address
+Normally, if the
+.Fl s
+option is not specified,
+.Nm
+will listen on all network interfaces for incoming TCP connections.
+The
+.Fl b
+option, followed by a
+.Ar bind-address
+specifies that
+.Nm
+should listen on that address instead of INADDR_ANY.
+Multiple
+.Fl b
+options are permitted, allowing a list of addresses to be specified.
+Use of this option silently overrides the
+.Fl s
+option if it is also present on the command line.
+.Ar bind-address
+can be a numeric host name in IPv4 or IPv6 notation, or a symbolic host
+name which will be looked up in the normal way.
+.It Fl d
+The
+.Fl d
+option turns on the
+.Dv SO_DEBUG
+.Xr socket 2
+option.
+See
+.Xr setsockopt 2
+for more details.
+.It Fl l
+The
+.Fl l
+flag causes
+.Nm
+to log valid requests received from the network.
+This can be useful for debugging purposes.
+.It Fl n Ar maxchild
+The
+.Fl n
+flag sets
+.Ar maxchild
+as the maximum number of child processes that
+.Nm
+will spawn.
+The default is 32.
+.It Fl r
+The
+.Fl r
+flag allows the
+.Dq of
+filter to be used if specified for a remote
+printer.
+Traditionally,
+.Nm
+would not use the output filter for remote printers.
+.It Fl s
+The
+.Fl s
+flag selects
+.Dq secure
+mode, in which
+.Nm
+does not listen on a TCP socket but only takes commands from a
+.Ux Ns -domain
+socket.
+This is valuable when the machine on which
+.Nm
+runs is subject to attack over the network and it is desired that the
+machine be protected from attempts to remotely fill spools and similar
+attacks.
+.It Fl w Ar maxwait
+The
+.Fl w
+flag sets
+.Ar maxwait
+as the wait time (in seconds) for dead remote server detection.
+If no response is returned from a connected server within this period,
+the connection is closed and a message logged.
+The default is 300 seconds.
+.El
+.Pp
+If the
+.Ar port
+parameter is passed,
+.Nm
+listens on this port instead of the usual
+.Dq printer/tcp
+port from
+.Pa /etc/services .
+.Pp
+Access control is provided by two means.
+First, all requests must come from one of the machines listed in the file
+.Pa /etc/hosts.lpd ,
+one hostname per line.
+A plus "+" may be used as a wildcard to grant access to all hosts.
+Second, if the
+.Dq rs
+capability is specified in the
+.Xr printcap 5
+entry for the printer being accessed,
+.Em lpr
+requests will only be honored for those users with accounts on the
+machine with the printer.
+.Pp
+.Nm
+performs reverse DNS lookups on network clients.
+If a client hostname cannot be determined from its IP address,
+the print request will be silently dropped.
+This is important to note when debugging print problems
+in dynamic address environments.
+.Pp
+The file
+.Em minfree
+in each spool directory contains the number of disk blocks to leave free
+so that the line printer queue won't completely fill the disk.
+The
+.Em minfree
+file can be edited with your favorite text editor.
+.Pp
+The daemon begins processing files
+after it has successfully set the lock for exclusive
+access (described a bit later),
+and scans the spool directory
+for files beginning with
+.Em cf .
+Lines in each
+.Em cf
+file specify files to be printed or non-printing actions to be performed.
+Each such line begins with a key character to specify what to do
+with the remainder of the line.
+.Bl -tag -width Ds
+.It J
+Job Name.
+String to be used for the job name on the burst page.
+.It C
+Classification.
+String to be used for the classification line on the burst page.
+.It L
+Literal.
+The line contains identification info from the password file and
+causes the banner page to be printed.
+.It T
+Title.
+String to be used as the title for
+.Xr pr 1 .
+.It H
+Host Name.
+Name of the machine where
+.Xr lpr 1
+was invoked.
+.It P
+Person.
+Login name of the person who invoked
+.Xr lpr 1 .
+This is used to verify ownership by
+.Xr lprm 1 .
+.It M
+Send mail to the specified user when the current print job completes.
+.It f
+Formatted File.
+Name of a file to print which is already formatted.
+.It l
+Like
+.Dq f
+but passes control characters and does not make page breaks.
+.It p
+Name of a file to print using
+.Xr pr 1
+as a filter.
+.It t
+Troff File.
+The file contains troff output (cat phototypesetter commands).
+.It n
+Ditroff File.
+The file contains device independent troff output.
+.It d
+DVI File.
+The file contains
+.Tn Tex l
+output
+DVI format from Stanford.
+.It g
+Graph File.
+The file contains data produced by
+.Ic plot .
+.It c
+Cifplot File.
+The file contains data produced by
+.Ic cifplot .
+.It v
+The file contains a raster image.
+.It r
+The file contains text data with
+FORTRAN carriage control characters.
+.It \&1
+Troff Font R.
+Name of the font file to use instead of the default.
+.It \&2
+Troff Font I.
+Name of the font file to use instead of the default.
+.It \&3
+Troff Font B.
+Name of the font file to use instead of the default.
+.It \&4
+Troff Font S.
+Name of the font file to use instead of the default.
+.It W
+Width.
+Changes the page width (in characters) used by
+.Xr pr 1
+and the text filters.
+.It I
+Indent.
+The number of characters to indent the output by (in ASCII).
+.It U
+Unlink.
+Name of file to remove upon completion of printing.
+.It N
+File name.
+The name of the file which is being printed, or a blank for the
+standard input (when
+.Xr lpr 1
+is invoked in a pipeline).
+.El
+.Pp
+If a file cannot be opened, a message will be logged via
+.Xr syslog 3
+using the
+.Dv LOG_LPR
+facility.
+.Nm
+will try up to 20 times to reopen a file it expects to be there,
+after which it will skip the file to be printed.
+.Pp
+.Nm
+uses
+.Xr flock 2
+to provide exclusive access to the lock file and to prevent multiple
+daemons from becoming active simultaneously.
+If the daemon should be killed or die unexpectedly, the lock file
+need not be removed.
+The lock file is kept in a readable
+.Tn ASCII
+form
+and contains two lines.
+The first is the process ID of the daemon and the second is the control
+file name of the current job being printed.
+The second line is updated to reflect the current status of
+.Nm
+for the programs
+.Xr lpq 1
+and
+.Xr lprm 1 .
+.Sh FILES
+.Bl -tag -width "/var/spool/output/*/minfree" -compact
+.It Pa /etc/printcap
+printer description file
+.It Pa /var/spool/output/*
+spool directories
+.It Pa /var/spool/output/*/minfree
+minimum free space to leave
+.It Pa /dev/lp*
+line printer devices
+.It Pa /var/run/printer
+socket for local requests
+.It Pa /etc/hosts.lpd
+lists machine names allowed printer access
+.El
+.Sh SEE ALSO
+.Xr lpq 1 ,
+.Xr lpr 1 ,
+.Xr lprm 1 ,
+.Xr syslog 3 ,
+.Xr hosts 5 ,
+.Xr printcap 5 ,
+.Xr resolv.conf 5 ,
+.Xr lpc 8
+.Rs
+.\" 4.4BSD SMM:7
+.%A Ralph Campbell
+.%T "4.3BSD Line Printer Spooler Manual"
+.Re
+.Sh HISTORY
+An
+.Nm
+daemon appeared in
+.At v5 .
+.Pp
+.Nm
+previously required that clients connected using a privileged port
+(below 1024).
+This restriction was removed because it does not provide additional
+security and also because many modern clients connect using an
+unprivileged port.

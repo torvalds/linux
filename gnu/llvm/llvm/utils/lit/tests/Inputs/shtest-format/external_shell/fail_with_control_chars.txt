@@ -1,0 +1,5 @@
+# Run a command that fails and prints control characters on stdout.
+# This tests checks that the xunit output correctly escapes them in the XML.
+#
+# RUN: %{python} %S/write-control-chars.py
+

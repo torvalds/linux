@@ -1,0 +1,228 @@
+import("//clang/utils/TableGen/clang_tablegen.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+import("//llvm/version.gni")
+
+# Version header.
+
+write_cmake_config("version") {
+  input = "Version.inc.in"
+  output = "$target_gen_dir/Version.inc"
+  values = [
+    "CLANG_VERSION=$llvm_version",
+    "CLANG_VERSION_MAJOR=$llvm_version_major",
+    "CLANG_VERSION_MINOR=$llvm_version_minor",
+    "CLANG_VERSION_PATCHLEVEL=$llvm_version_patch",
+  ]
+}
+
+# Diagnostics.
+
+diag_groups = [
+  "Analysis",
+  "AST",
+  "Comment",
+  "Common",
+  "CrossTU",
+  "Driver",
+  "Frontend",
+  "InstallAPI",
+  "Lex",
+  "Parse",
+  "Refactoring",
+  "Sema",
+  "Serialization",
+]
+foreach(diag_group, diag_groups) {
+  clang_tablegen("Diagnostic${diag_group}Kinds") {
+    args = [
+      "-gen-clang-diags-defs",
+      "-clang-component=${diag_group}",
+    ]
+    td_file = "Diagnostic.td"
+  }
+}
+group("diags_tablegen") {
+  # DiagnosticGroups and DiagnosticIndexName are intentionally not part of this
+  # group.  Much of clang depends on the DiagKinds.inc files transitively,
+  # but almost nothing needs DiagnosticGroups.inc or DiagnosticIndexName.inc.
+  public_deps = []
+  foreach(diag_group, diag_groups) {
+    public_deps += [ ":Diagnostic${diag_group}Kinds" ]
+  }
+}
+
+clang_tablegen("DiagnosticGroups") {
+  args = [ "-gen-clang-diag-groups" ]
+  td_file = "Diagnostic.td"
+}
+
+clang_tablegen("DiagnosticIndexName") {
+  args = [ "-gen-clang-diags-index-name" ]
+  td_file = "Diagnostic.td"
+}
+
+# Attributes
+
+clang_tablegen("AttrList") {
+  args = [ "-gen-clang-attr-list" ]
+  td_file = "Attr.td"
+}
+
+clang_tablegen("AttrSubMatchRulesList") {
+  args = [ "-gen-clang-attr-subject-match-rule-list" ]
+  td_file = "Attr.td"
+}
+
+clang_tablegen("RegularKeywordAttrInfo") {
+  args = [ "-gen-clang-regular-keyword-attr-info" ]
+  td_file = "Attr.td"
+}
+
+clang_tablegen("AttrHasAttributeImpl") {
+  args = [ "-gen-clang-attr-has-attribute-impl" ]
+  td_file = "Attr.td"
+}
+
+clang_tablegen("Builtins") {
+  args = [ "-gen-clang-builtins" ]
+}
+
+clang_tablegen("BuiltinsBPF") {
+  args = [ "-gen-clang-builtins" ]
+}
+
+clang_tablegen("BuiltinsRISCV") {
+  args = [ "-gen-clang-builtins" ]
+}
+
+# ARM CDE, MVE, and NEON.
+
+clang_tablegen("arm_neon") {
+  args = [ "-gen-arm-neon-sema" ]
+}
+
+clang_tablegen("arm_fp16") {
+  args = [ "-gen-arm-neon-sema" ]
+}
+
+clang_tablegen("arm_mve_builtins") {
+  args = [ "-gen-arm-mve-builtin-def" ]
+  td_file = "arm_mve.td"
+}
+
+clang_tablegen("arm_mve_builtin_cg") {
+  args = [ "-gen-arm-mve-builtin-codegen" ]
+  td_file = "arm_mve.td"
+}
+
+clang_tablegen("arm_mve_builtin_sema") {
+  args = [ "-gen-arm-mve-builtin-sema" ]
+  td_file = "arm_mve.td"
+}
+
+clang_tablegen("arm_mve_builtin_aliases") {
+  args = [ "-gen-arm-mve-builtin-aliases" ]
+  td_file = "arm_mve.td"
+}
+
+clang_tablegen("arm_sve_builtins") {
+  args = [ "-gen-arm-sve-builtins" ]
+  td_file = "arm_sve.td"
+}
+
+clang_tablegen("arm_sve_builtin_cg") {
+  args = [ "-gen-arm-sve-builtin-codegen" ]
+  td_file = "arm_sve.td"
+}
+
+clang_tablegen("arm_sve_typeflags") {
+  args = [ "-gen-arm-sve-typeflags" ]
+  td_file = "arm_sve.td"
+}
+
+clang_tablegen("arm_sve_sema_rangechecks") {
+  args = [ "-gen-arm-sve-sema-rangechecks" ]
+  td_file = "arm_sve.td"
+}
+
+clang_tablegen("arm_sve_streaming_attrs") {
+  args = [ "-gen-arm-sve-streaming-attrs" ]
+  td_file = "arm_sve.td"
+}
+
+clang_tablegen("arm_sme_builtins") {
+  args = [ "-gen-arm-sme-builtins" ]
+  td_file = "arm_sme.td"
+}
+
+clang_tablegen("arm_sme_builtin_cg") {
+  args = [ "-gen-arm-sme-builtin-codegen" ]
+  td_file = "arm_sme.td"
+}
+
+clang_tablegen("arm_sme_sema_rangechecks") {
+  args = [ "-gen-arm-sme-sema-rangechecks" ]
+  td_file = "arm_sme.td"
+}
+
+clang_tablegen("arm_sme_streaming_attrs") {
+  args = [ "-gen-arm-sme-streaming-attrs" ]
+  td_file = "arm_sme.td"
+}
+
+clang_tablegen("arm_sme_builtins_za_state") {
+  args = [ "-gen-arm-sme-builtin-za-state" ]
+  td_file = "arm_sme.td"
+}
+
+clang_tablegen("arm_cde_builtins") {
+  args = [ "-gen-arm-cde-builtin-def" ]
+  td_file = "arm_cde.td"
+}
+
+clang_tablegen("arm_cde_builtin_cg") {
+  args = [ "-gen-arm-cde-builtin-codegen" ]
+  td_file = "arm_cde.td"
+}
+
+clang_tablegen("arm_cde_builtin_sema") {
+  args = [ "-gen-arm-cde-builtin-sema" ]
+  td_file = "arm_cde.td"
+}
+
+clang_tablegen("arm_cde_builtin_aliases") {
+  args = [ "-gen-arm-cde-builtin-aliases" ]
+  td_file = "arm_cde.td"
+}
+
+# RISC-V
+
+clang_tablegen("riscv_vector_builtins") {
+  args = [ "-gen-riscv-vector-builtins" ]
+  td_file = "riscv_vector.td"
+}
+
+clang_tablegen("riscv_vector_builtin_cg") {
+  args = [ "-gen-riscv-vector-builtin-codegen" ]
+  td_file = "riscv_vector.td"
+}
+
+clang_tablegen("riscv_vector_builtin_sema") {
+  args = [ "-gen-riscv-vector-builtin-sema" ]
+  td_file = "riscv_vector.td"
+}
+
+clang_tablegen("riscv_sifive_vector_builtins") {
+  args = [ "-gen-riscv-sifive-vector-builtins" ]
+  td_file = "riscv_sifive_vector.td"
+}
+
+clang_tablegen("riscv_sifive_vector_builtin_cg") {
+  args = [ "-gen-riscv-sifive-vector-builtin-codegen" ]
+  td_file = "riscv_sifive_vector.td"
+}
+
+clang_tablegen("riscv_sifive_vector_builtin_sema") {
+  args = [ "-gen-riscv-sifive-vector-builtin-sema" ]
+  td_file = "riscv_sifive_vector.td"
+}

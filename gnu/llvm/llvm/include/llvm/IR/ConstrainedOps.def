@@ -1,0 +1,115 @@
+//===- llvm/IR/ConstrainedOps.def - Constrained intrinsics ------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Defines properties of constrained intrinsics, in particular corresponding
+// floating point operations and DAG nodes.
+//
+//===----------------------------------------------------------------------===//
+
+// DAG_FUNCTION defers to DAG_INSTRUCTION if its defined, otherwise FUNCTION.
+#ifndef DAG_FUNCTION
+#ifdef DAG_INSTRUCTION
+#define DAG_FUNCTION(N,A,R,I,D) DAG_INSTRUCTION(N,A,R,I,D)
+#else
+#define DAG_FUNCTION(N,A,R,I,D) FUNCTION(N,A,R,I)
+#endif
+#endif
+
+#ifndef INSTRUCTION
+#define INSTRUCTION(N,A,R,I)
+#endif
+
+// DAG_INSTRUCTION is treated like an INSTRUCTION if the DAG node isn't used.
+#ifndef DAG_INSTRUCTION
+#define DAG_INSTRUCTION(N,A,R,I,D) INSTRUCTION(N,A,R,I)
+#endif
+
+// In most cases intrinsic function is handled similar to instruction.
+#ifndef FUNCTION
+#define FUNCTION(N,A,R,I) INSTRUCTION(N,A,R,I)
+#endif
+
+// Compare instruction have a DAG node so they are treated like DAG_INSTRUCTION.
+#ifndef CMP_INSTRUCTION
+#define CMP_INSTRUCTION(N,A,R,I,D) DAG_INSTRUCTION(N,A,R,I,D)
+#endif
+
+// Arguments of the entries are:
+// - instruction or intrinsic function name.
+// - Number of original instruction/intrinsic arguments.
+// - 1 if the corresponding constrained intrinsic has rounding mode argument.
+// - name of the constrained intrinsic to represent this instruction/function.
+// - DAG node corresponding to the constrained intrinsic without prefix STRICT_.
+
+// These are definitions for instructions, that are converted into constrained
+// intrinsics.
+//
+DAG_INSTRUCTION(FAdd,         2, 1, experimental_constrained_fadd,       FADD)
+DAG_INSTRUCTION(FSub,         2, 1, experimental_constrained_fsub,       FSUB)
+DAG_INSTRUCTION(FMul,         2, 1, experimental_constrained_fmul,       FMUL)
+DAG_INSTRUCTION(FDiv,         2, 1, experimental_constrained_fdiv,       FDIV)
+DAG_INSTRUCTION(FRem,         2, 1, experimental_constrained_frem,       FREM)
+DAG_INSTRUCTION(FPExt,        1, 0, experimental_constrained_fpext,      FP_EXTEND)
+DAG_INSTRUCTION(SIToFP,       1, 1, experimental_constrained_sitofp,     SINT_TO_FP)
+DAG_INSTRUCTION(UIToFP,       1, 1, experimental_constrained_uitofp,     UINT_TO_FP)
+DAG_INSTRUCTION(FPToSI,       1, 0, experimental_constrained_fptosi,     FP_TO_SINT)
+DAG_INSTRUCTION(FPToUI,       1, 0, experimental_constrained_fptoui,     FP_TO_UINT)
+DAG_INSTRUCTION(FPTrunc,      1, 1, experimental_constrained_fptrunc,    FP_ROUND)
+
+// These are definitions for compare instructions (signaling and quiet version).
+// Both of these match to FCmp / SETCC.
+CMP_INSTRUCTION(FCmp,         2, 0, experimental_constrained_fcmp,       FSETCC)
+CMP_INSTRUCTION(FCmp,         2, 0, experimental_constrained_fcmps,      FSETCCS)
+
+// Theses are definitions for intrinsic functions, that are converted into
+// constrained intrinsics.
+//
+DAG_FUNCTION(acos,            1, 1, experimental_constrained_acos,       FACOS)
+DAG_FUNCTION(asin,            1, 1, experimental_constrained_asin,       FASIN)
+DAG_FUNCTION(atan,            1, 1, experimental_constrained_atan,       FATAN)
+DAG_FUNCTION(ceil,            1, 0, experimental_constrained_ceil,       FCEIL)
+DAG_FUNCTION(cos,             1, 1, experimental_constrained_cos,        FCOS)
+DAG_FUNCTION(cosh,            1, 1, experimental_constrained_cosh,       FCOSH)
+DAG_FUNCTION(exp,             1, 1, experimental_constrained_exp,        FEXP)
+DAG_FUNCTION(exp2,            1, 1, experimental_constrained_exp2,       FEXP2)
+DAG_FUNCTION(floor,           1, 0, experimental_constrained_floor,      FFLOOR)
+DAG_FUNCTION(fma,             3, 1, experimental_constrained_fma,        FMA)
+DAG_FUNCTION(log,             1, 1, experimental_constrained_log,        FLOG)
+DAG_FUNCTION(log10,           1, 1, experimental_constrained_log10,      FLOG10)
+DAG_FUNCTION(log2,            1, 1, experimental_constrained_log2,       FLOG2)
+DAG_FUNCTION(lrint,           1, 1, experimental_constrained_lrint,      LRINT)
+DAG_FUNCTION(llrint,          1, 1, experimental_constrained_llrint,     LLRINT)
+DAG_FUNCTION(lround,          1, 0, experimental_constrained_lround,     LROUND)
+DAG_FUNCTION(llround,         1, 0, experimental_constrained_llround,    LLROUND)
+DAG_FUNCTION(maxnum,          2, 0, experimental_constrained_maxnum,     FMAXNUM)
+DAG_FUNCTION(minnum,          2, 0, experimental_constrained_minnum,     FMINNUM)
+DAG_FUNCTION(maximum,         2, 0, experimental_constrained_maximum,    FMAXIMUM)
+DAG_FUNCTION(minimum,         2, 0, experimental_constrained_minimum,    FMINIMUM)
+DAG_FUNCTION(nearbyint,       1, 1, experimental_constrained_nearbyint,  FNEARBYINT)
+DAG_FUNCTION(pow,             2, 1, experimental_constrained_pow,        FPOW)
+DAG_FUNCTION(powi,            2, 1, experimental_constrained_powi,       FPOWI)
+DAG_FUNCTION(ldexp,           2, 1, experimental_constrained_ldexp,      FLDEXP)
+DAG_FUNCTION(rint,            1, 1, experimental_constrained_rint,       FRINT)
+DAG_FUNCTION(round,           1, 0, experimental_constrained_round,      FROUND)
+DAG_FUNCTION(roundeven,       1, 0, experimental_constrained_roundeven,  FROUNDEVEN)
+DAG_FUNCTION(sin,             1, 1, experimental_constrained_sin,        FSIN)
+DAG_FUNCTION(sinh,            1, 1, experimental_constrained_sinh,       FSINH)
+DAG_FUNCTION(sqrt,            1, 1, experimental_constrained_sqrt,       FSQRT)
+DAG_FUNCTION(tan,             1, 1, experimental_constrained_tan,        FTAN)
+DAG_FUNCTION(tanh,            1, 1, experimental_constrained_tanh,       FTANH)
+DAG_FUNCTION(trunc,           1, 0, experimental_constrained_trunc,      FTRUNC)
+
+// This is definition for fmuladd intrinsic function, that is converted into
+// constrained FMA or FMUL + FADD intrinsics.
+FUNCTION(fmuladd,         3, 1, experimental_constrained_fmuladd)
+
+#undef INSTRUCTION
+#undef FUNCTION
+#undef CMP_INSTRUCTION
+#undef DAG_INSTRUCTION
+#undef DAG_FUNCTION

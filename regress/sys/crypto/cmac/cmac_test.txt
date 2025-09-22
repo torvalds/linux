@@ -1,0 +1,38 @@
+--------------------------------------------------
+K              2b7e1516 28aed2a6 abf71588 09cf4f3c 
+
+Example 1: len = 0
+M              <empty string>
+AES_CMAC       bb1d6929 e9593728 7fa37d12 9b756746 
+
+Example 2: len = 16
+M              6bc1bee2 2e409f96 e93d7e11 7393172a 
+AES_CMAC       070a16b4 6b4d4144 f79bdd9d d04a287c 
+
+Example 3: len = 40
+M              6bc1bee2 2e409f96 e93d7e11 7393172a 
+               ae2d8a57 1e03ac9c 9eb76fac 45af8e51 
+               30c81c46 a35ce411 
+AES_CMAC       dfa66747 de9ae630 30ca3261 1497c827 
+
+Example 4: len = 64
+M              6bc1bee2 2e409f96 e93d7e11 7393172a 
+               ae2d8a57 1e03ac9c 9eb76fac 45af8e51 
+               30c81c46 a35ce411 e5fbc119 1a0a52ef 
+               f69f2445 df4f9b17 ad2b417b e66c3710 
+AES_CMAC       51f0bebf 7e3b9d92 fc497417 79363cfe 
+
+Example 4bis: len = 64
+M              6bc1bee2 2e409f96 e93d7e11 7393172a 
+               ae2d8a57 1e03ac9c 9eb76fac 45af8e51 
+               30c81c46 a35ce411 e5fbc119 1a0a52ef 
+               f69f2445 df4f9b17 ad2b417b e66c3710 
+AES_CMAC       51f0bebf 7e3b9d92 fc497417 79363cfe 
+
+Example 4ter: len = 64
+M              6bc1bee2 2e409f96 e93d7e11 7393172a 
+               ae2d8a57 1e03ac9c 9eb76fac 45af8e51 
+               30c81c46 a35ce411 e5fbc119 1a0a52ef 
+               f69f2445 df4f9b17 ad2b417b e66c3710 
+AES_CMAC       51f0bebf 7e3b9d92 fc497417 79363cfe 
+--------------------------------------------------

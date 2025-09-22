@@ -1,0 +1,28 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("MCJITTests") {
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/ExecutionEngine",
+    "//llvm/lib/ExecutionEngine/MCJIT",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:NativeTarget",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "MCJITCAPITest.cpp",
+    "MCJITMemoryManagerTest.cpp",
+    "MCJITMultipleModuleTest.cpp",
+    "MCJITObjectCacheTest.cpp",
+    "MCJITTest.cpp",
+  ]
+
+  if (host_os == "win") {
+    sources += [ "MCJITTests.def" ]
+  }
+}

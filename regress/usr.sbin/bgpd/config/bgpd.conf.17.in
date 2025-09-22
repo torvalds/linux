@@ -1,0 +1,70 @@
+# $OpenBSD: bgpd.conf.17.in,v 1.1 2024/10/10 14:02:47 claudio Exp $
+# Test various authentication statements
+
+AS 1
+
+rtr 127.0.1.2 {
+	tcp md5sig password secret
+}
+
+rtr 127.0.1.3 {
+	tcp md5sig key deadbeef
+}
+
+rtr 127.0.1.4 {
+	ipsec ah ike
+}
+
+rtr 127.0.1.5 {
+	ipsec esp ike
+}
+
+rtr 127.0.1.6 {
+	ipsec ah in spi 12706 sha1 deadbeefdeadbeefdeadbeefdeadbeef01c0ffee
+	ipsec ah out spi 12707 sha1 deadbeefdeadbeefdeadbeefdeadbeef02c0ffee
+}
+
+rtr 127.0.1.7 {
+	ipsec esp in spi 12742 sha1 deadbeefdeadbeefdeadbeefdeadbeef01c0ffee \
+	    aes deadbeefdeadbeefdeadbeefdeadbeef
+	ipsec esp out spi 12743 sha1 deadbeefdeadbeefdeadbeefdeadbeef02c0ffee \
+	    aes deadbeefdeadbeefdeadbeefdeadbeef
+}
+
+neighbor 127.0.0.2 {
+	remote-as 2
+	tcp md5sig password secret
+}
+
+neighbor 127.0.0.3 {
+	remote-as 3
+	tcp md5sig key deadbeef
+}
+
+neighbor 127.0.0.4 {
+	remote-as 4
+	local-address 127.0.0.1
+	ipsec ah ike
+}
+
+neighbor 127.0.0.5 {
+	remote-as 5
+	local-address 127.0.0.1
+	ipsec esp ike
+}
+
+neighbor 127.0.0.6 {
+	remote-as 6
+	local-address 127.0.0.1
+	ipsec ah in spi 12706 sha1 deadbeefdeadbeefdeadbeefdeadbeef01c0ffee
+	ipsec ah out spi 12707 sha1 deadbeefdeadbeefdeadbeefdeadbeef02c0ffee
+}
+
+neighbor 127.0.0.7 {
+	remote-as 7
+	local-address 127.0.0.1
+	ipsec esp in spi 12742 sha1 deadbeefdeadbeefdeadbeefdeadbeef01c0ffee \
+	    aes deadbeefdeadbeefdeadbeefdeadbeef
+	ipsec esp out spi 12743 sha1 deadbeefdeadbeefdeadbeefdeadbeef02c0ffee \
+	    aes deadbeefdeadbeefdeadbeefdeadbeef
+}

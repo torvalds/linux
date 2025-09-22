@@ -1,0 +1,249 @@
+.\"	$OpenBSD: fsck_ext2fs.8,v 1.19 2022/03/31 17:27:19 naddy Exp $
+.\"	$NetBSD: fsck_ext2fs.8,v 1.1 1997/06/11 11:21:48 bouyer Exp $
+.\"
+.\" Copyright (c) 1997 Manuel Bouyer.
+.\" Copyright (c) 1980, 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)fsck.8	8.3 (Berkeley) 11/29/94
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt FSCK_EXT2FS 8
+.Os
+.Sh NAME
+.Nm fsck_ext2fs
+.Nd Second Extended File System consistency check and interactive repair
+.Sh SYNOPSIS
+.Nm fsck_ext2fs
+.Op Fl dfnpy
+.Op Fl b Ar block#
+.Op Fl m Ar mode
+.Ar filesystem
+.Sh DESCRIPTION
+.Nm
+performs interactive file system consistency checks and repairs
+the filesystem specified.
+It is normally invoked from
+.Xr fsck 8 .
+.Pp
+The kernel takes care that only a restricted class of innocuous file system
+inconsistencies can happen unless hardware or software failures intervene.
+These are limited to the following:
+.Pp
+.Bl -item -compact -offset indent
+.It
+Unreferenced inodes
+.It
+Link counts in inodes too large
+.It
+Missing blocks in the free map
+.It
+Blocks in the free map also in files
+.It
+Counts in the super-block wrong
+.El
+.Pp
+These are the only inconsistencies that
+.Nm
+in
+.Dq preen
+mode (with the
+.Fl p
+option) will correct; if it encounters other inconsistencies, it exits
+with an abnormal return status.
+For each corrected inconsistency one or more lines will be printed
+identifying the file system on which the correction will take place,
+and the nature of the correction.
+After successfully correcting a file system,
+.Nm
+will print the number of files on that file system
+and the number of used and free blocks.
+.Pp
+If sent a
+.Dv QUIT
+signal,
+.Nm
+will finish the file system checks, then exit with an abnormal return status.
+.Pp
+Without the
+.Fl p
+option,
+.Nm
+audits and interactively repairs inconsistent conditions for the filesystem.
+If the file system is inconsistent, the operator is prompted for concurrence
+before each correction is attempted.
+It should be noted that some of the corrective actions which are not
+correctable under the
+.Fl p
+option will result in some loss of data.
+The amount and severity of data lost may be determined from the diagnostic
+output.
+The default action for each consistency correction
+is to wait for the operator to respond
+.Dq yes
+or
+.Dq no .
+If the operator does not have write permission on the file system,
+.Nm
+will default to a
+.Fl n
+action.
+.Pp
+The following flags are interpreted by
+.Nm fsck_ext2fs :
+.Bl -tag -width indent
+.It Fl b Ar block#
+Use the block specified immediately after the flag as
+the super block for the file system.
+Block 8193 is usually an alternate super block.
+.It Fl d
+Print debugging output.
+.It Fl f
+Force checking of the filesystem.
+Normally, if a file system is cleanly unmounted, the kernel will set a
+.Dq clean flag
+in the file system superblock and
+.Nm
+will not check the file system.
+This option forces
+.Nm
+to check the file system, regardless of the state of the clean flag.
+.It Fl m Ar mode
+Use the
+.Ar mode
+specified in octal as the
+permission bits to use when creating the
+.Pa lost+found
+directory rather than the default 1777.
+In particular, systems that do not wish to have lost files accessible
+by all users on the system should use a more restrictive
+set of permissions such as 700.
+.It Fl n
+Assume a
+.Dq no
+response to all questions asked by
+.Nm
+except for
+.Dq CONTINUE? ,
+which is assumed to be affirmative.
+The filesystem will not be opened for writing.
+This is the default for file systems to be checked that are
+concurrently mounted writable.
+.It Fl p
+Specify
+.Dq preen
+mode, described above.
+.It Fl y
+Assume a
+.Dq yes
+response to all questions asked by
+.Nm fsck_ext2fs ;
+this should be used with great caution as this is a free license
+to continue after essentially unlimited trouble has been encountered.
+.El
+.Pp
+If neither of the
+.Fl y
+or
+.Fl n
+options are specified, the user may force
+.Nm
+to assume an answer of
+.Dq yes
+to all the remaining questions by replying to a question with a value of
+.Dq F .
+.Pp
+Inconsistencies checked are as follows:
+.Pp
+.Bl -enum -compact
+.It
+Blocks claimed more than once by inodes or the free map.
+.It
+Blocks claimed by an inode outside the range of the file system.
+.It
+Incorrect link counts.
+.It
+Size checks:
+.Bl -item -compact -offset indent
+.It
+Directory size not a multiple of file system block size.
+.It
+Partially truncated file.
+.El
+.It
+Bad inode format.
+.It
+Blocks not accounted for anywhere.
+.It
+Directory checks:
+.Bl -item -compact -offset indent
+.It
+File pointing to unallocated inode.
+.It
+Inode number out of range.
+.It
+Dot or dot-dot not the first two entries of a directory
+or having the wrong inode number.
+.El
+.It
+Super Block checks:
+.Bl -item -compact -offset indent
+.It
+More blocks for inodes than there are in the file system.
+.It
+Bad free block map format.
+.It
+Total free block and/or free inode count incorrect.
+.El
+.El
+.Pp
+Orphaned files and directories (allocated but unreferenced) are,
+with the operator's concurrence, reconnected by
+placing them in the
+.Pa lost+found
+directory.
+The name assigned is the inode number.
+If the
+.Pa lost+found
+directory does not exist, it is created.
+If there is insufficient space, its size is increased.
+.Pp
+Because of inconsistencies between the block device and the buffer cache,
+the raw device should always be used.
+.Sh DIAGNOSTICS
+The diagnostics produced by
+.Nm
+are fully enumerated and explained in Appendix A of
+.Rs
+.%T "Fsck_ffs \- The UNIX File System Check Program"
+.Re
+.Sh SEE ALSO
+.Xr fs 5 ,
+.Xr fstab 5 ,
+.Xr fsck 8 ,
+.Xr mount_ext2fs 8 ,
+.Xr rc 8

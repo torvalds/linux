@@ -1,0 +1,7 @@
+BEGIN
+{
+        @map[7] = 2;
+        clear(@map);
+        printf("=> Print after clear should not crash %d:\n", @map);
+}
+

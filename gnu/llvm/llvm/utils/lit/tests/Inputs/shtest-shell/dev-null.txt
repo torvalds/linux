@@ -1,0 +1,14 @@
+# Check handling of /dev/null in command line options
+# On windows, it should be redirected to a temp file.
+#
+# RUN: %{python} %S/check_args.py --my_arg /dev/null | FileCheck %s --check-prefix=CHECK1
+# CHECK1: OK
+
+# RUN: %{python} %S/check_args.py --my_arg=/dev/null | FileCheck %s --check-prefix=CHECK2
+# CHECK2: OK
+
+# RUN: %{python} %S/check_args.py -a /dev/null | FileCheck %s --check-prefix=CHECK3
+# CHECK3: OK
+
+# RUN: %{python} %S/check_args.py -a=/dev/null | FileCheck %s --check-prefix=CHECK4
+# CHECK4: OK

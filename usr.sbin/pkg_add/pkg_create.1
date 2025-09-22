@@ -1,0 +1,1030 @@
+.\"	$OpenBSD: pkg_create.1,v 1.132 2025/06/13 19:09:43 tb Exp $
+.\"
+.\" Documentation and design originally from FreeBSD. All the code has
+.\" been rewritten since. We keep the documentation's notice:
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" Jordan K. Hubbard
+.\"
+.\"
+.\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
+.\" added dependency tracking, etc.
+.\"
+.\" [jkh] Took John's changes back and made some additional extensions for
+.\" better integration with FreeBSD's new ports collection.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt PKG_CREATE 1
+.Os
+.Sh NAME
+.Nm pkg_create
+.Nd create binary software package for distribution
+.Sh SYNOPSIS
+.Nm pkg_create
+.Bk -words
+.Op Fl mnQqSvx
+.Op Fl A Ar arches
+.Op Fl B Ar pkg-destdir
+.Op Fl D Ar name Ns Op = Ns Ar value
+.Op Fl L Ar localbase
+.Op Fl M Ar displayfile
+.Op Fl P Ar pkgpath : Ns Ar pkgspec : Ns Ar default
+.Op Fl U Ar undisplayfile
+.Op Fl u Ar userlist
+.Op Fl V Ar n
+.Op Fl W Ar libspec
+.Fl d Ar desc
+.Fl D Ar COMMENT Ns = Ns Ar value
+.Fl D Ar FULLPKGPATH Ns = Ns Ar value
+.Fl D Ar PORTSDIR Ns = Ns Ar value
+.Fl f Ar packinglist
+.Fl p Ar prefix
+.Ar pkg-name
+.Ek
+.Nm pkg_create
+.Fl f Ar packinglist
+.Sh DESCRIPTION
+The
+.Nm
+command is normally used to create a binary package named
+.Ar pkg-name ,
+for subsequent use with
+.Xr pkg_add 1 ,
+.Xr pkg_delete 1
+and
+.Xr pkg_info 1 .
+.Ar pkg-name
+will traditionally have a
+.Dq .tgz
+extension, to denote the underlying binary format.
+.Ar pkg-name
+must follow
+.Xr packages-specs 7 .
+.Pp
+Use of the
+.Xr ports 7
+infrastructure instead of manual
+.Nm
+invocation is strongly recommended.
+.Pp
+.Nm
+can also be used to recreate a binary package from an existing installation.
+.Pp
+During package creation,
+.Nm
+replaces too long file names with smaller equivalents
+.Po
+see
+.Xr package 5
+.Pc ,
+records extra information in the packing-list, such as the existence
+of symlinks and hard links, computes and stores file checksums, and
+verifies that all special objects are properly annotated in the packing-list.
+.Pp
+It will also check all required shared libraries
+for reachability, by looking into all installed dependencies.
+It may also ask the ports tree for extra dependencies,
+provided some other dependency refers to the same
+.Ev BASE_PKGPATH
+.Po
+see
+.Xr bsd.port.mk 5
+.Pc .
+The rationale is that those libraries must already be present for
+the package to build correctly, and thus be reachable through the
+subset of dependencies that are not pure
+.Ev RUN_DEPENDS .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl A Ar arches
+Register a list of architectures for which this package should install.
+.Ar arches
+is a comma-separated list of architectures.
+Use
+.Sq *
+to mean any architecture (e.g., arch-independent packages).
+.It Fl B Ar pkg-destdir
+Set
+.Ar pkg-destdir
+as the prefix to prepend to any file to select for the package.
+.It Fl D Ar name Ns Op = Ns Ar value
+Define
+.Ar name
+to
+.Ar value
+(or just define it)
+for substitution and fragment inclusion purposes.
+Some specific
+.Ar names
+have extra meaning, see
+.Xr bsd.port.mk 5
+and
+.Xr package 5
+for details:
+.Pp
+.Bl -tag -width FULLPKGPATH -compact
+.It Cm CDROM
+Set to the port's Makefile
+.Va PERMIT_PACKAGE_CDROM .
+.It Cm COMMENT
+Set package
+.Dq one line description
+(mandatory).
+.It Cm HISTORY_DIR
+Record checksums of files in permanent location
+.Pa ${HISTORY_DIR}/${FULLPKGPATH:S,/,./g}.lru .
+.It Cm FTP
+Set to the port's Makefile
+.Va PERMIT_PACKAGE_FTP .
+.It Cm FULLPKGPATH
+Location in the ports tree, mandatory for updates to work
+.Po
+see
+.Xr pkg_add 1
+.Pc .
+.It Cm HOMEPAGE
+If defined, appended to the description.
+.It Cm MAINTAINER
+If defined, appended to the description.
+.It Cm NO_TS_IN_PLIST
+If set, disable the
+.Cm @ts
+annotations in the generated package, rely on the normal
+.Xr tar 1
+timestamps instead.
+(Mostly used to create firmware "packages" since
+.Xr fw_update 8
+only handles a very small subset of the
+.Xr package 5
+format.)
+.It Cm USE_GROFF
+Set to 1 to have groff format manpages behind the scenes during
+package creation.
+.It Cm REVISION_CHECK , EPOCH_CHECK , FLAVOR_LIST_CHECK
+Set automatically by
+.Xr bsd.port.mk 5
+to values that help
+.Nm
+catch a few errors in package naming.
+.El
+.It Fl d Oo Fl Oc Ns Ar desc
+Fetch long description for package from file
+.Ar desc
+or, if preceded by
+.Sq - ,
+the argument itself.
+.It Fl f Ar packinglist
+Fetch
+.Dq packing-list
+for package from the file
+.Ar packinglist .
+Several packing-lists can be mentioned, in which case they will be
+concatenated together.
+.It Fl L Ar localbase
+Record
+.Ar localbase
+as the localbase used in the package
+.Po
+By default,
+.Pa /usr/local
+.Pc .
+Packages built with another localbase can only be installed by using
+the same localbase in
+.Xr pkg_add 1 ,
+to prevent errors.
+.It Fl M Ar displayfile
+Display the file (using
+.Xr more 1 )
+after installing the package.
+Useful for things like
+legal notices on almost-free software, etc.
+.It Fl m
+Causes
+.Nm
+to always display the progress meter in cases it would not do so by default.
+.It Fl n
+Don't actually create a package.
+.It Fl P Ar pkgpath : Ns Ar pkgspec : Ns Ar default
+Declare a dependency on a package matching
+.Ar pkgspec
+.Pq see Xr packages-specs 7 .
+An appropriate package must be installed before this package may be
+installed, and that package must be deinstalled before this package
+is deinstalled.
+The dependency also contains a
+.Ar pkgpath
+.Po
+see
+.Xr pkgpath 7
+.Pc
+and a
+.Ar default
+package name, in case there is no listing of available packages.
+.Pp
+As a special case,
+.Sq =
+may be used as a
+.Ar pkgspec ,
+to match the
+.Ar default
+version exactly.
+.It Fl p Ar prefix
+Set
+.Ar prefix
+as the initial directory
+.Dq base
+to start from in selecting files for
+the package, and to record as the base for installing the package.
+.It Fl Q
+Print out the files in the actual packing-list of the package being
+generated, with explicit typing
+.Pq e.g. Cm @file , @lib , ... .
+.It Fl q
+Print out the actual packing-list of the package being generated
+(query mode).
+Most often used in combination with
+.Fl n .
+.It Fl S
+Print the update signature of the package.
+See
+.Xr pkg_info 1 .
+.It Fl U Ar undisplayfile
+Display the file (using
+.Xr more 1 )
+when deinstalling the package.
+Useful for reminders about stuff to clean up.
+.It Fl u Ar userlist
+Check all
+.Cm @newuser
+and
+.Cm @newgroup
+statements against a
+.Ar userlist
+file
+.Po
+usually
+.Pa ${PORTSDIR}/infrastructure/db/user.list
+.Pc
+and error out for entries not registered in that file.
+Also error out if the file is incoherent.
+.It Fl V Ar n
+Adds
+.Ar n
+to the
+.Sq global system version
+of the package
+.Po see
+.Xr package 5
+.Pc .
+The default value of 0 is not recorded, thus packages without
+.Cm @version
+have an implicit version of 0.
+.It Fl v
+Turn on verbose output.
+.It Fl W Ar libspec
+Package needs a shared library to work.
+.Ar libspec
+is
+.Sq name.major.minor
+or
+.Sq path/name.major.minor .
+The package won't be installed unless a library with the same name,
+the exact same major number and at least the same minor number can
+be located.
+A library without path is searched through dependent packages under the
+same
+.Ar localbase ,
+then in the system libraries under
+.Pa /usr/lib
+and
+.Pa /usr/X11R6/lib .
+A library with a path is only searched through dependent packages,
+that path being relative to
+.Ar localbase .
+.It Fl x
+Disable progress meter.
+.El
+.Pp
+.Nm
+can also be invoked with only the packing-list from an installed package.
+It will recreate the corresponding binary package in the current directory
+from the installation, or error out if any problem is found.
+For example,
+the following will recreate a
+.Pa kdelibs-3.4.3.tgz
+package:
+.Bd -literal -offset indent
+pkg_create -f /var/db/pkg/kdelibs-3.4.3/+CONTENTS
+.Ed
+.Sh PACKING-LIST DETAILS
+The
+.Dq packing-list
+format (see
+.Fl f )
+is fairly straightforward: basically a list of filenames and directory names
+to include in the package.
+.Pp
+Substitution of variables and inclusion of fragments is documented in the
+next section.
+.Pp
+Directory names are denoted by a trailing slash.
+.Pp
+There are some annotations that can be inserted for better control.
+All these commands start with an
+.Sq @ .
+The following annotations can be inserted manually (but commonly
+.Xr update-plist 1
+is used for creating most packing-list contents):
+.Pp
+.Bl -tag -width Ds -compact
+.It Cm @ask-update Ar pkgspec message
+Mechanism to prevent unwanted updates.
+If the new package is installed as part of an update matching
+.Ar pkgspec ,
+the
+.Ar message
+will be displayed to the user.
+In non-interactive mode, the update will abort.
+Otherwise, the user will have a chance to proceed.
+Automated updates can be done by using
+.Fl D Ar update_stem ,
+with
+.Ar stem
+the stem of the
+.Ar pkgspec .
+Classical use case for postgresql:
+.Bd -literal -offset 3n
+@ask-update postgresql-server-<8 Make sure your existing database is backed up
+.Ed
+.Pp
+Use very sparingly.
+Most cases that seem to require manual updates just require a bit more thought.
+.Pp
+.It Cm @bin Ar filename
+Describe the file as an
+.Ox
+binary executable (not a script).
+.Pp
+.It Cm @comment Ar string
+Place a comment in the packing-list.
+Useful in trying to document some particularly hairy sequence that
+may trip someone up later.
+Can also be used to comment out elements that update-plist
+.Pq see Xr bsd.port.mk 5
+will insist in inserting in a packing-list.
+.Pp
+The special comment
+.Cm @comment no checksum
+can be used to tag the next file as special: even though its characteristics
+will be recorded in the package, it can be altered after installation, and
+.Xr pkg_delete 1
+will still delete it.
+.Pp
+The special comment
+.Cm @comment no debug
+can be used to tag the next file as special: even though it might be a
+binary, it has no debug info
+.Po
+see
+.Xr build-debug-info 1
+.Pc .
+.Pp
+.It Cm @conflict Ar pkgspec
+Declare a conflict with packages matching
+.Ar pkgspec
+.Pq see Xr packages-specs 7 .
+The
+.Ar pkgname
+package can
+.Em not
+be installed if a package
+matching
+.Ar pkgspec
+has been installed because they install the same files and thus conflict.
+.Pp
+.It Cm @cwd Ar pathname
+Set the package current directory.
+All subsequent filenames will be assumed relative to
+.Ar pathname .
+.Pp
+.It Cm @dir Ar directoryname
+Create directory
+.Ar directoryname
+at
+.Xr pkg_add 1
+time, taking
+.Cm @mode ,
+.Cm @group ,
+and
+.Cm @owner
+into account, and remove it during
+.Xr pkg_delete 1 .
+Directories to remove can be shared between packages.
+If
+.Ar name
+does not begin with an @, same as
+.Dl name/
+.Pp
+.It Cm @define-tag Ar tag mode params
+Define a tag of name
+.Ar tag .
+Tags define actions to be performed at specific time during
+.Xr pkg_add 1
+and
+.Xr pkg_delete 1 .
+A given tag may be defined several times with additional properties.
+Currently, the following modes are defined:
+.Bl -tag -width abc -compact
+.It Ar at-end
+if the tag occurs in any dependency, the given command
+.Ar params
+is executed at the end, similar to
+.Cm @exec
+commands.
+.Pp
+The
+.Cm "\&%D"
+escape sequence stands for localbase.
+.Pp
+Actual tags may themselves contain parameters, so the
+.Ar params
+list recognizes two additional escape sequences:
+.Bl -tag -width indent
+.It Cm "\&%l"
+list of tag parameters, in a random order, with duplicates removed.
+.It Cm "\&%u"
+execute the command once for each distinct tag parameter.
+.El
+.Pp
+As a special case, deleting the package that contains the
+.Cm @define-tag
+will work differently:
+If that
+.Cm @tag
+is present in the same package as the
+.Cm @define-tag ,
+then it will be run when encountered, presumably before the command itself
+has been deleted.
+If that
+.Cm @tag
+is not present, the command won't be run at all,
+since the package has been deleted from the file system,
+and usually cleaning up only requires removing index files.
+.Pp
+.It Ar supersedes
+If the given tag is found in dependencies, it supersedes the other
+tag given in the same line.
+For instance:
+.Bd -literal -offset indent
+@define-tag mktexlsr at-end mktexlsr
+@define-tag mktexlsr-local at-end mktexlsr texmf-local
+@define-tag mktexlsr supersedes mktexlsr-local
+.Ed
+.Pp
+Here, the tag
+.Ar mktexlsr
+rebuilds every texmf directory index, whereas
+.Ar mktexlsr-local
+only rebuilds the local texmf directory index,
+so if both tags are seen, only the global command will be run.
+.El
+.Pp
+.It Cm @exec Ar command
+Execute
+.Ar command
+during
+.Xr pkg_add 1 .
+Note that
+.Cm @exec
+commands are executed relative to their location in the packing-list,
+so they can rely on any data that have already been extracted,
+but not on anything that is listed after them.
+Some special elements, such as new users and new groups, are always
+created first, so that
+.Cm @exec
+can rely on them.
+.Pp
+.Xr pkg_add 1
+and
+.Xr pkg_delete 1
+set the
+.Ev PATH
+to a predictable value:
+.Bd -literal -offset indent
+/bin:/sbin:/usr/bin:/usr/sbin:/usr/X11R6/bin:${LOCALBASE}/bin:${LOCALBASE}/sbin
+.Ed
+.Pp
+during execution.
+.Pp
+If
+.Ar command
+contains any of the following sequences somewhere in it, they will
+be expanded inline.
+For the following examples, assume that
+.Cm @cwd
+is set to
+.Pa /usr/local
+and the last extracted file was
+.Pa bin/emacs .
+.Bl -tag -width indent
+.It Cm "\&%B"
+Expands to the
+.Dq basename
+of the fully qualified filename, that
+is the current directory prefix, plus the last filespec, minus
+the trailing filename.
+In the example case, that would be
+.Pa /usr/local/bin .
+.It Cm "\&%D"
+Expands to the current directory prefix, as set with
+.Cm @cwd ;
+in the example case
+.Pa /usr/local .
+.It Cm "\&%F"
+Expands to the last filename extracted (as specified); in the example case,
+.Pa bin/emacs .
+.It Cm "\&%f"
+Expands to the
+.Dq filename
+part of the fully qualified name, or
+the converse of
+.Cm \&%B ;
+in the example case,
+.Pa emacs .
+.El
+.Pp
+.It Cm @exec-always Ar command
+Synonym of
+.Cm @exec .
+.Pp
+.It Cm @exec-add Ar command
+Similar to
+.Cm @exec ,
+except it only gets executed during new installations,
+and not during updates.
+.Pp
+.It Cm @exec-update Ar command
+Similar to
+.Cm @exec ,
+except it only gets executed during updates,
+and not during new installations.
+.Pp
+.It Cm @extra Ar filename
+Declare extra file
+.Ar filename
+to be deleted at deinstall time, if user sets the
+.Fl c
+option.
+Those files are extra configuration files that are normally not deleted.
+.Ar filename
+can be an absolute path.
+If
+.Ar filename
+ends with a slash, it is a directory.
+.Pp
+.It Cm @extraunexec Ar command
+Extra
+.Ar command
+to execute when removing extra files.
+.Pp
+.It Cm @file Ar filename
+Default annotation, to use if
+.Ar filename
+begins with @.
+.Ar filename
+is always a relative path, relative to the current
+.Cm @cwd .
+.Pp
+.It Cm @fontdir Ar directoryname
+Specialized version of
+.Cm @dir ,
+to handle font directories: create
+.Pa font.alias
+from
+.Pa font.alias-*
+fragments, execute
+.Xr mkfontdir 1 ,
+.Xr mkfontscale 1
+and
+.Xr fc-cache 1
+when needed.
+Delete extra files at
+.Xr pkg_delete 1
+time.
+.Pp
+.It Cm @group Ar group
+Set default group ownership for all subsequently extracted files to
+.Ar group .
+Use without an arg to set back to default (extraction)
+group ownership.
+.Pp
+.It Cm @info Ar filename
+Specialized version of
+.Cm @file ,
+to handle GNU info files.
+Automatically grab
+.Ar filename Ns -*
+chapter files, run
+.Xr install-info 1
+as needed.
+.Pp
+.It Cm @lib Ar filename
+Specialized version of
+.Cm @file ,
+to handle shared libraries.
+Satisfy LIB_DEPENDS and WANTLIB,
+run
+.Xr ldconfig 8
+as needed.
+See
+.Sq VARIABLE SUBSTITUTION AND FRAGMENT INCLUSION
+for some details.
+.Pp
+.It Cm @man Ar filename
+Specialized version of
+.Cm @file ,
+to handle manual pages.
+.Pp
+.It Cm @mandir Ar directoryname
+Specialized version of
+.Cm @dir ,
+to handle manual directories: instruct user to add/remove the
+directory to
+.Xr man.conf 5 ,
+remove
+.Xr apropos 1
+database when needed.
+.Pp
+.It Cm @mode Ar mode
+Set default permission for all subsequently extracted files to
+.Ar mode .
+Format is the same as that used by the
+.Xr chmod 1
+command.
+Use without an arg to set back to default (extraction) permissions.
+.Pp
+.It Cm @newgroup Ar name : Ns Ar gid
+During
+.Xr pkg_add 1 ,
+create a new group, using
+.Xr groupadd 8 .
+Happens before file and user creations.
+.Ar gid
+can be prefixed with a
+.Sq !\&
+to ensure group has the correct GID.
+During
+.Xr pkg_delete 1 ,
+groups will be deleted if extra clean-up has been requested, and if
+other installed packages don't list the same group.
+.Pp
+.It Xo
+.Cm @newuser
+.Sm off
+.Ar name :
+.Ar uid :
+.Ar group :
+.Ar loginclass :
+.Ar comment :
+.Ar home :
+.Ar shell
+.Sm on
+.Xc
+During
+.Xr pkg_add 1 ,
+create a new user.
+Happens before any file creation.
+All fields correspond to
+.Xr useradd 8
+parameters.
+Some fields are optional and can be left empty.
+If the user already exists, no action is taken.
+Individual fields can be prefixed by a
+.Sq !\&
+to make sure an existing
+user matches.
+For instance, the directive
+.Li @newuser foo:!42
+will make sure user foo has UID 42.
+During
+.Xr pkg_delete 1 ,
+users will be deleted if extra clean-up has been requested, and if
+other installed packages don't list the same user.
+.Pp
+.It Cm @option Ar name
+Effects vary depending on
+.Ar name .
+These are the user settable options
+.Bl -tag -width indent
+.It Cm always-update
+By default,
+.Xr pkg_add 1
+uses some simplified information to decide whether an installed package
+needs updating.
+With this option, the package will be updated whenever anything changes.
+.Pp
+This is meant to be used by packages containing information relating to the
+whole ports tree, like sqlports, quirks, pkglocatedb.
+.It Cm is-branch
+Annotate the few rare ports where several branches are present in the
+ports tree (such as autoconf), to help
+.Xr pkg_info 1
+produce
+.Ar stem Ns % Ns Ar branch
+annotations when needed.
+.It Cm no-default-conflict
+By default, a package conflicts with other versions of the same package.
+With this option, the older package version will still be noticed, but the
+installation will proceed anyway.
+.El
+.Pp
+.It Cm @owner Ar user
+Set default ownership for all subsequently extracted files to
+.Ar user .
+Use without an arg to set back to default (extraction)
+ownership.
+.Pp
+.It Cm @pkgpath Ar pkgpath
+Declare a secondary
+.Ar pkgpath
+for the package.
+This is used for updates:
+.Nm pkg_add
+.Fl u
+normally checks that the
+.Ar pkgpath
+embedded in the package corresponds to the old package,
+to solve ambiguities when packages with similar names are involved.
+When ports get renamed, or flavors change, extra
+.Cm @pkgpath
+annotations can help
+.Nm pkg_add
+get a sense of continuity.
+Note that these
+.Ar pkgpath
+can take extra optional components, to allow the matching of several
+flavors at once, and are order independent.
+For instance,
+.Bd -literal -offset indent
+@pkgpath some/dir,f1,f2
+.Ed
+.Pp
+and
+.Bd -literal -offset indent
+@pkgpath some/dir,f2,f2,f1
+.Ed
+.Pp
+are equivalent.
+.Bd -literal -offset indent
+@pkgpath some/dir,f1[,f2,f3][,f4]
+.Ed
+.Pp
+will match all pkgpaths to some/dir with flavor f1, and optionally f4, and
+optionally both f2 and f3, e.g.,
+.Ar some/dir,f1,f4 ,
+.Ar some/dir,f1,f2,f3 ,
+.Ar some/dir,f1,f2,f3,f4 ,
+.Ar some/dir,f1
+would match,
+but
+.Ar some/dir,f1,f5 ,
+.Ar some/dir,f2,f3 ,
+.Ar some/dir,f1,f2,f4
+would not.
+.Pp
+Each binary package contains a set of pkgpaths: the primary pkgpath that
+was used to build the package, recorded as
+.Cm @comment Ar pkgpath=some/path ,
+and secondary pkgpaths as recorded through
+.Cm @pkgpath .
+.Pp
+In order for two packages to match, their primary pkgpaths must match, or
+a secondary pkgpath must match the other package's primary pkgpath.
+.Pp
+.It Cm @rcscript Ar filename
+Script for the
+.Pa /etc/rc.d
+framework.
+Contrary to
+.Cm @file ,
+absolute paths are okay, e.g.,
+.Bd -literal -offset indent
+@rcscript ${RCDIR}/ballsd
+.Ed
+.Pp
+In this case, performs an implicit
+.Cm @cwd
+to
+.Pa ${RCDIR} .
+.Pp
+.It Cm @sample Ar filename
+Last preceding
+.Cm @file
+item is a sample configuration file, to be copied to
+.Ar filename
+at
+.Xr pkg_add 1
+time and to be removed at
+.Xr pkg_delete 1
+time.
+During installation, existing configuration files are untouched.
+During deinstallation, configuration files are only removed if unchanged.
+.Ar filename
+can be an absolute path.
+If
+.Ar filename
+ends with a slash,
+it refers to a configuration directory instead.
+.Pp
+.It Cm @shell Ar filename
+Specialized version of
+.Cm @file ,
+to handle shells.
+See
+.Xr shells 5 .
+.Pp
+.It Cm @so Ar filename
+Describe the file as an
+.Ox
+shared object.
+.Pp
+.It Cm @static-lib Ar filename
+Describe the file as an
+.Ox
+static library.
+.Pp
+.It Cm @unexec Ar command
+Execute
+.Ar command
+during
+.Xr pkg_delete 1 .
+.Ev PATH
+and expansion of special
+.Cm \&%
+sequences are the same as for
+.Cm @exec .
+Note that
+.Cm @unexec
+commands are executed relative to their location in the packing-list,
+so they cannot rely on any data that has already been deleted,
+thus they should occur before the files they need to function.
+Some special elements, such as new users and new groups, are always
+deleted last, so that
+.Cm @unexec
+can rely on them.
+.Pp
+.It Cm @tag Ar name Op Ar parameter
+Reference a tag of given
+.Ar name .
+The corresponding
+.Cm @define-tag
+definition must be accessible through the dependency tree.
+.Ar parameter
+is amenable to the same substitutions as
+.Cm @exec .
+.Pp
+.It Cm @unexec-always Ar command
+Synonym of
+.Cm @unexec .
+.Pp
+.It Cm @unexec-delete Ar command
+Similar to
+.Cm @unexec ,
+except it only gets executed during true deletions
+and not while removing an old package during updates.
+.Pp
+.It Cm @unexec-update Ar command
+Similar to
+.Cm @unexec ,
+except it only gets executed while removing an old package during updates,
+and not during true deletions.
+.El
+.Pp
+The
+.Cm @bin ,
+.Cm @lib ,
+.Cm @so
+and
+.Cm @static-lib
+annotations are used by the debug packages infrastructure to figure out
+which files may contain debug information.
+.Pp
+Some of these annotations define information that are local to each port
+but global to the package ecosystem in general, and thus make it into
+the package locate database by default
+.Po
+for instance:
+.Cm @define-tag ,
+.Cm @newuser
+and
+.Cm @newgroup
+.Pc .
+See
+.Xr pkg_mklocatedb 1
+for details.
+.Pp
+See
+.Xr package 5
+for other internal annotations that are automatically added by the
+package tools.
+.Sh VARIABLE SUBSTITUTION AND FRAGMENT INCLUSION
+In packing-lists, installation, deinstallation and requirement scripts,
+description and message files,
+constructs like
+.Li ${VAR}
+will be replaced with the variable value, according to
+.Fl D Ar name Ns = Ns Ar value
+options.
+.Pp
+In particular, shared library versions should never be mentioned explicitly
+in a packing-list.
+Shared library
+.Sq foo
+will take its version number from
+.Ev LIBfoo_VERSION .
+The ports framework normally takes care of all details, see
+.Ev SHARED_LIBS
+in
+.Xr bsd.port.mk 5 .
+.Pp
+Constructs like
+.Li %%VAR%%
+and
+.Li !%%VAR%%
+trigger fragment inclusion.
+If such a line is encountered in a packing-list, the corresponding variable
+must be defined to 0 or 1.
+If the variable's value is 1,
+.Li %%VAR%%
+will be replaced by the corresponding positive fragment, and
+.Li !%%VAR%%
+will be ignored.
+If the variable's value is 0,
+.Li %%VAR%%
+will be ignored, and
+.Li !%%VAR%%
+will be replaced by the corresponding positive fragment.
+.Pp
+A fragment is an auxiliary packing-list file, whose name is derived from the
+current packing-list, and the variable name
+.Va VAR
+triggering the inclusion:
+.Pa pkg/PLIST
+yields a positive fragment
+.Pa pkg/PFRAG.VAR
+and a negative fragment
+.Pa pkg/PFRAG.no-VAR ,
+.Pa pkg/PLIST-FOO
+yields a positive fragment
+.Pa pkg/PFRAG.VAR-foo
+and a negative fragment
+.Pa pkg/PFRAG.no-VAR-foo .
+.Pp
+Fragments can be included inside fragments, so that
+.Li %%VAR2%%
+inside
+.Pa pkg/PFRAG.VAR
+triggers the inclusion of
+.Pa pkg/PFRAG.VAR2-VAR
+and
+.Li !%%VAR2%%
+triggers the inclusion of
+.Pa pkg/PFRAG.no-VAR2-VAR .
+.Pp
+If a positive or a negative fragment file does not exist, the corresponding
+inclusion will be ignored.
+However, if both the positive and negative fragment files do not exist,
+.Nm
+will error out, to make it easier to spot fragment names errors.
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_delete 1 ,
+.Xr pkg_info 1 ,
+.Xr pkg_sign 1 ,
+.Xr tar 1 ,
+.Xr bsd.port.mk 5 ,
+.Xr package 5 ,
+.Xr packages-specs 7 ,
+.Xr pkgpath 7 ,
+.Xr ports 7
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx .
+.Sh AUTHORS
+.Bl -tag -width indent -compact
+.It An Jordan Hubbard
+initial design
+.It An Marc Espie
+complete rewrite.
+.El

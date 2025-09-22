@@ -1,0 +1,20 @@
+LIB1ASMSRC = c4x/libgcc.S
+LIB1ASMFUNCS = _divsf3 _divsi3 _udivsi3 _umodsi3 _modsi3 _mulsi3 \
+	_muldf3 _divdf3 _unsfltconst _unsfltcompare \
+	_muldi3 _umuldi3_high _smuldi3_high _divdi3 _moddi3 _umoddi3 _udivdi3 \
+	_fix_truncsfdi2 _ufix_truncsfdi2 _floatdisf2 _ufloatdisf2 \
+	_floatdidf2 _ufloatdidf2 _fix_truncdfdi2 _ufix_truncdfdi2 _ffs
+
+TARGET_LIBGCC2_CFLAGS = -Dexit=unused_exit
+
+c4x-c.o: $(srcdir)/config/c4x/c4x-c.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  $(TM_H) $(TREE_H) toplev.h $(CPPLIB_H) c-pragma.h $(TM_P_H) 
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/c4x/c4x-c.c
+
+MULTILIB_OPTIONS = m30 msmall mmemparm
+MULTILIB_DIRNAMES = c3x small mem
+MULTILIB_MATCHES = m30=mcpu?30 m30=mcpu?31 m30=mcpu?32 m30=mcpu?33 m30=m31 m30=m32 m30=m33
+MULTILIB_EXCEPTIONS =
+MULTILIB_EXTRA_OPTS =
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib

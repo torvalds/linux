@@ -1,0 +1,103 @@
+.\" $OpenBSD: blowfish.3,v 1.24 2021/11/29 01:04:45 djm Exp $
+.\"
+.\" Copyright 1997 Niels Provos <provos@physnet.uni-hamburg.de>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Manual page, using -mandoc macros
+.\"
+.Dd $Mdocdate: November 29 2021 $
+.Dt BLF_KEY 3
+.Os
+.Sh NAME
+.Nm blf_key ,
+.Nm blf_enc ,
+.Nm blf_dec ,
+.Nm blf_ecb_encrypt ,
+.Nm blf_ecb_decrypt ,
+.Nm blf_cbc_encrypt ,
+.Nm blf_cbc_decrypt
+.Nd Blowfish encryption
+.Sh SYNOPSIS
+.In blf.h
+.Ft void
+.Fn blf_key "blf_ctx *state" "const u_int8_t *key" "u_int16_t keylen"
+.Ft void
+.Fn blf_enc "blf_ctx *state" "u_int32_t *data" "u_int16_t blocks"
+.Ft void
+.Fn blf_dec "blf_ctx *state" "u_int32_t *data" "u_int16_t blocks"
+.Ft void
+.Fn blf_ecb_encrypt "blf_ctx *state" "u_int8_t *data" "u_int32_t datalen"
+.Ft void
+.Fn blf_ecb_decrypt "blf_ctx *state" "u_int8_t *data" "u_int32_t datalen"
+.Ft void
+.Fn blf_cbc_encrypt "blf_ctx *state" "u_int8_t *iv" "u_int8_t *data" "u_int32_t datalen"
+.Ft void
+.Fn blf_cbc_decrypt "blf_ctx *state" "u_int8_t *iv" "u_int8_t *data" "u_int32_t datalen"
+.Sh DESCRIPTION
+.Em Blowfish
+is a fast unpatented block cipher designed by Bruce Schneier.
+It basically consists of a 16-round Feistel network.
+The block size is 64 bits and the maximum key size is 448 bits.
+.Pp
+The
+.Fn blf_key
+function initializes the 4 8-bit S-boxes and the 18 Subkeys with
+the hexadecimal digits of Pi.
+The key is used for further randomization.
+The first argument to
+.Fn blf_enc
+is the initialized state derived from
+.Fn blf_key .
+The stream of 32-bit words is encrypted in Electronic Codebook
+Mode (ECB) and
+.Fa blocks
+is the number of 64-bit blocks in the stream.
+.Fn blf_dec
+is used for decrypting Blowfish encrypted blocks.
+.Pp
+The functions
+.Fn blf_ecb_encrypt
+and
+.Fn blf_ecb_decrypt
+are used for encrypting and decrypting octet streams in ECB mode.
+The functions
+.Fn blf_cbc_encrypt
+and
+.Fn blf_cbc_decrypt
+are used for encrypting and decrypting octet streams in
+Cipherblock Chaining Mode (CBC).
+For these functions
+.Fa datalen
+specifies the number of octets of data to encrypt or decrypt.
+It must be a multiple of 8 (64-bit block).
+The initialisation vector
+.Fa iv
+points to an 8-byte buffer.
+.Sh SEE ALSO
+.Xr passwd 1 ,
+.Xr crypt 3 ,
+.Xr passwd 5
+.Sh AUTHORS
+.An Niels Provos Aq Mt provos@physnet.uni-hamburg.de

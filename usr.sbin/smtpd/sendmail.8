@@ -1,0 +1,86 @@
+.\"	$OpenBSD: sendmail.8,v 1.4 2015/10/23 15:48:16 jung Exp $
+.\"
+.\" Copyright (C) 2013 Ryan Kavanagh <rak@debian.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: October 23 2015 $
+.Dt SENDMAIL 8
+.Os
+.Sh NAME
+.Nm sendmail
+.Nd a mail enqueuer for
+.Xr smtpd 8
+.Sh SYNOPSIS
+.Nm
+.Op Fl tv
+.Op Fl F Ar name
+.Op Fl f Ar from
+.Ar to ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is a local enqueuer for the
+.Xr smtpd 8
+daemon,
+compatible with
+.Xr mailwrapper 8 .
+The message is read on standard input (stdin) until
+.Nm
+encounters an end-of-file.
+The
+.Nm
+enqueuer is not intended to be used directly to send mail,
+but rather via a frontend known as a mail user agent.
+.Pp
+Unless the optional
+.Fl t
+flag is specified,
+one or more recipients must be specified on the command line.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl F Ar name
+Set the sender's full name.
+.It Fl f Ar from
+Set the sender's address.
+.It Fl t
+Read the message's To:, Cc:, and Bcc: fields for recipients.
+The Bcc: field will be deleted before sending.
+.It Fl v
+Enable verbose output.
+.El
+.Pp
+To maintain compatibility with Sendmail, Inc.'s implementation of
+.Nm ,
+various other flags are accepted,
+but have no effect.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr smtpctl 8 ,
+.Xr smtpd 8
+.Sh AUTHORS
+.Sy OpenSMTPD
+is primarily developed by Gilles Chehade,
+Eric Faurot,
+and Charles Longeau,
+with contributions from various
+.Ox
+hackers.
+It is distributed under the ISC license.
+.Pp
+This manpage was written by
+.An Ryan Kavanagh
+.Aq Mt rak@debian.org
+for the Debian project and is distributed under the ISC license.

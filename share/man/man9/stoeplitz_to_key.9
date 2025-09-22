@@ -1,0 +1,136 @@
+.\" $OpenBSD: stoeplitz_to_key.9,v 1.8 2022/01/16 00:15:48 jsg Exp $
+.\"
+.\" Copyright (c) 2020 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 16 2022 $
+.Dt STOEPLITZ_TO_KEY 9
+.Os
+.Sh NAME
+.Nm stoeplitz_to_key ,
+.Nm stoeplitz_eaddr ,
+.Nm stoeplitz_ip4 ,
+.Nm stoeplitz_ip4port ,
+.Nm stoeplitz_ip6 ,
+.Nm stoeplitz_ip6port
+.Nd symmetric Toeplitz hash API
+.Sh SYNOPSIS
+.In net/toeplitz.h
+.Ft void
+.Fn stoeplitz_to_key "void *key" "size_t keylen"
+.Ft uint16_t
+.Fo stoeplitz_eaddr
+.Fa "const uint8_t *eaddr"
+.Fc
+.Ft uint16_t
+.Fo stoeplitz_ip4
+.Fa "uint32_t srcaddr"
+.Fa "uint32_t dstaddr"
+.Fc
+.Ft uint16_t
+.Fo stoeplitz_ip4port
+.Fa "uint32_t srcaddr"
+.Fa "uint32_t dstaddr"
+.Fa "uint16_t srcport"
+.Fa "uint16_t dstport"
+.Fc
+.Ft uint16_t
+.Fo stoeplitz_ip6
+.Fa "const struct in6_addr *srcaddr"
+.Fa "const struct in6_addr *dstaddr"
+.Fc
+.Ft uint16_t
+.Fo stoeplitz_ip6port
+.Fa "const struct in6_addr *srcaddr"
+.Fa "const struct in6_addr *dstaddr"
+.Fa "uint16_t srcport"
+.Fa "uint16_t dstport"
+.Fc
+.Sh DESCRIPTION
+The Toeplitz hash algorithm is commonly used by network interface
+controllers to generate a short hash based on the value of fields
+in network packet headers.
+.\" mention RSS?
+The resulting hash value can be used as a flow identifier, which
+in turn can be used to consistently select a context for processing
+packets using those fields.
+Traditionally, the Toeplitz hash produces different results depending
+on the order of inputs, i.e. adding port 80 then 1234 as inputs would
+produce a different result to hashing port 1234 then 80.
+.Pp
+The symmetric Toeplitz API uses a key selected to generate the same
+hash result regardless of the order the inputs were added.
+The API also supports producing Toeplitz hash keys for use by
+network interface controllers that provide the same symmetric
+property.
+.Pp
+The
+.Fn stoeplitz_to_key
+function generates a Toeplitz key for use by a network interface
+controller based on the system's symmetric Toeplitz key.
+A Toeplitz key of
+.Fa keylen
+bytes will be written to the buffer referenced by the
+.Fa key
+argument.
+.Fa keylen
+must be a multiple of 2 bytes.
+.Pp
+.Fn stoeplitz_eaddr
+calculates a hash value for a single Ethernet address.
+.Pp
+.Fn stoeplitz_ip4
+calculates a hash value for a pair of IPv4 addresses.
+.Pp
+.Fn stoeplitz_ip4port
+calculates a hash value for a pair of IPv4 addresses and ports as
+used by protocols like TCP or UDP.
+.Pp
+.Fn stoeplitz_ip6
+calculates a hash value for a pair of IPv6 addresses.
+.Pp
+.Fn stoeplitz_ip6port
+calculates a hash value for a pair of IPv6 addresses and ports as
+used by protocols like TCP or UDP.
+.Sh CONTEXT
+.Fn stoeplitz_to_key ,
+.Fn stoeplitz_eaddr ,
+.Fn stoeplitz_ip4 ,
+.Fn stoeplitz_ip4port ,
+.Fn stoeplitz_ip6 ,
+and
+.Fn stoeplitz_ip6port
+can be called during autoconf, from process context, or from an
+interrupt context.
+.Sh RETURN VALUES
+.Fn stoeplitz_eaddr ,
+.Fn stoeplitz_ip4 ,
+.Fn stoeplitz_ip4port ,
+.Fn stoeplitz_ip6 ,
+and
+.Fn stoeplitz_ip6port
+return a 16-bit hash value in host byte order.
+.\" .Sh SEE ALSO
+.\" .Xr mbuf 9 ,
+.\" .Xr spl 9
+.Sh HISTORY
+The symmetric Toeplitz API is based on the ideas and implementation in
+.Dx
+by
+.An Yanmin Qiao Aq Mt sephe@dragonflybsd.org
+and
+.An Simon Schubert Aq Mt corecode@fs.ei.tum.de .
+.Pp
+The API appeared in
+.Ox 6.8 .

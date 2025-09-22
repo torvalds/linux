@@ -1,0 +1,176 @@
+.\"	$OpenBSD: ttyname.3,v 1.20 2022/10/13 21:37:05 jmc Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 13 2022 $
+.Dt TTYNAME 3
+.Os
+.Sh NAME
+.Nm ttyname ,
+.Nm ttyname_r ,
+.Nm isatty ,
+.Nm ttyslot
+.Nd get name of associated terminal (tty) from file descriptor
+.Sh SYNOPSIS
+.In unistd.h
+.Ft char *
+.Fn ttyname "int fd"
+.Ft int
+.Fn ttyname_r "int fd" "char *name" "size_t namesize"
+.Ft int
+.Fn isatty "int fd"
+.In stdlib.h
+.Ft int
+.Fn ttyslot "void"
+.Sh DESCRIPTION
+These functions operate on the system file descriptors for terminal
+type devices.
+These descriptors are not related to the standard
+.Tn I/O
+.Dv FILE
+typedef, but refer to the special device files found in
+.Pa /dev
+and named
+.Pa /dev/tty Ns Em XX
+and for which an entry exists
+in the initialization file
+.Pa /etc/ttys
+(see
+.Xr ttys 5 ) .
+.Pp
+The
+.Fn isatty
+function determines if the file descriptor
+.Fa fd
+refers to a valid
+terminal type device.
+.Pp
+The
+.Fn ttyname
+and
+.Fn ttyname_r
+functions get the related device name of a file descriptor for which
+.Fn isatty
+is true.
+The
+.Fn ttyname_r
+function stores the NUL-terminated
+pathname of the terminal associated with
+the file descriptor
+.Fa fd
+in the character array referenced by
+.Fa name .
+The array is
+.Fa namesize
+characters long and should have space for the name and the terminating
+NUL character.
+The maximum length of the terminal name is
+.Dv TTY_NAME_MAX .
+.Pp
+The
+.Fn ttyslot
+function fetches the current process's controlling terminal number from
+the
+.Xr ttys 5
+file entry.
+.Sh RETURN VALUES
+The
+.Fn ttyname
+function returns the NUL-terminated name if the device is found and
+.Fn isatty
+is true; otherwise
+a null pointer is returned and
+.Va errno
+is set to indicate the error.
+.Pp
+The
+.Fn ttyname_r
+function returns zero if successful; otherwise an error number is returned.
+.Pp
+The
+.Fn isatty
+function returns 1 if
+.Fa fd
+is associated with a terminal device; otherwise it returns 0 and
+.Va errno
+is set to indicate the error.
+.Pp
+The
+.Fn ttyslot
+function returns the unit number of the device file if found; otherwise
+the value zero is returned.
+.Sh FILES
+.Bl -tag -width /etc/ttys -compact
+.It Pa /dev/\(**
+.It Pa /etc/ttys
+.El
+.Sh ERRORS
+The
+.Fn ttyname ,
+.Fn ttyname_r ,
+and
+.Fn isatty
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid file descriptor.
+.It Bq Er ENOTTY
+The
+.Fa fd
+argument does not refer to a terminal device.
+.It Bq Er ERANGE
+The value of
+.Fa namesize
+is smaller than the length of the string to be returned including the
+terminating NUL character.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr ttys 5 ,
+.Xr dev_mkdb 8
+.Sh HISTORY
+The
+.Fn isatty ,
+.Fn ttyname ,
+and
+.Fn ttyslot
+functions appeared in
+.At v7 .
+The
+.Fn ttyname_r
+function appeared in the POSIX Threads Extension (1003.1c-1995).
+.Sh BUGS
+The
+.Fn ttyname
+function leaves its result in an internal static object and returns
+a pointer to that object.
+Subsequent calls to
+.Fn ttyname
+will modify the same object.

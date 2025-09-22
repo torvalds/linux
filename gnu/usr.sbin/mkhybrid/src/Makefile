@@ -1,0 +1,149 @@
+# Generated automatically from Makefile.in by configure.
+#
+# $Id: Makefile,v 1.3 2008/03/08 15:36:12 espie Exp $
+#
+## Makefile for mkhybrid - based on mkisofs v1.12
+# James Pearson 16/3/1999
+
+#### Start of system configuration section. ####
+
+srcdir = .
+
+CC = gcc
+
+INSTALL = /usr/bin/install -c
+INSTALL_PROGRAM = ${INSTALL}
+INSTALL_DATA = ${INSTALL} -m 644
+
+LIBS =  -lhfs -lfile
+
+prefix = /usr/local
+exec_prefix =  ${prefix}
+
+bindir = ${exec_prefix}/bin
+
+RANLIB = ranlib
+
+libhfsdir = libhfs_iso
+LIBHFS = $(libhfsdir)/libhfs.a
+INCHFS = $(libhfsdir)/hfs.h
+
+libfiledir = libfile
+LIBFILE = $(libfiledir)/libfile.a
+
+DEFINES = -DAPPLE_HYB
+
+COPTS=-g -O2
+
+# Where to put the manual pages.
+mandir = $(prefix)/man/man8
+# Extension (not including `.') for the manual page filenames.
+manext = 8
+
+#### End of system configuration section. ####
+
+CFLAGS=$(COPTS) $(DEFINES) -I. -Iinclude -I$(libhfsdir) -DVANILLA_AUTOCONF
+LDFLAGS= -L$(libhfsdir) -L$(libfiledir)
+OBJS=mkisofs.o tree.o write.o hash.o rock.o multi.o \
+		joliet.o match.o name.o eltorito.o \
+		apple.o volume.o desktop.o mac_label.o
+
+World: mkhybrid
+
+Makefile: Makefile.in config.status
+	CONFIG_FILES=Makefile CONFIG_HEADERS= $(SHELL) ./config.status
+
+config.status: configure
+	$(SHELL) config.status --recheck
+
+configure:  configure.in
+	cd $(srcdir) && autoconf
+
+mkhybrid: Makefile $(OBJS) $(LIBHFS) $(LIBFILE)
+	$(CC) $(LDFLAGS) -o mkhybrid $(OBJS) $(LIBS)
+
+mkisofs: Makefile $(OBJS) $(LIBHFS) $(LIBFILE)
+	$(CC) $(LDFLAGS) -o mkisofs $(OBJS) $(LIBS)
+
+apple_driver: apple_driver.o
+	$(CC) $(LDFLAGS) -o apple_driver  apple_driver.o
+apple_driver.o: apple_driver.c mac_label.h
+	$(CC) -c $(CFLAGS) $(srcdir)/apple_driver.c
+
+install: mkisofs mkisofs.8
+	[ -d $(bindir) ] || mkdir $(bindir)
+	[ -d $(mandir) ] || mkdir $(mandir)
+	$(INSTALL_PROGRAM) mkhybrid $(bindir)/mkhybrid
+	-$(INSTALL_DATA) $(srcdir)/mkhybrid.8 $(mandir)/mkhybrid.$(manext)
+
+tree.o: tree.c mkisofs.h iso9660.h exclude.h config.h Makefile
+	$(CC) -c $(CFLAGS) $(srcdir)/tree.c
+
+write.o: write.c mkisofs.h iso9660.h config.h Makefile
+	$(CC) -c $(CFLAGS) $(srcdir)/write.c
+
+hash.o: hash.c mkisofs.h  config.h Makefile
+	$(CC) -c $(CFLAGS) $(srcdir)/hash.c
+
+rock.o: rock.c mkisofs.h iso9660.h config.h Makefile
+	$(CC) -c $(CFLAGS) $(srcdir)/rock.c
+
+joliet.o: joliet.c mkisofs.h iso9660.h config.h Makefile
+	$(CC) -c $(CFLAGS) $(srcdir)/joliet.c
+
+match.o: match.c match.h config.h Makefile
+	$(CC) -c $(CFLAGS) $(srcdir)/match.c
+
+multi.o: multi.c iso9660.h mkisofs.h config.h Makefile
+	$(CC) -c $(CFLAGS) $(srcdir)/multi.c
+
+name.o: name.c iso9660.h mkisofs.h config.h Makefile
+	$(CC) -c $(CFLAGS) $(srcdir)/name.c
+
+mkisofs.o: mkisofs.c iso9660.h mkisofs.h exclude.h config.h Makefile $(LIBHFS) $(INCHFS) $(LIBFILE)
+	$(CC) -c $(CFLAGS) $(srcdir)/mkisofs.c
+
+eltorito.o: eltorito.c iso9660.h mkisofs.h config.h Makefile
+	$(CC) -c $(CFLAGS) $(srcdir)/eltorito.c
+
+apple.o: apple.c apple.h Makefile mkisofs.h
+	$(CC) -c $(CFLAGS) $(srcdir)/apple.c
+
+volume.o: volume.c mkisofs.h config.h Makefile $(LIBHFS) $(INCHFS)
+	$(CC) -c $(CFLAGS) $(srcdir)/volume.c
+
+desktop.o: desktop.c mkisofs.h config.h Makefile $(LIBHFS) $(INCHFS)
+	$(CC) -c $(CFLAGS) $(srcdir)/desktop.c
+
+mac_label.o: mac_label.c mac_label.h Makefile config.h mkisofs.h
+	$(CC) -c $(CFLAGS) $(srcdir)/mac_label.c
+
+$(LIBHFS) ::
+	cd $(libhfsdir) && $(MAKE) CC="$(CC)" COPTS="$(COPTS)" DEFINES="$(DEFINES)" RANLIB="$(RANLIB)"
+
+$(LIBFILE) ::
+	cd $(libfiledir) && $(MAKE) CC="$(CC)" COPTS="$(COPTS)" DEFINES="$(DEFINES)" RANLIB="$(RANLIB)"
+
+clean:
+	/bin/rm -f *.o core mkhybrid apple_driver *~ #*#
+	/bin/rm -f config.status config.log config.cache config.h
+	(cd diag/; make clean)
+	(cd $(libhfsdir); make clean)
+	(cd $(libfiledir); make clean)
+
+#
+# All .h files except for config.h get copied.
+#
+dist:   Makefile
+	(mydir=`basename \`pwd\``;\
+	cd .. && tar -cvvf - $$mydir/README $$mydir/README.eltorito \
+	$$mydir/configure.in $$mydir/configure $$mydir/config.h.in \
+	$$mydir/Makefile.in  $$mydir/make.com $$mydir/TODO \
+	$$mydir/COPYING $$mydir/ChangeLog $$mydir/*.8 $$mydir/*.c \
+	$$mydir/mkisofs.spec $$mydir/acconfig.h \
+	$$mydir/install-sh $$mydir/[d-z]*.h \
+	$$mydir/README.session $$mydir/diag/Makefile.in \
+	$$mydir/diag/README $$mydir/diag/*.c $$mydir/diag/isoinfo.8 \
+	$$mydir/include/*.h | gzip -9 > $${mydir}.tar.gz)
+
+

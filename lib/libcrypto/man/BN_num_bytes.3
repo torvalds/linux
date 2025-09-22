@@ -1,0 +1,176 @@
+.\" $OpenBSD: BN_num_bytes.3,v 1.10 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 9e183d22 Mar 11 08:56:44 2017 -0500
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Ulf Moeller <ulf@openssl.org>
+.\" and Richard Levitte <levitte@openssl.org>.
+.\" Copyright (c) 2000, 2004 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_NUM_BYTES 3
+.Os
+.Sh NAME
+.Nm BN_num_bits_word ,
+.Nm BN_num_bits ,
+.Nm BN_num_bytes
+.Nd get BIGNUM size
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft int
+.Fo BN_num_bits_word
+.Fa "BN_ULONG w"
+.Fc
+.Ft int
+.Fo BN_num_bits
+.Fa "const BIGNUM *a"
+.Fc
+.Ft int
+.Fo BN_num_bytes
+.Fa "const BIGNUM *a"
+.Fc
+.Sh DESCRIPTION
+.Fn BN_num_bits_word
+returns the number of significant bits in
+.Fa w ,
+that is, the minimum number of digits needed to write
+.Fa w
+as a binary number.
+Except for an argument of 0, this is
+.Pp
+.D1 floor(log2( Ns Fa w ) ) No + 1 .
+.Pp
+.Vt BN_ULONG
+is a macro that expands to
+.Vt unsigned long Pq = Vt uint64_t
+on
+.Dv _LP64
+platforms and
+.Vt unsigned int Pq = Vt uint32_t
+elsewhere.
+.Pp
+.Fn BN_num_bits
+returns the number of significant bits in the value of the
+.Fa "BIGNUM *a" ,
+following the same principle as
+.Fn BN_num_bits_word .
+.Pp
+.Fn BN_num_bytes
+is a macro that returns the number of significant bytes in
+.Fa a ,
+i.e. the minimum number of bytes needed to store the value of
+.Fa a ,
+that is,
+.Fn BN_num_bits a
+divided by eight and rounded up to the next integer number.
+.Sh RETURN VALUES
+.Fn BN_num_bits_word
+returns the number of significant bits in
+.Fa w
+or 0 if
+.Fa w
+is 0.
+The maximum return value that can occur is
+.Dv BN_BITS2 ,
+which is 64 on
+.Dv _LP64
+platforms and 32 elsewhere.
+.Pp
+.Fn BN_num_bits
+returns the number of significant bits and
+.Fn BN_num_bytes
+the number of significant bytes in
+.Fa a ,
+or 0 if the value of
+.Fa a
+is 0.
+.Sh SEE ALSO
+.Xr BN_new 3 ,
+.Xr BN_security_bits 3 ,
+.Xr DH_size 3 ,
+.Xr DSA_size 3 ,
+.Xr RSA_size 3
+.Sh HISTORY
+.Fn BN_num_bytes
+and
+.Fn BN_num_bits
+first appeared in SSLeay 0.5.1.
+.Fn BN_num_bits_word
+first appeared in SSLeay 0.5.2.
+These functions have been available since
+.Ox 2.4 .
+.Sh CAVEATS
+Some have tried using
+.Fn BN_num_bits
+on individual numbers in RSA keys, DH keys and DSA keys, and found that
+they don't always come up with the number of bits they expected
+(something like 512, 1024, 2048, ...).
+This is because generating a number with some specific number of bits
+doesn't always set the highest bits, thereby making the number of
+.Em significant
+bits a little smaller.
+If you want to know the "key size" of such a key, use functions like
+.Xr RSA_size 3 ,
+.Xr DH_size 3 ,
+and
+.Xr DSA_size 3 .

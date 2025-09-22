@@ -1,0 +1,45 @@
+#	$OpenBSD: files.marvell,v 1.11 2023/03/04 10:42:26 jmatthew Exp $
+
+device mvacc
+attach mvacc at fdt
+file	arch/armv7/marvell/mvacc.c			mvacc
+
+device mvagc
+attach mvagc at fdt
+file	arch/armv7/marvell/mvagc.c			mvagc
+
+device mvsysctrl
+attach mvsysctrl at fdt
+file	arch/armv7/marvell/mvsysctrl.c			mvsysctrl
+
+device mvmbus: fdt
+attach mvmbus at fdt
+file	arch/armv7/marvell/mvmbus.c			mvmbus
+
+device mvxhci: usbus
+attach mvxhci at fdt
+file	arch/armv7/marvell/mvxhci.c			mvxhci
+
+device mvahci: scsi, atascsi
+attach mvahci at fdt
+file	arch/armv7/marvell/mvahci.c			mvahci
+
+device mvmpic
+attach mvmpic at fdt
+file	arch/armv7/marvell/mvmpic.c			mvmpic
+
+device mvpcie: pcibus
+attach mvpcie at fdt
+file	arch/armv7/marvell/mvpcie.c			mvpcie
+
+device mvpxa: sdmmcbus, sdhc
+attach mvpxa at fdt
+file	arch/armv7/marvell/mvpxa.c			mvpxa
+
+device	mvodog
+attach	mvodog at fdt
+file	arch/armv7/marvell/mvodog.c			mvodog
+
+device	mvortc
+attach	mvortc at fdt
+file	arch/armv7/marvell/mvortc.c			mvortc

@@ -1,0 +1,863 @@
+Wed Nov  5 10:46:29 1997  Andreas Buschmann US/EC4 60/1F/110 #40409  <buschman@lts.sel.alcatel.de>
+
+	Circumvent a bug in the SunOS / Solaris CD-ROM driver (and maybe HP/UX, too).
+       
+       * mkisofs.8 (-S): Document switch.
+       *  mkisofs.c (split_SL_field): new Variable, new switch -S.
+       *  mkisofs.h (split_SL_field): new Variable.
+       * rock.c (generate_rock_ridge_attributes): only split SL field,
+       when split_SL_field is set.
+ 
+Tue Jun  3 15:32:21 1997  Andreas Buschmann <buschman@lts.sel.alcatel.de>
+ 
+       Circumvent a bug in the SunOS CD-ROM driver (and maybee HP/UX, too).
+ 
+       * mkisofs.8 (-s): Document switch.
+       * mkisofs.c (split_SL_component): new Variable, new switch -s.
+       * mkisofs.h (split_SL_component): new Variable.
+       * rock.c (generate_rock_ridge_attributes): only split SL
+       components, when split_SL_component is set.
+       
+       * defaults.h: Added SunOS string.
+       
+
+Wed Mar 19 16:50:17 1997  Fred Fish  <fnf@ninemoons.com>
+
+	* Makefile.in (CFLAGS): Let configure set basic flags.  Move
+	compilation option -c to actual CC commands.
+	(LDFLAGS): Let configure set basic flags.
+	(Makefile): Depends upon config.status, not configure.
+	Regenerate if necessary from Makefile.in using config.status.
+	(configure): Cd to srcdir before running autoconf.
+	* acconfig.h: New file to hold nonstandard entries used in
+	config.h.in.  Used by autoheader to generate config.h.in.
+	* config.h.in: Regenerated with autoheader.
+	* configure.in: Check for existance of sbrk() function.
+	* configure: Regenerated with autoconf 2.12.
+	* fnmatch.c (FMN_FILE_NAME): Define if not already defined.
+	(FNM_LEADING_DIR): Ditto.
+	(FNM_CASEFOLD): Ditto.
+	* mkisofs.c (main): Only use sbrk() if system supports it.
+
+Fri Mar 14 21:54:37 1997  Eric Youngdale  <eric@andante.jic.com>
+
+	* Bump version number to 1.10, public release.
+
+	* Put entire thing under RCS.  History is buried there now.
+
+	* Fix bug involving empty directories, translation tables and
+	malloc(0).
+
+Mon Feb 17 12:44:03 1997  Eric Youngdale  <eric@andante.jic.com>
+
+	* Bump version number to 1.10b7.
+
+	* Makefile.in, configure.in, config.in: Change to use GNU autoconf.
+
+	* Configure: Delete old configuration script.
+
+	* tree.c: Fix bug where we had a rename limit of 1000 files
+	instead of 0x1000.
+
+	* mkisofs.c: Fix sign of timezone offset.  Linux iso filesystem
+	also need to be fixed, unfortunately.
+	
+Tue Dec  3 22:21:21 1996  Eric Youngdale  <eric@sub2317.jic.com>
+
+	Fixed a couple of multi-session bugs.  Discs now seem to
+	work on both Solaris and Windows-NT.
+
+	* Bump version number to 1.10b6.
+
+Tue Dec  3 22:21:21 1996  Eric Youngdale  <eric@sub2317.jic.com>
+
+	Multi-session stuff *almost* there.  Discs seem to work
+	under Linux without any problem, but under DOS only
+	the first session is seen.  The patch to write.c
+	inspired by disc written by Windows generated multi-session
+	disc, which will hopefully make the discs usable under
+	DOS as well.
+	
+	* Bump version number to 1.10b5.
+
+	* write.c: use size of new session, not total of all sessions
+	in volume_space_size field.
+
+	* mkisofs.8: Update with current location of cdwrite.
+
+Mon Nov  4 23:45:01 1996  Eric Youngdale  <eric@sub2317.jic.com>
+
+	* Bump version number to 1.10b4.
+
+	* Add cdwrite.c.diff file, which provides a very crude, minimal
+	interface between mkisofs and cdwrite.  It should be enough to
+	generate a multi-session disc, but it hasn't been tested yet.
+
+Thu Oct 17 00:39:52 1996  Eric Youngdale  <eric@sub2317.jic.com>
+
+	* Bump version number to 1.10b3.
+
+Wed Oct 16 23:40:44 1996  Michael Fulbright <msf@redhat.com>
+
+	Add support for 'El Torito' specification which allows for bootable
+	cdroms.
+
+	* Makefile.in: Add eltorito.[c,o].
+
+	* defaults.h: Add default settings for El Torito related things.
+
+	* iso9660.h: Add structure definitions for El Torito.
+
+	* mkisofs.8: Document new options.
+
+	* mkisofs.c: Add support for new options related to El Torito.
+
+	* mkisofs.h: Add definitions, prototypes as required.
+
+	* tree.c: Add search_tree_file function to search for a specified
+	file.
+
+	* write.c: Add support for writing special records for El Torito.
+
+	* eltorito.c: New file.
+
+	
+Wed Oct 16 23:40:44 1996  Eric Youngdale  <eric@sub2317.jic.com>
+
+	* rock.c: Fix bug whereby we made assumptions about how
+	dev_t was split into major/minor.  Use major() and minor()
+	macros to do this for us, since each system should
+	do this correctly.
+
+	* write.c: Fix bug whereby abstract, copyright and appid
+	strings were not properly filled if application ID weren't
+	in use.
+
+Sun Sep 29 10:05:10 1996  Eric Youngdale  <eric@sub2317.jic.com>
+
+	* Bump version number to 1.10b2.  Minor bug fixes here
+	and there.
+
+Sun Sep 15 18:54:05 1996  Eric Youngdale  <eric@sub2317.jic.com>
+
+	* Bump version number to 1.10b1.  Major new functionality is
+	support for multi-session.  Still a bit preliminary, but
+	most of the pieces are there now.
+
+Wed Dec 20 16:44:44 1995  Eric Youngdale  (eric@andante.aib.com)
+
+        * mkisofs.c, mkisofs.8, Makefile (version_string): Bump to 1.05.
+
+	* rock.c: Bugfix for cases where sizeof(int) == 4 and
+	sizeof(dev_t) > 4.
+
+	* rock.c: Bugfix for long symbolic links ('/' characters were
+	being dropped).
+
+	Patches from Peter Miller <pmiller@agso.gov.au>:
+
+	* mkisofs.8: Documentation fix (some versions of nroff don't
+	like '.' in column 1 if it is not a nroff command).
+
+	* mkisofs.c: Add support for 'rationalize' option.
+	Similar to rock ridge, except echos of development environment
+	are removed.
+
+	* write.c Status indicator now indicates percent finished, and
+	estimated time of completion.
+
+Sun Feb 26 01:52:06 1995  Eric Youngdale  (eric@largo)
+
+	* Add patches from Ross Biro to allow you to merge arbitrary
+	trees into the image.  This is not compiled in by default but
+	you need to add -DADD_FILES when compiling.
+
+Fri Feb 17 02:29:03 1995  Paul Eggert  <eggert@twinsun.com>
+
+	* tree.c: Port to Solaris 2.4.  Prefer <sys/mkdev.h> if
+	HASMKDEV.  Cast unknown integer types to unsigned long and
+	print them with %lu or %lx.
+
+Thu Jan 26 15:25:00 1995  H. Peter Anvin  (hpa@yggdrasil.com)
+
+	* mkisofs.c: Substitute underscore for leading dot in non-Rock
+	Ridge filenames, since MS-DOS cannot read files whose names
+	begin with a period.
+
+Mon Jan 16 18:31:41 1995  Eric Youngdale  (eric@aib.com)
+
+	* rock.c (generate_rock_ridge_attributes): Only use ROOT
+	record for symlinks if we are at the start of the symlink.
+	Otherwise just generate an empty entry.
+
+Mon Jan 16 16:19:50 1995  Eric Youngdale  (eric@aib.com)
+
+	* diag/isodump.c: Use isonum_733 instead of trying to dereference
+	pointers when trying to decode 733 numbers in the iso9660 image.
+
+	* diag/isovfy.c: Likewise.
+
+	* write.c: Always assign an extent number, even for zero length
+	files.  A zero length file with a NULL extent is apparently dropped
+	by many readers.
+
+Wed Jan 11 13:46:50 1995  Eric Youngdale  (eric@aib.com)
+
+	* mkisofs.c: Modify extension record to conform to IEEE P1282
+	specifications.  This is commented out right now, but a trivial
+	change to a #define enables this.   I need to see the specs
+	to see whether anything else changed before this becomes final.
+
+	* write.c (FDECL4): Fix so that we properly determine error
+	conditions.
+
+	* mkisofs.h: Change rr_attributes to unsigned.
+
+	* tree.c(increment_nlink): Change pnt since rr_attributes is now
+	  unsigned.
+
+	Ultrix patches from petav@argon.e20.physik.tu-muenchen.de (Peter Averkamp)
+
+	* rock.c: Fix for ultrix systems, we have 64 bit device numbers.
+	Type cast when generating file size.  Change rr_attributes to
+	unsigned.
+
+	* mkisofs.c: For ultrix systems, define our own function
+	for strdup.  
+
+	* mkisofs.c: Fix usage() since some compilers do not concatenate
+	strings properly (i.e. ultrix).
+
+	Bugs found with Sentinel II:
+
+	* write.c: Fix a couple of memory leaks.
+
+	* mkisofs.c: Bugfix - always put a zero byte at end of name
+	for ".." entry.
+
+	* tree.c: Set isorec.date from fstatbuf.st_ctime, not current_time,
+	  since current_time might not be set.
+
+Sat Dec  3 14:55:42 1994  Eric Youngdale  (eric@andante)
+
+	* mkisofs.c: When returning entry for ".." file, set second byte
+	to 0.
+
+	* write.c: Free name and rr_attributes fields when writing.
+
+Mon Nov 28 13:36:27 1994  Eric Youngdale  (eric@andante)
+
+	* mkisofs.h: Change rr_attributes to unsigned.
+
+	* rock.c: Ditto.  Work around >>32 bug in ultrix for 64 bit data types.
+
+	* mkisofs.c (usage): Fix for ultrix - use continuation lines
+	instead of assuming that strings are catenated by the compiler.
+
+Mon Jun 20 20:25:26 1994  Eric Youngdale  (eric@esp22)
+
+        * mkisofs.c, mkisofs.8, Makefile (version_string): Bump to pre-1.02.
+
+	* mkisofs.h: Fix declaration of e_malloc to use DECL macros.
+
+	* tree.c: Fix bug in previous change.
+
+	* diag/*.c: Add appropriate copyright notices.
+
+Sat Apr  9 13:30:46 1994  Eric Youngdale  (ericy@cais.com)
+
+        * Configure: New file - shell script that determines a bunch of
+	things to properly build mkisofs.
+
+	* Makefile.in: New file - copy of Makefile, but Configure sets a
+	few things up for it.
+
+	* tree.c: Do not depend upon opendir to return NULL if we cannot
+	open a directory - actually try and read the first entry.  The
+	foibles of NFS seem to require this.
+
+	* write.c: Fix definition of xfwrite (Use FDECL4)
+
+	Add some changes to allow more configurability of some of the
+	volume header fields:
+
+	* mkisofs.8: Document new configuration options.
+
+	* mkisofs.c: Add variables to hold new fields.  Add function to
+	read .mkisofsrc files.
+
+	* defaults.h: Another way of configuring the same things.
+
+	Add some changes from Leo Weppelman leo@ahwau.ahold.nl.
+
+	* mkisofs.c:  Allow -A to specify application ID.  Fix usage(),
+	getopt and add case switch.
+
+	* rock.c: Fix handling of device numbers (dev_t high should only
+	be used when sizeof(dev_t) > 32 bits).
+
+	Add a bunch of changes from Manuel Bouyer.
+
+	* diag/Makefile: New file.
+
+	* diag/dump.c, diag/isodump.c: Use termios if system supports it.
+
+	* (throughout): Replace all occurences of "malloc" with e_malloc.
+
+	* mkisofs.c:  For NetBSD, attempt to increase the rlimit for
+	the size of the data segment to about 33 Mb.
+
+	* mkisofs.c (e_malloc): New function.  Calls malloc, and prints
+	nice error message and exits if NULL is returned.
+
+Sun Jan 23 19:23:57 1994  Eric Youngdale  (eric@esp22)
+
+        * mkisofs.c, mkisofs.8, Makefile (version_string): Bump to 1.01.
+
+    Add a bunch of stuff so that mkisofs will work on a VMS system.
+
+	* (ALL): Change any direct use of the "st_ino" field from
+	the statbuf to use a macro.
+
+	* mkisofs.h: Define appropriate macros for both VMS and unix.
+
+	* (ALL): Add type casts whenever we use the UNCACHED_DEV macro.
+
+	* rock.c: Wrap a #ifndef VMS around block and character device
+	stuff.
+
+	* write.c: Add prototype for strdup if VMS is defined.
+
+	* make.com: Script for building mkisofs on a VMS system.
+
+	* Makefile: Include make.com in the distribution.
+
+	* mkisofs.c: Include <sys/type.h> on VMS systems.
+
+	* tree.c: Include <sys/file.h> and "vms.h" on VMS systems.
+
+	* mkisofs.h (PATH_SEPARATOR, SPATH_SEPARATOR):  New macros
+	that define the ascii character that separates the last directory
+	component from the filename.
+
+	* tree.c, mkisofs.c: Use them.
+
+	* vms.c: New file.  Contains version of getopt, strdup, opendir,
+	readdir and closedir.
+
+	* vms.h: New file.  Defines S_IS* macros.  Define gmtime as
+	localtime, since gmtime under VMS returns NULL.
+
+Sat Jan 15 13:57:42 1994  Eric Youngdale  (eric@esp22)
+
+	* mkisofs.h (transparent_compression): New prototype.
+
+	* mkisofs.c (transparent_compression): Declare, use
+	'-z' option to turn on.
+
+	* tree.c: Change TRANS.TBL;1 to TRANS.TBL (version gets
+	added later, if required).
+
+	* rock.c: If transparent compression requested, verify
+	file is really suitable (check magic numbers), and extract
+	correct file length to store in SUSP record.
+
+Sat Jan 15 01:57:42 1994  Eric Youngdale  (eric@esp22)
+
+	* write.c (compare_dirs): Bugfix for patch from Jan 6.
+
+	* mkisofs.h (struct directory_entry): Add element total_rr_attr_size.
+	(struct file_hash): Add element ce_bytes.
+
+	* write.c (iso_write): Update last_extent_written, as required,
+	and check it against last_extent as a sanity check.
+	(generate_one_directory): If ce_bytes is non-zero, allocate
+	a buffer and fill it with the CE records.  Also, update
+	the extent and offset entries in the CE SUSP field and
+	output after directory is written.
+	(assign_directory_addresses): Allow for CE sectors after each
+	directory.
+
+	* tree.c (sort_n_finish): Set field ce_bytes by summing
+	the sizes of all CE blocks in each files RR attributes.
+	Do not count these bytes for main directory.
+
+	* rock.c (generate_rock_ridge_attributes): Generate
+	CE entries to break up large records into manageable sizes.
+	Allow long names to be split, and allow long symlinks to be split.
+	Allow splitting before each SUSP field as well, to make
+	sure we do not screw outselves.
+
+Thu Jan  6 21:47:43 1994  Eric Youngdale  (eric@esp22)
+
+    Bugfix.
+
+	* write.c (compare_dirs): Only compare directory names up to
+	the ';' for the version number.
+
+    Add four new options: (1) Full 31 character filenames,
+    (2) Omit version number, (3) Omit trailing period from filenames,
+    (4) Skip deep directory relocation.
+
+	* iso9660.h: Allow 34 characters for filename.
+
+	* mkisofs.8: Update for new options.
+
+	* mkisofs.c: Add flag variables for new options.
+	Mention new options in usage(), tell getopt about
+	new options, and set appropriate flags when
+	new options are specified.
+
+	* mkisofs.c (iso9660_file_length): Implement new options.
+
+	* mkisofs.h: Declare flag variables for new options.
+
+	* tree.c (sort_n_finish): Increase declaration of newname and
+	rootname to 34 characters.  If full_iso9660_filenames in effect,
+	use different rules for making unique names.
+
+	* tree.c (scan_directory_tree): Use RR_relocation_depth instead of
+	constant for threshold for starting deep directory relocation.
+
+Wed Jan  5 01:32:34 1994  John Brezak (brezak@ch.hp.com)
+
+	* Makefile.bsd: New file.  For NetBSD.
+
+	* rock.c, tree.c: Do not include sys/sysmacros.h for NetBSD.
+
+Fri Dec 31 13:22:52 1993  Eric Youngdale  (eric@esp22)
+
+        * mkisofs.c, mkisofs.8, Makefile (version_string): Bump to 1.00.
+
+	* tree.c (scan_directory_tree): Handle case where we do not
+	have permissions to open a directory.
+
+	* write.c (xfwrite): New function - wrapper for fwrite,
+	except that we print message and punt if write fails.
+
+	* write.c: Move include of mkisofs.h and iso9660.h until after
+	string.h and stdlib.h is included.
+
+	* write.c: Do not attempt to use strerror on sun systems.
+
+Thu Dec 9  13:17:28 1993  R.-D. Marzusch (marzusch@odiehh.hanse.de)
+
+        * exclude.c, exclude.h: New files.  Contains list of files to
+	exclude from consideration.
+
+	* Makefile: Compile exclude.c, add dependencies to other files.
+
+	* mkisofs.8: Describe -x option.
+
+	* mkisofs.c: Include exclude.h, handle -x option.
+
+
+Fri Dec 10 01:07:43 1993  Peter van der Veen (peterv@qnx.com)
+ 
+ 	* mkisofs.c, mkisofs.h: Moved declaration of root_record.
+ 
+ 	* mkisofs.h: Added prototype for get_733().
+ 
+ 	* write.c(iso_write), tree.c, rock.c(generate_rock_ridge_attributes):
+ 	Added defines for QNX operation system
+ 
+ 	* rock.c(generate_rock_ridge_attributes): symbolic links should
+ 	not have CONTINUE component flag set unless there are multiple
+ 	component records, and mkisofs does not generate these.
+ 	st_ctime was stored as the creation time, changed to attribute time.
+ 	QNX has a creation time, so that is stored as well under QNX.
+ 
+Thu Oct 28 19:54:38 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.99.
+
+	* write.c(iso_write): Put hour, minute, second into date fields in
+	volume descriptor.
+
+	* write.c (iso_write): Set file_structure_version to 1, instead of
+	' ' (Seems to screw up Macs).
+
+Sun Oct 17 01:13:36 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.98.
+
+    Increment nlink in root directory when rr_moved directory is present.
+
+        * tree.c (increment_nlink): New function.
+
+	* tree.c (finish_cl_pl_entries): Call increment_nlink for all
+	references to the root directory.
+
+	* tree.c (root_statbuf): New variable.
+
+	* tree.c (scan_directory_tree): Initialize root_statbuf when we
+	stat the root directory.
+
+	* tree.c (generate_reloc_directory): Use root_statbuf when
+	generating the Rock Ridge stuff for the ".." entry in the
+	reloc_dir.
+
+	* tree.c (scan_directory_tree): Use root_statbuf when generating
+	the ".." entry in the root directory.
+
+Sat Oct 16 10:28:30 1993  Eric Youngdale  (eric@kafka)
+
+    Fix path tables so that they are sorted.
+
+	* tree.c (assign_directory_addresses): Move to write.c
+
+	* write.c (generate_path_tables): Create an array of pointers to
+	the individual directories, and sort it based upon the name and
+	the parent path table index.  Then update all of the indexes and
+	repeat the sort until the path table indexes no longer need to be
+	changed, and then write the path table.
+
+    Fix problem where hard links were throwing off the total extent count.
+
+	* write.c (iso_write): Call assign_file_addresses, and then
+	use last_extent to determine how big the volume is.
+
+	* write.c (generate_one_directory): Decrement n_data_extents
+	for hard links to non-directories so that the expected number
+	of extents is written correctly.
+
+	* write.c(assign_file_addresses): New function.
+
+Fri Oct 15 22:35:43 1993  Eric Youngdale  (eric@kafka)
+
+    The standard says we should do these things:
+
+	* tree.c (generate_reloc_directory): Add RR attributes to
+	the rr_moved directory.
+
+	* mkisofs.c(main): Change ER text strings back to recommended
+	values.
+
+Tue Oct 12 21:07:38 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.97.  
+
+	* tree.c (scan_directory_tree): Do not insert PL entry into
+	root directory record (i.e. !parent)
+
+	* tree.c (finish_cl_pl_entries): Do not rely upon name
+	comparison to locate parent - use d_entry->self instead,
+	which is guaranteed to be correct.
+
+	* mkisofs.h: New variable n_data_extents.
+
+	* tree.c: Declare and initialize n_data_extents to 0.
+	(scan_directory_tree) for non-directories, add
+	ROUND_UP(statbuf.st_size) to n_data_extents.
+	(sort_n_finish): Increment n_data_extents for translation tables,
+	as appropriate.
+
+	* write.c(iso_write): Add n_data_extents to the
+	volume_space_size field.
+
+	* hash.c(add_hash): If size != 0 and extent == 0, or
+	if size == 0 and extent != 0, then complain about
+	inserting this into the hash table.  Kind of a sanity check.
+
+Sat Oct  9 16:39:15 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.96.  
+
+	Numerous bugfixes, thanks to a one-off disc from rab@cdrom.com.
+
+	* write.c(generate_one_directory): Wait until after we have
+	filled in the starting_extent field to s_entry before calling
+	add_hash.  This fixes a problem where the hash table gets an
+	extent of 0 for all regular files, and this turns up when you have
+	hard links on the disc. (The hash table allows us to have each
+	hard link point to the same extent on the cdrom, thereby saving
+	some space).
+
+	* tree.c(scan_directory_tree): Set statbuf.st_dev and
+	statbuf.st_ino to the UNCACHED numbers for symlinks that we
+	are not following.  This prevents the function find_hash from
+	returning an inode that cooresponds to the file the symlink points
+	to, which in turn prevents generate_one_directory from filling in
+	a bogus file length (should be zero for symlinks).
+
+	* tree.c(scan_directory_tree): Always call lstat for the file
+	so that non-RockRidge discs get correct treatment of symlinks.
+	Improve error message when we ignore a symlink on a non-RR disc.
+	
+	* write.c(generate_one_directory): Set fields for starting_extent
+	and size in the "." and ".." entries before we add them to the
+	file hash.  Fixes problems with incorrect backlinks for second
+	level directories.
+
+Wed Oct  6 19:53:40 1993  Eric Youngdale  (eric@kafka)
+
+	* write.c (write_one_file): Print message and punt if we are
+	unable to open the file.
+
+	* tree.c(scan_directory_tree): For regular files, use the access
+	function to verify that the file is readable in the first place.
+	If not, issue a warning and skip it.  For directories, it probably
+	does not matter, since we would not be able to descend into them
+	in the first place.
+
+Wed Sep 29 00:02:47 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.95.
+
+	* write.c, tree.c: Cosmetic changes to printed information.
+
+        * tree.c(scan_directory_tree): Set size to zero for
+	special stub entries that correspond to the
+	relocated directories.  Hopefully last big bug.
+
+	* mkisofs.h: Change TABLE_INODE, UNCACHED_* macros
+	to be 0x7fff... to be compatible with signed datatypes.
+
+Mon Sep 27 20:14:49 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.94.
+
+	* write.c (write_path_tables): Actually search the
+	directory for the matching entry in case we renamed
+	the directory because of a name conflict.
+
+	* tree.c(scan_directory_tree): Take directory_entry pointer
+	as second argument so that we can create a backpointer
+	in the directory structure that points back to the original
+	dir.
+
+	* mkisofs.c: Fix call to scan_directory_tree to use new calling
+	sequence.
+
+	* write.c(generate_one_directory): Punt if the last_extent counter
+	ever exceeds 700Mb/2048.  Print name of responsible file,
+	extent counter, and starting extent.  Perhaps we can catch it in
+	the act.
+
+Sun Sep 26 20:58:05 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.93.
+
+	* tree.c(scan_directory_tree): Handle symlinks better.  Either
+	leave them as symlinks, or erase any trace that they were a
+	symlink but do not do it 1/2 way as before.  Also, watch for
+	directory loops created with symlinks.
+
+	* mkisofs.h: Add new flag follow_links.
+
+	* mkisofs.c: Add command line switch "-f" to toggle follow_links.
+
+	* mkisofs.8: Document new switch.
+
+	* tree.c: Add code to handle symlinks using new flag.
+
+	* hash.c: Add add_directory_hash, find_directory_hash functions.
+
+	* mkisofs.h: Add prototypes.
+
+Sat Sep 25 14:26:31 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.92.
+
+	* mkisofs.c: Make sure path is an actual directory before trying
+	to scan it.
+
+	* mkisofs.h: Add DECL and FDECL? macros for sparc like systems.
+	Do proper define of optind and optarg under SVr4.
+
+	* tree.c: Change translation table name from YMTRANS.TBL to TRANS.TBL.
+
+	* mkisofs.c: Neaten up message in extension record when RRIP is
+	in use.
+
+	* Throughout - change all function declarations so that
+	traditional C compilers (i.e. sparc) will work.
+
+	* Makefile: Change to use system default C compiler.
+
+	* mkisofs.c: Add some stuff so that this will compile under VMS.
+	Many things missing for VMS still.
+
+	* iso9660.h: Do not use zero length array in struct definition.
+
+	* tree.c (sort_n_finish): Account for this.
+
+	* Change copyright notice.
+
+
+Wed Aug 25 08:06:51 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.91.
+
+	* mkisofs.h: Only  include sys/dir.h for linux.  Other systems
+	will need other things.
+
+	* mkisofs.c,  tree.c: Include unistd.h.
+
+	* Makefile:  Use OBJS to define list of object files.
+
+Sun Aug 22 20:55:17 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.9.
+
+	* write.c (iso_7*): Fix so that they work properly  on Motorola
+	systems. 
+
+Fri Aug 20 00:14:36 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.8.
+
+	* rock.c: Do not mask off write permissions from posix file modes.
+
+Wed Aug 18 09:02:12 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.7.
+
+        *  rock.c: Do not  write  NM field  for . and .. (redundant and a
+	waste of space).
+
+	* mkisofs.c: Take -P and -p options for publisher and preparer id
+	fields.
+
+	* write.c: Store  publisher and preparer id  in  volume
+	descriptor.
+
+	* rock.c: Write  optional  SP field to identify  SUSP.  Write
+	optional CE field to point to the extension header.
+
+	* tree.c: Request  SP and  CE fields be added to root directory.
+
+        * tree.c: Fix bug in name conflict resolution.
+
+        * write.c: Fill in date fields in the  colume descriptor.
+
+        * write.c (write_one_file): If the file is large enough, write  in
+	chunks of 16 sectors to improve performance.
+
+	* hash.c (add_hash, find_hash, etc): Do  not hash s_entry, instead
+	store relevant info in hash structure (we free s_entry  structs as
+	we write files, and we need to have access to the hash table  the
+	whole  way through.
+
+	* write.c: Add a few statistics about directory sizes, RR sizes,
+	translation table sizes, etc.
+
+	* tree.c: Use major, not MAJOR.  Same for minor.  Define S_ISSOCK
+	and S_ISLNK if not defined.
+
+	* rock.c: Define S_ISLNK if not defined.
+
+	* mkisofs.c: Print out max memory usage.  Fix bug in call to getopt.
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.6.
+
+	* tree.c: Simplify the calculation of isorec.len,  isorec.name_len
+	and the calculation of the path table sizes by doing it all at
+	one point after  conflict resolution is done.
+
+	* tree.c: scan_directory_tree is now  responsible for generating
+	the line that goes into the YMTRANS.TBL file.  These lines are
+	collected later  on into something that will be dumped to the
+	file. Correctly handle all of the special file types.
+
+Mon Aug 16 21:59:47 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.5.
+
+	* mkisofs.c: Add -a option  (to force all files to be
+	transferred).  Remove find_file_hash stuff.
+
+	* write.c: Pad length even if Rock Ridge is not in use.
+
+	* hash.c: Rewrite hash_file_* stuff so that it  can be used to
+	easily  detect (and look up) filenames that have been  accepted
+	for use  in this directory.  Used for name collision detection.
+
+	* tree.c (sort_n_finish): If two names collide, generate a unique
+	one (verified with the hash routines).  Change the lower priority
+	name if there is a difference.
+
+
+
+Sat Aug 14 13:18:21 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.4.
+
+	* tree.c (load_translation_table): New  function - read
+	YMTRANS.TBL.  (scan_directory_tree) Call it.
+
+	* mkisofs.c (iso9660_file_length): Call find_file_hash to see
+	if translated name is specified.  If so, use it.
+
+	* hash.c (name_hash, add_file_hash, find_file_hash,
+	flush_file_hash): New functions for hashing stuff from
+	YMTRANS.TBL.
+
+	* mkisofs.h: Add a bunch of prototypes for the new functions.
+
+	* mkisofs.8: Update.
+
+        * mkisofs.c, Makefile (version_string): Bump to 0.3.
+
+        * Makefile: Add version number to tar file in dist target.
+
+	* mkisofs.c: Call finish_cl_pl_entries() after directories have
+	been generated, and extent numbers assigned.
+
+	* write.c (generate_one_directory): Update s_entry->size  for
+	directories (as well as isorec.size).
+
+	* rock.c:  Add  code to generate CL, PL, and RE entries.  The
+	extent numbers for the CL and PL  entries are  NULL, and these
+	are filled in  later once we know where they actually belong.
+
+	* mkisofs.h: Add parent_rec to directory_entry.  Used to fix CL/PL
+	stuff.
+
+	* tree.c (scan_directory_tree): Set  flag to generate  CL/PL/RE
+	entries  as required, update sizes as well.
+
+Fri Aug 13 19:49:30 1993  Eric Youngdale  (eric@kafka)
+
+        * mkisofs.c (version_string): Bump to 0.2.
+
+	* hash.c: Do not use entries with inode  == 0xffffffff or dev  ==
+	0xffff.
+
+	* write.c (write_path_tables):  Strip leading directory specifications.
+
+	* mkisofs.h: Add  definition for reloc_dir symbol.  Add prototype
+	for sort_n_finish, add  third parameter  to  scan_directory_tree
+	(for true parent, when directories are relocated).
+
+	* mkisofs.c (main): Modify call to scan_directory_tree.  Call
+	sort_n_finish for reloc_dir.
+
+	* tree.c (sort_n_finish): New function - moved code from
+	scan_directory_tree. 
+
+	* tree.c (generate_reloc_directory): New function.  Generate
+	directory to hold relocated directories.
+
+	* tree.c (scan_directory_tree): Strip leading directories when
+	generating this_dir->name.  If depth is  too great,  then move
+	directory to reloc_dir (creating if it does not exist, and leave
+	a dummy (non-directory) entry  in the regular directory  so that
+	we can eventually add the required Rock Ridge record.
+
+	* tree.c (scan_directory_tree): Use s_entry instead of sort_dir,
+	assign to this_dir->contents sooner.
+
+Thu Aug 12 22:38:17 1993  Eric Youngdale  (eric@kafka)
+
+	* mkisofs.c (usage): Fix syntax.
+
+	* mkisofs.c (main): Add new argument to scan_directory_tree
+
+	* tree.c (scan_directory_tree): If directory is at  depth 8 or
+	more, create rr_moved directory in main directory.
+
+Mon Jul 26 19:45:47 1993  Eric Youngdale  (eric@kafka)
+
+	* mkisofs v 0.1 released.
+

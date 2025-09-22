@@ -1,0 +1,31 @@
+# REQUIRES: system-linux
+
+## Testing that the combine_trainig_corpus script works as expected when
+## invoked.
+
+# RUN: rm -rf %t.dir && mkdir %t.dir
+# RUN: split-file %s %t.dir
+# RUN: %python %scripts_dir/corpus/combine_training_corpus.py --root_dir=%t.dir
+# RUN: cat %t.dir/corpus_description.json | FileCheck %s
+
+## Check that we end up with the same properties as the original corpora
+# CHECK: "has_thinlto": false
+
+## Check that the modules end up in the combined corpus. Order does not matter.
+# CHECK-DAG: "subcorpus1/test1.o"
+# CHECK-DAG: "subcorpus2/test2.o"
+
+#--- subcorpus1/corpus_description.json
+{
+  "has_thinlto": false,
+  "modules": [
+    "test1.o"
+  ]
+}
+#--- subcorpus2/corpus_description.json
+{
+  "has_thinlto": false,
+  "modules": [
+    "test2.o"
+  ]
+}

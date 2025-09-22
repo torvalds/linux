@@ -1,0 +1,607 @@
+.\" $OpenBSD: RSA_meth_new.3,v 1.7 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL a970b14f Jul 31 18:58:40 2017 -0400
+.\" selective merge up to: OpenSSL 24907560 Sep 17 07:47:42 2018 +1000
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2018, 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Richard Levitte <levitte@openssl.org>.
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_METH_NEW 3
+.Os
+.Sh NAME
+.Nm RSA_meth_new ,
+.Nm RSA_meth_dup ,
+.Nm RSA_meth_free ,
+.Nm RSA_meth_get0_name ,
+.Nm RSA_meth_set1_name ,
+.Nm RSA_meth_get_flags ,
+.Nm RSA_meth_set_flags ,
+.Nm RSA_meth_get0_app_data ,
+.Nm RSA_meth_set0_app_data ,
+.Nm RSA_meth_get_init ,
+.Nm RSA_meth_set_init ,
+.Nm RSA_meth_get_finish ,
+.Nm RSA_meth_set_finish ,
+.Nm RSA_meth_get_pub_enc ,
+.Nm RSA_meth_set_pub_enc ,
+.Nm RSA_meth_get_pub_dec ,
+.Nm RSA_meth_set_pub_dec ,
+.Nm RSA_meth_get_priv_enc ,
+.Nm RSA_meth_set_priv_enc ,
+.Nm RSA_meth_get_priv_dec ,
+.Nm RSA_meth_set_priv_dec ,
+.Nm RSA_meth_get_sign ,
+.Nm RSA_meth_set_sign ,
+.Nm RSA_meth_get_verify ,
+.Nm RSA_meth_set_verify ,
+.Nm RSA_meth_get_mod_exp ,
+.Nm RSA_meth_set_mod_exp ,
+.Nm RSA_meth_get_bn_mod_exp ,
+.Nm RSA_meth_set_bn_mod_exp ,
+.Nm RSA_meth_get_keygen ,
+.Nm RSA_meth_set_keygen
+.Nd build up RSA methods
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft RSA_METHOD *
+.Fo RSA_meth_new
+.Fa "const char *name"
+.Fa "int flags"
+.Fc
+.Ft RSA_METHOD *
+.Fo RSA_meth_dup
+.Fa "const RSA_METHOD *meth"
+.Fc
+.Ft void
+.Fo RSA_meth_free
+.Fa "RSA_METHOD *meth"
+.Fc
+.Ft const char *
+.Fo RSA_meth_get0_name
+.Fa "const RSA_METHOD *meth"
+.Fc
+.Ft int
+.Fo RSA_meth_set1_name
+.Fa "RSA_METHOD *meth"
+.Fa "const char *name"
+.Fc
+.Ft int
+.Fo RSA_meth_get_flags
+.Fa "const RSA_METHOD *meth"
+.Fc
+.Ft int
+.Fo RSA_meth_set_flags
+.Fa "RSA_METHOD *meth"
+.Fa "int flags"
+.Fc
+.Ft void *
+.Fo RSA_meth_get0_app_data
+.Fa "const RSA_METHOD *meth"
+.Fc
+.Ft int
+.Fo RSA_meth_set0_app_data
+.Fa "RSA_METHOD *meth"
+.Fa "void *app_data"
+.Fc
+.Ft int
+.Fo "(*RSA_meth_get_init(const RSA_METHOD *meth))"
+.Fa "RSA *rsa"
+.Fc
+.Ft int
+.Fo "RSA_meth_set_init"
+.Fa "RSA_METHOD *meth"
+.Fa "int (*init)(RSA *rsa)"
+.Fc
+.Ft int
+.Fo "(*RSA_meth_get_finish(const RSA_METHOD *meth))"
+.Fa "RSA *rsa"
+.Fc
+.Ft int
+.Fo RSA_meth_set_finish
+.Fa "RSA_METHOD *meth"
+.Fa "int (*finish)(RSA *rsa)"
+.Fc
+.Ft int
+.Fo "(*RSA_meth_get_pub_enc(const RSA_METHOD *meth))"
+.Fa "int flen"
+.Fa "const unsigned char *from"
+.Fa "unsigned char *to"
+.Fa "RSA *rsa"
+.Fa "int padding"
+.Fc
+.Ft int
+.Fo RSA_meth_set_pub_enc
+.Fa "RSA_METHOD *meth"
+.Fa "int (*pub_enc)(int flen, const unsigned char *from,\
+ unsigned char *to, RSA *rsa, int padding)"
+.Fc
+.Ft int
+.Fo "(*RSA_meth_get_pub_dec(const RSA_METHOD *meth))"
+.Fa "int flen"
+.Fa "const unsigned char *from"
+.Fa "unsigned char *to"
+.Fa "RSA *rsa"
+.Fa "int padding"
+.Fc
+.Ft int
+.Fo RSA_meth_set_pub_dec
+.Fa "RSA_METHOD *meth"
+.Fa "int (*pub_dec)(int flen, const unsigned char *from,\
+ unsigned char *to, RSA *rsa, int padding)"
+.Fc
+.Ft int
+.Fo "(*RSA_meth_get_priv_enc(const RSA_METHOD *meth))"
+.Fa "int flen"
+.Fa "const unsigned char *from"
+.Fa "unsigned char *to"
+.Fa "RSA *rsa"
+.Fa "int padding"
+.Fc
+.Ft int
+.Fo RSA_meth_set_priv_enc
+.Fa "RSA_METHOD *meth"
+.Fa "int (*priv_enc)(int flen, const unsigned char *from,\
+ unsigned char *to, RSA *rsa, int padding)"
+.Fc
+.Ft int
+.Fo "(*RSA_meth_get_priv_dec(const RSA_METHOD *meth))"
+.Fa "int flen"
+.Fa "const unsigned char *from"
+.Fa "unsigned char *to"
+.Fa "RSA *rsa"
+.Fa "int padding"
+.Fc
+.Ft int
+.Fo RSA_meth_set_priv_dec
+.Fa "RSA_METHOD *meth"
+.Fa "int (*priv_dec)(int flen, const unsigned char *from,\
+ unsigned char *to, RSA *rsa, int padding)"
+.Fc
+.Ft int
+.Fo "(*RSA_meth_get_sign(const RSA_METHOD *meth))"
+.Fa "int type"
+.Fa "const unsigned char *m"
+.Fa "unsigned int m_length"
+.Fa "unsigned char *sigret"
+.Fa "unsigned int *siglen"
+.Fa "const RSA *rsa"
+.Fc
+.Ft int
+.Fo RSA_meth_set_sign
+.Fa "RSA_METHOD *rsa"
+.Fa "int (*sign)(int type, const unsigned char *m, unsigned int m_length,\
+ unsigned char *sigret, unsigned int *siglen, const RSA *rsa)"
+.Fc
+.Ft int
+.Fo "(*RSA_meth_get_verify(const RSA_METHOD *meth))"
+.Fa "int dtype"
+.Fa "const unsigned char *m"
+.Fa "unsigned int m_length"
+.Fa "const unsigned char *sigbuf"
+.Fa "unsigned int siglen"
+.Fa "const RSA *rsa"
+.Fc
+.Ft int
+.Fo RSA_meth_set_verify
+.Fa "RSA_METHOD *rsa"
+.Fa "int (*verify)(int dtype, const unsigned char *m,\
+ unsigned int m_length, const unsigned char *sigbuf,\
+ unsigned int siglen, const RSA *rsa)"
+.Fc
+.Ft int
+.Fo "(*RSA_meth_get_mod_exp(const RSA_METHOD *meth))"
+.Fa "BIGNUM *r0"
+.Fa "const BIGNUM *i"
+.Fa "RSA *rsa"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo RSA_meth_set_mod_exp
+.Fa "RSA_METHOD *meth"
+.Fa "int (*mod_exp)(BIGNUM *r0, const BIGNUM *i, RSA *rsa, BN_CTX *ctx)"
+.Fc
+.Ft int
+.Fo "(*RSA_meth_get_bn_mod_exp(const RSA_METHOD *meth))"
+.Fa "BIGNUM *r"
+.Fa "const BIGNUM *a"
+.Fa "const BIGNUM *p"
+.Fa "const BIGNUM *m"
+.Fa "BN_CTX *ctx"
+.Fa "BN_MONT_CTX *m_ctx"
+.Fc
+.Ft int
+.Fo RSA_meth_set_bn_mod_exp
+.Fa "RSA_METHOD *meth"
+.Fa "int (*bn_mod_exp)(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,\
+ const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx)"
+.Fc
+.Ft int
+.Fo "(*RSA_meth_get_keygen(const RSA_METHOD *meth))"
+.Fa "RSA *rsa"
+.Fa "int bits"
+.Fa "BIGNUM *e"
+.Fa "BN_GENCB *cb"
+.Fc
+.Ft int
+.Fo RSA_meth_set_keygen
+.Fa "RSA_METHOD *meth"
+.Fa "int (*keygen)(RSA *rsa, int bits, BIGNUM *e, BN_GENCB *cb)"
+.Fc
+.Sh DESCRIPTION
+The
+.Vt RSA_METHOD
+structure holds function pointers for custom RSA implementations.
+.Pp
+.Fn RSA_meth_new
+creates a new
+.Vt RSA_METHOD
+structure.
+A copy of the NUL-terminated
+.Fa name
+is stored in the new
+.Vt RSA_METHOD
+object.
+Any new
+.Vt RSA
+object constructed from this
+.Vt RSA_METHOD
+will have the given
+.Fa flags
+set by default, as if they were set with
+.Xr RSA_set_flags 3 .
+.Pp
+.Fn RSA_meth_dup
+creates a deep copy of
+.Fa meth ,
+except that a pointer stored into it with
+.Fn RSA_meth_set0_app_data
+is copied as a pointer without creating a copy of its content.
+This might be useful for creating a new
+.Vt RSA_METHOD
+based on an existing one, but with some differences.
+.Pp
+.Fn RSA_meth_free
+destroys
+.Fa meth
+and frees any memory associated with it,
+except that memory pointed to by a pointer set with
+.Fn RSA_meth_set0_app_data
+is not freed.
+If
+.Fa meth
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+.Fn RSA_meth_get0_name
+returns an internal pointer to the name of
+.Fa meth .
+.Fn RSA_meth_set1_name
+stores a copy of the NUL-terminated
+.Fa name
+in the
+.Vt RSA_METHOD
+object after freeing the previously stored name.
+Method names are ignored by the default RSA implementation
+but can be used by alternative implementations
+and by the application program.
+.Pp
+.Fn RSA_meth_get_flags
+retrieves the flags from
+.Fa meth .
+Flags are documented in
+.Xr RSA_test_flags 3 .
+.Fn RSA_meth_set_flags
+overwrites all flags in
+.Fa meth .
+Unlike
+.Xr RSA_set_flags 3 ,
+it does not preserve any flags that were set before the call.
+.Pp
+.Fn RSA_meth_get0_app_data
+and
+.Fn RSA_meth_set0_app_data
+get and set a pointer to implementation-specific data.
+The function
+.Fn RSA_meth_free
+does not
+.Xr free 3
+the memory pointed to by
+.Fa app_data .
+The default RSA implementation does not use
+.Fa app_data .
+.Pp
+.Fn RSA_meth_get_init
+and
+.Fn RSA_meth_set_init
+get and set an optional function used when creating a new
+.Vt RSA
+object.
+Unless
+.Fa init
+is
+.Dv NULL ,
+it will be called at the end of
+.Xr RSA_new 3 ,
+.Xr RSA_new_method 3 ,
+and
+.Xr RSA_set_method 3 ,
+passing a pointer to the newly allocated or reset
+.Vt RSA
+object as an argument.
+The default RSA implementation,
+.Xr RSA_PKCS1_SSLeay 3 ,
+contains an
+.Fa init
+function equivalent to calling
+.Xr RSA_set_flags 3
+with an argument of
+.Dv RSA_FLAG_CACHE_PUBLIC | RSA_FLAG_CACHE_PRIVATE .
+.Pp
+.Fn RSA_meth_get_finish
+and
+.Fn RSA_meth_set_finish
+get and set an optional function for destroying an
+.Vt RSA
+object.
+Unless
+.Fa finish
+is
+.Dv NULL ,
+it will be called from
+.Xr RSA_set_method 3
+and from
+.Xr RSA_free 3 .
+It takes the same argument as
+.Xr RSA_free 3
+and is intended to do RSA implementation specific cleanup.
+The memory used by the
+.Vt RSA
+object itself should not be freed by the
+.Fa finish
+function.
+The default RSA implementation contains a
+.Fa finish
+function freeing the memory used by the
+.Dv RSA_FLAG_CACHE_PUBLIC
+and
+.Dv RSA_FLAG_CACHE_PRIVATE
+caches.
+.Pp
+.Fn RSA_meth_get_pub_enc ,
+.Fn RSA_meth_set_pub_enc ,
+.Fn RSA_meth_get_pub_dec ,
+.Fn RSA_meth_set_pub_dec ,
+.Fn RSA_meth_get_priv_enc ,
+.Fn RSA_meth_set_priv_enc ,
+.Fn RSA_meth_get_priv_dec ,
+and
+.Fn RSA_meth_set_priv_dec
+get and set the mandatory functions
+used for public and private key encryption and decryption.
+These functions will be called from
+.Xr RSA_public_encrypt 3 ,
+.Xr RSA_public_decrypt 3 ,
+.Xr RSA_private_encrypt 3 ,
+and
+.Xr RSA_private_decrypt 3 ,
+respectively, and take the same parameters as those.
+.Pp
+.Fn RSA_meth_get_sign ,
+.Fn RSA_meth_set_sign ,
+.Fn RSA_meth_get_verify ,
+and
+.Fn RSA_meth_set_verify
+get and set the optional functions
+used for creating and verifying an RSA signature.
+.Pp
+.Fn RSA_meth_get_mod_exp
+and
+.Fn RSA_meth_set_mod_exp
+get and set the function
+used for Chinese Remainder Theorem (CRT) computations involving the
+.Fa p ,
+.Fa q ,
+.Fa dmp1 ,
+.Fa dmq1 ,
+and
+.Fa iqmp
+fields of an
+.Vt RSA
+object.
+It is used by the default RSA implementation during
+.Xr RSA_private_encrypt 3
+and
+.Xr RSA_private_decrypt 3
+when the required components of the private key are available
+or when the
+.Dv RSA_FLAG_EXT_PKEY
+flag is set.
+.Pp
+.Fn RSA_meth_get_bn_mod_exp
+and
+.Fn RSA_meth_set_bn_mod_exp
+get and set the function used for CRT computations,
+specifically the value r =
+.Fa a
+\(ha
+.Fa p
+mod
+.Fa m .
+It is used by the default RSA implementation during
+.Xr RSA_public_encrypt 3
+and
+.Xr RSA_public_decrypt 3
+and as a fallback during
+.Xr RSA_private_encrypt 3
+and
+.Xr RSA_private_decrypt 3 .
+.Pp
+.Fn RSA_meth_get_keygen
+and
+.Fn RSA_meth_set_keygen
+get and set the optional function used for generating a new RSA key pair.
+Unless
+.Fa keygen
+is
+.Dv NULL ,
+it will be called from
+.Xr RSA_generate_key_ex 3
+and takes the same parameters.
+Otherwise, a builtin default implementation is used.
+.Sh RETURN VALUES
+.Fn RSA_meth_new
+and
+.Fn RSA_meth_dup
+return the newly allocated
+.Vt RSA_METHOD
+object or
+.Dv NULL
+on failure.
+.Pp
+.Fn RSA_meth_get0_name
+returns an internal pointer which must not be freed by the caller.
+.Pp
+.Fn RSA_meth_get_flags
+returns zero or more
+.Dv RSA_FLAG_*
+constants OR'ed together, or 0 if no flags are set in
+.Fa meth .
+.Pp
+.Fn RSA_meth_get0_app_data
+returns the pointer that was earlier passed to
+.Fn RSA_meth_set0_app_data
+or
+.Dv NULL
+otherwise.
+.Pp
+All other
+.Fn RSA_meth_get_*
+functions return the appropriate function pointer that has been set
+with the corresponding
+.Fn RSA_meth_set_*
+function, or
+.Dv NULL
+if no such pointer has been set in
+.Fa meth .
+.Pp
+All
+.Fn RSA_meth_set*
+functions return 1 on success or 0 on failure.
+In the current implementation, only
+.Fn RSA_meth_set1_name
+can actually fail.
+.Sh SEE ALSO
+.Xr RSA_generate_key_ex 3 ,
+.Xr RSA_new 3 ,
+.Xr RSA_private_encrypt 3 ,
+.Xr RSA_public_encrypt 3 ,
+.Xr RSA_set_flags 3 ,
+.Xr RSA_set_method 3 ,
+.Xr RSA_sign 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.1.0.
+.Fn RSA_meth_new ,
+.Fn RSA_meth_dup ,
+.Fn RSA_meth_free ,
+.Fn RSA_meth_set_finish ,
+.Fn RSA_meth_set_priv_enc ,
+and
+.Fn RSA_meth_set_priv_dec
+have been available since
+.Ox 6.3 ,
+.Fn RSA_meth_set1_name
+and
+.Fn RSA_meth_get_finish
+since
+.Ox 6.4 ,
+and
+.Fn RSA_meth_get0_name ,
+.Fn RSA_meth_get_flags ,
+.Fn RSA_meth_set_flags ,
+.Fn RSA_meth_get0_app_data ,
+.Fn RSA_meth_set0_app_data ,
+.Fn RSA_meth_get_init ,
+.Fn RSA_meth_set_init ,
+.Fn RSA_meth_set_finish ,
+.Fn RSA_meth_get_pub_enc ,
+.Fn RSA_meth_set_pub_enc ,
+.Fn RSA_meth_get_pub_dec ,
+.Fn RSA_meth_set_pub_dec ,
+.Fn RSA_meth_get_priv_enc ,
+.Fn RSA_meth_get_priv_dec ,
+.Fn RSA_meth_get_sign ,
+.Fn RSA_meth_set_sign ,
+.Fn RSA_meth_get_verify ,
+.Fn RSA_meth_set_verify ,
+.Fn RSA_meth_get_mod_exp ,
+.Fn RSA_meth_set_mod_exp ,
+.Fn RSA_meth_get_bn_mod_exp ,
+.Fn RSA_meth_set_bn_mod_exp ,
+.Fn RSA_meth_get_keygen ,
+and
+.Fn RSA_meth_set_keygen
+since
+.Ox 6.6 .

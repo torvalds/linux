@@ -1,0 +1,27 @@
+# $OpenBSD: test-patterns.in,v 1.1 2015/06/23 18:03:09 semarie Exp $
+# string	pattern				comments
+/page/51	^/(%a+)/(%d+)$
+/Apage/51	/[^%d][%w%u][^%c]+()[%d]+	
+/^page/51	/^(.a.e)/(.)
+/page/page-51	/(.*)/%1-(%d+)
+/page/[51]	/page/(%b[])
+:-]		]+
+:-)		[)]+
+/page/51	$^
+1234567890	([2-5]-)
+****		^**$				equiv '[*]*'
+xxxx		^x*$				same as before
+/page/51	no-%d-match			no match
+/page/page-51	/(.*)/%9-(%d+)			invalid capture index
+:-)		)+				invalid pattern capture
+/page/51	/page/51(			unfinished capture
+/page/51	/page/51%			malformed pattern (ends with '%')
+/page/51	/page/[51			malformed pattern (missing ']')
+/page/(51)	/page/%b(			malformed pattern (missing arguments to '%b')
+/page/51	()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()	too many captures
+/page/51	/page/%f			missing '[' after '%f' in pattern
+/page/51	/page%f/51			missing '[' after '%f' in pattern
+q*********************************	*************************************q	max repetition items
+q+++++++++++++++++++++++++++++++++	+++++++++++++++++++++++++++++++++++++q	max repetition items
+q---------------------------------	-------------------------------------q	max repetition items
+q?????????????????????????????????	?????????????????????????????????????q	max repetition items

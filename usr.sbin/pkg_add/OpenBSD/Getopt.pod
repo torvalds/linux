@@ -1,0 +1,31 @@
+$OpenBSD: Getopt.pod,v 1.2 2023/05/21 13:44:56 espie Exp $
+
+=head1 NAME
+
+OpenBSD::Getopt - Process single-characters switches
+
+=head1 SYNOPSIS
+
+   use OpenBSD::Getopt;
+
+   my $h = { 'v' => 
+	    sub() {
+		++$opt_v;
+	    };
+   };
+   getopts('oifv:', $h);
+
+=head1 DESCRIPTION
+
+This is similar to L<getopt(3)>. One call to C<getopts($optstring, $h)> parses
+all the options using the C<$optstring> as a list of simple switches
+(letter) and switches with arguments (letter followed by C<:>).
+
+Option values are written into the hash C<$h>.
+Contrary to L<getopt(3)>, C<$h-E<gt>{v}> is incremented each time the switch is
+seen, to allow for stuff like C<-vv>.
+
+Alternately, a code ref can be put into the hash for a given switch.
+When a switch is seen, the sub C<$foo> is called as
+C<&$foo()> for a simple switch and as C<&$foo(option_value)> for a switch
+with argument.

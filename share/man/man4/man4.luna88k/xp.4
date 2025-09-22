@@ -1,0 +1,73 @@
+.\"	$OpenBSD: xp.4,v 1.2 2017/02/11 23:08:43 jmc Exp $
+.\"
+.\" Copyright (c) 2017 Kenji Aoyama.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: February 11 2017 $
+.Dt XP 4 luna88k
+.Os
+.Sh NAME
+.Nm xp
+.Nd HD647180X I/O processor
+.Sh SYNOPSIS
+.Cd "xp0 at mainbus0"
+.Sh DESCRIPTION
+The file
+.Pa /dev/xp
+is an
+.Xr mmap 2
+capable interface to the memory area of the HD647180X I/O processor
+(so-called "XP") on LUNA-88K and LUNA-88K2.
+Byte offsets in this file are interpreted as relative memory addresses
+of the I/O processor.
+The range should be between 0x0 and 0xffff.
+.Pp
+The following
+.Xr ioctl 2
+call applies to
+.Pa /dev/xp :
+.Bl -tag -width 4n
+.It Dv XPIOCDOWNLD Fa "struct xp_download"
+Load binary and reset I/O processor.
+.Bd -literal -offset indent
+struct xp_download {
+        u_int   size;
+	u_char  *data;
+};
+.Ed
+.Pp
+The
+.Va size
+member specifies the loading binary size, in bytes.
+The
+.Va data
+member points to the binary image.
+.El
+.Sh FILES
+.Bl -tag -width /dev/xp -compact
+.It Pa /dev/xp
+.El
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The specified size is 0 or more than the I/O processor's memory size.
+.It Bq Er ENOMEM
+Memory could not be allocated for loading.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2
+.Sh HISTORY
+The
+.Pa /dev/xp
+file first appeared in
+.Ox 6.1 .

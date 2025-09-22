@@ -1,0 +1,164 @@
+.\"	$OpenBSD: htobe64.3,v 1.2 2024/08/03 23:06:56 guenther Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 3 2024 $
+.Dt HTOBE64 3
+.Os
+.Sh NAME
+.Nm htobe64 ,
+.Nm htobe32 ,
+.Nm htobe16 ,
+.Nm be64toh ,
+.Nm be32toh ,
+.Nm be16toh ,
+.Nm betoh64 ,
+.Nm betoh32 ,
+.Nm betoh16 ,
+.Nm htole64 ,
+.Nm htole32 ,
+.Nm htole16 ,
+.Nm le64toh ,
+.Nm le32toh ,
+.Nm le16toh ,
+.Nm letoh64 ,
+.Nm letoh32 ,
+.Nm letoh16 ,
+.Nm swap64 ,
+.Nm swap32 ,
+.Nm swap16
+.Nd convert values between different byte orderings
+.Sh SYNOPSIS
+.In endian.h
+.Ft uint64_t
+.Fn htobe64 "uint64_t host64"
+.Ft uint32_t
+.Fn htobe32 "uint32_t host32"
+.Ft uint16_t
+.Fn htobe16 "uint16_t host16"
+.Ft uint64_t
+.Fn be64toh "uint64_t big64"
+.Ft uint32_t
+.Fn be32toh "uint32_t big32"
+.Ft uint16_t
+.Fn be16toh "uint16_t big16"
+.Ft uint64_t
+.Fn betoh64 "uint64_t big64"
+.Ft uint32_t
+.Fn betoh32 "uint32_t big32"
+.Ft uint16_t
+.Fn betoh16 "uint16_t big16"
+.Ft uint64_t
+.Fn htole64 "uint64_t host64"
+.Ft uint32_t
+.Fn htole32 "uint32_t host32"
+.Ft uint16_t
+.Fn htole16 "uint16_t host16"
+.Ft uint64_t
+.Fn letoh64 "uint64_t little64"
+.Ft uint64_t
+.Fn le64toh "uint64_t little64"
+.Ft uint32_t
+.Fn le32toh "uint32_t little32"
+.Ft uint16_t
+.Fn le16toh "uint16_t little16"
+.Ft uint32_t
+.Fn letoh32 "uint32_t little32"
+.Ft uint16_t
+.Fn letoh16 "uint16_t little16"
+.Ft uint64_t
+.Fn swap64 "uint64_t val64"
+.Ft uint32_t
+.Fn swap32 "uint32_t val32"
+.Ft uint16_t
+.Fn swap16 "uint16_t val16"
+.Sh DESCRIPTION
+These routines convert 16, 32 and 64-bit quantities between different
+byte orderings.
+The
+.Dq swap
+functions reverse the byte ordering of
+the given quantity; the others convert either from/to the native
+byte order used by the host to/from either little- or big-endian (a.k.a
+network) order.
+.Pp
+Apart from the swap functions,
+the names containing
+.Dq be
+convert between host and big-endian (most significant byte first) order
+of the given quantity, while the names containing
+.Dq le
+convert between host and little-endian (least significant byte first) order
+of the given quantity.
+.Pp
+All these functions use the numbers
+16, 32, or 64 for specifying the bitwidth of the quantities they operate on.
+Currently all supported architectures are either big- or little-endian
+so either the
+.Dq be
+or
+.Dq le
+variants are implemented as null macros.
+.Sh SEE ALSO
+.Xr htonl 3
+.Sh STANDARDS
+The
+.Fn htobe64 ,
+.Fn htobe32 ,
+.Fn htobe16 ,
+.Fn be64toh ,
+.Fn be32toh ,
+.Fn be16toh ,
+.Fn htole64 ,
+.Fn htole32 ,
+.Fn htole16 ,
+.Fn le64toh ,
+.Fn le32toh ,
+and
+.Fn le16toh
+functions conform to
+.St -p1003.1-2024 .
+The other functions are extensions that should not be used
+when portability is required.
+.Sh HISTORY
+The
+.Nm swap{size}
+and
+.Nm {src-order}to{dst-order}{size}
+functions appeared in
+.Bx 4.2 .
+The
+.Nm {src-order}{size}to{dst-order}
+functions appeared in
+.Ox 5.6 .
+.Sh BUGS
+The perceived antagonism between
+.Sq host
+and
+.Sq network
+byte order does not allow PDP-11 users to sleep soundly at night.

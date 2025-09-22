@@ -1,0 +1,162 @@
+.\" $OpenBSD: SSL_get_state.3,v 1.6 2025/06/08 22:52:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_GET_STATE 3
+.Os
+.Sh NAME
+.Nm SSL_get_state ,
+.Nm SSL_state ,
+.Nm SSL_in_accept_init ,
+.Nm SSL_in_before ,
+.Nm SSL_in_connect_init ,
+.Nm SSL_in_init ,
+.Nm SSL_is_init_finished
+.Nd inspect the state of the SSL state machine
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fo SSL_get_state
+.Fa "const SSL *ssl"
+.Fc
+.Ft int
+.Fo SSL_state
+.Fa "const SSL *ssl"
+.Fc
+.Ft int
+.Fo SSL_in_accept_init
+.Fa "const SSL *ssl"
+.Fc
+.Ft int
+.Fo SSL_in_before
+.Fa "const SSL *ssl"
+.Fc
+.Ft int
+.Fo SSL_in_connect_init
+.Fa "const SSL *ssl"
+.Fc
+.Ft int
+.Fo SSL_in_init
+.Fa "const SSL *ssl"
+.Fc
+.Ft int
+.Fo SSL_is_init_finished
+.Fa "const SSL *ssl"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_get_state
+returns an encoded representation of the current state of the SSL
+state machine.
+.Fn SSL_state
+is a deprecated alias for
+.Fn SSL_get_state .
+.Pp
+The following bits may be set:
+.Bl -tag -width Ds
+.It Dv SSL_ST_ACCEPT
+This bit is set by
+.Xr SSL_accept 3
+and by
+.Xr SSL_set_accept_state 3 .
+It indicates that
+.Fa ssl
+is set up for server mode and no client initiated the TLS handshake yet.
+The function
+.Fn SSL_in_accept_init
+returns non-zero if this bit is set or 0 otherwise.
+.It Dv SSL_ST_BEFORE
+This bit is set by the
+.Xr SSL_accept 3 ,
+.Xr SSL_connect 3 ,
+.Xr SSL_set_accept_state 3 ,
+and
+.Xr SSL_set_connect_state 3
+functions.
+It indicates that the TLS handshake was not initiated yet.
+The function
+.Fn SSL_in_before
+returns non-zero if this bit is set or 0 otherwise.
+.It Dv SSL_ST_CONNECT
+This bit is set by
+.Xr SSL_connect 3
+and by
+.Xr SSL_set_connect_state 3 .
+It indicates that
+.Fa ssl
+is set up for client mode and no TLS handshake was initiated yet.
+The function
+.Fn SSL_in_connect_init
+returns non-zero if this bit is set or 0 otherwise.
+.El
+.Pp
+The following masks can be used:
+.Bl -tag -width Ds
+.It Dv SSL_ST_INIT
+Set if
+.Dv SSL_ST_ACCEPT
+or
+.Dv SSL_ST_CONNECT
+is set.
+The function
+.Fn SSL_in_init
+returns a non-zero value if one of these is set or 0 otherwise.
+.It Dv SSL_ST_MASK
+This mask includes all bits except
+.Dv SSL_ST_ACCEPT ,
+.Dv SSL_ST_BEFORE ,
+and
+.Dv SSL_ST_CONNECT .
+.It Dv SSL_ST_OK
+The state is set to this value when a connection is established.
+The function
+.Fn SSL_is_init_finished
+returns a non-zero value if the state equals this constant, or 0 otherwise.
+.It Dv SSL_ST_RENEGOTIATE
+The program is about to renegotiate, for example when entering
+.Xr SSL_read 3
+or
+.Xr SSL_write 3
+right after
+.Xr SSL_renegotiate 3
+was called.
+.El
+.Pp
+The meaning of other bits is protocol-dependent.
+Application programs usually do not need to inspect any of those
+other bits.
+.Pp
+All these functions may be implemented as macros.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_renegotiate 3 ,
+.Xr SSL_set_connect_state 3
+.Sh HISTORY
+.Fn SSL_is_init_finished
+first appeared in SSLeay 0.4.5b.
+.Fn SSL_state
+first appeared in SSLeay 0.5.2.
+.Fn SSL_in_accept_init ,
+.Fn SSL_in_connect_init ,
+and
+.Fn SSL_in_init
+first appeared in SSLeay 0.6.0.
+.Fn SSL_in_before
+first appeared in SSLeay 0.8.0.
+.Fn SSL_get_state
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .

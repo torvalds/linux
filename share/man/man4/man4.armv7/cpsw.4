@@ -1,0 +1,49 @@
+.\" $OpenBSD: cpsw.4,v 1.3 2016/06/26 09:06:35 jsg Exp $
+.\" Copyright (c) 2013 Brandon Mercer <bmercer@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 26 2016 $
+.Dt CPSW 4 armv7
+.Os
+.Sh NAME
+.Nm cpsw
+.Nd Texas Instruments CPSW Ethernet device
+.Sh SYNOPSIS
+.Cd "cpsw* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Texas Instruments CPSW Ethernet device.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr ifmedia 4 ,
+.Xr mii 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 5.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jonathan A. Kollasch Aq Mt jakllsch@NetBSD.org
+and ported to
+.Ox
+by
+.An Brandon Mercer Aq Mt bmercer@openbsd.org .

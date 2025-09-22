@@ -1,0 +1,63 @@
+.\"	$OpenBSD: acpidock.4,v 1.5 2013/07/16 16:05:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2007 Michael Knudsen <mk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt ACPIDOCK 4
+.Os
+.Sh NAME
+.Nm acpidock
+.Nd ACPI docking station
+.Sh SYNOPSIS
+.Cd "acpidock* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports ACPI docking stations.
+Docking stations are units that, for example, laptops may attach to in
+order to expose a number of additional hardware devices.
+The
+.Nm
+driver handles docking and undocking machines to gracefully detach
+external devices.
+.Pp
+When docking and undocking, an event is passed to the driver which is
+then reacted upon.
+For undocking, this event is usually triggered by pressing a button on
+the docking station or using a special keyboard combination; for docking,
+the machine usually just has to be inserted.
+.Pp
+The
+.Nm
+driver sets up a sensor that indicates docking state that can be
+used with
+.Xr sensorsd 8
+to perform events when docking or undocking.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Michael Knudsen Aq Mt mk@openbsd.org .

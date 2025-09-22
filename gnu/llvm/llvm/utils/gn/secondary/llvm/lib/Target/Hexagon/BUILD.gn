@@ -1,0 +1,115 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("HexagonGenCallingConv") {
+  visibility = [ ":LLVMHexagonCodeGen" ]
+  args = [ "-gen-callingconv" ]
+  td_file = "Hexagon.td"
+}
+
+tablegen("HexagonGenDAGISel") {
+  visibility = [ ":LLVMHexagonCodeGen" ]
+  args = [ "-gen-dag-isel" ]
+  td_file = "Hexagon.td"
+}
+
+tablegen("HexagonGenDFAPacketizer") {
+  visibility = [ ":LLVMHexagonCodeGen" ]
+  args = [ "-gen-dfa-packetizer" ]
+  td_file = "Hexagon.td"
+}
+
+static_library("LLVMHexagonCodeGen") {
+  deps = [
+    ":HexagonGenCallingConv",
+    ":HexagonGenDAGISel",
+    ":HexagonGenDFAPacketizer",
+    "MCTargetDesc",
+    "TargetInfo",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "BitTracker.cpp",
+    "HexagonAsmPrinter.cpp",
+    "HexagonBitSimplify.cpp",
+    "HexagonBitTracker.cpp",
+    "HexagonBlockRanges.cpp",
+    "HexagonBranchRelaxation.cpp",
+    "HexagonCFGOptimizer.cpp",
+    "HexagonCommonGEP.cpp",
+    "HexagonConstExtenders.cpp",
+    "HexagonConstPropagation.cpp",
+    "HexagonCopyHoisting.cpp",
+    "HexagonCopyToCombine.cpp",
+    "HexagonEarlyIfConv.cpp",
+    "HexagonExpandCondsets.cpp",
+    "HexagonFixupHwLoops.cpp",
+    "HexagonFrameLowering.cpp",
+    "HexagonGenExtract.cpp",
+    "HexagonGenInsert.cpp",
+    "HexagonGenMemAbsolute.cpp",
+    "HexagonGenMux.cpp",
+    "HexagonGenPredicate.cpp",
+    "HexagonHardwareLoops.cpp",
+    "HexagonHazardRecognizer.cpp",
+    "HexagonISelDAGToDAG.cpp",
+    "HexagonISelDAGToDAGHVX.cpp",
+    "HexagonISelLowering.cpp",
+    "HexagonISelLoweringHVX.cpp",
+    "HexagonInstrInfo.cpp",
+    "HexagonLoopAlign.cpp",
+    "HexagonLoopIdiomRecognition.cpp",
+    "HexagonMCInstLower.cpp",
+    "HexagonMachineFunctionInfo.cpp",
+    "HexagonMachineScheduler.cpp",
+    "HexagonNewValueJump.cpp",
+    "HexagonOptAddrMode.cpp",
+    "HexagonOptimizeSZextends.cpp",
+    "HexagonPeephole.cpp",
+    "HexagonRDFOpt.cpp",
+    "HexagonRegisterInfo.cpp",
+    "HexagonSelectionDAGInfo.cpp",
+    "HexagonSplitConst32AndConst64.cpp",
+    "HexagonSplitDouble.cpp",
+    "HexagonStoreWidening.cpp",
+    "HexagonSubtarget.cpp",
+    "HexagonTargetMachine.cpp",
+    "HexagonTargetObjectFile.cpp",
+    "HexagonTargetTransformInfo.cpp",
+    "HexagonTfrCleanup.cpp",
+    "HexagonVExtract.cpp",
+    "HexagonVLIWPacketizer.cpp",
+    "HexagonVectorCombine.cpp",
+    "HexagonVectorLoopCarriedReuse.cpp",
+    "HexagonVectorPrint.cpp",
+    "RDFCopy.cpp",
+    "RDFDeadCode.cpp",
+  ]
+}
+
+# This is a bit different from most build files: Due to this group
+# having the directory's name, "//llvm/lib/Target/Hexagon" will refer to this
+# target, which pulls in the code in this directory *and all subdirectories*.
+# For most other directories, "//llvm/lib/Foo" only pulls in the code directly
+# in "llvm/lib/Foo". The forwarding targets in //llvm/lib/Target expect this
+# different behavior.
+group("Hexagon") {
+  deps = [
+    ":LLVMHexagonCodeGen",
+    "AsmParser",
+    "Disassembler",
+    "MCTargetDesc",
+    "TargetInfo",
+  ]
+}

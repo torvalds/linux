@@ -1,0 +1,25 @@
+global MUDFLAP_FLAGS
+set MUDFLAP_FLAGS [list {} {-static -DSTATIC} {-O2} {-O3}]
+
+libmudflap-init c
+
+dg-init
+
+global srcdir
+foreach flags $MUDFLAP_FLAGS {
+    foreach srcfile [lsort [glob -nocomplain ${srcdir}/libmudflap.cth/*.c]] {
+	set bsrc [file tail $srcfile]
+	setenv MUDFLAP_OPTIONS "-viol-segv"
+	if {$libmudflapth} then {
+	    # --noinhibit-exec works around a ld problem that causes
+	    # "Dwarf Error: Invalid or unhandled FORM value: 14"
+	    # to fail builds unnecessarily.
+	    dg-runtest $srcfile $flags "-fmudflapth -lmudflapth -lpthread -Wl,--noinhibit-exec"
+	} else {
+	    if {$flags != ""} {set f " ($flags)"} {set f ""}
+            untested "libmudflap.cth/$bsrc$f"
+	}
+    }
+}
+
+dg-finish

@@ -1,0 +1,77 @@
+/*	$OpenBSD: brd.dat,v 1.4 2003/06/03 03:01:40 millert Exp $	*/
+/*	$NetBSD: brd.dat,v 1.2 1995/03/23 08:34:34 cgd Exp $	*/
+
+/*-
+ * Copyright (c) 1980, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	@(#)brd.dat	5.5 (Berkeley) 5/31/93
+ */
+
+/* name (COLOR)			owner	type	desc		cost	*/
+
+{"=== GO ===",			-1,	SAFE,	0,		0	},
+{"Mediterranean Ave. (P)",	-1,	PRPTY,	&prop[0],	60	},
+{"Community Chest i",		-1,	CC,	0,		0	},
+{"Baltic Ave. (P)",		-1,	PRPTY,	&prop[1],	60	},
+{"Income Tax",			-1,	INC_TAX,0,		0	},
+{"Reading RR",			-1,	RR,	&rr[0],		200	},
+{"Oriental Ave. (L)",		-1,	PRPTY,	&prop[2],	100	},
+{"Chance i",			-1,	CHANCE,	0,		0	},
+{"Vermont Ave. (L)",		-1,	PRPTY,	&prop[3],	100	},
+{"Connecticut Ave. (L)",	-1,	PRPTY,	&prop[4],	120	},
+{"Just Visiting",		-1,	SAFE,	0,		0	},
+{"St. Charles pl. (V)",		-1,	PRPTY,	&prop[5],	140	},
+{"Electric Co.",		-1,	UTIL,	&util[0],	150	},
+{"States Ave. (V)",		-1,	PRPTY,	&prop[6],	140	},
+{"Virginia Ave. (V)",		-1,	PRPTY,	&prop[7],	160	},
+{"Pennsylvania RR",		-1,	RR,	&rr[1],		200	},
+{"St. James Pl. (O)",		-1,	PRPTY,	&prop[8],	180	},
+{"Community Chest ii",		-1,	CC,	0,		0	},
+{"Tennessee Ave. (O)",		-1,	PRPTY,	&prop[9],	180	},
+{"New York Ave. (O)",		-1,	PRPTY,	&prop[10],	200	},
+{"Free Parking",		-1,	SAFE,	0,		0	},
+{"Kentucky Ave. (R)",		-1,	PRPTY,	&prop[11],	220	},
+{"Chance ii",			-1,	CHANCE,	0,		0	},
+{"Indiana Ave. (R)",		-1,	PRPTY,	&prop[12],	220	},
+{"Illinois Ave. (R)",		-1,	PRPTY,	&prop[13],	240	},
+{"B&O RR",			-1,	RR,	&rr[2],		200	},
+{"Atlantic Ave. (Y)",		-1,	PRPTY,	&prop[14],	260	},
+{"Ventnor Ave. (Y)",		-1,	PRPTY,	&prop[15],	260	},
+{"Water Works",			-1,	UTIL,	&util[1],	150	},
+{"Marvin Gardens (Y)",		-1,	PRPTY,	&prop[16],	280	},
+{"GO TO JAIL",			-1,	GOTO_J,	0,		0	},
+{"Pacific Ave. (G)",		-1,	PRPTY,	&prop[17],	300	},
+{"N. Carolina Ave. (G)",	-1,	PRPTY,	&prop[18],	300	},
+{"Community Chest iii",		-1,	CC,	0,		0	},
+{"Pennsylvania Ave. (G)",	-1,	PRPTY,	&prop[19],	320	},
+{"Short Line RR",		-1,	RR,	&rr[3],		200	},
+{"Chance iii",			-1,	CHANCE,	0,		0	},
+{"Park Place (D)",		-1,	PRPTY,	&prop[20],	350	},
+{"Luxury Tax",			-1,	LUX_TAX,0,		0	},
+{"Boardwalk (D)",		-1,	PRPTY,	&prop[21],	400	},
+{"JAIL",			-1,	IN_JAIL,0,		0	}

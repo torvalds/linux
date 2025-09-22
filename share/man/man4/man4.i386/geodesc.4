@@ -1,0 +1,49 @@
+.\"	$OpenBSD: geodesc.4,v 1.10 2007/05/31 19:19:54 jmc Exp $
+.\"
+.\"Copyright (c) 2003 Markus Friedl <markus@openbsd.org>
+.\"
+.\"Permission to use, copy, modify, and distribute this software for any
+.\"purpose with or without fee is hereby granted, provided that the above
+.\"copyright notice and this permission notice appear in all copies.
+.\"
+.\"THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\"WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\"MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\"ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\"WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\"ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\"OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt GEODESC 4 i386
+.Os
+.Sh NAME
+.Nm geodesc
+.Nd Geode SC1100/SCx200 IAOC watchdog timer device
+.Sh SYNOPSIS
+.Cd "geodesc* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the watchdog timer of the Geode SC1100.
+.Pp
+The Geode SC1100/SCx200 is a member of the AMD
+Information Appliance On a Chip (IAOC) family
+of fully integrated x86 system chips.
+.Pp
+The watchdog timer may be configured via
+.Xr sysctl 8 .
+.Sh SEE ALSO
+.Xr watchdog 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+Support for the
+.Nm
+was added in
+.Ox 3.4 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Markus Friedl .

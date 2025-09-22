@@ -1,0 +1,241 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Trie-Based Containers</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Trie Design</h1>
+
+    <h2><a name="overview" id="overview">Overview</a></h2>
+
+    <p>The trie-based container has the following declaration:</p>
+    <pre>
+<b>template</b>&lt;
+    <b>typename</b> Key,
+    <b>typename</b> Mapped,
+    <b>typename</b> Cmp_Fn = std::less&lt;Key&gt;,
+    <b>typename</b> Tag =  <a href="pat_trie_tag.html">pat_trie_tag</a>,
+    <b>template</b>&lt;
+        <b>typename</b> Const_Node_Iterator,
+        <b>typename</b> Node_Iterator,
+        <b>typename</b> E_Access_Traits_,
+        <b>typename</b> Allocator_&gt;
+    <b>class</b> Node_Update = <a href=
+"null_trie_node_update.html">null_trie_node_update</a>,
+    <b>typename</b> Allocator = std::allocator&lt;<b>char</b>&gt; &gt;
+<b>class</b> <a href=
+"trie.html">trie</a>;
+</pre>
+
+    <p>The parameters have the following meaning:</p>
+
+    <ol>
+      <li><tt>Key</tt> is the key type.</li>
+
+      <li><tt>Mapped</tt> is the mapped-policy, and is explained in
+      <a href="tutorial.html#assoc_ms">Tutorial::Associative
+      Containers::Associative Containers Others than Maps</a>.</li>
+
+      <li><tt>E_Access_Traits</tt> is described in <a href=
+      "#e_access_traits">Element-Access Traits</a>.</li>
+
+      <li><tt>Tag</tt> specifies which underlying data structure
+      to use, and is described shortly.</li>
+
+      <li><tt>Node_Update</tt> is a policy for updating node
+      invariants. This is described in <a href="#invariants">Node
+      Invariants</a>.</li>
+
+      <li><tt>Allocator</tt> is an allocator
+      type.</li>
+    </ol>
+
+    <p>The <tt>Tag</tt> parameter specifies which underlying
+    data structure to use. Instantiating it by <a href=
+    "pat_trie_tag.html">pat_trie_tag</a>, specifies an
+    underlying PATRICIA trie (explained shortly); any other tag is
+    currently illegal.</p>
+    <hr />
+
+    <p>Following is a description of a (PATRICIA) trie
+    (<tt>pb_ds</tt> follows specifically [<a href=
+    "references.html#okasaki98mereable">okasaki98mereable</a>] and
+    [<a href=
+    "references.html#filliatre2000ptset">filliatre2000ptset</a>]).</p>
+
+    <p>A (PATRICIA) trie is similar to a tree, but with the
+    following differences:</p>
+
+    <ol>
+      <li>It explicitly views keys as a sequence of elements.
+      <i>E.g.</i>, a trie can view a string as a sequence of
+      characters; a trie can view a number as a sequence of
+      bits.</li>
+
+      <li>It is not (necessarily) binary. Each node has fan-out <i>n
+      + 1</i>, where <i>n</i> is the number of distinct
+      elements.</li>
+
+      <li>It stores values only at leaf nodes.</li>
+
+      <li>Internal nodes have the properties that A) each has at
+      least two children, and B) each shares the same prefix with
+      any of its descendant.</li>
+    </ol>
+
+    <p><a href="#e_access_traits">Element-Access Traits</a> shows
+    an example of such a trie.</p>
+
+    <p>A (PATRICIA) trie has some useful properties:</p>
+
+    <ol>
+      <li>It can be configured to use large node fan-out, giving it
+      very efficient find performance (albeit at insertion
+      complexity and size).</li>
+
+      <li>It works well for common-prefix keys.</li>
+
+      <li>It can support efficiently queries such as which keys
+      match a certain prefix. This is sometimes useful in
+      file systems and routers.</li>
+    </ol>
+
+    <p>(We would like to thank Matt Austern for the suggestion to
+    include tries.)</p>
+
+    <h2><a name="e_access_traits" id=
+    "e_access_traits">Element-Access Traits</a></h2>
+
+    <p>A trie inherently views its keys as sequences of elements.
+    For example, a trie can view a string as a sequence of
+    characters. A trie needs to map each of <i>n</i> elements to a
+    number in <i>{0, n - 1}</i>. For example, a trie can map a
+    character <tt>c</tt> to
+    <tt>static_cast&lt;size_t&gt;(c)</tt>.</p>
+
+    <p>Seemingly, then, a trie can assume that its keys support
+    (const) iterators, and that the <tt>value_type</tt> of this
+    iterator can be cast to a <tt>size_t</tt>. There are several
+    reasons, though, to decouple the mechanism by which the trie
+    accesses its keys' elements from the trie:</p>
+
+    <ol>
+      <li>In some cases, the numerical value of an element is
+      inappropriate. Consider a trie storing DNA strings. It is
+      logical to use a trie with a fan-out of <i>5 = 1 + |{'A', 'C',
+      'G', 'T'}|</i>. This requires mapping 'T' to 3, though.</li>
+
+      <li>In some cases the keys' iterators are different than what
+      is needed. For example, a trie can be used to search for
+      common <u>suffixes</u>, by using strings'
+      <tt>reverse_iterator</tt>. As another example, a trie mapping
+      UNICODE strings would have a huge fan-out if each node would
+      branch on a UNICODE character; instead, one can define an
+      iterator iterating over 8-bit (or less) groups.</li>
+    </ol>
+
+    <p><a href=
+    "trie.html">trie</a> is,
+    consequently, parametrized by <tt>E_Access_Traits</tt> -
+    traits which instruct how to access sequences' elements.
+    <a href=
+    "string_trie_e_access_traits.html"><tt>string_trie_e_access_traits</tt></a>
+    is a traits class for strings. Each such traits define some
+    types, <i>e.g.</i>,</p>
+    <pre>
+<b>typename</b> E_Access_Traits::const_iterator
+</pre>
+
+    <p>is a const iterator iterating over a key's elements. The
+    traits class must also define methods for obtaining an iterator
+    to the first and last element of a key.</p>
+
+    <p>Figure <a href="#pat_trie">A PATRICIA trie</a> shows a
+    (PATRICIA) trie resulting from inserting the words: "I wish
+    that I could ever see a poem lovely as a trie" (which,
+    unfortunately, does not rhyme).</p>
+
+    <p>The leaf nodes contain values; each internal node contains
+    two <tt><b>typename</b> E_Access_Traits::const_iterator</tt>
+    objects, indicating the maximal common prefix of all keys in
+    the sub-tree. For example, the shaded internal node roots a
+    sub-tree with leafs "a" and "as". The maximal common prefix is
+    "a". The internal node contains, consequently, to const
+    iterators, one pointing to <tt>'a'</tt>, and the other to
+    <tt>'s'</tt>.</p>
+
+    <h6 class="c1"><a name="pat_trie" id="pat_trie"><img src=
+    "pat_trie.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">A PATRICIA trie.</h6>
+
+    <h2><a name="invariants" id="invariants">Node
+    Invariants</a></h2>
+
+    <p>Trie-based containers support node invariants, as do
+    tree-based containers (see <a href=
+    "tree_based_containers.html#invariants">Tree-Based
+    Containers::Node Invariants</a>). There are two minor
+    differences, though, which, unfortunately, thwart sharing them
+    sharing the same node-updating policies:</p>
+
+    <ol>
+      <li>A trie's <tt>Node_Update</tt> template-template
+      parameter is parametrized by <tt>E_Access_Traits</tt>, while
+      a tree's <tt>Node_Update</tt> template-template parameter is
+      parametrized by <tt>Cmp_Fn</tt>.</li>
+
+      <li>Tree-based containers store values in all nodes, while
+      trie-based containers (at least in this implementation) store
+      values in leafs.</li>
+    </ol>
+
+    <p>Figure <a href="#trie_node_update_cd">A trie and its update
+    policy</a> shows the scheme, as well as some predefined
+    policies (which are explained below).</p>
+
+    <h6 class="c1"><a name="trie_node_update_cd" id=
+    "trie_node_update_cd"><img src=
+    "trie_node_update_policy_cd.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">A trie and its update policy.</h6>
+
+    <p><tt>pb_ds</tt> offers the following pre-defined trie node
+    updating policies:</p>
+
+    <ol>
+      <li><a href=
+      "trie_order_statistics_node_update.html"><tt>trie_order_statistics_node_update</tt></a>
+      supports order statistics.</li>
+
+      <li><a href=
+      "trie_prefix_search_node_update.html"><tt>trie_prefix_search_node_update</tt></a>
+      supports searching for ranges that match a given prefix. See
+      <a href=
+      "../../../../testsuite/ext/pb_ds/example/trie_prefix_search.cc"><tt>trie_prefix_search.cc</tt></a>.</li>
+
+      <li><a href=
+      "null_trie_node_update.html"><tt>null_trie_node_update</tt></a>
+      is the null node updater.</li>
+    </ol>
+
+    <h2><a name="add_methods" id="add_methods">Additional
+    Methods</a></h2>
+
+    <p>Trie-based containers support split and join methods; the
+    rationale is equal to that of tree-based containers supporting
+    these methods (see <a href=
+    "tree_based_containers.html#add_methods">Tree-Based
+    Containers::Additional Methods</a>).</p>
+  </div>
+</body>
+</html>

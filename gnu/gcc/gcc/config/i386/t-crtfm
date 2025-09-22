@@ -1,0 +1,6 @@
+EXTRA_PARTS += crtfastmath.o
+
+$(T)crtfastmath.o: $(srcdir)/config/i386/crtfastmath.c $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -msse -c \
+		$(srcdir)/config/i386/crtfastmath.c \
+		-o $(T)crtfastmath$(objext)

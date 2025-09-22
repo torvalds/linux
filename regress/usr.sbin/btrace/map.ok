@@ -1,0 +1,15 @@
+=> Print with one element
+@map[7, test]: 1
+=> Print after zero:
+@map[7, test]: 0
+=> Print top 2:
+@map[4]: 9999
+@map[897123]: 9997
+=> Using printf:
+9999 + 1
+=> Print all map:
+@map[4]: 9999
+@map[897123]: 9997
+@map[5]: 42
+@map[7, test]: 2
+=> Print after clear:

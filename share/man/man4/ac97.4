@@ -1,0 +1,76 @@
+.\"	$OpenBSD: ac97.4,v 1.18 2010/02/26 14:14:14 sobrado Exp $
+.\"
+.\" Copyright (c) 1999, 2000 Constantine Sapuntzakis
+.\"
+.\" Author:	Constantine Sapuntzakis <csapuntz@stanford.edu>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+.\" OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+.\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.Dd $Mdocdate: February 26 2010 $
+.Dt AC97 4
+.Os
+.Sh NAME
+.Nm ac97
+.Nd generic AC'97 codec driver
+.Sh DESCRIPTION
+AC'97 codecs contain the analog to digital (A/D), digital to analog
+(D/A), and mixing circuitry of many modern sound cards.
+AC'97 codecs, for the most part, do not talk to host buses like the PCI bus
+directly.
+Instead, they communicate through an interface chip, called
+the host controller.
+The Ensoniq AudioPCI 97 (see
+.Xr eap 4 )
+is an example of such a host controller.
+.Pp
+Unlike many drivers, the
+.Nm
+driver does not appear in the configuration file.
+Instead, the driver is automatically attached by the drivers that require it.
+.Sh SEE ALSO
+.Xr auacer 4 ,
+.Xr auich 4 ,
+.Xr auixp 4 ,
+.Xr autri 4 ,
+.Xr auvia 4 ,
+.Xr clcs 4 ,
+.Xr clct 4 ,
+.Xr eap 4 ,
+.Xr emu 4 ,
+.Xr esa 4 ,
+.Xr fms 4 ,
+.Xr maestro 4 ,
+.Xr neo 4 ,
+.Xr yds 4
+.Sh BUGS
+The
+.Nm
+driver does not keep track of the current user settings and instead
+relies on the hardware to do this.
+.Pp
+The
+.Nm
+driver could do more to detect mixer channels that don't work and cull
+them from the list.

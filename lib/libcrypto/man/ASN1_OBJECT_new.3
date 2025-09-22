@@ -1,0 +1,229 @@
+.\" $OpenBSD: ASN1_OBJECT_new.3,v 1.17 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 99d63d4 Mar 19 12:28:58 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2017, 2021, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson.
+.\" Copyright (c) 2002, 2006 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_OBJECT_NEW 3
+.Os
+.Sh NAME
+.Nm ASN1_OBJECT_new ,
+.Nm ASN1_OBJECT_create ,
+.Nm ASN1_OBJECT_free
+.Nd ASN.1 object identifiers
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft ASN1_OBJECT *
+.Fo ASN1_OBJECT_new
+.Fa void
+.Fc
+.Ft ASN1_OBJECT *
+.Fo ASN1_OBJECT_create
+.Fa "int nid"
+.Fa "unsigned char *content"
+.Fa "int len"
+.Fa "const char *short_name"
+.Fa "const char *long_name"
+.Fc
+.Ft void
+.Fo ASN1_OBJECT_free
+.Fa "ASN1_OBJECT *a"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_OBJECT_new
+allocates and initializes an empty
+.Vt ASN1_OBJECT
+object, representing an ASN.1 OBJECT IDENTIFIER.
+It can hold a short name, a long name, a numeric identifier (NID),
+and a sequence of integers identifying a node in the International
+Object Identifier tree as specified in ITU-T recommendation X.660.
+The new object is marked as dynamically allocated.
+.Pp
+The ASN.1 object identifier type is also represented by the
+.Dv V_ASN1_OBJECT
+type identifier constant.
+.Pp
+.Fn ASN1_OBJECT_create
+allocates a new
+.Vt ASN1_OBJECT
+with the given
+.Fa nid ,
+copies the
+.Fa len
+DER
+.Fa content
+octets, the
+.Fa short_name ,
+and the
+.Fa long_name
+into it, and marks the new object and all data contained in it
+as dynamically allocated.
+.Pp
+Application programs normally use utility functions like
+.Xr OBJ_nid2obj 3
+rather than using
+.Fn ASN1_OBJECT_new
+or
+.Fn ASN1_OBJECT_create
+directly.
+.Pp
+.Fn ASN1_OBJECT_free
+has the following effects:
+.Pp
+All data contained in
+.Fa a
+that is marked as dynamically allocated is freed,
+and the respective fields of
+.Fa a
+become empty.
+Contained data not marked as dynamically allocated remains intact.
+.Pp
+If the object
+.Fa a
+itself is marked as dynamically allocated, it is freed.
+Otherwise, the pointer
+.Fa a
+remains valid.
+.Pp
+If
+.Fa a
+is a
+.Dv NULL
+pointer or if neither the object itself nor any of its content
+is marked as dynamically allocated, no action occurs.
+.Sh RETURN VALUES
+.Fn ASN1_OBJECT_new
+and
+.Fn ASN1_OBJECT_create
+return a pointer to the new object or
+.Dv NULL
+if memory allocation fails,
+.Sh ERRORS
+After failure of
+.Fn ASN1_OBJECT_new
+or
+.Fn ASN1_OBJECT_create ,
+the following diagnostic can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3 :
+.Bl -tag -width Ds
+.It Dv ERR_R_MALLOC_FAILURE Qq "malloc failure"
+Memory allocation failed.
+.El
+.Pp
+After some cases of failure of
+.Fn ASN1_OBJECT_create ,
+the following diagnostic can be retrieved in addition to the above:
+.Bl -tag -width Ds
+.It Dv ERR_R_ASN1_LIB Qq "ASN1 lib"
+Memory allocation failed.
+.El
+.Sh SEE ALSO
+.Xr a2d_ASN1_OBJECT 3 ,
+.Xr ASN1_TYPE_get 3 ,
+.Xr d2i_ASN1_OBJECT 3 ,
+.Xr OBJ_create 3 ,
+.Xr OBJ_nid2obj 3
+.Sh STANDARDS
+ITU-T Recommendation X.208, also known as ISO/IEC 8824-1:
+Specification of Abstract Syntax Notation One (ASN.1),
+section 28: Notation for the object identifier type
+.Pp
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules:
+Specification of Basic Encoding Rules (BER), Canonical Encoding
+Rules (CER) and Distinguished Encoding Rules (DER),
+section 8.19: Encoding of an object identifier value
+.Sh HISTORY
+.Fn ASN1_OBJECT_new
+and
+.Fn ASN1_OBJECT_free
+first appeared in SSLeay 0.5.1 and
+.Fn ASN1_OBJECT_create
+in SSLeay 0.8.0.
+These functions have been available since
+.Ox 2.4 .
+.Sh BUGS
+The function
+.Fn ASN1_OBJECT_new
+is not useful for any practical purpose because the library does not
+provide any function capable of adding data to an existing object.
+Consequently, if the application program creates an object with
+.Fn ASN1_OBJECT_new ,
+that object will always remain empty.
+.Pp
+Similarly, if an
+.Fa nid
+of
+.Dv NID_undef
+is passed to
+.Fn ASN1_OBJECT_create ,
+or if
+.Dv NULL
+is passed for any of its pointer arguments, the returned object
+will permanently remain incomplete.

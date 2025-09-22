@@ -1,0 +1,80 @@
+.\"	$OpenBSD: hil.4,v 1.11 2014/03/18 22:36:31 miod Exp $
+.\"
+.\" Copyright (c) 2003 Miodrag Vallat.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistribution of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: March 18 2014 $
+.Dt HIL 4
+.Os
+.Sh NAME
+.Nm hil
+.Nd introduction to HP-HIL support
+.Sh SYNOPSIS
+.Cd "hil* at gsc? irq 1              " Pq hppa
+.Pp
+.Cd "hilkbd* at hil?"
+.Cd "hilms* at hil?"
+.Cd "hilid* at hil?"
+.Sh DESCRIPTION
+The
+.Nm
+interface provides access to the
+.Dq Human Interface Loop
+controller found on many
+.Tn HP
+workstations.
+.Pp
+It provides generic HIL management and interfaces for child devices,
+such as keyboards, button boxes, mice, graphics tablet, and ID modules.
+.\".Pp
+.\"hil devices:
+.\"HP 45911A HP-HIL Graphics Tablet
+.\"HP 46020A HP-HIL Keyboard
+.\"HP 46021A HP-HIL Keyboard
+.\"HP 46060A HP-HIL Mouse
+.\"HP 46060B HP-HIL 3-Button Mouse
+.\"HP 46083A HP-HIL Knob
+.\"HP 46085A HP-HIL Control Dial Module
+.\"HP 46086A HP-HIL 32-Button Box
+.\"HP 46087A HP-HIL A-Size Digitizer
+.\"HP 46088A HP-HIL B-Size Digitizer
+.\"HP 46089A HP-HIL 4-Button Cursor for the HP 46087/88A Tablets
+.\"HP 46094A HP-HIL Quadrature Box
+.\"HP 46095A HP-HIL Quadrature 3-Button Mouse
+.\"HP 80409A HP-HIL 3-Button Track Ball
+.Pp
+.Ox
+provides support for the following devices:
+.Pp
+.Bl -tag -width "hilkbd(4)XX" -offset 3n -compact
+.It Xr hilid 4
+HIL ID module device
+.It Xr hilkbd 4
+HIL keyboard device
+.It Xr hilms 4
+HIL mouse and graphics tablet device
+.El
+.Sh SEE ALSO
+.Xr gsc 4 ,
+.Xr intro 4

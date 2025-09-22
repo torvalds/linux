@@ -1,0 +1,394 @@
+.\"	$OpenBSD: vis.3,v 1.37 2022/07/30 07:19:30 jsg Exp $
+.\"
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 30 2022 $
+.Dt VIS 3
+.Os
+.Sh NAME
+.Nm vis ,
+.Nm strvis ,
+.Nm strnvis ,
+.Nm strvisx ,
+.Nm stravis
+.Nd visually encode characters
+.Sh SYNOPSIS
+.In stdlib.h
+.In vis.h
+.Ft char *
+.Fn vis "char *dst" "int c" "int flag" "int nextc"
+.Ft int
+.Fn strvis "char *dst" "const char *src" "int flag"
+.Ft int
+.Fn strnvis "char *dst" "const char *src" "size_t dstsize" "int flag"
+.Ft int
+.Fn strvisx "char *dst" "const char *src" "size_t srclen" "int flag"
+.Ft int
+.Fn stravis "char **outp" "const char *src" "int flag"
+.Sh DESCRIPTION
+The
+.Fn vis
+function copies into
+.Fa dst
+a string which represents the character
+.Fa c .
+If
+.Fa c
+needs no encoding, it is copied in unaltered.
+.Fa dst
+will be NUL-terminated and must be at least 5 bytes long
+(maximum encoding requires 4 bytes plus the NUL).
+The additional character,
+.Fa nextc ,
+is only used when selecting the
+.Dv VIS_CSTYLE
+encoding format (explained below).
+.Pp
+The
+.Fn strvis ,
+.Fn strnvis
+and
+.Fn strvisx
+functions copy into
+.Fa dst
+a visual representation of
+the string
+.Fa src .
+.Pp
+The
+.Fn strvis
+function encodes characters from
+.Fa src
+up to the first NUL, into a buffer
+.Fa dst
+(which must be at least 4 * strlen(src) + 1 long).
+.Pp
+The
+.Fn strnvis
+function encodes characters from
+.Fa src
+up to the first NUL or the end of the buffer
+.Fa dst ,
+as indicated by
+.Fa dstsize .
+.Pp
+The
+.Fn strvisx
+function encodes exactly
+.Fa srclen
+characters from
+.Fa src
+into a buffer
+.Fa dst
+(which must be at least 4 * srclen + 1 long).
+This
+is useful for encoding a block of data that may contain NULs.
+.Pp
+The
+.Fn stravis
+function writes a visual representation of the string
+.Fa src
+into a newly allocated string
+.Fa outp ;
+it does not attempt to
+.Xr realloc 3
+.Fa outp .
+.Fa outp
+should be passed to
+.Xr free 3
+to release the allocated storage when it is no longer needed.
+.Fn stravis
+checks for integer overflow when allocating memory.
+.Pp
+All forms NUL-terminate
+.Fa dst ,
+except for
+.Fn strnvis
+when
+.Fa dstsize
+is zero, in which case
+.Fa dst
+is not touched.
+.Pp
+The
+.Fa flag
+parameter is used for altering the default range of
+characters considered for encoding and for altering the visual
+representation.
+.Ss Encodings
+The encoding is a unique, invertible representation composed entirely of
+graphic characters; it can be decoded back into the original form using
+the
+.Xr unvis 3
+or
+.Xr strunvis 3
+functions.
+.Pp
+There are two parameters that can be controlled: the range of
+characters that are encoded, and the type
+of representation used.
+By default, all non-graphic characters
+except space, tab, and newline are encoded
+(see
+.Xr isgraph 3 ) .
+The following flags
+alter this:
+.Bl -tag -width VIS_WHITEX
+.It Dv VIS_ALL
+Encode all characters, whether visible or not.
+.It Dv VIS_DQ
+Also encode double quote characters
+.Pf ( Ql \&" ) .
+.It Dv VIS_GLOB
+Also encode magic characters recognized by
+.Xr glob 3
+.Pf ( Ql * ,
+.Ql \&? ,
+.Ql \&[ )
+and
+.Ql # .
+.It Dv VIS_SP
+Also encode space.
+.It Dv VIS_TAB
+Also encode tab.
+.It Dv VIS_NL
+Also encode newline.
+.It Dv VIS_WHITE
+Synonym for
+.Dv VIS_SP | VIS_TAB | VIS_NL .
+.It Dv VIS_SAFE
+Only encode
+.Dq unsafe
+characters.
+These are control characters which may cause common terminals to perform
+unexpected functions.
+Currently this form allows space, tab, newline, backspace, bell,
+and return \(em in addition to all graphic characters \(em unencoded.
+.El
+.Pp
+There are three forms of encoding.
+All forms use the backslash
+.Ql \e
+character to introduce a special
+sequence; two backslashes are used to represent a real backslash.
+These are the visual formats:
+.Bl -tag -width VIS_CSTYLE
+.It (default)
+Use an
+.Ql M
+to represent meta characters (characters with the 8th
+bit set), and use a caret
+.Ql ^
+to represent control characters (see
+.Xr iscntrl 3 ) .
+The following formats are used:
+.Bl -tag -width xxxxx
+.It Dv \e^C
+Represents the control character
+.Ql C .
+Spans characters
+.Ql \e000
+through
+.Ql \e037 ,
+and
+.Ql \e177
+(as
+.Ql \e^? ) .
+.It Dv \eM-C
+Represents character
+.Ql C
+with the 8th bit set.
+Spans characters
+.Ql \e241
+through
+.Ql \e376 .
+.It Dv \eM^C
+Represents control character
+.Ql C
+with the 8th bit set.
+Spans characters
+.Ql \e200
+through
+.Ql \e237 ,
+and
+.Ql \e377
+(as
+.Ql \eM^? ) .
+.It Dv \e040
+Represents
+.Tn ASCII
+space.
+.It Dv \e240
+Represents Meta-space.
+.It Dv \e-C
+Represents character
+.Ql C .
+Only used with
+.Dv VIS_ALL .
+.El
+.It Dv VIS_CSTYLE
+Use C-style backslash sequences to represent standard non-printable
+characters.
+The following sequences are used to represent the indicated characters:
+.Bd -unfilled -offset indent
+.Li \ea Tn  - BEL No (007)
+.Li \eb Tn  - BS No (010)
+.Li \ef Tn  - NP No (014)
+.Li \en Tn  - NL No (012)
+.Li \er Tn  - CR No (015)
+.Li \es Tn  - SP No (040)
+.Li \et Tn  - HT No (011)
+.Li \ev Tn  - VT No (013)
+.Li \e0 Tn  - NUL No (000)
+.Ed
+.Pp
+When using this format, the
+.Fa nextc
+parameter is looked at to determine
+if a NUL character can be encoded as
+.Ql \e0
+instead of
+.Ql \e000 .
+If
+.Fa nextc
+is an octal digit, the latter representation is used to
+avoid ambiguity.
+.It Dv VIS_OCTAL
+Use a three digit octal sequence.
+The form is
+.Ql \eddd
+where
+.Ar d
+represents an octal digit.
+.El
+.Pp
+There is one additional flag,
+.Dv VIS_NOSLASH ,
+which inhibits the
+doubling of backslashes and the backslash before the default
+format (that is, control characters are represented by
+.Ql ^C
+and
+meta characters as
+.Ql M-C ) .
+With this flag set, the encoding is
+ambiguous and non-invertible.
+.Sh RETURN VALUES
+.Fn vis
+returns a pointer to the terminating NUL character of the string
+.Fa dst .
+.Pp
+.Fn strvis
+and
+.Fn strvisx
+return the number of characters in
+.Fa dst
+(not including the trailing NUL).
+.Pp
+.Fn strnvis
+returns the length that
+.Fa dst
+would become if it were of unlimited size (similar to
+.Xr snprintf 3
+or
+.Xr strlcpy 3 ) .
+This can be used to detect truncation, but it also means that
+the return value of
+.Fn strnvis
+must not be used without checking it against
+.Fa dstsize .
+.Pp
+Upon successful completion,
+.Fn stravis
+returns the number of characters in
+.Pf * Fa outp
+(not including the trailing NUL).
+Otherwise,
+.Fn stravis
+returns -1 and sets
+.Va errno
+to
+.Er ENOMEM .
+.Sh EXAMPLES
+.Fn strvis
+has unusual storage requirements that can lead to stack or heap corruption
+if the destination is not carefully constructed.
+A common mistake is to use the same size for the source and destination
+when the destination actually needs up to 4 * strlen(source) + 1 bytes.
+.Pp
+If the length of a string to be encoded is not known at compile time, use
+.Fn stravis :
+.Bd -literal -offset indent
+char *src, *dst;
+
+\&...
+if (stravis(&dst, src, VIS_OCTAL) == -1)
+	err(1, "stravis");
+
+\&...
+free(dst);
+.Ed
+.Pp
+To encode a fixed size buffer,
+.Fn strnvis
+can be used with a fixed size target buffer:
+.Bd -literal -offset indent
+char src[MAXPATHLEN];
+char dst[4 * MAXPATHLEN + 1];
+
+\&...
+if (strnvis(dst, src, sizeof(dst), VIS_OCTAL) >= sizeof(dst))
+	err(1, "strnvis");
+.Ed
+.Sh SEE ALSO
+.Xr unvis 1 ,
+.Xr vis 1 ,
+.Xr free 3 ,
+.Xr snprintf 3 ,
+.Xr strlcpy 3 ,
+.Xr unvis 3
+.Sh HISTORY
+The
+.Fn vis ,
+.Fn strvis
+and
+.Fn strvisx
+functions first appeared in
+.Bx 4.3 Reno ,
+.Fn strnvis
+in
+.Ox 2.9
+and
+.Fn stravis
+in
+.Ox 5.7 .
+.Pp
+The
+.Dv VIS_ALL
+flag first appeared in
+.Ox 4.9 .

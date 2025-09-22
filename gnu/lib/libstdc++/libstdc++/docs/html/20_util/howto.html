@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="HOWTO for the libstdc++ chapter 20." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 HOWTO:  Chapter 20</title>
+<link rel="StyleSheet" href="../lib3styles.css" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Chapter 20:  General Utilities</a></h1>
+
+<p>Chapter 20 deals with utility classes and functions, such as
+   the oft-debated <code>auto_ptr&lt;&gt;</code>.
+</p>
+
+
+<!-- ####################################################### -->
+<hr />
+<h1>Contents</h1>
+<ul>
+   <li><a href="#1"><code>auto_ptr</code> is not omnipotent</a></li>
+   <li><a href="#2"><code>auto_ptr</code> inside container classes</a></li>
+   <li><a href="#3">Functors</a></li>
+   <li><a href="#4">Pairs</a></li>
+   <li><a href="#5">Memory allocators</a></li>
+</ul>
+
+<hr />
+
+<!-- ####################################################### -->
+
+<h2><a name="1"><code>auto_ptr</code> is not omnipotent</a></h2>
+   <p>I'm not going to try and explain all of the fun and delicious
+      things that can happen with misuse of the auto_ptr class template
+      (called AP here), nor am I going to try and teach you how to use
+      AP safely in the presence of copying.  The AP class is a really
+      nifty idea for a smart pointer, but it is one of the dumbest of
+      all the smart pointers -- and that's fine.
+   </p>
+   <p>AP is not meant to be a supersmart solution to all resource
+      leaks everywhere.  Neither is it meant to be an effective form
+      of garbage collection (although it can help, a little bit).
+      And it can <em>not</em> be used for arrays!
+   </p>
+   <p>AP <em>is</em> meant to prevent nasty leaks in the presence of
+      exceptions.  That's <em>all</em>.  This code is AP-friendly:
+   </p>
+   <pre>
+    // not a recommend naming scheme, but good for web-based FAQs
+    typedef std::auto_ptr&lt;MyClass&gt;  APMC;
+
+    extern function_taking_MyClass_pointer (MyClass*);
+    extern some_throwable_function ();
+
+    void func (int data)
+    {
+        APMC  ap (new MyClass(data));
+
+        some_throwable_function();   // this will throw an exception
+
+        function_taking_MyClass_pointer (ap.get());
+    }
+   </pre>
+   <p>When an exception gets thrown, the instance of MyClass that's
+      been created on the heap will be <code>delete</code>'d as the stack is
+      unwound past <code>func()</code>.
+   </p>
+   <p>Changing that code as follows is <em>not</em> AP-friendly:
+   </p>
+   <pre>
+        APMC  ap (new MyClass[22]);
+   </pre>
+   <p>You will get the same problems as you would without the use
+      of AP:
+   </p>
+   <pre>
+        char*  array = new char[10];       // array new...
+        ...
+        delete array;                      // ...but single-object delete
+   </pre>
+   <p>AP cannot tell whether the pointer you've passed at creation points
+      to one or many things.  If it points to many things, you are about
+      to die.  AP is trivial to write, however, so you could write your
+      own <code>auto_array_ptr</code> for that situation (in fact, this has
+      been done many times; check the mailing lists, Usenet, Boost, etc).
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="2"><code>auto_ptr</code> inside container classes</a></h2>
+   <p>All of the <a href="../23_containers/howto.html">containers</a>
+      described in the standard library require their contained types
+      to have, among other things, a copy constructor like this:
+   </p>
+   <pre>
+    struct My_Type
+    {
+        My_Type (My_Type const&amp;);
+    };
+   </pre>
+   <p>Note the const keyword; the object being copied shouldn't change.
+      The template class <code>auto_ptr</code> (called AP here) does not
+      meet this requirement.  Creating a new AP by copying an existing
+      one transfers ownership of the pointed-to object, which means that
+      the AP being copied must change, which in turn means that the
+      copy ctors of AP do not take const objects.
+   </p>
+   <p>The resulting rule is simple:  <em>Never ever use a container of
+      auto_ptr objects.</em>  The standard says that &quot;undefined&quot;
+      behavior is the result, but it is guaranteed to be messy.
+   </p>
+   <p>To prevent you from doing this to yourself, the
+      <a href="../19_diagnostics/howto.html#3">concept checks</a> built
+      in to this implementation will issue an error if you try to
+      compile code like this:
+   </p>
+   <pre>
+    #include &lt;vector&gt;
+    #include &lt;memory&gt;
+    
+    void f()
+    {
+        std::vector&lt; std::auto_ptr&lt;int&gt; &gt;   vec_ap_int;
+    }
+   </pre>
+   <p>Should you try this with the checks enabled, you will see an error.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="3">Functors</a></h2>
+   <p>If you don't know what functors are, you're not alone.  Many people
+      get slightly the wrong idea.  In the interest of not reinventing
+      the wheel, we will refer you to the introduction to the functor
+      concept written by SGI as part of their STL, in
+      <a href="http://www.sgi.com/tech/stl/functors.html">their
+      http://www.sgi.com/tech/stl/functors.html</a>.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="4">Pairs</a></h2>
+   <p>The <code>pair&lt;T1,T2&gt;</code> is a simple and handy way to
+      carry around a pair of objects.  One is of type T1, and another of
+      type T2; they may be the same type, but you don't get anything
+      extra if they are.  The two members can be accessed directly, as
+      <code>.first</code> and <code>.second</code>.
+   </p>
+   <p>Construction is simple.  The default ctor initializes each member
+      with its respective default ctor.  The other simple ctor,
+   </p>
+   <pre>
+    pair (const T1&amp; x, const T2&amp; y);
+   </pre>
+   <p>does what you think it does, <code>first</code> getting <code>x</code>
+      and <code>second</code> getting <code>y</code>.
+   </p>
+   <p>There is a copy constructor, but it requires that your compiler
+      handle member function templates:
+   </p>
+   <pre>
+    template &lt;class U, class V&gt; pair (const pair&lt;U,V&gt;&amp; p);
+   </pre>
+   <p>The compiler will convert as necessary from U to T1 and from
+      V to T2 in order to perform the respective initializations.
+   </p>
+   <p>The comparison operators are done for you.  Equality
+      of two <code>pair&lt;T1,T2&gt;</code>s is defined as both <code>first</code>
+      members comparing equal and both <code>second</code> members comparing
+      equal; this simply delegates responsibility to the respective
+      <code>operator==</code> functions (for types like MyClass) or builtin
+      comparisons (for types like int, char, etc).
+   </p>
+   <p><a name="pairlt">
+      The less-than operator is a bit odd the first time you see it.  It
+      is defined as evaluating to:
+      </a>
+   </p>
+   <pre>
+    x.first  &lt;  y.first  ||
+        ( !(y.first  &lt;  x.first)  &amp;&amp;  x.second  &lt;  y.second )
+   </pre>
+   <p>The other operators are not defined using the <code>rel_ops</code>
+      functions above, but their semantics are the same.
+   </p>
+   <p>Finally, there is a template function called <code>make_pair</code>
+      that takes two references-to-const objects and returns an
+      instance of a pair instantiated on their respective types:
+   </p>
+   <pre>
+    pair&lt;int,MyClass&gt; p = make_pair(4,myobject);
+   </pre>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="5">Memory allocators</a></h2>
+   <p>The available free store (&quot;heap&quot;) management classes are
+      described <a href="../ext/howto.html">here</a>.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="../17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

@@ -1,0 +1,640 @@
+.\"
+.\" MAN PAGE COMMENTS to
+.\"
+.\"	Chet Ramey
+.\"	Information Network Services
+.\"	Case Western Reserve University
+.\"	chet@ins.CWRU.Edu
+.\"
+.\"	Last Change: Thu Jan 31 16:08:07 EST 2002
+.\"
+.TH HISTORY 3 "2002 January 31" "GNU History 4.3"
+.\"
+.\" File Name macro.  This used to be `.PN', for Path Name,
+.\" but Sun doesn't seem to like that very much.
+.\"
+.de FN
+\fI\|\\$1\|\fP
+..
+.ds lp \fR\|(\fP
+.ds rp \fR\|)\fP
+.\" FnN return-value fun-name N arguments
+.de Fn1
+\fI\\$1\fP \fB\\$2\fP \\*(lp\fI\\$3\fP\\*(rp
+.br
+..
+.de Fn2
+.if t \fI\\$1\fP \fB\\$2\fP \\*(lp\fI\\$3,\|\\$4\fP\\*(rp
+.if n \fI\\$1\fP \fB\\$2\fP \\*(lp\fI\\$3, \\$4\fP\\*(rp
+.br
+..
+.de Fn3
+.if t \fI\\$1\fP \fB\\$2\fP \\*(lp\fI\\$3,\|\\$4,\|\\$5\fP\|\\*(rp
+.if n \fI\\$1\fP \fB\\$2\fP \\*(lp\fI\\$3, \\$4, \\$5\fP\\*(rp
+.br
+..
+.de Vb
+\fI\\$1\fP \fB\\$2\fP
+.br
+..
+.SH NAME
+history \- GNU History Library
+.SH COPYRIGHT
+.if t The GNU History Library is Copyright \(co 1989-2002 by the Free Software Foundation, Inc.
+.if n The GNU History Library is Copyright (C) 1989-2002 by the Free Software Foundation, Inc.
+.SH DESCRIPTION
+Many programs read input from the user a line at a time.  The GNU
+History library is able to keep track of those lines, associate arbitrary
+data with each line, and utilize information from previous lines in
+composing new ones. 
+.PP
+.SH "HISTORY EXPANSION"
+.PP
+The history library supports a history expansion feature that
+is identical to the history expansion in
+.BR bash.
+This section describes what syntax features are available.
+.PP
+History expansions introduce words from the history list into
+the input stream, making it easy to repeat commands, insert the
+arguments to a previous command into the current input line, or
+fix errors in previous commands quickly.
+.PP
+History expansion is usually performed immediately after a complete line
+is read.
+It takes place in two parts.
+The first is to determine which line from the history list
+to use during substitution.
+The second is to select portions of that line for inclusion into
+the current one.
+The line selected from the history is the \fIevent\fP,
+and the portions of that line that are acted upon are \fIwords\fP.
+Various \fImodifiers\fP are available to manipulate the selected words.
+The line is broken into words in the same fashion as \fBbash\fP
+does when reading input,
+so that several words that would otherwise be separated 
+are considered one word when surrounded by quotes (see the
+description of \fBhistory_tokenize()\fP below).
+History expansions are introduced by the appearance of the
+history expansion character, which is \^\fB!\fP\^ by default.
+Only backslash (\^\fB\e\fP\^) and single quotes can quote
+the history expansion character.
+.SS Event Designators
+.PP
+An event designator is a reference to a command line entry in the
+history list.
+.PP
+.PD 0
+.TP
+.B !
+Start a history substitution, except when followed by a
+.BR blank ,
+newline, = or (.
+.TP
+.B !\fIn\fR
+Refer to command line
+.IR n .
+.TP
+.B !\-\fIn\fR
+Refer to the current command line minus
+.IR n .
+.TP
+.B !!
+Refer to the previous command.  This is a synonym for `!\-1'.
+.TP
+.B !\fIstring\fR
+Refer to the most recent command starting with 
+.IR string .
+.TP
+.B !?\fIstring\fR\fB[?]\fR
+Refer to the most recent command containing
+.IR string .
+The trailing \fB?\fP may be omitted if
+.I string
+is followed immediately by a newline.
+.TP
+.B \d\s+2^\s-2\u\fIstring1\fP\d\s+2^\s-2\u\fIstring2\fP\d\s+2^\s-2\u
+Quick substitution.  Repeat the last command, replacing
+.I string1
+with
+.IR string2 .
+Equivalent to
+``!!:s/\fIstring1\fP/\fIstring2\fP/''
+(see \fBModifiers\fP below).
+.TP
+.B !#
+The entire command line typed so far.
+.PD
+.SS Word Designators
+.PP
+Word designators are used to select desired words from the event.
+A 
+.B :
+separates the event specification from the word designator.
+It may be omitted if the word designator begins with a
+.BR ^ ,
+.BR $ ,
+.BR * ,
+.BR \- ,
+or
+.BR % .
+Words are numbered from the beginning of the line,
+with the first word being denoted by 0 (zero).
+Words are inserted into the current line separated by single spaces.
+.PP
+.PD 0
+.TP
+.B 0 (zero)
+The zeroth word.  For the shell, this is the command
+word.
+.TP
+.I n
+The \fIn\fRth word.
+.TP
+.B ^
+The first argument.  That is, word 1.
+.TP
+.B $
+The last argument.
+.TP
+.B %
+The word matched by the most recent `?\fIstring\fR?' search.
+.TP
+.I x\fB\-\fPy
+A range of words; `\-\fIy\fR' abbreviates `0\-\fIy\fR'.
+.TP
+.B *
+All of the words but the zeroth.  This is a synonym
+for `\fI1\-$\fP'.  It is not an error to use
+.B *
+if there is just one
+word in the event; the empty string is returned in that case.
+.TP
+.B x*
+Abbreviates \fIx\-$\fP.
+.TP
+.B x\-
+Abbreviates \fIx\-$\fP like \fBx*\fP, but omits the last word.
+.PD
+.PP
+If a word designator is supplied without an event specification, the
+previous command is used as the event.
+.SS Modifiers
+.PP
+After the optional word designator, there may appear a sequence of
+one or more of the following modifiers, each preceded by a `:'.
+.PP
+.PD 0
+.PP
+.TP
+.B h
+Remove a trailing file name component, leaving only the head.
+.TP
+.B t
+Remove all leading file name components, leaving the tail.
+.TP
+.B r
+Remove a trailing suffix of the form \fI.xxx\fP, leaving the
+basename.
+.TP
+.B e
+Remove all but the trailing suffix.
+.TP
+.B p
+Print the new command but do not execute it.
+.TP
+.B q
+Quote the substituted words, escaping further substitutions.
+.TP
+.B x
+Quote the substituted words as with
+.BR q ,
+but break into words at
+.B blanks
+and newlines.
+.TP
+.B s/\fIold\fP/\fInew\fP/
+Substitute
+.I new
+for the first occurrence of
+.I old
+in the event line.  Any delimiter can be used in place of /.  The
+final delimiter is optional if it is the last character of the
+event line.  The delimiter may be quoted in
+.I old
+and
+.I new
+with a single backslash.  If & appears in
+.IR new ,
+it is replaced by
+.IR old .
+A single backslash will quote the &.  If
+.I old
+is null, it is set to the last
+.I old
+substituted, or, if no previous history substitutions took place,
+the last
+.I string
+in a
+.B !?\fIstring\fR\fB[?]\fR
+search.
+.TP
+.B &
+Repeat the previous substitution.
+.TP
+.B g
+Cause changes to be applied over the entire event line.  This is
+used in conjunction with `\fB:s\fP' (e.g., `\fB:gs/\fIold\fP/\fInew\fP/\fR')
+or `\fB:&\fP'.  If used with
+`\fB:s\fP', any delimiter can be used
+in place of /, and the final delimiter is optional
+if it is the last character of the event line.
+.PD
+.SH "PROGRAMMING WITH HISTORY FUNCTIONS"
+This section describes how to use the History library in other programs.
+.SS Introduction to History
+.PP
+The programmer using the History library has available functions
+for remembering lines on a history list, associating arbitrary data
+with a line, removing lines from the list, searching through the list
+for a line containing an arbitrary text string, and referencing any line
+in the list directly.  In addition, a history \fIexpansion\fP function
+is available which provides for a consistent user interface across
+different programs.
+.PP
+The user using programs written with the History library has the
+benefit of a consistent user interface with a set of well-known
+commands for manipulating the text of previous lines and using that text
+in new commands.  The basic history manipulation commands are
+identical to
+the history substitution provided by \fBbash\fP.
+.PP
+If the programmer desires, he can use the Readline library, which
+includes some history manipulation by default, and has the added
+advantage of command line editing.
+.PP
+Before declaring any functions using any functionality the History
+library provides in other code, an application writer should include
+the file
+.FN <readline/history.h>
+in any file that uses the
+History library's features.  It supplies extern declarations for all
+of the library's public functions and variables, and declares all of
+the public data structures.
+
+.SS History Storage
+.PP
+The history list is an array of history entries.  A history entry is
+declared as follows:
+.PP
+.Vb "typedef void *" histdata_t;
+.PP
+.nf
+typedef struct _hist_entry {
+  char *line;
+  histdata_t data;
+} HIST_ENTRY;
+.fi
+.PP
+The history list itself might therefore be declared as
+.PP
+.Vb "HIST_ENTRY **" the_history_list;
+.PP
+The state of the History library is encapsulated into a single structure:
+.PP
+.nf
+/*
+ * A structure used to pass around the current state of the history.
+ */
+typedef struct _hist_state {
+  HIST_ENTRY **entries; /* Pointer to the entries themselves. */
+  int offset;           /* The location pointer within this array. */
+  int length;           /* Number of elements within this array. */
+  int size;             /* Number of slots allocated to this array. */
+  int flags;
+} HISTORY_STATE;
+.fi
+.PP
+If the flags member includes \fBHS_STIFLED\fP, the history has been
+stifled.
+.SH "History Functions"
+.PP
+This section describes the calling sequence for the various functions
+exported by the GNU History library.
+.SS Initializing History and State Management
+This section describes functions used to initialize and manage
+the state of the History library when you want to use the history
+functions in your program.
+
+.Fn1 void using_history void
+Begin a session in which the history functions might be used.  This
+initializes the interactive variables.
+
+.Fn1 "HISTORY_STATE *" history_get_history_state void
+Return a structure describing the current state of the input history.
+
+.Fn1 void history_set_history_state "HISTORY_STATE *state"
+Set the state of the history list according to \fIstate\fP.
+
+.SS History List Management
+
+These functions manage individual entries on the history list, or set
+parameters managing the list itself.
+
+.Fn1 void add_history "const char *string"
+Place \fIstring\fP at the end of the history list.  The associated data
+field (if any) is set to \fBNULL\fP.
+
+.Fn1 "HIST_ENTRY *" remove_history "int which"
+Remove history entry at offset \fIwhich\fP from the history.  The
+removed element is returned so you can free the line, data,
+and containing structure.
+
+.Fn3 "HIST_ENTRY *" replace_history_entry "int which" "const char *line" "histdata_t data"
+Make the history entry at offset \fIwhich\fP have \fIline\fP and \fIdata\fP.
+This returns the old entry so you can dispose of the data.  In the case
+of an invalid \fIwhich\fP, a \fBNULL\fP pointer is returned.
+
+.Fn1 void clear_history "void"
+Clear the history list by deleting all the entries.
+
+.Fn1 void stifle_history "int max"
+Stifle the history list, remembering only the last \fImax\fP entries.
+
+.Fn1 int unstifle_history "void"
+Stop stifling the history.  This returns the previously-set
+maximum number of history entries (as set by \fBstifle_history()\fP).
+history was stifled.  The value is positive if the history was
+stifled, negative if it wasn't.
+
+.Fn1 int history_is_stifled "void"
+Returns non-zero if the history is stifled, zero if it is not.
+
+.SS Information About the History List
+
+These functions return information about the entire history list or
+individual list entries.
+
+.Fn1 "HIST_ENTRY **" history_list "void"
+Return a \fBNULL\fP terminated array of \fIHIST_ENTRY *\fP which is the
+current input history.  Element 0 of this list is the beginning of time.
+If there is no history, return \fBNULL\fP.
+
+.Fn1 int where_history "void"
+Returns the offset of the current history element.
+
+.Fn1 "HIST_ENTRY *" current_history "void"
+Return the history entry at the current position, as determined by
+\fBwhere_history()\fP.  If there is no entry there, return a \fBNULL\fP
+pointer.
+
+.Fn1 "HIST_ENTRY *" history_get "int offset"
+Return the history entry at position \fIoffset\fP, starting from
+\fBhistory_base\fP.
+If there is no entry there, or if \fIoffset\fP
+is greater than the history length, return a \fBNULL\fP pointer.
+
+.Fn1 int history_total_bytes "void"
+Return the number of bytes that the primary history entries are using.
+This function returns the sum of the lengths of all the lines in the
+history.
+
+.SS Moving Around the History List
+
+These functions allow the current index into the history list to be
+set or changed.
+
+.Fn1 int history_set_pos "int pos"
+Set the current history offset to \fIpos\fP, an absolute index
+into the list.
+Returns 1 on success, 0 if \fIpos\fP is less than zero or greater
+than the number of history entries.
+
+.Fn1 "HIST_ENTRY *" previous_history "void"
+Back up the current history offset to the previous history entry, and
+return a pointer to that entry.  If there is no previous entry, return
+a \fBNULL\fP pointer.
+
+.Fn1 "HIST_ENTRY *" next_history "void"
+Move the current history offset forward to the next history entry, and
+return the a pointer to that entry.  If there is no next entry, return
+a \fBNULL\fP pointer.
+
+.SS Searching the History List
+
+These functions allow searching of the history list for entries containing
+a specific string.  Searching may be performed both forward and backward
+from the current history position.  The search may be \fIanchored\fP,
+meaning that the string must match at the beginning of the history entry.
+
+.Fn2 int history_search "const char *string" "int direction"
+Search the history for \fIstring\fP, starting at the current history offset.
+If \fIdirection\fP is less than 0, then the search is through
+previous entries, otherwise through subsequent entries.
+If \fIstring\fP is found, then
+the current history index is set to that history entry, and the value
+returned is the offset in the line of the entry where
+\fIstring\fP was found.  Otherwise, nothing is changed, and a -1 is
+returned.
+
+.Fn2 int history_search_prefix "const char *string" "int direction"
+Search the history for \fIstring\fP, starting at the current history
+offset.  The search is anchored: matching lines must begin with
+\fIstring\fP.  If \fIdirection\fP is less than 0, then the search is
+through previous entries, otherwise through subsequent entries.
+If \fIstring\fP is found, then the
+current history index is set to that entry, and the return value is 0. 
+Otherwise, nothing is changed, and a -1 is returned. 
+
+.Fn3 int history_search_pos "const char *string" "int direction" "int pos"
+Search for \fIstring\fP in the history list, starting at \fIpos\fP, an
+absolute index into the list.  If \fIdirection\fP is negative, the search
+proceeds backward from \fIpos\fP, otherwise forward.  Returns the absolute
+index of the history element where \fIstring\fP was found, or -1 otherwise.
+
+.SS Managing the History File
+The History library can read the history from and write it to a file.
+This section documents the functions for managing a history file.
+
+.Fn1 int read_history "const char *filename"
+Add the contents of \fIfilename\fP to the history list, a line at a time.
+If \fIfilename\fP is \fBNULL\fP, then read from \fI~/.history\fP.
+Returns 0 if successful, or \fBerrno\fP if not.
+
+.Fn3 int read_history_range "const char *filename" "int from" "int to"
+Read a range of lines from \fIfilename\fP, adding them to the history list.
+Start reading at line \fIfrom\fP and end at \fIto\fP.
+If \fIfrom\fP is zero, start at the beginning.  If \fIto\fP is less than
+\fIfrom\fP, then read until the end of the file.  If \fIfilename\fP is
+\fBNULL\fP, then read from \fI~/.history\fP.  Returns 0 if successful,
+or \fBerrno\fP if not.
+
+.Fn1 int write_history "const char *filename"
+Write the current history to \fIfilename\fP, overwriting \fIfilename\fP
+if necessary.
+If \fIfilename\fP is \fBNULL\fP, then write the history list to \fI~/.history\fP.
+Returns 0 on success, or \fBerrno\fP on a read or write error.
+
+
+.Fn2 int append_history "int nelements" "const char *filename"
+Append the last \fInelements\fP of the history list to \fIfilename\fP.
+If \fIfilename\fP is \fBNULL\fP, then append to \fI~/.history\fP.
+Returns 0 on success, or \fBerrno\fP on a read or write error.
+
+.Fn2 int history_truncate_file "const char *filename" "int nlines"
+Truncate the history file \fIfilename\fP, leaving only the last
+\fInlines\fP lines.
+If \fIfilename\fP is \fBNULL\fP, then \fI~/.history\fP is truncated.
+Returns 0 on success, or \fBerrno\fP on failure.
+
+.SS History Expansion
+
+These functions implement history expansion.
+
+.Fn2 int history_expand "char *string" "char **output"
+Expand \fIstring\fP, placing the result into \fIoutput\fP, a pointer
+to a string.  Returns:
+.RS
+.PD 0
+.TP
+0
+If no expansions took place (or, if the only change in
+the text was the removal of escape characters preceding the history expansion
+character);
+.TP
+1
+if expansions did take place;
+.TP
+-1
+if there was an error in expansion;
+.TP
+2
+if the returned line should be displayed, but not executed,
+as with the \fB:p\fP modifier.
+.PD
+.RE
+If an error ocurred in expansion, then \fIoutput\fP contains a descriptive
+error message.
+
+.Fn3 "char *" get_history_event "const char *string" "int *cindex" "int qchar"
+Returns the text of the history event beginning at \fIstring\fP +
+\fI*cindex\fP.  \fI*cindex\fP is modified to point to after the event
+specifier.  At function entry, \fIcindex\fP points to the index into
+\fIstring\fP where the history event specification begins.  \fIqchar\fP
+is a character that is allowed to end the event specification in addition
+to the ``normal'' terminating characters.
+
+.Fn1 "char **" history_tokenize "const char *string"
+Return an array of tokens parsed out of \fIstring\fP, much as the
+shell might.
+The tokens are split on the characters in the
+\fBhistory_word_delimiters\fP variable,
+and shell quoting conventions are obeyed.
+
+.Fn3 "char *" history_arg_extract "int first" "int last" "const char *string"
+Extract a string segment consisting of the \fIfirst\fP through \fIlast\fP
+arguments present in \fIstring\fP.  Arguments are split using
+\fBhistory_tokenize()\fP.
+
+.SS History Variables
+
+This section describes the externally-visible variables exported by
+the GNU History Library.
+
+.Vb int history_base
+The logical offset of the first entry in the history list.
+
+.Vb int history_length
+The number of entries currently stored in the history list.
+
+.Vb int history_max_entries
+The maximum number of history entries.  This must be changed using
+\fBstifle_history()\fP.
+
+.Vb char history_expansion_char
+The character that introduces a history event.  The default is \fB!\fP.
+Setting this to 0 inhibits history expansion.
+
+.Vb char history_subst_char
+The character that invokes word substitution if found at the start of
+a line.  The default is \fB^\fP.
+
+.Vb char history_comment_char
+During tokenization, if this character is seen as the first character
+of a word, then it and all subsequent characters up to a newline are
+ignored, suppressing history expansion for the remainder of the line.
+This is disabled by default.
+
+.Vb "char *" history_word_delimiters
+The characters that separate tokens for \fBhistory_tokenize()\fP.
+The default value is \fB"\ \et\en()<>;&|"\fP.
+
+.Vb "char *" history_no_expand_chars
+The list of characters which inhibit history expansion if found immediately
+following \fBhistory_expansion_char\fP.  The default is space, tab, newline,
+\fB\er\fP, and \fB=\fP.
+
+.Vb "char *" history_search_delimiter_chars
+The list of additional characters which can delimit a history search
+string, in addition to space, tab, \fI:\fP and \fI?\fP in the case of
+a substring search.  The default is empty.
+
+.Vb int history_quotes_inhibit_expansion
+If non-zero, single-quoted words are not scanned for the history expansion
+character.  The default value is 0.
+
+.Vb "rl_linebuf_func_t *" history_inhibit_expansion_function
+This should be set to the address of a function that takes two arguments:
+a \fBchar *\fP (\fIstring\fP)
+and an \fBint\fP index into that string (\fIi\fP).
+It should return a non-zero value if the history expansion starting at
+\fIstring[i]\fP should not be performed; zero if the expansion should
+be done.
+It is intended for use by applications like \fBbash\fP that use the history
+expansion character for additional purposes.
+By default, this variable is set to \fBNULL\fP.
+.SH FILES
+.PD 0 
+.TP
+.FN ~/.history
+Default filename for reading and writing saved history
+.PD
+.SH "SEE ALSO"
+.PD 0
+.TP
+\fIThe Gnu Readline Library\fP, Brian Fox and Chet Ramey
+.TP
+\fIThe Gnu History Library\fP, Brian Fox and Chet Ramey
+.TP
+\fIbash\fP(1)
+.TP
+\fIreadline\fP(3)
+.PD
+.SH AUTHORS
+Brian Fox, Free Software Foundation
+.br
+bfox@gnu.org
+.PP
+Chet Ramey, Case Western Reserve University
+.br
+chet@ins.CWRU.Edu
+.SH BUG REPORTS
+If you find a bug in the
+.B history
+library, you should report it.  But first, you should
+make sure that it really is a bug, and that it appears in the latest
+version of the
+.B history
+library that you have.
+.PP
+Once you have determined that a bug actually exists, mail a
+bug report to \fIbug\-readline\fP@\fIgnu.org\fP.
+If you have a fix, you are welcome to mail that
+as well!  Suggestions and `philosophical' bug reports may be mailed
+to \fPbug-readline\fP@\fIgnu.org\fP or posted to the Usenet
+newsgroup
+.BR gnu.bash.bug .
+.PP
+Comments and bug reports concerning
+this manual page should be directed to
+.IR chet@ins.CWRU.Edu .

@@ -1,0 +1,24 @@
+@0 pass in inet from 10.0.0.0/8 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=2 da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass in inet from 10.0.0.0/8 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 pass in inet from 192.168.37.0/25 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass in inet from 192.168.37.0/24 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass in inet from 192.168.0.0/16 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 pass in inet from 192.0.0.0/8 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

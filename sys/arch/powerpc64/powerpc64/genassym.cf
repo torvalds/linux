@@ -1,0 +1,147 @@
+#	$OpenBSD: genassym.cf,v 1.14 2020/12/30 06:06:30 gkoehler Exp $
+#
+# Copyright (c) 1982, 1990 The Regents of the University of California.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)genassym.c	7.8 (Berkeley) 5/7/91
+#
+
+include <sys/param.h>
+include <sys/proc.h>
+
+include <machine/intr.h>
+include <machine/pcb.h>
+include <machine/pte.h>
+
+struct	cpu_info
+member	ci_curpcb
+member	ci_curproc
+member	ci_tempsave
+member	ci_idle_sp_save
+member	ci_slbsave
+member	ci_slbstack
+member	ci_kernel_slb
+member	ci_user_slb_pa
+define	CPUSAVE_SRR0	0
+define	CPUSAVE_SRR1	8
+define	CPUSAVE_R27	16
+define	CPUSAVE_R28	24
+define	CPUSAVE_R29	32
+define	CPUSAVE_R30	40
+define	CPUSAVE_R31	48
+define	CPUSAVE_DAR	56
+define	CPUSAVE_DSISR	64
+ifdef MULTIPROCESSOR
+member	ci_initstack_end
+endif
+
+export	FRAMELEN
+struct	trapframe	FRAME_
+member	0		fixreg[0]
+member	1		fixreg[1]
+member	2		fixreg[2]
+member	3		fixreg[3]
+member	4		fixreg[4]
+member	5		fixreg[5]
+member	6		fixreg[6]
+member	7		fixreg[7]
+member	8		fixreg[8]
+member	9		fixreg[9]
+member	10		fixreg[10]
+member	11		fixreg[11]
+member	12		fixreg[12]
+member	13		fixreg[13]
+member	14		fixreg[14]
+member	15		fixreg[15]
+member	16		fixreg[16]
+member	17		fixreg[17]
+member	18		fixreg[18]
+member	19		fixreg[19]
+member	20		fixreg[20]
+member	21		fixreg[21]
+member	22		fixreg[22]
+member	23		fixreg[23]
+member	24		fixreg[24]
+member	25		fixreg[25]
+member	26		fixreg[26]
+member	27		fixreg[27]
+member	28		fixreg[28]
+member	29		fixreg[29]
+member	30		fixreg[30]
+member	31		fixreg[31]
+member	lr
+member	cr
+member	ctr
+member	xer
+member	srr0
+member	srr1
+member	vrsave
+member	dar
+member	dsisr
+member	exc
+
+struct	pcb
+member	pcb_onfault
+member	pcb_sp
+
+struct	proc
+member	p_addr
+member	p_stat
+member	P_MD_ASTPENDING	p_md.md_astpending
+member	P_MD_USER_SLB_PA p_md.md_user_slb_pa
+
+export	SONPROC
+
+struct	sigframe
+member	sf_sc
+
+define	SFRAMELEN	sizeof(struct switchframe)
+struct	switchframe
+member	sf_r14
+member	sf_r15
+member	sf_r16
+member	sf_r17
+member	sf_r18
+member	sf_r19
+member	sf_r20
+member	sf_r21
+member	sf_r22
+member	sf_r23
+member	sf_r24
+member	sf_r25
+member	sf_r26
+member	sf_r27
+member	sf_r28
+member	sf_r29
+member	sf_r30
+member	sf_r31
+member	sf_cr
+
+export	IPL_NONE
+
+export	SEGMENT_MASK
+export	USER_ADDR

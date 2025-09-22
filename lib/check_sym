@@ -1,0 +1,431 @@
+#!/bin/ksh
+#  $OpenBSD: check_sym,v 1.14 2024/12/24 18:14:49 tb Exp $
+#
+# Copyright (c) 2016,2019,2022 Philip Guenther <guenther@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#
+#  check_sym -- compare the symbols and external function references in two
+#	versions of a library
+#
+#  SYNOPSIS
+#	check_sym [-chkSv] [old [new]]
+#
+#  DESCRIPTION
+#	Library developers need to be aware when they have changed the
+#	ABI of a library.  To assist them, check_sym examines two versions
+#	of a shared library and reports changes to the following:
+#	 * the set of exported symbols and their strengths
+#	 * the set of undefined symbols referenced
+#	 * the set of lazily-resolved functions (PLT)
+#
+#	In each case, additions and removals are reported; for exported
+#	symbols it also reports when a symbol is weakened or strengthened.
+#
+#	With the -S option, a similar analysis is done but for the static lib.
+#
+#	The shared libraries to compare can be specified on the
+#	command-line.  Otherwise, check_sym expects to be run from the
+#	source directory of a library with a shlib_version file specifying
+#	the version being built and the new library in the obj subdirectory.
+#	If the old library to compare against wasn't specified either then
+#	check_sym will take the highest version of that library in the
+#	*current* directory, or the highest version of that library in
+#	/usr/lib if it wasn't present in the current directory.
+#
+#	By default, check_sym places all its intermediate files in a
+#	temporary directory and removes it on exit.  They contain useful
+#	details for understanding what changed, so if the -k option is used
+#	they will instead be placed in /tmp/ and left behind.  If any of
+#	them cannot be created by the user, the command will fail.  The
+#	files left behind by the -k option can be cleaned up by invoking
+#	check_syms with the -c option.
+#
+#	The -v option enables verbose output, showing relocation counts.
+#
+#	The *basic* rules of thumb for library versions are: if you
+#	 * stop exporting a symbol, or
+#	 * change the size of a data symbol
+#	 * start exporting a symbol that an inter-dependent library needs
+#	then you need to bump the MAJOR version of the library.
+#
+#	Otherwise, if you:
+#	 * start exporting a symbol
+#	then you need to bump the MINOR version of the library.
+#
+#  SEE ALSO
+#	readelf(1), elf(5)
+#
+#  AUTHORS
+#	Philip Guenther <guenther@openbsd.org>
+#
+#  CAVEATS
+#	The elf format is infinitely extendable, but check_sym only
+#	handles a few weirdnesses.  Running it on or against new archs
+#	may result in meaningless results.
+#
+#  BUGS
+#	While the author stills find the intermediate files useful,
+#	most people won't.  By default they should be placed in a
+#	temp directory and removed.
+#
+
+get_lib_name()
+{
+	sed -n '/^[ 	]*LIB[ 	]*=/{ s/^[^=]*=[ 	]*\([^ 	]*\).*/\1/p; q;}' "$@"
+}
+
+pick_highest()
+{
+	old=
+	omaj=-1
+	omin=0
+	for i
+	do
+		[[ -f $i ]] || continue
+		maj=${i%.*}; maj=${maj##*.}
+		min=${i##*.}
+		if [[ $maj -gt $omaj || ( $maj -eq $omaj && $min -gt $omin ) ]]
+		then
+			old=$i
+			omaj=$maj
+			omin=$min
+		fi
+	done
+	[[ $old != "" ]]
+}
+
+fail() { echo "$*" >&2; exit 1; }
+
+usage()
+{
+	usage="usage: check_sym [-chkSv] [old [new]]"
+	[[ $# -eq 0 ]] || fail "check_sym: $*
+$usage"
+	echo "$usage"
+	exit 0
+}
+
+
+#
+#  Output helpers
+#
+data_sym_changes()
+{
+	join "$@" | awk '$2 != $3 { print $1 " " $2 " --> " $3 }'
+}
+
+output_if_not_empty()
+{
+	leader=$1
+	shift
+	if "$@" | grep -q .
+	then
+		echo "$leader"
+		"$@" | sed 's:^:	:'
+		echo
+	fi
+}
+
+
+#
+#  Dynamic library routines
+#
+
+dynamic_collect()
+{
+	readelf -sW $old | filt_symtab > $odir/Ds1
+	readelf -sW $new | filt_symtab > $odir/Ds2
+
+	readelf -rW $old > $odir/r1
+	readelf -rW $new > $odir/r2
+
+	case $(readelf -h $new | grep '^ *Machine:') in
+	*MIPS*)	cpu=mips64
+		gotsym1=$(readelf -d $old | awk '$2 ~ /MIPS_GOTSYM/{print $3}')
+		gotsym2=$(readelf -d $new | awk '$2 ~ /MIPS_GOTSYM/{print $3}')
+		;;
+	*HPPA*)	cpu=hppa;;
+	*)	cpu=dontcare;;
+	esac
+}
+
+jump_slots()
+{ 
+	case $cpu in
+	hppa)	awk '/IPLT/ && $5 != ""{print $5}' r$1
+		;;
+	mips64)	# the $((gotsym$1)) converts hex to decimal
+		awk -v g=$((gotsym$1)) \
+			'/^Symbol table ..symtab/{exit}
+			$6 == "PROTECTED" { next }
+			$1+0 >= g && $4 == "FUNC" {print $8}' Ds$1
+		;;
+	*)	awk '/JU*MP_SL/ && $5 != ""{print $5}' r$1
+		;;
+	esac | sort -o j$1
+}
+
+dynamic_sym()
+{
+	awk -v s=$1 '/^Symbol table ..symtab/{exit}
+		! /^ *[1-9]/   {next}
+		$5 == "LOCAL"  {next}
+		$7 == "UND"    {print $8     | ("sort -o DU" s); next }
+		$5 == "GLOBAL" {print $8     | ("sort -o DS" s) }
+		$5 == "WEAK"   {print $8     | ("sort -o DW" s) }
+		$4 == "OBJECT" {print $8, $3 | ("sort -o DO" s) }
+		{print $8 | ("sort -o D" s)
+		 print $4, $5, $6, $8}' Ds$1 | sort -o d$1
+}
+
+static_sym()
+{ 
+	awk '/^Symbol table ..symtab/{s=1}
+	     /LOCAL/{next}
+	     s&&/^ *[1-9]/{print $4, $5, $6, $8}' Ds$1 | sort -o s$1
+}
+
+dynamic_analysis()
+{
+	jump_slots $1
+	dynamic_sym $1
+	#static_sym $1
+	comm -23 j$1 DU$1 >J$1
+	return 0
+}
+
+dynamic_output()
+{
+	if cmp -s d[12] && cmp -s DO[12]
+	then
+		printf "No dynamic export changes\n"
+	else
+		printf "Dynamic export changes:\n"
+		output_if_not_empty "added:" comm -13 D[12]
+		output_if_not_empty "removed:" comm -23 D[12]
+		output_if_not_empty "weakened:" comm -12 DS1 DW2
+		output_if_not_empty "strengthened:" comm -12 DW1 DS2
+		output_if_not_empty "data object sizes changes:" \
+						data_sym_changes DO[12]
+	fi
+	if ! cmp -s DU[12]
+	then
+		printf "External reference changes:\n"
+		output_if_not_empty "added:" comm -13 DU[12]
+		output_if_not_empty "removed:" comm -23 DU[12]
+	fi
+
+	if $verbose; then
+		printf "\nReloc counts:\nbefore:\n" 
+		grep ^R r1
+		printf "\nafter:\n"
+		grep ^R r2
+	fi
+
+	output_if_not_empty "PLT added:" comm -13 J[12]
+	output_if_not_empty "PLT removed:" comm -23 J[12]
+}
+
+
+#
+#  Static library routines
+#
+static_collect()
+{
+	readelf -sW $old | filt_ret | filt_symtab > $odir/Ss1
+	readelf -sW $new | filt_ret | filt_symtab > $odir/Ss2
+}
+
+static_analysis()
+{
+	awk -v s=$1 '!/^ *[1-9]/{next}
+		$5 == "LOCAL"  {next}
+		$7 == "UND"    {print $8     | ("sort -uo SU" s); next }
+		$6 == "HIDDEN" {print $8     | ("sort -uo SH" s) }
+		$5 == "GLOBAL" {print $8     | ("sort -o SS" s) }
+		$5 == "WEAK"   {print $8     | ("sort -o SW" s) }
+		$4 == "OBJECT" {print $8, $3 | ("sort -o SO" s) }
+		{print $8 | ("sort -o S" s)
+		 print $4, $5, $6, $8}' Ss$1 | sort -o s$1
+	grep -v '^_' SH$1 >Sh$1 || :
+}
+
+static_output()
+{
+	output_if_not_empty "hidden but not reserved:" comm -13 Sh[12]
+	if cmp -s s[12] && cmp -s SO[12]
+	then
+		printf "No static export changes\n"
+	else
+		printf "Static export changes:\n"
+		output_if_not_empty "added:" comm -13 S[12]
+		output_if_not_empty "removed:" comm -23 S[12]
+		output_if_not_empty "weakened:" comm -12 SS1 SW2
+		output_if_not_empty "strengthened:" comm -12 SW1 SS2
+		output_if_not_empty "data object sizes changes:" \
+						data_sym_changes SO[12]
+	fi
+	if ! cmp -s SU[12]
+	then
+		printf "External reference changes:\n"
+		output_if_not_empty "added:" comm -13 SU[12]
+		output_if_not_empty "removed:" comm -23 SU[12]
+	fi
+}
+
+
+unset odir
+file_list={D{,O,S,s,W,U},J,d,j,r}{1,2}
+static_file_list={S{,H,h,O,S,U,W},U,s}{1,2}
+
+keep_temp=false
+dynamic=true
+static=false
+verbose=false
+
+do_static() { static=true dynamic=false file_list=$static_file_list; }
+
+while getopts :chkSv opt "$@"
+do
+	case $opt in
+	c)	rm -f /tmp/$file_list
+		exit 0;;
+	h)	usage;;
+	k)	keep_temp=true;;
+	S)	do_static;;
+	v)	verbose=true;;
+	\?)	usage "unknown option -- $OPTARG";;
+	esac
+done
+shift $((OPTIND - 1))
+[[ $# -gt 2 ]] && usage "too many arguments"
+
+# Old library?
+if ! $static && [[ $1 = ?(*/)lib*.so* ]]
+then
+	[[ -f $1 ]] || fail "$1 doesn't exist"
+	old=$1
+	lib=${old##*/}
+	lib=${lib%%.so.*}
+	shift
+elif [[ $1 = ?(*/)lib*.a ]]
+then
+	# woo hoo, static library mode
+	do_static
+	if [[ -f $1 ]]
+	then
+		old=$1
+		lib=${old##*/}
+	elif [[ $1 = lib*.a && -f /usr/lib/$1 ]]
+	then
+		old=/usr/lib/$1
+		lib=$1
+	else
+		fail "$1 doesn't exist"
+	fi
+	lib=${lib%%.a}
+	shift
+else
+	# try determining it from the current directory
+	if [[ -f Makefile ]] && lib=$(get_lib_name Makefile) &&
+	   [[ $lib != "" ]]
+	then
+		lib=lib$lib
+	else
+		lib=libc
+	fi
+
+	# Is there a copy of that lib in the current directory?
+	# If so, use the highest numbered one
+	if ! $static &&
+	   ! pick_highest $lib.so.* &&
+	   ! pick_highest /usr/lib/$lib.so.*
+	then
+		fail "unable to find $lib.so.*"
+	elif $static
+	then
+		old=/usr/lib/${lib}.a
+		[[ -f $old ]] || fail "$old doesn't exist"
+	fi
+fi
+
+# New library?
+if [[ $1 = ?(*/)lib*.so* ]] ||
+   { $static && [[ $1 = ?(*/)lib*.a ]]; }
+then
+	new=$1
+	shift
+elif $static
+then
+	new=obj/${lib}.a
+else
+	# Dig info out of the just built library
+	. ./shlib_version
+	new=obj/${lib}.so.${major}.${minor}
+fi
+[[ -f $new ]] || fail "$new doesn't exist"
+
+# Filter the output of readelf -s to be easier to parse by removing a
+# field that only appears on some symbols: [<other>: 88]
+# Not really arch-specific, but I've only seen it on alpha
+filt_symtab() { sed 's/\[<other>: [0-9a-f]*\]//'; }
+filt_ret() { egrep -v ' (__retguard_[0-9]+|__llvm_retpoline_[a-z]+[0-9]*)$'; }
+
+if $keep_temp
+then
+	# precreate all the files we'll use, but with noclobber set to avoid
+	# symlink attacks
+	odir=/tmp
+	files=
+	trap 'ret=$?; rm -f $files; exit $ret' 1 2 15 ERR
+else
+	trap 'ret=$?; rm -rf "$odir"; exit $ret' 0 1 2 15 ERR
+	odir=$(mktemp -dt check_sym.XXXXXXXXXX)
+fi
+set -C
+for i in $odir/$file_list
+do
+	rm -f $i
+	3>$i
+	files="$files $i"
+done
+set +C
+
+
+#
+#  Collect data
+#
+$dynamic && dynamic_collect
+$static	 && static_collect
+
+# Now that we're done accessing $old and $new (which could be
+# relative paths), chdir into our work directory, whatever it is
+cd $odir
+
+#
+#  Do The Job
+#
+for i in 1 2
+do
+	$dynamic && dynamic_analysis $i
+	$static	 && static_analysis $i
+done
+
+{
+	echo "$old --> $new"
+	! $dynamic || dynamic_output
+	! $static  || static_output
+}
+

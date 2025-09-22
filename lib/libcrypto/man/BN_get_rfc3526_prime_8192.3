@@ -1,0 +1,154 @@
+.\" $OpenBSD: BN_get_rfc3526_prime_8192.3,v 1.2 2025/06/08 22:40:29 schwarze Exp $
+.\" checked up to: OpenSSL DH_get_1024_160 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_GET_RFC3526_PRIME_8192 3
+.Os
+.Sh NAME
+.Nm BN_get_rfc2409_prime_768 ,
+.Nm BN_get_rfc2409_prime_1024 ,
+.Nm BN_get_rfc3526_prime_1536 ,
+.Nm BN_get_rfc3526_prime_2048 ,
+.Nm BN_get_rfc3526_prime_3072 ,
+.Nm BN_get_rfc3526_prime_4096 ,
+.Nm BN_get_rfc3526_prime_6144 ,
+.Nm BN_get_rfc3526_prime_8192
+.Nd standard moduli for Diffie-Hellman key exchange
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft BIGNUM *
+.Fn BN_get_rfc2409_prime_768 "BIGNUM *bn"
+.Ft BIGNUM *
+.Fn BN_get_rfc2409_prime_1024 "BIGNUM *bn"
+.Ft BIGNUM *
+.Fn BN_get_rfc3526_prime_1536 "BIGNUM *bn"
+.Ft BIGNUM *
+.Fn BN_get_rfc3526_prime_2048 "BIGNUM *bn"
+.Ft BIGNUM *
+.Fn BN_get_rfc3526_prime_3072 "BIGNUM *bn"
+.Ft BIGNUM *
+.Fn BN_get_rfc3526_prime_4096 "BIGNUM *bn"
+.Ft BIGNUM *
+.Fn BN_get_rfc3526_prime_6144 "BIGNUM *bn"
+.Ft BIGNUM *
+.Fn BN_get_rfc3526_prime_8192 "BIGNUM *bn"
+.Sh DESCRIPTION
+Each of these functions returns one specific constant Sophie Germain
+prime number
+.Fa p .
+.Pp
+If
+.Fa bn
+is
+.Dv NULL ,
+a new
+.Vt BIGNUM
+object is created and returned.
+Otherwise, the number is stored in
+.Pf * Fa bn
+and
+.Fa bn
+is returned.
+.Pp
+All these numbers are of the form
+.Pp
+.EQ
+p = 2 sup s - 2 sup left ( s - 64 right ) - 1 + 2 sup 64 *
+left { left [ 2 sup left ( s - 130 right ) pi right ] + offset right }
+delim $$
+.EN
+.Pp
+where
+.Ar s
+is the size of the binary representation of the number in bits
+and appears at the end of the function names.
+As long as the offset is sufficiently small, the above form assures
+that the top and bottom 64 bits of each number are all 1.
+.Pp
+The offsets are defined in the standards as follows:
+.Bl -column "8192 = 2 * 2^12" "4743158" -offset indent
+.It size Ar s Ta Ar offset
+.It Ta
+.It \ 768 = 3 * 2^8  Ta  149686
+.It 1024 = 2 * 2^9  Ta  129093
+.It 1536 = 3 * 2^9  Ta  741804
+.It 2048 = 2 * 2^10 Ta  124476
+.It 3072 = 3 * 2^10 Ta 1690314
+.It 4096 = 2 * 2^11 Ta  240904
+.It 6144 = 3 * 2^11 Ta  929484
+.It 8192 = 2 * 2^12 Ta 4743158
+.El
+.Pp
+For each of these prime numbers, the finite group of natural numbers
+smaller than
+.Fa p ,
+where the group operation is defined as multiplication modulo
+.Fa p ,
+is used for Diffie-Hellman key exchange.
+The first two of these groups are called the First Oakley Group and
+the Second Oakley Group.
+Obviously, all these groups are cyclic groups of order
+.Fa p ,
+respectively, and the numbers returned by these functions are not
+secrets.
+.Sh RETURN VALUES
+If memory allocation fails, these functions return
+.Dv NULL .
+That can happen even if
+.Fa bn
+is not
+.Dv NULL .
+.Sh SEE ALSO
+.Xr BN_mod_exp 3 ,
+.Xr BN_new 3 ,
+.Xr BN_set_flags 3 ,
+.Xr DH_new 3
+.Sh STANDARDS
+RFC 2409, "The Internet Key Exchange (IKE)", defines the Oakley Groups.
+.Pp
+RFC 2412, "The OAKLEY Key Determination Protocol", contains additional
+information about these numbers.
+.Pp
+RFC 3526, "More Modular Exponential (MODP) Diffie-Hellman groups
+for Internet Key Exchange (IKE)", defines the other six numbers.
+.Sh HISTORY
+.Fn BN_get_rfc2409_prime_768 ,
+.Fn BN_get_rfc2409_prime_1024 ,
+.Fn BN_get_rfc3526_prime_1536 ,
+.Fn BN_get_rfc3526_prime_2048 ,
+.Fn BN_get_rfc3526_prime_3072 ,
+.Fn BN_get_rfc3526_prime_4096 ,
+.Fn BN_get_rfc3526_prime_6144 ,
+and
+.Fn BN_get_rfc3526_prime_8192
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.3 .
+The same functions without
+.Sy BN_
+prefix first appeared in OpenSSL 0.9.8a and
+.Ox 4.5 ;
+they were removed in
+.Ox 7.4 .
+.Sh CAVEATS
+As all the memory needed for storing the numbers is dynamically
+allocated, the
+.Dv BN_FLG_STATIC_DATA
+flag is not set on the returned
+.Vt BIGNUM
+objects.
+So be careful to not change the returned numbers.

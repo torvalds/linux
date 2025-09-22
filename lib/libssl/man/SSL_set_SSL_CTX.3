@@ -1,0 +1,68 @@
+.\" $OpenBSD: SSL_set_SSL_CTX.3,v 1.5 2025/06/08 22:52:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_SET_SSL_CTX 3
+.Os
+.Sh NAME
+.Nm SSL_set_SSL_CTX
+.Nd modify an SSL connection object to use another context
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft SSL_CTX *
+.Fo SSL_set_SSL_CTX
+.Fa "SSL *ssl"
+.Fa "SSL_CTX* ctx"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_set_SSL_CTX
+causes
+.Fa ssl
+to use the context
+.Fa ctx .
+.Pp
+If
+.Fa ctx
+is
+.Dv NULL ,
+.Fa ssl
+reverts to using the context that it was initially created from with
+.Xr SSL_new 3 .
+.Pp
+If
+.Fa ssl
+already uses
+.Fa ctx ,
+no action occurs.
+.Sh RETURN VALUES
+.Fn SSL_set_SSL_CTX
+returns an internal pointer to the context that
+.Fa ssl
+is using as a result of the call, or
+.Dv NULL
+if memory allocation fails.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_clear 3 ,
+.Xr SSL_CTX_new 3 ,
+.Xr SSL_get_SSL_CTX 3 ,
+.Xr SSL_new 3 ,
+.Xr SSL_set_security_level 3
+.Sh HISTORY
+.Fn SSL_set_SSL_CTX
+first appeared in OpenSSL 0.9.8f and has been available since
+.Ox 4.5 .

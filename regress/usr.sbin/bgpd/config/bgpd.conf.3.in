@@ -1,0 +1,28 @@
+# $OpenBSD: bgpd.conf.3.in,v 1.2 2022/03/15 11:16:25 claudio Exp $
+# in filter commands, test curly braces inside curly braces
+
+AS 1
+
+somepeer_v6 = "2001:DB8::1"
+
+someas = "64496"
+
+somenets_v6 =	"{ \
+		2001:DB8:100::/64 \
+		2001:DB8:200::/64 \
+		2001:DB8:300::/64 \
+		}"
+
+somemore_v6 =	"{ \
+		2001:DB8:400::/64 \
+		2001:DB8:500::/64 \
+		}"
+
+neighbor $somepeer_v6 {
+		remote-as	$someas
+		descr		"v6SOMEPEER"
+}
+
+allow from $somepeer_v6 prefix $somenets_v6
+allow from $somepeer_v6 prefix { $somenets_v6 $somemore_v6 }
+match from $somepeer_v6 set large-community $someas:$someas:$someas

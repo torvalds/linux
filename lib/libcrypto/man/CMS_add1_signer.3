@@ -1,0 +1,250 @@
+.\" $OpenBSD: CMS_add1_signer.3,v 1.11 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL e9b77246 Jan 20 19:58:49 2017 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CMS_ADD1_SIGNER 3
+.Os
+.Sh NAME
+.Nm CMS_add1_signer ,
+.Nm CMS_SignerInfo_sign
+.Nd add a signer to a CMS SignedData structure
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cms.h
+.Ft CMS_SignerInfo *
+.Fo CMS_add1_signer
+.Fa "CMS_ContentInfo *cms"
+.Fa "X509 *signcert"
+.Fa "EVP_PKEY *pkey"
+.Fa "const EVP_MD *md"
+.Fa "unsigned int flags"
+.Fc
+.Ft int
+.Fo CMS_SignerInfo_sign
+.Fa "CMS_SignerInfo *si"
+.Fc
+.Sh DESCRIPTION
+.Fn CMS_add1_signer
+adds a signer with certificate
+.Fa signcert
+and private key
+.Fa pkey
+using message digest
+.Fa md
+to the
+.Fa signerInfos
+field of the
+.Vt SignedData
+structure
+.Fa cms ,
+which should have been obtained from an initial call to
+.Xr CMS_sign 3
+with the flag
+.Dv CMS_PARTIAL
+set, or which can be a valid
+.Vt SignedData
+structure in the case of re-signing.
+.Pp
+If
+.Fa md
+is
+.Dv NULL ,
+the default digest for the public key algorithm of
+.Fa pkey
+is used.
+.Pp
+Unless the
+.Dv CMS_REUSE_DIGEST
+flag is set, the
+.Fa cms
+structure remains incomplete and must be finalized either by streaming
+(if applicable) or by a call to
+.Xr CMS_final 3 .
+.Pp
+The main purpose of
+.Fn CMS_add1_signer
+is to provide finer control over a CMS
+.Vt SignedData
+structure where the simpler
+.Xr CMS_sign 3
+function defaults are not appropriate, for example if multiple signers
+or non default digest algorithms are needed.
+New attributes can also be added using the returned
+.Vt CMS_SignerInfo
+structure and the CMS attribute utility functions or the CMS signed
+receipt request functions.
+.Pp
+Any of the following flags (OR'ed together) can be passed in the
+.Fa flags
+parameter:
+.Bl -tag -width Ds
+.It Dv CMS_REUSE_DIGEST
+Attempt to copy the content digest value from one of the existing
+.Vt CMS_SignerInfo
+structures in
+.Fa cms
+while adding another signer.
+An error occurs if a matching digest value cannot be found to copy.
+The
+.Fa cms
+structure will be valid and finalized when this flag is set.
+.It Dv CMS_PARTIAL
+If this flag is set in addition to
+.Dv CMS_REUSE_DIGEST ,
+the returned
+.Vt CMS_SignerInfo
+structure will not be finalized so additional attributes can be added.
+In this case an explicit call to
+.Fn CMS_SignerInfo_sign
+is needed to finalize it.
+.It Dv CMS_NOCERTS
+Do not add the signer's certificate to the
+.Fa certificates
+field of
+.Fa cms .
+The signer's certificate must still be supplied in the
+.Fa signcert
+parameter though.
+This flag can reduce the size of the signature if the signer's certificate can
+be obtained by other means, for example from a previously signed message.
+.It Dv CMS_NOATTR
+Leave the
+.Fa signedAttrs
+field of the returned
+.Vt CMS_SignedData
+structure empty.
+By default, several CMS
+.Vt SignedAttributes
+are added, including the signing time, the CMS content type,
+and the supported list of ciphers in an
+.Vt SMIMECapabilities
+attribute.
+.It Dv CMS_NOSMIMECAP
+Omit just the
+.Vt SMIMECapabilities
+attribute.
+.It Dv CMS_USE_KEYID
+Use the subject key identifier value to identify signing certificates.
+An error occurs if the signing certificate does not have a subject key
+identifier extension.
+By default, issuer name and serial number are used instead.
+.El
+.Pp
+If present, the
+.Vt SMIMECapabilities
+attribute indicates support for the
+following algorithms in preference order: 256-bit AES,
+192-bit AES, 128-bit AES, triple DES, 128-bit RC2, 64-bit
+RC2, DES and 40-bit RC2.
+If any of these algorithms is not available then it will not be
+included.
+.Pp
+The
+.Fn CMS_SignerInfo_sign
+function explicitly signs
+.Fa si .
+Its main use is when the
+.Dv CMS_REUSE_DIGEST
+and
+.Dv CMS_PARTIAL
+flags were both set in the call to
+.Fn CMS_add1_signer
+that created
+.Fa si .
+.Sh RETURN VALUES
+.Fn CMS_add1_signer
+returns an internal pointer to the new
+.Vt CMS_SignerInfo
+structure just added or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr CMS_ContentInfo_new 3 ,
+.Xr CMS_final 3 ,
+.Xr CMS_sign 3 ,
+.Xr ERR_get_error 3
+.Sh STANDARDS
+RFC 5652: Cryptographic Message Syntax, section 5.1: SignedData Type
+.Pp
+RFC 8419: Use of Edwards-Curve Digital Signature Algorithm (EdDSA) Signatures
+in the Cryptographic Message Syntax (CMS)
+.Pp
+RFC 8551: Secure/Multipurpose Internet Mail Extensions (S/MIME)
+Version\ 4.0 Message Specification
+.Bl -dash -compact -offset indent
+.It
+section 2.5: Attributes and the SignerInfo Type
+.It
+section 2.5.2: SMIMECapabilities Attribute
+.El
+.Sh HISTORY
+.Fn CMS_add1_signer
+and
+.Fn CMS_SignerInfo_sign
+first appeared in OpenSSL 0.9.8h
+and have been available since
+.Ox 6.7 .

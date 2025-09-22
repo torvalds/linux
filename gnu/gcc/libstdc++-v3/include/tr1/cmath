@@ -1,0 +1,943 @@
+// TR1 cmath -*- C++ -*-
+
+// Copyright (C) 2006 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+/** @file tr1/cmath
+ *  This is a TR1 C++ Library header. 
+ */
+
+#ifndef _TR1_CMATH
+#define _TR1_CMATH 1
+
+#include <bits/c++config.h>
+#include <cmath>
+#include <tr1/common.h>
+
+#if _GLIBCXX_USE_C99_MATH_TR1
+
+#undef acosh
+#undef acoshf
+#undef acoshl
+#undef asinh
+#undef asinhf
+#undef asinhl
+#undef atanh
+#undef atanhf
+#undef atanhl
+#undef cbrt
+#undef cbrtf
+#undef cbrtl
+#undef copysign
+#undef copysignf
+#undef copysignl
+#undef erf
+#undef erff
+#undef erfl
+#undef erfc
+#undef erfcf
+#undef erfcl
+#undef exp2
+#undef exp2f
+#undef exp2l
+#undef expm1
+#undef expm1f
+#undef expm1l
+#undef fdim
+#undef fdimf
+#undef fdiml
+#undef fma
+#undef fmaf
+#undef fmal
+#undef fmax
+#undef fmaxf
+#undef fmaxl
+#undef fmin
+#undef fminf
+#undef fminl
+#undef hypot
+#undef hypotf
+#undef hypotl
+#undef ilogb
+#undef ilogbf
+#undef ilogbl
+#undef lgamma
+#undef lgammaf
+#undef lgammal
+#undef llrint
+#undef llrintf
+#undef llrintl
+#undef llround
+#undef llroundf
+#undef llroundl
+#undef log1p
+#undef log1pf
+#undef log1pl
+#undef log2
+#undef log2f
+#undef log2l
+#undef logb
+#undef logbf
+#undef logbl
+#undef lrint
+#undef lrintf
+#undef lrintl
+#undef lround
+#undef lroundf
+#undef lroundl
+#undef nan
+#undef nanf
+#undef nanl
+#undef nearbyint
+#undef nearbyintf
+#undef nearbyintl
+#undef nextafter
+#undef nextafterf
+#undef nextafterl
+#undef nexttoward
+#undef nexttowardf
+#undef nexttowardl
+#undef remainder
+#undef remainderf
+#undef remainderl
+#undef remquo
+#undef remquo
+#undef remquo
+#undef rint
+#undef rintf
+#undef rintl
+#undef round
+#undef roundf
+#undef roundl
+#undef scalbln
+#undef scalblnf
+#undef scalblnl
+#undef scalbn
+#undef scalbnf
+#undef scalbnl
+#undef tgamma
+#undef tgammaf
+#undef tgammal
+#undef trunc
+#undef truncf
+#undef truncl
+
+#endif
+
+// namespace std::tr1
+namespace std
+{
+_GLIBCXX_BEGIN_NAMESPACE(tr1)
+
+#if _GLIBCXX_USE_C99_MATH_TR1
+
+  // types
+  using ::double_t;
+  using ::float_t;
+
+  // functions
+  using ::acosh;
+  using ::acoshf;
+  using ::acoshl;
+
+  using ::asinh;
+  using ::asinhf;
+  using ::asinhl;
+
+  using ::atanh;
+  using ::atanhf;
+  using ::atanhl;
+
+  using ::cbrt;
+  using ::cbrtf;
+  using ::cbrtl;
+
+  using ::copysign;
+  using ::copysignf;
+  using ::copysignl;
+
+  using ::erf;
+  using ::erff;
+  using ::erfl;
+
+  using ::erfc;
+  using ::erfcf;
+  using ::erfcl;
+
+  using ::exp2;
+  using ::exp2f;
+  using ::exp2l;
+
+  using ::expm1;
+  using ::expm1f;
+  using ::expm1l;
+
+  using ::fdim;
+  using ::fdimf;
+  using ::fdiml;
+
+  using ::fma;
+  using ::fmaf;
+  using ::fmal;
+
+  using ::fmax;
+  using ::fmaxf;
+  using ::fmaxl;
+
+  using ::fmin;
+  using ::fminf;
+  using ::fminl;
+
+  using ::hypot;
+  using ::hypotf;
+  using ::hypotl;
+
+  using ::ilogb;
+  using ::ilogbf;
+  using ::ilogbl;
+
+  using ::lgamma;
+  using ::lgammaf;
+  using ::lgammal;
+
+  using ::llrint;
+  using ::llrintf;
+  using ::llrintl;
+
+  using ::llround;
+  using ::llroundf;
+  using ::llroundl;
+
+  using ::log1p;
+  using ::log1pf;
+  using ::log1pl;
+
+  using ::log2;
+  using ::log2f;
+  using ::log2l;
+
+  using ::logb;
+  using ::logbf;
+  using ::logbl;
+
+  using ::lrint;
+  using ::lrintf;
+  using ::lrintl;
+
+  using ::lround;
+  using ::lroundf;
+  using ::lroundl;
+
+  using ::nan;
+  using ::nanf;
+  using ::nanl;
+
+  using ::nearbyint;
+  using ::nearbyintf;
+  using ::nearbyintl;
+
+  using ::nextafter;
+  using ::nextafterf;
+  using ::nextafterl;
+
+  using ::nexttoward;
+  using ::nexttowardf;
+  using ::nexttowardl;
+
+  using ::remainder;
+  using ::remainderf;
+  using ::remainderl;
+
+  using ::remquo;
+  using ::remquo;
+  using ::remquo;
+
+  using ::rint;
+  using ::rintf;
+  using ::rintl;
+
+  using ::round;
+  using ::roundf;
+  using ::roundl;
+
+  using ::scalbln;
+  using ::scalblnf;
+  using ::scalblnl;
+
+  using ::scalbn;
+  using ::scalbnf;
+  using ::scalbnl;
+
+  using ::tgamma;
+  using ::tgammaf;
+  using ::tgammal;
+
+  using ::trunc;
+  using ::truncf;
+  using ::truncl;
+
+#endif
+
+#if _GLIBCXX_USE_C99_MATH
+#if !_GLIBCXX_USE_C99_FP_MACROS_DYNAMIC
+
+  /// @brief Function template definitions [8.16.3].
+  //
+  using std::signbit;
+  
+  using std::fpclassify;
+
+  using std::isfinite;
+  using std::isinf;
+  using std::isnan;
+  using std::isnormal;
+
+  using std::isgreater;
+  using std::isgreaterequal;
+  using std::isless;
+  using std::islessequal;
+  using std::islessgreater;
+  using std::isunordered;
+#endif
+#endif
+
+#if _GLIBCXX_USE_C99_MATH_TR1
+
+  /// @brief Additional overloads [8.16.4].
+  //
+  using std::acos;
+
+  inline float
+  acosh(float __x)
+  { return __builtin_acoshf(__x); }
+
+  inline long double
+  acosh(long double __x)
+  { return __builtin_acoshl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    acosh(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return acosh(__type(__x));
+    }
+
+  using std::asin;
+
+  inline float
+  asinh(float __x)
+  { return __builtin_asinhf(__x); }
+
+  inline long double
+  asinh(long double __x)
+  { return __builtin_asinhl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    asinh(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return asinh(__type(__x));
+    }
+
+  using std::atan;
+
+  // Workaround for c++/21682.
+  namespace __detail
+  {
+    template<typename _Tp, typename _Up>
+      inline typename
+      __gnu_cxx::__enable_if<std::__is_floating<_Tp>::__value
+                             || std::__is_floating<_Up>::__value,
+			     typename
+			     std::tr1::__promote_2<_Tp, _Up>::__type>::__type
+      atan2(_Tp __y, _Up __x)
+      {
+	typedef typename std::tr1::__promote_2<_Tp, _Up>::__type __type;
+	return std::atan2(__type(__y), __type(__x));
+      }
+  } // namespace __detail
+
+  using std::atan2;
+  using __detail::atan2;
+ 
+  inline float
+  atanh(float __x)
+  { return __builtin_atanhf(__x); }
+
+  inline long double
+  atanh(long double __x)
+  { return __builtin_atanhl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    atanh(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return atanh(__type(__x));
+    }
+
+  inline float
+  cbrt(float __x)
+  { return __builtin_cbrtf(__x); }
+
+  inline long double
+  cbrt(long double __x)
+  { return __builtin_cbrtl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    cbrt(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return cbrt(__type(__x));
+    }
+
+  using std::ceil;
+
+  inline float
+  copysign(float __x, float __y)
+  { return __builtin_copysignf(__x, __y); }
+
+  inline long double
+  copysign(long double __x, long double __y)
+  { return __builtin_copysignl(__x, __y); }
+
+  template<typename _Tp, typename _Up>
+    inline typename __promote_2<_Tp, _Up>::__type
+    copysign(_Tp __x, _Up __y)
+    {
+      typedef typename __promote_2<_Tp, _Up>::__type __type;
+      return copysign(__type(__x), __type(__y));
+    }
+
+  using std::cos;
+  using std::cosh;  
+
+  inline float
+  erf(float __x)
+  { return __builtin_erff(__x); }
+
+  inline long double
+  erf(long double __x)
+  { return __builtin_erfl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    erf(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return erf(__type(__x));
+    }
+
+  inline float
+  erfc(float __x)
+  { return __builtin_erfcf(__x); }
+
+  inline long double
+  erfc(long double __x)
+  { return __builtin_erfcl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    erfc(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return erfc(__type(__x));
+    }
+
+  using std::exp;
+
+  inline float
+  exp2(float __x)
+  { return __builtin_exp2f(__x); }
+
+  inline long double
+  exp2(long double __x)
+  { return __builtin_exp2l(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    exp2(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return exp2(__type(__x));
+    }
+
+  inline float
+  expm1(float __x)
+  { return __builtin_expm1f(__x); }
+
+  inline long double
+  expm1(long double __x)
+  { return __builtin_expm1l(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    expm1(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return expm1(__type(__x));
+    }
+
+  using std::fabs;
+
+  inline float
+  fdim(float __x, float __y)
+  { return __builtin_fdimf(__x, __y); }
+
+  inline long double
+  fdim(long double __x, long double __y)
+  { return __builtin_fdiml(__x, __y); }
+
+  template<typename _Tp, typename _Up>
+    inline typename __promote_2<_Tp, _Up>::__type
+    fdim(_Tp __x, _Up __y)
+    {
+      typedef typename __promote_2<_Tp, _Up>::__type __type;
+      return fdim(__type(__x), __type(__y));
+    }
+
+  using std::floor;
+
+  inline float
+  fma(float __x, float __y, float __z)
+  { return __builtin_fmaf(__x, __y, __z); }
+
+  inline long double
+  fma(long double __x, long double __y, long double __z)
+  { return __builtin_fmal(__x, __y, __z); }
+
+  template<typename _Tp, typename _Up, typename _Vp>
+    inline typename __promote_3<_Tp, _Up, _Vp>::__type
+    fma(_Tp __x, _Up __y, _Vp __z)
+    {
+      typedef typename __promote_3<_Tp, _Up, _Vp>::__type __type;
+      return fma(__type(__x), __type(__y), __type(__z));
+    }
+
+  inline float
+  fmax(float __x, float __y)
+  { return __builtin_fmaxf(__x, __y); }
+
+  inline long double
+  fmax(long double __x, long double __y)
+  { return __builtin_fmaxl(__x, __y); }
+
+  template<typename _Tp, typename _Up>
+    inline typename __promote_2<_Tp, _Up>::__type
+    fmax(_Tp __x, _Up __y)
+    {
+      typedef typename __promote_2<_Tp, _Up>::__type __type;
+      return fmax(__type(__x), __type(__y));
+    }
+
+  inline float
+  fmin(float __x, float __y)
+  { return __builtin_fminf(__x, __y); }
+
+  inline long double
+  fmin(long double __x, long double __y)
+  { return __builtin_fminl(__x, __y); }
+
+  template<typename _Tp, typename _Up>
+    inline typename __promote_2<_Tp, _Up>::__type
+    fmin(_Tp __x, _Up __y)
+    {
+      typedef typename __promote_2<_Tp, _Up>::__type __type;
+      return fmin(__type(__x), __type(__y));
+    }
+
+  using std::fmod;
+  using std::frexp;
+
+  inline float
+  hypot(float __x, float __y)
+  { return __builtin_hypotf(__x, __y); }
+
+  inline long double
+  hypot(long double __x, long double __y)
+  { return __builtin_hypotl(__x, __y); }
+
+  template<typename _Tp, typename _Up>
+    inline typename __promote_2<_Tp, _Up>::__type
+    hypot(_Tp __x, _Up __y)
+    {
+      typedef typename __promote_2<_Tp, _Up>::__type __type;
+      return hypot(__type(__x), __type(__y));
+    }
+
+  inline int
+  ilogb(float __x)
+  { return __builtin_ilogbf(__x); }
+
+  inline int
+  ilogb(long double __x)
+  { return __builtin_ilogbl(__x); }
+
+  template<typename _Tp>
+    inline int
+    ilogb(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return ilogb(__type(__x));
+    }
+
+  using std::ldexp;
+
+  inline float
+  lgamma(float __x)
+  { return __builtin_lgammaf(__x); }
+
+  inline long double
+  lgamma(long double __x)
+  { return __builtin_lgammal(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    lgamma(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return lgamma(__type(__x));
+    }
+
+  inline long long
+  llrint(float __x)
+  { return __builtin_llrintf(__x); }
+
+  inline long long
+  llrint(long double __x)
+  { return __builtin_llrintl(__x); }
+
+  template<typename _Tp>
+    inline long long
+    llrint(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return llrint(__type(__x));
+    }
+
+  inline long long
+  llround(float __x)
+  { return __builtin_llroundf(__x); }
+
+  inline long long
+  llround(long double __x)
+  { return __builtin_llroundl(__x); }
+
+  template<typename _Tp>
+    inline long long
+    llround(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return llround(__type(__x));
+    }
+
+  using std::log;
+  using std::log10;
+
+  inline float
+  log1p(float __x)
+  { return __builtin_log1pf(__x); }
+
+  inline long double
+  log1p(long double __x)
+  { return __builtin_log1pl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    log1p(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return log1p(__type(__x));
+    }
+
+  // DR 568.
+  inline float
+  log2(float __x)
+  { return __builtin_log2f(__x); }
+
+  inline long double
+  log2(long double __x)
+  { return __builtin_log2l(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    log2(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return log2(__type(__x));
+    }
+
+  inline float
+  logb(float __x)
+  { return __builtin_logbf(__x); }
+
+  inline long double
+  logb(long double __x)
+  { return __builtin_logbl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    logb(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return logb(__type(__x));
+    }
+
+  inline long
+  lrint(float __x)
+  { return __builtin_lrintf(__x); }
+
+  inline long
+  lrint(long double __x)
+  { return __builtin_lrintl(__x); }
+
+  template<typename _Tp>
+    inline long
+    lrint(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return lrint(__type(__x));
+    }
+
+  inline long
+  lround(float __x)
+  { return __builtin_lroundf(__x); }
+
+  inline long
+  lround(long double __x)
+  { return __builtin_lroundl(__x); }
+
+  template<typename _Tp>
+    inline long
+    lround(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return lround(__type(__x));
+    }
+
+  inline float
+  nearbyint(float __x)
+  { return __builtin_nearbyintf(__x); }
+
+  inline long double
+  nearbyint(long double __x)
+  { return __builtin_nearbyintl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    nearbyint(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return nearbyint(__type(__x));
+    }
+
+  inline float
+  nextafter(float __x, float __y)
+  { return __builtin_nextafterf(__x, __y); }
+
+  inline long double
+  nextafter(long double __x, long double __y)
+  { return __builtin_nextafterl(__x, __y); }
+
+  template<typename _Tp, typename _Up>
+    inline typename __promote_2<_Tp, _Up>::__type
+    nextafter(_Tp __x, _Up __y)
+    {
+      typedef typename __promote_2<_Tp, _Up>::__type __type;
+      return nextafter(__type(__x), __type(__y));
+    }
+
+  inline float
+  nexttoward(float __x, long double __y)
+  { return __builtin_nexttowardf(__x, __y); }
+
+  inline long double
+  nexttoward(long double __x, long double __y)
+  { return __builtin_nexttowardl(__x, __y); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type
+    nexttoward(_Tp __x, long double __y)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return nexttoward(__type(__x), __y);
+    }
+
+  using std::pow;
+
+  // DR 550.
+  template<typename _Tp, typename _Up>
+    inline typename __promote_2<_Tp, _Up>::__type
+    pow(_Tp __x, _Up __y)
+    {
+      typedef typename __promote_2<_Tp, _Up>::__type __type;
+      return pow(__type(__x), __type(__y));
+    }
+
+  inline float
+  remainder(float __x, float __y)
+  { return __builtin_remainderf(__x, __y); }
+
+  inline long double
+  remainder(long double __x, long double __y)
+  { return __builtin_remainderl(__x, __y); }
+
+  template<typename _Tp, typename _Up>
+    inline typename __promote_2<_Tp, _Up>::__type
+    remainder(_Tp __x, _Up __y)
+    {
+      typedef typename __promote_2<_Tp, _Up>::__type __type;
+      return remainder(__type(__x), __type(__y));
+    }
+
+  inline float
+  remquo(float __x, float __y, int* __pquo)
+  { return __builtin_remquof(__x, __y, __pquo); }
+
+  inline long double
+  remquo(long double __x, long double __y, int* __pquo)
+  { return __builtin_remquol(__x, __y, __pquo); }
+
+  template<typename _Tp, typename _Up>
+    inline typename __promote_2<_Tp, _Up>::__type
+    remquo(_Tp __x, _Up __y, int* __pquo)
+    {
+      typedef typename __promote_2<_Tp, _Up>::__type __type;
+      return remquo(__type(__x), __type(__y), __pquo);
+    }
+
+  inline float
+  rint(float __x)
+  { return __builtin_rintf(__x); }
+
+  inline long double
+  rint(long double __x)
+  { return __builtin_rintl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type
+    rint(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return rint(__type(__x));
+    }
+
+  inline float
+  round(float __x)
+  { return __builtin_roundf(__x); }
+
+  inline long double
+  round(long double __x)
+  { return __builtin_roundl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type
+    round(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return round(__type(__x));
+    }
+
+  inline float
+  scalbln(float __x, long __ex)
+  { return __builtin_scalblnf(__x, __ex); }
+
+  inline long double
+  scalbln(long double __x, long __ex)
+  { return __builtin_scalblnl(__x, __ex); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    scalbln(_Tp __x, long __ex)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return scalbln(__type(__x), __ex);
+    }
+ 
+  inline float
+  scalbn(float __x, int __ex)
+  { return __builtin_scalbnf(__x, __ex); }
+
+  inline long double
+  scalbn(long double __x, int __ex)
+  { return __builtin_scalbnl(__x, __ex); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    scalbn(_Tp __x, int __ex)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return scalbn(__type(__x), __ex);
+    }
+
+  using std::sin;
+  using std::sinh;
+  using std::sqrt;
+  using std::tan;
+  using std::tanh;
+
+  inline float
+  tgamma(float __x)
+  { return __builtin_tgammaf(__x); }
+
+  inline long double
+  tgamma(long double __x)
+  { return __builtin_tgammal(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    tgamma(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return tgamma(__type(__x));
+    }
+ 
+  inline float
+  trunc(float __x)
+  { return __builtin_truncf(__x); }
+
+  inline long double
+  trunc(long double __x)
+  { return __builtin_truncl(__x); }
+
+  template<typename _Tp>
+    inline typename __promote<_Tp>::__type 
+    trunc(_Tp __x)
+    {
+      typedef typename __promote<_Tp>::__type __type;
+      return trunc(__type(__x));
+    }
+
+#endif
+
+_GLIBCXX_END_NAMESPACE
+}
+
+#endif

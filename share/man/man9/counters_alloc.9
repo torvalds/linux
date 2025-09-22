@@ -1,0 +1,312 @@
+.\"	$OpenBSD: counters_alloc.9,v 1.13 2023/09/16 09:33:28 mpi Exp $
+.\"
+.\" Copyright (c) 2016 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 16 2023 $
+.Dt COUNTERS_ALLOC 9
+.Os
+.Sh NAME
+.Nm counters_alloc ,
+.Nm counters_free ,
+.Nm COUNTERS_BOOT_MEMORY ,
+.Nm COUNTERS_BOOT_INITIALIZER ,
+.Nm counters_alloc_ncpus ,
+.Nm counters_enter ,
+.Nm counters_leave ,
+.Nm counters_inc ,
+.Nm counters_add ,
+.Nm counters_pkt ,
+.Nm counters_read ,
+.Nm counters_zero
+.Nd per CPU counters
+.Sh SYNOPSIS
+.In sys/percpu.h
+.Ft struct cpumem *
+.Fn counters_alloc "unsigned int ncounters"
+.Ft void
+.Fn counters_free "struct cpumem *cm" "unsigned int ncounters"
+.Fn COUNTERS_BOOT_MEMORY "NAME" "unsigned int ncounters"
+.Fn COUNTERS_BOOT_INITIALIZER "NAME"
+.Ft struct cpumemt *
+.Fo counters_alloc_ncpus
+.Fa "struct cpumem *cm"
+.Fa "unsigned int ncounters"
+.Fc
+.Ft uint64_t *
+.Fn counters_enter "struct counters_ref *ref" "struct cpumem *cm"
+.Ft void
+.Fn counters_leave "struct counters_ref *ref" "struct cpumem *cm"
+.Ft void
+.Fn counters_inc "struct cpumem *cm" "unsigned int counter"
+.Ft void
+.Fn counters_add "struct cpumem *cm" "unsigned int counter" "uint64_t v"
+.Ft void
+.Fo counters_pkt
+.Fa "struct cpumem *cm"
+.Fa "unsigned int pcounter"
+.Fa "unsigned int bcounter"
+.Fa "uint64_t bytes"
+.Fc
+.Ft void
+.Fo counters_read
+.Fa "struct cpumem *cm"
+.Fa "uint64_t *counters"
+.Fa "unsigned int ncounters"
+.Fa "uint64_t *scratch"
+.Fc
+.Ft void
+.Fn counters_zero "struct cpumem *cm" "unsigned int ncounters"
+.Sh DESCRIPTION
+The per CPU counter API builds on the per CPU memory API and provides
+access to a series of uint64_t counter values on each CPU.
+.Pp
+The API provides versioning of counter updates without using
+interlocked CPU instructions so they can all be read in a consistent
+state.
+Updates to counters should be limited to addition or subtraction
+of uint64_t values.
+.Pp
+An alternate implementation of the API is provided on uni-processor
+systems
+(i.e. when the kernel is not built with
+.Dv MULTIPROCESSOR
+defined)
+that provides no overhead compared to direct access to a
+data structure.
+This allows the API to be used without affecting the performance
+of uni-processor systems.
+.Pp
+.Fn counters_alloc
+allocates memory for a series of uint64_t values on each CPU.
+.Fa ncounters
+specifies the number of counters to be allocated.
+The counters will be zeroed on allocation.
+.Pp
+.Fn counters_free
+deallocates each CPU's counters.
+The same
+.Fa ncounters
+argument originally provided to
+.Fn counters_alloc
+must be passed to
+.Fn counters_free .
+.Pp
+.Fn counters_alloc
+may only be used after all the CPUs in the system have been attached.
+If a set of CPU counters needs to be available during early boot,
+a cpumem pointer and counters for the boot CPU may be statically
+allocated.
+.Pp
+.Fn COUNTERS_BOOT_MEMORY
+statically allocates a set of counter for use on the boot CPU
+before the other CPUs in the system have been attached.
+The allocation is identified by
+.Fa NAME
+and provides memory for the number of counters specified by
+.Fa ncounters .
+The counters will be initialised to zero.
+.Pp
+.Fn COUNTERS_BOOT_INITIALIZER
+is used to initialise a cpumem pointer with the memory that was previously
+allocated using
+.Fn COUNTERS_BOOT_MEMORY
+and identified by
+.Fa NAME .
+.Pp
+.Fn counters_alloc_ncpus
+allocates additional sets of counters for the CPUs that were attached
+during boot.
+The cpumem structure
+.Fa cm
+must have been initialised with
+.Fn COUNTERS_BOOT_INITIALIZER .
+The same number of counters originally passed to
+.Fa COUNTERS_BOOT_MEMORY
+must be specified by
+.Fa ncounters .
+The counters on the boot CPU will be preserved, while the counters
+for the additional CPUs will be zeroed on allocation.
+.Pp
+Counters that have been allocated with
+.Fn COUNTERS_BOOT_MEMORY
+and
+.Fn counters_alloc_ncpus
+cannot be deallocated with
+.Fa counters_free .
+.Pp
+.Fn counters_enter
+provides access to the current CPU's set of counters referenced by
+.Fa cm .
+The caller's reference to the counters is held by
+.Fa ref .
+.Pp
+.Fn counters_leave
+indicates the end of access to the current CPU's set of counters referenced by
+.Fa cm .
+The reference held by
+.Fa ref
+is released by this call.
+.Pp
+.Fn counters_inc
+increments the counter at the index specified by
+.Fa counter
+in the array of counters referenced by
+.Fa cm .
+.Pp
+.Fn counters_add
+adds the value of
+.Fa v
+to the counter at the index specified by
+.Fa counter
+in the array of counters referenced by
+.Fa cm .
+.Pp
+.Fn counters_pkt
+increments the value at the index specified by
+.Fa pcounter
+and adds the value of
+.Fa bytes
+to the counter at the index specified by
+.Fa bcounter
+in the array of counters referenced by
+.Fa cm .
+.Pp
+.Fn counters_read
+iterates over each CPU's set of counters referenced by
+.Fa cm ,
+takes a consistent snapshot of the counters, and then sums them together.
+The sum of the counters is written to the
+.Fa counters
+array.
+The number of counters is specified with
+.Fa ncounters .
+.Fa scratch
+may point to a buffer used to temporarily hold
+.Fa counters .
+If
+.Dv NULL ,
+one will be dynamically allocated and freed.
+.Pp
+.Fn counters_zero
+iterates over each CPU's set of counters referenced by
+.Fa cm
+and zeroes them.
+The number of counters is specified with
+.Fa ncounters .
+.Fn counters_zero
+itself does not prevent concurrent updates of the counters; it is
+up to the caller to serialise this call with other actions.
+.Sh CONTEXT
+.Fn counters_alloc ,
+.Fn counters_free ,
+.Fn counters_alloc_ncpus ,
+and
+.Fn counters_read
+may be called during autoconf, or from process context.
+.Pp
+.Fn counters_enter ,
+.Fn counters_leave ,
+.Fn counters_inc ,
+.Fn counters_add ,
+.Fn counters_pkt ,
+and
+.Fn counters_zero
+may be called during autoconf, from process context, or from interrupt
+context.
+The per CPU counters API does not provide any locking or serialisation
+of access to each CPU's set of counters beyond isolating each CPU's
+update.
+It is up to the caller to provide appropriate locking or serialisation
+around calls to these functions to prevent concurrent access to the
+relevant data structures.
+.Sh RETURN VALUES
+.Fn counters_alloc
+and
+.Fn counters_alloc_ncpus
+will return an opaque cpumem pointer that references each CPU's
+set of counters.
+.Pp
+.Fn counters_enter
+returns a reference to the current CPU's set of counters.
+.Sh EXAMPLES
+The following is an example of providing per CPU counters at boot
+time based on the
+.Xr mbuf 9
+statistics code in
+.Pa sys/kern/uipc_mbuf.c .
+.Bd -literal
+/* mbuf stats */
+COUNTERS_BOOT_MEMORY(mbstat_boot, MBSTAT_COUNT);
+struct cpumem *mbstat = COUNTERS_BOOT_INITIALIZER(mbstat_boot);
+
+/*
+ * this function is called from init_main.c after devices
+ * (including additional CPUs) have been attached
+ */
+void
+mbcpuinit()
+{
+	mbstat = counters_alloc_ncpus(mbstat, MBSTAT_COUNT);
+}
+
+struct mbuf *
+m_get(int nowait, int type)
+{
+	...
+
+        struct counters_ref cr;
+        uint64_t *counters;
+        int s;
+
+	...
+
+        s = splnet();
+        counters = counters_enter(&cr, mbstat);
+        counters[type]++;
+        counters_leave(&cr, mbstat);
+        splx(s);
+
+	...
+}
+
+struct mbuf *
+m_free(struct mbuf *m)
+{
+	...
+
+        struct counters_ref cr;
+        uint64_t *counters;
+        int s;
+
+	...
+
+        s = splnet();
+        counters = counters_enter(&cr, mbstat);
+        counters[m->m_type]--;
+        counters_leave(&cr, mbstat);
+        splx(s);
+
+	...
+}
+.Ed
+.Sh SEE ALSO
+.Xr cpumem_get 9 ,
+.Xr malloc 9
+.Sh HISTORY
+The per CPU counter API first appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+The per CPU counter API was written by
+.An David Gwynne Aq Mt dlg@openbsd.org .

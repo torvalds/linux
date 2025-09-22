@@ -1,0 +1,13 @@
+pass inet from (lo0) to any flags S/SA
+pass inet from ! (lo0) to any flags S/SA
+pass inet from (lo0) to any flags S/SA
+pass inet6 from (lo0) to any flags S/SA
+pass from <foo> to any flags S/SA
+pass from ! <foo> to any flags S/SA
+pass from <foo> to any flags S/SA
+pass inet from <bar> to any flags S/SA
+pass from <bar> to any flags S/SA
+pass inet6 from <foo> to any flags S/SA
+pass from <foo> to any flags S/SA
+pass inet from no-route to any flags S/SA
+pass from no-route to any flags S/SA

@@ -1,0 +1,4 @@
+<notification xmlns="http://www.example.com/rpki/rrdp" version="1" session_id="8fe05c2e-047d-49e7-8398-cd4250a572b1" serial="50550">
+  <snapshot uri="https://rpki.example.com/8fe05c2e-047d-49e7-8398-cd4250a572b1/50550/snapshot.xml" hash="ae52f78bcb1b258a1da924122971b0fddfce4c01b2b2dba59c9b28ef1d94c02b" />
+  <delta serial="50550" uri="https://rpki.example.com/8fe05c2e-047d-49e7-8398-cd4250a572b1/50550/delta.xml" hash="e99cc80cb36259e73ec1ffed5a0cfbaf27d345800da18147dbdf8316b28e027c" />
+</notification>

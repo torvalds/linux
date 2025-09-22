@@ -1,0 +1,21 @@
+static_library("mpi") {
+  output_name = "clangTidyMPIModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Analysis",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/StaticAnalyzer/Checkers",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "BufferDerefCheck.cpp",
+    "MPITidyModule.cpp",
+    "TypeMismatchCheck.cpp",
+  ]
+}

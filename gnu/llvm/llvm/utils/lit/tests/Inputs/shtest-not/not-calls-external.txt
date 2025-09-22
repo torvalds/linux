@@ -1,0 +1,66 @@
+# RUN: echo foo > %t.in
+# RUN: echo bar >> %t.in
+
+
+# Simple uses of 'not'
+
+# RUN: not %{python} fail.py
+# RUN: not not %{python} pass.py
+# RUN: not not not %{python} fail.py
+# RUN: not not not not %{python} pass.py
+
+
+# Simple uses of 'not --crash'
+
+# RUN: not not --crash %{python} pass.py
+# RUN: not not --crash %{python} fail.py
+# RUN: not not --crash not %{python} pass.py
+# RUN: not not --crash not  %{python} fail.py
+
+
+# Various patterns of 'not' and 'env'
+#
+# There's no particular pattern to the 'env' arguments except we try not to
+# do the same thing every time.
+
+# RUN: env not %{python} fail.py | FileCheck -check-prefixes=FOO-NO,BAR-NO %s
+# RUN: not env %{python} fail.py | FileCheck -check-prefixes=FOO-NO,BAR-NO %s
+
+# RUN: env FOO=1 not %{python} fail.py \
+# RUN: | FileCheck -check-prefixes=FOO1,BAR-NO %s
+
+# RUN: not env FOO=1 BAR=1 %{python} fail.py \
+# RUN: | FileCheck -check-prefixes=FOO1,BAR1 %s
+
+# RUN: env FOO=1 BAR=1 not env -u FOO BAR=2 %{python} fail.py \
+# RUN: | FileCheck -check-prefixes=FOO-NO,BAR2 %s
+
+# RUN: not env FOO=1 BAR=1 not env -u FOO -u BAR %{python} pass.py \
+# RUN: | FileCheck -check-prefixes=FOO-NO,BAR-NO %s
+
+# RUN: not not env FOO=1 env FOO=2 BAR=1 %{python} pass.py \
+# RUN: | FileCheck -check-prefixes=FOO2,BAR1 %s
+
+# RUN: env FOO=1 -u BAR env -u FOO BAR=1 not not %{python} pass.py \
+# RUN: | FileCheck -check-prefixes=FOO-NO,BAR1 %s
+
+
+# Various patterns of 'not', 'not --crash', and 'env'
+
+# RUN: not env FOO=1 BAR=1 env FOO=2 BAR=2 not --crash %{python} pass.py \
+# RUN: | FileCheck -check-prefixes=FOO2,BAR2 %s
+
+# RUN: not env FOO=1 BAR=1 not --crash not %{python} pass.py \
+# RUN: | FileCheck -check-prefixes=FOO1,BAR1 %s
+
+# RUN: not not --crash env -u BAR not env -u FOO BAR=1 %{python} pass.py \
+# RUN: | FileCheck -check-prefixes=FOO-NO,BAR1 %s
+
+
+# FOO-NO: FOO = [undefined]
+# FOO1:   FOO = 1
+# FOO2:   FOO = 2
+
+# BAR-NO: BAR = [undefined]
+# BAR1:   BAR = 1
+# BAR2:   BAR = 2

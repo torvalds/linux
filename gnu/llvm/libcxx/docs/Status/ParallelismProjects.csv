@@ -1,0 +1,40 @@
+Section,Description,Dependencies,Assignee,Complete
+| `[parallel.exceptions] <https://wg21.link/N4808>`_, "Parallel Exceptions", None, unassigned, |Not Started|
+| `[parallel.execpol] <https://wg21.link/N4808>`_, "Execution policies", None, unassigned, |Not Started|
+| `[parallel.alg] <https://wg21.link/N4808>`_, "Parallel algorithms", None, unassigned, |Not Started|
+| `[parallel.taskblock] <https://wg21.link/N4808>`_, "Task Block", None, unassigned, |Not Started|
+| `[parallel.simd.abi] <https://wg21.link/N4808>`_, "`simd ABI tags <https://reviews.llvm.org/D144362>`_", [parallel.simd.class] [parallel.simd.mask.class] declarations and alias, Yin Zhang, |Complete|
+| `[parallel.simd.synopsis] <https://wg21.link/N4808>`_, "`simd aligned tags <https://reviews.llvm.org/D153319>`_", [parallel.simd.class] [parallel.simd.mask.class] declarations, Yin Zhang, |Complete|
+| `[parallel.simd.traits] <https://wg21.link/N4808>`_, "`simd type traits is_abi_tag[_v] <https://reviews.llvm.org/D144362>`_", [parallel.simd.abi], Yin Zhang, |Complete|
+| `[parallel.simd.traits] <https://wg21.link/N4808>`_, "`simd type traits is_simd[_v] <https://reviews.llvm.org/D144362>`_", [parallel.simd.class] declaration and alias, Yin Zhang, |Complete|
+| `[parallel.simd.traits] <https://wg21.link/N4808>`_, "`simd type traits is_simd_mask[_v] <https://reviews.llvm.org/D144362>`_", [parallel.simd.mask.class] declaration and alias, Yin Zhang, |Complete|
+| `[parallel.simd.traits] <https://wg21.link/N4808>`_, "simd type traits is_simd_flag_type", None, Yin Zhang, |In Progress|
+| `[parallel.simd.traits] <https://wg21.link/N4808>`_, "`simd type traits simd_size[_v] <https://reviews.llvm.org/D144363>`_", [parallel.simd.traits] is_abi_tag[_v], Yin Zhang, |Complete|
+| `[parallel.simd.traits] <https://wg21.link/N4808>`_, "`simd type traits memory_alignment <https://reviews.llvm.org/D153319>`_", [parallel.simd.aligned] simd aligned tags, Yin Zhang, |Complete|
+| `[parallel.simd.traits] <https://wg21.link/N4808>`_, "simd type traits rebind_simd", None, Yin Zhang, |In Progress|
+| `[parallel.simd.traits] <https://wg21.link/N4808>`_, "simd type traits resize_simd", None, Yin Zhang, |In Progress|
+| `[parallel.simd.whereexpr] <https://wg21.link/N4808>`_, "Where expression class templates", None, Yin Zhang, |In Progress|
+| `[parallel.simd.reference] <https://wg21.link/N4808>`_, "`Element references operator value_type() <https://github.com/llvm/llvm-project/pull/68960>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.reference] <https://wg21.link/N4808>`_, "`Element references operator= <https://github.com/llvm/llvm-project/pull/70020>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.reference] <https://wg21.link/N4808>`_, "`Element references swap functions <https://github.com/llvm/llvm-project/pull/86478>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.class] <https://wg21.link/N4808>`_, "`Class template simd declaration and alias <https://reviews.llvm.org/D144362>`_", [parallel.simd.abi], Yin Zhang, |Complete|
+| `[parallel.simd.class] <https://wg21.link/N4808>`_, "`simd<>::size() <https://reviews.llvm.org/D144363>`_", [parallel.simd.traits] simd_size[_v], Yin Zhang, |Complete|
+| `[parallel.simd.class] <https://wg21.link/N4808>`_, "`simd default constructor <https://github.com/llvm/llvm-project/pull/70424>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.class] <https://wg21.link/N4808>`_, "`simd broadcast constructor <https://reviews.llvm.org/D156225>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.class] <https://wg21.link/N4808>`_, "`simd implicit type conversion constructor <https://github.com/llvm/llvm-project/pull/71132>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.class] <https://wg21.link/N4808>`_, "`simd generate constructor <https://reviews.llvm.org/D159442>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.class] <https://wg21.link/N4808>`_, "`simd load constructor <https://github.com/llvm/llvm-project/pull/76610>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.class] <https://wg21.link/N4808>`_, "`simd subscript operators <https://github.com/llvm/llvm-project/pull/68960>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.class] <https://wg21.link/N4808>`_, "`simd copy functions <https://github.com/llvm/llvm-project/pull/78935>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.class] <https://wg21.link/N4808>`_, "Class template simd implementation", None, Yin Zhang, |In Progress|
+| `[parallel.simd.nonmembers] <https://wg21.link/N4808>`_, "simd non-member operations", None, Yin Zhang, |In Progress|
+| `[parallel.simd.mask.class] <https://wg21.link/N4808>`_, "`Class template simd_mask declaration and alias <https://reviews.llvm.org/D144362>`_", [parallel.simd.abi], Yin Zhang, |Complete|
+| `[parallel.simd.mask.class] <https://wg21.link/N4808>`_, "`simd_mask<>::size() <https://reviews.llvm.org/D144363>`_", [parallel.simd.class] simd<>::size(), Yin Zhang, |Complete|
+| `[parallel.simd.mask.class] <https://wg21.link/N4808>`_, "`simd_mask default constructor <https://github.com/llvm/llvm-project/pull/70424>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.mask.class] <https://wg21.link/N4808>`_, "`simd_mask broadcast constructor <https://reviews.llvm.org/D156225>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.mask.class] <https://wg21.link/N4808>`_, "`simd_mask implicit type conversion constructor <https://github.com/llvm/llvm-project/pull/71132>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.mask.class] <https://wg21.link/N4808>`_, "`simd_mask load constructor <https://github.com/llvm/llvm-project/pull/76610>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.mask.class] <https://wg21.link/N4808>`_, "`simd_mask subscript operators <https://github.com/llvm/llvm-project/pull/68960>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.mask.class] <https://wg21.link/N4808>`_, "`simd_mask copy functions <https://github.com/llvm/llvm-project/pull/78935>`_", None, Yin Zhang, |Complete|
+| `[parallel.simd.mask.class] <https://wg21.link/N4808>`_, "Class template simd_mask implementation", None, Yin Zhang, |In Progress|
+| `[parallel.simd.mask.nonmembers] <https://wg21.link/N4808>`_, "simd_mask non-member operations", None, Yin Zhang, |In Progress|

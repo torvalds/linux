@@ -1,0 +1,187 @@
+#	$OpenBSD: Makefile.macppc,v 1.112 2025/07/05 19:03:02 kn Exp $
+
+# For instructions on building kernels consult the config(8) and options(4)
+# manual pages.
+#
+# N.B.: NO DEPENDENCIES ON FOLLOWING FLAGS ARE VISIBLE TO MAKEFILE
+#	IF YOU CHANGE THE DEFINITION OF ANY OF THESE RECOMPILE EVERYTHING
+# DEBUG is set to -g by config if debugging is requested (config -g).
+# PROF is set to -pg by config if profiling is requested (config -p).
+
+.include <bsd.own.mk>
+
+SIZE?=	size
+STRIP?=	ctfstrip
+
+# source tree is located via $S relative to the compilation directory
+.ifndef S
+S!=	cd ../../../..; pwd
+.endif
+
+_machdir?=	$S/arch/${_mach}
+_archdir?=	$S/arch/${_arch}
+
+INCLUDES=	-nostdinc -I$S -I${.OBJDIR} -I$S/arch \
+		-I$S/dev/pci/drm/include \
+		-I$S/dev/pci/drm/include/uapi
+CPPFLAGS=	${INCLUDES} ${IDENT} ${PARAM} -D_KERNEL -D__${_mach}__ -MD -MP
+CWARNFLAGS=	-Werror -Wall -Wimplicit-function-declaration \
+		-Wno-main -Wno-pointer-sign \
+		-Wframe-larger-than=2047
+
+CMACHFLAGS=	-msoft-float
+.if ${COMPILER_VERSION:Mgcc4}
+CMACHFLAGS+=	-Wa,-many
+.endif
+CMACHFLAGS+=	-ffreestanding ${NOPIE_FLAGS}
+SORTR=		sort -R
+.if ${IDENT:M-DNO_PROPOLICE}
+CMACHFLAGS+=	-fno-stack-protector
+.endif
+.if ${IDENT:M-DSMALL_KERNEL}
+SORTR=		cat
+COPTIMIZE?=	-Oz
+.endif
+.if ${COMPILER_VERSION:Mclang}
+NO_INTEGR_AS=	-no-integrated-as
+CWARNFLAGS+=	-Wno-address-of-packed-member -Wno-constant-conversion \
+		-Wno-unused-but-set-variable -Wno-gnu-folding-constant
+.endif
+
+DEBUG?=		-g
+COPTIMIZE?=	-O2
+CFLAGS=		${DEBUG} ${CWARNFLAGS} ${CMACHFLAGS} ${COPTIMIZE} ${COPTS} ${PIPE}
+AFLAGS=		-D_LOCORE ${CMACHFLAGS}
+LINKFLAGS=	-N -T ld.script --warn-common -nopie
+# propagate failure like ENOSPC on relink
+LINKFLAGS+=	--no-mmap-output-file
+
+.if ${MACHINE} == "powerpc64"
+CFLAGS+=	-m32
+AFLAGS+=	-m32
+LDFLAGS=	-melf32ppc
+LINKFLAGS+=	${LDFLAGS}
+.endif
+
+HOSTCC?=	${CC}
+HOSTED_CPPFLAGS=${CPPFLAGS:S/^-nostdinc$//}
+HOSTED_CFLAGS=	${CFLAGS}
+HOSTED_C=	${HOSTCC} ${HOSTED_CFLAGS} ${HOSTED_CPPFLAGS} -c $<
+
+NORMAL_C_NOP=	${CC} ${CFLAGS} ${CPPFLAGS} -fno-ret-protector -c $<
+NORMAL_C=	${CC} ${CFLAGS} ${CPPFLAGS} ${PROF} -c $<
+NORMAL_S=	${CC} ${AFLAGS} ${CPPFLAGS} ${PROF} -c $<
+
+%OBJS
+
+%CFILES
+
+%SFILES
+
+# load lines for config "xxx" will be emitted as:
+# xxx: ${SYSTEM_DEP} swapxxx.o
+#	${SYSTEM_LD_HEAD}
+#	${SYSTEM_LD} swapxxx.o
+#	${SYSTEM_LD_TAIL}
+SYSTEM_HEAD=	locore0.o gap.o
+SYSTEM_OBJ=	${SYSTEM_HEAD} ${OBJS} param.o ioconf.o
+SYSTEM_DEP=	Makefile ${SYSTEM_OBJ} ld.script
+SYSTEM_LD_HEAD=	@rm -f $@
+SYSTEM_LD=	@echo ${LD} ${LINKFLAGS} -o $@ '$${SYSTEM_HEAD} vers.o $${OBJS}'; \
+		umask 007; \
+		echo ${OBJS} param.o ioconf.o vers.o | tr " " "\n" | ${SORTR} > lorder; \
+		${LD} ${LINKFLAGS} -o $@ ${SYSTEM_HEAD} `cat lorder`
+SYSTEM_LD_TAIL=	@${SIZE} $@
+
+.if ${DEBUG} == "-g"
+STRIPFLAGS=	-S
+SYSTEM_LD_TAIL+=; umask 007; \
+		echo mv $@ $@.gdb; rm -f $@.gdb; mv $@ $@.gdb; \
+		echo ${STRIP} ${STRIPFLAGS} -o $@ $@.gdb; \
+		${STRIP} ${STRIPFLAGS} -o $@ $@.gdb
+.else
+LINKFLAGS+=	-S
+.endif
+
+%LOAD
+
+# cc's -MD puts the source and output paths in the dependency file;
+# since those are temp files here we need to fix it up.  It also
+# puts the file in /tmp, so we use -MF to put it in the current
+# directory as assym.P and then generate assym.d from it with a
+# good target name
+assym.h: $S/kern/genassym.sh Makefile \
+	 ${_archdir}/${_arch}/genassym.cf ${_machdir}/${_mach}/genassym.cf
+	cat ${_archdir}/${_arch}/genassym.cf ${_machdir}/${_mach}/genassym.cf | \
+	    sh $S/kern/genassym.sh ${CC} ${NO_INTEGR_AS} ${CFLAGS} ${CPPFLAGS} -MF assym.P > assym.h.tmp
+	sed '1s/.*/assym.h: \\/' assym.P > assym.d
+	sort -u assym.h.tmp > assym.h
+
+param.c: $S/conf/param.c
+	rm -f param.c
+	cp $S/conf/param.c .
+
+param.o: param.c Makefile
+	${NORMAL_C}
+
+mcount.o: $S/lib/libkern/mcount.c Makefile
+	${NORMAL_C_NOP}
+
+ioconf.o: ioconf.c
+	${NORMAL_C}
+
+ld.script: ${_machdir}/conf/ld.script
+	cp ${_machdir}/conf/ld.script $@
+
+gapdummy.o:
+	echo '__asm(".section .rodata,\"a\"");' > gapdummy.c
+	${CC} -c ${CFLAGS} ${CPPFLAGS} gapdummy.c -o $@
+
+makegap.sh:
+	cp $S/conf/makegap.sh $@
+
+MAKE_GAP = LD="${LD}" sh makegap.sh 0x00000000 gapdummy.o
+
+gap.o:	Makefile makegap.sh gapdummy.o vers.o
+	${MAKE_GAP}
+
+vers.o: ${SYSTEM_DEP:Ngap.o}
+	sh $S/conf/newvers.sh
+	${CC} ${CFLAGS} ${CPPFLAGS} ${PROF} -c vers.c
+
+clean:
+	rm -f *bsd *bsd.gdb *.[dio] [a-z]*.s assym.* \
+	    gap.link gapdummy.c ld.script lorder makegap.sh param.c
+
+cleandir: clean
+	rm -f Makefile *.h ioconf.c options machine ${_mach} vers.c
+
+depend obj:
+
+locore0.o: ${_machdir}/${_mach}/locore0.S assym.h
+locore.o: ${_machdir}/${_mach}/locore.S assym.h
+mutex.o: assym.h
+
+hardlink-obsd:
+	[[ ! -f /bsd ]] || cmp -s bsd /bsd || ln -f /bsd /obsd
+
+reconfig:
+	[[ ! -f /etc/bsd.re-config ]] || config -e -c /etc/bsd.re-config -f bsd
+
+newinstall:
+	install -F -m 700 bsd /bsd && sha256 -h /var/db/kernel.SHA256 /bsd
+
+install: update-link hardlink-obsd reconfig newinstall
+
+# pull in the dependency information
+.ifnmake clean
+. for o in ${SYSTEM_OBJ:Ngap.o} assym.h
+.  if exists(${o:R}.d)
+.   include "${o:R}.d"
+.  elif exists($o)
+    .PHONY: $o
+.  endif
+. endfor
+.endif
+
+%RULES

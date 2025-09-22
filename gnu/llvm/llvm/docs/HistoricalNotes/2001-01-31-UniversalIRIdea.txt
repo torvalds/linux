@@ -1,0 +1,39 @@
+Date: Wed, 31 Jan 2001 12:04:33 -0600
+From: Vikram S. Adve <vadve@cs.uiuc.edu>
+To: Chris Lattner <lattner@cs.uiuc.edu>
+Subject: another thought
+
+I have a budding idea about making LLVM a little more ambitious: a
+customizable runtime system that can be used to implement language-specific
+virtual machines for many different languages.  E.g., a C vm, a C++ vm, a
+Java vm, a Lisp vm, ..
+
+The idea would be that LLVM would provide a standard set of runtime features
+(some low-level like standard assembly instructions with code generation and
+static and runtime optimization; some higher-level like type-safety and
+perhaps a garbage collection library).  Each language vm would select the
+runtime features needed for that language, extending or customizing them as
+needed.  Most of the machine-dependent code-generation and optimization
+features as well as low-level machine-independent optimizations (like PRE)
+could be provided by LLVM and should be sufficient for any language,
+simplifying the language compiler.  (This would also help interoperability
+between languages.)  Also, some or most of the higher-level
+machine-independent features like type-safety and access safety should be
+reusable by different languages, with minor extensions.  The language
+compiler could then focus on language-specific analyses and optimizations.
+
+The risk is that this sounds like a universal IR -- something that the
+compiler community has tried and failed to develop for decades, and is
+universally skeptical about.  No matter what we say, we won't be able to
+convince anyone that we have a universal IR that will work.  We need to
+think about whether LLVM is different or if has something novel that might
+convince people.  E.g., the idea of providing a package of separable
+features that different languages select from.  Also, using SSA with or
+without type-safety as the intermediate representation.
+
+One interesting starting point would be to discuss how a JVM would be
+implemented on top of LLVM a bit more.  That might give us clues on how to
+structure LLVM to support one or more language VMs.
+
+--Vikram
+

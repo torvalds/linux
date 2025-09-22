@@ -1,0 +1,25 @@
+#test random ordered opts
+
+body1="pass in log quick on lo0 inet proto icmp all "
+body2="pass in log quick on lo0 inet proto tcp all "
+o_user="user root "
+o_user2="user bin "
+o_group="group wheel "
+o_group2="group nobody "
+o_flags="flags S/SA "
+o_icmpspec="icmp-type 0 code 0 "
+o_tos="tos 0x08 "
+o_keep="keep state "
+o_fragment="fragment "
+o_allowopts="allow-opts "
+o_label="label blah"
+o_prio="set prio 2"
+
+$body2 $o_fragment $o_keep $o_label $o_tos
+$body2 $o_user $o_prio $o_tos $o_keep $o_group $o_label $o_allowopts \
+$o_user2 $o_group2
+$body1 $o_icmpspec $o_keep $o_label $o_prio
+$body2 $o_keep
+$body2 $o_label $o_keep $o_prio $o_tos
+$body1 $o_icmpspec $o_tos
+$body2 $o_flags $o_allowopts 

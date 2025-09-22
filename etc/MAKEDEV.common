@@ -1,0 +1,540 @@
+vers(a, {-$OpenBSD: MAKEDEV.common,v 1.122 2025/01/08 23:09:25 kirill Exp $-})dnl
+dnl
+dnl Copyright (c) 2001-2006 Todd T. Fries <todd@OpenBSD.org>
+dnl
+dnl Permission to use, copy, modify, and distribute this software for any
+dnl purpose with or without fee is hereby granted, provided that the above
+dnl copyright notice and this permission notice appear in all copies.
+dnl
+dnl THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+dnl WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+dnl MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+dnl ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+dnl WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+dnl ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+dnl OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+dnl
+dnl Common device definitions.
+dnl
+dnl This file contains the MI device definitions (as well as some MD
+dnl definitions not cleaned up yet...)
+dnl
+dnl Diversions:  (upon termination, concatenated output queues)
+dnl
+dnl 0 - very top
+dnl 1 - descriptions of devices
+dnl 2 - init of script, function definitions, etc
+dnl 3 - beginning of global recursive R() function
+dnl 7 - body of MAKEDEV, device creations, etc
+dnl 9 - end
+dnl
+dnl Diversions 2, 3 and 7 are not filled when generating the manual page.
+dnl
+dnl HOW TO ADD A DEVICE:
+dnl
+dnl In this file, you must use at least two macros:
+dnl
+dnl  Use '__devitem(uniqueid, name-pattern, description)' to create an entry
+dnl  in the description at the top of the generated MAKEDEV file:
+dnl
+dnl    __devitem(sca, sca*, Sugar Generic device)dnl
+dnl    __devitem(cry, crypto, hardware crypto access driver)dnl
+dnl
+dnl  This is ultimately shown as:
+dnl
+dnl    #  sca*   Sugar Generic device
+dnl    #  crypto hardware crypto access driver
+dnl
+dnl  Use '_mkdev(uniqueid, shell-pattern, {-shell-script-})dnl' to create
+dnl  a shell script fragment used to 'create' the device (be sure to match
+dnl  the uniqueid from above):
+dnl
+dnl    _mkdev(sca, sca*, {-M sca$U c major_sca_c $U
+dnl           M rsca$U b major_sca_b Add($U, 128)-})dnl
+dnl    _mkdev(cry, crypto, {-M crypto c major_cry_c 0-})dnl
+dnl
+dnl  This is ultimately expanded into:
+dnl
+dnl    sca*)
+dnl           M sca$U c 24 $U
+dnl           M sca$U b 42 $(($U+128))
+dnl           ;;
+dnl
+dnl    crypto)
+dnl           M crypto c 47 0
+dnl           ;;
+dnl
+dnl In the MAKEDEV.md file, add a '_DEV(uniqueid, charmajor, blockmajor)'
+dnl entry:
+dnl
+dnl   _DEV(sca, 24, 42)
+dnl   _DEV(cry, 47)
+dnl
+dnl Final step is to use the 'target/twrget' macros to have the 'all)' target
+dnl generate one or more device(s).  Usage of 'target/twrget' is:
+dnl      target(target_name, device_name [, append_string ] .. )
+dnl      twrget(target_name, uniqueid, device_name, [, append_string ] .. )
+dnl
+dnl        target_name   a unique name that later is used as an argument to
+dnl                      'show_target()' (which expands all devices for a
+dnl                      given 'target_name').
+dnl        uniqueid      same as 'uniqueid' above
+dnl        device_name   string representing the device to be mknod'ed
+dnl        append_string for each append_string, `device_name' is prepended
+dnl
+dnl Note: 'target(a,b,c)' is equivalent to 'twrget(a,b,b,c)'
+dnl
+dnl
+dnl For a short example:
+dnl
+dnl   target(all, std)dnl
+dnl   target(all, sca, 0, 1, 2, 3)dnl
+dnl   twrget(all, cry, crypto)dnl
+dnl
+dnl would expand to:
+dnl
+dnl   all)
+dnl        R std sca0 sca1 sca2 sca3 crypto
+dnl        ;;
+dnl
+dnl presuming '_DEV(sca, ?, ?)' and '_DEV(std)' were in the MAKEDEV.md file.
+dnl
+dnl
+dnl Everything is 'automatically' added to 'MAKEDEV' based on whether or
+dnl not the '_DEV()' entry has a corresponding _mkdev() and __devitem()
+dnl entry in MAKEDEV.mi (this file).
+dnl
+dnl Note: be very wary of adding whitespace, carriage returns, or not
+dnl finishing a macro with ')dnl' .. otherwise, extra blank lines show up
+dnl in the output.
+dnl
+dnl TODO:
+dnl
+dnl make a 'disktgt' macro that automatically does:
+dnl disktgt(rd, {-rd-})
+dnl
+dnl	target(all,rd,0)
+dnl	target(ramd,rd,0)
+dnl	disk_q(rd)
+dnl	__devitem(rd, {-rd*-}, {-rd-})dnl
+dnl
+dnl  Note: not all devices are generated in 'all)' below. MAKEDEV.md contains
+dnl        its own extra list.
+dnl
+divert(1)dnl
+twrget(all, fdesc, fd)dnl
+target(all, st, 0, 1)dnl
+target(all, std)dnl
+target(all, wd, 0, 1, 2, 3)dnl
+target(all, pctr)dnl
+target(all, pctr0)dnl
+target(all, pf)dnl
+target(all, apm)dnl
+target(all, acpi)dnl
+twrget(all, tth, ttyh, 0, 1)dnl
+target(all, ttyA, 0, 1)dnl
+twrget(all, mac_tty0, tty0, 0, 1)dnl
+twrget(all, tzs, tty, a, b, c, d)dnl
+twrget(all, czs, cua, a, b, c, d)dnl
+target(all, ttyc, 0, 1, 2, 3, 4, 5, 6, 7)dnl
+twrget(all, com, tty0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, a, b)dnl
+twrget(all, mmcl, mmclock)dnl
+target(all, lpt, 0, 1, 2)dnl
+twrget(all, lpt, lpa, 0, 1, 2)dnl
+target(all, joy, 0, 1)dnl
+twrget(all, rnd, random)dnl
+target(all, uk, 0)dnl
+twrget(all, vi, video, 0, 1, 2, 3)dnl
+twrget(all, speak, speaker)dnl
+target(all, asc, 0)dnl
+target(all, radio, 0)dnl
+target(all, tuner, 0)dnl
+target(all, rmidi, 0, 1, 2, 3, 4, 5, 6, 7)dnl
+target(all, uall)dnl
+target(all, pci, 0, 1, 2, 3)dnl
+twrget(all, wsmouse, wscons)dnl
+target(all, par, 0)dnl
+target(all, apci, 0)dnl
+target(all, local)dnl
+target(all, ptm)dnl
+target(all, hotplug)dnl
+target(all, pppx)dnl
+target(all, pppac)dnl
+target(all, fuse)dnl
+target(all, vmm)dnl
+target(all, pvbus, 0, 1)dnl
+target(all, bpf)dnl
+target(all, kcov)dnl
+target(all, dt)dnl
+target(all, kstat)dnl
+target(all, psp)dnl
+dnl
+_mkdev(all, {-all-}, {-dnl
+show_target(all)dnl
+-})dnl
+dnl
+dnl XXX some arches use ramd, others ramdisk - needs to be fixed eventually
+__devitem(ramdisk, ramdisk, Ramdisk kernel devices,nothing)dnl
+dnl
+target(usb, usb, 0, 1, 2, 3, 4, 5, 6, 7)dnl
+target(usb, uhid, 0, 1, 2, 3, 4, 5, 6, 7)dnl
+twrget(usb, fido, fido)dnl
+twrget(usb, ujoy, ujoy)dnl
+target(usb, ulpt, 0, 1)dnl
+target(usb, ugen, 0, 1, 2, 3, 4, 5, 6, 7)dnl
+target(usb, ttyU, 0, 1, 2, 3)dnl
+dnl
+__devitem({-uall-}, uall, All USB devices,usb)dnl
+_mkdev(uall, uall, {-dnl
+show_target({-usb-})dnl
+-})dnl
+__devtitle(tap, Tapes)dnl
+__devitem(st, {-st*-}, SCSI tape drives)dnl
+_mkdev(st, st*, {-n=Mult($U, 16)
+	for pre in " " n e en
+	do
+		M ${pre}rst$U	c major_st_c $n 660 operator
+		n=Add($n, 1)
+	done-})dnl
+__devtitle(dis, Disks)dnl
+__devitem(sd, {-sd*-}, {-SCSI disks{-,-} including flopticals-})dnl
+__devitem(cd, {-cd*-}, ATAPI and SCSI CD-ROM drives)dnl
+_mkdev(cd, cd*, {-dodisk2 cd $U major_cd_b major_cd_c $U 0{--}ifstep(cd)-})dnl
+__devitem(fuse, fuse, Userland Filesystem, fuse 4)dnl
+_mcdev(fuse, fuse, fuse, {-major_fuse_c-}, 600)dnl
+__devitem(ch, {-ch*-}, SCSI media changers)dnl
+_mcdev(ch, ch*, ch, {-major_ch_c-}, 660, operator)dnl
+__devitem(uk, uk*, Unknown SCSI devices)dnl
+_mcdev(uk, uk*, uk, {-major_uk_c-}, 640, operator)dnl
+dnl XXX see ramdisk above
+__devitem(ramd, ramdisk, Ramdisk kernel devices,nothing)dnl
+dnl
+_mkdev(ramd, ramdisk, {-dnl
+show_target(ramd)dnl
+-})dnl
+dnl
+target(ramd, std)dnl
+target(ramd, bpf)dnl
+twrget(ramd, com, tty0, 0, 1)dnl
+target(ramd, sd, 0, 1, 2, 3, 4)dnl
+target(ramd, wd, 0, 1, 2, 3, 4)dnl
+target(ramd, st, 0, 1)dnl
+target(ramd, cd, 0, 1)dnl
+target(ramd, rd, 0)dnl
+dnl
+__devitem(rd, {-rd*-}, quote(rd)pseudo-disks)dnl
+_mkdev(rd, rd*, {-dodisk2 rd $U major_rd_b major_rd_c $U 0{--}ifstep(rd)-})dnl
+__devitem(flo, {-fd*-}, {-Floppy disk drives (3 1/2"{-,-} 5 1/4")-},fd)dnl
+_mkdev(flo, fd*,
+{-typnam=$U${i#fd[01]*}
+	case $typnam in
+	0|1)	typnum=0;; # no type specified, assume A
+	*A)	typnum=0; typnam=0;;
+	*B)	typnum=1;;
+	*C)	typnum=2;;
+	*D)	typnum=3;;
+	*E)	typnum=4;;
+	*F)	typnum=5;;
+	*G)	typnum=6;;
+	*H)	typnum=7;;
+	*)	echo bad type $typnam for $i; exit 1;;
+	esac
+	case $U in
+	0|1)	blk=major_flo_b; chr=major_flo_c;;
+	*)	echo bad unit $U for $i; exit 1;;
+	esac
+	nam=fd${typnam}
+	n=Add(Mult($U, 128), Mult($typnum, 16))
+	M ${nam}a	b $blk $n 640 operator
+	M ${nam}b	b $blk Add($n, 1) 640 operator
+	M ${nam}c	b $blk Add($n, 2) 640 operator
+	M ${nam}i	b $blk Add($n, 8) 640 operator
+	M r${nam}a	c $chr $n 640 operator
+	M r${nam}b	c $chr Add($n, 1) 640 operator
+	M r${nam}c	c $chr Add($n, 2) 640 operator
+	M r${nam}i	c $chr Add($n, 8) 640 operator-}, 664)dnl
+__devitem(wd, {-wd*-}, {-quote(winchester)disk drives (ST506{-,-} IDE{-,-} ESDI{-,-} RLL{-,-} ...)-})dnl
+__devitem(vnd, vnd*, quote(file)pseudo-disk devices)dnl
+_mkdev(vnd, vnd*, {-dodisk vnd $U major_vnd_b major_vnd_c $U 0{--}ifstep(vnd)-})dnl
+dnl
+dnl For normal disk devices, add a disk_q entry; anything else define like
+dnl the rest (such as vnd above).
+dnl
+disk_q({-sd-})dnl
+disk_q({-wd-})dnl
+_mkdev({-disks-}, {-undefine({-C_ase-})show_disks()undefine({-C_ase-})-},
+{-case $i in
+show_disks2()dnl
+	esac-})dnl
+__mkdev({-disks-}){--}dnl
+dnl
+__devtitle(cons, Console ports)dnl
+__devitem(wscons, wscons, Minimal wscons devices)dnl
+twrget(wscons, wscons, ttyC, cfg, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, a, b)dnl
+target(wscons, wsmux)dnl
+target(wscons, wskbd, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)dnl
+target(wscons, wsmouse, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)dnl
+_mkdev({-wscons-}, {-wscons-}, {-dnl
+show_target(wscons)dnl
+-})dnl
+__devitem(wsdisp, ttyC-J*, wscons display devices,wsdisplay)dnl
+_mkdev({-wsdisp-}, tty[C-J]*, {-U=${i##tty[C-J]}
+	case $i in
+	ttyC*) n=C m=expr(0*256);;
+	ttyD*) n=D m=expr(1*256);;
+	ttyE*) n=E m=expr(2*256);;
+	ttyF*) n=F m=expr(3*256);;
+	ttyG*) n=G m=expr(4*256);;
+	ttyH*) n=H m=expr(5*256);;
+	ttyI*) n=I m=expr(6*256);;
+	ttyJ*) n=J m=expr(7*256);;
+	esac
+	case $U in
+	[0-9a-f]) M tty$n$U c major_wsdisp_c Add(16#$U, $m) 600;;
+	cfg) M tty${n}cfg c major_wsdisp_c Add(255,$m) 600;;
+	*) echo bad unit $U for $i; exit 1;;
+	esac-})dnl
+__devitem(wskbd, wskbd*, wscons keyboards)dnl
+dnl XXX wskbd[0-9]* instead of wskbd* in case this appears before
+dnl XXX ``wsmux|wsmouse|wskbd'' in the final MAKEDEV.
+_mkdev(wskbd, wskbd[0-9]*, {-M wskbd$U c major_wskbd_c $U 600-})dnl
+__devitem(wsmux, wsmux, wscons keyboard/mouse mux devices)dnl
+_mkdev(wsmux, wsmux|wsmouse|wskbd, {-M wsmouse c major_wsmux_c 0 600
+	M wskbd c major_wsmux_c 1 600-})dnl
+__devitem(pcons, console, PROM console)dnl
+__devtitle(point, Pointing devices)dnl
+__devitem(wsmouse, wsmouse*, wscons mice)dnl
+dnl XXX wsmouse[0-9]* instead of wsmouse* in case this appears before
+dnl XXX ``wsmux|wsmouse|wskbd'' in the final MAKEDEV.
+_mkdev(wsmouse, wsmouse[0-9]*, {-M wsmouse$U c major_wsmouse_c $U 600-})dnl
+__devtitle(pty, Pseudo terminals)dnl
+__devitem(ptm, ptm, pty master device)dnl
+_mkdev(ptm, ptm, {-M ptm c major_ptm_c 0 666-})dnl
+__devitem(tty, tty*, Set of 62 slave pseudo terminals)dnl
+__devitem(pty, pty*, Set of 62 master pseudo terminals)dnl
+_mkdev(pty, pty*, {-if [ $U -gt 15 ]; then
+		echo bad unit for pty in: $i
+		continue
+	fi
+	set -A letters p q r s t u v w x y z P Q R S T
+	set -A suffixes 0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q \
+	    r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X \
+	    Y Z
+
+	name=${letters[$U]}
+	n=0
+	while [ $n -lt 62 ]
+	do
+		nam=$name${suffixes[$n]}
+		off=Mult($U, 62)
+		M tty$nam c major_tty_c Add($off, $n)
+		M pty$nam c major_pty_c Add($off, $n)
+		n=Add($n, 1)
+	done-})dnl
+__devitem(dc, dc*, {-4 channel serial interface (keyboard{-,-} mouse{-,-}modem{-,-} printer)-})dnl
+__devitem(dri, dri, Direct Rendering Infrastructure, drm)dnl
+_mkdev(dri, dri, {-RMlist[${#RMlist[*]}]=";mkdir -p dri;rm -f"
+	n=0
+	while [ $n -lt 4 ]
+	do
+		M dri/card$n c major_dri_c $n 600
+		r=Add($n, 128)
+		M dri/renderD$r c major_dri_c $r 600
+		n=Add($n, 1)
+	done
+	MKlist[${#MKlist[*]}]=";chmod 555 dri"-})dnl
+__devtitle(prn, Printers)dnl
+__devitem(lpt, lpt*, IEEE 1284 centronics printer)dnl
+_mkdev(lpt, lpt*|lpa*,
+{-case $i in
+	lpt*) n=lpt f=0;;
+	lpa*) n=lpa f=128;;
+	esac
+	M $n$U c major_lpt_c Add($U, $f) 600-})dnl
+__devitem(lpa, lpa*, Polled printer port,lpt)dnl
+__devtitle({-usb-}, USB devices)dnl
+__devitem({-usb-}, usb*, Bus control devices used by usbd for attach/detach)dnl
+_mkdev({-usb-}, usb*, {-[ "$i" = "usb" ] && u= || u=$U
+	M usb$u c major_usb_c $U 640-})dnl
+__devitem(uhid, uhid*, Generic HID devices)dnl
+_mcdev({-uhid-}, uhid*, {-uhid-}, {-major_uhid_c-}, 600)dnl
+__devitem(fido, fido, fido/* nodes, fido)dnl
+_mkdev(fido, fido, {-RMlist[${#RMlist[*]}]=";mkdir -p fido;rm -f" n=0
+	while [ $n -lt 4 ];do M fido/$n c major_fido_c $n 666;n=Add($n, 1);done
+	MKlist[${#MKlist[*]}]=";chmod 555 fido"-})dnl
+__devitem(ujoy, ujoy, ujoy/* nodes, ujoy)dnl
+_mkdev(ujoy, ujoy, {-RMlist[${#RMlist[*]}]=";mkdir -p ujoy;rm -f" n=0
+	while [ $n -lt 4 ];do M ujoy/$n c major_ujoy_c $n 444;n=Add($n, 1);done
+	MKlist[${#MKlist[*]}]=";chmod 555 ujoy"-})dnl
+__devitem(ulpt, ulpt*, Printer devices)dnl
+_mcdev({-ulpt-}, ulpt*, {-ulpt-}, {-major_ulpt_c-}, 600)dnl
+__devitem(ttyU, ttyU*, USB serial ports,ucom)dnl
+_mkdev({-ttyU-}, {-ttyU[0-9a-zA-Z]-}, {-U=${i#ttyU*}
+	o=$(alph2d $U)
+	M ttyU$U c major_ttyU_c $o 660 dialer root
+	M cuaU$U c major_ttyU_c Add($o, 128) 660 dialer root-})dnl
+__devitem(ugen, ugen*, Generic USB devices)dnl
+_mkdev(ugen, ugen*, {-n=Mult($U, 16)
+	for j in 0{0,1,2,3,4,5,6,7,8,9} 1{0,1,2,3,4,5}
+	do
+		M ugen$U.$j c major_ugen_c Add($n, 10#$j) 600
+	done-})dnl
+__devtitle(call, Call units)dnl
+__devtitle(term, Terminal ports)dnl
+__devitem(dca, dca*, HP200/300 single port serial interface)dnl
+__devitem(dcm, dcm*, HP200/300 4 port serial mux interface)dnl
+__devitem(apci, apci*, HP400 4 port serial mux interface)dnl
+__devitem({-com-}, {-tty[0-7][0-9a-f]-}, NS16x50 serial ports)dnl
+_mkdev(com, {-tty[0-7][0-9a-f]-}, {-U=${i#tty*}
+	o=$(h2d $U)
+	M tty$U c major_com_c $o 660 dialer root
+	M cua$U c major_com_c Add($o, 128) 660 dialer root-})dnl
+__devitem(ttyc, ttyc*, Cyclades serial ports,cy)dnl
+__devitem(ttyVI, ttyVI*, Virtio serial ports,viocon)dnl
+_mkdev(ttyVI, ttyVI*, {-M ttyVI$U c major_ttyVI_c $U 660 dialer root-})dnl
+__devitem(tzs, tty[a-z]*, Zilog 8530 Serial Port,zs)dnl
+_mkdev(tzs, {-tty[a-z]-}, {-u=${i#tty*}
+	case $u in
+	a) n=0 ;;
+	b) n=1 ;;
+	c) n=4 ;;
+	d) n=5 ;;
+	*) echo unknown tty device $i ;;
+	esac
+	M tty$u c major_tzs_c $n 660 dialer root-})dnl
+__devitem(tth, ttyh*, Sab82532 serial devices,sab)dnl
+_mkdev(tth, ttyh*, {-M ttyh$U c major_tth_c $U 660 dialer root-})dnl
+__devitem(czs, cua[a-z]*, Zilog 8530 Serial Port,zs)dnl
+_mkdev(czs, cua[a-z], {-u=${i#cua*}
+	case $u in
+	a) n=0 ;;
+	b) n=1 ;;
+	c) n=4 ;;
+	d) n=5 ;;
+	*) echo unknown cua device $i ;;
+	esac
+	M cua$u c major_czs_c Add($n, 128) 660 dialer root-})dnl
+__devitem(tty0, tty00, Standard serial port,com)dnl
+__devitem(mac_tty0, tty00, Standard serial port,zsc)dnl
+__devitem(ttyz, tty[a-d], On-board zs serial ports,zs)dnl
+__devitem(cuaz, cua[a-d], On-board zs serial ports,zs)dnl
+__devitem(ttyB, ttyB*, DEC 3000 serial ports,zs)dnl
+__devtitle(spec, Special purpose devices)dnl
+_mkdev(apm, apm*, {-M apm	c major_apm_c 0 644
+	M apmctl	c major_apm_c 8 644-})dnl
+_mkdev(acpi, acpi*, {-M acpi	c major_acpi_c 0 644-})dnl
+__devitem(pctr, pctr*, PC Performance Tuning Register access device)dnl
+_mkdev(pctr, pctr, {-M pctr c major_pctr_c 0 644-})dnl
+__devitem(au, audio*, Audio devices,audio)dnl
+_mkdev(au, audio*, {-M audio$U	c major_au_c $U 660 _sndiop
+	M audioctl$U	c major_au_c Add($U, 192) 660 _sndiop-})dnl
+__devitem(vi, video*, Video V4L2 devices,video)dnl
+_mkdev(vi, video*, {-M video$U  c major_vi_c $U 600
+	MKlist[${#MKlist[*]}]=";[ -e video ] || ln -s video$U video"-})dnl
+__devitem(asc, asc*, ASC Audio device)dnl
+_mkdev(asc, asc*, {-M asc$U major_asc_c 0-})dnl
+__devitem(bio, bio, {-ioctl tunnel pseudo-device-})dnl
+_mkdev(bio, bio, {-M bio c major_bio_c 0 600-})dnl
+__devitem(radio, radio*, FM tuner devices)dnl
+_mkdev(radio, radio*, {-M radio$U	c major_radio_c $U
+	MKlist[${#MKlist[*]}]=";[ -e radio ] || ln -s radio$U radio"-})dnl
+__devitem(fdesc, fd, fd/* nodes, fd)dnl
+_mkdev(fdesc, fd, {-RMlist[${#RMlist[*]}]=";mkdir -p fd;rm -f" n=0
+	while [ $n -lt 64 ];do M fd/$n c major_fdesc_c $n;n=Add($n, 1);done
+	MKlist[${#MKlist[*]}]=";chmod 555 fd"-})dnl
+__devitem(oppr, openprom,PROM settings,openprom)dnl
+_cdev(oppr, openprom, 70, 0)dnl
+__devitem(pf, pf, Packet Filter)dnl
+_mkdev(pf, {-pf-}, {-M pf c major_pf_c 0 600-})dnl
+__devitem(bpf, bpf, Berkeley Packet Filter)dnl
+_mkdev(bpf, bpf, {-M bpf c major_bpf_c 0 600
+	M bpf0 c major_bpf_c 0 600-})dnl
+_mkdev(tun, {-tun*-}, {-M tun$U c major_tun_c $U 600-}, 600)dnl
+_mkdev(tap, {-tap*-}, {-M tap$U c major_tap_c $U 600-}, 600)dnl
+__devitem(speak, speaker, PC speaker,spkr)dnl
+_mkdev(speak, speaker, {-M speaker c major_speak_c 0 600-})dnl
+__devitem(tun, tun*, Network tunnel driver)dnl
+__devitem(tap, tap*, Ethernet tunnel driver)dnl
+__devitem(rnd, *random, In-kernel random data source,random)dnl
+_mkdev(rnd, *random, {-M urandom c major_rnd_c 0 644
+	RMlist[${#RMlist[*]}]=random
+	MKlist[${#MKlist[*]}]=";ln -s urandom random"-})dnl
+__devitem(joy, joy*, Joystick driver)dnl
+_mcdev(joy, joy*, joy, {-major_joy_c-}, 666)dnl
+__devitem(mag, magma*, Magma multiport cards,magma)dnl
+__devitem(bppmag, bppmag[mno], Magma parallel port,magma)dnl
+__devitem(spif, spif*, quote(spif)multiport cards)dnl
+__devitem(bppsp, bpp[jkl], quote(spif)parallel port,spif)dnl
+_mkdev(mag, magma*, {-case $U in
+	0)	offset=0  nam=m;;
+	1)	offset=16 nam=n;;
+	2)	offset=32 nam=o;;
+	*)	echo "bad unit for $i: $U"; exit 127;;
+	esac
+	offset=Mult($U, 64)
+	n=0
+	while [ $n -lt 16 ]
+	do
+		name=${nam}`hex $n`
+		M tty$name c major_mag_c Add($offset, $n) 660 dialer root
+		n=Add($n, 1)
+	done
+	M bpp${nam}0 c major_bppmag_c Add($offset, 0) 600
+	M bpp${nam}1 c major_bppmag_c Add($offset, 1) 600-})dnl
+_mkdev(spif, spif*, {-case $U in
+	0)	offset=0  nam=j;;
+	1)	offset=16 nam=k;;
+	2)	offset=32 nam=l;;
+	*)	echo "bad unit for $i: $U"; exit 127;;
+	esac
+	offset=Mult($U, 64)
+	n=0
+	while [ $n -lt 8 ]
+	do
+		name=${nam}`hex $n`
+		M tty$name c major_spif_c Add($offset, $n) 660 dialer root
+		n=Add($n, 1)
+	done
+	M bpp${nam}0 c major_bppsp_c Add($offset, 0) 600-})dnl
+__devitem(bpp, bpp*, Parallel port)dnl
+_mkdev(bpp, {-bpp*-}, {-M bpp$U c major_bpp_c $U 600-}, 600)dnl
+__devitem(vscsi, vscsi*, Virtual SCSI controller, vscsi 4)dnl
+_mcdev(vscsi, vscsi*, vscsi, {-major_vscsi_c-}, 600)dnl
+__devitem(rmidi, rmidi*, Raw MIDI devices,midi)dnl
+_mcdev(rmidi, rmidi*, rmidi, {-major_rmidi_c-}, 660 _sndiop)dnl
+__devitem(diskmap, diskmap, Disk mapper, diskmap)dnl
+_mkdev(diskmap, diskmap, {-M diskmap c major_diskmap_c 0 640 operator-})dnl
+__devitem(pppx, pppx*, PPP Multiplexer, pppx 4)dnl
+_mcdev(pppx, pppx*, pppx, {-major_pppx_c-}, 600)dnl
+__devitem(pppac, pppac*, PPP Access Concentrator, pppac 4)dnl
+_mcdev(pppac, pppac*, pppac, {-major_pppac_c-}, 600)dnl
+__devtitle(plat, Platform-specific devices)dnl
+__devitem(bktr, bktr*, Video frame grabbers)dnl
+_mcdev(bktr, bktr*, bktr, {-major_bktr_c-}, 644)dnl
+__devitem(tuner, tuner*, Tuner devices, bktr)dnl
+_mkdev(tuner, tuner*, {-M tuner$U c major_bktr_c Add(Mult($U, 2), 16) 644-}, 644)dnl
+__devitem(pci, pci*, PCI bus devices)dnl
+_mkdev(pci, pci*, {-M pci$U	c major_pci_c $U 600
+	MKlist[${#MKlist[*]}]=";[ -h pci ] || ln -sf pci0 pci"-})dnl
+__devitem(pdc, pdc, PDC device)dnl
+__devitem(hotplug, hotplug, devices hot plugging)dnl
+_mkdev(hotplug, hotplug, {-M hotplug c major_hotplug_c $U 400-})dnl
+__devitem(ipmi, ipmi*, IPMI BMC access)dnl
+_mkdev(ipmi, ipmi*, {-M ipmi$U c major_ipmi_c $U 600-})dnl
+__devitem(gpio, gpio*, General Purpose Input/Output)dnl
+_mcdev(gpio, gpio*, gpio, {-major_gpio_c-}, 600)dnl
+__devitem(vmm, vmm, Virtual Machine Monitor)dnl
+_mkdev(vmm, vmm, {-M vmm c major_vmm_c 0 600-})dnl
+__devitem(pvbus, pvbus*, paravirtual device tree root)dnl
+_mkdev(pvbus, {-pvbus*-}, {-M pvbus$U c major_pvbus_c $U 640-}, 640)dnl
+_mkdev(local, local, {-test -s $T.local && sh $T.local-})dnl
+__devitem(kcov, kcov, Kernel code coverage tracing)dnl
+_mkdev(kcov, kcov, {-M kcov c major_kcov_c 0 600-})dnl
+__devitem(dt, dt, Dynamic Tracer)dnl
+_mkdev(dt, dt, {-M dt c major_dt_c 0 600-})dnl
+__devitem(kstat, kstat, Kernel Statistics)dnl
+_mkdev(kstat, kstat, {-M kstat c major_kstat_c 0 640-})dnl
+__devitem(efi, efi, EFI runtime services)dnl
+_mkdev(efi, efi, {-M efi c major_efi_c 0 600-})dnl
+__devitem(psp, psp, Platform Security Processor)dnl
+_mkdev(psp, psp, {-M psp c major_psp_c 0 600-})dnl

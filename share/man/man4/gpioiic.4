@@ -1,0 +1,80 @@
+.\"	$OpenBSD: gpioiic.4,v 1.8 2013/07/16 16:05:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt GPIOIIC 4
+.Os
+.Sh NAME
+.Nm gpioiic
+.Nd GPIO I2C controller
+.Sh SYNOPSIS
+.Cd "gpioiic* at gpio? offset 0 mask 0x3 flag 0x0"
+.Cd "gpioiic* at gpio?"
+.Cd "iic* at gpioiic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver allows bit-banging an I2C bus as a master using two GPIO pins.
+By default the first pin is used as a serial data (SDA) signal and the
+second as a serial clock (SCL).
+If the flag locator is set to 0x01, the order of the SDA and SCL signals
+is reversed.
+Both GPIO pins must be able to drive an output and the SDA pin must be
+also able to read an input.
+.Pp
+The pins can be specified in the kernel configuration with the
+.Ar offset
+and the
+.Ar mask
+locators.
+The
+.Ar offset
+and
+.Ar mask
+can also be specified when
+.Nm
+is attached at runtime using the
+.Dv GPIOATTACH
+.Xr ioctl 2
+on the
+.Xr gpio 4
+device.
+Each bit in the
+.Ar mask
+locator defines one pin; the pin number is calculated as an addition of
+the bit position and the
+.Ar offset
+locator.
+For example,
+.Ar offset 17
+and
+.Ar mask 0x5
+defines pin numbers 17 and 19.
+.Sh SEE ALSO
+.Xr gpio 4 ,
+.Xr iic 4 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

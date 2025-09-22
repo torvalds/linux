@@ -1,0 +1,13 @@
+- fix library updates special cases: should note all potential library
+packages as conflicts. Then save_old_libraries can split stuff off old
+sets to keep libraries that are not in the new packages. There's only
+one slightly tricky part, which concerns moving stuff that's not really
+needed out of $set->{older}.
+- in interactive mode, make it ask questions whenever the user could get
+frustrated.
+- finish pulling the pkg_add code into Add.pm/Update.pm.
+- figure out when to continue after some errors, which should not stop a
+full update, for instance... or ignore already installed packages (mostly
+done).
+- get an update path for libraries to be able to adjust dependencies correctly.
+- messy .libs-* match for conflicts, to integrate with spec matching ?

@@ -1,0 +1,168 @@
+.\" $OpenBSD: EVP_PKEY_verify.3,v 1.10 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 48e5119a Jan 19 10:49:22 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2006, 2009, 2010, 2013, 2018 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_VERIFY 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_verify_init ,
+.Nm EVP_PKEY_verify
+.Nd signature verification using a public key algorithm
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_PKEY_verify_init
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_PKEY_verify
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "const unsigned char *sig"
+.Fa "size_t siglen"
+.Fa "const unsigned char *tbs"
+.Fa "size_t tbslen"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn EVP_PKEY_verify_init
+function initializes a public key algorithm context using key
+.Fa ctx->pkey
+for a signature verification operation.
+.Pp
+The
+.Fn EVP_PKEY_verify
+function performs a public key verification operation using
+.Fa ctx .
+The signature is specified using the
+.Fa sig
+and
+.Fa siglen
+parameters.
+The verified data (i.e. the data believed originally signed) is
+specified using the
+.Fa tbs
+and
+.Fa tbslen
+parameters.
+.Pp
+After the call to
+.Fn EVP_PKEY_verify_init ,
+algorithm specific control operations can be performed to set any
+appropriate parameters for the operation.
+.Pp
+The function
+.Fn EVP_PKEY_verify
+can be called more than once on the same context if several operations
+are performed using the same parameters.
+.Sh RETURN VALUES
+.Fn EVP_PKEY_verify_init
+and
+.Fn EVP_PKEY_verify
+return 1 if the verification was successful and 0 if it failed.
+Unlike other functions the return value 0 from
+.Fn EVP_PKEY_verify
+only indicates that the signature did not verify successfully.
+That is,
+.Fa tbs
+did not match the original data or the signature was of invalid form.
+It is not an indication of a more serious error.
+.Pp
+A negative value indicates an error other that signature verification
+failure.
+In particular, a return value of -2 indicates the operation is not
+supported by the public key algorithm.
+.Sh EXAMPLES
+Verify signature using PKCS#1 and SHA-256 digest:
+.Bd -literal -offset 3n
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
+
+EVP_PKEY_CTX *ctx;
+unsigned char *md, *sig;
+size_t mdlen, siglen;
+EVP_PKEY *verify_key;
+
+/*
+ * Assumes that verify_key, sig, siglen, md, and mdlen are already set up
+ * and that verify_key is an RSA public key.
+ */
+ctx = EVP_PKEY_CTX_new(verify_key, NULL);
+if (!ctx)
+	/* Error occurred */
+if (EVP_PKEY_verify_init(ctx) <= 0)
+	/* Error */
+if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) <= 0)
+	/* Error */
+if (EVP_PKEY_CTX_set_signature_md(ctx, EVP_sha256()) <= 0)
+	/* Error */
+
+/* Perform operation */
+ret = EVP_PKEY_verify(ctx, sig, siglen, md, mdlen);
+
+/*
+ * ret == 1 indicates success, 0 verify failure,
+ * and < 0 some other error.
+ */
+.Ed
+.Sh SEE ALSO
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_decrypt 3 ,
+.Xr EVP_PKEY_derive 3 ,
+.Xr EVP_PKEY_encrypt 3 ,
+.Xr EVP_PKEY_sign 3 ,
+.Xr EVP_PKEY_verify_recover 3
+.Sh HISTORY
+.Fn EVP_PKEY_verify_init
+and
+.Fn EVP_PKEY_verify
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .

@@ -1,0 +1,90 @@
+/*===---- cmath - CUDA wrapper for <cmath> ---------------------------------===
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ *===-----------------------------------------------------------------------===
+ */
+
+#ifndef __CLANG_CUDA_WRAPPERS_CMATH
+#define __CLANG_CUDA_WRAPPERS_CMATH
+
+#include_next <cmath>
+
+#if defined(_LIBCPP_STD_VER)
+
+// libc++ will need long double variants of these functions, but CUDA does not
+// provide them. We'll provide their declarations, which should allow the
+// headers to parse, but would not allow accidental use of them on a GPU.
+
+__attribute__((device)) long double logb(long double);
+__attribute__((device)) long double scalbn(long double, int);
+
+namespace std {
+
+// For __constexpr_fmin/fmax we only need device-side overloads before c++14
+// where they are not constexpr.
+#if _LIBCPP_STD_VER < 14
+
+__attribute__((device))
+inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14 float __constexpr_fmax(float __x, float __y) _NOEXCEPT {
+  return __builtin_fmaxf(__x, __y);
+}
+
+__attribute__((device))
+inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14 double __constexpr_fmax(double __x, double __y) _NOEXCEPT {
+  return __builtin_fmax(__x, __y);
+}
+
+__attribute__((device))
+inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14 long double
+__constexpr_fmax(long double __x, long double __y) _NOEXCEPT {
+  return __builtin_fmaxl(__x, __y);
+}
+
+template <class _Tp, class _Up, __enable_if_t<is_arithmetic<_Tp>::value && is_arithmetic<_Up>::value, int> = 0>
+__attribute__((device))
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14 typename __promote<_Tp, _Up>::type
+__constexpr_fmax(_Tp __x, _Up __y) _NOEXCEPT {
+  using __result_type = typename __promote<_Tp, _Up>::type;
+  return std::__constexpr_fmax(static_cast<__result_type>(__x), static_cast<__result_type>(__y));
+}
+#endif // _LIBCPP_STD_VER < 14
+
+// For logb/scalbn templates we must always provide device overloads because
+// libc++ implementation uses __builtin_XXX which gets translated into a libcall
+// which we can't handle on GPU. We need to forward those to CUDA-provided
+// implementations.
+
+template <class _Tp>
+__attribute__((device))
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14 _Tp __constexpr_logb(_Tp __x) {
+  return ::logb(__x);
+}
+
+template <class _Tp>
+__attribute__((device))
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 _Tp __constexpr_scalbn(_Tp __x, int __exp) {
+  return ::scalbn(__x, __exp);
+}
+
+} // namespace std//
+
+#endif // _LIBCPP_STD_VER
+
+#endif // include guard

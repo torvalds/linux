@@ -1,0 +1,131 @@
+.\" $OpenBSD: wctomb.3,v 1.7 2022/03/29 18:15:52 naddy Exp $
+.\" $NetBSD: wctomb.3,v 1.3 2003/04/16 13:34:41 wiz Exp $
+.\"
+.\" Copyright (c)2002 Citrus Project,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 29 2022 $
+.Dt WCTOMB 3
+.Os
+.Sh NAME
+.Nm wctomb
+.Nd converts a wide character to a multibyte character
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft int
+.Fn wctomb "char * s" "wchar_t wchar"
+.Sh DESCRIPTION
+The
+.Fn wctomb
+function converts the wide character
+.Fa wchar
+to the corresponding multibyte character, and stores it in the array
+pointed to by
+.Fa s .
+.Fn wctomb
+may store at most
+.Dv MB_CUR_MAX
+bytes in the array.
+.Pp
+In state-dependent encoding,
+.Fn wctomb
+may store the special sequence to change the conversion state
+before an actual multibyte character into the array pointed to by
+.Fa s .
+If
+.Fa wchar
+is a null wide character
+.Pq Sq \e0 ,
+this function places its own internal state to an initial conversion state.
+.Pp
+Calling any other functions in
+.Em libc
+never change the internal
+state of
+.Fn wctomb ,
+except for calling
+.Xr setlocale 3
+with the
+.Dv LC_CTYPE
+category changed to that of the current locale.
+Such
+.Xr setlocale 3
+calls cause the internal state of this function to be indeterminate.
+.Pp
+The behaviour of
+.Fn wctomb
+is affected by
+.Dv LC_CTYPE
+category of the current locale.
+.Pp
+There is a special case:
+.Bl -tag -width 012345678901
+.It s == NULL
+.Fn wctomb
+initializes its own internal state to an initial state, and
+determines whether the current encoding is state-dependent.
+This function returns 0 if the encoding is state-independent,
+otherwise non-zero.
+In this case,
+.Fa wchar
+is completely ignored.
+.El
+.Sh RETURN VALUES
+Normally,
+.Fn wctomb
+returns:
+.Bl -tag -width 012345678901
+.It positive
+Number of bytes for the valid multibyte character pointed to by
+.Fa s .
+There are no cases where the value returned is greater than
+the value of the
+.Dv MB_CUR_MAX
+macro.
+.It -1
+.Fa wchar
+is an invalid wide character.
+.El
+.Pp
+If
+.Fa s
+is equal to
+.Dv NULL ,
+.Fn wctomb
+returns:
+.Bl -tag -width 0123456789
+.It 0
+The current encoding is state-independent.
+.It non-zero
+The current encoding is state-dependent.
+.El
+.Sh ERRORS
+No errors are defined.
+.Sh SEE ALSO
+.Xr setlocale 3
+.Sh STANDARDS
+The
+.Fn wctomb
+function conforms to
+.St -ansiC .

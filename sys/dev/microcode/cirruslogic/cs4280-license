@@ -1,0 +1,12 @@
+ * This source is based on cwcimage.h in cwcealdr1.zip, the
+ * sample source by Crystal Semiconductor.
+ * (ftp://ftp.alsa-project.org/pub/manuals/cirrus/cwcealdr1.zip.)
+ *
+ * Just remove \r in each line and add this comments.
+ *
+ * Original file contains no copyright notice.
+
+This license needs to be solved by someone finding the right person
+at Crystal Semiconductor.
+
+This firmware is required by the clcs(4) audio driver.

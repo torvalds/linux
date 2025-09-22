@@ -1,0 +1,7 @@
+name = "llvm_@TARGET@"
+version = "@PACKAGE_VERSION@"
+description = "@TARGET@ Backend for LLVM"
+requires = "llvm"
+archive(byte) = "llvm_@TARGET@.cma"
+archive(native) = "llvm_@TARGET@.cmxa"
+directory = "llvm"

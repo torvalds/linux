@@ -1,0 +1,96 @@
+.\" Copyright (c) 2019 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_BIO_ENROLL_NEW 3
+.Os
+.Sh NAME
+.Nm fido_bio_enroll_new ,
+.Nm fido_bio_enroll_free ,
+.Nm fido_bio_enroll_last_status ,
+.Nm fido_bio_enroll_remaining_samples
+.Nd FIDO2 biometric enrollment API
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.In fido/bio.h
+.Bd -literal
+#define FIDO_BIO_ENROLL_FP_GOOD				0x00
+#define FIDO_BIO_ENROLL_FP_TOO_HIGH			0x01
+#define FIDO_BIO_ENROLL_FP_TOO_LOW			0x02
+#define FIDO_BIO_ENROLL_FP_TOO_LEFT			0x03
+#define FIDO_BIO_ENROLL_FP_TOO_RIGHT			0x04
+#define FIDO_BIO_ENROLL_FP_TOO_FAST			0x05
+#define FIDO_BIO_ENROLL_FP_TOO_SLOW			0x06
+#define FIDO_BIO_ENROLL_FP_POOR_QUALITY			0x07
+#define FIDO_BIO_ENROLL_FP_TOO_SKEWED			0x08
+#define FIDO_BIO_ENROLL_FP_TOO_SHORT			0x09
+#define FIDO_BIO_ENROLL_FP_MERGE_FAILURE		0x0a
+#define FIDO_BIO_ENROLL_FP_EXISTS			0x0b
+#define FIDO_BIO_ENROLL_FP_DATABASE_FULL		0x0c
+#define FIDO_BIO_ENROLL_NO_USER_ACTIVITY		0x0d
+#define FIDO_BIO_ENROLL_NO_USER_PRESENCE_TRANSITION	0x0e
+.Ed
+.Ft fido_bio_enroll_t *
+.Fn fido_bio_enroll_new "void"
+.Ft void
+.Fn fido_bio_enroll_free "fido_bio_enroll_t **enroll_p"
+.Ft uint8_t
+.Fn fido_bio_enroll_last_status "const fido_bio_enroll_t *enroll"
+.Ft uint8_t
+.Fn fido_bio_enroll_remaining_samples "const fido_bio_enroll_t *enroll"
+.Sh DESCRIPTION
+Ongoing FIDO2 biometric enrollments are abstracted in
+.Em libfido2
+by the
+.Vt fido_bio_enroll_t
+type.
+.Pp
+The functions described in this page allow a
+.Vt fido_bio_enroll_t
+type to be allocated, deallocated, and inspected.
+For device operations on
+.Vt fido_bio_enroll_t ,
+please refer to
+.Xr fido_bio_dev_get_info 3 .
+.Pp
+The
+.Fn fido_bio_enroll_new
+function returns a pointer to a newly allocated, empty
+.Vt fido_bio_enroll_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_bio_enroll_free
+function releases the memory backing
+.Fa *enroll_p ,
+where
+.Fa *enroll_p
+must have been previously allocated by
+.Fn fido_bio_enroll_new .
+On return,
+.Fa *enroll_p
+is set to NULL.
+Either
+.Fa enroll_p
+or
+.Fa *enroll_p
+may be NULL, in which case
+.Fn fido_bio_enroll_free
+is a NOP.
+.Pp
+The
+.Fn fido_bio_enroll_last_status
+function returns the enrollment status of
+.Fa enroll .
+.Pp
+The
+.Fn fido_bio_enroll_remaining_samples
+function returns the number of samples left for
+.Fa enroll
+to complete.
+.Sh SEE ALSO
+.Xr fido_bio_dev_get_info 3 ,
+.Xr fido_bio_template 3

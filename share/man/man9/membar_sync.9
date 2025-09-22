@@ -1,0 +1,124 @@
+.\" $OpenBSD: membar_sync.9,v 1.4 2022/03/13 22:16:59 bluhm Exp $
+.\"
+.\" Copyright (c) 2007, 2008 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\" notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 13 2022 $
+.Dt MEMBAR 9
+.Os
+.Sh NAME
+.Nm membar_enter ,
+.Nm membar_exit ,
+.Nm membar_producer ,
+.Nm membar_consumer ,
+.Nm membar_sync ,
+.Nm membar_enter_after_atomic ,
+.Nm membar_exit_before_atomic
+.Nd memory access barrier operations
+.Sh SYNOPSIS
+.In sys/atomic.h
+.Ft void
+.Fn membar_enter "void"
+.Ft void
+.Fn membar_exit "void"
+.Ft void
+.Fn membar_producer "void"
+.Ft void
+.Fn membar_consumer "void"
+.Ft void
+.Fn membar_sync "void"
+.Ft void
+.Fn membar_enter_after_atomic "void"
+.Ft void
+.Fn membar_exit_before_atomic "void"
+.Sh DESCRIPTION
+The membar set of functions provide an interface for issuing memory barrier
+access operations with respect to multiple processors in the system.
+.Bl -tag -width "mem"
+.It Fn membar_enter
+Any store preceding
+.Fn membar_enter
+will reach global visibility before all loads and stores following it.
+.Pp
+.Fn membar_enter
+is typically used in code that implements locking primitives to ensure
+that a lock protects its data.
+.It Fn membar_exit
+All loads and stores preceding
+.Fn membar_exit
+will reach global visibility before any store that follows it.
+.Pp
+.Fn membar_exit
+is typically used in code that implements locking primitives to ensure
+that a lock protects its data.
+.It Fn membar_producer
+All stores preceding the memory barrier will reach global visibility
+before any stores after the memory barrier reach global visibility.
+.It Fn membar_consumer
+All loads preceding the memory barrier will complete before any loads
+after the memory barrier complete.
+.It Fn membar_sync
+All loads and stores preceding the memory barrier will complete and
+reach global visibility before any loads and stores after the memory
+barrier complete and reach global visibility.
+.It Fn membar_enter_after_atomic
+An atomic operation preceding
+.Fn membar_enter_after_atomic
+will reach global visibility before all loads and stores following it.
+The atomic operation is used to protect the start of a critical section.
+.It Fn membar_exit_before_atomic
+All loads and stores preceding
+.Fn membar_exit_before_atomic
+will reach global visibility before atomic operation that follows it.
+The atomic operation is used to protect the end of a critical section.
+.El
+.Pp
+The atomic operations that can be used with
+.Fn membar_enter_after_atomic
+and
+.Fn membar_exit_before_atomic
+are the atomic_add, atomic_sub, atomic_inc, atomic_dec, and atomic_cas
+set of functions.
+For other cases use
+.Fn membar_enter
+or
+.Fn membar_exit .
+.Sh CONTEXT
+.Fn membar_enter ,
+.Fn membar_exit ,
+.Fn membar_producer ,
+.Fn membar_consumer ,
+.Fn membar_sync ,
+.Fn membar_enter_after_atomic ,
+.Fn membar_exit_before_atomic
+can all be called during autoconf, from process context, or from
+interrupt context.
+.Sh HISTORY
+The membar functions first appeared in
+.Nx 5.0
+and
+.Ox 5.5 .

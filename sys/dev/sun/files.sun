@@ -1,0 +1,16 @@
+#	$OpenBSD: files.sun,v 1.4 2009/05/20 18:22:33 miod Exp $
+# $NetBSD: files.sun,v 1.1 1996/05/29 21:54:34 pk Exp $
+#
+# Configuration file for devices found on Sun machines.
+#
+define	sunkbd
+file	dev/sun/sunkbd.c			sunkbd
+file	dev/sun/sunkbdmap.c			sunkbd
+
+define	sunms
+file	dev/sun/sunms.c				sunms
+
+device	zsms: wsmousedev, sunms
+attach	zsms at zs
+file	dev/sun/z8530ms.c			zsms
+

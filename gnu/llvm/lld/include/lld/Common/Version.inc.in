@@ -1,0 +1,1 @@
+#define LLD_VERSION_STRING "@LLD_VERSION@"

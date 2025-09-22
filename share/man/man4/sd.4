@@ -1,0 +1,225 @@
+.\"	$OpenBSD: sd.4,v 1.21 2024/12/21 01:00:31 jsg Exp $
+.\"	$NetBSD: sd.4,v 1.3 1996/10/20 23:15:23 explorer Exp $
+.\"
+.\" Copyright (c) 1996
+.\"     Julian Elischer <julian@freebsd.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 21 2024 $
+.Dt SD 4
+.Os
+.Sh NAME
+.Nm sd
+.Nd SCSI disk driver
+.Sh SYNOPSIS
+.Cd "sd* at scsibus?"
+.Cd "#sd0 at scsibus0 target 3 lun 0" Pq fixed-configuration example
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for a
+.Tn SCSI
+disk.
+It allows the disk to be divided up into a set of pseudo devices called
+.Em partitions .
+In general the interfaces are similar to those described by
+.Xr wd 4 .
+.Pp
+.Tn SCSI
+devices have a fairly high level interface to the system and talk to it via
+a
+.Tn SCSI
+host adapter
+(e.g.,
+.Xr ahc 4 ) .
+A
+.Tn SCSI
+adapter must also be separately configured into the system
+before a
+.Tn SCSI
+disk can be configured.
+.Pp
+When the
+.Tn SCSI
+adapter is probed during boot, the
+.Tn SCSI
+bus is scanned for devices.
+Any devices found which answer as
+.Sq Em Direct
+type devices will be attached to the
+.Nm
+driver.
+.\"In
+.\".Fx
+.\"releases prior to 2.1, the first found was attached as
+.\".Li sd0 ,
+.\"the second
+.\".Li sd1 ,
+.\"and so on.
+.\"Beginning in 2.1 it became possible to lock down the assignment of
+.\"devices on the
+.\".Tn SCSI
+.\"bus to particular units of the
+.\".Nm
+.\"device; refer to
+.\".Xr scsi 4
+.\"for details on kernel configuration.
+.Sh PARTITIONING
+.\"The
+.\".Nm
+.\"driver allows the disk to have two levels of partitioning.
+.\"One layer, called the
+.\".Dq slice layer ,
+.\"is used to separate the
+.\".Fx
+.\"areas of the disk from areas used by other operating systems.
+.\"The second layer is the native
+.\".Bx 4.4
+.\"partitioning scheme,
+.\".Xr disklabel 5 ,
+.\"which is used to subdivide the
+.\".Fx
+.\"slices into areas for individual filesystems and swap spaces.
+.\"For more information, see
+.\".Xr fdisk 8
+.\"and
+.\".Xr disklabel 8 ,
+.\"respectively.)
+On many systems
+.Xr disklabel 8
+is used to partition the drive into filesystems.
+On some systems the
+.Ox
+portion of the disk resides within a native partition, and another
+program is used to create the
+.Ox
+portion.
+.Pp
+For example, the i386 port uses
+.Xr fdisk 8
+to partition the disk into a BIOS level partition.
+This allows sharing the disk with other operating systems.
+.\"If an uninitialized disk is opened, the slice table will be
+.\"initialized with a fictitious
+.\".Fx
+.\"slice spanning the entire disk. Similarly, if an uninitialized
+.\"(or
+.\".No non- Ns Fx )
+.\"slice is opened, its disklabel will be initialized with parameters returned
+.\"by the drive and a single
+.\".Sq Li c
+.\"partition encompassing the entire slice.
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+calls apply to
+.Tn SCSI
+disks as well as to other disks.
+They are defined in the header file
+.In sys/dkio.h .
+.Bl -tag -width Ds
+.\".It Dv DIOCSBAD
+.\"Usually used to set up a bad-block mapping system on the disk.
+.\".Tn SCSI
+.\"drive incorporate their own bad-block mapping so this command is not
+.\"implemented.
+.It Dv DIOCGDINFO Fa "struct disklabel *"
+Read, from the kernel, the in-core copy of the disklabel for the
+drive.
+This may be a fictitious disklabel if the drive has never
+been initialized, in which case it will contain information read
+from the
+.Tn SCSI
+inquiry commands.
+.It Dv DIOCSDINFO Fa "struct disklabel *"
+Give the driver a new disklabel to use.
+The driver
+.Em will not
+write the new
+disklabel to the disk.
+.It Dv DIOCWDINFO Fa "struct disklabel *"
+Give the driver a new disklabel to use.
+The driver
+.Em will
+write the new disklabel to the disk.
+.It Dv DIOCLOCK Fa "int *"
+Lock the media cartridge into the device, or unlock a cartridge previously
+locked.
+Used to prevent user and software eject while the media is in use.
+.It Dv DIOCEJECT
+Eject the media cartridge from a removable device.
+.It Dv DIOCINQ Fa "struct dk_inquiry *"
+Read the devices product information.
+.El
+.Pp
+In addition, the
+.Xr scsi 4
+general
+.Fn ioctl
+commands may be used with the
+.Nm
+driver, but only against the
+.Sq Li c
+(whole disk) partition.
+.Sh NOTES
+If a removable device is attached to the
+.Nm
+driver, then the act of changing the media will invalidate the
+disklabel and information held within the kernel.
+To avoid corruption, all access to the device will be discarded until there
+are no more open file descriptors referencing the device.
+During this period, all new open attempts will be rejected.
+When no more open file descriptors reference the device, the first next
+open will load a new set of parameters (including disklabel) for the drive.
+.Sh FILES
+.Bl -tag -width /dev/rsdXXXXX -compact
+.It Pa /dev/sd Ns Ar u Ns Ar p
+block mode
+.Tn SCSI
+disk unit
+.Ar u ,
+partition
+.Ar p
+.It Pa /dev/rsd Ns Ar u Ns Ar p
+raw mode
+.Tn SCSI
+disk unit
+.Ar u ,
+partition
+.Ar p
+.El
+.Sh DIAGNOSTICS
+None.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr scsi 4 ,
+.Xr wd 4 ,
+.Xr disklabel 5 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8
+.Sh HISTORY
+.An Julian Elischer
+wrote
+.Nm
+for Mach 2.5 and ported it to 386BSD.

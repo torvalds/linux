@@ -1,0 +1,125 @@
+#	$OpenBSD: files.cardbus,v 1.31 2018/02/14 23:51:49 jsg Exp $
+#	$NetBSD: files.cardbus,v 1.8 2000/01/26 06:37:24 thorpej Exp $
+#
+# files.cardbus
+#
+
+device	cardslot: cbbus, pcmciabus
+attach	cardslot at pcmciaslot
+file	dev/cardbus/cardslot.c			cardslot
+
+device	cardbus {[dev = -1], [function = -1]}
+attach	cardbus at cbbus
+file	dev/cardbus/cardbus.c			cardbus		needs-flag
+file	dev/cardbus/cardbus_map.c		cardbus
+file	dev/cardbus/cardbus_exrom.c		cardbus
+file	dev/cardbus/rbus.c			cardbus
+
+# Com ports
+attach	com at cardbus with com_cardbus
+file	dev/cardbus/com_cardbus.c		com_cardbus
+
+# PCI "universal" communication device driver, for com, lpt, etc. ports
+attach	puc at cardbus with puc_cardbus
+file	dev/cardbus/puc_cardbus.c		puc_cardbus
+
+#
+# 3Com 3C575TX, 3C575BTX, and 3C575CTX
+#
+attach	xl at cardbus with xl_cardbus
+file	dev/cardbus/if_xl_cardbus.c		xl_cardbus
+
+#
+# Tulip clone based CardBus cards
+#
+attach	dc at cardbus with dc_cardbus
+file	dev/cardbus/if_dc_cardbus.c		dc_cardbus
+
+#
+# Intel PRO/100 8255x based CardBus cards
+#
+attach	fxp at cardbus with fxp_cardbus
+file	dev/cardbus/if_fxp_cardbus.c		fxp_cardbus
+
+#
+# Realtek 8139 based CardBus cards
+#
+attach	rl at cardbus with rl_cardbus
+file	dev/cardbus/if_rl_cardbus.c		rl_cardbus
+
+#
+# Realtek 8169/8169S/8110S
+#
+attach	re at cardbus with re_cardbus
+file	dev/cardbus/if_re_cardbus.c		re_cardbus
+
+#
+# Atheros AR5k
+#
+attach	ath at cardbus with ath_cardbus
+file	dev/cardbus/if_ath_cardbus.c		ath_cardbus
+
+#
+# Atheros AR9k
+#
+attach	athn at cardbus with athn_cardbus
+file	dev/cardbus/if_athn_cardbus.c		athn_cardbus
+
+#
+# ADMtek ADM8211
+#
+attach	atw at cardbus with atw_cardbus
+file	dev/cardbus/if_atw_cardbus.c		atw_cardbus
+
+# Realtek RTL8180
+#
+attach	rtw at cardbus with rtw_cardbus
+file	dev/cardbus/if_rtw_cardbus.c		rtw_cardbus
+
+#
+# Ralink RT2500
+#
+attach	ral at cardbus with ral_cardbus
+file	dev/cardbus/if_ral_cardbus.c		ral_cardbus
+
+#
+# Texas Instruments ACX
+#
+attach	acx at cardbus with acx_cardbus
+file	dev/cardbus/if_acx_cardbus.c		acx_cardbus
+
+#
+# Conexant PrismGT
+#
+attach	pgt at cardbus with pgt_cardbus
+file	dev/cardbus/if_pgt_cardbus.c		pgt_cardbus
+
+#
+# EHCI USB controller
+#
+attach	ehci at cardbus with ehci_cardbus
+file	dev/cardbus/ehci_cardbus.c		ehci_cardbus
+
+#
+# OHCI USB controller
+#
+attach	ohci at cardbus with ohci_cardbus
+file	dev/cardbus/ohci_cardbus.c		ohci_cardbus
+
+#
+# UHCI USB controller
+#
+attach	uhci at cardbus with uhci_cardbus
+file	dev/cardbus/uhci_cardbus.c		uhci_cardbus
+
+#
+# Marvel Libertas Open
+#
+attach	malo at cardbus with malo_cardbus
+file	dev/cardbus/if_malo_cardbus.c		malo_cardbus
+
+#
+# Broadcom AirForce
+#
+attach	bwi at cardbus with bwi_cardbus
+file	dev/cardbus/if_bwi_cardbus.c		bwi_cardbus

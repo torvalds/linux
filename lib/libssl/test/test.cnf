@@ -1,0 +1,88 @@
+#
+# SSLeay example configuration file.
+# This is mostly being used for generation of certificate requests.
+#
+
+RANDFILE		= ./.rnd
+
+####################################################################
+[ ca ]
+default_ca	= CA_default		# The default ca section
+
+####################################################################
+[ CA_default ]
+
+dir		= ./demoCA		# Where everything is kept
+certs		= $dir/certs		# Where the issued certs are kept
+crl_dir		= $dir/crl		# Where the issued crl are kept
+database	= $dir/index.txt	# database index file.
+new_certs_dir	= $dir/new_certs	# default place for new certs.
+
+certificate	= $dir/CAcert.pem 	# The CA certificate
+serial		= $dir/serial 		# The current serial number
+crl		= $dir/crl.pem 		# The current CRL
+private_key	= $dir/private/CAkey.pem# The private key
+RANDFILE	= $dir/private/.rand	# private random number file
+
+default_days	= 365			# how long to certify for
+default_crl_days= 30			# how long before next CRL
+default_md	= md5			# which md to use.
+
+# A few difference way of specifying how similar the request should look
+# For type CA, the listed attributes must be the same, and the optional
+# and supplied fields are just that :-)
+policy		= policy_match
+
+# For the CA policy
+[ policy_match ]
+countryName		= match
+stateOrProvinceName	= match
+organizationName	= match
+organizationalUnitName	= optional
+commonName		= supplied
+emailAddress		= optional
+
+# For the 'anything' policy
+# At this point in time, you must list all acceptable 'object'
+# types.
+[ policy_anything ]
+countryName		= optional
+stateOrProvinceName	= optional
+localityName		= optional
+organizationName	= optional
+organizationalUnitName	= optional
+commonName		= supplied
+emailAddress		= optional
+
+####################################################################
+[ req ]
+default_bits		= 1024
+default_keyfile 	= testkey.pem
+distinguished_name	= req_distinguished_name
+encrypt_rsa_key		= no
+
+[ req_distinguished_name ]
+countryName			= Country Name (2 letter code)
+countryName_default		= AU
+countryName_value		= AU
+
+stateOrProvinceName		= State or Province Name (full name)
+stateOrProvinceName_default	= Queensland
+stateOrProvinceName_value	=
+
+localityName			= Locality Name (eg, city)
+localityName_value		= Brisbane
+
+organizationName		= Organization Name (eg, company)
+organizationName_default	= 
+organizationName_value		= CryptSoft Pty Ltd
+
+organizationalUnitName		= Organizational Unit Name (eg, section)
+organizationalUnitName_default	=
+organizationalUnitName_value	= .
+
+commonName			= Common Name (eg, YOUR name)
+commonName_value		= Eric Young
+
+emailAddress			= Email Address
+emailAddress_value		= eay@mincom.oz.au

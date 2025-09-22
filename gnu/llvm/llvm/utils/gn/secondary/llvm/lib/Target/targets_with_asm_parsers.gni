@@ -1,0 +1,9 @@
+import("//llvm/lib/Target/targets.gni")
+
+targets_with_asm_parsers = []
+foreach(target, llvm_targets_to_build) {
+  # These targets don't have AsmParsers.
+  if (target != "ARC" && target != "NVPTX" && target != "XCore") {
+    targets_with_asm_parsers += [ target ]
+  }
+}

@@ -1,0 +1,44 @@
+.\"	$OpenBSD: mvpinctrl.4,v 1.2 2019/05/11 15:44:23 patrick Exp $
+.\"
+.\" Copyright (c) 2018 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 11 2019 $
+.Dt MVPINCTRL 4
+.Os
+.Sh NAME
+.Nm mvpinctrl
+.Nd Marvell Armada pin multiplexing
+.Sh SYNOPSIS
+.Cd "mvpinctrl* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver uses pin control data from the device tree to configure the
+MPP pins on Marvell Armada SoCs.
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 6.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Patrick Wildt Aq Mt patrick@blueri.se
+and
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

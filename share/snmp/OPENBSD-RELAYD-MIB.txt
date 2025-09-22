@@ -1,0 +1,766 @@
+-- $OpenBSD: OPENBSD-RELAYD-MIB.txt,v 1.4 2025/05/07 19:08:52 pascal Exp $
+--
+-- Copyright (c) 2014 Bret Stephen Lambert <blambert@openbsd.org>
+--
+-- Permission to use, copy, modify, and distribute this software for any
+-- purpose with or without fee is hereby granted, provided that the above
+-- copyright notice and this permission notice appear in all copies.
+--
+-- THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+-- WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+-- MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+-- ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+-- WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+-- ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+-- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+--
+
+OPENBSD-RELAYD-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+	MODULE-IDENTITY, NOTIFICATION-TYPE, OBJECT-TYPE,
+	Counter64, Integer32, Gauge32, TimeTicks, enterprises
+		FROM SNMPv2-SMI
+
+	InetAddress, InetAddressType
+		FROM INET-ADDRESS-MIB
+
+	openBSD
+		FROM OPENBSD-BASE-MIB
+
+	MODULE-COMPLIANCE, OBJECT-GROUP
+		FROM SNMPv2-CONF;
+
+relaydMIBObjects MODULE-IDENTITY
+	LAST-UPDATED	"202505161916Z"
+	ORGANIZATION	"OpenBSD"
+	CONTACT-INFO	""
+	DESCRIPTION 	"The MIB module for gathering relayd status information"
+	REVISION	"202505161916Z"
+	DESCRIPTION	"Fix description of relay counters"
+	REVISION	"201510152116Z"
+	DESCRIPTION	"Add missing comma, and missing range restriction for
+	relaydSessionRelayIndex"
+	REVISION	"201510140000Z"
+	DESCRIPTION	"Correct typo in MODULE ID descriptor and OID value"
+	REVISION	"201403120000Z"
+	DESCRIPTION	"MIB describing relayd(8) information"
+	::= { openBSD 3 }
+
+relaydInfo		OBJECT IDENTIFIER ::= { relaydMIBObjects 2 }
+
+--
+-- "show redirects"
+--
+
+relaydRedirects OBJECT-TYPE
+	SYNTAX		SEQUENCE OF RelaydRedirectEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"A list of configured redirections"
+	::= { relaydInfo 1 }
+
+relaydRedirectEntry OBJECT-TYPE
+	SYNTAX		RelaydRedirectEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"An entry describing a configured redirection"
+	INDEX	{ relaydRedirectIndex }
+	::= { relaydRedirects 1 }
+
+RelaydRedirectEntry ::=
+	SEQUENCE {
+		relaydRedirectIndex	Integer32,
+		relaydRedirectStatus	INTEGER,
+		relaydRedirectName	OCTET STRING,
+		relaydRedirectCnt	Counter64,
+		relaydRedirectAvg	Gauge32,
+		relaydRedirectLast	Gauge32,
+		relaydRedirectAvgHour	Gauge32,
+		relaydRedirectLastHour	Gauge32,
+		relaydRedirectAvgDay	Gauge32,
+		relaydRedirectLastDay	Gauge32
+	}
+
+relaydRedirectIndex OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"A unique value, greater than zero, for each redirection"
+	::= { relaydRedirectEntry 1 }
+
+relaydRedirectStatus OBJECT-TYPE
+	SYNTAX		INTEGER { active(0), disabled(1), down(2), backup(3) }
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Denotes whether the redirection is active, administively disabled, down,
+	or configured as a backup"
+	::= { relaydRedirectEntry 2 }
+
+relaydRedirectName OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The name of the redirection"
+	::= { relaydRedirectEntry 3 }
+
+relaydRedirectCnt OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets passed via this redirect"
+	::= { relaydRedirectEntry 4 }
+
+relaydRedirectAvg OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Average number of packets passed via this redirect per statistics interval"
+	::= { relaydRedirectEntry 5 }
+
+relaydRedirectLast OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets passed via this redirect in the current statistics interval"
+	::= { relaydRedirectEntry 6 }
+
+relaydRedirectAvgHour OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Average number of packets passed via this redirect per hour"
+	::= { relaydRedirectEntry 7 }
+
+relaydRedirectLastHour OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets passed via this redirect in the previous hour"
+	::= { relaydRedirectEntry 8 }
+
+relaydRedirectAvgDay OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Average number of packets passed via this redirect per day"
+	::= { relaydRedirectEntry 9 }
+
+relaydRedirectLastDay OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets passed via this redirect in the previous day"
+	::= { relaydRedirectEntry 10 }
+
+--
+-- "show relays"
+--
+
+relaydRelays OBJECT-TYPE
+	SYNTAX		SEQUENCE OF RelaydRelayEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"A list of configured relays"
+	::= { relaydInfo 2 }
+
+relaydRelayEntry OBJECT-TYPE
+	SYNTAX		RelaydRelayEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"An entry describing a configured relay"
+	INDEX	{ relaydRelayIndex }
+	::= { relaydRelays 1 }
+
+RelaydRelayEntry ::=
+	SEQUENCE {
+		relaydRelayIndex	Integer32,
+		relaydRelayStatus	INTEGER,
+		relaydRelayName		OCTET STRING,
+		relaydRelayCnt		Counter64,
+		relaydRelayAvg		Gauge32,
+		relaydRelayLast		Gauge32,
+		relaydRelayAvgHour	Gauge32,
+		relaydRelayLastHour	Gauge32,
+		relaydRelayAvgDay	Gauge32,
+		relaydRelayLastDay	Gauge32
+	}
+
+relaydRelayIndex OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"A unique value, greater than zero, for each relay"
+	::= { relaydRelayEntry 1 }
+
+relaydRelayStatus OBJECT-TYPE
+	SYNTAX		INTEGER { active(0), disabled(1) }
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Indicates whether the relay is active or administratively disabled"
+	::= { relaydRelayEntry 2 }
+
+relaydRelayName	 OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The name of the relay"
+	::= { relaydRelayEntry 3 }
+
+relaydRelayCnt OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of packets passed via this relay"
+	::= { relaydRelayEntry 4 }
+
+relaydRelayAvg OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Average number of sessions created on this relay per statistics interval"
+	::= { relaydRelayEntry 5 }
+
+relaydRelayLast OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of sessions created on this relay in the current statistics interval"
+	::= { relaydRelayEntry 6 }
+
+relaydRelayAvgHour OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Average number of sessions created on this relay per hour"
+	::= { relaydRelayEntry 7 }
+
+relaydRelayLastHour OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of sessions created on this relay in the previous hour"
+	::= { relaydRelayEntry 8 }
+
+relaydRelayAvgDay OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Average number of sessions created on this relay per day"
+	::= { relaydRelayEntry 9 }
+
+relaydRelayLastDay OBJECT-TYPE
+	SYNTAX		Gauge32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of sessions created on this relay in the previous day"
+	::= { relaydRelayEntry 10 }
+
+--
+-- "show routers"
+--
+
+relaydRouters OBJECT-TYPE
+	SYNTAX		SEQUENCE OF RelaydRouterEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"A list of configured routers"
+	::= { relaydInfo 3 }
+
+relaydRouterEntry OBJECT-TYPE
+	SYNTAX		RelaydRouterEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"An entry describing the configured router"
+	INDEX	{relaydRouterIndex }
+	::= { relaydRouters 1 }
+
+RelaydRouterEntry ::=
+	SEQUENCE {
+		relaydRouterIndex	Integer32,
+		relaydRouterTableIndex	Integer32,
+		relaydRouterStatus	INTEGER,
+		relaydRouterName	OCTET STRING,
+		relaydRouterLabel	OCTET STRING,
+		relaydRouterRtable	INTEGER
+	}
+
+relaydRouterIndex OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"A unique value, greater than zero, for each router"
+	::= { relaydRouterEntry 1 }
+
+relaydRouterTableIndex OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Index of the Table entry under relaydTables which corresponds to this Router"
+	::= { relaydRouterEntry 2 }
+
+relaydRouterStatus OBJECT-TYPE
+	SYNTAX		INTEGER { active(0), disabled(1) }
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Indicates whether the Router is active or administratively disabled"
+	::= { relaydRouterEntry 3 }
+
+relaydRouterName OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Name of the Router"
+	::= { relaydRouterEntry 4 }
+
+relaydRouterLabel OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The PF label, if any, associated with this Router"
+	::= { relaydRouterEntry 5 }
+
+relaydRouterRtable OBJECT-TYPE
+	SYNTAX		INTEGER
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Rtable number associated with this Router"
+	::= { relaydRouterEntry 6 }
+
+--
+-- routing table entries connected to "router" objects
+--
+relaydNetRoutes OBJECT-TYPE
+	SYNTAX		SEQUENCE OF RelaydNetRouteEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"A list of configured network routes"
+	::= { relaydInfo 4 }
+
+relaydNetRouteEntry OBJECT-TYPE
+	SYNTAX		RelaydNetRouteEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"An entry describing the configured network route"
+	INDEX	{ relaydNetRouteIndex }
+	::= { relaydNetRoutes 1 }
+
+RelaydNetRouteEntry ::=
+	SEQUENCE {
+		relaydNetRouteIndex		Integer32,
+		relaydNetRouteAddr		InetAddress,
+		relaydNetRouteAddrType		InetAddressType,
+		relaydNetRoutePrefixLen		INTEGER,
+		relaydNetRouteRouterIndex	Integer32
+	}
+
+relaydNetRouteIndex OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"A unique value, greater than zero, for each NetRoute"
+	::= { relaydNetRouteEntry 1 }
+
+relaydNetRouteAddr OBJECT-TYPE
+	SYNTAX		InetAddress
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Network address portion of NetRoute"
+	::= { relaydNetRouteEntry 2 }
+
+relaydNetRouteAddrType OBJECT-TYPE
+	SYNTAX		InetAddressType
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Address family of NetRoute"
+	::= { relaydNetRouteEntry 3 }
+
+relaydNetRoutePrefixLen OBJECT-TYPE
+	SYNTAX		INTEGER
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Length of address prefix of NetRoute"
+	::= { relaydNetRouteEntry 4 }
+
+relaydNetRouteRouterIndex OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The index of the Router to which this NetRoute belongs"
+	::= { relaydNetRouteEntry 5 }
+
+--
+-- "show hosts"
+--
+
+relaydHosts OBJECT-TYPE
+	SYNTAX		SEQUENCE OF RelaydHostEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"A list of configured Host entries"
+	::= { relaydInfo 5 }
+
+relaydHostEntry OBJECT-TYPE
+	SYNTAX		RelaydHostEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"An entry describing the configured Host"
+	INDEX	{ relaydHostIndex }
+	::= { relaydHosts 1 }
+
+RelaydHostEntry ::=
+	SEQUENCE {
+		relaydHostIndex		Integer32,
+		relaydHostParentIndex	Integer32,
+		relaydHostTableIndex	Integer32,
+		relaydHostName		OCTET STRING,
+		relaydHostAddress	InetAddress,
+		relaydHostAddressType	InetAddressType,
+		relaydHostStatus	INTEGER,
+		relaydHostCheckCnt	Counter64,
+		relaydHostUpCnt		Counter64,
+		relaydHostErrno		INTEGER
+	}
+
+relaydHostIndex OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"A unique value, greater than zero, for each Host"
+	::= { relaydHostEntry 1 }
+
+relaydHostParentIndex OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Index of Host, if any, from which up/down state is inherited"
+	::= { relaydHostEntry 2 }
+
+relaydHostTableIndex OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Index of the Table to which this Host belongs"
+	::= { relaydHostEntry 3 }
+
+relaydHostName OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Name for Host"
+	::= { relaydHostEntry 4 }
+
+relaydHostAddress OBJECT-TYPE
+	SYNTAX		InetAddress
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Internet address for Host"
+	::= { relaydHostEntry 5 }
+
+relaydHostAddressType OBJECT-TYPE
+	SYNTAX		InetAddressType
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"IP address version for Host"
+	::= { relaydHostEntry 6 }
+
+relaydHostStatus OBJECT-TYPE
+	SYNTAX		INTEGER { up(0), disabled(1), down(2), unknown(3) }
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Availability of Host"
+	::= { relaydHostEntry 7 }
+
+relaydHostCheckCnt OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of times the status of Host has been checked"
+	::= { relaydHostEntry 8 }
+
+relaydHostUpCnt OBJECT-TYPE
+	SYNTAX		Counter64
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Number of status checks for Host in which host has been up"
+	::= { relaydHostEntry 9 }
+
+relaydHostErrno OBJECT-TYPE
+	SYNTAX		INTEGER {
+		none(0),
+                abort(1),
+                intervalTimeout(2),
+                icmpOk(3),
+                icmpReadTimeout(4),
+                icmpWriteTimeout(5),
+                tcpSocketError(6),
+                tcpSocketLimit(7),
+                tcpSocketOption(8),
+                tcpConnectFail(9),
+                tcpConnectTimeout(10),
+                tcpConnectOk(11),
+                tcpWriteTimeout(12),
+                tcpWriteFail(13),
+                tcpReadTimeout(14),
+                tcpReadFail(15),
+                scriptOk(16),
+                scriptFail(17),
+                sslConnectError(18),
+                sslConnectFail(19),
+                sslConnectOk(20),
+                sslConnectTimeout(21),
+                sslReadTimeout(22),
+                sslWriteTimeout(23),
+                sslReadError(24),
+                sslWriteError(25),
+                sendExpectFail(26),
+                sendExpectOk(27),
+                httpCodeError(28),
+                httpCodeFail(29),
+                httpCodeOk(30),
+                httpDigestError(31),
+                httpDigestFail(32),
+                httpDigestOk(33)
+	}
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Error number for Host"
+	::= { relaydHostEntry 10 }
+
+--
+-- "show sessions"
+--
+
+relaydSessions OBJECT-TYPE
+	SYNTAX		SEQUENCE OF RelaydSessionEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"A list of active Sessions"
+	::= { relaydInfo 6 }
+
+relaydSessionEntry OBJECT-TYPE
+	SYNTAX		RelaydSessionEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"An entry describing the active Session"
+	INDEX	{ relaydSessionRelayIndex,
+		  relaydSessionIndex }
+	::= { relaydSessions 1 }
+
+RelaydSessionEntry ::=
+	SEQUENCE {
+		relaydSessionIndex		Integer32,
+		relaydSessionRelayIndex		Integer32,
+		relaydSessionInAddr		InetAddress,
+		relaydSessionInAddrType		InetAddressType,
+		relaydSessionOutAddr		InetAddress,
+		relaydSessionOutAddrType	InetAddressType,
+		relaydSessionPortIn		INTEGER,
+		relaydSessionPortOut		INTEGER,
+		relaydSessionAge		TimeTicks,
+		relaydSessionIdle		TimeTicks,
+		relaydSessionStatus		INTEGER,
+		relaydSessionPid		INTEGER
+	}
+
+relaydSessionIndex OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"A unique value, greater than zero, for each Session"
+	::= { relaydSessionEntry 1 }
+
+relaydSessionRelayIndex OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The index of the Relay to which this Session belongs"
+	::= { relaydSessionEntry 2 }
+
+relaydSessionInAddr OBJECT-TYPE
+	SYNTAX		InetAddress
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Incoming address of this Session"
+	::= { relaydSessionEntry 3 }
+
+relaydSessionInAddrType OBJECT-TYPE
+	SYNTAX		InetAddressType
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Incoming address family of this Session"
+	::= { relaydSessionEntry 4 }
+
+relaydSessionOutAddr OBJECT-TYPE
+	SYNTAX		InetAddress
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Outgoing address of this Session"
+	::= { relaydSessionEntry 5 }
+
+relaydSessionOutAddrType OBJECT-TYPE
+	SYNTAX		InetAddressType
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Outgoing address family of this Session"
+	::= { relaydSessionEntry 6 }
+
+relaydSessionPortIn OBJECT-TYPE
+	SYNTAX		INTEGER
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Incoming port of this Session"
+	::= { relaydSessionEntry 7 }
+
+relaydSessionPortOut OBJECT-TYPE
+	SYNTAX		INTEGER
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Outgoing port of this Session"
+	::= { relaydSessionEntry 8 }
+
+relaydSessionAge OBJECT-TYPE
+	SYNTAX		TimeTicks
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Age of this Session"
+	::= { relaydSessionEntry 9 }
+
+relaydSessionIdle OBJECT-TYPE
+	SYNTAX		TimeTicks
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Idle time of this Session"
+	::= { relaydSessionEntry 10 }
+
+relaydSessionStatus OBJECT-TYPE
+	SYNTAX		INTEGER { running(0), done(1) }
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Status of this Session"
+	::= { relaydSessionEntry 11 }
+
+relaydSessionPid OBJECT-TYPE
+	SYNTAX		INTEGER
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Process ID of process which is handling this Session"
+	::= { relaydSessionEntry 12 }
+
+--
+-- referenced via the "show" commands
+--
+relaydTables OBJECT-TYPE
+	SYNTAX		SEQUENCE OF RelaydTableEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"A list of configured host tables"
+	::= { relaydInfo 7 }
+
+relaydTableEntry OBJECT-TYPE
+	SYNTAX		RelaydTableEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	"An entry describing the host table"
+	INDEX	{ relaydTableIndex }
+	::= { relaydTables 1 }
+
+RelaydTableEntry ::=
+	SEQUENCE {
+		relaydTableIndex	Integer32,
+		relaydTableName		OCTET STRING,
+		relaydTableStatus	INTEGER
+	}
+
+relaydTableIndex OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"A unique value, greater than zero, for each table"
+	::= { relaydTableEntry 1 }
+
+relaydTableName OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"The name of the table"
+	::= { relaydTableEntry 2 }
+
+relaydTableStatus OBJECT-TYPE
+	SYNTAX		INTEGER { active(0), empty(1), disabled(2) }
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	"Indicates the state of use of the table"
+	::= { relaydTableEntry 3 }
+
+END

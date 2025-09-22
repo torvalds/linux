@@ -1,0 +1,113 @@
+.\"	$OpenBSD: gsc.4,v 1.27 2011/12/21 23:12:03 miod Exp $
+.\"
+.\"
+.\" Copyright (c) 1999 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 21 2011 $
+.Dt GSC 4 hppa
+.Os
+.Sh NAME
+.Nm gsc
+.Nd introduction to HP 9000/700 GSC bus support
+.Sh SYNOPSIS
+.Cd "gsc* at lasi?"
+.Cd "gsc* at asp?"
+.Cd "gsc* at wax?"
+.Sh DESCRIPTION
+The General System Connect (GSC) bus
+is the core I/O bus for all HP 9000/700 workstations.
+All I/O subsystems connect to this bus.
+The devices can be either on separate chips, expansion
+cards or on an integrated megacell, like the LASI MBA.
+.Pp
+The
+.Tn GSC
+bus is a 32-bit wide, address and data multiplexed bus.
+In its "standard" implementation it has a maximum throughput of 160MB/s,
+the "2x" implementation reaches up to 250MB/s.
+Some HPPA CPUs directly attach to this bus, namely the PA7100LC and PA7300LC.
+.Pp
+As for the expansion cards, there are different form-factors, depending on
+bus-speed (standard or 2x) and specific models.
+The standard formfactor is the "EISA form-factor"; cards that look like
+typical EISA cards with a different connector (100-pin female EBBL).
+The Series 712 have their own special type
+of GSC expansion cards, called the "GIO form-factor", which is quite small and
+mostly has only one VLSI chip on it (in most cases LASI/WAX).
+Newer systems sometimes feature the "HSC formfactor", which is a 1U-VME
+card-like expansion card with a 100-pin male pin+socket connector.
+Mixing cards with different speeds is supported but downgrades
+the performance of the whole I/O-subsystem.
+.Pp
+.Ox
+provides support for the following devices:
+.Pp
+.Bl -tag -width 12n -offset indent -compact
+.It Xr arcofi 4
+Siemens PSB2160 audio codec
+.It Xr com 4
+serial communications interface
+.It Xr gsckbc 4
+PC-style keyboard controller
+.It Xr harmony 4
+CS4215/AD1849 audio
+.It Xr hil 4
+introduction to HP-HIL support
+.It Xr ie 4
+Intel i82596 Ethernet device
+.It Xr lpt 4
+parallel port driver
+.It Xr oosiop 4
+.Tn Symbios/NCR
+53C700 SCSI I/O Processor
+.It Xr osiop 4
+.Tn Symbios/NCR
+53C710 SCSI I/O Processor
+.El
+.Pp
+Some of these
+.Tn GSC
+devices also have
+.Tn PCI ,
+.Tn EISA ,
+or
+.Tn ISA
+equivalents.
+These are listed in
+.Xr pci 4 ,
+.Xr eisa 4 ,
+or
+.Xr isa 4 .
+.Sh SEE ALSO
+.Xr asp 4 ,
+.Xr cpu 4 ,
+.Xr intro 4 ,
+.Xr lasi 4 ,
+.Xr wax 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Ox 2.6 .

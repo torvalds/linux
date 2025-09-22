@@ -1,0 +1,41 @@
+# Redefine the %{global:greeting} parameter of %{global:echo} before using it.
+# The necessary expansion order was established in the test suite config
+# (%{global:echo} before %{global:greeting}), and redefining the parameter
+# doesn't change that expansion order.  That order would be reversed if
+# %{global:greeting} were handled as a new substitution, preventing full
+# expansion.
+#
+# REDEFINE: %{global:greeting}=Hello
+# RUN: %{global:echo}
+# CHECK:# | GLOBAL: Hello World
+
+# We can redefine the test suite config's substitutions multiple times.  Again,
+# the expansion order remains the same (%{global:echo} before %{global:greeting}
+# before %{global:what}) but would be reversed if these were handled as new
+# substitutions, preventing full expansion.
+#
+# REDEFINE: %{global:greeting}=Goodbye %{global:what}
+# REDEFINE: %{global:what}=Sleep
+# RUN: %{global:echo}
+# CHECK:# | GLOBAL: Goodbye Sleep Sleep
+
+# A new local substitution is prepended to the substitution list so that it can
+# depend on all substitutions that were defined previously, including those from
+# the test suite config.
+#
+# DEFINE: %{local:greeting}=Hey %{global:what}
+# DEFINE: %{local:echo}=echo "LOCAL: %{local:greeting} %{global:what}"
+# RUN: %{local:echo}
+# CHECK:# | LOCAL: Hey Sleep Sleep
+
+# As for substitutions from the test suite config, redefining local
+# substitutions should not change the expansion order.  Again, the expansion
+# order would be reversed if these were instead handled as new substitutions,
+# preventing full expansion.
+#
+# REDEFINE: %{local:greeting}=So Long %{global:what}
+# REDEFINE: %{global:what}=World
+# RUN: %{local:echo}
+# CHECK:# | LOCAL: So Long World World
+
+# CHECK: Passed: 1 {{\([0-9]*.[0-9]*%\)}}

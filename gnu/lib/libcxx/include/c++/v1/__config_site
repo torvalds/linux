@@ -1,0 +1,57 @@
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP___CONFIG_SITE
+#define _LIBCPP___CONFIG_SITE
+
+#define _LIBCPP_ABI_VERSION 1
+#define _LIBCPP_ABI_NAMESPACE __1
+/* #undef _LIBCPP_ABI_FORCE_ITANIUM */
+/* #undef _LIBCPP_ABI_FORCE_MICROSOFT */
+/* #undef _LIBCPP_HAS_NO_THREADS */
+/* #undef _LIBCPP_HAS_NO_MONOTONIC_CLOCK */
+/* #undef _LIBCPP_HAS_MUSL_LIBC */
+/* #undef _LIBCPP_HAS_THREAD_API_PTHREAD */
+/* #undef _LIBCPP_HAS_THREAD_API_EXTERNAL */
+/* #undef _LIBCPP_HAS_THREAD_API_WIN32 */
+/* #undef _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS */
+#define _LIBCPP_HAS_NO_VENDOR_AVAILABILITY_ANNOTATIONS
+/* #undef _LIBCPP_NO_VCRUNTIME */
+/* #undef _LIBCPP_TYPEINFO_COMPARISON_IMPLEMENTATION */
+/* #undef _LIBCPP_HAS_NO_FILESYSTEM */
+/* #undef _LIBCPP_HAS_NO_RANDOM_DEVICE */
+/* #undef _LIBCPP_HAS_NO_LOCALIZATION */
+/* #undef _LIBCPP_HAS_NO_UNICODE */
+/* #undef _LIBCPP_HAS_NO_WIDE_CHARACTERS */
+/* #undef _LIBCPP_HAS_NO_STD_MODULES */
+/* #undef _LIBCPP_HAS_NO_TIME_ZONE_DATABASE */
+/* #undef _LIBCPP_INSTRUMENTED_WITH_ASAN */
+
+
+// PSTL backends
+/* #undef _LIBCPP_PSTL_CPU_BACKEND_SERIAL */
+#define _LIBCPP_PSTL_CPU_BACKEND_THREAD
+/* #undef _LIBCPP_PSTL_CPU_BACKEND_LIBDISPATCH */
+
+// Hardening.
+#define _LIBCPP_HARDENING_MODE_DEFAULT 2
+
+// __USE_MINGW_ANSI_STDIO gets redefined on MinGW
+#ifdef __clang__
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wmacro-redefined"
+#endif
+
+
+
+
+#ifdef __clang__
+#  pragma clang diagnostic pop
+#endif
+
+#endif // _LIBCPP___CONFIG_SITE

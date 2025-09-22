@@ -1,0 +1,55 @@
+Date: Sun, 12 May 2002 17:12:53 -0500 (CDT)
+From: Chris Lattner <sabre@nondot.org>
+To: "Vikram S. Adve" <vadve@cs.uiuc.edu>
+Subject: LLVM change
+
+There is a fairly fundemental change that I would like to make to the LLVM 
+infrastructure, but I'd like to know if you see any drawbacks that I 
+don't...
+
+Basically right now at the basic block level, each basic block contains an 
+instruction list (returned by getInstList()) that is a ValueHolder of 
+instructions.  To iterate over instructions, we must actually iterate over 
+the instlist, and access the instructions through the instlist.
+
+To add or remove an instruction from a basic block, we need to get an 
+iterator to an instruction, which, given just an Instruction*, requires a 
+linear search of the basic block the instruction is contained in... just 
+to insert an instruction before another instruction, or to delete an 
+instruction!  This complicates algorithms that should be very simple (like 
+simple constant propagation), because they aren't actually sparse anymore,
+they have to traverse basic blocks to remove constant propogated 
+instructions.
+
+Additionally, adding or removing instructions to a basic block 
+_invalidates all iterators_ pointing into that block, which is really 
+irritating.
+
+To fix these problems (and others), I would like to make the ordering of
+the instructions be represented with a doubly linked list in the
+instructions themselves, instead of an external data structure.  This is 
+how many other representations do it, and frankly I can't remember why I 
+originally implemented it the way I did.
+
+Long term, all of the code that depends on the nasty features in the 
+instruction list (which can be found by grep'ing for getInstList()) will 
+be changed to do nice local transformations.  In the short term, I'll 
+change the representation, but preserve the interface (including 
+getInstList()) so that all of the code doesn't have to change.
+
+Iteration over the instructions in a basic block remains the simple:
+for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I) ...
+
+But we will also support:
+for (Instruction *I = BB->front(); I; I = I->getNext()) ...
+
+After converting instructions over, I'll convert basic blocks and 
+functions to have a similar interface.
+
+The only negative aspect of this change that I see is that it increases 
+the amount of memory consumed by one pointer per instruction.  Given the 
+benefits, I think this is a very reasonable tradeoff. 
+
+What do you think?
+
+-Chris

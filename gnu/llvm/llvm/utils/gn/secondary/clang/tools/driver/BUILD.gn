@@ -1,0 +1,102 @@
+import("//llvm/utils/gn/build/driver_executable.gni")
+import("//llvm/utils/gn/build/symlink_or_copy.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+import("//llvm/version.gni")
+
+symlinks = [
+  # target_name, symlink_target pairs: GN doesn't support '+' in rule names.
+  [
+    "clangxx",
+    "clang++",
+  ],
+  [
+    "clang-cl",
+    "clang-cl",
+  ],
+  [
+    "clang-cpp",
+    "clang-cpp",
+  ],
+]
+foreach(target, symlinks) {
+  symlink_or_copy(target[0]) {
+    deps = [ ":clang" ]
+    source = "clang"
+    output = "$root_out_dir/bin/${target[1]}"
+  }
+}
+
+# //:clang depends on this symlink target, see comment in //BUILD.gn.
+group("symlinks") {
+  deps = [ ":clang" ]
+  foreach(target, symlinks) {
+    deps += [ ":${target[0]}" ]
+  }
+}
+
+if (host_os == "mac") {
+  write_cmake_config("write_info_plist") {
+    input = "Info.plist.in"
+    output = "$target_gen_dir/Info.plist"
+    values = [
+      "TOOL_INFO_BUILD_VERSION=$llvm_version_major.$llvm_version_minor",
+      "TOOL_INFO_NAME=clang",
+      "TOOL_INFO_UTI=org.llvm.clang",
+      "TOOL_INFO_VERSION=$llvm_version",
+    ]
+  }
+}
+
+driver_executable("clang") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/include/clang/Config",
+    "//clang/lib/Basic",
+    "//clang/lib/CodeGen",
+    "//clang/lib/Driver",
+    "//clang/lib/Frontend",
+    "//clang/lib/FrontendTool",
+    "//clang/lib/Headers",
+    "//clang/tools/clang-linker-wrapper",
+    "//clang/tools/clang-nvlink-wrapper",
+    "//clang/tools/clang-offload-bundler",
+    "//clang/tools/clang-offload-packager",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/IPO",
+    "//llvm/lib/Transforms/InstCombine",
+    "//llvm/lib/Transforms/Instrumentation",
+    "//llvm/lib/Transforms/ObjCARC",
+    "//llvm/lib/Transforms/Scalar",
+    "//llvm/lib/Transforms/Utils",
+    "//llvm/lib/Transforms/Vectorize",
+  ]
+  assert_no_deps = [ "//llvm/lib/Debuginfod" ]
+  if (host_os == "mac") {
+    deps += [ ":write_info_plist" ]
+    plist = get_target_outputs(":write_info_plist")
+    ldflags = [ "-Wl,-sectcreate,__TEXT,__info_plist," +
+                rebase_path(plist[0], root_out_dir) ]
+
+    # On macOS, libcxx headers are bundled with the compiler, not with the
+    # sysroot. As a convenience, automatically copy them over when buildling
+    # clang.  This is different from the CMake build, which requires devs to
+    # explicitly build the "libcxx" target (which also needlessly compiles the
+    # libcxx sources) to get a working compiler.
+    deps += [ "//libcxx/include:copy_headers" ]
+  }
+  sources = [
+    "cc1_main.cpp",
+    "cc1as_main.cpp",
+    "cc1gen_reproducer_main.cpp",
+    "driver.cpp",
+  ]
+}

@@ -1,0 +1,18 @@
+executable("clang-extdef-mapping") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/CrossTU",
+    "//clang/lib/Frontend",
+    "//clang/lib/Index",
+    "//clang/lib/Tooling",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsAsmParsers",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsInfos",
+  ]
+  sources = [ "ClangExtDefMapGen.cpp" ]
+}

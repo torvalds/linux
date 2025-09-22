@@ -1,0 +1,64 @@
+.\"	$OpenBSD: BN_set_negative.3,v 1.7 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_SET_NEGATIVE 3
+.Os
+.Sh NAME
+.Nm BN_set_negative ,
+.Nm BN_is_negative
+.Nd change and inspect the sign of a BIGNUM
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft void
+.Fo BN_set_negative
+.Fa "BIGNUM *b"
+.Fa "int n"
+.Fc
+.Ft int
+.Fo BN_is_negative
+.Fa "const BIGNUM *b"
+.Fc
+.Sh DESCRIPTION
+.Fn BN_set_negative
+sets
+.Fa b
+to negative if both
+.Fa b
+and
+.Fa n
+are non-zero, otherwise it sets it to positive.
+.Pp
+.Fn BN_is_negative
+tests the sign of
+.Fa b .
+.Sh RETURN VALUES
+.Fn BN_is_negative
+returns 1 if
+.Fa b
+is negative or 0 otherwise.
+.Sh SEE ALSO
+.Xr BN_add 3 ,
+.Xr BN_new 3 ,
+.Xr BN_set_bit 3 ,
+.Xr BN_zero 3
+.Sh HISTORY
+.Fn BN_set_negative
+and
+.Fn BN_is_negative
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .

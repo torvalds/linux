@@ -1,0 +1,362 @@
+.\"	$OpenBSD: tradcpp.1,v 1.5 2018/09/02 08:28:05 jsg Exp $
+.\"
+.\" Copyright (c) 2013 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by David A. Holland.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 2 2018 $
+.Dt TRADCPP 1
+.Os
+.Sh NAME
+.Nm tradcpp
+.Nd traditional (K&R-style) C macro preprocessor
+.Sh SYNOPSIS
+.Nm tradcpp
+.Op Fl options
+.Op Ar input-file Op Ar output-file
+.Sh DESCRIPTION
+The
+.Nm
+command provides a traditional K&R-style C macro preprocessor.
+It is intended to be suitable for historical Unix uses of the
+preprocessor, such as
+.Sy imake ,
+particularly those that depend on preservation of whitespace.
+.Pp
+The chief ways in which traditional cpp differs from
+Standard C are:
+.Bl -bullet -offset indent
+.It
+Macro arguments are expanded within quoted strings.
+There is no stringize operator.
+.It
+There is no token pasting operator; tokens can be concatenated by
+placing comments between them.
+This process is also not limited to valid C language tokens.
+.It
+Whitespace is preserved, and in particular tabs are not expanded into
+spaces.
+Furthermore, additional whitespace is not injected.
+.El
+.Sh OPTIONS
+.Nm
+has many options, many of which are defined for compatibility with
+.Xr gcc 1
+or other compilers.
+Many of the options are not yet implemented.
+.\" The option lists have been sorted in what I hope is a sensible
+.\" order. Please don't arbitrarily alphabetize them.
+.Ss Common Options
+.Bl -tag -width bubblebabble
+.It Fl C
+Retain comments in output.
+.It Fl Dmacro[=expansion]
+Provide a definition for the named macro.
+If no expansion is provided, the value
+.Dq 1
+is used.
+Note that like many Unix compilers,
+.Nm
+does not accept a space between the
+.Dq D
+and the macro name.
+.It Fl Ipath
+Add the specified path to the main list of include directories.
+Note that like many Unix compilers,
+.Nm
+does not accept a space between the
+.Dq I
+and the directory name.
+.It Fl nostdinc
+Do not search the standard system include directories.
+.It Fl P
+Suppress line number information in the output.
+Currently line number information is not generated at all and this
+option has no effect.
+.It Fl Umacro
+Remove any existing definition for the named macro.
+Note that like many Unix compilers,
+.Nm
+does not accept a space between the
+.Dq U
+and the macro name.
+.It Fl undef
+Remove all predefined macros.
+.El
+.Ss Warning Options
+Warning options can be disabled or enabled by inserting, or not, the
+string
+.Dq no-
+between the
+.Dq W
+and the warning name.
+Herein the
+.Dq Fl Wno-
+form is shown for options that are enabled by default.
+.Bl -tag -width bubblebabble
+.It Fl Wall
+Turn on all warnings.
+The option
+.Fl Wno-all
+disables only the warnings that are disabled by default.
+.It Fl w
+Turn off all warnings.
+.It Fl Werror
+Make warnings into fatal errors.
+.It Fl Wcomment
+Warn about nested comments.
+.It Fl Wno-endif-labels
+Don't warn about symbols attached to #endif directives.
+(The warning is currently not implemented.)
+.It Fl Wundef
+Warn about undefined symbols appearing in #if and #elif expressions.
+.It Fl Wunused-macros
+Warn about macros that are defined and never used.
+Not implemented.
+.El
+.Ss Depend Options
+.Bl -tag -width bubblebabble
+.It Fl M
+Generate dependency information for
+.Xr make 1
+on the standard output, instead of preprocessing.
+Not implemented.
+.It Fl MD
+Like
+.Fl M
+but skip system headers.
+Not implemented.
+.It Fl MM
+Like
+.Fl M
+but write the dependency information to a file named after the input
+file with extension
+.Pa \.d
+and preprocess normally to standard output.
+Not implemented.
+.It Fl MMD
+Like
+.Fl MM
+but skip system headers.
+Not implemented.
+.It Fl MF Ar file
+Send dependency output to the named file instead of the default
+location.
+Not implemented.
+.It Fl MG
+When generating dependency information, assume that missing files are
+generated instead of failing.
+Not implemented.
+.It Fl MP
+Issue dummy rules for all include files.
+This prevents
+.Xr make 1
+from choking if an include file is removed.
+Not implemented.
+.It Fl MQ Ar target
+Same as
+.Fl MT
+except that any
+.Xr make 1
+metacharacters appearing in the target are escaped.
+.It Fl MT Ar target
+Set the name of the
+.Xr make 1
+target appearing in the generated dependency information.
+The default is the name of the input file with its suffix replaced
+with the suffix for object files, normally
+.Pa .o .
+.\" If this option is given more than once, all named targets will
+.\" be emitted.
+.\" (The current operating mode framework doesn't support that.)
+.El
+.Ss More Include Path Options
+.Bl -tag -width bubblebabble
+.It Fl idirafter Ar path
+Add the specified path to the
+.Dq afterwards
+include path.
+This path is searched after all directories specified with
+.Fl I
+and the standard system directories.
+Directories on this path are treated as containing system include
+files.
+.It Fl imacros Ar file
+Read in
+.Ar file
+prior to reading the main input file, and preprocess it, but throw
+away the output and retain only the macro definitions.
+.It Fl include Ar file
+Read in and preprocess
+.Ar file
+prior to reading the main input file.
+.It Fl iprefix Ar prefix
+Set the path prefix used with the
+.Fl iwithprefix
+option.
+.It Fl iquote Ar path
+Add
+.Ar path
+to the list of directories searched for include directives written
+with quotes.
+This list is not searched for include directives written with angle
+brackets.
+.It Fl iremap Ar string:replacement
+Substitute
+.Ar replacement
+for
+.Ar string
+in the
+.Dv __FILE__
+built-in macro.
+Not supported.
+.It Fl isysroot Ar path
+Use
+.Ar path
+as the
+.Dq system root ,
+that is, the directory under which the standard system paths are found.
+.It Fl isystem Ar path
+Add
+.Ar path
+to the list of system include directories.
+This list is searched after the list given with
+.Ar I .
+Files found on this path are treated as system headers.
+.It Fl iwithprefix Ar dir
+Splice
+.Ar dir
+onto the prefix given with
+.Fl iprefix
+and add this directory as if it were specified with
+.Fl idirafter .
+.It Fl iwithprefixbefore Ar dir
+Like
+.Fl iwithprefix
+but adds the result as if it were specified with
+.Fl I .
+.El
+.Ss Diagnostic Options
+.Bl -tag -width bubblebabble
+.It Fl debuglog Ar file
+Write a trace of actions and operations to
+.Ar file
+as the input is processed.
+Meant for debugging problems in complex substitution schemes fed to
+.Nm ,
+such as those used by
+.Sy imake .
+.It Fl dD
+Dump all macro definitions, except for the predefined macros, after
+the normal preprocessing output.
+Not implemented.
+.It Fl dI
+Dump all include directives along with the normal preprocessing
+output.
+Not implemented.
+.It Fl dM
+Dump all macro definitions instead of the normal preprocessing
+output.
+Not implemented.
+.It Fl dN
+Like
+.Fl dD
+but emits only macro names and not the expansions.
+Not implemented.
+.It Fl H
+Output a trace of the include tree as it gets processed.
+Not implemented.
+.El
+.Ss Other Options
+.Bl -tag -width bubblebabble
+.It Fl CC
+Retain comments in output.
+Same as
+.Fl C ,
+accepted for compatibility with
+.Xr gcc 1 .
+.It Fl fdollars-in-identifiers , Fl fno-dollars-in-identifiers
+Enable
+.Pq or disable, respectively
+the use of the dollar sign in identifiers.
+Not implemented.
+.It Fl ftabstop=num
+Set the tab width to the specified value, for reporting column
+positions in diagnostics.
+The default is 8.
+Not implemented.
+.It Fl std=standard
+Ask
+.Nm
+to conform to the named standard.
+The default, and the only supported value, is
+.Dq krc .
+.It Fl traditional
+This option is accepted for compatibility with
+.Xr gcc 1
+and ignored.
+.It Fl x Ar lang
+Adjust the preprocessor for the given language.
+The only values accepted for
+.Ar lang
+are
+.Dq assembler-with-cpp
+and
+.Dq c ,
+neither of which have any effect on the behavior of
+.Nm .
+.El
+.Sh FILES
+The default list of directories searched for include files is:
+.Bl -item -offset indent -compact
+.It
+.Pa /usr/local/include
+.It
+.Pa /usr/include
+.El
+.Sh SEE ALSO
+.Xr cc 1 ,
+.Xr cpp 1 ,
+.Xr make 1
+.Sh STANDARDS
+None.
+The whole point of a traditional cpp is that it reflects practices
+in pre-standardization implementations of C.
+Some information is available from the first edition of Kernighan and
+Ritchie.
+Much of the rest of the behavior is based on lore, pragmatism,
+material encountered in the wild, and comparison to other
+implementations.
+.Sh HISTORY
+The original version of
+.Nm
+was written one evening in late 2010.
+This version had some problems and was put aside.
+The first working version was released in June 2013.
+.\" .Sh AUTHORS
+.\" .An David A. Holland
+.Sh BUGS
+Probably plenty.

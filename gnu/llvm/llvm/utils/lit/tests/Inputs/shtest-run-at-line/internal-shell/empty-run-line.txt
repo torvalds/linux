@@ -1,0 +1,3 @@
+# DEFINE: %{empty} =
+# RUN: %{empty}
+# RUN: false

@@ -1,0 +1,134 @@
+.\"	$OpenBSD: lasi.4,v 1.27 2018/06/18 06:06:52 jmc Exp $
+.\"
+.\"
+.\" Copyright (c) 1999 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 18 2018 $
+.Dt LASI 4 hppa
+.Os
+.Sh NAME
+.Nm lasi
+.Nd core bus controller and I/O subsystem as present on newer HP 9000/700 \
+workstations and single-board computers
+.Sh SYNOPSIS
+.Cd "lasi0   at mainbus? irq 28"
+.Cd "lasi0   at phantomas? irq 28"
+.Cd "lasi0   at uturn? irq 28"
+.Cd "gsc* at lasi?"
+.Sh DESCRIPTION
+The supported Core bus controllers are those used in conjunction with
+.Tn PA7100LC
+and
+.Tn PA7300LC
+CPUs and based upon LSI's macrochip that includes:
+.Pp
+.Bl -bullet -compact
+.It
+Core bus controller
+.It
+System clock
+.It
+Interrupt controller
+.It
+Real-time clock Interface
+.It
+Power system support
+.It
+RAM and Flash EEPROM controllers
+.It
+Two PS/2 ports
+.It
+RS-232 and Centronics I/O ports
+.It
+i82596CA LAN coprocessor
+.It
+NCR53c710 SCSI I/O processor
+.It
+Serial Interface for the CS4216 audio codec
+.It
+Interface for the WD37C65C floppy drive controller
+.It
+Optional telephone interface (two fax/voice modem channels)
+.El
+.Sh MACHINES
+An incomplete list of machines that use the
+.Tn LASI
+bus controller:
+.Pp
+.Bl -bullet -compact
+.It
+712/*
+.It
+715/{64/80/100}[XC]
+.It
+725/{64/80/100}
+.It
+743/*
+.It
+744/*
+.It
+745/*
+.It
+A180[C]
+.It
+B132L[+], B160L, B180L+
+.It
+C100, C110, J200, J210[XC]
+.It
+RDI PrecisionBook
+.It
+SAIC Galaxy 1100
+.El
+.Sh SEE ALSO
+.Xr asp 4 ,
+.Xr gsc 4 ,
+.Xr intro 4 ,
+.Xr io 4 ,
+.Xr phantomas 4 ,
+.Xr power 4 ,
+.Xr uturn 4 ,
+.Xr wax 4
+.Rs
+.%T "Precision I/O Architecture Reference Specification"
+.%Q Hewlett-Packard
+.Re
+.Rs
+.%T "712 I/O Subsystem ERS"
+.%N Revision 1.1
+.%D 12 February 1993
+.%Q Hewlett-Packard
+.%O Dwg No. A-A2263-66510-31
+.Re
+.Rs
+.%J Hewlett-Packard Journal
+.%D April 1995
+.%V Volume 46
+.%N Number 2
+.Re
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Ox 2.4 .

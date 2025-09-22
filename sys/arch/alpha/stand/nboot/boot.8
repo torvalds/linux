@@ -1,0 +1,241 @@
+.\"	$OpenBSD: boot.8,v 1.3 2024/11/05 09:42:48 miod Exp $
+.\"
+.\" Copyright (c) 1997-2001 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR OR HIS RELATIVES BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF MIND, USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: November 5 2024 $
+.Dt BOOT 8 alpha
+.Os
+.Sh NAME
+.Nm boot ,
+.Nm boot.conf
+.Nd alpha-specific bootstrap
+.Sh DESCRIPTION
+The main purpose of this program is to load the system kernel.
+.Pp
+As described in
+.Xr boot_alpha 8 ,
+this program is loaded by the SRM firmware
+and provides a convenient way to load the kernel.
+This program acts as an enhanced boot monitor for alpha systems, providing
+a common interface for the kernel to start from.
+.Pp
+Basic operations include:
+.Pp
+.Bl -bullet -compact
+.It
+Loading kernels from hard disk.
+.It
+Loading kernels compressed by
+.Xr gzip 1 .
+.It
+Providing an interactive command line.
+.El
+.Pp
+The sequence of its operation is as follows: initialization,
+parsing the configuration file, then an interactive command line.
+While at the command line you have 5 seconds to type any commands, if needed.
+If time expires, the kernel will be loaded according to
+the current variable settings (see the
+.Ic set
+command).
+If the kernel load fails, a second attempt is made with the timeout increased
+by one second.
+The sequence of
+.Nm
+operations is as follows:
+.Bl -enum
+.It
+If the file
+.Pa /etc/boot.conf
+exists on the filesystem in slice
+.Sq a
+on the disk
+.Nm
+was loaded from, open and parse it.
+Lines beginning with the
+.Sq #
+character,
+as well as whitespace at the beginning of lines,
+are ignored.
+The file may contain any commands
+.Nm
+accepts at the interactive prompt.
+Though default settings usually suffice, they can be changed here.
+.It
+The header line
+.Pp
+.Dl >> OpenBSD/alpha BOOT [x.xx]
+.Pp
+is displayed to the active console, where
+.Ar x.xx
+is the version number of the
+.Nm
+program, followed by the
+.Pp
+.Dl boot>
+.Pp
+prompt, which means you are in interactive mode and may enter commands.
+If you do not,
+.Nm
+will proceed to load the kernel with the current parameters after the
+timeout period has expired.
+.El
+.Pp
+By default,
+.Nm
+attempts to load the kernel executable specified in the SRM environment
+variable
+.Em boot_file ,
+defaulting to
+.Pa /bsd
+if not set.
+If it fails to find the kernel and no alternative kernel image has
+been specified, the system will be unable to boot.
+.Sh COMMANDS
+The following commands are accepted at the
+.Nm
+prompt:
+.Bl -tag -width shorten
+.It Ic boot Oo Ns Ar image Oc Op Fl cdns
+Boots the specified kernel image with any options given.
+If
+.Ar image
+is omitted, values from the
+.Nm
+variables will be used.
+.Bl -tag -width _a_
+.\" XXX Consider documenting -a as silently doing nothing, accepted for
+.\" XXX compatibility purpose (since multiuser boot is the default).
+.It Fl c
+Causes the kernel to go into
+.Xr boot_config 8
+before performing
+.Xr autoconf 4
+procedures.
+.It Fl d
+Causes the kernel to drop into
+.Xr ddb 4
+at the earliest convenient point.
+.It Fl n
+Causes the kernel to ask for the
+.Nm root
+device to use.
+.It Fl s
+Causes the kernel to boot single-user.
+.El
+.It Ic echo Op Ar args
+Displays
+.Ar args
+on the console device.
+.It Ic help
+Prints a list of available commands.
+.It Ic hexdump Ar addr size
+Show
+.Ar size
+bytes of memory at address
+.Ar addr .
+.It Ic ls Op Ar directory
+Prints contents of the specified
+.Ar directory
+in long format including: attributes and file type, owner, group,
+size, filename.
+.It Ic reboot
+Reboots the machine by initiating a warm boot procedure.
+.It Ic set Op Ar varname Op Ar value
+If invoked without arguments, prints a list of variables and their values.
+If only
+.Ar varname
+is specified, displays contents of that variable.
+If
+.Ar varname
+and
+.Ar value
+are both specified, sets that variable to the given value.
+Variables include:
+.Pp
+.Bl -tag -compact -width boothow
+.It Ic debug
+Debug flag if
+.Nm
+was compiled with DEBUG defined.
+.It Ic image
+File name containing the kernel image.
+.It Ic timeout
+Number of seconds boot will wait for human intervention before
+booting the default kernel image.
+.\" .It Ic time
+.\" Displays system time and date.
+.El
+.El
+.Sh FILES
+.Bl -tag -width /etc/boot.conf -compact
+.It Pa /usr/mdec/boot
+system bootstrap
+.It Pa /etc/boot.conf
+system bootstrap's startup file
+.It Pa /bsd
+kernel image
+.It Pa /bsd.rd
+kernel image for installation/recovery
+.El
+.Sh EXAMPLES
+Boot the default kernel:
+.Pp
+.Dl boot> boot
+.Pp
+Remove the 5 second pause at boot-time permanently, causing
+.Nm
+to load the kernel immediately without prompting:
+.Pp
+.Dl # echo \&"boot\&" > /etc/boot.conf
+.Pp
+Boot the kernel named
+.Pa /obsd
+in
+.Dq User Kernel Configuration
+mode (see
+.Xr boot_config 8 ) .
+This mechanism allows for the explicit enabling and disabling of devices
+during the current boot sequence, as well as the modification
+of device parameters.
+Once booted, such changes can be made permanent by using
+.Xr config 8 Ns 's
+.Fl e
+option.
+.Pp
+.Dl boot> boot /obsd -c
+.Sh SEE ALSO
+.Xr gzip 1 ,
+.Xr autoconf 4 ,
+.Xr ddb 4 ,
+.Xr boot_alpha 8 ,
+.Xr boot_config 8 ,
+.Xr fdisk 8 ,
+.Xr reboot 8
+.Sh HISTORY
+This program was written by Michael Shalayeff for
+.Ox 2.1
+on the i386 platform, and was later ported to the alpha platform.

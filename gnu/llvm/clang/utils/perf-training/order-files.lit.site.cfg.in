@@ -1,0 +1,13 @@
+@LIT_SITE_CFG_IN_HEADER@
+
+import sys
+
+config.clang_tools_dir = lit_config.substitute("@CURRENT_TOOLS_DIR@")
+config.perf_helper_dir = "@CMAKE_CURRENT_SOURCE_DIR@"
+config.test_exec_root = "@CMAKE_CURRENT_BINARY_DIR@"
+config.test_source_root = "@CLANG_PGO_TRAINING_DATA@"
+config.target_triple = "@LLVM_TARGET_TRIPLE@"
+config.python_exe = "@Python3_EXECUTABLE@"
+
+# Let the main config do the real work.
+lit_config.load_config(config, "@CLANG_SOURCE_DIR@/utils/perf-training/order-files.lit.cfg")

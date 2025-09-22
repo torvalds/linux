@@ -1,0 +1,46 @@
+# REQUIRES: system-linux
+
+## Test that invoking the extract_ir script work as expected.
+
+# RUN: rm -rf %t.dir && mkdir %t.dir
+# RUN: yaml2obj %s -o %t.dir/test1.o
+# RUN: yaml2obj %s -o %t.dir/test2.o
+# RUN: rm -rf %t.dir.out && mkdir %t.dir.out
+
+# RUN: %python %scripts_dir/corpus/extract_ir.py --input=%t.dir --input_type=directory --output_dir=%t.dir.out --llvm_objcopy_path=llvm-objcopy
+# RUN: cat %t.dir.out/corpus_description.json | FileCheck %s
+
+## Check that this is not a thinLTO build
+# CHECK: "has_thinlto": false
+## Check that the expected modules end up in the corpus description
+# CHECK-DAG: "test1.o"
+# CHECK-DAG: "test2.o"
+
+# RUN: ls %t.dir.out | FileCheck %s --check-prefix CHECK-DIR
+
+# CHECK-DIR: test1.o.bc
+# CHECK-DIR: test1.o.cmd
+# CHECK-DIR: test2.o.bc
+# CHECK-DIR: test2.o.cmd
+
+--- !ELF
+FileHeader:
+  Class:           ELFCLASS64
+  Data:            ELFDATA2LSB
+  Type:            ET_REL
+  Machine:         EM_X86_64
+  SectionHeaderStringTable: .strtab
+Sections:
+  - Name:            .text
+    Type:            SHT_PROGBITS
+    Flags:           [ SHF_ALLOC, SHF_EXECINSTR ]
+    AddressAlign:    0x10
+    Content:         55
+  - Name:            .llvmbc
+    Type:            SHT_PROGBITS
+    AddressAlign:    0x1
+    Content:         55
+  - Name:            .llvmcmd
+    Type:            SHT_PROGBITS
+    AddressAlign:    0x1
+    Content:         ff

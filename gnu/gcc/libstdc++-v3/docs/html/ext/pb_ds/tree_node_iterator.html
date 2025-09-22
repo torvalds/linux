@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>tree::node_iterator Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt><span class=
+    "c2"><tt>tree</tt></span>::node_iterator</tt>
+    Interface</h1>
+
+    <p>Node iterator.</p>
+
+    <p>This is an <quote>iterator to an iterator </quote> - it
+    iterates over nodes, and de-referencing it returns one of the
+    tree's iterators</p>
+
+    <h2><a name="link1" id="link1">Base Classes</a></h2>
+
+    <table class="c1" width="100%" border="1" summary="Bases">
+      <tr>
+        <td width="80%" align="left"><b>Class</b></td>
+
+        <td width="20%" align="left"><b>Derivation Type</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href=
+"tree.html#const_node_iterator4205924553"><span class="c2"><tt>tree</tt></span>::const_node_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>public</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Public Methods</a></h2>
+
+    <h3><a name="link3" id="link3">Constructors, Destructor, and
+    Related</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> 
+  node_iterator
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Default constructor.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link4" id="link4">Access Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <a href=
+"container_base.html#iterator10418194"><span class=
+"c2"><tt>container_base</tt></span>::iterator</a>
+  <b>operator</b>*
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Access.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link5" id="link5">Movement Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <span class="c2"><tt>node_iterator</tt></span>
+  get_l_child
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the node iterator associated with the left
+          node.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <span class="c2"><tt>node_iterator</tt></span>
+  get_r_child
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the node iterator associated with the right
+          node.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

@@ -1,0 +1,17 @@
+#	$OpenBSD: easy,v 1.2 2024/08/23 04:21:18 deraadt Exp $
+
+update = 7;
+newplane = 12;
+width = 15;
+height = 15;
+
+exit:		(  7  0 x ) ( 14  0 z ) ( 12 14 q ) (  0 14 e ) ;
+
+beacon:		( 12  7 ) ;
+
+airport:	(  7  8 w ) ;
+
+line:		[ (  1  1 ) (  6  6 ) ]
+		[ (  7  9 ) ( 12 14 ) ]
+		[ (  7  0 ) (  7 14 ) ]
+		[ (  1  7 ) ( 11  7 ) ] ;

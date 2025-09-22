@@ -1,0 +1,140 @@
+.\"	$OpenBSD: changelist.5,v 1.11 2025/03/26 09:51:08 schwarze Exp $
+.\"
+.\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 26 2025 $
+.Dt CHANGELIST 5
+.Os
+.Sh NAME
+.Nm changelist
+.Nd list of backup files
+.Sh DESCRIPTION
+The
+.Pa /etc/changelist
+file is a simple text file containing the names of files to be backed up
+and checked
+.Xr daily 8
+by the system
+.Xr security 8
+script.
+.Pp
+Each line of the file contains the absolute pathname of one file.
+By default, several configuration files in
+.Pa /etc ,
+.Pa /root ,
+and
+.Pa /var
+are added during system install.
+Administrators may add additional files at their discretion.
+Shell globbing is supported in pathnames.
+.Pp
+Backup files are held in the directory
+.Pa /var/backups .
+A backup of the current version of a file is kept in this directory, marked
+.Qq current .
+When the file is altered, the old version is marked as
+.Qq backup
+and the new version becomes
+.Qq current .
+.Pp
+For example,
+the system shell database,
+.Pa /etc/shells ,
+is held as
+.Pa /var/backups/etc_shells.current .
+When this file is modified, it is renamed to
+.Pa /var/backups/etc_shells.backup
+and the new version becomes
+.Pa /var/backups/etc_shells.current .
+Thereafter, these files are rotated.
+.Pp
+Diffs are mailed to the root administrator, in unified
+.Xr diff 1
+format, via
+.Xr daily 8 ,
+in the following format:
+.Bd -unfilled -offset indent
+=====
+/etc/shells diffs (-OLD  +NEW)
+=====
+.Ed
+.Pp
+Files in
+.Pa /etc/changelist
+prefixed by a
+.Sq +
+character are stored as
+.Xr sha256 1
+checksums.
+During installation, that prefix is used for non-text files
+and for files that may contain secrets.
+Results are mailed in the following format:
+.Bd -unfilled -offset indent
+======
+/etc/ssh/ssh_host_ed25519_key SHA-256 checksums
+======
+OLD:
+NEW:
+.Ed
+.Pp
+Lines beginning with the comment character
+.Pq Sq # ,
+blank lines,
+and non-existent files are all silently ignored.
+.\" .Sh ENVIRONMENT
+.Sh FILES
+.Bl -tag -width /etc/changelist -compact
+.It Pa /etc/changelist
+Default changelist.
+.It Pa /etc/daily
+Maintenance script which runs
+.Xr security 8 .
+.It Pa /var/backups/
+Directory containing file backups.
+.El
+.Sh SEE ALSO
+.Xr diff 1 ,
+.Xr sha256 1 ,
+.Xr daily 8 ,
+.Xr security 8
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Ox 3.5 .
+.Sh CAVEATS
+Anyone with the privileges to alter system configuration files
+could also alter the backup files in
+.Pa /var/backups .
+It is important that this directory be owned by root:wheel
+and have permissions 0700 set.
+.Pp
+Removal of the
+.Pa /etc/changelist
+file itself could cause confusion.
+.Pp
+.Nm
+cannot warn about files being added to the system, although
+.Xr security 8
+will pick up on any files listed in
+.Pa /etc/changelist
+being added or deleted.
+Removals are only noticed for files listed explicitly,
+but not for files matched by globbing.
+.Pp
+If you hose your system configuration files,
+you just might be able to find the information you need in
+.Pa /var/backups .
+This is not a CAVEAT, but we had to let you know somehow!

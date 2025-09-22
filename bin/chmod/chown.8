@@ -1,0 +1,175 @@
+.\"	$OpenBSD: chown.8,v 1.25 2025/04/29 17:44:00 jmc Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)chown.8	8.3 (Berkeley) 3/31/94
+.\"
+.Dd $Mdocdate: April 29 2025 $
+.Dt CHOWN 8
+.Os
+.Sh NAME
+.Nm chown
+.Nd change file owner and group
+.Sh SYNOPSIS
+.Nm chown
+.Op Fl h
+.Oo
+.Fl R
+.Op Fl H | L | P
+.Oc
+.Ar owner Ns Op : Ns Ar group
+.Ar
+.Nm chown
+.Op Fl h
+.Oo
+.Fl R
+.Op Fl H | L | P
+.Oc
+.Pf : Ar group
+.Ar
+.Sh DESCRIPTION
+.Nm
+sets the user ID and/or the group ID of the specified files.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl H
+If the
+.Fl R
+option is specified, symbolic links on the command line are followed.
+Symbolic links encountered in the tree traversal are not followed.
+.It Fl h
+Treat symbolic links like other files: modify links instead of
+following them.
+The
+.Fl h
+and
+.Fl R
+options are mutually exclusive.
+.It Fl L
+If the
+.Fl R
+option is specified, all symbolic links are followed.
+.It Fl P
+If the
+.Fl R
+option is specified, no symbolic links are followed.
+.It Fl R
+Recurse.
+Where
+.Ar file
+is a directory,
+change the user ID and/or the group ID of the directory
+and all the files and directories in the file hierarchy below it.
+.El
+.Pp
+The
+.Fl H ,
+.Fl L ,
+and
+.Fl P
+options are ignored unless the
+.Fl R
+option is specified;
+if none of them are given,
+the default is to not follow symbolic links.
+In addition, these options override each other and the
+command's actions are determined by the last one specified.
+.Pp
+The
+.Ar owner
+and
+.Ar group
+operands are both optional; however, one must be specified.
+If the
+.Ar group
+operand is specified, it must be preceded by a colon
+.Pq Sq \&:
+character.
+.Pp
+The
+.Ar owner
+may be either a numeric user ID or a user name.
+If a user name is also a numeric user ID, the operand is used as a
+user name.
+The
+.Ar group
+may be either a numeric group ID or a group name.
+If a group name is also a numeric group ID, the operand is used as a
+group name.
+.Pp
+By default,
+.Nm
+clears the set-user-ID and set-group-ID bits on the file
+to prevent accidental or mischievous creation of
+set-user-ID and set-group-ID programs.
+.Pp
+Only the superuser is permitted to change the owner of a file.
+.Sh EXIT STATUS
+.Ex -std chown
+.Sh SEE ALSO
+.Xr chgrp 1 ,
+.Xr find 1 ,
+.Xr chown 2 ,
+.Xr fts_open 3 ,
+.Xr symlink 7
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2024
+specification.
+.Pp
+The ability to specify
+.Ar group
+without
+.Ar owner
+is an extension to that specification.
+.Pp
+Some
+.Pf non- Bx
+systems may allow the (non-privileged) owner of a file to change
+its ownership.
+.Pp
+Previous versions of the
+.Nm
+utility used the dot
+.Pq Sq \&.
+character to distinguish the group name.
+This was changed when the utility was first standardised in
+.St -p1003.2-92
+to be a colon
+.Pq Sq \&:
+character to allow user and group names to contain the dot
+character, though the dot separator still remains supported
+due to widely required backwards compatibility.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .

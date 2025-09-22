@@ -1,0 +1,34 @@
+static const char *css = 
+body {
+    background-color: white; 
+    color: black; 
+    font-family: sans-serif;
+    font-variant-emoji: text;
+}
+table {
+    border-collapse: collapse; 
+    border: 1px solid;
+}
+tr.sort th {
+    border-bottom: 1px solid; 
+    font-weight: normal;
+    text-decoration: underline;
+    cursor: pointer;
+}
+tr.sort th.sorted { font-weight: bold; }
+tr.sort th::after { content: "\a0\2195"; }
+tr.dir td:nth-child(2n+1) { 
+    font-weight: bold; 
+}
+td, th { padding: 2pt 2em; }
+td:first-child, th:first-child { padding-left: 5pt; }
+td:last-child, th:last-child { padding-right: 5pt; }
+td:nth-child(n+2) { text-align: end; }
+thead { text-align: left; }
+@media (prefers-color-scheme: dark) {
+    body { 
+	background-color: #1E1F21; 
+	color: #EEEFF1; 
+    }
+    a { color: #BAD7FF; }
+}

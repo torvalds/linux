@@ -1,0 +1,155 @@
+From: herbs@cntc.com (Herb Sutter)
+Subject: Guru of the Week #29: Solution
+Date: 22 Jan 1998 00:00:00 GMT
+Message-ID: <6a8q26$9qa@netlab.cs.rpi.edu>
+Newsgroups: comp.lang.c++.moderated
+
+
+ .--------------------------------------------------------------------.
+ |  Guru of the Week problems and solutions are posted regularly on   |
+ |   news:comp.lang.c++.moderated. For past problems and solutions    |
+ |            see the GotW archive at http://www.cntc.com.            |
+ | Is there a topic you'd like to see covered? mailto:herbs@cntc.com  |
+ `--------------------------------------------------------------------'
+_______________________________________________________
+
+GotW #29:   Strings
+
+Difficulty: 7 / 10
+_______________________________________________________
+
+
+>Write a ci_string class which is identical to the
+>standard 'string' class, but is case-insensitive in the
+>same way as the C function stricmp():
+
+The "how can I make a case-insensitive string?"
+question is so common that it probably deserves its own
+FAQ -- hence this issue of GotW.
+
+Note 1:  The stricmp() case-insensitive string
+comparison function is not part of the C standard, but
+it is a common extension on many C compilers.
+
+Note 2:  What "case insensitive" actually means depends
+entirely on your application and language.  For
+example, many languages do not have "cases" at all, and
+for languages that do you have to decide whether you
+want accented characters to compare equal to unaccented
+characters, and so on.  This GotW provides guidance on
+how to implement case-insensitivity for standard
+strings in whatever sense applies to your particular
+situation.
+
+
+Here's what we want to achieve:
+
+>    ci_string s( "AbCdE" );
+>
+>    // case insensitive
+>    assert( s == "abcde" );
+>    assert( s == "ABCDE" );
+>
+>    // still case-preserving, of course
+>    assert( strcmp( s.c_str(), "AbCdE" ) == 0 );
+>    assert( strcmp( s.c_str(), "abcde" ) != 0 );
+
+The key here is to understand what a "string" actually
+is in standard C++.  If you look in your trusty string
+header, you'll see something like this:
+
+  typedef basic_string<char> string;
+
+So string isn't really a class... it's a typedef of a
+template.  In turn, the basic_string<> template is
+declared as follows, in all its glory:
+
+  template<class charT,
+           class traits = char_traits<charT>,
+           class Allocator = allocator<charT> >
+      class basic_string;
+
+So "string" really means "basic_string<char,
+char_traits<char>, allocator<char> >".  We don't need
+to worry about the allocator part, but the key here is
+the char_traits part because char_traits defines how
+characters interact and compare(!).
+
+basic_string supplies useful comparison functions that
+let you compare whether a string is equal to another,
+less than another, and so on.  These string comparisons
+functions are built on top of character comparison
+functions supplied in the char_traits template.  In
+particular, the char_traits template supplies character
+comparison functions named eq(), ne(), and lt() for
+equality, inequality, and less-than comparisons, and
+compare() and find() functions to compare and search
+sequences of characters.
+
+If we want these to behave differently, all we have to
+do is provide a different char_traits template!  Here's
+the easiest way:
+
+  struct ci_char_traits : public char_traits<char>
+                // just inherit all the other functions
+                //  that we don't need to override
+  {
+    static bool eq( char c1, char c2 ) {
+      return tolower(c1) == tolower(c2);
+    }
+
+    static bool ne( char c1, char c2 ) {
+      return tolower(c1) != tolower(c2);
+    }
+
+    static bool lt( char c1, char c2 ) {
+      return tolower(c1) < tolower(c2);
+    }
+
+    static int compare( const char* s1,
+                        const char* s2,
+                        size_t n ) {
+      return strnicmp( s1, s2, n );
+             // if available on your compiler,
+             //  otherwise you can roll your own
+    }
+
+    static const char*
+    find( const char* s, int n, char a ) {
+      while( n-- > 0 && tolower(*s) != tolower(a) ) {
+          ++s;
+      }
+      return s;
+    }
+  };
+
+And finally, the key that brings it all together:
+
+  typedef basic_string<char, ci_char_traits> ci_string;
+
+All we've done is created a typedef named "ci_string"
+which operates exactly like the standard "string",
+except that it uses ci_char_traits instead of
+char_traits<char> to get its character comparison
+rules.  Since we've handily made the ci_char_traits
+rules case-insensitive, we've made ci_string itself
+case-insensitive without any further surgery -- that
+is, we have a case-insensitive string without having
+touched basic_string at all!
+
+This GotW should give you a flavour for how the
+basic_string template works and how flexible it is in
+practice.  If you want different comparisons than the
+ones stricmp() and tolower() give you, just replace the
+five functions shown above with your own code that
+performs character comparisons the way that's
+appropriate in your particular application.
+
+
+
+Exercise for the reader:
+
+Is it safe to inherit ci_char_traits from
+char_traits<char> this way?  Why or why not?
+
+

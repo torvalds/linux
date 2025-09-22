@@ -1,0 +1,1077 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-05-13  Release Manager
+
+	* GCC 4.2.0 released.
+
+2007-02-26  Brooks Moses  <brooks.moses@codesourcery.com>
+
+	* treelang.texi: Standardize title page, remove version number
+	from copyright page.
+
+2006-10-10  Brooks Moses  <bmoses@stanford.edu>
+
+	* Make-lang.in: Added "treelang.pdf" target support.
+
+2006-07-28  Volker Reichelt  <reichelt@igpm.rwth-aachen.de>
+
+	* Make-lang.in: Use $(HEADER_H) instead of header.h in dependencies.
+
+2006-06-17  Karl Berry  <karl@gnu.org>
+
+	* treelang.texi (@dircategory): Use "Software development"
+	instead of "Programming", following the Free Software Directory.
+
+2006-06-06  Mike Stump  <mrs@apple.com>
+
+	* Make-lang.in: Rename to gcc_htmldir to build_htmldir to avoid
+	installing during build.
+
+2006-05-23  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* Make-lang.in: Rename htmldir to gcc_htmldir.
+
+2006-05-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR driver/26885
+	* Make-lang.in (gtreelang$(exeext)): Replace gcc.o with
+	$(GCC_OBJS).
+
+2006-05-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Make-lang.in (treelang/treetree.o): Add dependency on
+	$(TARGET_H).
+
+2006-04-22  Matthias Klose  <doko@debian.org>
+
+	* Make-lang.in (treelang.check): Don't set and pass TRANSFORM.
+
+2006-03-29  Carlos O'Donell  <caros@codesourcery.com>
+
+	* Make-lang.in: Rename docdir to gcc_docdir.
+
+2006-02-20 Rafael ¡vila de EspÌndola <rafael.espindola@gmail.com>
+
+	* Make-lang.in (.phony): Remove TREELANG.
+	(TREELANG): Remove.
+
+2006-01-21  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* spec.c (lang_specific_driver): Update copyright notice date.
+
+2006-01-16  Rafael ¡vila de EspÌndola <rafael.espindola@gmail.com>
+
+	* spec.c (lang_specific_spec_functions): Remove.
+
+2005-12-28  Rafael ¡vila de EspÌndola  <rafael.espindola@gmail.com>
+
+	* Make-lang.in (treelang.distdir): Remove.
+
+2005-12-07  Rafael ¡vila de EspÌndola  <rafael.espindola@gmail.com>
+
+	* Make-lang.in (treelang.all.build, treelang.install-normal): Remove.
+
+2005-12-07  Rafael ¡vila de EspÌndola  <rafael.espindola@gmail.com>
+
+	* Make-lang.in: Remove all dependencies on s-gtype.
+
+2005-12-05  Richard Guenther  <rguenther@suse.de>
+
+	* treetree.c (tree_code_if_start, tree_code_create_variable,
+	tree_code_generate_return, tree_code_get_expression,
+	tree_code_add_parameter): Use fold_convert where appropriate.
+
+2005-11-07  James A. Morrison  <phython@gcc.gnu.org>
+
+	PR treelang/24066
+	* treetree.c (LANG_HOOKS_ATTRIBUTE_TABLE): Set to
+	treelang_attribute_table.
+	(handle_attribute): New function.
+	(treelang_attribute_table): New attribute table.
+
+2005-09-23  Rafael √Åvila de Esp√≠ndola  <rafael.espindola@gmail.com>
+
+	* parse.y : Changed pointer declaration from "type* var" to "type *var"
+	Removed trailing space.  Wrap long lines.
+
+2005-09-23  Rafael √Åvila de Esp√≠ndola  <rafael.espindola@gmail.com>
+
+	* parse.y :  Fixed two compile warnings in "error" and "warning"
+	invocations.  Removed trailing periods in messages.  Decapitalized the
+	first word of each.
+
+2005-08-07  James A. Morrison  <phython@gcc.gnu.org>
+
+	* tree-convert.c (convert): Use fold_build1 instead of
+	fold (build1.
+
+2005-08-06  James A. Morrison  <phython@gcc.gnu.org>
+
+	PR treelang/23072
+	* Make-lang.in: Remove old testing cruft.
+
+2005-06-25  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* all files: Update FSF address in copyright headers.
+
+2005-06-15  James A. Morrison  <phython@gcc.gnu.org>
+
+	* parse.y (function_invocation): Reverse parameter list.
+	* treetree.c (tree_code_get_expression): Don't reverse parameter list.
+
+2005-06-12  Rafael ?vila de Esp?ndola   <rafael.espindola@gmail.com>
+
+	* treetree.c (tree_code_get_expression): Call build_function_call_expr
+	to build function calls.
+
+2005-05-31  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* treelang/lex.l, treelang/parse.y: Don't include errors.h and
+	include toplev.h.
+	* treelang/Make-lang.in: Updates dependencies.
+
+2005-05-02  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	PR treelang/21345
+	* parse.y (parameters_opt): Add semicolon at the end.
+
+2005-04-29  Tom Tromey  <tromey@redhat.com>
+
+	* treetree.c (poplevel): Updated for change to build_block.
+
+2005-04-23  DJ Delorie  <dj@redhat.com>
+
+	* parse.y: Adjust warning() callers.
+
+2005-04-11  Richard Sandiford  <rsandifo@redhat.com>
+
+	* lang.opt: Refer to the GCC internals documentation instead of c.opt.
+
+2005-04-01  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	PR treelang/20604
+	* lang-spec.c: Simplify @treelang to what the other
+	languages do.
+
+2005-04-01  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* treelang/treelang.texi: Fix typos.
+	* treelang/treetree.c: Fix comment typos.
+
+2005-03-23  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* treetree.c (LANG_HOOKS_TRUTHVALUE_CONVERSION,
+	tree_lang_truthvalue_conversion): Remove.
+	* tree-convert.c: Don't call truthvalue_conversion.
+
+2005-03-22  James A. Morrison  <phython@gcc.gnu.org>
+
+	* treetree.c (tree_code_if_start): Use fold_buildN.
+	(tree_code_create_variable): Likewise.
+	(tree_code_generate_return): Likewise.
+	(tree_code_get_expression): Likewise.
+	(tree_code_add_parameter): Likewise.
+
+2005-03-22  James A. Morrison  <phython@gcc.gnu.org>
+
+	* treelang.h (struct parameter_part): Skip WHERE_TO_PUT_VAR_TREE
+	during GC.
+
+2005-03-15  Zack Weinberg  <zack@codesourcery.com>
+
+	* Make-lang.in (TEXI_TREELANG_FILES): Add gcc-vers.texi.
+
+2005-03-06  James A. Morrison  <phython@gcc.gnu.org>
+
+	PR other/20326
+	* Make-lang.in (gtreelang, treelang/spec.o): New targets.
+	* spec.c: New file.
+
+2005-02-27  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* treelang.texi: Fix a typo.
+
+2005-02-26  James A. Morrison  <phython@gcc.gnu.org>
+
+	* parse.y (function_invocation, variable-ref, make_plus_expression):
+	Pass location to tree_code_get_expression.
+	* treetree.c (tree_code_generate_return): Set EXPR_LOCUS on retval.
+	(tree_code_get_expression): Wrap variable references in NOP_EXPRs and
+	set EXPR_LOCATION on ret1.
+	* treetree.h (tree_code_get_expression): Take the location of the
+	expression as an argument.
+
+2005-02-26  James A. Morrison  <phython@gcc.gnu.org>
+
+	* treelang.texi: Treelang does have warnings.
+	* treetree.c (tree_code_create_function_prototype): Don't set
+	TREE_USED and set TREE_PUBLIC, DECL_EXTERNAL, and TREE_STATIC
+	as few times as needed on the function declaration.
+	(tree_code_create_function_initial): Don't set TREE_USED,
+	TREE_ADDRESSABLE, but set TREE_STATIC on the function declaration.
+	(tree_code_create_variable): Don't set TREE_USED on VAR_DECL.
+	(tree_code_get_expression): Set TREE_USED for variable references
+	and function calls.
+
+2005-02-26  James A. Morrison  <phython@gcc.gnu.org>
+
+	* parse.y: Do comparisons as the type of the first expression.
+	* treetree.c (tree_code_get_integer_value): Build integer constants
+	with the proper type.
+
+2005-02-26  James A. Morrison  <phython@gcc.gnu.org>
+
+	* Make-lang.in: Remove commented out code.
+	* lang-specs.h: Always pass -dumpbase to tree1.
+
+2005-02-25  James A. Morrrison  <phython@gcc.gnu.org>
+
+	* treelang.texi: Remove extra contribution notice.
+	Split up some run-on sentences.  Document function parameters
+	as optional.  Indicate automatic variables can now be at any scope.
+	Mention literals are only signed if they are preceded by a unary
+	plus or minus.  Clarify interoperability with C.
+
+2005-02-25  James A. Morrison  <phython@gcc.gnu.org>
+
+	* treelang.texi: Fix whitespacing.
+
+2005-02-24  James A. Morrison  <phython@gcc.gnu.org>
+
+	PR other/19896
+	* treetree.c (tree_code_create_variable): Initialize DECL_EXTERNAL,
+	TREE_PUBLIC, and TREE_STATIC for var_decl to zero.  Don't call
+	rest_of_decl_compilation on static variables.
+	(pushdecl): Put DECL_EXPRs into the current BIND_EXPR for automatic
+	variables.
+
+2005-02-24  James A. Morrison  <phython@gcc.gnu.org>
+
+	PR other/19897
+	* parse.y: (function_prototype): Accept EXTERNAL_REFERENCE_STORAGE.
+	Move function parameters check from ...
+	(function): ...Here.  Update call to tree_code_create_function_initial.
+	(function_invocation): Use expressions_with_commas_opt instead of
+	expressions_with_commas.
+	(expressions_with_commas_opt): New rule.
+	* treetree.c (tree_code_create_function_prototype): Create PARM_DECLs
+	for function parameters.
+	(tree_code_create_function_initial): Remove PARMS parameter.
+	Don't create PARM_DECLs for function parameters.
+	* treetree.h (tree_code_create_function_initial): Remove PARMS
+	parameter.
+
+2005-02-23  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* parse.y: Update copyright.
+
+2005-02-13  James A. Morrison  <phython@gcc.gnu.org>
+
+	* treetree.c (tree_lang_type_for_mode): Return NULL_TREE for all non
+	scalar integer types.
+
+2005-02-09  Richard Henderson  <rth@redhat.com>
+
+	* treetree.c (treelang_init_decl_processing): Call
+	build_common_builtin_nodes.
+
+2005-02-06  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* treelang.texi: Don't use local treelang version number.  Don't
+	give last update date.
+
+2005-02-01  James A. Morrison  <phython@gcc.gnu.org>
+
+	* lex.l: Undef LINEMAP_POSITION_FOR_COLUMN before defining it.
+
+2005-02-01  James A. Morrison  <phython@gcc.gnu.org>
+
+	* parse.y: Reformat comments.
+	* treetree.c: Likewise.
+	* treetree.h: Likewise.
+
+2004-10-24  James A. Morrison  <phython@gcc.gnu.org>
+
+	* treetree.c (tree_code_generate_return): Wrap param declaration in
+	ENABLE_CHECKING.
+
+2004-10-05  Zack Weinberg  <zack@codesourcery.com>
+
+	* parse.y: Add list of diagnostic messages to insulate
+	translation template from version of yacc/bison used to
+	compile the grammar.
+
+2004-10-02  James A. Morrison  <phython@gcc.gnu.org>
+
+	PR other/17762
+	* lex.l: Include input.h and errors.h
+	(lineno): New variable.
+	(LINEMAP_POSITION_FOR_COLUMN): Define as noop when USE_MAPPED_LOCATION
+	is not defined.
+	Set column position with LINEMAP_POSITION_FOR_COLUMN.
+	Use error instead of fprintf.
+	Set input_location with the value returned by linemap_start_line when
+	USE_MAPPED_LOCATION is defined.
+	(dump_lex_value): Use LOCATION_LINE.
+	* parse.y: Include errors.h.
+	Use error and warning instead of fprintf.
+	(return): Move exp to rule scope and always set to $2.  Test against
+	exp instead of $2.
+	(init): Set $$ to $2.
+	(print_token): Use LOCATION_LINE.
+	* tree1.c (treelang_init): Call treelang_init_decl_processing last.
+	Call linemap_add to set input_filename when USE_MAPPED_LOCATION is
+	defined.
+	(treelang_parse_file): Always start at line one.
+	Rename input_filename to main_input_filename when USE_MAPPED_LOCATION is
+	defined.
+	Leave main_input_filename when done parsing the input.
+	(insert_tree_name): Use error instead of fprintf.
+	* treetree.c (tree_code_get_expression): Wrap long line.
+	(tree_mark_addressable): Use %qD to print out DECLs.
+
+2004-10-02  James A. Morrison  <phython@gcc.gnu.org>
+
+	* parse.y: Use gcc_assert and gcc_unreachable instead of abort.
+	* tree1.c: Likewise.
+	* treetree.c: Likewise.
+
+2004-10-02  James A. Morrison  <phython@gcc.gnu.org>
+
+	* lex.l: Remove random whitespace.
+	* parse.y: Reformat copyright notice.  Indent declarations.
+	Wrap long lines, unwrap short lines.
+	* tree1.c: Reformat copyright notice.  Wrap long lines.
+	Remove random whitespace.
+	(lookup_tree_name): Use LOCATION_LINE.
+	* treetree.c: Reformat copyright notice.  Wrap long lines.
+	Remove random whitespace.
+
+2004-10-01  James A. Morrison  <phython@gcc.gnu.org>
+
+	* parse.y (ELSE): Set tok to $1.
+	* treelang.texi: Wrap comments in @r{}.  Indent example comments.
+	Use gcc when refering to the command line or website.  Update function
+	definition.
+
+2004-10-01  Jan Hubicka  <jh@suse.cz>
+
+	* treetree.c (treeland_expand_function): Update call of
+	tree_rest_of_compilation.
+
+2004-09-17  Jeffrey D. Oldham  <oldham@codesourcery.com>
+	    Zack Weinberg  <zack@codesourcery.com>
+
+	* treetree.c: Update for new tree-class enumeration constants.
+
+2004-09-15  Zack Weinberg  <zack@codesourcery.com>
+
+	* Make-lang.in (treelang-warn): Set to $(STRICT_WARN).
+
+2004-08-26  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* treetree.c (tree_code_get_integer_value): Fix build_int_cst call.
+
+2004-08-24  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* treelang/treetree.c (treelang_init_decl_processing): Adjust
+	build_common_tree_nodes call.
+
+2004-08-14  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* treetree.c (tree_code_get_integer_value): Use build_int_cst.
+
+2004-07-31  James A. Morrison  <phython@gcc.gnu.org>
+
+	* Make-lang.in (TREE_BE_LIBS): Remove.
+	(tree1): Depend on BACKEND and LIBDEPS.  Use BACKEND and LIBS instead
+	of TREE_BE_LIBS.
+	* parse.y: Add variable_defs_opt before statements_opt.
+	Use tree_code_get_type instead of get_type_for_numeric_type.
+	Reformat long lines.
+	(parameters_opt): New rule.
+	(function_prototype): Use parameters_opt.
+	(return): Remove calls to print_token in error cases.  Use VOID_TYPE.
+	(check_type_match): Use VOID_TYPE.
+	* lex.l (update_lineno_charno): Ensure INPUT_LINE starts at 1.
+	* tree1.c: Include version.h and cgraph.h
+	(treelang_parse_file): Call cgraph_finalize_compilation_unit and
+	cgraph_optimize.
+	* treelang.h (item): Remove extraneous GTY.
+	* treetree.h (get_type_for_numeric_type): Remove.
+	* treetree.c: Include tree-dump.h, tree-iterator.h, tree-gimple.h,
+	function.h, and cgraph.h.  Don't include rtl.h
+	(keep_level_p): Remove.
+	(tree_push_atomic_type_decl): Remove.
+	(get_type_for_numeric_type): Remove.
+	(tree_code_get_numeric_type): Remove.
+	(global_bindings_p): Make static.
+	(getdecls): Likewise.
+	(insert_block): Likewise.
+	(tree_code_if_start): Create a COND_EXPR and add it to the tree
+	instead of creating rtl.
+	(tree_code_if_else): Create a BIND_EXPR if any variables were created
+	in the if statement.
+	(tree_code_end_if): Likewise.
+	(tree_code_create_function_prototype): Use tree_code_get_type.
+	Don't use SET_DECL_ASSEMBLER_NAME.
+	(tree_code_create_function_initial): Set DECL_ARTIFICIAL and
+	DECL_IGNORING_P on RESULT_DECL.  Use tree_code_get_type.  Don't call
+	layout_decl on RESULT_DECL.  Don't call rtl expand functions.
+	(tree_code_create_function_wrapup): Don't call rtl expand functions.
+	Create a BIND_EXPR for each function.  Dump original and gimplified
+	copies of the function tree.  Gimplify function.
+	(tree_code_create_variable): Use tree_code_get_type.  Don't call
+	layout_decl or expand_decl.  Fold CONVERT_EXPRs.
+	(tree_code_generate_return): Fold CONVERT_EXPRs and MODIFY_EXPRs.
+	Add RETURN_EXPR to the current statement list.  Don't call rtl expand
+	functions.
+	(tree_code_output_expression_statement): Append CODE to current
+	statement list.
+	(tree_code_get_expression): Fold expressions.  Build a pointer to
+	a FUNCTION_TYPE intead of the called functions return type.
+	(struct binding_level): Add statement list STMTS.
+	(getstmtlist): New Function.
+	(pushlevel): Make static.  Allocate an empty statement list.
+	(poplevel): Make static.  Don't clear BLOCK_NODE's BLOCK_VARS.
+	Don't use DECL_ASSEMBLER_NAME.
+	(tree_push_type_decl): Set TYPE_NAME of TYPE_NODE to ID.
+	(treelang_init_decl_processing): Define basic types after unused types.
+	Don't call tree_push_atomic_type_decl.
+	(builtin_function): Don't call make_decl_rtl.
+	(treelang_expand_function). New Function.
+
+2004-07-11  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* treetree.c (set_block): Remove.
+	(struct binding_level): Remove block_created_by_back_end.
+	(clear_binding_level): Likewise.
+	(tree_code_create_function_initial,
+	tree_code_create_function_wrapup): Call pushlevel and poplevel
+	directly rather than through hooks.
+	(poplevel): Don't handle block_created_by_back_end.
+
+2004-04-07  Richard Henderson  <rth@redhat.com>
+
+	* treetree.c (tree_mark_addressable):  Don't put_var_into_stack.
+
+2004-03-31  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* treetree.c (tree_lang_signed_or_unsigned_type): Use TYPE_UNSIGNED,
+	not TREE_UNSIGNED.
+
+2004-03-21  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* treelang.texi: Update link to "G++ and GCC".
+
+2004-02-20  Richard Henderson  <rth@redhat.com>
+
+	* Make-lang.in (treelang-warn): Add -Wno-variadic-macros.
+
+2004-01-30  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Make-lang.in (doc/treelang.dvi): Use $(abs_docdir).
+
+2004-01-20  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Make-lang.in: Replace $(docdir) with doc.
+	(treelang.info, treelang.srcinfo): New rules.
+	(treelang.man, treelang.man): Dummy entries.
+
+2004-01-15  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Make-lang.in (TREE_GENERATED): Delete reference to $(parsedir).
+	(treelang/parse.o, treelang/lex.o): Look for sources in build
+	directory.  Use implicit rule.
+	(treelang/parse.c, treelang/parse.h treelang/lex.c): Always build in
+	doc directory.
+	(treelang.srcextra): Copy above back to source directory if requested.
+
+2004-01-07  Zack Weinberg  <zack@codesourcery.com>
+
+	* parse.y (yyerror): Mark the definition static.
+
+2003-12-04  James A. Morrison  <ja2morri@uwaterloo.ca>
+
+	* lex.l: Add \t as a whitespace character.
+	* treelang.texi (Lexical Syntax): Document a tab as whitespace.
+
+	* treelang.texi (What is GNU Treelang?): Fix a typo.
+	(Lexical Syntax): Create an itemize list of keywords.  Add commas to
+	paragraph defining names.
+
+2003-11-26  Jason Merrill  <jason@redhat.com>
+
+	* Make-lang.in (treelang.tags): Create TAGS.sub files in each
+	directory and TAGS files that include them for each front end.
+
+2003-11-21  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* .cvsignore: Delete.
+
+2003-11-20  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* Make-lang.in (treelang.extraclean): Delete.
+
+2003-11-20  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* Make-lang.in: Remove obsolete comment.
+
+2003-11-03  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Make-lang.in (dvi): Move targets to $(docobjdir).
+	(treelang.dvi): Simplify rule and adjust target.
+	(treelang.info): Simplify rule.
+	(parse.o): Correct dependencies.
+	(TREE_EXE): Delete doubled suffix append.
+
+2003-10-21  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Make-lang.in (treelang.o): Depend on $(parsedir)/treelang/parse.h.
+	(lex.o): Likewise.
+
+2003-10-21  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Make-lang.in (parse.o): Honor $(parsedir).
+	(lex.o): Likewise.
+	(lex.c): Likewise
+	(parse.c, parse.h): Likewise.
+	($(docobjdir)/treelang.info): Replace $(srcdir)/doc with $(docdir).
+	(dvi): Likewise.
+
+2003-10-20  Mark Mitchell  <mark@codesourcery.com>
+
+	* Make-lang.in ($(docobjdir)/treelang/treelang.info): Depend on
+	stmp-docobjdir.
+
+	* Make-lang.in (info): Use docobjdir.
+	($(srcdir)/treelang/treelang.info): Replace with ...
+	($(docobjdir)/treelang/treelang.info): ... this.
+	(install-info): New target.
+
+2003-10-12  Andreas Jaeger  <aj@suse.de>
+
+	* Make-lang.in (treelang.install-info): Remove reference to
+	treelang.info.
+	(treelang.): Removed.
+
+2003-10-06  Mark Mitchell  <mark@codesourcery.com>
+
+	* Make-lang.in (treelang.info): Replace with ...
+	(info): ... this.
+	* Make-lang.in (treelang.dvi): Replace with ...
+	(dvi): ... this.
+
+2003-09-21  Richard Henderson  <rth@redhat.com>
+
+	* treetree.c: Revert.
+
+2003-09-21  Richard Henderson  <rth@redhat.com>
+
+	* treetree.c: Update for DECL_SOURCE_LOCATION rename and
+	change to const.
+
+2003-07-28  Andreas Jaeger  <aj@suse.de>
+
+	* treetree.c: Convert remaining K&R prototypes to ISO C90.
+	* tree1.c: Likewise.
+	* parse.y: Likewise.
+	* tree-convert.c: Likewise.
+
+2003-07-19  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* treetree.c: Remove unnecessary casts.
+
+2003-07-15  Neil Booth  <neil@daikokuya.co.uk>
+
+	* lang-options.h: Remove.
+	* lang.opt: Document some options.  Remove --help.
+	* tree1.c (treelang_handle_option): Remove OPT__help case.
+
+2003-07-12  Andreas Jaeger  <aj@suse.de>
+
+	* Make-lang.in (treelang/tree-convert.o): Depend on TM_H.
+
+2003-07-10  Neil Booth  <neil@daikokuya.co.uk>
+
+	* Make-lang.in: Update.
+	* tree1.c: Don't include c-common.h.
+	(c_language): Remove.
+
+2003-07-10  Fergus Henderson  <fjh@cs.mu.oz.au>
+	    Steven Bosscher  <steven@gcc.gnu.org>
+
+	* tree-convert.c: New file.
+	* treetree.c: Don't include c-tree.h.  Include target.h.
+	(struct lang_identifier, union lang_tree_node, struct lang_type,
+	struct lang_function): New, minimal language-specific datastructs.
+	(tree_lang_truthvalue_conversion, tree_mark_addressable,
+	tree_lang_type_for_size, tree_lang_type_for_mode,
+	tree_lang_unsigned_type, tree_lang_signed_type,
+	tree_lang_signed_or_unsigned): New functions.
+	(LANG_HOOKS_*): Don't use C front end langhooks.  Use new functions.
+	(pushlevel, poplevel, global_bindings_p, insert_block, set_block,
+	pushdecl, getdecls, kept_level_p, tree_push_type_decl,
+	tree_push_atomic_type_decl): New functions.
+	(struct resword, struct reswords): Remove.
+	* Make-lang.in: Update.  Don't depend on C front end objects.
+	* config-lang.in: Likewise.
+
+2003-07-07  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* treelang/treetree.c (tree_code_if_start, tree_code_if_else,
+	tree_code_if_end, tree_code_create_function_initial,
+	tree_code_create_function_wrapup, tree_code_generate_return,
+	tree_code_output_expression_statement): Adjust emit_line_note
+	calls.
+
+2003-07-04  H.J. Lu <hongjiu.lu@intel.com>
+
+	* Make-lang.in: Replace PWD with PWD_COMMAND.
+
+2003-07-02  Neil Booth  <neil@daikokuya.co.uk>
+
+	* tree1.c (treelang_init_options): Update prototype.
+	* treelang.h (treelang_init_options): Update prototype.
+
+2003-07-01  Neil Booth  <neil@daikokuya.co.uk>
+
+	* Make-lang.in: Update.
+	* tree1.c: Include c-common.h.  Define c_language.
+
+2003-06-20  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* treetree.c (tree_code_create_function_wrapup): Adjust
+	expand_function_end call.
+
+2003-06-18  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* treetree.c (build_stmt): Remove VPARAMS.
+	(pedwarn_c99): Likewise.
+
+2003-06-15  Neil Booth  <neil@daikokuya.co.uk>
+
+	* lang.opt: Declare Treelang.  Update.
+	* tree1.c (treelang_init_options): Update.
+
+2003-06-14  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* treetree.c (tree_code_create_function_initial): Adjust
+	init_function_start call.
+
+2003-06-14  Neil Booth  <neil@daikokuya.co.uk>
+
+	* Make-lang.in: Update to use options.c and options.h.
+	* tree1.c: Include options.h not t-options.h.
+	(treelang_init_options): New.
+	(treelang_handle_option): Abort on unrecognized switch.
+	* treetree.c (LANG_HOOKS_INIT_OPTIONS): Override.
+	* treetree.h (treelang_init_options): New.
+
+2003-06-12  Andreas Jaeger  <aj@suse.de>
+
+	* treetree.c: Remove cl_options-count and cl_options.
+
+2003-06-11  Neil Booth  <neil@daikokuya.co.uk>
+
+	* Make-lang.in: Update for option handling.
+	* lang.opt: New.
+	* tree1.c: Include opts.h and t-options.h.
+	(treelang_decode_option): Remove.
+	(treelang_handle_option): New.
+	* treetree.c (LANG_HOOKS_DECODE_OPTION): Remove.
+	(LANG_HOOKS_HANDLE_OPTION): Override.
+	* treetree.h (treelang_decode_option): Remove.
+	(treelang_handle_option): New.
+
+2003-06-08  Andreas Jaeger  <aj@suse.de>
+
+	* Make-lang.in: Update.
+	* treetree.c: Include opts.h. Define cl_options_count and cl_options.
+
+2003-06-08  Tim Josling  <tej@melbpc.org.au>
+
+	* treetree.c (c_lex): Add fake routine to satisfy RS6000 backend.
+
+2003-06-05  Jan Hubicka  <jh@suse.cz>
+
+	* Make-lang.in:  Add support for stageprofile and stagefeedback
+
+2003-05-21  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* treetree.c (reswords): Remove __bounded__, __unbounded__.
+
+2003-05-09  Tim Josling  <tej@melbpc.org.au>
+
+	* Make-lang.in (TREE_BE_LIBS): Add C_TARGET_OBJS to object files
+	to link (needed by some front ends such as PPC).
+
+	* treetree.c (tree_code_create_function_initial): Fix long line.
+	Initialize tree_code_int_size and tree_code_char_size to
+	meaningful values.
+	(tree_code_get_numeric_type): Add check that size1 parameter is
+	valid.
+
+	* parse.y: Fix extra long lines in prototypes.
+
+	* treelang.h: Fix extra long lines in macro definitions.
+
+2003-05-07  Zack Weinberg  <zack@codesourcery.com>
+
+	* Make-lang.in: Set -Wno-error for treelang/lex.o.
+
+2003-05-06  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* Make-lang.in (treelang/tree1.o): Depends on input.h
+	(treelang/treetree.o, treelang/parse.o, treelang/lex.o): Likewise.
+	* treelang.h: #include input.h.
+	(in_fname): Remove.
+	(struct token_part): Remove lineno, add location.
+	* lex.l (next_tree_lineno): Remove.
+	(update_lineno_charno): Adjust.
+	(dump_lex_value): Adjust.
+	* parse.y (variable_def, function_prototype, function, statement,
+	if_statement, return, function_invocation, variable_ref): Adjust.
+	(print_token, yyerror, ensure_not_void): Adjust.
+	tree1.c (in_fname): Remove.
+	(treelang_init): Setup input_location.
+	(lookup_tree_name): Adjust.
+	(insert_tree_name): Adjust.
+	* treetree.c (tree_code_if_start): Replace filename and lineno
+	parms with loc. Adjust.
+	(tree_code_if_else, tree_code_if_end,
+	tree_code_create_function_prototype,
+	tree_code_create_function_initial,
+	tree_code_create_function_wrapup, tree_code_create_variable,
+	tree_code_output_expression_statement): Likewise.
+	* treetree.h (tree_code_if_start): Replace filename and lineno
+	parms with loc.
+	(tree_code_if_else, tree_code_if_end,
+	tree_code_create_function_prototype,
+	tree_code_create_function_initial,
+	tree_code_create_function_wrapup, tree_code_create_variable,
+	tree_code_output_expression_statement): Likewise.
+
+2003-05-01  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* tree1.c (treelang_init): Rename lineno to input_line.
+
+2003-04-30  Steven Bosscher  <steven@gcc.gnu.org>
+
+	* parse.y (make_plus_expression): New function.
+	(expression production): Use make_plus_expression for PLUS,
+	MINUS, ASSIGN and EQUALS.
+	* tree1.c (treelang_decode_option): Don't fall through to
+	options that start with a different character when an option
+	was not recognized.
+
+2003-04-30  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* Make-lang.in (parse.c): Reorder bison arguments for POSIXLY_CORRECT.
+	* treetree.c: Do not #include parse.h.
+
+2003-03-21  Andreas Jaeger  <aj@suse.de>
+
+	* treetree.c (cpp_create_reader): Follow prototype change in
+	cpplib.h.
+
+2003-03-17  Andreas Jaeger  <aj@suse.de>
+
+	* Make-lang.in (treelang.tags): Remove duplicate entry.
+
+2003-03-15  Andreas Jaeger  <aj@suse.de>
+
+	* treetree.c (cpp_handle_option): Remove.
+
+2003-03-13  Andreas Jaeger  <aj@suse.de>
+
+	* Make-lang.in (tree1$(exeext)): Fix previous patch.
+
+2003-03-12  Andreas Jaeger  <aj@suse.de>
+
+	* Make-lang.in (tree1$(exeext)): Add c-cppbuiltin.o.
+
+2003-03-08  Neil Booth  <neil@daikokuya.co.uk>
+
+	* tree1.c (in_fname): Fix type.
+	(treelang_init): Update prototype and use of in_fname.
+	* treelang.h (in_fname): Fix type.
+	* treetree.c (tree_code_if_start, tree_code_if_else,
+	tree_code_if_end, tree_code_create_function_prototype,
+	tree_code_create_function_initial, tree_code_create_funciton_wrapup,
+	tree_code_create_variable, tree_code_output_expression_statement)
+	: Fix prototypes and use of filenames.
+	* treetree.h: Similarly.
+
+2003-03-05  Andreas Jaeger  <aj@suse.de>
+
+	* treetree.c (init_c_lex): Follow change to c-common.h.
+
+2003-03-04  Tom Tromey  <tromey@redhat.com>
+
+	* Make-lang.in (treelang.tags): New target.
+
+2003-03-01  Tim Josling  <tej@melbpc.org.au>
+
+	Name clashes with rtl.h fixed.
+
+	* lex.l: Tokens PLUS, MINUS, RETURN changed to tl_PLUS tl_MINUS
+	tl_RETURN.
+
+	* parse.y: Ditto.
+
+2003-02-24  Tim Josling  <tej@melbpc.org.au>
+
+	* parse.y (my_yylex): New - ensure lexer time is charged to
+	TV_LEX.
+	(yylex): redefine as invocation of my_yylex which then calls
+	flex-generated yylex.
+	(timevar.h): include.
+
+2003-02-23  Tim Josling  <tej@melbpc.org.au>
+
+	Fix garbage collection, add more error checking, force GC always.
+
+	* Make-lang.in (treelang/tree1.o): Depend on treelang/treetree.h
+	(treelang/treetree.o): Depend on  treelang/parse.h
+
+	* lex.l: include "treetree.h"
+
+	* lex.l (update_yylval): Allocate string using get_string so GC
+	works.
+
+	* parse.y (function_prototype): Set category correctly so GC works.
+	(function): Set category in search so checking works.
+	(function_invocation): Ditto.
+	(variable_ref): Ditto.
+
+	* tree1.c (lookup_tree_name): Call sanity_check for passed
+	production and associated token and for symbol table entries.
+
+	* tree1.c (sanity_check): New, basic check that struct is valid.
+
+	* treelang.h: Prototype for sanity_check.
+
+2003-01-27  Tim Josling  <tej@melbpc.org.au>
+
+	* treetree.c (treelang_init_decl_processing): Change memory
+	allocation to use GC.
+
+2003-02-04  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* treelang.texi: Update to GFDL 1.2.
+
+2003-01-26  Michael Matz  <matz@suse.de>
+
+	* Make-lang.in (treelang/parse.o-warn): Define as -Wno-error.
+
+2003-01-14  Andreas Jaeger  <aj@suse.de>
+
+	* Make-lang.in (treelang.install-info): Depend only on info files
+	if BUILD_INFO is set.  Fix install rules.
+	(treelang.): New.
+
+2003-01-09  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+
+	* Make-lang.in (treelang.install.common.done,
+	treelang.install-info, treelang.uninstall): Prepend
+	$(DESTDIR) to destination paths in all (un)installation
+	commands.
+
+2002-12-28  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* treelang.texi: Use @copying.
+
+2002-12-23  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* treelang.texi: Include gcc-common.texi.
+	* Make-lang.in ($(srcdir)/treelang/treelang.info, treelang.dvi):
+	Depend on gcc-common.texi.  Add other missing dependencies.
+	(treelang.dvi): Use texi2dvi.
+
+2002-12-22  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* treelang.texi: Use @ifnottex instead of @ifinfo.
+
+2002-11-30  Zack Weinberg  <zack@codesourcery.com>
+
+	* lex.l: Move "%{" below copyright notice; get rid of "/*"
+	embedded in comment.  Do not #undef IN_GCC; do not include
+	stdio.h, memory.h, or ansidecl.h; do not include config.h twice.
+	Do include coretypes.h and tm.h.
+	* parse.y: Do not #undef IN_GCC, provide bogus definitions of tree
+	and rtx typedefs, or include stdio.h, stdlib.h, string.h, or
+	ansidecl.h. Do include coretypes.h and tm.h.
+	* tree1.c: Do not include ansidecl.h, stdlib.h, unistd.h, ctype.h,
+	stdarg.h, string.h, or stdio.h.  Do include coretypes.h and tm.h.
+	* treetree.c: Do not include stdlib.h, unistd.h, safe-ctype.h,
+	errno.h. stdarg.h, limits.h, string.h, fcntl.h, getopt.h. stdio.h,
+	or ansidecl.h.  Do include coretypes.h and tm.h.
+	* Make-lang.in: Update dependencies.
+
+2002-09-09  Tim Josling  <tej@melbpc.org.au>
+
+	* treetree.c (objc_is_id): New.
+
+2002-08-16  Tim Josling  <tej@melbpc.org.au>
+
+	Remove variables and functions now defined elsewhere.
+
+	* treetree.c (maybe_objc_comptypes): Remove.
+	(warn_format, warn_format_y2k, warn_format_extra_args,
+	warn_format_nonliteral, warn_format_security,
+	warn_format_zero_length): Remove.
+	(maybe_building_objc_message_expr): Remove.
+	(cpp_post_options): Remove.
+	(maybe_objc_check_decl): Remove.
+	(integer_types): Remove.
+
+
+2002-08-13  Neil Booth  <neil@daikokuya.co.uk>
+
+	* treelang.c: Remove cpp_post_options.
+
+2002-08-13  Tim Josling  <tej@melbpc.org.au>
+
+	* parse.y: Provide dummy definition of rtx for use by config.h.
+	* Make-lang.in (treetree.o): Remove dependency on non-existent
+	gt-treelang-treelang.h.
+	(gt-treelang-treelang.h): Remove.
+
+2002-08-08  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* treelang/Make-lang.in (treelang.mostlyclean): Remove coverage files.
+
+2002-07-11  Tim Josling  <tej@melbpc.org.au>
+
+	Remove front end hard coding from gengtype.c.
+
+	* config-lang.in (gtfiles): Add files needed for this front
+	end.
+
+2002-07-09  Tim Josling  <tej@melbpc.org.au>
+
+	Support new attributes regime (Fix for PR c++/7099).
+
+	* treetree.c (handle_format_attribute): Return NULL_TREE instead
+	of aborting.
+	(top level): Define LANG_HOOKS_COMMON_ATTRIBUTE_TABLE
+	LANG_HOOKS_FORMAT_ATTRIBUTE_TABLE
+	LANG_HOOKS_INSERT_DEFAULT_ATTRIBUTES as the standard C routines.
+
+2002-06-21  Andreas Jaeger  <aj@suse.de>
+
+	* Make-lang.in (treelang/tree1.o, treelang/treetree.o,
+	treelang/parse.o, treelang/lex.o): Add dependency on $(CONFIG_H).
+
+2002-06-19  Paolo Bonzini <bonzini@gnu.org>
+
+	* lex.l (yyparse) Return AUTOMATIC for 'automatic' token rather
+	than STATIC.
+
+2002-06-10  Tim Josling  <tej@melbpc.org.au>
+
+	Cleanup
+
+	* Make-lang.in (check-treelang). Add. Remove direct dependency of
+	'check' on 'treelang.check' as redundant.
+
+	PCH Garbage collection regime (gengtypes.c) phase 1.
+
+	* Make-lang.in (treelang/tree1.o). Depend on gt-treelang-tree1.h
+	gt-treelang-treelang.h gtype-treelang.h.
+	(gt-treelang-tree1.h) Depend on s-gtype.
+	(gt-treelang-treelang.h) Depend on s-gtype.
+	(gtype-treelang.h) Depend on s-gtype.
+
+	* config-lang.in (gtfiles): Define.
+
+	* lex.l (main): Remove '#if 0' dead code.
+	(main): Move undef of IN_GCC so define of tree typedef works.
+	(all): Replace token and production by prod_token_parm_item.
+
+	* parse.y
+	(all): Replace token and production by prod_token_parm_item.
+
+	* tree1.c (main): Remove include of "output.h".
+	(symbol_table): Add GTY details.
+	(symbol_table_ggc): Remove.
+	(treelang_init): Remove root definitions for garbage collection.
+	(mark_production_used): Remove.
+	(mark_token_used): Remove.
+	(main, at end): include generated garage collection routines.
+
+	* treelang.h (category_enum ): Add parameter_category.
+	(all): Replace token and production and parameters by union
+	prod_token_parm_item containing production_part, token_part,
+	parameter_part.
+	(STATIC_STORAGE AUTOMATIC_STORAGE EXTERNAL_REFERENCE_STORAGE
+	EXTERNAL_DEFINITION_STORAGE SIGNED_CHAR UNSIGNED_CHAR SIGNED_INT
+	UNSIGNED_INT VOID_TYPE EXP_PLUS EXP_REFERENCE EXP_ASSIGN
+	EXP_FUNCTION_INVOCATION EXP_MINUS EXP_EQUALS): Move here from
+	treetree.h.
+
+	* treetree.c
+	(tm_p.h): Do not include.
+	(ansidecl.h): Move include after config.h.
+	(treelang.h): Include it.
+	(ADDROOT): Remove.
+	(all): Replace token, production and parameter by prod_token_parm_item.
+	(tree_parameter_list): Move to treelang.h as part of
+	prod_token_parm_item.
+	(STATIC_STORAGE AUTOMATIC_STORAGE EXTERNAL_REFERENCE_STORAGE
+	EXTERNAL_DEFINITION_STORAGE SIGNED_CHAR UNSIGNED_CHAR SIGNED_INT
+	UNSIGNED_INT VOID_TYPE EXP_PLUS EXP_REFERENCE EXP_ASSIGN
+	EXP_FUNCTION_INVOCATION EXP_MINUS EXP_EQUALS): Move from here to
+	treelang.h.
+
+2002-05-19  Tim Josling  <tej@melbpc.org.au>
+
+	* treetree.c (warn_format_zero_length): Add.
+
+2002-05-14  Tim Josling  <tej@melbpc.org.au>
+
+	* Make-lang.in: Fix build for .info files, add target for manpages.
+	A bug report and a suggested patch came from Magnus Fromreide
+	<magfr@lysator.liu.se>.
+
+2002-05-16  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* Make-lang.in: Allow for PWDCMD to override hardcoded pwd.
+
+2002-05-11  Tim Josling  <tej@melbpc.org.au>
+
+	* treetree.c: (cpp_define) Add.
+	(cpp_get_callbacks) Add.
+
+2002-05-07  Tim Josling  <tej@melbpc.org.au>
+
+	* treetree.c: (cpp_get_options) Add.
+
+2002-05-06  Tim Josling  <tej@melbpc.org.au>
+
+	* .cvsignore: Add.
+
+2002-05-05  Tim Josling  <tej@melbpc.org.au>
+
+	* Updated for gcc3.2 experimental. Major changes throughout.
+
+2002-03-31  Tim Josling  <tej@melbpc.org.au>
+
+	* Make-lang.in: Changes so build and check work more reliably
+
+2001-07-30  Tim Josling  <tej@melbpc.org.au>
+
+	* root.texi: remove
+	* treelang.texi: updates based on feedback
+
+2001-06-11  Tim Josling  <tej@melbpc.org.au>
+
+	* all (all) Revamp code to conform to GCC coding standards, fix
+	typos in texi files.
+
+2001-05-11  Tim Josling  <tej@melbpc.org.au>
+
+	Create the new language.

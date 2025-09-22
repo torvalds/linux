@@ -1,0 +1,49 @@
+{
+	global:
+		sio_initpar;
+		sio_open;
+		sio_close;
+		sio_setpar;
+		sio_getpar;
+		sio_getcap;
+		sio_onmove;
+		sio_write;
+		sio_read;
+		sio_start;
+		sio_stop;
+		sio_flush;
+		sio_nfds;
+		sio_pollfd;
+		sio_revents;
+		sio_eof;
+		sio_setvol;
+		sio_onvol;
+
+		mio_open;
+		mio_close;
+		mio_write;
+		mio_read;
+		mio_nfds;
+		mio_pollfd;
+		mio_revents;
+		mio_eof;
+
+		sioctl_open;
+		sioctl_close;
+		sioctl_ondesc;
+		sioctl_onval;
+		sioctl_setval;
+		sioctl_nfds;
+		sioctl_pollfd;
+		sioctl_revents;
+		sioctl_eof;
+
+		mio_rmidi_getfd;
+		mio_rmidi_fdopen;
+		sio_sun_getfd;
+		sio_sun_fdopen;
+		sioctl_sun_getfd;
+		sioctl_sun_fdopen;
+	local:
+		*;
+};

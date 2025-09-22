@@ -1,0 +1,147 @@
+.\"	$OpenBSD: lm.4,v 1.26 2019/12/17 01:34:59 mortimer Exp $
+.\"	$NetBSD: lm.4,v 1.11 2001/09/22 01:22:49 wiz Exp $
+.\"
+.\" Copyright (c) 2000 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Bill Squier.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 17 2019 $
+.Dt LM 4
+.Os
+.Sh NAME
+.Nm lm
+.Nd National Semiconductor LM78/79/81 temperature, voltage, and fan sensor
+.Sh SYNOPSIS
+.Cd "lm0 at isa? port 0x290"
+.Cd "lm1 at isa? port 0x280"
+.Cd "lm2 at isa? port 0x310"
+.\" .Cd "lm0 at pnpbios0"
+.Cd "lm* at iic?"
+.Cd "lm* at wbsio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+National Semiconductor LM78/79/81
+hardware monitors and register compatible chips to be used with the
+.Xr sysctl 8
+interface.
+.Pp
+The original LM78 hardware monitor supports 11 sensors:
+.Bl -column "Sensor" "Units" "Typical" -offset indent
+.It Sy "Sensor" Ta Sy "Units" Ta Sy "Typical Use"
+.It Li "IN0" Ta "uV DC" Ta "Core voltage"
+.It Li "IN1" Ta "uV DC" Ta "Unknown"
+.It Li "IN2" Ta "uV DC" Ta "+3.3V"
+.It Li "IN3" Ta "uV DC" Ta "+5V"
+.It Li "IN4" Ta "uV DC" Ta "+12V"
+.It Li "IN5" Ta "uV DC" Ta "-12V"
+.It Li "IN6" Ta "uV DC" Ta "-5V"
+.It Li "Temp" Ta "uK" Ta "Motherboard Temperature"
+.It Li "Fan0" Ta "RPM" Ta "Fan"
+.It Li "Fan1" Ta "RPM" Ta "Chassis Fan"
+.It Li "Fan2" Ta "RPM" Ta "Fan"
+.El
+.Pp
+For other devices, sensors' names and numbers will be different.
+.Sh HARDWARE
+Chips supported by the
+.Nm
+driver include:
+.Pp
+.Bl -dash -offset indent -compact
+.It
+ASUS AS99127F
+.It
+National Semiconductor LM78 and LM78-J
+.It
+National Semiconductor LM79
+.It
+National Semiconductor LM81
+.It
+Nuvoton NCT6775F, NCT6776F, NCT6779D, NCT6791D, NCT6792D, NCT6793D, NCT6795D
+.It
+Winbond W83627HF, W83627THF, W83637HF and W83697HF
+.It
+Winbond W83627DHG, W83627UHG and W83627EHF
+.It
+Winbond W83781D, W83782D and W83783S
+.It
+Winbond W83791D, W83791SD and W83792D
+.El
+.Pp
+Some devices can attach to both
+.Xr iic 4
+and
+.Xr isa 4 ;
+others can only attach to either one or the other.
+If the
+.Nm
+driver detects a device attaching to both
+.Xr iic 4
+and
+.Xr isa 4 ,
+it will detach the device from
+.Xr iic 4 .
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr isa 4 ,
+.Xr wbsio 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Nx 1.5 ;
+.Ox
+support was added in
+.Ox 3.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bill Squier
+and ported to
+.Ox 3.4
+by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .
+The driver was largely rewritten for
+.Ox 3.9
+by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .
+.Sh CAVEATS
+Some vendors connect these chips to non-standard thermal diodes and
+resistors.
+This will result in bogus sensor values.
+.Sh BUGS
+Interrupt support is unimplemented.
+.Pp
+There are currently no known pnpbios IDs assigned to LM chips.
+.Pp
+This driver attaches to the Winbond W83791SD chip even though that
+chip does not have any sensors.

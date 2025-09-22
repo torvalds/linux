@@ -1,0 +1,46 @@
+.\"	$OpenBSD: mtintc.4,v 1.2 2025/01/30 02:14:17 jsg Exp $
+.\"
+.\" Copyright (c) 2025 James Hastings <hastings@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 30 2025 $
+.Dt MTINTC 4
+.Os
+.Sh NAME
+.Nm mtintc
+.Nd MediaTek system interrupt controller
+.Sh SYNOPSIS
+.Cd "mtintc* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the system interrupt controller
+integrated on MediaTek SoCs.
+The controller provides per-interrupt polarity inversion
+and transparent forwarding to an
+Arm Generic Interrupt Controller (GIC).
+.Sh SEE ALSO
+.Xr ampintc 4 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An James Hastings Aq Mt hastings@openbsd.org .

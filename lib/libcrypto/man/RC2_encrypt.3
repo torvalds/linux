@@ -1,0 +1,196 @@
+.\" $OpenBSD: RC2_encrypt.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RC2_ENCRYPT 3
+.Os
+.Sh NAME
+.Nm RC2_set_key ,
+.Nm RC2_encrypt ,
+.Nm RC2_decrypt ,
+.Nm RC2_cbc_encrypt ,
+.Nm RC2_ecb_encrypt ,
+.Nm RC2_cfb64_encrypt ,
+.Nm RC2_ofb64_encrypt
+.Nd low-level functions for Rivest Cipher 2
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rc2.h
+.Ft void
+.Fo RC2_set_key
+.Fa "RC2_KEY *expanded_key"
+.Fa "int len"
+.Fa "const unsigned char *user_key"
+.Fa "int effective_bits"
+.Fc
+.Ft void
+.Fo RC2_encrypt
+.Fa "unsigned long *data"
+.Fa "RC2_KEY *expanded_key"
+.Fc
+.Ft void
+.Fo RC2_decrypt
+.Fa "unsigned long *data"
+.Fa "RC2_KEY *expanded_key"
+.Fc
+.Ft void
+.Fo RC2_cbc_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "RC2_KEY *expanded_key"
+.Fa "unsigned char *iv"
+.Fa "int encrypt"
+.Fc
+.Ft void
+.Fo RC2_ecb_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "RC2_KEY *expanded_key"
+.Fa "int encrypt"
+.Fc
+.Ft void
+.Fo RC2_cfb64_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "RC2_KEY *expanded_key"
+.Fa "unsigned char *iv"
+.Fa "int *num"
+.Fa "int encrypt"
+.Fc
+.Ft void
+.Fo RC2_ofb64_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "RC2_KEY *expanded_key"
+.Fa "unsigned char *iv"
+.Fa "int *num"
+.Fc
+.Sh DESCRIPTION
+RC2 is a block cipher operating on blocks of
+.Dv RC2_BLOCK No = 8
+bytes, equivalent to 64 bits, using a variable key length
+with an additional parameter called
+.Dq effective key bits
+or
+.Dq effective key length .
+The maximum effective key length is 1024 bits.
+.Pp
+If using RC2 cannot be avoided, it is recommended that application
+programs use the
+.Xr EVP_rc2_cbc 3
+family of functions instead of the functions documented in the present
+manual page, to ease later migration to less outdated encryption algorithms.
+.Pp
+.Fn RC2_set_key
+expands the first
+.Fa len
+bytes of
+.Fa user_key
+into the
+.Vt RC2_KEY
+structure
+.Pf * Fa expanded_key .
+The storage for the expanded key has to be provided by the calling code.
+If the
+.Fa len
+argument exceeds 128, only the first 128 bytes are used.
+.Pp
+Optionally, if the
+.Fa effective_bits
+argument is positive and less than 1024, the effective key length of
+.Pf * Fa expanded_key
+is reduced to
+.Fa effective_bits .
+Reducing the effective key length is not cryptographically useful.
+This option was originally designed to conform to US export regulations
+valid at the time, which were designed to allow the US government
+to spy on foreign encrypted communications.
+Unless interoperability requires otherwise, setting
+.Fa effective_bits
+to 1024 is recommended.
+.Pp
+.Fn RC2_encrypt
+and
+.Fn RC2_decrypt
+interpret
+.Fa data
+as an array of two 32 bit integers and encrypt or decrypt
+that single block in place, respectively, using the
+.Fa expanded_key .
+.Pp
+The remaining functions encode or decode
+.Fa length
+bytes starting at
+.Fa in
+to
+.Fa length
+bytes starting at
+.Fa out
+in various modes of operation using the
+.Fa expanded_key .
+Both arrays need to be long enough to hold
+.Fa length
+bytes rounded up to the next multiple of 8.
+The
+.Fa iv
+argument points to an array of 8 bytes used as the initialization vector.
+If the
+.Fa encrypt
+argument is
+.Dv RC2_ENCRYPT
+or another non-zero value, encryption is performed;
+if it is
+.Dv RC2_DECRYPT No = 0 ,
+decryption is performed.
+.Pp
+.Fn RC2_cbc_encrypt
+operates in cipher block chaining mode.
+.Pp
+.Fn RC2_ecb_encrypt
+encodes or decodes eight bytes at
+.Fa in
+to
+eight bytes at
+.Fa out
+in electronic codebook mode.
+.Pp
+.Fn RC2_cfb64_encrypt
+and
+.Fn RC2_ofb64_encrypt
+operate in cipher feedback mode and output feedback mode, respectively,
+with 64 bit blocks.
+The number of bytes used from the last 8 byte block is kept track of in
+.Pf * Fa num .
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr EVP_EncryptInit 3 ,
+.Xr EVP_rc2_cbc 3
+.Sh HISTORY
+.Fn RC2_set_key ,
+.Fn RC2_encrypt ,
+.Fn RC2_cbc_encrypt ,
+.Fn RC2_ecb_encrypt ,
+.Fn RC2_cfb64_encrypt ,
+and
+.Fn RC2_ofb64_encrypt
+first appeared in SSLeay 0.5.2.
+.Fn RC2_decrypt
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .

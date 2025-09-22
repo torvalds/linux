@@ -1,0 +1,152 @@
+.\"	$OpenBSD: ACCESS_DESCRIPTION_new.3,v 1.7 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ACCESS_DESCRIPTION_NEW 3
+.Os
+.Sh NAME
+.Nm ACCESS_DESCRIPTION_new ,
+.Nm ACCESS_DESCRIPTION_free ,
+.Nm AUTHORITY_INFO_ACCESS_new ,
+.Nm AUTHORITY_INFO_ACCESS_free
+.Nd X.509 information access extensions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft ACCESS_DESCRIPTION *
+.Fn ACCESS_DESCRIPTION_new void
+.Ft void
+.Fn ACCESS_DESCRIPTION_free "ACCESS_DESCRIPTION *ad"
+.Ft AUTHORITY_INFO_ACCESS
+.Fn AUTHORITY_INFO_ACCESS_new void
+.Ft void
+.Fn AUTHORITY_INFO_ACCESS_free "AUTHORITY_INFO_ACCESS *aia"
+.Sh DESCRIPTION
+Using the information access extensions, certificates and certificate
+revocation lists can point to auxiliary information and services
+available online, for example online validation services or CA
+policy data.
+.Pp
+.Fn ACCESS_DESCRIPTION_new
+allocates and initializes an empty
+.Vt ACCESS_DESCRIPTION
+object, representing an ASN.1
+.Vt AccessDescription
+structure defined in RFC 5280 section 4.2.2.1.
+It can hold a pointer to a
+.Vt GENERAL_NAME
+object documented in
+.Xr GENERAL_NAME_new 3
+and an access method identifier.
+.Fn ACCESS_DESCRIPTION_free
+frees
+.Fa ad .
+.Pp
+The access method identifier is somewhat misnamed; it identifies
+the type and format of the information provided.
+How to access that information is often obvious from the
+.Vt GENERAL_NAME
+which may for example include a uniform resource identifier.
+.Pp
+Four standard access method identifiers are defined in RFC 5280:
+.Bl -bullet
+.It
+.Qq id-ad-caIssuers
+can occur in the authority information access extension of certificates
+and certificate revocation lists and provides access to certificates
+issued to the CA that issued the certificate, or provides access
+to certificates used for signing the CRL, in order to help constructing
+a certification path.
+.It
+.Qq id-ad-ocsp
+can occur in the authority information access extension of certificates
+and provides access to revocation information via the Online
+Certificate Status Protocol (OCSP) defined in RFC 6960.
+.It
+.Qq id-ad-caRepository
+can occur in the subject information access extension of CA
+certificates and provides access to an online repository of
+certificates issued by the CA.
+.It
+.Qq id-ad-timeStamping
+can occur in the subject information access extension of end entity
+certificates and indicates that the subject offers timestamping
+services using the Time Stamp Protocol defined in RFC 3161.
+.El
+.Pp
+.Fn AUTHORITY_INFO_ACCESS_new
+allocates and initializes an empty
+.Vt AUTHORITY_INFO_ACCESS
+object, which is a
+.Vt STACK_OF(ACCESS_DESCRIPTION)
+and represents an ASN.1
+.Vt AuthorityInfoAccessSyntax
+structure defined in RFC 5280 section 4.2.2.1.
+It can be used for the authority information access extension of
+certificates and certificate revocation lists and for the subject
+information access extension of certificates.
+.Fn AUTHORITY_INFO_ACCESS_free
+frees
+.Fa aia .
+.Sh RETURN VALUES
+.Fn ACCESS_DESCRIPTION_new
+and
+.Fn AUTHORITY_INFO_ACCESS_new
+return the new
+.Vt ACCESS_DESCRIPTION
+or
+.Vt AUTHORITY_INFO_ACCESS
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr d2i_ACCESS_DESCRIPTION 3 ,
+.Xr DIST_POINT_new 3 ,
+.Xr GENERAL_NAME_new 3 ,
+.Xr OCSP_REQUEST_new 3 ,
+.Xr TS_REQ_new 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_new 3
+.Sh STANDARDS
+These extensions are only defined in the following RFC and not
+specified in the underlying X.509 standard.
+.Pp
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile:
+.Bl -dash -compact
+.It
+section 4.2.2.1: Certificate Extensions: Authority Information Access
+.It
+section 4.2.2.2: Certificate Extensions: Subject Information Access
+.It
+section 5.2.7: CRL Extensions: Authority Information Access
+.El
+.Pp
+Regarding OCSP and TSP, see:
+.Pp
+RFC 6960: X.509 Internet Public Key Infrastructure Online Certificate
+Status Protocol
+.Pp
+RFC 3161: Internet X.509 Public Key Infrastructure Time-Stamp Protocol
+.Sh HISTORY
+.Fn ACCESS_DESCRIPTION_new ,
+.Fn ACCESS_DESCRIPTION_free ,
+.Fn AUTHORITY_INFO_ACCESS_new ,
+and
+.Fn AUTHORITY_INFO_ACCESS_free
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .

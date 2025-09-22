@@ -1,0 +1,295 @@
+.\"	$OpenBSD: eigrpd.conf.5,v 1.13 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2015 Renato Westphal <renato@openbsd.org>
+.\" Copyright (c) 2005 Esben Norby <norby@openbsd.org>
+.\" Copyright (c) 2004 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2002 Daniel Hartmeier <dhartmei@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt EIGRPD.CONF 5
+.Os
+.Sh NAME
+.Nm eigrpd.conf
+.Nd EIGRP routing daemon configuration file
+.Sh DESCRIPTION
+The
+.Xr eigrpd 8
+daemon implements the Enhanced Interior Gateway Routing Protocol.
+.Pp
+The
+.Nm
+config file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global settings for
+.Xr eigrpd 8 .
+.It Sx Routing instances
+Multiple routing instances can be defined.
+Routing instances are defined hierarchically
+by address-family and then autonomous-system.
+.It Sx Interfaces configuration
+Interface-specific parameters.
+.El
+.Pp
+Argument names not beginning with a letter, digit, or underscore
+must be quoted.
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/eigrpd.sub.conf"
+.Ed
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic bandwidth ,
+.Ic interface ,
+or
+.Ic hello-interval ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+fastethernet="100000"
+address-family ipv4 {
+	autonomous-system 1 {
+		interface em1 {
+			bandwidth $fastethernet
+		}
+	}
+}
+.Ed
+.Pp
+The same can be accomplished by specifying the bandwidth
+globally or within the address-family or autonomous-system declaration.
+.Sx Global configuration
+Several settings can be configured globally, per address-family, per
+autonomous-system and per interface.
+The only settings that can be set globally and not overruled are listed below.
+.Bl -tag -width Ds
+.It Ic fib-priority-internal Ar prio
+Set the routing priority of EIGRP internal routes to
+.Ar prio .
+The default is 28.
+.It Ic fib-priority-external Ar prio
+Set the routing priority of EIGRP external routes to
+.Ar prio .
+This option may be used as a simple loop-prevention mechanism when another
+routing protocol is being redistributed into EIGRP.
+The default is 28.
+.It Ic fib-priority-summary Ar prio
+Set the routing priority of EIGRP summary routes to
+.Ar prio .
+The default is 28.
+.It Xo
+.Ic fib-update
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+If set to
+.Ic \&no ,
+do not update the Forwarding Information Base, a.k.a. the kernel
+routing table.
+The default is
+.Ic yes .
+.It Ic rdomain Ar tableid
+Specifies the routing table
+.Xr eigrpd 8
+should modify.
+Table 0 is the default table.
+.It Ic router-id Ar address
+Set the router ID; if not specified, the numerically lowest IP address of
+the router will be used.
+.El
+.Ss Routing instances
+Multiple routing instances can be defined.
+Routing instances are defined hierarchically
+by address-family and then autonomous-system.
+.Bd -literal -offset indent
+address-family ipv4 {
+	...
+	autonomous-system 1 {
+		...
+		interface em0 {
+			...
+		}
+	}
+}
+.Ed
+.Pp
+Routing-instance specific parameters are listed below.
+.Bl -tag -width Ds
+.It Ic active-timeout Ar minutes
+Set the maximum time to wait before declaring a route to be in the stuck
+in active state.
+If 0 is given, the active timeout is disabled.
+The default value is 3; valid range is 0\-65535.
+.It Xo
+.Ic address-family
+.Pq Ic ipv4 Ns | Ns Ic ipv6
+.Xc
+Specify an address-family section, grouping one or more autonomous-systems.
+.It Ic autonomous-system Ar number
+Specify the autonomous-system, grouping one or more interfaces.
+Valid range is 1\-65535.
+.It Ic default-metric Ar bandwidth delay reliability load mtu
+Specify a default metric for all routes redistributed into EIGRP.
+Valid ranges are: 1\-10000000 for the bandwidth, 1\-16777215 for the delay,
+1\-255 for the reliability, 1\-255 for the load and 1\-65535 for the mtu.
+.It Ic k-values Ar K1 Ar K2 Ar K3 Ar K4 Ar K5 Ar K6
+Set the coefficients used by the composite metric calculation.
+Two routers become neighbors only if their K-values are the same.
+For K1 and K3, The default value is 1.
+For K2, K4, K5 and K6 the default value is 0;
+valid range is 1\-254.
+.It Ic maximum-hops Ar number
+Advertise as unreachable the routes with a hop count higher than specified.
+The default value is 100; valid range is 1\-255.
+.It Ic maximum-paths Ar number
+Specify the maximum number of ECMP paths to be installed in the FIB for
+each route.
+The default value is 4; valid range is 1\-32.
+.It Xo
+.Op Ic no
+.Ic redistribute
+.Sm off
+.Po Ic static Ns | Ns Ic connected Ns | Ns Ic ospf | Ns Ic rip | Ns
+.Ic default Pc
+.Sm on
+.Op Ic metric Ar bandwidth delay reliability load mtu
+.Xc
+.It Xo
+.Op Ic no
+.Ic redistribute Ar prefix
+.Op Ic metric Ar bandwidth delay reliability load mtu
+.Xc
+If set to
+.Ic connected ,
+routes to directly attached networks will be announced over EIGRP.
+If set to
+.Ic static ,
+static routes will be announced over EIGRP.
+If set to
+.Ic ospf ,
+OSPF routes will be announced over EIGRP.
+If set to
+.Ic rip ,
+RIP routes will be announced over EIGRP.
+If set to
+.Ic default ,
+a default route pointing to this router will be announced over EIGRP.
+It is possible to specify a network range with
+.Ar prefix ;
+networks need to be part of that range to be redistributed.
+By default no additional routes will be announced over EIGRP.
+.Pp
+.Ic redistribute
+statements are evaluated in sequential order, from first to last.
+The first matching rule decides if a route should be redistributed or not.
+Matching rules starting with
+.Ic no
+will force the route to be not announced.
+The only exception is
+.Ic default ,
+which will be set no matter what, and additionally
+.Ic no
+cannot be used together with it.
+.Pp
+It is possible to set the route
+.Ic metric
+for each redistribute rule.
+.It Ic variance Ar multiplier
+Set the variance used to permit the installation of feasible successors in the
+FIB if their metric is lower than the metric of the successor multiplied by the
+specified multiplier.
+The default value is 1; valid range is 1\-128.
+.El
+.Ss Interfaces configuration
+Each interface can have several parameters configured individually, otherwise
+they are inherited.
+Interfaces can pertain to multiple routing instances.
+An interface is specified by its name.
+.Bd -literal -offset indent
+interface em0 {
+	...
+}
+.Ed
+.Pp
+Interface-specific parameters are listed below.
+.Bl -tag -width Ds
+.It Ic bandwidth Ar bandwidth
+Set the interface bandwidth in kilobits per second.
+The bandwidth is used as part of the EIGRP composite metric.
+The default value is 100000; valid range is 1\-10000000.
+.It Ic delay Ar delay
+Set the interface delay in tens of microseconds.
+The delay is used as part of the EIGRP composite metric.
+The default value is 10; valid range is 1\-16777215.
+.It Ic hello-interval Ar seconds
+Set the hello interval.
+The default value is 5; valid range is 1\-65535 seconds.
+.It Ic holdtime Ar seconds
+Set the hello holdtime.
+The default value is 15; valid range is 1\-65535 seconds.
+.It Ic passive
+Prevent transmission and reception of EIGRP packets on this interface.
+.It Xo
+.Ic split-horizon
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+If set to
+.Ic \&no ,
+the split horizon rule will be disabled on this interface.
+This option should be used with caution since it can introduce routing loops
+in point-to-point or broadcast networks.
+The default is
+.Ic yes .
+.It Ic summary-address Ar address Ns Li / Ns Ar len
+Configure a summary aggregate address for this interface.
+Multiple summary addresses can be configured.
+.El
+.Sh FILES
+.Bl -tag -width /etc/examples/eigrpd.conf -compact
+.It Pa /etc/eigrpd.conf
+.Xr eigrpd 8
+configuration file.
+.It Pa /etc/examples/eigrpd.conf
+Example configuration file.
+.El
+.Sh SEE ALSO
+.Xr eigrpctl 8 ,
+.Xr eigrpd 8 ,
+.Xr rc.conf.local 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Xr eigrpd 8
+program was written by
+.An Renato Westphal Aq Mt renato@openbsd.org .

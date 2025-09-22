@@ -1,0 +1,175 @@
+.\"	$OpenBSD: README,v 1.5 2007/11/25 16:40:04 jmc Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	 The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)README	8.1 (Berkeley) 6/8/93
+.\"
+
+-mdoc stuff
+	doc-* files are unstripped tmac.doc-* files
+
+Site specific string and register names (for doc-{common,nroff,ditroff})
+
+.\" tmac.doc-nroff
+.\"
+.\" Default fonts
+.\" FONT		DITROFF style	TROFF Style	NROFF Style
+.\" Default     	Times Roman	Times Roman	Printer Dependent
+.\" Default bold      	Times Bold	Times Bold	Printer Dependent
+.\" Default italic      Times Italic	Times Italic	Underline
+.\" Const width lit     Courier	Times   ?		Printer Dependent
+.\" Const width bold    Courier Bold	?               Printer Dependent
+.\" Const width ital    Courier Oblique	?       	Printer Dependent
+.\"
+.\" Default point size 10 (vs 12), Section Header point size 12 (vs 14)
+.\"
+.\"	STRING CONSTANTS
+.\" NS aD string (site) Address Style
+.\" NS aR string (site) Argument Reference Style
+.\" NS cM string (site) Interactive Command Modifier (flag)
+.\" NS eM string (site) Emphasis (in the English sense - usually italics)
+.\" NS eR string (site) Errno Style
+.\" NS eV string (site) Environment Variable Style
+.\" NS fA string (site) Function Argument Style
+.\" NS fL string (site) Command Line Flag Style
+.\" NS fN string (site) Function Name Style
+.\" NS Hs string (site) Header String Style
+.\" NS iC string (site) Interactive Command Style
+.\" NS lI string (site) Literal Style
+.\" NS lp string (site) Left Function Parenthesis Style
+.\" NS rp string (site) Right Function Parenthesis Style
+.\" NS lP string (site) Left Parenthesis Style
+.\" NS rP string (site) Right Parenthesis Style
+.\" NS lB string (site) Bracket Open Style
+.\" NS rB string (site) Bracket Close Style
+.\" NS mL string (site) Diagnostic Message List Style
+.\" NS nM string (site) Name (subject of manpage) Style
+.\" NS nO string (site) normal font (default)
+.\" NS lO string (site) Options Open Bracket Style
+.\" NS rO string (site) Options Close Bracket Style
+.\" NS pA string (site) Pathname Style
+.\" NS Pu string (site) Accepted punctuation string for -mdoc syntax
+.\" NS rA string (site) Reference Author Style
+.\" NS rT string (site) Reference Title Style
+.\" NS sH string (site) Section Header Style
+.\" NS sY string (site) Symbolic Emphasis (boldface)
+.\" NS sX string (site) Section Header Cross References
+.\" NS tN string (site) Trade Name Style
+.\" NS vA string (site) Generic Variable Style
+.\" NS Vs string (site) Volume Title Style
+.\" NS xR string (site) Cross Reference STyle (man page only)
+.\"	MISCELLANEOUS
+.\" NS lS string (site) list-label-sep (list-types hang, number, bullet, diag)
+.\" NS iV string soft space (can be split on a newline or padded in adjust mode)
+.\" NS sV string manipulable space
+.\" NS hV string hard space (cannot be split on newline or padded)
+.\" NS tV string tab space (for column function)
+.\" NS sI register (site) subheader indent
+.\" NS tI register (site) text indent
+.\" NS cR register nroff crt flag (1 for crt/online, 0 for printer)
+.\" NS Pp register (site) paragraph vertical spacing
+.\" NS dI register flag (Bd)
+.\"	INDENT WIDTHS (used for tag widths, and argument tests)
+.\" NS Ad register (site) Width Needed for Address Tag (indented amount)
+.\" NS Ac register (site) Angle Quote Close Value
+.\" NS Ao register (site) Angle Quote Open Width
+.\" NS Aq register (site) Angle Quote Width
+.\" NS Bc register (site) Bracket Quote Close Value
+.\" NS Bl register (site) Bullet List Macro Value
+.\" NS Bo register (site) Bracket Quote Open Width
+.\" NS Bq register (site) Bracket Quote Width
+.\" NS Ar register (site) Width Needed for Argument
+.\" NS Cm register (site) Width neeeded for Interactive Command Modifier
+.\" NS Co register (site) Width Needed for Column offset
+.\" NS Cx register (site) Width Needed for Complex Expressions
+.\" NS Ds register (site) Width Needed for Display (right and left margins)
+.\" NS Dc register (site) Double Quote Close Value
+.\" NS Do register (site) Double Quote Open Width
+.\" NS Dq register (site) Double Quote Width
+.\" NS Dv register (site) Defined (#define) variable (markup)
+.\" NS tI register (site) tI is dependent on Ds and used by .Dp
+.\" NS Ec register (site) Enclose Quote Close Value
+.\" NS El register (site) Enumerated List Macro Value
+.\" NS Eo register (site) Enclose Quote Open Width
+.\" NS Em register (site) Width Needed for Display
+.\" NS Eq register (site) Enclose Quote Width
+.\" NS Er register (site) Width Needed for Errno Types
+.\" NS Ev register (site) Width Needed for Environment Variables
+.\" NS Ex register (site) Width Needed for Example Indent
+.\" NS Fa register (site) Width Needed for Function Argument
+.\" NS Fl register (site) Width Needed for Flag
+.\" NS Fc register (site) Function Quote Close Value
+.\" NS Fn register (site) Width Needed for Function
+.\" NS Fo register (site) Function Quote Open Width
+.\" NS Hl register (site) Hypehnated List Macro Value (sub bullet list)
+.\" NS I1, I2, I3 register (site) Indent values
+.\" NS Ic register (site) Width neeeded for Interactive Command Name
+.\" NS Li register (site) Width Needed for Literal Constant
+.\" NS Ms register (site) Width Needed for Math Symbol ? not sure if needed
+.\" NS Nm register (site) Width Needed for Name
+.\" NS No register (site) Width Needed for Name
+.\" NS Ns register (site) No Space Macro Value
+.\" NS Oo register (site) Width Needed for Option Open
+.\" NS Oc register (site) Width Needed for Option Close
+.\" NS Op register (site) Width Needed for Option (one line)
+.\" NS Pa register (site) Width Needed for Pathname
+.\" NS Pf register (site) Prefix Macro Value
+.\" NS Pq register (site) Parenthesis Quote Width
+.\" NS Ql register (site) Width Needed for Quoted Literal
+.\" NS Sc register (site) Single Quote Close Value
+.\" NS So register (site) Single Quote Open Width
+.\" NS Sq register (site) Single Quote Width
+.\" NS Sy register (site) Width Needed for Symbols, Modes or Masks
+.\" NS Sx register (site) Width Needed for Section Header Cross References
+.\" NS Ra register (site) Reference Author
+.\" NS Rj register (site) Reference Journal Name
+.\" NS Rn register (site) Reference Issue Number
+.\" NS Ro register (site) Reference Optional Information
+.\" NS Rr register (site) Reference Technical Report Name
+.\" NS Rt register (site) Reference Book or Article title Title
+.\" NS Rv register (site) Reference Volume
+.\" NS Ta register (site) Tab macro register
+.\" NS Tn register (site) Trade Name Macro Value
+.\" NS Tv register (site) Tab Macro Value
+.\" NS Tx register (site) Width needed for default or unknown text width
+.\" NS Va register (site) Width Needed for Generic Variable
+.\" NS Xc register (site) Extended Argument List Close Value
+.\" NS Xo register (site) Extended Argument List Open Width
+.\" NS Xr register (site) Width Needed for Cross Reference.
+.\" .nr %A 1
+.\" .nr %J 1
+.\" .nr %N 1
+.\" .nr %O 1
+.\" .nr %R 1
+.\" .nr %T 1
+.\" .nr %V 1
+.\"	PAGE LAYOUT
+.\" NS pL macro - page layout
+.\" NS Hm register header margin
+.\" NS Fm register footer margin
+.\" NS vV register vertical distance (from Section headers/Lists/Subsections)

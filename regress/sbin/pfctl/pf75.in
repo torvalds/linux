@@ -1,0 +1,3 @@
+block in on lo0 proto tcp from 192.168.0.0/24 to port 22 tag ssh
+block in quick on lo0 ! tagged ssh
+ 

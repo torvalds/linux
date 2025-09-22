@@ -1,0 +1,22 @@
+static_library("X86") {
+  output_name = "lldbPluginABIX86"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+
+  # Uses source-relative paths for own includes.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "ABIMacOSX_i386.cpp",
+    "ABISysV_i386.cpp",
+    "ABISysV_x86_64.cpp",
+    "ABIWindows_x86_64.cpp",
+    "ABIX86.cpp",
+    "ABIX86_i386.cpp",
+  ]
+}

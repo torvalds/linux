@@ -1,0 +1,235 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>trie::node_iterator Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt><span class=
+    "c2"><tt>trie</tt></span>::node_iterator</tt>
+    Interface</h1>
+
+    <p>Node iterator.</p>
+
+    <p>This is an "iterator to an iterator" - it iterates over
+    nodes, and de-referencing it returns one of the tree's
+    iterators</p>
+
+    <h2><a name="link1" id="link1">Base Classes</a></h2>
+
+    <table class="c1" width="100%" border="1" summary="Bases">
+      <tr>
+        <td width="80%" align="left"><b>Class</b></td>
+
+        <td width="20%" align="left"><b>Derivation Type</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href=
+"trie.html#const_node_iterator4205924553"><span class="c2"><tt>trie</tt></span>::const_node_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>public</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link3" id="link3">General Container
+    Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="size_type55424436" id="size_type55424436">size_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"trie.html#const_node_iterator4205924553"><span class="c2"><tt>trie</tt></span>::const_node_iterator</a>::size_type
+</pre>
+        </td>
+
+        <td>
+          <p>Size type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link4" id="link4">Value-Type Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="value_type279018186" id=
+"value_type279018186">value_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="container_base.html#iterator10418194"><span class=
+"c2"><tt>container_base</tt></span>::iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Iterator's value type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="reference54418471" id="reference54418471">reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#value_type279018186"><tt>value_type</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Iterator's reference type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_reference495461441" id=
+"const_reference495461441">const_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#value_type279018186"><tt>value_type</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Iterator's const <a href=
+          "#reference54418471"><tt>reference</tt></a> type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link5" id="link5">Public Methods</a></h2>
+
+    <h3><a name="link6" id="link6">Constructors, Destructor, and
+    Related</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> 
+  pat_trie_node_it_
+  () 
+</pre>
+        </td>
+
+        <td>
+          <p>Default constructor.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link7" id="link7">Access Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <a href="#reference54418471"><tt>reference</tt></a>
+  <b>operator</b>*
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Access; returns the iterator associated with the
+          current leaf.</p>
+
+          <p>Should be called only for leaf nodes.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link8" id="link8">Movement Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<span class="c2"><tt>node_iterator</tt></span>
+  get_child
+  (<a href=
+"#size_type55424436"><tt>size_type</tt></a> i) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a node iterator to the corresponding node's
+          <span class="c1"><tt>i</tt></span>-th child.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

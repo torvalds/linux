@@ -1,0 +1,24 @@
+executable("llvm-profgen") {
+  deps = [
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Object",
+    "//llvm/lib/ProfileData",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsDisassemblers",
+    "//llvm/lib/Target:AllTargetsInfos",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/IPO",
+  ]
+  sources = [
+    "CSPreInliner.cpp",
+    "MissingFrameInferrer.cpp",
+    "PerfReader.cpp",
+    "ProfileGenerator.cpp",
+    "ProfiledBinary.cpp",
+    "llvm-profgen.cpp",
+  ]
+}

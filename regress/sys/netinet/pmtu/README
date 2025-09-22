@@ -1,0 +1,82 @@
+Regression tests for path MTU discovery implementation in the kernel.
+
+The test suite runs on the machine LOCAL, the kernel under test is
+running on REMOTE.  On LOCAL a Scapy program is simulating a
+connection to REMOTE TCP chargen service.  The source address is a
+non existing address on FAKE_NET.  The LOCAL machine acts as a
+router between REMOTE and virtual FAKE_NET_ADDR and can create ICMP
+packets.
+
+After the three-way handshake REMOTE fills the virtual TCP receive
+buffer of FAKE_NET_ADDR with generated chars.  The data is not
+acknowledged.  Then LOCAL sends a fragmentation-needed ICMP packet
+and expects REMOTE to retransmit the TCP data.  It is checked that
+the TCP packet from the REMOTE side has the MTU size that was
+announced in the ICMP packet.
+
+The same TCP test is done with IPv6 and a packet too big ICMP6.
+
+An IPv6 UDP packet with 1400 octets payload is sent from FAKE_NET
+to REMOTE.  The echo answer triggers an ICMP6 packet too big with
+1300 MTU limit from LOCAL.  The response to the next UDP echo packet
+has to be fragmented by REMOTE.
+
+After removing the gateway route of the PMTU route on REMOTE, the
+first IPv6 UDP echo must have 1400 octets payload.  A single ICMP6
+packet too big must change the existing PMTU route so that the next
+echo is fragmented.
+
+EXAMPLE
+
+To run this test I use the following configuration files.
+You should choose a different set of MAC and IP addresses.
+
+- My local machine where I run the regression test:
+
+/etc/hosts
+# to login to qemu with SSH via IPv6 link-local
+fe80::725f:caff:fe21:8d70%tap0		q70
+
+/etc/hostname.tap0
+lladdr fe:e1:ba:d0:d5:6d up
+inet 10.188.70.17 255.255.255.0
+inet6 fdd7:e83e:66bc:70:3e97:eff:fea7:9b2
+!route add -inet 10.188.219.0/24 127.0.0.1 -blackhole
+!route add -inet6 fdd7:e83e:66bc:219::/64 ::1 -blackhole
+
+- My qemu where the kernel under test is running
+
+/etc/hostname.vio0
+lladdr 70:5f:ca:21:8d:70
+inet 10.188.70.70 255.255.255.0
+inet6 fdd7:e83e:66bc:70:725f:caff:fe21:8d70
+!route add -inet 10.188.219.0/24 10.188.70.17
+!route add -inet6 fdd7:e83e:66bc:219::/64 fdd7:e83e:66bc:70:3e97:eff:fea7:9b2
+
+/etc/inetd.conf
+chargen stream  tcp     nowait  root    internal
+chargen stream  tcp6    nowait  root    internal
+echo            dgram   udp6    wait    root    internal
+
+/etc/rc.conf.local
+inetd_flags=
+sshd_flags=
+
+- My environment when executing the test
+
+LOCAL_IF=tap0
+LOCAL_MAC=fe:e1:ba:d0:d5:6d
+REMOTE_MAC=70:5f:ca:21:8d:70
+REMOTE_SSH=q70
+
+LOCAL_ADDR=10.188.70.17
+REMOTE_ADDR=10.188.70.70
+FAKE_NET=10.188.219.0/24
+FAKE_NET_ADDR=10.188.219.188
+
+LOCAL_ADDR6=fdd7:e83e:66bc:70:3e97:eff:fea7:9b2
+REMOTE_ADDR6=fdd7:e83e:66bc:70:725f:caff:fe21:8d70
+FAKE_NET6=fdd7:e83e:66bc:219::/64
+FAKE_NET_ADDR6=fdd7:e83e:66bc:219::188
+
+- Fix your configuration until make check-setup passes

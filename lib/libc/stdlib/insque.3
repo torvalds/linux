@@ -1,0 +1,103 @@
+.\"	$OpenBSD: insque.3,v 1.12 2020/04/26 16:36:14 schwarze Exp $
+.\" Copyright (c) 1993 John Brezak
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR `AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: April 26 2020 $
+.Dt INSQUE 3
+.Os
+.Sh NAME
+.Nm insque ,
+.Nm remque
+.Nd legacy doubly linked lists
+.Sh SYNOPSIS
+.In search.h
+.Ft void
+.Fn insque "void *elem" "void *pred"
+.Ft void
+.Fn remque "void *elem"
+.Sh DESCRIPTION
+.Bf -symbolic
+These interfaces have been superseded by the
+.Xr queue 3
+macros and are provided for compatibility with legacy code.
+.Ef
+.Pp
+.Fn insque
+and
+.Fn remque
+manipulate a legacy variety of intrusive doubly linked lists.
+A list can be either circular or linear.
+Each element in the list must be of the following form:
+.Bd -literal -offset indent
+struct qelem {
+	struct qelem   *q_forw;
+	struct qelem   *q_back;
+	char            q_data[];
+};
+.Ed
+.Pp
+The first two members of the struct must be pointers of the
+same type that point to the next and previous elements in
+the list, respectively.
+Any subsequent data in the struct is application-dependent.
+.Pp
+The
+.Fn insque
+function inserts
+.Fa elem
+into a list immediately after
+.Fa pred .
+.Pp
+The
+.Fn remque
+function removes
+.Fa elem
+from the list.
+.Pp
+These functions are not atomic.
+.Sh SEE ALSO
+.Xr queue 3
+.Sh STANDARDS
+The
+.Fn insque
+and
+.Fn remque
+functions conform to the X/Open System Interfaces option of the
+.St -p1003.1-2008
+specification.
+.Sh HISTORY
+The
+.Fn insque
+and
+.Fn remque
+functions are derived from the
+.Li insque
+and
+.Li remque
+instructions on the VAX.
+They first appeared in
+.Bx 4.2 .

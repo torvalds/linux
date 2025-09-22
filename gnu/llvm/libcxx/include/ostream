@@ -1,0 +1,202 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_OSTREAM
+#define _LIBCPP_OSTREAM
+
+/*
+    ostream synopsis
+
+template <class charT, class traits = char_traits<charT> >
+class basic_ostream
+    : virtual public basic_ios<charT,traits>
+{
+public:
+    // types (inherited from basic_ios (27.5.4)):
+    typedef charT                          char_type;
+    typedef traits                         traits_type;
+    typedef typename traits_type::int_type int_type;
+    typedef typename traits_type::pos_type pos_type;
+    typedef typename traits_type::off_type off_type;
+
+    // 27.7.2.2 Constructor/destructor:
+    explicit basic_ostream(basic_streambuf<char_type,traits>* sb);
+    basic_ostream(basic_ostream&& rhs);
+    virtual ~basic_ostream();
+
+    // 27.7.2.3 Assign/swap
+    basic_ostream& operator=(const basic_ostream& rhs) = delete; // C++14
+    basic_ostream& operator=(basic_ostream&& rhs);
+    void swap(basic_ostream& rhs);
+
+    // 27.7.2.4 Prefix/suffix:
+    class sentry;
+
+    // 27.7.2.6 Formatted output:
+    basic_ostream& operator<<(basic_ostream& (*pf)(basic_ostream&));
+    basic_ostream& operator<<(basic_ios<charT, traits>& (*pf)(basic_ios<charT,traits>&));
+    basic_ostream& operator<<(ios_base& (*pf)(ios_base&));
+    basic_ostream& operator<<(bool n);
+    basic_ostream& operator<<(short n);
+    basic_ostream& operator<<(unsigned short n);
+    basic_ostream& operator<<(int n);
+    basic_ostream& operator<<(unsigned int n);
+    basic_ostream& operator<<(long n);
+    basic_ostream& operator<<(unsigned long n);
+    basic_ostream& operator<<(long long n);
+    basic_ostream& operator<<(unsigned long long n);
+    basic_ostream& operator<<(float f);
+    basic_ostream& operator<<(double f);
+    basic_ostream& operator<<(long double f);
+    basic_ostream& operator<<(const void* p);
+    basic_ostream& operator<<(const volatile void* val); // C++23
+    basic_ostream& operator<<(basic_streambuf<char_type,traits>* sb);
+    basic_ostream& operator<<(nullptr_t);
+
+    // 27.7.2.7 Unformatted output:
+    basic_ostream& put(char_type c);
+    basic_ostream& write(const char_type* s, streamsize n);
+    basic_ostream& flush();
+
+    // 27.7.2.5 seeks:
+    pos_type tellp();
+    basic_ostream& seekp(pos_type);
+    basic_ostream& seekp(off_type, ios_base::seekdir);
+protected:
+    basic_ostream(const basic_ostream& rhs) = delete;
+    basic_ostream(basic_ostream&& rhs);
+    // 27.7.3.3 Assign/swap
+    basic_ostream& operator=(basic_ostream& rhs) = delete;
+    basic_ostream& operator=(const basic_ostream&& rhs);
+    void swap(basic_ostream& rhs);
+};
+
+// 27.7.2.6.4 character inserters
+
+template<class charT, class traits>
+  basic_ostream<charT,traits>& operator<<(basic_ostream<charT,traits>&, charT);
+
+template<class charT, class traits>
+  basic_ostream<charT,traits>& operator<<(basic_ostream<charT,traits>&, char);
+
+template<class traits>
+  basic_ostream<char,traits>& operator<<(basic_ostream<char,traits>&, char);
+
+// signed and unsigned
+
+template<class traits>
+  basic_ostream<char,traits>& operator<<(basic_ostream<char,traits>&, signed char);
+
+template<class traits>
+  basic_ostream<char,traits>& operator<<(basic_ostream<char,traits>&, unsigned char);
+
+// NTBS
+template<class charT, class traits>
+  basic_ostream<charT,traits>& operator<<(basic_ostream<charT,traits>&, const charT*);
+
+template<class charT, class traits>
+  basic_ostream<charT,traits>& operator<<(basic_ostream<charT,traits>&, const char*);
+
+template<class traits>
+  basic_ostream<char,traits>& operator<<(basic_ostream<char,traits>&, const char*);
+
+// signed and unsigned
+template<class traits>
+basic_ostream<char,traits>& operator<<(basic_ostream<char,traits>&, const signed char*);
+
+template<class traits>
+  basic_ostream<char,traits>& operator<<(basic_ostream<char,traits>&, const unsigned char*);
+
+// swap:
+template <class charT, class traits>
+  void swap(basic_ostream<charT, traits>& x, basic_ostream<charT, traits>& y);
+
+template <class charT, class traits>
+  basic_ostream<charT,traits>& endl(basic_ostream<charT,traits>& os);
+
+template <class charT, class traits>
+  basic_ostream<charT,traits>& ends(basic_ostream<charT,traits>& os);
+
+template <class charT, class traits>
+  basic_ostream<charT,traits>& flush(basic_ostream<charT,traits>& os);
+
+// rvalue stream insertion
+template <class Stream, class T>
+  Stream&& operator<<(Stream&& os, const T& x);
+
+template<class traits>
+basic_ostream<char, traits>& operator<<(basic_ostream<char, traits>&, wchar_t) = delete;               // since C++20
+template<class traits>
+basic_ostream<char, traits>& operator<<(basic_ostream<char, traits>&, char8_t) = delete;               // since C++20
+template<class traits>
+basic_ostream<char, traits>& operator<<(basic_ostream<char, traits>&, char16_t) = delete;              // since C++20
+template<class traits>
+basic_ostream<char, traits>& operator<<(basic_ostream<char, traits>&, char32_t) = delete;              // since C++20
+template<class traits>
+basic_ostream<wchar_t, traits>& operator<<(basic_ostream<wchar_t, traits>&, char8_t) = delete;         // since C++20
+template<class traits>
+basic_ostream<wchar_t, traits>& operator<<(basic_ostream<wchar_t, traits>&, char16_t) = delete;        // since C++20
+template<class traits>
+basic_ostream<wchar_t, traits>& operator<<(basic_ostream<wchar_t, traits>&, char32_t) = delete;        // since C++20
+template<class traits>
+basic_ostream<char, traits>& operator<<(basic_ostream<char, traits>&, const wchar_t*) = delete;        // since C++20
+template<class traits>
+basic_ostream<char, traits>& operator<<(basic_ostream<char, traits>&, const char8_t*) = delete;        // since C++20
+template<class traits>
+basic_ostream<char, traits>& operator<<(basic_ostream<char, traits>&, const char16_t*) = delete;       // since C++20
+template<class traits>
+basic_ostream<char, traits>& operator<<(basic_ostream<char, traits>&, const char32_t*) = delete;       // since C++20
+template<class traits>
+basic_ostream<wchar_t, traits>& operator<<(basic_ostream<wchar_t, traits>&, const char8_t*) = delete;  // since C++20
+template<class traits>
+basic_ostream<wchar_t, traits>& operator<<(basic_ostream<wchar_t, traits>&, const char16_t*) = delete; // since C++20
+template<class traits>
+basic_ostream<wchar_t, traits>& operator<<(basic_ostream<wchar_t, traits>&, const char32_t*) = delete; // since C++20
+
+// [ostream.formatted.print], print functions
+template<class... Args>                                                                                // since C++23
+  void print(ostream& os, format_string<Args...> fmt, Args&&... args);
+template<class... Args>                                                                                // since C++23
+  void println(ostream& os, format_string<Args...> fmt, Args&&... args);
+void println(ostream& os);                                                                             // since C++26
+
+void vprint_unicode(ostream& os, string_view fmt, format_args args);                                   // since C++23
+void vprint_nonunicode(ostream& os, string_view fmt, format_args args);                                // since C++23
+}  // std
+
+*/
+
+#include <__config>
+
+#include <__ostream/basic_ostream.h>
+
+#if _LIBCPP_STD_VER >= 23
+#  include <__ostream/print.h>
+#endif
+
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <atomic>
+#  include <concepts>
+#  include <cstdio>
+#  include <cstdlib>
+#  include <format>
+#  include <iosfwd>
+#  include <iterator>
+#  include <print>
+#  include <stdexcept>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_OSTREAM

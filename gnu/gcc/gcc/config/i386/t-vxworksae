@@ -1,0 +1,5 @@
+# Multilibs for VxWorks AE.
+
+MULTILIB_OPTIONS = mvthreads
+MULTILIB_MATCHES =
+MULTILIB_EXCEPTIONS = 

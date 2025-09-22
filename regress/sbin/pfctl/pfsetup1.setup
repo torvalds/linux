@@ -1,0 +1,2 @@
+ifconfig lo1000010 create
+ifconfig lo1000010 inet 192.168.0.1 netmask 0xffffff00 link1

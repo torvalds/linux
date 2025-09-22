@@ -1,0 +1,74 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("NVPTXGenDAGISel") {
+  visibility = [ ":LLVMNVPTXCodeGen" ]
+  args = [ "-gen-dag-isel" ]
+  td_file = "NVPTX.td"
+}
+
+static_library("LLVMNVPTXCodeGen") {
+  deps = [
+    ":NVPTXGenDAGISel",
+    "MCTargetDesc",
+    "TargetInfo",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/IPO",
+    "//llvm/lib/Transforms/Scalar",
+    "//llvm/lib/Transforms/Utils",
+    "//llvm/lib/Transforms/Vectorize",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "NVPTXAliasAnalysis.cpp",
+    "NVPTXAllocaHoisting.cpp",
+    "NVPTXAsmPrinter.cpp",
+    "NVPTXAssignValidGlobalNames.cpp",
+    "NVPTXAtomicLower.cpp",
+    "NVPTXCtorDtorLowering.cpp",
+    "NVPTXFrameLowering.cpp",
+    "NVPTXGenericToNVVM.cpp",
+    "NVPTXISelDAGToDAG.cpp",
+    "NVPTXISelLowering.cpp",
+    "NVPTXImageOptimizer.cpp",
+    "NVPTXInstrInfo.cpp",
+    "NVPTXLowerAggrCopies.cpp",
+    "NVPTXLowerAlloca.cpp",
+    "NVPTXLowerArgs.cpp",
+    "NVPTXLowerUnreachable.cpp",
+    "NVPTXMCExpr.cpp",
+    "NVPTXPeephole.cpp",
+    "NVPTXPrologEpilogPass.cpp",
+    "NVPTXProxyRegErasure.cpp",
+    "NVPTXRegisterInfo.cpp",
+    "NVPTXReplaceImageHandles.cpp",
+    "NVPTXSubtarget.cpp",
+    "NVPTXTargetMachine.cpp",
+    "NVPTXTargetTransformInfo.cpp",
+    "NVPTXUtilities.cpp",
+    "NVVMIntrRange.cpp",
+    "NVVMReflect.cpp",
+  ]
+}
+
+# This is a bit different from most build files: Due to this group
+# having the directory's name, "//llvm/lib/Target/NVPTX" will refer to this
+# target, which pulls in the code in this directory *and all subdirectories*.
+# For most other directories, "//llvm/lib/Foo" only pulls in the code directly
+# in "llvm/lib/Foo". The forwarding targets in //llvm/lib/Target expect this
+# different behavior.
+group("NVPTX") {
+  deps = [
+    ":LLVMNVPTXCodeGen",
+    "MCTargetDesc",
+    "TargetInfo",
+  ]
+}

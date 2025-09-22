@@ -1,0 +1,177 @@
+.\"	$OpenBSD: boot_macppc.8,v 1.23 2022/09/05 10:29:27 kn Exp $
+.\"
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)boot_macppc.8
+.\"
+.Dd $Mdocdate: September 5 2022 $
+.Dt BOOT_MACPPC 8 macppc
+.Os
+.Sh NAME
+.Nm boot_macppc
+.Nd macppc system bootstrapping procedures
+.Sh DESCRIPTION
+.Ss System startup
+When powered on, after a panic, or if the system is rebooted via
+.Xr reboot 8
+or
+.Xr shutdown 8 ,
+the Open Firmware will proceed to its initialization,
+and will boot an operating system if the
+.Va auto-boot?\&
+variable is set to
+.Dq true ,
+or will wait for interactive commands otherwise.
+.Ss Boot process description
+The Apple Open Firmware will normally load the kernel from the device and
+filename as instructed by the
+.Va boot-device
+and
+.Va boot-file
+variables.
+If the
+.Va boot-file
+variable is empty, the
+.Ox
+bootloader will look for a kernel named
+.Pa bsd ,
+unless a different filename has been specified in the boot command.
+To reset this variable to its default, empty, value, type the following
+at the Open Firmware prompt:
+.Pp
+.Dl set-default boot-device
+.Pp
+The
+.Ox
+bootstrap program is named
+.Dq ofwboot .
+It can be installed either in a HFS partition or in a
+MSDOS partition on the disk.
+If MBR partitioning is chosen for
+the disk, the bootstrap program will be installed automatically during the
+.Ox
+installation procedure.
+For HFS shared disks, the
+.Pa ofwboot
+file must be installed manually.
+The ofwboot program can be loaded from any Open Firmware recognized
+disk or network device.
+.Ss Boot process options
+If invoked manually without parameters, or if the specified kernel could
+not be loaded, the
+.Ox
+bootloader will let the user enter a boot device, kernel
+filename and boot options.
+.Pp
+If the special line
+.Ic exit
+is entered, the bootloader will attempt to restart the machine.
+.Pp
+The file specification used is of the form:
+.Pp
+.Dl Oo Oo Ar promdev : Oc Ns Ar filename Oc Op Fl acds
+.Pp
+where
+.Ar promdev
+is an optional Open Firmware device name (such as
+.Dq hd
+or
+.Dq ide ) .
+Normal line editing characters can be used when typing the file
+specification.
+.Pp
+The following options are recognized:
+.Pp
+.Bl -tag -width "-XXX" -offset indent -compact
+.It Fl a
+Prompt for the root filesystem and swap devices after the devices have
+been configured.
+.It Fl c
+Enter the
+.Dq User Kernel Config
+mode upon startup
+.Pq see Xr boot_config 8 .
+.It Fl d
+Enter the debugger,
+.Xr ddb 4 ,
+as soon as the kernel console has been initialized.
+.It Fl s
+Boot the system single-user.
+The system will be booted multi-user unless this option is specified.
+.El
+.Ss Abnormal system termination
+In case of system crashes, the kernel will usually enter the kernel
+debugger,
+.Xr ddb 4 ,
+unless it is not present in the kernel, or it is disabled via the
+.Va ddb.panic
+sysctl.
+Upon leaving ddb, or if ddb was not entered, the kernel will halt the system
+if it was still in device configuration phase, or attempt a dump to the
+configured dump device, if possible.
+The crash dump will then be recovered by
+.Xr savecore 8
+during the next multi-user boot cycle.
+It is also possible to force other behaviours from ddb.
+.Ss Accessing the PROM
+The prom can only be accessed during system reset, or at power-up.
+To enter Open Firmware, press and hold
+.Dq Cntrl
+.Dq Cmd
+.Dq o
+.Dq f
+as the machine resets until it enters the Open Firmware debugger.
+.Pp
+On an Xserve using serial console the System Identifier button is used to
+enter Open Firmware instead of the keyboard.
+To enter Open Firmware, hold down the System Identifier button while pressing
+the Power button.
+When the upper LED bank begins lighting up in sequence, repeatedly press
+the System Identifier button until the seventh LED from the right is
+highlighted in the lower bank.
+Now hold the System Identifier button for two seconds, until all the top
+row LEDs light up.
+.Sh FILES
+.Bl -tag -width /usr/mdec/ofwboot -compact
+.It Pa /bsd
+default system kernel
+.It Pa /bsd.rd
+standalone installation kernel, suitable for disaster recovery
+.It Pa /usr/mdec/ofwboot
+system bootstrap (usually installed on a stand-alone FAT partition or an
+Apple HFS partition, to be readable by Open Firmware)
+.El
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr boot_config 8 ,
+.Xr halt 8 ,
+.Xr init 8 ,
+.Xr installboot 8 ,
+.Xr reboot 8 ,
+.Xr savecore 8 ,
+.Xr shutdown 8

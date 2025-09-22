@@ -1,0 +1,16 @@
+dn: dc=example,dc=com
+objectClass: top
+objectClass: domain
+dc: example
+
+dn: cn=admin,dc=example,dc=com
+objectClass: top
+objectClass: inetOrgPerson
+cn: admin
+sn: admin
+userPassword: secret
+
+dn: ou=groups,dc=example,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: groups

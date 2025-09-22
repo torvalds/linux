@@ -1,0 +1,231 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>sample_trie_e_access_traits Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>sample_trie_e_access_traits</tt> Interface</h1>
+
+    <p>A sample trie element-access traits.</p>
+
+    <p>This class serves to show the interface an element- access
+    traits class needs to support.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/detail/trie_policy/sample_trie_e_access_traits.hpp">
+    <tt>sample_trie_e_access_traits.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link2" id="link2">General definitions.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="size_type55424436" id="size_type55424436">size_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+size_t, e.g.
+</pre>
+        </td>
+
+        <td>
+          <p>Size type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="key_type10393186" id="key_type10393186">key_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+std::string, e.g.
+</pre>
+        </td>
+
+        <td>
+          <p>Key type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_key_reference3185471705" id=
+"const_key_reference3185471705">const_key_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+const string &amp;, e.g.
+</pre>
+        </td>
+
+        <td>
+          <p>Const key reference type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link3" id="link3">Element definitions.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_iterator98626788" id=
+"const_iterator98626788">const_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+string::const_iterator, e.g.
+</pre>
+        </td>
+
+        <td>
+          <p>Element <tt><b>const</b></tt> iterator type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="e_type393186" id="e_type393186">e_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+char, e.g.
+</pre>
+        </td>
+
+        <td>
+          <p>Element type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="max_size10483336" id="max_size10483336">max_size</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+4, e.g.
+</pre>
+        </td>
+
+        <td>
+          <p>Number of distinct elements.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link4" id="link4">Public Methods</a></h2>
+
+    <h3><a name="link5" id="link5">Access methods.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>static</b> <a href=
+"#const_iterator98626788"><tt>const_iterator</tt></a>
+  begin
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key)
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#const_iterator98626788"><tt>const_iterator</tt></a> to
+          the first element of <span class=
+          "c1"><tt>r_key</tt></span>.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>static</b> <a href=
+"#const_iterator98626788"><tt>const_iterator</tt></a>
+  end
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key)
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#const_iterator98626788"><tt>const_iterator</tt></a> to
+          the after-last element of <span class=
+          "c1"><tt>r_key</tt></span>.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>static</b> <a href=
+"#size_type55424436"><tt>size_type</tt></a>
+  e_pos
+  (<a href="#e_type393186"><tt>e_type</tt></a> e)
+</pre>
+        </td>
+
+        <td>
+          <p>Maps an <span class="c1"><tt>element</tt></span> to a
+          position.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

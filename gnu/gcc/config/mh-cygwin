@@ -1,0 +1,6 @@
+EXTRA_TARGET_HOST_ALL_MODULES=maybe-all-libtermcap
+EXTRA_TARGET_HOST_INSTALL_MODULES=maybe-install-libtermcap
+
+all-gdb: maybe-all-libtermcap
+
+install-gdb: maybe-all-libtermcap

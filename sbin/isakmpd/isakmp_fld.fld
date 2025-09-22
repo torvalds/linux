@@ -1,0 +1,164 @@
+#	$OpenBSD: isakmp_fld.fld,v 1.8 2004/06/20 15:24:05 ho Exp $
+#	$EOM: isakmp_fld.fld,v 1.5 1999/04/25 13:38:22 niklas Exp $
+
+#
+# Copyright (c) 1998, 2001 Niklas Hallqvist.  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+# THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+#
+# This code was written under funding by Ericsson Radio Systems.
+#
+
+# XXX There are num-declared fields below that really are csts.
+
+# The ISAKMP message header.
+ISAKMP_HDR
+# XXX I want a way to specify COOKIES as an overlay of ICOOKIE + RCOOKIE
+  ICOOKIE		raw 8
+  RCOOKIE		raw 8
+  NEXT_PAYLOAD		cst 1		isakmp_payload_cst
+  VERSION		num 1
+  EXCH_TYPE		cst 1		ike_exch_cst,isakmp_exch_cst
+  FLAGS			mask 1		isakmp_flags_cst
+  MESSAGE_ID		raw 4
+  LENGTH		num 4
+.
+
+# Generic payload header.
+ISAKMP_GEN
+  NEXT_PAYLOAD		cst 1		isakmp_payload_cst
+  RESERVED		ign 1
+  LENGTH		num 2
+.
+
+# ISAKMP data attributes
+ISAKMP_ATTR
+  TYPE			num 2		ike_attr_cst,ipsec_attr_cst
+  LENGTH_VALUE		num 2
+  VALUE			raw
+.
+
+# Security association payload.
+ISAKMP_SA : ISAKMP_GEN
+  DOI			num 4		isakmp_doi_cst,ipsec_doi_cst
+  SIT			raw
+.
+
+# Proposal payload.
+ISAKMP_PROP : ISAKMP_GEN
+  NO			num 1
+  PROTO			cst 1		isakmp_proto_cst,ipsec_proto_cst
+  SPI_SZ		num 1
+  NTRANSFORMS		num 1
+  SPI			raw
+.
+
+# Transform payload.
+ISAKMP_TRANSFORM : ISAKMP_GEN
+  NO			num 1
+  ID			num 1
+  RESERVED		ign 2
+  SA_ATTRS		raw
+.
+
+# Key exchange payload.
+ISAKMP_KE : ISAKMP_GEN
+  DATA			raw
+.
+
+# Identification payload.
+ISAKMP_ID : ISAKMP_GEN
+  TYPE			num 1
+  DOI_DATA		raw 3
+  DATA			raw
+.
+
+# Certificate payload.
+ISAKMP_CERT : ISAKMP_GEN
+  ENCODING		cst 1		isakmp_certenc_cst
+  DATA			raw
+.
+
+# Certificate request payload.
+ISAKMP_CERTREQ : ISAKMP_GEN
+  TYPE			cst 1		isakmp_certenc_cst
+  AUTHORITY		raw
+.
+
+# Hash payload.
+ISAKMP_HASH : ISAKMP_GEN
+  DATA			raw
+.
+
+# Signature payload.
+ISAKMP_SIG : ISAKMP_GEN
+  DATA			raw
+.
+
+# Nonce payload.
+ISAKMP_NONCE : ISAKMP_GEN
+  DATA			raw
+.
+
+# Notify payload.
+ISAKMP_NOTIFY : ISAKMP_GEN
+  DOI			cst 4		isakmp_doi_cst,ipsec_doi_cst
+  PROTO			cst 1		isakmp_proto_cst
+  SPI_SZ		num 1
+  MSG_TYPE		cst 2		isakmp_notify_cst,ipsec_notify_cst
+  SPI			raw
+.
+
+# Delete payload.
+ISAKMP_DELETE : ISAKMP_GEN
+  DOI			cst 4		isakmp_doi_cst,ipsec_doi_cst
+  PROTO			cst 1		isakmp_proto_cst
+  SPI_SZ		num 1
+  NSPIS			num 2
+  SPI			raw
+.
+
+# Vendor ID payload.
+ISAKMP_VENDOR : ISAKMP_GEN
+  ID			raw
+.
+
+# Attribute payload.
+ISAKMP_ATTRIBUTE : ISAKMP_GEN
+  TYPE			num 1		isakmp_cfg_cst
+  RESERVED		ign 1
+  ID			num 2
+  ATTRS			raw
+.
+
+# NAT Discovery payload.
+ISAKMP_NAT_D : ISAKMP_GEN
+  DATA			raw
+.
+
+# NAT Original Address payload.
+ISAKMP_NAT_OA : ISAKMP_GEN
+  TYPE			num 1
+  RESERVED		ign 3
+  DATA			raw
+.

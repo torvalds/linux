@@ -1,0 +1,77 @@
+.\" $OpenBSD: ure.4,v 1.11 2025/05/23 03:06:09 kevlo Exp $
+.\"
+.\" Copyright (c) 2015 Kevin Lo <kevlo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: head/share/man/man4/ure.4 291557 2015-12-01 05:12:13Z kevlo $
+.\"
+.Dd $Mdocdate: May 23 2025 $
+.Dt URE 4
+.Os
+.Sh NAME
+.Nm ure
+.Nd Realtek RTL8152/RTL8153/RTL8156/RTL8157 10/100/1Gb/2.5Gb/5Gb \
+USB Ethernet device
+.Sh SYNOPSIS
+.Cd "ure*   at uhub?"
+.Cd "rgephy* at mii?"
+.Cd "rlphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the Realtek
+RTL8152, RTL8153, RTL8153B, RTL8153D, RTL8156, RTL8156B and RTL8157 chipsets.
+.Pp
+The RTL8152 contains an integrated Fast Ethernet MAC, which supports
+both 10 and 100Mbps speeds in either full or half duplex.
+The RTL8153, RTL8153B and RTL8153D have Gigabit Ethernet MACs and additionally
+support 1000Mbps speeds.
+NICs based on the RTL8156 and RTL8156B are capable of 10, 100, 1000 and
+2500Mbps operation.
+The RTL8157 is a USB 3.0 device, which contains a 10/100/1Gb/2.5Gb/5Gb
+Ethernet MAC.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr mii 4 ,
+.Xr netintro 4 ,
+.Xr rgephy 4 ,
+.Xr rlphy 4 ,
+.Xr uhub 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 6.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Kevin Lo Aq Mt kevlo@FreeBSD.org .

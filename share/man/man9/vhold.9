@@ -1,0 +1,74 @@
+.\"     $OpenBSD: vhold.9,v 1.9 2013/07/17 20:21:55 schwarze Exp $
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/vhold.9,v 1.2 2001/12/14 09:11:13 ru Exp $
+.\"
+.Dd $Mdocdate: July 17 2013 $
+.Dt VHOLD 9
+.Os
+.Sh NAME
+.Nm vhold ,
+.Nm vdrop
+.Nd acquire/release a hold on a vnode
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft void
+.Fn vhold "struct vnode *vp"
+.Ft void
+.Fn vdrop "struct vnode *vp"
+.Sh DESCRIPTION
+The
+.Fn vhold
+function increments the
+.Va v_holdcnt
+of the given vnode.
+If the vnode has already been added to the free list and its
+.Va v_holdcnt
+and
+.Va v_usecount
+are both zero, it will be removed from the free list and
+added to the vnode hold list.
+.Pp
+The
+.Fn vdrop
+function decrements the
+.Va v_holdcnt
+of the given vnode.
+If the vnode is on the vnode hold list and its
+.Va v_holdcnt
+and
+.Va v_usecount
+are both zero, it will be removed from the vnode hold list and
+added to the freed list.
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh AUTHORS
+This man page was originally written by
+.An Chad David Aq Mt davidc@acns.ab.ca
+for
+.Fx .

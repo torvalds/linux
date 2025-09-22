@@ -1,0 +1,110 @@
+.\" $OpenBSD: OCSP_SERVICELOC_new.3,v 1.9 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OCSP_SERVICELOC_NEW 3
+.Os
+.Sh NAME
+.Nm OCSP_SERVICELOC_new ,
+.Nm OCSP_SERVICELOC_free ,
+.Nm OCSP_url_svcloc_new
+.Nd OCSP service locator extension
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ocsp.h
+.Ft OCSP_SERVICELOC *
+.Fn OCSP_SERVICELOC_new void
+.Ft void
+.Fn OCSP_SERVICELOC_free "OCSP_SERVICELOC *sloc"
+.Ft X509_EXTENSION *
+.Fo OCSP_url_svcloc_new
+.Fa "X509_NAME *issuer"
+.Fa "const char **urls"
+.Fc
+.Sh DESCRIPTION
+Due to restrictions of network routing, a client may be unable to
+directly contact the authoritative OCSP server for a certificate
+that needs to be checked.
+In that case, the request can be sent via a proxy server.
+An ASN.1
+.Vt ServiceLocator
+structure is included in the singleRequestExtensions field of the
+.Vt Request
+structure to indicate where to forward the request.
+The
+.Vt ServiceLocator
+is represented by a
+.Vt OCSP_SERVICELOC
+object, which will be stored inside the
+.Vt OCSP_ONEREQ
+object documented in
+.Xr OCSP_ONEREQ_new 3 .
+.Pp
+.Fn OCSP_SERVICELOC_new
+allocates and initializes an empty
+.Vt OCSP_SERVICELOC
+object.
+.Fn OCSP_SERVICELOC_free
+frees
+.Fa sloc .
+.Pp
+.Fn OCSP_url_svcloc_new
+requires an
+.Fa issuer
+name and optionally accepts an array of
+.Fa urls .
+If
+.Fa urls
+or its first element is
+.Dv NULL ,
+the locator field is omitted from the
+.Vt ServiceLocator
+structure and only the issuer is included.
+The resulting
+.Vt ServiceLocator
+structure is encoded in ASN.1 using
+.Xr X509V3_EXT_i2d 3
+with criticality 0.
+.Sh RETURN VALUES
+.Fn OCSP_SERVICELOC_new
+returns a new
+.Vt OCSP_SERVICELOC
+object or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn OCSP_url_svcloc_new
+returns a new
+.Vt X509_EXTENSION
+object or
+.Dv NULL
+if an error occurred.
+.Sh SEE ALSO
+.Xr OCSP_REQUEST_new 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_get1_ocsp 3 ,
+.Xr X509_get_issuer_name 3 ,
+.Xr X509_NAME_new 3
+.Sh STANDARDS
+RFC 6960: X.509 Internet Public Key Infrastructure Online Certificate
+Status Protocol, section 4.4.6: Service Locator
+.Sh HISTORY
+.Fn OCSP_SERVICELOC_new ,
+.Fn OCSP_SERVICELOC_free ,
+and
+.Fn OCSP_url_svcloc_new
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .

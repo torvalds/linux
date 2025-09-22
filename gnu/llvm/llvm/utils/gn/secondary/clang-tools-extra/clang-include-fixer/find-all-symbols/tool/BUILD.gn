@@ -1,0 +1,15 @@
+executable("find-all-symbols") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-include-fixer/find-all-symbols",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Serialization",
+    "//clang/lib/Tooling",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "FindAllSymbolsMain.cpp" ]
+}

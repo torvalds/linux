@@ -1,0 +1,26 @@
+import("//llvm/utils/gn/build/symbol_exports.gni")
+
+assert(host_os != "win", "loadable modules not supported on win")
+
+symbol_exports("exports") {
+  exports_file = "bugpoint.exports"
+}
+
+loadable_module("bugpoint-passes") {
+  output_name = "BugpointPasses"
+  deps = [
+    ":exports",
+
+    # BugpointPasses doesn't want to link in any LLVM code, it just
+    # needs its headers.
+    "//llvm/include/llvm/IR:public_tablegen",
+  ]
+  sources = [ "TestPasses.cpp" ]
+
+  if (host_os != "mac" && host_os != "win") {
+    # The GN build currently doesn't globally pass -fPIC, but that's
+    # needed for building .so files on ELF.  Just pass it manually
+    # for loadable_modules for now.
+    cflags = [ "-fPIC" ]
+  }
+}

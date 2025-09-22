@@ -1,0 +1,18 @@
+BEGIN
+{
+	@map[7] = 3;
+	printf("=> Print with one element\n");
+	print(@map);
+
+	@map[7] = min(5);
+	printf("=> Print after min:\n");
+	print(@map);
+
+	@map[7] = max(5);
+	printf("=> Print after max:\n");
+	print(@map);
+
+	@map[7] = sum(7);
+	printf("=> Print after sum:\n");
+	print(@map);
+}

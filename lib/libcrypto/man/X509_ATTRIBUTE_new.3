@@ -1,0 +1,181 @@
+.\" $OpenBSD: X509_ATTRIBUTE_new.3,v 1.19 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_ATTRIBUTE_NEW 3
+.Os
+.Sh NAME
+.Nm X509_ATTRIBUTE_new ,
+.Nm X509_ATTRIBUTE_create ,
+.Nm X509_ATTRIBUTE_dup ,
+.Nm X509_ATTRIBUTE_free
+.\" In the following line, "X.501" and "Attribute" are not typos.
+.\" The "Attribute" type is defined in X.501, not in X.509.
+.\" The type is called "Attribute" with capital "A", not "attribute".
+.Nd generic X.501 Attribute
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_ATTRIBUTE *
+.Fn X509_ATTRIBUTE_new void
+.Ft X509_ATTRIBUTE *
+.Fn X509_ATTRIBUTE_create "int nid" "int type" "void *value"
+.Ft X509_ATTRIBUTE *
+.Fn X509_ATTRIBUTE_dup "X509_ATTRIBUTE *attr"
+.Ft void
+.Fn X509_ATTRIBUTE_free "X509_ATTRIBUTE *attr"
+.Sh DESCRIPTION
+In the X.501 standard, an
+.Vt Attribute
+is the fundamental ASN.1 data type used to represent any kind of
+property of any kind of directory entry.
+In OpenSSL, very few objects use it directly, most notably the
+.Vt X509_REQ_INFO
+object used for PKCS#10 certification requests described in
+.Xr X509_REQ_new 3 ,
+the
+.Vt PKCS8_PRIV_KEY_INFO
+object used for PKCS#8 private key information described in
+.Xr PKCS8_PRIV_KEY_INFO_new 3 ,
+and the
+.Vt PKCS12_SAFEBAG
+container object described in
+.Xr PKCS12_SAFEBAG_new 3 .
+.Pp
+.Fn X509_ATTRIBUTE_new
+allocates and initializes an empty
+.Vt X509_ATTRIBUTE
+object.
+.Pp
+.Fn X509_ATTRIBUTE_create
+allocates a new multi-valued
+.Vt X509_ATTRIBUTE
+object of the type
+.Fa nid
+and initializes its set of values
+to contain one new ASN.1 ANY object with the given
+.Fa value
+and
+.Fa type .
+The
+.Fa type
+usually is one of the
+.Dv V_ASN1_*
+constants defined in
+.In openssl/asn1.h ;
+it is stored without validating it.
+If the function succeeds, ownership of the
+.Fa value
+is transferred to the new
+.Vt X509_ATTRIBUTE
+object.
+.Pp
+Be careful to not confuse the type of the attribute
+and the type of the value.
+.Pp
+.Fn X509_ATTRIBUTE_dup
+creates a deep copy of
+.Fa attr .
+.Pp
+.Fn X509_ATTRIBUTE_free
+frees
+.Fa attr .
+.Sh RETURN VALUES
+.Fn X509_ATTRIBUTE_new ,
+.Fn X509_ATTRIBUTE_create ,
+and
+.Fn X509_ATTRIBUTE_dup
+return the new
+.Vt X509_ATTRIBUTE
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+In particular, these functions fail if memory allocation fails.
+.Fn X509_ATTRIBUTE_create
+also fails if
+.Xr OBJ_nid2obj 3
+fails on
+.Fa nid .
+.Sh SEE ALSO
+.Xr d2i_X509_ATTRIBUTE 3 ,
+.Xr OBJ_nid2obj 3 ,
+.Xr PKCS12_SAFEBAG_new 3 ,
+.Xr PKCS7_add_attribute 3 ,
+.Xr PKCS8_pkey_get0_attrs 3 ,
+.Xr PKCS8_PRIV_KEY_INFO_new 3 ,
+.Xr X509_ATTRIBUTE_get0_object 3 ,
+.Xr X509_ATTRIBUTE_set1_object 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_new 3 ,
+.Xr X509_REQ_add1_attr 3 ,
+.Xr X509_REQ_new 3
+.Sh STANDARDS
+.Bl -ohang
+.It Xo
+For the general definition of the
+.Vt Attribute
+data type:
+.Xc
+ITU-T Recommendation X.501, also known as ISO/IEC 9594-2:
+Information Technology \(en Open Systems Interconnection \(en
+The Directory: Models, section 8.2: Overall structure
+.It For the specific definition in the context of certification requests:
+RFC 2986: PKCS #10: Certification Request Syntax Specification,
+section 4.1: CertificationRequestInfo
+.It For the specific use in the context of private key information:
+RFC 5208: Public-Key Cryptography Standards (PKCS) #8:
+Private-Key Information Syntax Specification
+.It For the specific definition in the context of PFX:
+RFC 7292: PKCS #12: Personal Information Exchange Syntax,
+section 4.2: The SafeBag Type
+.El
+.Sh HISTORY
+.Fn X509_ATTRIBUTE_new
+and
+.Fn X509_ATTRIBUTE_free
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_ATTRIBUTE_create
+and
+.Fn X509_ATTRIBUTE_dup
+first appeared in SSLeay 0.9.1 and have been available since
+.Ox 2.6 .
+.Sh BUGS
+A data type designed to hold arbitrary data is an oxymoron.
+.Pp
+While it may occasionally be useful for abstract syntax specification
+or for generic container objects, using it for the representation
+of specific data in a specific data structure feels like dubious
+design.
+.Pp
+Having two distinct data types to hold arbitrary data \(en
+in this case,
+.Vt X509_ATTRIBUTE
+on the X.501 language level and
+.Vt X509_EXTENSION
+as described in
+.Xr X509_EXTENSION_new 3
+on the X.509 language level \(en feels even more questionable,
+in particular considering that Attributes in certification requests
+can be used to ask for Extensions in certificates.
+.Pp
+At the very least, the direct use of the low-level generic
+.Vt X509_ATTRIBUTE
+type in specific data types like certification requests or private
+key information looks like a layering violation and appears to put
+type safety into jeopardy.

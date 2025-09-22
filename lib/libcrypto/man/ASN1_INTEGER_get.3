@@ -1,0 +1,429 @@
+.\" $OpenBSD: ASN1_INTEGER_get.3,v 1.8 2025/06/08 22:40:29 schwarze Exp $
+.\" selective merge up to:
+.\" OpenSSL man3/ASN1_INTEGER_get_int64 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2018, 2021, 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_INTEGER_GET 3
+.Os
+.Sh NAME
+.Nm ASN1_INTEGER_get_uint64 ,
+.Nm ASN1_INTEGER_get_int64 ,
+.Nm ASN1_INTEGER_get ,
+.Nm ASN1_INTEGER_set_uint64 ,
+.Nm ASN1_INTEGER_set_int64 ,
+.Nm ASN1_INTEGER_set ,
+.Nm ASN1_INTEGER_cmp ,
+.Nm ASN1_INTEGER_dup ,
+.Nm BN_to_ASN1_INTEGER ,
+.Nm ASN1_INTEGER_to_BN ,
+.Nm ASN1_ENUMERATED_get_int64 ,
+.Nm ASN1_ENUMERATED_get ,
+.Nm ASN1_ENUMERATED_set_int64 ,
+.Nm ASN1_ENUMERATED_set ,
+.Nm BN_to_ASN1_ENUMERATED ,
+.Nm ASN1_ENUMERATED_to_BN
+.Nd ASN.1 INTEGER and ENUMERATED utilities
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft int
+.Fo ASN1_INTEGER_get_uint64
+.Fa "uint64_t *out_val"
+.Fa "const ASN1_INTEGER *a"
+.Fc
+.Ft int
+.Fo ASN1_INTEGER_get_int64
+.Fa "int64_t *out_val"
+.Fa "const ASN1_INTEGER *a"
+.Fc
+.Ft long
+.Fo ASN1_INTEGER_get
+.Fa "const ASN1_INTEGER *a"
+.Fc
+.Ft int
+.Fo ASN1_INTEGER_set_uint64
+.Fa "ASN1_INTEGER *a"
+.Fa "uint64_t v"
+.Fc
+.Ft int
+.Fo ASN1_INTEGER_set_int64
+.Fa "ASN1_INTEGER *a"
+.Fa "int64_t v"
+.Fc
+.Ft int
+.Fo ASN1_INTEGER_set
+.Fa "ASN1_INTEGER *a"
+.Fa "long v"
+.Fc
+.Ft int
+.Fo ASN1_INTEGER_cmp
+.Fa "const ASN1_INTEGER *a1"
+.Fa "const ASN1_INTEGER *a2"
+.Fc
+.Ft ASN1_INTEGER *
+.Fo ASN1_INTEGER_dup
+.Fa "const ASN1_INTEGER *a"
+.Fc
+.Ft ASN1_INTEGER *
+.Fo BN_to_ASN1_INTEGER
+.Fa "const BIGNUM *bn"
+.Fa "ASN1_INTEGER *ai"
+.Fc
+.Ft BIGNUM *
+.Fo ASN1_INTEGER_to_BN
+.Fa "const ASN1_INTEGER *ai"
+.Fa "BIGNUM *bn"
+.Fc
+.Ft int
+.Fo ASN1_ENUMERATED_get_int64
+.Fa "int64_t *out_val"
+.Fa "const ASN1_ENUMERATED *a"
+.Fc
+.Ft long
+.Fo ASN1_ENUMERATED_get
+.Fa "const ASN1_ENUMERATED *a"
+.Fc
+.Ft int
+.Fo ASN1_ENUMERATED_set_int64
+.Fa "ASN1_ENUMERATED *a"
+.Fa "int64_t v"
+.Fc
+.Ft int
+.Fo ASN1_ENUMERATED_set
+.Fa "ASN1_ENUMERATED *a"
+.Fa "long v"
+.Fc
+.Ft ASN1_ENUMERATED *
+.Fo BN_to_ASN1_ENUMERATED
+.Fa "const BIGNUM *bn"
+.Fa "ASN1_ENUMERATED *ai"
+.Fc
+.Ft BIGNUM *
+.Fo ASN1_ENUMERATED_to_BN
+.Fa "const ASN1_ENUMERATED *ai"
+.Fa "BIGNUM *bn"
+.Fc
+.Sh DESCRIPTION
+These functions convert to and from
+.Vt ASN1_INTEGER
+and
+.Vt ASN1_ENUMERATED
+objects.
+.Pp
+.Fn ASN1_INTEGER_get_uint64
+and
+.Fn ASN1_INTEGER_get_int64
+store the value of
+.Fa a
+in
+.Pf * Fa out_val
+if successful.
+.Pp
+The deprecated function
+.Fn ASN1_INTEGER_get
+converts
+.Fa a
+to the
+.Vt long
+type.
+.Pp
+.Fn ASN1_INTEGER_set_uint64 ,
+.Fn ASN1_INTEGER_set_int64 ,
+and
+.Fn ASN1_INTEGER_set
+set the type of
+.Fa a
+to
+.Dv V_ASN1_INTEGER
+or
+.Dv V_ASN1_NEG_INTEGER
+depending on the sign of
+.Fa v
+and set the value of
+.Fa a
+to
+.Fa v .
+.Pp
+.Fn ASN1_INTEGER_cmp
+compares the signed integer numbers represented by
+.Fa a1
+and
+.Fa a2 .
+.Pp
+.Fn ASN1_INTEGER_dup
+does exactly the same as
+.Xr ASN1_STRING_dup 3
+without providing any type safety,
+except that it fails if the
+.Xr ASN1_STRING_length 3
+of
+.Fa a
+is 0.
+.Pp
+.Fn BN_to_ASN1_INTEGER
+converts
+.Fa bn
+to an
+.Vt ASN1_INTEGER .
+If
+.Fa ai
+is
+.Dv NULL ,
+a new
+.Vt ASN1_INTEGER
+object is returned.
+Otherwise, the existing object
+.Fa ai
+is used instead.
+.Pp
+.Fn ASN1_INTEGER_to_BN
+converts
+.Fa ai
+into a
+.Vt BIGNUM .
+If
+.Fa bn
+is
+.Dv NULL ,
+a new
+.Vt BIGNUM
+object is returned.
+Otherwise, the existing object
+.Fa bn
+is used instead.
+.Pp
+.Fn ASN1_ENUMERATED_get_int64 ,
+.Fn ASN1_ENUMERATED_get ,
+.Fn ASN1_ENUMERATED_set_int64 ,
+.Fn ASN1_ENUMERATED_set ,
+.Fn BN_to_ASN1_ENUMERATED ,
+and
+.Fn ASN1_ENUMERATED_to_BN
+behave like their
+.Vt ASN1_INTEGER
+counterparts except that they operate on an
+.Vt ASN1_ENUMERATED
+object.
+.Sh RETURN VALUES
+.Fn ASN1_INTEGER_get_uint64
+returns 1 in case of success or 0 if
+.Fa a
+is not of the type
+.Dv V_ASN1_INTEGER
+or greater than
+.Dv UINT64_MAX .
+.Pp
+.Fn ASN1_INTEGER_get_int64
+returns 1 in case of success or 0 if
+.Fa a
+is not of the type
+.Dv V_ASN1_INTEGER
+or
+.Dv V_ASN1_NEG_INTEGER ,
+less than
+.Dv INT64_MIN ,
+or greater than
+.Dv INT64_MAX .
+.Pp
+.Fn ASN1_INTEGER_get
+and
+.Fn ASN1_ENUMERATED_get
+return the converted value, 0 if
+.Fa a
+is
+.Dv NULL ,
+or \-1 on error, which is ambiguous because \-1 is a legitimate
+value for an
+.Vt ASN1_INTEGER .
+.Pp
+.Fn ASN1_INTEGER_set_uint64 ,
+.Fn ASN1_INTEGER_set_int64 ,
+.Fn ASN1_INTEGER_set ,
+.Fn ASN1_ENUMERATED_set_int64 ,
+and
+.Fn ASN1_ENUMERATED_set
+return 1 for success or 0 for failure.
+They only fail if a memory allocation error occurs.
+.Pp
+.Fn ASN1_INTEGER_cmp
+returns a value greater than, equal to, or less than 0
+if the signed integer number represented by
+.Fa a1
+is greater than, equal to, or less than
+the signed integer number represented by
+.Fa a2 ,
+respectively.
+.Pp
+.Fn ASN1_INTEGER_dup
+returns a pointer to a newly allocated
+.Vt ASN1_STRING
+structure or
+.Dv NULL
+if
+.Fa a
+is a
+.Dv NULL
+pointer, if the length of
+.Fa a
+is 0, or if memory allocation fails.
+.Pp
+.Fn BN_to_ASN1_INTEGER
+and
+.Fn BN_to_ASN1_ENUMERATED
+return an
+.Vt ASN1_INTEGER
+or
+.Vt ASN1_ENUMERATED
+object, respectively, or
+.Dv NULL
+if an error occurs.
+They only fail due to memory allocation errors.
+.Pp
+.Fn ASN1_INTEGER_to_BN
+and
+.Fn ASN1_ENUMERATED_to_BN
+return a
+.Vt BIGNUM
+object of
+.Dv NULL
+if an error occurs.
+They can fail if the passed type is incorrect (due to a programming error)
+or due to memory allocation failures.
+.Sh SEE ALSO
+.Xr ASN1_INTEGER_new 3 ,
+.Xr ASN1_STRING_length 3
+.Sh HISTORY
+.Fn ASN1_INTEGER_set
+first appeared in SSLeay 0.5.1.
+.Fn ASN1_INTEGER_get ,
+.Fn BN_to_ASN1_INTEGER ,
+and
+.Fn ASN1_INTEGER_to_BN
+first appeared in SSLeay 0.6.0.
+.Fn ASN1_INTEGER_cmp
+and
+.Fn ASN1_INTEGER_dup
+first appeared in SSLeay 0.6.5.
+These functions have been available since
+.Ox 2.3 .
+.Pp
+.Fn ASN1_ENUMERATED_get ,
+.Fn ASN1_ENUMERATED_set ,
+.Fn BN_to_ASN1_ENUMERATED ,
+and
+.Fn ASN1_ENUMERATED_to_BN
+first appeared in OpenSSL 0.9.2b and have been available since
+.Ox 2.6 .
+.Pp
+.Fn ASN1_INTEGER_get_uint64 ,
+.Fn ASN1_INTEGER_get_int64 ,
+.Fn ASN1_INTEGER_set_uint64 ,
+.Fn ASN1_INTEGER_set_int64 ,
+.Fn ASN1_ENUMERATED_get_int64 ,
+and
+.Fn ASN1_ENUMERATED_set_int64
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 7.2 .
+.Sh CAVEATS
+In general an
+.Vt ASN1_INTEGER
+or
+.Vt ASN1_ENUMERATED
+type can contain an integer of almost arbitrary size
+and so cannot always be represented by a C
+.Vt long
+type.
+The ambiguous return values of
+.Fn ASN1_INTEGER_get
+and
+.Fn ASN1_ENUMERATED_get
+imply that these functions should be avoided if possible.
+.Sh BUGS
+.Fn ASN1_INTEGER_cmp ,
+.Fn ASN1_INTEGER_dup ,
+and
+.Fn ASN1_INTEGER_to_BN
+do not check whether their arguments are really of the type
+.Dv V_ASN1_INTEGER
+or
+.Dv V_ASN1_NEG_INTEGER .
+They may report success even if their arguments are of a wrong type.
+Consequently, even in case of success, the return value of
+.Fn ASN1_INTEGER_dup
+is not guaranteed to be of the type
+.Dv V_ASN1_INTEGER
+or
+.Dv V_ASN1_NEG_INTEGER
+either.
+.Pp
+Similarly,
+.Fn ASN1_ENUMERATED_to_BN
+does not check whether its argument is really of the type
+.Dv V_ASN1_ENUMERATED
+or
+.Dv V_ASN1_NEG_ENUMERATED
+and may report success even if the argument is of a wrong type.

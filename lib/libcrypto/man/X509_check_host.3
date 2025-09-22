@@ -1,0 +1,247 @@
+.\" $OpenBSD: X509_check_host.3,v 1.7 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL a09e4d24 Jun 12 01:56:31 2014 -0400
+.\" selective merge up to: OpenSSL 6328d367 Jul 4 21:58:30 2020 +0200
+.\"
+.\" This file was written by Florian Weimer <fweimer@redhat.com> and
+.\" Viktor Dukhovni <openssl-users@dukhovni.org>.
+.\" Copyright (c) 2012, 2014, 2015, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_CHECK_HOST 3
+.Os
+.Sh NAME
+.Nm X509_check_host ,
+.Nm X509_check_email ,
+.Nm X509_check_ip ,
+.Nm X509_check_ip_asc
+.Nd X.509 certificate matching
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft int
+.Fo X509_check_host
+.Fa "X509 *x"
+.Fa "const char *name"
+.Fa "size_t namelen"
+.Fa "unsigned int flags"
+.Fa "char **peername"
+.Fc
+.Ft int
+.Fo X509_check_email
+.Fa "X509 *x"
+.Fa "const char *address"
+.Fa "size_t addresslen"
+.Fa "unsigned int flags"
+.Fc
+.Ft int
+.Fo X509_check_ip
+.Fa "X509 *x"
+.Fa "const unsigned char *address"
+.Fa "size_t addresslen"
+.Fa "unsigned int flags"
+.Fc
+.Ft int
+.Fo X509_check_ip_asc
+.Fa "X509 *x"
+.Fa "const char *address"
+.Fa "unsigned int flags"
+.Fc
+.Sh DESCRIPTION
+The certificate matching functions are used to check whether a
+certificate matches a given hostname, email address, or IP address.
+The validity of the certificate and its trust level has to be checked by
+other means.
+.Pp
+.Fn X509_check_host
+checks if the certificate Subject Alternative Name (SAN) or Subject
+CommonName (CN) matches the specified hostname, which must be encoded
+in the preferred name syntax described in section 3.5 of RFC 1034.
+By default, wildcards are supported and they match only in the
+left-most label; they may match part of that label with an
+explicit prefix or suffix.
+For example, by default, the host
+.Fa name
+.Qq www.example.com
+would match a certificate with a SAN or CN value of
+.Qq *.example.com ,
+.Qq w*.example.com
+or
+.Qq *w.example.com .
+.Pp
+Per section 6.4.2 of RFC 6125,
+.Fa name
+values representing international domain names must be given in A-label
+form.
+The
+.Fa namelen
+argument must be the number of characters in the name string or zero, in
+which case the length is calculated with
+.Fn strlen name .
+When
+.Fa name
+starts with a dot (e.g.\&
+.Qq .example.com ) ,
+it will be matched by a certificate valid for any sub-domain of
+.Fa name ;
+see also
+.Fa X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS
+below.
+.Pp
+When the certificate is matched and
+.Fa peername
+is not
+.Dv NULL ,
+a pointer to a copy of the matching SAN or CN from the peer
+certificate is stored at the address passed in
+.Fa peername .
+The application is responsible for freeing the peername via
+.Xr free 3
+when it is no longer needed.
+.Pp
+.Fn X509_check_email
+checks if the certificate matches the specified email
+.Fa address .
+Only the mailbox syntax of RFC 822 is supported.
+Comments are not allowed,
+and no attempt is made to normalize quoted characters.
+The
+.Fa addresslen
+argument must be the number of characters in the address string or zero,
+in which case the length is calculated with
+.Fn strlen address .
+.Pp
+.Fn X509_check_ip
+checks if the certificate matches a specified IPv4 or IPv6 address.
+The
+.Fa address
+array is in binary format, in network byte order.
+The length is either 4 (IPv4) or 16 (IPv6).
+Only explicitly marked addresses in the certificates are considered;
+IP addresses stored in DNS names and Common Names are ignored.
+.Pp
+.Fn X509_check_ip_asc
+is similar, except that the NUL-terminated string
+.Fa address
+is first converted to the internal representation.
+.Pp
+The
+.Fa flags
+argument is usually 0, but it can be the bitwise OR of the following
+flags.
+.Pp
+The
+.Dv X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
+flag causes the function to consider the subject DN even if the
+certificate contains at least one subject alternative name of the right
+type (DNS name or email address as appropriate); the default is to
+ignore the subject DN when at least one corresponding subject
+alternative names is present.
+.Pp
+The remaining flags are only meaningful for
+.Fn X509_check_host .
+.Pp
+The
+.Dv X509_CHECK_FLAG_NO_WILDCARDS
+flag disables wildcard expansion.
+.Pp
+The
+.Dv X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS
+flag suppresses support for
+.Qq *
+as a wildcard pattern in labels that have a
+prefix or suffix, such as
+.Qq www*
+or
+.Qq *www .
+.Pp
+The
+.Dv X509_CHECK_FLAG_MULTI_LABEL_WILDCARDS
+flag allows a
+.Qq *
+that constitutes the complete label of a DNS name (e.g.\&
+.Qq *.example.com )
+to match more than one label in
+.Fa name .
+.Pp
+The
+.Dv X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS
+flag restricts
+.Fa name
+values which start with
+.Qq \&. ,
+that would otherwise match any sub-domain in the peer certificate,
+to only match direct child sub-domains.
+Thus, for instance, with this flag set a
+.Fa name
+of
+.Qq .example.com
+would match a peer certificate with a DNS name of
+.Qq www.example.com ,
+but would not match a peer certificate with a DNS name of
+.Qq www.sub.example.com .
+.Sh RETURN VALUES
+The functions return 1 for a successful match, 0 for a failed match and
+-1 for an internal error: typically a memory allocation failure or an
+ASN.1 decoding error.
+.Pp
+All functions can also return -2 if the input is malformed.
+For example,
+.Fn X509_check_host
+returns -2 if the provided
+.Fa name
+contains embedded NUL bytes.
+.Sh SEE ALSO
+.Xr SSL_set1_host 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_get1_email 3 ,
+.Xr X509_new 3 ,
+.Xr X509_VERIFY_PARAM_set1_host 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.0.2
+and have been available since
+.Ox 6.1 .

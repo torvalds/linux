@@ -1,0 +1,189 @@
+.\"	$OpenBSD: if_rxr_init.9,v 1.10 2022/09/10 08:50:53 jsg Exp $
+.\"
+.\" Copyright (c) 2014 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 10 2022 $
+.Dt IF_RXR_INIT 9
+.Os
+.Sh NAME
+.Nm if_rxr_init ,
+.Nm if_rxr_get ,
+.Nm if_rxr_put ,
+.Nm if_rxr_livelocked ,
+.Nm if_rxr_needrefill ,
+.Nm if_rxr_inuse ,
+.Nm if_rxr_cwm ,
+.Nm if_rxr_ioctl ,
+.Nm if_rxr_info_ioctl
+.Nd Interface Receive Ring accounting
+.Sh SYNOPSIS
+.In net/if.h
+.Ft void
+.Fn if_rxr_init "struct if_rxring *rxr" "unsigned int lwm" "unsigned int hwm"
+.Ft unsigned int
+.Fn if_rxr_get "struct if_rxring *rxr" "unsigned int max"
+.Ft void
+.Fn if_rxr_put "struct if_rxring *rxr" "unsigned int n"
+.Ft void
+.Fn if_rxr_livelocked "struct if_rxring *rxr"
+.Ft int
+.Fn if_rxr_needrefill "struct if_rxring *rxr"
+.Ft unsigned int
+.Fn if_rxr_inuse "struct if_rxring *rxr"
+.Ft unsigned int
+.Fn if_rxr_cwm "struct if_rxring *rxr"
+.Ft int
+.Fo if_rxr_ioctl
+.Fa "struct if_rxrinfo *ifri"
+.Fa "const char *name"
+.Fa "unsigned int size"
+.Fa "struct if_rxring *rxr"
+.Fc
+.Ft int
+.Fo if_rxr_info_ioctl
+.Fa "struct if_rxrinfo *ifri"
+.Fa "unsigned int n"
+.Fa "struct if_rxring_info *rings"
+.Fc
+.Sh DESCRIPTION
+The Interface Receive Ring accounting API provides a mechanism to
+manage the number of available descriptors on a network card's receive
+ring.
+The API restricts the allocation of receive descriptors using a
+heuristic that monitors the use of the ring.
+The number of descriptors granted on the ring may increase over time
+as the interface proves it uses them.
+Additionally, if the algorithm detects that the system is livelocked
+as a result of being overwhelmed with network traffic, it will
+restrict the number of available receive descriptors.
+.Pp
+.Fn if_rxr_init
+initialises the
+.Fa rxr
+structure.
+The
+.Fa lwm
+argument defines the minimum number of descriptors the chip needs
+to operate the ring correctly.
+.Fa hwm
+is used to describe the maximum number of descriptors the ring can contain.
+.Pp
+.Fn if_rxr_get
+allocates and accounts for up to
+.Fa max
+descriptors in the ring as being used.
+.Pp
+.Fn if_rxr_put
+returns
+.Fa n
+receive descriptor slots to the ring.
+.Pp
+.Fn if_rxr_livelocked
+can signal that the receive ring is generating too much load.
+.Pp
+.Fn if_rxr_needrefill
+signals that the receive ring runs below the low watermark of descriptors.
+.Pp
+.Fn if_rxr_inuse
+can be used to determine how many descriptor slots have been allocated
+on the ring.
+.Pp
+.Fn if_rxr_cwm
+can be used to determine what the current watermark is for the ring.
+.Pp
+The
+.Fn if_rxr_ioctl
+and
+.Fn if_rxr_info_ioctl
+functions are provided to assist drivers in reporting their rings'
+state to userland via a
+.Dv SIOCGIFRXR
+ioctl request.
+The ioctl data payload will be an ifreq structure, with ifr_data pointing at a
+struct if_rxrinfo in userland memory.
+This if_rxrinfo pointer should be passed via
+.Fa ifri .
+.Pp
+If a driver only has a single receive ring, it may pass the ring state to
+.Fn if_rxr_ioctl
+via the
+.Fa rxr
+argument.
+.Fa size
+is used to describe the size of the mbuf cluster the receive ring uses.
+If the driver wishes to name the ring it can pass it via
+.Fa name ,
+otherwise
+.Dv NULL .
+.Pp
+If the driver has multiple receive rings, it can prepare an array
+of if_rxring_info structures and pass that to
+.Fn if_rxr_info_ioctl
+via
+.Fa rings
+with the number of elements in the array passed via
+.Fa n .
+.Pp
+For the heuristic to work correctly, a driver using this API should
+return all possible descriptor slots with
+.Fn if_rxr_put
+before calling
+.Fn if_rxr_get
+to fill them again.
+.Sh CONTEXT
+.Fn if_rxr_init ,
+.Fn if_rxr_get ,
+.Fn if_rxr_put ,
+.Fn if_rxr_livelocked ,
+.Fn if_rxr_needrefill ,
+.Fn if_rxr_inuse ,
+and
+.Fn if_rxr_cwm
+can be called during autoconf, from process context, or from interrupt context.
+.Pp
+.Fn if_rxr_ioctl
+and
+.Fn if_rxr_info_ioctl
+can be called from process context, and only from the context of
+the process generating an ioctl call.
+.Pp
+It is up to the caller to provide appropriate locking around calls
+to these functions to prevent inconsistencies in the relevant
+if_rxring data structure.
+.Sh RETURN VALUES
+.Fn if_rxr_get
+returns the number of receive descriptors available on the ring.
+The number of descriptors may be less than the
+.Fa max
+requested.
+.Pp
+.Fn if_rxr_needrefill
+returns 1 if the number of receive descriptor slots currently in use on the
+ring is below the value of
+.Fa lwm .
+Otherwise, zero is returned.
+.Pp
+.Fn if_rxr_inuse
+returns the number of receive descriptor slots currently in use on the ring.
+.Pp
+.Fn if_rxr_cwm
+returns the currently allowed allocation watermark.
+.Sh SEE ALSO
+.Xr autoconf 9
+.Sh HISTORY
+The Interface Receive Ring API was originally written by
+.An David Gwynne Aq Mt dlg@openbsd.org .
+The API first appeared in
+.Ox 5.6 .

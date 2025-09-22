@@ -1,0 +1,259 @@
+.\"	$OpenBSD: lpr.1,v 1.16 2020/02/08 01:09:58 jsg Exp $
+.\"	$NetBSD: lpr.1,v 1.10 2002/01/19 03:23:26 wiz Exp $
+.\"
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)lpr.1	8.1 (Berkeley) 6/6/93
+.\"
+.Dd $Mdocdate: February 8 2020 $
+.Dt LPR 1
+.Os
+.Sh NAME
+.Nm lpr
+.Nd off line print
+.Sh SYNOPSIS
+.Nm lpr
+.Bk -words
+.Op Fl cdfghlmnpqrstv
+.Op Fl # Ns Ar num
+.Op Fl 1234 Ar font
+.Op Fl C Ar class
+.Op Fl i Op Ar numcols
+.Op Fl J Ar job
+.Op Fl P Ns Ar printer
+.Op Fl T Ar title
+.Op Fl U Ar user
+.Op Fl w Ns Ar num
+.Op Ar name ...
+.Ek
+.Sh DESCRIPTION
+.Nm lpr
+uses a spooling daemon to print the named files when facilities
+become available.
+If no names appear, the standard input is assumed.
+.Pp
+The following single letter options are used to notify the line printer
+spooler that the files are not standard text files.
+The spooling daemon will
+use the appropriate filters to print the data accordingly.
+.Bl -tag -width indent
+.It Fl c
+The files are assumed to contain data produced by
+.Ic cifplot .
+.It Fl d
+The files are assumed to contain data from
+.Em tex
+.Pf ( Tn DVI
+format from Stanford).
+.It Fl f
+Use a filter which interprets the first character of each line as a
+standard
+.Tn FORTRAN
+carriage control character.
+.It Fl g
+The files are assumed to contain standard plot data as produced by the
+.Ic plot
+routines.
+.It Fl l
+Use a filter which allows control characters to be printed and suppresses
+page breaks.
+.It Fl n
+The files are assumed to contain data from
+.Em ditroff
+(device independent troff).
+.It Fl p
+Use
+.Xr pr 1
+to format the files.
+.It Fl t
+The files are assumed to contain data from
+troff (cat phototypesetter commands).
+.It Fl v
+The files are assumed to contain a raster image for devices like the
+Benson Varian.
+.El
+.Pp
+These options apply to the handling of
+the print job:
+.Bl -tag -width indent
+.It Fl h
+Suppress the printing of the burst page.
+.It Fl m
+Send mail upon completion.
+.It Fl P Ns Ar printer
+Force output to a specific printer.
+Normally, the default printer is used (site dependent), or the value of the
+environment variable
+.Ev PRINTER
+is used.
+.It Fl q
+Queue the print job but do not start the spooling daemon.
+.It Fl r
+Remove the file upon completion of spooling or upon completion of
+printing (with the
+.Fl s
+option).
+.It Fl s
+Use symbolic links.
+Usually files are copied to the spool directory.
+The
+.Fl s
+option will use
+.Xr symlink 2
+to link data files rather than trying to copy them so large files can be
+printed.
+This means the files should
+not be modified or removed until they have been printed.
+.El
+.Pp
+The remaining options apply to copies, the page display, and headers:
+.Bl -tag -width indent
+.It Fl # Ns Ar num
+The quantity
+.Ar num
+is the number of copies desired of each file named.
+For example,
+.Bd -literal -offset indent
+$ lpr -#3 foo.c bar.c more.c
+.Ed
+.Pp
+would result in 3 copies of the file foo.c, followed by 3 copies
+of the file bar.c, etc.
+On the other hand,
+.Bd -literal -offset indent
+$ cat foo.c bar.c more.c | lpr -#3
+.Ed
+.Pp
+will give three copies of the concatenation of the files.
+Often a site will disable this feature to encourage use of a photocopier
+instead.
+.It Fl 1234 Ar font
+Specifies a
+.Ar font
+to be mounted on font position
+.Ar i .
+The daemon
+will construct a
+.Li .railmag
+file referencing
+the font pathname.
+.It Fl C Ar class
+Job classification
+to use on the burst page.
+For example,
+.Bd -literal -offset indent
+$ lpr \-C EECS foo.c
+.Ed
+.Pp
+causes the system name (the name returned by
+.Xr hostname 1 )
+to be replaced on the burst page by
+.Tn EECS ,
+and the file foo.c to be printed.
+.It Fl i Op Ar numcols
+The output is indented.
+If the next argument is numeric
+.Pq Ar numcols ,
+it is used as the number of blanks to be printed before each
+line; otherwise, 8 characters are printed.
+.It Fl J Ar job
+Job name to print on the burst page.
+Normally, the first file's name is used.
+.It Fl T Ar title
+Title name for
+.Xr pr 1 ,
+instead of the file name.
+.It Fl U Ar user
+User name to print on the burst page,
+also for accounting purposes.
+This option is only honored if the real user ID is daemon
+(or that specified in the printcap file instead of daemon),
+and is intended for those instances where print filters wish to requeue jobs.
+.It Fl w Ns Ar num
+Uses
+.Ar num
+as the page width for
+.Xr pr 1 .
+.El
+.Sh ENVIRONMENT
+If the following environment variable exists, it is used by
+.Nm lpr :
+.Bl -tag -width PRINTER
+.It Ev PRINTER
+Specifies an alternate default printer.
+.El
+.Sh FILES
+.Bl -tag -width /var/spool/output/*/tf* -compact
+.It Pa /etc/passwd
+local users database
+.It Pa /etc/printcap
+printer capabilities database
+.It Pa /usr/sbin/lpd*
+line printer daemons
+.It Pa /var/spool/output/*
+directories used for spooling
+.It Pa /var/spool/output/*/cf*
+daemon control files
+.It Pa /var/spool/output/*/df*
+data files specified in
+.Dq cf
+files
+.It Pa /var/spool/output/*/tf*
+temporary copies of
+.Dq cf
+files
+.El
+.Sh DIAGNOSTICS
+If you try to spool too large a file, it will be truncated.
+If a user other than root prints a file and spooling is disabled,
+.Nm
+will print a message saying so and will not put jobs in the queue.
+If a connection to
+.Xr lpd 8
+on the local machine cannot be made,
+.Nm
+will say that the daemon cannot be started.
+Diagnostics may be printed in the daemon's log file
+regarding missing spool files by
+.Xr lpd 8 .
+.Sh SEE ALSO
+.Xr lpq 1 ,
+.Xr lprm 1 ,
+.Xr pr 1 ,
+.Xr symlink 2 ,
+.Xr printcap 5 ,
+.Xr lpc 8 ,
+.Xr lpd 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.At v5 .
+.Sh BUGS
+Fonts for troff and tex reside on the host with the printer.
+It is currently not possible to use local font libraries.

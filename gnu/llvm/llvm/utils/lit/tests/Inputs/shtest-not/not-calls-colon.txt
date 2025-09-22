@@ -1,0 +1,3 @@
+# ":" always succeeds.
+# RUN: not not : foobar
+# RUN: not --crash :

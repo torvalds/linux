@@ -1,0 +1,192 @@
+.\" $OpenBSD: event_base_loop.3,v 1.6 2025/06/07 20:50:40 schwarze Exp $
+.\" Copyright (c) 2023 Ted Bullock <tbullock@comlore.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt EVENT_BASE_LOOP 3
+.Os
+.Sh NAME
+.Nm event_base_loop ,
+.Nm event_loop ,
+.Nm event_base_dispatch ,
+.Nm event_dispatch
+.Nd run an event loop
+.Sh SYNOPSIS
+.Lb libevent
+.In event.h
+.Ft int
+.Fn event_base_loop "struct event_base *base" "int flags"
+.Ft int
+.Fn event_loop "int flags"
+.Ft int
+.Fn event_base_dispatch "struct event_base *base"
+.Ft int
+.Fn event_dispatch void
+.Sh DESCRIPTION
+An event loop waits for events
+and invokes an associated callback function whenever one occurs.
+This enables asynchronous programming, allowing a program to perform other
+tasks while waiting for an event to occur.
+Asynchronous programming is a useful idiom for handling multiple I/O
+operations, such as network connections, user interfaces, or disk operations
+without blocking the main loop of a program.
+.Pp
+The
+.Fn event_base_loop
+family of functions run an event loop.
+By default, they return when there are no more scheduled events.
+.Pp
+There are three types of events these functions monitor:
+signal, kernel, and timer events.
+Events involving POSIX signals are configured with
+.Xr signal_set 3 .
+Kernel events such as network activity and changes to file descriptors are
+configured with
+.Xr event_set 3 .
+Timer events are configured with
+.Xr evtimer_set 3 .
+.Pp
+The event library categorizes event states as:
+.Bl -tag -width initialized
+.It Em initialized
+These have been configured with
+.Xr event_set 3
+and not yet registered with an event loop.
+.It Em scheduled
+These are registered to a loop using
+.Xr event_add 3
+and are idle, waiting to trigger and be processed by the loop.
+They can be queried with
+.Fn event_pending 3 .
+.It Em activated
+These are triggered events.
+The loop processes events until all activated events are resolved.
+Some of these, such as signals, may persist and become scheduled again.
+.El
+.Pp
+The arguments are as follows:
+.Bl -tag -width flags
+.It Fa base
+A pointer to an
+.Vt event_base
+structure returned from
+.Xr event_base_new 3
+or
+.Xr event_init 3 .
+.It Fa flags
+Zero or more of the following flags OR'ed together:
+.Bl -tag -width EVLOOP_NONBLOCK
+.It Dv EVLOOP_ONCE
+Run the event loop for one iteration and then return.
+This is useful for a main program that needs to perform actions outside
+the event loop.
+.It Dv EVLOOP_NONBLOCK
+Run the event loop in non-blocking mode.
+The loop returns after processing activated signal and kernel events and does
+not wait for timer events to expire.
+.El
+.El
+.Pp
+The function
+.Fn event_loop
+is a version of
+.Fn event_base_loop
+that requires the library to be initialized by
+.Xr event_init 3 .
+.Pp
+.Fn event_base_dispatch
+is equivalent to calling
+.Fn event_base_loop
+with
+.Fa flags
+set to zero.
+Likewise,
+.Fn event_dispatch
+is the same as invoking
+.Fn event_loop
+with
+.Fa flags
+set to zero.
+.Sh RETURN VALUES
+The event loop functions return:
+.Pp
+.Bl -tag -compact -offset 3n -width 3n
+.It \-1
+on error,
+.Va errno
+is set.
+.It 0
+on success, asked to terminate loop.
+.It 1
+on success, no scheduled events remain.
+.El
+.Sh ERRORS
+These functions have complex interactions with
+.Va errno .
+Error conditions that set
+.Va errno
+change corresponding to the kernel notification method the
+.Fa base
+structure is using.
+These values directly correspond to
+.Xr kevent 2 ,
+.Xr poll 2
+or
+.Xr select 2
+system calls and default to
+.Xr kevent 2
+on
+.Ox .
+Refer to
+.Xr event_base_new 3
+for details on kernel notification methods.
+.Bl -tag -width Er
+.It Bq Er EINTR
+Although the kernel notification methods can set
+.Va errno
+to
+.Er EINTR ,
+.Fn event_base_loop
+and related functions never fail with
+.Va errno
+set to
+.Er EINTR .
+.El
+.Sh SEE ALSO
+.Xr kevent 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr event_base_new 3 ,
+.Xr event_set 3
+.Sh HISTORY
+.Fn event_dispatch
+first appeared in libevent-0.1 and has been available since
+.Ox 3.2 .
+.Pp
+.Fn event_loop
+first appeared in libevent-0.4 and has been available since
+.Ox 3.2 .
+.Pp
+.Fn event_base_dispatch
+and
+.Fn event_base_loop
+first appeared in libevent-1.0 and have been available since
+.Ox 3.8 .
+.Sh AUTHORS
+The event library and these functions were written by
+.An -nosplit
+.An Niels Provos .
+.Pp
+This manual page was written by
+.An Ted Bullock Aq Mt tbullock@comlore.com .

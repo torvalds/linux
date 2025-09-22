@@ -1,0 +1,77 @@
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+configure:526: checking for gcc
+configure:603: checking whether the C compiler (gcc  ) works
+configure:617: gcc -o conftest    conftest.c  1>&5
+configure:637: checking whether the C compiler (gcc  ) is a cross-compiler
+configure:642: checking whether we are using GNU C
+configure:651: gcc -E conftest.c
+configure:666: checking whether gcc accepts -g
+configure:694: checking for working const
+configure:748: gcc -c -g -O2  conftest.c 1>&5
+configure:769: checking how to run the C preprocessor
+configure:790: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:830: checking whether sys/types.h defines makedev
+configure:842: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:940: checking for dirent.h that defines DIR
+configure:953: gcc -c -g -O2  conftest.c 1>&5
+configure:978: checking for opendir in -ldir
+configure:997: gcc -o conftest -g -O2   conftest.c -ldir   1>&5
+ld: -ldir: no match
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 986 "configure"
+#include "confdefs.h"
+/* Override any gcc2 internal prototype to avoid an error.  */
+/* We use char because int might match the return type of a gcc2
+    builtin and then its argument prototype would still apply.  */
+char opendir();
+
+int main() {
+opendir()
+; return 0; }
+configure:1069: checking for memmove
+configure:1097: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1069: checking for sbrk
+configure:1097: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1069: checking for strdup
+configure:1097: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1125: checking for sys/mkdev.h
+configure:1135: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1131: sys/mkdev.h: No such file or directory
+configure: failed program was:
+#line 1130 "configure"
+#include "confdefs.h"
+#include <sys/mkdev.h>
+configure:1125: checking for sys/sysmacros.h
+configure:1135: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1131: sys/sysmacros.h: No such file or directory
+configure: failed program was:
+#line 1130 "configure"
+#include "confdefs.h"
+#include <sys/sysmacros.h>
+configure:1125: checking for malloc.h
+configure:1135: gcc -E  conftest.c >/dev/null 2>conftest.out
+In file included from configure:1131:
+/usr/include/malloc.h:4: warning: #warning "<malloc.h> is obsolete, use <stdlib.h>"
+configure: failed program was:
+#line 1130 "configure"
+#include "confdefs.h"
+#include <malloc.h>
+configure:1125: checking for termios.h
+configure:1135: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1125: checking for sys/types.h
+configure:1135: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1165: checking for unistd.h
+configure:1175: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1165: checking for string.h
+configure:1175: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1165: checking for strings.h
+configure:1175: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1165: checking for sys/stat.h
+configure:1175: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1165: checking for sys/fcntl.h
+configure:1175: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1231: checking for a BSD compatible install
+configure:1283: checking for ranlib

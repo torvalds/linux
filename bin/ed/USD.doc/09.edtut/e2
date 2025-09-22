@@ -1,0 +1,463 @@
+.\"	$OpenBSD: e2,v 1.5 2004/04/05 10:58:08 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)e2	8.1 (Berkeley) 6/8/93
+.\"
+.SH
+Writing text out as a file \- the Write command ``w''
+.PP
+It's likely that you'll want to save your text for later use.
+To write out the contents of the buffer onto a file,
+use the
+.ul
+write
+command
+.P1
+w
+.P2
+followed by the filename you want to write on.
+This will copy the buffer's contents
+onto the specified file
+(destroying any previous information on the file).
+To save
+the text on a file named
+.UL junk ,
+for example, type
+.P1
+w junk
+.P2
+Leave a space between
+.UL w
+and the file name.
+.ul
+Ed
+will respond by printing
+the number of characters it wrote out.
+In this case,
+.ul
+ed
+would respond with
+.P1
+68
+.P2
+(Remember that blanks and the return character at the end of each
+line are included in the character count.)
+Writing a file just makes a copy of the text \- the
+buffer's contents are not disturbed, so you can go on adding
+lines to it.
+This is an important point.
+.ul
+Ed
+at all times works on a copy
+of a file, not the file itself.
+No change in the contents
+of a file takes place until you give a
+.UL w
+command.
+(Writing out the text onto a file from time to time as it is being
+created is a good idea, since if the system crashes or if you make some horrible mistake, you will lose
+all the text in the buffer but any text that was written onto
+a file is relatively safe.)
+.SH
+Leaving ed \- the Quit command ``q''
+.PP
+To terminate a session with
+.IT ed ,
+save the text you're working on
+by writing it onto a file using the
+.UL w
+command,
+and then type the command
+.P1
+q
+.P2
+which
+stands for
+.IT quit .
+The system will respond with
+the prompt character
+.UL $ "" (
+or
+.UL % ).
+At
+this point your buffer vanishes, with all its text,
+which is why you want to write it out before quitting.**
+.FS
+** Actually,
+.IT ed
+will print 
+.UL ?
+if you try to quit without writing.
+At that point, write if you want;
+if not, another
+.UL q
+will get you out regardless.
+.FE
+.SH
+Exercise 1:
+.PP
+Enter
+.ul
+ed
+and
+create some text using
+.P1
+a
+\&. . . text . . .
+\&\fB.\fR
+.P2
+Write it out using
+.UL w .
+Then leave
+.ul
+ed
+with the
+.UL q
+command, and print the file,
+to see that everything worked.
+(To print a file, say
+.P1
+pr filename
+.P2
+or
+.P1
+cat filename
+.P2
+in response to
+the prompt character.
+Try both.)
+.SH
+Reading text from a file \- the Edit command ``e''
+.PP
+A common way to get text into the buffer is to read it
+from a file in the file system.
+This is what you do to edit text
+that you saved with the 
+.UL w
+command in a previous session.
+The
+.ul
+edit
+command
+.UL e
+fetches the entire contents of a file into the buffer.
+So if you had saved the three lines
+``Now is the time'', etc.,
+with a
+.UL w
+command in an earlier session,
+the 
+.ul
+ed
+command
+.P1
+e junk
+.P2
+would fetch the entire contents of the file
+.UL junk
+into the buffer, and respond
+.P1
+68
+.P2
+which is the number of characters in
+.UL junk .
+.ul
+If anything was already in the buffer, it is deleted first.
+.PP
+If you use the
+.UL e
+command to read a file into the buffer,
+then you need not use a file name after a subsequent
+.UL w
+command;
+.ul
+ed
+remembers the last file name used in an
+.UL e
+command,
+and
+.UL w
+will write on this file.
+Thus a good way to operate is
+.P1
+ed
+e file
+[editing session]
+w
+q
+.P2
+This way, you can simply say
+.UL w
+from time to time,
+and be secure in the knowledge that
+if you got the file name right at the beginning,
+you are writing into the proper file each time.
+.PP
+You can find out at any time what file name
+.ul
+ed
+is remembering by typing the 
+.ul
+file
+command
+.UL f .
+In this example,
+if you typed
+.P1
+f
+.P2
+.ul
+ed
+would reply
+.P1
+junk
+.P2
+.SH
+Reading text from a file \- the Read command ``r''
+.PP
+Sometimes you want to read a file into the buffer
+without destroying anything that is already there.
+This is done by the
+.ul
+read
+command
+.UL r .
+The command
+.P1
+r junk
+.P2
+will read the file
+.UL junk
+into the buffer;
+it adds it
+to the end of whatever is already in the buffer.
+So if you do a read after
+an edit:
+.P1
+e junk
+r junk
+.P2
+the buffer will contain
+.ul
+two
+copies of the text (six lines).
+.P1
+Now is the time
+for all good men
+to come to the aid of their party.
+Now is the time
+for all good men
+to come to the aid of their party.
+.P2
+Like the
+.UL w
+and
+.UL e
+commands,
+.UL r
+prints
+the
+number of characters read in, after the reading operation is complete.
+.PP
+Generally speaking,
+.UL r
+is much less used than
+.UL e .
+.SH
+Exercise 2:
+.PP
+Experiment with the
+.UL e
+command \-
+try reading and printing various files.
+You may get an error
+.UL "name: No such file or directory" ,
+where
+.UL name
+is the name of a file;
+this means that the file doesn't exist,
+typically because you spelled the file name wrongly,
+or perhaps that you are not allowed to read or write it.
+Try alternately reading and appending to see that they work
+similarly.
+Verify that
+.P1
+ed filename
+.P2
+is exactly equivalent to
+.P1
+ed
+e filename
+.P2
+What does
+.P1
+f filename
+.P2
+do?
+.SH
+Printing the contents of the buffer \- the Print command ``p''
+.PP
+To
+.ul
+print
+or list the contents of the buffer (or parts
+of it) on the terminal, use the print command
+.P1
+p
+.P2
+The way this is done is as follows:
+specify the lines where
+you want printing to begin and where you want it to end,
+separated by a comma, and
+followed by the letter
+.UL p .
+Thus to print the first two lines of the buffer, for
+example, (that is, lines 1 through 2) say
+.P1
+1,2p	(starting line=1, ending line=2 p)
+.P2
+.ul
+Ed
+will respond with
+.P1
+Now is the time
+for all good men
+.P2
+.PP
+Suppose you want to print
+.ul
+all
+the lines in the buffer.
+You could use
+.UL 1,3p
+as above if you knew there were exactly
+3 lines in the buffer.
+But, in general, you don't
+know how many there are, so what do you use for the ending
+line number?
+.ul
+Ed
+provides a shorthand symbol for ``line number of
+last line in buffer'' \- the dollar sign
+.UL $ .
+Use it this
+way:
+.P1
+1,$p
+.P2
+This will print
+.ul
+all
+the lines in the buffer (line 1 to last line).
+If you want to stop the printing before it is finished,
+it can be interrupted with
+.UC ^C
+(Control-C);
+.ul
+ed
+will type
+.P1
+?
+.P2
+and wait for the next command.
+.PP
+To print the
+.ul
+last
+line of the buffer, you could use
+.P1
+$,$p
+.P2
+but
+.ul
+ed
+lets you abbreviate this to
+.P1
+$p
+.P2
+You can print any single line by typing the line
+number followed by a
+.UL p .
+Thus
+.P1
+1p
+.P2
+produces the response
+.P1
+Now is the time
+.P2
+which is the first line of the buffer.
+.PP
+In fact,
+.ul
+ed
+lets you abbreviate even further:
+you can print any single line by typing
+.ul
+just
+the line number \- no need to type the letter
+.UL p .
+So if you say
+.P1
+$
+.P2
+.ul
+ed
+will print the last line of the buffer.
+.PP
+You can also use
+.UL $
+in combinations like
+.P1
+$\-1,$p
+.P2
+which prints the last two lines of the buffer.
+This helps when you want to see how far you got in typing.
+.SH
+Exercise 3:
+.PP
+As before, create some text using the
+.UL a
+command and
+experiment with the
+.UL p
+command.
+You will find, for example,
+that you can't print line 0 or a line beyond
+the end of the buffer, and that attempts
+to print a buffer in reverse order by saying
+.P1
+3,1p
+.P2
+don't work.

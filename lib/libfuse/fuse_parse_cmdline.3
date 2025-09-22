@@ -1,0 +1,101 @@
+.\" $OpenBSD: fuse_parse_cmdline.3,v 1.2 2025/06/10 12:55:33 schwarze Exp $
+.\"
+.\" Copyright (c) 2018 Helg Bredow <helg.bredow@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 10 2025 $
+.Dt FUSE_PARSE_CMDLINE 3
+.Os
+.Sh NAME
+.Nm fuse_parse_cmdline
+.Nd FUSE helper function to parse command line arguments
+.Sh SYNOPSIS
+.Lb libfuse
+.In fuse.h
+.Ft int
+.Fn fuse_parse_cmdline "struct fuse_args *args" "char **mp" \
+    "int *mt" "int *fg"
+.Sh DESCRIPTION
+.Fn fuse_parse_cmdline
+is a helper function to parse standard FUSE arguments.
+.Fa args
+can be constructed using the
+.Xr FUSE_ARGS_INIT 3
+macro.
+.Pp
+.Fn fuse_parse_cmdline
+supports the following arguments.
+.Bl -tag -width Ds
+.It Fl d , Fl odebug
+Causes debug information for subsequent FUSE library calls to be output to
+stderr.
+Implies
+.Fl f .
+.It Fl f
+If this is specified then
+.Fa fg
+will be set to 1 on success.
+This flag indicates that the file system
+should not detach from the controlling terminal and run in the foreground.
+.It Fl h , Fl -help , Fl ho
+Print usage information for the options supported by
+.Fn fuse_parse_cmdline .
+.It Fl s
+If this is specified then
+.Fa mt
+will be set to 0 on success.
+This flag indicates that the file system
+should be run in multi-threaded mode.
+.Fl s
+is currently ignored and
+.Fa mt
+will always be 0.
+.It Fl V , Fl -version
+Print the FUSE library version to stderr.
+.El
+.Pp
+If the first argument not recognised by
+.Fn fuse_parse_cmdline
+is a valid directory then
+.Fa mp
+will be set to the canonicalized absolute pathname of this directory.
+.Sh RETURN VALUES
+The
+.Fn fuse_parse_cmdline
+function will return 0 on success and -1 if
+.Fl h , Fl -help , Fl ho , Fl v
+or
+.Fl -version
+are included in
+.Fa argv
+or
+.Fa mp
+does not exist or is not a directory.
+.Sh SEE ALSO
+.Xr FUSE_ARGS_INIT 3 ,
+.Xr fuse_daemonize 3 ,
+.Xr fuse_main 3 ,
+.Xr fuse_setup 3
+.Sh STANDARDS
+The
+.Fn fuse_parse_cmdline
+function conforms to FUSE 2.6.
+.Sh HISTORY
+The
+.Fn fuse_parse_cmdline
+function first appeared in
+.Ox 5.4 .
+.Sh AUTHORS
+.An Sylvestre Gallon Aq Mt ccna.syl@gmail.com
+.An Helg Bredow Aq Mt helg@openbsd.org

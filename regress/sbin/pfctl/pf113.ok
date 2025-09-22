@@ -1,0 +1,5 @@
+anchor "one" all {
+  anchor "two" all {
+    pass inet from <__automatic_> to any flags S/SA
+  }
+}

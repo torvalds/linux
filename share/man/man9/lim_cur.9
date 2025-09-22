@@ -1,0 +1,119 @@
+.\"	$OpenBSD: lim_cur.9,v 1.2 2019/06/21 12:56:46 visa Exp $
+.\"
+.\" Copyright (c) 2019 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 21 2019 $
+.Dt LIM_CUR 9
+.Os
+.Sh NAME
+.Nm lim_cur ,
+.Nm lim_cur_proc ,
+.Nm lim_fork ,
+.Nm lim_free ,
+.Nm lim_read_enter ,
+.Nm lim_read_leave
+.Nd Resource limit interface
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/resourcevar.h
+.Ft rlim_t
+.Fn "lim_cur" "int which"
+.Ft rlim_t
+.Fn "lim_cur_proc" "struct proc *p" "int which"
+.Ft struct plimit *
+.Fn "lim_fork" "struct process *parent" "struct process *child"
+.Ft void
+.Fn "lim_free" "struct plimit *limit"
+.Ft struct plimit *
+.Fn "lim_read_enter"
+.Ft void
+.Fn "lim_read_leave" "struct plimit *limit"
+.Sh DESCRIPTION
+The resource limit interface provides read access to the resource limits
+of the process.
+.Pp
+.Fn lim_cur
+returns the value of limit
+.Fa which
+of the current process.
+The
+.Fa which
+can take one of the following values:
+.Bd -literal
+#define RLIMIT_CPU	0	/* cpu time in milliseconds */
+#define RLIMIT_FSIZE	1	/* maximum file size */
+#define RLIMIT_DATA	2	/* data size */
+#define RLIMIT_STACK	3	/* stack size */
+#define RLIMIT_CORE	4	/* core file size */
+#define RLIMIT_RSS	5	/* resident set size */
+#define RLIMIT_MEMLOCK	6	/* locked-in-memory address space */
+#define RLIMIT_NPROC	7	/* number of processes */
+#define RLIMIT_NOFILE	8	/* number of open files */
+.Ed
+.Pp
+.Fn lim_cur_proc
+is like
+.Fn lim_cur
+but returns the value of limit
+.Fa which
+of thread
+.Fa p .
+.Pp
+.Fn lim_read_enter
+begins read access to the current process' resource limit structure.
+.Pp
+.Fn lim_read_leave
+finishes read access to the resource limit structure.
+.Pp
+Sections denoted by
+.Fn lim_read_enter
+and
+.Fn lim_read_leave
+cannot nest.
+Using
+.Fn lim_cur
+inside the read section is not allowed
+because the function uses
+.Fn lim_read_enter
+and
+.Fn lim_read_leave
+internally.
+.Pp
+.Fn lim_free
+releases the reference
+.Fa limit .
+.Pp
+.Fn lim_fork
+makes the process
+.Fa child
+share the resource limits of process
+.Fa parent .
+.Sh CONTEXT
+.Fn lim_cur ,
+.Fn lim_cur_proc ,
+.Fn lim_fork ,
+.Fn lim_free ,
+.Fn lim_read_enter
+and
+.Fn lim_read_leave
+can be called during autoconf, or from process context.
+.Sh RETURN VALUES
+.Fn lim_cur
+and
+.Fn lim_cur_proc
+return the value of the given resource limit.
+.Pp
+.Fn lim_read_enter
+returns a read reference to the current process' resource limits.

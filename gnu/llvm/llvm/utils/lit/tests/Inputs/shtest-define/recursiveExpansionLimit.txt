@@ -1,0 +1,12 @@
+# These are defined in the wrong order for non-recursive expansion: %{inner} is
+# defined after it's referenced.
+
+# DEFINE: %{outer}=%{inner}
+# DEFINE: %{inner}=expanded
+
+# RUN: echo '%{outer}'
+
+# CHECK-NON-RECUR:# | %{inner}
+# CHECK-RECUR:# | expanded
+
+# CHECK: Passed: 1 {{\([0-9]*.[0-9]*%\)}}

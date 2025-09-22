@@ -1,0 +1,152 @@
+.\" $OpenBSD: strtonum.3,v 1.19 2022/09/11 06:38:11 jmc Exp $
+.\"
+.\" Copyright (c) 2004 Ted Unangst
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt STRTONUM 3
+.Os
+.Sh NAME
+.Nm strtonum
+.Nd reliably convert string value to an integer
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft long long
+.Fo strtonum
+.Fa "const char *nptr"
+.Fa "long long minval"
+.Fa "long long maxval"
+.Fa "const char **errstr"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn strtonum
+function converts the string in
+.Fa nptr
+to a
+.Vt long long
+value.
+The
+.Fn strtonum
+function was designed to facilitate safe, robust programming
+and overcome the shortcomings of the
+.Xr atoi 3
+and
+.Xr strtol 3
+family of interfaces.
+.Pp
+The string may begin with an arbitrary amount of whitespace
+(as determined by
+.Xr isspace 3 )
+followed by a single optional
+.Ql +
+or
+.Ql -
+sign.
+.Pp
+The remainder of the string is converted to a
+.Vt long long
+value according to base 10.
+.Pp
+The value obtained is then checked against the provided
+.Fa minval
+and
+.Fa maxval
+bounds.
+If
+.Fa errstr
+is non-null,
+.Fn strtonum
+stores an error string in
+.Fa *errstr
+indicating the failure.
+.Sh RETURN VALUES
+The
+.Fn strtonum
+function returns the result of the conversion,
+unless the value would exceed the provided bounds or is invalid.
+On error, 0 is returned,
+.Va errno
+is set, and
+.Fa errstr
+will point to an error message.
+.Fa *errstr
+will be set to
+.Dv NULL
+on success;
+this fact can be used to differentiate
+a successful return of 0 from an error.
+.Sh EXAMPLES
+Using
+.Fn strtonum
+correctly is meant to be simpler than the alternative functions.
+.Bd -literal -offset indent
+int iterations;
+const char *errstr;
+
+iterations = strtonum(optarg, 1, 64, &errstr);
+if (errstr != NULL)
+	errx(1, "number of iterations is %s: %s", errstr, optarg);
+.Ed
+.Pp
+The above example will guarantee that the value of iterations is between
+1 and 64 (inclusive).
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ERANGE
+The given string was out of range.
+.It Bq Er EINVAL
+The given string did not consist solely of digit characters.
+.It Bq Er EINVAL
+.Ar minval
+was larger than
+.Ar maxval .
+.El
+.Pp
+If an error occurs,
+.Fa errstr
+will be set to one of the following strings:
+.Pp
+.Bl -tag -width "too largeXX" -compact
+.It Qq too large
+The result was larger than the provided maximum value.
+.It Qq too small
+The result was smaller than the provided minimum value.
+.It Qq invalid
+The string did not consist solely of digit characters.
+.El
+.Sh SEE ALSO
+.Xr atof 3 ,
+.Xr atoi 3 ,
+.Xr atol 3 ,
+.Xr atoll 3 ,
+.Xr sscanf 3 ,
+.Xr strtod 3 ,
+.Xr strtol 3 ,
+.Xr strtoul 3
+.Sh STANDARDS
+.Fn strtonum
+is an
+.Ox
+extension.
+The existing alternatives, such as
+.Xr atoi 3
+and
+.Xr strtol 3 ,
+are either impossible or difficult to use safely.
+.Sh HISTORY
+The
+.Fn strtonum
+function first appeared in
+.Ox 3.6 .

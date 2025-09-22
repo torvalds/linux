@@ -1,0 +1,74 @@
+.\"	$OpenBSD: npppd-users.5,v 1.9 2019/09/02 21:18:41 deraadt Exp $
+.\"
+.\" Copyright (c) 2012 YASUOKA Masahiko <yasuoka@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\" The following requests are required for all man pages.
+.\"
+.Dd $Mdocdate: September 2 2019 $
+.Dt NPPPD-USERS 5
+.Os
+.Sh NAME
+.Nm npppd-users
+.Nd user database file
+.Sh DESCRIPTION
+The
+.Nm
+file describes
+the various attributes of users.
+Refer to
+.Xr cgetent 3
+for a description of the file layout.
+Each entry in the database is used to describe one user.
+The record name is the username.
+The following attributes can be specified:
+.Bl -column "framed-ip-network"
+.It Sy Name Ta Sy Description
+.It password Ta
+User's password.
+Some characters are needed to be represented by the escape sequence.
+See
+.Xr cgetent 3
+for the escape sequence.
+.It framed-ip-address Ta
+IPv4 address to be assigned for the user.
+.It framed-ip-netmask Ta
+IPv4 netmask to be used for the user.
+.It calling-number Ta
+Calling phone number to check user's phone number.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/npppd/npppd-users"
+.It Pa /etc/npppd/npppd-users
+User database file.
+.El
+.Sh EXAMPLES
+.Bd -literal
+taro:\\
+    :password=taro's password:\\
+    :framed-ip-address=192.168.0.101:
+
+hana:\\
+    :password=hana's password:\\
+    :framed-ip-address=192.168.0.102:
+.Ed
+.Sh SEE ALSO
+.Xr cgetent 3 ,
+.Xr npppd.conf 5 ,
+.Xr npppd 8
+.Sh BUGS
+Colon
+.Pq Sq \&:
+characters or vertical bar
+.Pq Sq |
+characters cannot be used in the username.

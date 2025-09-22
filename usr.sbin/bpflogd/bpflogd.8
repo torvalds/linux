@@ -1,0 +1,138 @@
+.\"	$OpenBSD: bpflogd.8,v 1.7 2025/05/16 05:47:30 kn Exp $
+.\"
+.\" Copyright (c) 2001 Can Erkin Acar.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 16 2025 $
+.Dt BPFLOGD 8
+.Os
+.Sh NAME
+.Nm bpflogd
+.Nd Berkeley Packet Filter logging daemon
+.Sh SYNOPSIS
+.Nm bpflogd
+.Op Fl dPp
+.Op Fl F Ar filterfile
+.Op Fl s Ar snaplen
+.Op Fl u Ar user
+.Op Fl w Ar waitms
+.Op Fl y Ar datalinktype
+.Fl f Ar filename
+.Fl i Ar interface
+.Op Ar expression ...
+.Sh DESCRIPTION
+.Nm
+is a daemon which captures packets using
+.Xr bpf 4
+and writes the packets to a logfile
+in
+.Xr tcpdump 8
+binary format.
+These logs can be reviewed later using the
+.Fl r
+option of
+.Xr tcpdump 8 .
+.Pp
+When starting up,
+.Nm
+drops privileges before opening its log file.
+After receiving a
+.Dv SIGHUP
+signal it will write any pending packets to the log file, close it,
+and then open it again,
+permitting
+.Xr newsyslog 8
+to rotate logfiles automatically.
+If the log file contains data after being opened,
+the PCAP header is checked before new logs are appended to the existing file.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Debugging mode.
+.Nm
+does not daemonise and logs to the terminal.
+.It Fl f Ar filename
+Log output filename.
+The file must already exist, and be readable and writable by the
+_pflogd user.
+.It Fl F Ar filterfile
+Specify a file containing a filter expression as per
+.Xr pcap-filter 5 .
+.It Fl i Ar interface
+Specifies the interface to capture packets on using
+.Xr bpf 4 .
+This can be specified multiple times to capture packets from multiple
+interfaces, but all the interfaces must support the same datalink type.
+.It Fl P
+Put the interfaces into promiscuous mode.
+.It Fl p
+Do not put the interfaces into promiscuous mode.
+This is the default.
+.It Fl s Ar snaplen
+Capture at most the first
+.Ar snaplen
+bytes of data from each packet.
+By default
+.Nm
+captures whole packets.
+.It Fl u Ar user
+Drop privileges to
+.Ar user .
+By default
+.Nm
+drops privileges to the _pflogd user.
+.It Fl w Ar waitms
+Specify the maximum amount of time in milliseconds between when a
+packet is captured and when it will be written to the log file.
+The default
+.Ar waitms
+value is 2000 milliseconds.
+.It Fl y Ar datalinktype
+Specify the datalink type when capturing packets.
+If this is not specified then the default datalink type on the first
+interface is used.
+.It Ar expression
+Specify a filter expression for matching packets as per
+.Xr pcap-filter 5 .
+.El
+.Pp
+A filter expression may only be specified by a file with
+.Ar -F
+or as arguments on the command line; specifying both is unsupported.
+If a filter is not provided then all packets are captured.
+.Sh SEE ALSO
+.Xr pcap_open_live 3 ,
+.Xr pcap-filter 5 ,
+.Xr newsyslog 8 ,
+.Xr tcpdump 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Ox 7.8 .
+.\" .Sh AUTHORS
+.\" .Nm
+.\" was written by
+.\" .An David Gwynne Aq Mt dlg@uq.edu.au .

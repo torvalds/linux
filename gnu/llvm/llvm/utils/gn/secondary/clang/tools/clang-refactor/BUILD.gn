@@ -1,0 +1,19 @@
+executable("clang-refactor") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Refactoring",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "ClangRefactor.cpp",
+    "TestSupport.cpp",
+  ]
+}

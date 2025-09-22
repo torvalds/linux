@@ -1,0 +1,131 @@
+.\"	$OpenBSD: gif.4,v 1.33 2018/07/11 06:16:50 jmc Exp $
+.\"	$KAME: gif.4,v 1.15 2000/04/19 09:39:42 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 11 2018 $
+.Dt GIF 4
+.Os
+.Sh NAME
+.Nm gif
+.Nd generic tunnel interface
+.Sh SYNOPSIS
+.Cd "pseudo-device gif"
+.Sh DESCRIPTION
+The
+.Nm
+interface is a generic tunnelling pseudo-device.
+It can tunnel IPv4, IPv6, and MPLS over IPv4 and IPv6,
+with behavior mainly based on RFC 4213 IPv6-over-IPv4.
+.Pp
+A
+.Nm
+interface can be created at runtime using the
+.Ic ifconfig gif Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+.Pp
+The
+.Nm
+interface must be configured with the
+addresses used for the outer header.
+This can be done by using
+.Xr ifconfig 8 Ns 's
+.Ic tunnel
+command (which uses the
+.Dv SIOCSLIFPHYADDR
+ioctl).
+.Pp
+The addresses of the inner header must be configured by using
+.Xr ifconfig 8
+in the normal way.
+The routing table can be used to direct packets toward the
+.Nm
+interface.
+.Sh SEE ALSO
+.Xr sysctl 2 ,
+.Xr etherip 4 ,
+.Xr gre 4 ,
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr ipsec 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Sh STANDARDS
+.Rs
+.%A E. Nordmark
+.%A R. Gilligan
+.%D October 2005
+.%R RFC 4213
+.%T Basic Transition Mechanisms for IPv6 Hosts and Routers
+.Re
+.Pp
+.Rs
+.%A T. Worster
+.%A Y. Rekhter
+.%A E. Rosen
+.%D March 2005
+.%R RFC 4023
+.%T Encapsulating MPLS in IP or Generic Routing Encapsulation (GRE)
+.Re
+.Sh HISTORY
+The
+.Nm
+device first appeared in WIDE hydrangea IPv6 kit.
+.Pp
+Previously,
+.Nm
+supported RFC 3378 EtherIP tunnels over
+.Xr bridge 4
+interfaces.
+This is now handled by
+.Xr etherip 4 .
+.Sh BUGS
+There are many tunnelling protocol specifications,
+defined differently from each other.
+.Nm
+may not interoperate with peers which are based on different specifications,
+and are picky about outer header fields.
+For example, you cannot usually use
+.Nm
+to talk with IPsec devices that use IPsec tunnel mode.
+.Pp
+The current code does not check if the ingress address
+.Pq outer source address
+configured to
+.Nm
+makes sense.
+Make sure to configure an address which belongs to your node.
+Otherwise, your node will not be able to receive packets from the peer,
+and your node will generate packets with a spoofed source address.
+.Pp
+If the outer protocol is IPv6, path MTU discovery for encapsulated packet
+may affect communication over the interface.

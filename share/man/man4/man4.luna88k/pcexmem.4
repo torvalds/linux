@@ -1,0 +1,76 @@
+.\"	$OpenBSD: pcexmem.4,v 1.4 2014/12/08 13:24:04 aoyama Exp $
+.\"
+.\" Copyright (c) 2014 Kenji Aoyama.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: December 8 2014 $
+.Dt PCEXMEM 4 luna88k
+.Os
+.Sh NAME
+.Nm pcexmem ,
+.Nm pcexio
+.Nd NEC PC-9801 extension board slot
+.Sh SYNOPSIS
+.Cd "pcex0 at cbus0"
+.Sh DESCRIPTION
+The file
+.Pa /dev/pcexmem
+is an
+.Xr mmap 2
+capable interface to the memory area of the installed board at "NEC PC-9801
+extension board slot" on LUNA-88K2.
+Byte offsets in this file are interpreted as relative memory addresses
+of the installed board.
+The range should be between 0x0 and 0xffffff.
+.Pp
+The I/O port area of the installed board is accessed via the file
+.Pa /dev/pcexio
+in the same manner as
+.Pa /dev/pcexmem .
+The range should be between 0x0 and 0xffff.
+.Pp
+The following
+.Xr ioctl 2
+calls apply to
+.Pa /dev/pcexmem
+and
+.Pa /dev/pcexio
+in order to handle interrupts of this extension slot.
+Currently 7 levels of interrupt (0 to 6) are supported.
+.Bl -tag -width PCEX
+.It Dv PCEXSETLEVEL Fa "u_int *"
+Register the specified interrupt level with this driver to handle.
+.It Dv PCEXRESETLEVEL Fa "u_int *"
+Unregister the specified interrupt level with this driver.
+.It Dv PCEXWAITINT Fa "u_int *"
+Wait for the interrupt with the specified level.
+.El
+.Sh FILES
+.Bl -tag -width /dev/pcexmem -compact
+.It Pa /dev/pcexmem
+.It Pa /dev/pcexio
+.El
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EWOULDBLOCK
+PCEXWAITINT timeouts (currently 1 second).
+.El
+.Sh SEE ALSO
+.Xr ioctl 2
+.Sh HISTORY
+The
+.Pa /dev/pcexmem
+and
+.Pa /dev/pcexio
+files first appeared in
+.Ox 5.6 .

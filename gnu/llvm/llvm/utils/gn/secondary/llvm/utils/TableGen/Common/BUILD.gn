@@ -1,0 +1,33 @@
+static_library("Common") {
+  deps = [
+    "//llvm/include/llvm/CodeGen:GenVT",
+    "//llvm/lib/CodeGenTypes",
+    "//llvm/lib/Support",
+    "//llvm/lib/TableGen",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "AsmWriterInst.cpp",
+    "CodeGenDAGPatterns.cpp",
+    "CodeGenHwModes.cpp",
+    "CodeGenInstAlias.cpp",
+    "CodeGenInstruction.cpp",
+    "CodeGenRegisters.cpp",
+    "CodeGenSchedule.cpp",
+    "CodeGenTarget.cpp",
+    "DAGISelMatcher.cpp",
+    "GlobalISel/CXXPredicates.cpp",
+    "GlobalISel/CodeExpander.cpp",
+    "GlobalISel/CombinerUtils.cpp",
+    "GlobalISel/GlobalISelMatchTable.cpp",
+    "GlobalISel/GlobalISelMatchTableExecutorEmitter.cpp",
+    "GlobalISel/PatternParser.cpp",
+    "GlobalISel/Patterns.cpp",
+    "InfoByHwMode.cpp",
+    "OptEmitter.cpp",
+    "PredicateExpander.cpp",
+    "SubtargetFeatureInfo.cpp",
+    "Types.cpp",
+    "VarLenCodeEmitterGen.cpp",
+  ]
+}

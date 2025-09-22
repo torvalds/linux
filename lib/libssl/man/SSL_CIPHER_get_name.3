@@ -1,0 +1,399 @@
+.\" $OpenBSD: SSL_CIPHER_get_name.3,v 1.19 2025/06/13 18:34:00 schwarze Exp $
+.\" full merge up to: OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\" selective merge up to: OpenSSL 61f805c1 Jan 16 01:01:46 2018 +0800
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>,
+.\" Dr. Stephen Henson <steve@openssl.org>, Todd Short <tshort@akamai.com>,
+.\" and Paul Yang <yang.yang@baishancloud.com>.
+.\" Copyright (c) 2000, 2005, 2009, 2013, 2014, 2015, 2016, 2017
+.\" The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt SSL_CIPHER_GET_NAME 3
+.Os
+.Sh NAME
+.Nm SSL_CIPHER_get_name ,
+.Nm SSL_CIPHER_get_bits ,
+.Nm SSL_CIPHER_get_version ,
+.Nm SSL_CIPHER_get_cipher_nid ,
+.Nm SSL_CIPHER_get_digest_nid ,
+.Nm SSL_CIPHER_get_handshake_digest ,
+.Nm SSL_CIPHER_get_kx_nid ,
+.Nm SSL_CIPHER_get_auth_nid ,
+.Nm SSL_CIPHER_is_aead ,
+.Nm SSL_CIPHER_find ,
+.Nm SSL_CIPHER_get_id ,
+.Nm SSL_CIPHER_description
+.Nd get SSL_CIPHER properties
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft const char *
+.Fn SSL_CIPHER_get_name "const SSL_CIPHER *cipher"
+.Ft int
+.Fn SSL_CIPHER_get_bits "const SSL_CIPHER *cipher" "int *alg_bits"
+.Ft const char *
+.Fn SSL_CIPHER_get_version "const SSL_CIPHER *cipher"
+.Ft int
+.Fn SSL_CIPHER_get_cipher_nid "const SSL_CIPHER *cipher"
+.Ft int
+.Fn SSL_CIPHER_get_digest_nid "const SSL_CIPHER *cipher"
+.Ft const EVP_MD *
+.Fn SSL_CIPHER_get_handshake_digest "const SSL_CIPHER *cipher"
+.Ft int
+.Fn SSL_CIPHER_get_kx_nid "const SSL_CIPHER *cipher"
+.Ft int
+.Fn SSL_CIPHER_get_auth_nid "const SSL_CIPHER *cipher"
+.Ft int
+.Fn SSL_CIPHER_is_aead "const SSL_CIPHER *cipher"
+.Ft const SSL_CIPHER *
+.Fn SSL_CIPHER_find "SSL *ssl" "const unsigned char *ptr"
+.Ft unsigned long
+.Fn SSL_CIPHER_get_id "const SSL_CIPHER *cipher"
+.Ft char *
+.Fn SSL_CIPHER_description "const SSL_CIPHER *cipher" "char *buf" "int size"
+.Sh DESCRIPTION
+.Fn SSL_CIPHER_get_name
+returns a pointer to the name of
+.Fa cipher .
+.Pp
+.Fn SSL_CIPHER_get_bits
+returns the number of secret bits used for
+.Fa cipher .
+If
+.Fa alg_bits
+is not
+.Dv NULL ,
+the number of bits processed by the chosen algorithm is stored into it.
+.Pp
+.Fn SSL_CIPHER_get_version
+returns a string which indicates the SSL/TLS protocol version that first
+defined the cipher.
+This is currently
+.Qq TLSv1/SSLv3 .
+In some cases it should possibly return
+.Qq TLSv1.2
+but the function does not; use
+.Fn SSL_CIPHER_description
+instead.
+.Pp
+.Fn SSL_CIPHER_get_cipher_nid
+returns the cipher NID corresponding to the
+.Fa cipher .
+If there is no cipher (e.g. for cipher suites with no encryption), then
+.Dv NID_undef
+is returned.
+.Pp
+.Fn SSL_CIPHER_get_digest_nid
+returns the digest NID corresponding to the MAC used by the
+.Fa cipher
+during record encryption/decryption.
+If there is no digest (e.g. for AEAD cipher suites), then
+.Dv NID_undef
+is returned.
+.Pp
+.Fn SSL_CIPHER_get_handshake_digest
+returns the
+.Vt EVP_MD
+object representing the digest used during a TLS handshake with the cipher
+.Fa c ,
+which may be different to the digest used in the message authentication code
+for encrypted records.
+.Pp
+.Fn SSL_CIPHER_get_kx_nid
+returns the key exchange NID corresponding to the method used by the
+.Fa cipher .
+If there is no key exchange, then
+.Dv NID_undef
+is returned.
+Examples of possible return values include
+.Dv NID_kx_rsa ,
+.Dv NID_kx_dhe ,
+and
+.Dv NID_kx_ecdhe .
+.Pp
+.Fn SSL_CIPHER_get_auth_nid
+returns the authentication NID corresponding to the method used by the
+.Fa cipher .
+If there is no authentication,
+.Dv NID_undef
+is returned.
+Examples of possible return values include
+.Dv NID_auth_rsa
+and
+.Dv NID_auth_ecdsa .
+.Pp
+.Fn SSL_CIPHER_is_aead
+returns 1 if the
+.Fa cipher
+is AEAD (e.g. GCM or ChaCha20/Poly1305), or 0 if it is not AEAD.
+.Pp
+.Fn SSL_CIPHER_find
+returns a pointer to a
+.Vt SSL_CIPHER
+structure which has the cipher ID specified in
+.Fa ptr .
+The
+.Fa ptr
+parameter is an array of length two which stores the two-byte
+TLS cipher ID (as allocated by IANA) in network byte order.
+.Fa SSL_CIPHER_find
+returns
+.Dv NULL
+if an error occurs or the indicated cipher is not found.
+.Pp
+.Fn SSL_CIPHER_get_id
+returns the ID of the given
+.Fa cipher ,
+which must not be
+.Dv NULL .
+The ID here is an OpenSSL-specific concept, which stores a prefix
+of 0x0300 in the higher two bytes and the IANA-specified cipher
+suite ID in the lower two bytes.
+For instance, TLS_RSA_WITH_NULL_MD5 has IANA ID "0x00, 0x01", so
+.Fn SSL_CIPHER_get_id
+returns 0x03000001.
+.Pp
+.Fn SSL_CIPHER_description
+copies a textual description of
+.Fa cipher
+into the buffer
+.Fa buf ,
+which must be at least
+.Fa size
+bytes long.
+The
+.Fa cipher
+argument must not be a
+.Dv NULL
+pointer.
+If
+.Fa buf
+is
+.Dv NULL ,
+a buffer is allocated using
+.Xr asprintf 3 ;
+that buffer should be freed using the
+.Xr free 3
+function.
+If
+.Fa len
+is too small to hold the description, a pointer to the static string
+.Qq Buffer too small
+is returned.
+If memory allocation fails, which can happen even if a
+.Fa buf
+of sufficient size is provided, a pointer to the static string
+.Qq OPENSSL_malloc Error
+is returned and the content of
+.Fa buf
+remains unchanged.
+.Pp
+The string returned by
+.Fn SSL_CIPHER_description
+consists of several fields separated by whitespace:
+.Bl -tag -width Ds
+.It Aq Ar ciphername
+Textual representation of the cipher name.
+.It Aq Ar protocol version
+Protocol version:
+.Sy SSLv3 ,
+.Sy TLSv1.2 ,
+or
+.Sy TLSv1.3 .
+The TLSv1.0 ciphers are flagged with SSLv3.
+No new ciphers were added by TLSv1.1.
+.It Kx= Ns Aq Ar key exchange
+Key exchange method:
+.Sy DH ,
+.Sy ECDH ,
+.Sy GOST ,
+.Sy RSA ,
+or
+.Sy TLSv1.3 .
+.It Au= Ns Aq Ar authentication
+Authentication method:
+.Sy ECDSA ,
+.Sy GOST01 ,
+.Sy RSA ,
+.Sy TLSv1.3 ,
+or
+.Sy None .
+.Sy None
+is the representation of anonymous ciphers.
+.It Enc= Ns Aq Ar symmetric encryption method
+Encryption method with number of secret bits:
+.Sy 3DES(168) ,
+.Sy RC4(128) ,
+.Sy AES(128) ,
+.Sy AES(256) ,
+.Sy AESGCM(128) ,
+.Sy AESGCM(256) ,
+.Sy Camellia(128) ,
+.Sy Camellia(256) ,
+.Sy ChaCha20-Poly1305 ,
+.Sy GOST-28178-89-CNT ,
+or
+.Sy None .
+.It Mac= Ns Aq Ar message authentication code
+Message digest:
+.Sy MD5 ,
+.Sy SHA1 ,
+.Sy SHA256 ,
+.Sy SHA384 ,
+.Sy AEAD ,
+.Sy GOST94 ,
+.Sy GOST89IMIT ,
+or
+.Sy STREEBOG256 .
+.El
+.Sh RETURN VALUES
+.Fn SSL_CIPHER_get_name
+returns an internal pointer to a NUL-terminated string.
+.Fn SSL_CIPHER_get_version
+returns a pointer to a static NUL-terminated string.
+If
+.Fa cipher
+is a
+.Dv NULL
+pointer, both functions return a pointer to the static string
+.Qq Pq NONE .
+.Pp
+.Fn SSL_CIPHER_get_bits
+returns a positive integer representing the number of secret bits
+or 0 if
+.Fa cipher
+is a
+.Dv NULL
+pointer.
+.Pp
+.Fn SSL_CIPHER_get_cipher_nid ,
+.Fn SSL_CIPHER_get_digest_nid ,
+.Fn SSL_CIPHER_get_kx_nid ,
+and
+.Fn SSL_CIPHER_get_auth_nid
+return an NID constant or
+.Dv NID_undef
+if an error occurred.
+.Fn SSL_CIPHER_get_handshake_digest
+returns a valid
+.Vt EVP_MD
+object or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn SSL_CIPHER_is_aead
+returns 1 if the
+.Fa cipher
+is AEAD or 0 otherwise.
+.Pp
+.Fn SSL_CIPHER_find
+returns a pointer to a valid
+.Vt SSL_CIPHER
+structure or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn SSL_CIPHER_get_id
+returns a 32-bit unsigned integer.
+.Pp
+.Fn SSL_CIPHER_description
+returns
+.Fa buf
+or a newly allocated string on success or a pointer to a static
+string on error.
+.Sh EXAMPLES
+An example for the output of
+.Fn SSL_CIPHER_description :
+.Bd -literal
+ECDHE-RSA-AES256-GCM-SHA256 TLSv1.2 Kx=ECDH Au=RSA Enc=AESGCM(256) Mac=AEAD
+.Ed
+.Pp
+A complete list can be retrieved by invoking the following command:
+.Pp
+.Dl $ openssl ciphers -v ALL:COMPLEMENTOFALL
+.Sh SEE ALSO
+.Xr openssl 1 ,
+.Xr ssl 3 ,
+.Xr SSL_get_ciphers 3 ,
+.Xr SSL_get_current_cipher 3
+.Sh HISTORY
+.Fn SSL_CIPHER_description
+first appeared in SSLeay 0.8.0.
+.Fn SSL_CIPHER_get_name ,
+.Fn SSL_CIPHER_get_bits ,
+and
+.Fn SSL_CIPHER_get_version
+first appeared in SSLeay 0.8.1.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_CIPHER_get_id
+first appeared in OpenSSL 1.0.1 and has been available since
+.Ox 5.3 .
+.Pp
+.Fn SSL_CIPHER_get_cipher_nid ,
+.Fn SSL_CIPHER_get_digest_nid ,
+.Fn SSL_CIPHER_get_kx_nid ,
+.Fn SSL_CIPHER_get_auth_nid ,
+and
+.Fn SSL_CIPHER_is_aead
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.3 .
+.Fn SSL_CIPHER_find
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 7.0 .
+.Fn SSL_CIPHER_get_handshake_digest
+first appeared in OpenSSL 1.1.1 and has been available since
+.Ox 7.6 .
+.Sh BUGS
+If
+.Fn SSL_CIPHER_description
+cannot handle a built-in cipher,
+the according description of the cipher property is
+.Qq unknown .
+This case should not occur.

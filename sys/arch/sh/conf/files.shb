@@ -1,0 +1,13 @@
+#	$OpenBSD: files.shb,v 1.1.1.1 2006/10/06 21:02:55 miod Exp $
+#	$NetBSD: files.shb,v 1.4 2005/12/11 12:18:58 christos Exp $
+#
+# SuperH internal devices.
+#
+device	shb { }
+attach	shb at mainbus
+
+file	arch/sh/dev/shb.c		shb
+
+device	scif: tty
+attach	scif at shb
+file	arch/sh/dev/scif.c		scif	needs-flag

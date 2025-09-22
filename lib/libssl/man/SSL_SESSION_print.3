@@ -1,0 +1,75 @@
+.\" $OpenBSD: SSL_SESSION_print.3,v 1.5 2025/06/08 22:52:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_SESSION_PRINT 3
+.Os
+.Sh NAME
+.Nm SSL_SESSION_print ,
+.Nm SSL_SESSION_print_fp
+.Nd print some properties of an SSL_SESSION object
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fo SSL_SESSION_print
+.Fa "BIO *bp"
+.Fa "const SSL_SESSION *session"
+.Fc
+.Ft int
+.Fo SSL_SESSION_print_fp
+.Fa "FILE *fp"
+.Fa "const SSL_SESSION *session"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_SESSION_print
+prints some properties of
+.Fa session
+in a human-readable format to the
+.Fa "BIO *bp" ,
+including protocol version, cipher name, session ID,
+session ID context, master key, session ticket lifetime hint,
+session ticket, start time, timeout, and verify return code.
+.Pp
+.Fn SSL_SESSION_print_fp
+does the same as
+.Fn SSL_SESSION_print
+except that it prints to the
+.Fa "FILE *fp" .
+.Sh RETURN VALUES
+.Fn SSL_SESSION_print
+and
+.Fn SSL_SESSION_print_fp
+return 1 for success or 0 for failure.
+.Pp
+In some cases, the reason for failure can be determined with
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr d2i_SSL_SESSION 3 ,
+.Xr PEM_read_SSL_SESSION 3 ,
+.Xr ssl 3 ,
+.Xr SSL_get_session 3 ,
+.Xr SSL_SESSION_free 3 ,
+.Xr SSL_SESSION_get_ex_new_index 3 ,
+.Xr SSL_SESSION_get_time 3 ,
+.Xr SSL_SESSION_new 3
+.Sh HISTORY
+.Fn SSL_SESSION_print
+first appeared in SSLeay 0.5.2.
+.Fn SSL_SESSION_print_fp
+first appeared in SSLeay 0.6.0.
+Both functions have been available since
+.Ox 2.4 .

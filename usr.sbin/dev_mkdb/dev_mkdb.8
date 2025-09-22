@@ -1,0 +1,83 @@
+.\"	$OpenBSD: dev_mkdb.8,v 1.10 2022/08/04 11:50:46 schwarze Exp $
+.\"
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)dev_mkdb.8	8.1 (Berkeley) 6/6/93
+.\"
+.Dd $Mdocdate: August 4 2022 $
+.Dt DEV_MKDB 8
+.Os
+.Sh NAME
+.Nm dev_mkdb
+.Nd create /dev database
+.Sh SYNOPSIS
+.Nm dev_mkdb
+.Sh DESCRIPTION
+The
+.Nm
+command creates a
+.Xr hash 3
+access method Berkeley database in
+.Dq Pa /var/run/dev.db
+which contains the names of all of the character and block special
+files in the
+.Dq Pa /dev
+directory, using the file type and the
+.Fa st_rdev
+field as the key.
+.Pp
+Keys are a structure containing a
+.Vt mode_t
+followed by a
+.Vt dev_t ,
+with any padding zeroed out.
+The former is the type of the file
+.Pq Fa st_mode No & Dv S_IFMT ,
+the latter is the
+.Fa st_rdev
+field.
+.Sh FILES
+.Bl -tag -width /var/run/dev.db -compact
+.It Pa /dev
+device directory
+.It Pa /var/run/dev.db
+database file
+.El
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr stat 2 ,
+.Xr dbopen 3 ,
+.Xr devname 3 ,
+.Xr kvm_nlist 3 ,
+.Xr ttyname 3 ,
+.Xr kvm_mkdb 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 Net/2 .

@@ -1,0 +1,68 @@
+.\"	$OpenBSD: safte.4,v 1.8 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: July 16 2013 $
+.Dt SAFTE 4
+.Os
+.Sh NAME
+.Nm safte
+.Nd SCSI Accessed Fault-Tolerant Enclosure
+.Sh SYNOPSIS
+.Cd "safte* at scsibus?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for monitoring the various environmental sensors
+present in SCSI enclosures using the SCSI Accessed Fault-Tolerant Enclosure
+command set.
+The hardware monitor is used with the
+.Xr sysctl 8
+interface.
+.Pp
+SAF-TE compliant devices can provide an arbitrary set of sensors from the
+following types:
+.Bl -column "Sensor" "Units" "Typical" -offset indent
+.It Sy "Sensor" Ta Sy "Units" Ta Sy "Typical Use"
+.It Li "temp" Ta "uK" Ta "temperature"
+.It Li "fan" Ta "RPM" Ta "fan"
+.It Li "psu" Ta "On/Off" Ta "power supply"
+.It Li "doorlock" Ta "On/Off" Ta "door lock"
+.It Li "alarm" Ta "On/Off" Ta "enclosure alarm"
+.El
+.Pp
+Sensor data is updated every 10 seconds.
+.Pp
+An enclosure may provide environmental information using an alternative
+to the SCSI Accessed Fault-Tolerant Enclosure command set used by this driver.
+Enclosures using the SCSI Enclosure Services command set
+may be monitored by the
+.Xr ses 4
+driver.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr scsibus 4 ,
+.Xr ses 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An David Gwynne Aq Mt dlg@openbsd.org .

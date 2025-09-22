@@ -1,0 +1,273 @@
+#	$OpenBSD: scsi_modes,v 1.4 2007/12/09 21:26:19 dlg Exp $
+
+# SCSI mode page data base.
+
+# Copyright (c) 1995 HD Associates
+# (contact: dufault@hda.com)
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. The name of HD Associates
+#    may not be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY HD ASSOCIATES ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL HD ASSOCIATES BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+
+# The ordering is alphabetical by page name, as it appears in the SCSI spec.
+
+# ALL DEVICE TYPES
+
+# Control mode page:
+0x0a {
+	{Reserved} *t7
+	{RLEC} t1
+	{Queue Algorithm Modifier} t4
+	{Reserved} *t2
+	{QErr} t1
+	{DQue} t1
+	{EECA} t1
+	{Reserved} *t4
+	{RAENP} t1
+	{UAAENP} t1
+	{EAENP} t1
+	{Reserved} *i1
+	{Ready AEN Holdoff Period} i2
+}
+
+# Disconnect-Reconnect Page:
+0x02	{
+	{Buffer Full Ratio} i1
+	{Buffer Empty Ratio} i1
+	{Bus Inactivity Limit} i2
+	{Disconnect Time Limit} i2
+	{Connect Time Limit} i2
+	{Maximum Burst Size} i2
+	{Reserved} *t6
+	{DTDC} t2
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+}
+
+# Peripheral Device Page:
+0x09	{
+	{Interface Identifier} i2
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+}
+
+
+# DIRECT ACCESS DEVICES
+# Caching page:
+0x08 {
+	{IC} t1
+	{ABPF} t1
+	{CAP} t1
+	{DISC} t1
+	{SIZE} t1
+	{WCE} t1
+	{MF} t1
+	{RCD} t1
+	{Demand Retention Priority} t4
+	{Write Retention Priority} t4
+	{Disable Pre-fetch Transfer Length} i2
+	{Minimum Pre-fetch} i2
+	{Maximum Pre-fetch} i2
+	{Maximum Pre-fetch Ceiling} i2
+	{FSW} t1
+	{LBCSS} t1
+	{DRA} t1
+	{Vendor-specific} t2
+	{Reserved} *t2
+	{NV_DIS} t1
+	{Number of Cache Segments} i1
+	{Cache Segment Size} i2
+	{Reserved} *i1
+	{Obsolete} *i2
+}
+
+# Flexible disk page:
+0x05 {
+	{Transfer rate} i2
+	{Number of heads} i1
+	{Sectors per track} i1
+	{Data bytes per sector} i2
+	{Number of cylinders} i2
+	{Starting cylinder-write precompensation} i2
+	{Starting cylinder-reduced write current} i2
+	{Drive step rate} i2
+	{Drive step pulse width} i1
+	{Head settle delay} i2
+	{Motor on delay} i1
+	{Motor off delay} i1
+	{TRDY} t1
+	{SSN} t1
+	{MO} t1
+	{Reserved} *t5
+	{Reserved} *t4
+	{SPC} t4
+	{Write Compensation} i1
+	{Head load delay} i1
+	{Head unload delay} i1
+	{Pin 34} t4
+	{Pin 2} t4
+	{Pin 4} t4
+	{Pin 1} t4
+	{Medium rotation rate} i2
+	{Reserved} *i1
+	{Reserved} *i1
+}
+
+# Format device page:
+0x03 {
+	{Tracks per Zone} i2
+	{Alternate Sectors per Zone} i2
+	{Alternate Tracks per Zone} i2
+	{Alternate Tracks per Logical Unit} i2
+	{Sectors per Track} i2
+	{Data Bytes per Physical Sector} i2
+	{Interleave} i2
+	{Track Skew Factor} i2
+	{Cylinder Skew Factor} i2
+	{SSEC} t1
+	{HSEC} t1
+	{RMB} t1
+	{SURF} t1
+	{Reserved} *t4
+}
+
+# Medium types supported page:
+0x0b	{
+	{Reserved} *i1
+	{Reserved} *i1
+	{Medium type one supported} i1
+	{Medium type two supported} i1
+	{Medium type three supported} i1
+	{Medium type four supported} i1
+}
+
+# Notch page (0x0c)
+
+#  Read-Write Error Recovery Page
+0x01	{
+	{AWRE (Auto Write Reallocation Enbld)} t1
+	{ARRE (Auto Read Reallocation Enbld)} t1
+	{TB (Transfer Block)} t1
+	{RC (Read Continuous)} t1
+	{EER (Enable Early Recovery)} t1
+	{PER (Post Error)} t1
+	{DTE (Disable Transfer on Error)} t1
+	{DCR (Disable Correction)} t1
+	{Read Retry Count} i1
+	{Correction Span} i1
+	{Head Offset Count} i1
+	{Data Strobe Offset Count} i1
+	{Reserved} *i1
+	{Write Retry Count} i1
+	{Reserved} *i1
+	{Recovery Time Limit} i2
+}
+
+# Rigid Disk Drive Geometry Page
+0x04	{
+	{Number of Cylinders} i3
+	{Number of Heads} i1
+	{Starting Cylinder-Write Precompensation} i3
+	{Starting Cylinder-Reduced Write Current} i3
+	{Drive Step Rate} i2
+	{Landing Zone Cylinder} i3
+	{Reserved} *t6
+	{RPL} t2
+	{Rotational Offset} i1
+	{Reserved} *i1
+	{Medium Rotation Rate} i2
+	{Reserved} *i1
+	{Reserved} *i1
+}
+
+# Verify Error Recovery Page
+0x07	{
+	{Reserved} *t4
+	{EER} t1
+	{PER} t1
+	{DTE} t1
+	{DCR} t1
+	{Verify Retry Count} i1
+	{Verify Correction Span} i1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Verify Recovery Time Limit} i2
+}
+
+# CD-ROM Audio Control Parameters Page
+0x0E	{
+	{Reserved} *t5
+	{Immed} t1
+	{SOTC} t1
+	{Reserved} *t1
+	{Reserved} *i2
+	{APRVal} t1
+	{Reserved} *t3
+	{Format of LBAs / sec.} t4
+	{Logical Blocks per Second of Audio Playback} i2
+	{Reserved} *t4
+	{Output Port 0 Channel Selection} t4
+	{Output Port 0 Volume} i1
+	{Reserved} *t4
+	{Output Port 1 Channel Selection} t4
+	{Output Port 1 Volume} i1
+	{Reserved} *t4
+	{Output Port 2 Channel Selection} t4
+	{Output Port 2 Volume} i1
+	{Reserved} *t4
+	{Output Port 3 Channel Selection} t4
+	{Output Port 3 Volume} i1
+}
+
+0x10 {
+	{Reserved} *t1
+	{Change Active Partition} t1
+	{Change Active Format} t1
+	{Active Format} t5
+	{Active Partition} i1
+	{Write Buffer Full Ratio} i1
+	{Write Buffer Empty Ratio} i1
+	{Write Delay Time} i2
+	{Data Buffer Recovery} t1
+	{Block Identifiers Support} t1
+	{Report Setmarks} t1
+	{AAutomatic Velocity Control} t1
+	{Stop on Consecutive Filemarks} t2
+	{Recover Buffer Order} t1
+	{Report Early-Warning} t1
+	{Gap Size} i1
+	{EOD Defined} t3
+	{Enable EOD Generation} t1
+	{Synchronize at Early-Warning} t1
+	{Reserved} *t3
+	{Buffer Size at Early-Warning} i3
+	{Select Data Compression Algorithm} i1
+	{Reserved} *i1
+}

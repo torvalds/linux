@@ -1,0 +1,100 @@
+; Options for the S/390 / zSeries port of the compiler.
+
+; Copyright (C) 2005, 2006 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+m31
+Target Report RejectNegative InverseMask(64BIT)
+31 bit ABI
+
+m64
+Target Report RejectNegative Mask(64BIT)
+64 bit ABI
+
+march=
+Target RejectNegative Joined Var(s390_arch_string)
+Generate code for given CPU
+
+mbackchain
+Target Report Mask(BACKCHAIN)
+Maintain backchain pointer
+
+mdebug
+Target Report Mask(DEBUG_ARG)
+Additional debug prints
+
+mesa
+Target Report RejectNegative InverseMask(ZARCH)
+ESA/390 architecture
+
+mfused-madd
+Target Report Mask(FUSED_MADD)
+Enable fused multiply/add instructions
+
+mhard-float
+Target Report RejectNegative Mask(HARD_FLOAT)
+Use hardware fp
+
+mlong-double-128
+Target Report RejectNegative Mask(LONG_DOUBLE_128)
+Use 128-bit long double
+
+mlong-double-64
+Target Report RejectNegative InverseMask(LONG_DOUBLE_128)
+Use 64-bit long double
+
+mpacked-stack
+Target Report Mask(PACKED_STACK)
+Use packed stack layout
+
+msmall-exec
+Target Report Mask(SMALL_EXEC)
+Use bras for executable < 64k
+
+msoft-float
+Target Report RejectNegative InverseMask(HARD_FLOAT, SOFT_FLOAT)
+Don't use hardware fp
+
+mstack-guard=
+Target RejectNegative Joined
+Set the max. number of bytes which has to be left to stack size before a trap instruction is triggered
+
+mstack-size=
+Target RejectNegative Joined
+Emit extra code in the function prologue in order to trap if the stack size exceeds the given limit
+
+mtune=
+Target RejectNegative Joined
+Schedule code for given CPU
+
+mmvcle
+Target Report Mask(MVCLE)
+mvcle use
+
+mwarn-dynamicstack
+Target RejectNegative Var(s390_warn_dynamicstack_p)
+Warn if a function uses alloca or creates an array with dynamic size
+
+mwarn-framesize=
+Target RejectNegative Joined
+Warn if a single function's framesize exceeds the given framesize
+
+mzarch
+Target Report RejectNegative Mask(ZARCH)
+z/Architecture

@@ -1,0 +1,46 @@
+.\"	$OpenBSD: uslhcom.4,v 1.2 2015/01/05 19:59:40 uaa Exp $
+.\"
+.\" Copyright (c) 2015 Takayoshi SASANO <uaa@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 5 2015 $
+.Dt USLHCOM 4
+.Os
+.Sh NAME
+.Nm uslhcom
+.Nd Silicon Laboratories CP2110 based USB serial adapter
+.Sh SYNOPSIS
+.Cd "uslhcom* at uhidev?"
+.Cd "ucom* at uslhcom?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB HID (Human Interface Device) based serial adapters.
+The following devices are supported:
+.Pp
+.Bl -tag -width Dev -offset indent -compact
+.It Silicon Laboratory CP2110
+.El
+.Pp
+The driver acts as a bridge between
+.Xr uhidev 4
+and the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr uhidev 4 ,
+.Xr usb 4

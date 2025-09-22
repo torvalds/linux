@@ -1,0 +1,8 @@
+interval:ms:300 {
+	@count = @count + 1;
+	printf("Probe: %d\n", @count);
+}
+
+profile:s:1 {
+	exit();
+}

@@ -1,0 +1,82 @@
+@(#) $Id: INSTALL,v 1.7 2020/11/05 05:00:14 tb Exp $ (LBL)
+
+FILES
+-----
+CHANGES         - description of differences between releases
+INSTALL         - this file
+README		- description of distribution
+VERSION		- version of this release
+addrtoname.c	- address to hostname routines
+addrtoname.h	- address to hostname definitions
+appletalk.h	- AppleTalk definitions
+atime.awk	- TCP ack awk script
+bootp.h		- BOOTP definitions
+bpf_dump.c	- bpf instruction pretty-printer routine
+decnet.h	- DECnet definitions
+ethertype.h	- ethernet definitions
+extract.h	- alignment definitions
+fddi.h		- Fiber Distributed Data Interface definitions
+gmt2local.c	- time conversion routines
+gmt2local.h	- time conversion prototypes
+igrp.h		- Interior Gateway Routing Protocol definitions
+interface.h	- globals, prototypes and definitions
+ipx.h		- IPX definitions
+llc.h		- LLC definitions
+machdep.c	- machine dependent routines
+machdep.h	- machine dependent definitions
+makemib		- mib to header script
+mib.h		- mib definitions
+netbios.h	- NETBIOS definitions
+nfs.h		- XXX
+nfsfh.h		- Network File System file handle definitions
+nfsv2.h		- Network File System V2 definitions
+ntp.h		- Network Time Protocol definitions
+ospf.h		- Open Shortest Path First definitions
+packetdat.awk	- TCP chunk summary awk script
+parsenfsfh.c	- Network File System file parser routines
+print-arp.c	- Address Resolution Protocol printer routines
+print-atalk.c	- AppleTalk printer routines
+print-atm.c	- atm printer routines
+print-bootp.c	- BOOTP printer routines
+print-cnfp.c	- Cisco NetFlow printer routines
+print-decnet.c	- DECnet printer routines
+print-domain.c	- Domain Name System printer routines
+print-enc.c	- Encapsulated printer routines
+print-ether.c	- ethernet printer routines
+print-fddi.c	- Fiber Distributed Data Interface printer routines
+print-gre.c	- Generic Routing Encapsulation printer routines
+print-icmp.c	- Internet Control Message Protocol printer routines
+print-igrp.c	- Interior Gateway Routing Protocol printer routines
+print-ike.c	- internet key exchange (ike, isakmp/oakley) printer routines
+print-ip.c	- ip printer routines
+print-ipsec.c	- ipsec (esp/ah) printer routines
+print-ipx.c	- IPX printer routines
+print-isoclns.c	- isoclns printer routines
+print-krb.c	- Kerberos printer routines
+print-llc.c	- llc printer routines
+print-netbios.c	- netbios printer routines
+print-nfs.c	- Network File System printer routines
+print-ntp.c	- Network Time Protocol printer routines
+print-null.c	- null printer routines
+print-ospf.c	- Open Shortest Path First printer routines
+print-pim.c	- Protocol Independent Multicast printer routines
+print-ppp.c	- Point to Point Protocol printer routines
+print-raw.c	- raw printer routines
+print-rip.c	- Routing Information Protocol printer routines
+print-sl.c	- Compressed Serial Line Internet Protocol printer routines
+print-snmp.c	- Simple Network Management Protocol printer routines
+print-sunrpc.c	- Sun Remote Procedure Call printer routines
+print-tcp.c	- TCP printer routines
+print-tftp.c	- Trivial File Transfer Protocol printer routines
+print-udp.c	- UDP printer routines
+print-wb.c	- white board printer routines
+radius.h	- XXX
+savestr.c	- savestr prototypes
+savestr.h	- strdup() replacement
+send-ack.awk	- unidirectional tcp send/ack awk script
+setsignal.c	- os independent signal routines
+setsignal.h	- os independent signal prototypes
+stime.awk	- TCP send awk script
+tcpdump.8	- manual entry
+tcpdump.c	- main program
+util.c		- utility routines

@@ -1,0 +1,10 @@
+# Custom RTEMS multilibs
+
+# We'd actually want to support -msmall, but it trips a bug in gcc
+# http://gcc.gnu.org/bugzilla/show_bug.cgi?id=14436
+#
+# MULTILIB_OPTIONS = m30 msmall mmemparm
+# MULTILIB_DIRNAMES = c3x small mem
+
+MULTILIB_OPTIONS = m30 mmemparm
+MULTILIB_DIRNAMES = c3x mem

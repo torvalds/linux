@@ -1,0 +1,29 @@
+/*===- llvm/Config/AsmParsers.def - LLVM Assembly Parsers -------*- C++ -*-===*\
+|*                                                                            *|
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM          *|
+|* Exceptions.                                                                *|
+|* See https://llvm.org/LICENSE.txt for license information.                  *|
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception                    *|
+|*                                                                            *|
+|*===----------------------------------------------------------------------===*|
+|*                                                                            *|
+|* This file enumerates all of the assembly-language parsers                  *|
+|* supported by this build of LLVM. Clients of this file should define        *|
+|* the LLVM_ASM_PARSER macro to be a function-like macro with a               *|
+|* single parameter (the name of the target whose assembly can be             *|
+|* generated); including this file will then enumerate all of the             *|
+|* targets with assembly parsers.                                             *|
+|*                                                                            *|
+|* The set of targets supported by LLVM is generated at configuration         *|
+|* time, at which point this header is generated. Do not modify this          *|
+|* header directly.                                                           *|
+|*                                                                            *|
+\*===----------------------------------------------------------------------===*/
+
+#ifndef LLVM_ASM_PARSER
+#  error Please define the macro LLVM_ASM_PARSER(TargetName)
+#endif
+
+@LLVM_ENUM_ASM_PARSERS@
+
+#undef LLVM_ASM_PARSER

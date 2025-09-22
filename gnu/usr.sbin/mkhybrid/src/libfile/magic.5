@@ -1,0 +1,206 @@
+.TH MAGIC 5 "Public Domain"
+.\" install as magic.4 on USG, magic.5 on V7 or Berkeley systems.
+.SH NAME
+magic \- file command's magic number file
+.SH DESCRIPTION
+This manual page documents the format of the magic file as
+used by the
+.BR file (1)
+command, version 3.22. The
+.B file
+command identifies the type of a file using,
+among other tests,
+a test for whether the file begins with a certain
+.IR "magic number" .
+The file
+.I /usr/local/etc/magic
+specifies what magic numbers are to be tested for,
+what message to print if a particular magic number is found,
+and additional information to extract from the file.
+.PP
+Each line of the file specifies a test to be performed.
+A test compares the data starting at a particular offset
+in the file with a 1-byte, 2-byte, or 4-byte numeric value or
+a string.  If the test succeeds, a message is printed.
+The line consists of the following fields:
+.IP offset \w'message'u+2n
+A number specifying the offset, in bytes, into the file of the data
+which is to be tested.
+.IP type
+The type of the data to be tested.  The possible values are:
+.RS
+.IP byte \w'message'u+2n
+A one-byte value.
+.IP short
+A two-byte value (on most systems) in this machine's native byte order.
+.IP long
+A four-byte value (on most systems) in this machine's native byte order.
+.IP string
+A string of bytes.
+.IP date
+A four-byte value interpreted as a unix date.
+.IP beshort
+A two-byte value (on most systems) in big-endian byte order.
+.IP belong
+A four-byte value (on most systems) in big-endian byte order.
+.IP bedate
+A four-byte value (on most systems) in big-endian byte order,
+interpreted as a unix date.
+.IP leshort
+A two-byte value (on most systems) in little-endian byte order.
+.IP lelong
+A four-byte value (on most systems) in little-endian byte order.
+.IP ledate
+A four-byte value (on most systems) in little-endian byte order,
+interpreted as a unix date.
+.RE
+.PP
+The numeric types may optionally be followed by
+.B &
+and a numeric value,
+to specify that the value is to be AND'ed with the
+numeric value before any comparisons are done.  Prepending a
+.B u
+to the type indicates that ordered comparisons should be unsigned.
+.IP test
+The value to be compared with the value from the file.  If the type is
+numeric, this value
+is specified in C form; if it is a string, it is specified as a C string
+with the usual escapes permitted (e.g. \en for new-line).
+.IP
+Numeric values
+may be preceded by a character indicating the operation to be performed.
+It may be
+.BR = ,
+to specify that the value from the file must equal the specified value,
+.BR < ,
+to specify that the value from the file must be less than the specified
+value,
+.BR > ,
+to specify that the value from the file must be greater than the specified
+value,
+.BR & ,
+to specify that the value from the file must have set all of the bits 
+that are set in the specified value,
+.BR ^ ,
+to specify that the value from the file must have clear any of the bits 
+that are set in the specified value, or
+.BR x ,
+to specify that any value will match. If the character is omitted,
+it is assumed to be
+.BR = .
+.IP
+Numeric values are specified in C form; e.g.
+.B 13
+is decimal,
+.B 013
+is octal, and
+.B 0x13
+is hexadecimal.
+.IP
+For string values, the byte string from the
+file must match the specified byte string. 
+The operators
+.BR = ,
+.B <
+and
+.B >
+(but not
+.BR & )
+can be applied to strings.
+The length used for matching is that of the string argument
+in the magic file.  This means that a line can match any string, and
+then presumably print that string, by doing
+.B >\e0
+(because all strings are greater than the null string).
+.IP message
+The message to be printed if the comparison succeeds.  If the string
+contains a
+.BR printf (3S)
+format specification, the value from the file (with any specified masking
+performed) is printed using the message as the format string.
+.PP
+Some file formats contain additional information which is to be printed
+along with the file type.  A line which begins with the character
+.B >
+indicates additional tests and messages to be printed.  The number of
+.B >
+on the line indicates the level of the test; a line with no
+.B >
+at the beginning is considered to be at level 0.
+Each line at level
+.IB n \(pl1
+is under the control of the line at level
+.IB n
+most closely preceding it in the magic file.
+If the test on a line at level
+.I n
+succeeds, the tests specified in all the subsequent lines at level
+.IB n \(pl1
+are performed, and the messages printed if the tests succeed.  The next
+line at level
+.I n
+terminates this.
+If the first character following the last
+.B >
+is a
+.B (
+then the string after the parenthesis is interpreted as an indirect offset.
+That means that the number after the parenthesis is used as an offset in
+the file. The value at that offset is read, and is used again as an offset
+in the file. Indirect offsets are of the form:
+.BI (( x [.[bsl]][+-][ y ]).
+The value of 
+.I x
+is used as an offset in the file. A byte, short or long is read at that offset
+depending on the 
+.B [bsl] 
+type specifier. To that number the value of
+.I y
+is added and the result is used as an offset in the file. The default type
+if one is not specified is long.
+.PP
+Sometimes you do not know the exact offset as this depends on the length of
+preceding fields. You can specify an offset relative to the end of the
+last uplevel field (of course this may only be done for sublevel tests, i.e.
+test beginning with 
+.B >
+). Such a relative offset is specified using
+.B &
+as a prefix to the offset.
+.SH BUGS
+The formats 
+.IR long ,
+.IR belong ,
+.IR lelong ,
+.IR short ,
+.IR beshort ,
+.IR leshort ,
+.IR date ,
+.IR bedate ,
+and
+.I ledate
+are system-dependent; perhaps they should be specified as a number
+of bytes (2B, 4B, etc), 
+since the files being recognized typically come from
+a system on which the lengths are invariant.
+.PP
+There is (currently) no support for specified-endian data to be used in
+indirect offsets.
+.SH SEE ALSO
+.BR file (1)
+\- the command that reads this file.
+.\"
+.\" From: guy@sun.uucp (Guy Harris)
+.\" Newsgroups: net.bugs.usg
+.\" Subject: /etc/magic's format isn't well documented
+.\" Message-ID: <2752@sun.uucp>
+.\" Date: 3 Sep 85 08:19:07 GMT
+.\" Organization: Sun Microsystems, Inc.
+.\" Lines: 136
+.\" 
+.\" Here's a manual page for the format accepted by the "file" made by adding
+.\" the changes I posted to the S5R2 version.
+.\"
+.\" Modified for Ian Darwin's version of the file command.
+.\" @(#)$Id: magic.5,v 1.1 2000/10/10 20:40:37 beck Exp $

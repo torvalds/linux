@@ -1,0 +1,268 @@
+.\"	$OpenBSD: va_start.3,v 1.1 2019/08/30 18:33:17 deraadt Exp $
+.\"	$NetBSD: stdarg.3,v 1.15 2002/08/18 08:57:07 yamt Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)stdarg.3	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: August 30 2019 $
+.Dt VA_START 3
+.Os
+.Sh NAME
+.Nm va_start ,
+.Nm va_arg ,
+.Nm va_copy ,
+.Nm va_end
+.Nd variable argument lists
+.Sh SYNOPSIS
+.In stdarg.h
+.Ft void
+.Fn va_start "va_list ap" last
+.Ft type
+.Fn va_arg "va_list ap" type
+.Ft void
+.Fn va_copy "va_list dst" "va_list src"
+.Ft void
+.Fn va_end "va_list ap"
+.Sh DESCRIPTION
+A function may be called with a varying number of arguments of varying
+types.
+The include file
+.In stdarg.h
+declares a type
+.Vt va_list
+and defines three macros for stepping
+through a list of arguments whose number and types are not known to
+the called function.
+.Pp
+The called function must declare an object of type
+.Vt va_list
+which is used by the macros
+.Fn va_start ,
+.Fn va_arg ,
+.Fn va_end ,
+and, optionally,
+.Fn va_copy .
+.Pp
+The
+.Fn va_start
+macro initializes
+.Fa ap
+for subsequent use by
+.Fn va_arg ,
+.Fn va_copy
+and
+.Fn va_end ,
+and must be called first.
+.Pp
+The parameter
+.Fa last
+is the name of the last parameter before the variable argument list,
+i.e., the last parameter of which the calling function knows the type.
+.Pp
+Because the address of this parameter is used in the
+.Fn va_start
+macro, it should not be declared as a register variable, nor as a
+function, nor an array type.
+.Pp
+The
+.Fn va_arg
+macro expands to an expression that has the type and value of the next
+argument in the call.
+The parameter
+.Fa ap
+is the
+.Va va_list ap
+initialized by
+.Fn va_start .
+Each call to
+.Fn va_arg
+modifies
+.Fa ap
+so that the next call returns the next argument.
+The parameter
+.Fa type
+is a type name specified so that the type of a pointer to an
+object that has the specified type can be obtained simply by
+adding a
+.Ql *
+to
+.Fa type .
+.Pp
+If there is no next argument, or if
+.Fa type
+is not compatible with the type of the actual next argument
+(as promoted according to the default argument promotions, see below),
+random errors will occur.
+.Pp
+If the type in question is one that would normally be promoted, the
+promoted type should be used as the argument to
+.Fn va_arg .
+The following describes which types should be promoted (and to what):
+.Bl -dash -compact
+.It
+.Vt short
+is promoted to
+.Vt int
+.It
+.Vt float
+is promoted to
+.Vt double
+.It
+.Vt char
+is promoted to
+.Vt int
+.El
+.Pp
+The same rules apply to unsigned versions of the above types, as well
+as their bit-type equivalents (e.g.\&
+.Vt int8_t
+and
+.Vt int16_t ) .
+.Pp
+The
+.Fn va_copy
+macro makes
+.Fa dst
+a copy of
+.Fa src
+as if the
+.Fn va_start
+macro had been applied to it followed by the same sequence of uses of the
+.Fn va_arg
+macro as had previously been used to reach the present state of
+.Fa src .
+.Pp
+The
+.Fn va_end
+macro handles a normal return from the function whose variable argument
+list was initialized by
+.Fn va_start
+or
+.Fn va_copy .
+.Sh RETURN VALUES
+The first use of the
+.Fn va_arg
+macro after that of the
+.Fn va_start
+macro returns the argument after
+.Fa last .
+Successive invocations return the values of the remaining
+arguments.
+.Pp
+The
+.Fn va_start ,
+.Fn va_copy
+and
+.Fn va_end
+macros return no value.
+.Sh EXAMPLES
+The function
+.Fn foo
+takes a string of format characters and prints out the argument
+associated with each format character based on the type.
+.Bd -literal -offset indent
+void
+foo(char *fmt, ...)
+{
+	va_list ap;
+	int d, c;
+	char *s;
+	double f;
+
+	va_start(ap, fmt);
+	while (*fmt)
+		switch (*fmt++) {
+		case 's':			/* string */
+			s = va_arg(ap, char *);
+			printf("string %s\en", s);
+			break;
+		case 'd':			/* int */
+			d = va_arg(ap, int);
+			printf("int %d\en", d);
+			break;
+		case 'c':			/* char */
+			c = va_arg(ap, int);	/* promoted */
+			printf("char %c\en", c);
+			break;
+		case 'f':			/* float */
+			f = va_arg(ap, double); /* promoted */
+			printf("float %f\en", f);
+		}
+	va_end(ap);
+}
+.Ed
+.Sh STANDARDS
+These macros are
+.Em not
+compatible with the historic macros they replace.
+A backward compatible version can be found in the include
+file
+.In varargs.h .
+.Pp
+The
+.Fn va_start ,
+.Fn va_arg
+and
+.Fn va_end
+macros conform to
+.St -isoC-99 .
+.Sh HISTORY
+The
+.Fn va_start ,
+.Fn va_arg
+and
+.Fn va_end
+macros were introduced in
+.St -ansiC .
+The
+.Fn va_copy
+macro was introduced in
+.St -isoC-99 .
+.Sh BUGS
+Unlike the
+.Em varargs
+macros, the
+.Nm stdarg
+macros do not permit programmers to
+code a function with no fixed arguments.
+This problem generates work mainly when converting
+.Em varargs
+code to
+.Nm stdarg
+code,
+but it also creates difficulties for variadic functions that
+wish to pass all of their arguments on to a function
+that takes an argument of type
+.Vt va_list ,
+such as
+.Xr vfprintf 3 .

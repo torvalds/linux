@@ -1,0 +1,273 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: strtol.3,v 1.27 2015/04/14 22:16:03 nicm Exp $
+.\"
+.Dd $Mdocdate: April 14 2015 $
+.Dt STRTOL 3
+.Os
+.Sh NAME
+.Nm strtol ,
+.Nm strtoll ,
+.Nm strtoimax ,
+.Nm strtoq
+.Nd convert string value to a long, long long or intmax_t integer
+.Sh SYNOPSIS
+.In limits.h
+.In stdlib.h
+.Ft long
+.Fn strtol "const char *nptr" "char **endptr" "int base"
+.Ft long long
+.Fn strtoll "const char *nptr" "char **endptr" "int base"
+.In inttypes.h
+.Ft intmax_t
+.Fn strtoimax "const char *nptr" "char **endptr" "int base"
+.In sys/types.h
+.In limits.h
+.In stdlib.h
+.Ft quad_t
+.Fn strtoq "const char *nptr" "char **endptr" "int base"
+.Sh DESCRIPTION
+The
+.Fn strtol
+function converts the string in
+.Fa nptr
+to a
+.Vt long
+value.
+The
+.Fn strtoll
+function converts the string in
+.Fa nptr
+to a
+.Vt long long
+value.
+The
+.Fn strtoimax
+function converts the string in
+.Fa nptr
+to an
+.Vt intmax_t
+value.
+The
+.Fn strtoq
+function is a deprecated equivalent of
+.Fn strtoll
+and is provided for backwards compatibility with legacy programs.
+The conversion is done according to the given
+.Fa base ,
+which must be a number between 2 and 36 inclusive or the special value 0.
+.Pp
+The string may begin with an arbitrary amount of whitespace
+(as determined by
+.Xr isspace 3 )
+followed by a single optional
+.Ql +
+or
+.Ql -
+sign.
+If
+.Fa base
+is zero or 16, the string may then include a
+.Ql 0x
+prefix, and the number will be read in base 16; otherwise, a zero
+.Fa base
+is taken as 10 (decimal) unless the next character is
+.Ql 0 ,
+in which case it is taken as 8 (octal).
+.Pp
+The remainder of the string is converted to a
+.Vt long ,
+.Vt long long ,
+or
+.Vt intmax_t
+value in the obvious manner,
+stopping at the first character which is not a valid digit
+in the given base.
+(In bases above 10, the letter
+.Ql A
+in either upper or lower case represents 10,
+.Ql B
+represents 11, and so forth, with
+.Ql Z
+representing 35.)
+.Pp
+If
+.Fa endptr
+is non-null,
+.Fn strtol
+stores the address of the first invalid character in
+.Fa *endptr .
+If there were no digits at all, however,
+.Fn strtol
+stores the original value of
+.Fa nptr
+in
+.Fa *endptr .
+(Thus, if
+.Fa *nptr
+is not
+.Ql \e0
+but
+.Fa **endptr
+is
+.Ql \e0
+on return, the entire string was valid.)
+.Sh RETURN VALUES
+The
+.Fn strtol ,
+.Fn strtoll ,
+.Fn strtoimax ,
+and
+.Fn strtoq
+functions return the result of the conversion.
+If overflow or underflow occurs,
+.Va errno
+is set to
+.Er ERANGE
+and the function return value is as follows:
+.Bl -column "strtoimaxXX" "INTMAX_MIN" "INTMAX_MAX" -offset indent
+.It Sy Function Ta Sy underflow Ta Sy overflow
+.It Fn strtol Ta Dv LONG_MIN Ta Dv LONG_MAX
+.It Fn strtoll Ta Dv LLONG_MIN Ta Dv LLONG_MAX
+.It Fn strtoimax Ta Dv INTMAX_MIN Ta Dv INTMAX_MAX
+.It Fn strtoq Ta Dv LLONG_MIN Ta Dv LLONG_MAX
+.El
+.Pp
+If there is no valid digit, 0 is returned.
+If
+.Ar base
+is invalid, 0 is returned and the global variable
+.Va errno
+is set to
+.Er EINVAL .
+.Sh EXAMPLES
+Ensuring that a string is a valid number (i.e., in range and containing no
+trailing characters) requires clearing
+.Va errno
+beforehand explicitly since
+.Va errno
+is not changed on a successful call to
+.Fn strtol ,
+and the return value of
+.Fn strtol
+cannot be used unambiguously to signal an error:
+.Bd -literal -offset indent
+char *ep;
+long lval;
+
+\&...
+
+errno = 0;
+lval = strtol(buf, &ep, 10);
+if (buf[0] == '\e0' || *ep != '\e0')
+	goto not_a_number;
+if (errno == ERANGE && (lval == LONG_MAX || lval == LONG_MIN))
+	goto out_of_range;
+.Ed
+.Pp
+This example will accept
+.Dq 12
+but not
+.Dq 12foo
+or
+.Dq 12\en .
+If trailing whitespace is acceptable, further checks must be done on
+.Va *ep ;
+alternately, use
+.Xr sscanf 3 .
+.Pp
+If
+.Fn strtol
+is being used instead of
+.Xr atoi 3 ,
+error checking is further complicated because the desired return value is an
+.Vt int
+rather than a
+.Vt long ;
+however, on some architectures integers and long integers are the same size.
+Thus the following is necessary:
+.Bd -literal -offset indent
+char *ep;
+int ival;
+long lval;
+
+\&...
+
+errno = 0;
+lval = strtol(buf, &ep, 10);
+if (buf[0] == '\e0' || *ep != '\e0')
+     goto not_a_number;
+if ((errno == ERANGE && (lval == LONG_MAX || lval == LONG_MIN)) ||
+    (lval > INT_MAX || lval < INT_MIN))
+     goto out_of_range;
+ival = lval;
+.Ed
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of
+.Ar base
+was neither between 2 and 36 inclusive nor the special value 0.
+.It Bq Er ERANGE
+The given string was out of range; the value converted has been clamped.
+.El
+.Sh SEE ALSO
+.Xr atof 3 ,
+.Xr atoi 3 ,
+.Xr atol 3 ,
+.Xr atoll 3 ,
+.Xr sscanf 3 ,
+.Xr strtod 3 ,
+.Xr strtonum 3 ,
+.Xr strtoul 3
+.Sh STANDARDS
+The
+.Fn strtol ,
+.Fn strtoll ,
+and
+.Fn strtoimax
+functions conform to
+.St -isoC-99 .
+Setting
+.Va errno
+to
+.Dv EINVAL
+is an extension to that standard required by
+.St -p1003.1-2008 .
+.Pp
+The
+.Fn strtoq
+function is a
+.Bx
+extension and is provided for backwards compatibility with legacy programs.
+.Sh BUGS
+Ignores the current locale.

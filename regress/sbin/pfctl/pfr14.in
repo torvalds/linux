@@ -1,0 +1,13 @@
+# loading weights via file
+pass add 1.1.1.1 1.1.1.2 weight 1 1.1.1.3 weight 5
+pass show
+pass delete 1.1.1.1 weight 1 1.1.1.2 1.1.1.4
+pass show
+pass replace 1.1.1.1 1.1.1.2 weight 5 1.1.1.3 weight 1
+pass show
+pass test 1.1.1.1 1.1.1.2 1.1.1.3
+fail test 1.1.1.1 1.1.1.2 1.1.1.4
+pass zero
+pass show
+pass flush
+pass list

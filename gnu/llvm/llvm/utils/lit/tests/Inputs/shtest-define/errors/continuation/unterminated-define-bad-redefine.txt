@@ -1,0 +1,13 @@
+# You cannot continue a DEFINE with a REDEFINE.  In this case, the REDEFINE
+# is wrong on its own because it's written as a continuation, so the bad
+# REDEFINE is reported.
+
+# DEFINE: %{foo}=echo \
+# REDEFINE: Hello World
+# DEFINE: too late to continue
+# RUN: %{foo}
+
+#      CHECK: Substitution's definition does not contain '='
+# CHECK-NEXT: in {{REDEFINE}}: directive on test line [[#@LINE-5]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

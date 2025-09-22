@@ -1,0 +1,2 @@
+block in on lo0 inet from ! (lo0) to any
+block out on lo0 inet from any to ! (lo0)

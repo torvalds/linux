@@ -1,0 +1,40 @@
+The goals:
+1) calls from inside libcrypto to other libcrypto functions should
+   be via identifiers that are of hidden visibility and -- to avoid
+   confusion or conflicts -- are in the reserved namespace.  By
+   doing this these calls are protected from being overridden by
+   applications and on many platforms can avoid creation or use of
+   GOT or PLT  entries.  I've chosen a prefix of "_lcry_" for this.
+   Note that these symbols aren't in the dynamic symbol table of the
+   libcrypto.so shared library...but they are visible in the static
+   library.
+
+2) calls from libssl to symbols in libcrypto should be via identifiers
+   which won't be accidentally overridden by the application, libc,
+   other random crypto libraries that are pulled in, etc.  I've
+   chosen a prefix of "_libre_" for this.
+
+These will not be declared directly; instead, the gcc "asm labels"
+extension will be used rename the function.  In order to actually
+set up the desired asm labels, we use these in the internal .h
+files:
+
+   LCRYPTO_USED(x)	Symbols used both internally and externally
+	In builds of libcrypto, this makes gcc convert use of x to
+	use _libre_x instead.  In other builds that use these headers,
+	it makes gcc convert use of x to use _libre_x instead.  Use
+	LCRYPTO_ALIAS(x) to create the external aliases.
+	ex: LCRYPTO_USED(SSL_get_verify_mode)
+
+   LCRYPTO_UNUSED(x)	Symbols that are not used internally or by libssl
+	No renaming is done.  In builds of libcrypto, the symbol
+	is marked as deprecated to detect unintentional use of such
+	a symbol, so that it can be marked as used going forward.
+	ex: LCRYPTO_UNUSED(SSL_CIPHER_get_name)
+
+Finally, to create the expected aliases, we use these in the .c files
+where the definitions are:
+   LCRYPTO_ALIAS(x)
+	This defines both x and _libre_x as strong aliases for _lcry_x.
+	Match uses of this with uses of LCRYPTO_USED()
+	ex: LCRYPTO_ALIAS(SSL_get_verify_mode)

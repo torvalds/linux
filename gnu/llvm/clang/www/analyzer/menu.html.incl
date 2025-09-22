@@ -1,0 +1,43 @@
+<table width="100%" id="nav" cellspacing=0 cellpadding=0>
+<tr><td>
+<ul style="margin:0; padding:0" class="menubar">
+<li style="padding-left:5em">
+  <a href="/index.html">About</a>
+  <ul class="menubar">
+    <li><a href="/index.html">About the Analyzer</a></li>
+    <li><a href="http://llvm.org/">LLVM Project</a></li>
+    <li><a href="http://clang.llvm.org/">Clang Project</a></li>
+  </ul>
+</li>
+<li>
+  <a href="/filing_bugs.html">Filing Bugs</a>
+</li>
+<li>
+  User Manual
+  <ul>
+    <li><a href="/installation.html">Obtaining the Analyzer</a></li>
+    <li><a href="/scan-build.html">Command Line Usage</a></li>
+    <li><a href="/xcode.html">Using within Xcode</a></li>
+    <li><a href="/available_checks.html">Available Checks</a></li>
+    <li><a href="/faq.html">FAQ</a></li>
+    <li><a href="/annotations.html">Source-level Annotations</a></li>
+  </ul>
+</li>
+<li>
+  Development
+  <ul>
+    <li><a href="/checker_dev_manual.html">Checker Developer Manual</a></li>
+    <li><a href="/open_projects.html">Open Projects</a></li>
+    <li><a href="/potential_checkers.html">Potential Future Checkers</a></li>
+  </ul>
+</li>
+<li>
+  Mailing List & Forums
+  <ul>
+    <li><a href="https://discourse.llvm.org/c/clang">Clang Frontend Forums</a></li>
+    <li><a href="http://lists.llvm.org/mailman/listinfo/cfe-commits">cfe-commits</a></li>
+  </ul>
+</li>
+</ul>
+</td></tr>
+</table>

@@ -1,0 +1,15 @@
+dnl	$OpenBSD: xfer,v 1.4 2015/06/10 06:38:39 jasper Exp $
+Installation is supported from several media types, including:
+
+	CD-ROM
+	FFS partitions
+	DOS (FAT) partitions
+	EXT2 partitions
+	Remote NFS partition
+	HTTP
+
+OpenBSDXferPrelude
+
+OpenBSDXferNFS
+
+OpenBSDXferFFS

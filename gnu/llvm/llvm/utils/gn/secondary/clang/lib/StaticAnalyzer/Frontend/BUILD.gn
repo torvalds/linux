@@ -1,0 +1,24 @@
+static_library("Frontend") {
+  output_name = "clangStaticAnalyzerFrontend"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Analysis",
+    "//clang/lib/Basic",
+    "//clang/lib/CrossTU",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/StaticAnalyzer/Checkers",
+    "//clang/lib/StaticAnalyzer/Core",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "AnalysisConsumer.cpp",
+    "AnalyzerHelpFlags.cpp",
+    "CheckerRegistry.cpp",
+    "CreateCheckerManager.cpp",
+    "FrontendActions.cpp",
+    "ModelConsumer.cpp",
+    "ModelInjector.cpp",
+  ]
+}

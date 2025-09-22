@@ -1,0 +1,174 @@
+.\" $OpenBSD: pthread_cond_init.3,v 1.14 2025/07/03 18:01:38 tedu Exp $
+.\"
+.\" Copyright (c) 1997 Brian Cully <shmit@kublai.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: pthread_cond_init.3,v 1.6 1999/08/28 00:03:03 peter Exp $
+.\" $FreeBSD: pthread_cond_destroy.3,v 1.5 1999/08/28 00:03:03 peter Exp $
+.\" $FreeBSD: pthread_cond_wait.3,v 1.6 1999/08/28 00:03:04 peter Exp $
+.\" $FreeBSD: pthread_cond_timedwait.3,v 1.6 1999/08/28 00:03:04 peter Exp $
+.\" $FreeBSD: pthread_cond_broadcast.3,v 1.5 1999/08/28 00:03:03 peter Exp $
+.\" $FreeBSD: pthread_cond_signal.3,v 1.5 1999/08/28 00:03:04 peter Exp $
+.\"
+.Dd $Mdocdate: July 3 2025 $
+.Dt PTHREAD_COND_INIT 3
+.Os
+.Sh NAME
+.Nm pthread_cond_init ,
+.Nm pthread_cond_destroy ,
+.Nm pthread_cond_wait ,
+.Nm pthread_cond_timedwait ,
+.Nm pthread_cond_broadcast ,
+.Nm pthread_cond_signal
+.Nd block and unblock threads with condition variables
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fo pthread_cond_init
+.Fa "pthread_cond_t *cond"
+.Fa "const pthread_condattr_t *attr"
+.Fc
+.Ft int
+.Fo pthread_cond_destroy
+.Fa "pthread_cond_t *cond"
+.Fc
+.Ft int
+.Fo pthread_cond_wait
+.Fa "pthread_cond_t *cond"
+.Fa "pthread_mutex_t *mutex"
+.Fc
+.Ft int
+.Fo pthread_cond_timedwait
+.Fa "pthread_cond_t *cond"
+.Fa "pthread_mutex_t *mutex"
+.Fa "const struct timespec *abstime"
+.Fc
+.Ft int
+.Fo pthread_cond_broadcast
+.Fa "pthread_cond_t *cond"
+.Fc
+.Ft int
+.Fo pthread_cond_signal
+.Fa "pthread_cond_t *cond"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn pthread_cond_init
+function creates a new condition variable with attributes specified by
+.Fa attr .
+If
+.Fa attr
+is
+.Dv NULL ,
+the default attributes are used.
+.Pp
+The
+.Fn pthread_cond_destroy
+function frees the resources associated with the condition variable
+.Fa cond .
+.Pp
+The
+.Fn pthread_cond_wait
+function atomically blocks the current thread by waiting on the condition
+variable
+.Fa cond ,
+and unlocks the mutex specified by
+.Fa mutex .
+The waiting thread unblocks only after another thread calls
+.Fn pthread_cond_broadcast
+or
+.Fn pthread_cond_signal
+with the same condition variable.
+The
+.Fn pthread_cond_timedwait
+function does the same, but returns after the system time reaches
+.Fa abstime .
+In all cases, both functions then reacquire the lock on
+.Fa mutex
+before returning.
+.Pp
+The
+.Fn pthread_cond_broadcast
+function unblocks all threads waiting for the condition variable
+.Fa cond .
+The
+.Fn pthread_cond_signal
+function unblocks at least one thread waiting for the condition variable
+.Fa cond .
+.Sh RETURN VALUES
+These functions return zero for success and positive error numbers
+for failure.
+.Sh ERRORS
+.Fn pthread_cond_init
+fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa attr
+is invalid.
+.It Bq Er ENOMEM
+The process cannot allocate enough memory to create another condition
+variable.
+.It Bq Er EAGAIN
+The system temporarily lacks the resources to create another condition
+variable.
+.El
+.Pp
+The other functions fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa cond ,
+.Fa mutex ,
+or
+.Fa abstime
+is invalid.
+.El
+.Pp
+.Fn pthread_cond_destroy
+additionally fails if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The variable
+.Fa cond
+is locked by another thread.
+.El
+.Pp
+.Fn pthread_cond_timedwait
+additionally fails if:
+.Bl -tag -width Er
+.It Bq Er ETIMEDOUT
+The system time has reached or exceeded the time specified in
+.Fa abstime .
+.El
+.Sh SEE ALSO
+.Xr pthread_condattr_init 3 ,
+.Xr pthread_mutex_init 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-96 .

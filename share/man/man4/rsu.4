@@ -1,0 +1,158 @@
+.\" $OpenBSD: rsu.4,v 1.27 2025/03/27 15:12:14 jmc Exp $
+.\"
+.\" Copyright (c) 2010 Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt RSU 4
+.Os
+.Sh NAME
+.Nm rsu
+.Nd Realtek RTL8188SU/RTL8192SU USB IEEE 802.11b/g/n wireless network device
+.Sh SYNOPSIS
+.Cd "rsu* at uhub? port ?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 2.0 wireless network devices based on Realtek
+RTL8188SU, RTL8191SU and RTL8192SU chipsets.
+.Pp
+The RTL8188SU is a highly integrated 802.11n adapter that combines
+a MAC, a 1T1R capable baseband and an RF in a single chip.
+It operates in the 2GHz spectrum only.
+.Pp
+The RTL8191SU is a highly integrated multiple-in, single-out (MISO)
+802.11n adapter that combines a MAC, a 1T2R capable baseband and an
+RF in a single chip.
+It operates in the 2GHz spectrum only.
+.Pp
+The RTL8192SU is a highly integrated multiple-in, multiple-out (MIMO)
+802.11n adapter that combines a MAC, a 2T2R capable baseband and an
+RF in a single chip.
+It operates in the 2GHz spectrum only.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The adapter needs firmware files to run, which are loaded on demand by
+the driver when the device is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/rsu-rtl8712
+.El
+.Sh HARDWARE
+The following adapters should work:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It ASUS USB-N10
+.It ASUS WL-167G V3
+.It Belkin F7D1101 v1
+.It D-Link DWA-131 A1
+.It Hercules HWGUn-54
+.It Hercules HWNUm-300
+.It Planex GW-USNano
+.It Sitecom WL-349 v1
+.It Sitecom WL-353
+.It Sweex LW154
+.It TRENDnet TEW-648UB
+.It TRENDnet TEW-649UB
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig rsu0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures rsu0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "rsu0: error N, could not read firmware ..."
+For some reason, the driver was unable to read the microcode file from the
+filesystem.
+The file might be missing or corrupted.
+.It "rsu0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.Sh CAVEATS
+The
+.Nm
+driver does not support any of the 802.11n capabilities offered by the
+adapters.
+Additional work is required in
+.Xr ieee80211 9
+before those features can be supported.

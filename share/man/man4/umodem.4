@@ -1,0 +1,72 @@
+.\" $OpenBSD: umodem.4,v 1.8 2008/06/26 05:42:07 ray Exp $
+.\" $NetBSD: umodem.4,v 1.4 2000/01/25 08:32:05 augustss Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 26 2008 $
+.Dt UMODEM 4
+.Os
+.Sh NAME
+.Nm umodem
+.Nd USB modem support
+.Sh SYNOPSIS
+.Cd "umodem* at uhub?"
+.Cd "ucom*   at umodem?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB modems in the Communication
+Device Class using the Abstract Control Model.
+These modems are basically standard serial line modems, but they are
+accessed via USB instead.
+They support a regular AT command set.
+The commands can either be multiplexed with the data stream
+or handled through separate pipes.
+In the latter case the AT commands have to be given on a device separate
+from the data device.
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr uhub 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Nx 1.5 .
+.Ox
+support was added in
+.Ox 2.7 .
+.Sh BUGS
+Only modems with multiplexed commands and data are supported
+at the moment.

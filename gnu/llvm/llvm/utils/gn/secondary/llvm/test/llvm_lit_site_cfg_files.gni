@@ -1,0 +1,2 @@
+llvm_lit_site_cfg_file = "$root_gen_dir/llvm/test/lit.site.cfg.py"
+llvm_lit_unit_site_cfg_file = "$root_gen_dir/llvm/test/Unit/lit.site.cfg.py"

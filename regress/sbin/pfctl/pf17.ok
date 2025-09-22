@@ -1,0 +1,86 @@
+match out on lo0 inet from 192.168.1.1 to any nat-to 10.0.0.1 static-port
+match in on lo0 inet from any to 10.0.0.1 rdr-to 192.168.1.1
+match out on lo0 inet proto tcp from 192.168.1.2 to any nat-to 10.0.0.2 static-port
+match in on lo0 inet proto tcp from any to 10.0.0.2 rdr-to 192.168.1.2
+match out on lo0 inet proto udp from 192.168.1.3 to any nat-to 10.0.0.3 static-port
+match in on lo0 inet proto udp from any to 10.0.0.3 rdr-to 192.168.1.3
+match out on lo0 inet proto icmp from 192.168.1.4 to any nat-to 10.0.0.4 static-port
+match in on lo0 inet proto icmp from any to 10.0.0.4 rdr-to 192.168.1.4
+match out on lo0 inet from 192.168.1.5 to 172.16.1.1 nat-to 10.0.0.5 static-port
+match in on lo0 inet from 172.16.1.1 to 10.0.0.5 rdr-to 192.168.1.5
+match out on lo0 inet from 192.168.1.6 to 172.16.1.2 nat-to 10.0.0.6 static-port
+match in on lo0 inet from 172.16.1.2 to 10.0.0.6 rdr-to 192.168.1.6
+match out on lo0 inet from 192.168.1.7 to 172.16.2.0/24 nat-to 10.0.0.7 static-port
+match in on lo0 inet from 172.16.2.0/24 to 10.0.0.7 rdr-to 192.168.1.7
+match out on lo0 inet from 192.168.2.0/24 to any nat-to 10.0.5.0/24 static-port
+match in on lo0 inet from any to 10.0.5.0/24 rdr-to 192.168.2.0/24
+match out on lo0 inet from 192.168.2.0/28 to any nat-to 10.0.4.0/28 static-port
+match in on lo0 inet from any to 10.0.4.0/28 rdr-to 192.168.2.0/28
+match out on lo0 inet from 192.168.2.0/30 to 192.168.3.1 nat-to 10.0.3.0/30 static-port
+match in on lo0 inet from 192.168.3.1 to 10.0.3.0/30 rdr-to 192.168.2.0/30
+match out on lo0 inet from 192.168.1.8 to ! 172.17.0.0/16 nat-to 10.0.0.8 static-port
+match in on lo0 inet from ! 172.17.0.0/16 to 10.0.0.8 rdr-to 192.168.1.8
+match out on lo0 inet from 1.1.1.1 to no-route nat-to 2.2.2.2 static-port
+match in on lo0 inet from no-route to 2.2.2.2 rdr-to 1.1.1.1
+match out on lo0 inet from (lo0:0) to 1.1.1.1 nat-to 2.2.2.2 static-port
+match in on lo0 inet from 1.1.1.1 to 2.2.2.2 rdr-to (lo0:0)
+match out on lo0 inet from (lo0:0) to 1.1.1.1 nat-to (lo1000000:0) static-port
+match in on lo0 inet from 1.1.1.1 to (lo1000000:0) rdr-to (lo0:0)
+match out on lo0 inet from (lo0:0) to (lo1000000:0) nat-to (lo1000000:0) static-port
+match in on lo0 inet from (lo1000000:0) to (lo1000000:0) rdr-to (lo0:0)
+match out on lo0 inet from 1.1.1.1 to <sometable> nat-to 2.2.2.2 static-port
+match in on lo0 inet from <sometable> to 2.2.2.2 rdr-to 1.1.1.1
+match out on lo0 inet from 1.1.1.1 to ! <sometable> nat-to 2.2.2.2 static-port
+match in on lo0 inet from ! <sometable> to 2.2.2.2 rdr-to 1.1.1.1
+match out on lo0 inet from 1.1.1.1 to (lo1000000:0) nat-to 2.2.2.2 static-port
+match in on lo0 inet from (lo1000000:0) to 2.2.2.2 rdr-to 1.1.1.1
+match out on lo0 inet from 1.1.1.1 to ! (lo1000000:0) nat-to 2.2.2.2 static-port
+match in on lo0 inet from ! (lo1000000:0) to 2.2.2.2 rdr-to 1.1.1.1
+match out on lo0 inet from (lo0:0) to <sometable> nat-to 2.2.2.2 static-port
+match in on lo0 inet from <sometable> to 2.2.2.2 rdr-to (lo0:0)
+match out on lo0 inet6 from ::1 to no-route nat-to ::2 static-port
+match in on lo0 inet6 from no-route to ::2 rdr-to ::1
+match out on lo0 inet6 from (lo0:0) to ::1 nat-to ::2 static-port
+match in on lo0 inet6 from ::1 to ::2 rdr-to (lo0:0)
+match out on lo0 inet6 from (lo0:0) to ::1 nat-to (lo1000000:0) static-port
+match in on lo0 inet6 from ::1 to (lo1000000:0) rdr-to (lo0:0)
+match out on lo0 inet6 from (lo0:0) to (lo1000000:0) nat-to (lo1000000:0) static-port
+match in on lo0 inet6 from (lo1000000:0) to (lo1000000:0) rdr-to (lo0:0)
+match out on lo0 inet6 from ::1 to <sometable> nat-to ::2 static-port
+match in on lo0 inet6 from <sometable> to ::2 rdr-to ::1
+match out on lo0 inet6 from ::1 to ! <sometable> nat-to ::2 static-port
+match in on lo0 inet6 from ! <sometable> to ::2 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo1000000:0) nat-to ::2 static-port
+match in on lo0 inet6 from (lo1000000:0) to ::2 rdr-to ::1
+match out on lo0 inet6 from ::1 to ! (lo1000000:0) nat-to ::2 static-port
+match in on lo0 inet6 from ! (lo1000000:0) to ::2 rdr-to ::1
+match out on lo0 inet6 from (lo0:0) to <sometable> nat-to ::2 static-port
+match in on lo0 inet6 from <sometable> to ::2 rdr-to (lo0:0)
+match out on lo0 inet6 from ::1 to (lo0) nat-to ::1 static-port
+match in on lo0 inet6 from (lo0) to ::1 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo0:0) nat-to ::1 static-port
+match in on lo0 inet6 from (lo0:0) to ::1 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo0:peer) nat-to ::1 static-port
+match in on lo0 inet6 from (lo0:peer) to ::1 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo0:peer:0) nat-to ::1 static-port
+match in on lo0 inet6 from (lo0:peer:0) to ::1 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo0:broadcast) nat-to ::1 static-port
+match in on lo0 inet6 from (lo0:broadcast) to ::1 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo0:broadcast:0) nat-to ::1 static-port
+match in on lo0 inet6 from (lo0:broadcast:0) to ::1 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo0:network) nat-to ::1 static-port
+match in on lo0 inet6 from (lo0:network) to ::1 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo0:network:0) nat-to ::1 static-port
+match in on lo0 inet6 from (lo0:network:0) to ::1 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo0)/100 nat-to ::2 static-port
+match in on lo0 inet6 from (lo0)/100 to ::2 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo0:0)/100 nat-to ::2 static-port
+match in on lo0 inet6 from (lo0:0)/100 to ::2 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo0:peer)/100 nat-to ::2 static-port
+match in on lo0 inet6 from (lo0:peer)/100 to ::2 rdr-to ::1
+match out on lo0 inet6 from ::1 to (lo0:peer:0)/100 nat-to ::2 static-port
+match in on lo0 inet6 from (lo0:peer:0)/100 to ::2 rdr-to ::1
+match out on lo inet6 from (lo0:0) to ::1 nat-to ::2 static-port
+match in on lo inet6 from ::1 to ::2 rdr-to (lo0:0)
+match out on tun inet6 from (lo0:0) to ::1 nat-to ::2 static-port
+match in on tun inet6 from ::1 to ::2 rdr-to (lo0:0)

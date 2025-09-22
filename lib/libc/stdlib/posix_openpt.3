@@ -1,0 +1,102 @@
+.\"     $OpenBSD: posix_openpt.3,v 1.4 2019/01/25 00:19:25 millert Exp $
+.\"
+.\" Copyright (c) 2012 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 25 2019 $
+.Dt POSIX_OPENPT 3
+.Os
+.Sh NAME
+.Nm posix_openpt
+.Nd open a pseudo-terminal device
+.Sh SYNOPSIS
+.In stdlib.h
+.In fcntl.h
+.Ft int
+.Fn posix_openpt "int oflag"
+.Sh DESCRIPTION
+The
+.Fn posix_openpt
+function finds the next available pseudo-terminal and returns an open
+file descriptor for its master device.
+The path name of the slave device may be determined via the
+.Fn ptsname
+function.
+Note that the
+.Fn unlockpt
+and
+.Fn grantpt
+functions should be called before opening the slave device.
+.Pp
+The
+.Ar oflag
+argument is formed by bitwise-inclusive
+.Tn OR Ns 'ing
+the following values defined in
+.In fcntl.h :
+.Bl -tag -width O_NOCTTY -offset indent
+.It Dv O_RDWR
+Open for reading and writing.
+.It Dv O_NOCTTY
+Prevent the device from being made the controlling terminal for the session.
+This flag has no effect on
+.Ox
+and is included for compatibility with other systems.
+.El
+.Pp
+The
+.Dv O_RDWR
+flag must be specified in
+.Fa oflag .
+If
+.Fa oflag
+contains values other than those listed above,
+.Fn posix_openpt
+will return an error.
+.Sh RETURN VALUES
+If successful,
+.Fn posix_openpt
+returns a non-negative integer, the file descriptor for the
+pseudo-terminal master device.
+Otherwise, a value of \-1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn posix_openpt
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EMFILE
+The per-process descriptor table is full.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er EINVAL
+The value of
+.Fa oflag
+is not valid.
+.El
+.Sh SEE ALSO
+.Xr ptsname 3 ,
+.Xr pty 4 ,
+.Xr tty 4
+.Sh STANDARDS
+The
+.Fn posix_openpt
+function conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn posix_openpt
+function appeared in
+.Ox 5.3 .

@@ -1,0 +1,43 @@
+# This is an example of an access control file to be used by ypserv.
+#
+# This file is parsed line by line. First match will terminate the check
+# of the caller.
+#
+
+#############################################################################
+# This is the commands that will match a single host
+#
+#	allow host <hostname|ip-address>
+#	deny host <hostname|ip-address>
+#
+# To process hostname gethostbyname is called. If the hostname has multiple
+# ip-addresses all will be added (I hope). ip-address is processed by
+# inet_aton.
+allow host localhost
+deny host jodie
+
+#############################################################################
+# This is the commands that will match a network
+#
+#	allow net <netnumber> [netmask <netnumber>]
+#	deny net <netnumber> [netmask <netnumber>]
+#
+# inet_aton is used for netnumber.
+# inet_aton both access numbers as 255.255.255.0 and 0xffffff00.
+#
+# If netmask isn't given the parser will assume netmask from the first bits
+# of the network number. So if the network is subneted the you have to add
+# the netmask. In my case I've got the network 139.58.253.0 at home so too
+# allow any of my computers to talk with the server I need the following line
+#
+allow net mojathome netmask 255.255.255.0
+
+#############################################################################
+# At last we have a command that will match any caller:
+#
+#	allow all
+#	deny all
+#
+
+# reject all connections
+deny all

@@ -1,0 +1,146 @@
+.\"	$OpenBSD: mtrr.4,v 1.8 2014/02/15 23:41:19 schwarze Exp $
+.\"
+.\" MTRR driver for OpenBSD.
+.\" Copyright 1999 Matthieu Herrb <matthieu@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.Dd $Mdocdate: February 15 2014 $
+.Dt MTRR 4 amd64
+.Os
+.Sh NAME
+.Nm mtrr
+.Nd driver for CPU memory range attributes
+.Sh SYNOPSIS
+.Cd "pseudo-device mtrr 1"
+.Sh DESCRIPTION
+The
+.Nm
+device provides access to the memory range attributes supported by the
+MTRRs on AMD64 compatible CPUs.
+.Ss IOCTL INTERFACE
+Several architectures allow attributes to be associated with ranges of physical
+memory.
+These attributes can be manipulated via
+.Fn ioctl
+calls performed on
+.Pa /dev/mem
+or
+.Pa /dev/xf86 .
+Declarations and data types are to be found in
+.In sys/memrange.h .
+.Pp
+The specific attributes, and number of programmable ranges may vary between
+architectures.
+The full set of supported attributes is:
+.Bl -tag -width MDF_WRITECOMBINE
+.It Dv MDF_UNCACHEABLE
+The region is not cached.
+.It Dv MDF_WRITECOMBINE
+Writes to the region may be combined or performed out of order.
+.It Dv MDF_WRITETHROUGH
+Writes to the region are committed synchronously.
+.It Dv MDF_WRITEBACK
+Writes to the region are committed asynchronously.
+.It Dv MDF_WRITEPROTECT
+The region cannot be written to.
+.El
+.Pp
+Memory ranges are described by
+.Bd -literal -offset xxxx
+struct mem_range_desc {
+	u_int64_t	mr_base;	/\(** physical base address \(**/
+	u_int64_t	mr_len;		/\(** physical length of region \(**/
+	int		mr_flags;	/\(** attributes of region \(**/
+	char		mr_owner[8];
+};
+.Ed
+.Pp
+In addition to the region attributes listed above, the following flags
+may also be set in the
+.Fa mr_flags
+field:
+.Bl -tag -width MDF_FIXACTIVE
+.It Dv MDF_FIXBASE
+The region's base address cannot be changed.
+.It Dv MDF_FIXLEN
+The region's length cannot be changed.
+.It Dv MDF_FIRMWARE
+The region is believed to have been established by the system firmware.
+.It Dv MDF_ACTIVE
+The region is currently active.
+.It Dv MDF_BOGUS
+We believe the region to be invalid or otherwise erroneous.
+.It Dv MDF_FIXACTIVE
+The region cannot be disabled.
+.El
+.Pp
+Operations are performed using
+.Bd -literal -offset xxxx
+struct mem_range_op {
+	struct mem_range_desc	*mo_desc;
+	int			mo_arg[2];
+};
+.Ed
+.Pp
+The
+.Fa MEMRANGE_GET
+ioctl is used to retrieve current memory range attributes.
+If
+.Fa mo_arg[0]
+is set to 0, it will be updated with the total number of memory range
+descriptors.
+If greater than 0, the array at
+.Fa mo_desc
+will be filled with a corresponding number of descriptor structures,
+or the maximum, whichever is less.
+.Pp
+The
+.Fa MEMRANGE_SET
+ioctl is used to add, alter and remove memory range attributes.
+A range with the
+.Dv MDF_FIXACTIVE
+flag may not be removed.
+.Pp
+.Fa mo_arg[0]
+should be set to MEMRANGE_SET_UPDATE to update an existing
+or establish a new range, or to MEMRANGE_SET_REMOVE to remove a range.
+.Sh ERRORS
+On
+.Xr ioctl 2
+failure,
+.Xr errno 2
+will be set as follows:
+.Bl -tag -width Er
+.It Bq Er EOPNOTSUPP
+Memory range operations are not supported on this architecture.
+.It Bq Er ENXIO
+No memory range descriptors are available (e.g., firmware has not enabled
+any).
+.It Bq Er EINVAL
+The memory range supplied as an argument is invalid or overlaps another
+range in a fashion not supported by this architecture.
+.It Bq Er EBUSY
+An attempt to remove or update a range failed because the range is busy.
+.It Bq Er ENOSPC
+An attempt to create a new range failed due to a shortage of hardware
+resources (e.g., descriptor slots).
+.It Bq Er ENOENT
+An attempt to remove a range failed because no range matches the descriptor
+base/length supplied.
+.It Bq Er EPERM
+An attempt to remove a range failed because the range is permanently
+enabled.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr mem 4 ,
+.Xr pctr 4 ,
+.Xr xf86 4 ,
+.Xr memconfig 8
+.Sh HISTORY
+.Nm
+support was originally included in
+.Fx 3.3 .

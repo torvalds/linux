@@ -1,0 +1,76 @@
+import("//compiler-rt/target.gni")
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("LLGSOptions") {
+  visibility = [ ":lldb-server" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+executable("lldb-server") {
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    ":LLGSOptions",
+
+    #"//lldb/include/lldb/Host:Config",
+    "//lldb/source/Host",
+    "//lldb/source/Initialization",
+    "//lldb/source/Plugins/Instruction/ARM",
+    "//lldb/source/Version",
+
+    #"//lldb/source/Plugins/Instruction/MIPS", # XXX
+    #"//lldb/source/Plugins/Instruction/MIPS64", # XXX
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+
+    # Dep of //lldb/source/Core, but omitted there due to a
+    # dependency cyle. Need to add dep here.
+    "//lldb/source/Plugins/Language/CPlusPlus",
+  ]
+
+  if (current_os == "android" || current_os == "linux") {
+    deps += [ "//lldb/source/Plugins/Process/Linux" ]
+    if (current_os == "linux") {
+      deps += [ "//lldb/source/Plugins/Platform/Linux" ]
+    } else {
+      # XXX
+      #deps += [ "//lldb/source/Plugins/Platform/Android" ]
+    }
+  }
+
+  #} else if (current_os == "freebsd") {
+  #deps += [ "//lldb/source/Platform/Process/FreeBSD" ]
+  #deps += [ "//lldb/source/Plugins/Process/FreeBSD" ]
+  #} else if (current_os == "netbsd") {
+  #deps += [ "//lldb/source/Platform/Process/NetBSD" ]
+  #deps += [ "//lldb/source/Plugins/Process/NetBSD" ]
+
+  if (current_os == "mac") {
+    deps += [ "//lldb/source/Plugins/ObjectFile/Mach-O" ]
+    deps += [ "//lldb/source/Plugins/Platform/MacOSX" ]
+  } else if (current_os == "win") {
+    deps += [ "//lldb/source/Plugins/ObjectFile/PECOFF" ]
+    deps += [ "//lldb/source/Plugins/Platform/Windows" ]
+  } else {
+    deps += [ "//lldb/source/Plugins/ObjectFile/ELF" ]
+  }
+
+  # FIXME: codesign stuff on macos; default to "lldb_codesign"
+
+  # Reaches into Plugins/ObjectFile/Mach-O.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "Acceptor.cpp",
+    "LLDBServerUtilities.cpp",
+    "SystemInitializerLLGS.cpp",
+    "lldb-gdbserver.cpp",
+    "lldb-platform.cpp",
+    "lldb-server.cpp",
+  ]
+
+  if (current_os == "android") {
+    output_dir = "$root_build_dir/runtimes_ndk_cxx/$crt_current_target_arch"
+  }
+}

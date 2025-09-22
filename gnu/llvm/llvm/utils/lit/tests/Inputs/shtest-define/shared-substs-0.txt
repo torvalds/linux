@@ -1,0 +1,22 @@
+# RUN: echo shared-substs-0.txt
+
+# Make sure we don't see modifications that other shared-substs-*.txt have made
+# to the test suite config's substitutions.
+#
+# RUN: %{global:echo}
+
+# Next, modify substs that would affect the above.  Verify they are set locally.
+#
+# REDEFINE: %{global:what}=LOCAL0:World
+# REDEFINE: %{global:greeting}=LOCAL0:Hello
+# REDEFINE: %{global:echo}=echo LOCAL0: %{global:greeting} %{global:what}
+# RUN: %{global:echo}
+
+# Finally, set a local that other shared-substs-*.txt also set to be sure
+# there's no redefinition complaint because they left it behind.  Verify it is
+# set locally.
+#
+# DEFINE: %{local:echo}=echo LOCAL0: subst
+# RUN: %{local:echo}
+
+# CHECK: Passed: 1 {{\([0-9]*.[0-9]*%\)}}

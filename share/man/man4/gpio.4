@@ -1,0 +1,217 @@
+.\"	$OpenBSD: gpio.4,v 1.29 2023/01/17 10:10:10 jsg Exp $
+.\"
+.\" Copyright (c) 2004 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 17 2023 $
+.Dt GPIO 4
+.Os
+.Sh NAME
+.Nm gpio
+.Nd General Purpose Input/Output
+.Sh SYNOPSIS
+.Cd "gpio* at ath?"
+.Cd "gpio* at bcmgpio?" Pq arm64, armv7
+.Cd "gpio* at glxpcib?" Pq i386
+.Cd "gpio* at gscpcib?" Pq i386
+.Cd "gpio* at isagpio?"
+.Cd "gpio* at mpfgpio?" Pq riscv64
+.Cd "gpio* at nsclpcsio?"
+.Cd "gpio* at omgpio?" Pq armv7
+.Cd "gpio* at pcagpio?"
+.Cd "gpio* at pcaled?"
+.Cd "gpio* at skgpio?" Pq amd64, i386
+.Cd "gpio* at sxipio?" Pq arm64, armv7
+.Cd "gpio0 at voyager?" Pq loongson
+.Pp
+.In sys/types.h
+.In sys/gpio.h
+.In sys/ioctl.h
+.Sh DESCRIPTION
+The
+.Nm
+device attaches to the GPIO
+controller and provides a uniform programming interface to its pins.
+.Pp
+Each GPIO controller with an attached
+.Nm
+device has an associated device file under the
+.Pa /dev
+directory, e.g.\&
+.Pa /dev/gpio0 .
+Access from userland is performed through
+.Xr ioctl 2
+calls on these devices.
+.Pp
+The layout of the GPIO device is defined at securelevel 0, i.e. typically
+during system boot, and cannot be changed later.
+GPIO pins can be configured and given a symbolic name and device drivers
+that use GPIO pins can be attached to the
+.Nm
+device at securelevel 0.
+All other pins will not be accessible once the runlevel has been raised.
+.Sh IOCTL INTERFACE
+The following structures and constants are defined in the
+.In sys/gpio.h
+header file:
+.Bl -tag -width XXXX
+.It Dv GPIOINFO Fa "struct gpio_info"
+Returns information about the GPIO
+controller in the
+.Fa gpio_info
+structure:
+.Bd -literal
+struct gpio_info {
+	int gpio_npins;		/* total number of pins available */
+};
+.Ed
+.It Dv GPIOPINREAD Fa "struct gpio_pin_op"
+Returns the input pin value in the
+.Fa gpio_pin_op
+structure:
+.Bd -literal
+#define GPIOPINMAXNAME		64
+
+struct gpio_pin_op {
+	char gp_name[GPIOPINMAXNAME];	/* pin name */
+	int gp_pin;			/* pin number */
+	int gp_value;			/* value */
+};
+.Ed
+.Pp
+The
+.Fa gp_name
+or
+.Fa gp_pin
+field must be set before calling.
+.It Dv GPIOPINWRITE Fa "struct gpio_pin_op"
+Writes the output value to the pin.
+The value set in the
+.Fa gp_value
+field must be either
+.Dv GPIO_PIN_LOW
+(logical 0) or
+.Dv GPIO_PIN_HIGH
+(logical 1).
+On return, the
+.Fa gp_value
+field contains the old pin state.
+.It Dv GPIOPINTOGGLE Fa "struct gpio_pin_op"
+Toggles the pin output value, i.e. changes it to the opposite.
+.Fa gp_value
+field is ignored and on return contains the old pin state.
+.It Dv GPIOPINSET Fa "struct gpio_pin_set"
+Changes pin configuration flags with the new ones provided in the
+.Fa gpio_pin_set
+structure:
+.Bd -literal
+#define GPIOPINMAXNAME		64
+
+struct gpio_pin_set {
+	char gp_name[GPIOPINMAXNAME];	/* pin name */
+	int gp_pin;			/* pin number */
+	int gp_caps;			/* pin capabilities (ro) */
+	int gp_flags;			/* pin configuration flags */
+	char gp_name2[GPIOPINMAXNAME];	/* new name */
+};
+.Ed
+.Pp
+The
+.Fa gp_flags
+field is a combination of the following flags:
+.Pp
+.Bl -tag -width GPIO_PIN_OPENDRAIN -compact
+.It Dv GPIO_PIN_INPUT
+input direction
+.It Dv GPIO_PIN_OUTPUT
+output direction
+.It Dv GPIO_PIN_INOUT
+bi-directional
+.It Dv GPIO_PIN_OPENDRAIN
+open-drain output
+.It Dv GPIO_PIN_PUSHPULL
+push-pull output
+.It Dv GPIO_PIN_TRISTATE
+output disabled
+.It Dv GPIO_PIN_PULLUP
+internal pull-up enabled
+.It Dv GPIO_PIN_PULLDOWN
+internal pull-down enabled
+.It Dv GPIO_PIN_INVIN
+invert input
+.It Dv GPIO_PIN_INVOUT
+invert output
+.El
+.Pp
+Note that the GPIO controller
+may not support all of these flags.
+On return the
+.Fa gp_caps
+field contains flags that are supported.
+If no flags are specified, the pin configuration stays unchanged.
+.Pp
+Only GPIO pins that have been set using
+.Ar GPIOPINSET
+will be accessible at securelevels greater than 0.
+.It Dv GPIOPINUNSET Fa "struct gpio_pin_set"
+Unset the specified pin, i.e. clear its name and make it inaccessible
+at securelevels greater than 0.
+.It Dv GPIOATTACH Fa "struct gpio_attach"
+Attach the device described in the
+.Fa gpio_attach
+structure on this gpio device.
+.Bd -literal
+struct gpio_attach {
+	char ga_dvname[16];     /* device name */
+	int ga_offset;		/* pin number */
+	u_int32_t ga_mask;	/* binary mask */
+};
+.Ed
+.It Dv GPIODETACH Fa "struct gpio_attach"
+Detach a device from this gpio device that was previously attached using the
+.Dv GPIOATTACH
+.Xr ioctl 2 .
+The
+.Fa ga_offset
+and
+.Fa ga_mask
+fields of the
+.Fa gpio_attach
+structure are ignored.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/gpiou" -compact
+.It /dev/gpio Ns Ar u
+GPIO device unit
+.Ar u
+file.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr gpioctl 8
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .
+Runtime device attachment was added by
+.An Marc Balmer Aq Mt mbalmer@openbsd.org .
+.Sh BUGS
+Event capabilities are not supported.

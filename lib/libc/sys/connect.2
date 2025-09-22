@@ -1,0 +1,257 @@
+.\"	$OpenBSD: connect.2,v 1.34 2019/06/20 14:19:25 deraadt Exp $
+.\"	$NetBSD: connect.2,v 1.8 1995/10/12 15:40:48 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)connect.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: June 20 2019 $
+.Dt CONNECT 2
+.Os
+.Sh NAME
+.Nm connect
+.Nd initiate a connection on a socket
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn connect "int s" "const struct sockaddr *name" "socklen_t namelen"
+.Sh DESCRIPTION
+The parameter
+.Fa s
+is a socket.
+If it is of type
+.Dv SOCK_DGRAM ,
+this call specifies the peer with which the socket is to be associated;
+this address is that to which datagrams are to be sent,
+and the only address from which datagrams are to be received.
+If the socket is of type
+.Dv SOCK_STREAM ,
+this call attempts to make a connection to
+another socket.
+The other socket is specified by
+.Fa name ,
+which is an address in the communications space of the socket.
+.Fa namelen
+indicates the amount of space pointed to by
+.Fa name ,
+in bytes; the
+.Fa sa_len
+member of
+.Fa name
+is ignored.
+Each communications space interprets the
+.Fa name
+parameter in its own way.
+Generally, stream sockets may use
+.Fn connect
+only once; datagram sockets may use
+.Fn connect
+multiple times to change their association.
+Datagram sockets may dissolve the association
+by connecting to an invalid address, such as a null address.
+.Pp
+If the socket is in non-blocking mode and the connection cannot be
+completed immediately, or if it is interrupted by a signal,
+.Fn connect
+will return an error and the connection attempt will proceed
+asynchronously.
+Subsequent calls to
+.Fn connect
+will fail with errno set to
+.Er EALREADY .
+It is possible to use
+.Xr select 2
+or
+.Xr poll 2
+to determine when the connect operation has completed by checking the
+socket for writability.
+The success or failure of the connection attempt may be determined by using
+.Xr getsockopt 2
+to check the socket error status with the
+.Dv SO_ERROR
+option at the
+.Dv SOL_SOCKET
+level.
+If the connection was successful, the error value will be zero.
+Otherwise, it will be one of the error values listed below.
+.Sh RETURN VALUES
+If the connection or binding succeeds, 0 is returned.
+Otherwise a \-1 is returned, and a more specific error
+code is stored in
+.Va errno .
+.Sh EXAMPLES
+The following code connects to the host described by
+.Fa name
+and handles the case where
+.Fn connect
+is interrupted by a signal.
+.Bd -literal -offset indent
+#include <sys/socket.h>
+#include <poll.h>
+#include <errno.h>
+#include <err.h>
+
+int
+connect_wait(int s)
+{
+	struct pollfd pfd[1];
+	int error = 0;
+	socklen_t len = sizeof(error);
+
+	pfd[0].fd = s;
+	pfd[0].events = POLLOUT;
+
+	if (poll(pfd, 1, -1) == -1)
+		return -1;
+	if (getsockopt(s, SOL_SOCKET, SO_ERROR, &error, &len) == -1)
+		return -1;
+	if (error != 0) {
+		errno = error;
+		return -1;
+	}
+	return 0;
+}
+
+\&...
+
+int retcode;
+
+\&...
+
+for (retcode = connect(s, name, namelen);
+    retcode == -1 && errno == EINTR;
+    retcode = connect_wait(s))
+	continue;
+if (retcode == -1)
+	err(1, "connect");
+.Ed
+.Sh ERRORS
+The
+.Fn connect
+call fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+.Fa s
+is not a valid descriptor.
+.It Bq Er ENOTSOCK
+.Fa s
+is not a socket.
+.It Bq Er EADDRNOTAVAIL
+No suitable address is available on the local machine.
+.It Bq Er EAFNOSUPPORT
+Addresses in the specified address family cannot be used with this socket.
+.It Bq Er EISCONN
+The socket is already connected.
+.It Bq Er ETIMEDOUT
+Connection establishment timed out without establishing a connection.
+.It Bq Er EINVAL
+A TCP connection with a local broadcast, the all-ones or a
+multicast address as the peer was attempted.
+.It Bq Er ECONNREFUSED
+The attempt to connect was forcefully rejected.
+.It Bq Er EHOSTUNREACH
+The destination address specified an unreachable host.
+.It Bq Er EINTR
+The connection attempt was interrupted by a signal.
+The attempt will continue asynchronously as if the socket was non-blocking.
+.It Bq Er ENETUNREACH
+The network isn't reachable from this host.
+.It Bq Er EADDRINUSE
+The address is already in use.
+.It Bq Er EFAULT
+The
+.Fa name
+parameter specifies an area outside
+the process address space.
+.It Bq Er EINPROGRESS
+The socket is non-blocking and the connection cannot
+be completed immediately.
+.It Bq Er EALREADY
+Either the socket is non-blocking or a previous call to
+.Fn connect
+was interrupted by a signal, and the connection attempt has not yet
+been completed.
+.It Bq Er EPERM
+A TCP connection on a socket with socket option TCP_MD5SIG was
+attempted without configuring the security parameters correctly.
+.El
+.Pp
+The following errors are specific to connecting names in the
+.Ux Ns -domain .
+These errors may not apply in future versions of the
+.Ux
+IPC domain.
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Dv NAME_MAX
+characters, or an entire pathname (including the terminating NUL)
+exceeded
+.Dv PATH_MAX
+bytes.
+.It Bq Er ENOENT
+The named socket does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.It Bq Er EACCES
+Write access to the named socket is denied.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EPROTOTYPE
+The file described by
+.Fa name
+is of a different type than
+.Fa s .
+E.g.,
+.Fa s
+may be of type
+.Dv SOCK_STREAM
+whereas
+.Fa name
+may refer to a socket of type
+.Dv SOCK_DGRAM .
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr getsockname 2 ,
+.Xr getsockopt 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr socket 2
+.Sh STANDARDS
+The
+.Fn connect
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn connect
+system call first appeared in
+.Bx 4.1c .

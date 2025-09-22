@@ -1,0 +1,72 @@
+.\" $OpenBSD: uts.4,v 1.13 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 Robert Nagy <robert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt UTS 4
+.Os
+.Sh NAME
+.Nm uts
+.Nd USB touchscreen support
+.Sh SYNOPSIS
+.Cd "uts*     at uhub?"
+.Cd "wsmouse* at uts? mux 0"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB touchscreens.
+Access to the touchscreen is provided through the
+.Xr wscons 4
+framework.
+.Pp
+Touching the screen will emulate mouse button 0 being pressed.
+.Pp
+The touchscreen sensor is poorly aligned, therefore
+.Xr xtsscale 1
+should be used to provide calibration results to the
+.Nm
+driver.
+.Pp
+The
+.Nm
+driver works with the following touchscreens and panels:
+.Pp
+.Bl -dash -offset indent -compact
+.It
+Gunze USB Touch Panel
+.It
+Hantouch
+.It
+LG L1510SF LCD Monitor
+.It
+Origin AE X15e HTPC case with 7" LCD
+.El
+.Sh SEE ALSO
+.Xr xtsscale 1 ,
+.Xr uhub 4 ,
+.Xr usb 4 ,
+.Xr wscons 4 ,
+.Xr wsmouse 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Robert Nagy Aq Mt robert@openbsd.org .

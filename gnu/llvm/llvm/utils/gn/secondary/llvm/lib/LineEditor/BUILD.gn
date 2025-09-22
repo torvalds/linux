@@ -1,0 +1,10 @@
+static_library("LineEditor") {
+  output_name = "LLVMLineEditor"
+  deps = [
+    "//llvm/include/llvm/Config:config",
+    "//llvm/lib/Support",
+    "//llvm/utils/gn/build/libs/edit",
+  ]
+
+  sources = [ "LineEditor.cpp" ]
+}

@@ -1,0 +1,563 @@
+.\"	$OpenBSD: RBT_INIT.9,v 1.6 2017/06/08 03:12:53 dlg Exp $
+.\"
+.\" * Copyright 2002 Niels Provos <provos@citi.umich.edu>
+.\" * All rights reserved.
+.\" *
+.\" * Redistribution and use in source and binary forms, with or without
+.\" * modification, are permitted provided that the following conditions
+.\" * are met:
+.\" * 1. Redistributions of source code must retain the above copyright
+.\" *    notice, this list of conditions and the following disclaimer.
+.\" * 2. Redistributions in binary form must reproduce the above copyright
+.\" *    notice, this list of conditions and the following disclaimer in the
+.\" *    documentation and/or other materials provided with the distribution.
+.\" *
+.\" * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" */
+.\"
+.\" Copyright (c) 2016 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2017 $
+.Dt RBT_INIT 9
+.Os
+.Sh NAME
+.Nm RBT_HEAD ,
+.Nm RBT_ENTRY ,
+.Nm RBT_PROTOTYPE ,
+.Nm RBT_GENERATE ,
+.Nm RBT_INITIALIZER ,
+.Nm RBT_INIT ,
+.Nm RBT_INSERT ,
+.Nm RBT_REMOVE ,
+.Nm RBT_FIND ,
+.Nm RBT_NFIND ,
+.Nm RBT_EMPTY ,
+.Nm RBT_ROOT ,
+.Nm RBT_MIN ,
+.Nm RBT_MAX ,
+.Nm RBT_NEXT ,
+.Nm RBT_PREV ,
+.Nm RBT_LEFT ,
+.Nm RBT_RIGHT ,
+.Nm RBT_PARENT ,
+.Nm RBT_SET_LEFT ,
+.Nm RBT_SET_RIGHT ,
+.Nm RBT_SET_PARENT ,
+.Nm RBT_FOREACH ,
+.Nm RBT_FOREACH_SAFE ,
+.Nm RBT_FOREACH_REVERSE ,
+.Nm RBT_FOREACH_REVERSE_SAFE ,
+.Nm RBT_POISON ,
+.Nm RBT_CHECK
+.Nd Kernel red-black trees
+.Sh SYNOPSIS
+.In sys/tree.h
+.Fn RBT_HEAD "NAME" "TYPE"
+.Fn RBT_ENTRY "TYPE"
+.Fo RBT_PROTOTYPE
+.Fa "NAME"
+.Fa "TYPE"
+.Fa "ENTRY"
+.Fa "int (*compare)(const struct TYPE *, const struct TYPE *)"
+.Fc
+.Fo RBT_GENERATE
+.Fa "NAME"
+.Fa "TYPE"
+.Fa "ENTRY"
+.Fa "int (*compare)(const struct TYPE *, const struct TYPE *)"
+.Fc
+.Ft struct NAME
+.Fn RBT_INITIALIZER "struct NAME *self"
+.Ft void
+.Fn RBT_INIT "NAME" "struct NAME *rbt"
+.Ft struct TYPE *
+.Fn RBT_INSERT "NAME" "struct NAME *rbt" "struct TYPE *elm"
+.Ft struct TYPE *
+.Fn RBT_REMOVE "NAME" "struct NAME *rbt" "struct TYPE *elm"
+.Ft struct TYPE *
+.Fn RBT_FIND "NAME" "struct NAME *rbt" "const struct TYPE *key"
+.Ft struct TYPE *
+.Fn RBT_NFIND "NAME" "struct NAME *rbt" "const struct TYPE *key"
+.Ft int
+.Fn RBT_EMPTY "NAME" "struct NAME *rbt"
+.Ft struct TYPE *
+.Fn RBT_ROOT "NAME" "struct NAME *rbt"
+.Ft struct TYPE *
+.Fn RBT_MIN "NAME" "struct NAME *rbt"
+.Ft struct TYPE *
+.Fn RBT_MAX "NAME" "struct NAME *rbt"
+.Ft struct TYPE *
+.Fn RBT_NEXT "NAME" "struct TYPE *elm"
+.Ft struct TYPE *
+.Fn RBT_PREV "NAME" "struct TYPE *elm"
+.Ft struct TYPE *
+.Fn RBT_LEFT "NAME" "struct TYPE *elm"
+.Ft struct TYPE *
+.Fn RBT_RIGHT "NAME" "struct TYPE *elm"
+.Ft struct TYPE *
+.Fn RBT_PARENT "NAME" "struct TYPE *elm"
+.Ft void
+.Fn RBT_SET_LEFT "NAME" "struct TYPE *elm" "struct TYPE *left"
+.Ft void
+.Fn RBT_SET_RIGHT "NAME" "struct TYPE *elm" "struct TYPE *right"
+.Ft void
+.Fn RBT_SET_PARENT "NAME" "struct TYPE *elm" "struct TYPE *parent"
+.Fo RBT_FOREACH
+.Fa "VARNAME"
+.Fa "NAME"
+.Fa "struct NAME *rbt"
+.Fc
+.Fo RBT_FOREACH_REVERSE
+.Fa "VARNAME"
+.Fa "NAME"
+.Fa "struct NAME *rbt"
+.Fc
+.Fo RBT_FOREACH_SAFE
+.Fa "VARNAME"
+.Fa "NAME"
+.Fa "struct NAME *rbt"
+.Fa "NEXTVARNAME"
+.Fc
+.Fo RBT_FOREACH_REVERSE_SAFE
+.Fa "VARNAME"
+.Fa "NAME"
+.Fa "struct NAME *rbt"
+.Fa "NEXTVARNAME"
+.Fc
+.Ft void
+.Fn RBT_POISON "NAME" "struct TYPE *elm" "unsigned long poison"
+.Ft int
+.Fn RBT_CHECK "NAME" "struct TYPE *elm" "unsigned long poison"
+.Sh DESCRIPTION
+The red-black tree API provides data structures and operations for
+storing structures in red-black trees.
+.Pp
+A red-black tree is a binary search tree with the node color as an
+extra attribute.
+It fulfills a set of conditions:
+.Pp
+.Bl -enum -compact -offset indent
+.It
+every search path from the root to a leaf consists of the same number of
+black nodes,
+.It
+each red node (except for the root) has a black parent,
+.It
+each leaf node is black.
+.El
+.Pp
+Every operation on a red-black tree is bounded as O(lg n).
+The maximum height of a red-black tree is 2lg (n+1).
+.Pp
+This API is implemented as a set of functions that operate on generic
+pointers, but users of the API generate wrappers and macros that provide
+type safety when calling the functions.
+.Pp
+In the macro definitions,
+.Fa TYPE
+is the name of a structure that will be stored in a red-black tree.
+The
+.Fa TYPE
+structure must contain an
+.Fn RBT_ENTRY
+field
+that allows the element to be connected to a tree.
+The argument
+.Fa NAME
+is the name of a red-black tree type that can store a particular
+.Fa TYPE
+element.
+.Ss Creating a Red-Black Tree Type
+The
+.Fn RBT_HEAD
+macro creates a red-black tree type to store
+.Fa TYPE
+structures as elements in the tree.
+The argument
+.Fa NAME
+must uniquely identify every type of tree that is defined.
+.Pp
+.Fn RBT_PROTOTYPE
+produces the wrappers for a red-black tree type identified by
+.Fa NAME
+to operate on elements of type
+.Fa TYPE .
+.Fa ENTRY
+specifies which field in the
+.Fa TYPE
+structure is used to connect elements to
+.Fa NAME
+red-black trees.
+Elements in the red-black tree are ordered according to the result of comparing
+them with the
+.Fa compare
+function.
+If the first argument to
+.Fa compare
+is to be ordered lower than the second,
+the function returns a value smaller than zero.
+If the first argument is to be ordered higher than the second,
+the function returns a value greater than zero.
+If they are equal, the function returns zero.
+.Pp
+.Fn RBT_GENERATE
+produces the internal data structures used by the red-black tree
+type identified by
+.Fa NAME
+to operate on elements of type
+.Fa TYPE .
+The
+.Fa ENTRY
+and
+.Fa compare
+arguments are the same as the
+.Fn RBT_PROTOTYPE
+arguments of the same names.
+.Ss Initialising a Red-Black Tree
+.Fn RBT_INIT
+initialises the red-black tree
+.Fa rbt
+of type
+.Fa NAME
+to an empty state.
+.Pp
+.Fn RBT_INITIALIZER
+can be used to initialise a declaration of the red-black tree
+.Fa self
+of type
+.Fa NAME
+to an empty state.
+.Ss Red-Black Tree Operations
+.Fn RBT_INSERT
+inserts the element
+.Fa elm
+into the red-black tree
+.Fa rbt
+of type
+.Fa NAME .
+Upon success,
+.Dv NULL
+is returned.
+If a matching element already exists in the tree, the insertion is
+aborted and a pointer to the existing element is returned.
+.Pp
+.Fn RBT_REMOVE
+removes the element
+.Fa elm
+from the red-black tree
+.Fa rbt
+of type
+.Fa NAME .
+.Fa elm
+must exist in the tree
+.Fa rbt
+before it is removed.
+.Pp
+.Fn RBT_FIND
+performs a binary search for an exact match of
+.Fa key
+in the red-black tree
+.Fa rbt
+of type
+.Fa NAME .
+.Pp
+.Fn RBT_NFIND
+performs a binary search for the first node that is greater than or equal to
+.Fa key
+in the red-black tree
+.Fa rbt
+of type
+.Fa NAME .
+.Pp
+.Fn RBT_EMPTY
+returns if the red-black tree
+.Fa rbt
+of type
+.Fa NAME
+is empty.
+.Pp
+.Fn RBT_ROOT
+returns the root element in the red-black tree
+.Fa rbt
+of type
+.Fa NAME .
+.Pp
+.Fn RBT_MIN
+returns the lowest ordered element in the red-black tree
+.Fa rbt
+of type
+.Fa NAME .
+.Pp
+.Fn RBT_MAX
+returns the highest ordered element in the red-black tree
+.Fa rbt
+of type
+.Fa NAME .
+.Ss Red-Black Tree Element Operations
+.Fn RBT_NEXT
+returns a pointer to the next ordered element after
+.Fa elm
+in a red-black tree of type
+.Fa NAME .
+.Pp
+.Fn RBT_PREV
+returns a pointer to the previous ordered element before
+.Fa elm
+in a red-black tree of type
+.Fa NAME .
+.Pp
+.Fn RBT_LEFT
+returns a pointer to the left child element of
+.Fa elm
+in a red-black tree of type
+.Fa NAME .
+.Pp
+.Fn RBT_RIGHT
+returns a pointer to the right child element of
+.Fa elm
+in a red-black tree of type
+.Fa NAME .
+.Pp
+.Fn RBT_PARENT
+returns a pointer to the parent element of
+.Fa elm
+in a red-black tree of type
+.Fa NAME .
+.Pp
+.Fn RBT_SET_LEFT
+sets the left child pointer of element
+.Fa elm
+to
+.Fa left
+in a red-black tree of type
+.Fa NAME .
+.Pp
+.Fn RBT_SET_RIGHT
+sets the right child pointer of element
+.Fa elm
+to
+.Fa right
+in a red-black tree of type
+.Fa NAME .
+.Pp
+.Fn RBT_SET_PARENT
+sets the parent pointer of element
+.Fa elm
+to
+.Fa parent
+in a red-black tree of type
+.Fa NAME .
+.Ss Red-Black Tree Iterators
+The
+.Fn RBT_FOREACH
+macro iterates over the red-black tree
+.Fa rbt
+of type
+.Fa NAME
+from the lowest ordered element to the highest ordered element,
+setting
+.Fa VARNAME
+to each element in turn.
+.Pp
+The
+.Fn RBT_FOREACH_REVERSE
+macro iterates over the red-black tree
+.Fa rbt
+of type
+.Fa NAME
+from the highest ordered element to the lowest ordered element,
+setting
+.Fa VARNAME
+to each element in turn.
+.Pp
+The
+.Fn RBT_FOREACH_SAFE
+macro iterates over the red-black tree
+.Fa rbt
+of type
+.Fa NAME
+from the lowest ordered element to the highest ordered element,
+setting
+.Fa VARNAME
+to each element in turn.
+.Fa VARNAME
+may be removed from the tree during iteration because a reference to the next
+element is held in
+.Fa NEXTVARNAME .
+.Pp
+The
+.Fn RBT_FOREACH_REVERSE_SAFE
+macro iterates over the red-black tree
+.Fa rbt
+of type
+.Fa NAME
+from the highest ordered element to the lowest ordered element,
+setting
+.Fa VARNAME
+to each element in turn.
+.Fa VARNAME
+may be removed from the tree during iteration because a reference to the next
+element is held in
+.Fa NEXTVARNAME .
+.Ss Red-Black Tree Element Poisoning
+.Fn RBT_POISON
+is used to poison the pointers in the RBT_ENTRY structure inside
+.Fa elm
+which has been removed from a red-black tree of type
+.Fa NAME
+with the
+.Fa poison
+value.
+.Pp
+.Fn RBT_CHECK
+is used to verify that the pointers in the RBT_ENTRY structure inside
+.Fa elm
+are set to the
+.Fa poison
+value.
+.Sh CONTEXT
+.Fn RBT_INIT ,
+.Fn RBT_INSERT ,
+.Fn RBT_REMOVE ,
+.Fn RBT_FIND ,
+.Fn RBT_NFIND ,
+.Fn RBT_EMPTY ,
+.Fn RBT_ROOT ,
+.Fn RBT_MIN ,
+.Fn RBT_MAX ,
+.Fn RBT_NEXT ,
+.Fn RBT_PREV ,
+.Fn RBT_LEFT ,
+.Fn RBT_RIGHT ,
+.Fn RBT_PARENT ,
+.Fn RBT_SET_LEFT ,
+.Fn RBT_SET_RIGHT ,
+.Fn RBT_SET_PARENT ,
+.Fn RBT_FOREACH ,
+.Fn RBT_FOREACH_REVERSE ,
+.Fn RBT_FOREACH_SAFE ,
+.Fn RBT_FOREACH_SAFE_REVERSE ,
+.Fn RBT_POISON ,
+and
+.Fn RBT_CHECK
+can be called during autoconf, from process context, or from interrupt
+context.
+.Pp
+It is up to the caller to provide appropriate locking around calls to
+these functions to prevent concurrent access to the relevant data structures.
+.Sh RETURN VALUES
+.Fn RBT_INSERT
+will return
+.Dv NULL
+on successful insertion of
+.Fa elm
+into the tree, otherwise it will return a reference to an existing
+element with the same key.
+.Pp
+.Fn RBT_FIND
+will return a reference to an element that compares as equal to
+.Fa key ,
+or
+.Dv NULL
+if no such element could be found.
+.Pp
+.Fn RBT_NFIND
+will return a reference to the nearest element that compares as equal or
+greater to
+.Fa key ,
+or
+.Dv NULL
+if no such element could be found.
+.Pp
+.Fn RBT_EMPTY
+returns non-zero if the red-black tree
+.Fa rbt
+is empty, otherwise 0.
+.Pp
+.Fn RBT_ROOT
+returns a reference to the root node in the red-black tree
+.Fa rbt ,
+or
+.Dv NULL
+if it is empty.
+.Pp
+.Fn RBT_MIN
+returns a reference to the lowest ordered element in the red-black tree
+.Fa rbt ,
+or
+.Dv NULL
+if it is empty.
+.Pp
+.Fn RBT_MAX
+returns a reference to the lowest ordered element in the red-black tree
+.Fa rbt ,
+or
+.Dv NULL
+if it is empty.
+.Pp
+.Fn RBT_NEXT
+returns a reference to the next ordered element in the red-black tree after
+.Fa elm ,
+or
+.Dv NULL
+if it is the greatest element in the tree.
+.Pp
+.Fn RBT_PREV
+returns a reference to the previous ordered element in the red-black tree before
+.Fa elm ,
+or
+.Dv NULL
+if it is the lowest element in the tree.
+.Pp
+.Fn RBT_LEFT
+returns a reference to the left child element of
+.Fa elm ,
+or
+.Dv NULL
+if it is a leaf in the tree.
+.Pp
+.Fn RBT_RIGHT
+returns a reference to the right child element of
+.Fa elm ,
+or
+.Dv NULL
+if it is a leaf in the tree.
+.Pp
+.Fn RBT_PARENT
+returns a reference to the parent element of
+.Fa elm ,
+or
+.Dv NULL
+if it is the root of the tree.
+.Pp
+.Fn RBT_CHECK
+returns non-zero if the RBT_ENTRY in the red-black tree element contains the
+.Fa poison
+value,
+otherwise 0.
+.Sh SEE ALSO
+.Xr RB_INIT 3
+.Sh HISTORY
+The red-black tree kernel API first appeared in
+.Ox 6.1 .

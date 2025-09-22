@@ -1,0 +1,247 @@
+.\"	$OpenBSD: err.3,v 1.22 2021/10/24 21:24:20 deraadt Exp $
+.\"
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 24 2021 $
+.Dt ERR 3
+.Os
+.Sh NAME
+.Nm err ,
+.Nm verr ,
+.Nm errc ,
+.Nm verrc ,
+.Nm errx ,
+.Nm verrx ,
+.Nm warn ,
+.Nm vwarn ,
+.Nm warnc ,
+.Nm vwarnc ,
+.Nm warnx ,
+.Nm vwarnx
+.Nd formatted error messages
+.Sh SYNOPSIS
+.In err.h
+.Ft void
+.Fn err "int eval" "const char *fmt" "..."
+.Ft void
+.Fn verr "int eval" "const char *fmt" "va_list args"
+.Ft void
+.Fn errc "int eval" "int code" "const char *fmt" "..."
+.Ft void
+.Fn verrc "int eval" "int code" "const char *fmt" "va_list args"
+.Ft void
+.Fn errx "int eval" "const char *fmt" "..."
+.Ft void
+.Fn verrx "int eval" "const char *fmt" "va_list args"
+.Ft void
+.Fn warn "const char *fmt" "..."
+.Ft void
+.Fn vwarn "const char *fmt" "va_list args"
+.Ft void
+.Fn warnc "int code" "const char *fmt" "..."
+.Ft void
+.Fn vwarnc "int code" "const char *fmt" "va_list args"
+.Ft void
+.Fn warnx "const char *fmt" "..."
+.Ft void
+.Fn vwarnx "const char *fmt" "va_list args"
+.Sh DESCRIPTION
+The
+.Fn err
+and
+.Fn warn
+family of functions display a formatted error message on the standard
+error output.
+In all cases, the last component of the program name, followed by
+a colon
+.Pq Sq \&:
+character and a space, are output.
+The text that follows depends on the function being called.
+The
+.Fa fmt
+specification (and associated arguments) may be any format allowed by
+.Xr printf 3
+or
+.Dv NULL .
+If the
+.Fa fmt
+argument is not
+.Dv NULL ,
+the formatted error message is output.
+.Pp
+In the case of the
+.Fn errx ,
+.Fn verrx ,
+.Fn warnx ,
+and
+.Fn vwarnx
+functions only, no additional text is output,
+so the output looks like the following:
+.Bd -literal -offset indent
+progname: fmt
+.Ed
+.Pp
+The other functions all output an error message string affiliated with
+an error value (see
+.Xr strerror 3 ) ,
+preceded by a colon character and a space if
+.Fa fmt
+is not
+.Dv NULL .
+That is, the output is as follows:
+.Bd -literal -offset indent
+progname: fmt: error message string
+.Ed
+.Pp
+if
+.Fa fmt
+is not
+.Dv NULL ,
+or:
+.Bd -literal -offset indent
+progname: error message string
+.Ed
+.Pp
+if it is.
+.Pp
+In the case of the
+.Fn err ,
+.Fn verr ,
+.Fn warn ,
+and
+.Fn vwarn
+functions, the error value used is the current value of the global variable
+.Va errno ,
+while for the
+.Fn errc ,
+.Fn verrc ,
+.Fn warnc ,
+and
+.Fn vwarnc
+function the argument
+.Fa code
+is used.
+.Pp
+In all cases, the output is followed by a newline character.
+.Pp
+The
+.Fn err ,
+.Fn verr ,
+.Fn errc ,
+.Fn verrc ,
+.Fn errx ,
+and
+.Fn verrx
+functions do not return, but exit with the value of the argument
+.Fa eval .
+.Sh EXAMPLES
+Display the current
+.Va errno
+information string and exit:
+.Bd -literal -offset indent
+if ((p = malloc(size)) == NULL)
+	err(1, NULL);
+if ((fd = open(file_name, O_RDONLY)) == -1)
+	err(1, "%s", file_name);
+.Ed
+.Pp
+Display an error message and exit:
+.Bd -literal -offset indent
+if (tm.tm_hour < START_TIME)
+	errx(1, "too early, wait until %s", start_time_string);
+.Ed
+.Pp
+Warn of an error:
+.Bd -literal -offset indent
+if ((fd = open(raw_device, O_RDONLY)) == -1)
+	warnx("%s: %s: trying the block device",
+	    raw_device, strerror(errno));
+if ((fd = open(block_device, O_RDONLY)) == -1)
+	err(1, "%s", block_device);
+.Ed
+.Sh SEE ALSO
+.Xr exit 3 ,
+.Xr perror 3 ,
+.Xr printf 3 ,
+.Xr strerror 3
+.Sh HISTORY
+The functions
+.Fn err ,
+.Fn errx ,
+.Fn verr ,
+.Fn verrx ,
+.Fn warn ,
+.Fn warnx ,
+.Fn vwarn ,
+and
+.Fn vwarnx
+first appeared in
+.Bx 4.4 .
+The functions
+.Fn errc ,
+.Fn verrc ,
+.Fn warnc ,
+and
+.Fn vwarnc
+first appeared in
+.Fx 3.0
+and were ported to
+.Ox 5.6 .
+.Sh CAVEATS
+It is important never to pass a string with user-supplied data as a
+format without using
+.Ql %s .
+An attacker can put format specifiers in the string to mangle the stack,
+leading to a possible security hole.
+This holds true even if the string has been built
+.Dq by hand
+using a function like
+.Fn snprintf ,
+as the resulting string may still contain user-supplied conversion specifiers
+for later interpolation by the
+.Fn err
+and
+.Fn warn
+functions.
+.Pp
+Always be sure to use the proper secure idiom:
+.Bd -literal -offset indent
+err(1, "%s", string);
+.Ed
+.Pp
+On systems other than
+.Ox ,
+the
+.Dv LC_MESSAGES
+.Xr locale 1
+category can cause different strings to be printed instead of the
+normal
+.Xr errno 2
+messages; see CAVEATS in
+.Xr setlocale 3
+for details.

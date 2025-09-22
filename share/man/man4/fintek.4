@@ -1,0 +1,66 @@
+.\"	$OpenBSD: fintek.4,v 1.7 2013/07/16 16:05:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 Theo de Raadt <deraadt@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt FINTEK 4
+.Os
+.Sh NAME
+.Nm fintek
+.Nd Fintek F75375 temperature sensor
+.Sh SYNOPSIS
+.Cd "fintek* at iic? flags 0x0000"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Fintek F75375 temperature sensor
+and fan controller.
+The sensor possesses a collection of sensor values which are
+made available through the
+.Xr sysctl 8
+interface:
+.Bd -literal -offset indent
+$ sysctl hw.sensors.fintek0
+hw.sensors.fintek0.temp0=31.00 degC
+hw.sensors.fintek0.temp1=29.00 degC
+hw.sensors.fintek0.fan0=0 RPM
+hw.sensors.fintek0.fan1=0 RPM
+hw.sensors.fintek0.volt0=1.72 V DC (VCC)
+hw.sensors.fintek0.volt1=1.34 V DC
+hw.sensors.fintek0.volt2=1.73 V DC
+hw.sensors.fintek0.volt3=0.90 V DC
+.Ed
+.Pp
+On some machines the fans will not function properly with the chip in
+default mode.
+Setting
+.Cm flags
+to 0x0001 will make the fans run at full speed to prevent overheating.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Dale Rahn Aq Mt drahn@openbsd.org .

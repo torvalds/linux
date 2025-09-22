@@ -1,0 +1,50 @@
+.\"     $OpenBSD: power.4,v 1.5 2011/06/24 19:47:48 naddy Exp $
+.\"
+.\"
+.\" Copyright (c) 2007 Martin Reindl
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 24 2011 $
+.Dt POWER 4 landisk
+.Os
+.Sh NAME
+.Nm power
+.Nd power switch
+.Sh SYNOPSIS
+.Cd "power0 at obio?"
+.Sh DESCRIPTION
+Landisk models provide an interrupt when the power switch is flipped to the
+Off position.
+The
+.Nm
+driver catches that interrupt.
+If the
+.Va hw.allowpowerdown
+.Xr sysctl 8
+is set to 1,
+.Nm power
+will signal
+.Xr init 8
+to do a clean shutdown.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr obio 4 ,
+.Xr init 8 ,
+.Xr rc.shutdown 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+Support for the
+.Nm
+driver first appeared in
+.Ox 4.1 .

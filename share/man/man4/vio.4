@@ -1,0 +1,62 @@
+.\"     $OpenBSD: vio.4,v 1.16 2021/05/24 17:29:56 dv Exp $
+.\"
+.\" Copyright (c) 2012 Stefan Fritsch <sf@sfritsch.de>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 24 2021 $
+.Dt VIO 4
+.Os
+.Sh NAME
+.Nm vio
+.Nd VirtIO network device
+.Sh SYNOPSIS
+.Cd "vio* at virtio? flags 0x00"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Xr virtio 4
+network interface provided by bhyve, KVM, QEMU, VirtualBox, and
+.Xr vmd 8 .
+.Pp
+Setting the bit 0x2 in the flags disables the RingEventIndex feature.
+This can be tried as a workaround for possible bugs in host implementations of
+.Nm
+at the cost of slightly reduced performance.
+.Pp
+Setting the bit 0x100 in the flags forces the interface to be always in
+promiscuous mode.
+This can be used as a workaround for a bug in QEMU before version 1.7.2 that
+prevents packets with a VLAN tag from being sent to the guest.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr virtio 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was ported to
+.Ox
+and improved by
+.An Stefan Fritsch Aq Mt sf@sfritsch.de .
+It is based on the
+.Nx
+.Nm vioif
+driver by
+.An Minoura Makoto .

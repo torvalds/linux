@@ -1,0 +1,49 @@
+.\"	$OpenBSD: grdc.6,v 1.14 2022/09/24 16:07:26 florian Exp $
+.\"
+.\" Copyright 2002 Amos Shapir.  Public domain.
+.\"
+.Dd $Mdocdate: September 24 2022 $
+.Dt GRDC 6
+.Os
+.Sh NAME
+.Nm grdc
+.Nd grand digital clock (curses)
+.Sh SYNOPSIS
+.Nm grdc
+.Op Fl s
+.Op Ar number
+.Sh DESCRIPTION
+.Nm
+runs a digital clock made of reverse-video blanks on a curses
+compatible screen.
+With an optional numeric argument
+.Ar number
+it stops after
+.Ar number
+seconds (defaulting to never).
+The optional
+.Fl s
+flag makes digits scroll as they change.
+If the terminal is too slow to keep up,
+.Nm
+skips seconds.
+Pressing the
+.Sq q
+key exits the program.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev TZ
+The time zone to use for displaying the time.
+It is normally specified as a pathname relative to
+.Pa /usr/share/zoneinfo ,
+though see
+.Xr tzset 3
+for more information.
+If this variable is not set, the time zone is determined based on
+.Pa /etc/localtime .
+.El
+.Sh AUTHORS
+.An -nosplit
+.An Amos Shapir ,
+modified for curses by
+.An John Lupien .

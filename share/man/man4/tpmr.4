@@ -1,0 +1,162 @@
+.\" $OpenBSD: tpmr.4,v 1.10 2021/07/28 19:19:38 benno Exp $
+.\"
+.\" Copyright (c) 2019 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 28 2021 $
+.Dt TPMR 4
+.Os
+.Sh NAME
+.Nm tpmr
+.Nd IEEE 802.1Q Two-Port MAC Relay interface
+.Sh SYNOPSIS
+.Cd "pseudo-device tpmr"
+.Sh DESCRIPTION
+The
+.Nm
+driver implements an 802.1Q (originally 802.1aj) Two-Port MAC Relay
+(TPMR).
+A TPMR is a simplified Ethernet bridge with exactly two member ports,
+and it unconditionally relays Ethernet packets between those ports.
+.Pp
+.Nm
+interfaces can be created at runtime using the
+.Ic ifconfig tpmr Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+.Pp
+Other forms of Ethernet bridging are available using the
+.Xr bridge 4
+Ethernet bridge driver and the
+.Xr veb 4
+Virtual Ethernet Bridge device.
+Link aggregation of Ethernet interfaces can be achieved
+using the
+.Xr aggr 4
+and
+.Xr trunk 4
+drivers.
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+calls and their structures are commonly use by
+.Nm
+and
+.Xr bridge 4 :
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+.Dv SIOCBRDGADD
+.It
+.Dv SIOCBRDGDEL
+.El
+.Sh EXAMPLES
+.Nm
+can be used to cross-connect Ethernet devices that support different
+physical media.
+For example, a device that supports a 100baseTX half-duplex connection
+can be connected to a switch with 1000baseSX optical ports by using
+.Nm
+with a pair of physical network interfaces, each of which supports
+the required media types.
+If
+.Xr fxp 4
+is used to connect to the 100baseTX device, and
+.Xr em 4
+is used to connect to the 1000baseSX switch, the following configuration
+can be used:
+.Bd -literal -offset indent
+# ifconfig tpmr0 create
+# ifconfig tpmr0 add fxp0 add em0
+# ifconfig fxp0 up
+# ifconfig em0 up
+# ifconfig tpmr0 up
+.Ed
+.Pp
+Multiple TPMRs can be chained to transport Ethernet traffic for a
+pair of devices over another network.
+Given two physically separate Ethernet switches, TPMRs can be used
+as follows to provide a point-to-point Ethernet link between them.
+.Nm
+with the
+.Cm link0
+flag set allows the use of the Link Aggregation Control Protocol (LACP)
+or Spanning Tree Protocol (STP) by the switches to detect communication
+failures or connectivity loops respectively, which is not possible
+using
+.Xr bridge 4
+as it filters those protocols.
+.Pp
+If Host A connected to Router B has the external IP address 192.0.2.10
+on em0, Host D connected to Router C has the external IP address
+198.51.100.14 on em0, and both hosts have em1 connected to the
+switches, the following configuration can be used to connect the
+switches together.
+.Xr etherip 4
+is used to transport the Ethernet packets over the IP network.
+.Bd -literal
+Switch X ---- Host A ---------- tunnel ----------- Host D ---- Switch E
+               \e                                    /
+                \e                                  /
+                 +---- Router B ---- Router C ----+
+.Ed
+.Pp
+Create the
+.Nm
+and
+.Xr etherip 4
+interfaces:
+.Bd -literal -offset indent
+# ifconfig etherip0 create
+# ifconfig tpmr0 create link0
+.Ed
+.Pp
+Configure the etherip interface:
+.Bd -literal -offset indent
+(on Host A) # ifconfig etherip0 tunnel 192.0.2.10 198.51.100.14 up
+(on Host D) # ifconfig etherip0 tunnel 198.51.100.14 192.0.2.10 up
+.Ed
+.Pp
+Add the etherip interface and physical interface to the TPMR:
+.Bd -literal -offset indent
+# ifconfig tpmr0 add em1 add etherip0 up
+.Ed
+.Pp
+An equivalent setup using MPLS pseudowires instead of IP as the
+transport can be built using
+.Xr mpw 4
+interfaces.
+.Sh SEE ALSO
+.Xr aggr 4 ,
+.Xr bridge 4 ,
+.Xr pf 4 ,
+.Xr trunk 4 ,
+.Xr veb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.\" .Sh STANDARDS
+.\" .Rs
+.\" .%T IEEE 802.1Q
+.\" .Re
+.\" .Rs
+.\" .%T IEEE 802.1aj
+.\" .Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.6 .

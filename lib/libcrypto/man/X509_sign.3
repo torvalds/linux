@@ -1,0 +1,210 @@
+.\" $OpenBSD: X509_sign.3,v 1.13 2025/07/11 18:42:51 tb Exp $
+.\" full merge up to: OpenSSL df75c2bf Dec 9 01:02:36 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2015, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 11 2025 $
+.Dt X509_SIGN 3
+.Os
+.Sh NAME
+.Nm X509_sign ,
+.Nm X509_sign_ctx ,
+.Nm X509_verify ,
+.Nm X509_REQ_sign ,
+.Nm X509_REQ_sign_ctx ,
+.Nm X509_REQ_verify ,
+.Nm X509_CRL_sign ,
+.Nm X509_CRL_sign_ctx ,
+.Nm X509_CRL_verify
+.Nd sign or verify certificate, certificate request, or CRL signature
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_sign
+.Fa "X509 *x"
+.Fa "EVP_PKEY *pkey"
+.Fa "const EVP_MD *md"
+.Fc
+.Ft int
+.Fo X509_sign_ctx
+.Fa "X509 *x"
+.Fa "EVP_MD_CTX *ctx"
+.Fc
+.Ft int
+.Fo X509_verify
+.Fa "X509 *x"
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Ft int
+.Fo X509_REQ_sign
+.Fa "X509_REQ *x"
+.Fa "EVP_PKEY *pkey"
+.Fa "const EVP_MD *md"
+.Fc
+.Ft int
+.Fo X509_REQ_sign_ctx
+.Fa "X509_REQ *x"
+.Fa "EVP_MD_CTX *ctx"
+.Fc
+.Ft int
+.Fo X509_REQ_verify
+.Fa "X509_REQ *x"
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Ft int
+.Fo X509_CRL_sign
+.Fa "X509_CRL *x"
+.Fa "EVP_PKEY *pkey"
+.Fa "const EVP_MD *md"
+.Fc
+.Ft int
+.Fo X509_CRL_sign_ctx
+.Fa "X509_CRL *x"
+.Fa "EVP_MD_CTX *ctx"
+.Fc
+.Ft int
+.Fo X509_CRL_verify
+.Fa "X509_CRL *x"
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_sign
+signs the certificate
+.Fa x
+using the private key
+.Fa pkey
+and the message digest
+.Fa md
+and sets the signature in
+.Fa x .
+.Fn X509_sign_ctx
+also signs the certificate
+.Fa x
+but uses the parameters contained in digest context
+.Fa ctx .
+.Pp
+.Fn X509_verify
+verifies the signature of certificate
+.Fa x
+using the public key
+.Fa pkey .
+Only the signature is checked: no other checks (such as certificate
+chain validity) are performed.
+.Pp
+.Fn X509_REQ_sign ,
+.Fn X509_REQ_sign_ctx ,
+.Fn X509_REQ_verify ,
+.Fn X509_CRL_sign ,
+.Fn X509_CRL_sign_ctx ,
+and
+.Fn X509_CRL_verify
+sign and verify certificate requests and CRLs, respectively.
+.Pp
+.Fn X509_sign_ctx
+is used where the default parameters for the corresponding public key
+and digest are not suitable.
+It can be used to sign keys using RSA-PSS for example.
+.Sh RETURN VALUES
+.Fn X509_sign ,
+.Fn X509_sign_ctx ,
+.Fn X509_REQ_sign ,
+.Fn X509_REQ_sign_ctx ,
+.Fn X509_CRL_sign ,
+and
+.Fn X509_CRL_sign_ctx
+return the size of the signature in bytes for success or 0 for failure.
+.Pp
+.Fn X509_verify ,
+.Fn X509_REQ_verify ,
+and
+.Fn X509_CRL_verify
+return 1 if the signature is valid or 0 if the signature check fails.
+If the signature could not be checked at all because it was invalid or
+some other error occurred, then -1 is returned.
+.Pp
+In some cases of failure, the reason can be determined with
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr d2i_X509 3 ,
+.Xr EVP_DigestInit 3 ,
+.Xr X509_CRL_get0_by_serial 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_get_pubkey 3 ,
+.Xr X509_get_subject_name 3 ,
+.Xr X509_get_version 3 ,
+.Xr X509_NAME_add_entry_by_txt 3 ,
+.Xr X509_NAME_ENTRY_get_object 3 ,
+.Xr X509_NAME_get_index_by_NID 3 ,
+.Xr X509_NAME_print_ex 3 ,
+.Xr X509_new 3 ,
+.Xr X509_REQ_new 3 ,
+.Xr X509_verify_cert 3 ,
+.Xr X509V3_get_d2i 3
+.Sh HISTORY
+.Fn X509_verify
+appeared in SSLeay 0.4 or earlier.
+.Fn X509_sign
+and
+.Fn X509_REQ_sign
+first appeared in SSLeay 0.4.4.
+.Fn X509_REQ_verify
+and
+.Fn X509_CRL_verify
+first appeared in SSLeay 0.4.5b.
+.Fn X509_CRL_sign
+first appeared in SSLeay 0.5.1.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_sign_ctx ,
+.Fn X509_REQ_sign_ctx ,
+and
+.Fn X509_CRL_sign_ctx
+first appeared in OpenSSL 1.0.1 and have been available since
+.Ox 5.3 .

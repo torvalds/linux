@@ -1,0 +1,149 @@
+.\"	$OpenBSD: mount_tmpfs.8,v 1.5 2022/02/18 23:17:15 jsg Exp $
+.\"	$NetBSD: mount_tmpfs.8,v 1.14 2008/04/30 13:10:53 martin Exp $
+.\"
+.\" Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Julio M. Merino Vidal, developed as part of Google's Summer of Code
+.\" 2005 program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt MOUNT_TMPFS 8
+.Os
+.Sh NAME
+.Nm mount_tmpfs
+.Nd mount an efficient memory file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl g Ar group
+.Op Fl m Ar mode
+.Op Fl n Ar nodes
+.Op Fl o Ar options
+.Op Fl s Ar size
+.Op Fl u Ar user
+.Ar tmpfs
+.Ar mount_point
+.Sh DESCRIPTION
+The
+.Nm
+command attaches an instance of the efficient memory file system to the
+global file system namespace.
+The
+.Ar tmpfs
+parameter only exists for compatibility with the other mount commands and
+is ignored.
+The directory specified by
+.Ar mount_point
+is converted to an absolute path before use and its attributes (owner,
+group and mode) are inherited unless explicitly overridden by the options
+described below.
+.Pp
+The following options are supported:
+.Bl -tag -width XoXoptions
+.It Fl g Ar group
+Specifies the group name or GID of the root inode of the file system.
+Defaults to the mount point's GID.
+.It Fl m Ar mode
+Specifies the mode (in octal notation) of the root inode of the file system.
+Defaults to the mount point's mode.
+.It Fl n Ar nodes
+Specifies the maximum number of nodes available to the file system.
+If not specified, the file system chooses a reasonable maximum given its
+size at mount time, which can be limited with
+.Fl s .
+.It Fl o Ar options
+Options are specified with a
+.Fl o
+flag followed by a comma-separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.It Fl s Ar size
+Specifies the total file system size in bytes.
+If zero is given (the default), the available amount of memory (including
+main memory and swap space) will be used.
+Note that four megabytes are always reserved for the system and cannot
+be assigned to the file system.
+.It Fl u Ar user
+Specifies the user name or UID of the root inode of the file system.
+Defaults to the mount point's UID.
+.El
+.Pp
+Every option that accepts a numerical value as its argument can take a
+trailing
+.Sq b
+to indicate bytes (the default), a
+.Sq k
+to indicate kilobytes, a
+.Sq M
+to indicate megabytes or a
+.Sq G
+to indicate gigabytes.
+Note that both lowercase and uppercase forms of these letters are allowed.
+.Sh EXAMPLES
+The following command mounts a tmpfs instance over the
+.Pa /tmp
+directory, inheriting its owner, group and mode settings:
+.Pp
+.Dl # mount -t tmpfs tmpfs /tmp
+.Pp
+The following command mounts a tmpfs instance over the
+.Pa /mnt
+directory, setting a 20 megabytes limit in space, owned by the
+.Sq joe
+user and belonging to the
+.Sq users
+group, with a restricted 0700 mode:
+.Pp
+.Dl # mount -t tmpfs -o -s20M -o -ujoe -o -gusers -o -m0700 tmpfs /mnt
+.Pp
+A corresponding
+.Xr fstab 5
+entry, using "swap" as a place holder:
+.Pp
+.Dl swap /mnt tmpfs rw,-s20M,-ujoe,-gusers,-m0700 0 0
+.Sh SEE ALSO
+.Xr fstab 5 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Nx 4.0
+and
+.Ox 5.5 .
+.Sh CAVEATS
+The update of mount options (through mount -u) is currently not supported.
+.Sh BUGS
+File system meta-data is not pageable.
+If there is not enough main memory to hold this information, the system may
+become unstable or very unresponsive because it will not be able to allocate
+required memory.
+A malicious user could trigger this condition by creating lots of
+files inside a size-unbounded tmpfs file system.
+Limiting the number of nodes per file system
+.Pq Fl n
+will prevent this; the default value for this setting is also often adjusted
+to an adequate value to resolve this.

@@ -1,0 +1,13 @@
+#	$OpenBSD: disktab,v 1.6 2023/03/06 18:12:48 krw Exp $
+
+# XXX - Would like :ba#4096:fa#512: but that panics...
+# Leave nc=16; adjust size using: ns
+rdroot|ramdiskroot|RAM-disk root FS image:\
+	:dt=rdroot:se#512:nc#16:nt#2:ns#128:\
+	:ta=4.2BSD:oa#0:pa#4096:fa#512:ba#4096:\
+	:oc#0:pc#4096:
+miniroot|Installation root-on-swap FS image:\
+	:dt=rdroot:se#512:ns#32:nt#8:nc#32:\
+	:ta=4.2BSD:oa#0:pa#8192:\
+	:oc#0:pc#8192:
+

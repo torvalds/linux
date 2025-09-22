@@ -1,0 +1,173 @@
+.\"	$OpenBSD: dvmrpd.conf.5,v 1.14 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2005, 2006 Esben Norby <norby@openbsd.org>
+.\" Copyright (c) 2004 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2002 Daniel Hartmeier <dhartmei@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt DVMRPD.CONF 5
+.Os
+.Sh NAME
+.Nm dvmrpd.conf
+.Nd DVMRP routing daemon configuration file
+.Sh DESCRIPTION
+The
+.Xr dvmrpd 8
+daemon implements the Distance Vector Multicast Routing Protocol as described
+in draft-ietf-idmr-dvmrp-v3-11 DVMRP Version 3.
+.Pp
+The
+.Nm
+config file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global settings for
+.Xr dvmrpd 8 .
+A number of global settings can be overruled in specific areas or interfaces.
+.It Sx Groups
+Groups are used to group similar interfaces, simplifying configuration.
+.El
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic area ,
+.Ic interface ,
+or
+.Ic hello-interval ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+hi="60"
+group {
+	interface em0 {
+		query-interval $hi
+	}
+}
+.Ed
+.Pp
+The same can be accomplished by specifying the query-interval
+globally or within the group declaration.
+.Ss Global configuration
+All interface related settings can be configured globally, per group and per
+interface.
+The only settings that can be set globally and not overruled are listed below.
+.Bl -tag -width Ds
+.It Xo
+.Ic mfc-update
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+If set to
+.Ic yes ,
+the kernel Multicast Forwarding Cache is updated with information from the
+daemon.
+The default is
+.Ic yes .
+.El
+.Ss Groups
+Groups can be used to easily configure similar interfaces.
+All interface-specific parameters can
+be configured per group, overruling the global settings.
+.Bl -tag -width Ds
+.It Ic group
+Specify a group section, grouping one or more interfaces.
+.Bd -literal -offset indent
+group {
+	robustness 4
+
+	interface em0
+	interface em1
+}
+.Ed
+.El
+.Ss Interfaces
+Each interface can have several parameters configured individually, otherwise
+they are inherited.
+.Bd -literal -offset indent
+interface em0 {
+}
+.Ed
+.Pp
+Interface-specific parameters are listed below.
+.Bl -tag -width Ds
+.It Ic igmp-version Ar number
+Do not use a newer version than specified.
+Valid range 1\(en2.
+The default version used is 2.
+.It Ic last-member-query-count Ar count
+The default value is equal to the default robustness variable;
+valid range is 1\(en255.
+.It Ic last-member-query-interval Ar seconds
+The default value is 10; valid range is 1\(en65535.
+.It Ic metric Ar cost
+Set the interface metric a.k.a. cost.
+The default value is 1; valid range is
+1\(en31.
+.It Ic passive
+Prevent transmission and reception of IGMP and DVMRP packets on this interface.
+.It Ic query-interval Ar seconds
+Set the query interval.
+The default value is 125 seconds; valid range is 1\(en65535 seconds.
+.It Ic query-response-interval Ar seconds
+Set the query-response-interval; note that this must be less
+than the query-interval.
+The default value is 100 seconds; valid range is 1\(en65535 seconds.
+.It Ic robustness Ar factor
+Set the robustness factor; note that this value might
+have an impact on other variables.
+The default value is 2; valid range is 1\(en4.
+.It Ic startup-query-count Ar count
+Set the startup-query-interval, used during startup to speed up the process of
+building the IGMP table for an interface.
+The default value is equal to the default robustness variable; valid range is
+the same as the robustness variable.
+.It Ic startup-query-interval Ar seconds
+Used during startup, see the startup-query-interval.
+The default value is query-interval / 4; valid range is the same as the
+query-interval.
+.El
+.Sh FILES
+.Bl -tag -width /etc/examples/dvmrpd.conf -compact
+.It Pa /etc/dvmrpd.conf
+.Xr dvmrpd 8
+configuration file.
+.It Pa /etc/examples/dvmrpd.conf
+Example configuration file.
+.El
+.Sh SEE ALSO
+.Xr dvmrpctl 8 ,
+.Xr dvmrpd 8 ,
+.Xr rc.conf.local 8
+.Rs
+.%R "draft-ietf-idmr-dvmrp-v3-11"
+.%T "DVMRP Version 3"
+.%D August 2000
+.Re
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 4.0 .

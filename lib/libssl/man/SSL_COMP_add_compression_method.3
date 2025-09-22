@@ -1,0 +1,43 @@
+.\" $OpenBSD: SSL_COMP_add_compression_method.3,v 1.8 2025/06/08 22:52:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_COMP_ADD_COMPRESSION_METHOD 3
+.Os
+.Sh NAME
+.Nm SSL_COMP_get_compression_methods
+.Nd handle SSL/TLS integrated compression methods
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft STACK_OF(SSL_COMP) *
+.Fn SSL_COMP_get_compression_methods void
+.Sh DESCRIPTION
+This function is deprecated and has no effect.
+It is provided purely for compatibility with legacy application code.
+.Pp
+.Fn SSL_COMP_get_compression_methods
+used to return a stack of available compression methods.
+.Sh RETURN VALUES
+.Fn SSL_COMP_get_compression_methods
+always returns
+.Dv NULL .
+.Sh SEE ALSO
+.Xr ssl 3
+.Sh HISTORY
+.Fn SSL_COMP_get_compression_methods
+first appeared in OpenSSL 0.9.8 and has been available since
+.Ox 4.5 .

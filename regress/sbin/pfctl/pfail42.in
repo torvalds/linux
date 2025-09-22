@@ -1,0 +1,3 @@
+# invalid netmask on v4 address
+
+pass in from 10.0.0.0/64

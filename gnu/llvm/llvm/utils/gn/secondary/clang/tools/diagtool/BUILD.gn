@@ -1,0 +1,18 @@
+executable("diagtool") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/include/clang/Basic:DiagnosticIndexName",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "DiagTool.cpp",
+    "DiagnosticNames.cpp",
+    "FindDiagnosticID.cpp",
+    "ListWarnings.cpp",
+    "ShowEnabledWarnings.cpp",
+    "TreeView.cpp",
+    "diagtool_main.cpp",
+  ]
+}

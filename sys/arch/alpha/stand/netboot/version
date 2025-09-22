@@ -1,0 +1,15 @@
+$OpenBSD: version,v 1.4 2013/12/22 18:31:29 miod Exp $
+$NetBSD: version,v 1.6 1997/01/23 23:10:41 cgd Exp $
+
+1.1:	Initial version
+1.2:	Cleaned and polished a bit
+(OpenBSD 1.1)
+
+1.3:	Use libsa and libkern rather than building the objects locally.
+1.4:	Allow ethernet address to be hardcoded with setnetbootinfo(8).
+1.5:	Search for a kernel, if none specified.
+1.6:	Add support for gzipped kernels.
+(OpenBSD 1.2)
+
+1.3:	Use MI loadfile, warn if kernel image would overlap SRM
+1.4:	Better PALcode switching sequence

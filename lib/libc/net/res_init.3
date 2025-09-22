@@ -1,0 +1,441 @@
+.\"	$OpenBSD: res_init.3,v 1.6 2021/11/24 20:06:32 jca Exp $
+.\"
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 24 2021 $
+.Dt RES_INIT 3
+.Os
+.Sh NAME
+.Nm res_query ,
+.Nm res_search ,
+.Nm res_mkquery ,
+.Nm res_send ,
+.Nm res_init ,
+.Nm dn_comp ,
+.Nm dn_expand
+.Nd resolver routines
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.In arpa/nameser.h
+.In resolv.h
+.Ft int
+.Fo res_query
+.Fa "const char *dname"
+.Fa "int class"
+.Fa "int type"
+.Fa "unsigned char *answer"
+.Fa "int anslen"
+.Fc
+.Ft int
+.Fo res_search
+.Fa "const char *dname"
+.Fa "int class"
+.Fa "int type"
+.Fa "unsigned char *answer"
+.Fa "int anslen"
+.Fc
+.Ft int
+.Fo res_mkquery
+.Fa "int op"
+.Fa "const char *dname"
+.Fa "int class"
+.Fa "int type"
+.Fa "const unsigned char *data"
+.Fa "int datalen"
+.Fa "const unsigned char *newrr"
+.Fa "unsigned char *buf"
+.Fa "int buflen"
+.Fc
+.Ft int
+.Fo res_send
+.Fa "const unsigned char *msg"
+.Fa "int msglen"
+.Fa "unsigned char *answer"
+.Fa "int anslen"
+.Fc
+.Ft int
+.Fn res_init "void"
+.Ft int
+.Fo dn_comp
+.Fa "const char *exp_dn"
+.Fa "unsigned char *comp_dn"
+.Fa "int length"
+.Fa "unsigned char **dnptrs"
+.Fa "unsigned char **lastdnptr"
+.Fc
+.Ft int
+.Fo dn_expand
+.Fa "const unsigned char *msg"
+.Fa "const unsigned char *eomorig"
+.Fa "const unsigned char *comp_dn"
+.Fa "char *exp_dn"
+.Fa "int length"
+.Fc
+.Sh DESCRIPTION
+These routines are used for making, sending, and interpreting
+query and reply messages with Internet domain name servers.
+.Pp
+Global configuration and state information that is used by the
+resolver routines is kept in the structure
+.Va _res .
+Most of the values have reasonable defaults and can be ignored.
+Options stored in
+.Va _res.options
+are defined in
+.In resolv.h
+and are as follows.
+Options are stored as a simple bit mask containing the bitwise OR
+of the options enabled.
+.Bl -tag -width RES_USE_DNSSEC
+.It Dv RES_INIT
+True if the initial name server address and default domain name are
+initialized (i.e.\&
+.Fn res_init
+has been called).
+.It Dv RES_DEBUG
+Print debugging messages,
+if libc is compiled with
+.Dv DEBUG .
+By default on
+.Ox
+this option does nothing.
+.It Dv RES_AAONLY
+Accept authoritative answers only.
+With this option,
+.Fn res_send
+should continue until it finds an authoritative answer or finds an error.
+On
+.Ox
+this option does nothing.
+.It Dv RES_USEVC
+Use TCP connections for queries instead of UDP datagrams.
+.It Dv RES_PRIMARY
+Query the primary name server only.
+On
+.Ox
+this option does nothing.
+.It Dv RES_IGNTC
+Ignore truncation errors, i.e. don't retry with TCP.
+.It Dv RES_RECURSE
+Set the recursion-desired bit in queries.
+.Pf ( Fn res_send
+does not do iterative queries and expects the name server
+to handle recursion.)
+This option is enabled by default.
+.It Dv RES_DEFNAMES
+If set,
+.Fn res_search
+will append the default domain name to single-component names
+(those that do not contain a dot).
+This option is enabled by default.
+.It Dv RES_STAYOPEN
+Used with
+.Dv RES_USEVC
+to keep the TCP connection open between queries.
+This is useful only in programs that regularly do many queries.
+UDP should be the normal mode used.
+.It Dv RES_DNSRCH
+If this option is set,
+.Fn res_search
+will search for host names in the current domain and in parent domains; see
+.Xr hostname 7 .
+This is used by the standard host lookup routine
+.Xr gethostbyname 3 .
+This option is enabled by default.
+.It Dv RES_INSECURE_1
+Do not require the IP source address on the reply packet
+to be equal to the server's address.
+.It Dv RES_INSECURE_2
+Do not check if the query section of the reply packet
+is equal to that of the query packet.
+.It Dv RES_NOALIASES
+This option has no effect.
+In the past, it turned off the legacy
+.Ev HOSTALIASES
+feature.
+.It Dv RES_TRUSTAD
+If set, the resolver routines will set the AD flag in DNS queries and
+preserve the value of the AD flag in DNS replies.
+If not set, the resolver routines will clear the AD flag in responses.
+Direct use of this option to enable AD bit processing is discouraged.
+Instead the use of trusted name servers should be annotated with
+.Dq options trust-ad
+in
+.Xr resolv.conf 5 .
+This option is automatically enabled if
+.Xr resolv.conf 5
+only lists name servers on localhost.
+.It Dv RES_USE_INET6
+With this option
+.Xr gethostbyname 3
+will return IPv6 addresses if available.
+This option is deprecated; software should use the
+.Xr getaddrinfo 3
+interface instead of modifying the behavior of
+.Xr gethostbyname 3 .
+On some operating systems this option also causes IPv4 addresses to be
+returned as IPv4-mapped IPv6 addresses.
+For example, 10.1.1.1 will be returned as ::ffff:10.1.1.1.
+IPv4-mapped IPv6 addresses are not supported on
+.Ox .
+.It Dv RES_USE_EDNS0
+Attach an OPT pseudo-RR for the EDNS0 extension,
+as specified in RFC 2671.
+This informs DNS servers of a client's receive buffer size,
+allowing them to take advantage of a non-default receive buffer size,
+and thus to send larger replies.
+DNS query packets with the EDNS0 extension are not compatible with
+non-EDNS0 DNS servers.
+.Ox
+uses 4096 bytes as input buffer size.
+.It Dv RES_USE_DNSSEC
+Request that the resolver uses
+Domain Name System Security Extensions (DNSSEC),
+as defined in RFCs 4033, 4034, and 4035.
+The resolver routines will use the EDNS0 extension and set the DNSSEC DO
+flag in queries, asking the name server to signal validated records by
+setting the AD flag in the reply and to attach additional DNSSEC
+records.
+The resolver routines will clear the AD flag in replies unless the name
+servers are considered trusted.
+Also, client applications are often only interested in the value of the
+AD flag, making the additional DNSSEC records a waste of network
+bandwidth.
+See the description for
+.Dq options trust-ad
+in
+.Xr resolv.conf 5 .
+.It Dv RES_USE_CD
+Set the Checking Disabled flag on queries.
+.El
+.Pp
+The
+.Fn res_init
+routine reads the configuration file (if any; see
+.Xr resolv.conf 5 )
+to get the default domain name, search list, and the Internet address
+of the local name server(s).
+If no server is configured, the host running
+the resolver is tried.
+The current domain name is defined by the hostname
+if not specified in the configuration file;
+it can be overridden by the environment variable
+.Ev LOCALDOMAIN .
+This environment variable may contain several blank-separated
+tokens if you wish to override the search list on a per-process basis.
+This is similar to the
+.Ic search
+command in the configuration file.
+Another environment variable
+.Ev RES_OPTIONS
+can be set to override certain internal resolver options which
+are otherwise set by changing fields in the
+.Va _res
+structure or are inherited from the configuration file's
+.Ic options
+command.
+The syntax of the
+.Ev RES_OPTIONS
+environment variable is explained in
+.Xr resolv.conf 5 .
+Initialization normally occurs on the first call
+to one of the following routines.
+.Pp
+The
+.Fn res_query
+function provides an interface to the server query mechanism.
+It constructs a query, sends it to the local server,
+awaits a response, and makes preliminary checks on the reply.
+The query requests information of the specified
+.Fa type
+and
+.Fa class
+for the specified fully qualified domain name
+.Fa dname .
+The reply message is left in the
+.Fa answer
+buffer with length
+.Fa anslen
+supplied by the caller.
+Values for the
+.Fa class
+and
+.Fa type
+fields
+are defined in
+.In arpa/nameser.h .
+.Pp
+The
+.Fn res_search
+routine makes a query and awaits a response like
+.Fn res_query ,
+but in addition, it implements the default and search rules controlled by the
+.Dv RES_DEFNAMES
+and
+.Dv RES_DNSRCH
+options.
+It returns the first successful reply.
+.Pp
+The remaining routines are lower-level routines used by
+.Fn res_query .
+The
+.Fn res_mkquery
+function constructs a standard query message and places it in
+.Fa buf .
+It returns the size of the query, or \-1 if the query is larger than
+.Fa buflen .
+The query type
+.Fa op
+is usually
+.Dv QUERY ,
+but can be any of the query types defined in
+.In arpa/nameser.h .
+The domain name for the query is given by
+.Fa dname .
+.Fa newrr
+is currently unused but is intended for making update messages.
+.Pp
+The
+.Fn res_send
+routine sends a pre-formatted query and returns an answer.
+It will call
+.Fn res_init
+if
+.Dv RES_INIT
+is not set, send the query to the local name server, and
+handle timeouts and retries.
+The length of the reply message is returned, or \-1 if there were errors.
+.Pp
+The
+.Fn dn_comp
+function compresses the domain name
+.Fa exp_dn
+and stores it in
+.Fa comp_dn .
+The size of the compressed name is returned or \-1 if there were errors.
+The size of the array pointed to by
+.Fa comp_dn
+is given by
+.Fa length .
+The compression uses an array of pointers
+.Fa dnptrs
+to previously compressed names in the current message.
+The first pointer points
+to the beginning of the message and the list ends with
+.Dv NULL .
+The limit to the array is specified by
+.Fa lastdnptr .
+A side effect of
+.Fn dn_comp
+is to update the list of pointers for labels inserted into the message
+as the name is compressed.
+If
+.Fa dnptrs
+is
+.Dv NULL ,
+names are not compressed.
+If
+.Fa lastdnptr
+is
+.Dv NULL ,
+the list of labels is not updated.
+.Pp
+The
+.Fn dn_expand
+entry expands the compressed domain name
+.Fa comp_dn
+to a full domain name.
+The compressed name is contained in a query or reply message;
+.Fa msg
+is a pointer to the beginning of the message.
+The uncompressed name is placed in the buffer indicated by
+.Fa exp_dn
+which is of size
+.Fa length .
+The size of compressed name is returned or \-1 if there was an error.
+.Sh FILES
+.Bl -tag -width "/etc/resolv.confXX"
+.It Pa /etc/resolv.conf
+The configuration file.
+.El
+.Sh SEE ALSO
+.Xr gethostbyname 3 ,
+.Xr resolv.conf 5 ,
+.Xr hostname 7
+.Sh STANDARDS
+.Rs
+.%A M. Stahl
+.%D November 1987
+.%R RFC 1032
+.%T Domain Administrators Guide
+.Re
+.Pp
+.Rs
+.%A M. Lottor
+.%D November 1987
+.%R RFC 1033
+.%T Domain Administrators Operations Guide
+.Re
+.Pp
+.Rs
+.%A P. Mockapetris
+.%D November 1987
+.%R RFC 1034
+.%T Domain Names \(en Concepts and Facilities
+.Re
+.Pp
+.Rs
+.%A P. Mockapetris
+.%D November 1987
+.%R RFC 1035
+.%T Domain Names \(en Implementation and Specification
+.Re
+.Pp
+.Rs
+.%A J. Klensin
+.%D October 2008
+.%R RFC 5321
+.%T Simple Mail Transfer Protocol
+.Re
+.Sh HISTORY
+The functions
+.Fn res_mkquery ,
+.Fn res_send ,
+.Fn res_init ,
+.Fn dn_comp ,
+and
+.Fn dn_expand
+appeared in
+.Bx 4.3 .
+The functions
+.Fn res_query
+and
+.Fn res_search
+appeared in
+.Bx 4.3 Tahoe .

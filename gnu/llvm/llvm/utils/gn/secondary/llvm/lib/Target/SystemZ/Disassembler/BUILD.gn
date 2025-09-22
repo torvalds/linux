@@ -1,0 +1,21 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("SystemZGenDisassemblerTables") {
+  visibility = [ ":Disassembler" ]
+  args = [ "-gen-disassembler" ]
+  td_file = "../SystemZ.td"
+}
+
+static_library("Disassembler") {
+  output_name = "LLVMSystemZDisassembler"
+  deps = [
+    ":SystemZGenDisassemblerTables",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/SystemZ/MCTargetDesc",
+    "//llvm/lib/Target/SystemZ/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "SystemZDisassembler.cpp" ]
+}

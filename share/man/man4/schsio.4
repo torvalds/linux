@@ -1,0 +1,95 @@
+.\"	$OpenBSD: schsio.4,v 1.4 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2009 Michael Knudsen <mk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: July 16 2013 $
+.Dt SCHSIO 4
+.Os
+.Sh NAME
+.Nm schsio
+.Nd SMSC SCH311x LPC Super I/O
+.Sh SYNOPSIS
+.Cd "schsio* at isa? port 0x2e   flags 0x0000"
+.Cd "schsio* at isa? port 0x4e   flags 0x0000"
+.Cd "schsio* at isa? port 0x162e flags 0x0000"
+.Cd "schsio* at isa? port 0x164e flags 0x0000"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the SMSC SCH3112, SCH3114, and SCH3116
+ICs.
+Among other things, the devices contain environment sensors, a watchdog
+timer, and fan control.
+The
+.Nm
+driver supports the environment sensors and the watchdog timer.
+.Pp
+The hardware provides the following sensors:
+.Bl -column "Internal diode" "Units" "Typical" -offset indent
+.It Sy "Sensor" Ta Sy "Units" Ta Sy "Typical use"
+.It Li "Internal diode" Ta "uK" Ta "IC internal thermal diode"
+.It Li "Remote diode 1" Ta "uK" Ta "External thermal diode"
+.It Li "Remove diode 2" Ta "uK" Ta "External thermal diode"
+.It Li "FAN1" Ta "RPM" Ta "Fan tachometer"
+.It Li "FAN2" Ta "RPM" Ta "Fan tachometer"
+.It Li "FAN3" Ta "RPM" Ta "Fan tachometer"
+.It Li "+2.5V" Ta "uV" Ta "Voltage"
+.It Li "+1.5V (Vccp)" Ta "uV" Ta "Voltage"
+.It Li "+3.3V (VCC)" Ta "uV" Ta "Voltage"
+.It Li "+5V" Ta "uV" Ta "Voltage"
+.It Li "+12V" Ta "uV" Ta "Voltage"
+.It Li "+3.3V (VTR)" Ta "uV" Ta "Voltage"
+.It Li "+3V (Vbat)" Ta "uV" Ta "Voltage"
+.El
+.Pp
+.Nm
+provides the standard
+.Xr watchdog 4
+interface and may be used with
+.Xr watchdogd 8 .
+The watchdog timer may be configured to a value from 1 second to 255
+minutes.
+The watchdog timer has a resolution of 1 second in the timeout interval
+1 to 255 seconds.
+Outside this interval, the resolution is 1 minute.
+.Pp
+Note that the pin used for signalling the timer expiration is
+configurable and may on some boards be intended for other uses than this.
+Because of this, the chip may not by default be configured to use the
+pin for watchdog operation.
+To force the
+.Nm
+device to use the pin for watchdog operation, the driver may be
+configured with an
+.Xr autoconf 9
+.Ar flags
+setting of 0x0001.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr watchdog 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8 ,
+.Xr watchdogd 8 ,
+.Xr autoconf 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.5 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Michael Knudsen Aq Mt mk@openbsd.org .

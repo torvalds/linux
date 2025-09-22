@@ -1,0 +1,568 @@
+.\"	$OpenBSD: afterboot.8,v 1.175 2025/05/05 20:50:03 tedu Exp $
+.\"
+.\" Copyright (c) 1997 Marshall M. Midden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Marshall M. Midden.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 5 2025 $
+.Dt AFTERBOOT 8
+.\" Originally created by Marshall M. Midden -- 1997-10-20, m4@umn.edu
+.Os
+.Sh NAME
+.Nm afterboot
+.Nd things to check after the first complete boot
+.Sh DESCRIPTION
+.Ss Starting out
+This document attempts to list items for the system administrator
+to check and set up after the installation and first complete boot of the
+system.
+The idea is to create a list of items that can be checked off so that you have
+a warm fuzzy feeling that something obvious has not been missed.
+A basic knowledge of
+.Ux
+is assumed, otherwise run:
+.Pp
+.Dl $ help
+.Pp
+Complete instructions for correcting and fixing items are not provided.
+There are manual pages and other methodologies available for doing that.
+For example, to view the man page for the
+.Xr ls 1
+command, run:
+.Pp
+.Dl $ man 1 ls
+.Pp
+Administrators will rapidly become more familiar with
+.Ox
+by using the high quality manual pages.
+.Pp
+Some base programs and subsystems also come with sample configuration
+files in
+.Pa /etc/examples .
+.Ss Errata
+By the time that you have installed your system, it is possible that
+bugs in the release have been found.
+Security or reliability fixes can be found at
+.Lk https://www.openbsd.org/errata.html .
+Binary updates are made available for some architectures and can be installed
+using
+.Xr syspatch 8 .
+.Ss Login
+Log in on the console, or over the network using
+.Xr ssh 1 .
+For security reasons, it is bad practice to log in as root during regular use
+and maintenance of the system.
+Instead, administrators are encouraged to add a
+.Dq regular
+user, add said user to the
+.Dq wheel
+group, then use the
+.Xr su 1
+and
+.Xr doas 1
+commands when root privileges are required.
+.Pp
+The installation process provides an option to set up a user account.
+By default, accounts created via this method are automatically added to
+the
+.Dq wheel
+group.
+If that option was not used, see the paragraph
+.Sx Add new users
+below.
+.Pp
+To deny root logins over the network, edit the
+.Pa /etc/ssh/sshd_config
+file and set
+.Cm PermitRootLogin
+to
+.Dq no
+(see
+.Xr sshd_config 5 ) .
+.Ss Root password
+Change the password for the root user.
+(Note that throughout the documentation, the term
+.Dq superuser
+is a synonym for the root user.)
+Choose a password that has digits and special characters
+as well as from the upper and lower case alphabet.
+Do not choose any word in any language.
+It is common for an intruder to use dictionary attacks.
+Run the following command to change it:
+.Pp
+.Dl # passwd root
+.Pp
+To avoid the possibility of running rogue files placed in
+the superuser's
+.Ev PATH ,
+it should never contain the current directory
+.Pq Dq \&. .
+.Ss System date
+.Xr ntpd 8
+is used to automatically synchronize clocks with remote NTP servers.
+You can use
+.Xr ntpctl 8
+to check the status.
+To change the NTP server, see
+.Xr ntpd.conf 5 .
+.Pp
+Check the system date with the
+.Xr date 1
+command.
+If needed, change the date, and/or change the symbolic link of
+.Pa /etc/localtime
+to the correct time zone in the
+.Pa /usr/share/zoneinfo
+directory.
+.Pp
+Examples:
+.Pp
+Set the current date to January 27th, 2016 3:04pm:
+.Dl # date 201601271504
+.Pp
+Set the time zone to Atlantic Standard Time:
+.Dl # ln -fs /usr/share/zoneinfo/Canada/Atlantic /etc/localtime
+.Ss Check hostname
+Use the
+.Ic hostname
+command to verify that the name of your machine is correct.
+See the man page for
+.Xr hostname 1
+if it needs to be changed.
+You will also need to edit the
+.Pa /etc/myname
+file to have it stick around for the next reboot.
+.Ss Verify network interface configuration and routing tables
+The first thing to do is an
+.Ic ifconfig -a
+to see if the network interfaces are properly configured.
+Correct by editing
+.Pa /etc/hostname. Ns Ar interface
+(where
+.Ar interface
+is the interface name or link layer address, e.g.,
+.Dq em0 )
+and then using
+.Xr ifconfig 8
+to manually configure it
+if you do not wish to reboot.
+Read the
+.Xr hostname.if 5
+man page for more information on the format of
+.Pa /etc/hostname. Ns Ar interface
+files and instructions on configuring dynamic addresses.
+.Pp
+Routing tables are manipulated using
+.Xr route 8 .
+They can be viewed by issuing
+.Dq route -n show .
+The default gateway address is stored in the
+.Xr mygate 5
+file.
+If you need to edit this file, a painless way to reconfigure the network
+afterwards is
+.Ic route flush
+followed by a
+.Ic sh -x /etc/netstart
+command.
+Or, you may prefer to manually configure using a series of
+.Ic route add
+and
+.Ic route delete
+commands.
+.Pp
+Packets are not forwarded by default, due to RFC requirements.
+If you wish to route packets between interfaces, add one or both
+of the following directives (depending on whether IPv4 or IPv6 routing
+is required) to
+.Xr sysctl.conf 5 :
+.Pp
+.Dl net.inet.ip.forwarding=1
+.Dl net.inet6.ip6.forwarding=1
+.Pp
+See
+.Xr multicast 4
+for instructions on configuring multicast routing.
+.Ss Check DNS
+Use
+.Xr host 1
+or
+.Xr dig 1
+to check that domain name resolution is working properly.
+.Pp
+Most likely, the IP address of at least one domain name server
+was added to
+.Xr resolv.conf 5
+while installing the system.
+.Xr resolvd 8
+maintains
+.Pa /etc/resolv.conf
+at runtime.
+.Pp
+A
+.Xr hosts 5
+file can be used if there is a need for system specific name
+resolution entries.
+.Ss Check disk mounts
+Check that the disks are mounted correctly by
+comparing the
+.Pa /etc/fstab
+file against the output of the
+.Xr mount 8
+and
+.Xr df 1
+commands.
+Examples:
+.Bd -literal -offset indent
+# cat /etc/fstab
+/dev/sd0a / ffs rw 1 1
+/dev/sd0d /usr ffs rw,nodev 1 2
+/dev/sd0e /var ffs rw,nodev,nosuid 1 3
+/dev/sd0g /tmp ffs rw,nodev,nosuid 1 4
+/dev/sd0h /home ffs rw,nodev,nosuid 1 5
+
+# mount
+/dev/sd0a on / type ffs (local)
+/dev/sd0d on /usr type ffs (local, nodev)
+/dev/sd0e on /var type ffs (local, nodev, nosuid)
+/dev/sd0g on /tmp type ffs (local, nodev, nosuid)
+/dev/sd0h on /home type ffs (local, nodev, nosuid)
+
+# df
+Filesystem  1024-blocks     Used    Avail Capacity  Mounted on
+/dev/sd0a         22311    14589     6606    69%    /
+/dev/sd0d        203399   150221    43008    78%    /usr
+/dev/sd0e         10447      682     9242     7%    /var
+/dev/sd0g         18823        2    17879     0%    /tmp
+/dev/sd0h          7519     5255     1888    74%    /home
+
+# pstat -s
+Device      512-blocks     Used    Avail Capacity  Priority
+/dev/sd0b       131072    84656    46416    65%    0
+.Ed
+.Pp
+Edit
+.Pa /etc/fstab
+and use the
+.Xr mount 8
+and
+.Xr umount 8
+commands as appropriate.
+Refer to the above example and
+.Xr fstab 5
+for information on the format of this file.
+.Pp
+You may wish to configure NFS partitions now too, or you can do them later.
+.Ss Check the running system
+You can use
+.Xr ps 1 ,
+.Xr netstat 1 ,
+and
+.Xr fstat 1
+to check on running processes, network connections, and opened files,
+respectively.
+.Sh FURTHER CHANGES
+The system should be usable now, but you may wish to do more customizing,
+such as adding users, etc.
+We suggest that you
+.Ic cd /etc
+and edit any files in that directory as necessary.
+.Pp
+Note that the
+.Pa /etc/motd
+file is modified by
+.Pa /etc/rc
+whenever the system is booted.
+To keep any custom message intact, ensure that you leave two blank lines
+at the top, or your message will be overwritten.
+.Ss Add new users
+Add users.
+There is an
+.Xr adduser 8
+script.
+You may use
+.Xr vipw 8
+to add users to the
+.Pa /etc/passwd
+file
+and edit
+.Pa /etc/group
+by hand to add new groups.
+You may also wish to edit
+.Pa /etc/login.conf
+and tune some of the limits documented in
+.Xr login.conf 5 .
+The manual page for
+.Xr su 1
+tells you to make sure to put people in
+the
+.Sq wheel
+group if they need root access.
+For example:
+.Pp
+.Dl wheel:*:0:root,myself
+.Ss System command scripts
+The
+.Pa /etc/rc.*\&
+scripts are invoked at boot time, after single-user mode has exited,
+and at shutdown.
+The whole process is controlled, more or less, by the master script
+.Pa /etc/rc .
+This script should not be changed by administrators.
+.Pp
+.Pa /etc/rc
+is in turn influenced by the configuration variables present in
+.Pa /etc/rc.conf .
+Again, this script should not be changed by administrators:
+site-specific changes should be made to
+.Pq freshly created if necessary
+.Pa /etc/rc.conf.local
+or by using the
+.Xr rcctl 8
+utility.
+.Pp
+Any commands which should be run before the system sets its
+secure level should be made to
+.Pa /etc/rc.securelevel ,
+and commands to be run after the system sets its
+secure level should be made to
+.Pa /etc/rc.local .
+Commands to be run before system shutdown should be set in
+.Pa /etc/rc.shutdown .
+.Pp
+For more information about system startup/shutdown files, see
+.Xr rc 8 ,
+.Xr rc.conf 8 ,
+.Xr securelevel 7 ,
+and
+.Xr rc.shutdown 8 .
+.Pp
+If you've installed X, you may want to turn on
+.Xr xenodm 1 ,
+the X Display Manager.
+To do this, change the value of
+.Va xenodm_flags
+in
+.Pa /etc/rc.conf.local .
+.Ss Set keyboard type
+Some architectures permit keyboard type control.
+Use the
+.Xr kbd 8
+command to change the keyboard encoding.
+.Ic kbd -l
+will list all available encodings.
+.Ic kbd xxx
+will select the
+.Ic xxx
+encoding.
+Store the encoding in
+.Pa /etc/kbdtype
+to make sure it is set automatically at boot time.
+.Ss Printers
+Edit
+.Pa /etc/printcap
+and
+.Pa /etc/hosts.lpd
+to set up any printers.
+Consult
+.Xr lpd 8
+and
+.Xr printcap 5
+if needed.
+.Ss Audio and video recording
+The
+.Xr audio 4
+and
+.Xr video 4
+drivers by default record only silence and blanked images.
+Normal recording can be enabled by adding the following directives to
+.Xr sysctl.conf 5 :
+.Bd -literal -offset indent
+kern.audio.record=1
+kern.video.record=1
+.Ed
+.Ss Power management
+If the BIOS supports it,
+.Xr apmd 8
+can be configured to act on different events and adjust device performance.
+In the following example it is configured to start on boot in automatic
+performance adjustment mode and suspend the system if no AC is connected and
+the estimated battery life is equal or below 15%:
+.Bd -literal -offset indent
+# rcctl set apmd status on
+# rcctl set apmd flags -A -z 15
+.Ed
+.Ss Mail aliases
+Edit
+.Pa /etc/mail/aliases
+and set the three standard aliases to go to either a mailing list, or
+the system administrator.
+.Bd -literal -offset indent
+# Well-known aliases -- these should be filled in!
+root:		sysadm
+manager:	root
+dumper:		root
+.Ed
+.Ss Mail
+The default mail agent on
+.Ox
+is
+.Xr smtpd 8 .
+Details on how to configure an alternative mailer are documented in
+.Xr mailer.conf 5 .
+.Pp
+.Ox
+ships with a default
+.Pa /etc/mail/smtpd.conf
+file that will work for simple installations.
+See
+.Xr smtpd.conf 5
+for information on configuring more complex setups.
+For the default installation,
+.Xr smtpd 8
+is configured to only accept connections from the local host.
+This makes it possible to send mail locally, but not receive mail from remote
+servers, which is ideal if you have one central incoming mail machine and
+several clients.
+To cause smtpd to accept external network connections, modify the
+.Ic listen on
+directive in
+.Pa /etc/mail/smtpd.conf
+to include the interfaces to listen on.
+.Ss Daily, weekly, monthly scripts
+Review
+.Xr daily 8
+to understand what the periodic system maintenance scripts do and
+how to customize them:
+For example, to enable
+.Ev ROOTBACKUP
+or to add local maintenance code to
+.Pa /etc/daily.local , /etc/weekly.local ,
+or
+.Pa /etc/monthly.local .
+.Ss Tighten up security
+You might wish to tighten up security more by editing
+.Pa /etc/fbtab
+as when installing X.
+Look at the other files in
+.Pa /etc
+and edit them as needed.
+(Do not edit files ending in
+.Pa .db
+\(em like
+.Pa pwd.db , spwd.db ,
+nor
+.Pa localtime ,
+nor
+.Pa rmt ,
+nor any directories.)
+.Ss Crontab (background running processes)
+Check what is running by typing
+.Ic crontab -l
+as root
+and see if anything unexpected is present.
+Do you need anything else?
+Do you wish to change things?
+See
+.Xr crontab 5 .
+.Ss Next day cleanup
+After the first night's
+.Xr security 8
+run, change ownerships and permissions
+on files, directories, and devices; root may have received mail
+with subject: "<hostname> daily insecurity output".
+This mail contains a set of security recommendations,
+presented as a list looking something like this:
+.Bd -literal -offset indent
+var/mail:
+        permissions (0755, 0775)
+etc/daily:
+        user (0, 3)
+.Ed
+.Pp
+The best bet is to follow the advice in that list.
+The recommended setting is the first item in parentheses, while
+the current setting is the second one.
+This list is generated by
+.Xr mtree 8
+using
+.Pa /etc/mtree/special .
+Use
+.Xr chmod 1 ,
+.Xr chgrp 1 ,
+and
+.Xr chown 8
+as needed.
+.Ss Daemons
+Enable/disable any daemon processes as necessary.
+.Xr intro 8
+contains a comprehensive guide to the various daemons available on the
+.Ox
+system.
+.Ss Packages
+Install your own packages.
+The
+.Ox
+ports collection includes a large set of third-party software.
+Most of it is available as binary packages that you can install using
+.Xr pkg_add 1 .
+See
+.Xr packages 7
+for more details.
+To start daemons installed from packages, see
+.Xr rc.d 8 .
+.Pp
+There is also other third-party software that is available
+in source form only, either because it has not been ported to
+.Ox
+yet, or because licensing restrictions make binary redistribution
+impossible.
+Sometimes checking the mailing lists for
+past problems that people have encountered will result in a fix posted.
+.Ss Compiling a kernel
+Information on building and modifying kernels
+is contained within
+.Xr config 8 .
+.Sh SEE ALSO
+.Xr doas 1 ,
+.Xr ksh 1 ,
+.Xr man 1 ,
+.Xr pkg_add 1 ,
+.Xr ps 1 ,
+.Xr vi 1 ,
+.Xr multicast 4 ,
+.Xr hier 7 ,
+.Xr config 8 ,
+.Xr dmesg 8 ,
+.Xr ifconfig 8 ,
+.Xr intro 8 ,
+.Xr rcctl 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+This document first appeared in
+.Ox 2.2 .

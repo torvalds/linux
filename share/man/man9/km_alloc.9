@@ -1,0 +1,181 @@
+.\"	$OpenBSD: km_alloc.9,v 1.9 2019/12/06 19:15:16 jmc Exp $
+.\" Copyright (c) 2011 Artur Grabowski <art@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 6 2019 $
+.Dt KM_ALLOC 9
+.Os
+.Sh NAME
+.Nm km_alloc ,
+.Nm km_free
+.Nd kernel memory allocator
+.Sh SYNOPSIS
+.In sys/types.h
+.In uvm/uvm_extern.h
+.Ft void *
+.Fn km_alloc "size_t sz" "const struct kmem_va_mode *kv" "const struct kmem_pa_mode *kp" "const struct kmem_dyn_mode *kd"
+.Ft void
+.Fn km_free "void *v" "size_t sz" "const struct kmem_va_mode *kv" "const struct kmem_pa_mode *kp"
+.Sh DESCRIPTION
+The
+.Fn km_alloc
+function allocates kernel virtual space optionally backed by physical pages.
+The
+.Fn km_free
+function frees the space that was previously allocated by
+.Fn km_alloc .
+.Pp
+The
+.Fa sz
+argument specifies the size of the allocation and must be a multiple
+of
+.Dv PAGE_SIZE .
+The
+.Fa kv
+and
+.Fa kp
+arguments specify the type of virtual and physical memory to be allocated.
+The
+.Fa kd
+argument specifies additional options for the allocation.
+The arguments passed to
+.Fn km_free
+must match those that were used to obtain the space in
+.Fn km_alloc .
+.Pp
+Typically a user will use certain predefined modes for memory allocation.
+For virtual space the predefined modes are:
+.Pp
+.Bl -tag -width kv_intrsafe -offset 3n -compact
+.It kv_any
+Allocates the virtual space anywhere.
+.It kv_intrsafe
+Allocates the virtual space in the interrupt safe map.
+.It kv_page
+Allocates single pages.
+.El
+.Pp
+For physical pages the predefined modes are:
+.Pp
+.Bl -tag -width kp_pageable -offset 3n -compact
+.It kp_dirty
+Maps dirty pages into the allocation.
+.It kp_zero
+Maps zeroed pages into the allocation.
+.It kp_dma
+Maps dma-accessible pages into the allocation.
+.It kp_dma_zero
+Maps zeroed dma-accessible pages into the allocation.
+.It kp_pageable
+Pages will be demand paged.
+.It kp_none
+Leaves the allocation unmapped.
+.El
+.Pp
+The other parameters for allocation are:
+.Pp
+.Bl -tag -width kd_trylock -offset 3n -compact
+.It kd_waitok
+Sleeping for physical pages is allowed.
+.It kd_nowait
+Sleeping is not allowed.
+.It kd_trylock
+Fail if the allocator cannot obtain locks without waiting.
+.El
+.Pp
+In case the predefined allocation modes are not sufficient, a custom allocation
+mode can be created.
+The structure controlling the virtual space allocation is:
+.Bd -literal
+struct kmem_va_mode {
+	struct vm_map **kv_map;
+	vsize_t kv_align;
+	int kv_wait;
+	int kv_singlepage;
+};
+.Ed
+.Bl -tag -width kv_singlepage
+.It kv_map
+A pointer to the pointer to the uvm_map the space will be allocated from.
+.It kv_align
+Alignment constraint of the allocated space.
+.It kv_wait
+A flag indicating whether the allocator should wait for space to be freed if
+the allocation cannot be satisfied.
+.It kv_singlepage
+A flag indicating if the allocations will always be for single pages.
+.El
+.Bd -literal
+struct kmem_pa_mode {
+	struct uvm_constraint_range *kp_constraint;
+	struct uvm_object **kp_object;
+	paddr_t kp_align;
+	paddr_t kp_boundary;
+	int kp_nomem;
+	int kp_maxseg;
+	int kp_zero;
+	int kp_pageable;
+};
+.Ed
+.Bl -tag -width kp_constraint
+.It kp_constraint
+A pointer to physical allocation constraints.
+.It kp_object
+A pointer to a pointer to a uvm_object if the pages should be backed by a
+kernel object.
+.It kp_align
+Physical alignment of the first page in the allocation.
+.It kp_boundary
+Boundary that the physical addresses can't cross if the allocation is
+contiguous.
+.It kp_nomem
+A flag that specifies that the allocation should not be backed by physical
+pages.
+.It kp_maxseg
+Maximal amount of contiguous physical segments in the allocation.
+.It kp_zero
+A flag that specifies if the returned memory should be zeroed.
+.It kp_pageable
+A flag that specifies if the returned memory should be demand paged from the
+backing object instead of being allocated up front.
+.El
+.Bd -literal
+struct kmem_dyn_mode {
+	int kd_waitok;
+	int kd_trylock;
+	voff_t kd_prefer;
+	int *kd_slowdown;
+};
+.Ed
+.Bl -tag -width kd_slowdown
+.It kd_waitok
+A flag that specifies if the allocator may sleep waiting for memory.
+.It kd_trylock
+A flag that specifies if the allocator should fail if it can't immediately
+obtain a lock.
+.It kd_prefer
+An offset given to PMAP_PREFER to virtually align the allocated space.
+.It kd_slowdown
+A pointer to an integer that will be set to 1 if the internal single page
+allocator needs the caller to back off to allow the allocator to catch up.
+.El
+.Sh RETURN VALUES
+.Fn km_alloc
+returns a kernel virtual address or
+.Dv NULL
+if the allocation cannot be satisfied.
+.Sh SEE ALSO
+.Xr malloc 9 ,
+.Xr uvm_init 9

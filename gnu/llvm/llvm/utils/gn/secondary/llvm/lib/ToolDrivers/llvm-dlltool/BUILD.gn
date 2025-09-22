@@ -1,0 +1,18 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Options") {
+  visibility = [ ":DlltoolDriver" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+static_library("DlltoolDriver") {
+  output_name = "LLVMDlltoolDriver"
+  deps = [
+    ":Options",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "DlltoolDriver.cpp" ]
+}

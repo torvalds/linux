@@ -1,0 +1,1063 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>container_base Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>container_base</tt> Interface</h1>
+
+    <p>An abstract basic associative container.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/assoc_container.hpp"><tt>assoc_container.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Template Parameters</a></h2>
+
+    <table class="c1" width="100%" border="1" summary=
+    "Template Parameters">
+      <tr>
+        <td width="20%" align="left"><b>Parameter</b></td>
+
+        <td width="50%" align="left"><b>Description</b></td>
+
+        <td width="30%" align="left"><b>Default Value</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Key2501" id="Key2501"><b>typename</b> Key</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Key type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Mapped318655" id="Mapped318655"><b>typename</b> Mapped</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Mapped type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Tag278938" id="Tag278938"><b>class</b> Tag</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Data structure tag.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Policy_Tl42017403" id=
+"Policy_Tl42017403"><b>class</b> Policy_Tl</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Policy typelist.</p>
+
+          <p>Contains subclasses' policies.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Allocator35940069" id=
+"Allocator35940069"><b>class</b> Allocator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Allocator type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link3" id="link3">General Container
+    Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="size_type55424436" id="size_type55424436">size_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#Allocator35940069"><tt>Allocator</tt></a>::size_type
+</pre>
+        </td>
+
+        <td>
+          <p>Size type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="difference_type868028452" id=
+"difference_type868028452">difference_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#Allocator35940069"><tt>Allocator</tt></a>::difference_type
+</pre>
+        </td>
+
+        <td>
+          <p>Difference type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link4" id="link4">Categories</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="container_category1247973216" id=
+"container_category1247973216">container_category</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Tag278938"><tt>Tag</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>The underlying mapped-structure tag of the
+          container.</p>
+
+          <p>This is one of:</p>
+
+          <ol>
+            <li><a href="cc_hash_tag.html"><span class=
+            "c2"><tt>cc_hash_tag</tt></span></a></li>
+
+            <li><a href="gp_hash_tag.html"><span class=
+            "c2"><tt>gp_hash_tag</tt></span></a></li>
+
+            <li><a href="rb_tree_tag.html"><span class=
+            "c2"><tt>rb_tree_tag</tt></span></a></li>
+
+            <li><a href="ov_tree_tag.html"><span class=
+            "c2"><tt>ov_tree_tag</tt></span></a></li>
+
+            <li><a href="splay_tree_tag.html"><span class=
+            "c2"><tt>splay_tree_tag</tt></span></a></li>
+
+            <li><a href="pat_trie_tag.html"><span class=
+            "c2"><tt>pat_trie_tag</tt></span></a></li>
+
+            <li><a href="list_update_tag.html"><span class=
+            "c2"><tt>list_update_tag</tt></span></a></li>
+          </ol>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link5" id="link5">Policy Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="allocator48440069" id="allocator48440069">allocator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Allocator35940069"><tt>Allocator</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p><a href="#Allocator35940069"><tt>Allocator</tt></a>
+          type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link6" id="link6">Key-Type Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="key_type10393186" id="key_type10393186">key_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href="#Key2501"><tt>Key</tt></a>&gt;::other::value_type
+</pre>
+        </td>
+
+        <td>
+          <p><a href="#Key2501"><tt>Key</tt></a> type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="key_reference2411522399" id=
+"key_reference2411522399">key_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#key_type10393186"><tt>key_type</tt></a>&gt;::other::reference
+</pre>
+        </td>
+
+        <td>
+          <p><a href="#Key2501"><tt>Key</tt></a> reference
+          type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_key_reference3185471705" id=
+"const_key_reference3185471705">const_key_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#key_type10393186"><tt>key_type</tt></a>&gt;::other::const_reference
+</pre>
+        </td>
+
+        <td>
+          <p>Const key reference type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="key_pointer1299054769" id=
+"key_pointer1299054769">key_pointer</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#key_type10393186"><tt>key_type</tt></a>&gt;::other::pointer
+</pre>
+        </td>
+
+        <td>
+          <p><a href="#Key2501"><tt>Key</tt></a> pointer type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_key_pointer3735194427" id=
+"const_key_pointer3735194427">const_key_pointer</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#key_type10393186"><tt>key_type</tt></a>&gt;::other::const_pointer
+</pre>
+        </td>
+
+        <td>
+          <p>Const key pointer type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link7" id="link7">Mapped-Type Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="mapped_type1308374436" id=
+"mapped_type1308374436">mapped_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Mapped318655"><tt>Mapped</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p><a href="#Mapped318655"><tt>Mapped</tt></a> type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="mapped_reference4153801225" id=
+"mapped_reference4153801225">mapped_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#mapped_type1308374436"><tt>mapped_type</tt></a>&gt;::other::reference
+</pre>
+        </td>
+
+        <td>
+          <p><a href="#Mapped318655"><tt>Mapped</tt></a> reference
+          type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_mapped_reference2113216667" id=
+"const_mapped_reference2113216667">const_mapped_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#mapped_type1308374436"><tt>mapped_type</tt></a>&gt;::other::const_reference
+</pre>
+        </td>
+
+        <td>
+          <p>Const mapped reference type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="mapped_pointer337953771" id=
+"mapped_pointer337953771">mapped_pointer</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#mapped_type1308374436"><tt>mapped_type</tt></a>&gt;::other::pointer
+</pre>
+        </td>
+
+        <td>
+          <p><a href="#Mapped318655"><tt>Mapped</tt></a> pointer
+          type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_mapped_pointer4207700301" id=
+"const_mapped_pointer4207700301">const_mapped_pointer</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#mapped_type1308374436"><tt>mapped_type</tt></a>&gt;::other::const_pointer
+</pre>
+        </td>
+
+        <td>
+          <p>Const mapped pointer type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link8" id="link8">Value-Type Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="value_type279018186" id=
+"value_type279018186">value_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<br />
+If <a href="#Mapped318655"><tt>Mapped</tt></a> is <a href=
+"null_mapped_type.html"><span class=
+"c2"><tt>null_mapped_type</tt></span></a>, then <a href=
+"#Key2501"><tt>Key</tt></a><br />
+Otherwise, <a href="#Mapped318655"><tt>Mapped</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Value type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="reference54418471" id="reference54418471">reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#value_type279018186"><tt>value_type</tt></a>&gt;::other::reference
+</pre>
+        </td>
+
+        <td>
+          <p>Value reference type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_reference495461441" id=
+"const_reference495461441">const_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#value_type279018186"><tt>value_type</tt></a>&gt;::other::const_reference
+</pre>
+        </td>
+
+        <td>
+          <p>Const value <a href=
+          "#reference54418471"><tt>reference</tt></a> type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="pointer2179769" id="pointer2179769">pointer</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#value_type279018186"><tt>value_type</tt></a>&gt;::other::pointer
+</pre>
+        </td>
+
+        <td>
+          <p>Value pointer type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_pointer878814947" id=
+"const_pointer878814947">const_pointer</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#allocator48440069"><tt>allocator</tt></a>::<b>template</b> rebind&lt;
+    <a href=
+"#value_type279018186"><tt>value_type</tt></a>&gt;::other::const_pointer
+</pre>
+        </td>
+
+        <td>
+          <p>Const Value <a href=
+          "#pointer2179769"><tt>pointer</tt></a> type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link9" id="link9">Iterator Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_point_iterator2364676009" id=
+"const_point_iterator2364676009">const_point_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+Const point-type iterator.
+</pre>
+        </td>
+
+        <td>
+          <p>Const point-type iterator.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="point_iterator2789896775" id=
+"point_iterator2789896775">point_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<br />
+Point-type iterator.<br />
+If <a href="#Mapped318655"><tt>Mapped</tt></a> is <a href=
+"null_mapped_type.html"><span class=
+"c2"><tt>null_mapped_type</tt></span></a>, then this is synonymous to <a href="#const_point_iterator2364676009"><tt>const_point_iterator</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Point-type iterator.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_iterator98626788" id=
+"const_iterator98626788">const_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+Const range-type iterator.
+</pre>
+        </td>
+
+        <td>
+          <p>Const range-type iterator.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="iterator10418194" id="iterator10418194">iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<br />
+Range-type iterator.<br />
+If <a href="#Mapped318655"><tt>Mapped</tt></a> is <a href=
+"null_mapped_type.html"><span class=
+"c2"><tt>null_mapped_type</tt></span></a>, then this is synonymous to <a href="#const_iterator98626788"><tt>const_iterator</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Range-type iterator.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link10" id="link10">Public Methods</a></h2>
+
+    <h3><a name="link11" id="link11">Constructors, Destructor, and
+    Related</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> 
+  ~container_base
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Destructor.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link12" id="link12">Information Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <a href="#size_type55424436"><tt>size_type</tt></a>
+  size
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the number of distinct <a href=
+          "#value_type279018186"><tt>value_type</tt></a> objects
+          the container object is storing.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <a href="#size_type55424436"><tt>size_type</tt></a>
+  max_size
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns an upper bound on the number of distinct
+          <a href="#value_type279018186"><tt>value_type</tt></a>
+          objects this container can store.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>bool</b>
+  empty
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns whether the container object is not storing
+          any <a href=
+          "#value_type279018186"><tt>value_type</tt></a>
+          objects.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link13" id="link13">Insert Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+std::pair&lt;<a href=
+"#point_iterator2789896775"><tt>point_iterator</tt></a>, <b>bool</b>&gt;
+  insert
+  (<a href=
+"#const_reference495461441"><tt>const_reference</tt></a> r_val)
+</pre>
+        </td>
+
+        <td>
+          <p>Inserts a <a href=
+          "#value_type279018186"><tt>value_type</tt></a> object. If
+          no <a href="#value_type279018186"><tt>value_type</tt></a>
+          with <span class="c1"><tt>r_val</tt></span>'s key was in
+          the container object, inserts and returns (<a href=
+          "#point_iterator2789896775"><tt>point_iterator</tt></a>
+          object associated with <span class=
+          "c1"><tt>r_val</tt></span>, <tt><b>true</b></tt>);
+          otherwise just returns (<a href=
+          "#point_iterator2789896775"><tt>point_iterator</tt></a>
+          object associated with <span class=
+          "c1"><tt>r_val</tt></span>'s key,
+          <tt><b>false</b></tt>).</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#mapped_reference4153801225"><tt>mapped_reference</tt></a>
+  <b>operator</b>[]
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key)
+</pre>
+        </td>
+
+        <td>
+          <p>Subscript operator.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link14" id="link14">Find Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#point_iterator2789896775"><tt>point_iterator</tt></a> 
+  find
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key)
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the <a href=
+          "#point_iterator2789896775"><tt>point_iterator</tt></a>
+          corresponding to the <a href=
+          "#value_type279018186"><tt>value_type</tt></a> with
+          <span class="c1"><tt>r_key</tt></span> as its key, or the
+          <a href=
+          "#point_iterator2789896775"><tt>point_iterator</tt></a>
+          corresponding to the just-after-last entry if no such
+          <a href=
+          "#value_type279018186"><tt>value_type</tt></a>.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href=
+"#const_point_iterator2364676009"><tt>const_point_iterator</tt></a> 
+  find
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns the <a href=
+          "#const_point_iterator2364676009"><tt>const_point_iterator</tt></a>
+          corresponding to the <a href=
+          "#value_type279018186"><tt>value_type</tt></a> with
+          <span class="c1"><tt>r_key</tt></span> as its key, or the
+          <a href=
+          "#const_point_iterator2364676009"><tt>const_point_iterator</tt></a>
+          corresponding to the just-after-last entry if no such
+          <a href=
+          "#value_type279018186"><tt>value_type</tt></a>.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link15" id="link15">Erase Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>bool</b>
+  erase
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key)
+</pre>
+        </td>
+
+        <td>
+          <p>Erases the <a href=
+          "#value_type279018186"><tt>value_type</tt></a> associated
+          with <span class="c1"><tt>r_key</tt></span>. returns
+          <tt><b>false</b></tt> iff <span class=
+          "c1"><tt>r_key</tt></span> was not contained.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>template</b>&lt;
+  <b>class</b> Pred&gt;
+<a href="#size_type55424436"><tt>size_type</tt></a> 
+  erase_if
+  (Pred prd)
+</pre>
+        </td>
+
+        <td>
+          <p>Erases any <a href=
+          "#value_type279018186"><tt>value_type</tt></a> satisfying
+          the predicate <span class="c1"><tt>prd</tt></span> (this
+          is transactional, either all matching <a href=
+          "#value_type279018186"><tt>value_type</tt></a>s are
+          erased, or, if an exception is thrown (for types whose
+          erase can throw an exception) none); returns the number
+          of <a href=
+          "#value_type279018186"><tt>value_type</tt></a>s
+          erased.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b> 
+  clear
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Clears the container object.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link16" id="link16">Iteration Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#iterator10418194"><tt>iterator</tt></a>
+  begin
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Returns an <a href=
+          "#iterator10418194"><tt>iterator</tt></a> corresponding
+          to the first <a href=
+          "#value_type279018186"><tt>value_type</tt></a> in the
+          container.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#const_iterator98626788"><tt>const_iterator</tt></a>
+  begin
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#const_iterator98626788"><tt>const_iterator</tt></a>
+          corresponding to the first <a href=
+          "#value_type279018186"><tt>value_type</tt></a> in the
+          container.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#iterator10418194"><tt>iterator</tt></a>
+  end
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Returns an <a href=
+          "#iterator10418194"><tt>iterator</tt></a> corresponding
+          to the just-after-last <a href=
+          "#value_type279018186"><tt>value_type</tt></a> in the
+          container.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#const_iterator98626788"><tt>const_iterator</tt></a>
+  end
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#const_iterator98626788"><tt>const_iterator</tt></a>
+          corresponding to the just-after-last <a href=
+          "#value_type279018186"><tt>value_type</tt></a> in the
+          container.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

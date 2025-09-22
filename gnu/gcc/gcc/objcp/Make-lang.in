@@ -1,0 +1,148 @@
+# Top level -*- makefile -*- fragment for GNU Objective-C++
+#   Copyright (C) 2005 Free Software Foundation, Inc.
+#   Contributed by Ziemowit Laski  <zlaski@apple.com>
+
+#This file is part of GCC.
+
+#GCC is free software; you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation; either version 2, or (at your option)
+#any later version.
+
+#GCC is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with GCC; see the file COPYING.  If not, write to
+#the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+#Boston, MA 02110-1301, USA.
+
+# This file provides the language dependent support in the main Makefile.
+# Each language makefile fragment must provide the following targets:
+#
+# foo.all.cross, foo.start.encap, foo.rest.encap,
+# foo.install-common, foo.install-man, foo.install-info, foo.dvi, foo.pdf
+# foo.uninstall,
+# foo.mostlyclean, foo.clean, foo.distclean,
+# foo.maintainer-clean, foo.stage1, foo.stage2, foo.stage3, foo.stage4
+#
+# where `foo' is the name of the language.
+#
+# It should also provide rules for:
+#
+# - making any compiler driver (eg: g++)
+# - the compiler proper (eg: cc1plus)
+# - define the names for selecting the language in LANGUAGES.
+
+#
+# Define the names for selecting Objective-C++ in LANGUAGES.
+obj-c++: cc1objplus$(exeext)
+
+# Tell GNU make to ignore these if they exist.
+.PHONY: obj-c++
+
+# Use maximal warnings for this front end.  Also, make ObjC and C++
+# headers accessible.
+objcp-warn = $(STRICT_WARN) -DOBJCPLUS -I$(srcdir)/objc -I$(srcdir)/cp
+
+# Language-specific object files for Objective C++.
+OBJCXX_OBJS = objcp/objcp-act.o objcp/objcp-lang.o objcp/objcp-decl.o \
+   $(CXX_AND_OBJCXX_OBJS)
+
+cc1objplus-dummy$(exeext): $(OBJCXX_OBJS) dummy-checksum.o $(BACKEND) \
+		$(LIBDEPS)
+	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ \
+		$(OBJCXX_OBJS) dummy-checksum.o $(BACKEND) $(LIBS)
+
+cc1objplus-checksum.c : cc1objplus-dummy$(exeext) build/genchecksum$(build_exeext)
+	build/genchecksum$(build_exeext) cc1objplus-dummy$(exeext) > $@
+
+cc1objplus-checksum.o : cc1objplus-checksum.c
+
+cc1objplus$(exeext): $(OBJCXX_OBJS) cc1objplus-checksum.o $(BACKEND) $(LIBDEPS)
+	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ \
+		$(OBJCXX_OBJS) cc1objplus-checksum.o $(BACKEND) $(LIBS)
+
+# Objective C++ language specific files.
+
+objcp/objcp-lang.o : objcp/objcp-lang.c \
+  $(CXX_TREE_H) $(TM_H) toplev.h debug.h langhooks.h objc/objc-act.h \
+  $(LANGHOOKS_DEF_H) $(C_COMMON_H) gtype-objcp.h \
+  $(DIAGNOSTIC_H) cp/cp-objcp-common.h $(TREE_GIMPLE_H)
+
+objcp/objcp-decl.o : objcp/objcp-decl.c \
+   $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) $(TREE_H) $(C_TREE_H) \
+   toplev.h $(GGC_H) $(C_PRAGMA_H) input.h $(FLAGS_H) output.h \
+   objc/objc-act.h objcp/objcp-decl.h $(TREE_GIMPLE_H) $(EXPR_H) $(TARGET_H)
+
+# The following must be an explicit rule; please keep in sync with the implicit
+# one in Makefile.in.
+objcp/objcp-act.o : objc/objc-act.c \
+   $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) $(TREE_H) $(RTL_H) $(TM_P_H) \
+   $(EXPR_H) $(TARGET_H) $(CXX_TREE_H) $(DIAGNOSTIC_H) toplev.h $(FLAGS_H) \
+   objc/objc-act.h input.h $(FUNCTION_H) output.h debug.h langhooks.h \
+   objcp/objcp-decl.h $(LANGHOOKS_DEF_H) $(HASHTAB_H) gt-objc-objc-act.h \
+   $(TREE_GIMPLE_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+po-generated:
+
+#
+# Build hooks:
+
+obj-c++.all.cross:
+obj-c++.start.encap:
+obj-c++.rest.encap:
+obj-c++.info:
+obj-c++.install-info:
+obj-c++.dvi:
+obj-c++.pdf:
+obj-c++.html:
+obj-c++.srcinfo:
+obj-c++.srcextra:
+obj-c++.man:
+
+obj-c++.tags: force
+	cd $(srcdir)/objcp; etags -o TAGS.sub *.y *.c *.h; \
+	etags --include TAGS.sub --include ../TAGS.sub
+
+lang_checks += check-obj-c++
+
+#
+# Install hooks:
+# cc1objplus is installed elsewhere as part of $(COMPILERS).
+
+obj-c++.install-common:
+
+obj-c++.install-man:
+
+obj-c++.uninstall:
+#
+# Clean hooks:
+# A lot of the ancillary files are deleted by the main makefile.
+# We just have to delete files specific to us.
+obj-c++.mostlyclean:
+	-rm -f objcp/*$(objext)
+	-rm -f objcp/*$(coverageexts)
+obj-c++.clean: obj-c++.mostlyclean
+obj-c++.distclean:
+	-rm -f objcp/config.status objcp/Makefile
+obj-c++.maintainer-clean:
+
+#
+# Stage hooks:
+
+obj-c++.stage1: stage1-start
+	-mv objcp/*$(objext) stage1/objcp
+obj-c++.stage2: stage2-start
+	-mv objcp/*$(objext) stage2/objcp
+obj-c++.stage3: stage3-start
+	-mv objcp/*$(objext) stage3/objcp
+obj-c++.stage4: stage4-start
+	-mv objcp/*$(objext) stage4/objcp
+obj-c++.stageprofile: stageprofile-start
+	-mv objcp/*$(objext) stageprofile/objcp
+obj-c++.stagefeedback: stagefeedback-start
+	-mv objcp/*$(objext) stagefeedback/objcp

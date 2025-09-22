@@ -1,0 +1,17 @@
+static_library("Dynamic") {
+  output_name = "clangDynamicASTMatchers"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "Diagnostics.cpp",
+    "Marshallers.cpp",
+    "Parser.cpp",
+    "Registry.cpp",
+    "VariantValue.cpp",
+  ]
+}

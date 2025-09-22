@@ -1,0 +1,214 @@
+.\" $OpenBSD: iscsi.conf.5,v 1.7 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2012 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2002 Daniel Hartmeier <dhartmei@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt ISCSI.CONF 5
+.Os
+.Sh NAME
+.Nm iscsi.conf
+.Nd ISCSI daemon configuration file
+.Sh DESCRIPTION
+The
+.Xr iscsid 8
+daemon implements the Internet Small Computer Systems Interface as described
+in RFC 3720.
+.Pp
+The
+.Nm
+configuration file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global settings for
+.Xr iscsid 8 .
+.It Sx Target configuration
+Target-specific parameters.
+.El
+.Pp
+With the exception of macros,
+the sections should be grouped and appear in
+.Nm
+in the order shown above.
+.Pp
+The current line can be extended over multiple lines using a backslash
+.Pq Sq \e .
+Comments can be put anywhere in the file using a hash mark
+.Pq Sq # ,
+and extend to the end of the current line.
+Care should be taken when commenting out multi-line text:
+the comment is effective until the end of the entire block.
+.Pp
+Argument names not beginning with a letter, digit, or underscore
+must be quoted.
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/iscsi-target.conf"
+.Ed
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic target
+or
+.Ic port ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+target1="1.2.3.4"
+target "disk1" {
+        targetaddr $target1
+}
+.Ed
+.Ss Global configuration
+There are a few settings that affect the operation of the
+.Xr iscsid 8
+daemon globally.
+.Pp
+.Bl -tag -width Ds -compact
+.It Xo
+.Ic isid
+.Pq Ic oui Ns | Ns Ic en Ns | Ns Ic rand
+.Ar base qual
+.Xc
+The Initiator Session ID
+.Ic isid
+specifies the initiator part of the Session Identifier.
+It is set during startup of
+.Xr iscsid 8
+and is used for session reinstatement.
+By default a random
+.Ic isid
+is generated on startup.
+The random
+.Ic rand
+form has a 24-bit random number as
+.Ar base
+and a 16-bit
+.Ar qual
+qualifier.
+The
+.Ic oui
+format uses a 22-bit
+.Ar base
+OUI and a 24-bit
+.Ar qual
+qualifier.
+The IANA enterprise number format
+.Ic en
+uses the 24-bit enterprise number in
+.Ar base
+and a 16-bit
+.Ar qual
+qualifier.
+.El
+.Ss Target configuration
+.Xr iscsid 8
+establishes TCP connections to iSCSI targets.
+Each target is specified by a
+.Em target
+section, which allows properties to be set specifically for that target:
+.Bd -literal -offset indent
+target disk1 {
+	targetaddr 10.0.0.2
+	targetname "iqn.1994-04.org.netbsd.iscsi-target:target:0"
+}
+.Ed
+.Pp
+There are several target properties:
+.Bl -tag -width Ds
+.It Op Ic disabled Ns | Ns Ic enabled
+No session will be established to the target if
+.Ic disabled
+is set.
+The default value is
+.Ic enabled .
+.It Op Ic discovery Ns | Ns Ic normal
+Define the type of session that will be established.
+It is possible to initiate a special
+.Ic discovery
+session to a target to enumerate the available volumes.
+.It Xo
+.Ic initiatoraddr Ar addr
+.Op Ic inet Ns | Ns Ic inet6
+.Xc
+When
+.Xr iscsid 8
+initiates the TCP connection to the target system, it normally does not
+bind to a specific IP address and port.
+If an
+.Ic initiatoraddr
+is given,
+it binds to this address first.
+.It Ic initiatorname Ar string
+Specify the
+.Ic initiatorname
+used to connect to the remote target.
+The
+.Ic initiatorname
+can be used to restrict access to a target.
+If not given,
+.Xr iscsid 8
+will use
+.Em iqn.1995-11.org.openbsd.iscsid
+as default.
+.It Xo
+.Ic targetaddr Ar addr
+.Op Ic inet Ns | Ns Ic inet6
+.Op Ic port Ar num
+.Xc
+Define the target IP address which
+.Xr iscsid 8
+should connect to.
+By default port 3260 will be used.
+.It Ic targetname Ar string
+The
+.Ic targetname
+specifies which LUN or disk should be requested by
+.Xr iscsid 8 .
+It is possible to enumerate remote systems with a
+.Ic discovery
+session.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/iscsi.confXXX" -compact
+.It Pa /etc/iscsi.conf
+.Xr iscsid 8
+configuration file.
+.El
+.Sh SEE ALSO
+.Xr tcp 4 ,
+.Xr iscsictl 8 ,
+.Xr iscsid 8 ,
+.Xr rc.conf.local 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 4.9 .

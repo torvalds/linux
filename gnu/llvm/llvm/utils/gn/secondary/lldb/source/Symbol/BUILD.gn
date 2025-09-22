@@ -1,0 +1,49 @@
+static_library("Symbol") {
+  output_name = "lldbSymbol"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Expression",
+    "//lldb/source/Host",
+
+    #"//lldb/source/Target", # FIXME: Dependency cycle.
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ ".." ]  # FIXME: Reaches into Utility and Host internals.
+  sources = [
+    "ArmUnwindInfo.cpp",
+    "Block.cpp",
+    "CompactUnwindInfo.cpp",
+    "CompileUnit.cpp",
+    "CompilerDecl.cpp",
+    "CompilerDeclContext.cpp",
+    "CompilerType.cpp",
+    "DWARFCallFrameInfo.cpp",
+    "DebugMacros.cpp",
+    "DeclVendor.cpp",
+    "FuncUnwinders.cpp",
+    "Function.cpp",
+    "LineEntry.cpp",
+    "LineTable.cpp",
+    "ObjectContainer.cpp",
+    "ObjectFile.cpp",
+    "PostfixExpression.cpp",
+    "SaveCoreOptions.cpp",
+    "Symbol.cpp",
+    "SymbolContext.cpp",
+    "SymbolFile.cpp",
+    "SymbolFileOnDemand.cpp",
+    "SymbolLocator.cpp",
+    "SymbolVendor.cpp",
+    "Symtab.cpp",
+    "Type.cpp",
+    "TypeList.cpp",
+    "TypeMap.cpp",
+    "TypeSystem.cpp",
+    "UnwindPlan.cpp",
+    "UnwindTable.cpp",
+    "Variable.cpp",
+    "VariableList.cpp",
+  ]
+}

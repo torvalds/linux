@@ -1,0 +1,425 @@
+.\"	$OpenBSD: boot.8,v 1.69 2024/11/05 09:42:48 miod Exp $
+.\"
+.\" Copyright (c) 1997-2001 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR OR HIS RELATIVES BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF MIND, USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: November 5 2024 $
+.Dt BOOT 8 i386
+.Os
+.Sh NAME
+.Nm boot ,
+.Nm boot.conf
+.Nd i386-specific second-stage bootstrap
+.Sh DESCRIPTION
+The main purpose of this program is to load the system kernel while dealing
+with the pitfalls of the PC BIOS architecture.
+.Pp
+As described in
+.Xr boot_i386 8 ,
+this program is loaded by the
+.Xr biosboot 8
+primary bootstrap loader and provides a convenient way to load the kernel.
+This program acts as an enhanced boot monitor for PC systems, providing
+a common interface for the kernel to start from.
+.Pp
+Basic operations include:
+.Pp
+.Bl -bullet -compact
+.It
+Detecting and switching between multiple consoles.
+.It
+Loading kernels from any device supported by your system BIOS.
+.It
+Loading kernels compressed by
+.Xr gzip 1 .
+.It
+Passing system parameters queried from the BIOS to the kernel.
+.It
+Providing an interactive command line.
+.El
+.Pp
+The sequence of its operation is as follows: initialization,
+parsing the configuration file, then an interactive command line.
+While at the command line you have 5 seconds to type any commands, if needed.
+If time expires, the kernel will be loaded according to
+the current variable settings (see the
+.Ic set
+command).
+If the kernel load fails, a second attempt is made with the timeout increased
+by one second.
+The sequence of
+.Nm
+operations is as follows:
+.Bl -enum
+.It
+Set up a protected mode environment which catches and reports processor
+exceptions and provides a simple protected-mode BIOS interface.
+.It
+Probe for console devices, which includes the (default) PC VGA+Keyboard
+console
+.Pq Li pc0
+and up to four serial consoles
+.Pf ( Li com0
+through
+.Li com3 )
+connected to the serial ports.
+Display messages to the default console about the devices found.
+.It
+Detect memory.
+Conventional memory is detected by querying the BIOS.
+Extended memory is detected by probing page-by-page through the address
+space, rather than asking the BIOS; many BIOS's cannot report larger than
+64M of memory.
+All memory found is reported to the default console device.
+.It
+Probe for APM support in the BIOS.
+Display a message if support is present.
+.It
+If the file
+.Pa /etc/boot.conf
+exists on the filesystem
+.Nm
+was loaded from, open and parse it.
+Lines beginning with the
+.Sq #
+character,
+as well as whitespace at the beginning of lines,
+are ignored.
+The file may contain any commands
+.Nm
+accepts at the interactive prompt.
+Though default settings usually suffice, they can be changed here.
+.Pp
+.Pa boot.conf
+processing can be skipped, and the automatic boot cancelled, by holding
+down either Control key as
+.Nm
+starts.
+.It
+The header line
+.Pp
+.Dl >> OpenBSD/i386 BOOT [x.xx]
+.Pp
+is displayed to the active console, where
+.Ar x.xx
+is the version number of the
+.Nm
+program, followed by the
+.Pp
+.Dl boot>
+.Pp
+prompt, which means you are in interactive mode and may enter commands.
+If you do not,
+.Nm
+will proceed to load the kernel with the current parameters after the
+timeout period has expired.
+.El
+.Pp
+By default,
+.Nm
+attempts to load the kernel executable
+.Pa /bsd .
+If it fails to find the kernel and no alternative kernel image has
+been specified, the system will be unable to boot.
+.Pp
+.Nm
+supports booting from
+.Xr softraid 4
+RAID 1 and CRYPTO volumes.
+.Sh COMMANDS
+The following commands are accepted at the
+.Nm
+prompt:
+.Bl -tag -width shorten
+.It Ic boot Oo Oo Ar device : Oc Ns Ar image Oc Op Fl acds
+Boots the specified kernel image
+with any options given.
+If
+.Ar device
+or
+.Ar image
+are omitted, values from
+.Nm
+variables will be used.
+.Pp
+When selecting the
+.Ar device
+to boot from,
+.Nm
+makes no distinction between SCSI and IDE type drives;
+they are detected as
+.Sq hd
+devices.
+Therefore, to boot kernel
+.Pa /bsd
+from slice
+.Sq a
+on the first hard drive
+.Pq irrespective of device type ,
+specify
+.Dq boot hd0a:/bsd .
+.Bl -tag -width _a_
+.It Fl a
+Causes the kernel to ask for the
+.Nm root
+device to use.
+.It Fl c
+Causes the kernel to go into
+.Xr boot_config 8
+before performing
+.Xr autoconf 4
+procedures.
+.It Fl d
+Causes the kernel to drop into
+.Xr ddb 4
+at the earliest convenient point.
+.It Fl s
+Causes the kernel to boot single-user.
+.El
+.It Ic echo Op Ar args
+Displays
+.Ar args
+on the console device.
+.It Ic help
+Prints a list of available commands and machine dependent
+commands, if any.
+.It Ic hexdump Ar addr size
+Show
+.Ar size
+bytes of memory at address
+.Ar addr .
+.It Ic machine Op Ar command
+Issues machine-dependent commands.
+These are defined for i386 architecture:
+.Bl -tag -width diskinfo
+.It Ic boot
+Boots the specified partition boot block in place of the original (MBR) boot
+block:
+.Bd -unfilled -offset indent
+machine boot hd0a
+.Ed
+.Pp
+Where
+.Ar a
+is the first MBR partition table entry, and
+.Ar d
+the last.
+.It Ic comaddr
+Set the I/O base address for the serial port to be used as serial console.
+.It Ic diskinfo
+Prints a list of hard disks installed on your system including:
+BIOS device number, and the BIOS geometry.
+.It Ic memory
+If used without any arguments, this command will print out
+the memory configuration as determined through BIOS routines.
+Otherwise the arguments specify how to modify the
+memory configuration.
+They take the form of:
+.Pp
+.D1 =size[KMG]
+.D1 [+-]size@address
+.Pp
+Meaning to add(+), exempt(-) or limit(=) the amount of memory specified by
+.Ar size
+at the location specified by
+.Ar address .
+Both size and base address can be specified as octal,
+decimal, or hexadecimal numbers, as accepted by the
+.Xr strtoul 3
+routine.
+Memory size may be suffixed by K or k, for kilobytes;
+M or m, for megabytes;
+and G or g, for gigabytes.
+.Pp
+The limit(=) option simply ignores any memory above the given
+memory limit.
+This is useful for testing kernels in an artificially
+constrained memory situation.
+For example, the following limits the kernel to using only
+memory below 64MB:
+.Bd -unfilled -offset indent
+machine mem =64M
+.Ed
+.Pp
+Memory segments are not required to be adjacent to each other;
+the only requirement is that there is real physical memory under
+the range added.
+The following example adds 32MB of memory right after the first 16MB:
+.Bd -unfilled -offset indent
+machine mem +0x2000000@0x1000000
+.Ed
+.Pp
+Another useful command is to withdraw a range
+of memory from OS usage (it may have been wrongfully reported as
+useful by the BIOS).
+This example
+effectively excludes the 15\(en16MB range from the map of useful memory:
+.Bd -unfilled -offset indent
+machine mem -0x100000@0xf00000
+.Ed
+.It Ic regs
+Prints contents of processor registers if compiled with
+.Em DEBUG .
+.El
+.It Ic ls Op Ar directory
+Prints contents of the specified
+.Ar directory
+in long format including: attributes and file type, owner, group,
+size, filename.
+.It Ic reboot
+Reboots the machine by initiating a warm boot procedure.
+.It Ic set Op Ar varname Op Ar value
+If invoked without arguments, prints a list of variables and their values.
+If only
+.Ar varname
+is specified, displays contents of that variable.
+If
+.Ar varname
+and
+.Ar value
+are both specified, sets that variable to the given value.
+Variables include:
+.Pp
+.Bl -tag -compact -width db_console
+.It Ic db_console
+Boolean (0 or 1) to permit entry into the kernel debugger before the
+.Em ddb.console
+sysctl gets effective.
+.It Ic debug
+Debug flag if
+.Nm
+.It Ic debug
+Debug flag if
+.Nm
+was compiled with DEBUG defined.
+.It Ic device
+Boot device name (e.g.,
+.Li fd0a ,
+.Li hd0a ) .
+.It Ic howto
+Options to pass to the loaded kernel.
+.It Ic image
+File name containing the kernel image.
+.It Ic timeout
+Number of seconds boot will wait for human intervention before
+booting the default kernel image.
+.It Ic tty
+Active console device name (e.g.,
+.Li com0 ,
+.Li com1 ,
+.Li pc0 ) .
+.El
+.It Ic stty Op Ar device Op Ar speed
+Displays or sets the
+.Ar speed
+for a console
+.Ar device .
+If changing the baudrate for the currently active console,
+.Nm
+offers you five seconds of grace time before committing the change
+to allow you to change your terminal's speed to match.
+If changing speed
+.Em not
+for the active console, the baudrate is set for the
+.Em next
+time you switch to a serial console.
+The baudrate value is not used for the
+.Li pc0
+console.
+.Pp
+The default baudrate is 9600bps.
+.It Ic time
+Displays system time and date.
+.El
+.Sh FILES
+.Bl -tag -width /usr/mdec/biosbootxx -compact
+.It Pa /usr/mdec/biosboot
+first stage bootstrap
+.It Pa /usr/mdec/pxeboot
+PXE bootstrap
+.It Pa /boot
+system bootstrap
+.It Pa /etc/boot.conf
+system bootstrap's startup file
+.It Pa /bsd
+kernel image
+.It Pa /bsd.sp
+kernel image for single processor machines
+.It Pa /bsd.mp
+kernel image for multiprocessor machines
+.It Pa /bsd.rd
+kernel image for installation/recovery
+.El
+.Sh EXAMPLES
+Boot the default kernel:
+.Pp
+.Dl boot> boot
+.Pp
+Remove the 5 second pause at boot-time permanently, causing
+.Nm
+to load the kernel immediately without prompting:
+.Pp
+.Dl # echo \&"boot\&" > /etc/boot.conf
+.Pp
+Use serial console.
+A null modem cable should connect the specified serial port to a terminal.
+Useful for debugging.
+.Pp
+.Dl boot> set tty com0
+.Pp
+Invoke the serial console at every boot:
+.Pp
+.Dl # echo \&"set tty com0\&" > /etc/boot.conf
+.Pp
+Boot the kernel named
+.Pa /bsd
+from the second hard disk in
+.Dq User Kernel Configuration
+mode (see
+.Xr boot_config 8 ) .
+This mechanism allows for the explicit enabling and disabling of devices
+during the current boot sequence, as well as the modification
+of device parameters.
+Once booted, such changes can be made permanent by using
+.Xr config 8 Ns 's
+.Fl e
+option.
+.Pp
+.Dl boot> boot hd1a:/bsd -c
+.Sh SEE ALSO
+.Xr gzip 1 ,
+.Xr autoconf 4 ,
+.Xr ddb 4 ,
+.Xr softraid 4 ,
+.Xr biosboot 8 ,
+.Xr boot_config 8 ,
+.Xr boot_i386 8 ,
+.Xr fdisk 8 ,
+.Xr installboot 8 ,
+.Xr pxeboot 8 ,
+.Xr reboot 8
+.Sh HISTORY
+This program was written by Michael Shalayeff for
+.Ox 2.1 .

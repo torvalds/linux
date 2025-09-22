@@ -1,0 +1,265 @@
+//===- MachinePassRegistry.def - Registry of passes -------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file is used as the registry of passes that are for target-independent
+// code generator.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+#ifndef MODULE_ANALYSIS
+#define MODULE_ANALYSIS(NAME, CREATE_PASS)
+#endif
+MODULE_ANALYSIS("collector-metadata", CollectorMetadataAnalysis())
+MODULE_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
+#undef MODULE_ANALYSIS
+
+#ifndef MODULE_PASS
+#define MODULE_PASS(NAME, CREATE_PASS)
+#endif
+MODULE_PASS("global-merge", GlobalMergePass(TM, GlobalMergeOptions()))
+MODULE_PASS("jmc-instrumenter", JMCInstrumenterPass())
+MODULE_PASS("lower-emutls", LowerEmuTLSPass())
+MODULE_PASS("pre-isel-intrinsic-lowering", PreISelIntrinsicLoweringPass())
+MODULE_PASS("shadow-stack-gc-lowering", ShadowStackGCLoweringPass())
+#undef MODULE_PASS
+
+#ifndef FUNCTION_ANALYSIS
+#define FUNCTION_ANALYSIS(NAME, CREATE_PASS)
+#endif
+FUNCTION_ANALYSIS("gc-function", GCFunctionAnalysis())
+FUNCTION_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
+FUNCTION_ANALYSIS("ssp-layout", SSPLayoutAnalysis())
+FUNCTION_ANALYSIS("target-ir", TargetIRAnalysis(std::move(TM.getTargetIRAnalysis())))
+#undef FUNCTION_ANALYSIS
+
+#ifndef FUNCTION_PASS
+#define FUNCTION_PASS(NAME, CREATE_PASS)
+#endif
+FUNCTION_PASS("callbr-prepare", CallBrPreparePass())
+FUNCTION_PASS("cfguard", CFGuardPass())
+FUNCTION_PASS("codegenprepare", CodeGenPreparePass(TM))
+FUNCTION_PASS("consthoist", ConstantHoistingPass())
+FUNCTION_PASS("dwarf-eh-prepare", DwarfEHPreparePass(TM))
+FUNCTION_PASS("ee-instrument", EntryExitInstrumenterPass(false))
+FUNCTION_PASS("expand-large-div-rem", ExpandLargeDivRemPass(TM))
+FUNCTION_PASS("expand-large-fp-convert", ExpandLargeFpConvertPass(TM))
+FUNCTION_PASS("expand-memcmp", ExpandMemCmpPass(TM))
+FUNCTION_PASS("expand-reductions", ExpandReductionsPass())
+FUNCTION_PASS("expandvp", ExpandVectorPredicationPass())
+FUNCTION_PASS("gc-lowering", GCLoweringPass())
+FUNCTION_PASS("indirectbr-expand", IndirectBrExpandPass(TM))
+FUNCTION_PASS("interleaved-access", InterleavedAccessPass(TM))
+FUNCTION_PASS("interleaved-load-combine", InterleavedLoadCombinePass(TM))
+FUNCTION_PASS("lower-constant-intrinsics", LowerConstantIntrinsicsPass())
+FUNCTION_PASS("lower-invoke", LowerInvokePass())
+FUNCTION_PASS("mergeicmps", MergeICmpsPass())
+FUNCTION_PASS("partially-inline-libcalls", PartiallyInlineLibCallsPass())
+FUNCTION_PASS("post-inline-ee-instrument", EntryExitInstrumenterPass(true))
+FUNCTION_PASS("replace-with-veclib", ReplaceWithVeclib())
+FUNCTION_PASS("safe-stack", SafeStackPass(TM))
+FUNCTION_PASS("scalarize-masked-mem-intrin", ScalarizeMaskedMemIntrinPass())
+FUNCTION_PASS("select-optimize", SelectOptimizePass(TM))
+FUNCTION_PASS("sjlj-eh-prepare", SjLjEHPreparePass(TM))
+FUNCTION_PASS("stack-protector", StackProtectorPass(TM))
+FUNCTION_PASS("tlshoist", TLSVariableHoistPass())
+FUNCTION_PASS("unreachableblockelim", UnreachableBlockElimPass())
+FUNCTION_PASS("verify", VerifierPass())
+FUNCTION_PASS("wasm-eh-prepare", WasmEHPreparePass())
+FUNCTION_PASS("win-eh-prepare", WinEHPreparePass())
+#undef FUNCTION_PASS
+
+#ifndef LOOP_PASS
+#define LOOP_PASS(NAME, CREATE_PASS)
+#endif
+LOOP_PASS("loop-reduce", LoopStrengthReducePass())
+#undef LOOP_PASS
+
+#ifndef MACHINE_MODULE_PASS
+#define MACHINE_MODULE_PASS(NAME, CREATE_PASS)
+#endif
+#undef MACHINE_MODULE_PASS
+
+#ifndef MACHINE_FUNCTION_ANALYSIS
+#define MACHINE_FUNCTION_ANALYSIS(NAME, CREATE_PASS)
+#endif
+// LiveVariables currently requires pure SSA form.
+// FIXME: Once TwoAddressInstruction pass no longer uses kill flags,
+// LiveVariables can be removed completely, and LiveIntervals can be directly
+// computed. (We still either need to regenerate kill flags after regalloc, or
+// preferably fix the scavenger to not depend on them).
+MACHINE_FUNCTION_ANALYSIS("live-intervals", LiveIntervalsAnalysis())
+MACHINE_FUNCTION_ANALYSIS("live-vars", LiveVariablesAnalysis())
+MACHINE_FUNCTION_ANALYSIS("machine-block-freq", MachineBlockFrequencyAnalysis())
+MACHINE_FUNCTION_ANALYSIS("machine-branch-prob",
+                          MachineBranchProbabilityAnalysis())
+MACHINE_FUNCTION_ANALYSIS("machine-dom-tree", MachineDominatorTreeAnalysis())
+MACHINE_FUNCTION_ANALYSIS("machine-loops", MachineLoopAnalysis())
+MACHINE_FUNCTION_ANALYSIS("machine-opt-remark-emitter",
+                          MachineOptimizationRemarkEmitterAnalysis())
+MACHINE_FUNCTION_ANALYSIS("machine-post-dom-tree",
+                          MachinePostDominatorTreeAnalysis())
+MACHINE_FUNCTION_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
+MACHINE_FUNCTION_ANALYSIS("slot-indexes", SlotIndexesAnalysis())
+// MACHINE_FUNCTION_ANALYSIS("live-stacks", LiveStacksPass())
+// MACHINE_FUNCTION_ANALYSIS("edge-bundles", EdgeBundlesAnalysis())
+// MACHINE_FUNCTION_ANALYSIS("lazy-machine-bfi",
+// LazyMachineBlockFrequencyInfoAnalysis())
+// MACHINE_FUNCTION_ANALYSIS("machine-loops", MachineLoopInfoAnalysis())
+// MACHINE_FUNCTION_ANALYSIS("machine-dom-frontier",
+// MachineDominanceFrontierAnalysis())
+// MACHINE_FUNCTION_ANALYSIS("machine-post-dom-tree",
+// MachinePostDominatorTreeAnalysis())
+// MACHINE_FUNCTION_ANALYSIS("machine-region-info",
+// MachineRegionInfoPassAnalysis())
+// MACHINE_FUNCTION_ANALYSIS("machine-trace-metrics",
+// MachineTraceMetricsAnalysis()) MACHINE_FUNCTION_ANALYSIS("reaching-def",
+// ReachingDefAnalysisAnalysis()) MACHINE_FUNCTION_ANALYSIS("live-reg-matrix",
+// LiveRegMatrixAnalysis()) MACHINE_FUNCTION_ANALYSIS("gc-analysis",
+// GCMachineCodeAnalysisPass())
+#undef MACHINE_FUNCTION_ANALYSIS
+
+#ifndef MACHINE_FUNCTION_PASS
+#define MACHINE_FUNCTION_PASS(NAME, CREATE_PASS)
+#endif
+MACHINE_FUNCTION_PASS("dead-mi-elimination", DeadMachineInstructionElimPass())
+MACHINE_FUNCTION_PASS("finalize-isel", FinalizeISelPass())
+MACHINE_FUNCTION_PASS("localstackalloc", LocalStackSlotAllocationPass())
+MACHINE_FUNCTION_PASS("no-op-machine-function", NoOpMachineFunctionPass())
+MACHINE_FUNCTION_PASS("phi-node-elimination", PHIEliminationPass())
+MACHINE_FUNCTION_PASS("print", PrintMIRPass())
+MACHINE_FUNCTION_PASS("print<live-intervals>", LiveIntervalsPrinterPass(dbgs()))
+MACHINE_FUNCTION_PASS("print<live-vars>", LiveVariablesPrinterPass(dbgs()))
+MACHINE_FUNCTION_PASS("print<machine-block-freq>",
+                      MachineBlockFrequencyPrinterPass(dbgs()))
+MACHINE_FUNCTION_PASS("print<machine-branch-prob>",
+                      MachineBranchProbabilityPrinterPass(dbgs()))
+MACHINE_FUNCTION_PASS("print<machine-dom-tree>",
+                      MachineDominatorTreePrinterPass(dbgs()))
+MACHINE_FUNCTION_PASS("print<machine-loops>", MachineLoopPrinterPass(dbgs()))
+MACHINE_FUNCTION_PASS("print<machine-post-dom-tree>",
+                      MachinePostDominatorTreePrinterPass(dbgs()))
+MACHINE_FUNCTION_PASS("print<slot-indexes>", SlotIndexesPrinterPass(dbgs()))
+MACHINE_FUNCTION_PASS("require-all-machine-function-properties",
+                      RequireAllMachineFunctionPropertiesPass())
+MACHINE_FUNCTION_PASS("trigger-verifier-error", TriggerVerifierErrorPass())
+MACHINE_FUNCTION_PASS("two-address-instruction", TwoAddressInstructionPass())
+MACHINE_FUNCTION_PASS("verify", MachineVerifierPass())
+#undef MACHINE_FUNCTION_PASS
+
+#ifndef MACHINE_FUNCTION_PASS_WITH_PARAMS
+#define MACHINE_FUNCTION_PASS_WITH_PARAMS(NAME, CLASS, CREATE_PASS, PARSER,    \
+                                          PARAMS)
+#endif
+MACHINE_FUNCTION_PASS_WITH_PARAMS(
+    "regallocfast", "RegAllocFast",
+    [](RegAllocFastPassOptions Opts) { return RegAllocFastPass(Opts); },
+    [PB = this](StringRef Params) {
+      return parseRegAllocFastPassOptions(*PB, Params);
+    },
+    "filter=reg-filter;no-clear-vregs")
+#undef MACHINE_FUNCTION_PASS_WITH_PARAMS
+
+// After a pass is converted to new pass manager, its entry should be moved from
+// dummy table to the normal one. For example, for a machine function pass,
+// DUMMY_MACHINE_FUNCTION_PASS to MACHINE_FUNCTION_PASS.
+
+#ifndef DUMMY_FUNCTION_PASS
+#define DUMMY_FUNCTION_PASS(NAME, PASS_NAME)
+#endif
+DUMMY_FUNCTION_PASS("atomic-expand", AtomicExpandPass)
+#undef DUMMY_FUNCTION_PASS
+
+#ifndef DUMMY_MACHINE_MODULE_PASS
+#define DUMMY_MACHINE_MODULE_PASS(NAME, PASS_NAME)
+#endif
+DUMMY_MACHINE_MODULE_PASS("machine-outliner", MachineOutlinerPass)
+DUMMY_MACHINE_MODULE_PASS("pseudo-probe-inserter", PseudoProbeInserterPass)
+DUMMY_MACHINE_MODULE_PASS("mir-debugify", DebugifyMachineModule)
+DUMMY_MACHINE_MODULE_PASS("mir-check-debugify", CheckDebugMachineModulePass)
+DUMMY_MACHINE_MODULE_PASS("mir-strip-debug", StripDebugMachineModulePass)
+#undef DUMMY_MACHINE_MODULE_PASS
+
+#ifndef DUMMY_MACHINE_FUNCTION_PASS
+#define DUMMY_MACHINE_FUNCTION_PASS(NAME, PASS_NAME)
+#endif
+DUMMY_MACHINE_FUNCTION_PASS("bbsections-prepare", BasicBlockSectionsPass)
+DUMMY_MACHINE_FUNCTION_PASS("bbsections-profile-reader", BasicBlockSectionsProfileReaderPass)
+DUMMY_MACHINE_FUNCTION_PASS("block-placement", MachineBlockPlacementPass)
+DUMMY_MACHINE_FUNCTION_PASS("block-placement-stats", MachineBlockPlacementStatsPass)
+DUMMY_MACHINE_FUNCTION_PASS("branch-folder", BranchFolderPass)
+DUMMY_MACHINE_FUNCTION_PASS("break-false-deps", BreakFalseDepsPass)
+DUMMY_MACHINE_FUNCTION_PASS("cfguard-longjmp", CFGuardLongjmpPass)
+DUMMY_MACHINE_FUNCTION_PASS("cfi-fixup", CFIFixupPass)
+DUMMY_MACHINE_FUNCTION_PASS("cfi-instr-inserter", CFIInstrInserterPass)
+DUMMY_MACHINE_FUNCTION_PASS("detect-dead-lanes", DetectDeadLanesPass)
+DUMMY_MACHINE_FUNCTION_PASS("dot-machine-cfg", MachineCFGPrinter)
+DUMMY_MACHINE_FUNCTION_PASS("early-ifcvt", EarlyIfConverterPass)
+DUMMY_MACHINE_FUNCTION_PASS("early-machinelicm", EarlyMachineLICMPass)
+DUMMY_MACHINE_FUNCTION_PASS("early-tailduplication", EarlyTailDuplicatePass)
+DUMMY_MACHINE_FUNCTION_PASS("fentry-insert", FEntryInserterPass)
+DUMMY_MACHINE_FUNCTION_PASS("fixup-statepoint-caller-saved", FixupStatepointCallerSavedPass)
+DUMMY_MACHINE_FUNCTION_PASS("fs-profile-loader", MIRProfileLoaderNewPass)
+DUMMY_MACHINE_FUNCTION_PASS("funclet-layout", FuncletLayoutPass)
+DUMMY_MACHINE_FUNCTION_PASS("gc-empty-basic-blocks", GCEmptyBasicBlocksPass)
+DUMMY_MACHINE_FUNCTION_PASS("implicit-null-checks", ImplicitNullChecksPass)
+DUMMY_MACHINE_FUNCTION_PASS("init-undef-pass", InitUndefPass)
+DUMMY_MACHINE_FUNCTION_PASS("instruction-select", InstructionSelectPass)
+DUMMY_MACHINE_FUNCTION_PASS("irtranslator", IRTranslatorPass)
+DUMMY_MACHINE_FUNCTION_PASS("kcfi", MachineKCFIPass)
+DUMMY_MACHINE_FUNCTION_PASS("legalizer", LegalizerPass)
+DUMMY_MACHINE_FUNCTION_PASS("livedebugvalues", LiveDebugValuesPass)
+DUMMY_MACHINE_FUNCTION_PASS("lrshrink", LiveRangeShrinkPass)
+DUMMY_MACHINE_FUNCTION_PASS("machine-combiner", MachineCombinerPass)
+DUMMY_MACHINE_FUNCTION_PASS("machine-cp", MachineCopyPropagationPass)
+DUMMY_MACHINE_FUNCTION_PASS("machine-cse", MachineCSEPass)
+DUMMY_MACHINE_FUNCTION_PASS("machine-function-splitter", MachineFunctionSplitterPass)
+DUMMY_MACHINE_FUNCTION_PASS("machine-latecleanup", MachineLateInstrsCleanupPass)
+DUMMY_MACHINE_FUNCTION_PASS("machine-sanmd", MachineSanitizerBinaryMetadata)
+DUMMY_MACHINE_FUNCTION_PASS("machine-scheduler", MachineSchedulerPass)
+DUMMY_MACHINE_FUNCTION_PASS("machine-sink", MachineSinkingPass)
+DUMMY_MACHINE_FUNCTION_PASS("machine-uniformity", MachineUniformityInfoWrapperPass)
+DUMMY_MACHINE_FUNCTION_PASS("machineinstr-printer", MachineFunctionPrinterPass)
+DUMMY_MACHINE_FUNCTION_PASS("machinelicm", MachineLICMPass)
+DUMMY_MACHINE_FUNCTION_PASS("machineverifier", MachineVerifierPass)
+DUMMY_MACHINE_FUNCTION_PASS("mirfs-discriminators", MIRAddFSDiscriminatorsPass)
+DUMMY_MACHINE_FUNCTION_PASS("opt-phis", OptimizePHIsPass)
+DUMMY_MACHINE_FUNCTION_PASS("patchable-function", PatchableFunctionPass)
+DUMMY_MACHINE_FUNCTION_PASS("peephole-opt", PeepholeOptimizerPass)
+DUMMY_MACHINE_FUNCTION_PASS("post-RA-sched", PostRASchedulerPass)
+DUMMY_MACHINE_FUNCTION_PASS("postmisched", PostMachineSchedulerPass)
+DUMMY_MACHINE_FUNCTION_PASS("postra-machine-sink", PostRAMachineSinkingPass)
+DUMMY_MACHINE_FUNCTION_PASS("postrapseudos", ExpandPostRAPseudosPass)
+DUMMY_MACHINE_FUNCTION_PASS("print-machine-cycles", MachineCycleInfoPrinterPass)
+DUMMY_MACHINE_FUNCTION_PASS("print-machine-uniformity", MachineUniformityInfoPrinterPass)
+DUMMY_MACHINE_FUNCTION_PASS("processimpdefs", ProcessImplicitDefsPass)
+DUMMY_MACHINE_FUNCTION_PASS("prologepilog", PrologEpilogInserterPass)
+DUMMY_MACHINE_FUNCTION_PASS("prologepilog-code", PrologEpilogCodeInserterPass)
+DUMMY_MACHINE_FUNCTION_PASS("ra-basic", RABasicPass)
+DUMMY_MACHINE_FUNCTION_PASS("ra-greedy", RAGreedyPass)
+DUMMY_MACHINE_FUNCTION_PASS("ra-pbqp", RAPBQPPass)
+DUMMY_MACHINE_FUNCTION_PASS("reg-usage-collector", RegUsageInfoCollectorPass)
+DUMMY_MACHINE_FUNCTION_PASS("reg-usage-propagation", RegUsageInfoPropagationPass)
+DUMMY_MACHINE_FUNCTION_PASS("regalloc", RegAllocPass)
+DUMMY_MACHINE_FUNCTION_PASS("regallocscoringpass", RegAllocScoringPass)
+DUMMY_MACHINE_FUNCTION_PASS("regbankselect", RegBankSelectPass)
+DUMMY_MACHINE_FUNCTION_PASS("removeredundantdebugvalues", RemoveRedundantDebugValuesPass)
+DUMMY_MACHINE_FUNCTION_PASS("rename-independent-subregs", RenameIndependentSubregsPass)
+DUMMY_MACHINE_FUNCTION_PASS("reset-machine-function", ResetMachineFunctionPass)
+DUMMY_MACHINE_FUNCTION_PASS("shrink-wrap", ShrinkWrapPass)
+DUMMY_MACHINE_FUNCTION_PASS("simple-register-coalescing", RegisterCoalescerPass)
+DUMMY_MACHINE_FUNCTION_PASS("stack-coloring", StackColoringPass)
+DUMMY_MACHINE_FUNCTION_PASS("stack-frame-layout", StackFrameLayoutAnalysisPass)
+DUMMY_MACHINE_FUNCTION_PASS("stack-slot-coloring", StackSlotColoringPass)
+DUMMY_MACHINE_FUNCTION_PASS("stackmap-liveness", StackMapLivenessPass)
+DUMMY_MACHINE_FUNCTION_PASS("tailduplication", TailDuplicatePass)
+DUMMY_MACHINE_FUNCTION_PASS("unpack-mi-bundles", UnpackMachineBundlesPass)
+DUMMY_MACHINE_FUNCTION_PASS("virtregrewriter", VirtRegRewriterPass)
+DUMMY_MACHINE_FUNCTION_PASS("xray-instrumentation", XRayInstrumentationPass)
+#undef DUMMY_MACHINE_FUNCTION_PASS

@@ -1,0 +1,141 @@
+.\"	$OpenBSD: fclose.3,v 1.13 2025/07/16 15:33:05 yasuoka Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 16 2025 $
+.Dt FCLOSE 3
+.Os
+.Sh NAME
+.Nm fclose ,
+.Nm fdclose
+.Nd close a stream
+.Sh SYNOPSIS
+.In stdio.h
+.Ft int
+.Fn fclose "FILE *stream"
+.Ft int
+.Fn fdclose "FILE *stream" "int *fdp"
+.Sh DESCRIPTION
+The
+.Fn fclose
+function dissociates the named
+.Fa stream
+from its underlying file or set of functions.
+If the stream was being used for output then any buffered data is written
+first,
+while if the stream was being used for input then the underlying
+file position may be updated,
+as if via
+.Xr fflush 3 .
+.Pp
+The
+.Fn fdclose
+function is equivalent to
+.Fn fclose
+except that it does not close the associated file descriptor.
+If
+.Fa fdp
+is not
+.Dv NULL ,
+the file descriptor will be stored through it.
+If the stream was created with a function other than
+.Xr fopen 3 ,
+.Xr fdopen 3 ,
+or
+.Xr freopen 3
+and as a result does not have an associated file descriptor then
+-1 will stored through
+.Fa fdp .
+.Sh RETURN VALUES
+Upon successful completion 0 is returned.
+Otherwise,
+.Dv EOF
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+In either case no further access to the stream is possible.
+.Sh ERRORS
+The
+.Fn fclose
+and
+.Fn fdclose
+functions will fail if
+.Bl -tag -width Er
+.It Bq Er EBADF
+The argument
+.Fa stream
+is not an open stream.
+.El
+.Pp
+The
+.Fn fdclose
+function will fail if
+.Bl -tag -width Er
+.It Bq Er EOPNOTSUPP
+The argument
+.Fa stream
+does not have an associated file descriptor.
+.El
+.Pp
+They may also fail and set
+.Va errno
+for any of the errors specified for the
+.Xr fflush 3
+routine.
+.Pp
+The
+.Fn fclose
+function may also fail and set
+.Va errno
+for any of the errors specified for the
+.Xr close 2
+routine.
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr fflush 3 ,
+.Xr fopen 3 ,
+.Xr setvbuf 3
+.Sh STANDARDS
+The
+.Fn fclose
+function conforms to
+.St -p1003.1-2024 .
+.Sh HISTORY
+The
+.Fn fclose
+function first appeared in
+.At v7 .
+.Pp
+The
+.Fn fdclose
+function first appeared in
+.Fx 11.0 .

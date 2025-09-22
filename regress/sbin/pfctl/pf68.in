@@ -1,0 +1,43 @@
+match on lo0 inet proto tcp from 192.168.1.1 port 1024 to any port 80
+match proto tcp
+match proto tcp all
+match proto tcp from any to any
+match in proto tcp
+match in proto tcp all
+match in proto tcp all scrub(reassemble tcp)
+match in proto tcp from { <regress.1> !<regress.2> } to any
+match in inet proto tcp from { 10.0.0.1, 10.0.0.2 } to { 10.0.0.3, 10.0.0.4 }
+match in log on lo0 proto tcp from any to any scrub(min-ttl 25)
+match in log on lo0 inet6 proto tcp from { (lo1000000), (lo0) } to 2000::1
+match in log on {lo0 lo1000000} proto tcp from any to any
+match in on lo0 proto tcp all
+match in on lo0 proto tcp from any to any scrub(max-mss 224 min-ttl 15 no-df)
+match in on lo0 proto tcp from any to any scrub(max-mss 224)
+match in on lo0 proto tcp from any to any scrub(min-ttl 15 no-df max-mss 224)
+match in on lo0 proto tcp from any to any scrub(no-df)
+match in on lo0 proto tcp from any to any scrub(no-df max-mss 224 min-ttl 15)
+match in on lo0 inet proto tcp from (lo0) to any
+match on lo0 proto tcp from any to any scrub(max-mss 224)
+match out proto tcp
+match out proto tcp from any to { !<regress.1>, <regress.2> }
+match out log on lo1000000 proto tcp from any to 10.0.0.1 scrub(no-df max-mss 224)
+match proto tcp scrub(random-id)
+
+match proto tcp from any to any port 80
+match in proto tcp from { <regress.1> !<regress.2> } to any port 80
+match in inet proto tcp from { 10.0.0.1, 10.0.0.2 } to { 10.0.0.3, 10.0.0.4 } port 80
+match in log on lo0 proto tcp from any to any port 80 scrub(min-ttl 25)
+match in log on lo0 inet6 proto tcp from { (lo1000000), (lo0) } port 80 to 2000::1
+match in log on {lo0 lo1000000} proto tcp from any port 80 to any
+match in on lo0 proto tcp from any port {80, 81} to any scrub(max-mss 224 min-ttl 15 no-df)
+match in on lo0 proto tcp from any to any port 80 scrub (max-mss 224)
+match in on lo0 proto tcp from any port 80 to any scrub (max-mss 224 min-ttl 15 no-df)
+match in on lo0 proto tcp from any port 80 to any scrub(min-ttl 15 no-df max-mss 224)
+match in on lo0 proto tcp from any to any port {80, 81, 82} scrub (min-ttl 15 no-df max-mss 224)
+match in on lo0 proto tcp from any port 80 to any port 80 scrub(no-df)
+match in on lo0 proto tcp from any port {80, 81} to any port {80, 81} scrub(no-df max-mss 224 min-ttl 15)
+match in on lo0 proto tcp from any to any port 83 scrub(no-df max-mss 224 min-ttl 15)
+match in on lo0 inet proto tcp from (lo0) port 80 to any
+match on lo0 proto tcp from any to any port 80 scrub (max-mss 224)
+match out proto tcp from any to { !<regress.1>, <regress.2> } port 80
+match out log on lo1000000 proto tcp from any to 10.0.0.1 port 80 scrub (no-df max-mss 224)

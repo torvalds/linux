@@ -1,0 +1,228 @@
+.\" $OpenBSD: em.4,v 1.55 2021/09/08 20:29:21 jmc Exp $
+.\" Copyright (c) 2002 Intel Corporation
+.\" All rights reserved.
+.\" Redistribution and use in source and binary forms of the Software, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code of the Software may retain the above
+.\" copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form of the Software may reproduce the
+.\" above copyright notice, this list of conditions and the following
+.\" disclaimer in the documentation and/or other materials provided with the
+.\" distribution.
+.\" 3. Neither the name of the Intel Corporation nor the names of its contributors
+.\" shall be used to endorse or promote products derived from this Software
+.\" without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE INTEL OR ITS CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+.\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD: em.4,v 1.18 2005/01/30 12:29:06 yar Exp $
+.Dd $Mdocdate: September 8 2021 $
+.Dt EM 4
+.Os
+.Sh NAME
+.Nm em
+.Nd Intel PRO/1000 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "em* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI, PCI-X and PCI Express Gigabit Ethernet adapters
+based on the Intel 82540EM, 82540EP, 82541EI, 82541ER, 82541GI, 82541PI, 82542,
+82543GC, 82544EI, 82544GC, 82545EM, 82545GM, 82546EB, 82546GB, 82547EI, 82547GI,
+82562V, 82563EB, 82564EB, 82566DC, 82566DM, 82571EB, 82571GB, 82572EI, 82572GI,
+82573E, 82573L, 82573V, 82574L, 82575EB, 82575GB, 82576EB, 82577LC, 82577LM,
+82578DC, 82578DM, 82579LM, 82579V, 82580DB, 82580EB, 82583V, I210, I211, I217,
+I218, I219, I350, I354
+Ethernet controller chips and the embedded chips found on EP80579 platform,
+including the following:
+.Pp
+.Bl -item -offset indent -compact
+.It
+Axiomtek NA-200 EP80579 based board
+.It
+HP ProLiant NC110T PCI Express Gigabit NIC
+.It
+HP ProLiant NC112T PCI Express Gigabit NIC
+.It
+HP ProLiant NC310F PCI-X Gigabit NIC (SX Fiber)
+.It
+HP ProLiant NC340T PCI-X Quad Port Gigabit NIC
+.It
+HP ProLiant NC360T PCI Express Dual Port Gigabit NIC
+.It
+HP ProLiant NC364T PCI Express Quad Port Gigabit NIC
+.It
+HP ProLiant NC365T PCI Express Quad Port Gigabit NIC
+.It
+HP ProLiant NC6132 Upgrade Module (SX Fiber)
+.It
+HP ProLiant NC6133 Upgrade Module (LX Fiber)
+.It
+HP ProLiant NC6134 PCI Gigabit NIC (SX Fiber)
+.It
+HP ProLiant NC6136 PCI Gigabit NIC (SX Fiber)
+.It
+HP ProLiant NC6170 PCI-X Gigabit NIC (SX Fiber)
+.It
+HP ProLiant NC7131 PCI Gigabit NIC
+.It
+HP ProLiant NC7132 Upgrade Module
+.It
+HP ProLiant NC7170 PCI-X Dual Port Gigabit NIC
+.It
+HP ProLiant NC7170LP PCI-X Dual Port Gigabit NIC
+.It
+Intel PRO/1000 Gigabit Server Adapter (SX Fiber) (PWLA8490)
+.It
+Intel PRO/1000F Gigabit Server Adapter (SX Fiber) (PWLA8490SX)
+.It
+Intel PRO/1000T Server Adapter (PWLA8490T)
+.It
+Intel PRO/1000XT Server Adapter (PWLA8490XT)
+.It
+Intel PRO/1000XS Server Adapter (SX Fiber) (PWLA8490XF)
+.It
+Intel PRO/1000T Desktop Adapter (PWLA8390T)
+.It
+Intel PRO/1000XTL Low Profile PCI Server (PWLA8490XTL)
+.It
+Intel PRO/1000MT Desktop Adapter (PWLA8390MT)
+.It
+Intel PRO/1000MT Server Adapter (PWLA8490MT)
+.It
+Intel PRO/1000MT Dual Port Server Adapter (PWLA8492MT)
+.It
+Intel PRO/1000MF Server Adapter (SX Fiber) (PWLA8490MF)
+.It
+Intel PRO/1000MF Dual Port Server Adapter (SX Fiber) (PWLA8492MF)
+.It
+Intel PRO/1000MF Server Adapter (LX Fiber) (PWLA8490LX)
+.It
+Intel PRO/1000MT Quad PCI-X Adapter (PWLA8494MT)
+.It
+Intel PRO/1000GT Quad PCI-X Adapter (PWLA8494GT)
+.It
+Intel PRO/1000PT Desktop Adapter
+.It
+Intel PRO/1000PT Server Adapter
+.It
+Intel PRO/1000PT Dual Port Server Adapter
+.It
+Intel PRO/1000PT Quad Port Server Adapter
+.It
+Intel PRO/1000PF Server Adapter (SX Fiber)
+.It
+Intel PRO/1000PF Dual Port Server Adapter (SX Fiber)
+.It
+Intel PRO/1000ET Dual Port Server Adapter
+.It
+Intel PRO/1000ET Quad Port Server Adapter
+.It
+Intel PRO/1000EF Quad Port Server Adapter (SX Fiber)
+.It
+Intel I340-T4 PCI Express Quad Port Gigabit NIC
+.It
+Intel I350-T2 PCI Express Dual Port Gigabit NIC
+.It
+Intel I350-T4 PCI Express Quad Port Gigabit NIC
+.It
+Soekris Engineering lan1841
+.It
+Sun PCI-E Dual Gigabit Ethernet LP UTP Adapter
+.It
+Sun PCI-E Dual Gigabit Ethernet LP MMF Adapter
+.It
+Sun PCI-E Dual Gigabit Ethernet EM UTP Adapter
+.It
+Sun PCI-E Dual Gigabit Ethernet EM MMF Adapter
+.It
+Sun PCI-E Dual Gigabit Ethernet ExpressModule
+.It
+Sun x4 PCI-E Quad Gigabit Ethernet LP UTP Adapter
+.It
+Sun x4 PCI-E Quad Gigabit Ethernet ExpressModule
+.It
+Sun x8 PCI-E Quad Gigabit Ethernet ExpressModule
+.It
+Supermicro AOC-SG-i2 Dual Port Server Adapter
+.It
+Supermicro AOC-PG-I2+ Dual Port Server Adapter
+.El
+.Pp
+The
+.Nm
+driver supports IPv4 receive IP/TCP/UDP checksum offload and transmit TCP/UDP
+checksum offload on all but 82542-based adapters, VLAN tag insertion and
+stripping, and jumbo frames on all but 82562V, 82566DC/82566DM and
+82573E/82573L/82573V-based adapters.
+The 82562V Ethernet controller chip only supports 10/100 media types.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width autoselect -offset indent
+.It autoselect
+Enables auto-negotiation for speed and duplex.
+.It 10baseT Cm mediaopt No full-duplex
+Sets 10Mbps operation.
+.It 100baseTX Cm mediaopt No full-duplex
+Sets 100Mbps operation.
+.It 1000baseLX
+Sets 1000Mbps operation.
+Only full-duplex mode is supported at this speed.
+.It 1000baseSX
+Sets 1000Mbps operation.
+Only full-duplex mode is supported at this speed.
+.It 1000baseT
+Sets 1000Mbps operation.
+Only full-duplex mode is supported at this speed.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr gcu 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.2 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Intel Corporation .
+.Sh BUGS
+There are known performance issues with this driver when running UDP traffic
+with jumbo frames.
+.Pp
+There is a known compatibility issue where time to link is slow or link is not
+established between 82541/82547 controllers and some switches.
+Known switches include:
+.Pp
+.Bl -item -offset indent -compact
+.It
+I-O Data ETG-SH8
+.It
+Planex FXG-08TE
+.El

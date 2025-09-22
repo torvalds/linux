@@ -1,0 +1,164 @@
+.\"	$OpenBSD: OCSP_request_add1_nonce.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2014, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OCSP_REQUEST_ADD1_NONCE 3
+.Os
+.Sh NAME
+.Nm OCSP_request_add1_nonce ,
+.Nm OCSP_basic_add1_nonce ,
+.Nm OCSP_check_nonce ,
+.Nm OCSP_copy_nonce
+.Nd OCSP nonce functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ocsp.h
+.Ft int
+.Fo OCSP_request_add1_nonce
+.Fa "OCSP_REQUEST *req"
+.Fa "unsigned char *val"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo OCSP_basic_add1_nonce
+.Fa "OCSP_BASICRESP *resp"
+.Fa "unsigned char *val"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo OCSP_check_nonce
+.Fa "OCSP_REQUEST *req"
+.Fa "OCSP_BASICRESP *resp"
+.Fc
+.Ft int
+.Fo OCSP_copy_nonce
+.Fa "OCSP_BASICRESP *resp"
+.Fa "OCSP_REQUEST *req"
+.Fc
+.Sh DESCRIPTION
+An OCSP nonce is typically added to an OCSP request to thwart replay
+attacks by checking the same nonce value appears in the response.
+.Pp
+.Fn OCSP_request_add1_nonce
+adds a nonce of value
+.Fa val
+and length
+.Fa len
+to OCSP request
+.Fa req .
+If
+.Fa val
+is
+.Dv NULL ,
+a random nonce is used.
+If
+.Fa len
+is zero or negative, a default length will be used (currently 16 bytes).
+For most purposes the nonce value in a request is set to a random value
+so the
+.Fa val
+parameter in
+.Fn OCSP_request_add1_nonce
+is usually NULL.
+.Pp
+.Fn OCSP_basic_add1_nonce
+is identical to
+.Fn OCSP_request_add1_nonce
+except it adds a nonce to OCSP basic response
+.Fa resp .
+.Pp
+.Fn OCSP_check_nonce
+compares the nonce value in
+.Fa req
+and
+.Fa resp .
+.Pp
+.Fn OCSP_copy_nonce
+copies any nonce value present in
+.Fa req
+to
+.Fa resp .
+.Pp
+Some responders may include a nonce in all responses even if one is not
+supplied.
+.Pp
+Some responders cache OCSP responses and do not sign each response for
+performance reasons.
+As a result they do not support nonces.
+.Sh RETURN VALUES
+.Fn OCSP_request_add1_nonce
+and
+.Fn OCSP_basic_add1_nonce
+return 1 for success or 0 for failure.
+.Pp
+.Fn OCSP_copy_nonce
+returns 1 if a nonce was successfully copied, 2 if no nonce was
+present in
+.Fa req ,
+or 0 if an error occurred.
+.Pp
+.Fn OCSP_check_nonce
+returns positive values for success: 1 if nonces are present and
+equal, 2 if both nonces are absent, or 3 if a nonce is present in
+the response only.
+A zero return value indicates that both nonces are present but
+mismatch: this should be treated as an error condition.
+A return value of -1 indicates that a nonce is present in the request
+only: this will happen if the responder doesn't support nonces.
+.Sh SEE ALSO
+.Xr OCSP_cert_to_id 3 ,
+.Xr OCSP_REQUEST_new 3 ,
+.Xr OCSP_resp_find_status 3 ,
+.Xr OCSP_response_status 3 ,
+.Xr OCSP_sendreq_new 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.7
+and have been available since
+.Ox 3.2 .

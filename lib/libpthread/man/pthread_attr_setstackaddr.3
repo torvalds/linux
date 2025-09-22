@@ -1,0 +1,83 @@
+.\" $OpenBSD: pthread_attr_setstackaddr.3,v 1.14 2025/06/07 00:16:52 schwarze Exp $
+.\" Manual page derived from TOG's UNIX98 documentation.
+.\"
+.\"  David Leonard, 2000. Public Domain.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_ATTR_SETSTACKADDR 3
+.Os
+.Sh NAME
+.Nm pthread_attr_setstackaddr ,
+.Nm pthread_attr_getstackaddr
+.Nd set and get stackaddr attribute
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_attr_setstackaddr "pthread_attr_t *attr" "void *stackaddr"
+.Ft int
+.Fn pthread_attr_getstackaddr "const pthread_attr_t *attr" "void **stackaddr"
+.Sh DESCRIPTION
+The functions
+.Fn pthread_attr_setstackaddr
+and
+.Fn pthread_attr_getstackaddr ,
+respectively, set and get the thread
+creation
+.Va stackaddr
+attribute in the
+.Fa attr
+object.
+.Pp
+The
+.Va stackaddr
+attribute specifies the location of storage to be
+used for the created thread's stack.
+The size of the storage is at least
+.Dv PTHREAD_STACK_MIN .
+.Pp
+On
+.Ox
+the stack must have been allocated using
+.Xr mmap 2
+with the
+.Va MAP_STACK
+attribute.
+Otherwise, use of the stack will cause SIGABRT faults.
+.Xr pthread_attr_setstack 3
+can avoid this problem because it knows the size of the stack to remap.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn pthread_attr_setstackaddr
+and
+.Fn pthread_attr_getstackaddr
+return a value of 0.
+Otherwise, an error number is returned to indicate the error.
+.Pp
+The
+.Fn pthread_attr_getstackaddr
+function stores the
+.Va stackaddr
+attribute value in
+.Fa stackaddr
+if successful.
+.Sh ERRORS
+No errors are defined.
+.Pp
+These functions will not return an error code of
+.Bq Er EINTR .
+.Sh SEE ALSO
+.Xr pthread_attr_init 3 ,
+.Xr pthread_attr_setdetachstate 3 ,
+.Xr pthread_attr_setguardsize 3 ,
+.Xr pthread_attr_setstack 3 ,
+.Xr pthread_attr_setstacksize 3 ,
+.Xr pthread_create 3 ,
+.Xr pthreads 3
+.Sh STANDARDS
+.Fn pthread_attr_setstackaddr
+and
+.Fn pthread_attr_getstackaddr
+conform to ISO/IEC 9945-1 ANSI/IEEE
+.Pq Dq Tn POSIX
+Std 1003.1 Second Edition 1996-07-12.

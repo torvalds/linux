@@ -1,0 +1,10 @@
+@LIT_SITE_CFG_IN_HEADER@
+
+import sys
+
+config.libcxx_src_root = "@LIBCXX_SOURCE_DIR@"
+config.libcxx_obj_root = "@LIBCXX_BINARY_DIR@"
+config.benchmark_args = "@LIBCXX_BENCHMARK_TEST_ARGS@".split(';')
+
+# Let the main config do the real work.
+lit_config.load_config(config, "@LIBCXX_SOURCE_DIR@/benchmarks/lit.cfg.py")

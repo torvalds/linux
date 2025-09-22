@@ -1,0 +1,16 @@
+#!/bin/ksh
+#
+# $OpenBSD: mopd,v 1.5 2018/01/11 21:09:26 rpe Exp $
+
+daemon="/usr/sbin/mopd"
+daemon_flags="-a"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=NO
+
+rc_pre() {
+	[[ -d /tftpboot/mop ]]
+}
+
+rc_cmd $1

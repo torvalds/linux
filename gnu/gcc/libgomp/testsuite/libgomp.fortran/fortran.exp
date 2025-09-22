@@ -1,0 +1,20 @@
+set lang_library_path	"../libgfortran/.libs"
+set lang_test_file	"${lang_library_path}/libgfortranbegin.a"
+set lang_link_flags	"-lgfortranbegin -lgfortran"
+
+load_lib libgomp-dg.exp
+
+# Initialize dg.
+dg-init
+
+if [file exists "${blddir}/${lang_test_file}"] {
+
+    # Gather a list of all tests.
+    set tests [lsort [find $srcdir/$subdir *.\[fF\]{,90,95,03}]]
+
+    # Main loop.
+    gfortran-dg-runtest $tests ""
+}
+
+# All done.
+dg-finish

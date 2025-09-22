@@ -1,0 +1,47 @@
+dnl	$OpenBSD: contents,v 1.66 2025/03/25 08:17:46 miod Exp $
+TopPart
+
+OpenBSDminiroot
+			It can be copied to the swap partition of an existing
+			disk to allow installing or upgrading to OpenBSD OSREV.
+
+OpenBSDdistsets
+
+OpenBSDbsd
+
+OpenBSDbsdmp
+
+OpenBSDrd
+
+OpenBSDinstalliso
+
+OpenBSDcd
+
+	bootxx, boot	The OpenBSD/MACHINE first and second-level boot
+			loaders; useful to update your boot loader if you want
+			to reinstall from an old OpenBSD setup but the existing
+			boot loader is too old to load bsd.rd correctly.
+
+	netboot		The OpenBSD/MACHINE network boot loader, for bootp
+			or dhcpd protocols.
+
+	netboot.mop	The OpenBSD/MACHINE network boot loader, for MOP
+			protocol.
+
+DistributionDescription(eight)
+
+OpenBSDbase(113075451,267523009)
+
+OpenBSDcomp(50528447,200123504)
+
+OpenBSDgame(2885903,6936251)
+
+OpenBSDman(8513669,31778420)
+
+OpenBSDxbase(12413338,40772790)
+
+OpenBSDxfont(23589223,35814089)
+
+OpenBSDxserv(2133816,5063018)
+
+OpenBSDxshare(4711440,23911493)

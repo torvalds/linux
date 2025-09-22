@@ -1,0 +1,137 @@
+.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt RS256_PK_NEW 3
+.Os
+.Sh NAME
+.Nm rs256_pk_new ,
+.Nm rs256_pk_free ,
+.Nm rs256_pk_from_RSA ,
+.Nm rs256_pk_from_EVP_PKEY ,
+.Nm rs256_pk_from_ptr ,
+.Nm rs256_pk_to_EVP_PKEY
+.Nd FIDO2 COSE RS256 API
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In openssl/rsa.h
+.In fido/rs256.h
+.Ft rs256_pk_t *
+.Fn rs256_pk_new "void"
+.Ft void
+.Fn rs256_pk_free "rs256_pk_t **pkp"
+.Ft int
+.Fn rs256_pk_from_EVP_PKEY "rs256_pk_t *pk" "const EVP_PKEY *pkey"
+.Ft int
+.Fn rs256_pk_from_RSA "rs256_pk_t *pk" "const RSA *rsa"
+.Ft int
+.Fn rs256_pk_from_ptr "rs256_pk_t *pk" "const void *ptr" "size_t len"
+.Ft EVP_PKEY *
+.Fn rs256_pk_to_EVP_PKEY "const rs256_pk_t *pk"
+.Sh DESCRIPTION
+RS256 is the name given in the CBOR Object Signing and Encryption
+(COSE) RFC to PKCS#1.5 2048-bit RSA with SHA-256.
+The COSE RS256 API of
+.Em libfido2
+is an auxiliary API with routines to convert between the different
+RSA public key types used in
+.Em libfido2
+and
+.Em OpenSSL .
+.Pp
+In
+.Em libfido2 ,
+RS256 public keys are abstracted by the
+.Vt rs256_pk_t
+type.
+.Pp
+The
+.Fn rs256_pk_new
+function returns a pointer to a newly allocated, empty
+.Vt rs256_pk_t
+type.
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn rs256_pk_free
+function releases the memory backing
+.Fa *pkp ,
+where
+.Fa *pkp
+must have been previously allocated by
+.Fn rs256_pk_new .
+On return,
+.Fa *pkp
+is set to NULL.
+Either
+.Fa pkp
+or
+.Fa *pkp
+may be NULL, in which case
+.Fn rs256_pk_free
+is a NOP.
+.Pp
+The
+.Fn rs256_pk_from_EVP_PKEY
+function fills
+.Fa pk
+with the contents of
+.Fa pkey .
+No references to
+.Fa pkey
+are kept.
+.Pp
+The
+.Fn rs256_pk_from_RSA
+function fills
+.Fa pk
+with the contents of
+.Fa rsa .
+No references to
+.Fa rsa
+are kept.
+.Pp
+The
+.Fn rs256_pk_from_ptr
+function fills
+.Fa pk
+with the contents of
+.Fa ptr ,
+where
+.Fa ptr
+points to
+.Fa len
+bytes.
+No references to
+.Fa ptr
+are kept.
+.Pp
+The
+.Fn rs256_pk_to_EVP_PKEY
+function converts
+.Fa pk
+to a newly allocated
+.Fa EVP_PKEY
+type with a reference count of 1.
+No internal references to the returned pointer are kept.
+If an error occurs,
+.Fn rs256_pk_to_EVP_PKEY
+returns NULL.
+.Sh RETURN VALUES
+The
+.Fn rs256_pk_from_EVP_PKEY ,
+.Fn rs256_pk_from_RSA ,
+and
+.Fn rs256_pk_from_ptr
+functions return
+.Dv FIDO_OK
+on success.
+On error, a different error code defined in
+.In fido/err.h
+is returned.
+.Sh SEE ALSO
+.Xr eddsa_pk_new 3 ,
+.Xr es256_pk_new 3 ,
+.Xr fido_assert_verify 3 ,
+.Xr fido_cred_pubkey_ptr 3

@@ -1,0 +1,24 @@
+#
+# SSLeay example configuration file.
+# This is mostly being used for generation of certificate requests.
+#
+# hacked by iang to do DH certs - CA
+
+RANDFILE              = ./.rnd
+
+####################################################################
+[ req ]
+distinguished_name    = req_distinguished_name
+encrypt_rsa_key               = no
+
+[ req_distinguished_name ]
+countryName                   = Country Name (2 letter code)
+countryName_default           = CU
+countryName_value             = CU
+
+organizationName              = Organization Name (eg, company)
+organizationName_value                = La Junta de la Revolucion
+
+commonName                    = Common Name (eg, YOUR name)
+commonName_value              = Junta
+

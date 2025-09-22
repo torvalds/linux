@@ -1,0 +1,16 @@
+LIB2FUNCS_STATIC_EXTRA = $(srcdir)/config/cris/mulsi3.asm
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o
+MULTILIB_OPTIONS = march=v10
+MULTILIB_DIRNAMES = v10
+MULTILIB_MATCHES = \
+		march?v10=mcpu?etrax100lx \
+		march?v10=mcpu?ng \
+		march?v10=march?etrax100lx \
+		march?v10=march?ng \
+		march?v10=march?v11 \
+		march?v10=mcpu?v11 \
+		march?v10=mcpu?v10
+MULTILIB_EXTRA_OPTS = mbest-lib-options
+INSTALL_LIBGCC = install-multilib
+LIBGCC = stmp-multilib
+CRTSTUFF_T_CFLAGS = $(LIBGCC2_CFLAGS) -moverride-best-lib-options

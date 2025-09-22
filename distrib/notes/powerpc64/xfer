@@ -1,0 +1,11 @@
+dnl	$OpenBSD: xfer,v 1.1 2020/07/05 20:01:35 kettenis Exp $
+
+Installation is supported from several media types, including:
+
+	DOS (FAT) partitions
+	EXT2 partitions
+	HTTP
+
+OpenBSDXferShortPrelude
+
+OpenBSDXferUSBFromUNIX

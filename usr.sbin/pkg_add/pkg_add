@@ -1,0 +1,51 @@
+#! /usr/bin/perl
+# ex:ts=8 sw=4:
+# $OpenBSD: pkg_add,v 1.487 2023/05/21 08:06:03 espie Exp $
+#
+# Copyright (c) 2010 Marc Espie <espie@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+use v5.36;
+no lib ('/usr/local/libdata/perl5/site_perl');
+
+sub run($cmd, $m)
+{
+	my $module = "OpenBSD::$m";
+	eval "require $module";
+	if ($@) {
+		die $@;
+	}
+	exit($module->parse_and_run($cmd));
+}
+
+my $choices = {
+	pkg_add => 'PkgAdd',
+	pkg_check => 'PkgCheck',
+	pkg_create => 'PkgCreate',
+	pkg_delete => 'PkgDelete',
+	pkg_info => 'PkgInfo',
+	pkg_sign => 'PkgSign',
+	fw_update => 'FwUpdate',
+};
+
+my @l = qw(add check create delete info sign);
+
+while (my ($cmd, $module) = each %$choices) {
+	if ($0 =~ m/\/?\Q$cmd\E$/) {
+		run($cmd, $module);
+	}
+}
+
+# defaults to pkg_info personality but keeps the command name
+run($0, 'PkgInfo');

@@ -1,0 +1,53 @@
+# This file introduces a templates for defining fuzzers.
+#
+# All parameters valid for executable() targets are valid (cflags, defines,
+# deps, include_dirs, sources, ...). In addition to that:
+#
+#   dummy_main (required)
+#       Path to a cpp file containing main(), used when neither
+#       llvm_use_sanitize_coverage nor llvm_use_sanitize_coverage are set.
+#
+# Example of usage:
+#
+#   fuzzer("llvm-opt-fuzzer") {
+#     deps = [ ... ]
+#     dummy_main = "DummyOptFuzzer.cpp"
+#     sources = [ "llvm-opt-fuzzer.cpp" ]
+#   }
+
+declare_args() {
+  # Set to the path of a static library containing a fuzzing engine, e.g.
+  # oss-fuzz's $LIB_FUZZING_ENGINE.
+  llvm_lib_fuzzing_engine = ""
+
+  # If true, pass -fsanitize=fuzzer to the compiler for fuzzer() targets.
+  # Likely only makes sense to set if you know that the host compiler is clang.
+  llvm_use_sanitize_coverage = false
+}
+
+template("fuzzer") {
+  assert(defined(invoker.dummy_main), "must set 'dummy_main' in $target_name")
+  assert(defined(invoker.sources), "must set 'sources' for $target_name")
+  executable(target_name) {
+    forward_variables_from(invoker, "*", [ "dummy_main" ])
+    if (llvm_lib_fuzzing_engine != "") {
+      if (!defined(libs)) {
+        libs = []
+      }
+      libs += [ llvm_lib_fuzzing_engine ]
+      not_needed(invoker, [ "dummy_main" ])
+    } else if (llvm_use_sanitize_coverage) {
+      if (!defined(cflags)) {
+        cflags = []
+      }
+      if (!defined(ldflags)) {
+        ldflags = []
+      }
+      cflags += [ "-fsanitize=fuzzer" ]
+      ldflags += [ "-fsanitize=fuzzer" ]
+      not_needed(invoker, [ "dummy_main" ])
+    } else {
+      sources += [ invoker.dummy_main ]
+    }
+  }
+}

@@ -1,0 +1,121 @@
+.\" $OpenBSD: ASN1_item_sign.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_ITEM_SIGN 3
+.Os
+.Sh NAME
+.Nm ASN1_item_sign ,
+.Nm ASN1_item_sign_ctx
+.Nd DER-encode and sign an ASN.1 value
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo ASN1_item_sign
+.Fa "const ASN1_ITEM *it"
+.Fa "X509_ALGOR *algor1"
+.Fa "X509_ALGOR *algor2"
+.Fa "ASN1_BIT_STRING *sig_out"
+.Fa "void *val_in"
+.Fa "EVP_PKEY *pkey"
+.Fa "const EVP_MD *type"
+.Fc
+.Ft int
+.Fo ASN1_item_sign_ctx
+.Fa "const ASN1_ITEM *it"
+.Fa "X509_ALGOR *algor1"
+.Fa "X509_ALGOR *algor2"
+.Fa "ASN1_BIT_STRING *sig_out"
+.Fa "void *val_in"
+.Fa "EVP_MD_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_item_sign
+assumes that
+.Fa val_in
+is an
+.Vt ASN1_VALUE
+of the type specified by
+.Fa it ,
+encodes it into DER format by calling
+.Xr ASN1_item_i2d 3 ,
+and signs the resulting byte array in a way similar to
+.Xr EVP_DigestSign 3 ,
+using a signing context created with
+.Xr EVP_DigestSignInit 3
+for the given digest
+.Fa type
+and private key
+.Fa pkey .
+The created signature is placed into the
+.Fa sig_out
+object provided by the caller,
+freeing and replacing any data already contained in that object.
+.Pp
+.Fn ASN1_item_sign_ctx
+is similar except that the provided
+.Ft ctx
+is used rather than creating a new one.
+No matter whether
+.Fn ASN1_item_sign_ctx
+succeeds or fails,
+.Xr EVP_MD_CTX_cleanup 3
+is called on
+.Fa ctx
+before returning.
+.Pp
+For both functions, unless
+.Fa algor1
+is
+.Dv NULL ,
+its algorithm OID and parameter type are set according to the digest
+.Fa type
+used, and its parameter value is cleared.
+In RSA-PSS mode, the parameter value is also copied into
+.Fa algor1 .
+Unless
+.Fa algor2
+is
+.Dv NULL ,
+the same data is copied into it.
+.Sh RETURN VALUES
+These functions return the length of the signature in bytes
+or 0 if memory allocation, encoding, or signing fails.
+.Pp
+.Fn ASN1_item_sign_ctx
+also fails and returns 0 if
+.Fa ctx
+is not fully initialized.
+.Sh SEE ALSO
+.Xr ASN1_BIT_STRING_new 3 ,
+.Xr ASN1_item_digest 3 ,
+.Xr ASN1_item_i2d 3 ,
+.Xr ASN1_item_verify 3 ,
+.Xr EVP_Digest 3 ,
+.Xr EVP_DigestSign 3 ,
+.Xr EVP_MD_CTX_new 3 ,
+.Xr EVP_PKEY_new 3 ,
+.Xr OBJ_find_sigid_by_algs 3 ,
+.Xr X509_ALGOR_new 3
+.Sh HISTORY
+.Fn ASN1_item_sign
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.1 .
+.Pp
+.Fn ASN1_item_sign_ctx
+first appeared in OpenSSL 1.0.1 and has been available since
+.Ox 5.3 .

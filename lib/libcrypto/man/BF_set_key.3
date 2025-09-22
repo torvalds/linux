@@ -1,0 +1,270 @@
+.\"	$OpenBSD: BF_set_key.3,v 1.13 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL 99d63d46 Jul 19 09:27:53 2016 -0400
+.\"
+.\" This file was written by Richard Levitte <levitte@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2005, 2014, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BF_SET_KEY 3
+.Os
+.Sh NAME
+.Nm BF_set_key ,
+.Nm BF_encrypt ,
+.Nm BF_decrypt ,
+.Nm BF_ecb_encrypt ,
+.Nm BF_cbc_encrypt ,
+.Nm BF_cfb64_encrypt ,
+.Nm BF_ofb64_encrypt
+.Nd Blowfish encryption
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/blowfish.h
+.Ft void
+.Fo BF_set_key
+.Fa "BF_KEY *key"
+.Fa "int len"
+.Fa "const unsigned char *data"
+.Fc
+.Ft void
+.Fo BF_encrypt
+.Fa "BF_LONG *data"
+.Fa "const BF_KEY *key"
+.Fc
+.Ft void
+.Fo BF_decrypt
+.Fa "BF_LONG *data"
+.Fa "const BF_KEY *key"
+.Fc
+.Ft void
+.Fo BF_ecb_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "BF_KEY *key"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo BF_cbc_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "BF_KEY *schedule"
+.Fa "unsigned char *ivec"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo BF_cfb64_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "BF_KEY *schedule"
+.Fa "unsigned char *ivec"
+.Fa "int *num"
+.Fa "int enc"
+.Fc
+.Ft void
+.Fo BF_ofb64_encrypt
+.Fa "const unsigned char *in"
+.Fa "unsigned char *out"
+.Fa "long length"
+.Fa "BF_KEY *schedule"
+.Fa "unsigned char *ivec"
+.Fa "int *num"
+.Fc
+.Sh DESCRIPTION
+This library implements the Blowfish cipher,
+which was invented and defined by
+.An Counterpane .
+Note that applications should use higher level functions such as
+.Xr EVP_EncryptInit 3
+instead of calling the Blowfish functions directly.
+.Pp
+Blowfish is a block cipher that operates on 64-bit (8 byte) blocks of data.
+It uses a variable size key, but typically, 128-bit (16 byte) keys
+are considered good for strong encryption.
+Blowfish can be used in the same modes as DES
+and is currently one of the faster block ciphers.
+It is quite a bit faster than DES, and much faster than IDEA or RC2.
+.Pp
+Blowfish consists of a key setup phase
+and the actual encryption or decryption phase.
+.Pp
+.Fn BF_set_key
+sets up the
+.Vt BF_KEY
+.Fa key
+using the
+.Fa len
+bytes long key at
+.Fa data .
+.Pp
+.Fn BF_ecb_encrypt
+is the basic Blowfish encryption and decryption function.
+It encrypts or decrypts the first 64 bits of
+.Fa in
+using the key
+.Fa key ,
+putting the result in
+.Fa out .
+.Fa enc
+decides if encryption
+.Pq Dv BF_ENCRYPT
+or decryption
+.Pq Dv BF_DECRYPT
+shall be performed.
+The vector pointed at by
+.Fa in
+and
+.Fa out
+must be 64 bits in length, no less.
+If they are larger, everything after the first 64 bits is ignored.
+.Pp
+The mode functions
+.Fn BF_cbc_encrypt ,
+.Fn BF_cfb64_encrypt ,
+and
+.Fn BF_ofb64_encrypt
+all operate on variable length data.
+They all take an initialization vector
+.Fa ivec
+which needs to be passed along into the next call of the same function
+for the same message.
+.Fa ivec
+may be initialized with anything, but the recipient needs to know what
+it was initialized with, or it won't be able to decrypt.
+Some programs and protocols simplify this, like SSH, where
+.Fa ivec
+is simply initialized to zero.
+.Fn BF_cbc_encrypt
+operates on data that is a multiple of 8 bytes long, while
+.Fn BF_cfb64_encrypt
+and
+.Fn BF_ofb64_encrypt
+are used to encrypt a variable number of bytes (the amount
+does not have to be an exact multiple of 8).
+The purpose of the latter two is to simulate stream ciphers and,
+therefore, they need the parameter
+.Fa num ,
+which is a pointer to an integer where the current offset in
+.Fa ivec
+is stored between calls.
+This integer must be initialized to zero when
+.Fa ivec
+is initialized.
+.Pp
+.Fn BF_cbc_encrypt
+is the Cipher Block Chaining function for Blowfish.
+It encrypts or decrypts the 64-bit chunks of
+.Fa in
+using the key
+.Fa schedule ,
+putting the result in
+.Fa out .
+.Fa enc
+decides if encryption
+.Pq Dv BF_ENCRYPT
+or decryption
+.Pq Dv BF_DECRYPT
+shall be performed.
+.Fa ivec
+must point at an 8-byte long initialization vector.
+.Pp
+.Fn BF_cfb64_encrypt
+is the CFB mode for Blowfish with 64-bit feedback.
+It encrypts or decrypts the bytes in
+.Fa in
+using the key
+.Fa schedule ,
+putting the result in
+.Fa out .
+.Fa enc
+decides if encryption
+.Pq Dv BF_ENCRYPT
+or decryption
+.Pq Dv BF_DECRYPT
+shall be performed.
+.Fa ivec
+must point at an
+8-byte long initialization vector.
+.Fa num
+must point at an integer which must be initially zero.
+.Pp
+.Fn BF_ofb64_encrypt
+is the OFB mode for Blowfish with 64-bit feedback.
+It uses the same parameters as
+.Fn BF_cfb64_encrypt ,
+which must be initialized the same way.
+.Pp
+.Fn BF_encrypt
+and
+.Fn BF_decrypt
+are the lowest level functions for Blowfish encryption.
+They encrypt/decrypt the first 64 bits of the vector pointed by
+.Fa data ,
+using the key
+.Fa key .
+These functions should not be used unless implementing `modes' of Blowfish.
+The alternative is to use
+.Fn BF_ecb_encrypt .
+Be aware that these functions take each 32-bit chunk in host-byte order,
+which is little-endian on little-endian platforms
+and big-endian on big-endian ones.
+.Sh SEE ALSO
+.Xr EVP_EncryptInit 3
+.Sh HISTORY
+.Fn BF_set_key ,
+.Fn BF_encrypt ,
+.Fn BF_ecb_encrypt ,
+.Fn BF_cbc_encrypt ,
+.Fn BF_cfb64_encrypt ,
+and
+.Fn BF_ofb64_encrypt
+first appeared in SSLeay 0.6.6.
+.Fn BF_decrypt
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .

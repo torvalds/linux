@@ -1,0 +1,138 @@
+.\"	$OpenBSD: ratecheck.9,v 1.13 2020/06/26 18:48:31 cheloha Exp $
+.\"	$NetBSD: ratecheck.9,v 1.1.2.1 2000/02/18 20:26:43 he Exp $
+.\"
+.\" Copyright (c) 2000 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Christopher G. Demetriou.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 26 2020 $
+.Dt RATECHECK 9
+.Os
+.Sh NAME
+.Nm ratecheck
+.Nd function to help implement rate-limited actions
+.Sh SYNOPSIS
+.In sys/time.h
+.Ft int
+.Fn ratecheck "struct timeval *lasttime" "const struct timeval *mininterval"
+.Sh DESCRIPTION
+The
+.Fn ratecheck
+function provides a simple time interval check which can be used
+when implementing time-based rate-limited actions.
+If the difference between the current monotonically-increasing
+system time
+.Pq Xr getmicrouptime 9
+and
+.Fa lasttime
+is less than the value given by the
+.Fa mininterval
+argument, zero is returned.
+Otherwise,
+.Fa lasttime
+is set to the current time and a non-zero value is returned.
+.Pp
+The motivation for implementing
+.Fn ratecheck
+was to provide a mechanism that could be used to add rate limiting to
+diagnostic message output.
+If printed too often, diagnostic messages can
+keep the system from doing useful work.
+If the repeated messages can be caused by deliberate user action or
+network events, they can be exploited to cause denial of system service.
+.Pp
+Note that using a very short time interval (less than a second)
+for
+.Fa mininterval
+defeats the purpose of this function.
+(It doesn't
+take much to flood a 9600 baud serial console with output, for instance.)
+.Sh EXAMPLES
+Here is a simple example of use of the
+.Fn ratecheck
+function:
+.Bd -literal
+/*
+ * The following variables could be global, in a device softc, etc.,
+ * depending on the exact usage.
+ */
+struct timeval drv_lasterr1time;   /* time of last err1 message */
+long drv_err1count;                /* # of err1 errs since last msg */
+struct timeval drv_lasterr2time;   /* time of last err2 message */
+long drv_err2count;                /* # of err2 errs since last msg */
+
+/*
+ * The following variable will often be global or shared by all
+ * instances of a driver.  It should be initialized, so it can be
+ * patched.  Allowing it to be set via an option might be nice,
+ * but could lead to an insane proliferation of options.
+ */
+struct timeval drv_errinterval = { 5, 0 };         /* 5 seconds */
+
+/* error handling/reporting function */
+void
+drv_errhandler(int err1, int err2)
+{
+
+	/*
+	 * Note that you should NOT use the same last-event
+	 * time variable for dissimilar messages!
+	 */
+	if (err1) {
+		/* handle err1 condition */
+		...
+
+		drv_err1count++;
+		if (ratecheck(&drv_lasterr1time,
+		    &drv_errinterval)) {
+			printf("drv: %ld err1 errors occurred",
+			    drv_err1count);
+			drv_err1count = 0;
+		}
+	}
+	if (err2) {
+		/* handle err2 condition */
+		...
+
+		drv_err2count++;
+		if (ratecheck(&drv_lasterr2time,
+		    &drv_errinterval)) {
+			printf("drv: %ld err2 errors occurred",
+			    drv_err2count);
+			drv_err2count = 0;
+		}
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr log 9 ,
+.Xr microtime 9 ,
+.Xr printf 9
+.Sh HISTORY
+The
+.Fn ratecheck
+function first appeared in
+.Nx 1.5 .

@@ -1,0 +1,74 @@
+.\" $OpenBSD: RAND_add.3,v 1.11 2025/06/08 22:40:30 schwarze Exp $
+.\" content checked up to: OpenSSL c16de9d8 Aug 31 23:16:22 2017 +0200
+.\"
+.\" Copyright (c) 2014 Miod Vallat <miod@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RAND_ADD 3
+.Os
+.Sh NAME
+.Nm RAND_add ,
+.Nm RAND_cleanup ,
+.Nm RAND_poll ,
+.Nm RAND_seed ,
+.Nm RAND_status
+.Nd manipulate the PRNG state
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rand.h
+.Ft void
+.Fo RAND_add
+.Fa "const void *buf"
+.Fa "int num"
+.Fa "double entropy"
+.Fc
+.Ft void
+.Fn RAND_cleanup void
+.Ft int
+.Fn RAND_poll void
+.Ft void
+.Fo RAND_seed
+.Fa "const void *buf"
+.Fa "int num"
+.Fc
+.Ft int
+.Fn RAND_status void
+.Sh DESCRIPTION
+These functions used to allow for the state of the random number
+generator to be controlled by external sources.
+.Pp
+They are kept for ABI compatibility but are no longer functional, and
+should not be used in new programs.
+.Sh RETURN VALUES
+.Fn RAND_poll
+and
+.Fn RAND_status
+always return 1.
+.Sh HISTORY
+.Fn RAND_cleanup
+and
+.Fn RAND_seed
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn RAND_add
+and
+.Fn RAND_status
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn RAND_poll
+first appeared in OpenSSL 0.9.6 and has been available since
+.Ox 2.9 .

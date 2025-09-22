@@ -1,0 +1,69 @@
+import("//compiler-rt/target.gni")
+
+static_library("profile") {
+  output_dir = crt_current_out_dir
+  if (current_os == "mac") {
+    output_name = "clang_rt.profile_osx"
+  } else {
+    output_name = "clang_rt.profile$crt_current_target_suffix"
+  }
+
+  complete_static_lib = true
+  configs -= [ "//llvm/utils/gn/build:thin_archive" ]
+
+  cflags = []
+  if (current_os != "win") {
+    cflags = [
+      "-fPIC",
+      "-Wno-pedantic",
+    ]
+  } else {
+    # This appears to be a C-only warning banning the use of locals in
+    # aggregate initializers. All other compilers accept this, though.
+    #     nonstandard extension used : 'identifier' :
+    #     cannot be initialized using address of automatic variable
+    cflags += [ "/wd4221" ]
+  }
+
+  include_dirs = [ "../../include" ]
+
+  sources = [
+    "GCDAProfiling.c",
+    "InstrProfiling.c",
+    "InstrProfiling.h",
+    "InstrProfilingBuffer.c",
+    "InstrProfilingFile.c",
+    "InstrProfilingInternal.c",
+    "InstrProfilingInternal.h",
+    "InstrProfilingMerge.c",
+    "InstrProfilingMergeFile.c",
+    "InstrProfilingNameVar.c",
+    "InstrProfilingPlatformAIX.c",
+    "InstrProfilingPlatformDarwin.c",
+    "InstrProfilingPlatformFuchsia.c",
+    "InstrProfilingPlatformLinux.c",
+    "InstrProfilingPlatformOther.c",
+    "InstrProfilingPlatformWindows.c",
+    "InstrProfilingPort.h",
+    "InstrProfilingRuntime.cpp",
+    "InstrProfilingUtil.c",
+    "InstrProfilingUtil.h",
+    "InstrProfilingValue.c",
+    "InstrProfilingVersionVar.c",
+    "InstrProfilingWriter.c",
+  ]
+  if (current_os == "win") {
+    sources += [
+      "WindowsMMap.c",
+      "WindowsMMap.h",
+    ]
+  }
+
+  if (current_os != "win") {
+    defines = [
+      "COMPILER_RT_HAS_UNAME",
+      "COMPILER_RT_HAS_ATOMICS",
+      "COMPILER_RT_HAS_FCNTL_LCK",
+    ]
+  }
+}

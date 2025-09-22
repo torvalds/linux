@@ -1,0 +1,9 @@
+stdin:3: port only applies to tcp/udp
+stdin:3: skipping rule due to errors
+stdin:3: rule expands to no valid combination
+stdin:4: port only applies to tcp/udp
+stdin:4: skipping rule due to errors
+stdin:4: rule expands to no valid combination
+stdin:5: port only applies to tcp/udp
+stdin:5: skipping rule due to errors
+stdin:5: rule expands to no valid combination

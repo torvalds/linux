@@ -1,0 +1,99 @@
+.\"	$OpenBSD: gpiodcf.4,v 1.5 2015/06/07 20:13:13 claudio Exp $
+.\"
+.\" Copyright (c) 2008 Marc Balmer <mbalmer@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2015 $
+.Dt GPIODCF 4
+.Os
+.Sh NAME
+.Nm gpiodcf
+.Nd DCF77 timedelta sensor through GPIO pin
+.Sh SYNOPSIS
+.Cd "gpiodcf* at gpio? offset 0 mask 0x1"
+.Cd "gpiodcf* at gpio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver decodes the DCF77 time signal code using one GPIO pin.
+The pin is used as a data signal.
+The GPIO pin must be able to read an input.
+.Pp
+The pin number can be specified in the kernel configuration with the
+.Ar offset
+locator.
+The
+.Ar mask
+locator should always be 0x1 in this case.
+The
+.Ar offset
+and
+.Ar mask
+can also be specified when
+.Nm
+is attached at runtime using the
+.Dv GPIOATTACH
+.Xr ioctl 2
+on the
+.Xr gpio 4
+device.
+.Pp
+.Nm
+implements a timedelta sensor and the delta (in nanoseconds) between the
+received time information and the local time can be accessed through the
+.Xr sysctl 8
+interface.
+The clock type is indicated in the sensor description:
+.Bl -tag -width "CRITICALXX" -offset indent
+.It DCF77
+German DCF77 time signal station
+(77.5 kHz longwave transmitter located in Mainflingen near Frankfurt).
+.El
+.Pp
+The quality of the timedelta is reported as the sensor status:
+.Bl -tag -width "CRITICALXX" -offset indent
+.It UNKNOWN
+No valid time information has been received yet.
+.It OK
+The time information is valid and the timedelta is safe to use for
+applications like
+.Xr ntpd 8 .
+.It WARN
+The time information is still valid, but no new time information has been
+decoded for at least 5 minutes due to a reception or parity error.
+The timedelta should be used with care.
+.It CRITICAL
+No valid time information has been received for more than 15 minutes since
+the sensor state degraded from OK to WARN.
+This is an indication that hardware should be checked
+to see if it is still functional.
+The timedelta will eventually degrade to a lie
+as all computer internal clocks have a drift.
+.El
+.Sh SEE ALSO
+.Xr gpio 4 ,
+.Xr intro 4 ,
+.Xr ntpd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Marc Balmer Aq Mt mbalmer@openbsd.org .

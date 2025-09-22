@@ -1,0 +1,311 @@
+.\"	$OpenBSD: pty.4,v 1.26 2022/10/13 21:37:05 jmc Exp $
+.\"	$NetBSD: pty.4,v 1.4 1998/03/21 03:14:30 fair Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)pty.4	8.2 (Berkeley) 11/30/93
+.\"
+.Dd $Mdocdate: October 13 2022 $
+.Dt PTY 4
+.Os
+.Sh NAME
+.Nm pty ,
+.Nm ptm
+.Nd pseudo terminal driver
+.Sh SYNOPSIS
+.Cd "pseudo-device pty" Op Ar count
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for a device-pair termed a
+.Em pseudo terminal .
+A pseudo terminal is a pair of character devices, a
+.Em master
+device and a
+.Em slave
+device.
+The slave device provides to a process an interface identical to that
+described in
+.Xr tty 4 .
+However, whereas all other devices which provide the
+interface described in
+.Xr tty 4
+have a hardware device of some sort behind them, the slave
+device has, instead, another process manipulating
+it through the master half of the pseudo terminal.
+That is, anything written on the master device is
+given to the slave device as input and anything written
+on the slave device is presented as input on the master
+device.
+.Pp
+In configuring, if an optional
+.Ar count
+is given in
+the specification, space for that number of pseudo terminal pairs is
+preallocated.
+If the count is missing or is less than 2, a default count of 8 is used.
+This is not a hard limit--space for additional pseudo terminal pairs
+is allocated on demand up to the limit of 992.
+.Pp
+The following
+.Xr ioctl 2
+calls apply only to pseudo terminals and may only be applied to the
+.Nm
+master:
+.Bl -tag -width TIOCREMOTE
+.It Dv TIOCEXT Fa int *on
+If
+.Fa on
+points to a non-zero integer,
+enable
+external processing.
+Otherwise,
+disable external processing.
+.Pp
+While external processing is enabled, input line editing, character echo,
+and mapping of control characters to signals are disabled
+regardless of the terminal's
+.Xr termios 4
+settings.
+.It Dv TIOCSTOP Fa void
+Stops output to a terminal (e.g., like typing
+.Ql ^S ) .
+.It Dv TIOCSTART Fa void
+Restarts output
+.Po
+stopped by
+.Dv TIOCSTOP
+or by typing
+.Ql ^S
+.Pc .
+.It Dv TIOCPKT Fa int *on
+If
+.Fa on
+points to a non-zero integer,
+enable packet mode.
+Otherwise,
+disable packet mode.
+.Pp
+While packet mode is enabled, each subsequent
+.Xr read 2
+from the
+.Nm
+master will either return data written to the
+.Nm
+slave preceded by a zero byte (symbolically defined as
+.Dv TIOCPKT_DATA ) ,
+or a single byte reflecting control
+status information.
+In the latter case, the byte is an inclusive-or of zero or more of the bits:
+.Bl -tag -width TIOCPKT_FLUSHWRITE
+.It Dv TIOCPKT_FLUSHREAD
+whenever the read queue for the terminal is flushed.
+.It Dv TIOCPKT_FLUSHWRITE
+whenever the write queue for the terminal is flushed.
+.It Dv TIOCPKT_STOP
+whenever output to the terminal is stopped a la
+.Ql ^S .
+.It Dv TIOCPKT_START
+whenever output to the terminal is restarted.
+.It Dv TIOCPKT_DOSTOP
+whenever
+.Em t_stopc
+is
+.Ql ^S
+and
+.Em t_startc
+is
+.Ql ^Q .
+.It Dv TIOCPKT_NOSTOP
+whenever the start and stop characters are not
+.Ql ^S/^Q .
+.It Dv TIOCPKT_IOCTL
+whenever the terminal's
+.Xr termios 4
+settings change while external processing is enabled.
+.Pp
+Additionally, when the
+.Dv TIOCPKT_IOCTL
+bit is set, the remainder of the data read
+from the
+.Nm
+master is a copy of the new
+.Xr termios 4
+structure.
+.El
+.Pp
+While this mode is in use, the presence of control status information
+to be read from the master side may be detected by a
+.Xr select 2
+for exceptional conditions.
+.It Dv TIOCUCNTL Fa int *on
+If
+.Fa on
+points to a non-zero integer,
+enable a mode that allows a small number of simple user
+.Xr ioctl 2
+commands to be passed through the pseudo terminal,
+using a protocol similar to that of
+.Dv TIOCPKT .
+The
+.Dv TIOCUCNTL
+and
+.Dv TIOCPKT
+modes are mutually exclusive.
+This mode is enabled from the master side of a pseudo terminal.
+Each subsequent
+.Xr read 2
+from the master side will return data written on the slave part of
+the pseudo terminal preceded by a zero byte,
+or a single byte reflecting a user control operation on the slave side.
+A user control command consists of a special
+.Xr ioctl 2
+operation with no data; the command is given as
+.Dv UIOCCMD Ns (n) ,
+where
+.Ar n
+is a number in the range 1-255.
+The operation value
+.Ar n
+will be received as a single byte on the next
+.Xr read 2
+from the master side.
+The
+.Xr ioctl 2
+.Dv UIOCCMD Ns (0)
+is a no-op that may be used to probe for
+the existence of this facility.
+.Pp
+While this mode is in use, any of the
+.Dv TIOCSBRK
+and
+.Dv TIOCCBRK
+ioctl requests issued on the slave part of the pseudo terminal will be
+translated to a
+.Dv TIOCUCNTL_SBRK
+or
+.Dv TIOCUCNTL_CBRK
+user command on the master side.
+.Pp
+As with
+.Dv TIOCPKT
+mode, command operations may be detected with a
+.Xr select 2
+for exceptional conditions.
+.It Dv TIOCREMOTE Fa int *on
+If
+.Fa on
+points to a non-zero integer,
+enable a mode for the master half of a pseudo terminal,
+independent of
+.Dv TIOCPKT .
+This mode causes input to the pseudo terminal
+to be flow controlled and not input edited (regardless of the terminal mode).
+Each write to the controlling terminal produces a record boundary for the
+process reading the terminal.
+In normal usage, a write of data is like the data typed as a line
+on the terminal; a write of 0 bytes is like typing an end-of-file
+character.
+.Dv TIOCREMOTE
+can be used when doing remote line
+editing in a window manager, or whenever flow controlled input
+is required.
+.El
+.Pp
+The standard way to allocate
+.Nm
+devices is through
+.Xr openpty 3 ,
+a function which internally uses a
+.Dv PTMGET
+.Xr ioctl 2
+call on the
+.Pa /dev/ptm
+device.
+The
+.Dv PTMGET
+command allocates a free pseudo terminal, changes its ownership to
+the caller, revokes the access privileges for all previous users,
+opens the file descriptors for the master and slave devices and returns
+them to the caller in
+.Fa struct ptmget .
+.Bd -literal -offset indent
+struct ptmget {
+	int	cfd;
+	int	sfd;
+	char	cn[16];
+	char	sn[16];
+};
+.Ed
+.Pp
+The
+.Va cfd
+and
+.Va sfd
+fields are the file descriptors for the controlling and slave terminals.
+The
+.Va cn
+and
+.Va sn
+fields are the file names of the controlling and slave devices.
+.Sh FILES
+.Bl -tag -width /dev/tty[p-zP-T][0-9a-zA-Z]x -compact
+.It Pa /dev/pty[p-zP-T][0-9a-zA-Z]
+master pseudo terminals
+.It Pa /dev/tty[p-zP-T][0-9a-zA-Z]
+slave pseudo terminals
+.It Pa /dev/ptm
+pseudo terminal management device
+.El
+.Sh SEE ALSO
+.Xr openpty 3 ,
+.Xr tty 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Bx 4.2 .
+The
+.Pa /dev/ptm
+device was added in
+.Ox 3.5 .
+.Sh CAVEATS
+The
+.Pa ptm
+device will only work on systems where the
+.Pa /dev
+directory has been properly populated with
+.Nm
+device nodes following the naming convention used in
+.Ox .
+Since
+.Pa ptm
+impersonates the super user for some operations it needs to perform
+to complete the allocation of a pseudo terminal, the
+.Pa /dev
+directory must also be writeable by the super user.

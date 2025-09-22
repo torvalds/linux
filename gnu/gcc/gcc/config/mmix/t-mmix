@@ -1,0 +1,30 @@
+# See "Target Fragment" in GCC info.  That same order is used here.
+
+TARGET_LIBGCC2_CFLAGS = -mlibfuncs -O2
+
+EXTRA_MULTILIB_PARTS = crti.o crtn.o crtbegin.o crtend.o
+
+# We need to turn off some assumptions on normality for code in crtstuff.c
+# and crt{i,n}.asm, specifically about execution not continuing past the
+# end of the section in the file being compiled.  Thus we must stop the
+# assembler from generating stubbable PUSHJ relocs, because that will add
+# stubs at the end of the current section when necessary.
+CRTSTUFF_T_CFLAGS = -Wa,--no-stubs
+
+MULTILIB_OPTIONS = mabi=gnu
+MULTILIB_DIRNAMES = gnuabi
+
+# Don't use global registers in libraries.
+# FIXME: Not applied at "root" level, so disabled at the moment to stop
+# incorrect comparisons with -mabi=gnu.
+#MULTILIB_EXTRA_OPTS = mno-base-addresses
+
+$(T)crti.o: $(srcdir)/config/mmix/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	$(CRTSTUFF_T_CFLAGS) -c -o $(T)crti.o -x assembler-with-cpp \
+	$(srcdir)/config/mmix/crti.asm
+
+$(T)crtn.o: $(srcdir)/config/mmix/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	$(CRTSTUFF_T_CFLAGS) -c -o $(T)crtn.o -x assembler-with-cpp \
+	$(srcdir)/config/mmix/crtn.asm

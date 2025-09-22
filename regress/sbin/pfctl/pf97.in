@@ -1,0 +1,4 @@
+pass in on em0 inet proto tcp from any to any port 220:230 divert-to 127.0.0.1 port 22
+pass out on em0 inet proto tcp from any to any port 220:230 divert-reply
+pass on em0 inet proto tcp from any to any port 80 divert-to 127.0.0.1 port 8080
+pass in on em0 inet proto 103 divert-to 127.0.0.1 port 103 # FIXME

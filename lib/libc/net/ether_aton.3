@@ -1,0 +1,114 @@
+.\"	$OpenBSD: ether_aton.3,v 1.4 2025/06/29 00:33:46 dlg Exp $
+.\"
+.\" Written by roland@frob.com.  Public domain.
+.\"
+.Dd $Mdocdate: June 29 2025 $
+.Dt ETHER_ATON 3
+.Os
+.Sh NAME
+.Nm ether_aton ,
+.Nm ether_ntoa ,
+.Nm ether_ntohost ,
+.Nm ether_hostton ,
+.Nm ether_line
+.Nd get ethers entry
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In net/if.h
+.In netinet/in.h
+.In netinet/if_ether.h
+.Ft char *
+.Fn ether_ntoa "const struct ether_addr *e"
+.Ft struct ether_addr *
+.Fn ether_aton "const char *s"
+.Ft int
+.Fn ether_ntohost "char *hostname" "struct ether_addr *e"
+.Ft int
+.Fn ether_hostton "const char *hostname" "struct ether_addr *e"
+.Ft int
+.Fn ether_line "const char *l" "struct ether_addr *e" "char *hostname"
+.Sh DESCRIPTION
+Ethernet addresses are represented by the
+following structure:
+.Bd -literal -offset indent
+struct ether_addr {
+        u_int8_t  ether_addr_octet[ETHER_ADDR_LEN];
+};
+.Ed
+.Pp
+The
+.Fn ether_ntoa
+function converts this structure into an
+.Tn ASCII
+string of the form
+.Dq xx:xx:xx:xx:xx:xx ,
+consisting of 6 hexadecimal numbers separated
+by colons.
+It returns a pointer to a static buffer that is reused for each call.
+The
+.Fn ether_aton
+function converts an
+.Tn ASCII
+string of the same form and to a structure
+containing the 6 octets of the address.
+It returns a pointer to a static structure that is reused for each call.
+.Fn ether_aton
+will return NULL if the string does not represent a valid address.
+.Pp
+The
+.Fn ether_ntohost
+and
+.Fn ether_hostton
+functions interrogate the database mapping host names to Ethernet
+addresses,
+.Pa /etc/ethers .
+The
+.Fn ether_ntohost
+function looks up the given Ethernet address and writes the associated
+host name into the character buffer passed.
+This buffer should be
+.Dv MAXHOSTNAMELEN
+characters in size.
+The
+.Fn ether_hostton
+function looks up the given host name and writes the associated
+Ethernet address into the structure passed.
+Both functions return
+zero if they find the requested host name or address, and \-1 if not.
+.Pp
+Each call reads
+.Pa /etc/ethers
+from the beginning.
+.Pp
+The
+.Fn ether_line
+function parses a line from the
+.Pa /etc/ethers
+file and fills in the passed
+.Vt struct ether_addr
+and character buffer with the Ethernet address and host name on the line.
+It returns zero if the line was successfully parsed and \-1 if not.
+The character buffer should be
+.Dv MAXHOSTNAMELEN
+characters in size.
+.Sh FILES
+.Bl -tag -width /etc/ethers -compact
+.It Pa /etc/ethers
+.El
+.Sh SEE ALSO
+.Xr ethers 5
+.Sh HISTORY
+The
+.Fn ether_ntoa ,
+.Fn ether_aton ,
+.Fn ether_ntohost ,
+.Fn ether_hostton ,
+and
+.Fn ether_line
+functions were adopted from SunOS and appeared in
+.Nx 0.9b .
+.Sh BUGS
+The data space used by these functions is static; if future use
+requires the data, it should be copied before any subsequent calls to
+these functions overwrite it.

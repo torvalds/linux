@@ -1,0 +1,87 @@
+.\"	$OpenBSD: ips.4,v 1.18 2022/02/19 23:45:51 jsg Exp $
+.\"
+.\" Copyright (c) 2006, 2009 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 19 2022 $
+.Dt IPS 4
+.Os
+.Sh NAME
+.Nm ips
+.Nd IBM SATA/SCSI ServeRAID controller
+.Sh SYNOPSIS
+.Cd "ips* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for IBM ServeRAID controllers, including:
+.Pp
+.Bl -bullet -width Ds -offset indent -compact
+.It
+ServeRAID 3H/3HB/3L
+.It
+ServeRAID 4H/4L/4Lx/4M/4Mx
+.It
+ServeRAID 5i/5i II
+.It
+ServeRAID 6i/6M
+.It
+ServeRAID 7k/7M/7t
+.El
+.Pp
+Although the controllers are actual RAID controllers,
+the driver makes them look just like SCSI controllers.
+All RAID configuration is done through the bootable
+IBM ServeRAID Support CD;
+a CD image is freely available at the IBM website.
+.Pp
+RAID management is done through the
+.Xr bio 4
+device with the
+.Xr bioctl 8
+command.
+Logical disk status is exposed under the
+.Va hw.sensors
+.Xr sysctl 8
+and can be monitored using
+.Xr sensorsd 8 .
+.Sh SEE ALSO
+.Xr bio 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr bioctl 8 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Pp
+.Lk https://www.ibm.com
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .
+.Sh CAVEATS
+Due to
+.Xr bioctl 8
+limitations the
+.Nm
+driver associates all unused and hot spare drives with the first volume
+but the drives can be used for rebuilding any degraded volume.

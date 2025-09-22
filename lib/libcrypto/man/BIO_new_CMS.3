@@ -1,0 +1,142 @@
+.\" $OpenBSD: BIO_new_CMS.3,v 1.10 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL df75c2bfc Dec 9 01:02:36 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_NEW_CMS 3
+.Os
+.Sh NAME
+.Nm BIO_new_CMS
+.Nd CMS streaming filter BIO
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cms.h
+.Ft BIO *
+.Fo BIO_new_CMS
+.Fa "BIO *out"
+.Fa "CMS_ContentInfo *cms"
+.Fc
+.Sh DESCRIPTION
+.Fn BIO_new_CMS
+returns a streaming filter
+.Vt BIO
+chain based on
+.Fa cms .
+The output of the filter is written to
+.Fa out .
+Any data written to the chain is automatically translated
+to a BER format CMS structure of the appropriate type.
+.Pp
+The chain returned by this function behaves like a standard filter
+.Vt BIO .
+It supports non blocking I/O.
+Content is processed and streamed on the fly and not all held in memory
+at once: so it is possible to encode very large structures.
+After all content has been written through the chain,
+.Xr BIO_flush 3
+must be called to finalise the structure.
+.Pp
+The
+.Dv CMS_STREAM
+flag must be included in the corresponding
+.Fa flags
+parameter of the
+.Fa cms
+creation function.
+.Pp
+If an application wishes to write additional data to
+.Fa out ,
+BIOs should be removed from the chain using
+.Xr BIO_pop 3
+and freed with
+.Xr BIO_free 3
+until
+.Fa out
+is reached.
+If no additional data needs to be written,
+.Xr BIO_free_all 3
+can be called to free up the whole chain.
+.Pp
+Any content written through the filter is used verbatim:
+no canonical translation is performed.
+.Pp
+It is possible to chain multiple BIOs to, for example,
+create a triple wrapped signed, enveloped, signed structure.
+In this case it is the application's responsibility
+to set the inner content type of any outer
+.Vt CMS_ContentInfo
+structures.
+.Pp
+Large numbers of small writes through the chain should be avoided as this
+will produce an output consisting of lots of OCTET STRING structures.
+Prepending a
+.Xr BIO_f_buffer 3
+buffering BIO will prevent this.
+.Sh RETURN VALUES
+.Fn BIO_new_CMS
+returns a
+.Vt BIO
+chain when successful or
+.Dv NULL
+if an error occurred.
+The error can be obtained from
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr CMS_ContentInfo_new 3 ,
+.Xr CMS_encrypt 3 ,
+.Xr CMS_sign 3
+.Sh HISTORY
+.Fn BIO_new_CMS
+first appeared in OpenSSL 1.0.0
+and has been available since
+.Ox 6.7 .
+.Sh BUGS
+There is currently no corresponding inverse BIO
+which can decode a CMS structure on the fly.

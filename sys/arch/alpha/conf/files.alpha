@@ -1,0 +1,346 @@
+#	$OpenBSD: files.alpha,v 1.111 2025/06/29 15:55:21 miod Exp $
+#	$NetBSD: files.alpha,v 1.32 1996/11/25 04:03:21 cgd Exp $
+#
+# alpha-specific configuration info
+
+# maxpartitions must be first item in files.${ARCH}
+maxpartitions 16
+
+maxusers 2 8 128
+
+# this loses, but there's no way to define attributes which have attributes
+define	alpha_shared_intr
+file	arch/alpha/dev/shared_intr.c	alpha_shared_intr | dec_eb164 |
+					dec_kn20aa | dec_6600 | dec_550 |
+					dec_1000 | dec_1000a | dec_eb64plus |
+					dec_kn300
+
+define	alpha_sgmap
+file	arch/alpha/dev/sgmap_common.c		alpha_sgmap | dec_3000_500
+
+#
+# Bus-independent devices
+#
+
+device	mainbus {}			# no locators (yet?)
+attach	mainbus at root
+
+device	cpu {}				# not really optional
+attach	cpu at mainbus
+file	arch/alpha/alpha/cpu.c			cpu
+
+major	{vnd = 9}
+
+#
+# Media Independent Interface (mii)
+#
+include	"dev/mii/files.mii"
+
+#
+# Machine-independent SCSI drivers
+#
+
+include	"scsi/files.scsi"
+major	{cd = 3}
+major	{sd = 8}
+major	{rd = 6}
+
+# Raster operations
+include	"dev/rasops/files.rasops"
+include	"dev/wsfont/files.wsfont"
+
+#
+# "workstation console" routines
+#
+
+include	"dev/wscons/files.wscons"
+
+#
+# Bus-independent support for DEC devices
+#
+include	"dev/dec/files.dec"
+
+#
+# TURBOchannel Devices
+#
+include	"dev/tc/files.tc"
+
+#
+# MCBUS bus Devices
+#
+device	mcbus { mid = -1 }
+attach	mcbus at mainbus
+file	arch/alpha/mcbus/mcbus.c		mcbus & dec_kn300
+
+device	mcmem: mcbus
+attach	mcmem at mcbus
+file	arch/alpha/mcbus/mcmem.c		mcmem
+
+# TC attachment is MD
+attach	tc at tcbus
+
+device	tcasic: tcbus
+attach	tcasic at mainbus
+file	arch/alpha/tc/tcasic.c			tcasic	needs-flag
+file	arch/alpha/tc/tc_bus_mem.c		tcasic
+file	arch/alpha/tc/tc_dma.c			tcasic
+file	arch/alpha/tc/tc_dma_3000_300.c		tcasic & dec_3000_300
+file	arch/alpha/tc/tc_dma_3000_500.c		tcasic & dec_3000_500
+file	arch/alpha/tc/tc_sgmap.c		tcasic & dec_3000_500
+file	arch/alpha/tc/tc_3000_500.c		tcasic & dec_3000_500
+file	arch/alpha/tc/tc_3000_300.c		tcasic & dec_3000_300
+
+# the TURBOchannel IOCTL ASIC
+# IOASIC device and attachment defined in sys/dev/tc/files.tc
+file	arch/alpha/tc/ioasic.c			ioasic needs-flag
+
+# TC, baseboard ioasic Lance ethernet and baseboard 8530 serial are in files.tc
+
+#
+# ISA Bus support
+#
+
+#
+# Machine-independent ATAPI drivers
+#
+
+include	"dev/atapiscsi/files.atapiscsi"
+include	"dev/ata/files.ata"
+
+include	"dev/pci/files.pci"	# XXX some ISA devs are 'at pci' too.
+include	"dev/isa/files.isa"
+major	{wd = 0}
+major	{fd = 4}
+
+device	pcic: pcmciabus
+file	dev/ic/i82365.c			pcic
+
+# PCIC pcmcia controller on ISA bus.
+attach	pcic at isa with pcic_isa
+file	dev/isa/i82365_isa.c		pcic_isa
+
+# Code common to ISA and ISAPnP attachments
+file	dev/isa/i82365_isasubr.c	pcic_isa | pcic_isapnp | pcic_pci
+
+#
+# Machine-independent PCMCIA drivers
+#
+include "dev/pcmcia/files.pcmcia"
+
+#
+# ISA Bus devices
+#
+
+file	arch/alpha/isa/isa_machdep.c		isa
+
+define	isadma_bounce
+file	arch/alpha/isa/isadma_bounce.c		isadma_bounce & isa_dma
+
+include	"dev/pckbc/files.pckbc"
+
+#
+# EISA Bus support
+#
+
+include	"dev/eisa/files.eisa"
+
+file	arch/alpha/eisa/eisa_machdep.c		eisa
+
+
+#
+# PCI Bus support
+#
+
+# include "dev/pci/files.pci" XXX SEE ABOVE
+
+file	arch/alpha/pci/pciide_machdep.c		pciide
+
+define	alpha_pci_sgmap_pte64
+file	arch/alpha/pci/pci_sgmap_pte64.c	alpha_pci_sgmap_pte64
+
+device	apecs: pcibus, alpha_sgmap, alpha_pci_sgmap_pte64
+attach	apecs at mainbus
+file	arch/alpha/pci/apecs.c			apecs	needs-flag
+file	arch/alpha/pci/apecs_bus_io.c		apecs
+file	arch/alpha/pci/apecs_bus_mem.c		apecs
+file	arch/alpha/pci/apecs_pci.c		apecs
+file	arch/alpha/pci/apecs_dma.c		apecs
+
+device	lca: pcibus, alpha_sgmap, alpha_pci_sgmap_pte64
+attach	lca at mainbus
+file	arch/alpha/pci/lca.c			lca	needs-flag
+file	arch/alpha/pci/lca_bus_io.c		lca
+file	arch/alpha/pci/lca_bus_mem.c		lca
+file	arch/alpha/pci/lca_pci.c		lca
+file	arch/alpha/pci/lca_dma.c		lca
+
+device	cia: pcibus, alpha_sgmap, alpha_pci_sgmap_pte64
+attach	cia at mainbus
+file	arch/alpha/pci/cia.c			cia	needs-flag
+file	arch/alpha/pci/cia_dma.c		cia
+file	arch/alpha/pci/cia_pci.c		cia
+file	arch/alpha/pci/cia_bus_io.c		cia
+file	arch/alpha/pci/cia_bus_mem.c		cia
+file	arch/alpha/pci/cia_bwx_bus_io.c		cia
+file	arch/alpha/pci/cia_bwx_bus_mem.c	cia
+
+device	irongate: pcibus, isadma_bounce
+attach	irongate at mainbus
+file	arch/alpha/pci/irongate.c		irongate
+file	arch/alpha/pci/irongate_bus_io.c	irongate
+file	arch/alpha/pci/irongate_bus_mem.c	irongate
+file	arch/alpha/pci/irongate_dma.c		irongate
+file	arch/alpha/pci/irongate_pci.c		irongate
+
+device	tsc {}
+attach	tsc at mainbus
+file	arch/alpha/pci/tsc.c			tsc
+
+device	tsciic: i2cbus, i2c_bitbang
+attach	tsciic at tsc
+file	arch/alpha/pci/tsciic.c			tsciic
+
+device	tsp: pcibus, alpha_sgmap, alpha_pci_sgmap_pte64
+attach	tsp at tsc
+file	arch/alpha/pci/tsp_dma.c		tsp
+file	arch/alpha/pci/tsp_pci.c		tsp
+file	arch/alpha/pci/tsp_bus_io.c		tsp
+file	arch/alpha/pci/tsp_bus_mem.c		tsp
+
+device	mcpcia: pcibus, alpha_sgmap, alpha_pci_sgmap_pte64
+attach	mcpcia at mcbus
+file	arch/alpha/pci/mcpcia.c		mcpcia
+file	arch/alpha/pci/mcpcia_bus_io.c	mcpcia
+file	arch/alpha/pci/mcpcia_bus_mem.c	mcpcia
+file	arch/alpha/pci/mcpcia_dma.c	mcpcia
+file	arch/alpha/pci/mcpcia_pci.c	mcpcia
+
+file	arch/alpha/pci/pci_2100_a50.c		dec_2100_a50
+file	arch/alpha/pci/pci_axppci_33.c		dec_axppci_33
+file	arch/alpha/pci/pci_eb164.c		dec_eb164
+file	arch/alpha/pci/pci_eb164_intr.s		dec_eb164
+file	arch/alpha/pci/pci_eb64plus.c		dec_eb64plus
+file	arch/alpha/pci/pci_eb64plus_intr.s	dec_eb64plus
+file	arch/alpha/pci/pci_kn20aa.c		dec_kn20aa
+file	arch/alpha/pci/pci_kn300.c		dec_kn300
+file	arch/alpha/pci/pci_550.c		dec_550
+file	arch/alpha/pci/pci_1000a.c		dec_1000a
+file	arch/alpha/pci/pci_1000.c		dec_1000
+file	arch/alpha/pci/pci_6600.c		dec_6600
+file	arch/alpha/pci/pci_alphabook1.c		dec_alphabook1
+file	arch/alpha/pci/pci_up1000.c		api_up1000
+
+#
+# PCI Bus devices
+#
+
+file	arch/alpha/pci/pci_machdep.c		pci
+
+device	sio: isabus, alpha_shared_intr, cy82c693
+attach	sio at pci
+device	pceb: isabus, eisabus, cy82c693
+attach	pceb at pci
+file	arch/alpha/pci/sio.c			sio | pceb	needs-flag
+file	arch/alpha/pci/sio_pic.c		sio | pceb
+
+device	hme: ether, ifnet, mii, ifmedia
+file	dev/ic/hme.c			hme
+attach	hme at pci with hme_pci
+file	dev/pci/if_hme_pci.c		hme_pci
+
+#
+# ISA PnP
+#
+
+include	"dev/isa/files.isapnp"
+file	arch/alpha/isa/isapnp_machdep.c		isapnp
+
+#
+# Devices that can live on multiple busses
+#
+
+device	mcclock
+attach	mcclock at ioasic with mcclock_ioasic
+attach	mcclock at isa with mcclock_isa
+file	arch/alpha/alpha/mcclock.c		mcclock
+file	arch/alpha/tc/mcclock_ioasic.c		mcclock_ioasic
+file	arch/alpha/isa/mcclock_isa.c		mcclock_isa
+
+#
+# Standard files
+#
+
+file	arch/alpha/alpha/autoconf.c
+file	arch/alpha/alpha/clock.c
+file	arch/alpha/alpha/conf.c
+file	arch/alpha/alpha/db_disasm.c		ddb
+file	arch/alpha/alpha/db_interface.c		ddb
+file	arch/alpha/alpha/db_trace.c		ddb
+file	arch/alpha/alpha/interrupt.c
+file	arch/alpha/alpha/ipifuncs.c		multiprocessor
+file	arch/alpha/alpha/machdep.c
+file	arch/alpha/alpha/mainbus.c
+file	arch/alpha/alpha/locore.s
+file	arch/alpha/alpha/mem.c
+file	arch/alpha/alpha/pmap.c
+file	arch/alpha/alpha/process_machdep.c
+file	arch/alpha/alpha/prom.c
+file	arch/alpha/alpha/sys_machdep.c
+file	arch/alpha/alpha/trap.c
+file	arch/alpha/alpha/fp_complete.c		!no_ieee
+file	arch/alpha/alpha/vm_machdep.c
+file	arch/alpha/alpha/disksubr.c
+file	arch/alpha/dev/bus_dma.c
+
+#
+# Network protocol checksum routines
+#
+
+file	arch/alpha/alpha/in_cksum.c
+
+# XXX
+file	arch/alpha/alpha/cpuconf.c
+file	arch/alpha/alpha/dec_2100_a50.c		dec_2100_a50
+file	arch/alpha/alpha/dec_3000_300.c		dec_3000_300
+file	arch/alpha/alpha/dec_3000_500.c		dec_3000_500
+file	arch/alpha/alpha/dec_axppci_33.c	dec_axppci_33
+file	arch/alpha/alpha/dec_eb164.c		dec_eb164
+file	arch/alpha/alpha/dec_eb64plus.c		dec_eb64plus
+file	arch/alpha/alpha/dec_kn20aa.c		dec_kn20aa
+file	arch/alpha/alpha/dec_kn300.c		dec_kn300
+file	arch/alpha/alpha/dec_550.c		dec_550	
+file	arch/alpha/alpha/dec_alphabook1.c	dec_alphabook1
+file	arch/alpha/alpha/dec_1000a.c		dec_1000 | dec_1000a
+file	arch/alpha/alpha/dec_6600.c		dec_6600
+file	arch/alpha/alpha/api_up1000.c		api_up1000
+
+#
+# Machine-independent HID support
+#
+include	"dev/hid/files.hid"
+
+#
+# Machine-independent I2C drivers
+#
+include "dev/i2c/files.i2c"
+
+#
+# Machine-independent USB drivers
+#
+include	"dev/usb/files.usb"
+
+#
+# Machine-independent 1-Wire drivers
+#
+include "dev/onewire/files.onewire"
+
+# Machine-dependent libkern components
+file	lib/libkern/softfloat.c			!no_ieee
+file	lib/libkern/arch/alpha/__divl.S
+file	lib/libkern/arch/alpha/__divlu.S
+file	lib/libkern/arch/alpha/__divq.S
+file	lib/libkern/arch/alpha/__divqu.S
+file	lib/libkern/arch/alpha/__reml.S
+file	lib/libkern/arch/alpha/__remlu.S
+file	lib/libkern/arch/alpha/__remq.S
+file	lib/libkern/arch/alpha/__remqu.S

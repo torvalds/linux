@@ -1,0 +1,358 @@
+.\" $OpenBSD: packages-specs.7,v 1.31 2024/10/09 07:25:35 tb Exp $
+.\"
+.\" Copyright (c) 2001 Marc Espie
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 9 2024 $
+.Dt PACKAGES-SPECS 7
+.Os
+.Sh NAME
+.Nm packages-specs
+.Nd binary package names specifications
+.Sh DESCRIPTION
+Each package has a name consisting of at most three parts:
+.Bd -literal -offset indent
+stem-version[-flavors]
+.Ed
+.Pp
+The
+.Ar stem
+part identifies the package.
+It may contain some dashes, but its form is mostly conventional.
+For instance, japanese packages usually
+start with a
+.Sq ja
+prefix, e.g.,
+.Qq ja-kterm-6.2.0 .
+.Pp
+The
+.Ar version
+part starts at the first digit that follows a
+.Sq - ,
+and goes on up to the following
+.Sq - ,
+or to the end of the package name, whichever comes first.
+.Pp
+It is followed by the (possibly empty)
+.Op - Ns Ar flavors
+part.
+.Pp
+Thus, version numbers should always start with a digit and cannot contain
+a
+.Sq - ,
+whereas flavors should never start with a digit.
+.Pp
+All packages must have a version number.
+Normally, the version number directly matches the original software
+distribution version number, or release date.
+In case there are substantial changes in the
+.Ox
+package, a patch level marker should be appended, e.g.,
+.Sq p0 ,
+.Sq p1 ...
+For example, assuming that the screen package for release 2.8 was
+named
+.Qq screen-2.9.8
+and that an important security patch led to a newer package,
+the new package would be called
+.Qq screen-2.9.8p0 .
+Obviously, these specific markers are reserved for
+.Ox
+purposes.
+See
+.Ev REVISION
+in
+.Xr bsd.port.mk 5 .
+.Pp
+Version comparison is done using the dewey notation with a few specific rules.
+.Bl -bullet
+.It
+The version number is cut into separate parts on each dot
+.Sq \&. .
+Therefore, replace other upstream separators such as
+.Sq _
+or
+.Sq -
+with dots.
+.It
+Comparison checks each part in turn, the first part that differs yields
+a comparison result.
+.It
+If parts are numbers, they are compared numerically.
+.It
+Parts can also be numbers with an optional letter appended.
+The numbers are compared numerically, and in case of equality, the letter
+makes the difference.
+.It
+Other parts are compared alphabetically.
+.It
+The last part may contain an extra suffix matching
+.Ar rc[N] ,
+.Ar alpha[N] ,
+.Ar beta[N] ,
+.Ar pre[N] ,
+or
+.Ar pl[N] ,
+with
+.Ar N
+an optional number.
+These correspond to traditional notations for
+.Sq release candidate ,
+.Sq alpha version ,
+.Sq beta version ,
+.Sq pre-release ,
+.Sq patch-level ,
+and are ordered accordingly, e.g.,
+.Ar alpha
+is oldest, then
+.Ar beta ,
+.Ar rc
+and
+.Ar pre
+are next (and non-comparable to one another),
+then normal version, and finally
+.Ar pl .
+.Bl -dash
+.It
+"foo-1.01" is equal to "foo-1.1", which can lead to surprises..
+.It
+"foo-1.001" is older than "foo-1.002", which in turns is older than "foo-1.0010"
+.It
+"foo-1.0rc2" is not comparable to "foo-1.0pre3"
+.It
+"bar-1.0alpha5" is older than "bar-1.0beta3"
+.It
+"bar-1.0beta3" is older than "bar-1.0rc1"
+.It
+"baz-1.0" is older than "baz-1.0pl1"
+.El
+.El
+.Pp
+In some rare cases, a change to a port would cause the version number to
+compare as older than the previous version.
+This happens if an update is reverted, if upstream's numbering scheme changes
+completely, or if their usual scheme does not align with the one used by
+.Ox .
+A version style marker, of the form
+.Sq v0 ,
+.Sq v1 ...
+can be appended to the version number (after the patch level)
+to denote the new numbering scheme.
+This marker is added by setting
+.Ev EPOCH
+in the port Makefile and it takes precedence over the regular package version.
+See
+.Xr bsd.port.mk 5 .
+.Pp
+Flavored packages will also contain a list of flavors after the version
+identifier, in a canonical order determined by
+.Ev FLAVORS
+in the corresponding port's
+.Pa Makefile .
+For instance, kterm has an xaw3d flavor:
+.Qq ja-kterm-xaw3d .
+.Pp
+Note that, to uniquely identify the version part, no flavor shall ever
+start with a digit.
+Usually, flavored packages are slightly different versions of the same
+package that offer very similar functionalities.
+.Pp
+Also note that user commands have short-hands for installing new packages
+that are substantially different from formal
+.Nm
+(branch specifications and explicit flavoring).
+The special character
+.Sq %
+is explicitly forbidden in formal package names and specs.
+.Pp
+.Xr pkg_check-version 1
+can be used to verify the ordering of package names.
+.Sh CONFLICTS
+Most conflicts between packages are handled on a package name basis.
+Unless the packages have been specially prepared, it is
+normally not possible to install two packages with the same
+.Ar stem .
+.Pp
+Note that the
+.Ar stem
+ends at the
+.Ar version
+part.
+So, for instance,
+.Qq kdelibs-1.1.2
+and
+.Qq kdelibs-2.1.1
+conflict.
+But
+.Qq openldap-2.0.7
+and
+.Qq openldap-client-2.0.7
+don't.
+Neither do
+.Qq qt-1.45
+and
+.Qq qt2-3.0 .
+.Sh DEPENDENCIES
+Packages may depend on other packages, as specified by their port's
+Makefile, in a
+.Ev BUILD_DEPENDS ,
+.Ev LIB_DEPENDS ,
+.Ev TEST_DEPENDS
+or
+.Ev RUN_DEPENDS .
+All those conform to
+.Bd -literal -offset indent
+[pkgspec:]pkgpath
+.Ed
+.Pp
+The
+.Xr pkgpath 7
+part of the dependency is always used to obtain the default dependency for
+the given package (the package that will be built and installed if no package
+is found).
+The corresponding package name is also used as a package specification,
+after removing any version and flavor requirements.
+.Pp
+Without a
+.Sq pkgspec\&:
+part, by default, any package with the right stem will do: in effect,
+the pkgspec used is
+.Sq stem-* .
+.Pp
+In
+.Ox 4.9 ,
+the dependent port may override this default, and set
+.Ev PKGSPEC
+to achieve a more restrictive default, for instance,
+.Pa databases/db/v3
+sets the default to
+.Qq PKGSPEC = db->=3,<4
+to avoid collision with
+.Pa databases/db/v4 .
+Be extra cautious with this functionality: this tweaks the depends line for
+any including package, thus usually requiring a version bump, and is in
+general only required for very messy cases where several incompatible versions
+of the same software coexist as packages with the same stem.
+.Pp
+An explicit specification such as
+.Qq png-1.0.7 .
+may be used to ask for a more specific version number.
+Version numbers may also include ranges, separated by commas, so for
+instance,
+.Qq foo->=1.3
+would match any foo with version at least 1.3, and
+.Qq foo->=1.3,<=1.5
+would match any version of foo between 1.3 and 1.5, inclusive.
+.Pp
+As a convenience, the ports tree recognizes a specification that starts
+with STEM, and will replace this with the correct stem, which can be useful
+for embarrassingly long package names.
+.Pp
+As another convenience, the ports tree recognizes constructs like
+.Qq graphics/png>=1.2.0
+and transforms it into
+.Qq STEM->=1.2.0:graphics/png .
+More specifically, package paths never contain <, >, or =, and those
+characters trigger the transform.
+.Pp
+If the flavor specification is left blank, any flavor will do.
+Note that most default package names don't contain flavor specification,
+which means that any flavor will do
+For instance, in
+.Bd -literal -offset indent
+LIB_DEPENDS = graphics/aalib
+.Ed
+.Pp
+both
+.Qq aalib-1.2
+and
+.Qq aalib-1.2-no_x11
+will do.
+To restrict the specification to packages that match flavor
+.Sq f ,
+append
+.Sq -f .
+To restrict the specification to packages that do not match flavor
+.Sq f ,
+append
+.Sq -!f .
+In the preceding case, one may use
+.Bd -literal -offset indent
+LIB_DEPENDS = aalib-*-!no_x11:graphics/aalib
+.Ed
+.Pp
+to ensure the no_x11 flavor is not picked.
+.Sh DEPENDENCIES RESOLUTION
+Several packages may be specified for a dependency:
+.Qq foo-*|bar-*
+will match either any version of package foo, or any version of package bar.
+In the general case, each package holds a tree of dependencies.
+Resolution occurs at
+.Xr pkg_add 1
+time, and all dependencies are tracked only as far as needed.
+.Pp
+For instance, if package
+.Qq foo-1.0
+depends on either
+.Qq bar-*
+or
+.Qq fuzz-* ,
+and
+.Qq bar-2.0
+depends
+on
+.Qq toughluck-* ,
+.Xr pkg_add 1
+will first check whether
+.Qq bar-*
+or
+.Qq fuzz-*
+is installed.
+If either is there, the
+.Qq toughluck-*
+dependency will never be examined.
+It would only be used in the case where neither
+.Qq bar-*
+nor
+.Qq fuzz-*
+are present, thus
+.Xr pkg_add 1
+would decide to bring in
+.Qq bar-2.0 ,
+and so would check on
+.Qq toughluck-* .
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_check-version 1 ,
+.Xr bsd.port.mk 5 ,
+.Xr library-specs 7 ,
+.Xr packages 7 ,
+.Xr pkgpath 7 ,
+.Xr ports 7
+.Sh HISTORY
+Support for a more complex form of those package specifications first
+appeared in
+.Ox 2.9 .
+The current simplified form was introduced in
+.Ox 4.9 .

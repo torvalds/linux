@@ -1,0 +1,20 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("RISCVTests") {
+  deps = [
+    "//llvm/lib/MC",
+    "//llvm/lib/Target/RISCV:LLVMRISCVCodeGen",
+
+    # RISCVInstrInfoTest.cpp includes the internal header RISCVSubtarget.h,
+    # which includes the generated file RISCVGenMacroFusion.inc.
+    "//llvm/lib/Target/RISCV:RISCVGenMacroFusion",
+    "//llvm/lib/Target/RISCV/MCTargetDesc",
+    "//llvm/lib/Target/RISCV/TargetInfo",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ "//llvm/lib/Target/RISCV" ]
+  sources = [
+    "MCInstrAnalysisTest.cpp",
+    "RISCVInstrInfoTest.cpp",
+  ]
+}

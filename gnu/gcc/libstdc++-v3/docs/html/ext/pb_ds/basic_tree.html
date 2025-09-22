@@ -1,0 +1,660 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>basic_tree Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>basic_tree</tt> Interface</h1>
+
+    <p>An abstract basic tree-like-based associative container.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/assoc_container.hpp"><tt>assoc_container.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Template Parameters</a></h2>
+
+    <table class="c1" width="100%" border="1" summary=
+    "Template Parameters">
+      <tr>
+        <td width="20%" align="left"><b>Parameter</b></td>
+
+        <td width="50%" align="left"><b>Description</b></td>
+
+        <td width="30%" align="left"><b>Default Value</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Key2501" id="Key2501"><b>typename</b> Key</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Key type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Mapped318655" id="Mapped318655"><b>typename</b> Mapped</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Mapped type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Tag278938" id="Tag278938"><b>class</b> Tag</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Mapped-structure tag.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Node_Update841554648" id=
+"Node_Update841554648"><b>class</b> Node_Update</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Node updater.</p>
+
+          <p>Restores node-invariants when invalidated.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Policy_Tl42017403" id=
+"Policy_Tl42017403"><b>class</b> Policy_Tl</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Policy typelist.</p>
+
+          <p>Contains subclasses' policies.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Allocator35940069" id=
+"Allocator35940069"><b>class</b> Allocator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Allocator type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Base Classes</a></h2>
+
+    <table class="c1" width="100%" border="1" summary="Bases">
+      <tr>
+        <td width="80%" align="left"><b>Class</b></td>
+
+        <td width="20%" align="left"><b>Derivation Type</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#Node_Update841554648"><tt>Node_Update</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>public</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="container_base.html"><span class=
+"c2"><tt>container_base</tt></span></a>
+</pre>
+        </td>
+
+        <td>
+          <p>public</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link3" id="link3">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link4" id="link4">Key-Type Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_key_reference3185471705" id=
+"const_key_reference3185471705">const_key_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href="container_base.html"><span class=
+"c2"><tt>container_base</tt></span></a>::const_key_reference
+</pre>
+        </td>
+
+        <td>
+          <p>Const key reference type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link5" id="link5">Policy Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="node_update2404554648" id=
+"node_update2404554648">node_update</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Node_Update841554648"><tt>Node_Update</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Node updater type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link6" id="link6">Iterator Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_iterator98626788" id=
+"const_iterator98626788">const_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href="container_base.html"><span class=
+"c2"><tt>container_base</tt></span></a>::const_iterator
+</pre>
+        </td>
+
+        <td>
+          <p>Const range-type iterator.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="iterator10418194" id="iterator10418194">iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href="container_base.html"><span class=
+"c2"><tt>container_base</tt></span></a>::iterator
+</pre>
+        </td>
+
+        <td>
+          <p>Range-type iterator.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="const_reverse_iterator4151293083" id=
+"const_reverse_iterator4151293083">const_reverse_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+Const reverse range-type iterator.
+</pre>
+        </td>
+
+        <td>
+          <p>Const reverse range-type <a href=
+          "#iterator10418194"><tt>iterator</tt></a>.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="reverse_iterator1896910345" id=
+"reverse_iterator1896910345">reverse_iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+Reverse range-type iterator.<br />
+If <a href="#Mapped318655"><tt>Mapped</tt></a> is <a href=
+"null_mapped_type.html"><span class=
+"c2"><tt>null_mapped_type</tt></span></a>, then this is synonymous to <a href="#const_reverse_iterator4151293083"><tt>const_reverse_iterator</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Reverse range-type <a href=
+          "#iterator10418194"><tt>iterator</tt></a>.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link7" id="link7">Public Methods</a></h2>
+
+    <h3><a name="link8" id="link8">Constructors, Destructor, and
+    Related</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> 
+  ~basic_tree
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Destructor.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link9" id="link9">Policy Access Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#node_update2404554648"><tt>node_update</tt></a> &amp;
+  get_node_update
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Access to the <a href=
+          "#node_update2404554648"><tt>node_update</tt></a>
+          object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>const</b> <a href=
+"#node_update2404554648"><tt>node_update</tt></a> &amp;
+  get_node_update
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Const access to the <a href=
+          "#node_update2404554648"><tt>node_update</tt></a>
+          object.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link10" id="link10">Find Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#iterator10418194"><tt>iterator</tt></a>
+  lower_bound
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key)
+</pre>
+        </td>
+
+        <td>
+          <p>Returns an <a href=
+          "#iterator10418194"><tt>iterator</tt></a> corresponding
+          to the entry whose key is the smallest one at least as
+          large as <span class="c1"><tt>r_key</tt></span>.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#const_iterator98626788"><tt>const_iterator</tt></a>
+  lower_bound
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <tt><b>const</b></tt> <a href=
+          "#iterator10418194"><tt>iterator</tt></a> corresponding
+          to the entry whose key is the smallest one at least as
+          large as <span class="c1"><tt>r_key</tt></span>.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#iterator10418194"><tt>iterator</tt></a>
+  upper_bound
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key)
+</pre>
+        </td>
+
+        <td>
+          <p>Returns an <a href=
+          "#iterator10418194"><tt>iterator</tt></a> corresponding
+          to the entry whose key is the smallest one larger than
+          <span class="c1"><tt>r_key</tt></span>.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#const_iterator98626788"><tt>const_iterator</tt></a>
+  upper_bound
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#const_iterator98626788"><tt>const_iterator</tt></a>
+          corresponding to the entry whose key is the smallest one
+          larger than <span class="c1"><tt>r_key</tt></span>.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link11" id="link11">Erase Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#iterator10418194"><tt>iterator</tt></a>
+  erase
+  (<a href="#iterator10418194"><tt>iterator</tt></a> it)
+</pre>
+        </td>
+
+        <td>
+          <p>Erases the value_type corresponding to the <a href=
+          "#iterator10418194"><tt>iterator</tt></a> <span class=
+          "c1"><tt>it</tt></span>. Returns the <a href=
+          "#iterator10418194"><tt>iterator</tt></a> corresponding
+          to the next value_type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#reverse_iterator1896910345"><tt>reverse_iterator</tt></a>
+  erase
+  (<a href=
+"#reverse_iterator1896910345"><tt>reverse_iterator</tt></a> it)
+</pre>
+        </td>
+
+        <td>
+          <p>Erases the value_type corresponding to the <a href=
+          "#reverse_iterator1896910345"><tt>reverse_iterator</tt></a>
+          <span class="c1"><tt>it</tt></span>. Returns the <a href=
+          "#reverse_iterator1896910345"><tt>reverse_iterator</tt></a>
+          corresponding to the previous value_type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link12" id="link12">Iteration Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#reverse_iterator1896910345"><tt>reverse_iterator</tt></a>
+  rbegin
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#reverse_iterator1896910345"><tt>reverse_iterator</tt></a>
+          corresponding to the last value_type in the
+          container.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href=
+"#const_reverse_iterator4151293083"><tt>const_reverse_iterator</tt></a>
+  rbegin
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#const_reverse_iterator4151293083"><tt>const_reverse_iterator</tt></a>
+          corresponding to the last value_type in the
+          container.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#reverse_iterator1896910345"><tt>reverse_iterator</tt></a>
+  rend
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#reverse_iterator1896910345"><tt>reverse_iterator</tt></a>
+          corresponding to the just-before-first value_type in the
+          container.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href=
+"#const_reverse_iterator4151293083"><tt>const_reverse_iterator</tt></a>
+  rend
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Returns a <a href=
+          "#const_reverse_iterator4151293083"><tt>const_reverse_iterator</tt></a>
+          corresponding to the just-before-first value_type in the
+          container.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link13" id="link13">Split and join
+    Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b> 
+  join
+  (<span class=
+"c2"><tt>basic_tree</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Joins two trees. When this function returns,
+          <span class="c1"><tt>other</tt></span> will be
+          empty.</p>
+
+          <p>When calling this method, <span class=
+          "c1"><tt>other</tt></span>'s keys must be all larger or
+          all smaller than this object's keys, and <span class=
+          "c1"><tt>other</tt></span>'s policies must be
+          equivalent to this object's policies.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b>
+  split
+  (<a href=
+"#const_key_reference3185471705"><tt>const_key_reference</tt></a> r_key, 
+    <span class=
+"c2"><tt>basic_tree</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Splits into two trees. When this function returns,
+          <span class="c1"><tt>other</tt></span> will contain
+          only keys larger than <span class=
+          "c1"><tt>r_key</tt></span>.</p>
+
+          <p>When calling this method, <span class=
+          "c1"><tt>other</tt></span>'s policies must be
+          equivalent to this object's policies.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

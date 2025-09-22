@@ -1,0 +1,48 @@
+.\"	$OpenBSD: icc.4,v 1.2 2022/11/11 21:41:45 jmc Exp $
+.\"
+.\" Copyright (c) 2021 Anton Lindqvist <anton@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 11 2022 $
+.Dt ICC 4
+.Os
+.Sh NAME
+.Nm icc
+.Nd Consumer Control keyboards
+.Sh SYNOPSIS
+.Cd "icc* at ihidev?"
+.Cd "wsbkd* at icc? mux 1"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Consumer Control pseudo keyboards, often used to
+expose screen brightness control.
+.Sh SEE ALSO
+.Xr ihidev 4 ,
+.Xr intro 4 ,
+.Xr ucc 4 ,
+.Xr umstc 4 ,
+.Xr wskbd 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.3 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Anton Lindqvist Aq Mt anton@openbsd.org
+and
+.An Matthieu Herrb Aq Mt matthieu@openbsd.org .

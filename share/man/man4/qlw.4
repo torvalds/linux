@@ -1,0 +1,57 @@
+.\"	$OpenBSD: qlw.4,v 1.5 2015/01/21 22:33:22 tedu Exp $
+.\"
+.\" Copyright (c) 2014 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 21 2015 $
+.Dt QLW 4
+.Os
+.Sh NAME
+.Nm qlw
+.Nd QLogic ISP1000/1020/1x40/1x80/1x160 SCSI controller
+.Sh SYNOPSIS
+.Cd "qlw* at pci?"
+.Cd "qlw* at sbus?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for QLogic Ultra Wide SCSI host bus adapters
+using the ISP1000, ISP1020/1040, ISP1080/1240/1280 and ISP10160/12160 chips.
+.Pp
+.Nm
+provides no ability to configure an adapter's parameters at runtime;
+all configuration must be done prior to booting
+.Ox .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr qla 4 ,
+.Xr qle 4 ,
+.Xr sbus 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org ,
+based on the
+.Xr qla 4
+driver written by
+.An Jonathan Matthew Aq Mt jmatthew@openbsd.org .

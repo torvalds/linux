@@ -1,0 +1,28 @@
+TARGET_LIBGCC2_CFLAGS = -fPIC -Dpa64=1 -DELF=1 -mlong-calls
+LIB2FUNCS_EXTRA = quadlib.c
+LIBGCCSTUB_OBJS = rfi-stub.o dfi-stub.o jvrc-stub.o cxaf-stub.o
+
+stublib.c: $(srcdir)/config/pa/stublib.c
+	rm -f stublib.c
+	cp $(srcdir)/config/pa/stublib.c .
+
+rfi-stub.o: stublib.c $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -c -O2 -DL_register_frame_info stublib.c \
+	  -o rfi-stub.o
+
+dfi-stub.o: stublib.c $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -c -O2 -DL_deregister_frame_info stublib.c \
+	  -o dfi-stub.o
+
+cxaf-stub.o: stublib.c $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -c -O2 -DL_cxa_finalize stublib.c \
+	  -o cxaf-stub.o
+
+jvrc-stub.o: stublib.c $(GCC_PASSES)
+	$(GCC_FOR_TARGET) -c -O2 -DL_Jv_RegisterClasses stublib.c \
+	  -o jvrc-stub.o
+
+libgcc_stub.a: $(LIBGCCSTUB_OBJS)
+	-rm -rf libgcc_stub.a
+	$(AR) rc libgcc_stub.a $(LIBGCCSTUB_OBJS)
+	$(RANLIB) libgcc_stub.a

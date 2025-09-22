@@ -1,0 +1,64 @@
+.\"     $OpenBSD: lom.4,v 1.5 2013/07/16 16:05:50 schwarze Exp $
+.\"
+.\" Copyright (c) 2009 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt LOM 4 sparc64
+.Os
+.Sh NAME
+.Nm lom
+.Nd lights out management
+.Sh SYNOPSIS
+.Cd "lom* at ebus?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the LOMlite lights out management module
+found on Sun Netra t1 systems and the LOMlite2 module found on Sun
+Fire V100/V120 and Sun Netra X1 systems.
+Temperature readings, PSU status and fan status provided by the LOM
+are made available through the
+.Xr sysctl 8
+interface.
+The integrated
+.Xr watchdog 4
+timer can be configured through the
+.Xr sysctl 8
+interface as well.
+The watchdog timer supports timeouts between 1 and 126 seconds.
+If the watchdog is disabled, which is its default state, it will turn
+on the system's fault LED after the maximum timeout of 126 seconds.
+.Pp
+The
+.Nm
+driver will update the hostname stored in the LOM whenever the
+system's hostname is changed.
+.Sh SEE ALSO
+.Xr hostname 1 ,
+.Xr ebus 4 ,
+.Xr intro 4 ,
+.Xr watchdog 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.7 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

@@ -1,0 +1,74 @@
+.\" Copyright (c) 1980, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: alloca.3,v 1.14 2015/01/17 18:01:43 tedu Exp $
+.\"
+.Dd $Mdocdate: January 17 2015 $
+.Dt ALLOCA 3
+.Os
+.Sh NAME
+.Nm alloca
+.Nd memory allocator
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft void *
+.Fn alloca "size_t size"
+.Sh DESCRIPTION
+The
+.Fn alloca
+function allocates
+.Fa size
+bytes of space in the stack frame of the caller.
+This temporary space is automatically freed on return.
+.Sh RETURN VALUES
+The
+.Fn alloca
+function returns a pointer to the beginning of the allocated space.
+.Sh SEE ALSO
+.Xr pagesize 1 ,
+.Xr brk 2 ,
+.Xr malloc 3
+.\" .Sh HISTORY
+.\" The
+.\" .Fn alloca
+.\" function appeared in
+.\" .Bx ?? .
+.\" The function appeared in 32v, pwb and pwb.2 and in 3bsd 4bsd
+.\" The first man page (or link to a man page that I can find at the
+.\" moment is 4.3...
+.Sh CAVEATS
+The
+.Fn alloca
+function is unsafe because it cannot ensure that the pointer
+returned points to a valid and usable block of memory.
+The allocation made may exceed the bounds of the stack, or even go
+further into other objects in memory, and
+.Fn alloca
+cannot determine such an error.
+Avoid
+.Fn alloca
+with large unbounded allocations.

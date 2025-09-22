@@ -1,0 +1,69 @@
+.\"	$OpenBSD: worm.6,v 1.14 2015/03/09 19:52:02 tedu Exp $
+.\"
+.\" Copyright (c) 1989, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)worm.6	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: March 9 2015 $
+.Dt WORM 6
+.Os
+.Sh NAME
+.Nm worm
+.Nd play the growing worm game
+.Sh SYNOPSIS
+.Nm worm
+.Op Ar size
+.Sh DESCRIPTION
+In
+.Nm worm ,
+you are a little worm: your body is the "o"'s on the screen
+and your head is the "@".
+You move with the hjkl keys (as in the game
+.Xr snake 6 ) .
+If you don't press any keys, you continue in the direction you
+last moved.
+The upper case HJKL keys move you as if you had pressed
+several of the corresponding lower case key (9 for HL and 5 for JK, or
+until you run into a digit, whichever comes first).
+.Pp
+On the screen you will see a digit.
+If your worm eats the digit it will grow longer by that number of "o"'s,
+scaled to screen size.
+The object of the game is to see how long you can make the worm grow.
+.Pp
+The game ends when the worm runs into either the sides of the screen
+or itself.
+The current score
+.Pq how much the worm has grown
+is kept in the upper right corner of the screen.
+.Pp
+The optional argument,
+.Ar size ,
+is the initial length of the worm's body.
+The specified length will be rejected if it causes the worm to cover
+more than roughly one third of the screen.

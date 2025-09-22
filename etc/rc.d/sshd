@@ -1,0 +1,15 @@
+#!/bin/ksh
+#
+# $OpenBSD: sshd,v 1.7 2022/08/29 19:14:25 ajacoutot Exp $
+
+daemon="/usr/sbin/sshd"
+
+. /etc/rc.d/rc.subr
+
+pexp="sshd: ${daemon}${daemon_flags:+ ${daemon_flags}} \[listener\].*"
+
+rc_configtest() {
+	${daemon} ${daemon_flags} -t
+}
+
+rc_cmd $1

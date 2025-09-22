@@ -1,0 +1,50 @@
+.\" $OpenBSD: pthread_stackseg_np.3,v 1.8 2025/06/07 00:16:52 schwarze Exp $
+.\"
+.\" PUBLIC DOMAIN: No Rights Reserved. Marco S Hyman <marc@snafu.org>
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_STACKSEG_NP 3
+.Os
+.Sh NAME
+.Nm pthread_stackseg_np
+.Nd return stack size and location
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread_np.h
+.Ft int
+.Fn pthread_stackseg_np "pthread_t thread" "stack_t *sinfo"
+.Sh DESCRIPTION
+The
+.Fn pthread_stackseg_np
+function returns information about the given thread's stack.
+A
+.Fa stack_t
+is the same as a
+.Fa struct sigaltstack
+(see
+.Xr sigaltstack 2 )
+except the
+.Fa ss_sp
+variable points to the top of the stack instead of the base.
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_stackseg_np
+function will return 0.
+Otherwise an error number will be returned to indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_stackseg_np
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+Stack information for the given thread is not currently available.
+There is no guarantee that the given thread's stack information will ever
+become available.
+.El
+.Sh SEE ALSO
+.Xr sigaltstack 2 ,
+.Xr pthreads 3
+.Sh STANDARDS
+.Fn pthread_stackseg_np
+is a non-portable extension to
+.St -p1003.1-2001 .

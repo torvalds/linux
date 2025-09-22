@@ -1,0 +1,21 @@
+static_library("GSYM") {
+  output_name = "LLVMDebugInfoGSYM"
+  deps = [
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "DwarfTransformer.cpp",
+    "ExtractRanges.cpp",
+    "FileWriter.cpp",
+    "FunctionInfo.cpp",
+    "GsymCreator.cpp",
+    "GsymReader.cpp",
+    "Header.cpp",
+    "InlineInfo.cpp",
+    "LineTable.cpp",
+    "LookupResult.cpp",
+    "ObjectFileTransformer.cpp",
+  ]
+}

@@ -1,0 +1,97 @@
+# create
+# pass add -n 1.2.3.4 ::1 1.2.3.4 ::1
+2/4 addresses added (dummy).
+# pass add -nf-
+2/4 addresses added (dummy).
+# pass add -nqv 1.2.3.4 ::1 1.2.3.4 ::1
+A  1.2.3.4
+A  ::1
+X  1.2.3.4
+X  ::1
+# pass add -nqvv 1.2.3.4 ::1 1.2.3.4 ::1
+A  1.2.3.4
+A  ::1
+X  1.2.3.4
+X  ::1
+# pass add 1.2.3.4 ::1 1.2.3.4 ::1
+2/4 addresses added.
+# pass add -n 1.2.3.4 ::1 1.2.3.4 ::1
+0/4 addresses added (dummy).
+# pass add -nf-
+0/4 addresses added (dummy).
+# pass add -nqv 1.2.3.4 ::1 1.2.3.4 ::1
+# pass add -nqvv 1.2.3.4 ::1 1.2.3.4 ::1
+   1.2.3.4
+   1.2.3.4
+   ::1
+   ::1
+# pass add 1.2.3.4 ::1 1.2.3.4 ::1
+0/4 addresses added.
+# pass delete -n 1.2.3.4 ::1 1.2.3.4 ::1
+2/4 addresses deleted (dummy).
+# pass delete -nf-
+2/4 addresses deleted (dummy).
+# pass delete -nqv 1.2.3.4 ::1 1.2.3.4 ::1
+D  1.2.3.4
+D  ::1
+X  1.2.3.4
+X  ::1
+# pass delete -nqvv 1.2.3.4 ::1 1.2.3.4 ::1
+D  1.2.3.4
+D  ::1
+X  1.2.3.4
+X  ::1
+# pass delete 1.2.3.4 ::1 1.2.3.4 ::1
+2/4 addresses deleted.
+# pass delete -n 1.2.3.4 ::1 1.2.3.4 ::1
+0/4 addresses deleted (dummy).
+# pass delete -nf-
+0/4 addresses deleted (dummy).
+# pass delete -nqv 1.2.3.4 ::1 1.2.3.4 ::1
+# pass delete -nqvv 1.2.3.4 ::1 1.2.3.4 ::1
+   1.2.3.4
+   1.2.3.4
+   ::1
+   ::1
+# pass delete 1.2.3.4 ::1 1.2.3.4 ::1
+0/4 addresses deleted.
+# pass replace -n 1.2.3.4 ::1 1.2.3.4 ::1
+2 addresses added (dummy).
+# pass replace -nf-
+2 addresses added (dummy).
+# pass replace -nqv 1.2.3.4 ::1 1.2.3.4 ::1
+A  1.2.3.4
+A  ::1
+X  1.2.3.4
+X  ::1
+# pass replace -nqvv 1.2.3.4 ::1 1.2.3.4 ::1
+A  1.2.3.4
+A  ::1
+X  1.2.3.4
+X  ::1
+# pass replace 1.2.3.4 ::1 1.2.3.4 ::1
+2 addresses added.
+# pass replace -n 1.2.3.4 ::1 1.2.3.4 ::1
+no changes (dummy).
+# pass replace -nf-
+no changes (dummy).
+# pass replace -nqv 1.2.3.4 ::1 1.2.3.4 ::1
+X  1.2.3.4
+X  ::1
+# pass replace -nqvv 1.2.3.4 ::1 1.2.3.4 ::1
+   1.2.3.4
+   ::1
+X  1.2.3.4
+X  ::1
+# pass replace 1.2.3.4 ::1 1.2.3.4 ::1
+no changes.
+# pass show 
+   1.2.3.4
+   ::1
+# kill
+1 tables deleted.
+rules cleared
+ktable: 23 allocated, 23 released, 0 leaked.
+pfrke_plain: 20 allocated, 20 released, 0 leaked.
+pfrke_route: 0 allocated, 0 released, 0 leaked.
+pfrke_cost: 0 allocated, 0 released, 0 leaked.

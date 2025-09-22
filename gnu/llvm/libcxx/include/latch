@@ -1,0 +1,129 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_LATCH
+#define _LIBCPP_LATCH
+
+/*
+    latch synopsis
+
+namespace std
+{
+
+  class latch
+  {
+  public:
+    static constexpr ptrdiff_t max() noexcept;
+
+    constexpr explicit latch(ptrdiff_t __expected);
+    ~latch();
+
+    latch(const latch&) = delete;
+    latch& operator=(const latch&) = delete;
+
+    void count_down(ptrdiff_t __update = 1);
+    bool try_wait() const noexcept;
+    void wait() const;
+    void arrive_and_wait(ptrdiff_t __update = 1);
+
+  private:
+    ptrdiff_t __counter; // exposition only
+  };
+
+}
+
+*/
+
+#include <__config>
+
+#if !defined(_LIBCPP_HAS_NO_THREADS)
+
+#  include <__assert>
+#  include <__atomic/atomic_base.h>
+#  include <__atomic/atomic_sync.h>
+#  include <__atomic/memory_order.h>
+#  include <cstddef>
+#  include <limits>
+#  include <version>
+
+#  if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#    pragma GCC system_header
+#  endif
+
+_LIBCPP_PUSH_MACROS
+#  include <__undef_macros>
+
+#  if _LIBCPP_STD_VER >= 14
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+class _LIBCPP_DEPRECATED_ATOMIC_SYNC latch {
+  __atomic_base<ptrdiff_t> __a_;
+
+public:
+  static _LIBCPP_HIDE_FROM_ABI constexpr ptrdiff_t max() noexcept { return numeric_limits<ptrdiff_t>::max(); }
+
+  inline _LIBCPP_HIDE_FROM_ABI constexpr explicit latch(ptrdiff_t __expected) : __a_(__expected) {
+    _LIBCPP_ASSERT_ARGUMENT_WITHIN_DOMAIN(
+        __expected >= 0,
+        "latch::latch(ptrdiff_t): latch cannot be "
+        "initialized with a negative value");
+    _LIBCPP_ASSERT_ARGUMENT_WITHIN_DOMAIN(
+        __expected <= max(),
+        "latch::latch(ptrdiff_t): latch cannot be "
+        "initialized with a value greater than max()");
+  }
+
+  _LIBCPP_HIDE_FROM_ABI ~latch() = default;
+  latch(const latch&)            = delete;
+  latch& operator=(const latch&) = delete;
+
+  inline _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI void count_down(ptrdiff_t __update = 1) {
+    _LIBCPP_ASSERT_ARGUMENT_WITHIN_DOMAIN(__update >= 0, "latch::count_down called with a negative value");
+    auto const __old = __a_.fetch_sub(__update, memory_order_release);
+    _LIBCPP_ASSERT_ARGUMENT_WITHIN_DOMAIN(
+        __update <= __old,
+        "latch::count_down called with a value greater "
+        "than the internal counter");
+    if (__old == __update)
+      __a_.notify_all();
+  }
+  inline _LIBCPP_HIDE_FROM_ABI bool try_wait() const noexcept {
+    auto __value = __a_.load(memory_order_acquire);
+    return try_wait_impl(__value);
+  }
+  inline _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI void wait() const {
+    std::__atomic_wait_unless(
+        __a_, [this](ptrdiff_t& __value) -> bool { return try_wait_impl(__value); }, memory_order_acquire);
+  }
+  inline _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI void arrive_and_wait(ptrdiff_t __update = 1) {
+    _LIBCPP_ASSERT_ARGUMENT_WITHIN_DOMAIN(__update >= 0, "latch::arrive_and_wait called with a negative value");
+    // other preconditions on __update are checked in count_down()
+
+    count_down(__update);
+    wait();
+  }
+
+private:
+  _LIBCPP_HIDE_FROM_ABI bool try_wait_impl(ptrdiff_t& __value) const noexcept { return __value == 0; }
+};
+
+_LIBCPP_END_NAMESPACE_STD
+
+#  endif // _LIBCPP_STD_VER >= 14
+
+_LIBCPP_POP_MACROS
+
+#endif // !defined(_LIBCPP_HAS_NO_THREADS)
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <atomic>
+#endif
+
+#endif //_LIBCPP_LATCH

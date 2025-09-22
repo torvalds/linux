@@ -1,0 +1,50 @@
+.\"	$OpenBSD: omgpio.4,v 1.3 2016/08/11 04:33:06 jsg Exp $
+.\"
+.\" Copyright (c) 2013 Raphael Graf <r@undefined.ch>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 11 2016 $
+.Dt OMGPIO 4 armv7
+.Os
+.Sh NAME
+.Nm omgpio
+.Nd omap3, omap4 and am335x GPIO controller
+.Sh SYNOPSIS
+.Cd "omgpio* at fdt?"
+.Cd "gpio* at omgpio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the GPIO controllers found on omap3, omap4 and
+am335x SoCs.
+The devices have 32 pins which can be configured as either inputs or outputs,
+and accessed using
+.Xr gpioctl 8 .
+.\" Both values are made available through the
+.\" .Xr sysctl 8
+.\" interface.
+.Sh SEE ALSO
+.Xr gpio 4 ,
+.Xr gpioctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Dale Rahn Aq Mt drahn@dalerahn.com .

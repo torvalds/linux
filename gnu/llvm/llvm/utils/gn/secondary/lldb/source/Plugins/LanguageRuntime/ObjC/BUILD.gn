@@ -1,0 +1,17 @@
+static_library("ObjC") {
+  output_name = "lldbPluginObjCRuntime"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+  ]
+
+  # Reaches into Plugins/TypeSystem/Clang.
+  include_dirs = [ "//lldb/source" ]
+  sources = [ "ObjCLanguageRuntime.cpp" ]
+}

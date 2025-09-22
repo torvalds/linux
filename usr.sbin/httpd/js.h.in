@@ -1,0 +1,19 @@
+static const char *js = 
+const cellVal = (e) => e.getAttribute('title') || e.getAttribute('data-o') || 
+    e.innerText || e.textContent;
+const rowValue = (tr, idx) => cellVal(tr.children[idx]);
+const compare = (idx, asc) => (a, b) => ((v1, v2) => 
+    v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2) ? v1 - v2 : v1.toString().localeCompare(v2)
+    )(rowValue(asc ? a : b, idx), rowValue(asc ? b : a, idx));
+
+// set up the listener
+document.querySelectorAll('tr.sort th').forEach(th => th.addEventListener('click', (() => {
+    const table = th.closest('table');
+    // make the sorted column bold
+    table.querySelectorAll('tr.sort th').forEach(th2 => 
+    	th2.className = th2 == th ? 'sorted' : 'unsorted');
+    const body = table.querySelector('tbody');
+    Array.from(body.querySelectorAll('tr'))
+        .sort(compare(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc))
+        .forEach(tr => body.appendChild(tr) );
+})))

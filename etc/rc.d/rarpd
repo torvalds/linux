@@ -1,0 +1,16 @@
+#!/bin/ksh
+#
+# $OpenBSD: rarpd,v 1.5 2018/01/11 21:09:26 rpe Exp $
+
+daemon="/usr/sbin/rarpd"
+daemon_flags="-a"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=NO
+
+rc_pre() {
+	[[ -s /etc/ethers ]]
+}
+
+rc_cmd $1

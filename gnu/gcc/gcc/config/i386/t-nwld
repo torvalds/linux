@@ -1,0 +1,61 @@
+CRTSTUFF_T_CFLAGS = -mpreferred-stack-boundary=2
+CRT0STUFF_T_CFLAGS = -mpreferred-stack-boundary=2 $(INCLUDES)
+# this is a slight misuse (it's not an assembler file)
+CRT0_S = $(srcdir)/config/i386/netware-crt0.c
+MCRT0_S = $(srcdir)/config/i386/netware-crt0.c
+
+libgcc.def: $(srcdir)/config/i386/t-nwld
+	echo "module libgcc_s" >$@
+
+libc.def: $(srcdir)/config/i386/t-nwld
+	echo "module libc" >$@
+
+libcpre.def: $(srcdir)/config/i386/t-nwld
+	echo "start _LibCPrelude" >$@
+	echo "exit _LibCPostlude" >>$@
+	echo "check _LibCCheckUnload" >>$@
+
+posixpre.def: $(srcdir)/config/i386/t-nwld
+	echo "start POSIX_Start" >$@
+	echo "exit POSIX_Stop" >>$@
+	echo "check POSIX_CheckUnload" >>$@
+
+nwld.o: $(srcdir)/config/i386/nwld.c $(RTL_H) $(TREE_H) $(CONFIG_H) $(TM_P_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/i386/nwld.c
+
+
+s-crt0: $(srcdir)/unwind-dw2-fde.h
+
+# Build a shared libgcc library for NetWare.
+
+SHLIB_EXT = .nlm
+SHLIB_NAME = @shlib_base_name@.nlm
+SHLIB_SLIBDIR_QUAL = @shlib_slibdir_qual@
+SHLIB_DEF = $(srcdir)/config/i386/netware-libgcc.def
+SHLIB_MAP = $(srcdir)/config/i386/netware-libgcc.exp
+SHLIB_SRC = $(srcdir)/config/i386/netware-libgcc.c
+
+SHLIB_LINK = set -e; \
+	cat $(SHLIB_DEF) >@shlib_base_name@.def; \
+	echo "name $(SHLIB_NAME)" >>@shlib_base_name@.def; \
+	echo "version $(version)" | sed "s!\.!,!g" >>@shlib_base_name@.def; \
+	touch libgcc/build; \
+	echo "build $$$$(expr $$$$(<libgcc/build) + 0)" >>@shlib_base_name@.def; \
+	echo "export @$(SHLIB_MAP)" >>@shlib_base_name@.def; \
+	if mpkxdc -n -p @shlib_base_name@.xdc; \
+		then echo "xdcdata @shlib_base_name@.xdc" >>@shlib_base_name@.def; \
+		else echo "WARNING: $(SHLIB_NAME) built without XDC data will not work well." 1>&2; \
+	fi; \
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -o $(SHLIB_NAME) \
+		$(SHLIB_SRC) -posix -static-libgcc -lnetware \
+		-Wl,--Map,--map-info,full,--strip-all,--def-file,@shlib_base_name@.def; \
+	rm -f @shlib_base_name@.imp; $(LN_S) $(SHLIB_MAP) @shlib_base_name@.imp; \
+	rm -f libgcc.imp; $(LN_S) @shlib_base_name@.imp libgcc.imp; \
+	expr $$$$(<libgcc/build) + 1 >libgcc/build
+
+# $(slibdir) double quoted to protect it from expansion while building
+# libgcc.mk.  We want this delayed until actual install time.
+SHLIB_INSTALL = \
+	$$(SHELL) $(srcdir)/mkinstalldirs $$(slibdir)$(SHLIB_SLIBDIR_QUAL); \
+	$$(INSTALL_DATA) $(SHLIB_NAME) $$(slibdir)$(SHLIB_SLIBDIR_QUAL)/$(SHLIB_NAME); \
+	$$(INSTALL_DATA) @shlib_base_name@.imp $$(DESTDIR)$$(libsubdir)/

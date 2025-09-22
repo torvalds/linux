@@ -1,0 +1,26 @@
+import("//llvm/utils/gn/build/driver_executable.gni")
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Opts") {
+  visibility = [ ":sancov" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+driver_executable("sancov") {
+  deps = [
+    ":Opts",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsDisassemblers",
+    "//llvm/lib/Target:AllTargetsInfos",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "sancov.cpp" ]
+}

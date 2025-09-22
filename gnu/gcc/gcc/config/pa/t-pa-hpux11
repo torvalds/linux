@@ -1,0 +1,2 @@
+TARGET_LIBGCC2_CFLAGS = -fPIC
+LIB2FUNCS_EXTRA=lib2funcs.asm quadlib.c

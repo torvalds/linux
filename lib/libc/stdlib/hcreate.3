@@ -1,0 +1,234 @@
+.\" 	$OpenBSD: hcreate.3,v 1.8 2018/01/30 11:37:58 jmc Exp $
+.\" 	$NetBSD: hcreate.3,v 1.8 2010/05/01 06:18:03 jruoho Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Klaus Klein.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 30 2018 $
+.Dt HCREATE 3
+.Os
+.Sh NAME
+.Nm hcreate ,
+.Nm hdestroy ,
+.Nm hsearch
+.Nd manage hash search table
+.Sh SYNOPSIS
+.In search.h
+.Ft int
+.Fn hcreate "size_t nel"
+.Ft void
+.Fn hdestroy "void"
+.Ft ENTRY *
+.Fn hsearch "ENTRY item" "ACTION action"
+.Sh DESCRIPTION
+The
+.Fn hcreate ,
+.Fn hdestroy ,
+and
+.Fn hsearch
+functions manage hash search tables.
+.Pp
+The
+.Fn hcreate
+function allocates and initializes the table.
+The
+.Fa nel
+argument specifies an estimate of the maximum number of entries to be held
+by the table.
+Unless further memory allocation fails, supplying an insufficient
+.Fa nel
+value will not result in functional harm, although a performance degradation
+may occur.
+Initialization using the
+.Fn hcreate
+function is mandatory prior to any access operations using
+.Fn hsearch .
+.Pp
+The
+.Fn hdestroy
+function destroys a table previously created using
+.Fn hcreate .
+After a call to
+.Fn hdestroy ,
+the data can no longer be accessed.
+.Pp
+The
+.Fn hsearch
+function is used to search the hash table.
+It returns a pointer into the
+hash table indicating the address of an item.
+The
+.Fa item
+argument is of type
+.Vt ENTRY ,
+defined in the
+.In search.h
+header.
+This is a structure type that contains two pointers:
+.Pp
+.Bl -tag -compact -offset indent -width "void *data "
+.It Fa char *key
+comparison key
+.It Fa void *data
+pointer to data associated with
+.Fa key
+.El
+.Pp
+The key comparison function used by
+.Fn hsearch
+is
+.Xr strcmp 3 .
+.Pp
+The
+.Fa action
+argument is of type
+.Vt ACTION ,
+an enumeration type which defines the following values:
+.Bl -tag -offset indent -width ENTERXX
+.It Dv ENTER
+Insert
+.Fa item
+into the hash table.
+If an existing item with the same key is found, it is not replaced.
+Note that the
+.Fa key
+and
+.Fa data
+elements of
+.Fa item
+are used directly by the new table entry.
+The storage for the
+key must not be modified during the lifetime of the hash table.
+.It Dv FIND
+Search the hash table without inserting
+.Fa item .
+.El
+.Pp
+Note that the comparison
+.Fa key
+must be allocated using
+.Xr malloc 3
+or
+.Xr calloc 3
+if action is
+.Dv ENTER
+and
+.Fn hdestroy
+will be called.
+This is because
+.Fn hdestroy
+will call
+.Xr free 3
+for each comparison
+.Fa key
+(but not
+.Fa data ) .
+Typically the comparison
+.Fa key
+is allocated by using
+.Xr strdup 3 .
+.Sh RETURN VALUES
+If successful, the
+.Fn hcreate
+function returns a non-zero value.
+Otherwise, a value of 0 is returned and
+.Va errno
+is set to indicate the error.
+.Pp
+If successful, the
+.Fn hsearch
+function returns a pointer to a hash table entry matching
+the provided key.
+If the action is
+.Dv FIND
+and the item was not found, or if the action is
+.Dv ENTER
+and the insertion failed,
+.Dv NULL
+is returned and
+.Va errno
+is set to indicate the error.
+If the action is
+.Dv ENTER
+and an entry already existed in the table matching the given
+key, the existing entry is returned and is not replaced.
+.Sh ERRORS
+The
+.Fn hcreate
+and
+.Fn hsearch
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient memory is available.
+.El
+.Sh SEE ALSO
+.Xr bsearch 3 ,
+.Xr lsearch 3 ,
+.Xr malloc 3 ,
+.Xr strcmp 3
+.Sh STANDARDS
+The
+.Fn hcreate ,
+.Fn hdestroy
+and
+.Fn hsearch
+functions conform to
+.St -xpg4.2 .
+.Sh HISTORY
+The
+.Fn hcreate ,
+.Fn hdestroy
+and
+.Fn hsearch
+functions first appeared in
+.At V .
+.Sh CAVEATS
+At least the following limitations can be mentioned:
+.Bl -bullet
+.It
+The interface permits the use of only one hash table at a time.
+.It
+Individual hash table entries can be added, but not deleted.
+.It
+The standard is indecipherable about the
+internal memory usage of the functions,
+mentioning only that
+.Do
+.Fn hcreate
+and
+.Fn hsearch
+functions may use
+.Fn malloc
+to allocate space
+.Dc .
+This limits the portability of the functions,
+given that other implementations may not
+.Xr free 3
+the buffer pointed by
+.Fa key .
+.El

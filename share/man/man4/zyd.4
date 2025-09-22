@@ -1,0 +1,217 @@
+.\" $OpenBSD: zyd.4,v 1.49 2025/03/25 19:57:54 jmc Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999
+.\" Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 25 2025 $
+.Dt ZYD 4
+.Os
+.Sh NAME
+.Nm zyd
+.Nd ZyDAS ZD1211/ZD1211B USB IEEE 802.11b/g wireless network device
+.Sh SYNOPSIS
+.Cd "zyd* at uhub? port ?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for wireless network adapters based around
+the ZyDAS ZD1211 and ZD1211B USB chips.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+The
+.Nm
+driver relies on the software 802.11 stack for both encryption and decryption
+of data frames.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The adapter needs some firmware files, which are loaded on demand by the
+driver when a device is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/zd1211
+.It Pa /etc/firmware/zd1211b
+.El
+.Sh HARDWARE
+The following devices are known to be supported by the
+.Nm
+driver:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 3COM 3CRUSB10075
+.It Acer WLAN-G-US1
+.It Airlink+ AWLL3025
+.It Airlink 101 AWLL3026
+.It AOpen 802.11g WL54
+.It Asus A9T integrated wireless
+.It Asus WL-159g
+.It Belkin F5D7050 v.4000
+.It Billion BiPAC 3011G
+.It Buffalo WLI-U2-KG54L
+.It CC&C WL-2203B
+.It DrayTek Vigor 550
+.It Edimax EW-7317UG
+.It Edimax EW-7317LDG
+.It Fiberline Networks WL-43OU
+.It iNexQ UR055g
+.It Linksys WUSBF54G
+.It Longshine LCS-8131G3
+.It MSI US54SE
+.It Philips SNU5600
+.It Planet WL-U356
+.It Planex GW-US54GD
+.It Planex GW-US54GXS
+.It Planex GW-US54GZL
+.It Planex GW-US54Mini
+.It Planex GW-US54ZGL
+.It Safecom SWMULZ-5400
+.It Sagem XG 760A
+.It Sagem XG 76NA
+.It Sandberg Wireless G54 USB
+.It Sitecom WL-113
+.It Sitecom WL-603
+.It SMC SMCWUSB-G
+.It Sweex wireless USB 54 Mbps
+.It Tekram/Siemens USB adapter
+.It Telegent TG54USB
+.It Trendnet TEW-424UB rev A
+.It Trendnet TEW-429UB
+.It TwinMOS G240
+.It US Robotics 5423
+.It X-Micro XWL-11GUZX
+.It Yakumo QuickWLAN USB
+.It Zonet ZEW2501
+.It ZyXEL AG-220
+.It ZyXEL AG-225H v2
+.It ZyXEL G-200 v2
+.It ZyXEL G-202
+.It ZyXEL G-220
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig zyd0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures zyd0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "zyd0: error N, could not read firmware ..."
+For some reason, the driver was unable to read the firmware image from the
+filesystem.
+The file might be missing or corrupted.
+.It "zyd0: could not load firmware (error=N)"
+An error occurred while attempting to upload the firmware to the onboard
+microcontroller unit.
+.It "zyd0: could not send command (error=...)"
+An attempt to send a command to the firmware failed.
+.It "zyd0: sorry, radio ... is not supported yet"
+Support for the specified radio chip is not yet implemented in the driver.
+The device will not attach.
+.It "zyd0: device version mismatch: 0xXXXX (only >= 43.30 supported)"
+Early revisions of the ZD1211 chipset are not supported by this driver.
+The device will not attach.
+.It "zyd0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Florian Stoehr Aq Mt ich@florian-stoehr.de ,
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr ,
+and
+.An Jonathan Gray Aq Mt jsg@openbsd.org .
+.Sh CAVEATS
+The
+.Nm
+driver does not support a lot of the functionality available in the hardware.
+More work is required to properly support the IBSS and power management
+features.

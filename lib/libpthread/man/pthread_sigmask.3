@@ -1,0 +1,72 @@
+.\" $OpenBSD: pthread_sigmask.3,v 1.12 2025/06/07 00:30:54 schwarze Exp $
+.\"
+.\"
+.\"  David Leonard, 1999. Public Domain.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_SIGMASK 3
+.Os
+.Sh NAME
+.Nm pthread_sigmask
+.Nd examine and/or change a thread's signal mask
+.Sh SYNOPSIS
+.Lb libpthread
+.In signal.h
+.Ft int
+.Fn pthread_sigmask "int how" "const sigset_t *set" "sigset_t *oset"
+.Sh DESCRIPTION
+The
+.Fn pthread_sigmask
+function examines and/or changes the calling thread's signal mask.
+.Pp
+If
+.Fa set
+is not
+.Dv NULL ,
+it specifies a set of signals to be modified, and
+.Fa how
+specifies what to set the signal mask to:
+.Bl -tag -width SIG_UNBLOCK
+.It Dv SIG_BLOCK
+Union of the current mask and
+.Fa set .
+.It Dv SIG_UNBLOCK
+Intersection of the current mask and the complement of
+.Fa set .
+.It Dv SIG_SETMASK
+.Fa set .
+.El
+.Pp
+If
+.Fa oset
+is not NULL, the previous signal mask is stored in the location pointed to by
+.Fa oset .
+.Pp
+.Dv SIGKILL
+and
+.Dv SIGSTOP
+cannot be blocked, and will be silently ignored if included in the signal mask.
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_sigmask
+returns 0.
+Otherwise, an error is returned.
+.Sh ERRORS
+.Fn pthread_sigmask
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa how
+is not one of the defined values.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr sigpending 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigsuspend 2 ,
+.Xr pthreads 3 ,
+.Xr sigaddset 3
+.Sh STANDARDS
+.Fn pthread_sigmask
+conforms to
+.St -p1003.1-96 .

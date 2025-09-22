@@ -1,0 +1,354 @@
+$OpenBSD: PackingElement.pod,v 1.1 2020/12/20 15:30:58 daniel Exp $
+
+=head1 NAME
+
+OpenBSD::PackingElement - C<pkg_add(1)> packing-elements object hierarchy
+
+=head1 SYNOPSIS
+
+    package OpenBSD::PackingElement;
+    sub method
+    {
+    }
+
+    package OpenBSD::PackingElement::Depend;
+    sub method
+    {
+    	my ($self, @args) = @_;
+	# do something
+    }
+
+    package main;
+    use OpenBSD::PackingList;
+
+    $plist = OpenBSD::PackingList->fromfile($filename);
+    $plist->visit('method', @args);
+
+=head1 DESCRIPTION
+
+C<OpenBSD::PackingElement> is the base class for all elements in a
+packing-list (see L<OpenBSD::PackingList(3p)> and C<pkg_create(1)>).
+
+Manipulation of packing-lists mostly occurs through visitor patterns
+such as C<OpenBSD::PackingList::visit>: client code defines a method for
+each relevant class in the hierarchy and calls C<$plist-E<gt>visit('method')>
+to perform the processing.
+
+Most actual objects have one property: their C<name>.
+
+=over 4
+
+=item ::Meta
+
+base class for all meta information that can be reordered at will.
+
+=over 4
+
+=item ::Unique
+
+meta information with uniqueness properties.
+
+=over 4
+
+=item ::Arch
+
+architecture requirements.
+
+=item ::ExtraInfo
+
+some unique properties, like C<PKGPATH> and allowed-for-ftp status.
+
+=item ::Name
+
+the package name.
+
+=item ::LocalBase
+
+the local base for the package.
+
+=item ::NoDefaultConflict
+
+special annotation that package should not have any C<stem-*> conflict marker.
+
+=item ::SpecialFile
+
+special files like the package description or install script.
+
+=over 4
+
+=item ::FCONTENTS
+
+contents file.
+
+=item ::FDESC
+
+package description.
+
+=item ::DisplayFile
+
+abstract class for special files that can be displayed.
+provides method C<prepare($state)> to display the file.
+
+=over 4
+
+=item ::FDISPLAY
+
+message displayed during package install.
+
+=item ::FUNDISPLAY
+
+message displayed during package uninstall.
+
+=back
+
+=back
+
+=back
+
+=item ::Option
+
+factory for C<@option>
+
+=item ::Comment
+
+comments in the packing-lists. The constructor is actually a factory,
+since some comments evolve to some other class.
+
+=item ::CVSTag
+
+special class of comments that get reordered to the front of packing-lists.
+
+=item ::Depend
+
+all dependency information.
+
+=over 4
+
+=item ::Wantlib
+
+shared library needed for the package.
+
+=item ::Dependency
+
+package needed, with the following properties: C<pkgpath> is the path
+used to create the dependency, C<pattern> is the L<OpenBSD::PkgSpec(3p)>
+pattern used to match the dependency, C<def> is the default value of
+the dependency computed during build, to use for comparing package signatures
+and to fulfill default dependencies.
+
+=back
+
+=item ::Conflict
+
+conflict information.
+
+=back
+
+=item ::Annotation
+
+stuff that doesn't really exist as objects, but is used to add
+properties to objects.
+
+=over 4
+
+=item ::Ignore
+
+mark next object as ignored.
+
+=item ::sha
+
+mark last file with a checksum.
+
+=item ::size
+
+mark last file with a size.
+
+=item ::symlink
+
+mark last file as a symlink.
+
+=item ::hardlink
+
+mark last file as a hardlink.
+
+=item ::temp
+
+mark last file with a temporary name. Used during extraction of
+packages for replacement.
+
+=back
+
+=item ::Object
+
+somewhat concrete elements in packing-lists.
+This is the base class for objects with a location in the filesystem.
+It defineds method C<fullname>, to access the complete name of the object.
+
+Note that all objects with file names use relative names except for
+C<::Extra>, C<::Sample> and C<::Sampledir>
+
+=over 4
+
+=item ::FileObject
+
+abstract class corresponding to files and directories.
+Default constructor depends on a C<dirclass> property, that may
+create objects from another class if their name ends with a C</>.
+The full object name is normally computed relative to the current
+working directory as set in C<::State>.
+
+=over 4
+
+=item ::FileBase
+
+abstract class for files.
+
+=over 4
+
+=item ::File
+
+actual file objects present in the packing-list.
+
+=item ::InfoFile
+
+GNU info file objects.
+
+=item ::Shell
+
+files with shell properties.
+
+=item ::Manpage
+
+man pages.
+
+=item ::Lib
+
+shared library files.
+
+=item ::Sample
+
+file objects not present in the packing-list.
+
+=for comment  ::Extra and ::Extradir intentionally not documented yet.
+
+=back
+
+=item ::DirlikeObject
+
+abstract class for directories.
+
+=over 4
+
+=item ::DirRm
+
+deprecated.
+
+=item ::DirBase
+
+=over 4
+
+=item ::Dir
+
+normal directory, with specialized versions.
+
+=over 4
+
+=item ::Infodir
+
+directory holds GNU info files.
+
+=item ::Fontdir
+
+directory holds X11 fonts.
+
+=item ::Mandir
+
+directory is the root of a set of manpages.
+
+=item ::Sampledir
+
+directory is used to hold configuration files or similar objects.
+
+=back
+
+=back
+
+=back
+
+=back
+
+=item ::Action
+
+stuff that performs some action during addition/removal of package.
+
+=over 4
+
+=item ::NewAuth
+
+=over 4
+
+=item ::NewUser
+
+user that needs to be created for the package to work.
+
+=item ::NewGroup
+
+group that needs to be created for the package to work.
+
+=back
+
+=item ::ExeclikeAction
+
+escape mechanism for embedded code that needs to be run.
+
+=over 4
+
+=item ::Exec
+
+code to run during installation.
+
+=item ::Unexec
+
+code to run during deinstallation.
+
+=item ::Extraunexec
+
+extra code to run during deinstallation with -c.
+
+=back
+
+=back
+
+=item ::State
+
+annotation-like stuff that can't be easily moved around because it influences
+surrounding objects (mostly derived from C<::FileObject>).
+
+=over 4
+
+=item ::Cwd
+
+change the current working directory.
+
+=item ::Owner
+
+change the current file owner.
+
+=item ::Group
+
+change the current file group.
+
+=item ::Mode
+
+change the current file mode.
+
+=back
+
+=back
+
+=back
+
+=head1 CAVEATS
+
+Some aspects of this API are likely to change in the future, although the
+basic class hierarchy is now more or less worked out.

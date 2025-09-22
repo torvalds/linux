@@ -1,0 +1,4 @@
+# $OpenBSD: dot.mailrc,v 1.3 2014/07/10 11:18:23 jasper Exp $
+set ask
+set crt
+ignore message-id received date fcc status resent-date resent-message-id resent-from in-reply-to

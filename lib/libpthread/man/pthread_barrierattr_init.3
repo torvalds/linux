@@ -1,0 +1,78 @@
+.\"	$OpenBSD: pthread_barrierattr_init.3,v 1.5 2025/06/07 00:16:52 schwarze Exp $
+.\"
+.\" Copyright (c) 2012 Paul Irofti <paul@irofti.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_BARRIERATTR_INIT 3
+.Os
+.Sh NAME
+.Nm pthread_barrierattr_init ,
+.Nm pthread_barrierattr_destroy
+.Nd initialize and destroy a barrier attribute object
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_barrierattr_init "pthread_barrierattr_t *attr"
+.Ft int
+.Fn pthread_barrierattr_destroy "pthread_barrierattr_t *attr"
+.Sh DESCRIPTION
+The
+.Fn pthread_barrierattr_init
+function creates a new barrier attribute object.
+.Pp
+The
+.Fn pthread_barrierattr_destroy
+function frees the resources allocated for
+.Fa attr .
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_barrierattr_init
+and
+.Fn pthread_barrierattr_destroy
+return zero;
+otherwise an error number is returned to indicate the error.
+.Sh ERRORS
+.Fn pthread_barrierattr_init
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa attr
+is invalid.
+.It Bq Er ENOMEM
+The process cannot allocate enough memory to create another barrier attribute
+object.
+.El
+.Pp
+.Fn pthread_barrierattr_destroy
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa attr
+is invalid.
+.El
+.Sh SEE ALSO
+.Xr pthread_barrier_init 3 ,
+.Xr pthread_barrier_wait 3 ,
+.Xr pthread_barrierattr_getpshared 3
+.Sh STANDARDS
+.Fn pthread_barrierattr_init
+and
+.Fn pthread_barrierattr_destroy
+conform to
+.St -p1003.1-2008 .

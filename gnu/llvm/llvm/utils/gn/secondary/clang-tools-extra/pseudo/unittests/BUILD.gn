@@ -1,0 +1,27 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ClangPseudoTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/pseudo/lib",
+    "//clang-tools-extra/pseudo/lib/cxx",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/Testing",
+    "//llvm/lib/Support",
+    "//llvm/lib/Testing/Annotations",
+    "//llvm/lib/Testing/Support",
+  ]
+  include_dirs = [ "../include" ]
+  sources = [
+    "BracketTest.cpp",
+    "CXXTest.cpp",
+    "DirectiveTreeTest.cpp",
+    "DisambiguateTest.cpp",
+    "ForestTest.cpp",
+    "GLRTest.cpp",
+    "GrammarTest.cpp",
+    "LRTableTest.cpp",
+    "TokenTest.cpp",
+  ]
+}

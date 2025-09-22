@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# This script starts a shell in a container running the libc++ build bot Docker
+# image. That image emulates the environment used by libc++'s Linux builders on
+# BuildKite.
+#
+# Once you're inside the shell, you can run the various build jobs with the
+# `run-buildbot` script.
+#
+# This script must be run from within the LLVM monorepo. Furthermore, the
+# monorepo will be mounted as `/llvm` inside the container. Be careful, the
+# state in `/llvm` is shared between the container and the host machine, which
+# is useful for editing files on the host machine and re-running the build bot
+# in the container.
+#
+# If you are on Linux you will likely not be able to write to the mount because
+# the user in the container doesn't have permissions to do so.
+# If you need to do this, give that user permission to do so after running
+# the container or add this flag to run the container as your local user IDs:
+# --user $(id -u):$(id -g)
+
+set -e
+
+MONOREPO_ROOT="$(git rev-parse --show-toplevel)"
+if [[ ! -d "${MONOREPO_ROOT}/libcxx/utils/ci" ]]; then
+    echo "Was unable to find the root of the LLVM monorepo; are you running from within the monorepo?"
+    exit 1
+fi
+docker pull ghcr.io/libcxx/actions-builder
+docker run -it --volume "${MONOREPO_ROOT}:/llvm" --workdir "/llvm" --cap-add=SYS_PTRACE ghcr.io/libcxx/actions-builder \
+    bash -c 'git config --global --add safe.directory /llvm ; exec bash'

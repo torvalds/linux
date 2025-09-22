@@ -1,0 +1,46 @@
+.\"	$OpenBSD: ims.4,v 1.4 2021/01/22 17:35:00 jcs Exp $
+.\"
+.\" Copyright (c) 2016 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 22 2021 $
+.Dt IMS 4
+.Os
+.Sh NAME
+.Nm ims
+.Nd I2C HID pointing device support
+.Sh SYNOPSIS
+.Cd "ims* at ihidev?"
+.Cd "wsmouse* at ims? mux 0"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for I2C HID touchpads and other pointing devices.
+Access to these devices is through the
+.Xr wscons 4
+driver.
+.Sh SEE ALSO
+.Xr ihidev 4 ,
+.Xr imt 4 ,
+.Xr wsmouse 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An joshua stein Aq Mt jcs@openbsd.org .

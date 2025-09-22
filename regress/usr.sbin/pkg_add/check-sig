@@ -1,0 +1,65 @@
+#! /usr/bin/perl
+# $OpenBSD: check-sig,v 1.4 2019/05/09 20:26:33 espie Exp $
+# Written by Marc Espie
+# Public domain
+
+use Test::Simple tests => 11;
+use OpenBSD::PackingList;
+use OpenBSD::State;
+sub mycode
+{
+	my ($fh, $cont) = @_;
+	while (<$fh>) {
+		return if m/^__END__/;
+		&$cont($_);
+	}
+}
+
+my @sig;
+my $fh = \*DATA;
+for my $i (1..7) {
+	push(@sig, OpenBSD::PackingList->read($fh, \&mycode)->signature);
+}
+
+my $s = OpenBSD::State->new;
+
+ok($sig[0]->compare($sig[0], $s) == 0, "self compare");
+ok($sig[3]->compare($sig[3], $s) == 0, "self compare");
+ok($sig[5]->compare($sig[5], $s) == 0, "self compare");
+ok(!defined($sig[0]->compare($sig[3], $s)), "non comparable");
+ok($sig[0]->compare($sig[1], $s) < 0, "depend");
+ok($sig[0]->compare($sig[2], $s) < 0, "pkgname");
+ok($sig[1]->compare($sig[0], $s) > 0, "other way");
+ok($sig[3]->compare($sig[4], $s) < 0, "lib");
+ok($sig[3]->compare($sig[5], $s) < 0, "depend");
+ok(!defined($sig[0]->compare($sig[6], $s)), "non comparable");
+ok(!defined($sig[6]->compare($sig[0], $s)), "non comparable");
+
+__DATA__
+@name foo-1.0
+@depend test/x:x-*:x-1.0
+file
+__END__ #1
+@name foo-1.0
+@depend test/x:x-*:x-2.0
+file
+__END__ #2
+@name foo-2.0
+@depend test/x:x-*:x-2.0
+file
+__END__ #3
+@name bar-1.0
+@depend test/x:x-*:x-1.0
+@wantlib a.1.5
+__END__ #4
+@name bar-1.0
+@depend test/x:x-*:x-1.0
+@wantlib a.2.0
+__END__ #5
+@name bar-1.0
+@depend test/x:x-*:x-2.0
+@wantlib a.1.5
+__END__ #6
+@name foo-1.0
+@depend test/x:x-*:x-1.0
+@depend test/y:y-*:y-2.0

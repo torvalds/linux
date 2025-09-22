@@ -1,0 +1,89 @@
+.\"	$OpenBSD: twe.4,v 1.29 2014/11/15 14:41:02 bentley Exp $
+.\"
+.\" Michael Shalayeff, 2000. Public Domain.
+.\"
+.Dd $Mdocdate: November 15 2014 $
+.Dt TWE 4
+.Os
+.Sh NAME
+.Nm twe
+.Nd 3ware 5000/6000/7000/8000 series PATA/SATA RAID controller
+.Sh SYNOPSIS
+.Cd "twe* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for AMCC's 3ware 5000/6000/7000/8000 series PATA/SATA
+RAID adapters.
+These adapters were formerly known as
+.Dq 3ware Escalade .
+.Pp
+These controllers support 2, 4, 8, or 12 ATA disk drives and provide RAID 0,
+RAID 1, RAID 5, RAID 10, and JBOD configurations.
+All the RAID set volume management is done via the card's BIOS.
+.Pp
+Even though the card uses ATA drives, this driver makes drives
+and/or RAID sets appear as
+.Xr sd 4 .
+.Pp
+The
+.Nm
+driver supports the following AMCC 3ware PATA/SATA RAID adapters:
+.Pp
+.Tn 5000 series ,
+.Tn 6000 series ,
+.Tn 7000-2 ,
+.Tn 7006-2 ,
+.Tn 7500-4LP ,
+.Tn 7500-8 ,
+.Tn 7500-12 ,
+.Tn 7506-4LP ,
+.Tn 7506-8 ,
+.Tn 7506-12 ,
+.Tn 8006-2LP ,
+.Tn 8500-4LP ,
+.Tn 8500-8 ,
+.Tn 8500-12 ,
+.Tn 8506-4LP ,
+.Tn 8506-8 ,
+.Tn 8506-8MI ,
+.Tn 8506-12 ,
+and
+.Tn 8506-12MI .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr sd 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 2.8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Michael Shalayeff Aq Mt mickey@openbsd.org ,
+inspired by the
+.Fx
+driver by
+.An Mike Smith Aq Mt msmith@freebsd.org .
+.Sh BUGS
+The card's BIOS seems to conflict with some other disk controllers
+which have their own BIOS, if such devices are configured earlier
+than this one.
+To avoid this situation, place
+.Nm
+cards in the lowest numbered slot before other SCSI or RAID disk controllers.
+.Pp
+The current 3ware firmware is known to fail if a redundant configuration
+is selected (RAID1 or RAID10) and the array is heavily used
+(e.g. installation) before the controller has finished initializing the array.
+In this case, create the array, boot the installation media, and
+leave the array idle until all controller activity has ceased.
+.Pp
+None of the volume management or monitoring functions provided by the
+card's firmware are supported due to the fact that information
+on these functions is not public.

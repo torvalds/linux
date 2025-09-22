@@ -1,0 +1,207 @@
+static_library("Support") {
+  output_name = "LLVMSupport"
+  deps = [
+    "BLAKE3",
+    "//llvm/include/llvm/Config:config",
+    "//llvm/include/llvm/Support:write_vcsrevision",
+    "//llvm/lib/Demangle",
+    "//llvm/utils/gn/build/libs/pthread",
+    "//llvm/utils/gn/build/libs/zlib",
+    "//llvm/utils/gn/build/libs/zstd",
+  ]
+
+  # public_deps are used for depending on targets that generate headers
+  # which are included in public headers of this target. public_deps means
+  # that targets depending on Support will implicitly be built only after
+  # abi-breaking and llvm-config have been built.
+  public_deps = [
+    # abi-breaking.h is also include by public headers in ADT, but ADT has
+    # no target in the gn build.  Since everything depends on Support, this
+    # public_dep does double duty of abi-breaking.h uses in public headers of
+    # both Support and ADT.
+    "//llvm/include/llvm/Config:abi-breaking",
+    "//llvm/include/llvm/Config:llvm-config",
+
+    # public_dep because public header TargetSelect.h includes these .def files.
+    "//llvm/include/llvm/Config:write_target_def_files",
+
+    # public_dep because random targets assume its output exists.
+    "//llvm/include/llvm/Support:write_extension_def",
+  ]
+  include_dirs = [
+    "Unix",
+    "Windows",
+  ]
+  sources = [
+    "ABIBreak.cpp",
+    "AMDGPUMetadata.cpp",
+    "APFixedPoint.cpp",
+    "APFloat.cpp",
+    "APInt.cpp",
+    "APSInt.cpp",
+    "ARMAttributeParser.cpp",
+    "ARMBuildAttrs.cpp",
+    "ARMWinEH.cpp",
+    "Allocator.cpp",
+    "AutoConvert.cpp",
+    "BalancedPartitioning.cpp",
+    "Base64.cpp",
+    "BinaryStreamError.cpp",
+    "BinaryStreamReader.cpp",
+    "BinaryStreamRef.cpp",
+    "BinaryStreamWriter.cpp",
+    "BlockFrequency.cpp",
+    "BranchProbability.cpp",
+    "BuryPointer.cpp",
+    "COM.cpp",
+    "CRC.cpp",
+    "CSKYAttributeParser.cpp",
+    "CSKYAttributes.cpp",
+    "CachePruning.cpp",
+    "Caching.cpp",
+    "Chrono.cpp",
+    "CodeGenCoverage.cpp",
+    "CommandLine.cpp",
+    "Compression.cpp",
+    "ConvertEBCDIC.cpp",
+    "ConvertUTF.cpp",
+    "ConvertUTFWrapper.cpp",
+    "CrashRecoveryContext.cpp",
+    "DAGDeltaAlgorithm.cpp",
+    "DJB.cpp",
+    "DataExtractor.cpp",
+    "Debug.cpp",
+    "DebugCounter.cpp",
+    "DeltaAlgorithm.cpp",
+    "DivisionByConstantInfo.cpp",
+    "DynamicAPInt.cpp",
+    "ELFAttributeParser.cpp",
+    "ELFAttributes.cpp",
+    "Error.cpp",
+    "ErrorHandling.cpp",
+    "ExponentialBackoff.cpp",
+    "ExtensibleRTTI.cpp",
+    "FileCollector.cpp",
+    "FileOutputBuffer.cpp",
+    "FileUtilities.cpp",
+    "FloatingPointMode.cpp",
+    "FoldingSet.cpp",
+    "FormatVariadic.cpp",
+    "FormattedStream.cpp",
+    "GlobPattern.cpp",
+    "GraphWriter.cpp",
+    "HexagonAttributeParser.cpp",
+    "HexagonAttributes.cpp",
+    "InitLLVM.cpp",
+    "InstructionCost.cpp",
+    "IntEqClasses.cpp",
+    "IntervalMap.cpp",
+    "JSON.cpp",
+    "KnownBits.cpp",
+    "LEB128.cpp",
+    "LineIterator.cpp",
+    "Locale.cpp",
+    "LockFileManager.cpp",
+    "MD5.cpp",
+    "MSP430AttributeParser.cpp",
+    "MSP430Attributes.cpp",
+    "ManagedStatic.cpp",
+    "MathExtras.cpp",
+    "MemAlloc.cpp",
+    "MemoryBuffer.cpp",
+    "MemoryBufferRef.cpp",
+    "NativeFormatting.cpp",
+    "OptimizedStructLayout.cpp",
+    "Optional.cpp",
+    "PGOOptions.cpp",
+    "Parallel.cpp",
+    "PluginLoader.cpp",
+    "PrettyStackTrace.cpp",
+    "RISCVAttributeParser.cpp",
+    "RISCVAttributes.cpp",
+    "RISCVISAUtils.cpp",
+    "RWMutex.cpp",
+    "RandomNumberGenerator.cpp",
+    "Regex.cpp",
+    "SHA1.cpp",
+    "SHA256.cpp",
+    "ScaledNumber.cpp",
+    "ScopedPrinter.cpp",
+    "Signposts.cpp",
+    "SipHash.cpp",
+    "SlowDynamicAPInt.cpp",
+    "SmallPtrSet.cpp",
+    "SmallVector.cpp",
+    "SourceMgr.cpp",
+    "SpecialCaseList.cpp",
+    "Statistic.cpp",
+    "StringExtras.cpp",
+    "StringMap.cpp",
+    "StringRef.cpp",
+    "StringSaver.cpp",
+    "SuffixTree.cpp",
+    "SuffixTreeNode.cpp",
+    "SystemUtils.cpp",
+    "TarWriter.cpp",
+    "ThreadPool.cpp",
+    "TimeProfiler.cpp",
+    "Timer.cpp",
+    "ToolOutputFile.cpp",
+    "Twine.cpp",
+    "TypeSize.cpp",
+    "Unicode.cpp",
+    "UnicodeCaseFold.cpp",
+    "UnicodeNameToCodepoint.cpp",
+    "UnicodeNameToCodepointGenerated.cpp",
+    "VersionTuple.cpp",
+    "WithColor.cpp",
+    "YAMLParser.cpp",
+    "YAMLTraits.cpp",
+    "Z3Solver.cpp",
+    "circular_raw_ostream.cpp",
+    "raw_os_ostream.cpp",
+    "raw_ostream.cpp",
+    "raw_socket_stream.cpp",
+    "regcomp.c",
+    "regerror.c",
+    "regexec.c",
+    "regfree.c",
+    "regstrlcpy.c",
+    "xxhash.cpp",
+
+    # System
+    "Atomic.cpp",
+    "DynamicLibrary.cpp",
+    "Errno.cpp",
+    "Memory.cpp",
+    "Path.cpp",
+    "Process.cpp",
+    "Program.cpp",
+    "Signals.cpp",
+    "Threading.cpp",
+    "Valgrind.cpp",
+    "VirtualFileSystem.cpp",
+    "Watchdog.cpp",
+  ]
+
+  libs = []
+
+  # FIXME: llvm/Config/BUILD.gn currently always sets LLVM_WITH_Z3
+  # to false. If that changes we need to link to Z3 libs here.
+
+  if (current_os == "linux" || current_os == "android") {
+    libs += [ "dl" ]
+  } else if (current_os == "win") {
+    libs = [
+      "ntdll.lib",
+      "ws2_32.lib",
+    ]
+
+    # Delay load shell32.dll if possible to speed up process startup.
+    libs += [ "delayimp.lib" ]
+    ldflags = [
+      "-delayload:ole32.dll",
+      "-delayload:shell32.dll",
+    ]
+  }
+}

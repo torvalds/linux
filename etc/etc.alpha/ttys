@@ -1,0 +1,26 @@
+#
+#	$OpenBSD: ttys,v 1.14 2017/11/02 14:04:24 mpi Exp $
+#
+# name	getty				type	status		comments
+
+# In normal operation, getty on 'console' pseudo-device is disabled, and is
+# enabled for the correct 'real' device (e.g. one of the serial ports).
+
+# console pseudo-device
+console	"/usr/libexec/getty std.9600"	vt220 off secure
+
+# Workstation console (framebuffer) ttys
+ttyC0	"/usr/libexec/getty std.9600"	vt220 on  secure
+ttyC1	"/usr/libexec/getty std.9600"	vt220 on  secure
+ttyC2	"/usr/libexec/getty std.9600"	vt220 on  secure
+ttyC3	"/usr/libexec/getty std.9600"	vt220 on  secure
+ttyC4	"/usr/libexec/getty std.9600"	vt220 on  secure
+ttyC5	"/usr/libexec/getty std.9600"	vt220 off secure
+
+# DEC 3000 Z8530 ("scc") serial ports
+ttyB0	"/usr/libexec/getty std.9600"	unknown off secure
+ttyB1	"/usr/libexec/getty std.9600"	unknown off secure
+
+# AlphaStation NS16550 ("com") serial ports
+tty00	"/usr/libexec/getty std.9600"	unknown off secure
+tty01	"/usr/libexec/getty std.9600"	unknown off secure

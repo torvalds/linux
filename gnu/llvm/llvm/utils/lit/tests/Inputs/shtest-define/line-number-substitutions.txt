@@ -1,0 +1,32 @@
+# Does it work as expected directly in RUN lines?
+# RUN: echo %(line), %(line-1), %(line+2)
+# CHECK:# | [[#@LINE-1]], [[#@LINE-2]], [[#@LINE+1]]
+
+# %(line) substitutions refer to the original DEFINE/REDEFINE line not the RUN
+# line they eventually appear within.
+#
+# DEFINE: %{lines} = %(line)
+# RUN: echo '%{lines}'
+# CHECK:# | [[#@LINE-2]]
+#
+# REDEFINE: %{lines} = %(line),                                                \
+# REDEFINE:            %(line),                                                \
+# REDEFINE:            %(line)
+# RUN: echo '%{lines}'
+# CHECK:# | [[#@LINE-4]], [[#@LINE-3]], [[#@LINE-2]]
+
+# %(line+N) and %{line-N) should work too.
+#
+# DEFINE: %{lines-rel} = %(line+1),                                            \
+# DEFINE:                %(line),                                              \
+# DEFINE:                %(line-1)
+# RUN: echo '%{lines-rel}'
+# CHECK:# | [[#@LINE-3]], [[#@LINE-3]], [[#@LINE-3]]
+#
+# REDEFINE: %{lines-rel} = %(line+5),                                          \
+# REDEFINE:                %(line+0),                                          \
+# REDEFINE:                %(line-10)
+# RUN: echo '%{lines-rel}'
+# CHECK:# | [[#@LINE+1]], [[#@LINE-3]], [[#@LINE-12]]
+
+# CHECK: Passed: 1 {{\([0-9]*.[0-9]*%\)}}

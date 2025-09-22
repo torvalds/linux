@@ -1,0 +1,57 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+import("//llvm/version.gni")
+
+tablegen("Options") {
+  visibility = [ ":lldb-dap" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+if (host_os == "mac") {
+  write_cmake_config("write_info_plist") {
+    input = "lldb-dap-Info.plist.in"
+    output = "$target_gen_dir/lldb-dap-Info.plist"
+    values = [ "LLDB_VERSION=$llvm_version" ]
+  }
+}
+
+executable("lldb-dap") {
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    ":Options",
+    "//lldb/source/API:liblldb",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+  ]
+  if (host_os == "mac") {
+    deps += [ ":write_info_plist" ]
+    plist = get_target_outputs(":write_info_plist")
+    ldflags = [ "-Wl,-sectcreate,__TEXT,__info_plist," +
+                rebase_path(plist[0], root_out_dir) ]
+  }
+  if (current_os == "win") {
+    libs = [ "ws2_32.lib" ]
+  }
+
+  # FIXME: link in //lldb/source/Host on Win (and netbsd)
+  # FIXME: link in pthread
+  # FIXME: rpath/install_name stuff on macOS for framework on macOS
+
+  sources = [
+    "Breakpoint.cpp",
+    "BreakpointBase.cpp",
+    "DAP.cpp",
+    "ExceptionBreakpoint.cpp",
+    "FifoFiles.cpp",
+    "FunctionBreakpoint.cpp",
+    "IOStream.cpp",
+    "JSONUtils.cpp",
+    "LLDBUtils.cpp",
+    "OutputRedirector.cpp",
+    "ProgressEvent.cpp",
+    "RunInTerminal.cpp",
+    "SourceBreakpoint.cpp",
+    "Watchpoint.cpp",
+    "lldb-dap.cpp",
+  ]
+}

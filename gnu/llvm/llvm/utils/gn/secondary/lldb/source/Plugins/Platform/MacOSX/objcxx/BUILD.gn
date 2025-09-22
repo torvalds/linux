@@ -1,0 +1,14 @@
+static_library("objcxx") {
+  output_name = "lldbPluginPlatformMacOSXObjCXX"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  cflags_objcc = [ "-fno-objc-exceptions" ]
+  sources = [ "PlatformiOSSimulatorCoreSimulatorSupport.mm" ]
+}

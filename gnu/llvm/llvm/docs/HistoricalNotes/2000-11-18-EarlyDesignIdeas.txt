@@ -1,0 +1,74 @@
+Date: Sat, 18 Nov 2000 09:19:35 -0600 (CST)
+From: Vikram Adve <vadve@cs.uiuc.edu>
+To: Chris Lattner <lattner@cs.uiuc.edu>
+Subject: a few thoughts
+
+I've been mulling over the virtual machine problem and I had some
+thoughts about some things for us to think about discuss:
+
+1. We need to be clear on our goals for the VM.  Do we want to emphasize
+   portability and safety like the Java VM?  Or shall we focus on the
+   architecture interface first (i.e., consider the code generation and
+   processor issues), since the architecture interface question is also
+   important for portable Java-type VMs?
+
+   This is important because the audiences for these two goals are very
+   different.  Architects and many compiler people care much more about
+   the second question.  The Java compiler and OS community care much more
+   about the first one.
+
+   Also, while the architecture interface question is important for
+   Java-type VMs, the design constraints are very different.
+
+
+2. Design issues to consider (an initial list that we should continue
+   to modify).  Note that I'm not trying to suggest actual solutions here,
+   but just various directions we can pursue:
+
+   a. A single-assignment VM, which we've both already been thinking about.
+
+   b. A strongly-typed VM.  One question is do we need the types to be
+      explicitly declared or should they be inferred by the dynamic compiler?
+
+   c. How do we get more high-level information into the VM while keeping
+      to a low-level VM design?
+
+        o  Explicit array references as operands?  An alternative is
+           to have just an array type, and let the index computations be
+           separate 3-operand instructions.
+
+        o  Explicit instructions to handle aliasing, e.g.s:
+           -- an instruction to say "I speculate that these two values are not
+              aliased, but check at runtime", like speculative execution in
+              EPIC?
+           -- or an instruction to check whether two values are aliased and
+              execute different code depending on the answer, somewhat like
+              predicated code in EPIC
+
+        o  (This one is a difficult but powerful idea.)
+           A "thread-id" field on every instruction that allows the static
+           compiler to generate a set of parallel threads, and then have
+           the runtime compiler and hardware do what they please with it.
+           This has very powerful uses, but thread-id on every instruction
+           is expensive in terms of instruction size and code size.
+           We would need to compactly encode it somehow.
+
+           Also, this will require some reading on at least two other
+           projects:
+                -- Multiscalar architecture from Wisconsin
+                -- Simultaneous multithreading architecture from Washington
+
+        o  Or forget all this and stick to a traditional instruction set?
+
+
+BTW, on an unrelated note, after the meeting yesterday, I did remember
+that you had suggested doing instruction scheduling on SSA form instead
+of a dependence DAG earlier in the semester.  When we talked about
+it yesterday, I didn't remember where the idea had come from but I
+remembered later.  Just giving credit where its due...
+
+Perhaps you can save the above as a file under RCS so you and I can
+continue to expand on this.
+
+--Vikram
+

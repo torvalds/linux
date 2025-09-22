@@ -1,0 +1,106 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_TYPEINDEX
+#define _LIBCPP_TYPEINDEX
+
+/*
+
+    typeindex synopsis
+
+namespace std
+{
+
+class type_index
+{
+public:
+    type_index(const type_info& rhs) noexcept;
+
+    bool operator==(const type_index& rhs) const noexcept;
+    bool operator!=(const type_index& rhs) const noexcept; // removed in C++20
+    bool operator< (const type_index& rhs) const noexcept;
+    bool operator<=(const type_index& rhs) const noexcept;
+    bool operator> (const type_index& rhs) const noexcept;
+    bool operator>=(const type_index& rhs) const noexcept;
+    strong_ordering operator<=>(const type_index& rhs) const noexcept; // C++20
+
+    size_t hash_code() const noexcept;
+    const char* name() const noexcept;
+};
+
+template <>
+struct hash<type_index>
+    : public unary_function<type_index, size_t>
+{
+    size_t operator()(type_index index) const noexcept;
+};
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__functional/unary_function.h>
+#include <typeinfo>
+#include <version>
+
+// standard-mandated includes
+#include <compare>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+class _LIBCPP_TEMPLATE_VIS type_index {
+  const type_info* __t_;
+
+public:
+  _LIBCPP_HIDE_FROM_ABI type_index(const type_info& __y) _NOEXCEPT : __t_(&__y) {}
+
+  _LIBCPP_HIDE_FROM_ABI bool operator==(const type_index& __y) const _NOEXCEPT { return *__t_ == *__y.__t_; }
+#if _LIBCPP_STD_VER <= 17
+  _LIBCPP_HIDE_FROM_ABI bool operator!=(const type_index& __y) const _NOEXCEPT { return *__t_ != *__y.__t_; }
+#endif
+  _LIBCPP_HIDE_FROM_ABI bool operator<(const type_index& __y) const _NOEXCEPT { return __t_->before(*__y.__t_); }
+  _LIBCPP_HIDE_FROM_ABI bool operator<=(const type_index& __y) const _NOEXCEPT { return !__y.__t_->before(*__t_); }
+  _LIBCPP_HIDE_FROM_ABI bool operator>(const type_index& __y) const _NOEXCEPT { return __y.__t_->before(*__t_); }
+  _LIBCPP_HIDE_FROM_ABI bool operator>=(const type_index& __y) const _NOEXCEPT { return !__t_->before(*__y.__t_); }
+#if _LIBCPP_STD_VER >= 20
+  _LIBCPP_HIDE_FROM_ABI strong_ordering operator<=>(const type_index& __y) const noexcept {
+    if (*__t_ == *__y.__t_)
+      return strong_ordering::equal;
+    if (__t_->before(*__y.__t_))
+      return strong_ordering::less;
+    return strong_ordering::greater;
+  }
+#endif
+
+  _LIBCPP_HIDE_FROM_ABI size_t hash_code() const _NOEXCEPT { return __t_->hash_code(); }
+  _LIBCPP_HIDE_FROM_ABI const char* name() const _NOEXCEPT { return __t_->name(); }
+};
+
+template <class _Tp>
+struct _LIBCPP_TEMPLATE_VIS hash;
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<type_index> : public __unary_function<type_index, size_t> {
+  _LIBCPP_HIDE_FROM_ABI size_t operator()(type_index __index) const _NOEXCEPT { return __index.hash_code(); }
+};
+
+_LIBCPP_END_NAMESPACE_STD
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <iosfwd>
+#  include <new>
+#  include <utility>
+#endif
+
+#endif // _LIBCPP_TYPEINDEX

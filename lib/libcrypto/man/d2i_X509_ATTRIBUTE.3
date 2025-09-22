@@ -1,0 +1,77 @@
+.\"	$OpenBSD: d2i_X509_ATTRIBUTE.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_X509_ATTRIBUTE 3
+.Os
+.Sh NAME
+.Nm d2i_X509_ATTRIBUTE ,
+.Nm i2d_X509_ATTRIBUTE
+.\" In the following line, "X.501" and "Attribute" are not typos.
+.\" The "Attribute" type is defined in X.501, not in X.509.
+.\" The type in called "Attribute" with capital "A", not "attribute".
+.Nd decode and encode generic X.501 Attribute
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_ATTRIBUTE *
+.Fo d2i_X509_ATTRIBUTE
+.Fa "X509_ATTRIBUTE **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_ATTRIBUTE
+.Fa "X509_ATTRIBUTE *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+.Fn d2i_X509_ATTRIBUTE
+and
+.Fn i2d_X509_ATTRIBUTE
+decode and encode a generic ASN.1
+.Vt Attribute
+structure defined in X.501 section 8.2.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Sh RETURN VALUES
+.Fn d2i_X509_ATTRIBUTE
+returns an
+.Vt X509_ATTRIBUTE
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_X509_ATTRIBUTE
+returns the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr d2i_PKCS12 3 ,
+.Xr d2i_PKCS8_PRIV_KEY_INFO 3 ,
+.Xr d2i_X509_EXTENSION 3 ,
+.Xr d2i_X509_REQ 3 ,
+.Xr X509_ATTRIBUTE_new 3
+.Sh STANDARDS
+ITU-T Recommendation X.501, also known as ISO/IEC 9594-2: Information
+Technology  Open Systems Interconnection  The Directory: Models,
+section 8.2: Overall structure
+.Sh HISTORY
+.Fn d2i_X509_ATTRIBUTE
+and
+.Fn i2d_X509_ATTRIBUTE
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .

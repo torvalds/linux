@@ -1,0 +1,109 @@
+.\"	$OpenBSD: SSL_rstate_string.3,v 1.5 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_RSTATE_STRING 3
+.Os
+.Sh NAME
+.Nm SSL_rstate_string ,
+.Nm SSL_rstate_string_long
+.Nd get textual description of state of an SSL object during read operation
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft const char *
+.Fn SSL_rstate_string "SSL *ssl"
+.Ft const char *
+.Fn SSL_rstate_string_long "SSL *ssl"
+.Sh DESCRIPTION
+.Fn SSL_rstate_string
+returns a 2-letter string indicating the current read state of the
+.Vt SSL
+object
+.Fa ssl .
+.Pp
+.Fn SSL_rstate_string_long
+returns a string indicating the current read state of the
+.Vt SSL
+object
+.Fa ssl .
+.Pp
+When performing a read operation, the SSL/TLS engine must parse the record,
+consisting of header and body.
+When working in a blocking environment,
+.Fn SSL_rstate_string[_long]
+should always return
+.Qo RD Qc Ns / Ns Qo read done Qc .
+.Pp
+This function should only seldom be needed in applications.
+.Sh RETURN VALUES
+.Fn SSL_rstate_string
+and
+.Fn SSL_rstate_string_long
+can return the following values:
+.Bl -tag -width Ds
+.It Qo RH Qc Ns / Ns Qo read header Qc
+The header of the record is being evaluated.
+.It Qo RB Qc Ns / Ns Qo read body Qc
+The body of the record is being evaluated.
+.It Qo RD Qc Ns / Ns Qo read done Qc
+The record has been completely processed.
+.It Qo unknown Qc Ns / Ns Qo unknown Qc
+The read state is unknown.
+This should never happen.
+.El
+.Sh SEE ALSO
+.Xr ssl 3
+.Sh HISTORY
+.Fn SSL_rstate_string
+and
+.Fn SSL_rstate_string_long
+first appeared in SSLeay 0.6.0 and have been available since
+.Ox 2.4 .

@@ -1,0 +1,47 @@
+This file is a list of the people responsible for ensuring that targets and
+environments get tested and validated during the release process.
+
+They will also, in conjunction with the release manager and the code owners,
+accept patches into stable release branches, tag critical bugs and release
+stoppers as well as make sure that no regressions were observed on their
+targets since the last release.
+
+N: Ben Pope
+E: benpope81@gmail.com
+T: x86
+O: Ubuntu
+
+N: Sylvestre Ledru
+E: sylvestre@debian.org
+T: All supported archs Debian/Ubuntu
+O: Debian/Ubuntu packages
+
+N: Nikola Smiljanic
+E: popizdeh@gmail.com
+T: x86
+O: OpenSUSE, Fedora
+
+N: Brian Cain
+E: brian.cain@gmail.com
+T: x86
+O: SuSE Enterprise, CentOS
+
+N: Bernhard Rosenkränzer
+E: bero@linaro.org
+T: x86
+O: OpenMandriva
+
+N: Dimitry Andric
+E: dimitry@andric.com
+T: x86
+O: FreeBSD
+
+N: Hans Wennborg
+E: hans@chromium.org
+T: x86
+O: Windows
+
+N: Linaro Toolchain Working Group
+E: linaro-toolchain@lists.linaro.org
+T: ARM, AArch64
+O: Linux, Windows (AArch64 only)

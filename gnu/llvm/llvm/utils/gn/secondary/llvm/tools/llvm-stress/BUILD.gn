@@ -1,0 +1,8 @@
+executable("llvm-stress") {
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-stress.cpp" ]
+}

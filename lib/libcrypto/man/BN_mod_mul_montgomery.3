@@ -1,0 +1,272 @@
+.\" $OpenBSD: BN_mod_mul_montgomery.3,v 1.17 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 6859cf74 Sep 25 13:33:28 2002 +0000
+.\" selective merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_MOD_MUL_MONTGOMERY 3
+.Os
+.Sh NAME
+.Nm BN_MONT_CTX_new ,
+.Nm BN_MONT_CTX_free ,
+.Nm BN_MONT_CTX_set ,
+.Nm BN_MONT_CTX_set_locked ,
+.Nm BN_MONT_CTX_copy ,
+.Nm BN_mod_mul_montgomery ,
+.Nm BN_from_montgomery ,
+.Nm BN_to_montgomery
+.Nd Montgomery multiplication
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft BN_MONT_CTX *
+.Fo BN_MONT_CTX_new
+.Fa void
+.Fc
+.Ft void
+.Fo BN_MONT_CTX_free
+.Fa "BN_MONT_CTX *mont"
+.Fc
+.Ft int
+.Fo BN_MONT_CTX_set
+.Fa "BN_MONT_CTX *mont"
+.Fa "const BIGNUM *m"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft BN_MONT_CTX *
+.Fo BN_MONT_CTX_set_locked
+.Fa "BN_MONT_CTX **pmont"
+.Fa "int lock"
+.Fa "const BIGNUM *m"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft BN_MONT_CTX *
+.Fo BN_MONT_CTX_copy
+.Fa "BN_MONT_CTX *to"
+.Fa "const BN_MONT_CTX *from"
+.Fc
+.Ft int
+.Fo BN_mod_mul_montgomery
+.Fa "BIGNUM *r"
+.Fa "const BIGNUM *a"
+.Fa "const BIGNUM *b"
+.Fa "BN_MONT_CTX *mont"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo BN_from_montgomery
+.Fa "BIGNUM *r"
+.Fa "const BIGNUM *a"
+.Fa "BN_MONT_CTX *mont"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo BN_to_montgomery
+.Fa "BIGNUM *r"
+.Fa "const BIGNUM *a"
+.Fa "BN_MONT_CTX *mont"
+.Fa "BN_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+These functions implement Montgomery multiplication.
+They are used automatically when
+.Xr BN_mod_exp 3
+is called with suitable input, but they may be useful when several
+operations are to be performed using the same modulus.
+.Pp
+.Fn BN_MONT_CTX_new
+allocates and initializes a
+.Vt BN_MONT_CTX
+structure.
+.Pp
+.Fn BN_MONT_CTX_set
+sets up the
+.Fa mont
+structure from the modulus
+.Fa m
+by precomputing its inverse and a value R.
+.Pp
+.Fn BN_MONT_CTX_set_locked
+is a wrapper around
+.Fn BN_MONT_CTX_new
+and
+.Fn BN_MONT_CTX_set
+that is useful if more than one thread intends to use the same
+.Vt BN_MONT_CTX
+and none of these threads is exclusively responsible for creating
+and initializing the context.
+.Fn BN_MONT_CTX_set_locked
+first acquires the specified
+.Fa lock
+using
+.Xr CRYPTO_lock 3 .
+If
+.Pf * Fa pmont
+already differs from
+.Dv NULL ,
+no action occurs.
+Otherwise, a new
+.Vt BN_MONT_CTX
+is allocated with
+.Fn BN_MONT_CTX_new ,
+set up with
+.Fn BN_MONT_CTX_set ,
+and a pointer to it is stored in
+.Pf * Fa pmont .
+Finally, the
+.Fa lock
+is released.
+.Pp
+.Fn BN_MONT_CTX_copy
+copies the
+.Vt BN_MONT_CTX
+.Fa from
+to
+.Fa to .
+.Pp
+.Fn BN_MONT_CTX_free
+frees the components of the
+.Vt BN_MONT_CTX ,
+and, if it was created by
+.Fn BN_MONT_CTX_new ,
+also the structure itself.
+If
+.Fa mont
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn BN_mod_mul_montgomery
+computes
+.Pp
+.D1 Mont Ns Po Fa a , Fa b Pc := Fa a No * Fa b No * R^-1
+.Pp
+and places the result in
+.Fa r .
+.Pp
+.Fn BN_from_montgomery
+performs the Montgomery reduction
+.Pp
+.D1 Fa r No = Fa a No * R^-1
+.Pp
+.Fn BN_to_montgomery
+computes
+.Pp
+.D1 Mont Ns Po Fa a , No R^2 Pc = Fa a No * R
+.Pp
+Note that
+.Fa a
+must be non-negative and smaller than the modulus.
+.Pp
+For all functions,
+.Fa ctx
+is a previously allocated
+.Vt BN_CTX
+used for temporary variables.
+.Pp
+.Sy Warning :
+The inputs must be reduced modulo
+.Fa m ,
+otherwise the result will be outside the expected range.
+.Sh RETURN VALUES
+.Fn BN_MONT_CTX_new
+returns the newly allocated
+.Vt BN_MONT_CTX
+or
+.Dv NULL
+on error.
+.Pp
+.Fn BN_MONT_CTX_set_locked
+returns a pointer to the existing or newly created context or
+.Dv NULL
+on error.
+.Pp
+For the other functions, 1 is returned for success or 0 on error.
+The error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr BN_add 3 ,
+.Xr BN_CTX_new 3 ,
+.Xr BN_new 3 ,
+.Xr CRYPTO_lock 3
+.Sh HISTORY
+.Fn BN_MONT_CTX_new ,
+.Fn BN_MONT_CTX_free ,
+.Fn BN_MONT_CTX_set ,
+.Fn BN_mod_mul_montgomery ,
+.Fn BN_from_montgomery ,
+and
+.Fn BN_to_montgomery
+first appeared in SSLeay 0.6.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn BN_MONT_CTX_copy
+first appeared in SSLeay 0.9.1 and has been available since
+.Ox 2.6 .
+.Pp
+.Fn BN_MONT_CTX_set_locked
+first appeared in OpenSSL 0.9.8 and has been available since
+.Ox 4.0 .

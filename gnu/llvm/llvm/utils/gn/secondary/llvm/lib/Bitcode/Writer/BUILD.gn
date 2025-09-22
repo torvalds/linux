@@ -1,0 +1,20 @@
+static_library("Writer") {
+  output_name = "LLVMBitWriter"
+  deps = [
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/Utils",
+  ]
+
+  sources = [
+    "BitWriter.cpp",
+    "BitcodeWriter.cpp",
+    "BitcodeWriterPass.cpp",
+    "ValueEnumerator.cpp",
+  ]
+}

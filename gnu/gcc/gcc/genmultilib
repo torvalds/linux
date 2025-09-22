@@ -1,0 +1,416 @@
+#!/bin/sh 
+# Generates multilib.h.
+#   Copyright (C) 1994, 1995, 1996, 1997, 1999, 2002 Free Software Foundation, Inc.
+
+#This file is part of GCC.
+
+#GCC is free software; you can redistribute it and/or modify it under
+#the terms of the GNU General Public License as published by the Free
+#Software Foundation; either version 2, or (at your option) any later
+#version.
+
+#GCC is distributed in the hope that it will be useful, but WITHOUT
+#ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+#for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with GCC; see the file COPYING.  If not, write to the Free
+#Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+#02110-1301, USA.
+
+# This shell script produces a header file which the gcc driver
+# program uses to pick which library to use based on the machine
+# specific options that it is given.
+
+# The first argument is a list of sets of options.  The elements in
+# the list are separated by spaces.  Within an element, the options
+# are separated by slashes or pipes.  No leading dash is used on the
+# options.
+# Each option in a set separated by slashes is mutually incompatible
+# with all other options
+# in the set.
+# Each option in a set separated by pipes will be used for the library
+# compilation and any of the options in the set will be sufficient
+# for it to be triggered.
+
+# The optional second argument is a list of subdirectory names.  If
+# the second argument is non-empty, there must be as many elements in
+# the second argument as there are options in the first argument.  The
+# elements in the second list are separated by spaces.  If the second
+# argument is empty, the option names will be used as the directory
+# names.
+
+# The optional third argument is a list of options which are
+# identical.  The elements in the list are separated by spaces.  Each
+# element must be of the form OPTION=OPTION.  The first OPTION should
+# appear in the first argument, and the second should be a synonym for
+# it.  Question marks are replaced with equal signs in both options.
+
+# The optional fourth argument is a list of multilib directory 
+# combinations that should not be built.
+
+# The optional fifth argument is a list of options that should be
+# used whenever building multilib libraries.
+
+# The optional sixth argument is a list of exclusions used internally by
+# the compiler similar to exceptions. The difference being that exclusions
+# allow matching default options that genmultilib does not know about and
+# is done at runtime as opposed to being sorted out at compile time.
+# Each element in the list is a separate exclusion rule. Each rule is
+# a list of options (sans preceding '-') separated by a '/'. The options
+# on the rule are grouped as an AND operation, and all options much match
+# for the rule to exclude a set. Options can be preceded with a '!' to
+# match a logical NOT.
+
+# The optional seventh argument is a list of OS subdirectory names.
+# The format is either the same as of the second argument, or a set of
+# mappings. When it is the same as the second argument, it describes
+# the multilib directories using OS conventions, rather than GCC
+# conventions.  When it is a set of mappings of the form gccdir=osdir,
+# the left side gives the GCC convention and the right gives the
+# equivalent OS defined location.  If the osdir part begins with a !,
+# the os directory names are used exclusively.  Use the mapping when
+# there is no one-to-one equivalence between GCC levels and the OS.
+
+# The last option should be "yes" if multilibs are enabled.  If it is not
+# "yes", all GCC multilib dir names will be ".".
+
+# The output looks like
+#   #define MULTILIB_MATCHES "\
+#   SUBDIRECTORY OPTIONS;\
+#   ...
+#   "
+# The SUBDIRECTORY is the subdirectory to use.  The OPTIONS are
+# multiple options separated by spaces.  Each option may start with an
+# exclamation point.  gcc will consider each line in turn.  If none of
+# the options beginning with an exclamation point are present, and all
+# of the other options are present, that subdirectory will be used.
+# The order of the subdirectories is such that they can be created in
+# order; that is, a subdirectory is preceded by all its parents.
+
+# Here is an example (this is from the actual sparc64 case):
+#   genmultilib 'm64/m32 mno-app-regs|mcmodel=medany' '64 32 alt'
+#		'mcmodel?medany=mcmodel?medmid' 'm32/mno-app-regs* m32/mcmodel=*'
+#		'' 'm32/!m64/mno-app-regs m32/!m64/mcmodel=medany'
+#		'../lib64 ../lib32 alt' yes
+# This produces:
+#   ". !m64 !m32 !mno-app-regs !mcmodel=medany;",
+#   "64:../lib64 m64 !m32 !mno-app-regs !mcmodel=medany;",
+#   "32:../lib32 !m64 m32 !mno-app-regs !mcmodel=medany;",
+#   "alt !m64 !m32 mno-app-regs mcmodel=medany;",
+#   "alt !m64 !m32 mno-app-regs !mcmodel=medany;",
+#   "alt !m64 !m32 !mno-app-regs mcmodel=medany;",
+#   "64/alt:../lib64/alt m64 !m32 mno-app-regs mcmodel=medany;",
+#   "64/alt:../lib64/alt m64 !m32 mno-app-regs !mcmodel=medany;",
+#   "64/alt:../lib64/alt m64 !m32 !mno-app-regs mcmodel=medany;",
+#
+# The effect is that `gcc -mno-app-regs' (for example) will append "alt"
+# to the directory name when searching for libraries or startup files and
+# `gcc -m32 -mcmodel=medany' (for example) will append "32/alt". Also note
+# that exclusion above is moot, unless the compiler had a default of -m32,
+# which would mean that all of the "alt" directories (not the 64/alt ones)
+# would be ignored (not generated, nor used) since the exclusion also
+# matches the multilib_default args.
+
+# Copy the positional parameters into variables.
+options=$1
+dirnames=$2
+matches=$3
+exceptions=$4
+extra=$5
+exclusions=$6
+osdirnames=$7
+enable_multilib=$8
+
+echo "static const char *const multilib_raw[] = {"
+
+mkdir tmpmultilib.$$ || exit 1
+# Use cd ./foo to avoid CDPATH output.
+cd ./tmpmultilib.$$ || exit 1
+
+# What we want to do is select all combinations of the sets in
+# options.  Each combination which includes a set of mutually
+# exclusive options must then be output multiple times, once for each
+# item in the set.  Selecting combinations is a recursive process.
+# Since not all versions of sh support functions, we achieve recursion
+# by creating a temporary shell script which invokes itself.
+rm -f tmpmultilib
+cat >tmpmultilib <<\EOF
+#!/bin/sh
+# This recursive script basically outputs all combinations of its
+# input arguments, handling mutually exclusive sets of options by
+# repetition.  When the script is called, ${initial} is the list of
+# options which should appear before all combinations this will
+# output.  The output looks like a list of subdirectory names with
+# leading and trailing slashes.
+if [ "$#" != "0" ]; then
+  first=$1
+  shift
+  case "$first" in
+  *\|*)
+    all=${initial}`echo $first | sed -e 's_|_/_'g`
+    first=`echo $first | sed -e 's_|_ _'g`
+    echo ${all}/
+    initial="${initial}${all}/" ./tmpmultilib $@
+    ./tmpmultilib $first $@ | grep -v "^${all}"
+    ;;
+  *)
+    for opt in `echo $first | sed -e 's|/| |'g`; do
+      echo ${initial}${opt}/
+    done
+    ./tmpmultilib $@
+    for opt in `echo $first | sed -e 's|/| |'g`; do
+      initial="${initial}${opt}/" ./tmpmultilib $@
+    done
+  esac
+fi
+EOF
+chmod +x tmpmultilib
+
+combinations=`initial=/ ./tmpmultilib ${options}`
+
+# If there exceptions, weed them out now
+if [ -n "${exceptions}" ]; then
+  cat >tmpmultilib2 <<\EOF
+#!/bin/sh
+# This recursive script weeds out any combination of multilib
+# switches that should not be generated.  The output looks like
+# a list of subdirectory names with leading and trailing slashes.
+
+  for opt in $@; do
+    case "$opt" in
+EOF
+
+  for except in ${exceptions}; do
+    echo "      /${except}/) : ;;" >> tmpmultilib2
+  done
+
+cat >>tmpmultilib2 <<\EOF
+      *) echo ${opt};;
+    esac
+  done
+EOF
+  chmod +x tmpmultilib2
+  combinations=`./tmpmultilib2 ${combinations}`
+fi
+
+# Construct a sed pattern which will convert option names to directory
+# names.
+todirnames=
+if [ -n "${dirnames}" ]; then
+  set x ${dirnames}
+  shift
+  for set in ${options}; do
+    for opts in `echo ${set} | sed -e 's|/| |'g`; do
+      patt="/"
+      for opt in `echo ${opts} | sed -e 's_|_ _'g`; do
+        if [ "$1" != "${opt}" ]; then
+          todirnames="${todirnames} -e s|/${opt}/|/${1}/|g"
+	  patt="${patt}${1}/"
+	  if [ "${patt}" != "/${1}/" ]; then
+	    todirnames="${todirnames} -e s|${patt}|/${1}/|g"
+          fi
+        fi
+      done
+      shift
+    done
+  done
+fi
+
+# Construct a sed pattern which will convert option names to OS directory
+# names.
+toosdirnames=
+defaultosdirname=
+if [ -n "${osdirnames}" ]; then
+  set x ${osdirnames}
+  shift
+  while [ $# != 0 ] ; do
+    case "$1" in
+      .=*)
+        defaultosdirname=`echo $1 | sed 's|^.=|:|'`
+	shift
+	;;
+      *=*)
+	patt=`echo $1 | sed -e 's|=|/$=/|'`
+        toosdirnames="${toosdirnames} -e s=^/${patt}/="
+	shift
+        ;;
+      *)
+        break
+	;;
+    esac
+  done
+  
+  if [ $# != 0 ]; then
+    for set in ${options}; do
+      for opts in `echo ${set} | sed -e 's|/| |'g`; do
+        patt="/"
+        for opt in `echo ${opts} | sed -e 's_|_ _'g`; do
+          if [ "$1" != "${opt}" ]; then
+            toosdirnames="${toosdirnames} -e s|/${opt}/|/${1}/|g"
+	    patt="${patt}${1}/"
+	    if [ "${patt}" != "/${1}/" ]; then
+	      toosdirnames="${toosdirnames} -e s|${patt}|/${1}/|g"
+            fi
+          fi
+        done
+        shift
+      done
+    done
+  fi
+fi
+
+# We need another recursive shell script to correctly handle positive
+# matches.  If we are invoked as
+#   genmultilib "opt1 opt2" "" "opt1=nopt1 opt2=nopt2"
+# we must output
+#   opt1/opt2 opt1 opt2
+#   opt1/opt2 nopt1 opt2
+#   opt1/opt2 opt1 nopt2
+#   opt1/opt2 nopt1 nopt2
+# In other words, we must output all combinations of matches.
+rm -f tmpmultilib2
+cat >tmpmultilib2 <<\EOF
+#!/bin/sh
+# The positional parameters are a list of matches to consider.
+# ${dirout} is the directory name and ${optout} is the current list of
+# options.
+if [ "$#" = "0" ]; then
+  echo "\"${dirout} ${optout};\","
+else
+  first=$1
+  shift
+  dirout="${dirout}" optout="${optout}" ./tmpmultilib2 $@
+  l=`echo ${first} | sed -e 's/=.*$//' -e 's/?/=/g'`
+  r=`echo ${first} | sed -e 's/^.*=//' -e 's/?/=/g'`
+  if expr " ${optout} " : ".* ${l} .*" > /dev/null; then
+    newopt=`echo " ${optout} " | sed -e "s/ ${l} / ${r} /" -e 's/^ //' -e 's/ $//'`
+    dirout="${dirout}" optout="${newopt}" ./tmpmultilib2 $@
+  fi
+fi
+EOF
+chmod +x tmpmultilib2
+
+# Start with the current directory, which includes only negations.
+optout=
+for set in ${options}; do
+  for opt in `echo ${set} | sed -e 's_[/|]_ _g'`; do
+    optout="${optout} !${opt}"
+  done
+done
+optout=`echo ${optout} | sed -e 's/^ //'`
+echo "\".${defaultosdirname} ${optout};\","
+
+# Work over the list of combinations.  We have to translate each one
+# to use the directory names rather than the option names, we have to
+# include the information in matches, and we have to generate the
+# correct list of options and negations.
+for combo in ${combinations}; do
+  # Use the directory names rather than the option names.
+  if [ -n "${todirnames}" ]; then
+    dirout=`echo ${combo} | sed ${todirnames}`
+  else
+    dirout=`echo ${combo} | sed -e 's/=/-/g'`
+  fi
+  # Remove the leading and trailing slashes.
+  dirout=`echo ${dirout} | sed -e 's|^/||' -e 's|/$||g'`
+
+  # Use the OS directory names rather than the option names.
+  if [ -n "${toosdirnames}" ]; then
+    osdirout=`echo ${combo} | sed ${toosdirnames}`
+    # Remove the leading and trailing slashes.
+    osdirout=`echo ${osdirout} | sed -e 's|^/||' -e 's|/$||g'`
+    if [ "x${enable_multilib}" != xyes ]; then
+      dirout=".:${osdirout}"
+      disable_multilib=yes
+    else
+      case "${osdirout}" in
+        !*)
+	  dirout=`echo ${osdirout} | sed 's/^!//'`
+	  ;;
+	*)
+	  dirout="${dirout}:${osdirout}"
+	  ;;
+      esac
+    fi
+  else
+    if [ "x${enable_multilib}" != xyes ]; then
+      # genmultilib with --disable-multilib should be
+      # called with '' '' '' '' '' '' '' no
+      # if MULTILIB_OSDIRNAMES is empty.
+      exit 1
+    fi
+  fi
+
+  # Look through the options.  We must output each option that is
+  # present, and negate each option that is not present.
+  optout=
+  for set in ${options}; do
+    setopts=`echo ${set} | sed -e 's_[/|]_ _g'`
+    for opt in ${setopts}; do
+      if expr "${combo} " : ".*/${opt}/.*" > /dev/null; then
+	optout="${optout} ${opt}"
+      else
+	optout="${optout} !${opt}"
+      fi
+    done
+  done
+  optout=`echo ${optout} | sed -e 's/^ //'`
+
+  # Output the line with all appropriate matches.
+  dirout="${dirout}" optout="${optout}" ./tmpmultilib2
+done
+
+# Terminate the list of string.
+echo "NULL"
+echo "};"
+
+# Output all of the matches now as option and that is the same as that, with
+# a semicolon trailer.  Include all of the normal options as well.
+# Note, the format of the matches is reversed compared
+# to what we want, so switch them around.
+echo ""
+echo "static const char *const multilib_matches_raw[] = {"
+for match in ${matches}; do
+  l=`echo ${match} | sed -e 's/=.*$//' -e 's/?/=/g'`
+  r=`echo ${match} | sed -e 's/^.*=//' -e 's/?/=/g'`
+  echo "\"${r} ${l};\","
+done
+for set in ${options}; do
+  for opt in `echo ${set} | sed -e 's_[/|]_ _'g`; do
+    echo "\"${opt} ${opt};\","
+  done
+done
+echo "NULL"
+echo "};"
+
+# Output the default options now
+echo ""
+echo "static const char *multilib_extra = \"${extra}\";"
+
+# Output the exclusion rules now
+echo ""
+echo "static const char *const multilib_exclusions_raw[] = {"
+for rule in ${exclusions}; do
+  s=`echo ${rule} | sed -e 's,/, ,g'`
+  echo "\"${s};\","
+done
+echo "NULL"
+echo "};"
+
+# Output the options now
+moptions=`echo ${options} | sed -e 's,[ 	][ 	]*, ,g'`
+echo ""
+echo "static const char *multilib_options = \"${moptions}\";"
+
+# Finally output the disable flag if specified
+if [ "x${disable_multilib}" = xyes ]; then
+  echo ""
+  echo "#define DISABLE_MULTILIB  1"
+fi
+
+cd ..
+rm -r tmpmultilib.$$
+
+exit 0

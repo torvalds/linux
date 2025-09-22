@@ -1,0 +1,34 @@
+$OpenBSD: COPYRIGHT,v 1.3 2024/08/20 16:07:14 deraadt Exp $
+$NetBSD: COPYRIGHT,v 1.2 1995/03/24 03:58:08 cgd Exp $
+
+This entire subtree is explicitly not copyrighted.
+The following notice applies to all files found here.  None of
+these files contain AT&T proprietary source code.
+_____________________________________________________________________________
+
+/* DISCLAIMER:
+ *
+ * This game is distributed for free as is.  It is not guaranteed to work
+ * in every conceivable environment.  It is not even guaranteed to work
+ * in ANY environment.
+ *
+ * This game is distributed without notice of copyright, therefore it
+ * may be used in any manner the recipient sees fit.  However, the
+ * author assumes no responsibility for maintaining or revising this
+ * game, in its original form, or any derivitives thereof.
+ *
+ * The author shall not be responsible for any loss, cost, or damage,
+ * including consequential damage, caused by reliance on this material.
+ *
+ * The author makes no warranties, express or implied, including warranties
+ * of merchantability or fitness for a particular purpose or use.
+ *
+ * AT&T is in no way connected with this game.
+ */
+
+	Edward Estes
+	AT&T
+	5555 Touhy Ave.
+	Skokie, IL  60077
+	(312) 982-3969
+	ihnp4!ttrde!estes

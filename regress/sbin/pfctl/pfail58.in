@@ -1,0 +1,2 @@
+queue rootq on lo1000000 bandwidth 100M
+queue defq parent rootq bandwidth 50M

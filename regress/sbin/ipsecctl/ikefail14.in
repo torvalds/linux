@@ -1,0 +1,11 @@
+ike from any to any \
+	local 1.1.1.1 peer any \
+	main \
+	srcid src.id dstid dst.id \
+	psk secret
+ike from ::/0 to any \
+	local 2.2.2.2 peer any \
+	aggressive \
+	srcid src.wrong dstid dst.wrong \
+	psk insecure
+ike from ::/0 to any

@@ -1,0 +1,108 @@
+.\"	$OpenBSD: minherit.2,v 1.17 2024/01/21 17:46:03 deraadt Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)minherit.2	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: January 21 2024 $
+.Dt MINHERIT 2
+.Os
+.Sh NAME
+.Nm minherit
+.Nd control the inheritance of pages
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn minherit "void *addr" "size_t len" "int inherit"
+.Sh DESCRIPTION
+The
+.Fn minherit
+system call
+changes the specified pages to have the inheritance characteristic
+.Fa inherit .
+A page's inheritance characteristic controls how it will be mapped
+in child processes as created by
+.Xr fork 2 .
+.Pp
+The possible inheritance characteristics are:
+.Pp
+.Bl -tag -width MAP_INHERIT_SHARE -offset indent -compact
+.It Dv MAP_INHERIT_NONE
+Pages are not mapped in the child process.
+.It Dv MAP_INHERIT_COPY
+Private copy of pages are mapped in the child process.
+.It Dv MAP_INHERIT_SHARE
+Mapped pages are shared between the parent and child processes.
+.It Dv MAP_INHERIT_ZERO
+New anonymous pages (initialized to all zero bytes)
+are mapped in the child process.
+.El
+.Pp
+Not all implementations will guarantee that the inheritance characteristic
+can be set on a page basis;
+the granularity of changes may be as large as an entire region.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn minherit
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The
+.Fa addr
+and
+.Fa len
+parameters specify a region that contains
+at least one page which is immutable, or
+.Dv MAP_INHERIT_ZERO
+is being requested on a page without
+.Dv PROT_WRITE
+permission.
+.It Bq Er EINVAL
+The virtual address range specified by the
+.Fa addr
+and
+.Fa len
+arguments is not valid.
+.It Bq Er EINVAL
+The
+.Fa inherit
+argument is invalid.
+.El
+.Sh SEE ALSO
+.Xr madvise 2 ,
+.Xr mimmutable 2 ,
+.Xr mprotect 2 ,
+.Xr msync 2 ,
+.Xr munmap 2
+.Sh HISTORY
+The
+.Fn minherit
+function first appeared in
+.Ox 2.0 .

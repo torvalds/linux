@@ -1,0 +1,83 @@
+.\" $OpenBSD: ice.4,v 1.5 2025/07/17 09:25:11 stsp Exp $
+.\"
+.\" Copyright (c) 2024 Stefan Sperling <stsp@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 17 2025 $
+.Dt ICE 4
+.Os
+.Sh NAME
+.Nm ice
+.Nd Intel Ethernet 800 series PCI Express 1Gb/10Gb/25Gb/50Gb/100Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "ice* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Intel 800 series controllers based on the
+Intel E810 and E823 Ethernet chipsets, including the following:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Intel E810-C SFP/QSFP
+.It
+Intel E810-XXV SFP/QSFP
+.It
+Intel E823-L SFP/QSFP
+.It
+Intel E823-L 10G/1G
+.El
+.Sh FILES
+Intel 800 series controllers contain basic firmware which allows the
+device to be used with single Tx/Rx queues and without any hardware
+offloading features enabled.
+For full functionality, the device needs the following firmware file,
+which is loaded by the driver when the system boots:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/ice-ddp
+.El
+.Pp
+This firmware file is not free because Intel refuses to grant
+distribution rights without contractual obligations.
+As a result, even though
+.Ox
+includes the driver, the firmware file cannot be included and
+users have to download the file on their own.
+.Pp
+A prepackaged version of the firmware can be installed using
+.Xr fw_update 8 .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 12.2 .
+.Ox
+support was added in
+.Ox 7.7 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by Intel and ported to
+.Ox
+by
+.An Stefan Sperling Aq Mt stsp@openbsd.org .

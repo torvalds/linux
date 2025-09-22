@@ -1,0 +1,126 @@
+.\" Copyright (c) 1997, 1998, 1999, 2000-2003
+.\"	Bill Paul <wpaul@windriver.com>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: /repoman/r/ncvs/src/share/man/man4/axe.4,v 1.3 2003/05/29 21:28:35 ru Exp $
+.\" $OpenBSD: mos.4,v 1.12 2022/02/18 10:24:32 jsg Exp $
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt MOS 4
+.Os
+.Sh NAME
+.Nm mos
+.Nd MosChip MCS7730/7830/7832 10/100 USB Ethernet device
+.Sh SYNOPSIS
+.Cd "mos*   at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the MosChip
+MCS7730, MCS7830 and MCS7832 USB 2.0 chipsets, including the
+following:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Delock 61147
+.It Sitecom LN-030
+.It Syba SY-U2LAN
+.El
+.Pp
+All adapters operate with either USB 1.x or USB 2.0 controllers,
+though performance with 1.x controllers is limited since
+the USB 1.x standard specifies a maximum transfer speed of 12Mbps.
+Users with USB 1.x controllers should therefore not expect to actually
+achieve 100Mbps speeds with these devices.
+.Pp
+A 64-bit multicast hash table is supported,
+single perfect filter entry for the station address,
+all-multicast mode, and promiscuous mode.
+Packets are
+received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width "autoselect"
+.It autoselect
+Enable autoselection of the media type and options (this is the default).
+The user can manually override the autoselected mode by adding media
+options to the appropriate
+.Xr hostname.if 5
+file.
+.It 10baseT
+Set 10Mbps operation.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width "full-duplex"
+.It full-duplex
+Force full-duplex operation.
+.It half-duplex
+Force half-duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "mos0: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.It "mos0: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T "MosChip India"
+.%U https://moschip.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 4.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Johann Christian Rode Aq Mt jcrode@gmx.net .

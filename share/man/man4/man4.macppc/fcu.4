@@ -1,0 +1,45 @@
+.\"	$OpenBSD: fcu.4,v 1.10 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 Theo de Raadt <deraadt@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt FCU 4 macppc
+.Os
+.Sh NAME
+.Nm fcu
+.Nd Apple Fan Control Unit sensor device
+.Sh SYNOPSIS
+.Cd "fcu* at iic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Apple
+Fan Control Unit (FCU).
+The device controls and monitors fans found in some Apple
+machines.
+Fan speed readings and PWM settings are made available through the
+.Xr sysctl 8
+interface.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Theo de Raadt Aq Mt deraadt@openbsd.org .

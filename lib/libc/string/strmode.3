@@ -1,0 +1,153 @@
+.\" $OpenBSD: strmode.3,v 1.17 2017/07/05 11:44:35 tb Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strmode.3	8.3 (Berkeley) 7/28/94
+.\"
+.Dd $Mdocdate: July 5 2017 $
+.Dt STRMODE 3
+.Os
+.Sh NAME
+.Nm strmode
+.Nd convert inode status information into a symbolic string
+.Sh SYNOPSIS
+.In string.h
+.Ft void
+.Fn strmode "mode_t mode" "char *bp"
+.Sh DESCRIPTION
+The
+.Fn strmode
+function converts a file
+.Fa mode
+(the type and permission information associated with an inode, see
+.Xr stat 2 )
+into a symbolic string which is stored in the location referenced by
+.Fa bp .
+This stored string is eleven characters in length plus a trailing NUL byte.
+.Pp
+The first character is the inode type, and will be one of the following:
+.Pp
+.Bl -tag -width flag -offset indent -compact
+.It \-
+regular file
+.It b
+block special
+.It c
+character special
+.It d
+directory
+.It l
+symbolic link
+.It p
+FIFO
+.It s
+socket
+.It \&?
+unknown inode type
+.El
+.Pp
+The next nine characters encode three sets of permissions, in three
+characters each.
+The first three characters are the permissions for the owner of the
+file, the second three for the group the file belongs to, and the
+third for the
+.Dq other ,
+or default, set of users.
+.Pp
+Permission checking is done as specifically as possible.
+If read permission is denied to the owner of a file in the first set
+of permissions, the owner of the file will not be able to read the file.
+This is true even if the owner is in the file's group and the group
+permissions allow reading or the
+.Dq other
+permissions allow reading.
+.Pp
+If the first character of the three character set is an
+.Sq r ,
+the file is readable for that set of users; if a dash
+.Pq Ql - ,
+it is not readable.
+.Pp
+If the second character of the three character set is a
+.Sq w ,
+the file is writable for that set of users; if a dash
+.Pq Ql - ,
+it is not writable.
+.Pp
+The third character is the first of the following characters that apply:
+.Bl -tag -width xxxx
+.It S
+If the character is part of the owner permissions and the file is not
+executable or the directory is not searchable by the owner, and the
+set-user-ID bit is set.
+.It S
+If the character is part of the group permissions and the file is not
+executable or the directory is not searchable by the group, and the
+set-group-ID bit is set.
+.It T
+If the character is part of the other permissions and the file is not
+executable or the directory is not searchable by others, and the
+.Dq sticky
+.Pq Dv S_ISVTX
+bit is set.
+.It s
+If the character is part of the owner permissions and the file is
+executable or the directory searchable by the owner, and the set-user-ID
+bit is set.
+.It s
+If the character is part of the group permissions and the file is
+executable or the directory searchable by the group, and the set-group-ID
+bit is set.
+.It t
+If the character is part of the other permissions and the file is
+executable or the directory searchable by others, and the
+.Dq sticky
+.Pq Dv S_ISVTX
+bit is set.
+.It x
+The file is executable or the directory is searchable.
+.It \-
+None of the above apply.
+.El
+.Pp
+The last character is a plus sign
+.Pq Ql +
+if there are any alternate
+or additional access control methods associated with the inode, otherwise
+it will be a space.
+.Sh SEE ALSO
+.Xr chmod 1 ,
+.Xr find 1 ,
+.Xr stat 2 ,
+.Xr getmode 3 ,
+.Xr setmode 3
+.Sh HISTORY
+The
+.Fn strmode
+function first appeared in
+.Bx 4.3 Reno .

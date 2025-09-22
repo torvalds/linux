@@ -1,0 +1,13 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("InstallAPITests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/InstallAPI",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "HeaderFileTest.cpp",
+    "FileListTest.cpp",
+  ]
+}

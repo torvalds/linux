@@ -1,0 +1,4 @@
+carp_1: simplest.  becoming master properly.  demote.
+carp_2: carp_1 + without virtual mac.
+carp_3: carp_1 + carp peer
+carp_4: carp_1 + without virtual mac + carp peer

@@ -1,0 +1,48 @@
+.\"	$OpenBSD: ampchwm.4,v 1.2 2023/12/11 15:21:15 jmc Exp $
+.\"
+.\" Copyright (c) 2023 Claudio Jeker <claudio@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 11 2023 $
+.Dt AMPCHWM 4 arm64
+.Os
+.Sh NAME
+.Nm ampchwm
+.Nd Ampere Altra fine-grained power telemetry
+.Sh SYNOPSIS
+.Cd "ampchwm* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the per-core power telemetry firmware interface
+found on the Ampere Altra SoC.
+.Pp
+Sensor values are made available through the
+.Xr sysctl 8
+interface.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Claudio Jeker Aq Mt claudio@openbsd.org .

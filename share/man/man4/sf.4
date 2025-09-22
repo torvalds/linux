@@ -1,0 +1,185 @@
+.\"	$OpenBSD: sf.4,v 1.26 2022/02/18 10:24:32 jsg Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man4/man4.i386/sf.4,v 1.4 1999/09/26 18:35:30 wpaul Exp $
+.\"
+.\"	$NetBSD: sf.4,v 1.5 2003/03/31 12:34:49 bjh21 Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt SF 4
+.Os
+.Sh NAME
+.Nm sf
+.Nd Adaptec AIC-6915 "Starfire" PCI 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "sf* at pci?"
+.Cd "sqphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Adaptec Duralink Fast Ethernet adapters
+based on the Adaptec AIC-6915 "Starfire" chipset.
+This includes the following:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+ANA-62011 64-bit single port 10/100baseTX
+.It
+ANA-62022 64-bit dual port 10/100baseTX
+.It
+ANA-62044 64-bit quad port 10/100baseTX
+.It
+ANA-69011 32-bit single port 10/100baseTX
+.It
+ANA-62020 64-bit single port 100baseFX
+.El
+.Pp
+The AIC-6915 is a bus master controller with an MII interface.
+It supports high and low priority transmit and receive queues, TCP/IP
+checksum offload, multiple DMA descriptor formats and both polling
+and producer/consumer DMA models.
+The AIC-6915 receive filtering options include a 16 entry perfect
+filter, a 512-bit hash table for multicast addresses, a 512-bit hash
+table for priority address matching and VLAN filtering.
+An external MII-compliant transceiver is required for media interfacing.
+.Pp
+Multiport adapters consist of several AIC-6915 controllers connected
+via a PCI to PCI bridge.
+Each controller is treated as a separate interface by the
+.Nm
+driver.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width full-duplex
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the
+.Xr hostname.if 5
+file.
+.It 10baseT
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It full-duplex
+Force full duplex operation.
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr sqphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T The Adaptec AIC-6915 Programmer's Manual
+.%U https://download.adaptec.com/pdfs/user_guides/aic6915_pg.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 2.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jason R. Thorpe Aq Mt thorpej@NetBSD.org
+and ported to
+.Ox
+by
+.An Martin Reindl Aq Mt martin@openbsd.org .
+.Sh BUGS
+The
+.Nm
+driver does not support the IPv4/TCP/UDP checksum function of the AIC-6915.
+.Pp
+The
+.Nm
+driver does not support the VLAN function of the AIC-6915.

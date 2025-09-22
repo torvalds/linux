@@ -1,0 +1,13 @@
+#!/bin/ksh
+#
+# $OpenBSD: ypserv,v 1.6 2018/01/11 21:09:26 rpe Exp $
+
+daemon="/usr/sbin/ypserv"
+
+. /etc/rc.d/rc.subr
+
+rc_pre() {
+	[[ -n $(domainname) && -d /var/yp/$(domainname) ]]
+}
+
+rc_cmd $1

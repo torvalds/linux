@@ -1,0 +1,32 @@
+LIB1ASMSRC = i386/cygwin.asm
+LIB1ASMFUNCS = _chkstk
+
+# cygwin and mingw always have a limits.h, but, depending upon how we are
+# doing the build, it may not be installed yet.
+LIMITS_H_TEST = true
+
+# If we are building next to winsup, this will let us find the real
+# limits.h when building libgcc2.  Otherwise, winsup must be installed
+# first.
+LIBGCC2_INCLUDES = -I$(srcdir)/../winsup/w32api/include
+
+winnt.o: $(srcdir)/config/i386/winnt.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  $(TM_H) $(RTL_H) $(REGS_H) hard-reg-set.h output.h $(TREE_H) flags.h \
+  $(TM_P_H) toplev.h $(HASHTAB_H) $(GGC_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	$(srcdir)/config/i386/winnt.c
+
+winnt-cxx.o: $(srcdir)/config/i386/winnt-cxx.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  $(TM_H) $(RTL_H) $(REGS_H) hard-reg-set.h output.h $(TREE_H) flags.h \
+  $(TM_P_H) toplev.h $(HASHTAB_H) $(GGC_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	$(srcdir)/config/i386/winnt-cxx.c
+
+
+winnt-stubs.o: $(srcdir)/config/i386/winnt-stubs.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  $(TM_H) $(RTL_H) $(REGS_H) hard-reg-set.h output.h $(TREE_H) flags.h \
+  $(TM_P_H) toplev.h $(HASHTAB_H) $(GGC_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	$(srcdir)/config/i386/winnt-stubs.c
+
+STMP_FIXINC=stmp-fixinc

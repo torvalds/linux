@@ -1,0 +1,333 @@
+$OpenBSD: miidevs,v 1.135 2025/05/09 13:51:03 jcs Exp $
+/* $NetBSD: miidevs,v 1.3 1998/11/05 03:43:43 thorpej Exp $ */
+
+/*-
+ * Copyright (c) 1998 The NetBSD Foundation, Inc.
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+ * NASA Ames Research Center.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * List of known MII OUIs
+ */
+oui AMD				0x00001a	AMD
+oui REALTEK			0x000020	Realtek
+oui VITESSE			0x0001c1	Vitesse
+oui CICADA			0x0003f1	Cicada
+oui CENIX			0x000749	CENiX
+oui MICREL			0x000885	Micrel
+oui BROADCOM2			0x000af7	Broadcom
+oui RDC				0x000bb4	RDC Semi.
+oui ASIX			0x000ec6	ASIX
+oui BROADCOM			0x001018	Broadcom
+oui 3COM			0x00105a	3com
+oui ALTIMA			0x0010a9	Altima
+oui ENABLESEMI			0x0010dd	Enable Semi.
+oui ATHEROS			0x001374	Atheros
+oui JMICRON			0x001b8c	JMicron
+oui LEVEL1			0x00207b	Level 1
+oui VIA				0x004063	VIA Networking
+oui MARVELL			0x005043	Marvell
+oui LUCENT			0x00601d	Lucent
+oui QUALITYSEMI			0x006051	Quality Semi.
+oui DAVICOM			0x00606e	Davicom
+oui SMSC			0x00800f	Standard Microsystems
+oui ICPLUS			0x0090c3	IC Plus
+oui TOPICSEMI			0x0090c3	Topic Semi.
+oui AGERE			0x00a0bc	Agere
+oui ICS				0x00a0be	Integrated Circuit Systems
+oui SEEQ			0x00a07d	Seeq
+oui INTEL			0x00aa00	Intel
+oui TDK				0x00c039	TDK
+oui MYSON			0x00c0b4	Myson
+oui PMCSIERRA			0x00e004	PMC-Sierra
+oui SIS				0x00e006	Silicon Integrated Systems
+oui REALTEK2			0x00e04c	Realtek
+oui JATO			0x00e083	Jato Technologies
+oui XAQTI			0x00e0ae	XaQti
+oui PLESSEYSEMI			0x046b40	Plessey Semi.
+oui NATSEMI			0x080017	National Semi.
+oui TI				0x080028	Texas Instruments
+oui MOTORCOMM			0x13d47a	Motorcomm
+
+/* in the 79c873, AMD uses another OUI (which matches Davicom!) */
+oui xxALTIMA			0x000895	Altima
+oui xxAMD			0x00606e	AMD
+oui xxCICADA			0x00c08f	Cicada (alt)
+oui xxINTEL			0x00f800	Intel (alt)
+
+/* some vendors have the bits swapped within bytes
+	(ie, ordered as on the wire) */
+oui xxICS			0x00057d	Integrated Circuit Systems
+oui xxSEEQ			0x0005be	Seeq
+oui xxSIS			0x000760	Silicon Integrated Systems
+oui xxBROADCOM			0x000818	Broadcom
+oui xxTI			0x100014	Texas Instruments
+oui xxXAQTI			0x350700	XaQti
+
+/* Level 1 is completely different - from right to left.
+	(Two bits get lost in the third OUI byte.) */
+oui xxLEVEL1a			0x0004de	Level 1
+oui xxLEVEL1			0x1e0400	Level 1
+
+/* Don't know what's going on here. */
+oui xxBROADCOM2			0x0050ef	Broadcom
+oui xxBROADCOM3			0x00d897	Broadcom
+oui xxBROADCOM4			0x180361	Broadcom
+oui xxDAVICOM			0x006040	Davicom
+
+/* This is the OUI of the gigE PHY in the Realtek 8169S/8110S chips */
+oui xxREALTEK			0x000732	Realtek
+
+/* Contrived vendor for dcphy */
+oui xxDEC			0x040440	Digital Clone
+
+oui xxMARVELL			0x000ac2	Marvell
+
+/*
+ * List of known models.  Grouped by oui.
+ */
+
+/* AMD */
+model xxAMD 79C873		0x0000	Am79C873
+model AMD 79C875phy		0x0014	Am79C875 quad
+model AMD 79C873phy		0x0036	Am79C873 internal
+
+/* Agere */
+model AGERE ET1011		0x0004	ET1011
+
+/* Atheros */
+model ATHEROS F1		0x0001	F1
+model ATHEROS F2		0x0002	F2
+model ATHEROS AR8035		0x0007	AR8035
+
+/* Altima */
+model xxALTIMA AC_UNKNOWN	0x0001	AC_UNKNOWN
+model xxALTIMA AC101L		0x0012	AC101L
+model xxALTIMA AC101		0x0021	AC101
+
+/* Broadcom */
+model xxBROADCOM BCM5400	0x0004	BCM5400
+model xxBROADCOM BCM5401	0x0005	BCM5401
+model xxBROADCOM BCM5411	0x0007	BCM5411
+model xxBROADCOM BCM5464	0x000b	BCM5464
+model xxBROADCOM BCM5461	0x000c	BCM5461
+model xxBROADCOM BCM5462	0x000d	BCM5462
+model xxBROADCOM BCM5421	0x000e	BCM5421
+model xxBROADCOM BCM5752	0x0010	BCM5752
+model xxBROADCOM BCM5701	0x0011	BCM5701
+model xxBROADCOM BCM5706	0x0015	BCM5706
+model xxBROADCOM BCM5703	0x0016	BCM5703
+model xxBROADCOM BCM5750	0x0018	BCM5750
+model xxBROADCOM BCM5704	0x0019	BCM5704
+model xxBROADCOM BCM5705	0x001a	BCM5705
+model xxBROADCOM BCM54K2	0x002e	BCM54K2
+model xxBROADCOM BCM5714	0x0034	BCM5714
+model xxBROADCOM BCM5780	0x0035	BCM5780
+model xxBROADCOM BCM5708C	0x0036	BCM5708C
+model xxBROADCOM2 BCM54XX	0x0007	BCM54XX
+model xxBROADCOM2 BCM5481	0x000a	BCM5481
+model xxBROADCOM2 BCM5482	0x000b	BCM5482
+model xxBROADCOM2 BCM5755	0x000c	BCM5755
+model xxBROADCOM2 BCM5787	0x000e	BCM5787
+model xxBROADCOM2 BCM5708S	0x0015	BCM5708S
+model xxBROADCOM2 BCM5709CAX	0x002c	BCM5709CAX
+model xxBROADCOM2 BCM5722	0x002d	BCM5722
+model xxBROADCOM2 BCM5784	0x003a	BCM5784
+model xxBROADCOM2 BCM5709C	0x003c	BCM5709
+model xxBROADCOM2 BCM5761	0x003d	BCM5761
+model xxBROADCOM2 BCM5709S	0x003f	BCM5709S
+model xxBROADCOM2 BCM53115	0x0038	BCM53115
+model xxBROADCOM3 BCM57780	0x0019	BCM57780
+model xxBROADCOM3 BCM5717C	0x0020	BCM5717C
+model xxBROADCOM3 BCM5719C	0x0022	BCM5719C
+model xxBROADCOM3 BCM57765	0x0024	BCM57765
+model xxBROADCOM3 BCM5720C	0x0036	BCM5720C
+model xxBROADCOM4 BCM54210E	0x000a  BCM54210E
+model xxBROADCOM4 BCM5725	0x0038	BCM5725
+model BROADCOM BCM5400		0x0004	BCM5400
+model BROADCOM BCM5401		0x0005	BCM5401
+model BROADCOM BCM5411		0x0007	BCM5411
+model BROADCOM 3C905B		0x0012	3C905B internal
+model BROADCOM 3C905C		0x0017	3C905C internal
+model BROADCOM BCM5221		0x001e	BCM5221
+model BROADCOM BCM5201		0x0021	BCM5201
+model BROADCOM BCM5214		0x0028	BCM5214 Quad
+model BROADCOM BCM5222		0x0032	BCM5222 Dual
+model BROADCOM BCM5220		0x0033	BCM5220
+model BROADCOM BCM4401		0x0036	BCM4401
+model BROADCOM2 BCM5906		0x0004	BCM5906
+
+/* Cicada (now owned by Vitesse) */
+model xxCICADA CS8201B		0x0021	CS8201
+model CICADA CS8201		0x0001	CS8201
+model CICADA CS8204		0x0004	CS8204
+model CICADA VSC8211		0x000b	VSC8211
+model CICADA CS8201A		0x0020	CS8201
+model CICADA CS8201B		0x0021	CS8201
+model CICADA CS8244		0x002c	CS8244
+
+/* Davicom */
+model xxDAVICOM DM9101		0x0000	DM9101
+model DAVICOM DM9102		0x0004	DM9102
+model DAVICOM DM9601		0x000c	DM9601
+
+/* Contrived vendor/model for dcphy */
+model xxDEC xxDC		0x0001	DC
+
+/* Enable Semi. (Agere) */
+model ENABLESEMI LU3X31FT	0x0001	LU3X31FT
+model ENABLESEMI LU3X31T2	0x0002	LU3X31T2
+model ENABLESEMI 88E1000S	0x0004	88E1000S
+model ENABLESEMI 88E1000	0x0005	88E1000
+
+/* IC Plus */
+model ICPLUS IP100		0x0004	IP100
+model ICPLUS IP101		0x0005	IP101
+model ICPLUS IP1000A		0x0008	IP1000A
+model ICPLUS IP1001		0x0019	IP1001
+
+/* Integrated Circuit Systems */
+model xxICS 1890		0x0002	ICS1890
+model xxICS 1892		0x0003	ICS1892
+model xxICS 1893		0x0004	ICS1893
+
+/* Intel */
+model xxINTEL I82553		0x0000	i82553
+model INTEL I82555		0x0015	i82555
+model INTEL I82562G		0x0031	i82562G
+model INTEL I82562EM		0x0032	i82562EM
+model INTEL I82562ET		0x0033	i82562ET
+model INTEL I82553		0x0035	i82553
+
+/* Jato Technologies */
+model JATO BASEX		0x0000	Jato
+
+/* JMicron */
+model JMICRON JMP211		0x0021	JMP211
+model JMICRON JMP202		0x0022	JMP202
+
+/* Level 1 */
+model xxLEVEL1 LXT970		0x0000	LXT970
+model xxLEVEL1a LXT971		0x000e	LXT971
+model LEVEL1 LXT1000_OLD	0x0003	LXT1000
+model LEVEL1 LXT1000		0x000c	LXT1000
+
+/* Lucent */
+model LUCENT LU6612		0x000c	LU6612
+model LUCENT LU3X51FT		0x0033	LU3X51FT
+model LUCENT LU3X54FT		0x0036	LU3X54FT
+
+/* Marvell */
+model xxMARVELL E1000_5		0x0002	88E1000 5
+model xxMARVELL E1000_6		0x0003	88E1000 6
+model xxMARVELL E1000_7		0x0005	88E1000 7
+model xxMARVELL E1111		0x000c	88E1111
+model MARVELL E1000_1		0x0000	88E1000 1
+model MARVELL E1011		0x0002	88E1011
+model MARVELL E1000_2		0x0003	88E1000 2
+model MARVELL E1000S		0x0004	88E1000S
+model MARVELL E1000_3		0x0005	88E1000 3
+model MARVELL E1000_4		0x0006	88E1000 4
+model MARVELL E3082		0x0008	88E3082
+model MARVELL E1112		0x0009	88E1112
+model MARVELL E1149		0x000b	88E1149
+model MARVELL E1111		0x000c	88E1111
+model MARVELL E1512		0x001d	88E1512
+model MARVELL E1116		0x0021	88E1116
+model MARVELL E1118		0x0022	88E1118
+model MARVELL E1116R		0x0024	88E1116R
+model MARVELL E3016		0x0026	88E3016
+model MARVELL PHYG65G		0x0027	PHYG65G
+model MARVELL E1545		0x002a	88E1545 Quad
+
+/* Micrel */
+model MICREL KSZ9021		0x0021	KSZ9021
+model MICREL KSZ9031		0x0022	KSZ9031
+
+/* Motorcomm */
+model MOTORCOMM YT8531		0x0011	YT8531
+
+/* Myson */
+model MYSON MTD972		0x0000	MTD972
+
+/* National Semi. */
+model NATSEMI DP83840		0x0000	DP83840
+model NATSEMI DP83843		0x0001	DP83843
+model NATSEMI DP83815		0x0002	DP83815
+model NATSEMI DP83847		0x0003	DP83847
+model NATSEMI DP83891		0x0005	DP83891
+model NATSEMI DP83861		0x0006	DP83861
+model NATSEMI DP83865		0x0007	DP83865
+
+/* Plessey Semi. */
+model PLESSEY NWK914		0x0000	NWK914
+
+/* Quality Semi. */
+model QUALITYSEMI QS6612	0x0000	QS6612
+
+/* RDC Semi. */
+model RDC R6040			0x0003	R6040
+model RDC R6040_2		0x0005	R6040
+
+/* Realtek */
+model xxREALTEK RTL8251		0x0000	RTL8251
+model xxREALTEK RTL8201F	0x0001	RTL8201F
+model xxREALTEK RTL8211FVD	0x0007	RTL8211F-VD
+model xxREALTEK RTL8201E	0x0008	RTL8201E
+model xxREALTEK RTL8169S	0x0011	RTL8169S/8110S/8211
+model REALTEK RTL8201L		0x0020	RTL8201L
+
+/* Seeq */
+model xxSEEQ 80220		0x0003	80220
+model xxSEEQ 84220		0x0004	84220
+model xxSEEQ 80225		0x0008	80225
+
+/* Silicon Integrated Systems */
+model xxSIS 900			0x0000	900
+
+/* Standard Microsystems */
+model SMSC LAN83C185		0x000a	LAN83C185
+
+/* Texas Instruments */
+model xxTI TLAN10T		0x0001	ThunderLAN
+model xxTI 100VGPMI		0x0002	ThunderLAN
+model xxTI TNETE2101		0x0003	TNETE2101
+
+/* TDK */
+model TDK 78Q2120		0x0014	78Q2120
+model TDK 78Q2121		0x0015	78Q2121
+
+/* VIA Networking */
+model VIA VT6103		0x0032	VT6103
+model VIA VT6103_2		0x0034	VT6103
+
+/* Vitesse */
+model VITESSE VSC8601		0x0002	VSC8601
+
+/* XaQti */
+model XAQTI XMACII		0x0000	XMAC II

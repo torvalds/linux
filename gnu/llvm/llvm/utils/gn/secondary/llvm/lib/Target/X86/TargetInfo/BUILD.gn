@@ -1,0 +1,6 @@
+static_library("TargetInfo") {
+  output_name = "LLVMX86Info"
+  deps = [ "//llvm/lib/Support" ]
+  include_dirs = [ ".." ]
+  sources = [ "X86TargetInfo.cpp" ]
+}

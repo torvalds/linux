@@ -1,0 +1,174 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CSTDIO
+#define _LIBCPP_CSTDIO
+
+/*
+    cstdio synopsis
+
+Macros:
+
+    BUFSIZ
+    EOF
+    FILENAME_MAX
+    FOPEN_MAX
+    L_tmpnam
+    NULL
+    SEEK_CUR
+    SEEK_END
+    SEEK_SET
+    TMP_MAX
+    _IOFBF
+    _IOLBF
+    _IONBF
+    stderr
+    stdin
+    stdout
+
+namespace std
+{
+
+Types:
+
+FILE
+fpos_t
+size_t
+
+int remove(const char* filename);
+int rename(const char* old, const char* new);
+FILE* tmpfile(void);
+char* tmpnam(char* s);
+int fclose(FILE* stream);
+int fflush(FILE* stream);
+FILE* fopen(const char* restrict filename, const char* restrict mode);
+FILE* freopen(const char* restrict filename, const char * restrict mode,
+              FILE * restrict stream);
+void setbuf(FILE* restrict stream, char* restrict buf);
+int setvbuf(FILE* restrict stream, char* restrict buf, int mode, size_t size);
+int fprintf(FILE* restrict stream, const char* restrict format, ...);
+int fscanf(FILE* restrict stream, const char * restrict format, ...);
+int printf(const char* restrict format, ...);
+int scanf(const char* restrict format, ...);
+int snprintf(char* restrict s, size_t n, const char* restrict format, ...);    // C99
+int sprintf(char* restrict s, const char* restrict format, ...);
+int sscanf(const char* restrict s, const char* restrict format, ...);
+int vfprintf(FILE* restrict stream, const char* restrict format, va_list arg);
+int vfscanf(FILE* restrict stream, const char* restrict format, va_list arg);  // C99
+int vprintf(const char* restrict format, va_list arg);
+int vscanf(const char* restrict format, va_list arg);                          // C99
+int vsnprintf(char* restrict s, size_t n, const char* restrict format,         // C99
+              va_list arg);
+int vsprintf(char* restrict s, const char* restrict format, va_list arg);
+int vsscanf(const char* restrict s, const char* restrict format, va_list arg); // C99
+int fgetc(FILE* stream);
+char* fgets(char* restrict s, int n, FILE* restrict stream);
+int fputc(int c, FILE* stream);
+int fputs(const char* restrict s, FILE* restrict stream);
+int getc(FILE* stream);
+int getchar(void);
+char* gets(char* s);  // removed in C++14
+int putc(int c, FILE* stream);
+int putchar(int c);
+int puts(const char* s);
+int ungetc(int c, FILE* stream);
+size_t fread(void* restrict ptr, size_t size, size_t nmemb,
+             FILE* restrict stream);
+size_t fwrite(const void* restrict ptr, size_t size, size_t nmemb,
+              FILE* restrict stream);
+int fgetpos(FILE* restrict stream, fpos_t* restrict pos);
+int fseek(FILE* stream, long offset, int whence);
+int fsetpos(FILE*stream, const fpos_t* pos);
+long ftell(FILE* stream);
+void rewind(FILE* stream);
+void clearerr(FILE* stream);
+int feof(FILE* stream);
+int ferror(FILE* stream);
+void perror(const char* s);
+
+}  // std
+*/
+
+#include <__config>
+
+#include <stdio.h>
+
+#ifndef _LIBCPP_STDIO_H
+#   error <cstdio> tried including <stdio.h> but didn't find libc++'s <stdio.h> header. \
+          This usually means that your header search paths are not configured properly. \
+          The header search paths should contain the C++ Standard Library headers before \
+          any C Standard Library, and you are probably using compiler flags that make that \
+          not be the case.
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::FILE _LIBCPP_USING_IF_EXISTS;
+using ::fpos_t _LIBCPP_USING_IF_EXISTS;
+using ::size_t _LIBCPP_USING_IF_EXISTS;
+
+using ::fclose _LIBCPP_USING_IF_EXISTS;
+using ::fflush _LIBCPP_USING_IF_EXISTS;
+using ::setbuf _LIBCPP_USING_IF_EXISTS;
+using ::setvbuf _LIBCPP_USING_IF_EXISTS;
+using ::fprintf _LIBCPP_USING_IF_EXISTS;
+using ::fscanf _LIBCPP_USING_IF_EXISTS;
+using ::snprintf _LIBCPP_USING_IF_EXISTS;
+using ::sprintf _LIBCPP_USING_IF_EXISTS;
+using ::sscanf _LIBCPP_USING_IF_EXISTS;
+using ::vfprintf _LIBCPP_USING_IF_EXISTS;
+using ::vfscanf _LIBCPP_USING_IF_EXISTS;
+using ::vsscanf _LIBCPP_USING_IF_EXISTS;
+using ::vsnprintf _LIBCPP_USING_IF_EXISTS;
+using ::vsprintf _LIBCPP_USING_IF_EXISTS;
+using ::fgetc _LIBCPP_USING_IF_EXISTS;
+using ::fgets _LIBCPP_USING_IF_EXISTS;
+using ::fputc _LIBCPP_USING_IF_EXISTS;
+using ::fputs _LIBCPP_USING_IF_EXISTS;
+using ::getc _LIBCPP_USING_IF_EXISTS;
+using ::putc _LIBCPP_USING_IF_EXISTS;
+using ::ungetc _LIBCPP_USING_IF_EXISTS;
+using ::fread _LIBCPP_USING_IF_EXISTS;
+using ::fwrite _LIBCPP_USING_IF_EXISTS;
+using ::fgetpos _LIBCPP_USING_IF_EXISTS;
+using ::fseek _LIBCPP_USING_IF_EXISTS;
+using ::fsetpos _LIBCPP_USING_IF_EXISTS;
+using ::ftell _LIBCPP_USING_IF_EXISTS;
+using ::rewind _LIBCPP_USING_IF_EXISTS;
+using ::clearerr _LIBCPP_USING_IF_EXISTS;
+using ::feof _LIBCPP_USING_IF_EXISTS;
+using ::ferror _LIBCPP_USING_IF_EXISTS;
+using ::perror _LIBCPP_USING_IF_EXISTS;
+
+using ::fopen _LIBCPP_USING_IF_EXISTS;
+using ::freopen _LIBCPP_USING_IF_EXISTS;
+using ::remove _LIBCPP_USING_IF_EXISTS;
+using ::rename _LIBCPP_USING_IF_EXISTS;
+using ::tmpfile _LIBCPP_USING_IF_EXISTS;
+using ::tmpnam _LIBCPP_USING_IF_EXISTS;
+
+using ::getchar _LIBCPP_USING_IF_EXISTS;
+#if _LIBCPP_STD_VER <= 11
+using ::gets _LIBCPP_USING_IF_EXISTS;
+#endif
+using ::scanf _LIBCPP_USING_IF_EXISTS;
+using ::vscanf _LIBCPP_USING_IF_EXISTS;
+
+using ::printf _LIBCPP_USING_IF_EXISTS;
+using ::putchar _LIBCPP_USING_IF_EXISTS;
+using ::puts _LIBCPP_USING_IF_EXISTS;
+using ::vprintf _LIBCPP_USING_IF_EXISTS;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_CSTDIO

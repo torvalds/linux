@@ -1,0 +1,100 @@
+// Predefined symbols and macros -*- C++ -*-
+
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
+// Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+#ifndef _CPP_CPPCONFIG
+#define _CPP_CPPCONFIG 1
+
+// Pick up any OS-specific definitions.
+#include <bits/os_defines.h>
+
+// The current version of the C++ library in compressed ISO date format.
+#define __GLIBCPP__ 20040930
+
+// This is necessary until GCC supports separate template compilation.
+#define _GLIBCPP_NO_TEMPLATE_EXPORT 1
+
+// This is a hack around not having either pre-compiled headers or
+// export compilation. If defined, the io, string, and valarray
+// headers will include all the necessary bits. If not defined, the
+// implementation optimizes the headers for the most commonly-used
+// types. For the io library, this means that larger, out-of-line
+// member functions are only declared, and definitions are not parsed
+// by the compiler, but instead instantiated into the library binary.
+#define _GLIBCPP_FULLY_COMPLIANT_HEADERS 1
+
+// Allow use of the GNU syntax extension, "extern template." This
+// extension is fully documented in the g++ manual, but in a nutshell,
+// it inhibits all implicit instantiations and is used throughout the
+// library to avoid multiple weak definitions for required types that
+// are already explicitly instantiated in the library binary. This
+// substantially reduces the binary size of resulting executables.
+#ifndef _GLIBCPP_EXTERN_TEMPLATE
+#define _GLIBCPP_EXTERN_TEMPLATE 1
+#endif
+
+// To enable older, ARM-style iostreams and other anachronisms use this.
+//#define _GLIBCPP_DEPRECATED 1
+
+// Use corrected code from the committee library group's issues list.
+#define _GLIBCPP_RESOLVE_LIB_DEFECTS 1
+
+// Hopefully temporary workaround to autoconf/m4 issue with quoting '@'.
+#define _GLIBCPP_AT_AT "@@"
+
+// In those parts of the standard C++ library that use a mutex instead
+// of a spin-lock, we now unconditionally use GCC's gthr.h mutex
+// abstraction layer.  All support to directly map to various
+// threading models has been removed.  Note: gthr.h may well map to
+// gthr-single.h which is a correct way to express no threads support
+// in gcc.  Support for the undocumented _NOTHREADS has been removed.
+
+// Default to the typically high-speed, pool-based allocator (as
+// libstdc++-v2) instead of the malloc-based allocator (libstdc++-v3
+// snapshots).  See libstdc++-v3/docs/html/17_intro/howto.html for
+// details on why you don't want to override this setting.  Ensure
+// that threads are properly configured on your platform before
+// assigning blame to the STL container-memory allocator.  After doing
+// so, please report any possible issues to libstdc++@gcc.gnu.org .
+// Do not define __USE_MALLOC on the command line.  Enforce it here:
+#ifdef __USE_MALLOC
+#error __USE_MALLOC should never be defined.  Read the release notes.
+#endif
+
+// Create a boolean flag to be used to determine if --fast-math is set.
+#ifdef __FAST_MATH__
+#define _GLIBCPP_FAST_MATH 1
+#else
+#define _GLIBCPP_FAST_MATH 0
+#endif
+
+// The remainder of the prewritten config is mostly automatic; all the
+// user hooks are listed above.
+
+// End of prewritten config; the discovered settings follow.

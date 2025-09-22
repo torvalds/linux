@@ -1,0 +1,583 @@
+.\" $OpenBSD: EVP_PKEY_CTX_ctrl.3,v 1.30 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\" selective merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\" Parts were split out into RSA_pkey_ctx_ctrl(3).
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2019, 2023, 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>
+.\" and Antoine Salon <asalon@vmware.com>.
+.\" Copyright (c) 2006, 2009, 2013, 2014, 2015, 2018 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_CTX_CTRL 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_CTX_ctrl ,
+.Nm EVP_PKEY_CTX_ctrl_str ,
+.Nm EVP_PKEY_CTX_set_signature_md ,
+.Nm EVP_PKEY_CTX_get_signature_md ,
+.Nm EVP_PKEY_CTX_set_dsa_paramgen_bits ,
+.Nm EVP_PKEY_CTX_set_dh_paramgen_prime_len ,
+.Nm EVP_PKEY_CTX_set_dh_paramgen_generator ,
+.Nm EVP_PKEY_CTX_set_ec_paramgen_curve_nid ,
+.Nm EVP_PKEY_CTX_set_ec_param_enc ,
+.Nm EVP_PKEY_CTX_set_ecdh_cofactor_mode ,
+.Nm EVP_PKEY_CTX_get_ecdh_cofactor_mode ,
+.Nm EVP_PKEY_CTX_set_ecdh_kdf_type ,
+.Nm EVP_PKEY_CTX_get_ecdh_kdf_type ,
+.Nm EVP_PKEY_CTX_set_ecdh_kdf_md ,
+.Nm EVP_PKEY_CTX_get_ecdh_kdf_md ,
+.Nm EVP_PKEY_CTX_set_ecdh_kdf_outlen ,
+.Nm EVP_PKEY_CTX_get_ecdh_kdf_outlen ,
+.Nm EVP_PKEY_CTX_set0_ecdh_kdf_ukm ,
+.Nm EVP_PKEY_CTX_get0_ecdh_kdf_ukm ,
+.Nm EVP_PKEY_CTX_set1_id ,
+.Nm EVP_PKEY_CTX_get1_id ,
+.Nm EVP_PKEY_CTX_get1_id_len
+.Nd algorithm specific control operations
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_PKEY_CTX_ctrl
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int keytype"
+.Fa "int optype"
+.Fa "int cmd"
+.Fa "int p1"
+.Fa "void *p2"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_ctrl_str
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "const char *type"
+.Fa "const char *value"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_signature_md
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "const EVP_MD *md"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get_signature_md
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "const EVP_MD **pmd"
+.Fc
+.In openssl/dsa.h
+.Ft int
+.Fo EVP_PKEY_CTX_set_dsa_paramgen_bits
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int nbits"
+.Fc
+.In openssl/dh.h
+.Ft int
+.Fo EVP_PKEY_CTX_set_dh_paramgen_prime_len
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_dh_paramgen_generator
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int gen"
+.Fc
+.In openssl/ec.h
+.Ft int
+.Fo EVP_PKEY_CTX_set_ec_paramgen_curve_nid
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int nid"
+.Fc
+.Fa int
+.Fo EVP_PKEY_CTX_set_ec_param_enc
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int param_enc"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_ecdh_cofactor_mode
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int cofactor_mode"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get_ecdh_cofactor_mode
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_ecdh_kdf_type
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int kdf"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get_ecdh_kdf_type
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_ecdh_kdf_md
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "const EVP_MD *md"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get_ecdh_kdf_md
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "const EVP_MD **pmd"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set_ecdh_kdf_outlen
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get_ecdh_kdf_outlen
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "int *plen"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set0_ecdh_kdf_ukm
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "unsigned char *ukm"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get0_ecdh_kdf_ukm
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "unsigned char **pukm"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_set1_id
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "void *id"
+.Fa "size_t id_len"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get1_id
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "void *id"
+.Fc
+.Ft int
+.Fo EVP_PKEY_CTX_get1_id_len
+.Fa "EVP_PKEY_CTX *ctx"
+.Fa "size_t *pid_len"
+.Fc
+.Sh DESCRIPTION
+The function
+.Fn EVP_PKEY_CTX_ctrl
+sends a control operation to the context
+.Fa ctx .
+The key type used must match
+.Fa keytype
+if it is not -1.
+The parameter
+.Fa optype
+is a mask indicating which operations the control can be applied to.
+The control command is indicated in
+.Fa cmd
+and any additional arguments in
+.Fa p1
+and
+.Fa p2 .
+.Pp
+Applications will not normally call
+.Fn EVP_PKEY_CTX_ctrl
+directly but will instead call one of the algorithm specific macros
+described below and in
+.Xr RSA_pkey_ctx_ctrl 3 .
+.Pp
+The function
+.Fn EVP_PKEY_CTX_ctrl_str
+allows an application to send an algorithm specific control operation to
+a context
+.Fa ctx
+in string form.
+This is intended to be used for options specified on the command line or
+in text files.
+The commands supported are documented in the
+.Xr openssl 1
+utility command line pages for the option
+.Fl pkeyopt
+which is supported by the
+.Cm pkeyutl ,
+.Cm genpkey ,
+and
+.Cm req
+commands.
+.Pp
+All the remaining "functions" are implemented as macros.
+.Pp
+The
+.Fn EVP_PKEY_CTX_set_signature_md
+and
+.Fn EVP_PKEY_CTX_get_signature_md
+macros set and get the message digest type used in a signature.
+They can be used with the RSA, DSA, and ECDSA algorithms.
+If the key is of the type
+.Dv EVP_PKEY_RSA_PSS
+and has usage restrictions, an error occurs if an attempt is made
+to set the digest to anything other than the restricted value.
+.Pp
+These two macros expand to
+.Fn EVP_PKEY_CTX_ctrl
+with an
+.Fa optype
+of
+.Dv EVP_PKEY_OP_TYPE_SIG
+and the following command arguments:
+.Pp
+.Bl -column -compact EVP_PKEY_CTRL_GET_MD EVP_PKEY_CTX_get_signature_md()
+.It Fa cmd No constant      Ta corresponding macro
+.It Dv EVP_PKEY_CTRL_MD     Ta Fn EVP_PKEY_CTX_set_signature_md
+.It Dv EVP_PKEY_CTRL_GET_MD Ta Fn EVP_PKEY_CTX_get_signature_md
+.El
+.Ss DSA parameters
+The macro
+.Fn EVP_PKEY_CTX_set_dsa_paramgen_bits
+sets the number of bits used for DSA parameter generation to
+.Fa nbits .
+If not specified, 1024 is used.
+.Ss DH parameters
+The macro
+.Fn EVP_PKEY_CTX_set_dh_paramgen_prime_len
+sets the length of the DH prime parameter
+.Fa len
+for DH parameter generation.
+It only accepts lengths greater than or equal to 256.
+If this macro is not called, then 1024 is used.
+.Pp
+The
+.Fn EVP_PKEY_CTX_set_dh_paramgen_generator
+macro sets DH generator to
+.Fa gen
+for DH parameter generation.
+If not specified, 2 is used.
+.Ss EC parameters
+The
+.Fn EVP_PKEY_CTX_set_ec_paramgen_curve_nid
+macro sets the EC curve for EC parameter generation to
+.Fa nid .
+For EC parameter generation, this macro must be called or an error occurs
+because there is no default curve.
+.Pp
+The
+.Fn EVP_PKEY_CTX_set_ec_param_enc
+macro sets the EC parameter encoding to
+.Fa param_enc
+when generating EC parameters or an EC key.
+The encoding can be set to 0 for explicit parameters or to
+.Dv OPENSSL_EC_NAMED_CURVE
+to use named curve form.
+.Ss ECDH parameters
+The
+.Fn EVP_PKEY_CTX_set_ecdh_cofactor_mode
+macro sets the cofactor mode to
+.Fa cofactor_mode
+for ECDH key derivation.
+Possible values are 1 to enable cofactor key derivation, 0 to disable
+it, or -1 to clear the stored cofactor mode and fall back to the
+private key cofactor mode.
+.Pp
+The
+.Fn EVP_PKEY_CTX_get_ecdh_cofactor_mode
+macro returns the cofactor mode for
+.Fa ctx
+used for ECDH key derivation.
+Possible return values are 1 when cofactor key derivation is enabled
+or 0 otherwise.
+.Ss ECDH key derivation function parameters
+The
+.Fn EVP_PKEY_CTX_set_ecdh_kdf_type
+macro sets the key derivation function type to
+.Fa kdf
+for ECDH key derivation.
+Possible values are
+.Dv EVP_PKEY_ECDH_KDF_NONE
+or
+.Dv EVP_PKEY_ECDH_KDF_X9_63
+which uses the key derivation specified in X9.63.
+When using key derivation, the
+.Fa kdf_md
+and
+.Fa kdf_outlen
+parameters must also be specified.
+.Pp
+The
+.Fn EVP_PKEY_CTX_get_ecdh_kdf_type
+macro returns the key derivation function type for
+.Fa ctx
+used for ECDH key derivation.
+Possible return values are
+.Dv EVP_PKEY_ECDH_KDF_NONE
+or
+.Dv EVP_PKEY_ECDH_KDF_X9_63 .
+.Pp
+The
+.Fn EVP_PKEY_CTX_set_ecdh_kdf_md
+macro sets the key derivation function message digest to
+.Fa md
+for ECDH key derivation.
+Note that X9.63 specifies that this digest should be SHA-1,
+but OpenSSL tolerates other digests.
+.Pp
+The
+.Fn EVP_PKEY_CTX_get_ecdh_kdf_md
+macro gets the key derivation function message digest for
+.Fa ctx
+used for ECDH key derivation.
+.Pp
+The
+.Fn EVP_PKEY_CTX_set_ecdh_kdf_outlen
+macro sets the key derivation function output length to
+.Fa len
+for ECDH key derivation.
+.Pp
+The
+.Fn EVP_PKEY_CTX_get_ecdh_kdf_outlen
+macro gets the key derivation function output length for
+.Fa ctx
+used for ECDH key derivation.
+.Pp
+The
+.Fn EVP_PKEY_CTX_set0_ecdh_kdf_ukm
+macro sets the user key material to
+.Fa ukm
+for ECDH key derivation.
+This parameter is optional and corresponds to the shared info
+in X9.63 terms.
+The library takes ownership of the user key material, so the caller
+should not free the original memory pointed to by
+.Fa ukm .
+.Pp
+The
+.Fn EVP_PKEY_CTX_get0_ecdh_kdf_ukm
+macro gets the user key material for
+.Fa ctx .
+The return value is the user key material length.
+The resulting pointer is owned by the library and should not be
+freed by the caller.
+.Ss CMAC parameters
+Application programs normally implement CMAC as described in
+.Xr EVP_PKEY_new_CMAC_key 3
+and do not need the control commands documented here.
+.Pp
+Alternatively, the call to
+.Xr EVP_PKEY_new_CMAC_key 3
+can be replaced as follows,
+leaving the rest of the example code given there unchanged:
+.Pp
+.Bl -enum -width 2n -compact
+.It
+Create an empty
+.Vt EVP_PKEY_CTX
+object by passing the
+.Dv EVP_PKEY_CMAC
+constant to
+.Xr EVP_PKEY_CTX_new_id 3 .
+.It
+Initialize it with
+.Xr EVP_PKEY_keygen_init 3 .
+.It
+Select the block cipher by calling
+.Fn EVP_PKEY_CTX_ctrl
+with an
+.Fa optype
+of
+.Dv EVP_PKEY_OP_KEYGEN ,
+a
+.Fa cmd
+of
+.Dv EVP_PKEY_CTRL_CIPHER ,
+and
+.Fa p2
+pointing to an
+.Vt EVP_CIPHER
+object, which can be obtained from the functions in the CIPHER LISTING in
+.Xr EVP_EncryptInit 3 .
+The
+.Fa p1
+argument is ignored; passing 0 is recommended.
+.It
+Call
+.Fn EVP_PKEY_CTX_ctrl
+again with an
+.Fa optype
+of
+.Dv EVP_PKEY_OP_KEYGEN ,
+a
+.Fa cmd
+of
+.Dv EVP_PKEY_CTRL_SET_MAC_KEY ,
+.Fa p2
+pointing to the symmetric key, and
+.Fa p1
+specifying the length of the symmetric key in bytes.
+.It
+Extract the desired
+.Vt EVP_PKEY
+object using
+.Xr EVP_PKEY_keygen 3 ,
+making sure the
+.Fa ppkey
+argument points to a storage location containing a
+.Dv NULL
+pointer.
+.It
+Proceed with
+.Xr EVP_MD_CTX_new 3 ,
+.Xr EVP_DigestSignInit 3 ,
+and
+.Xr EVP_DigestSign 3
+as usual.
+.El
+.Ss HMAC parameters
+Application programs normally implement HMAC as described in
+.Xr EVP_PKEY_new_raw_private_key 3 .
+While it is possible to instead use
+.Dv EVP_PKEY_CTRL_SET_MAC_KEY
+directly, similar to the above description for CMAC,
+that is strongly discouraged.
+It's essentially what the deprecated function
+.Xr EVP_PKEY_new_mac_key 3
+does internally, and compared to the direct approach with
+.Xr EVP_PKEY_new_raw_private_key 3 ,
+it requires a lot of cumbersome and unnecessary work.
+.Ss Other parameters
+The
+.Fn EVP_PKEY_CTX_set1_id ,
+.Fn EVP_PKEY_CTX_get1_id ,
+and
+.Fn EVP_PKEY_CTX_get1_id_len
+macros manipulate a special identifier field used for some specific
+signature algorithms such as SM2.
+The
+.Fn EVP_PKEY_set1_id
+macro sets the ID to a copy of
+.Fa id
+with the length
+.Fa id_len .
+The caller can safely free the original memory pointed to by
+.Fa id .
+The
+.Fn EVP_PKEY_CTX_get1_id_len
+macro returns the length of the ID set via a previous call to
+.Fn EVP_PKEY_set1_id .
+That length is typically used to allocate memory for a subsequent call to
+.Fn EVP_PKEY_CTX_get1_id ,
+which copies the previously set ID into
+.Pf * Fa id .
+The caller is responsible for allocating sufficient memory for
+.Fa id
+before calling
+.Fn EVP_PKEY_CTX_get1_id .
+.Sh RETURN VALUES
+.Fn EVP_PKEY_CTX_ctrl
+and its macros return a positive value for success and 0 or a negative
+value for failure.
+In particular, a return value of -2 indicates the operation is not
+supported by the public key algorithm.
+.Sh SEE ALSO
+.Xr DH_new 3 ,
+.Xr EVP_DigestInit 3 ,
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_decrypt 3 ,
+.Xr EVP_PKEY_derive 3 ,
+.Xr EVP_PKEY_encrypt 3 ,
+.Xr EVP_PKEY_get_default_digest_nid 3 ,
+.Xr EVP_PKEY_keygen 3 ,
+.Xr EVP_PKEY_sign 3 ,
+.Xr EVP_PKEY_verify 3 ,
+.Xr EVP_PKEY_verify_recover 3 ,
+.Xr RSA_pkey_ctx_ctrl 3
+.Sh HISTORY
+The functions
+.Fn EVP_PKEY_CTX_ctrl ,
+.Fn EVP_PKEY_CTX_ctrl_str ,
+.Fn EVP_PKEY_CTX_set_signature_md ,
+.Fn EVP_PKEY_CTX_set_dsa_paramgen_bits ,
+.Fn EVP_PKEY_CTX_set_dh_paramgen_prime_len ,
+.Fn EVP_PKEY_CTX_set_dh_paramgen_generator ,
+and
+.Fn EVP_PKEY_CTX_set_ec_paramgen_curve_nid
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .
+.Pp
+The functions
+.Fn EVP_PKEY_CTX_get_signature_md ,
+.Fn EVP_PKEY_CTX_set_ec_param_enc ,
+.Fn EVP_PKEY_CTX_set_ecdh_cofactor_mode ,
+.Fn EVP_PKEY_CTX_get_ecdh_cofactor_mode ,
+.Fn EVP_PKEY_CTX_set_ecdh_kdf_type ,
+.Fn EVP_PKEY_CTX_get_ecdh_kdf_type ,
+.Fn EVP_PKEY_CTX_set_ecdh_kdf_md ,
+.Fn EVP_PKEY_CTX_get_ecdh_kdf_md ,
+.Fn EVP_PKEY_CTX_set_ecdh_kdf_outlen ,
+.Fn EVP_PKEY_CTX_get_ecdh_kdf_outlen ,
+.Fn EVP_PKEY_CTX_set0_ecdh_kdf_ukm ,
+and
+.Fn EVP_PKEY_CTX_get0_ecdh_kdf_ukm
+first appeared in OpenSSL 1.0.2 and have been available since
+.Ox 6.6 .
+.Pp
+The functions
+.Fn EVP_PKEY_CTX_set1_id ,
+.Fn EVP_PKEY_CTX_get1_id ,
+and
+.Fn EVP_PKEY_CTX_get1_id_len
+first appeared in OpenSSL 1.1.1 and have been available since
+.Ox 6.6 .

@@ -1,0 +1,17 @@
+#	$OpenBSD: files.ata,v 1.3 2007/02/19 11:44:24 dlg Exp $
+#	$NetBSD: files.ata,v 1.3 1998/10/12 16:09:16 bouyer Exp $
+#
+# Config file and device description for machine-independent devices
+# which attach to ATA busses.  Included by ports that need it.  Ports
+# that use it must provide their own "major" declarations for the
+# appropriate devices.
+
+# ATA disks
+device	wd: disk
+attach	wd at ata
+file	dev/ata/wd.c				wd needs-flag
+file	dev/ata/ata_wdc.c			wd & wdc_base
+
+file	dev/ata/ata.c				(ata | atapi) & wdc_base
+
+file	dev/ata/atascsi.c			atascsi

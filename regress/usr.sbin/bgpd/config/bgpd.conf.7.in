@@ -1,0 +1,66 @@
+# $OpenBSD: bgpd.conf.7.in,v 1.6 2018/09/21 05:06:30 claudio Exp $
+# test prefix-set blocks
+
+AS 1
+
+prefix-set empty1 { }
+prefix-set empty2 {
+	# comment
+}
+prefix-set one1 { 1.2.3/24 }
+prefix-set one2 {
+	# comment
+	1.2.3/24
+}
+prefix-set test2 { 1.2.3/24 1.2.8.0/22 prefixlen = 24 }
+
+prefix-set "test3_prefixes" { \
+	192.0.211.0/24 prefixlen 24 - 32 \
+	2222:69:c000::/48 prefixlen 48 - 64 \
+	0.0.0.0/0 or-longer \
+	192.0.160.0/19 prefixlen >= 22 \
+}
+
+prefix-set "test4_prefixes" {
+	192.0.211.0/24 prefixlen 24 - 32
+	2222:69:c000::/48 prefixlen 48 - 64
+	0.0.0.0/0 or-longer
+	192.0.160.0/19 prefixlen >= 22
+}
+
+prefix-set "test5_prefixes" {
+	192.0.211.0/24 prefixlen 24 - 32,
+	2222:69:c000::/48 prefixlen 48 - 64,
+	0.0.0.0/0 or-longer,
+	192.0.160.0/19 prefixlen >= 22,
+	192.0.160.0/19 prefixlen = 32
+}
+
+prefix-set "test6_prefixes" {
+	192.0.211.0/24 prefixlen 28 - 31,
+	192.0.211.0/24 prefixlen 25 - 31,
+	192.0.211.0/24,
+	192.0.211.0/24 prefixlen 28 - 31
+}
+
+# from the example bgpd.conf
+# list of networks that may be originated by our ASN
+prefix-set mynetworks {         \
+	192.0.2.0/24            \
+	2001:db8:abcd::/48      \
+}
+prefix-set bogons {                                             \
+	0.0.0.0/8 or-longer 10.0.0.0/8 or-longer                \
+	100.64.0.0/10 or-longer 127.0.0.0/8 or-longer           \
+	169.254.0.0/16 or-longer 172.16.0.0/12 or-longer        \
+	192.0.2.0/24 or-longer 192.88.99.0/24 or-longer         \
+	192.168.0.0/16 or-longer 198.18.0.0/15 or-longer        \
+	198.51.100.0/24 or-longer 203.0.113.0/24 or-longer      \
+	224.0.0.0/4 or-longer 240.0.0.0/4 or-longer             \
+	::/8 or-longer 0100::/64 or-longer                      \
+	2001:2::/48 or-longer 2001:10::/28 or-longer            \
+	2001:db8::/32 or-longer 2002::/16 or-longer             \
+	3ffe::/16 or-longer fc00::/7 or-longer                  \
+	fe80::/10 or-longer fec0::/10 or-longer                 \
+	ff00::/8 or-longer                                      \
+}

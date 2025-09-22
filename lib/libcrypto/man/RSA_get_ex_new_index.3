@@ -1,0 +1,383 @@
+.\" $OpenBSD: RSA_get_ex_new_index.3,v 1.14 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_GET_EX_NEW_INDEX 3
+.Os
+.Sh NAME
+.Nm RSA_get_ex_new_index ,
+.Nm RSA_set_ex_data ,
+.Nm RSA_get_ex_data
+.Nd add application specific data to RSA objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft int
+.Fo RSA_get_ex_new_index
+.Fa "long argl"
+.Fa "void *argp"
+.Fa "CRYPTO_EX_new *new_func"
+.Fa "CRYPTO_EX_dup *dup_func"
+.Fa "CRYPTO_EX_free *free_func"
+.Fc
+.Ft int
+.Fo RSA_set_ex_data
+.Fa "RSA *rsa"
+.Fa "int idx"
+.Fa "void *data"
+.Fc
+.Ft void *
+.Fo RSA_get_ex_data
+.Fa "RSA *rsa"
+.Fa "int idx"
+.Fc
+.Sh DESCRIPTION
+The following parent objects can have application specific data called
+.Dq ex_data
+attached to them:
+.Vt BIO , DH , DSA , EC_KEY , RSA ,
+.Vt SSL , SSL_CTX , SSL_SESSION , UI , X509 , X509_STORE ,
+and
+.Vt X509_STORE_CTX .
+.\" CRYPTO_EX_INDEX_APP and CRYPTO_EX_INDEX_UI_METHOD are unused.
+The present manual page documents the related API functions taking the
+.Vt RSA
+object type as an example.
+The functions for the other object types work in exactly the same way:
+just replace the string
+.Qq RSA
+with the name of the respective object type
+throughout the rest of this manual page.
+.Pp
+By default, each individual
+.Vt RSA
+object can store one
+.Vt void *
+pointing to application specific data.
+That specific pointer is identified by an
+.Fa idx
+argument of 0.
+.Pp
+.Fn RSA_get_ex_new_index
+reserves the next consecutive
+.Fa idx
+argument, enabling storage of one additional
+.Vt void *
+per
+.Vt RSA
+object.
+It is typically called at program startup.
+It can be called more than once if some
+.Vt RSA
+objects need to store more than two application specific pointers.
+Reserving an additional index for one parent object type, for example for
+.Vt RSA ,
+does not change the numbers of indices that can be used
+with any other parent object type.
+.Pp
+It is strongly recommended to always pass three
+.Dv NULL
+pointers for the arguments
+.Fa new_func ,
+.Fa dup_func ,
+and
+.Fa free_func .
+When following this recommendation, the arguments
+.Fa argl
+and
+.Fa argp
+are ignored; conventionally, passing 0 and
+.Dv NULL
+is recommended.
+Because using them is discouraged, the three function callback types
+are only documented in the low-level
+.Xr CRYPTO_EX_new 3
+manual page.
+.Pp
+.Fn RSA_set_ex_data
+stores the
+.Fa data
+pointer as application specific data at the given
+.Fa idx
+in the given
+.Fa rsa
+object.
+The meaning of the data pointed to is up to the application.
+The caller retains ownership of the
+.Fa data
+and is responsible for freeing it when neither the caller nor the
+.Fa rsa
+object need it any longer.
+Any other pointer that was previously stored at the same
+.Fa idx
+in the same
+.Fa rsa
+object is silently overwritten.
+Passing a
+.Dv NULL
+pointer for the
+.Fa data
+argument is valid and indicates that no application specific data
+currently needs to be stored at the given
+.Fa idx .
+.Pp
+.Fn RSA_get_ex_data
+retrieves the last pointer that was stored using
+.Fn RSA_set_ex_data
+at the given
+.Fa idx
+in the given
+.Fa rsa
+object.
+.Sh RETURN VALUES
+.Fn RSA_get_ex_new_index
+returns a new index equal to or greater than 1
+or \-1 if memory allocation fails.
+.Pp
+.Fn RSA_set_ex_data
+returns 1 on success or 0 if memory allocation fails.
+.Pp
+.Fn RSA_get_ex_data
+returns the application specific data or
+.Dv NULL
+if
+.Fa rsa
+does not contain application specific data at the given
+.Fa idx .
+.Sh ERRORS
+After failure of
+.Fn RSA_get_ex_new_index
+or
+.Fn RSA_set_ex_data ,
+the following diagnostic can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3 :
+.Bl -tag -width Ds
+.It Dv ERR_R_MALLOC_FAILURE Qq "malloc failure"
+Memory allocation failed.
+.El
+.Pp
+In a few unusual failure cases,
+.Xr ERR_get_error 3
+may report different errors caused by
+.Xr OPENSSL_init_crypto 3
+or even none at all.
+.Pp
+.Fn RSA_get_ex_data
+does not distinguish success from failure.
+Consequently, after
+.Fn RSA_get_ex_data
+returns
+.Dv NULL ,
+.Xr ERR_get_error 3
+returns 0 unless there is still an earlier error in the queue.
+.Sh SEE ALSO
+.Xr BIO_set_ex_data 3 ,
+.Xr CRYPTO_set_ex_data 3 ,
+.Xr DH_set_ex_data 3 ,
+.Xr DSA_set_ex_data 3 ,
+.Xr RSA_new 3 ,
+.Xr SSL_CTX_set_ex_data 3 ,
+.Xr SSL_SESSION_set_ex_data 3 ,
+.Xr SSL_set_ex_data 3 ,
+.Xr X509_STORE_CTX_set_ex_data 3 ,
+.Xr X509_STORE_set_ex_data 3
+.Sh HISTORY
+These functions first appeared in SSLeay 0.9.0
+and have been available since
+.Ox 2.4 .
+.Sh CAVEATS
+A relatively small minority of application programs
+attempt to change the API contract such that
+.Fn RSA_set_ex_data
+transfers ownership of the
+.Fa data
+to the
+.Fa rsa
+object.
+They do this by providing a
+.Fa free_func
+that calls
+.Xr free 3
+or higher-level
+.Fn *_free
+functions on the
+.Fa data
+and sometimes also attempt additional cleanup work as a side effect.
+.Pp
+This practice is discouraged for several reasons:
+.Bl -enum
+.It
+Due to a massive design mistake in the low-level API function
+.Xr CRYPTO_free_ex_data 3 ,
+this practice creates a possibility that
+.Xr RSA_free 3
+may fail due to memory allocation failure, consequently leaking the
+memory containing the application specific data and silently skipping
+any additional cleanup work the
+.Fa free_func
+was supposed to do, leaving the application in an undetectably
+inconsistent state.
+Arguably, leaking additional memory while trying to free some
+is most unfortunate especially when the program
+is already starved for memory.
+.It
+This practice introduces a risk of use-after-free and double-free
+bugs in case the
+.Fa rsa
+object gets destructed while a caller of
+.Fn RSA_set_ex_data
+or
+.Fn RSA_get_ex_data
+still holds a
+.Fa data
+pointer.
+No such risk exists when no
+.Fa free_func
+is installed.
+.It
+Attempting additional cleanup work in
+.Fa free_func
+is an even worse idea because
+.Fa free_func
+is unable to report any issues it might detect while doing that work.
+Instead, if any additional cleanup work is needed, it is recommended
+that the calling code takes care of that before calling
+.Xr RSA_free 3 .
+.El
+.Pp
+Even fewer application programs install a
+.Fa new_func
+that allocates memory and stores a pointer to it in the
+.Fa rsa
+object by calling
+.Xr CRYPTO_set_ex_data 3 .
+That is useless because
+.Fa new_func
+does not have access to any useful information it could store in such memory
+and because the default return value of
+.Dv NULL
+from
+.Fn RSA_get_ex_data
+is sufficient to indicate
+that no application specific data has been stored yet.
+In addition, allocating memory in
+.Fa new_func
+is also inadvisable because it introduces an additional responsibility
+for callers of
+.Fn RSA_set_ex_data
+to always call
+.Fn RSA_get_ex_data
+first, even when it is the first time the application wants to set
+application specific data in a particular
+.Fa rsa
+object, and to either modify whatever
+.Fn RSA_get_ex_data
+returns or to free it before calling
+.Fn RSA_set_ex_data .
+If that is forgotten, a memory leak results.
+.Pp
+Consequently, allocating any required memory
+is better left to the application code that calls
+.Fn RSA_set_ex_data .
+.Pp
+Installing a
+.Fa dup_func
+is often seen in combination with installing a
+.Fa free_func ,
+for obvious reasons.
+It is rarely useful because for most parent object types
+that support ex_data, including for
+.Vt RSA ,
+the library does not provide a copying API function in the first place, and
+even where copying functions exist, they tend to be fragile and error-prone.
+When a new object is needed, it is usually advisable to construct it from
+scratch whenever possible, rather than attempting a copy operation.
+.Pp
+On top of that, if
+.Fa dup_func
+fails, for example because of a memory allocation failure, the
+failure is neither reported nor detectable in any way, leaving the
+new parent object with incomplete data and potentially in an
+inconsistent state.
+.Sh BUGS
+If
+.Fn RSA_set_ex_data
+fails, recovery is very difficult.
+In particular, calling
+.Xr RSA_free 3
+on the parent
+.Fa rsa
+object right afterwards is likely to also hit a memory allocation
+failure, leaking all memory internally allocated by all earlier calls of
+.Fn RSA_set_ex_data
+on
+.Fa rsa
+rather than freeing that memory.
+In order to recover, the application program
+would have to free a sufficient amount of
+.Em other
+memory before calling
+.Xr RSA_free 3 ,
+which will rarely be feasible.
+Consequently, after a failure of
+.Fn RSA_set_ex_data ,
+terminating the program is likely the only reasonable option.
+.Pp
+If
+.Fn RSA_set_ex_data
+is called with an
+.Fa idx
+argument greater than the last one previously returned from
+.Fn RSA_get_ex_new_index ,
+it may still succeed, and though that is not guaranteed by the API,
+retrieving the
+.Fa data
+from such a bogus
+.Fa idx
+may even be possible with
+.Fn RSA_get_ex_data ,
+hiding the bug in the application program that caused passing the bogus
+.Fa idx
+to
+.Fn RSA_set_ex_data
+in the first place.
+.Pp
+If the bogus
+.Fa idx
+argument is large,
+.Fn RSA_set_ex_data
+may uselessly allocate a large amount of memory.
+Calling
+.Xr RSA_free 3
+on the parent
+.Fa rsa
+object is the only way to recover that memory.
+.Pp
+If the bogus
+.Fa idx
+argument is very large,
+.Fn RSA_set_ex_data
+is likely to cause a significant delay before eventually failing
+due to memory exhaustion.
+It is likely to return without releasing the memory already
+allocated, causing any subsequent attempt to allocate memory
+for other purposes to fail, too.
+In this situation, what was said above about failure of
+.Fn RSA_set_ex_data
+applies, so terminating the program is likely the only reasonable option.

@@ -1,0 +1,138 @@
+.\" $OpenBSD: EVP_PKEY_CTX_get_operation.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_CTX_GET_OPERATION 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_CTX_get_operation ,
+.Nm EVP_PKEY_CTX_get0_pkey
+.Nd inspect EVP_PKEY_CTX objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_PKEY_CTX_get_operation
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Ft EVP_PKEY *
+.Fo EVP_PKEY_CTX_get0_pkey
+.Fa "EVP_PKEY_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_PKEY_CTX_get_operation
+finds out which initialization function has been called on
+.Fa ctx ,
+if any:
+.Bl -column EVP_PKEY_OP_VERIFYRECO EVP_PKEY_verify_recover_init
+.It return value             Ta initialized with            Ta e.g. for
+.It Dv EVP_PKEY_OP_DECRYPT   Ta Xr EVP_PKEY_decrypt_init  3 Ta RSA, SM2
+.It Dv EVP_PKEY_OP_DERIVE    Ta Xr EVP_PKEY_derive_init   3 Ta HKDF
+.It Dv EVP_PKEY_OP_ENCRYPT   Ta Xr EVP_PKEY_encrypt_init  3 Ta RSA, SM2
+.It Dv EVP_PKEY_OP_KEYGEN    Ta Xr EVP_PKEY_keygen_init   3 Ta almost all
+.It Dv EVP_PKEY_OP_PARAMGEN  Ta Xr EVP_PKEY_paramgen_init 3 Ta DH, DSA, EC
+.It Dv EVP_PKEY_OP_SIGN      Ta Xr EVP_PKEY_sign_init     3 Ta DSA,EC,RSA,SM2
+.It Dv EVP_PKEY_OP_SIGN      Ta Xr EVP_DigestSignInit     3 Ta ED25519
+.It Dv EVP_PKEY_OP_SIGNCTX   Ta Xr EVP_DigestSignInit     3 Ta CMAC, HMAC
+.It Dv EVP_PKEY_OP_UNDEFINED Ta not initialized             Ta NONE
+.It Dv EVP_PKEY_OP_VERIFY    Ta Xr EVP_PKEY_verify_init   3 Ta DSA,EC,RSA,SM2
+.It Dv EVP_PKEY_OP_VERIFY    Ta Xr EVP_DigestVerifyInit   3 Ta ED25519
+.It Dv EVP_PKEY_OP_VERIFYCTX Ta Xr EVP_DigestVerifyInit   3 Ta no built-in
+.It Dv EVP_PKEY_OP_VERIFYRECOVER Ta Xr EVP_PKEY_verify_recover_init 3 Ta RSA
+.El
+.Pp
+The rightmost column of the above table shows examples of algorithms
+the return values can occur for.
+For example, if
+.Xr EVP_PKEY_base_id 3
+returns
+.Dv EVP_PKEY_HKDF ,
+then calling
+.Fn EVP_PKEY_CTX_get_operation
+on a
+.Vt EVP_PKEY_CTX
+using that key may return
+.Dv EVP_PKEY_OP_DERIVE .
+.Pp
+If the return value is
+.Dv EVP_PKEY_OP_SIGNCTX
+or
+.Dv EVP_PKEY_OP_VERIFYCTX ,
+the
+.Fa ctx
+supports
+.Xr EVP_DigestSignUpdate 3
+or
+.Xr EVP_DigestVerifyUpdate 3 ,
+respectively.
+If the return value is
+.Dv EVP_PKEY_OP_SIGN
+or
+.Dv EVP_PKEY_OP_VERIFY ,
+if does not, and only one-shot signing or verification is supported.
+.Pp
+The return value
+.Dv EVP_PKEY_OP_UNDEFINED
+can for example occur if the
+.Fa ctx
+was freshly returned from
+.Xr EVP_PKEY_CTX_new 3
+or
+.Xr EVP_PKEY_CTX_new_id 3
+and not yet initialized.
+.Pp
+The following masks are defined as the logical OR of two or more of the above
+.Dv EVP_PKEY_OP_*
+bits:
+.Pp
+.Bl -tag -width EVP_PKEY_OP_TYPE_NOGEN -compact
+.It Dv EVP_PKEY_OP_TYPE_CRYPT
+DECRYPT | ENCRYPT
+.It Dv EVP_PKEY_OP_TYPE_GEN
+KEYGEN | PARAMGEN
+.It Dv EVP_PKEY_OP_TYPE_NOGEN
+CRYPT | DERIVE | SIG
+.It Dv EVP_PKEY_OP_TYPE_SIG
+SIGN | SIGNCTX | VERIFY | VERIFYCTX | VERIFYRECOVER
+.El
+.Sh RETURN VALUES
+.Fn EVP_PKEY_CTX_get_operation
+returns one of the single-bit
+.Dv EVP_PKEY_OP_*
+constants or
+.Dv EVP_PKEY_OP_UNDEFINED
+if
+.Fa ctx
+is not initialized.
+.Pp
+.Fn EVP_PKEY_CTX_get0_pkey
+returns an internal pointer to the
+.Vt EVP_PKEY
+object used by
+.Fa ctx ,
+without incrementing its reference count.
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_PKEY_base_id 3 ,
+.Xr EVP_PKEY_CTX_ctrl 3 ,
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_new 3
+.Sh HISTORY
+.Fn EVP_PKEY_CTX_get_operation
+and
+.Fn EVP_PKEY_CTX_get0_pkey
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .

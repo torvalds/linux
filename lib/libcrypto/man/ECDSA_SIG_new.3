@@ -1,0 +1,453 @@
+.\" $OpenBSD: ECDSA_SIG_new.3,v 1.24 2025/06/13 18:34:00 schwarze Exp $
+.\" full merge up to: OpenSSL e9b77246 Jan 20 19:58:49 2017 +0100
+.\" selective merge up to: OpenSSL da4ea0cf Aug 5 16:13:24 2019 +0100
+.\"
+.\" This file was written by Nils Larsch <nils@openssl.org>.
+.\" Copyright (c) 2004, 2005, 2013, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt ECDSA_SIG_NEW 3
+.Os
+.Sh NAME
+.Nm ECDSA_SIG_new ,
+.Nm ECDSA_SIG_free ,
+.Nm ECDSA_SIG_get0 ,
+.Nm ECDSA_SIG_get0_r ,
+.Nm ECDSA_SIG_get0_s ,
+.Nm ECDSA_SIG_set0 ,
+.Nm i2d_ECDSA_SIG ,
+.Nm d2i_ECDSA_SIG ,
+.Nm ECDSA_size ,
+.Nm ECDSA_sign ,
+.Nm ECDSA_verify ,
+.Nm ECDSA_do_sign ,
+.Nm ECDSA_do_verify
+.Nd Elliptic Curve Digital Signature Algorithm
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ec.h
+.Ft ECDSA_SIG *
+.Fo ECDSA_SIG_new
+.Fa void
+.Fc
+.Ft void
+.Fo ECDSA_SIG_free
+.Fa "ECDSA_SIG *sig"
+.Fc
+.Ft void
+.Fo ECDSA_SIG_get0
+.Fa "const ECDSA_SIG *sig"
+.Fa "const BIGNUM **r"
+.Fa "const BIGNUM **s"
+.Fc
+.Ft const BIGNUM *
+.Fo ECDSA_SIG_get0_r
+.Fa "const ECDSA_SIG *sig"
+.Fc
+.Ft const BIGNUM *
+.Fo ECDSA_SIG_get0_s
+.Fa "const ECDSA_SIG *sig"
+.Fc
+.Ft int
+.Fo ECDSA_SIG_set0
+.Fa "ECDSA_SIG *sig"
+.Fa "BIGNUM *r"
+.Fa "BIGNUM *s"
+.Fc
+.Ft int
+.Fo i2d_ECDSA_SIG
+.Fa "const ECDSA_SIG *sig_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft ECDSA_SIG *
+.Fo d2i_ECDSA_SIG
+.Fa "ECDSA_SIG **sig_out"
+.Fa "const unsigned char **der_in"
+.Fa "long len"
+.Fc
+.Ft int
+.Fo ECDSA_size
+.Fa "const EC_KEY *eckey"
+.Fc
+.Ft int
+.Fo ECDSA_sign
+.Fa "int type"
+.Fa "const unsigned char *dgst"
+.Fa "int dgstlen"
+.Fa "unsigned char *sig"
+.Fa "unsigned int *siglen"
+.Fa "EC_KEY *eckey"
+.Fc
+.Ft int
+.Fo ECDSA_verify
+.Fa "int type"
+.Fa "const unsigned char *dgst"
+.Fa "int dgstlen"
+.Fa "const unsigned char *sig"
+.Fa "int siglen"
+.Fa "EC_KEY *eckey"
+.Fc
+.Ft ECDSA_SIG *
+.Fo ECDSA_do_sign
+.Fa "const unsigned char *dgst"
+.Fa "int dgst_len"
+.Fa "EC_KEY *eckey"
+.Fc
+.Ft int
+.Fo ECDSA_do_verify
+.Fa "const unsigned char *dgst"
+.Fa "int dgst_len"
+.Fa "const ECDSA_SIG *sig"
+.Fa "EC_KEY* eckey"
+.Fc
+.Sh DESCRIPTION
+These functions provide a low level interface to ECDSA.
+Most applications should use the higher level EVP interface such as
+.Xr EVP_DigestSignInit 3
+or
+.Xr EVP_DigestVerifyInit 3
+instead.
+Creation of the required
+.Vt EC_KEY
+objects is described in
+.Xr EC_KEY_new 3 .
+.Pp
+The
+.Vt ECDSA_SIG
+structure consists of two
+.Vt BIGNUM Ns s
+for the
+.Fa r
+and
+.Fa s
+value of an ECDSA signature (see X9.62 or FIPS 186-2).
+.Bd -literal -offset indent
+struct {
+	BIGNUM *r;
+	BIGNUM *s;
+} ECDSA_SIG;
+.Ed
+.Pp
+.Fn ECDSA_SIG_new
+allocates a new
+.Vt ECDSA_SIG
+structure (note: this function also allocates the
+.Vt BIGNUM Ns s )
+and initializes it.
+.Pp
+.Fn ECDSA_SIG_free
+frees the
+.Vt ECDSA_SIG
+structure
+.Fa sig .
+.Pp
+.Fn ECDSA_SIG_get0
+retrieves internal pointers the
+.Fa r
+and
+.Fa s
+values contained in
+.Fa sig .
+The values
+.Fa r
+and
+.Fa s
+can also be retrieved separately by the corresponding function
+.Fn ECDSA_SIG_get0_r
+and
+.Fn ECDSA_SIG_get0_s ,
+respectively.
+.Pp
+.Fn ECDSA_SIG_set0
+sets the
+.Fa r
+and
+.Fa s
+values in
+.Fa sig .
+Calling this function transfers the memory management of the values to
+.Fa sig .
+Therefore, the values that have been passed in
+should not be freed by the caller.
+.Pp
+.Fn i2d_ECDSA_SIG
+creates the DER encoding of the ECDSA signature
+.Fa sig_in
+and writes the encoded signature to
+.Pf * Fa der_out .
+.Fn d2i_ECDSA_SIG
+decodes the DER-encoded signature stored in the buffer
+.Pf * Fa der_in
+which is
+.Fa len
+bytes long into
+.Pf * Fa sig_out .
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn ECDSA_size
+returns the maximum length of a DER-encoded ECDSA signature created with
+the private EC key
+.Fa eckey .
+.Pp
+.Fn ECDSA_sign
+computes a digital signature of the
+.Fa dgstlen
+bytes hash value
+.Fa dgst
+using the private EC key
+.Fa eckey .
+The DER-encoded signature is stored in
+.Fa sig
+and its length is returned in
+.Fa siglen .
+Note:
+.Fa sig
+must point to
+.Fn ECDSA_size
+bytes of memory.
+The parameter
+.Fa type
+is ignored.
+.Pp
+.Fn ECDSA_verify
+verifies that the signature in
+.Fa sig
+of size
+.Fa siglen
+is a valid ECDSA signature of the hash value
+.Fa dgst
+of size
+.Fa dgstlen
+using the public key
+.Fa eckey .
+The parameter
+.Fa type
+is ignored.
+.Pp
+.Fn ECDSA_do_sign
+computes a digital signature of the
+.Fa dgst_len
+bytes hash value
+.Fa dgst
+using the private key
+.Fa eckey .
+The signature is returned in a newly allocated
+.Vt ECDSA_SIG
+structure (or
+.Dv NULL
+on error).
+.Pp
+.Fn ECDSA_do_verify
+verifies that the signature
+.Fa sig
+is a valid ECDSA signature of the hash value
+.Fa dgst
+of size
+.Fa dgst_len
+using the public key
+.Fa eckey .
+.Sh RETURN VALUES
+.Fn ECDSA_SIG_new
+returns the new
+.Vt ECDSA_SIG
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_ECDSA_SIG
+returns the number of bytes successfully encoded
+or a negative value if an error occurs.
+.Pp
+.Fn d2i_ECDSA_SIG
+returns a pointer to the decoded
+.Vt ECDSA_SIG
+structure or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn ECDSA_size
+returns the maximum length signature or 0 on error.
+.Pp
+.Fn ECDSA_SIG_get0_r
+and
+.Fn ECDSA_SIG_get0_s
+return a pointer owned by the
+.Vt ECDSA_SIG
+object if it has been set or
+.Dv NULL
+otherwise.
+.Pp
+.Fn ECDSA_SIG_set0
+and
+.Fn ECDSA_sign
+return 1 if successful or 0 on error.
+.Pp
+.Fn ECDSA_do_sign
+returns a pointer to an allocated
+.Vt ECDSA_SIG
+structure or
+.Dv NULL
+on error.
+.Pp
+.Fn ECDSA_verify
+and
+.Fn ECDSA_do_verify
+return 1 for a valid signature, 0 for an invalid signature and -1 on
+error.
+The error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh EXAMPLES
+Creating an ECDSA signature of given SHA-384 hash value using the named
+curve secp384r1.
+.Pp
+First step: create an
+.Vt EC_KEY
+object.
+This part is
+.Em not
+ECDSA specific.
+.Bd -literal -offset indent
+int ret;
+ECDSA_SIG *sig;
+EC_KEY *eckey;
+
+eckey = EC_KEY_new_by_curve_name(NID_secp384r1);
+if (eckey == NULL) {
+	/* error */
+}
+if (!EC_KEY_generate_key(eckey)) {
+	/* error */
+}
+.Ed
+.Pp
+Second step: compute the ECDSA signature of a SHA-384 hash value using
+.Fn ECDSA_do_sign
+.Bd -literal -offset indent
+sig = ECDSA_do_sign(digest, SHA384_DIGEST_LENGTH, eckey);
+if (sig == NULL) {
+	/* error */
+}
+.Ed
+.Pp
+or using
+.Fn ECDSA_sign
+.Bd -literal -offset indent
+unsigned char *buffer, *pp;
+int buf_len;
+
+buf_len = ECDSA_size(eckey);
+buffer  = malloc(buf_len);
+pp = buffer;
+if (!ECDSA_sign(0, dgst, dgstlen, pp, &buf_len, eckey) {
+	/* error */
+}
+.Ed
+.Pp
+Third step: verify the created ECDSA signature using
+.Fn ECDSA_do_verify
+.Pp
+.Dl ret = ECDSA_do_verify(digest, SHA384_DIGEST_LENGTH, sig, eckey);
+.Pp
+or using
+.Fn ECDSA_verify
+.Pp
+.Dl ret = ECDSA_verify(0, digest, SHA384_DIGEST_LENGTH, buffer, buf_len, eckey);
+.Pp
+and finally evaluate the return value:
+.Bd -literal -offset indent
+if (ret == -1) {
+	/* error */
+} else if (ret == 0) {
+	/* incorrect signature */
+} else {
+	/* ret == 1 */
+	/* signature ok */
+}
+.Ed
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr d2i_ECPKParameters 3 ,
+.Xr DSA_new 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr EC_KEY_METHOD_new 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EC_KEY_set_ex_data 3 ,
+.Xr EVP_DigestSignInit 3 ,
+.Xr EVP_DigestVerifyInit 3 ,
+.Xr RSA_new 3
+.Sh STANDARDS
+ANSI X9.62, US Federal Information Processing Standard FIPS 186-5
+(Digital Signature Standard, DSS)
+.Sh HISTORY
+.Fn ECDSA_SIG_new ,
+.Fn ECDSA_SIG_free ,
+.Fn i2d_ECDSA_SIG ,
+.Fn d2i_ECDSA_SIG ,
+.Fn ECDSA_size ,
+.Fn ECDSA_sign ,
+.Fn ECDSA_verify ,
+.Fn ECDSA_do_sign ,
+and
+.Fn ECDSA_do_verify
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Pp
+.Fn ECDSA_SIG_get0
+and
+.Fn ECDSA_SIG_set0
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.3 .
+.Fn ECDSA_SIG_get0_r
+and
+.Fn ECDSA_SIG_get0_s
+first appeared in OpenSSL 1.1.1 and have been available since
+.Ox 7.1 .
+.Sh AUTHORS
+.An Nils Larsch
+for the OpenSSL project.

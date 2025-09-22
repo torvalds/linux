@@ -1,0 +1,22 @@
+static_library("altera") {
+  output_name = "clangTidyAlteraModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Analysis",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "AlteraTidyModule.cpp",
+    "IdDependentBackwardBranchCheck.cpp",
+    "KernelNameRestrictionCheck.cpp",
+    "SingleWorkItemBarrierCheck.cpp",
+    "StructPackAlignCheck.cpp",
+    "UnrollLoopsCheck.cpp",
+  ]
+}

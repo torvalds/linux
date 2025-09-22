@@ -1,0 +1,163 @@
+.\"	$OpenBSD: ypserv.acl.5,v 1.27 2022/03/31 17:27:32 naddy Exp $
+.\"
+.\" Copyright (c) 1994 Mats O Jansson <moj@stacken.kth.se>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt YPSERV.ACL 5
+.Os
+.Sh NAME
+.Nm ypserv.acl
+.Nd ypserv(8) access control configuration
+.Sh DESCRIPTION
+The
+.Nm
+file controls which hosts can connect to the
+.Xr yp 8
+server.
+.Pp
+The format is more complex than the format for
+.Xr securenet 5 .
+The first two words on each line controls if the line will
+.Ic allow
+or
+.Ic deny
+access for a
+.Cm host ,
+network
+.Pq Cm net ,
+or
+.Cm all
+hosts.
+.Pp
+The YP
+server reads the configuration file and builds a list in memory.
+This list is processed from the beginning for every incoming request.
+As soon as a
+match is found in the list, the search terminates and it returns success
+or failure depending on which of
+.Ic allow
+or
+.Ic deny
+was specified.
+If no match was found in the list, success is returned.
+.Pp
+If access is denied, every call will cause a
+.Dq no such domain
+error for the caller.
+.Pp
+Normally both the local hostname and localhost must be
+allowed access.
+Otherwise
+.Xr ypserv 8
+might not work correctly.
+.Pp
+There is no default name for this file.
+Start
+.Xr ypserv 8
+with
+.Fl a Ar filename
+to read a file with this format.
+.Pp
+The following syntax may be used:
+.Pp
+.D1 Ic allow Ns | Ns Ic deny Cm host Ar hostname Ns | Ns Ar ip-address
+.Pp
+If
+.Ic hostname
+has more than one IP address, they will all be added to the list.
+.Pp
+.D1 Ic allow Ns | Ns Ic deny Cm net Ar netnumber Op Cm netmask Ar netnumber
+.Pp
+If the
+.Cm netmask
+part of the command isn't given then the netmask will be assumed to be a
+class A, B or C net depending on the net number.
+.Pp
+.D1 Ic allow Ns | Ns Ic deny Cm all
+.Pp
+A line containing one of these commands will always match any host.
+.Sh FILES
+.Bl -tag -width /var/yp/ypserv.acl -compact
+.It Pa /var/yp/ypserv.acl
+a
+.Xr ypserv 8
+configuration file
+.El
+.Sh EXAMPLES
+A configuration file might look like the following:
+.Bd -literal
+# This is an example of an access control file to be used by ypserv.
+#
+# This file is parsed line by line. First match will terminate the check
+# of the caller.
+#
+
+###########################################################################
+# This is the commands that will match a single host
+#
+#	allow host <hostname|ip-address>
+#	deny host <hostname|ip-address>
+#
+# To process hostname gethostbyname is called. If the hostname has
+# multiple ip-addresses all will be added (I hope). ip-address
+# processed by inet_aton.
+allow host localhost
+allow host myypserver
+deny host jodie
+
+###########################################################################
+# This is the commands that will match a network
+#
+#	allow net <netnumber> [netmask <netnumber>]
+#	deny net <netnumber> [netmask <netnumber>]
+#
+# inet_aton is used for netnumber.
+# inet_aton both access numbers as 255.255.255.0 and 0xffffff00.
+#
+# If netmask isn't given the parser will assume netmask from the first bits
+# of the network number. So if the network is subneted the you have to add
+# the netmask. In my case I've got the network 139.58.253.0 at home so to
+# allow any of my computers to talk with the server I need the following
+# line
+#
+allow net 139.58.253.0 netmask 255.255.255.0
+
+###########################################################################
+# At last we have a command that will match any caller:
+#
+#	allow all
+#	deny all
+#
+
+# reject all connections
+deny all
+
+.Ed
+.Sh SEE ALSO
+.Xr securenet 5 ,
+.Xr yp 8 ,
+.Xr ypserv 8
+.Sh AUTHORS
+.An Mats O Jansson Aq Mt moj@stacken.kth.se

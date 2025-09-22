@@ -1,0 +1,38 @@
+#	$OpenBSD: files.mips64,v 1.31 2021/07/20 07:51:08 visa Exp $
+
+file	arch/mips64/mips64/clock.c		clock
+file	arch/mips64/mips64/cpu.c
+file	arch/mips64/mips64/interrupt.c
+file	arch/mips64/mips64/mem.c
+file	arch/mips64/mips64/mips64_machdep.c
+file	arch/mips64/mips64/pmap.c
+file	arch/mips64/mips64/process_machdep.c
+file	arch/mips64/mips64/sendsig.c
+file	arch/mips64/mips64/softintr.c
+file	arch/mips64/mips64/sys_machdep.c
+file	arch/mips64/mips64/trap.c
+file	arch/mips64/mips64/vm_machdep.c
+
+file	arch/mips64/mips64/cache_loongson2.c	cpu_loongson2
+file	arch/mips64/mips64/cache_loongson3.c	cpu_loongson3
+file	arch/mips64/mips64/cache_mips64r2.c	cpu_mips64r2
+file	arch/mips64/mips64/cache_octeon.c	cpu_octeon
+file	arch/mips64/mips64/context.S
+file	arch/mips64/mips64/cp0access.S
+file	arch/mips64/mips64/exception.S
+file	arch/mips64/mips64/fp_emulate.c
+file	arch/mips64/mips64/lcore_access.S
+file	arch/mips64/mips64/lcore_float.S
+file	arch/mips64/mips64/mips64r2.S		cpu_mips64r2
+file	arch/mips64/mips64/tlbhandler.S
+
+file	arch/mips64/mips64/db_disasm.c		ddb
+file	arch/mips64/mips64/db_machdep.c		ddb
+file	arch/mips64/mips64/lcore_ddb.S		ddb|debug
+
+file	arch/mips64/mips64/ipifuncs.c           multiprocessor
+
+file	netinet/in_cksum.c
+file	netinet/in4_cksum.c
+
+file	lib/libkern/softfloat.c

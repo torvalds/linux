@@ -1,0 +1,261 @@
+.\" $OpenBSD: X509_NAME_print_ex.3,v 1.18 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL aebb9aac Jul 19 09:27:53 2016 -0400
+.\" selective merge up to: OpenSSL 61f805c1 Jan 16 01:01:46 2018 +0800
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2004, 2007, 2016, 2017 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_NAME_PRINT_EX 3
+.Os
+.Sh NAME
+.Nm X509_NAME_print_ex ,
+.Nm X509_NAME_print_ex_fp ,
+.Nm X509_NAME_oneline
+.Nd X509_NAME printing routines
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_NAME_print_ex
+.Fa "BIO *out"
+.Fa "const X509_NAME *nm"
+.Fa "int indent"
+.Fa "unsigned long flags"
+.Fc
+.Ft int
+.Fo X509_NAME_print_ex_fp
+.Fa "FILE *fp"
+.Fa "const X509_NAME *nm"
+.Fa "int indent"
+.Fa "unsigned long flags"
+.Fc
+.Ft char *
+.Fo X509_NAME_oneline
+.Fa "const X509_NAME *a"
+.Fa "char *buf"
+.Fa "int size"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_NAME_print_ex
+prints a human readable version of
+.Fa nm
+to
+.Vt BIO
+.Fa out .
+Each line (for multiline formats) is indented by
+.Fa indent
+spaces.
+The output format can be extensively customised by use of the
+.Fa flags
+parameter.
+.Pp
+.Fn X509_NAME_print_ex_fp
+is identical to
+.Fn X509_NAME_print_ex
+except the output is written to the
+.Vt FILE
+pointer
+.Fa fp .
+.Pp
+.Fn X509_NAME_oneline
+prints an ASCII version of
+.Fa a
+to
+.Fa buf .
+If
+.Fa buf
+is
+.Dv NULL ,
+then a buffer is dynamically allocated and returned, and
+.Fa size
+is ignored.
+Otherwise, at most
+.Fa size
+bytes will be written, including the ending NUL, and
+.Fa buf
+is returned.
+.Pp
+.Fn X509_NAME_oneline
+is a legacy function which produces a non-standard output form.
+It doesn't handle multi-character fields and has various quirks
+and inconsistencies.
+Its use is strongly discouraged in new applications.
+.Pp
+Although there are a large number of possible flags, for most purposes
+.Dv XN_FLAG_ONELINE ,
+.Dv XN_FLAG_MULTILINE ,
+or
+.Dv XN_FLAG_RFC2253
+will suffice.
+As noted on the
+.Xr ASN1_STRING_print_ex 3
+manual page, for UTF-8 terminals the
+.Dv ASN1_STRFLGS_ESC_MSB
+should be unset: so for example
+.Dv XN_FLAG_ONELINE No & Pf ~ Dv ASN1_STRFLGS_ESC_MSB
+would be used.
+.Pp
+The complete set of the flags supported by
+.Dv X509_NAME_print_ex
+is listed below.
+.Pp
+Several options can be OR'ed together.
+.Pp
+The options
+.Dv XN_FLAG_SEP_COMMA_PLUS ,
+.Dv XN_FLAG_SEP_CPLUS_SPC ,
+.Dv XN_FLAG_SEP_SPLUS_SPC ,
+and
+.Dv XN_FLAG_SEP_MULTILINE
+determine the field separators to use.
+Two distinct separators are used between distinct
+.Vt RelativeDistinguishedName
+components and separate values in the same RDN for a multi-valued RDN.
+Multi-valued RDNs are currently very rare so the second separator
+will hardly ever be used.
+.Pp
+.Dv XN_FLAG_SEP_COMMA_PLUS
+uses comma and plus as separators.
+.Dv XN_FLAG_SEP_CPLUS_SPC
+uses comma and plus with spaces:
+this is more readable that plain comma and plus.
+.Dv XN_FLAG_SEP_SPLUS_SPC
+uses spaced semicolon and plus.
+.Dv XN_FLAG_SEP_MULTILINE
+uses spaced newline and plus respectively.
+.Dv XN_FLAG_SEP_MASK
+contains the bits used to represent these four options.
+.Pp
+If
+.Dv XN_FLAG_DN_REV
+is set, the whole DN is printed in reversed order.
+.Pp
+The fields
+.Dv XN_FLAG_FN_SN ,
+.Dv XN_FLAG_FN_LN ,
+.Dv XN_FLAG_FN_OID ,
+and
+.Dv XN_FLAG_FN_NONE
+determine how a field name is displayed.
+It will use the short name (e.g. CN), the long name (e.g. commonName),
+always use OID numerical form (normally OIDs are only used if the
+field name is not recognised) and no field name, respectively.
+.Dv XN_FLAG_FN_MASK
+contains the bits used to represent these four options.
+.Pp
+If
+.Dv XN_FLAG_SPC_EQ
+is set, then spaces will be placed around the
+.Ql =
+character separating field names and values.
+.Pp
+If
+.Dv XN_FLAG_DUMP_UNKNOWN_FIELDS
+is set, then the encoding of unknown fields is printed instead of the
+values.
+.Pp
+If
+.Dv XN_FLAG_FN_ALIGN
+is set, then field names are padded to 20 characters:
+this is only of use for multiline format.
+.Pp
+Additionally, all the options supported by
+.Xr ASN1_STRING_print_ex 3
+can be used to control how each field value is displayed.
+.Pp
+In addition a number of options can be set for commonly used formats.
+.Pp
+.Dv XN_FLAG_RFC2253
+sets options which produce an output compatible with RFC 2253.
+It is equivalent to
+.Dv ASN1_STRFLGS_RFC2253 | XN_FLAG_SEP_COMMA_PLUS | XN_FLAG_DN_REV |
+.Dv XN_FLAG_FN_SN | XN_FLAG_DUMP_UNKNOWN_FIELDS .
+.Pp
+.Dv XN_FLAG_ONELINE
+is a more readable one line format which is the same as:
+.Dv ASN1_STRFLGS_RFC2253 | ASN1_STRFLGS_ESC_QUOTE | XN_FLAG_SEP_CPLUS_SPC |
+.Dv XN_FLAG_SPC_EQ | XN_FLAG_FN_SN .
+.Pp
+.Dv XN_FLAG_MULTILINE
+is a multiline format which is the same as:
+.Dv ASN1_STRFLGS_ESC_CTRL | ASN1_STRFLGS_ESC_MSB | XN_FLAG_SEP_MULTILINE |
+.Dv XN_FLAG_SPC_EQ | XN_FLAG_FN_LN | XN_FLAG_FN_ALIGN .
+.Pp
+.Dv XN_FLAG_COMPAT
+uses the traditional non-standard SSLeay format.
+.Sh RETURN VALUES
+.Fn X509_NAME_print_ex
+and
+.Fn X509_NAME_print_ex_fp
+return 1 on success or 0 on error if
+.Dv XN_FLAG_COMPAT
+is set in
+.Fa flags .
+Otherwise, they return the number of printed bytes including the
+indentation or \-1 on error.
+.Pp
+.Fn X509_NAME_oneline
+returns a valid string on success or
+.Dv NULL
+on error.
+.Sh SEE ALSO
+.Xr ASN1_STRING_print_ex 3 ,
+.Xr d2i_X509_NAME 3 ,
+.Xr X509_NAME_get_index_by_NID 3 ,
+.Xr X509_NAME_new 3
+.Sh HISTORY
+.Fn X509_NAME_oneline
+first appeared in SSLeay 0.5.1 and has been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_NAME_print_ex
+and
+.Fn X509_NAME_print_ex_fp
+first appeared in OpenSSL 0.9.6 and have been available since
+.Ox 2.9 .

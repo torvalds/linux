@@ -1,0 +1,395 @@
+.\"	$OpenBSD: ASN1_generate_nconf.3,v 1.14 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL 05ea606a Fri May 20 20:52:46 2016 -0400
+.\"
+.\" This file was written by Dr. Stephen Henson.
+.\" Copyright (c) 2002, 2003, 2006-2009, 2013-2015 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_GENERATE_NCONF 3
+.Os
+.Sh NAME
+.Nm ASN1_generate_nconf ,
+.Nm ASN1_generate_v3
+.Nd ASN.1 generation functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft ASN1_TYPE *
+.Fo ASN1_generate_nconf
+.Fa "const char *str"
+.Fa "CONF *nconf"
+.Fc
+.Ft ASN1_TYPE *
+.Fo ASN1_generate_v3
+.Fa "const char *str"
+.Fa "X509V3_CTX *cnf"
+.Fc
+.Sh DESCRIPTION
+These functions generate the ASN.1 encoding of a string in an
+.Vt ASN1_TYPE
+structure.
+.Pp
+.Fa str
+contains the string to encode
+.Fa nconf
+or
+.Fa cnf
+contains the optional configuration information
+where additional strings will be read from.
+.Fa nconf
+will typically come from a config file whereas
+.Fa cnf
+is obtained from an
+.Vt X509V3_CTX
+structure which will typically be used
+by X509 v3 certificate extension functions.
+.Fa cnf
+or
+.Fa nconf
+can be set to
+.Dv NULL
+if no additional configuration will be used.
+.Sh GENERATION STRING FORMAT
+The actual data encoded is determined by the string
+.Fa str
+and the configuration information.
+The general format of the string is:
+.Pp
+.D1 Oo Ar modifier , Oc Ns Ar type Ns Op : Ns Ar value
+.Pp
+That is zero or more comma separated modifiers followed by a type
+followed by an optional colon and a value.
+The formats of
+.Ar type ,
+.Ar value
+and
+.Ar modifier
+are explained below.
+.Ss Supported types
+The supported types are listed below.
+Unless otherwise specified, only the
+.Cm ASCII
+format is permissible.
+.Bl -tag -width Ds
+.It Cm BOOLEAN , BOOL
+This encodes a boolean type.
+The
+.Ar value
+string is mandatory and should be
+.Cm TRUE
+or
+.Cm FALSE .
+Additionally
+.Cm true ,
+.Cm Y ,
+.Cm y ,
+.Cm YES ,
+.Cm yes ,
+.Cm false ,
+.Cm N ,
+.Cm n ,
+.Cm NO
+and
+.Cm no
+are acceptable.
+.It Cm NULL
+Encode the NULL type.
+The
+.Ar value
+string must not be present.
+.It Cm INTEGER , INT
+Encodes an ASN.1 INTEGER type.
+The
+.Ar value
+string represents the value of the integer.
+It can be prefaced by a minus sign
+and is normally interpreted as a decimal value unless the prefix
+.Cm 0x
+is included.
+.It Cm ENUMERATED , ENUM
+Encodes the ASN.1 ENUMERATED type.
+It is otherwise identical to
+.Cm INTEGER .
+.It Cm OBJECT , OID
+Encodes an ASN.1 OBJECT IDENTIFIER.
+The
+.Ar value
+string can be a short name, a long name, or numerical format.
+.It Cm UTCTIME , UTC
+Encodes an ASN.1 UTCTime structure.
+The value should be in the format
+.Ar YYMMDDHHMMSSZ .
+.It Cm GENERALIZEDTIME , GENTIME
+Encodes an ASN.1 GeneralizedTime structure.
+The value should be in the format
+.Ar YYYYMMDDHHMMSSZ .
+.It Cm OCTETSTRING , OCT
+Encodes an ASN.1 OCTET STRING.
+.Ar value
+represents the contents of this structure.
+The format strings
+.Cm ASCII
+and
+.Cm HEX
+can be used to specify the format of
+.Ar value .
+.It Cm BITSTRING , BITSTR
+Encodes an ASN.1 BIT STRING.
+.Ar value
+represents the contents of this structure.
+The format strings
+.Cm ASCII ,
+.Cm HEX ,
+and
+.Cm BITLIST
+can be used to specify the format of
+.Ar value .
+.Pp
+If the format is anything other than
+.Cm BITLIST ,
+the number of unused bits is set to zero.
+.It Xo
+.Cm BMPSTRING , BMP ,
+.Cm GeneralString ,
+.Cm IA5STRING , IA5 ,
+.Cm NUMERICSTRING , NUMERIC ,
+.Cm PRINTABLESTRING , PRINTABLE ,
+.Cm T61STRING , T61 ,
+.Cm TELETEXSTRING ,
+.Cm UNIVERSALSTRING , UNIV ,
+.Cm UTF8String , UTF8 ,
+.Cm VISIBLESTRING , VISIBLE
+.Xc
+These encode the corresponding string types.
+.Ar value
+represents the contents of this structure.
+The format can be
+.Cm ASCII
+or
+.Cm UTF8 .
+.It Cm SEQUENCE , SEQ , SET
+Formats the result as an ASN.1 SEQUENCE or SET type.
+.Ar value
+should be a section name which will contain the contents.
+The field names in the section are ignored
+and the values are in the generated string format.
+If
+.Ar value
+is absent, then an empty SEQUENCE will be encoded.
+.El
+.Ss Modifiers
+Modifiers affect the following structure.
+They can be used to add EXPLICIT or IMPLICIT tagging, add wrappers,
+or to change the string format of the final type and value.
+The supported formats are:
+.Bl -tag -width Ds
+.It Cm EXPLICIT , EXP
+Add an explicit tag to the following structure.
+This string should be followed by a colon
+and the tag value to use as a decimal value.
+.Pp
+By following the number with
+.Cm U ,
+.Cm A ,
+.Cm P
+or
+.Cm C ,
+UNIVERSAL, APPLICATION, PRIVATE or CONTEXT SPECIFIC tagging can be used.
+The default is CONTEXT SPECIFIC.
+.It Cm IMPLICIT , IMP
+This is the same as
+.Cm EXPLICIT
+except IMPLICIT tagging is used instead.
+.It Cm OCTWRAP , SEQWRAP , SETWRAP , BITWRAP
+The following structure is surrounded by
+an OCTET STRING, a SEQUENCE, a SET, or a BIT STRING, respectively.
+For a BIT STRING the number of unused bits is set to zero.
+.It Cm FORMAT
+This specifies the format of the ultimate value.
+It should be followed by a colon and one of the strings
+.Cm ASCII ,
+.Cm UTF8 ,
+.Cm HEX ,
+or
+.Cm BITLIST .
+.Pp
+If no format specifier is included, then
+.Cm ASCII
+is used.
+If
+.Cm UTF8
+is specified, then the
+.Ar value
+string must be a valid UTF-8 string.
+For
+.Cm HEX ,
+the output must be a set of hex digits.
+.Cm BITLIST
+(which is only valid for a BIT STRING) is a comma separated list
+of the indices of the set bits, all other bits are zero.
+.El
+.Sh RETURN VALUES
+.Fn ASN1_generate_nconf
+and
+.Fn ASN1_generate_v3
+return the encoded data as an
+.Vt ASN1_TYPE
+structure or
+.Dv NULL
+if an error occurred.
+.Pp
+The error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh EXAMPLES
+A simple
+.Vt IA5String :
+.Pp
+.Dl IA5STRING:Hello World
+.Pp
+An
+.Vt IA5String
+explicitly tagged:
+.Pp
+.Dl EXPLICIT:0,IA5STRING:Hello World
+.Pp
+An
+.Vt IA5String
+explicitly tagged using APPLICATION tagging:
+.Pp
+.Dl EXPLICIT:0A,IA5STRING:Hello World
+.Pp
+A BITSTRING with bits 1 and 5 set and all others zero:
+.Pp
+.Dl FORMAT:BITLIST,BITSTRING:1,5
+.Pp
+A more complex example using a config file to produce a
+SEQUENCE consisting of a BOOL an OID and a
+.Vt UTF8String :
+.Bd -literal -offset indent
+asn1 = SEQUENCE:seq_section
+
+[seq_section]
+
+field1 = BOOLEAN:TRUE
+field2 = OID:commonName
+field3 = UTF8:Third field
+.Ed
+.Pp
+This example produces an
+.Vt RSAPrivateKey
+structure.
+This is the key contained in the file
+.Pa client.pem
+in all OpenSSL distributions.
+Note that the field names such as
+.Qq coeff
+are ignored and are present just for clarity.
+.Bd -literal -offset 2n
+asn1=SEQUENCE:private_key
+[private_key]
+version=INTEGER:0
+
+n=INTEGER:0xBB6FE79432CC6EA2D8F970675A5A87BFBE1AFF0BE63E879F2AFFB93644\e
+D4D2C6D000430DEC66ABF47829E74B8C5108623A1C0EE8BE217B3AD8D36D5EB4FCA1D9
+
+e=INTEGER:0x010001
+
+d=INTEGER:0x6F05EAD2F27FFAEC84BEC360C4B928FD5F3A9865D0FCAAD291E2A52F4A\e
+F810DC6373278C006A0ABBA27DC8C63BF97F7E666E27C5284D7D3B1FFFE16B7A87B51D
+
+p=INTEGER:0xF3929B9435608F8A22C208D86795271D54EBDFB09DDEF539AB083DA912\e
+D4BD57
+
+q=INTEGER:0xC50016F89DFF2561347ED1186A46E150E28BF2D0F539A1594BBD7FE467\e
+46EC4F
+
+exp1=INTEGER:0x9E7D4326C924AFC1DEA40B45650134966D6F9DFA3A7F9D698CD4ABEA\e
+9C0A39B9
+
+exp2=INTEGER:0xBA84003BB95355AFB7C50DF140C60513D0BA51D637272E355E397779\e
+E7B2458F
+
+coeff=INTEGER:0x30B9E4F2AFA5AC679F920FC83F1F2DF1BAF1779CF989447FABC2F5\e
+628657053A
+.Ed
+.Pp
+This example is the corresponding public key in an ASN.1
+.Vt SubjectPublicKeyInfo
+structure:
+.Bd -literal -offset 2n
+# Start with a SEQUENCE
+asn1=SEQUENCE:pubkeyinfo
+
+# pubkeyinfo contains an algorithm identifier and the public key
+# wrapped in a BIT STRING
+[pubkeyinfo]
+algorithm=SEQUENCE:rsa_alg
+pubkey=BITWRAP,SEQUENCE:rsapubkey
+
+# algorithm ID for RSA is just an OID and a NULL
+[rsa_alg]
+algorithm=OID:rsaEncryption
+parameter=NULL
+
+# Actual public key: modulus and exponent
+[rsapubkey]
+n=INTEGER:0xBB6FE79432CC6EA2D8F970675A5A87BFBE1AFF0BE63E879F2AFFB93644\e
+D4D2C6D000430DEC66ABF47829E74B8C5108623A1C0EE8BE217B3AD8D36D5EB4FCA1D9
+
+e=INTEGER:0x010001
+.Ed
+.Sh SEE ALSO
+.Xr ASN1_TYPE_get 3 ,
+.Xr d2i_ASN1_TYPE 3 ,
+.Xr x509v3.cnf 5
+.Sh HISTORY
+.Fn ASN1_generate_nconf
+and
+.Fn ASN1_generate_v3
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .

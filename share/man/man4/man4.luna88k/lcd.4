@@ -1,0 +1,81 @@
+.\"	$OpenBSD: lcd.4,v 1.4 2015/02/15 22:26:45 bentley Exp $
+.\"
+.\" Copyright (c) 2007 Kenji AOYAMA <aoyama@nk-home.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 15 2015 $
+.Dt LCD 4 luna88k
+.Os
+.Sh NAME
+.Nm lcd
+.Nd front panel LCD display
+.Sh SYNOPSIS
+.Cd "lcd0 at mainbus0"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to the front panel LCD display on LUNA-88K.
+It is accessed using
+.Xr write 2
+to print the characters on the LCD.
+The device has a physical display area of 16 characters x 2 lines
+and an internal line buffer of 40 characters x 2 lines.
+.Pp
+The following ioctl calls apply to the
+.Nm
+device:
+.Bl -tag -width LCD
+.It Dv LCDCLS
+Clear the LCD screen, restore display area from shift and move the
+cursor to upper-left position.
+.It Dv LCDHOME
+Restore display area from shift and move the cursor to upper-left
+position.
+.It Dv LCDMODE Fa "int *"
+Specify cursor advance direction and display shift mode.
+.It Dv LCDDISP Fa "int *"
+Control display on/off, cursor on/off, and cursor blinking on/off.
+.It Dv LCDMOVE Fa "int *"
+Move the cursor or shift the display area.
+.It Dv LCDSEEK Fa "int *"
+Move the cursor to the specified position.
+On the first line, the position is specified by a value between 0x00 and 0x27.
+On the second line, the value is between 0x40 and 0x67.
+.It Dv LCDRESTORE
+Restore boot-time LCD message.
+.El
+.Pp
+These ioctl parameters are defined in
+.In machine/lcd.h .
+.Sh FILES
+.Bl -tag -width /dev/lcd
+.It Pa /dev/lcd
+.El
+.Sh SEE ALSO
+.Xr ioctl 2
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.1 .

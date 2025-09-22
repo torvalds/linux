@@ -1,0 +1,130 @@
+.\" $OpenBSD: wcstombs.3,v 1.8 2022/03/29 18:15:52 naddy Exp $
+.\" $NetBSD: wcstombs.3,v 1.5 2003/09/08 17:54:32 wiz Exp $
+.\"
+.\" Copyright (c)2002 Citrus Project,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 29 2022 $
+.Dt WCSTOMBS 3
+.Os
+.\" ----------------------------------------------------------------------
+.Sh NAME
+.Nm wcstombs
+.Nd converts a wide-character string to a multibyte character string
+.\" ----------------------------------------------------------------------
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft size_t
+.Fn wcstombs "char * restrict s" "const wchar_t * restrict pwcs" "size_t n"
+.\" ----------------------------------------------------------------------
+.Sh DESCRIPTION
+.Fn wcstombs
+converts the null-terminated wide-character string pointed to by
+.Fa pwcs
+to the corresponding multibyte character string,
+and stores up to
+.Fa n
+bytes in the array pointed to by
+.Fa s .
+Each character will be converted as if
+.Xr wctomb 3
+is continuously called, except the internal state of
+.Xr wctomb 3
+will not be affected.
+.Pp
+For state-dependent encoding, the
+.Fn wcstombs
+implies the result multibyte character string pointed to by
+.Fa s
+always to begin with an initial state.
+.Pp
+The behaviour of the
+.Fn wcstombs
+is affected by the
+.Dv LC_CTYPE
+category of the current locale.
+.Pp
+There are special cases:
+.Bl -tag -width 012345678901
+.It s == NULL
+The
+.Fn wcstombs
+function returns the number of bytes to store the whole multibyte
+character string corresponding to the wide-character string pointed to by
+.Fa pwcs .
+In this case,
+.Fa n
+is ignored.
+.It pwcs == NULL
+Undefined (may causes the program to crash).
+.El
+.\" ----------------------------------------------------------------------
+.Sh RETURN VALUES
+.Fn wcstombs
+returns:
+.Bl -tag -width 012345678901
+.It 0 or positive
+Number of bytes stored in the array pointed to by
+.Fa s .
+There are no cases that the value returned is greater than
+.Fa n
+(unless
+.Fa s
+is a null pointer).
+If the return value is equal to
+.Fa n ,
+the string pointed to by
+.Fa s
+will not be null-terminated.
+.It (size_t)-1
+.Fa pwcs
+points the string containing invalid wide character.
+.Fn wcstombs
+also sets
+.Va errno
+to indicate the error.
+.El
+.\" ----------------------------------------------------------------------
+.Sh ERRORS
+.Fn wcstombs
+may cause an error in the following cases:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+.Fa pwcs
+Points to the string containing invalid wide character.
+.El
+.\" ----------------------------------------------------------------------
+.Sh SEE ALSO
+.Xr setlocale 3 ,
+.Xr wctomb 3
+.\" ----------------------------------------------------------------------
+.Sh STANDARDS
+The
+.Fn wcstombs
+function conforms to
+.St -ansiC .
+The restrict qualifier is added at
+.\" .St -isoC99 .
+ISO/IEC 9899/1999
+.Pq Dq ISO C99 .

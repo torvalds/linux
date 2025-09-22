@@ -1,0 +1,140 @@
+#	$OpenBSD: files.loongson,v 1.26 2020/09/30 22:23:41 patrick Exp $
+
+# Standard stanzas config(8) can't run without
+maxpartitions 16
+maxusers 2 8 64
+
+# Major number for block devices, for ``root on'' lines
+major	{ sd = 0 }
+major	{ cd = 3 }
+major	{ wd = 4 }
+major	{ rd = 8 }
+
+file	dev/cninit.c
+
+file	arch/loongson/loongson/autoconf.c
+file	arch/loongson/loongson/bus_dma.c
+file	arch/loongson/loongson/bus_space.c
+file	arch/loongson/loongson/conf.c
+file	arch/loongson/loongson/disksubr.c		disk
+file	arch/loongson/loongson/gdium_machdep.c		cpu_loongson2
+file	arch/loongson/loongson/generic2e_machdep.c	cpu_loongson2
+file	arch/loongson/loongson/generic3a_machdep.c	cpu_loongson3
+file	arch/loongson/loongson/isa_machdep.c		isa
+file	arch/loongson/loongson/locore.S
+file	arch/loongson/loongson/loongson2_machdep.c
+file	arch/loongson/loongson/loongson3_intr.c		cpu_loongson3
+file	arch/loongson/loongson/loongson3_machdep.c	cpu_loongson3
+file	arch/loongson/loongson/machdep.c
+file	arch/loongson/loongson/hibernate_machdep.c	hibernate
+file	arch/loongson/loongson/pciide_machdep.c		pciide
+file	arch/loongson/loongson/pmon.c
+file	arch/loongson/loongson/pmon32.S
+file	arch/loongson/loongson/wscons_machdep.c		wsdisplay
+file	arch/loongson/loongson/yeeloong_machdep.c	cpu_loongson2
+
+include "dev/ata/files.ata"
+include "dev/atapiscsi/files.atapiscsi"
+include	"dev/hid/files.hid"
+include	"dev/i2c/files.i2c"
+include	"dev/gpio/files.gpio"
+include	"dev/isa/files.isa"
+include	"dev/isa/files.isapnp"
+include	"dev/mii/files.mii"
+include	"dev/pci/files.pci"
+include	"dev/pckbc/files.pckbc"
+include	"dev/usb/files.usb"
+include "dev/rasops/files.rasops"
+include "dev/wscons/files.wscons"
+include "dev/wsfont/files.wsfont"
+include	"scsi/files.scsi"
+
+define	mainbus {}
+device	mainbus
+attach	mainbus at root
+file	arch/loongson/dev/mainbus.c			mainbus
+
+device	cpu
+attach	cpu at mainbus
+
+device	clock
+attach	clock at mainbus
+
+device	bonito {}: pcibus
+attach	bonito at mainbus
+file	arch/loongson/dev/bonito.c			bonito
+
+device	htb {}: pcibus
+attach	htb at mainbus
+file	arch/loongson/dev/htb.c				htb
+
+# AMD Geode CS5536 companion chip
+file	arch/loongson/dev/glx.c				bonito & pci
+
+# Other PCI-ISA bridges
+device	pcib: isabus
+attach	pcib at pci
+file	arch/loongson/dev/pcib.c			pcib | glxpcib
+
+# Lemote Yeeloong RTC
+device	mcclock
+attach	mcclock at isa with mcclock_isa
+file	arch/loongson/dev/mcclock.c			mcclock
+file	arch/loongson/dev/mcclock_isa.c			mcclock_isa
+
+# Lemote Yeeloong KB3310B Embedded Controller
+device	ykbec
+attach	ykbec at isa
+file	arch/loongson/dev/kb3310.c			ykbec needs-flag
+
+# Silicon Motion SM502 master device
+device	voyager {}: gpiobus
+attach	voyager at pci
+file	arch/loongson/dev/voyager.c			voyager
+
+# SM502 specific I2C bus bit-banging
+device	gdiumiic: i2cbus, i2c_bitbang
+attach	gdiumiic at gpio
+file	arch/loongson/dev/gdiumiic.c			gdiumiic
+
+# Gdium ST7 controller
+device	stsec
+attach	stsec at i2c
+file	arch/loongson/dev/stsec.c			stsec
+
+# SM502 OHCI
+attach	ohci at voyager with ohci_voyager
+file	arch/loongson/dev/ohci_voyager.c		ohci_voyager
+
+# Silicon Motion SM502/SM712 frame buffer
+device	smfb: wsemuldisplaydev, rasops16
+attach	smfb at pci with smfb_pci
+attach	smfb at voyager with smfb_voyager
+file	arch/loongson/dev/smfb.c			smfb	needs-flag
+
+# SIS 315 Pro frame buffer
+device	sisfb: wsemuldisplaydev, rasops8, rasops15, rasops16, rasops32
+attach	sisfb at pci
+file	arch/loongson/dev/sisfb.c			sisfb	needs-flag
+
+# Radeon frame buffer
+device	radeonfb: wsemuldisplaydev, rasops16
+attach	radeonfb at pci
+file	arch/loongson/dev/radeonfb.c			radeonfb needs-flag
+
+device	apm
+attach	apm at mainbus
+file	arch/loongson/dev/apm.c				apm	needs-flag
+
+device	glxclk
+attach	glxclk at glxpcib
+file	arch/loongson/dev/glxclk.c			glxclk
+
+define	leiobus {}
+
+device	leioc: leiobus
+attach	leioc at mainbus
+file	arch/loongson/dev/leioc.c			leioc
+
+attach	com at leiobus with com_leioc
+file	arch/loongson/dev/com_leioc.c			com_leioc

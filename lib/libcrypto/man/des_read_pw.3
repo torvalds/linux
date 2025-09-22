@@ -1,0 +1,198 @@
+.\" $OpenBSD: des_read_pw.3,v 1.13 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL doc/crypto/des.pod
+.\" 53934822 Jun 9 16:39:19 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt DES_READ_PW 3
+.Os
+.Sh NAME
+.Nm EVP_read_pw_string ,
+.Nm EVP_read_pw_string_min ,
+.Nm EVP_set_pw_prompt ,
+.Nm EVP_get_pw_prompt
+.Nd compatibility user interface functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_read_pw_string
+.Fa "char *buf"
+.Fa "int length"
+.Fa "const char *prompt"
+.Fa "int verify"
+.Fc
+.Ft int
+.Fo EVP_read_pw_string_min
+.Fa "char *buf"
+.Fa "int min_length"
+.Fa "int length"
+.Fa "const char *prompt"
+.Fa "int verify"
+.Fc
+.Ft void
+.Fo EVP_set_pw_prompt
+.Fa "const char *default_prompt"
+.Fc
+.Ft char *
+.Fn EVP_get_pw_prompt void
+.Sh DESCRIPTION
+.Fn EVP_read_pw_string
+writes the
+.Fa prompt
+to
+.Pa /dev/tty ,
+or, if that could not be opened, to standard output, turns echo off,
+and reads an input string from
+.Pa /dev/tty ,
+or, if that could not be opened, from standard input.
+The string is returned in
+.Fa buf ,
+which must have space for at least
+.Fa length
+bytes.
+If the
+.Fa length
+argument exceeds
+.Dv BUFSIZ ,
+.Dv BUFSIZ
+is used instead.
+If
+.Fa verify
+is set, the user is asked for the password twice and unless the two
+copies match, an error is returned.
+.Pp
+.Fn EVP_read_pw_string_min
+additionally checks that the password is at least
+.Fa min_length
+bytes long.
+.Pp
+.Fn EVP_set_pw_prompt
+sets a default prompt to a copy of
+.Fa default_prompt ,
+or clears the default prompt if the
+.Fa default_prompt
+argument is
+.Dv NULL
+or an empty string.
+If the
+.Fa default_prompt
+argument is longer than 79 bytes,
+the copy is silently truncated to a string length of 79 bytes.
+.Pp
+As long as a default prompt is set,
+.Fn EVP_read_pw_string
+and
+.Fn EVP_read_pw_string_min
+can be called with a
+.Fa prompt
+argument of
+.Dv NULL ,
+in which case the default prompt is used instead.
+.Sh RETURN VALUES
+.Fn EVP_read_pw_string
+and
+.Fn EVP_read_pw_string_min
+return 0 on success or a negative value on failure.
+.Pp
+They return \-1 if
+.Fa length
+is less than or equal to zero or on memory allocation failure.
+They return \-1 or \-2 if the internal call to
+.Xr UI_process 3
+fails.
+.Pp
+In addition,
+.Fa EVP_read_pw_string_min
+returns \-1 if
+.Fa min_length
+is negative, if
+.Fa length
+is less than or equal to
+.Fa min_length ,
+or if the user entered a password shorter than
+.Fa min_length .
+.Pp
+.Fn EVP_get_pw_prompt
+returns an internal pointer to static memory containing the default prompt, or
+.Dv NULL
+if no default prompt is set.
+.Sh SEE ALSO
+.Xr UI_new 3
+.Sh HISTORY
+.Fn EVP_read_pw_string
+first appeared in SSLeay 0.5.1 and
+.Fn EVP_set_pw_prompt
+and
+.Fn EVP_get_pw_prompt
+in SSLeay 0.6.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_read_pw_string_min
+first appeared in OpenSSL 1.0.0
+and has been available since
+.Ox 4.9 .

@@ -1,0 +1,387 @@
+.\" $OpenBSD: radius_new_request_packet.3,v 1.8 2025/06/09 02:07:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2009 Internet Initiative Japan Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 9 2025 $
+.Dt RADIUS_NEW_REQUEST_PACKET 3
+.Os
+.Sh NAME
+.Nm radius_new_request_packet ,
+.Nm radius_new_response_packet ,
+.Nm radius_convert_packet ,
+.Nm radius_delete_packet ,
+.Nm radius_get_id ,
+.Nm radius_get_code ,
+.Nm radius_get_authenticator ,
+.Nm radius_get_authenticator_retval ,
+.Nm radius_get_length ,
+.Nm radius_update_id ,
+.Nm radius_set_id ,
+.Nm radius_set_request_packet ,
+.Nm radius_get_request_packet ,
+.Nm radius_set_response_authenticator ,
+.Nm radius_check_response_authenticator ,
+.Nm radius_set_accounting_request_authenticator ,
+.Nm radius_check_accounting_request_authenticator ,
+.Nm radius_get_request_authenticator_retval ,
+.Nm radius_get_data ,
+.Nm radius_get_raw_attr ,
+.Nm radius_put_raw_attr ,
+.Nm radius_get_raw_attr_cat ,
+.Nm radius_put_raw_attr_cat ,
+.Nm radius_get_raw_attr_ptr ,
+.Nm radius_set_raw_attr ,
+.Nm radius_del_attr_all ,
+.Nm radius_has_attr ,
+.Nm radius_get_vs_raw_attr ,
+.Nm radius_put_vs_raw_attr ,
+.Nm radius_get_vs_raw_attr_cat ,
+.Nm radius_put_vs_raw_attr_cat ,
+.Nm radius_get_vs_raw_attr_ptr ,
+.Nm radius_set_vs_raw_attr ,
+.Nm radius_del_vs_attr_all ,
+.Nm radius_has_vs_attr ,
+.Nm radius_get_uint16_attr ,
+.Nm radius_get_uint32_attr ,
+.Nm radius_get_uint64_attr ,
+.Nm radius_get_ipv4_attr ,
+.Nm radius_get_ipv6_attr ,
+.Nm radius_put_uint16_attr ,
+.Nm radius_put_uint32_attr ,
+.Nm radius_put_uint64_attr ,
+.Nm radius_put_ipv4_attr ,
+.Nm radius_put_ipv6_attr ,
+.Nm radius_set_uint16_attr ,
+.Nm radius_set_uint32_attr ,
+.Nm radius_set_uint64_attr ,
+.Nm radius_set_ipv4_attr ,
+.Nm radius_set_ipv6_attr ,
+.Nm radius_get_string_attr ,
+.Nm radius_put_string_attr ,
+.Nm radius_get_vs_uint16_attr ,
+.Nm radius_get_vs_uint32_attr ,
+.Nm radius_get_vs_uint64_attr ,
+.Nm radius_get_vs_ipv4_attr ,
+.Nm radius_get_vs_ipv6_attr ,
+.Nm radius_put_vs_uint16_attr ,
+.Nm radius_put_vs_uint32_attr ,
+.Nm radius_put_vs_uint64_attr ,
+.Nm radius_put_vs_ipv4_attr ,
+.Nm radius_put_vs_ipv6_attr ,
+.Nm radius_set_vs_uint16_attr ,
+.Nm radius_set_vs_uint32_attr ,
+.Nm radius_set_vs_uint64_attr ,
+.Nm radius_set_vs_ipv4_attr ,
+.Nm radius_set_vs_ipv6_attr ,
+.Nm radius_get_vs_string_attr ,
+.Nm radius_put_vs_string_attr ,
+.Nm radius_put_message_authenticator ,
+.Nm radius_set_message_authenticator ,
+.Nm radius_check_message_authenticator ,
+.Nm radius_encrypt_user_password_attr ,
+.Nm radius_decrypt_user_password_attr ,
+.Nm radius_encrypt_mppe_key_attr ,
+.Nm radius_decrypt_mppe_key_attr ,
+.Nm radius_get_user_password_attr ,
+.Nm radius_put_user_password_attr ,
+.Nm radius_get_mppe_send_key_attr ,
+.Nm radius_put_mppe_send_key_attr ,
+.Nm radius_get_mppe_recv_key_attr ,
+.Nm radius_put_mppe_recv_key_attr ,
+.Nm radius_get_eap_msk ,
+.Nm radius_send ,
+.Nm radius_sendmsg ,
+.Nm radius_sendto ,
+.Nm radius_recv ,
+.Nm radius_recvfrom ,
+.Nm radius_recvmsg ,
+.Nm radius
+.Nd manipulate RADIUS packets for RADIUS clients/servers
+.Sh SYNOPSIS
+.Lb libradius
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
+.In stdbool.h
+.In radius.h
+.Sh DESCRIPTION
+.Nm radius
+provides a facility to manipulate RADIUS packets and some helper functions.
+.Sh CREATING AND DESTROYING PACKETS
+RADIUS packet objects are created by
+.Fn radius_new_request_packet ,
+.Fn radius_new_response_packet
+or
+.Fn radius_convert_packet .
+The authenticator field of the packet that is returned by
+.Fn radius_new_request_packet
+and
+.Fn radius_new_response_packet
+is filled with random bytes.
+.Pp
+You must call
+.Fn radius_delete_packet
+to free memory associated with the packet object.
+.Sh HEADER ACCESSOR
+.Fn radius_get_id ,
+.Fn radius_get_code ,
+.Fn radius_get_authenticator ,
+.Fn radius_get_authenticator_retval
+and
+.Fn radius_get_length
+retrieves the specified property of the packet.
+.Fn radius_update_id
+updates a packet's ID field with an internal ID counter.
+.Fn radius_set_id
+sets a packet's ID field.
+.Pp
+.Fn radius_set_request_packet
+associates a request packet to a response packet.
+The associated request packet can be retrieved by
+.Fn radius_get_request_packet .
+.Pp
+.Fn radius_set_response_authenticator
+sets a response authenticator to a response packet.
+.Fn radius_check_response_authenticator
+checks the response authenticator of a response packet.
+The request packet must be associated with a response packet by
+.Fn radius_new_response_packet
+or
+.Fn radius_set_request_packet .
+.Pp
+.Fn radius_set_accounting_request_authenticator
+sets a request authenticator to an accounting request packet.
+.Fn radius_check_accounting_request_authenticator
+checks a request authenticator of an accounting request packet.
+.Pp
+.Fn radius_get_request_authenticator_retval
+returns the authenticator field of the packet if the argument is
+a request packet, and returns that of the associated request packet
+if the argument is a response packet.
+.Pp
+.Fn radius_get_data
+returns packet data itself.
+.Sh RAW ATTRIBUTE ACCESSOR
+.Fn radius_get_raw_attr
+retrieves an attribute value.
+.Fa length
+is a value-result parameter, initially containing the size of the buffer
+and modified on return to indicate the size of the value returned.
+If the buffer size is not sufficient, the returned value is truncated.
+.Pp
+.Fn radius_put_raw_attr
+appends attribute data to the end of the packet.
+If buffer size is larger than the maximum size of a single attribute,
+the function returns an error.
+.Pp
+.Fn radius_get_raw_attr_cat
+retrieves an attribute value.
+Unlike
+.Fn radius_get_raw_attr ,
+.Fn radius_get_raw_attr_cat
+retrieves ALL attribute values that have the specified attribute type
+concatenated.
+If the buffer size is not sufficient, the function returns an error.
+If
+.Fa buf
+is
+.Dv NULL ,
+the initial value of
+.Fa length
+is ignored and the actual size of concatenated values is returned.
+.Pp
+.Fn radius_put_raw_attr_cat
+appends attribute data to the last of the packet.
+Unlike
+.Fn radius_put_raw_attr ,
+.Fn radius_put_raw_attr_cat
+divides data into multiple attributes and appends them if the buffer size is
+larger than the maximum size of a single attribute.
+Note that packet objects may be broken (but can be deleted normally by
+.Fn radius_delete_packet )
+if this function has returned an error.
+.Pp
+.Fn radius_get_raw_attr_ptr
+retrieves a pointer and length of specified attribute.
+The returned buffer must not be modified.
+.Pp
+.Fn radius_set_raw_attr
+overwrites existing an attribute value.
+If the specified attribute does not exist, this function returns an error.
+If
+.Fa length
+is different from the length of the specified attribute,
+the function returns an error.
+.Pp
+.Fn radius_del_attr_all
+deletes all attributes matching its arguments.
+.Pp
+.Fn radius_has_attr
+returns whether packet has a specified attribute.
+.Pp
+.Fn radius_get_vs_raw_attr ,
+.Fn radius_put_vs_raw_attr ,
+.Fn radius_get_vs_raw_attr_cat ,
+.Fn radius_put_vs_raw_attr_cat ,
+.Fn radius_get_vs_raw_attr_ptr ,
+.Fn radius_set_vs_raw_attr ,
+.Fn radius_del_vs_attr_all
+and
+.Fn radius_has_vs_attr
+are vendor-specific versions of raw attribute accessors.
+.Sh TYPED ATTRIBUTE ACCESSOR
+To make code simple, there are many typed attribute accessors.
+.Nm radius
+provides typed accessors for
+.Vt uint16_t ,
+.Vt uint32_t ,
+.Vt uint64_t ,
+.Vt struct in_addr
+and
+.Vt struct in6_addr .
+Byte endian may be appropriately swapped for
+.Vt uint16_t ,
+.Vt uint32_t
+and
+.Vt uint64_t .
+.Pp
+These typed accessors do not requires
+.Fa length
+parameters because length is implied by the type.
+For "get" functions, if the actual attribute size is different from the size of
+the type, the functions return an error.
+.Pp
+There are also typed accessors for string
+.Pq Li char * .
+For "get" functions for strings, the returned string is always NUL-terminated
+even if buffer size is smaller than actual attribute size.
+This behavior is similar to
+.Fn strlcpy .
+.Sh MESSAGE AUTHENTICATOR
+There are helper functions for Message-Authenticator attributes.
+.Pp
+.Fn radius_put_message_authenticator
+and
+.Fn radius_set_message_authenticator
+calculate a Message-Authenticator and put or set it to packet, respectively.
+When
+.Fn radius_put_message_authenticator
+is used,
+the Message-Authenticator attribute is placed at the first in the attributes.
+.Pp
+.Fn radius_check_message_authenticator
+checks a Message-Authenticator.
+.Pp
+The request packet must be associated with a response packet by
+.Fn radius_new_response_packet
+or
+.Fn radius_set_request_packet ,
+otherwise the packet is treated as a request packet.
+.Sh ENCRYPTED ATTRIBUTE
+There are helper functions for encrypted attributes.
+.Pp
+.Fn radius_encrypt_user_password_attr ,
+.Fn radius_decrypt_user_password_attr ,
+.Fn radius_encrypt_mppe_key_attr
+and
+.Fn radius_decrypt_mppe_key_attr
+encrypt or decrypt User-Password attribute or MS-MPPE-{Send,Recv}-Key
+attributes respectively.
+.Pp
+.Fn radius_get_user_password_attr ,
+.Fn radius_put_user_password_attr ,
+.Fn radius_get_mppe_send_key_attr ,
+.Fn radius_put_mppe_send_key_attr ,
+.Fn radius_get_mppe_recv_key_attr
+and
+.Fn radius_put_mppe_recv_key_attr
+are shortcuts of combination of encrypt/decrypt functions
+and get/put functions.
+.Pp
+.Fn radius_get_eap_msk
+retrieves a Master Session Key (MSK) for Extensible Authentication Protocol
+(EAP).
+Currently retrieving an MSK from MS-MPPE key attributes is supported.
+.Sh SENDING AND RECEIVING PACKETS
+There are helper functions for sending and receiving packets.
+.Pp
+.Fn radius_send ,
+.Fn radius_sendto ,
+.Fn radius_sendmsg ,
+.Fn radius_recv ,
+.Fn radius_recvfrom
+and
+.Fn radius_recvmsg
+are helper version of
+.Fn send ,
+.Fn sendto ,
+.Fn sendmsg ,
+.Fn recv ,
+.Fn recvfrom
+and
+.Fn recvmsg ,
+respectively.
+.Pp
+.Fn radius_send ,
+.Fn radius_sendto
+and
+.Fn radius_sendmsg
+return 0 on success and nonzero on failure.
+.Pp
+.Fn radius_recv
+.Fn radius_recvfrom
+and
+.Fn radius_recvmsg
+return the received packet on success and return NULL on failure.
+.Pp
+Note that
+.Li msg_iov
+must be
+.Li NULL
+and
+.Li msg_iovlen
+must be zero in case of
+.Fn radius_sendmsg
+and
+.Fn radius_recvmsg .
+.Sh RETURN VALUES
+Functions that return int return 0 on success and nonzero on failure.
+Functions that return pointer return non-NULL pointer on success and
+NULL on failure.
+.Sh HISTORY
+The
+.Nm radius+
+library was first written by UMEZAWA Takeshi in 2002 for the ID Gateway service
+of Internet Initiative Japan Inc.
+YASUOKA Masahiko added support for Message-Authenticator attributes in 2008.
+.Ox
+project rewrote C++ code to pure C code in 2010.
+The
+.Nm radius+
+library was renamed
+.Nm radius
+and moved to
+.Pa lib/
+in 2013.

@@ -1,0 +1,287 @@
+$OpenBSD: NOTES,v 1.16 2018/01/12 14:20:57 jca Exp $
+
+General features of at&t ksh88 that are not (yet) in pdksh:
+    - exported aliases and functions (not in ksh93).
+    - set -t.
+    - signals/traps not cleared during functions.
+    - trap DEBUG, local ERR and EXIT traps in functions.
+    - ERRNO parameter.
+    - read/select aren't hooked in to the command line editor
+    - the last command of a pipeline is not run in the parent shell
+
+Known bugs (see also PROJECTS files):
+    Variable parsing, Expansion:
+	- some specials behave differently when unset (eg, IFS behaves like
+	  " \t\n") others lose their special meaning.  IFS/PATH taken care of,
+	  still need to sort out some others (eg, TMOUT).
+    Parsing,Lexing:
+	- line numbers in errors are wrong for nested constructs.  Need to
+	  keep track of the line a command started on (can use for LINENO
+	  parameter as well).
+	- a $(..) expression nested inside double quotes inside another $(..)
+	  isn't parsed correctly (eg, $(echo "foo$(echo ")")") )
+    Commands,Execution:
+	- setting special parameters that have side effects when
+	  changed/restored (ie, HISTFILE, OPTIND, RANDOM) in front
+	  of a command (eg, HISTFILE=/foo/bar echo hi) affects the parent
+	  shell.  Note that setting other (not so special) parameters
+	  does not affect the parent shell.
+	- `echo hi | exec cat -n' causes at&t to exit, `exec echo hi | cat -n'
+	  does not.  pdksh exits for neither.  Don't think POSIX requires
+	  an exit, but not sure.
+	- `echo foo | read bar; echo $bar' prints foo in at&t ksh, nothing
+	  in pdksh (ie, the read is done in a separate process in pdksh).
+
+Known problems not caused by ksh:
+    - after stoping a job, emacs/vi is not re-entered.  Hitting return
+      prints the prompt and everything is fine again.  Problem (often
+      involving a pager like less) is related to order of process
+      scheduling (shell runs before `stop'ed (sub) processes have had a chance
+      to clean up the screen/terminal).
+
+Known differences between pdksh & at&t ksh (that may change)
+    - vi:
+	- `^U': at&t: kills only what has been inserted, pdksh: kills to
+	  start of line
+    - at&t ksh login shells say "Warning: you have running jobs" if you
+      try to exit when there are running jobs.  An immediate second attempt
+      to exit will kill the jobs and exit.  pdksh does not print a warning,
+      nor does it kill running jobs when it exits (it does warn/kill for
+      stopped jobs).
+    - TMOUT: at&t prints warning, then waits another 60 seconds.  If on screwed
+      up serial line, the output could cause more input, so pdksh just
+      prints a message and exits.  (Also, in at&t ksh, setting TMOUT has no
+      effect after the sequence "TMOUT=60; unset TMOUT", which could be
+      useful - pdksh may do this in the future).
+    - in pdksh, if the last command of a pipeline is a shell builtin, it is
+      not executed in the parent shell, so "echo a b | read foo bar" does not
+      set foo and bar in the parent shell (at&t ksh will).
+      This may get fixed in the future, but it may take a while.
+    - in pdksh, set +o lists the options that are currently set, in at&t ksh
+      it is the same as set -o.
+    - in pdksh emacs mode, ^T does what gnu emacs does, not what at&t ksh
+      does.
+    - in ksh93, `. name' calls a function (defined with function) with POSIX
+      semantics (instead of ksh semantics).  in pdksh, . does not call
+      functions.
+    - test: "test -f foo bar blah" is the same as "test -f foo" (the extra
+      arguments, of which there must be at least 2, are ignored) - pdksh
+      generates an error message (unexpected operator/operand "bar") as it
+      should.  Sometimes used to test file globs (e.g., if test -f *.o; ...).
+    - if the command 'sleep 5 && /bin/echo blah' is run interactively and
+      is the sleep is stopped (^Z), the echo is run immediately in pdksh.
+      In at&t ksh, the whole thing is stopped.
+    - LINENO:
+	- in ksh88 variable is always 1 (can't be changed) in interac mode;
+	  in pdksh it changes.
+	- Value of LINENO after it has been set by the script in one file
+	  is bizarre when used in another file.
+
+Known differences between pdksh & at&t ksh (that are not likely to change)
+    - at&t ksh seems to catch or ignore SIGALRM - pdksh dies upon receipt
+      (unless it's traped of course)
+    - typeset:
+	- at&t ksh overloads -u/-l options: for integers, means unsigned/long,
+	  for strings means uppercase/lowercase; pdksh just has the
+	  upper/lower case (which can be useful for integers when base > 10).
+	  unsigned/long really should have their own options.
+	- at&t ksh can't have justified integer variables
+	  (eg, typeset -iR5 j=10), pdksh can.
+	- in pdksh, number arguments for -L/-R/-Z/-i must follow the option
+	  character, at&t allows it at the end of the option group (eg,
+	  at&t ksh likes "typeset -iu5 j", pdksh wants "typeset -i5 -u j"
+	  or "typeset -ui5 j").  Also, pdksh allows "typeset -i 5 j" (same
+	  as "typeset -i5 j"), at&t ksh does not allow this.
+	- typeset -R: pdksh strips trailing space type characters (ie,
+	  uses isspace()), at&t ksh only skips blanks.
+	- at&t ksh allows attributes of read-only variables to be changed,
+	  pdksh allows only the export attribute to be set.
+    - (some) at&t ksh allows set -A of readonly variables, pdksh does not.
+    - at&t ksh allows command assignments of readonly variables (eg, YY=2 cat),
+      pdksh does not.
+    - at&t ksh does not exit scripts when an implicit assignment to an integer
+      variable fails due to an expression error: eg,
+		echo 2+ > /tmp/x
+		unset x; typeset -i x
+		read x < /tmp/x
+		echo still here
+      prints an error and then prints "still here", similarly for
+		unset x; typeset -i x
+		set +A x 1 2+ 3
+		echo still here
+      and
+		unset x y; typeset -i x y; set +A y 10 20 30
+		set +A x 1 1+y[2+] 3
+		echo still here
+      pdksh exits a script in all the above cases. (note that both shells
+      exit for:
+		unset x; typeset -i x
+		for x in 1 2+ 3; do echo x=$x; done
+		echo still here
+      ).
+    - at&t ksh seems to allow function calls inside expressions
+      (eg, typeset -i x='y(2)') but they do not seem to be regular functions
+      nor math functions (eg, pow, exp) - anyone known anything about this?
+    - `set -o nounset; unset foo; echo ${#foo}`: at&t ksh prints 0; pdksh
+      generates error.  Same for ${#foo[*]} and ${#foo[@]}.
+    - . file: at&t ksh parses the whole file before executing anything,
+      pdksh executes as it parses.  This means aliases defined in the file
+      will affect how pdksh parses the file, but won't affect how at&t ksh
+      parses the file.  Also means pdksh will not parse statements occurring
+      after a (executed) return statement.
+    - a return in $ENV in at&t ksh will cause the shell to exit, while in
+      pdksh it will stop executing the script (this is consistent with
+      what a return in .profile does in both shells).
+    - at&t ksh does file globbing for `echo "${foo:-"*"}"`, pdksh does not
+      (POSIX would seem to indicate pdksh is right).
+    - at&t ksh thinks ${a:##foo} is ok, pdksh doesn't.
+    - at&t does tilde expansion on here-document delimiters, pdksh does
+      not.  eg.
+	$ cat << ~michael
+	~michael
+	$
+      works for pdksh, not for at&t ksh (POSIX seems to agree with pdksh).
+    - in at&t ksh, tracked aliases have the export flag implicitly set
+      and tracked aliases and normal aliases live in the same name space
+      (eg, "alias" will list both tracked and normal aliases).
+      in pdksh, -t does not imply -x (since -x doesn't do anything yet), and
+      tracked/normal aliases live in separate name spaces.
+      in at&t ksh, alias accepts + options (eg, +x, +t) - pdksh does not.
+      in pdksh, alias has a -d option to allow examination/changing of
+      cached ~ entries, also unalias has -d and -t options (unalias -d
+      is useful if the ~ cache gets out of date - not sure how at&t deals
+      with this problem (it does cache ~ entries)).
+    - at&t ksh will stop a recursive function after about 60 calls; pdksh
+      will not since the limit is arbitrary and can't be controlled
+      by the user (hit ^C if you get in trouble).
+    - the wait command (with and without arguments) in at&t ksh will wait for
+      stopped jobs when job control is enabled.  pdksh doesn't.
+    - at&t ksh automatically sets the bgnice option for interactive shells;
+      pdksh does not.
+    - in at&t ksh, "eval `false`; echo $?" prints 1, pdksh prints 0 (which
+      is what POSIX says it should).  Same goes for "wait `false`; echo $?".
+      (same goes for "set `false`; echo $?" if posix option is set - some
+      scripts that use the old getopt depend on this, so be careful about
+      setting the posix option).
+    - in at&t ksh, print -uX and read -uX are interrperted as -u with no
+      argument (defaults to 1 and 0 respectively) and -X (which may or
+      may not be a valid flag).  In pdksh, -uX is interpreted as file
+      descriptor X.
+    - in at&t ksh, some signals (HUP, INT, QUIT) cause the read to exit, others
+      (ie, everything else) do not.  When it does cause exiting, anything read
+      to that point is used (usually an empty line) and read returns with 0
+      status.  pdksh currently does similar things, but for TERM as well and
+      the exit status is 128+<signal-number> - in future, pdksh's read will
+      do this for all signals that are normally fatal as required by POSIX.
+      (POSIX does not require the setting of variables to null so applications
+      shouldn't rely on this).
+    - in pdksh, ! substitution done before variable substitution; in at&t ksh
+      it is done after substitution (and therefore may do ! substitutions on
+      the result of variable substitutions).  POSIX doesn't say which is to be
+      done.
+    - pwd: in at&t ksh, it ignores arguments; in pdksh, it complains when given
+      arguments.
+    - the at&t ksh does not do command substition on PS1, pdksh does.
+    - ksh93 allows ". foo" to run the function foo if there is no file
+      called foo (go figure).
+    - field splitting (IFS): ksh88/ksh93 strip leading non-white space IFS
+      chars, pdksh (and POSIX, I think) leave them intact. e.g.
+	$ IFS="$IFS:"; read x; echo "<$x>"
+	::
+      prints "<>" in at&t ksh, "<::>" in pdksh.
+    - command completion: at&t ksh will do completion on a blank line (matching
+      all commands), pdksh does not (as this isn't very useful - use * if
+      you really want the list).
+    - co-processes: if ksh93, the write portion of the co-process output is
+      closed when the most recently started co-process exits. pdksh closes
+      it when all the co-processes using it have exited.
+    - pdksh accepts empty command lists for while and for statements, while
+      at&t ksh (and sh) don't.  Eg., pdksh likes
+	while false ; do done
+      but ksh88 doesn't like it.
+    - pdksh bumps RANDOM in parent after a fork, at&t ksh bumps it in both
+      parent and child:
+	RANDOM=1
+	echo child: `echo $RANDOM`
+	echo parent: $RANDOM
+      will produce "child: 16838 parent: 5758" in pdksh, while at&t ksh
+      will produce "child: 5758 parent: 5758".
+
+Oddities in ksh (pd & at&t):
+    - array references inside (())/$(()) are strange:
+	  $(( x[2] )) does the expected, $(( $x[2] )) doesn't.
+    - `typeset -R3 X='x '; echo "($X)"` produces (  x) - trailing
+      spaces are stripped.
+    - typeset -R turns off Z flag.
+    - both shells have the following mis-feature:
+	$ x='function xx {
+		cat -n <<- EOF
+		here we are in xx
+		EOF
+		}'
+	$ (eval "$x"; (sleep 2; xx) & echo bye)
+	[1] 1234
+	bye
+	$ xx: /tmp/sh1234.1: cannot open
+    - bizarre special handling of alias/export/readonly/typeset arguments
+	$ touch a=a; typeset a=[ab]; echo "$a"
+	a=[ab]
+	$ x=typeset; $x a=[ab]; echo "$a"
+	a=a
+	$
+    - both ignore SIGTSTP,SIGTTIN,SIGTTOU in exec'd processes when talking
+      and not monitoring (at&t ksh kind of does this).  Doesn't really make
+      sense.
+      (Note that ksh.att -ic 'set +m; check-sigs' shows TSTP et al aren't
+       ignored, while ksh.att -ic 'set +m^J check-sigs' does... very strange)
+    - when tracing (set -x), and a command's stderr is redirected, the trace
+      output is also redirected. so "set -x; echo foo 2> /tmp/O > /dev/null"
+      will create /tmp/foo with the lines "+ > /dev/null" and "+ echo foo".
+    - undocumented at&t ksh88, documented in ksh93: FPATH is searched
+      after PATH if no executable is found, even if typeset -uf wasn't used.
+
+POSIX sh questions (references are to POSIX 1003.2-1992)
+	- arithmetic expressions: how are empty expressions treated?
+	  (eg, echo $((  ))).  at&t ksh (and now pdksh) echo 0.
+	  Same question goes for `test "" -eq 0' - does this generate an error
+	  or, if not, what is the exit code?
+	- if a signal is received during the execution of a built-in,
+	  does the builtin command exit or the whole shell?
+	- is it legal to execute last command of pipeline in current
+	  execution environment (eg, can "echo foo | read bar" set
+	  bar?)
+	- what action should be taken if there is an error doing a dup due
+	  to system limits (eg, not enough file destriptors): is this
+	  a "redirection error" (in which case a script will exit iff the
+	  error occured while executing a special built-in)?
+	  IMHO, shell should exit script.  Couldn't find a blanket statement
+	  like "if shell encounters an unexpected system error, it shall
+	  exit non-interactive scripts"...
+
+POSIX sh bugs (references are to POSIX 1003.2-1992)
+	- in vi insert mode, ^W deletes to beginning of line or to the first
+	  blank/punct character (para at line 9124, section 3).  This means
+	  "foo     ^W" will do nothing.  This is inconsistent with the vi
+	  spec, which says delete preceding word including and interceding
+	  blanks (para at line 5189, section 5).
+	- parameter expansion, section 3.6.2, line 391: `in each case that a
+	  value of word is needed (..), word shall be subjected to tilde
+	  expansion, parameter expansion, ...'.  Various expansions should not
+	  be performed if parameter is in double quotes.
+	- the getopts description says assigning OPTIND a value other than 1
+	  produces undefined results, while the rationale for getopts suggests
+	  saving/restoring the OPTIND value inside functions (since POSIX
+	  functions don't do the save/restore automatically).  Restoring
+	  OPTIND is kind of dumb since getopts may have been in the middle
+	  of parsing a group of flags (eg, -abc).
+	- `...` definition (3.6.3) says nothing about backslash followed by
+	  a newline, which sh and at&t ksh strip out completely.  e.g.,
+		$ show-args `echo 'X
+		Y'`
+		Number of args: 1
+			1: <XY>
+		$
+	  POSIX would indicate the backslash-newline would be preserved.
+	- does not say how "cat << ''" is to be treated (illegal, read 'til
+	  blank line, or read 'til eof).  at&t ksh reads til eof, bourne shell
+	  reads 'til blank line.  pdksh reads 'til blank line.

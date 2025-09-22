@@ -1,0 +1,7 @@
+TARGET_LIBGCC2_CFLAGS = -fPIC
+
+LIB2FUNCS_EXTRA=lib2funcs.asm
+
+lib2funcs.asm: $(srcdir)/config/pa/lib2funcs.asm
+	rm -f lib2funcs.asm
+	cp $(srcdir)/config/pa/lib2funcs.asm .

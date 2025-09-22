@@ -1,0 +1,5 @@
+domain		53/tcp		nameserver
+domain		53/udp		nameserver
+www		80/tcp		http
+nfsd		2049/udp	nfs
+nfsd		2049/tcp	nfs

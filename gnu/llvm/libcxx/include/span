@@ -1,0 +1,636 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===---------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_SPAN
+#define _LIBCPP_SPAN
+
+/*
+    span synopsis
+
+namespace std {
+
+// constants
+inline constexpr size_t dynamic_extent = numeric_limits<size_t>::max();
+
+template<class T>
+  concept integral-constant-like =                           // exposition only, since C++26
+    is_integral_v<decltype(T::value)> &&
+    !is_same_v<bool, remove_const_t<decltype(T::value)>> &&
+    convertible_to<T, decltype(T::value)> &&
+    equality_comparable_with<T, decltype(T::value)> &&
+    bool_constant<T() == T::value>::value &&
+    bool_constant<static_cast<decltype(T::value)>(T()) == T::value>::value;
+
+template<class T>
+  constexpr size_t maybe-static-ext = dynamic_extent;        // exposition only, since C++26
+template<integral-constant-like T>
+  constexpr size_t maybe-static-ext<T> = {T::value};
+
+// [views.span], class template span
+template <class ElementType, size_t Extent = dynamic_extent>
+    class span;
+
+template<class ElementType, size_t Extent>
+  inline constexpr bool ranges::enable_view<span<ElementType, Extent>> = true;
+
+template<class ElementType, size_t Extent>
+    inline constexpr bool ranges::enable_borrowed_range<span<ElementType, Extent>> = true;
+
+// [span.objectrep], views of object representation
+template <class ElementType, size_t Extent>
+    span<const byte, ((Extent == dynamic_extent) ? dynamic_extent :
+        (sizeof(ElementType) * Extent))> as_bytes(span<ElementType, Extent> s) noexcept;
+
+template <class ElementType, size_t Extent>
+    span<      byte, ((Extent == dynamic_extent) ? dynamic_extent :
+        (sizeof(ElementType) * Extent))> as_writable_bytes(span<ElementType, Extent> s) noexcept;
+
+
+template <class ElementType, size_t Extent = dynamic_extent>
+class span {
+public:
+    // constants and types
+    using element_type = ElementType;
+    using value_type = remove_cv_t<ElementType>;
+    using size_type = size_t;
+    using difference_type = ptrdiff_t;
+    using pointer = element_type*;
+    using const_pointer = const element_type*;
+    using reference = element_type&;
+    using const_reference = const element_type&;
+    using iterator = implementation-defined;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    static constexpr size_type extent = Extent;
+
+    // [span.cons], span constructors, copy, assignment, and destructor
+    constexpr span() noexcept;
+    template <class It>
+    constexpr explicit(Extent != dynamic_extent) span(It first, size_type count);
+    template <class It, class End>
+    constexpr explicit(Extent != dynamic_extent) span(It first, End last);
+    template <size_t N>
+        constexpr span(type_identity_t<element_type> (&arr)[N]) noexcept;
+    template <size_t N>
+        constexpr span(array<value_type, N>& arr) noexcept;
+    template <size_t N>
+        constexpr span(const array<value_type, N>& arr) noexcept;
+    template<class R>
+      constexpr explicit(Extent != dynamic_extent) span(R&& r);
+    constexpr explicit(extent != dynamic_extent) span(std::initializer_list<value_type> il); // Since C++26
+    constexpr span(const span& other) noexcept = default;
+    template <class OtherElementType, size_t OtherExtent>
+        constexpr explicit(Extent != dynamic_extent) span(const span<OtherElementType, OtherExtent>& s) noexcept;
+    constexpr span& operator=(const span& other) noexcept = default;
+
+    // [span.sub], span subviews
+    template <size_t Count>
+        constexpr span<element_type, Count> first() const;
+    template <size_t Count>
+        constexpr span<element_type, Count> last() const;
+    template <size_t Offset, size_t Count = dynamic_extent>
+        constexpr span<element_type, see below> subspan() const;
+
+    constexpr span<element_type, dynamic_extent> first(size_type count) const;
+    constexpr span<element_type, dynamic_extent> last(size_type count) const;
+    constexpr span<element_type, dynamic_extent> subspan(size_type offset, size_type count = dynamic_extent) const;
+
+    // [span.obs], span observers
+    constexpr size_type size() const noexcept;
+    constexpr size_type size_bytes() const noexcept;
+    [[nodiscard]] constexpr bool empty() const noexcept;
+
+    // [span.elem], span element access
+    constexpr reference operator[](size_type idx) const;
+    constexpr reference at(size_type idx) const; // since C++26
+    constexpr reference front() const;
+    constexpr reference back() const;
+    constexpr pointer data() const noexcept;
+
+    // [span.iterators], span iterator support
+    constexpr iterator begin() const noexcept;
+    constexpr iterator end() const noexcept;
+    constexpr reverse_iterator rbegin() const noexcept;
+    constexpr reverse_iterator rend() const noexcept;
+
+private:
+    pointer data_;    // exposition only
+    size_type size_;  // exposition only
+};
+
+template<class It, class EndOrSize>
+    span(It, EndOrSize) -> span<remove_reference_t<iter_reference_t<_It>>>;                             // until C++26
+template<class It, class EndOrSize>
+    span(It, EndOrSize) -> span<remove_reference_t<iter_reference_t<It>>, maybe-static-ext<EndOrSize>>; // since C++26
+
+template<class T, size_t N>
+    span(T (&)[N]) -> span<T, N>;
+
+template<class T, size_t N>
+    span(array<T, N>&) -> span<T, N>;
+
+template<class T, size_t N>
+    span(const array<T, N>&) -> span<const T, N>;
+
+template<class R>
+    span(R&&) -> span<remove_reference_t<ranges::range_reference_t<R>>>;
+
+} // namespace std
+
+*/
+
+#include <__assert>
+#include <__concepts/convertible_to.h>
+#include <__concepts/equality_comparable.h>
+#include <__config>
+#include <__fwd/array.h>
+#include <__fwd/span.h>
+#include <__iterator/bounded_iter.h>
+#include <__iterator/concepts.h>
+#include <__iterator/iterator_traits.h>
+#include <__iterator/reverse_iterator.h>
+#include <__iterator/wrap_iter.h>
+#include <__memory/pointer_traits.h>
+#include <__ranges/concepts.h>
+#include <__ranges/data.h>
+#include <__ranges/enable_borrowed_range.h>
+#include <__ranges/enable_view.h>
+#include <__ranges/size.h>
+#include <__type_traits/integral_constant.h>
+#include <__type_traits/is_array.h>
+#include <__type_traits/is_const.h>
+#include <__type_traits/is_convertible.h>
+#include <__type_traits/is_integral.h>
+#include <__type_traits/is_same.h>
+#include <__type_traits/remove_const.h>
+#include <__type_traits/remove_cv.h>
+#include <__type_traits/remove_cvref.h>
+#include <__type_traits/remove_reference.h>
+#include <__type_traits/type_identity.h>
+#include <__utility/forward.h>
+#include <cstddef> // for byte
+#include <initializer_list>
+#include <stdexcept>
+#include <version>
+
+// standard-mandated includes
+
+// [iterator.range]
+#include <__iterator/access.h>
+#include <__iterator/data.h>
+#include <__iterator/empty.h>
+#include <__iterator/reverse_access.h>
+#include <__iterator/size.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#if _LIBCPP_STD_VER >= 20
+
+template <class _Tp>
+struct __is_std_span : false_type {};
+
+template <class _Tp, size_t _Sz>
+struct __is_std_span<span<_Tp, _Sz>> : true_type {};
+
+template <class _Range, class _ElementType>
+concept __span_compatible_range =
+    !__is_std_span<remove_cvref_t<_Range>>::value &&                //
+    ranges::contiguous_range<_Range> &&                             //
+    ranges::sized_range<_Range> &&                                  //
+    (ranges::borrowed_range<_Range> || is_const_v<_ElementType>) && //
+    !__is_std_array<remove_cvref_t<_Range>>::value &&               //
+    !is_array_v<remove_cvref_t<_Range>> &&                          //
+    is_convertible_v<remove_reference_t<ranges::range_reference_t<_Range>> (*)[], _ElementType (*)[]>;
+
+template <class _From, class _To>
+concept __span_array_convertible = is_convertible_v<_From (*)[], _To (*)[]>;
+
+template <class _It, class _Tp>
+concept __span_compatible_iterator =
+    contiguous_iterator<_It> && __span_array_convertible<remove_reference_t<iter_reference_t<_It>>, _Tp>;
+
+template <class _Sentinel, class _It>
+concept __span_compatible_sentinel_for = sized_sentinel_for<_Sentinel, _It> && !is_convertible_v<_Sentinel, size_t>;
+
+template <typename _Tp, size_t _Extent>
+class _LIBCPP_TEMPLATE_VIS span {
+public:
+  //  constants and types
+  using element_type    = _Tp;
+  using value_type      = remove_cv_t<_Tp>;
+  using size_type       = size_t;
+  using difference_type = ptrdiff_t;
+  using pointer         = _Tp*;
+  using const_pointer   = const _Tp*;
+  using reference       = _Tp&;
+  using const_reference = const _Tp&;
+#  ifdef _LIBCPP_ABI_BOUNDED_ITERATORS
+  using iterator = __bounded_iter<pointer>;
+#  else
+  using iterator = __wrap_iter<pointer>;
+#  endif
+  using reverse_iterator = std::reverse_iterator<iterator>;
+
+  static constexpr size_type extent = _Extent;
+
+  // [span.cons], span constructors, copy, assignment, and destructor
+  template <size_t _Sz = _Extent>
+    requires(_Sz == 0)
+  _LIBCPP_HIDE_FROM_ABI constexpr span() noexcept : __data_{nullptr} {}
+
+#  if _LIBCPP_STD_VER >= 26
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit span(std::initializer_list<value_type> __il)
+    requires is_const_v<element_type>
+      : __data_{__il.begin()} {
+    _LIBCPP_ASSERT_VALID_INPUT_RANGE(
+        _Extent == __il.size(), "Size mismatch in span's constructor _Extent != __il.size().");
+  }
+#  endif
+
+  constexpr span(const span&) noexcept            = default;
+  constexpr span& operator=(const span&) noexcept = default;
+
+  template <__span_compatible_iterator<element_type> _It>
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit span(_It __first, size_type __count) : __data_{std::to_address(__first)} {
+    (void)__count;
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(_Extent == __count, "size mismatch in span's constructor (iterator, len)");
+  }
+
+  template <__span_compatible_iterator<element_type> _It, __span_compatible_sentinel_for<_It> _End>
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit span(_It __first, _End __last) : __data_{std::to_address(__first)} {
+    // [span.cons]/10
+    // Throws: When and what last - first throws.
+    [[maybe_unused]] auto __dist = __last - __first;
+    _LIBCPP_ASSERT_VALID_INPUT_RANGE(__dist >= 0, "invalid range in span's constructor (iterator, sentinel)");
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(
+        __dist == _Extent, "invalid range in span's constructor (iterator, sentinel): last - first != extent");
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr span(type_identity_t<element_type> (&__arr)[_Extent]) noexcept : __data_{__arr} {}
+
+  template <__span_array_convertible<element_type> _OtherElementType>
+  _LIBCPP_HIDE_FROM_ABI constexpr span(array<_OtherElementType, _Extent>& __arr) noexcept : __data_{__arr.data()} {}
+
+  template <class _OtherElementType>
+    requires __span_array_convertible<const _OtherElementType, element_type>
+  _LIBCPP_HIDE_FROM_ABI constexpr span(const array<_OtherElementType, _Extent>& __arr) noexcept
+      : __data_{__arr.data()} {}
+
+  template <__span_compatible_range<element_type> _Range>
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit span(_Range&& __r) : __data_{ranges::data(__r)} {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(ranges::size(__r) == _Extent, "size mismatch in span's constructor (range)");
+  }
+
+  template <__span_array_convertible<element_type> _OtherElementType>
+  _LIBCPP_HIDE_FROM_ABI constexpr span(const span<_OtherElementType, _Extent>& __other) noexcept
+      : __data_{__other.data()} {}
+
+  template <__span_array_convertible<element_type> _OtherElementType>
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit span(const span<_OtherElementType, dynamic_extent>& __other) noexcept
+      : __data_{__other.data()} {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(_Extent == __other.size(), "size mismatch in span's constructor (other span)");
+  }
+
+  template <size_t _Count>
+  _LIBCPP_HIDE_FROM_ABI constexpr span<element_type, _Count> first() const noexcept {
+    static_assert(_Count <= _Extent, "span<T, N>::first<Count>(): Count out of range");
+    return span<element_type, _Count>{data(), _Count};
+  }
+
+  template <size_t _Count>
+  _LIBCPP_HIDE_FROM_ABI constexpr span<element_type, _Count> last() const noexcept {
+    static_assert(_Count <= _Extent, "span<T, N>::last<Count>(): Count out of range");
+    return span<element_type, _Count>{data() + size() - _Count, _Count};
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr span<element_type, dynamic_extent> first(size_type __count) const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(__count <= size(), "span<T, N>::first(count): count out of range");
+    return {data(), __count};
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr span<element_type, dynamic_extent> last(size_type __count) const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(__count <= size(), "span<T, N>::last(count): count out of range");
+    return {data() + size() - __count, __count};
+  }
+
+  template <size_t _Offset, size_t _Count = dynamic_extent>
+  _LIBCPP_HIDE_FROM_ABI constexpr auto
+  subspan() const noexcept -> span<element_type, _Count != dynamic_extent ? _Count : _Extent - _Offset> {
+    static_assert(_Offset <= _Extent, "span<T, N>::subspan<Offset, Count>(): Offset out of range");
+    static_assert(_Count == dynamic_extent || _Count <= _Extent - _Offset,
+                  "span<T, N>::subspan<Offset, Count>(): Offset + Count out of range");
+
+    using _ReturnType = span<element_type, _Count != dynamic_extent ? _Count : _Extent - _Offset>;
+    return _ReturnType{data() + _Offset, _Count == dynamic_extent ? size() - _Offset : _Count};
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr span<element_type, dynamic_extent>
+  subspan(size_type __offset, size_type __count = dynamic_extent) const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(__offset <= size(), "span<T, N>::subspan(offset, count): offset out of range");
+    if (__count == dynamic_extent)
+      return {data() + __offset, size() - __offset};
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(
+        __count <= size() - __offset, "span<T, N>::subspan(offset, count): offset + count out of range");
+    return {data() + __offset, __count};
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr size_type size() const noexcept { return _Extent; }
+  _LIBCPP_HIDE_FROM_ABI constexpr size_type size_bytes() const noexcept { return _Extent * sizeof(element_type); }
+  [[nodiscard]] _LIBCPP_HIDE_FROM_ABI constexpr bool empty() const noexcept { return _Extent == 0; }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr reference operator[](size_type __idx) const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(__idx < size(), "span<T, N>::operator[](index): index out of range");
+    return __data_[__idx];
+  }
+
+#  if _LIBCPP_STD_VER >= 26
+  _LIBCPP_HIDE_FROM_ABI constexpr reference at(size_type __index) const {
+    if (__index >= size())
+      std::__throw_out_of_range("span");
+    return __data_[__index];
+  }
+#  endif
+
+  _LIBCPP_HIDE_FROM_ABI constexpr reference front() const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(!empty(), "span<T, N>::front() on empty span");
+    return __data_[0];
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr reference back() const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(!empty(), "span<T, N>::back() on empty span");
+    return __data_[size() - 1];
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr pointer data() const noexcept { return __data_; }
+
+  // [span.iter], span iterator support
+  _LIBCPP_HIDE_FROM_ABI constexpr iterator begin() const noexcept {
+#  ifdef _LIBCPP_ABI_BOUNDED_ITERATORS
+    return std::__make_bounded_iter(data(), data(), data() + size());
+#  else
+    return iterator(data());
+#  endif
+  }
+  _LIBCPP_HIDE_FROM_ABI constexpr iterator end() const noexcept {
+#  ifdef _LIBCPP_ABI_BOUNDED_ITERATORS
+    return std::__make_bounded_iter(data() + size(), data(), data() + size());
+#  else
+    return iterator(data() + size());
+#  endif
+  }
+  _LIBCPP_HIDE_FROM_ABI constexpr reverse_iterator rbegin() const noexcept { return reverse_iterator(end()); }
+  _LIBCPP_HIDE_FROM_ABI constexpr reverse_iterator rend() const noexcept { return reverse_iterator(begin()); }
+
+  _LIBCPP_HIDE_FROM_ABI span<const byte, _Extent * sizeof(element_type)> __as_bytes() const noexcept {
+    return span<const byte, _Extent * sizeof(element_type)>{reinterpret_cast<const byte*>(data()), size_bytes()};
+  }
+
+  _LIBCPP_HIDE_FROM_ABI span<byte, _Extent * sizeof(element_type)> __as_writable_bytes() const noexcept {
+    return span<byte, _Extent * sizeof(element_type)>{reinterpret_cast<byte*>(data()), size_bytes()};
+  }
+
+private:
+  pointer __data_;
+};
+
+template <typename _Tp>
+class _LIBCPP_TEMPLATE_VIS span<_Tp, dynamic_extent> {
+public:
+  //  constants and types
+  using element_type    = _Tp;
+  using value_type      = remove_cv_t<_Tp>;
+  using size_type       = size_t;
+  using difference_type = ptrdiff_t;
+  using pointer         = _Tp*;
+  using const_pointer   = const _Tp*;
+  using reference       = _Tp&;
+  using const_reference = const _Tp&;
+#  ifdef _LIBCPP_ABI_BOUNDED_ITERATORS
+  using iterator = __bounded_iter<pointer>;
+#  else
+  using iterator = __wrap_iter<pointer>;
+#  endif
+  using reverse_iterator = std::reverse_iterator<iterator>;
+
+  static constexpr size_type extent = dynamic_extent;
+
+  // [span.cons], span constructors, copy, assignment, and destructor
+  _LIBCPP_HIDE_FROM_ABI constexpr span() noexcept : __data_{nullptr}, __size_{0} {}
+
+#  if _LIBCPP_STD_VER >= 26
+  _LIBCPP_HIDE_FROM_ABI constexpr span(std::initializer_list<value_type> __il)
+    requires is_const_v<element_type>
+      : __data_{__il.begin()}, __size_{__il.size()} {}
+#  endif
+
+  constexpr span(const span&) noexcept            = default;
+  constexpr span& operator=(const span&) noexcept = default;
+
+  template <__span_compatible_iterator<element_type> _It>
+  _LIBCPP_HIDE_FROM_ABI constexpr span(_It __first, size_type __count)
+      : __data_{std::to_address(__first)}, __size_{__count} {}
+
+  template <__span_compatible_iterator<element_type> _It, __span_compatible_sentinel_for<_It> _End>
+  _LIBCPP_HIDE_FROM_ABI constexpr span(_It __first, _End __last)
+      : __data_(std::to_address(__first)), __size_(__last - __first) {
+    _LIBCPP_ASSERT_VALID_INPUT_RANGE(__last - __first >= 0, "invalid range in span's constructor (iterator, sentinel)");
+  }
+
+  template <size_t _Sz>
+  _LIBCPP_HIDE_FROM_ABI constexpr span(type_identity_t<element_type> (&__arr)[_Sz]) noexcept
+      : __data_{__arr}, __size_{_Sz} {}
+
+  template <__span_array_convertible<element_type> _OtherElementType, size_t _Sz>
+  _LIBCPP_HIDE_FROM_ABI constexpr span(array<_OtherElementType, _Sz>& __arr) noexcept
+      : __data_{__arr.data()}, __size_{_Sz} {}
+
+  template <class _OtherElementType, size_t _Sz>
+    requires __span_array_convertible<const _OtherElementType, element_type>
+  _LIBCPP_HIDE_FROM_ABI constexpr span(const array<_OtherElementType, _Sz>& __arr) noexcept
+      : __data_{__arr.data()}, __size_{_Sz} {}
+
+  template <__span_compatible_range<element_type> _Range>
+  _LIBCPP_HIDE_FROM_ABI constexpr span(_Range&& __r) : __data_(ranges::data(__r)), __size_{ranges::size(__r)} {}
+
+  template <__span_array_convertible<element_type> _OtherElementType, size_t _OtherExtent>
+  _LIBCPP_HIDE_FROM_ABI constexpr span(const span<_OtherElementType, _OtherExtent>& __other) noexcept
+      : __data_{__other.data()}, __size_{__other.size()} {}
+
+  template <size_t _Count>
+  _LIBCPP_HIDE_FROM_ABI constexpr span<element_type, _Count> first() const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(_Count <= size(), "span<T>::first<Count>(): Count out of range");
+    return span<element_type, _Count>{data(), _Count};
+  }
+
+  template <size_t _Count>
+  _LIBCPP_HIDE_FROM_ABI constexpr span<element_type, _Count> last() const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(_Count <= size(), "span<T>::last<Count>(): Count out of range");
+    return span<element_type, _Count>{data() + size() - _Count, _Count};
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr span<element_type, dynamic_extent> first(size_type __count) const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(__count <= size(), "span<T>::first(count): count out of range");
+    return {data(), __count};
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr span<element_type, dynamic_extent> last(size_type __count) const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(__count <= size(), "span<T>::last(count): count out of range");
+    return {data() + size() - __count, __count};
+  }
+
+  template <size_t _Offset, size_t _Count = dynamic_extent>
+  _LIBCPP_HIDE_FROM_ABI constexpr span<element_type, _Count> subspan() const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(_Offset <= size(), "span<T>::subspan<Offset, Count>(): Offset out of range");
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(_Count == dynamic_extent || _Count <= size() - _Offset,
+                                        "span<T>::subspan<Offset, Count>(): Offset + Count out of range");
+    return span<element_type, _Count>{data() + _Offset, _Count == dynamic_extent ? size() - _Offset : _Count};
+  }
+
+  constexpr span<element_type, dynamic_extent> _LIBCPP_HIDE_FROM_ABI
+  subspan(size_type __offset, size_type __count = dynamic_extent) const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(__offset <= size(), "span<T>::subspan(offset, count): offset out of range");
+    if (__count == dynamic_extent)
+      return {data() + __offset, size() - __offset};
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(
+        __count <= size() - __offset, "span<T>::subspan(offset, count): offset + count out of range");
+    return {data() + __offset, __count};
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr size_type size() const noexcept { return __size_; }
+  _LIBCPP_HIDE_FROM_ABI constexpr size_type size_bytes() const noexcept { return __size_ * sizeof(element_type); }
+  [[nodiscard]] _LIBCPP_HIDE_FROM_ABI constexpr bool empty() const noexcept { return __size_ == 0; }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr reference operator[](size_type __idx) const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(__idx < size(), "span<T>::operator[](index): index out of range");
+    return __data_[__idx];
+  }
+
+#  if _LIBCPP_STD_VER >= 26
+  _LIBCPP_HIDE_FROM_ABI constexpr reference at(size_type __index) const {
+    if (__index >= size())
+      std::__throw_out_of_range("span");
+    return __data_[__index];
+  }
+#  endif
+
+  _LIBCPP_HIDE_FROM_ABI constexpr reference front() const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(!empty(), "span<T>::front() on empty span");
+    return __data_[0];
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr reference back() const noexcept {
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(!empty(), "span<T>::back() on empty span");
+    return __data_[size() - 1];
+  }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr pointer data() const noexcept { return __data_; }
+
+  // [span.iter], span iterator support
+  _LIBCPP_HIDE_FROM_ABI constexpr iterator begin() const noexcept {
+#  ifdef _LIBCPP_ABI_BOUNDED_ITERATORS
+    return std::__make_bounded_iter(data(), data(), data() + size());
+#  else
+    return iterator(data());
+#  endif
+  }
+  _LIBCPP_HIDE_FROM_ABI constexpr iterator end() const noexcept {
+#  ifdef _LIBCPP_ABI_BOUNDED_ITERATORS
+    return std::__make_bounded_iter(data() + size(), data(), data() + size());
+#  else
+    return iterator(data() + size());
+#  endif
+  }
+  _LIBCPP_HIDE_FROM_ABI constexpr reverse_iterator rbegin() const noexcept { return reverse_iterator(end()); }
+  _LIBCPP_HIDE_FROM_ABI constexpr reverse_iterator rend() const noexcept { return reverse_iterator(begin()); }
+
+  _LIBCPP_HIDE_FROM_ABI span<const byte, dynamic_extent> __as_bytes() const noexcept {
+    return {reinterpret_cast<const byte*>(data()), size_bytes()};
+  }
+
+  _LIBCPP_HIDE_FROM_ABI span<byte, dynamic_extent> __as_writable_bytes() const noexcept {
+    return {reinterpret_cast<byte*>(data()), size_bytes()};
+  }
+
+private:
+  pointer __data_;
+  size_type __size_;
+};
+
+template <class _Tp, size_t _Extent>
+inline constexpr bool ranges::enable_borrowed_range<span<_Tp, _Extent> > = true;
+
+template <class _ElementType, size_t _Extent>
+inline constexpr bool ranges::enable_view<span<_ElementType, _Extent>> = true;
+
+//  as_bytes & as_writable_bytes
+template <class _Tp, size_t _Extent>
+_LIBCPP_HIDE_FROM_ABI auto as_bytes(span<_Tp, _Extent> __s) noexcept {
+  return __s.__as_bytes();
+}
+
+template <class _Tp, size_t _Extent>
+  requires(!is_const_v<_Tp>)
+_LIBCPP_HIDE_FROM_ABI auto as_writable_bytes(span<_Tp, _Extent> __s) noexcept {
+  return __s.__as_writable_bytes();
+}
+
+#  if _LIBCPP_STD_VER >= 26
+template <class _Tp>
+concept __integral_constant_like =
+    is_integral_v<decltype(_Tp::value)> && !is_same_v<bool, remove_const_t<decltype(_Tp::value)>> &&
+    convertible_to<_Tp, decltype(_Tp::value)> && equality_comparable_with<_Tp, decltype(_Tp::value)> &&
+    bool_constant<_Tp() == _Tp::value>::value &&
+    bool_constant<static_cast<decltype(_Tp::value)>(_Tp()) == _Tp::value>::value;
+
+template <class _Tp>
+inline constexpr size_t __maybe_static_ext = dynamic_extent;
+
+template <__integral_constant_like _Tp>
+inline constexpr size_t __maybe_static_ext<_Tp> = {_Tp::value};
+
+template <contiguous_iterator _It, class _EndOrSize>
+span(_It, _EndOrSize) -> span<remove_reference_t<iter_reference_t<_It>>, __maybe_static_ext<_EndOrSize>>;
+#  else
+template <contiguous_iterator _It, class _EndOrSize>
+span(_It, _EndOrSize) -> span<remove_reference_t<iter_reference_t<_It>>>;
+#  endif
+
+template <class _Tp, size_t _Sz>
+span(_Tp (&)[_Sz]) -> span<_Tp, _Sz>;
+
+template <class _Tp, size_t _Sz>
+span(array<_Tp, _Sz>&) -> span<_Tp, _Sz>;
+
+template <class _Tp, size_t _Sz>
+span(const array<_Tp, _Sz>&) -> span<const _Tp, _Sz>;
+
+template <ranges::contiguous_range _Range>
+span(_Range&&) -> span<remove_reference_t<ranges::range_reference_t<_Range>>>;
+
+#endif // _LIBCPP_STD_VER >= 20
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <array>
+#  include <concepts>
+#  include <functional>
+#  include <iterator>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_SPAN

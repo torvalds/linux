@@ -1,0 +1,44 @@
+//===- SandboxIRValues.def --------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+//    ClassID, Class
+#ifndef DEF_VALUE
+#define DEF_VALUE(ID, CLASS)
+#endif
+DEF_VALUE(Function, Function)
+DEF_VALUE(Argument, Argument)
+
+#ifndef DEF_USER
+#define DEF_USER(ID, CLASS)
+#endif
+DEF_USER(User, User)
+DEF_VALUE(Block, BasicBlock)
+DEF_USER(Constant, Constant)
+
+#ifndef DEF_INSTR
+#define DEF_INSTR(ID, OPCODE, CLASS)
+#endif
+//       ClassID, Opcode(s),  Class
+DEF_INSTR(Opaque, OP(Opaque), OpaqueInst)
+DEF_INSTR(Select, OP(Select), SelectInst)
+DEF_INSTR(Load, OP(Load), LoadInst)
+DEF_INSTR(Store, OP(Store), StoreInst)
+DEF_INSTR(Ret, OP(Ret), ReturnInst)
+
+#ifdef DEF_VALUE
+#undef DEF_VALUE
+#endif
+#ifdef DEF_USER
+#undef DEF_USER
+#endif
+#ifdef DEF_INSTR
+#undef DEF_INSTR
+#endif
+#ifdef OP
+#undef OP
+#endif

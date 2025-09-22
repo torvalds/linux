@@ -1,0 +1,190 @@
+.\"	$OpenBSD: getpwent.3,v 1.33 2022/09/11 06:38:10 jmc Exp $
+.\"
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt GETPWENT 3
+.Os
+.Sh NAME
+.Nm getpwent ,
+.Nm setpwent ,
+.Nm endpwent
+.Nd sequential password database access
+.Sh SYNOPSIS
+.In pwd.h
+.Ft struct passwd *
+.Fn getpwent void
+.Ft void
+.Fn setpwent void
+.Ft void
+.Fn endpwent void
+.Sh DESCRIPTION
+These functions operate on the password database file which is described in
+.Xr passwd 5 .
+Each entry in the database is defined by the structure
+.Vt struct passwd
+found in the include file
+.In pwd.h :
+.Bd -literal -offset indent
+struct passwd {
+	char	*pw_name;	/* user name */
+	char	*pw_passwd;	/* encrypted password */
+	uid_t	pw_uid;		/* user uid */
+	gid_t	pw_gid;		/* user gid */
+	time_t	pw_change;	/* password change time */
+	char	*pw_class;	/* user access class */
+	char	*pw_gecos;	/* Honeywell login info */
+	char	*pw_dir;	/* home directory */
+	char	*pw_shell;	/* default shell */
+	time_t	pw_expire;	/* account expiration */
+};
+.Ed
+.Pp
+The
+.Fn getpwent
+function sequentially reads the password database and is intended for programs
+that wish to process the complete list of users.
+.Pp
+It is dangerous for long-running programs to keep the file descriptors
+open as the database will become out of date if it is updated while the
+program is running.
+However the file descriptors are automatically closed when
+.Xr execve 2
+is called.
+.Pp
+.Fn setpwent
+causes
+.Fn getpwent
+to
+.Dq rewind
+to the beginning of the database.
+.Pp
+The
+.Fn endpwent
+function closes any file descriptors opened by
+.Fn setpwent
+or
+.Fn getpwent .
+.Pp
+These routines have been written to
+.Dq shadow
+the password file, that is,
+allow only certain programs to have access to the encrypted password.
+If the process which calls them has an effective UID of 0 or has the
+.Dq _shadow
+group in its group vector, the encrypted password will be returned, otherwise,
+the password field of the returned structure will point to the string
+.Ql * .
+.Sh YP SUPPORT
+If YP is active,
+.Fn getpwent
+also uses the
+.Pa master.passwd.byname
+YP map (if available) or the
+.Pa passwd.byname
+YP map.
+This is in addition to the passwd file,
+and respects the order of both normal and YP
+entries in the passwd file.
+.Sh RETURN VALUES
+The
+.Fn getpwent
+function returns a valid pointer to a passwd structure on success
+or a null pointer if end-of-file is reached or an error occurs.
+Subsequent calls to
+.Fn getpwent ,
+.Fn getpwnam ,
+.Fn getpwnam_shadow ,
+.Fn getpwuid
+or
+.Fn getpwuid_shadow
+may invalidate the returned pointer or overwrite the contents
+of the passwd structure it points to.
+.Pp
+The
+.Fn endpwent
+and
+.Fn setpwent
+functions have no return value.
+.Sh FILES
+.Bl -tag -width /etc/master.passwd -compact
+.It Pa /etc/pwd.db
+insecure password database file
+.It Pa /etc/spwd.db
+secure password database file
+.It Pa /etc/master.passwd
+current password file
+.It Pa /etc/passwd
+legacy password file
+.El
+.Sh ERRORS
+The
+.Fn getpwent
+function may fail for any of the errors specified for
+.Xr dbopen 3
+and its
+.Fn get
+routine.
+.Pp
+If YP is active, it may also fail due to errors caused by the YP subsystem.
+.Sh SEE ALSO
+.Xr getlogin 2 ,
+.Xr getgrent 3 ,
+.Xr getgrouplist 3 ,
+.Xr getpwnam 3 ,
+.Xr pw_dup 3 ,
+.Xr passwd 5 ,
+.Xr Makefile.yp 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8 ,
+.Xr yp 8
+.Sh STANDARDS
+These functions are compliant with the X/Open System Interfaces option of the
+.St -p1003.1-2008
+specification.
+.Sh HISTORY
+The
+.Fn getpwent ,
+.Fn setpwent ,
+and
+.Fn endpwent
+functions appeared in
+.At v7 .
+.Pp
+The historic function
+.Fn setpwfile ,
+which allowed the specification of alternate password databases,
+has been deprecated and is no longer available.
+.Sh BUGS
+The routines
+.Fn getpwent ,
+.Fn endpwent ,
+and
+.Fn setpwent
+are fairly useless in a networked environment and should be
+avoided, if possible.

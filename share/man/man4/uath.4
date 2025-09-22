@@ -1,0 +1,186 @@
+.\" $OpenBSD: uath.4,v 1.40 2025/03/27 15:12:14 jmc Exp $
+.\"
+.\" Copyright (c) 2006
+.\"     Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt UATH 4
+.Os
+.Sh NAME
+.Nm uath
+.Nd Atheros USB IEEE 802.11a/b/g wireless network device
+.Sh SYNOPSIS
+.Cd "uath* at uhub? port ?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 2.0 wireless network devices based on Atheros
+Communications fifth generation AR5005UG and AR5005UX chipsets.
+.Pp
+The AR5005UG chipset is made of an AR5523 multiprotocol MAC/baseband processor
+and an AR2112 Radio-on-a-Chip that can operate between 2300 and 2500MHz
+(802.11b/g).
+.Pp
+The AR5005UX chipset is made of an AR5523 multiprotocol MAC/baseband processor
+and an AR5112 dual band Radio-on-a-Chip that can operate between 2300 and
+2500MHz (802.11b/g) or 4900 and 5850MHz (802.11a).
+.Pp
+The AR5005UG and AR5005UX chipsets both have an integrated 32-bit MIPS
+R4000-class processor that runs a firmware and manages, among other things,
+the automatic control of the transmit rate and the calibration of the radio.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+.Nm
+supports hardware WEP.
+It can be typically configured in one of three modes:
+no encryption; 40-bit encryption; or 104-bit encryption.
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The following firmware file is loaded when a device is plugged:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/uath-ar5523
+.El
+.Pp
+This firmware file is not freely redistributable.
+.Pp
+A prepackaged version of the firmware can be installed using
+.Xr fw_update 8 .
+.Sh HARDWARE
+The following adapters should work:
+.Bl -column "TRENDware International TEW-444UB" "AR5005UX" -offset 6n
+.It Em Adapter Ta Em Chipset
+.\".It Belkin F6D3050	AR5005UX
+.It Li "Compex WLU108AG" Ta AR5005UX
+.It Li "Compex WLU108G" Ta AR5005UG
+.\".It Li "D-Link DWL-AG132" Ta AR5005UX
+.It Li "D-Link DWL-G132" Ta AR5005UG
+.\".It Li "Edimax EW-7315Ug" Ta AR5005UG (AR2414???)
+.\".It Li "Lancom USB-54ag" Ta AR5005UX
+.\".It Li "NEC WL54TU" Ta AR5005UX
+.It Li "IODATA WN-G54/US" Ta AR5005UG
+.It Li "MELCO WLI-U2-KAMG54" Ta AR5005UX
+.It Li "Netgear WG111T" Ta AR5005UG
+.It Li "Netgear WG111U" Ta AR5005UX
+.It Li "Netgear WPN111" Ta AR5005UG
+.It Li "Olitec 000544" Ta AR5005UG
+.It Li "Philips SNU6500" Ta AR5005UG
+.It Li "PLANET WDL-U357" Ta AR5005UX
+.\".It Li "Senao WUB-8004" Ta AR5005UX
+.It Li "Siemens Gigaset 108" Ta AR5005UG
+.It Li "SMC SMCWUSBT-G" Ta AR5005UG
+.It Li "SMC SMCWUSBT-G2" Ta AR5005UG
+.\".It Li "SparkLAN WL-685GS" Ta AR5005UG
+.It Li "SparkLAN WL-785A" Ta AR5005UX
+.It Li "TP-Link TL-WN620G" Ta AR5005UG
+.It Li "TRENDware International TEW-444UB" Ta AR5005UG
+.It Li "TRENDware International TEW-504UB" Ta AR5005UX
+.It Li "Unex Technology UR054ag" Ta AR5005UX
+.\".It Li "Wistron NeWeb DCUA-81" Ta AR5005UX
+.\".It Li "Wistron NeWeb DRUA-81" Ta AR5005UG
+.\".It Li "Wistron NeWeb DRUA-82" Ta AR5005UX
+.\".It Li "ZyXEL G-200 v2" Ta AR5005UG
+.It Li "ZyXEL XtremeMIMO M-202" Ta AR5005UX
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig uath0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures uath0 to join network
+.Dq mynwid ,
+using WEP key
+.Dq mywepkey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid nwkey mywepkey
+inet autoconf
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "uath0: error N, could not read firmware ..."
+For some reason, the driver was unable to read the firmware image from the
+filesystem.
+The file might be missing or corrupted.
+.It "uath0: could not load firmware (error=...)"
+An error occurred while attempting to upload the firmware to the onboard
+MIPS R4000 processor.
+.It "uath0: could not initialize adapter"
+The firmware was uploaded successfully but did not initialize properly or
+in time.
+.It "uath0: could not send command 0xXX (error=...)"
+An attempt to send a command to the firmware failed.
+.It "uath0: timeout waiting for command reply"
+A read command was sent to the firmware but the firmware failed to reply in
+time.
+.It "uath0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.Sh CAVEATS
+Atheros Communications refuses to release any documentation for their products.
+Atheros proprietary 108 Mbps mode (aka Super AG mode) is not supported.
+.Pp
+The
+.Nm
+driver does not attempt to do any regulation of radio frequencies.

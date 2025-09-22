@@ -1,0 +1,12 @@
+# Multilibs for powerpc embedded ELF targets with altivec.
+
+MULTILIB_OPTIONS	= msoft-float \
+			  mlittle/mbig
+
+MULTILIB_DIRNAMES	= nof \
+			  le be
+
+
+MULTILIB_MATCHES	= ${MULTILIB_MATCHES_FLOAT} \
+			  ${MULTILIB_MATCHES_ENDIAN} \
+			  ${MULTILIB_MATCHES_SYSV}

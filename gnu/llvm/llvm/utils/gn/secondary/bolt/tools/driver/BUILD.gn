@@ -1,0 +1,38 @@
+import("//llvm/utils/gn/build/symlink_or_copy.gni")
+
+symlinks = [
+  "perf2bolt",
+  "llvm-boltdiff",
+]
+foreach(symlink, symlinks) {
+  symlink_or_copy(symlink) {
+    deps = [ ":llvm-bolt" ]
+    source = "llvm-bolt"
+    output = "$root_out_dir/bin/$symlink"
+  }
+}
+
+# //:llvm-bolt depends on this symlink target, see comment in //BUILD.gn.
+group("symlinks") {
+  deps = [ ":llvm-bolt" ]
+  foreach(symlink, symlinks) {
+    deps += [ ":$symlink" ]
+  }
+}
+
+executable("llvm-bolt") {
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [
+    "//bolt/lib/Profile",
+    "//bolt/lib/Rewrite",
+    "//bolt/lib/Utils",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+  ]
+
+  # FIXME: Add dependency on //bolt/runtime once that exists.
+
+  sources = [ "llvm-bolt.cpp" ]
+}

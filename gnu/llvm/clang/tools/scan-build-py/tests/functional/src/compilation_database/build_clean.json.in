@@ -1,0 +1,19 @@
+[
+{
+  "directory": "${path}",
+  "command": "g++ -c -o main.o main.c -Wall -DDEBUG -Dvariable=value",
+  "file": "${path}/main.c"
+}
+,
+{
+  "directory": "${path}",
+  "command": "cc -c -o clean-one.o clean-one.c -Wall -DDEBUG \"-Dvariable=value with space\" -Iinclude",
+  "file": "${path}/clean-one.c"
+}
+,
+{
+  "directory": "${path}",
+  "command": "g++ -c -o clean-two.o clean-two.c -Wall -DDEBUG -Dvariable=value -I ./include",
+  "file": "${path}/clean-two.c"
+}
+]

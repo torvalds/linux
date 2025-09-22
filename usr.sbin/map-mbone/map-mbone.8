@@ -1,0 +1,130 @@
+.\"	$OpenBSD: map-mbone.8,v 1.16 2024/12/01 09:58:15 kn Exp $
+.\"	$NetBSD: map-mbone.8,v 1.2 1995/10/03 23:16:53 thorpej Exp $
+.\"
+.\" Mapper for connections between MRouteD multicast routers.
+.\" Written by Pavel Curtis <Pavel@PARC.Xerox.Com>
+.\"
+.\" Copyright (c) 1992, 2001 Xerox Corporation.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" Redistributions of source code must retain the above copyright notice,
+.\" this list of conditions and the following disclaimer.
+.\"
+.\" Redistributions in binary form must reproduce the above copyright notice,
+.\" this list of conditions and the following disclaimer in the documentation
+.\" and/or other materials provided with the distribution.
+.\"
+.\" Neither name of the Xerox, PARC, nor the names of its contributors may be
+.\" used to endorse or promote products derived from this software
+.\" without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE XEROX CORPORATION OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 1 2024 $
+.Dt MAP-MBONE 8
+.Os
+.Sh NAME
+.Nm map-mbone
+.Nd Multicast connection mapper
+.Sh SYNOPSIS
+.Nm map-mbone
+.Op Fl fgn
+.Op Fl d Ns Op Ar level
+.Op Fl r Ar count
+.Op Fl t Ar seconds
+.Op Ar starting_router
+.Sh DESCRIPTION
+.Nm
+attempts to display all multicast routers that are reachable from the multicast
+router
+.Ar starting_router .
+If not specified on the command line,
+.Ar starting_router
+is
+.Dq localhost .
+.Nm
+must be run as root.
+.Pp
+.Nm
+sends an
+.Dv ASK_NEIGHBORS
+.Tn IGMP
+message to
+.Ar starting_router .
+A response contains the
+multicast version number
+of
+.Ar starting_router
+and the addresses of
+all its neighboring multicast routers.
+If the multicast version number is recent, then
+.Nm
+requests additional information such as metrics, thresholds, and flags.
+.Pp
+If a recursive search has been requested (see
+.Fl f ) ,
+.Nm
+repeats the above operation for each new
+multicast router in the list of neighbors and
+continues the process until no new multicast routers are reported.
+.Pp
+The options are as follows:
+.Bl -tag -width "-t seconds"
+.It Fl d Ns Op Ar level
+Sets the debug level to
+.Ar level .
+When the debug level is greater than the default value of
+0, additional debugging messages are printed to stderr.
+Regardless of
+the debug level, an error condition will always write an error message and will
+cause
+.Nm
+to terminate.
+Non-zero debug levels are:
+.Bl -enum -offset indent
+.It
+Print packet warnings, plus level 0 messages.
+.It
+Print notifications of down networks, plus level 1 messages.
+.It
+Print notifications of all packet timeouts, plus level 2 messages.
+.El
+.Pp
+Default is 0.
+.It Fl f
+Causes a recursive (flooding) search.
+If no
+.Ar starting_router
+is specified, a recursive search is always performed.
+.It Fl g
+Sets graphing format to GraphEd format.
+.It Fl n
+Disables DNS lookup for the names of the multicast routers.
+.It Fl r Ar count
+Sets the neighbor query retry limit to
+.Ar count .
+Default is 1.
+.It Fl t Ar seconds
+Sets the number of seconds to wait for a neighbor query
+reply before retrying to
+.Ar seconds .
+Default is 2.
+.El
+.Sh SEE ALSO
+.Xr mrinfo 8 ,
+.Xr mrouted 8 ,
+.Xr mtrace 8
+.Sh AUTHORS
+.An Pavel Curtis

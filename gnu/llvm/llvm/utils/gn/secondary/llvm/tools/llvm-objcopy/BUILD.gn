@@ -1,0 +1,77 @@
+import("//llvm/tools/binutils_symlinks.gni")
+import("//llvm/tools/cctools_symlinks.gni")
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/driver_executable.gni")
+import("//llvm/utils/gn/build/symlink_or_copy.gni")
+
+tablegen("BitcodeStripOpts") {
+  visibility = [ ":llvm-objcopy" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+tablegen("InstallNameToolOpts") {
+  visibility = [ ":llvm-objcopy" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+tablegen("ObjcopyOpts") {
+  visibility = [ ":llvm-objcopy" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+tablegen("StripOpts") {
+  visibility = [ ":llvm-objcopy" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+symlinks = [
+  "llvm-bitcode-strip",
+  "llvm-install-name-tool",
+  "llvm-strip",
+]
+if (llvm_install_binutils_symlinks) {
+  symlinks += [
+    "objcopy",
+    "strip",
+  ]
+}
+if (llvm_install_cctools_symlinks) {
+  symlinks += [
+    "bitcode_strip",
+    "install_name_tool",
+  ]
+}
+foreach(target, symlinks) {
+  symlink_or_copy(target) {
+    deps = [ ":llvm-objcopy" ]
+    source = "llvm-objcopy"
+    output = "$root_out_dir/bin/$target"
+  }
+}
+
+# //:llvm-objcopy depends on this symlink target, see comment in //BUILD.gn.
+group("symlinks") {
+  deps = [ ":llvm-objcopy" ]
+  foreach(target, symlinks) {
+    deps += [ ":$target" ]
+  }
+}
+
+driver_executable("llvm-objcopy") {
+  deps = [
+    ":BitcodeStripOpts",
+    ":InstallNameToolOpts",
+    ":ObjcopyOpts",
+    ":StripOpts",
+    "//llvm/lib/MC",
+    "//llvm/lib/ObjCopy",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "ObjcopyOptions.cpp",
+    "llvm-objcopy.cpp",
+  ]
+}

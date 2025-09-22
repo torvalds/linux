@@ -1,0 +1,106 @@
+.\"	$OpenBSD: hilkbd.4,v 1.13 2011/01/30 07:53:57 jmc Exp $
+.\"
+.\" Copyright (c) 2003 Miodrag Vallat.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistribution of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: January 30 2011 $
+.Dt HILKBD 4
+.Os
+.Sh NAME
+.Nm hilkbd
+.Nd HIL keyboard device
+.Sh SYNOPSIS
+.Cd "hilkbd* at hil?"
+.Cd "wskbd* at hilkbd?"
+.Cd "option HILKBD_LAYOUT=XXX"
+.Sh DESCRIPTION
+This driver supports HIL keyboards within the
+.Xr wscons 4
+framework.
+It doesn't provide direct device driver entry points, but makes its
+functions available through the internal
+.Xr wskbd 4
+interface.
+.Pp
+The
+.Nm
+driver supports a number of different key mappings.
+By default, the layout corresponding to the keyboard model as probed
+by the
+.Nm
+driver will be used.
+A different layout can be chosen either with the kernel option
+.Dq HILKBD_LAYOUT
+at compile time, or with the
+.Xr wsconsctl 8
+utility (variable:
+.Dq keyboard.encoding )
+at runtime.
+.Pp
+The supported key mappings are at this time:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It KB_DE
+.Pq de
+German with
+.Dq dead accents .
+.It KB_FR
+.Pq fr
+French with
+.Dq dead accents .
+.It KB_SV
+.Pq sv
+Swedish.
+.It KB_UK
+.Pq uk
+British.
+.It KB_US
+.Pq us
+English/US keyboard mapping.
+.El
+.Pp
+The KB_DE mapping can be used in the KB_NODEAD
+.Pq .nodead
+variant.
+This switches off the
+.Dq dead accents .
+.Sh EXAMPLES
+To set a Swedish keyboard mapping, use
+.Ic wsconsctl keyboard.encoding=sv .
+To set it at kernel build time, regardless of what keyboard is plugged, add
+the following to the kernel configuration file:
+.Bd -literal -offset indent
+option HILKBD_LAYOUT="KB_SV"
+.Ed
+.Sh SEE ALSO
+.Xr hil 4 ,
+.Xr intro 4 ,
+.Xr wskbd 4 ,
+.Xr wsconsctl 8
+.Sh BUGS
+The list of built-in mappings is incomplete and has grown as people submitted
+information about their particular layout.
+.Pp
+The Swedish and British layout have been reconstructed from tables in the old
+HIL code present in the hp300 port, and have not been tested.

@@ -1,0 +1,37 @@
+.\"	$OpenBSD: acpiwmi.4,v 1.1 2025/05/19 19:56:33 tedu Exp $
+.\"
+.\" Copyright (c) 2025 Ted Unangst <tedu@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 19 2025 $
+.Dt ACPIWMI 4
+.Os
+.Sh NAME
+.Nm acpiwmi
+.Nd ACPI WMI interface
+.Sh SYNOPSIS
+.Cd "acpiwmi* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Windows Management Instrumentation, or WMI.
+Currently hotkeys found on some ASUS machines are supported.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.8 .

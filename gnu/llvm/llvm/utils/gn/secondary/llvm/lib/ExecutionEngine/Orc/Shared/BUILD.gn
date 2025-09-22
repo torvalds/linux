@@ -1,0 +1,11 @@
+static_library("Shared") {
+  output_name = "LLVMOrcShared"
+  deps = [ "//llvm/lib/Support" ]
+  sources = [
+    "AllocationActions.cpp",
+    "ObjectFormats.cpp",
+    "OrcError.cpp",
+    "OrcRTBridge.cpp",
+    "SimpleRemoteEPCUtils.cpp",
+  ]
+}

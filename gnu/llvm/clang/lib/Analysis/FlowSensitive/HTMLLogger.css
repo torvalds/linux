@@ -1,0 +1,169 @@
+/*===-- HTMLLogger.css ----------------------------------------------------===
+*
+* Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+* See https://llvm.org/LICENSE.txt for license information.
+* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+*
+*===----------------------------------------------------------------------===*/
+html { font-family: sans-serif; }
+body { margin: 0; display: flex; justify-content: left; }
+body > * { box-sizing: border-box; }
+body > section {
+  border: 1px solid black;
+  min-width: 20em;
+  overflow: auto;
+  max-height: 100vh;
+}
+section header {
+  background-color: #008;
+  color: white;
+  font-weight: bold;
+  font-size: large;
+  padding-right: 0.5em;
+}
+section h2 {
+  font-size: medium;
+  margin-bottom: 0.5em;
+  padding-top: 0.5em;
+  border-top: 1px solid #aaa;
+}
+#timeline {
+  min-width: max-content;
+  counter-reset: entry_counter;
+}
+#timeline .entry .counter::before {
+  counter-increment: entry_counter;
+  content: counter(entry_counter) ":";
+}
+#timeline .entry .counter {
+  display: inline-block;
+  min-width: 2em; /* Enough space for two digits and a colon */
+  text-align: right;
+}
+#timeline .entry.hover {
+  background-color: #aaa;
+}
+#timeline .entry.iter-select {
+  background-color: #aac;
+}
+
+#bb-elements {
+  font-family: monospace;
+  font-size: x-small;
+  border-collapse: collapse;
+}
+#bb-elements td:nth-child(1) {
+  text-align: right;
+  width: 4em;
+  border-right: 1px solid #008;
+  padding: 0.3em 0.5em;
+
+  font-weight: bold;
+  color: #888;
+};
+#bb-elements tr.hover {
+  background-color: #abc;
+}
+#bb-elements tr.elt-select {
+  background-color: #acf;
+}
+#iterations {
+  display: flex;
+}
+#iterations .chooser {
+  flex-grow: 1;
+  text-align: center;
+  padding-left: 0.2em;
+}
+#iterations .chooser :last-child {
+  padding-right: 0.2em;
+}
+#iterations .chooser:not(.iter-select).hover {
+  background-color: #ddd;
+}
+#iterations .iter-select {
+  font-weight: bold;
+}
+#iterations .chooser:not(.iter-select) {
+  text-decoration: underline;
+  color: blue;
+  cursor: pointer;
+  background-color: #ccc;
+}
+
+code.filename {
+  font-weight: bold;
+  color: black;
+  background-color: #ccc;
+  display: block;
+  text-align: center;
+}
+code.line {
+  display: block;
+  white-space: pre;
+}
+code.line:before { /* line numbers */
+  content: attr(data-line);
+  display: inline-block;
+  width: 2em;
+  text-align: right;
+  padding-right: 2px;
+  background-color: #ccc;
+  border-right: 1px solid #888;
+  margin-right: 8px;
+}
+code.line:has(.bb-select):before {
+  border-right: 4px solid black;
+  margin-right: 5px;
+}
+.c.hover, .bb.hover {
+  filter: saturate(200%) brightness(90%);
+}
+.c.elt-select {
+  box-shadow: inset 0 -4px 2px -2px #a00;
+}
+.bb.bb-select polygon {
+  stroke-width: 4px;
+  filter: brightness(70%) saturate(150%);
+}
+.bb { user-select: none; }
+.bb polygon { fill: white; }
+#cfg {
+  position: relative;
+  margin-left: 0.5em;
+}
+
+.value {
+  border: 1px solid #888;
+  font-size: x-small;
+  flex-grow: 1;
+}
+.value > summary {
+  background-color: #ace;
+  display: flex;
+  cursor: pointer;
+}
+.value > summary::before {
+  content: '\25ba';  /* Black Right-Pointing Pointer */
+  margin-right: 0.5em;
+  font-size: 0.9em;
+}
+.value[open] > summary::before {
+  content: '\25bc';  /* Black Down-Pointing Triangle */
+}
+.value > summary > .location {
+  margin-left: auto;
+}
+.value .address {
+  font-size: xx-small;
+  font-family: monospace;
+  color: #888;
+}
+.value .property {
+  display: flex;
+  margin-top: 0.5em;
+}
+.value .property .key {
+  font-weight: bold;
+  min-width: 5em;
+}

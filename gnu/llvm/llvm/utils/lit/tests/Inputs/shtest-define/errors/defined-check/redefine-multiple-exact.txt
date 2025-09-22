@@ -1,0 +1,13 @@
+# It's impossible to multiply define a local substitution, but a lit config file
+# substitution can be multiply defined.  The trouble is we then don't know which
+# definition to redefine locally.
+
+# REDEFINE: %{global:multiple-exact}=foo
+# RUN: echo %{global:multiple-exact}
+
+#      CHECK: ValueError: Multiple substitutions whose patterns contain '%{global:multiple-exact}' are defined before '{{REDEFINE}}:' directive at line [[#@LINE-3]]
+# CHECK-NEXT: Existing pattern: %{global:multiple-exact}
+# CHECK-NEXT: Existing pattern: %{global:multiple-exact}
+#  CHECK-NOT: Existing pattern:
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

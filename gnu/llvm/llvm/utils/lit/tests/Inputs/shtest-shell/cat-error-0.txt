@@ -1,0 +1,3 @@
+# Check error on an unsupported option for cat .
+#
+# RUN: cat -b temp1.txt

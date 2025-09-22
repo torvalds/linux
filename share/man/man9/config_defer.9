@@ -1,0 +1,62 @@
+.\"     $OpenBSD: config_defer.9,v 1.3 2025/06/13 18:34:00 schwarze Exp $
+.\"     $NetBSD: autoconf.9,v 1.9 2002/02/13 08:18:35 ross Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Gregory McGarry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt CONFIG_DEFER 9
+.Os
+.Sh NAME
+.Nm config_defer ,
+.Nm config_mountroot
+.Nd deferred device configuration
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/device.h
+.Ft void
+.Fn config_defer "struct device *dev" "void (*func)(struct device *)"
+.Ft void
+.Fn config_mountroot "struct device *dev" "void (*func)(struct device *)"
+.Sh DESCRIPTION
+The
+.Fn config_defer
+function is called by the child to defer the remainder of its configuration
+until all its parent devices have been attached.
+At this point, the function
+.Fa func
+is called with the argument
+.Fa dev .
+.Pp
+The
+.Fn config_mountroot
+function is called by a device driver to defer the remainder of its
+configuration until after the root file system is mounted.
+At this point, the function
+.Fa func
+is called with the argument
+.Fa dev .

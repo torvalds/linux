@@ -1,0 +1,194 @@
+@c Copyright (C) 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file install.texi.
+
+@ifnothtml
+@comment node-name,     next,          previous, up
+@node    Old, GNU Free Documentation License, Specific, Top
+@end ifnothtml
+@html
+<h1 align="center">Old installation documentation</h1>
+@end html
+@ifnothtml
+@chapter Old installation documentation
+@end ifnothtml
+
+Note most of this information is out of date and superseded by the
+previous chapters of this manual.  It is provided for historical
+reference only, because of a lack of volunteers to merge it into the
+main manual.
+
+@ifnothtml
+@menu
+* Configurations::    Configurations Supported by GCC.
+@end menu
+@end ifnothtml
+
+Here is the procedure for installing GCC on a GNU or Unix system.
+
+@enumerate
+@item
+If you have chosen a configuration for GCC which requires other GNU
+tools (such as GAS or the GNU linker) instead of the standard system
+tools, install the required tools in the build directory under the names
+@file{as}, @file{ld} or whatever is appropriate.
+
+Alternatively, you can do subsequent compilation using a value of the
+@code{PATH} environment variable such that the necessary GNU tools come
+before the standard system tools.
+
+@item
+Specify the host, build and target machine configurations.  You do this
+when you run the @file{configure} script.
+
+The @dfn{build} machine is the system which you are using, the
+@dfn{host} machine is the system where you want to run the resulting
+compiler (normally the build machine), and the @dfn{target} machine is
+the system for which you want the compiler to generate code.
+
+If you are building a compiler to produce code for the machine it runs
+on (a native compiler), you normally do not need to specify any operands
+to @file{configure}; it will try to guess the type of machine you are on
+and use that as the build, host and target machines.  So you don't need
+to specify a configuration when building a native compiler unless
+@file{configure} cannot figure out what your configuration is or guesses
+wrong.
+
+In those cases, specify the build machine's @dfn{configuration name}
+with the @option{--host} option; the host and target will default to be
+the same as the host machine.
+
+Here is an example:
+
+@smallexample
+./configure --host=sparc-sun-sunos4.1
+@end smallexample
+
+A configuration name may be canonical or it may be more or less
+abbreviated.
+
+A canonical configuration name has three parts, separated by dashes.
+It looks like this: @samp{@var{cpu}-@var{company}-@var{system}}.
+(The three parts may themselves contain dashes; @file{configure}
+can figure out which dashes serve which purpose.)  For example,
+@samp{m68k-sun-sunos4.1} specifies a Sun 3.
+
+You can also replace parts of the configuration by nicknames or aliases.
+For example, @samp{sun3} stands for @samp{m68k-sun}, so
+@samp{sun3-sunos4.1} is another way to specify a Sun 3.
+
+You can specify a version number after any of the system types, and some
+of the CPU types.  In most cases, the version is irrelevant, and will be
+ignored.  So you might as well specify the version if you know it.
+
+See @ref{Configurations}, for a list of supported configuration names and
+notes on many of the configurations.  You should check the notes in that
+section before proceeding any further with the installation of GCC@.
+
+@end enumerate
+
+@ifnothtml
+@node Configurations, , , Old
+@section Configurations Supported by GCC
+@end ifnothtml
+@html
+<h2>@anchor{Configurations}Configurations Supported by GCC</h2>
+@end html
+@cindex configurations supported by GCC
+
+Here are the possible CPU types:
+
+@quotation
+@c gmicro, fx80, spur and tahoe omitted since they don't work.
+1750a, a29k, alpha, arm, avr, c@var{n}, clipper, dsp16xx, elxsi, fr30, h8300,
+hppa1.0, hppa1.1, i370, i386, i486, i586, i686, i786, i860, i960, ip2k, m32r,
+m68000, m68k, m6811, m6812, m88k, mcore, mips, mipsel, mips64, mips64el,
+mn10200, mn10300, ns32k, pdp11, powerpc, powerpcle, romp, rs6000, sh, sparc,
+sparclite, sparc64, v850, vax, we32k.
+@end quotation
+
+Here are the recognized company names.  As you can see, customary
+abbreviations are used rather than the longer official names.
+
+@c What should be done about merlin, tek*, dolphin?
+@quotation
+acorn, alliant, altos, apollo, apple, att, bull,
+cbm, convergent, convex, crds, dec, dg, dolphin,
+elxsi, encore, harris, hitachi, hp, ibm, intergraph, isi,
+mips, motorola, ncr, next, ns, omron, plexus,
+sequent, sgi, sony, sun, tti, unicom, wrs.
+@end quotation
+
+The company name is meaningful only to disambiguate when the rest of
+the information supplied is insufficient.  You can omit it, writing
+just @samp{@var{cpu}-@var{system}}, if it is not needed.  For example,
+@samp{vax-ultrix4.2} is equivalent to @samp{vax-dec-ultrix4.2}.
+
+Here is a list of system types:
+
+@quotation
+386bsd, aix, acis, amigaos, aos, aout, aux, bosx, bsd, clix, coff, ctix, cxux,
+dgux, dynix, ebmon, ecoff, elf, esix, freebsd, hms, genix, gnu, linux,
+linux-gnu, hiux, hpux, iris, irix, isc, luna, lynxos, mach, minix, msdos, mvs,
+netbsd, newsos, nindy, ns, osf, osfrose, ptx, riscix, riscos, rtu, sco, sim,
+solaris, sunos, sym, sysv, udi, ultrix, unicos, uniplus, unos, vms, vsta,
+vxworks, winnt, xenix.
+@end quotation
+
+@noindent
+You can omit the system type; then @file{configure} guesses the
+operating system from the CPU and company.
+
+You can add a version number to the system type; this may or may not
+make a difference.  For example, you can write @samp{bsd4.3} or
+@samp{bsd4.4} to distinguish versions of BSD@.  In practice, the version
+number is most needed for @samp{sysv3} and @samp{sysv4}, which are often
+treated differently.
+
+@samp{linux-gnu} is the canonical name for the GNU/Linux target; however
+GCC will also accept @samp{linux}.  The version of the kernel in use is
+not relevant on these systems.  A suffix such as @samp{libc1} or @samp{aout}
+distinguishes major versions of the C library; all of the suffixed versions
+are obsolete.
+
+If you specify an impossible combination such as @samp{i860-dg-vms},
+then you may get an error message from @file{configure}, or it may
+ignore part of the information and do the best it can with the rest.
+@file{configure} always prints the canonical name for the alternative
+that it used.  GCC does not support all possible alternatives.
+
+Often a particular model of machine has a name.  Many machine names are
+recognized as aliases for CPU/company combinations.  Thus, the machine
+name @samp{sun3}, mentioned above, is an alias for @samp{m68k-sun}.
+Sometimes we accept a company name as a machine name, when the name is
+popularly used for a particular machine.  Here is a table of the known
+machine names:
+
+@quotation
+3300, 3b1, 3b@var{n}, 7300, altos3068, altos,
+apollo68, att-7300, balance,
+convex-c@var{n}, crds, decstation-3100,
+decstation, delta, encore,
+fx2800, gmicro, hp7@var{nn}, hp8@var{nn},
+hp9k2@var{nn}, hp9k3@var{nn}, hp9k7@var{nn},
+hp9k8@var{nn}, iris4d, iris, isi68,
+m3230, magnum, merlin, miniframe,
+mmax, news-3600, news800, news, next,
+pbd, pc532, pmax, powerpc, powerpcle, ps2, risc-news,
+rtpc, sun2, sun386i, sun386, sun3,
+sun4, symmetry, tower-32, tower.
+@end quotation
+
+@noindent
+Remember that a machine name specifies both the cpu type and the company
+name.
+If you want to install your own homemade configuration files, you can
+use @samp{local} as the company name to access them.  If you use
+configuration @samp{@var{cpu}-local}, the configuration name
+without the cpu prefix
+is used to form the configuration file names.
+
+Thus, if you specify @samp{m68k-local}, configuration uses
+files @file{m68k.md}, @file{local.h}, @file{m68k.c},
+@file{xm-local.h}, @file{t-local}, and @file{x-local}, all in the
+directory @file{config/m68k}.

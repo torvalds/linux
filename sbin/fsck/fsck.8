@@ -1,0 +1,182 @@
+.\"	$OpenBSD: fsck.8,v 1.35 2023/01/04 13:00:11 jsg Exp $
+.\"	$NetBSD: fsck.8,v 1.14 1996/10/03 20:08:29 christos Exp $
+.\"
+.\" Copyright (c) 1996 Christos Zoulas.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 4 2023 $
+.Dt FSCK 8
+.Os
+.Sh NAME
+.Nm fsck
+.Nd file system consistency check and interactive repair
+.Sh SYNOPSIS
+.Nm fsck
+.Bk -words
+.Op Fl dfNnpvy
+.Op Fl b Ar block#
+.Op Fl l Ar maxparallel
+.Op Fl T Ar fstype : Ns Ar fsoptions
+.Op Fl t Ar fstype
+.Op Ar special | node ...
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+command invokes file-system-specific programs to check the
+special devices listed in the
+.Xr fstab 5
+file or on the command line for consistency.
+.Pp
+It is normally used in the script
+.Xr rc 8
+during automatic reboot.
+If no file systems are specified,
+.Nm
+reads the file
+.Xr fstab 5
+to determine which file systems to check and in what order.
+Only partitions in fstab that are mounted
+.Dq rw
+or
+.Dq ro
+and that have non-zero pass numbers are checked.
+File systems with pass number 1 (normally just the root file system) are
+checked one at a time.
+When pass 1 completes, all remaining file systems are checked, with one
+process spawned per disk drive.
+The disk drive containing each file system is inferred from the longest
+prefix of the device name that ends in a digit; the remaining characters
+are assumed to be the partition designator.
+By default, file systems which are already mounted read/write are not
+checked.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl b Ar block#
+Causes
+.Nm
+to use the specified block as the location of the superblock.
+Block 32 is usually an alternate super block.
+This option is only valid for filesystems that support backup superblocks
+(ffs and ext2fs).
+.It Fl d
+Debugging mode.
+Just print the commands without executing them.
+Available only if
+.Nm
+is compiled to support it.
+.It Fl f
+Force checking of file systems, even when they are marked clean (for file systems
+that support this).
+.It Fl l Ar maxparallel
+Limit the number of parallel checks to
+.Ar maxparallel .
+By default, the limit is the number of
+disks, running one process per disk.
+If a smaller limit is given,
+the disks are checked round-robin, one file system at a time.
+.It Fl N
+When using
+.Xr fstab 5 ,
+only check filesystems that have the
+.Dq net
+mount option set.
+By default file systems with this option are ignored.
+.It Fl n
+Assume a
+.Dq no
+response to all questions asked by
+.Nm
+except for
+.Dq CONTINUE? ,
+which is assumed to be affirmative.
+File systems will not be opened for writing.
+This is the default for file systems to be checked that are
+concurrently mounted writable.
+.It Fl p
+Enter preen mode:
+.Nm
+will check all file systems listed in
+.Xr fstab 5
+according to their pass number,
+or any special devices listed on the command line,
+and will make minor repairs without
+human intervention.
+Any major problems will cause
+.Nm
+to exit with a non-zero exit code,
+so as to alert any invoking program or script
+that human intervention is required.
+.It Fl T Ar fstype : Ns Ar fsoptions
+List of comma separated file system specific options for the specified
+file system type, in the same format as
+.Xr mount 8 .
+.It Fl t Ar fstype
+Invoke
+.Nm
+only for the comma separated list of file system types.
+If the list starts with
+.Dq no ,
+invoke
+.Nm
+only in the file system types that are
+.Em not
+specified in
+the list.
+.It Fl v
+Print the commands before executing them.
+.It Fl y
+Cause
+.Nm
+to assume
+.Dq yes
+as the answer to all operator questions.
+.El
+.Pp
+If neither of the
+.Fl y
+or
+.Fl n
+options are specified, the user may force
+.Nm
+to assume an answer of
+.Dq yes
+to all the remaining questions by replying to a question with a value of
+.Dq F .
+.Sh FILES
+.Bl -tag -width /etc/fstab -compact
+.It Pa /etc/fstab
+file system table
+.El
+.Sh SEE ALSO
+.Xr fs 5 ,
+.Xr fstab 5 ,
+.Xr fsck_ext2fs 8 ,
+.Xr fsck_ffs 8 ,
+.Xr fsck_msdos 8 ,
+.Xr fsdb 8 ,
+.Xr growfs 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr rc 8 ,
+.Xr scan_ffs 8

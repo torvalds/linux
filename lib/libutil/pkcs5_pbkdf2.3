@@ -1,0 +1,64 @@
+.\"	$OpenBSD: pkcs5_pbkdf2.3,v 1.6 2025/06/06 22:01:40 schwarze Exp $
+.\"
+.\" Copyright (c) 2012 Ted Unangst <tedu@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt PKCS5_PBKDF2 3
+.Os
+.Sh NAME
+.Nm pkcs5_pbkdf2
+.Nd password-based key derivation function
+.Sh SYNOPSIS
+.Lb libutil
+.In util.h
+.Ft int
+.Fn pkcs5_pbkdf2 "const char *pass" "size_t pass_len" "const char *salt" \
+    "size_t salt_len" "u_int8_t *key" "size_t key_len" "u_int rounds"
+.Sh DESCRIPTION
+The
+.Nm
+function converts a password into a byte array suitable for use as
+an encryption key.
+The password and salt values are combined and repeatedly hashed
+.Ar rounds
+times.
+The salt value should be randomly generated beforehand.
+The repeated hashing is designed to thwart discovery of the key via
+password guessing attacks.
+The higher the number of rounds, the slower each attempt will be.
+A minimum value of at least 1000 is recommended.
+.Sh RETURN VALUES
+The
+.Fn pkcs5_pbkdf2
+function returns 0 to indicate success and -1 for failure.
+.\" .Sh EXAMPLES
+.\" .Sh ERRORS
+.Sh SEE ALSO
+.Xr sha1 1 ,
+.Xr bcrypt_pbkdf 3
+.Sh STANDARDS
+.Rs
+.%A B. Kaliski
+.%D September 2000
+.%R RFC 2898
+.%T PKCS #5: Password-Based Cryptography Specification Version 2.0
+.Re
+.\" .Sh HISTORY
+.\" .Sh AUTHORS
+.Sh CAVEATS
+The standard allows for different hash functions to be used.
+This implementation only uses
+.Xr sha1 1 .
+.\" .Sh BUGS

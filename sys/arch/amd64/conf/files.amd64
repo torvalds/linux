@@ -1,0 +1,288 @@
+#	$OpenBSD: files.amd64,v 1.116 2025/09/17 18:39:50 sf Exp $
+
+maxpartitions 16
+maxusers 2 16 128
+
+file	arch/amd64/amd64/autoconf.c
+file	arch/amd64/amd64/conf.c
+file	arch/amd64/amd64/disksubr.c		disk
+file	arch/amd64/amd64/gdt.c			multiprocessor
+file	arch/amd64/amd64/machdep.c
+file	arch/amd64/amd64/hibernate_machdep.c	hibernate
+file	arch/amd64/amd64/identcpu.c
+file	arch/amd64/amd64/tsc.c
+file	arch/amd64/amd64/via.c
+file	arch/amd64/amd64/locore.S
+file	arch/amd64/amd64/aes_intel.S		crypto
+file	arch/amd64/amd64/aesni.c		crypto
+file	arch/amd64/amd64/amd64errata.c
+file	arch/amd64/amd64/ucode.c		!small_kernel
+file	arch/amd64/amd64/mem.c
+file	arch/amd64/amd64/amd64_mem.c		mtrr
+file	arch/amd64/amd64/mtrr.c			mtrr
+file	arch/amd64/amd64/pmap.c
+file	arch/amd64/amd64/process_machdep.c
+file	arch/amd64/amd64/sys_machdep.c
+file	arch/amd64/amd64/trap.c
+file	arch/amd64/amd64/vm_machdep.c
+file	arch/amd64/amd64/fpu.c
+file	arch/amd64/amd64/i8259.c
+file	arch/amd64/amd64/cacheinfo.c
+file	arch/amd64/amd64/ghcb.c
+file	arch/amd64/amd64/sev_bus_space.c
+file	arch/amd64/amd64/vector.S
+file	arch/amd64/amd64/copy.S
+file	arch/amd64/amd64/spl.S
+file	arch/amd64/amd64/mds.S
+
+file	arch/amd64/amd64/intr.c
+file	arch/amd64/amd64/bus_space.c
+file	arch/amd64/amd64/bus_dma.c
+
+file	arch/amd64/amd64/mptramp.S		multiprocessor
+file	arch/amd64/amd64/ipifuncs.c		multiprocessor
+file	arch/amd64/amd64/ipi.c			multiprocessor
+file	arch/amd64/amd64/mp_setperf.c		multiprocessor
+
+file	arch/amd64/amd64/apic.c			ioapic | lapic
+
+file	arch/amd64/amd64/consinit.c
+file	dev/cninit.c
+
+file	arch/amd64/amd64/dkcsum.c		bios
+
+file	arch/amd64/amd64/db_disasm.c		ddb
+file	arch/amd64/amd64/db_interface.c		ddb
+file	arch/amd64/amd64/db_memrw.c		ddb
+file	arch/amd64/amd64/db_trace.c		ddb
+
+file	netinet/in_cksum.c
+file	netinet/in4_cksum.c
+
+# Basic clock - required
+file	arch/amd64/isa/clock.c
+
+file	arch/amd64/amd64/powernow-k8.c		!small_kernel
+file	arch/amd64/amd64/est.c			!small_kernel
+file	arch/amd64/amd64/k1x-pstate.c		!small_kernel
+
+include "dev/rasops/files.rasops"
+include "dev/wsfont/files.wsfont"
+
+include	"dev/mii/files.mii"
+
+include	"scsi/files.scsi"
+
+include	"dev/atapiscsi/files.atapiscsi"
+include	"dev/ata/files.ata"
+
+define	mainbus {[apid = -1]}
+device	mainbus: isabus, pcibus, mainbus
+attach	mainbus at root
+file	arch/amd64/amd64/mainbus.c		mainbus
+
+file	arch/amd64/amd64/codepatch.c
+
+device	bios {}
+attach	bios at mainbus
+file	arch/amd64/amd64/bios.c			bios needs-flag
+
+#Intel SMP specification 1.4
+define	mpbios
+device	mpbios
+attach	mpbios at bios
+file	arch/amd64/amd64/mpbios.c		mpbios needs-flag
+file	arch/amd64/amd64/mpbios_intr_fixup.c	mpbios & pci
+
+define	cpu {[apid = -1]}
+device	cpu
+attach	cpu at mainbus
+file	arch/amd64/amd64/cpu.c	cpu
+
+
+define	lapic
+file	arch/amd64/amd64/lapic.c		lapic needs-flag
+
+device	ioapic: mpbios, lapic
+attach	ioapic at mainbus
+file	arch/amd64/amd64/ioapic.c		ioapic needs-flag
+
+#
+# EFI Framebuffer
+#
+device efifb: wsemuldisplaydev, rasops32, rasops24, rasops16, rasops8
+attach efifb at mainbus
+file arch/amd64/amd64/efifb.c			efifb needs-flag
+
+#
+# Paravirtual device bus and virtio
+#
+include "dev/pv/files.pv"
+
+#
+# PCI drivers
+#
+
+include	"dev/pci/files.pci"
+file	arch/amd64/pci/pci_machdep.c		pci
+file	arch/amd64/pci/pciide_machdep.c		pciide
+file	arch/amd64/pci/vga_post.c		vga_pci & x86emu
+
+# PCI Host bridge chipsets
+device	pchb: pcibus, agpbus
+attach	pchb at pci
+file	arch/amd64/pci/pchb.c			pchb
+
+# AMAS AMD memory address switch
+device	amas
+attach	amas at pci
+file	dev/pci/amas.c				amas
+
+# AGP bridge support. most attach at pchb
+file	arch/amd64/pci/agp_machdep.c		agp | inteldrm
+
+#
+# CARDBUS
+#
+include	"dev/cardbus/files.cardbus"
+file	arch/amd64/amd64/rbus_machdep.c		cardbus
+
+# PCIC pcmcia controller
+device	pcic: pcmciabus
+file	dev/ic/i82365.c				pcic
+
+# PCIC pcmcia controller on PCI bus.
+attach	pcic at pci with pcic_pci
+file	dev/pci/i82365_pci.c			pcic_pci
+
+include	"dev/pcmcia/files.pcmcia"
+
+# PCI-ISA bridges
+device	pcib: isabus
+attach	pcib at pci
+file	arch/amd64/pci/pcib.c			pcib | amdpcib | tcpcib
+
+# AMD 8111 LPC bridge
+device	amdpcib: isabus
+attach	amdpcib at pci
+file	dev/pci/amdpcib.c			amdpcib
+
+# Intel Atom E600 LPC bridge
+device	tcpcib: isabus
+attach	tcpcib at pci
+file	dev/pci/tcpcib.c			tcpcib
+
+device	aapic
+attach	aapic at pci
+file	arch/amd64/pci/aapic.c			aapic
+
+device	hme: ether, ifnet, mii, ifmedia
+file	dev/ic/hme.c			hme
+attach	hme at pci with hme_pci
+file	dev/pci/if_hme_pci.c		hme_pci
+
+#
+# ISA drivers
+#
+
+include	"dev/isa/files.isa"
+include	"dev/isa/files.isapnp"
+file	arch/amd64/isa/isa_machdep.c		isa
+
+# attribute used to represent the "keyboard controller"
+# XXX should be a real device
+define	pckbcport {[irq = -1], [port = -1]}
+
+include	"dev/wscons/files.wscons"
+include	"dev/pckbc/files.pckbc"
+
+file	arch/amd64/amd64/wscons_machdep.c	wsdisplay
+
+# Soekris GPIO & LEDs driver
+device	skgpio: gpiobus
+attach	skgpio at isa
+file	dev/isa/skgpio.c			skgpio
+
+pseudo-device	pctr
+file	arch/amd64/amd64/pctr.c		pctr needs-flag
+
+
+pseudo-device	nvram
+file	arch/amd64/amd64/nvram.c	nvram needs-flag
+
+#
+# Machine-independent HID support
+#
+include	"dev/hid/files.hid"
+
+#
+# USB
+#
+include	"dev/usb/files.usb"
+
+#
+# I2C
+#
+include "dev/i2c/files.i2c"
+
+#
+# Machine-independent GPIO drivers
+#
+include "dev/gpio/files.gpio"
+
+#
+# ACPI
+#
+include "dev/acpi/files.acpi"
+attach	acpi at bios
+file	arch/amd64/amd64/acpi_machdep.c		acpi
+file	arch/amd64/amd64/acpi_wakecode.S	acpi & !small_kernel
+file	dev/acpi/acpi_x86.c			acpi & suspend & !small_kernel
+file	dev/acpi/acpi_apm.c			acpi
+file	dev/acpi/acpicpu_x86.c			acpicpu needs-flag
+
+device	acpipci
+attach	acpipci at acpi
+file	arch/amd64/pci/acpipci.c		acpipci
+
+#
+# EFI
+#
+include "dev/efi/files.efi"
+attach	efi at bios
+file	arch/amd64/amd64/efi_machdep.c		efi
+
+#
+# VMM
+#
+device vmm {}
+attach vmm at mainbus
+file	dev/vmm/vmm.c				vmm		needs-flag
+file	arch/amd64/amd64/vmm_machdep.c		vmm		needs-flag
+file	arch/amd64/amd64/vmm_support.S		vmm
+
+#
+# Machine-independent SD/MMC drivers
+#
+include "dev/sdmmc/files.sdmmc"
+
+#
+# Machine-independent 1-Wire drivers
+#
+include "dev/onewire/files.onewire"
+
+#
+# IPMI
+#
+attach	ipmi at mainbus
+
+#
+# device major numbers
+#
+
+major	{vnd = 14}
+major	{sd = 4}
+major	{cd = 6}
+major	{rd = 17}
+major	{wd = 0}
+major	{fd = 2}

@@ -1,0 +1,121 @@
+//===--- OpenCLExtensions.def - OpenCL extension list -----------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the list of supported OpenCL extensions.
+//
+//===----------------------------------------------------------------------===//
+
+// Macro OPENCLEXTNAME or OPENCL_GENERIC_EXTENSION can be defined to enumerate all
+// OpenCL extensions listed in this file.
+//
+// If extensions are to be enumerated with information about whether
+// an extension is core or optional core and minimum OpenCL version
+// when an extension becomes available,
+// define OPENCL_GENERIC_EXTENSION(ext, pragma, avail, core, opt) where
+//   ext - name of the extension or optional core feature.
+//   pragma - true if extension needs pragmas or false otherwise.
+//            NOTE: extension pragma without any documentation detailing
+//            its behavior explicitly is deprecated. Therefore the default
+//            value is false.
+//   avail - minimum OpenCL version supporting it.
+//   core - OpenCL versions mask when the extension becomes core feature.
+//          0U indicates not a core feature.
+//   opt - OpenCL versions mask when the extension becomes optional core
+//         feature. 0U indicates not a optional core feature.
+//
+// If extensions are to be enumerated without any information,
+// define OPENCLEXTNAME(ext) where ext is the name of the extension.
+//
+// Difference between optional core feature and core feature is that the
+// later is unconditionally supported in specific OpenCL version.
+//
+// As per The OpenCL Extension Specification, Section 1.2, in this file, an
+// extension is defined if and only it either:
+//  * affects the OpenCL language semantics or its syntax,
+//  * adds built-in functions to the language.
+//
+// For such an extension, a preprocessor #define that matches the extension
+// name must be created and a #pragma is required if and only if the
+// compilation flow is impacted, e.g. due to a difference of syntax or
+// semantics in the language compared to the core standard. #pragma directive
+// has no effect for optional core and core features.
+
+#ifndef OPENCL_GENERIC_EXTENSION
+#ifndef OPENCLEXTNAME
+#pragma error "macro OPENCLEXTNAME or OPENCL_GENERIC_EXTENSION is required"
+#else
+#define OPENCL_GENERIC_EXTENSION(ext, ...) OPENCLEXTNAME(ext)
+#endif // OPENCLEXTNAME
+#endif // OPENCL_GENERIC_EXTENSION
+
+// Declaration helpers
+#define OPENCL_EXTENSION(ext, pragma, avail) OPENCL_GENERIC_EXTENSION(ext, pragma, avail, 0U, 0U)
+#define OPENCL_COREFEATURE(ext, pragma, avail, core)  OPENCL_GENERIC_EXTENSION(ext, pragma, avail, core, 0U)
+#define OPENCL_OPTIONALCOREFEATURE(ext, pragma, avail, opt) OPENCL_GENERIC_EXTENSION(ext, pragma, avail, 0U, opt)
+
+// OpenCL 1.0.
+OPENCL_COREFEATURE(cl_khr_byte_addressable_store, true, 100, OCL_C_11P)
+OPENCL_COREFEATURE(cl_khr_global_int32_base_atomics, true, 100, OCL_C_11P)
+OPENCL_COREFEATURE(cl_khr_global_int32_extended_atomics, true, 100, OCL_C_11P)
+OPENCL_COREFEATURE(cl_khr_local_int32_base_atomics, true, 100, OCL_C_11P)
+OPENCL_COREFEATURE(cl_khr_local_int32_extended_atomics, true, 100, OCL_C_11P)
+OPENCL_OPTIONALCOREFEATURE(cl_khr_fp64, true, 100, OCL_C_12P)
+OPENCL_EXTENSION(cl_khr_fp16, true, 100)
+OPENCL_EXTENSION(cl_khr_int64_base_atomics, true, 100)
+OPENCL_EXTENSION(cl_khr_int64_extended_atomics, true, 100)
+OPENCL_GENERIC_EXTENSION(cl_khr_3d_image_writes, true, 100, OCL_C_20, OCL_C_30)
+
+// EMBEDDED_PROFILE
+OPENCL_EXTENSION(cles_khr_int64, true, 110)
+
+// OpenCL 1.2.
+OPENCL_EXTENSION(cl_khr_depth_images, true, 120)
+OPENCL_EXTENSION(cl_khr_gl_msaa_sharing,true, 120)
+
+// OpenCL 2.0.
+OPENCL_EXTENSION(cl_khr_mipmap_image, true, 200)
+OPENCL_EXTENSION(cl_khr_mipmap_image_writes, true, 200)
+OPENCL_EXTENSION(cl_khr_srgb_image_writes, true, 200)
+OPENCL_EXTENSION(cl_khr_subgroups, true, 200)
+
+// Clang Extensions.
+OPENCL_EXTENSION(cl_clang_storage_class_specifiers, true, 100)
+OPENCL_EXTENSION(__cl_clang_function_pointers, true, 100)
+OPENCL_EXTENSION(__cl_clang_variadic_functions, true, 100)
+OPENCL_EXTENSION(__cl_clang_non_portable_kernel_param_types, true, 100)
+OPENCL_EXTENSION(__cl_clang_bitfields, true, 100)
+
+// AMD OpenCL extensions
+OPENCL_EXTENSION(cl_amd_media_ops, true, 100)
+OPENCL_EXTENSION(cl_amd_media_ops2, true, 100)
+
+// Intel OpenCL extensions
+OPENCL_EXTENSION(cl_intel_subgroups, true, 120)
+OPENCL_EXTENSION(cl_intel_subgroups_short, true, 120)
+OPENCL_EXTENSION(cl_intel_device_side_avc_motion_estimation, true, 120)
+
+// OpenCL C 3.0 features (6.2.1. Features)
+OPENCL_OPTIONALCOREFEATURE(__opencl_c_pipes, false, 300, OCL_C_30)
+OPENCL_OPTIONALCOREFEATURE(__opencl_c_generic_address_space, false, 300, OCL_C_30)
+OPENCL_OPTIONALCOREFEATURE(__opencl_c_atomic_order_acq_rel, false, 300, OCL_C_30)
+OPENCL_OPTIONALCOREFEATURE(__opencl_c_atomic_order_seq_cst, false, 300, OCL_C_30)
+OPENCL_OPTIONALCOREFEATURE(__opencl_c_subgroups, false, 300, OCL_C_30)
+OPENCL_OPTIONALCOREFEATURE(__opencl_c_3d_image_writes, false, 300, OCL_C_30)
+OPENCL_OPTIONALCOREFEATURE(__opencl_c_device_enqueue, false, 300, OCL_C_30)
+OPENCL_OPTIONALCOREFEATURE(__opencl_c_read_write_images, false, 300, OCL_C_30)
+OPENCL_OPTIONALCOREFEATURE(__opencl_c_program_scope_global_variables, false, 300, OCL_C_30)
+OPENCL_OPTIONALCOREFEATURE(__opencl_c_fp64, false, 300, OCL_C_30)
+OPENCL_OPTIONALCOREFEATURE(__opencl_c_images, false, 300, OCL_C_30)
+
+#undef OPENCL_OPTIONALCOREFEATURE
+#undef OPENCL_COREFEATURE
+#undef OPENCL_GENERIC_EXTENSION
+
+#ifdef OPENCLEXTNAME
+#undef OPENCLEXTNAME
+#endif

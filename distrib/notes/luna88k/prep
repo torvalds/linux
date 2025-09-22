@@ -1,0 +1,66 @@
+dnl	$OpenBSD: prep,v 1.8 2014/04/22 22:58:02 aoyama Exp $
+dnl Need to provide a short monitor description. Start from
+dnl http://www.nk-home.net/~aoyama/luna88k/monitor.txt
+dnl and also document NVRAM?
+
+LUNA-88K do not require any specific preparation prior to the OpenBSD
+installation. However, you might want to get familiar with the PROM
+interface, in order to be able to boot the installation media and, later,
+specify the correct boot parameters.
+
+Setting up the boot device and filename:
+
+  Boot device and filename information is stored by the PROM into
+  the machine's non-volatile memory.
+
+  LUNA-88K systems can only boot from SCSI devices. The boot device type
+  (such as ``sd'' for a disk) is specified by the
+  ``boot_device'' variable. The SCSI id of the boot device is specified
+  by the ``boot_unit'' NVRAM variable, and the boot partition on said
+  device is specified by the ``boot_partition'' variable. The
+  ``boot_filename'' variable stores the name of the file to boot, and
+  defaults to ``vmunix''. To boot OpenBSD, this variable should be
+  changed to ``boot'', as in:
+
+    0> nvram boot_filename boot
+
+  The ``boot_unit'' value is an encoding of the device SCSI identifier.
+  If the boot device is an SCSI disk (``sd''), the value of ``boot_unit''
+  should be (6 - ID). On LUNA-88K2 systems, if the boot device is connected
+  to the external SCSI connector, 10 should be added to the value of
+  ``boot_unit''. Thus booting off an external SCSI disk of ID #0 would
+  be 16 on a LUNA-88K2, and 6 on a LUNA-88K.
+
+Setting up the boot behaviour:
+
+  Unlike other platforms, boot behaviour is controlled by the front panel
+  DIP switches only.
+
+  The first set of DIP switches in the front panel (DIP SW1) is used to
+  select the machine behaviour upon powerup, as well as the preferred
+  console device.
+
+  The meaning of these switches will depend upon your particular machine.
+  On the LUNA-88K, the 'down' position is 'on', and the 'up' position is
+  'off', while the LUNA-88K2 uses the opposite convention (i.e. 'up' is
+  'on' and 'down' is 'off').
+
+  If the leftmost switch in SW1, #1, is in the 'off' position, the system
+  will auto-boot from the boot device saved in NVRAM (using the
+  ``boot_device'', ``boot_unit'' and ``boot_filename'' variables). Otherwise,
+  the boot process will stop at the PROM prompt.
+
+Setting up serial console:
+
+  The second switch in SW1, #2, selects the console device. When in the 'on'
+  position, it selects the serial console port as the console; otherwise,
+  the graphics display and keyboard are used as the console.
+
+  While the LUNA-88K2 uses ``standard'' DB9 serial ports, the earlier
+  LUNA-88K have a specific connector, HiRose QM10-14R(L)-PR. Wiring
+  information for this connector can be found at the following URL:
+	http://www.kk.iij4u.or.jp/~taokamur/luna68k/serial.jpg
+  A suitable cable connector for this port would be either HiRose
+  QM30-14PA-EP with a QM14-CS cover (with lock), or QM30-14P-EP with a
+  QM14-CY cover (without lock).
+

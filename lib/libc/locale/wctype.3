@@ -1,0 +1,96 @@
+.\" $OpenBSD: wctype.3,v 1.4 2017/09/05 03:16:13 schwarze Exp $
+.\" $NetBSD: wctype.3,v 1.4 2003/04/16 13:34:41 wiz Exp $
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2003 Citrus Project
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 5 2017 $
+.Dt WCTYPE 3
+.Os
+.Sh NAME
+.Nm wctype ,
+.Nm wctype_l
+.Nd get a character class identifier by name
+.Sh SYNOPSIS
+.In wctype.h
+.Ft wctype_t
+.Fn wctype "const char *charclass"
+.Ft wctype_t
+.Fn wctype_l "const char *charclass" "locale_t locale"
+.Sh DESCRIPTION
+These functions return a character class identifier
+corresponding to the locale-specific character class name
+.Fa charclass .
+This identifier can be used in subsequent calls of
+.Fn iswctype
+or
+.Fn iswctype_l ,
+respectively.
+.Pp
+The following names are defined in all locales:
+.Bd -literal -offset indent
+alnum alpha blank cntrl digit graph
+lower print punct space upper xdigit
+.Ed
+.Pp
+The function
+.Fn wctype_l
+uses the specified
+.Fa locale ,
+whereas
+.Fn wctype
+uses the thread-specific locale set with
+.Xr uselocale 3 ,
+falling back to the global locale set with
+.Xr setlocale 3 .
+.Sh RETURN VALUES
+These functions return the character class identifier, or
+.Po Vt wctype_t Pc Ns 0
+if
+.Fa charclass
+does not correspond to a valid character class name.
+.Sh SEE ALSO
+.Xr iswctype 3 ,
+.Xr newlocale 3 ,
+.Xr setlocale 3 ,
+.Xr wctrans 3
+.Sh STANDARDS
+The
+.Fn wctype
+function conforms to
+.St -isoC-amd1 ,
+and
+.Fn wctype_l
+to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn wctype
+function has been available since
+.Ox 3.8 ,
+and
+.Fn wctype_l
+since
+.Ox 6.2 .

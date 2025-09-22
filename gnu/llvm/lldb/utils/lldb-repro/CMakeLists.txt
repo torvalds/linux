@@ -1,0 +1,23 @@
+add_custom_target(lldb-repro)
+add_dependencies(lldb-repro lldb-test-depends)
+set_target_properties(lldb-repro PROPERTIES FOLDER "LLDB/Utils")
+
+# Generate lldb-repro Python script for each build mode.
+if(LLDB_BUILT_STANDALONE)
+  set(config_types ".")
+  if(CMAKE_CONFIGURATION_TYPES)
+    set(config_types ${CMAKE_CONFIGURATION_TYPES})
+  endif()
+
+  foreach(config_type ${config_types})
+    string(REPLACE ${CMAKE_CFG_INTDIR} ${config_type} config_runtime_output_dir ${LLVM_RUNTIME_OUTPUT_INTDIR})
+    configure_file(lldb-repro.py ${config_runtime_output_dir}/lldb-repro COPYONLY)
+  endforeach()
+elseif(NOT "${CMAKE_CFG_INTDIR}" STREQUAL ".")
+  foreach(LLVM_BUILD_MODE ${CMAKE_CONFIGURATION_TYPES})
+    string(REPLACE ${CMAKE_CFG_INTDIR} ${LLVM_BUILD_MODE} LLDB_REPRO_DIR ${LLVM_RUNTIME_OUTPUT_INTDIR})
+    configure_file(lldb-repro.py ${LLDB_REPRO_DIR}/lldb-repro COPYONLY)
+  endforeach()
+else()
+  configure_file(lldb-repro.py ${LLVM_RUNTIME_OUTPUT_INTDIR}/lldb-repro COPYONLY)
+endif()

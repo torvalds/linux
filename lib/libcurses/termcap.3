@@ -1,0 +1,389 @@
+.\" $OpenBSD: termcap.3,v 1.10 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: termcap.3,v 1.10 2023/10/17 09:52:08 nicm Exp $
+.TH termcap 3 2023-07-01 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.na
+.hy 0
+.ds n 5
+.SH NAME
+\fBPC\fP,
+\fBUP\fP,
+\fBBC\fP,
+\fBospeed\fP,
+\fBtgetent\fP,
+\fBtgetflag\fP,
+\fBtgetnum\fP,
+\fBtgetstr\fP,
+\fBtgoto\fP,
+\fBtputs\fP \- \fBcurses\fP emulation of termcap
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.br
+\fB#include <term.h>\fP
+.sp
+\fBextern char PC;\fP
+.br
+\fBextern char * UP;\fP
+.br
+\fBextern char * BC;\fP
+.br
+\fBextern int ospeed;\fP
+.sp
+\fBint tgetent(char *\fIbp\fB, const char *\fIname\fB);\fR
+.br
+\fBint tgetflag(const char *\fIid\fB);\fR
+.br
+\fBint tgetnum(const char *\fIid\fB);\fR
+.br
+\fBchar *tgetstr(const char *\fIid\fB, char **\fIarea\fB);\fR
+.br
+\fBchar *tgoto(const char *\fIcap\fB, int \fIcol\fB, int \fIrow\fB);\fR
+.br
+\fBint tputs(const char *\fIstr\fB, int \fIaffcnt\fB, int (*\fIputc\fB)(int));\fR
+.SH DESCRIPTION
+These routines are included as a conversion aid for programs that use
+the \fItermcap\fP library.
+Their parameters are the same, but the
+routines are emulated using the \fIterminfo\fP database.
+Thus, they
+can only be used to query the capabilities of entries for which a
+terminfo entry has been compiled.
+.SS Initialization
+The \fBtgetent\fP routine loads the entry for \fIname\fP.
+It returns:
+.RS 3
+.TP 3
+1
+on success,
+.TP 3
+0
+if there is no such entry
+(or that it is a generic type, having too little information for curses
+applications to run), and
+.TP 3
+\-1
+if the terminfo database could not be found.
+.RE
+.PP
+This differs from the \fItermcap\fP library in two ways:
+.RS 3
+.bP
+The emulation ignores the buffer pointer \fIbp\fP.
+The \fItermcap\fP library would store a copy of the terminal
+description in the area referenced by this pointer.
+However, ncurses stores its terminal descriptions in compiled
+binary form, which is not the same thing.
+.bP
+There is a difference in return codes.
+The \fItermcap\fP library does not check if the terminal
+description is marked with the \fIgeneric\fP capability,
+or if the terminal description has cursor-addressing.
+.RE
+.SS Capability Values
+The \fBtgetflag\fP routine gets the boolean entry for \fIid\fP,
+or zero if it is not available.
+.PP
+The \fBtgetnum\fP routine gets the numeric entry for \fIid\fP,
+or \-1 if it is not available.
+.PP
+The \fBtgetstr\fP routine returns the string entry for \fIid\fP,
+or zero if it is not available.
+Use \fBtputs\fP to output the returned string.
+The \fIarea\fP parameter is used as follows:
+.RS 3
+.bP
+It is assumed to be the address of a pointer to a buffer managed by the
+calling application.
+.bP
+However, ncurses checks to ensure that \fBarea\fP is not NULL,
+and also that the resulting buffer pointer is not NULL.
+If either check fails, the \fIarea\fP parameter is ignored.
+.bP
+If the checks succeed, ncurses also copies the return value to
+the buffer pointed to by \fIarea\fP,
+and the \fIarea\fP value will be updated to point past the null ending
+this value.
+.bP
+The return value itself is an address in the terminal description which
+is loaded into memory.
+.RE
+.PP
+Only the first two characters of the \fBid\fP parameter of
+\fBtgetflag\fP,
+\fBtgetnum\fP and
+\fBtgetstr\fP are compared in lookups.
+.SS Formatting Capabilities
+The \fBtgoto\fP routine expands the given capability using the parameters.
+.bP
+Because the capability may have padding characters,
+the output of \fBtgoto\fP should be passed to \fBtputs\fP
+rather than some other output function such as \fBprintf\fP(3).
+.bP
+While \fBtgoto\fP is assumed to be used for the two-parameter
+cursor positioning capability,
+termcap applications also use it for single-parameter capabilities.
+.IP
+Doing this shows a quirk in \fBtgoto\fP: most hardware
+terminals use cursor addressing with \fIrow\fP first,
+but the original developers of the termcap interface chose to
+put the \fIcolumn\fP parameter first.
+The \fBtgoto\fP function swaps the order of parameters.
+It does this also for calls requiring only a single parameter.
+In that case, the first parameter is merely a placeholder.
+.bP
+Normally the ncurses library is compiled with terminfo support.
+In that case, \fBtgoto\fP uses an internal version of
+\fBtparm\fP(3) (a more capable formatter).
+.IP
+With terminfo support, \fBtgoto\fP is able to use some of the terminfo
+features, but not all.
+In particular, it allows only numeric parameters;
+\fBtparm\fP supports string parameters.
+.IP
+However, \fBtparm\fP is not a \fItermcap\fP feature,
+and portable \fItermcap\fP applications should not rely upon its availability.
+.PP
+The \fBtputs\fP routine is described on the \fBterminfo\fP(3) manual
+page.
+It can retrieve capabilities by either termcap or terminfo name.
+.SS Global Variables
+The variables
+\fBPC\fP,
+\fBUP\fP and
+\fBBC\fP
+are set by \fBtgetent\fP to the terminfo entry's data for
+\fBpad_char\fP,
+\fBcursor_up\fP and
+\fBbackspace_if_not_bs\fP,
+respectively.
+\fBUP\fP is not used by ncurses.
+\fBPC\fP is used in the \fBtdelay_output\fP function.
+\fBBC\fP is used in the \fBtgoto\fP emulation.
+The variable \fBospeed\fP is set by ncurses in a system-specific coding
+to reflect the terminal speed.
+.SS Releasing Memory
+The termcap functions provide no means for freeing memory,
+because legacy termcap implementations used only the buffer
+areas provided by the caller via \fBtgetent\fP and \fBtgetstr\fP.
+Those buffers are unused in terminfo.
+.PP
+On the other hand, terminfo allocates memory.
+It uses \fBsetupterm\fP to retrieve the data used by \fBtgetent\fP
+and the functions which return capability values such as \fBtgetstr\fP.
+One could use
+.sp
+        \fBdel_curterm(cur_term);\fP
+.sp
+.PP
+to free this memory, but there is an additional complication with ncurses.
+It uses a fixed-size \fIpool\fP of storage locations,
+one per setting of the \fBTERM\fP variable when \fBtgetent\fP is called.
+The \fBscreen\fP(1) program relies upon this arrangement,
+to improve its performance.
+.PP
+An application which uses only the low-level termcap functions could
+free the memory using \fBdel_curterm\fP,
+because the pool is freed using other functions
+(see \fBcurs_memleaks\fP(3)).
+.
+.SH RETURN VALUE
+Except where explicitly noted,
+routines that return an integer return \fBERR\fP upon failure and \fBOK\fP
+(SVr4 only specifies "an integer value other than \fBERR\fP") upon successful
+completion.
+.PP
+Routines that return pointers return \fBNULL\fP on error.
+.PP
+A few special cases apply:
+.bP
+If the terminal database has not been initialized,
+these return an error.
+.bP
+The calls with a string parameter (\fBtgoto\fP, \fBtputs\fP)
+check if the string is null, or cancelled.
+Those return an error.
+.bP
+A call to \fBtgoto\fP using a capability with string parameters is an error.
+.bP
+A call to \fBtgoto\fP using a capability with more than two parameters
+is an error.
+.SH BUGS
+If you call \fBtgetstr\fP to fetch \fBca\fP or any other parameterized string,
+be aware that it will be returned in terminfo notation, not the older and
+not-quite-compatible termcap notation.
+This will not cause problems if all
+you do with it is call \fBtgoto\fP or \fBtparm\fP, which both expand
+terminfo-style strings as terminfo.
+(The \fBtgoto\fP function, if configured to support termcap, will check
+if the string is indeed terminfo-style by looking for "%p" parameters or
+"$<..>" delays, and invoke a termcap-style parser if the string does not
+appear to be terminfo).
+.PP
+Because terminfo conventions for representing padding in string capabilities
+differ from termcap's,
+users can be surprised:
+.bP
+\fBtputs("50")\fP in a terminfo system will put out a literal \*(``50\*(''
+rather than busy-waiting for 50 milliseconds.
+.bP
+However, if ncurses is configured to support termcap,
+it may also have been configured to support the BSD-style padding.
+.IP
+In that case, \fBtputs\fP inspects strings passed to it,
+looking for digits at the beginning of the string.
+.IP
+\fBtputs("50")\fP in a termcap system may wait for 50 milliseconds
+rather than put out a literal \*(``50\*(''
+.PP
+Note that termcap has nothing analogous to terminfo's \fBsgr\fP string.
+One consequence of this is that termcap applications assume \fBme\fP
+(terminfo \fBsgr0\fP) does not reset the alternate character set.
+This implementation checks for, and modifies the data shown to the
+termcap interface to accommodate termcap's limitation in this respect.
+.SH PORTABILITY
+.SS Standards
+These functions are provided for supporting legacy applications,
+and should not be used in new programs:
+.bP
+The XSI Curses standard, Issue 4 describes these functions.
+However, they
+are marked TO BE WITHDRAWN and may be removed in future versions.
+.bP
+X/Open Curses, Issue 5 (December 2007) marked the termcap interface
+(along with \fBvwprintw\fP and \fBvwscanw\fP) as withdrawn.
+.PP
+Neither the XSI Curses standard nor the SVr4 man pages documented the return
+values of \fBtgetent\fP correctly, though all three were in fact returned ever
+since SVr1.
+In particular, an omission in the XSI Curses documentation has been
+misinterpreted to mean that \fBtgetent\fP returns \fBOK\fP or \fBERR\fP.
+Because the purpose of these functions is to provide compatibility with
+the \fItermcap\fP library, that is a defect in XCurses, Issue 4, Version 2
+rather than in ncurses.
+.SS Compatibility with BSD Termcap
+External variables are provided for support of certain termcap applications.
+However, termcap applications' use of those variables is poorly documented,
+e.g., not distinguishing between input and output.
+In particular, some applications are reported to declare and/or
+modify \fBospeed\fP.
+.PP
+The comment that only the first two characters of the \fBid\fP parameter
+are used escapes many application developers.
+The original BSD 4.2 termcap library (and historical relics thereof)
+did not require a trailing null NUL on the parameter name passed
+to \fBtgetstr\fP, \fBtgetnum\fP and \fBtgetflag\fP.
+Some applications assume that the termcap interface does not require
+the trailing NUL for the parameter name.
+Taking into account these issues:
+.bP
+As a special case,
+\fBtgetflag\fP matched against a single-character identifier
+provided that was at the end of the terminal description.
+You should not rely upon this behavior in portable programs.
+This implementation disallows matches against single-character capability names.
+.bP
+This implementation disallows matches by the termcap interface against
+extended capability names which are longer than two characters.
+.PP
+The BSD termcap function \fBtgetent\fP returns the text of a termcap
+entry in the buffer passed as an argument.
+This library (like other terminfo implementations) does not store
+terminal descriptions as text.
+It sets the buffer contents to a null-terminated string.
+.SS Other Compatibility
+This library includes a termcap.h header,
+for compatibility with other implementations.
+But the header is rarely used because the other implementations
+are not strictly compatible.
+.PP
+The original BSD termcap (through 4.3BSD) had no header file which
+gave function prototypes, because that was a feature of ANSI C.
+BSD termcap was written several years before C was standardized.
+However, there were two different termcap.h header files in the BSD
+sources:
+.bP
+One was used internally by the \fBjove\fP editor in 2BSD through 4.4BSD.
+It defined global symbols for the termcap variables which it used.
+.bP
+The other appeared in 4.4BSD Lite Release 2 (mid-1993)
+as part of \fIlibedit\fP (also known as the \fIeditline\fP library).
+The CSRG source history shows that this was added in mid-1992.
+The \fIlibedit\fP header file was used internally,
+as a convenience for compiling the \fIeditline\fP library.
+It declared function prototypes, but no global variables.
+.PP
+The header file from \fIlibedit\fP was added to NetBSD's termcap
+library in mid-1994.
+.PP
+Meanwhile, GNU termcap was under development, starting in 1990.
+The first release (termcap 1.0) in 1991 included a termcap.h header.
+The second release (termcap 1.1) in September 1992 modified the
+header to use \fBconst\fP for the function prototypes in the header
+where one would expect the parameters to be read-only.
+This was a difference versus the original BSD termcap.
+The prototype for \fBtputs\fP also differed,
+but in that instance, it was \fIlibedit\fP which differed from BSD termcap.
+.PP
+A copy of GNU termcap 1.3 was bundled with \fIbash\fP in mid-1993,
+to support the \fBreadline\fP(3) library.
+.PP
+A termcap.h file was provided in ncurses 1.8.1 (November 1993).
+That reflected influence by \fBemacs\fP(1) (rather than \fBjove\fP(1))
+and GNU termcap:
+.bP
+it provided declarations for a few global symbols used by \fBemacs\fP
+.bP
+it provided function prototypes (using \fBconst\fP).
+.bP
+a prototype for \fBtparam\fP (a GNU termcap feature) was provided.
+.PP
+Later (in mid-1996) the \fBtparam\fP function was removed from ncurses.
+As a result, there are differences between any of the four implementations,
+which must be taken into account by programs which can work with all
+termcap library interfaces.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBputc\fP(3),
+\fBterm_variables\fP(3),
+\fBterminfo\fP(\*n).
+.sp
+https://invisible-island.net/ncurses/tctest.html

@@ -1,0 +1,121 @@
+#	$OpenBSD: leap-seconds.list,v 1.5 2025/01/19 22:03:27 millert Exp $
+#	ATOMIC TIME
+#	Coordinated Universal Time (UTC) is the reference time scale derived
+#	from The "Temps Atomique International" (TAI) calculated by the Bureau
+#	International des Poids et Mesures (BIPM) using a worldwide network of atomic
+#	clocks. UTC differs from TAI by an integer number of seconds; it is the basis
+#	of all activities in the world.
+#
+#
+#	ASTRONOMICAL TIME (UT1) is the time scale based on the rate of rotation of the earth.
+#	It is now mainly derived from Very Long Baseline Interferometry (VLBI). The various
+#	irregular fluctuations progressively detected in the rotation rate of the Earth led
+#	in 1972 to the replacement of UT1 by UTC as the reference time scale.
+#
+#
+#	LEAP SECOND
+#	Atomic clocks are more stable than the rate of the earth's rotation since the latter
+#	undergoes a full range of geophysical perturbations at various time scales: lunisolar
+#	and core-mantle torques, atmospheric and oceanic effects, etc.
+#	Leap seconds are needed to keep the two time scales in agreement, i.e. UT1-UTC smaller
+#	than 0.9 seconds. Therefore, when necessary a "leap second" is applied to UTC.
+#	Since the adoption of this system in 1972 it has been necessary to add a number of seconds to UTC,
+#	firstly due to the initial choice of the value of the second (1/86400 mean solar day of
+#	the year 1820) and secondly to the general slowing down of the Earth's rotation. It is
+#	theoretically possible to have a negative leap second (a second removed from UTC), but so far,
+#	all leap seconds have been positive (a second has been added to UTC). Based on what we know about
+#	the earth's rotation, it is unlikely that we will ever have a negative leap second.
+#
+#
+#	HISTORY
+#	The first leap second was added on June 30, 1972. Until the year 2000, it was necessary in average to add a
+#       leap second at a rate of 1 to 2 years. Since the year 2000 leap seconds are introduced with an
+#	average interval of 3 to 4 years due to the acceleration of the Earth's rotation speed.
+#
+#
+#	RESPONSIBILITY OF THE DECISION TO INTRODUCE A LEAP SECOND IN UTC
+#	The decision to introduce a leap second in UTC is the responsibility of the Earth Orientation Center of
+#	the International Earth Rotation and reference System Service (IERS). This center is located at Paris
+#	Observatory. According to international agreements, leap seconds should be scheduled only for certain dates:
+#	first preference is given to the end of December and June, and second preference at the end of March
+#	and September. Since the introduction of leap seconds in 1972, only dates in June and December were used.
+#
+#		Questions or comments to:
+#			Christian Bizouard:  christian.bizouard@obspm.fr
+#			Earth orientation Center of the IERS
+#			Paris Observatory, France
+#
+#
+#
+#    	COPYRIGHT STATUS OF THIS FILE
+#    	This file is in the public domain.
+#
+#
+#	VALIDITY OF THE FILE
+#	It is important to express the validity of the file. These next two dates are
+#	given in units of seconds since 1900.0.
+#
+#	1) Last update of the file.
+#
+#	Updated through IERS Bulletin C (https://hpiers.obspm.fr/iers/bul/bulc/bulletinc.dat)
+#
+#	The following line shows the last update of this file in NTP timestamp:
+#
+#$	3945196800
+#
+#	2) Expiration date of the file given on a semi-annual basis: last June or last December
+#
+#	File expires on 28 December 2025
+#
+#	Expire date in NTP timestamp:
+#
+#@	3975868800
+#
+#
+#	LIST OF LEAP SECONDS
+#	NTP timestamp (X parameter) is the number of seconds since 1900.0
+#
+#	MJD: The Modified Julian Day number. MJD = X/86400 + 15020
+#
+#	DTAI: The difference DTAI= TAI-UTC in units of seconds
+#	It is the quantity to add to UTC to get the time in TAI
+#
+#	Day Month Year : epoch in clear
+#
+#NTP Time      DTAI    Day Month Year
+#
+2272060800      10      # 1 Jan 1972
+2287785600      11      # 1 Jul 1972
+2303683200      12      # 1 Jan 1973
+2335219200      13      # 1 Jan 1974
+2366755200      14      # 1 Jan 1975
+2398291200      15      # 1 Jan 1976
+2429913600      16      # 1 Jan 1977
+2461449600      17      # 1 Jan 1978
+2492985600      18      # 1 Jan 1979
+2524521600      19      # 1 Jan 1980
+2571782400      20      # 1 Jul 1981
+2603318400      21      # 1 Jul 1982
+2634854400      22      # 1 Jul 1983
+2698012800      23      # 1 Jul 1985
+2776982400      24      # 1 Jan 1988
+2840140800      25      # 1 Jan 1990
+2871676800      26      # 1 Jan 1991
+2918937600      27      # 1 Jul 1992
+2950473600      28      # 1 Jul 1993
+2982009600      29      # 1 Jul 1994
+3029443200      30      # 1 Jan 1996
+3076704000      31      # 1 Jul 1997
+3124137600      32      # 1 Jan 1999
+3345062400      33      # 1 Jan 2006
+3439756800      34      # 1 Jan 2009
+3550089600      35      # 1 Jul 2012
+3644697600      36      # 1 Jul 2015
+3692217600      37      # 1 Jan 2017
+#
+#	A hash code has been generated to be able to verify the integrity
+#	of this file. For more information about using this hash code,
+#	please see the readme file in the 'source' directory :
+#	https://hpiers.obspm.fr/iers/bul/bulc/ntp/sources/README
+#
+#h	848434d5 570f7ea8 d79ba227 a00fc821 f608e2d4

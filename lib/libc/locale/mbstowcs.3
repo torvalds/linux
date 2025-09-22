@@ -1,0 +1,126 @@
+.\" $OpenBSD: mbstowcs.3,v 1.8 2015/10/24 23:07:41 mmcc Exp $
+.\" $NetBSD: mbstowcs.3,v 1.6 2003/09/08 17:54:31 wiz Exp $
+.\"
+.\" Copyright (c)2002 Citrus Project,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 24 2015 $
+.Dt MBSTOWCS 3
+.Os
+.\" ----------------------------------------------------------------------
+.Sh NAME
+.Nm mbstowcs
+.Nd converts a multibyte character string to a wide-character string
+.\" ----------------------------------------------------------------------
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft size_t
+.Fn mbstowcs "wchar_t * restrict pwcs" "const char * restrict s" "size_t n"
+.\" ----------------------------------------------------------------------
+.Sh DESCRIPTION
+.Fn mbstowcs
+converts a null-terminated multibyte character string pointed to by
+.Fa s
+to the corresponding wide-character string and stores up to
+.Fa n
+wide characters in the array pointed to by
+.Fa pwcs .
+Each character will be converted as if
+.Xr mbtowc 3
+is continuously called, except the internal state of
+.Xr mbtowc 3
+will not be affected.
+.Pp
+For state-dependent encoding,
+.Fn mbstowcs
+implies the multibyte character string pointed to by
+.Fa s
+always begin with an initial state.
+.Pp
+These are the special cases:
+.Bl -tag -width 012345678901
+.It pwcs == NULL
+.Fn mbstowcs
+returns the number of elements to store the whole wide-character string
+corresponding to the multibyte character string pointed to by
+.Fa s .
+In this case,
+.Fa n
+is ignored.
+.It s == NULL
+Undefined (may cause the program to crash).
+.El
+.\" ----------------------------------------------------------------------
+.Sh RETURN VALUES
+.Fn mbstowcs
+returns:
+.Bl -tag -width 012345678901
+.It 0 or positive
+The value returned is the number of elements stored in the array pointed to by
+.Fa pwcs ,
+except for a terminating null wide character (if any).
+If
+.Fa pwcs
+is not null and the value returned is equal to
+.Fa n ,
+the wide-character string pointed to by
+.Fa pwcs
+is not null terminated.
+If
+.Fa pwcs
+is a null pointer, the value returned is the number of elements to contain
+the whole string converted, except for a terminating null wide character.
+.It (size_t)-1
+The array indirectly pointed to by
+.Fa s
+contains a byte sequence forming invalid character.
+In this case,
+.Fn mbstowcs
+sets
+.Va errno
+to indicate the error.
+.El
+.\" ----------------------------------------------------------------------
+.Sh ERRORS
+.Fn mbstowcs
+may cause an error in the following cases:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+.Fa s
+points to the string containing invalid or incomplete multibyte character.
+.El
+.\" ----------------------------------------------------------------------
+.Sh SEE ALSO
+.Xr mbtowc 3 ,
+.Xr setlocale 3
+.\" ----------------------------------------------------------------------
+.Sh STANDARDS
+The
+.Fn mbstowcs
+function conforms to
+.St -ansiC .
+The restrict qualifier is added at
+.\" .St -isoC99 .
+ISO/IEC 9899/199
+.Pq Dq ISO C99 .

@@ -1,0 +1,137 @@
+.\" $OpenBSD: X509_ATTRIBUTE_get0_object.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_ATTRIBUTE_GET0_OBJECT 3
+.Os
+.Sh NAME
+.Nm X509_ATTRIBUTE_get0_object ,
+.Nm X509_ATTRIBUTE_count ,
+.Nm X509_ATTRIBUTE_get0_type ,
+.Nm X509_ATTRIBUTE_get0_data
+.\" In the following line, "X.501" and "Attribute" are not typos.
+.\" The "Attribute" type is defined in X.501, not in X.509.
+.\" The type is called "Attribute" with capital "A", not "attribute".
+.Nd X.501 Attribute read accessors
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft ASN1_OBJECT *
+.Fo X509_ATTRIBUTE_get0_object
+.Fa "X509_ATTRIBUTE *attr"
+.Fc
+.Ft int
+.Fo X509_ATTRIBUTE_count
+.Fa "const X509_ATTRIBUTE *attr"
+.Fc
+.Ft ASN1_TYPE *
+.Fo X509_ATTRIBUTE_get0_type
+.Fa "X509_ATTRIBUTE *attr"
+.Fa "int index"
+.Fc
+.Ft void *
+.Fo X509_ATTRIBUTE_get0_data
+.Fa "X509_ATTRIBUTE *attr"
+.Fa "int index"
+.Fa "int type"
+.Fa "void *data"
+.Fc
+.Sh DESCRIPTION
+These functions provide read access to the X.501 Attribute object
+.Fa attr .
+.Pp
+For
+.Fn X509_ATTRIBUTE_get0_data ,
+the
+.Fa type
+argument usually is one of the
+.Dv V_ASN1_*
+constants defined in
+.In openssl/asn1.h .
+For example, if a return value of the type
+.Vt ASN1_OCTET_STRING
+is expected, pass
+.Dv V_ASN1_OCTET_STRING
+as the
+.Fa type
+argument.
+The
+.Fa data
+argument is ignored; passing
+.Dv NULL
+is recommended.
+.Sh RETURN VALUES
+.Fn X509_ATTRIBUTE_get0_object
+returns an internal pointer to the type of
+.Fa attr
+or
+.Dv NULL
+if
+.Fa attr
+is
+.Dv NULL
+or if its type is not set.
+.Pp
+.Fn X509_ATTRIBUTE_count
+returns the number of values stored in
+.Fa attr
+or 0 if no value or values are set.
+.Pp
+.Fn X509_ATTRIBUTE_get0_type
+returns an internal pointer to the ASN.1 ANY object
+representing the value with the given zero-based
+.Fa index
+or
+.Dv NULL
+if
+.Fa attr
+is
+.Dv NULL ,
+if the
+.Fa index
+is larger than or equal to the number of values stored in
+.Fa attr ,
+or if no value or values are set.
+.Pp
+.Fn X509_ATTRIBUTE_get0_data
+returns an internal pointer to the data
+contained in the value with the given zero-based
+.Fa index
+or
+.Dv NULL
+if
+.Fa attr
+is
+.Dv NULL ,
+if the
+.Fa index
+is larger than or equal to the number of values stored in
+.Fa attr ,
+if no value or values are set,
+or if the ASN.1 ANY object representing the value with the given
+.Fa index
+is not of the requested
+.Fa type .
+.Sh SEE ALSO
+.Xr ASN1_OBJECT_new 3 ,
+.Xr ASN1_TYPE_new 3 ,
+.Xr OPENSSL_sk_new 3 ,
+.Xr X509_ATTRIBUTE_new 3 ,
+.Xr X509_ATTRIBUTE_set1_object 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.5
+and have been available since
+.Ox 2.7 .

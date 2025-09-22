@@ -1,0 +1,139 @@
+.\"	$OpenBSD: opam-module.5,v 1.2 2025/02/18 22:08:17 jsg Exp $
+.\"
+.\" Copyright (c) 2025 Sebastien Marie
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 18 2025 $
+.Dt OPAM-MODULE 5
+.Os
+.Sh NAME
+.Nm opam-module
+.Nd sysutils/opam port module
+.Sh DESCRIPTION
+This manual page documents the behavior of setting
+.Li MODULES=sysutils/opam
+in the
+.Xr ports 7
+tree.
+.Pp
+The module provides helpers for packaging a program using
+.Xr opam 1
+(OCaml Package Manager).
+.Pp
+.Ev WRKSRC
+is expected to contains opam packages, possibly with local customization.
+All .opam files, at any depth, will be registered.
+Unmodified dependencies should be omitted, which will be managed separately.
+.Pp
+To generate a standalone opam repository containing only the dependencies and
+the sources files for compiling the specified sources tree,
+the
+.Xr make 1
+.Cm modopam-repository
+target should be used.
+It downloads an opam repository from
+.Ev MODOPAM_REPO_URL
+(defaults to official opam repository hosted on github), using
+.Ev MODOPAM_REPO_COMMIT
+commit (it is preferable to explicitly specify it for reproducibility,
+but "master" is the default value).
+The repository is named according to the
+.Ev MODOPAM_REPO_NAME
+variable.
+Next, the repository is stripped to contain only the build dependencies of
+.Ev MODOPAM_PACKAGES_REPOSITORY
+(default to
+.Ev MODOPAM_PACKAGES ).
+After that the repository is filled with a local cache of package archives.
+The resulting directory can be packaged and distributed.
+It contains source code for building the opam packages.
+.Pp
+External dependencies can be hinted using the
+.Xr make 1
+target
+.Cm modopam-external .
+The list of packages expected to be present at build time is shown.
+.Pp
+The module appends to
+.Ev BUILD_DEPENDS
+unless
+.Ev MODOPAM_BUILDDEP
+is set to `No'.
+.Pp
+It sets the
+.Ev MODOPAM_PACKAGES
+variable to
+.Ev PKGSTEM ,
+as the default value for opam packages to build and install.
+.Pp
+It sets
+.Ev MODOPAM_OPAMROOT ,
+.Ev MODOPAM_ENV ,
+.Ev MODOPAM_OPAM_BIN
+and
+.Ev MODOPAM_OPAM_RUN
+accordingly.
+.Pp
+The opam options
+.Fl --with-doc
+and
+.Fl --with-test
+are available using
+.Ev MODOPAM_WITH_DOC
+and
+.Ev MODOPAM_WITH_TEST .
+They default to `No'.
+.Pp
+A
+.Ev CONFIGURE_STYLE
+"opam" is provided.
+It is initialized to opam with the opam repository at
+.Ev MODOPAM_REPO_DIR
+(defaults to
+.Pa ${WRKDIR}/${MODOPAM_REPO_NAME} ).
+It is expected to have been generated previously by the
+.Cm modopam-repository
+target and distributed separately.
+It will also pin the opam packages present in
+.Ev WRKSRC ,
+possibly overriding opam packages from the repository.
+.Pp
+A default build target is used (except if
+.Ev MODOPAM_BUILD
+is set to `No'.
+It uses the
+.Ev MODOPAM_PACKAGES_BUILD
+variable to list the opam packages to build (default to
+.Ev MODOPAM_PACKAGES ).
+.Pp
+A default install target is used (except if
+.Ev MODOPAM_INSTALL
+is set to `No').
+It uses the
+.Ev MODOPAM_PACKAGES_INSTALL
+variable to list the opam packages to install (defaults to
+.Ev MODOPAM_PACKAGES ).
+.Sh SEE ALSO
+.Xr opam 1 ,
+.Xr port-modules 5

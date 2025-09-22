@@ -1,0 +1,82 @@
+neighbor 10.12.57.1 {
+	router-id 10.12.57.2;
+	local-address 10.12.57.2;
+	local-as 64501;
+	peer-as 64500;
+	group-updates;
+	adj-rib-in false;
+	passive false;
+
+	family {
+		ipv4 unicast;
+	}
+}
+
+neighbor 10.12.57.1 {
+	router-id 10.12.57.3;
+	local-address 10.12.57.3;
+	local-as 64502;
+	peer-as 64500;
+	group-updates;
+	adj-rib-in false;
+	passive false;
+
+	family {
+		ipv4 unicast;
+	}
+
+	static {
+		route 10.12.0.0/24 next-hop self;
+		# aggregator
+		route 10.12.1.0/24 next-hop self attribute [ 0x07 0xc0 0x02 ];
+		# communities
+		route 10.12.2.0/24 next-hop self attribute [ 0x08 0xc0 0x02 ];
+		# ext communities
+		route 10.12.3.0/24 next-hop self attribute [ 0x10 0xc0 0x02 ];
+		# as4-path
+		route 10.12.4.0/24 next-hop self attribute [ 0x11 0xc0 0x02 ];
+		# as4-aggregator
+		route 10.12.5.0/24 next-hop self attribute [ 0x12 0xc0 0x02 ];
+		# large communities
+		route 10.12.6.0/24 next-hop self attribute [ 0x20 0xc0 0x02 ];
+		# OTC
+		route 10.12.7.0/24 next-hop self attribute [ 0x23 0xc0 0x02 ];
+		# cluster_list
+		route 10.12.8.0/24 next-hop self attribute [ 0x0a 0x80 0x02 ];
+	}
+}
+
+neighbor 10.12.57.1 {
+	router-id 10.12.57.4;
+	local-address 10.12.57.4;
+	local-as 64500;
+	peer-as 64500;
+	group-updates;
+	adj-rib-in false;
+	passive false;
+
+	family {
+		ipv4 unicast;
+	}
+
+	static {
+		route 10.13.0.0/24 next-hop self;
+		# aggregator
+		route 10.13.1.0/24 next-hop self attribute [ 0x07 0xc0 0x02 ];
+		# communities
+		route 10.13.2.0/24 next-hop self attribute [ 0x08 0xc0 0x02 ];
+		# ext communities
+		route 10.13.3.0/24 next-hop self attribute [ 0x10 0xc0 0x02 ];
+		# as4-path
+		route 10.13.4.0/24 next-hop self attribute [ 0x11 0xc0 0x02 ];
+		# as4-aggregator
+		route 10.13.5.0/24 next-hop self attribute [ 0x12 0xc0 0x02 ];
+		# large communities
+		route 10.13.6.0/24 next-hop self attribute [ 0x20 0xc0 0x02 ];
+		# OTC
+		route 10.13.7.0/24 next-hop self attribute [ 0x23 0xc0 0x02 ];
+		# cluster_list
+		route 10.13.8.0/24 next-hop self attribute [ 0x0a 0x80 0x02 ];
+	}
+}
+

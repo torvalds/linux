@@ -1,0 +1,65 @@
+.\" $OpenBSD: SSL_get_certificate.3,v 1.6 2025/06/08 22:52:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_GET_CERTIFICATE 3
+.Os
+.Sh NAME
+.Nm SSL_get_certificate ,
+.Nm SSL_get_privatekey
+.Nd get SSL certificate and private key
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft X509 *
+.Fo SSL_get_certificate
+.Fa "const SSL *ssl"
+.Fc
+.Ft EVP_PKEY *
+.Fo SSL_get_privatekey
+.Fa "const SSL *ssl"
+.Fc
+.Sh DESCRIPTION
+These functions retrieve certificate and key data from an
+.Vt SSL
+object.
+They return internal pointers that must not be freed by the application
+program.
+.Sh RETURN VALUES
+.Fn SSL_get_certificate
+returns the active X.509 certificate currently used by
+.Fa ssl
+or
+.Dv NULL
+if none is active.
+.Pp
+.Fn SSL_get_privatekey
+returns the active private key currently used by
+.Fa ssl
+or
+.Dv NULL
+if none is active.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_check_private_key 3 ,
+.Xr SSL_use_certificate 3
+.Sh HISTORY
+.Fn SSL_get_certificate
+first appeared in SSLeay 0.5.2a.
+.Fn SSL_get_privatekey
+first appeared in SSLeay 0.8.0.
+Both functions have been available since
+.Ox 2.4 .

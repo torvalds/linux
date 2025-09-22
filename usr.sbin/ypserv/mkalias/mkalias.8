@@ -1,0 +1,91 @@
+.\"	$OpenBSD: mkalias.8,v 1.13 2022/03/31 17:27:32 naddy Exp $
+.\"
+.\" Copyright (c) 1997 Mats O Jansson <moj@stacken.kth.se>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt MKALIAS 8
+.Os
+.Sh NAME
+.Nm mkalias
+.Nd a YP map conversion program
+.Sh SYNOPSIS
+.Nm mkalias
+.Op Fl nv
+.Oo
+.Fl E | e
+.Op Fl du
+.Oc
+.Ar input
+.Op Ar output
+.Sh DESCRIPTION
+.Nm
+is used to convert a mail.aliases map to a mail.byaddr map.
+This is an inverse map of user@host (or user!host) back to alias.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Assume domain names are OK.
+Only useful together with
+.Fl E
+or
+.Fl e .
+.It Fl E
+Same as
+.Fl e ,
+but also check for any MX-record.
+.It Fl e
+Check host to verify that it exists.
+.It Fl n
+Capitalize name. e.g., mats.o.jansson becomes Mats.O.Jansson.
+.It Fl u
+Assume UUCP names are OK.
+Only useful together with
+.Fl E
+or
+.Fl e .
+.It Fl v
+Verbose mode.
+.It Ar input
+Use this map as input.
+.It Ar output
+Use this map as output.
+If the output map isn't given, don't create database.
+Can be useful together with
+.Fl E
+or
+.Fl e .
+.El
+.Sh SEE ALSO
+.Xr yp 8 ,
+.Xr ypserv 8
+.Sh AUTHORS
+.An Mats O Jansson Aq Mt moj@stacken.kth.se
+.Sh BUGS
+.Nm
+on SunOS 4.1.x seems to have a
+.Fl s .
+Since I don't know what it is supposed to do, I haven't implemented it.
+But it is accepted by the program.

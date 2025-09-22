@@ -1,0 +1,16 @@
+static_library("plugin") {
+  output_name = "clangTidyPlugin"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy:all-checks",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Sema",
+    "//clang/lib/Tooling",
+  ]
+
+  sources = [ "ClangTidyPlugin.cpp" ]
+}

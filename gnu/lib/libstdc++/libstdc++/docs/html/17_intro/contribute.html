@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>How to contribute</title>
+</head>
+<!--990301 slightly modified version of the GCC contribute.html file-->
+<!-- #include virtual="/include/header-subpages.html"-->
+<body>
+<h2>How to contribute</h2>
+<p> The Standard C++ Library v3, follows an open development
+model. Active contributors are assigned maintainer-ship
+responsibility, and given write access to the CVS repository. First
+time contributors should follow this procedure:
+</p>
+
+<hr />
+<h4>ONE : read the documentation</h4> 
+
+<ul>
+ <li> Get and read the relevant sections of the C++ language
+specification. Copies of the full ISO 14882 standard are available on
+line via the ISO mirror site for committee members. Non-members, or
+those who have not paid for the privilege of sitting on the committee
+and sustained their two meeting commitment for voting rights, may get
+a copy of the standard from their respective national standards
+organization. In the USA, this national standards organization is ANSI
+and their web-site is right
+
+ <a href="http://www.ansi.org">here.</a> 
+(And if you've already registered with them, clicking this link will take you to directly to the place where you can 
+<a href="http://webstore.ansi.org/ansidocstore/product.asp?sku=ISO%2FIEC+14882%2D1998">buy the standard on-line.)</a>
+</li>
+
+<li> The library working group bugs, and known defects, can be obtained here:
+ <a href="http://www.dkuug.dk/jtc1/sc22/wg21/">http://www.dkuug.dk/jtc1/sc22/wg21 </a>
+</li>
+
+<li> The newsgroup dedicated to standardization issues is comp.std.c++: this FAQ for this group is quite useful and can be found <a href="http://reality.sgi.com/austern_mti/std-c++/faq.html"> here </a>.
+</li>
+
+ <li> Peruse the <a href="http://www.gnu.ai.mit.edu/prep/standards_toc.html">GNU Coding Standards</a>, and chuckle when you hit the part about "Using Languages Other Than C." 
+</li>
+
+ <li> Be familiar with the extensions that preceded these general GNU rules. These style issues for libstdc++ can be found in the file C++STYLE, located in the root level of the distribution, or <a href="C++STYLE"> here. </a>
+</li>
+
+ <li> And last but certainly not least, read the library-specific information found <a href="../documentation.html"> here.</a>
+</li>
+
+</ul>
+
+
+
+<hr />
+<h4>TWO : copyright assignment</h4> 
+<p>
+Small changes can be accepted without a copyright assignment form on
+file. New code and additions to the library need completed copyright
+assignment form on file at the FSF. Note: your employer may be required
+to fill out appropriate disclaimer forms as well. 
+</p>
+
+<p> Historically, the libstdc++ assignment form added the following question:
+</p>
+
+<code>[Which Belgian comic book character is better, Tintin or
+Asterix, and why?]</code>
+
+<p>
+While not strictly necessary, humoring the maintainers and answering
+this question would be appreciated.
+</p>
+
+<p>
+For more information about getting a copyright assignment, please see 
+<a href=http://www.gnu.org/prep/maintain_4.html#SEC4=> Legal Issues</a>
+</p>
+
+<p>
+Please contact <a href="mailto:bkoz+assign@redhat.com">Benjamin
+Kosnik</a> if you are confused about the assignment or have general
+licensing questions. When requesting an assignment form from <a
+HREF="mailto:assign@gnu.org">assign@gnu.org</a>, please cc
+the above libstdc++ maintainer so that progress can be monitored.
+</p>
+
+
+<hr />
+<h4>THREE : submitting patches</h4> 
+
+<p>
+Every patch must have several pieces of information before it can be
+properly evaluated. Ideally (and to ensure the fastest possible
+response from the maintainers) it would have all of these pieces:
+</p>
+
+<ul>
+
+ <li> A description of the bug and how your patch fixes this bug. For
+ new features a description of the feature and your implementation. </li>
+
+ <li> A ChangeLog entry as plain text; see the various ChangeLog files
+ for format and content. If using you are using emacs as your editor,
+ simply position the insertion point at the beginning of your change
+ and hit CX-4a to bring up the appropriate ChangeLog
+ entry. See--magic! Similar functionality also exists for vi.  </li>
+
+ <li> A testsuite submission or sample program that will easily and
+ simply show the existing error or test new functionality.  </li>
+
+ <li> The patch itself. If you are accessing the CVS repository at
+ Cygnus, use "cvs update; cvs diff -c3p NEW"; else, use "diff -c3p OLD
+ NEW" ... If your version of diff does not support these options, then
+ get the latest version of GNU diff. </li>
+
+ <li> When you have all these pieces, bundle them up in a mail message
+and send it to libstdc++@gcc.gnu.org. All patches and related
+discussion should be sent to the libstdc++ mailing list. </li>
+
+</ul>
+
+</body>
+</html>
+

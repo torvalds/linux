@@ -1,0 +1,8 @@
+# Multilibs for VxWorks.
+
+# Build multilibs for normal, -mrtp, and -mrtp -fPIC.
+MULTILIB_OPTIONS = mrtp fPIC
+MULTILIB_DIRNAMES =
+MULTILIB_MATCHES = fPIC=fpic
+MULTILIB_EXCEPTIONS = fPIC
+

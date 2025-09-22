@@ -1,0 +1,22 @@
+pass in on lo1000000 inet proto tcp from any to 10.0.0.2 port = 22 flags S/SA
+pass in on lo1000001 inet proto tcp from 10.0.0.1 port = 22 to 10.0.0.2 flags S/SA
+pass in on lo1000001 inet proto udp from 10.0.0.5 to 10.0.0.4 port = 53
+pass in on lo1000000 inet proto udp from any to 10.0.0.2 port = 53
+pass in inet proto tcp from any to 10.0.0.1 port = 80 flags S/SA
+pass out on lo1000001 inet proto udp from any to 10.0.0.2 port = 53
+pass in inet proto tcp from any to 10.0.0.3 port = 80 flags S/SA
+pass out inet proto tcp from any to 10.0.0.1 port = 81 flags S/SA
+pass in inet proto udp from any to 10.0.0.3 port = 53
+pass in on lo1000001 inet proto udp from 10.0.0.2 port = 53 to 10.0.0.2
+pass out inet proto udp from any to 10.0.0.1 port = 53
+pass out on lo1000000 inet proto udp from any to 10.0.0.2 port = 53
+pass out inet proto udp from any to 10.0.0.3 port = 53
+pass out on lo1000000 inet proto tcp from any to 10.0.0.2 port = 22 flags S/SA
+pass in on lo1000001 inet proto tcp from any to 10.0.0.2 port = 22 flags S/SA
+pass in on lo1000001 inet proto udp from any to 10.0.0.2 port = 53
+pass in on lo1000001 inet proto tcp from 10.0.0.1 to 10.0.0.4 flags S/SA
+pass out on lo1000001 inet proto tcp from any to 10.0.0.2 port = 22 flags S/SA
+pass out inet proto tcp from any to 10.0.0.1 port = 80 flags S/SA
+pass in inet proto udp from any to 10.0.0.1 port = 53
+pass in on lo1000001 inet proto tcp from 10.0.0.1 to 10.0.0.6 port = 22 flags S/SA
+pass in on lo1000001 inet proto udp from 10.0.0.5 to 10.0.0.2

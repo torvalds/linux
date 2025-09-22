@@ -1,0 +1,13 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ClangApplyReplacementsTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-apply-replacements",
+    "//clang/lib/Basic",
+    "//clang/lib/Tooling/Core",
+    "//clang/lib/Tooling/Refactoring",
+  ]
+  include_dirs = [ "//clang-tools-extra/clang-apply-replacements/include" ]
+  sources = [ "ApplyReplacementsTest.cpp" ]
+}

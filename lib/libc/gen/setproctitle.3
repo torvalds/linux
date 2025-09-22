@@ -1,0 +1,94 @@
+.\"	$OpenBSD: setproctitle.3,v 1.18 2013/06/05 03:39:22 tedu Exp $
+.\"
+.\" Copyright (c) 1994, 1995 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou
+.\"	 for the NetBSD Project.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt SETPROCTITLE 3
+.Os
+.Sh NAME
+.Nm setproctitle
+.Nd set process title
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft void
+.Fn setproctitle "const char *fmt" "..."
+.Sh DESCRIPTION
+The
+.Fn setproctitle
+function sets the invoking process's title.
+The process title is set to the last component of the program
+name, followed by a colon, a single space, and the formatted string specified
+by
+.Fa fmt .
+If
+.Fa fmt
+is
+.Dv NULL ,
+the colon and formatted string are omitted.
+The length of a process title is limited to 2048 bytes.
+.Sh EXAMPLES
+Set the process title to the program name, with no further information:
+.Bd -literal -offset indent
+setproctitle(NULL);
+.Ed
+.Pp
+Set the process title to the program name, an informational string,
+and the process ID:
+.Bd -literal -offset indent
+setproctitle("foo! (%d)", getpid());
+.Ed
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr w 1 ,
+.Xr getprogname 3 ,
+.Xr printf 3
+.Sh HISTORY
+The
+.Fn setproctitle
+function first appeared in
+.Nx 0.9a .
+.Sh CAVEATS
+It is important never to pass a string with user-supplied data as a
+format without using
+.Ql %s .
+An attacker can put format specifiers in the string to mangle the stack,
+leading to a possible security hole.
+This holds true even if the string has been built
+.Dq by hand
+using a function like
+.Fn snprintf ,
+as the resulting string may still contain user-supplied conversion specifiers
+for later interpolation by
+.Fn setproctitle .
+.Pp
+Always be sure to use the proper secure idiom:
+.Bd -literal -offset indent
+setproctitle("%s", string);
+.Ed

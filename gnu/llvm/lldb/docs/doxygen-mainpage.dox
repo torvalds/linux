@@ -1,0 +1,15 @@
+/// @mainpage LLDB
+///
+/// @section main_intro Introduction
+/// Welcome to LLDB.
+///
+/// This documentation describes both the private and public interface of LLDB.
+/// There are no instructions here on how to use LLDB, only the APIs
+/// that make up the software. For usage instructions, please see
+/// the help command.
+///
+/// @section main_caveat Caveat
+/// This documentation is generated directly from the source code with doxygen.
+/// Since LLDB is constantly under active development, what you're about to
+/// read is out of date! However, it may still be useful since certain portions
+/// of LLDB are very stable.

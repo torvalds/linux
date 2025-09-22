@@ -1,0 +1,8 @@
+# RUN: rm -rf %t/UserFoo && mkdir -p %t/UserFoo/FooDocs
+# RUN: touch %t/UserFoo/user.txt %t/UserFoo/FooDocs/doc.txt
+# RUN: pushd %t/UserFoo
+# RUN: pushd FooDocs
+# RUN: cat doc.txt
+# RUN: popd
+# RUN: cat user.txt
+# RUN: popd

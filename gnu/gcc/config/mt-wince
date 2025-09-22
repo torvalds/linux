@@ -1,0 +1,10 @@
+# For Windows CE, we need to build the program that converts, copies,
+# and renames the platform SDK files into gcc directories.
+
+EXTRA_TARGET_HOST_ALL_MODULES:=$(EXTRA_TARGET_HOST_ALL_MODULES) all-utils
+EXTRA_TARGET_HOST_INSTALL_MODULES:=$(EXTRA_TARGET_HOST_INSTALL_MODULES) install-utils
+
+all-utils : all-libiberty
+
+install-utils : all-libiberty
+

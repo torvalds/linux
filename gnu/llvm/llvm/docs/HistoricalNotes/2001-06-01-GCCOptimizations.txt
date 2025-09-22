@@ -1,0 +1,63 @@
+Date: Fri, 1 Jun 2001 16:38:17 -0500 (CDT)
+From: Chris Lattner <sabre@nondot.org>
+To: Vikram S. Adve <vadve@cs.uiuc.edu>
+Subject: Interesting: GCC passes
+
+
+Take a look at this document (which describes the order of optimizations
+that GCC performs):
+
+http://gcc.gnu.org/onlinedocs/gcc_17.html
+
+The rundown is that after RTL generation, the following happens:
+
+1 . [t] jump optimization (jumps to jumps, etc)
+2 . [t] Delete unreachable code
+3 .     Compute live ranges for CSE
+4 . [t] Jump threading (jumps to jumps with identical or inverse conditions)
+5 . [t] CSE
+6 . *** Conversion to SSA 
+7 . [t] SSA Based DCE
+8 . *** Conversion to LLVM
+9 .     UnSSA
+10.     GCSE
+11.     LICM
+12.     Strength Reduction
+13.     Loop unrolling
+14. [t] CSE
+15. [t] DCE
+16.     Instruction combination, register movement, scheduling... etc.
+
+I've marked optimizations with a [t] to indicate things that I believe to
+be relatively trivial to implement in LLVM itself.  The time consuming
+things to reimplement would be SSA based PRE, Strength reduction & loop
+unrolling... these would be the major things we would miss out on if we
+did LLVM creation from tree code [inlining and other high level
+optimizations are done on the tree representation].
+
+Given the lack of "strong" optimizations that would take a long time to
+reimplement, I am leaning a bit more towards creating LLVM from the tree
+code.  Especially given that SGI has GPL'd their compiler, including many
+SSA based optimizations that could be adapted (besides the fact that their
+code looks MUCH nicer than GCC :)
+
+Even if we choose to do LLVM code emission from RTL, we will almost
+certainly want to move LLVM emission from step 8 down until at least CSE
+has been rerun... which causes me to wonder if the SSA generation code
+will still work (due to global variable dependencies and stuff).  I assume
+that it can be made to work, but might be a little more involved than we
+would like.
+
+I'm continuing to look at the Tree -> RTL code.  It is pretty gross
+because they do some of the translation a statement at a time, and some
+of it a function at a time...  I'm not quite clear why and how the
+distinction is drawn, but it does not appear that there is a wonderful
+place to attach extra info.
+
+Anyways, I'm proceeding with the RTL -> LLVM conversion phase for now.  We
+can talk about this more on Monday.
+
+Wouldn't it be nice if there were a obvious decision to be made?  :)
+
+-Chris
+

@@ -1,0 +1,21 @@
+static_library("Remarks") {
+  output_name = "LLVMRemarks"
+  deps = [
+    "//llvm/lib/Bitstream/Reader",
+    "//llvm/lib/Support",
+  ]
+
+  sources = [
+    "BitstreamRemarkParser.cpp",
+    "BitstreamRemarkSerializer.cpp",
+    "Remark.cpp",
+    "RemarkFormat.cpp",
+    "RemarkLinker.cpp",
+    "RemarkParser.cpp",
+    "RemarkSerializer.cpp",
+    "RemarkStreamer.cpp",
+    "RemarkStringTable.cpp",
+    "YAMLRemarkParser.cpp",
+    "YAMLRemarkSerializer.cpp",
+  ]
+}

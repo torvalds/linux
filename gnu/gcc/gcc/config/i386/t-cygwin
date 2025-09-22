@@ -1,0 +1,16 @@
+# If we are building next to winsup, this will let us find the real
+# limits.h when building libgcc2.  Otherwise, winsup must be installed
+# first.
+LIBGCC2_INCLUDES += -I$(srcdir)/../winsup/include \
+	-I$(srcdir)/../winsup/cygwin/include
+
+cygwin1.o: $(srcdir)/config/i386/cygwin1.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  $(TM_H) $(TM_P_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	$(srcdir)/config/i386/cygwin1.c
+
+cygwin2.o: $(srcdir)/config/i386/cygwin2.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  $(TM_H) $(TM_P_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	$(srcdir)/config/i386/cygwin2.c
+

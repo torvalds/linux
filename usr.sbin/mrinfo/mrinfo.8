@@ -1,0 +1,148 @@
+.\"	$OpenBSD: mrinfo.8,v 1.13 2024/12/01 09:58:15 kn Exp $
+.\"	$NetBSD: mrinfo.8,v 1.2 1995/10/03 23:20:39 thorpej Exp $
+.\"
+.\" Written Wed Mar 24 1993 by Van Jacobson (adapted from the
+.\" multicast mapper written by Pavel Curtis).
+.\"
+.\" The lawyers insist we include the following UC copyright notice.
+.\" The mapper from which this is derived contained a Xerox copyright
+.\" notice which follows the UC one.  Try not to get depressed noting
+.\" that the legal gibberish is larger than the program.
+.\"
+.\" Copyright (c) 1993 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the Computer Systems
+.\"	Engineering Group at Lawrence Berkeley Laboratory.
+.\" 4. Neither the name of the University nor of the Laboratory may be used
+.\"    to endorse or promote products derived from this software without
+.\"    specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" ---------------------------------
+.\" Copyright (c) 1992, 2001 Xerox Corporation.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" Redistributions of source code must retain the above copyright notice,
+.\" this list of conditions and the following disclaimer.
+.\"
+.\" Redistributions in binary form must reproduce the above copyright notice,
+.\" this list of conditions and the following disclaimer in the documentation
+.\" and/or other materials provided with the distribution.
+.\"
+.\" Neither name of the Xerox, PARC, nor the names of its contributors may be
+.\" used to endorse or promote products derived from this software
+.\" without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE XEROX CORPORATION OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 1 2024 $
+.Dt MRINFO 8
+.Os
+.Sh NAME
+.Nm mrinfo
+.Nd displays configuration info from a multicast router
+.Sh SYNOPSIS
+.Nm mrinfo
+.Op Fl d Ns Op Ar debug_level
+.Op Fl r Ar retry_count
+.Op Fl t Ar timeout_count
+.Ar multicast_router
+.Sh DESCRIPTION
+.Nm
+attempts to display the configuration information from the specified
+.Ar multicast_router .
+.Pp
+.Nm
+uses the ASK_NEIGHBORS IGMP message to query the specified multicast
+router.
+If the router responds, the version number and a list of their
+neighboring multicast router addresses is part of the response.
+If the responding router has a recent multicast version number, then
+.Nm
+requests additional information such as metrics, thresholds,
+and flags from the multicast router.
+Once the specified multicast router responds,
+the configuration is displayed to the standard output.
+.Pp
+The options are as follows:
+.Bl -tag -width timeout_levelxyz
+.It Fl d Ns Op Ar debug_level
+sets the debug level.
+When the debug level is greater than the default value of 0,
+additional debugging messages are printed.
+Regardless of the debug level,
+an error condition will always write an error message and cause
+.Nm
+to terminate.
+Non-zero debug levels have the following effects (printed to stderr):
+.Pp
+.Bl -tag -width 1n -compact -offset indent
+.It 1
+packet warnings.
+.It 2
+all level 1 messages plus notifications of down networks.
+.It 3
+all level 2 messages plus notifications of all packet timeouts.
+.El
+.It Fl r Ar retry_count
+sets the neighbor query retry limit.
+The default is to do 3 retries.
+.It Fl t Ar timeout_count
+sets the number of seconds to wait for a neighbor query reply.
+The default timeout is 4 seconds.
+.El
+.Sh EXAMPLES
+.Bd -literal
+# mrinfo mbone.phony.dom.net
+127.148.176.10 (mbone.phony.dom.net) [version 3.3]:
+ 127.148.176.10 -> 0.0.0.0 (?) [1/1/querier]
+ 127.148.176.10 -> 127.0.8.4 (mbone2.phony.dom.net) [1/45/tunnel]
+ 127.148.176.10 -> 105.1.41.9 (momoney.com) [1/32/tunnel/down]
+ 127.148.176.10 -> 143.192.152.119 (mbone.dipu.edu) [1/32/tunnel]
+.Ed
+.Pp
+For each neighbor of the queried multicast router, the IP of the queried router
+is displayed, followed by the IP and name of the neighbor.
+In square brackets the metric (cost of connection)
+and threshold (multicast ttl) is displayed.
+If the queried multicast router has a newer version number, the type (tunnel,
+srcrt) and status (disabled, down) of the connection is displayed.
+.Sh SEE ALSO
+.Xr map-mbone 8 ,
+.Xr mrouted 8 ,
+.Xr mtrace 8
+.Sh AUTHORS
+.An Van Jacobson

@@ -1,0 +1,92 @@
+.\"	$OpenBSD: aic.4,v 1.8 2012/08/14 01:08:19 dlg Exp $
+.\"	$NetBSD: aic.4,v 1.5 1998/06/07 09:08:45 enami Exp $
+.\"
+.\" Copyright (c) 1997 Jason R. Thorpe.  All rights reserved.
+.\" Copyright (c) 1994 James A. Jegers
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: August 14 2012 $
+.Dt AIC 4
+.Os
+.Sh NAME
+.Nm aic
+.Nd Adaptec AIC-6260 and AIC-6360 SCSI interface
+.Sh SYNOPSIS
+.Cd "aic0 at isa? port 0x340 irq 11"
+.Cd "aic* at isapnp?"
+.Cd "aic* at pcmcia?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Tn Adaptec
+AIC-6260 and AIC-6360
+.Tn SCSI
+controller chips.
+.Pp
+The
+.Tn ISA
+attachment of the
+.Nm
+driver supports the
+.Tn Adaptec
+152x, the
+.Tn "Creative Labs"
+SoundBlaster
+.Tn SCSI
+host adapter, and compatibles.
+Many
+.Tn ISA
+cards that use this chip do not have boot ROMs, and therefore cannot
+be used to connect the boot device.
+.Pp
+The
+.Tn "ISA Plug-and-Play"
+attachment of the
+.Nm
+driver supports the
+.Tn Adaptec
+AHA-1520B host adapter.
+.Pp
+The
+.Tn PCMCIA
+attachment of the
+.Nm
+driver supports the
+.Tn Adaptec
+APA-14[56]0.
+These
+.Tn SCSI
+host adapters do not include boot ROMs and therefore cannot be used
+to connect the boot device.
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr isapnp 4 ,
+.Xr pcmcia 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr st 4 ,
+.Xr uk 4

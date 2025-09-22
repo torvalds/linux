@@ -1,0 +1,2 @@
+flow from lo0 to 127.0.0.1
+flow from { 127.0.0.1, ::1 } to { ::1 }

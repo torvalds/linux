@@ -1,0 +1,700 @@
+#	$OpenBSD: 4.4BSD.dist,v 1.325 2024/06/02 12:32:33 florian Exp $
+
+/set type=dir uname=root gname=wheel mode=0755
+
+. nochange
+altroot
+..
+bin
+..
+dev
+..
+
+# ./etc
+etc
+    amd
+    ..
+    authpf			uname=root mode=0755
+    ..
+    examples
+    ..
+    firmware
+    ..
+    hotplug
+    ..
+
+    # ./etc/iked
+    iked
+        ca
+        ..
+        certs
+        ..
+        crls
+        ..
+        private			uname=root mode=0700
+        ..
+
+        # ./etc/iked/pubkeys
+        pubkeys			uname=root mode=0755
+            fqdn		uname=root mode=0755
+            ..
+            ipv4		uname=root mode=0755
+            ..
+            ipv6		uname=root mode=0755
+            ..
+            ufqdn		uname=root mode=0755
+            ..
+        ..
+    ..
+
+    # ./etc/isakmpd
+    isakmpd
+        ca
+        ..
+        certs
+        ..
+        crls
+        ..
+        keynote
+        ..
+        private			uname=root mode=0700
+        ..
+
+        # ./etc/isakmpd/pubkeys
+        pubkeys			uname=root mode=0755
+            fqdn		uname=root mode=0755
+            ..
+            ipv4		uname=root mode=0755
+            ..
+            ipv6		uname=root mode=0755
+            ..
+            ufqdn		uname=root mode=0755
+            ..
+        ..
+    ..
+
+    # ./etc/ldap
+    ldap
+        certs			mode=0700
+        ..
+    ..
+    login.conf.d		mode=0755
+    ..
+    acme			mode=0700
+    ..
+    mail
+    ..
+    mtree
+    ..
+    npppd
+    ..
+    ppp
+    ..
+    rc.d
+    ..
+    rpki
+    ..
+    skel
+        .ssh			uname=root mode=0700
+        ..
+    ..
+    signify
+    ..
+    ssh
+    ..
+
+    # ./etc/ssl
+    ssl
+        private			uname=root mode=0700
+        ..
+    ..
+
+..
+
+# ./home
+home
+..
+mnt
+..
+root				mode=0700
+    .ssh			uname=root mode=0700
+    ..
+..
+sbin
+..
+tmp				mode=01777
+..
+
+# ./usr
+usr
+    bin
+    ..
+    games
+    ..
+
+    # ./usr/include
+    include			gname=bin uname=root mode=0755
+        arpa			gname=bin uname=root mode=0755
+        ..
+        openssl			gname=bin uname=root mode=0755
+        ..
+        protocols		gname=bin uname=root mode=0755
+        ..
+        readline		gname=bin uname=root mode=0755
+        ..
+        rpc			gname=bin uname=root mode=0755
+        ..
+        rpcsvc			gname=bin uname=root mode=0755
+        ..
+    ..
+
+    # ./usr/lib
+    lib
+        debug			gname=bin uname=root mode=0755
+        ..
+        locate			gname=bin uname=root mode=0755
+        ..
+        pkgconfig		gname=bin uname=root mode=0755
+        ..
+    ..
+
+    # ./usr/libdata
+    libdata
+        perl5
+        ..
+    ..
+
+    # ./usr/libexec
+    libexec
+        auth			type=dir uname=root gname=auth mode=0750
+        ..
+        lpr
+        ..
+        radiusd			type=dir uname=root gname=wheel mode=0755
+        ..
+        snmpd			type=dir uname=root gname=wheel mode=0755
+        ..
+    ..
+
+    # ./usr/local
+    local
+        bin
+        ..
+        lib
+            pkgconfig
+            ..
+        ..
+        include
+        ..
+        info
+        ..
+        libexec
+        ..
+
+        # ./usr/local/man
+        man
+            cat1
+            ..
+            cat2
+            ..
+            cat3
+            ..
+            cat3f
+            ..
+            cat3p
+            ..
+            cat4
+            ..
+            cat5
+            ..
+            cat6
+            ..
+            cat7
+            ..
+            cat8
+            ..
+            cat9
+            ..
+            catl
+            ..
+            catn
+            ..
+
+            # ./usr/local/man/ja_JP.EUC
+            ja_JP.EUC
+                cat1
+                ..
+                cat2
+                ..
+                cat3
+                ..
+                cat3p
+                ..
+                cat4
+                ..
+                cat5
+                ..
+                cat6
+                ..
+                cat7
+                ..
+                cat8
+                ..
+                cat9
+                ..
+                catl
+                ..
+                catn
+                ..
+                man1
+                ..
+                man2
+                ..
+                man3
+                ..
+                man4
+                ..
+                man5
+                ..
+                man6
+                ..
+                man7
+                ..
+                man8
+                ..
+                man9
+                ..
+                manl
+                ..
+                mann
+                ..
+            ..
+
+            # ./usr/local/man/man1
+            man1
+            ..
+            man2
+            ..
+            man3
+            ..
+            man3f
+            ..
+            man3p
+            ..
+            man4
+            ..
+            man5
+            ..
+            man6
+            ..
+            man7
+            ..
+            man8
+            ..
+            man9
+            ..
+            manl
+            ..
+            mann
+            ..
+        ..
+
+        # ./usr/local/sbin
+        sbin
+        ..
+
+        # ./usr/local/share
+        share
+            dict
+            ..
+            doc
+                pkg-readmes
+                ..
+            ..
+            examples
+                login.conf.d
+                ..
+            ..
+            misc
+            ..
+
+            # ./usr/local/share/pkgconfig
+            pkgconfig
+            ..
+            skel
+            ..
+        ..
+
+        # ./usr/local/libdata
+        libdata
+            perl5
+                site_perl
+                ..
+            ..
+        ..
+    ..
+
+    # ./usr/mdec
+    mdec
+    ..
+    sbin
+    ..
+
+    # ./usr/share
+    share
+        # ./usr/share/btrace
+	btrace
+	..
+
+        # ./usr/share/calendar
+        calendar
+        ..
+
+        # ./usr/share/dict
+        dict
+            papers
+            ..
+            special
+            ..
+        ..
+
+        # ./usr/share/doc
+        doc
+        ..
+
+        # ./usr/share/games
+        games
+            atc
+            ..
+            boggle
+            ..
+            fortune
+            ..
+            hack
+            ..
+            quiz.db
+            ..
+        ..
+
+        # ./usr/share/info
+        info
+        ..
+        locale
+        ..
+
+        # ./usr/share/man
+        man
+            man1
+                amd64
+                ..
+                i386
+                ..
+                sparc64
+                ..
+            ..
+
+            # ./usr/share/man/man2
+            man2
+                alpha
+                ..
+                amd64
+                ..
+                armv7
+                ..
+                i386
+                ..
+            ..
+
+            # ./usr/share/man/man3
+            man3
+                loongson
+                ..
+                octeon
+                ..
+            ..
+
+            # ./usr/share/man/man3p
+            man3p
+            ..
+
+            # ./usr/share/man/man4
+            man4
+                alpha
+                ..
+                amd64
+                ..
+                arm64
+                ..
+                armv7
+                ..
+                hppa
+                ..
+                i386
+                ..
+                landisk
+                ..
+                loongson
+                ..
+                luna88k
+                ..
+                macppc
+                ..
+                octeon
+                ..
+                powerpc64
+                ..
+                riscv64
+                ..
+                sparc64
+                ..
+            ..
+
+            # ./usr/share/man/man5
+            man5
+                sparc64
+                ..
+            ..
+            man6
+            ..
+            man7
+            ..
+
+            # ./usr/share/man/man8
+            man8
+                alpha
+                ..
+                amd64
+                ..
+                arm64
+                ..
+                armv7
+                ..
+                hppa
+                ..
+                i386
+                ..
+                landisk
+                ..
+                loongson
+                ..
+                luna88k
+                ..
+                macppc
+                ..
+                octeon
+                ..
+                powerpc64
+                ..
+                riscv64
+                ..
+                sparc64
+                ..
+            ..
+
+            # ./usr/share/man/man9
+            man9
+            ..
+        ..
+
+        # ./usr/share/misc
+        misc
+        ..
+        mk
+        ..
+
+        # ./usr/share/relink
+        relink
+
+            # ./usr/share/relink/kernel
+            kernel
+            ..
+        ..
+        snmp
+            mibs
+            ..
+        ..
+        tabset
+        ..
+
+        # ./usr/share/zoneinfo
+        zoneinfo		gname=bin uname=root mode=0755
+            Australia		gname=bin uname=root mode=0755
+            ..
+            Brazil		gname=bin uname=root mode=0755
+            ..
+            Canada		gname=bin uname=root mode=0755
+            ..
+            Chile		gname=bin uname=root mode=0755
+            ..
+            Mexico		gname=bin uname=root mode=0755
+            ..
+            US			gname=bin uname=root mode=0755
+            ..
+        ..
+   ..
+..
+
+# ./var
+var
+    account
+    ..
+    agentx			uname=root gname=wheel mode=755
+    ..
+    authpf			uname=root gname=authpf mode=0770
+    ..
+    empty			mode=0755
+    ..
+    backups			mode=0700
+    ..
+    yp				mode=755
+    ..
+    crash			mode=770
+    ..
+    cache			mode=755
+        rpki-client		uname=_rpki-client gname=wheel mode=0755
+        ..
+    ..
+
+    # ./var/cron
+    cron			mode=0555
+        atjobs			gname=crontab mode=01770
+        ..
+        tabs			gname=crontab mode=01730
+        ..
+    ..
+
+    # ./var/db
+    db
+        acpi
+	..
+        dhcp6leased
+	..
+        dhcpleased
+	..
+        ldap			mode=0700
+        ..
+        ns
+        ..
+        rpki-client		uname=_rpki-client mode=0755
+        ..
+        pkg
+        ..
+        yubikey			uname=root gname=auth mode=0770
+        ..
+    ..
+
+    # ./var/games
+    games			uname=root gname=games mode=0775
+        save			uname=root gname=games mode=0775
+        ..
+        phantasia		uname=root gname=games mode=0775
+        ..
+    ..
+
+    # ./var/log
+    log
+        rdist
+        ..
+    ..
+    mail
+    ..
+
+    # ./var/nsd
+    nsd
+        db			uname=root gname=_nsd mode=0775
+        ..
+        etc			uname=root gname=_nsd mode=0750
+        ..
+        run			uname=root gname=_nsd mode=0775
+            xfr			uname=root gname=_nsd mode=0770
+            ..
+        ..
+
+        # ./var/nsd/zones
+        zones			uname=root gname=wheel mode=0755
+            master		uname=root gname=wheel mode=0755
+            ..
+            slave		uname=root gname=_nsd mode=0775
+            ..
+        ..
+    ..
+
+    # ./var/quotas
+    quotas			gname=operator mode=0750
+    ..
+    run
+    ..
+    sysmerge			uname=root gname=wheel mode=0700
+    ..
+    syspatch			uname=root gname=wheel mode=0755
+    ..
+
+    # ./var/spool
+    spool
+        ftp			mode=0555
+            bin			mode=0511
+            ..
+            etc			mode=0511
+            ..
+            hidden		mode=0111
+            ..
+        ..
+
+        # ./var/spool/lock
+        lock			uname=root gname=dialer mode=1775
+        ..
+        output
+            lpd			gname=daemon mode=0775
+	    ..
+        ..
+
+        # ./var/spool/smtpd
+        smtpd			type=dir uname=root gname=wheel mode=0711
+            corrupt		type=dir uname=_smtpq gname=wheel mode=0700
+            ..
+            incoming		type=dir uname=_smtpq gname=wheel mode=0700
+            ..
+            offline		type=dir uname=root gname=_smtpq mode=0770
+            ..
+            purge		type=dir uname=_smtpq gname=wheel mode=0700
+            ..
+            queue		type=dir uname=_smtpq gname=wheel mode=0700
+            ..
+            temporary		type=dir uname=_smtpq gname=wheel mode=0700
+            ..
+        ..
+
+    ..
+
+    # ./var/unbound
+    unbound
+        etc			uname=root gname=wheel mode=0755
+        ..
+        db			uname=root gname=_unbound mode=0775
+        ..
+    ..
+
+    # ./var/www
+    www				type=dir uname=root gname=daemon mode=755
+        cache			type=dir uname=www gname=daemon mode=1700
+        ..
+        cgi-bin			type=dir uname=root gname=daemon mode=755
+        ..
+        htdocs			type=dir uname=root gname=daemon mode=755
+        ..
+        acme			type=dir uname=root gname=daemon mode=755
+        ..
+        logs			type=dir uname=root gname=daemon mode=755
+        ..
+        conf			type=dir uname=root gname=daemon mode=755
+        ..
+        bin			type=dir uname=root gname=daemon mode=755
+        ..
+        run			type=dir uname=root gname=daemon mode=755
+        ..
+    ..
+
+    # ./var/audit
+    audit			type=dir uname=root gname=wheel mode=2770
+    ..
+..

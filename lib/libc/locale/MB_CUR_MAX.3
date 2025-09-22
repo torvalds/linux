@@ -1,0 +1,118 @@
+.\" $OpenBSD: MB_CUR_MAX.3,v 1.1 2023/08/25 12:45:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 25 2023 $
+.Dt MB_CUR_MAX 3
+.Os
+.Sh NAME
+.Nm MB_CUR_MAX
+.Nd maximum number of bytes in a multibyte character
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft size_t
+.Sy MB_CUR_MAX
+.Pp
+.In limits.h
+.Fd #define MB_LEN_MAX 4
+.Sh DESCRIPTION
+.Nm
+is a macro that returns the maximum number of bytes needed to
+represent any multibyte character in the current character encoding.
+Usually, the character encoding is selected for the whole program using
+.Xr setlocale 3
+with a
+.Fa category
+argument of
+.Dv LC_CTYPE ,
+but it can be overridden on a per-thread basis using
+.Xr uselocale 3 .
+.Pp
+By default and in the
+.Qq C
+locale,
+.Nm MB_CUR_MAX
+returns 1.
+On
+.Ox ,
+the only other possible return value is 4;
+it occurs when using a UTF-8 locale.
+On other systems,
+.Nm
+may return positive values other than 1 or 4.
+.Pp
+.Dv MB_LEN_MAX
+is a constant specifying the maximum number of bytes needed to
+represent any multibyte character in any supported character encoding.
+On
+.Ox ,
+it is always 4.
+On other systems, it may have a different value greater than or equal to 1.
+.Sh RETURN VALUES
+On any system,
+.Nm
+returns an integral value in the range from 1 to
+.Dv MB_LEN_MAX ,
+inclusive.
+.Sh EXAMPLES
+Size a buffer in a portable way to hold one single multibyte character:
+.Bd -literal -offset indent
+char	 buf[MB_LEN_MAX];
+wchar_t	 wchar;  /* input value */
+
+if (wctomb(buf, wchar) == -1)
+	/* error */
+.Ed
+.Pp
+Switch between code handling the
+.Xr ascii 7
+and
+UTF-8 character encodings in an
+.Ox Ns -specific
+way
+.Pq not portable :
+.Bd -literal -offset indent
+if (MB_CUR_MAX == 1) {
+	/* Code to handle ASCII-encoded single-byte strings. */
+} else {
+	/* Code to handle UTF-8-encoded multibyte strings. */
+}
+.Ed
+.Sh SEE ALSO
+.Xr mblen 3 ,
+.Xr setlocale 3 ,
+.Xr uselocale 3 ,
+.Xr wctomb 3
+.Sh STANDARDS
+.Nm MB_CUR_MAX
+and
+.Dv MB_LEN_MAX
+conform to
+.St -ansiC .
+.Sh HISTORY
+.Nm MB_CUR_MAX
+has been non-constant and thread-dependent since
+.Ox 6.2 .
+.Sh CAVEATS
+Since
+.Nm
+is thread-dependent, calling it in a loop that processes individual
+bytes or characters is likely to slow down the loop considerably.
+If possible, consider calling it once before the loop and caching
+the return value in a local variable to improve performance.
+The value remains valid as long as the thread does not call
+.Xr setlocale 3
+or
+.Xr uselocale 3 .

@@ -1,0 +1,213 @@
+.\"	$OpenBSD: inet_ntop.3,v 1.6 2022/09/11 06:38:10 jmc Exp $
+.\"	$NetBSD: inet.3,v 1.7 1997/06/18 02:25:24 lukem Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)inet.3	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt INET_NTOP 3
+.Os
+.Sh NAME
+.Nm inet_ntop ,
+.Nm inet_pton
+.Nd convert Internet addresses between presentation and network formats
+.Sh SYNOPSIS
+.In sys/socket.h
+.In arpa/inet.h
+.Ft const char *
+.Fn inet_ntop "int af" "const void * restrict src" "char * restrict dst" "socklen_t size"
+.Ft int
+.Fn inet_pton "int af" "const char * restrict src" "void * restrict dst"
+.Sh DESCRIPTION
+The
+.Fn inet_pton
+function converts a presentation format address (that is, printable form
+as held in a character string) to network format (usually a
+.Vt struct in_addr
+or some other internal binary representation, in network byte order).
+It returns 1 if the address was valid for the specified address family;
+0 if the address wasn't parseable in the specified address family; or \-1
+if some system error occurred (in which case
+.Va errno
+will have been set).
+This function is presently valid for
+.Dv AF_INET
+and
+.Dv AF_INET6 .
+.Pp
+The function
+.Fn inet_ntop
+converts an address from network format to presentation format.
+It returns
+.Dv NULL
+if a system
+error occurs (in which case,
+.Va errno
+will have been set), or it returns a pointer to the destination string.
+.Pp
+All Internet addresses are returned in network
+order (bytes ordered from left to right).
+.Sh INTERNET ADDRESSES (IP VERSION 4)
+Values must be specified using the standard dot notation:
+.Bd -literal -offset indent
+a.b.c.d
+.Ed
+.Pp
+All four parts must be decimal numbers between 0 and 255, inclusive,
+and are assigned, from left to right,
+to the four bytes of an Internet address.
+Note that when an Internet address is viewed as a 32-bit integer
+quantity on a system that uses little-endian byte order
+(such as AMD64 or ARM processors)
+the bytes referred to above appear as
+.Dq Li d.c.b.a .
+That is, little-endian bytes are ordered from right to left.
+.Sh INTERNET ADDRESSES (IP VERSION 6)
+In order to support scoped IPv6 addresses,
+.Xr getaddrinfo 3
+and
+.Xr getnameinfo 3
+are recommended rather than the functions presented here.
+.Pp
+The presentation format of an IPv6 address is given in RFC 4291:
+.Pp
+There are three conventional forms for representing IPv6 addresses as
+text strings:
+.Bl -enum
+.It
+The preferred form is x:x:x:x:x:x:x:x, where the 'x's are the
+hexadecimal values of the eight 16-bit pieces of the address.
+Examples:
+.Bd -literal -offset indent
+FEDC:BA98:7654:3210:FEDC:BA98:7654:3210
+1080:0:0:0:8:800:200C:417A
+.Ed
+.Pp
+Note that it is not necessary to write the leading zeros in an
+individual field, but there must be at least one numeral in
+every field (except for the case described in 2.).
+.It
+Due to the method of allocating certain styles of IPv6
+addresses, it will be common for addresses to contain long
+strings of zero bits.
+In order to make writing addresses
+containing zero bits easier, a special syntax is available to
+compress the zeros.
+The use of
+.Dq \&:\&:
+indicates multiple groups
+of 16 bits of zeros.
+The
+.Dq \&:\&:
+can only appear once in an
+address.
+The
+.Dq \&:\&:
+can also be used to compress the leading and/or trailing zeros in an address.
+.Pp
+For example the following addresses:
+.Bd -literal -offset indent
+1080:0:0:0:8:800:200C:417A  a unicast address
+FF01:0:0:0:0:0:0:43         a multicast address
+0:0:0:0:0:0:0:1             the loopback address
+0:0:0:0:0:0:0:0             the unspecified addresses
+.Ed
+.Pp
+may be represented as:
+.Bd -literal -offset indent
+1080::8:800:200C:417A       a unicast address
+FF01::43                    a multicast address
+::1                         the loopback address
+::                          the unspecified addresses
+.Ed
+.It
+An alternative form that is sometimes more convenient when
+dealing with a mixed environment of IPv4 and IPv6 nodes is
+x:x:x:x:x:x:d.d.d.d, where the 'x's are the hexadecimal values
+of the six high-order 16-bit pieces of the address, and the 'd's
+are the decimal values of the four low-order 8-bit pieces of the
+address (standard IPv4 representation).
+Examples:
+.Bd -literal -offset indent
+0:0:0:0:0:0:13.1.68.3
+0:0:0:0:0:FFFF:129.144.52.38
+.Ed
+.Pp
+or in compressed form:
+.Bd -literal -offset indent
+::13.1.68.3
+::FFFF:129.144.52.38
+.Ed
+.El
+.Sh SEE ALSO
+.Xr gethostbyname 3 ,
+.Xr inet_addr 3 ,
+.Xr inet_net_ntop 3 ,
+.Xr hosts 5
+.Sh STANDARDS
+The
+.Nm inet_ntop
+and
+.Nm inet_pton
+functions conform to the IETF IPv6 BSD API and address formatting
+specifications, as well as
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Nm inet_pton
+and
+.Nm inet_ntop
+functions appeared in BIND 4.9.4.
+.Sh CAVEATS
+Note that
+.Nm inet_pton
+does not accept 1-, 2-, or 3-part dotted addresses;
+all four parts must be specified and must be in decimal
+(and not octal or hexadecimal).
+This is a narrower input set than that accepted by
+.Nm inet_aton .
+.Pp
+.Rs
+.%A R. Gilligan
+.%A S. Thomson
+.%A J. Bound
+.%A J. McCann
+.%A W. Stevens
+.%D February 2003
+.%R RFC 3493
+.%T Basic Socket Interface Extensions for IPv6
+.Re
+.Pp
+.Rs
+.%A R. Hinden
+.%A S. Deering
+.%D February 2006
+.%R RFC 4291
+.%T IP Version 6 Addressing Architecture
+.Re

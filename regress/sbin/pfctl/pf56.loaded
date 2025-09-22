@@ -1,0 +1,8 @@
+@0 pass in proto tcp from any to any port = 80 flags S/SA keep state (tcp.established 60)
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass in proto tcp from any to any port = 80 flags S/SA keep state (max 10, no-sync, tcp.first 2, adaptive.start 6, adaptive.end 12)
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

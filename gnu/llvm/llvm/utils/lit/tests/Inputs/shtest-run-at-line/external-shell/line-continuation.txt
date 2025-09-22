@@ -1,0 +1,12 @@
+# These commands must run under both bash and windows cmd.exe (with GnuWin32
+# tools).
+
+# RUN: echo 'foo bar' \
+# RUN: | FileCheck %s
+# RUN: echo \
+# RUN: 'foo baz' \
+# RUN: | FileCheck %s
+# RUN: echo 'foo bar' \
+# RUN: | FileCheck %s
+
+# CHECK: foo bar

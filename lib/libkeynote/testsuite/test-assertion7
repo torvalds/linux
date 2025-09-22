@@ -1,0 +1,24 @@
+comment: this assertion will return "true", since "KeyC" is among the
+	 action authorizers and the conditions field will return "true"
+authorizer: "Key6"
+licensees: "KeyC"
+conditions: app_domain == "testing" && request == "test" &&
+		_VALUES == "false,maybe,probably,true" && _VALUES != "foo" &&
+		_ACTION_AUTHORIZERS ~= "(.*,)KeyE,.*" &&
+		@ _0 == 2^2/4 &&	# minor regexp testing here
+		_ACTION_AUTHORIZERS != "foo" &&
+	# now let's test precedence rules
+                $foo . bar == ($foo) . bar &&
+                $foo . bar != $(foo . bar) &&
+		$foo == $(foo) &&
+		$ ("fo" . "o") == foo &&
+		$ "fo" . "o" != $"foo" &&
+		-1 * 12 == -12 &&
+		12 * 1 - 1 != 0 &&
+		@(foo . bar) == 0 &&
+		$((("foo"))) == foo &&
+		@foo + 1 == @bar + 1 &&  	# 1 == 1
+		@foo == 0 &&
+		  variable == "yes" -> "true";
+
+	@foo / @foo == @foo -> "maybe";

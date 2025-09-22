@@ -1,0 +1,7 @@
+#	$OpenBSD: chatscript.sample,v 1.2 2014/07/10 11:18:23 jasper Exp $
+ABORT BUSY ABORT 'NO CARRIER' '' ATZ OK ATDT*70,5551212
+CONNECT ''
+'' ''
+'' ''
+Userid:--Userid: myloginname
+assword?--assword? mypassword

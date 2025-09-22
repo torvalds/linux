@@ -1,0 +1,121 @@
+.\"	$OpenBSD: fsync.2,v 1.15 2019/04/18 23:51:13 tedu Exp $
+.\"	$NetBSD: fsync.2,v 1.4 1995/02/27 12:32:38 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fsync.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: April 18 2019 $
+.Dt FSYNC 2
+.Os
+.Sh NAME
+.Nm fsync ,
+.Nm fdatasync
+.Nd synchronize a file's in-core state with that on disk
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn fsync "int fd"
+.Ft int
+.Fn fdatasync "int fd"
+.Sh DESCRIPTION
+The
+.Fn fsync
+function causes all modified data and attributes of
+.Fa fd
+to be moved to a permanent storage device.
+This normally results in all in-core modified copies
+of buffers for the associated file to be written to a disk.
+.Pp
+The
+.Fn fdatasync
+function is similar to
+.Fn fsync
+except that it only guarantees modified data
+.Pq and metadata necessary to read that data
+is committed to storage.
+Other file modifications may be left unsynchronized.
+.Pp
+.Fn fsync
+and
+.Fn fdatasync
+should be used by programs that require a file to be in a known state,
+for example, in building a simple transaction facility.
+.Pp
+If
+.Fn fsync
+or
+.Fn fdatasync
+fail with
+.Er EIO ,
+the state of the on-disk data may have been only partially written.
+To guard against potential inconsistency, future calls will continue failing
+until all references to the file are closed.
+.Sh RETURN VALUES
+.Rv -std fsync fdatasync
+.Sh ERRORS
+The
+.Fn fsync
+and
+.Fn fdatasync
+functions fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+.Fa fd
+is not a valid descriptor.
+.It Bq Er EINVAL
+.Fa fd
+does not refer to a file which can be synchronized.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.El
+.Sh SEE ALSO
+.Xr sync 2 ,
+.Xr sync 8
+.Sh STANDARDS
+The
+.Fn fsync
+and
+.Fn fdatasync
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn fsync
+system call first appeared in
+.Bx 4.1c ,
+and the
+.Fn fdatasync
+function has been available since
+.Ox 5.4 .
+.Sh BUGS
+The
+.Fn fdatasync
+function is currently a wrapper around
+.Fn fsync ,
+so it synchronizes more state than necessary.

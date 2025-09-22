@@ -1,0 +1,61 @@
+.\"	$OpenBSD: octcrypto.4,v 1.1 2018/04/09 13:48:26 visa Exp $
+.\"
+.\" Copyright (c) 2018 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 9 2018 $
+.Dt OCTCRYPTO 4 octeon
+.Os
+.Sh NAME
+.Nm octcrypto
+.Nd OCTEON cryptographic unit
+.Sh SYNOPSIS
+.Cd "octcrypto0 at mainbus0"
+.Sh DESCRIPTION
+The
+.Nm
+driver utilizes the OCTEON cryptographic unit to provide
+a hardware-accelerated implementation of the following algorithms
+for
+.Xr ipsec 4 :
+.Pp
+.Bl -item -offset indent -compact
+.It
+AES-CBC
+.It
+AES-CTR
+.It
+AES-GCM
+.It
+AES-GMAC
+.It
+HMAC-MD5
+.It
+HMAC-SHA1
+.It
+HMAC-SHA2-256
+.It
+HMAC-SHA2-384
+.It
+HMAC-SHA2-512
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr ipsec 4 ,
+.Xr crypto 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.4 .

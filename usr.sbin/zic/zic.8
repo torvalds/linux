@@ -1,0 +1,469 @@
+.\"	$OpenBSD: zic.8,v 1.7 2025/06/23 13:53:11 millert Exp $
+.Dd $Mdocdate: June 23 2025 $
+.Dt ZIC 8
+.Os
+.Sh NAME
+.Nm zic
+.Nd time zone compiler
+.Sh SYNOPSIS
+.Nm zic
+.Bk -words
+.Op Fl v
+.Op Fl d Ar directory
+.Op Fl L Ar leapsecondfilename
+.Op Fl l Ar timezone
+.Op Fl p Ar timezone
+.Op Ar filename ...
+.Ek
+.Sh DESCRIPTION
+.Nm
+reads text from the file(s) named on the command line
+and creates the time conversion information files specified in this input.
+If a
+.Ar filename
+is
+.Dq Fl ,
+the standard input is read.
+.Pp
+These options are available:
+.Bl -tag -width "-d directory"
+.It Fl d Ar directory
+Create time conversion information files in the named directory rather than
+in the standard directory named below.
+.It Fl L Ar leapsecondfilename
+Read leap second information from the file with the given name.
+If this option is not used,
+no leap second information appears in output files.
+.It Fl l Ar timezone
+Use the given time zone as local time.
+.Nm
+will act as if the input contained a link line of the form
+.Pp
+.Dl Link	timezone		localtime
+.It Fl p Ar timezone
+Use the given time zone's rules when handling POSIX-format
+time zone environment variables.
+.Nm
+will act as if the input contained a link line of the form
+.Pp
+.Dl Link	timezone		posixrules
+.It Fl v
+Be more verbose, and complain about the following situations:
+.Pp
+The input data specifies a link to a link.
+.Pp
+A year that appears in a data file is outside the range
+of years representable by
+.Xr time 3
+values.
+.Pp
+A time of 24:00 or more appears in the input.
+Pre-1998 versions of
+.Nm
+prohibit 24:00, and pre-2007 versions prohibit times greater than 24:00.
+.Pp
+A rule goes past the start or end of the month.
+Pre-2004 versions of
+.Nm
+prohibit this.
+.Pp
+The output file does not contain all the information about the
+long-term future of a zone, because the future cannot be summarized as
+an extended POSIX TZ string.
+For example, as of 2013 this problem
+occurs for Iran's daylight-saving rules for the predicted future, as
+these rules are based on the Iranian calendar, which cannot be
+represented.
+.Pp
+The output contains data that may not be handled properly by client
+code designed for older
+.Nm
+output formats.
+These compatibility issues affect only time stamps
+before 1970 or after the start of 2038.
+.Pp
+A time zone abbreviation has fewer than 3 characters.
+POSIX requires at least 3.
+.El
+.Pp
+Input lines are made up of fields.
+Fields are separated from one another by one or more whitespace characters.
+Leading and trailing whitespace on input lines is ignored.
+An unquoted sharp character (#) in the input introduces a comment which extends
+to the end of the line the sharp character appears on.
+White space characters and sharp characters may be enclosed in double quotes
+(") if they're to be used as part of a field.
+Any line that is blank (after comment stripping) is ignored.
+Non-blank lines are expected to be of one of three types:
+rule lines, zone lines, and link lines.
+.Pp
+Names (such as month names) must be in English and are case insensitive.
+Abbreviations, if used, must be unambiguous in context.
+.Pp
+A rule line has the form:
+.Bd -literal -offset indent
+Rule  NAME  FROM  TO    TYPE  IN    ON       AT    SAVE  LETTER/S
+.Ed
+.Pp
+For example:
+.Bd -literal -offset indent
+Rule  US    1967  1973  -     Apr   lastSun  2:00  1:00  D
+.Ed
+.Pp
+The fields that make up a rule line are:
+.Bl -tag -width "LETTER/S"
+.It Cm NAME
+Gives the (arbitrary) name of the set of rules this rule is part of.
+.It Cm FROM
+Gives the first year in which the rule applies.
+Any integer year can be supplied; the Gregorian calendar is assumed.
+The word
+.Em minimum
+(or an abbreviation) means the minimum year representable as an integer.
+The word
+.Em maximum
+(or an abbreviation) means the maximum year representable as an integer.
+Rules can describe times that are not representable as time values,
+with the unrepresentable times ignored; this allows rules to be portable
+among hosts with differing time value types.
+.It Cm TO
+Gives the final year in which the rule applies.
+In addition to
+.Em minimum
+and
+.Em maximum
+(as above),
+the word
+.Em only
+(or an abbreviation)
+may be used to repeat the value of the
+.Em FROM
+field.
+.It Cm TYPE
+Gives the type of year in which the rule applies.
+This field is obsolete and should always be
+.Dq Fl .
+.It Cm IN
+Names the month in which the rule takes effect.
+Month names may be abbreviated.
+.It Cm ON
+Gives the day on which the rule takes effect.
+Recognized forms include:
+.Pp
+.Bl -tag -width "SunXX25" -compact -offset indent
+.It 5
+the fifth of the month
+.It lastSun
+the last Sunday in the month
+.It lastMon
+the last Monday in the month
+.It Sun>=8
+first Sunday on or after the eighth
+.It Sun<=25
+last Sunday on or before the 25th
+.El
+.Pp
+Names of days of the week may be abbreviated or spelled out in full.
+Note that there must be no spaces within the
+.Em ON
+field.
+.It Cm AT
+Gives the time of day at which the rule takes effect.
+Recognized forms include:
+.Pp
+.Bl -tag -width "1:28:14" -compact -offset indent
+.It 2
+time in hours
+.It 2:00
+time in hours and minutes
+.It 15:00
+24-hour format time (for times after noon)
+.It 1:28:14
+time in hours, minutes, and seconds
+.It \&-
+equivalent to 0
+.El
+.Pp
+where hour 0 is midnight at the start of the day,
+and hour 24 is midnight at the end of the day.
+Any of these forms may be followed by the letter
+.Em w
+if the given time is local
+.Dq wall clock
+time,
+.Em s
+if the given time is local
+.Dq standard
+time, or
+.Em u
+(or
+.Em g
+or
+.Em z )
+if the given time is universal time;
+in the absence of an indicator,
+wall clock time is assumed.
+.It Cm SAVE
+Gives the amount of time to be added to local standard time when the rule is in
+effect.
+This field has the same format as the
+.Em AT
+field
+(although, of course, the
+.Em w
+and
+.Em s
+suffixes are not used).
+.It Cm LETTER/S
+Gives the
+.Dq variable part
+(for example, the
+.Dq S
+or
+.Dq D
+in
+.Dq EST
+or
+.Dq EDT )
+of time zone abbreviations to be used when this rule is in effect.
+If this field is
+.Dq \- ,
+the variable part is null.
+.El
+.Pp
+A zone line has the form:
+.Bd -literal -offset 3n
+Zone NAME GMTOFF RULES/SAVE FORMAT [UNTILYEAR [MONTH [DAY [TIME]]]]
+.Ed
+.Pp
+For example:
+.Bd -literal -offset 3n
+Zone Australia/Adelaide 9:30 Aus CST 1971 Oct 31 2:00
+.Ed
+.Pp
+The fields that make up a zone line are:
+.Bl -tag -width GMTOFF
+.It Cm NAME
+The name of the time zone.
+This is the name used in creating the time conversion information file for the
+zone.
+.It Cm GMTOFF
+The amount of time to add to UT to get standard time in this zone.
+This field has the same format as the
+.Em AT
+and
+.Em SAVE
+fields of rule lines;
+begin the field with a minus sign if time must be subtracted from UT.
+.It Cm RULES/SAVE
+The name of the rule(s) that apply in the time zone or,
+alternately, an amount of time to add to local standard time.
+If this field is
+.Dq \-
+then standard time always applies in the time zone.
+.It Cm FORMAT
+The format for time zone abbreviations in this time zone.
+The pair of characters
+.Em %s
+is used to show where the
+.Dq variable part
+of the time zone abbreviation goes.
+Alternately, a format can use the pair of characters
+.Em %z
+to stand for the UTC offset in the form
+.No \(+- Ns Em hh ,
+.No \(+- Ns Em hhmm ,
+or
+.No \(+- Ns Em hhmmss ,
+using the shortest form that does not lose information, where
+.Em hh ,
+.Em mm ,
+and
+.Em ss
+are the hours, minutes, and seconds east (+) or west (\(mi) of UTC.
+Alternately,
+a slash
+.Pq \&/
+separates standard and daylight abbreviations.
+.It Cm UNTILYEAR [MONTH [DAY [TIME]]]
+The time at which the UT offset or the rule(s) change for a location.
+It is specified as a year, a month, a day, and a time of day.
+If this is specified,
+the time zone information is generated from the given UT offset
+and rule change until the time specified.
+The month, day, and time of day have the same format as the IN, ON, and AT
+fields of a rule; trailing fields can be omitted, and default to the
+earliest possible value for the missing fields.
+.Pp
+The next line must be a
+.Dq continuation
+line; this has the same form as a zone line except that the
+string
+.Dq Zone
+and the name are omitted, as the continuation line will
+place information starting at the time specified as the
+.Dq until
+information in the previous line in the file used by the previous line.
+Continuation lines may contain
+.Dq until
+information, just as zone lines do, indicating that the next line is a further
+continuation.
+.El
+.Pp
+A link line has the form:
+.Bd -literal -offset indent
+Link	LINK-FROM	LINK-TO
+.Ed
+.Pp
+For example:
+.Bd -literal -offset indent
+Link	Europe/Istanbul	Asia/Istanbul
+.Ed
+.Pp
+The
+.Em LINK-FROM
+field should appear as the
+.Em NAME
+field in some zone line;
+the
+.Em LINK-TO
+field is used as an alternate name for that zone.
+.Pp
+Except for continuation lines,
+lines may appear in any order in the input.
+However, the behavior is unspecified if multiple zone or link lines
+define the same name, or if the source of one link line is the target
+of another.
+.Pp
+Lines in the file that describes leap seconds have the following form:
+.Bd -literal -offset indent
+Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S
+.Ed
+.Pp
+For example:
+.Bd -literal -offset indent
+Leap	1974	Dec	31	23:59:60	+	S
+.Ed
+.Pp
+The
+.Em YEAR ,
+.Em MONTH ,
+.Em DAY ,
+and
+.Em HH:MM:SS
+fields tell when the leap second happened.
+The
+.Em CORR
+field
+should be
+.Dq +
+if a second was added
+or
+.Dq -
+if a second was skipped.
+.\" There's no need to document the following, since it's impossible for more
+.\" than one leap second to be inserted or deleted at a time.
+.\" The C Standard is in error in suggesting the possibility.
+.\" See Terry J Quinn, The BIPM and the accurate measure of time,
+.\" Proc IEEE 79, 7 (July 1991), 894-905.
+.\"	or
+.\"	.q ++
+.\"	if two seconds were added
+.\"	or
+.\"	.q --
+.\"	if two seconds were skipped.
+The
+.Em R/S
+field should be (an abbreviation of)
+.Dq Stationary
+if the leap second time given by the other fields should be interpreted as UTC
+or (an abbreviation of)
+.Dq Rolling
+if the leap second time given by the other fields should be interpreted as
+local wall clock time.
+.Sh EXTENDED EXAMPLE
+Here is an extended example of
+.Nm
+input, intended to illustrate many of its features.
+.Bd -literal
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Swiss	1941	1942	-	May	Mon>=1	1:00	1:00	S
+Rule	Swiss	1941	1942	-	Oct	Mon>=1	2:00	0	-
+
+Rule	EU	1977	1980	-	Apr	Sun>=1	1:00u	1:00	S
+Rule	EU	1977	only	-	Sep	lastSun	1:00u	0	-
+Rule	EU	1978	only	-	Oct	 1	1:00u	0	-
+Rule	EU	1979	1995	-	Sep	lastSun	1:00u	0	-
+Rule	EU	1981	max	-	Mar	lastSun	1:00u	1:00	S
+Rule	EU	1996	max	-	Oct	lastSun	1:00u	0	-
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	UNTIL
+Zone	Europe/Zurich	0:34:08	-		LMT	1853 Jul 16
+			0:29:46	-		BMT	1894 Jun
+			1:00	Swiss		CE%sT	1981
+			1:00	EU		CE%sT
+
+Link	Europe/Zurich	Switzerland
+.Ed
+.Pp
+In this example, the zone is named Europe/Zurich
+but it has an alias as Switzerland.
+This example says that Zurich was 34 minutes and 8
+seconds west of UT until 1853-07-16 at 00:00, when the legal offset
+was changed to 7\(de\|26\(fm\|22.50\(sd; although this works out to
+0:29:45.50, the input format cannot represent fractional seconds so it
+is rounded here.
+After 1894-06-01 at 00:00 Swiss daylight saving rules
+(defined with lines beginning with "Rule Swiss") apply,
+and the UT offset became one hour.
+From 1981 to the present,
+EU daylight saving rules have applied,
+and the UTC offset has remained at one hour.
+.Pp
+In 1940, daylight saving time applied from
+November 2 at 00:00 to December 31 at 00:00.
+In 1941 and 1942, daylight saving time applied from the first Monday
+in May at 01:00 to the first Monday in October at 02:00.
+The pre-1981 EU daylight-saving rules have no effect here,
+but are included for completeness.
+Since 1981,
+daylight saving has begun on the last Sunday in March at 01:00 UTC.
+Until 1995 it ended the last Sunday in September at 01:00 UTC,
+but this changed to the last Sunday in October starting in 1996.
+.Pp
+For purposes of display,
+"LMT" and "BMT" were initially used, respectively.
+Since Swiss rules and later EU rules were applied,
+the display name for the timezone has been CET for standard time
+and CEST for daylight saving time.
+.Sh FILES
+.Bl -tag -width "/usr/share/zoneinfo" -compact
+.It Pa /etc/localtime
+link to local time zone
+.It Pa /usr/share/zoneinfo
+standard directory used for created files
+.El
+.Sh SEE ALSO
+.Xr ctime 3 ,
+.Xr tzfile 5 ,
+.Xr zdump 8
+.Sh CAVEATS
+For areas with more than two types of local time,
+you may need to use local standard time in the
+.Em AT
+field of the earliest transition time's rule to ensure that
+the earliest transition time recorded in the compiled file is correct.
+.Pp
+If,
+for a particular zone,
+a clock advance caused by the start of daylight saving
+coincides with and is equal to
+a clock retreat caused by a change in UT offset,
+.Nm
+produces a single transition to daylight saving at the new UT offset
+(without any change in wall clock time).
+To get separate transitions
+use multiple zone continuation lines
+specifying transition instants using universal time.
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.

@@ -1,0 +1,54 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Options") {
+  visibility = [ ":MachO" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+static_library("MachO") {
+  output_name = "lldMachO"
+  configs += [ "//llvm/utils/gn/build:lld_code" ]
+  deps = [
+    ":Options",
+    "//lld/Common",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [
+    ".",
+    "//libunwind/include",
+  ]
+  sources = [
+    "Arch/ARM64.cpp",
+    "Arch/ARM64Common.cpp",
+    "Arch/ARM64_32.cpp",
+    "Arch/X86_64.cpp",
+    "ConcatOutputSection.cpp",
+    "Driver.cpp",
+    "DriverUtils.cpp",
+    "Dwarf.cpp",
+    "EhFrame.cpp",
+    "ExportTrie.cpp",
+    "ICF.cpp",
+    "InputFiles.cpp",
+    "InputSection.cpp",
+    "LTO.cpp",
+    "MapFile.cpp",
+    "MarkLive.cpp",
+    "ObjC.cpp",
+    "OutputSection.cpp",
+    "OutputSegment.cpp",
+    "Relocations.cpp",
+    "SectionPriorities.cpp",
+    "SymbolTable.cpp",
+    "Symbols.cpp",
+    "SyntheticSections.cpp",
+    "Target.cpp",
+    "UnwindInfoSection.cpp",
+    "Writer.cpp",
+  ]
+}

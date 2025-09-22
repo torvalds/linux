@@ -1,0 +1,71 @@
+.\"	$OpenBSD: mc.4,v 1.4 2007/05/31 19:19:55 jmc Exp $
+.\"	$NetBSD: mc.4,v 1.1 1997/12/18 06:22:45 ender Exp $
+.\"
+.\" Copyright (c) 1997 David Huang <khym@bga.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt MC 4 macppc
+.Os
+.Sh NAME
+.Nm mc
+.Nd Am79C940 (MACE) on-board Ethernet device
+.Sh SYNOPSIS
+.Cd "mc* at macobio?"
+.Sh DESCRIPTION
+The
+.Nm
+interface provides access to a 10 Mb/s Ethernet network via the AMD Am79C940
+(MACE) Ethernet chip set.
+.Pp
+The
+.Nm
+interface supports the on-board Ethernet of most old world
+Power Macintosh systems.
+.Pp
+Machines supported by the
+.Nm
+driver include:
+.Pp
+.Bl -dash -offset indent -compact
+.It
+Power Macintosh 7600, 8500, 9500 and 9600.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr macobio 4 ,
+.Xr netintro 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.1 .
+.Sh AUTHORS
+The
+.Nm
+Ethernet driver was written by
+.An Dave Huang .

@@ -1,0 +1,131 @@
+import("//clang/lib/ARCMigrate/enable.gni")
+import("//clang/lib/StaticAnalyzer/Frontend/enable.gni")
+import("//llvm/utils/gn/build/toolchain/compiler.gni")
+
+group("default") {
+  deps = [
+    "//clang-tools-extra/clangd/test",
+    "//clang-tools-extra/pseudo/test",
+    "//clang-tools-extra/test",
+    "//clang/test",
+    "//clang/tools/scan-build",
+    "//compiler-rt",
+    "//compiler-rt/include",
+    "//compiler-rt/lib/scudo",
+    "//lld/test",
+    "//lldb/test",
+    "//llvm/test",
+  ]
+  if (current_os == "linux") {
+    deps += [
+      "//libcxx",
+      "//libcxxabi",
+    ]
+  }
+  if (current_os == "linux" || current_os == "win" || current_os=="mac") {
+    deps += [ "//compiler-rt/test/asan" ]
+  }
+
+  if (current_os == "linux" || current_os == "mac") {
+    deps += [ "//compiler-rt/test/lsan"]
+  }
+
+  if (current_os == "linux" || current_os == "android") {
+    deps += [ "//compiler-rt/test/hwasan" ]
+  }
+  if (current_os == "linux" || current_os == "mac") {
+    deps += [ "//libunwind" ]
+  }
+
+  # FIXME: Add this on win after testing that it builds.
+  if (current_os != "win") {
+    deps += [ "//bolt/test" ]
+  }
+
+  testonly = true
+}
+
+# Symlink handling.
+# On POSIX, symlinks to the target can be created before the target exist,
+# and the target can depend on the symlink targets, so that building the
+# target ensures the symlinks exist.
+# However, symlinks didn't exist on Windows until recently, so there the
+# binary needs to be copied -- which requires it to exist. So the symlink step
+# needs to run after the target that creates the binary.
+# In the cmake build, this is done via a "postbuild" on the target, which just
+# tacks on "&& copy out.exe out2.exe" to the link command.
+# GN doesn't have a way to express postbuild commands.  It could probably be
+# emulated by having the link command in the toolchain be a wrapper script that
+# reads a ".symlinks" file next to the target, and have an action write that
+# and make the target depend on that, but then every single link has to use the
+# wrapper (unless we do further acrobatics to use a different toolchain for
+# targets that need symlinks) even though most links don't need symlinks.
+# Instead, have a top-level target for each target that needs symlinks, and
+# make that depend on the symlinks. Then the symlinks can depend on the
+# executable.  This has the effect that `ninja lld` builds lld and then creates
+# symlinks (via this target), while `ninja bin/lld` only builds lld and doesn't
+# update symlinks (in particular, on Windows it doesn't copy the new lld to its
+# new locations).
+# That seems simpler, more explicit, and good enough.
+group("clang") {
+  deps = [ "//clang/tools/driver:symlinks" ]
+}
+group("lld") {
+  deps = [ "//lld/tools/lld:symlinks" ]
+}
+group("llvm-ar") {
+  deps = [ "//llvm/tools/llvm-ar:symlinks" ]
+}
+if (current_os == "mac") {
+  group("llvm-bolt") {
+    deps = [ "//bolt/tools/driver:symlinks" ]
+  }
+}
+group("llvm-dwp") {
+  deps = [ "//llvm/tools/llvm-dwp:symlinks" ]
+}
+group("llvm-nm") {
+  deps = [ "//llvm/tools/llvm-nm:symlinks" ]
+}
+group("llvm-cxxfilt") {
+  deps = [ "//llvm/tools/llvm-cxxfilt:symlinks" ]
+}
+group("llvm-debuginfod") {
+  deps = [ "//llvm/tools/llvm-debuginfod:symlinks" ]
+}
+group("llvm-debuginfod-find") {
+  deps = [ "//llvm/tools/llvm-debuginfod-find:symlinks" ]
+}
+group("llvm-libtool-darwin") {
+  deps = [ "//llvm/tools/llvm-libtool-darwin:symlinks" ]
+}
+group("llvm-lipo") {
+  deps = [ "//llvm/tools/llvm-lipo:symlinks" ]
+}
+group("llvm-objcopy") {
+  deps = [ "//llvm/tools/llvm-objcopy:symlinks" ]
+}
+group("llvm-objdump") {
+  deps = [ "//llvm/tools/llvm-objdump:symlinks" ]
+}
+group("llvm-rc") {
+  deps = [ "//llvm/tools/llvm-rc:symlinks" ]
+}
+group("llvm-readobj") {
+  deps = [ "//llvm/tools/llvm-readobj:symlinks" ]
+}
+group("llvm-size") {
+  deps = [ "//llvm/tools/llvm-size:symlinks" ]
+}
+group("llvm-strings") {
+  deps = [ "//llvm/tools/llvm-strings:symlinks" ]
+}
+group("llvm-symbolizer") {
+  deps = [ "//llvm/tools/llvm-symbolizer:symlinks" ]
+}
+
+# A pool called "console" in the root BUILD.gn is magic and represents ninja's
+# built-in console pool. (Requires a GN with `gn --version` >= 552353.)
+pool("console") {
+  depth = 1
+}

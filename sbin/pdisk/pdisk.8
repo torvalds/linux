@@ -1,0 +1,168 @@
+.\"	$OpenBSD: pdisk.8,v 1.31 2016/02/23 03:34:17 krw Exp $
+.\"
+.\" Copyright 1996,1997,1998 by Apple Computer, Inc.
+.\"              All Rights Reserved
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby granted,
+.\" provided that the above copyright notice appears in all copies and
+.\" that both the copyright notice and this permission notice appear in
+.\" supporting documentation.
+.\"
+.\" APPLE COMPUTER DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE
+.\" INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE.
+.\"
+.\" IN NO EVENT SHALL APPLE COMPUTER BE LIABLE FOR ANY SPECIAL, INDIRECT, OR
+.\" CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN ACTION OF CONTRACT,
+.\" NEGLIGENCE, OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+.\" WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 23 2016 $
+.Dt PDISK 8
+.Os
+.Sh NAME
+.Nm pdisk
+.Nd HFS(DPME) partition maintenance program
+.Sh SYNOPSIS
+.Nm pdisk
+.Op Fl lr
+.Ar disk
+.Sh DESCRIPTION
+.Nm
+is a menu driven program which partitions disks using the standard Apple
+disk partitioning scheme described in
+.Dq Inside Macintosh: Devices .
+It does not support the Intel/DOS partitioning scheme supported by
+.Xr fdisk 8 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl l
+List the partition map for the specified
+.Ar disk .
+.It Fl r
+Prevents
+.Nm
+from writing to the disk.
+.It Ar disk
+Specify the
+.Ar disk
+to operate on.
+It can be specified either by its full pathname or an abbreviated disk form.
+In its abbreviated form, the path to the device and the
+.Sq r
+denoting
+.Dq raw device
+are omitted, with the partition letter being optional.
+For example, the first IDE disk can be specified as either
+.Pa /dev/rwd0c ,
+.Pa wd0c ,
+or
+.Pa wd0 .
+.El
+.Sh COMMAND MODE
+The list of commands and their explanations are given below.
+.Bl -tag -width "update"
+.It Em ?\&
+verbose command help
+.It Em C
+create a partition of a specified type
+.It Em c
+create an
+.Ox
+partition
+.It Em d
+delete a partition
+.It Em f
+full display of a partition
+.It Em h
+command help
+.It Em i
+(re)initialize the partition map
+.It Em n
+(re)name a partition
+.It Em P
+show the partition map's data structures
+.It Em p
+print the partition map
+.It Em q
+quit editing
+.It Em r
+reorder (swap) disk positions of two entries in the partition map
+.It Em s
+change the size of the partition map
+.It Em t
+change the type of a partition
+.It Em w
+write the partition map to disk
+.El
+.Pp
+Commands which take arguments prompt for each argument not specified
+in the original command.
+You can type any number of the arguments separated by spaces.
+.Pp
+Partitions are always specified by their number,
+which is the index of the partition entry in the partition map.
+.Pp
+The index numbers of partitions will change if partitions are created,
+deleted or reordered.
+.Pp
+Creating more than fifteen partitions is not advised, for
+compatibility reasons.
+.Pp
+The
+.Em c
+(create an
+.Ox
+partition) and
+.Em C
+(create a partition of a specified type)
+commands are the only ones with complicated arguments.
+.Pp
+The first argument is the base address (in blocks) of the partition.
+Besides a raw number, you can also specify a partition number followed
+by the letter 'p' to indicate that the first block of the new partition should
+be the same as the first block of that existing free space partition.
+.Pp
+The second argument is the length of the partition in blocks.
+This can be a raw number or can be a partition number followed by the
+letter 'p' to use the size of that partition or can be a number followed
+by 'k', 'm', 'g', or 't' to indicate the size in kilobytes, megabytes,
+gigabytes or terabytes respectively.
+(These are powers of 1024, of course, not powers of 1000.)
+.Pp
+The third argument is the name of the partition.
+This can be a single word without quotes, or a string surrounded by
+single or double quotes.
+.Pp
+For the
+.Em C
+command only, the fourth argument is the partition type.
+This can be a single word without quotes, or a string surrounded by
+single or double quotes.
+The
+.Em c
+command automatically uses the type
+.Ox .
+.Pp
+The
+.Em n
+(name) command allows the name of a partition to be changed.
+Note that the various "Apple_Driver" partitions depend
+on the name field for proper functioning.
+.Sh SEE ALSO
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+was originally developed for MkLinux.
+.Pp
+It was ported to
+.Ox
+2.9 by Dale Rahn.
+.Sh AUTHORS
+.An Eryk Vershen

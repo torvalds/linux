@@ -1,0 +1,22 @@
+# pfctl should catch flags that never match, ie, where any flags
+# are tested that are always masked off.  Test some more combinations
+# while we're here.
+
+pass proto tcp from any to any flags F/F
+pass proto tcp from any to any flags S/S
+pass proto tcp from any to any flags R/R
+pass proto tcp from any to any flags P/P
+pass proto tcp from any to any flags A/A
+pass proto tcp from any to any flags U/U
+pass proto tcp from any to any flags E/E
+pass proto tcp from any to any flags W/W
+pass proto tcp from any to any flags FSRPAUEW/FSRPAUEW
+pass proto tcp from any to any flags /FSRPAUEW
+pass proto tcp from any to any flags S/SAFR
+pass proto tcp from any to any flags /SA
+
+pass proto tcp from any to any flags S/
+pass proto tcp from any to any flags /
+pass proto tcp from any to any flags S/AFR
+pass proto tcp from any to any flags A/FSRPUEW
+pass proto tcp from any to any flags FSRPAUEW/FSRPAUE

@@ -1,0 +1,106 @@
+.\"	$OpenBSD: rpc.5,v 1.9 2010/09/01 14:43:34 millert Exp $
+.\"	$NetBSD: rpc.5,v 1.2 1994/11/30 19:31:30 jtc Exp $
+.\"	@(#)rpc.5	2.2 88/08/03 4.0 RPCSRC; from 1.4 87/11/27 SMI;
+.\"
+.\" Copyright (c) 2010, Oracle America, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"     * Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"     * Redistributions in binary form must reproduce the above
+.\"       copyright notice, this list of conditions and the following
+.\"       disclaimer in the documentation and/or other materials
+.\"       provided with the distribution.
+.\"     * Neither the name of the "Oracle America, Inc." nor the names of its
+.\"       contributors may be used to endorse or promote products derived
+.\"       from this software without specific prior written permission.
+.\"
+.\"   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\"   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\"   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\"   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\"   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+.\"   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\"   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\"   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\"   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\"   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\"   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 1 2010 $
+.Dt RPC 5
+.Os
+.Sh NAME
+.Nm rpc
+.Nd rpc program number database
+.Sh DESCRIPTION
+The
+.Nm
+file contains user readable names that
+can be used in place of rpc program numbers.
+Each line has the following information:
+.Pp
+.Bl -item -offset indent -compact
+.It
+name of server for the rpc program
+.It
+rpc program number
+.It
+aliases
+.El
+.Pp
+Items are separated by any number of blanks and/or tab characters.
+.Pp
+A hash mark
+.Pq Ql #
+indicates the beginning of a comment; subsequent characters up to the end of
+the line are not interpreted by the routines which search the file.
+.Sh FILES
+.Bl -tag -width /etc/rpc -compact
+.It Pa /etc/rpc
+.El
+.Sh EXAMPLES
+Here is an example of the
+.Pa /etc/rpc
+file from the Sun RPC Source distribution.
+.Bd -literal -offset indent
+#
+# rpc 88/08/01 4.0 RPCSRC; from 1.12   88/02/07 SMI
+#
+portmapper	100000	portmap sunrpc
+rstatd		100001	rstat rstat_svc rup perfmeter
+rusersd		100002	rusers
+nfs		100003	nfsprog
+ypserv		100004	ypprog
+mountd		100005	mount showmount
+ypbind		100007
+walld		100008	rwall shutdown
+yppasswdd	100009	yppasswd
+etherstatd	100010	etherstat
+rquotad		100011	rquotaprog quota rquota
+sprayd		100012	spray
+3270_mapper	100013
+rje_mapper	100014
+selection_svc	100015	selnsvc
+database_svc	100016
+rexd		100017	rex
+alis		100018
+sched		100019
+llockmgr	100020
+nlockmgr	100021
+x25.inr		100022
+statmon		100023
+status		100024
+bootparam	100026
+ypupdated	100028	ypupdate
+keyserv		100029	keyserver
+tfsd		100037
+nsed		100038
+nsemntd		100039
+.Ed
+.Sh SEE ALSO
+.Xr getrpcent 3

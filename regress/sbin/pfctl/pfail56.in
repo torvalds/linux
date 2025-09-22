@@ -1,0 +1,1 @@
+pass in inet  proto tcp to port 25 divert-to ::1 port 8025

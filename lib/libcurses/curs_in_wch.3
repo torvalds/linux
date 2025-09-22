@@ -1,0 +1,72 @@
+.\" $OpenBSD: curs_in_wch.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.\"***************************************************************************
+.\" Copyright 2018-2021,2022 Thomas E. Dickey                                *
+.\" Copyright 2002-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_in_wch.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.TH curs_in_wch 3 2022-02-12 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.SH NAME
+\fBin_wch\fP,
+\fBmvin_wch\fP,
+\fBmvwin_wch\fP,
+\fBwin_wch\fP \- extract a complex character and rendition from a window
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint in_wch(cchar_t *\fIwcval\fB);\fR
+.br
+\fBint win_wch(WINDOW *\fIwin\fB, cchar_t *\fIwcval\fB);\fR
+.sp
+\fBint mvin_wch(int \fIy\fB, int \fIx\fB, cchar_t *\fIwcval\fB);\fR
+.br
+\fBint mvwin_wch(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, cchar_t *\fIwcval\fB);\fR
+.SH DESCRIPTION
+These functions extract the complex character and rendition from
+the current position in the named window into the \fBcchar_t\fP object
+referenced by wcval.
+.SH RETURN VALUE
+No errors are defined in the XSI Curses standard.
+This implementation checks for null pointers, returns \fBERR\fP in that case.
+Also, the \fImv\fP routines check for error moving the cursor,
+returning \fBERR\fP in that case.
+Otherwise they return \fBOK\fP.
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+Note that all of these routines may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_inch\fP(3).

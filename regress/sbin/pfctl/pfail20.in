@@ -1,0 +1,6 @@
+# dynamic interface expansion has limitations; and NAT stuff must be af uniq
+
+match in on lo0 from any to any rdr-to (lo0)
+match out on lo0 from (lo0) to any nat-to (lo0)
+match in on lo0 inet6 from 10.0.0.1 rdr-to (lo0)
+ 

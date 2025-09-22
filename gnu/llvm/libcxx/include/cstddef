@@ -1,0 +1,133 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CSTDDEF
+#define _LIBCPP_CSTDDEF
+
+/*
+    cstddef synopsis
+
+Macros:
+
+    offsetof(type,member-designator)
+    NULL
+
+namespace std
+{
+
+Types:
+
+    ptrdiff_t
+    size_t
+    max_align_t // C++11
+    nullptr_t
+    byte // C++17
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__type_traits/enable_if.h>
+#include <__type_traits/integral_constant.h>
+#include <__type_traits/is_integral.h>
+#include <version>
+
+#include <stddef.h>
+
+#ifndef _LIBCPP_STDDEF_H
+#   error <cstddef> tried including <stddef.h> but didn't find libc++'s <stddef.h> header. \
+          This usually means that your header search paths are not configured properly. \
+          The header search paths should contain the C++ Standard Library headers before \
+          any C Standard Library, and you are probably using compiler flags that make that \
+          not be the case.
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::nullptr_t;
+using ::ptrdiff_t _LIBCPP_USING_IF_EXISTS;
+using ::size_t _LIBCPP_USING_IF_EXISTS;
+
+#if !defined(_LIBCPP_CXX03_LANG)
+using ::max_align_t _LIBCPP_USING_IF_EXISTS;
+#endif
+
+_LIBCPP_END_NAMESPACE_STD
+
+#if _LIBCPP_STD_VER >= 17
+namespace std // purposefully not versioned
+{
+enum class byte : unsigned char {};
+
+_LIBCPP_HIDE_FROM_ABI inline constexpr byte operator|(byte __lhs, byte __rhs) noexcept {
+  return static_cast<byte>(
+      static_cast<unsigned char>(static_cast<unsigned int>(__lhs) | static_cast<unsigned int>(__rhs)));
+}
+
+_LIBCPP_HIDE_FROM_ABI inline constexpr byte& operator|=(byte& __lhs, byte __rhs) noexcept {
+  return __lhs = __lhs | __rhs;
+}
+
+_LIBCPP_HIDE_FROM_ABI inline constexpr byte operator&(byte __lhs, byte __rhs) noexcept {
+  return static_cast<byte>(
+      static_cast<unsigned char>(static_cast<unsigned int>(__lhs) & static_cast<unsigned int>(__rhs)));
+}
+
+_LIBCPP_HIDE_FROM_ABI inline constexpr byte& operator&=(byte& __lhs, byte __rhs) noexcept {
+  return __lhs = __lhs & __rhs;
+}
+
+_LIBCPP_HIDE_FROM_ABI inline constexpr byte operator^(byte __lhs, byte __rhs) noexcept {
+  return static_cast<byte>(
+      static_cast<unsigned char>(static_cast<unsigned int>(__lhs) ^ static_cast<unsigned int>(__rhs)));
+}
+
+_LIBCPP_HIDE_FROM_ABI inline constexpr byte& operator^=(byte& __lhs, byte __rhs) noexcept {
+  return __lhs = __lhs ^ __rhs;
+}
+
+_LIBCPP_HIDE_FROM_ABI inline constexpr byte operator~(byte __b) noexcept {
+  return static_cast<byte>(static_cast<unsigned char>(~static_cast<unsigned int>(__b)));
+}
+
+template <class _Integer, __enable_if_t<is_integral<_Integer>::value, int> = 0>
+_LIBCPP_HIDE_FROM_ABI constexpr byte& operator<<=(byte& __lhs, _Integer __shift) noexcept {
+  return __lhs = __lhs << __shift;
+}
+
+template <class _Integer, __enable_if_t<is_integral<_Integer>::value, int> = 0>
+_LIBCPP_HIDE_FROM_ABI constexpr byte operator<<(byte __lhs, _Integer __shift) noexcept {
+  return static_cast<byte>(static_cast<unsigned char>(static_cast<unsigned int>(__lhs) << __shift));
+}
+
+template <class _Integer, __enable_if_t<is_integral<_Integer>::value, int> = 0>
+_LIBCPP_HIDE_FROM_ABI constexpr byte& operator>>=(byte& __lhs, _Integer __shift) noexcept {
+  return __lhs = __lhs >> __shift;
+}
+
+template <class _Integer, __enable_if_t<is_integral<_Integer>::value, int> = 0>
+_LIBCPP_HIDE_FROM_ABI constexpr byte operator>>(byte __lhs, _Integer __shift) noexcept {
+  return static_cast<byte>(static_cast<unsigned char>(static_cast<unsigned int>(__lhs) >> __shift));
+}
+
+template <class _Integer, __enable_if_t<is_integral<_Integer>::value, int> = 0>
+[[nodiscard]] _LIBCPP_HIDE_FROM_ABI constexpr _Integer to_integer(byte __b) noexcept {
+  return static_cast<_Integer>(__b);
+}
+
+} // namespace std
+
+#endif
+
+#endif // _LIBCPP_CSTDDEF

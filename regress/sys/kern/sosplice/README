@@ -1,0 +1,12 @@
+Run socket splicing regressions tests.  The error directory contains
+tests, that invoke the splicing system call with invalid arguments.
+The tcp and udp framework run a client, and a server, and a relay.
+Each test starts those three processes.  All processes write log
+files that are checked for certain messages.  The test arguments
+are kept in the args-*.pl files.  The perf directory contains a C
+program that can compare copy and splice performance.
+
+LOCAL_ADDR, REMOTE_ADDR, REMOTE_SSH
+Set these to run the relay process on a remote machine.  As the
+client and server run locally, network timing may influence the
+test results.

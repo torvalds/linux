@@ -1,0 +1,64 @@
+#!/bin/sh
+# $OpenBSD: run,v 1.6 2022/04/28 22:11:59 jca Exp $
+# Heavily inspired on FreeBSD's misc.sh.
+
+totntest=0
+totnfail=0
+
+name253="_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_12"
+name255="${name253}34"
+name256="${name255}5"
+path1021="${name255}/${name255}/${name255}/${name253}"
+path1023="${path1021}/x"
+path1024="${path1023}x"
+
+# Run a single test, calling fstest to do the job.
+expect()
+{
+  e="${1}"
+  shift
+  echo -n "Running test #${ntest}... "
+  r=`${FSTEST} $* | tail -1`
+  echo "${r}" | egrep -q '^'${e}'$'
+  if [ $? -eq 0 ]; then
+    echo "okay."
+  else
+    nfail=$((nfail + 1))
+    echo "failed:"
+    echo " test\t$*"
+    echo " expect\t$e"
+    echo " result\t$r"
+  fi
+  ntest=$((ntest + 1))
+}
+
+test_check()
+{
+  echo -n "Running test #${ntest}... "
+  if [ $* ]; then
+    echo "okay."
+  else
+    nfail=$((nfail + 1))
+    echo "failed:"
+    echo " test\t$*"
+  fi
+  ntest=$((ntest + 1))
+}
+
+# Generate a random file/directory name.
+namegen()
+{
+  echo "fstest_`dd if=/dev/urandom bs=1k count=1 status=none | md5`"
+}
+
+for arg in $*; do
+  ntest=0
+  nfail=0
+  echo $arg:
+  sed -n 's/^desc=//p' $arg
+  . $arg
+  totntest=$((totntest + ntest))
+  totnfail=$((totnfail + nfail))
+done
+
+echo "${totntest} tests completed, ${totnfail} failed."

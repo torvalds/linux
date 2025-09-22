@@ -1,0 +1,110 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<!-- Material used from: HTML 4.01 specs: http://www.w3.org/TR/html401/ -->
+<html>
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Clang C Language Family Frontend for LLVM</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+</head>
+<body>
+<!--#include virtual="menu.html.incl"-->
+<div id="content">
+  <!--*********************************************************************-->
+  <h1>Clang: a C language family frontend for LLVM</h1>
+  <!--*********************************************************************-->
+
+  <p>The Clang project provides a language front-end and tooling infrastructure
+  for languages in the C language family (C, C++, Objective C/C++, OpenCL,
+  CUDA, and RenderScript) for the <a href="https://www.llvm.org/">LLVM</a>
+  project. Both a GCC-compatible compiler driver (<tt>clang</tt>) and an
+  MSVC-compatible compiler driver (<tt>clang-cl.exe</tt>) are provided. You
+  can <a href="get_started.html">get and build</a> the source today.</p>
+
+  <!--=====================================================================-->
+  <h2 id="goals">Features and Goals</h2>
+  <!--=====================================================================-->
+
+  <p>Some of the goals for the project include the following:</p>
+
+  <p><b><a href="features.html#enduser">End-User Features</a></b>:</p>
+
+  <ul>
+  <li>Fast compiles and low memory use</li>
+  <li>Expressive diagnostics (<a href="diagnostics.html">examples</a>)</li>
+  <li>GCC & MSVC compatibility</li>
+  </ul>
+
+  <p><b><a href="features.html#applications">Utility and
+     Applications</a></b>:</p>
+
+  <ul>
+  <li>Modular library based architecture</li>
+  <li>Support diverse clients (refactoring, static analysis, code generation,
+   etc.)</li>
+  <li>Allow tight integration with IDEs</li>
+  <li>Use the LLVM 'Apache 2'
+    <a href="https://github.com/llvm/llvm-project/blob/main/LICENSE.TXT">License</a>
+  </li>
+  </ul>
+
+  <p><b><a href="features.html#design">Internal Design and
+     Implementation</a></b>:</p>
+
+  <ul>
+  <li>A real-world, production quality compiler</li>
+  <li>A simple and hackable code base</li>
+  <li>A single unified parser for C, Objective C, C++, and Objective C++</li>
+  <li>Conformance with C/C++/ObjC and their variants</li>
+  </ul>
+
+  <p>Of course this is only a rough outline of the goals and features of
+     Clang.  To get a true sense of what it is all about, see the <a
+     href="features.html">Features</a> section, which breaks
+     each of these down and explains them in more detail.</p>
+
+
+  <!--=====================================================================-->
+  <h2>Why?</h2>
+  <!--=====================================================================-->
+
+  <p>Development of the new front-end was started out of a need
+     for a compiler that allows better diagnostics, better integration with
+     IDEs, a license that is compatible with commercial products, and a
+     nimble compiler that is easy to develop and maintain.  All of these were
+     motivations for starting work on a new front-end that could
+     meet these needs.</p>
+
+  <!--=====================================================================-->
+  <h2>Current Status</h2>
+  <!--=====================================================================-->
+
+  <p>Clang is considered to
+   be a production quality C, Objective-C, C++ and Objective-C++ compiler when
+   targeting any target supported by LLVM. As example, Clang is used in
+   production to build performance-critical software like Chrome or Firefox.
+   <br />  If you are looking for source analysis or source-to-source
+   transformation tools, Clang is probably a great solution for you. Please see
+   the <a href="cxx_status.html">C++ status</a> page or the
+   <a href="c_status.html">C status</a> page for more information about what
+   standard modes and features are supported.</p>
+
+  <!--=====================================================================-->
+  <h2>Get it and get involved!</h2>
+  <!--=====================================================================-->
+
+  <p>Start by <a href="get_started.html">getting the code, building it, and
+     playing with it</a>.  This will show you the sorts of things we can do
+     today and will let you have the "Clang experience" first hand: hopefully
+     it will "resonate" with you. :)</p>
+
+  <p>Once you've done that, please consider <a href="get_involved.html">getting
+     involved in the Clang community</a>.  The Clang developers include numerous
+     volunteer contributors with a variety of backgrounds.  If you're
+     interested in
+     following the development of Clang, signing up for a mailing list is a good
+     way to learn about how the project works.</p>
+</div>
+</body>
+</html>

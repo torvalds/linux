@@ -1,0 +1,131 @@
+//===-- allocator_config.def ------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines all the flags and types supported in Scudo. For optional
+// flags and types, only explicitly define them when interested (i.e., unused
+// optional flags or types can be skipped).
+
+#ifndef BASE_REQUIRED_TEMPLATE_TYPE
+#define BASE_REQUIRED_TEMPLATE_TYPE(...)
+#endif
+#ifndef BASE_OPTIONAL
+#define BASE_OPTIONAL(...)
+#endif
+#ifndef PRIMARY_REQUIRED_TYPE
+#define PRIMARY_REQUIRED_TYPE(...)
+#endif
+#ifndef PRIMARY_REQUIRED
+#define PRIMARY_REQUIRED(...)
+#endif
+#ifndef PRIMARY_OPTIONAL
+#define PRIMARY_OPTIONAL(...)
+#endif
+#ifndef PRIMARY_OPTIONAL_TYPE
+#define PRIMARY_OPTIONAL_TYPE(...)
+#endif
+#ifndef SECONDARY_REQUIRED_TEMPLATE_TYPE
+#define SECONDARY_REQUIRED_TEMPLATE_TYPE(...)
+#endif
+#ifndef SECONDARY_CACHE_OPTIONAL
+#define SECONDARY_CACHE_OPTIONAL(...)
+#endif
+
+// BASE_REQUIRED_TEMPLATE_TYPE(NAME)
+//
+// Thread-Specific Data Registry used, shared or exclusive.
+BASE_REQUIRED_TEMPLATE_TYPE(TSDRegistryT)
+
+// Defines the type of Primary allocator to use.
+BASE_REQUIRED_TEMPLATE_TYPE(PrimaryT)
+
+// Defines the type of Secondary allocator to use.
+BASE_REQUIRED_TEMPLATE_TYPE(SecondaryT)
+
+// BASE_OPTIONAL(TYPE, NAME, DEFAULT)
+//
+// Indicates possible support for Memory Tagging.
+BASE_OPTIONAL(const bool, MaySupportMemoryTagging, false)
+
+// PRIMARY_REQUIRED_TYPE(NAME)
+//
+// SizeClassMap to use with the Primary.
+PRIMARY_REQUIRED_TYPE(SizeClassMap)
+
+// PRIMARY_REQUIRED(TYPE, NAME)
+//
+// Log2 of the size of a size class region, as used by the Primary.
+PRIMARY_REQUIRED(const uptr, RegionSizeLog)
+
+// Conceptually, a region will be divided into groups based on the address
+// range. Each allocation consumes blocks in the same group until exhaustion
+// then it pops out blocks in a new group. Therefore, `GroupSizeLog` is always
+// smaller or equal to `RegionSizeLog`. Note that `GroupSizeLog` needs to be
+// equal to `RegionSizeLog` for SizeClassAllocator32 because of certain
+// constraints.
+PRIMARY_REQUIRED(const uptr, GroupSizeLog)
+
+// Call map for user memory with at least this size. Only used with primary64.
+PRIMARY_REQUIRED(const uptr, MapSizeIncrement)
+
+// Defines the minimal & maximal release interval that can be set.
+PRIMARY_REQUIRED(const s32, MinReleaseToOsIntervalMs)
+PRIMARY_REQUIRED(const s32, MaxReleaseToOsIntervalMs)
+
+// PRIMARY_OPTIONAL(TYPE, NAME, DEFAULT)
+//
+// The scale of a compact pointer. E.g., Ptr = Base + (CompactPtr << Scale).
+PRIMARY_OPTIONAL(const uptr, CompactPtrScale, SCUDO_MIN_ALIGNMENT_LOG)
+
+// Indicates support for offsetting the start of a region by a random number of
+// pages. This is only used if `EnableContiguousRegions` is enabled.
+PRIMARY_OPTIONAL(const bool, EnableRandomOffset, false)
+PRIMARY_OPTIONAL(const s32, DefaultReleaseToOsIntervalMs, INT32_MIN)
+
+// When `EnableContiguousRegions` is true, all regions will be be arranged in
+// adjacency. This will reduce the fragmentation caused by region allocations
+// but may require a huge amount of contiguous pages at initialization.
+PRIMARY_OPTIONAL(const bool, EnableContiguousRegions, true)
+
+// PRIMARY_OPTIONAL_TYPE(NAME, DEFAULT)
+//
+// Use condition variable to shorten the waiting time of refillment of
+// freelist. Note that this depends on the implementation of condition
+// variable on each platform and the performance may vary so that it does not
+// guarantee a performance benefit.
+PRIMARY_OPTIONAL_TYPE(ConditionVariableT, ConditionVariableDummy)
+
+// Defines the type and scale of a compact pointer. A compact pointer can
+// be understood as the offset of a pointer within the region it belongs
+// to, in increments of a power-of-2 scale. See `CompactPtrScale` also.
+PRIMARY_OPTIONAL_TYPE(CompactPtrT, uptr)
+
+// SECONDARY_REQUIRED_TEMPLATE_TYPE(NAME)
+//
+// Defines the type of Secondary Cache to use.
+SECONDARY_REQUIRED_TEMPLATE_TYPE(CacheT)
+
+// SECONDARY_CACHE_OPTIONAL(TYPE, NAME, DEFAULT)
+//
+// Defines the type of cache used by the Secondary. Some additional
+// configuration entries can be necessary depending on the Cache.
+SECONDARY_CACHE_OPTIONAL(const u32, EntriesArraySize, 0)
+SECONDARY_CACHE_OPTIONAL(const u32, QuarantineSize, 0)
+SECONDARY_CACHE_OPTIONAL(const u32, DefaultMaxEntriesCount, 0)
+SECONDARY_CACHE_OPTIONAL(const uptr, DefaultMaxEntrySize, 0)
+SECONDARY_CACHE_OPTIONAL(const s32, MinReleaseToOsIntervalMs, INT32_MIN)
+SECONDARY_CACHE_OPTIONAL(const s32, MaxReleaseToOsIntervalMs, INT32_MAX)
+SECONDARY_CACHE_OPTIONAL(const s32, DefaultReleaseToOsIntervalMs, INT32_MIN)
+
+#undef SECONDARY_CACHE_OPTIONAL
+#undef SECONDARY_REQUIRED_TEMPLATE_TYPE
+#undef PRIMARY_OPTIONAL_TYPE
+#undef PRIMARY_OPTIONAL
+#undef PRIMARY_REQUIRED
+#undef PRIMARY_REQUIRED_TYPE
+#undef BASE_OPTIONAL
+#undef BASE_REQUIRED_TEMPLATE_TYPE

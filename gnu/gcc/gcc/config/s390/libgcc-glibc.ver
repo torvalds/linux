@@ -1,0 +1,74 @@
+# In order to work around the very problems that force us to now generally
+# create a libgcc.so, glibc reexported a number of routines from libgcc.a.
+# By now choosing the same version tags for these specific routines, we
+# maintain enough binary compatibility to allow future versions of glibc
+# to defer implementation of these routines to libgcc.so via DT_AUXILIARY.
+
+# Note that we cannot use the default libgcc-glibc.ver file on s390x,
+# because GLIBC_2.0 does not exist on this architecture, as the first 
+# ever glibc release on the platform was GLIBC_2.2.
+
+%ifndef __s390x__
+%inherit GCC_3.0 GLIBC_2.0
+GLIBC_2.0 {
+  __divdi3
+  __moddi3
+  __udivdi3
+  __umoddi3
+
+  __register_frame
+  __register_frame_table
+  __deregister_frame
+  __register_frame_info
+  __deregister_frame_info
+  __frame_state_for
+  __register_frame_info_table
+}
+%endif
+
+%ifdef __s390x__
+%inherit GCC_3.0 GLIBC_2.2
+GLIBC_2.2 {
+  __register_frame
+  __register_frame_table
+  __deregister_frame
+  __register_frame_info
+  __deregister_frame_info
+  __frame_state_for
+  __register_frame_info_table
+}
+%endif
+
+# With GCC 4.1.0 long double 128 bit support was introduced. The
+# following symbols coming from libgcc are enabled when -mlong-double-128
+# is specified. These lines make the symbols to get a @@GCC_4.1.0 attached.
+
+%exclude {
+  __divtc3
+  __multc3
+  __powitf2
+  __fixtfti
+  __fixunstfti
+  __floattitf
+
+  __fixtfdi
+  __fixunstfdi
+  __floatditf
+}
+
+GCC_4.1.0 {
+  __divtc3
+  __multc3
+  __powitf2
+
+%ifdef __s390x__
+  __fixtfti
+  __fixunstfti
+  __floattitf
+
+%else
+  __fixtfdi
+  __fixunstfdi
+  __floatditf
+%endif
+}

@@ -1,0 +1,65 @@
+# create
+# pass add -n 1.1.1.1 1.1.1.2 1.1.1.3
+3/3 addresses added (dummy).
+# pass add -nf-
+3/3 addresses added (dummy).
+# pass add -nqv 1.1.1.1 1.1.1.2 1.1.1.3
+A  1.1.1.1
+A  1.1.1.2
+A  1.1.1.3
+# pass add -nqvv 1.1.1.1 1.1.1.2 1.1.1.3
+A  1.1.1.1
+A  1.1.1.2
+A  1.1.1.3
+# pass add 1.1.1.1 1.1.1.2 1.1.1.3
+3/3 addresses added.
+# pass delete -n 1.1.1.1 1.1.1.2 1.1.1.4
+2/3 addresses deleted (dummy).
+# pass delete -nf-
+2/3 addresses deleted (dummy).
+# pass delete -nqv 1.1.1.1 1.1.1.2 1.1.1.4
+D  1.1.1.1
+D  1.1.1.2
+# pass delete -nqvv 1.1.1.1 1.1.1.2 1.1.1.4
+   1.1.1.4
+D  1.1.1.1
+D  1.1.1.2
+# pass delete 1.1.1.1 1.1.1.2 1.1.1.4
+2/3 addresses deleted.
+# pass replace -n 1.1.1.1 1.1.1.2 1.1.1.3
+2 addresses added (dummy).
+# pass replace -nf-
+2 addresses added (dummy).
+# pass replace -nqv 1.1.1.1 1.1.1.2 1.1.1.3
+A  1.1.1.1
+A  1.1.1.2
+# pass replace -nqvv 1.1.1.1 1.1.1.2 1.1.1.3
+   1.1.1.3
+A  1.1.1.1
+A  1.1.1.2
+# pass replace 1.1.1.1 1.1.1.2 1.1.1.3
+2 addresses added.
+# pass test 1.1.1.1 1.1.1.2 1.1.1.3
+3/3 addresses match.
+# fail test 1.1.1.1 1.1.1.2 1.1.1.4
+2/3 addresses match.
+# pass zero 
+1 table/stats cleared.
+# pass show 
+   1.1.1.1
+   1.1.1.2
+   1.1.1.3
+# pass flush 
+3 addresses deleted.
+# pass show 
+# pass list 
+regress
+# pass list -v
+-pa----	regress	regress
+# kill
+1 tables deleted.
+rules cleared
+ktable: 13 allocated, 13 released, 0 leaked.
+pfrke_plain: 25 allocated, 25 released, 0 leaked.
+pfrke_route: 0 allocated, 0 released, 0 leaked.
+pfrke_cost: 0 allocated, 0 released, 0 leaked.

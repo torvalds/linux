@@ -1,0 +1,23 @@
+/* DK_UNSPECIFIED must be first so it has a value of zero.  We never
+   assign this kind to an actual diagnostic, we only use this in
+   variables that can hold a kind, to mean they have yet to have a
+   kind specified.  I.e. they're uninitialized.  Within the diagnostic
+   machinery, this kind also means "don't change the existing kind",
+   meaning "no change is specified".  */
+DEFINE_DIAGNOSTIC_KIND (DK_UNSPECIFIED, "")
+
+/* If a diagnostic is set to DK_IGNORED, it won't get reported at all.
+   This is used by the diagnostic machinery when it wants to disable a
+   diagnostic without disabling the option which causes it.  */
+DEFINE_DIAGNOSTIC_KIND (DK_IGNORED, "")
+
+/* The remainder are real diagnostic types.  */
+DEFINE_DIAGNOSTIC_KIND (DK_FATAL, "fatal error: ")
+DEFINE_DIAGNOSTIC_KIND (DK_ICE, "internal compiler error: ")
+DEFINE_DIAGNOSTIC_KIND (DK_ERROR, "error: ")
+DEFINE_DIAGNOSTIC_KIND (DK_SORRY, "sorry, unimplemented: ")
+DEFINE_DIAGNOSTIC_KIND (DK_WARNING, "warning: ")
+DEFINE_DIAGNOSTIC_KIND (DK_ANACHRONISM, "anachronism: ")
+DEFINE_DIAGNOSTIC_KIND (DK_NOTE, "note: ")
+DEFINE_DIAGNOSTIC_KIND (DK_DEBUG, "debug: ")
+

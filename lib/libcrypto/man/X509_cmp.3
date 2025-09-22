@@ -1,0 +1,233 @@
+.\" $OpenBSD: X509_cmp.3,v 1.5 2025/06/08 22:37:23 schwarze Exp $
+.\" full merge up to: OpenSSL ea5d4b89 Jun 6 11:42:02 2019 +0800
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Paul Yang <yang.yang@baishancloud.com>.
+.\" Copyright (c) 2019 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_CMP 3
+.Os
+.Sh NAME
+.Nm X509_cmp ,
+.Nm X509_NAME_cmp ,
+.\" The alias X509_name_cmp(3) is intentionally undocumented
+.\" because it is almost unused in real-world code.
+.Nm X509_issuer_and_serial_cmp ,
+.Nm X509_issuer_name_cmp ,
+.Nm X509_subject_name_cmp ,
+.Nm X509_CRL_cmp ,
+.Nm X509_CRL_match
+.Nd compare X.509 certificates and related values
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_cmp
+.Fa "const X509 *a"
+.Fa "const X509 *b"
+.Fc
+.Ft int
+.Fo X509_NAME_cmp
+.Fa "const X509_NAME *a"
+.Fa "const X509_NAME *b"
+.Fc
+.Ft int
+.Fo X509_issuer_and_serial_cmp
+.Fa "const X509 *a"
+.Fa "const X509 *b"
+.Fc
+.Ft int
+.Fo X509_issuer_name_cmp
+.Fa "const X509 *a"
+.Fa "const X509 *b"
+.Fc
+.Ft int
+.Fo X509_subject_name_cmp
+.Fa "const X509 *a"
+.Fa "const X509 *b"
+.Fc
+.Ft int
+.Fo X509_CRL_cmp
+.Fa "const X509_CRL *a"
+.Fa "const X509_CRL *b"
+.Fc
+.Ft int
+.Fo X509_CRL_match
+.Fa "const X509_CRL *a"
+.Fa "const X509_CRL *b"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_cmp
+compares two X.509 certificates using
+.Xr memcmp 3
+on the hashes of their canonical (DER) representations as generated with
+.Xr X509_digest 3 .
+The digest function is implementation-specific: LibreSSL uses SHA-512, other
+implementations use SHA-1.
+.Pp
+.Fn X509_NAME_cmp
+compares two X.501
+.Vt Name
+objects using their canonical (DER) representations generated with
+.Xr i2d_X509_NAME 3 .
+.Pp
+.Fn X509_issuer_and_serial_cmp
+compares the
+.Fa issuer
+and
+.Fa serialNumber
+fields of two
+.Vt TBSCertificate
+structures, using
+.Fn X509_NAME_cmp
+for the
+.Fa issuer
+fields.
+.Pp
+.Fn X509_issuer_name_cmp
+compares the
+.Fa issuer
+fields of two
+.Vt TBSCertificate
+structures using
+.Fn X509_NAME_cmp .
+.Pp
+.Fn X509_subject_name_cmp
+compares the
+.Fa subject
+fields of two
+.Vt TBSCertificate
+structures using
+.Fn X509_NAME_cmp .
+.Pp
+.Fn X509_CRL_cmp
+is misnamed; it only compares the
+.Fa issuer
+fields of two
+.Vt TBSCertList
+structures using
+.Fn X509_NAME_cmp .
+.Pp
+.Fn X509_CRL_match
+compares two certificate revocation lists using
+.Xr memcmp 3
+on the hashes of their canonical (DER) representations as generated with
+.Xr X509_CRL_digest 3 .
+The digest function is implementation-specific: LibreSSL uses SHA-512, other
+implementations use SHA-1.
+.Sh RETURN VALUES
+All these functions return 0 to indicate a match or a non-zero value
+to indicate a mismatch.
+.Pp
+.Fn X509_NAME_cmp ,
+.Fn X509_issuer_and_serial_cmp ,
+.Fn X509_issuer_name_cmp ,
+.Fn X509_subject_name_cmp
+and
+.Fn X509_CRL_cmp
+may return -2 to indicate an error.
+.Sh SEE ALSO
+.Xr i2d_X509_NAME 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_digest 3 ,
+.Xr X509_NAME_new 3 ,
+.Xr X509_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate
+and Certificate Revocation List (CRL) Profile
+.Bl -dash -compact -offset indent
+.It
+section 4.1: Basic Certificate Fields
+.It
+section 5.1: CRL Fields
+.El
+.Sh HISTORY
+.Fn X509_issuer_and_serial_cmp ,
+.Fn X509_issuer_name_cmp ,
+and
+.Fn X509_subject_name_cmp
+first appeared in SSLeay 0.5.1 and
+.Fn X509_NAME_cmp
+and
+.Fn X509_CRL_cmp
+in SSLeay 0.8.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_cmp
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Pp
+.Fn X509_CRL_match
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .
+.Sh BUGS
+For
+.Fn X509_NAME_cmp ,
+.Fn X509_issuer_and_serial_cmp ,
+.Fn X509_issuer_name_cmp ,
+.Fn X509_subject_name_cmp
+and
+.Fn X509_CRL_cmp ,
+the return value -2 sometimes indicates a mismatch and sometimes an error.

@@ -1,0 +1,269 @@
+.\"	$OpenBSD: azalia.4,v 1.28 2025/05/04 23:45:28 tedu Exp $
+.\"	$NetBSD: azalia.4,v 1.2 2005/06/22 04:19:09 kent Exp $
+.\"
+.\" Copyright (c) 2005 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by TAMURA Kent
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 4 2025 $
+.Dt AZALIA 4
+.Os
+.Sh NAME
+.Nm azalia
+.Nd generic High Definition Audio device
+.Sh SYNOPSIS
+.Cd "azalia* at pci?"
+.Cd "audio* at azalia?"
+.Sh DESCRIPTION
+The
+.Nm
+device driver is expected to support any PCI device which is
+compliant with the High Definition Audio Specification 1.0.
+.Pp
+The High Definition Audio (HDA) specification describes a flexible and
+extensible infrastructure to support high quality audio.
+HDA supports sample rates up to 192 kHz, bit rates of up to 32 bits per
+sample, and up to 16 channels in audio streams.
+It also supports S/PDIF input/output as well as jack retasking and sensing.
+The HDA specification defines a controller register set and a codec
+architecture.
+.Sh MIXER INTERFACE
+The codec is the main audio processor.
+Configuration of the device, such as selecting playback sample rate
+or decreasing the volume, is handled by the codec.
+Codecs are comprised of interconnected widgets.
+Common examples of widgets include DACs (digital to analog converter),
+ADCs (analog to digital converter), selectors, mixers, and pin
+complexes (input/output jacks).
+Widgets may have fixed or controllable properties.
+Some of these properties include source selection, amplifier gain,
+mute, and operational direction.
+.Pp
+The mixer interface for
+.Nm
+is designed to allow the user to control most properties of the widgets.
+When
+.Nm
+first attaches and configures the device, it will set all widgets to
+unmuted, moderate volume, and configure connections such that stereo
+playback and recording will work with the expected input/output pins.
+.Pp
+There are a wide range of HDA codecs.
+Some have only a few widgets that don't have many controllable
+properties, and some may have many, very controllable widgets.
+The mixer interface on one
+.Nm
+may be very different than the mixer interface on another.
+.Pp
+Mixer item names describe the widget and property being controlled.
+Names take the following form:
+.Bd -literal
+<mixer class>.<widget type>[<widget type enumerator>][_<property>]
+.Ed
+.Pp
+The mixer class gives a hint as to the purpose of the control.
+The widget type enumerator is used to distinguish different widgets
+of the same type.
+The enumeration starts at 2: the first widget of each type is not
+enumerated.
+The enumeration order is meaningless.
+The property is optional.
+Generally, if there is no property, the mixer item is an amplifier gain
+control.
+.Pp
+The following are the widget type names used in mixer control names:
+.Bl -tag -width "SPDIF-in"
+.It Cm dac
+Digital to analog converter, usually used for playback.
+The audio stream channels these widgets will convert are encoded into
+their name in the form of <start channel>:<end channel>.
+For example,
+.Cm dac-0:1
+converts channels 0 and 1 (stereo).
+However, a dac that is connected to built-in speakers or front
+panel headphone jacks by default will convert audio stream channels
+starting at 0 if the dac would otherwise not be converting any channels.
+For example, if
+.Cm dac-2:3
+is the default dac for the built-in speakers in a laptop,
+.Cm dac-2:3
+will convert channels 0 and 1 when a stereo audio stream is being played.
+This is to allow simultaneous stereo playback on both the built-in speakers
+and a line or headphone jack.
+.It Cm dig-dac
+Digital output converter, usually an S/PDIF transmitter.
+The audio stream channels these widgets will convert are encoded into
+their name in the form of <start channel>:<end channel>.
+For example,
+.Cm dig-dac-0:1
+converts channels 0 and 1 (stereo).
+.It Cm adc
+Analog to digital converter, usually used for recording.
+The audio stream channels these widgets will convert are encoded into
+their name in the form of <start channel>:<end channel>.
+For example,
+.Cm adc-0:1
+converts channels 0 and 1 (stereo).
+.It Cm dig-adc
+Digital input converter, usually an S/PDIF receiver.
+The audio stream channels these widgets will convert are encoded into
+their name in the form of <start channel>:<end channel>.
+For example,
+.Cm dig-adc-0:1
+converts channels 0 and 1 (stereo).
+.It Cm mix
+Sums multiple audio sources into a single stream, but
+sometimes only used for amplifier or mute properties.
+The property part of a mix widget mixer control name may be
+the name of another widget.
+Such a mixer item controls the input level from the widget in the
+property part of the name.
+.It Cm sel
+Selects a single audio source, but sometimes used only for amplifier
+or mute properties.
+.It Cm pow
+Controls power state for a group of widgets.
+.It Cm volume
+Interprets data from external controls, such as a volume knob.
+.It Cm beep
+Creates a tone at a certain frequency.
+.It Cm line
+Pin complex for a line-level jack that is normally used for analog audio
+output.
+The name may also be appended with a color abbreviation such as -grn (green),
+-blk (black), -org (orange), or -gry (grey), to help differentiate jacks.
+.It Cm spkr
+Pin complex for a speaker, often built into the machine.
+.It Cm hp
+Pin complex for a jack that is normally used for output to a headphone.
+.It Cm cd
+Pin complex for analog audio input from a CD device.
+.It Cm SPDIF
+Pin complex for an S/PDIF output connector.
+.It Cm line-in
+Pin complex for a line-level jack that is normally used for analog audio input.
+.It Cm aux
+Pin complex for an auxiliary analog audio input.
+.It Cm mic
+Pin complex for analog audio input from a microphone, either a jack or built
+into the machine.
+.It Cm SPDIF-in
+Pin complex for an S/PDIF input connector.
+.It Cm beep
+Pin complex for analog audio input from a beep generator.
+.El
+.Pp
+The following are the property names used in mixer control names:
+.Bl -tag -width "source"
+.It Cm mute
+Mutes input or output audio stream.
+.It Cm source
+Selects input source.
+Can either select a single source or multiple sources.
+Sometimes these controls may only have a single choice, but they are
+provided to show how audio streams move through the codec.
+.It Cm dir
+Selects pin direction and input VRef signal.
+VRef is represented in percent of the analog voltage rail.
+For example, 'input-vr80' means input direction with 80% VRef.
+.It Cm boost
+Enables/disables low impedance amplifier, usually for use with headphones.
+.It Cm eapd
+Powers on/off external amplifier circuitry.
+.It Cm sense
+Reports current jack sense state.
+.El
+.Pp
+There are also some special mixer controls that don't directly
+correspond to properties of the widgets, but control aspects
+of the driver or other mixer controls.
+The following describes these special controls:
+.Bl -tag -width "outputsXmasterXslaves"
+.It Cm outputs.spkr_muters
+List of pins that can mute a built-in speaker.
+A pin mutes the speaker by sending a signal when it senses that something
+has been plugged into its jack.
+If a pin supports both input and output operation, the pin will only mute
+the speaker when plugged into if that pin is configured for output.
+.It Cm outputs.master.slaves
+List of widgets with amplifier gain or mute controls that are configured
+with the parameters used for
+.Cm outputs.master
+and
+.Cm outputs.master.mute .
+For example, if
+.Cm dac
+is in the list and has an input amplifier gain control, setting
+.Cm outputs.master
+to 200 will set
+.Cm inputs.dac
+to 200.
+.It Cm outputs.master
+Amplifier gain control for widgets listed in
+.Cm outputs.master.slaves .
+.It Cm outputs.master.mute
+Mute control for widgets listed in
+.Cm outputs.master.slaves .
+.It Cm record.volume.slaves
+List of widgets with amplifier gain or mute controls that are configured
+with the parameters used for
+.Cm record.volume
+and
+.Cm record.volume.mute .
+For example, if
+.Cm adc
+is in the list and has an input amplifier gain control, setting
+.Cm record.volume
+to 200 will set
+.Cm record.adc
+to 200.
+.It Cm record.volume
+Amplifier gain control for widgets listed in
+.Cm record.volume.slaves .
+.It Cm record.volume.mute
+Mute control for widgets listed in
+.Cm record.volume.slaves .
+.It Cm outputs.mode
+Controls whether the digital or analog converters and pins will be
+used for playback.
+.It Cm record.mode
+Controls whether the digital or analog converters and pins will be
+used for recording.
+.El
+.Sh SEE ALSO
+.Xr audio 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Nx 3.0 .
+.Ox
+support first appeared in
+.Ox 4.0 .
+.Sh BUGS
+This driver does not support codecs that are intended for HDMI or
+DisplayPort connectivity.

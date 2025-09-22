@@ -1,0 +1,85 @@
+.\"	$OpenBSD: syspatch.8,v 1.22 2020/12/07 21:19:28 ajacoutot Exp $
+.\"
+.\" Copyright (c) 2016 Antoine Jacoutot <ajacoutot@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 7 2020 $
+.Dt SYSPATCH 8
+.Os
+.Sh NAME
+.Nm syspatch
+.Nd manage base system binary patches
+.Sh SYNOPSIS
+.Nm syspatch
+.Op Fl c | l | R | r
+.Sh DESCRIPTION
+.Nm
+is a utility to fetch, verify, install and revert
+.Ox
+binary patches.
+.Pp
+When run without any options,
+.Nm syspatch
+will apply
+.Em all
+missing patches, creating a rollback tarball containing the files it is about
+to replace, then extracting and installing all files contained in the syspatch
+tarball.
+If any sets are missing, patches are skipped accordingly.
+Patches are cumulative and as such it is not possible to install only a subset
+of them.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c
+List available patches; suitable for
+.Xr cron 8 .
+.It Fl l
+List installed patches.
+.It Fl R
+Revert all patches.
+.It Fl r
+Revert the most recently installed patch.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/installurl" -compact
+.It Pa /etc/installurl
+.Ox
+mirror top-level URL for fetching patches.
+.It Pa /var/syspatch/*
+Directories containing the rollback tarball and original signed
+.Xr diff 1
+of installed patches.
+.El
+.Sh EXIT STATUS
+.Ex -std syspatch
+In particular, 2 indicates that applying patches was requested but no
+additional patch was installed.
+.Sh SEE ALSO
+.Xr signify 1 ,
+.Xr installurl 5 ,
+.Xr release 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+.Nm
+was written by
+.An Antoine Jacoutot Aq Mt ajacoutot@openbsd.org .
+.Sh CAVEATS
+.Nm
+is designed to work solely on official
+.Ox
+releases.

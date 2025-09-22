@@ -1,0 +1,658 @@
+.\"	$OpenBSD: hier.7,v 1.170 2022/10/23 08:00:29 jmc Exp $
+.\"	$NetBSD: hier.7,v 1.7 1994/11/30 19:07:10 jtc Exp $
+.\"
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: October 23 2022 $
+.Dt HIER 7
+.Os
+.Sh NAME
+.Nm hier
+.Nd layout of filesystems
+.Sh DESCRIPTION
+A sketch of the filesystem hierarchy.
+.Bl -tag -width "/altroot/"
+.It /
+Root directory.
+.It /altroot/
+Alternate (backup) location for the root
+.Pq Sq /
+filesystem
+(see
+.Xr daily 8 ) .
+.It /bin/
+User utilities fundamental to both single and multi-user environments.
+These programs are statically compiled and therefore do not depend on any
+system libraries to run.
+.It /bsd
+Pure kernel executable
+(the operating system loaded into memory at boot-time).
+.It /bsd.mp
+Pure kernel executable
+for multiprocessor machines.
+.It /bsd.rd
+Installation kernel.
+The built-in RAM disk contains utilities which can be run
+without an external file system, so this kernel is useful
+for limited system maintenance too.
+.It /bsd.sp
+Pure kernel executable
+for single processor machines.
+.It /dev/
+Block and character device files.
+.Pp
+.Bl -tag -width MAKEDEV -compact
+.It MAKEDEV
+Script for creating device files (see
+.Xr MAKEDEV 8 ) .
+.It fd/
+File descriptor files (see
+.Xr fd 4 ) .
+.El
+.It /etc/
+System configuration files and scripts.
+.Pp
+.Bl -tag -width "raddb/servers/" -compact
+.It localtime
+Local time zone information (see
+.Xr ctime 3 ) .
+.It X11/
+Configuration files for the X11 window system.
+.It acme/
+Private keys for
+.Xr acme-client 1 .
+.It amd/
+Contains map files for
+.Xr amd 8 .
+.It authpf/
+Configuration files for the authenticating gateway user shell (see
+.Xr authpf 8 ) .
+.It examples/
+Example configuration files for base system daemons.
+.It firmware/
+Firmware files for various devices.
+.It fonts/
+Configuration files for X11 window system fonts.
+.It hotplug/
+Scripts for the hotplug daemon,
+.Xr hotplugd 8 .
+.It iked/
+Configuration files for
+.Xr iked 8 .
+.It isakmpd/
+Configuration files for
+.Xr isakmpd 8 .
+.It ldap/
+Certificates and schema definition files for
+.Xr ldapd 8 .
+.It login.conf.d/
+Additional login attributes for
+.Xr login.conf 5 .
+.It mail/
+System mail configuration files.
+.It mtree/
+.Xr mtree 8
+configuration files.
+.It npppd/
+.Xr npppd 8
+configuration files.
+.It ppp/
+.Xr pppd 8
+configuration files.
+.It raddb/servers/
+List of radius servers and their associated shared secrets for
+.Xr login_radius 8 .
+.It rc.d/
+.Xr packages 7
+start/stop scripts and subroutines for
+.Xr rc 8 .
+.It rpki/
+TAL and configuration files for
+.Xr rpki-client 8 .
+.It signify/
+Key files used by
+.Xr signify 1 .
+.It skel/
+Example
+.Sq .\&
+(dot) files for new accounts.
+.It skey/
+One-time password user database for
+.Xr skey 1 .
+.It ssh/
+Configuration files for
+.Xr ssh 1
+and
+.Xr sshd 8 .
+.It ssl/
+OpenSSL configuration files (see
+.Xr openssl 1 ) .
+.El
+.It /home/
+Default location for user home directories.
+.Pp
+.Bl -tag -width _sysupgrade/ -compact
+.It _sysupgrade/
+Download location for
+.Xr sysupgrade 8 .
+.El
+.It /mnt/
+Empty directory commonly used by
+system administrators as a temporary mount point.
+.It /root/
+Default home directory for the superuser.
+.It /sbin/
+System programs and administration utilities
+fundamental to both single and multi-user environments.
+Most of these programs are statically compiled and therefore do not
+depend on any system libraries to run.
+.It /tmp/
+Temporary files that are
+.Em not
+preserved between system reboots.
+Periodically cleaned by
+.Xr daily 8 .
+.It /usr/
+Contains the majority of user utilities and applications.
+.Pp
+.Bl -tag -width "xenocara/" -compact
+.It X11R6/
+Files required for the X11 window system.
+.Pp
+.Bl -tag -width "include/" -compact
+.It bin/
+X11 binaries.
+.It include/
+X11-specific C include files.
+.It lib/
+X11 archive libraries.
+.Pp
+.Bl -tag -width "pkgconfig/" -compact
+.It X11/
+Default configuration files for X11 and companion applications.
+.It modules/
+Various libraries and drivers for the X11 window system.
+.It pkgconfig/
+Package metadata for
+.Xr pkg-config 1 .
+.It xorg/
+Data files used by the X server.
+.El
+.Pp
+.It man/
+X11 manual pages.
+.It share/
+Architecture independent data files.
+.El
+.Pp
+.It bin/
+Common utilities, programming tools, and applications.
+.It games/
+Useful and semi-frivolous programs.
+.It include/
+Standard C include files.
+.Pp
+.Bl -tag -width "libmilter/" -compact
+.It arpa/
+C include files for Internet service protocols.
+.It c++/
+Include files for the Clang C++ compiler.
+.It cbor/
+C include files for the Concise Binary Object Representation (CBOR)
+library.
+.It crypto/
+C include files for the cryptographic libraries.
+.It ddb/
+C include files for the kernel debugger (see
+.Xr ddb 4 ) .
+.It dev/
+Device-specific C include files.
+.It fido/
+C include files for the U2F/FIDO2 communication library.
+.It g++/
+Include files for the GNU C++ compiler.
+.It isofs/
+C include files for the ISO standard file systems (currently only cd9660).
+.It llvm/
+C++ include files for LLVM.
+.It llvm-c/
+C include files for LLVM.
+.It machine/
+Machine specific C include files.
+.It miscfs/
+C include files for miscellaneous file systems.
+.It msdosfs/
+C include files for MS-DOS file system.
+.It net/
+Miscellaneous network C include files.
+.It net80211/
+C include files for 802.11 wireless networking.
+.It netinet/
+C include files for Internet standard protocols (see
+.Xr inet 4 ) .
+.It netinet6/
+C include files for Internet protocol version 6 (see
+.Xr inet6 4 ) .
+.It netmpls/
+C include files for the MPLS protocol.
+.It nfs/
+C include files for NFS (Network File System).
+.It ntfs/
+C include files for NTFS file system.
+.It openssl/
+C include files for the OpenSSL library (see
+.Xr ssl 8 ) .
+.It protocols/
+C include files for Berkeley service protocols.
+.It readline/
+C include files for the
+.Xr readline 3
+library.
+.It rpc/
+C include files for remote procedure calling (see
+.Xr rpc 5 ) .
+.It rpcsvc/
+C include files for rpcsvc.
+.It scsi/
+SCSI-specific C include files.
+.It sys/
+System C include files (kernel data structures).
+.It ufs/
+C include files for UFS (the U-word File System).
+.It uvm/
+C include files for the virtual memory interface.
+.El
+.Pp
+.It lib/
+System libraries.
+See
+.Xr intro 3
+for a description of library types.
+.It libdata/
+Miscellaneous utility data files.
+.Pp
+.Bl -tag -width "ldscripts/" -compact
+.It cvs/
+Placeholder for user contributed
+.Xr cvs 1
+code/scripts.
+.It ldscripts/
+ELF linker scripts.
+.It perl5/
+Data files for
+.Xr perl 1 .
+.El
+.Pp
+.It libexec/
+System daemons and utilities (executed by other programs).
+.Pp
+.Bl -tag -width "cvs/contrib/" -compact
+.It auth/
+Login scripts used to authenticate users (for
+.Bx
+Authentication).
+.It cvs/contrib/
+User contributed
+.Xr cvs 1
+scripts.
+.It lpr/
+Contains the lpf filter for
+.Xr lpd 8 .
+.It radiusd/
+Authentication modules for
+.Xr radiusd 8 .
+.It snmpd/
+SNMP subagents.
+.El
+.Pp
+.It local/
+Local executables, libraries, etc.
+.It mdec/
+Boot-related executables.
+.It obj/
+Architecture specific target tree produced by building the
+.Pa /usr/src
+tree.
+.It ports/
+The
+.Ox
+ports collection (see
+.Xr ports 7 ) .
+.It sbin/
+System daemons and utilities (executed by users).
+.It share/
+Architecture independent data files.
+.Pp
+.Bl -tag -width "calendar/" -compact
+.It calendar/
+Variety of pre-fab calendar files (see
+.Xr calendar 1 ) .
+.It dict/
+Word lists (see
+.Xr look 1
+and
+.Xr spell 1 ) .
+.Pp
+.Bl -tag -width propernames -compact
+.It american
+Spellings preferred in American usage.
+.It british
+Spellings preferred in British usage.
+.It propernames
+List of proper names.
+.It stop
+Forms that would otherwise be derivable by
+.Xr spell 1
+from words in the other files in
+.Pa /usr/share/dict ,
+but should not be accepted.
+.It web2
+Words from Webster's 2nd International.
+.It web2a
+Additional words from Webster's.
+.It words
+Common words.
+.It papers/
+Reference databases.
+.It special/
+Custom word lists.
+.El
+.Pp
+.It doc/
+Miscellaneous documentation.
+.It games/
+ASCII text files used by various games.
+.It info/
+Texinfo source files.
+.It locale/
+Locales for multi-language support.
+.It man/
+Manual pages.
+.Pp
+.Bl -tag -width man3p/ -compact
+.It man1/
+General commands (tools and utilities).
+.It man2/
+System calls and error numbers.
+.It man3/
+Libraries.
+.It man3p/
+.Xr perl 1
+programmers' reference guide.
+.It man4/
+Special files and hardware support.
+.It man5/
+File formats.
+.It man6/
+Games.
+.It man7/
+Miscellaneous.
+.It man8/
+System maintenance and operation commands.
+.It man9/
+Kernel internals.
+.El
+.Pp
+.It misc/
+Miscellaneous system-wide ASCII text files.
+.Pp
+.Bl -tag -width pcvtfonts/ -compact
+.It termcap
+Terminal characteristics database (see
+.Xr termcap 5 ) .
+.It pcvtfonts/
+Additional console fonts.
+.El
+.Pp
+.It mk/
+Templates for
+.Xr make 1 .
+.It relink/
+Link kit for boot-time kernel and library relinking.
+.It snmp/
+Data files for
+.Xr snmpd 8 .
+.Pp
+.Bl -tag -width mibs/ -compact
+.It mibs/
+Management Information Base (MIB) definitions.
+.El
+.Pp
+.It tabset/
+Tab description files for a variety of terminals; used in
+the termcap file (see
+.Xr termcap 5 ) .
+.It terminfo/
+Compiled terminal characteristic files (see
+.Xr terminfo 5 ) .
+.It texinfo/
+Templates for
+.Xr texinfo 5 .
+.It zoneinfo/
+Time zone configuration information (see
+.Xr tzfile 5 ) .
+.El
+.Pp
+.It src/
+.Bx
+and/or local source files.
+.Pp
+.Bl -tag -width "usr.sbin/" -compact
+.It bin/
+Source for files in
+.Pa /bin .
+.It distrib/
+Source for making distribution sets.
+.It etc/
+Source for files in
+.Pa /etc .
+.It games/
+Source for files in
+.Pa /usr/games .
+.It gnu/
+Source for files under GPL or other restrictive licenses.
+.It include/
+Source for files in
+.Pa /usr/include .
+.It lib/
+Source for files in
+.Pa /usr/lib .
+.It libexec/
+Source for files in
+.Pa /usr/libexec .
+.It regress/
+Regress framework.
+.It sbin/
+Source for files in
+.Pa /sbin .
+.It share/
+Source for files in
+.Pa /usr/share .
+.It sys/
+Kernel source files.
+.It usr.bin/
+Source for files in
+.Pa /usr/bin .
+.It usr.sbin/
+Source for files in
+.Pa /usr/sbin .
+.El
+.Pp
+.It xenocara/
+Source for the X11 window system.
+.Pp
+.It xobj/
+Architecture specific target tree produced by building the
+.Pa /usr/xenocara
+tree.
+.El
+.It /var/
+Multi-purpose log, temporary, transient, and spool files.
+.Pp
+.Bl -tag -width "sysmerge/" -compact
+.It account/
+System accounting files.
+.Pp
+.Bl -tag -width acct -compact
+.It acct
+Execution accounting file (see
+.Xr acct 5 ) .
+.El
+.Pp
+.It agentx/
+Master socket for AgentX-based backends,
+managed by
+.Xr snmpd 8 .
+.It audit/
+Audit logs.
+.It authpf/
+PID file for
+.Xr authpf 8 .
+.It backups/
+Miscellaneous backup files.
+.It cache/
+Data cached for programs.
+.It crash/
+Crash dumps written by
+.Xr savecore 8 .
+.It cron/
+Spools and configuration files for
+.Xr cron 8
+and
+.Xr at 1 .
+.Pp
+.Bl -tag -width atjobs/ -compact
+.It atjobs/
+.Xr at 1
+jobs.
+.It tabs/
+Individual
+.Xr crontab 1
+files.
+.El
+.Pp
+.It db/
+Miscellaneous, automatically generated system-specific database files.
+.It empty/
+Generic
+.Xr chroot 2
+directory.
+.It games/
+Miscellaneous game status and log files.
+.It log/
+Miscellaneous system log files.
+.Pp
+.Bl -tag -width rdist/ -compact
+.It wtmp
+Login/logout log (see
+.Xr wtmp 5 ) .
+.It rdist/
+Log files for
+.Xr rdist 1 .
+.El
+.Pp
+.It mail/
+User mailbox files.
+.It nsd/
+Database and zone files for
+.Xr nsd 8 .
+.It quotas/
+Filesystem quota information files.
+.It run/
+System information files describing various info about the
+system since it was booted.
+.Pp
+.Bl -tag -width rc.d/ -compact
+.It rc.d/
+Details of currently running daemons;
+used by
+.Xr rc.d 8 .
+.It utmp
+Database of current users (see
+.Xr utmp 5 ) .
+.El
+.Pp
+.It spool/
+Miscellaneous printer and mail system spooling directories.
+.Pp
+.Bl -tag -width "output/" -compact
+.It ftp/
+Commonly ~ftp; the anonymous ftp root directory.
+.It lock/
+Lock files for utilities such as
+.Xr pppd 8 .
+.It output/
+Line printer spooling directories.
+.It smtpd/
+Mail spool for
+.Xr smtpd 8 .
+.El
+.Pp
+.It sysmerge/
+Checksum files and reference sets
+for
+.Xr sysmerge 8 .
+.It syspatch/
+Rollback tarballs and patch files for
+.Xr syspatch 8 .
+.It tmp -> ../tmp
+A symbolic link to the system
+.Pa /tmp
+directory.
+To protect other users of
+.Pa /var
+from overfill conditions, this is no longer a space you can trust to
+retain storage over a reboot.
+Periodically cleaned by
+.Xr daily 8 .
+.It unbound/
+Configuration files for
+.Xr unbound 8 .
+.It www/
+Configuration files for
+.Xr httpd 8 .
+.It yp/
+Files for the
+.Xr yp 8
+subsystem.
+.El
+.El
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr find 1 ,
+.Xr locate 1 ,
+.Xr whatis 1 ,
+.Xr whereis 1 ,
+.Xr which 1
+.Sh HISTORY
+A
+.Nm
+manual page appeared in
+.At v7 .

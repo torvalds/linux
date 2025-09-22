@@ -1,0 +1,6 @@
+# $OpenBSD: spec1,v 1.1 2008/06/13 21:33:00 espie Exp $
+/set \
+type=dir
+.
+/set type=file
+spec1

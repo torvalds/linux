@@ -1,0 +1,105 @@
+.\"	$OpenBSD: thread_fork.9,v 1.2 2017/02/15 03:33:13 guenther Exp $
+.\"	$NetBSD: fork1.9,v 1.3 1999/03/16 00:40:47 garbled Exp $
+.\"
+.\" Copyright (c) 1998 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+.\" NASA Ames Research Center.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 15 2017 $
+.Dt THREAD_FORK 9
+.Os
+.Sh NAME
+.Nm thread_fork
+.Nd create a new thread inside a process
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/proc.h
+.Ft int
+.Fo thread_fork
+.Fa "struct proc *p1"
+.Fa "void *stack"
+.Fa "void *tcb"
+.Fa "pid_t *tidptr"
+.Fa "register_t *retval"
+.Fc
+.Sh DESCRIPTION
+.Fn thread_fork
+creates a new thread out of
+.Ar p1 ,
+which should be the current thread.
+This function is used to implement the
+.Xr __tfork 3
+system call.
+.Pp
+.Fa stack ,
+which must not be
+.Dv NULL ,
+will be used as the initial value of the new thread's stack pointer.
+.Pp
+If
+.Fa tcb
+is not
+.Dv NULL ,
+it will be used as the initial address of the new thread's TCB
+(thread control block).
+.Pp
+If
+.Fa tidptr
+is not
+.Dv NULL ,
+the TID of the new thread will be copied out there on success.
+This is guaranteed to be done before the new thread is started.
+.Pp
+On successful completion the TID of the new thread will be stored in
+.Fa *retval .
+.Sh RETURN VALUES
+Upon successful completion of the operation,
+.Fn thread_fork
+returns 0.
+Otherwise, the following error values are returned:
+.Bl -tag -width [EAGAIN]
+.It Bq Er EAGAIN
+The system limit on the total number of threads would be exceeded.
+.It Bq Er ENOMEM
+There is insufficient swap space for the new thread.
+.It Bq Er EINVAL
+The
+.Fa stack
+argument was
+.Dv NULL .
+.El
+.Sh SEE ALSO
+.Xr __get_tcb 2 ,
+.Xr fork 2 ,
+.Xr __tfork 3 ,
+.Xr tfind 9
+.Sh HISTORY
+The
+.Fn thread_fork
+function
+appeared in
+.Ox 6.1 .

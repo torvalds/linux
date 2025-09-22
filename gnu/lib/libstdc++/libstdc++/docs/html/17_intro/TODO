@@ -1,0 +1,113 @@
+- audit for places where __builtin_expect can be used.
+
+- coordinate with "C" library people the "C" compatibility headers.
+  Explain why an ISO-14882-conformant solution is hopeless, with the current
+  twisted morass of "C" headers.
+
+- do more doxygen manpages
+
+- implement __convert_to_v and __convert_from_v without "C" library
+functions and and LANG environment variable dependencies.
+
+- use localedata to implement generic named (non-MT-safe) locales?
+Figure out a way to use ICU data, like libjava?
+
+- tuning for executable size, compilation speed, startup allocation,
+executable speed.
+
+- benchmarking addition to the testsuite that does the above.
+
+- implement testing for symbol versioning for ELF targets.
+
+- review streambuf, filebuf, stringbuf to optimize data member
+placement.  Do pback bits need to be in streambuf? How about
+_M_set_indeterminate, etc?
+
+- Think about naming all member data and member functions consistently
+as per
+funtions: _M_verb_adverb
+data: _M_noun_adjective
+
+- exception specifications need to be reviewed for all parts of the
+library support and utility areas, particularly <new>. 
+
+- scoping/linking issues WRT to C structs need to be worked out. See
+Nathan's commentary on cantrip, http://www.cantrip.org/cheaders.html
+
+- triglyphs/ciso646: and, and_eq, bitand, bitor, compl, not, not_eq,
+or, or_eq, xor, xor_eq, true && 45, true and false, true or 45, etc.
+(bool and int), etc.
+
+- operator!= and utility/rel_ops operators need to be made safe with
+string and vector iterator classes. basic_string::reverse_iterator may
+be implemented incorrectly, or need things like
+operator==(__normal_iterator, const char*&), and swap(vector)
+
+- auto_ptr: seems to be some disagreement on what is
+standards-conformant behavior, specially on conversion operators.
+
+- header optimizations to keep compile times reasonable are most
+certainly detracting from full conformance, as many templatized
+definitions are squired away and pre-instantiated, so that the
+compiler doesn't have to parse them. Areas effected: valarray, string,
+all of iostreams and locales.
+
+- C-related issues WRT to libio and filepos, mbstate_t. Need to
+straighten this stuff out with the glibc-2.2 libio. Also may need to
+define operators for mbstate_t so that 'mbstate_t& == mbstate_t' is
+something that can be done.
+
+- looks like deque::get_allocator not standards conformant or deque
+allocator non-standard.
+
+- list::assignment operator needs const_cast
+
+- a cleaner division between pointers-to-value_type and true iterators
+needs to be drawn throughout the entire STL implementation.
+
+- priority_queue conversions may be non-conformant
+
+- 'do the right thing' ctor fixing needs to be done for string. This
+is still subject to some debate on the library issues list, so I
+suggest punting till the dust clears.
+
+- Protect valarray::result_type (not Standard) and make it work with
+  the various helper classes.
+
+- Make sure `valarray<bool> & == _Expr<_BinClos<logical_or,_ValArray,_ValArray,double,double>,bool>' 
+  is defined
+
+- known issues WRT to io and corner cases with the buffers. This is
+still subject to interpretation, and I think the current
+implementation is credible.
+
+- All of the Library working group closed issues need to be
+addressed. Some of them proposed resolutions are already in the v-3
+sources, with macro-guards.
+
+- add deprecated features from Annex D
+  - add #ifdef wrappers for all of them, including in each
+    C <xxx.h> header
+  - replace typedef'd non-deprecated types with more type-safe equivalents.
+
+- add optimization hooks (esp. whitespace eating) to streambuf
+  - add _M_begin() and _M_end() to streambuf
+  - add algorithm specializations for [io]streambuf_iterator (copy find etc.)
+
+- fix template members of basic_string<> to overload iterators and
+  non-iterators properly.  (This is the infamous hack as in vector<> etc
+  23.1.1 para 10.)
+
+- write filebuf for wide characters
+
+- add feature-test macros for non-standard extensions
+
+- create MT abstraction layer
+
+- add MT support for locale, string, istream, ostream
+
+- provide testsuites for numerics.
+
+- add FAQ entries -- improve the install instructions
+
+- add HOWTO entries

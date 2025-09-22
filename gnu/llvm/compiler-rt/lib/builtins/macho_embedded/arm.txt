@@ -1,0 +1,16 @@
+aeabi_cdcmpeq
+aeabi_cdrcmple
+aeabi_cfcmpeq
+aeabi_cfrcmple
+aeabi_dcmpeq
+aeabi_dcmpge
+aeabi_dcmpgt
+aeabi_dcmple
+aeabi_dcmplt
+aeabi_drsub
+aeabi_fcmpeq
+aeabi_fcmpge
+aeabi_fcmpgt
+aeabi_fcmple
+aeabi_fcmplt
+aeabi_frsub

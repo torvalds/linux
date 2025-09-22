@@ -1,0 +1,202 @@
+.\"	$OpenBSD: aml_evalnode.9,v 1.11 2015/09/14 15:14:55 schwarze Exp $
+.\"
+.\" Copyright (c) 2007 Michael Knudsen <mk@openbsd.org>
+.\"
+.\"  Permission to use, copy, modify, and distribute this software for any
+.\"  purpose with or without fee is hereby granted, provided that the above
+.\"  copyright notice and this permission notice appear in all copies.
+.\"
+.\"  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\"  WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\"  MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\"  ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\"  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\"  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\"  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 14 2015 $
+.Dt AML_EVALNODE 9
+.Os
+.Sh NAME
+.Nm aml_evalnode ,
+.Nm aml_evalname ,
+.Nm aml_find_node ,
+.Nm aml_freevalue ,
+.Nm aml_val2int
+.Nd AML API
+.Sh SYNOPSIS
+.In dev/acpi/acpireg.h
+.In dev/acpi/acpivar.h
+.In dev/acpi/acpidev.h
+.In dev/acpi/amltypes.h
+.In dev/acpi/dsdt.h
+.Ft int
+.Fn aml_evalnode "struct acpi_softc *sc" "struct aml_node *node" \
+"int argc" "struct aml_value *argv" "struct aml_value *res"
+.Ft int
+.Fn aml_evalname "struct acpi_softc *sc" "struct aml_node *parent" \
+"const char *name" "int argc" "struct aml_value *argv" \
+"struct aml_value *res"
+.Ft int
+.Fn aml_find_node "struct aml_node *node" "const char *name" \
+"int (*cbproc)(struct aml_node *, void *arg)" "void *arg"
+.Ft void
+.Fn aml_freevalue "struct aml_value *val"
+.Ft int64_t
+.Fn aml_val2int "struct aml_value *rval"
+.Sh DESCRIPTION
+The AML API handles decoding and evaluation of the AML
+code embedded in a machine's ACPI tables.
+This code is used to implement configuration and control mechanisms for
+machines.
+.Pp
+.Fn aml_evalnode
+evaluates the AML node
+.Fa node
+located in the ACPI table specified by
+.Fa sc .
+Parameters may be passed using the
+.Fa argv
+parameters with the parameter
+.Fa argc
+specifying the number of parameters passed.
+If there are no arguments,
+a value of 0 is used for
+.Fa argc
+and
+.Fa argv
+should be
+.Dv NULL .
+If evaluating the node produces any result, for example a string with a device
+name reference, this result is stored in the
+.Fa res
+parameter unless it is
+.Dv NULL .
+.Fa res
+is cleared before storing the result.
+If
+.Fa node
+does not exist,
+.Fn aml_evalnode
+returns
+.Dv ACPI_E_BADVALUE ,
+otherwise it returns 0.
+.Pp
+.Fn aml_evalname
+is similar to
+.Fn aml_evalnode
+but differs in that it searches for a subnode of
+.Fa parent
+with the name
+.Fa name .
+If such a node is found, it is evaluated using
+.Fn aml_evalnode ,
+passing whatever parameters were passed to itself.
+.Fn aml_evalname
+returns the return value of
+.Fn aml_evalnode .
+.Pp
+.Fn aml_find_node
+is used to find all subnodes of
+.Fa parent
+with a name of
+.Fa name  .
+For each node found, the function specified as the
+.Fa cbproc
+parameter is called with the node and
+.Fa arg
+as the first and second parameters, respectively.
+The function specified as the
+.Fa cbproc
+parameter returns a value that specifies if the tree walk
+should be terminated (!0) or continued (0) with the children.
+.Fn aml_find_node
+always returns 0.
+.Pp
+.Fn aml_freevalue
+is used to free up the result returned from
+.Fn aml_evalnode
+or the other AML evaluation functions.
+Note that no attempt is made to free the
+.Vt struct aml_value
+itself so it is safe to allocate this on the stack.
+Also, calling
+.Fn aml_freevalue
+with a parameter of
+.Dv NULL
+is not an error.
+.Pp
+.Fn aml_val2int
+is used to convert the
+.Vt struct aml_value
+pointed to by the
+.Fa rval
+parameter to a signed 64-bit integer value.
+Multiple types exist for
+.Vt struct aml_value ,
+and the conversion value depends on the type
+of the value object as follows.
+For objects of type
+.Dv AML_OBJTYPE_INTEGER
+and
+.Dv AML_OBJTYPE_STATICINT ,
+the return value is simply the integer value stored in the object.
+For objects of type
+.Dv AML_OBJTYPE_BUFFER ,
+the return value is the integer interpretation of the buffer contents.
+For objects of type
+.Dv AML_OBJTYPE_STRING ,
+the return value is the integer value represented as a string in base 10
+or, if prefixed by
+.Dq 0x ,
+in base 16.
+If
+.Fa rval
+is
+.Dv NULL
+or not of one of the types mentioned above,
+.Fn aml_val2int
+returns 0.
+.Sh EXAMPLES
+Using
+.Fn aml_evalname
+to invoke the
+.Dq _STA
+method on a node
+.Fa node
+should be done like the following:
+.Bd -literal -offset indent
+struct acpi_softc	*sc
+struct aml_node		*node;
+struct aml_value	res;
+
+if (aml_evalname(sc->sc_acpi, node, "_STA", 0, NULL, &res) != 0) {
+	dnprintf(10, "%s: no _STA\en", DEVNAME(sc));
+	return;
+}
+.Ed
+.Pp
+Using the
+.Vt struct aml_value
+obtained from the
+.Dq _STA
+call to determine if the device is a battery is done as follows:
+.Bd -literal -offset indent
+if ((aml_val2int(&res) & STA_BATTERY) == 0) {
+	dnprintf(10, %s: no battery present\en", DEVNAME(sc));
+	return;
+.Ed
+.Pp
+Finally, when the result stored in
+.Fa res
+is no longer needed, free it using
+.Fn aml_freevalue :
+.Bd -literal -offset indent
+aml_freevalue(&res);
+.Ed
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpidump 8
+.Sh HISTORY
+The AML API was written by
+.An Jordan Hargrave Aq Mt jordan@openbsd.org .

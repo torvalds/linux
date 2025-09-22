@@ -1,0 +1,71 @@
+.\"	$OpenBSD: dohooks.9,v 1.8 2015/12/12 11:26:32 mpi Exp $
+.\"
+.\" Copyright (c) 2001 Niklas Hallqvist.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 12 2015 $
+.Dt DOHOOKS 9
+.Os
+.Sh NAME
+.Nm dohooks
+.Nd run all hooks in a list
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.Ft void
+.Fn dohooks "struct hook_desc_head *head" "int flags"
+.Sh DESCRIPTION
+The
+.Fn dohooks
+function invokes all hooks established using the
+.Xr hook_establish 9
+function.
+Hooks are called in the order of the TAILQ that
+.Fa head
+points to, however
+.Xr hook_establish 9
+can put the hooks either at the head or the tail of that queue,
+making it possible to call the hooks either in the order of
+establishment, or its reverse.
+.Pp
+The flags can specify
+.Dv HOOK_REMOVE
+to remove already processed hooks from the hook list and
+.Dv HOOK_FREE
+to also free them.
+In most cases either no flags should be used or
+.Dv HOOK_REMOVE
+and
+.Dv HOOK_FREE
+at the same time, since just HOOK_REMOVE will drop the only reference to
+allocated memory and should only be used in situations where freeing
+memory would be illegal and unnecessary.
+.Pp
+This function is used to implement the
+.Xr dostartuphooks 9
+macro.
+.Sh SEE ALSO
+.Xr dostartuphooks 9 ,
+.Xr hook_establish 9

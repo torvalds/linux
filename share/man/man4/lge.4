@@ -1,0 +1,135 @@
+.\" $OpenBSD: lge.4,v 1.29 2022/02/18 10:24:32 jsg Exp $
+.\" Copyright (c) 2001 Wind River Systems
+.\" Copyright (c) 1997, 1998, 1999, 2000, 2001
+.\"	Bill Paul <william.paul@windriver.com>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man4/lge.4,v 1.3 2001/07/06 08:34:13 ru Exp $
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt LGE 4
+.Os
+.Sh NAME
+.Nm lge
+.Nd Level 1 LXT1001 NetCellerator PCI 1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "lge* at pci?"
+.Cd "xmphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various NICs based on the Level 1 LXT1001
+NetCellerator Gigabit Ethernet controller chip, including the
+following:
+.Pp
+.Bl -bullet -compact
+.It
+Allied Telesis CentreCOM LA1000-PCI-SX
+.It
+D-Link DGE-500SX
+.It
+SMC TigerCard 1000 (SMC9462SX)
+.El
+.Pp
+These NICs are capable of 1000Mbps speeds over fiber optic cable.
+The LXT1001 also supports a GMII port for use with 10/100/1000 copper
+PHYs, however there aren't currently any NICs on the market that use
+this feature.
+.Pp
+The LXT1001 supports IPv4 receive IP/TCP/UDP checksum offload
+as well as a 64-bit multicast hash filter.
+It also supports jumbo frames.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width full-duplex
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the appropriate
+.Xr hostname.if 5
+file.
+.It Cm 1000baseSX
+Set 1000baseSX operation over fiber optic cable.
+Both
+.Cm full-duplex
+and
+.Cm half-duplex
+modes are supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "lge0: can't map i/o space"
+A fatal initialization error has occurred.
+.It "lge0: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "lge0: no memory for jumbo buffer queue!"
+The driver failed to allocate memory for jumbo frames during
+initialization.
+.It "lge0: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr xmphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T Level 1 LXT1001 Programming Manual
+.%U https://people.freebsd.org/~wpaul/Level1/LXT1001SRM.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt william.paul@windriver.com .

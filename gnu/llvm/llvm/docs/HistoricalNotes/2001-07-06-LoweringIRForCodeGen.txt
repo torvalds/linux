@@ -1,0 +1,31 @@
+Date: Fri, 6 Jul 2001 16:56:56 -0500
+From: Vikram S. Adve <vadve@cs.uiuc.edu>
+To: Chris Lattner <lattner@cs.uiuc.edu>
+Subject: lowering the IR
+
+BTW, I do think that we should consider lowering the IR as you said.  I
+didn't get time to raise it today, but it comes up with the SPARC
+move-conditional instruction.  I don't think we want to put that in the core
+VM -- it is a little too specialized.  But without a corresponding
+conditional move instruction in the VM, it is pretty difficult to maintain a
+close mapping between VM and machine code.  Other architectures may have
+other such instructions.
+
+What I was going to suggest was that for a particular processor, we define
+additional VM instructions that match some of the unusual opcodes on the
+processor but have VM semantics otherwise, i.e., all operands are in SSA
+form and typed.  This means that we can re-generate core VM code from the
+more specialized code any time we want (so that portability is not lost).
+
+Typically, a static compiler like gcc would generate just the core VM, which
+is relatively portable.  Anyone (an offline tool, the linker, etc., or even
+the static compiler itself if it chooses) can transform that into more
+specialized target-specific VM code for a particular architecture.  If the
+linker does it, it can do it after all machine-independent optimizations.
+This would be the most convenient, but not necessary.
+
+The main benefit of lowering will be that we will be able to retain a close
+mapping between VM and machine code.
+
+--Vikram
+

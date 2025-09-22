@@ -1,0 +1,272 @@
+.\" $OpenBSD: midi.4,v 1.31 2022/03/31 17:30:05 naddy Exp $
+.\"
+.\" Copyright (c) 2006 Alexandre Ratchov <alex@caoua.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt MIDI 4
+.Os
+.Sh NAME
+.Nm midi
+.Nd raw device independent interface to MIDI ports
+.Sh SYNOPSIS
+.Cd "midi* at autri?"
+.Cd "midi* at eap?"
+.Cd "midi* at envy?"
+.Cd "midi* at mpu?"
+.Cd "midi* at sb?"
+.Cd "midi* at umidi?"
+.Cd "midi* at ym?"
+.Sh DESCRIPTION
+The
+.Nm
+driver makes MIDI ports available to user applications.
+A
+.Nm
+device corresponds to 2 MIDI ports: one input port and one
+output port.
+Data received on the input port is not interpreted and is passed
+to the user program as-is.
+Similarly, data issued by the user program is sent as-is to the
+output port.
+.Pp
+Only one process may hold open a
+.Nm
+device at a given time, although file descriptors may be shared
+between processes once the first open completes.
+If it is opened read-only (write-only), only the input (output)
+MIDI port is available.
+.Ss Writing to the device
+A process can send raw MIDI data to the output port by using the
+.Xr write 2
+system call.
+Data is queued and the system call returns immediately; the data
+is sent as fast as possible to the output MIDI port.
+However, if the in-kernel buffer is full or the requested amount
+is too large, then
+.Xr write 2
+may block.
+The current size of the in-kernel buffer is 1024 bytes, which
+ensures that
+.Xr write 2
+isn't blocking in most situations.
+.Ss Reading from the device
+Data received from the input MIDI port is stored into the
+in-kernel buffer.
+A process can retrieve its contents by using
+the
+.Xr read 2
+system call.
+If there is less data than the amount requested for reading, then
+a shorter amount is returned.
+If no data is available, then the
+.Xr read 2
+system call will block until data is received,
+and then return immediately.
+.Pp
+The MIDI protocol has been designed for real-time performance and
+doesn't support flow control.
+An application must be able to read the incoming data fast enough
+(the MIDI standard's maximum rate is 3125 bytes per second).
+The kernel can buffer up to 1024 bytes; once the buffer is full
+input will be silently discarded.
+.Ss Polling the device
+A process can use the
+.Xr poll 2
+system call to poll for the following events:
+.Bl -tag -width POLLOUT
+.It Dv POLLIN
+The in-kernel input buffer isn't empty, i.e. at least one byte is
+available for reading.
+A subsequent call to
+.Xr read 2
+will not be blocking.
+.It Dv POLLOUT
+The in-kernel output buffer is empty, thus a subsequent call to
+.Xr write 2
+will not be blocking if a reasonable amount of data is written
+(currently less that 1024 bytes).
+.El
+.Pp
+Using the
+.Xr poll 2
+system call is the recommended way to handle multiple
+.Nm
+devices in a real-time MIDI application.
+.Ss Non-blocking I/O
+If the
+.Nm
+device is opened with the O_NONBLOCK flag (see
+.Xr open 2 ) ,
+then subsequent calls to
+.Xr read 2
+or
+.Xr write 2
+will never block.
+The
+.Xr write 2
+system call may write less bytes than requested, or may return
+EAGAIN if no data could be sent or queued.
+Similarly, the
+.Xr read 2
+system call may return EAGAIN if no input is available.
+.Pp
+Note that even if non-blocking I/O is not selected,
+.Xr read 2
+and
+.Xr write 2
+system calls are non-blocking when the kernel buffers permit it.
+.Sh FILES
+.Bl -tag -width /dev/rmidim -compact
+.It Pa /dev/rmidi*
+.Nm
+devices
+.El
+.Sh EXAMPLES
+The following command could record the memory dump of a
+synthesizer in a file:
+.Pp
+.Dl $ cat -u /dev/rmidi2 >dumpfile
+.Pp
+A MIDI keyboard could be connected to a synthesizer by the
+command:
+.Pp
+.Dl $ cat -u /dev/rmidi1 >/dev/rmidi2
+.Pp
+The input port could be connected to the output port by the
+command:
+.Pp
+.Dl $ cat -u <>/dev/rmidi1 >&0
+.Pp
+The following example reads MIDI timing events from an input
+device, MIDI common and voice events from another input device, and
+sends the result to a third (output) device.
+.Bd -literal -offset indent
+#define BUFSIZE		0x100
+#define ISTIMING(c)	((c) == 0xf8 || (c) == 0xfa || (c) == 0xfc)
+#define ISCOMMON(c)	((c) < 0xf8)
+
+int ofd;
+struct pollfd ifd[2];
+unsigned char ibuf[BUFSIZE], obuf[2 * BUFSIZE];
+ssize_t iused, oused, i;
+
+ifd[0].events = ifd[1].events = POLLIN;
+for (;;) {
+	oused = 0;
+	if (poll(ifd, 2, -1) == -1)
+		errx(1, "poll");
+	if (ifd[0].revents & POLLIN) {
+		if ((iused = read(ifd[0].fd, ibuf, BUFSIZE)) == -1)
+			errx(1, "read");
+		for (i = 0; i < iused; i++)
+			if (ISTIMING(ibuf[i]))
+				obuf[oused++] = ibuf[i];
+	}
+	if (ifd[1].revents & POLLIN) {
+		if ((iused = read(ifd[1].fd, ibuf, BUFSIZE)) == -1)
+			errx(1, "read");
+		for (i = 0; i < iused; i++)
+			if (ISCOMMON(ibuf[i]))
+				obuf[oused++] = ibuf[i];
+	}
+	if (write(ofd, obuf, oused) == -1)
+		errx(1, "write");
+}
+.Ed
+.Pp
+In the above example, unless kernel buffers are full, processing
+is done in real-time without any noticeable latency; as expected,
+the only blocking system call is
+.Xr poll 2 .
+.Sh ERRORS
+If
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+or
+.Xr poll 2
+fail then
+.Xr errno 2
+may be set to one of:
+.Bl -tag -width Er
+.It Bq Er ENXIO
+The device is opened read-only (write-only) but
+.Xr write 2
+.Pf ( Xr read 2 )
+was called.
+.It Bq Er EIO
+The device is being detached while a process has been trying to
+read or write (for instance an
+.Xr umidi 4
+device has been unplugged).
+.It Bq Er EAGAIN
+Non-blocking I/O was selected and the output buffer is full (on
+writing) or the input buffer is empty (on reading).
+.It Bq Er EBUSY
+The device is already open by another process.
+.El
+.Sh SEE ALSO
+.Xr autri 4 ,
+.Xr eap 4 ,
+.Xr envy 4 ,
+.Xr mpu 4 ,
+.Xr sb 4 ,
+.Xr umidi 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 2.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was originally written by
+.An Lennart Augustsson
+and later largely rewritten by
+.An Alexandre Ratchov .
+.Sh CAVEATS
+MIDI hardware was designed for real time performance and software
+using such hardware must be able to process MIDI events without
+any noticeable latency (typically no more than 5ms, which
+is the time it takes for sound to propagate 1.75 meters).
+.Pp
+The
+.Ox
+.Nm
+driver processes data fast enough, however if a MIDI application
+tries to write data faster than the hardware is able to process it
+(typically 3125 bytes per second), then kernel buffers may become
+full and the application may be blocked.
+.Pp
+The other common reason for MIDI data being delayed is the system
+load.
+Processes cannot be preempted while running in kernel mode.
+If there are too many processes running concurrently (especially
+if they are running a lot of expensive system calls) then the
+scheduling of a real-time MIDI application may be delayed.
+Even on low-end machines this delay hardly reaches a few
+milliseconds provided that the system load is reasonable.
+.Pp
+A real-time MIDI application can avoid being swapped by locking
+its memory (see
+.Xr mlock 2
+and
+.Xr mlockall 2 ) .
+.Sh BUGS
+For a given device, even if the physical MIDI input and output
+ports are independent, there is no way for one process to use the
+input MIDI port and for another process to use the output MIDI
+port at the same time.

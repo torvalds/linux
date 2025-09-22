@@ -1,0 +1,157 @@
+.\"	$OpenBSD: getifaddrs.3,v 1.23 2022/03/29 18:15:52 naddy Exp $
+.\"	BSDI	getifaddrs.3,v 2.5 2000/02/23 14:51:59 dab Exp
+.\"
+.\" Copyright (c) 1995, 1999
+.\"	Berkeley Software Design, Inc.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Berkeley Software Design, Inc. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Berkeley Software Design, Inc. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.Dd $Mdocdate: March 29 2022 $
+.Dt GETIFADDRS 3
+.Os
+.Sh NAME
+.Nm getifaddrs ,
+.Nm freeifaddrs
+.Nd get interface addresses
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In ifaddrs.h
+.Ft int
+.Fn getifaddrs "struct ifaddrs **ifap"
+.Ft void
+.Fn freeifaddrs "struct ifaddrs *ifap"
+.Sh DESCRIPTION
+The
+.Fn getifaddrs
+function stores a reference to a linked list of the network interfaces
+on the local machine in the memory referenced by
+.Fa ifap .
+The list consists of
+.Vt ifaddrs
+structures, as defined in the include file
+.In ifaddrs.h .
+The
+.Vt ifaddrs
+structure contains at least the following entries:
+.Bd -literal
+    struct ifaddrs   *ifa_next;         /* Pointer to next struct */
+    char             *ifa_name;         /* Interface name */
+    u_int             ifa_flags;        /* Interface flags */
+    struct sockaddr  *ifa_addr;         /* Interface address */
+    struct sockaddr  *ifa_netmask;      /* Interface netmask */
+    struct sockaddr  *ifa_broadaddr;    /* Interface broadcast address */
+    struct sockaddr  *ifa_dstaddr;      /* P2P interface destination */
+    void             *ifa_data;		/* Address specific data */
+.Ed
+.Bl -tag -width ifa_broadaddr
+.It Fa ifa_next
+Contains a pointer to the next structure on the list.
+This field is set to
+.Dv NULL
+in the last structure on the list.
+.It Fa ifa_name
+Contains the interface name.
+.It Fa ifa_flags
+Contains the interface flags, as set by
+.Xr ifconfig 8 .
+.It Fa ifa_addr
+References either the address of the interface or the link level
+address of the interface, if one exists, otherwise it is
+.Dv NULL .
+(The
+.Fa sa_family
+field of the
+.Fa ifa_addr
+field should be consulted to determine the format of the
+.Fa ifa_addr
+address.)
+.It Fa ifa_netmask
+References the netmask associated with
+.Fa ifa_addr ,
+if one is set, otherwise it is
+.Dv NULL .
+.It Fa ifa_broadaddr
+This field, which should only be referenced for non-P2P interfaces,
+references the broadcast address associated with
+.Fa ifa_addr ,
+if one exists, otherwise it is
+.Dv NULL .
+.It Fa ifa_dstaddr
+This field, which should only be referenced for P2P interfaces,
+references the destination address on a P2P interface,
+if one exists, otherwise it is
+.Dv NULL .
+.It Fa ifa_data
+References address family specific data.
+For
+.Dv AF_LINK
+addresses it contains a pointer to the
+.Vt struct if_data
+(as defined in include file
+.In net/if.h )
+which contains various interface attributes and statistics.
+For all other address families,
+.Fa ifa_data
+is
+.Dv NULL .
+.El
+.Pp
+The data returned by
+.Fn getifaddrs
+is dynamically allocated and should be freed using
+.Fn freeifaddrs
+when no longer needed.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn getifaddrs
+function may fail and set
+.Va errno
+for any of the errors specified for the library routines
+.Xr ioctl 2 ,
+.Xr socket 2 ,
+.Xr malloc 3 ,
+or
+.Xr sysctl 2 .
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr socket 2 ,
+.Xr sysctl 2 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Fn getifaddrs
+function first appeared in BSDI
+.Bsx .
+The function has been available on
+.Ox
+since
+.Ox 2.7 .
+.Sh BUGS
+If both
+.In net/if.h
+and
+.In ifaddrs.h
+are being included,
+.In net/if.h
+.Em must
+be included before
+.In ifaddrs.h .

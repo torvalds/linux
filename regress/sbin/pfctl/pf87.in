@@ -1,0 +1,24 @@
+# pfctl -o  rule reordering
+
+pass in on lo1000000 proto tcp from any to 10.0.0.2 port 22 keep state
+pass in on lo1000001 proto tcp from 10.0.0.1 port 22 to 10.0.0.2 keep state
+pass in on lo1000001 proto udp from 10.0.0.5 to 10.0.0.4 port 53 keep state
+pass in on lo1000000 proto udp from any to 10.0.0.2 port 53 keep state
+pass in proto tcp to 10.0.0.1 port 80 keep state
+pass out on lo1000001 proto udp from any to 10.0.0.2 port 53 keep state
+pass in proto tcp to 10.0.0.3 port 80 keep state
+pass out proto tcp to 10.0.0.1 port 81 keep state
+pass in proto udp to 10.0.0.3 port 53 keep state
+pass in on lo1000001 proto udp from 10.0.0.2 port 53 to 10.0.0.2 keep state
+pass out proto udp to 10.0.0.1 port 53 keep state
+pass out on lo1000000 proto udp from any to 10.0.0.2 port 53 keep state
+pass out proto udp to 10.0.0.3 port 53 keep state
+pass out on lo1000000 proto tcp from any to 10.0.0.2 port 22 keep state
+pass in on lo1000001 proto tcp from any to 10.0.0.2 port 22 keep state
+pass in on lo1000001 proto udp from any to 10.0.0.2 port 53 keep state
+pass in on lo1000001 proto tcp from 10.0.0.1 to 10.0.0.4 keep state
+pass out on lo1000001 proto tcp from any to 10.0.0.2 port 22 keep state
+pass out proto tcp to 10.0.0.1 port 80 keep state
+pass in proto udp to 10.0.0.1 port 53 keep state
+pass in on lo1000001 proto tcp from 10.0.0.1 to 10.0.0.6 port 22 keep state
+pass in on lo1000001 proto udp from 10.0.0.5 to 10.0.0.2 keep state

@@ -1,0 +1,77 @@
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: sigpause.3,v 1.15 2022/12/13 06:56:06 jmc Exp $
+.\"
+.Dd $Mdocdate: December 13 2022 $
+.Dt SIGPAUSE 3
+.Os
+.Sh NAME
+.Nm sigpause
+.Nd atomically release blocked signals and wait for interrupt
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fn sigpause "int sigmask"
+.Sh DESCRIPTION
+.Bf -symbolic
+This interface is made obsolete by
+.Xr sigsuspend 2 .
+.Ef
+.Pp
+.Fn sigpause
+assigns
+.Fa sigmask
+to the set of masked signals
+and then waits for a signal to arrive;
+on return the set of masked signals is restored.
+.Fa sigmask
+is usually 0 to indicate that no
+signals are to be blocked.
+.Fn sigpause
+always terminates by being interrupted, returning \-1 with
+.Va errno
+set to
+.Er EINTR .
+.Sh SEE ALSO
+.Xr kill 2 ,
+.Xr sigaction 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigsuspend 2 ,
+.Xr sigblock 3 ,
+.Xr sigvec 3
+.Sh HISTORY
+A
+.Fn sigpause
+system call first appeared in
+.Bx 4.2 .
+In
+.Bx 4.3 Reno ,
+it was reimplemented as a wrapper around
+.Xr sigsuspend 2 .
+The old system call was kept for compatibility until
+.Ox 4.9 .

@@ -1,0 +1,10 @@
+static_library("Option") {
+  output_name = "LLVMOption"
+  deps = [ "//llvm/lib/Support" ]
+  sources = [
+    "Arg.cpp",
+    "ArgList.cpp",
+    "OptTable.cpp",
+    "Option.cpp",
+  ]
+}

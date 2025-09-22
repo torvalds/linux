@@ -1,0 +1,114 @@
+.\"	$OpenBSD: chroot.8,v 1.16 2015/09/12 15:52:37 schwarze Exp $
+.\"
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)chroot.8	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: September 12 2015 $
+.Dt CHROOT 8
+.Os
+.Sh NAME
+.Nm chroot
+.Nd change root directory
+.Sh SYNOPSIS
+.Nm chroot
+.Op Fl g Ar group Ns Op Pf , Ar group Ns Op Pf , Ar ...
+.Op Fl u Ar user
+.Ar newroot
+.Op Ar command
+.Sh DESCRIPTION
+The
+.Nm
+command changes its root directory to the supplied directory
+.Ar newroot
+and executes
+.Ar command ,
+if supplied, or an interactive copy of the user's shell.
+.Pp
+The
+.Nm
+command is restricted to the superuser.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl g Ar group Ns Op Pf , Ar group Ns Op Pf , Ar ...
+Override the primary and supplemental group IDs.
+The primary group ID is set to the first group in the list.
+Any remaining groups are placed in the supplemental group ID vector.
+Each group listed must exist in the
+.Xr group 5
+databases.
+.It Fl u Ar user
+Set user ID to
+.Ar user
+(which must exist in the
+.Xr passwd 5
+database).
+The primary and supplemental group IDs will be set based on the user's
+entries in the
+.Xr passwd 5
+and
+.Xr group 5
+databases unless overridden by the
+.Fl g
+option.
+Additional settings may be applied as specified in
+.Xr login.conf 5
+depending on
+.Ar user Ns 's
+login class.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width SHELL
+.It Ev SHELL
+If set,
+the string specified by
+.Ev SHELL
+is interpreted as the name of
+the shell to execute.
+If the variable
+.Ev SHELL
+is not set,
+.Pa /bin/sh
+is used.
+.El
+.Sh SEE ALSO
+.Xr ldd 1 ,
+.Xr group 5 ,
+.Xr login.conf 5 ,
+.Xr passwd 5 ,
+.Xr environ 7
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.3 Reno .
+.Sh CAVEATS
+.Nm
+should never be installed setuid root, as it would then be possible
+to exploit the program to gain root privileges.

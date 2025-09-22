@@ -1,0 +1,13 @@
+// This is copied into the build area for a $src != $build compilation.
+module LLVM_Support_DataTypes {
+  header "llvm/Support/DataTypes.h"
+  export *
+}
+module LLVM_Config_ABI_Breaking {
+  header "llvm/Config/abi-breaking.h"
+  export *
+}
+module LLVM_Config_Config {
+  header "llvm/Config/llvm-config.h"
+  export *
+}

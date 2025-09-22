@@ -1,0 +1,89 @@
+.\"	$OpenBSD: hook_establish.9,v 1.12 2015/12/12 11:26:32 mpi Exp $
+.\"
+.\" Copyright (c) 2001 Niklas Hallqvist.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 12 2015 $
+.Dt HOOK_ESTABLISH 9
+.Os
+.Sh NAME
+.Nm hook_establish ,
+.Nm hook_disestablish
+.Nd add or remove a hook from a specified list
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.Ft void *
+.Fn hook_establish "struct hook_desc_head *head" "int tail" "void (*fn)(void *)" "void *arg"
+.Ft void
+.Fn hook_disestablish "struct hook_desc_head *head" "void *cookie"
+.Sh DESCRIPTION
+The
+.Fn hook_establish
+function adds
+.Fa fn
+to the list of hooks invoked by
+.Xr dohooks 9 .
+If
+.Fa tail
+is non-zero, the hook is added to the tail of the list
+denoted by the TAILQ_HEAD pointer
+.Fa head ,
+otherwise to the front.
+The
+.Xr dohooks 9
+function will at its invocation call each hook from the front of this
+list.
+When invoked, the hook function
+.Fa fn
+will be passed
+.Fa arg
+as its only argument.
+.Pp
+The
+.Fn hook_disestablish
+function removes the hook described by the opaque pointer
+.Fa cookie
+from the list of hooks denoted by the TAILQ_HEAD pointer
+.Fa head .
+If
+.Fa cookie
+is invalid, the result of
+.Fn hook_disestablish
+is undefined.
+.Pp
+The startup and mountroot systems use this API for their
+implementation.
+.Sh RETURN VALUES
+If successful,
+.Fn hook_establish
+returns an opaque pointer describing the newly established
+hook.
+Otherwise, it returns
+.Dv NULL .
+.Sh SEE ALSO
+.Xr dohooks 9 ,
+.Xr dostartuphooks 9 ,
+.Xr startuphook_establish 9

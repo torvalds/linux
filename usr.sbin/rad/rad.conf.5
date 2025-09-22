@@ -1,0 +1,242 @@
+.\"	$OpenBSD: rad.conf.5,v 1.35 2025/09/15 09:01:56 florian Exp $
+.\"
+.\" Copyright (c) 2018 Florian Obser <florian@openbsd.org>
+.\" Copyright (c) 2005 Esben Norby <norby@openbsd.org>
+.\" Copyright (c) 2004 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2002 Daniel Hartmeier <dhartmei@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 15 2025 $
+.Dt RAD.CONF 5
+.Os
+.Sh NAME
+.Nm rad.conf
+.Nd router advertisement daemon configuration file
+.Sh DESCRIPTION
+The
+.Xr rad 8
+daemon is an IPv6 router advertisement daemon.
+.Pp
+The
+.Nm
+config file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global settings for
+.Xr rad 8 .
+These are used as default values for
+.Ic interface
+definitions and can be overwritten in an
+.Ic interface
+block.
+.It Sx Interfaces
+.Xr rad 8
+sends IPv6 router advertisement messages.
+This section defines on which interfaces to advertise prefix information
+and their associated parameters.
+.El
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword.
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic interface ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Ss Global configuration
+The global configuration section sets defaults for router advertisement
+messages.
+These can be overwritten in interface blocks.
+.Bl -tag -width Ds
+.It Ic default router Pq Cm yes Ns | Ns Cm no
+Act as a default router or not.
+The default is
+.Cm yes .
+.It Ic dns Brq Ar option ...
+Add a DNS router advertisement option
+to communicate network provided nameservers.
+In a
+.Ic dns
+block, a
+.Cm search
+option or at least one
+.Cm nameserver
+option is required, whereas specifying the
+.Cm lifetime
+is optional:
+.Bl -tag -width Ds
+.It Cm lifetime Ar seconds
+The number of seconds the dns options are valid after receiving a router
+advertisement message.
+The default is 1800 seconds.
+.It Cm nameserver Pq Ar address Ns | Ns Brq Ar address ...
+IPv6 address or list of IPv6 addresses of DNS name servers.
+.It Cm search Pq Ar domain Ns | Ns Brq Ar domain ...
+Domain or list of domains for the
+.Xr resolv.conf 5
+search list.
+.El
+.It Ic hop limit Ar hops
+Specify the diameter of the internet.
+The default is 0, meaning unspecified by this router.
+.It Ic managed address configuration Pq Cm yes Ns | Ns Cm no
+If set to
+.Cm yes ,
+indicate that stateless address configuration prefixes are
+not available and hosts should consult DHCPv6.
+The default is
+.Cm no .
+.It Ic mtu Ar bytes
+The MTU option is used in Router Advertisement messages to ensure that all
+nodes on a link use the same MTU value in those cases where the link MTU
+is not well known.
+The default is 0, meaning unspecified by this router.
+.It Ic nat64 prefix Ar prefix Op Brq Ar option ...
+Add a PREF64 router advertisement option to communicate prefixes used
+for Network Address and Protocol Translation from IPv6 to IPv4 (NAT64).
+If
+.Ar prefix
+is specified without a prefix length, its default is 64.
+.Pp
+.Ic nat64 prefix
+options are as follows:
+.Bl -tag -width Ds
+.It Cm lifetime Ar seconds
+The number of seconds the nat64 prefix option is valid after receiving a router
+advertisement message.
+A value of zero indicates to not use the prefix anymore.
+The maximum is 65528 seconds.
+The default is 1800 seconds.
+.El
+.It Ic other configuration Pq Cm yes Ns | Ns Cm no
+If set to
+.Cm yes ,
+hosts should consult DHCPv6 for additional configuration
+like NTP servers or DNS name servers.
+The default is
+.Cm no .
+.It Ic router lifetime Ar seconds
+The number of seconds this router is a valid default router after receiving
+a router advertisement message.
+The default is 1800 seconds.
+.It Ic router preference Pq Cm high Ns | Ns Cm medium Ns | Ns Cm low
+Indicate whether to prefer this router over other default routers.
+The default is
+.Cm medium .
+.It Ic reachable time Ar number
+The time, in milliseconds, that a node assumes a neighbor is reachable.
+The default is 0, meaning unspecified by this router.
+This option is ignored by
+.Xr slaacd 8
+and cannot be set on
+.Ox
+IPv6 hosts.
+.It Ic retrans timer Ar number
+The time, in milliseconds, between retransmitted Neighbor Solicitation messages.
+The default is 0, meaning unspecified by this router.
+This option is ignored by
+.Xr slaacd 8
+and cannot be set on
+.Ox
+IPv6 hosts.
+.It Ic source link-layer address Pq Cm yes Ns | Ns Cm no
+Add a source link-layer address option to router advertisement messages, to
+communicate the link-layer address of the sending interface.
+The default is
+.Cm yes .
+.El
+.Ss Interfaces
+This section contains a list of interfaces or interface groups
+to send advertisements on.
+At least one
+.Ic interface
+is required.
+.Bl -tag -width Ds
+.It Ic interface Ar name Op Brq Ar prefix ...
+Options set in the global section can be overwritten inside an interface
+block.
+In addition an interface block can contain a list of prefixes:
+.Pp
+.Bl -tag -width Ds -compact
+.It Oo Cm no Oc Ic auto prefix Op Brq Ar option ...
+.It Ic prefix Ar prefix Op Brq Ar option ...
+The default is to discover prefixes to announce by inspecting the IPv6
+addresses configured on an interface.
+This can be disabled with
+.Cm no Ic auto prefix .
+If
+.Ar prefix
+is specified without a prefix length, its default is 64.
+.Pp
+.Ic prefix
+options are as follows:
+.Bl -tag -width Ds
+.It Cm autonomous address-configuration Pq Cm yes Ns | Ns Cm no
+This prefix can be used to generate IPv6 addresses.
+The default is
+.Cm yes .
+.It Cm on-link Pq Cm yes Ns | Ns Cm no
+This prefix is considered on-link.
+The default is
+.Cm yes .
+.It Cm preferred lifetime Ar seconds
+The preferred lifetime (pltime) in seconds for addresses generated from this
+prefix.
+The default is 2700.
+This option is ignored if the prefix is discovered from a network interface
+and it has a lower preferred lifetime.
+.It Cm valid lifetime Ar seconds
+The valid lifetime (vltime) in seconds for addresses generated from this
+prefix.
+The default is 5400.
+This option is ignored if the prefix is discovered from a network interface
+and it has a lower valid lifetime.
+.El
+.El
+.El
+.Sh FILES
+.Bl -tag -width /etc/examples/rad.conf -compact
+.It Pa /etc/rad.conf
+.Xr rad 8
+configuration file.
+.It Pa /etc/examples/rad.conf
+Example configuration file.
+.El
+.Sh EXAMPLES
+With the following example configuration,
+.Xr rad 8
+will pick a prefix from the ix1 interface and send router advertisements on it:
+.Pp
+.Dl interface ix1
+.Sh SEE ALSO
+.Xr ractl 8 ,
+.Xr rad 8 ,
+.Xr rc.conf.local 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 6.4 .

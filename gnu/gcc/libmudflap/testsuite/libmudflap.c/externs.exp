@@ -1,0 +1,43 @@
+global MUDFLAP_FLAGS
+set MUDFLAP_FLAGS [list {} {-static} {-O2} {-O3}]
+
+libmudflap-init c
+dg-init
+
+global srcdir subdir
+
+foreach flags $MUDFLAP_FLAGS {
+    set l1 [libmudflap_target_compile "$srcdir/$subdir/externs-1.c" "externs-1.o" object {additional_flags=-fmudflap}]
+    set test "externs-1 compilation ${flags}"
+    if [string match "*mudflap cannot track unknown size extern *d*" $l1] { pass $test } { fail $test }
+
+    set l2 [libmudflap_target_compile "$srcdir/$subdir/externs-2.c" "externs-2.o" object {additional_flags=-fmudflap}]
+    set test "externs-2 compilation ${flags}"
+    if [string match "" $l2]  { pass $test } { fail $test }
+
+    set l3 [libmudflap_target_compile "externs-1.o externs-2.o" "externs-12.exe" executable {additional_flags=-fmudflap additional_flags=-lmudflap}]
+    set test "externs-12 linkage ${flags}"
+    if [string match "" $l3]  { pass $test } { fail $test }
+
+    set l4 [libmudflap_target_compile "externs-2.o externs-1.o" "externs-21.exe" executable {additional_flags=-fmudflap additional_flags=-lmudflap}]
+    set test "externs-21 linkage ${flags}"
+    if [string match "" $l3]  { pass $test } { fail $test }
+
+    setenv MUDFLAP_OPTIONS "-viol-segv"
+
+    remote_spawn host "./externs-12.exe"
+    set l5 [remote_wait host 10]
+    set test "externs-12 execution ${flags}"
+    if {[lindex $l5 0] == 0}  { pass $test } { fail $test }
+
+    remote_spawn host "./externs-21.exe"
+    set l6 [remote_wait host 10]
+    set test "externs-21 execution ${flags}"
+    if {[lindex $l6 0] == 0}  { pass $test } { fail $test }
+
+    foreach f [glob -nocomplain "externs-*"] {
+       remote_file build delete $f
+    }
+}
+
+dg-finish

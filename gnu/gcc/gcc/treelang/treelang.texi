@@ -1,0 +1,1305 @@
+\input texinfo  @c -*-texinfo-*-
+
+@c NOTE THIS IS NOT A GOOD EXAMPLE OF HOW TO DO A MANUAL. FIXME!!!
+@c NOTE THIS IS NOT A GOOD EXAMPLE OF HOW TO DO A MANUAL. FIXME!!!
+
+
+@c %**start of header
+@setfilename treelang.info
+
+@include gcc-common.texi
+
+@set copyrights-treelang 1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,2005
+
+@set email-general gcc@@gcc.gnu.org
+@set email-bugs gcc-bugs@@gcc.gnu.org or bug-gcc@@gnu.org
+@set email-patches gcc-patches@@gcc.gnu.org 
+@set path-treelang gcc/gcc/treelang
+
+@set which-treelang GCC-@value{version-GCC}
+@set which-GCC GCC
+
+@set email-josling tej@@melbpc.org.au
+@set www-josling http://www.geocities.com/timjosling
+
+@c This tells @include'd files that they're part of the overall TREELANG doc
+@c set.  (They might be part of a higher-level doc set too.)
+@set DOC-TREELANG
+
+@c @setfilename usetreelang.info
+@c @setfilename maintaintreelang.info
+@c To produce the full manual, use the "treelang.info" setfilename, and
+@c make sure the following do NOT begin with '@c' (and the @clear lines DO)
+@set INTERNALS
+@set USING
+@c To produce a user-only manual, use the "usetreelang.info" setfilename, and
+@c make sure the following does NOT begin with '@c':
+@c @clear INTERNALS
+@c To produce a maintainer-only manual, use the "maintaintreelang.info" setfilename,
+@c and make sure the following does NOT begin with '@c':
+@c @clear USING
+
+@ifset INTERNALS
+@ifset USING
+@settitle Using and Maintaining GNU Treelang
+@end ifset
+@end ifset
+@c seems reasonable to assume at least one of INTERNALS or USING is set...
+@ifclear INTERNALS
+@settitle Using GNU Treelang
+@end ifclear
+@ifclear USING
+@settitle Maintaining GNU Treelang
+@end ifclear
+@c then again, have some fun
+@ifclear INTERNALS
+@ifclear USING
+@settitle Doing Very Little at all with GNU Treelang
+@end ifclear
+@end ifclear
+
+@syncodeindex fn cp
+@syncodeindex vr cp
+@c %**end of header
+
+@c Cause even numbered pages to be printed on the left hand side of
+@c the page and odd numbered pages to be printed on the right hand
+@c side of the page.  Using this, you can print on both sides of a
+@c sheet of paper and have the text on the same part of the sheet.
+
+@c The text on right hand pages is pushed towards the right hand
+@c margin and the text on left hand pages is pushed toward the left
+@c hand margin.
+@c (To provide the reverse effect, set bindingoffset to -0.75in.)
+
+@c @tex
+@c \global\bindingoffset=0.75in
+@c \global\normaloffset =0.75in
+@c @end tex
+
+@copying
+Copyright @copyright{} @value{copyrights-treelang} Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.2 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``GNU General Public License'', the Front-Cover
+texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
+
+@ifnottex
+@dircategory Software development
+@direntry
+* treelang: (treelang).                  The GNU Treelang compiler.
+@end direntry
+@ifset INTERNALS
+@ifset USING
+This file documents the use and the internals of the GNU Treelang
+(@code{treelang}) compiler.  At the moment this manual is not
+incorporated into the main GCC manual as it is incomplete.  It
+corresponds to the @value{which-treelang} version of @code{treelang}.
+@end ifset
+@end ifset
+@ifclear USING
+This file documents the internals of the GNU Treelang (@code{treelang}) compiler.
+It corresponds to the @value{which-treelang} version of @code{treelang}.
+@end ifclear
+@ifclear INTERNALS
+This file documents the use of the GNU Treelang (@code{treelang}) compiler.
+It corresponds to the @value{which-treelang} version of @code{treelang}.
+@end ifclear
+
+Published by the Free Software Foundation
+51 Franklin Street, Fifth Floor
+Boston, MA 02110-1301 USA
+
+@insertcopying
+@end ifnottex
+
+@setchapternewpage odd
+@c @finalout
+@titlepage
+@ifset INTERNALS
+@ifset USING
+@title Using and Maintaining GNU Treelang
+@end ifset
+@end ifset
+@ifclear INTERNALS
+@title Using GNU Treelang
+@end ifclear
+@ifclear USING
+@title Maintaining GNU Treelang
+@end ifclear
+@versionsubtitle
+@author Tim Josling
+@page
+@vskip 0pt plus 1filll
+Published by the Free Software Foundation @*
+51 Franklin Street, Fifth Floor@*
+Boston, MA 02110-1301, USA@*
+@c Last printed ??ber, 19??.@*
+@c Printed copies are available for $? each.@*
+@c ISBN ???
+@sp 1
+@insertcopying
+@end titlepage
+@page
+
+@ifnottex
+
+@node Top, Copying,, (dir)
+@top Introduction
+@cindex Introduction
+
+@ifset INTERNALS
+@ifset USING
+This manual documents how to run, install and maintain @code{treelang}.
+It also documents the features and incompatibilities in the @value{which-treelang}
+version of @code{treelang}.
+@end ifset
+@end ifset
+
+@ifclear INTERNALS
+This manual documents how to run and install @code{treelang}.
+It also documents the features and incompatibilities in the @value{which-treelang}
+version of @code{treelang}.
+@end ifclear
+@ifclear USING
+This manual documents how to maintain @code{treelang}.
+It also documents the features and incompatibilities in the @value{which-treelang}
+version of @code{treelang}.
+@end ifclear
+
+@end ifnottex
+
+@menu
+* Copying::                     
+* Contributors::                
+* GNU Free Documentation License::                
+* Funding::                     
+* Getting Started::             
+* What is GNU Treelang?::       
+* Lexical Syntax::              
+* Parsing Syntax::              
+* Compiler Overview::           
+* TREELANG and GCC::            
+* Compiler::                    
+* Other Languages::             
+* treelang internals::          
+* Open Questions::              
+* Bugs::                        
+* Service::                     
+* Projects::                    
+* Index::                       
+
+@detailmenu
+ --- The Detailed Node Listing ---
+
+Other Languages
+
+* Interoperating with C and C++::  
+
+treelang internals
+
+* treelang files::              
+* treelang compiler interfaces::  
+* Hints and tips::              
+
+treelang compiler interfaces
+
+* treelang driver::             
+* treelang main compiler::      
+
+treelang main compiler
+
+* Interfacing to toplev.c::     
+* Interfacing to the garbage collection::  
+* Interfacing to the code generation code. ::  
+
+Reporting Bugs
+
+* Sending Patches::             
+
+@end detailmenu
+@end menu
+
+@include gpl.texi
+
+@include fdl.texi
+
+@node Contributors
+
+@unnumbered Contributors to GNU Treelang
+@cindex contributors
+@cindex credits
+
+Treelang was based on 'toy' by Richard Kenner, and also uses code from
+the GCC core code tree.  Tim Josling first created the language and
+documentation, based on the GCC Fortran compiler's documentation
+framework.  Treelang was updated to use the TreeSSA infrastructure by
+James A. Morrison.
+
+@itemize @bullet
+@item
+The packaging and compiler portions of GNU Treelang are based largely
+on the GCC compiler.
+@xref{Contributors,,Contributors to GCC,GCC,Using and Maintaining GCC},
+for more information.
+
+@item
+There is no specific run-time library for treelang, other than the
+standard C runtime.
+
+@item
+It would have been difficult to build treelang without access to Joachim
+Nadler's guide to writing a front end to GCC (written in German).  A
+translation of this document into English is available via the
+CobolForGCC project or via the documentation links from the GCC home
+page @uref{http://gcc.gnu.org}.
+@end itemize
+
+@include funding.texi
+
+@node Getting Started
+@chapter Getting Started
+@cindex getting started
+@cindex new users
+@cindex newbies
+@cindex beginners
+
+Treelang is a sample language, useful only to help people understand how
+to implement a new language front end to GCC.  It is not a useful
+language in itself other than as an example or basis for building a new
+language.  Therefore only language developers are likely to have an
+interest in it.
+
+This manual assumes familiarity with GCC, which you can obtain by using
+it and by reading the manuals @samp{Using the GNU Compiler Collection (GCC)}
+and @samp{GNU Compiler Collection (GCC) Internals}.
+
+To install treelang, follow the GCC installation instructions, 
+taking care to ensure you specify treelang in the configure step by adding
+treelang to the list of languages specified by @option{--enable-languages}, 
+e.g.@: @samp{--enable-languages=all,treelang}.
+
+If you're generally curious about the future of
+@code{treelang}, see @ref{Projects}.
+If you're curious about its past,
+see @ref{Contributors}.
+
+To see a few of the questions maintainers of @code{treelang} have,
+and that you might be able to answer,
+see @ref{Open Questions}.
+
+@ifset USING
+@node What is GNU Treelang?, Lexical Syntax, Getting Started, Top
+@chapter What is GNU Treelang?
+@cindex concepts, basic
+@cindex basic concepts
+
+GNU Treelang, or @code{treelang}, is designed initially as a free
+replacement for, or alternative to, the 'toy' language, but which is
+amenable to inclusion within the GCC source tree. 
+
+@code{treelang} is largely a cut down version of C, designed to showcase
+the features of the GCC code generation back end.  Only those features
+that are directly supported by the GCC code generation back end are
+implemented.  Features are implemented in a manner which is easiest and
+clearest to implement.  Not all or even most code generation back end
+features are implemented.  The intention is to add features incrementally
+until most features of the GCC back end are implemented in treelang.
+
+The main features missing are structures, arrays and pointers.
+
+A sample program follows:
+
+@smallexample
+// @r{function prototypes}
+// @r{function 'add' taking two ints and returning an int}
+external_definition int add(int arg1, int arg2);
+external_definition int subtract(int arg3, int arg4);
+external_definition int first_nonzero(int arg5, int arg6);
+external_definition int double_plus_one(int arg7);
+
+// @r{function definition}
+add 
+@{
+  // @r{return the sum of arg1 and arg2}
+  return arg1 + arg2;
+@}
+
+        
+subtract 
+@{
+  return arg3 - arg4;
+@}
+
+double_plus_one
+@{
+  // @r{aaa is a variable, of type integer and allocated at the start of}
+  // @r{the function}
+  automatic int aaa;
+  // @r{set aaa to the value returned from add, when passed arg7 and arg7 as}
+  // @r{the two parameters}
+  aaa=add(arg7, arg7);
+  aaa=add(aaa, aaa);
+  aaa=subtract(subtract(aaa, arg7), arg7) + 1;
+  return aaa;
+@}
+
+first_nonzero
+@{
+  // @r{C-like if statement}
+  if (arg5)
+    @{
+      return arg5;
+    @}
+  else
+    @{
+    @}
+  return arg6;
+@}
+@end smallexample
+
+@node Lexical Syntax, Parsing Syntax, What is GNU Treelang?, Top
+@chapter Lexical Syntax
+@cindex Lexical Syntax
+
+Treelang programs consist of whitespace, comments, keywords and names.
+@itemize @bullet
+
+@item
+Whitespace consists of the space character, a tab, and the end of line
+character.  Line terminations are as defined by the
+standard C library.  Whitespace is ignored except within comments,
+and where it separates parts of the program.  In the example below, A and
+B are two separate names separated by whitespace. 
+
+@smallexample
+A B
+@end smallexample
+
+@item
+Comments consist of @samp{//} followed by any characters up to the end
+of the line.  C style comments (/* */) are not supported.  For example,
+the assignment below is followed by a not very helpful comment.
+
+@smallexample
+x = 1; // @r{Set X to 1}
+@end smallexample
+
+@item
+Keywords consist of any of the following reserved words or symbols:
+
+@itemize @bullet
+@item @{
+used to start the statements in a function
+@item @}
+used to end the statements in a function
+@item (
+start list of function arguments, or to change the precedence of operators in
+an expression
+@item )
+end list or prioritized operators in expression
+@item ,
+used to separate parameters in a function prototype or in a function call 
+@item ;
+used to end a statement
+@item +
+addition, or unary plus for signed literals
+@item - 
+subtraction, or unary minus for signed literals
+@item = 
+assignment
+@item ==
+equality test
+@item if
+begin IF statement
+@item else
+begin 'else' portion of IF statement
+@item static
+indicate variable is permanent, or function has file scope only
+@item automatic
+indicate that variable is allocated for the life of the current scope
+@item external_reference
+indicate that variable or function is defined in another file
+@item external_definition
+indicate that variable or function is to be accessible from other files
+@item int
+variable is an integer (same as C int) 
+@item char
+variable is a character (same as C char)
+@item unsigned
+variable is unsigned. If this is not present, the variable is signed
+@item return
+start function return statement
+@item void
+used as function type to indicate function returns nothing
+@end itemize
+
+
+@item
+Names consist of any letter or "_" followed by any number of letters,
+numbers, or "_".  "$" is not allowed in a name.  All names must be globally
+unique, i.e. may not be used twice in any context, and must
+not be a keyword.  Names and keywords are case sensitive.  For example:
+
+@smallexample
+a A _a a_ IF_X
+@end smallexample
+
+are all different names.
+
+@end itemize
+
+@node Parsing Syntax, Compiler Overview, Lexical Syntax, Top
+@chapter Parsing Syntax
+@cindex Parsing Syntax
+
+Declarations are built up from the lexical elements described above.  A
+file may contain one of more declarations.
+
+@itemize @bullet
+
+@item
+declaration: variable declaration OR function prototype OR function declaration
+
+@item
+Function Prototype: storage type NAME ( optional_parameter_list )
+
+@smallexample
+static int add (int a, int b)
+@end smallexample
+
+@item
+variable_declaration: storage type NAME initial;
+
+Example:
+
+@smallexample
+int temp1 = 1;
+@end smallexample
+
+A variable declaration can be outside a function, or at the start of a
+function.
+
+@item
+storage: automatic OR static OR external_reference OR external_definition
+
+This defines the scope, duration and visibility of a function or variable
+
+@enumerate 1
+
+@item 
+automatic: This means a variable is allocated at start of the current scope and
+released when the current scope is exited.  This can only be used for variables
+within functions.  It cannot be used for functions.
+
+@item 
+static: This means a variable is allocated at start of program and
+remains allocated until the program as a whole ends.  For a function, it
+means that the function is only visible within the current file.
+
+@item
+external_definition: For a variable, which must be defined outside a
+function, it means that the variable is visible from other files.  For a
+function, it means that the function is visible from another file.
+
+@item
+external_reference: For a variable, which must be defined outside a
+function, it means that the variable is defined in another file.  For a
+function, it means that the function is defined in another file.
+
+@end enumerate
+
+@item
+type: int OR unsigned int OR char OR unsigned char OR void
+
+This defines the data type of a variable or the return type of a function.
+
+@enumerate a
+
+@item 
+int: The variable is a signed integer.  The function returns a signed integer.
+
+@item 
+unsigned int: The variable is an unsigned integer.  The function returns an unsigned integer.
+
+@item 
+char: The variable is a signed character.  The function returns a signed character.
+
+@item 
+unsigned char: The variable is an unsigned character.  The function returns an unsigned character.
+
+@end enumerate
+
+@item
+parameter_list OR parameter [, parameter]...
+
+@item
+parameter: variable_declaration ,
+
+The variable declarations must not have initializations.
+
+@item 
+initial: = value
+
+@item
+value: integer_constant
+
+Values without a unary plus or minus are considered to be unsigned.
+@smallexample
+e.g.@: 1 +2 -3
+@end smallexample
+
+@item
+function_declaration: name @{ variable_declarations statements @}
+
+A function consists of the function name then the declarations (if any)
+and statements (if any) within one pair of braces.
+
+The details of the function arguments come from the function
+prototype.  The function prototype must precede the function declaration
+in the file.
+
+@item
+statement: if_statement OR expression_statement OR return_statement
+
+@item
+if_statement: if ( expression ) @{ variable_declarations statements @}
+else @{ variable_declarations statements @}
+
+The first lot of statements is executed if the expression is
+nonzero.  Otherwise the second lot of statements is executed.  Either
+list of statements may be empty, but both sets of braces and the else must be present. 
+
+@smallexample
+if (a==b) 
+@{
+// @r{nothing}
+@}
+else
+@{
+a=b;
+@}
+@end smallexample
+
+@item
+expression_statement: expression;
+
+The expression is executed, including any side effects.
+
+@item
+return_statement: return expression_opt;
+
+Returns from the function. If the function is void, the expression must
+be absent, and if the function is not void the expression must be
+present.
+
+@item
+expression: variable OR integer_constant OR expression + expression
+OR expression - expression OR expression == expression OR ( expression )
+OR variable = expression OR function_call
+
+An expression can be a constant or a variable reference or a
+function_call.  Expressions can be combined as a sum of two expressions
+or the difference of two expressions, or an equality test of two
+expressions.  An assignment is also an expression.  Expressions and operator
+precedence work as in C.
+
+@item
+function_call: function_name ( optional_comma_separated_expressions )
+
+This invokes the function, passing to it the values of the expressions
+as actual parameters.
+
+@end itemize
+
+@cindex compilers
+@node Compiler Overview, TREELANG and GCC, Parsing Syntax, Top
+@chapter Compiler Overview
+treelang is run as part of the GCC compiler. 
+
+@itemize @bullet
+@cindex source code
+@cindex file, source
+@cindex code, source
+@cindex source file
+@item
+It reads a user's program, stored in a file and containing instructions
+written in the appropriate language (Treelang, C, and so on).  This file
+contains @dfn{source code}.
+
+@cindex translation of user programs
+@cindex machine code
+@cindex code, machine
+@cindex mistakes
+@item
+It translates the user's program into instructions a computer can carry
+out more quickly than it takes to translate the instructions in the
+first place.  These instructions are called @dfn{machine code}---code
+designed to be efficiently translated and processed by a machine such as
+a computer.  Humans usually aren't as good writing machine code as they
+are at writing Treelang or C, because it is easy to make tiny mistakes
+writing machine code.  When writing Treelang or C, it is easy to make
+big mistakes. But you can only make one mistake, because the compiler
+stops after it finds any problem.
+
+@cindex debugger
+@cindex bugs, finding
+@cindex @code{gdb}, command
+@cindex commands, @code{gdb}
+@item
+It provides information in the generated machine code
+that can make it easier to find bugs in the program
+(using a debugging tool, called a @dfn{debugger},
+such as @code{gdb}).
+
+@cindex libraries
+@cindex linking
+@cindex @code{ld} command
+@cindex commands, @code{ld}
+@item
+It locates and gathers machine code already generated to perform actions
+requested by statements in the user's program.  This machine code is
+organized into @dfn{libraries} and is located and gathered during the
+@dfn{link} phase of the compilation process.  (Linking often is thought
+of as a separate step, because it can be directly invoked via the
+@code{ld} command.  However, the @code{gcc} command, as with most
+compiler commands, automatically performs the linking step by calling on
+@code{ld} directly, unless asked to not do so by the user.)
+
+@cindex language, incorrect use of
+@cindex incorrect use of language
+@item
+It attempts to diagnose cases where the user's program contains
+incorrect usages of the language.  The @dfn{diagnostics} produced by the
+compiler indicate the problem and the location in the user's source file
+where the problem was first noticed.  The user can use this information
+to locate and fix the problem.
+
+The compiler stops after the first error.  There are no plans to fix
+this, ever, as it would vastly complicate the implementation of treelang
+to little or no benefit.
+
+@cindex diagnostics, incorrect
+@cindex incorrect diagnostics
+@cindex error messages, incorrect
+@cindex incorrect error messages
+(Sometimes an incorrect usage of the language leads to a situation where
+the compiler can not make any sense of what it reads---while a human
+might be able to---and thus ends up complaining about an incorrect
+``problem'' it encounters that, in fact, reflects a misunderstanding of
+the programmer's intention.)
+
+@cindex warnings
+@cindex questionable instructions
+@item
+There are a few warnings in treelang.  For example an unused static function
+generate a warnings when -Wunused-function is specified, similarly an unused
+static variable generates a warning when -Wunused-variable are specified.
+The only treelang specific warning is a warning when an expression is in a
+return statement for functions that return void.
+@end itemize
+
+@cindex components of treelang
+@cindex @code{treelang}, components of
+@code{treelang} consists of several components:
+
+@cindex @code{gcc}, command
+@cindex commands, @code{gcc}
+@itemize @bullet
+@item
+A modified version of the @code{gcc} command, which also might be
+installed as the system's @code{cc} command.
+(In many cases, @code{cc} refers to the
+system's ``native'' C compiler, which
+might be a non-GNU compiler, or an older version
+of @code{GCC} considered more stable or that is
+used to build the operating system kernel.)
+
+@cindex @code{treelang}, command
+@cindex commands, @code{treelang}
+@item
+The @code{treelang} command itself.
+
+@item
+The @code{libc} run-time library.  This library contains the machine
+code needed to support capabilities of the Treelang language that are
+not directly provided by the machine code generated by the
+@code{treelang} compilation phase.  This is the same library that the
+main C compiler uses (libc).
+
+@cindex @code{tree1}, program
+@cindex programs, @code{tree1}
+@cindex assembler
+@cindex @code{as} command
+@cindex commands, @code{as}
+@cindex assembly code
+@cindex code, assembly
+@item
+The compiler itself, is internally named @code{tree1}.
+
+Note that @code{tree1} does not generate machine code directly---it
+generates @dfn{assembly code} that is a more readable form
+of machine code, leaving the conversion to actual machine code
+to an @dfn{assembler}, usually named @code{as}.
+@end itemize
+
+@code{GCC} is often thought of as ``the C compiler'' only,
+but it does more than that.
+Based on command-line options and the names given for files
+on the command line, @code{gcc} determines which actions to perform, including
+preprocessing, compiling (in a variety of possible languages), assembling,
+and linking.
+
+@cindex driver, gcc command as
+@cindex @code{gcc}, command as driver
+@cindex executable file
+@cindex files, executable
+@cindex cc1 program
+@cindex programs, cc1
+@cindex preprocessor
+@cindex cpp program
+@cindex programs, cpp
+For example, the command @samp{gcc foo.c} @dfn{drives} the file
+@file{foo.c} through the preprocessor @code{cpp}, then
+the C compiler (internally named
+@code{cc1}), then the assembler (usually @code{as}), then the linker
+(@code{ld}), producing an executable program named @file{a.out} (on
+UNIX systems).
+
+@cindex treelang program
+@cindex programs, treelang
+As another example, the command @samp{gcc foo.tree} would do much the
+same as @samp{gcc foo.c}, but instead of using the C compiler named
+@code{cc1}, @code{gcc} would use the treelang compiler (named
+@code{tree1}). However there is no preprocessor for treelang.
+
+@cindex @code{tree1}, program
+@cindex programs, @code{tree1}
+In a GNU Treelang installation, @code{gcc} recognizes Treelang source
+files by name just like it does C and C++ source files.  It knows to use
+the Treelang compiler named @code{tree1}, instead of @code{cc1} or
+@code{cc1plus}, to compile Treelang files.  If a file's name ends in
+@code{.tree} then GCC knows that the program is written in treelang.  You
+can also manually override the language.
+
+@cindex @code{gcc}, not recognizing Treelang source
+@cindex unrecognized file format
+@cindex file format not recognized
+Non-Treelang-related operation of @code{gcc} is generally
+unaffected by installing the GNU Treelang version of @code{gcc}.
+However, without the installed version of @code{gcc} being the
+GNU Treelang version, @code{gcc} will not be able to compile
+and link Treelang programs.
+
+@cindex printing version information
+@cindex version information, printing
+The command @samp{gcc -v x.tree} where @samp{x.tree} is a file which
+must exist but whose contents are ignored, is a quick way to display
+version information for the various programs used to compile a typical
+Treelang source file. 
+
+The @code{tree1} program represents most of what is unique to GNU
+Treelang; @code{tree1} is a combination of two rather large chunks of
+code.
+
+@cindex GCC Back End (GBE)
+@cindex GBE
+@cindex @code{GCC}, back end
+@cindex back end, GCC
+@cindex code generator
+One chunk is the so-called @dfn{GNU Back End}, or GBE,
+which knows how to generate fast code for a wide variety of processors.
+The same GBE is used by the C, C++, and Treelang compiler programs @code{cc1},
+@code{cc1plus}, and @code{tree1}, plus others.
+Often the GBE is referred to as the ``GCC back end'' or
+even just ``GCC''---in this manual, the term GBE is used
+whenever the distinction is important.
+
+@cindex GNU Treelang Front End (TFE)
+@cindex tree1
+@cindex @code{treelang}, front end
+@cindex front end, @code{treelang}
+The other chunk of @code{tree1} is the majority of what is unique about
+GNU Treelang---the code that knows how to interpret Treelang programs to
+determine what they are intending to do, and then communicate that
+knowledge to the GBE for actual compilation of those programs.  This
+chunk is called the @dfn{Treelang Front End} (TFE).  The @code{cc1} and
+@code{cc1plus} programs have their own front ends, for the C and C++
+languages, respectively.  These fronts ends are responsible for
+diagnosing incorrect usage of their respective languages by the programs
+the process, and are responsible for most of the warnings about
+questionable constructs as well.  (The GBE in principle handles
+producing some warnings, like those concerning possible references to
+undefined variables, but these warnings should not occur in treelang
+programs as the front end is meant to pick them up first).
+
+Because so much is shared among the compilers for various languages,
+much of the behavior and many of the user-selectable options for these
+compilers are similar.
+For example, diagnostics (error messages and
+warnings) are similar in appearance; command-line
+options like @samp{-Wall} have generally similar effects; and the quality
+of generated code (in terms of speed and size) is roughly similar
+(since that work is done by the shared GBE).
+
+@node TREELANG and GCC, Compiler, Compiler Overview, Top
+@chapter Compile Treelang, C, or Other Programs
+@cindex compiling programs
+@cindex programs, compiling
+
+@cindex @code{gcc}, command
+@cindex commands, @code{gcc}
+A GNU Treelang installation includes a modified version of the @code{gcc}
+command.
+
+In a non-Treelang installation, @code{gcc} recognizes C, C++,
+and Objective-C source files.
+
+In a GNU Treelang installation, @code{gcc} also recognizes Treelang source
+files and accepts Treelang-specific command-line options, plus some
+command-line options that are designed to cater to Treelang users
+but apply to other languages as well.
+
+@xref{G++ and GCC,,Programming Languages Supported by GCC,GCC,Using
+the GNU Compiler Collection (GCC)},
+for information on the way different languages are handled
+by the GCC compiler (@code{gcc}).
+
+You can use this, combined with the output of the @samp{gcc -v x.tree}
+command to get the options applicable to treelang.  Treelang programs
+must end with the suffix @samp{.tree}.
+
+@cindex preprocessor
+
+Treelang programs are not by default run through the C
+preprocessor by @code{gcc}. There is no reason why they cannot be run through the
+preprocessor manually, but you would need to prevent the preprocessor
+from generating #line directives, using the @samp{-P} option, otherwise
+tree1 will not accept the input.
+
+@node Compiler, Other Languages, TREELANG and GCC, Top
+@chapter The GNU Treelang Compiler
+
+The GNU Treelang compiler, @code{treelang}, supports programs written
+in the GNU Treelang language.
+
+@node Other Languages, treelang internals, Compiler, Top
+@chapter Other Languages
+
+@menu
+* Interoperating with C and C++::  
+@end menu
+
+@node Interoperating with C and C++,  , Other Languages, Other Languages
+@section Tools and advice for interoperating with C and C++
+
+The output of treelang programs looks like C program code to the linker
+and everybody else, so you should be able to freely mix treelang and C
+(and C++) code, with one proviso.
+
+C promotes small integer types to 'int' when used as function parameters and 
+return values in non-prototyped functions.  Since treelang has no
+non-prototyped functions, the treelang compiler does not do this.
+
+@ifset INTERNALS
+@node treelang internals, Open Questions, Other Languages, Top
+@chapter treelang internals
+
+@menu
+* treelang files::              
+* treelang compiler interfaces::  
+* Hints and tips::              
+@end menu
+
+@node treelang files, treelang compiler interfaces, treelang internals, treelang internals
+@section treelang files
+
+To create a compiler that integrates into GCC, you need create many
+files.  Some of the files are integrated into the main GCC makefile, to
+build the various parts of the compiler and to run the test
+suite.  Others are incorporated into various GCC programs such as
+@file{gcc.c}.  Finally you must provide the actual programs comprising your
+compiler. 
+
+@cindex files
+
+The files are:
+
+@enumerate 1
+
+@item
+COPYING.  This is the copyright file, assuming you are going to use the
+GNU General Public License.  You probably need to use the GPL because if
+you use the GCC back end your program and the back end are one program,
+and the back end is GPLed.
+
+This need not be present if the language is incorporated into the main
+GCC tree, as the main GCC directory has this file. 
+
+@item
+COPYING.LIB.  This is the copyright file for those parts of your program
+that are not to be covered by the GPL, but are instead to be covered by
+the LGPL (Library or Lesser GPL).  This license may be appropriate for
+the library routines associated with your compiler. These are the
+routines that are linked with the @emph{output} of the compiler.  Using
+the LGPL for these programs allows programs written using your compiler
+to be closed source. For example LIBC is under the LGPL. 
+
+This need not be present if the language is incorporated into the main
+GCC tree, as the main GCC directory has this file. 
+
+@item
+ChangeLog.  Record all the changes to your compiler.  Use the same format
+as used in treelang as it is supported by an emacs editing mode and is
+part of the FSF coding standard.  Normally each directory has its own
+changelog.  The FSF standard allows but does not require a meaningful
+comment on why the changes were made, above and beyond @emph{why} they
+were made.  In the author's opinion it is useful to provide this
+information.
+
+@item
+treelang.texi.  The manual, written in texinfo. Your manual would have a
+different file name.  You need not write it in texinfo if you don't want
+do, but a lot of GNU software does use texinfo. 
+
+@cindex Make-lang.in
+@item
+Make-lang.in.  This file is part of the make file which in incorporated
+with the GCC make file skeleton (Makefile.in in the GCC directory) to
+make Makefile, as part of the configuration process.
+
+Makefile in turn is the main instruction to actually build
+everything.  The build instructions are held in the main GCC manual and
+web site so they are not repeated here. 
+
+There are some comments at the top which will help you understand what
+you need to do.
+
+There are make commands to build things, remove generated files with
+various degrees of thoroughness, count the lines of code (so you know
+how much progress you are making), build info and html files from the
+texinfo source, run the tests etc.
+
+@item
+README.  Just a brief informative text file saying what is in this
+directory. 
+
+@cindex config-lang.in
+@item
+config-lang.in.  This file is read by the configuration progress and must
+be present. You specify the name of your language, the name(s) of the
+compiler(s) including preprocessors you are going to build, whether any,
+usually generated, files should be excluded from diffs (ie when making
+diff files to send in patches).  Whether the equate 'stagestuff' is used
+is unknown (???).
+
+@cindex lang.opt
+@item
+lang.opt.  This file is included into @file{gcc.c}, the main GCC driver, and
+tells it what options your language supports.  This is also used to
+display help.
+
+@cindex lang-specs.h
+@item
+lang-specs.h.  This file is also included in @file{gcc.c}. It tells
+@file{gcc.c} when to call your programs and what options to send them.  The
+mini-language 'specs' is documented in the source of @file{gcc.c}.  Do not
+attempt to write a specs file from scratch - use an existing one as the base
+and enhance it. 
+
+@item
+Your texi files.  Texinfo can be used to build documentation in HTML,
+info, dvi and postscript formats. It is a tagged language, is documented
+in its own manual, and has its own emacs mode.
+
+@item
+Your programs.  The relationships between all the programs are explained
+in the next section.  You need to write or use the following programs:
+
+@itemize @bullet
+
+@item
+lexer.  This breaks the input into words and passes these to the
+parser.  This is @file{lex.l} in treelang, which is passed through flex, a lex
+variant, to produce C code @file{lex.c}.  Note there is a school of thought
+that says real men hand code their own lexers.  However, you may prefer to
+write far less code and use flex, as was done with treelang.
+
+@item
+parser.  This breaks the program into recognizable constructs such as
+expressions, statements etc.  This is @file{parse.y} in treelang, which is
+passed through bison, which is a yacc variant, to produce C code
+@file{parse.c}.
+
+@item
+back end interface.  This interfaces to the code generation back end.  In
+treelang, this is @file{tree1.c} which mainly interfaces to @file{toplev.c} and
+@file{treetree.c} which mainly interfaces to everything else. Many languages
+mix up the back end interface with the parser, as in the C compiler for
+example.  It is a matter of taste which way to do it, but with treelang
+it is separated out to make the back end interface cleaner and easier to
+understand.
+
+@item
+header files.  For function prototypes and common data items.  One point
+to note here is that bison can generate a header files with all the
+numbers is has assigned to the keywords and symbols, and you can include
+the same header in your lexer.  This technique is demonstrated in
+treelang.
+
+@item
+compiler main file.  GCC comes with a file @file{toplev.c} which is a
+perfectly serviceable main program for your compiler.  GNU Treelang uses
+@file{toplev.c} but other languages have been known to replace it with their
+own main program.  Again this is a matter of taste and how much code you
+want to write. 
+
+@end itemize
+
+@end enumerate
+
+@node treelang compiler interfaces, Hints and tips, treelang files, treelang internals
+@section treelang compiler interfaces
+
+@cindex driver
+@cindex toplev.c
+
+@menu
+* treelang driver::             
+* treelang main compiler::      
+@end menu
+
+@node treelang driver, treelang main compiler, treelang compiler interfaces, treelang compiler interfaces
+@subsection treelang driver
+
+The GCC compiler consists of a driver, which then executes the various
+compiler phases based on the instructions in the specs files. 
+
+Typically a program's language will be identified from its suffix
+(e.g., @file{.tree}) for treelang programs.
+
+The driver (@file{gcc.c}) will then drive (exec) in turn a preprocessor,
+the main compiler, the assembler and the link editor. Options to GCC allow you
+to override all of this. In the case of treelang programs there is no
+preprocessor, and mostly these days the C preprocessor is run within the
+main C compiler rather than as a separate process, apparently for reasons of speed.
+
+You will be using the standard assembler and linkage editor so these are
+ignored from now on. 
+
+You have to write your own preprocessor if you want one.  This is usually
+totally language specific.  The main point to be aware of is to ensure
+that you find some way to pass file name and line number information
+through to the main compiler so that it can tell the back end this
+information and so the debugger can find the right source line for each
+piece of code.  That is all there is to say about the preprocessor except
+that the preprocessor will probably not be the slowest part of the
+compiler and will probably not use the most memory so don't waste too
+much time tuning it until you know you need to do so.
+
+@node treelang main compiler,  , treelang driver, treelang compiler interfaces
+@subsection treelang main compiler
+
+The main compiler for treelang consists of @file{toplev.c} from the main GCC
+compiler, the parser, lexer and back end interface routines, and the
+back end routines themselves, of which there are many.
+
+@file{toplev.c} does a lot of work for you and you should almost certainly
+use it.
+
+Writing this code is the hard part of creating a compiler using GCC.  The
+back end interface documentation is incomplete and the interface is
+complex. 
+
+There are three main aspects to interfacing to the other GCC code. 
+
+@menu
+* Interfacing to toplev.c::     
+* Interfacing to the garbage collection::  
+* Interfacing to the code generation code. ::  
+@end menu
+
+@node Interfacing to toplev.c, Interfacing to the garbage collection, treelang main compiler, treelang main compiler
+@subsubsection Interfacing to toplev.c
+
+In treelang this is handled mainly in tree1.c
+and partly in treetree.c. Peruse toplev.c for details of what you need
+to do.
+
+@node Interfacing to the garbage collection, Interfacing to the code generation code. , Interfacing to toplev.c, treelang main compiler
+@subsubsection Interfacing to the garbage collection
+
+Interfacing to the garbage collection. In treelang this is mainly in
+tree1.c. 
+
+Memory allocation in the compiler should be done using the ggc_alloc and
+kindred routines in ggc*.*. At the end of every 'function' in your language, toplev.c calls
+the garbage collection several times. The garbage collection calls mark
+routines which go through the memory which is still used, telling the
+garbage collection not to free it. Then all the memory not used is
+freed.
+
+What this means is that you need a way to hook into this marking
+process. This is done by calling ggc_add_root. This provides the address
+of a callback routine which will be called duing garbage collection and
+which can call ggc_mark to save the storage. If storage is only
+used within the parsing of a function, you do not need to provide a way
+to mark it. 
+
+Note that you can also call ggc_mark_tree to mark any of the back end
+internal 'tree' nodes. This routine will follow the branches of the
+trees and mark all the subordinate structures. This is useful for
+example when you have created a variable declaration that will be used
+across multiple functions, or for a function declaration (from a
+prototype) that may be used later on. See the next item for more on the
+tree nodes. 
+
+@node Interfacing to the code generation code. ,  , Interfacing to the garbage collection, treelang main compiler
+@subsubsection Interfacing to the code generation code. 
+
+In treelang this is done in treetree.c. A typedef called 'tree' which is
+defined in tree.h and tree.def in the GCC directory and largely
+implemented in tree.c and stmt.c forms the basic interface to the
+compiler back end.
+
+In general you call various tree routines to generate code, either
+directly or through toplev.c. You build up data structures and
+expressions in similar ways. 
+
+You can read some documentation on this which can be found via the GCC
+main web page. In particular, the documentation produced by Joachim
+Nadler and translated by Tim Josling can be quite useful. the C compiler
+also has documentation in the main GCC manual (particularly the current
+CVS version) which is useful on a lot of the details.
+
+In time it is hoped to enhance this document to provide a more
+comprehensive overview of this topic. The main gap is in explaining how
+it all works together. 
+
+@node Hints and tips,  , treelang compiler interfaces, treelang internals
+@section Hints and tips
+
+@itemize @bullet
+
+@item
+TAGS: Use the make ETAGS commands to create TAGS files which can be used in
+emacs to jump to any symbol quickly. 
+
+@item
+GREP: grep is also a useful way to find all uses of a symbol.
+
+@item
+TREE: The main routines to look at are tree.h and tree.def. You will
+probably want a hardcopy of these. 
+
+@item
+SAMPLE: look at the sample interfacing code in treetree.c. You can use
+gdb to trace through the code and learn about how it all works. 
+
+@item
+GDB: the GCC back end works well with gdb. It traps abort() and allows
+you to trace back what went wrong. 
+
+@item
+Error Checking: The compiler back end does some error and consistency
+checking. Often the result of an error is just no code being
+generated. You will then need to trace through and find out what is
+going wrong. The rtl dump files can help here also.
+
+@item
+rtl dump files: The main compiler documents these files which are dumps
+of the rtl (intermediate code) which is manipulated doing the code
+generation process. This can provide useful clues about what is going
+wrong. The rtl 'language' is documented in the main GCC manual.
+
+@end itemize
+
+@end ifset
+
+@node Open Questions, Bugs, treelang internals, Top
+@chapter Open Questions
+
+If you know GCC well, please consider looking at the file treetree.c and
+resolving any questions marked "???".
+
+@node Bugs, Service, Open Questions, Top
+@chapter Reporting Bugs
+@cindex bugs
+@cindex reporting bugs
+
+You can report bugs to @email{@value{email-bugs}}. Please make
+sure bugs are real before reporting them. Follow the guidelines in the
+main GCC manual for submitting bug reports.
+
+@menu
+* Sending Patches::             
+@end menu
+
+@node Sending Patches,  , Bugs, Bugs
+@section Sending Patches for GNU Treelang
+
+If you would like to write bug fixes or improvements for the GNU
+Treelang compiler, that is very helpful.  Send suggested fixes to
+@email{@value{email-patches}}.
+
+@node Service, Projects, Bugs, Top
+@chapter How To Get Help with GNU Treelang
+
+If you need help installing, using or changing GNU Treelang, there are two
+ways to find it:
+
+@itemize @bullet
+
+@item
+Look in the service directory for someone who might help you for a fee.
+The service directory is found in the file named @file{SERVICE} in the
+GCC distribution.
+
+@item
+Send a message to @email{@value{email-general}}.
+
+@end itemize
+
+@end ifset
+@ifset INTERNALS
+
+@node Projects, Index, Service, Top
+@chapter Projects
+@cindex projects
+
+If you want to contribute to @code{treelang} by doing research,
+design, specification, documentation, coding, or testing,
+the following information should give you some ideas.
+
+Send a message to @email{@value{email-general}} if you plan to add a
+feature.
+
+The main requirement for treelang is to add features and to add
+documentation. Features are things that the GCC back end can do but
+which are not reflected in treelang. Examples include structures,
+unions, pointers, arrays.
+
+@end ifset
+
+@node Index,  , Projects, Top
+@unnumbered Index
+
+@printindex cp
+@summarycontents
+@contents
+@bye

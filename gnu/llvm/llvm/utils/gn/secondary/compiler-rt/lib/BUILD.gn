@@ -1,0 +1,25 @@
+group("lib") {
+  deps = [
+    "//compiler-rt/lib/asan:ignorelist($host_toolchain)",
+    "//compiler-rt/lib/builtins",
+    "//compiler-rt/lib/cfi:ignorelist($host_toolchain)",
+  ]
+  if (current_os == "linux") {
+    deps += [ "//compiler-rt/lib/msan" ]
+  }
+  if (current_os == "linux" || current_os == "android") {
+    deps += [ "//compiler-rt/lib/ubsan_minimal" ]
+  }
+  if (current_os != "win" && current_os != "baremetal") {
+    deps += [
+      "//compiler-rt/lib/asan",
+      "//compiler-rt/lib/ubsan",
+    ]
+    if (current_cpu == "x64" || current_cpu == "arm64") {
+      deps += [ "//compiler-rt/lib/tsan/rtl" ]
+    }
+  }
+  if (current_os != "baremetal") {
+    deps += [ "//compiler-rt/lib/profile" ]
+  }
+}

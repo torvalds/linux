@@ -1,0 +1,6 @@
+softfp_float_modes := sf df
+softfp_int_modes := si di
+softfp_extensions := sfdf
+softfp_truncations := dfsf
+softfp_machine_header := rs6000/sfp-machine.h
+softfp_exclude_libgcc2 := y

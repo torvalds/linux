@@ -1,0 +1,5 @@
+#! /bin/csh
+#	$OpenBSD: goodscript.in,v 1.3 2024/08/23 02:49:20 deraadt Exp $
+
+
+echo 'errno=0	succeeded'

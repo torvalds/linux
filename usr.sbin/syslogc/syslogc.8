@@ -1,0 +1,94 @@
+.\"	$OpenBSD: syslogc.8,v 1.11 2022/03/31 17:27:32 naddy Exp $
+.\"
+.\" Copyright (c) 2004 Damien Miller
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: March 31 2022 $
+.Dt SYSLOGC 8
+.Os
+.Sh NAME
+.Nm syslogc
+.Nd collect messages from syslog memory buffer
+.Sh SYNOPSIS
+.Nm syslogc
+.Op Fl Ccfo
+.Op Fl n Ar lines
+.Op Fl s Ar reporting_socket
+.Ar logname
+.Nm syslogc
+.Fl q
+.Sh DESCRIPTION
+.Nm
+collects messages from the
+.Xr syslogd 8
+memory buffer specified by the
+.Ar logname
+argument.
+.Pp
+For
+.Nm
+to work,
+.Xr syslogd 8
+must be configured with one or more memory buffer logs (see
+.Xr syslog.conf 5
+for details) and have a reporting socket location specified on the
+command line (using the
+.Fl s
+option to
+.Xr syslogd 8 ) .
+.Pp
+By default,
+.Nm
+will query the specified log and return all entries to standard output.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl C
+Request that the log buffer be cleared without reading it.
+.It Fl c
+Request that the log buffer be cleared once it has been read.
+.It Fl f
+Print out the last 10 lines and read from the buffer continuously.
+Like the
+.Fl f
+option in
+.Xr tail 1 .
+.It Fl n Ar lines
+Print the specified number of lines from the end of the buffer.
+.It Fl o
+Check whether the specified log has overflowed.
+If the log has overflowed, then a message will be printed to
+.Xr stdout 4
+and the exit status will be set to 1.
+.It Fl q
+Request a list of available logs.
+If a log has overflowed, an asterisk
+.Pq Ql *
+will be appended to its name.
+.It Fl s Ar reporting_socket
+Specify alternate reporting socket location (the default is
+.Pa /var/run/syslogd.sock ) .
+.El
+.Sh SEE ALSO
+.Xr syslog 3 ,
+.Xr syslog.conf 5 ,
+.Xr syslogd 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 3.5 .
+.Sh CAVEATS
+The buffer space used for writing logs through the socket is limited.
+Thus it is possible to lose logs when running in continuous mode.
+Losses are reported on standard error.

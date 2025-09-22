@@ -1,0 +1,63 @@
+.\" $OpenBSD: PKCS7_get_signer_info.3,v 1.2 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS7_GET_SIGNER_INFO 3
+.Os
+.Sh NAME
+.Nm PKCS7_get_signer_info
+.Nd retrieve signerInfos from a SignedData object
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft STACK_OF(PKCS7_SIGNER_INFO) *
+.Fn PKCS7_get_signer_info "PKCS7 *p7"
+.Sh DESCRIPTION
+This function retrieves the set of
+.Vt SignerInfo
+structures from the
+.Fa signerInfos
+field of
+.Fa p7 .
+.Pp
+These can subsequently be manipulated with the functions documented in
+.Xr PKCS7_add_attribute 3 .
+.Sh RETURN VALUES
+.Fn PKCS7_get_signer_info
+returns an internal pointer to a
+.Vt STACK_OF(PKCS7_SIGNER_INFO)
+object or
+.Dv NULL
+on failure.
+It fails if
+.Fa p7
+is
+.Dv NULL ,
+if it has no content,
+or if it is of a type other than
+.Vt SignedData
+or
+.Vt SignedAndEnvelopedData .
+.Sh SEE ALSO
+.Xr PKCS7_add_attribute 3 ,
+.Xr PKCS7_final 3 ,
+.Xr PKCS7_new 3 ,
+.Xr PKCS7_sign 3 ,
+.Xr PKCS7_sign_add_signer 3
+.Sh HISTORY
+.Fn PKCS7_get_signer_info
+first appeared in SSLeay 0.8.1 and has been available since
+.Ox 2.4 .

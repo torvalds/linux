@@ -1,0 +1,526 @@
+.\" $OpenBSD: IPAddressRange_new.3,v 1.11 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt IPADDRESSRANGE_NEW 3
+.Os
+.Sh NAME
+.Nm IPAddressRange_new ,
+.Nm IPAddressRange_free ,
+.Nm d2i_IPAddressRange ,
+.Nm i2d_IPAddressRange ,
+.Nm IPAddressOrRange_new ,
+.Nm IPAddressOrRange_free ,
+.Nm d2i_IPAddressOrRange ,
+.Nm i2d_IPAddressOrRange ,
+.Nm IPAddressChoice_new ,
+.Nm IPAddressChoice_free ,
+.Nm d2i_IPAddressChoice ,
+.Nm i2d_IPAddressChoice ,
+.Nm IPAddressFamily_new ,
+.Nm IPAddressFamily_free ,
+.Nm d2i_IPAddressFamily ,
+.Nm i2d_IPAddressFamily
+.Nd RFC 3779 IP address prefixes and ranges
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft IPAddressRange *
+.Fn IPAddressRange_new void
+.Ft void
+.Fn IPAddressRange_free "IPAddressRange *range"
+.Ft IPAddressRange *
+.Fo d2i_IPAddressRange
+.Fa "IPAddressRange **range"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_IPAddressRange
+.Fa "IPAddressRange *range"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft IPAddressOrRange *
+.Fn IPAddressOrRange_new void
+.Ft void
+.Fn IPAddressOrRange_free "IPAddressOrRange *aor"
+.Ft IPAddressOrRange *
+.Fo d2i_IPAddressOrRange
+.Fa "IPAddressOrRange **aor"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_IPAddressOrRange
+.Fa "IPAddressOrRange *aor"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft IPAddressChoice *
+.Fn IPAddressChoice_new void
+.Ft void
+.Fn IPAddressChoice_free "IPAddressChoice *ac"
+.Ft IPAddressChoice *
+.Fo d2i_IPAddressChoice
+.Fa "IPAddressChoice **ac"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_IPAddressChoice
+.Fa "IPAddressChoice *ac"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft IPAddressFamily *
+.Fn IPAddressFamily_new void
+.Ft void
+.Fn IPAddressFamily_free "IPAddressFamily *af"
+.Ft IPAddressFamily *
+.Fo d2i_IPAddressFamily
+.Fa "IPAddressFamily **af"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_IPAddressFamily
+.Fa "IPAddressFamily *af"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+.Vt IPAddressRange ,
+.Vt IPAddressOrRange ,
+.Vt IPAddressChoice ,
+and
+.Vt IPAddressFamily
+are building blocks of the
+.Vt IPAddrBlocks
+type representing the RFC 3779 IP address delegation extension.
+.Pp
+Per RFC 3779, section 2.1.1,
+an IPv4 or an IPv6 address is encoded in network byte order in an
+ASN.1 BIT STRING of bit size 32 or 128 bits, respectively.
+The bit size of a prefix is its prefix length;
+all insignificant zero bits are omitted
+from the encoding.
+Per section 2.1.2,
+an address range is expressed as a pair of BIT STRINGs
+where all the least significant zero bits of the lower bound
+and all the least significant one bits of the upper bound are omitted.
+.Pp
+The library provides no API for directly converting an IP address or
+prefix (in any form) to and from an
+.Vt ASN1_BIT_STRING .
+It also provides no API for directly handling ranges.
+The
+.Vt ASN1_BIT_STRING
+internals are subtle and directly manipulating them in the
+context of the RFC 3779 API is discouraged.
+The bit size of an
+.Vt ASN1_BIT_STRING
+representing an IP address prefix or range is eight times its
+.Fa length
+member minus the lowest three bits of its
+.Fa flags ,
+provided the
+.Dv ASN1_STRING_FLAG_BITS_LEFT
+flag is set.
+.Pp
+The
+.Vt IPAddressRange
+type defined in RFC 3779 section 2.2.3.9 is implemented as
+.Bd -literal -offset indent
+typedef struct IPAddressRange_st {
+	ASN1_BIT_STRING *min;
+	ASN1_BIT_STRING *max;
+} IPAddressRange;
+.Ed
+.Pp
+It represents the closed range [min,max] of IP addresses between
+.Fa min
+and
+.Fa max ,
+where
+.Fa min
+should be strictly smaller than
+.Fa max
+and the range should not be expressible as a prefix.
+.Pp
+.Fn IPAddressRange_new
+allocates a new
+.Vt IPAddressRange
+object with allocated, empty
+.Fa min
+and
+.Fa max ,
+thus representing the entire address space invalidly as a non-prefix.
+.Pp
+.Fn IPAddressRange_free
+frees
+.Fa range
+including any data contained in it.
+If
+.Fa range
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+There is no dedicated type representing the
+.Vt IPAddress
+type defined in RFC 3779 section 2.2.3.8.
+The API uses
+.Vt ASN1_BIT_STRING
+for this.
+.Pp
+The
+.Vt IPAddressOrRange
+type defined in RFC 3779 section 2.2.3.7 is implemented as
+.Bd -literal -offset indent
+typedef struct IPAddressOrRange_st {
+	int type;
+	union {
+		ASN1_BIT_STRING *addressPrefix;
+		IPAddressRange *addressRange;
+	} u;
+} IPAddressOrRange;
+.Ed
+.Pp
+representing an individual address prefix or an address range.
+The
+.Fa type
+member should be set to
+.Dv IPAddressOrRange_addressPrefix
+or
+.Dv IPAddressOrRange_addressRange
+to indicate which member of the union
+.Fa u
+is valid.
+.Pp
+.Fn IPAddressOrRange_new
+returns a new
+.Vt IPAddressOrRange
+object with invalid type and
+.Dv NULL
+members of the union
+.Fa u .
+.Pp
+.Fn IPAddressOrRange_free
+frees
+.Fa aor
+including any data contained in it,
+provided
+.Fa type
+is set correctly.
+If
+.Fa aor
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+In order to express a list of address prefixes and address ranges,
+RFC 3779 section 2.2.3.6
+uses an ASN.1 SEQUENCE,
+which is implemented via a
+.Xr STACK_OF 3
+construction over
+.Vt IPAddressOrRange :
+.Bd -literal -offset indent
+typedef STACK_OF(IPAddressOrRange) IPAddressOrRanges;
+.Ed
+.Pp
+Since an
+.Vt IPAddressOrRanges
+object should be sorted in a specific way (see
+.Xr X509v3_addr_canonize 3 ) ,
+a comparison function is needed for a correct instantiation
+with
+.Xr sk_new 3 .
+The
+.Fn v4IPAddressOrRange_cmp
+and
+.Fn v6IPAddressOrRange_cmp
+functions are not directly exposed and not easily accessible
+from outside the library,
+and they are non-trivial to implement.
+It is therefore discouraged to use
+.Vt IPAddressOrRanges
+objects that are not part of an
+.Vt IPAddrBlocks
+object.
+.Pp
+The
+.Dq inherit
+marker from RFC 3779 section 2.2.3.5 is implemented as
+.Vt ASN1_NULL .
+It has no dedicated type or API and can be instantiated with
+.Xr ASN1_NULL_new 3 .
+.Pp
+The
+.Vt IPAddressChoice
+type defined in RFC 3779 section 2.2.3.4 is implemented as
+.Bd -literal -offset indent
+typedef struct IPAddressChoice_st {
+	int type;
+	union {
+		ASN1_NULL *inherit;
+		IPAddressOrRanges *addressesOrRanges;
+	} u;
+} IPAddressChoice;
+.Ed
+.Pp
+where the
+.Fa type
+member should be set to
+.Dv IPAddressChoice_inherit
+or
+.Dv IPAddressChoice_addressesOrRanges
+to indicate whether a given
+.Vt IPAddressChoice
+object represents an inherited list or an explicit list.
+.Pp
+.Fn IPAddressChoice_new
+returns a new
+.Vt IPAddressChoice
+object with invalid type and
+.Dv NULL
+members of the union
+.Fa u .
+.Pp
+.Fn IPAddressChoice_free
+frees
+.Fa ac
+including any data contained in it,
+provided
+.Fa type
+is set correctly.
+.Pp
+The
+.Fa addressFamily
+element defined in RFC 3779 section 2.2.3.3 is implemented as an
+.Vt ASN1_OCTET_STRING
+and it contains two or three octets.
+The first two octets are always present and represent the
+address family identifier (AFI)
+in network byte order.
+The optional subsequent address family identifier (SAFI)
+occupies the third octet.
+For IPv4 and IPv6,
+.Dv IANA_AFI_IPV4
+and
+.Dv IANA_AFI_IPV6
+are predefined.
+Other AFIs are not supported by this implementation.
+.Pp
+The
+.Vt IPAddressFamily
+type defined in RFC 3779 section 2.2.3.2 is implemented as
+.Bd -literal -offset indent
+typedef struct IPAddressFamily_st {
+	ASN1_OCTET_STRING *addressFamily;
+	IPAddressChoice *ipAddressChoice;
+} IPAddressFamily;
+.Ed
+.Pp
+The
+.Fa addressFamily
+member indicates the address family the
+.Fa ipAddressChoice
+represents.
+.Pp
+.Fn IPAddressFamily_new
+returns a new
+.Vt IPAddressFamily
+object with empty
+.Fa addressFamily
+and invalid
+.Fa ipAddressChoice
+members.
+.Pp
+.Fn IPAddressFamily_free
+frees
+.Fa af
+including any data contained in it.
+If
+.Fa af
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+The
+.Vt IPAddrBlocks
+type defined in RFC 3779 section 2.2.3.1
+uses an ASN.1 SEQUENCE,
+which is implemented via a
+.Xr STACK_OF 3
+construction over
+.Vt IPAddressFamily :
+.Bd -literal -offset indent
+typedef STACK_OF(IPAddressFamily) IPAddrBlocks;
+.Ed
+.Pp
+It can be instantiated with
+.Fn sk_IPAddressFamily_new_null
+and the correct sorting function can be installed with
+.Xr X509v3_addr_canonize 3 .
+To populate it, use
+.Xr X509v3_addr_add_prefix 3
+and related functions.
+.Pp
+.Fn d2i_IPAddressRange ,
+.Fn i2d_IPAddressRange ,
+.Fn d2i_IPAddressOrRange ,
+.Fn i2d_IPAddressOrRange ,
+.Fn d2i_IPAddressChoice ,
+.Fn i2d_IPAddressChoice ,
+.Fn d2i_IPAddressFamily ,
+and
+.Fn i2d_IPAddressFamily
+decode and encode ASN.1
+.Vt IPAddressRange ,
+.Vt IPAddressOrRange ,
+.Vt IPAddressChoice ,
+and
+.Vt IPAddressFamily
+objects.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+There is no easy way of ensuring that the encodings generated by
+these functions are correct, unless they are applied to objects
+that are part of a canonical
+.Vt IPAddrBlocks
+structure, see
+.Xr X509v3_addr_is_canonical 3 .
+.Sh RETURN VALUES
+.Fn IPAddressRange_new
+returns a new
+.Vt IPAddressRange
+object with allocated, empty members, or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn IPAddressOrRange_new
+returns a new, empty
+.Vt IPAddressOrRange
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn IPAddressChoice_new
+returns a new, empty
+.Vt IPAddressChoice
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn IPAddressFamily_new
+returns a new
+.Vt IPAddressFamily
+object with allocated, empty members, or
+.Dv NULL
+if an error occurs.
+.Pp
+The decoding functions
+.Fn d2i_IPAddressRange ,
+.Fn d2i_IPAddressOrRange ,
+.Fn d2i_IPAddressChoice ,
+and
+.Fn d2i_IPAddressFamily
+return an
+.Vt IPAddressRange ,
+an
+.Vt IPAddressOrRange ,
+an
+.Vt IPAddressChoice ,
+or an
+.Vt IPAddressFamily
+object, respectively,
+or
+.Dv NULL
+if an error occurs.
+.Pp
+The encoding functions
+.Fn i2d_IPAddressRange ,
+.Fn i2d_IPAddressOrRange ,
+.Fn i2d_IPAddressChoice ,
+and
+.Fn i2d_IPAddressFamily
+return the number of bytes successfully encoded
+or a value <= 0 if an error occurs.
+.Sh SEE ALSO
+.Xr ASIdentifiers_new 3 ,
+.Xr ASN1_BIT_STRING_new 3 ,
+.Xr ASN1_OCTET_STRING_new 3 ,
+.Xr ASN1_OCTET_STRING_set 3 ,
+.Xr crypto 3 ,
+.Xr X509_new 3 ,
+.Xr X509v3_addr_add_inherit 3 ,
+.Xr X509v3_addr_inherits 3 ,
+.Xr X509v3_addr_subset 3
+.Sh STANDARDS
+RFC 3779: X.509 Extensions for IP Addresses and AS Identifiers:
+.Bl -dash -compact
+.It
+section 2.1.1: Encoding of an IP Address or Prefix
+.It
+section 2.1.2: Encoding of a Range of IP Addresses
+.It
+section 2.2.3: Syntax
+.It
+section 2.2.3.1: Type IPAddrBlocks
+.It
+section 2.2.3.2: Type IPAddressFamily
+.It
+section 2.2.3.3: Element addressFamily
+.It
+section 2.2.3.4: Element ipAddressChoice and Type IPAddressChoice
+.It
+section 2.2.3.5: Element inherit
+.It
+section 2.2.3.6: Element addressesOrRanges
+.It
+section 2.2.3.7: Type IPAddressOrRange
+.It
+section 2.2.3.8: Element addressPrefix and Type IPAddress
+.It
+section 2.2.3.9: Element addressRange and Type IPAddressRange
+.El
+.Pp
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules:
+Specification of Basic Encoding Rules (BER), Canonical Encoding
+Rules (CER) and Distinguished Encoding Rules (DER),
+section 8.6: Encoding of a bitstring value
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8e
+and have been available since
+.Ox 7.1 .
+.Sh BUGS
+.\" The internals do not seem to consistently apply and check
+.\" .Dv ASN1_STRING_FLAG_BITS_LEFT
+.\" which may lead to incorrect encoding and misinterpretation
+As it stands, the API is barely usable
+due to missing convenience accessors, constructors and destructors
+and due to the complete absence of API that checks that the
+individual building blocks are correct.
+Extracting information from a given object can be done relatively
+safely.
+However, constructing objects is very error prone, be it
+by hand or using the bug-ridden
+.Xr X509v3_addr_add_inherit 3
+API.
+.Pp
+RFC 3779 has element
+.Dq addressesOrRanges .
+Its type in this API is
+.Vt IPAddressOrRanges .

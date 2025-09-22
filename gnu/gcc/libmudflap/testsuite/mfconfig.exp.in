@@ -1,0 +1,4 @@
+global mfconfig_libs
+set mfconfig_libs "@LIBS@"
+global libmudflapth
+set libmudflapth "@build_libmudflapth@"

@@ -1,0 +1,94 @@
+.\" $OpenBSD: curs_deleteln.3,v 1.11 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_deleteln.3,v 1.11 2023/10/17 09:52:08 nicm Exp $
+.TH curs_deleteln 3 2023-07-01 "ncurses 6.4" "Library calls"
+.SH NAME
+\fBdeleteln\fP,
+\fBwdeleteln\fP,
+\fBinsdelln\fP,
+\fBwinsdelln\fP,
+\fBinsertln\fP,
+\fBwinsertln\fP \- delete and insert lines in a \fBcurses\fP window
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint deleteln(void);\fP
+.br
+\fBint wdeleteln(WINDOW *\fIwin\fB);\fR
+.sp
+\fBint insdelln(int \fIn\fB);\fR
+.br
+\fBint winsdelln(WINDOW *\fIwin\fB, int \fIn\fB);\fR
+.sp
+\fBint insertln(void);\fP
+.br
+\fBint winsertln(WINDOW *\fIwin\fB);\fR
+.SH DESCRIPTION
+The \fBdeleteln\fP and \fBwdeleteln\fP routines delete the line under the
+cursor in the window; all lines below the current line are moved up one line.
+The bottom line of the window is cleared.
+The cursor position does not change.
+.PP
+The \fBinsdelln\fP and \fBwinsdelln\fP routines, for positive \fIn\fP, insert
+\fIn\fP lines into the specified window above the current line.
+The \fIn\fP
+bottom lines are lost.
+For negative \fIn\fP, delete \fIn\fP lines (starting
+with the one under the cursor), and move the remaining lines up.
+The bottom
+\fIn\fP lines are cleared.
+The current cursor position remains the same.
+.PP
+The \fBinsertln\fP and \fBwinsertln\fP routines insert a blank line above the
+current line and the bottom line is lost.
+.SH RETURN VALUE
+All routines return the integer \fBERR\fP upon failure and an \fBOK\fP (SVr4
+specifies only "an integer value other than \fBERR\fP") upon successful
+completion.
+.PP
+X/Open defines no error conditions.
+In this implementation,
+if the window parameter is null, an error is returned.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+The
+standard specifies that they return \fBERR\fP on failure, but specifies no
+error conditions.
+.SH NOTES
+Note that all but \fBwinsdelln\fP may be macros.
+.PP
+These routines do not require a hardware line delete or insert feature in the
+terminal.
+In fact, they will not use hardware line delete/insert unless
+\fBidlok(..., TRUE)\fP has been set on the current window.
+.SH SEE ALSO
+\fBcurses\fP(3)

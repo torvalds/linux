@@ -1,0 +1,650 @@
+.\"	$OpenBSD: csh.3,v 1.7 2010/07/22 08:30:29 jmc Exp $
+.\"	$NetBSD: csh.3,v 1.3 1995/03/21 09:03:38 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)csh.3	8.1 (Berkeley) 6/8/93
+.\"
+.nr H1 2
+.NH
+Shell control structures and command scripts
+.NH 2
+Introduction
+.PP
+It is possible to place commands in files and to cause shells to be
+invoked to read and execute commands from these files,
+which are called
+.I "shell scripts" .
+We here detail those features of the shell useful to the writers of such
+scripts.
+.NH 2
+Make
+.PP
+It is important to first note what shell scripts are
+.I not
+useful for.
+There is a program called
+.I make
+which is very useful for maintaining a group of related files
+or performing sets of operations on related files.
+For instance a large program consisting of one or more files
+can have its dependencies described in a
+.I makefile
+which contains definitions of the commands used to create these
+different files when changes occur.
+Definitions of the means for printing listings, cleaning up the directory
+in which the files reside, and installing the resultant programs
+are easily, and most appropriately, placed in this
+.I makefile .
+This format is superior and preferable to maintaining a group of shell
+procedures to maintain these files.
+.PP
+Similarly when working on a document a
+.I makefile
+may be created which defines how different versions of the document
+are to be created and which options of
+.I nroff
+or
+.I troff
+are appropriate.
+.NH 2
+Invocation and the argv variable
+.PP
+A
+.I csh
+command script may be interpreted by saying
+.DS
+% csh script ...
+.DE
+where
+.I script
+is the name of the file containing a group of
+.I csh
+commands and
+`\&...' is replaced by a sequence of arguments.
+The shell places these arguments in the variable
+.I argv
+and then begins to read commands from the script.
+These parameters are then available through the same mechanisms
+which are used to reference any other shell variables.
+.PP
+If you make the file
+`script'
+executable by doing
+.DS
+chmod 755 script
+.DE
+and place a shell comment at the beginning of the shell script
+(i.e. begin the file with a `#' character)
+then a `/bin/csh' will automatically be invoked to execute `script' when
+you type
+.DS
+script
+.DE
+If the file does not begin with a `#' then the standard shell
+`/bin/sh' will be used to execute it.
+This allows you to convert your older shell scripts to use
+.I csh
+at your convenience.
+.NH 2
+Variable substitution
+.PP
+After each input line is broken into words and history substitutions
+are done on it, the input line is parsed into distinct commands.
+Before each command is executed a mechanism know as
+.I "variable substitution"
+is done on these words.
+Keyed by the character `$' this substitution replaces the names
+of variables by their values.
+Thus
+.DS
+echo $argv
+.DE
+when placed in a command script would cause the current value of the
+variable
+.I argv
+to be echoed to the output of the shell script.
+It is an error for
+.I argv
+to be unset at this point.
+.PP
+A number of notations are provided for accessing components and attributes
+of variables.
+The notation
+.DS
+$?name
+.DE
+expands to `1' if name is
+.I set
+or to `0'
+if name is not
+.I set .
+It is the fundamental mechanism used for checking whether particular
+variables have been assigned values.
+All other forms of reference to undefined variables cause errors.
+.PP
+The notation
+.DS
+$#name
+.DE
+expands to the number of elements in the variable
+.I name .
+Thus
+.DS
+% set argv=(a b c)
+% echo $?argv
+1
+% echo $#argv
+3
+% unset argv
+% echo $?argv
+0
+% echo $argv
+argv: Undefined variable.
+%
+.DE
+.PP
+It is also possible to access the components of a variable
+which has several values.
+Thus
+.DS
+$argv[1]
+.DE
+gives the first component of
+.I argv
+or in the example above `a'.
+Similarly
+.DS
+$argv[$#argv]
+.DE
+would give `c',
+and
+.DS
+$argv[1\-2]
+.DE
+would give `a b'. Other notations useful in shell scripts are
+.DS
+$\fIn\fR
+.DE
+where
+.I n
+is an integer as a shorthand for
+.DS
+$argv[\fIn\fR\|]
+.DE
+the
+.I n\|th
+parameter and
+.DS
+$*
+.DE
+which is a shorthand for
+.DS
+$argv
+.DE
+The form
+.DS
+$$
+.DE
+expands to the process number of the current shell.
+Since this process number is unique in the system it can
+be used in generation of unique temporary file names.
+The form
+.DS
+$<
+.DE
+is quite special and is replaced by the next line of input read from
+the shell's standard input (not the script it is reading).  This is
+useful for writing shell scripts that are interactive, reading
+commands from the terminal, or even writing a shell script that
+acts as a filter, reading lines from its input file. Thus the sequence
+.DS
+echo 'yes or no?\ec'
+set a=($<)
+.DE
+would write out the prompt `yes or no?' without a newline and then
+read the answer into the variable `a'.  In this case `$#a' would be
+`0' if either a blank line or end-of-file (^D) was typed.
+.PP
+One minor difference between `$\fIn\fR\|' and `$argv[\fIn\fR\|]'
+should be noted here.
+The form
+`$argv[\fIn\fR\|]'
+will yield an error if
+.I n
+is not in the range
+`1\-$#argv'
+while `$n'
+will never yield an out of range subscript error.
+This is for compatibility with the way older shells handled parameters.
+.PP
+Another important point is that it is never an error to give a subrange
+of the form `n\-'; if there are less than
+.I n
+components of the given variable then no words are substituted.
+A range of the form `m\-n' likewise returns an empty vector without giving
+an error when \fIm\fR exceeds the number of elements of the given variable,
+provided the subscript \fIn\fR is in range.
+.NH 2
+Expressions
+.PP
+In order for interesting shell scripts to be constructed it
+must be possible to evaluate expressions in the shell based on the
+values of variables.
+In fact, all the arithmetic operations of the language C are available
+in the shell
+with the same precedence that they have in C.
+In particular, the operations `==' and `!=' compare strings
+and the operators `&&' and `|\|\||' implement the boolean and/or operations.
+The special operators `=~' and `!~' are similar to `==' and `!=' except
+that the string on the right side can have pattern matching characters
+(like *, ? or []) and the test is whether the string on the left matches
+the pattern on the right.
+.PP
+The shell also allows file enquiries of the form
+.DS
+\-? filename
+.DE
+where `?' is replace by a number of single characters.
+For instance the expression primitive
+.DS
+\-e filename
+.DE
+tell whether the file
+`filename'
+exists.
+Other primitives test for read, write and execute access to the file,
+whether it is a directory, or has non-zero length.
+.PP
+It is possible to test whether a command terminates normally,
+by a primitive of the
+form `{ command }' which returns true, i.e. `1' if the command
+succeeds exiting normally with exit status 0, or `0' if the command
+terminates abnormally or with exit status non-zero.
+If more detailed information about the execution status of a command
+is required, it can be executed and the variable `$status' examined
+in the next command.
+Since `$status' is set by every command, it is very transient.
+It can be saved if it is inconvenient to use it only in the single
+immediately following command.
+.PP
+For a full list of expression components available see the manual
+section for the shell.
+.NH 2
+Sample shell script
+.PP
+A sample shell script which makes use of the expression mechanism
+of the shell and some of its control structure follows:
+.DS
+% cat copyc
+#
+# Copyc copies those C programs in the specified list
+# to the directory ~/backup if they differ from the files
+# already in ~/backup
+#
+set backdir = ~/backup
+set noglob
+foreach i ($argv)
+
+        if ($i !~ *.c) continue  # not a .c file so do nothing
+
+        if (! \-r $backdir/$i:t) then
+                echo $i:t not in backup... not cp\'ed
+                continue
+        endif
+
+        cmp -s $i $backdir/$i:t # to set $status
+
+        if ($status != 0) then
+                echo new backup of $i
+                cp $i $backdir/$i:t
+        endif
+end
+.DE
+.PP
+This script makes use of the
+.I foreach
+command, which causes the shell to execute the commands between the
+.I foreach
+and the matching
+.I end
+for each of the values given between `(' and `)' with the named
+variable, in this case `i' set to successive values in the list.
+Within this loop we may use the command
+.I break
+to stop executing the loop
+and
+.I continue
+to prematurely terminate one iteration
+and begin the next.
+After the
+.I foreach
+loop the iteration variable
+(\fIi\fR in this case)
+has the value at the last iteration.
+.PP
+We set the variable
+.I noglob
+here to prevent filename expansion of the members of
+.I argv .
+This is a good idea, in general, if the arguments to a shell script
+are filenames which have already been expanded or if the arguments
+may contain filename expansion metacharacters.
+It is also possible to quote each use of a `$' variable expansion,
+but this is harder and less reliable.
+.PP
+The other control construct used here is a statement of the form
+.DS
+\fBif\fR ( expression ) \fBthen\fR
+	command
+	...
+\fBendif\fR
+.DE
+The placement of the keywords here is
+.B not
+flexible due to the current implementation of the shell.\(dg
+.FS
+\(dgThe following two formats are not currently acceptable to the shell:
+.sp
+.in +5
+.nf
+\fBif\fR ( expression )		# \fBWon't work!\fR
+\fBthen\fR
+	command
+	...
+\fBendif\fR
+.fi
+.in -5
+.sp
+and
+.sp
+.in +5
+.nf
+\fBif\fR ( expression ) \fBthen\fR command \fBendif\fR		# \fBWon't work\fR
+.in -5
+.fi
+.FE
+.PP
+The shell does have another form of the if statement of the form
+.DS
+\fBif\fR ( expression ) \fBcommand\fR
+.DE
+which can be written
+.DS
+\fBif\fR ( expression ) \e
+	command
+.DE
+Here we have escaped the newline for the sake of appearance.
+The command must not involve `\||\|', `&' or `;'
+and must not be another control command.
+The second form requires the final `\e' to
+.B immediately
+precede the end-of-line.
+.PP
+The more general
+.I if
+statements above also admit a sequence of
+.I else\-if
+pairs followed by a single
+.I else
+and an
+.I endif ,
+e.g.:
+.DS
+\fBif\fR ( expression ) \fBthen\fR
+	commands
+\fBelse\fR \fBif\fR (expression ) \fBthen\fR
+	commands
+\&...
+
+\fBelse\fR
+	commands
+\fBendif\fR
+.DE
+.PP
+Another important mechanism used in shell scripts is the `:' modifier.
+We can use the modifier `:r' here to extract a root of a filename or
+`:e' to extract the
+.I extension .
+Thus if the variable
+.I i
+has the value
+`/mnt/foo.bar'
+then
+.sp
+.in +5
+.nf
+% echo $i $i:r $i:e
+/mnt/foo.bar /mnt/foo bar
+%
+.sp
+.in -5
+.fi
+shows how the `:r' modifier strips off the trailing `.bar' and the
+`:e' modifier leaves only the `bar'.
+Other modifiers will take off the last component of a pathname leaving
+the head `:h' or all but the last component of a pathname leaving the
+tail `:t'.
+These modifiers are fully described in the
+.I csh
+manual pages in the User's Reference Manual.
+It is also possible to use the
+.I "command substitution"
+mechanism described in the next major section to perform modifications
+on strings to then reenter the shell's environment.
+Since each usage of this mechanism involves the creation of a new process,
+it is much more expensive to use than the `:' modification mechanism.\(dd
+.FS
+\(dd It is also important to note that
+the current implementation of the shell limits the number of `:' modifiers
+on a `$' substitution to 1.
+Thus
+.sp
+.nf
+.in +5
+% echo $i $i:h:t
+/a/b/c /a/b:t
+%
+.in -5
+.fi
+.sp
+does not do what one would expect.
+.FE
+Finally, we note that the character `#' lexically introduces a shell
+comment in shell scripts (but not from the terminal).
+All subsequent characters on the input line after a `#' are discarded
+by the shell.
+This character can be quoted using `\'' or `\e' to place it in
+an argument word.
+.NH 2
+Other control structures
+.PP
+The shell also has control structures
+.I while
+and
+.I switch
+similar to those of C.
+These take the forms
+.DS
+\fBwhile\fR ( expression )
+	commands
+\fBend\fR
+.DE
+and
+.DS
+\fBswitch\fR ( word )
+
+\fBcase\fR str1:
+	commands
+	\fBbreaksw\fR
+
+\& ...
+
+\fBcase\fR strn:
+	commands
+	\fBbreaksw\fR
+
+\fBdefault:\fR
+	commands
+	\fBbreaksw\fR
+
+\fBendsw\fR
+.DE
+For details see the manual section for
+.I csh .
+C programmers should note that we use
+.I breaksw
+to exit from a
+.I switch
+while
+.I break
+exits a
+.I while
+or
+.I foreach
+loop.
+A common mistake to make in
+.I csh
+scripts is to use
+.I break
+rather than
+.I breaksw
+in switches.
+.PP
+Finally,
+.I csh
+allows a
+.I goto
+statement, with labels looking like they do in C, i.e.:
+.DS
+loop:
+	commands
+	\fBgoto\fR loop
+.DE
+.NH 2
+Supplying input to commands
+.PP
+Commands run from shell scripts receive by default the standard
+input of the shell which is running the script.
+This is different from previous shells running
+under UNIX.  It allows shell scripts to fully participate
+in pipelines, but mandates extra notation for commands which are to take
+inline data.
+.PP
+Thus we need a metanotation for supplying inline data to commands in
+shell scripts.
+As an example, consider this script which runs the editor to
+delete leading blanks from the lines in each argument file:
+.DS
+% cat deblank
+# deblank \-\- remove leading blanks
+foreach i ($argv)
+ed \- $i << \'EOF\'
+1,$s/^[ ]*//
+w
+q
+\&\'EOF\'
+end
+%
+.DE
+The notation `<< \'EOF\''
+means that the standard input for the
+.I ed
+command is to come from the text in the shell script file
+up to the next line consisting of exactly `\'EOF\''.
+The fact that the `EOF' is enclosed in `\'' characters, i.e. quoted,
+causes the shell to not perform variable substitution on the
+intervening lines.
+In general, if any part of the word following the `<<' which the
+shell uses to terminate the text to be given to the command is quoted
+then these substitutions will not be performed.
+In this case since we used the form `1,$' in our editor script
+we needed to ensure that this `$' was not variable substituted.
+We could also have ensured this by preceding the `$' here with a `\e',
+i.e.:
+.DS
+1,\e$s/^[ ]*//
+.DE
+but quoting the `EOF' terminator is a more reliable way of achieving the
+same thing.
+.NH 2
+Catching interrupts
+.PP
+If our shell script creates temporary files, we may wish to catch
+interruptions of the shell script so that we can clean up
+these files.
+We can then do
+.DS
+onintr label
+.DE
+where
+.I label
+is a label in our program.
+If an interrupt is received the shell will do a
+`goto label'
+and we can remove the temporary files and then do an
+.I exit
+command (which is built in to the shell)
+to exit from the shell script.
+If we wish to exit with a non-zero status we can do
+.DS
+exit(1)
+.DE
+e.g. to exit with status `1'.
+.NH 2
+What else?
+.PP
+There are other features of the shell useful to writers of shell
+procedures.
+The
+.I verbose
+and
+.I echo
+options and the related
+.I \-v
+and
+.I \-x
+command line options can be used to help trace the actions of the shell.
+The
+.I \-n
+option causes the shell only to read commands and not to execute
+them and may sometimes be of use.
+.PP
+One other thing to note is that
+.I csh
+will not execute shell scripts which do not begin with the
+character `#', that is shell scripts that do not begin with a comment.
+Similarly, the `/bin/sh' on your system may well defer to `csh'
+to interpret shell scripts which begin with `#'.
+This allows shell scripts for both shells to live in harmony.
+.PP
+There is also another quotation mechanism using `"' which allows
+only some of the expansion mechanisms we have so far discussed to occur
+on the quoted string and serves to make this string into a single word
+as `\'' does.
+.bp

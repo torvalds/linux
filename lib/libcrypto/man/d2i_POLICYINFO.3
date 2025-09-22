@@ -1,0 +1,166 @@
+.\"	$OpenBSD: d2i_POLICYINFO.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_POLICYINFO 3
+.Os
+.Sh NAME
+.Nm d2i_POLICYINFO ,
+.Nm i2d_POLICYINFO ,
+.Nm d2i_CERTIFICATEPOLICIES ,
+.Nm i2d_CERTIFICATEPOLICIES ,
+.Nm d2i_POLICYQUALINFO ,
+.Nm i2d_POLICYQUALINFO ,
+.Nm d2i_USERNOTICE ,
+.Nm i2d_USERNOTICE ,
+.Nm d2i_NOTICEREF ,
+.Nm i2d_NOTICEREF
+.Nd decode and encode X.509 certificate policies
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft POLICYINFO *
+.Fo d2i_POLICYINFO
+.Fa "POLICYINFO **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_POLICYINFO
+.Fa "POLICYINFO *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft CERTIFICATEPOLICIES *
+.Fo d2i_CERTIFICATEPOLICIES
+.Fa "CERTIFICATEPOLICIES **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_CERTIFICATEPOLICIES
+.Fa "CERTIFICATEPOLICIES *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft POLICYQUALINFO *
+.Fo d2i_POLICYQUALINFO
+.Fa "POLICYQUALINFO **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_POLICYQUALINFO
+.Fa "POLICYQUALINFO *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft USERNOTICE *
+.Fo d2i_USERNOTICE
+.Fa "USERNOTICE **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_USERNOTICE
+.Fa "USERNOTICE *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft NOTICEREF *
+.Fo d2i_NOTICEREF
+.Fa "NOTICEREF **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_NOTICEREF
+.Fa "NOTICEREF *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode X.509 certificate policies.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_POLICYINFO
+and
+.Fn i2d_POLICYINFO
+decode and encode an ASN.1
+.Vt PolicyInformation
+structure defined in RFC 5280 section 4.2.1.4.
+.Pp
+.Fn d2i_CERTIFICATEPOLICIES
+and
+.Fn i2d_CERTIFICATEPOLICIES
+decode and encode an ASN.1
+.Vt CertificatePolicies
+structure defined in RFC 5280 section 4.2.1.4.
+.Pp
+.Fn d2i_POLICYQUALINFO
+and
+.Fn i2d_POLICYQUALINFO
+decode and encode an ASN.1
+.Vt PolicyQualifierInfo
+structure defined in RFC 5280 section 4.2.1.4.
+.Pp
+.Fn d2i_USERNOTICE
+and
+.Fn i2d_USERNOTICE
+decode and encode an ASN.1
+.Vt UserNotice
+structure defined in RFC 5280 section 4.2.1.4.
+.Pp
+.Fn d2i_NOTICEREF
+and
+.Fn i2d_NOTICEREF
+decode and encode an ASN.1
+.Vt NoticeReference
+structure defined in RFC 5280 section 4.2.1.4.
+.Sh RETURN VALUES
+.Fn d2i_POLICYINFO ,
+.Fn d2i_CERTIFICATEPOLICIES ,
+.Fn d2i_POLICYQUALINFO ,
+.Fn d2i_USERNOTICE ,
+and
+.Fn d2i_NOTICEREF
+return a
+.Vt POLICYINFO ,
+.Vt CERTIFICATEPOLICIES ,
+.Vt POLICYQUALINFO ,
+.Vt USERNOTICE ,
+or
+.Vt NOTICEREF
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_POLICYINFO ,
+.Fn i2d_CERTIFICATEPOLICIES ,
+.Fn i2d_POLICYQUALINFO ,
+.Fn i2d_USERNOTICE ,
+and
+.Fn i2d_NOTICEREF
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr POLICYINFO_new 3 ,
+.Xr X509_EXTENSION_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile,
+section 4.2.1.4: Certificate Policies
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.3
+and have been available since
+.Ox 2.6 .

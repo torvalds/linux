@@ -1,0 +1,461 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="bkoz@redhat.com (Benjamin Kosnik)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="Notes on the messages implementation." />
+   <title>Notes on the messages implementation.</title>
+<link rel="StyleSheet" href="../lib3styles.css" type="text/css" />
+<link rel="Start" href="../documentation.html" type="text/html"
+  title="GNU C++ Standard Library" />
+<link rel="Bookmark" href="howto.html" type="text/html" title="Localization" />
+<link rel="Copyright" href="../17_intro/license.html" type="text/html" />
+<link rel="Help" href="../faq/index.html" type="text/html" title="F.A.Q." />
+</head>
+<body>
+<h1>
+Notes on the messages implementation.
+</h1>
+<em>
+prepared by Benjamin Kosnik (bkoz@redhat.com) on August 8, 2001
+</em>
+
+<h2>
+1. Abstract
+</h2>
+<p>
+The std::messages facet implements message retrieval functionality
+equivalent to Java's java.text.MessageFormat .using either GNU gettext
+or IEEE 1003.1-200 functions.
+</p>
+
+<h2>
+2. What the standard says
+</h2>
+The std::messages facet is probably the most vaguely defined facet in
+the standard library. It's assumed that this facility was built into
+the standard library in order to convert string literals from one
+locale to the other. For instance, converting the "C" locale's
+<code>const char* c = "please"</code> to a German-localized <code>"bitte"</code>
+during program execution.
+
+<blockquote>
+22.2.7.1 - Template class messages [lib.locale.messages]
+</blockquote>
+
+This class has three public member functions, which directly
+correspond to three protected virtual member functions. 
+
+The public member functions are:
+
+<p>
+<code>catalog open(const string&amp;, const locale&amp;) const</code>
+</p>
+
+<p>
+<code>string_type get(catalog, int, int, const string_type&amp;) const</code>
+</p>
+
+<p>
+<code>void close(catalog) const</code>
+</p>
+
+<p>
+While the virtual functions are:
+</p>
+
+<p>
+<code>catalog do_open(const string&amp;, const locale&amp;) const</code>
+</p>
+<blockquote>
+<em>
+-1- Returns: A value that may be passed to get() to retrieve a
+message, from the message catalog identified by the string name
+according to an implementation-defined mapping. The result can be used
+until it is passed to close().  Returns a value less than 0 if no such
+catalog can be opened.
+</em>
+</blockquote>
+
+<p>
+<code>string_type do_get(catalog, int, int, const string_type&amp;) const</code>
+</p>
+<blockquote>
+<em>
+-3- Requires: A catalog cat obtained from open() and not yet closed. 
+-4- Returns: A message identified by arguments set, msgid, and dfault,
+according to an implementation-defined mapping. If no such message can
+be found, returns dfault.
+</em>
+</blockquote>
+
+<p>
+<code>void do_close(catalog) const</code>
+</p>
+<blockquote>
+<em>
+-5- Requires: A catalog cat obtained from open() and not yet closed. 
+-6- Effects: Releases unspecified resources associated with cat. 
+-7- Notes: The limit on such resources, if any, is implementation-defined. 
+</em>
+</blockquote>
+
+
+<h2>
+3. Problems with &quot;C&quot; messages: thread safety,
+over-specification, and assumptions.
+</h2>
+A couple of notes on the standard. 
+
+<p>
+First, why is <code>messages_base::catalog</code> specified as a typedef
+to int? This makes sense for implementations that use
+<code>catopen</code>, but not for others. Fortunately, it's not heavily
+used and so only a minor irritant. 
+</p>
+
+<p>
+Second, by making the member functions <code>const</code>, it is
+impossible to save state in them. Thus, storing away information used
+in the 'open' member function for use in 'get' is impossible. This is
+unfortunate.
+</p>
+
+<p>
+The 'open' member function in particular seems to be oddly
+designed. The signature seems quite peculiar. Why specify a <code>const
+string&amp; </code> argument, for instance, instead of just <code>const
+char*</code>? Or, why specify a <code>const locale&amp;</code> argument that is
+to be used in the 'get' member function? How, exactly, is this locale
+argument useful? What was the intent? It might make sense if a locale
+argument was associated with a given default message string in the
+'open' member function, for instance. Quite murky and unclear, on
+reflection.
+</p>
+
+<p>
+Lastly, it seems odd that messages, which explicitly require code
+conversion, don't use the codecvt facet. Because the messages facet
+has only one template parameter, it is assumed that ctype, and not
+codecvt, is to be used to convert between character sets. 
+</p>
+
+<p>
+It is implicitly assumed that the locale for the default message
+string in 'get' is in the "C" locale. Thus, all source code is assumed
+to be written in English, so translations are always from "en_US" to
+other, explicitly named locales.
+</p>
+
+<h2>
+4. Design and Implementation Details
+</h2>
+This is a relatively simple class, on the face of it. The standard
+specifies very little in concrete terms, so generic implementations
+that are conforming yet do very little are the norm. Adding
+functionality that would be useful to programmers and comparable to
+Java's java.text.MessageFormat takes a bit of work, and is highly
+dependent on the capabilities of the underlying operating system.
+
+<p>
+Three different mechanisms have been provided, selectable via
+configure flags:
+</p>
+
+<ul>
+   <li> generic
+   <p>
+   This model does very little, and is what is used by default.   
+   </p>
+   </li>
+
+   <li> gnu
+   <p>
+   The gnu model is complete and fully tested. It's based on the
+   GNU gettext package, which is part of glibc. It uses the functions
+   <code>textdomain, bindtextdomain, gettext</code>
+   to implement full functionality. Creating message
+   catalogs is a relatively straight-forward process and is
+   lightly documented below, and fully documented in gettext's
+   distributed documentation.
+   </p>
+   </li>
+
+   <li> ieee_1003.1-200x
+   <p>
+   This is a complete, though untested, implementation based on
+   the IEEE standard. The functions
+   <code>catopen, catgets, catclose</code>
+   are used to retrieve locale-specific messages given the
+   appropriate message catalogs that have been constructed for
+   their use. Note, the script <code> po2msg.sed</code> that is part
+   of the gettext distribution can convert gettext catalogs into
+   catalogs that <code>catopen</code> can use.
+   </p>
+   </li>
+</ul>
+
+<p>
+A new, standards-conformant non-virtual member function signature was
+added for 'open' so that a directory could be specified with a given
+message catalog. This simplifies calling conventions for the gnu
+model.
+</p>
+
+<p>
+The rest of this document discusses details of the GNU model.
+</p>
+
+<p>
+The messages facet, because it is retrieving and converting between
+characters sets, depends on the ctype and perhaps the codecvt facet in
+a given locale. In addition, underlying "C" library locale support is
+necessary for more than just the <code>LC_MESSAGES</code> mask:
+<code>LC_CTYPE</code> is also necessary. To avoid any unpleasantness, all
+bits of the "C" mask (ie <code>LC_ALL</code>) are set before retrieving
+messages.
+</p>
+
+<p>
+Making the message catalogs can be initially tricky, but become quite
+simple with practice. For complete info, see the gettext
+documentation. Here's an idea of what is required:
+</p>
+
+<ul>
+   <li> Make a source file with the required string literals
+   that need to be translated. See
+   <code>intl/string_literals.cc</code> for an example.
+   </li>
+
+   <li> Make initial catalog (see "4 Making the PO Template File"
+   from the gettext docs).
+   <p>
+   <code> xgettext --c++ --debug string_literals.cc -o libstdc++.pot </code>
+   </p>
+   </li>
+   
+   <li> Make language and country-specific locale catalogs.
+   <p>
+   <code>cp libstdc++.pot fr_FR.po</code>
+   </p>
+   <p>
+   <code>cp libstdc++.pot de_DE.po</code>
+   </p>
+   </li>
+
+   <li> Edit localized catalogs in emacs so that strings are
+   translated.
+   <p>
+   <code>emacs fr_FR.po</code>
+   </p>
+   </li>
+   
+   <li> Make the binary mo files.
+   <p>
+   <code>msgfmt fr_FR.po -o fr_FR.mo</code>
+   </p>
+   <p>
+   <code>msgfmt de_DE.po -o de_DE.mo</code>
+   </p>
+   </li>
+
+   <li> Copy the binary files into the correct directory structure.
+   <p>
+   <code>cp fr_FR.mo (dir)/fr_FR/LC_MESSAGES/libstdc++-v3.mo</code>
+   </p>
+   <p>
+   <code>cp de_DE.mo (dir)/de_DE/LC_MESSAGES/libstdc++-v3.mo</code>
+   </p>
+   </li>
+
+   <li> Use the new message catalogs.
+   <p>
+   <code>locale loc_de("de_DE");</code>
+   </p>
+   <p>
+   <code>
+   use_facet&lt;messages&lt;char&gt; &gt;(loc_de).open("libstdc++", locale(), dir);
+   </code>
+   </p>
+   </li>
+</ul>
+
+<h2>
+5.  Examples
+</h2>
+
+<ul>
+   <li> message converting, simple example using the GNU model.
+
+<pre>
+#include &lt;iostream&gt;
+#include &lt;locale&gt;
+using namespace std;
+
+void test01()
+{
+  typedef messages&lt;char&gt;::catalog catalog;
+  const char* dir =
+  "/mnt/egcs/build/i686-pc-linux-gnu/libstdc++-v3/po/share/locale";  
+  const locale loc_de("de_DE");
+  const messages&lt;char&gt;&amp; mssg_de = use_facet&lt;messages&lt;char&gt; &gt;(loc_de); 
+
+  catalog cat_de = mssg_de.open("libstdc++", loc_de, dir);
+  string s01 = mssg_de.get(cat_de, 0, 0, "please");
+  string s02 = mssg_de.get(cat_de, 0, 0, "thank you");
+  cout &lt;&lt; "please in german:" &lt;&lt; s01 &lt;&lt; '\n';
+  cout &lt;&lt; "thank you in german:" &lt;&lt; s02 &lt;&lt; '\n';
+  mssg_de.close(cat_de);
+}
+</pre>
+   </li>
+</ul>
+
+More information can be found in the following testcases:
+<ul>
+<li> testsuite/22_locale/messages.cc              </li>
+<li> testsuite/22_locale/messages_byname.cc       </li>
+<li> testsuite/22_locale/messages_char_members.cc </li>
+</ul>
+
+<h2>
+6.  Unresolved Issues
+</h2>
+<ul>
+<li>  Things that are sketchy, or remain unimplemented:
+   <ul>
+      <li>_M_convert_from_char, _M_convert_to_char are in
+      flux, depending on how the library ends up doing
+      character set conversions. It might not be possible to
+      do a real character set based conversion, due to the
+      fact that the template parameter for messages is not
+      enough to instantiate the codecvt facet (1 supplied,
+      need at least 2 but would prefer 3).
+      </li>
+
+      <li> There are issues with gettext needing the global
+      locale set to extract a message. This dependence on
+      the global locale makes the current "gnu" model non
+      MT-safe. Future versions of glibc, ie glibc 2.3.x will
+      fix this, and the C++ library bits are already in
+      place.
+      </li>
+   </ul>
+</li>
+
+<li>  Development versions of the GNU "C" library, glibc 2.3 will allow
+   a more efficient, MT implementation of std::messages, and will
+   allow the removal of the _M_name_messages data member. If this
+   is done, it will change the library ABI. The C++ parts to
+   support glibc 2.3 have already been coded, but are not in use:
+   once this version of the "C" library is released, the marked
+   parts of the messages implementation can be switched over to
+   the new "C" library functionality. 
+</li>
+<li>    At some point in the near future, std::numpunct will probably use
+   std::messages facilities to implement truename/falename
+   correctly. This is currently not done, but entries in
+   libstdc++.pot have already been made for "true" and "false"
+   string literals, so all that remains is the std::numpunct
+   coding and the configure/make hassles to make the installed
+   library search its own catalog. Currently the libstdc++.mo
+   catalog is only searched for the testsuite cases involving
+   messages members.
+</li>
+
+<li>  The following member functions:
+
+   <p>
+   <code>
+        catalog 
+        open(const basic_string&lt;char&gt;&amp; __s, const locale&amp; __loc) const
+   </code>
+   </p>
+
+   <p>
+   <code>
+   catalog 
+   open(const basic_string&lt;char&gt;&amp;, const locale&amp;, const char*) const;
+   </code>
+   </p>
+
+   <p>
+   Don't actually return a "value less than 0 if no such catalog
+   can be opened" as required by the standard in the "gnu"
+   model. As of this writing, it is unknown how to query to see
+   if a specified message catalog exists using the gettext
+   package.
+   </p>
+</li>
+</ul>
+
+<h2>
+7. Acknowledgments
+</h2>
+Ulrich Drepper for the character set explanations, gettext details,
+and patient answering of late-night questions, Tom Tromey for the java details.
+
+
+<h2>
+8. Bibliography / Referenced Documents
+</h2>
+
+Drepper, Ulrich, GNU libc (glibc) 2.2 manual. In particular, Chapters
+&quot;7 Locales and Internationalization&quot;
+
+<p>
+Drepper, Ulrich, Thread-Aware Locale Model, A proposal. This is a
+draft document describing the design of glibc 2.3 MT locale
+functionality.
+</p>
+
+<p>
+Drepper, Ulrich, Numerous, late-night email correspondence
+</p>
+
+<p>
+ISO/IEC 9899:1999 Programming languages - C
+</p>
+
+<p>
+ISO/IEC 14882:1998 Programming languages - C++
+</p>
+
+<p>
+Java 2 Platform, Standard Edition, v 1.3.1 API Specification. In
+particular, java.util.Properties, java.text.MessageFormat,
+java.util.Locale, java.util.ResourceBundle.
+http://java.sun.com/j2se/1.3/docs/api
+</p>
+
+<p>
+System Interface Definitions, Issue 7 (IEEE Std. 1003.1-200x)
+The Open Group/The Institute of Electrical and Electronics Engineers, Inc.
+In particular see lines 5268-5427.
+http://www.opennc.org/austin/docreg.html
+</p>
+
+<p> GNU gettext tools, version 0.10.38, Native Language Support
+Library and Tools. 
+http://sources.redhat.com/gettext
+</p>
+
+<p>
+Langer, Angelika and Klaus Kreft, Standard C++ IOStreams and Locales,
+Advanced Programmer's Guide and Reference, Addison Wesley Longman,
+Inc. 2000. See page 725, Internationalized Messages.
+</p>
+
+<p>
+Stroustrup, Bjarne, Appendix D, The C++ Programming Language, Special Edition, Addison Wesley, Inc. 2000
+</p>
+
+</body>
+</html>
+

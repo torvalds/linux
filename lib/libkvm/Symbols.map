@@ -1,0 +1,21 @@
+{
+	global:
+		kvm_close;
+		kvm_dump_inval;
+		kvm_dump_mkheader;
+		kvm_dump_wrtheader;
+		kvm_getargv;
+		kvm_getenvv;
+		kvm_geterr;
+		kvm_getfiles;
+		kvm_getloadavg;
+		kvm_getprocs;
+		kvm_nlist;
+		kvm_open;
+		kvm_openfiles;
+		kvm_read;
+		kvm_write;
+
+	local:
+		*;
+};

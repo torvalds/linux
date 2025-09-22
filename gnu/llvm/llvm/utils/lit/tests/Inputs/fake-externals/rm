@@ -1,0 +1,5 @@
+#!/usr/bin/env python
+
+import fake_external
+
+fake_external.execute(__file__)

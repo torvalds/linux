@@ -1,0 +1,95 @@
+.\"     $OpenBSD: install.site.5,v 1.1 2021/11/08 16:12:09 kn Exp $
+.\"
+.\" Copyright (c) 2021 Klemens Nanni <kn@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 8 2021 $
+.Dt INSTALL.SITE 5
+.Os
+.Sh NAME
+.Nm install.site ,
+.Nm upgrade.site
+.Nd OpenBSD installation and upgrade customization
+.Sh DESCRIPTION
+The
+.Ox
+installer allows user-created sets and scripts to complement
+and modify the files from a default install prior to rebooting.
+.Pp
+Like the official file sets, generic
+.Pa site${ Ns Va VERSION Ns }.tgz
+and
+hostname-specific
+.Pa site${ Ns Va VERSION Ns }-$( Ns Ic hostname Fl s Ns ).tgz
+sets are
+.Xr gzip 1
+compressed
+.Xr tar 1
+archives rooted in
+.Pa /
+and untarred with the
+.Fl xzphf
+options.
+.Pp
+.Em siteXY
+sets
+must be included in
+.Pa index.txt
+in order to be fetched via
+HTTP(S) and selectable in the installer.
+.Pp
+If they exist and are executable,
+.Pa /install.site
+and
+.Pa /upgrade.site
+are run at the end of the install and upgrade process, respectively, with
+.Xr chroot 8
+based at the system's root.
+.Sh FILES
+.Bl -tag -width "site${VERSION}-$(hostname -s).tgz" -compact
+.It Pa site${ Ns Va VERSION Ns }.tgz
+Generic set.
+.It Pa site${ Ns Va VERSION Ns }-$( Ns Ic hostname Fl s Ns ).tgz
+Host-specific set.
+.It Pa /upgrade.site
+Generic post-upgrade script.
+.It Pa /install.site
+Generic post-install script.
+.El
+.Sh EXAMPLES
+Create
+.Em site70
+sets and update the index:
+.Bd -literal -offset indent
+# tar -czhf site70.tgz generic/
+# tar -czhf site70-puffy.tgz puffy/
+# ls -lT > index.txt
+.Ed
+.Pp
+Upgrade
+.Xr packages 7
+upon reboot after
+.Xr sysupgrade 8
+upgraded the system:
+.Bd -literal -offset indent
+# cat <<- EOF >> /upgrade.site
+	echo 'pkg_add -Iu' >>/etc/rc.firsttime
+EOF
+# chmod +x /upgrade.site
+# sysupgrade
+.Ed
+.Sh SEE ALSO
+.Xr autoinstall 8 ,
+.Xr rc 8 ,
+.Xr sysupgrade 8

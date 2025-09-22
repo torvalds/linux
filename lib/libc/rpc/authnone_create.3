@@ -1,0 +1,130 @@
+.\"	$OpenBSD: authnone_create.3,v 1.3 2013/06/05 03:39:23 tedu Exp $
+.\" Mostly converted to mandoc by Theo de Raadt, Tue Feb 24 04:04:46 MST 1998
+.\"
+.\" Copyright (c) 2010, Oracle America, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"     * Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"     * Redistributions in binary form must reproduce the above
+.\"       copyright notice, this list of conditions and the following
+.\"       disclaimer in the documentation and/or other materials
+.\"       provided with the distribution.
+.\"     * Neither the name of the "Oracle America, Inc." nor the names of its
+.\"       contributors may be used to endorse or promote products derived
+.\"       from this software without specific prior written permission.
+.\"
+.\"   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\"   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\"   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\"   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\"   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+.\"   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\"   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\"   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\"   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\"   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\"   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt AUTHNONE_CREATE 3
+.Os
+.Sh NAME
+.Nm auth_destroy ,
+.Nm authnone_create ,
+.Nm authunix_create ,
+.Nm authunix_create_default ,
+.Nm set_rpc_maxgrouplist
+.Nd library routines for remote procedure calls
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft void
+.Fn auth_destroy "AUTH *auth"
+.Ft AUTH *
+.Fn authnone_create "void"
+.Ft AUTH *
+.Fn authunix_create "char *host" "int uid" "int gid" "int len" "int *aup.gids"
+.Ft AUTH *
+.Fn authunix_create_default "void"
+.Ft void
+.Fn set_rpc_maxgrouplist "int num"
+.Sh DESCRIPTION
+These routines establish authentication information for use by the
+RPC functions described in
+.Xr rpc 3 .
+.Pp
+.Fn auth_destroy
+is a macro that destroys the authentication information associated with
+.Fa auth .
+Destruction usually involves deallocation of private data structures.
+The use of
+.Fa auth
+is undefined after calling
+.Fn auth_destroy .
+.Pp
+.Fn authnone_create
+creates and returns an RPC
+authentication handle that passes nonusable authentication
+information with each remote procedure call.
+This is the default authentication used by RPC.
+.Pp
+.Fn authunix_create
+creates and returns an RPC authentication handle that contains
+.Ux
+authentication information.
+The parameter
+.Fa host
+is the name of the machine on which the information was
+created;
+.Fa uid
+is the user's user ID;
+.Fa gid
+is the user's current group ID;
+.Fa len
+and
+.Fa aup_gids
+refer to a counted array of groups to which the user belongs.
+It is easy to impersonate a user.
+.Pp
+.Fn authunix_create_default
+calls
+.Fn authunix_create
+with the appropriate parameters.
+.Pp
+.Fn set_rpc_maxgrouplist
+allows the application to set the maximum size of the group list that
+will be used in
+.Fn authunix_create_default
+to
+.Fa num .
+Some servers will refuse mounts if the group list is larger than it
+expects (like 8).
+.Sh SEE ALSO
+.\"Xr rpc_secure 3 ,
+.Xr rpcgen 1 ,
+.Xr select 2 ,
+.Xr getrpcport 3 ,
+.Xr rpc 3 ,
+.Xr xdr 3 ,
+.Xr rpc 5 ,
+.Xr portmap 8
+.Rs
+.%T Remote Procedure Calls: Protocol Specification
+.Re
+.Rs
+.%T Remote Procedure Call Programming Guide
+.Re
+.Rs
+.%T rpcgen Programming Guide
+.Re
+.Sh STANDARDS
+.Rs
+.%D June 1988
+.%Q Sun Microsystems, Inc.
+.%R RFC 1057
+.%T RPC: Remote Procedure Call Protocol Specification Version 2
+.Re

@@ -1,0 +1,121 @@
+.\"	$OpenBSD: getpeereid.3,v 1.4 2022/09/11 06:38:10 jmc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.Dd $Mdocdate: September 11 2022 $
+.Dt GETPEEREID 3
+.Os
+.Sh NAME
+.Nm getpeereid
+.Nd get effective user and group identification of locally-connected peer
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.Ft int
+.Fn getpeereid "int s" "uid_t *euid" "gid_t *egid"
+.Sh DESCRIPTION
+.Fn getpeereid
+returns the effective user ID and group ID of the peer connected to
+a
+.Ux Ns -domain
+socket (see
+.Xr unix 4 ) .
+The argument
+.Fa s
+must be of type
+.Dv SOCK_STREAM
+or
+.Dv SOCK_SEQPACKET .
+.Pp
+One common use is for
+.Ux Ns -domain
+servers to determine the credentials of clients that have connected to it.
+.Pp
+.Fn getpeereid
+takes three parameters:
+.Bl -bullet
+.It
+.Fa s
+contains the file descriptor of the socket whose peer credentials
+should be looked up.
+.It
+.Fa euid
+points to a
+.Vt uid_t
+variable into which the effective user ID for the connected peer will
+be stored.
+.It
+.Fa egid
+points to a
+.Vt gid_t
+variable into which the effective group ID for the connected peer will
+be stored.
+.El
+.Sh RETURN VALUES
+If the call succeeds, a 0 is returned and
+.Fa euid
+and
+.Fa egid
+are set to the effective user ID and group ID of the connected peer.
+Otherwise,
+.Va errno
+is set and a value of \-1 is returned.
+.Sh ERRORS
+On failure,
+.Va errno
+is set to one of the following:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The argument
+.Fa s
+is not a valid descriptor.
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+is a file, not a socket.
+.It Bq Er EOPNOTSUPP
+The socket is not in the
+.Ux Ns -domain .
+.It Bq Er ENOTCONN
+The socket is not connected.
+.It Bq Er ENOBUFS
+Insufficient resources were available in the system
+to perform the operation.
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr bind 2 ,
+.Xr getpeername 2 ,
+.Xr getsockname 2 ,
+.Xr getsockopt 2 ,
+.Xr socket 2 ,
+.Xr unix 4
+.Sh HISTORY
+The
+.Fn getpeereid
+function call appeared in
+.Ox 3.0 .

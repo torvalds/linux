@@ -1,0 +1,9 @@
+static_library("CFGuard") {
+  output_name = "LLVMCFGuard"
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "CFGuard.cpp" ]
+}

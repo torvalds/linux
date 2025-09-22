@@ -1,0 +1,6 @@
+# Install gmm_malloc.h as mm_malloc.h.
+
+EXTRA_HEADERS += mm_malloc.h
+mm_malloc.h: $(srcdir)/config/i386/gmm_malloc.h
+	rm -f $@
+	cat $^ > $@

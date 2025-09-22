@@ -1,0 +1,62 @@
+.\" 	$OpenBSD: isduid.3,v 1.5 2025/06/06 22:01:40 schwarze Exp $
+.\"
+.\" * Copyright (c) Joel Sing <jsing@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt ISDUID 3
+.Os
+.Sh NAME
+.Nm isduid
+.Nd disklabel UID test
+.Sh SYNOPSIS
+.Lb libutil
+.In util.h
+.Ft int
+.Fn isduid "char *duid" "int dflags"
+.Sh DESCRIPTION
+The
+.Fn isduid
+function tests the string
+.Fa duid
+to see if it is a valid
+.Xr disklabel 8
+UID.
+The
+.Fa dflags
+are specified using the same flags as used by
+.Xr opendev 3 .
+.Pp
+If the OPENDEV_PART flag is included in
+.Fa dflags ,
+the disklabel UID must consist of a 16-character hexadecimal string.
+Otherwise the disklabel UID must consist of a 16-character hexadecimal string
+followed by a
+.Sq \&.
+and a partition letter.
+.Sh RETURN VALUES
+The
+.Fn isduid
+function returns non-zero if
+.Fa duid
+is a valid DUID, otherwise zero is returned.
+.Sh SEE ALSO
+.Xr opendev 3 ,
+.Xr disklabel 5 ,
+.Xr disklabel 8
+.Sh HISTORY
+The
+.Fn isduid
+function first appeared in
+.Ox 4.9 .

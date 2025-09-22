@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>Priority Queue Text Pop Memory Use Test</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1>Priority Queue Text <tt>pop</tt> Memory Use Test</h1>
+<h2><a name="description" id="description">Description</a></h2>
+<p>This test inserts a number of values with keys from an
+    arbitrary text ([ <a href="references.html#wickland96thirty">wickland96thirty</a> ]) into
+    a container, then pops them until only one is left in the
+    container. It measures the memory use as a function of the
+    number of values pushed to the container.</p>
+<p>(The test was executed with <a href="../../../../testsuite/performance/ext/pb_ds/priority_queue_text_pop_mem_usage.cc"><tt>priority_queue_text_pop_mem_usage_test</tt></a>
+    thirty_years_among_the_dead_preproc.txt 200 200 2100)</p>
+<h2><a name="purpose" id="purpose">Purpose</a></h2>
+<p>The test checks the effect of different underlying
+    data structures (see <a href="pq_design.html#pq_imp">Design::Priority
+    Queues::Implementations</a>).</p>
+<h2><a name="results" id="results">Results</a></h2>
+<p>Figures <a href="#NPG">NPG</a>, <a href="#NPM">NPM</a>, and
+    <a href="#NPL">NPL</a> show the results for the native priority
+    queues and <tt>pb_ds</tt> 's priority queues in <a href="pq_performance_tests.html#gcc"><u>g++</u></a>, <a href="pq_performance_tests.html#msvc"><u>msvc++</u></a>, and
+    <a href="pq_performance_tests.html#local"><u>local</u></a>,
+    respectively.</p>
+<div id="NPG_res_div">
+<div id="NPG_gcc">
+<div id="NPG_priority_queue_text_pop_mem_usage_test">
+<div id="NPG_pq">
+<div id="NPG_Native_and__tt_pb_ds_455tt__priority_queue__tt_pop_455tt__memory-use_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPG" id="NPG"><img src="priority_queue_text_pop_mem_usage_test_gcc.png" alt="no image" /></a></h6>NPG: Native and <tt>pb ds</tt> priority queue <tt>pop</tt> memory-use test - <a href="pq_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_pq_vector-
+<tt>std::priority_queue</tt> adapting <tt>std::vector</tt></li>
+<li>
+n_pq_deque-
+<tt>std::priority_queue</tt> adapting <tt>std::deque</tt></li>
+<li>
+binary_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binary_heap_tag.html"><tt>binary_heap_tag</tt></a>
+</li>
+<li>
+thin_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="thin_heap_tag.html"><tt>thin_heap_tag</tt></a>
+</li>
+<li>
+binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binomial_heap_tag.html"><tt>binomial_heap_tag</tt></a>
+</li>
+<li>
+rc_binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="rc_binomial_heap_tag.html"><tt>rc_binomial_heap_tag</tt></a>
+</li>
+<li>
+pairing_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NPM_res_div">
+<div id="NPM_msvc">
+<div id="NPM_priority_queue_text_pop_mem_usage_test">
+<div id="NPM_pq">
+<div id="NPM_Native_and__tt_pb_ds_455tt__priority_queue__tt_pop_455tt__memory-use_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPM" id="NPM"><img src="priority_queue_text_pop_mem_usage_test_msvc.png" alt="no image" /></a></h6>NPM: Native and <tt>pb ds</tt> priority queue <tt>pop</tt> memory-use test - <a href="pq_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_pq_vector-
+<tt>std::priority_queue</tt> adapting <tt>std::vector</tt></li>
+<li>
+n_pq_deque-
+<tt>std::priority_queue</tt> adapting <tt>std::deque</tt></li>
+<li>
+binary_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binary_heap_tag.html"><tt>binary_heap_tag</tt></a>
+</li>
+<li>
+thin_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="thin_heap_tag.html"><tt>thin_heap_tag</tt></a>
+</li>
+<li>
+binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binomial_heap_tag.html"><tt>binomial_heap_tag</tt></a>
+</li>
+<li>
+rc_binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="rc_binomial_heap_tag.html"><tt>rc_binomial_heap_tag</tt></a>
+</li>
+<li>
+pairing_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NPL_res_div">
+<div id="NPL_local">
+<div id="NPL_priority_queue_text_pop_mem_usage_test">
+<div id="NPL_pq">
+<div id="NPL_Native_and__tt_pb_ds_455tt__priority_queue__tt_pop_455tt__memory-use_test"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPL" id= "NPL"><img src="priority_queue_text_pop_mem_usage_test_local.png" alt="no image" /></a></h6>NPL: Native and <tt>pb ds</tt> priority queue <tt>pop</tt> memory-use test - <a href = "pq_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<h2><a name="observations" id="observations">Observations</a></h2>
+<p>The priority queue implementations (excluding the STL's) use
+    memory proportionally to the number of values they hold:
+    node-based implementations (<i>e.g.</i>, a pairing heap) do so
+    naturally; <tt>pb_ds</tt>'s binary heap de-allocates memory when
+    a certain lower threshold is exceeded.</p>
+<p>Note from <a href="priority_queue_text_push_pop_timing_test.html">Priority Queue
+    Text <tt>push</tt> and <tt>pop</tt> Timing Test</a> and
+    <a href="priority_queue_random_int_push_pop_timing_test.html">Priority
+    Queue Random Integer <tt>push</tt> and <tt>pop</tt> Timing
+    Test</a> that this does not impede performance compared to the
+    STL's priority queues.</p>
+<p>(See <a href="hash_random_int_erase_mem_usage_test.html">Hash-Based Erase
+    Memory Use Test</a> for a similar phenomenon regarding priority
+    queues.)</p>
+</div>
+</body>
+</html>

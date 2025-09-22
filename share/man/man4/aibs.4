@@ -1,0 +1,183 @@
+.\"	$OpenBSD: aibs.4,v 1.7 2018/01/12 04:36:44 deraadt Exp $
+.\"
+.\" Copyright (c) 2009 Constantine A. Murenin <cnst+openbsd@bugmail.mojo.ru>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 12 2018 $
+.Dt AIBS 4
+.Os
+.Sh NAME
+.Nm aibs
+.Nd ASUSTeK AI Booster ACPI ATK0110 temperature, voltage, and fan sensor
+.Sh SYNOPSIS
+.Cd "aibs* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the voltage, temperature and fan sensors
+available through the
+ATK0110
+ACPI
+device
+on ASUSTeK motherboards.
+The number of sensors of each type,
+as well as the description of each sensor,
+varies according to the motherboard.
+.Pp
+The driver supports an arbitrary set of sensors,
+provides a description regarding what each sensor is used for,
+and reports whether each sensor is within the specifications
+as defined by the motherboard manufacturer through ACPI.
+.Pp
+The
+.Nm
+driver supports sensor states as follows:
+temperature sensors can have a state of
+.Dv OK ,
+.Dv WARN ,
+.Dv CRIT
+or
+.Dv UNKNOWN ;
+fan and voltage sensors can have a state of
+.Dv OK
+or
+.Dv WARN
+only.
+Temperature sensors that have a reading of 0
+are marked as invalid and their state is set to
+.Dv UNKNOWN ,
+whereas all other sensors are always assumed valid.
+Temperature sensors have two upper limits
+.Dv ( WARN
+and
+.Dv CRIT ) ,
+fan sensors have either only the lower limit, or
+one lower and one upper limit,
+and voltage sensors always have a lower and an upper limit.
+.Pp
+Sensor values are made available through the
+.Dv HW_SENSORS
+.Xr sysctl 2
+interface,
+and can be monitored with the
+.Xr systat 1
+.Ar sensors
+view,
+.Xr sensorsd 8 ,
+or
+.Xr sysctl 8
+.Ar hw.sensors .
+For example, on an Asus Stricker Extreme motherboard:
+.Bd -literal -offset indent
+$ sysctl hw.sensors.aibs0
+hw.sensors.aibs0.temp0=31.00 degC (CPU Temperature), OK
+hw.sensors.aibs0.temp1=43.00 degC (MB Temperature), OK
+hw.sensors.aibs0.fan0=2490 RPM (CPU FAN Speed), OK
+hw.sensors.aibs0.fan1=0 RPM (CHASSIS FAN Speed), WARNING
+hw.sensors.aibs0.fan2=0 RPM (OPT1 FAN Speed), WARNING
+hw.sensors.aibs0.fan3=0 RPM (OPT2 FAN Speed), WARNING
+hw.sensors.aibs0.fan4=0 RPM (OPT3 FAN Speed), WARNING
+hw.sensors.aibs0.fan5=0 RPM (OPT4 FAN Speed), WARNING
+hw.sensors.aibs0.fan6=0 RPM (OPT5 FAN Speed), WARNING
+hw.sensors.aibs0.fan7=0 RPM (PWR FAN Speed), WARNING
+hw.sensors.aibs0.volt0=1.26 VDC (Vcore Voltage), OK
+hw.sensors.aibs0.volt1=3.25 VDC ( +3.3 Voltage), OK
+hw.sensors.aibs0.volt2=4.95 VDC ( +5.0 Voltage), OK
+hw.sensors.aibs0.volt3=11.78 VDC (+12.0 Voltage), OK
+hw.sensors.aibs0.volt4=1.23 VDC (1.2VHT Voltage), OK
+hw.sensors.aibs0.volt5=1.50 VDC (SB CORE Voltage), OK
+hw.sensors.aibs0.volt6=1.25 VDC (CPU VTT Voltage), OK
+hw.sensors.aibs0.volt7=0.93 VDC (DDR2 TERM Voltage), OK
+hw.sensors.aibs0.volt8=1.23 VDC (NB CORE Voltage), OK
+hw.sensors.aibs0.volt9=1.87 VDC (MEMORY Voltage), OK
+.Ed
+.Pp
+Generally, sensors provided by the
+.Nm
+driver may also be supported by a variety of other drivers,
+such as
+.Xr lm 4
+or
+.Xr it 4 .
+The precise collection of
+.Nm
+sensors is comprised of the sensors
+specifically utilised in the motherboard
+design, which may be supported through
+a combination of one or more physical hardware monitoring chips.
+.Pp
+The
+.Nm
+driver, however, provides the following advantages
+when compared to the native hardware monitoring drivers:
+.Bl -bullet
+.It
+Sensor values from
+.Nm
+are expected to be more reliable.
+For example, voltage sensors in many hardware monitoring chips
+can only sense voltage from 0 to 2 or 4 volts, and the excessive
+voltage is removed by the resistors, which may vary with the motherboard
+and with the voltage that is being sensed.
+In
+.Nm ,
+the required resistor factors are provided by
+the motherboard manufacturer through ACPI;
+in the native drivers, the resistor factors
+are encoded into the driver based on the chip manufacturer's recommendations.
+In essence, sensor values from
+.Nm
+are very likely to be identical to the readings from the
+Hardware Monitor screen in the BIOS.
+.It
+Sensor descriptions from
+.Nm
+are more likely to match the markings on the motherboard.
+.It
+Sensor status is supported by
+.Nm .
+The status is reported based on the acceptable range of values
+for each individual sensor as suggested by the motherboard manufacturer.
+For example, the threshold for the CPU temperature sensor is likely
+to be significantly higher than that for the chassis temperature sensor.
+.It
+Support for newer chips in
+.Nm .
+Newer chips may miss a native driver,
+but should be supported through
+.Nm
+regardless.
+.El
+.Pp
+As a result, sensor readings from the actual
+native hardware monitoring drivers
+may be ignored as appropriate.
+.Sh SEE ALSO
+.Xr systat 1 ,
+.Xr sysctl 2 ,
+.Xr acpi 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.7 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Constantine A. Murenin Aq Mt cnst@openbsd.org ,
+University of Waterloo.

@@ -1,0 +1,151 @@
+.\" $OpenBSD: clang-local.1,v 1.24 2024/06/02 15:40:43 deraadt Exp $
+.\"
+.\" Copyright (c) 2016 Pascal Stumpf <pascal@stumpf.co>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: June 2 2024 $
+.Dt CLANG-LOCAL 1
+.Os
+.Sh NAME
+.Nm clang-local
+.Nd OpenBSD-specific behavior of LLVM/clang
+.Sh DESCRIPTION
+On
+.Ox ,
+the LLVM/clang compiler exhibits the following characteristics:
+.Bl -dash
+.It
+.Nm clang
+does not search under
+.Pa /usr/local
+for include files or libraries:
+as a system compiler, it only searches the system paths by default.
+.It
+.Nm clang
+comes with stack protection enabled by default, equivalent to the
+.Fl fstack-protector-strong
+option on other systems.
+The system will report any violation of the stack protector cookie along
+with the function name via
+.Xr syslog 3
+at
+.Dv LOG_CRIT
+priority.
+.It
+.Nm clang
+will generate PIE code by default, allowing the system to load the resulting
+binary at a random location.
+This behavior can be turned off by passing
+.Fl fno-pie
+to the compiler and
+.Fl nopie
+to the linker.
+It is also turned off when the
+.Fl pg
+flag is used.
+.It
+The
+.Fl fstrict-aliasing
+option is turned off by default unless
+.Fl Ofast
+has been selected.
+.It
+.Nm clang
+does not store its version string in objects.
+There is no option to control this.
+.It
+The
+.Fl p
+flag is an alias of
+.Fl pg .
+.It
+.Nm clang
+does not warn for passing pointer arguments or assignment with
+different signedness outside of
+.Fl pedantic .
+This can be
+re-enabled with the
+.Fl Wpointer-sign
+flag.
+.It
+The warning option
+.Fl Waddress-of-packed-member
+is disabled by default.
+.It
+Color diagnostic messages are disabled by default and can be re-enabled with
+.Fl fdiagnostics-color .
+.It
+The
+.Fl fwrapv
+option to treat signed integer overflows as defined is enabled by default to
+prevent dangerous optimizations which could remove security critical overflow
+checks.
+.It
+The base system includes the ubsan_minimal sanitizer runtime
+but not the fully-featured ubsan runtime.
+See the documentation for the
+.Fl fsanitize-minimal-runtime
+flag.
+.It
+The
+.Xr malloc 3 ,
+.Xr calloc 3 ,
+.Xr realloc 3 ,
+.Xr strdup 3 ,
+.Xr strndup 3 ,
+.Xr valloc 3
+and
+.Xr free 3
+builtins are disabled to prevent undesirable optimizations of calls to
+these functions.
+.It
+.Nm clang
+includes a security pass that exchanges some ROP-friendly instructions
+with safer alternatives on i386 and amd64.
+This can be disabled with the
+.Fl fno-fixup-gadgets
+option.
+.It
+.Nm clang
+includes a security pass that can clear the return address on the
+stack upon return from calling a function, on i386 and amd64.
+This can be enabled with the
+.Fl fret-clean
+option.
+.It
+.Nm clang
+includes the retguard security feature on amd64, arm64, mips64, powerpc
+and powerpc64.
+This feature can be disabled with the
+.Fl fno-ret-protector
+or
+.Fl fno-stack-protector
+options.
+.It
+.Nm clang
+has
+.Fl mretpoline
+enabled by default on amd64 to protect against branch target injection attacks.
+It can be disabled with
+.Fl mno-retpoline .
+.It
+A new warning for
+.Cm %n
+format specifier usage in
+.Xr printf 3
+family functions has been added.
+.El
+.Sh SEE ALSO
+.Xr clang 1

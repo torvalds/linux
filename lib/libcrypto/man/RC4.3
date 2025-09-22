@@ -1,0 +1,127 @@
+.\"	$OpenBSD: RC4.3,v 1.9 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RC4 3
+.Os
+.Sh NAME
+.Nm RC4_set_key ,
+.Nm RC4
+.Nd RC4 encryption
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rc4.h
+.Ft void
+.Fo RC4_set_key
+.Fa "RC4_KEY *key"
+.Fa "int len"
+.Fa "const unsigned char *data"
+.Fc
+.Ft void
+.Fo RC4
+.Fa "RC4_KEY *key"
+.Fa "unsigned long len"
+.Fa "const unsigned char *indata"
+.Fa "unsigned char *outdata"
+.Fc
+.Sh DESCRIPTION
+This library implements the alleged RC4 cipher, which is described for
+example in
+.Qq Applied Cryptography .
+It is believed to be compatible with RC4[TM], a proprietary cipher of
+RSA Security Inc.
+.Pp
+RC4 is a stream cipher with variable key length.
+Typically, 128-bit (16-byte) keys are used for strong encryption, but
+shorter insecure key sizes have been widely used due to export
+restrictions.
+.Pp
+RC4 consists of a key setup phase and the actual encryption or
+decryption phase.
+.Pp
+.Fn RC4_set_key
+sets up the
+.Vt RC4_KEY
+.Fa key
+using the
+.Fa len
+bytes long key at
+.Fa data .
+.Pp
+.Fn RC4
+encrypts or decrypts the
+.Fa len
+bytes of data at
+.Fa indata
+using
+.Fa key
+and places the result at
+.Fa outdata .
+Repeated
+.Fn RC4
+calls with the same
+.Fa key
+yield a continuous key stream.
+.Pp
+Since RC4 is a stream cipher (the input is XOR'ed with a pseudo-random
+key stream to produce the output), decryption uses the same function
+calls as encryption.
+.Sh SEE ALSO
+.Xr blowfish 3 ,
+.Xr EVP_EncryptInit 3 ,
+.Xr EVP_rc4 3
+.Sh HISTORY
+.Fn RC4_set_key
+and
+.Fn RC4
+appeared in SSLeay 0.4 or earlier and have been available since
+.Ox 2.4 .
+.Sh BUGS
+This cipher is broken and should no longer be used.

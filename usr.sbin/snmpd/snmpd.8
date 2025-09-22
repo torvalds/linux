@@ -1,0 +1,117 @@
+.\" $OpenBSD: snmpd.8,v 1.24 2023/03/02 17:09:54 jmc Exp $
+.\"
+.\" Copyright (c) 2007, 2008 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt SNMPD 8
+.Os
+.Sh NAME
+.Nm snmpd
+.Nd Simple Network Management Protocol (SNMP) daemon
+.Sh SYNOPSIS
+.Nm snmpd
+.Op Fl dNnv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Sh DESCRIPTION
+.Nm
+is a daemon which implements the SNMP protocol.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize and log to
+.Em stderr .
+.It Fl f Ar file
+Use
+.Ar file
+as the configuration file, instead of the default
+.Pa /etc/snmpd.conf .
+.It Fl N
+Show numeric OID values instead of their symbolic names.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl v
+Produce more verbose output.
+.El
+.Sh FILES
+.Bl -tag -width "/usr/share/snmp/mibs/XXXX" -compact
+.It Pa /etc/snmpd.conf
+default
+.Nm
+configuration file
+.It Pa /usr/share/snmp/mibs/*
+.Nm
+Management Information Base definitions
+.El
+.Sh SEE ALSO
+.Xr snmp 1 ,
+.Xr snmpd.conf 5
+.Sh STANDARDS
+.Rs
+.%A U. Blumenthal
+.%A B. Wijnen
+.%D December 2002
+.%R RFC 3414
+.%T User-based Security Model (USM) for version 3 of the Simple Network Management Protocol (SNMPv3)
+.Re
+.Pp
+.Rs
+.%A R. Presuhn
+.%D December 2002
+.%R RFC 3416
+.%T Version 2 of the Protocol Operations for the Simple Network Management Protocol (SNMP)
+.Re
+.Pp
+.Rs
+.%A R. Presuhn
+.%D December 2002
+.%R RFC 3417
+.%T Transport Mappings for the Simple Network Management Protocol (SNMP)
+.Re
+.Pp
+.Rs
+.%A R. Presuhn
+.%D December 2002
+.%R RFC 3418
+.%T Management Information Base (MIB) for the Simple Network Management Protocol (SNMP)
+.Re
+.Pp
+.Rs
+.%A U. Blumenthal
+.%D June 2004
+.%R RFC 3826
+.%T The Advanced Encryption Standard (AES) Cipher Algorithm in the SNMP User-based Security Model
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.3 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

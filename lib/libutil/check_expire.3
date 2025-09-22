@@ -1,0 +1,63 @@
+.\"	$OpenBSD: check_expire.3,v 1.12 2025/06/06 22:01:39 schwarze Exp $
+.\"
+.\" Copyright (c) 2000 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt LOGIN_CHECK_EXPIRE 3
+.Os
+.Sh NAME
+.Nm login_check_expire
+.Nd check for password expiration
+.Sh SYNOPSIS
+.Lb libutil
+.In stdio.h
+.In util.h
+.Ft int
+.Fn login_check_expire "FILE *back" "struct passwd *pwd" "char *class" "int lastchance"
+.Sh DESCRIPTION
+The
+.Fn login_check_expire
+function is called by a
+.Bx
+Authentication login script to
+check whether the user's password entry, as described by
+.Fa pwd ,
+has expired.
+.Pp
+If a
+.Fa class
+is specified, it is used instead of the class specified in the user's
+password database entry.
+If the
+.Fa lastchance
+argument is non-zero, the user's password has expired, and it has not been
+expired longer than
+.Dq password-dead
+seconds (see
+.Xr login.conf 5 ) ,
+the user will be able to log in one last time to change the password.
+.Sh RETURN VALUES
+The
+.Fn login_check_expire
+function returns 0 if the user's password has not expired, and 1 if it has
+expired or if an error occurred.
+.br
+Status and error messages are passed
+back to the login script caller via the back channel,
+.Fa back .
+.Sh SEE ALSO
+.Xr auth_subr 3 ,
+.Xr authenticate 3 ,
+.Xr login.conf 5

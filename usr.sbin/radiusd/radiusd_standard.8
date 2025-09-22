@@ -1,0 +1,77 @@
+.\"	$OpenBSD: radiusd_standard.8,v 1.4 2024/08/04 03:56:57 yasuoka Exp $
+.\"
+.\" Copyright (c) 2014 Esdenera Networks GmbH
+.\" Copyright (c) 2014, 2024 Internet Initiative Japan Inc.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The following requests are required for all man pages.
+.\"
+.Dd $Mdocdate: August 4 2024 $
+.Dt RADIUSD_STANDARD 8
+.Os
+.Sh NAME
+.Nm radiusd_standard
+.Nd provide standard decorations for RADIUS messages
+.Sh SYNOPSIS
+.Nm radiusd_standard
+.Sh DESCRIPTION
+The
+.Nm
+utility is executed by
+.Xr radiusd 8
+as a module to provide various standard functionalities.
+It can be configured as a module for decoration which modifies request and
+response RADIUS messages.
+Also it can be configured as an accounting module that logs accounting
+information through
+.Xr syslog 3 .
+.Sh CONFIGURATIONS
+The
+.Nm
+module supports the following configuration key and value:
+.Pp
+.Bl -tag -width Ds -compact
+.It Ic strip-atmark-realm Ar true | false
+Remove the realm part which starts with @
+.Pq atmark
+from the User-Name attribute of the Access-Request.
+.Pp
+.It Ic strip-nt-domain Ar true | false
+Remove NT domain which ends with \\
+.Pq backslash
+from the User-Name attribute of the Access-Request.
+.Pp
+.It Cm remove-request-attribute Oo Ar vendor Oc Ar type
+.It Cm remove-response-attribute Oo Ar vendor Oc Ar type
+Remove all the specified attributes from request or response
+messages of Access-Request.
+Specify
+.Ar type
+of the attribute in a decimal number.
+To specify a vendor attribute,
+specify the Vendor-Id
+in a decimal number for
+.Ar vendor .
+.El
+.Sh FILES
+.Bl -tag -width "/usr/libexec/radiusd/radiusd_standard" -compact
+.It Pa /usr/libexec/radiusd/radiusd_standard
+.Dq standard
+module executable.
+.El
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Ox 5.8 .

@@ -1,0 +1,90 @@
+.\"	$OpenBSD: pthread_atfork.3,v 1.13 2025/06/07 00:16:52 schwarze Exp $
+.\"
+.\" David Leonard <d@openbsd.org>, 1999. Public domain.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_ATFORK 3
+.Os
+.Sh NAME
+.Nm pthread_atfork
+.Nd specify handler functions to call when the process forks
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_atfork "void (*prepare)(void)" "void (*parent)(void)" "void (*child)(void)"
+.Sh DESCRIPTION
+The
+.Fn pthread_atfork
+function declares fork handlers to be called before and after
+.Xr fork 2 ,
+in the context of the thread that called
+.Xr fork 2 .
+The
+.Fa prepare
+fork handler will be called before
+.Xr fork 2
+processing commences.
+The
+.Fa parent
+fork handler will be called after
+.Xr fork 2
+processing completes in the parent process.
+The
+.Fa child
+fork handler will be called after
+.Xr fork 2
+processing completes in the child process.
+If no handling is desired at
+one or more of these three points,
+the corresponding fork handler
+address(es) may be set to
+.Dv NULL .
+.Pp
+The order of calls to
+.Fn pthread_atfork
+is significant.
+The
+.Fa parent
+and
+.Fa child
+fork handlers will be called in the order in which they were established
+by calls to
+.Fn pthread_atfork .
+The
+.Fa prepare
+fork handlers will be called in the opposite order.
+.Pp
+If a shared object is unloaded from process memory using
+.Xr dlclose 3 ,
+then any functions registered by calling
+.Fn pthread_atfork
+from that shared object will be unregistered without being invoked.
+Note that it is the source of the call to
+.Fn pthread_atfork
+that matters, not the source of the functions that were registered.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn pthread_atfork
+will return a value of zero.
+Otherwise, an error number will be
+returned to indicate the error.
+.Sh ERRORS
+.Fn pthread_atfork
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient table space exists to record the fork handler addresses.
+None of the handler lists are modified.
+.El
+.Sh SEE ALSO
+.Xr fork 2 ,
+.Xr atexit 3 ,
+.Xr dlclose 3
+.Sh STANDARDS
+.Fn pthread_atfork
+conforms to
+.St -p1003.1-2004 .
+.Pp
+The behavior when a shared object is unloaded is an extension to
+that standard.

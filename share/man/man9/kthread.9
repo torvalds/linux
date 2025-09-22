@@ -1,0 +1,97 @@
+.\"	$OpenBSD: kthread.9,v 1.10 2013/11/18 20:21:50 deraadt Exp $
+.\"
+.\" Copyright (c) 1999 Marc Espie
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 18 2013 $
+.Dt KTHREAD 9
+.Os
+.Sh NAME
+.Nm kthread_create ,
+.Nm kthread_exit ,
+.Nm kthread_create_deferred
+.Nd kernel threads
+.Sh SYNOPSIS
+.In sys/kthread.h
+.Ft int
+.Fn kthread_create "void (*func)(void *)" "void *arg" "struct proc **newpp" "const char *name"
+.Ft void
+.Fn kthread_exit "int ecode"
+.Ft void
+.Fn kthread_create_deferred "void (*func)(void *)" "void *arg"
+.Sh DESCRIPTION
+Kernel threads are system light-weight processes: cloned from process 0
+(the swapper), sharing its memory map and limits, but with a copy of its
+file descriptor table.
+They don't receive broadcast nor group signals and they can't be swapped.
+.Pp
+Any process can call
+.Fn kthread_create
+to create a kernel thread.
+The new process starts up executing
+.Fa func
+with argument
+.Fa arg .
+If
+.Fa newpp
+is not
+.Dv NULL ,
+it is filled with the address of the new process.
+.Fa name
+is used to name the process.
+.Pp
+A kernel thread will terminate by calling
+.Fn kthread_exit ,
+with exit code
+.Fa ecode .
+.Pp
+Since the system has to be up and running for creating
+new processes, device drivers that want to create kernel threads early
+(e.g., at attach time) may use
+.Fn kthread_create_deferred
+instead.
+The system will call back the function
+.Fa func
+with argument
+.Fa arg
+when it can create threads, so it is up to
+.Fa func
+to call
+.Fn kthread_create
+at that point.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn kthread_create
+returns 0.
+Otherwise, the following error values are returned:
+.Bl -tag -width [EAGAIN]
+.It Bq Er EAGAIN
+The limit on the total number of system processes would be exceeded.
+.El
+.Sh SEE ALSO
+.Xr fork1 9
+.Sh BUGS
+There is currently no way to use
+.Va ecode
+to any sensible purpose from
+.Fn kthread_exit .

@@ -1,0 +1,25 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("JITLinkTests") {
+  deps = [
+    "//llvm/lib/ExecutionEngine/JITLink",
+    "//llvm/lib/ExecutionEngine/Orc",
+    "//llvm/lib/ExecutionEngine/Orc/Shared",
+    "//llvm/lib/ExecutionEngine/Orc/TargetProcess",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "AArch32ErrorTests.cpp",
+    "AArch32Tests.cpp",
+    "EHFrameSupportTests.cpp",
+    "JITLinkMocks.cpp",
+    "LinkGraphTests.cpp",
+    "MemoryManagerErrorTests.cpp",
+    "StubsTests.cpp",
+  ]
+}

@@ -1,0 +1,100 @@
+; Options for the MMIX port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+; FIXME: Get rid of this one.
+mlibfuncs
+Target Report Mask(LIBFUNC)
+For intrinsics library: pass all parameters in registers
+
+mabi=mmixware
+Target Report RejectNegative InverseMask(ABI_GNU)
+Use register stack for parameters and return value
+
+mabi=gnu
+Target Report RejectNegative Mask(ABI_GNU)
+Use call-clobbered registers for parameters and return value
+
+; FIXME: Provide a way to *load* the epsilon register.
+mepsilon
+Target Report Mask(FCMP_EPSILON)
+Use epsilon-respecting floating point compare instructions
+
+mzero-extend
+Target Report Mask(ZERO_EXTEND)
+Use zero-extending memory loads, not sign-extending ones
+
+mknuthdiv
+Target Report Mask(KNUTH_DIVISION)
+Generate divide results with reminder having the same sign as the divisor (not the dividend)
+
+mtoplevel-symbols
+Target Report Mask(TOPLEVEL_SYMBOLS)
+Prepend global symbols with \":\" (for use with PREFIX)
+
+mno-set-program-start
+Target Report RejectNegative
+Do not provide a default start-address 0x100 of the program
+
+melf
+Target Report RejectNegative
+Link to emit program in ELF format (rather than mmo)
+
+mbranch-predict
+Target Report RejectNegative Mask(BRANCH_PREDICT)
+Use P-mnemonics for branches statically predicted as taken
+
+mno-branch-predict
+Target Report RejectNegative InverseMask(BRANCH_PREDICT)
+Don't use P-mnemonics for branches
+
+; We use the term "base address" since that's what Knuth uses.  The base
+; address goes in a global register.  When addressing, it's more like
+; "base address plus offset", with the offset being 0..255 from the base,
+; which itself can be a symbol plus an offset.  The effect is like having
+; a constant pool in global registers, code offsetting from those
+; registers (automatically causing a request for a suitable constant base
+; address register) without having to know the specific register or the
+; specific offset.  The setback is that there's a limited number of
+; registers, and you'll not find out until link time whether you
+; should have compiled with -mno-base-addresses.
+mbase-addresses
+Target Report RejectNegative Mask(BASE_ADDRESSES)
+Use addresses that allocate global registers
+
+mno-base-addresses
+Target Report RejectNegative InverseMask(BASE_ADDRESSES)
+Do not use addresses that allocate global registers
+
+msingle-exit
+Target Report RejectNegative InverseMask(USE_RETURN_INSN)
+Generate a single exit point for each function
+
+mno-single-exit
+Target Report RejectNegative Mask(USE_RETURN_INSN)
+Do not generate a single exit point for each function
+
+mset-program-start=
+Target Report RejectNegative Joined
+Set start-address of the program
+
+mset-data-start=
+Target Report RejectNegative Joined
+Set start-address of data

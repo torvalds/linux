@@ -1,0 +1,318 @@
+.\"	$OpenBSD: passwd.5,v 1.41 2014/11/02 05:33:04 tedu Exp $
+.\"	$NetBSD: passwd.5,v 1.4 1995/07/28 06:46:05 phil Exp $
+.\"
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\" Portions Copyright (c) 1994, Jason Downs.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)passwd.5	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: November 2 2014 $
+.Dt PASSWD 5
+.Os
+.Sh NAME
+.Nm passwd ,
+.Nm master.passwd
+.Nd format of the password file
+.Sh DESCRIPTION
+The
+.Nm master.passwd
+file, readable only by root, consists of newline-separated records,
+one per user, containing ten colon separated fields.
+These fields are as follows:
+.Pp
+.Bl -tag -width password -offset indent -compact
+.It name
+User's login name.
+.It password
+User's
+.Em encrypted
+password.
+.It uid
+User's login user ID.
+.It gid
+User's login group ID.
+.It class
+User's general classification (see
+.Xr login.conf 5 ) .
+.It change
+Password change time.
+.It expire
+Account expiration time.
+.It gecos
+General information about the user.
+.It home_dir
+User's home directory.
+.It shell
+User's login shell.
+.El
+.Pp
+The publicly-readable
+.Nm passwd
+file is generated from the
+.Nm master.passwd
+file by
+.Xr pwd_mkdb 8
+and has the class, change, and expire fields removed.
+Also, the encrypted password field is replaced by an asterisk.
+.Pp
+The password files should never be edited by hand;
+.Xr vipw 8
+should be used instead.
+.Pp
+The
+.Ar name
+field is the login used to access the computer account, and the
+.Ar uid
+field is the number associated with it.
+They should both be unique across the system (and often across a group of
+systems) since they control file access.
+.Pp
+While it is possible to have multiple entries with identical login names
+and/or identical user IDs, it is usually a mistake to do so.
+Routines that manipulate these files will often return only one of the
+multiple entries, and that one by random selection.
+.Pp
+The login name may be up to 31 characters long.
+For compatibility with legacy software, a login name should start
+with a letter and consist solely of letters, numbers, dashes and
+underscores.
+The login name must never begin with a dash
+.Pq Ql \&- ;
+also, it is strongly
+suggested that neither uppercase characters nor dots
+.Pq Ql \&.
+be part of the name, as this tends to confuse mailers.
+No field may contain a colon
+as this has been used historically to separate the fields
+in the user database.
+.Pp
+The password field is the
+.Em encrypted
+form of the password.
+If the
+.Ar password
+field is empty, no password will be required to gain access to the machine.
+This is almost invariably a mistake.
+By convention, accounts that are not intended to be logged in to
+(e.g. bin, daemon, sshd) only contain a single asterisk in the
+.Ar password
+field.
+Note that there is nothing special about
+.Ql * ,
+it is just one of many characters that cannot occur in a
+valid encrypted password
+(see
+.Xr crypt 3 ) .
+Similarly, login accounts not allowing password authentication
+but allowing other authentication methods, for example public key
+authentication, conventionally have 13 asterisks in the
+.Ar password
+field.
+Because
+.Nm master.passwd
+contains the encrypted user passwords, it should not be readable by anyone
+without appropriate privileges.
+.Pp
+Configuration for the cipher used to encrypt the password information
+is contained in
+.Xr login.conf 5 .
+.Pp
+The
+.Ar group
+field is the primary group that the user will be placed in upon login.
+Note that the
+.Xr group 5
+file may grant the user access to supplementary groups.
+.Pp
+The
+.Ar class
+field is used by
+.Xr login 1
+and other programs to determine which entry in the
+.Xr login.conf 5
+database should be used.
+.Pp
+The
+.Ar change
+field is the number in seconds, GMT, from the Epoch, until the
+password for the account must be changed.
+This field may be left empty to turn off the password aging feature.
+.Pp
+The
+.Ar expire
+field is the number in seconds, GMT, from the Epoch, until the
+account expires.
+This field may be left empty to turn off the account aging feature.
+.Pp
+The
+.Ar gecos
+field normally contains comma separated subfields as follows:
+.Pp
+.Bl -tag -width office -offset indent -compact
+.It name
+User's full name.
+.It office
+User's office location.
+.It wphone
+User's work phone number.
+.It hphone
+User's home phone number.
+.El
+.Pp
+The full name may contain an ampersand
+.Pq Ql \&& ,
+which will be replaced by the capitalized login name when the gecos field
+is displayed or used by various programs such as
+.Xr finger 1 ,
+.Xr sendmail 8 ,
+etc.
+.Pp
+The office and phone number subfields, if they exist, are used by the
+.Xr finger 1
+program and possibly by other applications.
+.Pp
+The
+.Ar home_dir
+field is the full path name of a directory to be used as the initial
+working directory for the user's login shell.
+Usually, it is owned by the user and by the user's primary
+.Ar group .
+.Pp
+The
+.Ar shell
+field is the command interpreter the user prefers.
+If there is nothing in the
+.Ar shell
+field, the default shell
+.Pq Pa /bin/sh
+is assumed.
+Accounts that are not intended to be logged in to usually have
+a shell of
+.Pa /sbin/nologin .
+.Sh YP SUPPORT
+If YP is active, the
+.Nm passwd
+file also supports standard YP exclusions and inclusions, based on user
+names and netgroups.
+.Pp
+Lines beginning with a
+.Ql \&-
+(minus sign) are entries marked as being excluded
+from any following inclusions, which are marked with a
+.Ql +
+(plus sign).
+.Pp
+If the second character of the line is a
+.Ql @
+(at sign), the operation involves the user fields of all entries in the
+netgroup specified by the remaining characters of the
+.Ar name
+field.
+Otherwise, the remainder of the
+.Ar name
+field is assumed to be a specific user name.
+.Pp
+The
+.Ql +
+token may also be alone in the
+.Ar name
+field, which causes all users from the
+.Pa passwd.byname
+and
+.Pa passwd.byuid
+YP maps to be included.
+.Pp
+If the entry contains non-empty
+.Ar uid
+or
+.Ar gid
+fields, the specified numbers will override the information retrieved
+from the YP maps.
+Additionally, if the
+.Ar gecos ,
+.Ar dir ,
+or
+.Ar shell
+entries contain text, it will override the information included via YP.
+On some systems, the
+.Ar passwd
+field may also be overridden.
+It is recommended that the standard way to enable YP passwd support in
+.Pa /etc/master.passwd
+is:
+.Pp
++:*::::::::
+.Pp
+which after
+.Xr pwd_mkdb 8
+will result in
+.Pa /etc/passwd
+containing:
+.Pp
++:*:0:0:::
+.Pp
+When YP is enabled but temporarily unavailable, login becomes impossible
+for all users except those having an entry in the
+.Xr netid 5
+file.
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr login 1 ,
+.Xr passwd 1 ,
+.Xr crypt 3 ,
+.Xr getpwent 3 ,
+.Xr login.conf 5 ,
+.Xr netgroup 5 ,
+.Xr netid 5 ,
+.Xr adduser 8 ,
+.Xr Makefile.yp 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8 ,
+.Xr yp 8
+.Pp
+.%T "Managing NFS and NIS"
+(O'Reilly & Associates)
+.Sh HISTORY
+A
+.Nm passwd
+file format first appeared in
+.At v1 .
+The gecos field first appeared in
+.At v3 ;
+since the same version, the passwords are encrypted.
+The gid field first appeared in
+.At v5 ;
+the class, change and expire fields as well as the
+.Nm master.passwd
+file in
+.Bx 4.3 Reno .
+.Pp
+The YP file format first appeared in SunOS.
+.Sh CAVEATS
+Placing YP exclusions in the file after any inclusions does not cancel
+the earlier inclusions.

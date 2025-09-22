@@ -1,0 +1,113 @@
+.\"	$OpenBSD: netstart.8,v 1.31 2022/10/25 17:10:13 kn Exp $
+.\"
+.\" Copyright (c) 2002, Miodrag Vallat.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: October 25 2022 $
+.Dt NETSTART 8
+.Os
+.Sh NAME
+.Nm netstart
+.Nd network startup script
+.Sh SYNOPSIS
+.Cm sh Pa /etc/netstart
+.Op Fl n
+.Op Ar interface ...
+.Sh DESCRIPTION
+.Nm
+is a
+.Xr sh 1
+script invoked by
+.Xr rc 8
+during an automatic reboot and after single-user mode is exited;
+it performs network initialization.
+.Pp
+.Nm
+can also be used to start newly created interfaces.
+Its behaviour is controlled to some extent by variables defined in
+.Xr rc.conf 8 .
+.Pp
+During the system boot,
+.Nm
+is executed.
+.Nm
+performs the following operations, in the sequence given:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Configure the loopback interface.
+.It
+Configure all physical interfaces.
+.It
+Configure non-physical interfaces that can provide the default gateway,
+such as
+.Xr aggr 4 ,
+.Xr trunk 4 ,
+.Xr svlan 4 ,
+.Xr vlan 4 ,
+.Xr carp 4 ,
+and
+.Xr pppoe 4 .
+.It
+Initialize the routing table and set up the default routes.
+.It
+Configure tunnel interfaces that require a working network
+to reach the other end of the tunnel,
+such as
+.Xr tun 4 ,
+.Xr tap 4 ,
+.Xr gif 4 ,
+.Xr etherip 4 ,
+.Xr gre 4 ,
+.Xr egre 4 ,
+.Xr pflow 4 ,
+and
+.Xr wg 4 .
+.El
+.Pp
+After the system is completely initialized, it is possible to start
+newly created interfaces or apply configuration from
+.Xr hostname.if 5
+files to an existing interfaces.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl n
+Reports the steps that would be taken,
+without actually configuring anything.
+.El
+.Sh SEE ALSO
+.Xr multicast 4 ,
+.Xr defaultdomain 5 ,
+.Xr hostname.if 5 ,
+.Xr mygate 5 ,
+.Xr ifconfig 8 ,
+.Xr rc 8 ,
+.Xr rc.conf 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Bx 4.0 .

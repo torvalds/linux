@@ -1,0 +1,70 @@
+.\"	$OpenBSD: fins.4,v 1.6 2009/03/30 00:37:45 deraadt Exp $
+.\"
+.\" Copyright (c) 2005 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 30 2009 $
+.Dt FINS 4
+.Os
+.Sh NAME
+.Nm fins
+.Nd Fintek F71805F LPC Super I/O
+.Sh SYNOPSIS
+.Cd "fins0 at isa? port 0x4e"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Fintek F71805F, F71806, F71862,
+and F71882 LPC Super I/O ICs.
+.Pp
+The hardware monitor provides hardware monitoring capabilities
+to be used with the
+.Xr sysctl 8
+interface.
+.Pp
+The F71805F hardware monitor supports 15 sensors:
+.Bl -column "Sensor" "Units" "Typical" -offset indent
+.It Sy "Sensor" Ta Sy "Units" Ta Sy "Typical Use"
+.It Li "IN0" Ta "uV DC" Ta "Internal 3.3Vcc"
+.It Li "IN1" Ta "uV DC" Ta "Memory Vtt"
+.It Li "IN2" Ta "uV DC" Ta "RAM Vcc"
+.It Li "IN3" Ta "uV DC" Ta "Chipset V"
+.It Li "IN4" Ta "uV DC" Ta "+5V"
+.It Li "IN5" Ta "uV DC" Ta "+12V"
+.It Li "IN6" Ta "uV DC" Ta "Vcc 1.5V"
+.It Li "IN7" Ta "uV DC" Ta "Vcore"
+.It Li "IN8" Ta "uV DC" Ta "Vsb"
+.It Li "IN9" Ta "uV DC" Ta "Vbat (optional)"
+.It Li "Temp1" Ta "uK" Ta "CPU Temperature"
+.It Li "Temp2" Ta "uK" Ta "Motherboard Temperature"
+.It Li "Temp3" Ta "uK" Ta "(undefined)"
+.It Li "Fan0" Ta "RPM" Ta "CPU Fan"
+.It Li "Fan1" Ta "RPM" Ta "User Fan1"
+.It Li "Fan2" Ta "RPM" Ta "User Fan2"
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.4 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Geoff Steckel .

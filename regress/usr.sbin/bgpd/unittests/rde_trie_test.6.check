@@ -1,0 +1,15 @@
+192.0.2.0/24 source-as 1
+192.0.2.0/27 source-as 1
+192.0.2.0/29 source-as 1
+192.0.2.0/24 source-as 2
+192.0.2.0/27 source-as 2
+192.0.2.0/29 source-as 2
+192.0.2.0/24 source-as 3
+192.0.2.0/27 source-as 3
+192.0.2.0/29 source-as 3
+198.51.100.0/24 source-as 1
+198.51.100.0/27 source-as 1
+198.51.100.0/24 source-as 2
+198.51.100.0/27 source-as 2
+198.51.100.0/24 source-as 3
+198.51.100.0/27 source-as 3

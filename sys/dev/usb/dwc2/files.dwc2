@@ -1,0 +1,15 @@
+#	$OpenBSD: files.dwc2,v 1.3 2022/09/04 08:42:40 mglocker Exp $
+#	$NetBSD: files.dwc2,v 1.2 2014/09/12 16:40:38 skrll Exp $
+
+# DesignWare HS OTG Controller
+#
+device	dwctwo: usbus
+file	dev/usb/dwc2/dwc2.c			dwctwo	needs-flag
+
+file	dev/usb/dwc2/dwc2_core.c		dwctwo
+file	dev/usb/dwc2/dwc2_coreintr.c		dwctwo
+file	dev/usb/dwc2/dwc2_hcd.c			dwctwo
+file	dev/usb/dwc2/dwc2_hcdddma.c		dwctwo
+file	dev/usb/dwc2/dwc2_hcdintr.c		dwctwo
+file	dev/usb/dwc2/dwc2_hcdqueue.c		dwctwo
+file	dev/usb/dwc2/dwc2_params.c		dwctwo

@@ -1,0 +1,92 @@
+/*	$OpenBSD: ld.script,v 1.3 2012/12/17 20:31:26 miod Exp $	*/
+
+/*
+ * Copyright (c) 2009 Miodrag Vallat.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * Linker script for an alpha static ELF binary, without any C++ code
+ * (ctor/dtor/eh_frame).
+ */
+
+OUTPUT_FORMAT("elf64-alpha")
+OUTPUT_ARCH(alpha)
+ENTRY(__start)
+SECTIONS
+{
+	/*
+	 * The start address needs to be a physical address allowing for
+	 * enough room for the console firmware, and the boot loader.
+	 * On most alpha machines, the console fits in no more than
+	 * 2MB, to which we need to add 256KB of boot blocks and the
+	 * initial kernel stack.
+	 * However, some of the last alpha models (*5 D and E series,
+	 * *7, and G series) have much larger console sizes.
+	 *
+	 * For reference, here is a list of systems and their console
+	 * sizes:
+	 *
+	 *	AXPpci33		10e000, 110000
+	 *	EB164			11c000
+	 *	AS400 (Avanti)		11e000
+	 *	2100/A50 (Avanti)	11e500
+	 *	AS1000			12e000
+	 *	AS200, AS255		13a000, 1f2000
+	 *	AS250			148000
+	 *	AS500			14a000
+	 *	AS500/600		14c000
+	 *	Multia			154000, 158000, 166000
+	 *	DS20			156000
+	 *	PC164			180000
+	 *	PWS			1d6000, 1d8000, 1f2000
+	 *	3305 (AS1000A)		1da000
+	 *	164SX			1de000
+	 *	AS1200			1f0000
+	 *	XP1000, AS2100, AS4100	200000
+	 *	ES40, CS20, DS10	200000
+	 *	AS8400			200000
+	 *	ES45			32c000
+	 *	DS25			51c000
+	 *	GS160			5f2000
+	 *
+	 * If you change this value, make sure to update KERNBASE in
+	 * <machine/param.h> as well.
+	 *
+	 * Note that the current setting will not work on a GS160.  If you
+	 * are the lucky owner of such a system and want to run OpenBSD on
+	 * it, please contact <alpha@openbsd.org>
+	 */
+	. = 0xfffffc0000580000;
+
+	.text :		{ *(.text .text.* .gnu.linkonce.t.*) }
+	PROVIDE(etext = .);
+	.rodata :	{ *(.rodata .rodata.* .gnu.linkonce.r.*) }
+	.data :		{ *(.data .data.* .gnu.linkonce.d.*) }
+	.got :		{ *(.got) }
+	.sdata :	{ *(.sdata .sdata.* .gnu.linkonce.s.*) }
+	.lit8 :		{ *(.lit8) }
+	.lita :		{ *(.lita) }
+	.sdata :	{ *(.sdata .sdata*) }
+	PROVIDE(edata = .);
+	.sbss :		{ *(.sbss .sbss.* .gnu.linkonce.sb.* .scommon) }
+	.bss :		{ *(.bss .bss.* .gnu.linkonce.b.* COMMON) }
+	PROVIDE(_end = .);
+	PROVIDE(end = .);
+	/DISCARD/ :
+	{
+		*(.comment)
+		*(.eh_frame)
+	}
+}

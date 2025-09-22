@@ -1,0 +1,164 @@
+.\" $OpenBSD: curs_bkgd.3,v 1.9 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_bkgd.3,v 1.9 2023/10/17 09:52:08 nicm Exp $
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.TH curs_bkgd 3 2023-07-01 "ncurses 6.4" "Library calls"
+.SH NAME
+\fBbkgdset\fP, \fBwbkgdset\fP,
+\fBbkgd\fP, \fBwbkgd\fP,
+\fBgetbkgd\fP \- \fBcurses\fP window background manipulation routines
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.PP
+\fBvoid bkgdset(chtype \fIch\fB);\fR
+.br
+\fBvoid wbkgdset(WINDOW *\fIwin, chtype \fIch\fB);\fR
+.sp
+\fBint bkgd(chtype \fIch\fB);\fR
+.br
+\fBint wbkgd(WINDOW *\fIwin\fB, chtype \fIch\fB);\fR
+.sp
+\fBchtype getbkgd(WINDOW *\fIwin\fB);\fR
+.br
+.SH DESCRIPTION
+.SS bkgdset
+The \fBbkgdset\fP and \fBwbkgdset\fP routines
+set the \fIbackground\fP for a window.
+A window's background is a \fBchtype\fP consisting of
+any combination of attributes (i.e., rendition) and a character:
+.bP
+The attribute part of the background is combined (OR'ed) with all non-blank
+characters that are written into the window with \fBwaddch\fP.
+.bP
+Both the character and attribute parts of the background are combined with
+blank characters that are written into the window.
+.PP
+The background becomes a property of each
+character and moves with the character through any scrolling and
+insert/delete line/character operations.
+.PP
+To the extent possible on a particular terminal,
+the attribute part of the background is displayed
+as the graphic rendition of the character put on the screen.
+.SS bkgd
+The \fBbkgd\fP and \fBwbkgd\fP functions
+set the background property of the current or specified window
+and then apply this setting to every character position in that window.
+According to X/Open Curses, it should do this:
+.bP
+The rendition of every character on the screen is changed to
+the new background rendition.
+.bP
+Wherever the former background character
+appears, it is changed to the new background character.
+.PP
+Neither X/Open Curses nor the SVr4 manual pages give details about
+the way the rendition of characters on the screen is updated when
+\fBbkgd\fP or \fBwbkgd\fP is used to change the background character.
+.PP
+This implementation, like SVr4 curses, does not store the background
+and window attribute contributions to each cell separately.
+It updates the rendition by comparing the character, non-color attributes and
+colors contained in the background.
+For each cell in the window, whether or not it is blank:
+.bP
+The library first compares the \fIcharacter\fP,
+and if it matches the current character part of the background,
+it replaces that with the new background character.
+.IP
+When \fBbkgdset\fP is used to set the background character,
+that does not update each cell in the window.
+A subsequent call to \fBbkgd\fP will only modify the \fIcharacter\fP in
+cells which match the current background character.
+.bP
+The library then checks if the cell uses color,
+i.e., its color pair value is nonzero.
+If not, it simply replaces the attributes and color pair in the
+cell with those from the new background character.
+.bP
+If the cell uses color,
+and that matches the color in the current background,
+the library removes attributes
+which may have come from the current background
+and adds attributes from the new background.
+It finishes by setting the cell
+to use the color from the new background.
+.bP
+If the cell uses color,
+and that does not match the color in the current background,
+the library updates only the non-color attributes,
+first removing those which may have come from the current background,
+and then adding attributes from the new background.
+.PP
+If the background's character value is zero (0), a space is assumed.
+.PP
+If the terminal does not support color,
+or if color has not been started with \fBstart_color\fP,
+the new background character's color attribute will be ignored.
+.SS getbkgd
+The \fBgetbkgd\fP function returns the given window's current background
+character/attribute pair.
+.SH RETURN VALUE
+These functions are described in the XSI Curses standard, Issue 4.
+It specifies that \fBbkgd\fP and \fBwbkgd\fP return \fBERR\fP on failure,
+but gives no failure conditions.
+.PP
+The routines \fBbkgd\fP and \fBwbkgd\fP return the integer \fBOK\fP,
+unless the library has not been initialized.
+.PP
+In contrast,
+the SVr4.0 manual says \fBbkgd\fP and \fBwbkgd\fP may return \fBOK\fP
+"or a non-negative integer if \fBimmedok\fP is set",
+which refers to the return value from \fBwrefresh\fP
+(used to implement the immediate repainting).
+The SVr4 curses \fBwrefresh\fP returns the number of characters
+written to the screen during the refresh.
+This implementation does not do that.
+.SH NOTES
+Note that \fBbkgdset\fP and \fBbkgd\fP may be macros.
+.PP
+X/Open Curses mentions that the character part of the background must
+be a single-byte value.
+This implementation, like SVr4, checks to ensure that,
+and will reuse the old background character if the check fails.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4
+(X/Open Curses).
+.SH SEE ALSO
+.na
+\fBcurses\fP(3),
+\fBcurs_addch\fP(3),
+\fBcurs_attr\fP(3),
+\fBcurs_outopts\fP(3)

@@ -1,0 +1,250 @@
+.\" $OpenBSD: SSL_write.3,v 1.8 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\" partial merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>
+.\" and Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2000, 2001, 2002, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_WRITE 3
+.Os
+.Sh NAME
+.Nm SSL_write_ex ,
+.Nm SSL_write
+.Nd write bytes to a TLS connection
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fn SSL_write_ex "SSL *ssl" "const void *buf" "size_t num" "size_t *written"
+.Ft int
+.Fn SSL_write "SSL *ssl" "const void *buf" "int num"
+.Sh DESCRIPTION
+.Fn SSL_write_ex
+and
+.Fn SSL_write
+write
+.Fa num
+bytes from the buffer
+.Fa buf
+into the specified
+.Fa ssl
+connection.
+On success
+.Fn SSL_write_ex
+stores the number of bytes written in
+.Pf * Fa written .
+.Pp
+In the following,
+.Fn SSL_write_ex
+and
+.Fn SSL_write
+are called
+.Dq write functions .
+.Pp
+If necessary, a write function negotiates a TLS session,
+if not already explicitly performed by
+.Xr SSL_connect 3
+or
+.Xr SSL_accept 3 .
+If the peer requests a re-negotiation,
+it will be performed transparently during the
+write function operation.
+The behaviour of the write functions depends on the underlying
+.Vt BIO .
+.Pp
+For the transparent negotiation to succeed, the
+.Fa ssl
+must have been initialized to client or server mode.
+This is done by calling
+.Xr SSL_set_connect_state 3
+or
+.Xr SSL_set_accept_state 3
+before the first call to a write function.
+.Pp
+If the underlying
+.Vt BIO
+is
+.Em blocking ,
+the write function
+will only return once the write operation has been finished or an error
+occurred, except when a renegotiation takes place, in which case a
+.Dv SSL_ERROR_WANT_READ
+may occur.
+This behaviour can be controlled with the
+.Dv SSL_MODE_AUTO_RETRY
+flag of the
+.Xr SSL_CTX_set_mode 3
+call.
+.Pp
+If the underlying
+.Vt BIO
+is
+.Em non-blocking ,
+the write function will also return when the underlying
+.Vt BIO
+could not satisfy the needs of the function to continue the operation.
+In this case a call to
+.Xr SSL_get_error 3
+with the return value of the write function will yield
+.Dv SSL_ERROR_WANT_READ
+or
+.Dv SSL_ERROR_WANT_WRITE .
+As at any time a re-negotiation is possible, a call to
+a write function can also cause read operations.
+The calling process then must repeat the call after taking appropriate action
+to satisfy the needs of the write function.
+The action depends on the underlying
+.Vt BIO .
+When using a non-blocking socket, nothing is to be done, but
+.Xr select 2
+can be used to check for the required condition.
+When using a buffering
+.Vt BIO ,
+like a
+.Vt BIO
+pair, data must be written into or retrieved out of the BIO before being able
+to continue.
+.Pp
+The write functions
+will only return with success when the complete contents of
+.Fa buf
+of length
+.Fa num
+have been written.
+This default behaviour can be changed with the
+.Dv SSL_MODE_ENABLE_PARTIAL_WRITE
+option of
+.Xr SSL_CTX_set_mode 3 .
+When this flag is set, the write functions will also return with
+success when a partial write has been successfully completed.
+In this case the write function operation is considered completed.
+The bytes are sent and a new write call with a new buffer (with the
+already sent bytes removed) must be started.
+A partial write is performed with the size of a message block,
+which is 16kB.
+.Pp
+When a write function call has to be repeated because
+.Xr SSL_get_error 3
+returned
+.Dv SSL_ERROR_WANT_READ
+or
+.Dv SSL_ERROR_WANT_WRITE ,
+it must be repeated with the same arguments.
+.Pp
+When calling
+.Fn SSL_write
+with
+.Fa num Ns =0
+bytes to be sent, the behaviour is undefined.
+.Fn SSL_write_ex
+can be called with
+.Fa num Ns =0 ,
+but will not send application data to the peer.
+.Sh RETURN VALUES
+.Fn SSL_write_ex
+returns 1 for success or 0 for failure.
+Success means that all requested application data bytes have been
+written to the TLS connection or, if
+.Dv SSL_MODE_ENABLE_PARTIAL_WRITE
+is in use, at least one application data byte has been written
+to the TLS connection.
+Failure means that not all the requested bytes have been written yet (if
+.Dv SSL_MODE_ENABLE_PARTIAL_WRITE
+is not in use) or no bytes could be written to the TLS connection (if
+.Dv SSL_MODE_ENABLE_PARTIAL_WRITE
+is in use).
+Failures can be retryable (e.g. the network write buffer has temporarily
+filled up) or non-retryable (e.g. a fatal network error).
+In the event of a failure, call
+.Xr SSL_get_error 3
+to find out the reason
+which indicates whether the call is retryable or not.
+.Pp
+For
+.Fn SSL_write ,
+the following return values can occur:
+.Bl -tag -width Ds
+.It >0
+The write operation was successful.
+The return value is the number of bytes actually written to the TLS
+connection.
+.It 0
+The write operation was not successful.
+Probably the underlying connection was closed.
+Call
+.Xr SSL_get_error 3
+with the return value to find out whether an error occurred or the connection
+was shut down cleanly
+.Pq Dv SSL_ERROR_ZERO_RETURN .
+.It <0
+The write operation was not successful, because either an error occurred or
+action must be taken by the calling process.
+Call
+.Xr SSL_get_error 3
+with the return value to find out the reason.
+.El
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr ssl 3 ,
+.Xr SSL_accept 3 ,
+.Xr SSL_connect 3 ,
+.Xr SSL_CTX_new 3 ,
+.Xr SSL_CTX_set_mode 3 ,
+.Xr SSL_get_error 3 ,
+.Xr SSL_read 3 ,
+.Xr SSL_set_connect_state 3
+.Sh HISTORY
+.Fn SSL_write
+appeared in SSLeay 0.4 or earlier and has been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_write_ex
+first appeared in OpenSSL 1.1.1 and has been available since
+.Ox 7.1 .

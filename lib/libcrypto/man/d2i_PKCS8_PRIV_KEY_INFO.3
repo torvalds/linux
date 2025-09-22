@@ -1,0 +1,128 @@
+.\"	$OpenBSD: d2i_PKCS8_PRIV_KEY_INFO.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_PKCS8_PRIV_KEY_INFO 3
+.Os
+.Sh NAME
+.Nm d2i_PKCS8_PRIV_KEY_INFO ,
+.Nm i2d_PKCS8_PRIV_KEY_INFO ,
+.Nm d2i_PKCS8_PRIV_KEY_INFO_bio ,
+.Nm i2d_PKCS8_PRIV_KEY_INFO_bio ,
+.Nm d2i_PKCS8_PRIV_KEY_INFO_fp ,
+.Nm i2d_PKCS8_PRIV_KEY_INFO_fp
+.Nd decode and encode PKCS#8 private key
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft PKCS8_PRIV_KEY_INFO *
+.Fo d2i_PKCS8_PRIV_KEY_INFO
+.Fa "PKCS8_PRIV_KEY_INFO **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PKCS8_PRIV_KEY_INFO
+.Fa "PKCS8_PRIV_KEY_INFO *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft PKCS8_PRIV_KEY_INFO *
+.Fo d2i_PKCS8_PRIV_KEY_INFO_bio
+.Fa "BIO *in_bio"
+.Fa "PKCS8_PRIV_KEY_INFO **val_out"
+.Fc
+.Ft int
+.Fo i2d_PKCS8_PRIV_KEY_INFO_bio
+.Fa "BIO *out_bio"
+.Fa "PKCS8_PRIV_KEY_INFO *val_in"
+.Fc
+.Ft PKCS8_PRIV_KEY_INFO *
+.Fo d2i_PKCS8_PRIV_KEY_INFO_fp
+.Fa "FILE *in_fp"
+.Fa "PKCS8_PRIV_KEY_INFO **val_out"
+.Fc
+.Ft int
+.Fo i2d_PKCS8_PRIV_KEY_INFO_fp
+.Fa "BIO *out_fp"
+.Fa "PKCS8_PRIV_KEY_INFO *val_in"
+.Fc
+.Sh DESCRIPTION
+.Fn d2i_PKCS8_PRIV_KEY_INFO
+and
+.Fn i2d_PKCS8_PRIV_KEY_INFO
+decode and encode an ASN.1
+.Vt PrivateKeyInfo
+structure defined in RFC 5208 section 5.
+.Pp
+.Fn d2i_PKCS8_PRIV_KEY_INFO_bio ,
+.Fn i2d_PKCS8_PRIV_KEY_INFO_bio ,
+.Fn d2i_PKCS8_PRIV_KEY_INFO_fp ,
+and
+.Fn i2d_PKCS8_PRIV_KEY_INFO_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+These functions all use unencrypted DER format.
+To store private keys in encrypted form, consider
+.Xr d2i_PKCS8PrivateKey_bio 3
+or
+.Xr PEM_write_PKCS8PrivateKey 3 .
+.Sh RETURN VALUES
+.Fn d2i_PKCS8_PRIV_KEY_INFO ,
+.Fn d2i_PKCS8_PRIV_KEY_INFO_bio ,
+and
+.Fn d2i_PKCS8_PRIV_KEY_INFO_fp
+return a
+.Vt PKCS8_PRIV_KEY_INFO
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_PKCS8_PRIV_KEY_INFO
+returns the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Pp
+.Fn i2d_PKCS8_PRIV_KEY_INFO_bio
+and
+.Fn i2d_PKCS8_PRIV_KEY_INFO_fp
+return 1 for success or 0 if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr d2i_PKCS8PrivateKey_bio 3 ,
+.Xr d2i_PrivateKey 3 ,
+.Xr PEM_write_PKCS8_PRIV_KEY_INFO 3 ,
+.Xr PKCS8_PRIV_KEY_INFO_new 3
+.Sh STANDARDS
+RFC 5208: PKCS#8: Private-Key Information Syntax Specification
+.Sh HISTORY
+.Fn d2i_PKCS8_PRIV_KEY_INFO
+and
+.Fn i2d_PKCS8_PRIV_KEY_INFO
+first appeared in OpenSSL 0.9.3.
+.Fn d2i_PKCS8_PRIV_KEY_INFO_bio ,
+.Fn i2d_PKCS8_PRIV_KEY_INFO_bio ,
+.Fn d2i_PKCS8_PRIV_KEY_INFO_fp ,
+and
+.Fn i2d_PKCS8_PRIV_KEY_INFO_fp
+first appeared in OpenSSL 0.9.4.
+All these functions have been available since
+.Ox 2.6 .

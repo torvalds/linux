@@ -1,0 +1,308 @@
+#	$OpenBSD: files.acpi,v 1.76 2025/08/03 09:23:19 kettenis Exp $
+#
+# Config file and device description for machine-independent ACPI code.
+# Included by ports that need it.
+
+define	acpi {[addr = -1]}
+device	acpi
+file	dev/acpi/acpi.c			acpi needs-flag
+file	dev/acpi/acpiutil.c		acpi
+file	dev/acpi/dsdt.c			acpi
+file	dev/acpi/acpidebug.c		acpi & ddb
+
+# ACPI timer
+device	acpitimer
+attach	acpitimer at acpi
+file	dev/acpi/acpitimer.c		acpitimer
+
+# AC device
+device	acpiac
+attach	acpiac at acpi
+file	dev/acpi/acpiac.c		acpiac
+
+# battery device
+device	acpibat
+attach	acpibat at acpi
+file	dev/acpi/acpibat.c		acpibat
+
+# button device
+device	acpibtn
+attach	acpibtn at acpi
+file	dev/acpi/acpibtn.c		acpibtn
+
+# cmos device
+device	acpicmos
+attach	acpicmos at acpi
+file	dev/acpi/acpicmos.c		acpicmos
+
+# cpu device
+device	acpicpu
+attach	acpicpu at acpi
+
+# High Precision Event Timer
+device	acpihpet
+attach	acpihpet at acpi
+file	dev/acpi/acpihpet.c		acpihpet
+
+# Embedded Controller
+device	acpiec
+attach	acpiec at acpi
+file	dev/acpi/acpiec.c		acpiec
+
+# Generic Event
+device	acpige
+attach	acpige at acpi
+file	dev/acpi/acpige.c		acpige
+
+# Thermal Zone
+device	acpitz
+attach	acpitz at acpi
+file	dev/acpi/acpitz.c		acpitz
+
+# Multiple APIC Description Table
+device	acpimadt
+attach	acpimadt at acpi
+file	dev/acpi/acpimadt.c		acpimadt
+
+# Memory Mapped Configuration Space Address Description Table
+device	acpimcfg
+attach	acpimcfg at acpi
+file	dev/acpi/acpimcfg.c		acpimcfg
+
+# PCI Routing Table
+device	acpiprt
+attach	acpiprt at acpi
+file	dev/acpi/acpiprt.c		acpiprt needs-flag
+
+# DMAR device
+device	acpidmar
+attach	acpidmar at acpi
+file	dev/acpi/acpidmar.c		acpidmar needs-flag
+
+# Docking station
+device	acpidock
+attach	acpidock at acpi
+file	dev/acpi/acpidock.c		acpidock
+
+# Apple Backlight
+device	abl
+attach	abl at acpi
+file	dev/acpi/abl.c			abl
+
+# Apple System Management Controller (SMC)
+device	asmc
+attach	asmc at acpi
+file	dev/acpi/asmc.c			asmc
+
+# ASUS ACPI Hotkeys
+device	acpiasus
+attach	acpiasus at acpi
+file	dev/acpi/acpiasus.c		acpiasus
+
+# IBM/Lenovo ThinkPad support
+device	acpithinkpad
+attach	acpithinkpad at acpi
+file	dev/acpi/acpithinkpad.c		acpithinkpad
+
+# Toshiba support
+device	acpitoshiba
+attach	acpitoshiba at acpi
+file	dev/acpi/acpitoshiba.c		acpitoshiba
+
+# Samsung EC2
+device	acpisectwo
+attach	acpisectwo at acpi
+file	dev/acpi/acpisectwo.c		acpisectwo
+
+# Sony support
+device	acpisony
+attach	acpisony at acpi
+file	dev/acpi/acpisony.c		acpisony
+
+# ACPI video
+define	acpivideo {}
+device	acpivideo
+attach	acpivideo at acpi
+file	dev/acpi/acpivideo.c		acpivideo
+
+# ACPI vout
+device	acpivout
+attach	acpivout at acpivideo
+file	dev/acpi/acpivout.c		acpivout
+
+# ACPI pwrres
+device	acpipwrres
+attach	acpipwrres at acpi
+file	dev/acpi/acpipwrres.c		acpipwrres needs-flag
+
+# ASUSTeK AI Booster ATK0110
+device	aibs
+attach	aibs at acpi
+file	dev/acpi/atk0110.c		aibs
+
+# Intel Apollo Lake GPIO
+device	aplgpio
+attach	aplgpio at acpi
+file	dev/acpi/aplgpio.c		aplgpio
+
+# Intel Bay Trail GPIO
+device	bytgpio
+attach	bytgpio at acpi
+file	dev/acpi/bytgpio.c		bytgpio
+
+# Intel Cherry View GPIO
+device	chvgpio
+attach	chvgpio at acpi
+file	dev/acpi/chvgpio.c		chvgpio
+
+# Intel Gemini Lake GPIO
+device	glkgpio
+attach	glkgpio at acpi
+file	dev/acpi/glkgpio.c		glkgpio
+
+# Intel PCH GPIO
+device	pchgpio
+attach	pchgpio at acpi
+file	dev/acpi/pchgpio.c		pchgpio
+
+# "Intel" Dollar Cove TI PMIC
+device	tipmic
+attach	tipmic at i2c
+file	dev/acpi/tipmic.c		tipmic
+
+# "Intel" Crystal Cove PMIC
+device	ccpmic
+attach	ccpmic at i2c
+file	dev/acpi/ccpmic.c		ccpmic
+
+# AHCI
+attach	ahci at acpi with ahci_acpi
+file	dev/acpi/ahci_acpi.c		ahci_acpi
+
+# NS16550 compatible UART
+attach	com at acpi with com_acpi
+file	dev/acpi/com_acpi.c		com_acpi
+
+# PL011 UART
+attach	pluart at acpi with pluart_acpi
+file	dev/acpi/pluart_acpi.c		pluart_acpi
+
+# SD Host Controller
+attach	sdhc at acpi with sdhc_acpi
+file	dev/acpi/sdhc_acpi.c		sdhc_acpi
+
+# OHCI
+attach	ohci at acpi with ohci_acpi
+file	dev/acpi/ohci_acpi.c		ohci_acpi
+
+# EHCI
+attach	ehci at acpi with ehci_acpi
+file	dev/acpi/ehci_acpi.c		ehci_acpi
+
+# XHCI
+attach	xhci at acpi with xhci_acpi
+file	dev/acpi/xhci_acpi.c		xhci_acpi
+
+# Synopsys DesignWare GPIO controller
+device	dwgpio
+attach	dwgpio at acpi
+file	dev/acpi/dwgpio.c		dwgpio
+
+# Synopsys DesignWare I2C controller
+attach	dwiic at acpi with dwiic_acpi
+file	dev/acpi/dwiic_acpi.c		dwiic_acpi
+
+# Chromebook keyboard backlight
+device	acpicbkbd
+attach	acpicbkbd at acpi
+file	dev/acpi/acpicbkbd.c		acpicbkbd
+
+# Ambient Light Sensor
+device	acpials
+attach	acpials at acpi
+file	dev/acpi/acpials.c		acpials
+
+# Trusted Platform Module
+device	tpm
+attach	tpm at acpi
+file	dev/acpi/tpm.c			tpm
+
+# Hyper-V Entropy
+device	acpihve
+attach	acpihve at acpi
+file	dev/acpi/acpihve.c		acpihve
+
+# Smart Battery Subsystem
+device	acpisbs
+attach	acpisbs at acpi
+file	dev/acpi/acpisbs.c		acpisbs
+
+# MSHW0040 Surface/Surface Book media buttons
+device	acpisurface
+attach	acpisurface at acpi
+file	dev/acpi/acpisurface.c		acpisurface
+
+# IPMI
+attach	ipmi at acpi with ipmi_acpi
+file	dev/acpi/ipmi_acpi.c		ipmi_acpi
+
+# AMD Cryptographic Co-processor
+attach	ccp at acpi with ccp_acpi
+file	dev/acpi/ccp_acpi.c		ccp_acpi
+
+# AMD GPIO Controller
+device	amdgpio
+attach	amdgpio at acpi
+file	dev/acpi/amdgpio.c		amdgpio
+
+# Broadcom BC7XXX Ethernet controller
+attach	bse at acpi with bse_acpi
+file	dev/acpi/if_bse_acpi.c		bse_acpi
+
+# Intel HID event and 5-button array
+device	acpihid
+attach	acpihid at acpi
+file	dev/acpi/acpihid.c		acpihid
+
+# Freescale i.MX I2C controller
+attach	imxiic at acpi with imxiic_acpi
+file	dev/acpi/imxiic_acpi.c		imxiic_acpi
+
+# Qualcomm GPIO controller
+attach	qcgpio at acpi with qcgpio_acpi
+file	dev/acpi/qcgpio.c		qcgpio
+
+# Qualcomm I2C controller
+attach	qciic at acpi with qciic_acpi
+file	dev/acpi/qciic.c		qciic
+
+# UFS HC
+attach	ufshci at acpi with ufshci_acpi
+file	dev/acpi/ufshci_acpi.c		ufshci_acpi
+
+# Glue to attach qcscm at acpi
+attach	qcscm at acpi with qcscm_acpi
+file	dev/acpi/qcscm_acpi.c		qcscm_acpi
+
+# Intel OnChip System Fabric
+attach	iosf at acpi with iosf_acpi
+file	dev/acpi/iosf_acpi.c		iosf_acpi
+
+# Intel Power Management Controller
+device	intelpmc
+attach	intelpmc at acpi
+file	dev/acpi/intelpmc.c		intelpmc
+
+# AMD Power Management Controller
+device	amdpmc
+attach	amdpmc at acpi
+file	dev/acpi/amdpmc.c		amdpmc
+
+# Windows Management Instrumentation (WMI)
+device	acpiwmi
+attach	acpiwmi at acpi
+file	dev/acpi/acpiwmi.c		acpiwmi
+
+# PS/2 Keyboard Controller
+attach	pckbc at acpi with pckbc_acpi
+file	dev/acpi/pckbc_acpi.c		pckbc_acpi

@@ -1,0 +1,67 @@
+$OpenBSD: RequiredBy.pod,v 1.1 2020/12/20 15:30:58 daniel Exp $
+
+=head1 NAME
+
+OpenBSD::RequiredBy - manage installed package dependencies
+
+=head1 SYNOPSIS
+
+    use OpenBSD::RequiredBy;
+
+
+    # let's do things for real
+    our $not = 0;
+
+    my $o = OpenBSD::RequiredBy->new($pkgname);
+
+    my $o2 = OpenBSD::Requiring->new($pkgname);
+
+    print "Requirements for $pkgname are ", join(' ',$o2->list), "\n";
+
+    # add some reverse dependencies
+    $o->add($reverse_dep1, $reverse_dep2);
+
+    # remove some dependency
+    $o2->delete($dep);
+
+    # forget some cache entry
+    OpenBSD::RequiredBy->forget(installed_info($pkgname));
+
+    # compute the transitive closure of some dependencies
+    my @fulldeps = OpenBSD::Requiring->compute_closure($pkg1, $pkg2);
+
+
+=head1 DESCRIPTION
+
+=for comment should add a reference to L<PackageInfo/installed_info>
+when it's documented.
+
+C<OpenBSD::RequiredBy> handles lists of forward and reverse dependencies
+for installed packages.
+
+If C<$main::not> is true, all change operations are done internally and
+never written to disk.
+
+C<$o = OpenBSD::RequiredBy-E<gt>new($pkgname)> gives access to the reverse
+dependencies,
+C<$o =OpenBSD::Requiring-E<gt>new($pkgname)>  gives access to the forward
+dependencies.
+
+Such an object can be used to list the dependencies C<$o-E<gt>list>,
+add names to them C<$o-E<gt>add(name1, name2, ...)> or remove name from
+them C<$o-E<gt>delete(name1, name2, ...)>.
+
+The full list of forward dependencies (transitive closure) from a set of
+packages is given by
+C<OpenBSD::RequiredBy-E<gt>compute_closure($name1, name2, ...)>.
+Likewise,
+C<OpenBSD::Requiring-E<gt>compute_closure($name1, name2, ...)>
+yields the list of reverse dependencies.
+
+Those lists of dependencies trim duplicates and, unless C<$main::not> is true,
+disk files are automatically synchronized whenever the lists change.
+
+C<OpenBSD::RequiredBy> maintains a cache for efficiency. When an
+installed package is deleted completely,
+C<OpenBSD::RequiredBy-E<gt>forget($dir)> and
+C<OpenBSD::Requiring-E<gt>forget($dir)> will remove the cache entries.

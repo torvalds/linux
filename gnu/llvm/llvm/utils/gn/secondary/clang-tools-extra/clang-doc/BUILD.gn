@@ -1,0 +1,30 @@
+static_library("clang-doc") {
+  output_name = "clangDoc"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Analysis",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Index",
+    "//clang/lib/Lex",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "BitcodeReader.cpp",
+    "BitcodeWriter.cpp",
+    "ClangDoc.cpp",
+    "Generators.cpp",
+    "HTMLGenerator.cpp",
+    "MDGenerator.cpp",
+    "Mapper.cpp",
+    "Representation.cpp",
+    "Serialize.cpp",
+    "YAMLGenerator.cpp",
+  ]
+}

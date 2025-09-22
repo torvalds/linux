@@ -1,0 +1,173 @@
+.\" $OpenBSD: X509_REQ_add1_attr.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_REQ_ADD1_ATTR 3
+.Os
+.Sh NAME
+.Nm X509_REQ_add1_attr ,
+.Nm X509_REQ_add1_attr_by_OBJ ,
+.Nm X509_REQ_add1_attr_by_NID ,
+.Nm X509_REQ_add1_attr_by_txt ,
+.Nm X509_REQ_delete_attr ,
+.Nm X509_REQ_get_attr ,
+.Nm X509_REQ_get_attr_count ,
+.Nm X509_REQ_get_attr_by_OBJ ,
+.Nm X509_REQ_get_attr_by_NID
+.Nd X.501 Attributes of PKCS#10 certification requests
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_REQ_add1_attr
+.Fa "X509_REQ *req"
+.Fa "X509_ATTRIBUTE *attr"
+.Fc
+.Ft int
+.Fo X509_REQ_add1_attr_by_OBJ
+.Fa "X509_REQ *req"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "int type"
+.Fa "const unsigned char *data"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo X509_REQ_add1_attr_by_NID
+.Fa "X509_REQ *req"
+.Fa "int nid"
+.Fa "int type"
+.Fa "const unsigned char *data"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo X509_REQ_add1_attr_by_txt
+.Fa "X509_REQ *req"
+.Fa "const char *name"
+.Fa "int type"
+.Fa "const unsigned char *data"
+.Fa "int len"
+.Fc
+.Ft X509_ATTRIBUTE *
+.Fo X509_REQ_delete_attr
+.Fa "X509_REQ *req"
+.Fa "int index"
+.Fc
+.Ft X509_ATTRIBUTE *
+.Fo X509_REQ_get_attr
+.Fa "const X509_REQ *req"
+.Fa "int index"
+.Fc
+.Ft int
+.Fo X509_REQ_get_attr_count
+.Fa "const X509_REQ *req"
+.Fc
+.Ft int
+.Fo X509_REQ_get_attr_by_OBJ
+.Fa "const X509_REQ *req"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "int start_after"
+.Fc
+.Ft int
+.Fo X509_REQ_get_attr_by_NID
+.Fa "const X509_REQ *req"
+.Fa "int nid"
+.Fa "int start_after"
+.Fc
+.Sh DESCRIPTION
+These functions support associating an array of X.501 Attributes
+with a PKCS#10 certification request.
+.Pp
+.Fn X509_REQ_add1_attr
+appends a deep copy of the
+.Fa attr ,
+allocating a new array if necessary.
+.Pp
+.Fn X509_REQ_add1_attr_by_OBJ ,
+.Fn X509_REQ_add1_attr_by_NID ,
+and
+.Fn X509_REQ_add1_attr_by_txt
+create a new X.501 Attribute object using
+.Xr X509_ATTRIBUTE_create_by_OBJ 3 ,
+.Xr X509_ATTRIBUTE_create_by_NID 3 ,
+or
+.Xr X509_ATTRIBUTE_create_by_txt 3 ,
+respectively,
+allocating a new array if necessary.
+.Pp
+.Fn X509_REQ_delete_attr
+deletes the attribute with the zero-based
+.Fa index .
+.Pp
+.Fn X509_REQ_get_attr
+returns the attribute with the zero-based
+.Fa index .
+.Pp
+.Fn X509_REQ_get_attr_count
+returns the number of attributes currently associated with
+.Fa req .
+.Pp
+.Fn X509_REQ_get_attr_by_OBJ
+and
+.Fn X509_REQ_get_attr_by_NID
+search for an attribute of the type
+.Fa obj
+or
+.Fa nid .
+.Sh RETURN VALUES
+.Fn X509_REQ_add1_attr ,
+.Fn X509_REQ_add1_attr_by_OBJ ,
+.Fn X509_REQ_add1_attr_by_NID ,
+and
+.Fn X509_REQ_add1_attr_by_txt
+return 1 for success or 0 for failure.
+.Pp
+.Fn X509_REQ_delete_attr
+and
+.Fn X509_REQ_get_attr
+return the deleted or requested attribute or
+.Dv NULL
+if the requested index is negative or greater than or equal to
+the current number of attributes associated with
+.Fa req .
+.Pp
+.Fn X509_REQ_get_attr_count
+returns the current number of attributes.
+.Pp
+.Fn X509_REQ_get_attr_by_OBJ
+and
+.Fn X509_REQ_get_attr_by_NID
+return the index of the first attribute that has an index greater than
+.Fa start_after
+and a type matching
+.Fa obj
+or
+.Fa nid ,
+respectively, or \-1 on failure.
+In addition,
+.Fn X509_REQ_get_attr_by_NID
+returns \-2 if
+.Xr OBJ_nid2obj 3
+fails on the requested
+.Fa nid .
+.Sh SEE ALSO
+.Xr OBJ_nid2obj 3 ,
+.Xr X509_ATTRIBUTE_create_by_OBJ 3 ,
+.Xr X509_ATTRIBUTE_new 3 ,
+.Xr X509_REQ_new 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.5
+and have been available since
+.Ox 2.7 .

@@ -1,0 +1,668 @@
+.\"	$OpenBSD: ptrace.2,v 1.44 2024/11/27 05:25:56 anton Exp $
+.\"	$NetBSD: ptrace.2,v 1.3 1996/02/23 01:39:41 jtc Exp $
+.\"
+.\" This file is in the public domain.
+.Dd $Mdocdate: November 27 2024 $
+.Dt PTRACE 2
+.Os
+.Sh NAME
+.Nm ptrace
+.Nd process tracing and debugging
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/ptrace.h
+.Ft int
+.Fn ptrace "int request" "pid_t pid" "caddr_t addr" "int data"
+.Sh DESCRIPTION
+.Fn ptrace
+provides tracing and debugging facilities.
+It allows one process (the
+.Em tracing
+process) to control another (the
+.Em traced
+process).
+Most of the time, the traced process runs normally, but when
+it receives a signal
+.Po
+see
+.Xr sigaction 2
+.Pc ,
+it stops.
+The tracing process is expected to notice this via
+.Xr wait 2
+or the delivery of a
+.Dv SIGCHLD
+signal, examine the state of the stopped process, and cause it to
+terminate or continue as appropriate.
+.Fn ptrace
+is the mechanism by which all this happens.
+.Fn ptrace
+is only available on kernels compiled with the
+.Cm PTRACE
+option.
+.Pp
+The
+.Fa request
+argument specifies what operation is being performed; the meaning of
+the rest of the arguments depends on the operation, but except for one
+special case noted below, all
+.Fn ptrace
+calls are made by the tracing process, and the
+.Fa pid
+argument specifies the process ID of the traced process.
+.Fa request
+can be:
+.Bl -tag -width 12n
+.It Dv PT_TRACE_ME
+This request is the only one used by the traced process; it declares
+that the process expects to be traced by its parent.
+All the other arguments are ignored.
+(If the parent process does not expect to trace the child, it will
+probably be rather confused by the results; once the traced process stops,
+it cannot be made to continue except via
+.Fn ptrace . )
+When a process has used this request and calls
+.Xr execve 2
+or any of the routines built on it
+.Po
+such as
+.Xr execv 3
+.Pc ,
+it will stop before executing the first instruction of the new image.
+Also, any setuid or setgid bits on the executable being executed will
+be ignored.
+.It Dv PT_READ_I , Dv PT_READ_D
+These requests read a single
+.Vt int
+of data from the traced process' address space.
+Traditionally,
+.Fn ptrace
+has allowed for machines with distinct address spaces for instruction
+and data, which is why there are two requests: conceptually,
+.Dv PT_READ_I
+reads from the instruction space and
+.Dv PT_READ_D
+reads from the data space.
+In the current
+.Ox
+implementation, these two requests operate in the same address space.
+The
+.Fa addr
+argument specifies the address (in the traced process' virtual address
+space) at which the read is to be done.
+This address does not have to meet any alignment constraints.
+The value read is returned as the return value from
+.Fn ptrace .
+.It Dv PT_WRITE_I , Dv PT_WRITE_D
+These requests parallel
+.Dv PT_READ_I
+and
+.Dv PT_READ_D ,
+except that they write rather than read.
+.Dv PT_WRITE_I
+may be necessary to ensure that instruction caches are flushed appropriately.
+The
+.Fa data
+argument supplies the value to be written.
+.\" .It Dv PT_READ_U
+.\" This request reads an
+.\" .Li int
+.\" from the traced process' user structure.
+.\" The
+.\" .Fa addr
+.\" argument specifies the location of the int relative to the base of the
+.\" user structure; it will usually be an integer value cast to
+.\" .Li caddr_t
+.\" either explicitly or via the presence of a prototype for
+.\" .Fn ptrace .
+.\" Unlike
+.\" .Dv PT_READ_I
+.\" and
+.\" .Dv PT_READ_D ,
+.\" .Fa addr
+.\" must be aligned on an
+.\" .Li int
+.\" boundary.
+.\" The value read is returned as the return value from
+.\" .Fn ptrace .
+.\" .It Dv PT_WRITE_U
+.\" This request writes an
+.\" .Li int
+.\" into the traced process' user structure.
+.\" .Fa addr
+.\" specifies the offset, just as for
+.\" .Dv PT_READ_U ,
+.\" and
+.\" .Fa data
+.\" specifies the value to be written, just as for
+.\" .Dv PT_WRITE_I
+.\" and
+.\" .Dv PT_WRITE_D .
+.It Dv PT_CONTINUE
+The traced process continues execution.
+.Fa addr
+is an address specifying the place where execution is to be resumed (a
+new value for the program counter), or
+.Li (caddr_t)1
+to indicate that execution is to pick up where it left off.
+.Fa data
+provides a signal number to be delivered to the traced process as it
+resumes execution, or 0 if no signal is to be sent.
+.It Dv PT_KILL
+The traced process terminates, as if
+.Dv PT_CONTINUE
+had been used with
+.Dv SIGKILL
+given as the signal to be delivered.
+.It Dv PT_ATTACH
+This request allows a process to gain control of an otherwise unrelated
+process and begin tracing it.
+It does not need any cooperation from the to-be-traced process.
+In this case,
+.Fa pid
+specifies the process ID of the to-be-traced process, and the other two
+arguments are ignored.
+This request requires that the target process must have the same real UID
+as the tracing process, and that it must not be executing a set-user-ID
+or set-group-ID executable.
+Additionally, if the
+.Dv kern.global_ptrace
+sysctl is 0, then the target process must be a descendant of the tracing
+process.
+(If the tracing process is running as root, these restrictions do not apply.)
+The tracing process will see the newly traced process stop and may then
+control it as if it had been traced all along.
+.It Dv PT_DETACH
+This request is like
+.Dv PT_CONTINUE ,
+except that it does not allow
+specifying an alternate place to continue execution, and after it
+succeeds, the traced process is no longer traced and continues
+execution normally.
+.It Dv PT_IO
+This request is a more general interface that can be used instead of
+.Dv PT_READ_D ,
+.Dv PT_WRITE_D ,
+.Dv PT_READ_I
+and
+.Dv PT_WRITE_I .
+The I/O request is encoded in a
+.Dq Li "struct ptrace_io_desc"
+defined as:
+.Bd -literal -offset indent
+struct ptrace_io_desc {
+	int	 piod_op;
+	void	*piod_offs;
+	void	*piod_addr;
+	size_t	 piod_len;
+};
+.Ed
+.Pp
+Where
+.Fa piod_offs
+is the offset within the traced process where the I/O operation should be
+made,
+.Fa piod_addr
+is the buffer in the parent and
+.Fa piod_len
+is the length of the I/O request.
+The
+.Fa piod_op
+member specifies what operation needs to be done.
+Possible values are:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It PIOD_READ_D
+.It PIOD_WRITE_D
+.It PIOD_READ_I
+.It PIOD_WRITE_I
+.It PIOD_READ_AUXV
+.El
+.Pp
+See also the description of
+.Dv PT_READ_I
+for the difference between D and I spaces.
+The
+.Dv PIOD_READ_AUXV
+operation can be used to read from the ELF auxiliary vector.
+A pointer to the descriptor is passed in
+.Fa addr .
+On return the
+.Fa piod_len
+field in the descriptor will be updated with the actual number of bytes
+transferred.
+If the requested I/O could not be successfully performed,
+.Fn ptrace
+will return
+.Li -1
+and set
+.Va errno .
+.It Dv PT_SET_EVENT_MASK
+This request can be used to specify which events in the traced process
+should be reported to the tracing process.
+These events are specified in a
+.Dq Li "struct ptrace_event"
+defined as:
+.Bd -literal -offset indent
+typedef struct ptrace_event {
+	int	pe_set_event;
+} ptrace_event_t;
+.Ed
+.Pp
+Where
+.Fa pe_set_event
+is the set of events to be reported.
+This set is formed by OR'ing together the following values:
+.Bl -tag -width 18n
+.It PTRACE_FORK
+Report
+.Xr fork 2 .
+.El
+.Pp
+A pointer to this structure is passed in
+.Fa addr .
+The
+.Fa data
+argument should be set to
+.Li sizeof(struct ptrace_event) .
+.It Dv PT_GET_EVENT_MASK
+This request can be used to determine which events in the traced
+process will be reported.
+The information is read into the
+.Dq Li struct ptrace_event
+pointed to by
+.Fa addr .
+The
+.Fa data
+argument should be set to
+.Li sizeof(struct ptrace_event) .
+.It Dv PT_GET_PROCESS_STATE
+This request reads the state information associated with the event
+that stopped the traced process.
+The information is reported in a
+.Dq Li "struct ptrace_state"
+defined as:
+.Bd -literal -offset indent
+typedef struct ptrace_state {
+	int	pe_report_event;
+	pid_t	pe_other_pid;
+} ptrace_state_t;
+.Ed
+.Pp
+Where
+.Fa pe_report_event
+is the event being reported.
+If the event being reported is
+.Dv PTRACE_FORK ,
+.Fa pe_other_pid
+will be set to the process ID of the other end of the fork.
+A pointer to this structure is passed in
+.Fa addr .
+The
+.Fa data
+argument should be set to
+.Li sizeof(struct ptrace_state) .
+.It Dv PT_GET_THREAD_FIRST
+This request reads the thread ID of the traced process' first thread into the
+.Dq Li struct ptrace_thread_state
+pointed to by
+.Fa addr .
+The
+.Fa data
+argument should be set to
+.Li sizeof(struct ptrace_thread_state) .
+.It Dv PT_GET_THREAD_NEXT
+This request is just like
+.Dv PT_GET_THREAD_FIRST ,
+except it returns the thread ID of the subsequent thread.
+The
+.Dq Li struct ptrace_thread_state
+pointed to by
+.Fa addr
+must be initialized by a previous
+.Dv PT_GET_THREAD_FIRST
+or
+.Dv PT_GET_THREAD_NEXT
+request.
+.El
+.Pp
+Additionally, machine-specific requests can exist.
+Depending on the architecture, the following requests may be available
+under
+.Ox :
+.Bl -tag -width 12n
+.It Dv PT_GETREGS Pq all platforms
+This request reads the traced process' machine registers into the
+.Dq Li struct reg
+(defined in
+.In machine/reg.h )
+pointed to by
+.Fa addr .
+.It Dv PT_SETREGS Pq all platforms
+This request is the converse of
+.Dv PT_GETREGS ;
+it loads the traced process' machine registers from the
+.Dq Li struct reg
+(defined in
+.In machine/reg.h )
+pointed to by
+.Fa addr .
+.\" .It Dv PT_SYSCALL
+.\" This request is like
+.\" .Dv PT_CONTINUE
+.\" except that the process will stop next time it executes any system
+.\" call.
+.\" Information about the system call can be examined with
+.\" .Dv PT_READ_U
+.\" and potentially modified with
+.\" .Dv PT_WRITE_U
+.\" through the
+.\" .Li u_kproc.kp_proc.p_md
+.\" element of the user structure (see below).
+.\" If the process is continued with another
+.\" .Dv PT_SYSCALL
+.\" request, it will stop again on exit from the syscall, at which point
+.\" the return values can be examined and potentially changed.
+.\" The
+.\" .Li u_kproc.kp_proc.p_md
+.\" element is of type
+.\" .Dq Li struct mdproc ,
+.\" which should be declared by including
+.\" .In sys/param.h ,
+.\" .In sys/user.h ,
+.\" and
+.\" .In machine/proc.h ,
+.\" and contains the following fields (among others):
+.\" .Bl -item -compact -offset indent
+.\" .It
+.\" .Li syscall_num
+.\" .It
+.\" .Li syscall_nargs
+.\" .It
+.\" .Li syscall_args[8]
+.\" .It
+.\" .Li syscall_err
+.\" .It
+.\" .Li syscall_rv[2]
+.\" .El
+.\" When a process stops on entry to a syscall,
+.\" .Li syscall_num
+.\" holds the number of the syscall,
+.\" .Li syscall_nargs
+.\" holds the number of arguments it expects, and
+.\" .Li syscall_args
+.\" holds the arguments themselves.
+.\" (Only the first
+.\" .Li syscall_nargs
+.\" elements of
+.\" .Li syscall_args
+.\" are guaranteed to be useful.)  When a process stops on exit from a
+.\" syscall,
+.\" .Li syscall_num
+.\" is
+.\" .Li -1 ,
+.\" .Li syscall_err
+.\" holds the error number
+.\" .Po
+.\" see
+.\" .Xr errno 2
+.\" .Pc ,
+.\" or 0 if no error occurred, and
+.\" .Li syscall_rv
+.\" holds the return values.
+.\" (If the syscall returns only one value, only
+.\" .Li syscall_rv[0]
+.\" is useful.)
+.\" The tracing process can modify any of these with
+.\" .Dv PT_WRITE_U ;
+.\" only some modifications are useful.
+.\" .Pp
+.\" On entry to a syscall,
+.\" .Li syscall_num
+.\" can be changed, and the syscall actually performed will correspond to
+.\" the new number (it is the responsibility of the tracing process to fill
+.\" in
+.\" .Li syscall_args
+.\" appropriately for the new call, but there is no need to modify
+.\" .Li syscall_nargs ) .
+.\" If the new syscall number is 0, no syscall is actually performed;
+.\" instead,
+.\" .Li syscall_err
+.\" and
+.\" .Li syscall_rv
+.\" are passed back to the traced process directly (and therefore should be
+.\" filled in).
+.\" If the syscall number is otherwise out of range, a dummy
+.\" syscall which simply produces an
+.\" .Er ENOSYS
+.\" error is effectively performed.
+.\" .Pp
+.\" On exit from a syscall, only
+.\" .Li syscall_err
+.\" and
+.\" .Li syscall_rv
+.\" can usefully be changed; they are set to the values returned by the
+.\" syscall and will be passed back to the traced process by the normal
+.\" syscall return mechanism.
+.It Xo Dv PT_STEP
+.No (not available on sparc64)
+.Xc
+The traced process continues execution, as in request
+.Dv PT_CONTINUE ;
+however, execution stops as soon as possible after execution of at least
+one instruction
+.Pq single-step .
+.\" mips64 (fp registers in the main reg structure)
+.It Xo Dv PT_GETFPREGS
+.No (not available on luna88k or mips64)
+.Xc
+This request reads the traced process' floating-point registers into
+the
+.Dq Li struct fpreg
+(defined in
+.In machine/reg.h )
+pointed to by
+.Fa addr .
+.It Xo Dv PT_SETFPREGS
+.No (not available on luna88k or mips64)
+.Xc
+This request is the converse of
+.Dv PT_GETFPREGS ;
+it loads the traced process' floating-point registers from the
+.Dq Li struct fpreg
+(defined in
+.In machine/reg.h )
+pointed to by
+.Fa addr .
+.It Dv PT_GETXMMREGS Pq i386 only
+This request reads the traced process' XMM registers into the
+.Dq Li struct xmmregs
+(defined in
+.In machine/reg.h )
+pointed to by
+.Fa addr .
+.It Dv PT_SETXMMREGS Pq i386 only
+This request is the converse of
+.Dv PT_GETXMMREGS ;
+it loads the traced process' XMM registers from the
+.Dq Li struct xmmregs
+(defined in
+.In machine/reg.h )
+pointed to by
+.Fa addr .
+.It Dv PT_WCOOKIE Pq sparc64 only
+This request reads the traced process'
+.Sq window cookie
+into the
+.Vt int
+pointed to by
+.Fa addr .
+The window cookie needs to be
+.Sq XOR'ed
+to stack-saved program counters.
+.It Dv PT_GETXSTATE_INFO Pq amd64 only
+This request can be used to obtain details about the traced process XSAVE area,
+specified in a
+.Dq Li "struct ptrace_xstate_info"
+defined as follows:
+.Bd -literal -offset indent
+struct ptrace_xstate_info {
+	uint64_t xsave_mask;
+	uint32_t xsave_len;
+};
+.Ed
+.Pp
+The
+.Fa xsave_mask
+field denotes the enabled XSAVE components.
+The
+.Fa xsave_len
+field denotes the size of XSAVE area intended to be used with the
+.Dv PT_GETXSTATE
+and
+.Dv PT_SETXSTATE
+requests.
+.Pp
+A pointer to
+.Dq Li "struct ptrace_xstate_info"
+must be passed in
+.Fa addr
+and the
+.Fa data
+argument must be set to
+.Li sizeof(struct ptrace_xstate_info) .
+.It Dv PT_GETXSTATE Pq amd64 only
+This request can be used to read the XSAVE area of the traced process.
+A pointer to a buffer must be passed in
+.Fa addr
+with a capacity of the length obtained using the
+.Dv PT_GETXSTATE_INFO
+request.
+The
+.Fa data
+argument must reflect the same length.
+.It Dv PT_SETXSTATE Pq amd64 only
+This request can be used to write the XSAVE area of the traced process.
+Only changes to the x87, SSE and AVX state components are honored.
+A pointer to a buffer must be passed in
+.Fa addr
+with a capacity of the length obtained using the
+.Dv PT_GETXSTATE_INFO
+request.
+The
+.Fa data
+argument must reflect the same length.
+.El
+.Sh ERRORS
+Some requests can cause
+.Fn ptrace
+to return
+.Li -1
+as a non-error value; to disambiguate,
+.Va errno
+is set to zero and this should be checked.
+The possible errors are:
+.Bl -tag -width 4n
+.It Bq Er ESRCH
+No process having the specified process ID exists.
+.It Bq Er EINVAL
+.Bl -bullet -compact
+.It
+A process attempted to use
+.Dv PT_ATTACH
+on itself.
+.It
+The
+.Fa request
+was not one of the legal requests.
+.\" .It
+.\" The
+.\" .Fa addr
+.\" to
+.\" .Dv PT_READ_U
+.\" or
+.\" .Dv PT_WRITE_U
+.\" was not
+.\" .Li int Ns \&-aligned.
+.It
+The signal number (in
+.Fa data )
+to
+.Dv PT_CONTINUE
+.\" or
+.\" .Dv PT_SYSCALL
+was neither 0 nor a legal signal number.
+.It
+.Dv PT_GETREGS ,
+.Dv PT_SETREGS ,
+.Dv PT_GETFPREGS ,
+or
+.Dv PT_SETFPREGS
+was attempted on a process with no valid register set.
+(This is normally true only of system processes.)
+.El
+.It Bq Er EBUSY
+.Bl -bullet -compact
+.It
+.Dv PT_ATTACH
+was attempted on a process that was already being traced.
+.It
+A request attempted to manipulate a process that was being traced by
+some process other than the one making the request.
+.It
+A request (other than
+.Dv PT_ATTACH )
+specified a process that wasn't stopped and waited for.
+.El
+.It Bq Er EPERM
+.Bl -bullet -compact
+.It
+A request (other than
+.Dv PT_ATTACH )
+attempted to manipulate a process that wasn't being traced at all.
+.It
+An attempt was made to use
+.Dv PT_ATTACH
+on a process in violation of the requirements listed under
+.Dv PT_ATTACH
+above.
+.It
+An attempt was made to use
+.Dv PT_ATTACH
+on a system process.
+.El
+.It Bq Er ENOTSUP
+.Dv PT_GETXSTATE_INFO ,
+.Dv PT_GETXSTATE ,
+or
+.Dv PT_SETXSTATE
+was attempted on a CPU lacking support for XSAVE.
+.El
+.Sh HISTORY
+The
+.Fn ptrace
+system call first appeared in
+.At v6 .
+.Sh BUGS
+On several RISC architectures (such as luna88k and sparc64),
+the PC is set to the provided PC value for
+.Dv PT_CONTINUE
+and similar calls, and the remainder of the execution pipeline registers
+are set to the following instructions, even if the instruction at PC
+is a branch instruction.
+Using
+.Dv PT_GETREGS
+and
+.Dv PT_SETREGS
+to modify the PC, passing
+.Li (caddr_t)1
+to
+.Fn ptrace ,
+should be able to sidestep this.
+.\" .Pp
+.\" When using
+.\" .Dv PT_SYSCALL ,
+.\" there is no easy way to tell whether the traced process stopped because
+.\" it made a syscall or because a signal was sent at a moment that it just
+.\" happened to have valid-looking garbage in its
+.\" .Dq Li struct mdproc .

@@ -1,0 +1,8 @@
+executable("llvm-sim") {
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-sim.cpp" ]
+}

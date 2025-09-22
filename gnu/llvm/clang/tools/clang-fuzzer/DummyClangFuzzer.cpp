@@ -1,0 +1,20 @@
+//===-- DummyClangFuzzer.cpp - Entry point to sanity check fuzzers --------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Provides a main() to build without linking libFuzzer.
+//
+//===----------------------------------------------------------------------===//
+#include "llvm/FuzzMutate/FuzzerCLI.h"
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size);
+extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv);
+
+int main(int argc, char *argv[]) {
+  return llvm::runFuzzerOnInputs(argc, argv, LLVMFuzzerTestOneInput,
+                                 LLVMFuzzerInitialize);
+}

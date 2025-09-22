@@ -1,0 +1,5 @@
+MULTILIB_OPTIONS = threads
+MULTILIB_DIRNAMES = threads
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib

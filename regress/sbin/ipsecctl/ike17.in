@@ -1,0 +1,2 @@
+ike from 10.1.1.0/24 to 10.1.2.0/24 peer 3ffe::29
+ike from 3ffe::51 to 3ffe::29

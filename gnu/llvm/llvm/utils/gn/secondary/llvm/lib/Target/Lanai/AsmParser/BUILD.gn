@@ -1,0 +1,21 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("LanaiGenAsmMatcher") {
+  visibility = [ ":AsmParser" ]
+  args = [ "-gen-asm-matcher" ]
+  td_file = "../Lanai.td"
+}
+
+static_library("AsmParser") {
+  output_name = "LLVMLanaiAsmParser"
+  deps = [
+    ":LanaiGenAsmMatcher",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/Lanai/MCTargetDesc",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "LanaiAsmParser.cpp" ]
+}

@@ -1,0 +1,23 @@
+Unbound was developed at NLnet Labs by Wouter Wijngaards.
+
+Unbound was architected in January of 2004 by Jakob Schlyter of Kirei 
+and Roy Arends of Nominet. VeriSign and EP.Net funded development of 
+the prototype, which was built by David Blacka and Matt Larson of VeriSign. 
+Late in 2006, NLnet Labs joined the effort, writing an implementation in C 
+based on the existing prototype and using experience NLnet Labs gained
+during the development of NSD, an authoritative DNS server.
+
+At NLnet Labs, Jelte Jansen, Mark Santcroos and Matthijs Mekking 
+reviewed the unbound C sources.
+
+Jakob Schlyter - for advice on secure settings, random numbers and blacklists.
+Ondřej Surý - running coverity analysis tool on 0.9 dev version.
+Alexander Gall - multihomed, anycast testing of unbound resolver server.
+Zdenek Vasicek and Marek Vavrusa - python module.
+cz.nic - sponsoring 'summer of code' development by Zdenek and Marek.
+Brett Carr - windows beta testing.
+Luca Bruno - patch for windows support in libunbound hosts and resolvconf().
+Tom Hendrikx - contributed split-itar.sh a useful script to 5011-track ITAR.
+Daisuke HIGASHI - patch for rrset-roundrobin and minimal-responses.
+Simon Perrault - DNS64 module.
+Robert Edmonds - dnstap code.

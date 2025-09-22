@@ -1,0 +1,301 @@
+.\"	$OpenBSD: SSL_CTX_set_tlsext_ticket_key_cb.3,v 1.9 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Rich Salz <rsalz@akamai.com>
+.\" Copyright (c) 2014, 2015, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_TLSEXT_TICKET_KEY_CB 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_tlsext_ticket_key_cb
+.Nd set a callback for session ticket processing
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/tls1.h
+.Ft long
+.Fo SSL_CTX_set_tlsext_ticket_key_cb
+.Fa "SSL_CTX sslctx"
+.Fa "int (*cb)(SSL *s, unsigned char key_name[16],\
+ unsigned char iv[EVP_MAX_IV_LENGTH],\
+ EVP_CIPHER_CTX *ctx, HMAC_CTX *hctx, int enc)"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_tlsext_ticket_key_cb
+sets a callback function
+.Fa cb
+for handling session tickets for the ssl context
+.Fa sslctx .
+Session tickets, defined in RFC 5077, provide an enhanced session
+resumption capability where the server implementation is not required to
+maintain per session state.
+.Pp
+The callback function
+.Fa cb
+will be called for every client instigated TLS session when session
+ticket extension is presented in the TLS hello message.
+It is the responsibility of this function to create or retrieve the
+cryptographic parameters and to maintain their state.
+.Pp
+The OpenSSL library uses the callback function to help implement a
+common TLS ticket construction state according to RFC 5077 Section 4 such
+that per session state is unnecessary and a small set of cryptographic
+variables needs to be maintained by the callback function
+implementation.
+.Pp
+In order to reuse a session, a TLS client must send a session ticket
+extension to the server.
+The client can only send exactly one session ticket.
+The server, through the callback function, either agrees to reuse the
+session ticket information or it starts a full TLS handshake to create a
+new session ticket.
+.Pp
+The callback is called with
+.Fa ctx
+and
+.Fa hctx
+which were newly allocated with
+.Xr EVP_CIPHER_CTX_new 3
+and
+.Xr HMAC_CTX_new 3 ,
+respectively.
+.Pp
+For new sessions tickets, when the client doesn't present a session
+ticket, or an attempted retrieval of the ticket failed, or a renew
+option was indicated, the callback function will be called with
+.Fa enc
+equal to 1.
+The OpenSSL library expects that the function will set an arbitrary
+.Fa key_name ,
+initialize
+.Fa iv ,
+and set the cipher context
+.Fa ctx
+and the hash context
+.Fa hctx .
+.Pp
+The
+.Fa key_name
+is 16 characters long and is used as a key identifier.
+.Pp
+The
+.Fa iv
+length is the length of the IV of the corresponding cipher.
+The maximum IV length is
+.Dv EVP_MAX_IV_LENGTH
+bytes defined in
+.In openssl/evp.h .
+.Pp
+The initialization vector
+.Fa iv
+should be a random value.
+The cipher context
+.Fa ctx
+should use the initialisation vector
+.Fa iv .
+The cipher context can be set using
+.Xr EVP_EncryptInit_ex 3 .
+The hmac context can be set using
+.Xr HMAC_Init_ex 3 .
+.Pp
+When the client presents a session ticket, the callback function
+with be called with
+.Fa enc
+set to 0 indicating that the
+.Fa cb
+function should retrieve a set of parameters.
+In this case
+.Fa key_name
+and
+.Fa iv
+have already been parsed out of the session ticket.
+The OpenSSL library expects that the
+.Em key_name
+will be used to retrieve a cryptographic parameters and that the
+cryptographic context
+.Fa ctx
+will be set with the retrieved parameters and the initialization vector
+.Fa iv
+using a function like
+.Xr EVP_DecryptInit_ex 3 .
+The
+.Fa hctx
+needs to be set using
+.Xr HMAC_Init_ex 3 .
+.Pp
+If the
+.Fa key_name
+is still valid but a renewal of the ticket is required, the callback
+function should return 2.
+The library will call the callback again with an argument of
+.Fa enc
+equal to 1 to set the new ticket.
+.Pp
+The return value of the
+.Fa cb
+function is used by OpenSSL to determine what further processing will
+occur.
+The following return values have meaning:
+.Bl -tag -width Ds
+.It 2
+This indicates that the
+.Fa ctx
+and
+.Fa hctx
+have been set and the session can continue on those parameters.
+Additionally it indicates that the session ticket is in a renewal period
+and should be replaced.
+The OpenSSL library will call
+.Fa cb
+again with an
+.Fa enc
+argument of 1 to set the new ticket (see RFC 5077 3.3 paragraph 2).
+.It 1
+This indicates that the
+.Fa ctx
+and
+.Fa hctx
+have been set and the session can continue on those parameters.
+.It 0
+This indicates that it was not possible to set/retrieve a session ticket
+and the SSL/TLS session will continue by negotiating a set of
+cryptographic parameters or using the alternate SSL/TLS resumption
+mechanism, session ids.
+.Pp
+If called with
+.Fa enc
+equal to 0, the library will call the
+.Fa cb
+again to get a new set of parameters.
+.It less than 0
+This indicates an error.
+.El
+.Pp
+Session resumption shortcuts the TLS so that the client certificate
+negotiation don't occur.
+It makes up for this by storing client certificate and all other
+negotiated state information encrypted within the ticket.
+In a resumed session the applications will have all this state
+information available exactly as if a full negotiation had occurred.
+.Pp
+If an attacker can obtain the key used to encrypt a session ticket, they
+can obtain the master secret for any ticket using that key and decrypt
+any traffic using that session: even if the ciphersuite supports forward
+secrecy.
+As a result applications may wish to use multiple keys and avoid using
+long term keys stored in files.
+.Pp
+Applications can use longer keys to maintain a consistent level of
+security.
+For example if a ciphersuite uses 256 bit ciphers but only a 128 bit
+ticket key the overall security is only 128 bits because breaking the
+ticket key will enable an attacker to obtain the session keys.
+.Sh RETURN VALUES
+This function returns 0 to indicate that the callback function was set.
+.Sh EXAMPLES
+Reference Implementation:
+.Bd -literal
+SSL_CTX_set_tlsext_ticket_key_cb(SSL, ssl_tlsext_ticket_key_cb);
+\&....
+static int ssl_tlsext_ticket_key_cb(SSL *s, unsigned char key_name[16],
+    unsigned char *iv, EVP_CIPHER_CTX *ctx, HMAC_CTX *hctx, int enc)
+{
+	if (enc) { /* create new session */
+		if (RAND_bytes(iv, EVP_MAX_IV_LENGTH))
+			return -1; /* insufficient random */
+
+		key = currentkey(); /* something you need to implement */
+		if (!key) {
+			/* current key doesn't exist or isn't valid */
+			key = createkey();
+			    /* something that you need to implement.
+			     * createkey needs to initialise a name,
+			     * an aes_key, a hmac_key, and optionally
+			     * an expire time. */
+			if (!key) /* key couldn't be created */
+				return 0;
+		}
+		memcpy(key_name, key->name, 16);
+
+		EVP_EncryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL,
+		    key->aes_key, iv);
+		HMAC_Init_ex(&hctx, key->hmac_key, 16, EVP_sha256(), NULL);
+
+		return 1;
+
+	} else { /* retrieve session */
+		key = findkey(name);
+
+		if  (!key || key->expire < now())
+			return 0;
+
+		HMAC_Init_ex(&hctx, key->hmac_key, 16, EVP_sha256(), NULL);
+		EVP_DecryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL,
+		    key->aes_key, iv );
+
+		if (key->expire < (now() - RENEW_TIME))
+		    /* this session will get a new ticket
+		     * even though the current is still valid */
+		    return 2;
+
+		return 1;
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_add_session 3 ,
+.Xr SSL_CTX_callback_ctrl 3 ,
+.Xr SSL_CTX_sess_number 3 ,
+.Xr SSL_CTX_sess_set_get_cb 3 ,
+.Xr SSL_CTX_set_session_id_context 3 ,
+.Xr SSL_session_reused 3 ,
+.Xr SSL_set_session 3
+.Sh HISTORY
+.Fn SSL_CTX_set_tlsext_ticket_key_cb
+first appeared in OpenSSL 0.9.8h and has been available since
+.Ox 4.5 .

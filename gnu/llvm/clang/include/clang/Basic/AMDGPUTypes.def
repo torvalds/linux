@@ -1,0 +1,21 @@
+//===-- AMDGPUTypes.def - Metadata about AMDGPU types -----------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file defines various AMDGPU builtin types.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef AMDGPU_OPAQUE_PTR_TYPE
+#define AMDGPU_OPAQUE_PTR_TYPE(Name, MangledName, AS, Width, Align, Id, SingletonId) \
+  AMDGPU_TYPE(Name, Id, SingletonId)
+#endif
+
+AMDGPU_OPAQUE_PTR_TYPE("__amdgpu_buffer_rsrc_t", "__amdgpu_buffer_rsrc_t", 8, 128, 128, AMDGPUBufferRsrc, AMDGPUBufferRsrcTy)
+
+#undef AMDGPU_TYPE
+#undef AMDGPU_OPAQUE_PTR_TYPE

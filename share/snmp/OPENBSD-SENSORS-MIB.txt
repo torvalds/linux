@@ -1,0 +1,190 @@
+-- $OpenBSD: OPENBSD-SENSORS-MIB.txt,v 1.7 2018/12/10 13:35:54 landry Exp $
+--
+-- Copyright (c) 2006-2007 Joel Knight <knight.joel@gmail.com>
+-- 
+-- Permission to use, copy, modify, and distribute this document for any
+-- purpose with or without fee is hereby granted, provided that the above
+-- copyright notice and this permission notice appear in all copies.
+--
+-- THE DOCUMENT IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+-- WITH REGARD TO THIS DOCUMENT INCLUDING ALL IMPLIED WARRANTIES OF
+-- MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+-- ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+-- WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+-- ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+-- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS DOCUMENT.
+
+OPENBSD-SENSORS-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+	MODULE-IDENTITY, NOTIFICATION-TYPE, OBJECT-TYPE,
+	    Integer32, Unsigned32, TimeTicks, enterprises
+	    FROM SNMPv2-SMI
+	openBSD
+	    FROM OPENBSD-BASE-MIB
+	MODULE-COMPLIANCE, OBJECT-GROUP
+	    FROM SNMPv2-CONF;
+
+sensorsMIBObjects MODULE-IDENTITY
+	LAST-UPDATED "201812100000Z"
+	ORGANIZATION "OpenBSD"
+	CONTACT-INFO
+	    "Editor:    Reyk Floeter
+	    EMail:      reyk@openbsd.org
+	    WWW:        https://www.openbsd.org/
+
+	    Editor:     Joel Knight
+	    EMail:      knight.joel@gmail.com
+	    WWW:        http://www.packetmischief.ca/openbsd-snmp-mibs/"
+	DESCRIPTION
+	    "The MIB module for gathering information from
+	    OpenBSD's kernel sensor framework."
+	REVISION "201812100000Z"
+	DESCRIPTION
+	    "Add new sensor types."
+	REVISION "201209200000Z"
+	DESCRIPTION
+	    "Add new sensor types."
+	REVISION "201201310000Z"
+	DESCRIPTION
+	    "Update email address."
+	REVISION "200812230000Z"
+	DESCRIPTION
+	    "Updated for MIB for the OpenBSD snmpd(8) implementation."
+	::= { openBSD 2 }
+
+--
+-- Define the sections of the MIB
+--
+
+sensors		OBJECT IDENTIFIER ::= { sensorsMIBObjects 1 }
+
+--
+-- MIB definitions
+--
+
+sensorNumber  OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	    "The number of sensors present on this system."
+	::= { sensors 1 }
+
+sensorTable OBJECT-TYPE
+	SYNTAX		SEQUENCE OF SensorEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	    "A list of individual sensors. The number of entries is
+	    given by the value of sensorNumber."
+	::= { sensors 2 }
+
+sensorEntry OBJECT-TYPE
+	SYNTAX		SensorEntry
+	MAX-ACCESS	not-accessible
+	STATUS		current
+	DESCRIPTION
+	    "An entry containing management information applicable to a
+	    particular sensor."
+	INDEX		{ sensorIndex }
+	::= { sensorTable 1 }
+
+SensorEntry ::= SEQUENCE {
+	sensorIndex	Integer32,
+	sensorDescr	OCTET STRING,
+	sensorType	INTEGER,
+	sensorDevice	OCTET STRING,
+	sensorValue	OCTET STRING,
+	sensorUnits	OCTET STRING,
+	sensorStatus	INTEGER
+}
+
+sensorIndex OBJECT-TYPE
+	SYNTAX		Integer32 (1..2147483647)
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	    "A unique value, greater than zero, for each sensor."
+	::= { sensorEntry 1 }
+
+sensorDescr OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	    "A description of the sensor indicating what information the
+	    sensor is monitoring."
+	::= { sensorEntry 2 }
+
+sensorType OBJECT-TYPE
+	SYNTAX		INTEGER {
+				temperature(0),
+				fan(1),
+				voltsdc(2),
+				voltsac(3),
+				resistance(4),
+				power(5),
+				current(6),
+				watthour(7),
+				amphour(8),
+				indicator(9),
+				raw(10),
+				percent(11),
+				illuminance(12),
+				drive(13),
+				timedelta(14),
+				humidity(15),
+				freq(16),
+				angle(17),
+				distance(18),
+				pressure(19),
+				accel(20),
+				velocity(21)
+			}
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	    "Indicates the type of sensor."
+	::= { sensorEntry 3 }
+
+sensorDevice OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	    "The name of the sensor driver that provides the sensor."
+	::= { sensorEntry 4 }
+
+sensorValue OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	    "The value the sensor is currently reporting."
+	::= { sensorEntry 5 }
+
+sensorUnits OBJECT-TYPE
+	SYNTAX		OCTET STRING
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	    "The units that the sensor reports in."
+	::= { sensorEntry 6 }
+
+sensorStatus OBJECT-TYPE
+	SYNTAX		INTEGER {
+				unspecified(0),
+				ok(1),
+				warn(2),
+				critical(3),
+				unknown(4)
+			}
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+	    "Indicates whether the sensor value is within an acceptable
+	    range."
+	::= { sensorEntry 7 }
+
+END

@@ -1,0 +1,186 @@
+.\" $OpenBSD: mutex.9,v 1.25 2019/11/04 18:18:03 anton Exp $
+.\"
+.\" Copyright (c) 2005 Pedro Martelletto <pedro@ambientworks.net>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 4 2019 $
+.Dt MUTEX 9
+.Os
+.Sh NAME
+.Nm mutex ,
+.Nm mtx_init ,
+.Nm mtx_init_flags ,
+.Nm mtx_enter ,
+.Nm mtx_enter_try ,
+.Nm mtx_leave ,
+.Nm MUTEX_ASSERT_LOCKED ,
+.Nm MUTEX_ASSERT_UNLOCKED ,
+.Nm MUTEX_INITIALIZER ,
+.Nm MUTEX_INITIALIZER_FLAGS
+.Nd interface to CPU mutexes
+.Sh SYNOPSIS
+.In sys/mutex.h
+.Ft void
+.Fn mtx_init "struct mutex *mtxp" "int wantipl"
+.Ft void
+.Fn mtx_init_flags "struct mutex *mtxp" "int wantipl" "const char *name" \
+"int flags"
+.Ft void
+.Fn mtx_enter "struct mutex *mtxp"
+.Ft int
+.Fn mtx_enter_try "struct mutex *mtxp"
+.Ft void
+.Fn mtx_leave "struct mutex *mtxp"
+.Fn MUTEX_ASSERT_LOCKED "struct mutex *mtxp"
+.Fn MUTEX_ASSERT_UNLOCKED "struct mutex *mtxp"
+.Fn MUTEX_INITIALIZER "int wantipl"
+.Fn MUTEX_INITIALIZER_FLAGS "int wantipl" "const char *name" "int flags"
+.Sh DESCRIPTION
+The
+.Nm
+set of functions provides a non-recursive, interrupt-aware spinning mechanism
+to ensure mutual exclusion between different CPUs.
+.Pp
+The
+.Fn mtx_init
+function is used to initiate the mutex pointed to by
+.Fa mtxp .
+When acquired, the mutex will cause the processor interrupt level to be raised
+to
+.Fa wantipl
+if necessary.
+.Pp
+The
+.Fn mtx_init_flags
+macro is similar to
+.Fn mtx_init ,
+but it additionally accepts parameters for
+.Xr witness 4 .
+The pointer
+.Fa name
+differentiates a lock type.
+Two mutexes have the same lock type only if they have been created by the same
+occurrence of
+.Fn mtx_init_flags
+with the same pointer
+.Fa name .
+The
+.Fa flags
+parameter is a bitwise OR of the following options:
+.Bl -tag -width MTX_NOWITNESS -offset indent
+.It Dv MTX_DUPOK
+Prevents
+.Xr witness 4
+from logging when a CPU acquires more than one lock of this lock type.
+.It Dv MTX_NOWITNESS
+Instructs
+.Xr witness 4
+to ignore this lock.
+.El
+.Pp
+The
+.Fn mtx_enter
+function acquires a mutex, spinning if necessary.
+.Pp
+The
+.Fn mtx_enter_try
+function attempts to acquire a mutex.
+.Pp
+The
+.Fn mtx_leave
+function releases a mutex.
+In case the acquisition of the mutex caused the interrupt level to be changed,
+it is then restored.
+.Pp
+The
+.Fn MUTEX_ASSERT_LOCKED
+and
+.Fn MUTEX_ASSERT_UNLOCKED
+macros may be used to assert that a mutex is held locked or unlocked by
+the current CPU.
+.Pp
+A mutex declaration may be initialised with the
+.Fn MUTEX_INITIALIZER
+macro.
+When acquired, the mutex will cause the processor interrupt level to be raised
+to
+.Fa wantipl
+if necessary.
+.Pp
+The
+.Fn MUTEX_INITIALIZER_FLAGS
+macro is similar to
+.Fn MUTEX_INITIALIZER ,
+but it additionally accepts parameters for
+.Xr witness 4 .
+See the
+.Fn mtx_init_flags
+macro for details.
+.Sh CONTEXT
+.Fn mtx_init
+and
+.Fn mtx_init_flags
+can be called during autoconf, from process context, or from interrupt
+context.
+.Pp
+.Fn mtx_enter ,
+.Fn mtx_enter_try ,
+and
+.Fn mtx_leave
+can be called during autoconf, from process context, or from any
+interrupt context at or below the interrupt level
+.Fa mtxp
+was initialised with.
+.Sh RETURN VALUES
+The
+.Fn mtx_enter_try
+function will return non-zero if it succeeds in acquiring the mutex
+.Fa mtxp ,
+otherwise it will return 0.
+.Sh SEE ALSO
+.Xr witness 4 ,
+.Xr msleep 9 ,
+.Xr rwlock 9 ,
+.Xr spl 9
+.Sh HISTORY
+The
+.Nm
+functions first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+The
+.Nm
+functions were written by
+.An Artur Grabowski Aq Mt art@openbsd.org .
+.Sh CAVEATS
+As these are spinning locks, don't sleep while holding one.
+.Pp
+Multiple mutexes may be nested, but not interleaved.
+This is okay:
+.Bd -literal -offset indent
+mtx_enter(foo);
+mtx_enter(bar);
+mtx_leave(bar);
+mtx_leave(foo);
+.Ed
+.Pp
+While this is
+.Fa not :
+.Bd -literal -offset indent
+mtx_enter(foo);
+mtx_enter(bar);
+mtx_leave(foo);
+mtx_leave(bar);
+.Ed

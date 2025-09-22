@@ -1,0 +1,63 @@
+.\"	$OpenBSD: bcmsdhost.4,v 1.2 2020/04/22 11:35:03 jmc Exp $
+.\"
+.\" Copyright (c) 2020 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 22 2020 $
+.Dt BCMSDHOST 4
+.Os
+.Sh NAME
+.Nm bcmsdhost
+.Nd Broadcom BCM238x SD controller
+.Sh SYNOPSIS
+.Cd "bcmsdhost* at fdt?"
+.Cd "sdmmc* at bcmsdhost?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the SD controllers integrated on Broadcom
+BCM283x and BCM2711 SoCs.
+The driver uses the
+.Xr bcmdmac 4
+DMA controller to provide DMA support.
+.Pp
+The
+.Xr sdmmc 4
+subsystem performs SD/MMC transactions to communicate with whatever SD
+devices are inserted into the card slot or directly connected to the
+controller.
+.Sh SEE ALSO
+.Xr bcmdmac 4 ,
+.Xr intro 4 ,
+.Xr sdmmc 4
+.Sh HISTORY
+.Ox
+support for
+.Nm
+first appeared in
+.Ox 6.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jared D. McNeill
+for
+.Nx
+and ported to
+.Ox
+by
+.An Neil Ashford Aq Mt ashfordneil0@gmail.com
+and
+.An Tobias Heider Aq Mt tobhe@openbsd.org .

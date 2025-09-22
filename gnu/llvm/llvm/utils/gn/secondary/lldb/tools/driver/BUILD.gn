@@ -1,0 +1,51 @@
+import("//llvm/lib/Target/targets.gni")
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/toolchain/compiler.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+import("//llvm/version.gni")
+
+tablegen("Options") {
+  visibility = [ ":lldb" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+if (current_os == "mac") {
+  write_cmake_config("write_info_plist") {
+    input = "lldb-Info.plist.in"
+    output = "$target_gen_dir/lldb-Info.plist"
+    values = [ "LLDB_VERSION=$llvm_version" ]
+  }
+}
+
+supported_toolchains = supported_android_toolchains
+
+executable("lldb") {
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    ":Options",
+    "//lldb/include/lldb/Host:Config",
+    "//lldb/source/API:liblldb",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/utils/gn/build/libs/xar",
+  ]
+  if (current_os == "mac") {
+    deps += [ ":write_info_plist" ]
+    plist = get_target_outputs(":write_info_plist")
+    ldflags = [ "-Wl,-sectcreate,__TEXT,__info_plist," +
+                rebase_path(plist[0], root_out_dir) ]
+  }
+  if (current_os == "linux") {
+    deps += [ "//lldb/tools/lldb-server" ]
+  }
+  foreach(toolchain, supported_toolchains) {
+    deps += [ "//lldb/tools/lldb-server($toolchain)" ]
+  }
+
+  sources = [
+    "Driver.cpp",
+    "Platform.cpp",
+  ]
+
+  # XXX LLDB_BUILD_FRAMEWORK rpath stuff
+}

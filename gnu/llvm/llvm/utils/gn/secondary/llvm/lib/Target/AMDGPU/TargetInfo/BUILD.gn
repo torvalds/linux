@@ -1,0 +1,6 @@
+static_library("TargetInfo") {
+  output_name = "LLVMAMDGPUInfo"
+  deps = [ "//llvm/lib/Support" ]
+  include_dirs = [ ".." ]
+  sources = [ "AMDGPUTargetInfo.cpp" ]
+}

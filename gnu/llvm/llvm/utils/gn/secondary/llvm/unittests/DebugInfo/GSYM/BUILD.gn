@@ -1,0 +1,15 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("DebugInfoGSYMTests") {
+  deps = [
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/DebugInfo/GSYM",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/ObjectYAML",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [ "GSYMTest.cpp" ]
+}

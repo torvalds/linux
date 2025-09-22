@@ -1,0 +1,17 @@
+static_library("ELF") {
+  output_name = "lldbPluginObjectFileELF"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "ELFHeader.cpp",
+    "ObjectFileELF.cpp",
+  ]
+}

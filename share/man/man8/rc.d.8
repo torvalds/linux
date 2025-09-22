@@ -1,0 +1,207 @@
+.\"	$OpenBSD: rc.d.8,v 1.42 2025/08/15 11:35:18 ajacoutot Exp $
+.\"
+.\" Copyright (c) 2021 Antoine Jacoutot
+.\" Copyright (c) 2011 Robert Nagy, Antoine Jacoutot, Ingo Schwarze
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 15 2025 $
+.Dt RC.D 8
+.Os
+.Sh NAME
+.Nm rc.d
+.Nd daemon control scripts
+.Sh SYNOPSIS
+.Nm /etc/rc.d/ Ns Ar daemon
+.Op Fl d | q
+.Op Fl f
+.Ar action
+.Sh DESCRIPTION
+The
+.Pa /etc/rc.d
+directory contains
+.Xr ksh 1
+scripts to start, stop, and reconfigure daemon
+programs
+.Pq Dq services .
+.Pp
+Services installed from
+.Xr packages 7
+may be started at boot time in the order specified by the
+.Va pkg_scripts
+variable from
+.Xr rc.conf 8 ;
+the order will be reversed during shutdown.
+Services comprising
+.Ox
+base are started by
+.Xr rc 8 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Setting this option will print the function names as they are called
+and prevent the
+.Xr rc.subr 8
+framework from redirecting stdout and stderr to /dev/null.
+This is used to allow debugging of failed
+.Ar actions .
+.It Fl f
+This option only affects the
+.Cm start
+action.
+It will forcibly start the daemon whatever value
+.Va daemon_flags
+is set to.
+If
+.Va daemon_flags
+is set to
+.Dq NO ,
+execution will continue with the script's own defaults unless other
+flags are specified.
+.It Fl q
+Quiet mode.
+Only display the script name and the result of the
+.Ar action
+on error.
+.El
+.Pp
+Each such script responds to the following
+.Ar actions :
+.Pp
+.Bl -tag -width configtest -offset indent -compact
+.It Cm start
+Start the service, if not already running.
+.It Cm stop
+Stop the service.
+.It Cm reload
+Tell the daemon to reload its configuration.
+.It Cm restart
+Perform a stop, then a start.
+.It Cm check
+Return 0 if the daemon is running or 1 if it is not.
+.It Cm configtest
+Check that the daemon configuration is valid.
+.El
+.Sh ENVIRONMENT
+Daemon control scripts use a fixed number of
+.Xr ksh 1
+variables when starting a daemon.
+The following can be overridden by site-specific values provided in
+.Xr rc.conf.local 8 :
+.Bl -tag -width daemon_timeout -offset indent
+.It Ar daemon Ns _execdir
+Run daemon from the specified directory.
+.It Ar daemon Ns _flags
+Additional arguments to call the daemon with.
+These will be appended to any mandatory arguments already contained in the
+.Va daemon
+variable defined in the control script.
+If
+.Ar daemon Ns _flags
+is set to
+.Dq NO ,
+it will prevent the daemon from starting even when listed in
+.Va pkg_scripts .
+.It Ar daemon Ns _logger
+Redirect standard output and error to
+.Xr logger 1
+using the configured priority (e.g. "daemon.info").
+.It Ar daemon Ns _rtable
+Routing table to run the daemon under, using
+.Xr route 8 .
+.It Ar daemon Ns _timeout
+Maximum time in seconds to wait for the
+.Cm start ,
+.Cm stop
+and
+.Cm reload
+actions to return.
+This is only guaranteed with the default
+.Ic rc_start ,
+.Ic rc_stop
+and
+.Ic rc_reload
+functions.
+.It Ar daemon Ns _user
+User to run the daemon as, using
+.Xr su 1 .
+.El
+.Pp
+To obtain the actual variable names, replace
+.Ar daemon
+with the name of the script.
+For example, postgres is managed through
+.Pa /etc/rc.d/postgresql :
+.Pp
+.Dl daemon_flags=-D /var/postgresql/data -w -l /var/postgresql/logfile
+.Pp
+To override this and increase the debug log level (keeping the existing
+flags), define the following in
+.Xr rc.conf.local 8 :
+.Pp
+.Dl postgresql_flags=-D /var/postgresql/data -w -l /var/postgresql/logfile -d 5
+.Pp
+Each script may define its own defaults, as explained in
+.Xr rc.subr 8 .
+.Pp
+.Va daemon_class
+is a special read-only variable.
+It is set to
+.Dq daemon
+unless there is a login class configured in
+.Xr login.conf 5
+with the same name as the
+.Nm rc.d
+script itself,
+in which case it will be set to that login class.
+This allows setting many initial process properties, for example
+environment variables, scheduling priority, and process limits
+such as maximum memory use and number of files.
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa /etc/rc.d/
+Directory containing daemon control scripts.
+.It Pa /etc/rc.d/rc.subr
+Functions and variables used by
+.Nm rc.d
+scripts.
+.It Pa /var/run/rc.d/
+Directory containing files recording the variables of currently running daemons.
+Some are informational and some are for matching daemons using
+.Xr pgrep 1
+and
+.Xr pkill 1 .
+.El
+.Sh SEE ALSO
+.Xr ksh 1 ,
+.Xr rc 8 ,
+.Xr rc.conf 8 ,
+.Xr rc.subr 8 ,
+.Xr rcctl 8
+.Sh HISTORY
+The
+.Pa /etc/rc.d
+directory
+first appeared in
+.Ox 4.9 .

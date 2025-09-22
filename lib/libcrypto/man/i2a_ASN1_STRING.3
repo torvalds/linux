@@ -1,0 +1,256 @@
+.\" $OpenBSD: i2a_ASN1_STRING.3,v 1.6 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2019, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt I2A_ASN1_STRING 3
+.Os
+.Sh NAME
+.Nm i2a_ASN1_STRING ,
+.Nm i2a_ASN1_INTEGER ,
+.Nm i2a_ASN1_ENUMERATED ,
+.Nm a2i_ASN1_STRING ,
+.Nm a2i_ASN1_INTEGER ,
+.Nm a2i_ASN1_ENUMERATED
+.Nd hexadecimal dump of an ASN.1 string
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft int
+.Fo i2a_ASN1_STRING
+.Fa "BIO *out_bio"
+.Fa "const ASN1_STRING *a"
+.Fa "int type"
+.Fc
+.Ft int
+.Fo i2a_ASN1_INTEGER
+.Fa "BIO *out_bio"
+.Fa "const ASN1_INTEGER *a"
+.Fc
+.Ft int
+.Fo i2a_ASN1_ENUMERATED
+.Fa "BIO *out_bio"
+.Fa "const i2a_ASN1_ENUMERATED *a"
+.Fc
+.Ft int
+.Fo a2i_ASN1_STRING
+.Fa "BIO *in_bio"
+.Fa "ASN1_STRING *out_string"
+.Fa "char *buffer"
+.Fa "int size"
+.Fc
+.Ft int
+.Fo a2i_ASN1_INTEGER
+.Fa "BIO *in_bio"
+.Fa "ASN1_INTEGER *out_string"
+.Fa "char *buffer"
+.Fa "int size"
+.Fc
+.Ft int
+.Fo a2i_ASN1_ENUMERATED
+.Fa "BIO *in_bio"
+.Fa "ASN1_ENUMERATED *out_string"
+.Fa "char *buffer"
+.Fa "int size"
+.Fc
+.Sh DESCRIPTION
+The functions
+.Fn i2a_ASN1_STRING ,
+.Fn i2a_ASN1_INTEGER ,
+and
+.Fn i2a_ASN1_ENUMERATED
+write a hexadecimal representation of
+.Fa a
+to
+.Fa out_bio .
+The
+.Fa type
+argument is ignored.
+.Pp
+Each byte of
+.Xr ASN1_STRING_get0_data 3
+is written as a number consisting of two upper-case hexadecimal digits.
+After each group of 70 digits, a backslash and a linefeed
+are inserted before the next digit.
+.Pp
+If the
+.Xr ASN1_STRING_length 3
+of
+.Fa a
+is 0, instead a pair of zero digits
+.Pq Qq 00
+is written by
+.Fn i2a_ASN1_INTEGER
+and
+.Fn i2a_ASN1_ENUMERATED
+and a single zero digit
+.Pq Qq 0
+by
+.Fn i2a_ASN1_STRING .
+If
+.Fa a
+is a
+.Dv NULL
+pointer, nothing is written.
+.Pp
+If
+.Fa a
+represents a negative integer,
+.Fn i2a_ASN1_INTEGER
+prepends a minus sign to the output.
+.Pp
+The functions
+.Fn a2i_ASN1_STRING ,
+.Fn a2i_ASN1_INTEGER ,
+and
+.Fn a2i_ASN1_ENUMERATED
+parse a hexadecimal representation of an ASN.1 string into
+.Fa out_string .
+Both lower-case and upper-case hexadecimal digits are accepted.
+Every pair of input digits is converted into one output byte.
+.Pp
+On every input line, the trailing newline character and an optional
+carriage return character preceding it are ignored.
+The trailing newline need not be present on the last line.
+If there is a backslash character before the newline character,
+parsing is continued on the next input line.
+.Pp
+At least one pair of input digits is required by
+.Fn a2i_ASN1_INTEGER
+and
+.Fn a2i_ASN1_ENUMERATED ,
+whereas
+.Fn a2i_ASN1_STRING
+converts empty input to an empty string.
+.Pp
+These functions are able to parse the output of
+.Fn i2a_ASN1_ENUMERATED .
+They can parse the output of
+.Fn i2a_ASN1_INTEGER
+unless
+.Fa a
+was negative, and they can parse the output of
+.Fn i2a_ASN1_STRING
+unless the
+.Xr ASN1_STRING_length 3
+of
+.Fa a
+was 0.
+.Pp
+Parsing fails if an input line contains an odd number of input
+digits or if memory allocation fails.
+.Pp
+These functions use the
+.Fa buffer
+provided by the caller and assume it is at least
+.Fa size
+bytes long.
+It is unspecified what the buffer contains after the functions return.
+.Sh RETURN VALUES
+The functions
+.Fn i2a_ASN1_STRING ,
+.Fn i2a_ASN1_INTEGER ,
+and
+.Fn i2a_ASN1_ENUMERATED
+return the number of bytes written or \-1 if
+.Xr BIO_write 3
+fails.
+In particular, they all return 0 when
+.Fa a
+is a
+.Dv NULL
+pointer.
+.Fn i2a_ASN1_STRING
+returns 1 for an empty string or an even number greater than 1
+for a string that is not empty.
+.Fn i2a_ASN1_INTEGER
+returns an even number greater than 1 for positive input
+or an odd number greater than 2 for negative input.
+.Fn i2a_ASN1_ENUMERATED
+always returns a non-negative even number when successful.
+.Pp
+The functions
+.Fn a2i_ASN1_STRING ,
+.Fn a2i_ASN1_INTEGER ,
+and
+.Fn a2i_ASN1_ENUMERATED
+are intended to return 1 for success or 0 for failure, but see the
+.Sx BUGS
+section for a number of traps.
+.Sh SEE ALSO
+.Xr a2i_ipadd 3 ,
+.Xr ASN1_STRING_length 3 ,
+.Xr ASN1_STRING_new 3 ,
+.Xr ASN1_STRING_print_ex 3 ,
+.Xr i2a_ASN1_OBJECT 3 ,
+.Xr i2s_ASN1_INTEGER 3
+.Sh HISTORY
+.Fn i2a_ASN1_INTEGER
+and
+.Fn a2i_ASN1_INTEGER
+first appeared in SSLeay 0.6.0.
+.Fn i2a_ASN1_STRING
+and
+.Fn a2i_ASN1_STRING
+first appeared in SSLeay 0.6.5.
+.Fn a2i_ASN1_STRING
+has been part of the public API since SSLeay 0.6.5 and
+.Fn i2a_ASN1_STRING
+since SSLeay 0.8.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn i2a_ASN1_ENUMERATED
+and
+.Fn a2i_ASN1_ENUMERATED
+first appeared in OpenSSL 0.9.2 and have been available since
+.Ox 2.6 .
+.Sh BUGS
+If the first call to
+.Xr BIO_gets 3
+does not return any data, even if that is caused by a fatal I/O error,
+if the BIO type does not support the
+.Dq gets
+operation, or if it is caused by the BIO being non-blocking,
+.Fn a2i_ASN1_STRING
+immediately succeeds and returns an empty
+.Fa out_string .
+.Pp
+If
+.Fn BIO_gets 3
+returns a partial line, for example because the given
+.Fa size
+is insufficient to contain one of the input lines
+or for reasons specific to the BIO type,
+.Fn a2i_ASN1_STRING ,
+.Fn a2i_ASN1_INTEGER ,
+and
+.Fn a2i_ASN1_ENUMERATED
+may fail or silently return a truncated result.
+The caller is responsible for providing a
+.Fa buffer
+of sufficient size to contain the longest possible input line
+and for choosing a BIO of a type that only returns complete
+input lines and does not perform partial reads.
+.Pp
+The functions
+.Fn a2i_ASN1_STRING ,
+.Fn a2i_ASN1_INTEGER ,
+and
+.Fn a2i_ASN1_ENUMERATED
+do not support non-blocking BIOs.
+Reading is terminated as soon as
+.Xr BIO_gets 3
+returns a value less than 1.

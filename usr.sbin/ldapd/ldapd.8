@@ -1,0 +1,169 @@
+.\"	$OpenBSD: ldapd.8,v 1.16 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2009, 2010 Martin Hedenfalk <martin@bzero.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt LDAPD 8
+.Os
+.Sh NAME
+.Nm ldapd
+.Nd Lightweight Directory Access Protocol (LDAP) daemon
+.Sh SYNOPSIS
+.Nm ldapd
+.Op Fl dnv
+.Oo
+.Fl D Ar macro Ns = Ns Ar value
+.Oc
+.Op Fl f Ar file
+.Op Fl r Ar directory
+.Op Fl s Ar file
+.Sh DESCRIPTION
+.Nm
+is a daemon which implements version 3 of the LDAP protocol.
+.Pp
+A running
+.Nm
+process can be controlled using the
+.Xr ldapctl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize and log to
+.Em stderr .
+.It Fl f Ar file
+Use
+.Ar file
+as the configuration file, instead of the default
+.Pa /etc/ldapd.conf .
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl r Ar directory
+Store and read database files in
+.Ar directory ,
+instead of the default
+.Pa /var/db/ldap .
+.It Fl s Ar file
+Specify an alternative location for the socket file.
+.It Fl v
+Produce more verbose output.
+A second
+.Fl v
+together with the
+.Fl d
+flag produces debug traces of decoded BER messages on stderr.
+.El
+.Sh AUTHENTICATION
+.Nm
+can authenticate users via simple binds or SASL with the PLAIN
+mechanism.
+.Pp
+When using simple binds, the bind DN entry must exist in a namespace
+and have a
+.Ic userPassword
+attribute.
+The following formats of the
+.Ic userPassword
+attribute are recognized:
+.Bl -tag -width Ds
+.It Ic {SHA}digest
+Verify the password against the SHA-1 digest.
+.It Ic {SSHA}digest
+Verify the password against the salted SHA-1 digest.
+.It Ic {CRYPT}hash
+Verify the password against the
+.Xr crypt 3
+hash.
+.It Ic {BSDAUTH}username
+Use
+.Bx
+Authentication with the given username and authentication style
+.Dq auth-ldap .
+This is similar to using SASL PLAIN authentication with
+.Ar username
+as the authentication ID.
+.It Ic {BSDAUTH}username#class
+Same as above, but overrides the login class.
+.El
+.Pp
+Without a prefix, the
+.Ic userPassword
+attribute is compared literally with the provided plain text password.
+.Pp
+When using SASL binds, the authentication ID should be a valid
+username for
+.Bx
+Authentication.
+.Pp
+For plain text passwords to be accepted, the connection must be
+considered secure, either by using an encrypted connection, or by
+using the
+.Ic secure
+keyword in the configuration file.
+.Sh FILES
+.Bl -tag -width "/var/run/ldapd.sockXXXXXXX" -compact
+.It Pa /etc/ldapd.conf
+default
+.Nm
+configuration file
+.It Pa /var/run/ldapd.sock
+default
+.Nm
+control socket
+.It Pa /var/db/ldap/*.db
+.Nm
+database files
+.El
+.Sh SEE ALSO
+.Xr ldap 1 ,
+.Xr ldapd.conf 5 ,
+.Xr login.conf 5 ,
+.Xr ldapctl 8
+.Sh STANDARDS
+.Rs
+.%A J. Sermersheim
+.%D June 2006
+.%R RFC 4511
+.%T Lightweight Directory Access Protocol (LDAP): The Protocol
+.Re
+.Pp
+.Rs
+.%A K. Zeilenga
+.%D June 2006
+.%R RFC 4512
+.%T Lightweight Directory Access Protocol (LDAP): Directory Information Models
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.8 .
+.Sh CAVEATS
+.Nm
+is not yet fully LDAPv3 compliant.
+.Pp
+Database files are not expected to work across architectures and may
+not work across versions.

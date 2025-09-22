@@ -1,0 +1,141 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>Priority Queue Text Join Timing Test</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1>Priority Queue Text <tt>join</tt> Timing Test</h1>
+<h2><a name="description" id="description">Description</a></h2>
+<p>This test inserts a number of values with keys from an
+    arbitrary text ([ <a href="references.html#wickland96thirty">wickland96thirty</a> ]) into
+    two containers, then merges the containers. It uses
+    <tt>join</tt> for <tt>pb_ds</tt>'s priority queues; for the
+    STL's priority queues, it successively pops values from one
+    container and pushes them into the other. The test measures the
+    average time as a function of the number of values.</p>
+<p>(The test was executed with <a href="../../../../testsuite/performance/ext/pb_ds/priority_queue_text_join_timing.cc"><tt>priority_queue_text_join_timing_test</tt></a>
+    thirty_years_among_the_dead_preproc.txt 200 200 2100)</p>
+<h2><a name="purpose" id="purpose">Purpose</a></h2>
+<p>The test checks the effect of different underlying
+    data structures (see <a href="pq_design.html#pq_imp">Design::Priority
+    Queues::Implementations</a>).</p>
+<h2><a name="results" id="results">Results</a></h2>
+<p>Figures <a href="#NPG">NPG</a>, <a href="#NPM">NPM</a>, and
+    <a href="#NPL">NPL</a> show the results for the native priority
+    queues and <tt>pb_ds</tt> 's priority queues in <a href="pq_performance_tests.html#gcc"><u>g++</u></a>, <a href="pq_performance_tests.html#msvc"><u>msvc</u></a>, and <a href="pq_performance_tests.html#local"><u>local</u></a>,
+    respectively.</p>
+<div id="NPG_res_div">
+<div id="NPG_gcc">
+<div id="NPG_priority_queue_text_join_timing_test">
+<div id="NPG_pq">
+<div id="NPG_Native_tree_and__tt_pb_ds_455tt__priority_queue__tt_push_455tt__timing_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPG" id="NPG"><img src="priority_queue_text_join_timing_test_gcc.png" alt="no image" /></a></h6>NPG: Native tree and <tt>pb ds</tt> priority queue <tt>push</tt> timing test - <a href="pq_performance_tests.html#gcc">g++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_pq_deque-
+<tt>std::priority_queue</tt> adapting <tt>std::deque</tt></li>
+<li>
+n_pq_vector-
+<tt>std::priority_queue</tt> adapting <tt>std::vector</tt></li>
+<li>
+binary_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binary_heap_tag.html"><tt>binary_heap_tag</tt></a>
+</li>
+<li>
+thin_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="thin_heap_tag.html"><tt>thin_heap_tag</tt></a>
+</li>
+<li>
+rc_binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="rc_binomial_heap_tag.html"><tt>rc_binomial_heap_tag</tt></a>
+</li>
+<li>
+pairing_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a>
+</li>
+<li>
+binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binomial_heap_tag.html"><tt>binomial_heap_tag</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NPM_res_div">
+<div id="NPM_msvc">
+<div id="NPM_priority_queue_text_join_timing_test">
+<div id="NPM_pq">
+<div id="NPM_Native_tree_and__tt_pb_ds_455tt__priority_queue__tt_push_455tt__timing_test"><div style="border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPM" id="NPM"><img src="priority_queue_text_join_timing_test_msvc.png" alt="no image" /></a></h6>NPM: Native tree and <tt>pb ds</tt> priority queue <tt>push</tt> timing test - <a href="pq_performance_tests.html#msvc">msvc++</a><p>In the above figure, the names in the legends have the following meaning:</p>
+<ol>
+<li>
+n_pq_deque-
+<tt>std::priority_queue</tt> adapting <tt>std::deque</tt></li>
+<li>
+n_pq_vector-
+<tt>std::priority_queue</tt> adapting <tt>std::vector</tt></li>
+<li>
+binary_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binary_heap_tag.html"><tt>binary_heap_tag</tt></a>
+</li>
+<li>
+thin_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="thin_heap_tag.html"><tt>thin_heap_tag</tt></a>
+</li>
+<li>
+rc_binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="rc_binomial_heap_tag.html"><tt>rc_binomial_heap_tag</tt></a>
+</li>
+<li>
+pairing_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a>
+</li>
+<li>
+binomial_heap-
+<a href="priority_queue.html"><tt>priority_queue</tt></a>
+ with <tt>Tag</tt> = <a href="binomial_heap_tag.html"><tt>binomial_heap_tag</tt></a>
+</li>
+</ol>
+</div><div style="width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="NPL_res_div">
+<div id="NPL_local">
+<div id="NPL_priority_queue_text_join_timing_test">
+<div id="NPL_pq">
+<div id="NPL_Native_tree_and__tt_pb_ds_455tt__priority_queue__tt_push_455tt__timing_test"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h6 class="c1"><a name="NPL" id= "NPL"><img src="priority_queue_text_join_timing_test_local.png" alt="no image" /></a></h6>NPL: Native tree and <tt>pb ds</tt> priority queue <tt>push</tt> timing test - <a href = "pq_performance_tests.html#local">local</a></div><div style = "width: 100%; height: 20px"></div></div>
+</div>
+</div>
+</div>
+</div>
+<h2><a name="observations" id="observations">Observations</a></h2>
+<p>In this test the node-based heaps perform <tt>join</tt> in
+    either logarithmic or constant time. The binary heap requires
+    linear time, since the well-known heapify algorithm [<a href="references.html#clrs2001">clrs2001</a>] is linear.</p>
+<p>It would be possible to apply the heapify algorithm to the
+    STL containers, if they would support iteration (which they
+    don't). Barring iterators, it is still somehow possible to
+    perform linear-time merge on a <tt>std::vector</tt>-based STL
+    priority queue, using <tt>top()</tt> and <tt>size()</tt> (since
+    they are enough to expose the underlying array), but this is
+    impossible for a <tt>std::deque</tt>-based STL priority queue.
+    Without heapify, the cost is super-linear.</p>
+</div>
+</body>
+</html>

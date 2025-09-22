@@ -1,0 +1,26 @@
+import("//third-party/unittest/unittest.gni")
+unittest("PluginsTests") {
+  deps = [
+    "//llvm/include/llvm/Config:config",
+    "//llvm/lib/IR",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [ "PluginsTest.cpp" ]
+
+  # If plugins are disabled, this test will disable itself at runtime.
+  # Otherwise, reconfiguring with plugins disabled will leave behind a stale
+  # executable.
+  if (host_os != "win") {
+    deps += [
+      "DoublerPlugin",
+      "TestPlugin",
+    ]
+  }
+
+  if (host_os != "mac" && host_os != "win") {
+    # Corresponds to export_executable_symbols() in cmake.
+    ldflags = [ "-rdynamic" ]
+  }
+}

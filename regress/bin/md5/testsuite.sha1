@@ -1,0 +1,10 @@
+SHA1 test suite:
+SHA1 ("") = da39a3ee5e6b4b0d3255bfef95601890afd80709
+SHA1 ("a") = 86f7e437faa5a7fce15d1ddcb9eaeaea377667b8
+SHA1 ("abc") = a9993e364706816aba3e25717850c26c9cd0d89d
+SHA1 ("message digest") = c12252ceda8be8994d5fa0290a47231c1d16aae3
+SHA1 ("abcdefghijklmnopqrstuvwxyz") = 32d10c7b8cf96570ca04ce37f2a19d84240d3a89
+SHA1 ("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq") = 84983e441c3bd26ebaae4aa1f95129e5e54670f1
+SHA1 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") = 761c457bf73b14d27e9e9265c46f4b4dda11f940
+SHA1 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") = 50abf5706a150990a08b2c5ea40fa0e585554732
+SHA1 (one million 'a' characters) = 34aa973cd4c4daa4f61eeb2bdbad27316534016f

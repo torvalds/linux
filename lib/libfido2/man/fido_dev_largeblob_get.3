@@ -1,0 +1,195 @@
+.\" Copyright (c) 2020 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_LARGEBLOB_GET 3
+.Os
+.Sh NAME
+.Nm fido_dev_largeblob_get ,
+.Nm fido_dev_largeblob_set ,
+.Nm fido_dev_largeblob_remove ,
+.Nm fido_dev_largeblob_get_array ,
+.Nm fido_dev_largeblob_set_array
+.Nd FIDO2 large blob API
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft int
+.Fn fido_dev_largeblob_get "fido_dev_t *dev" "const unsigned char *key_ptr" "size_t key_len" "unsigned char **blob_ptr" "size_t *blob_len"
+.Ft int
+.Fn fido_dev_largeblob_set "fido_dev_t *dev" "const unsigned char *key_ptr" "size_t key_len" "const unsigned char *blob_ptr" "size_t blob_len" "const char *pin"
+.Ft int
+.Fn fido_dev_largeblob_remove "fido_dev_t *dev" "const unsigned char *key_ptr" "size_t key_len" "const char *pin"
+.Ft int
+.Fn fido_dev_largeblob_get_array "fido_dev_t *dev" "unsigned char **cbor_ptr" "size_t *cbor_len"
+.Ft int
+.Fn fido_dev_largeblob_set_array "fido_dev_t *dev" "const unsigned char *cbor_ptr" "size_t cbor_len" "const char *pin"
+.Sh DESCRIPTION
+The
+.Dq largeBlobs
+API of
+.Em libfido2
+allows binary blobs residing on a CTAP 2.1 authenticator to be
+read, written, and inspected.
+.Dq largeBlobs
+is a CTAP 2.1 extension.
+.Pp
+.Dq largeBlobs
+are stored as elements of a CBOR array.
+Confidentiality is ensured by encrypting each element with a
+distinct, credential-bound 256-bit AES-GCM key.
+The array is otherwise shared between different credentials and
+FIDO2 relying parties.
+.Pp
+Retrieval of a credential's encryption key is possible during
+enrollment with
+.Xr fido_cred_set_extensions 3
+and
+.Xr fido_cred_largeblob_key_ptr 3 ,
+during assertion with
+.Xr fido_assert_set_extensions 3
+and
+.Xr fido_assert_largeblob_key_ptr 3 ,
+or, in the case of a resident credential, via
+.Em libfido2's
+credential management API.
+.Pp
+The
+.Dq largeBlobs
+CBOR array is opaque to the authenticator.
+Management of the array is left at the discretion of FIDO2 clients.
+For further details on CTAP 2.1's
+.Dq largeBlobs
+extension, please refer to the CTAP 2.1 spec.
+.Pp
+The
+.Fn fido_dev_largeblob_get
+function retrieves the authenticator's
+.Dq largeBlobs
+CBOR array and, on success, returns the first blob
+.Pq iterating from array index zero
+that can be
+decrypted by 
+.Fa key_ptr ,
+where
+.Fa key_ptr
+points to
+.Fa key_len
+bytes.
+On success,
+.Fn fido_dev_largeblob_get
+sets
+.Fa blob_ptr
+to the body of the decrypted blob, and
+.Fa blob_len
+to the length of the decrypted blob in bytes.
+It is the caller's responsibility to free
+.Fa blob_ptr .
+.Pp
+The
+.Fn fido_dev_largeblob_set
+function uses
+.Fa key_ptr
+to encrypt
+.Fa blob_ptr
+and inserts the result in the authenticator's
+.Dq largeBlobs
+CBOR array.
+Insertion happens at the end of the array if no existing element
+can be decrypted by
+.Fa key_ptr ,
+or at the position of the first element
+.Pq iterating from array index zero
+that can be decrypted by
+.Fa key_ptr .
+.Fa key_len
+holds the length of
+.Fa key_ptr
+in bytes, and
+.Fa blob_len
+the length of
+.Fa blob_ptr
+in bytes.
+A
+.Fa pin
+or equivalent user-verification gesture is required.
+.Pp
+The
+.Fn fido_dev_largeblob_remove
+function retrieves the authenticator's
+.Dq largeBlobs
+CBOR array and, on success, drops the first blob
+.Pq iterating from array index zero
+that can be decrypted by
+.Fa key_ptr ,
+where
+.Fa key_ptr
+points to
+.Fa key_len
+bytes.
+A
+.Fa pin
+or equivalent user-verification gesture is required.
+.Pp
+The
+.Fn fido_dev_largeblob_get_array
+function retrieves the authenticator's
+.Dq largeBlobs
+CBOR array and, on success,
+sets
+.Fa cbor_ptr
+to the body of the CBOR array, and
+.Fa cbor_len
+to its corresponding length in bytes.
+It is the caller's responsibility to free
+.Fa cbor_ptr .
+.Pp
+Finally, the
+.Fn fido_dev_largeblob_set_array
+function sets the authenticator's
+.Dq largeBlobs
+CBOR array to the data pointed to by
+.Fa cbor_ptr ,
+where
+.Fa cbor_ptr
+points to
+.Fa cbor_len
+bytes.
+A
+.Fa pin
+or equivalent user-verification gesture is required.
+.Sh RETURN VALUES
+The functions
+.Fn fido_dev_largeblob_set ,
+.Fn fido_dev_largeblob_get ,
+.Fn fido_dev_largeblob_remove ,
+.Fn fido_dev_largeblob_get_array ,
+and
+.Fn fido_dev_largeblob_set_array
+return
+.Dv FIDO_OK
+on success.
+On error, an error code defined in
+.In fido/err.h
+is returned.
+.Sh SEE ALSO
+.Xr fido_assert_largeblob_key_len 3 ,
+.Xr fido_assert_largeblob_key_ptr 3 ,
+.Xr fido_assert_set_extensions 3 ,
+.Xr fido_cred_largeblob_key_len 3 ,
+.Xr fido_cred_largeblob_key_ptr 3 ,
+.Xr fido_cred_set_extensions 3 ,
+.Xr fido_credman_get_dev_rk 3 ,
+.Xr fido_credman_get_dev_rp 3 ,
+.Xr fido_dev_get_assert 3 ,
+.Xr fido_dev_make_cred 3
+.Sh CAVEATS
+The
+.Dq largeBlobs
+extension is not meant to be used to store sensitive data.
+When retrieved, a credential's
+.Dq largeBlobs
+encryption key is transmitted in the clear, and an authenticator's
+.Dq largeBlobs
+CBOR array can be read without user interaction or verification.

@@ -1,0 +1,4 @@
+copy("hwasan_symbolize") {
+  sources = [ "hwasan_symbolize" ]
+  outputs = [ "$root_out_dir/bin/{{source_file_part}}" ]
+}

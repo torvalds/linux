@@ -1,0 +1,13 @@
+static_library("Placeholder") {
+  output_name = "lldbPluginObjectFilePlaceholder"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "ObjectFilePlaceholder.cpp" ]
+}

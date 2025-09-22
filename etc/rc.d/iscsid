@@ -1,0 +1,17 @@
+#!/bin/ksh
+#
+# $OpenBSD: iscsid,v 1.3 2022/05/21 12:42:21 ajacoutot Exp $
+
+daemon="/usr/sbin/iscsid"
+control="/usr/sbin/iscsictl"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=NO
+rc_stop=NO
+
+rc_start() {
+	rc_exec "${daemon} ${daemon_flags} && ${control} reload"
+}
+
+rc_cmd $1

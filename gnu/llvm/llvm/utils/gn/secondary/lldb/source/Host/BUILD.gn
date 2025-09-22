@@ -1,0 +1,158 @@
+import("//lldb/include/lldb/Host/libedit.gni")
+
+static_library("Host") {
+  output_name = "lldbHost"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/include/lldb/Host:Config",
+    "//lldb/source/Utility",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+
+    # FIXME:
+    # LINK_LIBS
+    #   ${EXTRA_LIBS}
+    #   ${LLDBObjCLibs}
+  ]
+  public_deps = [ "//llvm/utils/gn/build/libs/xml" ]
+  sources = [
+    "common/Alarm.cpp",
+    "common/File.cpp",
+    "common/FileAction.cpp",
+    "common/FileCache.cpp",
+    "common/FileSystem.cpp",
+    "common/GetOptInc.cpp",
+    "common/Host.cpp",
+    "common/HostInfoBase.cpp",
+    "common/HostNativeThreadBase.cpp",
+    "common/HostProcess.cpp",
+    "common/HostThread.cpp",
+    "common/LZMA.cpp",
+    "common/LockFileBase.cpp",
+    "common/MainLoopBase.cpp",
+    "common/MonitoringProcessLauncher.cpp",
+    "common/NativeProcessProtocol.cpp",
+    "common/NativeRegisterContext.cpp",
+    "common/NativeThreadProtocol.cpp",
+    "common/NativeWatchpointList.cpp",
+    "common/OptionParser.cpp",
+    "common/PipeBase.cpp",
+    "common/ProcessLaunchInfo.cpp",
+    "common/ProcessRunLock.cpp",
+    "common/PseudoTerminal.cpp",
+    "common/Socket.cpp",
+    "common/SocketAddress.cpp",
+    "common/StreamFile.cpp",
+    "common/TCPSocket.cpp",
+    "common/Terminal.cpp",
+    "common/ThreadLauncher.cpp",
+    "common/UDPSocket.cpp",
+    "common/XML.cpp",
+    "common/ZipFileResolver.cpp",
+  ]
+
+  if (lldb_enable_libedit) {
+    libs = [ "edit" ]
+    sources += [ "common/Editline.cpp" ]
+    if (host_os == "mac") {
+      libs += [ "curses" ]  # For USE_SETUPTERM_WORKAROUND :/
+    }
+  }
+
+  sources += [ "posix/ConnectionFileDescriptorPosix.cpp" ]
+
+  if (current_os == "win") {
+    sources += [
+      "windows/ConnectionGenericFileWindows.cpp",
+      "windows/FileSystem.cpp",
+      "windows/Host.cpp",
+      "windows/HostInfoWindows.cpp",
+      "windows/HostProcessWindows.cpp",
+      "windows/HostThreadWindows.cpp",
+      "windows/LockFileWindows.cpp",
+      "windows/MainLoopWindows.cpp",
+      "windows/PipeWindows.cpp",
+      "windows/ProcessLauncherWindows.cpp",
+      "windows/ProcessRunLock.cpp",
+    ]
+  } else {
+    sources += [
+      "posix/DomainSocket.cpp",
+      "posix/FileSystemPosix.cpp",
+      "posix/HostInfoPosix.cpp",
+      "posix/HostProcessPosix.cpp",
+      "posix/HostThreadPosix.cpp",
+      "posix/LockFilePosix.cpp",
+      "posix/MainLoopPosix.cpp",
+      "posix/PipePosix.cpp",
+      "posix/ProcessLauncherPosixFork.cpp",
+    ]
+  }
+
+  if (current_os == "mac") {
+    sources += [
+      "macosx/cfcpp/CFCBundle.cpp",
+      "macosx/cfcpp/CFCData.cpp",
+      "macosx/cfcpp/CFCMutableArray.cpp",
+      "macosx/cfcpp/CFCMutableDictionary.cpp",
+      "macosx/cfcpp/CFCMutableSet.cpp",
+      "macosx/cfcpp/CFCString.cpp",
+    ]
+    deps += [ "macosx/objcxx" ]
+
+    # FIXME: Maybe define NO_XPC_SERVICES
+  }
+
+  if (current_os == "linux" || current_os == "android") {
+    sources += [
+      "linux/AbstractSocket.cpp",
+      "linux/Host.cpp",
+      "linux/HostInfoLinux.cpp",
+      "linux/LibcGlue.cpp",
+      "linux/Support.cpp",
+    ]
+  }
+  if (current_os == "android") {
+    sources += [
+      "android/HostInfoAndroid.cpp",
+      "android/LibcGlue.cpp",
+    ]
+  }
+
+  if (current_os == "freebsd") {
+    sources += [
+      "freebsd/Host.cpp",
+      "freebsd/HostInfoFreeBSD.cpp",
+    ]
+  }
+  if (current_os == "netbsd") {
+    sources += [
+      "netbsd/HostInfoNetBSD.cpp",
+      "netbsd/HostNetBSD.cpp",
+    ]
+  }
+  if (current_os == "openbsd") {
+    sources += [
+      "openbsd/Host.cpp",
+      "openbsd/HostInfoOpenBSD.cpp",
+    ]
+  }
+
+  # FIXME:
+  # set(EXTRA_LIBS)
+  # if (CMAKE_SYSTEM_NAME MATCHES "NetBSD")
+  #   list(APPEND EXTRA_LIBS kvm)
+  # endif()
+  # if (HAVE_LIBDL)
+  #   list(APPEND EXTRA_LIBS ${CMAKE_DL_LIBS})
+  # endif()
+  # if (LLDB_ENABLE_LIBEDIT)
+  #   list(APPEND EXTRA_LIBS LibEdit::LibEdit)
+  # endif()
+  # if (LLDB_ENABLE_LZMA)
+  #   list(APPEND EXTRA_LIBS ${LIBLZMA_LIBRARIES})
+  # endif()
+  # if (WIN32)
+  #   list(APPEND LLDB_SYSTEM_LIBS psapi)
+  # endif()
+}

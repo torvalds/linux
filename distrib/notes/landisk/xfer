@@ -1,0 +1,17 @@
+dnl	$OpenBSD: xfer,v 1.8 2017/03/04 22:46:20 tj Exp $
+Installation is supported from several media types, including:
+
+	CD-ROM
+	FFS partitions
+	DOS (FAT) partitions
+	EXT2 partitions
+	HTTP
+
+Although you can access the distribution sets directly from one of the
+OpenBSD mirrors over the internet, you may wish to transfer the sets to
+a local HTTP server, or copy them to a partition on the target system's
+disk (for upgrades only).
+
+OpenBSDXferShortPrelude
+
+OpenBSDXferFFS

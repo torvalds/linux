@@ -1,0 +1,92 @@
+; Options for the PDP11 port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+m10
+Target RejectNegative
+Generate code for an 11/10
+
+m40
+Target Report Mask(40)
+Generate code for an 11/40
+
+m45
+Target Report Mask(45)
+Generate code for an 11/45
+
+mabshi
+Target Report Mask(ABSHI_BUILTIN)
+Use 16-bit abs patterns
+
+mac0
+Target Report Mask(AC0)
+Return floating-point results in ac0 (fr0 in Unix assembler syntax)
+
+mbcopy
+Target RejectNegative Report Mask(BCOPY)
+Do not use inline patterns for copying memory
+
+mbcopy-builtin
+Target RejectNegative Report InverseMask(BCOPY, BCOPY_BUILTIN)
+Use inline patterns for copying memory
+
+mbranch-cheap
+Target RejectNegative Report InverseMask(BRANCH_EXPENSIVE, BRANCH_CHEAP)
+Do not pretend that branches are expensive
+
+mbranch-expensive
+Target RejectNegative Report Mask(BRANCH_EXPENSIVE)
+Pretend that branches are expensive
+
+mdec-asm
+Target RejectNegative Report InverseMask(UNIX_ASM)
+Use the DEC assembler syntax
+
+mfloat32
+Target Report Mask(FLOAT32)
+Use 32 bit float
+
+mfloat64
+Target Report InverseMask(FLOAT32, FLOAT64)
+Use 64 bit float
+
+mfpu
+Target RejectNegative Report Mask(FPU)
+Use hardware floating point
+
+mint16
+Target Report InverseMask(INT32, INT16)
+Use 16 bit int
+
+mint32
+Target Report Mask(INT32)
+Use 32 bit int
+
+msoft-float
+Target RejectNegative Report InverseMask(FPU, SOFT_FLOAT)
+Do not use hardware floating point
+
+msplit
+Target Report Mask(SPLIT)
+Target has split I&D
+
+munix-asm
+Target RejectNegative Report Mask(UNIX_ASM)
+Use UNIX assembler syntax

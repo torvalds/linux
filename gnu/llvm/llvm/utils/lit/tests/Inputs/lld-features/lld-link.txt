@@ -1,0 +1,2 @@
+# REQUIRES: lld-link
+# RUN: true

@@ -1,0 +1,115 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CHARCONV
+#define _LIBCPP_CHARCONV
+
+/*
+    charconv synopsis
+
+namespace std {
+
+  // floating-point format for primitive numerical conversion
+  enum class chars_format {
+    scientific = unspecified,
+    fixed = unspecified,
+    hex = unspecified,
+    general = fixed | scientific
+  };
+
+  // 23.20.2, primitive numerical output conversion
+  struct to_chars_result {
+    char* ptr;
+    errc ec;
+    friend bool operator==(const to_chars_result&, const to_chars_result&) = default; // since C++20
+    constexpr explicit operator bool() const noexcept { return ec == errc{}; }        // since C++26
+  };
+
+  constexpr to_chars_result to_chars(char* first, char* last, see below value,
+                                     int base = 10);                                  // constexpr since C++23
+  to_chars_result to_chars(char* first, char* last, bool value,
+                           int base = 10) = delete;
+
+  to_chars_result to_chars(char* first, char* last, float value);
+  to_chars_result to_chars(char* first, char* last, double value);
+  to_chars_result to_chars(char* first, char* last, long double value);
+
+  to_chars_result to_chars(char* first, char* last, float value,
+                           chars_format fmt);
+  to_chars_result to_chars(char* first, char* last, double value,
+                           chars_format fmt);
+  to_chars_result to_chars(char* first, char* last, long double value,
+                           chars_format fmt);
+
+  to_chars_result to_chars(char* first, char* last, float value,
+                           chars_format fmt, int precision);
+  to_chars_result to_chars(char* first, char* last, double value,
+                           chars_format fmt, int precision);
+  to_chars_result to_chars(char* first, char* last, long double value,
+                           chars_format fmt, int precision);
+
+  // 23.20.3, primitive numerical input conversion
+  struct from_chars_result {
+    const char* ptr;
+    errc ec;
+    friend bool operator==(const from_chars_result&, const from_chars_result&) = default; // since C++20
+    constexpr explicit operator bool() const noexcept { return ec == errc{}; }            // since C++26
+  };
+
+  constexpr from_chars_result from_chars(const char* first, const char* last,
+                               see below& value, int base = 10);                         // constexpr since C++23
+
+} // namespace std
+
+*/
+
+#include <__config>
+
+#if _LIBCPP_STD_VER >= 17
+#  include <__charconv/chars_format.h>
+#  include <__charconv/from_chars_integral.h>
+#  include <__charconv/from_chars_result.h>
+#  include <__charconv/tables.h>
+#  include <__charconv/to_chars.h>
+#  include <__charconv/to_chars_base_10.h>
+#  include <__charconv/to_chars_floating_point.h>
+#  include <__charconv/to_chars_integral.h>
+#  include <__charconv/to_chars_result.h>
+#  include <__charconv/traits.h>
+#endif // _LIBCPP_STD_VER >= 17
+
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+_LIBCPP_END_NAMESPACE_STD
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 14
+#  include <cerrno>
+#  include <cstddef>
+#  include <initializer_list>
+#  include <new>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cmath>
+#  include <concepts>
+#  include <cstdint>
+#  include <cstdlib>
+#  include <cstring>
+#  include <iosfwd>
+#  include <limits>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_CHARCONV

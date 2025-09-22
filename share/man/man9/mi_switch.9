@@ -1,0 +1,111 @@
+.\"	$OpenBSD: mi_switch.9,v 1.7 2017/09/05 03:49:56 jmatthew Exp $
+.\"	$NetBSD: ctxsw.9,v 1.9 1999/03/06 22:09:29 mycroft Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 5 2017 $
+.Dt MI_SWITCH 9
+.Os
+.Sh NAME
+.Nm mi_switch ,
+.Nm cpu_switchto
+.Nd switch to another process context
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.Ft void
+.Fn mi_switch "void"
+.Ft void
+.Fn cpu_switchto "struct proc *old" "struct proc *new"
+.Sh DESCRIPTION
+The
+.Fn mi_switch
+function implements the machine-independent prelude to a process context
+switch.
+It is called from only a few distinguished places in the kernel code as a
+result of the principle of non-preemptable kernel mode execution.
+The three major uses of
+.Fn mi_switch
+can be enumerated as follows:
+.Bl -enum -offset indent
+.It
+From within functions like
+.Xr tsleep 9 ,
+when the current process sleeps to wait for some resource to become
+available, or from within functions like
+.Fn yield ,
+when it relinquishes the CPU to allow other processes to make progress.
+.It
+After handling a trap
+.Pq e.g., a system call or device interrupt
+when the kernel prepares a return to user-mode execution.
+This case is typically handled by machine-dependent trap-handling code after
+detection of a change in the signal disposition of the current process, or
+when a higher priority process might be available to run.
+The latter event is communicated by the machine-independent scheduling
+routines by calling the machine-dependent
+.Fn need_resched "void" .
+.It
+In the signal handling code
+.Pq see Pa sys/kern/kern_sig.c
+if a signal is delivered that causes a process to stop.
+.El
+.Pp
+.Fn mi_switch
+records the amount of time the current process has been running in the
+process structure and checks this value against the CPU time limits
+allocated to the process
+.Pq see Xr getrlimit 2 .
+Exceeding the soft limit results in a
+.Dv SIGXCPU
+signal to be posted to the process, while exceeding the hard limit will
+cause a
+.Dv SIGKILL .
+After these administrative tasks are done,
+.Fn mi_switch
+chooses the next process to run and hands over control to the machine
+dependent routine
+.Fn cpu_switchto ,
+which will perform the actual process context switch.
+.Pp
+.Fn cpu_switchto
+will save the context of the old process and switch to the new one.
+A special case is when the old process is
+.Dv NULL
+which means that the old process has exited and doesn't need to be
+saved.
+.Pp
+Note that
+.Fn mi_switch
+and thus
+.Fn cpu_switchto
+must be called while holding the scheduler lock.
+.Sh SEE ALSO
+.Xr spl 9 ,
+.Xr tsleep 9 ,
+.Xr wakeup 9

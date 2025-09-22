@@ -1,0 +1,216 @@
+#	$OpenBSD: RAMDISK,v 1.113 2019/09/04 14:29:41 cheloha Exp $
+
+machine		hppa
+maxusers	4
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		RAMDISK_HOOKS
+option		MINIROOTSIZE=7920
+
+option		SCSITERSE
+option		PCIVERBOSE
+
+option		FFS
+option		FFS2
+option		NFSCLIENT
+option		CD9660
+option		MSDOSFS
+option		INET6
+
+# Support for various CPU types
+option		HP7000_CPU		# PCXS
+option		HP7100_CPU		# PCXT
+option		HP7200_CPU		# PCXT'
+option		HP7100LC_CPU		# PCXL
+option		HP7300LC_CPU		# PCXL2
+option		HP8000_CPU		# PCXU  (in 32bit mode)
+option		HP8200_CPU		# PCXU2 (in 32bit mode)
+option		HP8500_CPU		# PCXW  (in 32bit mode)
+option		HP8700_CPU		# PCXW2 (in 32bit mode)
+option		FPEMUL
+
+config		bsd root on rd0a swap on rd0b # and sd0b
+
+mainbus0	at root
+
+mem*		at mainbus0 flags 0x0000	# /dev/*mem and memory controller
+pdc0		at mainbus0		# PDC/IODC wrapper for boot console
+power0		at mainbus0		# power/fail manager (iv 30)
+cpu*		at mainbus0 irq 31	# HP PA-RISC cpu
+#fpu*		at mainbus0		# HP PA-RISC fpu (iv N/A)
+phantomas0	at mainbus0		# Phantom PseudoBC GSC+ Port
+uturn0		at mainbus0		# U2/UTurn Runway IOA
+uturn1		at mainbus0
+astro*		at mainbus0		# Astro memory & I/O controller
+
+lasi0		at mainbus0 offset 0x100000	# LASI host adapter
+lasi0		at mainbus0 offset 0xfd00000	# LASI on C1[01]0, J2[01]0
+lasi0		at phantomas0 offset 0xfd00000	# LASI on [AB]*
+lasi0		at uturn? offset 0xfd00000	# LASI on [CJ]*
+lasi1		at mainbus0 offset 0x500000	# 712 GIO card
+asp*		at mainbus0		# this one comes w/ Viper and LEDs
+wax*		at mainbus0		# Wax may host EISA as well
+wax*		at phantomas0		# Wax on [AB]*
+wax*		at uturn?		# Wax on C*
+mongoose*	at mainbus0 irq 17	# EISA Bus Adapter (i82350 or TI???)
+dino*		at phantomas?		# PCI bus bridge on [AB]*
+dino*		at uturn?		# PCI bus bridge on [CJ]*
+pci*		at dino?
+com1		at dino? irq 11
+
+elroy*		at astro?
+pci*		at elroy?
+
+ppb*		at pci?
+pci*		at ppb?
+
+ssio*		at pci?
+com0		at ssio? irq 4
+com1		at ssio? irq 3
+
+cbb*		at pci?
+cardslot*	at cbb?
+cardbus*	at cardslot?
+pcmcia*		at cardslot?
+
+ehci*		at pci?
+ehci*		at cardbus?
+ohci*		at pci?
+ohci*		at cardbus?
+uhci*		at pci?
+usb*		at ehci?
+usb*		at uhci?
+usb*		at ohci?
+
+uhub*		at usb?
+uhub*		at uhub?
+umass*		at uhub?
+uhidev*		at uhub?		# Human Interface Devices
+ukbd*		at uhidev?		# USB keyboard
+wskbd*		at ukbd? mux 1
+uhid*		at uhidev?		# USB generic HID support
+aue*		at uhub?		# ADMtek AN986 Pegasus Ethernet
+url*		at uhub?		# Realtek RTL8150L based adapters
+ure*		at uhub?		# Realtek RTL8152 based adapters
+atu*		at uhub?		# Atmel AT76c50x based 802.11b
+axe*		at uhub?		# ASIX Electronics AX88172 USB Ethernet
+axen*		at uhub?		# ASIX Electronics AX88179 USB Ethernet
+cue*		at uhub?		# CATC USB-EL1201A based Ethernet
+kue*		at uhub?		# Kawasaki KL5KUSB101B based Ethernet
+smsc*		at uhub?		# SMSC LAN95xx Ethernet
+cdce*		at uhub?		# CDC Ethernet
+udav*		at uhub?		# Davicom DM9601 based Ethernet
+upl*		at uhub?		# Prolific PL2301/PL2302 host-to-host
+ugl*		at uhub?		# Genesys Logic GL620USB-A host-to-host
+wi*		at uhub?		# WaveLAN IEEE 802.11DS
+ural*		at uhub?		# Ralink RT2500
+
+sti*		at mainbus0		# [H]CRX-{8,24,48}[Z] graphics
+sti*		at phantomas0		# builtin graphics on BC*
+sti*		at uturn?
+sti*		at pci?			# EG-PCI, FX*
+
+gsc0		at asp?			# Snakes, old 715, old 725, 735/755
+gsc0		at lasi0		# 712,715/100,725/64,725/100,[ABCJ]*
+gsc1		at lasi1
+gsc2		at wax?			# it's another face of LASI
+
+eisa*		at mongoose?
+
+hil*		at gsc? irq 1		# Human Interface Loop, kbd and mouse
+hilkbd*		at hil?			# keyboard, knob and buttons
+
+com0		at gsc0 offset 0x5000 irq 5	# on lasi
+com1		at gsc1 offset 0x5000 irq 5
+com1		at gsc2 offset 0x2000 irq 6	# on wax
+com0		at gsc0 offset 0x823000 irq 5	# on asp
+com1		at gsc0 offset 0x822000 irq 6
+com2		at gsc0 offset 0x0 irq 13	# only on asp0 w/o audio (off ?)
+com2		at gsc0 offset 0x4040 irq 13	# gecko's fax/voice/modems
+com3		at gsc0 offset 0x4060 irq 13
+
+ie0		at gsc0 irq 8		# 82C596DX/CA ether
+osiop*		at gsc? irq 9		# NCR 53C710 (Narrow SE)
+oosiop*		at gsc? irq 9		# NCR 53C700 (Narrow SE)
+gsckbc*		at gsc? irq 26
+pckbd*		at gsckbc?		# PS/2 keyboard
+ahc*		at pci?			# Adaptec 2940 SCSI controllers
+mpi*		at pci?			# LSI Logic Fusion MPT Message Passing Interface
+qlw*		at pci?			# QLogic ISP SCSI
+qla*		at pci?			# QLogic ISP 2[123]xx FibreChannel
+option		QLE_NOFIRMWARE
+qle*		at pci?			# QLogic ISP 2[45]xx FibreChannel
+
+siop*		at mainbus? irq 3	# NCR 53C720 (Fast/Wide HVD)
+siop*		at phantomas? irq 3
+siop*		at uturn? irq 3
+siop*		at pci?			# NCR 53C8XX SCSI controllers
+softraid0	at root
+
+em*		at pci?			# Intel Pro/1000 ethernet
+dc*		at pci?			# 21143, "tulip" clone ethernet
+rl*		at pci?			# Realtek 81[23]9 ethernet
+xl*		at pci?			# 3C9xx ethernet
+fxp*		at pci?			# EtherExpress 10/100B ethernet
+ne*		at pci?			# NE2000-compatible Ethernet
+ne*		at pcmcia?
+an*		at pcmcia?
+wi*		at pcmcia?
+skc*		at pci?			# SysKonnect GEnesis 984x
+sk*		at skc?			#  each port of above
+mskc*		at pci?			# Marvell Yukon-2
+msk*		at mskc?		#  each port of above
+bge*		at pci?			# Broadcom BCM570x (aka Tigon3)
+hme*		at pci?			# Sun Happy Meal
+stge*		at pci?			# Sundance TC9021 GigE
+
+dcphy*		at mii?			# Digital Clone PHYs
+acphy*		at mii?			# Altima AC101 PHYs
+amphy*		at mii?			# AMD 79C873 PHYs
+exphy*		at mii?			# 3Com internal PHYs
+gentbi*		at mii?			# Generic 1000BASE-X ten-bit PHY
+inphy*		at mii?			# Intel 82555 PHYs
+iophy*		at mii?			# Intel 82553 PHYs
+icsphy*		at mii?			# ICS1890 PHYs
+lxtphy*		at mii?			# Level One LXT-970 PHYs
+nsphy*		at mii?			# NS83840 PHYs
+nsphyter*	at mii?			# NS83843 PHYs
+mtdphy*		at mii?			# Myson MTD972 PHYs
+qsphy*		at mii?			# Quality Semi QS6612 PHYs
+luphy*		at mii?			# Lucent LU6612 PHY
+sqphy*		at mii?			# Seeq 8022[013] PHYs
+tqphy*		at mii?			# TDK Semiconductor PHYs
+brgphy*		at mii?			# Broadcom 10/100/1000 PHYs
+bmtphy*		at mii?			# Broadcom 10/100 PHYs
+eephy*		at mii?			# Marvell 88E1000 Gigabit PHYs
+xmphy*		at mii?			# XaQti XMAC-II PHYs
+rlphy*		at mii?			# Realtek 8139 internal PHYs
+urlphy*		at mii?			# Realtek RTL8150L internal PHY
+rgephy*		at mii?			# Realtek 8169S/8110S PHY
+ipgphy*		at mii?			# IC Plus IP1000A PHYs
+ukphy*		at mii?			# generic unknown PHYs
+
+wsdisplay*	at sti?
+wskbd*		at pckbd? mux 1
+wskbd*		at hilkbd? mux 1
+
+pciide*		at pci? flags 0x0000
+wdc*		at pcmcia?
+wd*		at wdc? flags 0x0000
+wd*		at pciide? flags 0x0000
+atapiscsi*	at pciide?
+
+scsibus*	at scsi?
+sd*		at scsibus?
+st*		at scsibus?
+cd*		at scsibus?
+
+pseudo-device	rd 1
+pseudo-device	loop 1
+pseudo-device	bpfilter 1
+pseudo-device	vlan
+pseudo-device	wsmux 2
+pseudo-device	bio 1

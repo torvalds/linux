@@ -1,0 +1,171 @@
+.\"	$OpenBSD: unix.4,v 1.15 2021/08/21 18:18:05 jmc Exp $
+.\"	$NetBSD: unix.4,v 1.3 1994/11/30 16:22:43 jtc Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)unix.4	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: August 21 2021 $
+.Dt UNIX 4
+.Os
+.Sh NAME
+.Nm unix
+.Nd UNIX-domain protocol family
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/un.h
+.Sh DESCRIPTION
+The
+.Ux Ns -domain
+protocol family is a collection of protocols
+that provides local (on-machine) interprocess
+communication through the normal
+.Xr socket 2
+mechanisms.
+The
+.Ux Ns -domain
+family supports the
+.Dv SOCK_STREAM ,
+.Dv SOCK_SEQPACKET ,
+and
+.Dv SOCK_DGRAM
+socket types and uses
+filesystem pathnames for addressing.
+.Sh ADDRESSING
+.Ux Ns -domain
+addresses are variable-length filesystem pathnames of
+at most 104 characters.
+The include file
+.In sys/un.h
+defines this address:
+.Bd -literal -offset indent
+struct sockaddr_un {
+	u_char	sun_len;
+	u_char	sun_family;
+	char	sun_path[104];
+};
+.Ed
+.Pp
+Binding a name to a
+.Ux Ns -domain
+socket with
+.Xr bind 2
+causes a socket file to be created in the filesystem.
+This file is
+.Em not
+removed when the socket is closed\(em\c
+.Xr unlink 2
+must be used to remove the file.
+.Pp
+The
+.Ux Ns -domain
+protocol family does not support broadcast addressing or any form
+of
+.Dq wildcard
+matching on incoming messages.
+All addresses are absolute- or relative-pathnames
+of other
+.Ux Ns -domain
+sockets.
+Normal filesystem access-control mechanisms are also
+applied when referencing pathnames; e.g., the destination
+of a
+.Xr connect 2
+or
+.Xr sendto 2
+must be writable.
+.Sh PROTOCOLS
+The
+.Ux Ns -domain
+protocol family is comprised of simple
+transport protocols that support the
+.Dv SOCK_STREAM ,
+.Dv SOCK_SEQPACKET ,
+and
+.Dv SOCK_DGRAM
+abstractions.
+.Dv SOCK_STREAM
+and
+.Dv SOCK_SEQPACKET
+sockets also support the communication of
+.Ux
+file descriptors through the use of the
+.Ar msg_control
+field in the
+.Ar msg
+argument to
+.Xr sendmsg 2
+and
+.Xr recvmsg 2 .
+.Pp
+Any valid descriptor may be sent in a message.
+The file descriptor(s) to be passed are described using a
+.Ar struct cmsghdr
+that is defined in the include file
+.In sys/socket.h .
+The type of the message is
+.Dv SCM_RIGHTS ,
+and the data portion of the messages is an array of integers
+representing the file descriptors to be passed.
+The number of descriptors being passed is defined
+by the length field of the message;
+the length field is the sum of the size of the header
+plus the size of the array of file descriptors.
+.Pp
+The received descriptor is a
+.Em duplicate
+of the sender's descriptor, as if it were created with a call to
+.Xr dup 2 .
+Per-process descriptor flags, set with
+.Xr fcntl 2 ,
+are
+.Em not
+passed to a receiver.
+Descriptors that are awaiting delivery, or that are
+purposely not received, are automatically closed by the system
+when the destination socket is closed.
+.Sh SEE ALSO
+.Xr socket 2 ,
+.Xr netintro 4
+.Rs
+.\" 4.4BSD PSD:20
+.%A S. Sechrest
+.%T \&An Introductory 4.4BSD Interprocess Communication Tutorial
+.%B 4.4BSD Programmer's Supplementary Documents (PSD)
+.Re
+.Rs
+.\" 4.4BSD PSD:21
+.%A S. J. Leffler
+.%A R. S. Fabry
+.%A W. N. Joy
+.%A P. Lapsley
+.%A S. Miller
+.%A C. Torek
+.%T \&An Advanced 4.4BSD Interprocess Communication Tutorial
+.%B 4.4BSD Programmer's Supplementary Documents (PSD)
+.Re

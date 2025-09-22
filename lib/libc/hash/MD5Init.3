@@ -1,0 +1,213 @@
+.\"
+.\" Copyright (c) 2000 Poul-Henning Kamp <phk@FreeBSD.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" If we meet some day, and you think this stuff is worth it, you
+.\" can buy me a beer in return. Poul-Henning Kamp
+.\"
+.\" 	$OpenBSD: MD5Init.3,v 1.4 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt MD5INIT 3
+.Os
+.Sh NAME
+.Nm MD5Init ,
+.Nm MD5Update ,
+.Nm MD5Pad ,
+.Nm MD5Final ,
+.Nm MD5Transform ,
+.Nm MD5End ,
+.Nm MD5File ,
+.Nm MD5FileChunk ,
+.Nm MD5Data
+.Nd calculate MD5 message digest
+.Sh SYNOPSIS
+.In sys/types.h
+.In md5.h
+.Ft void
+.Fn MD5Init "MD5_CTX *context"
+.Ft void
+.Fn MD5Update "MD5_CTX *context" "const u_int8_t *data" "size_t len"
+.Ft void
+.Fn MD5Pad "MD5_CTX *context"
+.Ft void
+.Fn MD5Final "u_int8_t digest[MD5_DIGEST_LENGTH]" "MD5_CTX *context"
+.Ft void
+.Fn MD5Transform "u_int32_t state[4]" "u_int8_t block[MD5_BLOCK_LENGTH]"
+.Ft char *
+.Fn MD5End "MD5_CTX *context" "char *buf"
+.Ft char *
+.Fn MD5File "const char *filename" "char *buf"
+.Ft char *
+.Fn MD5FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft char *
+.Fn MD5Data "const u_int8_t *data" "size_t len" "char *buf"
+.Sh DESCRIPTION
+The MD5 functions calculate a 128-bit cryptographic checksum (digest)
+for any number of input bytes.
+A cryptographic checksum is a one-way
+hash-function, that is, you cannot find (except by exhaustive search)
+the input corresponding to a particular output.
+This net result is a
+.Dq fingerprint
+of the input-data, which doesn't disclose the actual input.
+.Pp
+MD5 has been broken; it should only be used where necessary for
+backward compatibility.
+The attack on MD5 is in the nature of finding
+.Dq collisions
+\(em that is, multiple inputs which hash to the same value.
+It is still unlikely for an attacker to be able to determine the exact
+original input given a hash value.
+.Pp
+The
+.Fn MD5Init ,
+.Fn MD5Update ,
+and
+.Fn MD5Final
+functions are the core functions.
+Allocate an
+.Vt MD5_CTX ,
+initialize it with
+.Fn MD5Init ,
+run over the data with
+.Fn MD5Update ,
+and finally extract the result using
+.Fn MD5Final .
+.Pp
+The
+.Fn MD5Pad
+function can be used to apply padding to the message digest as in
+.Fn MD5Final ,
+but the current context can still be used with
+.Fn MD5Update .
+.Pp
+The
+.Fn MD5Transform
+function is used by
+.Fn MD5Update
+to hash 512-bit blocks and forms the core of the algorithm.
+Most programs should use the interface provided by
+.Fn MD5Init ,
+.Fn MD5Update
+and
+.Fn MD5Final
+instead of calling
+.Fn MD5Transform
+directly.
+.Pp
+.Fn MD5End
+is a wrapper for
+.Fn MD5Final
+which converts the return value to an MD5_DIGEST_STRING_LENGTH-character
+(including the terminating '\e0')
+ASCII string which represents the 128 bits in hexadecimal.
+.Pp
+.Fn MD5File
+calculates the digest of a file, and uses
+.Fn MD5End
+to return the result.
+If the file cannot be opened, a null pointer is returned.
+.Pp
+.Fn MD5FileChunk
+behaves like
+.Fn MD5File
+but calculates the digest only for that portion of the file starting at
+.Fa offset
+and continuing for
+.Fa length
+bytes or until end of file is reached, whichever comes first.
+A zero
+.Fa length
+can be specified to read until end of file.
+A negative
+.Fa length
+or
+.Fa offset
+will be ignored.
+.Fn MD5Data
+calculates the digest of a chunk of data in memory, and uses
+.Fn MD5End
+to return the result.
+.Pp
+When using
+.Fn MD5End ,
+.Fn MD5File ,
+.Fn MD5FileChunk ,
+or
+.Fn MD5Data ,
+the
+.Ar buf
+argument can be a null pointer, in which case the returned string
+is allocated with
+.Xr malloc 3
+and subsequently must be explicitly deallocated using
+.Xr free 3
+after use.
+If the
+.Ar buf
+argument is non-null, it must point to at least MD5_DIGEST_STRING_LENGTH
+characters of buffer space.
+.Sh SEE ALSO
+.Xr cksum 1 ,
+.Xr md5 1 ,
+.Xr RMD160Init 3 ,
+.Xr SHA1Init 3 ,
+.Xr SHA256Init 3
+.Rs
+.%A H. Dobbertin
+.%D 1995
+.%J CryptoBytes
+.%N 1(3):5
+.%T Alf Swindles Ann
+.Re
+.Rs
+.%A MJ. B. Robshaw
+.%D November 12, 1996
+.%J RSA Laboratories Bulletin
+.%N 4
+.%T On Recent Results for MD4 and MD5
+.Re
+.Rs
+.%A Hans Dobbertin
+.%T Cryptanalysis of MD5 Compress
+.Re
+.Sh STANDARDS
+.Rs
+.%A R. Rivest
+.%D April 1992
+.%R RFC 1321
+.%T The MD5 Message Digest Algorithm
+.Re
+.Sh HISTORY
+These functions appeared in
+.Ox 2.0 .
+.Sh AUTHORS
+.An -nosplit
+The original MD5 routines were developed by
+RSA Data Security, Inc., and published in the above references.
+This code is derived from a public domain implementation written by
+.An Colin Plumb .
+.Pp
+The
+.Fn MD5End ,
+.Fn MD5File ,
+.Fn MD5FileChunk ,
+and
+.Fn MD5Data
+helper functions are derived from code written by
+.An Poul-Henning Kamp .
+.Sh BUGS
+Collisions have been found for the full version of MD5.
+The use of the SHA2 functions is recommended instead.

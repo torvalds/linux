@@ -1,0 +1,105 @@
+.\"	$OpenBSD: strxfrm.3,v 1.12 2019/01/18 07:43:36 schwarze Exp $
+.\"
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 18 2019 $
+.Dt STRXFRM 3
+.Os
+.Sh NAME
+.Nm strxfrm ,
+.Nm strxfrm_l
+.Nd transform a string under locale
+.Sh SYNOPSIS
+.In string.h
+.Ft size_t
+.Fn strxfrm "char *dst" "const char *src" "size_t n"
+.Ft size_t
+.Fn strxfrm_l "char *dst" "const char *src" "size_t n" "locale_t locale"
+.Sh DESCRIPTION
+The idea of
+.Fn strxfrm
+and
+.Fn strxfrm_l
+is to
+.Dq un-localize
+a string: the functions transform
+.Ar src ,
+storing the result in
+.Ar dst ,
+such that
+.Xr strcmp 3
+on transformed strings returns what
+.Xr strcoll 3
+on the original untransformed strings would return.
+.Pp
+On
+.Ox ,
+both have the same effect as
+.Xr strlcpy 3 ,
+and the global locale, the thread-specific locale, and the
+.Fa locale
+argument are ignored.
+On other operating systems, the behaviour may depend on the
+.Dv LC_CTYPE
+and
+.Dv LC_COLLATE
+locale categories set with
+.Xr setlocale 3 ,
+.Xr uselocale 3 ,
+or
+.Xr newlocale 3 .
+.Sh SEE ALSO
+.Xr newlocale 3 ,
+.Xr setlocale 3 ,
+.Xr strcmp 3 ,
+.Xr strcoll 3 ,
+.Xr strlcpy 3 ,
+.Xr wcsxfrm 3
+.Sh STANDARDS
+The
+.Fn strxfrm
+function conforms to
+.St -ansiC ,
+and
+.Fn strxfrm_l
+to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn strxfrm
+function has been available since
+.Bx 4.3 Reno ,
+and
+.Fn strxfrm_l
+since
+.Ox 6.2 .

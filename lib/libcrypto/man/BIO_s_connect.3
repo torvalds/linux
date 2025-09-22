@@ -1,0 +1,504 @@
+.\" $OpenBSD: BIO_s_connect.3,v 1.20 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 0e474b8b Nov 1 15:45:49 2015 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000, 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_S_CONNECT 3
+.Os
+.Sh NAME
+.Nm BIO_s_connect ,
+.Nm BIO_new_connect ,
+.Nm BIO_set_conn_hostname ,
+.Nm BIO_set_conn_port ,
+.Nm BIO_set_conn_ip ,
+.Nm BIO_set_conn_int_port ,
+.Nm BIO_get_conn_hostname ,
+.Nm BIO_get_conn_port ,
+.Nm BIO_get_conn_ip ,
+.Nm BIO_get_conn_int_port ,
+.Nm BIO_set_nbio ,
+.Nm BIO_do_connect
+.Nd connect BIO
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.Ft const BIO_METHOD *
+.Fo BIO_s_connect
+.Fa void
+.Fc
+.Ft BIO *
+.Fo BIO_new_connect
+.Fa "const char *name"
+.Fc
+.Ft long
+.Fo BIO_set_conn_hostname
+.Fa "BIO *b"
+.Fa "char *name"
+.Fc
+.Ft long
+.Fo BIO_set_conn_port
+.Fa "BIO *b"
+.Fa "char *port"
+.Fc
+.Ft long
+.Fo BIO_set_conn_ip
+.Fa "BIO *b"
+.Fa "char *ip"
+.Fc
+.Ft long
+.Fo BIO_set_conn_int_port
+.Fa "BIO *b"
+.Fa "char *port"
+.Fc
+.Ft char *
+.Fo BIO_get_conn_hostname
+.Fa "BIO *b"
+.Fc
+.Ft char *
+.Fo BIO_get_conn_port
+.Fa "BIO *b"
+.Fc
+.Ft char *
+.Fo BIO_get_conn_ip
+.Fa "BIO *b"
+.Fc
+.Ft long
+.Fo BIO_get_conn_int_port
+.Fa "BIO *b"
+.Fc
+.Ft long
+.Fo BIO_set_nbio
+.Fa "BIO *b"
+.Fa "long n"
+.Fc
+.Ft long
+.Fo BIO_do_connect
+.Fa "BIO *b"
+.Fc
+.Sh DESCRIPTION
+.Fn BIO_s_connect
+returns the connect BIO method.
+This is a wrapper around the platform's TCP/IP socket connection routines.
+.Pp
+Using connect BIOs, TCP/IP connections can be made and data
+transferred using only BIO routines.
+In this way any platform specific operations
+are hidden by the BIO abstraction.
+.Pp
+Read and write operations on a connect BIO will perform I/O
+on the underlying connection.
+If no connection is established and the port and hostname (see below)
+is set up properly, then a connection is established first.
+.Pp
+Connect BIOs support
+.Xr BIO_puts 3
+but not
+.Xr BIO_gets 3 .
+.Pp
+If the close flag is set on a connect BIO, then any active connection
+is shutdown and the socket closed when the BIO is freed.
+.Pp
+Calling
+.Xr BIO_reset 3
+on a connect BIO will close any active connection and reset the BIO
+into a state where it can connect to the same host again.
+.Pp
+.Xr BIO_get_fd 3
+places the underlying socket in
+.Fa c
+if it is not
+.Dv NULL
+and also returns the socket.
+If
+.Fa c
+is not
+.Dv NULL ,
+it should be of type
+.Vt "int *" .
+.Pp
+.Xr BIO_set_info_callback 3
+and
+.Xr BIO_callback_ctrl 3
+with a
+.Fa cmd
+of
+.Dv BIO_CTRL_SET_CALLBACK
+save the pointer to the
+.Fa cb
+function internally in
+.Fa b
+and
+.Xr BIO_get_info_callback 3
+retrieves this function pointer.
+If such an info callback is installed, it is invoked whenever
+a state change or error occurs in the connect BIO state machine.
+The arguments of the callback include the new
+.Fa state
+in case of a state change or the old
+.Fa state
+in case of an error and the value
+.Fa res
+that the state machine would return to whatever operation invoked it
+if no info callback had been installed.
+If an info callback is installed, the state machine
+returns the return value of the info callback instead.
+Consequently, the info callback is supposed to usually return
+.Fa res .
+The precise effect of the return value depends on which operation
+the state machine was invoked from.
+Usually, \-1 is used to indicate failure and return values less than
+or equal to zero abort the operation in question, whereas positive
+values indicate success and allow the operation to proceed.
+.Pp
+The
+.Fa state
+constants passed to the callback are named according to
+which operation needs to be performed next.
+They are listed here in the order the states are passed through:
+.Pp
+.Bl -tag -width BIO_CONN_S_BLOCKED_CONNECT -offset 3n -compact
+.It Dv BIO_CONN_S_BEFORE
+The BIO is idle and no connection has been initiated yet.
+.It Dv BIO_CONN_S_GET_IP
+The hostname to connect to needs to be converted to an IP address.
+.It Dv BIO_CONN_S_GET_PORT
+The service name to connect to needs to be converted to a TCP port number.
+.It Dv BIO_CONN_S_CREATE_SOCKET
+The TCP socket needs to be created with the
+.Xr socket 2
+system call.
+.It Dv BIO_CONN_S_NBIO
+Socket options may need to be set using
+.Xr fcntl 2
+and
+.Xr setsockopt 2 .
+.It Dv BIO_CONN_S_CONNECT
+The connection needs to be initiated with the
+.Xr connect 2
+system call.
+.It Dv BIO_CONN_S_BLOCKED_CONNECT
+The
+.Xr connect 2
+system call would have blocked and needs to be tried again.
+.It Dv BIO_CONN_S_OK
+The connection has been established and can now be used to transfer data.
+.El
+.Pp
+.Fn BIO_set_conn_hostname
+uses the string
+.Fa name
+to set the hostname.
+The hostname can be an IP address.
+The hostname can also include the port in the form
+.Ar hostname : Ns Ar port .
+It is also acceptable to use the forms
+.Ar hostname Ns / Ns Pa any/other/path
+or
+.Ar hostname : Ns Ar port Ns / Ns Pa any/other/path .
+.Pp
+.Fn BIO_set_conn_port
+sets the port to
+.Fa port .
+.Fa port
+is looked up as a service using
+.Xr getaddrinfo 3 .
+.Pp
+.Fn BIO_set_conn_ip
+sets the IP address to
+.Fa ip
+using binary form i.e. four bytes specifying the IP address
+in big-endian form.
+.Pp
+.Fn BIO_set_conn_int_port
+sets the port using
+.Fa port .
+.Fa port
+should
+be of type
+.Vt "int *" .
+.Pp
+.Fn BIO_get_conn_hostname
+returns the hostname of the connect BIO or
+.Dv NULL
+if the BIO is initialized but no hostname is set.
+This return value is an internal pointer which should not be modified.
+.Pp
+.Fn BIO_get_conn_port
+returns the port as a string.
+This return value is an internal pointer which should not be modified.
+.Pp
+.Fn BIO_get_conn_ip
+returns the IP address in binary form.
+.Pp
+.Fn BIO_get_conn_int_port
+returns the port as an
+.Vt int .
+.Pp
+.Fn BIO_set_nbio
+sets the non-blocking I/O flag to
+.Fa n .
+If
+.Fa n
+is zero then blocking I/O is set.
+If
+.Fa n
+is 1 then non-blocking I/O is set.
+Blocking I/O is the default.
+The call to
+.Fn BIO_set_nbio
+should be made before the connection is established
+because non-blocking I/O is set during the connect process.
+.Pp
+.Fn BIO_new_connect
+combines
+.Xr BIO_new 3
+and
+.Fn BIO_set_conn_hostname
+into a single call.
+It creates a new connect BIO with
+.Fa name .
+.Pp
+.Fn BIO_do_connect
+attempts to connect the supplied BIO.
+It returns 1 if the connection was established successfully.
+A zero or negative value is returned if the connection
+could not be established.
+The call
+.Xr BIO_should_retry 3
+should be used for non-blocking connect BIOs
+to determine if the call should be retried.
+.Pp
+If blocking I/O is set then a non-positive return value from any
+I/O call is caused by an error condition, although a zero return
+will normally mean that the connection was closed.
+.Pp
+If the port name is supplied as part of the host name then this will
+override any value set with
+.Fn BIO_set_conn_port .
+This may be undesirable if the application does not wish to allow
+connection to arbitrary ports.
+This can be avoided by checking for the presence of the
+.Sq \&:
+character in the passed hostname and either indicating an error
+or truncating the string at that point.
+.Pp
+The values returned by
+.Fn BIO_get_conn_hostname ,
+.Fn BIO_get_conn_port ,
+.Fn BIO_get_conn_ip ,
+and
+.Fn BIO_get_conn_int_port
+are updated when a connection attempt is made.
+Before any connection attempt the values returned
+are those set by the application itself.
+.Pp
+Applications do not have to call
+.Fn BIO_do_connect
+but may wish to do so to separate the connection process
+from other I/O processing.
+.Pp
+If non-blocking I/O is set,
+then retries will be requested as appropriate.
+.Pp
+In addition to
+.Xr BIO_should_read 3
+and
+.Xr BIO_should_write 3
+it is also possible for
+.Xr BIO_should_io_special 3
+to be true during the initial connection process with the reason
+.Dv BIO_RR_CONNECT .
+If this is returned, it is an indication
+that a connection attempt would block.
+The application should then take appropriate action to wait
+until the underlying socket has connected and retry the call.
+.Pp
+When a chain containing a connect BIO is copied with
+.Xr BIO_dup_chain 3 ,
+.Fn BIO_set_conn_hostname ,
+.Fn BIO_set_conn_port ,
+.Fn BIO_set_nbio ,
+and
+.Xr BIO_set_info_callback 3
+are called internally to automatically copy the hostname, port,
+non-blocking I/O flag, and info callback from the original BIO object
+to the new one.
+.Pp
+.Xr BIO_ctrl 3
+.Fa cmd
+and
+.Fa larg
+arguments correspond to macros as follows:
+.Bl -column BIO_C_DO_STATE_MACHINE larg BIO_get_conn_hostname(3) -offset 3n
+.It Fa cmd No constant        Ta Fa larg Ta corresponding macro
+.It Dv BIO_C_DO_STATE_MACHINE Ta 0       Ta Fn BIO_do_connect
+.It Dv BIO_C_GET_CONNECT      Ta 0       Ta Fn BIO_get_conn_hostname
+.It                           Ta 1       Ta Fn BIO_get_conn_port
+.It                           Ta 2       Ta Fn BIO_get_conn_ip
+.It                           Ta 3       Ta Fn BIO_get_conn_int_port
+.It Dv BIO_C_GET_FD           Ta 0       Ta Xr BIO_get_fd 3
+.It Dv BIO_C_SET_CONNECT      Ta 0       Ta Fn BIO_set_conn_hostname
+.It                           Ta 1       Ta Fn BIO_set_conn_port
+.It                           Ta 2       Ta Fn BIO_set_conn_ip
+.It                           Ta 3       Ta Fn BIO_set_conn_int_port
+.It Dv BIO_C_SET_NBIO         Ta Fa n    Ta Fn BIO_set_nbio
+.It Dv BIO_CTRL_GET_CLOSE     Ta 0       Ta Xr BIO_get_close 3
+.It Dv BIO_CTRL_RESET         Ta 0       Ta Xr BIO_reset 3
+.It Dv BIO_CTRL_SET_CLOSE     Ta Fa flag Ta Xr BIO_set_close 3
+.El
+.Sh RETURN VALUES
+.Fn BIO_s_connect
+returns the connect BIO method.
+.Pp
+When called on a connect BIO object,
+.Xr BIO_method_type 3
+returns the constant
+.Dv BIO_TYPE_CONNECT
+and
+.Xr BIO_method_name 3
+returns a pointer to the static string
+.Qq socket connect .
+.Pp
+.Xr BIO_get_fd 3
+returns the socket or -1 if the BIO has not been initialized.
+.Pp
+.Fn BIO_set_conn_hostname ,
+.Fn BIO_set_conn_port ,
+.Fn BIO_set_conn_ip ,
+and
+.Fn BIO_set_conn_int_port
+always return 1.
+.Pp
+.Fn BIO_get_conn_hostname
+returns the connected hostname or
+.Dv NULL
+if none is set.
+.Pp
+.Fn BIO_get_conn_port
+returns a string representing the connected port or
+.Dv NULL
+if not set.
+.Pp
+.Fn BIO_get_conn_ip
+returns a pointer to the connected IP address in binary form
+or all zeros if not set.
+.Pp
+.Fn BIO_get_conn_int_port
+returns the connected port or 0 if none was set.
+.Pp
+.Fn BIO_set_nbio
+always returns 1.
+.Pp
+.Fn BIO_do_connect
+returns 1 if the connection was successfully
+established and 0 or -1 if the connection failed.
+.Sh EXAMPLES
+This example connects to a webserver on the local host and attempts
+to retrieve a page and copy the result to standard output.
+.Bd -literal -offset 2n
+BIO *cbio, *out;
+int len;
+char tmpbuf[1024];
+
+ERR_load_crypto_strings();
+cbio = BIO_new_connect("localhost:http");
+out = BIO_new_fp(stdout, BIO_NOCLOSE);
+if (BIO_do_connect(cbio) <= 0) {
+	fprintf(stderr, "Error connecting to server\en");
+	ERR_print_errors_fp(stderr);
+	/* whatever ... */
+}
+BIO_puts(cbio, "GET / HTTP/1.0\en\en");
+for(;;) {
+	len = BIO_read(cbio, tmpbuf, 1024);
+	if (len <= 0)
+		break;
+	BIO_write(out, tmpbuf, len);
+}
+BIO_free(cbio);
+BIO_free(out);
+.Ed
+.Sh SEE ALSO
+.Xr BIO_new 3
+.Sh HISTORY
+.Fn BIO_s_connect ,
+.Fn BIO_new_connect ,
+.Fn BIO_set_nbio ,
+and
+.Fn BIO_do_connect
+first appeared in SSLeay 0.8.0.
+.Fn BIO_set_conn_hostname ,
+.Fn BIO_set_conn_port ,
+.Fn BIO_set_conn_ip ,
+.Fn BIO_set_conn_int_port ,
+.Fn BIO_get_conn_hostname ,
+.Fn BIO_get_conn_port ,
+.Fn BIO_get_conn_ip ,
+and
+.Fn BIO_get_conn_int_port
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .

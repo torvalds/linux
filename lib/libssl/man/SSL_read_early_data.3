@@ -1,0 +1,175 @@
+.\" $OpenBSD: SSL_read_early_data.3,v 1.5 2025/06/08 22:52:00 schwarze Exp $
+.\" content checked up to: OpenSSL 6328d367 Jul 4 21:58:30 2020 +0200
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_READ_EARLY_DATA 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_max_early_data ,
+.Nm SSL_set_max_early_data ,
+.Nm SSL_SESSION_set_max_early_data ,
+.Nm SSL_CTX_get_max_early_data ,
+.Nm SSL_get_max_early_data ,
+.Nm SSL_SESSION_get_max_early_data ,
+.Nm SSL_write_early_data ,
+.Nm SSL_read_early_data ,
+.Nm SSL_get_early_data_status
+.Nd transmit application data during the handshake
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fo SSL_CTX_set_max_early_data
+.Fa "SSL_CTX *ctx"
+.Fa "uint32_t max_bytes"
+.Fc
+.Ft int
+.Fo SSL_set_max_early_data
+.Fa "SSL *ssl"
+.Fa "uint32_t max_bytes"
+.Fc
+.Ft int
+.Fo SSL_SESSION_set_max_early_data
+.Fa "SSL_SESSION *session"
+.Fa "uint32_t max_bytes"
+.Fc
+.Ft uint32_t
+.Fo SSL_CTX_get_max_early_data
+.Fa "const SSL_CTX *ctx"
+.Fc
+.Ft uint32_t
+.Fo SSL_get_max_early_data
+.Fa "const SSL *ssl"
+.Fc
+.Ft uint32_t
+.Fo SSL_SESSION_get_max_early_data
+.Fa "const SSL_SESSION *session"
+.Fc
+.Ft int
+.Fo SSL_write_early_data
+.Fa "SSL *ssl"
+.Fa "const void *buf"
+.Fa "size_t len"
+.Fa "size_t *written"
+.Fc
+.Ft int
+.Fo SSL_read_early_data
+.Fa "SSL *ssl"
+.Fa "void *buf"
+.Fa "size_t maxlen"
+.Fa "size_t *readbytes"
+.Fc
+.Ft int
+.Fo SSL_get_early_data_status
+.Fa "const SSL *ssl"
+.Fc
+.Sh DESCRIPTION
+In LibreSSL, these functions have no effect.
+They are only provided because some application programs
+expect the API to be available when TLSv1.3 is supported.
+Using these functions is strongly discouraged because they provide
+marginal benefit in the first place even when implemented and
+used as designed, because they have absurdly complicated semantics,
+and because when they are used, inconspicuous oversights are likely
+to cause serious security vulnerabilities.
+.Pp
+If these functions are used, other TLS implementations
+may allow the transfer of application data during the initial handshake.
+Even when used as designed, security of the connection is compromised;
+in particular, application data is exchanged with unauthenticated peers,
+and there is no forward secrecy.
+Other downsides include an increased risk of replay attacks.
+.Pp
+.Fn SSL_CTX_set_max_early_data ,
+.Fn SSL_set_max_early_data ,
+and
+.Fn SSL_SESSION_set_max_early_data
+are intended to configure the maximum number of bytes per session
+that can be transmitted during the handshake.
+With LibreSSL, all arguments are ignored.
+.Pp
+An endpoint can attempt to send application data with
+.Fn SSL_write_early_data
+during the handshake.
+With LibreSSL, such attempts always fail and set
+.Pf * Fa written
+to 0.
+.Pp
+A server can attempt to read application data from the client using
+.Fn SSL_read_early_data
+during the handshake.
+With LibreSSL, no such data is ever accepted and
+.Pf * Fa readbytes
+is always set to 0.
+.Sh RETURN VALUES
+.Fn SSL_CTX_set_max_early_data ,
+.Fn SSL_set_max_early_data ,
+and
+.Fn SSL_SESSION_set_max_early_data
+return 1 for success or 0 for failure.
+With LibreSSL, they always succeed.
+.Pp
+.Fn SSL_CTX_get_max_early_data ,
+.Fn SSL_get_max_early_data ,
+and
+.Fn SSL_SESSION_get_max_early_data
+return the maximum number of bytes of application data
+that will be accepted from the peer during the handshake.
+With LibreSSL, they always return 0.
+.Pp
+.Fn SSL_write_early_data
+returns 1 for success or 0 for failure.
+With LibreSSL, it always fails.
+.Pp
+With LibreSSL,
+.Fn SSL_read_early_data
+always returns
+.Dv SSL_READ_EARLY_DATA_FINISH
+on the server side and
+.Dv SSL_READ_EARLY_DATA_ERROR
+on the client side.
+.Dv SSL_READ_EARLY_DATA_SUCCESS
+can occur with other implementations, but not with LibreSSL.
+.Pp
+With LibreSSL,
+.Fn SSL_get_early_data_status
+always returns
+.Dv SSL_EARLY_DATA_REJECTED .
+With other implementations, it might also return
+.Dv SSL_EARLY_DATA_NOT_SENT
+or
+.Dv SSL_EARLY_DATA_ACCEPTED .
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_read 3 ,
+.Xr SSL_write 3
+.Sh STANDARDS
+RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3:
+.Bl -tag -width "section 4.2.10" -compact
+.It Section 2.3
+0-RTT data
+.It Section 4.2.10
+Early Data Indication
+.It Section 8
+0-RTT and Anti-Replay
+.It Appendix E.5
+Replay Attacks on 0-RTT
+.El
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.1.1
+and have been available since
+.Ox 7.0 .

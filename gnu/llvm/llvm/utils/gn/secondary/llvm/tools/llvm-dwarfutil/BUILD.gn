@@ -1,0 +1,31 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Options") {
+  visibility = [ ":llvm-dwarfutil" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+executable("llvm-dwarfutil") {
+  deps = [
+    ":Options",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/DWARFLinker",
+    "//llvm/lib/DWARFLinker/Classic",
+    "//llvm/lib/DWARFLinker/Parallel",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/MC",
+    "//llvm/lib/ObjCopy",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:AllTargetsCodeGens",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsInfos",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "DebugInfoLinker.cpp",
+    "llvm-dwarfutil.cpp",
+  ]
+}

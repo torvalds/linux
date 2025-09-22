@@ -1,0 +1,140 @@
+.\"	$OpenBSD: pkg_sign.1,v 1.13 2022/02/11 15:36:40 espie Exp $
+.\" Copyright (c) 2014 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 11 2022 $
+.Dt PKG_SIGN 1
+.Os
+.Sh NAME
+.Nm pkg_sign
+.Nd sign binary packages for distribution
+.Sh SYNOPSIS
+.Nm pkg_sign
+.Bk -words
+.Op Fl Cvi
+.Op Fl D Ar name Ns Op = Ns Ar value
+.Op Fl j Ar maxjobs
+.Op Fl o Ar dir
+.Fl s Cm signify2
+.Fl s Ar privkey
+.Op Fl S Ar source
+.Op Ar pkg-name ...
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+command is used to sign existing collections of binary packages
+created by
+.Xr pkg_create 1 .
+.Pp
+It will sign the packages and optionally, produce a
+.Pa SHA256
+manifest file in the output directory.
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl C
+Append
+.Xr sha256 1
+checksums to
+.Pa SHA256
+in the output directory, then sort it.
+.It Fl i
+Incremental mode.
+Ignore packages that are already in the output repository.
+Note that, in verbose mode, they will still show up as
+.Sq Signed
+in the listing.
+.It Fl j Ar maxjobs
+Sign existing packages in parallel.
+.It Fl o Ar dir
+Specify output directory for signing packages.
+Otherwise, signed packages are created in the current directory.
+.It Fl S Ar source
+Source repository for packages to be signed.
+.It Xo
+.Fl s Cm signify2
+.Fl s Ar privkey
+.Xc
+Specify signature parameters for signed packages.
+Option parameters are as follows:
+.Bl -tag -width signify2
+.It Cm signify2
+Choose
+.Xr signify 1
+new style signatures, where the
+.Xr gzip 1
+compressed data is signed.
+.It Ar privkey
+The path to the signer's private key.
+For
+.Cm signify ,
+the private key name is used to set the
+.Cm @signer
+annotation.
+If a corresponding public key is found, the first signatures will be
+checked for key mismatches.
+.El
+.It Fl v
+Turn on verbose output, display
+.Sq Signed output/pkg.tgz
+after each package is signed.
+.El
+.Sh SIGNATURE DETAILS
+The signature is stored within the
+.Xr gzip 1
+comment, as plain text data, according to
+.Xr signify 1
+.Fl zS
+mode.
+It contains the ed25519 signature, some meta-information,
+and
+SHA512/256 checksums for each 64K block of compressed data.
+.Pp
+Additionally, for further manual checking, the packing-list contains
+a complete manifest of files within the package,
+checksummed with
+.Xr sha256 1
+and annotated with proper
+.Cm @mode ,
+.Cm @user ,
+.Cm @group
+annotations, so that
+.Xr pkg_add 1
+will refuse to give special rights to any file which isn't properly annotated,
+and so that it will abort on installation of a file whose checksum does not
+match.
+.Pp
+Meta-information from
+.Xr signify 1
+gets inserted in the packing-list during extraction,
+adding a
+.Cm @digital-signature
+annotation and a
+.Cm @signer
+annotation for further manual inspection.
+.Sh SEE ALSO
+.Xr cksum 1 ,
+.Xr pkg_add 1 ,
+.Xr signify 1 ,
+.Xr tar 1 ,
+.Xr package 5
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 5.5 .
+The signature process was completely redesigned for
+.Ox 6.1 .
+.Sh AUTHORS
+.An Marc Espie

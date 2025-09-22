@@ -1,0 +1,17 @@
+#! /usr/bin/perl
+
+# $OpenBSD: inject-temp3,v 1.1 2019/07/10 07:21:47 espie Exp $
+use strict;
+use warnings;
+use OpenBSD::Temp;
+
+package OpenBSD::Temp;
+use Wrapper;
+
+wrap('permanent_file', 
+    sub {
+	my $original = shift;
+	$_[0] = "/nonexistent";
+	goto &$original;
+    });
+1;

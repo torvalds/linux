@@ -1,0 +1,12 @@
+static_library("wasm") {
+  output_name = "lldbPluginObjectFileWasm"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Symbol",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "ObjectFileWasm.cpp" ]
+}

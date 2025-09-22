@@ -1,0 +1,87 @@
+.\"	$OpenBSD: ec.4,v 1.20 2008/09/07 06:55:34 jmc Exp $
+.\"     $NetBSD: ec.4,v 1.4 1998/08/09 00:39:02 thorpej Exp $
+.\"
+.\" Copyright (c) 1997 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+.\" NASA Ames Research Center.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 7 2008 $
+.Dt EC 4
+.Os
+.Sh NAME
+.Nm ec
+.Nd 3Com EtherLink II (3c503) Ethernet device
+.Sh SYNOPSIS
+.Cd "ec0 at isa? port 0x250 iomem 0xd8000 irq 9"
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports 3Com EtherLink II (3C503) Ethernet cards.
+.Pp
+The EtherLink II supports two media types on a single card.
+All support the AUI media type.
+The other media is either BNC or UTP behind a transceiver.
+Software cannot differentiate between BNC and UTP cards.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width 10baseX -offset indent
+.It 10base5
+Set 10base5 (thick-net) operation.
+.It 10base2
+Set BNC (10base2/thin-net) or UTP operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+To view a list of media types and options supported by your card try
+.Dq ifconfig <device> media .
+For example,
+.Dq ifconfig ec0 media .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ec0: wildcarded IRQ is not allowed"
+The IRQ was wildcarded in the kernel configuration file.
+This is not supported.
+.It "ec0: invalid IRQ <n>, must be 3, 4, 5, or 9"
+An IRQ other than the above listed IRQs was specified in the kernel
+configuration file.
+The EtherLink II hardware only supports the above listed IRQs.
+.It "ec0: failed to clear shared memory at offset <off>"
+The memory test was unable to clear the interface's shared memory
+region.
+This often indicates that the card is configured at a conflicting
+.Em iomem
+address.
+.El
+.Sh SEE ALSO
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8

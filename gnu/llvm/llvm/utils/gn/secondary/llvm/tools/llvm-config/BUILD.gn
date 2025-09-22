@@ -1,0 +1,119 @@
+import("//llvm/lib/Target/targets_string.gni")
+import("//llvm/utils/gn/build/buildflags.gni")
+import("//llvm/utils/gn/build/libs/pthread/enable.gni")
+import("//llvm/utils/gn/build/libs/xml/enable.gni")
+import("//llvm/utils/gn/build/libs/zlib/enable.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+import("//llvm/version.gni")
+
+action("write_extension_dependencies") {
+  script = "//llvm/utils/gn/secondary/llvm/tools/llvm-config/write_extension_dependencies.py"
+  outputs = [ "$target_gen_dir/ExtensionDependencies.inc" ]
+  args = [
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+write_cmake_config("BuildVariables.inc") {
+  input = "BuildVariables.inc.in"
+  output = "$target_gen_dir/BuildVariables.inc"
+
+  if (is_debug) {
+    build_mode = "debug"
+  } else {
+    build_mode = "release"
+  }
+
+  # FIXME: Why doesn't llvm-config do this, why is this done in
+  # llvm-config/CMakeLists.txt?
+  if (host_os == "win") {
+    l = ""
+    lib = ".lib"
+  } else {
+    l = "-l"
+    lib = ""
+  }
+
+  # Windows doesn't use any of libxml2, zlib by default.
+  # Make GN not warn about these variables being unused.
+  not_needed([
+               "l",
+               "lib",
+             ])
+
+  system_libs = ""
+  if (host_os == "win") {
+    # uuid.lib for FOLDERID_Profile in lib/Support/Windows/Path.inc.
+    # advapi32.lib for CryptAcquireContextW in lib/Support/Windows/Path.inc.
+    system_libs = "psapi.lib shell32.lib ole32.lib uuid.lib advapi32.lib ws2_32.lib ntdll.lib"
+  } else {
+    system_libs += "-lm"
+    if (host_os == "linux") {
+      system_libs += " -lrt -ldl"
+    }
+    if (llvm_enable_threads) {
+      system_libs += " -llibpthreads"
+      if (host_os == "linux") {
+        system_libs += " -latomic"
+      }
+    }
+  }
+  if (llvm_enable_libxml2) {
+    system_libs += " ${l}xml2${lib}"
+  }
+  if (llvm_enable_zlib) {
+    system_libs += " ${l}z${lib}"
+  }
+
+  values = [
+    "CMAKE_INSTALL_INCLUDEDIR=include",
+    "LLVM_SRC_ROOT=" + rebase_path("//llvm"),
+    "LLVM_OBJ_ROOT=" + rebase_path(root_out_dir),
+
+    # FIXME: Only the bits needed to run LLVM's test are implemented.
+    "LLVM_CPPFLAGS=.",  # FIXME
+    "LLVM_CFLAGS=.",  # FIXME
+    "LLVM_LDFLAGS=.",  # FIXME
+    "LLVM_CXXFLAGS=.",  # FIXME
+    "LLVM_BUILDMODE=$build_mode",
+    "LLVM_LIBDIR_SUFFIX=",
+    "LLVM_TARGETS_BUILT=$llvm_targets_to_build_string",
+    "LLVM_SYSTEM_LIBS=$system_libs",
+    "LLVM_BUILD_SYSTEM=gn",
+    "LLVM_HAS_RTTI=0",
+    "LLVM_BUILD_LLVM_DYLIB=0",
+    "LLVM_LINK_LLVM_DYLIB=0",
+    "BUILD_SHARED_LIBS=0",
+    "LLVM_DYLIB_COMPONENTS_expanded=all",
+    "LLVM_DYLIB_VERSION=${llvm_version_major}git",
+    "LLVM_TOOLS_INSTALL_DIR=bin",
+    "LLVM_INSTALL_PACKAGE_DIR=",
+  ]
+}
+
+action("LibraryDependencies.inc") {
+  script = "//llvm/utils/gn/build/write_library_dependencies.py"
+  output = "$target_gen_dir/LibraryDependencies.inc"
+  args = [
+    "-o",
+    rebase_path(output, root_out_dir),
+  ]
+  outputs = [ output ]
+}
+
+executable("llvm-config") {
+  deps = [
+    ":BuildVariables.inc",
+    ":LibraryDependencies.inc",
+    ":write_extension_dependencies",
+    "//llvm/include/llvm/Config:config",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+
+  # To pick up the generated inc files.
+  include_dirs = [ "$target_gen_dir" ]
+  sources = [ "llvm-config.cpp" ]
+}

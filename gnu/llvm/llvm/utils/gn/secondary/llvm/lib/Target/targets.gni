@@ -1,0 +1,127 @@
+import("//llvm/utils/gn/build/toolchain/compiler.gni")
+
+declare_args() {
+  # The target archs LLVM should support. Defaults to the host arch.
+  # Set to a list, e.g. `llvm_targets_to_build = [ "X86", "ARM" ]`,
+  # or to the string "all" to get all known targets.
+  llvm_targets_to_build = "host"
+}
+
+# FIXME: Port the remaining targets.
+llvm_all_stable_targets = [
+  "AArch64",
+  "AMDGPU",
+  "ARM",
+  "AVR",
+  "BPF",
+  "Hexagon",
+  "Lanai",
+  "LoongArch",
+  "Mips",
+  "NVPTX",
+  "PowerPC",
+  "RISCV",
+  "Sparc",
+  "SystemZ",
+  "WebAssembly",
+  "X86",
+]
+
+llvm_all_experimental_targets = []
+
+llvm_all_targets = llvm_all_stable_targets + llvm_all_experimental_targets
+
+# FIXME: This should be based off target_cpu once cross compiles work.
+if (host_cpu == "arm64") {
+  native_target = "AArch64"
+} else if (host_cpu == "arm") {
+  native_target = "ARM"
+} else if (host_cpu == "ppc" || host_cpu == "ppc64") {
+  native_target = "PowerPC"
+} else if (host_cpu == "x86" || host_cpu == "x64") {
+  native_target = "X86"
+} else {
+  assert(false, "add your host_cpu above")
+}
+
+if (llvm_targets_to_build == "host") {
+  llvm_targets_to_build = [ native_target ]
+} else if (llvm_targets_to_build == "all") {
+  llvm_targets_to_build = llvm_all_stable_targets
+} else if (llvm_targets_to_build == "experimental") {
+  llvm_targets_to_build = llvm_all_targets
+}
+
+# Validate that llvm_targets_to_build is set to a list of valid targets,
+# and remember which targets are built where needed (for conditionally-built
+# unittest targets).
+llvm_build_AArch64 = false
+llvm_build_AMDGPU = false
+llvm_build_ARM = false
+llvm_build_BPF = false
+llvm_build_LoongArch = false
+llvm_build_Mips = false
+llvm_build_PowerPC = false
+llvm_build_RISCV = false
+llvm_build_SystemZ = false
+llvm_build_WebAssembly = false
+llvm_build_X86 = false
+llvm_build_native = false
+foreach(target, llvm_targets_to_build) {
+  if (target == native_target) {
+    llvm_build_native = true
+  }
+  if (target == "AArch64") {
+    llvm_build_AArch64 = true
+  } else if (target == "AMDGPU") {
+    llvm_build_AMDGPU = true
+  } else if (target == "ARM") {
+    llvm_build_ARM = true
+  } else if (target == "BPF") {
+    llvm_build_BPF = true
+  } else if (target == "LoongArch") {
+    llvm_build_LoongArch = true
+  } else if (target == "Mips") {
+    llvm_build_Mips = true
+  } else if (target == "PowerPC") {
+    llvm_build_PowerPC = true
+  } else if (target == "RISCV") {
+    llvm_build_RISCV = true
+  } else if (target == "SystemZ") {
+    llvm_build_SystemZ = true
+  } else if (target == "WebAssembly") {
+    llvm_build_WebAssembly = true
+  } else if (target == "X86") {
+    llvm_build_X86 = true
+  } else if (target == "AVR" || target == "Hexagon" || target == "Lanai" ||
+             target == "NVPTX" || target == "RISCV" || target == "Sparc" ||
+             target == "SystemZ") {
+    # Nothing to do.
+  } else {
+    all_targets_string = ""
+    foreach(target, llvm_all_targets) {
+      all_targets_string += "$0x0a    " + target
+    }
+    assert(false, "Unknown target '$target' in llvm_targets_to_build. " +
+                      "Known targets:" + all_targets_string)
+  }
+}
+
+supported_android_toolchains = []
+
+if (android_ndk_path != "") {
+  if (llvm_build_AArch64) {
+    supported_android_toolchains +=
+        [ "//llvm/utils/gn/build/toolchain:stage2_android_aarch64" ]
+  }
+  if (llvm_build_ARM) {
+    supported_android_toolchains +=
+        [ "//llvm/utils/gn/build/toolchain:stage2_android_arm" ]
+  }
+  if (llvm_build_X86) {
+    supported_android_toolchains += [
+      "//llvm/utils/gn/build/toolchain:stage2_android_x64",
+      "//llvm/utils/gn/build/toolchain:stage2_android_x86",
+    ]
+  }
+}

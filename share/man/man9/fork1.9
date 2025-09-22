@@ -1,0 +1,167 @@
+.\"	$OpenBSD: fork1.9,v 1.32 2022/12/29 06:49:34 jmc Exp $
+.\"	$NetBSD: fork1.9,v 1.3 1999/03/16 00:40:47 garbled Exp $
+.\"
+.\" Copyright (c) 1998 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+.\" NASA Ames Research Center.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 29 2022 $
+.Dt FORK1 9
+.Os
+.Sh NAME
+.Nm fork1
+.Nd create a new process
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/proc.h
+.Ft int
+.Fo fork1
+.Fa "struct proc *p1"
+.Fa "int flags"
+.Fa "void (*func)(void *)"
+.Fa "void *arg"
+.Fa "register_t *retval"
+.Fa "struct proc **rnewprocp"
+.Fc
+.Sh DESCRIPTION
+.Fn fork1
+creates a new process out of
+.Ar p1 ,
+which should be the current thread.
+This function is used primarily to implement the
+.Xr fork 2
+and
+.Xr vfork 2
+system calls, as well as the
+.Xr kthread_create 9
+function.
+.Pp
+The
+.Ar flags
+argument is used to control the behavior of the fork and is created by
+a bitwise-OR of the following values:
+.Bl -tag -width FORK_SHAREFILES
+.It Dv FORK_FORK
+The call is done by the
+.Xr fork 2
+system call.
+Used only for statistics.
+.It Dv FORK_VFORK
+The call is done by the
+.Xr vfork 2
+system call.
+Used only for statistics.
+.It Dv FORK_PPWAIT
+Suspend the parent process until the child is terminated (by calling
+.Xr _exit 2
+or abnormally), or makes a call to
+.Xr execve 2 .
+.It Dv FORK_SHAREFILES
+Let the child share the file descriptor table with the parent through
+.Fn fdshare .
+The default behavior is to copy the table through
+.Fn fdcopy .
+.It Dv FORK_IDLE
+The new thread will be left in the
+.Dv SIDL
+state.
+The default behavior is to make it runnable and add it to the run queue.
+.It Dv FORK_NOZOMBIE
+The child will be dissociated from the parent and will not leave a status
+for the parent to collect.
+See
+.Xr wait 2 .
+.It Dv FORK_SHAREVM
+The child will share the parent's address space.
+The default behavior is
+that the child gets a copy-on-write copy of the address space.
+.It Dv FORK_SYSTEM
+The child will be marked as a system process.
+.It Dv FORK_PTRACE
+The child will start with tracing enabled, as if
+ptrace(PT_TRACE_ME, 0, 0, 0) had been invoked in the child.
+.El
+.Pp
+The new thread will begin execution by calling
+.Fa func ,
+which must not be
+.Dv NULL .
+If
+.Fa arg
+is not
+.Dv NULL ,
+it is passed as the argument to
+.Fa func .
+Otherwise, a pointer to the new process's only thread is passed.
+.Pp
+If
+.Fa retval
+is not
+.Dv NULL ,
+the PID of the child process will be stored in
+.Fa *retval
+on successful completion.
+.Pp
+If
+.Fa rnewprocp
+is not
+.Dv NULL ,
+the newly created thread is stored in
+.Fa *rnewprocp
+on successful completion.
+.Sh RETURN VALUES
+Upon successful completion of the fork operation,
+.Fn fork1
+returns 0.
+Otherwise, the following error values are returned:
+.Bl -tag -width [EAGAIN]
+.It Bq Er EAGAIN
+The system limits on the total number of threads or processes would
+be exceeded.
+.It Bq Er EAGAIN
+The limit
+.Dv RLIMIT_NPROC
+on the total number of processes under execution by this
+user id would be exceeded.
+.It Bq Er ENOMEM
+There is insufficient swap space for the new thread.
+.El
+.Sh SEE ALSO
+.Xr execve 2 ,
+.Xr fork 2 ,
+.Xr vfork 2 ,
+.Xr kthread_create 9 ,
+.Xr psignal 9 ,
+.Xr tfind 9
+.Sh CAVEATS
+The
+.Nm
+function semantics are specific to
+.Ox .
+Other
+.Bx
+systems have different semantics.

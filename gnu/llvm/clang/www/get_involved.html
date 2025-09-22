@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Clang - Get Involved</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+</head>
+<body>
+
+<!--#include virtual="menu.html.incl"-->
+
+<div id="content">
+
+<h1>Getting Involved with the Clang Project</h1>
+
+<p>Once you have <a href="get_started.html">checked out and built</a> clang and
+played around with it, you might be wondering what you can do to make it better
+and contribute to its development.  Alternatively, maybe you just want to follow
+the development of the project to see it progress.
+</p>
+
+<h2>Contribute</h2>
+
+See the <a href="hacking.html">hacking</a> document for information on how
+to author patches.
+
+<h2>Follow what's going on</h2>
+
+<p>Clang is a subproject of the <a href="https://llvm.org">LLVM Project</a>
+and has a Discourse forum and mailing list:</p>
+
+<ul>
+<li><a href="https://discourse.llvm.org/c/clang/6">Clang Frontend Discourse forum</a> -
+This forum is for discussions related to Clang (questions and answers, design
+discussions, RFCs, etc).</li>
+
+<li><a href="https://discord.gg/xS7Z362">Discord chat</a> - Real-time chat for
+discussions related to Clang (primarily for questions and answers).</li>
+
+<li>Regular meetings are held on the
+<a href="https://drive.google.com/file/d/1S7V0MHP4xMs1yUQ9Gv9LHn5bwDfFVapn/view?usp=sharing">
+first and third Wednesday</a> of each month to discuss C and C++
+standards-related activities happening within the Clang community. These
+meetings are a way to coordinate efforts between implementers and provide
+updates on how standards activities are going. Meeting agendas and minutes are
+available
+<a href="https://docs.google.com/document/d/1x5-RbOC6-jnI_NcJ9Dp4pSmGhhNe7lUevuWUIB46TeM/edit?usp=sharing">
+here<a>.
+</li>
+
+<li><a href="https://llvm.org/docs/GettingInvolved.html#office-hours">Clang office hours</a> -
+People within the community hold dedicated office hours at different points
+during the month, which is a great way opportunity for getting questions
+answered, having more in-depth design discussions, or learning about what's
+going on in the community in general.</li>
+
+<li><a href="https://lists.llvm.org/mailman/listinfo/cfe-commits">cfe-commits
+</a> - Historical record of commits to Clang and contains early community patch
+review commentary.</li>
+
+</ul>
+
+<p>The most common way to talk with other developers on the project is through
+the <a href="https://discourse.llvm.org/c/clang/6">Clang Frontend Discourse forum
+</a>. The clang forum is a very friendly place and we welcome newcomers. The
+forum is archived so you can browse through previous discussions or follow
+development on the web if you prefer.</p>
+
+<p>If you're looking for something to work on, check out our <a
+href="OpenProjects.html">Open Projects</a> page or look through the <a
+href="https://github.com/llvm/llvm-project/issues/">LLVM bug tracker</a>.</p>
+
+<h2 id="criteria">Contributing Extensions to Clang</h2>
+
+<p>Clang is designed to support experimentation,
+allowing programmers to easily extend the compiler to support great
+new language features and tools. At some point, the authors of these
+extensions may propose that the extensions become a part of Clang
+itself, to benefit the whole Clang community. However, extensions
+(particularly language extensions) have long-term maintenance costs
+for Clang. The benefits of the extension need to be evaluated against
+these costs. The Clang project uses the following criteria for this
+evaluation:</p>
+
+<ol>
+  <li>Evidence of a significant user community: This is based on a number of
+  factors, including an existing user community, the perceived likelihood that
+  users would adopt such a feature if it were available, and any secondary
+  effects that come from, e.g., a library adopting the feature and providing
+  benefits to its users.</li>
+
+  <li>A specific need to reside within the Clang tree: There are some extensions
+  that would be better expressed as a separate tool, and should remain as
+  separate tools even if they end up being hosted as part of the LLVM umbrella
+  project.</li>
+
+  <li>A specification: The specification must be sufficient to understand the
+  design of the feature as well as interpret the meaning of specific examples.
+  The specification should be detailed enough that another compiler vendor
+  could implement the feature.</li>
+
+  <li>Representation within the appropriate governing organization: For
+  extensions to a language governed by a standards committee (C, C++, OpenCL),
+  the extension itself must have an active proposal and proponent within that
+  committee and have a reasonable chance of acceptance. Clang should drive the
+  standard, not diverge from it. This criterion does not apply to all
+  extensions, since some extensions fall outside of the realm of the standards
+  bodies.</li>
+
+  <li>A long-term support plan: increasingly large or complex extensions to
+  Clang need matching commitments to supporting them over time, including
+  improving their implementation and specification as Clang evolves. The
+  capacity of the contributor to make that commitment is as important as the
+  commitment itself.</li>
+
+  <li>A high-quality implementation: The implementation must fit well into
+  Clang's architecture, follow LLVM's coding conventions, and meet Clang's
+  quality standards, including diagnostics and complete AST
+  representations. This is particularly important for language extensions,
+  because users will learn how those extensions work through the behavior of the
+  compiler.</li>
+
+  <li>A test suite: Extensive testing is crucial to ensure that the language
+  extension is not broken by ongoing maintenance in Clang. The test suite
+  should be complete enough that another compiler vendor could conceivably
+  validate their implementation of the feature against it.</li>
+
+  <li>A support story for other impacted projects within the monorepo: If the
+  extension can impact other parts of the project (libc++, lldb, compiler-rt,
+  etc), the proposal needs to document the impact for these projects to fully
+  support the extension and what level of support is expected. The impacted
+  project communities need to agree with that plan.</li>
+</ol>
+
+</div>
+</body>
+</html>

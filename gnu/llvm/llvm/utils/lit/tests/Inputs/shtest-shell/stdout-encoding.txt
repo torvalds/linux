@@ -1,0 +1,7 @@
+# Check that lit doesn't fail when printing special characters in its test
+# results.
+
+# RUN: cat diff-in.bin
+
+# Fail so lit will print output.
+# RUN: false

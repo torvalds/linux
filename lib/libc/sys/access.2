@@ -1,0 +1,240 @@
+.\"	$OpenBSD: access.2,v 1.27 2023/09/28 01:51:00 jsg Exp $
+.\"	$NetBSD: access.2,v 1.7 1995/02/27 12:31:44 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)access.2	8.2 (Berkeley) 4/1/94
+.\"
+.Dd $Mdocdate: September 28 2023 $
+.Dt ACCESS 2
+.Os
+.Sh NAME
+.Nm access ,
+.Nm faccessat
+.Nd check access permissions of a file or pathname
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn access "const char *path" "int amode"
+.In fcntl.h
+.In unistd.h
+.Ft int
+.Fn faccessat "int fd" "const char *path" "int amode" "int flag"
+.Sh DESCRIPTION
+The
+.Fn access
+function checks the accessibility of the file named by
+.Fa path
+for the access permissions indicated by
+.Fa amode .
+The
+.Fa amode
+argument is either the bitwise OR of one or more of the access permissions
+to be checked
+.Pf ( Dv R_OK
+for read permission,
+.Dv W_OK
+for write permission, and
+.Dv X_OK
+for execute/search permission) or the existence test,
+.Dv F_OK .
+All components of the pathname
+.Fa path
+are checked for access permissions (including
+.Dv F_OK ) .
+.Pp
+The real user ID is used in place of the effective user ID
+and the real group access list
+(including the real group ID) is
+used in place of the effective ID for verifying permission.
+.Pp
+If the invoking process has superuser privileges,
+.Fn access
+will always indicate success for
+.Dv R_OK
+and
+.Dv W_OK ,
+regardless of the actual file permission bits.
+Likewise, for
+.Dv X_OK ,
+if the file has any of the execute bits set and
+.Fa path
+is not a directory,
+.Fn access
+will indicate success.
+.Pp
+The
+.Fn faccessat
+function is equivalent to
+.Fn access
+except that where
+.Fa path
+specifies a relative path,
+the file whose accessibility is checked is determined relative to
+the directory associated with file descriptor
+.Fa fd
+instead of the current working directory.
+.Pp
+If
+.Fn faccessat
+is passed the special value
+.Dv AT_FDCWD
+(defined in
+.In fcntl.h )
+in the
+.Fa fd
+parameter, the current working directory is used.
+If
+.Fa flag
+is also zero, the behavior is identical to a call to
+.Fn access .
+.Pp
+The
+.Fa flag
+argument is the bitwise OR of zero or more of the following values:
+.Pp
+.Bl -tag -width AT_EACCESS -offset indent -compact
+.It Dv AT_EACCESS
+The checks for accessibility are performed using the effective user
+and group IDs instead of the real user and group IDs.
+.El
+.Sh RETURN VALUES
+If
+.Fa path
+cannot be found or if any of the desired access modes would not be granted,
+then a \-1 value is returned; otherwise a 0 value is returned.
+.Sh ERRORS
+Access to the file is denied if:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Dv NAME_MAX
+characters, or an entire pathname (including the terminating NUL)
+exceeded
+.Dv PATH_MAX
+bytes.
+.It Bq Er ENOENT
+The named file does not exist.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EROFS
+Write access is requested for a file on a read-only file system.
+.It Bq Er ETXTBSY
+Write access is requested for a pure procedure (shared text)
+file presently being executed.
+.It Bq Er EACCES
+Permission bits of the file mode do not permit the requested access,
+or search permission is denied on a component of the path prefix.
+The owner of a file has permission checked with respect to the
+.Dq owner
+read, write, and execute mode bits, members of the file's group other
+than the owner have permission checked with respect to the
+.Dq group
+mode bits, and all others have permissions checked with respect to the
+.Dq other
+mode bits.
+.It Bq Er EPERM
+Write access has been requested and the named file has its immutable
+flag set (see
+.Xr chflags 2 ) .
+.It Bq Er EFAULT
+.Fa path
+points outside the process's allocated address space.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.It Bq Er EINVAL
+An invalid value was specified for
+.Fa amode .
+.El
+.Pp
+Additionally,
+.Fn faccessat
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument was neither zero nor
+.Dv AT_EACCESS .
+.It Bq Er EBADF
+The
+.Fa path
+argument specifies a relative path and the
+.Fa fd
+argument is neither
+.Dv AT_FDCWD
+nor a valid file descriptor.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument specifies a relative path and the
+.Fa fd
+argument is a valid file descriptor but it does not reference a directory.
+.It Bq Er EACCES
+The
+.Fa path
+argument specifies a relative path but search permission is denied
+for the directory which the
+.Fa fd
+file descriptor references.
+.El
+.Sh SEE ALSO
+.Xr chmod 2 ,
+.Xr stat 2
+.Sh STANDARDS
+The
+.Fn access
+and
+.Fn faccessat
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+.Fn access
+first appeared as an internal kernel function in
+.At v1 .
+It became a system call,
+first appearing outside of Bell Labs in the
+.Dq 50 changes
+tape for
+.At v6 .
+The first official release with the system call was PWB/UNIX 1.0.
+It was also included in
+.Bx 2 .
+.Pp
+The
+.Fn faccessat
+function appeared in
+.Ox 5.0 .
+.Sh CAVEATS
+.Fn access
+and
+.Fn faccessat
+should never be used for actual access control.
+Doing so can result in a time of check vs. time of use security hole.

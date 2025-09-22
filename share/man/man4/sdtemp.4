@@ -1,0 +1,69 @@
+.\"	$OpenBSD: sdtemp.4,v 1.11 2014/11/14 07:24:12 jsg Exp $
+.\"
+.\" Copyright (c) 2008 Theo de Raadt <deraadt@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 14 2014 $
+.Dt SDTEMP 4
+.Os
+.Sh NAME
+.Nm sdtemp
+.Nd SO-DIMM (JC-42.4) temperature sensor
+.Sh SYNOPSIS
+.Cd "sdtemp* at iic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver retrieves temperature sensor information from memory
+modules which contain sensor chips defined in JEDEC JC-42.4.
+.Pp
+Current sensor chips include:
+.Pp
+.Bl -tag -width Dv -offset indent -compact
+.It ADT ADT7408
+.It Atmel AT30TS00
+.It Atmel AT30TSE002
+.It Atmel AT30TSE004
+.It Giantec GT30TS00
+.It Giantec GT34TS02
+.It IDT TSE2002B3
+.It IDT TSE2002GB2
+.It IDT TSE2004GB2
+.It IDT TS3000B3
+.It IDT TS3000GB0
+.It IDT TS3000GB2
+.It IDT TS3001GB2
+.It Maxim 6604
+.It Microchip MCP9804
+.It Microchip MCP9805
+.It Microchip MCP98242
+.It Microchip MCP98243
+.It Microchip MCP98244
+.It NXP SE97
+.It NXP SE98
+.It ON CAT34TS02
+.It ON CAT34TS04
+.It ON CAT6095
+.It ST STTS424
+.It ST STTS2002
+.It ST STTS2004
+.It ST STTS3000
+.El
+.Sh SEE ALSO
+.Xr iic 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 4.4 .

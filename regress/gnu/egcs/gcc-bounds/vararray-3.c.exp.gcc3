@@ -1,0 +1,2 @@
+vararray-3.c: In function `main':
+vararray-3.c:7: warning: ISO C90 forbids variable-size array `buf2'

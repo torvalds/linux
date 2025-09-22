@@ -1,0 +1,58 @@
+//============------------ BuiltinsLoongArchBase.def -------------*- C++ -*-==//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the LoongArch-specific basic builtin function database.
+// Users of this file must define the BUILTIN macro to make use of this
+// information.
+//
+//===----------------------------------------------------------------------===//
+
+TARGET_BUILTIN(__builtin_loongarch_cacop_d, "vWiUWiWi", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_cacop_w, "viUii", "nc", "32bit")
+TARGET_BUILTIN(__builtin_loongarch_dbar, "vIUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_ibar, "vIUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_movfcsr2gr, "UiIUi", "nc", "f")
+TARGET_BUILTIN(__builtin_loongarch_movgr2fcsr, "vIUiUi", "nc", "f")
+TARGET_BUILTIN(__builtin_loongarch_break, "vIUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_syscall, "vIUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_cpucfg, "UiUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_asrtle_d, "vWiWi", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_asrtgt_d, "vWiWi", "nc", "64bit")
+
+TARGET_BUILTIN(__builtin_loongarch_crc_w_b_w, "iii", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_crc_w_h_w, "iii", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_crc_w_w_w, "iii", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_crc_w_d_w, "iWii", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_crcc_w_b_w, "iii", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_crcc_w_h_w, "iii", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_crcc_w_w_w, "iii", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_crcc_w_d_w, "iWii", "nc", "64bit")
+
+TARGET_BUILTIN(__builtin_loongarch_csrrd_w, "UiIUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_csrrd_d, "UWiIUi", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_csrwr_w, "UiUiIUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_csrwr_d, "UWiUWiIUi", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_csrxchg_w, "UiUiUiIUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_csrxchg_d, "UWiUWiUWiIUi", "nc", "64bit")
+
+TARGET_BUILTIN(__builtin_loongarch_iocsrrd_b, "UiUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_iocsrrd_h, "UiUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_iocsrrd_w, "UiUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_iocsrrd_d, "UWiUi", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_iocsrwr_b, "vUiUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_iocsrwr_h, "vUiUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_iocsrwr_w, "vUiUi", "nc", "")
+TARGET_BUILTIN(__builtin_loongarch_iocsrwr_d, "vUWiUi", "nc", "64bit")
+
+TARGET_BUILTIN(__builtin_loongarch_lddir_d, "WiWiIUWi", "nc", "64bit")
+TARGET_BUILTIN(__builtin_loongarch_ldpte_d, "vWiIUWi", "nc", "64bit")
+
+TARGET_BUILTIN(__builtin_loongarch_frecipe_s, "ff", "nc", "f,frecipe")
+TARGET_BUILTIN(__builtin_loongarch_frecipe_d, "dd", "nc", "d,frecipe")
+TARGET_BUILTIN(__builtin_loongarch_frsqrte_s, "ff", "nc", "f,frecipe")
+TARGET_BUILTIN(__builtin_loongarch_frsqrte_d, "dd", "nc", "d,frecipe")

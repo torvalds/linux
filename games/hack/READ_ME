@@ -1,0 +1,87 @@
+$OpenBSD: READ_ME,v 1.4 2017/06/20 20:40:54 akfaew Exp $
+$NetBSD: READ_ME,v 1.2 1995/03/23 08:29:12 cgd Exp $
+
+Hack is a display oriented dungeons & dragons - like game.
+Both display and command structure resemble rogue.
+(For a game with the same structure but entirely different display -
+a real cave instead of dull rectangles - try Quest)
+
+Hack was originally written by Jay Fenlason (at lincolnsudbury:
+ 29 East St., Sudbury Mass., 01776) with help from
+ Kenny Woodland, Mike Thome and Jon Payne.
+Basically it was an implementation of Rogue, however, with 52+ instead of 26
+ monster types.
+The current version is more than thrice as large (with such new features as
+ the dog, the long worms, the shops, etc.) and almost entirely rewritten
+ (only the display routines are the original ones - I must rewrite these
+ too one day; especially when you are blind strange things still happen).
+
+Files for hack:
+	hack		The actual game
+	record		Top 100 list (just start with an empty file)
+	news		Tells about recent changes in hack, or bugs found ...
+			(Just start with no news file.)
+	data		Auxiliary file used by hack to give you the names
+			and sometimes some more information on the
+			objects and monsters.
+	help		Introductory information (no doubt outdated).
+	hh		Compactified version of help.
+	perm		An empty file used for locking purposes.
+	rumors		Texts for fortune cookies.
+			(Some of these contain information on the game,
+			others are just plain stupid. Additional rumors
+			are appreciated.)
+	READ_ME		This file.
+	Original_READ_ME Jay Fenlason's READ_ME
+
+System files used:
+	/etc/termcap	Used in conjunction with the environment variable
+			$TERM.
+	/bin/cat
+	/usr/ucb/more
+	/bin/sh		Used when $SHELL is undefined.
+
+How to install hack:
+0. Compile the sources. Perhaps you should first look at the file config.h
+   and define BSD if you are on a BSDtype system,
+   define STUPID if your C-compiler chokes on complicated expressions.
+   Make sure schar and uchar represent signed and unsigned types.
+   If your C compiler doesn't allow initialization of bit fields
+   change Bitfield. When config.h looks reasonable, say 'make'.
+   (Perhaps you have to change TERMLIB in the makefile.)
+1. If it didnt exist already, introduce a loginname `play' .
+2. The program  hack  resides in a directory so that it is executable
+   for everybody and is suid play:
+	---s--s--x  1 play	206848 Apr  3 00:17 hack
+   Perhaps you wish to restrict playing to certain hours, or have games
+   running under nice; in that case you might write a program play.c
+   such that the program play is suid play and executable for everybody
+   while all the games in /usr/games are readable or executable for
+   play only; all the program play does is asking for the name of a game,
+   checking that time-of-day and system load do not forbid playing,
+   and then executing the game. Thus:
+	-r-sr-sr-x  1 play	 13312 May 24 12:52 play
+	---x------  1 play	206848 Apr  3 00:17 hack
+   If you are worried about security you might let play do
+   chroot("/usr/games") so that no player can get access to the rest
+   of the system via shell escapes and the likes.
+   If you #define SECURE in config.h then hack will not setuid(getuid())
+   before executing a chdir(). Hack will always do setuid(getuid()) with
+   a fork. If you do not define UNIX then hack will not fork.
+3. The rest of the stuff belonging to hack sits in a subdirectory hackdir
+   (on our system /usr/games/lib/hackdir) with modes
+	drwx------  3 play	1024 Aug  9 09:03 hackdir
+   Here all the temporary files will be created (with names like xlock.17
+   or user.5).
+4. If you are not really short on file space, creating a subdirectory
+   hackdir/save (modes again drwx------) will enable users to save their
+   unfinished games.
+
+The program hack is called
+$ hack [-d hackdir] [maxnrofplayers]
+(for playing) or
+$ hack [-d hackdir] -s [listofusers | limit | all]
+(for seeing part of the scorelist).
+
+Send complaints, bug reports, suggestions for improvements to
+mcvax!aeb - in real life Andries Brouwer.

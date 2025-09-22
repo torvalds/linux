@@ -1,0 +1,45 @@
+//===- llvm/TextAPI/Architecture.def - Architecture -----------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef ARCHINFO
+#define ARCHINFO(arch)
+#endif
+
+///
+/// X86 architectures sorted by cpu type and sub type id.
+///
+ARCHINFO(i386, MachO::CPU_TYPE_I386, MachO::CPU_SUBTYPE_I386_ALL, 32)
+ARCHINFO(x86_64, MachO::CPU_TYPE_X86_64, MachO::CPU_SUBTYPE_X86_64_ALL, 64)
+ARCHINFO(x86_64h, MachO::CPU_TYPE_X86_64, MachO::CPU_SUBTYPE_X86_64_H, 64)
+
+
+///
+/// ARM architectures sorted by cpu sub type id.
+///
+ARCHINFO(armv4t, MachO::CPU_TYPE_ARM, MachO::CPU_SUBTYPE_ARM_V4T, 32)
+ARCHINFO(armv6, MachO::CPU_TYPE_ARM, MachO::CPU_SUBTYPE_ARM_V6, 32)
+ARCHINFO(armv5, MachO::CPU_TYPE_ARM, MachO::CPU_SUBTYPE_ARM_V5TEJ, 32)
+ARCHINFO(armv7, MachO::CPU_TYPE_ARM, MachO::CPU_SUBTYPE_ARM_V7, 32)
+ARCHINFO(armv7s, MachO::CPU_TYPE_ARM, MachO::CPU_SUBTYPE_ARM_V7S, 32)
+ARCHINFO(armv7k, MachO::CPU_TYPE_ARM, MachO::CPU_SUBTYPE_ARM_V7K, 32)
+ARCHINFO(armv6m, MachO::CPU_TYPE_ARM, MachO::CPU_SUBTYPE_ARM_V6M, 32)
+ARCHINFO(armv7m, MachO::CPU_TYPE_ARM, MachO::CPU_SUBTYPE_ARM_V7M, 32)
+ARCHINFO(armv7em, MachO::CPU_TYPE_ARM, MachO::CPU_SUBTYPE_ARM_V7EM, 32)
+
+
+///
+/// ARM64 architectures sorted by cpu sub type id.
+///
+ARCHINFO(arm64, MachO::CPU_TYPE_ARM64, MachO::CPU_SUBTYPE_ARM64_ALL, 64)
+ARCHINFO(arm64e, MachO::CPU_TYPE_ARM64, MachO::CPU_SUBTYPE_ARM64E, 64)
+
+
+///
+/// ARM64_32 architectures sorted by cpu sub type id
+///
+ARCHINFO(arm64_32, MachO::CPU_TYPE_ARM64_32, MachO::CPU_SUBTYPE_ARM64_32_V8, 32)

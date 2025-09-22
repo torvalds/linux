@@ -1,0 +1,1399 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-07-02  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libgomp/32468
+	* sections.c (GOMP_parallel_sections_start): Only decrease
+	number of threads to COUNT if dyn_var is true.
+	* testsuite/libgomp.c/pr32468.c: New test.
+
+2007-07-02  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	PR libgomp/26308
+	* config/posix/lock.c (_XOPEN_SOURCE): Don't define on Tru64 UNIX.
+
+2007-06-21  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/32362
+	* testsuite/libgomp.c/pr32362-1.c: New test.
+	* testsuite/libgomp.c/pr32362-2.c: New test.
+	* testsuite/libgomp.c/pr32362-3.c: New test.
+
+2007-05-13  Release Manager
+
+	* GCC 4.2.0 released.
+
+2007-03-18  Andreas Schwab  <schwab@suse.de>
+
+	* acinclude.m4: Adjust regular expression for ld version
+	extraction.
+	* configure: Regenerate.
+
+2007-02-07  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/30703
+	* testsuite/libgomp.c++/pr30703.C: New test.
+
+2007-02-07  Daniel Franke  <franke.daniel@gmail.com>
+
+	Backport from mainline:
+	2007-01-31  Daniel Franke <franke.daniel@gmail.com>
+
+	PR libgomp/30546
+	* configure.ac: Add check for makeinfo
+	* Makefile.am: Redefined target libgomp.info, build libgomp.info only
+	if an appropiate version of makeinfo is found.
+	* aclocal.m4: Regenerated.
+	* configure: Regenerated.
+	* Makefile.in: Regenerated.
+	* testsuite/Makefile.in: Regenerated.
+
+2007-02-07  Daniel Franke  <franke.daniel@gmail.com>
+
+	Backport from mainline:
+	2007-01-31  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	* libgomp.texi: Fix spacing after abbreviations.
+
+	Backport from mainline:
+	2007-01-29  Daniel Franke  <franke.daniel@gmail.com>
+
+	PR libgomp/30540
+	* libgomp.texi: More about implementation-dependent settings.
+
+2007-02-06  Roger Sayle  <roger@eyesopen.com>
+
+	PR libgomp/28296
+	Backport from mainline.
+	Revert:
+	2006-07-05  Eric Christopher  <echristo@apple.com>
+	* configure.ac: Depend addition of -pthread on host OS.
+	* configure: Regenerate.
+
+2007-01-30  Tobias Burnus  <burnus@net-b.de>
+
+	Backport from mainline.
+	2007-01-26  Tobias Burnus  <burnus@net-b.de>
+
+	* testsuite/libgomp.fortran/fortran.exp: Support .f03 extension.
+
+2007-01-25  Daniel Franke <franke.daniel@gmail.com>
+
+	Backport from mainline:
+	2006-12-21  Daniel Franke  <franke.daniel@gmail.com>
+
+	PR libgomp/28209
+	* libgomp.texi: New file.
+	* configure.ac: Add --enable-generated-files-in-srcdir option.
+	* Makefile.am: Add info, dvi, pdf, html targets. On request, 
+	copy files to srcdir.
+	* Makefile.in: Regenerated.
+	* testsuite/Makefile.in: Regenerated.
+	* NOTES: Removed.
+
+	Backport from mainline:
+	2007-01-14  Daniel Franke  <franke.daniel@gmail.com>
+	* libgomp.texi: Document implementation specific default values of
+	environment variables.
+
+2007-01-24  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/30494
+	* testsuite/libgomp.c/pr30494.c: New test.
+
+2006-12-18  Daniel Franke  <franke.daniel@gmail.com>
+
+	Backport from mainline:
+	2006-12-04  Daniel Franke  <franke.daniel@gmail.com>
+
+	PR libgomp/29949
+	* env.c (omp_set_num_threads): Set illegal thread count to 1.
+
+	Backport from mainline:
+	2006-11-09  Uros Bizjak  <ubizjak@gmail.com>
+
+	* env.c (parse_schedule): Reject out of range values.
+	(parse_unsigned_long): Reject out of range, negative
+	or zero values.
+
+2006-12-04  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* configure: Regenerate.
+
+2006-12-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libgomp/29947
+	* loop.c (gomp_loop_init): Make parameters signed.  Set ws->end to
+	start if there shouldn't be any loop iterations.
+	(gomp_loop_ordered_static_start): Remove start == end test.
+	* testsuite/libgomp.c/pr29947-1.c: New test.
+	* testsuite/libgomp.c/pr29947-2.c: New test.
+
+2006-12-02  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* configure.tgt: Force initial-exec TLS model on Linux only.
+
+2006-10-29  Jakub Jelinek  <jakub@redhat.com>
+
+	PR fortran/29629
+	* testsuite/libgomp.fortran/pr29629.f90: New test.
+
+2006-10-24  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR libgomp/29494
+	* configure.tgt: Use posix95 configuration for Solaris 2.5.1 and 2.6.
+	* config/posix95: New directory.
+	* config/posix95/omp-lock.h: New file.
+	* config/posix95/lock.c: Likewise.
+
+2006-10-14  Geoffrey Keating  <geoffk@apple.com>
+
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2006-10-05  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* testsuite/libgomp.c/barrier-1.c: Change timestamp tests from
+	'<' to '<='.
+
+2006-10-05  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* acinclude.m4 (HAVE_ATTRIBUTE_ALIAS): Remove __USER_LABEL_PREFIX__ from
+	test.
+	* configure: Regenerate.
+	* fortran.c  (ialias_redirect): Add __USER_LABEL_PREFIX__ to alias.
+
+2006-09-26  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/25261
+	PR middle-end/28790
+	* testsuite/libgomp.c/nestedfn-4.c: New test.
+	* testsuite/libgomp.c/nestedfn-5.c: New test.
+	* testsuite/libgomp.fortran/nestedfn3.f90: New test.
+
+	PR fortran/29097
+	* testsuite/libgomp.fortran/condinc1.f: New test.
+	* testsuite/libgomp.fortran/condinc2.f: New test.
+	* testsuite/libgomp.fortran/condinc3.f90: New test.
+	* testsuite/libgomp.fortran/condinc4.f90: New test.
+	* testsuite/libgomp.fortran/condinc1.inc: New file.
+
+2006-09-18  Tom Tromey  <tromey@redhat.com>
+
+	* configure: Rebuilt.
+
+2006-09-13  Joseph S. Myers  <joseph@codesourcery.com>
+
+	PR c/28768
+	PR preprocessor/14634
+	* configure.ac (HAVE_CLOCK_GETTIME): Add missing second argument
+	to AC_DEFINE.
+	* configure: Regenerate.
+
+2006-09-08  Steven G. Kargl  <kargl@gcc.gnu.org>
+
+	* testsuite/libgomp.fortran/reduction3.f90: Change
+	-2147483648 to -huge(i)-1 to avoid overflow.
+	* testsuite/libgomp.fortran/reduction4.f90: Change
+	Z'ffffffff' to not(0) to avoid overflow.
+
+2006-08-26  Joseph S. Myers  <joseph@codesourcery.com>
+
+	PR libgomp/25938
+	* Makefile.am (libsubincludedir): New.
+	(nodist_include_HEADERS): Rename to nodist_libsubinclude_HEADERS.
+	* Makefile.in: Regenerate.
+
+2006-08-17  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libgomp/28725
+	* env.c: Include ctype.h.
+	(parse_schedule, parse_unsigned_long, parse_boolean): Allow
+	leading and/or trailing whitespace and compare strings case
+	insensitively.
+
+2006-07-16  Jakub Jelinek  <jakub@redhat.com>
+
+	PR fortran/28390
+	* testsuite/libgomp.fortran/pr28390.f: New test.
+
+2006-07-05  Eric Christopher  <echristo@apple.com>
+
+	* configure.ac: Depend addition of -pthread on host OS.
+	* configure: Regenerate.
+
+2006-06-21  Jakub Jelinek  <jakub@redhat.com>
+
+	* critical.c (GOMP_critical_name_start): Fix *pptr initialization
+	when gomp_mutex_t is larger than pointer and HAVE_SYNC_BUILTINS is
+	defined.
+
+2006-06-20  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libgomp/26175
+	PR libgomp/26477
+	* configure.ac: If neither --enable-linux-futex nor
+	--disable-linux-futex is passed, determine the default by checking
+	for compiling and/or running against NPTL.  With --enable-linux-futex,
+	check if SYS_gettid and SYS_futex are defined.
+	* configure: Rebuilt.
+
+2006-06-14  Richard Henderson  <rth@redhat.com>
+
+	PR libgomp/28008
+	* env.c (initialize_env): Avoid using PTHREAD_STACK_MIN when
+	undefined.  Use GOMP_STACKSIZE not OMP_STACKSIZE for environment.
+
+2006-06-09  Richard Henderson  <rth@redhat.com>
+
+	* env.c (gomp_nthreads_var): Change to unsigned long.
+	(gomp_run_sched_chunk): Likewise.
+	(parse_unsigned_long): Rename from parse_num_threads and generalize.
+	(initialize_env): Initialize gomp_thread_attr.
+	* libgomp.h (gomp_nthreads_var): Update decl.
+	(gomp_run_sched_chunk): Likewise.
+	(gomp_thread_attr): Declare.
+	* team.c (gomp_thread_attr): Export.
+	(initialize_team): Don't initialize it.
+
+2006-06-09  Jakub Jelinek  <jakub@redhat.com>
+
+	PR fortran/27916
+	* testsuite/libgomp.fortran/pr27916-1.f90: New test.
+	* testsuite/libgomp.fortran/pr27916-2.f90: New test.
+
+2006-06-06  Francois-Xavier Coudert  <coudert@clipper.ens.fr>
+
+	* config/mingw32/time.c: New file.
+	* configure.tgt: Use it.
+
+2006-05-23  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* Makefile.am: Add install-html target. Add install-html to .PHONY
+	* Makefile.in: Regenerate.
+
+2006-05-22  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	PR libgomp/27612
+	* testsuite/libgomp.c/sections-1.c: Require sync_int_long.
+	* testsuite/libgomp.c/critical-1.c: Likewise.
+	* testsuite/libgomp.c/loop-1.c: Likewise.
+	* testsuite/libgomp.c/loop-2.c: Likewise.
+	* testsuite/libgomp.c/single-1.c: Likewise.
+	* testsuite/libgomp.c/ordered-1.c: Likewise.
+	* testsuite/libgomp.c/ordered-2.c: Likewise.
+
+2006-05-15  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/27416
+	* libgomp.fortran/pr27416-1.f90: New test.
+
+2006-05-03  Jakub Jelinek  <jakub@redhat.com>
+
+	PR fortran/27395
+	* testsuite/libgomp.fortran/pr27395-1.f90: New test.
+	* testsuite/libgomp.fortran/pr27395-2.f90: New test.
+
+2006-05-02  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/26943
+	* testsuite/libgomp.c/pr26943-1.c: New test.
+	* testsuite/libgomp.c/pr26943-2.c: New test.
+	* testsuite/libgomp.c/pr26943-3.c: New test.
+	* testsuite/libgomp.c/pr26943-4.c: New test.
+	* testsuite/libgomp.c++/pr27337.C: Remove barrier.
+	* testsuite/libgomp.c++/pr26943.C: New test.
+
+2006-05-02  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/27337
+	* testsuite/libgomp.c++/pr27337.C: New test.
+
+2006-04-26  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c/26171
+	* testsuite/libgomp.c/pr26171.c: New test.
+
+2006-04-25  Richard Henderson  <rth@redhat.com>
+
+	PR libgomp/25865
+	* configure.ac: Use GCC_CHECK_TLS.
+	* acinclude.m4 (LIBGOMP_CHECK_TLS): Remove.
+	* Makefile.in, aclocal.m4, configure: Regenerate.
+
+2006-04-10  Matthias Klose  <doko@debian.org>
+
+	* testsuite/lib/libgomp.exp (libgomp_init): Recognize multilib
+	directory names containing underscores.
+
+2006-03-21  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/26691
+	* testsuite/libgomp.c++/pr26691.C: New test.
+
+2006-03-13  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/retval2.f90: New test.
+
+2006-03-09  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.c++: New directory.
+
+2006-02-25  Shantonu Sen  <ssen@opendarwin.org>
+
+	* config/posix/sem.h: Define BROKEN_POSIX_SEMAPHORES functions.
+	* config/posix/sem.c: Implement the above.
+
+2006-02-25  Andreas Tobler  <a.tobler@schweiz.ch>
+
+	* configure.ac (HAVE_BROKEN_POSIX_SEMAPHORES): Check for darwin and
+	define HAVE_BROKEN_POSIX_SEMAPHORES.
+	* configure: Rebuilt.
+	* config.h.in: Rebuilt.
+
+2006-02-17  Francois-Xavier Coudert  <coudert@clipper.ens.fr>
+
+	PR bootstrap/26161
+	* configure.ac: Remove AC_CHECK_HEADER for pthread.h. Add comment
+	for the other pthread check.
+	* configure: Regenerate.
+	* config.h.in: Regenerate.
+
+2006-02-15  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libgomp/25938
+	PR libgomp/25984
+	* Makefile.am (fincludedir): New variable.
+	(nodist_include_HEADERS): Remove Fortran files.
+	(nodist_finclude_HEADERS): New variable.
+	* Makefile.in: Regenerated.
+
+2006-02-13  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/vla7.f90: Add -w to options.
+	Remove tests for returning assumed character length arrays.
+
+2006-02-12  Roger Sayle  <roger@eyesopen.com>
+	    John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	PR libgomp/25936
+	* configure.tgt: Link against -lrt for sem_init on HPUX v11 systems.
+
+2006-02-08  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* testsuite/lib/libgomp-dg.exp: Load scanrtl.exp library.
+
+2006-02-07  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* testsuite/lib/libgomp-dg.exp (libgomp_init): Compute multilib related
+	part of LD_LIBRARY_PATH manually.
+
+2006-02-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR libgomp/25852
+	* testsuite/lib/libgomp-dg.exp (blddir): Set it in
+	libgomp_init.
+
+2005-01-25  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR libgomp/25884
+	* Makefile.am (omp.h, omp_lib.h, omp_lib.f90, libgomp_f.h): Remove.
+	* configure.ac (PERL): Don't set.
+	(gstdint.h, omp.h, omp_lib.h, omp_lib.f90, libgomp_f.h): Create here.
+	(OMP_LOCK_SIZE, OMP_LOCK_ALIGN, OMP_LOCK_KIND, OMP_NEST_LOCK_SIZE,
+	OMP_NEST_LOCK_ALIGN, OMP_NEST_LOCK_KIND): New substitutions.
+	* omp.h.in: Wrap the new configure substitutions with @ characters.
+	* omp_lib.h.in, omp_lib.f90.in, libgomp_f.h.in: Likewise.
+	* aclocal.m4, configure, Makefile.in: Regenerate.
+	* mkomp_h.pl: Delete.
+
+2005-01-24  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR libgomp/25259
+	* configure.ac: Use GCC_HEADER_STDINT.
+	* libgomp.h: Include gstdint.h.
+	* libgomp_f.h.in: Don't include stdint.h or inttypes.h.
+	* configure, Makefile.in, testsuite/Makefile.in, aclocal.m4: Rebuild.
+
+2006-01-24  Richard Henderson  <rth@redhat.com>
+
+	PR libgomp/25942
+	* configure.ac: Add AM_MAINTAINER_MODE.
+	* Makefile.in, aclocal.m4, configure, testsuite/Makefile.in: Rebuild.
+
+2006-01-24  Diego Novillo  <dnovillo@redhat.com>
+
+	* Makefile.in: Regenerate.
+	* testsuite/Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+
+2006-01-23  Andreas Tobler  <a.tobler@schweiz.ch>
+
+	* config/posix/proc.c: Conditional include of sys/loadavg.h for
+	Solaris.
+	* configure.ac: Add check for loadavg.h.
+	(link_gomp): Adjust comment.
+	* configure: Regenerate.
+	* config.h.in: Regenerate.
+
+2006-01-21  Steve Ellcey  <sje@cup.hp.com>
+
+	PR libgomp/25877
+	* configure.ac: Remove check for alloca.h.
+	* configure: Regenerate.
+	* config.h.in: Regenerate.
+	* libgomp.h: define gomp_alloca to be __builtin_alloca.
+	* team.c: Remove use of alloca.h.
+	Call gomp_alloca instead of alloca.
+
+2006-01-20  Steve Ellcey  <sje@cup.hp.com>
+
+	PR libgomp/25877
+	* team.c: Add include of alloca.h.
+	* configure.ac: Add check for alloca.h.
+	* configure: Regenerate.
+	* config.h.in: Regenerate.
+
+2006-01-17  Jakub Jelinek  <jakub@redhat.com>
+
+	PR fortran/25219
+	* testsuite/libgomp.fortran/pr25219.f90: New test.
+
+2005-12-05  Uros Bizjak  <uros@kss-loka.si>
+
+	* testsuite/libgomp.c/pr24455.c, testsuite/libgomp.c/copyin-1.c,
+	testsuite/libgomp.c/copyin-2.c, testsuite/libgomp.c/copyin-3.c,
+	testsuite/libgomp.c++/copyin-1.C, testsuite/libgomp.c++/copyin-2.C,
+	testsuite/libgomp.c++/ctor-5.C, testsuite/libgomp.c++/ctor-8.C,
+	testsuite/libgomp.c++/ctor-9.C, testsuite/libgomp.c++/pr24455.C,
+	testsuite/libgomp.fortran/threadprivate1.f90,
+	testsuite/libgomp.fortran/threadprivate2.f90,
+	testsuite/libgomp.fortran/threadprivate3.f90,
+	testsuite/libgomp.fortran/appendix-a/a.22.7.f9,
+	testsuite/libgomp.fortran/appendix-a/a.22.8.f9,
+	testsuite/libgomp.fortran/omp_parse3.f90: Change required
+	effective-target to TLS runtime.
+
+	* testsuite/libgomp.fortran/pr25162.f: Require
+	effective-target TLS runtime.
+
+2005-12-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/nestedfn2.f90: New test.
+	* testsuite/libgomp.c/nestedfn-3.c: New test.
+
+2005-11-30  Jakub Jelinek  <jakub@redhat.com>
+
+	PR fortran/25162
+	* testsuite/libgomp.fortran/pr25162.f: New test.
+
+2005-11-28  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/posix/time.c (omp_get_wtime, omp_get_wtick): Fall back to
+	CLOCK_REALTIME if clock_* (CLOCK_MONOTONIC, &ts) call failed.
+
+2005-11-25  Jakub Jelinek  <jakub@redhat.com>
+
+	* alloc.c, barrier.c, critical.c, env.c, error.c, fortran.c, iter.c,
+	libgomp.h, libgomp_f.h.in, libgomp_g.h, loop.c, mkomp_h.pl, omp.h.in,
+	omp_lib.f90.in, omp_lib.h.in, ordered.c, parallel.c, sections.c,
+	single.c, team.c, work.c, config/linux/alpha/futex.h,
+	config/linux/bar.c, config/linux/bar.h, config/linux/ia64/futex.h,
+	config/linux/lock.c, config/linux/mutex.c, config/linux/mutex.h,
+	config/linux/powerpc/futex.h, config/linux/s390/futex.h,
+	config/linux/sem.c, config/linux/sem.h, config/linux/sparc/futex.h,
+	config/linux/x86/futex.h, config/posix/bar.c, config/posix/bar.h,
+	config/posix/lock.c, config/posix/mutex.h, config/posix/proc.c,
+	config/posix/sem.c, config/posix/sem.h, config/posix/time.c: Update
+	FSF address.
+
+2005-11-18  Jakub Jelinek  <jakub@redhat.com>
+
+	* Makefile.am: Move libgomp_f.h from nodist_include_HEADERS
+	to nodist_noinst_HEADERS.
+	* Makefile.in: Rebuilt.
+
+	* config/posix/omp-lock.h (omp_nest_lock_t): Change into struct,
+	add integer count field.
+	* config/posix/lock.c (omp_destroy_nest_lock): Adjust for
+	omp_nest_lock_t type change.
+	(omp_init_nest_lock): Likewise.  Initialize count to 0.
+	(omp_set_nest_lock): Adjust for omp_nest_lock_t type change.
+	Increment count.
+	(omp_unset_nest_lock): Adjust for omp_nest_lock_t type change.
+	Decrement count.
+	(omp_test_nest_lock): Adjust for omp_nest_lock_t type change.
+	Increment count if successful and return the new nesting level.
+	* config/linux/lock.c (omp_test_nest_lock): Return new nesting level.
+	* omp_lib.f90.in (omp_test_lock): Fix LOCK argument type.
+	* testsuite/libgomp.c/lib-1.c: New test.
+	* testsuite/libgomp.fortran/lib1.f90: New test.
+	* testsuite/libgomp.fortran/lib2.f: New test.
+	* testsuite/libgomp.fortran/lib3.f: New test.
+
+2005-11-17  Richard Henderson  <rth@redhat.com>
+
+	PR 24845
+	* Makefile.am (nodist_toolexeclib_HEADERS): New.
+	* configure.ac (link_gomp): New.  Substitute it.
+	(AC_CONFIG_FILES): Add libgomp.spec.
+	* libgomp.spec.in: New file.
+	* Makefile.in, testsuite/Makefile.in, configure: Rebuild.
+	* testsuite/lib/libgomp-dg.exp: Add -B${blddir}/ to flags.
+
+2005-11-18  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/reduction1.f90: Adjust for
+	reduction(-:var) behaving the same as reduction(+:var).
+	* testsuite/libgomp.c/reduction-4.c: New test.
+
+2005-11-15  Uros Bizjak  <uros@kss-loka.si>
+
+	* testsuite/libgomp.c/pr24455-1.c, testsuite/libgomp.c/pr24455.c,
+	testsuite/libgomp.c/copyin-1.c, testsuite/libgomp.c/copyin-2.c,
+	testsuite/libgomp.c/copyin-3.c,
+	testsuite/libgomp.c++/copyin-1.C, testsuite/libgomp.c++/copyin-2.C,
+	testsuite/libgomp.c++/ctor-5.C, testsuite/libgomp.c++/ctor-8.C,
+	testsuite/libgomp.c++/ctor-9.C, testsuite/libgomp.c++/pr24455-1.C,
+	testsuite/libgomp.c++/pr24455.C,
+	testsuite/libgomp.fortran/threadprivate1.f90,
+	testsuite/libgomp.fortran/threadprivate2.f90,
+	testsuite/libgomp.fortran/threadprivate3.f90,
+	testsuite/libgomp.fortran/appendix-a/a.22.7.f9,
+	testsuite/libgomp.fortran/appendix-a/a.22.8.f9,
+	testsuite/libgomp.fortran/omp_parse3.f90: Require
+	effective-target TLS.
+
+2005-11-14  Diego Novillo  <dnovillo@redhat.com>
+
+	* HEADER: Remove.
+
+2005-11-13  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libgomp/24797
+	* team.c (initialize_team): Pass NULL rather than free as
+	pthread_key_create destructor.  Initialize thread specific data
+	pointer in initial thread to a static local variable rather than
+	malloced memory.
+
+2005-11-11  Uros Bizjak  <uros@kss-loka.si>
+
+	* testsuite/lib/libgomp-dg.exp: Locate libgcc.a and append
+	its location to ld_library_path.
+
+2005-11-10  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.c/c.exp: Rename from dg.exp.
+
+2005-11-10  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.c: Rename from libgomp.dg.
+
+2005-11-09  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.c++/pr24455.C: Add copyin clause for
+	threadprivate variable 'i'.
+
+2005-11-09  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/linux/s390/futex.h: New file.
+	* configure.tgt: Use it.
+
+	* testsuite/libgomp.fortran/omp_parse4.f90: Move n initialization
+	before the parallel.
+
+2005-11-08  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/24734
+	* testsuite/libgomp.c++/master-1.C: New test.
+
+2005-11-07  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.dg/copyin-3.c: New test.
+
+2005-11-07  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/retval1.f90: New test.
+	* testsuite/libgomp.fortran/vla7.f90: New test.
+
+2005-11-06  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/vla2.f90: New test.
+	* testsuite/libgomp.fortran/vla3.f90: New test.
+	* testsuite/libgomp.fortran/vla4.f90: New test.
+	* testsuite/libgomp.fortran/vla5.f90: New test.
+	* testsuite/libgomp.fortran/vla6.f90: New test.
+
+2005-11-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/linux/sparc/futex.h: New file.
+	* configure.tgt: Use it.
+	* testsuite/lib/libgomp-dg.exp: Use -mcpu=v9 for sparc testing.
+
+	* critical.c: Include stdlib.h.
+	* acinclude.m4 (LIBGOMP_CHECK_SYNC_BUILTINS): Avoid warnings about
+	ignoring return value.
+	* configure.ac: Don't put -Wc,-pthread into XCFLAGS until after
+	LIBGOMP_CHECK_SYNC_BUILTINS check.
+	* configure: Rebuilt.
+
+2005-10-31  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/vla1.f90: New test.
+
+2005-10-31  Richard Henderson  <rth@redhat.com>
+
+	* testsuite/libgomp.fortran/character2.f90: Fix race condition
+	setting 's' in different threads.
+
+2005-10-31  Jakub Jelinek  <jakub@redhat.com>
+
+	* libgomp.h (attribute_hidden, ialias): Define.
+	* config/posix/proc.c (omp_get_num_procs): Add ialias.
+	* config/posix/time.c (omp_get_wtime, omp_get_wtick): Likewise.
+	* config/posix/lock.c (omp_init_lock, omp_init_nest_lock,
+	omp_destroy_lock, omp_destroy_nest_lock, omp_set_lock,
+	omp_set_nest_lock, omp_unset_lock, omp_unset_nest_lock,
+	omp_test_lock, omp_test_nest_lock): Likewise.
+	* config/linux/lock.c (omp_init_lock, omp_init_nest_lock,
+	omp_destroy_lock, omp_destroy_nest_lock, omp_set_lock,
+	omp_set_nest_lock, omp_unset_lock, omp_unset_nest_lock,
+	omp_test_lock, omp_test_nest_lock): Likewise.
+	* env.c (omp_set_dynamic, omp_set_nested, omp_set_num_threads,
+	omp_get_dynamic, omp_get_nested): Likewise.
+	* parallel.c (omp_get_num_threads, omp_get_max_threads,
+	omp_get_thread_num, omp_in_parallel): Likewise.
+	* fortran.c (ialias_redirect): Define.
+	(omp_init_lock, omp_init_nest_lock, omp_destroy_lock,
+	omp_destroy_nest_lock, omp_set_lock, omp_set_nest_lock,
+	omp_unset_lock, omp_unset_nest_lock, omp_test_lock,
+	omp_test_nest_lock, omp_set_dynamic, omp_set_nested,
+	omp_set_num_threads, omp_get_dynamic, omp_get_nested,
+	omp_in_parallel, omp_get_max_threads, omp_get_num_procs,
+	omp_get_num_threads, omp_get_thread_num, omp_get_wtick,
+	omp_get_wtime): Add ialias_redirect.
+
+2005-10-30  Jakub Jelinek  <jakub@redhat.com>
+
+	* fortran.c: Include stdlib.h.
+
+2005-10-29  Jakub Jelinek  <jakub@redhat.com>
+
+	* Makefile.am (env.o, env.lo): Depend on libgomp_f.h.
+	* Makefile.in: Regenerated.
+
+2005-10-28  Jakub Jelinek  <jakub@redhat.com>
+
+	* mkomp_h.pl: Remove all -Wc, option prefixes in $COMPILE.
+	* libgomp_f.h.in (omp_check_defines): New function.
+	* env.c: Include libgomp_f.h.
+	(initialize_env): Call omp_check_defines.
+
+	* testsuite/libgomp.dg/copyin-2.c: New test.
+	* testsuite/libgomp.c++/copyin-2.C: New test.
+	* testsuite/libgomp.fortran/threadprivate3.f90: New test.
+
+	* testsuite/libgomp.fortran/threadprivate2.f90: New test.
+	* testsuite/libgomp.fortran/sharing2.f90: New test.
+
+	* testsuite/libgomp.dg/copyin-1.c: New test.
+	* testsuite/libgomp.c++/copyin-1.C: New test.
+
+2005-10-26  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/crayptr1.f90: New test.
+
+	* testsuite/libgomp.fortran/workshare1.f90: New test.
+
+	* libgomp.fortran/appendix-a/a.28.5.f90: Change into compile
+	only test.
+	* libgomp.fortran/sharing1.f90: New test.
+
+2005-10-24  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/24502
+	* testsuite/libgomp.c++/loop-7.C: New test.
+
+	* testsuite/libgomp.dg/nestedfn-2.c: New test.
+
+	* testsuite/libgomp.dg/nestedfn-1.c: New test.
+	* testsuite/libgomp.fortran/reduction6.f90: New test.
+	* testsuite/libgomp.fortran/nestedfn1.f90: New test.
+
+2005-10-23  Richard Henderson  <rth@redhat.com>
+
+	* testsuite/libgomp.c++/ctor-1.C: New.
+	* testsuite/libgomp.c++/ctor-2.C: New.
+	* testsuite/libgomp.c++/ctor-3.C: New.
+	* testsuite/libgomp.c++/ctor-4.C: New.
+	* testsuite/libgomp.c++/ctor-5.C: New.
+	* testsuite/libgomp.c++/ctor-6.C: New.
+	* testsuite/libgomp.c++/ctor-7.C: New.
+	* testsuite/libgomp.c++/ctor-8.C: New.
+	* testsuite/libgomp.c++/ctor-9.C: New.
+
+2005-10-21  Diego Novillo  <dnovillo@redhat.com>
+
+	PR 24455
+	* testsuite/libgomp.c++/pr24455-1.C: New test.
+	* testsuite/libgomp.c++/pr24455.C: New test.
+	* testsuite/libgomp.dg/pr24455-1.c: New test.
+	* testsuite/libgomp.dg/pr24455.c: New test.
+
+2005-10-20  Richard Henderson  <rth@redhat.com>
+
+	* testsuite/libgomp.c++/loop-6.C: New.
+	* testsuite/libgomp.dg/loop-3.c: New.
+
+2005-10-20  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/jacobi.f: Don't make i and j
+	explicitly private.
+	* testsuite/libgomp.fortran/omp_parse1.f90 (test_do): Make i
+	explicitly shared.
+
+2005-10-19  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.fortran/jacobi.f: New test.
+
+2005-10-19  Richard Henderson  <rth@redhat.com>
+
+	* configure.tgt (i?86-linux): Default to with_arch instead of
+	CFLAGS.  Add -mtune to match target_cpu.
+	(x86_64-linux): Tune to i686.
+
+	* fortran.c (omp_test_nest_lock_): Fix typo.
+
+2005-10-19  Jakub Jelinek  <jakub@redhat.com>
+
+	* ordered.c (gomp_ordered_first, gomp_ordered_last, gomp_ordered_next,
+	gomp_ordered_sync): Do nothing if team->nthreads == 1.
+	* testsuite/libgomp.dg/ordered-3.c: New test.
+
+	* testsuite/libgomp.dg/appendix-a/a.18.1.c: Remove unconditional abort.
+	Remove volatile keyword.
+
+	* testsuite/libgomp.fortran/appendix-a/a.19.1.f90: Reorder variables
+	in COMMON block to avoid warnings on 64-bit targets.
+
+2005-10-18  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.dg/shared-3.c: New test.
+
+2005-10-18  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/appendix-a/a.31.3.f90: Removed.
+	* testsuite/libgomp.fortran/reduction5.f90: New test.
+
+2005-10-18  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/appendix-a/a.40.1.f90: Add -ffixed-form to
+	dg-options.
+	* testsuite/libgomp.fortran/appendix-a/a.18.1.f90: Likewise.  Enable
+	flush loop now that __sync_synchronize has proper memory barrier.
+	* testsuite/libgomp.fortran/appendix-a/a.3.1.f90: Fix a typo.
+	Add -ffixed-form to dg-options.
+
+2005-10-17  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.fortran/fortran.exp: Also gather tests
+	from subdirectories.
+	* testsuite/libgomp.fortran/appendix-a/a.15.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.16.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.18.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.19.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.2.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.21.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.22.7.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.22.8.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.26.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.28.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.28.2.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.28.3.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.28.4.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.28.5.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.3.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.31.3.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.31.4.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.31.5.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.33.3.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.38.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.39.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.4.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.40.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a.5.1.f90: New test.
+	* testsuite/libgomp.fortran/appendix-a/a10.1.f90: New test.
+
+2005-10-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.dg/dg.exp: Only unset lang_* if
+	lang_library_path exists.  Use find instead of glob to gather tests.
+	* testsuite/libgomp.dg/appendix-a/appendix-a.exp: Removed.
+
+2005-10-17  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.dg/appendix-a/a.15.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/a.16.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/a.18.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/a.19.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/a.2.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/a.21.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/a.26.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/a.29.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/a.3.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/a.39.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/a.4.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/a.5.1.c: New test.
+	* testsuite/libgomp.dg/appendix-a/appendix-a.exp: New file.
+
+2005-10-15  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.dg/vla-1.c: New test.
+
+	* testsuite/libgomp.fortran/reference2.f90: New test.
+
+	* testsuite/libgomp.fortran/character2.f90: Remove explicit
+	declaration of omp_get_thread_num.
+	* testsuite/libgomp.fortran/threadprivate1.f90: Likewise.  Add
+	use omp_lib.
+
+	* testsuite/libgomp.fortran/reduction1.f90: New test.
+	* testsuite/libgomp.fortran/reduction2.f90: New test.
+	* testsuite/libgomp.fortran/reduction3.f90: New test.
+	* testsuite/libgomp.fortran/reduction4.f90: New test.
+
+2005-10-13  Richard Henderson  <rth@redhat.com>
+
+	* Makefile.am (libgomp_la_SOURCES): Add bar.c.
+	* Makefile.in: Regenerate.
+	* barrier.c (GOMP_barrier): Use gomp_barrier_wait.
+	* libgomp.h: Include bar.h.
+	(struct gomp_barrier): Remove.
+	(struct gomp_team): Add barrier.  Replace master_barrier with
+	master_release.  Replace threads with ordered_release.
+	(struct gomp_thread): Replace barrier with release.
+	* ordered.c (gomp_ordered_first): Update for ordered_release change.
+	(gomp_ordered_last, gomp_ordered_next, gomp_ordered_static_init,
+	gomp_ordered_static_next, gomp_ordered_sync): Likewise.
+	* single.c (GOMP_single_copy_start): Use gomp_barrier_wait.
+	(GOMP_single_copy_end): Likewise.
+	* team.c (gomp_threads_dock): New.
+	(gomp_barrier_init, gomp_barrier_destroy): Remove.
+	(gomp_thread_start): Use gomp_barrier_wait.
+	(new_team, free_team): Update for gomp_team changes.
+	(gomp_team_start): Use gomp_barrier_wait and gomp_barrier_reinit.
+	(gomp_team_end): Use gomp_barrier_wait.
+	(initialize_team): Update for gomp_thread changes.
+	* work.c (gomp_work_share_end): Use gomp_barrier_wait_start.
+	(gomp_work_share_end_nowait): Use atomic ops when available.
+	* config/linux/bar.c, config/linux/bar.h: New files.
+	* config/posix/bar.c, config/posix/bar.h: New files.
+
+2005-10-13  Jakub Jelinek  <jakub@redhat.com>
+
+	* single.c (GOMP_single_copy_end): Don't segfault if team is NULL.
+	* testsuite/libgomp.dg/single-2.c: New test.
+
+	* testsuite/libgomp.dg/dg.exp (lang_library_path, lang_test_file,
+	lang_link_flags): Unset, so that they aren't inherited from previously
+	sourced *.exp.
+
+	* testsuite/libgomp.fortran/threadprivate1.f90: New test.
+
+2005-10-12  Richard Henderson  <rth@redhat.com>
+
+	* testsuite/lib/libgomp-dg.exp: Set blddir at toplevel.
+	(libgomp_init): Use lang_test_file, lang_library_path, and
+	lang_link_flags, set by the subdirectory files.  Add -fopenmp here.
+
+	* testsuite/libgomp.fortran/fortran.exp (lang_library_path): New.
+	(lang_test_file, lang_link_flags): New.
+	(DEFAULT_FFLAGS, ALWAYS_CFLAGS, multilibs, blddir): Remove.
+
+	* testsuite/libgomp.c++/c++.exp, testsuite/libgomp.c++/loop-1.C,
+	testsuite/libgomp.c++/loop-2.C, testsuite/libgomp.c++/loop-3.C,
+	testsuite/libgomp.c++/loop-4.C, testsuite/libgomp.c++/nested-1.C,
+	testsuite/libgomp.c++/parallel-1.C,
+	testsuite/libgomp.c++/reduction-1.C,
+	testsuite/libgomp.c++/reduction-2.C,
+	testsuite/libgomp.c++/reduction-3.C,
+	testsuite/libgomp.c++/sections-1.C, testsuite/libgomp.c++/shared-1.C,
+	testsuite/libgomp.c++/shared-2.C, testsuite/libgomp.c++/single-1.C,
+	testsuite/libgomp.c++/single-2.C, testsuite/libgomp.c++/single-3.C:
+	New files, largely cribbed from the C testsuite.
+
+2005-10-12  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/character1.f90: New test.
+	* testsuite/libgomp.fortran/character2.f90: New test.
+
+	* testsuite/libgomp.dg/nested-1.c: New test.
+	* testsuite/libgomp.dg/nested-2.c: New test.
+	* testsuite/libgomp.fortran/do1.f90: New test.
+	* testsuite/libgomp.fortran/do2.f90: New test.
+
+	* testsuite/libgomp.fortran/reference1.f90: New test.
+
+2005-10-11  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.dg/reduction-1.c: New test.
+	* testsuite/libgomp.dg/reduction-2.c: New test.
+	* testsuite/libgomp.dg/reduction-3.c: New test.
+
+2005-10-10  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.dg/atomic-1.c: New test.
+	* testsuite/libgomp.dg/atomic-2.c: New test.
+
+2005-10-09  Richard Henderson  <rth@redhat.com>
+
+	* critical.c (atomic_lock): New.
+	(initialize_critical): Initialize it.
+	(GOMP_atomic_start, GOMP_atomic_end): New.
+	* libgomp.map: Export them.
+	* libgomp_g.h: Declare them.
+
+	* testsuite/libgomp.dg/atomic-10.c: Move from gcc testsuite.
+
+2005-10-02  Richard Henderson  <rth@redhat.com>
+
+	* configure.ac: Move save_CFLAGS hack earlier.  Append -Wall/-Werror
+	to XCFLAGS instead of CFLAGS.
+
+2005-09-30  Richard Henderson  <rth@redhat.com>
+
+	* configure.ac: Determine whether -pthread or -lpthread is needed.
+	* Makefile.am (libgomp_la_LDFLAGS): Remove explicit -lpthread.
+	* Makefine.in, configure: Rebuild.
+
+2005-09-28  Richard Henderson  <rth@redhat.com>
+
+	* testsuite/libgomp.dg/omp-loop03.c: Fix return code.
+	* testsuite/libgomp.dg/omp-single-3.c: New test.
+
+2005-09-28  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.dg/omp-single-2.c: New test.
+	* testsuite/libgomp.dg/shared-2.c: Fix return code.
+
+2005-09-27  Richard Henderson  <rth@redhat.com>
+
+	* testsuite/libgomp.dg/omp-loop03.c: Add initial barrier.
+	* testsuite/libgomp.dg/omp-parallel-for.c: Specify static schedule.
+
+2005-09-27  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.dg/omp-loop03.c: New test.
+
+2005-09-27  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.dg/omp-parallel-for.c: New test.
+
+2005-09-27  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.dg/omp-single-1.c: New test.
+	* testsuite/libgomp.dg/shared-1.c: Return 0.
+	Add prototype for abort.
+	* testsuite/libgomp.dg/shared-2.c: Likewise.
+
+2005-09-26  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/omp_parse3.f90: Fix non-conforming
+	constructs.
+
+2005-09-26  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.dg/shared-1.c: New test.
+	* testsuite/libgomp.dg/shared-2.c: New test.
+
+2005-09-24  Richard Henderson  <rth@redhat.com>
+
+	* testsuite/libgomp.dg/omp_workshare3.c: Mark dg-error.
+
+2005-09-24  Richard Henderson  <rth@redhat.com>
+
+	* iter.c (gomp_iter_static_next): Round up when computing number
+	of iterations.  Don't bother distributing a remainder equally.
+
+	* testsuite/libgomp.dg/omp-loop01.c (main1): Rename from main.
+	Don't call srand.  Zero b before testing.
+	(main): New.
+
+2005-09-24  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/omp_atomic1.f90: New test.
+	* testsuite/libgomp.fortran/omp_atomic2.f90: New test.
+
+2005-09-23  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/libgomp.fortran/omp_parse1.f90: Add a test for !$omp do
+	without !$omp end do, followed immediately by subroutine end.
+
+2005-09-23  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.dg/omp-parallel-if.c: New test.
+
+2005-09-22  Richard Henderson  <rth@redhat.com>
+
+	* critical.c (GOMP_critical_name_start): Change argument to void**.
+	Reuse the pointer space if the mutex fits.
+	(GOMP_critical_name_end): Likewise.
+	(initialize_critical): Don't define if GOMP_MUTEX_INIT_0.
+	* libgomp_g.h (GOMP_critical_name_start): Update decl.
+	(GOMP_critical_name_end): Likewise.
+	* config/linux/mutex.h (GOMP_MUTEX_INIT_0): New.
+	* config/posix/mutex.h (GOMP_MUTEX_INIT_0): New.
+
+2005-09-20  Richard Henderson  <rth@redhat.com>
+
+	* critical.c (GOMP_critical_name_start, GOMP_critical_name_end): New.
+	(create_lock_lock): New.
+	(initialize_critical): Initialize it.
+	* libgomp.map (GOMP_critical_name_start, GOMP_critical_name_end): New.
+	* libgomp_g.h (GOMP_ordered_start, GOMP_ordered_end): Declare.
+
+2005-09-20  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgom.dg/omp-loop01.c: Include stdio.h.
+
+2005-09-20  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.dg/omp-loop01.c: New test.
+	* testsuite/libgomp.dg/omp-loop02.c: New test.
+
+2005-09-20  Jakub Jelinek  <jakub@redhat.com>
+
+	* configure.ac (AC_PROG_FC): Add.
+	(USE_FORTRAN): New automake conditional.
+	* configure: Rebuilt.
+	* Makefile.am (libgomp_la_SOURCES): Add fortran.c.
+	(nodist_include_HEADERS): Add omp_lib.h, omp_lib.f90 and libgomp_f.h.
+	If USE_FORTRAN, add also omp_lib.mod and omp_lib_kinds.mod.
+	Add rules to build them.
+	* Makefile.in: Rebuilt.
+	* mkomp_h.pl: Compute and replace also OMP_LOCK_KIND and
+	OMP_NEST_LOCK_KIND.
+	* libgomp.map: Add Fortran wrappers.
+	* libgomp_f.h.in: New file.
+	* omp_lib.h.in: New file.
+	* omp_lib.f90.in: New file.
+	* fortran.c: New file.
+	* testsuite/lib/libgomp-dg.exp: Load a few more .exp files.
+	Append libgfortran directory to LD_LIBRARY_PATH if it exists.
+	Add -Lpath_to_libgfortran and -lgfortran -lgfortranbegin if
+	libgfortran has been built.
+	* testsuite/libgomp.fortran/fortran.exp: New file.
+	* testsuite/libgomp.fortran/omp_cond1.f: New test.
+	* testsuite/libgomp.fortran/omp_cond2.f: New test.
+	* testsuite/libgomp.fortran/omp_cond3.F90: New test.
+	* testsuite/libgomp.fortran/omp_cond4.F90: New test.
+	* testsuite/libgomp.fortran/omp_hello.f: New test.
+	* testsuite/libgomp.fortran/omp_orphan.f: New test.
+	* testsuite/libgomp.fortran/omp_parse1.f90: New test.
+	* testsuite/libgomp.fortran/omp_parse2.f90: New test.
+	* testsuite/libgomp.fortran/omp_parse3.f90: New test.
+	* testsuite/libgomp.fortran/omp_parse4.f90: New test.
+	* testsuite/libgomp.fortran/omp_reduction.f: New test.
+	* testsuite/libgomp.fortran/omp_workshare1.f: New test.
+	* testsuite/libgomp.fortran/omp_workshare2.f: New test.
+
+2005-08-30  Richard Henderson  <rth@redhat.com>
+
+	* loop.c (GOMP_loop_static_start): Provide fallback wrapper
+	function for when aliases are not usable.
+	(GOMP_loop_dynamic_start, GOMP_loop_guided_start,
+	GOMP_loop_ordered_static_start, GOMP_loop_ordered_dynamic_start,
+	GOMP_loop_ordered_guided_start, GOMP_loop_static_next,
+	GOMP_loop_dynamic_next, GOMP_loop_guided_next,
+	GOMP_loop_ordered_static_next, GOMP_loop_ordered_dynamic_next,
+	GOMP_loop_ordered_guided_next): Likewise.
+	* ordered.c (GOMP_ordered_start): Likewise.
+
+2005-08-01  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.dg/dg.exp: Use -O2 for now.
+	* testsuite/libgomp.dg/omp_hello.c: Fix return code
+	* testsuite/libgomp.dg/omp_matvec.c: Likewise.
+	* testsuite/libgomp.dg/omp_orphan.c: Likewise
+	* testsuite/libgomp.dg/omp_reduction.c: Likewise
+	* testsuite/libgomp.dg/omp_workshare1.c: Likewise
+	* testsuite/libgomp.dg/omp_workshare2.c: Likewise
+	* testsuite/libgomp.dg/omp_workshare3.c: Likewise
+	* testsuite/libgomp.dg/omp_workshare4.c: Likewise
+
+2005-07-07  Eric Christopher  <echristo@redhat.com>
+	    Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libgomp.dg/dg.exp: Add -fopenmp to DEFAULT_CFLAGS.
+	* testsuite/libgomp.dg/omp_hello.c: Add standard includes, fix
+	up code.
+	* testsuite/libgomp.dg/omp_matvec.c: Ditto.
+	* testsuite/libgomp.dg/omp_orphan.c: Ditto.
+	* testsuite/libgomp.dg/omp_reduction.c: Ditto.
+	* testsuite/libgomp.dg/omp_workshare1.c: Ditto.
+	* testsuite/libgomp.dg/omp_workshare2.c: Ditto.
+	* testsuite/libgomp.dg/omp_workshare3.c: Ditto.
+	* testsuite/libgomp.dg/omp_workshare4.c: Ditto.
+
+2005-06-13  Diego Novillo  <dnovillo@redhat.com>
+
+	* TOPLEVEL.patch: Remove.
+
+2005-05-16  Richard Henderson  <rth@redhat.com>
+
+	* configure.ac: Test for clock_gettime.
+	* config.h.in, configure: Rebuild.
+	* config/posix/time.c: Use recommended TIME_WITH_SYS_TIME pattern.
+	(omp_get_wtime): Use clock_gettime if available.
+	(omp_get_wtick): Use clock_getres if available.
+
+2005-05-11  Richard Henderson  <rth@redhat.com>
+
+	* config/linux/ia64/futex.h: New file.
+	* configure.tgt: Use it.
+
+	* team.c (gomp_barrier_init, gomp_barrier_destroy): Mark inline.
+
+2005-05-07  Richard Henderson  <rth@redhat.com>
+
+	* config/linux/powerpc/futex.h: New file.
+	* configure.tgt: Use it.
+
+	* config/linux/i486/futex.h: Merge ...
+	* config/linux/x86_64/futex.h: ... into ...
+	* config/linux/x86/futex.h: ... here.
+	* configure.tgt: Update to match.
+
+2005-05-06  Richard Henderson  <rth@redhat.com>
+
+	* config/linux/alpha/futex.h: Conditionally define SYS_futex.
+	* config/linux/i486/futex.h: Likewise.
+	* config/linux/x86_64/futex.h: Likewise.
+
+	* config/linux/lock.c: New file.
+	* config/linux/omp-lock.h: New file.
+
+	* critical.c, env.h: Don't include omp.h
+	* config/posix/lock.c: Include libgomp.h instead of omp.h.
+	* config/posix/time.c: Likewise.
+	* config/posix/omp-lock.h: New file.
+	* libgomp.h: Include omp-lock.h and omp.h.
+	* Makefile.am (nodist_include_HEADERS): New.
+	(omp.h): New rule.
+	* configure.ac (PERL): New.
+	* mkomp_h.pl: New file.
+	* omp.h.in: Rename from omp.h; replace omp_lock_t and omp_nest_lock_t
+	with templates.
+	* Makefile.in, configure, testsuite/Makefile.in: Rebuild.
+
+	* testsuite/lib/libgomp-dg.exp (libgomp_init): Add include into
+	build directory.  Re-add -march=i486 hack.
+
+	* testsuite/lib/libgomp-dg.exp (libgomp_compile_flags): Remove.
+	(libgomp_link_flags): Remove.
+	(libgomp_initialized): Remove.
+	(libgomp_init): Don't protect from reinitialization.  Copy code
+	from libstdc++ for getting the multilib set correctly.
+
+2005-05-05  Richard Henderson  <rth@redhat.com>
+
+	* config/linux/alpha/futex.h: New file.
+	* configure.tgt (alpha*-*-linux*): Use it.
+
+	* config/posix/mutex.c: New file.
+	* config/posix/sem.c: Use libgomp.h.
+
+	* configure.tgt (x86_64-linux): Also test CC for -m32.
+	* config/linux/x86_64/futex.h (futex_wait): Fix r10 usage.
+
+	* testsuite/lib/libgomp-dg.exp (libgomp_link_flags): Add /
+	after $gccpath.
+
+	* Makefile.am (SUBDIRS): New.
+	(libgomp_la_LDFLAGS): Add -lpthread.
+	* configure.ac (AM_INIT_AUTOMAKE): Enable dependencies.
+	* Makefile.in, aclocal.m4, config.h.in, configure: Rebuild.
+
+	* libgomp_g.h: New file.
+	* libgomp.h: Split out all public declarations to libgomp_g.h.
+	Use pragma GCC visibility instead of ATTRIBUTE_HIDDEN.
+	* config/linux/mutex.h: Remove ATTRIBUTE_HIDDEN.
+	* config/linux/sem.h: Likewise.
+	* config/posix/sem.h: Likewise.
+
+	* Makefile.am (AM_LDFLAGS): New.
+	(libgomp_version_script): Split out from ...
+	(libgomp_la_LDFLAGS): ... here.
+	(libgomp_version_info): New.
+	* acinclude.m4 (LIBGOMP_CHECK_TLS): Use LIBGOMP_ENABLE.
+	(LIBGOMP_ENABLE): New.
+	(LIBGOMP_CHECK_LINKER_FEATURES): New.
+	(LIBGOMP_ENABLE_SYMVERS): New.
+	* configure.ac (AC_INIT): Version 1.0.
+	(enable-version-specific-runtime-libs): Use LIBGOMP_ENABLE.
+	(enable-linux-futex): Likewise.  Rename from enable-futex.
+	(libtool_VERSION): New.
+	(LIBGOMP_ENABLE_SYMVERS): Use it.
+	* configure.tgt: Check with_gnu_ld wrt have_tls optimizations.
+	* Makefile.in, aclocal.m4, configure: Rebuild.
+
+	* config/linux/mutex.c: Include libgomp.h instead of mutex.h.
+	(gomp_mutex_unlock_slow): Fix typo.
+	* config/linux/sem.c: Similarly.
+	(gomp_sem_post_slow): Fix typo.
+	* config/linux/sem.h (gomp_sem_post_slow): Fix typo.
+	* config/linux/i486/futex.h: Remove USE_LINUX_SYSENTER code.
+	[__PIC__] (sys_futex0): Don't use tmp output in asm.
+
+	* Makefile.am (AM_CFLAGS): Expand with XCFLAGS.
+	(libgomp_la_LDFLAGS): Add top_srcdir to path.
+	* acinclude.m4: Copy libtool.m4 stuff from libgfortran.
+	* configure.ac: Check for getloadavg.  Substitute XCFLAGS and
+	XLDFLAGS.  Add XCFLAGS to CFLAGS around LIBGOMP_CHECK_SYNC_BUILTINS.
+	* configure.tgt: Set XCFLAGS and XLDFLAGS instead of CFLAGS and
+	LDFLAGS.  Pull enable_futex check to top-level.
+	* libgomp.h: Fix sem.h and mutex.h includes.  Define ATTRIBUTE_HIDDEN.
+	* Makefile.in, aclocal.m4, config.h.in, configure: Regenerate.
+
+	First attempt at real configury.
+	* Makefile, config.h: Remove file.
+	* Makefile.am, Makefile.in: New file.
+	* acinclude.m4 aclocal.m4: New file.
+	* configure.ac, configure.tgt, configure: New file.
+
+	* config/posix/lock.c: Rename from sys-lock.c.
+	* config/posix/mutex.h: Rename from sys-mutex.h.
+	* config/posix/sem.c: Rename from sys-sem.c.
+	* config/posix/sem.h: Rename from sys-sem.h.
+	* config/posix/proc.c: Rename from sys-proc.c.
+	* config/posix/time.c: Rename from sys-proc.c.
+
+	* config/linux/mutex.c: New file.
+	* config/linux/mutex.h: New file.
+	* config/linux/sem.c: New file.
+	* config/linux/sem.h: New file.
+	* config/linux/i486/futex.h: New file.
+	* config/linux/x86_64/futex.h: New file.
+
+2005-05-04  Richard Henderson  <rth@redhat.com>
+
+	* iter.c (gomp_iter_dynamic_next, gomp_iter_guided_next): New.
+	* libgomp.h: Declare them.
+	* loop.c (gomp_loop_dynamic_start, gomp_loop_guided_start,
+	gomp_loop_dynamic_next, gomp_loop_guided_next): Use them.
+
+2005-05-04  Richard Henderson  <rth@redhat.com>
+
+	* libgomp-1 code drop
+
+2005-05-04  Richard Henderson  <rth@redhat.com>
+
+	* iter.c (gomp_iter_static_next): Return tri-state on 0.
+	* ordered.c (gomp_ordered_static_next): Remove not_last argument.
+	* libgomp.h (struct gomp_team_state): Make static_trip unsigned.
+	(gomp_iter_static_next): Update.
+	(gomp_ordered_static_next): Update.
+	* loop.c (gomp_loop_static_start): Update for gomp_iter_static_next.
+	(gomp_loop_ordered_static_start): Likewise.  Exit early for a
+	totally empty range.
+	(gomp_loop_ordered_static_next): Refine test for calling
+	gomp_ordered_static_next.
+	* testsuite/ordered-1.c: Add case for more threads than iterations.
+
+	* iter.c (gomp_iter_runtime_next_locked): Remove.
+	* loop.c (gomp_loop_static_start, gomp_loop_dynamic_start,
+	gomp_loop_guided_start, gomp_loop_ordered_static_start,
+	gomp_loop_ordered_dynamic_start, gomp_loop_ordered_guided_start,
+	gomp_loop_static_next, gomp_loop_dynamic_next, gomp_loop_guided_next,
+	gomp_loop_ordered_static_next, gomp_loop_ordered_dynamic_next,
+	gomp_loop_ordered_guided_next): Downcase name, make static, add
+	an external alias with the old name.
+	(GOMP_loop_runtime_start, GOMP_loop_ordered_runtime_start,
+	GOMP_loop_runtime_next, GOMP_loop_ordered_runtime_next): Use a
+	switch and call one of the above static functions.
+	* libgomp.h: Update.
+
+	* work.c (gomp_work_share_start): Lock the mutex for !first too.
+	* loop.c (GOMP_loop_static_start, GOMP_loop_dynamic_start,
+	GOMP_loop_guided_start, GOMP_loop_runtime_start,
+	GOMP_loop_ordered_static_start, GOMP_loop_ordered_dynamic_start,
+	GOMP_loop_ordered_guided_start): Update to match.
+	* sections.c (GOMP_sections_start): Likewise.
+	* single.c (GOMP_single_start, GOMP_single_copy_start): Likewise.
+
+	* ordered.c (gomp_ordered_first, gomp_ordered_last, gomp_ordered_next,
+	gomp_ordered_static_init, gomp_ordered_static_next): Rename s/_loop//.
+	Use bounds check instead of modulus.
+	(gomp_ordered_sync): Split out of GOMP_ordered_start.
+	(gomp_ordered_last): Don't sync with ordered_owner here.
+	(gomp_ordered_next): Likewise.
+	(gomp_ordered_static_loop_next): Likewise.
+	* loop.c, libgomp.h: Update to match.
+
+	* libgomp.h (GOMP_barrier): Declare.
+
+	* testsuite/barrier-1.c: New file.
+	* testsuite/critical-1.c: New file.
+	* testsuite/ordered-2.c: New file.
+	* testsuite/ordered-1.c: New file.
+	* testsuite/sections-1.c: New file.
+	* testsuite/single-1.c: New file.
+	* testsuite/Makefile (TESTS): Add them.
+
+2005-05-04  Richard Henderson  <rth@redhat.com>
+
+	* libgomp.h (struct gomp_work_share): Add ordered_owner.
+	* loop.c (GOMP_loop_static_start): If not the startup thread,
+	acquire the mutex to wait for initialization complete.
+	(GOMP_loop_ordered_static_start): Likewise.
+	(GOMP_loop_ordered_runtime_start): Likewise.
+	(GOMP_loop_ordered_static_first): Remove.
+	(GOMP_loop_ordered_dynamic_first): Remove.
+	(GOMP_loop_ordered_guided_first): Remove.
+	(GOMP_loop_ordered_runtime_first): Remove.
+	* ordered.c (gomp_ordered_loop_first): Post to own release when
+	we're the first thread.
+	(gomp_ordered_loop_last): Wait on release if not owner.
+	(gomp_ordered_loop_next): Likewise.
+	(gomp_ordered_static_loop_init): New.
+	(gomp_ordered_static_loop_next): Use ordered_owner.
+	(GOMP_ordered_start): Likewise.
+	* work.c (gomp_new_work_share): Initialize ordered_owner.
+
+2005-05-03  Richard Henderson  <rth@redhat.com>
+
+	* Makefile (OPT): New.
+	(CFLAGS): Use it.
+
+	* loop.c (GOMP_loop_end, GOMP_loop_end_nowait): New.
+	* sections.c (GOMP_sections_end, GOMP_sections_end_nowait): New.
+	* libgomp.h, libgomp.map, NOTES: Update to match.
+
+	* team.c (struct gomp_thread_start_data): Remove ts, fn, data.
+	Add initialized and thr members.
+	(gomp_thread_start): Pause when initially spawned to wait for
+	the whole team to be created.
+	(gomp_team_start): Release team members at the end.
+
+	* testsuite/loop-1.c (N): New.  Use it instead of hardcoded 100.
+	(f_foo_1): Use GOMP_loop_end.
+	(f_foo_2): Use GOMP_loop_end_nowait.
+
+	* testsuite/loop-2.c: New file.
+	* testsuite/Makefile (TESTS): Add it.
+
+2005-05-03  Richard Henderson  <rth@redhat.com>
+
+	* iter.c (gomp_iter_static_next): Fix overflow check typo.
+	(gomp_iter_dynamic_next_locked): Fix overflow check thinko.
+	* team.c (new_team): Initialize oldest_live_gen to 1 if no
+	initial work_share.
+
+	* testsuite/Makefile: New file.
+	* testsuite/loop-1.c: New file.
+
+2005-05-03  Richard Henderson  <rth@redhat.com>
+
+	Initial implementation and checkin.

@@ -1,0 +1,55 @@
+.\"     $OpenBSD: vbus.4,v 1.9 2013/07/16 16:05:50 schwarze Exp $
+.\"
+.\" Copyright (c) 2008 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt VBUS 4 sparc64
+.Os
+.Sh NAME
+.Nm vbus
+.Nd virtual device bus
+.Sh SYNOPSIS
+.Cd "vbus0 at mainbus0"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a virtual bus for virtual devices provided by the
+UltraSPARC Hypervisor as found on sun4v systems and logical domains.
+.Pp
+.Ox
+provides support for the following devices:
+.Pp
+.Bl -tag -width "vcons(4)XX" -offset 3n -compact
+.It Xr cbus 4
+channel device bus
+.It Xr vcons 4
+virtual console interface
+.It Xr vrng 4
+virtual random number generator
+.It Xr vrtc 4
+virtual real-time clock
+.El
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.4 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

@@ -1,0 +1,114 @@
+.\" $OpenBSD: cpu_xcall.9,v 1.2 2025/07/13 19:36:42 schwarze Exp $
+.\"
+.\" Copyright (c) 2025 David Gwynne <dlg@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 13 2025 $
+.Dt CPU_XCALL 9
+.Os
+.Sh NAME
+.Nm cpu_xcall_set ,
+.Nm cpu_xcall ,
+.Nm cpu_xcall_sync ,
+.Nm XCALL_INITIALIZER
+.Nd CPU crosscall API
+.Sh SYNOPSIS
+.In sys/xcall.h
+.Ft void
+.Fn cpu_xcall_set "struct xcall *xc" "void (*func)(void *)" "void *arg"
+.Ft void
+.Fn cpu_xcall "struct cpu_info *ci" "struct xcall *xc"
+.Ft void
+.Fo cpu_xcall_sync
+.Fa "struct cpu_info *ci"
+.Fa "void (*func)(void *)"
+.Fa "void *arg"
+.Fa "const char *wmesg"
+.Fc
+.Fn XCALL_INITIALIZER "void (*func)(void *)" "void *arg"
+.Sh DESCRIPTION
+The
+CPU crosscall API
+supports the dispatch of function execution to a specific CPU
+in the kernel.
+The functions are run in a software interrupt context at
+.Dv IPL_SOFTCLOCK .
+.Pp
+The
+.Fn cpu_xcall_set
+function prepares the xcall structure
+.Fa xc
+to call the function
+.Fa func
+with argument
+.Fa arg
+via future calls to
+.Fn cpu_xcall .
+.Pp
+.Fn cpu_xcall
+dispatches a call to a function with an argument represented by
+.Fa xc
+on the CPU specified by the
+.Fa ci
+cpu_info structure.
+The same
+.Fa xc
+may be scheduled for execution on multiple CPUs concurrently.
+.Pp
+.Fn cpu_xcall_sync
+dispatches a call to the function
+.Fa func
+with argument
+.Fa arg
+on the CPU specified by the
+.Fa ci
+cpu_info structure, and waits for that function to complete.
+.Fn cpu_xcall_sync
+may sleep waiting for the call to
+.Fa func
+to complete with
+.Fa wmesg
+as the wait message.
+.Pp
+.Fn XCALL_INITIALIZER
+initialises a
+.Vt xcall
+structure to call the function
+.Fa func
+with argument
+.Fa arg
+via future calls to
+.Fn cpu_xcall .
+.Sh CONTEXT
+.Fn cpu_xcall_set
+and
+.Fn cpu_xcall
+can be called from process context or from interrupt context.
+.Pp
+.Fn cpu_xcall_sync
+can be called from process context.
+.Sh SEE ALSO
+.Xr spl 9 ,
+.Xr tsleep 9
+.Sh HISTORY
+The
+.Nm
+functions first appeared in
+.Ox 7.8 .
+.Sh AUTHORS
+The
+.Nm
+functions were written by
+.An David Gwynne Aq Mt dlg@openbsd.org .

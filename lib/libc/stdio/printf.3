@@ -1,0 +1,1033 @@
+.\"	$OpenBSD: printf.3,v 1.94 2024/08/07 05:15:28 guenther Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: August 7 2024 $
+.Dt PRINTF 3
+.Os
+.Sh NAME
+.Nm printf ,
+.Nm fprintf ,
+.Nm sprintf ,
+.Nm snprintf ,
+.Nm asprintf ,
+.Nm dprintf ,
+.Nm vprintf ,
+.Nm vfprintf ,
+.Nm vsprintf ,
+.Nm vsnprintf ,
+.Nm vasprintf ,
+.Nm vdprintf
+.Nd formatted output conversion
+.Sh SYNOPSIS
+.In stdio.h
+.Ft int
+.Fn printf "const char * restrict format" ...
+.Ft int
+.Fn fprintf "FILE *stream" "const char * restrict format" ...
+.Ft int
+.Fn sprintf "char * restrict str" "const char * restrict format" ...
+.Ft int
+.Fn snprintf "char * restrict str" "size_t size" "const char * restrict format" ...
+.Ft int
+.Fn asprintf "char ** restrict ret" "const char * restrict format" ...
+.Ft int
+.Fn dprintf "int fd" "const char * restrict format" ...
+.In stdarg.h
+.In stdio.h
+.Ft int
+.Fn vprintf "const char * restrict format" "va_list ap"
+.Ft int
+.Fn vfprintf "FILE *stream" "const char * restrict format" "va_list ap"
+.Ft int
+.Fn vsprintf "char * restrict str" "const char * restrict format" "va_list ap"
+.Ft int
+.Fn vsnprintf "char * restrict str" "size_t size" "const char * restrict format" "va_list ap"
+.Ft int
+.Fn vasprintf "char ** restrict ret" "const char * restrict format" "va_list ap"
+.Ft int
+.Fn vdprintf "int fd" "const char * restrict format" "va_list ap"
+.Sh DESCRIPTION
+The
+.Fn printf
+family of functions produce output according to the given
+.Fa format
+as described below.
+This format may contain
+.Dq conversion specifiers ;
+the results of such conversions, if any, depend on the arguments
+following the
+.Fa format
+string.
+.Pp
+The
+.Fn printf
+and
+.Fn vprintf
+functions write output to the standard output stream,
+.Em stdout ;
+.Fn fprintf
+and
+.Fn vfprintf
+write output to the supplied stream pointer
+.Fa stream ;
+.Fn dprintf
+and
+.Fn vdprintf
+write output to the given file descriptor;
+.Fn sprintf ,
+.Fn snprintf ,
+.Fn vsprintf ,
+and
+.Fn vsnprintf
+write to the character string
+.Fa str ;
+.Fn asprintf
+and
+.Fn vasprintf
+write to a dynamically allocated string that is stored in
+.Fa ret .
+.Pp
+These functions write the output under the control of a
+.Fa format
+string that specifies how subsequent arguments
+(or arguments accessed via the variable-length argument facilities of
+.Xr va_start 3 )
+are converted for output.
+.Pp
+.Fn snprintf
+and
+.Fn vsnprintf
+write at most
+.Fa size Ns \-1
+characters to
+.Fa str ,
+followed by a terminating
+.Ql \e0 .
+If
+.Fa size
+is zero,
+no characters are written and
+.Fa str
+may be a
+.Dv NULL
+pointer.
+.Pp
+.Fn sprintf
+and
+.Fn vsprintf
+effectively assume an infinite
+.Fa size ;
+their use is not recommended.
+.Pp
+The format string is composed of zero or more directives:
+ordinary
+.\" multibyte
+characters (not
+.Cm % ) ,
+which are copied unchanged to the output stream,
+and conversion specifications, each of which results
+in fetching zero or more subsequent arguments.
+The arguments must correspond properly (after type promotion)
+with the conversion specifiers.
+.Pp
+The overall syntax of a conversion specification is:
+.Bd -filled -offset indent
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Ar flags
+.Op Ar width
+.Op . Ar precision
+.Op Ar size
+.Ar conversion
+.Sm on
+.Ed
+.Pp
+Not all combinations of these parts are meaningful;
+see the description of the individual
+.Ar conversion
+specifiers for details.
+.Pp
+The parts of a conversion specification are as follows:
+.Bl -tag -width Ds
+.It Cm %
+A literal percent character begins a conversion specification.
+.It Ar argno Ns Cm $
+An unsigned decimal digit string followed by a dollar character
+specifies the index of the next argument to access.
+By default, the argument following the last argument accessed is used.
+Arguments are numbered starting at 1.
+.It Ar flags
+Zero or more of the following flag characters can be given:
+.Bl -tag -width 11n
+.It Cm # Pq hash
+Use an alternate form for the output.
+The effect differs depending on the conversion specifier.
+.It So \~ Sc Pq space
+For signed conversions, print a space character before a positive number.
+.It Cm + Pq plus
+For signed conversions, always print a sign before the number,
+even if it is positive.
+This overrides the space flag if both are specified.
+.It Cm 0 Pq zero
+Pad numbers with leading zeros instead of space characters
+to fill the field
+.Ar width .
+This flag is ignored if the
+.Ar precision
+modifier is also given, which in this case specifies
+.Ar mindigits .
+.It Cm \- Pq minus
+Left adjust: pad to the field
+.Ar width
+with space characters on the right rather than on the left.
+This overrides the
+.Sq Cm 0
+flag if both are specified.
+.El
+.It Ar width
+An unsigned decimal digit string specifies a minimum field width in bytes.
+Unless the
+.Sq Cm 0
+or
+.Sq Cm \-
+flag is given, the value is right adjusted in the field and
+padded with space characters on the left.
+By default, no padding is added.
+In no case does a non-existent or small field
+.Ar width
+cause truncation of a field; if the result of a conversion is wider
+than the field width, the field is expanded to contain the conversion
+result.
+.It Pf . Ar precision
+The meaning of an unsigned decimal digit string prefixed with a
+period character depends on the conversion specifier:
+it provides the minimum number of digits for integer conversions,
+of decimals for some floating point conversions and of significant
+digits for others, or the maximum number of bytes to print for
+string conversions.
+.Pp
+A field
+.Ar width
+or
+.Ar precision ,
+or both, may alternatively be indicated as
+.Cm * Ns Op Ar argno Ns Cm $ ,
+i.e. as an asterisk optionally followed
+by an unsigned decimal digit string and a dollar sign.
+In this case, an additional
+.Vt int
+argument supplies the field width or precision.
+If a single conversion specification tries to use arguments
+both with and without
+.Ar argno Ns Cm $
+modifiers, the result is undefined.
+.It Ar size
+An argument size modifier.
+The syntax, the precise meaning, and the default size of the argument
+depend on the following
+.Ar conversion
+character.
+.It Ar conversion
+Each conversion specification ends with a conversion specifier,
+which is a single letter determining which argument type is expected
+and how it is formatted.
+.El
+.Pp
+The conversion specifiers are:
+.Bl -tag -width Ds
+.It Cm %a
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm #
+.Op Cm \~ | +
+.Op Cm \- | 0
+.Op Ar width
+.Op . Ar hexadecimals
+.Op Cm L | l
+.Cm a
+.Sm on
+.Pp
+The
+.Vt double
+argument is converted to the hexadecimal notation
+.Sm off
+.Oo \- Oc Sy 0x No h.hhh Sy p No \(+-d
+.Sm on
+with one digit before the hexadecimal point.
+If specified, the number is rounded to
+.Ar hexadecimals
+after the hexadecimal point; otherwise,
+enough digits are printed to represent it exactly.
+The hexadecimal point is only printed if at least one digit follows it
+or if the
+.Sq Cm #
+flag is given.
+.Pp
+The exponent is expressed in base 2, not in base 16.
+Consequently, there are multiple ways to represent a number in this format.
+For example, 0x3.24p+0, 0x6.48p-1, and 0xc.9p-2 are all equivalent.
+The format chosen depends on the internal representation of the
+number, but the implementation guarantees that the length of the
+mantissa is minimized.
+Zeroes are always represented with a mantissa of
+.Ql 0
+(preceded by a sign if appropriate) and an exponent of
+.Ql +0 .
+.Pp
+If the argument is infinity, it is converted to
+.Ql [-]inf .
+If the argument is not-a-number (NaN), it is converted to
+.Ql [-]nan .
+.Pp
+.Cm %La
+is similar to
+.Cm %a
+except that it takes an argument of
+.Vt long double .
+.Cm %la Pq ell a
+is an alias for
+.Cm %a .
+.It Cm \&%A
+Identical to
+.Cm %a
+except that upper case is used, i.e.\&
+.Ql 0X
+for the prefix,
+.Ql 0123456789ABCDEF
+for the digits,
+.Ql P
+to introduce the exponent,
+and
+.Ql [-]INF
+and
+.Ql [-]NAN
+for infinity and not-a-number, respectively.
+.It Cm %c
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm \-
+.Op Ar width
+.Cm c
+.Sm on
+.Pp
+The
+.Vt int
+argument is converted to an
+.Vt unsigned char ,
+and the resulting single-byte character is written, with optional padding.
+.It Cm %lc
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm \-
+.Op Ar width
+.Cm lc
+.Sm on
+.Pp
+The
+.Vt wint_t
+argument is converted to a multibyte character according to the current
+.Dv LC_CTYPE
+.Xr locale 1 ,
+and that character is written.
+For example, under a UTF-8 locale on
+.Ox ,
+.Ql printf("%lc", 0x03c0)
+writes the greek letter pi, whereas the same call fails
+under the default POSIX locale.
+Padding assures at least
+.Ar width
+bytes are printed; the number of characters printed may be smaller,
+and the number of display columns occupied may be smaller or larger.
+.It Cm %d
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm \~ | +
+.Op Cm \- | 0
+.Op Ar width
+.Op . Ar mindigits
+.Op Ar size
+.Cm d
+.Sm on
+.Pp
+The
+.Vt int
+argument is converted to signed decimal notation.
+If specified, at least
+.Ar mindigits
+are printed, padding with leading zeros if needed.
+The following are similar to
+.Cm %d
+except that they take an argument of a different size:
+.Bl -column %hhd
+.It Cm %hhd Ta Vt signed char
+.It Cm %hd  Ta Vt signed short
+.It Cm %d   Ta Vt signed int
+.It Cm %ld  Ta Vt signed long Pq percent ell dee
+.It Cm %lld Ta Vt signed long long Pq percent ell ell dee
+.It Cm %jd  Ta Vt intmax_t
+.It Cm %td  Ta Vt ptrdiff_t
+.It Cm %zd  Ta Vt ssize_t
+.It Cm %qd  Ta Vt quad_t Pq deprecated
+.El
+.It Cm \&%D
+A deprecated alias for
+.Cm %ld .
+.It Cm %e
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm #
+.Op Cm \~ | +
+.Op Cm \- | 0
+.Op Ar width
+.Op . Ar decimals
+.Op Cm L | l
+.Cm e
+.Sm on
+.Pp
+The
+.Vt double
+argument is rounded and converted to the scientific notation
+.Pf [\-]d.dddddd Sy e Ns \(+-dd
+with one digit before the decimal point and
+.Ar decimals ,
+or six digits by default, after it.
+If
+.Ar decimals
+is zero and the
+.Sq Cm #
+flag is not given, the decimal point is omitted.
+The exponent always contains at least two digits; if the value is zero,
+the exponent is
+.Ql +00 .
+If the argument is infinity, it is converted to
+.Ql [-]inf .
+If the argument is not-a-number (NaN), it is converted to
+.Ql [-]nan .
+.Pp
+.Cm %Le
+is similar to
+.Cm %e
+except that it takes an argument of
+.Vt long double .
+.Cm %le Pq ell e
+is an alias for
+.Cm %e .
+.It Cm \&%E
+Identical to
+.Cm %e
+except that upper case is used, i.e.\&
+.Ql E
+instead of
+.Ql e
+to introduce the exponent and
+.Ql [-]INF
+and
+.Ql [-]NAN
+for infinity and not-a-number, respectively.
+.It Cm %f
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm #
+.Op Cm \~ | +
+.Op Cm \- | 0
+.Op Ar width
+.Op . Ar decimals
+.Op Cm L | l
+.Cm f
+.Sm on
+.Pp
+The
+.Vt double
+argument is rounded and converted to the decimal notation [\-]ddd.dddddd with
+.Ar decimals ,
+or six digits by default, after the decimal point.
+If
+.Ar decimals
+is zero and the
+.Sq Cm #
+flag is not given, the decimal point is omitted.
+If a decimal point appears, at least one digit appears before it.
+If the argument is infinity, it is converted to
+.Ql [-]inf .
+If the argument is not-a-number (NaN), it is converted to
+.Ql [-]nan .
+.Pp
+.Cm %Lf
+is similar to
+.Cm %f
+except that it takes an argument of
+.Vt long double .
+.Cm %lf Pq ell eff
+is an alias for
+.Cm %f .
+.It Cm \&%F
+Identical to
+.Cm %f
+except that upper case is used, i.e.\&
+.Ql [-]INF
+and
+.Ql [-]NAN
+for infinity and not-a-number, respectively.
+.It Cm %g
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm #
+.Op Cm \~ | +
+.Op Cm \- | 0
+.Op Ar width
+.Op . Ar significant
+.Op Cm L | l
+.Cm g
+.Sm on
+.Pp
+The
+.Vt double
+argument is converted in style
+.Cm %f
+or
+.Cm %e
+.Pq general floating point notation
+with
+.Ar significant
+digits, or six significant digits by default.
+If
+.Ar significant
+is zero, one is used instead.
+Style
+.Cm %e
+is used if the exponent from its conversion is less than \-4
+or greater than or equal to
+.Ar significant .
+Unless the
+.Sq Cm #
+flag is given, trailing zeros are removed from the fractional
+part of the result, and the decimal point only appears if it is
+followed by at least one digit.
+.Pp
+.Cm %Lg
+is similar to
+.Cm %g
+except that it takes an argument of
+.Vt long double .
+.Cm %lg Pq ell gee
+is an alias for
+.Cm %g .
+.It Cm \&%G
+Identical to
+.Cm %g
+except that upper case is used, i.e.\&
+.Ql E
+instead of
+.Ql e
+to introduce the exponent and
+.Ql [-]INF
+and
+.Ql [-]NAN
+for infinity and not-a-number, respectively.
+.It Cm %i
+An alias for
+.Cm %d ,
+supporting the same modifiers.
+.It Cm %n
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Ar size
+.Cm n
+.Sm on
+.Pp
+The
+.Cm %n
+conversion specifier has serious security implications, so it was changed to
+no longer store the number of bytes written so far into the variable indicated
+by the pointer argument.
+Instead a
+.Xr syslog 3
+message will be generated, after which the program is aborted with
+.Dv SIGABRT .
+.It Cm %o
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm #
+.Op Cm \- | 0
+.Op Ar width
+.Op . Ar mindigits
+.Op Ar size
+.Cm o
+.Sm on
+.Pp
+Similar to
+.Cm %u
+except that the
+.Vt unsigned int
+argument is converted to unsigned octal notation.
+If the
+.Sq Cm #
+flag is given,
+.Ar mindigits
+is increased such that the first digit printed is a zero,
+except if a zero value is printed with an explicit
+.Ar mindigits
+of zero.
+.It Cm \&%O
+A deprecated alias for
+.Cm %lo .
+.It Cm %p
+The
+.Vt void *
+pointer argument is printed in hexadecimal, similar to
+.Cm %#x
+or
+.Cm %#lx
+depending on the size of pointers.
+.It Cm %s
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm \-
+.Op Ar width
+.Op . Ar maxbytes
+.Cm s
+.Sm on
+.Pp
+Characters from the
+.Vt char * Pq string
+argument are written up to (but not including) a terminating NUL character.
+If
+.Ar maxbytes
+is specified, at most
+.Ar maxbytes
+bytes are written; in that case, no NUL character needs to be present.
+.It Cm %ls
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm \-
+.Op Ar width
+.Op . Ar maxbytes
+.Cm ls
+.Sm on
+.Pp
+The
+.Vt wchar_t * Pq wide character string
+argument is converted to a multibyte character string
+according to the current
+.Dv LC_CTYPE
+.Xr locale 1
+up to (but not including) a terminating NUL character,
+and that multibyte character string is written.
+If
+.Ar maxbytes
+is specified, at most
+.Ar maxbytes
+bytes are written; in that case, no NUL character needs to be present.
+If a multibyte character does not fit into the rest of
+.Ar maxbytes ,
+it is omitted together with the rest of the argument string;
+partial characters are not written.
+Locale dependency and padding work in the same way as for
+.Cm %lc .
+.It Cm %u
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm \- | 0
+.Op Ar width
+.Op . Ar mindigits
+.Op Ar size
+.Cm u
+.Sm on
+.Pp
+The
+.Vt unsigned int
+argument is converted to unsigned decimal notation.
+If specified, at least
+.Ar mindigits
+are printed, padding with leading zeros if needed.
+The following are similar to
+.Cm %u
+except that they take an argument of a different size:
+.Bl -column %hhu
+.It Cm %hhu Ta Vt unsigned char
+.It Cm %hu  Ta Vt unsigned short
+.It Cm %u   Ta Vt unsigned int
+.It Cm %lu  Ta Vt unsigned long Pq percent ell u
+.It Cm %llu Ta Vt unsigned long long Pq percent ell ell u
+.It Cm %ju  Ta Vt uintmax_t
+.It Cm %tu  Ta unsigned type of same size as Vt ptrdiff_t
+.It Cm %zu  Ta Vt size_t
+.It Cm %qu  Ta Vt u_quad_t Pq deprecated
+.El
+.It Cm \&%U
+A deprecated alias for
+.Cm %lu .
+.It Cm %x
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm #
+.Op Cm \- | 0
+.Op Ar width
+.Op . Ar mindigits
+.Op Ar size
+.Cm x
+.Sm on
+.Pp
+Similar to
+.Cm %u
+except that the
+.Vt unsigned int
+argument is converted to unsigned hexadecimal notation using the digits
+.Ql 0123456789abcdef .
+If the
+.Sq Cm #
+flag is given, the string
+.Ql 0x
+is prepended unless the value is zero.
+.It Cm \&%X
+Identical to
+.Cm %x
+except that upper case is used, i.e.\&
+.Ql 0X
+for the optional prefix and
+.Ql 0123456789ABCDEF
+for the digits.
+.It Cm %%
+A single percent sign
+.Pq Ql %
+is written.
+No argument is converted.
+The complete conversion specification is
+.Ql %% ;
+no modifiers can be inserted between the two percent signs.
+.El
+.Sh RETURN VALUES
+For all these functions if an output or encoding error occurs, a value
+less than 0 is returned.
+.Pp
+The
+.Fn printf ,
+.Fn dprintf ,
+.Fn fprintf ,
+.Fn sprintf ,
+.Fn vprintf ,
+.Fn vdprintf ,
+.Fn vfprintf ,
+.Fn vsprintf ,
+.Fn asprintf ,
+and
+.Fn vasprintf
+functions
+return the number of bytes printed
+(not including the trailing
+.Ql \e0
+used to end output to strings).
+.Pp
+The
+.Fn snprintf
+and
+.Fn vsnprintf
+functions return the number of bytes that would have
+been output if the
+.Fa size
+were unlimited
+.Po
+again, not including the final
+.Ql \e0
+.Pc .
+A return value greater than or equal to the
+.Fa size
+argument indicates that the string was too small and some characters
+were discarded.
+.Pp
+The
+.Fn asprintf
+and
+.Fn vasprintf
+functions return the number of bytes that were output
+to the newly allocated string
+(excluding the final
+.Ql \e0 ) .
+A pointer to the newly allocated string is returned in
+.Fa ret ;
+it should be passed to
+.Xr free 3
+to release the allocated storage
+when it is no longer needed.
+If sufficient space cannot be allocated or some other error occurs,
+these functions return \-1.
+The value of
+.Fa ret
+in this situation is implementation-dependent.
+On
+.Ox ,
+.Fa ret
+is set to the
+.Dv NULL
+pointer, but other implementations may leave
+.Fa ret
+unchanged.
+.Sh ENVIRONMENT
+.Bl -tag -width LC_CTYPE
+.It Ev LC_CTYPE
+The character encoding
+.Xr locale 1 .
+It decides which
+.Vt wchar_t
+values represent valid wide characters for the
+.Cm %lc
+and
+.Cm %ls
+conversion specifiers and how they are encoded into multibyte characters.
+If unset or set to
+.Qq C ,
+.Qq POSIX ,
+or an unsupported value,
+.Cm %lc
+and
+.Cm %ls
+only work correctly for ASCII characters
+and fail for arguments greater than 255.
+.El
+.Sh EXAMPLES
+To print a date and time in the form `Sunday, July 3, 10:02',
+where
+.Va weekday
+and
+.Va month
+are pointers to strings:
+.Bd -literal -offset indent
+#include <stdio.h>
+
+fprintf(stdout, "%s, %s %d, %.2d:%.2d\en",
+    weekday, month, day, hour, min);
+.Ed
+.Pp
+To print \*(Pi
+to five decimal places:
+.Bd -literal -offset indent
+#include <math.h>
+#include <stdio.h>
+
+fprintf(stdout, "pi = %.5f\en", 4 * atan(1.0));
+.Ed
+.Pp
+To allocate a 128-byte string and print into it:
+.Bd -literal -offset indent
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+char *
+newfmt(const char *fmt, ...)
+{
+	char *p;
+	va_list ap;
+
+	if ((p = malloc(128)) == NULL)
+		return (NULL);
+	va_start(ap, fmt);
+	(void) vsnprintf(p, 128, fmt, ap);
+	va_end(ap);
+	return (p);
+}
+.Ed
+.Sh ERRORS
+In addition to the errors documented for the
+.Xr write 2
+system call, the
+.Fn printf
+family of functions may fail if:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+An invalid wide character code was encountered.
+.It Bq Er ENOMEM
+Insufficient storage space is available.
+.It Bq Er EOVERFLOW
+The return value would be too large to be represented by an
+.Vt int .
+.El
+.Sh SEE ALSO
+.Xr printf 1 ,
+.Xr scanf 3 ,
+.Xr wprintf 3
+.Sh STANDARDS
+The
+.Fn fprintf ,
+.Fn printf ,
+.Fn snprintf ,
+.Fn sprintf ,
+.Fn vfprintf ,
+.Fn vprintf ,
+.Fn vsnprintf ,
+and
+.Fn vsprintf
+functions conform to
+.St -isoC-99 .
+The
+.Fn dprintf ,
+.Fn vdprintf ,
+.Fn asprintf ,
+and
+.Fn vasprintf
+functions conform to
+.St -p1003.1-2024 .
+.Sh HISTORY
+The predecessors
+.Fn ftoa
+and
+.Fn itoa
+first appeared in
+.At v1 .
+The function
+.Fn printf
+first appeared in
+.At v2 ,
+and
+.Fn fprintf
+and
+.Fn sprintf
+in
+.At v7 .
+.Pp
+The functions
+.Fn snprintf
+and
+.Fn vsnprintf
+first appeared in
+.Bx 4.3 Net/2 .
+.Pp
+The functions
+.Fn asprintf
+and
+.Fn vasprintf
+first appeared in the GNU C library.
+This implementation first appeared in
+.Ox 2.3 .
+.Pp
+The functions
+.Fn dprintf
+and
+.Fn vdprintf
+first appeared in
+.Ox 5.3 .
+.Sh CAVEATS
+The conversion formats
+.Cm \&%D ,
+.Cm \&%O ,
+and
+.Cm \&%U
+are not standard and
+are provided only for backward compatibility.
+The effect of padding the
+.Cm %p
+format with zeros (either by the
+.Sq Cm 0
+flag or by specifying a precision), and the benign effect (i.e., none)
+of the
+.Sq Cm #
+flag on
+.Cm %n
+and
+.Cm %p
+conversions, as well as other
+nonsensical combinations such as
+.Cm %Ld ,
+are not standard; such combinations
+should be avoided.
+.Pp
+Because
+.Fn sprintf
+and
+.Fn vsprintf
+assume an infinitely long string,
+callers must be careful not to overflow the actual space;
+this is often impossible to assure.
+For safety, programmers should use the
+.Fn snprintf
+and
+.Fn asprintf
+family of interfaces instead.
+Unfortunately, the
+.Fn asprintf
+interface is not available on all systems as it is not part of
+.St -isoC-99 .
+.Pp
+It is important never to pass a string with user-supplied data as a
+format without using
+.Ql %s .
+An attacker can put format specifiers in the string to mangle the stack,
+leading to a possible security hole.
+This holds true even if the string has been built
+.Dq by hand
+using a function like
+.Fn snprintf ,
+as the resulting string may still contain user-supplied conversion specifiers
+for later interpolation by
+.Fn printf .
+.Pp
+Be sure to use the proper secure idiom:
+.Bd -literal -offset indent
+int ret = snprintf(buffer, sizeof(buffer), "%s", string);
+if (ret < 0 || (size_t)ret >= sizeof(buffer))
+	goto toolong;
+.Ed
+.Pp
+There is no way for
+.Fn printf
+to know the size of each argument passed.
+If positional arguments are used, care must be taken to ensure that all
+parameters, up to the
+last positionally specified parameter, are used in the format string.
+This allows for the format string to be parsed for this information.
+Failure to do this will mean the code is non-portable and liable to fail.
+.Pp
+On systems other than
+.Ox ,
+the
+.Dv LC_NUMERIC
+.Xr locale 1
+category can cause erratic output; see CAVEATS in
+.Xr setlocale 3
+for details.

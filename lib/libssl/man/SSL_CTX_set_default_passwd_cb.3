@@ -1,0 +1,217 @@
+.\" $OpenBSD: SSL_CTX_set_default_passwd_cb.3,v 1.10 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL 9b86974e Aug 17 15:21:33 2015 -0400
+.\" selective merge up to: OpenSSL 18bad535 Apr 9 15:13:55 2019 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Lutz Jaenicke <jaenicke@openssl.org>
+.\" and Christian Heimes <cheimes@redhat.com>.
+.\" Copyright (c) 2000, 2001, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_DEFAULT_PASSWD_CB 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_default_passwd_cb ,
+.Nm SSL_CTX_set_default_passwd_cb_userdata ,
+.Nm SSL_CTX_get_default_passwd_cb ,
+.Nm SSL_CTX_get_default_passwd_cb_userdata
+.Nd set or get passwd callback for encrypted PEM file handling
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft void
+.Fn SSL_CTX_set_default_passwd_cb "SSL_CTX *ctx" "pem_password_cb *cb"
+.Ft void
+.Fn SSL_CTX_set_default_passwd_cb_userdata "SSL_CTX *ctx" "void *userdata"
+.Ft pem_password_cb *
+.Fn SSL_CTX_get_default_passwd_cb "SSL_CTX *ctx"
+.Ft void *
+.Fn SSL_CTX_get_default_passwd_cb_userdata "SSL_CTX *ctx"
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_default_passwd_cb
+sets the password callback for loading a certificate or private key
+from encrypted PEM format.
+In particular, the callback is used by
+.Xr SSL_CTX_use_certificate_file 3 ,
+.Xr SSL_use_certificate_file 3 ,
+.Xr SSL_CTX_use_certificate_chain_file 3 ,
+.Xr SSL_use_certificate_chain_file 3 ,
+.Xr SSL_CTX_use_certificate_chain_mem 3 ,
+.Xr SSL_CTX_use_PrivateKey_file 3 ,
+.Xr SSL_use_PrivateKey_file 3 ,
+.Xr SSL_CTX_use_RSAPrivateKey_file 3 ,
+and
+.Xr SSL_use_RSAPrivateKey_file 3 .
+.Pp
+The function pointer type of the
+.Fa cb
+argument is documented in the
+.Xr pem_password_cb 3
+manual page.
+If
+.Fn SSL_CTX_set_default_passwd_cb
+is not called on
+.Fa ctx
+or if it is called with a
+.Fa cb
+argument of
+.Dv NULL ,
+.Xr PEM_def_callback 3
+is used instead.
+.Pp
+.Fn SSL_CTX_set_default_passwd_cb_userdata
+sets a pointer to the
+.Fa userdata
+which will be provided to the password callback on invocation.
+.Pp
+Since the
+.Fa cb
+passed to
+.Fn SSL_CTX_set_default_passwd_cb
+will only be used for reading and decryption and not for writing and
+encryption, the library will only call it with a
+.Fa verify
+argument of 0.
+.Pp
+If an application program only needs to read and decrypt
+one single private key, it can be practical to have the
+callback handle the password dialog interactively.
+This happens by default if neither
+.Fn SSL_CTX_set_default_passwd_cb
+nor
+.Fn SSL_CTX_set_default_passwd_cb_userdata
+is called.
+In that case, the library uses
+.Xr PEM_def_callback 3
+with a
+.Fa userdata
+argument of
+.Dv NULL .
+.Pp
+If several keys have to be handled, it can be practical
+to ask for the password once, for example using
+.Xr UI_UTIL_read_pw_string 3 ,
+then keep it in memory and use it several times by passing a pointer to it to
+.Fn SSL_CTX_set_default_passwd_cb_userdata .
+.Xr PEM_def_callback 3
+is able to handle this case, too, so calling
+.Fn SSL_CTX_set_default_passwd_cb
+is not needed in this case either.
+.Pp
+Other items in PEM formatting (certificates) can also be encrypted; it is
+however atypical, as certificate information is considered public.
+.Sh RETURN VALUES
+.Fn SSL_CTX_get_default_passwd_cb
+returns a function pointer to the password callback currently set in
+.Fa ctx ,
+or
+.Dv NULL
+if none is set.
+.Pp
+.Fn SSL_CTX_get_default_passwd_cb_userdata
+returns a pointer to the userdata currently set in
+.Fa ctx ,
+or
+.Dv NULL
+if none is set.
+.Sh EXAMPLES
+The following example provides a subset of the functionality of
+.Xr PEM_def_callback 3 ,
+except that
+.Xr PEM_def_callback 3
+does not NUL-terminate and copies up to
+.Fa size
+rather than
+.Fa size No \- 1
+bytes.
+It interprets
+.Fa userdata
+as a NUL-terminated string and copies it to the
+.Fa password
+buffer, truncating the copy if it does not fit.
+.Bd -literal
+int
+trivial_passwd_cb(char *password, int size, int verify, void *userdata)
+{
+	strlcpy(password, userdata, size);
+	return strlen(password);
+}
+.Ed
+.Sh SEE ALSO
+.Xr pem_password_cb 3 ,
+.Xr ssl 3 ,
+.Xr SSL_CTX_use_certificate 3
+.Sh HISTORY
+.Fn SSL_CTX_set_default_passwd_cb
+first appeared in SSLeay 0.6.2 and has been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_CTX_set_default_passwd_cb_userdata
+first appeared in OpenSSL 0.9.4 and has been available since
+.Ox 2.6 .
+.Pp
+.Fn SSL_CTX_get_default_passwd_cb
+and
+.Fn SSL_CTX_get_default_passwd_cb_userdata
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.3 .

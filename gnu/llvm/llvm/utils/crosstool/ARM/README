@@ -1,0 +1,37 @@
+HOWTO create an LLVM crosstool from x86_64/Linux to ARM/Linux
+=============================================================
+
+1. % llvm/utils/crosstool/create-snapshots.sh
+
+   This will create llvm-[REV_L].tar.bz2 and llvm-gcc-4.2-[REV_G].tar.bz2,
+   where:
+     REV_L is the revision at which "llvm" was checked out, and
+     REV_G is the revision at which "llvm-gcc-4.2" was checked out
+
+   Note that REV_L might REV_G might not be the same revision.
+
+2. Download CodeSourcery toolchain.  The exact location depends on your
+   $CROSS_TARGET but the script will tell you what the location of the file is
+   if you run it without having the file available.
+
+   For example, if you're using $CROSS_TARGET == "arm-none-linux-gnueabi" then
+   you need to download:
+
+   http://www.codesourcery.com/sgpp/lite/arm/portal/package1787/public/arm-none-linux-gnueabi/arm-2007q3-51-arm-none-linux-gnueabi-i686-pc-linux-gnu.tar.bz2
+
+   NOTE: simply changing $CROSS_TARGET and modifying the URL accordingly will
+   not work -- you'll need to go to http://www.codesourcery.com and find the
+   correct file, as the release number in the file will also be different (e.g.,
+   in the file above, the release number is "51").
+
+3. You can override most values in the script without modifying it, e.g.
+   $INSTALL_ROOT (if you want to install in directory other than /usr/local).
+
+   Run the script as:
+
+   % env INSTALL_ROOT=[dir to install in] \
+         CODE_SOURCERY_PKG_PATH=[dir where you downloaded CodeSourcery tarball] \
+         LLVM_PKG_PATH=[dir where you stored your LLVM and LLVM-GCC snapshots] \
+         LLVM_SVN_REV=${REV_L} \
+         LLVMGCC_SVN_REV=${REV_G} \
+         build-install-linux.sh

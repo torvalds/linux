@@ -1,0 +1,16 @@
+# FIXME: The doubled backslashes occur under windows.  That's almost surely a
+# lit issue beyond DEFINE/REDEFINE.
+
+# Escape sequences that can appear in python re.sub replacement strings have no
+# special meaning in the value.
+
+# DEFINE: %{escape} = \g<0>\n
+# RUN: echo '%{escape}'
+# CHECK:# | {{\\?}}\g<0>{{\\?}}\n
+
+# REDEFINE: %{escape} = \n                                                     \
+# REDEFINE:             \g<param>
+# RUN: echo '%{escape}'
+# CHECK:# | {{\\?}}\n {{\\?}}\g<param>
+
+# CHECK: Passed: 1 {{\([0-9]*.[0-9]*%\)}}

@@ -1,0 +1,209 @@
+.\" $OpenBSD: eoip.4,v 1.8 2023/07/26 20:23:22 jmc Exp $
+.\" $NetBSD: gre.4,v 1.10 1999/12/22 14:55:49 kleink Exp $
+.\"
+.\" Copyright 1998 (c) The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Heiko W. Rupp <hwr@pilhuhn.de>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 26 2023 $
+.Dt EOIP 4
+.Os
+.Sh NAME
+.Nm eoip
+.Nd MikroTik Ethernet over IP tunnel network device
+.Sh SYNOPSIS
+.Cd "pseudo-device gre"
+.Sh DESCRIPTION
+The
+.Nm
+interface provides tunnelling of Ethernet frames across
+IPv4 and IPv6 networks using the
+MikroTik Ethernet over IP (EoIP) encapsulation protocol.
+.Pp
+The protocol is based on the Generic Routing and Encapsulation (GRE)
+protocol.
+GRE datagrams (IP protocol number 47) consist of a GRE header
+and an outer IP header for encapsulating another protocol's datagram.
+The GRE header specifies a version and the type of the encapsulated datagram,
+allowing for the tunnelling of multiple protocols.
+EoIP uses GRE version 1, its own protocol identifier (0x6400)
+for Ethernet, and has its own keepalive semantics,
+making it distinct from the Ethernet over GRE version 0 protocol
+supported by
+.Xr egre 4 .
+However, it is implemented as part of the same driver providing
+.Xr egre 4 .
+.Pp
+Different tunnels between the same endpoints are distinguished
+by a 16-bit tunnel identifier field in the header.
+.Pp
+All GRE packet processing in the system is allowed or denied by setting the
+.Va net.inet.gre.allow
+.Xr sysctl 8
+variable.
+To allow GRE packet processing, set
+.Va net.inet.gre.allow
+to 1.
+.Pp
+.Nm
+interfaces can be created at runtime using the
+.Ic ifconfig eoip Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+.Pp
+For correct operation, encapsulated traffic must not be routed
+over the interface itself.
+This can be implemented by adding a distinct or a more specific
+route to the tunnel destination than the hosts or networks routed
+via the tunnel interface.
+Alternatively, the tunnel traffic may be configured in a separate
+routing table to the encapsulated traffic.
+.Ss Programming Interface
+.Nm
+interfaces support the following
+.Xr ioctl 2
+calls for configuring tunnel options:
+.Bl -tag -width indent -offset 3n
+.It Dv SIOCSLIFPHYADDR Fa "struct if_laddrreq *"
+Set the unicast IPv4 or IPv6 addresses for the encapsulating IP packets.
+The addresses may only be configured while the interface is down.
+.It Dv SIOCGLIFPHYADDR Fa "struct if_laddrreq *"
+Get the addresses used for the encapsulating IP packets.
+.It Dv SIOCDIFPHYADDR Fa "struct ifreq *"
+Clear the addresses used for the encapsulating IP packets.
+The addresses may only be cleared while the interface is down.
+.It Dv SIOCSVNETID Fa "struct ifreq *"
+Configure a virtual network identifier for use as the Tunnel Identifier.
+The virtual network identifier may only be configured while the
+interface is down.
+The Tunnel Identifier is a 16-bit value.
+.It Dv SIOCGVNETID Fa "struct ifreq *"
+Get the virtual network identifier used in the GRE Key header.
+.It Dv SIOCSLIFPHYRTABLE Fa "struct ifreq *"
+Set the routing table the tunnel traffic operates in.
+The routing table may only be configured while the interface is down.
+.It Dv SIOCGLIFPHYRTABLE Fa "struct ifreq *"
+Get the routing table the tunnel traffic operates in.
+.It Dv SIOCSLIFPHYTTL Fa "struct ifreq *"
+Set the Time-To-Live field in IPv4 encapsulation headers, or the
+Hop Limit field in IPv6 encapsulation headers.
+.It Dv SIOCGLIFPHYTTL Fa "struct ifreq *"
+Get the value used in the Time-To-Live field in an IPv4 encapsulation
+header or the Hop Limit field in an IPv6 encapsulation header.
+.It Dv SIOCSLIFPHYDF Fa "struct ifreq *"
+Configure whether the tunnel traffic sent by the interface can be
+fragmented or not.
+This sets the Don't Fragment (DF) bit on IPv4 packets,
+and disables fragmentation of IPv6 packets.
+.It Dv SIOCGLIFPHYDF Fa "struct ifreq *"
+Get whether the tunnel traffic sent by the interface can be fragmented
+or not.
+.It Dv SIOCSTXHPRIO Fa "struct ifreq *"
+Set the priority value used in the Type of Service field in IPv4
+headers, or the Traffic Class field in IPv6 headers.
+Values may be from 0 to 7, or
+.Dv IF_HDRPRIO_PACKET
+to specify that the current priority of a packet should be used.
+.It Dv SIOCGTXHPRIO Fa "struct ifreq *"
+Get the priority value used in the Type of Service field in IPv4
+headers, or the Traffic Class field in IPv6 headers.
+.It Dv SIOCSETKALIVE Fa "struct ifkalivereq *"
+Enable the transmission of keepalive packets to detect tunnel failure.
+Keepalives may only be configured while the interface is down.
+.Pp
+Setting the keepalive period or count to 0 disables keepalives on
+the tunnel.
+.It Dv SIOCGETKALIVE Fa "struct ifkalivereq *"
+Get the configuration of keepalive packets.
+.El
+.Ss Security Considerations
+EoIP does not provide any integrated security features.
+It should only be deployed on trusted private networks,
+or protected with IPsec to add authentication and encryption for
+confidentiality.
+IPsec is especially recommended when transporting EoIP over the
+public internet.
+.Pp
+The Packet Filter
+.Xr pf 4
+can be used to filter tunnel traffic with endpoint policies
+.Xr pf.conf 5 .
+.Pp
+The Time-to-Live (TTL) value of a tunnel can be set to 1 or a low
+value to restrict the traffic to the local network:
+.Bd -literal -offset indent
+# ifconfig eoipN tunnelttl 1
+.Ed
+.Sh EXAMPLES
+.Bd -literal
+Host X ---- Host A ------------ tunnel ----------- MikroTik D --- Host E
+               \e                                      /
+                \e                                    /
+                 +------ Host B ------ Host C ------+
+.Ed
+.Pp
+On Host A
+.Pq Ox :
+.Bd -literal -offset indent
+# route add default B
+# ifconfig eoipN create
+# ifconfig eoipN tunnel A D
+# ifconfig eoipN up
+# route add E D
+.Ed
+.Pp
+On Host D (MikroTik):
+.Bd -literal -offset indent
+[admin@MikroTik] > interface eoip
+[admin@MikroTik] /interface eoip> add name="eoipN" \e
+\e... local-address=D remote-address=A
+[admin@MikroTik] /interface eoip> enable eoipN
+.Ed
+.Sh SEE ALSO
+.Xr egre 4 ,
+.Xr inet 4 ,
+.Xr ip 4 ,
+.Xr netintro 4 ,
+.Xr options 4 ,
+.Xr hostname.if 5 ,
+.Xr protocols 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8 ,
+.Xr sysctl 8
+.Sh STANDARDS
+.Rs
+.%A S. Hanks
+.%A "T. Li"
+.%A D. Farinacci
+.%A P. Traina
+.%D October 1994
+.%R RFC 1701
+.%T Generic Routing Encapsulation (GRE)
+.Re
+.Sh AUTHORS
+.An David Gwynne Aq Mt dlg@openbsd.org

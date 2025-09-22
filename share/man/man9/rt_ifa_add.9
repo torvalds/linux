@@ -1,0 +1,121 @@
+.\"	$OpenBSD: rt_ifa_add.9,v 1.6 2019/02/13 23:47:43 dlg Exp $
+.\"
+.\" Copyright (c) 2014 Martin Pieuchot
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 13 2019 $
+.Dt RT_IFA_ADD 9
+.Os
+.Sh NAME
+.Nm rt_ifa_add ,
+.Nm rt_ifa_del ,
+.Nm rt_ifa_addlocal ,
+.Nm rt_ifa_dellocal
+.Nd add or delete routing entries associated with an address
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In net/if.h
+.In net/route.h
+.Ft int
+.Fo rt_ifa_add
+.Fa "struct ifaddr *ifa"
+.Fa "int flags"
+.Fa "struct sockaddr *dst"
+.Fa "unsigned int rdomain"
+.Fc
+.Ft int
+.Fo rt_ifa_del
+.Fa "struct ifaddr *ifa"
+.Fa "int flags"
+.Fa "struct sockaddr *dst"
+.Fa "unsigned int rdomain"
+.Fc
+.Ft int
+.Fn rt_ifa_addlocal "struct ifaddr *ifa"
+.Ft int
+.Fn rt_ifa_dellocal "struct ifaddr *ifa"
+.Sh DESCRIPTION
+These functions create and delete routing entries required by the network
+stack and managed by the kernel.
+.Bl -tag -width rt_ifa_addlocalxx
+.It Fn rt_ifa_add
+Creates and associates a connected routing entry with
+.Fa ifa
+in the routing domain specified by
+.Fa rdomain .
+.Pp
+Connected routing entries represent routes to prefixes and should be created
+with
+.Dv RTF_CLONING
+in
+.Fa flags
+and the address of
+.Fa ifa
+in
+.Fa dst .
+But for Point-to-Point interfaces, connected routing entries represent routes
+to hosts and should be created
+with
+.Dv RTF_HOST
+in
+.Fa flags
+and the destination address in
+.Fa dst .
+Connected routing entries have a priority of
+.Dv RTP_CONNECTED .
+.It Fn rt_ifa_del
+Removes the connected routing entry associated with
+.Fa ifa
+in the routing domain specified by
+.Fa rdomain .
+.It Fn rt_ifa_addlocal
+Creates and associates a local routing entry
+with
+.Fa ifa .
+.Pp
+Local routing entries are used to not send packets destined to a local
+address on the wire and instead redirect them to
+.Xr lo 4 .
+They have the lowest priority available,
+.Dv RTP_LOCAL ,
+and contain a special flag,
+.Dv RTF_LOCAL ,
+that can be checked to determine if the address is configured on the system.
+.It Fn rt_ifa_dellocal
+Removes the local routing entry associated with
+.Fa ifa .
+.El
+.Sh CONTEXT
+.Fn rt_ifa_add ,
+.Fn rt_ifa_del ,
+.Fn rt_ifa_addlocal ,
+and
+.Fn rt_ifa_dellocal
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn rt_ifa_add ,
+.Fn rt_ifa_del ,
+.Fn rt_ifa_addlocal ,
+and
+.Fn rt_ifa_dellocal
+will return
+.Dv 0
+on success and the return value of
+.Xr rtrequest 9
+otherwise.
+.Sh SEE ALSO
+.Xr lo 4 ,
+.Xr route 4 ,
+.Xr rtrequest 9

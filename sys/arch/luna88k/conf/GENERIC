@@ -1,0 +1,100 @@
+#	$OpenBSD: GENERIC,v 1.25 2024/11/28 13:13:03 aoyama Exp $
+#
+# For further information on compiling OpenBSD kernels, see the config(8)
+# man page.
+#
+# For further information on hardware support for this architecture, see
+# the intro(4) man page.  For further information about kernel options
+# for this architecture, see the options(4) man page.  For an explanation
+# of each device driver in this file see the section 4 man page for the
+# device.
+
+machine		luna88k m88k
+include		"../../../conf/GENERIC"
+maxusers	64			# estimated number of users
+
+# Processor type
+option		M88100		# 88100 support; mandatory
+
+# Number of maximum processors
+option		MAX_CPUS=4	# may have up to 4 processors 
+
+# Define this if your processor has the xxx.usr bug (mask C82N)
+option		ERRATA__XXX_USR
+
+# Options for luna88k hardware
+option		WSDISPLAY_COMPAT_RAWKBD	# Provide raw scancodes; needed for X11
+
+# In case of limiting LANCE's 3 port RAM allocation to 32KB
+#option		TRI_PORT_RAM_LANCE_SIZE=0x8000
+
+config		bsd		swap generic
+
+#
+# devices
+#
+
+mainbus0	at root
+clock0		at mainbus0
+lcd0		at mainbus0
+le0		at mainbus0
+sio0		at mainbus0
+siotty0		at sio0
+ws0		at sio0
+fb0		at mainbus0
+spc0		at mainbus0
+spc1		at mainbus0
+
+# Workstation Console attachments
+wsdisplay*	at fb?
+wskbd*		at ws? mux 1
+wsmouse*	at ws? mux 0
+
+# HD647180X I/O processor
+xp0		at mainbus0
+
+# PC-9801 extension board slot
+cbus0		at mainbus0
+
+# PC-9801 extension board slot 'generic' driver
+pcex0		at cbus0
+
+# NE2000 ethernet
+#ne0		at cbus0 port 0xc8d0 int 0	# CentreCOM LA-98
+
+# NEC PC-9801-86 sound board 
+#necsb*		at cbus?
+#audio*		at necsb?
+
+# NEC PC-9801-102 & PC-9821X[AE]-E01 PC Card slot adapter
+#pcic0		at cbus? port 0x3e0 iomem 0xd0000 iosiz 0x10000
+#pcmcia*	at pcic?
+
+# SCSI devices
+scsibus*	at scsi?
+sd*		at scsibus?
+st*		at scsibus?
+cd*		at scsibus?
+ch*		at scsibus?
+safte*		at scsibus?
+ses*		at scsibus?
+uk*		at scsibus?
+
+# Pseudo-device
+pseudo-device	wsmux 2
+
+# PCMCIA devices
+# XXX: malo(4) is not supported, because LUNA-88K does not have DMA.
+#com*		at pcmcia?		# PCMCIA modems/serial ports
+##aic*		at pcmcia?		# PCMCIA Adaptec 152[02] SCSI (not yet)
+#wdc*		at pcmcia?		# IDE controllers
+#ne*		at pcmcia?		# PCMCIA based NE2000 ethernet
+#ep*		at pcmcia?		# PCMCIA based 3C5xx ethernet
+#sm*		at pcmcia?		# PCMCIA based sm ethernet
+#xe*		at pcmcia?		# Xircom ethernet
+#wi*		at pcmcia?		# WaveLAN IEEE 802.11DS
+#an*		at pcmcia?		# Aironet IEEE 802.11DS
+
+# IDE/ATAPI (with PCMCIA)
+#wd*		at wdc?	flags 0x0000
+#atapiscsi*	at wdc?

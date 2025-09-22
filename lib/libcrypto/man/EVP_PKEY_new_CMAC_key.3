@@ -1,0 +1,160 @@
+.\" $OpenBSD: EVP_PKEY_new_CMAC_key.3,v 1.2 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_NEW_CMAC_KEY 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_new_CMAC_key
+.Nd CMAC in the EVP framework
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft EVP_PKEY *
+.Fo EVP_PKEY_new_CMAC_key
+.Fa "ENGINE *engine"
+.Fa "const unsigned char *key"
+.Fa "size_t key_len"
+.Fa "const EVP_CIPHER *cipher"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_PKEY_new_CMAC_key
+allocates a new
+.Vt EVP_PKEY
+object, sets its type to
+.Dv EVP_PKEY_CMAC ,
+and configures it as a wrapper around the low-level functions documented in
+.Xr CMAC_Init 3
+using the block
+.Fa cipher
+with the symmetric
+.Fa key
+that is
+.Fa key_len
+bytes long.
+.Pp
+Functions to obtain suitable
+.Vt EVP_CIPHER
+objects are listed in the CIPHER LISTING section of the
+.Xr EVP_EncryptInit 3
+manual page.
+Always use an object that implements the CBC mode of operation.
+As in
+.Xr CMAC_Init 3 ,
+only ciphers with a block size of either 64 or 128 bits
+are supported by this implementation.
+.Pp
+The
+.Fa engine
+argument is ignored; passing
+.Dv NULL
+is recommended.
+.Sh RETURN VALUES
+.Fn EVP_PKEY_new_CMAC_key
+returns the newly allocated
+.Vt EVP_PKEY
+structure or
+.Dv NULL
+if an error occurred.
+.Sh EXAMPLES
+The following code digests a message with AES-CMAC
+using the key length of 128 bits specified in RFC 4493.
+.Bd -literal -offset indent
+/* Bogus key: would normally be set from another source. */
+const unsigned char key[] = "symmetric secret";
+const size_t key_len = strlen(key);  /* 16 = 128/8 */
+
+const char *msg = "Hello World!";
+const size_t msg_len = strlen(msg);
+
+unsigned char out_mac[16];
+size_t out_len = sizeof(out_mac);
+size_t i;
+
+EVP_PKEY *pkey;
+EVP_MD_CTX *md_ctx;
+
+pkey = EVP_PKEY_new_CMAC_key(NULL, key, key_len, EVP_aes_128_cbc());
+if (pkey == NULL)
+	err(1, "EVP_PKEY_new_CMAC_key");
+md_ctx = EVP_MD_CTX_new();
+if (md_ctx == NULL)
+	err(1, "EVP_MD_CTX_new");
+
+if (EVP_DigestSignInit(md_ctx, NULL, NULL, NULL, pkey) == 0)
+	err(1, "EVP_DigestSignInit");
+if (EVP_DigestSign(md_ctx, out_mac, &out_len, msg, msg_len) == 0)
+	err(1, "EVP_DigestSign");
+EVP_MD_CTX_free(md_ctx);
+EVP_PKEY_free(pkey);
+
+printf(" MAC = ");
+for (i = 0; i < out_len; i++)
+	printf("%02x:", out_mac[i]);
+printf("\en");
+.Ed
+.Pp
+Consider the following details:
+.Bl -bullet -width 1n
+.It
+Even though the type name
+.Vt EVP_PKEY
+was originally intended to stand for
+.Dq private key
+and the
+.Xr EVP_DigestSignInit 3
+API was designed for digital signatures in the context
+of public key cryptography, both are also used here because a MAC
+also requires a key, even though that is a symmetric key.
+.It
+In contrast to digital signing which requires both a digest algorithm
+and a private key, the CMAC algorithm only requires a block cipher
+and a shared key, both of which are stored in the somewhat abused
+.Vt EVP_PKEY
+object.
+Consequently, the
+.Vt "EVP_MD *type"
+argument of
+.Xr EVP_DigestSignInit 3
+has to be set to
+.Dv NULL .
+.It
+The size of the resulting message digest equals the block size
+of the used cipher.
+.It
+The function
+.Xr EVP_DigestSignInit 3
+does not transfer ownership of the
+.Fa pkey
+object to
+.Ft md_ctx
+but merely increments the reference count.
+Consequently, the caller is responsible for freeing the
+.Vt EVP_PKEY
+object when it is no longer needed.
+.El
+.Sh SEE ALSO
+.Xr CMAC_Init 3 ,
+.Xr evp 3 ,
+.Xr EVP_DigestSignInit 3 ,
+.Xr EVP_EncryptInit 3 ,
+.Xr EVP_PKEY_new 3
+.Sh STANDARDS
+RFC 4493: The AES-CMAC Algorithm
+.Sh HISTORY
+.Fn EVP_PKEY_new_CMAC_key
+first appeared in OpenSSL 1.1.1 and has been available since
+.Ox 6.9 .

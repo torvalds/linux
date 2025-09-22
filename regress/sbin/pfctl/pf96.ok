@@ -1,0 +1,5 @@
+myports = "5555 6666"
+moreports = "5555 6666 7777"
+pass in proto tcp from any to any port = 5555 flags S/SA
+pass in proto tcp from any to any port = 6666 flags S/SA
+pass in proto tcp from any to any port = 7777 flags S/SA

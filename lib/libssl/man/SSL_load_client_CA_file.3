@@ -1,0 +1,186 @@
+.\"	$OpenBSD: SSL_load_client_CA_file.3,v 1.10 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_LOAD_CLIENT_CA_FILE 3
+.Os
+.Sh NAME
+.Nm SSL_load_client_CA_file ,
+.Nm SSL_add_file_cert_subjects_to_stack ,
+.Nm SSL_add_dir_cert_subjects_to_stack
+.Nd load certificate names from files
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft STACK_OF(X509_NAME) *
+.Fn SSL_load_client_CA_file "const char *file"
+.Ft int
+.Fo SSL_add_file_cert_subjects_to_stack
+.Fa "STACK_OF(X509_NAME) *stack"
+.Fa "const char *file"
+.Fc
+.Ft int
+.Fo SSL_add_dir_cert_subjects_to_stack
+.Fa "STACK_OF(X509_NAME) *stack"
+.Fa "const char *dir"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_load_client_CA_file
+reads PEM formatted certificates from
+.Fa file
+and returns a new
+.Vt STACK_OF(X509_NAME)
+with the subject names found.
+While the name suggests the specific usage as a support function for
+.Xr SSL_CTX_set_client_CA_list 3 ,
+it is not limited to CA certificates.
+.Pp
+.Fn SSL_add_file_cert_subjects_to_stack
+is similar except that the names are added to the existing
+.Fa stack .
+.Pp
+.Fn SSL_add_dir_cert_subjects_to_stack
+calls
+.Fn SSL_add_file_cert_subjects_to_stack
+on every file in the directory
+.Fa dir .
+.Pp
+If a name is already on the stack, all these functions skip it and
+do not add it again.
+.Sh RETURN VALUES
+.Fn SSL_load_client_CA_file
+returns a pointer to the new
+.Vt STACK_OF(X509_NAME)
+or
+.Dv NULL on failure .
+.Pp
+.Fn SSL_add_file_cert_subjects_to_stack
+and
+.Fn SSL_add_dir_cert_subjects_to_stack
+return 1 for success or 0 for failure.
+.Pp
+All these functions treat empty files and directories as failures.
+.Pp
+In some cases of failure, the reason can be determined with
+.Xr ERR_get_error 3 .
+.Sh EXAMPLES
+Load names of CAs from a file and use it as a client CA list:
+.Bd -literal
+SSL_CTX *ctx;
+STACK_OF(X509_NAME) *cert_names;
+\&...
+cert_names = SSL_load_client_CA_file("/path/to/CAfile.pem");
+if (cert_names != NULL)
+	SSL_CTX_set_client_CA_list(ctx, cert_names);
+else
+	error_handling();
+\&...
+.Ed
+.Sh SEE ALSO
+.Xr PEM_read_bio_X509 3 ,
+.Xr ssl 3 ,
+.Xr SSL_CTX_set_client_CA_list 3 ,
+.Xr X509_get_subject_name 3 ,
+.Xr X509_NAME_new 3
+.Sh HISTORY
+.Fn SSL_load_client_CA_file
+first appeared in SSLeay 0.8.0 and has been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_add_file_cert_subjects_to_stack
+and
+.Fn SSL_add_dir_cert_subjects_to_stack
+first appeared in OpenSSL 0.9.2b and have been available since
+.Ox 2.6 .
+.Sh AUTHORS
+.Fn SSL_add_file_cert_subjects_to_stack
+and
+.Fn SSL_add_dir_cert_subjects_to_stack
+were written by
+.An Ben Laurie Aq Mt ben@openssl.org
+in 1999.
+.Sh BUGS
+In some cases of failure, for example for empty files and directories,
+these functions fail to report an error, in the sense that
+.Xr ERR_get_error 3
+does not work.
+.Pp
+Even in case of failure, for example when parsing one of the
+files or certificates fails,
+.Fn SSL_add_file_cert_subjects_to_stack
+and
+.Fn SSL_add_dir_cert_subjects_to_stack
+may still have added some certificates to the stack.
+.Pp
+The behaviour of
+.Fn SSL_add_dir_cert_subjects_to_stack
+is non-deterministic.
+If parsing one file fails, parsing of the whole directory is aborted.
+Files in the directory are not parsed in any specific order.
+For example, adding an empty file to
+.Fa dir
+may or may not cause some of the other files to be ignored.

@@ -1,0 +1,11 @@
+#! /usr/bin/perl
+
+# minimal script to create packing-lists from scratch
+use strict;
+use warnings;
+
+print "\@owner ", (getpwuid $<)[0], "\n";
+print "\@group ", (getgrgid $()[0], "\n";
+for my $i (@ARGV) {
+	print $i, "\n";
+}

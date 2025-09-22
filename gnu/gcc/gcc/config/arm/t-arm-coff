@@ -1,0 +1,34 @@
+LIB1ASMSRC = arm/lib1funcs.asm
+LIB1ASMFUNCS = _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func _call_via_rX _interwork_call_via_rX
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	echo '#ifndef __ARMEB__' >> fp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >> fp-bit.c
+	echo '#endif' >> fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#ifndef __ARMEB__' > dp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >> dp-bit.c
+	echo '#define FLOAT_WORD_ORDER_MISMATCH' >> dp-bit.c
+	echo '#endif' >> dp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> dp-bit.c
+
+MULTILIB_OPTIONS  = mlittle-endian/mbig-endian mhard-float/msoft-float marm/mthumb mno-thumb-interwork/mthumb-interwork
+MULTILIB_DIRNAMES = le be fpu soft arm thumb normal interwork
+MULTILIB_MATCHES  = 
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+# Currently there is a bug somewhere in GCC's alias analysis
+# or scheduling code that is breaking _fpmul_parts in fp-bit.c.
+# Disabling function inlining is a workaround for this problem.
+TARGET_LIBGCC2_CFLAGS = -fno-inline

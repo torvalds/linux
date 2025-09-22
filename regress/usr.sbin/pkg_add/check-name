@@ -1,0 +1,136 @@
+#! /usr/bin/perl
+# $OpenBSD: check-name,v 1.15 2021/11/23 08:27:37 espie Exp $
+# Written by Marc Espie
+# Public domain
+
+use Test::Simple tests => 25;
+use OpenBSD::Search;
+use OpenBSD::PackageName;
+
+sub check_list
+{
+	my $expected = shift;
+	@_ = sort(@_);
+	if (@$expected != @_) {
+		print STDERR "length: ", scalar(@$expected)," vs. ", 
+		    scalar(@_), "\n";
+		    print STDERR join(',', @$expected), "\n";
+		    print STDERR join(',', @_), "\n";
+		return 0;
+	}
+	for my $i (0 .. @_ -1) {
+		if ($expected->[$i] ne $_[$i]) {
+			print STDERR "$expected->[$i] vs. $_[$i]\n";
+			return 0;
+		}
+	}
+	return 1;
+}
+
+sub check_pkgspec
+{
+	my ($s, @list) = @_;
+
+	my $o = OpenBSD::Search::PkgSpec->new($s);
+	return $o->filter(@list);
+}
+
+sub is_valid_spec
+{
+	my $s = shift;
+	return OpenBSD::Search::PkgSpec->new($s)->is_valid;
+}
+
+sub check_name
+{
+	my $s = shift;
+	return OpenBSD::PackageName->from_string($s)->has_issues;
+}
+
+sub check_order
+{
+	my @l = map {OpenBSD::PackageName->from_string($_)} @_;
+	while (my $a = shift @l) {
+		for my $b (@l) {
+			if ($a->compare($b) >= 0) {
+				print $a->to_string, " > ", $b->to_string, "\n";
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
+
+@list = qw(py-MxDateTime-2.0.1-py2.1);
+ok(check_list(\@list, 
+    check_pkgspec('py-MxDateTime->=2.0-py2.1', @list)),
+	'flavor with number');
+@list = qw(foo-1.0 foo-1.0p0 foo-1.0p25);
+ok(check_list([qw(foo-1.0)], 
+    check_pkgspec('foo-<1.0p0', @list)),
+	'before 1.0p0 came 1.0');
+ok(check_list([qw(foo-1.0 foo-1.0p0)], 
+    check_pkgspec('foo-<=1.0p0', @list)),
+	'1.0 and 1.0p0 both match <=1.0p0'); 
+ok(check_list([qw(foo-1.0 foo-1.0p0 foo-1.0p25)],
+    check_pkgspec('foo-1.0', @list)),
+	'any 1.0p* matches 1.0');
+@list = qw(foo-1.0rc2);
+ok(check_list(\@list,
+    check_pkgspec('foo-<1.0', @list)),                                         
+       'before 1.0 came 1.0rc2');                                              
+@list = qw(foo-1.0);
+ok(check_list(\@list,
+    check_pkgspec('foo-<1.0pl1', @list)),                                      
+       'before 1.0pl1 came 1.0');                                              
+
+my @pkglist=qw(foo-1.0 bar-2.0 foo-2.5 foobar-2.3-pouet hugs-noversion baz-0.0 
+	baz-1.1 baz-25.3 pouet-1.0 pouet-zoinx-1.0 pouet-0.0-foo);
+
+my $hash = OpenBSD::PackageName::compile_stemlist(@pkglist);
+
+ok(check_list([qw(bar-2.0)],
+    $hash->find('bar')),
+	'simple stem lookup');
+ok(check_list([qw(foo-1.0 foo-2.5)],
+    $hash->find('foo')),
+	'simple stem lookup with several results');
+ok(check_list([qw(baz-0.0 baz-1.1 baz-25.3)],
+    $hash->find('baz')),
+	'stem lookup, no duplicates');
+ok(check_list([qw(foobar-2.3-pouet)],
+    $hash->find('foobar')),
+	'stem lookup with flavor');
+ok(check_list([qw(pouet-0.0-foo pouet-1.0)],
+    $hash->find('pouet')),
+    	'complicated stem matching');
+ok(check_list([],
+    $hash->find('hugs')),
+    	'bogus stem matching with no version');
+ok(check_list([qw(hugs-noversion)],
+    $hash->find('hugs-noversion')),
+    	'stem matching with no version');
+ok(OpenBSD::PackageName->from_string('foo-1.0-f2-f1')->to_string
+    eq 'foo-1.0-f1-f2', 
+    	'canonical names');
+ok(!OpenBSD::Search::PkgSpec->new('foo-<>1.5')->is_valid, 
+	'invalid spec');
+
+ok(check_list(["is a stem"], check_name("pkgname-without-version")),
+	"pkgname without version");
+ok(check_list(["flavor 1flavor can't start with digit"],
+	check_name("pkgname-1.0-flavor-1flavor")),
+	"numerical flavor");
+ok(check_list(["correct order is pNvM"], check_name("pkgname-1.0v0p0")),
+	"mixed up vp");
+ok(check_list([], check_name("pkgname-1.0p0v0")), "correct name");
+
+ok(check_order(qw(speex-1.2alpha3 speex-1.2beta3 speex-1.2rc1 speex-1.2
+    speex-1.2pl1 speex-1.3beta1)), 'check order');
+
+ok(is_valid_spec("rsync->=3"), 'standard spec');
+ok(!is_valid_spec("rsync->=*"), 'invalid spec stem->=*');
+ok(!is_valid_spec("rsync-*.3"), 'invalid spec stem-*.3');
+#ok(!is_valid_spec("rsync->=3-"), "empty flavor spec");
+ok(!is_valid_spec("-3.5"), "empty stem");
+ok(!is_valid_spec("autoconf-*%2.59"), "branch specifier not okay in specs");

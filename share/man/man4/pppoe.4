@@ -1,0 +1,248 @@
+.\"	$OpenBSD: pppoe.4,v 1.36 2022/05/27 15:45:02 jmc Exp $
+.\"	$NetBSD: pppoe.4,v 1.26 2003/10/02 07:06:36 wiz Exp $
+.\"
+.\" Copyright (c) 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Martin Husemann <martin@NetBSD.org>.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 27 2022 $
+.Dt PPPOE 4
+.Os
+.Sh NAME
+.Nm pppoe
+.Nd PPP Over Ethernet protocol network interface
+.Sh SYNOPSIS
+.Cd "pseudo-device pppoe"
+.Sh DESCRIPTION
+The
+.Nm
+interface encapsulates
+.Em Point-to-Point Protocol (PPP)
+packets inside Ethernet frames as defined by RFC 2516.
+.Pp
+This is often used to connect a router via a DSL modem to
+an access concentrator.
+The
+.Nm
+interface does not by itself transmit or receive frames,
+but needs an Ethernet interface to do so.
+This Ethernet interface is connected to the
+.Nm
+interface via
+.Xr ifconfig 8 .
+The Ethernet interface needs to be marked UP, but does not need to have an
+IP address.
+.Pp
+There are two basic modes of operation, controlled via the
+.Em link1
+switch.
+The default mode,
+.Em link1
+not being set, tries to keep the configured session open all the
+time.
+If the session is disconnected, a new connection attempt is started
+immediately.
+The
+.Dq dial on demand
+mode, selected by setting
+.Em link1 ,
+only establishes a connection when data is being sent to the interface.
+.Pp
+Before a
+.Nm
+interface is usable, it needs to be configured.
+The following steps are necessary:
+.Bl -bullet
+.It
+Create the interface.
+.It
+Connect an Ethernet interface.
+This interface is used for the physical communication.
+As noted above it must be marked UP, but need not have an IP address.
+.It
+Configure authentication.
+The PPP session needs to identify the client to the peer.
+For more details on the available options see
+.Xr ifconfig 8 .
+.It
+If using IPv6, configure a link-local address.
+.El
+.Pp
+This all is typically accomplished using an
+.Pa /etc/hostname.pppoe0
+file.
+A typical file looks like this:
+.Bd -literal -offset indent
+inet 0.0.0.0 255.255.255.255 NONE \e
+	pppoedev em0 authproto pap \e
+	authname 'testcaller' authkey 'donttell' up
+dest 0.0.0.1
+inet6 eui64
+!/sbin/route add default -ifp pppoe0 0.0.0.1
+!/sbin/route add -inet6 default -ifp pppoe0 fe80::%pppoe0
+.Ed
+.Pp
+The physical interface must also be marked
+.Ql up :
+.Bd -literal -offset indent
+# echo "up" > /etc/hostname.em0
+.Ed
+.Pp
+Since this is a PPP interface, the addresses assigned to the interface
+may change during PPP negotiation.
+In the above example, 0.0.0.0 and 0.0.0.1 serve as placeholders for
+dynamic address configuration.
+.Pp
+If the local address is set to wildcard address 0.0.0.0, it will
+be changed to an address suggested by the peer.
+.Pp
+If the destination address is set to a wildcard address in the range
+from 0.0.0.1 to 0.0.0.255, it will be changed to an address suggested
+by the peer, and if a default route which uses this interface exists
+the gateway will be changed to the suggested address as well.
+.Pp
+Otherwise, PPP negotiation will only agree to exactly the IPv4 addresses
+which are configured on the interface.
+.Sh KERNEL OPTIONS
+.Nm
+does not interfere with other PPPoE implementations
+running on the same machine.
+However under some circumstances
+(such as after a crash or power failure)
+the peer device might initially refuse to
+reestablish a new PPPoE connection
+because there is already an open session.
+This would be indicated by the client sending a high number of PADI packets
+before successfully connecting.
+The
+.Nm
+driver can be told to kill all unknown PPPoE sessions
+by sending a PADT packet to explicitly terminate the old session.
+Add the following to the kernel config file:
+.Pp
+.Dl option PPPOE_TERM_UNKNOWN_SESSIONS
+.Sh PPPOE AND MTU/MSS
+PPPoE has an 8-byte header.
+When run over a network interface with the
+standard Ethernet maximum transmission unit (MTU) of 1500 bytes,
+this reduces the maximum available MTU to 1492.
+.Nm
+sets the default MTU to this value.
+Unfortunately issues can occur when the path between
+the two endpoints of a TCP connection are not able to carry
+same sized packets,
+leading to possible packet fragmentation and sometimes packet loss.
+In that case the maximum packet size can be set using the
+.Cm max-mss
+option in
+.Xr pf.conf 5 .
+For example:
+.Pp
+.Dl match on pppoe0 scrub (max-mss 1440)
+.Sh MTU/MSS NEGOTIATION
+When using a PPPoE device configured for a higher MTU ("jumbo frames"),
+the MTU for the
+.Nm
+device can also be raised.
+In this case
+.Nm
+attempts to negotiate the higher size with the other PPPoE endpoint
+using the RFC 4638 protocol.
+This can allow standard Ethernet packet sizes (1500 bytes)
+to be carried over PPPoE.
+For example, in
+.Pa /etc/hostname.pppoe0 :
+.Bd -literal -offset indent
+inet 0.0.0.0 255.255.255.255 NONE mtu 1500 \e
+	pppoedev em0 authproto pap \e
+	authname 'testcaller' authkey 'donttell' up
+dest 0.0.0.1
+!/sbin/route add default -ifp pppoe0 0.0.0.1
+.Ed
+.Pp
+The physical interface would also have to be configured correspondingly:
+.Bd -literal -offset indent
+# echo "up mtu 1508" > /etc/hostname.em0
+.Ed
+.Pp
+However, RFC 4638 negotiation only takes into account the MTU configured
+on the endpoints, not the maximum MTU supported on the path between them.
+If the path cannot pass the larger Ethernet frames, negotiation will succeed
+but the larger frames will be dropped.
+For this reason it is important to test the connection with large packets
+when enabling a higher MTU.
+.Sh SEE ALSO
+.Xr sppp 4 ,
+.Xr hostname.if 5 ,
+.Xr pf.conf 5 ,
+.Xr ifconfig 8
+.Sh STANDARDS
+.Rs
+.%A L. Mamakos
+.%A K. Lidl
+.%A J. Evarts
+.%A D. Carrel
+.%A D. Simone
+.%A R. Wheeler
+.%D February 1999
+.%R RFC 2516
+.%T A Method for Transmitting PPP Over Ethernet (PPPoE)
+.Re
+.Pp
+.Rs
+.%A P. Arberg
+.%A D. Kourkouzelis
+.%A M. Duckett
+.%A T. Anschutz
+.%A J. Moisand
+.%D September 2006
+.%R RFC 4638
+.%T Accommodating a Maximum Transit Unit/Maximum Receive Unit (MTU/MRU) Greater Than 1492 in the Point-to-Point Protocol over Ethernet (PPPoE)
+.Re
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 3.7 .
+.Sh BUGS
+This implementation is client side only.
+.Pp
+It is important to specify
+.Dq Li netmask 255.255.255.255
+to
+.Xr ifconfig 8 .
+If the netmask is unspecified, it will be set to 8 when 0.0.0.0 is
+configured to the interface, and it will persist after negotiation.
+.Pp
+The presence of a
+.Xr mygate 5
+file will interfere with the routing table.
+Make sure this file is either empty or does not exist.
+.Pp
+Two
+.Nm
+interfaces configured with the same wildcard destination address
+cannot share a routing table.

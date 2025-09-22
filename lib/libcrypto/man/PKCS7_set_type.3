@@ -1,0 +1,120 @@
+.\" $OpenBSD: PKCS7_set_type.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS7_SET_TYPE 3
+.Os
+.Sh NAME
+.Nm PKCS7_set_type ,
+.Nm PKCS7_set0_type_other
+.Nd initialize type of PKCS#7 ContentInfo
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft int
+.Fo PKCS7_set_type
+.Fa "PKCS7 *p7"
+.Fa "int type"
+.Fc
+.Ft int
+.Fo PKCS7_set0_type_other
+.Fa "PKCS7 *p7"
+.Fa "int type"
+.Fa "ASN1_TYPE *content"
+.Fc
+.Sh DESCRIPTION
+These functions set the
+.Fa type
+of an unused
+.Vt ContentInfo
+structure
+.Fa p7 .
+.Pp
+The function
+.Fn PKCS7_set_type
+also allocates and initializes an empty child object in
+.Fa p7 .
+The
+.Fa type
+argument can be any of these NIDs,
+creating a child object of the indicated data type:
+.Pp
+.Bl -column NID_pkcs7_signedAndEnveloped PKCS7_SIGN_ENVELOPE n.a. -compact
+.It Fa type No argument             Ta data type of child     Ta version
+.It Dv NID_pkcs7_data               Ta Vt ASN1_OCTET_STRING   Ta n.a.
+.It Dv NID_pkcs7_digest             Ta Vt PKCS7_DIGEST        Ta 0
+.It Dv NID_pkcs7_encrypted          Ta Vt PKCS7_ENCRYPT       Ta 0
+.It Dv NID_pkcs7_enveloped          Ta Vt PKCS7_ENVELOPE      Ta 0
+.It Dv NID_pkcs7_signed             Ta Vt PKCS7_SIGNED        Ta 1
+.It Dv NID_pkcs7_signedAndEnveloped Ta Vt PKCS7_SIGN_ENVELOPE Ta 1
+.El
+.Pp
+If the provided
+.Fa type
+is invalid,
+.Fa p7
+remains unchanged and
+.Fn PKCS7_set_type
+fails.
+.Pp
+If memory allocation fails,
+.Fn PKCS7_set_type
+fails and
+.Fa p7
+may remain in an inconsistent state.
+.Pp
+The function
+.Fn PKCS7_set0_type_other
+accepts an arbitrary NID as the
+.Fa type
+and also sets the
+.Fa content ,
+neither checking it in any way nor copying it.
+.Pp
+For both functions, the rest of the internal state of
+.Fa p7
+remains unchanged.
+.Sh RETURN VALUES
+The function
+.Fn PKCS7_set_type
+returns 1 on success or 0 on failure.
+.Pp
+The function
+.Fn PKCS7_set0_type_other
+does no error handling at all and always returns 1.
+.Sh SEE ALSO
+.Xr ASN1_OCTET_STRING_new 3 ,
+.Xr ASN1_TYPE_new 3 ,
+.Xr PKCS7_encrypt 3 ,
+.Xr PKCS7_new 3 ,
+.Xr PKCS7_set_content 3 ,
+.Xr PKCS7_sign 3
+.Sh HISTORY
+The function
+.Fn PKCS7_set_type
+first appeared in SSLeay 0.8.1 and
+.Fn PKCS7_set0_type_other
+in OpenSSL 0.9.8.
+Both have been available since
+.Ox 2.4 .
+.Sh CAVEATS
+If
+.Fa p7
+has already been in use before being passed to one of these functions,
+it will report success even though it leaks memory.
+Later on, if other functions try to use
+.Fa p7
+in its former role, they are likely to misbehave.

@@ -1,0 +1,17 @@
+#	$OpenBSD: TODO.hibler,v 1.5 2006/09/23 00:54:15 pedro Exp $
+#	$NetBSD: TODO.hibler,v 1.6 1994/12/13 22:33:10 mycroft Exp $
+
+1. Investigate making ISOFS another UFS shared filesystem (ala FFS/MFS).
+   Since it was modelled after the inode code, we might be able to merge
+   them back.  It looks like a separate (but very similar) lookup routine
+   will be needed due to the associated file stuff.
+
+2. It would be nice to be able to use the vfs_cluster code.
+   Unfortunately, if the logical block size is smaller than the page size,
+   it won't work.  Also, if throughput is relatively constant for any
+   block size (as it is for the HP drive--150kbs) then clustering may not
+   buy much (or may even hurt when vfs_cluster comes up with a large sync
+   cluster).
+
+3. Seems like there should be a "notrans" or some such mount option to show
+   filenames as they really are without lower-casing.  Does this make sense?

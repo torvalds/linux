@@ -1,0 +1,285 @@
+# $OpenBSD: files.i2c,v 1.73 2025/06/23 18:42:52 kettenis Exp $
+#	$NetBSD: files.i2c,v 1.3 2003/10/20 16:24:10 briggs Exp $
+
+define	i2c {[addr = -1], [size = -1]}
+device	iic: i2c
+attach	iic at i2cbus
+file	dev/i2c/i2c.c				iic | i2cbus
+file	dev/i2c/i2c_exec.c			iic | i2cbus
+file	dev/i2c/i2c_scan.c			iic | i2cbus
+
+file	dev/i2c/i2c_bitbang.c			i2c_bitbang
+
+#
+# I2C client devices
+#
+
+# National Semiconductor LM75/LM77 temperature sensor
+device	lmtemp
+attach	lmtemp at i2c
+file	dev/i2c/lm75.c				lmtemp
+
+# National Semiconductor LM93 sensor
+device	lmn
+attach	lmn at i2c
+file	dev/i2c/lm93.c				lmn
+
+# National Semiconductor LM87 sensor
+device	lmenv
+attach	lmenv at i2c
+file	dev/i2c/lm87.c				lmenv
+
+# Maxim MAX6690 Remote/Local Temperature sensor
+device	maxtmp
+attach	maxtmp at i2c
+file	dev/i2c/maxim6690.c			maxtmp
+
+# Analog Devices AD741x Temperature sensor + 4-channel ADC
+device	adc
+attach	adc at i2c
+file	dev/i2c/ad741x.c			adc
+
+# TAOS TSL2560/61 light-to-digital converter
+device	tsl
+attach	tsl at i2c
+file	dev/i2c/tsl2560.c			tsl
+
+# ADM1021
+device	admtemp
+attach	admtemp at i2c
+file	dev/i2c/adm1021.c			admtemp
+
+# ADM1024
+device	admlc
+attach	admlc at i2c
+file	dev/i2c/adm1024.c			admlc
+
+# ADM1025
+device	admtm
+attach	admtm at i2c
+file	dev/i2c/adm1025.c			admtm
+
+# ADM1030
+device	admtmp
+attach	admtmp at i2c
+file	dev/i2c/adm1030.c			admtmp
+
+# ADM1031
+device	admtt
+attach	admtt at i2c
+file	dev/i2c/adm1031.c			admtt
+
+# PCA9548
+device	pcamux: i2cbus
+attach	pcamux at i2c
+file	dev/i2c/pca9548.c			pcamux
+
+# PCA9554
+device	pcagpio
+attach	pcagpio at i2c
+file	dev/i2c/pca9554.c			pcagpio
+
+# Maxim DS1307
+device	maxrtc
+attach	maxrtc at i2c
+file	dev/i2c/ds1307.c			maxrtc
+
+# Maxim DS1631
+device	maxds
+attach	maxds at i2c
+file	dev/i2c/ds1631.c			maxds
+
+# Maxim DS3231
+device	dsxrtc
+attach	dsxrtc at i2c
+file	dev/i2c/ds3231.c			dsxrtc
+
+# Apple FCU
+device	fcu
+attach	fcu at i2c
+file	dev/i2c/fcu.c				fcu
+
+# Apple ADT
+device	adt
+attach	adt at i2c
+file	dev/i2c/adt7460.c			adt
+
+# National Semiconductor LM78/79/81 and compatible hardware monitors
+attach lm at i2c with lm_i2c
+file	dev/i2c/lm78_i2c.c			lm_i2c
+
+# ADM1026
+device	admcts
+attach	admcts at i2c
+file	dev/i2c/adm1026.c			admcts
+
+# ASB100
+device	asbtm
+attach	asbtm at i2c
+file	dev/i2c/asb100.c			asbtm
+
+# Winbond W83L784R/W83L875R/W83L785TS-L
+device	wbenv
+attach	wbenv at i2c
+file	dev/i2c/w83l784r.c			wbenv
+
+# Winbond W83793G
+device	wbng
+attach	wbng at i2c
+file	dev/i2c/w83793g.c			wbng
+
+# Nuvoton W83795G
+device	nvt
+attach	nvt at i2c
+file	dev/i2c/w83795g.c			nvt
+
+# Genesys Logic GL518SM
+device	glenv
+attach	glenv at i2c
+file	dev/i2c/gl518sm.c			glenv
+
+# NXP PCF8523 Real Time Clock
+device  pcfrtc
+attach	pcfrtc at i2c
+file	dev/i2c/pcf8523.c			pcfrtc
+
+# NXP PCF8563 Real Time Clock
+device  pcxrtc
+attach	pcxrtc at i2c
+file	dev/i2c/pcf8563.c			pcxrtc
+
+# NXP PCF85063A/TP Real Time Clock
+device  pcyrtc
+attach	pcyrtc at i2c
+file	dev/i2c/pcf85063.c			pcyrtc
+
+# RICOH RS5C372[AB] Real Time Clock
+device	ricohrtc
+attach	ricohrtc at i2c
+file	dev/i2c/rs5c372.c			ricohrtc
+
+# Fintek F75375
+device	fintek
+attach	fintek at i2c
+file	dev/i2c/fintek.c			fintek
+
+# Philips Semiconductor PCA9532
+device	pcaled: gpiobus
+attach	pcaled at i2c
+file	dev/i2c/pca9532.c			pcaled
+
+# Andigilog aSC7621
+device	adl
+attach	adl at i2c
+file	dev/i2c/asc7621.c			adl
+
+# Andigilog aSC7611
+device	andl
+attach	andl at i2c
+file	dev/i2c/asc7611.c			andl
+
+# TI TMHC50 / Analog ADM1022
+device	thmc
+attach	thmc at i2c
+file	dev/i2c/thmc50.c			thmc
+
+# SPD Memory EEPROM
+attach	spdmem at i2c with spdmem_iic
+file	dev/i2c/spdmem_i2c.c			spdmem
+
+# SO-DIMM (JC-42.4) temperature sensor
+device	sdtemp
+attach	sdtemp at i2c
+file	dev/i2c/sdtemp.c			sdtemp
+
+device	adtfsm
+attach	adtfsm at i2c
+file	dev/i2c/adt7462.c			adtfsm
+
+# STMicroelectronics LIS331DL MEMS motion sensor
+device	lisa
+attach	lisa at i2c
+file	dev/i2c/lis331dl.c			lisa
+
+# HID
+# HID "bus"
+define	ihidbus {[reportid = -1]}
+
+# HID root device
+device	ihidev: hid, ihidbus
+attach	ihidev at i2c
+file	dev/i2c/ihidev.c			ihidev
+
+# HID Keyboard
+device	ikbd: hid, hidkbd, wskbddev
+attach	ikbd at ihidbus
+file	dev/i2c/ikbd.c				ikbd
+
+# HID Mouse/Trackpad
+device	ims: hid, hidms, wsmousedev
+attach	ims at ihidbus
+file	dev/i2c/ims.c				ims
+
+# HID Multitouch Trackpad
+device	imt: hid, hidmt, wsmousedev
+attach	imt at ihidbus
+file	dev/i2c/imt.c				imt
+
+# Atmel maXTouch trackpad/touchscreen
+device	iatp: wsmousedev
+attach	iatp at i2c
+file	dev/i2c/iatp.c				iatp
+
+# Elantech touchpad
+device	ietp: wsmousedev
+attach	ietp at i2c
+file	dev/i2c/ietp.c				ietp
+
+# Bosch BMC150 6-axis eCompass
+device	bgw
+attach	bgw at i2c
+file dev/i2c/bmc150.c				bgw
+
+# Intersil ISL1208 Real Time Clock
+device	islrtc
+attach	islrtc at i2c
+file dev/i2c/isl1208.c				islrtc
+
+# Abracon ABx8xx Real Time Clock
+device	abcrtc
+attach	abcrtc at i2c
+file dev/i2c/abx80x.c				abcrtc
+
+# IPMI SMBus System Interface (SSIF)
+attach	ipmi at i2c with ipmi_i2c
+file dev/i2c/ipmi_i2c.c				ipmi_i2c
+
+# Microchip MCP794xx Real Time Clock
+device	mcprtc
+attach	mcprtc at i2c
+file dev/i2c/mcp794xx.c				mcprtc
+
+# STMicroelectronics M41T8x RTC
+device	mfokrtc
+attach	mfokrtc at i2c
+file	dev/i2c/m41t8x.c			mfokrtc
+
+# TI TMP451 temperature sensor
+device	titmp
+attach	titmp at i2c
+file	dev/i2c/tmp451.c			titmp
+
+# PiJuice
+device	pijuice
+attach	pijuice at i2c
+file	dev/i2c/pijuice.c			pijuice
+
+# Consumer Control Keyboards
+device	icc: hid, hidcc, wskbddev
+attach	icc at ihidbus
+file	dev/i2c/icc.c				icc
+
+# Asus Keyboards
+device	iasuskbd
+attach	iasuskbd at ihidbus
+file	dev/i2c/iasuskbd.c			iasuskbd

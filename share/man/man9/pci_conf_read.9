@@ -1,0 +1,121 @@
+.\"	$OpenBSD: pci_conf_read.9,v 1.14 2024/11/13 10:56:18 jsg Exp $
+.\"
+.\" Copyright (c) 2005 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 13 2024 $
+.Dt PCI_CONF_READ 9
+.Os
+.Sh NAME
+.Nm pci_make_tag ,
+.Nm pci_decompose_tag ,
+.Nm pci_conf_read ,
+.Nm pci_conf_write
+.Nd PCI config space manipulation functions
+.Sh SYNOPSIS
+.In alpha/pci/pci_machdep.h
+.In i386/pci/pci_machdep.h
+.In machine/pci_machdep.h
+.Ft pcitag_t
+.Fn pci_make_tag "pci_chipset_tag_t pc" "int bus" "int dev" "int func"
+.Ft void
+.Fn pci_decompose_tag "pci_chipset_tag_t pc" "pcitag_t tag" "int *busp" \
+"int *devp" "int *funcp"
+.Ft pcireg_t
+.Fn pci_conf_read "pci_chipset_tag_t pc" "pcitag_t tag" "int reg"
+.Ft void
+.Fn pci_conf_write "pci_chipset_tag_t pc" "pcitag_t tag" "int reg" \
+"pcireg_t val"
+.Sh DESCRIPTION
+These functions provide a way to access PCI configuration space.
+.Pp
+The following types are defined in the machine dependent include file
+.In pci_machdep.h .
+.Pp
+.Bl -tag -width pci_chipset_tag_t -offset indent -compact
+.It pci_chipset_tag_t
+a PCI chipset descriptor;
+.It pcitag_t
+a PCI device tag;
+.It pcireg_t
+a PCI register datum.
+.El
+.Pp
+In order to access PCI configuration space, a device tag shall be made using
+.Nm pci_make_tag
+given the PCI chipset tag
+.Ar pc
+and the device specification in a tuple of
+.Ar bus ,
+.Ar device ,
+.Ar function .
+The PCI tag composition is a PCI chipset dependent operation
+although often as simple as a shift and logical OR combination.
+.Pp
+The
+.Nm pci_decompose_tag
+provides a reverse operation.
+Once a tag is composed, it is possible to perform configuration
+space read and write with
+.Nm pci_conf_read
+and
+.Nm pci_conf_write ,
+respectively.
+Access to PCI configuration space is only provided for whole
+.Nm pcireg_t
+items, which is usually a 32-bit integer.
+Access to non-existent PCI devices do not (or should not) generate
+any kinds of faults or interruptions and thus allow for an easy device
+scanning by cycling through all possible device and function numbers
+for a given bus.
+.Pp
+Below is an overview of defined PCI configuration space registers for
+devices:
+.Bl -tag -width 0xff -offset indent
+.It 0x00
+Vendor (lower word) and Product (higher word) identification
+(see
+.Pa /sys/dev/pci/pcidevs
+for a comprehensive list).
+.It 0x04
+Commands and Status register.
+.It 0x08
+PCI device's class and subclass IDs.
+See
+.Pa /sys/dev/pci/pcireg.h
+for PCI_CLASS_* and PCI_SUBCLASS_* definitions.
+.It 0x0c
+Specify (low byte to high): cache line size, PCI latency timer, header type,
+and BIST.
+.It 0x10 - 0x28
+Base address registers for I/O and memory space mapped registers.
+.It 0x28
+CardBus CIS register.
+.It 0x2c
+Similar to 0x00 register's definitions for a subsystem identification.
+.It 0x34
+A pointer to the capabilities list.
+Each item is an offset in the configuration space itself.
+.It 0x3c
+Interrupt line and pin numbers.
+.El
+.Sh SEE ALSO
+.Xr cardbus 4 ,
+.Xr pci 4 ,
+.Xr pci_intr_map 9
+.Sh HISTORY
+These functions first appeared in
+.Ox 1.2 .
+.\" .Sh AUTHORS

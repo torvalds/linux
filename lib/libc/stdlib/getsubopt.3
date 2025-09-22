@@ -1,0 +1,162 @@
+.\" $OpenBSD: getsubopt.3,v 1.16 2022/08/04 06:20:24 jsg Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getsubopt.3	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: August 4 2022 $
+.Dt GETSUBOPT 3
+.Os
+.Sh NAME
+.Nm getsubopt
+.Nd get sub options from an argument
+.Sh SYNOPSIS
+.In stdlib.h
+.Vt extern char *suboptarg;
+.Ft int
+.Fn getsubopt "char **optionp" "char * const *tokens" "char **valuep"
+.Sh DESCRIPTION
+The
+.Fn getsubopt
+function parses a string containing tokens delimited by one or more
+tab, space, or comma
+.Pq Ql \&,
+characters.
+It is intended for use in parsing groups of option arguments provided
+as part of a utility command line.
+.Pp
+The argument
+.Fa optionp
+is a pointer to a pointer to the string.
+The argument
+.Fa tokens
+is a pointer to a
+.Dv NULL Ns -terminated
+array of pointers to strings.
+.Pp
+The
+.Fn getsubopt
+function returns the zero-based offset of the pointer in the
+.Fa tokens
+array referencing a string which matches the first token
+in the string, or \-1 if the string contains no tokens or
+.Fa tokens
+does not contain a matching string.
+.Pp
+If the token is of the form
+.Ar name Ns = Ns Ar value ,
+the location referenced by
+.Fa valuep
+will be set to point to the start of the
+.Dq value
+portion of the token.
+.Pp
+On return from
+.Fn getsubopt ,
+.Fa optionp
+will be set to point to the start of the next token in the string,
+or the NUL at the end of the string if no more tokens are present.
+The comma, space, or tab character ending the token just parsed,
+and the equal sign separating name and value if any, are replaced
+with NUL bytes in the original
+.Pf * Fa optionp
+input string.
+The external variable
+.Fa suboptarg
+will be set to point to the start of the current token, or
+.Dv NULL
+if no tokens were present.
+The argument
+.Fa valuep
+will be set to point to the value portion of the token, or
+.Dv NULL
+if no value portion was present.
+.Sh EXAMPLES
+.Bd -literal
+char *tokens[] = {
+	#define	ONE	0
+		"one",
+	#define	TWO	1
+		"two",
+	NULL
+};
+
+\&...
+
+extern char *optarg, *suboptarg;
+char *options, *value;
+
+while ((ch = getopt(argc, argv, "ab:")) != -1) {
+	switch (ch) {
+	case 'a':
+		/* process "a" option */
+		break;
+	case 'b':
+		options = optarg;
+		while (*options) {
+			switch (getsubopt(&options, tokens, &value)) {
+			case ONE:
+				/* process "one" sub option */
+				break;
+			case TWO:
+				/* process "two" sub option */
+				if (!value)
+					error("no value for two");
+				i = atoi(value);
+				break;
+			case -1:
+				if (suboptarg)
+					error("illegal sub option %s",
+					  suboptarg);
+				else
+					error("missing sub option");
+				break;
+			}
+		}
+		break;
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr getopt 3 ,
+.Xr strsep 3
+.Sh STANDARDS
+The
+.Fn getsubopt
+function conforms to
+.St -p1003.1-2008 .
+.Pp
+Allowing space and tab characters to separate tokens
+and the external variable
+.Va suboptarg
+are extensions to that standard.
+.Sh HISTORY
+The
+.Fn getsubopt
+function first appeared in
+.Bx 4.3 Net/2 .

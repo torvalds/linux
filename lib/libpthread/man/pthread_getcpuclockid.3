@@ -1,0 +1,62 @@
+.\"	$OpenBSD: pthread_getcpuclockid.3,v 1.4 2025/06/07 00:16:52 schwarze Exp $
+.\"
+.\" Copyright (c) 2013 Philip Guenther <guenther@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_GETCPUCLOCKID 3
+.Os
+.Sh NAME
+.Nm pthread_getcpuclockid
+.Nd get a clock measuring thread CPU time
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_getcpuclockid "pthread_t thread" "clockid_t *clock_id"
+.Sh DESCRIPTION
+The
+.Fn pthread_getcpuclockid
+function allows the calling thread to get a
+.Vt clockid_t
+value that measures the time spent by CPUs running in user or kernel mode
+on behalf of the thread specified by
+.Fa thread .
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_getcpuclockid
+will return zero.
+Otherwise an error number will be returned to indicate the error.
+.Sh ERRORS
+.Fn pthread_getcpuclockid
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+thread is an invalid thread ID.
+.El
+.Sh SEE ALSO
+.Xr clock_gettime 2 ,
+.Xr clock_getcpuclockid 3
+.Sh STANDARDS
+The
+.Fn pthread_getcpuclockid
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn pthread_getcpuclockid
+function first appeared in IEEE Std 1003.1d-1999
+.Pq Dq POSIX.1d
+and has been available since
+.Ox 5.4 .

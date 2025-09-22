@@ -1,0 +1,245 @@
+.\"	$OpenBSD: route6d.8,v 1.28 2023/03/04 12:02:07 jmc Exp $
+.\"	$KAME: route6d.8,v 1.11 2002/06/02 15:00:30 itojun Exp $
+.\"
+.\" Copyright (c) 1996 WIDE Project. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modifications, are permitted provided that the above copyright notice
+.\" and this paragraph are duplicated in all such forms and that any
+.\" documentation, advertising materials, and other materials related to
+.\" such distribution and use acknowledge that the software was developed
+.\" by the WIDE Project, Japan. The name of the Project may not be used to
+.\" endorse or promote products derived from this software without
+.\" specific prior written permission. THIS SOFTWARE IS PROVIDED ``AS IS''
+.\" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
+.\" LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE.
+.\"
+.Dd $Mdocdate: March 4 2023 $
+.Dt ROUTE6D 8
+.Os
+.Sh NAME
+.Nm route6d
+.Nd Routing Information Protocol (RIP) for IPv6 daemon
+.Sh SYNOPSIS
+.Nm route6d
+.Op Fl aDdhlnqSsu
+.Sm off
+.Op Fl A No \~ Ar prefix No / Ar preflen , Ar if1 Op , Ar if2 , ...
+.Sm on
+.Sm off
+.Op Fl L No \~ Ar prefix No / Ar preflen , Ar if1 Op , Ar if2 , ...
+.Sm on
+.Sm off
+.Op Fl N No \~ Ar if1 Op , Ar if2 , ...
+.Sm on
+.Sm off
+.Op Fl O No \~ Ar prefix No / Ar preflen , Ar if1 Op , Ar if2 , ...
+.Sm on
+.Sm off
+.Op Fl T No \~ Ar if1 Op , Ar if2 , ...
+.Sm on
+.Op Fl t Ar tag
+.Sh DESCRIPTION
+The
+.Nm
+utility is a routing daemon which supports RIP over IPv6.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Xo Fl A
+.Sm off
+.Ar prefix No / Ar preflen ,
+.Ar if1
+.Op , Ar if2 , ...
+.Sm on
+.Xc
+This option is used for aggregating routes.
+.Ar prefix Ns / Ns Ar preflen
+specifies the prefix and the prefix length of the
+aggregated route.
+When advertising routes,
+.Nm
+filters specific routes covered by the aggregate
+and advertises the aggregated route
+.Ar prefix Ns / Ns Ar preflen
+to the interfaces specified in the comma-separated interface list
+.Sm off
+.Ar if1 Op , Ar if2 , ... .
+.Sm on
+.Nm
+creates a static route to
+.Ar prefix Ns / Ns Ar preflen ,
+with the
+.Dv RTF_REJECT
+flag set, into the kernel routing table.
+.It Fl a
+Enables aging of the statically defined routes.
+With this option, any
+statically defined routes will be removed unless corresponding updates
+arrive as if the routes are received at the startup of
+.Nm .
+.It Fl D
+Enables extensive output of debugging messages.
+This option also instructs
+.Nm
+to run in foreground mode
+.Pq i.e. it does not become a daemon process .
+.It Fl d
+Enables output of debugging messages.
+This option also instructs
+.Nm
+to run in foreground mode
+.Pq i.e. it does not become a daemon process .
+.It Fl h
+Disables split horizon processing.
+.It Xo Fl L
+.Sm off
+.Ar prefix No / Ar preflen ,
+.Ar if1
+.Op , Ar if2 , ...
+.Sm on
+.Xc
+Filter incoming routes from interfaces
+.Sm off
+.Ar if1 Op , Ar if2 , ... .
+.Sm on
+.Nm
+will accept incoming routes that are in
+.Ar prefix Ns / Ns Ar preflen .
+If multiple
+.Fl L
+options are specified, all routes that match any of the options are accepted.
+.Li ::/0
+is treated specially as the default route, not
+.Do
+any route that has longer prefix length than, or equal to, 0
+.Dc .
+For example, with
+.Dq -L 2001:db8::/32,if1 -L ::/0,if1 ,
+.Nm
+will accept the default route and routes in the 2001:db8::/32 address range,
+but no others.
+To accept any route, simply do not specify the
+.Fl L
+option.
+.It Fl l
+By default,
+.Nm
+will not exchange site local routes for safety reasons.
+This is because the semantics of site local address space are rather vague,
+as the specification is still being worked on,
+and there is no good way to define the site local boundary.
+With
+.Fl l ,
+.Nm
+will exchange site local routes as well.
+It must not be used on site boundary routers,
+since
+.Fl l
+assumes that all interfaces are in the same site.
+.It Xo
+.Fl N
+.Sm off
+.Ar if1
+.Op , Ar if2 , ...
+.Sm on
+.Xc
+Do not listen to, or advertise, route from/to interfaces specified by
+.Sm off
+.Ar if1 Op , Ar if2 , ... .
+.Sm on
+.It Fl n
+Do not update the kernel routing table.
+.It Xo Fl O
+.Sm off
+.Ar prefix No / Ar preflen ,
+.Ar if1
+.Op , Ar if2 , ...
+.Sm on
+.Xc
+Restrict route advertisement toward interfaces specified by
+.Sm off
+.Ar if1 Op , Ar if2 , ... .
+.Sm on
+With this option
+.Nm
+will only advertise routes that match
+.Ar prefix Ns / Ns Ar preflen .
+.It Fl q
+Makes
+.Nm
+use listen-only mode.
+No advertisement is sent.
+.It Fl S
+This option is the same as
+.Fl s ,
+except that the split horizon rule does apply.
+.It Fl s
+Makes
+.Nm
+advertise the statically defined routes which exist in the kernel routing
+table when
+.Nm
+is invoked.
+Announcements obey the regular split horizon rule.
+.It Xo
+.Fl T
+.Sm off
+.Ar if1
+.Op , Ar if2 , ...
+.Sm on
+.Xc
+Advertise only the default route toward
+.Sm off
+.Ar if1 Op , Ar if2 , ... .
+.Sm on
+.It Fl t Ar tag
+Attach the route tag
+.Ar tag
+to originated route entries.
+.Ar tag
+can be decimal, octal prefixed by
+.Li 0 ,
+or hexadecimal prefixed by
+.Li 0x .
+.It Fl u
+Always log route updates (insertions and deletions).
+Route updates are always prefixed with
+.Dq RTADD
+or
+.Dq RTDEL .
+.El
+.Pp
+Upon receipt of signal
+.Dv SIGINT
+or
+.Dv SIGUSR1 ,
+.Nm
+will log a dump of the current internal state.
+.Sh SEE ALSO
+.Xr ripd 8
+.Sh STANDARDS
+.Rs
+.%A G. Malkin
+.%A R. Minnear
+.%D January 1997
+.%R RFC 2080
+.%T RIPng for IPv6
+.Re
+.Sh NOTES
+.Nm
+uses the advanced IPv6 API,
+defined in RFC 3542,
+for communicating with peers using link-local addresses.
+.Pp
+Routing table manipulation differs from IPv6 implementation to implementation.
+Currently
+.Nm
+obeys the WIDE Hydrangea/KAME IPv6 kernel,
+and will not be able to run on other platforms.
+.Pp
+Currently,
+.Nm
+does not reduce the rate of the triggered updates when consecutive updates
+arrive.

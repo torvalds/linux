@@ -1,0 +1,38 @@
+.\"	$OpenBSD: getdtablecount.2,v 1.5 2015/05/31 23:54:25 schwarze Exp $
+.\"
+.\" Copyright (c) 2012 Theo de Raadt
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 31 2015 $
+.Dt GETDTABLECOUNT 2
+.Os
+.Sh NAME
+.Nm getdtablecount
+.Nd get descriptor table count
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn getdtablecount void
+.Sh DESCRIPTION
+.Fn getdtablecount
+returns the number of file descriptors the process currently has
+open.
+.Sh SEE ALSO
+.Xr getrlimit 2 ,
+.Xr getdtablesize 3
+.Sh HISTORY
+The
+.Fn getdtablecount
+function appeared in
+.Ox 5.2 .

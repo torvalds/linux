@@ -1,0 +1,78 @@
+.\"	$OpenBSD: hangman.6,v 1.17 2015/02/07 01:37:30 miod Exp $
+.\"
+.\" Copyright (c) 1983, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)hangman.6	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: February 7 2015 $
+.Dt HANGMAN 6
+.Os
+.Sh NAME
+.Nm hangman
+.Nd computer version of the game hangman
+.Sh SYNOPSIS
+.Nm hangman
+.Op Fl k
+.Op Fl d Ar wordlist
+.Sh DESCRIPTION
+In
+.Nm hangman ,
+the computer picks a word from the on-line word list
+and you must try to guess it.
+The computer keeps track of which letters have been guessed
+and how many wrong guesses you have made on the screen in a graphic fashion.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d Ar wordlist
+Use the specified
+.Ar wordlist
+instead of the default.
+If the wordlist file is an ELF binary file, its symbols are used as the
+word list.
+Otherwise, the wordlist file must be a plain text file, with one word per line.
+Only lowercase words of at least a certain length
+.Pq typically 6 characters
+are chosen.
+.It Fl k
+Use the kernel symbols, as read from
+.Pa /dev/ksyms ,
+instead of the default wordlist.
+.El
+.Sh FILES
+.Bl -tag -width "/usr/share/dict/wordsXXX" -compact
+.It Pa /dev/ksyms
+Kernel symbols file.
+.It Pa /usr/share/dict/words
+Default word list.
+.El
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr ksyms 4
+.Sh AUTHORS
+.An Ken Arnold

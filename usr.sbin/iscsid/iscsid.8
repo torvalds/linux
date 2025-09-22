@@ -1,0 +1,93 @@
+.\"	$OpenBSD: iscsid.8,v 1.11 2025/01/21 12:26:47 claudio Exp $
+.\"
+.\" Copyright (c) 2010 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 21 2025 $
+.Dt ISCSID 8
+.Os
+.Sh NAME
+.Nm iscsid
+.Nd iSCSI (Internet SCSI) daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dv
+.Op Fl n Ar device
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+.Nm
+is an Internet SCSI
+.Pq iSCSI
+initiator implementation.
+.Pp
+.Nm
+is usually started at boot time.
+.Pp
+A running
+.Nm
+can be controlled with the
+.Xr iscsictl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl n Ar device
+Use an alternate /dev entry for communicating with the kernel.
+.It Fl s Ar socket
+Use an alternate location for the default control socket.
+.It Fl v
+Produce more verbose output.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/iscsid.sockXX" -compact
+.It Pa /etc/iscsi.conf
+Default
+.Nm
+configuration file.
+.It Pa /dev/vscsi0
+Default device used to exchange SCSI messages with the kernel midlayer.
+.It Pa /var/run/iscsid.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr iscsictl 8 .
+.El
+.Sh SEE ALSO
+.Xr vscsi 4 ,
+.Xr iscsi.conf 5 ,
+.Xr iscsictl 8
+.Sh STANDARDS
+.Rs
+.%D April 2004
+.%R RFC 3721
+.%T Internet Small Computer Systems Interface (iSCSI) Naming and Discovery
+.Re
+.Pp
+.Rs
+.%D April 2014
+.%R RFC 7143
+.%T Internet Small Computer System Interface (iSCSI) Protocol (Consolidated)
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.9 .
+.Sh AUTHORS
+.An Claudio Jeker Aq Mt claudio@openbsd.org .

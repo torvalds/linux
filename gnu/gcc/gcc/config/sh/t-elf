@@ -1,0 +1,10 @@
+EXTRA_MULTILIB_PARTS= crt1.o crti.o crtn.o \
+	crtbegin.o crtend.o crtbeginS.o crtendS.o $(IC_EXTRA_PARTS) $(OPT_EXTRA_PARTS)
+
+# Compile crtbeginS.o and crtendS.o with pic.
+CRTSTUFF_T_CFLAGS_S = -fPIC
+
+# Don't compile libgcc with -fpic for now.  It's unlikely that we'll
+# build shared libraries for embedded SH.
+# Linux / Netbsd will already have set TARGET_LIBGCC2_CFLAGS.
+# TARGET_LIBGCC2_CFLAGS = -fpic

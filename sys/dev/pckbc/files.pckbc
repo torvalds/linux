@@ -1,0 +1,12 @@
+# $OpenBSD: files.pckbc,v 1.9 2010/09/26 20:39:08 miod Exp $
+# $NetBSD: files.pckbc,v 1.6 1999/01/23 16:05:56 drochner Exp $
+# devices attached at pckbc, for use with wscons
+
+device	pckbd: wskbddev
+attach	pckbd at pckbcslot
+file	dev/pckbc/pckbd.c			pckbd	needs-flag
+file	dev/pckbc/wskbdmap_mfii.c		pckbd
+
+device	pms: wsmousedev
+attach	pms at pckbcslot
+file	dev/pckbc/pms.c				pms

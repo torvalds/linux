@@ -1,0 +1,57 @@
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+# Build the libraries for pthread and all of the 
+# different processor models
+
+MULTILIB_OPTIONS	= pthread maix64
+
+MULTILIB_DIRNAMES	= pthread ppc64
+
+MULTILIB_MATCHES	= 
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+# Build a shared libgcc library.
+SHLIB_EXT = .a
+SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -shared -nodefaultlibs \
+	-Wl,-bE:@shlib_map_file@ -o @multilib_dir@/shr.o \
+	@multilib_flags@ @shlib_objs@ -lc \
+	`case @multilib_dir@ in \
+	*pthread*) echo -L/usr/lib/threads -lpthreads -lc_r /usr/lib/libc.a ;; \
+	*) echo -lc ;; esac` ; \
+	rm -f @multilib_dir@/tmp-@shlib_base_name@.a ; \
+	$(AR_CREATE_FOR_TARGET) @multilib_dir@/tmp-@shlib_base_name@.a \
+	@multilib_dir@/shr.o ; \
+	mv @multilib_dir@/tmp-@shlib_base_name@.a \
+	   @multilib_dir@/@shlib_base_name@.a ; \
+	rm -f @multilib_dir@/shr.o
+# $(slibdir) double quoted to protect it from expansion while building
+# libgcc.mk.  We want this delayed until actual install time.
+SHLIB_INSTALL = \
+	$$(mkinstalldirs) $$(DESTDIR)$$(slibdir)@shlib_slibdir_qual@; \
+	$(INSTALL_DATA) @multilib_dir@/@shlib_base_name@.a \
+		$$(DESTDIR)$$(slibdir)@shlib_slibdir_qual@/
+SHLIB_LIBS = -lc `case @multilib_dir@ in *pthread*) echo -lpthread ;; esac`
+SHLIB_MKMAP = $(srcdir)/mkmap-flat.awk
+SHLIB_MAPFILES = $(srcdir)/libgcc-std.ver $(srcdir)/config/rs6000/libgcc-ppc64.ver
+SHLIB_NM_FLAGS = -Bpg -X32_64
+
+# GCC 128-bit long double support routines.
+LIB2FUNCS_EXTRA = $(srcdir)/config/rs6000/ppc64-fp.c \
+	$(srcdir)/config/rs6000/darwin-ldouble.c
+TARGET_LIBGCC2_CFLAGS = -mlong-double-128
+
+# Either 32-bit and 64-bit objects in archives.
+AR_FLAGS_FOR_TARGET = -X32_64
+

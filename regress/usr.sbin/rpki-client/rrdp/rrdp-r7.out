@@ -1,0 +1,2 @@
+test-rrdp: parse failed - non conforming attribute 'xmlns' found in notification elem
+test-rrdp: stdin: parse error at line 1: parsing aborted

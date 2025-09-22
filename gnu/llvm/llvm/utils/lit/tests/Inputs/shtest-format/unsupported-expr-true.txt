@@ -1,0 +1,4 @@
+# UNSUPPORTED with a true clause. Test should not run.
+UNSUPPORTED: false
+UNSUPPORTED: false, false, false, target={{.*}}_64-unk{{.*}} && a-present-feature, false
+RUN: false

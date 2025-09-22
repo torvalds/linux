@@ -1,0 +1,74 @@
+.\" $OpenBSD: flockfile.3,v 1.1 2025/07/25 18:27:57 tedu Exp $
+.\"
+.\" Copyright (c) 2025 Ted Unangst <tedu@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 25 2025 $
+.Dt FLOCKFILE 3
+.Os
+.Sh NAME
+.Nm flockfile ,
+.Nm ftrylockfile ,
+.Nm funlockfile
+.Nd locking for stdio streams
+.Sh SYNOPSIS
+.In stdio.h
+.Ft void
+.Fn flockfile "FILE *file"
+.Ft int
+.Fn ftrylockfile "FILE *file"
+.Ft void
+.Fn funlockfile "FILE *file"
+.Sh DESCRIPTION
+These functions provide application control over the locking of stdio streams.
+.Fn flockfile
+and
+.Fn ftrylockfile
+increment the lock count associated with
+.Fa file
+on behalf of the calling thread.
+If another thread owns the lock,
+.Fn flockfile
+blocks until the lock becomes available, whereas
+.Fn ftrylockfile
+returns immediately and indicates failure.
+.Pp
+When called by a thread holding the lock,
+.Fn funlockfile
+decrements the lock count by one.
+When the lock count reaches zero, the calling thread relinquishes
+ownership of the lock.
+.Pp
+Functions such as
+.Xr fread 3
+and
+.Xr fprintf 3
+are internally thread safe by default, but additional locking may be used
+to coordinate sequences of multiple calls.
+.Sh RETURN VALUES
+.Fn ftrylockfile
+returns zero for success and non-zero for failure.
+.Sh SEE ALSO
+.Xr getc_unlocked 3 ,
+.Xr pthreads 3 ,
+.Xr putc_unlocked 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2024 .
+.Sh HISTORY
+These functions have been available since
+.Ox 2.5 .
+.Sh CAVEATS
+Reading from one stream can flush a different buffered output stream,
+leading to deadlocks.

@@ -1,0 +1,85 @@
+.\" $OpenBSD: rport.4,v 1.2 2024/08/31 13:39:36 jmc Exp $
+.\"
+.\" Copyright (c) 2024 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 31 2024 $
+.Dt RPORT 4
+.Os
+.Sh NAME
+.Nm rport
+.Nd rdomain port interface pseudo-device
+.Sh SYNOPSIS
+.Cd "pseudo-device rport"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides point-to-point interfaces for layer 3 connectivity
+between
+.Xr rdomain 4
+instances.
+.Pp
+Layer 3 connectivity between a pair of rdomains can be established
+by creating an
+.Nm
+interface in each rdomain, and connecting them together by configuring
+one of these interfaces as the parent of the other.
+.Pp
+.Nm
+interfaces can be created at runtime using the
+.Ic ifconfig rport Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+The interface itself can be configured with
+.Xr ifconfig 8 ;
+see its manual page for more information.
+.Sh EXAMPLES
+Create two
+.Nm
+interfaces in separate
+.Xr rdomain 4
+instances and connect them together:
+.Bd -literal -offset indent
+# ifconfig rport0 create rdomain 0 up
+# ifconfig rport1 create rdomain 1 parent rport0 up
+# ifconfig rport0 inet 192.168.0.0/32 192.168.0.1
+# ifconfig rport1 inet 192.168.0.1/32 192.168.0.0
+.Ed
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr veb 4 ,
+.Xr hostname.if 5 ,
+.Xr pf.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.6 .
+.Sh AUTHORS
+.An David Gwynne Aq Mt dlg@openbsd.org .
+.Sh CAVEATS
+A pair of
+.Nm
+interfaces must be created for each connection between a pair of rdomains.
+Alternatively, if peering between multiple
+.Xr rdomain 4
+instances is required, a single
+.Xr veb 4
+interface with a
+.Xr vport 4
+interface for each rdomain can be used instead.

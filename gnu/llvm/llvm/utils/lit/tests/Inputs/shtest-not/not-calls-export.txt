@@ -1,0 +1,3 @@
+# Internal "export" always succeeds.
+# RUN: not not export FOO=1
+# RUN: not --crash export BAZ=3

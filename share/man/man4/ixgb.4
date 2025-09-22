@@ -1,0 +1,118 @@
+.\" $OpenBSD: ixgb.4,v 1.14 2014/09/14 00:17:09 brad Exp $
+.\" Copyright (c) 2002 Intel Corporation
+.\" All rights reserved.
+.\" Redistribution and use in source and binary forms of the Software, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code of the Software may retain the above
+.\" copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form of the Software may reproduce the
+.\" above copyright notice, this list of conditions and the following
+.\" disclaimer in the documentation and/or other materials provided with the
+.\" distribution.
+.\" 3. Neither the name of the Intel Corporation nor the names of its contributors
+.\" shall be used to endorse or promote products derived from this Software
+.\" without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE INTEL OR ITS CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+.\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD: em.4,v 1.18 2005/01/30 12:29:06 yar Exp $
+.Dd $Mdocdate: September 14 2014 $
+.Dt IXGB 4
+.Os
+.Sh NAME
+.Nm ixgb
+.Nd Intel PRO/10GbE 10Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "ixgb* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI-X 10Gb Ethernet adapters based on the
+Intel 82597EX Ethernet controller chips.
+The driver supports IPv4 receive IP/TCP/UDP checksum offload, VLAN tag
+insertion and stripping, and jumbo frames.
+This includes the following models:
+.Pp
+.Bl -item -offset indent -compact
+.It
+Intel PRO/10GbE CX4 Server Adapter (PXLA8591CX4)
+.It
+Intel PRO/10GbE LR Server Adapter (PXLA8591LR)
+.It
+Intel PRO/10GbE SR Server Adapter (PXLA8591SR)
+.It
+Sun 10 Gigabit Ethernet PCI-X Adapter (X5544A-4)
+.El
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width autoselect -offset indent
+.It autoselect
+Enables auto-negotiation for speed and duplex.
+.It 10GbaseLR
+Sets 10Gbps operation.
+Only full-duplex mode is supported at this speed.
+.It 10GbaseSR
+Sets 10Gbps operation.
+Only full-duplex mode is supported at this speed.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Intel Corporation .
+.Sh BUGS
+Under small packet UDP stress tests with 10GbE driver, the
+.Ox
+system will drop UDP packets due to the fullness of the socket buffers.
+You may want to change the driver's Flow Control variables to the minimum
+value for controlling packet reception.
+.Pp
+Excessive CRC errors may be observed if the Intel PRO/10GbE CX4 Server
+adapter is connected to a Fujitsu XENPAK CX4 module in a SmartBits chassis
+using 15m/24AWG cable assemblies manufactured by Fujitsu or Leoni.
+The CRC errors may be received either by the Intel PRO/10GbE CX4 Server
+adapter or the SmartBits.
+If this situation occurs, using a different cable assembly may resolve the
+issue.
+.Pp
+Excessive CRC errors may be observed if the Intel PRO/10GbE CX4 Server
+adapter is connected to an HP Procurve 3400cl switch port using short cables
+(1m or shorter).
+If this situation occurs, using a longer cable may resolve the issue.
+.Pp
+Excessive CRC errors may be observed using Fujitsu 24AWG cable assemblies that
+are 10m or longer or where using a Leoni 15 m/24AWG cable assembly.
+The CRC errors may be received either by the CX4 Server adapter
+or at the switch.
+If this situation occurs, using a different cable assembly
+may resolve the issue.

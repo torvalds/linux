@@ -1,0 +1,229 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>List-Based Containers</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>List-Update Design</h1>
+
+    <h2><a name="overview" id="overview">Overview</a></h2>
+
+    <p>The list-based container has the following declaration:</p>
+    <pre>
+<b>template</b>&lt;
+    <b>typename</b> Key,
+    <b>typename</b> Mapped,
+    <b>typename</b> Eq_Fn = std::equal_to&lt;Key&gt;,
+    <b>typename</b> Update_Policy = <a href=
+"move_to_front_lu_policy.html">move_to_front_lu_policy&lt;&gt;</a>,
+    <b>typename</b> Allocator = std::allocator&lt;<b>char</b>&gt; &gt;
+<b>class</b> <a href="list_update.html">list_update</a>;
+</pre>
+
+    <p>The parameters have the following meaning:</p>
+
+    <ol>
+      <li><tt>Key</tt> is the key type.</li>
+
+      <li><tt>Mapped</tt> is the mapped-policy, and is explained in
+      <a href="tutorial.html#assoc_ms">Tutorial::Associative
+      Containers::Associative Containers Others than Maps</a>.</li>
+
+      <li><tt>Eq_Fn</tt> is a key equivalence functor.</li>
+
+      <li><tt>Update_Policy</tt> is a policy updating positions in
+      the list based on access patterns. It is described in the
+      following subsection.</li>
+
+      <li><tt>Allocator</tt> is an allocator
+      type.</li>
+    </ol>
+
+    <p>A list-based associative container is a container that
+    stores elements in a linked-list. It does not order the
+    elements by any particular order related to the keys.
+    List-based containers are primarily useful for creating
+    "multimaps" (see <a href=
+    "motivation.html#assoc_mapping_semantics">Motivation::Associative
+    Containers::Avoiding Multiple Keys</a> and <a href=
+    "tutorial.html#assoc_ms">Tutorial::Associative
+    Containers::Associative Containers Others than Maps</a>). In
+    fact, list-based containers are designed in <tt>pb_ds</tt>
+    expressly for this purpose. This is explained further in
+    <a href="#mmaps">Use for "Multimaps"</a>.</p>
+
+    <p>List-based containers might also be useful for some rare
+    cases, where a key is encapsulated to the extent that only
+    key-equivalence can be tested. Hash-based containers need to
+    know how to transform a key into a size type, and tree-based
+    containers need to know if some key is larger than another.
+    List-based associative containers, conversely, only need to
+    know if two keys are equivalent.</p>
+
+    <p>Since a list-based associative container does not order
+    elements by keys, is it possible to order the list in some
+    useful manner? Remarkably, many on-line competitive [<a href=
+    "references.html#motwani95random">motwani95random</a>]
+    algorithms exist for reordering lists to reflect access
+    prediction [<a href=
+    "references.html#andrew04mtf">andrew04mtf</a>].</p>
+
+    <h2><a name="list_updates" id="list_updates">List
+    Updates</a></h2>
+
+    <h3><a name="general" id="general">General Terms</a></h3>
+
+    <p>Figure <a href="#simple_list">A simple list</a> shows a
+    simple list of integer keys. If we search for the integer 6, we
+    are paying an overhead: the link with key 6 is only the fifth
+    link; if it were the first link, it could be accessed
+    faster.</p>
+
+    <h6 class="c1"><a name="simple_list" id="simple_list"><img src=
+    "simple_list.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">A simple list.</h6>
+
+    <p>List-update algorithms reorder lists as elements are
+    accessed. They try to determine, by the access history, which
+    keys to move to the front of the list. Some of these algorithms
+    require adding some metadata alongside each entry.</p>
+
+    <p>For example, Figure <a href="#lu">The counter algorithm</a>
+    -A shows the counter algorithm. Each node contains both a key
+    and a count metadata (shown in bold). When an element is
+    accessed (<i>e.g.</i> 6) its count is incremented, as shown in
+    Figure <a href="#lu">The counter algorithm</a> -B. If the count
+    reaches some predetermined value, say 10, as shown in Figure
+    <a href="#lu">The counter algorithm</a> -C, the count is set to
+    0 and the node is moved to the front of the list, as in Figure
+    <a href="#lu">The counter algorithm</a> -D.</p>
+
+    <h6 class="c1"><a name="lu" id="lu"><img src="lu.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">The counter algorithm.</h6>
+
+    <h3><a name="imp_pb_ds" id="imp_pb_ds">Implementation</a></h3>
+
+    <p><tt>pb_ds</tt> allows instantiating lists with policies
+    implementing any algorithm moving nodes to the front of the
+    list (policies implementing algorithms interchanging nodes are
+    unsupported).</p>
+
+    <p>Associative containers based on lists are parametrized by a
+    <tt>Update_Policy</tt> parameter. This parameter defines the
+    type of metadata each node contains, how to create the
+    metadata, and how to decide, using this metadata, whether to
+    move a node to the front of the list. A list-based associative
+    container object derives (publicly) from its update policy.
+    Figure <a href="#update_policy_cd">A list and its update
+    policy</a> shows the scheme, as well as some predefined
+    policies (which are explained below).</p>
+
+    <h6 class="c1"><a name="update_policy_cd" id=
+    "update_policy_cd"><img src="update_policy_cd.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">A list and its update policy.</h6>
+
+    <p>An instantiation of <tt>Update_Policy</tt> must define
+    internally <tt>update_metadata</tt> as the metadata it
+    requires. Internally, each node of the list contains, besides
+    the usual key and data, an instance of <tt><b>typename</b>
+    Update_Policy::update_metadata</tt>.</p>
+
+    <p>An instantiation of <tt>Update_Policy</tt> must define
+    internally two operators:</p>
+    <pre>
+update_metadata
+<b>operator</b>()();
+
+<b>bool</b>
+<b>operator</b>()(update_metadata &amp;);
+</pre>
+
+    <p>The first is called by the container object, when creating a
+    new node, to create the node's metadata. The second is called
+    by the container object, when a node is accessed (<i>e.g.</i>,
+    when a find operation's key is equivalent to the key of the
+    node), to determine whether to move the node to the front of
+    the list.</p>
+
+    <p>The library contains two predefined implementations of
+    list-update policies [<a href=
+    "references.html#andrew04mtf">andrew04mtf</a>]. The first is
+    <a href=
+    "counter_lu_policy.html"><tt>counter_lu_policy</tt></a>, which
+    implements the counter algorithm described above. The second is
+    <a href=
+    "move_to_front_lu_policy.html"><tt>move_to_front_lu_policy</tt></a>,
+    which unconditionally move an accessed element to the front of
+    the list. The latter type is very useful in <tt>pb_ds</tt>,
+    since there is no need to associate metadata with each element
+    (this is explained further in <a href="#mmaps">Use for
+    "Multimaps"</a>).</p>
+
+    <h2><a name="mmaps" id="mmaps">Use for "Multimaps"</a></h2>
+
+    <p>In <tt>pb_ds</tt>, there are no equivalents for the STL's
+    multimaps and multisets; instead one uses an associative
+    container mapping primary keys to secondary keys (see <a href=
+    "motivation.html#assoc_mapping_semantics">Motivation::Associative
+    Containers::Alternative to Multiple Equivalent Keys</a> and
+    <a href="tutorial.html#assoc_ms">Tutorial::Associative
+    Containers::Associative Containers Others than Maps</a>).</p>
+
+    <p>List-based containers are especially useful as associative
+    containers for secondary keys. In fact, they are implemented
+    here expressly for this purpose.</p>
+
+    <p>To begin with, these containers use very little per-entry
+    structure memory overhead, since they can be implemented as
+    singly-linked lists. (Arrays use even lower per-entry memory
+    overhead, but they are less flexible in moving around entries,
+    and have weaker invalidation guarantees).</p>
+
+    <p>More importantly, though, list-based containers use very
+    little per-container memory overhead. The memory overhead of an
+    empty list-based container is practically that of a pointer.
+    This is important for when they are used as secondary
+    associative-containers in situations where the average ratio of
+    secondary keys to primary keys is low (or even 1).</p>
+
+    <p>In order to reduce the per-container memory overhead as much
+    as possible, they are implemented as closely as possible to
+    singly-linked lists.</p>
+
+    <ol>
+      <li>List-based containers do not store internally the number
+      of values that they hold. This means that their <tt>size</tt>
+      method has linear complexity (just like <tt>std::list</tt>).
+      Note that finding the number of equivalent-key values in an
+      STL multimap also has linear complexity (because it must be
+      done, <i>e.g.</i>, via <tt>std::distance</tt> of the
+      multimap's <tt>equal_range</tt> method), but usually with
+      higher constants.</li>
+
+      <li>Most associative-container objects each hold a policy
+      object (<i>e.g.</i>, a hash-based container object holds a
+      hash functor). List-based containers, conversely, only have
+      class-wide policy objects.</li>
+    </ol>
+
+    <p>See also <a href=
+    "assoc_performance_tests.html#msc">Associative-Container
+    Performance Tests::Observations::Mapping-Semantics
+    Considerations</a>.</p>
+  </div>
+</body>
+</html>

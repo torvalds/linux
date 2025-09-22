@@ -1,0 +1,62 @@
+.\"	$OpenBSD: octrtc.4,v 1.5 2020/06/26 18:48:31 cheloha Exp $
+.\"
+.\" Copyright (c) 2014 Paul Irofti <paul@irofti.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: June 26 2020 $
+.Dt OCTRTC 4 octeon
+.Os
+.Sh NAME
+.Nm octrtc
+.Nd time-of-day clock
+.Sh SYNOPSIS
+.Cd "octrtc* at mainbus?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the low resolution DS1337 time-of-day clock found on some
+of the octeon models.
+The clock has a resolution of 1 second.
+.Pp
+The
+.Nm
+driver is used for getting and setting the system time.
+.Sh HARDWARE
+Supported models:
+.Bl -tag -width Ds -offset indent -compact
+.It D-Link DSR-500
+.It Portwell CAM-0100
+.El
+.Pp
+Known models missing a DS1377 clock:
+.Bl -tag -width Ds -offset indent -compact
+.It Ubiquiti Networks EdgeRouter Lite
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr gettime 9 ,
+.Xr inittodr 9 ,
+.Xr resettodr 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Paul Irofti Aq Mt paul@irofti.net .

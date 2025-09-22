@@ -1,0 +1,99 @@
+#	$OpenBSD: RAMDISK,v 1.28 2023/03/12 22:18:58 cheloha Exp $
+
+machine		landisk	sh
+maxusers	4
+
+option		HZ=64
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		MINIROOTSIZE=5120
+option		RAMDISK_HOOKS
+
+option		PCIVERBOSE
+option		USBVERBOSE
+
+option		FFS
+option		FFS2
+option		CD9660
+option		MSDOSFS
+option		EXT2FS
+option		INET6
+
+config		bsd root on rd0a swap on rd0b
+
+option		SH4		# processor family; MANDATORY
+option		SH7751R		# processor type; MANDATORY
+option		PCLOCK=33333333	# 33.33MHz clock
+option		DONT_INIT_BSC
+#option		DONT_INIT_PCIBSC
+
+mainbus0	at root
+cpu0		at mainbus?
+
+shpcic*		at mainbus?
+pci0		at shpcic?
+shb*		at mainbus?
+obio0		at mainbus?
+
+option		SCIFCONSOLE
+option		SCIFCN_SPEED=9600
+scif0		at shb?
+
+rsclock0	at shb?
+
+wdc0		at obio? port 0x14000000 irq 10
+wd*		at wdc? flags 0x0000
+
+re*		at pci?			# Realtek 8139C+/8169/8169S/8110S
+rl*		at pci?			# Realtek 8129/8139
+
+acphy*		at mii?			# Altima AC101 PHYs
+amphy*		at mii?			# AMD 79C873 PHYs
+eephy*		at mii?			# Marvell 88E1000 series PHY
+rgephy*		at mii?			# Realtek 8169S/8110S PHY
+rlphy*		at mii?			# Realtek 8139/8201L PHYs
+urlphy*		at mii?			# Realtek RTL8150L internal PHYs
+ukphy*		at mii?			# generic unknown PHYs
+
+pciide*		at pci?
+wd*		at pciide?
+atapiscsi*	at pciide? flags 0x0000
+
+ehci*		at pci?
+ohci*		at pci?
+usb*		at ehci?
+usb*		at ohci?
+
+uhub*		at usb?
+uhub*		at uhub?
+umass*		at uhub?
+aue*		at uhub?		# ADMtek AN986 Pegasus Ethernet
+atu*		at uhub?		# Atmel AT76c50x based 802.11b
+axe*		at uhub?		# ASIX Electronics AX88172 USB Ethernet
+axen*		at uhub?		# ASIX Electronics AX88179 USB Ethernet
+cue*		at uhub?		# CATC USB-EL1201A based Ethernet
+kue*		at uhub?		# Kawasaki KL5KUSB101B based Ethernet
+smsc*		at uhub?		# SMSC LAN95xx Ethernet
+cdce*		at uhub?		# CDC Ethernet
+upl*		at uhub?		# Prolific PL2301/PL2302 host-to-host
+ugl*		at uhub?		# Genesys Logic GL620USB-A host-to-host
+udav*		at uhub?		# Davicom DM9601 based Ethernet
+url*		at uhub?		# Realtek RTL8150L based adapters
+ure*		at uhub?		# Realtek RTL8152 based adapters
+wi*		at uhub?		# WaveLAN IEEE 802.11DS
+ugen*		at uhub?		# USB Generic driver
+ural*		at uhub?		# Ralink RT2500USB
+rum*		at uhub?		# Ralink RT2501USB/RT2601USB
+zyd*		at uhub?		# Zydas ZD1211
+
+scsibus*	at scsi?
+sd*		at scsibus?
+cd*		at scsibus?
+
+pseudo-device	wsmux 2
+pseudo-device	loop 1
+pseudo-device	bpfilter 1
+pseudo-device	rd 1

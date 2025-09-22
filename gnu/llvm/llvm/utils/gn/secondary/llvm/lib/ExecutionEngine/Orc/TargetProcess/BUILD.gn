@@ -1,0 +1,23 @@
+static_library("TargetProcess") {
+  output_name = "LLVMOrcTargetProcess"
+  deps = [
+    "//llvm/lib/ExecutionEngine/Orc/Shared",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "ExecutorSharedMemoryMapperService.cpp",
+    "JITLoaderGDB.cpp",
+    "JITLoaderPerf.cpp",
+    "JITLoaderVTune.cpp",
+    "OrcRTBootstrap.cpp",
+    "RegisterEHFrames.cpp",
+    "SimpleExecutorDylibManager.cpp",
+    "SimpleExecutorMemoryManager.cpp",
+    "SimpleRemoteEPCServer.cpp",
+    "TargetExecutionUtils.cpp",
+  ]
+  if (current_os == "linux") {
+    libs = [ "rt" ]
+  }
+}

@@ -1,0 +1,27 @@
+static_library("Index") {
+  output_name = "clangIndex"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Serialization",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "CommentToXML.cpp",
+    "FileIndexRecord.cpp",
+    "IndexBody.cpp",
+    "IndexDecl.cpp",
+    "IndexSymbol.cpp",
+    "IndexTypeSourceInfo.cpp",
+    "IndexingAction.cpp",
+    "IndexingContext.cpp",
+    "IndexingContext.h",
+    "USRGeneration.cpp",
+  ]
+}

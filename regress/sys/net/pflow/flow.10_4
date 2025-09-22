@@ -1,0 +1,45 @@
+4 flows
+12 elements
+SetId: 256
+sourceIPv4Address: 0a0b0c0d
+destinationIPv4Address: 0a0b0c0d
+packetDeltaCount: 000000000000000e
+octetDeltaCount: 000000000000a2e4
+sourceTransportPort: 3039
+destinationTransportPort: 303a
+ipClassOfService: 00
+protocolIdentifier: 06
+ingressInterface == egressInterface && egressInterface > 0: 1
+12 elements
+SetId: 256
+sourceIPv4Address: 0a0b0c0d
+destinationIPv4Address: 0a0b0c0d
+packetDeltaCount: 000000000000000d
+octetDeltaCount: 00000000000002b0
+sourceTransportPort: 303a
+destinationTransportPort: 3039
+ipClassOfService: 00
+protocolIdentifier: 06
+ingressInterface == egressInterface && egressInterface > 0: 1
+12 elements
+SetId: 256
+sourceIPv4Address: 0a0b0c0d
+destinationIPv4Address: 0a0b0c0d
+packetDeltaCount: 000000000000000e
+octetDeltaCount: 000000000000a2e4
+sourceTransportPort: 3039
+destinationTransportPort: 303a
+ipClassOfService: 00
+protocolIdentifier: 06
+ingressInterface == egressInterface && egressInterface > 0: 1
+12 elements
+SetId: 256
+sourceIPv4Address: 0a0b0c0d
+destinationIPv4Address: 0a0b0c0d
+packetDeltaCount: 000000000000000d
+octetDeltaCount: 00000000000002b0
+sourceTransportPort: 303a
+destinationTransportPort: 3039
+ipClassOfService: 00
+protocolIdentifier: 06
+ingressInterface == egressInterface && egressInterface > 0: 1

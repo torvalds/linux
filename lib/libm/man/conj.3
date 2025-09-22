@@ -1,0 +1,60 @@
+.\"	$OpenBSD: conj.3,v 1.6 2025/06/07 10:33:06 schwarze Exp $
+.\"
+.\" Copyright (c) 2010 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt CONJ 3
+.Os
+.Sh NAME
+.Nm conj ,
+.Nm conjf ,
+.Nm conjl
+.Nd compute the complex conjugate
+.Sh SYNOPSIS
+.Lb libm
+.In complex.h
+.Ft double complex
+.Fn conj "double complex z"
+.Ft float complex
+.Fn conjf "float complex z"
+.Ft long double complex
+.Fn conjl "long double complex z"
+.Sh DESCRIPTION
+The
+.Fn conj ,
+.Fn conjf
+and
+.Fn conjl
+functions reverse the sign of the imaginary part of
+.Fa z ,
+producing the complex conjugate.
+.Sh RETURN VALUES
+The
+.Fn conj ,
+.Fn conjf
+and
+.Fn conjl
+functions return the complex conjugate of the complex number
+.Fa z .
+.Sh SEE ALSO
+.Xr carg 3
+.Sh STANDARDS
+The
+.Fn conj ,
+.Fn conjf
+and
+.Fn conjl
+functions conform to
+.St -isoC-99 .

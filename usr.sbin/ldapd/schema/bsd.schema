@@ -1,0 +1,16 @@
+attributetype ( 1.3.6.1.4.1.30155.115.2 NAME 'shadowPassword'
+	DESC 'POSIX hashed password'
+	EQUALITY caseExactIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+attributetype ( 1.3.6.1.4.1.30155.115.3 NAME 'sshPublicKey'
+	DESC 'OpenSSH public key'
+	EQUALITY caseExactIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+objectclass ( 1.3.6.1.4.1.30155.115.1 NAME 'bsdAccount'
+	SUP top
+	AUXILIARY
+	DESC 'Abstraction of an account with OpenBSD attributes'
+	MAY ( uid $ shadowPassword $ shadowExpire $ modifyTimestamp $ 
+		userClass $ sshPublicKey ))

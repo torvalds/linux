@@ -1,0 +1,178 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_COMPARE
+#define _LIBCPP_COMPARE
+
+/*
+    compare synopsis
+
+namespace std {
+  // [cmp.categories], comparison category types
+  class partial_ordering;
+  class weak_ordering;
+  class strong_ordering;
+
+  // named comparison functions
+  constexpr bool is_eq  (partial_ordering cmp) noexcept { return cmp == 0; }
+  constexpr bool is_neq (partial_ordering cmp) noexcept { return cmp != 0; }
+  constexpr bool is_lt  (partial_ordering cmp) noexcept { return cmp < 0; }
+  constexpr bool is_lteq(partial_ordering cmp) noexcept { return cmp <= 0; }
+  constexpr bool is_gt  (partial_ordering cmp) noexcept { return cmp > 0; }
+  constexpr bool is_gteq(partial_ordering cmp) noexcept { return cmp >= 0; }
+
+  // [cmp.common], common comparison category type
+  template<class... Ts>
+  struct common_comparison_category {
+    using type = see below;
+  };
+  template<class... Ts>
+    using common_comparison_category_t = typename common_comparison_category<Ts...>::type;
+
+  // [cmp.concept], concept three_way_comparable
+  template<class T, class Cat = partial_ordering>
+    concept three_way_comparable = see below;
+  template<class T, class U, class Cat = partial_ordering>
+    concept three_way_comparable_with = see below;
+
+  // [cmp.result], result of three-way comparison
+  template<class T, class U = T> struct compare_three_way_result;
+
+  template<class T, class U = T>
+    using compare_three_way_result_t = typename compare_three_way_result<T, U>::type;
+
+  // [comparisons.three.way], class compare_three_way
+  struct compare_three_way; // C++20
+
+  // [cmp.alg], comparison algorithms
+  inline namespace unspecified {
+    inline constexpr unspecified strong_order = unspecified;
+    inline constexpr unspecified weak_order = unspecified;
+    inline constexpr unspecified partial_order = unspecified;
+    inline constexpr unspecified compare_strong_order_fallback = unspecified;
+    inline constexpr unspecified compare_weak_order_fallback = unspecified;
+    inline constexpr unspecified compare_partial_order_fallback = unspecified;
+  }
+
+  // [cmp.partialord], Class partial_ordering
+  class partial_ordering {
+  public:
+    // valid values
+    static const partial_ordering less;
+    static const partial_ordering equivalent;
+    static const partial_ordering greater;
+    static const partial_ordering unordered;
+
+    // comparisons
+    friend constexpr bool operator==(partial_ordering v, unspecified) noexcept;
+    friend constexpr bool operator==(partial_ordering v, partial_ordering w) noexcept = default;
+    friend constexpr bool operator< (partial_ordering v, unspecified) noexcept;
+    friend constexpr bool operator> (partial_ordering v, unspecified) noexcept;
+    friend constexpr bool operator<=(partial_ordering v, unspecified) noexcept;
+    friend constexpr bool operator>=(partial_ordering v, unspecified) noexcept;
+    friend constexpr bool operator< (unspecified, partial_ordering v) noexcept;
+    friend constexpr bool operator> (unspecified, partial_ordering v) noexcept;
+    friend constexpr bool operator<=(unspecified, partial_ordering v) noexcept;
+    friend constexpr bool operator>=(unspecified, partial_ordering v) noexcept;
+    friend constexpr partial_ordering operator<=>(partial_ordering v, unspecified) noexcept;
+    friend constexpr partial_ordering operator<=>(unspecified, partial_ordering v) noexcept;
+  };
+
+  // [cmp.weakord], Class weak_ordering
+  class weak_ordering {
+  public:
+    // valid values
+    static const weak_ordering less;
+    static const weak_ordering equivalent;
+    static const weak_ordering greater;
+
+    // conversions
+    constexpr operator partial_ordering() const noexcept;
+
+    // comparisons
+    friend constexpr bool operator==(weak_ordering v, unspecified) noexcept;
+    friend constexpr bool operator==(weak_ordering v, weak_ordering w) noexcept = default;
+    friend constexpr bool operator< (weak_ordering v, unspecified) noexcept;
+    friend constexpr bool operator> (weak_ordering v, unspecified) noexcept;
+    friend constexpr bool operator<=(weak_ordering v, unspecified) noexcept;
+    friend constexpr bool operator>=(weak_ordering v, unspecified) noexcept;
+    friend constexpr bool operator< (unspecified, weak_ordering v) noexcept;
+    friend constexpr bool operator> (unspecified, weak_ordering v) noexcept;
+    friend constexpr bool operator<=(unspecified, weak_ordering v) noexcept;
+    friend constexpr bool operator>=(unspecified, weak_ordering v) noexcept;
+    friend constexpr weak_ordering operator<=>(weak_ordering v, unspecified) noexcept;
+    friend constexpr weak_ordering operator<=>(unspecified, weak_ordering v) noexcept;
+  };
+
+  // [cmp.strongord], Class strong_ordering
+  class strong_ordering {
+  public:
+    // valid values
+    static const strong_ordering less;
+    static const strong_ordering equal;
+    static const strong_ordering equivalent;
+    static const strong_ordering greater;
+
+    // conversions
+    constexpr operator partial_ordering() const noexcept;
+    constexpr operator weak_ordering() const noexcept;
+
+    // comparisons
+    friend constexpr bool operator==(strong_ordering v, unspecified) noexcept;
+    friend constexpr bool operator==(strong_ordering v, strong_ordering w) noexcept = default;
+    friend constexpr bool operator< (strong_ordering v, unspecified) noexcept;
+    friend constexpr bool operator> (strong_ordering v, unspecified) noexcept;
+    friend constexpr bool operator<=(strong_ordering v, unspecified) noexcept;
+    friend constexpr bool operator>=(strong_ordering v, unspecified) noexcept;
+    friend constexpr bool operator< (unspecified, strong_ordering v) noexcept;
+    friend constexpr bool operator> (unspecified, strong_ordering v) noexcept;
+    friend constexpr bool operator<=(unspecified, strong_ordering v) noexcept;
+    friend constexpr bool operator>=(unspecified, strong_ordering v) noexcept;
+    friend constexpr strong_ordering operator<=>(strong_ordering v, unspecified) noexcept;
+    friend constexpr strong_ordering operator<=>(unspecified, strong_ordering v) noexcept;
+  };
+}
+*/
+
+#include <__config>
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__compare/common_comparison_category.h>
+#  include <__compare/compare_partial_order_fallback.h>
+#  include <__compare/compare_strong_order_fallback.h>
+#  include <__compare/compare_three_way.h>
+#  include <__compare/compare_three_way_result.h>
+#  include <__compare/compare_weak_order_fallback.h>
+#  include <__compare/is_eq.h>
+#  include <__compare/ordering.h>
+#  include <__compare/partial_order.h>
+#  include <__compare/strong_order.h>
+#  include <__compare/synth_three_way.h>
+#  include <__compare/three_way_comparable.h>
+#  include <__compare/weak_order.h>
+#endif // _LIBCPP_STD_VER >= 20
+
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 17
+#  include <cstddef>
+#  include <cstdint>
+#  include <limits>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cmath>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_COMPARE

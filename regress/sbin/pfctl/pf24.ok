@@ -1,0 +1,7 @@
+a = "ssh"
+b = "ftp"
+c = "ssh ftp"
+d = "ssh ftp ssh ftp"
+e = "ssh ftp ftp test ssh ftp"
+pass in proto tcp from any to any port = 22 flags S/SA
+pass in proto tcp from any to any port = 21 flags S/SA

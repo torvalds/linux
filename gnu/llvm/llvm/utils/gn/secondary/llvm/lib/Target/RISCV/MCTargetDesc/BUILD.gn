@@ -1,0 +1,78 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("RISCVGenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../RISCV.td"
+}
+
+tablegen("RISCVGenInstrInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../RISCV.td"
+}
+
+tablegen("RISCVGenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../RISCV.td"
+}
+
+tablegen("RISCVGenRegisterInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../RISCV.td"
+}
+
+tablegen("RISCVGenSearchableTables") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-searchable-tables" ]
+  td_file = "../RISCV.td"
+}
+
+tablegen("RISCVGenSubtargetInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../RISCV.td"
+}
+
+# This should contain tablegen targets generating .inc files included
+# by other targets. .inc files only used by .cpp files in this directory
+# should be in deps on the static_library instead.
+group("tablegen") {
+  visibility = [ ":MCTargetDesc" ]
+  public_deps = [
+    ":RISCVGenInstrInfo",
+    ":RISCVGenRegisterInfo",
+    ":RISCVGenSearchableTables",
+    ":RISCVGenSubtargetInfo",
+  ]
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMRISCVDesc"
+  public_deps = [ ":tablegen" ]
+  deps = [
+    ":RISCVGenAsmWriter",
+    ":RISCVGenMCCodeEmitter",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/RISCV:RISCVGenCompressInstEmitter",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "RISCVAsmBackend.cpp",
+    "RISCVBaseInfo.cpp",
+    "RISCVELFObjectWriter.cpp",
+    "RISCVELFStreamer.cpp",
+    "RISCVInstPrinter.cpp",
+    "RISCVMCAsmInfo.cpp",
+    "RISCVMCCodeEmitter.cpp",
+    "RISCVMCExpr.cpp",
+    "RISCVMCObjectFileInfo.cpp",
+    "RISCVMCTargetDesc.cpp",
+    "RISCVMatInt.cpp",
+    "RISCVTargetStreamer.cpp",
+  ]
+}

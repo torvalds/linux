@@ -1,0 +1,1373 @@
+//===--- OMPKinds.def - OpenMP directives, clauses, rt-calls -*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+/// \file
+///
+/// This file defines the list of supported OpenMP runtime
+/// calls, and other things that need to be listed in enums.
+///
+/// This file is under transition to OMP.td with TableGen code generation.
+///
+//===----------------------------------------------------------------------===//
+
+/// OpenMP Directives, combined directives and Clauses
+/// - Moved to OMP.td
+
+/// Types used in runtime structs or runtime functions
+///
+///{
+
+#ifndef OMP_TYPE
+#define OMP_TYPE(VarName, InitValue)
+#endif
+
+#define __OMP_TYPE(VarName) OMP_TYPE(VarName, Type::get##VarName##Ty(Ctx))
+#define __OMP_PTR_TYPE(VarName) OMP_TYPE(VarName, PointerType::get(Ctx, 0))
+
+__OMP_TYPE(Void)
+__OMP_TYPE(Int1)
+__OMP_TYPE(Int8)
+__OMP_TYPE(Int16)
+__OMP_TYPE(Int32)
+__OMP_TYPE(Int64)
+__OMP_PTR_TYPE(Int8Ptr)
+__OMP_PTR_TYPE(Int16Ptr)
+__OMP_PTR_TYPE(Int32Ptr)
+__OMP_PTR_TYPE(Int64Ptr)
+__OMP_TYPE(Double)
+
+OMP_TYPE(SizeTy, M.getDataLayout().getIntPtrType(Ctx))
+OMP_TYPE(Int63, Type::getIntNTy(Ctx, 63))
+
+__OMP_PTR_TYPE(VoidPtr)
+__OMP_PTR_TYPE(VoidPtrPtr)
+__OMP_PTR_TYPE(VoidPtrPtrPtr)
+
+__OMP_PTR_TYPE(Int8PtrPtr)
+__OMP_PTR_TYPE(Int8PtrPtrPtr)
+
+#undef __OMP_PTR_TYPE
+
+#undef __OMP_TYPE
+#undef OMP_TYPE
+
+///}
+
+/// array types
+///
+///{
+
+#ifndef OMP_ARRAY_TYPE
+#define OMP_ARRAY_TYPE(VarName, ElemTy, ArraySize)
+#endif
+
+#define __OMP_ARRAY_TYPE(VarName, ElemTy, ArraySize)                           \
+  OMP_ARRAY_TYPE(VarName, ElemTy, ArraySize)
+
+__OMP_ARRAY_TYPE(KmpCriticalName, Int32, 8)
+__OMP_ARRAY_TYPE(Int32Arr3, Int32, 3)
+
+#undef __OMP_ARRAY_TYPE
+#undef OMP_ARRAY_TYPE
+
+///}
+
+/// Struct and function types
+///
+///{
+
+#ifndef OMP_STRUCT_TYPE
+#define OMP_STRUCT_TYPE(VarName, StructName, Packed, ...)
+#endif
+
+#define __OMP_STRUCT_TYPE(VarName, Name, Packed, ...)                                  \
+  OMP_STRUCT_TYPE(VarName, "struct." #Name, Packed, __VA_ARGS__)
+
+__OMP_STRUCT_TYPE(Ident, ident_t, false, Int32, Int32, Int32, Int32, Int8Ptr)
+__OMP_STRUCT_TYPE(KernelArgs, __tgt_kernel_arguments, false, Int32, Int32, VoidPtrPtr,
+		  VoidPtrPtr, Int64Ptr, Int64Ptr, VoidPtrPtr, VoidPtrPtr,
+		  Int64, Int64, Int32Arr3Ty, Int32Arr3Ty, Int32)
+__OMP_STRUCT_TYPE(AsyncInfo, __tgt_async_info, false, Int8Ptr)
+__OMP_STRUCT_TYPE(DependInfo, kmp_dep_info, false, SizeTy, SizeTy, Int8)
+__OMP_STRUCT_TYPE(Task, kmp_task_ompbuilder_t, false, VoidPtr, VoidPtr, Int32, VoidPtr, VoidPtr)
+__OMP_STRUCT_TYPE(ConfigurationEnvironment, ConfigurationEnvironmentTy, false,
+                  Int8, Int8, Int8, Int32, Int32, Int32, Int32, Int32, Int32)
+__OMP_STRUCT_TYPE(DynamicEnvironment, DynamicEnvironmentTy, false, Int16)
+__OMP_STRUCT_TYPE(KernelEnvironment, KernelEnvironmentTy, false,
+                  ConfigurationEnvironment, IdentPtr, DynamicEnvironmentPtr)
+__OMP_STRUCT_TYPE(KernelLaunchEnvironment, KernelLaunchEnvironmentTy, false,
+                  Int32, Int32)
+
+#undef __OMP_STRUCT_TYPE
+#undef OMP_STRUCT_TYPE
+
+#ifndef OMP_FUNCTION_TYPE
+#define OMP_FUNCTION_TYPE(VarName, IsVarArg, ReturnType, ...)
+#endif
+
+#define __OMP_FUNCTION_TYPE(VarName, IsVarArg, ReturnType, ...)                \
+  OMP_FUNCTION_TYPE(VarName, IsVarArg, ReturnType, __VA_ARGS__)
+
+__OMP_FUNCTION_TYPE(ParallelTask, true, Void, Int32Ptr, Int32Ptr)
+__OMP_FUNCTION_TYPE(ReduceFunction, false, Void, VoidPtr, VoidPtr)
+__OMP_FUNCTION_TYPE(CopyFunction, false, Void, VoidPtr, VoidPtr)
+__OMP_FUNCTION_TYPE(KmpcCtor, false, VoidPtr, VoidPtr)
+__OMP_FUNCTION_TYPE(KmpcDtor, false, Void, VoidPtr)
+__OMP_FUNCTION_TYPE(KmpcCopyCtor, false, VoidPtr, VoidPtr, VoidPtr)
+__OMP_FUNCTION_TYPE(TaskRoutineEntry, false, Int32, Int32,
+                    /* kmp_task_t */ VoidPtr)
+__OMP_FUNCTION_TYPE(ShuffleReduce, false, Void, VoidPtr, Int16, Int16, Int16)
+__OMP_FUNCTION_TYPE(InterWarpCopy, false, Void, VoidPtr, Int32)
+__OMP_FUNCTION_TYPE(GlobalList, false, Void, VoidPtr, Int32, VoidPtr)
+
+#undef __OMP_FUNCTION_TYPE
+#undef OMP_FUNCTION_TYPE
+
+///}
+
+/// Internal Control Variables information
+///
+///{
+
+#ifndef ICV_INIT_VALUE
+#define ICV_INIT_VALUE(Enum, Name)
+#endif
+
+#define __ICV_INIT_VALUE(Name) ICV_INIT_VALUE(ICV_##Name, #Name)
+
+__ICV_INIT_VALUE(ZERO)
+__ICV_INIT_VALUE(FALSE)
+__ICV_INIT_VALUE(IMPLEMENTATION_DEFINED)
+__ICV_INIT_VALUE(LAST)
+
+#undef __ICV_INIT_VALUE
+#undef ICV_INIT_VALUE
+
+#ifndef ICV_DATA_ENV
+#define ICV_DATA_ENV(Enum, Name, EnvVarName, Init)
+#endif
+
+#define __ICV_DATA_ENV(Name, EnvVarName, Init)                                 \
+  ICV_DATA_ENV(ICV_##Name, #Name, #EnvVarName, Init)
+
+__ICV_DATA_ENV(nthreads, OMP_NUM_THREADS, ICV_IMPLEMENTATION_DEFINED)
+__ICV_DATA_ENV(active_levels, NONE, ICV_ZERO)
+__ICV_DATA_ENV(cancel, OMP_CANCELLATION, ICV_FALSE)
+__ICV_DATA_ENV(proc_bind, OMP_PROC_BIND, ICV_IMPLEMENTATION_DEFINED)
+__ICV_DATA_ENV(__last, last, ICV_LAST)
+
+#undef __ICV_DATA_ENV
+#undef ICV_DATA_ENV
+
+#ifndef ICV_RT_SET
+#define ICV_RT_SET(Name, RTL)
+#endif
+
+#define __ICV_RT_SET(Name, RTL) ICV_RT_SET(ICV_##Name, OMPRTL_##RTL)
+
+__ICV_RT_SET(nthreads, omp_set_num_threads)
+
+#undef __ICV_RT_SET
+#undef ICV_RT_SET
+
+#ifndef ICV_RT_GET
+#define ICV_RT_GET(Name, RTL)
+#endif
+
+#define __ICV_RT_GET(Name, RTL) ICV_RT_GET(ICV_##Name, OMPRTL_##RTL)
+
+__ICV_RT_GET(nthreads, omp_get_max_threads)
+__ICV_RT_GET(active_levels, omp_get_active_level)
+__ICV_RT_GET(cancel, omp_get_cancellation)
+__ICV_RT_GET(proc_bind, omp_get_proc_bind)
+
+#undef __ICV_RT_GET
+#undef ICV_RT_GET
+
+///}
+
+/// Runtime library function (and their attributes)
+///
+///{
+
+#ifndef OMP_RTL
+#define OMP_RTL(Enum, Str, IsVarArg, ReturnType, ...)
+#endif
+
+#define __OMP_RTL(Name, IsVarArg, ReturnType, ...)                             \
+  OMP_RTL(OMPRTL_##Name, #Name, IsVarArg, ReturnType, __VA_ARGS__)
+
+
+
+__OMP_RTL(__kmpc_barrier, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_cancel, false, Int32, IdentPtr, Int32, Int32)
+__OMP_RTL(__kmpc_cancel_barrier, false, Int32, IdentPtr, Int32)
+__OMP_RTL(__kmpc_error, false, Void, IdentPtr, Int32, Int8Ptr)
+__OMP_RTL(__kmpc_flush, false, Void, IdentPtr)
+__OMP_RTL(__kmpc_global_thread_num, false, Int32, IdentPtr)
+__OMP_RTL(__kmpc_get_hardware_thread_id_in_block, false, Int32, )
+__OMP_RTL(__kmpc_fork_call, true, Void, IdentPtr, Int32, ParallelTaskPtr)
+__OMP_RTL(__kmpc_fork_call_if, false, Void, IdentPtr, Int32, ParallelTaskPtr,
+          Int32, VoidPtr)
+__OMP_RTL(__kmpc_omp_taskwait, false, Int32, IdentPtr, Int32)
+__OMP_RTL(__kmpc_omp_taskyield, false, Int32, IdentPtr, Int32, /* Int */ Int32)
+__OMP_RTL(__kmpc_push_num_threads, false, Void, IdentPtr, Int32,
+          /* Int */ Int32)
+__OMP_RTL(__kmpc_push_proc_bind, false, Void, IdentPtr, Int32, /* Int */ Int32)
+__OMP_RTL(__kmpc_omp_reg_task_with_affinity, false, Int32, IdentPtr, Int32,
+          /* kmp_task_t */ VoidPtr, Int32,
+          /* kmp_task_affinity_info_t */ VoidPtr)
+
+__OMP_RTL(__kmpc_get_hardware_num_blocks, false, Int32, )
+__OMP_RTL(__kmpc_get_hardware_num_threads_in_block, false, Int32, )
+__OMP_RTL(__kmpc_get_warp_size, false, Int32, )
+
+__OMP_RTL(omp_get_thread_num, false, Int32, )
+__OMP_RTL(omp_get_num_threads, false, Int32, )
+__OMP_RTL(omp_get_max_threads, false, Int32, )
+__OMP_RTL(omp_in_parallel, false, Int32, )
+__OMP_RTL(omp_get_dynamic, false, Int32, )
+__OMP_RTL(omp_get_cancellation, false, Int32, )
+__OMP_RTL(omp_get_nested, false, Int32, )
+__OMP_RTL(omp_get_schedule, false, Void, Int32Ptr, Int32Ptr)
+__OMP_RTL(omp_get_thread_limit, false, Int32, )
+__OMP_RTL(omp_get_supported_active_levels, false, Int32, )
+__OMP_RTL(omp_get_max_active_levels, false, Int32, )
+__OMP_RTL(omp_get_level, false, Int32, )
+__OMP_RTL(omp_get_ancestor_thread_num, false, Int32, Int32)
+__OMP_RTL(omp_get_team_size, false, Int32, Int32)
+__OMP_RTL(omp_get_active_level, false, Int32, )
+__OMP_RTL(omp_in_final, false, Int32, )
+__OMP_RTL(omp_get_proc_bind, false, Int32, )
+__OMP_RTL(omp_get_num_places, false, Int32, )
+__OMP_RTL(omp_get_num_procs, false, Int32, )
+__OMP_RTL(omp_get_place_proc_ids, false, Void, Int32, Int32Ptr)
+__OMP_RTL(omp_get_place_num, false, Int32, )
+__OMP_RTL(omp_get_partition_num_places, false, Int32, )
+__OMP_RTL(omp_get_partition_place_nums, false, Void, Int32Ptr)
+__OMP_RTL(omp_get_wtime, false, Double,)
+
+__OMP_RTL(omp_set_num_threads, false, Void, Int32)
+__OMP_RTL(omp_set_dynamic, false, Void, Int32)
+__OMP_RTL(omp_set_nested, false, Void, Int32)
+__OMP_RTL(omp_set_schedule, false, Void, Int32, Int32)
+__OMP_RTL(omp_set_max_active_levels, false, Void, Int32)
+
+__OMP_RTL(__kmpc_master, false, Int32, IdentPtr, Int32)
+__OMP_RTL(__kmpc_end_master, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_masked, false, Int32, IdentPtr, Int32, Int32)
+__OMP_RTL(__kmpc_end_masked, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_critical, false, Void, IdentPtr, Int32, KmpCriticalNamePtrTy)
+__OMP_RTL(__kmpc_critical_with_hint, false, Void, IdentPtr, Int32,
+          KmpCriticalNamePtrTy, Int32)
+__OMP_RTL(__kmpc_end_critical, false, Void, IdentPtr, Int32,
+          KmpCriticalNamePtrTy)
+
+__OMP_RTL(__kmpc_begin, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_end, false, Void, IdentPtr)
+
+__OMP_RTL(__kmpc_reduce, false, Int32, IdentPtr, Int32, Int32, SizeTy, VoidPtr,
+          ReduceFunctionPtr, KmpCriticalNamePtrTy)
+__OMP_RTL(__kmpc_reduce_nowait, false, Int32, IdentPtr, Int32, Int32, SizeTy,
+          VoidPtr, ReduceFunctionPtr, KmpCriticalNamePtrTy)
+__OMP_RTL(__kmpc_end_reduce, false, Void, IdentPtr, Int32, KmpCriticalNamePtrTy)
+__OMP_RTL(__kmpc_end_reduce_nowait, false, Void, IdentPtr, Int32,
+          KmpCriticalNamePtrTy)
+
+__OMP_RTL(__kmpc_ordered, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_end_ordered, false, Void, IdentPtr, Int32)
+
+__OMP_RTL(__kmpc_for_static_init_4, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int32Ptr, Int32Ptr, Int32Ptr, Int32, Int32)
+__OMP_RTL(__kmpc_for_static_init_4u, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int32Ptr, Int32Ptr, Int32Ptr, Int32, Int32)
+__OMP_RTL(__kmpc_for_static_init_8, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int64Ptr, Int64Ptr, Int64Ptr, Int64, Int64)
+__OMP_RTL(__kmpc_for_static_init_8u, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int64Ptr, Int64Ptr, Int64Ptr, Int64, Int64)
+__OMP_RTL(__kmpc_for_static_fini, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_distribute_static_init_4, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int32Ptr, Int32Ptr, Int32Ptr, Int32, Int32)
+__OMP_RTL(__kmpc_distribute_static_init_4u, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int32Ptr, Int32Ptr, Int32Ptr, Int32, Int32)
+__OMP_RTL(__kmpc_distribute_static_init_8, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int64Ptr, Int64Ptr, Int64Ptr, Int64, Int64)
+__OMP_RTL(__kmpc_distribute_static_init_8u, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int64Ptr, Int64Ptr, Int64Ptr, Int64, Int64)
+__OMP_RTL(__kmpc_distribute_static_fini, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_dist_dispatch_init_4, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int32, Int32, Int32, Int32)
+__OMP_RTL(__kmpc_dist_dispatch_init_4u, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int32, Int32, Int32, Int32)
+__OMP_RTL(__kmpc_dist_dispatch_init_8, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int64, Int64, Int64, Int64)
+__OMP_RTL(__kmpc_dist_dispatch_init_8u, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int64, Int64, Int64, Int64)
+__OMP_RTL(__kmpc_dispatch_init_4, false, Void, IdentPtr, Int32, Int32, Int32,
+          Int32, Int32, Int32)
+__OMP_RTL(__kmpc_dispatch_init_4u, false, Void, IdentPtr, Int32, Int32, Int32,
+          Int32, Int32, Int32)
+__OMP_RTL(__kmpc_dispatch_init_8, false, Void, IdentPtr, Int32, Int32, Int64,
+          Int64, Int64, Int64)
+__OMP_RTL(__kmpc_dispatch_init_8u, false, Void, IdentPtr, Int32, Int32, Int64,
+          Int64, Int64, Int64)
+__OMP_RTL(__kmpc_dispatch_next_4, false, Int32, IdentPtr, Int32, Int32Ptr,
+          Int32Ptr, Int32Ptr, Int32Ptr)
+__OMP_RTL(__kmpc_dispatch_next_4u, false, Int32, IdentPtr, Int32, Int32Ptr,
+          Int32Ptr, Int32Ptr, Int32Ptr)
+__OMP_RTL(__kmpc_dispatch_next_8, false, Int32, IdentPtr, Int32, Int32Ptr,
+          Int64Ptr, Int64Ptr, Int64Ptr)
+__OMP_RTL(__kmpc_dispatch_next_8u, false, Int32, IdentPtr, Int32, Int32Ptr,
+          Int64Ptr, Int64Ptr, Int64Ptr)
+__OMP_RTL(__kmpc_dispatch_fini_4, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_dispatch_fini_4u, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_dispatch_fini_8, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_dispatch_fini_8u, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_dispatch_deinit, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_team_static_init_4, false, Void, IdentPtr, Int32, Int32Ptr,
+          Int32Ptr, Int32Ptr, Int32Ptr, Int32, Int32)
+__OMP_RTL(__kmpc_team_static_init_4u, false, Void, IdentPtr, Int32, Int32Ptr,
+          Int32Ptr, Int32Ptr, Int32Ptr, Int32, Int32)
+__OMP_RTL(__kmpc_team_static_init_8, false, Void, IdentPtr, Int32, Int32Ptr,
+          Int64Ptr, Int64Ptr, Int64Ptr, Int64, Int64)
+__OMP_RTL(__kmpc_team_static_init_8u, false, Void, IdentPtr, Int32, Int32Ptr,
+          Int64Ptr, Int64Ptr, Int64Ptr, Int64, Int64)
+__OMP_RTL(__kmpc_dist_for_static_init_4, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int32Ptr, Int32Ptr, Int32Ptr, Int32Ptr, Int32, Int32)
+__OMP_RTL(__kmpc_dist_for_static_init_4u, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int32Ptr, Int32Ptr, Int32Ptr, Int32Ptr, Int32, Int32)
+__OMP_RTL(__kmpc_dist_for_static_init_8, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int64Ptr, Int64Ptr, Int64Ptr, Int64Ptr, Int64, Int64)
+__OMP_RTL(__kmpc_dist_for_static_init_8u, false, Void, IdentPtr, Int32, Int32,
+          Int32Ptr, Int64Ptr, Int64Ptr, Int64Ptr, Int64Ptr, Int64, Int64)
+
+__OMP_RTL(__kmpc_single, false, Int32, IdentPtr, Int32)
+__OMP_RTL(__kmpc_end_single, false, Void, IdentPtr, Int32)
+
+__OMP_RTL(__kmpc_omp_task_alloc, false, /* kmp_task_t */ VoidPtr, IdentPtr,
+          Int32, Int32, SizeTy, SizeTy, TaskRoutineEntryPtr)
+__OMP_RTL(__kmpc_omp_task, false, Int32, IdentPtr, Int32,
+          /* kmp_task_t */ VoidPtr)
+__OMP_RTL(__kmpc_end_taskgroup, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_taskgroup, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_omp_task_begin_if0, false, Void, IdentPtr, Int32,
+          /* kmp_task_t */ VoidPtr)
+__OMP_RTL(__kmpc_omp_task_complete_if0, false, Void, IdentPtr, Int32,
+          /* kmp_tasK_t */ VoidPtr)
+__OMP_RTL(__kmpc_omp_task_with_deps, false, Int32, IdentPtr, Int32,
+          /* kmp_task_t */ VoidPtr, Int32,
+          /* kmp_depend_info_t */ VoidPtr, Int32,
+          /* kmp_depend_info_t */ VoidPtr)
+__OMP_RTL(__kmpc_taskloop, false, Void, IdentPtr, /* Int */ Int32, VoidPtr,
+          /* Int */ Int32, Int64Ptr, Int64Ptr, Int64, /* Int */ Int32,
+          /* Int */ Int32, Int64, VoidPtr)
+__OMP_RTL(__kmpc_omp_target_task_alloc, false, /* kmp_task_t */ VoidPtr,
+          IdentPtr, Int32, Int32, SizeTy, SizeTy, TaskRoutineEntryPtr, Int64)
+__OMP_RTL(__kmpc_taskred_modifier_init, false, /* kmp_taskgroup */ VoidPtr,
+          IdentPtr, /* Int */ Int32, /* Int */ Int32, /* Int */ Int32, VoidPtr)
+__OMP_RTL(__kmpc_taskred_init, false, /* kmp_taskgroup */ VoidPtr,
+          /* Int */ Int32, /* Int */ Int32, VoidPtr)
+__OMP_RTL(__kmpc_task_reduction_modifier_fini, false, Void, IdentPtr,
+          /* Int */ Int32, /* Int */ Int32)
+__OMP_RTL(__kmpc_task_reduction_get_th_data, false, VoidPtr, Int32, VoidPtr,
+          VoidPtr)
+__OMP_RTL(__kmpc_task_reduction_init, false, VoidPtr, Int32, Int32, VoidPtr)
+__OMP_RTL(__kmpc_task_reduction_modifier_init, false, VoidPtr, VoidPtr, Int32,
+          Int32, Int32, VoidPtr)
+__OMP_RTL(__kmpc_proxy_task_completed_ooo, false, Void, VoidPtr)
+
+__OMP_RTL(__kmpc_omp_wait_deps, false, Void, IdentPtr, Int32, Int32,
+          /* kmp_depend_info_t */ VoidPtr, Int32, VoidPtr)
+__OMP_RTL(__kmpc_omp_taskwait_deps_51, false, Void, IdentPtr, Int32, Int32,
+          /* kmp_depend_info_t */ VoidPtr, Int32, VoidPtr, Int32)
+__OMP_RTL(__kmpc_cancellationpoint, false, Int32, IdentPtr, Int32, Int32)
+
+__OMP_RTL(__kmpc_fork_teams, true, Void, IdentPtr, Int32, ParallelTaskPtr)
+__OMP_RTL(__kmpc_push_num_teams, false, Void, IdentPtr, Int32, Int32, Int32)
+__OMP_RTL(__kmpc_push_num_teams_51, false, Void, IdentPtr, Int32, Int32, Int32, Int32)
+__OMP_RTL(__kmpc_set_thread_limit, false, Void, IdentPtr, Int32, Int32)
+
+__OMP_RTL(__kmpc_copyprivate, false, Void, IdentPtr, Int32, SizeTy, VoidPtr,
+          CopyFunctionPtr, Int32)
+__OMP_RTL(__kmpc_threadprivate_cached, false, VoidPtr, IdentPtr, Int32, VoidPtr,
+          SizeTy, VoidPtrPtrPtr)
+__OMP_RTL(__kmpc_threadprivate_register, false, Void, IdentPtr, VoidPtr,
+          KmpcCtorPtr, KmpcCopyCtorPtr, KmpcDtorPtr)
+
+__OMP_RTL(__kmpc_doacross_init, false, Void, IdentPtr, Int32, Int32,
+          /* kmp_dim */ VoidPtr)
+__OMP_RTL(__kmpc_doacross_post, false, Void, IdentPtr, Int32, Int64Ptr)
+__OMP_RTL(__kmpc_doacross_wait, false, Void, IdentPtr, Int32, Int64Ptr)
+__OMP_RTL(__kmpc_doacross_fini, false, Void, IdentPtr, Int32)
+
+__OMP_RTL(__kmpc_alloc, false, VoidPtr, /* Int */ Int32, SizeTy, VoidPtr)
+__OMP_RTL(__kmpc_aligned_alloc, false, VoidPtr, /* Int */ Int32, SizeTy, SizeTy,
+          VoidPtr)
+__OMP_RTL(__kmpc_free, false, Void, /* Int */ Int32, VoidPtr, VoidPtr)
+
+__OMP_RTL(__tgt_interop_init, false, Void, IdentPtr, Int32, VoidPtrPtr, Int32,
+          Int32, Int32, VoidPtr, Int32)
+__OMP_RTL(__tgt_interop_destroy, false, Void, IdentPtr, Int32, VoidPtrPtr,
+          Int32, Int32, VoidPtr, Int32)
+__OMP_RTL(__tgt_interop_use, false, Void, IdentPtr, Int32, VoidPtrPtr, Int32,
+          Int32, VoidPtr, Int32)
+
+__OMP_RTL(__kmpc_init_allocator, false, /* omp_allocator_handle_t */ VoidPtr,
+          /* Int */ Int32, /* omp_memespace_handle_t */ VoidPtr,
+          /* Int */ Int32, /* omp_alloctrait_t */ VoidPtr)
+__OMP_RTL(__kmpc_destroy_allocator, false, Void, /* Int */ Int32,
+          /* omp_allocator_handle_t */ VoidPtr)
+
+__OMP_RTL(__kmpc_push_target_tripcount_mapper, false, Void, IdentPtr, Int64, Int64)
+__OMP_RTL(__tgt_target_mapper, false, Int32, IdentPtr, Int64, VoidPtr, Int32, VoidPtrPtr,
+          VoidPtrPtr, Int64Ptr, Int64Ptr, VoidPtrPtr, VoidPtrPtr)
+__OMP_RTL(__tgt_target_nowait_mapper, false, Int32, IdentPtr, Int64, VoidPtr,
+          Int32, VoidPtrPtr, VoidPtrPtr, Int64Ptr, Int64Ptr, VoidPtrPtr,
+          VoidPtrPtr, Int32, VoidPtr, Int32, VoidPtr)
+__OMP_RTL(__tgt_target_teams_mapper, false, Int32, IdentPtr, Int64, VoidPtr, Int32,
+          VoidPtrPtr, VoidPtrPtr, Int64Ptr, Int64Ptr, VoidPtrPtr, VoidPtrPtr, Int32, Int32)
+__OMP_RTL(__tgt_target_teams_nowait_mapper, false, Int32, IdentPtr, Int64,
+          VoidPtr, Int32, VoidPtrPtr, VoidPtrPtr, Int64Ptr, Int64Ptr,
+          VoidPtrPtr, VoidPtrPtr, Int32, Int32, Int32, VoidPtr, Int32, VoidPtr)
+__OMP_RTL(__tgt_target_kernel, false, Int32, IdentPtr, Int64, Int32, Int32,
+          VoidPtr, KernelArgsPtr)
+__OMP_RTL(__tgt_target_kernel_nowait, false, Int32, IdentPtr, Int64, Int32,
+          Int32, VoidPtr, KernelArgsPtr, Int32, VoidPtr, Int32, VoidPtr)
+__OMP_RTL(__tgt_target_data_begin_mapper, false, Void, IdentPtr, Int64, Int32, VoidPtrPtr,
+          VoidPtrPtr, Int64Ptr, Int64Ptr, VoidPtrPtr, VoidPtrPtr)
+__OMP_RTL(__tgt_target_data_begin_nowait_mapper, false, Void, IdentPtr, Int64,
+          Int32, VoidPtrPtr, VoidPtrPtr, Int64Ptr, Int64Ptr, VoidPtrPtr,
+          VoidPtrPtr, Int32, VoidPtr, Int32, VoidPtr)
+__OMP_RTL(__tgt_target_data_begin_mapper_issue, false, Void, IdentPtr, Int64, Int32,
+          VoidPtrPtr, VoidPtrPtr, Int64Ptr, Int64Ptr, VoidPtrPtr, VoidPtrPtr, AsyncInfoPtr)
+__OMP_RTL(__tgt_target_data_begin_mapper_wait, false, Void, Int64, AsyncInfoPtr)
+__OMP_RTL(__tgt_target_data_end_mapper, false, Void, IdentPtr, Int64, Int32, VoidPtrPtr,
+          VoidPtrPtr, Int64Ptr, Int64Ptr, VoidPtrPtr, VoidPtrPtr)
+__OMP_RTL(__tgt_target_data_end_nowait_mapper, false, Void, IdentPtr, Int64,
+          Int32, VoidPtrPtr, VoidPtrPtr, Int64Ptr, Int64Ptr, VoidPtrPtr,
+          VoidPtrPtr, Int32, VoidPtr, Int32, VoidPtr)
+__OMP_RTL(__tgt_target_data_update_mapper, false, Void, IdentPtr, Int64, Int32,
+          VoidPtrPtr, VoidPtrPtr, Int64Ptr, Int64Ptr, VoidPtrPtr, VoidPtrPtr)
+__OMP_RTL(__tgt_target_data_update_nowait_mapper, false, Void, IdentPtr, Int64,
+          Int32, VoidPtrPtr, VoidPtrPtr, Int64Ptr, Int64Ptr, VoidPtrPtr,
+          VoidPtrPtr, Int32, VoidPtr, Int32, VoidPtr)
+__OMP_RTL(__tgt_mapper_num_components, false, Int64, VoidPtr)
+__OMP_RTL(__tgt_push_mapper_component, false, Void, VoidPtr, VoidPtr, VoidPtr,
+          Int64, Int64, VoidPtr)
+__OMP_RTL(__kmpc_task_allow_completion_event, false, VoidPtr, IdentPtr,
+          /* Int */ Int32, /* kmp_task_t */ VoidPtr)
+
+/// OpenMP Device runtime functions
+__OMP_RTL(__kmpc_target_init, false, Int32, KernelEnvironmentPtr, KernelLaunchEnvironmentPtr)
+__OMP_RTL(__kmpc_target_deinit, false, Void,)
+__OMP_RTL(__kmpc_kernel_prepare_parallel, false, Void, VoidPtr)
+__OMP_RTL(__kmpc_parallel_51, false, Void, IdentPtr, Int32, Int32, Int32, Int32,
+          VoidPtr, VoidPtr, VoidPtrPtr, SizeTy)
+__OMP_RTL(__kmpc_for_static_loop_4, false, Void, IdentPtr, VoidPtr, VoidPtr, Int32, Int32, Int32)
+__OMP_RTL(__kmpc_for_static_loop_4u, false, Void, IdentPtr, VoidPtr, VoidPtr, Int32, Int32, Int32)
+__OMP_RTL(__kmpc_for_static_loop_8, false, Void, IdentPtr, VoidPtr, VoidPtr, Int64, Int64, Int64)
+__OMP_RTL(__kmpc_for_static_loop_8u, false, Void, IdentPtr, VoidPtr, VoidPtr, Int64, Int64, Int64)
+__OMP_RTL(__kmpc_distribute_static_loop_4, false, Void, IdentPtr, VoidPtr, VoidPtr, Int32, Int32)
+__OMP_RTL(__kmpc_distribute_static_loop_4u, false, Void, IdentPtr, VoidPtr, VoidPtr, Int32, Int32)
+__OMP_RTL(__kmpc_distribute_static_loop_8, false, Void, IdentPtr, VoidPtr, VoidPtr, Int64, Int64)
+__OMP_RTL(__kmpc_distribute_static_loop_8u, false, Void, IdentPtr, VoidPtr, VoidPtr, Int64, Int64)
+__OMP_RTL(__kmpc_distribute_for_static_loop_4, false, Void, IdentPtr, VoidPtr, VoidPtr, Int32, Int32, Int32, Int32)
+__OMP_RTL(__kmpc_distribute_for_static_loop_4u, false, Void, IdentPtr, VoidPtr, VoidPtr, Int32, Int32, Int32, Int32)
+__OMP_RTL(__kmpc_distribute_for_static_loop_8, false, Void, IdentPtr, VoidPtr, VoidPtr, Int64, Int64, Int64, Int64)
+__OMP_RTL(__kmpc_distribute_for_static_loop_8u, false, Void, IdentPtr, VoidPtr, VoidPtr, Int64, Int64, Int64, Int64)
+__OMP_RTL(__kmpc_kernel_parallel, false, Int1, VoidPtrPtr)
+__OMP_RTL(__kmpc_kernel_end_parallel, false, Void, )
+__OMP_RTL(__kmpc_serialized_parallel, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_end_serialized_parallel, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_shuffle_int32, false, Int32, Int32, Int16, Int16)
+__OMP_RTL(__kmpc_nvptx_parallel_reduce_nowait_v2, false, Int32, IdentPtr,
+	  Int64, VoidPtr, ShuffleReducePtr, InterWarpCopyPtr)
+__OMP_RTL(__kmpc_nvptx_teams_reduce_nowait_v2, false, Int32, IdentPtr,
+          VoidPtr, Int32, Int64, VoidPtr, ShuffleReducePtr, InterWarpCopyPtr,
+          GlobalListPtr, GlobalListPtr, GlobalListPtr, GlobalListPtr)
+__OMP_RTL(__kmpc_reduction_get_fixed_buffer, false, VoidPtr, )
+
+__OMP_RTL(__kmpc_shuffle_int64, false, Int64, Int64, Int16, Int16)
+
+__OMP_RTL(__kmpc_alloc_shared, false, VoidPtr, SizeTy)
+__OMP_RTL(__kmpc_free_shared, false, Void, VoidPtr, SizeTy)
+__OMP_RTL(__kmpc_begin_sharing_variables, false, Void, VoidPtrPtrPtr, SizeTy)
+__OMP_RTL(__kmpc_end_sharing_variables, false, Void, )
+__OMP_RTL(__kmpc_get_shared_variables, false, Void, VoidPtrPtrPtr)
+__OMP_RTL(__kmpc_parallel_level, false, Int16, IdentPtr, Int32)
+__OMP_RTL(__kmpc_is_spmd_exec_mode, false, Int8, )
+__OMP_RTL(__kmpc_barrier_simple_spmd, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_barrier_simple_generic, false, Void, IdentPtr, Int32)
+
+__OMP_RTL(__kmpc_warp_active_thread_mask, false, Int64,)
+__OMP_RTL(__kmpc_syncwarp, false, Void, Int64)
+
+__OMP_RTL(__last, false, Void, )
+
+#undef __OMP_RTL
+#undef OMP_RTL
+
+#define ParamAttrs(...) ArrayRef<AttributeSet>({__VA_ARGS__})
+#define EnumAttr(Kind) Attribute::get(Ctx, Attribute::AttrKind::Kind)
+#define EnumAttrInt(Kind, N) Attribute::get(Ctx, Attribute::AttrKind::Kind, N)
+#define AllocSizeAttr(N, M) Attribute::getWithAllocSizeArgs(Ctx, N, M)
+#define MemoryAttr(ME) Attribute::getWithMemoryEffects(Ctx, ME)
+#define AttributeSet(...)                                                      \
+  AttributeSet::get(Ctx, ArrayRef<Attribute>({__VA_ARGS__}))
+
+#ifndef OMP_ATTRS_SET
+#define OMP_ATTRS_SET(VarName, AttrSet)
+#endif
+
+#define __OMP_ATTRS_SET(VarName, AttrSet) OMP_ATTRS_SET(VarName, AttrSet)
+
+__OMP_ATTRS_SET(
+    GetterAttrs,
+    OptimisticAttributes
+        ? AttributeSet(
+              EnumAttr(NoUnwind), EnumAttr(NoSync), EnumAttr(NoFree),
+              EnumAttr(WillReturn),
+              MemoryAttr(MemoryEffects::inaccessibleMemOnly(ModRefInfo::Ref)))
+        : AttributeSet(EnumAttr(NoUnwind)))
+__OMP_ATTRS_SET(
+    GetterArgReadAttrs,
+    OptimisticAttributes
+        ? AttributeSet(
+              EnumAttr(NoUnwind), EnumAttr(NoSync), EnumAttr(NoFree),
+              EnumAttr(WillReturn),
+              MemoryAttr(MemoryEffects::inaccessibleOrArgMemOnly(ModRefInfo::Ref)))
+        : AttributeSet(EnumAttr(NoUnwind)))
+__OMP_ATTRS_SET(
+    GetterArgWriteAttrs,
+    OptimisticAttributes
+        ? AttributeSet(EnumAttr(NoUnwind), EnumAttr(NoSync), EnumAttr(NoFree),
+                       EnumAttr(WillReturn),
+                       MemoryAttr(MemoryEffects::argMemOnly() | MemoryEffects::inaccessibleMemOnly(ModRefInfo::Ref)))
+        : AttributeSet(EnumAttr(NoUnwind)))
+__OMP_ATTRS_SET(
+  SetterAttrs,
+  OptimisticAttributes
+      ? AttributeSet(
+            EnumAttr(NoUnwind), EnumAttr(NoSync), EnumAttr(NoFree),
+            EnumAttr(WillReturn),
+            MemoryAttr(MemoryEffects::inaccessibleMemOnly(ModRefInfo::Mod)))
+      : AttributeSet(EnumAttr(NoUnwind)))
+
+__OMP_ATTRS_SET(DefaultAttrs,
+                OptimisticAttributes
+                    ? AttributeSet(EnumAttr(NoUnwind), EnumAttr(NoSync),
+                                   EnumAttr(WillReturn), EnumAttr(NoFree))
+                    : AttributeSet(EnumAttr(NoUnwind)))
+
+__OMP_ATTRS_SET(BarrierAttrs,
+                OptimisticAttributes
+                    ? AttributeSet(EnumAttr(NoUnwind), EnumAttr(Convergent))
+                    : AttributeSet(EnumAttr(NoUnwind), EnumAttr(Convergent)))
+
+__OMP_ATTRS_SET(
+    InaccessibleArgOnlyAttrs,
+    OptimisticAttributes
+         ? AttributeSet(EnumAttr(NoUnwind), EnumAttr(NoSync), EnumAttr(NoFree),
+                        EnumAttr(WillReturn),
+                        MemoryAttr(MemoryEffects::inaccessibleOrArgMemOnly()))
+         : AttributeSet(EnumAttr(NoUnwind)))
+
+__OMP_ATTRS_SET(AlwaysInlineAttrs,
+                OptimisticAttributes
+                    ? AttributeSet(EnumAttr(AlwaysInline))
+                    : AttributeSet(EnumAttr(AlwaysInline)))
+
+#if 0
+__OMP_ATTRS_SET(
+    InaccessibleOnlyAttrs,
+    OptimisticAttributes
+        ? AttributeSet(EnumAttr(NoUnwind), EnumAttr(NoSync), EnumAttr(NoFree),
+                       EnumAttr(WillReturn),
+                       MemoryAttr(MemoryEffects::inaccessibleMemOnly()))
+        : AttributeSet(EnumAttr(NoUnwind)))
+#endif
+
+__OMP_ATTRS_SET(AllocAttrs,
+                OptimisticAttributes
+                    ? AttributeSet(EnumAttr(NoUnwind), EnumAttr(NoSync),
+                                   EnumAttr(WillReturn))
+                    : AttributeSet(EnumAttr(NoUnwind)))
+
+__OMP_ATTRS_SET(ForkAttrs, OptimisticAttributes
+                               ? AttributeSet(EnumAttr(NoUnwind))
+                               : AttributeSet(EnumAttr(NoUnwind)))
+
+__OMP_ATTRS_SET(ReadOnlyPtrAttrs,
+                OptimisticAttributes
+                    ? AttributeSet(EnumAttr(ReadOnly), EnumAttr(NoFree),
+                                   EnumAttr(NoCapture))
+                    : AttributeSet())
+
+__OMP_ATTRS_SET(DeviceAllocAttrs,
+                OptimisticAttributes
+                    ? AttributeSet(EnumAttr(NoUnwind), EnumAttr(NoSync))
+                    : AttributeSet(EnumAttr(NoUnwind), EnumAttr(NoSync)))
+
+#if 0
+__OMP_ATTRS_SET(WriteOnlyPtrAttrs,
+                OptimisticAttributes
+                    ? AttributeSet(EnumAttr(WriteOnly), EnumAttr(NoFree),
+                                   EnumAttr(NoCapture))
+                    : AttributeSet())
+#endif
+
+__OMP_ATTRS_SET(ArgPtrAttrs,
+                OptimisticAttributes
+                    ? AttributeSet(EnumAttr(NoCapture), EnumAttr(NoFree))
+                    : AttributeSet())
+
+__OMP_ATTRS_SET(ReturnPtrAttrs, AttributeSet(EnumAttr(NoAlias)))
+
+__OMP_ATTRS_SET(ZExt, AttributeSet(EnumAttr(ZExt)))
+__OMP_ATTRS_SET(SExt, AttributeSet(EnumAttr(SExt)))
+__OMP_ATTRS_SET(SizeTyExt,
+                M.getDataLayout().getIntPtrType(Ctx)->getBitWidth() < 64
+                    ? AttributeSet(EnumAttr(ZExt))
+                    : AttributeSet())
+
+#if 0
+__OMP_ATTRS_SET(ReturnAlignedPtrAttrs,
+                OptimisticAttributes
+                    ? AttributeSet(EnumAttr(NoAlias), EnumAttrInt(Alignment, 8),
+                                   EnumAttrInt(DereferenceableOrNull, 8))
+                    : AttributeSet())
+#endif
+
+#undef __OMP_ATTRS_SET
+#undef OMP_ATTRS_SET
+
+#ifndef OMP_RTL_ATTRS
+#define OMP_RTL_ATTRS(Enum, FnAttrSet, RetAttrSet, ArgAttrSets)
+#endif
+
+#define __OMP_RTL_ATTRS(Name, FnAttrSet, RetAttrSet, ArgAttrSets)              \
+  OMP_RTL_ATTRS(OMPRTL_##Name, FnAttrSet, RetAttrSet, ArgAttrSets)
+
+__OMP_RTL_ATTRS(__kmpc_barrier, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_barrier_simple_spmd, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_barrier_simple_generic, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_warp_active_thread_mask, BarrierAttrs, AttributeSet(),
+                ParamAttrs())
+__OMP_RTL_ATTRS(__kmpc_syncwarp, BarrierAttrs, AttributeSet(), ParamAttrs())
+__OMP_RTL_ATTRS(__kmpc_cancel, InaccessibleArgOnlyAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_cancel_barrier, BarrierAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_distribute_for_static_loop_4, AlwaysInlineAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, AttributeSet(), AttributeSet(),
+                           SExt, SExt, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_distribute_for_static_loop_4u, AlwaysInlineAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, AttributeSet(), AttributeSet(),
+                           ZExt, ZExt, ZExt, ZExt))
+__OMP_RTL_ATTRS(__kmpc_distribute_static_loop_4, AlwaysInlineAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, AttributeSet(), AttributeSet(),
+                           SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_distribute_static_loop_4u, AlwaysInlineAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, AttributeSet(), AttributeSet(),
+                           ZExt, ZExt))
+__OMP_RTL_ATTRS(__kmpc_for_static_loop_4, AlwaysInlineAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, AttributeSet(), AttributeSet(),
+                           SExt, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_for_static_loop_4u, AlwaysInlineAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, AttributeSet(), AttributeSet(),
+                           ZExt, ZExt, ZExt))
+__OMP_RTL_ATTRS(__kmpc_error, AttributeSet(), AttributeSet(),
+                ParamAttrs(AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__kmpc_flush, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_global_thread_num, GetterArgReadAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_get_hardware_thread_id_in_block, GetterAttrs, ZExt,
+                ParamAttrs())
+__OMP_RTL_ATTRS(__kmpc_fork_call, ForkAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ReadOnlyPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_fork_call_if, AttributeSet(), AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_omp_taskwait, BarrierAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_omp_taskyield, InaccessibleArgOnlyAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_push_num_threads, InaccessibleArgOnlyAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_push_proc_bind, InaccessibleArgOnlyAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_omp_reg_task_with_affinity, DefaultAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ReadOnlyPtrAttrs,
+                           SExt, ReadOnlyPtrAttrs))
+
+__OMP_RTL_ATTRS(__kmpc_get_hardware_num_blocks, GetterAttrs, ZExt, ParamAttrs())
+__OMP_RTL_ATTRS(__kmpc_get_hardware_num_threads_in_block, GetterAttrs, ZExt, ParamAttrs())
+__OMP_RTL_ATTRS(__kmpc_get_warp_size, GetterAttrs, ZExt, ParamAttrs())
+
+__OMP_RTL_ATTRS(omp_get_thread_num, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_num_threads, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_max_threads, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_in_parallel, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_dynamic, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_cancellation, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_nested, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(
+    omp_get_schedule, GetterArgWriteAttrs, AttributeSet(),
+    ParamAttrs(AttributeSet(EnumAttr(NoCapture), EnumAttr(WriteOnly)),
+               AttributeSet(EnumAttr(NoCapture), EnumAttr(WriteOnly))))
+__OMP_RTL_ATTRS(omp_get_thread_limit, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_supported_active_levels, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_max_active_levels, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_level, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_ancestor_thread_num, GetterAttrs, SExt, ParamAttrs(SExt))
+__OMP_RTL_ATTRS(omp_get_team_size, GetterAttrs, SExt, ParamAttrs(SExt))
+__OMP_RTL_ATTRS(omp_get_active_level, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_in_final, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_proc_bind, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_num_places, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_num_procs, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_place_proc_ids, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(SExt, AttributeSet(EnumAttr(NoCapture),
+                                              EnumAttr(WriteOnly))))
+__OMP_RTL_ATTRS(omp_get_place_num, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_partition_num_places, GetterAttrs, SExt, ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_partition_place_nums, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs())
+__OMP_RTL_ATTRS(omp_get_wtime, GetterAttrs, AttributeSet(), ParamAttrs())
+
+__OMP_RTL_ATTRS(omp_set_num_threads, SetterAttrs, AttributeSet(),
+                ParamAttrs(SExt))
+__OMP_RTL_ATTRS(omp_set_dynamic, SetterAttrs, AttributeSet(), ParamAttrs(SExt))
+__OMP_RTL_ATTRS(omp_set_nested, SetterAttrs, AttributeSet(), ParamAttrs(SExt))
+__OMP_RTL_ATTRS(omp_set_schedule, SetterAttrs, AttributeSet(),
+                ParamAttrs(SExt, SExt))
+__OMP_RTL_ATTRS(omp_set_max_active_levels, SetterAttrs, AttributeSet(),
+                ParamAttrs(SExt))
+
+__OMP_RTL_ATTRS(__kmpc_master, InaccessibleArgOnlyAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_end_master, InaccessibleArgOnlyAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_masked, InaccessibleArgOnlyAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_end_masked, InaccessibleArgOnlyAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_critical, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, AttributeSet()))
+__OMP_RTL_ATTRS(__kmpc_critical_with_hint, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, AttributeSet(), ZExt))
+__OMP_RTL_ATTRS(__kmpc_end_critical, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, AttributeSet()))
+
+__OMP_RTL_ATTRS(__kmpc_begin, DefaultAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_end, DefaultAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs))
+
+__OMP_RTL_ATTRS(__kmpc_reduce, BarrierAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, SizeTyExt,
+                           ReadOnlyPtrAttrs, AttributeSet()))
+__OMP_RTL_ATTRS(__kmpc_reduce_nowait, BarrierAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, SizeTyExt,
+                           ReadOnlyPtrAttrs, AttributeSet()))
+__OMP_RTL_ATTRS(__kmpc_end_reduce, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, AttributeSet()))
+__OMP_RTL_ATTRS(__kmpc_end_reduce_nowait, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, AttributeSet()))
+
+__OMP_RTL_ATTRS(__kmpc_ordered, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_end_ordered, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+
+__OMP_RTL_ATTRS(__kmpc_for_static_init_4, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_for_static_init_4u, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_for_static_init_8, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs,
+                           AttributeSet(), AttributeSet()))
+__OMP_RTL_ATTRS(__kmpc_for_static_init_8u, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs,
+                           AttributeSet(), AttributeSet()))
+__OMP_RTL_ATTRS(__kmpc_for_static_fini, InaccessibleArgOnlyAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_distribute_static_init_4, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_distribute_static_init_4u, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_distribute_static_init_8, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs,
+                           AttributeSet(), AttributeSet()))
+__OMP_RTL_ATTRS(__kmpc_distribute_static_init_8u, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs,
+                           AttributeSet(), AttributeSet()))
+__OMP_RTL_ATTRS(__kmpc_distribute_static_fini, InaccessibleArgOnlyAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_dist_dispatch_init_4, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs, SExt,
+                           SExt, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_dist_dispatch_init_4u, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs, ZExt,
+                           ZExt, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_dist_dispatch_init_8, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_dist_dispatch_init_8u, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_dispatch_init_4, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, SExt, SExt, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_dispatch_init_4u, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ZExt, ZExt, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_dispatch_init_8, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_dispatch_init_8u, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_dispatch_next_4, GetterArgWriteAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ArgPtrAttrs, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_dispatch_next_4u, GetterArgWriteAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ArgPtrAttrs, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_dispatch_next_8, GetterArgWriteAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ArgPtrAttrs, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_dispatch_next_8u, GetterArgWriteAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ArgPtrAttrs, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_dispatch_fini_4, InaccessibleArgOnlyAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_dispatch_fini_4u, InaccessibleArgOnlyAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_dispatch_fini_8, InaccessibleArgOnlyAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_dispatch_fini_8u, InaccessibleArgOnlyAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_dispatch_deinit, InaccessibleArgOnlyAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_team_static_init_4, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ArgPtrAttrs, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_team_static_init_4u, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ArgPtrAttrs, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_team_static_init_8, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ArgPtrAttrs, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_team_static_init_8u, GetterArgWriteAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ArgPtrAttrs, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_dist_for_static_init_4, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs,
+                           ArgPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_dist_for_static_init_4u, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs,
+                           ArgPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_dist_for_static_init_8, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_dist_for_static_init_8u, GetterArgWriteAttrs,
+                AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ArgPtrAttrs,
+                           ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs, ArgPtrAttrs))
+
+__OMP_RTL_ATTRS(__kmpc_single, BarrierAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_end_single, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+
+__OMP_RTL_ATTRS(__kmpc_omp_task_alloc, DefaultAttrs, ReturnPtrAttrs,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, SizeTyExt, SizeTyExt,
+                           ReadOnlyPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_omp_task, DefaultAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, AttributeSet()))
+__OMP_RTL_ATTRS(__kmpc_end_taskgroup, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_taskgroup, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_omp_task_begin_if0, DefaultAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_omp_task_complete_if0, DefaultAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_omp_task_with_deps, DefaultAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, AttributeSet(), SExt,
+                           ReadOnlyPtrAttrs, SExt, ReadOnlyPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_taskloop, DefaultAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, AttributeSet(), SExt,
+                           ArgPtrAttrs, ArgPtrAttrs, AttributeSet(), SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_omp_target_task_alloc, DefaultAttrs, ReturnPtrAttrs,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, SizeTyExt, SizeTyExt,
+                           ReadOnlyPtrAttrs, AttributeSet()))
+__OMP_RTL_ATTRS(__kmpc_taskred_modifier_init, DefaultAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_taskred_init, DefaultAttrs, AttributeSet(),
+                ParamAttrs(SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_task_reduction_modifier_fini, BarrierAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_task_reduction_get_th_data, DefaultAttrs, AttributeSet(),
+                ParamAttrs(SExt))
+__OMP_RTL_ATTRS(__kmpc_task_reduction_init, DefaultAttrs, AttributeSet(),
+                ParamAttrs(SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_task_reduction_modifier_init, DefaultAttrs,
+                AttributeSet(), ParamAttrs(AttributeSet(), SExt, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_proxy_task_completed_ooo, DefaultAttrs, AttributeSet(),
+                ParamAttrs())
+
+__OMP_RTL_ATTRS(__kmpc_omp_wait_deps, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_omp_taskwait_deps_51, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, ReadOnlyPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_cancellationpoint, DefaultAttrs, SExt,
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt))
+
+__OMP_RTL_ATTRS(__kmpc_fork_teams, ForkAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ReadOnlyPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_push_num_teams, InaccessibleArgOnlyAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_set_thread_limit, InaccessibleArgOnlyAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt))
+
+__OMP_RTL_ATTRS(__kmpc_copyprivate, DefaultAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SizeTyExt,
+                           ReadOnlyPtrAttrs, AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__kmpc_threadprivate_cached, DefaultAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, AttributeSet(), SizeTyExt))
+__OMP_RTL_ATTRS(__kmpc_threadprivate_register, DefaultAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, AttributeSet(), ReadOnlyPtrAttrs,
+                           ReadOnlyPtrAttrs, ReadOnlyPtrAttrs))
+
+__OMP_RTL_ATTRS(__kmpc_doacross_init, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_doacross_post, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ReadOnlyPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_doacross_wait, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt, ReadOnlyPtrAttrs))
+__OMP_RTL_ATTRS(__kmpc_doacross_fini, BarrierAttrs, AttributeSet(),
+                ParamAttrs(ReadOnlyPtrAttrs, SExt))
+
+__OMP_RTL_ATTRS(__kmpc_alloc_shared,
+                AttributeSet(EnumAttr(NoUnwind), EnumAttr(NoSync),
+                             AllocSizeAttr(0, std::nullopt)),
+                ReturnPtrAttrs, ParamAttrs(SizeTyExt))
+__OMP_RTL_ATTRS(__kmpc_free_shared, DeviceAllocAttrs, AttributeSet(),
+                ParamAttrs(AttributeSet(EnumAttr(NoCapture),
+                                        EnumAttr(AllocatedPointer)),
+                           SizeTyExt))
+__OMP_RTL_ATTRS(__kmpc_begin_sharing_variables, AttributeSet(), AttributeSet(),
+                ParamAttrs(AttributeSet(), SizeTyExt))
+
+__OMP_RTL_ATTRS(__kmpc_alloc, DefaultAttrs, ReturnPtrAttrs,
+                ParamAttrs(SExt, SizeTyExt))
+__OMP_RTL_ATTRS(__kmpc_aligned_alloc, DefaultAttrs, ReturnPtrAttrs,
+                ParamAttrs(SExt, SizeTyExt, SizeTyExt))
+__OMP_RTL_ATTRS(__kmpc_free, AllocAttrs, AttributeSet(),
+                ParamAttrs(SExt))
+
+__OMP_RTL_ATTRS(__tgt_interop_init, AttributeSet(), AttributeSet(),
+                ParamAttrs(AttributeSet(), SExt, AttributeSet(), SExt,
+                           SExt, AttributeSet(), AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__tgt_interop_destroy, AttributeSet(), AttributeSet(),
+                ParamAttrs(AttributeSet(), SExt, AttributeSet(), SExt, SExt,
+                           AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__tgt_interop_use, AttributeSet(), AttributeSet(),
+                ParamAttrs(AttributeSet(), SExt, AttributeSet(), SExt, SExt,
+                           AttributeSet(), SExt))
+
+__OMP_RTL_ATTRS(__kmpc_init_allocator, DefaultAttrs, AttributeSet(),
+                ParamAttrs(SExt, AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__kmpc_destroy_allocator, AllocAttrs, AttributeSet(),
+                ParamAttrs(SExt))
+
+__OMP_RTL_ATTRS(__kmpc_push_target_tripcount_mapper, SetterAttrs,
+                AttributeSet(), ParamAttrs())
+__OMP_RTL_ATTRS(__tgt_target_mapper, ForkAttrs, SExt,
+                ParamAttrs(AttributeSet(),AttributeSet(),AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__tgt_target_nowait_mapper, ForkAttrs, SExt,
+                ParamAttrs(AttributeSet(), AttributeSet(), AttributeSet(), SExt,
+                           AttributeSet(), AttributeSet(), AttributeSet(),
+                           AttributeSet(), AttributeSet(), AttributeSet(),
+                           SExt, AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__tgt_target_teams_mapper, ForkAttrs, SExt,
+                ParamAttrs(AttributeSet(), AttributeSet(), AttributeSet(), SExt,
+                           AttributeSet(), AttributeSet(), AttributeSet(),
+                           AttributeSet(), AttributeSet(), AttributeSet(), SExt,
+                           SExt))
+__OMP_RTL_ATTRS(__tgt_target_teams_nowait_mapper, ForkAttrs, SExt,
+                ParamAttrs(AttributeSet(), AttributeSet(), AttributeSet(), SExt,
+                           AttributeSet(), AttributeSet(), AttributeSet(),
+                           AttributeSet(), AttributeSet(), AttributeSet(),
+                           SExt, SExt, SExt, AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__tgt_target_kernel, ForkAttrs, SExt,
+                ParamAttrs(AttributeSet(), AttributeSet(), SExt, SExt))
+__OMP_RTL_ATTRS(__tgt_target_kernel_nowait, ForkAttrs, SExt,
+                ParamAttrs(AttributeSet(), AttributeSet(), SExt, SExt,
+                           AttributeSet(), AttributeSet(), SExt, AttributeSet(),
+                           SExt))
+__OMP_RTL_ATTRS(__tgt_target_data_begin_mapper, ForkAttrs, AttributeSet(),
+                ParamAttrs(AttributeSet(), AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__tgt_target_data_begin_nowait_mapper, ForkAttrs,
+                AttributeSet(),
+                ParamAttrs(AttributeSet(), AttributeSet(), SExt, AttributeSet(),
+                           AttributeSet(), AttributeSet(), AttributeSet(),
+                           AttributeSet(), AttributeSet(), SExt, AttributeSet(),
+                           SExt, AttributeSet()))
+__OMP_RTL_ATTRS(__tgt_target_data_begin_mapper_issue, AttributeSet(),
+                AttributeSet(),
+                ParamAttrs(AttributeSet(), AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__tgt_target_data_end_mapper, ForkAttrs, AttributeSet(),
+                ParamAttrs(AttributeSet(), AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__tgt_target_data_end_nowait_mapper, ForkAttrs, AttributeSet(),
+                ParamAttrs(AttributeSet(), AttributeSet(), SExt, AttributeSet(),
+                           AttributeSet(), AttributeSet(), AttributeSet(),
+                           AttributeSet(), AttributeSet(), SExt, AttributeSet(),
+                           SExt, AttributeSet()))
+__OMP_RTL_ATTRS(__tgt_target_data_update_mapper, ForkAttrs, AttributeSet(),
+                ParamAttrs(AttributeSet(), AttributeSet(), SExt))
+__OMP_RTL_ATTRS(__tgt_target_data_update_nowait_mapper, ForkAttrs,
+                AttributeSet(),
+                ParamAttrs(AttributeSet(), AttributeSet(), SExt, AttributeSet(),
+                           AttributeSet(), AttributeSet(), AttributeSet(),
+                           AttributeSet(), AttributeSet(), SExt, AttributeSet(),
+                           SExt, AttributeSet()))
+__OMP_RTL_ATTRS(__tgt_mapper_num_components, ForkAttrs, AttributeSet(),
+                ParamAttrs())
+__OMP_RTL_ATTRS(__tgt_push_mapper_component, ForkAttrs, AttributeSet(),
+                ParamAttrs())
+__OMP_RTL_ATTRS(__kmpc_task_allow_completion_event, DefaultAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt))
+
+__OMP_RTL_ATTRS(__kmpc_target_init, AttributeSet(), SExt,
+                ParamAttrs(AttributeSet()))
+__OMP_RTL_ATTRS(__kmpc_target_deinit, AttributeSet(), AttributeSet(),
+                ParamAttrs())
+__OMP_RTL_ATTRS(__kmpc_parallel_51, AlwaysInlineAttrs, AttributeSet(),
+                ParamAttrs(AttributeSet(), SExt, SExt, SExt, SExt,
+                           AttributeSet(), AttributeSet(), AttributeSet(),
+                           SizeTyExt))
+__OMP_RTL_ATTRS(__kmpc_serialized_parallel, InaccessibleArgOnlyAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_end_serialized_parallel, InaccessibleArgOnlyAttrs,
+                AttributeSet(), ParamAttrs(ReadOnlyPtrAttrs, SExt))
+__OMP_RTL_ATTRS(__kmpc_shuffle_int32, AttributeSet(), SExt,
+                ParamAttrs(SExt, SExt, SExt))
+__OMP_RTL_ATTRS(__kmpc_nvptx_parallel_reduce_nowait_v2, AttributeSet(), SExt,
+                ParamAttrs())
+__OMP_RTL_ATTRS(__kmpc_nvptx_teams_reduce_nowait_v2, AttributeSet(), SExt,
+                ParamAttrs(AttributeSet(), AttributeSet(), ZExt))
+__OMP_RTL_ATTRS(__kmpc_reduction_get_fixed_buffer, GetterAttrs, AttributeSet(), ParamAttrs())
+
+__OMP_RTL_ATTRS(__kmpc_shuffle_int64, AttributeSet(), AttributeSet(),
+                ParamAttrs(AttributeSet(), SExt, SExt))
+
+__OMP_RTL_ATTRS(__kmpc_is_spmd_exec_mode, AttributeSet(), SExt, ParamAttrs())
+
+#undef __OMP_RTL_ATTRS
+#undef OMP_RTL_ATTRS
+#undef AttributeSet
+#undef EnumAttr
+#undef EnumAttrInt
+#undef ParamAttrs
+#undef AllocSizeAttr
+
+///}
+
+/// KMP ident_t bit flags
+///
+/// In accordance with the values in `openmp/runtime/src/kmp.h`.
+///
+///{
+
+#ifndef OMP_IDENT_FLAG
+#define OMP_IDENT_FLAG(Enum, Str, Value)
+#endif
+
+#define __OMP_IDENT_FLAG(Name, Value)                                          \
+  OMP_IDENT_FLAG(OMP_IDENT_FLAG_##Name, #Name, Value)
+
+__OMP_IDENT_FLAG(KMPC, 0x02)
+__OMP_IDENT_FLAG(ATOMIC_REDUCE, 0x10)
+__OMP_IDENT_FLAG(BARRIER_EXPL, 0x20)
+__OMP_IDENT_FLAG(BARRIER_IMPL, 0x0040)
+__OMP_IDENT_FLAG(BARRIER_IMPL_MASK, 0x01C0)
+__OMP_IDENT_FLAG(BARRIER_IMPL_FOR, 0x0040)
+__OMP_IDENT_FLAG(BARRIER_IMPL_SECTIONS, 0x00C0)
+__OMP_IDENT_FLAG(BARRIER_IMPL_SINGLE, 0x0140)
+__OMP_IDENT_FLAG(BARRIER_IMPL_WORKSHARE, 0x01C0)
+
+#undef __OMP_IDENT_FLAG
+#undef OMP_IDENT_FLAG
+
+///}
+
+/// KMP cancel kind
+///
+///{
+
+#ifndef OMP_CANCEL_KIND
+#define OMP_CANCEL_KIND(Enum, Str, DirectiveEnum, Value)
+#endif
+
+#define __OMP_CANCEL_KIND(Name, Value)                                         \
+  OMP_CANCEL_KIND(OMP_CANCEL_KIND_##Name, #Name, OMPD_##Name, Value)
+
+__OMP_CANCEL_KIND(parallel, 1)
+__OMP_CANCEL_KIND(for, 2)
+__OMP_CANCEL_KIND(sections, 3)
+__OMP_CANCEL_KIND(taskgroup, 4)
+
+#undef __OMP_CANCEL_KIND
+#undef OMP_CANCEL_KIND
+
+///}
+
+/// Default kinds
+///
+///{
+
+#ifndef OMP_DEFAULT_KIND
+#define OMP_DEFAULT_KIND(Enum, Str)
+#endif
+
+#define __OMP_DEFAULT_KIND(Name) OMP_DEFAULT_KIND(OMP_DEFAULT_##Name, #Name)
+
+__OMP_DEFAULT_KIND(none)
+__OMP_DEFAULT_KIND(shared)
+__OMP_DEFAULT_KIND(private)
+__OMP_DEFAULT_KIND(firstprivate)
+__OMP_DEFAULT_KIND(unknown)
+
+#undef __OMP_DEFAULT_KIND
+#undef OMP_DEFAULT_KIND
+
+///}
+
+/// Proc bind kinds
+///
+///{
+
+#ifndef OMP_PROC_BIND_KIND
+#define OMP_PROC_BIND_KIND(Enum, Str, Value)
+#endif
+
+#define __OMP_PROC_BIND_KIND(Name, Value)                                      \
+  OMP_PROC_BIND_KIND(OMP_PROC_BIND_##Name, #Name, Value)
+
+__OMP_PROC_BIND_KIND(master, 2)
+__OMP_PROC_BIND_KIND(close, 3)
+__OMP_PROC_BIND_KIND(spread, 4)
+__OMP_PROC_BIND_KIND(primary, 5)
+__OMP_PROC_BIND_KIND(default, 6)
+__OMP_PROC_BIND_KIND(unknown, 7)
+
+#undef __OMP_PROC_BIND_KIND
+#undef OMP_PROC_BIND_KIND
+
+///}
+
+/// OpenMP context related definitions:
+///  - trait set selector
+///  - trait selector
+///  - trait property
+///
+///{
+
+#ifndef OMP_TRAIT_SET
+#define OMP_TRAIT_SET(Enum, Str)
+#endif
+#ifndef OMP_TRAIT_SELECTOR
+#define OMP_TRAIT_SELECTOR(Enum, TraitSetEnum, Str, RequiresProperty)
+#endif
+#ifndef OMP_TRAIT_PROPERTY
+#define OMP_TRAIT_PROPERTY(Enum, TraitSetEnum, TraitSelectorEnum, Str)
+#endif
+#ifndef OMP_LAST_TRAIT_PROPERTY
+#define OMP_LAST_TRAIT_PROPERTY(Enum)
+#endif
+
+#define __OMP_TRAIT_SET(Name) OMP_TRAIT_SET(Name, #Name)
+#define __OMP_TRAIT_SELECTOR(TraitSet, Name, RequiresProperty)                 \
+  OMP_TRAIT_SELECTOR(TraitSet##_##Name, TraitSet, #Name, RequiresProperty)
+#define __OMP_TRAIT_SELECTOR_AND_PROPERTY(TraitSet, Name)                      \
+  OMP_TRAIT_SELECTOR(TraitSet##_##Name, TraitSet, #Name, false)                \
+  OMP_TRAIT_PROPERTY(TraitSet##_##Name##_##Name, TraitSet, TraitSet##_##Name,  \
+                     #Name)
+#define __OMP_TRAIT_PROPERTY(TraitSet, TraitSelector, Name)                    \
+  OMP_TRAIT_PROPERTY(TraitSet##_##TraitSelector##_##Name, TraitSet,            \
+                     TraitSet##_##TraitSelector, #Name)
+
+// "invalid" must go first.
+OMP_TRAIT_SET(invalid, "invalid")
+OMP_TRAIT_SELECTOR(invalid, invalid, "invalid", false)
+OMP_TRAIT_PROPERTY(invalid, invalid, invalid, "invalid")
+
+__OMP_TRAIT_SET(construct)
+__OMP_TRAIT_SELECTOR_AND_PROPERTY(construct, target)
+__OMP_TRAIT_SELECTOR_AND_PROPERTY(construct, teams)
+__OMP_TRAIT_SELECTOR_AND_PROPERTY(construct, parallel)
+__OMP_TRAIT_SELECTOR_AND_PROPERTY(construct, for)
+__OMP_TRAIT_SELECTOR_AND_PROPERTY(construct, simd)
+
+__OMP_TRAIT_SET(device)
+
+__OMP_TRAIT_SELECTOR(device, kind, true)
+
+__OMP_TRAIT_PROPERTY(device, kind, host)
+__OMP_TRAIT_PROPERTY(device, kind, nohost)
+__OMP_TRAIT_PROPERTY(device, kind, cpu)
+__OMP_TRAIT_PROPERTY(device, kind, gpu)
+__OMP_TRAIT_PROPERTY(device, kind, fpga)
+__OMP_TRAIT_PROPERTY(device, kind, any)
+
+__OMP_TRAIT_SELECTOR(device, arch, true)
+
+__OMP_TRAIT_PROPERTY(device, arch, arm)
+__OMP_TRAIT_PROPERTY(device, arch, armeb)
+__OMP_TRAIT_PROPERTY(device, arch, aarch64)
+__OMP_TRAIT_PROPERTY(device, arch, aarch64_be)
+__OMP_TRAIT_PROPERTY(device, arch, aarch64_32)
+__OMP_TRAIT_PROPERTY(device, arch, ppc)
+__OMP_TRAIT_PROPERTY(device, arch, ppcle)
+__OMP_TRAIT_PROPERTY(device, arch, ppc64)
+__OMP_TRAIT_PROPERTY(device, arch, ppc64le)
+__OMP_TRAIT_PROPERTY(device, arch, x86)
+__OMP_TRAIT_PROPERTY(device, arch, x86_64)
+__OMP_TRAIT_PROPERTY(device, arch, amdgcn)
+__OMP_TRAIT_PROPERTY(device, arch, nvptx)
+__OMP_TRAIT_PROPERTY(device, arch, nvptx64)
+
+__OMP_TRAIT_SET(implementation)
+
+__OMP_TRAIT_SELECTOR(implementation, vendor, true)
+
+__OMP_TRAIT_PROPERTY(implementation, vendor, amd)
+__OMP_TRAIT_PROPERTY(implementation, vendor, arm)
+__OMP_TRAIT_PROPERTY(implementation, vendor, bsc)
+__OMP_TRAIT_PROPERTY(implementation, vendor, cray)
+__OMP_TRAIT_PROPERTY(implementation, vendor, fujitsu)
+__OMP_TRAIT_PROPERTY(implementation, vendor, gnu)
+__OMP_TRAIT_PROPERTY(implementation, vendor, ibm)
+__OMP_TRAIT_PROPERTY(implementation, vendor, intel)
+__OMP_TRAIT_PROPERTY(implementation, vendor, llvm)
+__OMP_TRAIT_PROPERTY(implementation, vendor, nec)
+__OMP_TRAIT_PROPERTY(implementation, vendor, nvidia)
+__OMP_TRAIT_PROPERTY(implementation, vendor, pgi)
+__OMP_TRAIT_PROPERTY(implementation, vendor, ti)
+__OMP_TRAIT_PROPERTY(implementation, vendor, unknown)
+
+__OMP_TRAIT_SELECTOR(implementation, extension, true)
+__OMP_TRAIT_PROPERTY(implementation, extension, match_all)
+__OMP_TRAIT_PROPERTY(implementation, extension, match_any)
+__OMP_TRAIT_PROPERTY(implementation, extension, match_none)
+__OMP_TRAIT_PROPERTY(implementation, extension, disable_implicit_base)
+__OMP_TRAIT_PROPERTY(implementation, extension, allow_templates)
+__OMP_TRAIT_PROPERTY(implementation, extension, bind_to_declaration)
+
+__OMP_TRAIT_SET(user)
+
+__OMP_TRAIT_SELECTOR(user, condition, true)
+
+__OMP_TRAIT_PROPERTY(user, condition, true)
+__OMP_TRAIT_PROPERTY(user, condition, false)
+__OMP_TRAIT_PROPERTY(user, condition, unknown)
+
+__OMP_TRAIT_SELECTOR_AND_PROPERTY(construct, dispatch)
+
+// Note that we put isa last so that the other conditions are checked first.
+// This allows us to issue warnings wrt. isa only if we match otherwise.
+__OMP_TRAIT_SELECTOR(device, isa, true)
+
+// We use "__ANY" as a placeholder in the isa property to denote the
+// conceptual "any", not the literal `any` used in kind. The string we
+// we use is not important except that it will show up in diagnostics.
+OMP_TRAIT_PROPERTY(device_isa___ANY, device, device_isa,
+                   "<any, entirely target dependent>")
+
+
+#undef OMP_TRAIT_SET
+#undef __OMP_TRAIT_SET
+///}
+
+/// Traits for the requires directive
+///
+/// These will (potentially) become trait selectors for the OpenMP context if
+/// the OMP_REQUIRES_TRAIT macro is not defined.
+///
+///{
+
+#ifdef OMP_REQUIRES_TRAIT
+#define __OMP_REQUIRES_TRAIT(Name)                                             \
+  OMP_REQUIRES_TRAIT(OMP_REQUIRES_TRAIT_##Name, #Name)
+#else
+#define __OMP_REQUIRES_TRAIT(Name)                                             \
+  __OMP_TRAIT_SELECTOR_AND_PROPERTY(implementation, Name)
+#endif
+
+__OMP_REQUIRES_TRAIT(unified_address)
+__OMP_REQUIRES_TRAIT(unified_shared_memory)
+__OMP_REQUIRES_TRAIT(reverse_offload)
+__OMP_REQUIRES_TRAIT(dynamic_allocators)
+__OMP_REQUIRES_TRAIT(atomic_default_mem_order)
+
+OMP_LAST_TRAIT_PROPERTY(
+    implementation_atomic_default_mem_order_atomic_default_mem_order)
+
+#undef __OMP_TRAIT_SELECTOR_AND_PROPERTY
+#undef OMP_TRAIT_SELECTOR
+#undef __OMP_TRAIT_SELECTOR
+#undef OMP_TRAIT_PROPERTY
+#undef OMP_LAST_TRAIT_PROPERTY
+#undef __OMP_TRAIT_PROPERTY
+#undef __OMP_REQUIRES_TRAIT
+#undef OMP_REQUIRES_TRAIT
+///}
+
+
+/// Assumption clauses
+///
+///{
+
+#ifdef OMP_ASSUME_CLAUSE
+#define __OMP_ASSUME_CLAUSE(Identifier, StartsWith, HasDirectiveList, HasExpression) \
+OMP_ASSUME_CLAUSE(Identifier, StartsWith, HasDirectiveList, HasExpression)
+#else
+#define __OMP_ASSUME_CLAUSE(...)
+#endif
+
+__OMP_ASSUME_CLAUSE(llvm::StringLiteral("ext_"), true, false, false)
+__OMP_ASSUME_CLAUSE(llvm::StringLiteral("absent"), false, true, false)
+__OMP_ASSUME_CLAUSE(llvm::StringLiteral("contains"), false, true, false)
+__OMP_ASSUME_CLAUSE(llvm::StringLiteral("holds"), false, false, true)
+__OMP_ASSUME_CLAUSE(llvm::StringLiteral("no_openmp"), false, false, false)
+__OMP_ASSUME_CLAUSE(llvm::StringLiteral("no_openmp_routines"), false, false, false)
+__OMP_ASSUME_CLAUSE(llvm::StringLiteral("no_parallelism"), false, false, false)
+
+#undef __OMP_ASSUME_CLAUSE
+#undef OMP_ASSUME_CLAUSE
+///}

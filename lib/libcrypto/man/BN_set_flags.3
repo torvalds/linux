@@ -1,0 +1,161 @@
+.\"	$OpenBSD: BN_set_flags.3,v 1.7 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_SET_FLAGS 3
+.Os
+.Sh NAME
+.Nm BN_set_flags ,
+.Nm BN_get_flags
+.Nd enable and inspect flags on BIGNUM objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft void
+.Fo BN_set_flags
+.Fa "BIGNUM *b"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo BN_get_flags
+.Fa "const BIGNUM *b"
+.Fa "int flags"
+.Fc
+.Sh DESCRIPTION
+.Fn BN_set_flags
+enables the given
+.Fa flags
+on
+.Fa b .
+The
+.Fa flags
+argument can contain zero or more of the following constants OR'ed
+together:
+.Bl -tag -width Ds
+.It Dv BN_FLG_CONSTTIME
+If this flag is set on the divident
+.Fa a
+or the divisor
+.Fa d
+in
+.Xr BN_div 3 ,
+on the exponent
+.Fa p
+in
+.Xr BN_mod_exp 3 ,
+or on the divisor
+.Fa a
+or the modulus
+.Fa n
+in
+.Xr BN_mod_inverse 3 ,
+these functions select algorithms with an execution time independent
+of the respective numbers, to avoid exposing sensitive information
+to timing side-channel attacks.
+.Pp
+This flag is off by default for
+.Vt BIGNUM
+objects created with
+.Xr BN_new 3 .
+.It Dv BN_FLG_MALLOCED
+If this flag is set,
+.Xr BN_free 3
+and
+.Xr BN_clear_free 3
+will not only clear and free the components of
+.Fa b ,
+but also
+.Fa b
+itself.
+This flag is set internally by
+.Xr BN_new 3 .
+Setting it manually on an existing
+.Vt BIGNUM
+object is usually a bad idea and can cause calls to
+.Xr free 3
+with bogus arguments.
+.It Dv BN_FLG_STATIC_DATA
+If this flag is set,
+.Xr BN_clear_free 3
+will neither clear nor free the memory used for storing the number.
+Consequently, setting it manually on an existing
+.Vt BIGNUM
+object is usually a terrible idea that can cause both disclosure
+of secret data and memory leaks.
+This flag is automatically set on the constant
+.Vt BIGNUM
+object returned by
+.Xr BN_value_one 3 .
+.El
+.Pp
+.Fn BN_get_flags
+interprets
+.Fa flags
+as a bitmask and returns those of the given flags that are set in
+.Fa b ,
+OR'ed together, or 0 if none of the given
+.Fa flags
+is set.
+The
+.Fa flags
+argument has the same syntax as for
+.Fn BN_set_flags .
+.Sh RETURN VALUES
+.Fn BN_get_flags
+returns zero or more of the above constants, OR'ed together.
+.Sh SEE ALSO
+.Xr BN_mod_exp 3 ,
+.Xr BN_mod_inverse 3 ,
+.Xr BN_new 3 ,
+.Xr BN_with_flags 3
+.Sh HISTORY
+.Fn BN_set_flags
+and
+.Fn BN_get_flags
+first appeared in SSLeay 0.9.1 and have been available since
+.Ox 2.6 .
+.Sh CAVEATS
+No public interface exists to clear a flag once it is set.
+So think twice before using
+.Fn BN_set_flags .
+.Sh BUGS
+Even if the
+.Dv BN_FLG_CONSTTIME
+flag is set on
+.Fa a
+or
+.Fa b ,
+.Fn BN_gcd
+neither fails nor operates in constant time, potentially allowing
+timing side-channel attacks.
+.Pp
+Even if the
+.Dv BN_FLG_CONSTTIME
+flag is set on
+.Fa p ,
+if the modulus
+.Fa m
+is even,
+.Xr BN_mod_exp 3
+does not operate in constant time, potentially allowing
+timing side-channel attacks.
+.Pp
+If
+.Dv BN_FLG_CONSTTIME
+is set on
+.Fa p ,
+.Fn BN_exp
+fails instead of operating in constant time.

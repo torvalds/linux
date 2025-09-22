@@ -1,0 +1,197 @@
+.\"	$OpenBSD: help.1,v 1.4 2017/07/13 08:29:36 jca Exp $
+.\"
+.\" Copyright (c) 1999 Aaron Campbell
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 13 2017 $
+.Dt HELP 1
+.Os
+.Sh NAME
+.Nm help
+.Nd help for new users and administrators
+.Sh DESCRIPTION
+This document is meant to familiarize new users and system administrators with
+.Ox
+and, if necessary,
+.Ux
+in general.
+.Pp
+Firstly, a wealth of information is contained within the system manual pages.
+In
+.Ux ,
+the
+.Xr man 1
+command is used to view them.
+Type
+.Ic man man
+for instructions on how to use it properly.
+Pay especially close attention to the
+.Fl k
+option.
+.Pp
+Other
+.Ox
+references include the FAQ (Frequently Asked Questions) located at
+.Lk https://www.openbsd.org/faq/ ,
+which is mostly intended for administrators and assumes the reader possesses
+a working knowledge of
+.Ux .
+There are also mailing lists in place where questions are fielded by
+.Ox
+developers and other users; see
+.Lk https://www.openbsd.org/mail.html .
+.Pp
+System administrators should have already read the
+.Xr afterboot 8
+man page which explains a variety of tasks that are typically performed
+after the first system boot.
+When configuring any aspect of the system, first consider any possible security
+implications your changes may have.
+.Ss The Unix shell
+After logging in, some system messages are typically displayed, and then the
+user is able to enter commands to be processed by the shell program.
+The shell is a command-line interpreter that reads user input (normally from
+a terminal) and executes commands.
+There are many different shells available;
+.Ox
+ships with
+.Xr csh 1 ,
+.Xr ksh 1 ,
+and
+.Xr sh 1 .
+Each user's shell is indicated by the last field of their corresponding entry
+in the system password file
+.Pf ( Pa /etc/passwd ) .
+.Ss Basic Unix commands
+.Bl -tag -width "chmodXXX"
+.It Cm man
+Interface to the system manual pages.
+For any of the commands listed below, type
+.Ic man Ar command
+for detailed information on what it does and how to use it.
+.It Cm pwd
+Print working directory.
+Files are organized in a hierarchy (see
+.Xr hier 7 )
+called a tree.
+This command will indicate in which directory you are currently located.
+.It Cm cd
+Change working directory.
+Use this command to navigate throughout the file hierarchy.
+For example, type
+.Ic cd /
+to change the working directory to the root.
+.It Cm ls
+List directory contents.
+Type
+.Ic ls -l
+for a detailed listing.
+.It Cm cat
+Although it has many more uses,
+.Ic cat Ar filename
+will print the contents of a plain-text file to the screen.
+.It Cm vi
+Edit text files.
+For example,
+.Ic vi Ar filename .
+See also
+.Xr mg 1 .
+.It Cm mkdir
+Make a directory.
+For example,
+.Ic mkdir Ar dirname .
+.It Cm rmdir
+Remove a directory.
+.It Cm rm
+Remove files.
+Files are generally only removable by their owners.
+See the
+.Xr chmod 1
+command for information on file permissions.
+.It Cm chmod
+Change file modes, including permissions.
+It is not immediately obvious how to use this command; please read its manual
+page carefully, as proper file permissions, especially on system files, are
+vital in maintaining security and integrity.
+.It Cm cp
+Copy files.
+.It Cm mv
+Move and rename files.
+.It Cm ps
+List active processes.
+Most
+.Ux Ns -based
+operating systems, including
+.Ox ,
+are multitasking, meaning many programs share system resources at the same
+time.
+A common usage is
+.Ic ps -auxw ,
+which will display information about all active processes.
+.It Cm kill
+Kill processes.
+Used mostly for terminating run-away/unresponsive programs, but also used to
+signal programs for requesting certain operations (e.g., re-read their
+configuration).
+.It Cm date
+Print the current system date and time.
+.It Cm mail
+Access mailbox.
+.It Cm exit
+Log out of the system.
+.El
+.Pp
+When a command is entered, it is first checked to see if it is built-in to the
+shell.
+If not, the shell looks for the command in any directories contained within the
+.Ev PATH
+environment variable (see
+.Xr environ 7 ) .
+If the command is not found, an error message is printed.
+Otherwise, the shell runs the command, passing it any arguments specified on
+the command line.
+.Pp
+Shell built-in commands do not have their own manual page,
+so it's necessary to read the manual page for the user's shell.
+Tools such as
+.Xr which 1
+and
+.Dq whence ,
+a
+.Xr ksh 1
+built-in command,
+can be used to see what commands are being executed.
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr ksh 1 ,
+.Xr man 1 ,
+.Xr whatis 1 ,
+.Xr whereis 1 ,
+.Xr which 1 ,
+.Xr afterboot 8
+.Sh HISTORY
+This manual page was written by
+.An Aaron Campbell Aq Mt aaron@openbsd.org
+and first appeared in
+.Ox 2.6 .

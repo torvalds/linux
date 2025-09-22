@@ -1,0 +1,119 @@
+.\"	$OpenBSD: d2i_ESS_SIGNING_CERT.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_ESS_SIGNING_CERT 3
+.Os
+.Sh NAME
+.Nm d2i_ESS_SIGNING_CERT ,
+.Nm i2d_ESS_SIGNING_CERT ,
+.Nm d2i_ESS_CERT_ID ,
+.Nm i2d_ESS_CERT_ID ,
+.Nm d2i_ESS_ISSUER_SERIAL ,
+.Nm i2d_ESS_ISSUER_SERIAL
+.Nd decode and encode signing certificates for S/MIME
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ts.h
+.Ft ESS_SIGNING_CERT *
+.Fo d2i_ESS_SIGNING_CERT
+.Fa "ESS_SIGNING_CERT **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ESS_SIGNING_CERT
+.Fa "const ESS_SIGNING_CERT *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft ESS_CERT_ID *
+.Fo d2i_ESS_CERT_ID
+.Fa "ESS_CERT_ID **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ESS_CERT_ID
+.Fa "const ESS_CERT_ID *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft ESS_ISSUER_SERIAL *
+.Fo d2i_ESS_ISSUER_SERIAL
+.Fa "ESS_ISSUER_SERIAL **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ESS_ISSUER_SERIAL
+.Fa "const ESS_ISSUER_SERIAL *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode signing certificate attribute
+structures.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_ESS_SIGNING_CERT
+and
+.Fn i2d_ESS_SIGNING_CERT
+decode and encode an ASN.1
+.Vt SigningCertificate
+structure defined in RFC 2634 section 5.4.
+.Pp
+.Fn d2i_ESS_CERT_ID
+and
+.Fn i2d_ESS_CERT_ID
+decode and encode an ASN.1
+.Vt ESSCertID
+structure defined in RFC 2634 section 5.4.1.
+.Pp
+.Fn d2i_ESS_ISSUER_SERIAL
+and
+.Fn i2d_ESS_ISSUER_SERIAL
+decode and encode an ASN.1
+.Vt IssuerSerial
+structure defined in RFC 2634 section 5.4.1.
+.Sh RETURN VALUES
+.Fn d2i_ESS_SIGNING_CERT ,
+.Fn d2i_ESS_CERT_ID ,
+and
+.Fn d2i_ESS_ISSUER_SERIAL
+return an
+.Vt ESS_SIGNING_CERT ,
+.Vt ESS_CERT_ID ,
+or
+.Vt ESS_ISSUER_SERIAL
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_ESS_SIGNING_CERT ,
+.Fn i2d_ESS_CERT_ID ,
+and
+.Fn i2d_ESS_ISSUER_SERIAL
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr ESS_SIGNING_CERT_new 3
+.Sh STANDARDS
+RFC 2634: Enhanced Security Services for S/MIME,
+section 5: Signing Certificate Attribute
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.0.0
+and have been available since
+.Ox 4.9 .

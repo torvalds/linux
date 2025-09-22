@@ -1,0 +1,24 @@
+static_library("fuchsia") {
+  output_name = "clangTidyFuchsiaModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/google",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "DefaultArgumentsCallsCheck.cpp",
+    "DefaultArgumentsDeclarationsCheck.cpp",
+    "FuchsiaTidyModule.cpp",
+    "MultipleInheritanceCheck.cpp",
+    "OverloadedOperatorCheck.cpp",
+    "StaticallyConstructedObjectsCheck.cpp",
+    "TrailingReturnCheck.cpp",
+    "VirtualInheritanceCheck.cpp",
+  ]
+}

@@ -1,0 +1,96 @@
+.\"	$OpenBSD: resolvd.8,v 1.12 2023/02/21 07:47:24 jmc Exp $
+.\"
+.\" Copyright (c) 2021 Florian Obser <florian@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 21 2023 $
+.Dt RESOLVD 8
+.Os
+.Sh NAME
+.Nm resolvd
+.Nd a daemon to handle nameserver configuration
+.Sh SYNOPSIS
+.Nm
+.Op Fl dv
+.Sh DESCRIPTION
+.Nm
+handles the contents of
+.Pa /etc/resolv.conf ,
+which contains details of the system's DNS nameservers, and is
+read by the resolver routines in the C library.
+Nameservers are learned from various sources, incorporated in a priority
+order, then user-edited information found in the pre-existing file is
+re-appended.
+.Pp
+.Nm
+checks whether
+.Xr unwind 8
+is running and, if so, places a nameserver line at the top
+to cause local resolution:
+.Pp
+.Dl nameserver 127.0.0.1
+.Pp
+.Nm
+also monitors the routing socket for proposals learned by
+.Xr dhcpleased 8 ,
+.Xr iked 8 ,
+.Xr slaacd 8 ,
+or network devices which natively learn DNS information such as
+.Xr sppp 4
+or
+.Xr umb 4 .
+Proposals can be sent manually using the
+.Xr route 8
+.Cm nameserver
+command.
+The proposals are added in priority order,
+but commented out if
+.Xr unwind 8
+is running.
+.Pp
+After that,
+.Nm
+appends all user-edited lines found in the file.
+.Pp
+.Nm
+also notices if the
+.Pa /etc/resolv.conf
+file is edited, and will rewrite the file, re-blending the various
+pieces of information.
+It will also create
+.Pa /etc/resolv.conf
+if it does not exist or if it is empty.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl v
+Produce more verbose output.
+.El
+.Sh SEE ALSO
+.Xr resolv.conf 5 ,
+.Xr dhcpleased 8 ,
+.Xr route 8 ,
+.Xr slaacd 8 ,
+.Xr unwind 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 6.9 .

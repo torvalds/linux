@@ -1,0 +1,6 @@
+prefix 192.0.2.0/24 source-as 0
+prefix 192.0.2.0/24 source-as 1 maxlen 27
+prefix 192.0.2.0/24 source-as 1
+prefix 198.51.100.0/24 source-as 2
+prefix 198.51.100.0/24 source-as 0
+prefix 198.51.100.0/24 source-as 2 maxlen 27

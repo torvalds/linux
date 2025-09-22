@@ -1,0 +1,135 @@
+.\"	$OpenBSD: posix_spawn.3,v 1.11 2023/06/26 15:28:52 tb Exp $
+.\"
+.\" Copyright (c) 2012 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 26 2023 $
+.Dt POSIX_SPAWN 3
+.Os
+.Sh NAME
+.Nm posix_spawn , posix_spawnp
+.Nd launch external command
+.Sh SYNOPSIS
+.In spawn.h
+.Ft int
+.Fn posix_spawn "pid_t *restrict pidp" "const char *restrict path" "const posix_spawn_file_actions_t *file_actions" "const posix_spawnattr_t *restrict attrp" "char *const argv[restrict]" "char *const envp[restrict]"
+.Ft int
+.Fn posix_spawnp "pid_t *restrict pidp" "const char *restrict file" "const posix_spawn_file_actions_t *file_actions" "const posix_spawnattr_t *restrict attrp" "char *const argv[restrict]" "char *const envp[restrict]"
+.Sh DESCRIPTION
+The
+.Fn posix_spawn
+function forks a new process and starts an external program from
+pathname
+.Fa path .
+.Pp
+The
+.Fn posix_spawnp
+function is similar, except it constructs the pathname from
+.Fa file
+following the usual
+.Ev PATH
+handling rules:
+if file contains a slash, then it is directly used as a path.
+Otherwise,
+.Fn posix_spawnp
+searches every directory mentioned in
+.Ev PATH
+until it finds an executable.
+If
+.Ev PATH
+is not set, the default is
+.Dq /usr/bin:/bin .
+.Pp
+Arguments to the new process are passed to
+.Xr execve 2
+as
+.Fa argv
+and
+.Fa envp .
+If
+.Fa envp
+is NULL, the environment is passed unchanged from the parent process.
+.Pp
+If
+.Fa file_actions
+is a null pointer, file descriptors open in the parent process
+follow the usual rules: they remain open in the child process unless they've
+been marked
+.Dv FD_CLOEXEC
+with
+.Xr fcntl 2 .
+.Pp
+Otherwise, file descriptors in the child process
+are altered according to
+.Xr posix_spawn_file_actions_init 3 ,
+.Xr posix_spawn_file_actions_addclose 3 ,
+.Xr posix_spawn_file_actions_adddup2 3 ,
+and
+.Xr posix_spawn_file_actions_addopen 3 .
+.Pp
+The
+.Fa attrp
+argument can be used to control signal, UID and GID handling in the
+child process.
+.Pp
+If
+.Fa attrp
+is NULL, default values are used: caught signals in the parent
+process are set to the default value in the child process, and ignored signals
+stay ignored.
+.Pp
+See
+.Xr posix_spawnattr_setflags 3
+for attribute details.
+.Sh RETURN VALUES
+Upon successful completion, both functions return 0.
+If
+.Fa pidp
+is not a NULL pointer,
+.Li *pidp
+gets set to the PID of the newly created child process.
+.Pp
+In case of an error, both functions may return
+.Fn fork
+or
+.Fn exec
+return values and set
+.Va errno
+accordingly.
+.Pp
+Note, however, that after the new process is started, the child
+process has no way to return an error value.
+In case of a problem, the child process will instead exit
+with exit status 127.
+.Sh SEE ALSO
+.Xr execve 2 ,
+.Xr fork 2 ,
+.Xr posix_spawn_file_actions_addclose 3 ,
+.Xr posix_spawn_file_actions_init 3 ,
+.Xr posix_spawnattr_init 3 ,
+.Xr posix_spawnattr_setflags 3
+.Sh STANDARDS
+Both functions conform to
+.St -p1003.1-2001 .
+.Pp
+The handling of NULL
+.Fa envp
+is an extension to that standard.
+.Sh HISTORY
+These functions were ported from
+.Fx
+to
+.Ox 5.2 .
+.Sh AUTHORS
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org

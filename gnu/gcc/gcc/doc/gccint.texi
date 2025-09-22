@@ -1,0 +1,189 @@
+\input texinfo  @c -*-texinfo-*-
+@c %**start of header
+@setfilename gccint.info
+@c INTERNALS is used by md.texi to determine whether to include the
+@c whole of that file, in the internals manual, or only the part
+@c dealing with constraints, in the user manual.
+@set INTERNALS
+
+@c See miscellaneous notes in gcc.texi on checks/things to do.
+
+@include gcc-common.texi
+
+@settitle GNU Compiler Collection (GCC) Internals
+
+@c Create a separate index for command line options.
+@defcodeindex op
+@c Merge the standard indexes into a single one.
+@syncodeindex fn cp
+@syncodeindex vr cp
+@syncodeindex ky cp
+@syncodeindex pg cp
+@syncodeindex tp cp
+
+@paragraphindent 1
+
+@c %**end of header
+
+@copying
+Copyright @copyright{} 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+1999, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.2 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``GNU General Public License'' and ``Funding
+Free Software'', the Front-Cover texts being (a) (see below), and with
+the Back-Cover Texts being (b) (see below).  A copy of the license is
+included in the section entitled ``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
+@ifnottex
+@dircategory Software development
+@direntry
+* gccint: (gccint).            Internals of the GNU Compiler Collection.
+@end direntry
+This file documents the internals of the GNU compilers.
+@sp 1
+@insertcopying
+@sp 1
+@end ifnottex
+
+@setchapternewpage odd
+@titlepage
+@title GNU Compiler Collection Internals
+@versionsubtitle
+@author Richard M. Stallman and the @sc{GCC} Developer Community
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+@summarycontents
+@contents
+@page
+
+@node Top, Contributing,, (DIR)
+@top Introduction
+@cindex introduction
+
+This manual documents the internals of the GNU compilers, including
+how to port them to new targets and some information about how to
+write front ends for new languages.  It corresponds to GCC version
+@value{version-GCC}.  The use of the GNU compilers is documented in a
+separate manual.  @xref{Top,, Introduction, gcc, Using the GNU
+Compiler Collection (GCC)}.
+
+This manual is mainly a reference manual rather than a tutorial.  It
+discusses how to contribute to GCC (@pxref{Contributing}), the
+characteristics of the machines supported by GCC as hosts and targets
+(@pxref{Portability}), how GCC relates to the ABIs on such systems
+(@pxref{Interface}), and the characteristics of the languages for
+which GCC front ends are written (@pxref{Languages}).  It then
+describes the GCC source tree structure and build system, some of the
+interfaces to GCC front ends, and how support for a target system is
+implemented in GCC@.
+
+Additional tutorial information is linked to from
+@uref{http://gcc.gnu.org/readings.html}.
+
+@menu
+* Contributing::    How to contribute to testing and developing GCC.
+* Portability::     Goals of GCC's portability features.
+* Interface::       Function-call interface of GCC output.
+* Libgcc::          Low-level runtime library used by GCC.
+* Languages::       Languages for which GCC front ends are written.
+* Source Tree::     GCC source tree structure and build system.
+* Options::         Option specification files.
+* Passes::          Order of passes, what they do, and what each file is for.
+* Trees::           The source representation used by the C and C++ front ends.
+* RTL::             The intermediate representation that most passes work on.
+* Control Flow::    Maintaining and manipulating the control flow graph.
+* Tree SSA::        Analysis and optimization of the tree representation.
+* Loop Analysis and Representation:: Analysis and representation of loops
+* Machine Desc::    How to write machine description instruction patterns.
+* Target Macros::   How to write the machine description C macros and functions.
+* Host Config::     Writing the @file{xm-@var{machine}.h} file.
+* Fragments::       Writing the @file{t-@var{target}} and @file{x-@var{host}} files.
+* Collect2::        How @code{collect2} works; how it finds @code{ld}.
+* Header Dirs::     Understanding the standard header file directories.
+* Type Information:: GCC's memory management; generating type information.
+
+* Funding::         How to help assure funding for free software.
+* GNU Project::     The GNU Project and GNU/Linux.
+
+* Copying::         GNU General Public License says
+                     how you can copy and share GCC.
+* GNU Free Documentation License:: How you can copy and share this manual.
+* Contributors::    People who have contributed to GCC.
+
+* Option Index::    Index to command line options.
+* Concept Index::   Index of concepts and symbol names.
+@end menu
+
+@include contribute.texi
+@include portability.texi
+@include interface.texi
+@include libgcc.texi
+@include languages.texi
+@include sourcebuild.texi
+@include options.texi
+@include passes.texi
+@include c-tree.texi
+@include tree-ssa.texi
+@include loop.texi
+@include rtl.texi
+@include cfg.texi
+@include md.texi
+@include tm.texi
+@include hostconfig.texi
+@include fragments.texi
+@include collect2.texi
+@include headerdirs.texi
+@include gty.texi
+
+@include funding.texi
+@include gnu.texi
+@include gpl.texi
+
+@c ---------------------------------------------------------------------
+@c GFDL
+@c ---------------------------------------------------------------------
+
+@include fdl.texi
+
+@include contrib.texi
+
+@c ---------------------------------------------------------------------
+@c Indexes
+@c ---------------------------------------------------------------------
+
+@node Option Index
+@unnumbered Option Index
+
+GCC's command line options are indexed here without any initial @samp{-}
+or @samp{--}.  Where an option has both positive and negative forms
+(such as @option{-f@var{option}} and @option{-fno-@var{option}}),
+relevant entries in the manual are indexed under the most appropriate
+form; it may sometimes be useful to look up both forms.
+
+@printindex op
+
+@node Concept Index
+@unnumbered Concept Index
+
+@printindex cp
+
+@c ---------------------------------------------------------------------
+@c Epilogue
+@c ---------------------------------------------------------------------
+
+@bye

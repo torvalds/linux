@@ -1,0 +1,20 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("MipsGenDisassemblerTables") {
+  visibility = [ ":Disassembler" ]
+  args = [ "-gen-disassembler" ]
+  td_file = "../Mips.td"
+}
+
+static_library("Disassembler") {
+  output_name = "LLVMMipsDisassembler"
+  deps = [
+    ":MipsGenDisassemblerTables",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/Mips/MCTargetDesc",
+    "//llvm/lib/Target/Mips/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "MipsDisassembler.cpp" ]
+}

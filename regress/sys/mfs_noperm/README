@@ -1,0 +1,3 @@
+	$OpenBSD: README,v 1.1 2018/12/23 11:23:21 natano Exp $
+
+These tests must be run as root, /mnt must be clean.

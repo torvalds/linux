@@ -1,0 +1,151 @@
+.\" Copyright (c) 2004 Daniel Hartmeier
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\"    - Redistributions of source code must retain the above copyright
+.\"      notice, this list of conditions and the following disclaimer.
+.\"    - Redistributions in binary form must reproduce the above
+.\"      copyright notice, this list of conditions and the following
+.\"      disclaimer in the documentation and/or other materials provided
+.\"      with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $OpenBSD: cdce.4,v 1.27 2022/09/10 10:10:29 jsg Exp $
+.\"
+.Dd $Mdocdate: September 10 2022 $
+.Dt CDCE 4
+.Os
+.Sh NAME
+.Nm cdce
+.Nd USB Communication Device Class Ethernet device
+.Sh SYNOPSIS
+.Cd "cdce*  at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Host-to-Host (aka USB-to-USB) bridges
+based on the USB Communication Device Class (CDC) and Ethernet subclass,
+including the following:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Acer Labs USB 2.0 Data Link
+.It
+Dell Wireless 5530
+.It
+Dell Wireless 5540
+.It
+FRITZ!Box Fon ata 1020
+.It
+G.Mate YP3X00
+.It
+Lenovo ThinkPad USB 3.0 Ethernet adapter (FRU 03X6903)
+.It
+Motorola USBNET
+.It
+NetChip EthernetGadget
+.It
+Prolific PL-2501
+.It
+Sony Ericsson K610i
+.It
+Sony Ericsson F3705g
+.It
+Yota LU156
+.It
+ZTE MF831 LTE USB modem
+.It
+ZTE MF920V portable LTE WiFi router
+.It
+Zyxel P-971M
+.El
+.Pp
+The USB bridge appears as a regular network interface on both sides,
+transporting Ethernet frames.
+USB 1.x bridges support speeds of up to 12Mbps, and USB 2.0 speeds of
+up to 480Mbps.
+Packets are
+received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+The
+.Nm
+driver does not support different media types or options.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "cdce0: extra ethernet descriptor"
+There is more than one Ethernet descriptor.
+.It "cdce0: no data interface"
+The data interface announced by the union descriptor cannot be found.
+.It "cdce0: no descriptor for interrupt endpoint N"
+.It "cdce0: interface alternate setting N failed"
+.It "cdce0: no descriptor for bulk endpoint N"
+.It "cdce0: could not find data bulk in/out"
+For a manually added USB vendor/product, these errors indicate
+that the bridge is not compatible with the driver.
+.It "cdce0: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.It "cdce0: no memory for rx list -- packet dropped!"
+Memory allocation through MGETHDR or MCLGET failed, the system
+is running low on mbufs.
+.It "cdce0: abort/close rx/tx/interrupt pipe failed"
+.It "cdce0: rx/tx list init failed"
+.It "cdce0: open rx/tx/interrupt pipe failed"
+.It "cdce0: usb error on rx/tx"
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T "Universal Serial Bus Class Definitions for Communication Devices"
+.%U https://www.usb.org/document-library/class-definitions-communication-devices-12
+.Re
+.Rs
+.%T "Data sheet Prolific PL-2501 Host-to-Host Bridge/Network Controller"
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Craig Boston Aq Mt craig@tobuj.gank.org
+based on the
+.Xr aue 4
+driver written by
+.An Bill Paul Aq Mt wpaul@windriver.com
+and ported to
+.Ox
+by
+.An Daniel Hartmeier Aq Mt dhartmei@openbsd.org .
+.Sh CAVEATS
+Many USB devices notoriously fail to report their class and interfaces
+correctly.
+Undetected products might work flawlessly when their vendor and product IDs
+are added to the driver manually.

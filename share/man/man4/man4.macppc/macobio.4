@@ -1,0 +1,86 @@
+.\"	$OpenBSD: macobio.4,v 1.24 2021/04/09 20:05:50 kn Exp $
+.\"
+.\" Copyright (c) 2003 Dale Rahn.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: April 9 2021 $
+.Dt MACOBIO 4 macppc
+.Os
+.Sh NAME
+.Nm macobio
+.Nd introduction to Apple PowerPC onboard I/O bus support
+.Sh SYNOPSIS
+.Cd "macobio0 at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+device serves as a bridge to many of the onboard devices; it
+supports the GC, Heathrow, Intrepid, K2, Keylargo, OHare, Paddington,
+Pangea, and Shasta modules.
+.Pp
+.Ox
+provides support for the following devices:
+.Pp
+.Bl -tag -width 16n -offset indent -compact
+.It Xr aoa 4
+Apple aoa audio device
+.It Xr awacs 4
+Apple awacs audio device
+.It Xr bm 4
+Apple BMAC Ethernet device
+.It Xr daca 4
+Apple daca audio device
+.It Xr macgpio 4
+support for on-board GPIO controllers
+.It Xr mc 4
+Am79C940 (MACE) on-board Ethernet device
+.It Xr mediabay 4
+ATA33 HD controller
+.It Xr onyx 4
+Apple onyx audio device
+.It Xr openpic 4
+OpenPIC interrupt controller
+.It Xr snapper 4
+Apple snapper audio device
+.It Xr tumbler 4
+Apple tumbler audio device
+.It Xr wdc 4
+WD100x compatible hard disk controller driver
+.It Xr wi 4
+WaveLAN/IEEE, PRISM 2-3, and Spectrum24 IEEE 802.11b wireless network device
+.It Xr xlights 4
+Xserve G4 and G5 front panel LEDs
+.It Xr zs 4
+Zilog 8530 (ZSCC) serial communications driver
+.El
+.Sh SEE ALSO
+.Xr adb 4 ,
+.Xr intro 4 ,
+.Xr kiic 4 ,
+.Xr memc 4
+.Sh HISTORY
+The
+.Nm
+first appeared in
+.Ox 2.8 .

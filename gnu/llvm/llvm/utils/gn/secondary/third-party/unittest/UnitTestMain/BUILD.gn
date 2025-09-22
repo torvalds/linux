@@ -1,0 +1,17 @@
+source_set("UnitTestMain") {
+  deps = [ "//llvm/lib/Support" ]
+
+  # Make targets depending on this also depend on gtest, to get the gtest
+  # include_dir.
+  public_deps = [ "..:gtest" ]
+  sources = [ "TestMain.cpp" ]
+  testonly = true
+}
+
+# Nothing depends on this target, but llvm-config expects it to exist when
+# it runs with `--link-static --system-libs`, so humor it.
+static_library("gtest_main") {
+  deps = [ ":UnitTestMain" ]
+  complete_static_lib = true
+  testonly = true
+}

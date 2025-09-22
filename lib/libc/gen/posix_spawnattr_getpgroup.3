@@ -1,0 +1,80 @@
+.\"	$OpenBSD: posix_spawnattr_getpgroup.3,v 1.10 2023/02/22 06:31:51 guenther Exp $
+.\"
+.\" Copyright (c) 2012 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 22 2023 $
+.Dt POSIX_SPAWNATTR_GETPGROUP 3
+.Os
+.Sh NAME
+.Nm posix_spawnattr_getpgroup ,
+.Nm posix_spawnattr_getschedparam ,
+.Nm posix_spawnattr_getschedpolicy ,
+.Nm posix_spawnattr_getsigdefault ,
+.Nm posix_spawnattr_getsigmask ,
+.Nm posix_spawnattr_setpgroup ,
+.Nm posix_spawnattr_setschedparam ,
+.Nm posix_spawnattr_setschedpolicy ,
+.Nm posix_spawnattr_setsigdefault ,
+.Nm posix_spawnattr_setsigmask
+.Nd get or set misc attributes of a posix_spawn attributes object
+.Sh SYNOPSIS
+.In spawn.h
+.Ft int
+.Fn posix_spawnattr_getpgroup "const posix_spawnattr_t *restrict attr" "pid_t *restrict pgroup"
+.Ft int
+.Fn posix_spawnattr_getschedparam "const posix_spawnattr_t *restrict attr" "struct sched_param *restrict schedparam"
+.Ft int
+.Fn posix_spawnattr_getschedpolicy "const posix_spawnattr_t *restrict attr" "int *restrict schedpolicy"
+.Ft int
+.Fn posix_spawnattr_getsigdefault "const posix_spawnattr_t *restrict attr" "sigset_t *restrict sigdefault"
+.Ft int
+.Fn posix_spawnattr_getsigmask "const posix_spawnattr_t *restrict attr" "sigset_t *restrict sigmask"
+.Ft int
+.Fn posix_spawnattr_setpgroup "posix_spawnattr_t *attr" "pid_t pgroup"
+.Ft int
+.Fn posix_spawnattr_setschedparam "posix_spawnattr_t *attr" "const struct sched_param *restrict schedparam"
+.Ft int
+.Fn posix_spawnattr_setschedpolicy "posix_spawnattr_t *attr" "int schedpolicy"
+.Ft int
+.Fn posix_spawnattr_setsigdefault "posix_spawnattr_t *attr" "const sigset_t *restrict sigdefault"
+.Ft int
+.Fn posix_spawnattr_setsigmask "posix_spawnattr_t *attr" "const sigset_t *restrict sigmask"
+.Sh DESCRIPTION
+The
+.Fn posix_spawnattr_get*
+functions obtain the value of the corresponding attribute from the
+attributes object referenced by
+.Fa attr .
+.Pp
+The
+.Fn posix_spawnattr_set*
+functions set the value of the corresponding attribute in the
+attributes object referenced by
+.Fa attr .
+.Pp
+See
+.Xr posix_spawnattr_getflags 3
+for attribute details.
+.Sh RETURN VALUES
+Those functions return 0.
+.Sh SEE ALSO
+.Xr posix_spawn 3 ,
+.Xr posix_spawnattr_init 3 ,
+.Xr sigaddset 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2001 .
+.Sh AUTHORS
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org

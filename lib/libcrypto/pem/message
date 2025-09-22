@@ -1,0 +1,16 @@
+-----BEGIN PRIVACY-ENHANCED MESSAGE-----
+Proc-Type: 4,ENCRYPTED
+Proc-Type: 4,MIC-ONLY
+Proc-Type: 4,MIC-CLEAR
+Content-Domain: RFC822
+DEK-Info: DES-CBC,0123456789abcdef
+Originator-Certificate
+ xxxx
+Issuer-Certificate
+ xxxx
+MIC-Info: RSA-MD5,RSA,
+ xxxx
+
+
+-----END PRIVACY-ENHANCED MESSAGE-----
+

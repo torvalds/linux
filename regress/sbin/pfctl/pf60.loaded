@@ -1,0 +1,28 @@
+@0 pass inet from 224.4.5.4 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass inet from 224.4.0.0/16 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 pass inet from 224.4.5.0/26 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass inet from 224.4.5.64/26 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass inet from 224.4.5.128/26 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 pass inet from 224.4.5.192/26 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 pass inet from 224.4.5.4 to any flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

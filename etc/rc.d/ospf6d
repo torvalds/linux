@@ -1,0 +1,9 @@
+#!/bin/ksh
+#
+# $OpenBSD: ospf6d,v 1.3 2018/01/11 19:52:12 rpe Exp $
+
+daemon="/usr/sbin/ospf6d"
+
+. /etc/rc.d/rc.subr
+
+rc_cmd $1

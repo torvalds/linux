@@ -1,0 +1,12 @@
+#!/bin/ksh
+#
+# $OpenBSD: tftpproxy,v 1.3 2018/01/11 19:52:12 rpe Exp $
+
+daemon="/usr/sbin/tftp-proxy"
+
+. /etc/rc.d/rc.subr
+
+pexp="tftp-proxy: privproc"
+rc_reload=NO
+
+rc_cmd $1

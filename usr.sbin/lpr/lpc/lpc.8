@@ -1,0 +1,188 @@
+.\"	$OpenBSD: lpc.8,v 1.14 2009/10/29 20:11:09 sobrado Exp $
+.\"	$NetBSD: lpc.8,v 1.14 2002/01/19 03:22:19 wiz Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)lpc.8	8.5 (Berkeley) 4/28/95
+.\"
+.Dd $Mdocdate: October 29 2009 $
+.Dt LPC 8
+.Os
+.Sh NAME
+.Nm lpc
+.Nd line printer control program
+.Sh SYNOPSIS
+.Nm lpc
+.Bk -words
+.Oo
+.Ar command
+.Op Ar argument ...
+.Oc
+.Ek
+.Sh DESCRIPTION
+.Nm
+is used by the system administrator to control the
+operation of the line printer system.
+For each line printer configured in
+.Pa /etc/printcap ,
+.Nm
+may be used to:
+.Bl -bullet -offset indent
+.It
+disable or enable a printer,
+.It
+disable or enable a printer's spooling queue,
+.It
+rearrange the order of jobs in a spooling queue,
+.It
+find the status of printers, and their associated
+spooling queues and printer daemons.
+.El
+.Pp
+Without any arguments,
+.Nm
+will prompt for commands from the standard input.
+If arguments are supplied,
+.Nm
+interprets the first argument as a command and the remaining
+arguments as parameters to the command.
+The standard input may be redirected causing
+.Nm
+to read commands from file.
+Commands may be abbreviated;
+the following is the list of recognized commands.
+.Pp
+.Bl -tag -width Ds -compact
+.It Ic \&? Op Ar command ...
+.It Ic help Op Ar command ...
+Print a short description of each command specified in the argument list,
+or, if no argument is given, a list of the recognized commands.
+.Pp
+.It Ic abort No {all | printer ...}
+Terminate an active spooling daemon on the local host immediately and
+then disable printing (preventing new daemons from being started by
+.Xr lpr 1 )
+for the specified printers.
+.Pp
+.It Ic clean No {all | printer ...}
+Remove any temporary files, data files, and control files that cannot
+be printed (i.e., do not form a complete printer job)
+from the specified printer queue(s) on the local machine.
+.Pp
+.It Ic disable No {all | printer ...}
+Turn the specified printer queues off.
+This prevents new printer jobs from being entered into the queue by
+.Xr lpr 1 .
+.Pp
+.It Xo Ic down No {all | printer}
+.Op Ar message ...
+.Xc
+Turn the specified printer queue off, disable printing and put
+.Em message
+in the printer status file.
+The message doesn't need to be quoted, the
+remaining arguments are treated like
+.Xr echo 1 .
+This is normally used to take a printer down and let users know why.
+.Xr lpq 1
+will indicate the printer is down and print the status message.
+.Pp
+.It Ic enable No {all | printer ...}
+Enable spooling on the local queue for the listed printers.
+This will allow
+.Xr lpr 1
+to put new jobs in the spool queue.
+.Pp
+.It Ic exit
+.It Ic quit
+Exit from
+.Nm lpc .
+.Pp
+.It Ic restart No {all | printer ...}
+Attempt to start a new printer daemon.
+This is useful when some abnormal condition causes the daemon to
+die unexpectedly, leaving jobs in the queue.
+.Xr lpq 1
+will report that there is no daemon present when this condition occurs.
+If the user is the superuser,
+try to abort the current daemon first (i.e., kill and restart a stuck daemon).
+.Pp
+.It Ic start No {all | printer ...}
+Enable printing and start a spooling daemon for the listed printers.
+.Pp
+.It Ic status No {all | printer ...}
+Display the status of daemons and queues on the local machine.
+.Pp
+.It Ic stop No {all | printer ...}
+Stop a spooling daemon after the current job completes and disable
+printing.
+.Pp
+.It Xo Ic topq No printer
+.Op Ar jobnum ...
+.Op Ar user ...
+.Xc
+Place the jobs in the order listed at the top of the printer queue.
+.Pp
+.It Ic up No {all | printer ...}
+Enable everything and start a new printer daemon.
+Undoes the effects of
+.Ic down .
+.El
+.Sh FILES
+.Bl -tag -width /var/spool/output/*/lock -compact
+.It Pa /etc/printcap
+printer description file
+.It Pa /var/spool/output/*
+spool directories
+.It Pa /var/spool/output/*/lock
+lock file for queue control
+.El
+.Sh DIAGNOSTICS
+.Bl -tag -width Ds
+.It Sy "?Ambiguous command"
+Abbreviation matches more than one command.
+.It Sy "?Invalid command"
+No match was found.
+.It Sy "?Privileged command"
+You must be a member of group
+.Dq operator
+or user
+.Dq root
+to execute this command.
+.El
+.Sh SEE ALSO
+.Xr lpq 1 ,
+.Xr lpr 1 ,
+.Xr lprm 1 ,
+.Xr printcap 5 ,
+.Xr lpd 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

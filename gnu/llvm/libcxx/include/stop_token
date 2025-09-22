@@ -1,0 +1,56 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_STOP_TOKEN
+#define _LIBCPP_STOP_TOKEN
+
+/*
+
+namespace std {
+  // [stoptoken], class stop_token
+  class stop_token;
+
+  // [stopsource], class stop_source
+  class stop_source;
+
+  // no-shared-stop-state indicator
+  struct nostopstate_t {
+    explicit nostopstate_t() = default;
+  };
+  inline constexpr nostopstate_t nostopstate{};
+
+  // [stopcallback], class template stop_callback
+  template<class Callback>
+    class stop_callback;
+
+*/
+
+#include <__config>
+
+#if !defined(_LIBCPP_HAS_NO_THREADS)
+
+#  if _LIBCPP_STD_VER >= 20
+#    include <__stop_token/stop_callback.h>
+#    include <__stop_token/stop_source.h>
+#    include <__stop_token/stop_token.h>
+#  endif
+
+#  include <version>
+
+#  if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#    pragma GCC system_header
+#  endif
+
+#endif // !defined(_LIBCPP_HAS_NO_THREADS)
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <iosfwd>
+#endif
+
+#endif // _LIBCPP_STOP_TOKEN

@@ -1,0 +1,124 @@
+.\"	$OpenBSD: sigprocmask.2,v 1.13 2017/05/29 09:40:02 deraadt Exp $
+.\"	$NetBSD: sigprocmask.2,v 1.6 1995/02/27 12:37:33 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)sigprocmask.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: May 29 2017 $
+.Dt SIGPROCMASK 2
+.Os
+.Sh NAME
+.Nm sigprocmask
+.Nd manipulate current signal mask
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fn sigprocmask "int how" "const sigset_t *set" "sigset_t *oset"
+.Sh DESCRIPTION
+The
+.Fn sigprocmask
+function examines and/or changes the current signal mask (those signals
+that are blocked from delivery).
+Signals are blocked if they are members of the current signal mask set.
+.Pp
+If
+.Fa set
+is not null, the action of
+.Fn sigprocmask
+depends on the value of the parameter
+.Fa how ,
+which can be one of the following values:
+.Bl -tag -width SIG_UNBLOCK
+.It Dv SIG_BLOCK
+The new mask is the union of the current mask and the specified
+.Fa set .
+.It Dv SIG_UNBLOCK
+The new mask is the intersection of the current mask
+and the complement of the specified
+.Fa set .
+.It Dv SIG_SETMASK
+The current mask is replaced by the specified
+.Fa set .
+.El
+.Pp
+If
+.Fa oset
+is not null, it is set to
+the previous value of the signal mask.
+When
+.Fa set
+is null,
+the value of
+.Fa how
+is insignificant and the mask remains unchanged,
+providing a way to examine the signal mask without modification.
+.Pp
+The system
+quietly disallows
+.Dv SIGKILL
+or
+.Dv SIGSTOP
+to be blocked.
+.Pp
+Only signals which are in the pending state will be blocked.
+Signals that are explicitly ignored or for which no handler has
+been installed and where the default action is to discard the signal
+are not held as pending and will be discarded regardless of the
+signal mask.
+.Pp
+Blocked signals remain in the pending state until another call to
+.Fn sigprocmask
+removes the pending signal(s) from the mask.
+If there are unblocked signals that are pending after the signal
+mask is updated, at least one will be delivered before
+.Fn sigprocmask
+returns.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn sigprocmask
+call will fail and the signal mask will be unchanged if one
+of the following occurs:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa how
+has a value other than those listed here.
+.El
+.Sh SEE ALSO
+.Xr kill 2 ,
+.Xr sigaction 2 ,
+.Xr sigpending 2 ,
+.Xr sigsuspend 2 ,
+.Xr sigaddset 3
+.Sh STANDARDS
+The
+.Fn sigprocmask
+function conforms to
+.St -p1003.1-2008 .

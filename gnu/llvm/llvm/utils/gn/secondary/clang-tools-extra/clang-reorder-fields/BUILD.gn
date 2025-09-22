@@ -1,0 +1,15 @@
+static_library("clang-reorder-fields") {
+  output_name = "clangReorderFields"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Index",
+    "//clang/lib/Lex",
+    "//clang/lib/Serialization",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "ReorderFieldsAction.cpp" ]
+}

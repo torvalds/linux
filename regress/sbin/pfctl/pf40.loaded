@@ -1,0 +1,80 @@
+@0 block drop all
+  [ Skip steps: i=12 d=4 r=end f=end p=2 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 block return all
+  [ Skip steps: i=12 d=4 r=end f=end sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 block return-rst proto tcp all
+  [ Skip steps: i=12 d=4 r=end f=end sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass all flags S/SA
+  [ Skip steps: i=12 r=end f=end p=15 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass in all no state
+  [ Skip steps: i=12 r=end f=end p=15 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 pass out all no state
+  [ Skip steps: i=12 r=end f=end p=15 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 pass all no state
+  [ Skip steps: i=12 r=end f=end p=15 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 block drop in all
+  [ Skip steps: i=12 r=end f=end p=15 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 block drop out all
+  [ Skip steps: i=12 r=end f=end p=15 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 block drop all
+  [ Skip steps: i=12 r=end f=end p=15 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 pass in all flags S/SA
+  [ Skip steps: i=12 r=end f=end p=15 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 pass out all flags S/SA
+  [ Skip steps: r=end f=end p=15 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@12 block drop on lo0 all
+  [ Skip steps: i=15 d=17 r=end f=end p=15 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@13 pass on lo0 all flags S/SA
+  [ Skip steps: i=15 d=17 r=end f=end p=15 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@14 block drop on lo0 all
+  [ Skip steps: d=17 r=end f=end sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@15 pass proto tcp all flags S/SA
+  [ Skip steps: i=19 d=17 r=end f=end sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@16 pass proto udp all
+  [ Skip steps: i=19 r=end f=end p=19 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@17 pass in proto udp all
+  [ Skip steps: i=19 r=end f=end p=19 sa=end da=end sp=end dp=19 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@18 pass out proto udp all
+  [ Skip steps: d=end r=end f=end sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@19 pass out on lo0 proto tcp from any to any port = 25 flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

@@ -1,0 +1,74 @@
+BODY { 
+   background: white; 
+   font-size: small;
+}
+H1 { text-align: center; font-size: large }
+H2 { text-align: left; font-size: medium; }
+H3 { text-align: left; font-size: small; }
+CODE { font-size: small; }
+CAPTION { font-weight: normal }
+A.qindex {}
+A.qindexRef {}
+A.el { text-decoration: none; font-size: small; font-weight: normal }
+A.elRef { text-decoration: none; font-size: small; font-weight: normal }
+A.code { text-decoration: none; font-weight: normal; color: #4444ee }
+A.codeRef { font-weight: normal; color: #4444ee }
+A:hover { text-decoration: none; background-color: #f2f2ff }
+DL.el { margin-left: -1cm }
+DIV.fragment { width: 100%; border: none; background-color: #eeeeee }
+DIV.ah { 
+   background-color: black; 
+   font-weight: normal; 
+   color: #ffffff; 
+   margin-bottom: 3px; 
+   margin-top: 3px 
+}
+DIV.groupHeader { 
+   margin-left: 16px; 
+   margin-top: 12px; 
+   margin-bottom: 6px; 
+   font-weight: normal 
+}
+DIV.groupText { margin-left: 16px; font-style: italic; font-size: small }
+TD.md { background-color: #f2f2ff; font-size: small; }
+TD.mdname1 { background-color: #f2f2ff; font-size: small; color: #602020; }
+TD.mdname { 
+   background-color: #f2f2ff; 
+   font-weight: normal; 
+   font-size: small; 
+   color: #602020; 
+   width: 600px
+}
+TD.indexkey { 
+   background-color: #eeeeff; 
+   font-weight: normal; 
+   font-size: small; 
+   padding-right  : 10px; 
+   padding-top    : 2px; 
+   padding-left   : 10px; 
+   padding-bottom : 2px; 
+   margin-left    : 0px; 
+   margin-right   : 0px; 
+   margin-top     : 2px; 
+   margin-bottom  : 2px  
+}
+TD.indexvalue { 
+   background-color: #eeeeff; 
+   font-style: italic; 
+   font-size: small; 
+   padding-right  : 10px; 
+   padding-top    : 2px; 
+   padding-left   : 10px; 
+   padding-bottom : 2px; 
+   margin-left    : 0px; 
+   margin-right   : 0px; 
+   margin-top     : 2px; 
+   margin-bottom  : 2px  
+}
+span.keyword       { color: #008000 }
+span.keywordtype   { color: #604020 }
+span.keywordflow   { color: #e08000 }
+span.comment       { color: #800000 }
+span.preprocessor  { color: #806020 }
+span.stringliteral { color: #002080 }
+span.charliteral   { color: #008080 }

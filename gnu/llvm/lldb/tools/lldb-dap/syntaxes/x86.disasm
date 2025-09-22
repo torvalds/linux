@@ -1,0 +1,28 @@
+0x100008000: <0>             popq %rdi
+0x100008001: <1>            pushq $0x0
+0x100008003: <3>             movq %rsp, %rbp
+0x100008006: <6>             andq $-0x10, %rsp
+0x10000800A: <10>            subq $0x10, %rsp
+0x10000800E: <14>            movl 0x8(%rbp), %esi
+0x100008011: <17>            leaq 0x10(%rbp), %rdx
+0x100008015: <21>            leaq -0x101c(%rip), %rcx
+0x10000801C: <28>            leaq -0x8(%rbp), %r8
+0x100008020: <32>           callq 0x100008062                # dyldbootstrap::start(dyld3::MachOLoaded const*, int, char const**, dyld3::MachOLoaded const*, unsigned long*)
+0x100008025: <37>            movq -0x8(%rbp), %rdi
+0x100008029: <41>            cmpq $0x0, %rdi
+0x10000802D: <45>             jne 0x10000803f                # <+63>
+0x10000802F: <47>            movq %rbp, %rsp
+0x100008032: <50>            addq $0x8, %rsp
+0x100008036: <54>            movq $0x0, %rbp
+0x10000803D: <61>            jmpq *%rax
+0x10000803F: <63>            addq $0x10, %rsp
+0x100008043: <67>           pushq %rdi
+0x100008044: <68>            movq 0x8(%rbp), %rdi
+0x100008048: <72>            leaq 0x10(%rbp), %rsi
+0x10000804C: <76>            leaq 0x8(%rsi,%rdi,8), %rdx
+0x100008051: <81>            movq %rdx, %rcx
+0x100008054: <84>            movq (%rcx), %r8
+0x100008057: <87>            addq $0x8, %rcx
+0x10000805B: <91>           testq %r8, %r8
+0x10000805E: <94>             jne 0x100008054                # <+84>
+0x100008060: <96>            jmpq *%rax

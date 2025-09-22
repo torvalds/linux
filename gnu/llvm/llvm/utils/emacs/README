@@ -1,0 +1,36 @@
+-*- llvm/utils/emacs/README -*-
+
+These are syntax highlighting files for the Emacs and XEmacs editors. Included
+are:
+
+* llvm-mode.el
+
+  Syntax highlighting mode for LLVM assembly files. To use, add this code to
+  your ~/.emacs :
+
+  (setq load-path
+    (cons (expand-file-name "path-to-llvm/utils/emacs") load-path))
+  (require 'llvm-mode)
+  
+* llvm-mir-mode.el
+
+  Syntax highlighting mode for LLVM Machine IR files. To use, add this code to
+  your ~/.emacs :
+
+  (setq load-path
+    (cons (expand-file-name "path-to-llvm/utils/emacs") load-path))
+  (require 'llvm-mir-mode)
+
+* tablegen-mode.el
+
+  Syntax highlighting mode for TableGen description files. To use, add this code
+  to your ~/.emacs:
+
+  (setq load-path
+    (cons (expand-file-name "path-to-llvm/utils/emacs") load-path))
+  (require 'tablegen-mode)
+
+
+Note: If you notice missing or incorrect syntax highlighting, please contact
+<llvm-bugs [at] lists.llvm.org>; if you wish to provide a patch to improve the
+functionality, it will be most appreciated. Thank you.

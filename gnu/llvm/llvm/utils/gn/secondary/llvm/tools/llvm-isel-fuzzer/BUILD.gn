@@ -1,0 +1,23 @@
+import("//llvm/utils/gn/build/fuzzer.gni")
+
+fuzzer("llvm-isel-fuzzer") {
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/FuzzMutate",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/Scalar",
+  ]
+  dummy_main = "DummyISelFuzzer.cpp"
+  sources = [ "llvm-isel-fuzzer.cpp" ]
+}

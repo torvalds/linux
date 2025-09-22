@@ -1,0 +1,515 @@
+
+                        GCC Frequently Asked Questions
+
+   The   latest   version   of  this  document  is  always  available  at
+   [1]http://gcc.gnu.org/faq.html.
+
+   This FAQ tries to answer specific questions concerning GCC. For general
+   information regarding C, C++, resp. Fortran please check the [2]comp.lang.c
+   FAQ, [3]comp.std.c++ FAQ, and the [4]Fortran Information page.
+
+   Other GCC-related FAQs: [5]libstdc++-v3, and [6]GCJ.
+     _________________________________________________________________
+
+                                   Questions
+
+    1. [7]General information
+         1. [8]What is an open development model?
+         2. [9]How do I get a bug fixed or a feature added?
+         3. [10]Does GCC work on my platform?
+    2. [11]Installation
+         1. [12]How to install multiple versions of GCC
+         2. [13]Dynamic linker is unable to find GCC libraries
+         3. [14]libstdc++/libio tests fail badly with --enable-shared
+         4. [15]GCC can not find GNU as/GNU ld
+         5. [16]cpp: Usage:... Error
+         6. [17]Optimizing the compiler itself
+         7. [18]Why does libiconv get linked into jc1 on Solaris?
+    3. [19]Testsuite problems
+         1. [20]How do I pass flags like -fnew-abi to the testsuite?
+         2. [21]How can I run the test suite with multiple options?
+    4. [22]Miscellaneous
+         1. [23]Friend Templates
+         2. [24]dynamic_cast, throw, typeid don't work with shared libraries
+         3. [25]Why do I need autoconf, bison, xgettext, automake, etc?
+         4. [26]Why can't I build a shared library?
+         5. [27]When building C++, the linker says my constructors, destructors
+            or virtual tables are undefined, but I defined them
+         6. [28]Will GCC someday include an incremental linker?
+     _________________________________________________________________
+
+                              General information
+
+What is an open development model?
+
+   We are using a bazaar style [29][1] approach to GCC development: we make
+   snapshots publicly available to anyone who wants to try them; we welcome
+   anyone to join the development mailing list. All of the discussions on the
+   development mailing list are available via the web. We're going to be making
+   releases with a much higher frequency than they have been made in the past.
+
+   In addition to weekly snapshots of the GCC development sources, we have the
+   sources readable from an SVN server by anyone. Furthermore we are using SVN
+   to allow maintainers write access to the sources.
+
+   There  have  been  many  potential GCC developers who were not able to
+   participate in GCC development in the past. We want these people to help in
+   any way they can; we ultimately want GCC to be the best compiler in the
+   world.
+
+   A compiler is a complicated piece of software, there will still be strong
+   central maintainers who will reject patches, who will demand documentation
+   of implementations, and who will keep the level of quality as high as it is
+   today. Code that could use wider testing may be integrated--code that is
+   simply ill-conceived won't be.
+
+   GCC is not the first piece of software to use this open development process;
+   FreeBSD, the Emacs lisp repository, and the Linux kernel are a few examples
+   of the bazaar style of development.
+
+   With GCC, we are adding new features and optimizations at a rate that has
+   not been done since the creation of gcc2; these additions inevitably have a
+   temporarily  destabilizing effect. With the help of developers working
+   together with this bazaar style development, the resulting stability and
+   quality levels will be better than we've had before.
+
+     [1] We've been discussing different development models a lot over the past
+     few months. The paper which started all of this introduced two terms: A
+     cathedral development model versus a bazaar development model. The paper
+     is written by Eric S. Raymond, it is called ``The Cathedral and the
+     Bazaar''. The paper is a useful starting point for discussions.
+     _________________________________________________________________
+
+How do I get a bug fixed or a feature added?
+
+   There  are  lots of ways to get something fixed. The list below may be
+   incomplete, but it covers many of the common cases. These are listed roughly
+   in order of decreasing difficulty for the average GCC user, meaning someone
+   who is not skilled in the internals of GCC, and where difficulty is measured
+   in terms of the time required to fix the bug. No alternative is better than
+   any other; each has its benefits and disadvantages.
+     * Fix it yourself. This alternative will probably bring results, if you
+       work hard enough, but will probably take a lot of time, and, depending
+       on the quality of your work and the perceived benefits of your changes,
+       your code may or may not ever make it into an official release of GCC.
+     * [30]Report the problem to the GCC bug tracking system and hope that
+       someone will be kind enough to fix it for you. While this is certainly
+       possible, and often happens, there is no guarantee that it will. You
+       should not expect the same response from this method that you would see
+       from a commercial support organization since the people who read GCC bug
+       reports, if they choose to help you, will be volunteering their time.
+     * Hire  someone  to  fix it for you. There are various companies and
+       individuals providing support for GCC. This alternative costs money, but
+       is relatively likely to get results.
+     _________________________________________________________________
+
+Does GCC work on my platform?
+
+   The host/target specific installation notes for GCC include information
+   about known problems with installing or using GCC on particular platforms.
+   These are included in the sources for a release in INSTALL/specific.html,
+   and the [31]latest version is always available at the GCC web site. Reports
+   of [32]successful builds for several versions of GCC are also available at
+   the web site.
+     _________________________________________________________________
+
+                                 Installation
+
+How to install multiple versions of GCC
+
+   It may be desirable to install multiple versions of the compiler on the same
+   system. This can be done by using different prefix paths at configure time
+   and a few symlinks.
+
+   Basically, configure the two compilers with different --prefix options, then
+   build and install each compiler. Assume you want "gcc" to be the latest
+   compiler and available in /usr/local/bin; also assume that you want "gcc2"
+   to be the older gcc2 compiler and also available in /usr/local/bin.
+
+   The  easiest  way  to  do  this  is  to  configure  the  new  GCC with
+   --prefix=/usr/local/gcc and the older gcc2 with --prefix=/usr/local/gcc2.
+   Build   and   install   both  compilers.  Then  make  a  symlink  from
+   /usr/local/bin/gcc to /usr/local/gcc/bin/gcc and from /usr/local/bin/gcc2 to
+   /usr/local/gcc2/bin/gcc. Create similar links for the "g++", "c++" and "g77"
+   compiler drivers.
+
+   An   alternative   to   using   symlinks   is   to  configure  with  a
+   --program-transform-name option. This option specifies a sed command to
+   process installed program names with. Using it you can, for instance, have
+   all the new GCC programs installed as "new-gcc" and the like. You will still
+   have to specify different --prefix options for new GCC and old GCC, because
+   it is only the executable program names that are transformed. The difference
+   is that you (as administrator) do not have to set up symlinks, but must
+   specify additional directories in your (as a user) PATH. A complication with
+   --program-transform-name  is  that the sed command invariably contains
+   characters significant to the shell, and these have to be escaped correctly,
+   also it is not possible to use "^" or "$" in the command. Here is the option
+   to prefix "new-" to the new GCC installed programs:
+
+     --program-transform-name='s,\\\\(.*\\\\),new-\\\\1,'
+
+   With the above --prefix option, that will install the new GCC programs into
+   /usr/local/gcc/bin   with  names  prefixed  by  "new-".  You  can  use
+   --program-transform-name if you have multiple versions of GCC, and wish to
+   be sure about which version you are invoking.
+
+   If you use --prefix, GCC may have difficulty locating a GNU assembler or
+   linker on your system, [33]GCC can not find GNU as/GNU ld explains how to
+   deal with this.
+
+   Another  option  that may be easier is to use the --program-prefix= or
+   --program-suffix= options to configure. So if you're installing GCC 2.95.2
+   and don't want to disturb the current version of GCC in /usr/local/bin/, you
+   could do
+
+     configure --program-suffix=-2.95.2 <other configure options>
+
+   This should result in GCC being installed as /usr/local/bin/gcc-2.95.2
+   instead of /usr/local/bin/gcc.
+     _________________________________________________________________
+
+Dynamic linker is unable to find GCC libraries
+
+   This problem manifests itself by programs not finding shared libraries they
+   depend on when the programs are started. Note this problem often manifests
+   itself with failures in the libio/libstdc++ tests after configuring with
+   --enable-shared and building GCC.
+
+   GCC does not specify a runpath so that the dynamic linker can find dynamic
+   libraries at runtime.
+
+   The short explanation is that if you always pass a -R option to the linker,
+   then your programs become dependent on directories which may be NFS mounted,
+   and programs may hang unnecessarily when an NFS server goes down.
+
+   The problem is not programs that do require the directories; those programs
+   are going to hang no matter what you do. The problem is programs that do not
+   require the directories.
+
+   SunOS effectively always passed a -R option for every -L option; this was a
+   bad idea, and so it was removed for Solaris. We should not recreate it.
+
+   However,  if  you  feel  you  really  need such an option to be passed
+   automatically to the linker, you may add it to the GCC specs file. This file
+   can  be  found  in  the  same  directory  that  contains  cc1 (run gcc
+   -print-prog-name=cc1 to find it). You may add linker flags such as -R or
+   -rpath, depending on platform and linker, to the *link or *lib specs.
+
+   Another alternative is to install a wrapper script around gcc, g++ or ld
+   that adds the appropriate directory to the environment variable LD_RUN_PATH
+   or equivalent (again, it's platform-dependent).
+
+   Yet another option, that works on a few platforms, is to hard-code the full
+   pathname of the library into its soname. This can only be accomplished by
+   modifying  the  appropriate .ml file within libstdc++/config (and also
+   libg++/config, if you are building libg++), so that $(libdir)/ appears just
+   before the library name in -soname or -h options.
+     _________________________________________________________________
+
+GCC can not find GNU as/GNU ld
+
+   GCC searches the PATH for an assembler and a loader, but it only does so
+   after searching a directory list hard-coded in the GCC executables. Since,
+   on most platforms, the hard-coded list includes directories in which the
+   system assembler and loader can be found, you may have to take one of the
+   following  actions  to arrange that GCC uses the GNU versions of those
+   programs.
+
+   To ensure that GCC finds the GNU assembler (the GNU loader), which are
+   required by [34]some configurations, you should configure these with the
+   same --prefix option as you used for GCC. Then build & install GNU as (GNU
+   ld) and proceed with building GCC.
+
+   Another  alternative is to create links to GNU as and ld in any of the
+   directories  printed  by  the  command  `gcc -print-search-dirs | grep
+   '^programs:''. The link to `ld' should be named `real-ld' if `ld' already
+   exists. If such links do not exist while you're compiling GCC, you may have
+   to create them in the build directories too, within the gcc directory and in
+   all the gcc/stage* subdirectories.
+
+   GCC 2.95 allows you to specify the full pathname of the assembler and the
+   linker  to  use.  The  configure flags are `--with-as=/path/to/as' and
+   `--with-ld=/path/to/ld'. GCC will try to use these pathnames before looking
+   for `as' or `(real-)ld' in the standard search dirs. If, at configure-time,
+   the specified programs are found to be GNU utilities, `--with-gnu-as' and
+   `--with-gnu-ld' need not be used; these flags will be auto-detected. One
+   drawback of this option is that it won't allow you to override the search
+   path for assembler and linker with command-line options -B/path/ if the
+   specified filenames exist.
+     _________________________________________________________________
+
+cpp: Usage:... Error
+
+   If you get an error like this when building GCC (particularly when building
+   __mulsi3), then you likely have a problem with your environment variables.
+  cpp: Usage: /usr/lib/gcc-lib/i586-unknown-linux-gnulibc1/2.7.2.3/cpp
+  [switches] input output
+
+   First look for an explicit '.' in either LIBRARY_PATH or GCC_EXEC_PREFIX
+   from your environment. If you do not find an explicit '.', look for an empty
+   pathname in those variables. Note that ':' at either the start or end of
+   these variables is an implicit '.' and will cause problems.
+
+   Also note '::' in these paths will also cause similar problems.
+     _________________________________________________________________
+
+Optimizing the compiler itself
+
+   If you want to test a particular optimization option, it's useful to try
+   bootstrapping the compiler with that option turned on. For example, to test
+   the -fssa option, you could bootstrap like this:
+make BOOT_CFLAGS="-O2 -fssa" bootstrap
+     _________________________________________________________________
+
+Why does libiconv get linked into jc1 on Solaris?
+
+   The Java front end requires iconv. If the compiler used to bootstrap GCC
+   finds libiconv (because the GNU version of libiconv has been installed in
+   the same prefix as the bootstrap compiler), but the newly built GCC does not
+   find the library (because it will be installed with a different prefix),
+   then a link-time error will occur when building jc1. This problem does not
+   show up so often on platforms that have libiconv in a default location (like
+   /usr/lib) because then both compilers can find a library named libiconv,
+   even though it is a different library.
+
+   Using --disable-nls at configure-time does not prevent this problem because
+   jc1 uses iconv even in that case. Solutions include temporarily removing the
+   GNU libiconv, copying it to a default location such as /usr/lib/, and using
+   --enable-languages at configure-time to disable Java.
+     _________________________________________________________________
+
+                              Testsuite problems
+
+How do I pass flags like -fnew-abi to the testsuite?
+
+   If you invoke runtest directly, you can use the --tool_opts option, e.g:
+  runtest --tool_opts "-fnew-abi -fno-honor-std" <other options>
+
+   Or, if you use make check you can use the make variable RUNTESTFLAGS, e.g:
+  make RUNTESTFLAGS="--tool_opts '-fnew-abi -fno-honor-std'" check-g++
+     _________________________________________________________________
+
+How can I run the test suite with multiple options?
+
+   If you invoke runtest directly, you can use the --target_board option, e.g:
+  runtest --target_board "unix{-fPIC,-fpic,}" <other options>
+
+   Or, if you use make check you can use the make variable RUNTESTFLAGS, e.g:
+  make RUNTESTFLAGS="--target_board 'unix{-fPIC,-fpic,}'" check-gcc
+
+   Either of these examples will run the tests three times. Once with -fPIC,
+   once with -fpic, and once with no additional flags.
+
+   This technique is particularly useful on multilibbed targets.
+     _________________________________________________________________
+
+                                 Miscellaneous
+
+Friend Templates
+
+   In order to make a specialization of a template function a friend of a
+   (possibly  template)  class, you must explicitly state that the friend
+   function is a template, by appending angle brackets to its name, and this
+   template function must have been declared already. Here's an example:
+template <typename T> class foo {
+  friend void bar(foo<T>);
+}
+
+   The above declaration declares a non-template function named bar, so it must
+   be explicitly defined for each specialization of foo. A template definition
+   of bar won't do, because it is unrelated with the non-template declaration
+   above. So you'd have to end up writing:
+void bar(foo<int>) { /* ... */ }
+void bar(foo<void>) { /* ... */ }
+
+   If you meant bar to be a template function, you should have forward-declared
+   it as follows. Note that, since the template function declaration refers to
+   the template class, the template class must be forward-declared too:
+template <typename T>
+class foo;
+
+template <typename T>
+void bar(foo<T>);
+
+template <typename T>
+class foo {
+  friend void bar<>(foo<T>);
+};
+
+template <typename T>
+void bar(foo<T>) { /* ... */ }
+
+   In this case, the template argument list could be left empty, because it can
+   be implicitly deduced from the function arguments, but the angle brackets
+   must be present, otherwise the declaration will be taken as a non-template
+   function. Furthermore, in some cases, you may have to explicitly specify the
+   template arguments, to remove ambiguity.
+
+   An error in the last public comment draft of the ANSI/ISO C++ Standard and
+   the fact that previous releases of GCC would accept such friend declarations
+   as  template  declarations  has led people to believe that the forward
+   declaration was not necessary, but, according to the final version of the
+   Standard, it is.
+     _________________________________________________________________
+
+dynamic_cast, throw, typeid don't work with shared libraries
+
+   The new C++ ABI in the GCC 3.0 series uses address comparisons, rather than
+   string  compares,  to  determine  type  equality. This leads to better
+   performance.  Like  other objects that have to be present in the final
+   executable, these std::type_info objects have what is called vague linkage
+   because they are not tightly bound to any one particular translation unit
+   (object file). The compiler has to emit them in any translation unit that
+   requires their presence, and then rely on the linking and loading process to
+   make sure that only one of them is active in the final executable. With
+   static linking all of these symbols are resolved at link time, but with
+   dynamic linking, further resolution occurs at load time. You have to ensure
+   that objects within a shared library are resolved against objects in the
+   executable and other shared libraries.
+     * For a program which is linked against a shared library, no additional
+       precautions are needed.
+     * You cannot create a shared library with the "-Bsymbolic" option, as that
+       prevents the resolution described above.
+     * If you use dlopen to explicitly load code from a shared library, you
+       must do several things. First, export global symbols from the executable
+       by linking it with the "-E" flag (you will have to specify this as
+       "-Wl,-E" if you are invoking the linker in the usual manner from the
+       compiler driver, g++). You must also make the external symbols in the
+       loaded library available for subsequent libraries by providing the
+       RTLD_GLOBAL flag to dlopen. The symbol resolution can be immediate or
+       lazy.
+
+   Template instantiations are another, user visible, case of objects with
+   vague linkage, which needs similar resolution. If you do not take the above
+   precautions, you may discover that a template instantiation with the same
+   argument list, but instantiated in multiple translation units, has several
+   addresses, depending in which translation unit the address is taken. (This
+   is not an exhaustive list of the kind of objects which have vague linkage
+   and are expected to be resolved during linking & loading.)
+
+   If you are worried about different objects with the same name colliding
+   during the linking or loading process, then you should use namespaces to
+   disambiguate them. Giving distinct objects with global linkage the same name
+   is a violation of the One Definition Rule (ODR) [basic.def.odr].
+
+   For more details about the way that GCC implements these and other C++
+   features, please read the [35]ABI specification. Note the std::type_info
+   objects  which  must  be resolved all begin with "_ZTS". Refer to ld's
+   documentation for a description of the "-E" & "-Bsymbolic" flags.
+     _________________________________________________________________
+
+Why do I need autoconf, bison, xgettext, automake, etc?
+
+   If you're using diffs up dated from one snapshot to the next, or if you're
+   using the SVN repository, you may need several additional programs to build
+   GCC.
+
+   These include, but are not necessarily limited to autoconf, automake, bison,
+   and xgettext.
+
+   This is necessary because neither diff nor cvs keep timestamps correct. This
+   causes problems for generated files as "make" may think those generated
+   files are out of date and try to regenerate them.
+
+   An easy way to work around this problem is to use the gcc_update script in
+   the contrib subdirectory of GCC, which handles this transparently without
+   requiring installation of any additional tools.
+
+   When building from diffs or SVN or if you modified some sources, you may
+   also  need  to  obtain  development versions of some GNU tools, as the
+   production versions do not necessarily handle all features needed to rebuild
+   GCC.
+
+   In    general,    the   current   versions   of   these   tools   from
+   [36]ftp://ftp.gnu.org/gnu/ will work. At present, Autoconf 2.50 is not
+   supported, and you will need to use Autoconf 2.13; work is in progress to
+   fix this problem. Also look at [37]ftp://gcc.gnu.org/pub/gcc/infrastructure/
+   for any special versions of packages.
+     _________________________________________________________________
+
+Why can't I build a shared library?
+
+   When building a shared library you may get an error message from the linker
+   like `assert pure-text failed:' or `DP relative code in file'.
+
+   This kind of error occurs when you've failed to provide proper flags to gcc
+   when linking the shared library.
+
+   You can get this error even if all the .o files for the shared library were
+   compiled with the proper PIC option. When building a shared library, gcc
+   will compile additional code to be included in the library. That additional
+   code must also be compiled with the proper PIC option.
+
+   Adding the proper PIC option (-fpic or -fPIC) to the link line which creates
+   the shared library will fix this problem on targets that support PIC in this
+   manner. For example:
+        gcc -c -fPIC myfile.c
+        gcc -shared -o libmyfile.so -fPIC myfile.o
+     _________________________________________________________________
+
+When building C++, the linker says my constructors, destructors or virtual
+tables are undefined, but I defined them
+
+   The ISO C++ Standard specifies that all virtual methods of a class that are
+   not pure-virtual must be defined, but does not require any diagnostic for
+   violations of this rule [class.virtual]/8. Based on this assumption, GCC
+   will only emit the implicitly defined constructors, the assignment operator,
+   the destructor and the virtual table of a class in the translation unit that
+   defines its first such non-inline method.
+
+   Therefore, if you fail to define this particular method, the linker may
+   complain about the lack of definitions for apparently unrelated symbols.
+   Unfortunately, in order to improve this error message, it might be necessary
+   to change the linker, and this can't always be done.
+
+   The solution is to ensure that all virtual methods that are not pure are
+   defined. Note that a destructor must be defined even if it is declared
+   pure-virtual [class.dtor]/7.
+     _________________________________________________________________
+
+Will GCC someday include an incremental linker?
+
+   Incremental linking is part of the linker, not the compiler. As such, GCC
+   doesn't have anything to do with incremental linking. Depending on what
+   platform you use, it may be possible to tell GCC to use the platform's
+   native linker (e.g., Solaris' ild(1)).
+
+References
+
+   1. http://gcc.gnu.org/faq.html
+   2. http://c-faq.com/
+   3. http://www.comeaucomputing.com/csc/faq.html
+   4. http://www.fortran.com/fortran/info.html
+   5. http://gcc.gnu.org/onlinedocs/libstdc++/faq/index.html
+   6. http://gcc.gnu.org/java/faq.html
+   7. http://gcc.gnu.org/faq.html#general
+   8. http://gcc.gnu.org/faq.html#open-development
+   9. http://gcc.gnu.org/faq.html#support
+  10. http://gcc.gnu.org/faq.html#platforms
+  11. http://gcc.gnu.org/faq.html#installation
+  12. http://gcc.gnu.org/faq.html#multiple
+  13. http://gcc.gnu.org/faq.html#rpath
+  14. http://gcc.gnu.org/faq.html#rpath
+  15. http://gcc.gnu.org/faq.html#gas
+  16. http://gcc.gnu.org/faq.html#environ
+  17. http://gcc.gnu.org/faq.html#optimizing
+  18. http://gcc.gnu.org/faq.html#iconv
+  19. http://gcc.gnu.org/faq.html#testsuite
+  20. http://gcc.gnu.org/faq.html#testoptions
+  21. http://gcc.gnu.org/faq.html#multipletests
+  22. http://gcc.gnu.org/faq.html#misc
+  23. http://gcc.gnu.org/faq.html#friend
+  24. http://gcc.gnu.org/faq.html#dso
+  25. http://gcc.gnu.org/faq.html#generated_files
+  26. http://gcc.gnu.org/faq.html#picflag-needed
+  27. http://gcc.gnu.org/faq.html#vtables
+  28. http://gcc.gnu.org/faq.html#incremental
+  29. http://gcc.gnu.org/faq.html#cathedral-vs-bazaar
+  30. http://gcc.gnu.org/bugs.html
+  31. http://gcc.gnu.org/install/specific.html
+  32. http://gcc.gnu.org/buildstat.html
+  33. http://gcc.gnu.org/faq.html#gas
+  34. http://gcc.gnu.org/install/specific.html
+  35. http://www.codesourcery.com/cxx-abi/
+  36. ftp://ftp.gnu.org/gnu/
+  37. ftp://gcc.gnu.org/pub/gcc/infrastructure/

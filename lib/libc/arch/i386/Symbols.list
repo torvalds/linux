@@ -1,0 +1,6 @@
+__divsi3
+__fixdfsi
+__fixunsdfsi
+__mcount
+__udivsi3
+mcount

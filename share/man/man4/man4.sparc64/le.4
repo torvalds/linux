@@ -1,0 +1,101 @@
+.\"	$OpenBSD: le.4,v 1.17 2015/11/21 08:04:20 jmc Exp $
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This software was developed by the Computer Systems Engineering group
+.\" at Lawrence Berkeley Laboratory under DARPA contract BG 91-66 and
+.\" contributed to Berkeley.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: Header: le.4,v 1.2 92/10/13 05:31:33 leres Exp
+.\"	from: @(#)le.4	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: November 21 2015 $
+.Dt LE 4 sparc64
+.Os
+.Sh NAME
+.Nm le ,
+.Nm ledma ,
+.Nm lebuffer
+.Nd AMD LANCE Ethernet device
+.Sh SYNOPSIS
+.Cd "ledma* at sbus?          " Pq onboard
+.Cd "le* at ledma*            " Pq onboard
+.Cd "le* at sbus?             " Pq SBus
+.Cd "lebuffer* at sbus?       " Pq SBus
+.Cd "le* at lebuffer?         " Pq SBus
+.Sh DESCRIPTION
+The
+.Nm
+interface provides access to the 10 Mb/s
+.Tn Ethernet
+network via the
+.Tn AMD
+Am7990
+Local Area Network Controller for Ethernet
+.Pq Tn LANCE
+chip set.
+.Pp
+Different cards and machines have different kinds of connectors,
+as follows:
+.Bl -tag -width "media autoselect"
+.It AUI/DIX
+Standard 15 pin connector
+.It 10BaseT
+UTP, also known as twisted pair
+.El
+.Pp
+By default, the system will select the media type automatically, but the
+.Xr ifconfig 8
+command can be used to force the media selection.
+The media types are shown below:
+.Bl -tag -width "media autoselect"
+.It media autoselect
+Attempt to autoselect the media type (default)
+.It media 10base5
+Use the AUI connector
+.It media 10baseT
+Use the twisted pair connector
+.El
+.Sh NOTES
+Some SBus models, in particular the 501-1450 and 501-1881, have dip
+switches which must be changed to select between the BNC and AUI modes.
+For BNC, set 1-6 ON, 7-8 OFF; for AUI set 1-6 OFF, and 7-8 ON.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr sbus 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+.Ox
+support for the
+.Nm
+first appeared in
+.Ox 3.0 .

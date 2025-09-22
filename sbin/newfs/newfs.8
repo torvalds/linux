@@ -1,0 +1,345 @@
+.\"	$OpenBSD: newfs.8,v 1.80 2024/01/09 03:16:00 guenther Exp $
+.\"	$NetBSD: newfs.8,v 1.12 1995/03/18 14:58:41 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1987, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)newfs.8	8.3 (Berkeley) 3/27/94
+.\"
+.Dd $Mdocdate: January 9 2024 $
+.Dt NEWFS 8
+.Os
+.Sh NAME
+.Nm newfs , mount_mfs
+.Nd construct a new file system
+.Sh SYNOPSIS
+.Nm newfs
+.Bk -words
+.Op Fl Nq
+.Op Fl b Ar block-size
+.Op Fl c Ar fragments-per-cylinder-group
+.Op Fl e Ar maxbpg
+.Op Fl f Ar frag-size
+.Op Fl g Ar avgfilesize
+.Op Fl h Ar avgfpdir
+.Op Fl i Ar bytes
+.Op Fl m Ar free-space
+.Op Fl O Ar filesystem-format
+.Op Fl o Ar optimization
+.Op Fl S Ar sector-size
+.Op Fl s Ar size
+.Op Fl T Ar disktype
+.Op Fl t Ar fstype
+.Ar special
+.Ek
+.Pp
+.Nm mount_mfs
+.Bk -words
+.Op Fl b Ar block-size
+.Op Fl c Ar fragments-per-cylinder-group
+.Op Fl e Ar maxbpg
+.Op Fl f Ar frag-size
+.Op Fl i Ar bytes
+.Op Fl m Ar free-space
+.Op Fl O Ar filesystem-format
+.Op Fl o Ar options
+.Op Fl P Ar file
+.Op Fl s Ar size
+.Ar special node
+.Ek
+.Sh DESCRIPTION
+Before running
+.Nm ,
+the disk must be labeled using
+.Xr disklabel 8 .
+.Nm
+builds a file system on the specified
+.Ar special
+device,
+basing its defaults on the information in the disk label.
+Typically the defaults are reasonable, although
+.Nm
+has numerous options to allow the defaults to be selectively overridden.
+.Pp
+The
+.Ar special
+file should be a raw device,
+for example
+.Pa /dev/rsd0a ;
+if a relative path like
+.Pa sd0a
+is specified,
+the corresponding raw device is used.
+.Pp
+.Nm mount_mfs
+is used to build a file system in virtual memory and then mount it
+on a specified node.
+.Nm mount_mfs
+exits and the contents of the file system are lost
+when the file system is unmounted.
+If
+.Nm mount_mfs
+is sent a signal while running,
+for example during system shutdown,
+it will attempt to unmount its
+corresponding file system.
+The parameters to
+.Nm mount_mfs
+are the same as those to
+.Nm newfs .
+The special file is only used to read the disk label which provides
+a set of configuration parameters for the memory based file system.
+The special file is typically that of the primary swap area,
+since that is where the file system will be backed up when
+free memory gets low and the memory supporting
+the file system has to be paged.
+If the keyword
+.Dq swap
+is used instead of a special file name, default configuration parameters
+will be used.
+(This option is useful when trying to use
+.Nm mount_mfs
+on a machine without any disks.)
+.Pp
+Both
+.Nm
+and
+.Nm mount_mfs
+now have the functionality of
+.Xr fsirand 8
+built in, so it is not necessary to run
+.Xr fsirand 8
+manually unless you wish to re-randomize the
+file system (or list the inode generation numbers).
+.Pp
+The options to
+.Nm
+are as follows:
+.Bl -tag -width Ds
+.It Fl b Ar block-size
+The block size of the file system, in bytes.
+If a disklabel is available, the default is read from it.
+Otherwise the default is 16 KB or eight times the fragment size,
+whichever is smaller.
+.It Fl c Ar fragments-per-cylinder-group
+The number of fragments per cylinder group in a file system.
+The default is to compute the maximum allowed by the other parameters.
+This value is dependent on a number of other parameters,
+in particular the block size and the number of bytes per inode.
+.It Fl e Ar maxbpg
+This indicates the maximum number of blocks any single file can
+allocate out of a cylinder group before it is forced to begin
+allocating blocks from another cylinder group.
+The default is about one quarter of the total blocks in a cylinder group.
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl f Ar frag-size
+The fragment size of the file system in bytes.
+If a disklabel is available, the default is read from it.
+Otherwise the default is 2048.
+.It Fl g Ar avgfilesize
+The expected average file size for the file system in bytes.
+.It Fl h Ar avgfpdir
+The expected average number of files per directory on the file system.
+.It Fl i Ar bytes
+This specifies the density of inodes in the file system.
+The default is to create an inode for every 4 fragments,
+for 4k disks one inode for every 2 fragments.
+If fewer inodes are desired, a larger number should be used;
+to create more inodes a smaller number should be given.
+.It Fl m Ar free-space
+The percentage of space reserved from normal users; the minimum free
+space threshold.
+The default value used is 5%.
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl N
+Causes the file system parameters to be printed out
+without really creating the file system.
+.It Fl O Ar filesystem-format
+Select the filesystem format:
+.Pp
+.Bl -tag -width 3n -offset indent -compact
+.It 1
+Fast File System (FFS), the default for
+.Nm mount_mfs .
+.It 2
+Enhanced Fast File System (FFS2), the default for
+.Nm .
+.El
+.It Fl o Ar optimization
+.Ar space
+or
+.Ar time .
+The file system can either be instructed to try to minimize the
+time spent allocating blocks, or to try to minimize the space
+fragmentation on the disk.
+Unless an optimization has been specified,
+if the value of minfree (see above) is less than 5%, the default
+is to optimize for space; if the value of minfree is greater than
+or equal to 5%, the default is to optimize for time.
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl q
+Operate in quiet mode.
+With this option,
+.Nm
+will not print extraneous information like superblock backups.
+.It Fl S Ar sector-size
+The size of a sector in bytes (almost always 512).
+Alternatively
+.Ar sector-size
+may instead use a multiplier, as documented in
+.Xr scan_scaled 3 .
+.Ar sector-size
+should be 512 or a multiple of it because the kernel operates
+512\-byte blocks internally.
+A sector is the smallest addressable unit on the physical device.
+Changing this is useful only when using
+.Nm
+to build a file system whose raw image will eventually be used on
+a different type of disk than the one on which it is initially
+created (for example on a write-once disk).
+Note that changing this
+from its default will make it impossible for
+.Xr fsck 8
+to find the alternate superblocks automatically if the standard
+superblock is lost.
+.It Fl s Ar size
+The size of the file system in sectors (see
+.Fl S ) .
+Alternatively
+.Ar size
+may instead use a multiplier, as documented in
+.Xr scan_scaled 3 ,
+to specify size in bytes; in this case
+.Ar size
+is rounded up to the next sector boundary.
+The maximum size of an FFS file system is 2,147,483,647 (2^31 \- 1) of
+512\-byte blocks, slightly less than 1 TB.
+FFS2 file systems can be as large as 64 PB.
+Note however that for
+.Nm mount_mfs
+the practical limit is based on
+.Va datasize
+in
+.Xr login.conf 5 ,
+and ultimately depends on the per-arch
+.Dv MAXDSIZ
+limit.
+.It Fl T Ar disktype
+Uses information for the specified disk from
+.Xr disktab 5
+instead of trying to get the information from the
+.Xr disklabel 5 .
+.It Fl t Ar fstype
+Set the file system type of which file system you wish to create.
+.Nm
+will be smart enough to run the alternate newfs_XXX program instead.
+.El
+.Pp
+The options to
+.Nm mount_mfs
+are as described for
+.Nm ,
+except for the
+.Fl o
+and
+.Fl P
+options.
+.Pp
+Those options are as follows:
+.Bl -tag -width indent
+.It Fl o Ar options
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.It Fl P Ar file
+If
+.Ar file
+is a directory, populate the created mfs file system with the
+contents of the directory.
+If
+.Ar file
+is a block device, populate the created mfs file system with the
+contents of the FFS file system contained on the device.
+.El
+.Pp
+If the
+.Fl P Ar file
+option is not used, the owner and mode of the created mfs file
+system will be the same as the owner and mode of the mount point.
+.Sh ENVIRONMENT
+.Bl -tag -width COLUMNS
+.It Ev COLUMNS
+If set to a positive integer,
+output is formatted to the given width in columns.
+Otherwise,
+.Nm
+defaults to the terminal width, or 80 columns if the output is not a terminal.
+.El
+.Sh SEE ALSO
+.Xr disktab 5 ,
+.Xr fs 5 ,
+.Xr disklabel 8 ,
+.Xr dumpfs 8 ,
+.Xr fsck 8 ,
+.Xr fsirand 8 ,
+.Xr growfs 8 ,
+.Xr mount 8 ,
+.Xr tunefs 8
+.Rs
+.%A M. McKusick
+.%A W. Joy
+.%A S. Leffler
+.%A R. Fabry
+.%T A Fast File System for UNIX
+.%J ACM Transactions on Computer Systems 2
+.%V 3
+.%P pp. 181\(en197
+.%D August 1984
+.%O (reprinted in the BSD System Manager's Manual)
+.Re
+.Rs
+.%A M. McKusick
+.%A M. Karels
+.%A K. Bostic
+.%T "A Pageable Memory Based Filesystem"
+.%J "USENIX Summer Conference Proceedings"
+.%D 1990
+.Re
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

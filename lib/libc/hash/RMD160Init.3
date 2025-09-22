@@ -1,0 +1,236 @@
+.\"	$OpenBSD: RMD160Init.3,v 1.4 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 1997, 2004 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" See http://www.esat.kuleuven.ac.be/~bosselae/ripemd160.html
+.\"	for detailed information about RIPEMD-160.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt RMD160INIT 3
+.Os
+.Sh NAME
+.Nm RMD160Init ,
+.Nm RMD160Update ,
+.Nm RMD160Pad ,
+.Nm RMD160Final ,
+.Nm RMD160Transform ,
+.Nm RMD160End ,
+.Nm RMD160File ,
+.Nm RMD160FileChunk ,
+.Nm RMD160Data
+.Nd calculate the RIPEMD-160 message digest
+.Sh SYNOPSIS
+.In sys/types.h
+.In rmd160.h
+.Ft void
+.Fn RMD160Init "RMD160_CTX *context"
+.Ft void
+.Fn RMD160Update "RMD160_CTX *context" "const u_int8_t *data" "size_t nbytes"
+.Ft void
+.Fn RMD160Pad "RMD160_CTX *context"
+.Ft void
+.Fn RMD160Final "u_int8_t digest[RMD160_DIGEST_LENGTH]" "RMD160_CTX *context"
+.Ft void
+.Fn RMD160Transform "u_int32_t state[5]" "const u_int8_t block[RMD160_BLOCK_LENGTH]"
+.Ft char *
+.Fn RMD160End "RMD160_CTX *context" "char *buf"
+.Ft char *
+.Fn RMD160File "const char *filename" "char *buf"
+.Ft char *
+.Fn RMD160FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft char *
+.Fn RMD160Data "const u_int8_t *data" "size_t len" "char *buf"
+.Sh DESCRIPTION
+The RMD160 functions implement the 160-bit RIPE message digest hash algorithm
+(RMD-160).
+RMD-160 is used to generate a condensed representation
+of a message called a message digest.
+The algorithm takes a
+message less than 2^64 bits as input and produces a 160-bit digest
+suitable for use as a digital signature.
+.Pp
+The RMD160 functions are considered to be more secure than the
+MD5
+functions and at least as secure as the
+SHA1
+function.
+All share a similar interface.
+.Pp
+The
+.Fn RMD160Init
+function initializes a RMD160_CTX
+.Ar context
+for use with
+.Fn RMD160Update ,
+and
+.Fn RMD160Final .
+The
+.Fn RMD160Update
+function adds
+.Ar data
+of length
+.Ar nbytes
+to the RMD160_CTX specified by
+.Ar context .
+.Fn RMD160Final
+is called when all data has been added via
+.Fn RMD160Update
+and stores a message digest in the
+.Ar digest
+parameter.
+.Pp
+The
+.Fn RMD160Pad
+function can be used to apply padding to the message digest as in
+.Fn RMD160Final ,
+but the current context can still be used with
+.Fn RMD160Update .
+.Pp
+The
+.Fn RMD160Transform
+function is used by
+.Fn RMD160Update
+to hash 512-bit blocks and forms the core of the algorithm.
+Most programs should use the interface provided by
+.Fn RMD160Init ,
+.Fn RMD160Update
+and
+.Fn RMD160Final
+instead of calling
+.Fn RMD160Transform
+directly.
+.Pp
+The
+.Fn RMD160End
+function is a front end for
+.Fn RMD160Final
+which converts the digest into an ASCII
+representation of the 160 bit digest in hexadecimal.
+.Pp
+The
+.Fn RMD160File
+function calculates the digest for a file and returns the result via
+.Fn RMD160End .
+If
+.Fn RMD160File
+is unable to open the file, a NULL pointer is returned.
+.Pp
+.Fn RMD160FileChunk
+behaves like
+.Fn RMD160File
+but calculates the digest only for that portion of the file starting at
+.Fa offset
+and continuing for
+.Fa length
+bytes or until end of file is reached, whichever comes first.
+A zero
+.Fa length
+can be specified to read until end of file.
+A negative
+.Fa length
+or
+.Fa offset
+will be ignored.
+.Pp
+The
+.Fn RMD160Data
+function
+calculates the digest of an arbitrary string and returns the result via
+.Fn RMD160End .
+.Pp
+For each of the
+.Fn RMD160End ,
+.Fn RMD160File ,
+and
+.Fn RMD160Data
+functions the
+.Ar buf
+parameter should either be a string of at least 41 characters in
+size or a NULL pointer.
+In the latter case, space will be dynamically allocated via
+.Xr malloc 3
+and should be freed using
+.Xr free 3
+when it is no longer needed.
+.Sh EXAMPLES
+The follow code fragment will calculate the digest for
+the string
+.Dq abc
+which is
+.Dq 0x8eb208f7e05d987a9b044a8e98c6b087f15a0bfc .
+.Bd -literal -offset indent
+RMD160_CTX rmd;
+u_int8_t results[RMD160_DIGEST_LENGTH];
+char *buf;
+int n;
+
+buf = "abc";
+n = strlen(buf);
+RMD160Init(&rmd);
+RMD160Update(&rmd, (u_int8_t *)buf, n);
+RMD160Final(results, &rmd);
+
+/* Print the digest as one long hex value */
+printf("0x");
+for (n = 0; n < RMD160_DIGEST_LENGTH; n++)
+	printf("%02x", results[n]);
+putchar('\en');
+.Ed
+.Pp
+Alternately, the helper functions could be used in the following way:
+.Bd -literal -offset indent
+RMD160_CTX rmd;
+u_int8_t output[RMD160_DIGEST_STRING_LENGTH];
+char *buf = "abc";
+
+printf("0x%s\en", RMD160Data(buf, strlen(buf), output));
+.Ed
+.Sh SEE ALSO
+.Xr cksum 1 ,
+.Xr MD5Init 3 ,
+.Xr SHA1Init 3 ,
+.Xr SHA256Init 3
+.Rs
+.%A H. Dobbertin, A. Bosselaers, B. Preneel
+.%T RIPEMD-160, a strengthened version of RIPEMD
+.Re
+.Rs
+.%T Information technology - Security techniques - Hash-functions - Part 3: Dedicated hash-functions
+.%O ISO/IEC 10118-3
+.Re
+.Rs
+.%A H. Dobbertin, A. Bosselaers, B. Preneel
+.%T The RIPEMD-160 cryptographic hash function
+.%J Dr. Dobb's Journal
+.%V Vol. 22, No. 1
+.%D January 1997
+.%P pp. 24-28
+.Re
+.Sh HISTORY
+The RMD-160 functions appeared in
+.Ox 2.1 .
+.Sh AUTHORS
+.An -nosplit
+This implementation of RMD-160 was written by
+.An Markus Friedl .
+.Pp
+The
+.Fn RMD160End ,
+.Fn RMD160File ,
+.Fn RMD160FileChunk ,
+and
+.Fn RMD160Data
+helper functions are derived from code written by
+.An Poul-Henning Kamp .

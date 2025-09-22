@@ -1,0 +1,199 @@
+.\"	$OpenBSD: SSL_CTX_set_session_cache_mode.3,v 1.8 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL 67adf0a7 Dec 25 19:58:38 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org> and
+.\" Geoff Thorpe <geoff@openssl.org>.
+.\" Copyright (c) 2001, 2002 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_SESSION_CACHE_MODE 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_session_cache_mode ,
+.Nm SSL_CTX_get_session_cache_mode
+.Nd enable/disable session caching
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft long
+.Fn SSL_CTX_set_session_cache_mode "SSL_CTX ctx" "long mode"
+.Ft long
+.Fn SSL_CTX_get_session_cache_mode "SSL_CTX ctx"
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_session_cache_mode
+enables/disables session caching by setting the operational mode for
+.Ar ctx
+to
+.Ar mode .
+.Pp
+.Fn SSL_CTX_get_session_cache_mode
+returns the currently used cache mode.
+.Pp
+The OpenSSL library can store/retrieve SSL/TLS sessions for later reuse.
+The sessions can be held in memory for each
+.Fa ctx ,
+if more than one
+.Vt SSL_CTX
+object is being maintained, the sessions are unique for each
+.Vt SSL_CTX
+object.
+.Pp
+In order to reuse a session, a client must send the session's id to the server.
+It can only send exactly one id.
+The server then either agrees to reuse the session or it starts a full
+handshake (to create a new session).
+.Pp
+A server will look up the session in its internal session storage.
+If the session is not found in internal storage or lookups for the internal
+storage have been deactivated
+.Pq Dv SSL_SESS_CACHE_NO_INTERNAL_LOOKUP ,
+the server will try the external storage if available.
+.Pp
+Since a client may try to reuse a session intended for use in a different
+context, the session id context must be set by the server (see
+.Xr SSL_CTX_set_session_id_context 3 ) .
+.Pp
+The following session cache modes and modifiers are available:
+.Bl -tag -width Ds
+.It Dv SSL_SESS_CACHE_OFF
+No session caching for client or server takes place.
+.It Dv SSL_SESS_CACHE_CLIENT
+Client sessions are added to the session cache.
+As there is no reliable way for the OpenSSL library to know whether a session
+should be reused or which session to choose (due to the abstract BIO layer the
+SSL engine does not have details about the connection),
+the application must select the session to be reused by using the
+.Xr SSL_set_session 3
+function.
+This option is not activated by default.
+.It Dv SSL_SESS_CACHE_SERVER
+Server sessions are added to the session cache.
+When a client proposes a session to be reused, the server looks for the
+corresponding session in (first) the internal session cache (unless
+.Dv SSL_SESS_CACHE_NO_INTERNAL_LOOKUP
+is set), then (second) in the external cache if available.
+If the session is found, the server will try to reuse the session.
+This is the default.
+.It Dv SSL_SESS_CACHE_BOTH
+Enable both
+.Dv SSL_SESS_CACHE_CLIENT
+and
+.Dv SSL_SESS_CACHE_SERVER
+at the same time.
+.It Dv SSL_SESS_CACHE_NO_AUTO_CLEAR
+Normally the session cache is checked for expired sessions every 255
+connections using the
+.Xr SSL_CTX_flush_sessions 3
+function.
+Since this may lead to a delay which cannot be controlled,
+the automatic flushing may be disabled and
+.Xr SSL_CTX_flush_sessions 3
+can be called explicitly by the application.
+.It Dv SSL_SESS_CACHE_NO_INTERNAL_LOOKUP
+By setting this flag, session-resume operations in an SSL/TLS server will not
+automatically look up sessions in the internal cache,
+even if sessions are automatically stored there.
+If external session caching callbacks are in use,
+this flag guarantees that all lookups are directed to the external cache.
+As automatic lookup only applies for SSL/TLS servers,
+the flag has no effect on clients.
+.It Dv SSL_SESS_CACHE_NO_INTERNAL_STORE
+Depending on the presence of
+.Dv SSL_SESS_CACHE_CLIENT
+and/or
+.Dv SSL_SESS_CACHE_SERVER ,
+sessions negotiated in an SSL/TLS handshake may be cached for possible reuse.
+Normally a new session is added to the internal cache as well as any external
+session caching (callback) that is configured for the
+.Vt SSL_CTX .
+This flag will prevent sessions being stored in the internal cache
+(though the application can add them manually using
+.Xr SSL_CTX_add_session 3 ) .
+Note:
+in any SSL/TLS servers where external caching is configured, any successful
+session lookups in the external cache (e.g., for session-resume requests) would
+normally be copied into the local cache before processing continues \(en this
+flag prevents these additions to the internal cache as well.
+.It Dv SSL_SESS_CACHE_NO_INTERNAL
+Enable both
+.Dv SSL_SESS_CACHE_NO_INTERNAL_LOOKUP
+and
+.Dv SSL_SESS_CACHE_NO_INTERNAL_STORE
+at the same time.
+.El
+.Pp
+The default mode is
+.Dv SSL_SESS_CACHE_SERVER .
+.Sh RETURN VALUES
+.Fn SSL_CTX_set_session_cache_mode
+returns the previously set cache mode.
+.Pp
+.Fn SSL_CTX_get_session_cache_mode
+returns the currently set cache mode.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_add_session 3 ,
+.Xr SSL_CTX_ctrl 3 ,
+.Xr SSL_CTX_flush_sessions 3 ,
+.Xr SSL_CTX_sess_number 3 ,
+.Xr SSL_CTX_sess_set_cache_size 3 ,
+.Xr SSL_CTX_sess_set_get_cb 3 ,
+.Xr SSL_CTX_set_session_id_context 3 ,
+.Xr SSL_CTX_set_timeout 3 ,
+.Xr SSL_session_reused 3 ,
+.Xr SSL_set_session 3
+.Sh HISTORY
+.Fn SSL_CTX_set_session_cache_mode
+and
+.Fn SSL_CTX_get_session_cache_mode
+first appeared in SSLeay 0.6.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Dv SSL_SESS_CACHE_NO_INTERNAL_STORE
+and
+.Dv SSL_SESS_CACHE_NO_INTERNAL
+were introduced in OpenSSL 0.9.6h.

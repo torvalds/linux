@@ -1,0 +1,987 @@
+#	$OpenBSD: ripe.constraints,v 1.5 2024/04/17 14:31:59 job Exp $
+
+# From https://www.iana.org/assignments/ipv6-unicast-address-assignments
+allow 2001:600::/23
+allow 2001:800::/22
+allow 2001:1400::/22
+allow 2001:1a00::/23
+allow 2001:1c00::/22
+allow 2001:2000::/19
+allow 2001:4000::/23
+allow 2001:4600::/23
+allow 2001:4a00::/23
+allow 2001:4c00::/23
+allow 2001:5000::/20
+allow 2003::/18
+allow 2a00::/12
+allow 2a10::/12
+
+# LACNIC ASNs cannot be transferred to RIPE NCC
+# From https://www.iana.org/assignments/as-numbers/
+deny 27648 - 28671
+deny 52224 - 53247
+deny 61440 - 61951
+deny 64099 - 64197
+deny 262144 - 273820
+
+# LACNIC ASNs cannot be transferred to RIPE NCC
+# From nro-delegated-stats 20240417
+deny 278
+deny 676
+deny 1251
+deny 1292
+deny 1296
+deny 1797
+deny 1831
+deny 1840
+deny 1916
+deny 2146
+deny 2277
+deny 2549
+deny 2638
+deny 2708
+deny 2715 - 2716
+deny 2739
+deny 2904
+deny 3132
+deny 3141
+deny 3449
+deny 3454
+deny 3484
+deny 3487
+deny 3496
+deny 3548
+deny 3551
+deny 3556
+deny 3596 - 3597
+deny 3603
+deny 3631 - 3632
+deny 3636
+deny 3640
+deny 3790
+deny 3816
+deny 3905
+deny 3968
+deny 4141
+deny 4209
+deny 4230
+deny 4242
+deny 4244
+deny 4270
+deny 4387
+deny 4493
+deny 4535
+deny 4914
+deny 4926
+deny 4944
+deny 4964
+deny 4967
+deny 4995
+deny 5005
+deny 5633
+deny 5639
+deny 5648
+deny 5692
+deny 5708
+deny 5722
+deny 5745
+deny 5772
+deny 6057
+deny 6063 - 6065
+deny 6084
+deny 6121
+deny 6125
+deny 6133
+deny 6135
+deny 6147 - 6148
+deny 6193
+deny 6240
+deny 6306
+deny 6332
+deny 6342
+deny 6400
+deny 6429
+deny 6458
+deny 6471
+deny 6487
+deny 6495
+deny 6503
+deny 6505
+deny 6535
+deny 6543
+deny 6545
+deny 6568
+deny 6590
+deny 6927
+deny 6945
+deny 6957
+deny 7002
+deny 7004 - 7005
+deny 7038
+deny 7048 - 7049
+deny 7056
+deny 7063
+deny 7080
+deny 7087
+deny 7103
+deny 7120
+deny 7125
+deny 7137
+deny 7149
+deny 7157
+deny 7162
+deny 7167
+deny 7173
+deny 7184
+deny 7195
+deny 7199
+deny 7236
+deny 7298
+deny 7303
+deny 7313
+deny 7315
+deny 7325
+deny 7340
+deny 7365
+deny 7399
+deny 7408
+deny 7414
+deny 7417 - 7418
+deny 7428
+deny 7437 - 7438
+deny 7465
+deny 7727
+deny 7738
+deny 7803
+deny 7864
+deny 7890
+deny 7906
+deny 7908
+deny 7910
+deny 7927
+deny 7934
+deny 7953
+deny 7965
+deny 7974
+deny 7980
+deny 7984
+deny 7993 - 7995
+deny 7997
+deny 8007
+deny 8024
+deny 8026
+deny 8048
+deny 8053 - 8056
+deny 8065 - 8066
+deny 8096
+deny 8140 - 8141
+deny 8151
+deny 8163
+deny 8167
+deny 8178
+deny 10269
+deny 10277
+deny 10285
+deny 10293
+deny 10299
+deny 10301
+deny 10318
+deny 10362
+deny 10391
+deny 10412
+deny 10417
+deny 10420
+deny 10429
+deny 10436
+deny 10452
+deny 10454
+deny 10463
+deny 10476
+deny 10479
+deny 10481
+deny 10495
+deny 10502
+deny 10531
+deny 10560
+deny 10569
+deny 10586
+deny 10600
+deny 10605 - 10606
+deny 10617
+deny 10620
+deny 10624
+deny 10630
+deny 10640
+deny 10649
+deny 10670 - 10671
+deny 10688
+deny 10691
+deny 10697
+deny 10704
+deny 10706
+deny 10715
+deny 10733
+deny 10757
+deny 10778
+deny 10785
+deny 10795
+deny 10824
+deny 10834
+deny 10841
+deny 10847
+deny 10875
+deny 10881
+deny 10895
+deny 10897
+deny 10906
+deny 10938
+deny 10954
+deny 10964
+deny 10983
+deny 10986
+deny 10992
+deny 11008
+deny 11014
+deny 11053
+deny 11058
+deny 11063
+deny 11081
+deny 11083
+deny 11087
+deny 11097
+deny 11136
+deny 11172
+deny 11193
+deny 11237
+deny 11242
+deny 11254
+deny 11256
+deny 11271
+deny 11284
+deny 11295
+deny 11311
+deny 11315
+deny 11335
+deny 11338
+deny 11340
+deny 11356
+deny 11373
+deny 11390
+deny 11392
+deny 11411
+deny 11415
+deny 11419
+deny 11431 - 11432
+deny 11447
+deny 11450 - 11451
+deny 11497 - 11498
+deny 11503
+deny 11514
+deny 11519
+deny 11556
+deny 11562
+deny 11571
+deny 11581
+deny 11585
+deny 11592
+deny 11599
+deny 11617
+deny 11642
+deny 11644
+deny 11664
+deny 11673
+deny 11677
+deny 11694
+deny 11706
+deny 11750 - 11752
+deny 11786
+deny 11800 - 11802
+deny 11815 - 11816
+deny 11830
+deny 11835
+deny 11844
+deny 11888
+deny 11896
+deny 11921
+deny 11947
+deny 11960
+deny 11993
+deny 12034
+deny 12066
+deny 12127
+deny 12135 - 12136
+deny 12140
+deny 12146
+deny 12150
+deny 12248
+deny 12252
+deny 12264
+deny 13316
+deny 13318
+deny 13320
+deny 13353
+deny 13357
+deny 13381
+deny 13424
+deny 13440
+deny 13459
+deny 13474
+deny 13489
+deny 13495
+deny 13514
+deny 13521 - 13522
+deny 13544
+deny 13579
+deny 13584 - 13585
+deny 13591
+deny 13643
+deny 13679
+deny 13682
+deny 13761
+deny 13774
+deny 13835
+deny 13874
+deny 13878
+deny 13914
+deny 13929
+deny 13934 - 13936
+deny 13991
+deny 13999 - 14000
+deny 14026
+deny 14030
+deny 14069
+deny 14080
+deny 14084
+deny 14087
+deny 14111
+deny 14117
+deny 14122
+deny 14178 - 14179
+deny 14186 - 14187
+deny 14202
+deny 14204
+deny 14231 - 14232
+deny 14234
+deny 14249 - 14250
+deny 14259
+deny 14282
+deny 14285 - 14286
+deny 14316
+deny 14318
+deny 14339
+deny 14346
+deny 14377
+deny 14420
+deny 14457
+deny 14463
+deny 14522
+deny 14535
+deny 14553
+deny 14560
+deny 14571
+deny 14624
+deny 14650
+deny 14664
+deny 14674
+deny 14692
+deny 14708 - 14709
+deny 14723
+deny 14754
+deny 14759
+deny 14769
+deny 14795
+deny 14840
+deny 14845
+deny 14867 - 14868
+deny 14886
+deny 14966
+deny 14970
+deny 15030
+deny 15034
+deny 15064
+deny 15066
+deny 15075
+deny 15078
+deny 15107
+deny 15125
+deny 15151
+deny 15180
+deny 15201
+deny 15208
+deny 15236
+deny 15241
+deny 15246
+deny 15252
+deny 15256
+deny 15274
+deny 15311
+deny 16397
+deny 16418
+deny 16471
+deny 16506
+deny 16522
+deny 16528
+deny 16531
+deny 16592
+deny 16594
+deny 16596
+deny 16606 - 16607
+deny 16629
+deny 16663
+deny 16685
+deny 16689
+deny 16701
+deny 16712
+deny 16732
+deny 16735 - 16736
+deny 16742
+deny 16762
+deny 16772
+deny 16780
+deny 16814
+deny 16847
+deny 16849
+deny 16864
+deny 16874
+deny 16885
+deny 16891
+deny 16906
+deny 16911
+deny 16960
+deny 16973
+deny 16975
+deny 16990
+deny 17069
+deny 17072
+deny 17079
+deny 17086
+deny 17108
+deny 17126
+deny 17147
+deny 17182
+deny 17205
+deny 17208
+deny 17222
+deny 17249 - 17250
+deny 17255
+deny 17257
+deny 17287
+deny 17329
+deny 17376
+deny 17379
+deny 17399
+deny 17401
+deny 18449
+deny 18455
+deny 18466
+deny 18479
+deny 18492
+deny 18496
+deny 18532
+deny 18547
+deny 18576
+deny 18579
+deny 18592
+deny 18644
+deny 18667
+deny 18678
+deny 18734
+deny 18739
+deny 18782
+deny 18809
+deny 18822
+deny 18836
+deny 18840
+deny 18846
+deny 18869
+deny 18881
+deny 18941
+deny 18998
+deny 19033
+deny 19037 - 19038
+deny 19064
+deny 19077
+deny 19089 - 19090
+deny 19109
+deny 19114
+deny 19132
+deny 19169
+deny 19180
+deny 19182
+deny 19192
+deny 19196
+deny 19200
+deny 19228
+deny 19244
+deny 19259
+deny 19278
+deny 19315
+deny 19332
+deny 19338
+deny 19361
+deny 19373
+deny 19411
+deny 19422
+deny 19429
+deny 19447
+deny 19519
+deny 19553
+deny 19582 - 19583
+deny 19611
+deny 19632
+deny 19688
+deny 19723
+deny 19731
+deny 19763
+deny 19767
+deny 19863
+deny 19873
+deny 19889
+deny 19960
+deny 19978
+deny 19989 - 19990
+deny 20002
+deny 20015
+deny 20032
+deny 20043 - 20044
+deny 20106
+deny 20116 - 20117
+deny 20121
+deny 20142
+deny 20173
+deny 20191
+deny 20207
+deny 20232
+deny 20244
+deny 20255 - 20256
+deny 20266
+deny 20297
+deny 20299
+deny 20305
+deny 20312
+deny 20321
+deny 20345
+deny 20361
+deny 20363
+deny 20418
+deny 21506
+deny 21520
+deny 21571
+deny 21574 - 21575
+deny 21578
+deny 21590
+deny 21599
+deny 21603
+deny 21612
+deny 21614
+deny 21674
+deny 21692
+deny 21741
+deny 21753
+deny 21756
+deny 21765
+deny 21768
+deny 21824
+deny 21826
+deny 21838
+deny 21862
+deny 21883
+deny 21888
+deny 21911
+deny 21917
+deny 21980
+deny 22010 - 22011
+deny 22019
+deny 22047
+deny 22055
+deny 22080
+deny 22085
+deny 22092
+deny 22122
+deny 22128 - 22129
+deny 22133
+deny 22148
+deny 22177
+deny 22185
+deny 22227
+deny 22250
+deny 22305
+deny 22313
+deny 22341
+deny 22356
+deny 22368
+deny 22371
+deny 22381 - 22382
+deny 22407
+deny 22411
+deny 22431
+deny 22453
+deny 22501
+deny 22508
+deny 22515
+deny 22529
+deny 22541
+deny 22548
+deny 22566
+deny 22628
+deny 22661
+deny 22678
+deny 22689
+deny 22698 - 22699
+deny 22706
+deny 22724
+deny 22726
+deny 22745
+deny 22798
+deny 22818 - 22819
+deny 22833
+deny 22860
+deny 22869
+deny 22876
+deny 22882
+deny 22884
+deny 22889
+deny 22894
+deny 22908
+deny 22924
+deny 22927
+deny 22975
+deny 23002
+deny 23007
+deny 23020
+deny 23031
+deny 23074
+deny 23091
+deny 23105 - 23106
+deny 23113
+deny 23128
+deny 23140
+deny 23201 - 23202
+deny 23216
+deny 23243
+deny 23246
+deny 23289
+deny 23353
+deny 23360
+deny 23382 - 23383
+deny 23416
+deny 23487 - 23488
+deny 23495
+deny 23541
+deny 25607
+deny 25620
+deny 25701
+deny 25705
+deny 25718
+deny 25734
+deny 25812
+deny 25832
+deny 25908
+deny 25927
+deny 25933
+deny 25998
+deny 26048
+deny 26061
+deny 26090
+deny 26104 - 26105
+deny 26107
+deny 26112
+deny 26118 - 26119
+deny 26136
+deny 26162
+deny 26173
+deny 26194
+deny 26210
+deny 26218
+deny 26317
+deny 26418
+deny 26426
+deny 26434
+deny 26473
+deny 26505
+deny 26592 - 26596
+deny 26598 - 26623
+
+# AFRINIC IPv4 resources cannot be transferred to RIPE NCC
+# From https://www.iana.org/assignments/ipv4-address-space/
+deny 41.0.0.0/8
+deny 102.0.0.0/8
+deny 105.0.0.0/8
+deny 154.0.0.0/16
+deny 154.16.0.0/16
+deny 154.65.0.0 - 154.255.255.255
+deny 196.0.0.0 - 196.1.0.255
+deny 196.1.4.0/24
+deny 196.1.7.0 - 196.1.63.255
+deny 196.1.71.0/24
+deny 196.1.74.0 - 196.1.103.255
+deny 196.1.115.0 - 196.1.133.255
+deny 196.1.137.0/24
+deny 196.1.143.0 - 196.1.159.255
+deny 196.1.176.0 - 196.1.255.255
+deny 196.2.2.0/23
+deny 196.2.8.0 - 196.2.255.255
+deny 196.3.14.0/23
+deny 196.3.57.0 - 196.3.64.255
+deny 196.3.90.0/24
+deny 196.3.92.0 - 196.3.94.255
+deny 196.3.96.0/21
+deny 196.3.105.0/24
+deny 196.3.107.0 - 196.3.131.255
+deny 196.3.148.0/22
+deny 196.3.154.0 - 196.3.183.255
+deny 196.3.224.0 - 196.4.45.255
+deny 196.4.71.0 - 196.11.171.255
+deny 196.11.174.0 - 196.11.239.255
+deny 196.11.248.0/21
+deny 196.12.10.0 - 196.12.31.255
+deny 196.12.128.0/19
+deny 196.12.192.0 - 196.15.15.255
+deny 196.15.64.0 - 196.26.255.255
+deny 196.27.64.0 - 196.28.47.255
+deny 196.28.64.0 - 196.29.63.255
+deny 196.29.96.0 - 196.31.255.255
+deny 196.32.8.0 - 196.32.31.255
+deny 196.32.96.0/19
+deny 196.32.160.0 - 196.39.255.255
+deny 196.40.96.0 - 196.41.255.255
+deny 196.42.64.0 - 196.216.0.255
+deny 196.216.2.0 - 197.255.255.255
+
+# AFRINIC ASNs cannot be transferred to RIPE NCC
+# From https://www.iana.org/assignments/as-numbers/
+deny 36864 - 37887
+deny 327680 - 328703
+deny 328704 - 329727
+
+# AFRINIC ASNs cannot be transferred to RIPE NCC
+# From nro-delegated-stats 20240417
+deny 1228 - 1232
+deny 2018
+deny 2561
+deny 2905
+deny 3067 - 3068
+deny 3208
+deny 3741
+deny 4178
+deny 4571
+deny 5536
+deny 5713
+deny 5734
+deny 6083
+deny 6089
+deny 6127
+deny 6149
+deny 6180
+deny 6187
+deny 6351
+deny 6529
+deny 6560
+deny 6713
+deny 6879
+deny 6968
+deny 7020
+deny 7154
+deny 7231
+deny 7390
+deny 7420
+deny 7460
+deny 7971 - 7972
+deny 8094
+deny 8524
+deny 8770
+deny 9129
+deny 10247
+deny 10262
+deny 10331
+deny 10393
+deny 10474
+deny 10505
+deny 10540
+deny 10575
+deny 10798
+deny 10803
+deny 10898
+deny 11125
+deny 11157
+deny 11201
+deny 11259
+deny 11265
+deny 11380
+deny 11569
+deny 11645
+deny 11744
+deny 11845
+deny 11909
+deny 12091
+deny 12143
+deny 12258
+deny 12455
+deny 12556
+deny 13224
+deny 13402
+deny 13519
+deny 13569
+deny 13854
+deny 14029
+deny 14115
+deny 14331
+deny 14429
+deny 14516
+deny 14988
+deny 15022
+deny 15159
+deny 15399
+deny 15475
+deny 15706
+deny 15804
+deny 15825
+deny 15834
+deny 15964
+deny 16058
+deny 16214
+deny 16284
+deny 16416
+deny 16547
+deny 16630
+deny 16637
+deny 16800
+deny 16853
+deny 16907
+deny 17148
+deny 17220
+deny 17260
+deny 17312
+deny 17400
+deny 17652
+deny 18775
+deny 18922
+deny 18931
+deny 19136
+deny 19232
+deny 19676
+deny 19711
+deny 19832
+deny 19847
+deny 20011
+deny 20086
+deny 20095
+deny 20180
+deny 20294
+deny 20459
+deny 20484
+deny 20858
+deny 20928
+deny 21003
+deny 21152
+deny 21242
+deny 21271
+deny 21278
+deny 21280
+deny 21391
+deny 21452
+deny 21739
+deny 21819
+deny 22354 - 22355
+deny 22386
+deny 22572
+deny 22690
+deny 22735
+deny 22750
+deny 22939
+deny 23058
+deny 23549
+deny 23889
+deny 24736
+deny 24757
+deny 24788
+deny 24801
+deny 24835
+deny 24863
+deny 24878
+deny 24987
+deny 25163
+deny 25250
+deny 25362
+deny 25364
+deny 25543
+deny 25568
+deny 25576
+deny 25695
+deny 25726
+deny 25793
+deny 25818
+deny 26106
+deny 26130
+deny 26422
+deny 26625
+deny 26754
+deny 27576
+deny 27598
+deny 28683
+deny 28698
+deny 28913
+deny 29091
+deny 29338
+deny 29340
+deny 29428
+deny 29495
+deny 29544
+deny 29571
+deny 29614
+deny 29674
+deny 29918
+deny 29975
+deny 30073
+deny 30306
+deny 30429
+deny 30619
+deny 30896
+deny 30980
+deny 30982 - 30999
+deny 31065
+deny 31245
+deny 31619
+deny 31810
+deny 31856
+deny 31960
+deny 32017
+deny 32279
+deny 32398
+deny 32437
+deny 32653
+deny 32714
+deny 32717
+deny 32842
+deny 32860
+deny 33567
+deny 33579
+deny 33762 - 33791
+
+# Private use IPv4 & IPv6 addresses and ASNs
+deny 0.0.0.0/8               # RFC 1122 Local Identification
+deny 10.0.0.0/8              # RFC 1918 private space
+deny 100.64.0.0/10           # RFC 6598 Carrier Grade NAT
+deny 127.0.0.0/8             # RFC 1122 localhost
+deny 169.254.0.0/16          # RFC 3927 link local
+deny 172.16.0.0/12           # RFC 1918 private space
+deny 192.0.2.0/24            # RFC 5737 TEST-NET-1
+deny 192.88.99.0/24          # RFC 7526 6to4 anycast relay
+deny 192.168.0.0/16          # RFC 1918 private space
+deny 198.18.0.0/15           # RFC 2544 benchmarking
+deny 198.51.100.0/24         # RFC 5737 TEST-NET-2
+deny 203.0.113.0/24          # RFC 5737 TEST-NET-3
+deny 224.0.0.0/4             # Multicast
+deny 240.0.0.0/4             # Reserved
+deny 23456                   # RFC 4893 AS_TRANS
+deny 64496 - 64511           # RFC 5398
+deny 64512 - 65534           # RFC 6996
+deny 65535                   # RFC 7300
+deny 65536 - 65551           # RFC 5398
+deny 65552 - 131071          # IANA Reserved
+deny 4200000000 - 4294967294 # RFC 6996
+deny 4294967295              # RFC 7300
+
+# RIPE NCC supports IPv4 and ASN transfers: allow the complement of what is denied
+allow 0.0.0.0/0
+allow 1 - 4199999999

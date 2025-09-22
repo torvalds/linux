@@ -1,0 +1,95 @@
+.\"	$OpenBSD: rcmdsh.3,v 1.18 2016/05/28 15:48:30 millert Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 28 2016 $
+.Dt RCMDSH 3
+.Os
+.Sh NAME
+.Nm rcmdsh
+.Nd return a stream to a remote command without superuser
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn rcmdsh "char **ahost" "int inport" "const char *locuser" "const char *remuser" "const char *cmd" "char *rshprog"
+.Sh DESCRIPTION
+The
+.Fn rcmdsh
+function is used by normal users to execute a command on a remote machine
+using an authentication scheme based on reserved port numbers using
+.Xr ssh 1
+or the value of
+.Fa rshprog
+(if non-null).
+.Fa rshprog
+may be a fully-qualified path, a non-qualified command, or a command containing
+space-separated command line arguments.
+.Pp
+The
+.Fn rcmdsh
+function looks up the host
+.Fa *ahost
+using
+.Xr getaddrinfo 3
+and, if the host exists,
+.Fa *ahost
+is set to the canonical name of the host.
+A connection is then established to
+a server residing at the well-known Internet port
+.Li shell/tcp
+(or whatever port is used by
+.Fa rshprog ) .
+The parameter
+.Fa inport
+is ignored; it is only included to provide an interface similar to
+.Xr rcmd 3 .
+.Pp
+If the connection succeeds, a socket in the
+.Ux Ns -domain
+of type
+.Dv SOCK_STREAM
+is returned to the caller, and given to the remote
+command as stdin and stdout, and stderr.
+.Sh DIAGNOSTICS
+The
+.Fn rcmdsh
+function returns a valid socket descriptor on success.
+It returns \-1 on error and prints a diagnostic message on the standard error.
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr socketpair 2 ,
+.Xr rcmd 3
+.Sh HISTORY
+The
+.Fn rcmdsh
+function first appeared in
+.Ox 2.0 .
+.Sh BUGS
+If
+.Xr ssh 1
+encounters an error, a file descriptor is still returned instead of \-1.

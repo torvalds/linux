@@ -1,0 +1,6 @@
+# Lit's diff is out-of-process, so check that "not --crash diff" fails because
+# diff doesn't crash rather than because "not --crash diff" isn't supported.
+
+# RUN: echo 'foo' > %t.foo
+# RUN: echo 'bar' > %t.bar
+# RUN: not --crash diff -u %t.foo %t.bar

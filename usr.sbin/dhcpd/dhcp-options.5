@@ -1,0 +1,697 @@
+.\"	$OpenBSD: dhcp-options.5,v 1.36 2024/06/27 20:15:50 jmc Exp $
+.\"
+.\" Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.Dd $Mdocdate: June 27 2024 $
+.Dt DHCP-OPTIONS 5
+.Os
+.Sh NAME
+.Nm dhcp-options
+.Nd DHCP options
+.Sh DESCRIPTION
+The Dynamic Host Configuration protocol allows the client to receive
+.Ic options
+from the DHCP server describing the network configuration and various
+services that are available on the network.
+When configuring
+.Xr dhcpd 8 ,
+options must often be declared.
+The syntax for declaring options, and the names and formats of the options
+that can be declared, are documented here.
+.Pp
+DHCP
+.Ic option
+statements always start with the
+.Ic option
+keyword, followed by an option name, followed by option data.
+The option names and data formats are described below.
+It is not necessary to exhaustively specify all DHCP options \-
+only those options which are needed by clients must be specified.
+.Pp
+Option data comes in a variety of formats, as defined below:
+.Pp
+The
+.Ar ip-address
+data type can be entered either as an explicit IP address
+(e.g., 239.254.197.10) or as a domain name (e.g., haagen.isc.org).
+A domain name must resolve to a single IP address.
+.Pp
+The
+.Ar cidr
+data type specifies a network in CIDR notion.
+e.g. 1.2.3/24.
+.Pp
+The
+.Ar int32
+data type specifies a signed 32-bit integer.
+The
+.Ar uint32
+data type specifies an unsigned 32-bit integer.
+The
+.Ar uint16
+data type specifies unsigned 16-bit integers.
+The
+.Ar uint8
+data type specifies unsigned 8-bit integers,
+sometimes referred to as octets.
+.Pp
+The
+.Ar string
+data type specifies an
+.Tn NVT
+.Pq Network Virtual Terminal
+.Tn ASCII
+string, which must be enclosed in double quotes \- for example,
+to specify a domain-name option, the syntax would be
+.Pp
+.Dl option domain-name \&"isc.org\&";
+.Pp
+The
+.Ar flag
+data type specifies a boolean value.
+Booleans can be either true or false
+(or on or off, if that makes more sense to you).
+.Pp
+The
+.Ar data-string
+data type specifies either an
+.Tn NVT ASCII
+string enclosed in double quotes, or a series of octets specified in
+hexadecimal, separated by colons.
+For example:
+.Pp
+.Dl option dhcp-client-identifier \&"CLIENT-FOO\&";
+or
+.Dl option dhcp-client-identifier 43:4c:49:45:4e:54:2d:46:4f:4f;
+.Pp
+The documentation for the various options mentioned below is taken
+from the IETF draft document on DHCP options, RFC 2132.
+Options which are not listed by name may be defined by the name
+.Pf option- Ar nnn ,
+where
+.Ar nnn
+is the decimal number of the option code.
+These options may be followed either by a string, enclosed in quotes, or by
+a series of octets, expressed as two-digit hexadecimal numbers separated
+by colons.
+For example:
+.Bd -literal -offset indent
+option option-133 "my-option-133-text";
+option option-129 1:54:c9:2b:47;
+.Ed
+.Pp
+Because
+.Xr dhcpd 8
+does not know the format of these undefined option codes,
+no checking is done to ensure the correctness of the entered data.
+.Pp
+The defined options are:
+.Bl -tag -width Ds
+.It Ic option all-subnets-local Ar flag ;
+This option specifies whether or not the client may assume that all subnets
+of the IP network to which the client is connected use the same MTU as the
+subnet of that network to which the client is directly connected.
+A value of 1 indicates that all subnets share the same MTU.
+A value of 0 means that the client should assume that some subnets of the
+directly connected network may have smaller MTUs.
+.It Ic option arp-cache-timeout Ar uint32 ;
+This option specifies the timeout in seconds for ARP cache entries.
+.It Ic option autoproxy-script Ar string ;
+Site-specific as of RFC 3942.
+Widely used for Web Proxy Autodiscovery Protocol (WPAD).
+.It Ic option boot-size Ar uint16 ;
+This option specifies the length in 512-octet blocks of the default
+boot image for the client.
+.It Ic option bootfile-name Ar string ;
+This option is used to identify a bootstrap file.
+If supported by the client, it should have the same effect as the
+.Ic filename
+declaration.
+BOOTP clients are unlikely to support this option.
+Some DHCP clients will support it, and others actually require it.
+.It Ic option broadcast-address Ar ip-address ;
+This option specifies the broadcast address in use on the client's subnet.
+Legal values for broadcast addresses are specified in section 3.2.1.3 of
+RFC 1122.
+.It Ic option classless-static-routes Ar cidr ip-address Oo , Ar cidr ip-address ... Oc ;
+This option specifies a list of destination networks and the
+associated gateways.
+This option is defined in RFC 3442.
+The RFC says that clients supporting this option must ignore the
+.Ic Routers
+option when both are present.
+Thus default routes, if any,
+must be included in the list.
+The
+.Ar cidr
+of a default route is 0/0.
+.It Ic option classless-ms-static-routes Ar cidr ip-address Oo , Ar cidr ip-address ... Oc ;
+This option does the same as
+.Ic classless-static-routes ,
+but uses option code 249 instead of 121,
+since Windows XP and Windows Server 2003 ignore option 121.
+.It Ic option cookie-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic cookie-servers
+option specifies a list of RFC 865 cookie servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option default-ip-ttl Ar uint8 ;
+This option specifies the default time-to-live that the client should
+use on outgoing datagrams.
+.It Ic option default-tcp-ttl Ar uint8 ;
+This option specifies the default TTL that the client should use when
+sending TCP segments.
+The minimum value is 1.
+.It Ic option dhcp-class-identifier Ar string ;
+This option is used by DHCP clients to optionally identify the vendor type
+and configuration of a DHCP client.
+The information is a string of n octets, interpreted by servers.
+Vendors may choose to define specific vendor class identifiers to convey
+particular configuration or other identification information about a client.
+For example, the identifier may encode the client's hardware configuration.
+Servers not equipped to interpret the class-specific information sent by a
+client must ignore it (although it may be reported).
+Servers that respond should only use option 43
+.Pq Ic vendor-encapsulated-options
+to return the vendor-specific information to the client.
+.It Ic option dhcp-client-identifier Ar data-string ;
+This option can be used to specify a DHCP client identifier in a
+host declaration, so that
+.Xr dhcpd 8
+can find the host record by matching against the client identifier.
+.It Ic option dhcp-lease-time Ar uint32 ;
+This option is used in a client request (DHCPDISCOVER or DHCPREQUEST) to
+allow the client to request a lease time for the IP address.
+In a server reply (DHCPOFFER), a DHCP server uses this option to specify the
+lease time it is willing to offer.
+.It Ic option dhcp-max-message-size Ar uint16 ;
+This option specifies the maximum length
+.Ic option dhcp-message
+that the DHCP client is willing to accept.
+The length is specified as an unsigned 16-bit integer.
+A client may use the maximum DHCP message size option in DHCPDISCOVER or
+DHCPREQUEST messages, but should not use the option in DHCPDECLINE messages.
+.It Ic option dhcp-message Ar string ;
+This option is used to send an error message to a DHCP client in
+the event of a failure.
+The maximum acceptable length of the message can be set with
+.Ic option dhcp-max-message-size .
+.It Ic option dhcp-message-type Ar uint8 ;
+This option is used to convey the type of the DHCP message.
+Values: 1=DHCPDISCOVER, 2=DHCPOFFER, 3=DHCPREQUEST, 4=DHCPDECLINE, 5=DHCPACK,
+6=DHCPNAK, 7=DHCPRELEASE, 8=DHCPINFORM.
+.It Ic option dhcp-option-overload Ar uint8 ;
+This option is used to indicate that the DHCP 'sname' or 'file' fields are
+being overloaded by using them to carry DHCP options.
+A DHCP server inserts this option if the returned parameters will exceed
+the usual space allotted for options.
+If this option is present, the client interprets the specified additional
+fields after it concludes interpretation of the standard option fields.
+A value of 1 means the 'file' field is used to hold options.
+A value of 2 means the 'sname' field is used to hold options.
+A value of 3 means both fields are used to hold options.
+.It Ic option dhcp-parameter-request-list Ar uint8 Oo , Ar uint8 ... Oc ;
+This option is used by a DHCP client to request values for specified
+configuration parameters.
+The list of requested parameters is specified as n octets, where each
+octet is a valid DHCP option code as defined in this document.
+The client MAY list the options in order of preference.
+The DHCP server is not required to return the options in the requested
+order, but MUST try to insert the requested options in the order requested
+by the client.
+.It Ic option dhcp-rebinding-time Ar uint32 ;
+This option specifies the time interval from address assignment until the
+client transitions to the REBINDING state.
+The value is in seconds.
+.It Ic option dhcp-renewal-time Ar uint32 ;
+This option specifies the time interval from address assignment until the
+client transitions to the RENEWING state.
+The value is in seconds.
+.It Ic option dhcp-requested-address Ar ip-address ;
+This option is used in a client request (DHCPDISCOVER) to allow the client
+to request that a particular IP address be assigned.
+.It Ic option dhcp-server-identifier Ar ip-address ;
+This option is used in DHCPOFFER and DHCPREQUEST messages, and may
+optionally be included in the DHCPACK and DHCPNAK messages.
+DHCP servers include this option in the DHCPOFFER in order to allow the
+client to distinguish between lease offers.
+DHCP clients use the contents of the 'server identifier' field as the
+destination address for any DHCP messages unicast to the DHCP server.
+DHCP clients also indicate which of several lease offers is being accepted
+by including this option in a DHCPREQUEST message.
+The identifier is the IP address of the selected server.
+.It Ic option domain-name Ar string ;
+This option specifies the domain name that the client should use when
+resolving hostnames via the Domain Name System.
+.It Ic option domain-name-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic domain-name-servers
+option specifies a list of Domain Name System name servers
+available to the client.
+Servers should be listed in order of preference.
+.It Ic option domain-search Ar string Oo , Ar string ... Oc ;
+The
+.Ic domain-search
+option specifies a list of the domain names that should be
+used during DNS name resolution.
+.It Ic option extensions-path Ar string ;
+A string to specify a file, retrievable via TFTP, which contains information
+which can be interpreted in the same way as the 64-octet vendor-extension
+field within the BOOTP response, with exceptions; see RFC 2132, Section 3.20
+for details.
+.It Ic option finger-server Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic finger-server
+option specifies a list of
+.Xr finger 1
+servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option font-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+This option specifies a list of X Window System Font servers available
+to the client.
+Servers should be listed in order of preference.
+.It Ic option host-name Ar string ;
+This option specifies the name of the client.
+The name may or may not be qualified with the local domain name
+(it is preferable to use the
+.Ic domain-name
+option to specify the domain name).
+See RFC 1035 for character set restrictions.
+.It Ic option ieee802-3-encapsulation Ar flag ;
+This option specifies whether or not the client should use Ethernet
+Version 2 (RFC 894) or IEEE 802.3 (RFC 1042) encapsulation if the
+interface is an Ethernet.
+A value of 0 indicates that the client should use RFC 894 encapsulation.
+A value of 1 means that the client should use RFC 1042 encapsulation.
+.It Ic option ien116-name-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic ien116-name-servers
+option specifies a list of IEN 116 name servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option impress-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic impress-servers
+option specifies a list of Imagen Impress servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option interface-mtu Ar uint16 ;
+This option specifies the MTU to use on this interface.
+The minimum legal value for the MTU is 68.
+.It Ic option ip-forwarding Ar flag ;
+This option specifies whether the client should configure its IP layer
+for packet forwarding.
+A value of 0 means disable IP forwarding, and a value of 1 means enable
+IP forwarding.
+.It Ic option ipv6-only-preferred Ar uint32 ;
+This option specifies that NAT64 is available and the pool is IPv6-mostly
+capable.
+This option is specified in RFC 8925.
+.It Ic option irc-server Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic irc-server
+option specifies a list of IRC servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option log-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic log-servers
+option specifies a list of MIT-LCS UDP log servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option lpr-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic lpr-servers
+option specifies a list of RFC 1179 line printer servers available to the
+client.
+Servers should be listed in order of preference.
+.It Ic option mask-supplier Ar flag ;
+This option specifies whether or not the client should respond to subnet mask
+requests using ICMP.
+A value of 0 indicates that the client should not respond.
+A value of 1 means that the client should respond.
+.It Ic option max-dgram-reassembly Ar uint16 ;
+This option specifies the maximum size datagram that the client should be
+prepared to reassemble.
+The minimum legal value is 576.
+.It Ic option merit-dump Ar string ;
+This option specifies the pathname of a file to which the client's
+core image should be dumped in the event the client crashes.
+The path is formatted as a character string consisting of characters from
+the
+.Tn NVT ASCII
+character set.
+.It Ic option mobile-ip-home-agent Ar ip-address Oo , Ar ip-address ... Oc ;
+This option specifies a list of IP addresses indicating Mobile IP
+home agents available to the client.
+Agents should be listed in order of preference, although normally there
+will be only one such agent.
+.It Ic option nds-context Ar data-string ;
+This option specifies the initial NDS context the client should use.
+NDS contexts are 16-bit Unicode strings.
+For transmission in the NDS Context Option, an NDS context is
+transformed into octets using UTF-8.
+The string should NOT be zero terminated.
+A single DHCP option can only contain 255 octets.
+Since an NDS context name can be longer than that, this option can
+appear more than once in the DHCP packet.
+The contents of all NDS Context options in the packet should be
+concatenated as suggested in the DHCP specification to get the
+complete NDS context.
+A single encoded character could be split between two NDS Context Options.
+See RFC 2241 for details.
+.It Ic option nds-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+This option specifies one or more NDS servers for the client to contact
+for access to the NDS database.
+Servers should be listed in order of preference.
+See RFC 2241 for details.
+.It Ic option nds-tree-name Ar data-string ;
+This option specifies the name of the NDS tree the client will be contacting.
+NDS tree names are 16-bit Unicode strings.
+For transmission in the NDS Tree Name Option, an NDS tree name is
+transformed into octets using UTF-8.
+The string should not be zero terminated.
+See RFC 2241 for details.
+.It Ic option netbios-dd-server Ar ip-address Oo , Ar ip-address ... Oc ;
+The NetBIOS datagram distribution server (NBDD) option specifies a
+list of RFC 1001/1002 NBDD servers listed in order of preference.
+.It Ic option netbios-name-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+The NetBIOS name server (NBNS) option specifies a list of RFC 1001/1002
+NBNS name servers listed in order of preference.
+NetBIOS Name Service is currently more commonly referred to as WINS.
+WINS servers can be specified using the
+.Ic netbios-name-servers
+option.
+.It Ic option netbios-node-type Ar uint8 ;
+The NetBIOS node type option allows NetBIOS over TCP/IP clients which
+are configurable to be configured as described in RFC 1001/1002.
+The value is specified as a single octet which identifies the client type.
+.Pp
+Possible node types are:
+.Bl -tag -width Ds
+.It 1
+B-node: Broadcast - no WINS
+.It 2
+P-node: Peer - WINS only
+.It 4
+M-node: Mixed - broadcast, then WINS
+.It 8
+H-node: Hybrid - WINS, then broadcast
+.El
+.It Ic option netbios-scope Ar string ;
+The NetBIOS scope option specifies the NetBIOS over TCP/IP scope
+parameter for the client as specified in RFC 1001/1002.
+See RFC 1001, RFC 1002, and RFC 1035 for character-set restrictions.
+.It Ic option nis-domain Ar string ;
+This option specifies the name of the client's NIS (Sun Network Information
+Services) domain.
+The domain is formatted as a character string consisting of characters
+from the
+.Tn NVT ASCII
+character set.
+.It Ic option nis-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+This option specifies a list of IP addresses indicating NIS servers
+available to the client.
+Servers should be listed in order of preference.
+.It Ic option nisplus-domain Ar string ;
+This option specifies the name of the client's NIS+ domain.
+The domain is formatted as a character string consisting of characters
+from the
+.Tn NVT ASCII
+character set.
+.It Ic option nisplus-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+This option specifies a list of IP addresses indicating NIS+ servers
+available to the client.
+Servers should be listed in order of preference.
+.It Ic option nntp-server Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic nntp-server
+option specifies a list of NNTP servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option non-local-source-routing Ar flag ;
+This option specifies whether the client should configure its IP
+layer to allow forwarding of datagrams with non-local source routes.
+A value of 0 means disallow forwarding of such datagrams, and a value of 1
+means allow forwarding.
+.It Ic option ntp-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+This option specifies a list of IP addresses indicating NTP (RFC 5905)
+servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option path-mtu-aging-timeout Ar uint32 ;
+This option specifies the timeout (in seconds) to use when aging Path
+MTU values discovered by the mechanism defined in RFC 1191.
+.It Ic option path-mtu-plateau-table Ar uint16 Oo , Ar uint16 ... Oc ;
+This option specifies a table of MTU sizes to use when performing
+Path MTU Discovery as defined in RFC 1191.
+The table is formatted as a list of 16-bit unsigned integers,
+ordered from smallest to largest.
+The minimum MTU value cannot be smaller than 68.
+.It Ic option perform-mask-discovery Ar flag ;
+This option specifies whether or not the client should perform subnet mask
+discovery using ICMP.
+A value of 0 indicates that the client should not perform mask discovery.
+A value of 1 means that the client should perform mask discovery.
+.It Ic option policy-filter Ar ip-address ip-address Oo , Ar ip-address ip-address ... Oc ;
+This option specifies policy filters for non-local source routing.
+The filters consist of a list of IP addresses and masks which specify
+destination/mask pairs with which to filter incoming source routes.
+.Pp
+Any source-routed datagram whose next-hop address does not match one
+of the filters should be discarded by the client.
+.Pp
+See RFC 1122 for further information.
+.It Ic option pop-server Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic pop-server
+option specifies a list of POP3 servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option relay-agent-information Ar data-string ;
+This is a "container" option for specific agent-supplied sub-options.
+See RFC 3046 for details.
+.It Ic option resource-location-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+This option specifies a list of RFC 887 Resource Location servers available
+to the client.
+Servers should be listed in order of preference.
+.It Ic option root-path Ar string ;
+This option specifies the pathname that contains the client's root disk.
+The path is formatted as a character string consisting of characters from
+the
+.Tn NVT ASCII
+character set.
+.It Ic option router-discovery Ar flag ;
+This option specifies whether or not the client should solicit routers using
+the Router Discovery mechanism defined in RFC 1256.
+A value of 0 indicates that the client should not perform router discovery.
+A value of 1 means that the client should perform router discovery.
+.It Ic option router-solicitation-address Ar ip-address ;
+This option specifies the address to which the client should transmit
+router solicitation requests.
+.It Ic option routers Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic routers
+option specifies a list of IP addresses for routers on the client's subnet.
+Routers should be listed in order of preference.
+.It Ic option smtp-server Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic smtp-server
+option specifies a list of SMTP servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option static-routes Ar ip-address ip-address Oo , Ar ip-address ip-address ... Oc ;
+This option specifies a list of static routes that the client should
+install in its routing cache.
+If multiple routes to the same destination are specified, they are listed
+in descending order of priority.
+.Pp
+The routes consist of a list of IP address pairs.
+The first address is the destination address,
+and the second address is the router for the destination.
+.Pp
+The default route (0.0.0.0) is an illegal destination for a static route.
+To specify the default route, use the
+.Ic routers
+option.
+Note that this option is obsolete and should be replaced by the
+.Ic classless-static-routes
+option.
+.It Ic option streettalk-directory-assistance-server Ar ip-address Oo , Ar ip-address ... Oc ;
+The StreetTalk Directory Assistance (STDA) server option specifies a
+list of STDA servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option streettalk-server Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic streettalk-server
+option specifies a list of StreetTalk servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option subnet-mask Ar ip-address ;
+The
+.Ic subnet-mask
+option specifies the client's subnet mask as per RFC 950.
+If no subnet-mask option is provided anywhere in scope, as a last resort
+.Xr dhcpd 8
+will use the subnet mask from the subnet declaration for the network on
+which an address is being assigned.
+However,
+.Em any
+subnet-mask option declaration that is in scope for the address being
+assigned will override the subnet mask specified in the subnet declaration.
+.It Ic option swap-server Ar ip-address ;
+This specifies the IP address of the client's swap server.
+.It Ic option tcp-keepalive-garbage Ar flag ;
+This option specifies whether or not the client should send TCP keepalive
+messages with an octet of garbage for compatibility with older implementations.
+A value of 0 indicates that a garbage octet should not be sent.
+A value of 1 indicates that a garbage octet should be sent.
+.It Ic option tcp-keepalive-interval Ar uint32 ;
+This option specifies the interval (in seconds) that the client TCP
+should wait before sending a keepalive message on a TCP connection.
+The time is specified as a 32-bit unsigned integer.
+A value of zero indicates that the client should not generate keepalive
+messages on connections unless specifically requested by an application.
+.It Ic option tftp-config-file Ar string ;
+Option 144.
+Per RFC 2132 options 128 \- 254 are site-specific.
+RFC 3942 reclassifies options 128 to 223 as publicly defined options and
+puts them in "Unavailable" state by IANA.
+See RFC 3679 for "Unused DHCP Option Codes to be Reassigned to Future
+DHCP Options".
+See RFC 2939 for procedures for definitions of new DHCP options.
+.It Ic option tftp-server-name Ar string ;
+This option is used to identify a TFTP server and, if supported by the
+client, should have the same effect as the
+.Ic server-name
+declaration.
+BOOTP clients are unlikely to support this option.
+Some DHCP clients will support it, and others actually require it.
+.It Ic option time-offset Ar int32 ;
+The
+.Ic time-offset
+option specifies the offset of the client's subnet in seconds from
+Coordinated Universal Time (UTC).
+.It Ic option time-servers Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic time-server
+option specifies a list of RFC 868 time servers available to the client.
+Servers should be listed in order of preference.
+.It Ic option trailer-encapsulation Ar flag ;
+This option specifies whether or not the client should negotiate the
+use of trailers (RFC 893) when using the ARP protocol.
+A value of 0 indicates that the client should not attempt to use trailers.
+A value of 1 means that the client should attempt to use trailers.
+.It Ic option user-class Ar string ;
+This option is used by a DHCP client to optionally identify the type or
+category of user or applications it represents.
+A DHCP server uses the User Class option to choose the address pool it
+allocates an address from and/or to select any other configuration option.
+This option may carry multiple User Classes.
+Servers may interpret the meanings of multiple class specifications in an
+implementation dependent or configuration dependent manner, and so the use
+of multiple classes by a DHCP client should be based on the specific server
+implementation and configuration which will be used to process that User
+class option.
+See RFC 3004 for details.
+.It Ic option vendor-encapsulated-options Ar data-string ;
+This option is used by clients and servers to exchange vendor-specific
+information.
+The information is an opaque object of n octets, presumably interpreted by
+vendor-specific code on the clients and servers.
+See RFC 2132, Section 8.4 for details.
+.It Ic option voip-configuration-server Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic voip-configuration-server
+option specifies a list of (normally TFTP) servers that VoIP clients
+may download their configuration information and software images
+from.
+Servers should be listed in order of preference.
+.It Ic option www-server Ar ip-address Oo , Ar ip-address ... Oc ;
+The
+.Ic www-server
+option specifies a list of WWW servers available to the client.
+.It Ic option x-display-manager Ar ip-address Oo , Ar ip-address ... Oc ;
+This option specifies a list of systems that are running the X Window
+System Display Manager and are available to the client.
+Addresses should be listed in order of preference.
+.El
+.Sh SEE ALSO
+.Xr dhcpd.conf 5 ,
+.Xr dhcpd.leases 5 ,
+.Xr dhcpleased.conf 5 ,
+.Xr dhcpd 8 ,
+.Xr dhcpleased 8
+.Sh STANDARDS
+.Rs
+.%A R. Droms
+.%D October 1993
+.%R RFC 1534
+.%T Interoperation Between DHCP and BOOTP
+.Re
+.Pp
+.Rs
+.%A R. Droms
+.%D March 1997
+.%R RFC 2131
+.%T Dynamic Host Configuration Protocol
+.Re
+.Pp
+.Rs
+.%A S. Alexander
+.%A R. Droms
+.%D March 1997
+.%R RFC 2132
+.%T DHCP Options and BOOTP Vendor Extensions
+.Re
+.Pp
+.Rs
+.%A T. Lemon
+.%A S. Cheshire
+.%D November 2002
+.%R RFC 3396
+.%T Encoding Long Options in the Dynamic Host Configuration Protocol (DHCPv4)
+.Re
+.Pp
+.Rs
+.%A T. Lemon
+.%A S. Cheshire
+.%A B. Volz
+.%D December 2002
+.%R RFC 3442
+.%T The Classless Static Route Option for Dynamic Host Configuration Protocol (DHCP) version 4
+.Re
+.Sh AUTHORS
+.An -nosplit
+.Xr dhcpd 8
+was written by
+.An Ted Lemon Aq Mt mellon@vix.com
+under a contract with Vixie Labs.
+.Pp
+The current implementation was reworked by
+.An Henning Brauer Aq Mt henning@openbsd.org .

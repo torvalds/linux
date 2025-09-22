@@ -1,0 +1,253 @@
+.\"	$OpenBSD: RSA_set_method.3,v 1.19 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>
+.\" and Geoff Thorpe <geoff@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2007, 2014 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_SET_METHOD 3
+.Os
+.Sh NAME
+.Nm RSA_set_default_method ,
+.Nm RSA_get_default_method ,
+.Nm RSA_set_method ,
+.Nm RSA_get_method ,
+.Nm RSA_PKCS1_SSLeay ,
+.Nm RSA_flags ,
+.Nm RSA_new_method
+.Nd select RSA method
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft void
+.Fo RSA_set_default_method
+.Fa "const RSA_METHOD *meth"
+.Fc
+.Ft const RSA_METHOD *
+.Fn RSA_get_default_method void
+.Ft int
+.Fo RSA_set_method
+.Fa "RSA *rsa"
+.Fa "const RSA_METHOD *meth"
+.Fc
+.Ft const RSA_METHOD *
+.Fo RSA_get_method
+.Fa "const RSA *rsa"
+.Fc
+.Ft const RSA_METHOD *
+.Fn RSA_PKCS1_SSLeay void
+.Ft int
+.Fo RSA_flags
+.Fa "const RSA *rsa"
+.Fc
+.Ft RSA *
+.Fo RSA_new_method
+.Fa "ENGINE *engine"
+.Fc
+.Sh DESCRIPTION
+An
+.Vt RSA_METHOD
+object contains pointers to the functions used for RSA operations.
+By default, the internal implementation returned by
+.Fn RSA_PKCS1_SSLeay
+is used.
+By selecting another method, alternative implementations
+such as hardware accelerators may be used.
+.Pp
+.Fn RSA_set_default_method
+selects
+.Fa meth
+as the default method for all
+.Vt RSA
+structures created later.
+.Pp
+.Fn RSA_get_default_method
+returns a pointer to the current default method.
+.Pp
+.Fn RSA_set_method
+selects
+.Fa meth
+to perform all operations using the key
+.Fa rsa .
+This replaces the previous
+.Vt RSA_METHOD
+used by the RSA key, calling the
+.Fa finish
+function set up with
+.Xr RSA_meth_set_finish 3
+if any.
+If
+.Fa meth
+contains an
+.Fa init
+function set up with
+.Xr RSA_meth_set_init 3 ,
+that function is called just before returning from
+.Fn RSA_set_method .
+.Pp
+It is possible to have RSA keys that only work with certain
+.Vt RSA_METHOD
+implementations,
+and in such cases attempting to change the
+.Vt RSA_METHOD
+for the key can have unexpected results.
+.Pp
+.Fn RSA_get_method
+returns a pointer to the
+.Vt RSA_METHOD
+being used by
+.Fa rsa .
+.Pp
+The misleadingly named function
+.Fn RSA_flags
+returns the flags that are set for the current
+.Vt RSA_METHOD
+of
+.Fa rsa .
+The flags used by
+.Fa rsa
+itself can instead be tested with
+.Xr RSA_test_flags 3 .
+See the
+.Sx BUGS
+section for more details.
+.Pp
+.Fn RSA_new_method
+allocates and initializes an
+.Vt RSA
+structure.
+The
+.Fa engine
+argument is ignored and
+the default method controlled by
+.Fn RSA_set_default_method
+is used.
+.Pp
+The initial
+.Fa flags
+are copied from the
+.Vt RSA_METHOD
+object used and will not be affected by later changes to that object,
+but may be modified by the optional
+.Fa init
+function which may have been set up with
+.Xr RSA_meth_set_init 3
+and which is called just before returning from
+.Fn RSA_new_method .
+.Sh RETURN VALUES
+.Fn RSA_PKCS1_SSLeay ,
+.Fn RSA_get_default_method ,
+and
+.Fn RSA_get_method
+return pointers to the respective
+.Vt RSA_METHOD .
+.Pp
+.Fn RSA_set_method
+returns 1 on success or 0 on failure.
+Currently, it cannot fail.
+.Pp
+.Fn RSA_new_method
+returns
+.Dv NULL
+and sets an error code that can be obtained by
+.Xr ERR_get_error 3
+if the allocation fails.
+Otherwise it returns a pointer to the newly allocated structure.
+.Sh SEE ALSO
+.Xr RSA_meth_new 3 ,
+.Xr RSA_new 3
+.Sh HISTORY
+.Fn RSA_set_default_method ,
+.Fn RSA_PKCS1_SSLeay ,
+and
+.Fn RSA_new_method
+first appeared in SSLeay 0.8.0.
+.Fn RSA_flags
+first appeared in SSLeay 0.9.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn RSA_get_default_method ,
+.Fn RSA_set_method ,
+and
+.Fn RSA_get_method
+as well as the
+.Fa rsa_sign
+and
+.Fa rsa_verify
+components of
+.Vt RSA_METHOD
+first appeared in OpenSSL 0.9.4 and have been available since
+.Ox 2.6 .
+.Sh BUGS
+The behaviour of
+.Fn RSA_flags
+is a misfeature that is left as-is for now to avoid creating
+compatibility problems.
+RSA functionality, such as the encryption functions, are controlled by
+the
+.Fa flags
+value in the
+.Vt RSA
+key itself, not by the
+.Fa flags
+value in the
+.Vt RSA_METHOD
+attached to the RSA key (which is what this function returns).
+If the flags element of an
+.Vt RSA
+key is changed, the changes will be honoured by RSA functionality
+but will not be reflected in the return value of the
+.Fn RSA_flags
+function - in effect
+.Fn RSA_flags
+behaves more like an
+.Fn RSA_default_flags
+function, which does not
+currently exist.

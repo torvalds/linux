@@ -1,0 +1,198 @@
+.\"	$OpenBSD: pool_cache_init.9,v 1.8 2018/01/12 04:36:45 deraadt Exp $
+.\"
+.\" Copyright (c) 2017 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 12 2018 $
+.Dt POOL_CACHE_INIT 9
+.Os
+.Sh NAME
+.Nm pool_cache_init ,
+.Nm pool_cache_destroy
+.Nd per CPU caching of pool items
+.Sh SYNOPSIS
+.In sys/pool.h
+.Ft void
+.Fn pool_cache_init "struct pool *pp"
+.Ft void
+.Fn pool_cache_destroy "struct pool *pp"
+.Sh DESCRIPTION
+By default, pools protect their internal state using a single lock,
+so concurrent access to a pool may suffer contention on that lock.
+The pool API provides support for caching free pool items on each
+CPU which can be enabled to mitigate against this contention.
+.Pp
+When per CPU caches are enabled on a pool, each CPU maintains an
+active and inactive list of free pool items.
+A global depot of free lists is initialised in the pool structure
+to store excess lists of free items that may accumulate on CPUs.
+.Pp
+.Fn pool_cache_init
+allocates the free lists on each CPU, initialises the global depot
+of free lists, and enables their use to handle
+.Xr pool_get 9
+and
+.Xr pool_put 9
+operations.
+.Pp
+.Fn pool_cache_destroy
+disables the use of the free lists on each CPU, returns items cached
+on all the free lists in the subsystem back to the normal pool
+allocator, and finally frees the per CPU data structures.
+.Pp
+Once per CPU caches are enabled, items returned to a pool with
+.Xr pool_put 9
+are placed on the current CPU's active free list.
+If the active list becomes full, it becomes the inactive list and
+a new active list is initialised for the free item to go on.
+If an inactive list already exists when the active list becomes
+full, the inactive list is moved to the global depot of free lists
+before the active list is moved into its place.
+.Pp
+Attempts to allocate items with
+.Xr pool_get 9
+first try to get an item from the active free list on the CPU it is
+called on.
+If the active free list is empty but an inactive list of items is
+available, the inactive list is moved back into place as the active
+list so it can satisfy the request.
+If no lists are available on the current CPU, an attempt to allocate
+a free list from the global depot is made.
+Finally, if no free list is available,
+.Xr pool_get 9
+falls through to allocating a pool item normally.
+.Pp
+The maximum number of items cached on a free list is dynamically
+scaled for each pool based on the contention on the lock around the
+global depot of free lists.
+A garbage collector runs periodically to recover idle free lists
+and make the memory they consume available to the system for
+use elsewhere.
+.Pp
+Information about the current state of the per CPU caches and
+counters of operations they handle are available via
+.Xr sysctl 2 ,
+or displayed in the pcache view in
+.Xr systat 1 .
+.Pp
+The
+.Vt kinfo_pool_cache
+struct provides information about the global state of a pool's caches
+via a node for each pool under the
+.Dv CTL_KERN ,
+.Dv KERN_POOL ,
+.Dv KERN_POOL_CACHE
+.Xr sysctl 2
+MIB hierarchy.
+.Bd -literal -offset indent
+struct kinfo_pool_cache {
+	uint64_t	pr_ngc;
+	unsigned int	pr_len;
+	unsigned int	pr_nitems;
+	unsigned int	pr_contention;
+};
+.Ed
+.Pp
+.Va pr_ngc
+indicates the number of times the garbage collector has recovered
+an idle item free list.
+.Pp
+.Va pr_len
+shows the maximum number of items that can be cached on a CPU's
+active free list.
+.Pp
+.Va pr_nitems
+shows the number of free items that are currently stored in the
+global depot.
+.Pp
+.Va pr_contention
+indicates the number of times that there was contention on the lock
+protecting the global depot.
+.Pp
+The
+.Vt kinfo_pool_cache_cpus
+struct provides information about the number of times the cache on
+a CPU handled certain operations.
+These counters may be accessed via a node for each pool under the
+.Dv CTL_KERN ,
+.Dv KERN_POOL ,
+.Dv KERN_POOL_CACHE_CPUS
+.Xr sysctl 2
+MIB hierarchy.
+This sysctl returns an array of
+.Vt kinfo_pool_cache_cpus
+structures sized by the number of CPUs found in the system.
+The number of CPUs in the system can be read from the
+.Dv CTL_HW ,
+.Dv HW_NCPUFOUND
+sysctl MIB.
+.Bd -literal -offset indent
+struct kinfo_pool_cache_cpu {
+	unsigned int	pr_cpu;
+	uint64_t	pr_nget;
+	uint64_t	pr_nfail;
+	uint64_t	pr_nput;
+	uint64_t	pr_nlget;
+	uint64_t	pr_nlfail;
+	uint64_t	pr_nlput;
+};
+.Ed
+.Pp
+.Va pr_cpu
+indicates which CPU performed the relevant operations.
+.Pp
+.Va pr_nget
+and
+.Va pr_nfail
+show the number of times the CPU successfully or unsuccessfully handled a
+.Xr pool_get 9
+operation respectively.
+.Va pr_nput
+shows the number of times the CPU handled a
+.Xr pool_put 9
+operation.
+.Pp
+.Va pr_nlget
+and
+.Va pr_nlfail
+show the number of times the CPU successfully or unsuccessfully
+requested a list of free items from the global depot.
+.Va pr_nlput
+shows the number of times the CPU pushed a list of free items to
+the global depot.
+.Sh CONTEXT
+.Fn pool_cache_init
+and
+.Fn pool_cache_destroy
+can be called from process context.
+.Sh CODE REFERENCES
+The pool implementation is in the file
+.Pa sys/kern/subr_pool.c .
+.Sh SEE ALSO
+.Xr systat 1 ,
+.Xr sysctl 2 ,
+.Xr pool_get 9
+.Sh CAVEATS
+Because the intention of per CPU pool caches is to avoid having
+all CPUs coordinate via shared data structures for handling
+.Xr pool_get 9
+and
+.Xr pool_put 9
+operations, any limits set on the pool with
+.Xr pool_sethardlimit 9
+are ignored.
+If limits on the memory used by a pool with per CPU caches enabled
+are needed, they must be enforced by a page allocator specified
+when a pool is set up with
+.Xr pool_init 9 .

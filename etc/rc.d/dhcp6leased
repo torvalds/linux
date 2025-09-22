@@ -1,0 +1,16 @@
+#!/bin/ksh
+#
+# $OpenBSD: dhcp6leased,v 1.1 2024/06/03 10:06:35 florian Exp $
+
+daemon="/sbin/dhcp6leased"
+
+. /etc/rc.d/rc.subr
+
+rc_configtest() {
+	# use rc_exec here since daemon_flags may contain arguments with spaces
+	rc_exec "${daemon} -n ${daemon_flags}"
+}
+
+rc_reload=NO
+
+rc_cmd $1

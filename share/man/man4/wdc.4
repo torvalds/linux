@@ -1,0 +1,88 @@
+.\"	$OpenBSD: wdc.4,v 1.16 2007/05/31 19:19:53 jmc Exp $
+.\"	$NetBSD: wdc.4,v 1.4 1999/05/19 14:44:02 bouyer Exp $
+.\"
+.\" Copyright (c) 1998 Manuel Bouyer.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt WDC 4
+.Os
+.Sh NAME
+.Nm wdc
+.Nd WD100x compatible hard disk controller driver
+.Sh SYNOPSIS
+.Cd "# alpha/i386"
+.Cd "wdc0 at isa? port 0x1f0 irq 14 flags 0x00"
+.Cd "wdc1 at isa? port 0x170 irq 15 flags 0x00"
+.Cd "wdc* at isapnp?"
+.Pp
+.Cd "# macppc"
+.Cd "wdc* at macobio?"
+.Cd "wdc* at kauaiata?"
+.Pp
+.Cd "# landisk"
+.Cd wdc0 at obio? port 0x14000000 irq 10
+.Pp
+.Cd "# all architectures"
+.Cd "wdc* at pcmcia?"
+.Pp
+.Cd "atapiscsi* at wdc?* flags 0x0000"
+.Cd "wd* at wdc? flags 0x0000"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides the basic functions for the
+.Xr wd 4
+and
+.Xr atapiscsi 4
+drivers.
+It supports IDE and EIDE controllers, as well as MFM, RLL, and ESDI on
+the ISA bus.
+PCI IDE controllers in legacy mode are also supported, but the
+.Xr pciide 4
+driver may provide more functionality.
+.Pp
+For the
+.Xr isa 4
+front-end, setting
+.Cm flags
+to 0x01 enables 32-bit I/O negotiation.
+This is known to cause problems with some motherboards.
+.Sh SEE ALSO
+.Xr atapiscsi 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr isapnp 4 ,
+.Xr macobio 4 ,
+.Xr obio 4 ,
+.Xr pciide 4 ,
+.Xr pcmcia 4 ,
+.Xr scsi 4 ,
+.Xr wd 4

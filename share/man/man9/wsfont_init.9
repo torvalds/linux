@@ -1,0 +1,188 @@
+.\"	$OpenBSD: wsfont_init.9,v 1.2 2019/05/10 17:24:53 schwarze Exp $
+.\"     $NetBSD: wsfont.9,v 1.18 2012/01/13 23:09:51 wiz Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Gregory McGarry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 10 2019 $
+.Dt WSFONT_INIT 9
+.Os
+.Sh NAME
+.Nm wsfont_init ,
+.Nm wsfont_find ,
+.Nm wsfont_add ,
+.Nm wsfont_remove ,
+.Nm wsfont_enum ,
+.Nm wsfont_lock ,
+.Nm wsfont_unlock ,
+.Nm wsfont_map_unichar
+.Nd wscons font support
+.Sh SYNOPSIS
+.In dev/wscons/wsconsio.h
+.In dev/wsfont/wsfont.h
+.Ft void
+.Fn wsfont_init "void"
+.Ft int
+.Fn wsfont_find "const char *name" "int width" "int height" "int stride"
+.Ft int
+.Fn wsfont_add "struct wsdisplay_font *font" "int copy"
+.Ft int
+.Fn wsfont_remove "int cookie"
+.Ft void
+.Fn wsfont_enum "int (*cb)(void *, struct wsdisplay_font *)" "void *cbarg"
+.Ft int
+.Fn wsfont_lock "int cookie" "struct wsdisplay_font **ptr" "int bitorder" \
+"int byteorder"
+.Ft int
+.Fn wsfont_unlock "int cookie"
+.Ft int
+.Fn wsfont_map_unichar "struct wsdisplay_font *font" "int c"
+.Sh DESCRIPTION
+The wsfont module is a component of the wscons
+.\" .Xr wscons 9
+framework to provide access to display fonts.
+Fonts may be loaded dynamically into the kernel or included statically
+in the kernel at compile time.
+Display drivers which emulate a glass-tty console on a bit-mapped
+display can add, remove and find fonts for use by device-dependent
+blitter operations.
+.Pp
+The primary data type for manipulating fonts is the
+.Vt wsdisplay_font
+structure in
+.In dev/wscons/wsconsio.h :
+.Bd -literal
+struct wsdisplay_font {
+	char name[WSFONT_NAME_SIZE];	/* font name */
+	int index;
+	int firstchar;
+	int numchars;			/* size of font table */
+	int encoding;			/* font encoding */
+	u_int fontwidth;		/* character width */
+	u_int fontheight;		/* character height */
+	u_int stride;
+	int bitorder;
+	int byteorder;
+	void *cookie;
+	void *data;			/* pointer to font table */
+};
+.Ed
+.Pp
+The maximum font table size is
+.Dv WSDISPLAY_MAXFONTSZ .
+.Pp
+The wsfont framework supports fonts with the following encodings:
+.Bl -tag -width compact
+.It Dv WSDISPLAY_FONTENC_ISO
+ISO-encoded fonts.
+.It Dv WSDISPLAY_FONTENC_IBM
+IBM-encoded fonts commonly available for IBM CGA, EGA and VGA display
+adapters.
+.El
+.Sh FUNCTIONS
+.Bl -tag -width compact
+.It Fn wsfont_init "void"
+Initialise the font list with the built-in fonts.
+.It Fn wsfont_find "name" "width" "height" "stride"
+Find the font called
+.Fa name
+from the fonts loaded into the kernel.
+The font aspect is specified by
+.Fa width ,
+.Fa height ,
+and
+.Fa stride .
+If
+.Fn wsfont_find
+is called with any of the parameters as 0, it indicates that we don't
+care about that aspect of the font.
+If the font is found, a (nonnegative-valued) cookie is returned which
+can be used with the other functions.
+.Pp
+When more flexibility is required,
+.Fn wsfont_enum
+should be used.
+.It Fn wsfont_add "font" "copy"
+Add a font
+.Fa font
+to the font list.
+If the
+.Fa copy
+argument is non-zero, then the font is physically copied, otherwise a
+reference to the original font is made.
+.It Fn wsfont_remove "cookie"
+Remove the font specified by
+.Fa cookie
+from the font list.
+The value of cookie was returned by
+.Fn wsfont_add .
+.It Fn wsfont_enum "callback" "cbarg"
+Enumerate the list of fonts.
+For each font in the font list, the
+.Fa callback
+function argument is called with the
+.Fa cbarg
+argument.
+.It Fn wsfont_lock "cookie" "ptr" "bitorder" "byteorder"
+Lock access to the font specified by
+.Fa cookie
+so that it cannot be unloaded from the kernel while it is being used.
+If the bit or byte order of the font to be locked differs from what
+has been requested via the
+.Fa bitorder
+and
+.Fa byteorder
+arguments, then the glyph data will be modified to match.
+.Pp
+The address of the
+.Vt wsdisplay_font
+pointer for the specified font is returned in
+the
+.Fa ptr
+argument.
+.Pp
+.Fn wsfont_lock
+returns lockcount on success, or an error code on failure.
+.It Fn wsfont_unlock "cookie"
+Unlock the font specified by
+.Fa cookie .
+Returns lockcount on success, or an error code on failure.
+.It Fn wsfont_map_unichar "font" "c"
+Remap the unicode character
+.Fa c
+to glyph for font
+.Fa font .
+Returns the glyph on success or \-1 on error.
+.El
+.Sh CODE REFERENCES
+The wscons subsystem is implemented within the directory
+.Pa sys/dev/wscons .
+The wsfont subsystem itself is implemented within the file
+.Pa sys/dev/wsfont/wsfont.c .
+.Sh SEE ALSO
+.Xr wsfontload 8 ,
+.Xr intro 9

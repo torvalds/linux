@@ -1,0 +1,333 @@
+.\"	$OpenBSD: strptime.3,v 1.31 2025/08/26 22:30:42 millert Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 2005, 2008 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This file was contributed to The NetBSD Foundation by Klaus Klein.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 26 2025 $
+.Dt STRPTIME 3
+.Os
+.Sh NAME
+.Nm strptime
+.Nd converts a character string to a time value
+.Sh SYNOPSIS
+.In time.h
+.Ft char *
+.Fn strptime "const char *buf" "const char *format" "struct tm *tm"
+.Sh DESCRIPTION
+The
+.Nm
+function parses the string
+.Fa buf
+according to the specified
+.Fa format
+and fills matching data into the structure
+.Fa tm
+(described in
+.Xr mktime 3 ) .
+.Pp
+The
+.Fa format
+string consists of zero or more directives.
+A directive is composed of either one or more whitespace characters as
+defined by
+.Xr isspace 3 ,
+an ordinary character (neither
+.Sq %
+nor a whitespace), or a conversion
+specification.
+A conversion specification consists of a percent sign
+.Pq Sq %
+followed by one or two conversion characters which specify the
+replacement required.
+There must be whitespace or other
+non-alphanumeric characters between any two conversion specifications.
+.Pp
+The following conversion specifications are supported:
+.Bl -tag -width "xxxx"
+.It Cm \&%a
+the day of week, using the locale's weekday names;
+either the abbreviated or full name may be specified.
+.It Cm \&%A
+the same as
+.Cm \&%a .
+.It Cm \&%b
+the month, using the locale's month names;
+either the abbreviated or full name may be specified.
+.It Cm \&%B
+the same as
+.Cm \&%b .
+.It Cm \&%c
+the date and time, using the locale's date and time format.
+.It Cm \&%C
+the century number [0,99]; leading zeros are permitted but not required.
+Note that the converted value is added to the current value of the
+.Fa tm_year
+field (in order that the "\&%y" conversion be useful).
+.It Cm \&%d
+the day of month [1,31];
+leading zeros are permitted but not required.
+.It Cm \&%D
+the date as %m/%d/%y.
+.It Cm \&%e
+the day of month [1,31];
+leading spaces or zeros are permitted but not required.
+.It Cm \&%F
+the date as %Y-%m-%d
+(the
+.St -iso8601
+date format).
+.It Cm \&%g
+the year corresponding to the ISO week number, without the century.
+.It Cm \&%G
+the year corresponding to the ISO week number, with the century.
+.It Cm \&%h
+the same as
+.Cm \&%b .
+.It Cm \&%H
+the hour (24-hour clock) [0,23];
+leading zeros are permitted but not required.
+.It Cm \&%I
+the hour (12-hour clock) [1,12];
+leading zeros are permitted but not required.
+.It Cm \&%j
+the day number of the year [1,366];
+leading zeros are permitted but not required.
+.It Cm \&%k
+the same as
+.Cm \&%H .
+.It Cm \&%l
+the same as
+.Cm \&%I .
+.It Cm \&%m
+the month number [1,12];
+leading zeros are permitted but not required.
+.It Cm \&%M
+the minute [0,59];
+leading zeros are permitted but not required.
+.It Cm \&%n
+any whitespace.
+.It Cm \&%p
+the locale's equivalent of
+.Dq AM
+or
+.Dq PM .
+.It Cm \&%r
+the time as %I:%M:%S %p.
+.It Cm \&%R
+the time as %H:%M.
+.It Cm \&%S
+the seconds [0,60];
+leading zeros are permitted but not required.
+.It Cm \&%s
+the number of seconds since the Epoch, UTC (see
+.Xr mktime 3 ) .
+.It Cm \&%t
+any whitespace.
+.It Cm \&%T
+the time as %H:%M:%S.
+.It Cm \&%u
+the day of the week as a decimal number, where Monday = 1.
+.It Cm \&%U
+the week number of the year (Sunday as the first day of the week)
+as a decimal number [0,53];
+leading zeros are permitted but not required.
+All days in a year preceding the first Sunday are considered to be in week 0.
+.It Cm \&%V
+the
+.St -iso8601
+week number as a decimal number.
+If the week (starting on Monday) that contains January 1 has more than
+three days in the new year, then it is considered the first week of the
+year.
+If it has fewer than four days in the new year, then it is considered
+the last week of the previous year.
+Weeks are numbered from 1 to 53.
+.It Cm \&%v
+the date as %e-%b-%Y.
+.It Cm \&%w
+the weekday as a decimal number [0,6], with 0 representing Sunday;
+leading zeros are permitted but not required.
+.It Cm \&%W
+the week number of the year (Monday as the first day of the week)
+as a decimal number [0,53];
+leading zeros are permitted but not required.
+All days in a year preceding the first Monday are considered to be in week 0.
+.It Cm \&%x
+the date, using the locale's date format.
+.It Cm \&%X
+the time, using the locale's time format.
+.It Cm \&%y
+the year within the current century.
+When a century is not otherwise
+specified, values in the range 69\-99 refer to years in the twentieth
+century (1969 to 1999 inclusive); values in the range 00\-68 refer
+to years in the twenty-first century (2000 to 2068 inclusive).
+Leading zeros are permitted but not required.
+.It Cm \&%Y
+the year, including the century (i.e., 1998).
+.It Cm \&%z
+an
+.St -iso8601
+or RFC 5322 timezone specification.
+This is one of the following:
+the offset from
+Coordinated Universal Time
+.Pq Ql UTC
+specified as:
+.Dq [+-]hhmm ,
+.Dq [+-]hh:mm ,
+or
+.Dq [+-]hh ;
+.Ql UTC
+specified as:
+.Dq GMT
+.Pq Ql Greenwich Mean Time ,
+.Dq UT
+.Pq Ql Universal Time ,
+or
+.Dq Z
+.Pq Ql Zulu Time ;
+a three character US timezone specified as:
+.Dq EDT ,
+.Dq EST ,
+.Dq CDT ,
+.Dq CST ,
+.Dq MDT ,
+.Dq MST ,
+.Dq PDT ,
+or
+.Dq PST ,
+with the first letter standing for
+.Ql Eastern
+.Pq Dq E ,
+.Ql Central
+.Pq Dq C ,
+.Ql Mountain
+.Pq Dq M
+or
+.Ql Pacific
+.Pq Dq P ,
+and the second letter standing for
+.Ql Daylight
+.Po
+.Dq D
+or summer
+.Pc
+time
+or
+.Ql Standard
+.Pq Dq S
+time.
+.It Cm \&%Z
+timezone name or no characters when timezone information is unavailable.
+.It Cm \&%%
+A `%' is read.
+No argument is converted.
+.El
+.Pp
+The
+.Ox
+implementation always uses the C locale and ignores the
+global locale and the thread-specific locale.
+Alternative conversion modifiers have no effect.
+.Pp
+There is no way to specify whether Daylight Saving Time is in effect when
+calling
+.Nm .
+To use the resulting
+.Fa tm
+structure with functions that check the
+.Fa tm_isdst
+field, either set it to a negative value, which will cause
+.Xr mktime 3
+to attempt to divine whether Daylight Saving Time would be in effect
+for the given time, or compute the value manually.
+.Ss Modified conversion specifications
+For compatibility, certain conversion specifications can be modified
+by the
+.Cm E
+and
+.Cm O
+modifier characters to indicate that an alternative format or
+specification should be used rather than the one normally used by the
+unmodified conversion specification.
+As there are currently neither
+alternative formats nor specifications supported by the system, the
+behavior will be as if the unmodified conversion specification were
+used.
+.Pp
+Case is ignored when matching string items in
+.Fa buf ,
+such as month and weekday names.
+.Sh RETURN VALUES
+If successful, the
+.Nm
+function returns a pointer to the character following the last character
+parsed.
+Otherwise, a null pointer is returned.
+.Sh SEE ALSO
+.Xr mktime 3 ,
+.Xr strftime 3
+.Sh STANDARDS
+The
+.Fn strptime
+function conforms to the X/Open System Interfaces option of
+.St -p1003.1-2008 ,
+except that flags and field width specifications are not supported.
+.Pp
+The
+.Ql \&%F ,
+.Ql \&%g ,
+.Ql \&%G ,
+.Ql \&%k ,
+.Ql \&%l ,
+.Ql \&%s ,
+.Ql \&%u ,
+.Ql \&%V ,
+.Ql \&%z ,
+and
+.Ql \&%Z
+conversion specifications are extensions.
+.Sh CAVEATS
+On systems other than
+.Ox ,
+the
+.Dv LC_TIME
+.Xr locale 1
+category can cause parsing failures; see CAVEATS in
+.Xr setlocale 3
+for details.
+.Sh BUGS
+The
+.Cm \&%Z
+format specifier only accepts timezone
+abbreviations of the local timezone,
+or the value
+.Dq GMT .
+This limitation is caused by the ambiguity
+of overloaded timezone abbreviations,
+for example EST is both Eastern Standard
+Time and Eastern Australia Summer Time.

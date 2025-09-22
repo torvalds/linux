@@ -1,0 +1,75 @@
+.\" $OpenBSD: ehci.4,v 1.15 2021/12/29 18:44:52 patrick Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 29 2021 $
+.Dt EHCI 4
+.Os
+.Sh NAME
+.Nm ehci
+.Nd USB Enhanced Host Controller Interface
+.Sh SYNOPSIS
+.Cd "ehci* at acpi?"
+.Cd "ehci* at cardbus?"
+.Cd "ehci* at fdt?"
+.Cd "ehci* at pci?"
+.Cd "usb*  at ehci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the USB Enhanced Host Controller Interface,
+which provides an interface to
+.Xr usb 4
+devices.
+.Pp
+EHCI controllers are peculiar in that they can only handle the USB 2.0
+protocol.
+This means that they normally have one or more companion controllers
+(i.e.,
+.Xr ohci 4
+or
+.Xr uhci 4 )
+or an internal rate-matching hub to handle USB 1.x devices.
+.Pp
+If at least one companion controller is present, each USB connector is
+electrically connected to two USB controllers.
+The handling of this is totally automatic,
+but can be noticed since USB 1.x and USB 2.0 devices plugged in to the same
+connector appear to connect to different USB buses.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr cardbus 4 ,
+.Xr ohci 4 ,
+.Xr pci 4 ,
+.Xr uhci 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver has been available since
+.Ox 3.6 .

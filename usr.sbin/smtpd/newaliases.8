@@ -1,0 +1,86 @@
+.\"	$OpenBSD: newaliases.8,v 1.12 2018/07/20 15:35:33 millert Exp $
+.\"
+.\" Copyright (c) 2009 Jacek Masiulaniec <jacekm@openbsd.org>
+.\" Copyright (c) 2008-2009 Gilles Chehade <gilles@poolp.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 20 2018 $
+.Dt NEWALIASES 8
+.Os
+.Sh NAME
+.Nm newaliases
+.Nd rebuild mail aliases
+.Sh SYNOPSIS
+.Nm newaliases
+.Op Fl f Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility makes changes to the mail aliases file visible to
+.Xr smtpd 8 .
+It should be run every time the
+.Xr aliases 5
+file is changed.
+The location of the alias file is defined in
+.Xr smtpd.conf 5 ,
+and defaults to
+.Pa /etc/mail/aliases .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl f Ar file
+Use
+.Ar file
+as the configuration file,
+instead of the default
+.Pa /etc/mail/smtpd.conf .
+.El
+.Pp
+If using database (db) files,
+.Nm
+is equivalent to running
+.Xr makemap 8
+as follows:
+.Bd -literal -offset indent
+# makemap -t aliases /etc/mail/aliases
+.Ed
+.Pp
+If using plain text files,
+.Nm
+is equivalent to running
+.Xr smtpctl 8
+as follows:
+.Bd -literal -offset indent
+# smtpctl update table aliases
+.Ed
+.Sh FILES
+.Bl -tag -width "/etc/mail/aliasesXXX" -compact
+.It Pa /etc/mail/aliases
+List of local user mail aliases.
+.It Pa /etc/mail/virtual
+List of virtual host aliases.
+.El
+.Sh EXIT STATUS
+.Ex -std newaliases
+.Sh SEE ALSO
+.Xr smtpd.conf 5 ,
+.Xr makemap 8 ,
+.Xr smtpctl 8 ,
+.Xr smtpd 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 4.6
+as a replacement for the equivalent command shipped with sendmail.

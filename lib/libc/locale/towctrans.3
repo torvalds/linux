@@ -1,0 +1,97 @@
+.\" $OpenBSD: towctrans.3,v 1.3 2017/09/05 03:16:13 schwarze Exp $
+.\" $NetBSD: towctrans.3,v 1.5 2004/01/24 16:58:54 wiz Exp $
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2003 Citrus Project
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 5 2017 $
+.Dt TOWCTRANS 3
+.Os
+.Sh NAME
+.Nm towctrans ,
+.Nm towctrans_l
+.Nd convert a wide character with a specified map
+.Sh SYNOPSIS
+.In wctype.h
+.Ft wint_t
+.Fn towctrans "wint_t wc" "wctrans_t charmap"
+.Ft wint_t
+.Fn towctrans_l "wint_t wc" "wctrans_t charmap" "locale_t locale"
+.Sh DESCRIPTION
+These functions convert the wide character
+.Fa wc
+with a character mapping
+.Fa charmap .
+.Pp
+The behaviour is undefined if
+.Fa charmap
+or
+.Fa wc
+is invalid.
+When
+.Fa charmap
+is retrieved with
+.Xr wctrans 3 ,
+it becomes invalid when the thread-specific character encoding locale
+is changed with
+.Xr uselocale 3
+or when the global character encoding locale is changed with
+.Xr setlocale 3 .
+When
+.Fa charmap
+is retrieved with
+.Xr wctrans_l 3 ,
+it is only valid for use with the same
+.Fa locale
+argument.
+.Sh RETURN VALUES
+These functions return the resulting wide character, or
+.Fa wc
+if there is no corresponding character in
+.Fa charmap .
+.Sh SEE ALSO
+.Xr iswctype 3 ,
+.Xr newlocale 3 ,
+.Xr setlocale 3 ,
+.Xr towlower 3 ,
+.Xr wctrans 3
+.Sh STANDARDS
+The
+.Fn towctrans
+function conforms to
+.St -isoC-amd1 ,
+and
+.Fn towctrans_l
+to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn towctrans
+function has been available since
+.Ox 3.8 ,
+and
+.Fn towctrans_l
+since
+.Ox 6.2 .

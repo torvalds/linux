@@ -1,0 +1,753 @@
+.\" $OpenBSD: ASN1_TIME_set.3,v 1.24 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 3d0f1cb9 Jul 11 03:01:24 2017 +0800
+.\" selective merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2022 Bob Beck <beck@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>
+.\" and Todd Short <tshort@akamai.com>.
+.\" Copyright (c) 2015, 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_TIME_SET 3
+.Os
+.Sh NAME
+.Nm ASN1_TIME_set ,
+.Nm ASN1_UTCTIME_set ,
+.Nm ASN1_GENERALIZEDTIME_set ,
+.Nm ASN1_TIME_adj ,
+.Nm ASN1_UTCTIME_adj ,
+.Nm ASN1_GENERALIZEDTIME_adj ,
+.Nm ASN1_TIME_set_string ,
+.Nm ASN1_TIME_set_string_X509 ,
+.Nm ASN1_UTCTIME_set_string ,
+.Nm ASN1_GENERALIZEDTIME_set_string ,
+.Nm ASN1_TIME_normalize ,
+.Nm ASN1_TIME_check ,
+.Nm ASN1_UTCTIME_check ,
+.Nm ASN1_GENERALIZEDTIME_check ,
+.Nm ASN1_TIME_print ,
+.Nm ASN1_UTCTIME_print ,
+.Nm ASN1_GENERALIZEDTIME_print ,
+.Nm ASN1_TIME_to_tm ,
+.Nm ASN1_TIME_diff ,
+.Nm ASN1_TIME_cmp_time_t ,
+.Nm ASN1_UTCTIME_cmp_time_t ,
+.Nm ASN1_TIME_compare ,
+.Nm ASN1_TIME_to_generalizedtime ,
+.Nm OPENSSL_gmtime ,
+.Nm OPENSSL_timegm ,
+.Nm OPENSSL_posix_to_tm ,
+.Nm OPENSSL_tm_to_posix
+.Nd ASN.1 Time functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft ASN1_TIME *
+.Fo ASN1_TIME_set
+.Fa "ASN1_TIME *s"
+.Fa "time_t t"
+.Fc
+.Ft ASN1_UTCTIME *
+.Fo ASN1_UTCTIME_set
+.Fa "ASN1_UTCTIME *s"
+.Fa "time_t t"
+.Fc
+.Ft ASN1_GENERALIZEDTIME *
+.Fo ASN1_GENERALIZEDTIME_set
+.Fa "ASN1_GENERALIZEDTIME *s"
+.Fa "time_t t"
+.Fc
+.Ft ASN1_TIME *
+.Fo ASN1_TIME_adj
+.Fa "ASN1_TIME *s"
+.Fa "time_t t"
+.Fa "int offset_day"
+.Fa "long offset_sec"
+.Fc
+.Ft ASN1_UTCTIME *
+.Fo ASN1_UTCTIME_adj
+.Fa "ASN1_UTCTIME *s"
+.Fa "time_t t"
+.Fa "int offset_day"
+.Fa "long offset_sec"
+.Fc
+.Ft ASN1_GENERALIZEDTIME *
+.Fo ASN1_GENERALIZEDTIME_adj
+.Fa "ASN1_GENERALIZEDTIME *s"
+.Fa "time_t t"
+.Fa "int offset_day"
+.Fa "long offset_sec"
+.Fc
+.Ft int
+.Fo ASN1_TIME_set_string
+.Fa "ASN1_TIME *s"
+.Fa "const char *str"
+.Fc
+.Ft int
+.Fo ASN1_TIME_set_string_X509
+.Fa "ASN1_TIME *s"
+.Fa "const char *str"
+.Fc
+.Ft int
+.Fo ASN1_UTCTIME_set_string
+.Fa "ASN1_UTCTIME *s"
+.Fa "const char *str"
+.Fc
+.Ft int
+.Fo ASN1_GENERALIZEDTIME_set_string
+.Fa "ASN1_GENERALIZEDTIME *s"
+.Fa "const char *str"
+.Fc
+.Ft int
+.Fo ASN1_TIME_normalize
+.Fa "ASN1_TIME *s"
+.Fc
+.Ft int
+.Fo ASN1_TIME_check
+.Fa "const ASN1_TIME *t"
+.Fc
+.Ft int
+.Fo ASN1_UTCTIME_check
+.Fa "const ASN1_UTCTIME *t"
+.Fc
+.Ft int
+.Fo ASN1_GENERALIZEDTIME_check
+.Fa "const ASN1_GENERALIZEDTIME *t"
+.Fc
+.Ft int
+.Fo ASN1_TIME_print
+.Fa "BIO *b"
+.Fa "const ASN1_TIME *s"
+.Fc
+.Ft int
+.Fo ASN1_UTCTIME_print
+.Fa "BIO *b"
+.Fa "const ASN1_UTCTIME *s"
+.Fc
+.Ft int
+.Fo ASN1_GENERALIZEDTIME_print
+.Fa "BIO *b"
+.Fa "const ASN1_GENERALIZEDTIME *s"
+.Fc
+.Ft int
+.Fo ASN1_TIME_to_tm
+.Fa "const ASN1_TIME *s"
+.Fa "struct tm *tm"
+.Fc
+.Ft int
+.Fo ASN1_TIME_diff
+.Fa "int *pday"
+.Fa "int *psec"
+.Fa "const ASN1_TIME *from"
+.Fa "const ASN1_TIME *to"
+.Fc
+.Ft int
+.Fo ASN1_TIME_cmp_time_t
+.Fa "const ASN1_TIME *s"
+.Fa "time_t t"
+.Fc
+.Ft int
+.Fo ASN1_UTCTIME_cmp_time_t
+.Fa "const ASN1_UTCTIME *s"
+.Fa "time_t t"
+.Fc
+.Ft int
+.Fo ASN1_TIME_compare
+.Fa "const ASN1_TIME *s"
+.Fa "const ASN1_TIME *t"
+.Fc
+.Ft ASN1_GENERALIZEDTIME *
+.Fo ASN1_TIME_to_generalizedtime
+.Fa "const ASN1_TIME *t"
+.Fa "ASN1_GENERALIZEDTIME **out"
+.Fc
+.In openssl/crypto.h
+.Ft struct tm *
+.Fo OPENSSL_gmtime
+.Fa "const time_t *time"
+.Fa "struct tm *out_tm"
+.Fc
+.In openssl/posix_time.h
+.Ft int
+.Fo OPENSSL_timegm
+.Fa "const struct tm *tm"
+.Fa "time_t *out_time"
+.Fc
+.Ft int
+.Fo OPENSSL_posix_to_tm
+.Fa "int64_t time"
+.Fa "struct tm *out_tm"
+.Fc
+.Ft int
+.Fo OPENSSL_tm_to_posix
+.Fa "struct tm *t_tm"
+.Fa "int64_t *out"
+.Fc
+.Sh DESCRIPTION
+An
+.Vt ASN1_TIME
+object is a shallow wrapper around a string containing an ASN.1
+.Vt Time
+value in the restricted format valid in X.509 certificates.
+An
+.Vt ASN1_TIME
+object is either an
+.Vt ASN1_UTCTIME
+object containing a string of the format
+.Ar YYMMDDHHMMSS Ns Cm Z
+which is valid for the years 1950 to 2049, or an
+.Vt ASN1_GENERALIZEDTIME
+object containing a string of the format
+.Ar YYYYMMDDHHMMSS Ns Cm Z
+which is valid for the years 0000 to 1949 and 2050 to 9999.
+In both cases, the mandatory suffix
+.Sq Cm Z
+represents the GMT time zone.
+LibreSSL by design does not support the full syntax of ASN.1 times.
+In particular, it neither supports fractional seconds
+nor any other time zone.
+.Pp
+The functions
+.Fn ASN1_TIME_set ,
+.Fn ASN1_UTCTIME_set ,
+and
+.Fn ASN1_GENERALIZEDTIME_set
+set the time object
+.Fa s
+to the time represented by the
+.Vt time_t
+value
+.Fa t .
+If
+.Fa s
+is
+.Dv NULL ,
+a new time object is allocated and returned.
+.Pp
+The functions
+.Fn ASN1_TIME_adj ,
+.Fn ASN1_UTCTIME_adj ,
+and
+.Fn ASN1_GENERALIZEDTIME_adj
+set the time object
+.Fa s
+to the time represented by the time
+.Fa offset_day
+and
+.Fa offset_sec
+after the
+.Vt time_t
+value
+.Fa t .
+The values of
+.Fa offset_day
+or
+.Fa offset_sec
+can be negative to set a time before
+.Fa t .
+The
+.Fa offset_sec
+value can also exceed the number of seconds in a day.
+If
+.Fa s
+is
+.Dv NULL ,
+a new time object is allocated and returned.
+.Pp
+.Fn ASN1_TIME_adj
+may change the type from
+.Vt ASN1_GENERALIZEDTIME
+to
+.Vt ASN1_UTCTIME
+or vice versa depending on the resulting year.
+The functions
+.Fn ASN1_UTCTIME_adj
+and
+.Fn ASN1_GENERALIZEDTIME_adj
+do not modify the type of the return object.
+.Pp
+The functions
+.Fn ASN1_TIME_set_string ,
+.Fn ASN1_TIME_set_string_X509 ,
+.Fn ASN1_UTCTIME_set_string ,
+and
+.Fn ASN1_GENERALIZEDTIME_set_string
+set the time object
+.Fa s
+to the time string
+.Fa str ,
+which must be in appropriate ASN.1 time format:
+YYMMDDHHMMSSZ for
+.Vt ASN1_UTCTIME ,
+YYYYMMDDHHMMSSZ for
+.Vt ASN1_GENERALIZEDTIME ,
+or either of the two for
+.Vt ASN1_TIME .
+The string
+.Fa str
+is copied into
+.Fa s .
+If
+.Fa s
+is
+.Dv NULL ,
+these functions only perform a format check on
+.Fa str .
+.Pp
+In LibreSSL,
+.Fn ASN1_TIME_set_string
+and
+.Fn ASN1_TIME_set_string_X509
+behave identically and always set the time object
+to a valid value to use in an X.509 certificate.
+.Fn ASN1_GENERALIZEDTIME_set_string
+may encode a time string that is not valid in an X.509 certificate.
+.Pp
+The function
+.Fn ASN1_TIME_normalize
+converts an
+.Vt ASN1_GENERALIZEDTIME
+into a time value that can be used in a certificate
+by changing it to an
+.Vt ASN1_UTCTIME
+if possible.
+It has no effect on an
+.Vt ASN1_UTCTIME .
+.Pp
+The functions
+.Fn ASN1_TIME_check ,
+.Fn ASN1_UTCTIME_check ,
+and
+.Fn ASN1_GENERALIZEDTIME_check
+check the syntax of the time string contained in the object
+.Fa s .
+.Pp
+The functions
+.Fn ASN1_TIME_print ,
+.Fn ASN1_UTCTIME_print ,
+and
+.Fn ASN1_GENERALIZEDTIME_print
+print out the time
+.Fa s
+to
+.Vt BIO
+.Fa b
+in human readable format.
+It will be of the format MMM DD HH:MM:SS YYYY [GMT], for example "Feb 3
+00:55:52 2015 GMT".
+It does not include a newline.
+If the time string has an invalid format,
+it prints out "Bad time value" and returns an error.
+.Pp
+The function
+.Fn ASN1_TIME_to_tm
+converts the time
+.Fa s
+to the standard
+.Vt tm
+structure.
+If
+.Fa s
+is
+.Dv NULL ,
+then the current time is converted.
+The output time is always in the GMT time zone.
+The
+.Fa tm_sec , tm_min , tm_hour , tm_mday , tm_mon ,
+and
+.Fa tm_year
+fields of the
+.Vt tm
+structure are set to the proper values,
+whereas all other fields are set to 0.
+If
+.Fa tm
+is
+.Dv NULL ,
+this function performs a format check on
+.Fa s
+only.
+.Pp
+The function
+.Fn ASN1_TIME_diff
+sets
+.Pf * Fa pday
+and
+.Pf * Fa psec
+to the time difference between
+.Fa from
+and
+.Fa to .
+If
+.Fa to
+represents a time later than
+.Fa from ,
+then one or both (depending on the time difference) of
+.Pf * Fa pday
+and
+.Pf * Fa psec
+will be positive.
+If
+.Fa to
+represents a time earlier than
+.Fa from ,
+then one or both of
+.Pf * Fa pday
+and
+.Pf * Fa psec
+will be negative.
+If
+.Fa to
+and
+.Fa from
+represent the same time, then
+.Pf * Fa pday
+and
+.Pf * Fa psec
+will both be zero.
+If both
+.Pf * Fa pday
+and
+.Pf * Fa psec
+are nonzero, they will always have the same sign.
+The value of
+.Pf * Fa psec
+will always be less than the number of seconds in a day.
+If
+.Fa from
+or
+.Fa to
+is
+.Dv NULL ,
+the current time is used.
+.Pp
+The functions
+.Fn ASN1_TIME_cmp_time_t ,
+.Fn ASN1_UTCTIME_cmp_time_t ,
+and
+.Fn ASN1_TIME_compare
+compare the two times represented by
+.Fa s
+and
+.Fa t .
+.Pp
+The function
+.Fn ASN1_TIME_to_generalizedtime
+converts the
+.Vt ASN1_TIME
+.Fa t
+to an
+.Vt ASN1_GENERALIZEDTIME ,
+regardless of year.
+If either
+.Fa out
+or
+.Pf * Fa out
+is
+.Dv NULL ,
+then a new object is allocated and must be freed after use.
+.Pp
+The
+.Vt ASN1_TIME ,
+.Vt ASN1_UTCTIME ,
+and
+.Vt ASN1_GENERALIZEDTIME
+objects are represented as
+.Vt ASN1_STRING
+objects internally and can be freed using
+.Xr ASN1_STRING_free 3 .
+.Pp
+It is recommended that
+.Vt ASN1_TIME
+functions be used instead of
+.Vt ASN1_UTCTIME
+or
+.Vt ASN1_GENERALIZEDTIME
+functions because the
+.Vt ASN1_UTCTIME
+and
+.Vt ASN1_GENERALIZEDTIME
+functions act only on that specific time format, while the
+.Vt ASN1_TIME
+functions operate on either format.
+.Pp
+.Fn OPENSSL_gmtime
+converts a time_t value in
+.Fa time
+to a struct tm in
+.Fa out_tm
+and also returns the struct passed in on success.
+.Pp
+.Fn OPENSSL_timegm
+converts a time structure in UTC time in
+.Fa tm
+to a time_t value in
+.Fa out_time .
+.Pp
+.Fn OPENSSL_posix_to_tm
+converts an
+.Vt int64_t
+POSIX time value in
+.Fa time ,
+which must be in the range of year 0 to 9999,
+to a broken out time value in
+.Fa tm .
+.Pp
+.Fn OPENSSL_tm_to_posix
+converts a time value between the years 0 and 9999 in
+.Fa tm
+to a POSIX time value in
+.Fa out .
+.Sh RETURN VALUES
+.Fn ASN1_TIME_set ,
+.Fn ASN1_UTCTIME_set ,
+.Fn ASN1_GENERALIZEDTIME_set ,
+.Fn ASN1_TIME_adj ,
+.Fn ASN1_UTCTIME_adj ,
+.Fn ASN1_GENERALIZEDTIME_adj ,
+and
+.Fn ASN1_TIME_to_generalizedtime
+return a pointer to a time object or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn ASN1_TIME_set_string ,
+.Fn ASN1_TIME_set_string_X509 ,
+.Fn ASN1_UTCTIME_set_string ,
+and
+.Fn ASN1_GENERALIZEDTIME_set_string
+return 1 if the time value is successfully set or 0 otherwise.
+.Pp
+.Fn ASN1_TIME_normalize
+returns 1 on success or 0 on error.
+.Pp
+.Fn ASN1_TIME_check ,
+.Fn ASN1_UTCTIME_check ,
+and
+.Fn ASN1_GENERALIZEDTIME_check
+return 1 if the time string contained in the object is syntactically
+correct or 0 otherwise.
+.Pp
+.Fn ASN1_TIME_print ,
+.Fn ASN1_UTCTIME_print ,
+and
+.Fn ASN1_GENERALIZEDTIME_print
+return 1 if the time is successfully printed or 0 if an error
+occurred (I/O error or invalid time format).
+.Pp
+.Fn ASN1_TIME_to_tm
+returns 1 if the time is successfully parsed
+or 0 if an error occurred, usually due to an invalid time format.
+.Pp
+.Fn ASN1_TIME_diff
+returns 1 for success or 0 for failure.
+It can for example fail if a time string passed in has invalid syntax.
+.Pp
+.Fn ASN1_TIME_cmp_time_t ,
+.Fn ASN1_UTCTIME_cmp_time_t ,
+and
+.Fn ASN1_TIME_compare
+return \-1 if
+.Fa s
+is earlier than
+.Fa t ,
+0 if both are equal, 1 if
+.Fa s
+is later than
+.Fa t ,
+or \-2 on error.
+.Pp
+.Fn OPENSSL_timegm
+returns 1 for success or 0 for failure.
+It can fail if the time is not representable in a time_t,
+or falls outside the range allowed in RFC 5280 times.
+.Pp
+.Fn OPENSSL_gmtime
+returns
+.Fa out_tm
+on success or NULL for failure.
+It can fail if the time is not representable in a struct tm,
+or falls outside the range allowed in RFC 5280 times.
+.Pp
+.Fn OPENSSL_posix_to_tm
+and
+.Fn OPENSSL_tm_to_posix
+return 1 for success or 0 on failure.
+It is a failure if the year is less than 0 or more than 9999.
+.Sh EXAMPLES
+Set a time object to one hour after the current time and print it
+out:
+.Bd -literal -offset indent
+#include <time.h>
+#include <openssl/asn1.h>
+
+ASN1_TIME *asn1_time;
+time_t t;
+BIO *b;
+
+t = time(NULL);
+asn1_time = ASN1_TIME_adj(NULL, t, 0, 60 * 60);
+b = BIO_new_fp(stdout, BIO_NOCLOSE);
+if (asn1_time != NULL) {
+	ASN1_TIME_print(b, asn1_time);
+	BIO_printf(b, "\en");
+} else {
+	BIO_printf(b, "Time out of range or un-representable\en");
+}
+ASN1_STRING_free(asn1_time);
+BIO_free(b);
+.Ed
+.Sh SEE ALSO
+.Xr ASN1_TIME_new 3 ,
+.Xr X509_cmp_time 3
+.Sh STANDARDS
+The usage of the ASN.1
+.Vt Time ,
+.Vt UTCTime ,
+and
+.Vt GeneralizedTime
+data types in X.509 certificates is specified in
+RFC 5280, Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile,
+section 4.1.2.5 (TBS Certificate Validity).
+.Sh HISTORY
+.Fn ASN1_UTCTIME_check
+and
+.Fn ASN1_UTCTIME_print
+first appeared in SSLeay 0.5.1.
+.Fn ASN1_UTCTIME_set
+first appeared in SSLeay 0.6.0.
+.Fn ASN1_UTCTIME_set_string
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn ASN1_TIME_set ,
+.Fn ASN1_GENERALIZEDTIME_set ,
+.Fn ASN1_GENERALIZEDTIME_set_string ,
+.Fn ASN1_GENERALIZEDTIME_check ,
+.Fn ASN1_TIME_print ,
+and
+.Fn ASN1_GENERALIZEDTIME_print
+first appeared in OpenSSL 0.9.2b and have been available since
+.Ox 2.6 .
+.Pp
+.Fn ASN1_UTCTIME_cmp_time_t
+first appeared in OpenSSL 0.9.6 and has been available since
+.Ox 2.9 .
+.Pp
+.Fn ASN1_TIME_check
+and
+.Fn ASN1_TIME_to_generalizedtime
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn ASN1_TIME_adj ,
+.Fn ASN1_UTCTIME_adj ,
+.Fn ASN1_GENERALIZEDTIME_adj ,
+and
+.Fn ASN1_TIME_set_string
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .
+.Pp
+.Fn ASN1_TIME_diff
+first appeared in OpenSSL 1.0.2 and have been available since
+.Ox 7.1 .
+.Pp
+.Fn ASN1_TIME_set_string_X509 ,
+.Fn ASN1_TIME_normalize ,
+.Fn ASN1_TIME_to_tm ,
+.Fn ASN1_TIME_cmp_time_t ,
+and
+.Fn ASN1_TIME_compare
+first appeared in OpenSSL 1.1.1 and have been available since
+.Ox 7.2 .
+.Pp
+.Fn OPENSSL_gmtime
+first appeared in OpenSSL 0.9.7.
+.Fn OPENSSL_timegm ,
+.Fn OPENSSL_posix_to_tm ,
+and
+.Fn OPENSSL_tm_to_posix
+first appeared in BoringSSL;
+all these functions have been available since
+.Ox 7.5 .
+.Sh CAVEATS
+Some applications add offset times directly to a
+.Vt time_t
+value and pass the results to
+.Fn ASN1_TIME_set
+(or equivalent).
+This can cause problems as the
+.Vt time_t
+value can overflow on some systems resulting in unexpected results.
+New applications should use
+.Fn ASN1_TIME_adj
+instead and pass the offset value in the
+.Fa offset_sec
+and
+.Fa offset_day
+parameters instead of directly manipulating a
+.Vt time_t
+value.

@@ -1,0 +1,46 @@
+.\"	$OpenBSD: mail.maildir.8,v 1.6 2021/02/13 07:28:50 jmc Exp $
+.\"
+.\" Copyright (c) 2017 Gilles Chehade <gilles@poolp.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 13 2021 $
+.Dt MAIL.MAILDIR 8
+.Os
+.Sh NAME
+.Nm mail.maildir
+.Nd store mail in a maildir
+.Sh SYNOPSIS
+.Nm mail.maildir
+.Op Fl j
+.Op Ar pathname
+.Sh DESCRIPTION
+.Nm
+reads the standard input up to an end-of-file and adds it to the
+mail directory located in
+.Ar pathname
+or to the mail directory
+.Pa Maildir
+located in the user's home directory.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl j
+Scan the message for an X-Spam header and move to the Junk folder
+if the result is positive.
+.El
+.Sh EXIT STATUS
+.Ex -std mail.maildir
+.Sh SEE ALSO
+.Xr mail 1 ,
+.Xr smtpd 8

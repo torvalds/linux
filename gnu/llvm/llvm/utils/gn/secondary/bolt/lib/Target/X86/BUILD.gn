@@ -1,0 +1,19 @@
+static_library("X86") {
+  output_name = "LLVMBOLTTargetX86"
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [
+    "//bolt/lib/Core",
+    "//bolt/lib/Utils",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/X86/MCTargetDesc",
+  ]
+  sources = [
+    "X86MCPlusBuilder.cpp",
+    "X86MCSymbolizer.cpp",
+  ]
+
+  # This target reaches into the internal headers of LLVM's X86 library.
+  include_dirs = [ "//llvm/lib/Target/X86" ]
+}

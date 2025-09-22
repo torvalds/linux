@@ -1,0 +1,104 @@
+.\"	$OpenBSD: ae1,v 1.3 2004/04/06 08:19:20 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ae1	8.1 (Berkeley) 6/8/93
+.\"
+.NH
+INTRODUCTION
+.PP
+Although
+.UX
+provides remarkably effective tools for text editing,
+that by itself is no guarantee
+that everyone will automatically
+make the most effective use of them.
+In particular, people who are not computer specialists _
+typists, secretaries, casual users _
+often use the system less effectively than they might.
+(There is a good argument that new users would better use their time
+learning a display editor, like 
+.UL vi ,
+or perhaps a version of
+.UL emacs ,
+like
+.UL jove ,
+rather than an editor as ignorant of display terminals as 
+.UL ed .)
+.PP
+This document is intended as a sequel to
+.ul
+A Tutorial Introduction to the UNIX Text Editor
+[1],
+providing explanations and examples of how to edit using
+.ul
+ed
+with less effort.
+(You should also be familiar with the material in
+.ul
+UNIX For Beginners
+[2].)
+Further information on all commands discussed here can be found in
+section 1 of the 
+.ul
+The UNIX User's Manual
+[3].
+.PP
+Examples are based on observations
+of users
+and the difficulties they encounter.
+Topics covered include special characters in searches and substitute commands,
+line addressing, the global commands,
+and line moving and copying.
+There are also brief discussions of
+effective use
+of related tools, like those for file manipulation,
+and those based on
+.UL ed ,
+like
+.UL grep 
+and
+.UL sed .
+.PP
+A word of caution.
+There is only one way to learn to use something,
+and that is to
+.ul
+use
+it.
+Reading a description is no substitute
+for trying something.
+A paper like this one should
+give you ideas about what to try,
+but until you actually try something,
+you will not learn it.

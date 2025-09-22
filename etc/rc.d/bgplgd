@@ -1,0 +1,11 @@
+#!/bin/ksh
+#
+# $OpenBSD: bgplgd,v 1.1 2022/06/28 18:46:01 claudio Exp $
+
+daemon="/usr/sbin/bgplgd"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=NO
+
+rc_cmd $1

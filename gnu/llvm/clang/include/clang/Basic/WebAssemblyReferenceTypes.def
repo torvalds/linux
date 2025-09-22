@@ -1,0 +1,40 @@
+//===-- WebAssemblyReferenceTypes.def - Wasm reference types ----*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file defines externref_t.  The macros are:
+//
+//    WASM_TYPE(Name, Id, SingletonId)
+//    WASM_REF_TYPE(Name, MangledName, Id, SingletonId, AS)
+//
+// where:
+//
+//  - Name is the name of the builtin type.
+//
+//  - MangledNameBase is the base used for name mangling.
+//
+//  - BuiltinType::Id is the enumerator defining the type.
+//
+//  - Context.SingletonId is the global singleton of this type.
+//
+//  - AS indicates the address space for values of this type.
+//
+// To include this file, define either WASM_REF_TYPE or WASM_TYPE, depending on
+// how much information you want.  The macros will be undefined after inclusion.
+//
+//===----------------------------------------------------------------------===//
+
+
+#ifndef WASM_REF_TYPE
+#define WASM_REF_TYPE(Name, MangledNameBase, Id, SingletonId, AS)           \
+  WASM_TYPE(Name, Id, SingletonId)
+#endif
+
+WASM_REF_TYPE("__externref_t", "externref_t", WasmExternRef, WasmExternRefTy, 10)
+
+#undef WASM_TYPE
+#undef WASM_REF_TYPE

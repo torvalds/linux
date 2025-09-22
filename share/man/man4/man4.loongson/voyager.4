@@ -1,0 +1,81 @@
+.\"	$OpenBSD: voyager.4,v 1.3 2010/02/26 14:53:11 miod Exp $
+.\"
+.\" Copyright (c) 2010 Miodrag Vallat.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 26 2010 $
+.Dt VOYAGER 4 loongson
+.Os
+.Sh NAME
+.Nm voyager
+.Nd Silicon Motion Mobile Multimedia Companion Chip
+.Sh SYNOPSIS
+.Cd "voyager* at pci?"
+.Cd "gpio0 at voyager?"
+.\" .Cd "iic* at voyager?"
+.Cd "ohci* at voyager?"
+.Cd "smfb* at voyager?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the Silicon Motion SM502 MMCC device.
+.Pp
+This chip is intended to fulfill most of a modern laptop's I/O needs, and
+provides:
+.Pp
+.Bl -dash -compact -offset indent
+.It
+a 2D
+.Xr smfb 4
+frame buffer with analog RGB and digital LCD panel interfaces
+.It
+an 8-bit parallel interface
+.It
+a
+.Xr ohci 4
+USB controller
+.It
+two UART or IrDA ports
+.It
+two Zoom Video interfaces
+.It
+an AC97 or I2S audio codec
+.It
+two Synchronous Serial Ports
+.Pq SSP
+.It
+Pulse Width Modulation
+.Pq PWM
+.It
+64
+.Xr gpio 4
+pins
+.El
+.Pp
+Not all the device interfaces are supported under
+.Ox .
+.Pp
+The
+.Xr ohci 4
+component only attaches on Gdium Liberty systems with the older motherboard
+artwork design, as newer systems do not have this USB port connected to
+anything, causing an otherwise annoying long delay to probe the empty bus
+on boot.
+.Sh SEE ALSO
+.\" .Xr ac97 4 ,
+.Xr gpio 4 ,
+.Xr intro 4 ,
+.Xr ohci 4 ,
+.Xr pci 4 ,
+.Xr smfb 4

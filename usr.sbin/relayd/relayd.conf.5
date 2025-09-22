@@ -1,0 +1,1702 @@
+.\"	$OpenBSD: relayd.conf.5,v 1.213 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 - 2016 Reyk Floeter <reyk@openbsd.org>
+.\" Copyright (c) 2006, 2007 Pierre-Yves Ritschard <pyr@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt RELAYD.CONF 5
+.Os
+.Sh NAME
+.Nm relayd.conf
+.Nd relay daemon configuration file
+.Sh DESCRIPTION
+.Nm
+is the configuration file for the relay daemon,
+.Xr relayd 8 .
+.Pp
+.Nm
+is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global settings for
+.Xr relayd 8 .
+Do note that the config file allows global settings to be added after
+defining tables in the config file, but those tables will use the
+built-in defaults instead of the global settings below them.
+.It Sx Tables
+Table definitions describe a list of hosts,
+in a similar fashion to
+.Xr pf 4
+tables.
+They are used for relay, redirection, and router target selection with
+the described options and health checking on the host they contain.
+.It Sx Redirections
+Redirections are translated to
+.Xr pf 4
+rdr-to rules for stateful forwarding to a target host from a
+health-checked table on layer 3.
+.It Sx Relays
+Relays allow application layer load balancing, TLS acceleration, and
+general purpose TCP proxying on layer 7.
+.It Sx Protocols
+Protocols are predefined settings and filter rules for relays.
+.It Sx Routers
+Routers are used to insert routes with health-checked gateways for
+(WAN) link balancing.
+.El
+.Pp
+Within the sections,
+a host
+.Ar address
+can be specified by IPv4 address, IPv6 address, interface name,
+interface group, or DNS hostname.
+If the address is an interface name,
+.Xr relayd 8
+will look up the first IPv4 address and any other IPv4 and IPv6
+addresses of the specified network interface.
+A
+.Ar port
+can be specified by number or name.
+The port name to number mappings are found in the file
+.Pa /etc/services ;
+see
+.Xr services 5
+for details.
+.Pp
+The current line can be extended over multiple lines using a backslash
+.Pq Sq \e .
+Comments can be put anywhere in the file using a hash mark
+.Pq Sq # ,
+and extend to the end of the current line.
+Care should be taken when commenting out multi-line text:
+the comment is effective until the end of the entire block.
+.Pp
+Argument names not beginning with a letter, digit, or underscore
+must be quoted.
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/relayd.conf.local"
+.Ed
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic table ,
+.Ic relay ,
+or
+.Ic timeout ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+www1="10.0.0.1"
+www2="10.0.0.2"
+table <webhosts> {
+	$www1
+	$www2
+}
+.Ed
+.Ss Global configuration
+Here are the settings that can be set globally:
+.Bl -tag -width Ds
+.It Ic agentx Oo Ic context Ar context Oc Oo Ic path Ar path Oc
+Export
+.Xr relayd 8
+metrics via an agentx compatible
+.Pq snmp
+daemon by connecting to
+.Ar path .
+Metrics can be found under the relaydMIBObjects subtree
+.Pq enterprises.30155.3 .
+If
+.Ar path
+is omitted, it will default to
+.Pa /var/agentx/master .
+.Ar Context
+is the SNMPv3 context and can usually be omitted.
+.It Ic interval Ar number
+Set the interval in seconds at which the hosts will be checked.
+The default interval is 10 seconds.
+.It Xo
+.Ic log
+.Pq Ic state changes Ns | Ns Ic host checks
+.Xc
+Log host checks:
+Either log only the
+.Ic state changes
+of hosts or log all
+.Ic host checks
+that were run, even if the state didn't change.
+The host state can be
+.Dq up
+(the health check completed successfully),
+.Dq down
+(the host is down or didn't match the check criteria),
+or
+.Dq unknown
+(the host is disabled or has not been checked yet).
+.It Xo
+.Ic log connection Op Ic errors
+.Xc
+When using relays, log all TCP connections.
+Optionally log only
+.Ic connection errors .
+.It Ic prefork Ar number
+When using relays, run the specified number of processes to handle
+relayed connections.
+This increases the performance and prevents delays when connecting
+to a relay.
+.Xr relayd 8
+runs 3 relay processes by default and every process will handle
+all configured relays.
+.It Ic socket Qo Ar path Qc
+Create a control socket at
+.Ar path .
+By default
+.Pa /var/run/relayd.sock
+is used.
+.It Ic timeout Ar number
+Set the global timeout in milliseconds for checks.
+This can be overridden by the timeout value in the table definitions.
+The default timeout is 200 milliseconds and it must not exceed the
+global interval.
+The default value is optimized for checks within the
+same collision domain \(en use a higher timeout, such as 1000 milliseconds,
+for checks of hosts in other subnets.
+If this option is to be set, it should be placed before overrides in tables.
+.El
+.Ss Tables
+Tables are used to group a set of hosts as the target for redirections
+or relays; they will be mapped to a
+.Xr pf 4
+table for redirections.
+Tables may be defined with the following attribute:
+.Bl -tag -width disable
+.It Ic disable
+Start the table disabled \(en no hosts will be checked in this table.
+The table can be later enabled through
+.Xr relayctl 8 .
+.El
+.Pp
+Each table must contain at least one host
+.Ar address ;
+multiple hosts are separated by newline, comma, or whitespace.
+Host entries may be defined with the following attributes:
+.Bl -tag -width retry
+.It Ic ip ttl Ar number
+Change the default time-to-live value in the IP headers for host checks.
+.It Ic parent Ar number
+The optional parent option inherits the state from a parent
+host with the specified identifier.
+The check will be skipped for this host and copied from the parent host.
+This can be used to prevent multiple checks on hosts with multiple IP
+addresses for the same service.
+The host identifiers are sequentially assigned to the configured hosts
+starting with 1; it can be shown with the
+.Xr relayctl 8
+.Ic show summary
+commands.
+.It Ic priority Ar number
+Change the route priority used when adding a route.
+If not specified, the kernel will set a priority of 8
+.Pq Dv RTP_STATIC .
+In ordinary use, a fallback route should be added statically with a very
+high (e.g. 52) priority.
+Unused in all other modes.
+.It Ic retry Ar number
+The optional retry option adds a tolerance for failed host checks;
+the check will be retried for
+.Ar number
+more times before setting the host state to down.
+If this table is used by a relay, it will also specify the number of
+retries for outgoing connection attempts.
+.El
+.Pp
+For example:
+.Bd -literal -offset indent
+table <service> { 192.168.1.1, 192.168.1.2, 192.168.2.3 }
+table <fallback> disable { 10.1.5.1 retry 2 }
+
+redirect "www" {
+	listen on www.example.com port 80
+	forward to <service> check http "/" code 200
+	forward to <fallback> check http "/" code 200
+}
+.Ed
+.Pp
+Tables are used by
+.Ic forward to
+directives in redirections or relays with a set of general options,
+health-checking rules, and timings;
+see the
+.Sx Redirections
+and
+.Sx Relays
+sections for more information about the forward context.
+Table specific configuration directives are described below.
+Multiple options can be appended to
+.Ic forward to
+directives, separated by whitespaces.
+.Pp
+The following options will configure the health-checking method for
+the table, and is mandatory for redirections:
+.Bl -tag -width Ds
+.It Xo
+.Ic check http Ar path
+.Op Ic host Ar hostname
+.Ic code Ar number
+.Xc
+For each host in the table, verify that retrieving the URL
+.Ar path
+gives the HTTP return code
+.Ar number .
+If
+.Ar hostname
+is specified, it is used as the
+.Dq Host:
+header to query a specific hostname at the target host.
+To validate the HTTP return code, use this shell command:
+.Bd -literal -offset indent
+$ echo -n "HEAD <path> HTTP/1.0\er\en\er\en" | \e
+	nc <host> <port> | head -n1
+.Ed
+.Pp
+This prints the status header including the actual return code:
+.Bd -literal -offset indent
+HTTP/1.1 200 OK
+.Ed
+.It Xo
+.Ic check https Ar path
+.Op Ic host Ar hostname
+.Ic code Ar number
+.Xc
+This has the same effect as above but wraps the HTTP request in TLS.
+.It Xo
+.Ic check http Ar path
+.Op Ic host Ar hostname
+.Ic digest Ar string
+.Xc
+For each host in the table, verify that retrieving the URL
+.Ar path
+produces non-binary content whose message digest matches the defined string.
+The algorithm used is determined by the string length of the
+.Ar digest
+argument, either SHA1 (40 characters) or MD5 (32 characters).
+If
+.Ar hostname
+is specified, it is used as the
+.Dq Host:
+header to query a specific hostname at the target host.
+The digest does not take the HTTP headers into account.
+Do not specify a binary object (such as a graphic) as the target of the
+request, as
+.Nm
+expects the data returned to be a string.
+To compute the digest, use this simple command:
+.Bd -literal -offset indent
+$ ftp -o - http://host[:port]/path | sha1
+.Ed
+.Pp
+This gives a digest that can be used as-is in a digest statement:
+.Bd -literal -offset indent
+a9993e36476816aba3e25717850c26c9cd0d89d
+.Ed
+.It Xo
+.Ic check https Ar path
+.Op Ic host Ar hostname
+.Ic digest Ar string
+.Xc
+This has the same effect as above but wraps the HTTP request in TLS.
+.It Ic check icmp
+Ping hosts in this table to determine whether they are up or not.
+This method will automatically use ICMP or ICMPV6 depending on the
+address family of each host.
+.It Ic check script Ar path
+Execute an external program to check the host state.
+The program will be executed for each host by specifying the hostname
+on the command line:
+.Bd -literal -offset indent
+/usr/local/bin/checkload.pl front-www1.private.example.com
+.Ed
+.Pp
+.Xr relayd 8
+expects a positive return value on success and zero on failure.
+Note that the script will be executed with the privileges of the
+.Qq _relayd
+user and terminated after
+.Ar timeout
+milliseconds.
+.It Xo
+.Ic check send
+.Ar data
+.Ic expect
+.Ar pattern
+.Op Ic tls
+.Xc
+For each host in the table, a TCP connection is established on the
+port specified, then
+.Ar data
+is sent.
+Incoming data is then read and is expected to match against
+.Ar pattern
+using shell globbing rules.
+If
+.Ar data
+is an empty string or
+.Ic nothing
+then nothing is sent on the connection and data is immediately
+read.
+This can be useful with protocols that output a banner like
+SMTP, NNTP, and FTP.
+If the
+.Ic tls
+keyword is present,
+the transaction will occur in a TLS tunnel.
+.It Xo
+.Ic check binary send
+.Ar data
+.Ic expect
+.Ar data
+.Op Ic tls
+.Xc
+For each host in the table, a TCP connection is established on the
+port specified, then the
+.Ic send
+.Ar data
+is converted into binary and sent.
+Incoming (binary)
+data is then read and is expected to match against a binary
+conversion of the
+.Ic expect
+.Ar data
+using
+.Xr memcmp 3 .
+.Ar data
+must be populated with a string containing an even number of hexadecimal
+single-byte characters and must not be empty.
+This can be useful with binary protocols such as LDAP and SNMP.
+If the
+.Ic tls
+keyword is present,
+the transaction will occur in a TLS tunnel.
+.It Ic check tcp
+Use a simple TCP connect to check that hosts are up.
+.It Ic check tls
+Perform a complete TLS handshake with each host to check their availability.
+.El
+.Pp
+The following general table options are available:
+.Bl -tag -width Ds
+.It Ic demote Ar group
+Enable the per-table
+.Xr carp 4
+demotion option.
+This will increment the carp demotion counter for the
+specified interface group if all hosts in the table are down.
+For more information on interface groups,
+see the
+.Ic group
+keyword in
+.Xr ifconfig 8 .
+.It Ic interval Ar number
+Override the global interval and specify one for this table.
+It must be a multiple of the global interval.
+.It Ic timeout Ar number
+Set the timeout in milliseconds for each host that is checked using
+TCP as the transport.
+This will override the global timeout, which is 200 milliseconds by default.
+.El
+.Pp
+The following options will set the scheduling algorithm to select a
+host from the specified table:
+.Bl -tag -width Ds
+.It Ic mode hash Op Ar key
+Balances the outgoing connections across the active hosts based on the
+.Ar key ,
+IP address and port of the relay.
+Additional input can be fed into the
+hash by looking at HTTP headers and GET variables;
+see the
+.Sx Protocols
+section below.
+This mode is only supported by relays.
+.It Ic mode least-states
+Forward each outgoing connection to the active host with the least
+active
+.Xr pf 4
+states.
+This mode is only supported by redirections.
+.It Ic mode loadbalance Op Ar key
+Balances the outgoing connections across the active hosts based on the
+.Ar key ,
+the source IP address of the client, and the IP address and port of the relay.
+This mode is only supported by relays.
+.It Ic mode random
+Distributes the outgoing connections randomly through all active hosts.
+This mode is supported by redirections and relays.
+.It Ic mode roundrobin
+Distributes the outgoing connections using a round-robin scheduler
+through all active hosts.
+This is the default mode and will be used if no option has been specified.
+This mode is supported by redirections and relays.
+.It Ic mode source-hash Op Ar key
+Balances the outgoing connections across the active hosts based on the
+.Ar key
+and the source IP address of the client.
+This mode is supported by redirections and relays.
+.El
+.Pp
+The optional
+.Ar key
+argument can be specified for the
+.Ic hash ,
+.Ic loadbalance ,
+and
+.Ic source-hash
+modes as either a hex value with a leading
+.Ql 0x
+or as a string.
+If omitted,
+.Xr relayd 8
+generates a random key when the configuration is loaded.
+.Ss Redirections
+Redirections represent a
+.Xr pf 4
+rdr-to rule.
+They are used for stateful redirections to the hosts in the specified
+tables.
+.Xr pf 4
+rewrites the target IP addresses and ports of the incoming
+connections, operating on layer 3.
+The configuration directives that are valid in the
+.Ic redirect
+context are described below:
+.Bl -tag -width Ds
+.It Ic disable
+The redirection is initially disabled.
+It can be later enabled through
+.Xr relayctl 8 .
+.It Xo
+.Ic forward to
+.Pf < Ar table Ns >
+.Op Ic port Ar number
+.Ar options ...
+.Xc
+Specify the tables of target hosts to be used; see the
+.Sx Tables
+section above for information about table options.
+If the
+.Ic port
+option is not specified, the first port from the
+.Ic listen on
+directive will be used.
+This directive can be specified twice \(en the second entry will be used
+as the backup table if all hosts in the main table are down.
+At least one entry for the main table is mandatory.
+.It Xo
+.Ic listen on Ar address
+.Op ip-proto
+.Ic port Ar port
+.Op Ic interface Ar name
+.Op Ic pflog
+.Xc
+Specify an
+.Ar address
+and a
+.Ar port
+to listen on.
+.Xr pf 4
+will redirect incoming connections for the specified target to the
+hosts in the main or backup table.
+The
+.Ar port
+argument can optionally specify a port range instead of a single port;
+the format is
+.Ar min-port : Ns Ar max-port .
+The optional argument
+.Ar ip-proto
+can be used to specify an IP protocol like
+.Cm tcp
+or
+.Cm udp ;
+it defaults to
+.Cm tcp .
+The rule can be optionally restricted to a given interface name.
+The optional
+.Ic pflog
+keyword will add
+.Cm log
+to the rule.
+The logged packets are sent to
+.Xr pflog 4 .
+.It Xo
+.Op Ic match
+.Ic pftag Ar name
+.Xc
+Automatically tag packets passing through the
+.Xr pf 4
+rdr-to rule with the name supplied.
+This allows simpler filter rules.
+The optional
+.Ic match
+keyword will change the default rule action from
+.Ql pass in quick
+to
+.Ql match in
+to allow further evaluation in the pf ruleset using the
+.Cm tagged Ar name
+rule option.
+.It Xo
+.Ic route to
+.Pf < Ar table Ns >
+.Op Ic port Ar number
+.Ar options ...
+.Xc
+Like the
+.Ic forward to
+directive, but directly routes the packets to the target host without
+modifying the target address using a
+.Xr pf 4
+route-to rule.
+This can be used for
+.Dq direct server return
+to force the target host to respond via a different gateway.
+Note that hosts have to accept sessions for the same address as
+the gateway, which is typically done by configuring a loopback
+interface on the host with this address.
+.It Ic session timeout Ar seconds
+Specify the inactivity timeout in seconds for established redirections.
+The default timeout is 600 seconds (10 minutes).
+The maximum is 2147483647 seconds (68 years).
+.It Ic sticky-address
+This has the same effect as specifying sticky-address
+for an rdr-to rule in
+.Xr pf.conf 5 .
+It will ensure that multiple connections from the same source are
+mapped to the same redirection address.
+.El
+.Ss Relays
+Relays will forward traffic between a client and a target server.
+In contrast to redirections and IP forwarding in the network stack, a
+relay will accept incoming connections from remote clients as a
+server, open an outgoing connection to a target host, and forward
+any traffic between the target host and the remote client,
+operating on layer 7.
+A relay is also called an application layer gateway or layer 7 proxy.
+.Pp
+The main purpose of a relay is to provide advanced load balancing
+functionality based on specified protocol characteristics, such as
+HTTP headers, to provide TLS acceleration and to allow
+basic handling of the underlying application protocol.
+.Pp
+The
+.Ic relay
+configuration directives are described below:
+.Bl -tag -width Ds
+.It Ic disable
+Start the relay but immediately close any accepted connections.
+.It Xo
+.Op Ic transparent
+.Ic forward
+.Op Ic with tls
+.Ic to
+.Ar address
+.Op Ic port Ar port
+.Ar options ...
+.Xc
+Specify the address and port of the target host to connect to.
+If the
+.Ic port
+option is not specified, the port from the
+.Ic listen on
+directive will be used.
+Use the
+.Ic transparent
+keyword to enable fully-transparent mode; the source address of the
+client will be retained in this case.
+.Pp
+The
+.Ic with tls
+directive enables client-side TLS mode to connect to the remote host.
+Verification of server certificates can be enabled by setting the
+.Ic ca file
+option in the protocol section.
+.Pp
+The following options may be specified for forward directives:
+.Bl -tag -width Ds
+.It Ic inet
+If the requested destination is an IPv6 address,
+.Xr relayd 8
+will forward the connection to an IPv4 address which is determined by
+the last 4 octets of the original IPv6 destination.
+For example, if the original IPv6 destination address is
+2001:db8:7395:ffff::a01:101, the session is relayed to the IPv4
+address 10.1.1.1 (a01:101).
+.It Ic inet6 Ar address-prefix
+If the requested destination is an IPv4 address,
+.Xr relayd 8
+will forward the connection to an IPv6 address which is determined by
+setting the last 4 octets of the specified IPv6
+.Ar address-prefix
+to the 4 octets of the original IPv4 destination.
+For example, if the original IPv4 destination address is 10.1.1.1 and
+the specified address prefix is 2001:db8:7395:ffff::, the session is
+relayed to the IPv6 address 2001:db8:7395:ffff::a01:101.
+.It Ic retry Ar number
+The optional host
+.Ic retry
+option will be used as a tolerance for failed
+host connections; the connection will be retried for
+.Ar number
+more times.
+.El
+.It Xo
+.Ic forward to
+.Pf < Ar table Ns >
+.Op Ic port Ar port
+.Ar options ...
+.Xc
+Like the previous directive, but connect to a host from the specified
+table; see the
+.Sx Tables
+section above for information about table options.
+This directive can be specified multiple times \(en subsequent entries
+will be used as the backup table if all hosts in the previous table
+are down.
+At least one entry for the main table is mandatory.
+As above, use the
+.Ic with tls
+directive to enable client-side TLS mode when connecting to the remote host.
+.It Xo
+.Ic forward to
+.Ic destination
+.Ar options ...
+.Xc
+When redirecting connections with a divert-to rule in
+.Xr pf.conf 5
+to a relay listening on localhost, this directive will
+look up the real destination address of the intended target host,
+allowing the relay to be run as a transparent proxy.
+If an additional
+.Ic forward to
+directive to a specified address or table is present,
+it will be used as a backup if the lookup failed.
+As above, use the
+.Ic with tls
+directive to enable client-side TLS mode when connecting to the remote host.
+.It Xo
+.Ic forward to
+.Ic nat lookup
+.Ar options ...
+.Xc
+Like the previous directive, but for redirections with rdr-to in
+.Xr pf.conf 5 .
+.It Xo
+.Ic listen on Ar address Ic port Ar port
+.Op Ic tls
+.Xc
+Specify the address and port for the relay to listen on.
+The relay will accept incoming connections to the specified address.
+If the
+.Ic tls
+keyword is present, the relay will accept connections using the
+encrypted TLS protocol.
+.It Ic protocol Ar name
+Use the specified protocol definition for the relay.
+The generic TCP protocol options will be used by default;
+see the
+.Sx Protocols
+section below.
+.It Ic session timeout Ar seconds
+Specify the inactivity timeout in seconds for accepted sessions.
+The default timeout is 600 seconds (10 minutes).
+The maximum is 2147483647 seconds (68 years).
+.El
+.Ss TLS relays
+In addition to plain TCP,
+.Xr relayd 8
+supports the Transport Layer Security (TLS) cryptographic protocol for
+authenticated and encrypted relays.
+.Xr relayd 8
+can operate as a TLS client or server to offer a variety of options
+for different use cases related to TLS.
+.Bl -tag -width Ds
+.It Ic TLS client
+When configuring the relay
+.Ic forward
+statements with the
+.Ic with tls
+directive,
+.Xr relayd 8
+will enable client-side TLS to connect to the remote host.
+This is commonly used for TLS tunneling and transparent encapsulation
+of plain TCP connections.
+See the
+.Ic forward to
+description in the
+.Sx Relays
+section for more details.
+.It Ic TLS server
+When specifying the
+.Ic tls
+keyword in the relay
+.Ic listen
+statements,
+.Xr relayd 8
+will accept connections from clients as a TLS server.
+This mode is also known as
+.Dq TLS acceleration .
+See the
+.Ic listen on
+description in the
+.Sx Relays
+section for more details.
+.It Ic TLS client and server
+When combining both modes, TLS server and client,
+.Xr relayd 8
+can filter TLS connections as a man-in-the-middle.
+This combined mode is also called
+.Dq TLS inspection .
+The configuration requires additional X.509 certificate settings;
+see the
+.Ic ca key
+description in the
+.Sx Protocols
+section for more details.
+.El
+.Pp
+When configured for
+.Dq TLS inspection
+mode,
+.Xr relayd 8
+will listen for incoming connections which have been diverted to the
+local socket by PF.
+Before accepting and negotiating the incoming TLS connection as a
+server, it will look up the original destination address on the
+diverted socket, and pre-connect to the target server as a TLS client
+to obtain the remote TLS certificate.
+It will update or patch the obtained TLS certificate by replacing the
+included public key with its local server key because it doesn't have
+the private key of the remote server certificate.
+It also updates the X.509 issuer name to the local CA subject name and
+signs the certificate with its local CA key.
+This way it keeps all the other X.509 attributes that are already
+present in the server certificate, including the "green bar" extended
+validation attributes.
+Now it finally accepts the TLS connection from the diverted client
+using the updated certificate and continues to handle the connection
+and to connect to the remote server.
+.Ss Protocols
+Protocols are templates defining settings and rules for relays.
+They allow setting generic TCP options, TLS settings, and rules
+for the selected application layer protocol.
+.Pp
+The protocol directive is available for a number of different
+application layer protocols.
+There is no generic handler for UDP-based protocols because it is a
+stateless datagram-based protocol which has to look into the
+application layer protocol to find any possible state information.
+.Bl -tag -width Ds
+.It Ic dns protocol
+(UDP)
+Domain Name System (DNS) protocol.
+The requested IDs in the DNS header will be used to match the state.
+.Xr relayd 8
+replaces these IDs with random values to compensate for
+predictable values generated by some hosts.
+.It Ic http protocol
+Handle the HyperText Transfer Protocol
+(HTTP, or "HTTPS" if encapsulated in a TLS tunnel).
+.It Xo
+.Op Ic tcp
+.Ic protocol
+.Xc
+Generic handler for TCP-based protocols.
+This is the default.
+.El
+.Pp
+The available configuration directives are described below:
+.Bl -tag -width Ds
+.It Xo
+.Pq Ic block Ns | Ns Ic pass Ns | Ns Ic match
+.Op Ar rule
+.Xc
+Specify one or more rules to filter connections based on their
+network or application layer headers;
+see the
+.Sx Filter rules
+section for more details.
+.It Ic return error Op Ar option
+Return an error response to the client if an internal operation or the
+forward connection to the client failed.
+By default, the connection will be silently dropped.
+The effect of this option depends on the protocol: HTTP will send an
+error header and page to the client before closing the connection.
+Additional valid options are:
+.Bl -tag -width Ds
+.It Ic style Ar string
+Specify a Cascading Style Sheet (CSS) to be used for the returned
+HTTP error pages, for example:
+.Bd -literal -offset indent
+body { background: #a00000; color: white; }
+.Ed
+.El
+.It Ic tcp Ar option
+Enable or disable the specified TCP/IP options; see
+.Xr tcp 4
+and
+.Xr ip 4
+for more information about the options.
+Valid options are:
+.Bl -tag -width Ds
+.It Ic backlog Ar number
+Set the maximum length the queue of pending connections may grow to.
+The backlog option is 10 by default, is limited to 512 and capped by the
+.Ic kern.somaxconn
+.Xr sysctl 8
+variable.
+.It Ic ip minttl Ar number
+This option for the underlying IP connection may be used to discard packets
+with a TTL lower than the specified value.
+This can be used to implement the
+Generalized TTL Security Mechanism (GTSM)
+according to RFC 5082.
+.It Ic ip ttl Ar number
+Change the default time-to-live value in the IP headers.
+.It Ic nodelay
+Enable the TCP NODELAY option for this connection.
+This is recommended to avoid delays in the relayed data stream,
+e.g. for SSH connections.
+The default is
+.Ic no nodelay .
+.It Ic no splice
+Disable socket splicing for zero-copy data transfer.
+The default is to enable socket splicing.
+.It Ic sack
+Use selective acknowledgements for this connection.
+The default is
+.Ic no sack .
+.It Ic socket buffer Ar number
+Set the socket-level buffer size for input and output for this
+connection.
+This will affect the TCP window size.
+.El
+.It Ic tls Ar option
+Set the TLS options and session settings.
+This is only used if TLS is enabled in the relay.
+Valid options are:
+.Bl -tag -width Ds
+.It Ic ca cert Ar path
+Specify a CA certificate for TLS inspection.
+For more information, see the
+.Ic ca key
+option below.
+.It Ic ca file Ar path
+This option enables CA verification in TLS client mode.
+The daemon will load the CA (Certificate Authority) certificates from
+the specified path to verify the server certificates.
+.Ox
+provides a default CA bundle in
+.Pa /etc/ssl/cert.pem .
+.It Ic ca key Ar path Ic password Ar password
+Specify a CA key for TLS inspection.
+The
+.Ar password
+argument will specify the password to decrypt the CA key
+(typically an RSA key).
+This option will enable TLS inspection if the following conditions
+are true:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+TLS server mode is enabled by the
+.Ic listen
+directive:
+.Ic listen on ... tls .
+.It
+TLS client mode and divert lookups are enabled by the
+.Ic forward
+directive:
+.Ic forward with tls to destination .
+.It
+The
+.Ic ca cert
+option is specified.
+.It
+The
+.Ic ca key
+option is specified.
+.El
+.It Ic ciphers Ar string
+Set the string defining the TLS cipher suite.
+If not specified, the default value
+.Ql HIGH:!aNULL
+will be used (strong crypto cipher suites without anonymous DH).
+See the CIPHERS section of
+.Xr openssl 1
+for information about TLS cipher suites and preference lists.
+.It Ic client ca Ar path
+Require TLS client certificates that can be verified against the CA
+certificates in the specified file.
+.It Ic client-renegotiation
+Allow client-initiated renegotiation.
+To mitigate a potential DoS risk,
+the default is
+.Ic no client-renegotiation .
+.It Ic ecdhe Ar curves
+Specify a comma separated list of elliptic curves to use for ECDHE cipher
+suites, in order of preference.
+The special value of "default" will use the default curves; see
+.Xr tls_config_set_ecdhecurves 3
+for further details.
+.It Ic edh Op Ic params Pq Ic none Ns | Ns Ic auto Ns | Ns Ic legacy
+Enable EDH-based cipher suites with Perfect Forward Secrecy (PFS) for
+older clients that do not support ECDHE.
+In
+.Ic auto
+mode, the key size of the ephemeral key is automatically selected
+based on the size of the private key used for signing.
+In
+.Ic legacy
+mode, a 1024 bit ephemeral key is used.
+If
+.Ic params
+is omitted,
+.Ic auto
+is used.
+The default is
+.Ic no edh .
+.It Ic keypair Ar name
+The relay will attempt to look up a private key in
+.Pa /etc/ssl/private/name:port.key
+and a public certificate in
+.Pa /etc/ssl/name:port.crt ,
+where
+.Ar port
+is the specified port that the relay listens on.
+If these files are not present, the relay will continue to look in
+.Pa /etc/ssl/private/name.key
+and
+.Pa /etc/ssl/name.crt .
+This option can be specified multiple times for TLS Server Name Indication.
+If not specified,
+a keypair will be loaded using the specified IP address of the relay as
+.Ar name .
+See
+.Xr ssl 8
+for details about TLS server certificates.
+.Pp
+An optional OCSP staple file will be used during TLS handshakes with
+this server if it is found as a non-empty file in
+.Pa /etc/ssl/name:port.ocsp
+or
+.Pa /etc/ssl/name.ocsp .
+The file should contain a DER-format OCSP response retrieved from an
+OCSP server for the certificate in use, and can be created using
+.Xr ocspcheck 8 .
+.It Ic no cipher-server-preference
+Prefer the client's cipher list over the server's preferences when
+choosing a cipher for the connection.
+The default is to prefer the server's cipher list.
+.It Ic session tickets
+Enable TLS session tickets.
+.Xr relayd 8
+supports stateless TLS session tickets (RFC 5077) to implement TLS session
+resumption for connections not using TLSv1.3.
+The default is to disable session tickets.
+.It Ic no tlsv1.3
+Disable the TLSv1.3 protocol.
+The default is to enable TLSv1.3.
+.It Ic no tlsv1.2
+Disable the TLSv1.2 protocol.
+The default is to enable TLSv1.2.
+.It Ic sslv3
+Is deprecated and does nothing.
+.It Ic tlsv1
+Enable all TLSv1 protocols.
+This is an alias that currently includes
+.Ic tlsv1.2 ,
+and
+.Ic tlsv1.3 .
+The default is
+.Ic no tlsv1 .
+.It Ic tlsv1.0
+Is deprecated and does nothing.
+.It Ic tlsv1.1
+Is deprecated and does nothing.
+.El
+.It Ic http Ar option
+Set the HTTP options and session settings.
+This is only used if HTTP is enabled in the relay.
+Valid options are:
+.Bl -tag -width Ds
+.It Ic headerlen Ar number
+Set the maximum size of all HTTP headers in bytes.
+The default value is 8192 and it is limited to a maximum of 131072.
+.It Ic websockets
+Allow connection upgrade to websocket protocol.
+The default is
+.Ic no websockets .
+.El
+.El
+.Ss Filter rules
+Relays have the ability to filter connections based
+on their network or application layer headers.
+Filter rules apply options to connections based on the specified
+filter parameters.
+.Pp
+For each connection that is processed by a relay, the filter rules are
+evaluated in sequential order, from first to last.
+For
+.Ic block
+and
+.Ic pass ,
+the last matching rule decides what action is taken;
+if no rule matches the connection, the default action is to establish
+the connection without any additional action.
+For
+.Ic match ,
+rules are evaluated every time they match;
+the pass/block state of a connection remains unchanged.
+.Pp
+The filter action may be one of the following:
+.Bl -tag -width Ds
+.It Ic block
+The connection is blocked.
+If a
+.Ic block
+rule matches a new connection attempt, it will not be established.
+.Ic block
+rules can also trigger for existing connections after evaluating
+application layer parameters;
+any connection of the relay session will be instantly dropped.
+.It Ic match
+The connection is matched.
+This action does not alter the connection state, but allows
+additional parameters to the connection.
+.It Ic pass
+The connection is passed;
+.Xr relayd 8
+will continue to process the relay session normally.
+.El
+.Pp
+These filter parameters can be used in the rules:
+.Bl -tag -width Ds
+.It Ic request No or Ic response
+A relay session always consists of two connections:
+the
+.Ic request ,
+a client initiating a new connection to a server via the relay,
+and the
+.Ic response ,
+the server accepting the connection.
+Depending on the protocol,
+an established session can be purely request/response-based (like
+HTTP), exchange data in a bidirectional way (like arbitrary TCP
+sessions), or just contain a single datagram and an optional response
+(like UDP-based protocols).
+But the client always
+.Em requests
+to communicate with a remote peer; the server.
+.It Ic quick
+If a connection is matched by a rule with the
+.Ic quick
+option set,
+the rule is considered to be the last matching rule and any further
+evaluation is skipped.
+.It Ic inet No or Ic inet6
+Only match connections with the specified address family,
+either of type IPv4 or IPv6.
+.It Ic from Ar address Ns Oo Li / Ns Ar prefix Oc
+This rule only matches for connections from the specified source.
+.It Ic to Ar address Ns Oo Li / Ns Ar prefix Oc
+This rule only matches for connections to the specified destination.
+The destination is the address the client was connecting to,
+typically the relay's listen address in non-transparent mode,
+not the address of the forwarded backend connection.
+.It Ic forward to Pf < Ar table Ns >
+Forward the request to a server in the specified table.
+With this option, requests can be passed to specific backend servers.
+A corresponding
+.Ic forward to
+declaration in the
+.Sx Relays
+section is required.
+.It Ic label Ar string
+The label will be printed as part of the error message if the
+.Ic return error
+option is set and may contain HTML tags, for example:
+.Bd -literal -offset indent
+block request url digest 5c1e03f58f8ce0b457474ffb371fd1ef \e
+	label "<a href='http://example.com/adv.pl?id=7359'>\e
+	Advisory provided by example.com</a>"
+.Ed
+.It Ic no Ar parameter
+Reset a sticky parameter that was previously set by a matching rule.
+The
+.Ar parameter
+is a keyword that can be either
+.Ic label
+or
+.Ic tag .
+.It Ic tag Ar string
+Add a "sticky" tag to connections matching this filter rule.
+Tags can be used to filter the connection by further rules using the
+.Ic tagged
+option.
+Only one tag is assigned per connection;
+the tag will be replaced if the connection is already tagged.
+.It Ic tagged Ar string
+Match the connection if it is already tagged with a given tag by a
+previous rule.
+.El
+.Pp
+The following parameters are available when using the
+.Ic http
+protocol:
+.Bl -tag -width Ds
+.It Ic method Ar name
+Match the HTTP request method.
+The method is specified by
+.Ar name
+and can be either
+.Ic ACL ,
+.Ic BASELINE-CONTROL ,
+.Ic CHECKIN ,
+.Ic CHECKOUT ,
+.Ic CONNECT ,
+.Ic COPY ,
+.Ic DELETE ,
+.Ic GET ,
+.Ic HEAD ,
+.Ic LABEL ,
+.Ic LOCK ,
+.Ic MERGE ,
+.Ic MKACTIVITY ,
+.Ic MKCOL ,
+.Ic MKREDIRECTREF ,
+.Ic MKWORKSPACE ,
+.Ic MOVE ,
+.Ic OPTIONS ,
+.Ic ORDERPATCH ,
+.Ic PATCH ,
+.Ic POST ,
+.Ic PROPFIND ,
+.Ic PROPPATCH ,
+.Ic PUT ,
+.Ic REPORT ,
+.Ic SEARCH ,
+.Ic TRACE ,
+.Ic UNCHECKOUT ,
+.Ic UNLOCK ,
+.Ic UPDATE ,
+.Ic UPDATEREDIRECTREF ,
+or
+.Ic VERSION-CONTROL .
+.It Xo
+.Ar type option
+.Oo Oo Ic digest Oc
+.Pq Ar key Ns | Ns Ic file Ar path
+.Oo Ic value Ar value Oc Oc
+.Xc
+Match a specified HTTP header entity and an optional
+.Ic key
+and
+.Ic value .
+An
+.Ic option
+can be specified to modify the matched entity or to trigger an event.
+The entity is extracted from the HTTP request or response header and
+can be either of
+.Ar type
+.Ic cookie ,
+.Ic header ,
+.Ic path ,
+.Ic query ,
+or
+.Ic url .
+.Pp
+Instead of a single
+.Ar key ,
+multiple keys can be loaded from a
+.Ic file
+specified by
+.Ar path
+that contains one key per line.
+Lines will be stripped at the first whitespace or newline character
+and any empty lines or lines beginning with a hash mark
+.Pq Ql #
+will be ignored.
+.Pp
+If the
+.Ic digest
+keyword is specified,
+compare the message digest of the key against the defined string.
+The algorithm used is determined by the string length of the
+.Ar key
+argument, either SHA1 (40 characters) or MD5 (32 characters).
+To compute the digest,
+for example for a
+.Ic url ,
+use this simple command:
+.Bd -literal -offset indent
+$ echo -n "example.com/path/?args" | sha1
+.Ed
+.El
+.Pp
+.Bq Ar type
+may be one of:
+.Bl -tag -width Ds
+.It Ic cookie Ar option Oo Ar key Oo Ic value Ar value Oc Oc
+Look up the entity as a value in the Cookie header.
+This type is only available with the direction
+.Ic request .
+.It Ic header Ar option Oo Ar key Oo Ic value Ar value Oc Oc
+Look up the entity in the application protocol headers, like HTTP
+headers in
+.Ic http
+mode.
+.It Ic path Ar option Oo Ar key Oo Ic value Ar value Oc Oc
+Look up the entity as a value in the URL path when using the
+.Ic http
+protocol.
+This type is only available with the direction
+.Ic request .
+The
+.Ar key
+will match the path of the requested URL without the hostname
+and query and the value will match the complete query,
+for example:
+.Bd -literal -offset indent
+block path "/index.html"
+block path "/cgi-bin/t.cgi" value "foo=bar*"
+.Ed
+.It Ic path  strip Ar number
+Strip
+.Ar number
+path components from the beginning of the path of the requested URL
+when using the
+.Ic http
+protocol.
+This type is only available with the direction
+.Ic request .
+.It Ic query Ar option Oo Ar key Oo Ic value Ar value Oc Oc
+Look up the entity as a query variable in the URL when using the
+.Ic http
+protocol.
+This type is only available with the direction
+.Ic request ,
+for example:
+.Bd -literal -offset indent
+# Will match /cgi-bin/example.pl?foo=bar&ok=yes
+pass request query "foo" value "bar"
+.Ed
+.It Ic url Ar option Oo Oo Ic digest Oc Ar key Oo Ic value Ar value Oc Oc
+Look up the entity as a URL suffix/prefix expression consisting of a
+canonicalized hostname without port or suffix and a path name or
+prefix when using the
+.Ic http
+protocol.
+This type is only available with the direction
+.Ic request ,
+for example:
+.Bd -literal -offset indent
+block url "example.com/index.html"
+block url "example.com/test.cgi?val=1"
+.Ed
+.Pp
+.Xr relayd 8
+will match the full URL and different possible suffix/prefix
+combinations by stripping subdomains and path components (up to 5
+levels), and the query string.
+For example, the following
+lookups will be done for
+http://www.example.com:81/1/2/3/4/5.html?query=yes:
+.Bd -literal -offset indent
+www.example.com/1/2/3/4/5.html?query=yes
+www.example.com/1/2/3/4/5.html
+www.example.com/
+www.example.com/1/
+www.example.com/1/2/
+www.example.com/1/2/3/
+example.com/1/2/3/4/5.html?query=yes
+example.com/1/2/3/4/5.html
+example.com/
+example.com/1/
+example.com/1/2/
+example.com/1/2/3/
+.Ed
+.El
+.Pp
+.Bq Ar option
+may be one of:
+.Bl -tag -width Ds
+.It Ic append
+Append the specified
+.Ar value
+to a protocol entity with the selected
+.Ar key
+name.
+If it does not exist, it will be created with the new value.
+.Pp
+The value string may contain predefined macros that will be expanded
+at runtime:
+.Pp
+.Bl -tag -width $SERVER_ADDR -offset indent -compact
+.It Ic $HOST
+The Host header's value of the relay.
+.It Ic $REMOTE_ADDR
+The IP address of the connected client.
+.It Ic $REMOTE_PORT
+The TCP source port of the connected client.
+.It Ic $SERVER_ADDR
+The configured IP address of the relay.
+.It Ic $SERVER_PORT
+The configured TCP server port of the relay.
+.It Ic $SERVER_NAME
+The server software name of
+.Xr relayd 8 .
+.It Ic $TIMEOUT
+The configured session timeout of the relay.
+.El
+.It Ic hash
+Feed the
+.Ar value
+of the selected entity into the load balancing hash to select the
+target host.
+See the
+.Ic table
+keyword in the
+.Sx Relays
+section above.
+.It Ic log
+Log the
+.Ar key
+name and the
+.Ar value
+of the entity.
+.It Ic remove
+Remove the entity with the selected
+.Ar key
+name.
+.It Ic set
+Like the
+.Ic append
+directive above, but change the contents of the specified entity.
+If
+.Ar key
+does not exist in the request, it will be created with the new
+.Ar value .
+.Pp
+The
+.Ar value
+string
+may contain predefined macros that will be expanded at runtime,
+as detailed for the
+.Ic append
+directive above.
+.El
+.Ss Routers
+Routers represent routing table entries in the kernel forwarding
+database, see
+.Xr route 4 ,
+and a table of associated gateways.
+They are used to dynamically insert or remove routes with gateways
+based on their availability and health-check results.
+A router can include multiple network statements and a single forward
+statement with a table of one or more gateways.
+All entries in a single router directive must match the same address
+family, either IPv4 or IPv6.
+.Pp
+The kernel supports multipath routing when multiple gateways exist to
+the same destination address.
+The multipath routing behaviour can be changed globally using the
+.Xr sysctl 8
+variables
+.Va net.inet.ip.multipath
+and
+.Va net.inet6.ip6.multipath .
+With the default setting of 0,
+the first route selected will be used for subsequent packets to that
+destination regardless of source.
+Setting it to 1 will enable load balancing based on the packet source
+address across gateways; multiple routes with the same priority are
+used equally.
+The kernel will also check the link state of the related network
+interface and try a different route if it is not active.
+.Pp
+The configuration directives that are valid in the
+.Ic routers
+context are described below:
+.Bl -tag -width Ds
+.It Xo
+.Ic forward to
+.Pf < Ar table Ns >
+.Ic port Ar number
+.Ar options ...
+.Xc
+Specify the table of target gateways to be used; see the
+.Sx Tables
+section above for information about table options.
+This entry is mandatory and must be specified once.
+.It Xo
+.Ic route
+.Ar address Ns Li / Ns Ar prefix
+.Xc
+Specify the network address and prefix length of a route destination
+that is reachable via the active gateways.
+This entry must be specified at least once in a router directive.
+.It Ic rtable Ar id
+Add the routes to the kernel routing table with the specified
+.Ar id .
+.It Ic rtlabel Ar label
+Add the routes with the specified
+.Ar label
+to the kernel routing table.
+.El
+.Sh FILES
+.Bl -tag -width Ds -compact
+.It Pa /etc/relayd.conf
+.Xr relayd 8
+configuration file.
+.Pp
+.It Pa /etc/examples/relayd.conf
+Example configuration file.
+.Pp
+.It Pa /etc/services
+Service name database.
+.Pp
+.It Pa /etc/ssl/address.crt
+.It Pa /etc/ssl/address:port.crt
+.It Pa /etc/ssl/private/address.key
+.It Pa /etc/ssl/private/address:port.key
+Location of the relay TLS server certificates, where
+.Ar address
+is the configured IP address
+and
+.Ar port
+is the configured port number of the relay.
+.Pp
+.It Pa /etc/ssl/cert.pem
+Default location of the CA bundle that can be used with
+.Xr relayd 8 .
+.El
+.Sh EXAMPLES
+This configuration file would create a redirection service
+.Dq www
+which load balances four hosts
+and falls back to one host containing a
+.Dq sorry page :
+.Bd -literal -offset indent
+www1=front-www1.private.example.com
+www2=front-www2.private.example.com
+www3=front-www3.private.example.com
+www4=front-www4.private.example.com
+
+interval 5
+
+table <phphosts> { $www1, $www2, $www3, $www4 }
+table <sorryhost> disable { sorryhost.private.example.com }
+
+redirect "www" {
+	listen on www.example.com port 8080 interface trunk0
+	listen on www6.example.com port 80 interface trunk0
+
+	pftag REDIRECTED
+
+	forward to <phphosts> port 8080 timeout 300 \e
+		check http "/" digest "630aa3c2f..."
+	forward to <sorryhost> port 8080 timeout 300 check icmp
+}
+.Ed
+.Pp
+It is possible to specify multiple listen directives with different IP
+protocols in a single redirection configuration:
+.Bd -literal -offset indent
+redirect "dns" {
+	listen on dns.example.com tcp port 53
+	listen on dns.example.com udp port 53
+
+	forward to <dnshosts> port 53 check tcp
+}
+.Ed
+.Pp
+To load balance an IP address over multiple backend servers using a
+.Xr pf 4
+.Cm route-to
+directive:
+.Bd -literal -offset indent
+table <backends> { 10.100.42.71 10.100.42.72 10.100.42.73 }
+
+redirect "xmpp" {
+	listen on 10.100.42.2 tcp port 5222
+
+	route to <backends> port 5222 check tcp interface em0
+}
+.Ed
+.Pp
+The following configuration would add a relay to forward
+secure HTTPS connections to a pool of HTTP webservers
+using the
+.Ic loadbalance
+mode (TLS acceleration and layer 7 load balancing).
+The HTTP protocol definition will add two HTTP headers containing
+address information of the client and the server, set the
+.Dq Keep-Alive
+header value to the configured session timeout,
+and include the
+.Dq sessid
+variable in the hash to calculate the target host:
+.Bd -literal -offset indent
+http protocol "https" {
+	match header set "X-Forwarded-For" \e
+		value "$REMOTE_ADDR"
+	match header set "X-Forwarded-By" \e
+		value "$SERVER_ADDR:$SERVER_PORT"
+	match header set "Keep-Alive" value "$TIMEOUT"
+
+	match query hash "sessid"
+
+	pass
+	block path "/cgi-bin/index.cgi" value "*command=*"
+
+	tls { no tlsv1.0, ciphers "HIGH" }
+}
+
+relay "tlsaccel" {
+	listen on www.example.com port 443 tls
+	protocol "https"
+	forward to <phphosts> port 8080 mode loadbalance check tcp
+}
+.Ed
+.Pp
+The second relay example will accept incoming connections to port
+2222 and forward them to a remote SSH server.
+The TCP
+.Ic nodelay
+option will allow a
+.Dq smooth
+SSH session without delays between keystrokes or displayed output on
+the terminal:
+.Bd -literal -offset indent
+protocol "myssh" {
+	tcp { nodelay, socket buffer 65536 }
+}
+
+relay "sshforward" {
+	listen on www.example.com port 2222
+	protocol "myssh"
+	forward to shell.example.com port 22
+}
+.Ed
+.Pp
+The following relay example will configure
+.Dq TLS inspection
+as described in the
+.Sx TLS relays
+section.
+To start, first generate a new local CA key and certificate:
+.Bd -literal -offset indent
+# openssl req -x509 -days 365 -newkey rsa:2048 \e
+	-keyout /etc/ssl/private/ca.key -out /etc/ssl/ca.crt
+.Ed
+.Pp
+A TLS server key and self-signed cert for 127.0.0.1 are also required;
+see
+.Ic listen on
+in the
+.Sx Relays
+section for more details about certificate locations.
+Configure the packet filter with a matching divert rule in
+.Xr pf.conf 5 :
+.Bd -literal -offset indent
+# Divert incoming HTTPS traffic to relayd
+pass in on vlan1 inet proto tcp to port 443 \e
+	divert-to localhost port 8443
+.Ed
+.Pp
+And finally configure the TLS inspection in
+.Nm :
+.Bd -literal -offset indent
+http protocol httpfilter {
+	return error
+
+	pass
+	match label "Prohibited!"
+	block url "social.network.example.com/"
+
+	# New configuration directives for TLS Interception
+	tls ca key "/etc/ssl/private/ca.key" password "password123"
+	tls ca cert "/etc/ssl/ca.crt"
+}
+
+relay tlsinspect {
+	listen on 127.0.0.1 port 8443 tls
+	protocol httpfilter
+	forward with tls to destination
+}
+.Ed
+.Pp
+The next simple router configuration example can be used to run
+redundant, health-checked WAN links:
+.Bd -literal -offset indent
+table <gateways> { $gw1 ip ttl 1, $gw2 ip ttl 1 }
+router "uplinks" {
+	route 0.0.0.0/0
+	forward to <gateways> check icmp
+}
+.Ed
+.Sh SEE ALSO
+.Xr ocspcheck 8 ,
+.Xr relayctl 8 ,
+.Xr relayd 8 ,
+.Xr ssl 8
+.Sh HISTORY
+The
+.Nm
+file format, formerly known as
+.Ic hoststated.conf ,
+first appeared in
+.Ox 4.1 .
+It was renamed to
+.Nm
+in
+.Ox 4.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Xr relayd 8
+program was written by
+.An Pierre-Yves Ritschard Aq Mt pyr@openbsd.org
+and
+.An Reyk Floeter Aq Mt reyk@openbsd.org .
+.Sh CAVEATS
+.Xr relayd 8
+verification of TLS server certificates is based on a static CA bundle
+and
+.Xr relayd 8
+currently does not support CRLs (Certificate Revocation Lists).

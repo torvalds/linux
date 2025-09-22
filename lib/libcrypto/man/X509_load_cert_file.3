@@ -1,0 +1,134 @@
+.\" $OpenBSD: X509_load_cert_file.3,v 1.2 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_LOAD_CERT_FILE 3
+.Os
+.Sh NAME
+.Nm X509_load_cert_file ,
+.Nm X509_load_crl_file ,
+.Nm X509_load_cert_crl_file
+.Nd read, decode, and cache certificates and CRLs
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509_vfy.h
+.Ft int
+.Fo X509_load_cert_file
+.Fa "X509_LOOKUP *ctx"
+.Fa "const char *file"
+.Fa "int type"
+.Fc
+.Ft int
+.Fo X509_load_crl_file
+.Fa "X509_LOOKUP *ctx"
+.Fa "const char *file"
+.Fa "int type"
+.Fc
+.Ft int
+.Fo X509_load_cert_crl_file
+.Fa "X509_LOOKUP *ctx"
+.Fa "const char *file"
+.Fa "int type"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_load_cert_file
+with a
+.Fa type
+of
+.Dv X509_FILETYPE_PEM
+reads one or more certificates in PEM format from the given
+.Fa file
+using
+.Xr PEM_read_bio_X509_AUX 3 ;
+with a type of
+.Dv X509_FILETYPE_ASN1 ,
+if reads one certificate in DER format using
+.Xr d2i_X509_bio 3 .
+The certificates read are added to the
+.Vt X509_STORE
+memory cache object associated with the given
+.Fa ctx
+using
+.Xr X509_STORE_add_cert 3 .
+.Pp
+.Fn X509_load_crl_file
+with a
+.Fa type
+of
+.Dv X509_FILETYPE_PEM
+reads one or more certificate revocation lists in PEM format from the given
+.Fa file
+using
+.Xr PEM_read_bio_X509_CRL 3 ;
+with a type of
+.Dv X509_FILETYPE_ASN1 ,
+if reads one certificate revocation lists in DER format using
+.Xr d2i_X509_CRL_bio 3 .
+The certificate revocation lists read are added to the
+.Vt X509_STORE
+memory cache object associated with the given
+.Fa ctx
+using
+.Xr X509_STORE_add_crl 3 .
+.Pp
+.Fn X509_load_cert_crl_file
+with a
+.Fa type
+of
+.Dv X509_FILETYPE_PEM
+read one or more certificates and/or certificate revocation lists
+in PEM format from the given
+.Fa file
+using
+.Xr PEM_X509_INFO_read_bio 3
+and adds them to the
+.Vt X509_STORE
+memory cache object associated with the given
+.Fa ctx
+using
+.Xr X509_STORE_add_cert 3
+and
+.Xr X509_STORE_add_crl 3 ,
+respectively.
+.Pp
+.Fn X509_load_cert_crl_file
+with a
+.Fa type
+of
+.Dv X509_FILETYPE_ASN1
+is equivalent to
+.Fn X509_load_cert_file
+and cannot be used to read a certificate revocation list.
+.Sh RETURN VALUES
+These functions return the number of objects loaded or 0 on error.
+.Sh SEE ALSO
+.Xr d2i_X509_bio 3 ,
+.Xr PEM_read_PrivateKey 3 ,
+.Xr X509_LOOKUP_new 3 ,
+.Xr X509_OBJECT_get0_X509 3 ,
+.Xr X509_STORE_load_locations 3 ,
+.Xr X509_STORE_new 3
+.Sh HISTORY
+.Fn X509_load_cert_file
+first appeared in SSLeay 0.8.0 and
+.Fn X509_load_crl_file
+in SSLeay 0.9.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_load_cert_crl_file
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .

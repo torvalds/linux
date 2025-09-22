@@ -1,0 +1,388 @@
+.\" $OpenBSD: BIO_accept.3,v 1.3 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_ACCEPT 3
+.Os
+.Sh NAME
+.\" mentioned in OpenSSL documentation and still used internally in LibreSSL
+.Nm BIO_get_host_ip ,
+.Nm BIO_get_port ,
+.Nm BIO_get_accept_socket ,
+.Nm BIO_accept ,
+.Nm BIO_sock_error ,
+.Nm BIO_sock_non_fatal_error ,
+.Nm BIO_sock_should_retry ,
+.\" used internally in LibreSSL and OpenSSL and not deprecated in OpenSSL
+.Nm BIO_socket_nbio ,
+.\" mentioned in OpenSSL documentation and not deprecated in OpenSSL
+.Nm BIO_set_tcp_ndelay
+.\" deprecated in OpenSSL and unused anywhere, hence intentionally undocumented
+.\" .Nm BIO_gethostbyname
+.\" .Nm BIO_GHBN_CTRL_CACHE_SIZE
+.\" .Nm BIO_GHBN_CTRL_FLUSH
+.\" .Nm BIO_GHBN_CTRL_GET_ENTRY
+.\" .Nm BIO_GHBN_CTRL_HITS
+.\" .Nm BIO_GHBN_CTRL_MISSES
+.\" .Nm BIO_socket_ioctl
+.\" does almost nothing and used very rarely, hence intentionally undocumented
+.\" .Nm BIO_sock_init
+.\" .Nm BIO_sock_cleanup
+.Nd wrappers for socket operations
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.Ft int
+.Fo BIO_get_host_ip
+.Fa "const char *hostname"
+.Fa "unsigned char *in_addr_buffer"
+.Fc
+.Ft int
+.Fo BIO_get_port
+.Fa "const char *servname"
+.Fa "unsigned short *port"
+.Fc
+.Ft int
+.Fo BIO_get_accept_socket
+.Fa "char *host_port"
+.Fa "int bind_mode"
+.Fc
+.Ft int
+.Fo BIO_accept
+.Fa "int socket"
+.Fa "char **addr"
+.Fc
+.Ft int
+.Fn BIO_sock_error "int socket"
+.Ft int
+.Fn BIO_sock_non_fatal_error "int errnum"
+.Ft int
+.Fn BIO_sock_should_retry "int retval"
+.Ft int
+.Fn BIO_socket_nbio "int socket" "int mode"
+.Ft int
+.Fn BIO_set_tcp_ndelay "int socket" "int on"
+.Sh DESCRIPTION
+.Fn BIO_get_host_ip
+looks up one IPv4 address for the given
+.Fa hostname
+using
+.Xr getaddrinfo 3
+and writes the first returned IPv4 address into
+.Pf * Fa in_addr_buffer .
+The caller is responsible for providing a buffer that is at least
+.Fn sizeof in_addr_t
+bytes long.
+After a successful call, the caller needs to cast
+.Fa in_addr_buffer
+to
+.Pq Vt in_addr_t * .
+.Pp
+.Fn BIO_get_port
+looks up
+.Fa servname
+in the
+.Xr services 5
+database using
+.Xr getaddrinfo 3
+and stores the associated port number at the location specified by the
+.Fa port
+argument.
+.Pp
+.Fn BIO_get_accept_socket
+creates an IPv4 TCP socket and
+.Xr listen 2 Ns s
+for incoming connections.
+The string
+.Fa host_port
+is parsed.
+If it contains a colon, the substring before the colon is interpreted
+as a local hostname of the interface to
+.Xr bind 2
+to.
+If the hostname is empty, consists of a single asterisk
+.Pq Qq *:... ,
+or if there is no colon,
+.Dv INADDR_ANY
+is used instead of a local hostname.
+The rest of the string
+.Fa host_port ,
+or the whole string if it contains no colon,
+is treated as a service name.
+The hostname and the service name are converted to a local IP address
+and port number using
+.Xr getaddrinfo 3 .
+If
+.Fa bind_mode
+is the constant
+.Dv BIO_BIND_REUSEADDR ,
+allowing local address reuse is attempted using
+.Xr setsockopt 2
+with an argument of
+.Dv SO_REUSEADDR
+before calling
+.Xr bind 2 .
+.Pp
+.Fn BIO_accept
+calls
+.Xr accept 2
+to receive one connection on the
+.Fa socket .
+When it receives a connection, it
+.Xr free 3 Ns s
+.Pf * Fa addr ,
+and if it is an IPv4 connection, it allocates a new string,
+writes the peer IP address in dotted decimal form, a colon,
+and the decimal port number into the string, and stores a pointer
+to the string in
+.Pf * Fa addr .
+For other address families or if
+.Xr getnameinfo 3
+or memory allocation fails,
+.Pf * Fa addr
+is set to
+.Dv NULL
+but
+.Fn BIO_accept
+succeeds anyway.
+.Pp
+.Fn BIO_sock_error
+retrieves, clears, and returns the error status code of the
+.Fa socket
+by calling
+.Xr getsockopt 2
+with arguments
+.Dv SOL_SOCKET
+and
+.Dv SO_ERROR .
+.Pp
+.Fn BIO_sock_non_fatal_error
+determines whether the error status code
+.Fa errnum
+represents a recoverable error.
+.Pp
+.Fn BIO_sock_should_retry
+determines whether a recoverable error occurred by inspecting both
+.Xr errno 2
+and
+.Fa retval ,
+which is supposed to usually be
+the return value of a previously called function like
+.Fn BIO_accept ,
+.Xr BIO_read 3 ,
+or
+.Xr BIO_write 3 .
+.Pp
+If
+.Fa mode
+is non-zero,
+.Fn BIO_socket_nbio
+switches the
+.Fa socket
+to non-blocking mode using
+.Xr fcntl 2 .
+If
+.Fa mode
+is 0, it switches to blocking mode.
+.Pp
+.Fn BIO_set_tcp_ndelay
+sets the
+.Dv TCP_NODELAY
+option on the
+.Fa socket
+if
+.Fa on
+is 1 or clears it if
+.Fa on
+is 0; see
+.Xr tcp 4
+for details.
+.Sh RETURN VALUES
+.Fn BIO_get_host_ip ,
+.Fn BIO_get_port ,
+and
+.Fn BIO_socket_nbio
+return 1 on success or 0 on failure.
+.Pp
+.Fn BIO_get_accept_socket
+returns the file descriptor of the newly created listening socket or \-1 if
+.Fa host_port
+is
+.Dv NULL ,
+no service is specified, or
+.Xr getaddrinfo 3 ,
+.Xr socket 2 ,
+.Xr bind 2 ,
+.Xr listen 2 ,
+or memory allocation fails.
+.Pp
+.Fn BIO_accept
+returns the file descriptor of the received connection,
+\-1 on fatal errors, that is, when
+.Fa addr
+is
+.Dv NULL
+or
+.Xr accept 2
+fails fatally, or \-2 when
+.Xr accept 2
+fails in a non-fatal way and might succeed when retried later.
+.Pp
+.Fn BIO_sock_error
+returns an error status code like
+.Dv EAGAIN ,
+.Dv ECONNABORTED ,
+.Dv ECONNREFUSED ,
+.Dv ECONNRESET ,
+.Dv ELOOP ,
+.Dv EMSGSIZE ,
+.Dv ENOBUFS ,
+.Dv ENOTCONN ,
+.Dv EPIPE ,
+.Dv ETIMEDOUT ,
+or others, 0 if the
+.Fa socket
+is not in an error state, or 1 if
+.Xr getsockopt 2
+fails.
+.Pp
+.Fn BIO_sock_non_fatal_error
+returns 1 if
+.Fa errnum
+is
+.Dv EAGAIN ,
+.Dv EALREADY ,
+.Dv EINPROGRESS ,
+.Dv EINTR ,
+or
+.Dv ENOTCONN
+and 0 otherwise, even if
+.Fa errnum
+is 0.
+.Pp
+.Fn BIO_sock_should_retry
+returns 1 if
+.Fn BIO_sock_non_fatal_error errno
+is 1 and
+.Fa retval
+is either 0 or \-1, or 0 otherwise.
+.Pp
+.Fn BIO_set_tcp_ndelay
+returns 0 on success or \-1 on failure.
+.Sh ERRORS
+If
+.Fn BIO_get_host_ip ,
+.Fn BIO_get_port ,
+or
+.Fn BIO_get_accept_socket
+fail or
+.Fn BIO_accept
+fails fatally, the following diagnostics can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3 :
+.Bl -tag -width Ds
+.It Dv BIO_R_ACCEPT_ERROR Qq "accept error"
+.Xr accept 2
+failed fatally in
+.Fn BIO_accept .
+.It Dv BIO_R_BAD_HOSTNAME_LOOKUP Qq "bad hostname lookup"
+.Xr getaddrinfo 3
+failed or
+.Fa hostname
+was
+.Dv NULL
+in
+.Fn BIO_get_host_ip ,
+or
+.Xr getaddrinfo 3
+failed in
+.Fn BIO_get_accept_socket .
+.It Dv BIO_R_INVALID_ARGUMENT Qq "invalid argument"
+.Xr getaddrinfo 3
+failed in
+.Fn BIO_get_port .
+.It Dv ERR_R_MALLOC_FAILURE Qq "malloc failure"
+Memory allocation failed in
+.Fn BIO_get_accept_socket ,
+or
+.Fn BIO_accept
+.Em succeeded
+but was unable to allocate memory for
+.Pf * Fa addr .
+For
+.Fn BIO_accept ,
+the returned file descriptor is valid,
+and communication with the peer can be attempted using it.
+.It Dv BIO_R_NO_PORT_SPECIFIED Qq "no port specified"
+The
+.Fa servname
+argument was
+.Dv NULL
+in
+.Fn BIO_get_port ,
+or
+.Fa host_port
+was
+.Dv NULL
+or ended after the first colon in
+.Fn BIO_get_accept_socket .
+.It Dv BIO_R_NULL_PARAMETER Qq "null parameter"
+The
+.Fa addr
+argument was
+.Dv NULL
+in
+.Fn BIO_accept .
+.It Dv BIO_R_UNABLE_TO_BIND_SOCKET Qq "unable to bind socket"
+.Xr bind 2
+failed in
+.Fn BIO_get_accept_socket .
+.It Dv BIO_R_UNABLE_TO_CREATE_SOCKET Qq "unable to create socket"
+.Xr socket 2
+failed in
+.Fn BIO_get_accept_socket .
+.It Dv BIO_R_UNABLE_TO_LISTEN_SOCKET Qq "unable to listen socket"
+.Xr listen 2
+failed in
+.Fn BIO_get_accept_socket .
+.El
+.Sh SEE ALSO
+.Xr bind 2 ,
+.Xr connect 2 ,
+.Xr errno 2 ,
+.Xr fcntl 2 ,
+.Xr getsockopt 2 ,
+.Xr listen 2 ,
+.Xr sigaction 2 ,
+.Xr socket 2 ,
+.Xr BIO_new 3 ,
+.Xr BIO_read 3 ,
+.Xr getaddrinfo 3 ,
+.Xr ip 4 ,
+.Xr tcp 4
+.Sh HISTORY
+.Fn BIO_sock_should_retry
+first appeared in SSLeay 0.6.5 and the other functions except
+.Fn BIO_socket_nbio
+in SSLeay 0.8.0.
+They have all been available since
+.Ox 2.4 .
+.Pp
+.Fn BIO_socket_nbio
+first appeared in SSLeay 0.9.1 and has been available since
+.Ox 2.6 .

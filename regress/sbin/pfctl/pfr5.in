@@ -1,0 +1,33 @@
+# parsing of all IPv6 network sizes 
+pass replace ::/0 ::/1 ::/2 ::/3 ::/4 ::/5 ::/6 ::/7
+pass show
+pass replace ::/8 ::/9 ::/10 ::/11 ::/12 ::/13 ::/14 ::/15
+pass show
+pass replace ::/16 ::/17 ::/18 ::/19 ::/20 ::/21 ::/22 ::/23
+pass show
+pass replace ::/24 ::/25 ::/26 ::/27 ::/28 ::/29 ::/30 ::/31
+pass show
+pass replace ::/32 ::/33 ::/34 ::/35 ::/36 ::/37 ::/38 ::/39
+pass show
+pass replace ::/40 ::/41 ::/42 ::/43 ::/44 ::/45 ::/46 ::/47
+pass show
+pass replace ::/48 ::/49 ::/50 ::/51 ::/52 ::/53 ::/54 ::/55
+pass show
+pass replace ::/56 ::/57 ::/58 ::/59 ::/60 ::/61 ::/62 ::/63
+pass show
+pass replace ::/64 ::/65 ::/66 ::/67 ::/68 ::/69 ::/70 ::/71
+pass show
+pass replace ::/72 ::/73 ::/74 ::/75 ::/76 ::/77 ::/78 ::/79
+pass show
+pass replace ::/80 ::/81 ::/82 ::/83 ::/84 ::/85 ::/86 ::/87
+pass show
+pass replace ::/88 ::/89 ::/90 ::/91 ::/92 ::/93 ::/94 ::/95
+pass show
+pass replace ::/96 ::/97 ::/98 ::/99 ::/100 ::/101 ::/102 ::/103
+pass show
+pass replace ::/104 ::/105 ::/106 ::/107 ::/108 ::/109 ::/110 ::/111
+pass show
+pass replace ::/112 ::/113 ::/114 ::/115 ::/116 ::/117 ::/118 ::/119
+pass show
+pass replace ::/120 ::/121 ::/122 ::/123 ::/124 ::/125 ::/126 ::/127
+pass show

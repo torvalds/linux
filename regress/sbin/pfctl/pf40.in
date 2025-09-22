@@ -1,0 +1,20 @@
+block
+block return
+block return-rst proto tcp
+pass
+pass in no state
+pass out no state
+pass all no state
+block in all
+block out all
+block from any to any
+pass in from any to any
+pass out from any to any
+block on lo0
+pass on lo0 all
+block on lo0 from any to any
+pass proto tcp flags S/SA
+pass proto udp keep state
+pass in proto udp all keep state
+pass out proto udp from any to any keep state
+pass out on lo0 proto tcp from any to any port 25 keep state

@@ -1,0 +1,55 @@
+dnl	$OpenBSD: contents,v 1.82 2025/03/25 08:17:47 miod Exp $
+TopPart
+
+OpenBSDminiroot
+			It can be copied to a small USB key to start the install.
+
+OpenBSDfloppy
+
+	pxeboot		MACHINE-specific second-stage PXE bootstrap (for
+			network installs); see below.
+
+OpenBSDdistsets
+
+OpenBSDbsd
+
+OpenBSDbsdmp
+
+OpenBSDrd
+
+OpenBSDinstalliso
+
+OpenBSDinstallfs
+
+OpenBSDcd
+
+	cdbr		First-stage CD bootstrap (boot sector), which loads
+			the cdboot second-stage bootstrap.  This file is
+			included in the cd{:--:}OSrev.iso image, and is provided as
+			a convenience, but will rarely be needed.
+
+	cdboot		Second-stage CD bootstrap loader for non-emulation
+			OpenBSD El Torito CD-ROMs. It processes boot.conf
+			then loads the bsd.rd installation ramdisk kernel.
+			This file is included in the cd{:--:}OSrev.iso image, and is
+			provided as a convenience, but will rarely be needed.
+
+OpenBSDfloppydesc(single,The)
+
+DistributionDescription(eight)
+
+OpenBSDbase(273114640,552137811)
+
+OpenBSDcomp(44812107,155693159)
+
+OpenBSDgame(2763954,6290315)
+
+OpenBSDman(8472789,31764259)
+
+OpenBSDxbase(56140889,162060792)
+
+OpenBSDxfont(23576360,35814089)
+
+OpenBSDxserv(19941575,58228396)
+
+OpenBSDxshare(4674001,23911493)

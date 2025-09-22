@@ -1,0 +1,370 @@
+.\" $OpenBSD: ASN1_mbstring_copy.3,v 1.7 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_MBSTRING_COPY 3
+.Os
+.Sh NAME
+.Nm ASN1_mbstring_copy ,
+.Nm ASN1_mbstring_ncopy ,
+.Nm ASN1_STRING_set_by_NID ,
+.Nm ASN1_STRING_set_default_mask ,
+.Nm ASN1_STRING_set_default_mask_asc ,
+.Nm ASN1_STRING_get_default_mask ,
+.Nm ASN1_tag2bit
+.Nd copy a multibyte string into an ASN.1 string object
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft int
+.Fo ASN1_mbstring_copy
+.Fa "ASN1_STRING **out"
+.Fa "const unsigned char *in"
+.Fa "int inbytes"
+.Fa "int inform"
+.Fa "unsigned long mask"
+.Fc
+.Ft int
+.Fo ASN1_mbstring_ncopy
+.Fa "ASN1_STRING **out"
+.Fa "const unsigned char *in"
+.Fa "int inbytes"
+.Fa "int inform"
+.Fa "unsigned long mask"
+.Fa "long minchars"
+.Fa "long maxchars"
+.Fc
+.Ft ASN1_STRING *
+.Fo ASN1_STRING_set_by_NID
+.Fa "ASN1_STRING **out"
+.Fa "const unsigned char *in"
+.Fa "int inbytes"
+.Fa "int inform"
+.Fa "int nid"
+.Fc
+.Ft void
+.Fo ASN1_STRING_set_default_mask
+.Fa "unsigned long mask"
+.Fc
+.Ft int
+.Fo ASN1_STRING_set_default_mask_asc
+.Fa "const char *maskname"
+.Fc
+.Ft unsigned long
+.Fn ASN1_STRING_get_default_mask void
+.Ft unsigned long
+.Fn ASN1_tag2bit "int tag"
+.Sh DESCRIPTION
+.Fn ASN1_mbstring_copy
+interprets
+.Fa inbytes
+bytes starting at
+.Fa in
+as a multibyte string and copies it to
+.Pf * Fa out ,
+optionally changing the encoding.
+If the
+.Fa inbytes
+argument is negative, the
+.Xr strlen 3
+of
+.Fa in
+is used instead.
+.Pp
+The
+.Fa inform
+argument specifies the character encoding of
+.Fa in :
+.Bl -column MBSTRING_UNIV encoding
+.It Ar inform Ta encoding
+.It Dv MBSTRING_ASC Ta ISO-Latin-1
+.It Dv MBSTRING_BMP Ta UTF-16
+.It Dv MBSTRING_UNIV Ta UTF-32
+.It Dv MBSTRING_UTF8 Ta UTF-8
+.El
+.Pp
+The bit
+.Fa mask
+specifies a set of ASN.1 string types
+that the user is willing to accept:
+.Bl -column B_ASN1_UNIVERSALSTRING ASN1_UNIVERSALSTRING default
+.It bit in Fa mask            Ta acceptable output type  Ta default
+.It Dv B_ASN1_PRINTABLESTRING Ta Vt ASN1_PRINTABLESTRING Ta yes
+.It Dv B_ASN1_IA5STRING       Ta Vt ASN1_IA5STRING       Ta no
+.It Dv B_ASN1_T61STRING       Ta Vt ASN1_T61STRING       Ta yes
+.It Dv B_ASN1_BMPSTRING       Ta Vt ASN1_BMPSTRING       Ta yes
+.It Dv B_ASN1_UNIVERSALSTRING Ta Vt ASN1_UNIVERSALSTRING Ta no
+.It any other bit             Ta Vt ASN1_UTF8STRING      Ta yes
+.El
+.Pp
+The first type from the above table that is included in the
+.Fa mask
+argument and that can represent
+.Fa in
+is used as the output type.
+The
+.Dq default
+column indicates whether the type is considered acceptable if the
+.Fa mask
+argument has the special value 0.
+.Pp
+The following bit mask constants
+each include several of the bits listed above:
+.Bl -column B_ASN1_DIRECTORYSTRING_ MMM MMM MMM MMM MMM MMMM
+.It mask constant             Ta PRI Ta IA5 Ta T61 Ta BMP Ta UNI Ta UTF8
+.It Dv B_ASN1_DIRECTORYSTRING Ta yes Ta no  Ta yes Ta yes Ta yes Ta yes
+.It Dv DIRSTRING_TYPE         Ta yes Ta no  Ta yes Ta yes Ta no  Ta yes
+.It Dv PKCS9STRING_TYPE       Ta yes Ta yes Ta yes Ta yes Ta no  Ta yes
+.El
+.Pp
+If
+.Fa out
+is
+.Dv NULL ,
+.Fa inform ,
+.Fa inbytes ,
+and
+.Fa in
+are validated and the output type is determined and returned,
+but nothing is copied.
+.Pp
+Otherwise, if
+.Pf * Fa out
+is
+.Dv NULL ,
+a new output object of the output type is allocated
+and a pointer to it is stored in
+.Pf * Fa out .
+.Pp
+Otherwise,
+.Pf ** Fa out
+is used as the output object.
+Any data already stored in it is freed
+and its type is changed to the output type.
+.Pp
+Finally,
+.Fa in
+is copied to the output object, changing the character encoding if
+.Fa inform
+does not match the encoding used by the output type.
+.Pp
+.Fn ASN1_mbstring_ncopy
+is similar except that the number of characters in
+.Fa in
+is restricted to the range from
+.Fa minchars
+to
+.Fa maxchars ,
+inclusive.
+If
+.Fa maxchars
+is 0, no upper limit is enforced on the number of characters.
+.Pp
+.Fn ASN1_STRING_set_by_NID
+is similar with the following differences:
+.Bl -bullet -width 1n
+.It
+If
+.Fa out
+is
+.Dv NULL ,
+a new output object is allocated and returned
+instead of skipping the copying.
+.It
+If
+.Fa nid
+has a global string table entry that can be retrieved with
+.Xr ASN1_STRING_TABLE_get 3 ,
+.Fa mask ,
+.Fa minchars ,
+and
+.Fa maxchars
+are taken from that string table entry.
+For some values of
+.Fa nid ,
+an additional global mask is AND'ed into the mask before using it.
+The default value of the global mask is
+.Dv B_ASN1_UTF8STRING .
+.It
+If
+.Fa nid
+has no global string table entry,
+.Dv B_ASN1_PRINTABLESTRING | B_ASN1_T61STRING |
+.Dv B_ASN1_BMPSTRING | B_ASN1_UTF8STRING
+is used instead of the mask taken from the table,
+and the global mask is also AND'ed into it.
+.It
+Even though success and failure happen in the same situations,
+the return value is different.
+.Xr ASN1_STRING_type 3
+can be used to determine the type of the return value.
+.El
+.Pp
+.Fn ASN1_STRING_set_default_mask
+sets the global mask used by
+.Fn ASN1_STRING_set_by_NID
+to the
+.Fa mask
+argument.
+.Pp
+.Fn ASN1_STRING_set_default_mask_asc
+sets the global mask as follows:
+.Bl -column utf8only
+.It Ar maskname    Ta Ar mask
+.It Qo default  Qc Ta anything
+.It Qo nombstr  Qc Ta anything except Dv B_ASN1_BMPSTRING | B_ASN1_UTF8STRING
+.It Qo pkix     Qc Ta anything except Dv B_ASN1_T61STRING
+.It Qo utf8only Qc Ta Dv B_ASN1_UTF8STRING
+.El
+.Pp
+If the
+.Fa maskname
+argument starts with the substring
+.Qq MASK:\& ,
+the rest of it is interpreted as an
+.Vt unsigned long
+value using
+.Xr strtoul 3 .
+.Pp
+.Fn ASN1_tag2bit
+translates ASN.1 data types to type bits as follows:
+.Bl -column V_ASN1_OBJECT_DESCRIPTOR B_ASN1_UNIVERSALSTRING
+.It Fa tag                      Ta return value
+.It Dv V_ASN1_BIT_STRING        Ta Dv B_ASN1_BIT_STRING
+.It Dv V_ASN1_BMPSTRING         Ta Dv B_ASN1_BMPSTRING
+.It Dv V_ASN1_BOOLEAN           Ta 0
+.It Dv V_ASN1_ENUMERATED        Ta Dv B_ASN1_UNKNOWN
+.It Dv V_ASN1_EOC               Ta 0
+.It Dv V_ASN1_EXTERNAL          Ta Dv B_ASN1_UNKNOWN
+.It Dv V_ASN1_GENERALIZEDTIME   Ta Dv B_ASN1_GENERALIZEDTIME
+.It Dv V_ASN1_GENERALSTRING     Ta Dv B_ASN1_GENERALSTRING
+.It Dv V_ASN1_GRAPHICSTRING     Ta Dv B_ASN1_GRAPHICSTRING
+.It Dv V_ASN1_IA5STRING         Ta Dv B_ASN1_IA5STRING
+.It Dv V_ASN1_INTEGER           Ta 0
+.It Dv V_ASN1_ISO64STRING       Ta Dv B_ASN1_ISO64STRING
+.It Dv V_ASN1_NULL              Ta 0
+.It Dv V_ASN1_NUMERICSTRING     Ta Dv B_ASN1_NUMERICSTRING
+.It Dv V_ASN1_OBJECT            Ta 0
+.It Dv V_ASN1_OBJECT_DESCRIPTOR Ta Dv B_ASN1_UNKNOWN
+.It Dv V_ASN1_OCTET_STRING      Ta Dv B_ASN1_OCTET_STRING
+.It Dv V_ASN1_PRINTABLESTRING   Ta Dv B_ASN1_PRINTABLESTRING
+.It Dv V_ASN1_REAL              Ta Dv B_ASN1_UNKNOWN
+.It Dv V_ASN1_SEQUENCE          Ta Dv B_ASN1_SEQUENCE
+.It Dv V_ASN1_SET               Ta 0
+.It Dv V_ASN1_T61STRING         Ta Dv B_ASN1_T61STRING
+.It Dv V_ASN1_TELETEXSTRING     Ta Dv B_ASN1_TELETEXSTRING
+.It Dv V_ASN1_UNDEF             Ta 0
+.It Dv V_ASN1_UNIVERSALSTRING   Ta Dv B_ASN1_UNIVERSALSTRING
+.It Dv V_ASN1_UTCTIME           Ta Dv B_ASN1_UTCTIME
+.It Dv V_ASN1_UTF8STRING        Ta Dv B_ASN1_UTF8STRING
+.It Dv V_ASN1_VIDEOTEXSTRING    Ta Dv B_ASN1_VIDEOTEXSTRING
+.It Dv V_ASN1_VISIBLESTRING     Ta Dv B_ASN1_VISIBLESTRING
+.It 11, 13, 14, 15, 29          Ta Dv B_ASN1_UNKNOWN
+.It Dv other Po < 0, > 30 Pc    Ta Dv 0
+.El
+.Pp
+In typical usage, the calling code calculates the bitwise AND
+of the return value and a mask describing data types
+that the calling code is willing to use.
+If the result of the AND operation is non-zero, the data type is
+adequate; otherwise, the calling code may need to raise an error.
+.Sh RETURN VALUES
+.Fn ASN1_mbstring_copy
+and
+.Fn ASN1_mbstring_ncopy
+return the
+.Dv V_ASN1_*
+constant representing the output type or \-1 if
+.Fa inform
+is invalid, if
+.Fa inbytes
+or
+.Fa in
+is invalid for the
+.Fa inform
+encoding, if
+.Fa in
+contains an UTF-16 surrogate,
+which is unsupported even for input using the UTF-16 encoding,
+or if memory allocation fails.
+.Pp
+.Fn ASN1_mbstring_ncopy
+also returns \-1 if
+.Fa in
+contains fewer than
+.Fa minchars
+or more than
+.Fa maxchars
+characters.
+.Pp
+.Fn ASN1_STRING_set_by_NID
+returns the new or changed ASN.1 string object or
+.Dv NULL
+on failure.
+.Pp
+.Fn ASN1_STRING_set_default_mask_asc
+returns 1 if successful or 0 if
+.Qq MASK:\&
+is not followed by a number, if the number is followed by a non-numeric
+character, or if the
+.Fa maskname
+is invalid.
+.Pp
+.Fn ASN1_STRING_get_default_mask
+returns the global mask.
+.Pp
+.Fn ASN1_tag2bit
+returns a
+.Dv B_ASN1_*
+constant or 0.
+.Sh SEE ALSO
+.Xr ASN1_PRINTABLE_type 3 ,
+.Xr ASN1_STRING_new 3 ,
+.Xr ASN1_STRING_set 3 ,
+.Xr ASN1_STRING_TABLE_get 3 ,
+.Xr ASN1_UNIVERSALSTRING_to_string 3
+.Sh HISTORY
+.Fn ASN1_mbstring_copy ,
+.Fn ASN1_mbstring_ncopy ,
+.Fn ASN1_STRING_set_by_NID ,
+.Fn ASN1_STRING_set_default_mask ,
+.Fn ASN1_STRING_set_default_mask_asc ,
+and
+.Fn ASN1_STRING_get_default_mask
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn ASN1_tag2bit
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .
+.Sh BUGS
+If integer overflow occurs in
+.Fn ASN1_STRING_set_default_mask_asc
+while parsing a number following
+.Qq MASK:\& ,
+the function succeeds, essentially behaving in the same way as for
+.Qq default .
+.Pp
+Passing
+.Qq default
+to
+.Fn ASN1_STRING_set_default_mask_asc
+does
+.Em not
+restore the default mask.
+Instead, passing
+.Qq utf8only
+does that.

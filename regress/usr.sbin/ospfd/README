@@ -1,0 +1,11 @@
+This is a test framework for the ospfd routing daemon.  For each
+test one fresh daemon is started with an individual config.  It is
+talking OSPF via a tap interface.  At the process side of the tap
+device a client is running.  This test programm is parsing the OSPF
+packets and generates new ones.  It simulates other OSPF daemons.
+
+For now only hello packets are tested.  Each test has a task list
+which drives the ospfd through its interface state machine.  The
+plan is to extend the framework for the other OSPF packet types and
+state machines.  Eventualy the generated kernel routing messages
+could also be checked.

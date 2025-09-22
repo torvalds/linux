@@ -1,0 +1,52 @@
+# test binat
+
+match on lo0 from 192.168.1.1 to any binat-to 10.0.0.1
+match on lo0 proto tcp from 192.168.1.2 to any binat-to 10.0.0.2
+match on lo0 proto udp from 192.168.1.3 to any binat-to 10.0.0.3
+match on lo0 proto icmp from 192.168.1.4 to any binat-to 10.0.0.4
+
+match on lo0 from 192.168.1.5 to 172.16.1.1 binat-to 10.0.0.5
+match on lo0 from 192.168.1.6 to 172.16.1.2/32 binat-to 10.0.0.6
+match on lo0 from 192.168.1.7 to 172.16.2.0/24 binat-to 10.0.0.7
+
+match on lo0 from 192.168.2.0/24 to any binat-to 10.0.5.0/24
+match on lo0 from 192.168.2.0/28 to any binat-to 10.0.4.0/28
+match on lo0 from 192.168.2.0/30 to 192.168.3.1 binat-to 10.0.3.0/30
+
+match on lo0 from 192.168.1.8 to ! 172.17.0.0/16 binat-to 10.0.0.8
+
+match on lo0 from 1.1.1.1 to no-route binat-to 2.2.2.2
+match on lo0 from (lo0:0) to 1.1.1.1 binat-to 2.2.2.2
+match on lo0 from (lo0:0) to 1.1.1.1 binat-to (lo1000000:0)
+match on lo0 inet from (lo0:0) to (lo1000000:0) binat-to (lo1000000:0)
+match on lo0 from 1.1.1.1 to <sometable> binat-to 2.2.2.2
+match on lo0 from 1.1.1.1 to !<sometable> binat-to 2.2.2.2
+match on lo0 from 1.1.1.1 to (lo1000000:0) binat-to 2.2.2.2
+match on lo0 from 1.1.1.1 to !(lo1000000:0) binat-to 2.2.2.2
+match on lo0 from (lo0:0) to <sometable> binat-to 2.2.2.2
+
+match on lo0 from ::1 to no-route binat-to ::2
+match on lo0 from (lo0:0) to ::1 binat-to ::2
+match on lo0 from (lo0:0) to ::1 binat-to (lo1000000:0)
+match on lo0 inet6 from (lo0:0) to (lo1000000:0) binat-to (lo1000000:0)
+match on lo0 from ::1 to <sometable> binat-to ::2
+match on lo0 from ::1 to !<sometable> binat-to ::2
+match on lo0 from ::1 to (lo1000000:0) binat-to ::2
+match on lo0 from ::1 to !(lo1000000:0) binat-to ::2
+match on lo0 from (lo0:0) to <sometable> binat-to ::2
+
+match on lo0 from ::1 to (lo0) binat-to ::1
+match on lo0 from ::1 to (lo0:0) binat-to ::1
+match on lo0 from ::1 to (lo0:peer) binat-to ::1
+match on lo0 from ::1 to (lo0:peer:0) binat-to ::1
+match on lo0 from ::1 to (lo0:broadcast) binat-to ::1
+match on lo0 from ::1 to (lo0:broadcast:0) binat-to ::1
+match on lo0 from ::1 to (lo0:network) binat-to ::1
+match on lo0 from ::1 to (lo0:network:0) binat-to ::1
+match on lo0 from ::1 to (lo0)/100 binat-to ::2
+match on lo0 from ::1 to (lo0:0)/100 binat-to ::2
+match on lo0 from ::1 to (lo0:peer)/100 binat-to ::2
+match on lo0 from ::1 to (lo0:peer:0)/100 binat-to ::2
+
+match on lo from (lo0:0) to ::1 binat-to ::2
+match on tun from (lo0:0) to ::1 binat-to ::2

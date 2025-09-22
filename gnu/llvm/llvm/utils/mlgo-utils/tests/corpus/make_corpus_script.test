@@ -1,0 +1,24 @@
+# REQUIRES: system-linux
+
+## Testing that the make_corpus script works as expected when invoked.
+
+# RUN: rm -rf %t.dir && mkdir %t.dir
+# RUN: touch %t.dir/test1.bc
+# RUN: touch %t.dir/test2.bc
+# RUN: rm -rf %t.out.dir && mkdir %t.out.dir
+
+# RUN: %python %scripts_dir/corpus/make_corpus.py --input_dir=%t.dir --output_dir=%t.out.dir --default_args="-test"
+
+# RUN: cat %t.out.dir/corpus_description.json | FileCheck %s
+
+## Check that we get the expected command in the global command override
+# CHECK: "-test"
+# CHECK: "has_thinlto": false
+## Check that the modules are in the corpus description (order invariant)
+# CHECK-DAG: "test1"
+# CHECK-DAG: "test2"
+
+# RUN: ls %t.out.dir | FileCheck %s --check-prefix CHECK-DIR
+
+# CHECK-DIR: test1.bc
+# CHECK-DIR: test2.bc

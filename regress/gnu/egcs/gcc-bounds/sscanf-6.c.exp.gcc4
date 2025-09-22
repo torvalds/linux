@@ -1,0 +1,4 @@
+sscanf-6.c: In function 'main':
+sscanf-6.c:6: warning: Array size (20) smaller than format string size (31) (arg 6)
+sscanf-6.c:6: warning: format '%50d' expects type 'int *', but argument 7 has type 'char *'
+sscanf-6.c:6: warning: Array size (20) smaller than format string size (21) (arg 9)

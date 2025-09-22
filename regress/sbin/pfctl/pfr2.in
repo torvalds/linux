@@ -1,0 +1,11 @@
+# basic manipulation of IPv6 addresses
+pass add ::1 ::2 FE80::1
+pass delete ::1 ::2 FE80::2
+pass replace ::1 ::2 FE80::1
+pass test ::1 ::2 FE80::1
+fail test ::1 ::2 FE80::2
+pass zero
+pass show
+pass flush
+pass show
+pass list

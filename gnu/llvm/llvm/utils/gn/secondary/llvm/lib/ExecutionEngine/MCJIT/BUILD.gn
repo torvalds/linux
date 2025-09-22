@@ -1,0 +1,12 @@
+static_library("MCJIT") {
+  output_name = "LLVMMCJIT"
+  deps = [
+    "//llvm/lib/ExecutionEngine",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+  ]
+  sources = [ "MCJIT.cpp" ]
+}

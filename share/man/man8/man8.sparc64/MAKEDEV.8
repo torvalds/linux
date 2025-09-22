@@ -1,0 +1,316 @@
+.\" $OpenBSD: MAKEDEV.8,v 1.87 2022/11/10 11:02:27 krw Exp $
+.\"
+.\" THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
+.\" generated from:
+.\"
+.\"	OpenBSD: etc.sparc64/MAKEDEV.md,v 1.101 2022/11/09 19:35:24 krw Exp 
+.\"	OpenBSD: MAKEDEV.common,v 1.118 2022/11/10 09:50:00 krw Exp 
+.\"	OpenBSD: MAKEDEV.man,v 1.9 2017/06/06 08:11:23 tb Exp 
+.\"	OpenBSD: MAKEDEV.mansub,v 1.2 2004/02/20 19:13:01 miod Exp 
+.\"
+.\" Copyright (c) 2004, Miodrag Vallat
+.\" Copyright (c) 2001-2004 Todd T. Fries <todd@OpenBSD.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 10 2022 $
+.Dt MAKEDEV 8 sparc64
+.Os
+.Sh NAME
+.Nm MAKEDEV
+.Nd create system and device special files
+.Sh SYNOPSIS
+.Nm MAKEDEV
+.Op Ar name ...
+.Sh DESCRIPTION
+The shell script
+.Nm ,
+found in the
+.Pa /dev
+directory, is used to create various special files.
+See
+.Xr intro 4
+for a more complete discussion of special files.
+.Pp
+.Nm
+takes any number of device names as arguments, where the names are
+the common abbreviation for the device or group of devices.
+Files are created in the current working directory.
+.Pp
+Where a device name is followed by a star
+.Sq * ,
+the star must be replaced by a unit number.
+If units are expected for a device but not provided,
+.Nm
+will supply the standard numbers in most cases.
+.Pp
+The sparc64 supports the following devices:
+.Pp
+.Sy Special device names
+.Bl -tag -width tenletters -compact
+.It Ar all
+Creates special files for all devices on sparc64.
+.It Ar ramdisk
+Ramdisk kernel devices.
+.It Ar std
+Creates the
+.Sq standard
+devices (console, klog, kmem, ksyms, mem, null,
+stderr, stdin, stdout, tty, zero)
+which are absolutely necessary for the system to function properly.
+.It Ar local
+Creates configuration-specific devices, by invoking the shell file
+.Pa MAKEDEV.local .
+.El
+.Pp
+.Sy Disks
+.Bl -tag -width tenletters -compact
+.It Ar cd*
+ATAPI and SCSI CD-ROM drives, see
+.Xr cd 4 .
+.It Ar fd*
+Floppy disk drives (3 1/2", 5 1/4"), see
+.Xr fd 4 .
+.It Ar rd*
+.Dq rd
+pseudo-disks, see
+.Xr rd 4 .
+.It Ar sd*
+SCSI disks, including flopticals, see
+.Xr sd 4 .
+.It Ar vnd*
+.Dq file
+pseudo-disk devices, see
+.Xr vnd 4 .
+.It Ar wd*
+.Dq winchester
+disk drives (ST506, IDE, ESDI, RLL, ...), see
+.Xr wd 4 .
+.El
+.Pp
+.Sy Tapes
+.Bl -tag -width tenletters -compact
+.It Ar ch*
+SCSI media changers, see
+.Xr ch 4 .
+.It Ar st*
+SCSI tape drives, see
+.Xr st 4 .
+.El
+.Pp
+.Sy Terminal ports
+.Bl -tag -width tenletters -compact
+.It Ar cua[a-z]*
+Zilog 8530 serial port, see
+.Xr zs 4 .
+.It Ar magma*
+Magma multiport cards, see
+.Xr magma 4 .
+.It Ar spif*
+.Dq spif
+multiport cards, see
+.Xr spif 4 .
+.It Ar tty[0-7][0-9a-f]
+NS16x50 serial ports, see
+.Xr com 4 .
+.It Ar tty[a-z]*
+Zilog 8530 serial port, see
+.Xr zs 4 .
+.It Ar ttyh*
+Sab82532 serial devices, see
+.Xr sab 4 .
+.It Ar ttyV*
+Virtual console concentrator, see
+.Xr vcctty 4 .
+.El
+.Pp
+.Sy Pseudo terminals
+.Bl -tag -width tenletters -compact
+.It Ar ptm
+pty master device, see
+.Xr ptm 4 .
+.It Ar pty*
+Set of 62 master pseudo terminals, see
+.Xr pty 4 .
+.It Ar tty*
+Set of 62 slave pseudo terminals, see
+.Xr tty 4 .
+.El
+.Pp
+.Sy Console ports
+.Bl -tag -width tenletters -compact
+.It Ar console
+PROM console, see
+.Xr pcons 4 .
+.It Ar ttyC-J*
+wscons display devices, see
+.Xr wsdisplay 4 .
+.It Ar wscons
+Minimal wscons devices, see
+.Xr wscons 4 .
+.It Ar wskbd*
+wscons keyboards, see
+.Xr wskbd 4 .
+.It Ar wsmux
+wscons keyboard/mouse mux devices, see
+.Xr wsmux 4 .
+.El
+.Pp
+.Sy Pointing devices
+.Bl -tag -width tenletters -compact
+.It Ar wsmouse*
+wscons mice, see
+.Xr wsmouse 4 .
+.El
+.Pp
+.Sy Printers
+.Bl -tag -width tenletters -compact
+.It Ar bpp*
+Parallel port, see
+.Xr bpp 4 .
+.It Ar bpp[jkl]
+.Dq spif
+parallel port, see
+.Xr spif 4 .
+.It Ar bppmag[mno]
+Magma parallel port, see
+.Xr magma 4 .
+.It Ar lpa*
+Polled printer port, see
+.Xr lpt 4 .
+.It Ar lpt*
+IEEE 1284 centronics printer, see
+.Xr lpt 4 .
+.El
+.Pp
+.Sy USB devices
+.Bl -tag -width tenletters -compact
+.It Ar ttyU*
+USB serial ports, see
+.Xr ucom 4 .
+.It Ar uall
+All USB devices, see
+.Xr usb 4 .
+.It Ar ugen*
+Generic USB devices, see
+.Xr ugen 4 .
+.It Ar uhid*
+Generic HID devices, see
+.Xr uhid 4 .
+.It Ar fido
+fido/* nodes, see
+.Xr fido 4 .
+.It Ar ujoy
+ujoy/* nodes, see
+.Xr ujoy 4 .
+.It Ar ulpt*
+Printer devices, see
+.Xr ulpt 4 .
+.It Ar usb*
+Bus control devices used by usbd for attach/detach, see
+.Xr usb 4 .
+.El
+.Pp
+.Sy Special purpose devices
+.Bl -tag -width tenletters -compact
+.It Ar audio*
+Audio devices, see
+.Xr audio 4 .
+.It Ar bio
+ioctl tunnel pseudo-device, see
+.Xr bio 4 .
+.It Ar bpf
+Berkeley Packet Filter, see
+.Xr bpf 4 .
+.It Ar diskmap
+Disk mapper, see
+.Xr diskmap 4 .
+.It Ar dri
+Direct Rendering Infrastructure, see
+.Xr drm 4 .
+.It Ar fd
+fd/* nodes, see
+.Xr fd 4 .
+.It Ar dt
+Dynamic Tracer, see
+.Xr dt 4 .
+.It Ar fuse
+Userland Filesystem, see
+.Xr fuse 4 .
+.It Ar hotplug
+devices hot plugging, see
+.Xr hotplug 4 .
+.It Ar openprom
+PROM settings, see
+.Xr openprom 4 .
+.It Ar pci*
+PCI bus devices, see
+.Xr pci 4 .
+.It Ar pf
+Packet Filter, see
+.Xr pf 4 .
+.It Ar pppx*
+PPP Multiplexer, see
+.Xr pppx 4 .
+.It Ar pppac*
+PPP Access Concentrator, see
+.Xr pppac 4 .
+.It Ar rmidi*
+Raw MIDI devices, see
+.Xr midi 4 .
+.It Ar *random
+In-kernel random data source, see
+.Xr random 4 .
+.It Ar tun*
+Network tunnel driver, see
+.Xr tun 4 .
+.It Ar tap*
+Ethernet tunnel driver, see
+.Xr tap 4 .
+.It Ar uk*
+Unknown SCSI devices, see
+.Xr uk 4 .
+.It Ar uperf
+Performance counters, see
+.Xr uperf 4 .
+.It Ar video*
+Video V4L2 devices, see
+.Xr video 4 .
+.It Ar vscsi*
+Virtual SCSI controller, see
+.Xr vscsi 4 .
+.It Ar hvctl
+Hypervisor control channel, see
+.Xr vldcp 4 .
+.It Ar spds
+Service processor domain services channel, see
+.Xr vldcp 4 .
+.It Ar ldom*
+Logical domain services channels, see
+.Xr vldcp 4 .
+.It Ar vdsp*
+Virtual disk server ports, see
+.Xr vdsp 4 .
+.It Ar kstat
+Kernel Statistics, see
+.Xr kstat 4 .
+.El
+.Sh FILES
+.Bl -tag -width /dev -compact
+.It Pa /dev
+The special file directory.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr config 8 ,
+.Xr mknod 8

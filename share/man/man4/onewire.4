@@ -1,0 +1,75 @@
+.\"	$OpenBSD: onewire.4,v 1.13 2021/08/21 18:28:52 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 21 2021 $
+.Dt ONEWIRE 4
+.Os
+.Sh NAME
+.Nm onewire
+.Nd 1-Wire bus
+.Sh SYNOPSIS
+.Cd "onewire* at gpioow?"
+.Cd "onewire* at uow?"
+.Pp
+.Cd "option ONEWIREVERBOSE"
+.Sh DESCRIPTION
+1-Wire bus was originally developed by Dallas Semiconductor for connecting
+integrated circuits.
+It is commonly used for connecting devices such as electronic keys, EEPROMs,
+temperature sensors, real-time clocks, security chips, etc.
+.Pp
+The
+.Nm
+driver provides a uniform programming interface layer between
+1-Wire master controllers and various 1-Wire slave devices.
+Each 1-Wire master controller attaches a
+.Nm
+framework; several slave devices can then be attached to the
+.Nm
+bus.
+.Pp
+The driver supports plugging and unplugging slave devices on the fly.
+.Sh SUPPORTED MASTERS
+.Bl -tag -width 11n -offset ind -compact
+.It Xr gpioow 4
+1-Wire bus bit-banging through GPIO pin
+.It Xr uow 4
+Maxim/Dallas DS2490 USB 1-Wire adapter
+.El
+.Sh SUPPORTED SLAVES
+.Bl -tag -width 11n -offset ind -compact
+.It Xr owctr 4
+1-Wire counter device
+.It Xr owid 4
+1-Wire ID device
+.It Xr owsbm 4
+1-Wire smart battery monitor device
+.It Xr owtemp 4
+1-Wire temperature device
+.El
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

@@ -1,0 +1,826 @@
+.\"     $OpenBSD: mbuf.9,v 1.127 2024/11/05 13:15:13 jsg Exp $
+.\"
+.\" Copyright (c) 2001 Jean-Jacques Bernard-Gundol <jjbg@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 5 2024 $
+.Dt MGET 9
+.Os
+.Sh NAME
+.Nm m_copym ,
+.Nm m_free ,
+.Nm m_get ,
+.Nm MGET ,
+.Nm m_getclr ,
+.Nm m_gethdr ,
+.Nm m_removehdr ,
+.Nm m_resethdr ,
+.Nm m_calchdrlen ,
+.Nm MGETHDR ,
+.Nm m_prepend ,
+.Nm M_PREPEND ,
+.Nm m_pulldown ,
+.Nm m_pullup ,
+.Nm m_split ,
+.Nm m_makespace ,
+.Nm m_getptr ,
+.Nm m_adj ,
+.Nm m_copyback ,
+.Nm m_defrag ,
+.Nm m_freem ,
+.Nm m_freemp ,
+.Nm m_purge ,
+.Nm m_copydata ,
+.Nm m_cat ,
+.Nm m_devget ,
+.Nm m_apply ,
+.Nm MCLGET ,
+.Nm MCLGETL ,
+.Nm MEXTADD ,
+.Nm m_align ,
+.Nm M_READONLY ,
+.Nm m_leadingspace ,
+.Nm m_trailingspace ,
+.Nm mtod ,
+.Nm m_dup_pkt ,
+.Nm m_dup_pkthdr
+.Nd kernel memory management for networking protocols
+.Sh SYNOPSIS
+.In sys/mbuf.h
+.Ft struct mbuf *
+.Fn m_copym "struct mbuf *m" "int off" "int len" "int wait"
+.Ft struct mbuf *
+.Fn m_free "struct mbuf *m"
+.Ft struct mbuf *
+.Fn m_get "int how" "int type"
+.Fn MGET "struct mbuf *m" "int how" "int type"
+.Ft struct mbuf *
+.Fn m_getclr "int how" "int type"
+.Ft void
+.Fn m_removehdr "struct mbuf *m"
+.Ft void
+.Fn m_resethdr "struct mbuf *m"
+.Ft void
+.Fn m_calchdrlen "struct mbuf *m"
+.Ft struct mbuf *
+.Fn m_gethdr "int how" "int type"
+.Fn MGETHDR "struct mbuf *m" "int how" "int type"
+.Ft struct mbuf *
+.Fn m_prepend "struct mbuf *m" "int len" "int how"
+.Fn M_PREPEND "struct mbuf *m" "int plen" "int how"
+.Ft struct mbuf *
+.Fn m_pulldown "struct mbuf *m" "int off" "int len" "int *offp"
+.Ft struct mbuf *
+.Fn m_pullup "struct mbuf *n" "int len"
+.Ft struct mbuf *
+.Fn m_split "struct mbuf *m0" "int len0" "int wait"
+.Ft struct mbuf *
+.Fn m_makespace "struct mbuf *m0" "int skip" "int hlen" "int *off"
+.Ft struct mbuf *
+.Fn m_getptr "struct mbuf *m" "int loc" "int *off"
+.Ft void
+.Fn m_adj "struct mbuf *mp" "int req_len"
+.Ft int
+.Fn m_copyback "struct mbuf *m0" "int off" "int len" "const void *cp" "int wait"
+.Ft int
+.Fn m_defrag "struct mbuf *m" "int wait"
+.Ft struct mbuf *
+.Fn m_freem "struct mbuf *m"
+.Ft struct mbuf *
+.Fn m_freemp "struct mbuf **mp"
+.Ft void
+.Fn m_purge "struct mbuf *m"
+.Ft void
+.Fn m_copydata "struct mbuf *m" "int off" "int len" "void *cp"
+.Ft void
+.Fn m_cat "struct mbuf *m" "struct mbuf *n"
+.Ft struct mbuf *
+.Fn m_devget "char *buf" "int totlen" "int off"
+.Ft int
+.Fn m_apply "struct mbuf *m" "int off" "int len" \
+"int (*func)(caddr_t, caddr_t, unsigned int)" "caddr_t fstate"
+.Fn MCLGET "struct mbuf *m" "int how"
+.Ft struct mbuf *
+.Fn MCLGETL "struct mbuf *m" "int how" "int len"
+.Fn MEXTADD "struct mbuf *m" "caddr_t buf" "u_int size" "int flags" \
+"void (*free)(caddr_t, u_int, void *)" "void *arg"
+.Ft void
+.Fn m_align "struct mbuf *m" "int len"
+.Fn M_READONLY "struct mbuf *m"
+.Ft int
+.Fn m_leadingspace "struct mbuf *m"
+.Ft int
+.Fn m_trailingspace "struct mbuf *m"
+.Ft struct mbuf *
+.Fn m_dup_pkt "struct mbuf *m" "u_int adj" "int how"
+.Ft int
+.Fn m_dup_pkthdr "struct mbuf *to" "struct mbuf *from" "int how"
+.Bd -literal
+#define MSIZE           256
+
+#define MLEN            (MSIZE - sizeof(struct m_hdr))
+#define MHLEN           (MLEN - sizeof(struct pkthdr))
+
+#define MAXMCLBYTES     (64 * 1024)
+#define MINCLSIZE       (MHLEN + MLEN + 1)
+
+#define MCLSHIFT        11
+
+#define MCLBYTES        (1 << MCLSHIFT)
+
+#define mtod(m,t)       ((t)((m)->m_data))
+
+struct m_hdr {
+	struct mbuf		*mh_next;
+	struct mbuf		*mh_nextpkt;
+	caddr_t			 mh_data;
+	u_int			 mh_len;
+	short			 mh_type;
+	u_short			 mh_flags;
+#ifndef __LP64__
+	u_int			 mh_pad;
+#endif
+};
+
+struct pkthdr {
+	void			*ph_cookie;
+	SLIST_HEAD(, m_tag)	 ph_tags;
+	int64_t			 ph_timestamp;
+	int			 len;
+	u_int			 ph_rtableid;
+	u_int			 ph_ifidx;
+	u_int16_t		 ph_tagsset;
+	u_int16_t		 ph_flowid;
+	u_int16_t		 csum_flags;
+	u_int16_t		 ether_vtag;
+	u_int16_t		 ph_mss;
+	u_int8_t		 ph_loopcnt;
+	u_int8_t		 ph_family;
+	struct pkthdr_pf	 pf;
+};
+
+struct pkthdr_pf {
+	struct pf_state_key	*statekey;
+	struct inpcb		*inp;
+	u_int32_t		 qid;
+	u_int16_t		 tag;
+	u_int8_t		 flags;
+	u_int8_t		 routed;
+	u_int8_t		 prio;
+	u_int8_t		 pad[3];
+};
+
+struct mbuf_ext {
+	caddr_t			 ext_buf;
+	void			*ext_arg;
+	u_int			 ext_free_fn;
+	u_int			 ext_size;
+	struct mbuf		*ext_nextref;
+	struct mbuf		*ext_prevref;
+};
+
+struct mbuf {
+	struct m_hdr m_hdr;
+	union {
+		struct {
+			struct pkthdr MH_pkthdr;
+			union {
+				struct mbuf_ext	MH_ext;
+				char		MH_databuf[MHLEN];
+			} MH_dat;
+		} MH;
+		char M_databuf[MLEN];
+	} M_dat;
+};
+
+#define m_next          m_hdr.mh_next
+#define m_len           m_hdr.mh_len
+#define m_data          m_hdr.mh_data
+#define m_type          m_hdr.mh_type
+#define m_flags         m_hdr.mh_flags
+#define m_nextpkt       m_hdr.mh_nextpkt
+#define m_pkthdr        M_dat.MH.MH_pkthdr
+#define m_ext           M_dat.MH.MH_dat.MH_ext
+#define m_pktdat        M_dat.MH.MH_dat.MH_databuf
+#define m_dat           M_dat.M_databuf
+.Ed
+.Sh DESCRIPTION
+The
+.Nm mbuf
+functions provide a way to manage the memory buffers used by the kernel's
+networking subsystem.
+Several functions and macros are used to allocate and deallocate mbufs,
+but also to get, inject, remove, copy, modify, prepend or append data
+inside these mbufs.
+The size of an
+.Nm mbuf
+is defined by MSIZE.
+.Pp
+An
+.Nm mbuf
+structure is defined as an
+.Fa m_hdr
+structure followed by a
+union.
+The header contains the following elements:
+.Bl -tag -width foobarmoocow
+.It Fa mh_next
+A pointer to the next mbuf in the mbuf chain.
+.It Fa mh_nextpkt
+A pointer to the next mbuf chain (i.e., packet) in the queue.
+.It Fa mh_data
+Indicates the address of the beginning of data in the mbuf.
+.It Fa mh_len
+Indicates the amount of data in the mbuf.
+.It Fa mh_type
+Indicates the type of data contained in the mbuf (see below).
+.It Fa mh_flags
+Flags (see below).
+.El
+.Pp
+The
+.Fa mh_type
+variable can take the following values:
+.Pp
+.Bl -tag -compact -offset indent -width XXXXXXXXXXXXXXXXXX
+.It Dv MT_FREE
+the mbuf should be on the free list.
+.It Dv MT_DATA
+the data in the mbuf was dynamically allocated.
+.It Dv MT_HEADER
+the data contains a packet header.
+.It Dv MT_SONAME
+the data is a socket name.
+.It Dv MT_SOOPTS
+the data are socket options.
+.It Dv MT_FTABLE
+the data is a fragment reassembly header.
+.It Dv MT_CONTROL
+the mbuf contains extra-data protocol message.
+.It Dv MT_OOBDATA
+the data consists of out-of-band data.
+.El
+.Pp
+The
+.Fa mh_flags
+variable can take the following values:
+.Pp
+.Bl -tag -compact -offset indent -width XXXXXXXXXXXXXXXXXX
+.It Dv M_EXT
+mbuf has associated external storage.
+.It Dv M_PKTHDR
+the mbuf is the first that forms a packet.
+.It Dv M_EOR
+end of record.
+.It Dv M_EXTWR
+external storage is writable.
+.It Dv M_PROTO1
+protocol-specific.
+.It Dv M_VLANTAG
+.Fa m_pkthdr.ether_vtag
+variable is valid.
+.It Dv M_LOOP
+packet has been sent from local machine.
+.It Dv M_BCAST
+packet sent/received as link-level broadcast.
+.It Dv M_MCAST
+packet sent/received as link-level multicast.
+.It Dv M_CONF
+packet was encrypted (ESP-transport).
+.It Dv M_AUTH
+packet was authenticated (AH or ESP).
+.It Dv M_TUNNEL
+header was IP-in-IP encapsulated by tunnel mode IPsec.
+.It Dv M_ZEROIZE
+Zero the data part of the mbufs in the mbuf chain pointed to by
+.Nm m_free .
+.It Dv M_COMP
+header was decompressed.
+.It Dv M_LINK0
+link layer specific flag.
+.El
+.Pp
+An external cluster is used when the data to hold in the mbuf is
+large.
+The size of an external cluster is between MCLBYTES and MAXMCLBYTES.
+A cluster should be used when the size of the data reach MINCLSIZE
+(the minimum size to be held by an external cluster).
+.Pp
+The combination of the M_EXT and M_PKTHDR flags give four types of
+mbuf.
+When none of these constants are in use, the mbuf is a "normal"
+one, where the data part of the mbuf has the following elements:
+.Bl -tag -width foobarmoocow
+.It Fa m_dat
+buffer holding the data (size MLEN).
+.El
+.Pp
+When only M_PKTHDR is set, the data contained in the mbuf is a packet header.
+The data itself is contained in the mbuf (just like the previous case),
+but part of the mbuf is used to store a packet header.
+The data part has then the following elements:
+.Bl -tag -width foobarmoocow
+.It Fa m_pkthdr
+packet header, containing the length of the data, a pointer to the
+interface on which the data was received, checksum information
+and list of
+.Xr mbuf_tags 9 .
+.It Fa m_pktdat
+buffer holding the data (size MHLEN).
+.El
+.Pp
+The
+.Fa m_pkthdr.csum_flags
+variable can take the following values:
+.Pp
+.Bl -tag -compact -offset indent -width XXXXXXXXXXXXXXXXXX
+.It Dv M_IPV4_CSUM_OUT
+IPv4 checksum needed.
+.It Dv M_TCP_CSUM_OUT
+TCP checksum needed.
+.It Dv M_UDP_CSUM_OUT
+UDP checksum needed.
+.It Dv M_ICMP_CSUM_OUT
+ICMP/ICMPv6 checksum needed.
+.It Dv M_IPV4_CSUM_IN_OK
+IPv4 checksum verified.
+.It Dv M_IPV4_CSUM_IN_BAD
+IPv4 checksum bad.
+.It Dv M_TCP_CSUM_IN_OK
+TCP checksum verified.
+.It Dv M_TCP_CSUM_IN_BAD
+TCP checksum bad.
+.It Dv M_UDP_CSUM_IN_OK
+UDP checksum verified.
+.It Dv M_UDP_CSUM_IN_BAD
+UDP checksum bad.
+.It Dv M_ICMP_CSUM_IN_OK
+ICMP/ICMPv6 checksum verified.
+.It Dv M_ICMP_CSUM_IN_BAD
+ICMP/ICMPv6 checksum bad.
+.It Dv M_IPV6_DF_OUT
+Do not fragment IPv6 on output.
+.It M_TIMESTAMP
+.Fa m_pkthdr.ph_timestamp
+is valid.
+.It M_FLOWID
+.Fa m_pkthdr.ph_flowid
+is valid.
+.It M_TCP_TSO
+TCP Segmentation Offload needed and
+.Fa m_pkthdr.ph_mss
+is valid.
+.El
+.Pp
+The
+.Fa m_pkthdr.flowid
+variable can contain a low resolution (15-bit) classification of a
+flow or connection that the current mbuf is part of.
+If the flowid is valid, it may be used as an alternative to hashing
+the packets content to pick between different paths for the traffic.
+The following masks can be ORed with the flowid:
+.Pp
+.Bl -tag -compact -offset indent -width XXXXXXXXXXXXXXXXXX
+.It Dv M_FLOWID_VALID
+The flow ID has been set.
+.It Dv M_FLOWID_MASK
+The flow ID.
+.El
+.Pp
+When only M_EXT flag is set, an external storage buffer is being used to
+hold the data, which is no longer stored in the mbuf.
+The data part of the mbuf has now the following elements:
+.Bl -tag -width foobarmoocow
+.It Fa m_pkthdr
+a packet header, just like the previous case, but it is empty.
+No information is stored here.
+.It Fa m_ext
+a structure containing information about the external storage
+buffer.
+The information consists of the address of the external buffer,
+a pointer to the function used to free the buffer, a pointer to the
+arguments of the function, the size of the buffer, the type of the
+buffer, and pointers to the previous and next mbufs using this
+cluster.
+.El
+.Pp
+When both the M_EXT and M_PKTHDR flags are set, an external storage buffer
+is being used to store the data and this data contains a packet header.
+The structure used is the same as the previous one except that the
+.Fa m_pkthdr
+element is not empty, it contains the same information as when
+M_PKTHDR is used alone.
+.Bl -tag -width Ds
+.It Fn m_copym "struct mbuf *m" "int off" "int len" "int wait"
+Copy an mbuf chain starting at
+.Fa off
+bytes from the beginning
+and continuing for
+.Fa len
+bytes.
+If
+.Fa off
+is zero and
+.Fa m
+has the M_PKTHDR flag set,
+the header is copied.
+If
+.Fa len
+is M_COPYALL,
+the whole mbuf is copied.
+The
+.Fa wait
+parameter can be M_WAIT or
+M_DONTWAIT.
+It does not copy clusters, it just increases their reference count.
+.It Fn m_free "struct mbuf *m"
+Free the mbuf pointed to by
+.Fa m .
+A pointer to the successor of the mbuf,
+if it exists, is returned by the function.
+If
+.Fa m
+is a
+.Dv NULL
+pointer, no action occurs and
+.Dv NULL
+is returned.
+.It Fn m_get "int how" "int type"
+Return a pointer to an mbuf of the type specified.
+If the
+.Fa how
+argument is
+.Fa M_WAITOK ,
+the function may call
+.Xr tsleep 9
+to await resources.
+If
+.Fa how
+is
+.Fa M_DONTWAIT
+and resources are not available,
+.Fn m_get
+returns NULL.
+.It Fn MGET "struct mbuf *m" "int how" "int type"
+Return a pointer to an mbuf in
+.Fa m
+of the type specified.
+See
+.Fn m_get
+for a description of
+.Fa how .
+.It Fn m_getclr "int how" "int type"
+Return a pointer to an mbuf of the type specified, and clear the data
+area of the mbuf.
+See
+.Fn m_get
+for a description of
+.Fa how .
+.It Fn m_removehdr "struct mbuf *m"
+Convert an mbuf with packet header to one without.
+Delete all
+.Xr pf 4
+data and all tags attached to an
+.Fa mbuf .
+Keep the data and mbuf chain, clear the packet header.
+.It Fn m_resethdr "struct mbuf *m"
+Delete all
+.Xr pf 4
+data and all tags attached to an
+.Fa mbuf .
+Keep the data and mbuf chain, initialize the packet header.
+.It Fn m_calchdrlen "struct mbuf *m"
+Set the packet header length to the sum of all length values in the
+mbuf chain.
+.It Fn m_gethdr "int how" "int type"
+Return a pointer to an mbuf of the type specified after initializing
+it to contain a packet header.
+See
+.Fn m_get
+for a description of
+.Fa how .
+.It Fn MGETHDR "struct mbuf *m" "int how" "int type"
+Return a pointer to an mbuf of the type specified after initializing
+it to contain a packet header.
+See
+.Fn m_get
+for a description of
+.Fa how .
+.It Fn m_prepend "struct mbuf *m" "int len" "int how"
+Prepend space of size
+.Fa plen
+to the mbuf pointed to by
+.Fa m .
+If necessary, allocate a new mbuf and prepend it to the mbuf chain pointed to by
+.Fa m .
+If
+.Fa m
+points to an mbuf with a packet header, it is moved to the new
+mbuf that has been prepended.
+The return value is a pointer on the new mbuf chain.
+If this function fails to allocate a new mbuf,
+.Fa m
+is freed.
+See
+.Fn m_get
+for a description of
+.Fa how .
+.It Fn M_PREPEND "struct mbuf *m" "int plen" "int how"
+Prepend space of size
+.Fa plen
+to the mbuf pointed to by
+.Fa m .
+If a new mbuf must be allocated,
+.Fa how
+specifies whether to wait or not.
+If this function fails to allocate a new mbuf,
+.Fa m
+is freed.
+.It Fn m_pulldown "struct mbuf *m" "int off" "int len" "int *offp"
+Ensure that the data in the mbuf chain starting at
+.Fa off
+and ending at
+.Fa off+len
+will be put in a continuous memory region.
+If memory must be allocated, then it will fail if the
+.Fa len
+argument is greater than MAXMCLBYTES.
+The pointer returned points to an mbuf in the chain and the new offset
+for data in this mbuf is
+.Fa *offp .
+If this function fails,
+.Fa m
+is freed.
+.It Fn m_pullup "struct mbuf *n" "int len"
+Ensure that the data in the mbuf chain starting at the beginning of
+the chain and ending at
+.Fa len
+will be put in continuous memory region.
+If memory must be allocated, then it will fail if the
+.Fa len
+argument is greater than MAXMCLBYTES.
+If this function fails,
+.Fa n
+is freed.
+.It Fn m_split "struct mbuf *m0" "int len0" "int wait"
+Split an mbuf chain in two pieces, returning a pointer to
+the tail (which is made of the previous mbuf chain except the first
+.Fa len0
+bytes).
+.It Fn m_makespace "struct mbuf *m0" "int skip" "int hlen" "int *off"
+Make space for a continuous memory region of length
+.Fa hlen
+at
+.Fa skip
+bytes into the mbuf chain.
+On success, the mbuf of the continuous memory is returned
+together with an offset
+.Fa off
+into the mbuf.
+On failure, NULL is returned and the mbuf chain may have been modified.
+The caller is assumed to always free the chain.
+.It Fn m_getptr "struct mbuf *m" "int loc" "int *off"
+Returns a pointer to the mbuf containing the data located at
+.Fa loc
+bytes of the beginning.
+The offset in the new mbuf is pointed to by
+.Fa off .
+.It Fn m_adj "struct mbuf *mp" "int req_len"
+Trims
+.Fa req_len
+bytes of data from the mbuf chain pointed to by
+.Fa mp .
+If
+.Fa req_len
+is positive, the data will be trimmed from the head of the mbuf chain
+and if it is negative, it will be trimmed from the tail of the mbuf
+chain.
+.It Fn m_copyback "struct mbuf *m0" "int off" "int len" "const void *cp" "int wait"
+Copy data from a buffer pointed to by
+.Fa cp
+back into the mbuf chain pointed to by
+.Fa m0
+starting at
+.Fa off
+bytes from the beginning, extending the mbuf chain if
+necessary, sleeping for mbufs if
+.Fa wait
+is
+.Fa M_WAIT .
+If
+.Fa M_NOWAIT
+is set and no mbufs are available,
+.Fn m_copyback
+returns
+.Er ENOBUFS .
+The mbuf chain must be initialized properly, including setting
+.Fa m_len .
+.It Fn m_defrag "struct mbuf *m" "int wait"
+Defragment the data mbufs referenced by
+.Fa m
+by replacing the chain with a copy of their contents made into a
+single mbuf or cluster.
+.Fa wait
+specifies whether it can wait or not for the replacement storage.
+.Fn m_defrag
+returns 0 on success or
+.Er ENOBUFS
+on failure.
+The mbuf pointer
+.Fa m
+remains in existence and unchanged on failure.
+.It Fn m_freem "struct mbuf *m"
+Free the mbuf chain pointed to by
+.Fa m .
+A pointer to the next mbuf in the list linked by m_nextpkt,
+if it exists, is returned by the function.
+If
+.Fa m
+is a
+.Dv NULL
+pointer, no action occurs and
+.Dv NULL
+is returned.
+.It Fn m_freemp "struct mbuf **mp"
+Set the input mbuf pointer to
+.Dv NULL
+and call
+.Fn m_freem .
+.It Fn m_purge "struct mbuf *m"
+Free the list of mbufs linked by m_nextpkt that is pointed to by
+.Fa m .
+Each mbuf is freed by a call to
+.Fn m_freem .
+If
+.Fa m
+is a
+.Dv NULL
+pointer, no action occurs.
+.It Fn m_copydata "struct mbuf *m" "int off" "int len" "void *cp"
+Copy data from the mbuf chain pointed to by
+.Fa m
+starting at
+.Fa off
+bytes from the beginning and continuing for
+.Fa len
+bytes into the buffer pointed to by
+.Fa cp .
+.It Fn m_cat "struct mbuf *m" "struct mbuf *n"
+Concatenate the mbuf chain pointed to by
+.Fa n
+to the mbuf chain pointed to by
+.Fa m .
+The mbuf chains must be of the same type.
+.It Fn m_devget "char *buf" "int totlen" "int off"
+Copy
+.Fa totlen
+bytes of data from device local memory pointed to by
+.Fa buf .
+The data is copied into an mbuf chain at offset
+.Fa off
+and a pointer to the head of the chain is returned.
+Returns NULL on failure.
+.It Fn m_apply "struct mbuf *m" "int off" "int len" \
+"int (*func)(caddr_t, caddr_t, unsigned int)" "caddr_t fstate"
+Apply the function
+.Fa func
+to the data in the mbuf chain pointed to by
+.Fa m
+starting at
+.Fa off
+bytes from the beginning and continuing for
+.Fa len
+bytes.
+.It Fn mtod "struct mbuf *m" "datatype"
+Return a pointer to the data contained in the specified mbuf
+.Fa m
+cast to
+.Fa datatype .
+.It Fn MCLGET "struct mbuf *m" "int how"
+Allocate and add an mbuf cluster to the mbuf pointed to by
+.Fa m .
+On success, the flag M_EXT is set in the mbuf.
+See
+.Fn m_get
+for a description of
+.Fa how .
+.It Fn MCLGETL "struct mbuf *m" "int how" "int len"
+If
+.Fa m
+is NULL, allocate it.
+Then allocate and add an mbuf cluster of length
+.Fa len
+to the mbuf pointed to by
+.Fa m .
+Returns either the mbuf
+.Fa m
+that was passed in, or the newly allocated one which was allocated; in
+either case the flag M_EXT is set in the mbuf.
+See
+.Fn m_get
+for a description of
+.Fa how .
+.It Fn MEXTADD "struct mbuf *m" "caddr_t buf" "u_int size" "int flags" \
+"void (*free)(caddr_t, u_int, void *)" "void *arg"
+Add pre-allocated storage to the mbuf pointed to by
+.Fa m .
+On success, the flag M_EXT is set in the mbuf, and M_EXTWR is specified in
+.Fa flags .
+.It Fn m_align "struct mbuf *m" "int len"
+Set the
+.Fa m_data
+pointer of the newly allocated mbuf
+.Fa m
+to an object of the specified size
+.Fa len
+at the end of this mbuf data area, longword aligned.
+.It Fn M_READONLY "struct mbuf *m"
+Check if the data of the mbuf pointed to by
+.Fa m
+is read-only.
+This is true for non-cluster external storage and for clusters that
+are being referenced by more than one mbuf.
+.It Fn m_leadingspace "struct mbuf *m"
+Compute the amount of space available before the current start of data
+in the mbuf pointed to by
+.Fa m .
+If the data of the mbuf pointed to by
+.Fa m
+is read-only then 0 is returned.
+.It Fn m_trailingspace "struct mbuf *m"
+Compute the amount of space available after the end of data in the
+mbuf pointed to by
+.Fa m .
+If the data of the mbuf pointed to by
+.Fa m
+is read-only then 0 is returned.
+.It Fn m_dup_pkt "struct mbuf *m" "u_int adj" "int how"
+Allocate a new mbuf and storage and copy the packet data and header,
+including mbuf tags, from
+.Fa m .
+The data in the new mbuf will be offset from the start of the storage by
+.Fa adj
+bytes.
+See
+.Fn m_get
+for a description of
+.Fa how .
+.It Fn m_dup_pkthdr "struct mbuf *to" "struct mbuf *from" "int how"
+Copy mbuf packet header, including mbuf tags, from
+.Fa from
+to
+.Fa to .
+See
+.Fn m_get
+for a description of
+.Fa how .
+.El
+.Sh CODE REFERENCES
+The mbuf management functions are implemented in the files
+.Pa sys/kern/uipc_mbuf.c
+and
+.Pa sys/kern/uipc_mbuf2.c .
+The function prototypes and the macros are located in
+.Pa sys/sys/mbuf.h .
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr mbuf_tags 9 ,
+.Xr mutex 9 ,
+.Xr spl 9
+.Rs
+.\" 4.4BSD SMM:18
+.%A S. J. Leffler
+.%A W. N. Joy
+.%A R. S. Fabry
+.%A M. J. Karels
+.%T Networking Implementation Notes
+.%B 4.4BSD System Manager's Manual (SMM)
+.Re
+.Rs
+.%A Jun-Ichiro Hagino
+.%T "Mbuf issues in 4.4BSD IPv6/IPsec support (experiences from KAME IPv6/IPsec implementation)"
+.%B "Proceedings of the Freenix Track: 2000 USENIX Annual Technical Conference"
+.%D June 2000
+.Re

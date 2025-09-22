@@ -1,0 +1,56 @@
+# We need multilib support for HPUX's ILP32 & LP64 modes.
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+MULTILIB_OPTIONS = milp32/mlp64
+MULTILIB_DIRNAMES = hpux32 hpux64
+MULTILIB_MATCHES =
+
+# On HP-UX we do not want _fixtfdi, _fixunstfdi, or _floatditf from
+# LIB1ASMSRC.  These functions map the 128 bit conversion function names
+# to 80 bit conversions and were done for Linux backwards compatibility.
+
+LIB1ASMFUNCS := $(filter-out _fixtfdi _fixunstfdi _floatditf,$(LIB1ASMFUNCS))
+
+# Support routines for HP-UX 128 bit floats.
+
+LIB2FUNCS_EXTRA=quadlib.c $(srcdir)/config/floatunsitf.c
+
+quadlib.c: $(srcdir)/config/ia64/quadlib.c
+	cat $(srcdir)/config/ia64/quadlib.c > quadlib.c
+
+# We get an undefined main when building a cross compiler because our
+# linkspec has "-u main" and we want that for linking but it makes
+# LIBGCC1_TEST fail because it uses -nostdlib -nostartup.
+
+LIBGCC1_TEST =
+
+# We do not want to include the EH stuff that linux uses, we want to use
+# the HP-UX libunwind library.
+
+T_CFLAGS += -DUSE_LIBUNWIND_EXCEPTIONS
+
+LIB2ADDEH =
+
+SHLIB_EXT = .so
+# Must include -lunwind in the link, so that libgcc_s.so has the necessary
+# DT_NEEDED entry for libunwind.
+SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -shared -nodefaultlibs \
+	-Wl,+h,@shlib_base_name@.so.0 \
+	-o @multilib_dir@/@shlib_base_name@.so @multilib_flags@ \
+	@shlib_objs@ -lunwind -lc && \
+	rm -f @multilib_dir@/@shlib_base_name@.so.0 && \
+	$(LN_S) @shlib_base_name@.so @multilib_dir@/@shlib_base_name@.so.0
+# $(slibdir) double quoted to protect it from expansion while building
+# libgcc.mk.  We want this delayed until actual install time.
+SHLIB_INSTALL = \
+        $$(mkinstalldirs) $$(DESTDIR)$$(slibdir)@shlib_slibdir_qual@; \
+	$(INSTALL_DATA) @multilib_dir@/@shlib_base_name@.so \
+	$$(DESTDIR)$$(slibdir)@shlib_slibdir_qual@/@shlib_base_name@.so.0; \
+	rm -f $$(DESTDIR)$$(slibdir)@shlib_slibdir_qual@/@shlib_base_name@.so; \
+	$(LN_S) @shlib_base_name@.so.0 \
+	$$(DESTDIR)$$(slibdir)@shlib_slibdir_qual@/@shlib_base_name@.so; \
+	chmod +x $$(DESTDIR)$$(slibdir)@shlib_slibdir_qual@/@shlib_base_name@.so
+
+SHLIB_MKMAP = $(srcdir)/mkmap-flat.awk

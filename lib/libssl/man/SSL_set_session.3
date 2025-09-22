@@ -1,0 +1,120 @@
+.\"	$OpenBSD: SSL_set_session.3,v 1.5 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL 05ea606a May 20 20:52:46 2016 -0400
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2000, 2001, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_SET_SESSION 3
+.Os
+.Sh NAME
+.Nm SSL_set_session
+.Nd set a TLS/SSL session to be used during TLS/SSL connect
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fn SSL_set_session "SSL *ssl" "SSL_SESSION *session"
+.Sh DESCRIPTION
+.Fn SSL_set_session
+sets
+.Fa session
+to be used when the TLS/SSL connection is to be established.
+.Fn SSL_set_session
+is only useful for TLS/SSL clients.
+When the session is set, the reference count of
+.Fa session
+is incremented
+by 1.
+If the session is not reused, the reference count is decremented again during
+.Fn SSL_connect .
+Whether the session was reused can be queried with the
+.Xr SSL_session_reused 3
+call.
+.Pp
+If there is already a session set inside
+.Fa ssl
+(because it was set with
+.Fn SSL_set_session
+before or because the same
+.Fa ssl
+was already used for a connection),
+.Xr SSL_SESSION_free 3
+will be called for that session.
+.Pp
+.Vt SSL_SESSION
+objects keep internal link information about the session cache list when being
+inserted into one
+.Vt SSL_CTX
+object's session cache.
+One
+.Vt SSL_SESSION
+object, regardless of its reference count, must therefore only be used with one
+.Vt SSL_CTX
+object (and the
+.Vt SSL
+objects created from this
+.Vt SSL_CTX
+object).
+.Sh RETURN VALUES
+The following return values can occur:
+.Bl -tag -width Ds
+.It 0
+The operation failed; check the error stack to find out the reason.
+.It 1
+The operation succeeded.
+.El
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_set_session_cache_mode 3 ,
+.Xr SSL_get_session 3 ,
+.Xr SSL_SESSION_free 3 ,
+.Xr SSL_session_reused 3
+.Sh HISTORY
+.Fn SSL_set_session
+first appeared in SSLeay 0.5.2 and has been available since
+.Ox 2.4 .

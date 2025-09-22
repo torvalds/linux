@@ -1,0 +1,174 @@
+.\"	$OpenBSD: makemap.8,v 1.31 2021/02/13 07:37:13 jmc Exp $
+.\"
+.\" Copyright (c) 2009 Jacek Masiulaniec <jacekm@openbsd.org>
+.\" Copyright (c) 2008-2009 Gilles Chehade <gilles@poolp.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 13 2021 $
+.Dt MAKEMAP 8
+.Os
+.Sh NAME
+.Nm makemap
+.Nd create database maps for smtpd
+.Sh SYNOPSIS
+.Nm makemap
+.Op Fl U
+.Op Fl d Ar dbtype
+.Op Fl o Ar dbfile
+.Op Fl t Ar type
+.Ar file
+.Sh DESCRIPTION
+Maps provide a generic interface for associating a textual key to a value.
+Such associations may be accessed through a plaintext file, database, or DNS.
+The format of these file types is described below.
+.Nm
+itself creates the database maps used by keyed map lookups specified in
+.Xr smtpd.conf 5 .
+.Pp
+.Nm
+reads input from
+.Ar file
+and writes data to a file which is named by adding a
+.Dq .db
+suffix to
+.Ar file .
+The current line can be extended over multiple lines using a backslash
+.Pq Sq \e .
+Comments can be put anywhere in the file using a hash mark
+.Pq Sq # ,
+and extend to the end of the current line.
+Care should be taken when commenting out multi-line text:
+the comment is effective until the end of the entire block.
+In all cases,
+.Nm
+reads lines consisting of words separated by whitespace.
+The first word of a line is the database key;
+the remainder represents the mapped value.
+The database key and value may optionally be separated
+by the colon character.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d Ar dbtype
+Specify the format of the database.
+Available formats are
+.Ar hash
+and
+.Ar btree .
+The default value is
+.Ar hash .
+.It Fl o Ar dbfile
+Write the generated database to
+.Ar dbfile .
+.It Fl t Ar type
+Specify the format of the resulting map file.
+The default map format is suitable for storing simple, unstructured,
+key-to-value string associations.
+However, if the mapped value has special meaning,
+as in the case of a virtual domains file,
+a suitable
+.Ar type
+must be provided.
+The available output types are:
+.Bl -tag -width "aliases"
+.It Cm aliases
+The mapped value is a comma-separated list of mail destinations.
+This format can be used for building user aliases and
+user mappings for virtual domain files.
+.It Cm set
+There is no mapped value \(en a map of this type will only allow for
+the lookup of keys.
+This format can be used for building primary domain maps.
+.El
+.It Fl U
+Instead of generating a database map from text input,
+dump the contents of a database map as text
+with the key and value separated with a tab.
+.El
+.Sh PRIMARY DOMAINS
+Primary domains can be kept in tables.
+To create a primary domain table, add each primary domain on a
+single line by itself.
+.Pp
+In addition to adding an entry to the primary domain map,
+one must add a filter rule that accepts mail for the domain
+map, for example:
+.Bd -literal -offset indent
+table domains db:/etc/mail/domains.db
+
+action "local" mbox
+
+match for domain <domains> action "local"
+.Ed
+.Sh VIRTUAL DOMAINS
+Virtual domains may also be kept in tables.
+To create a virtual domain table, add each virtual domain on a
+single line by itself.
+.Pp
+Virtual domains expect a mapping of virtual users to real users
+in order to determine if a recipient is accepted or not.
+The mapping format is an extension to
+.Xr aliases 5 ,
+which allows the use of
+.Dq user@domain.tld
+to accept user only on the specified domain,
+.Dq user
+to accept the user for any of the virtual domains,
+.Dq @domain.tld
+to provide a catch-all for the specified domain and
+.Dq @
+to provide a global catch-all for all domains.
+.Xr smtpd 8
+will perform the lookups in that specific order.
+.Pp
+To create a single virtual address, add
+.Dq user@example.com user
+to the users map.
+To handle all mail destined to any user at example.com, add
+.Dq @example.com user
+to the virtual map.
+.Pp
+In addition to adding an entry to the virtual map,
+one must add a filter rule that accepts mail for virtual domains,
+for example:
+.Bd -literal -offset indent
+table vdomains db:/etc/mail/vdomains.db
+table vusers db:/etc/mail/users.db
+
+action "local" mbox virtual <vusers>
+
+match for domain <vdomains> action "local"
+match for domain "example.org" action "local"
+.Ed
+.Sh FILES
+.Bl -tag -width "/etc/mail/aliasesXXX" -compact
+.It Pa /etc/mail/aliases
+List of user mail aliases.
+.It Pa /etc/mail/secrets
+List of remote host credentials.
+.El
+.Sh EXIT STATUS
+.Ex -std makemap
+.Sh SEE ALSO
+.Xr aliases 5 ,
+.Xr smtpd.conf 5 ,
+.Xr table 5 ,
+.Xr newaliases 8 ,
+.Xr smtpd 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 4.6
+as a replacement for the equivalent command shipped with sendmail.

@@ -1,0 +1,739 @@
+.\"	$OpenBSD: stty.1,v 1.49 2022/03/31 17:27:14 naddy Exp $
+.\"	$NetBSD: stty.1,v 1.10 1995/09/07 06:57:14 jtc Exp $
+.\"
+.\" Copyright (c) 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)stty.1	8.5 (Berkeley) 6/1/94
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt STTY 1
+.Os
+.Sh NAME
+.Nm stty
+.Nd set the options for a terminal device interface
+.Sh SYNOPSIS
+.Nm stty
+.Op Fl a | e | g
+.Op Fl f Ar file
+.Op Ar operands
+.Sh DESCRIPTION
+The
+.Nm
+utility sets or reports on terminal
+characteristics for the device that is its standard input.
+If no options or operands are specified, it reports the settings of a subset
+of characteristics as well as additional ones if they differ from their
+default values.
+Otherwise it modifies
+the terminal state according to the specified arguments.
+Some combinations of arguments are mutually
+exclusive on some terminal types.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Display all the current settings for the terminal to standard output.
+.It Fl e
+Display all the current settings for the terminal to standard output
+in the traditional
+.Bx
+.Dq all
+and
+.Dq everything
+formats.
+.It Fl f Ar file
+Open and use the terminal named by
+.Ar file
+rather than using standard input.
+The file is opened using the
+.Dv O_NONBLOCK
+flag of
+.Xr open 2 ,
+making it possible to
+set or display settings on a terminal that might otherwise
+block on the open.
+.It Fl g
+Display all the current settings for the terminal to standard output
+in a form that may be used as an argument to a subsequent invocation of
+.Nm
+to restore the current terminal state.
+The output does not contain any characters that require quoting,
+to avoid word expansion by the shell.
+.El
+.Pp
+The following arguments are available to set the terminal
+characteristics:
+.Ss Control modes
+Control mode flags affect hardware characteristics associated with the
+terminal.
+This corresponds to the
+.Li c_cflag
+in the termios structure.
+.Bl -tag -width Ds
+.It Cm parenb Pq Fl parenb
+Enable (disable) parity generation
+and detection.
+.It Cm parodd Pq Fl parodd
+Select odd (even) parity.
+.It Cm cs5 cs6 cs7 cs8
+Select character size, if possible.
+.It Ar number
+Set terminal baud rate to the
+number given, if possible.
+If the
+baud rate is set to zero, modem
+control is no longer
+asserted.
+.It Cm ispeed Ar number
+Set terminal input baud rate to the
+number given, if possible.
+If the
+input baud rate is set to zero, the
+input baud rate is set to the
+value of the output baud
+rate.
+.It Cm ospeed Ar number
+Set terminal output baud rate to
+the number given, if possible.
+If
+the output baud rate is set to
+zero, modem control is
+no longer asserted.
+.It Cm speed Ar number
+This sets both
+.Cm ispeed
+and
+.Cm ospeed
+to
+.Ar number .
+.It Cm hupcl Pq Fl hupcl
+Stop asserting modem control
+(do not stop asserting modem control) on last close.
+.It Cm hup Pq Fl hup
+Same as
+.Cm hupcl
+.Pq Fl hupcl .
+.It Cm cstopb Pq Fl cstopb
+Use two (one) stop bits per character.
+.It Cm cread Pq Fl cread
+Enable (disable) the receiver.
+.It Cm clocal Pq Fl clocal
+Assume a line without (with) modem
+control.
+.It Cm crtscts Pq Fl crtscts
+Enable (disable) RTS/CTS flow control.
+.El
+.Ss Input modes
+This corresponds to the
+.Li c_iflag
+in the termios structure.
+.Bl -tag -width Ds
+.It Cm ignbrk Pq Fl ignbrk
+Ignore (do not ignore) break on
+input.
+.It Cm brkint Pq Fl brkint
+Signal (do not signal)
+.Dv INTR
+on
+break.
+.It Cm ignpar Pq Fl ignpar
+Ignore (do not ignore) parity
+errors.
+.It Cm parmrk Pq Fl parmrk
+Mark (do not mark) parity errors.
+.It Cm inpck Pq Fl inpck
+Enable (disable) input parity
+checking.
+.It Cm istrip Pq Fl istrip
+Strip (do not strip) input characters
+to seven bits.
+.It Cm inlcr Pq Fl inlcr
+Map (do not map)
+.Dv NL
+to
+.Dv CR
+on input.
+.It Cm igncr Pq Fl igncr
+Ignore (do not ignore)
+.Dv CR
+on input.
+.It Cm icrnl Pq Fl icrnl
+Map (do not map)
+.Dv CR
+to
+.Dv NL
+on input.
+.It Cm iuclc Pq Fl iuclc
+Translate (do not translate) upper case to lower case
+on input.
+.It Cm ixon Pq Fl ixon
+Enable (disable)
+.Dv START/STOP
+output
+control.
+Output from the system is
+stopped when the system receives
+.Dv STOP
+and started when the system
+receives
+.Dv START ,
+or if
+.Cm ixany
+is set, any character restarts output.
+.It Cm ixoff Pq Fl ixoff
+Request that the system send (not
+send)
+.Dv START/STOP
+characters when
+the input queue is nearly
+empty/full.
+.It Cm ixany Pq Fl ixany
+Allow any character (allow only
+.Dv START )
+to restart output.
+.It Cm imaxbel Pq Fl imaxbel
+The system imposes a limit of
+.Dv MAX_INPUT
+(currently 255) characters in the input queue.
+If
+.Cm imaxbel
+is set and the input queue limit has been reached,
+subsequent input causes the system to send an ASCII BEL
+character to the output queue (the terminal beeps at you).
+Otherwise, if
+.Cm imaxbel
+is unset and the input queue is full, the next input character causes
+the entire input and output queues to be discarded.
+.El
+.Ss Output modes
+This corresponds to the
+.Li c_oflag
+of the termios structure.
+.Bl -tag -width Ds
+.It Cm opost Pq Fl opost
+Post-process output (do not
+post-process output; ignore all other
+output modes).
+.It Cm onlcr Pq Fl onlcr
+Map (do not map)
+.Dv NL
+to
+.Dv CR-NL
+on output.
+.It Cm ocrnl Pq Fl ocrnl
+Translate (do not translate) carriage return to newline on output.
+.It Cm onocr Pq Fl onocr
+Carriage return is not output (is output) at column 0.
+.It Cm onlret Pq Fl onlret
+Newline performs (does not perform) carriage return on output.
+.It Cm olcuc Pq Fl olcuc
+Translate (do not translate) lower case to upper case on output.
+.It Cm oxtabs Pq Fl oxtabs
+Expand (do not expand) tabs to spaces on output.
+.It Cm onoeot Pq Fl onoeot
+Discard (do not discard) EOFs on output.
+.El
+.Ss Local modes
+Local mode flags (lflags) affect various and sundry characteristics of terminal
+processing.
+Historically the term "local" pertained to new job control features
+implemented by Jim Kulp on a PDP 11/70 at IIASA.
+Later the driver ran on the first VAX at Evans Hall, UC Berkeley,
+where the job control details were greatly modified
+but the structure definitions and names remained essentially unchanged.
+The second interpretation of the
+.Sq l
+in lflag is
+.Dq line discipline flag
+which corresponds to the
+.Li c_lflag
+of the termios structure.
+.Bl -tag -width Ds
+.It Cm isig Pq Fl isig
+Enable (disable) the checking of
+characters against the special control
+characters
+.Dv INTR , QUIT ,
+and
+.Dv SUSP .
+.It Cm icanon Pq Fl icanon
+Enable (disable) canonical input
+.Pf ( Dv ERASE
+and
+.Dv KILL
+processing).
+.It Cm iexten Pq Fl iexten
+Enable (disable) any implementation
+defined special control characters
+not currently controlled by
+.Cm icanon ,
+.Cm isig ,
+or
+.Cm ixon .
+.It Cm echo Pq Fl echo
+Echo back (do not echo back) every
+character typed.
+.It Cm echoe Pq Fl echoe
+The
+.Dv ERASE
+character shall (shall
+not) visually erase the last character
+in the current line from the
+display, if possible.
+.It Cm echok Pq Fl echok
+Echo (do not echo)
+.Dv NL
+after
+.Dv KILL
+character.
+.It Cm echoke Pq Fl echoke
+The
+.Dv KILL
+character shall (shall
+not) visually erase the
+current line from the
+display, if possible.
+.It Cm echonl Pq Fl echonl
+Echo (do not echo)
+.Dv NL ,
+even if echo
+is disabled.
+.It Cm echoctl Pq Fl echoctl
+If
+.Cm echoctl
+is set, echo control characters as
+.Ql ^X .
+Otherwise control characters echo as themselves.
+.It Cm echoprt Pq Fl echoprt
+For printing terminals.
+If set, echo erased characters backwards within
+.Ql \e
+and
+.Ql / .
+Otherwise, disable this feature.
+.It Cm noflsh Pq Fl noflsh
+Disable (enable) flush after
+.Dv INTR , QUIT , SUSP .
+.It Cm tostop Pq Fl tostop
+Send (do not send)
+.Dv SIGTTOU
+for background output.
+This causes background jobs to stop if they attempt
+terminal output.
+.It Cm altwerase Pq Fl altwerase
+Use (do not use) an alternate word erase algorithm when processing
+.Dv WERASE
+characters.
+This alternate algorithm considers sequences of
+alphanumeric/underscores as words.
+It also skips the first preceding character in its classification
+(as a convenience since the one preceding character could have been
+erased with simply an
+.Dv ERASE
+character).
+.It Cm mdmbuf Pq Fl mdmbuf
+If set, flow control output based on condition of Carrier Detect.
+Otherwise
+writes return an error if Carrier Detect is low (and Carrier is not being
+ignored with the
+.Dv CLOCAL
+flag).
+.It Cm flusho Pq Fl flusho
+Indicates output is (is not) being discarded.
+.It Cm pendin Pq Fl pendin
+Indicates input is (is not) pending after a switch from non-canonical
+to canonical mode and will be re-input when a read becomes pending
+or more input arrives.
+.It Cm xcase Pq Fl xcase
+Upper and lower case is (is not) handled canonically on input and output
+with
+.Cm iuclc
+and
+.Cm olcuc .
+.El
+.Ss Control characters
+.Bl -tag -width Ds -compact
+.It Ar control-character Ar string
+Set
+.Ar control-character
+to
+.Ar string .
+If string is a single character,
+the control character is set to
+that character.
+If string is the
+two character sequence
+.Ql ^-
+or the string
+.Dq undef ,
+the control character
+is disabled (i.e. set to
+.Brq Dv _POSIX_VDISABLE ) .
+.Pp
+Recognized control-characters:
+.Bl -column "character" "Subscript" "Description"
+.It Sy Control Ta Sy Subscript Ta Sy Description
+.It Sy character Ta "" Ta ""
+.It eof Ta Dv VEOF Ta "EOF character"
+.It eol Ta Dv VEOL Ta "EOL character"
+.It eol2 Ta Dv VEOL2 Ta "EOL2 character"
+.It erase Ta Dv VERASE Ta "ERASE character"
+.It werase Ta Dv VWERASE Ta "WERASE character"
+.It intr Ta Dv VINTR Ta "INTR character"
+.It kill Ta Dv VKILL Ta "KILL character"
+.It quit Ta Dv VQUIT Ta "QUIT character"
+.It susp Ta Dv VSUSP Ta "SUSP character"
+.It start Ta Dv VSTART Ta "START character"
+.It stop Ta Dv VSTOP Ta "STOP character"
+.It dsusp Ta Dv VDSUSP Ta "DSUSP character"
+.It lnext Ta Dv VLNEXT Ta "LNEXT character"
+.It reprint Ta Dv VREPRINT Ta "REPRINT character"
+.It status Ta Dv VSTATUS Ta "STATUS character"
+.El
+.Pp
+.It Cm min Ar number
+.It Cm time Ar number
+Set the value of
+.Cm min
+or
+.Cm time
+to
+.Ar number .
+.Dv MIN
+and
+.Dv TIME
+are used in
+non-canonical mode input processing
+(-icanon).
+.El
+.Ss Combination modes
+.Bl -tag -width Ds
+.It Ar saved settings
+Set the current terminal
+characteristics to the saved settings
+produced by the
+.Fl g
+option.
+.It Cm evenp No or Cm parity
+Enable
+.Cm parenb
+and
+.Cm cs7 ;
+disable
+.Cm parodd .
+.It Cm oddp
+Enable
+.Cm parenb ,
+.Cm cs7 ,
+and
+.Cm parodd .
+.It Fl parity , evenp , oddp
+Disable
+.Cm parenb
+and set
+.Cm cs8 .
+.It Cm \&nl Pq Fl \&nl
+Enable (disable)
+.Cm icrnl .
+In addition,
+.Fl \&nl
+unsets
+.Cm inlcr
+and
+.Cm igncr .
+.It Cm ek
+Reset
+.Dv ERASE
+and
+.Dv KILL
+characters
+back to system defaults.
+.It Cm sane
+Resets all modes to reasonable values for interactive terminal use.
+.It Cm tty
+Set the line discipline to the standard terminal line discipline
+.Dv TTYDISC .
+.It Cm crt Pq Fl crt
+Set (disable) all modes suitable for a CRT display device.
+.It Cm kerninfo Pq Fl kerninfo
+Enable (disable) the system generated status line associated with
+processing a
+.Dv STATUS
+character (usually set to
+.Ql ^T ) .
+The status line consists of the
+system load average, the current command name, its process ID, the
+event the process is waiting on (or the status of the process), the user
+and system times, percent CPU, and current memory usage.
+.It Cm columns Ar number
+The terminal size is recorded as having
+.Ar number
+columns.
+.It Cm cols Ar number
+This is an alias for
+.Cm columns .
+.It Cm rows Ar number
+The terminal size is recorded as having
+.Ar number
+rows.
+.It Cm dec
+Set modes suitable for users of Digital Equipment Corporation systems
+.Pf ( Dv ERASE ,
+.Dv KILL ,
+and
+.Dv INTR
+characters are set to ^?, ^U, and ^C;
+.Dv ixany
+is disabled, and
+.Dv crt
+is enabled).
+.It Cm extproc Pq Fl extproc
+If set, this flag indicates that some amount of terminal processing is being
+performed by either the terminal hardware or by the remote side connected
+to a pty.
+.It Cm raw Pq Fl raw
+If set, change the modes of the terminal so that no input or output processing
+is performed.
+If unset, change the modes of the terminal to some reasonable
+state that performs input and output processing.
+Note that since the terminal driver no longer has a single
+.Dv RAW
+bit, it is not possible to intuit what flags were set prior to setting
+.Cm raw .
+This means that unsetting
+.Cm raw
+may not put back all the setting that were previously in effect.
+To set the terminal into a raw state and then accurately restore it,
+the following shell code is recommended:
+.Bd -literal -offset indent
+save_state=$(stty -g)
+stty raw
+\&...
+stty "$save_state"
+.Ed
+.It Cm size
+The size of the terminal is printed as two numbers on a single line,
+first rows, then columns.
+.El
+.Ss Compatibility modes
+These modes remain for compatibility with the previous version of
+the stty command.
+.Bl -tag -width Ds
+.It Cm all
+Reports all the terminal modes as with
+.Cm stty Fl a
+except that the control characters are printed in a columnar format.
+.It Cm everything
+Same as
+.Cm all .
+.It Cm cooked
+Same as
+.Cm sane .
+.It Cm cbreak
+If set, enables
+.Cm brkint , ixon , imaxbel , opost ,
+.Cm isig , iexten ,
+and
+.Fl icanon .
+If unset, same as
+.Cm sane .
+.It Cm new
+Same as
+.Cm tty .
+.It Cm old
+Same as
+.Cm tty .
+.It Cm newcrt Pq Fl newcrt
+Same as
+.Cm crt .
+.It Cm pass8
+The converse of
+.Cm parity .
+.It Cm tandem Pq Fl tandem
+Same as
+.Cm ixoff .
+.It Cm decctlq Pq Fl decctlq
+The converse of
+.Cm ixany .
+.It Cm crterase Pq Fl crterase
+Same as
+.Cm echoe .
+.It Cm crtbs Pq Fl crtbs
+Same as
+.Cm echoe .
+.It Cm crtkill Pq Fl crtkill
+Same as
+.Cm echoke .
+.It Cm ctlecho Pq Fl ctlecho
+Same as
+.Cm echoctl .
+.It Cm prterase Pq Fl prterase
+Same as
+.Cm echoprt .
+.It Cm lcase Pq Fl lcase
+Same as
+.Cm iuclc ,
+.Cm olcuc
+and
+.Cm xcase .
+.It Cm litout Pq Fl litout
+The converse of
+.Cm opost .
+.It Cm tabs Pq Fl tabs
+The converse of
+.Cm oxtabs .
+.It Cm brk Ar value
+Same as the control character
+.Cm eol .
+.It Cm flush Ar value
+Same as the control character
+.Cm discard .
+.It Cm rprnt Ar value
+Same as the control character
+.Cm reprint .
+.El
+.Ss Control operations
+These operations are not modes, but rather commands to be performed by
+the tty layer.
+.Bl -tag -width Ds
+.It Cm ostart
+Performs a
+.Dq start output
+operation, as normally done by an
+incoming
+.Dv START
+character when
+.Cm ixon
+is set.
+.It Cm ostop
+Performs a
+.Dq stop output
+operation, as normally done by an incoming
+.Dv STOP
+character when
+.Cm ixon
+is set.
+.El
+.Sh EXIT STATUS
+.Ex -std stty
+.Sh SEE ALSO
+.Xr termios 4 ,
+.Xr tty 4
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl ef ,
+the operands
+.Cm altwerase ,
+.Cm cols ,
+.Cm columns ,
+.Cm crt ,
+.Cm crtscts ,
+.Cm dec ,
+.Cm echoke ,
+.Cm extproc ,
+.Cm flusho ,
+.Cm imaxbel ,
+.Cm kerninfo ,
+.Cm mdmbuf ,
+.Cm onlcr ,
+.Cm onoeot ,
+.Cm ostart ,
+.Cm ostop ,
+.Cm oxtabs ,
+.Cm pendin ,
+.Cm rows ,
+.Cm size ,
+.Cm speed ,
+and
+.Cm tty ,
+and the control characters
+eol2,
+dsusp,
+lnext,
+reprint,
+status,
+and
+werase
+are all extensions to that specification.
+.Pp
+The operands
+.Cm iuclc ,
+.Cm olcuc ,
+and
+.Cm xcase
+are marked by
+.St -p1003.1-2008
+as legacy items;
+the operands listed in
+.Sx Compatibility modes
+can also be considered legacy.
+.Pp
+The operands
+.Cm bs0-1 ,
+.Cm cr0-3 ,
+.Cm ff0-1 ,
+.Cm nl0-1 ,
+.Cm ocrnl ,
+.Cm ofdel ,
+.Cm ofill ,
+.Cm onlret ,
+.Cm onocr ,
+.Cm raw ,
+.Cm tab0-3 ,
+.Cm tabs ,
+and
+.Cm vt0-1
+are marked by
+.St -p1003.1-2008
+as being an X/Open System Interfaces option.
+Of those, only
+.Cm ocrnl ,
+.Cm onlret ,
+.Cm onocr ,
+.Cm raw ,
+and
+.Cm tabs
+are supported by this implementation of
+.Nm ,
+and behaviour for
+.Cm tabs
+differs.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v2 .

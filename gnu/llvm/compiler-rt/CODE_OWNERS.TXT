@@ -1,0 +1,77 @@
+This file is a list of the people responsible for ensuring that patches for a
+particular part of compiler-rt are reviewed, either by themself or by
+someone else. They are also the gatekeepers for their part of compiler-rt, with
+the final word on what goes in or not.
+
+The list is sorted by surname and formatted to allow easy grepping and
+beautification by scripts. The fields are: name (N), email (E), web-address
+(W), PGP key ID and fingerprint (P), description (D), and snail-mail address
+(S).
+
+N: Saleem Abdulrasool
+E: compnerd@compnerd.org
+D: builtins library
+
+N: Andrew Browne
+E: browneee@google.com
+D: DataFlowSanitizer
+
+N: Vitaly Buka
+E: vitalybuka@google.com
+D: Sanitizers
+
+N: Peter Collingbourne
+E: peter@pcc.me.uk
+D: CFI, SafeStack
+
+N: Lang Hames
+E: lhames@gmail.com
+D: ORC
+
+N: Petr Hosek
+E: phosek@google.com
+D: CRT, CMake build
+
+N: Teresa Johnson
+E: tejohnson@google.com
+D: MemProf
+
+N: Kostya Kortchinsky
+E: kostya.kortchinsky@gmail.com
+D: SCUDO
+
+N: Mitch Phillips
+E: mitchp@google.com
+D: GWP ASAN
+
+N: Alexander Potapenko
+E: glider@google.com
+D: Sanitizers
+
+N: Kostya Serebryany
+E: kcc@google.com
+D: AddressSanitizer, sanitizer_common, LeakSanitizer, LibFuzzer
+
+N: Richard Smith
+E: richard-llvm@metafoo.co.uk
+D: UndefinedBehaviorSanitizer
+
+N: Evgeniy Stepanov
+E: eugenis@google.com
+D: MemorySanitizer, Android port of sanitizers
+
+N: Dmitry Vyukov
+E: dvyukov@google.com
+D: ThreadSanitizer
+
+N: Bill Wendling
+E: isanbard@gmail.com
+D: Profile runtime library
+
+N: Christopher Apple, David Trevelyan
+E: cja-private@pm.me, realtime.sanitizer@gmail.com
+D: Realtime Sanitizer (RTSan)
+
+N: Alexander Shaposhnikov
+E: alexander.v.shaposhnikov@gmail.com
+D: Numerical Sanitizer (NSAN)

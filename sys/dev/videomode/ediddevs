@@ -1,0 +1,105 @@
+$OpenBSD: ediddevs,v 1.1 2009/10/08 20:35:44 matthieu Exp $
+
+/*-
+ * Copyright (c) 2006 Itronix Inc.
+ * All rights reserved.
+ *
+ * Written by Garrett D'Amore for Itronix Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of Itronix Inc. may not be used to endorse
+ *    or promote products derived from this software without specific
+ *    prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ITRONIX INC. ``AS IS'' AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL ITRONIX INC. BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */ 
+
+/*
+ * Use "make -f Makefile.ediddevs" to regenerate ediddevs.h and ediddevs_data.h
+ */
+
+/*
+ * List of known EDID monitor vendors
+ *
+ * These are standard PNP ids, managed (apparently) by Microsoft.
+ * It is likely that this list is grossly incomplete.
+ */
+vendor	AAC	AcerView
+vendor	AOC	AOC
+vendor	APP	Apple Computer
+vendor	AST	AST Research
+vendor	CPL	Compal
+vendor	CPQ	Compaq
+vendor	CTX	CTX
+vendor	DEC	DEC
+vendor	DEL	Dell
+vendor	DPC	Delta
+vendor	DWE	Daewoo
+vendor	EIZ	EIZO
+vendor	ELS	ELSA
+vendor	EPI	Envision
+vendor	FCM	Funai
+vendor	FUJ	Fujitsu
+vendor	GSM	LG Electronics
+vendor	GWY	Gateway 2000
+vendor	HEI	Hyundai
+vendor	HIT	Hitachi
+vendor	HSL	Hansol
+vendor	HTC	Hitachi/Nissei
+vendor	HWP	HP
+vendor	IBM	IBM
+vendor	ICL	Fujitsu ICL
+vendor	IVM	Iiyama
+vendor	KDS	Korea Data Systems
+vendor	MEI	Panasonic
+vendor	MEL	Mitsubishi Electronics
+vendor	NAN	Nanao
+vendor	NEC	NEC
+vendor	NOK	Nokia Data
+vendor	PHL	Philips
+vendor	REL	Relisys
+vendor	SAM	Samsung
+vendor	SGI	SGI
+vendor	SNY	Sony
+vendor	SRC	Shamrock
+vendor	SUN	Sun Microsystems
+vendor	TAT	Tatung
+vendor	TOS	Toshiba
+vendor	TSB	Toshiba
+vendor	VSC	ViewSonic
+vendor	ZCM	Zenith
+
+/*
+ * List of known products, grouped and sorted by vendor.
+ *
+ * EDID version 1.3 requires that monitors expose the monitor name with
+ * the ASCII descriptor type 0xFC, so for monitors using that block, this
+ * information is redundant, and there is not point in listing them here,
+ * unless it is desired to have a symbolic macro to detect the monitor in
+ * special handling code or somesuch.
+ */
+
+/* Dell  - this exists for now as a sample.  I don't have one of these.  */
+product DEL ULTRASCAN14XE_REVA	0x139A	Ultrascan 14XE
+product DEL ULTRASCAN14XE_REVB	0x139B	Ultrascan 14XE
+
+/* ViewSonic */
+product VSC 17GS		0x0c00	17GS
+product VSC 17PS		0x0c0f	17PS

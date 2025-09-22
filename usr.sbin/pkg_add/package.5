@@ -1,0 +1,303 @@
+.\"	$OpenBSD: package.5,v 1.33 2023/11/29 14:32:01 espie Exp $
+.\" Copyright (c) 2005-2006 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: November 29 2023 $
+.Dt PACKAGE 5
+.Os
+.Sh NAME
+.Nm package ,
+.Nm packing-list ,
+.Nm plist
+.Nd format for OpenBSD binary packages and packing-lists
+.Sh DESCRIPTION
+Binary packages for
+.Ox
+can be created using
+.Xr pkg_create 1
+and are usually manipulated using
+.Xr pkg_add 1 ,
+.Xr pkg_mklocatedb 1 ,
+or
+.Xr pkg_info 1 .
+.Pp
+The basic underlying format is an archive following the ustar specification
+that can be handled with
+.Xr tar 1
+and compressed using
+.Xr gzip 1 .
+.Pp
+Package names always end in
+.Dq .tgz ;
+the file name itself should conform to
+.Xr packages-specs 7 .
+.Pp
+Note that the base distribution tarballs of
+.Ox
+(e.g.\&
+.Pa baseXX.tgz ,
+.Pa compXX.tgz ,
+\&...) are not binary packages fit for
+.Xr pkg_add 1 .
+.Pp
+All types of archive contents can be present in a package,
+including files, directories, hardlinks, symlinks, fifos, block and character
+devices.
+.Pp
+In order to allow just-in-time extraction,
+packages always begin with a table of contents, named
+.Pa +CONTENTS ,
+nicknamed
+.Nm packing-list
+.Po
+.Nm plist
+for short
+.Pc .
+This table of contents can be read using the API described in
+.Xr OpenBSD::PackingList 3p .
+.Pp
+All the remaining information in the archive should be referenced in the
+.Nm packing-list ,
+including symlinks destinations,
+special permissions, and file owners
+.Po
+.Xr pkg_create 1
+and
+.Xr pkg_add 1
+actually enforce this
+.Pc .
+See
+.Xr pkg_create 1
+for annotation details.
+.Pp
+This table of contents is always followed by a few special files, some of
+which are optional: the package description (+DESC),
+a display message (+DISPLAY), etc.
+.Pp
+The basic ustar format has some limitations with respect to file names.
+Packages now use the
+.Qq extended record specification
+(header type x)
+for long links and long file names.
+Other extended ustar headers are currently recognized, but not supported.
+.Pp
+Starting with
+.Ox 5.5 ,
+the compressed archive may be composed of several
+.Xr gzip 1
+archives concatenated together.
+.Xr gzip 1
+doesn't mind, and
+.Xr tar 1
+is happy as long as the uncompressed stream is sane.
+This allows for faster signing and better rsync properties.
+.Pp
+Starting with
+.Ox 5.6 ,
+tarballs are stored
+.Qq out-of-order :
+each archive entry will match an entry in the
+.Nm packing-list
+(and all file-like entries will be matched), but the order will be adjusted
+so that most recently changed files come first, in order to allow
+faster updates.
+.Pp
+Starting with
+.Ox 5.7 ,
+by default, timestamps are stored directly in the
+.Nm packing-list
+as
+.Cm @ts
+annotations.
+The files in the archive will have a null timestamp.
+.Pp
+The combination of the LRU archive order, null timestamps and compression
+in fixed chunks starting from the end, means a substantial amount of data
+doesn't change from snapshot to snapshot, thus reducing the pressure on
+mirroring bandwidth.
+.Sh PACKING LIST ANNOTATIONS
+User annotations are described in
+.Xr pkg_create 1 .
+The following annotations are automatically inserted during package creation
+and installation:
+.Pp
+.Bl -tag -width Ds -compact
+.It Cm @arch Ar arches
+List of architectures for which this package is intended.
+This corresponds to
+.Fl A Ar arches
+of
+.Xr pkg_create 1
+.Pp
+.It Cm @comment pkgpath=path ftp=yes/no
+Historical accident.
+This specific comment encodes the actual
+.Fl D Ar FULLPKGPATH ,
+and
+.Fl D Ar FTP
+arguments to
+.Xr pkg_create 1 .
+.Pp
+.It Xo
+.Cm @depend
+.Sm off
+.Ar pkgpath :
+.Ar pkgspec :
+.Ar default
+.Sm on
+.Xc
+Record a dependency declared using the option
+.Fl P
+of
+.Xr pkg_create 1 .
+.Pp
+.It Xo
+.Cm @digital-signature
+.Sm off
+.Ar signify2 :
+.Ar date :
+.Ar external
+.Sm on
+.Xc
+Record the date of signature of a package, synthesized by
+.Xr pkg_add 1
+from
+.Xr signify 1
+output.
+.Pp
+.It Cm @link Ar name
+Added after a file entry by
+.Nm
+to record that the entry is actually a hard link.
+.Pp
+.It Cm @localbase Ar base
+Used internally to record the settings of
+.Fl L
+option.
+.Pp
+.It Cm @name Ar pkgname
+Set the name of the package.
+This name is potentially different than the name of
+the file it came in, and is used when keeping track of the package
+for later deinstallation.
+.Xr pkg_create 1
+will derive this field from the package file name.
+.Pp
+.It Cm @option Ar name
+Some options are automatically inserted/modified by the package tools:
+.Bl -tag -width indent
+.It Ar always-update
+.Xr pkg_create 1
+will complete the option line with a sha256 digest of the whole
+.Nm packing-list
+encoded in base64.
+.It Ar firmware
+Set by
+.Xr fw_update 8
+to trigger firmware-specific handling.
+In particular, firmware is hidden from normal updates.
+.It Ar manual-installation
+Record that a package has been explicitly installed by the user,
+and not as a result of a dependency look-up.
+Refer to
+.Xr pkg_add 1 Ns 's
+.Fl a
+option for details.
+.El
+.Pp
+.It Cm @sha
+Added after a file entry by
+.Xr pkg_create 1
+to record the files's cryptographic checksum,
+as a sha256 digest encoded in base64.
+.Pp
+.It Cm @signer
+Record the signing key for a package, synthesized by
+.Xr pkg_add 1
+from
+.Xr signify 1
+output.
+.Pp
+.It Cm @size
+Added after a file entry by
+.Xr pkg_create 1
+to record a file size.
+.Pp
+.It Cm @symlink Ar name
+Added after a file entry by
+.Xr pkg_create 1
+to record that the entry is actually a symbolic link.
+.Pp
+.It Cm @url
+Original location of the package, synthesized by
+.Xr pkg_add 1
+during installation.
+.Pp
+.It Cm @ts Ar timestamp
+Added after a file entry to record the actual file timestamp, instead
+of storing it as tarball meta-info.
+The package tools read and process that annotation correctly, whereas
+.Xr tar 1
+will only see files dated from the epoch.
+.Pp
+.It Cm @version Ar number
+Record a global (system) version number for the package.
+This is built adding together
+.Fl V
+options from
+.Xr pkg_create 1 ,
+and triggers updates when it changes.
+.Pp
+.It Cm @wantlib Ar libspec
+Record a library requirement declared using the option
+.Fl W
+of
+.Xr pkg_create 1 .
+.El
+.Pp
+Note that most of these annotations cannot be added manually, as
+.Xr pkg_create 1
+will error out.
+.Sh PACKAGE SIGNATURES
+All information within a package is checksummed, using SHA256 since
+.Ox 4.4 .
+During creation and installation, meta-information, such as file owners and
+permissions, are also checked: any important stuff that isn't recorded
+in the
+.Nm packing-list
+is an error.
+.Pp
+Starting with
+.Ox 6.1 ,
+.Xr signify 1
+.Fl zS
+.Xr gzip 1
+header signatures are the only supported format.
+This allows for
+.Sq just-in-time
+signature checking, as the binary data is checked in 64K bytes long chunks.
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr pkg_info 1 ,
+.Xr pkg_sign 1 ,
+.Xr packages 7 ,
+.Xr packages-specs 7
+.Sh STANDARDS
+Packages are valid gzip'ed ustar archives that can be extracted using
+.Xr tar 1 .
+In particular, hardlink names should be valid, and all items will
+extract to different names.
+However, it may be a bit difficult to make sense of the package contents
+without peeking at the
+.Nm packing-list .

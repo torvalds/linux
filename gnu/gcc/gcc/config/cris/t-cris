@@ -1,0 +1,41 @@
+#
+# t-cris
+#
+# The Makefile fragment to include when compiling gcc et al for CRIS.
+#
+#
+# The makefile macros etc. are included in the order found in the
+# section "Target Fragment" in the gcc info-files (or the paper copy) of
+# "Using and Porting GCC"
+
+LIB2FUNCS_EXTRA = _udivsi3.c _divsi3.c _umodsi3.c _modsi3.c
+CRIS_LIB1CSRC = $(srcdir)/config/cris/arit.c
+
+FPBIT = tmplibgcc_fp_bit.c
+DPBIT = dp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' > dp-bit.c
+	cat $(srcdir)/config/fp-bit.c           >> dp-bit.c
+
+# Use another name to avoid confusing SUN make, if support for
+# it is reinstated elsewhere.  Prefixed with "tmplibgcc" means
+# "make clean" will wipe it.  We define a few L_ thingies
+# because we can't select them individually through FPBIT_FUNCS;
+# see above.
+tmplibgcc_fp_bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >  $@
+	echo '#define FLOAT'			>> $@
+	cat $(srcdir)/config/fp-bit.c		>> $@
+
+# The fixed-point arithmetic code is in one file, arit.c,
+# similar to libgcc2.c (or the old libgcc1.c).  We need to
+# "split it up" with one file per define.
+$(LIB2FUNCS_EXTRA): $(CRIS_LIB1CSRC)
+	name=`echo $@ | sed -e 's,.*/,,' | sed -e 's,.c$$,,'`; \
+	echo "#define L$$name" > tmp-$@ \
+	&& echo '#include "$<"' >> tmp-$@ \
+	&& mv -f tmp-$@ $@
+
+$(out_object_file): gt-cris.h
+gt-cris.h : s-gtype ; @true

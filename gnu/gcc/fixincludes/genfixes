@@ -1,0 +1,77 @@
+#! /bin/sh
+
+# Copyright (C) 1999, 2000, 2001 Free Software Foundation, Inc.
+# This file is part of GCC.
+
+# GCC is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# GCC is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with GCC; see the file COPYING.  If not, write to
+# the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+# Boston, MA 02110-1301, USA.
+
+SHELL=/bin/sh
+export SHELL
+if [ $# -eq 0 ] ; then
+  not_done=false
+else
+  not_done=true
+fi
+
+while $not_done
+do
+  case "$1" in
+  -D )
+    shift
+    if [ $# -eq 0 ] ; then
+      not_done=false
+    else
+      AG="$AG -D$1"
+      shift
+    fi
+    ;;
+
+  -D* )
+    AG="$AG $1"
+    shift
+    ;;
+
+  '-?' )
+    echo "USAGE: gendefs [ -D<def-name> ... ]"
+    echo "WHERE: '<def-name>' specifies a #define test name from inclhack.def"
+    exit 0
+    ;;
+
+  * )
+    not_done=false
+    ;;
+  esac
+done
+
+if [ $# -eq 0 ] ; then
+  set -- fixincl.x
+fi
+
+AG="autogen $AG"
+set -e
+
+if [ -z "`${AG} -v | fgrep 'Ver. 5.'`" ]
+then
+  echo "AutoGen appears to be out of date or not correctly installed."
+  echo "Please download and install:"
+  echo "   ftp://gcc.gnu.org/pub/gcc/infrastructure/autogen.tar.gz"
+  touch fixincl.x
+else
+  echo AutoGen-ing fixincl.x
+  $AG inclhack.def
+fi
+
+exit 0

@@ -1,0 +1,265 @@
+.\" $OpenBSD: ntpd.conf.5,v 1.49 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF MIND, USE, DATA OR PROFITS, WHETHER IN
+.\" AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt NTPD.CONF 5
+.Os
+.Sh NAME
+.Nm ntpd.conf
+.Nd NTP daemon configuration file
+.Sh DESCRIPTION
+This manual page describes the format of the
+.Xr ntpd 8
+configuration file.
+.Pp
+.Nm
+has the following format:
+.Pp
+Empty lines and lines beginning with the
+.Sq #
+character are ignored.
+.Pp
+Keywords may be specified multiple times within the configuration file.
+The basic configuration options are as follows:
+.Bl -tag -width Ds
+.It Xo Ic listen on Ar address
+.Op Ic rtable Ar table-id
+.Xc
+Specify a local IP address or a hostname the
+.Xr ntpd 8
+daemon should listen on.
+If it appears multiple times,
+.Xr ntpd 8
+will listen on each given address.
+If
+.Sq *
+is given as an address,
+.Xr ntpd 8
+will listen on all local addresses using the specified routing table.
+.Xr ntpd 8
+does not listen on any address by default.
+The optional
+.Ic rtable
+keyword will specify which routing table to listen on.
+By default
+.Xr ntpd 8
+will listen using the current routing table.
+For example:
+.Bd -literal -offset indent
+listen on *
+.Ed
+.Pp
+or
+.Bd -literal -offset indent
+listen on 127.0.0.1
+listen on ::1
+listen on 127.0.0.1 rtable 4
+.Ed
+.It Ic query from Ar sourceaddr
+Specify a local IP address the
+.Xr ntpd 8
+daemon should use for outgoing queries to subsequently specified servers,
+which is useful on machines with multiple interfaces.
+For example:
+.Bd -literal -offset indent
+query from 192.0.2.1
+query from 2001:db8::1
+.Ed
+.It Xo Ic sensor Ar device
+.Op Ic correction Ar microseconds
+.Op Ic refid Ar ID-string
+.Op Ic stratum Ar stratum-value
+.Op Ic trusted
+.Op Ic weight Ar weight-value
+.Xc
+Specify a timedelta sensor device
+.Xr ntpd 8
+should use.
+The sensor can be specified multiple times:
+.Xr ntpd 8
+will use each given sensor that actually exists.
+Non-existent sensors are ignored.
+If
+.Sq *
+is given as device name,
+.Xr ntpd 8
+will use all timedelta sensors it finds.
+.Xr ntpd 8
+does not use any timedelta sensor by default.
+For example:
+.Bd -literal -offset indent
+sensor *
+sensor nmea0
+.Ed
+.Pp
+A
+.Ic correction
+in microseconds can be given to compensate
+for the sensor's offset.
+The maximum correction is 127 seconds.
+For example, if a DCF77 receiver is lagging 70ms behind
+actual time:
+.Bd -literal -offset indent
+sensor udcf0 correction 70000
+.Ed
+.Pp
+A
+.Ic refid
+.Ar ID-string
+of up to 4 ASCII characters can be
+given to publish the sensor type to clients.
+RFC 2030 suggests some common reference identifiers, but new identifiers
+"can be contrived as appropriate."
+If an
+.Ar ID-string
+is not given,
+.Xr ntpd 8
+will use a generic reference ID.
+For example:
+.Bd -literal -offset indent
+sensor nmea0 refid GPS
+.Ed
+.Pp
+The
+.Ic stratum
+keyword can be used to change the stratum value from the default of 1.
+.Pp
+The
+.Ic trusted
+keyword indicates the time learned is secure, trustworthy,
+and not vulnerable to man-in-the-middle attacks, so
+.Ic constraints
+validation is skipped.
+This is useful for boot-time correction in environments where
+.Ic constraints
+cannot be used.
+.Pp
+The
+.Ic weight
+keyword permits finer control over the relative importance
+of time sources (servers or sensor devices).
+Weights are specified in the range 1 to 10;
+if no weight is given,
+the default is 1.
+A server with a weight of 5, for example,
+will have five times more influence on time offset calculation
+than a server with a weight of 1.
+.It Xo Ic server Ar address
+.Op Ic trusted
+.Op Ic weight Ar weight-value
+.Xc
+Specify the IP address or the hostname of an NTP
+server to synchronize to.
+If it appears multiple times,
+.Xr ntpd 8
+will try to synchronize to all of the servers specified.
+If a hostname resolves to multiple IPv4 and/or IPv6 addresses,
+.Xr ntpd 8
+uses the first address.
+If it does not get a reply,
+.Xr ntpd 8
+retries with the next address and continues to do so until a working address
+is found.
+For example:
+.Bd -literal -offset indent
+server 10.0.0.2 weight 5
+server ntp.example.org weight 1
+.Ed
+.Pp
+To provide redundancy, it is good practice to configure multiple servers.
+In general, best accuracy is obtained by using servers that have a low
+network latency.
+.It Xo Ic servers Ar address
+.Op Ic trusted
+.Op Ic weight Ar weight-value
+.Xc
+As with
+.Cm server ,
+specify the IP address or hostname of an NTP server to synchronize to.
+If it appears multiple times,
+.Xr ntpd 8
+will try to synchronize to all of the servers specified.
+Should the hostname resolve to multiple IP addresses,
+.Xr ntpd 8
+will try to synchronize to all of them.
+For example:
+.Bd -literal -offset indent
+servers pool.ntp.org
+servers pool.ntp.org weight 5
+.Ed
+.El
+.Sh CONSTRAINTS
+.Xr ntpd 8
+can be configured to query the
+.Sq Date
+from trusted HTTPS servers via TLS.
+This time information is not used for precision but acts as an
+authenticated constraint,
+thereby reducing the impact of unauthenticated NTP
+man-in-the-middle attacks.
+Received NTP packets with time information falling outside of a range
+near the constraint will be discarded and such NTP servers
+will be marked as invalid.
+.Bl -tag -width Ds
+.It Ic constraint from Ar url [ip...]
+Specify the URL, IP address or the hostname of an HTTPS server to
+provide a constraint.
+If the url is followed by one or more addresses, the url and addresses will be
+tried until a working one is found.
+The url path and expected certificate name is always taken from the
+url specified.
+If
+.Ic constraint from
+is used more than once,
+.Xr ntpd 8
+will calculate a median constraint from all the servers specified.
+.Bd -literal -offset indent
+server ntp.example.org
+constraint from www.example.com
+constraint from "https://9.9.9.9" "2620:fe::9"
+.Ed
+.It Ic constraints from Ar url
+As with
+.Ic constraint from ,
+specify the URL, IP address or the hostname of an HTTPS server to
+provide a constraint.
+Should the hostname resolve to multiple IP addresses,
+.Xr ntpd 8
+will calculate a median constraint from all of them.
+For example:
+.Bd -literal -offset indent
+servers pool.ntp.org
+constraints from "https://www.google.com/"
+.Ed
+.El
+.Sh FILES
+.Bl -tag -width /etc/examples/ntpd.conf -compact
+.It Pa /etc/ntpd.conf
+Default
+.Xr ntpd 8
+configuration file.
+.It Pa /etc/examples/ntpd.conf
+Example configuration file.
+.El
+.Sh SEE ALSO
+.Xr ntpctl 8 ,
+.Xr ntpd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 3.6 .

@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="libstdc++, libstdc++-v3, GCC, g++, STL, SGI" />
+   <meta name="DESCRIPTION" content="SGI extensions preserved in libstdc++-v3." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>SGI extensions to the library in libstdc++-v3</title>
+<link rel="StyleSheet" href="../lib3styles.css" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">SGI extensions to the library in
+libstdc++-v3</a></h1>
+
+<p>This page describes the extensions that SGI made to their version of the
+   STL subset of the Standard C++ Library.  For a time we
+   <a href="../faq/index.html#5_3">tracked and imported changes and updates
+   from most of the SGI STL</a>, up through their (apparently) final release.
+   Their extensions were mostly preserved.
+</p>
+
+<p>They are listed according to the chapters of the library that they
+   extend (see <a href="../documentation.html#3">the chapter-specific notes</a>
+   for a description).  Not every chapter may have extensions, and the
+   extensions may come and go.  Also, this page is incomplete because the
+   author is pressed for time.  Check back often; the latest change was on
+   $Date: 2004/12/24 22:40:49 $ (UTC).
+</p>
+
+<p>Descriptions range from the scanty to the verbose.  You should also check
+   the <a href="../documentation.html#4">generated documentation</a> for notes
+   and comments, especially for entries marked with '*'.  For more complete
+   doumentation, see the SGI website.  For <em>really</em> complete
+   documentation, buy a copy of Matt Austern's book.  *grin*
+</p>
+
+<p>Back to the <a href="howto.html">libstdc++-v3 extensions</a>.
+</p>
+
+
+<!-- ####################################################### -->
+<hr />
+<h3><a name="ch20">Chapter 20</a></h3>
+<p>The &lt;functional&gt; header contains many additional functors and
+   helper functions, extending section 20.3.  They are implemented in the
+   file stl_function.h:
+</p>
+<ul>
+  <li><code>identity_element</code> for addition and multiplication. * </li>
+  <li>The functor <code>identity</code>, whose <code>operator()</code>
+      returns the argument unchanged. * </li>
+  <li>Composition functors <code>unary_function</code> and
+      <code>binary_function</code>, and their helpers <code>compose1</code>
+      and <code>compose2</code>. * </li>
+  <li><code>select1st</code> and <code>select2nd</code>, to strip pairs. * </li>
+  <li><code>project1st</code> and <code>project2nd</code>. * </li>
+  <li>A set of functors/functions which always return the same result.  They
+      are <code>constant_void_fun</code>, <code>constant_binary_fun</code>,
+      <code>constant_unary_fun</code>, <code>constant0</code>,
+      <code>constant1</code>, and <code>constant2</code>. * </li>
+  <li>The class <code>subtractive_rng</code>. * </li>
+  <li>mem_fun adaptor helpers <code>mem_fun1</code> and
+      <code>mem_fun1_ref</code> are provided for backwards compatibility. </li>
+</ul>
+<p>20.4.1 can use several different allocators; they are described on the
+   main extensions page.
+</p>
+<p>20.4.3 is extended with a special version of
+   <code>get_temporary_buffer</code> taking a second argument.  The argument
+   is a pointer, which is ignored, but can be used to specify the template
+   type (instead of using explicit function template arguments like the
+   standard version does).  That is, in addition to
+</p>
+   <pre>
+   get_temporary_buffer&lt;int&gt;(5);</pre>
+   you can also use
+   <pre>
+   get_temporary_buffer(5, (int*)0);</pre>
+<p>A class <code>temporary_buffer</code> is given in stl_tempbuf.h. *
+</p>
+<p>The specialized algorithms of section 20.4.4 are extended with
+   <code>uninitialized_copy_n</code>. *
+</p>
+<p>Return <a href="howto.html">to the main extensions page</a> or
+   <a href="http://gcc.gnu.org/libstdc++/">to the homepage</a>.
+</p>
+
+
+<hr />
+<h3><a name="ch23">Chapter 23</a></h3>
+<p>A few extensions and nods to backwards-compatibility have been made with
+   containers.  Those dealing with older SGI-style allocators are dealt with
+   elsewhere.  The remaining ones all deal with bits:
+</p>
+<p>The old pre-standard <code>bit_vector</code> class is present for
+   backwards compatibility.  It is simply a typedef for the
+   <code>vector&lt;bool&gt;</code> specialization.
+</p>
+<p>The <code>bitset</code> class has a number of extensions, described in the
+   rest of this item.  First, we'll mention that this implementation of
+   <code>bitset&lt;N&gt;</code> is specialized for cases where N number of
+   bits will fit into a single word of storage.  If your choice of N is
+   within that range (&lt;=32 on i686-pc-linux-gnu, for example), then all
+   of the operations will be faster.
+</p>
+<p>There are
+   versions of single-bit test, set, reset, and flip member functions which
+   do no range-checking.  If we call them member functions of an instantiation
+   of &quot;bitset&lt;N&gt;,&quot; then their names and signatures are:
+</p>
+   <pre>
+   bitset&lt;N&gt;&amp;   _Unchecked_set   (size_t pos);
+   bitset&lt;N&gt;&amp;   _Unchecked_set   (size_t pos, int val);
+   bitset&lt;N&gt;&amp;   _Unchecked_reset (size_t pos);
+   bitset&lt;N&gt;&amp;   _Unchecked_flip  (size_t pos);
+   bool         _Unchecked_test  (size_t pos);</pre>
+<p>Note that these may in fact be removed in the future, although we have
+   no present plans to do so (and there doesn't seem to be any immediate
+   reason to).
+</p>
+<p>The semantics of member function <code>operator[]</code> are not specified 
+   in the C++ standard.  A long-standing defect report calls for sensible
+   obvious semantics, which are already implemented here:  <code>op[]</code>
+   on a const bitset returns a bool, and for a non-const bitset returns a
+   <code>reference</code> (a nested type).  However, this implementation does
+   no range-checking on the index argument, which is in keeping with other
+   containers' <code>op[]</code> requirements.  The defect report's proposed
+   resolution calls for range-checking to be done.  We'll just wait and see...
+</p>
+<p>Finally, two additional searching functions have been added.  They return
+   the index of the first &quot;on&quot; bit, and the index of the first
+   &quot;on&quot; bit that is after <code>prev</code>, respectively:
+</p>
+   <pre>
+   size_t _Find_first() const;
+   size_t _Find_next (size_t prev) const;</pre>
+<p>The same caveat given for the _Unchecked_* functions applies here also.
+</p>
+<p>Return <a href="howto.html">to the main extensions page</a> or
+   <a href="http://gcc.gnu.org/libstdc++/">to the homepage</a>.
+</p>
+
+
+<hr />
+<h3><a name="ch24">Chapter 24</a></h3>
+<p>24.3.2 describes <code>struct iterator</code>, which didn't exist in the
+   original HP STL implementation (the language wasn't rich enough at the
+   time).  For backwards compatibility, base classes are provided which
+   declare the same nested typedefs:
+</p>
+   <ul>
+    <li>input_iterator</li>
+    <li>output_iterator</li>
+    <li>forward_iterator</li>
+    <li>bidirectional_iterator</li>
+    <li>random_access_iterator</li>
+   </ul>
+<p>24.3.4 describes iterator operation <code>distance</code>, which takes
+   two iterators and returns a result.  It is extended by another signature
+   which takes two iterators and a reference to a result.  The result is
+   modified, and the function returns nothing.
+</p>
+<p>Return <a href="howto.html">to the main extensions page</a> or
+   <a href="http://gcc.gnu.org/libstdc++/">to the homepage</a>.
+</p>
+
+
+<hr />
+<h3><a name="ch25">Chapter 25</a></h3>
+<p>25.1.6 (count, count_if) is extended with two more versions of count
+   and count_if.  The standard versions return their results.  The
+   additional signatures return void, but take a final parameter by
+   reference to which they assign their results, e.g.,
+</p>
+   <pre>
+   void count (first, last, value, n);</pre>
+<p>25.2 (mutating algorithms) is extended with two families of signatures,
+   random_sample and random_sample_n.
+</p>
+<p>25.2.1 (copy) is extended with
+</p>
+   <pre>
+   copy_n (_InputIter first, _Size count, _OutputIter result);</pre>
+<p>which copies the first 'count' elements at 'first' into 'result'.
+</p>
+<p>25.3 (sorting 'n' heaps 'n' stuff) is extended with some helper
+   predicates.  Look in the doxygen-generated pages for notes on these.
+</p>
+   <ul>
+    <li><code>is_heap</code> tests whether or not a range is a heap.</li>
+    <li><code>is_sorted</code> tests whether or not a range is sorted in
+        nondescending order.</li>
+   </ul>
+<p>25.3.8 (lexigraphical_compare) is extended with
+</p>
+   <pre>
+   lexicographical_compare_3way(_InputIter1 first1, _InputIter1 last1,
+                                 _InputIter2 first2, _InputIter2 last2)</pre>
+<p>which does... what?
+</p>
+<p>Return <a href="howto.html">to the main extensions page</a> or
+   <a href="http://gcc.gnu.org/libstdc++/">to the homepage</a>.
+</p>
+
+
+<hr />
+<h3><a name="ch26">Chapter 26</a></h3>
+<p>26.4, the generalized numeric operations such as accumulate, are extended
+   with the following functions:
+</p>
+   <pre>
+   power (x, n);
+   power (x, n, moniod_operation);</pre>
+<p>Returns, in FORTRAN syntax, &quot;x ** n&quot; where n&gt;=0.  In the
+   case of n == 0, returns the <a href="#ch20">identity element</a> for the
+   monoid operation.  The two-argument signature uses multiplication (for
+   a true &quot;power&quot; implementation), but addition is supported as well.
+   The operation functor must be associative.
+</p>
+<p>The <code>iota</code> function wins the award for Extension With the
+   Coolest Name.  It &quot;assigns sequentially increasing values to a range.
+   That is, it assigns value to *first, value + 1 to *(first + 1) and so
+   on.&quot;  Quoted from SGI documentation.
+</p>
+   <pre>
+   void iota(_ForwardIter first, _ForwardIter last, _Tp value);</pre>
+<p>Return <a href="howto.html">to the main extensions page</a> or
+   <a href="http://gcc.gnu.org/libstdc++/">to the homepage</a>.
+</p>
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="../17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

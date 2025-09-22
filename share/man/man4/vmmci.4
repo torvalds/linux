@@ -1,0 +1,57 @@
+.\"	$OpenBSD: vmmci.4,v 1.2 2017/01/13 16:02:27 jmc Exp $
+.\"
+.\" Copyright (c) 2017 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 13 2017 $
+.Dt VMMCI 4
+.Os
+.Sh NAME
+.Nm vmmci
+.Nd VMM control interface
+.Sh SYNOPSIS
+.Cd "vmmci* at virtio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a control interface for virtual machines running inside
+.Ox
+.Xr vmm 4
+(virtual machine monitor)
+hosts.
+.Pp
+The driver handles shutdown and reboot requests from the
+.Xr vmm 4
+host by signalling
+.Xr init 8
+with
+.Dv SIGUSR2
+and
+.Dv SIGINT
+respectively.
+.Sh SEE ALSO
+.Xr pvbus 4 ,
+.Xr vmm 4 ,
+.Xr init 8 ,
+.Xr vmd 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

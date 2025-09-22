@@ -1,0 +1,89 @@
+.\"	$OpenBSD: ichpcib.4,v 1.12 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2004 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt ICHPCIB 4 i386
+.Os
+.Sh NAME
+.Nm ichpcib
+.Nd Intel ICHx/ICHx-M LPC bridges
+.Sh SYNOPSIS
+.Cd "ichpcib* at pci?"
+.Cd "isa* at ichpcib?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Intel
+.Tn ICH ,
+.Tn ICH0 ,
+.Tn ICH2 ,
+.Tn ICH2-M ,
+.Tn ICH3-S ,
+.Tn ICH3-M ,
+.Tn ICH4 ,
+.Tn ICH4-M ,
+.Tn ICH5 ,
+.Tn ICH6 ,
+.Tn ICH7 ,
+.Tn ICH7-M ,
+.Tn ICH8 ,
+.Tn ICH8-M ,
+.Tn ICH9 ,
+.Tn 6300ESB
+and
+.Tn 6321ESB
+LPC bridges.
+These devices are mostly usual
+.Tn PCI-ISA
+bridges but with some additional power management and monitoring
+capabilities.
+Besides the core functionality, the
+.Nm
+driver provides support for the Intel SpeedStep technology, available
+for the
+.Tn ICH2-M ,
+.Tn ICH3-M ,
+and
+.Tn ICH4-M
+chipsets, and power management timer available for all chipsets.
+It allows the user to control CPU frequency with the
+.Xr sysctl 8
+program.
+.Sh SEE ALSO
+.Xr cpu 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr pci 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+Intel SpeedStep support for the ICHx-M chipsets first appeared in
+.Ox 3.5
+as part of the
+.Xr pcib 4
+driver.
+The
+.Nm
+driver first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .
+.Sh CAVEATS
+On some old machines with the
+.Tn ICH2-M
+chipset, Intel SpeedStep isn't available.

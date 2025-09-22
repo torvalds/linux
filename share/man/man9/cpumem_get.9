@@ -1,0 +1,239 @@
+.\"	$OpenBSD: cpumem_get.9,v 1.11 2020/08/27 09:29:16 fcambus Exp $
+.\"
+.\" Copyright (c) 2016 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 27 2020 $
+.Dt CPUMEM_GET 9
+.Os
+.Sh NAME
+.Nm cpumem_get ,
+.Nm cpumem_put ,
+.Nm cpumem_malloc ,
+.Nm cpumem_malloc_ncpus ,
+.Nm cpumem_free ,
+.Nm CPUMEM_BOOT_MEMORY ,
+.Nm CPUMEM_BOOT_INITIALIZER ,
+.Nm cpumem_enter ,
+.Nm cpumem_leave ,
+.Nm cpumem_first ,
+.Nm cpumem_next ,
+.Nm CPUMEM_FOREACH
+.Nd per CPU memory allocations
+.Sh SYNOPSIS
+.In sys/percpu.h
+.Ft struct cpumem *
+.Fn cpumem_get "struct pool *pp"
+.Ft void
+.Fn cpumem_put "struct pool *pp" "struct cpumem *cm"
+.Ft struct cpumem *
+.Fn cpumem_malloc "size_t sz" "int type"
+.Ft struct cpumem *
+.Fn cpumem_malloc_ncpus "struct cpumem *cm" "size_t sz" "int type"
+.Ft void
+.Fn cpumem_free "struct cpumem *cm" "int type" "size_t sz"
+.Fn CPUMEM_BOOT_MEMORY "NAME" "size_t sz"
+.Fn CPUMEM_BOOT_INITIALIZER "NAME"
+.Ft void *
+.Fn cpumem_enter "struct cpumem *cm"
+.Ft void
+.Fn cpumem_leave "struct cpumem *cm" "void *m"
+.Ft void *
+.Fn cpumem_first "struct cpumem_iter *ci" "struct cpumem *cm"
+.Ft void *
+.Fn cpumem_next "struct cpumem_iter *ci" "struct cpumem *cm"
+.Fn CPUMEM_FOREACH "VARNAME" "struct cpumem_iter *ci" "struct cpumem *cm"
+.Sh DESCRIPTION
+The per CPU memory API provides wrappers around the allocation of
+and access to per CPU memory.
+.Pp
+An alternate implementation of the API is provided on uni-processor
+(i.e. when the kernel is not built with
+.Dv MULTIPROCESSOR
+defined)
+systems that provides no overhead compared to direct access to a
+data structure.
+This allows the API to be used without affecting the performance
+on uni-processor systems.
+.Ss Per CPU Memory Allocation and Deallocation
+.Fn cpumem_get
+allocates memory for each CPU from the
+.Fa pp
+pool.
+The memory will be zeroed on allocation.
+.Pp
+.Fn cpumem_put
+returns each CPUs memory allocation referenced by
+.Fa cm
+to the
+.Fa pp
+pool.
+.Pp
+.Fn cpumem_malloc
+allocates
+.Fa sz
+bytes of
+.Fa type
+memory for each CPU using
+.Xr malloc 9 .
+The memory will be zeroed on allocation.
+.Pp
+.Fn cpumem_free
+returns each CPU's memory allocation referenced by
+.Fa cm
+to the system using
+.Xr free 9 .
+The same object size and type originally provided to
+.Fn cpumem_malloc
+must be specified by
+.Fa sz
+and
+.Fa type
+respectively.
+.Pp
+.Fn cpumem_get
+and
+.Fn cpumem_malloc
+may only be used after all the CPUs in the system have been attached.
+If per CPU memory needs to be available during early boot,
+a cpumem pointer and memory for the boot CPU may be statically
+allocated.
+.Pp
+.Fn CPUMEM_BOOT_MEMORY
+statically allocates memory for use on the boot CPU
+before the other CPUs in the system have been attached.
+The allocation is identified by
+.Fa NAME ,
+and provides the number of bytes specified by the
+.Fa sz
+argument.
+The memory will be initialised to zeros.
+.Pp
+.Fn CPUMEM_BOOT_INITIALIZER
+is used to initialise a cpumem pointer with the memory that was previously
+allocated using
+.Fn CPUMEM_BOOT_MEMORY
+and identified by
+.Fa NAME .
+.Pp
+.Fn cpumem_malloc_ncpus
+allocates additional memory for the CPUs that were attached during boot.
+The cpumem structure
+.Fa cm
+must have been initialised with
+.Fn CPUMEM_BOOT_INITIALIZER .
+The same number of bytes originally passed to
+.Fa COUNTERS_BOOT_MEMORY
+must be specified by
+.Fa sz .
+The
+.Fa type
+argument specifies the type of memory that the counters will be
+allocated as via
+.Xr malloc 9 .
+The contents of the memory on the boot CPU will be preserved, while
+the allocations for the additional CPU's will be zeroed on allocation.
+.Pp
+Per CPU memory that has been allocated with
+.Fn CPUMEM_BOOT_MEMORY
+and
+.Fn cpumem_malloc_ncpus
+cannot be deallocated with
+.Fa cpumem_free .
+Any attempt to do so will lead to undefined behaviour.
+.Ss Per CPU Memory Access
+.Fn cpumem_enter
+provides access to the current CPU's memory allocation referenced by
+.Fa cm .
+.Pp
+.Fn cpumem_leave
+indicates the end of access to the current CPU's memory allocation referenced by
+.Fa cm .
+.Ss Per CPU Memory Iterators
+.Fn cpumem_first
+provides access to the first CPU's memory allocation referenced by
+.Fa cm .
+The iterator
+.Fa ci
+may be used in subsequent calls to
+.Fn cpumem_next .
+.Pp
+.Fn cpumem_next
+provides access to the next CPU's memory allocation referenced by
+.Fa cm
+and
+.Fa ci .
+.Pp
+The
+.Fn CPUMEM_FOREACH
+macro iterates over each CPU's memory allocation referenced by
+.Fa cm
+using the iterator
+.Fa ci ,
+setting
+.Fa VARNAME
+to each CPU's allocation in turn.
+.Sh CONTEXT
+.Fn cpumem_get ,
+.Fn cpumem_put ,
+.Fn cpumem_malloc ,
+.Fn cpumem_free ,
+and
+.Fn cpumem_malloc_ncpus
+may be called during autoconf, or from process context.
+.Pp
+.Fn cpumem_enter ,
+.Fn cpumem_leave ,
+.Fn cpumem_first ,
+.Fn cpumem_next ,
+and
+.Fn CPUMEM_FOREACH
+may be called during autoconf, from process context, or from interrupt
+context.
+The per CPU memory API does not provide any locking or serialisation
+of access to each CPU's memory allocation.
+It is up to the caller to provide appropriate locking or serialisation
+around calls to these functions to prevent concurrent access to the
+relevant data structures.
+.Sh RETURN VALUES
+.Fn cpumem_get ,
+.Fn cpumem_malloc ,
+and
+.Fn cpumem_malloc_ncpus
+will return an opaque cpumem pointer that references each CPU's
+memory allocation.
+.Pp
+.Fn cpumem_enter
+returns a reference to the current CPU's memory allocation.
+.Pp
+.Fn cpumem_first
+returns a reference to the first CPU's memory allocation.
+.Pp
+.Fn cpumem_next
+returns a reference to the next CPU's memory allocation according to the
+iterator
+.Fa ci ,
+or
+.Dv NULL
+if the iterator has run out of CPUs.
+.Sh SEE ALSO
+.Xr counters_alloc 9 ,
+.Xr malloc 9 ,
+.Xr pool_get 9
+.Sh HISTORY
+The per CPU memory API first appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+The per CPU memory API was written by
+.An David Gwynne Aq Mt dlg@openbsd.org .

@@ -1,0 +1,75 @@
+.\"	$OpenBSD: posix_spawnattr_init.3,v 1.8 2014/11/30 02:41:43 schwarze Exp $
+.\"
+.\" Copyright (c) 2012 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 30 2014 $
+.Dt POSIX_SPAWNATTR_INIT 3
+.Os
+.Sh NAME
+.Nm posix_spawnattr_init ,
+.Nm posix_spawnattr_destroy
+.Nd create and destroy posix_spawn attributes object
+.Sh SYNOPSIS
+.In spawn.h
+.Ft int
+.Fn posix_spawnattr_init "posix_spawnattr_t *attr"
+.Ft int
+.Fn posix_spawnattr_destroy "posix_spawnattr_t *attr"
+.Sh DESCRIPTION
+.Xr posix_spawn 3
+attributes objects can be initialized by
+.Fn posix_spawnattr_init
+and destroyed by
+.Fn posix_spawnattr_destroy .
+.Pp
+Initialization fills an attributes object pointed by
+.Fa attr
+with the default values for all the attributes.
+.Pp
+Multiple initialization of the same object is undefined behavior
+and will lead to memory leaks.
+.Pp
+Similarly, objects should be passed to
+.Fn posix_spawnattr_destroy
+to reclaim memory.
+The object should not be re-used after destruction.
+It can however be initialized again with
+.Fn posix_spawnattr_init .
+.Pp
+An attributes object, possibly modified by
+.Fn posix_spawn_set* ,
+is used to specify what process attributes
+will be passed across a spawn operation as implemented by
+.Fn posix_spawn
+or
+.Fn posix_spawnp .
+.Pp
+Attribute details are described in
+.Xr posix_spawnattr_setflags 3 .
+.Pp
+Modifying or destroying attributes object
+will not affect processes that have already been spawned.
+.Sh RETURN VALUES
+These function return 0 on successful completion.
+They may return
+.Er ENOMEM
+when running out of memory.
+.Sh SEE ALSO
+.Xr posix_spawn 3
+.Sh STANDARDS
+Both functions conform to
+.St -p1003.1-2001 .
+.Sh AUTHORS
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org

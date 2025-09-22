@@ -1,0 +1,36 @@
+.\"	$OpenBSD: agintc.4,v 1.1 2022/10/20 08:45:39 jsg Exp $
+.\"
+.\" Copyright (c) 2022 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 20 2022 $
+.Dt AGINTC 4 arm64
+.Os
+.Sh NAME
+.Nm agintc ,
+.Nm agintcmsi
+.Nd Arm generic interrupt controller v3/v4
+.Sh SYNOPSIS
+.Cd "agintc* at fdt?"
+.Cd "agintcmsi* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Arm Generic Interrupt Controller (GIC)
+version 3 and version 4.
+.Sh SEE ALSO
+.Rs
+.%T Arm Generic Interrupt Controller Architecture Specification GIC architecture version 3 and version 4
+.%N Arm IHI 0069
+.Re

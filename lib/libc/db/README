@@ -1,0 +1,5 @@
+#	$OpenBSD: README,v 1.5 2015/04/05 14:35:16 tedu Exp $
+#	@(#)README	8.27 (Berkeley) 9/1/94
+
+This is version 1.85 of the Berkeley DB code.
+

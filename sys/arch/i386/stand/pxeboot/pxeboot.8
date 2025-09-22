@@ -1,0 +1,173 @@
+.\"	$OpenBSD: pxeboot.8,v 1.14 2025/06/14 10:06:11 kn Exp $
+.\" Copyright (c) 2004 Tom Cosgrove
+.\" Copyright (c) 2003 Matthias Drochner
+.\" Copyright (c) 1999 Doug White
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 14 2025 $
+.Dt PXEBOOT 8 i386
+.Os
+.Sh NAME
+.Nm pxeboot
+.Nd i386-specific second-stage PXE bootstrap
+.Sh DESCRIPTION
+.Nm
+is a modified version of the i386 second-stage bootstrap program,
+.Xr boot 8 ,
+configured to run under Intel's Preboot Execution Environment (PXE).
+PXE is a form of smart boot ROM, built into many Ethernet cards from Intel,
+3Com, and other manufacturers.
+.Pp
+The computer's PXE boot ROM contacts a DHCP server by broadcasting a request
+on the network.
+It gets an IP address from the DHCP server,
+then it is told the name of the boot program to download \(em
+in this case, the boot program is
+.Nm .
+The ROM downloads the boot program using TFTP, then executes it.
+.Pp
+The
+.Nm
+boot program will look for an
+.Pa /etc/boot.conf
+configuration
+file on the TFTP server.
+If it finds one, it processes the commands within it.
+.Pa boot.conf
+processing can be skipped by holding down either Control key as
+.Nm
+starts.
+.Pp
+.Nm
+then sits in a loop,
+processing commands given by the user.
+It accepts all the commands accepted by
+.Xr boot 8 .
+.Pp
+If no commands are given for a short time,
+.Nm
+will then attempt to load the
+.Ox
+kernel
+.Pa bsd
+via TFTP.
+It may be told to boot an alternative kernel,
+either by commands in the
+.Pa boot.conf
+file,
+or by commands typed by the user at the
+.Ic boot\*(Gt
+prompt.
+.Nm
+can be used for
+.Xr diskless 8
+setups or to load the
+.Pa bsd.rd
+install kernel
+for network installs.
+.Pp
+To prepare a server to support network booting,
+the
+.Xr dhcpd 8
+and
+.Xr tftpd 8
+services should be enabled and configured.
+.Pp
+.Nm
+and the kernel should be copied into the TFTP server's root directory
+(typically
+.Pa /tftpboot ) .
+A
+.Pa boot.conf
+file may be created if required
+(e.g.\&
+.Pa /tftpboot/etc/boot.conf ) .
+.Pp
+A sample configuration file for
+.Xr dhcpd 8
+might be as follows:
+.Bd -literal -offset indent
+option domain-name "example.com";
+option routers 10.0.0.1;
+option subnet-mask 255.255.255.0;
+option broadcast-address 10.0.0.255;
+option domain-name-servers 10.0.0.1;
+server-name "DHCPserver";
+server-identifier 10.0.0.1;
+next-server 10.0.0.1;
+
+default-lease-time 120;
+max-lease-time 120;
+
+subnet 10.0.0.0 netmask 255.255.255.0 {
+    filename "pxeboot";
+    range 10.0.0.10 10.0.0.254;
+}
+.Ed
+.Pp
+See
+.Xr dhcpd 8
+and
+.Xr dhcpd.conf 5
+for more information.
+.Sh FILES
+.Bl -tag -width /usr/mdec/pxebootxx -compact
+.It Pa /usr/mdec/pxeboot
+PXE-specific second-stage bootstrap
+.It Pa /etc/boot.conf
+.Nm
+configuration file (read from TFTP server)
+.It Pa /etc/dhcpd.conf
+DHCPD configuration file
+.It Pa /tftpboot
+Typical root directory for
+.Xr tftpd 8
+.El
+.Sh EXAMPLES
+Boot the install kernel:
+.Pp
+.Dl boot\*(Gt bsd.rd
+.Pp
+The same thing:
+.Pp
+.Dl boot\*(Gt boot tftp:bsd.rd
+.Sh SEE ALSO
+.Xr dhcpd.conf 5 ,
+.Xr boot 8 ,
+.Xr boot_i386 8 ,
+.Xr dhcpd 8 ,
+.Xr diskless 8 ,
+.Xr tftpd 8
+.Sh STANDARDS
+.Rs
+.%T Preboot Execution Environment (PXE) Specification
+.%N Version 2.1
+.%D September 20, 1999
+.%A Intel Corporation
+.Re
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 3.5 .

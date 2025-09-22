@@ -1,0 +1,243 @@
+.\" $OpenBSD: cpu.4,v 1.1 2022/07/11 03:11:49 daniel Exp $
+.\"
+.\" Copyright (c) 2002 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR OR HIS RELATIVES BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF MIND, USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 11 2022 $
+.Dt CPU 4 hppa
+.Os
+.Sh NAME
+.Nm cpu
+.Nd HP PA-RISC CPU
+.Sh SYNOPSIS
+.Cd "cpu*       at mainbus0 irq 31"
+.Sh DESCRIPTION
+The following table lists the
+.Tn PA-RISC
+CPU types and their characteristics, such as TLB, maximum
+cache sizes (where the
+.Sq *
+character means on-chip) and
+.Tn HP 9000/700
+machines they were used in (see also
+.Xr intro 4
+for the reverse list).
+.Bl -column "7100LC" "1.1e" "MHz max" "2048 L1D*" "TLB" "BAT" "C3650, C3700, C3750"
+.It Sy CPU Ta Sy PA Ta Sy Clock Ta Sy Caches Ta Sy TLB Ta Sy BAT Ta Sy Models
+.It Ta Ta MHz max Ta KB max Ta Ta Ta ""
+.It 7000 Ta 1.1a Ta 66 Ta 256 L1I Ta 96I Ta 4I Ta 705, 710, 720
+.It Ta Ta Ta 256 L1D Ta 96D Ta 4D Ta 730, 750
+.It 7100 Ta 1.1b Ta 100 Ta 1024 L1I Ta 120 Ta 16 Ta 715/33/50/75
+.It Ta Ta Ta 2048 L1D Ta Ta Ta 725/50/75
+.It Ta Ta Ta Ta Ta Ta {735,755}/100
+.It Ta Ta Ta Ta Ta Ta 742i, 745i, 747i
+.It 7150 Ta 1.1b Ta 125 Ta 1024 L1I Ta 120 Ta 16 Ta 735/125, 755/125
+.It Ta Ta Ta 2048 L1D Ta Ta Ta ""
+.It 7100LC Ta 1.1c Ta 100 Ta 1 L1I* Ta 64 Ta 8 Ta 712/60/80/100
+.It Ta Ta Ta 1024 L2I Ta Ta Ta 715/64/80/100
+.It Ta Ta Ta 1024 L2D Ta Ta Ta 715/100XC
+.It Ta Ta Ta Ta Ta Ta 725/64/100
+.It Ta Ta Ta Ta Ta Ta 743i, 748i
+.It Ta Ta Ta Ta Ta Ta SAIC
+.It 7200 Ta 1.1d Ta 140 Ta 2 L1* Ta 120 Ta 16 Ta C100, C110
+.It Ta Ta Ta 1024 L2I Ta Ta Ta J200, J210
+.It Ta Ta Ta 1024 L2D Ta Ta Ta ""
+.It 7300LC Ta 1.1e Ta 180 Ta 64 L1I* Ta 96 Ta 8 Ta A180, A180C
+.It Ta Ta Ta 64 L1D* Ta Ta Ta B132, B160, B180
+.It Ta Ta Ta 8192 L2 Ta Ta Ta C132L, C160L
+.It Ta Ta Ta Ta Ta Ta 744, 745, 748
+.It Ta Ta Ta Ta Ta Ta RDI PrecisionBook
+.It 8000 Ta 2.0 Ta 180 Ta 1024 L1I Ta 96 Ta Ta C160, C180
+.It Ta Ta Ta 1024 L1D Ta Ta Ta J280, J282
+.It 8200 Ta 2.0 Ta 300 Ta 2048 L1I Ta 120 Ta Ta C200, C240
+.It Ta Ta Ta 2048 L1D Ta Ta Ta J2240
+.It 8500 Ta 2.0 Ta 440 Ta 512 L1I* Ta 160 Ta Ta A400, A500, C360
+.It Ta Ta Ta 1024 L1D* Ta Ta Ta B1000, B2000, C3000
+.It Ta Ta Ta Ta Ta Ta J5000, J7000
+.It 8600 Ta 2.0 Ta 550 Ta 512 L1I* Ta 160 Ta Ta A400, A500, C3600
+.It Ta Ta Ta 1024 L1D* Ta Ta Ta B2000, B2600
+.It Ta Ta Ta Ta Ta Ta J5600, J6000, J7600
+.It 8700 Ta 2.0 Ta 875 Ta 768 L1I* Ta 240 Ta Ta A400, A500, J6700
+.It Ta Ta Ta 1536 L1D* Ta Ta Ta C3650, C3700, C3750
+.El
+.Sh FLOATING-POINT COPROCESSOR
+The following table summarizes available floating-point coprocessor
+models for the 32-bit
+.Tn PA-RISC
+processors.
+.Bl -column "Sterling I MIU (ROC w/Weitek)" "712/60/80/100"
+.It Sy FPU Ta Sy Model
+.It Indigo Ta ""
+.It Sterling I MIU (TYCO) Ta ""
+.It Sterling I MIU (ROC w/Weitek) Ta ""
+.It FPC (w/Weitek) Ta ""
+.It FPC (w/Bit) Ta ""
+.It Timex-II Ta ""
+.It Rolex Ta 725/50, 745i
+.It HARP-I Ta ""
+.It Tornado Ta J2x0,C1x0
+.It PA-50 (Hitachi) Ta ""
+.It PCXL Ta 712/60/80/100
+.El
+.Sh SUPERSCALAR EXECUTION
+The following table summarizes the superscalar execution capabilities
+of 32-bit
+.Tn PA-RISC
+processors.
+.Bl -column "7100LC" "2 integer ALU" "4-way superscalar"
+.It Sy CPU Ta Sy Units Ta Sy Bundles
+.It 7100 Ta 1 integer ALU Ta load-store/fp
+.It Ta 1 FP Ta int/fp
+.It Ta Ta branch/*
+.It 7100LC Ta 2 integer ALU Ta load-store/int
+.It Ta 1 FP Ta load-store/fp
+.It Ta Ta int/fp
+.It Ta Ta branch/*
+.It 7200 Ta 2 integer ALU Ta load-store/int
+.It Ta 1 FP Ta load-store/fp
+.It Ta Ta int/int
+.It Ta Ta int/fp
+.It Ta Ta branch/*
+.It 7300LC Ta 2 integer ALU Ta load-store/int
+.It Ta 1 FP Ta load-store/fp
+.It Ta Ta int/fp
+.It Ta Ta branch/*
+.It 8x00 Ta 2 integer ALU Ta 4-way superscalar
+.It Ta 2 shift/merge Ta ""
+.It Ta 2 load/store Ta ""
+.It Ta 2 FPU mul/add Ta ""
+.It Ta 2 FPU div/sqrt Ta ""
+.El
+.Pp
+In conclusion, all of the above CPUs are dual-issue, or 2-way superscalar,
+with the exception that on CPUs with two integer ALUs only one of these
+units is capable of doing shift, load/store and test operations.
+Additionally, there are several kinds of restrictions placed upon the
+superscalar execution:
+.Pp
+For the purpose of showing which instructions are allowed to proceed
+together through the pipeline, they are divided into classes:
+.Bl -column "fsys" "FTEST and FP status/exception"
+.It Sy Class Ta Sy Description
+.It flop Ta floating point operation
+.It ldst Ta loads and stores
+.It flex Ta integer ALU
+.It mm Ta shifts, extracts and deposits
+.It nul Ta might nullify successor
+.It bv Ta BV, BE
+.It br Ta other branches
+.It fsys Ta FTEST and FP status/exception
+.It sys Ta system control instructions
+.El
+.Pp
+For CPUs with two integer ALUs (7100LC, 7200, 7300LC), the following
+table lists the instructions which are allowed to be executed
+concurrently:
+.Bl -column "flex" "flop/ldst/flex/mm/nul/br/fsys"
+.It Sy First Ta Sy Second instruction
+.It flop Ta + ldst/flex/mm/nul/bv/br
+.It ldst Ta + flop/flex/mm/nul/br
+.It flex Ta + flop/ldst/flex/mm/nul/br/fsys
+.It mm Ta + flop/ldst/flex/fsys
+.It nul Ta + flop
+.It sys Ta never bundled
+.El
+.Pp
+ldst + ldst is also possible under certain circumstances, which is then
+called "double word load/store".
+.Pp
+The following restrictions are placed upon the superscalar execution:
+.Pp
+.Bl -bullet -compact
+.It
+An instruction that modifies a register will not be bundled with another
+instruction that takes this register as operand.
+Exception: a flop can be bundled with an FP store of the flop's result register.
+.It
+An FP load to one word of a doubleword register will not be bundled with
+a flop that uses the other doubleword of this register.
+.It
+A flop will not be bundled with an FP load if both instructions have the
+same target register.
+.It
+An instruction that could set the carry/borrow bits will not be bundled
+with an instruction that uses
+carry/borrow bits.
+.It
+An instruction which is in the delay slot of a branch is never bundled
+with other instructions.
+.It
+An instruction which is at an odd word address and executed as a target
+of a taken branch is never bundled.
+.It
+An instruction which might nullify its successor is never bundled with
+this successor.
+Only if the successor is a flop instruction is this bundle allowed.
+.El
+.Sh PERFORMANCE MONITOR COPROCESSOR
+The performance monitor coprocessor is an optional,
+implementation-dependent coprocessor which provides a minimal common
+software interface to implementation-dependent performance monitor hardware.
+.Sh DEBUG SPECIAL UNIT
+The debug special function unit is an optional,
+architected SFU which provides hardware assistance for software debugging
+using breakpoints.
+The debug SFU is currently defined only for Level 0 processors.
+.Sh SEE ALSO
+.Xr asp 4 ,
+.Xr intro 4 ,
+.Xr lasi 4 ,
+.Xr mem 4 ,
+.Xr pdc 4 ,
+.Xr wax 4
+.Rs
+.%T PA-RISC 1.1 Architecture and Instruction Set Reference Manual
+.%A Hewlett-Packard
+.%D May 15, 1996
+.Re
+.Rs
+.%T PA7100LC ERS
+.%A Hewlett-Packard
+.%D March 30 1999
+.%N Public version 1.0
+.Re
+.Rs
+.%T Design of the PA7200 CPU
+.%A Hewlett-Packard Journal
+.%D February 1996
+.Re
+.Rs
+.%T PA7300LC ERS
+.%A Hewlett-Packard
+.%D March 18 1996
+.%N Version 1.0
+.Re
+.Sh HISTORY
+The
+.Nm
+driver was written by
+.An Michael Shalayeff Aq Mt mickey@openbsd.org
+for the HPPA
+port for
+.Ox 2.5 .

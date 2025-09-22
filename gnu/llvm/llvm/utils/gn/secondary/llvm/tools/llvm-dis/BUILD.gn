@@ -1,0 +1,8 @@
+executable("llvm-dis") {
+  deps = [
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-dis.cpp" ]
+}

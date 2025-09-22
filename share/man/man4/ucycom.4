@@ -1,0 +1,71 @@
+.\" $OpenBSD: ucycom.4,v 1.6 2018/10/08 09:49:12 sthen Exp $
+.\" $NetBSD: ucycom.4,v 1.1 2005/07/30 06:14:49 skrll Exp $
+.\"
+.\" Copyright (c) 2005 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Nick Hudson
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 8 2018 $
+.Dt UCYCOM 4
+.Os
+.Sh NAME
+.Nm ucycom
+.Nd Cypress microcontroller based USB serial adapter
+.Sh SYNOPSIS
+.Cd "ucycom* at uhidev?"
+.Cd "ucom* at ucycom?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports
+.Xr usb 4
+serial devices based on Cypress microcontrollers.
+The following adapters are supported:
+.Pp
+.Bl -tag -width Dv -offset indent -compact
+.It Various low-cost USB-RS232 adapters
+.It DeLorme Earthmate GPS receiver
+.El
+.Pp
+The driver acts as a bridge between
+.Xr uhidev 4
+and the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr uhidev 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Nx
+and later in
+.Ox 4.0 .

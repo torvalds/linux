@@ -1,0 +1,126 @@
+.\"	$OpenBSD: cond_init.9,v 1.5 2025/07/28 13:33:17 schwarze Exp $ */
+.\"
+.\" Copyright (c) 2017 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 28 2025 $
+.Dt COND_INIT 9
+.Os
+.Sh NAME
+.Nm cond_init ,
+.Nm cond_wait ,
+.Nm cond_signal ,
+.Nm COND_INITIALIZER
+.Nd wait condition API
+.Sh SYNOPSIS
+.In sys/systm.h
+.Ft void
+.Fn "cond_init" "struct cond *c"
+.Ft void
+.Fn "cond_wait" "struct cond *c" "const char *wmesg"
+.Ft void
+.Fn "cond_signal" "struct cond *c"
+.Ft void
+.Fn "cond_signal_handler" "void *c"
+.Fn "COND_INITIALIZER"
+.Sh DESCRIPTION
+The wait condition API allows a thread to sleep while it waits for
+a notification, aka signal, that pending work has completed.
+.Pp
+.Fn cond_init
+initialises the wait condition
+.Fa c
+for use.
+.Pp
+.Fn cond_wait
+is used to sleep on the wait condition
+.Fa c
+until whatever the thread is waiting on calls
+.Fn cond_signal
+or
+.Fn cond_signal_handler .
+.Fa wmesg
+is a pointer to a character string indicating the reason the thread
+is sleeping.
+.Pp
+.Fn cond_signal
+and
+.Fn cond_signal_handler
+notify the thread waiting on
+.Fa c
+that the work has finished and it may proceed.
+.Fn cond_signal
+and
+.Fn cond_signal_handler
+operate identically, the only difference is the type of argument they take.
+.Fn cond_signal_handler
+takes a
+.Ft void *
+argument, allowing it to be used directly with APIs such as
+.Xr task_set 9
+and
+.Xr timeout_set 9 .
+.Pp
+.Fn COND_INITIALIZER
+initialises a declaration of a cond for use.
+.Sh CONTEXT
+.Fn cond_init ,
+.Fn cond_signal ,
+and
+.Fn cond_signal_handler
+can be called during autoconf, from process context, or from interrupt
+context.
+.Pp
+.Fn cond_wait
+can be called from process context.
+.Sh EXAMPLES
+.Xr taskq_barrier 9
+is implemented using the wait condition API.
+The following is a commented copy of the implementation:
+.Bd -literal
+static void	taskq_barrier_task(void *);
+
+void
+taskq_barrier(struct taskq *tq)
+{
+	struct cond c;
+	struct task t;
+
+	/*
+	 * any currently running work has to have finished
+	 * before this new task can be run.
+	 */
+
+	cond_init(&c);
+	task_init(&t, taskq_barrier_task, &c);
+
+	task_add(tq, &t);
+
+	/* wait until the task runs and signals completion */
+	cond_wait(&c, "tqbar");
+}
+
+static void
+taskq_barrier_task(void *p)
+{
+	struct cond *c = p;
+
+	/*
+	 * all previous tasks have run, signal the thread waiting
+	 * in taskq_barrier
+	 */
+
+	cond_signal(c);
+}
+.Ed

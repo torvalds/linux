@@ -1,0 +1,2 @@
+extif="wi0"
+block in on $extif all

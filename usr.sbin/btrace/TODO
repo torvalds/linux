@@ -1,0 +1,14 @@
+Missing feature:
+
+- Option "-c command" to run `command' and use its PID as filter.
+
+Missing language features:
+
+- if/else
+- `args', tracepoint arguments support (requires kernel work)
+- str(args->buf, args->count)
+
+Improvements:
+
+- rewrite stmt_printf() to not use strings internally
+- look at collision in map hash

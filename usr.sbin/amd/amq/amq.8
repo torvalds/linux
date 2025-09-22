@@ -1,0 +1,116 @@
+.\"	$OpenBSD: amq.8,v 1.16 2019/06/02 06:53:11 bentley Exp $
+.\"
+.\" Copyright (c) 1990 Jan-Simon Pendry
+.\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)amq.8	8.3 (Berkeley) 4/18/94
+.\"
+.Dd $Mdocdate: June 2 2019 $
+.Dt AMQ 8
+.Os
+.Sh NAME
+.Nm amq
+.Nd automounter query tool
+.Sh SYNOPSIS
+.Nm amq
+.Op Fl fmsuv
+.Op Fl h Ar hostname
+.\".Op Fl M Ar mountmap_entry
+.Op Ar directory ...
+.Sh DESCRIPTION
+.Nm amq
+provides a simple way of determining the current state of the
+.Xr amd 8
+program.
+Communication is by RPC.
+Three modes of operation are supported by the current protocol.
+By default a list of mount points and auto-mounted filesystems
+is output.
+An alternative host can be specified using the
+.Fl h
+option.
+.Pp
+If directory names are given, as output by default,
+then per-filesystem information is displayed.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl f
+Request automounter to flush the internal caches.
+.It Fl h Ar hostname
+Query alternate host
+.Ar hostname .
+By default the local host is used.
+In an HP-UX cluster, the root server is queried by default, since
+that is the system on which the automounter is normally run.
+.It Fl m
+Request the automounter to provide a list of mounted filesystems,
+including the number of references to each filesystem and any error
+which occurred while mounting.
+.It Fl s
+Request the automounter to provide system-wide mount statistics.
+.It Fl u
+Request the automounter to unmount the named filesystems
+instead of providing information about them.
+Unmounts are requested, not forced.
+They merely cause the mounted filesystem to timeout,
+which will be picked up by
+.Xr amd 8 Ns 's
+main scheduler thus causing the normal timeout action to be taken.
+.It Fl v
+Request the automounter to provide version information.
+This is a subset of the information provided by
+.Xr amd 8 Ns 's Fl v
+option.
+.\".It Fl M
+.\"Request automounter to add the given map entry to the root map and then
+.\"trigger a mount request for it.
+.El
+.Sh FILES
+.Bl -tag -width amq.xxxxx -compact
+.It Pa amq.x
+RPC protocol description
+.El
+.Sh SEE ALSO
+.Xr amd 8
+.Sh AUTHORS
+.An Jan-Simon Pendry Aq Mt jsp@doc.ic.ac.uk ,
+Department of Computing, Imperial College, London, UK.
+.\" .Sh HISTORY
+.\" .Nm amq
+.\" .At
+.Sh CAVEATS
+.Nm amq
+uses a Sun registered RPC program number (300019 decimal) which may not
+be in the
+.Pa /etc/rpc
+database.

@@ -1,0 +1,3 @@
+dnl	$OpenBSD: upgrade,v 1.2 2007/02/28 22:30:05 miod Exp $
+dnl OpenBSDUpgrade({:-the CD-ROM-:})
+OpenBSDUpgrade({:-bsd.rd on the boot disk-:})

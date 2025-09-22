@@ -1,0 +1,15 @@
+import("//clang-tools-extra/clangd/xpc/enable.gni")
+
+group("unittests") {
+  deps = [
+    "clang-apply-replacements:ClangApplyReplacementsTests",
+    "clang-change-namespace:ClangChangeNamespaceTests",
+    "clang-doc:ClangDocTests",
+    "clang-include-fixer:ClangIncludeFixerTests",
+    "clang-include-fixer/find-all-symbols:FindAllSymbolsTests",
+    "clang-move:ClangMoveTests",
+    "clang-query:ClangQueryTests",
+    "clang-tidy:ClangTidyTests",
+  ]
+  testonly = true
+}

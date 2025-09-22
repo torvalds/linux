@@ -1,0 +1,332 @@
+.\"	$OpenBSD: makefs.8,v 1.21 2023/04/25 08:57:11 krw Exp $
+.\"	$NetBSD: makefs.8,v 1.55 2015/11/25 16:32:00 wiz Exp $
+.\"
+.\" Copyright (c) 2001-2003 Wasabi Systems, Inc.
+.\" All rights reserved.
+.\"
+.\" Written by Luke Mewburn for Wasabi Systems, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed for the NetBSD Project by
+.\"      Wasabi Systems, Inc.
+.\" 4. The name of Wasabi Systems, Inc. may not be used to endorse
+.\"    or promote products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY WASABI SYSTEMS, INC. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL WASABI SYSTEMS, INC
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 25 2023 $
+.Dt MAKEFS 8
+.Os
+.Sh NAME
+.Nm makefs
+.Nd create a file system image from a directory tree
+.Sh SYNOPSIS
+.Nm
+.Op Fl b Ar free-blocks
+.Op Fl f Ar free-files
+.Op Fl M Ar minimum-size
+.Op Fl m Ar maximum-size
+.Op Fl O Ar offset
+.Op Fl o Ar fs-options
+.Op Fl S Ar sector-size
+.Op Fl s Ar image-size
+.Op Fl T Ar timestamp
+.Op Fl t Ar fs-type
+.Ar image-file
+.Ar directory
+.Sh DESCRIPTION
+The utility
+.Nm
+creates a file system image into
+.Ar image-file
+from the directory tree
+.Ar directory .
+No special devices or privileges are required to perform this task.
+.Pp
+The options are as follows:
+.Bl -tag -width flag
+.It Fl b Ar free-blocks
+Ensure that a minimum of
+.Ar free-blocks
+exist in the image.
+An optional
+.Ql %
+suffix may be provided to indicate that
+.Ar free-blocks
+indicates a percentage of the calculated image size.
+.It Fl f Ar free-files
+Ensure that a minimum of
+.Ar free-files
+(inodes) exist in the image.
+An optional
+.Ql %
+suffix may be provided to indicate that
+.Ar free-files
+indicates a percentage of the calculated image size.
+.It Fl M Ar minimum-size
+Set the minimum size of the file system image to
+.Ar minimum-size .
+.It Fl m Ar maximum-size
+Set the maximum size of the file system image to
+.Ar maximum-size .
+An error will be raised if the target file system needs to be larger
+than this to accommodate the provided directory tree.
+.It Fl O Ar offset
+Instead of creating the file system at the beginning of the file, start
+at offset.
+Valid only for
+.Sy ffs
+and
+.Sy msdos .
+.It Fl o Ar fs-options
+Set file system specific options.
+.Ar fs-options
+is a comma separated list of options.
+Valid file system specific options are detailed below.
+.It Fl S Ar sector-size
+Set the file system sector size to
+.Ar sector-size .
+.\" XXX: next line also true for cd9660?
+Defaults to 512.
+.It Fl s Ar image-size
+Set the size of the file system image to
+.Ar image-size .
+.It Fl T Ar timestamp
+Specify a timestamp to be set for all file system files and directories
+created so that repeatable builds are possible.
+The
+.Ar timestamp
+is an integer value interpreted as the number of seconds from the Epoch.
+.It Fl t Ar fs-type
+Create an
+.Ar fs-type
+file system image.
+The following file system types are supported:
+.Pp
+.Bl -tag -width cd9660 -offset indent -compact
+.It Sy cd9660
+ISO 9660 file system.
+.It Sy ffs
+BSD Fast File System (the default).
+.It Sy msdos
+FAT12, FAT16, or FAT32 file system.
+.El
+.El
+.Pp
+Sizes are specified as a decimal number of bytes
+and may use a multiplier, as documented in
+.Xr scan_scaled 3 .
+Two or more numbers may be separated by an
+.Sq x
+to indicate a product.
+.Ss ffs options
+.Sy ffs
+images have ffs-specific optional parameters that may be provided.
+Each of the options consists of a keyword, an equal sign
+.Pq Ql = ,
+and a value.
+The following keywords are supported:
+.Pp
+.Bl -tag -width optimization -offset indent -compact
+.It Sy avgfilesize
+Expected average file size.
+.It Sy avgfpdir
+Expected number of files per directory.
+.It Sy bsize
+Block size.
+.It Sy density
+Bytes per inode.
+.It Sy disklabel
+Name of a disk described in
+.Xr disktab 5 .
+A disklabel with the information will be written at a machine dependent
+location in the image.
+The size of the file system image, the sector size and the
+.Sy bsize
+and
+.Sy fsize
+parameters are inferred from the disklabel.
+.It Sy extent
+Maximum extent size.
+.It Sy fsize
+Fragment size.
+.It Sy label
+Label name of the image.
+.It Sy maxbpcg
+Maximum total number of blocks in a cylinder group.
+.It Sy maxbpg
+Maximum blocks per file in a cylinder group.
+.It Sy minfree
+Minimum % free.
+.It Sy optimization
+Optimization preference: one of
+.Ql space
+(default)
+or
+.Ql time .
+.It Sy rdroot
+A disklabel appropriate for a ramdisk will be built and
+written at a machine dependent location in the image.
+The filesystem will be described by a FS_BSDFFS partition
+.Sq a ,
+with defaults offset=0, fsize=512, bsize=4096, minfree=0 and density=4096.
+.It Sy version
+UFS version.
+1 for FFS (default) or 2 for UFS2.
+.El
+.Ss cd9660 options
+.Sy cd9660
+images have ISO9660-specific optional parameters that may be
+provided.
+The arguments consist of a keyword and, optionally, an equal sign
+.Pq Ql = ,
+and a value.
+The following keywords are supported:
+.Pp
+.Bl -tag -width omit-trailing-period -offset indent -compact
+.It Sy allow-deep-trees
+Allow the directory structure to exceed the maximum specified in
+the spec.
+.It Sy allow-multidot
+Allow multiple dots in a filename.
+.It Sy applicationid
+Application ID of the image.
+.It Sy boot-load-segment
+Set load segment for the boot image.
+.It Sy bootimage
+Filename of a boot image in the format
+.Dq sysid;filename ,
+where
+.Dq sysid
+is one of
+.Ql i386 ,
+.Ql macppc ,
+.Ql powerpc ,
+or
+.Ql efi .
+.It Sy generic-bootimage
+Load a generic boot image into the first 32K of the CD9660 image.
+.It Sy hard-disk-boot
+Boot image is a hard disk image.
+.It Sy isolevel
+ISO Level.
+.It Sy label
+Label name of the image.
+.It Sy no-boot
+Boot image is not bootable.
+.It Sy no-emul-boot
+Boot image is a
+.Dq no emulation
+ElTorito image.
+.It Sy no-trailing-padding
+Do not pad the image (apparently Linux needs the padding).
+.It Sy omit-trailing-period
+Omit trailing periods in filenames.
+.It Sy preparer
+Preparer ID of the image.
+.It Sy publisher
+Publisher ID of the image.
+.It Sy rockridge
+Use RockRidge extensions (for longer filenames, etc.).
+.It Sy volumeid
+Volume set identifier of the image.
+.El
+.Ss msdos options
+.Sy msdos
+images have MS-DOS-specific optional parameters that may be
+provided.
+The arguments consist of a keyword, an equal sign
+.Pq Ql = ,
+and a value.
+The following keywords are supported:
+.Pp
+.Bl -tag -width omit-trailing-period -offset indent -compact
+.It Cm backup_sector
+Location of the backup boot sector.
+.It Cm block_size
+Block size.
+.It Cm bootstrap
+Bootstrap file.
+.It Cm bytes_per_sector
+Bytes per sector.
+.It Cm create_size
+Create file size.
+.It Cm directory_entries
+Directory entries.
+.It Cm drive_heads
+Drive heads.
+.It Cm fat_type
+FAT type (12, 16, or 32).
+.It Cm floppy
+Preset drive parameters for standard format floppy disks
+(160, 180, 320, 360, 640, 720, 1200, 1232, 1440, or 2880).
+.It Cm hidden_sectors
+Hidden sectors.
+.It Cm info_sector
+Location of the info sector.
+.It Cm media_descriptor
+Media descriptor.
+.It Cm num_FAT
+Number of FATs.
+.It Cm OEM_string
+OEM string.
+.It Cm offset
+Offset in device.
+.It Cm reserved_sectors
+Reserved sectors.
+.It Cm sectors_per_cluster
+Sectors per cluster.
+.It Cm sectors_per_fat
+Sectors per FAT.
+.It Cm sectors_per_track
+Sectors per track.
+.It Cm size
+File System size.
+.It Cm volume_id
+Volume ID.
+.It Cm volume_label
+Volume Label.
+.El
+.Sh SEE ALSO
+.Xr scan_scaled 3 ,
+.Xr installboot 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Nx 1.6 .
+.Sh AUTHORS
+.An -nosplit
+.An Luke Mewburn
+.Aq lukem@NetBSD.org
+(original program),
+.An Daniel Watt ,
+.An Walter Deignan ,
+.An Ryan Gabrys ,
+.An Alan Perez-Rathke ,
+.An Ram Vedam
+(cd9660 support),
+and
+.An Christos Zoulas
+(msdos support).

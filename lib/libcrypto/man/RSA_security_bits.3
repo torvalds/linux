@@ -1,0 +1,138 @@
+.\" $OpenBSD: RSA_security_bits.3,v 1.2 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_SECURITY_BITS 3
+.Os
+.Sh NAME
+.Nm RSA_security_bits ,
+.Nm DSA_security_bits ,
+.Nm DH_security_bits ,
+.Nm BN_security_bits
+.Nd get security strength
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft int
+.Fn RSA_security_bits "const RSA *rsa"
+.In openssl/dsa.h
+.Ft int
+.Fn DSA_security_bits "const DSA *dsa"
+.In openssl/dh.h
+.Ft int
+.Fn DH_security_bits "const DH *dh"
+.In openssl/bn.h
+.Ft int
+.Fo BN_security_bits
+.Fa "int pubbits"
+.Fa "int privbits"
+.Fc
+.Sh DESCRIPTION
+These functions return the security strength of some specific types of
+cryptographic keys, measured in bits.
+It is approximately the binary logarithm of the number of operations
+an attacker has to perform in order to break the key.
+.Pp
+.Fn RSA_security_bits
+uses only the number of significant bits in the public modulus of
+.Fa rsa
+as returned by
+.Xr RSA_bits 3 .
+It returns
+.Bl -column 256 for 15360 last_column -offset indent
+.It 256 Ta for Ta 15360 Ta or more significant bits
+.It 192 Ta     Ta  7680 Ta
+.It 128 Ta     Ta  3072 Ta
+.It 112 Ta     Ta  2048 Ta
+.It  80 Ta     Ta  1024 Ta
+.El
+.Pp
+or 0 otherwise.
+.Pp
+.Fn DSA_security_bits
+uses the number of significant bits in the public domain parameter
+.Fa p
+contained in the
+.Fa dsa
+object, which is equal to the size of the public key, in the same way as
+.Fn RSA_security_bits .
+In addition, the public domain parameter
+.Fa q
+contained in the
+.Fa dsa
+object, which is equal to the size of the private key, is inspected.
+The return value is either the security strength according to the above table
+or half the size of the private key, whichever is smaller.
+If the return value would be smaller than 80, 0 is returned instead.
+.Pp
+.Fn DH_security_bits
+uses the number of significant bits in the shared secret contained in the
+.Fa dh
+object as returned by
+.Xr DH_bits 3
+in the same way as
+.Fn RSA_security_bits .
+If
+.Fa dh
+contains the domain parameter
+.Fa q ,
+its number of significant bits is used in the same way as for
+.Fn DSA_security_bits
+to limit the return value.
+Otherwise, if
+.Fa dh
+contains the length of the secret exponent in bits,
+that number is used.
+If neither is available, only the above table is used
+without calculating a minimum.
+.Pp
+.Fn BN_security_bits
+is a combined function.
+If \-1 is passed for the
+.Fa privbits
+argument, it behaves like
+.Fn RSA_security_bits .
+Otherwise, it behaves like
+.Fn DSA_security_bits .
+.Sh RETURN VALUES
+All these functions return numbers in the range from 0 to 256 inclusive.
+.Pp
+.Fn DSA_security_bits
+fails and returns \-1 unless both of the
+.Fa p
+and
+.Fa q
+domain parameters are present.
+.Sh SEE ALSO
+.Xr BN_num_bits 3 ,
+.Xr DH_bits 3 ,
+.Xr DH_get0_pqg 3 ,
+.Xr DSA_get0_pqg 3 ,
+.Xr RSA_bits 3 ,
+.Xr SSL_CTX_set_security_level 3
+.Rs
+.%A Elaine Barker
+.%T Recommendation for Key Management
+.%I U.S. National Institute of Standards and Technology
+.%R NIST Special Publication 800-57 Part 1 Revision 5
+.%U https://doi.org/10.6028/NIST.SP.800-57pt1r5
+.%C Gaithersburg, MD
+.%D May 2020
+.Re
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.1.0
+and have been available since
+.Ox 7.2 .

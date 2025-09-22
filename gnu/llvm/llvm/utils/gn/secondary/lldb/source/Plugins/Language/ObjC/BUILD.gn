@@ -1,0 +1,39 @@
+static_library("ObjC") {
+  output_name = "lldbPluginObjCLanguage"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//clang/lib/AST",
+    "//lldb/source/Core",
+    "//lldb/source/DataFormatters",
+    "//lldb/source/Expression",
+    "//lldb/source/Host",
+    "//lldb/source/Plugins/Language/ClangCommon",
+    "//lldb/source/Plugins/LanguageRuntime/ObjC/AppleObjCRuntime",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+
+    #"//lldb/source/Plugins/TypeSystem/Clang", # 3-hop dependency cycle.
+    "//llvm/lib/Support",
+  ]
+
+  # Uses source-relative includes for own headers.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "CF.cpp",
+    "CFBasicHash.cpp",
+    "Cocoa.cpp",
+    "CoreMedia.cpp",
+    "NSArray.cpp",
+    "NSDictionary.cpp",
+    "NSError.cpp",
+    "NSException.cpp",
+    "NSIndexPath.cpp",
+    "NSSet.cpp",
+    "NSString.cpp",
+    "ObjCLanguage.cpp",
+  ]
+}

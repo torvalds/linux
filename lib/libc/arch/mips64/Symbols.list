@@ -1,0 +1,13 @@
+_GLOBAL_OFFSET_TABLE_
+__multf3
+__pack_t
+__thenan_tf
+__unpack_t
+_fbss
+_flush_cache
+_ftext
+_gp
+_mcount
+cacheflush
+get_fpc_csr
+set_fpc_csr

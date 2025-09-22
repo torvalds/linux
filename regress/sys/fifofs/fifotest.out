@@ -1,0 +1,252 @@
+
+Opened fifo fi.fo.fum
+
+Testing empty FIFO:
+	poll POLLIN|POLLOUT, timeout=0
+		1 fd(s) ready, revents == POLLOUT
+	poll POLLIN, timeout=0
+		0 fd(s) ready
+	poll POLLOUT, timeout=0
+		1 fd(s) ready, revents == POLLOUT
+	poll (none), timeout=0
+		0 fd(s) ready
+	select read write, timeout=0
+		1 fd(s) ready, writeable
+	select read, timeout=0
+		0 fd(s) ready
+	select write, timeout=0
+		1 fd(s) ready, writeable
+	select (none), timeout=0
+		0 fd(s) ready
+
+Testing full FIFO:
+	poll POLLIN|POLLOUT, timeout=0
+		1 fd(s) ready, revents == POLLIN POLLOUT
+	poll POLLIN, timeout=0
+		1 fd(s) ready, revents == POLLIN
+	poll POLLOUT, timeout=0
+		1 fd(s) ready, revents == POLLOUT
+	poll (none), timeout=0
+		0 fd(s) ready
+	select read write, timeout=0
+		2 fd(s) ready, readable, writeable
+	select read, timeout=0
+		1 fd(s) ready, readable
+	select write, timeout=0
+		1 fd(s) ready, writeable
+	select (none), timeout=0
+		0 fd(s) ready
+	received 'test' from FIFO
+
+Opened fifo fi.fo.fum
+
+Testing empty FIFO:
+	poll POLLIN|POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLOUT
+	poll POLLIN, timeout=-1
+poll: Interrupted system call
+	poll POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLOUT
+	poll (none), timeout=-1
+poll: Interrupted system call
+	select read write, timeout=-1
+		1 fd(s) ready, writeable
+	select read, timeout=-1
+select: Interrupted system call
+	select write, timeout=-1
+		1 fd(s) ready, writeable
+	select (none), timeout=-1
+select: Interrupted system call
+
+Testing full FIFO:
+	poll POLLIN|POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLIN POLLOUT
+	poll POLLIN, timeout=-1
+		1 fd(s) ready, revents == POLLIN
+	poll POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLOUT
+	poll (none), timeout=-1
+poll: Interrupted system call
+	select read write, timeout=-1
+		2 fd(s) ready, readable, writeable
+	select read, timeout=-1
+		1 fd(s) ready, readable
+	select write, timeout=-1
+		1 fd(s) ready, writeable
+	select (none), timeout=-1
+select: Interrupted system call
+	received 'test' from FIFO
+
+Opened fifo fi.fo.fum (nonblocking)
+
+Testing empty FIFO:
+	poll POLLIN|POLLOUT, timeout=0
+		1 fd(s) ready, revents == POLLOUT
+	poll POLLIN, timeout=0
+		0 fd(s) ready
+	poll POLLOUT, timeout=0
+		1 fd(s) ready, revents == POLLOUT
+	poll (none), timeout=0
+		0 fd(s) ready
+	select read write, timeout=0
+		1 fd(s) ready, writeable
+	select read, timeout=0
+		0 fd(s) ready
+	select write, timeout=0
+		1 fd(s) ready, writeable
+	select (none), timeout=0
+		0 fd(s) ready
+
+Testing full FIFO:
+	poll POLLIN|POLLOUT, timeout=0
+		1 fd(s) ready, revents == POLLIN POLLOUT
+	poll POLLIN, timeout=0
+		1 fd(s) ready, revents == POLLIN
+	poll POLLOUT, timeout=0
+		1 fd(s) ready, revents == POLLOUT
+	poll (none), timeout=0
+		0 fd(s) ready
+	select read write, timeout=0
+		2 fd(s) ready, readable, writeable
+	select read, timeout=0
+		1 fd(s) ready, readable
+	select write, timeout=0
+		1 fd(s) ready, writeable
+	select (none), timeout=0
+		0 fd(s) ready
+	received 'test' from FIFO
+
+Opened fifo fi.fo.fum (nonblocking)
+
+Testing empty FIFO:
+	poll POLLIN|POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLOUT
+	poll POLLIN, timeout=-1
+poll: Interrupted system call
+	poll POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLOUT
+	poll (none), timeout=-1
+poll: Interrupted system call
+	select read write, timeout=-1
+		1 fd(s) ready, writeable
+	select read, timeout=-1
+select: Interrupted system call
+	select write, timeout=-1
+		1 fd(s) ready, writeable
+	select (none), timeout=-1
+select: Interrupted system call
+
+Testing full FIFO:
+	poll POLLIN|POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLIN POLLOUT
+	poll POLLIN, timeout=-1
+		1 fd(s) ready, revents == POLLIN
+	poll POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLOUT
+	poll (none), timeout=-1
+poll: Interrupted system call
+	select read write, timeout=-1
+		2 fd(s) ready, readable, writeable
+	select read, timeout=-1
+		1 fd(s) ready, readable
+	select write, timeout=-1
+		1 fd(s) ready, writeable
+	select (none), timeout=-1
+select: Interrupted system call
+	received 'test' from FIFO
+
+Opened fifo for reading fi.fo.fum (nonblocking)
+
+Testing EOF FIFO behavior (pass 0):
+	poll POLLIN|POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLIN POLLHUP
+	received EOF from FIFO
+
+Testing EOF FIFO behavior (pass 1):
+	poll POLLIN|POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLIN POLLHUP
+	received EOF from FIFO
+
+Opened fifo for reading fi.fo.fum (nonblocking)
+
+Testing EOF FIFO behavior (pass 2):
+	poll POLLIN, timeout=-1
+		1 fd(s) ready, revents == POLLIN POLLHUP
+	received EOF from FIFO
+
+Testing EOF FIFO behavior (pass 3):
+	poll POLLIN, timeout=-1
+		1 fd(s) ready, revents == POLLIN POLLHUP
+	received EOF from FIFO
+
+Opened fifo for reading fi.fo.fum (nonblocking)
+
+Testing EOF FIFO behavior (pass 4):
+	poll POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLHUP
+	received EOF from FIFO
+
+Testing EOF FIFO behavior (pass 5):
+	poll POLLOUT, timeout=-1
+		1 fd(s) ready, revents == POLLHUP
+	received EOF from FIFO
+
+Opened fifo for reading fi.fo.fum (nonblocking)
+
+Testing EOF FIFO behavior (pass 6):
+	poll (none), timeout=-1
+		1 fd(s) ready, revents == POLLHUP
+	received EOF from FIFO
+
+Testing EOF FIFO behavior (pass 7):
+	poll (none), timeout=-1
+		1 fd(s) ready, revents == POLLHUP
+	received EOF from FIFO
+
+Opened fifo for reading fi.fo.fum (nonblocking)
+
+Testing EOF FIFO behavior (pass 8):
+	select read write, timeout=-1
+		1 fd(s) ready, readable
+	received EOF from FIFO
+
+Testing EOF FIFO behavior (pass 9):
+	select read write, timeout=-1
+		1 fd(s) ready, readable
+	received EOF from FIFO
+
+Opened fifo for reading fi.fo.fum (nonblocking)
+
+Testing EOF FIFO behavior (pass 10):
+	select read, timeout=-1
+		1 fd(s) ready, readable
+	received EOF from FIFO
+
+Testing EOF FIFO behavior (pass 11):
+	select read, timeout=-1
+		1 fd(s) ready, readable
+	received EOF from FIFO
+
+Opened fifo for reading fi.fo.fum (nonblocking)
+
+Testing EOF FIFO behavior (pass 12):
+	select write, timeout=-1
+select: Interrupted system call
+	received EOF from FIFO
+
+Testing EOF FIFO behavior (pass 13):
+	select write, timeout=-1
+select: Interrupted system call
+	received EOF from FIFO
+
+Opened fifo for reading fi.fo.fum (nonblocking)
+
+Testing EOF FIFO behavior (pass 14):
+	select (none), timeout=-1
+select: Interrupted system call
+	received EOF from FIFO
+
+Testing EOF FIFO behavior (pass 15):
+	select (none), timeout=-1
+select: Interrupted system call
+	received EOF from FIFO

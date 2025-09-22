@@ -1,0 +1,129 @@
+.\"	$OpenBSD: dhcpleased.conf.5,v 1.17 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2018, 2021 Florian Obser <florian@openbsd.org>
+.\" Copyright (c) 2005 Esben Norby <norby@openbsd.org>
+.\" Copyright (c) 2004 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2002 Daniel Hartmeier <dhartmei@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt DHCPLEASED.CONF 5
+.Os
+.Sh NAME
+.Nm dhcpleased.conf
+.Nd DHCP client configuration file
+.Sh DESCRIPTION
+The
+.Xr dhcpleased 8
+daemon is a dynamic host configuration protocol client daemon.
+.Pp
+The
+.Nm
+config file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Interfaces
+If an interface requires non-default options, they can be defined in
+this section.
+Most configurations do not require this.
+.El
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic interface ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Ss Interfaces
+A list of interfaces to overwrite defaults:
+.Bl -tag -width Ds
+.It Ic interface Ar name Brq Ar option ...
+.Pp
+.Ic interface
+options are as follows:
+.Bl -tag -width Ds
+.It Ic ignore dns
+Ignore nameservers from leases on this interface.
+The default is to not ignore nameservers.
+.It Ic ignore routes
+Ignore routes from leases on this interface.
+The default is to not ignore routes.
+.It Ic ignore Ar server-ip
+Ignore leases from
+.Ar server-ip .
+This option can be listed multiple times.
+The default is to not ignore servers.
+.It Ic prefer ipv6
+Send the IPv6-Only preferred option to the server.
+If the server responds with the option, no lease is configured.
+.It Ic send client id Ar client-id
+Send the DHCP client identifier option with a value of
+.Ar client-id .
+If
+.Ar client-id
+consists of a series of octets of two-digit hexadecimal numbers separated by
+colons, the first octet is used as the type and the rest as value.
+The MAC address 00:53:FF:AA:BB:CC would be configured as:
+.Bd -literal -offset indent
+send client id "01:00:53:FF:AA:BB:CC"
+.Ed
+.Pp
+Otherwise the string
+.Ar client-id
+is sent verbatim.
+The default is to send the interface's MAC address as client identifier.
+.Pp
+When
+.Ar client-id
+is not a hardware address, it is supposed to be sent as hardware type 0 but
+the majority of DHCP clients and servers do not implement this and neither
+does
+.Nm .
+If a server is encountered that requires this, a 0 byte can be encoded as \e0.
+The client identifier
+.Dq foobar
+with hardware type 0 would be configured as:
+.Bd -literal -offset indent
+send client id "\e0foobar"
+.Ed
+.It Ic send host name Ar host-name
+Send the DHCP client host name option with a value of
+.Ar host-name .
+The default is to send the name of the host.
+.It Ic send no host name
+Do not send a DHCP host name option.
+The default is to send a DHCP host name option with the name of the host.
+.It Ic send vendor class id Ar vendor-class-id
+Send the DHCP vendor class identifier option with a value of
+.Ar vendor-class-id .
+The default is to not send a vendor class identifier.
+.El
+.El
+.Sh FILES
+.Bl -tag -width /etc/dhcpleased.conf -compact
+.It Pa /etc/dhcpleased.conf
+.Xr dhcpleased 8
+configuration file.
+.El
+.Sh SEE ALSO
+.Xr dhcpleasectl 8 ,
+.Xr dhcpleased 8

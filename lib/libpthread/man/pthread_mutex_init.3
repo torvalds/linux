@@ -1,0 +1,235 @@
+.\" $OpenBSD: pthread_mutex_init.3,v 1.16 2025/07/25 20:01:28 tedu Exp $
+.\"
+.\" Copyright (c) 1997 Brian Cully <shmit@kublai.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: pthread_mutex_init.3,v 1.6 1999/08/28 00:03:07 peter Exp $
+.\" $FreeBSD: pthread_mutex_destroy.3,v 1.5 1999/08/28 00:03:07 peter Exp $
+.\" $FreeBSD: pthread_mutex_lock.3,v 1.5 1999/08/28 00:03:07 peter Exp $
+.\" $FreeBSD: pthread_mutex_unlock.3,v 1.5 1999/08/28 00:03:08 peter Exp $
+.\"
+.Dd $Mdocdate: July 25 2025 $
+.Dt PTHREAD_MUTEX_INIT 3
+.Os
+.Sh NAME
+.Nm pthread_mutex_init ,
+.Nm pthread_mutex_destroy ,
+.Nm pthread_mutex_lock ,
+.Nm pthread_mutex_timedlock ,
+.Nm pthread_mutex_trylock ,
+.Nm pthread_mutex_unlock
+.Nd operations on mutex variables
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fo pthread_mutex_init
+.Fa "pthread_mutex_t *mutex"
+.Fa "const pthread_mutexattr_t *attr"
+.Fc
+.Ft int
+.Fo pthread_mutex_destroy
+.Fa "pthread_mutex_t *mutex"
+.Fc
+.Ft int
+.Fo pthread_mutex_lock
+.Fa "pthread_mutex_t *mutex"
+.Fc
+.Ft int
+.Fo pthread_mutex_timedlock
+.Fa "pthread_mutex_t *mutex"
+.Fa "const struct timespec *abstime"
+.Fc
+.Ft int
+.Fo pthread_mutex_trylock
+.Fa "pthread_mutex_t *mutex"
+.Fc
+.Ft int
+.Fo pthread_mutex_unlock
+.Fa "pthread_mutex_t *mutex"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn pthread_mutex_init
+function creates a new mutex, with attributes specified with
+.Fa attr .
+If
+.Fa attr
+is
+.Dv NULL
+the default attributes are used, otherwise
+.Fa attr
+should be initialized by calling
+.Xr pthread_mutexattr_init 3 .
+.Pp
+A mutex may also be initialized by assignment with the macro
+PTHREAD_MUTEX_INITIALIZER.
+.Pp
+The
+.Fn pthread_mutex_destroy
+function frees the resources allocated for
+.Fa mutex .
+.Pp
+The
+.Fn pthread_mutex_lock
+function locks
+.Fa mutex .
+If the mutex is currently locked by another thread,
+the calling thread will block until the
+mutex becomes available.
+.Pp
+If the mutex is currently locked by the calling thread,
+then the behavior depends on the type of the mutex.
+If
+.Fa mutex
+is of type
+.Dv PTHREAD_MUTEX_NORMAL ,
+then the calling thread will deadlock and never return from
+.Fn pthread_mutex_lock .
+If
+.Fa mutex
+is of type
+.Dv PTHREAD_MUTEX_ERRORCHECK ,
+then
+.Er EDEADLK
+is immediately returned.
+If
+.Fa mutex
+is of type
+.Dv PTHREAD_MUTEX_RECURSIVE ,
+then the recursion count on the mutex is incremented.
+.Pp
+The
+.Fn pthread_mutex_timedlock
+function locks
+.Fa mutex
+like
+.Fn pthread_mutex_lock
+except that it will not block or deadlock past the system time
+specified in
+.Fa abstime .
+.Pp
+The
+.Fn pthread_mutex_trylock
+function locks
+.Fa mutex
+like
+.Fn pthread_mutex_lock
+except that if
+.Fa mutex
+is locked by another thread,
+or is locked by the calling thread and is not of type
+.Dv PTHREAD_MUTEX_RECURSIVE ,
+then it will immediately return
+.Er EBUSY .
+.Pp
+The
+.Fn pthread_mutex_unlock
+function unlocks the previously locked
+.Fa mutex .
+.Sh RETURN VALUES
+These functions return zero for success and positive error numbers
+for failure.
+.Sh ERRORS
+.Fn pthread_mutex_init
+fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa attr
+is invalid.
+.It Bq Er ENOMEM
+The process cannot allocate enough memory to create another mutex.
+.El
+.Pp
+The other functions fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa mutex
+is invalid.
+.El
+.Pp
+.Fn pthread_mutex_destroy
+fails if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+.Fa mutex
+is locked or referenced by another thread.
+.El
+.Pp
+.Fn pthread_mutex_lock ,
+.Fn pthread_mutex_timedlock ,
+and
+.Fn pthread_mutex_trylock
+fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The mutex is of type
+.Dv PTHREAD_MUTEX_RECURSIVE
+and the maximum recursion count has been reached.
+.El
+.Pp
+.Fn pthread_mutex_lock
+and
+.Fn pthread_mutex_timedlock
+fail if:
+.Bl -tag -width Er
+.It Bq Er EDEADLK
+The mutex is of type
+.Dv PTHREAD_MUTEX_ERRORCHECK
+and is already locked by the calling thread.
+.El
+.Pp
+.Fn pthread_mutex_timedlock
+fails if:
+.Bl -tag -width Er
+.It Bq Er ETIMEDOUT
+The mutex could not be locked and the specified time was reached.
+.El
+.Pp
+.Fn pthread_mutex_trylock
+fails if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The mutex could not be locked because it was already locked.
+.El
+.Pp
+.Fn pthread_mutex_unlock
+fails if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The current thread does not hold a lock on
+.Fa mutex .
+.El
+.Sh SEE ALSO
+.Xr pthread_mutexattr_init 3 ,
+.Xr pthreads 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2024 .
+Raising an error for invalid arguments is an extension.

@@ -1,0 +1,244 @@
+.\" $OpenBSD: ober_read_elements.3,v 1.5 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2007, 2012 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt OBER_READ_ELEMENTS 3
+.Os
+.Sh NAME
+.Nm ober_set_readbuf ,
+.Nm ober_set_application ,
+.Nm ober_read_elements ,
+.Nm ober_get_writebuf ,
+.Nm ober_write_elements ,
+.Nm ober_free
+.Nd encode and decode ASN.1 with Basic Encoding Rules
+.Sh SYNOPSIS
+.Lb libutil
+.In sys/types.h
+.In ber.h
+.Ft void
+.Fn "ober_set_readbuf" "struct ber *ber" "void *buf" "size_t len"
+.Ft void
+.Fo "ober_set_application"
+.Fa "struct ber *ber"
+.Fa "unsigned int (*cb)(struct ber_element *)"
+.Fc
+.Ft struct ber_element *
+.Fn "ober_read_elements" "struct ber *ber" "struct ber_element *root"
+.Ft ssize_t
+.Fn "ober_get_writebuf" "struct ber *ber" "void **buf"
+.Ft ssize_t
+.Fn "ober_write_elements" "struct ber *ber" "struct ber_element *root"
+.Ft void
+.Fn "ober_free" "struct ber *ber"
+.Sh DESCRIPTION
+The BER API provides a mechanism to read and write ASN.1 using the
+Basic Encoding Rules.
+.Pp
+Encoded BER is stored in the following structure:
+.Bd -literal
+struct ber {
+	off_t	 br_offs;
+	u_char	*br_wbuf;
+	u_char	*br_wptr;
+	u_char	*br_wend;
+	u_char	*br_rbuf;
+	u_char	*br_rptr;
+	u_char	*br_rend;
+
+	unsigned int (*br_application)(struct ber_element *);
+};
+.Ed
+.Pp
+.Fa br_rbuf
+and
+.Fa br_wbuf
+are the read and write buffers for a BER byte stream.
+These buffers are used when reading an existing byte stream (e.g. received from
+a TLS connection), or when writing a new byte stream in preparation for
+subsequent operations performed by the calling application (e.g. network
+transmission or export to a file).
+.Pp
+Intermediary storage of BER elements during encoding and decoding uses the
+following structure:
+.Bd -literal
+struct ber_element {
+	struct ber_element	*be_next;
+	unsigned int		 be_type;
+	unsigned int		 be_encoding;
+	size_t			 be_len;
+	off_t			 be_offs;
+	int			 be_free;
+	u_int8_t		 be_class;
+	void			(*be_cb)(void *, size_t);
+	void			*be_cbarg;
+	union {
+		struct ber_element	*bv_sub;
+		void			*bv_val;
+		long long		 bv_numeric;
+	} be_union;
+#define be_sub		be_union.bv_sub
+#define be_val		be_union.bv_val
+#define be_numeric	be_union.bv_numeric
+};
+.Ed
+.Pp
+.Fn ober_set_readbuf
+sets
+.Fa br_rbuf
+to point an input buffer of BER encoded bytes in preparation for decoding.
+It is assumed that
+.Fa br_rbuf
+is already populated and available to the
+application, commonly obtained by
+.Xr read 2 ,
+.Xr recv 2 ,
+or
+.Xr tls_read 3 .
+.Pp
+.Fn ober_read_elements
+may then be called to parse, validate, and store the
+.Fa ber
+data stream into its
+constituent
+.Vt ber_element
+parts for subsequent processing.
+The calling application must have explicit knowledge of the expected data
+types in order for correct decoding.
+.Pp
+.Fn ober_get_writebuf
+sets
+.Fa br_wbuf
+to point to an output buffer for writing a BER byte stream.
+.Pp
+.Fn ober_write_elements
+encodes
+.Fa root
+into a compliant BER byte stream which is written to
+.Fa ber
+for subsequent use by the calling
+functions such as
+.Xr send 2 ,
+.Xr write 2 ,
+or
+.Xr tls_write 3 .
+.Pp
+.Fn ober_free
+frees any dynamically allocated storage associated with
+.Fa ber .
+.Sh RETURN VALUES
+.Fn ober_read_elements
+returns a pointer to a fully populated list of one or more
+.Vt ber_element
+structures.
+Otherwise \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+.Fn ober_get_writebuf
+returns the number of bytes contained within the buffer
+.Fa buf
+or \-1 on failure.
+.Pp
+.Fn ober_write_elements
+returns the number of bytes written.
+Otherwise \-1 is returned and the global variable
+.Va errno
+is set to
+.Er ENOMEM .
+.Sh ERRORS
+.Fn ober_read_elements
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+No memory was available to create the full
+.Vt ber_element
+structure list.
+.It Bq Er ENOBUFS
+.Fn ober_read_elements
+was called before calling
+.Fn ober_set_readbuf .
+.It Bq Er ECANCELED
+.Fa buf
+does not contain enough data to complete the unpacking.
+.It Bq Er EINVAL
+.Fa buf
+does not contain a valid BER data structure.
+.It Bq Er ERANGE
+One of the values in the structure is larger than the library can unpack.
+.El
+.Sh SEE ALSO
+.Xr read 2 ,
+.Xr recv 2 ,
+.Xr send 2 ,
+.Xr write 2 ,
+.Xr ober_add_string 3 ,
+.Xr ober_get_string 3 ,
+.Xr ober_oid_cmp 3 ,
+.Xr ober_set_header 3 ,
+.Xr tls_read 3
+.Sh STANDARDS
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules.
+.Sh HISTORY
+These functions first appeared as internal functions in
+.Xr snmpd 8
+in
+.Ox 4.2
+and were moved to libutil in
+.Ox 6.6 .
+.Sh AUTHORS
+.An -nosplit
+The BER library was written by
+.An Claudio Jeker Aq Mt claudio@openbsd.org ,
+.An Marc Balmer Aq Mt marc@openbsd.org
+and
+.An Reyk Floeter Aq Mt reyk@openbsd.org .
+.Sh CAVEATS
+The BER
+API is subject to the following restrictions which are common to the
+Distinguished Encoding Rules as defined by X.690:
+.Pp
+.Bl -enum -compact
+.It
+Only the definite form of length encoding shall be used, encoded in the
+minimum number of octets.
+.It
+For bitstring, octetstring and restricted character string types, the
+constructed form of encoding shall not be used.
+.It
+If a boolean encoding represents the boolean value TRUE, its single contents
+octet shall have all eight bits set to one.
+.It
+Each unused bit in the final octet of the encoding of a bit string value shall
+be set to zero.
+.It
+If a bitstring value has no 1 bits, then an encoder shall encode the value with
+a length of 1 and an initial octet set to 0.
+.El
+.Pp
+In addition, set and sequence values are limited to a maximum of 65535 elements.
+No alternative encodings are permitted.
+.Pp
+.Do
+Whereas the basic encoding rules give the sender of an encoding various choices
+as to how data values may be encoded, the canonical and distinguished encoding
+rules select just one encoding from those allowed by the basic encoding rules.
+.Dc
+.Bq X.690
+.Pp
+The restrictions placed on this API avoid the ambiguity inherent in
+BER encoded ASN.1 thereby acting as a security mitigation.

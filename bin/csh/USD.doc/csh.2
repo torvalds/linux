@@ -1,0 +1,1302 @@
+.\"	$OpenBSD: csh.2,v 1.12 2010/12/23 08:54:59 jmc Exp $
+.\"	$NetBSD: csh.2,v 1.3 1995/03/21 09:03:35 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)csh.2	8.1 (Berkeley) 6/8/93
+.\"
+.nr H1 1
+.NH
+Details on the shell for terminal users
+.NH 2
+Shell startup and termination
+.PP
+When you login, the shell is started by the system in your
+.I home
+directory and begins by reading commands from a file
+.I \&.cshrc
+in this directory.
+All shells which you may start during your terminal session will
+read from this file.
+We will later see what kinds of commands are usefully placed there.
+For now we need not have this file and the shell does not complain about
+its absence.
+.PP
+A
+.I "login shell" ,
+executed after you login to the system,
+will, after it reads commands from
+.I \&.cshrc ,
+read commands from a file
+.I \&.login
+also in your home directory.
+This file contains commands which you wish to do each time you log in
+to the UNIX system.
+My
+.I \&.login
+file looks something like:
+.DS
+set ignoreeof
+set mail=(/usr/spool/mail/bill)
+echo "${prompt}users" ; users
+alias ts \e
+	\'set noglob ; eval \`tset \-s \-m dialup:c100rv4pna \-m plugboard:?hp2621nl \!*\`\';
+ts; stty intr ^C kill ^U crt
+set time=15 history=10
+if (\-e $mail) then
+	echo "${prompt}mail"
+	mail
+endif
+.DE
+.PP
+This file contains several commands to be executed by UNIX
+each time I log in.
+The first is a
+.I set
+command which is interpreted directly by the shell.  It sets the shell
+variable
+.I ignoreeof
+which causes the shell to not log me off if I hit ^D.  Rather,
+I use the
+.I logout
+command to log off the system.
+By setting the
+.I mail
+variable, I ask the shell to watch for incoming mail to me.  Every 5 minutes
+the shell looks for this file and tells me if more mail has arrived there.
+An alternative to this is to put the command
+.DS
+biff y
+.DE
+in place of this
+.I set ;
+this will cause me to be notified immediately when mail arrives, and to
+be shown the first few lines of the new message.
+.PP
+I create an
+.I alias
+``ts'' which executes a
+tset(1) command setting up the modes of the terminal.
+The parameters to
+.I tset
+indicate the kinds of terminal which I usually use when not on a hardwired
+port.  I then execute ``ts'' and also use the
+.I stty
+command to change the interrupt character to ^C and the line kill
+character to ^U.
+.PP
+Next I set the shell variable `time' to `15' causing the shell to automatically
+print out statistics lines for commands which execute for at least 15 seconds
+of CPU time.  The variable `history' is set to 10 indicating that
+I want the shell to remember the last 10 commands I type in its
+.I "history list" ,
+(described later).
+.PP
+Finally, if my mailbox file exists, then I run the `mail' program to
+process my mail.
+.PP
+When the `mail' program finishes, the shell will finish
+processing my
+.I \&.login
+file and begin reading commands from the terminal, prompting for each with
+`% '.
+When I log off (by giving the
+.I logout
+command) the shell
+will print `logout' and execute commands from the file `.logout'
+if it exists in my home directory.
+After that the shell will terminate and UNIX will log
+me off the system.
+If the system is not going down, I will receive a new login message.
+In any case, after the `logout' message the shell is committed to terminating
+and will take no further input from my terminal.
+.NH 2
+Shell variables
+.PP
+The shell maintains a set of
+.I variables .
+We saw above the variables
+.I history
+and
+.I time
+which had values `10' and `15'.
+In fact, each shell variable has as value an array of
+zero or more
+.I strings .
+Shell variables may be assigned values by the set command.  It has
+several forms, the most useful of which was given above and is
+.DS
+set name=value
+.DE
+.PP
+Shell variables may be used to store values which are to
+be used in commands later through a substitution mechanism.
+The shell variables most commonly referenced are, however, those which the
+shell itself refers to.
+By changing the values of these variables one can directly affect the
+behavior of the shell.
+.PP
+One of the most important variables is the variable
+.I path .
+This variable contains a sequence of directory names where the shell
+searches for commands.
+The
+.I set
+command with no arguments
+shows the value of all variables currently defined (we usually say
+.I set )
+in the shell.
+The default value for path will be shown by
+.I set
+to be
+.DS
+% set
+.ta .75i
+argv	()
+cwd	/home/bill
+home	/home/bill
+path	(/bin /usr/bin .)
+prompt	%
+shell	/bin/csh
+status	0
+term	c100rv4pna
+user	bill
+%
+.so tabs
+.DE
+This output indicates that the variable path points to
+`/bin', `/usr/bin', and the current directory `.'.
+Commands which you may write might be in `.' (usually one of
+your directories).
+.\" Commands developed at Berkeley live in `/usr/ucb',
+.\" while commands developed at Bell Laboratories live in `/bin' and `/usr/bin'.
+Other commands may live in /bin and /usr/bin.
+.PP
+A number of locally developed programs on the system live in the directory
+`/usr/local/bin'.
+If we wish that all shells which we invoke to have
+access to these new programs we can place the command
+.DS
+set path=(/bin /usr/bin /usr/local/bin .)
+.DE
+in our file
+.I \&.cshrc
+in our home directory.
+Try doing this and then logging out and back in and do
+.DS
+set
+.DE
+again to see that the value assigned to
+.I path
+has changed.
+.\" .FS \(dg
+.\" Another directory that might interest you is /usr/new, which contains
+.\" many useful user-contributed programs provided with Berkeley Unix.
+.\" .FE
+.PP
+One thing you should be aware of is that the shell examines each directory
+which you insert into your path and determines which commands are contained
+there.  Except for the current directory `.', which the shell treats specially,
+this means that if commands are added to a directory in your search path after
+you have started the shell, they will not necessarily be found by the shell.
+If you wish to use a command which has been added in this way, you should
+give the command
+.DS
+rehash
+.DE
+to the shell, which will cause it to recompute its internal table of command
+locations, so that it will find the newly added command.
+Since the shell has to look in the current directory `.' on each command,
+placing it at the end of the path specification usually works equivalently
+and reduces overhead.
+.PP
+Other useful built in variables are the variable
+.I home ,
+which shows your home directory;
+.I cwd ,
+which contains your current working directory;
+and the variable
+.I ignoreeof ,
+which can be set in your
+.I \&.login
+file to tell the shell not to exit when it receives an end-of-file from
+a terminal (as described above).
+The variable `ignoreeof'
+is one of several variables which the shell does not care about the
+value of, only whether they are
+.I set
+or
+.I unset .
+Thus to set this variable you simply do
+.DS
+set ignoreeof
+.DE
+and to unset it do
+.DS
+unset ignoreeof
+.DE
+These give the variable `ignoreeof' no value, but none is desired or required.
+.PP
+Finally, some other built-in shell variables of use are the
+variables
+.I noclobber
+and
+.I mail .
+The metasyntax
+.DS
+> filename
+.DE
+which redirects the standard output of a command,
+will overwrite and destroy the previous contents of the named file.
+In this way you may accidentally overwrite a file which is valuable.
+If you would prefer that the shell not overwrite files in this
+way you can
+.DS
+set noclobber
+.DE
+in your
+.I \&.login
+file.
+Then trying to do
+.DS
+date > now
+.DE
+would cause a diagnostic if `now' existed already.
+You could type
+.DS
+date >!  now
+.DE
+if you really wanted to overwrite the contents of `now'.
+The `>!' is a special metasyntax indicating that clobbering the
+file is ok.\(dg
+.FS
+\(dgThe space between the `!' and the word `now' is critical here, as `!now'
+would be an invocation of the
+.I history
+mechanism, and have a totally different effect.
+.FE
+.NH 2
+The shell's history list
+.PP
+The shell can maintain a
+.I "history list"
+into which it places the words
+of previous commands.
+It is possible to use a notation to reuse commands or words
+from commands in forming new commands.
+This mechanism can be used to repeat previous commands or to
+correct minor typing mistakes in commands.
+.PP
+The following figure gives a sample session involving typical usage of the
+history mechanism of the shell.
+.KF
+.DS
+% cat bug.c
+main()
+
+{
+	printf("hello);
+}
+% cc !$
+cc bug.c
+bug.c:4: unterminated string or character constant
+bug.c:4: possible real start of unterminated constant
+% ed !$
+ed bug.c
+29
+4s/);/"&/p
+        printf("hello");
+w
+30
+q
+% !c
+cc bug.c
+% a.out
+hello% !e
+ed bug.c
+30
+4s/lo/lo\e\en/p
+        printf("hello\en");
+w
+32
+q
+% !c \-o bug
+cc bug.c \-o bug
+% size a.out bug
+text	data	bss	dec	hex
+1022	208	288	1518	5ee	a.out
+1022	208	288	1518	5ee	bug
+% ls \-l !*
+ls \-l a.out bug
+\(mirwxr\(mixr\(mix 1 bill       3932 Dec 19 09:41 a.out
+\(mirwxr\(mixr\(mix 1 bill       3932 Dec 19 09:42 bug
+% bug
+hello
+% cay -n bug.c
+cay: Command not found.
+% ^cay^cat
+cat -n bug.c
+    1	main()
+    3	{
+    4		printf("hello\en");
+    5	}
+% !! | lpr
+cat -n bug.c | lpr
+%
+.DE
+.KE
+In this example we have a very simple C program which has a bug (or two)
+in it in the file `bug.c', which we `cat' out on our terminal.  We then
+try to run the C compiler on it, referring to the file again as `!$',
+meaning the last argument to the previous command.  Here the `!' is the
+history mechanism invocation metacharacter, and the `$' stands for the last
+argument, by analogy to `$' in the editor which stands for the end of the line.
+The shell echoed the command, as it would have been typed without use of
+the history mechanism, and then executed it.
+The compilation yielded error diagnostics so we now run the editor on the
+file we were trying to compile, fix the bug, and run the C compiler again,
+this time referring to this command simply as `!c', which repeats the last
+command which started with the letter `c'.  If there were other
+commands starting with `c' done recently we could have said `!cc' or even
+`!cc:p' which would have printed the last command starting with `cc'
+without executing it.
+.PP
+After this recompilation, we ran the resulting `a.out' file, and then
+noting that there still was a bug, ran the editor again.  After fixing
+the program we ran the C compiler again, but tacked onto the command
+an extra `\-o bug' telling the compiler to place the resultant binary in
+the file `bug' rather than `a.out'.  In general, the history mechanisms
+may be used anywhere in the formation of new commands and other characters
+may be placed before and after the substituted commands.
+.PP
+We then ran the `size' command to see how large the binary program images
+we have created were, and then an `ls \-l' command with the same argument
+list, denoting the argument list `\!*'.
+Finally we ran the program `bug' to see that its output is indeed correct.
+.PP
+To make a numbered listing of the program we ran the `cat' command on the file `bug.c', with the `-n' flag.
+Unfortunately, we mispelled `cat' as `cay'.
+To correct this
+we used a shell substitute, placing the old text and new text between `^'
+characters.  This is similar to the substitute command in the editor.
+Finally, we repeated the same command with `!!', but sent its output to the
+line printer.
+.PP
+There are other mechanisms available for repeating commands.  The
+.I history
+command prints out a number of previous commands with numbers by which
+they can be referenced.  There is a way to refer to a previous command
+by searching for a string which appeared in it, and there are other,
+less useful, ways to select arguments to include in a new command.
+A complete description of all these mechanisms
+is given in the C shell manual pages in the UNIX Programmer's Manual.
+.NH 2
+Aliases
+.PP
+The shell has an
+.I alias
+mechanism which can be used to make transformations on input commands.
+This mechanism can be used to simplify the commands you type,
+to supply default arguments to commands,
+or to perform transformations on commands and their arguments.
+The alias facility is similar to a macro facility.
+Some of the features obtained by aliasing can be obtained also
+using shell command files, but these take place in another instance
+of the shell and cannot directly affect the current shells environment
+or involve commands such as
+.I cd
+which must be done in the current shell.
+.PP
+As an example, suppose that there is a new version of the mail program
+on the system called `newmail'
+you wish to use, rather than the standard mail program which is called
+`mail'.
+If you place the shell command
+.DS
+alias mail newmail
+.DE
+in your
+.I \&.cshrc
+file, the shell will transform an input line of the form
+.DS
+mail bill
+.DE
+into a call on `newmail'.
+More generally, suppose we wish the command `ls' to always show
+sizes of files, that is, to always do `\-s'.
+We can do
+.DS
+alias ls ls \-s
+.DE
+or even
+.DS
+alias dir ls \-s
+.DE
+creating a new command syntax `dir'
+which does an `ls \-s'.
+If we say
+.DS
+dir ~bill
+.DE
+then the shell will translate this to
+.DS
+ls \-s /home/bill
+.DE
+.PP
+Thus the
+.I alias
+mechanism can be used to provide short names for commands,
+to provide default arguments,
+and to define new short commands in terms of other commands.
+It is also possible to define aliases which contain multiple
+commands or pipelines, showing where the arguments to the original
+command are to be substituted using the facilities of the
+history mechanism.
+Thus the definition
+.DS
+alias cd \'cd \e!* ; ls \'
+.DE
+would do an
+.I ls
+command after each change directory
+.I cd
+command.
+We enclosed the entire alias definition in `\'' characters to prevent
+most substitutions from occurring and the character `;' from being
+recognized as a metacharacter.
+The `!' here is escaped with a `\e' to prevent it from being interpreted
+when the alias command is typed in.
+The `\e!*' here substitutes the entire argument list to the pre-aliasing
+.I cd
+command, without giving an error if there were no arguments.
+The `;' separating commands is used here
+to indicate that one command is to be done and then the next.
+Similarly the definition
+.DS
+alias whois \'grep \e!^ /etc/passwd\'
+.DE
+defines a command which looks up its first argument in the password file.
+.PP
+.B Warning:
+The shell currently reads the
+.I \&.cshrc
+file each time it starts up.  If you place a large number of commands
+there, shells will tend to start slowly.  A mechanism for saving the shell
+environment after reading the \fI\&.cshrc\fR file and quickly restoring it is
+under development, but for now you should try to limit the number of
+aliases you have to a reasonable number... 10 or 15 is reasonable,
+50 or 60 will cause a noticeable delay in starting up shells, and make
+the system seem sluggish when you execute commands from within the editor
+and other programs.
+.NH 2
+More redirection; >> and >&
+.PP
+There are a few more notations useful to the terminal user
+which have not been introduced yet.
+.PP
+In addition to the standard output, commands also have a
+.I "diagnostic output"
+which is normally directed to the terminal even when the standard output
+is redirected to a file or a pipe.
+It is occasionally desirable to direct the diagnostic output along with
+the standard output.
+For instance if you want to redirect the output of a long running command
+into a file and wish to have a record of any error diagnostic it produces
+you can do
+.DS
+command >& file
+.DE
+The `>&' here tells the shell to route both the diagnostic output and the
+standard output into `file'.
+Similarly you can give the command
+.DS
+command |\|& lpr
+.DE
+to route both standard and diagnostic output through the pipe
+to the line printer daemon
+.I lpr .\(dd
+.FS
+\(dd A command of the form
+.br
+.ti +5
+command >&! file
+.br
+exists, and is used when
+.I noclobber
+is set and
+.I file
+already exists.
+.FE
+.PP
+Finally, it is possible to use the form
+.DS
+command >> file
+.DE
+to place output at the end of an existing file.\(dg
+.FS
+\(dg If
+.I noclobber
+is set, then an error will result if
+.I file
+does not exist, otherwise the shell will create
+.I file
+if it doesn't exist.
+A form
+.br
+.ti +5
+command >>! file
+.br
+makes it not be an error for file to not exist when
+.I noclobber
+is set.
+.FE
+.NH 2
+Jobs; Background, Foreground, or Suspended
+.PP
+When one or more commands
+are typed together as a pipeline or as a sequence of commands separated by
+semicolons, a single
+.I job
+is created by the shell consisting of these commands together as a unit.
+Single commands without pipes or semicolons create the simplest jobs.
+Usually, every line typed to the shell creates a job.
+Some lines that create jobs (one per line) are
+.DS
+sort < data
+ls \-s | sort \-n | head \-5
+mail harold
+.DE
+.PP
+If the metacharacter `&' is typed
+at the end of the commands, then the job is started as a
+.I background
+job.  This means that the shell does not wait for it to complete but
+immediately prompts and is ready for another command.  The job runs
+.I "in the background"
+at the same time that normal jobs, called
+.I foreground
+jobs, continue to be read and executed by the shell one at a time.
+Thus
+.DS
+du > usage &
+.DE
+would run the
+.I du
+program, which reports on the disk usage of your working directory (as well as
+any directories below it), put the output into the file `usage' and return
+immediately with a prompt for the next command without waiting for
+.I du
+to finish.  The
+.I du
+program would continue executing in the background
+until it finished, even though you can type and execute more commands in the
+meantime.
+When a background
+job terminates, a message is typed by the shell just before the next prompt
+telling you that the job has completed.
+In the following example the
+.I du
+job finishes sometime during the
+execution of the
+.I mail
+command and its completion is reported just before
+the prompt after the
+.I mail
+job is finished.
+.DS
+% du > usage &
+[1] 503
+% mail bill
+How do you know when a background job is finished?
+EOT
+.ta 1.75i
+[1] \- Done	du > usage
+%
+.so tabs
+.DE
+If the job did not terminate normally, the `Done' message might say
+something else like `Killed'.
+If you want the
+terminations of background jobs to be reported at the time they occur
+(possibly interrupting the output of other foreground jobs), you can set
+the
+.I notify
+variable.  In the previous example this would mean that the
+`Done' message might have come right in the middle of the message to
+Bill.
+Background jobs are unaffected by any signals from the keyboard like
+the STOP, INTERRUPT, or QUIT signals mentioned earlier.
+.PP
+Jobs are recorded in a table inside the shell until they terminate.
+In this table, the shell remembers the command names, arguments, and the
+.I "process numbers"
+of all commands in the job, as well as the working directory where the job was
+started.
+Each job in the table is either running
+.I "in the foreground"
+with the shell waiting for it to terminate, running
+.I "in the background" ,
+or
+.I suspended .
+Only one job can be running in the foreground at one time, but several
+jobs can be suspended or running in the background at once.  As each job
+is started, it is assigned a small identifying
+number called the
+.I "job number"
+which can be used later to refer to the job in the commands described below.
+Job numbers remain
+the same until the job terminates and then are re-used.
+.PP
+When a job is started in the background using `&', its number, as well
+as the process numbers of all its (top level) commands, is typed by the shell
+before prompting you for another command. For example,
+.DS
+% ls \-s | sort \-n > usage &
+[2] 2034 2035
+%
+.DE
+runs the `ls' program with the `\-s' option, pipes this output into
+the `sort' program with the `\-n' option, which puts its output into the
+file `usage'.
+Since the `&' was at the end of the line, these two programs were started
+together as a background job.  After starting the job, the shell prints
+the job number in brackets (2 in this case) followed by the process number
+of each program started in the job.  Then the shell immediately prompts for
+a new command, leaving the job running simultaneously.
+.PP
+As mentioned in section 1.8, foreground jobs become
+.I suspended
+by typing ^Z,
+which sends a STOP signal to the currently running
+foreground job.  A background job can become suspended by using the
+.I stop
+command described below.  When jobs are suspended they merely stop
+any further progress until started again, either in the foreground
+or the background.  The shell notices when a job becomes stopped and
+reports this fact, much like it reports the termination of background jobs.
+For foreground jobs this looks like
+.DS
+% du > usage
+^Z
+Suspended
+%
+.DE
+The `Suspended' message is typed by the shell when it notices that the
+.I du
+program stopped.
+For background jobs, using the
+.I stop
+command, it is
+.DS
+% sort usage &
+[1] 2345
+% stop %1
+.ta 1.75i
+[1] + Suspended (signal)	sort usage
+%
+.so tabs
+.DE
+Suspending foreground jobs can be very useful when you need to temporarily
+change what you are doing (execute other commands) and then return to
+the suspended job.  Also, foreground jobs can be suspended and then
+continued as background jobs using the
+.I bg
+command, allowing you to continue other work and
+stop waiting for the foreground job to finish.  Thus
+.DS
+% du > usage
+^Z
+Stopped
+% bg
+[1] du > usage &
+%
+.DE
+starts `du' in the foreground, stops it before it finishes, then continues
+it in the background allowing more foreground commands to be executed.
+This is especially helpful
+when a foreground job ends up taking longer than you expected and you
+wish you had started it in the background in the beginning.
+.PP
+All
+.I "job control"
+commands can take an argument that identifies a particular
+job.
+All job name arguments begin with the character `%', since some of the
+job control commands also accept process numbers (printed by the
+.I ps
+command).
+The default job (when no argument is given) is called the
+.I current
+job and is identified by a `+' in the output of the
+.I jobs
+command, which shows you which jobs you have.
+When only one job is stopped or running in the background (the usual case)
+it is always the current job; thus no argument is needed.
+If a job is stopped while running in the foreground it becomes the
+.I current
+job and the existing current job becomes the
+.I previous
+job \- identified by a `\-' in the output of
+.I jobs .
+When the current job terminates, the previous job becomes the current job.
+When given, the argument is either `%\-' (indicating
+the previous job); `%#', where # is the job number;
+`%pref' where pref is some unique prefix of the command name
+and arguments of one of the jobs; or `%?' followed by some string found
+in only one of the jobs.
+.PP
+The
+.I jobs
+command types the table of jobs, giving the job number,
+commands and status (`Suspended' or `Running') of each background or
+suspended job.  With the `\-l' option the process numbers are also
+typed.
+.DS
+% du > usage &
+[1] 3398
+% ls \-s | sort \-n > myfile &
+[2] 3405
+% mail bill
+^Z
+Stopped
+% jobs
+.ta 1.75i
+[1] \(mi Running	du > usage
+[2]    Running	ls \-s | sort \-n > myfile
+[3] \(pl Suspended	mail bill
+% fg %ls
+ls \-s | sort \-n > myfile
+% more myfile
+.so tabs
+.DE
+.PP
+The
+.I fg
+command runs a suspended or background job in the foreground.  It is
+used to restart a previously suspended job or change a background job
+to run in the foreground (allowing signals or input from the terminal).
+In the above example we used
+.I fg
+to change the `ls' job from the
+background to the foreground since we wanted to wait for it to
+finish before looking at its output file.
+The
+.I bg
+command runs a suspended job in the background.  It is usually used
+after stopping the currently running foreground job with the
+STOP signal.  The combination of the STOP signal and the
+.I bg
+command changes a foreground job into a background job.
+The
+.I stop
+command suspends a background job.
+.PP
+The
+.I kill
+command terminates a background or suspended job immediately.
+In addition to jobs, it may be given process numbers as arguments,
+as printed by
+.I ps.
+Thus, in the example above, the running
+.I du
+command could have been terminated by the command
+.DS
+% kill %1
+.ta 1.75i
+[1]  Terminated	du > usage
+%
+.so tabs
+.DE
+.PP
+The
+.I notify
+command (not the variable mentioned earlier) indicates that the termination
+of a specific job should be
+reported at the time it finishes instead of waiting for the next prompt.
+.PP
+If a job running in the background tries to read input from the terminal
+it is automatically stopped.  When such a job is then run in the
+foreground, input can be given to the job.  If desired, the job can
+be run in the background again until it requests input again.
+This is illustrated in the following sequence where the `s' command in the
+text editor might take a long time.
+.ID
+.nf
+% ed bigfile
+120000
+1,$s/thisword/thatword/
+^Z
+Suspended
+% bg
+[1] ed bigfile &
+%
+ . . .  some foreground commands
+.ta 1.75i
+[1] Suspended (tty input)	ed bigfile
+% fg
+ed bigfile
+w
+120000
+q
+%
+.so tabs
+.DE
+So after the `s' command was issued, the `ed' job was stopped with ^Z
+and then put in the background using
+.I bg .
+Some time later when the `s' command was finished,
+.I ed
+tried to read another command and was stopped because jobs
+in the background cannot read from the terminal.  The
+.I fg
+command returned the `ed' job to the foreground where it could once again
+accept commands from the terminal.
+.PP
+The command
+.DS
+stty tostop
+.DE
+causes all background jobs run on your terminal to stop
+when they are about to
+write output to the terminal.  This prevents messages from background
+jobs from interrupting foreground job output and allows you to run
+a job in the background without losing terminal output.  It also
+can be used for interactive programs that sometimes have long
+periods without interaction.  Thus each time it outputs a prompt for more
+input it will stop before the prompt.  It can then be run in the
+foreground using
+.I fg ,
+more input can be given and, if necessary stopped and returned to
+the background.  This
+.I stty
+command might be a good thing to put in your
+.I \&.login
+file if you do not like output from background jobs interrupting
+your work.  It also can reduce the need for redirecting the output
+of background jobs if the output is not very big:
+.DS
+% stty tostop
+% wc hugefile &
+[1] 10387
+% ed text
+\&. . . some time later
+q
+.ta 1.75i
+[1] Stopped (tty output)	wc hugefile
+% fg wc
+wc hugefile
+   13371   30123   302577
+% stty \-tostop
+.so tabs
+.DE
+Thus after some time the `wc' command, which counts the lines, words
+and characters in a file, had one line of output.  When it tried to
+write this to the terminal it stopped.  By restarting it in the
+foreground we allowed it to write on the terminal exactly when we were
+ready to look at its output.
+Programs which attempt to change the mode of the terminal will also
+block, whether or not
+.I tostop
+is set, when they are not in the foreground, as
+it would be very unpleasant to have a background job change the state
+of the terminal.
+.PP
+Since the
+.I jobs
+command only prints jobs started in the currently executing shell,
+it knows nothing about background jobs started in other login sessions
+or within shell files.  The
+.I ps
+command can be used in this case to find out about background jobs not started
+in the current shell.
+.NH 2
+Working Directories
+.PP
+As mentioned in section 1.6, the shell is always in a particular
+.I "working directory" .
+The `change directory' command
+.I chdir
+(its
+short form
+.I cd
+may also be used)
+changes the working directory of the shell,
+that is, changes the directory you
+are located in.
+.PP
+It is useful to make a directory for each project you wish to work on
+and to place all files related to that project in that directory.
+The `make directory' command,
+.I mkdir ,
+creates a new directory.
+The
+.I pwd
+(`print working directory') command
+reports the absolute pathname of the working directory of the shell,
+that is, the directory you are
+located in.
+Thus in the example below:
+.DS
+% pwd
+/home/bill
+% mkdir newpaper
+% chdir newpaper
+% pwd
+/home/bill/newpaper
+%
+.DE
+the user has created and moved to the
+directory
+.I newpaper ,
+where, for example, he might
+place a group of related files.
+.PP
+No matter where you have moved to in a directory hierarchy,
+you can return to your `home' login directory by doing just
+.DS
+cd
+.DE
+with no arguments.
+The name `..' always means the directory above the current one in
+the hierarchy; thus
+.DS
+cd ..
+.DE
+changes the shell's working directory to the one directly above the
+current one.
+The name `..' can be used in any
+pathname; thus,
+.DS
+cd ../programs
+.DE
+means
+change to the directory `programs' contained in the directory
+above the current one.
+If you have several directories for different
+projects under, say, your home directory,
+this shorthand notation
+permits you to switch easily between them.
+.PP
+The shell always remembers the pathname of its current working directory in
+the variable
+.I cwd .
+The shell can also be requested to remember the previous directory when
+you change to a new working directory.  If the `push directory' command
+.I pushd
+is used in place of the
+.I cd
+command, the shell saves the name of the current working directory
+on a
+.I "directory stack"
+before changing to the new one.
+You can see this list at any time by typing the `directories'
+command
+.I dirs .
+.ID
+.nf
+% pushd newpaper/references
+~/newpaper/references  ~
+% pushd /usr/lib/tmac
+/usr/lib/tmac  ~/newpaper/references  ~
+% dirs
+/usr/lib/tmac  ~/newpaper/references  ~
+% popd
+~/newpaper/references  ~
+% popd
+~
+%
+.DE
+The list is printed in a horizontal line, reading left to right,
+with a tilde (~) as
+shorthand for your home directory\(emin this case `/home/bill'.
+The directory stack is printed whenever there is more than one
+entry on it and it changes.
+It is also printed by a
+.I dirs
+command.
+.I Dirs
+is usually faster and more informative than
+.I pwd
+since it shows the current working directory as well as any
+other directories remembered in the stack.
+.PP
+The
+.I pushd
+command with no argument
+alternates the current directory with the first directory in the
+list.
+The `pop directory'
+.I popd
+command without an argument returns you to the directory you were in prior to
+the current one, discarding the previous current directory from the
+stack (forgetting it).
+Typing
+.I popd
+several times in a series takes you backward through the directories
+you had been in (changed to) by the
+.I pushd
+command.
+There are other options to
+.I pushd
+and
+.I popd
+to manipulate the contents of the directory stack and to change
+to directories not at the top of the stack; see the
+.I csh
+manual page for details.
+.PP
+Since the shell remembers the working directory in which each job
+was started, it warns you when you might be confused by restarting
+a job in the foreground which has a different working directory than the
+current working directory of the shell.  Thus if you start a background
+job, then change the shell's working directory and then cause the
+background job to run in the foreground, the shell warns you that the
+working directory of the currently running foreground job is different
+from that of the shell.
+.DS
+% dirs \-l
+/home/bill
+% cd myproject
+% dirs
+~/myproject
+% ed prog.c
+1143
+^Z
+Suspended
+% cd ..
+% ls
+myproject
+textfile
+% fg
+ed prog.c (wd: ~/myproject)
+.DE
+This way the shell warns you when there
+is an implied change of working directory, even though no cd command was
+issued.  In the above example the `ed' job was still in `/home/bill/project'
+even though the shell had changed to `/home/bill'.
+A similar warning is given when such a foreground job
+terminates or is suspended (using the STOP signal) since
+the return to the shell again implies a change of working directory.
+.DS
+% fg
+ed prog.c (wd: ~/myproject)
+ . . . after some editing
+q
+(wd now: ~)
+%
+.DE
+These messages are sometimes confusing if you use programs that change
+their own working directories, since the shell only remembers which
+directory a job is started in, and assumes it stays there.
+The `\-l' option of
+.I jobs
+will type the working directory
+of suspended or background jobs when it is different
+from the current working directory of the shell.
+.NH 2
+Useful built-in commands
+.PP
+We now give a few of the useful built-in commands of the shell describing
+how they are used.
+.PP
+The
+.I alias
+command described above is used to assign new aliases and to show the
+existing aliases.
+With no arguments it prints the current aliases.
+It may also be given only one argument such as
+.DS
+alias ls
+.DE
+to show the current alias for, e.g., `ls'.
+.PP
+The
+.I echo
+command prints its arguments.
+It is often used in
+.I "shell scripts"
+or as an interactive command
+to see what filename expansions will produce.
+.PP
+The
+.I history
+command will show the contents of the history list.
+The numbers given with the history events can be used to reference
+previous events which are difficult to reference using the
+contextual mechanisms introduced above.
+There is also a shell variable called
+.I prompt .
+By placing a `!' character in its value the shell will there substitute
+the number of the current command in the history list.
+You can use this number to refer to this command in a history substitution.
+Thus you could
+.DS
+set prompt=\'\e! % \'
+.DE
+Note that the `!' character had to be
+.I escaped
+here even within `\'' characters.
+.PP
+The
+.I limit
+command is used to restrict use of resources.
+With no arguments it prints the current limitations:
+.DS
+.ta 1i
+cputime	unlimited
+filesize	unlimited
+datasize	5616 kbytes
+stacksize	512 kbytes
+coredumpsize	unlimited
+.so tabs
+.DE
+Limits can be set, e.g.:
+.DS
+limit coredumpsize 128k
+.DE
+Most reasonable units abbreviations will work; see the
+.I csh
+manual page for more details.
+.PP
+The
+.I logout
+command can be used to terminate a login shell which has
+.I ignoreeof
+set.
+.PP
+The
+.I rehash
+command causes the shell to recompute a table of where commands are
+located.  This is necessary if you add a command to a directory
+in the current shell's search path and wish the shell to find it,
+since otherwise the hashing algorithm may tell the shell that the
+command wasn't in that directory when the hash table was computed.
+.PP
+The
+.I repeat
+command can be used to repeat a command several times.
+Thus to make 5 copies of the file
+.I one
+in the file
+.I five
+you could do
+.DS
+repeat 5 cat one >> five
+.DE
+.PP
+The
+.I setenv
+command can be used
+to set variables in the environment.
+Thus
+.DS
+setenv TERM adm3a
+.DE
+will set the value of the environment variable TERM
+to
+`adm3a'.
+A user program
+.I printenv
+exists which will print out the environment.
+It might then show:
+.DS
+% printenv
+HOME=/home/bill
+SHELL=/bin/csh
+PATH=:/bin:/usr/bin:/usr/local/bin
+TERM=adm3a
+USER=bill
+%
+.DE
+.PP
+The
+.I source
+command can be used to force the current shell to read commands from
+a file.
+Thus
+.DS
+source .cshrc
+.DE
+can be used after editing in a change to the
+.I \&.cshrc
+file which you wish to take effect right away.
+.PP
+The
+.I time
+command can be used to cause a command to be timed no matter how much
+CPU time it takes.
+Thus
+.DS
+% time cp /etc/rc /home/bill/rc
+0.0u 0.1s 0:01 8% 2+1k 3+2io 1pf+0w
+% time wc /etc/rc /home/bill/rc
+     52    178   1347 /etc/rc
+     52    178   1347 /home/bill/rc
+    104    356   2694 total
+0.1u 0.1s 0:00 13% 3+3k 5+3io 7pf+0w
+%
+.DE
+indicates that the
+.I cp
+command used a negligible amount of user time (u)
+and about 1/10th of a system time (s); the elapsed time was 1 second (0:01),
+there was an average memory usage of 2k bytes of program space and 1k
+bytes of data space over the CPU time involved (2+1k); the program
+did three disk reads and two disk writes (3+2io), and took one page fault
+and was not swapped (1pf+0w).
+The word count command
+.I wc
+on the other hand used 0.1 seconds of user time and 0.1 seconds of system
+time in less than a second of elapsed time.
+The percentage `13%' indicates that over the period when it was active
+the command `wc' used an average of 13 percent of the available CPU
+cycles of the machine.
+.PP
+The
+.I unalias
+and
+.I unset
+commands can be used
+to remove aliases and variable definitions from the shell, and
+.I unsetenv
+removes variables from the environment.
+.NH 2
+What else?
+.PP
+This concludes the basic discussion of the shell for terminal users.
+There are more features of the shell to be discussed here, and all
+features of the shell are discussed in its manual pages.
+One useful feature which is discussed later is the
+.I foreach
+built-in command which can be used to run the same command
+sequence with a number of different arguments.
+.PP
+If you intend to use UNIX a lot you should look through
+the rest of this document and the csh manual pages (section1) to become familiar
+with the other facilities which are available to you.
+.bp

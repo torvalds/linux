@@ -1,0 +1,524 @@
+.\"	$OpenBSD: dhcpd.8,v 1.38 2025/06/14 12:45:39 kn Exp $
+.\"
+.\" Copyright (c) 1995, 1996 The Internet Software Consortium.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.Dd $Mdocdate: June 14 2025 $
+.Dt DHCPD 8
+.Os
+.Sh NAME
+.Nm dhcpd
+.Nd Dynamic Host Configuration Protocol (DHCP) daemon
+.Sh SYNOPSIS
+.Nm dhcpd
+.Bk -words
+.Op Fl dfnv
+.Op Fl A Ar abandoned_ip_table
+.Op Fl C Ar changed_ip_table
+.Op Fl c Ar config-file
+.Op Fl L Ar leased_ip_table
+.Op Fl l Ar lease-file
+.Op Fl u Ns Op Ar bind_address
+.Op Fl Y Ar synctarget
+.Op Fl y Ar synclisten
+.Op Ar interface ...
+.Ek
+.Sh DESCRIPTION
+.Nm
+implements the Dynamic Host Configuration Protocol (DHCP) and the
+Internet Bootstrap Protocol (BOOTP).
+DHCP allows hosts on a TCP/IP network to request and be assigned IP addresses,
+and also to discover information about the network to which they are attached.
+BOOTP provides similar functionality, with certain restrictions.
+.Pp
+The DHCP protocol allows a host which is unknown to the network
+administrator to be automatically assigned a new IP address out of a
+pool of IP addresses for its network.
+In order for this to work, the network administrator allocates address pools
+in each subnet and enters them into the
+.Xr dhcpd.conf 5
+file.
+.Pp
+On startup,
+.Nm
+reads the
+.Pa dhcpd.conf
+file and stores a list of available addresses on each subnet in memory.
+When a client requests an address using the DHCP protocol,
+.Nm
+allocates an address for it.
+Each client is assigned a lease, which expires after an amount of time
+chosen by the administrator (by default, one day).
+When a leased IP address is assigned to a new hardware address,
+.Nm
+may delete the leased address from certain
+.Xr pf 4
+tables.
+Before leases expire, the clients to which leases are assigned are expected
+to renew them in order to continue to use the addresses.
+Once a lease has expired, the client to which that lease was assigned is no
+longer permitted to use the leased IP address.
+.Pp
+Whenever changes are made to the
+.Pa dhcpd.conf
+file,
+.Nm
+must be restarted.
+.Pp
+In order to keep track of leases across system reboots and server restarts,
+.Nm
+keeps a list of leases it has assigned in the
+.Xr dhcpd.leases 5
+file.
+Before
+.Nm
+grants a lease to a host, it records the lease in this file and makes sure
+that the contents of the file are flushed to disk.
+This ensures that even in the event of a system crash,
+.Nm
+will not forget about a lease that it has assigned.
+On startup, after reading the
+.Pa dhcpd.conf
+file,
+.Nm
+reads the
+.Pa dhcpd.leases
+file to refresh its memory about what leases have been assigned.
+.Pp
+When
+.Nm
+starts up, it identifies all network interfaces,
+eliminating non-broadcast interfaces if possible,
+and listens for DHCP broadcasts on each interface.
+The names of the network interfaces on which
+.Nm
+should listen for broadcasts may also be specified on the command line
+on systems where
+.Nm
+is unable to identify non-broadcast interfaces.
+.Pp
+DHCP traffic always bypasses IPsec.
+Otherwise there could be situations when a server has an IPsec SA for the
+client and sends replies over that,
+which a newly booted client would not be able to grasp.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl A Ar abandoned_ip_table
+When an address is abandoned for some reason, add it to the
+.Xr pf 4
+table named
+.Ar abandoned_ip_table .
+This can be used to defend against machines "camping" on an address
+without obtaining a lease.
+When an address is properly leased,
+.Nm
+will remove the address from this table.
+.It Fl C Ar changed_ip_table
+When an address is leased to a different hardware address, delete it from the
+.Xr pf 4
+table named
+.Ar changed_ip_table .
+This feature complements the overload table in a stateful
+.Xr pf 4
+rule.
+If a host appears to be misbehaving, it can be quarantined by using the
+overload feature.
+When the address is leased to a different machine,
+.Nm
+can remove the address from the overload table, thus allowing a well-behaved
+machine to reuse the address.
+.It Fl c Ar config-file
+Use an alternate configuration file,
+.Ar config-file .
+Because of the importance of using the same lease database at all times when
+running
+.Nm
+in production, this option should be used
+.Em only
+for testing database files in a non-production environment.
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f
+An alias for
+.Fl d .
+.It Fl L Ar leased_ip_table
+When an address is leased,
+.Nm
+will insert it into the
+.Xr pf 4
+table named
+.Ar leased_ip_table .
+Addresses are removed from the table when the lease expires.
+Combined with the table of abandoned addresses, this can help enforce a
+requirement to use DHCP on a network, or can place DHCP users in a different
+class of service.
+Users are cautioned against placing much trust in Ethernet or IP addresses;
+.Xr ifconfig 8
+can be used to trivially change the interface's address, and on a busy DHCP
+network, IP addresses will likely be quickly recycled.
+.It Fl l Ar lease-file
+Use an alternate lease file,
+.Ar lease-file .
+Because of the importance of using the same lease database at all times when
+running
+.Nm
+in production, this option should be used
+.Em only
+for testing lease files in a non-production environment.
+.It Fl n
+Only test configuration, do not run
+.Nm .
+.It Fl u Ns Op Ar bind_address
+Use a UDP socket instead of BPF for receiving and sending packets.
+Only
+.Dv DHCPINFORM
+messages can be handled on this socket;
+other messages are discarded.
+With this option,
+.Nm
+can answer
+.Dv DHCPINFORM
+from clients on non Ethernet interfaces
+such as
+.Xr tun 4
+or
+.Xr pppx 4 .
+If
+.Ar bind_address
+is specified,
+.Nm
+will bind to that address; otherwise
+the limited broadcast address (255.255.255.255) is used as the default.
+.It Fl v
+Produce more verbose output.
+.It Fl Y Ar synctarget
+Add target
+.Ar synctarget
+to receive synchronisation messages.
+.Ar synctarget
+can be either an IPv4 address for unicast messages
+or a network interface name followed optionally by a colon and a numeric TTL
+value for multicast messages to the group 224.0.1.240.
+If the multicast TTL is not specified, a default value of 1 is used.
+This option can be specified multiple times.
+See also
+.Sx SYNCHRONISATION
+below.
+.It Fl y Ar synclisten
+Listen on
+.Ar synclisten
+for incoming synchronisation messages.
+The format for
+.Ar synclisten
+is the same as for
+.Ar synctarget ,
+above.
+This option can be specified only once.
+See also
+.Sx SYNCHRONISATION
+below.
+.El
+.Sh BOOTP
+.Nm
+also provides BOOTP support.
+Unlike DHCP, the BOOTP protocol does not provide a protocol for recovering
+dynamically-assigned addresses once they are no longer needed.
+It is still possible to dynamically assign addresses to BOOTP clients, but
+some administrative process for reclaiming addresses is required.
+By default, leases are granted to BOOTP clients in perpetuity, although
+the network administrator may set an earlier cutoff date or a shorter
+lease length for BOOTP leases if that makes sense.
+.Pp
+BOOTP clients may also be served in the old standard way, which is
+simply to provide a declaration in the
+.Pa dhcpd.conf
+file for each BOOTP client, permanently assigning an address to each client.
+.Sh CONFIGURATION
+The syntax of the
+.Xr dhcpd.conf 5
+file is discussed separately.
+This section should be used as an overview of the configuration process,
+and the
+.Xr dhcpd.conf 5
+documentation should be consulted for detailed reference information.
+.Bl -tag -width 3n
+.It Subnets
+.Nm
+needs to know the subnet numbers and netmasks of all subnets for
+which it will be providing service.
+In addition, in order to dynamically allocate addresses, it must be assigned
+one or more ranges of addresses on each subnet which it can in turn assign
+to client hosts as they boot.
+Thus, a very simple configuration providing DHCP support might look like this:
+.Bd -literal -offset indent
+subnet 239.252.197.0 netmask 255.255.255.0 {
+  range 239.252.197.10 239.252.197.250;
+}
+.Ed
+.Pp
+Multiple address ranges may be specified like this:
+.Bd -literal -offset indent
+subnet 239.252.197.0 netmask 255.255.255.0 {
+  range 239.252.197.10 239.252.197.107;
+  range 239.252.197.113 239.252.197.250;
+}
+.Ed
+.Pp
+If a subnet will only be provided with BOOTP service and no dynamic
+address assignment, the range clause can be left out entirely, but the
+subnet statement must appear.
+.It Lease Lengths
+DHCP leases can be assigned almost any length from zero seconds to infinity.
+What lease length makes sense for any given subnet, or for any given
+installation, will vary depending on the kinds of hosts being served.
+.Pp
+For example, in an office environment where systems are added from
+time to time and removed from time to time, but move relatively
+infrequently, it might make sense to allow lease times of a month or more.
+In a final test environment on a manufacturing floor, it may make more sense
+to assign a maximum lease length of 30 minutes \- enough time to go through a
+simple test procedure on a network appliance before packaging it up for
+delivery.
+.Pp
+It is possible to specify two lease lengths: the default length that
+will be assigned if a client doesn't ask for any particular lease
+length, and a maximum lease length.
+These are specified as clauses to the subnet command:
+.Bd -literal -offset indent
+subnet 239.252.197.0 netmask 255.255.255.0 {
+  range 239.252.197.10 239.252.197.107;
+  default-lease-time 600;
+  max-lease-time 7200;
+}
+.Ed
+.Pp
+This particular subnet declaration specifies a default lease time of
+600 seconds (ten minutes), and a maximum lease time of 7200 seconds
+(two hours).
+Other common values would be 86400 (one day), 604800 (one week)
+and 2592000 (30 days).
+.Pp
+Each subnet need not have the same lease \- in the case of an office
+environment and a manufacturing environment served by the same DHCP
+server, it might make sense to have widely disparate values for
+default and maximum lease times on each subnet.
+.It BOOTP Support
+Each BOOTP client must be explicitly declared in the
+.Xr dhcpd.conf 5
+file.
+A very basic client declaration will specify the client network interface's
+hardware address and the IP address to assign to that client.
+If the client needs to be able to load a boot file from the server,
+that file's name must be specified.
+A simple BOOTP client declaration might look like this:
+.Bd -literal -offset indent
+host haagen {
+  hardware ethernet 08:00:2b:4c:59:23;
+  fixed-address 239.252.197.9;
+  filename "haagen.boot";
+}
+.Ed
+.It Options
+DHCP (and also BOOTP with Vendor Extensions) provides a mechanism
+whereby the server can provide the client with information about how
+to configure its network interface (e.g., subnet mask), and also how
+the client can access various network services (e.g., DNS, IP routers,
+and so on).
+.Pp
+These options can be specified on a per-subnet basis and, for BOOTP
+clients, also on a per-client basis.
+In the event that a BOOTP client declaration specifies options that are
+also specified in its subnet declaration, the options specified in the
+client declaration take precedence.
+A reasonably complete DHCP configuration might look something like this:
+.Bd -literal -offset indent
+subnet 239.252.197.0 netmask 255.255.255.0 {
+  range 239.252.197.10 239.252.197.250;
+  default-lease-time 600;
+  max-lease-time 7200;
+  option subnet-mask 255.255.255.0;
+  option broadcast-address 239.252.197.255;
+  option routers 239.252.197.1;
+  option domain-name-servers 239.252.197.2, 239.252.197.3;
+  option domain-name "isc.org";
+}
+.Ed
+.Pp
+A BOOTP host on that subnet that needs to be in a different domain and
+use a different name server might be declared as follows:
+.Bd -literal -offset indent
+host haagen {
+  hardware ethernet 08:00:2b:4c:59:23;
+  fixed-address 239.252.197.9;
+  filename "haagen.boot";
+  option domain-name-servers 192.5.5.1;
+  option domain-name "vix.com";
+}
+.Ed
+.El
+.Pp
+A more complete description of the
+.Pa dhcpd.conf
+file syntax is provided in
+.Xr dhcpd.conf 5 .
+.Sh SYNCHRONISATION
+.Nm
+supports realtime synchronisation of the lease allocations to
+a number of
+.Nm
+daemons running on multiple machines,
+using the
+.Fl Y
+and
+.Fl y
+options.
+.Pp
+The following example will accept incoming multicast and unicast
+synchronisation messages, and send outgoing multicast messages through
+the network interface
+.Ar em0 :
+.Bd -literal -offset indent
+# /usr/sbin/dhcpd -y em0 -Y em0
+.Ed
+.Pp
+The second example will increase the multicast TTL to a value of 2,
+add the unicast targets
+.Ar foo.somewhere.org
+and
+.Ar bar.somewhere.org ,
+and accept incoming unicast messages sent to
+.Ar example.somewhere.org
+only.
+.Bd -literal -offset indent
+# /usr/sbin/dhcpd -y example.somewhere.org -Y em0:2 \e
+	-Y foo.somewhere.org -Y bar.somewhere.org
+.Ed
+.Pp
+If the file
+.Pa /var/db/dhcpd.key
+exists,
+.Nm
+will calculate the message-digest fingerprint (checksum) for the file
+and use it as a shared key to authenticate the synchronisation messages.
+The file itself can contain any data.
+For example, to create a secure random key:
+.Bd -literal -offset indent
+# dd if=/dev/random of=/var/db/dhcpd.key bs=2048 count=1
+.Ed
+.Pp
+The file needs to be copied to all hosts
+sending or receiving synchronisation messages.
+.Pp
+All hosts using synchronisation must use the same configuration in the
+.Pa /etc/dhcpd.conf
+file.
+.Sh FILES
+.Bl -tag -width "/var/db/dhcpd.leases~  " -compact
+.It Pa /etc/dhcpd.conf
+DHCPD configuration file.
+.It Pa /var/db/dhcpd.leases
+DHCPD lease file.
+.El
+.Sh SEE ALSO
+.Xr pf 4 ,
+.Xr dhcpd.conf 5 ,
+.Xr dhcpd.leases 5 ,
+.Xr dhcpleased 8 ,
+.Xr dhcrelay 8 ,
+.Xr pxeboot 8
+.Sh STANDARDS
+.Rs
+.%A R. Droms
+.%D October 1993
+.%R RFC 1534
+.%T Interoperation Between DHCP and BOOTP
+.Re
+.Pp
+.Rs
+.%A R. Droms
+.%D March 1997
+.%R RFC 2131
+.%T Dynamic Host Configuration Protocol
+.Re
+.Pp
+.Rs
+.%A S. Alexander
+.%A R. Droms
+.%D March 1997
+.%R RFC 2132
+.%T DHCP Options and BOOTP Vendor Extensions
+.Re
+.Pp
+.Rs
+.%A T. Lemon
+.%A S. Cheshire
+.%D November 2002
+.%R RFC 3396
+.%T Encoding Long Options in the Dynamic Host Configuration Protocol (DHCPv4)
+.Re
+.Pp
+.Rs
+.%A T. Lemon
+.%A S. Cheshire
+.%A B. Volz
+.%D December 2002
+.%R RFC 3442
+.%T The Classless Static Route Option for Dynamic Host Configuration Protocol (DHCP) version 4
+.Re
+.Sh AUTHORS
+.An -nosplit
+.Nm
+is based on software from the Internet Software Consortium,
+written by
+.An Ted Lemon Aq Mt mellon@vix.com
+under a contract with Vixie Labs.
+The current implementation was reworked for
+.Ox
+by
+.An Henning Brauer Aq Mt henning@openbsd.org .
+.Sh BUGS
+We realize that it would be nice if one could send a
+.Dv SIGHUP
+to the server and have it reload the database.
+This is not technically impossible, but it would require a great deal of work,
+our resources are extremely limited, and they can be better spent elsewhere.
+So please don't complain about this on the mailing list unless you're prepared
+to fund a project to implement this feature, or prepared to do it yourself.

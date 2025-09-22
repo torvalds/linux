@@ -1,0 +1,182 @@
+.\"	$OpenBSD: inet.4,v 1.20 2019/10/30 10:39:53 jmc Exp $
+.\"	$NetBSD: inet.4,v 1.3 1994/11/30 16:22:18 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)inet.4	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: October 30 2019 $
+.Dt INET 4
+.Os
+.Sh NAME
+.Nm inet
+.Nd Internet protocol family
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.Sh DESCRIPTION
+The Internet protocol family is a collection of protocols
+layered atop the
+.Em Internet Protocol
+.Pq Tn IP
+transport layer, and utilizing the Internet address format.
+The Internet family provides protocol support for the
+.Dv SOCK_STREAM ,
+.Dv SOCK_DGRAM ,
+and
+.Dv SOCK_RAW
+socket types; the
+.Dv SOCK_RAW
+interface provides access to the
+.Tn IP
+protocol.
+.Sh ADDRESSING
+Internet addresses are four byte quantities, stored in
+network standard format.
+The include file
+.In netinet/in.h
+defines this address as a discriminated union.
+.Pp
+Sockets bound to the Internet protocol family utilize
+the following addressing structure,
+.Bd -literal -offset indent
+struct sockaddr_in {
+	u_int8_t	sin_len;
+	sa_family_t	sin_family;
+	in_port_t	sin_port;
+	struct in_addr	sin_addr;
+	int8_t		sin_zero[8];
+};
+.Ed
+.Pp
+Sockets may be created with the local address
+.Dv INADDR_ANY
+to effect
+.Dq wildcard
+matching on incoming messages.
+The address in a
+.Xr connect 2
+or
+.Xr sendto 2
+call may be given as
+.Dv INADDR_ANY
+to mean
+.Dq this host .
+The distinguished address
+.Dv INADDR_BROADCAST
+is allowed as a shorthand for the broadcast address on the primary
+network if the first network configured supports broadcast.
+.Sh PROTOCOLS
+The Internet protocol family is comprised of
+the
+.Tn IP
+transport protocol, Internet Control
+Message Protocol
+.Pq Tn ICMP ,
+Transmission Control
+Protocol
+.Pq Tn TCP ,
+and User Datagram Protocol
+.Pq Tn UDP .
+.Tn TCP
+is used to support the
+.Dv SOCK_STREAM
+abstraction while
+.Tn UDP
+is used to support the
+.Dv SOCK_DGRAM
+abstraction.
+A raw interface to
+.Tn IP
+is available
+by creating an Internet socket of type
+.Dv SOCK_RAW .
+The
+.Tn ICMP
+message protocol is accessible from a raw socket.
+.Pp
+The 32-bit Internet address contains both network and host parts.
+It is frequency-encoded; the most-significant bit is clear
+in Class A addresses, in which the high-order 8 bits are the network
+number.
+Class B addresses use the high-order 16 bits as the network field,
+and Class C addresses have a 24-bit network part.
+Sites with a cluster of local networks and a connection to the
+Internet may choose to use a single network number for the cluster;
+this is done by using subnet addressing.
+The local (host) portion of the address is further subdivided
+into subnet and host parts.
+Within a subnet, each subnet appears to be an individual network;
+externally, the entire cluster appears to be a single, uniform
+network requiring only a single routing entry.
+Subnet addressing is enabled and examined by the following
+.Xr ioctl 2
+commands on a datagram socket in the Internet domain;
+they have the same form as the
+.Dv SIOCIFADDR
+command (see
+.Xr netintro 4 ) .
+.Bl -tag -width SIOCSIFNETMASK
+.It Dv SIOCSIFNETMASK
+Set interface network mask.
+The network mask defines the network part of the address;
+if it contains more of the address than the address type would indicate,
+then subnets are in use.
+.It Dv SIOCGIFNETMASK
+Get interface network mask.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr socket 2 ,
+.Xr inet_net_ntop 3 ,
+.Xr inet_ntop 3 ,
+.Xr icmp 4 ,
+.Xr ip 4 ,
+.Xr netintro 4 ,
+.Xr tcp 4 ,
+.Xr udp 4
+.Rs
+.%T "An Introductory 4.3 BSD Interprocess Communication Tutorial"
+.%B PS1
+.%N 7
+.Re
+.Rs
+.%T "An Advanced 4.3 BSD Interprocess Communication Tutorial"
+.%B PS1
+.%N 8
+.Re
+.Sh HISTORY
+The
+.Nm
+protocol interface appeared in
+.Bx 4.2 .
+.Sh CAVEATS
+The Internet protocol support is subject to change as
+the Internet protocols develop.
+Users should not depend on details of the current implementation, but rather
+the services exported.

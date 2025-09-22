@@ -1,0 +1,90 @@
+.\"	$OpenBSD: rc.shutdown.8,v 1.17 2024/09/15 19:39:26 kn Exp $
+.\"
+.\" Copyright (c) 1999 Aaron Campbell
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 15 2024 $
+.Dt RC.SHUTDOWN 8
+.Os
+.Sh NAME
+.Nm rc.shutdown
+.Nd command script run at system shutdown
+.Sh DESCRIPTION
+When the system is shut down using the
+.Xr reboot 8
+or
+.Xr halt 8
+commands,
+or when
+.Xr init 8
+is signalled to do so,
+or when a keyboard-requested halt is issued (if the architecture supports it),
+.Xr rc 8
+is invoked with the argument
+.Dq shutdown .
+This document details the actions taken by
+.Xr rc 8
+in such an instance.
+.Pp
+Firstly it saves random data for reseeding the kernel random number
+generator during the next boot.
+It then stops any daemons
+defined in the
+.Va pkg_scripts
+variable in
+.Xr rc.conf.local 8 ,
+as well as
+.Xr vmd 8 ,
+in that order,
+by passing them the
+.Cm stop
+argument.
+.Pp
+.Xr rc 8
+then runs
+.Nm .
+The administrator should place in this file
+any commands they wish to have executed during shutdown.
+.Pp
+Finally, all
+.Xr carp 4
+interfaces are brought down and then the system shuts down.
+.Pp
+If
+.Xr init 8
+is exiting single-user mode it will also run the first part of shutdown
+(saving random data),
+though not the latter.
+.Sh FILES
+.Bl -tag -width "/etc/rc.shutdown"
+.It Pa /etc/rc.shutdown
+Command script run at system shutdown.
+.It Pa /etc/examples/rc.shutdown
+Example script.
+.El
+.Sh SEE ALSO
+.Xr init 8 ,
+.Xr rc 8 ,
+.Xr rc.conf 8 ,
+.Xr reboot 8

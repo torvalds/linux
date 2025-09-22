@@ -1,0 +1,3 @@
+snprintf-3.cpp: In function `int main(int, char**)':
+snprintf-3.cpp:5: warning: sizeof(pointer) possibly incorrect in argument 2
+snprintf-3.cpp:5: warning: sizeof(pointer) possibly incorrect in argument 2

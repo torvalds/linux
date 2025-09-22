@@ -1,0 +1,7 @@
+#	$OpenBSD: files.efi,v 1.1 2023/01/14 12:11:11 kettenis Exp $
+#
+# Config file and device description for machine-independent ACPI code.
+# Included by ports that need it.
+
+device	efi {}
+file	dev/efi/efi.c		efi needs-flag

@@ -1,0 +1,7 @@
+executable("sanstats") {
+  deps = [
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "sanstats.cpp" ]
+}

@@ -1,0 +1,337 @@
+.\"	$OpenBSD: tun.4,v 1.52 2024/11/18 22:33:58 dlg Exp $
+.\"
+.\" Copyright (c) 2003 Marcus D. Watts  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, and the entire permission notice in its entirety,
+.\"    including the disclaimer of warranties.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+.\" MARCUS D. WATTS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+.\" OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+.\" TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+.\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 18 2024 $
+.Dt TUN 4
+.Os
+.Sh NAME
+.Nm tun ,
+.Nm tap
+.Nd network tunnel pseudo-device
+.Sh SYNOPSIS
+.Cd "pseudo-device tun"
+.Pp
+.In sys/types.h
+.In net/if_tun.h
+.Sh DESCRIPTION
+The
+.Nm tun
+pseudo-device driver provides character special devices for
+communicating with the kernel network stack via the
+.Nm tun
+and
+.Nm tap
+network interfaces.
+Packets sent to these interfaces can be read from the device special
+file by a userland process and processed as desired.
+Packets written to the device special file by the userland process
+are injected back into the kernel networking subsystem.
+.Pp
+.Nm tun
+and
+.Nm tap
+interfaces can be created at runtime using the
+.Ic ifconfig iface Ns Ar N Ic create
+command, or by opening the character special devices
+.Pa /dev/tunN
+or
+.Pa /dev/tapN
+respectively.
+.Pp
+The minor number of the device special files are associated with
+the unit number of the network interfaces.
+.Pp
+Each device has an exclusive open property: it cannot be opened
+if it is already open and in use by another process.
+On the last close of the device all queued packets are discarded.
+If the device was created by opening a device special file
+it will be automatically destroyed.
+The last close of a device special file associated with an interface
+created via
+.Xr ifconfig 8
+will be marked as not running and traffic sent out the will be dropped.
+.Pp
+Each read returns at most one packet; if insufficient
+buffer space is provided, the packet is truncated.
+Each write supplies exactly one packet.
+Writes never block.
+If the protocol queue is full, the packet is dropped, a
+.Dq collision
+is counted, and
+.Er ENOBUFS
+is returned.
+.Pp
+The following
+.Xr ioctl 2
+special commands defined in
+.In net/if_tun.h
+are supported:
+.Pp
+.Bl -tag -width indent -compact
+.It Dv TUNGIFINFO Fa "struct tuninfo *"
+.It Dv TUNSIFINFO Fa "struct tuninfo *"
+Get or set the interface characteristics.
+.Bd -literal
+/* iface info */
+struct tuninfo {
+        u_int   mtu;
+        u_short type;
+        u_short flags;
+        u_int   baudrate;
+};
+.Ed
+.Pp
+.Va flags
+and
+.Va type
+are set by the kernel when an interface is created,
+and must be set to the same values that the kernel provided.
+.Pp
+.It Dv TUNSIFMODE Fa int *
+Provided for backwards compatibility.
+The flags set must match what the kernel initialised them to.
+.Pp
+.It Dv TUNSCAP Fa struct tun_capabilities *
+Enable the prepending of network packets with a
+.Vt struct tun_hdr
+offload header,
+and set which interface offload capabilities userland can
+handle on behalf of the kernel.
+.Bd -literal
+struct tun_capabilities {
+	uint32_t	tun_if_capabilities;
+};
+.Ed
+.Pp
+The
+.Fa tun_if_capabilities
+field is set with IFCAP values from
+.In net/if.h .
+It is acceptable to enable the offload header without enabling any
+interface offload capabilities.
+.Pp
+The prepending of network packets with a
+.Vt struct tun_hdr
+offload header is disabled,
+and the interface offload capabilities are reset when the device
+special file is closed.
+.Pp
+.It Dv TUNGCAP Fa struct tun_capabilities *
+Get which interface offload capabilities are currently enabled.
+If the interface has not been configured with
+.Dv TUNSCAP
+this command will fail with
+.Er ENODEV .
+.Pp
+.It Dv TUNDCAP
+Disable the prepending of network packets with the
+.Vt struct tun_hdr
+offload header,
+and clear interface offload capabilities.
+.El
+.Pp
+The generic ioctls
+.Dv FIONREAD ,
+.Dv FIONBIO ,
+.Dv FIOASYNC ,
+.Dv FIOSETOWN ,
+.Dv FIOGETOWN
+are also supported.
+.Ss Point-to-Point Layer 3 tunnel interface (tun)
+Each packet read from or written to a
+.Nm tun
+interface is prefixed with a tunnel header consisting of
+a 4-byte network byte order integer containing the address family of
+the packet.
+.Nm tun
+supports
+.Dv AF_INET ,
+.Dv AF_INET6 ,
+and
+.Dv AF_MPLS
+packets.
+.Ss Ethernet tunnel interface (tap)
+Each packet read from or written to a
+.Nm tap
+interface is an Ethernet packet.
+The Ethernet CRC at the end of the frame is not required.
+.Pp
+The device special files for
+.Nm tap
+interfaces support the following additional
+.Xr ioctl 2
+commands:
+.Pp
+.Bl -tag -width indent -compact
+.It Dv SIOCGIFADDR Fa uint8_t Ns [ETHER_ADDR_LEN]
+.It Dv SIOCSIFADDR Fa uint8_t Ns [ETHER_ADDR_LEN]
+Get or set the link layer address (MAC address) of the interface.
+.El
+.Ss Network offload support
+When network offload support has been enabled with the
+.Dv TUNSCAP
+.Xr ioctl 2
+command,
+.Va struct tun_hdr
+is prepended to packets read from and written to the device special
+file.
+.Pp
+The kernel will populate the offload header for reads from the
+device special file depending on which interface offload capabilities
+are enabled.
+A program may use any offload feature when writing to the device
+special file regardless of which interface offload capabilities are
+enabled.
+The offload header can be read from one device special file and
+written directly to another without interpretation or modification.
+.Bd -literal
+struct tun_hdr {
+	uint16_t	th_flags;
+	uint16_t	th_pad;
+	uint16_t	th_vtag;
+	uint16_t	th_mss;
+};
+.Ed
+.Pp
+The fields in the
+.Va struct tun_hdr
+are in host native byte order.
+.Pp
+The following flags can be set in
+.Fa th_flags
+to specify which offloads are requested for the current packet:
+.Pp
+.Bl -tag -width "TUN_H_ICMP_CSUM" -compact
+.It Dv TUN_H_VTAG
+.Fa th_vtag
+is set.
+.It Dv TUN_H_TCP_MSS
+TCP segmentation offload is requested for the current packet.
+The maximum segment size is specified in
+.Fa th_mss .
+.It Dv TUN_H_IPV4_CSUM
+IPv4 header checksum calculation requested.
+.It Dv TUN_H_TCP_CSUM
+TCP checksum calculation requested.
+.It Dv TUN_H_UDP_CSUM
+UDP checksum calculation requested.
+.It Dv TUN_H_ICMP_CSUM
+ICMP checksum calculation requested.
+.El
+.Pp
+Only one of
+.Dv TUN_H_TCP_CSUM ,
+.Dv TUN_H_UDP_CSUM ,
+and
+.Dv TUN_H_ICMP_CSUM
+can be specified at a time.
+.Dv TUN_H_VTAG
+can only be used with
+.Nm tap
+interfaces.
+.Pp
+.Fa th_pad
+should be set to 0 when writing to the device special file, and
+ignored when reading from the device special file.
+.Sh FILES
+.Bl -tag -width /dev/tun* -compact
+.It Pa /dev/tun*
+.It Pa /dev/tap*
+.El
+.Sh ERRORS
+If open fails,
+.Xr errno 2
+may be set to one of:
+.Bl -tag -width Er
+.It Bq Er ENXIO
+Not that many devices configured.
+.\" The associated interface existed, but is being destroyed.
+.It Bq Er EBUSY
+Device was already open.
+.El
+.Pp
+If a
+.Xr write 2
+call fails,
+.Xr errno 2
+is set to one of:
+.Bl -tag -width Er
+.It Bq Er EMSGSIZE
+The packet supplied was too small or too large.
+The maximum sized packet allowed is currently 16384 bytes.
+.It Bq Er ENOMEM
+There were no mbufs.
+.\" .It Bq Er ENOBUFS
+.\" The queue for the outgoing protocol is full.
+.El
+.Pp
+.Xr ioctl 2
+commands may fail with:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid parameters were specified.
+.It Bq Er ENOTTY
+Unrecognized ioctl command.
+.El
+.Pp
+A
+.Xr read 2
+call may fail because of:
+.Bl -tag -width Er
+.It Bq Er EIO
+The associated interface has been destroyed.
+.It Bq Er EWOULDBLOCK
+Non-blocking I/O was selected and no packets were available.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Sh HISTORY
+.Nm tun
+interfaces originally supported both Layer 3 and Ethernet packets
+by reconfiguring the type of interface with
+.Dv TUNSIFINFO .
+Ethernet packet support was split into the separate
+.Nm tap
+interface in
+.Ox 5.9 .
+.Sh AUTHORS
+.Nm tun
+was written by
+.An Julian Onions Aq Mt Julian.Onions@nexor.co.uk
+at Nottingham University.
+.Pp
+The
+.Nm tap
+interface functionality was written by
+.An Claudio Jeker Aq Mt claudio@openbsd.org .

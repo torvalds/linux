@@ -1,0 +1,294 @@
+.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_DEV_OPEN 3
+.Os
+.Sh NAME
+.Nm fido_dev_open ,
+.Nm fido_dev_open_with_info ,
+.Nm fido_dev_close ,
+.Nm fido_dev_cancel ,
+.Nm fido_dev_new ,
+.Nm fido_dev_new_with_info ,
+.Nm fido_dev_free ,
+.Nm fido_dev_force_fido2 ,
+.Nm fido_dev_force_u2f ,
+.Nm fido_dev_is_fido2 ,
+.Nm fido_dev_is_winhello ,
+.Nm fido_dev_supports_credman ,
+.Nm fido_dev_supports_cred_prot ,
+.Nm fido_dev_supports_permissions ,
+.Nm fido_dev_supports_pin ,
+.Nm fido_dev_supports_uv ,
+.Nm fido_dev_has_pin ,
+.Nm fido_dev_has_uv ,
+.Nm fido_dev_protocol ,
+.Nm fido_dev_build ,
+.Nm fido_dev_flags ,
+.Nm fido_dev_major ,
+.Nm fido_dev_minor
+.Nd FIDO2 device open/close and related functions
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft int
+.Fn fido_dev_open "fido_dev_t *dev" "const char *path"
+.Ft int
+.Fn fido_dev_open_with_info "fido_dev_t *dev"
+.Ft int
+.Fn fido_dev_close "fido_dev_t *dev"
+.Ft int
+.Fn fido_dev_cancel "fido_dev_t *dev"
+.Ft fido_dev_t *
+.Fn fido_dev_new "void"
+.Ft fido_dev_t *
+.Fn fido_dev_new_with_info "const fido_dev_info_t *"
+.Ft void
+.Fn fido_dev_free "fido_dev_t **dev_p"
+.Ft void
+.Fn fido_dev_force_fido2 "fido_dev_t *dev"
+.Ft void
+.Fn fido_dev_force_u2f "fido_dev_t *dev"
+.Ft bool
+.Fn fido_dev_is_fido2 "const fido_dev_t *dev"
+.Ft bool
+.Fn fido_dev_is_winhello "const fido_dev_t *dev"
+.Ft bool
+.Fn fido_dev_supports_credman "const fido_dev_t *dev"
+.Ft bool
+.Fn fido_dev_supports_cred_prot "const fido_dev_t *dev"
+.Ft bool
+.Fn fido_dev_supports_permissions "const fido_dev_t *dev"
+.Ft bool
+.Fn fido_dev_supports_pin "const fido_dev_t *dev"
+.Ft bool
+.Fn fido_dev_supports_uv "const fido_dev_t *dev"
+.Ft bool
+.Fn fido_dev_has_pin "const fido_dev_t *dev"
+.Ft bool
+.Fn fido_dev_has_uv "const fido_dev_t *dev"
+.Ft uint8_t
+.Fn fido_dev_protocol "const fido_dev_t *dev"
+.Ft uint8_t
+.Fn fido_dev_build "const fido_dev_t *dev"
+.Ft uint8_t
+.Fn fido_dev_flags "const fido_dev_t *dev"
+.Ft uint8_t
+.Fn fido_dev_major "const fido_dev_t *dev"
+.Ft uint8_t
+.Fn fido_dev_minor "const fido_dev_t *dev"
+.Sh DESCRIPTION
+The
+.Fn fido_dev_open
+function opens the device pointed to by
+.Fa path ,
+where
+.Fa dev
+is a freshly allocated or otherwise closed
+.Vt fido_dev_t .
+If
+.Fa dev
+claims to be FIDO2,
+.Em libfido2
+will attempt to speak FIDO2 to
+.Fa dev .
+If that fails,
+.Em libfido2
+will fallback to U2F unless the
+.Dv FIDO_DISABLE_U2F_FALLBACK
+flag was set in
+.Xr fido_init 3 .
+.Pp
+The
+.Fn fido_dev_open_with_info
+function opens
+.Fa dev
+as previously allocated using
+.Fn fido_dev_new_with_info .
+.Pp
+The
+.Fn fido_dev_close
+function closes the device represented by
+.Fa dev .
+If
+.Fa dev
+is already closed,
+.Fn fido_dev_close
+is a NOP.
+.Pp
+The
+.Fn fido_dev_cancel
+function cancels any pending requests on
+.Fa dev .
+.Pp
+The
+.Fn fido_dev_new
+function returns a pointer to a newly allocated, empty
+.Vt fido_dev_t .
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_dev_new_with_info
+function returns a pointer to a newly allocated
+.Vt fido_dev_t
+with
+.Vt fido_dev_info_t
+parameters, for use with
+.Xr fido_dev_info_manifest 3
+and
+.Fn fido_dev_open_with_info .
+If memory cannot be allocated, NULL is returned.
+.Pp
+The
+.Fn fido_dev_free
+function releases the memory backing
+.Fa *dev_p ,
+where
+.Fa *dev_p
+must have been previously allocated by
+.Fn fido_dev_new .
+On return,
+.Fa *dev_p
+is set to NULL.
+Either
+.Fa dev_p
+or
+.Fa *dev_p
+may be NULL, in which case
+.Fn fido_dev_free
+is a NOP.
+.Pp
+The
+.Fn fido_dev_force_fido2
+function can be used to force CTAP2 communication with
+.Fa dev ,
+where
+.Fa dev
+is an open device.
+.Pp
+The
+.Fn fido_dev_force_u2f
+function can be used to force CTAP1 (U2F) communication with
+.Fa dev ,
+where
+.Fa dev
+is an open device.
+.Pp
+The
+.Fn fido_dev_is_fido2
+function returns
+.Dv true
+if
+.Fa dev
+is a FIDO2 device.
+.Pp
+The
+.Fn fido_dev_is_winhello
+function returns
+.Dv true
+if
+.Fa dev
+is a Windows Hello device.
+.Pp
+The
+.Fn fido_dev_supports_credman
+function returns
+.Dv true
+if
+.Fa dev
+supports CTAP 2.1 Credential Management.
+.Pp
+The
+.Fn fido_dev_supports_cred_prot
+function returns
+.Dv true
+if
+.Fa dev
+supports CTAP 2.1 Credential Protection.
+.Pp
+The
+.Fn fido_dev_supports_permissions
+function returns
+.Dv true
+if
+.Fa dev
+supports CTAP 2.1 UV token permissions.
+.Pp
+The
+.Fn fido_dev_supports_pin
+function returns
+.Dv true
+if
+.Fa dev
+supports CTAP 2.0 Client PINs.
+.Pp
+The
+.Fn fido_dev_supports_uv
+function returns
+.Dv true
+if
+.Fa dev
+supports a built-in user verification method.
+.Pp
+The
+.Fn fido_dev_has_pin
+function returns
+.Dv true
+if
+.Fa dev
+has a CTAP 2.0 Client PIN set.
+.Pp
+The
+.Fn fido_dev_has_uv
+function returns
+.Dv true
+if
+.Fa dev
+supports built-in user verification and its user verification
+feature is configured.
+.Pp
+The
+.Fn fido_dev_protocol
+function returns the CTAPHID protocol version identifier of
+.Fa dev .
+.Pp
+The
+.Fn fido_dev_build
+function returns the CTAPHID build version number of
+.Fa dev .
+.Pp
+The
+.Fn fido_dev_flags
+function returns the CTAPHID capabilities flags of
+.Fa dev .
+.Pp
+The
+.Fn fido_dev_major
+function returns the CTAPHID major version number of
+.Fa dev .
+.Pp
+The
+.Fn fido_dev_minor
+function returns the CTAPHID minor version number of
+.Fa dev .
+.Pp
+For the format and meaning of the CTAPHID parameters returned by
+functions above, please refer to the FIDO Client to Authenticator
+Protocol (CTAP) specification.
+.Sh RETURN VALUES
+On success,
+.Fn fido_dev_open ,
+.Fn fido_dev_open_with_info ,
+and
+.Fn fido_dev_close
+return
+.Dv FIDO_OK .
+On error, a different error code defined in
+.In fido/err.h
+is returned.
+.Sh SEE ALSO
+.Xr fido_dev_info_manifest 3 ,
+.Xr fido_dev_set_io_functions 3 ,
+.Xr fido_init 3

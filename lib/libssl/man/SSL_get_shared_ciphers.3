@@ -1,0 +1,104 @@
+.\" $OpenBSD: SSL_get_shared_ciphers.3,v 1.6 2025/06/08 22:52:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_GET_SHARED_CIPHERS 3
+.Os
+.Sh NAME
+.Nm SSL_get_shared_ciphers
+.Nd ciphers supported by both client and server
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft char *
+.Fo SSL_get_shared_ciphers
+.Fa "const SSL *ssl"
+.Fa "char *buf"
+.Fa "int len"
+.Fc
+.Sh DESCRIPTION
+If
+.Fa ssl
+contains a session in server mode,
+.Fn SSL_get_shared_ciphers
+puts as many names of ciphers that are supported by both the client
+and the server into the buffer
+.Fa buf
+as the buffer is long enough to contain.
+Names are separated by colons.
+At most
+.Fa len
+bytes are written to
+.Fa buf
+including the terminating NUL character.
+.Sh RETURN VALUES
+.Fn SSL_get_shared_ciphers
+returns
+.Fa buf
+on success or
+.Dv NULL
+on failure.
+The following situations cause failure:
+.Bl -bullet
+.It
+.Xr SSL_is_server 3
+is false, i.e.,
+.Ar ssl
+is not set to server mode.
+.It
+.Xr SSL_get_ciphers 3
+is
+.Dv NULL
+or empty, i.e., no ciphers are available for use by the server.
+.It
+.Xr SSL_get_session 3
+is
+.Dv NULL ,
+i.e.,
+.Ar ssl
+contains no session.
+.It
+.Xr SSL_get_client_ciphers 3
+is
+.Dv NULL
+or empty, i.e.,
+.Ar ssl
+contains no information about ciphers supported by the client,
+or the client does not support any ciphers.
+.It
+The
+.Fa len
+argument is less than 2.
+.El
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_get_ciphers 3
+.Sh HISTORY
+.Fn SSL_get_shared_ciphers
+first appeared in SSLeay 0.4.5b and has been available since
+.Ox 2.4 .
+.Sh BUGS
+If the list is too long to fit into
+.Fa len
+bytes, it is silently truncated after the last cipher name that fits,
+and all following ciphers are skipped.
+If the buffer is very short such that even the first cipher name
+does not fit, an empty string is returned even when some shared
+ciphers are actually available.
+.Pp
+There is no easy way to find out how much space is required for
+.Fa buf
+or whether the supplied space was sufficient.

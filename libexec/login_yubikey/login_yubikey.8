@@ -1,0 +1,138 @@
+.\" $OpenBSD: login_yubikey.8,v 1.10 2020/07/08 10:41:38 job Exp $
+.\"
+.\" Copyright (c) 2010 Daniel Hartmeier <daniel@benzedrine.cx>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\"    - Redistributions of source code must retain the above copyright
+.\"      notice, this list of conditions and the following disclaimer.
+.\"    - Redistributions in binary form must reproduce the above
+.\"      copyright notice, this list of conditions and the following
+.\"      disclaimer in the documentation and/or other materials provided
+.\"      with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 8 2020 $
+.Dt LOGIN_YUBIKEY 8
+.Os
+.Sh NAME
+.Nm login_yubikey
+.Nd provide YubiKey OTP authentication type
+.Sh SYNOPSIS
+.Nm login_yubikey
+.Op Fl dv
+.Op Fl s Ar service
+.Ar user
+.Op Ar class
+.Sh DESCRIPTION
+The
+.Nm
+utility is called by
+.Xr login 1 ,
+.Xr su 1 ,
+.Xr ftpd 8 ,
+and others to authenticate the
+.Ar user
+with the Yubico one-time password (OTP) authentication mechanism.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d
+Debug mode.
+Output is sent to the standard output instead of the
+.Bx
+Authentication backchannel.
+.It Fl s Ar service
+Specify the service.
+Currently, only
+.Li challenge ,
+.Li login ,
+and
+.Li response
+are supported.
+The default protocol is
+.Em login .
+.It Fl v
+This option and its value are ignored.
+.El
+.Pp
+The
+.Ar user
+argument is the login name of the user to be authenticated.
+.Pp
+The optional
+.Ar class
+argument is accepted for consistency with the other login scripts but
+is not used.
+.Pp
+.Nm
+will read the user's UID (12 hex digits) from the file
+.Em user.uid ,
+the user's key (32 hex digits) from
+.Em user.key ,
+and the user's last-use counter from
+.Em user.ctr
+in the
+.Em /var/db/yubikey
+directory.
+.Pp
+If
+.Ar user
+does not have a UID or key, the login is rejected.
+If
+.Ar user
+does not have a last-use counter, a value of zero is used and
+any counter is accepted during the first login.
+.Pp
+The one-time password provided by the user is decrypted using the
+user's key.
+After the decryption, the checksum embedded in the one-time password
+is verified.
+If the checksum is not valid, the login is rejected.
+.Pp
+If the checksum is valid, the UID embedded in the one-time password
+is compared against the user's UID.
+If the UID does not match, the login is rejected.
+.Pp
+If the UID matches, the use counter embedded in the one-time password
+is compared to the last-use counter.
+If the counter is less than or equal to the last-use counter, the
+login is rejected.
+This indicates a replay attack.
+.Pp
+If the counter is larger than the last-use counter, the counter
+is stored as the new last-use counter, and the login is accepted.
+.Sh FILES
+.Bl -tag -width /var/db/yubikey
+.It Pa /var/db/yubikey
+Directory containing user entries for YubiKey OTP security keys.
+.El
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr login.conf 5
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Ox 5.1 .
+.Sh AUTHORS
+.An Daniel Hartmeier
+.Sh CAVEATS
+The
+.Nm
+utility does not implement the U2F/FIDO2 open authentication standard.

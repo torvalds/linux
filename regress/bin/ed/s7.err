@@ -1,0 +1,5 @@
+a
+hello world
+.
+/./
+sr

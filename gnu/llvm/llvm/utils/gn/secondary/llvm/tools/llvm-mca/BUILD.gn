@@ -1,0 +1,37 @@
+import("//llvm/lib/Target/targets.gni")
+
+executable("llvm-mca") {
+  deps = [
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/MCA",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsAsmParsers",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsDisassemblers",
+    "//llvm/lib/Target:AllTargetsInfos",
+    "//llvm/lib/Target:AllTargetsMCAs",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [
+    ".",
+    "include",
+  ]
+  sources = [
+    "CodeRegion.cpp",
+    "CodeRegionGenerator.cpp",
+    "PipelinePrinter.cpp",
+    "Views/BottleneckAnalysis.cpp",
+    "Views/DispatchStatistics.cpp",
+    "Views/InstructionInfoView.cpp",
+    "Views/InstructionView.cpp",
+    "Views/RegisterFileStatistics.cpp",
+    "Views/ResourcePressureView.cpp",
+    "Views/RetireControlUnitStatistics.cpp",
+    "Views/SchedulerStatistics.cpp",
+    "Views/SummaryView.cpp",
+    "Views/TimelineView.cpp",
+    "llvm-mca.cpp",
+  ]
+  defines = []
+}

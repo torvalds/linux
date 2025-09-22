@@ -1,0 +1,4 @@
+BEGIN {
+	$t = (1, 42, "something");
+	printf("%d %s\n", $t.1, $t.2);
+}

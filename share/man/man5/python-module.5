@@ -1,0 +1,239 @@
+.\"	$OpenBSD: python-module.5,v 1.19 2025/09/17 22:11:55 sthen Exp $
+.\"
+.\" Copyright (c) 2008 Marc Espie
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 17 2025 $
+.Dt PYTHON-MODULE 5
+.Os
+.Sh NAME
+.Nm python-module
+.Nd lang/python port module
+.Sh DESCRIPTION
+This manual page documents the behavior of setting
+.Li MODULES=lang/python
+in the
+.Xr ports 7
+tree.
+.Pp
+By default, the module builds ports using Python 3.
+For legacy ports using Python 2,
+.Ev MODPY_VERSION
+may be set manually to ${MODPY_DEFAULT_VERSION_2}.
+.Pp
+The module then sets
+.Ev MODPY_BIN ,
+.Ev MODPY_INCDIR ,
+.Ev MODPY_LIBDIR ,
+.Ev MODPY_SITEPKG ,
+.Ev MODPY_SETUP ,
+.Ev MODPY_TEST_DIR ,
+.Ev MODPY_TEST_LOCALE ,
+.Ev MODPY_WANTLIB ,
+.Ev MODPY_LIB_DEPENDS ,
+.Ev MODPY_RUN_DEPENDS ,
+.Ev MODPY_TEST_DEPENDS ,
+.Ev MODPY_BUILD_DEPENDS ,
+and
+.Ev MODPY_ADJ_FILES
+accordingly.
+.Pp
+The module also adds a dependency on the Python interpreter to
+.Bl -bullet
+.It
+.Ev RUN_DEPENDS
+unless
+.Ev MODPY_RUNDEP
+is set to No,
+.It
+.Ev BUILD_DEPENDS
+unless
+.Ev MODPY_BUILDDEP
+is set to No or
+.Ev NO_BUILD
+is set to Yes,
+.It
+.Ev TEST_DEPENDS
+if
+.Ev MODPY_PYTEST
+is set to Yes
+unless
+.Ev MODPY_TESTDEP
+is set to No.
+.El
+.Pp
+It also appends
+.Ev MODPY_TEST_LOCALE
+to
+.Ev TEST_ENV
+and changes to the directory specified in
+.Ev MODPY_TEST_DIR
+.Po
+by default ${WRKSRC}
+.Pc
+before running tests.
+.Pp
+Most modern Python software can be packaged using a PEP 517 build
+frontend (in the
+.Pa devel/py-build
+port).
+To use this, set
+.Ev MODPY_PYBUILD
+to the name of the build backend.
+If the port provides a
+.Pa pyproject.toml
+file, check the "build-backend" line in the [build-system] section.
+.Nm
+currently supports
+flit, flit_core, flit_scm, hatchling, hatch-vcs,
+jupyter_packaging, maturin, mesonpy,
+pbr, pdm, poetry-core, setuptools, setuptools_scm, setuptools-rust,
+and uv_build.
+In cases where an uncommon backend is used, or where the build backend is
+distributed with the software itself,
+.Ev MODPY_PYBUILD
+can be set to
+.Sq other
+to use the PEP 517 build mechanism without adding a dependency
+for a backend.
+If no
+.Pa pyproject.toml
+is provided then it most likely uses setuptools.
+.Nm
+performs some checks and warns about some incorrect
+.Ev MODPY_PYBUILD
+settings after fake-install.
+Setting
+.Ev MODPY_PYBUILD
+adds the backend to
+.Ev MODPY_BUILD_DEPENDS ,
+and sets
+.Ev MODPY_PYTEST .
+.Pp
+Some checks are done to warn during "make fake" if
+.Ev MODPY_PYBUILD
+appears to be set incorrectly.
+.Pp
+Python 2 and some older Python 3 ports using setuptools still set
+.Ev MODPY_SETUPTOOLS
+to Yes, which appends to
+.Ev MODPY_BUILD_DEPENDS
+and calls the relevant commands to build (these ports are built
+using the deprecated mechanism of calling
+.Pa setup.py
+directly).
+Arguments can be passed to setup.py during
+.Cm configure
+with
+.Ev MODPY_SETUP_ARGS .
+Extra arguments to the build and install commands can be passed via
+.Ev MODPY_DISTUTILS_BUILDARGS
+and
+.Ev MODPY_DISTUTILS_INSTALLARGS .
+These ports can often be converted to
+.Ev MODPY_PYBUILD
+with some small changes to the port.
+.Ev MODPY_SETUPTOOLS
+should not be used for new ports.
+.Pp
+Ports using pytest should set
+.Ev MODPY_PYTEST
+to Yes unless
+.Ev MODPY_PYBUILD
+is used, when it is already set by default.
+Arguments can be passed to pytest during
+.Cm test
+with
+.Ev MODPY_PYTEST_ARGS ,
+for example to list names of test scripts if the automatic
+detection fails,
+to disable certain test scripts with
+.Sq --ignore ,
+or to disable certain individual tests with
+.Sq -k .
+User setting
+.Ev MODPY_PYTEST_USERARGS ,
+if present, is passed on the command line.
+This allows setting pytest flags to increase verbosity,
+show test durations, enable colours, etc.
+.Pp
+If
+.Ev MODPY_TEST_LINK_SO
+is set to Yes, symbolic links to all .so files in the build directory
+will be created before running tests.
+These are created in
+.Ev MODPY_TEST_LINK_SRC ,
+which defaults to ${WRKSRC}.
+This is required when tests load .so files via relative imports.
+.Pp
+All ports that generate egg-info or dist-info files should set
+.Ev MODPY_DISTV
+to the version string used by the
+.Fn setup
+function in the port's
+.Pa setup.py
+or the version in
+.Pa pyproject.toml .
+.Pp
+If any files have a python shebang line where the interpreter should be
+${MODPY_BIN}, list them in
+.Ev MODPY_ADJ_FILES .
+These filenames can be relative to ${WRKSRC} and will be modified
+at the end of
+.Cm pre-configure .
+.Pp
+For ports not using standard Python build infrastructure,
+it may be necessary to bytecode-compile installed .py files.
+This can be done by using
+.Ev ${MODPY_COMPILEALL} ,
+usually in a post-install target.
+This passes flags to use MAKE_JOBS, strip off WRKINST, and use
+standard optimization passes.
+File or directory names can be given.
+Directories are handled recursively.
+.Pp
+This module also affects
+.Ev CATEGORIES ,
+.Ev MAKE_ENV ,
+.Ev CONFIGURE_ENV ,
+and
+.Ev SUBST_VARS ,
+and it may affect the
+.Cm test
+target.
+.Pp
+If
+.Ev MODPY_PI
+is set to
+.Sq Yes ,
+the module will provide a default for
+.Ev HOMEPAGE
+and set
+.Ev SITES
+.Po
+the subdirectory can be overridden with
+.Ev MODPY_PI_DIR
+.Pc .
+.Sh SEE ALSO
+.Xr port-modules 5

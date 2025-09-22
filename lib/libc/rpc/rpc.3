@@ -1,0 +1,1231 @@
+.\"	$OpenBSD: rpc.3,v 1.50 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 1998 Theo de Raadt
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Copyright (c) 2010, Oracle America, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"     * Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"     * Redistributions in binary form must reproduce the above
+.\"       copyright notice, this list of conditions and the following
+.\"       disclaimer in the documentation and/or other materials
+.\"       provided with the distribution.
+.\"     * Neither the name of the "Oracle America, Inc." nor the names of its
+.\"       contributors may be used to endorse or promote products derived
+.\"       from this software without specific prior written permission.
+.\"
+.\"   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\"   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\"   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\"   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\"   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+.\"   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\"   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\"   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\"   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\"   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\"   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt CALLRPC 3
+.Os
+.Sh NAME
+.Nm callrpc ,
+.Nm clnt_broadcast ,
+.Nm clnt_call ,
+.Nm clnt_control ,
+.Nm clnt_create ,
+.Nm clnt_destroy ,
+.Nm clnt_freeres ,
+.Nm clnt_pcreateerror ,
+.Nm clnt_perrno ,
+.Nm clnt_perror ,
+.Nm clnt_spcreateerror ,
+.Nm clnt_sperrno ,
+.Nm clnt_sperror ,
+.Nm clntraw_create ,
+.Nm clnttcp_create ,
+.Nm clntudp_bufcreate ,
+.Nm clntudp_create ,
+.Nm clnt_geterr ,
+.Nm get_myaddress ,
+.Nm pmap_getmaps ,
+.Nm pmap_getport ,
+.Nm pmap_rmtcall ,
+.Nm pmap_set ,
+.Nm pmap_unset ,
+.Nm registerrpc ,
+.Nm rpc_createerr ,
+.Nm svc_destroy ,
+.Nm svc_fds ,
+.Nm svc_fdset ,
+.Nm svc_freeargs ,
+.Nm svc_getargs ,
+.Nm svc_getcaller ,
+.Nm svc_getreq ,
+.Nm svc_getreq_common ,
+.Nm svc_getreq_poll ,
+.Nm svc_getreqset ,
+.Nm svc_getreqset2 ,
+.Nm svc_register ,
+.Nm svc_max_pollfd ,
+.Nm svc_pollfd ,
+.Nm svc_run ,
+.Nm svc_sendreply ,
+.Nm svc_unregister ,
+.Nm svcerr_auth ,
+.Nm svcerr_decode ,
+.Nm svcerr_noproc ,
+.Nm svcerr_noprog ,
+.Nm svcerr_progvers ,
+.Nm svcerr_systemerr ,
+.Nm svcerr_weakauth ,
+.Nm svcfd_create ,
+.Nm svcraw_create ,
+.Nm svctcp_create ,
+.Nm svcudp_create ,
+.Nm svcudp_bufcreate ,
+.Nm xdr_accepted_reply ,
+.Nm xdr_authunix_parms ,
+.Nm xdr_callhdr ,
+.Nm xdr_callmsg ,
+.Nm xdr_opaque_auth ,
+.Nm xdr_pmap ,
+.Nm xdr_pmaplist ,
+.Nm xdr_rejected_reply ,
+.Nm xdr_replymsg ,
+.Nm xprt_register ,
+.Nm xprt_unregister
+.Nd library routines for remote procedure calls
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft int
+.Fn callrpc "char *host" "u_long prognum" "u_long versnum" "u_long procnum" "xdrproc_t inproc" "char *in" "xdrproc_t outproc" "char *out"
+.Ft enum clnt_stat
+.Fn clnt_broadcast "u_long prognum" "u_long versnum" "u_long procnum" "xdrproc_t inproc" "char *in" "xdrproc_t outproc" "char *out" "resultproc_t eachresult"
+.Ft enum clnt_stat
+.Fn clnt_call "CLIENT *clnt" "u_long procnum" "xdrproc_t inproc" "char *in" "xdrproc_t outproc" "char *out" "struct timeval tout"
+.Ft int
+.Fn clnt_destroy "CLIENT *clnt"
+.Ft CLIENT *
+.Fn clnt_create "char *host" "u_long prog" "u_long vers" "char *proto"
+.Ft bool_t
+.Fn clnt_control "CLIENT *cl" "int req" "char *info"
+.Ft int
+.Fn clnt_freeres "CLIENT *clnt" "xdrproc_t outproc" "char *out"
+.Ft void
+.Fn clnt_geterr "CLIENT *clnt" "struct rpc_err *errp"
+.Ft void
+.Fn clnt_pcreateerror "char *s"
+.Ft void
+.Fn clnt_perrno "enum clnt_stat stat"
+.Ft int
+.Fn clnt_perror "CLIENT *clnt" "char *s"
+.Ft char *
+.Fn clnt_spcreateerror "char *s"
+.Ft char *
+.Fn clnt_sperrno "enum clnt_stat stat"
+.Ft char *
+.Fn clnt_sperror "CLIENT *rpch" "char *s"
+.Ft CLIENT *
+.Fn clntraw_create "u_long prognum" "u_long versnum"
+.Ft CLIENT *
+.Fn clnttcp_create "struct sockaddr_in *addr" "u_long prognum" "u_long versnum" "int *sockp" "u_int sendsz" "u_int recvsz"
+.Ft CLIENT *
+.Fn clntudp_create "struct sockaddr_in *addr" "u_long prognum" "u_long versnum" "struct timeval wait" "int *sockp"
+.Ft CLIENT *
+.Fn clntudp_bufcreate "struct sockaddr_in *addr" "u_long prognum" "u_long versnum" "struct timeval wait" "int *sockp" "unsigned int sendsize" "unsigned int recosize"
+.Ft int
+.Fn get_myaddress "struct sockaddr_in *addr"
+.Ft struct pmaplist *
+.Fn pmap_getmaps "struct sockaddr_in *addr"
+.Ft u_short
+.Fn pmap_getport "struct sockaddr_in *addr" "u_long prognum" "u_long versnum" "u_long protocol"
+.Ft enum clnt_stat
+.Fn pmap_rmtcall "struct sockaddr_in *" "u_long prog" "u_long vers" "u_long proc" "xdrproc_t inp" "char *in" "xdrproc_t outp" "char *out" "struct timeval tv" "u_long *portp"
+.Ft int
+.Fn pmap_set "u_long prognum" "u_long versnum" "u_int protocol" "int port"
+.Ft int
+.Fn pmap_unset "u_long prognum" "u_long versnum"
+.Ft int
+.Fn registerrpc "u_long prognum" "u_long versnum" "u_long procnum" "char *(*procname)() " "xdrproc_t inproc" "xdrproc_t outproc"
+.Vt struct rpc_createerr rpc_createerr ;
+.Ft int
+.Fn svc_destroy "SVCXPRT *xprt"
+.Vt struct pollfd *svc_pollfd ;
+.Vt int svc_max_pollfd ;
+.Vt fd_set svc_fdset ;
+.Vt fd_set *__svc_fdset ;
+.Vt int __svc_fdsetsize ;
+.Vt int svc_fds ;
+.Ft int
+.Fn svc_freeargs "SVCXPRT *xprt" "xdrproc_t inproc" "char *in"
+.Ft int
+.Fn svc_getargs "SVCXPRT *xprt" "xdrproc_t inproc" "char *in"
+.Ft struct sockaddr_in *
+.Fn svc_getcaller "SVCXPRT *xprt"
+.Ft int
+.Fn svc_getreq_common "int fd"
+.Ft int
+.Fn svc_getreq_poll "struct pollfd *pfds" "const int pollretval"
+.Ft int
+.Fn svc_getreqset "fd_set *rdfds"
+.Ft int
+.Fn svc_getreqset2 "fd_set *rdfds" "int width"
+.Ft int
+.Fn svc_getreq "int rdfds"
+.Ft int
+.Fn svc_register "SVCXPRT *xprt" "u_long prognum" "u_long versnum" "void (*dispatch)()" "u_long protocol"
+.Ft int
+.Fn svc_run "void"
+.Ft int
+.Fn svc_sendreply "SVCXPRT *xprt" "xdrproc_t outproc" "char *out"
+.Ft void
+.Fn svc_unregister "u_long prognum" "u_long versnum"
+.Ft void
+.Fn svcerr_auth "SVCXPRT *xprt" "enum auth_stat why"
+.Ft void
+.Fn svcerr_decode "SVCXPRT *xprt"
+.Ft void
+.Fn svcerr_noproc "SVCXPRT *xprt"
+.Ft void
+.Fn svcerr_noprog "SVCXPRT *xprt"
+.Ft void
+.Fn svcerr_progvers "SVCXPRT *xprt"
+.Ft void
+.Fn svcerr_systemerr "SVCXPRT *xprt"
+.Ft void
+.Fn svcerr_weakauth "SVCXPRT *xprt"
+.Ft SVCXPRT *
+.Fn svcraw_create "void"
+.Ft SVCXPRT *
+.Fn svctcp_create "int sock" "u_int send_buf_size" "u_int recv_buf_size"
+.Ft SVCXPRT *
+.Fn svcfd_create "int fd" "u_int sendsize" "u_int recvsize"
+.Ft SVCXPRT *
+.Fn svcudp_create "int sock"
+.Ft SVCXPRT *
+.Fn svcudp_bufcreate "int sock" "u_int sendsz" "u_int recvsz"
+.Ft bool_t
+.Fn xdr_accepted_reply "XDR *xdrs" "struct accepted_reply *ar"
+.Ft bool_t
+.Fn xdr_authunix_parms "XDR *xdrs" "struct authunix_parms *aupp"
+.Ft void
+.Fn xdr_callhdr "XDR *xdrs" "struct rpc_msg *chdr"
+.Ft int
+.Fn xdr_callmsg "XDR *xdrs" "struct rpc_msg *cmsg"
+.Ft int
+.Fn xdr_opaque_auth "XDR *xdrs" "struct opaque_auth *ap"
+.Ft int
+.Fn xdr_pmap "XDR *xdrs" "struct pmap *regs"
+.Ft int
+.Fn xdr_pmaplist "XDR *xdrs" "struct pmaplist **rp"
+.Ft int
+.Fn xdr_rejected_reply "XDR *xdrs" "struct rejected_reply *rr"
+.Ft int
+.Fn xdr_replymsg "XDR *xdrs" "struct rpc_msg *rmsg"
+.Ft void
+.Fn xprt_register "SVCXPRT *xprt"
+.Ft void
+.Fn xprt_unregister "SVCXPRT *xprt"
+.Sh DESCRIPTION
+These routines allow C programs to make procedure
+calls on other machines across the network.
+First, the client calls a procedure to send a
+data packet to the server.
+Upon receipt of the packet, the server calls a dispatch routine
+to perform the requested service, and then sends back a
+reply.
+Finally, the procedure call returns to the client.
+.Pp
+.\"Routines that are used for Secure RPC (DES authentication) are described in
+.\".Xr rpc_secure 3 .
+.\"Secure RPC can be used only if DES encryption is available.
+.Fn callrpc
+calls the remote procedure associated with
+.Fa prognum ,
+.Fa versnum ,
+and
+.Fa procnum
+on the machine,
+.Fa host .
+The parameter
+.Fa in
+is the address of the procedure's argument(s), and
+.Fa out
+is the address of where to place the result(s);
+.Fa inproc
+is used to encode the procedure's parameters, and
+.Fa outproc
+is used to decode the procedure's results.
+This routine returns zero if it succeeds, or the value of
+.Fa enum clnt_stat
+cast to an integer if it fails.
+The routine
+.Fn clnt_perrno
+is handy for translating failure statuses into messages.
+.Pp
+.Sy Warning:
+calling remote procedures with this routine uses UDP/IP
+as a transport; see
+.Fn clntudp_create
+for restrictions.
+You do not have control of timeouts or authentication using
+this routine.
+.Pp
+.Fn clnt_broadcast
+is like
+.Fn callrpc ,
+except the call message is broadcast to all locally
+connected broadcast nets.
+Each time it receives a response, this routine calls
+.Fa eachresult ,
+whose form is:
+.Bd -literal -offset indent
+.Ft int
+.Fn eachresult "char *out" "struct sockaddr_in *addr"
+.Ed
+.Pp
+where
+.Fa out
+is the same as
+.Fa out
+passed to
+.Fn clnt_broadcast ,
+except that the remote procedure's output is decoded there;
+.Fa addr
+points to the address of the machine that sent the results.
+If
+.Fa eachresult
+returns zero,
+.Fn clnt_broadcast
+waits for more replies; otherwise it returns with appropriate
+status.
+.Pp
+.Sy Warning:
+broadcast sockets are limited in size to the
+maximum transfer unit of the data link.
+For Ethernet, this value is 1500 bytes.
+.Pp
+.Fn clnt_call
+is a macro that calls the remote procedure
+.Fa procnum
+associated with the client handle,
+.Fa clnt ,
+which is obtained with an RPC client creation routine such as
+.Fn clnt_create .
+The parameter
+.Fa in
+is the address of the procedure's argument(s), and
+.Fa out
+is the address of where to place the result(s);
+.Fa inproc
+is used to encode the procedure's parameters, and
+.Fa outproc
+is used to decode the procedure's results;
+.Fa tout
+is the time allowed for results to come back.
+.Pp
+.Fn clnt_destroy
+is a macro that destroys the client's RPC handle.
+Destruction usually involves deallocation of private data structures, including
+.Fa clnt
+itself.
+Use of
+.Fa clnt
+is undefined after calling
+.Fn clnt_destroy .
+If the RPC library opened the associated socket, it will close it also.
+Otherwise, the socket remains open.
+.Pp
+.Fn clnt_create
+is a generic client creation routine.
+.Fa host
+identifies the name of the remote host where the server
+is located.
+.Fa proto
+indicates which kind of transport protocol to use.
+The currently supported values for this field are
+.Qq udp
+and
+.Qq tcp .
+Default timeouts are set, but can be modified using
+.Fn clnt_control .
+This routine returns
+.Dv NULL
+if it fails.
+.Pp
+.Sy Warning:
+Using UDP has its shortcomings.
+Since UDP-based RPC
+messages can only hold up to 8 Kbytes of encoded data,
+this transport cannot be used for procedures that take
+large arguments or return huge results.
+.Pp
+.Fn clnt_control
+is a macro used to change or retrieve various information
+about a client object.
+.Fa req
+indicates the type of operation, and
+.Fa info
+is a pointer to the information.
+For both UDP and TCP,
+the supported values of
+.Fa req
+and their argument types and what they do are:
+.Bd -literal -offset indent
+CLSET_TIMEOUT	struct timeval	set total timeout
+CLGET_TIMEOUT	struct timeval	get total timeout
+.Ed
+.Pp
+.Sy Note:
+if you set the timeout using
+.Fn clnt_control ,
+the timeout parameter passed to
+.Fn clnt_call
+will be ignored in all future calls.
+.Bd -literal -offset indent
+CLGET_SERVER_ADDR	struct sockaddr_in 	get server's address
+.Ed
+.Pp
+The following operations are valid for UDP only:
+.Bd -literal -offset indent
+CLSET_RETRY_TIMEOUT   struct timeval	set the retry timeout
+CLGET_RETRY_TIMEOUT   struct timeval	get the retry timeout
+.Ed
+.Pp
+The retry timeout is the time that UDP RPC
+waits for the server to reply before
+retransmitting the request.
+.Pp
+.Fn clnt_freeres
+is a macro that frees any data allocated by the RPC/XDR
+system when it decoded the results of an RPC call.
+The parameter
+.Fa out
+is the address of the results, and
+.Fa outproc
+is the XDR routine describing the results.
+This routine returns one if the results were successfully
+freed,
+and zero otherwise.
+.Pp
+.Fn clnt_geterr
+is a macro that copies the error structure out of the client
+handle
+to the structure at address
+.Fa errp .
+.Pp
+.Fn clnt_pcreateerror
+prints a message to standard error indicating
+why a client RPC handle could not be created.
+The message is prepended with string
+.Fa s
+and a colon.
+Used when a
+.Fn clnt_create ,
+.Fn clntraw_create ,
+.Fn clnttcp_create ,
+or
+.Fn clntudp_create
+call fails.
+.Pp
+.Fn clnt_perrno
+prints a message to standard error corresponding
+to the condition indicated by
+.Fa stat .
+Used after
+.Fn callrpc .
+.Pp
+.Fn clnt_perror
+prints a message to standard error indicating why an RPC call failed;
+.Fa clnt
+is the handle used to do the call.
+The message is prepended with string
+.Fa s
+and a colon.
+Used after
+.Fn clnt_call .
+.Pp
+.Fn clnt_spcreateerror
+is like
+.Fn clnt_pcreateerror ,
+except that it returns a string
+instead of printing to the standard error.
+.Pp
+.Sy Bugs:
+returns pointer to static data that is overwritten
+on each call.
+.Pp
+.Fn clnt_sperrno
+takes the same arguments as
+.Fn clnt_perrno ,
+but instead of sending a message to the standard error
+indicating why an RPC
+call failed, returns a pointer to a string which contains
+the message.
+Unlike
+.Fn clnt_perror ,
+it does not append a newline character
+to the end of the message.
+.Pp
+.Fn clnt_sperrno
+is used instead of
+.Fn clnt_perrno
+if the program does not have a standard error (as a program
+running as a server quite likely does not), or if the
+programmer
+does not want the message to be output with
+.Fn printf ,
+or if a message format different than that supported by
+.Fn clnt_perrno
+is to be used.
+.Pp
+.Sy Note:
+unlike
+.Fn clnt_sperror
+and
+.Fn clnt_spcreaterror ,
+.Fn clnt_sperrno
+returns a pointer to static data, but the
+result will not get overwritten on each call.
+.Pp
+.Fn clnt_sperror
+is like
+.Fn clnt_perror ,
+except that (like
+.Fn clnt_sperrno )
+it returns a string instead of printing to standard error.
+.Pp
+.Sy Bugs:
+returns pointer to static data that is overwritten
+on each call.
+.Pp
+.Fn clntraw_create
+is a routine which creates a toy RPC client for the remote program
+.Fa prognum ,
+version
+.Fa versnum .
+The transport used to pass messages to the service is
+actually a buffer within the process's address space, so the
+corresponding RPC server should live in the same address space; see
+.Fn svcraw_create .
+This allows simulation of RPC and acquisition of RPC
+overheads, such as round trip times, without any
+kernel interference.
+This routine returns
+.Dv NULL
+if it fails.
+.Pp
+.Fn clnttcp_create
+is a routine which creates an RPC client for the remote program
+.Fa prognum ,
+version
+.Fa versnum ;
+the client uses TCP/IP as a transport.
+The remote program is located at Internet address
+.Fa *addr .
+If
+.Fa addr-\*(Gtsin_port
+is zero, then it is set to the actual port that the remote
+program is listening on (the remote
+.Xr portmap 8
+service is consulted for this information).
+The parameter
+.Fa sockp
+is a socket; if it is
+.Fa RPC_ANYSOCK ,
+then this routine opens a new one and sets
+.Fa sockp .
+Since TCP-based RPC uses buffered I/O,
+the user may specify the size of the send and receive buffers
+with the parameters
+.Fa sendsz
+and
+.Fa recvsz ;
+values of zero choose suitable defaults.
+This routine returns
+.Dv NULL
+if it fails.
+.Pp
+.Fn clntudp_create
+is a routine which creates an RPC client for the remote program
+.Fa prognum ,
+on
+.Fa versnum ;
+the client uses use UDP/IP as a transport.
+The remote program is located at Internet address
+.Fa addr .
+If
+.Fa addr-\*(Gtsin_port
+is zero, then it is set to actual port that the remote
+program is listening on (the remote
+.Xr portmap 8
+service is consulted for this information).
+The parameter
+.Fa sockp
+is a socket; if it is
+.Fa RPC_ANYSOCK ,
+then this routine opens a new one and sets
+.Fa sockp .
+The UDP transport resends the call message in intervals of
+.Fa wait
+time until a response is received or until the call times
+out.
+The total time for the call to time out is specified by
+.Fn clnt_call .
+This routine returns
+.Dv NULL
+if it fails.
+.Pp
+.Fn clntudp_bufcreate
+is like
+.Fn clntudp_create ,
+except that it allows the user to specify the maximum packet size for sending
+and receiving UDP-based RPC
+messages instead of using the default size limit of 8800 bytes.
+.Pp
+.Fn get_myaddress
+stuffs the machine's IP address into
+.Fa *addr ,
+without consulting the library routines that deal with
+.Pa /etc/hosts .
+The port number is always set to
+.Fa htons(PMAPPORT) .
+Returns zero on success, non-zero on failure.
+.Pp
+.Fn pmap_getmaps
+is a function interface to the
+.Xr portmap 8
+service, which returns a list of the current RPC program-to-port mappings
+on the host located at IP address
+.Fa *addr .
+This routine can return
+.Dv NULL .
+The command
+.Qq Li rpcinfo \-p
+uses this routine.
+.Pp
+.Fn pmap_getport
+is a user interface to the
+.Xr portmap 8
+service, which returns the port number
+on which waits a service that supports program number
+.Fa prognum ,
+version
+.Fa versnum ,
+and speaks the transport protocol associated with
+.Fa protocol .
+The value of
+.Fa protocol
+is most likely
+.Dv IPPROTO_UDP
+or
+.Dv IPPROTO_TCP .
+A return value of zero means that the mapping does not exist
+or that
+the RPC system failed to contact the remote
+.Xr portmap 8
+service.
+In the latter case, the global variable
+.Va rpc_createerr
+contains the RPC status.
+.Pp
+.Fn pmap_rmtcall
+is a user interface to the
+.Xr portmap 8
+service, which instructs
+.Xr portmap 8
+on the host at IP address
+.Fa *addr
+to make an RPC call on your behalf to a procedure on that host.
+The parameter
+.Fa *portp
+will be modified to the program's port number if the
+procedure
+succeeds.
+The definitions of other parameters are discussed in
+.Fn callrpc
+and
+.Fn clnt_call .
+This procedure should be used for a
+.Qq ping
+and nothing else.
+See also
+.Fn clnt_broadcast .
+.Pp
+.Fn pmap_set
+is a user interface to the
+.Xr portmap 8
+service, which establishes a mapping between the triple
+.Fa [ prognum , versnum , protocol ]
+and
+.Fa port
+on the machine's
+.Xr portmap 8
+service.
+The value of
+.Fa protocol
+is most likely
+.Dv IPPROTO_UDP
+or
+.Dv IPPROTO_TCP .
+This routine returns one if it succeeds, zero otherwise.
+Automatically done by
+.Fn svc_register .
+.Pp
+.Fn pmap_unset
+is a user interface to the
+.Xr portmap 8
+service, which destroys all mapping between the triple
+.Fa [ prognum , versnum , * ]
+and
+.Fa ports
+on the machine's
+.Xr portmap 8
+service.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn registerrpc
+will register a procedure
+.Fa procname
+with the RPC service package.
+If a request arrives for program
+.Fa prognum ,
+version
+.Fa versnum ,
+and procedure
+.Fa procnum ,
+.Fa procname
+is called with a pointer to its parameter(s);
+.Fa procname
+should return a pointer to its static result(s);
+.Fa inproc
+is used to decode the parameters while
+.Fa outproc
+is used to encode the results.
+This routine returns zero if the registration succeeded, \-1
+otherwise.
+.Pp
+.Sy Warning:
+remote procedures registered in this form
+are accessed using the UDP/IP transport; see
+.Fn svcudp_create
+for restrictions.
+.Pp
+.Va rpc_createerr
+is a global variable whose value is set by any RPC client creation routine
+that does not succeed.
+Use the routine
+.Fn clnt_pcreateerror
+to print the reason why.
+.Pp
+.Fn svc_destroy
+is a macro that destroys the RPC service transport handle,
+.Fa xprt .
+Destruction usually involves deallocation
+of private data structures, including
+.Fa xprt
+itself.
+Use of
+.Fa xprt
+is undefined after calling this routine.
+.Pp
+.Va svc_pollfd
+is a global variable reflecting the RPC service side's
+read file descriptor array.
+This variable is only of interest if service implementors do not call
+.Fn svc_run ,
+but rather do their own asynchronous event processing.
+This variable is read-only, and it may change after calls to
+.Fn svc_getreq_poll
+or any creation routines.
+Do not pass it directly to
+.Xr poll 2 !
+Instead, make a copy and pass that instead.
+.Pp
+.Va svc_max_pollfd
+is a global variable containing the maximum length of the
+.Va svc_pollfd
+array.
+.Va svc_max_pollfd
+is not a hard limit; it will grow automatically as needed.
+This variable is read-only, and it may change after calls to
+.Fn svc_getreq_poll
+or any creation routines.
+The purpose of
+.Va svc_max_pollfd
+is to allow a service implementor to make a copy of
+.Va svc_pollfd
+that may in turn be passed to
+.Xr poll 2 .
+.Pp
+.Va __svc_fdset
+and
+.Va __svc_fdsetsize
+are global variables reflecting the RPC service side's
+read file descriptor bit mask.
+.Va __svc_fdsetsize
+is a count of the number of checkable bits in
+.Va __svc_fdset ,
+and can expand to the full size that
+.Xr select 2
+supports, hence exceeding
+.Fa FD_SETSIZE
+if required.
+These variables are only of interest
+if service implementors do not call
+.Fn svc_run ,
+but rather do their own asynchronous event processing.
+This variable is read-only, and it may change after calls to
+.Fn svc_getreqset
+or any creation routines.
+Do not pass its address to
+.Xr select 2 !
+Instead, pass the address of a copy.
+These variables are considered obsolete; new programs should use
+.Va svc_pollfd
+and
+.Va svc_max_pollfd
+instead.
+.Pp
+.Va svc_fdset
+is similar to
+.Va __svc_fdset
+but limited to
+.Fa FD_SETSIZE
+descriptors.
+This is only of interest
+if service implementors do not call
+.Fn svc_run ,
+but rather do their own asynchronous event processing.
+This variable is read-only, and it may change after calls to
+.Fn svc_getreqset
+or any creation routines.
+Do not pass it directly to
+.Xr select 2 !
+Instead, make a copy and pass that instead.
+.Pp
+Additionally, note that if the process has descriptor limits
+which are extended beyond
+.Fa FD_SETSIZE ,
+this variable will only be usable for the first
+.Fa FD_SETSIZE
+descriptors.
+This variable is considered obsolete; new programs should use
+.Va svc_pollfd
+which does not have this limit.
+.Pp
+.Va svc_fds
+is similar to
+.Va svc_fdset ,
+but limited to 32 descriptors.
+This interface is obsoleted by
+.Va svc_fdset
+and is included for source compatibility only.
+.Pp
+.Fn svc_freeargs
+is a macro that frees any data allocated by the RPC/XDR
+system when it decoded the arguments to a service procedure
+using
+.Fn svc_getargs .
+This routine returns 1 if the results were successfully
+freed,
+and zero otherwise.
+.Pp
+.Fn svc_getargs
+is a macro that decodes the arguments of an RPC request
+associated with the RPC service transport handle,
+.Fa xprt .
+The parameter
+.Fa in
+is the address where the arguments will be placed;
+.Fa inproc
+is the XDR routine used to decode the arguments.
+This routine returns one if decoding succeeds, and zero
+otherwise.
+.Pp
+.Fn svc_getcaller
+is the approved way of getting the network address of the caller
+of a procedure associated with the RPC service transport handle,
+.Fa xprt .
+.Pp
+.Fn svc_getreq_common
+is called to handle a request on the given socket.
+It is used internally by
+.Fn svc_getreq_poll ,
+.Fn svc_getreqset ,
+.Fn svc_getreqset2 ,
+and
+.Fn svc_getreq .
+.Pp
+.Fn svc_getreq_poll
+is a routine which is only of interest if a service implementor
+does not call
+.Fn svc_run ,
+but instead implements custom asynchronous event processing.
+It is called when the
+.Xr poll 2
+system call has determined that an RPC request has arrived on some RPC
+.Fa socket(s) ;
+.Fa pollretval
+is the value returned by
+.Xr poll 2
+and
+.Fa pfds
+is the array of
+.Fa pollfd
+structures passed to
+.Xr poll 2 .
+The routine returns when all sockets described by
+.Fa pollfd
+have been serviced.
+.Pp
+.Fn svc_getreqset
+is a routine which is only of interest if a service implementor
+does not call
+.Fn svc_run ,
+but instead implements custom asynchronous event processing.
+It is called when the
+.Xr select 2
+system call has determined that an RPC request has arrived on some RPC
+.Fa socket(s) ;
+.Fa rdfds
+is the resultant read file descriptor bit mask.
+The routine returns when all sockets associated with the
+value of
+.Fa rdfds
+have been serviced.
+.Pp
+.Fn svc_getreqset2
+is a non-standard routine which is only of interest if a service
+implementor does not call
+.Fn svc_run ,
+but instead implements custom asynchronous event processing.
+It is called when the
+.Xr select 2
+system call has determined that an RPC request has arrived on some RPC
+.Fa socket(s) ;
+.Fa rdfds
+is the resultant read file descriptor bit mask.
+The routine returns when all sockets associated with the
+value of
+.Fa rdfds
+have been serviced.
+This interface is non-portable, but provided for applications which
+need to deal with large fd_set sizes.
+.Pp
+.Fn svc_getreq
+is similar to
+.Fa svc_getreqset ,
+but limited to 32 descriptors.
+This interface is obsoleted by
+.Fa svc_getreq_poll
+and
+.Fa svc_getreqset .
+.Pp
+.Fn svc_register
+associates
+.Fa prognum
+and
+.Fa versnum
+with the service dispatch procedure,
+.Fa dispatch .
+If
+.Fa protocol
+is zero, the service is not registered with the
+.Xr portmap 8
+service.
+If
+.Fa protocol
+is non-zero, then a mapping of the triple
+.Fa [ prognum , versnum , protocol ]
+to
+.Fa xprt-\*(Gtxp_port
+is established with the local
+.Xr portmap 8
+service (generally
+.Fa protocol
+is zero,
+.Dv IPPROTO_UDP
+or
+.Dv IPPROTO_TCP ) .
+The procedure
+.Fa dispatch
+has the following form:
+.Ft int
+.Fn dispatch "struct svc_req *request" "SVCXPRT *xprt"
+The
+.Fn svc_register
+routine returns one if it succeeds, and zero otherwise.
+.Pp
+.Fn svc_run
+never returns.
+It waits for RPC requests to arrive, and calls the appropriate service
+procedure using
+.Fn svc_getreq_poll
+when one arrives.
+This procedure is usually waiting for a
+.Xr poll 2
+system call to return.
+.Pp
+.Fn svc_sendreply
+is called by an RPC service's dispatch routine to send the results of a
+remote procedure call.
+The parameter
+.Fa xprt
+is the request's associated transport handle;
+.Fa outproc
+is the XDR routine which is used to encode the results; and
+.Fa out
+is the address of the results.
+This routine returns one if it succeeds, zero otherwise.
+.Pp
+.Fn svc_unregister
+removes all mapping of the double
+.Fa [ prognum , versnum ]
+to dispatch routines, and of the triple
+.Fa [ prognum , versnum , * ]
+to port number.
+.Pp
+.Fn svcerr_auth
+is called by a service dispatch routine that refuses to perform
+a remote procedure call due to an authentication error.
+.Pp
+.Fn svcerr_decode
+is called by a service dispatch routine that cannot successfully
+decode its parameters.
+See also
+.Fn svc_getargs .
+.Pp
+.Fn svcerr_noproc
+is called by a service dispatch routine that does not implement
+the procedure number that the caller requests.
+.Pp
+.Fn svcerr_noprog
+is called when the desired program is not registered with the RPC
+package.
+Service implementors usually do not need this routine.
+.Pp
+.Fn svcerr_progvers
+is called when the desired version of a program is not registered
+with the RPC package.
+Service implementors usually do not need this routine.
+.Pp
+.Fn svcerr_systemerr
+is called by a service dispatch routine when it detects a system
+error
+not covered by any particular protocol.
+For example, if a service can no longer allocate storage,
+it may call this routine.
+.Pp
+.Fn svcerr_weakauth
+is called by a service dispatch routine that refuses to perform
+a remote procedure call due to insufficient
+authentication parameters.
+The routine calls
+.Fa "svcerr_auth(xprt, AUTH_TOOWEAK)" .
+.Pp
+.Fn svcraw_create
+is a routine which creates a toy RPC
+service transport, to which it returns a pointer.
+The transport is really a buffer within the process's address space,
+so the corresponding RPC client should live in the same
+address space;
+see
+.Fn clntraw_create .
+This routine allows simulation of RPC and acquisition of RPC
+overheads (such as round trip times), without any kernel
+interference.
+This routine returns
+.Dv NULL
+if it fails.
+.Pp
+.Fn svctcp_create
+is a routine which creates a TCP/IP-based RPC
+service transport, to which it returns a pointer.
+The transport is associated with the socket
+.Fa sock ,
+which may be
+.Fa RPC_ANYSOCK ,
+in which case a new socket is created.
+If the socket is not bound to a local TCP
+port, then this routine binds it to an arbitrary port.
+Upon completion,
+.Fa xprt-\*(Gtxp_sock
+is the transport's socket descriptor, and
+.Fa xprt-\*(Gtxp_port
+is the transport's port number.
+This routine returns
+.Dv NULL
+if it fails.
+Since TCP-based RPC uses buffered I/O,
+users may specify the size of buffers; values of zero
+choose suitable defaults.
+.Pp
+.Fn svcfd_create
+will create a service on top of any open descriptor.
+Typically, this descriptor is a connected socket for a stream protocol such
+as TCP.
+.Fa sendsize
+and
+.Fa recvsize
+indicate sizes for the send and receive buffers.
+If they are zero, a reasonable default is chosen.
+.Pp
+.Fn svcudp_create
+is a routine which creates a UDP/IP-based RPC
+service transport, to which it returns a pointer.
+The transport is associated with the socket
+.Fa sock ,
+which may be
+.Fa RPC_ANYSOCK ,
+in which case a new socket is created.
+If the socket is not bound to a local UDP
+port, then this routine binds it to an arbitrary port.
+Upon completion,
+.Fa xprt-\*(Gtxp_sock
+is the transport's socket descriptor, and
+.Fa xprt-\*(Gtxp_port
+is the transport's port number.
+This routine returns
+.Dv NULL
+if it fails.
+.Pp
+.Fn svcudp_bufcreate
+is like
+.Fn svcudp_create ,
+except that it allows the user to specify the maximum packet size for sending
+and receiving UDP-based RPC
+messages instead of using the default size limit of 8800 bytes.
+.Pp
+.Fn xdr_accepted_reply
+is used for encoding RPC reply messages.
+This routine is useful for users who wish to generate RPC-style
+messages without using the RPC package.
+.Pp
+.Fn xdr_authunix_parms
+is used for describing
+.Ux
+credentials.
+This routine is useful for users
+who wish to generate these credentials without using the RPC
+authentication package.
+.Pp
+.Fn xdr_callhdr
+is used for describing RPC call header messages.
+This routine is useful for users who wish to generate RPC-style
+messages without using the RPC package.
+.Pp
+.Fn xdr_callmsg
+is used for describing RPC call messages.
+This routine is useful for users who wish to generate RPC-style
+messages without using the RPC package.
+.Pp
+.Fn xdr_opaque_auth
+is used for describing RPC authentication information messages.
+This routine is useful for users who wish to generate RPC-style
+messages without using the RPC package.
+.Pp
+.Fn xdr_pmap
+is used for describing parameters to various
+.Xr portmap 8
+procedures, externally.
+This routine is useful for users who wish to generate
+these parameters without using the pmap interface.
+.Pp
+.Fn xdr_pmaplist
+is used for describing a list of port mappings, externally.
+This routine is useful for users who wish to generate
+these parameters without using the pmap interface.
+.Pp
+.Fn xdr_rejected_reply
+is used for describing RPC reply messages.
+This routine is useful for users who wish to generate RPC-style
+messages without using the RPC package.
+.Pp
+.Fn xdr_replymsg
+is used for describing RPC reply messages.
+This routine is useful for users who wish to generate RPC-style
+messages without using the RPC package.
+.Pp
+.Fn xprt_register
+is used to register transport handles.
+After RPC service transport handles are created,
+they should register themselves with the RPC service package.
+This routine modifies the global variables
+.Va svc_pollfd ,
+.Va svc_fdset ,
+.Va __svc_fdset
+and may modify
+.Va svc_max_pollfd
+and
+.Va __svc_fdsetsize .
+Service implementors usually do not need this routine.
+.Pp
+.Fn xprt_unregister
+is used to unregister a transport handle.
+Before an RPC service transport handle is destroyed,
+it should unregister itself with the RPC service package.
+This routine modifies the global variable
+.Va svc_pollfd ,
+.Va svc_fdset ,
+and
+.Va __svc_fdset .
+Service implementors usually do not need this routine.
+.Sh SEE ALSO
+.\"Xr rpc_secure 3 ,
+.Xr rpcgen 1 ,
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr authnone_create 3 ,
+.Xr getrpcent 3 ,
+.Xr getrpcport 3 ,
+.Xr xdr 3 ,
+.Xr rpc 5 ,
+.Xr portmap 8
+.Rs
+.%Q Sun Microsystems, Inc.
+.%T Remote Procedure Calls: Protocol Specification
+.Re
+.Rs
+.%Q Sun Microsystems, Inc.
+.%T Remote Procedure Call Programming Guide
+.Re
+.Rs
+.%Q Sun Microsystems, Inc.
+.%T rpcgen Programming Guide
+.Re
+.Sh STANDARDS
+.Rs
+.%D June 1988
+.%Q Sun Microsystems, Inc.
+.%R RFC 1057
+.%T RPC: Remote Procedure Call Protocol Specification Version 2
+.Re

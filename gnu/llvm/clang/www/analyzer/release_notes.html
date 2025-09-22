@@ -1,0 +1,382 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <title>Release notes for checker-XXX builds</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+  <script type="text/javascript" src="scripts/menu.js"></script>
+</head>
+<body>
+
+<div id="page">
+<!--#include virtual="menu.html.incl"-->
+<div id="content">
+
+<h1>Release notes for <tt>checker-XXX</tt> builds</h1>
+<h4 id="checker_279">checker-279</h4>
+<p><b>built:</b> November 14, 2016</br>
+	<b>download:</b> <a href="downloads/checker-279.tar.bz2">checker-279.tar.bz2</a></p>
+	<p><b>highlights:</b></p>
+	<ul>
+    <li>The analyzer includes new checks for:
+      <ul>
+        <li>Improper instance cleanup up in Objective-C -dealloc methods under manual retain/release.</li>
+        <li>Inadvertent comparisons of NSNumber, CFNumberRef, and other number object pointers against scalar values.</li>
+        <li>Unsafe usage of dispatch_once_t predicates stored in Objective-C instance variables and other heap-allocated memory.</li>
+        <li>Issues resulting from self-assignment in C++.</li>
+        <li>Incorrect usage of MPI APIs in C and C++. This check can be enabled by passing the following command to scan-build: <br />
+  &nbsp;&nbsp;<tt>-enable-checker optin.mpi.MPI-Checker</tt></li>
+    </ul>
+    <li>The scan-build tool now supports a <tt>--force-analyze-debug-code flag</tt> that forces projects to analyze in debug mode. This flag leaves in assertions and so typically results in fewer false positives.</li>
+    <li>Additional miscellaneous improvements.</li>
+    <li>Now requires macOS 10.8 or later.</li>
+	</ul>
+
+<h4 id="checker_278">checker-278</h4>
+<p><b>built:</b> February 5, 2016</br>
+	<b>download:</b> <a href="downloads/checker-278.tar.bz2">checker-278.tar.bz2</a></p>
+	<p><b>highlights:</b></p>
+	<ul>
+    <li>Greatly improves analysis of C++ lambdas, including interprocedural analysis of lambda applications and reduced 'dead store'
+        false positives for variables captured by reference.</li>
+    <li>The analyzer now checks for misuse of 'vfork()'. This check is enabled by default.</li>
+    <li>The analyzer can now detect excessively-padded structs. This check can be enabled by passing the following
+        command to scan-build:<br />
+  &nbsp;&nbsp;<tt>-enable-checker optin.performance.Padding</tt> </li>
+    <li>The checks to detect misuse of <tt>_Nonnull</tt> are now enabled by default.</li>
+    <li>The checks to detect misuse of Objective-C generics are now enabled by default.</li>
+    <li>Many miscellaneous improvements.</li>
+	</ul>
+
+<h4 id="checker_277">checker-277</h4>
+<p><b>built:</b> October 28, 2015</br>
+	<b>download:</b> <a href="downloads/checker-277.tar.bz2">checker-277.tar.bz2</a></p>
+	<p><b>highlights:</b></p>
+	<ul>
+    <li>Includes about 20 months of change to Clang itself.</li>
+    <li>New checker for C++ leaks is turned on by default.</li>
+    <li>Added various small checks and bug fixes.</li>
+    <li>Added experimental checkers for Objective-C:</li>
+    <ul>
+        <li>New localizability checks:
+        <ul>
+            <li>Checker warning about uses of non-localized <tt>NSString</tt>s passed to UI methods expecting localized strings.</li>
+            <li>Checker warning when the comment argument is missing from <tt>NSLocalizedString</tt> macros.</li>
+            <li>These can be enabled by passing the following command to <tt>scan-build</tt>:
+<br />
+  &nbsp;&nbsp;<tt>-enable-checker alpha.osx.cocoa.NonLocalizedStringChecker,alpha.osx.cocoa.EmptyLocalizationContextChecker</tt>
+</li>
+        </ul>
+        </li>
+        <li>New checks for <tt>_Nonnull</tt> type qualifiers. These can be enabled with:
+<br />
+  &nbsp;&nbsp;<tt>-enable-checker nullability.NullPassedToNonnull,nullability.NullReturnedFromNonnull</tt></li>
+        <li>New checks for misuse of Objective-C generics. These can be enabled with <tt>-enable-checker alpha.osx.cocoa.ObjCGenerics</tt>.</li>
+    </ul>
+    <li>Support for <tt>cf_returns_retained</tt> and <tt>cf_returns_not_retained</tt> attributes in out-parameters.</li>
+    <li>The analyzer now creates one state for a range switch case instead of multiple, resulting in performance improvements.</li>
+    <li>Now requires OS X 10.7 or later.
+	</ul>
+
+<h4 id="checker_276">checker-276</h4>
+<p><b>built:</b> February 19, 2014</br>
+	<b>download:</b> <a href="downloads/checker-276.tar.bz2">checker-276.tar.bz2</a></p>
+	<p><b>highlights:</b></p>
+	<ul>
+    <li>Includes about 9 months of change to Clang itself (improved C++11/14 support, etc.)</li>
+    <li>More precise modeling of Objective-C properties, which enables the analyzer to find more bugs.</li>
+    <li>Includes a new "missing call to <tt>super</tt>" warning, which looks for common pattern in iOS/OSX APIs that require chaining a call to a super class's implementation of a method.</li>
+    <li>Accepts <tt>-arch arm64</tt> (which may be passed by Xcode 5.0), but for the time being analyzes code in such cases as <tt>-arch armv7s</tt>.</li>
+    <li>Many sundry fixes, improvements to C++ support, etc.</li>
+	</ul>
+
+<h4 id="checker_275">checker-275</h4>
+<p><b>built:</b> May 23, 2013</br>
+	<b>download:</b> <a href="downloads/checker-275.tar.bz2">checker-275.tar.bz2</a></p>
+	<p><b>highlights:</b></p>
+	<ul>
+    <li>Xcode: Includes a new arrow layout algorithm for issue presentation within Xcode.  The goal is for interprocedural bug reports to look cleaner and less busy (and easier to read).  Feedback appreciated.</li>
+    <li>Xcode: Bugs that occur within header code (e.g., C++) are now reported within the callers in the main source file.  For example, if you misuse a C++ function declared in a header the primary diagnostic will be in the caller (in the main source file).  The full expanded path, however, will show the bug in the header code as well.  These kind of cross-file issues are currently only support by Xcode, not the HTML output.</li>
+    <li>This build is built with LLVM's Link-Time Optimization (LTO), which should make it slightly faster.</li>
+    <li>LTO also reduces the download size (about 19% smaller than checker-274).</li>
+    <li>Many sundry fixes.</li>
+	</ul>
+
+<h4 id="checker_274">checker-274</h4>
+<p><b>built:</b> April 23, 2013</br>
+	<b>download:</b> <a href="https://attache.apple.com/AttacheWeb/dl?id=ATCdb3165f4406a4589b5878a22494c3b79">checker-274.tar.bz2</a></p>
+	<p><b>highlights:</b></p>
+	<ul>
+    <li>Improved use-after-free and mismatched deallocator checking.</li>
+    <li>Diagnostic polish.</li>
+    <li>Fixes crashes found in checker-273.</li>
+	</ul>
+
+<h4 id="checker_273">checker-273</h4>
+<p><b>built:</b> April 8, 2013</br>
+	<b>download:</b> <a href="https://attache.apple.com/AttacheWeb/dl?id=ATCdefcc852a99546cfbaba2a960e07478e">checker-273.tar.bz2</a></p>
+	<p><b>highlights:</b></p>
+	<ul>
+    <li>Additional checks for misuse of Foundation collection APIs.
+    <li>New C++ checker for attempting to create a reference to null.</li>
+    <li>New use-after-free checker for C++ 'delete'.</li>
+    <li>New checker for simple cases of mismatched allocators and deallocators, e.g. "delete malloc(4);"</li>
+    <li>Support for basic interprocedural analysis of C++ destructors.</li>
+    <li>Additional heuristics for suppressing null pointer false positives.</li>
+    <li>Misc. bug fixes and performance enhancements.</li>
+	</ul>
+
+<h4 id="checker_272">checker-272</h4>
+<p><b>built:</b> March 1, 2013</p>
+	<p><b>highlights:</b></p>
+	<ul>
+        <li>Better modeling of C++ constructors:
+            <ul>
+                <li>Interprocedural analysis support for constructors of types with trivial destructors</li>
+                <li>Efficient model of trivial copy and move constructors</li>
+            </ul>
+        </li>
+        <li>Better diagnostics for loops that execute 0 times</li>
+        <li>Fixes a linking issue that prevented the checker from running on OS X v10.6 and earlier</li>
+        <li>Fixes for misc. crashes and false positives</li>
+	</ul>
+
+<h4 id="checker_271">checker-271</h4>
+<p><b>built:</b> February 8, 2013</p>
+	<p><b>highlights:</b></p>
+	<ul>
+        <li>Faster analysis for <tt>scan-build xcodebuild</tt> when using Xcode 4.6 and higher:
+            <ul>
+                <li><tt>scan-build</tt> now uses Xcode's built-in interposition mechanism for the static analyzer to provide faster builds while doing static analysis (PCH files are now built).</li>
+                <li>This change also allows <tt>scan-build</tt> to have better support for iOS project analysis without having to specifying weird SDK settings to <tt>scan-build</tt>.</li>
+            </ul></li>
+        <li>Better diagnostics for implicitly-defined member functions in C++.</li>
+        <li>New warning for <tt>malloc</tt>/<tt>free</tt> checker when passing <tt>malloc</tt>'ed pointer with non-zero offset to <tt>free()</tt>.
+        <li>Fixes for misc. parser crashes.</li>
+        <li>Newer than the static analyzer version in Xcode 4.6</li>
+	</ul>
+
+<h4 id="checker_270">checker-270</h4>
+<p><b>built:</b> January 4, 2013</p>
+	<p><b>highlights:</b></p>
+	<ul>
+		<li>Major performance enhancements to speed up interprocedural analysis.</li>
+		<li>Misc. bug fixes.</li>
+	</ul>
+
+<h4 id="checker_269">checker-269</h4>
+<p><b>built:</b> September 25, 2012</p>
+	<p><b>highlights:</b></p>
+	<ul>
+		<li>Significantly improves interprocedural analysis for Objective-C.</li>
+		<li>Numerous bug fixes and heuristics to reduce false positives reported
+			over checker-268.</li>
+	</ul>
+
+<h4 id="checker_268">checker-268</h4>
+<p><b>built:</b> September 11, 2012</p>
+	<p><b>highlights:</b></p>
+
+<ul>
+	<li>Adds initial interprocedural analysis support for C++ and Objective-C. This will greatly improve analysis coverage and find deeper bugs in Objective-C and C++ code.</li>
+	<li>Contains a static analyzer newer than Xcode 4.4.</li>
+</ul>
+
+<p>NOTE: this checker build includes a <i>huge</i> number of changes. It has the potential to find many more bugs, but may report new kinds of false positives. We'd like to know about
+these, and any other problems you encounter. When you encounter an issue, please <a href="/filing_bugs.html">file a bug report</a>.</p>
+
+<h4 id="checker_267">checker-267</h4>
+<p><b>built:</b> June 1, 2012</p>
+   <p><b>highlights:</b></p>
+
+<p>Adds basic interprocedural analysis support for blocks.</p>
+
+<h4 id="checker_266">checker-266</h4>
+<p><b>built:</b> May 23, 2012</p>
+   <p><b>highlights:</b></p>
+
+<p>Contains numerous stability fixes over checker-266, especially when analyzing C++11 code.</p>
+
+<h4 id="checker_265">checker-265</h4>
+<p><b>built:</b> May 8, 2012</p>
+   <p><b>highlights:</b></p>
+
+<p>This release contains a fix for a major crasher introduced in checker-264, and various refinements to
+improve the precision and reduce the false positive rate of the analyzer. It also enables a new unix.MallocSizeof check, which reports
+inconsistencies between the casted type of the return value of a 'malloc/calloc/realloc' call and the operand
+of sizeof expressions contained within its argument(s).</p>
+
+<h4 id="checker_264">checker-264</h4>
+
+<p><b>built:</b> April 26, 2012</p>
+  <p><b>highlights:</b></p>
+
+<p>This release contains misc. bug fixes and performance enhancements over checker-263, including
+  a reduction of some kinds of false positives related to the malloc() checker.</p>
+
+<h4 id="checker_263">checker-263</h4>
+
+<p><b>built:</b> March 22, 2012</p>
+<p><b>highlights:</b></p>
+
+<ul>
+<li>Fixes several serious bugs with inter-procedural analysis, including a case where retain/releases would be &quot;double-counted&quot;.</li>
+</ul>
+
+<h4 id="checker_262">checker-262</h4>
+
+<p><b>built: </b>March 15, 2012</p>
+<p><b>highlights:</b></p>
+
+<ul>
+  <li>Enables experimental interprocedural analysis (within a file), which greatly amplifies the analyzer's ability to find issues.</li>
+  <li>Many bug fixes to the malloc/free checker.</li>
+  <li>Support for new Objective-C NSArray/NSDictionary/NSNumber literals syntax, and Objective-C container subscripting.</li>
+</ul>
+
+<p>NOTE: This build contains new interprocedural analysis that allows the analyzer to find more complicated bugs that span function boundaries.  It may have problems, performance issues, etc.  We'd like to <a href="/filing_bugs.html">hear about them</a>.
+
+<h4 id="checker_261">checker-261</h4>
+
+<p><b>built: </b>February 22, 2012<br>
+<p><b>highlights:</b></p>
+
+<ul>
+  <li>Contains a new experimental malloc/free checker.</li>
+  <li>Better support for projects using ARC.</li>
+  <li>Warns about null pointers passed as arguments to C string functions.</li>
+  <li>Warns about common anti-patterns in 'strncat' size argument, which can lead to buffer overflows.</li>
+  <li>set-xcode-analyzer now supports self-contained Xcode.app (Xcode 4.3 and later).</li>
+  <li>Contains a newer version of the analyzer than Xcode 4.3.</li>
+  <li>Misc. bug fixes and performance work.</li>
+</ul>
+
+<h4 id="checker_260">checker-260</h4>
+
+<p><b>built: </b>January 25, 2012<br>
+<p><b>highlights:</b></p>
+
+<p>This is essentially the same as checker-259, but enables the following <i>experimental</i> checkers (please provide feedback):</p>
+
+<ul>
+  <li>Warns about unsafe uses of CFArrayCreate, CFSetCreate, and CFDictionaryCreate</li>
+  <li>Warns about unsafe uses of getpw, gets, which are sources of buffer overflows</li>
+  <li>Warns about unsafe uses of mktemp and mktemps, which can lead to insecure temporary files</li>
+  <li>Warns about unsafe uses of vfork, which is <a href="https://www.securecoding.cert.org/confluence/display/seccode/POS33-C.+Do+not+use+vfork()">insecure</a> to use</li>
+  <li>Warns about not checking the return values of setuid, setgid, seteuid, setegid, setreuid, setregid (another security issue)</li>
+</ul>
+
+<h4 id="checker_259">checker-259</h4>
+
+<p><b>built: </b>January 25, 2012<br>
+<p><b>highlights:</b></p>
+
+<ul>
+  <li>Contains a newer version of the analyzer than the one shipped in Xcode 4.2.</li>
+  <li>Significant performance optimizations to reduce memory usage of the analyzer.</li>
+  <li>Tweaks to scan-build to have it work more easily with Xcode projects using Clang.</li>
+  <li>Numerous bug fixes to better support code using ARC.</li>
+</ul>
+
+<h4 id="checker_258">checker-258</h4>
+
+<p><b>built: </b>October 13, 2011<br>
+<p><b>highlights:</b></p>
+
+<ul>
+  <li>Contains a newer version of the analyzer than the one shipped in Xcode 4.2.</li>
+  <li>Adds a new security checker for looking at correct uses of the Mac OS KeyChain API.</li>
+  <li>Supports ARC (please file bugs where you see issues)</li>
+  <li>Major under-the-cover changes.  This should result in more precise results in some cases, but this is laying the groundwork for major improvements.  Please file bugs where you see regressions or issues.</li>
+</ul>
+
+<h4 id="checker_257">checker-257</h4>
+
+<p><b>built: </b>May 25, 2011<br>
+<p><b>highlights:</b></p>
+
+<ul>
+  <li>The analyzer is now far more aggressive with checking conformance with Core Foundation conventions.  Any function that returns a CF type must now obey the Core Foundation naming conventions, or use the <a href="/annotations.html#attr_cf_returns_retained">cf_returns_retained</a> or <a href="/annotations.html#attr_cf_returns_not_retained">cf_returns_not_retained</a> annotations.</li>
+  <li>Fixed a serious regression where the analyzer would not analyze Objective-C methods in class extensions.</li>
+  <li>Misc. bug fixes to improve analyzer precision.
+  </li>
+</ul>
+
+<h4 id="checker_256">checker-256</h4>
+
+<p><b>built: </b>April 13, 2011<br>
+<p><b>highlights:</b></p>
+
+<ul>
+  <li>Lots of bug fixes and improvements to analyzer precision (fewer false positives, possibly more bugs found).
+  <li>Introductory analysis support for C++ and Objective-C++.
+</ul>
+
+<p>This build contains basic support for C++ and Objective-C++ that is ready to be tried out
+  by general users.  It is still in its infancy, but establishes a baseline for things to come.  The main hope is that it can find some
+  issues and have a reasonable false positive rate.</p>
+
+<p><b>Please</b> <a href="/filing_bugs.html">file bugs</a> when you see issues of any kind so we can assess
+  where development on C++ analysis support needs to be focused.</p>
+
+<p>To try out C++ analysis support, it should work out of the box using <tt>scan-build</tt>.  If you are using this checker build
+  as a replacement to the analyzer bundled with Xcode, first use the <tt>set-xcode-analyzer</tt> script to <a href="/xcode.html">change Xcode to use
+  your version of the analyzer</a>.  You will then need to modify one configuration file in Xcode to enable C++ analysis support.  This can
+  be done with the following steps:</p>
+
+<ol>
+  <li>Find the clang .xcspec file:
+<pre>$ cd /Developer/Library
+$ find . | grep xcspec | grep Clang
+./Xcode/<b>&lt;SNIP&gt;</b>/Clang LLVM 1.0.xcplugin/Contents/Resources/Clang LLVM 1.0.xcspec
+</pre></li>
+  <li>The exact location of the file may vary depending on your installation of Xcode.  Edit that file, and look for the string &quot;--analyze&quot;:
+<pre>
+  SourceFileOption = "--analyze";
+  FileTypes = (
+      "sourcecode.c.c",
+      "sourcecode.c.objc",
+  );
+  ...
+</pre>
+  Change the &quot;FileTypes&quot; entry to:
+<pre>
+  FileTypes = (
+      "sourcecode.c.c",
+      "sourcecode.c.objc",
+      "sourcecode.cpp.cpp",
+      "sourcecode.cpp.objcpp",
+  );
+</pre></li>
+<li>Restart Xcode.</li>
+</ol>
+
+<h4 id="checker_255">checker-255</h4>
+
+<p><b>built: </b> February 11, 2011<br>
+<p><b>highlights:</b></p>
+
+<ul>
+<li>Mac OS X builds are now Intel <tt>i386</tt> and <tt>x86_64</tt> only (no <tt>ppc</tt> support)</li>
+<li>Turns on new <tt>-init</tt> method checker by default</li>
+<li>Reduces memory usage of analyzer by 10%</li>
+<li>Misc. fixes to reduce false positives on dead stores and idempotent operations.</li>
+</ul>
+
+<h4 id="checker_254">checker-254</h4>
+
+<p><b>built: </b> January 27, 2011<br>
+<p><b>highlights:</b></p>
+
+<ul>
+<li>Introduces new <tt>-init</tt> method checker to check if a super class's init method is properly called.</li>
+<li>Objective-C retain/release checker now reasons about calls to property accessor methods (setter/getter).</li>
+<li>Introduces new attribute <a href="annotations.html#attr_ns_consumes_self">ns_consumes_self</a> to educate the Objective-C retain/release checker about custom &quot;init-like&quot; methods that do not follow the standard Cocoa naming conventions.</li>
+<li>Introduces new attributes <a href="annotations.html#attr_ns_consumed">ns_consumed</a> and <a href="annotations.html#attr_cf_consumed">cf_consumed</a> to educate the Objective-C retain/release checker about methods/functions that decrement the reference count of a parameter.</li>
+</ul>
+
+</div>
+</div>
+</body>
+</html>

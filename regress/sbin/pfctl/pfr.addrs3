@@ -1,0 +1,17 @@
+# load balancing addresses
+
+# some unroutables
+127.0.0.1 weight 1000 192.168/16 172.16/12 10/8 
+
+# some IPv6 addresses
+::5 weight 10 fe80::/16 2000::1 weight 1 ::4 weight 6
+
+# interfaces
+lo0 lo0/24 lo0:network
+
+# name resolution
+localhost weight 2
+
+1.1.1.1 weight 10   # comment may appear...
+2.2.2.2 weight 7  # after addresses too.
+3.3.3.3 weight 6

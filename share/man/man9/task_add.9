@@ -1,0 +1,237 @@
+.\"	$OpenBSD: task_add.9,v 1.23 2022/06/22 14:10:49 visa Exp $
+.\"
+.\" Copyright (c) 2013 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 22 2022 $
+.Dt TASK_ADD 9
+.Os
+.Sh NAME
+.Nm taskq_create ,
+.Nm taskq_destroy ,
+.Nm taskq_barrier ,
+.Nm taskq_del_barrier ,
+.Nm task_set ,
+.Nm task_add ,
+.Nm task_del ,
+.Nm task_pending ,
+.Nm TASK_INITIALIZER
+.Nd task queues
+.Sh SYNOPSIS
+.In sys/task.h
+.Ft struct taskq *
+.Fo taskq_create
+.Fa "const char *name"
+.Fa "unsigned int nthreads"
+.Fa "int ipl"
+.Fa "unsigned int flags"
+.Fc
+.Ft void
+.Fn taskq_destroy "struct taskq *tq"
+.Ft void
+.Fn taskq_barrier "struct taskq *tq"
+.Ft void
+.Fn taskq_del_barrier "struct taskq *tq" "struct task *t"
+.Ft void
+.Fn task_set "struct task *t" "void (*fn)(void *)" "void *arg"
+.Ft int
+.Fn task_add "struct taskq *tq" "struct task *t"
+.Ft int
+.Fn task_del "struct taskq *tq" "struct task *t"
+.Ft int
+.Fn task_pending "struct task *t"
+.Vt extern struct taskq *const systq;
+.Vt extern struct taskq *const systqmp;
+.Fn TASK_INITIALIZER "void (*fn)(void *)" "void *arg"
+.Sh DESCRIPTION
+The
+taskq
+API provides a mechanism to defer work to a process context.
+.Pp
+.Fn taskq_create
+allocates a taskq and a set of threads to be used to complete work
+that would be inappropriate for the shared system taskq.
+The
+.Fa name
+argument specifies the name of the kernel threads that are created
+to service the work on the taskq.
+.Fa nthreads
+specifies the number of threads that will be created to handle the work.
+.Fa ipl
+specifies the highest interrupt protection level at which
+.Fn task_add
+and
+.Fn task_del
+will be called against the created taskq.
+See
+.Xr spl 9
+for a list of the IPLs.
+The operational characteristics of the taskq
+can be altered by OR'ing the following defines into the
+.Fa flags
+argument:
+.Bl -tag -width xxx -offset indent
+.It Dv TASKQ_MPSAFE
+The threads servicing the taskq will be run without the kernel big lock.
+.El
+.Pp
+.Fn taskq_destroy
+causes the resources associated with a previously created taskq to be freed.
+It will wait till all the tasks in the work queue are completed before
+returning.
+Calling
+.Fn taskq_destroy
+against the system taskq is an error and will lead to undefined
+behaviour or a system fault.
+.Pp
+.Fn taskq_barrier
+guarantees that any task that was running on the
+.Fa tq
+taskq when the barrier was called has finished by the time the barrier
+returns.
+.Pp
+.Fn taskq_del_barrier
+either removes
+.Fa t
+from the list of pending tasks on the
+.Fa tq
+taskq, or waits until any running task has completed.
+.Pp
+The caller of
+.Fn taskq_barrier
+or
+.Fn taskq_del_barrier
+must not hold locks that can block the taskq.
+Otherwise, the system will deadlock.
+.Pp
+It is the responsibility of the caller to provide the
+.Fn task_set ,
+.Fn task_add ,
+and
+.Fn task_del
+functions with pre-allocated task structures.
+.Pp
+.Fn task_set
+prepares the task structure
+.Fa t
+to be used in future calls to
+.Fn task_add
+and
+.Fn task_del .
+.Fa t
+will be prepared to call the function
+.Fa fn
+with the argument specified by
+.Fa arg .
+Once initialised, the
+.Fa t
+structure can be used repeatedly in calls to
+.Fn task_add
+and
+.Fn task_del
+and does not need to be reinitialised unless the function called
+and/or its argument must change.
+.Pp
+.Fn task_add
+schedules the execution of the work specified by the
+task structure
+.Fa t
+on the
+.Fa tq
+taskq.
+The task structure must already be initialised by
+.Fn task_set .
+.Pp
+.Fn task_del
+will remove the task structure
+.Fa t
+from the taskq
+.Fa tq .
+If the work was already executed or has not been added to the taskq,
+the call will have no effect.
+Calling
+.Fn task_del
+against a different taskq than the one given in a previous call to
+.Fn task_add
+is an error and will lead to undefined behaviour.
+.Pp
+The kernel provides two system taskqs:
+.Va systq ,
+which executes while holding the kernel lock, and
+.Va systqmp ,
+which does not hold the kernel lock during execution.
+They can both be used by any subsystem for short lived tasks.
+They are serviced by a single thread and can therefore provide predictable
+ordering of work.
+Work can be scheduled on the system taskqs from callers at or below IPL_HIGH.
+.Pp
+The
+.Fn task_pending
+macro can be used to check if a task is scheduled to run.
+.Pp
+A task declaration can be initialised with the
+.Fn TASK_INITIALIZER
+macro.
+The task will be prepared to call the function specified by the
+.Fa fn
+argument with the
+.Fa void *
+argument given in
+.Fa arg .
+.Sh CONTEXT
+.Fn taskq_create
+and
+.Fn taskq_destroy
+can be called during autoconf, or from process context.
+.Fn taskq_barrier
+and
+.Fn taskq_del_barrier
+can be called from process context.
+.Fn task_set ,
+.Fn task_add ,
+.Fn task_del ,
+and
+.Fn task_pending
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn taskq_create
+returns a pointer to a taskq structure on success or
+.Dv NULL
+on failure.
+.Pp
+.Fn task_add
+will return 1 if the task
+.Fa t
+was added to the taskq
+.Fa tq
+or 0 if the task was already queued.
+.Pp
+.Fn task_del
+will return 1 if the task
+.Fa t
+was removed from the taskq
+.Fa tq
+or 0 if the task was not already on the queue.
+.Pp
+.Fn task_pending
+will return non-zero if the task is queued to run, or 0 if the task
+is not queued.
+.Sh SEE ALSO
+.Xr autoconf 9 ,
+.Xr spl 9
+.Sh HISTORY
+The task API was originally written by
+.An David Gwynne Aq Mt dlg@openbsd.org .
+The task API first appeared in
+.Ox 5.5 .

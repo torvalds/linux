@@ -1,0 +1,3 @@
+memcpy-6.c: In function 'main':
+memcpy-6.c:6: warning: array size (32) smaller than bound length (40)
+memcpy-6.c:6: warning: array size (32) smaller than bound length (40)

@@ -1,0 +1,43 @@
+# lib1funcs.asm is currently empty.
+CROSS_LIBGCC1 =
+
+# These are really part of libgcc1, but this will cause them to be
+# built correctly, so...
+
+LIB2FUNCS_EXTRA = fp-bit.c dp-bit.c
+
+# Turn off the SDA while compiling libgcc2.  There are no headers for it
+# and we want maximal upward compatibility here.
+
+TARGET_LIBGCC2_CFLAGS = -G 0 -fPIC
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+# We need to use -fpic when we are using gcc to compile the routines in
+# initfini.c.  This is only really needed when we are going to use gcc/g++
+# to produce a shared library, but since we don't know ahead of time when
+# we will be doing that, we just always use -fpic when compiling the
+# routines in initfini.c.
+# -fpic currently isn't supported for the m32r.
+
+CRTSTUFF_T_CFLAGS_S = -fPIC
+
+
+# Don't run fixproto
+STMP_FIXPROTO =
+ 
+# Don't install "assert.h" in gcc. We use the one in glibc.
+INSTALL_ASSERT_H =
+ 
+# Do not build libgcc1. Let gcc generate those functions. The GNU/Linux
+# C library can handle them.
+LIBGCC1 = 
+CROSS_LIBGCC1 =
+LIBGCC1_TEST =
+
+SHLIB_MAPFILES += $(srcdir)/config/m32r/libgcc-glibc.ver

@@ -1,0 +1,11 @@
+executable("arcmt-test") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/ARCMigrate",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "arcmt-test.cpp" ]
+}

@@ -1,0 +1,2 @@
+md-5.c: In function 'main':
+md-5.c:17: warning: array size (32) is smaller than minimum required (41)

@@ -1,0 +1,128 @@
+#!/usr/bin/perl
+# -*- perl -*-
+
+#   Copyright (C) 2001
+#   Free Software Foundation
+#
+# This file is part of the libiberty library.
+# Libiberty is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# Libiberty is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU Library General Public
+# License along with libiberty; see the file COPYING.LIB.  If not,
+# write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+# Boston, MA 02110-1301, USA.
+#
+# Originally written by DJ Delorie <dj@redhat.com>
+
+
+
+# This program looks for texinfo snippets in source files and other
+# files, and builds per-category files with entries sorted in
+# alphabetical order.
+
+# The syntax it looks for is lines starting with '@def' in *.c and
+# other files (see TEXIFILES in Makefile.in).  Entries are terminated
+# at the next @def* (which begins a new entry) or, for C files, a line
+# that begins with '*/' without leading spaces (this assumes that the
+# texinfo snippet is within a C-style /* */ comment).
+
+# 
+
+
+
+if ($ARGV[0] eq "-v") {
+    $verbose = 1;
+    shift;
+}
+
+$srcdir = shift;
+$outfile = shift;
+
+if ($outfile !~ /\S/ || ! -f "$srcdir/Makefile.in" ) {
+    print STDERR "Usage: gather-docs [-v] srcdir outfile.txi [files with snippets in them ...]\n";
+    exit 1;
+}
+
+$errors = 0;
+
+for $in (@ARGV) {
+
+    if (!open(IN, "$srcdir/$in")) {
+	print STDERR "Cannot open $srcdir/$in for reading: $!\n";
+	$errors ++;
+
+    } else {
+	$first = 1;
+	$pertinent = 0;
+	$man_mode = 0;
+	$line = 0;
+
+	while (<IN>) {
+	    $line ++;
+	    $pertinent = 1 if /^\@def[a-z]*[a-wyz] /;
+	    $pertinent = 0 if /^\*\//;
+	    next unless $pertinent;
+
+	    if (/^\@def[a-z]*[a-wyz] /) {
+		
+		($name) = m/[^\(]* ([^\( \t\r\n]+) *\(/;
+		$name =~ s/[ 	]*$//;
+		$key = $name;
+		$key =~ tr/A-Z/a-z/;
+		$key =~ s/[^a-z0-9]+/ /g;
+		$name{$key} = $node;
+		$lines{$key} = '';
+		$src_file{$key} = $in;
+		$src_line{$key} = $line;
+		print "\nReading $in :" if $verbose && $first;
+		$first = 0;
+		print " $name" if $verbose;
+		$node_lines{$key} .= $_;
+
+	    } else {
+		$node_lines{$key} .= $_;
+	    }
+
+	    $pertinent = 0 if /^\@end def/;
+	}
+	close (IN);
+    }
+}
+
+print "\n" if $verbose;
+exit $errors if $errors;
+
+if (!open (OUT, "> $outfile")) {
+    print STDERR "Cannot open $outfile for writing: $!\n";
+    $errors ++;
+    next;
+}
+print "Writing $outfile\n" if $verbose;
+
+print OUT "\@c Automatically generated from *.c and others (the comments before\n";
+print OUT "\@c each entry tell you which file and where in that file).  DO NOT EDIT!\n";
+print OUT "\@c Edit the *.c files, configure with --enable-maintainer-mode,\n";
+print OUT "\@c and let gather-docs build you a new copy.\n\n";
+
+for $key (sort keys %name) {
+    print OUT "\@c $src_file{$key}:$src_line{$key}\n";
+    print OUT $node_lines{$key};
+    print OUT "\n";
+}
+
+if (! print OUT "\n") {
+    print STDERR "Disk full writing $srcdir/$cat.texi\n";
+    $errors ++;
+}
+
+close (OUT);
+
+exit $errors;

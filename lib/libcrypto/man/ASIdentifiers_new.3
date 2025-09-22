@@ -1,0 +1,139 @@
+.\" $OpenBSD: ASIdentifiers_new.3,v 1.12 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASIDENTIFIERS_NEW 3
+.Os
+.Sh NAME
+.Nm ASIdentifiers_new ,
+.Nm ASIdentifiers_free ,
+.Nm d2i_ASIdentifiers ,
+.Nm i2d_ASIdentifiers
+.Nd RFC 3779 autonomous system identifier delegation extensions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft ASIdentifiers *
+.Fo ASIdentifiers_new
+.Fa "void"
+.Fc
+.Ft void
+.Fo ASIdentifiers_free
+.Fa "ASIdentifiers *asid"
+.Fc
+.Ft ASIdentifiers *
+.Fo d2i_ASIdentifiers
+.Fa "ASIdentifiers **asid"
+.Fa "const unsigned char **in"
+.Fa "long len"
+.Fc
+.Ft int
+.Fo i2d_ASIdentifiers
+.Fa "ASIdentifiers *asid"
+.Fa "unsigned char **out"
+.Fc
+.Sh DESCRIPTION
+RFC 3779 defines two X.509v3 certificate extensions that allow the
+delegation of
+IP addresses and autonomous system (AS) identifiers
+from the issuer to the subject of the certificate.
+An
+.Vt ASIdentifiers
+object contains collections of individual AS numbers and
+ranges of AS numbers to be delegated.
+.Pp
+.Fn ASIdentifiers_new
+allocates and initializes a new, empty
+.Vt ASIdentifiers
+object that can be populated with
+.Xr X509v3_asid_add_id_or_range 3 .
+See
+.Xr ASRange_new 3
+for implementation details.
+.Pp
+.Fn ASIdentifiers_free
+frees
+.Fa asid
+including any data contained in it.
+If
+.Fa asid
+is
+.Dv NULL ,
+no action occurs.
+.Pp
+.Fn d2i_ASIdentifiers
+and
+.Fn i2d_ASIdentifiers
+decode and encode ASN.1
+.Vt ASIdentifiers
+objects as defined in RFC 3779, section 3.2.3.1.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+In order for the encoding produced by
+.Fn i2d_ASIdentifiers
+to conform to RFC 3779,
+.Fa asid
+must be in
+.Dq canonical form ,
+see
+.Xr X509v3_asid_canonize 3 .
+.Sh RETURN VALUES
+.Fn ASIdentifiers_new
+returns a new
+.Vt ASIdentifiers
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn d2i_ASIdentifiers
+returns an
+.Vt ASIdentifiers
+object or
+.Dv NULL
+if a decoding or memory allocation error occurs.
+.Pp
+.Fn i2d_ASIdentifiers
+returns the number of bytes successfully encoded
+or a value <= 0 if an error occurs.
+.Sh SEE ALSO
+.Xr ASRange_new 3 ,
+.Xr crypto 3 ,
+.Xr IPAddressRange_new 3 ,
+.Xr X509_new 3 ,
+.Xr X509v3_addr_add_inherit 3 ,
+.Xr X509v3_addr_get_range 3 ,
+.Xr X509v3_addr_inherits 3 ,
+.Xr X509v3_addr_subset 3 ,
+.Xr X509v3_addr_validate_path 3 ,
+.Xr X509v3_asid_add_id_or_range 3
+.Sh STANDARDS
+RFC 3779: X.509 Extensions for IP Addresses and AS Identifiers:
+.Bl -dash -compact
+.It
+section 3: Autonomous System Identifier Delegation Extension
+.El
+.Pp
+RFC 7020: The Internet Numbers Registry System
+.Pp
+RFC 7249: Internet Numbers Registries
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8e
+and have been available since
+.Ox 7.1 .
+.Sh BUGS
+There are no corresponding functions for the RFC 3779
+IP address delegation extension represented by
+.Vt IPAddrBlocks .

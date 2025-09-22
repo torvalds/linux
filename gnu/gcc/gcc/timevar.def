@@ -1,0 +1,173 @@
+/* This file contains the definitions for timing variables used to
+   measure run-time performance of the compiler.
+   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
+   Contributed by Alex Samuel <samuel@codesourcery.com>
+
+   This file is part of GCC.
+
+   GCC is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+
+   GCC is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with GCC; see the file COPYING.  If not, write to
+   the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
+
+/* This file contains timing variable definitions, used by timevar.h
+   and timevar.c.
+
+   Syntax:
+
+     DEFTIMEVAR (id, name)
+
+   where ID is the enumeral value used to identify the timing
+   variable, and NAME is a character string describing its purpose.  */
+
+/* The total execution time.  */
+DEFTIMEVAR (TV_TOTAL                 , "total time")
+
+/* Time spent garbage-collecting.  */
+DEFTIMEVAR (TV_GC                    , "garbage collection")
+
+/* Time spent generating dump files.  */
+DEFTIMEVAR (TV_DUMP                  , "dump files")
+
+DEFTIMEVAR (TV_CGRAPH                , "callgraph construction")
+DEFTIMEVAR (TV_CGRAPHOPT             , "callgraph optimization")
+DEFTIMEVAR (TV_IPA_CONSTANT_PROP     , "ipa cp")
+DEFTIMEVAR (TV_IPA_REFERENCE         , "ipa reference")
+DEFTIMEVAR (TV_IPA_PURE_CONST        , "ipa pure const")
+DEFTIMEVAR (TV_IPA_TYPE_ESCAPE       , "ipa type escape")
+DEFTIMEVAR (TV_IPA_PTA               , "ipa points-to")
+/* Time spent by constructing CFG.  */
+DEFTIMEVAR (TV_CFG                   , "cfg construction")
+/* Time spent by cleaning up CFG.  */
+DEFTIMEVAR (TV_CLEANUP_CFG           , "cfg cleanup")
+DEFTIMEVAR (TV_CFG_VERIFY            , "CFG verifier")
+DEFTIMEVAR (TV_DELETE_TRIVIALLY_DEAD , "trivially dead code")
+/* Time spent by life analysis.  */
+DEFTIMEVAR (TV_LIFE		     , "life analysis")
+DEFTIMEVAR (TV_LIFE_UPDATE	     , "life info update")
+
+DEFTIMEVAR (TV_ALIAS_ANALYSIS	     , "alias analysis")
+DEFTIMEVAR (TV_REG_SCAN		     , "register scan")
+DEFTIMEVAR (TV_REBUILD_JUMP	     , "rebuild jump labels")
+/* Timing in various stages of the compiler.  */
+DEFTIMEVAR (TV_CPP		     , "preprocessing")
+DEFTIMEVAR (TV_LEX		     , "lexical analysis")
+DEFTIMEVAR (TV_PARSE                 , "parser")
+DEFTIMEVAR (TV_NAME_LOOKUP           , "name lookup")
+DEFTIMEVAR (TV_INLINE_HEURISTICS     , "inline heuristics")
+DEFTIMEVAR (TV_INTEGRATION           , "integration")
+DEFTIMEVAR (TV_TREE_GIMPLIFY	     , "tree gimplify")
+DEFTIMEVAR (TV_TREE_EH		     , "tree eh")
+DEFTIMEVAR (TV_TREE_CFG		     , "tree CFG construction")
+DEFTIMEVAR (TV_TREE_CLEANUP_CFG	     , "tree CFG cleanup")
+DEFTIMEVAR (TV_TREE_VRP              , "tree VRP")
+DEFTIMEVAR (TV_TREE_COPY_PROP        , "tree copy propagation")
+DEFTIMEVAR (TV_TREE_STORE_COPY_PROP  , "tree store copy prop")
+DEFTIMEVAR (TV_FIND_REFERENCED_VARS  , "tree find ref. vars")
+DEFTIMEVAR (TV_TREE_PTA		     , "tree PTA")
+DEFTIMEVAR (TV_TREE_MAY_ALIAS        , "tree alias analysis")
+DEFTIMEVAR (TV_TREE_INSERT_PHI_NODES , "tree PHI insertion")
+DEFTIMEVAR (TV_TREE_SSA_REWRITE_BLOCKS, "tree SSA rewrite")
+DEFTIMEVAR (TV_TREE_SSA_OTHER	     , "tree SSA other")
+DEFTIMEVAR (TV_TREE_SSA_INCREMENTAL  , "tree SSA incremental")
+DEFTIMEVAR (TV_TREE_OPS	             , "tree operand scan")
+DEFTIMEVAR (TV_TREE_SSA_DOMINATOR_OPTS   , "dominator optimization")
+DEFTIMEVAR (TV_TREE_SRA              , "tree SRA")
+DEFTIMEVAR (TV_TREE_STORE_CCP	     , "tree STORE-CCP")
+DEFTIMEVAR (TV_TREE_CCP		     , "tree CCP")
+DEFTIMEVAR (TV_TREE_PHI_CPROP	     , "tree PHI const/copy prop")
+DEFTIMEVAR (TV_TREE_SPLIT_EDGES      , "tree split crit edges")
+DEFTIMEVAR (TV_TREE_REASSOC          , "tree reassociation")
+DEFTIMEVAR (TV_TREE_PRE		     , "tree PRE")
+DEFTIMEVAR (TV_TREE_REDPHI	     , "tree redundant PHIs")
+DEFTIMEVAR (TV_TREE_FRE		     , "tree FRE")
+DEFTIMEVAR (TV_TREE_SINK             , "tree code sinking")
+DEFTIMEVAR (TV_TREE_PHIOPT	     , "tree linearize phis")
+DEFTIMEVAR (TV_TREE_FORWPROP	     , "tree forward propagate")
+DEFTIMEVAR (TV_TREE_DCE		     , "tree conservative DCE")
+DEFTIMEVAR (TV_TREE_CD_DCE	     , "tree aggressive DCE")
+DEFTIMEVAR (TV_TREE_DSE		     , "tree DSE")
+DEFTIMEVAR (TV_TREE_MERGE_PHI	     , "PHI merge")
+DEFTIMEVAR (TV_TREE_LOOP	     , "tree loop optimization")
+DEFTIMEVAR (TV_TREE_LOOP_BOUNDS	     , "tree loop bounds")
+DEFTIMEVAR (TV_LIM                   , "loop invariant motion")
+DEFTIMEVAR (TV_TREE_LOOP_IVCANON     , "tree canonical iv")
+DEFTIMEVAR (TV_SCEV_CONST            , "scev constant prop")
+DEFTIMEVAR (TV_TREE_LOOP_UNSWITCH    , "tree loop unswitching")
+DEFTIMEVAR (TV_COMPLETE_UNROLL       , "complete unrolling")
+DEFTIMEVAR (TV_TREE_VECTORIZATION    , "tree vectorization")
+DEFTIMEVAR (TV_TREE_LINEAR_TRANSFORM , "tree loop linear")
+DEFTIMEVAR (TV_TREE_PREFETCH	     , "tree prefetching")
+DEFTIMEVAR (TV_TREE_LOOP_IVOPTS	     , "tree iv optimization")
+DEFTIMEVAR (TV_TREE_LOOP_INIT	     , "tree loop init")
+DEFTIMEVAR (TV_TREE_LOOP_FINI	     , "tree loop fini")
+DEFTIMEVAR (TV_TREE_CH		     , "tree copy headers")
+DEFTIMEVAR (TV_TREE_SSA_UNCPROP	     , "tree SSA uncprop")
+DEFTIMEVAR (TV_TREE_SSA_TO_NORMAL    , "tree SSA to normal")
+DEFTIMEVAR (TV_TREE_NRV		     , "tree NRV optimization")
+DEFTIMEVAR (TV_TREE_COPY_RENAME	     , "tree rename SSA copies")
+DEFTIMEVAR (TV_TREE_SSA_VERIFY       , "tree SSA verifier")
+DEFTIMEVAR (TV_TREE_STMT_VERIFY      , "tree STMT verifier")
+DEFTIMEVAR (TV_CGRAPH_VERIFY         , "callgraph verifier")
+DEFTIMEVAR (TV_DOM_FRONTIERS         , "dominance frontiers")
+DEFTIMEVAR (TV_DOMINANCE             , "dominance computation")
+DEFTIMEVAR (TV_CONTROL_DEPENDENCES   , "control dependences")
+DEFTIMEVAR (TV_OVERLOAD              , "overload resolution")
+DEFTIMEVAR (TV_TEMPLATE_INSTANTIATION, "template instantiation")
+DEFTIMEVAR (TV_EXPAND		     , "expand")
+DEFTIMEVAR (TV_VARCONST              , "varconst")
+DEFTIMEVAR (TV_JUMP                  , "jump")
+DEFTIMEVAR (TV_CSE                   , "CSE")
+DEFTIMEVAR (TV_LOOP                  , "loop analysis")
+DEFTIMEVAR (TV_GCSE                  , "global CSE")
+DEFTIMEVAR (TV_CPROP1                , "CPROP 1")
+DEFTIMEVAR (TV_PRE                   , "PRE")
+DEFTIMEVAR (TV_HOIST                 , "code hoisting")
+DEFTIMEVAR (TV_CPROP2                , "CPROP 2")
+DEFTIMEVAR (TV_LSM                   , "LSM")
+DEFTIMEVAR (TV_BYPASS                , "bypass jumps")
+DEFTIMEVAR (TV_TRACER                , "tracer")
+DEFTIMEVAR (TV_WEB                   , "web")
+DEFTIMEVAR (TV_CSE2                  , "CSE 2")
+DEFTIMEVAR (TV_BRANCH_PROB           , "branch prediction")
+DEFTIMEVAR (TV_VPT                   , "value profile opts")
+DEFTIMEVAR (TV_FLOW                  , "flow analysis")
+DEFTIMEVAR (TV_COMBINE               , "combiner")
+DEFTIMEVAR (TV_IFCVT		     , "if-conversion")
+DEFTIMEVAR (TV_SEE                   , "see")
+DEFTIMEVAR (TV_REGMOVE               , "regmove")
+DEFTIMEVAR (TV_MODE_SWITCH           , "mode switching")
+DEFTIMEVAR (TV_SMS		     , "sms modulo scheduling")
+DEFTIMEVAR (TV_SCHED                 , "scheduling")
+DEFTIMEVAR (TV_LOCAL_ALLOC           , "local alloc")
+DEFTIMEVAR (TV_GLOBAL_ALLOC          , "global alloc")
+DEFTIMEVAR (TV_RELOAD_CSE_REGS       , "reload CSE regs")
+DEFTIMEVAR (TV_SEQABSTR              , "sequence abstraction")
+DEFTIMEVAR (TV_GCSE_AFTER_RELOAD      , "load CSE after reload")
+DEFTIMEVAR (TV_FLOW2                 , "flow 2")
+DEFTIMEVAR (TV_IFCVT2		     , "if-conversion 2")
+DEFTIMEVAR (TV_PEEPHOLE2             , "peephole 2")
+DEFTIMEVAR (TV_RENAME_REGISTERS      , "rename registers")
+DEFTIMEVAR (TV_SCHED2                , "scheduling 2")
+DEFTIMEVAR (TV_MACH_DEP              , "machine dep reorg")
+DEFTIMEVAR (TV_DBR_SCHED             , "delay branch sched")
+DEFTIMEVAR (TV_REORDER_BLOCKS        , "reorder blocks")
+DEFTIMEVAR (TV_SHORTEN_BRANCH        , "shorten branches")
+DEFTIMEVAR (TV_REG_STACK             , "reg stack")
+DEFTIMEVAR (TV_FINAL                 , "final")
+DEFTIMEVAR (TV_SYMOUT                , "symout")
+DEFTIMEVAR (TV_VAR_TRACKING          , "variable tracking")
+
+/* Everything else in rest_of_compilation not included above.  */
+DEFTIMEVAR (TV_REST_OF_COMPILATION   , "rest of compilation")

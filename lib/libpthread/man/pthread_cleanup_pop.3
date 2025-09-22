@@ -1,0 +1,64 @@
+.\" $OpenBSD: pthread_cleanup_pop.3,v 1.11 2025/06/07 00:16:52 schwarze Exp $
+.\"
+.\" Copyright (c) 1997 Brian Cully <shmit@kublai.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: pthread_cleanup_pop.3,v 1.4 1999/08/28 00:03:02 peter Exp $
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_CLEANUP_POP 3
+.Os
+.Sh NAME
+.Nm pthread_cleanup_pop
+.Nd call the first cleanup routine
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft void
+.Fn pthread_cleanup_pop "int execute"
+.Sh DESCRIPTION
+The
+.Fn pthread_cleanup_pop
+function pops the top cleanup routine off of the current thread's cleanup
+routine stack and, if
+.Fa execute
+is non-zero, it will execute the function.
+If there is no cleanup routine then
+.Fn pthread_cleanup_pop
+does nothing.
+.Sh RETURN VALUES
+.Fn pthread_cleanup_pop
+does not return any value.
+.Sh ERRORS
+None
+.Sh SEE ALSO
+.Xr pthread_cleanup_push 3 ,
+.Xr pthread_exit 3
+.Sh STANDARDS
+.Fn pthread_cleanup_pop
+conforms to
+.St -p1003.1-96 .

@@ -1,0 +1,55 @@
+.\"	$OpenBSD: mpfgpio.4,v 1.1 2022/02/18 10:51:43 visa Exp $
+.\"
+.\" Copyright (c) 2022 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt MPFGPIO 4 riscv64
+.Os
+.Sh NAME
+.Nm mpfgpio
+.Nd Microchip PolarFire SoC MSS GPIO controller
+.Sh SYNOPSIS
+.Cd "mpfgpio* at fdt?"
+.Cd "gpio* at mpfgpio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Microchip PolarFire SoC MSS GPIO controller.
+.Pp
+The PolarFire SoC MSS has three GPIO units:
+.Dv GPIO_0 ,
+.Dv GPIO_1
+and
+.Dv GPIO_2 .
+.Dv GPIO_0
+and
+.Dv GPIO_1
+control up to 14 and 24 IOs, respectively.
+These IOs are routed through IOMUXes.
+.Dv GPIO_2
+controls up to 32 IOs through the FPGA fabric.
+.Pp
+The IOs can be configured as either inputs or outputs,
+and accessed using
+.Xr gpioctl 8 .
+.Sh SEE ALSO
+.Xr gpio 4 ,
+.Xr intro 4 ,
+.Xr gpioctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.1 .

@@ -1,0 +1,307 @@
+.\" $OpenBSD: X509_VERIFY_PARAM_new.3,v 1.6 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2018, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_VERIFY_PARAM_NEW 3
+.Os
+.Sh NAME
+.Nm X509_VERIFY_PARAM_new ,
+.Nm X509_VERIFY_PARAM_inherit ,
+.Nm X509_VERIFY_PARAM_set1 ,
+.Nm X509_VERIFY_PARAM_free ,
+.Nm X509_VERIFY_PARAM_add0_table ,
+.Nm X509_VERIFY_PARAM_lookup ,
+.Nm X509_VERIFY_PARAM_get_count ,
+.Nm X509_VERIFY_PARAM_get0 ,
+.Nm X509_VERIFY_PARAM_table_cleanup
+.\" The following constants defined in the public header <openssl/x509_vfy.h>
+.\" are intentionally undocumented because X509_VERIFY_PARAM is an opaque
+.\" struct and LibreSSL provides neither X509_VERIFY_PARAM_set_inh_flags(3)
+.\" nor X509_VERIFY_PARAM_get_inh_flags(3):
+.\" X509_VP_FLAG_DEFAULT
+.\" X509_VP_FLAG_OVERWRITE
+.\" X509_VP_FLAG_RESET_FLAGS
+.\" X509_VP_FLAG_LOCKED
+.\" X509_VP_FLAG_ONCE
+.Nd X509 verification parameter objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509_vfy.h
+.Ft X509_VERIFY_PARAM *
+.Fo X509_VERIFY_PARAM_new
+.Fa void
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_inherit
+.Fa "X509_VERIFY_PARAM *destination"
+.Fa "const X509_VERIFY_PARAM *source"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_set1
+.Fa "X509_VERIFY_PARAM *destination"
+.Fa "const X509_VERIFY_PARAM *source"
+.Fc
+.Ft void
+.Fo X509_VERIFY_PARAM_free
+.Fa "X509_VERIFY_PARAM *param"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_add0_table
+.Fa "X509_VERIFY_PARAM *param"
+.Fc
+.Ft const X509_VERIFY_PARAM *
+.Fo X509_VERIFY_PARAM_lookup
+.Fa "const char *name"
+.Fc
+.Ft int
+.Fo X509_VERIFY_PARAM_get_count
+.Fa void
+.Fc
+.Ft const X509_VERIFY_PARAM *
+.Fo X509_VERIFY_PARAM_get0
+.Fa "int id"
+.Fc
+.Ft void
+.Fo X509_VERIFY_PARAM_table_cleanup
+.Fa void
+.Fc
+.Sh DESCRIPTION
+.Fn X509_VERIFY_PARAM_new
+allocates and initializes an empty
+.Vt X509_VERIFY_PARAM
+object.
+.Pp
+.Fn X509_VERIFY_PARAM_inherit
+copies some data from the
+.Fa source
+object to the
+.Fa destination
+object.
+.Pp
+The verification flags set with
+.Xr X509_VERIFY_PARAM_set_flags 3
+in the
+.Fa source
+object are always OR'ed into the verification flags of the
+.Fa destination
+object.
+.Pp
+Fields having their default value in the
+.Fa source
+object are not copied.
+.Pp
+By default, fields in the
+.Fa destination
+object already having a non-default value are not overwritten.
+However, if at least one of the
+.Fa source
+or
+.Fa destination
+objects was created during a call to
+.Xr X509_STORE_CTX_init 3
+that did not have a
+.Fa store
+argument, and if that object was not previously used as the
+.Fa destination
+in an earlier call to
+.Fn X509_VERIFY_PARAM_inherit ,
+this restriction is waived and even non-default fields in the
+.Fa destination
+object get overwritten.
+If fields overwritten in this way contain pointers to allocated memory,
+that memory is freed.
+.Pp
+As far as permitted by the above rules, the following fields are copied:
+.Bl -bullet -width 1n
+.It
+the verification purpose identifier set with
+.Xr X509_VERIFY_PARAM_set_purpose 3
+.It
+the trust setting set with
+.Xr X509_VERIFY_PARAM_set_trust 3
+.It
+the verification time set with
+.Xr X509_VERIFY_PARAM_set_time 3 ;
+in this case, the only condition is that
+.Dv X509_V_FLAG_USE_CHECK_TIME
+is not set in the
+.Fa destination
+object, whereas the time value in the
+.Fa destination
+object is not inspected before overwriting it
+.It
+the acceptable policy set with
+.Xr X509_VERIFY_PARAM_set1_policies 3
+.It
+the maximum verification depth set with
+.Xr X509_VERIFY_PARAM_set_depth 3
+.It
+flags that were set with
+.Xr X509_VERIFY_PARAM_set_hostflags 3
+.It
+the list of expected DNS hostnames built with
+.Xr X509_VERIFY_PARAM_set1_host 3
+and
+.Xr X509_VERIFY_PARAM_add1_host 3
+.It
+the expected RFC 822 email address set with
+.Xr X509_VERIFY_PARAM_set1_email 3
+.It
+the expected IP address set with
+.Xr X509_VERIFY_PARAM_set1_ip 3
+or
+.Xr X509_VERIFY_PARAM_set1_ip_asc 3
+.El
+.Pp
+Some data that may be contained in the
+.Fa source
+object is never copied, for example the subject name of the peer
+certificate that can be retrieved with
+.Xr X509_VERIFY_PARAM_get0_peername 3 .
+.Pp
+If
+.Fa source
+is a
+.Dv NULL
+pointer, the function has no effect but returns successfully.
+.Pp
+.Fn X509_VERIFY_PARAM_set1
+is identical to
+.Fn X509_VERIFY_PARAM_inherit
+except that fields in the
+.Fa destination
+object are overwritten even if they do not match their default values.
+Still, fields having their default value in the
+.Fa source
+object are not copied.
+.Pp
+If
+.Fn X509_VERIFY_PARAM_inherit
+or
+.Fn X509_VERIFY_PARAM_set1
+fail, partial copying may have occurred, so all data in the
+.Fa destination
+object should be regarded as invalid.
+.Pp
+.Fn X509_VERIFY_PARAM_inherit
+is used internally by
+.Xr X509_STORE_CTX_init 3
+and by
+.Xr X509_STORE_CTX_set_default 3 ,
+and
+.Fn X509_VERIFY_PARAM_set1
+is used internally by
+.Xr X509_STORE_set1_param 3 .
+.Pp
+.Fn X509_VERIFY_PARAM_free
+clears all data contained in
+.Fa param
+and releases all memory used by it.
+If
+.Fa param
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn X509_VERIFY_PARAM_add0_table
+adds
+.Fa param
+to a static list of
+.Vt X509_VERIFY_PARAM
+objects maintained by the library.
+This function is extremely dangerous because contrary to the name
+of the function, if the list already contains an object that happens
+to have the same name, that old object is not only silently removed
+from the list, but also silently freed, which may silently invalidate
+various pointers existing elsewhere in the program.
+.Pp
+.Fn X509_VERIFY_PARAM_lookup
+searches this list for an object of the given
+.Fa name .
+If no match is found, the predefined objects built-in to the library
+are also inspected.
+.Pp
+.Fn X509_VERIFY_PARAM_get_count
+returns the sum of the number of objects on this list and the number
+of predefined objects built-in to the library.
+Note that this is not necessarily the total number of
+.Vt X509_VERIFY_PARAM
+objects existing in the program because there may be additional such
+objects that were never added to the list.
+.Pp
+.Fn X509_VERIFY_PARAM_get0
+accesses predefined and user-defined objects using
+.Fa id
+as an index, useful for looping over objects without knowing their names.
+An argument less than the number of predefined objects selects
+one of the predefined objects; a higher argument selects an object
+from the list.
+.Pp
+.Fn X509_VERIFY_PARAM_table_cleanup
+deletes all objects from this list.
+It is extremely dangerous because it also invalidates all data that
+was contained in all objects that were on the list and because it
+frees all these objects, which may invalidate various pointers
+existing elsewhere in the program.
+.Sh RETURN VALUES
+.Fn X509_VERIFY_PARAM_new
+returns a pointer to the new object, or
+.Dv NULL
+on allocation failure.
+.Pp
+.Fn X509_VERIFY_PARAM_inherit ,
+.Fn X509_VERIFY_PARAM_set1 ,
+and
+.Fn X509_VERIFY_PARAM_add0_table
+return 1 for success or 0 for failure.
+.Pp
+.Fn X509_VERIFY_PARAM_lookup
+and
+.Fn X509_VERIFY_PARAM_get0
+return a pointer to an existing built-in or user-defined object, or
+.Dv NULL
+if no object with the given
+.Fa name
+is found, or if
+.Fa id
+is at least
+.Fn X509_VERIFY_PARAM_get_count .
+.Pp
+.Fn X509_VERIFY_PARAM_get_count
+returns a number of objects.
+.Sh SEE ALSO
+.Xr SSL_set1_param 3 ,
+.Xr X509_STORE_CTX_set0_param 3 ,
+.Xr X509_STORE_set1_param 3 ,
+.Xr X509_verify_cert 3 ,
+.Xr X509_VERIFY_PARAM_set_flags 3
+.Sh HISTORY
+.Fn X509_VERIFY_PARAM_new ,
+.Fn X509_VERIFY_PARAM_inherit ,
+.Fn X509_VERIFY_PARAM_set1 ,
+.Fn X509_VERIFY_PARAM_free ,
+.Fn X509_VERIFY_PARAM_add0_table ,
+.Fn X509_VERIFY_PARAM_lookup ,
+and
+.Fn X509_VERIFY_PARAM_table_cleanup
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Pp
+.Fn X509_VERIFY_PARAM_get_count
+and
+.Fn X509_VERIFY_PARAM_get0
+first appeared in OpenSSL 1.0.2 and have been available since
+.Ox 6.3 .

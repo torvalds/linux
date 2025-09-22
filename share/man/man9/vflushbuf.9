@@ -1,0 +1,33 @@
+.\"	$OpenBSD: vflushbuf.9,v 1.3 2013/06/04 19:27:16 schwarze Exp $
+.\" Written by Jared Yanovich
+.\" This file belongs to the public domain.
+.Dd $Mdocdate: June 4 2013 $
+.Dt VFLUSHBUF 9
+.Os
+.Sh NAME
+.Nm vflushbuf
+.Nd flush dirty vnode buffers to disk
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft void
+.Fn vflushbuf "struct vnode *vp" "int sync"
+.Sh DESCRIPTION
+The
+.Fn vflushbuf
+function flushes all dirty buffers associated with the vnode
+.Fa vp
+to the disk.
+If the
+.Fa sync
+argument is zero, writes to the disk will be asynchronous and
+.Fn vflushbuf
+returns immediately; otherwise, writes will be synchronous and all
+disk blocks associated with the vnode will have been properly
+synchronized with the in-core buffers upon return.
+.Sh SEE ALSO
+.Xr vinvalbuf 9 ,
+.Xr vnode 9
+.Sh HISTORY
+This document first appeared in
+.Ox 3.7 .

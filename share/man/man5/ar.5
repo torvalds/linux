@@ -1,0 +1,157 @@
+.\"	$OpenBSD: ar.5,v 1.5 2015/12/24 01:47:25 bentley Exp $
+.\"	$NetBSD: ar.5,v 1.2 1995/03/25 06:39:38 glass Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ar.5.5	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: December 24 2015 $
+.Dt AR 5
+.Os
+.Sh NAME
+.Nm ar
+.Nd archive (library) file format
+.Sh SYNOPSIS
+.In ar.h
+.Sh DESCRIPTION
+The archive command
+.Nm ar
+combines several files into one.
+Archives are mainly used as libraries of object files intended to be
+loaded using the link-editor
+.Xr ld 1 .
+.Pp
+A file created with
+.Nm ar
+begins with the magic string
+.Dq !<arch>\en .
+The rest of the archive is made up of objects, each of which is composed
+of a header for a file, a possible file name, and the file contents.
+The header is portable between machine architectures and, if the file
+contents are printable, the archive is itself printable.
+.Pp
+The header is made up of six variable length ASCII fields, followed by a
+two character trailer.
+The fields are the object name (16 characters), the file last modification
+time (12 characters), the user and group IDs (each 6 characters), the file
+mode (8 characters) and the file size (10 characters).
+All numeric fields are in decimal, except for the file mode which is in
+octal.
+.Pp
+The modification time is the file
+.Fa st_mtime
+field, i.e.,
+.Dv CUT
+seconds since
+the Epoch.
+The user and group IDs are the file
+.Fa st_uid
+and
+.Fa st_gid
+fields.
+The file mode is the file
+.Fa st_mode
+field.
+The file size is the file
+.Fa st_size
+field.
+The two-byte trailer is the string "\`\en".
+.Pp
+Only the name field has any provision for overflow.
+If any file name is more than 16 characters in length or contains an
+embedded space, the string "#1/" followed by the ASCII length of the
+name is written in the name field.
+The file size (stored in the archive header) is incremented by the length
+of the name.
+The name is then written immediately following the archive header.
+.Pp
+Any unused characters in any of these fields are written as space
+characters.
+If any fields are their particular maximum number of characters in
+length, there will be no separation between the fields.
+.Pp
+Objects in the archive are always an even number of bytes long; files
+which are an odd number of bytes long are padded with a newline
+.Pq Ql \en
+character, although the size in the header does not reflect this.
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr stat 2
+.Sh STANDARDS
+No archive format is currently specified by any standard.
+.At V
+has historically distributed archives in a different format from
+all of the above.
+.Sh HISTORY
+There have been at least four
+.Nm ar
+formats.
+The first was denoted by the leading magic number 0177555 (stored as
+type
+.Vt int ) .
+These archives were almost certainly created on a 16-bit machine, and
+contain headers made up of five fields.
+The fields are the object name (8 characters), the file last modification
+time (type
+.Vt long ) ,
+the user ID (type
+.Vt char ) ,
+the file mode (type
+.Vt char )
+and the file size (type
+.Vt unsigned int ) .
+Files were padded to an even number of bytes.
+.Pp
+The second was denoted by the leading magic number 0177545 (stored as
+type
+.Vt int ) .
+These archives may have been created on either 16 or 32-bit machines, and
+contain headers made up of six fields.
+The fields are the object name (14 characters), the file last modification
+time (type
+.Vt long ) ,
+the user and group IDs (each type
+.Vt char ) ,
+the file mode (type
+.Vt int )
+and the file size (type
+.Vt long ) .
+Files were padded to an even number of bytes.
+.\" For more information on converting from this format see
+.\" .Xr arcv 8 .
+.Pp
+The current archive format (without support for long character names and
+names with embedded spaces) was introduced in
+.Bx 4.0 .
+The headers were the same as the current format, with the exception that
+names longer than 16 characters were truncated, and names with embedded
+spaces (and often trailing spaces) were not supported.
+It has been extended for these reasons,
+as described above.
+This format first appeared in
+.Bx 4.4 .

@@ -1,0 +1,14 @@
+executable("clang-apply-replacements") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-apply-replacements",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Tooling/Core",
+    "//clang/lib/Tooling/Refactoring",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ "../include" ]
+  sources = [ "ClangApplyReplacementsMain.cpp" ]
+}

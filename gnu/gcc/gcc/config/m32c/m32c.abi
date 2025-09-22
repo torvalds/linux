@@ -1,0 +1,133 @@
+   Target Definitions for R8C/M16C/M32C
+   Copyright (C) 2005
+   Free Software Foundation, Inc.
+   Contributed by Red Hat.
+
+   This file is part of GCC.
+
+   GCC is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published
+   by the Free Software Foundation; either version 2, or (at your
+   option) any later version.
+
+   GCC is distributed in the hope that it will be useful, but WITHOUT
+   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+   License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with GCC; see the file COPYING.  If not, write to the Free
+   Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+   02110-1301, USA.
+
+
+These are just some random notes I used during development of this
+port.  Please don't consider these to be "official" specifications,
+just additional information to help make the code easier to
+understand.
+
+
+Frame
+=====
+
+	+--------------------
+	| incoming args
+	+--------------------
+	| return Address
+osp ->	+--------------------
+	| saved fp
+fp ->	+--------------------
+	| local data
+	+--------------------
+	| saved regs
+	+--------------------
+	| outgoing args (opt)
+sp ->	+--------------------
+
+Argument Passing
+================
+
+r8c, m16c
+---------
+
+First arg may be passed in r1l or r1 if it (1) fits (QImode or
+HImode), (2) is named, and (3) is an integer or pointer type (no
+structs, floats, etc).  Otherwise, it's passed on the stack.
+
+Second arg may be passed in r2, same restrictions (but not QImode),
+even if the first arg is passed on the stack.
+
+Third and further args are passed on the stack.  No padding is used,
+stack "alignment" is 8 bits.
+
+m32cm, m32c
+-----------
+First arg may be passed in r0l or r0, same restrictions as above.
+
+Second and further args are passed on the stack.  Padding is used
+after QImode parameters (i.e. lower-addressed byte is the value,
+higher-addressed byte is the padding), stack "alignment" is 16 bits.
+
+
+Return Value
+============
+
+r8c, m16c
+---------
+
+QImode in r0l
+HImode in r0
+near pointer in r0
+(desired)
+SImode in r2r0
+far pointer in r2r0
+(actual)
+Anything bigger than 16 bits is returned in memory, at mem0 (mem0
+through mem15 are provided by libgcc.a)
+
+Aggregate values (regardless of size) are returned by pushing a
+pointer to a temporary area on the stack after the args are pushed.
+The function fills in this area with the value.  Note that this
+pointer on the stack does not affect how register arguments, if any,
+are configured.
+
+m32cm, m32c
+-----------
+Same.
+
+
+Registers Preserved Across Calls
+================================
+
+r8c, m16c
+---------
+sb, fb, sp (i.e. nearly all registers are call clobbered)
+
+m32cm, m32c
+-----------
+r1, r2, r3, a0, a1, sb, fb, sp
+(except when used for return values)
+
+
+Interrupt Handlers
+==================
+
+The stack frame is slightly different for interrupt handlers, because
+(1) we don't have a usable parent frame, and (2) we have to use
+special instructions to return and thus must save/restore everything
+differently.
+
+	+--------------------
+	| program state
+osp ->	+--------------------
+	| return address
+	+--------------------
+	| saved r0..fp (pushm)
+fp ->	+--------------------
+	| local data
+	+--------------------
+	| saved regs mem0..mem15
+	+--------------------
+	| outgoing args (opt)
+sp ->	+--------------------
+

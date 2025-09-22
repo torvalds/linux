@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# @(#) $OpenBSD: ostype,v 1.3 1999/03/27 14:31:23 maja Exp $
+#
+# Determine os type.
+#
+os="UNKNOWN"
+
+if [ -f /usr/bin/uname ]; then
+
+    osname=`/usr/bin/uname`
+	
+    if [ $osname = "AIX" ]; then
+	os="aix`/usr/bin/uname -v`"
+    fi
+
+    if [ $osname = "SunOS" ]; then
+	os="sunos`/usr/bin/uname -r | /usr/bin/cut -c1`"
+    fi
+
+    if [ $osname = "NetBSD" ]; then
+	os="netbsd"
+    fi
+
+fi
+
+if [ -f /bin/uname ]; then
+
+    osname=`/bin/uname`
+	
+    if [ $osname = "Linux" ]; then
+	os="linux`/bin/uname -r | /usr/bin/cut -d. -f1`"
+    fi
+
+fi
+
+echo $os
+
+if [ $os = "UNKNOWN" ]; then
+    exit 1
+else
+    exit 0
+fi

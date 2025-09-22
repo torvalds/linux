@@ -1,0 +1,232 @@
+			IQ2000 ABI
+			=========
+
+Sizes and alignments
+--------------------
+
+	Type		Size (bytes)	Alignment (bytes)
+
+	char		1		1
+	short		2		2
+	int		4		4
+	unsigned	4		4
+	long		4		4 
+	long long	8		8
+	float		4		4
+	double		8		8
+	pointers	4		4 
+
+* alignment within aggregates (structs and unions) is as above, with
+  padding added if needed
+* aggregates have alignment equal to that of their most aligned
+  member
+* aggregates have sizes which are a multiple of their alignment
+
+
+Floating point
+--------------
+
+All emulated using IEEE floating point conventions.
+
+Registers
+----------------
+
+%0		always zero
+%1		call clobbered
+%2		return value
+%3		return value
+%4		argument register 1
+%5		argument register 2
+%6		argument register 3
+%7		argument register 4
+%8		argument register 5
+%9		argument register 6
+%10		argument register 7
+%11		argument register 8
+%12		call clobbered
+%13		call clobbered
+%14		call clobbered
+%15		call clobbered
+%16		call saved
+%17		call saved
+%18		call saved
+%19		call saved
+%20		call saved
+%21		call saved
+%22		call saved
+%23		call saved
+%24		call clobbered
+%25		call clobbered
+%26		reserved
+%27		frame ptr
+%28		global ptr
+%29		stack ptr
+%30		reserved
+%31 		return address
+
+Stack alignment		8 bytes
+
+Structures passed	<= 32 bits as values, else as pointers
+
+The IQ2000 Stack
+---------------
+
+Space is allocated as needed in the stack frame for the following at compile
+time:
+
+* Outgoing parameters beyond the eighth
+
+* All automatic arrays, automatic data aggregates, automatic
+  scalars which must be addressable, and automatic scalars for
+  which there is no room in registers 
+
+* Compiler-generated temporary values (typically when there are
+  too many for the compiler to keep them all in registers) 
+
+Space can be allocated dynamically (at runtime) in the stack frame for the
+following:
+
+* Memory allocated using the alloca() function of the C library
+
+Addressable automatic variables on the stack are addressed with positive
+offsets relative to %27; dynamically allocated space is addressed with positive
+offsets from the pointer returned by alloca().
+
+Stack Frame
+-----------
+
+        +-----------------------+
+	|    Caller memory args |
+        +-----------------------+ <-sp
+ 	|    Return address	|
+	+-----------------------+
+	|    Previous FP	|
+	+-----------------------+
+	|    Saved Registers	|
+	+-----------------------+
+	|        ...		|
+	+-----------------------+
+	|    Local Variables	|
+	+-----------------------+ <-fp
+	|    Alloca		|
+	+-----------------------+
+	|        ...		|
+	+-----------------------+
+	|   Parameter Word 2	|
+	+-----------------------+
+	|   Parameter Word 1	|
+	+-----------------------+ <-sp
+
+
+Parameter Assignment to Registers
+---------------------------------
+
+Consider the parameters in a function call as ordered from left (first
+parameter) to right.  GR contains the number of the next available
+general-purpose register.  STARG is the address of the next available stack
+parameter word.
+
+INITIALIZE:
+	Set GR=r4 and STARG to point to parameter word 1.
+
+SCAN:
+	If there are no more parameters, terminate.
+	Otherwise, select one of the following depending on the type
+	of the next parameter:
+
+    SIMPLE ARG:
+
+	A SIMPLE ARG is one of the following:
+
+	* One of the simple integer types which will fit into a
+	  general-purpose register,
+	* A pointer to an object of any type,
+	* A struct or union small enough to fit in a register (<= 32 bits)
+	* A larger struct or union, which shall be treated as a
+	  pointer to the object or to a copy of the object.
+	  (See below for when copies are made.)
+
+	If GR > r11, go to STACK.  Otherwise, load the parameter value into
+	general-purpose register GR and advance GR to the next general-purpose
+	register.  Values shorter than the register size are sign-extended or
+	zero-extended depending on whether they are signed or unsigned.  Then
+	go to SCAN.
+
+    DOUBLE or LONG LONG
+
+	If GR > r10, go to STACK.  Otherwise, if GR is odd, advance GR to the
+	next register.  Load the 64-bit long long or double value into register
+	pair GR and GR+1.  Advance GR to GR+2 and go to SCAN.
+
+    STACK:
+
+	Parameters not otherwise handled above are passed in the parameter
+	words of the caller's stack frame.  SIMPLE ARGs, as defined above, are
+	considered to have size and alignment equal to the size of a
+	general-purpose register, with simple argument types shorter than this
+	sign- or zero-extended to this width.  Round STARG up to a multiple of
+	the alignment requirement of the parameter and copy the argument
+	byte-for-byte into STARG, STARG+1, ...  STARG+size-1.  Set STARG to
+	STARG+size and go to SCAN.
+
+
+Structure passing
+-----------------
+
+As noted above, code which passes structures and unions by value is implemented
+specially.  (In this section, "struct" will refer to structs and unions
+inclusively.)  Structs small enough to fit in a register are passed by value in
+a single register or in a stack frame slot the size of a register.  Structs
+containing a single double or long long component are passed by value in two
+registers or in a stack frame slot the size of two registers.  Other structs
+are handled by passing the address of the structure.  In this case, a copy of
+the structure will be made if necessary in order to preserve the pass-by-value
+semantics.
+
+Copies of large structs are made under the following rules:
+
+			ANSI mode			K&R Mode
+			---------			--------
+Normal param	 	Callee copies if needed		Caller copies
+Varargs (...) param	Caller copies			Caller copies
+
+In the case of normal (non-varargs) large-struct parameters in ANSI mode, the
+callee is responsible for producing the same effect as if a copy of the
+structure were passed, preserving the pass-by-value semantics.  This may be
+accomplished by having the callee make a copy, but in some cases the callee may
+be able to determine that a copy is not necessary in order to produce the same
+results.  In such cases, the callee may choose to avoid making a copy of the
+parameter.
+
+
+Varargs handling
+----------------
+
+No special changes are needed for handling varargs parameters other than the
+caller knowing that a copy is needed on struct parameters larger than a
+register (see above).
+
+The varargs macros set up a register save area for the general-purpose
+registers to be saved.  Because the save area lies between the caller and
+callee stack frames, the saved register parameters are contiguous with
+parameters passed on the stack.  A pointer advances from the register save area
+into the caller's stack frame.
+
+
+Function return values
+----------------------
+
+	Type		Register
+	----		--------
+	int		r2
+	short		r2
+	long		r2
+	long long	r2-r3
+	float		r2
+	double		r2-r3
+	struct/union	see below
+
+Structs/unions which will fit into two general-purpose registers are returned
+in r2, or in r2-r3 if necessary.  Larger structs/unions are handled by the
+caller passing as a "hidden" first argument a pointer to space allocated to
+receive the return value.

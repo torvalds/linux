@@ -1,0 +1,411 @@
+.\"	$OpenBSD: mount.8,v 1.92 2023/11/10 00:26:00 schwarze Exp $
+.\"	$NetBSD: mount.8,v 1.11 1995/07/12 06:23:21 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mount.8	8.7 (Berkeley) 3/27/94
+.\"
+.Dd $Mdocdate: November 10 2023 $
+.Dt MOUNT 8
+.Os
+.Sh NAME
+.Nm mount
+.Nd mount file systems
+.Sh SYNOPSIS
+.Nm mount
+.Op Fl AadfNruvw
+.Op Fl t Ar type
+.Nm mount
+.Op Fl dfrsuvw
+.Ar special | node
+.Nm mount
+.Op Fl dfruvw
+.Op Fl o Ar options
+.Op Fl t Ar type
+.Ar special node
+.Sh DESCRIPTION
+The
+.Nm
+command invokes a file system specific program to prepare
+and graft the
+.Ar special
+device or remote node (rhost:path) on to the file system
+tree at the point
+.Ar node .
+If either
+.Ar special
+or
+.Ar node
+are not provided, the appropriate information is taken from the
+.Xr fstab 5
+file.
+.Pp
+For disk partitions, the
+.Ar special
+device is either a
+.Xr disklabel 8
+UID (DUID) or an entry in
+.Pa /dev .
+If it is a DUID,
+it will be automatically mapped to the appropriate entry in
+.Pa /dev .
+In either case the partition must be present
+in the disklabel loaded from the device.
+The partition name is the last letter in the entry name.
+For example, /dev/sd0a and 3eb7f9da875cb9ee.a both refer to the
+.Sq a
+partition.
+.Pp
+A mount point
+.Ar node
+must be an existing directory for a mount to succeed
+.Po
+except in the special case of
+.Pa / ,
+of course
+.Pc .
+Only the superuser may mount file systems.
+.Pp
+The system maintains a list of currently mounted file systems.
+If no arguments are given to
+.Nm mount ,
+this list is printed.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl A
+Causes
+.Nm
+to try to mount all of the file systems listed in the
+.Xr fstab 5
+table except those for which the
+.Dq noauto
+or
+.Dq net
+options are specified.
+.It Fl a
+Similar to the
+.Fl A
+flag, except that if a file system (other than the root file system)
+appears to be already mounted,
+.Nm
+will not try to mount it again.
+.Nm
+assumes that a file system is already mounted if a file system with
+the same type is mounted on the given mount point.
+More stringent checks are not possible because some file system types
+report strange values for the mounted-from device for mounted file
+systems.
+.It Fl d
+Causes everything to be done except for the invocation of
+the file system specific program.
+This option is useful in conjunction with the
+.Fl v
+flag to
+determine what the
+.Nm
+command is trying to do.
+.It Fl f
+Either force mounting of dirty file systems or, in the case of a
+downgrade from read-write to read-only operation, the revocation of
+opened files with write access.
+.It Fl N
+If used with either
+.Fl A
+or
+.Fl a ,
+.Nm
+will only look at file systems which have the
+.Dq net
+option specified.
+By default file systems with the
+.Dq net
+option are ignored.
+.It Fl o Ar options
+Options can be given with (or without) a
+.Sq no
+prefix to invert their meaning.
+The options listed below specify non-default values.
+For example,
+.Sq nosync
+is the default, so
+.Sq sync
+can be used to write regular data synchronously.
+Multiple options can be specified in a comma-separated list.
+The available options are as follows:
+.Bl -tag -width 9n
+.It Cm async
+Metadata I/O to the file system should be done asynchronously.
+By default, only regular data is read/written asynchronously.
+.Pp
+This is a
+.Em dangerous
+flag to set since it does not guarantee to keep a consistent
+file system structure on the disk.
+You should not use this flag
+unless you are prepared to recreate the file system should your
+system crash.
+The most common use of this flag is to speed up
+.Xr restore 8
+where it can give a factor of two speed increase.
+.It Cm force
+The same as
+.Fl f ;
+forces the revocation of write access when trying to downgrade
+a file system mount status from read-write to read-only.
+.It Cm noatime
+Do not update atime on files in the system unless the mtime or ctime
+is being changed as well.
+This option is useful for laptops and news servers where one does
+not want the extra disk activity associated with updating the atime.
+.It Cm nodev
+Do not interpret character or block special devices on the file system.
+This option is useful for a server that has file systems containing
+special devices for architectures other than its own.
+.It Cm noexec
+Do not allow execution of any binaries on the mounted file system.
+This option is useful for a server that has file systems containing
+binaries for architectures other than its own.
+.It Cm noperm
+(FFS only)
+Do not check permissions when creating, accessing or modifying files and
+directories in the mounted file system.
+This allows unprivileged users to construct a file hierarchy containing
+special device nodes and files with arbitrary file mode, owner or group
+without restriction.
+Only the owner, group and mode of the root directory of the filesystem
+will be honored so access to the filesystem can be locked down.
+The noperm option also enables the nodev and noexec options to ensure
+that interpretation of the file modes and special devices cannot be
+used to gain privileges.
+.It Cm norw
+An alias for rdonly.
+.It Cm nosuid
+Do not allow set-user-identifier or set-group-identifier bits to take effect.
+.It Cm rdonly
+The same as
+.Fl r ;
+mount the file system read-only (even the superuser may not write it).
+.It Cm ro
+An alias for rdonly.
+.It Cm softdep
+Mount an FFS file system using soft dependencies.
+This option is only supported for compatibility and has no effect on
+.Ox .
+.It Cm sync
+Regular data I/O to the file system should be done synchronously.
+By default, only metadata is read/written synchronously.
+.It Cm update
+The same as
+.Fl u ;
+indicate that the status of an already mounted file system should be changed.
+.It Cm wxallowed
+Processes that ask for memory to be made writeable plus executable
+using the
+.Xr mmap 2
+and
+.Xr mprotect 2
+system calls are killed by default.
+This option allows those processes to continue operation.
+It is typically used on the
+.Pa /usr/local
+filesystem.
+.El
+.Pp
+Any additional options specific to a given file system type (see the
+.Fl t
+option) may be passed as a comma separated list; these options are
+distinguished by a leading
+.Dq \&-
+(dash).
+Options that take a value are specified using the syntax -option=value.
+For example:
+.Bd -literal -offset 3n
+# mount -t mfs -o rw,nodev,nosuid,-s=153600 /dev/sd0b /tmp
+.Ed
+.Pp
+That causes
+.Nm
+to execute the equivalent of:
+.Bd -literal -offset 3n
+# /sbin/mount_mfs -o rw,nodev,nosuid -s 153600 /dev/sd0b /tmp
+.Ed
+.Pp
+The equivalent example in
+.Xr fstab 5
+would be:
+.Bd -literal -offset 3n
+swap /tmp mfs rw,nodev,nosuid,-s=153600 0 0
+.Ed
+.It Fl r
+The file system is to be mounted read-only.
+Mount the file system read-only (even the superuser may not write it).
+The same as the
+.Dq rdonly
+argument to the
+.Fl o
+option.
+.It Fl s
+Skip mounting the file system if it is already mounted.
+See the
+.Fl a
+flag for a description of the criteria used to decide if a file system
+is already mounted.
+.It Fl t Ar type
+The argument following the
+.Fl t
+is used to indicate the file system type.
+The type
+.Ar ffs
+is the default.
+The
+.Fl t
+option can be used
+to indicate that the actions should only be taken on
+file systems of the specified type.
+More than one type may be specified in a comma separated list.
+The list of file system types can be prefixed with
+.Dq no
+to specify the file system types for which action should
+.Em not
+be taken.
+For example, the
+.Nm
+command:
+.Bd -literal -offset indent
+# mount -a -t nonfs,mfs
+.Ed
+.Pp
+mounts all file systems except those of type NFS and MFS.
+.Pp
+.Nm
+will attempt to execute a program in
+.Pa /sbin/mount_ Ns Em XXX
+where
+.Em XXX
+is replaced by the type name.
+For example, NFS file systems are mounted by the program
+.Pa /sbin/mount_nfs .
+.It Fl u
+The
+.Fl u
+flag indicates that the status of an already mounted file
+system should be changed.
+Any of the options discussed above (the
+.Fl o
+option)
+may be changed;
+also a file system can be changed from read-only to read-write
+or vice versa.
+An attempt to change from read-write to read-only will fail if any
+files on the file system are currently open for writing unless the
+.Fl f
+flag is also specified.
+Only options specified on the command line with
+.Fl o
+are changed;
+other file system options are unaltered.
+The options set in the
+.Xr fstab 5
+table are ignored.
+.It Fl v
+Verbose mode.
+.It Fl w
+The file system object is to be read and write.
+.El
+.Pp
+The options specific to the various file system types are
+described in the manual pages for those file systems'
+.Nm mount_XXX
+commands.
+For instance, the options specific to Berkeley
+Fast File Systems are described in the
+.Xr mount_ffs 8
+manual page.
+.Sh FILES
+.Bl -tag -width /etc/fstab -compact
+.It Pa /etc/fstab
+file system table
+.El
+.Sh EXAMPLES
+Mount a CD-ROM on node
+.Pa /mnt/cdrom :
+.Pp
+.Dl # mount -t cd9660 -r /dev/cd0a /mnt/cdrom
+.Pp
+Mount an MS-DOS USB stick with DUID 3eb7f9da875cb9ee on node
+.Pa /mnt/key :
+.Pp
+.Dl # mount -t msdos 3eb7f9da875cb9ee.i /mnt/key
+.Pp
+Graft a remote NFS file system on host
+.Ar host ,
+path
+.Pa /path/name ,
+on node
+.Pa /mnt/nfs :
+.Pp
+.Dl # mount host:/path/name /mnt/nfs
+.Pp
+Remount
+.Pa /var
+with option
+.Dq dev :
+.Pp
+.Dl # mount -u -o dev /var
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr fstab 5 ,
+.Xr disklabel 8 ,
+.Xr mount_cd9660 8 ,
+.Xr mount_ext2fs 8 ,
+.Xr mount_ffs 8 ,
+.Xr mount_mfs 8 ,
+.Xr mount_msdos 8 ,
+.Xr mount_nfs 8 ,
+.Xr mount_ntfs 8 ,
+.Xr mount_tmpfs 8 ,
+.Xr mount_udf 8 ,
+.Xr mount_vnd 8 ,
+.Xr showmount 8 ,
+.Xr sysctl 8 ,
+.Xr umount 8
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .
+.Sh CAVEATS
+After a successful
+.Nm mount ,
+the permissions on the original mount point determine if
+.Dq \&.\&.
+is accessible from the mounted file system.
+The minimum permissions for
+the mount point for traversal across the mount point in both
+directions to be possible for all users is 0111 (execute for all).

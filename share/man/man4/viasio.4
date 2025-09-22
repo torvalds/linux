@@ -1,0 +1,77 @@
+.\"	$OpenBSD: viasio.4,v 1.6 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt VIASIO 4
+.Os
+.Sh NAME
+.Nm viasio
+.Nd VIA VT1211 LPC Super I/O
+.Sh SYNOPSIS
+.Cd "viasio* at isa? port 0x2e flags 0x0000"
+.Cd "viasio* at isa? port 0x4e flags 0x0000"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the VIA VT1211 LPC Super I/O IC.
+The hardware monitoring and watchdog timer functions are currently
+supported.
+.Pp
+The hardware monitor provides hardware monitoring capabilities
+to be used with the
+.Xr sysctl 8
+interface.
+The following monitoring sensors are available:
+.Bl -column "Sensor" "UnitsXXXXX" "Typical" -offset indent
+.It Sy "Sensor" Ta Sy "Units" Ta Sy "Typical use"
+.It Li "TEMP1" Ta "uK" Ta "Pentium II type thermal diode"
+.It Li "UCH1" Ta "uK or uV DC" Ta "CPU temperature"
+.It Li "UCH2" Ta "uK or uV DC" Ta "System temperature"
+.It Li "UCH3" Ta "uK or uV DC" Ta "CPU core voltage"
+.It Li "UCH4" Ta "uK or uV DC" Ta "+5V"
+.It Li "UCH5" Ta "uK or uV DC" Ta "+12V"
+.It Li "+3.3V" Ta "uV" Ta "Internal +3.3V"
+.It Li "FAN1" Ta "RPM" Ta "Fan tachometer"
+.It Li "FAN2" Ta "RPM" Ta "Fan tachometer"
+.El
+.Pp
+If the hardware monitor is not enabled by firmware, the driver can try
+to enable it if value 0x0001 is present in the
+.Ar flags .
+Note that enabling the hardware monitor can lead to unexpected results.
+.Pp
+The watchdog timer provides a standard
+.Xr watchdog 4
+interface.
+If the watchdog timer is not enabled by firmware, the driver can try
+to enable it if value 0x0002 is present in the
+.Ar flags .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr watchdog 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

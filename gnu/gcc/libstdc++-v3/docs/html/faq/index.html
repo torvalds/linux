@@ -1,0 +1,1210 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="KEYWORDS" content="libstdc++, libstdc++-v3, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="FAQ for the GNU libstdc++ effort." />
+   <title>libstdc++-v3 FAQ</title>
+<link rel="StyleSheet" href="../lib3styles.css" />
+<link rel="Start" rev="Help" href="../documentation.html" type="text/html"
+ title="GNU C++ Standard Library" />
+<link rel="Copyright" href="../17_intro/license.html" type="text/html" />
+</head>
+<body>
+
+<h1 class="centered">libstdc++ Frequently Asked Questions</h1>
+
+<p class="fineprint"><em>
+   The latest version of this document is always available at
+   <a href="http://gcc.gnu.org/onlinedocs/libstdc++/faq/">
+   http://gcc.gnu.org/onlinedocs/libstdc++/faq/</a>.  The main documentation
+   page is at
+   <a href="http://gcc.gnu.org/onlinedocs/libstdc++/documentation.html">
+   http://gcc.gnu.org/onlinedocs/libstdc++/documentation.html</a>.
+</em></p>
+
+<p><em>
+   To the <a href="http://gcc.gnu.org/libstdc++/">libstdc++-v3 homepage</a>.
+</em></p>
+
+<!-- ####################################################### -->
+<hr />
+<h1>Questions</h1>
+<ol>
+   <li><a href="#1_0">General Information</a>
+   <!-- I suspect these will mostly be links to/into existing documents. -->
+   <ol>
+      <li><a href="#1_1">What is libstdc++-v3?</a> </li>
+      <li><a href="#1_2">Why should I use libstdc++?</a> </li>
+      <li><a href="#1_3">Who's in charge of it?</a> </li>
+      <li><a href="#1_4">How do I get libstdc++?</a> </li>
+      <li><a href="#1_5">When is libstdc++ going to be finished?</a> </li>
+      <li><a href="#1_6">How do I contribute to the effort?</a> </li>
+      <li><a href="#1_7">What happened to libg++?  I need that!</a> </li>
+      <li><a href="#1_8">What if I have more questions?</a> </li>
+      <li><a href="#1_9">What are the license terms for libstdc++-v3?</a> </li>
+   </ol>
+   </li>
+
+   <li><a href="#2_0">Installation</a>
+      <ol>
+         <li><a href="#2_1">How do I install libstdc++-v3?</a> </li>
+         <li><a href="#2_2">[removed]</a> </li>
+         <li><a href="#2_3">What is this SVN thing that you keep
+                            mentioning?</a> </li>
+         <li><a href="#2_4">How do I know if it works?</a> </li>
+         <li><a href="#2_5">This library is HUGE!  And what's libsupc++?</a> </li>
+         <li><a href="#2_6">Why do I get an error saying
+                            <code>libstdc++.so.X</code> is missing when I
+                            run my program?</a> </li>
+      </ol>
+   </li>
+
+   <li><a href="#3_0">Platform-Specific Issues</a>
+      <ol>
+         <li><a href="#3_1">Can libstdc++-v3 be used with &lt;my
+                            favorite compiler&gt;?</a> </li>
+         <li><a href="#3_2">[removed]</a> </li>
+         <li><a href="#3_3">[removed]</a> </li>
+         <li><a href="#3_4">I can't use 'long long' on Solaris</a> </li>
+         <li><a href="#3_5"><code>_XOPEN_SOURCE</code> /
+                            <code>_GNU_SOURCE</code> / etc is always defined</a>
+         </li>
+         <li><a href="#3_6">OS X ctype.h is broken!  How can I hack it?</a></li>
+         <li><a href="#3_7">Threading is broken on i386</a></li>
+         <li><a href="#3_8">Recent GNU/Linux glibc required?</a></li>
+         <li><a href="#3_9">Can't use wchar_t/wstring on FreeBSD</a></li>
+         <li><a href="#3_10">MIPS atomic operations</a></li>
+      </ol>
+   </li>
+
+   <li><a href="#4_0">Known Bugs and Non-Bugs</a>
+      <ol>
+         <li><a href="#4_1">What works already?</a> </li>
+         <li><a href="#4_2">Bugs in gcc/g++ (not libstdc++-v3)</a> </li>
+         <li><a href="#4_3">Bugs in the C++ language/lib specification</a> </li>
+         <li><a href="#4_4">Things in libstdc++ that only look like bugs</a><ul>
+           <li><a href="#4_4_iostreamclear">reopening a stream fails</a> </li>
+           <li><a href="#4_4_Weff">-Weffc++ complains too much</a> </li>
+           <li><a href="#4_4_rel_ops">&quot;ambiguous overloads&quot;
+                               after including an old-style header</a> </li>
+           <li><a href="#4_4_interface">The g++-3 headers are
+                               <strong>not ours</strong></a> </li>
+           <li><a href="#4_4_glibc">compilation errors from streambuf.h</a> </li>
+           <li><a href="#4_4_checks">errors about <em>*Concept</em> and
+                               <em>constraints</em> in the STL...</a> </li>
+           <li><a href="#4_4_dlsym">program crashes when using library code
+                               in a dynamically-loaded library</a> </li>
+           <li><a href="#4_4_leak">"memory leaks" in containers</a> </li>
+         </ul>
+         </li>
+         <li><a href="#4_5">Aw, that's easy to fix!</a> </li>
+      </ol>
+   </li>
+
+   <li><a href="#5_0">Miscellaneous</a>
+      <ol>
+         <li><a href="#5_1">string::iterator is not char*;
+                            vector&lt;T&gt;::iterator is not T*</a> </li>
+         <li><a href="#5_2">What's next after libstdc++-v3?</a> </li>
+         <li><a href="#5_3">What about the STL from SGI?</a> </li>
+         <li><a href="#5_4">Extensions and Backward Compatibility</a> </li>
+         <li><a href="#5_5">Does libstdc++ support TR1?</a> </li>
+         <li><a href="#5_6">Is libstdc++-v3 thread-safe?</a> </li>
+         <li><a href="#5_7">How do I get a copy of the ISO C++ Standard?</a> </li>
+         <li><a href="#5_8">What's an ABI and why is it so messy?</a> </li>
+         <li><a href="#5_9">How do I make std::vector&lt;T&gt;::capacity() 
+                            == std::vector&lt;T&gt;::size?</a> </li>
+      </ol>
+   </li>
+
+</ol>
+
+<hr />
+
+<!-- ####################################################### -->
+
+<h1><a name="1_0">1.0 General Information</a></h1>
+<!-- I suspect these will mostly be links to/into existing documents. -->
+   <h2><a name="1_1">1.1 What is libstdc++-v3?</a></h2>
+      <p>The GNU Standard C++ Library v3 is an
+         ongoing project to implement the ISO 14882 Standard C++ library
+         as described in chapters 17 through 27 and annex D.
+         For those who want to see exactly how
+         far the project has come, or just want the latest
+         bleeding-edge code, the up-to-date source is available over
+         anonymous SVN, and can even be browsed over the Web (see
+         <a href="#1_4">1.4</a> below).
+      </p>
+      <p>The older libstdc++-v2 project is no longer maintained; the code
+         has been completely replaced and rewritten.
+         <a href="#4_4_interface">If you are using V2</a>, then you need to
+         report bugs to your system vendor, not to the V3 list.
+      </p>
+      <p>A more formal description of the V3 goals can be found in the
+         official <a href="../17_intro/DESIGN">design document</a>.
+      </p>
+
+<hr />
+   <h2><a name="1_2">1.2 Why should I use libstdc++?</a></h2>
+      <p>The completion of the ISO C++ standardization gave the
+         C++ community a powerful set of reuseable tools in the form
+         of the C++ Standard Library.  However, all existing C++
+         implementations are (as the Draft Standard used to say)
+         &quot;incomplet and incorrekt,&quot; and many suffer from
+         limitations of the compilers that use them.
+      </p>
+      <p>The GNU C/C++/FORTRAN/&lt;pick-a-language&gt; compiler
+         (<code>gcc</code>, <code>g++</code>, etc) is widely considered to be
+         one of the leading compilers in the world.  Its development
+         is overseen by the
+         <a href="http://gcc.gnu.org/">GCC team</a>.  All of
+         the rapid development and near-legendary
+         <a href="http://gcc.gnu.org/gcc-3.3/buildstat.html">portability</a>
+         that are the hallmarks of an open-source project are being
+         applied to libstdc++.
+      </p>
+      <p>That means that all of the Standard classes and functions
+         (such as <code>string</code>, <code>vector&lt;&gt;</code>, iostreams,
+         and algorithms) will be freely available and fully compliant.
+         Programmers will no longer need to &quot;roll their own&quot;
+         nor be worried about platform-specific incompatibilities.
+      </p>
+
+<hr />
+   <h2><a name="1_3">1.3 Who's in charge of it?</a></h2>
+      <p>The libstdc++ project is contributed to by several developers
+         all over the world, in the same way as GCC or Linux.
+         Benjamin Kosnik, Gabriel Dos Reis, Phil Edwards, Ulrich Drepper,
+         Loren James Rittle, and Paolo Carlini are the lead maintainers of
+         the SVN archive.
+      </p>
+      <p>Development and discussion is held on the libstdc++ mailing
+         list.  Subscribing to the list, or searching the list
+         archives, is open to everyone.  You can read instructions for
+         doing so on the <a href="http://gcc.gnu.org/libstdc++/">homepage</a>.
+         If you have questions, ideas, code, or are just curious, sign up!
+      </p>
+
+<hr />
+   <h2><a name="1_4">1.4 How do I get libstdc++?</a></h2>
+      <p>The <a href="http://gcc.gnu.org/libstdc++/">homepage</a>
+         has instructions for retrieving the latest SVN sources, and for
+         browsing the SVN sources over the web.
+      </p>
+      <p>Stable versions of libstdc++-v3 are included with releases of
+         <a href="http://gcc.gnu.org/releases.html">the GCC compilers</a>.
+      </p>
+      <p>The subset commonly known as the Standard Template Library
+         (chapters 23 through 25, mostly) is adapted from the final release
+         of the SGI STL, with extensive changes.
+      </p>
+
+<hr />
+   <h2><a name="1_5">1.5 When is libstdc++ going to be finished?</a></h2>
+<!--      <p>Nathan Myers gave the best of all possible answers in <a
+         href="http://www.deja.com/getdoc.xp?AN=469581698&fmt=text">a
+         Usenet article</a>.</p>
+which is no longer available, thanks deja...-->
+      <p>Nathan Myers gave the best of all possible answers, responding to a
+         Usenet article asking this question:  <em>Sooner, if you help.</em>
+      </p>
+
+<hr />
+   <h2><a name="1_6">1.6 How do I contribute to the effort?</a></h2>
+      <p>Here is <a href="../17_intro/contribute.html">a
+         page devoted to this topic</a>.  Subscribing to the mailing
+         list (see above, or the homepage) is a very good idea if you
+         have something to contribute, or if you have spare time and
+         want to help.  Contributions don't have to be in the form of
+         source code; anybody who is willing to help write
+         documentation, for example, or has found a bug in code that
+         we all thought was working, is more than welcome!
+      </p>
+
+<hr />
+   <h2><a name="1_7">1.7 What happened to libg++?  I need that!</a></h2>
+      <p>The most recent libg++ README states that libg++ is no longer
+         being actively maintained.  It should not be used for new
+         projects, and is only being kicked along to support older code.
+      </p>
+      <p>The libg++ was designed and created when there was no Standard
+         to provide guidance.  Classes like linked lists are now provided
+         for by <code>list&lt;T&gt;</code> and do not need to be created by
+         <code>genclass</code>.  (For that matter, templates exist now and
+         are well-supported, whereas genclass (mostly) predates them.)
+      </p>
+      <p>There are other classes in libg++ that are not specified in the
+         ISO Standard (e.g., statistical analysis).  While there are a
+         lot of really useful things that are used by a lot of people
+         (e.g., statistics :-), the Standards Committee couldn't include
+         everything, and so a lot of those &quot;obvious&quot; classes
+         didn't get included.
+      </p>
+      <p>Since libstdc++ is an implementation of the Standard Library, we
+         have no plans at this time to include non-Standard utilities
+         in the implementation, however handy they are.  (The extensions
+         provided in the SGI STL aren't maintained by us and don't get
+         a lot of our attention, because they don't require a lot of our
+         time.)  It is entirely plausible that the &quot;useful stuff&quot;
+         from libg++ might be extracted into an updated utilities library,
+         but nobody has started such a project yet.
+      </p>
+      <p>(The <a href="http://www.boost.org/">Boost</a> site houses free
+         C++ libraries that do varying things, and happened to be started
+         by members of the Standards Committee.  Certain &quot;useful
+         stuff&quot; classes will probably migrate there.)
+      </p>
+      <p>For the bold and/or desperate, the
+         <a href="http://gcc.gnu.org/extensions.html">GCC extensions page</a>
+         describes where to find the last libg++ source.
+      </p>
+
+<hr />
+   <h2><a name="1_8">1.8 What if I have more questions?</a></h2>
+      <p>If you have read the README and RELEASE-NOTES files, and your
+         question remains unanswered, then just ask the mailing list.
+         At present, you do not need to be subscribed to the list to
+         send a message to it.  More information is available on the
+         homepage (including how to browse the list archives); to send
+         to the list, use <a href="mailto:libstdc++@gcc.gnu.org">
+         <code>libstdc++@gcc.gnu.org</code></a>.
+      </p>
+      <p>If you have a question that you think should be included here,
+         or if you have a question <em>about</em> a question/answer here,
+         contact <a href="mailto:pme@gcc.gnu.org">Phil Edwards</a>
+         or <a href="mailto:gdr@gcc.gnu.org">Gabriel Dos Reis</a>.
+      </p>
+
+<hr />
+   <h2><a name="1_9">1.9 What are the license terms for libstdc++-v3?</a></h2>
+      <p>See <a href="../17_intro/license.html">our license description</a>
+         for these and related questions.
+      </p>
+
+<hr />
+<h1><a name="2_0">2.0 Installation</a></h1>
+   <h2><a name="2_1">2.1 How do I install libstdc++-v3?</a></h2>
+      <p>Complete instructions are not given here (this is a FAQ, not
+         an installation document), but the tools required are few:
+      </p>
+         <ul>
+            <li> A 3.x release of GCC.  Note that building GCC is much
+                 easier and more automated than building the GCC 2.[78]
+                 series was.  If you are using GCC 2.95, you can still
+                 build earlier snapshots of libstdc++.
+            </li>
+            <li> GNU Make is required for GCC 3.4 and later.
+            </li>
+            <li> The GNU Autotools are needed if you are messing with
+                 the configury or makefiles.
+            </li>
+         </ul>
+      <p>The file <a href="../documentation.html">documentation.html</a>
+         provides a good overview of the steps necessary to build, install,
+         and use the library.  Instructions for configuring the library
+         with new flags such as --enable-threads are there also, as well as
+         patches and instructions for working with GCC 2.95.
+      </p>
+      <p>The top-level install.html and
+         <a href="../17_intro/RELEASE-NOTES">RELEASE-NOTES</a> files contain
+         the exact build and installation instructions.  You may wish to
+         browse those files over ViewVC ahead of time to get a feel for
+         what's required.  RELEASE-NOTES is located in the
+         &quot;.../docs/17_intro/&quot; directory of the distribution.
+      </p>
+
+<hr />
+   <h2><a name="2_2">2.2 [removed]</a></h2>
+      <p>This question has become moot and has been removed.  The stub
+         is here to preserve numbering (and hence links/bookmarks).
+      </p>
+
+<hr />
+   <h2><a name="2_3">2.3 What is this SVN thing that you
+                         keep mentioning?</a></h2>
+      <p><em>Subversion</em> is one of several revision control packages.
+         It was selected for GNU projects because it's free (speech), free (beer),
+         and very high quality.  The <a href="http://subversion.tigris.org">
+         Subversion home page</a> has a better description.
+      </p>
+      <p>The &quot;anonymous client checkout&quot; feature of SVN is
+         similar to anonymous FTP in that it allows anyone to retrieve
+         the latest libstdc++ sources.
+      </p>
+      <p>After the first of April, American users will have a
+         &quot;/pharmacy&quot; command-line option...
+         <!-- wonder how long that'll live -->
+      </p>
+
+<hr />
+   <h2><a name="2_4">2.4 How do I know if it works?</a></h2>
+      <p>libstdc++-v3 comes with its own testsuite.  You do not need
+         to actually install the library (&quot;<code>make
+         install</code>&quot;) to run the testsuite, but you do need
+         DejaGNU, as described
+         <a href="http://gcc.gnu.org/install/test.html">here</a>.
+      </p>
+      <p>To run the testsuite on the library after building it, use
+         &quot;make check&quot; while in your build directory.  To run
+         the testsuite on the library after building and installing it,
+         use &quot;make check-install&quot; instead.
+      </p>
+      <p>If you find bugs in the testsuite programs themselves, or if you
+         think of a new test program that should be added to the suite,
+         <strong>please</strong> write up your idea and send it to the list!
+      </p>
+
+<hr />
+   <h2><a name="2_5">2.5 This library is HUGE!  And what's libsupc++?</a></h2>
+      <p>Usually the size of libraries on disk isn't noticeable.  When a
+         link editor (or simply &quot;linker&quot;) pulls things from a
+         static archive library, only the necessary object files are copied
+         into your executable, not the entire library.  Unfortunately, even
+         if you only need a single function or variable from an object file,
+         the entire object file is extracted.  (There's nothing unique to C++
+         or libstdc++-v3 about this; it's just common behavior, given here
+         for background reasons.)
+      </p>
+      <p>Some of the object files which make up libstdc++.a are rather large.
+         If you create a statically-linked executable with
+         <code> -static</code>, those large object files are suddenly part
+         of your executable.  Historically the best way around this was to
+         only place a very few functions (often only a single one) in each
+         source/object file; then extracting a single function is the same
+         as extracting a single .o file.  For libstdc++-v3 this is only
+         possible to a certain extent; the object files in question contain
+         template classes and template functions, pre-instantiated, and
+         splitting those up causes severe maintenance headaches.
+      </p>
+      <p>It's not a bug, and it's not really a problem.  Nevertheless, some
+         people don't like it, so here are two pseudo-solutions:
+      </p>
+      <p>If the only functions from libstdc++.a which you need are
+         language support functions (those listed in <a
+         href="../18_support/howto.html">clause 18</a> of the
+         standard, e.g., <code>new</code> and <code>delete</code>),
+         then try linking against <code>libsupc++.a</code> (Using
+         <code>gcc</code> instead of <code>g++</code> and explicitly
+         linking in <code>-lsupc++</code> for the final link step will
+         do it).  This library contains only those support routines,
+         one per object file.  But if you are using anything from the
+         rest of the library, such as IOStreams or vectors, then
+         you'll still need pieces from <code>libstdc++.a</code>.
+      </p>
+      <p>The second method is one we hope to incorporate into the library
+         build process.  Some platforms can place each function and variable
+         into its own section in a .o file.  The GNU linker can then perform
+         garbage collection on unused sections; this reduces the situation
+         to only copying needed functions into the executable, as before,
+         but all happens automatically.
+      </p>
+      <p>Unfortunately the garbage collection in GNU ld is buggy; sections
+         (corresponding to functions and variables) which <em>are</em> used
+         are mistakenly removed, leading to horrible crashes when your
+         executable starts up.  For the time being, this feature is not used
+         when building the library.
+      </p>
+
+<hr />
+   <h2><a name="2_6">2.6 Why do I get an error saying
+                         <code>libstdc++.so.X</code> is missing when I run
+                         my program?</a></h2>
+      <p>Depending on your platform and library version, the message might
+         be similar to one of the following:
+      </p>
+      <pre>
+    ./a.out: error while loading shared libraries: libstdc++.so.6: cannot open shared object file: No such file or directory
+
+    /usr/libexec/ld-elf.so.1: Shared object "libstdc++.so.6" not found </pre>
+
+      <p>This doesn't mean that the shared library isn't installed, only
+         that the dynamic linker can't find it. When a dynamically-linked
+         executable is run the linker finds and loads the required shared
+         libraries by searching a pre-configured list of directories. If
+         the directory where you've installed libstdc++ is not in this
+         list then the libraries won't be found. The simplest way to fix
+         this is to use the <code>LD_LIBRARY_PATH</code> environment
+         variable, which is a colon-separated list of directories in which
+         the linker will search for shared libraries:
+      </p>
+      <pre>
+    LD_LIBRARY_PATH=${prefix}/lib:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH </pre>
+      <p>The exact environment variable to use will depend on your platform,
+         e.g. DYLD_LIBRARY_PATH for Darwin,
+         LD_LIBRARY_PATH_32/LD_LIBRARY_PATH_64 for Solaris 32-/64-bit,
+         LD_LIBRARYN32_PATH/LD_LIBRARY64_PATH for Irix N32/64-bit ABIs
+         and SHLIB_PATH for HP-UX.
+      </p>
+      <p>See the man pages for <code>ld(1)</code>, <code>ldd(1)</code> and
+         <code>ldconfig(8)</code> for more information. The dynamic linker
+         has different names on different platforms but the man page is
+         usually called something such as <code>ld.so / rtld / dld.so</code>.
+      </p>
+
+<hr />
+<h1><a name="3_0">3.0 Platform-Specific Issues</a></h1>
+   <h2><a name="3_1">3.1 Can libstdc++-v3 be used with &lt;my
+                         favorite compiler&gt;?</a></h2>
+      <p>Probably not.  Yet.</p>
+      <p>Because GCC advances so rapidly, development and testing of
+         libstdc++ is being done almost entirely under that compiler.
+         If you are curious about whether other, lesser compilers
+         (*grin*) support libstdc++, you are more than welcome to try.
+         Configuring and building the library (see above) will still
+         require certain tools, however.  Also keep in mind that
+         <em>building</em> libstdc++ does not imply that your compiler
+         will be able to <em>use</em> all of the features found in the
+         C++ Standard Library.
+      </p>
+      <p>Since the goal of ISO Standardization is for all C++
+         implementations to be able to share code, the final libstdc++
+         should, in theory, be usable under any ISO-compliant
+         compiler.  It will still be targeted and optimized for
+         GCC/g++, however.
+      </p>
+
+<hr />
+   <h2><a name="3_2">3.2 [removed]</a></h2>
+      <p>This question has become moot and has been removed.  The stub
+         is here to preserve numbering (and hence links/bookmarks).
+      </p>
+
+<hr />
+   <h2><a name="3_3">3.3 [removed]</a></h2>
+      <p>This question has become moot and has been removed.  The stub
+         is here to preserve numbering (and hence links/bookmarks).
+      </p>
+
+<hr />
+   <h2><a name="3_4">3.4 I can't use 'long long' on Solaris</a></h2>
+      <p>By default we try to support the C99 <code>long long</code> type.
+         This requires that certain functions from your C library be present.
+      </p>
+      <p>Up through release 3.0.2 the tests performed were too general, and
+         this feature was disabled when it did not need to be.  The most
+         commonly reported platform affected was Solaris.
+      </p>
+      <p>This has been fixed for 3.0.3 and onwards.
+      </p>
+
+<hr />
+   <h2><a name="3_5">3.5 <code>_XOPEN_SOURCE</code> / <code>_GNU_SOURCE</code>
+                         / etc is always defined</a></h2>
+      <p>On Solaris, g++ (but not gcc) always defines the preprocessor
+         macro <code>_XOPEN_SOURCE</code>.  On GNU/Linux, the same happens
+         with <code>_GNU_SOURCE</code>.  (This is not an exhaustive list;
+         other macros and other platforms are also affected.)
+      </p>
+      <p>These macros are typically used in C library headers, guarding new
+         versions of functions from their older versions.  The C++ standard
+         library includes the C standard library, but it requires the C90
+         version, which for backwards-compatibility reasons is often not the
+         default for many vendors.
+      </p>
+      <p>More to the point, the C++ standard requires behavior which is only
+         available on certain platforms after certain symbols are defined.
+         Usually the issue involves I/O-related typedefs.  In order to
+         ensure correctness, the compiler simply predefines those symbols.
+      </p>
+      <p>Note that it's not enough to #define them only when the library is
+         being built (during installation).  Since we don't have an 'export'
+         keyword, much of the library exists as headers, which means that
+         the symbols must also be defined as your programs are parsed and
+         compiled.
+      </p>
+      <p>To see which symbols are defined, look for CPLUSPLUS_CPP_SPEC in
+         the gcc config headers for your target (and try changing them to
+         see what happens when building complicated code).  You can also run
+         <code>&quot;g++ -E -dM - &lt; /dev/null&quot;</code> to display
+         a list of predefined macros for any particular installation.
+      </p>
+      <p>This has been discussed on the mailing lists
+         <a href="http://gcc.gnu.org/cgi-bin/htsearch?method=and&amp;format=builtin-long&amp;sort=score&amp;words=_XOPEN_SOURCE+Solaris">quite a bit</a>.
+      </p>
+      <p>This method is something of a wart.  We'd like to find a cleaner
+         solution, but nobody yet has contributed the time.
+      </p>
+
+<hr />
+   <h2><a name="3_6">3.6 OS X ctype.h is broken!  How can I hack it?</a></h2>
+      <p>This is a long-standing bug in the OS X support.  Fortunately,
+         the patch is quite simple, and well-known.
+         <a href="http://gcc.gnu.org/ml/gcc/2002-03/msg00817.html"> Here's a
+         link to the solution.</a>
+      </p>
+
+<hr />
+   <h2><a name="3_7">3.7 Threading is broken on i386</a></h2>
+      <p>Support for atomic integer operations is/was broken on i386
+         platforms.  The assembly code accidentally used opcodes that are
+         only available on the i486 and later.  So if you configured GCC
+         to target, for example, i386-linux, but actually used the programs
+         on an i686, then you would encounter no problems.  Only when
+         actually running the code on a i386 will the problem appear.
+      </p>
+      <p>This is fixed in 3.2.2.
+      </p>
+
+<hr />
+   <h2><a name="3_8">3.8 Recent GNU/Linux glibc required?</a></h2>
+      <p>When running on GNU/Linux, libstdc++ 3.2.1 (shared library version
+         5.0.1) and later uses localization and formatting code from the system
+         C library (glibc) version 2.2.5.  That version of glibc is over a
+         year old and contains necessary bugfixes.  Many GNU/Linux distros make
+         glibc version 2.3.x available now.
+      </p>
+      <p>The guideline is simple:  the more recent the C++ library, the
+         more recent the C library.  (This is also documented in the main
+         GCC installation instructions.)
+      </p>
+
+<hr />
+   <h2><a name="3_9">3.9 Can't use wchar_t/wstring on FreeBSD</a></h2>
+      <p>At the moment there are a few problems in FreeBSD's support for
+         wide character functions, and as a result the libstdc++ configury
+         decides that wchar_t support should be disabled.  Once the underlying
+         problems are fixed in FreeBSD (soon), the library support will
+         automatically enable itself.
+      </p>
+      <p>You can fix the problems yourself, and learn more about the situation,
+         by reading
+         <a href="http://gcc.gnu.org/ml/libstdc++/2003-02/subjects.html#00286">
+         this short thread</a> (&quot;_GLIBCPP_USE_WCHAR_T undefined in
+         FreeBSD's c++config.h?&quot;).
+      </p>
+
+<hr />
+   <h2><a name="3_10">3.10 MIPS atomic operations</a></h2>
+      <p>The atomic locking routines for MIPS targets requires MIPS II
+         and later.  A patch went in just after the 3.3 release to
+         make mips* use the generic implementation instead.  You can also
+         configure for mipsel-elf as a workaround.
+      </p>
+      <p>mips*-*-linux* continues to use the MIPS II routines, and more
+         work in this area is expected.
+      </p>
+
+<hr />
+<h1><a name="4_0">4.0 Known Bugs and Non-Bugs</a></h1>
+   <em>Note that this section can get rapidly outdated -- such is the
+       nature of an open-source project.  For the latest information, join
+       the mailing list or look through recent archives.   The RELEASE-
+       NOTES and BUGS files are generally kept up-to-date.</em>
+
+   <p>For 3.0.1, the most common &quot;bug&quot; is an apparently missing
+      &quot;<code>../</code>&quot; in include/Makefile, resulting in files
+      like gthr.h and gthr-single.h not being found.  Please read
+      <a href="http://gcc.gnu.org/install/configure.html">the configuration
+      instructions for GCC</a>,
+      specifically the part about configuring in a separate build directory,
+      and how strongly recommended it is.  Building in the source directory
+      is fragile, is rarely tested, and tends to break, as in this case.
+      This was fixed for 3.0.2.
+   </p>
+
+   <p>For 3.1, the most common &quot;bug&quot; is a parse error when using
+      <code>&lt;fstream&gt;</code>, ending with a message,
+      &quot;<code>bits/basic_file.h:52: parse error before `{'
+      token</code>.&quot;  Please read
+      <a href="http://gcc.gnu.org/install/">the installation instructions for
+      GCC</a>, specifically the part about not installing newer versions on
+      top of older versions.  If you install 3.1 over a 3.0.x release, then
+      the wrong basic_file.h header will be found (its location changed
+      between releases).
+   </p>
+
+   <p><strong>Please do not report these as bugs.  We know about them.</strong>
+      Reporting this -- or any other problem that's already been fixed --
+      hinders the development of GCC, because we have to take time to
+      respond to your report.  Thank you.
+   </p>
+
+<hr />
+   <h2><a name="4_1">4.1 What works already?</a></h2>
+      <p>Short answer:  Pretty much everything <em>works</em> except for some
+         corner cases.  Also, localization is incomplete.  For whether it works
+         well, or as you expect it to work, see 5.2.
+      </p>
+      <p>Long answer:  See the docs/html/17_intro/CHECKLIST file, which is
+         badly outdated...  Also see the RELEASE-NOTES file, which is kept
+         more up to date.
+      </p>
+
+<hr />
+   <h2><a name="4_2">4.2 Bugs in gcc/g++ (not libstdc++-v3)</a></h2>
+      <p>This is by no means meant to be complete nor exhaustive, but
+         mentions some problems that users may encounter when building
+         or using libstdc++.  If you are experiencing one of these
+         problems, you can find more information on the libstdc++ and
+         the GCC mailing lists.
+      </p>
+      <p>Before reporting a bug, examine the
+         <a href="http://gcc.gnu.org/bugs.html">bugs database</a> with the
+         category set to &quot;libstdc++&quot;.  The BUGS file in the source
+         tree also tracks known serious problems.
+      </p>
+      <ul>
+         <li>Debugging is problematic, due to bugs in line-number generation
+             (mostly fixed in the compiler) and gdb lagging behind the
+             compiler (lack of personnel).  We recommend configuring the
+             compiler using <code>--with-dwarf2</code> if the DWARF2
+             debugging format is not already the default on your platform.
+             Also,
+<a href="http://gcc.gnu.org/ml/libstdc++/2002-02/msg00034.html">changing your
+             GDB settings</a> can have a profound effect on your C++ debugging
+             experiences.  :-)</li>
+      </ul>
+
+<hr />
+   <h2><a name="4_3">4.3 Bugs in the C++ language/lib specification</a></h2>
+      <p>Yes, unfortunately, there are some.  In a
+         <a href="http://gcc.gnu.org/ml/libstdc++/1998/msg00006.html">message
+         to the list</a>, Nathan Myers announced that he has started a list of
+         problems in the ISO C++ Standard itself, especially with
+         regard to the chapters that concern the library.  The list
+         itself is
+         <a href="http://www.cantrip.org/draft-bugs.txt">posted on his
+         website</a>.  Developers who are having problems interpreting
+         the Standard may wish to consult his notes.
+      </p>
+      <p>For those people who are not part of the ISO Library Group
+         (i.e., nearly all of us needing to read this page in the first
+         place :-), a public list of the library defects is occasionally
+         published <a href="http://anubis.dkuug.dk/jtc1/sc22/wg21/">here</a>.
+         Some of these have resulted in <a href="#5_2">code changes</a>.
+      </p>
+
+<hr />
+   <h2><a name="4_4">4.4 Things in libstdc++ that only look like bugs</a></h2>
+      <p>There are things which are not bugs in the compiler (4.2) nor
+         the language specification (4.3), but aren't really bugs in
+         libstdc++, either.  Really!  Please do not report these as bugs.
+      </p>
+      <p><a name="4_4_Weff"><strong>-Weffc++</strong></a>
+         The biggest of these is the quadzillions of warnings about the
+         library headers emitted when <code>-Weffc++</code> is used.  Making
+         libstdc++ &quot;-Weffc++-clean&quot; is not a goal of the project,
+         for a few reasons.  Mainly, that option tries to enforce
+         object-oriented programming, while the Standard Library isn't
+         necessarily trying to be OO.
+      </p>
+      <p><a name="4_4_iostreamclear"><strong>reopening a stream fails</strong>
+         </a> Did I just say that -Weffc++ was our biggest false-bug report?
+         I lied.  (It used to be.)  Today it seems to be reports that after
+         executing a sequence like
+      </p>
+      <pre>
+    #include &lt;fstream&gt;
+    ...
+    std::fstream  fs(&quot;a_file&quot;);
+    // .
+    // . do things with fs...
+    // .
+    fs.close();
+    fs.open(&quot;a_new_file&quot;);</pre>
+      <p>all operations on the re-opened <code>fs</code> will fail, or at
+         least act very strangely.  Yes, they often will, especially if
+         <code>fs</code> reached the EOF state on the previous file.  The
+         reason is that the state flags are <strong>not</strong> cleared
+         on a successful call to open().  The standard unfortunately did
+         not specify behavior in this case, and to everybody's great sorrow,
+         the <a href="../ext/howto.html#5">proposed LWG resolution in
+         DR #22</a> is to leave the flags unchanged.  You must insert a call
+         to <code>fs.clear()</code> between the calls to close() and open(),
+         and then everything will work like we all expect it to work.
+	 <strong>Update:</strong> for GCC 4.0 we implemented the resolution
+	 of <a href="../ext/howto.html#5">DR #409</a> and open() now calls
+	 <code>clear()</code> on success!
+      </p>
+      <p><a name="4_4_rel_ops"><strong>rel_ops</strong></a>
+         Another is the <code>rel_ops</code> namespace and the template
+         comparison operator functions contained therein.  If they become
+         visible in the same namespace as other comparison functions
+         (e.g., '<code>using</code>' them and the &lt;iterator&gt; header),
+         then you will suddenly be faced with huge numbers of ambiguity
+         errors.  This was discussed on the -v3 list; Nathan Myers
+         <a href="http://gcc.gnu.org/ml/libstdc++/2001-01/msg00247.html">sums
+         things up here</a>.  The collisions with vector/string iterator
+         types have been fixed for 3.1.  <!-- more links to email here -->
+      </p>
+      <h3><a name="4_4_interface">The g++-3 headers are <em>not ours</em></a></h3>
+      <p>If you have found an extremely broken header file which is
+         causing problems for you, look carefully before submitting a
+         &quot;high&quot; priority bug report (which you probably shouldn't
+         do anyhow; see the last paragraph of the page describing
+         <a href="http://gcc.gnu.org/bugs.html">the GCC bug database</a>).
+      </p>
+      <p>If the headers are in <code>${prefix}/include/g++-3</code>, or if
+         the installed library's name looks like <code>libstdc++-2.10.a</code>
+         or <code>libstdc++-libc6-2.10.so</code>, then you are using the old
+         libstdc++-v2 library, which is nonstandard and unmaintained.  Do not
+         report problems with -v2 to the -v3 mailing list.
+      </p>
+      <p>For GCC versions 3.0 and 3.1 the libstdc++-v3 header files are
+         installed in <code>${prefix}/include/g++-v3</code> (see the 'v'?).
+         Starting with version 3.2 the headers are installed in
+         <code>${prefix}/include/c++/${version}</code> as this prevents
+         headers from previous versions being found by mistake.
+      </p>
+      <p><a name="4_4_glibc"><strong>glibc</strong></a>
+         If you're on a GNU/Linux system and have just upgraded to
+         glibc 2.2, but are still using gcc 2.95.2, then you should have
+         read the glibc FAQ, specifically 2.34:
+      </p>
+      <pre>
+2.34.   When compiling C++ programs, I get a compilation error in streambuf.h.
+
+{BH} You are using g++ 2.95.2? After upgrading to glibc 2.2, you need to
+apply a patch to the include files in /usr/include/g++, because the fpos_t
+type has changed in glibc 2.2.  The patch is at
+http://clisp.cons.org/~haible/gccinclude-glibc-2.2-compat.diff
+   </pre>
+      <p>Note that 2.95.x shipped with the
+         <a href="#4_4_interface">old v2 library</a> which is no longer
+         maintained.  Also note that gcc 2.95.3 fixes this problem, but
+         requires a separate patch for libstdc++-v3.
+      </p>
+      <p><a name="4_4_checks"><strong>concept checks</strong></a>
+         If you see compilation errors containing messages about
+         <code> <em>foo</em>Concept </code>and a<code> constraints </code>
+         member function, then most likely you have violated one of the
+         requirements for types used during instantiation of template
+         containers and functions.  For example, EqualityComparableConcept
+         appears if your types must be comparable with == and you have not
+         provided this capability (a typo, or wrong visibility, or you
+         just plain forgot, etc).
+      </p>
+      <p>More information, including how to optionally enable/disable the
+         checks, is available
+         <a href="../19_diagnostics/howto.html#3">here</a>.
+      </p>
+      <p><a name="4_4_dlsym"><strong>dlopen/dlsym</strong></a>
+         If you are using the C++ library across dynamically-loaded
+         objects, make certain that you are passing the correct options
+         when compiling and linking:
+      </p>
+      <pre>
+    // compile your library components
+    g++ -fPIC -c a.cc
+    g++ -fPIC -c b.cc
+    ...
+    g++ -fPIC -c z.cc
+
+    // create your library
+    g++ -fPIC -shared -rdynamic -o libfoo.so a.o b.o ... z.o
+
+    // link the executable
+    g++ -fPIC -rdynamic -o foo ... -L. -lfoo -ldl</pre>
+      <p><a name="4_4_leak"><strong>"memory leaks" in containers</strong></a>
+         A few people have reported that the standard containers appear
+         to leak memory when tested with memory checkers such as
+         <a href="http://developer.kde.org/~sewardj/">valgrind</a>.
+         The library's default allocators keep free memory in a pool
+         for later reuse, rather than returning it to the OS.  Although
+         this memory is always reachable by the library and is never
+         lost, memory debugging tools can report it as a leak.  If you
+         want to test the library for memory leaks please read
+         <a href="../debug.html#mem">Tips for memory leak hunting</a>
+         first.
+      </p>
+
+<hr />
+   <h2><a name="4_5">4.5 Aw, that's easy to fix!</a></h2>
+      <p>If you have found a bug in the library and you think you have
+         a working fix, then send it in!  The main GCC site has a page
+         on <a href="http://gcc.gnu.org/contribute.html">submitting
+         patches</a> that covers the procedure, but for libstdc++ you
+         should also send the patch to our mailing list in addition to
+         the GCC patches mailing list.  The libstdc++
+         <a href="../17_intro/contribute.html">contributors' page</a>
+         also talks about how to submit patches.
+      </p>
+      <p>In addition to the description, the patch, and the ChangeLog
+         entry, it is a Good Thing if you can additionally create a small
+         test program to test for the presence of the bug that your
+         patch fixes.  Bugs have a way of being reintroduced; if an old
+         bug creeps back in, it will be caught immediately by the
+         <a href="#2_4">testsuite</a> -- but only if such a test exists.
+      </p>
+
+<hr />
+<h1><a name="5_0">5.0 Miscellaneous</a></h1>
+   <h2><a name="5_1">5.1 string::iterator is not char*;
+                     vector&lt;T&gt;::iterator is not T*</a></h2>
+      <p>If you have code that depends on container&lt;T&gt; iterators
+         being implemented as pointer-to-T, your code is broken.
+      </p>
+      <p>While there are arguments for iterators to be implemented in
+         that manner, A) they aren't very good ones in the long term,
+         and B) they were never guaranteed by the Standard anyway.  The
+         type-safety achieved by making iterators a real class rather
+         than a typedef for <code>T*</code> outweighs nearly all opposing
+         arguments.
+      </p>
+      <p>Code which does assume that a vector iterator <code> i </code>
+         is a pointer can often be fixed by changing <code> i </code> in
+         certain expressions to <code> &amp;*i </code>.  Future revisions
+         of the Standard are expected to bless this usage for
+         vector&lt;&gt; (but not for basic_string&lt;&gt;).
+      </p>
+
+<hr />
+   <h2><a name="5_2">5.2 What's next after libstdc++-v3?</a></h2>
+      <p>Hopefully, not much.  The goal of libstdc++-v3 is to produce
+         a fully-compliant, fully-portable Standard Library.  After that,
+         we're mostly done:  there won't <em>be</em> any more compliance
+         work to do.  However:
+      </p>
+      <ol>
+      <li><p>The ISO Committee will meet periodically to review Defect Reports
+         in the C++ Standard.  Undoubtedly some of these will result in
+         changes to the Standard, which will be reflected in patches to
+         libstdc++.  Some of that is already happening, see <a href="#4_3">4.3</a>.  Some of
+         those changes are being predicted by the library maintainers, and
+         we add code to the library based on what the current proposed
+         resolution specifies.  Those additions are listed in
+         <a href="../ext/howto.html#5">the extensions page</a>.
+      </p></li>
+      <li><p>Performance tuning.  Lots of performance tuning.  This too is
+         already underway for post-3.0 releases, starting with memory
+         expansion in container classes and buffer usage in synchronized
+         stream objects.
+      </p></li>
+      <li><p>An ABI for libstdc++ is being developed, so that
+         multiple binary-incompatible copies of the library can be replaced
+         with a single backwards-compatible library, like libgcc_s.so is.
+      </p></li>
+      <li><p>The current libstdc++ contains extensions to the Library which
+         must be explicitly requested by client code (for example, the
+         hash tables from SGI).  Other extensions may be added to
+         libstdc++-v3 if they seem to be &quot;standard&quot; enough.
+         (For example, the &quot;long long&quot; type from C99.)
+         Bugfixes and rewrites (to improve or fix thread safety, for
+         instance) will of course be a continuing task.
+      </p></li>
+      <li><p>There is an effort underway to add significant extensions to
+         the standard library specification.  The latest version of this effort is
+         described in
+         <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2005/n1836.pdf">
+         The C++ Library Technical Report 1</a>.
+         See <a href="#5_5">5.5</a>.
+      </p></li>
+      </ol>
+      <p><a href="http://gcc.gnu.org/ml/libstdc++/1999/msg00080.html">This
+         question</a> about the next libstdc++ prompted some brief but
+         interesting
+         <a href="http://gcc.gnu.org/ml/libstdc++/1999/msg00084.html">speculation</a>.
+      </p>
+
+<hr />
+   <h2><a name="5_3">5.3 What about the STL from SGI?</a></h2>
+      <p>The <a href="http://www.sgi.com/tech/stl/">STL from SGI</a>,
+         version 3.3, was the final merge of the STL codebase.  The
+         code in libstdc++ contains many fixes and changes, and
+         the SGI code is no longer under active
+         development.  We expect that no future merges will take place.
+      </p>
+      <p>In particular, <code>string</code> is not from SGI and makes no
+         use of their &quot;rope&quot; class (which is included as an
+         optional extension), nor is <code>valarray</code> and some others.
+         Classes like <code>vector&lt;&gt;</code> are, however we have
+         made significant changes to them since then.
+      </p>
+      <p>The FAQ for SGI's STL (one jump off of their main page) is
+         recommended reading.
+      </p>
+
+<hr />
+   <h2><a name="5_4">5.4 Extensions and Backward Compatibility</a></h2>
+      <p>Headers in the <code>ext</code> and <code>backward</code>
+         subdirectories should be referred to by their relative paths:
+         <!-- Careful, the leading spaces in PRE show up directly. -->
+      </p>
+      <pre>
+      #include &lt;ext/hash_map&gt; </pre>
+      <p>rather than using <code>-I</code> or other options.  This is more
+         portable and forward-compatible.  (The situation is the same as
+         that of other headers whose directories are not searched directly,
+         e.g., <code>&lt;sys/stat.h&gt;</code>, <code>&lt;X11/Xlib.h&gt;</code>.
+      </p>
+
+      <p>At this time most of the features of the SGI STL extension have been
+         replaced by standardized libraries.
+         In particular, the unordered_map and unordered_set containers of TR1
+         are suitable replacement for the non-standard hash_map and hash_set
+         containers in the SGI STL.  See <a href="#5_5">5.5</a> for more details.
+      </p>
+
+      <p>The extensions are no longer in the global or <code>std</code>
+         namespaces, instead they are declared in the <code>__gnu_cxx</code>
+         namespace. For maximum portability, consider defining a namespace
+         alias to use to talk about extensions, e.g.:
+      </p>
+      <pre>
+      #ifdef __GNUC__
+      #if __GNUC__ &lt; 3
+        #include &lt;hash_map.h&gt;
+        namespace Sgi { using ::hash_map; }; // inherit globals
+      #else
+        #include &lt;ext/hash_map&gt;
+        #if __GNUC_MINOR__ == 0
+          namespace Sgi = std;               // GCC 3.0
+        #else
+          namespace Sgi = ::__gnu_cxx;       // GCC 3.1 and later
+        #endif
+      #endif
+      #else      // ...  there are other compilers, right?
+        namespace Sgi = std;
+      #endif
+
+      Sgi::hash_map&lt;int,int&gt; my_map; </pre>
+      <p>This is a bit cleaner than defining typedefs for all the
+         instantiations you might need.
+      </p>
+      <p><strong>Note:</strong> explicit template specializations must
+         be declared in the same namespace as the original template.
+         This means you cannot use a namespace alias when declaring
+         an explicit specialization.
+      </p>
+      <p>Extensions to the library have
+         <a href="../ext/howto.html">their own page</a>.
+      </p>
+
+<hr />
+   <h2><a name="5_5">5.5 Does libstdc++ support TR1?</a></h2>
+
+      <p>The C++ Standard Library Technical Report adds many new features to 
+         the library.  The latest version of this effort is described in
+         <a href=
+	 "http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2005/n1836.pdf">
+         Technical Report 1</a>.
+      </p>
+
+      <p>libstdc++ strives to implement all of TR1.
+         An <a href="../ext/tr1.html">overview</a> of the implementation status
+	 is available.
+      </p>
+
+      <p>Briefly, the features of TR1 and the current status are:
+      </p>
+
+      <p><strong>Reference_wrapper - Complete -</strong>
+         Useful to pass references to functions that take their parameters
+         by value.
+      </p>
+
+      <p><strong>Reference-counted smart pointers - Complete -</strong>
+         The shared_ptr and weak_ptr allow several object to know about a
+	 pointer and whether it is valid.  When the last reference to the
+	 pointer is destroyed the pointer is freed.
+      </p>
+
+      <p><strong>Function objects - Complete -</strong>
+         Function return types (i.e., result_of), the functions template
+	 mem_fn (a generalization of mem_fun and mem_fun_red), function
+	 object binders (e.g., bind, a generalization of bind1st and bind2nd),
+	 and polymorphic function wrappers (e.g, class template function).
+      </p>
+
+      <p><strong>Type traits - Complete -</strong>
+         The type_traits class gives templates the ability to probe
+	 information about the input type and enable type-dependent logic
+	 to be performed without the need of template specializations.
+      </p>
+
+      <p><strong>A random number engine - Complete -</strong>
+         This library contains random number generators with several different
+	 choices of distribution.
+      </p>
+
+      <p><strong>Tuples - Complete -</strong>
+         The tuple class implements small heterogeneous arrays.  This is an
+	 enhanced pair.  In fact, the standard pair is enhanced with a tuple
+	 interface.
+      </p>
+
+      <p><strong>Fixed-size arrays - Complete -</strong>
+         The array class implements small fixed-sized arrays with container
+	 semantics.
+      </p>
+
+      <p><strong>Unordered containers - Complete -</strong>
+         The unordered_set, unordered_map, unordered_multiset, and
+	 unordered_multimap containers are hashed versions of the map, set,
+	 multimap, and multiset containers respectively.  These classes are
+	 suitable replacements for the SGI STL hash_map and hash_set
+	 extensions.
+      </p>
+
+      <p><strong>C99 compatibility - Under construction - </strong>
+         There are many features designed to minimize the divergence of the C
+	 and the C++ languages.
+      </p>
+
+      <p><strong>Special functions - Under construction - </strong>
+         Twenty-three mathematical functions familiar to physicists and
+	 engineers are included:  cylindrical and spherical Bessel and Neumann
+	 functions, hypergeometric functions, Laguerre polynomials, Legendre
+	 functions, elliptic integrals, exponential integrals and the Riemann
+	 zeta function all for your computing pleasure.
+      </p>
+
+      <p><strong>A regular expression engine</strong>
+         This library provides for regular expression objects with traversal
+	 of text with return of subexpressions.
+      </p>
+
+<hr />
+   <h2><a name="5_6">5.6 Is libstdc++-v3 thread-safe?</a></h2>
+      <p>libstdc++-v3 strives to be thread-safe when all of the following
+         conditions are met:
+      </p>
+      <ul>
+       <li>The system's libc is itself thread-safe,</li>
+       <li><code>gcc -v</code> reports a thread model other than 'single',</li>
+       <li>[pre-3.3 only] a non-generic implementation of atomicity.h
+           exists for the architecture in question.</li>
+      </ul>
+      <p>The user-code must guard against concurrent method calls which may
+         access any particular library object's state.  Typically, the
+         application programmer may infer what object locks must be held
+         based on the objects referenced in a method call.  Without getting
+         into great detail, here is an example which requires user-level
+         locks:
+      </p>
+      <pre>
+     library_class_a shared_object_a;
+
+     thread_main () {
+       library_class_b *object_b = new library_class_b;
+       shared_object_a.add_b (object_b);   // must hold lock for shared_object_a
+       shared_object_a.mutate ();          // must hold lock for shared_object_a
+     }
+
+     // Multiple copies of thread_main() are started in independent threads.</pre>
+      <p>Under the assumption that object_a and object_b are never exposed to
+         another thread, here is an example that should not require any
+         user-level locks:
+      </p>
+      <pre>
+     thread_main () {
+       library_class_a object_a;
+       library_class_b *object_b = new library_class_b;
+       object_a.add_b (object_b);
+       object_a.mutate ();
+     } </pre>
+      <p>All library objects are safe to use in a multithreaded program as
+         long as each thread carefully locks out access by any other
+         thread while it uses any object visible to another thread, i.e.,
+         treat library objects like any other shared resource.  In general,
+         this requirement includes both read and write access to objects;
+         unless otherwise documented as safe, do not assume that two threads
+         may access a shared standard library object at the same time.
+      </p>
+      <p>See chapters <a href="../17_intro/howto.html#3">17</a> (library
+         introduction), <a href="../23_containers/howto.html#3">23</a>
+         (containers), and <a href="../27_io/howto.html#9">27</a> (I/O) for
+         more information.
+      </p>
+
+<hr />
+   <h2><a name="5_7">5.7 How do I get a copy of the ISO C++ Standard?</a></h2>
+      <p>Copies of the full ISO 14882 standard are available on line via the
+         ISO mirror site for committee members.  Non-members, or those who
+         have not paid for the privilege of sitting on the committee and
+         sustained their two-meeting commitment for voting rights, may get a
+         copy of the standard from their respective national standards
+         organization.  In the USA, this national standards organization is
+         ANSI and their website is right <a href="http://www.ansi.org">here</a>.
+         (And if you've already registered with them, clicking this link will
+         take you to directly to the place where you can
+<a href="http://webstore.ansi.org/ansidocstore/product.asp?sku=ISO%2FIEC+14882%3A2003">buy
+         the standard on-line</a>.
+      </p>
+      <p>Who is your country's member body?  Visit the
+         <a href="http://www.iso.ch/">ISO homepage</a> and find out!
+      </p>
+
+<hr />
+   <h2><a name="5_8">5.8 What's an ABI and why is it so messy?</a></h2>
+      <p>&quot;ABI&quot; stands for &quot;Application Binary Interface.&quot;
+         Conventionally, it refers to a great mass of details about how
+         arguments are arranged on the call stack and/or in registers, and
+         how various types are arranged and padded in structs.  A single CPU
+         design may suffer multiple ABIs designed by different development
+         tool vendors who made different choices, or even by the same vendor
+         for different target applications or compiler versions.  In ideal
+         circumstances the CPU designer presents one ABI and all the OSes and
+         compilers use it.  In practice every ABI omits details that compiler
+         implementers (consciously or accidentally) must choose for themselves.
+      </p>
+      <p>That ABI definition suffices for compilers to generate code so a
+         program can interact safely with an OS and its lowest-level libraries.
+         Users usually want an ABI to encompass more detail, allowing libraries
+         built with different compilers (or different releases of the same
+         compiler!) to be linked together.  For C++, this includes many more
+         details than for C, and CPU designers (for good reasons elaborated
+         below) have not stepped up to publish C++ ABIs.  The details include
+         virtual function implementation, struct inheritance layout, name
+         mangling, and exception handling.  Such an ABI has been defined for
+         GNU C++, and is immediately useful for embedded work relying only on
+         a &quot;free-standing implementation&quot; that doesn't include (much
+         of) the standard library.  It is a good basis for the work to come.
+      </p>
+      <p>A useful C++ ABI must also incorporate many details of the standard
+         library implementation.  For a C ABI, the layouts of a few structs
+         (such as FILE, stat, jmpbuf, and the like) and a few macros suffice.
+         For C++, the details include the complete set of names of functions
+         and types used, the offsets of class members and virtual functions,
+         and the actual definitions of all inlines.  C++ exposes many more
+         library details to the caller than C does.  It makes defining
+         a complete ABI a much bigger undertaking, and requires not just
+         documenting library implementation details, but carefully designing
+         those details so that future bug fixes and optimizations don't
+         force breaking the ABI.
+      </p>
+      <p>There are ways to help isolate library implementation details from the
+         ABI, but they trade off against speed.  Library details used in
+         inner loops (e.g., getchar) must be exposed and frozen for all
+         time, but many others may reasonably be kept hidden from user code,
+         so they may later be changed.  Deciding which, and implementing
+         the decisions, must happen before you can reasonably document a
+         candidate C++ ABI that encompasses the standard library.
+      </p>
+
+<hr />
+   <h2><a name="5_9">5.9 How do I make std::vector&lt;T&gt;::capacity()
+                     == std::vector&lt;T&gt;::size()?</a> </h2>
+   <!-- referenced by 21_strings/howto.html#6 -->
+   <p>The standard idiom for deallocating a <code>std::vector&lt;T&gt;</code>'s
+      unused memory is to create a temporary copy of the vector and swap their
+      contents, e.g. for <code>std::vector&lt;T&gt; v</code>
+   </p>
+   <pre>
+     std::vector&lt;T&gt;(v).swap(v);
+   </pre>
+   <p>The copy will take O(n) time and the swap is constant time.
+   </p>
+   <p>See <a href='../21_strings/howto.html#6'>Shrink-to-fit strings</a> for
+      a similar solution for strings.
+   </p>
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="../17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>
+

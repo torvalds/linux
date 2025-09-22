@@ -1,0 +1,122 @@
+/* Definitions for the branch prediction routines in the GNU compiler.
+   Copyright (C) 2001, 2003, 2004 Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+/* Before including this file, you should define a macro:
+
+     DEF_PREDICTOR (ENUM, NAME, HITRATE)
+
+   This macro will be called once for each predictor.  The ENUM will
+   be of type `enum predictor', and will enumerate all supported
+   predictors.  The order of DEF_PREDICTOR calls is important, as
+   in the first match combining heuristics, the predictor appearing
+   first in this file will win.
+
+   NAME is used in the debugging output to determine predictor type.
+
+   HITRATE is the probability that edge predicted by predictor as taken
+   will be really taken (so it should be always above
+   REG_BR_PROB_BASE / 2).  */
+   
+
+/* A value used as final outcome of all heuristics.  */
+DEF_PREDICTOR (PRED_COMBINED, "combined", PROB_ALWAYS, 0)
+
+/* An outcome estimated by Dempster-Shaffer theory.  */
+DEF_PREDICTOR (PRED_DS_THEORY, "DS theory", PROB_ALWAYS, 0)
+
+/* A combined heuristics using probability determined by first
+   matching heuristics from this list.  */
+DEF_PREDICTOR (PRED_FIRST_MATCH, "first match", PROB_ALWAYS, 0)
+
+/* Heuristic applying when no heuristic below applies.  */
+DEF_PREDICTOR (PRED_NO_PREDICTION, "no prediction", PROB_ALWAYS, 0)
+
+/* Mark unconditional jump as taken.  */
+DEF_PREDICTOR (PRED_UNCONDITIONAL, "unconditional jump", PROB_ALWAYS,
+	       PRED_FLAG_FIRST_MATCH)
+
+/* Use number of loop iterations determined by loop unroller to set
+   probability.  We don't want to use Dempster-Shaffer theory here,
+   as the predictions is exact.  */
+DEF_PREDICTOR (PRED_LOOP_ITERATIONS, "loop iterations", PROB_ALWAYS,
+	       PRED_FLAG_FIRST_MATCH)
+
+/* Hints dropped by user via __builtin_expect feature.  */
+DEF_PREDICTOR (PRED_BUILTIN_EXPECT, "__builtin_expect", PROB_VERY_LIKELY,
+	       PRED_FLAG_FIRST_MATCH)
+
+/* Branch containing goto is probably not taken.  */
+DEF_PREDICTOR (PRED_CONTINUE, "continue", HITRATE (56), 0)
+
+/* Branch to basic block containing call marked by noreturn attribute.  */
+DEF_PREDICTOR (PRED_NORETURN, "noreturn call", HITRATE (99),
+	       PRED_FLAG_FIRST_MATCH)
+
+/* Loopback edge is taken.  */
+DEF_PREDICTOR (PRED_LOOP_BRANCH, "loop branch", HITRATE (89),
+	       PRED_FLAG_FIRST_MATCH)
+
+/* Edge causing loop to terminate is probably not taken.  */
+DEF_PREDICTOR (PRED_LOOP_EXIT, "loop exit", HITRATE (90),
+	       PRED_FLAG_FIRST_MATCH)
+
+/* Condition emitted by preconditiong code to ensure that variable
+   setting number of iterations is greater than initial value of iterator.  */
+DEF_PREDICTOR (PRED_LOOP_CONDITION, "loop condition", PROB_VERY_LIKELY, 0)
+
+/* Preconditioning makes linear list of branches.  */
+DEF_PREDICTOR (PRED_LOOP_PRECONDITIONING, "loop preconditioning", PROB_VERY_LIKELY, 0)
+
+/* Copied condition for the first iteration of loop is probably true.  */
+DEF_PREDICTOR (PRED_LOOP_HEADER, "loop header", HITRATE (64), 0)
+
+/* Pointers are usually not NULL.  */
+DEF_PREDICTOR (PRED_POINTER, "pointer", HITRATE (81), 0)
+DEF_PREDICTOR (PRED_TREE_POINTER, "pointer (on trees)", HITRATE (81), 0)
+
+/* NE is probable, EQ not etc...  */
+DEF_PREDICTOR (PRED_OPCODE_POSITIVE, "opcode values positive", HITRATE (79), 0)
+DEF_PREDICTOR (PRED_OPCODE_NONEQUAL, "opcode values nonequal", HITRATE (71), 0)
+DEF_PREDICTOR (PRED_FPOPCODE, "fp_opcode", HITRATE (90), 0)
+DEF_PREDICTOR (PRED_TREE_OPCODE_POSITIVE, "opcode values positive (on trees)", HITRATE (79), 0)
+DEF_PREDICTOR (PRED_TREE_OPCODE_NONEQUAL, "opcode values nonequal (on trees)", HITRATE (71), 0)
+DEF_PREDICTOR (PRED_TREE_FPOPCODE, "fp_opcode (on trees)", HITRATE (90), 0)
+
+/* Branch guarding call is probably taken.  */
+DEF_PREDICTOR (PRED_CALL, "call", HITRATE (70), 0)
+
+/* Branch causing function to terminate is probably not taken.  */
+DEF_PREDICTOR (PRED_EARLY_RETURN, "early return", HITRATE (67), 0)
+DEF_PREDICTOR (PRED_TREE_EARLY_RETURN, "early return (on trees)", HITRATE (67), 0)
+
+/* Branch containing goto is probably not taken.  */
+DEF_PREDICTOR (PRED_GOTO, "goto", HITRATE (70), 0)
+
+/* Branch ending with return constant is probably not taken.  */
+DEF_PREDICTOR (PRED_CONST_RETURN, "const return", HITRATE (95), 0)
+
+/* Branch ending with return negative constant is probably not taken.  */
+DEF_PREDICTOR (PRED_NEGATIVE_RETURN, "negative return", HITRATE (96), 0)
+
+/* Branch ending with return; is probably not taken */
+DEF_PREDICTOR (PRED_NULL_RETURN, "null return", HITRATE (90), 0)
+
+/* Branches to a mudflap bounds check are extremely unlikely.  */
+DEF_PREDICTOR (PRED_MUDFLAP, "mudflap check", HITRATE (99), 0)

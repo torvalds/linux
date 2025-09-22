@@ -1,0 +1,71 @@
+From deraadt@do-not-reply.openbsd.org Fri Oct 24 07:08:00 MDT 2025
+Return-Path: root
+Date: Oct 24 07:08:00 MDT 2025
+From: deraadt@do-not-reply.openbsd.org (Theo de Raadt)
+To: root
+Subject: Welcome to OpenBSD 7.8!
+
+This message attempts to describe the most basic initial questions that a
+system administrator of an OpenBSD box might have.  You are urged to save
+this message for later reference.
+
+For more information on how to set up your OpenBSD system, refer to the
+"afterboot" man page (i.e. after you exit the mail subsystem, type
+"man afterboot").  If you are not familiar with how to read man pages, type
+"man man" at a shell prompt and read the entire thing.  Pay specific
+attention to the "man -k keyword" option, which will permit you to find the
+man page you are looking for more easily; for instance, "man -k ethernet".
+The GNU "info" subsystem is also installed with further documentation
+resources: to read info pages type "info".  (The info subsystem behaves like
+the popular emacs editor.)
+
+Again, PLEASE READ THE MANUAL PAGES.  Our developers have spent countless
+hours improving them so that they are clear and precise.
+
+Several popular binary packages (pre-compiled applications) are
+available from mirror sites.  Mirror selection is usually automatic
+during install/upgrade -- a mirror URL from https://www.openbsd.org/ftp.html
+is stored into the file /etc/installurl.  Installation of packages is
+as simple as:
+
+ # pkg_add -v rsync chromium emacs--no_x11
+
+Significant efforts were made to centralize all system configuration in the
+/etc directory.  You should be able to find each of the configuration files
+you seek there, lightly documented.  In particular, much of the configuration
+has been centralized in the file /etc/rc.conf.  You should not need to ever
+edit the file /etc/rc.   The files /etc/rc.securelevel and /etc/rc.local exist
+for this purpose; the first is run before the system has gone into secure
+mode; the second is run afterwards (if in doubt, add your tools to rc.local).
+
+Please refer to our web pages for any other questions you might have.
+	https://www.OpenBSD.org
+Please pay special attention to the Frequently Asked Questions section at
+	https://www.OpenBSD.org/faq/
+
+OpenBSD is free software.  You can do with it as you like, subject to very few
+conditions (described at www.OpenBSD.org/policy.html).  But free software isn't
+written without money.  Network links, hardware costs, release engineering and
+testing work all take money and significant effort on the part of those who
+have made this OpenBSD release what it is.  Please reward the developers who
+have made OpenBSD what it is, and thus make it possible for this wonderful
+process to continue.  For more information on how you can help, please see
+www.OpenBSD.org/goals.html and visit www.OpenBSD.org/donations.html to see a
+list of those who have donated money, equipment, or other resources to ensure
+OpenBSD continues.
+
+If you wish to ensure that OpenBSD runs better on your machines, please do us
+a favor (after you have your mail system configured!) and type something like:
+ # (dmesg; sysctl hw.sensors) | \
+	mail -s "Sony VAIO 505R laptop, suspend works OK" dmesg@openbsd.org
+so that we can see what kinds of configurations people are running.  As shown,
+including a bit of information about your machine in the subject or the body
+can help us even further.  We will use this information to improve device driver
+support in future releases.  (Please do this using the supplied GENERIC kernel,
+not for a custom compiled kernel, unless you're unable to boot the GENERIC
+kernel.  If you have a multi-processor machine, dmesg results of both GENERIC.MP
+and GENERIC kernels are appreciated.)  The device driver information we get from
+this helps us fix existing drivers. Thank you!
+
+(If you wish to save it, use the "x" command.)
+

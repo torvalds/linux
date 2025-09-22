@@ -1,0 +1,30 @@
+From: Chris Lattner [mailto:sabre@nondot.org]
+Sent: Wednesday, December 06, 2000 6:41 PM
+To: Vikram S. Adve
+Subject: Additional idea with respect to encoding
+
+Here's another idea with respect to keeping the common case instruction
+size down (less than 32 bits ideally):
+
+Instead of encoding an instruction to operate on two register numbers,
+have it operate on two negative offsets based on the current register
+number.  Therefore, instead of using:
+
+r57 = add r55, r56  (r57 is the implicit dest register, of course)
+
+We could use:
+
+r57 = add -2, -1
+
+My guess is that most SSA references are to recent values (especially if
+they correspond to expressions like (x+y*z+p*q/ ...), so the negative
+numbers would tend to stay small, even at the end of the procedure (where
+the implicit register destination number could be quite large).  Of course
+the negative sign is reduntant, so you would be storing small integers
+almost all of the time, and 5-6 bits worth of register number would be
+plenty for most cases...
+
+What do you think?
+
+-Chris
+

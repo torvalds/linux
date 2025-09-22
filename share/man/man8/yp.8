@@ -1,0 +1,230 @@
+.\"	$OpenBSD: yp.8,v 1.34 2022/09/27 13:30:36 kn Exp $
+.\"	$NetBSD: yp.8,v 1.9 1995/08/11 01:16:52 thorpej Exp $
+.\"
+.\" Copyright (c) 1992, 1993, 1996 Theo de Raadt <deraadt@theos.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 27 2022 $
+.Dt YP 8
+.Os
+.Sh NAME
+.Nm yp
+.Nd description of the YP subsystem
+.Sh SYNOPSIS
+.Nm ypinit
+.Fl m Op Ar domainname
+.Nm ypinit
+.Fl s Ar master_server Op Ar domainname
+.Nm ypinit
+.Fl u Op Ar domainname
+.Pp
+.Nm ypbind
+.Op Fl insecure
+.Op Fl ypset
+.Op Fl ypsetme
+.Pp
+.Nm ypset
+.Op Fl d Ar domain
+.Op Fl h Ar host
+.Ar server
+.Pp
+.Nm yppoll
+.Op Fl d Ar domain
+.Op Fl h Ar host
+.Ar mapname
+.Pp
+.Nm ypcat
+.Op Fl kt
+.Op Fl d Ar domainname
+.Ar mapname
+.Nm ypcat
+.Fl x
+.Pp
+.Nm ypmatch
+.Op Fl kt
+.Op Fl d Ar domainname
+.Ar key ... mapname
+.Nm ypmatch
+.Fl x
+.Pp
+.Nm ypwhich
+.Op Fl t
+.Op Fl d Ar domain
+.Oo
+.Op Fl h
+.Ar host
+.Oc
+.Nm ypwhich
+.Op Fl t
+.Op Fl d Ar domain
+.Op Fl h Ar host
+.Fl m Op Ar mname
+.Nm ypwhich
+.Fl x
+.Pp
+.Nm ypserv
+.Op Fl 1dx
+.Op Fl a Ar aclfile
+.Pp
+.Nm ypxfr
+.Op Fl cf
+.Op Fl C Ar tid prog ipadd port
+.Op Fl d Ar domain
+.Op Fl h Ar host
+.Op Fl s Ar domain
+.Ar mapname
+.Pp
+.Nm yppush
+.Op Fl v
+.Op Fl d Ar domainname
+.Op Fl h Ar hostname
+.\" .Op Fl p Ar paralleljobs
+.\" .Op Fl t Ar timeout
+.Ar mapname
+.Sh DESCRIPTION
+The
+.Nm YP
+subsystem allows network management of passwd, group, and
+hosts file entries through the functions
+.Xr getpwent 3 ,
+.Xr getgrent 3
+and
+.Xr gethostbyname 3 .
+A number of other databases can be network-managed as well,
+and have their respective functions.
+.Nm YP
+also provides hooks for numerous other client programs
+such as
+.Xr amd 8
+and
+.Xr rpc.bootparamd 8
+to access distributed and shareable versions
+of their maps through
+.Nm YP .
+The YP subsystem requires that
+.Xr portmap 8
+be running, since the entire subsystem uses the RPC subsystem.
+.Pp
+.Nm ypinit
+is used to initialize
+.Nm YP
+as a master or a slave.
+This creates various files in
+.Pa /var/yp .
+After running
+.Nm ypinit Fl m ,
+optionally edit
+.Pa /var/yp/DOMAINNAME/Makefile
+to change settings, for example to switch from the default
+backwards compatible mode to secure mode.
+Finally, always run
+.Xr make 1
+in
+.Pa /var/yp .
+See
+.Xr Makefile.yp 8
+for details.
+.Pp
+If set up as a slave, the required databases are automatically copied
+from the specified server.
+.Pp
+The
+.Nm YP
+client subsystem is started automatically in
+.Pa /etc/rc
+if the directory
+.Pa /var/yp/binding
+exists.
+The client subsystem can be turned on and off by creating or
+deleting that directory.
+.Xr ypbind 8
+will create that directory if run by hand.
+.Pp
+The
+.Nm YP
+server subsystem is started automatically in
+.Pa /etc/rc
+if the directory
+.Pa /var/yp/DOMAINNAME
+exists.
+This directory is automatically created by
+.Xr ypinit 8
+(which initializes the machine as a
+.Nm YP
+server).
+.Pp
+If
+.Nm ypbind
+cannot find a server, the system behaves the same way as Sun's code
+does: it hangs.
+.Sh FILES
+.Bl -tag -width /var/yp/Makefile.main -compact
+.It Pa /var/yp/Makefile.main
+Top level YP Makefile
+.It Pa /var/yp/Makefile.yp
+YP maps Makefile
+.El
+.Sh SEE ALSO
+.Xr domainname 1 ,
+.Xr ypcat 1 ,
+.Xr ypmatch 1 ,
+.Xr ypwhich 1 ,
+.Xr yp_bind 3 ,
+.Xr defaultdomain 5 ,
+.Xr group 5 ,
+.Xr passwd 5 ,
+.Xr resolv.conf 5 ,
+.Xr Makefile.yp 8 ,
+.Xr portmap 8 ,
+.Xr ypbind 8 ,
+.Xr ypinit 8 ,
+.Xr yppoll 8 ,
+.Xr yppush 8 ,
+.Xr ypserv 8 ,
+.Xr ypset 8 ,
+.Xr ypxfr 8
+.Sh HISTORY
+This free
+.Nm YP
+subsystem is thought to be compatible with Sun's implementation.
+It is, of course, not compatible with
+.Nm NIS+
+or any other
+.Dq secure
+.Nm YP
+subsystem other than the native one.
+.Pp
+The name
+.Nm YP
+stands for Yellow Pee.
+.Pp
+The ypbind, most library components, and userland programs were implemented
+by
+.An Theo de Raadt Aq Mt deraadt@theos.com .
+The current
+.Xr getpwent 3
+implementation was done by
+.An Jason Downs Aq Mt downsj@downsj.com .
+The server component was implemented by
+.An Mats O Jansson Aq Mt moj@stacken.kth.se .

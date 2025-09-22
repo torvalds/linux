@@ -1,0 +1,85 @@
+$OpenBSD: README,v 1.2 2001/01/28 23:41:47 niklas Exp $
+$NetBSD: README,v 1.2 1995/03/24 03:58:29 cgd Exp $
+
+June 25, 1986
+
+
+This is a much modified version of Phantasia.  It is intended to fix
+all reported bug fixes, enhance the game, and speed up the game.
+
+I have to thank Chris Robertson for many ideas which have made the game
+faster, and more user-friendly.  Most of her changes/additions are
+incorporated in this latest versions, although perhaps not in the exact
+manner of her design.  I left out a few items which were not in keeping
+with the spirit of the game.  (For example, I didn't like the extra lives
+and the pausing of the game.  I think it's too easy even WITHOUT that stuff.)
+
+CHANGES:
+
+    - Wormholes have been deleted (I never liked them anyway).
+    - The source code has been greatly enhanced for speed, size, readability,
+      and maintainability.
+      fight.c should no longer cause optimizers to run out of space.
+    - A few loopholes have been tightened to make the game more enjoyable.
+      (Except for those who are in the habit of exercising those loopholes.)
+    - Chris' map is enclosed.
+    - The "charac" file is not compatible with older versions of Phantasia
+      (3.3.1 and 3.3.1+).  A 'convert' program is provided to convert your
+      old file to the new format.  See Makefile for details.
+    - Movements can be made with HJKL for WSNE, respectively.
+    - Players may examine others while playing ('x') option.
+    - Monsters are now stored in a binary data base, to speed calling
+      monsters, and to ease formatting of monster listings.
+    - Taxes are collected on all gold and gems.
+    - Dead players can be resurrected by the 'wizard'.
+    - 'setup' is smarter, although not as smart as it should be.
+    - Players can change their names and passwords
+
+PORTABILTY:
+
+    I have tried to make this as non-machine/system specific as possible.
+
+    All identifiers are unique to 7 characters or less, dual case.
+
+    The code WILL NOT fit on a 16-bit machine without separate I/D.
+
+    Stdio MUST support fopen() with mode "r+".  I think this is true
+    for all Version 7 and later.
+
+    'curses' library functions are required.
+
+    All problems/solutions with portability should be reported to me,
+    and fixes will be included in subsequent versions of this software.
+
+
+Please send me any bugs, (of which I am sure there are many), you may find,
+but PLEASE be specific.  I cannot correct a bug which is described as:
+
+    "When I choose a character type, it blows up."
+
+    (What blows up?  What exactly was printed at the terminal?
+    Which character type was chosen?  Etc. . . ?)
+
+Also, please tell me which version of UN*X you are running, and upon
+which type of hardware.
+
+I will also do my best to help anyone with problems just trying to
+get the game running.  Again, I need to know which version of UN*X
+and what type of CPU.  Also, a copy of the output from 'make'
+would be extremely useful.
+
+Any and all ideas/suggestions/additions are more than welcome.  If
+you feel strongly enough about it, write the change and send it to me,
+and I will do my best to incorporate it in the next version of Phantasia.
+Otherwise, I will give serious thought to adding it myself.
+
+Follow the directions in the Makefile CAREFULLY to set up the game.
+Read the comments at the beginning of 'main.c', if you haven't already.
+
+Enjoy.
+
+Ted Estes
+AT&T Information Systems
+Skokie, IL  60077
+
+...!ihnp4!ttrdc!ttrda!estes

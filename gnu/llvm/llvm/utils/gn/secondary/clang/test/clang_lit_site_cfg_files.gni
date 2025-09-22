@@ -1,0 +1,2 @@
+clang_lit_site_cfg_file = "$root_gen_dir/clang/test/lit.site.cfg.py"
+clang_lit_unit_site_cfg_file = "$root_gen_dir/clang/test/Unit/lit.site.cfg.py"

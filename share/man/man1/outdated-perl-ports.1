@@ -1,0 +1,45 @@
+.\"	$OpenBSD: outdated-perl-ports.1,v 1.4 2018/11/30 15:06:47 danj Exp $
+.\"
+.\" Copyright (c) 2011 Jasper Lievisse Adriaanse <jasper@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 30 2018 $
+.Dt OUTDATED-PERL-PORTS 1
+.Os
+.Sh NAME
+.Nm outdated-perl-ports
+.Nd compare CPAN releases and the ports tree
+.Sh SYNOPSIS
+.Nm outdated-perl-ports
+.Op Fl d
+.Op Fl m Ar maintainer
+.Sh DESCRIPTION
+.Nm
+retrieves and compares the packages list provided by CPAN with the ports
+recorded in
+.Pa ${LOCALBASE}/share/ports-INDEX
+and reports which ports have a newer version available upstream.
+Note that the portslist package must be installed.
+.Pp
+Options are as follows:
+.Bl -tag -width maintainer
+.It Fl d
+Causes
+.Nm
+to show the path (relative to ${PORTSDIR}) for the outdated port.
+.It Fl m Ar maintainer
+Only display ports that are being maintained by
+.Ar maintainer .
+This can be specified as name or e-mail address.
+.El

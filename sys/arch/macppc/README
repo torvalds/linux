@@ -1,0 +1,14 @@
+This is the macppc port, it supports most of the "New World" Apple Macintosh
+machines.
+
+TODO:
+	* Sleep mode support
+	  lower power while running.
+	  suspend/hibernate support.
+	* Legacy machine support
+	  esp ethernet
+	  - other legacy support.
+	  Openfirmware 1.x (xcoff bootloader)
+
+Dale
+drahn@cvs.openbsd.org

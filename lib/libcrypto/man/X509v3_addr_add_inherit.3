@@ -1,0 +1,476 @@
+.\" $OpenBSD: X509v3_addr_add_inherit.3,v 1.12 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509V3_ADDR_ADD_INHERIT 3
+.Os
+.Sh NAME
+.Nm X509v3_addr_add_inherit ,
+.Nm X509v3_addr_add_prefix ,
+.Nm X509v3_addr_add_range ,
+.Nm X509v3_addr_canonize ,
+.Nm X509v3_addr_is_canonical
+.Nd RFC 3779 IP address delegation extensions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft int
+.Fo X509v3_addr_add_inherit
+.Fa "IPAddrBlocks *addrblocks"
+.Fa "const unsigned afi"
+.Fa "const unsigned *safi"
+.Fc
+.Ft int
+.Fo X509v3_addr_add_prefix
+.Fa "IPAddrBlocks *addrblocks"
+.Fa "const unsigned afi"
+.Fa "const unsigned *safi"
+.Fa "unsigned char *prefix"
+.Fa "const int prefixlen"
+.Fc
+.Ft int
+.Fo X509v3_addr_add_range
+.Fa "IPAddrBlocks *addrblocks"
+.Fa "const unsigned afi"
+.Fa "const unsigned *safi"
+.Fa "unsigned char *min"
+.Fa "unsigned char *max"
+.Fc
+.Ft int
+.Fo X509v3_addr_canonize
+.Fa "IPAddrBlocks *addrblocks"
+.Fc
+.Ft int
+.Fo X509v3_addr_is_canonical
+.Fa "IPAddrBlocks *addrblocks"
+.Fc
+.Sh DESCRIPTION
+An
+.Vt IPAddrBlocks
+object represents the content of
+an IP address delegation extension
+as defined in RFC 3779, section 2.2.3.1.
+It holds lists of IP address prefixes and IP address ranges
+delegated from the issuer to the subject of the certificate.
+It can be instantiated as explained in the EXAMPLES section
+and its internals are documented in
+.Xr IPAddressRange_new 3 .
+.Pp
+Each list in a well-formed
+.Vt IPAddrBlocks
+object is uniquely identified by
+an address family identifier (AFI) and
+an optional subsequent address family identifier (SAFI).
+Lists can be absent or can contain an
+.Dq inherit
+marker to indicate that the resources are to be inherited
+from the corresponding list of the issuer certificate.
+.Pp
+Per specification, an AFI is an unsigned 16-bit integer and
+a SAFI is an unsigned 8-bit integer.
+For IPv4 and IPv6 there are the predefined constants
+.Dv IANA_AFI_IPV4
+and
+.Dv IANA_AFI_IPV6 ,
+which should be the only values used for
+.Fa afi
+in this API.
+In practice,
+.Fa safi
+is always NULL.
+.Fa afi
+is generally silently truncated to its lowest 16 bits and, if
+.Fa safi
+is non-NULL,
+only the lowest 8 bits of the value pointed at are used.
+.Pp
+.Fn X509v3_addr_add_inherit
+adds a list with an
+.Dq inherit
+marker to
+.Fa addrblocks .
+If a list corresponding to
+.Fa afi
+and
+.Fa safi
+already exists, no action occurs if it is marked
+.Dq inherit ,
+otherwise the call fails.
+.Pp
+.Fn X509v3_addr_add_prefix
+adds a newly allocated internal representation of the
+.Fa prefix
+of length
+.Fa prefixlen
+to the list corresponding to
+.Fa afi
+and the optional
+.Fa safi
+in
+.Fa addrblocks .
+If no such list exists, it is created first.
+If the list exists and is marked
+.Dq inherit ,
+the call fails.
+.Fa prefix
+is expected to be a byte array in network byte order.
+It should point at enough memory to accommodate
+.Fa prefixlen
+bits and it is recommended that all the bits not covered by the
+.Fa prefixlen
+be set to 0.
+It is the caller's responsibility to ensure that the
+.Fa prefix
+has no address in common with any of
+the prefixes or ranges already in the list.
+If
+.Fa afi
+is
+.Dv IANA_AFI_IPV4 ,
+.Fa prefixlen
+should be between 0 and 32 (inclusive) and if
+.Fa afi
+is
+.Dv IANA_AFI_IPV6 ,
+.Fa prefixlen
+should be between 0 and 128 (inclusive).
+.Pp
+.Fn X509v3_addr_add_range
+is similar to
+.Fn X509v3_addr_add_prefix
+for the closed interval of IP addresses between
+.Fa min
+and
+.Fa max
+in network presentation.
+If
+.Fa afi
+is
+.Dv IANA_AFI_IPV4 ,
+.Fa min
+and
+.Fa max
+should point at 4 bytes of memory
+and if
+.Fa afi
+is
+.Dv IANA_AFI_IPV6 ,
+.Fa min
+and
+.Fa max
+should point at 16 bytes of memory.
+In case the range of IP addresses between
+.Fa min
+and
+.Fa max
+is a prefix, a prefix will be added instead of a range.
+It is the caller's responsibility to ensure that
+.Fa min
+is less than or equal to
+.Fa max
+and that it does not contain any address already present
+in the list.
+Failure to do so will result in a subsequent failure of
+.Fn X509v3_addr_canonize .
+.Pp
+.Fn X509v3_addr_canonize
+attempts to bring the
+.Pf non- Dv NULL
+.Fa addrblocks
+into canonical form.
+An
+.Vt IPAddrBlocks
+object is said to be in canonical form if it conforms
+to the ordering specified in RFC 3779:
+section 2.2.3.3 requires that
+the list of lists be sorted first by increasing
+.Fa afi
+and then by increasing
+.Fa safi ,
+where NULL is the minimal SAFI;
+section 2.2.3.6 requires that each list be in minimal form and sorted.
+The minimality requirement is that all adjacent prefixes
+and ranges must be merged into a single range and that each
+range must be expressed as a prefix, if possible.
+In particular, any given address can be in at most one list entry.
+The order is by increasing minimal IP address in network byte order.
+.Pp
+.Fn X509v3_addr_is_canonical
+indicates whether
+.Fa addrblocks
+is in canonical form.
+.Sh RETURN VALUES
+All these functions return 1 on success and 0 on failure.
+Memory allocation failure is one possible reason for all of them.
+Sometimes an error code can be obtained by
+.Xr ERR_get_error 3 .
+.Pp
+.Fn X509v3_addr_add_inherit
+fails if the list corresponding to
+.Fa afi
+and the optional
+.Fa safi
+already exists and is not marked
+.Dq inherit .
+.Pp
+.Fn X509v3_addr_add_prefix
+and
+.Fn X509v3_addr_add_range
+fail if a list corresponding to
+.Fa afi
+and the optional
+.Fa safi
+already exists and is marked
+.Dq inherit ,
+or if
+.Fa prefixlen
+is outside the interval [0,32] for IPv4 addresses
+or [0,128] for IPv6 addresses.
+.Pp
+.Fn X509v3_addr_canonize
+fails if one of the lists in
+.Fa addrblocks
+is malformed,
+in particular if it contains corrupt, overlapping,
+or duplicate entries.
+Corruption includes ranges where
+.Fa max
+is strictly smaller than
+.Fa min .
+The error conditions are generally indistinguishable.
+.Pp
+.Fn X509v3_addr_is_canonical
+returns 1 if
+.Fa addrblocks
+is in canonical form.
+A return value of 0 can indicate non-canonical form or a corrupted list.
+.Sh EXAMPLES
+Construct the first extension from RFC 3779, Appendix B.
+.Bd -literal
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
+#include <err.h>
+#include <stdio.h>
+#include <unistd.h>
+
+#include <openssl/asn1.h>
+#include <openssl/objects.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+
+const char *prefixes[] = {
+	"10.0.32/20", "10.0.64/24", "10.1/16",
+	"10.2.48/20", "10.2.64/24", "10.3/16",
+};
+#define N_PREFIXES (sizeof(prefixes) / sizeof(prefixes[0]))
+
+static void
+hexdump(const unsigned char *buf, size_t len)
+{
+	size_t i;
+
+	for (i = 1; i <= len; i++)
+		printf(" 0x%02x,%s", buf[i \- 1], i % 8 ? "" : "\en");
+	if (len % 8)
+		printf("\en");
+}
+
+int
+main(void)
+{
+	IPAddrBlocks *addrblocks;
+	X509_EXTENSION *ext;
+	unsigned char *der;
+	int der_len;
+	size_t i;
+
+	if (pledge("stdio", NULL) == \-1)
+		err(1, "pledge");
+
+	/*
+	 * Somebody forgot to implement IPAddrBlocks_new().  IPAddrBlocks
+	 * is the same as STACK_OF(IPAddressFamily).  As such, it should
+	 * have IPAddressFamily_cmp() as its comparison function.  It is
+	 * not possible to call sk_new(3) because IPAddressFamily_cmp()
+	 * is not part of the public API.  The correct comparison function
+	 * can be installed as a side-effect of X509v3_addr_canonize(3).
+	 */
+	if ((addrblocks = sk_IPAddressFamily_new_null()) == NULL)
+		err(1, "sk_IPAddressFamily_new_null");
+	if (!X509v3_addr_canonize(addrblocks))
+		errx(1, "X509v3_addr_canonize");
+
+	/* Add the prefixes as IPv4 unicast. */
+	for (i = 0; i < N_PREFIXES; i++) {
+		unsigned char addr[16] = {0};
+		int len;
+		int unicast = 1; /* SAFI for unicast forwarding. */
+
+		len = inet_net_pton(AF_INET, prefixes[i], addr,
+		    sizeof(addr));
+		if (len == \-1)
+			errx(1, "inet_net_pton(%s)", prefixes[i]);
+		if (!X509v3_addr_add_prefix(addrblocks, IANA_AFI_IPV4,
+		    &unicast, addr, len))
+			errx(1, "X509v3_addr_add_prefix(%s)", prefixes[i]);
+	}
+	if (!X509v3_addr_add_inherit(addrblocks, IANA_AFI_IPV6, NULL))
+		errx(1, "X509v3_addr_add_inherit");
+
+	/*
+	 * Ensure the extension is in canonical form.  Otherwise the two
+	 * adjacent prefixes 10.2.48/20 and 10.2.64/24 are not merged into
+	 * the range 10.2.48.0--10.2.64.255.  This results in invalid DER
+	 * encoding from X509V3_EXT_i2d(3) and i2d_X509_EXTENSION(3).
+	 */
+	if (!X509v3_addr_canonize(addrblocks))
+		errx(1, "X509v3_addr_canonize");
+
+	/* Create the extension with the correct OID; mark it critical. */
+	ext = X509V3_EXT_i2d(NID_sbgp_ipAddrBlock, 1, addrblocks);
+	if (ext == NULL)
+		errx(1, "X509V3_EXT_i2d");
+
+	der = NULL;
+	if ((der_len = i2d_X509_EXTENSION(ext, &der)) <= 0)
+		errx(1, "i2d_X509_EXTENSION");
+
+	hexdump(der, der_len);
+
+	/* One way of implementing IPAddrBlocks_free(). */
+	sk_IPAddressFamily_pop_free(addrblocks, IPAddressFamily_free);
+	X509_EXTENSION_free(ext);
+	free(der);
+
+	return 0;
+}
+.Ed
+.Pp
+Implement the missing public API
+.Fn d2i_IPAddrBlocks
+and
+.Fn i2d_IPAddrBlocks
+using
+.Xr ASN1_item_d2i 3 :
+.Bd -literal
+IPAddrBlocks *
+d2i_IPAddrBlocks(IPAddrBlocks **addrblocks, const unsigned char **in,
+    long len)
+{
+	const X509V3_EXT_METHOD *v3_addr;
+
+	if ((v3_addr = X509V3_EXT_get_nid(NID_sbgp_ipAddrBlock)) == NULL)
+		return NULL;
+	return (IPAddrBlocks *)ASN1_item_d2i((ASN1_VALUE **)addrblocks,
+	    in, len, ASN1_ITEM_ptr(v3_addr\->it));
+}
+
+int
+i2d_IPAddrBlocks(IPAddrBlocks *addrblocks, unsigned char **out)
+{
+	const X509V3_EXT_METHOD *v3_addr;
+
+	if ((v3_addr = X509V3_EXT_get_nid(NID_sbgp_ipAddrBlock)) == NULL)
+		return \-1;
+	return ASN1_item_i2d((ASN1_VALUE *)addrblocks, out,
+	    ASN1_ITEM_ptr(v3_addr\->it));
+}
+.Ed
+.Pp
+The use of the undocumented macro
+.Dv ASN1_ITEM_ptr()
+is necessary if compatibility with modern versions of other implementations
+is desired.
+.Sh SEE ALSO
+.Xr ASIdentifiers_new 3 ,
+.Xr crypto 3 ,
+.Xr inet_net_ntop 3 ,
+.Xr inet_ntop 3 ,
+.Xr IPAddressRange_new 3 ,
+.Xr X509_new 3 ,
+.Xr X509v3_addr_get_range 3 ,
+.Xr X509v3_addr_validate_path 3 ,
+.Xr X509v3_asid_add_id_or_range 3
+.Sh STANDARDS
+RFC 3779: X.509 Extensions for IP Addresses and AS Identifiers:
+.Bl -dash -compact
+.It
+section 2: IP Address delegation extension
+.El
+.Pp
+RFC 7020: The Internet Numbers Registry System
+.Pp
+RFC 7249: Internet Number Registries
+.Pp
+.Rs
+.%T Address Family Numbers
+.%U https://www.iana.org/assignments/address\-family\-numbers
+.Re
+.Pp
+.Rs
+.%T Subsequent Address Family Identifiers (SAFI) Parameters
+.%U https://www.iana.org/assignments/safi\-namespace
+.Re
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8e
+and have been available since
+.Ox 7.1 .
+.Sh BUGS
+.Fn IPAddrBlocks_new ,
+.Fn IPAddrBlocks_free ,
+.Fn d2i_IPAddrBlocks ,
+and
+.Fn i2d_IPAddrBlocks
+do not exist and
+.Fa IPAddrBlocks_it
+is not public.
+The above examples show how to implement the four missing functions
+with public API.
+.Pp
+.Fn X509v3_addr_add_range
+should check for inverted range bounds and overlaps
+on insertion and fail instead of creating a nonsensical
+.Fa addrblocks
+that fails to be canonized by
+.Fn X509v3_addr_canonize .
+.Pp
+If
+.Dv NULL
+is passed to
+.Xr X509v3_asid_canonize 3 ,
+it succeeds.
+.Fn X509v3_addr_is_canonical
+considers
+.Dv NULL
+to be a canonical
+.Vt IPAddrBlocks .
+In contrast,
+.Fn X509v3_addr_canonize
+crashes with a
+.Dv NULL
+dereference.
+.Pp
+The code only supports the IPv4 and IPv6 AFIs.
+This is not consistently enforced across implementations.
+.Pp
+.Fn X509v3_addr_add_range
+fails to clear the unused bits set to 1 in the last octet of
+the
+.Vt ASN1_BIT_STRING
+representation of
+.Fa max .
+This confuses some software.

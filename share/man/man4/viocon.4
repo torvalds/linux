@@ -1,0 +1,59 @@
+.\"     $OpenBSD: viocon.4,v 1.3 2017/06/21 08:21:14 akfaew Exp $
+.\"
+.\" Copyright (c) 2015 Stefan Fritsch <sf@sfritsch.de>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 21 2017 $
+.Dt VIOCON 4
+.Os
+.Sh NAME
+.Nm viocon
+.Nd VirtIO console device
+.Sh SYNOPSIS
+.Cd "viocon* at virtio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Xr virtio 4
+console interface provided by KVM, QEMU, and others.
+.Pp
+It provides serial ports that are attached as ttys.
+Use as a kernel console for
+.Ox
+is not yet supported.
+The multiport feature is not yet supported.
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /dev/ttyVI00
+.It Pa /dev/ttyVI10
+.It Pa /dev/ttyVI20
+.It Pa /dev/ttyVI30
+.It Pa /dev/ttyVI40
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr tty 4 ,
+.Xr virtio 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Stefan Fritsch Aq Mt sf@sfritsch.de .

@@ -1,0 +1,12 @@
+# $OpenBSD: Makefile.000,v 1.4 2018/10/30 10:22:16 ajacoutot Exp $
+
+# Set ERRATA to match the errata on the mirrors
+ERRATA = 000_dummy
+
+# Set BUILD to the type of the errata so that it can be built properly
+# 	src - run make targets in the specified subdir(s) for base
+# 	kernel - build both GENERIC and GENERIC.MP
+# 	xenocara - run make targets in the specified subdir(s) for xenocara
+# BUILD = ??? (defaults to src)
+
+.include <bsd.syspatch.mk>

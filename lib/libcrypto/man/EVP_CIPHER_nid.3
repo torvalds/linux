@@ -1,0 +1,307 @@
+.\" $OpenBSD: EVP_CIPHER_nid.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL man3/EVP_EncryptInit.pod
+.\"   0874d7f2 Oct 11 13:13:47 2022 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2018, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_CIPHER_NID 3
+.Os
+.Sh NAME
+.Nm EVP_CIPHER_nid ,
+.Nm EVP_CIPHER_CTX_nid ,
+.Nm EVP_CIPHER_name ,
+.Nm EVP_CIPHER_type ,
+.Nm EVP_CIPHER_CTX_type ,
+.Nm EVP_CIPHER_block_size ,
+.Nm EVP_CIPHER_CTX_block_size ,
+.Nm EVP_CIPHER_flags ,
+.Nm EVP_CIPHER_CTX_flags ,
+.Nm EVP_CIPHER_mode ,
+.Nm EVP_CIPHER_CTX_mode
+.Nd inspect EVP_CIPHER objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_CIPHER_nid
+.Fa "const EVP_CIPHER *cipher"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_nid
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fc
+.Ft const char *
+.Fo EVP_CIPHER_name
+.Fa "const EVP_CIPHER *cipher"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_type
+.Fa "const EVP_CIPHER *ctx"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_type
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_block_size
+.Fa "const EVP_CIPHER *cipher"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_block_size
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fc
+.Ft unsigned long
+.Fo EVP_CIPHER_flags
+.Fa "const EVP_CIPHER *cipher"
+.Fc
+.Ft unsigned long
+.Fo EVP_CIPHER_CTX_flags
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fc
+.Ft unsigned long
+.Fo EVP_CIPHER_mode
+.Fa "const EVP_CIPHER *cipher"
+.Fc
+.Ft unsigned long
+.Fo EVP_CIPHER_CTX_mode
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_CIPHER_nid
+returns the numerical identifier (NID) of the
+.Fa cipher .
+The NID is an internal value which may or may not have a corresponding
+ASN.1 OBJECT IDENTIFIER; see
+.Xr OBJ_nid2obj 3
+for details.
+.Pp
+.Fn EVP_CIPHER_CTX_nid
+returns the NID of the cipher that
+.Fa ctx
+is configured to use.
+.Pp
+.Fn EVP_CIPHER_name
+converts the NID of the
+.Fa cipher
+to its short name with
+.Xr OBJ_nid2sn 3 .
+.Pp
+.Fn EVP_CIPHER_type
+returns the NID associated with the ASN.1 OBJECT IDENTIFIER of the
+.Fa cipher ,
+ignoring the cipher parameters.
+For example,
+.Xr EVP_aes_256_cfb1 3 ,
+.Xr EVP_aes_256_cfb8 3 ,
+and
+.Xr EVP_aes_256_cfb128 3
+all return the same NID,
+.Dv NID_aes_256_cfb128 .
+.Pp
+.Fn EVP_CIPHER_CTX_type
+returns the NID associated with the ASN.1 OBJECT IDENTIFIER of the cipher that
+.Fa ctx
+is configured to use.
+.Pp
+.Fn EVP_CIPHER_block_size
+returns the block size of the
+.Fa cipher
+in bytes.
+.Fn EVP_CIPHER_CTX_block_size
+returns the block size of the cipher that
+.Fa ctx
+is configured to use.
+Block sizes are guaranteed to be less than or equal to the constant
+.Dv EVP_MAX_BLOCK_LENGTH .
+Currently,
+.Xr EVP_CipherInit_ex 3
+and the other functions documented in the same manual page
+only support block sizes of 1, 8, and 16 bytes.
+.Pp
+.Fn EVP_CIPHER_flags
+returns the cipher flags used by the
+.Fa cipher .
+The meaning of the flags is described in the
+.Xr EVP_CIPHER_meth_set_flags 3
+manual page.
+.Pp
+.Fn EVP_CIPHER_CTX_flags
+returns the cipher flags of the cipher that
+.Fa ctx
+is configured to use.
+Be careful to not confuse these with the unrelated cipher context flags
+that can be inspected with
+.Xr EVP_CIPHER_CTX_test_flags 3 .
+.Pp
+.Fn EVP_CIPHER_mode
+returns the
+.Fa cipher
+mode, which is the logical AND of the constant
+.Dv EVP_CIPH_MODE
+and the return value of
+.Fn EVP_CIPHER_flags .
+.Pp
+.Fn EVP_CIPHER_CTX_mode
+returns the cipher mode of the cipher that
+.Fa ctx
+is configured to use.
+.Pp
+.Fn EVP_CIPHER_name ,
+.Fn EVP_CIPHER_CTX_type ,
+.Fn EVP_CIPHER_mode ,
+and
+.Fn EVP_CIPHER_CTX_mode
+are implemented as macros.
+.Sh RETURN VALUES
+.Fn EVP_CIPHER_nid
+and
+.Fn EVP_CIPHER_CTX_nid
+return an NID.
+.Pp
+.Fn EVP_CIPHER_name
+returns a pointer to a string that is owned by an internal library object or
+.Dv NULL
+if the NID is neither built into the library nor added to the global
+object table by one of the functions documented in the manual page
+.Xr OBJ_create 3 ,
+of if the object does not contain a short name.
+.Pp
+.Fn EVP_CIPHER_type
+and
+.Fn EVP_CIPHER_CTX_type
+return the NID of the cipher's OBJECT IDENTIFIER or
+.Dv NID_undef
+if it is not associated with an OBJECT IDENTIFIER.
+.Pp
+.Fn EVP_CIPHER_block_size
+and
+.Fn EVP_CIPHER_CTX_block_size
+return the block size in bytes.
+.Pp
+.Fn EVP_CIPHER_flags
+and
+.Fn EVP_CIPHER_CTX_flags
+return one or more
+.Dv EVP_CIPH_*
+flag bits OR'ed together.
+.Pp
+.Fn EVP_CIPHER_mode
+and
+.Fn EVP_CIPHER_CTX_mode
+return one of the constants
+.Dv EVP_CIPH_ECB_MODE ,
+.Dv EVP_CIPH_CBC_MODE ,
+.Dv EVP_CIPH_CFB_MODE ,
+.Dv EVP_CIPH_OFB_MODE ,
+.Dv EVP_CIPH_CTR_MODE ,
+.Dv EVP_CIPH_GCM_MODE ,
+.Dv EVP_CIPH_CCM_MODE ,
+.Dv EVP_CIPH_XTS_MODE ,
+or
+.Dv EVP_CIPH_WRAP_MODE
+to indicate a block cipher or
+.Dv EVP_CIPH_STREAM_CIPHER
+to indicate a stream cipher.
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_CIPHER_CTX_ctrl 3 ,
+.Xr EVP_EncryptInit 3 ,
+.Xr OBJ_nid2obj 3
+.Sh HISTORY
+.Fn EVP_CIPHER_type ,
+.Fn EVP_CIPHER_CTX_type ,
+.Fn EVP_CIPHER_block_size ,
+and
+.Fn EVP_CIPHER_CTX_block_size
+first appeared in SSLeay 0.6.5.
+.Fn EVP_CIPHER_nid
+and
+.Fn EVP_CIPHER_CTX_nid
+first appeared in SSLeay 0.8.0.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_CIPHER_flags ,
+.Fn EVP_CIPHER_CTX_flags ,
+.Fn EVP_CIPHER_mode ,
+and
+.Fn EVP_CIPHER_CTX_mode
+first appeared in OpenSSL 0.9.6 and have been available since
+.Ox 2.9 .
+.Pp
+.Fn EVP_CIPHER_name
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .
+.Sh CAVEATS
+The behaviour of the functions taking an
+.Vt EVP_CIPHER_CTX
+argument is undefined if they are called on a
+.Fa ctx
+that has no cipher configured yet, for example one freshly returned from
+.Xr EVP_CIPHER_CTX_new 3 .
+In that case, the program may for example be terminated by a
+.Dv NULL
+pointer access.

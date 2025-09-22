@@ -1,0 +1,376 @@
+.\" $OpenBSD: SSL_CTX_set_cipher_list.3,v 1.19 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2018, 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2000, 2001, 2013 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_CIPHER_LIST 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_cipher_list ,
+.Nm SSL_set_cipher_list
+.Nd choose list of available SSL_CIPHERs
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fn SSL_CTX_set_cipher_list "SSL_CTX *ctx" "const char *control"
+.Ft int
+.Fn SSL_set_cipher_list "SSL *ssl" "const char *control"
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_cipher_list
+sets the list of available cipher suites for
+.Fa ctx
+using the
+.Fa control
+string.
+The list of cipher suites is inherited by all
+.Fa ssl
+objects created from
+.Fa ctx .
+.Pp
+.Fn SSL_set_cipher_list
+sets the list of cipher suites only for
+.Fa ssl .
+.Pp
+The control string consists of one or more control words
+separated by colon characters
+.Pq Ql \&: .
+Space
+.Pq Ql \ \& ,
+semicolon
+.Pq Ql \&; ,
+and comma
+.Pq Ql \&,
+characters can also be used as separators.
+Each control words selects a set of cipher suites
+and can take one of the following optional prefix characters:
+.Bl -tag -width Ds
+.It \&No prefix:
+Those of the selected cipher suites that have not been made available
+yet are added to the end of the list of available cipher suites,
+preserving their order.
+.It Prefixed minus sign Pq Ql \- :
+Those of the selected cipher suites that have been made available
+earlier are moved back from the list of available cipher suites to
+the beginning of the list of unavailable cipher suites,
+also preserving their order.
+.It Prefixed plus sign Pq Ql + :
+Those of the selected cipher suites have been made available earlier
+are moved to end of the list of available cipher suites, reducing
+their priority, but preserving the order among themselves.
+.It Prefixed exclamation mark Pq Ql \&! :
+The selected cipher suites are permanently deleted, no matter whether
+they had earlier been made available or not, and can no longer
+be added or re-added by later words.
+.El
+.Pp
+The following special words can only be used without a prefix:
+.Bl -tag -width Ds
+.It Cm DEFAULT
+An alias for
+.Sm off
+.Cm ALL No :! Cm aNULL No :! Cm eNULL .
+.Sm on
+It can only be used as the first word.
+The
+.Cm DEFAULT
+cipher list can be displayed with the
+.Xr openssl 1
+.Cm ciphers
+command.
+.It Cm @SECLEVEL=n
+Set the security level to n, which should be a number between
+zero and five.
+See
+.Xr SSL_CTX_set_security_level 3
+for details.
+.It Cm @STRENGTH
+Sort the list by decreasing encryption strength,
+preserving the order of cipher suites that have the same strength.
+It is usually given as the last word.
+.El
+.Pp
+The following words can be used to select groups of cipher suites,
+with or without a prefix character.
+If two or more of these words are joined with plus signs
+.Pq Ql +
+to form a longer word, only the intersection of the specified sets
+is selected.
+.Bl -tag -width Ds
+.It Cm ADH
+Cipher suites using ephemeral DH for key exchange
+without doing any server authentication.
+Equivalent to
+.Cm DH Ns + Ns Cm aNULL .
+.It Cm AEAD
+Cipher suites using Authenticated Encryption with Additional Data.
+.It Cm AECDH
+Cipher suites using ephemeral ECDH for key exchange
+without doing any server authentication.
+Equivalent to
+.Cm ECDH Ns + Ns Cm aNULL .
+.It Cm aECDSA
+Cipher suites using ECDSA server authentication.
+.It Cm AES
+Cipher suites using AES or AESGCM for symmetric encryption.
+.It Cm AES128
+Cipher suites using AES(128) or AESGCM(128) for symmetric encryption.
+.It Cm AES256
+Cipher suites using AES(256) or AESGCM(256) for symmetric encryption.
+.It Cm AESGCM
+Cipher suites using AESGCM for symmetric encryption.
+.It Cm aGOST
+An alias for
+.Cm aGOST01 .
+.It Cm aGOST01
+Cipher suites using GOST R 34.10-2001 server authentication.
+.It Cm ALL
+All cipher suites except those selected by
+.Cm eNULL .
+.It Cm aNULL
+Cipher suites that don't do any server authentication.
+Not enabled by
+.Cm DEFAULT .
+Beware of man-in-the-middle attacks.
+.It Cm aRSA
+Cipher suites using RSA server authentication.
+.It Cm CAMELLIA
+Cipher suites using Camellia for symmetric encryption.
+.It Cm CAMELLIA128
+Cipher suites using Camellia(128) for symmetric encryption.
+.It Cm CAMELLIA256
+Cipher suites using Camellia(256) for symmetric encryption.
+.It Cm CHACHA20
+Cipher suites using ChaCha20-Poly1305 for symmetric encryption.
+.It Cm COMPLEMENTOFALL
+Cipher suites that are not included in
+.Cm ALL .
+Currently an alias for
+.Cm eNULL .
+.It Cm COMPLEMENTOFDEFAULT
+Cipher suites that are included in
+.Cm ALL ,
+but not included in
+.Cm DEFAULT .
+Currently similar to
+.Cm aNULL Ns :! Ns Cm eNULL
+except for the order of the cipher suites which are
+.Em not
+selected.
+.It Cm 3DES
+Cipher suites using triple DES for symmetric encryption.
+.It Cm DH
+Cipher suites using ephemeral DH for key exchange.
+.It Cm DHE
+Cipher suites using ephemeral DH for key exchange,
+but excluding those that don't do any server authentication.
+Similar to
+.Cm DH Ns :! Ns Cm aNULL
+except for the order of the cipher suites which are
+.Em not
+selected.
+.It Cm ECDH
+Cipher suites using ephemeral ECDH for key exchange.
+.It Cm ECDHE
+Cipher suites using ephemeral ECDH for key exchange,
+but excluding those that don't do any server authentication.
+Similar to
+.Cm ECDH Ns :! Ns Cm aNULL
+except for the order of the cipher suites which are
+.Em not
+selected.
+.It Cm ECDSA
+An alias for
+.Cm aECDSA .
+.It Cm eNULL
+Cipher suites that do not use any encryption.
+Not enabled by
+.Cm DEFAULT ,
+and not even included in
+.Cm ALL .
+.It Cm GOST89MAC
+Cipher suites using GOST 28147-89 for message authentication
+instead of HMAC.
+.It Cm GOST94
+Cipher suites using HMAC based on GOST R 34.11-94
+for message authentication.
+.It Cm HIGH
+Cipher suites of high strength.
+.It Cm kGOST
+Cipher suites using VKO 34.10 key exchange, specified in RFC 4357.
+.It Cm kRSA
+Cipher suites using RSA key exchange.
+.It Cm LOW
+Cipher suites of low strength.
+.It Cm MD5
+Cipher suites using MD5 for message authentication.
+.It Cm MEDIUM
+Cipher suites of medium strength.
+.It Cm NULL
+An alias for
+.Cm eNULL .
+.It Cm RC4
+Cipher suites using RC4 for symmetric encryption.
+.It Cm RSA
+Cipher suites using RSA for both key exchange and server authentication.
+Equivalent to
+.Cm kRSA Ns + Ns Cm aRSA .
+.It Cm SHA
+An alias for
+.Cm SHA1 .
+.It Cm SHA1
+Cipher suites using SHA1 for message authentication.
+.It Cm SHA256
+Cipher suites using SHA256 for message authentication.
+.It Cm SHA384
+Cipher suites using SHA384 for message authentication.
+.It Cm SSLv3
+An alias for
+.Cm TLSv1 .
+.It Cm STREEBOG256
+Cipher suites using STREEBOG256 for message authentication.
+.It Cm TLSv1
+Cipher suites usable with the TLSv1.0, TLSv1.1, and TLSv1.2 protocols.
+.It Cm TLSv1.2
+Cipher suites for the TLSv1.2 protocol.
+.It Cm TLSv1.3
+Cipher suites for the TLSv1.3 protocol.
+If the
+.Fa control
+string selects at least one cipher suite but neither contains the word
+.Cm TLSv1.3
+nor specifically includes nor excludes any TLSv1.3 cipher suites, all the
+.Cm TLSv1.3
+cipher suites are made available, too.
+.El
+.Pp
+The full words returned by the
+.Xr openssl 1
+.Cm ciphers
+command can be used to select individual cipher suites.
+.Pp
+The following are deprecated aliases:
+.Pp
+.Bl -column kEECDH ECDHE -compact -offset indent
+.It    avoid: Ta    use:
+.It Cm EDH    Ta Cm DHE
+.It Cm EECDH  Ta Cm ECDHE
+.It Cm kEDH   Ta Cm DH
+.It Cm kEECDH Ta Cm ECDH
+.El
+.Pp
+Unknown words are silently ignored, selecting no cipher suites.
+Failure is only flagged if the
+.Fa control
+string contains invalid bytes
+or if no matching cipher suites are available at all.
+.Pp
+On the client side, including a cipher suite into the list of
+available cipher suites is sufficient for using it.
+On the server side, all cipher suites have additional requirements.
+ADH ciphers don't need a certificate, but DH-parameters must have been set.
+All other cipher suites need a corresponding certificate and key.
+.Pp
+A RSA cipher can only be chosen when an RSA certificate is available.
+RSA ciphers using DHE need a certificate and key and additional DH-parameters
+(see
+.Xr SSL_CTX_set_tmp_dh_callback 3 ) .
+.Pp
+When these conditions are not met
+for any cipher suite in the list (for example, a
+client only supports export RSA ciphers with an asymmetric key length of 512
+bits and the server is not configured to use temporary RSA keys), the
+.Dq no shared cipher
+.Pq Dv SSL_R_NO_SHARED_CIPHER
+error is generated and the handshake will fail.
+.Sh RETURN VALUES
+.Fn SSL_CTX_set_cipher_list
+and
+.Fn SSL_set_cipher_list
+return 1 if any cipher suite could be selected and 0 on complete failure.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_set1_groups 3 ,
+.Xr SSL_CTX_set_tmp_dh_callback 3 ,
+.Xr SSL_CTX_use_certificate 3 ,
+.Xr SSL_get_ciphers 3
+.Sh HISTORY
+.Fn SSL_CTX_set_cipher_list
+and
+.Fn SSL_set_cipher_list
+first appeared in SSLeay 0.5.2 and have been available since
+.Ox 2.4 .
+.Sh CAVEATS
+In LibreSSL,
+.Fn SSL_CTX_set_cipher_list
+and
+.Fn SSL_set_cipher_list
+can be used to configure the list of available cipher suites for
+all versions of the TLS protocol, whereas in OpenSSL, they only
+control cipher suites for protocols up to TLSv1.2.
+If compatibility with OpenSSL is required, the list of
+available TLSv1.3 cipher suites can only be changed with
+.Fn SSL_set_ciphersuites .

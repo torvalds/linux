@@ -1,0 +1,62 @@
+.\" $OpenBSD: ixl.4,v 1.5 2020/07/12 04:56:05 dlg Exp $
+.\"
+.\" Copyright (c) 2019 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 12 2020 $
+.Dt IXL 4
+.Os
+.Sh NAME
+.Nm ixl
+.Nd Intel Ethernet 700 series Ethernet device
+.Sh SYNOPSIS
+.Cd "ixl* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Intel 700 series controllers based on the
+Intel X710, XXV710, XL710, and X722 Ethernet chipsets.
+.Pp
+The functionality of the Intel 700 series Ethernet controllers has improved as newer versions of firmware have been released.
+To ensure correct driver operation, apply the most recent
+.Pq stable
+firmware update for the network controller.
+.Pp
+The
+.Nm ixl
+driver supports querying pluggable transceivers for information and
+diagnostics.
+.\" via ifconfig ixlX sff .
+This functionality is available on controllers providing API version
+1.6 and higher.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.5 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An David Gwynne Aq Mt dlg@openbsd.org
+and
+.An Jonathan Matthew Aq Mt jmatthew@openbsd.org .

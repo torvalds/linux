@@ -1,0 +1,11 @@
+#illegal port value
+pass in quick proto tcp from any to any port 65536
+
+#flags only apply to tcp
+#(similar to pfail13.in which tests for flags S failure)
+pass in proto udp from any to any flags S/SA
+pass in proto { udp, icmp } from any to any flags S/SA
+
+#no routing address with matching address family found
+pass out inet6 from any to any dup-to 1.1.1.1
+

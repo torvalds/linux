@@ -1,0 +1,177 @@
+.\"	$OpenBSD: csh.4,v 1.5 2010/07/22 08:30:29 jmc Exp $
+.\"	$NetBSD: csh.4,v 1.3 1995/03/21 09:03:39 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)csh.4	8.1 (Berkeley) 6/8/93
+.\"
+.nr H1 3
+.NH
+Other, less commonly used, shell features
+.NH 2
+Loops at the terminal; variables as vectors
+.PP
+It is occasionally useful to use the
+.I foreach
+control structure at the terminal to aid in performing a number
+of similar commands.
+For instance, there were at one point three shells in use on the Cory UNIX
+system at Cory Hall,
+`/bin/sh',
+`/bin/nsh',
+and
+`/bin/csh'.
+To count the number of persons using each shell one could have issued
+the commands
+.DS
+% grep \-c csh$ /etc/passwd
+27
+% grep \-c nsh$ /etc/passwd
+128
+% grep \-c \-v sh$ /etc/passwd
+430
+%
+.DE
+Since these commands are very similar we can use
+.I foreach
+to do this more easily.
+.DS
+% foreach i (\'sh$\' \'csh$\' \'\-v sh$\')
+? grep \-c $i /etc/passwd
+? end
+27
+128
+430
+%
+.DE
+Note here that the shell prompts for
+input with `? ' when reading the body of the loop.
+.PP
+Very useful with loops are variables which contain lists of filenames
+or other words.
+You can, for example, do
+.DS
+% set a=(\`ls\`)
+% echo $a
+csh.n csh.rm
+% ls
+csh.n
+csh.rm
+% echo $#a
+2
+%
+.DE
+The
+.I set
+command here gave the variable
+.I a
+a list of all the filenames in the current directory as value.
+We can then iterate over these names to perform any chosen function.
+.PP
+The output of a command within `\`' characters is converted by
+the shell to a list of words.
+You can also place the `\`' quoted string within `"' characters
+to take each (non-empty) line as a component of the variable;
+preventing the lines from being split into words at blanks and tabs.
+A modifier `:x' exists which can be used later to expand each component
+of the variable into another variable splitting it into separate words
+at embedded blanks and tabs.
+.NH 2
+Braces { ... } in argument expansion
+.PP
+Another form of filename expansion, alluded
+to before, involves the characters `{' and `}'.
+These characters specify that the contained strings, separated by `,',
+are to be consecutively substituted into the containing characters
+and the results expanded left to right.
+Thus
+.DS
+A{str1,str2,...strn}B
+.DE
+expands to
+.DS
+Astr1B Astr2B ... AstrnB
+.DE
+This expansion occurs before the other filename expansions, and may
+be applied recursively (i.e. nested).
+The results of each expanded string are sorted separately, left
+to right order being preserved.
+The resulting filenames are not required to exist if no other expansion
+mechanisms are used.
+This means that this mechanism can be used to generate arguments which are
+not filenames, but which have common parts.
+.PP
+A typical use of this would be
+.DS
+mkdir ~/{hdrs,retrofit,csh}
+.DE
+to make subdirectories `hdrs', `retrofit' and `csh'
+in your home directory.
+This mechanism is most useful when the common prefix is longer
+than in this example, i.e.
+.DS
+chown root /usr/{ucb/{ex,edit},lib/{ex?.?*,how_ex}}
+.DE
+.NH 2
+Command substitution
+.PP
+A command enclosed in `\`' characters is replaced, just before
+filenames are expanded, by the output from that command.
+Thus it is possible to do
+.DS
+set pwd=\`pwd\`
+.DE
+to save the current directory in the variable
+.I pwd
+or to do
+.DS
+ex \`grep \-l TRACE *.c\`
+.DE
+to run the editor
+.I ex
+supplying as arguments those files whose names end in `.c'
+which have the string `TRACE' in them.*
+.FS
+*Command expansion also occurs in input redirected with `<<'
+and within `"' quotations.
+Refer to the shell manual section for full details.
+.FE
+.NH 2
+Other details not covered here
+.PP
+In particular circumstances it may be necessary to know the exact
+nature and order of different substitutions performed by the shell.
+The exact meaning of certain combinations of quotations is also
+occasionally important.
+These are detailed fully in its manual section.
+.PP
+The shell has a number of command line option flags mostly of use
+in writing UNIX programs,
+and debugging shell scripts.
+See the csh(1) manual section for a list of these options.
+.bp

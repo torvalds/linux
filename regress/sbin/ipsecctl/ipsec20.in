@@ -1,0 +1,7 @@
+flow esp from 192.168.3.3 to 192.168.3.2 peer 192.168.3.3
+flow esp from 192.168.3.3 to 192.168.3.2 peer 192.168.3.3 type use
+flow esp from 192.168.3.3 to 192.168.3.2 peer 192.168.3.3 type require
+flow esp from 192.168.3.3 to 192.168.3.2 peer 192.168.3.3 type acquire
+flow esp from 192.168.3.3 to 192.168.3.2 peer 192.168.3.3 type dontacq
+flow esp from 192.168.3.3 to 192.168.3.2 type bypass
+flow esp from 192.168.3.3 to 192.168.3.2 type deny

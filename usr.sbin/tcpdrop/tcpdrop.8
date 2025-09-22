@@ -1,0 +1,85 @@
+.\"	$OpenBSD: tcpdrop.8,v 1.14 2023/02/06 18:14:10 millert Exp $
+.\"
+.\" Copyright (c) 2004 Markus Friedl <markus@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 6 2023 $
+.Dt TCPDROP 8
+.Os
+.Sh NAME
+.Nm tcpdrop
+.Nd drop a TCP connection
+.Sh SYNOPSIS
+.Nm tcpdrop
+.Ar local-addr
+.Ar local-port
+.Ar remote-addr
+.Ar remote-port
+.Sh DESCRIPTION
+The
+.Nm
+command drops the TCP connection specified by the local address
+.Ar local-addr ,
+port
+.Ar local-port
+and the foreign address
+.Ar remote-addr ,
+port
+.Ar remote-port .
+Addresses and ports can be specified by name or numeric value.
+.Pp
+To simplify dropping TCP connections using the output of
+.Xr fstat 1
+and
+.Xr netstat 1 ,
+.Nm
+also supports a two-argument form where the address and port are
+separated by a colon
+.Pq Sq \&:
+or dot
+.Pq Sq \&.
+character.
+.Sh EXAMPLES
+If a connection to
+.Xr httpd 8
+is causing congestion on a network link, one can drop the TCP session
+in charge:
+.Bd -literal -offset indent
+$ fstat | grep 'httpd.*internet.*<--'
+www      httpd      21307    3* internet stream tcp \e
+	0xd1007ca8 192.168.5.41:80 <-- 192.168.5.1:26747
+.Ed
+.Pp
+Either of the following commands will drop the connection:
+.Bd -literal -offset indent
+# tcpdrop 192.168.5.41 80 192.168.5.1 26747
+
+# tcpdrop 192.168.5.41:80 192.168.5.1:26747
+
+# tcpdrop 192.168.5.41.80 192.168.5.1.26747
+.Ed
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr netstat 1
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was written by
+.An Markus Friedl Aq Mt markus@openbsd.org .

@@ -1,0 +1,305 @@
+#	$OpenBSD: RAMDISK,v 1.134 2025/06/13 13:19:19 sf Exp $
+
+machine		armv7 arm
+
+makeoptions	KERNEL_BASE_VIRT="0xc0300000"
+
+maxusers	4			# estimated number of users
+option		CPU_ARMv7		# Support the ARMv7
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		MINIROOTSIZE=22400
+option		RAMDISK_HOOKS
+
+option		FFS
+option		FFS2
+option		MSDOSFS
+option		INET6
+option		EXT2FS
+option		NFSCLIENT
+
+option		PCIVERBOSE
+option		USBVERBOSE
+
+config		bsd root on rd0a swap on rd0b
+
+# The main bus device
+mainbus0	at root
+softraid0	at root
+simplebus*	at fdt?
+cpu0		at mainbus?
+
+# Cortex-A9
+cortex0		at mainbus?
+ampintc*	at fdt? early 1
+ampintcmsi*	at fdt? early 1
+amptimer*	at cortex?
+agtimer*	at fdt?
+armliicc*	at cortex?
+
+# iMX
+imxccm*		at fdt? early 1		# clock control module
+imxiomuxc*	at fdt? early 1		# iomux controller
+imxanatop*	at fdt? early 1		# anatop controller
+imxgpc*		at fdt?			# power controller
+imxdog*		at fdt?			# watchdog timer
+imxgpio*	at fdt?			# user-visible GPIO pins?
+fec*		at fdt?			# Ethernet
+imxuart*	at fdt?			# onboard uarts
+imxiic*		at fdt?			# i2c
+iic*		at imxiic?
+imxesdhc*	at fdt?			# SDHC controller
+sdmmc*		at imxesdhc?		# SD/MMC bus
+imxahci*	at fdt?			# AHCI/SATA
+imxehci*	at fdt?			# EHCI
+usb*		at imxehci?
+imxrtc*		at fdt?			# SNVS RTC
+
+# OMAP3xxx/OMAP4xxx SoC
+omap0		at mainbus?
+omapid*		at omap?
+
+# OMAP on-chip devices
+intc*		at fdt? early 1		# OMAP3 interrupt controller
+omclock*	at fdt? early 1
+omcm*		at fdt? early 1
+omwugen*	at fdt?			# Wake-up generator
+#edma*		at fdt?			# OMAP3 dma controller
+prcm*		at omap?		# power/clock controller
+pinctrl*	at fdt?			# pin muxing
+omdog*		at fdt?			# watchdog timer
+omgpio*		at fdt?			# user-visible GPIO pins?
+gpio*		at omgpio?
+omrng*		at fdt?
+omsysc*		at fdt? early 1
+omsysc*		at fdt?
+tiiic*		at fdt?
+iic*		at tiiic?
+gptimer*	at omap?		# general purpose timers
+dmtimer*	at omap?		# am335x dual mode timers
+omusbtll*	at omap?
+cpsw*		at fdt?
+com*		at fdt?			# onboard uarts
+ommmc*		at fdt?			# SD/MMC card controller
+sdmmc*		at ommmc?		# SD/MMC bus
+
+omehci*		at fdt?			# EHCI
+usb*		at omehci?
+
+# Sunxi A1x/A20 SoC
+sxiintc*	at fdt?			# A1x interrupt controller
+sxipio*		at fdt? early 1		# GPIO pins for leds & PHYs
+gpio*		at sxipio?
+sxiccmu*	at fdt? early 1		# Clock Control Module/Unit
+sxitimer*	at fdt? early 1
+sxirsb*		at fdt? early 1		# Reduced Serial Bus
+acrtc*		at rsb?
+axppmic*	at rsb?
+sxidog*		at fdt?			# watchdog timer
+sxirtc*		at fdt? early 1		# Real Time Clock
+sxie*		at fdt?
+dwge*		at fdt?
+dwxe*		at fdt?
+sxiahci*	at fdt?			# AHCI/SATA
+sximmc*		at fdt?			# SD/MMC card controller
+sdmmc*		at sximmc?		# SD/MMC bus
+ehci*		at fdt?			# EHCI (shim)
+usb*		at ehci?	#flags 0x1
+ohci*		at fdt?
+usb*		at ohci?
+sxisid*		at fdt? early 1
+sxisyscon*	at fdt?	early 1		# System controller
+sxitwi*		at fdt?			# Two-Wire Serial Interface
+iic*		at sxitwi?		# I2C bus
+
+# ARM Versatile Express
+sysreg*		at fdt?
+pluart*		at fdt?
+plrtc*		at fdt?
+virtio*		at fdt?
+virtio*		at pci?
+pciecam*	at fdt?
+pci*		at pciecam?
+
+sdhc*		at fdt?
+sdmmc*		at sdhc?
+bwfm*		at sdmmc?		# Broadcom FullMAC
+
+psci*		at fdt? early 1
+syscon*		at fdt? early 1
+
+simplefb*	at fdt?
+wsdisplay*	at simplefb?
+
+# Exynos
+#exdisplay*	at exynos?
+#wsdisplay*	at exdisplay? console ?
+exclock*	at fdt? early 1
+expower*	at fdt? early 1
+exmct*		at fdt? early 1
+exdog*		at fdt?
+exgpio*		at fdt? early 1
+exiic*		at fdt?
+iic*		at exiic?
+exehci*		at fdt?
+usb*		at exehci?
+exdwusb*	at fdt?
+xhci*		at fdt?
+usb*		at xhci?
+dwmmc*		at fdt?
+sdmmc*		at dwmmc?
+exrtc*		at fdt?
+exuart*		at fdt?
+
+# Raspberry Pi 2/3
+bcmaux*		at fdt? early 1
+bcmbsc*		at fdt?
+iic*		at bcmbsc?
+bcmclock*	at fdt? early 1
+bcmdog*		at fdt?
+bcmdmac*	at fdt? early 1
+bcmgpio*	at fdt? early 1
+bcmintc*	at fdt? early 1
+bcmmbox*	at fdt? early 1
+bcmrng*		at fdt?
+bcmsdhost*	at fdt?
+sdmmc*		at bcmsdhost?
+dwctwo*		at fdt?
+usb*		at dwctwo?
+
+# MediaTek SoCs
+mtintc*		at fdt?
+mtrng*		at fdt?
+mtxhci*		at fdt?
+usb*		at mtxhci?
+
+# Marvell SoC
+mvacc*		at fdt? early 1
+mvagc*		at fdt?
+mvsysctrl*	at fdt?
+mvmbus*		at fdt?
+mvxhci*		at fdt?
+usb*		at mvxhci?
+mvahci*		at fdt?
+mvpinctrl*	at fdt?
+mvmdio*		at fdt?
+mvneta*		at fdt?
+mvmpic*		at fdt?
+mvpcie*		at fdt?
+pci*		at mvpcie?
+mvpxa*		at fdt?
+sdmmc*		at mvpxa?
+mvodog*		at fdt?
+mvortc*		at fdt?
+
+# Rockchip SoCs
+rkclock*	at fdt? early 1
+rkgrf*		at fdt? early 1
+rkpinctrl*	at fdt? early 1
+rkgpio*		at fdt?
+rkiic*		at fdt?
+iic*		at rkiic?
+dwdog*		at fdt?
+
+# Xilinx Zynq-7000
+cad*		at fdt?			# Ethernet controller
+cduart*		at fdt?
+zqclock*	at fdt?
+zqreset*	at fdt?
+
+axppmic*	at iic?			# axp209 pmic
+crosec*		at iic?
+wskbd*		at crosec? mux 1
+pcfrtc*		at iic?
+pcxrtc*		at iic?
+rkpmic*		at iic?			# RK808 PMIC
+tpspmic*	at iic?
+pcagpio*	at iic?
+
+# virtio devices
+vioblk*		at virtio?
+vio*		at virtio?
+viornd*		at virtio?
+vioscsi*	at virtio?
+
+# PCI
+ppb*		at pci?			# PCI-PCI bridges
+pci*		at ppb?
+
+# PCI Ethernet
+em*		at pci?			# Intel Pro/1000 Ethernet
+ix*		at pci?			# Intel 82598EB 10Gb Ethernet
+mskc*		at pci?			# Marvell Yukon-2
+msk*		at mskc?		#  each port of above
+re*		at pci?			# Realtek 8169/8169S/8110S
+
+# PCI SCSI
+ahci*		at pci? flags 0x0000	# AHCI SATA controllers
+					# flags 0x0001 to force SATA 1 (1.5Gb/s)
+nvme*		at pci?			# NVMe controllers
+
+# USB Controllers
+ohci*		at pci?			# Open Host Controller
+uhci*		at pci?			# Universal Host Controller (Intel)
+ehci*		at pci?			# Enhanced Host Controller
+xhci*		at pci?			# eXtensible Host Controller
+
+# USB bus support
+usb*		at ohci?
+usb*		at uhci?
+usb*		at ehci?	flags 0x1
+usb*		at xhci?
+
+uhub*		at usb?
+uhub*		at uhub?
+uhidev*		at uhub?
+ukbd*		at uhidev?
+wskbd*		at ukbd? mux 1
+umass*		at uhub?
+aue*		at uhub?		# ADMtek AN986 Pegasus Ethernet
+atu*		at uhub?		# Atmel AT76c50x based 802.11b
+axe*		at uhub?		# ASIX Electronics AX88172 USB Ethernet
+axen*		at uhub?		# ASIX Electronics AX88179 USB Ethernet
+cue*		at uhub?		# CATC USB-EL1201A based Ethernet
+kue*		at uhub?		# Kawasaki KL5KUSB101B based Ethernet
+smsc*		at uhub?		# SMSC LAN95xx Ethernet
+cdce*		at uhub?		# CDC Ethernet
+udav*		at uhub?		# Davicom DM9601 based Ethernet
+mos*		at uhub?		# MOSCHIP MCS7730/7830 10/100 Ethernet
+mue*		at uhub?		# Microchip LAN75xx/LAN78xx Ethernet
+url*		at uhub?		# Realtek RTL8150L based adapters
+ure*		at uhub?		# Realtek RTL8152 based adapters
+wi*		at uhub?		# WaveLAN IEEE 802.11DS
+upl*		at uhub?		# Prolific PL2301/PL2302 host-to-host
+ugl*		at uhub?		# Genesys Logic GL620USB-A host-to-host
+ural*		at uhub?		# Ralink RT2500
+rum*		at uhub?		# Ralink RT2501USB/RT2601USB
+run*		at uhub?		# Ralink RT2700U/RT2800U/RT3000U
+zyd*		at uhub?		# Zydas ZD1211
+upgt*		at uhub?		# Conexant/Intersil PrismGT SoftMAC USB
+urtw*		at uhub?		# Realtek 8187
+urtwn*		at uhub?		# Realtek RTL8188CU/RTL8192CU
+rsu*		at uhub?		# Realtek RTL8188SU/RTL8191SU/RTL8192SU
+uath*		at uhub?		# Atheros AR5005UG/AR5005UX
+otus*		at uhub?		# Atheros AR9001U
+athn*		at uhub?		# Atheros AR9002U
+bwfm*		at uhub?		# Broadcom FullMAC
+
+atphy*		at mii?			# Attansic F1 PHYs
+eephy*		at mii?			# Marvell 88E1000 series PHY
+rgephy*		at mii?			# Realtek 8169S/8110S PHY
+rlphy*		at mii?			# Realtek 8139 internal PHYs
+ukphy*		at mii?			# "unknown" PHYs
+
+scsibus*	at scsi?
+sd*		at scsibus?
+cd*		at scsibus?
+
+pseudo-device	openprom
+pseudo-device	loop 1
+pseudo-device	bpfilter 1
+pseudo-device	rd 1
+pseudo-device	bio 1

@@ -1,0 +1,220 @@
+@c Copyright (C) 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+@c 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gccint.texi.
+
+@node Host Config
+@chapter Host Configuration
+@cindex host configuration
+
+Most details about the machine and system on which the compiler is
+actually running are detected by the @command{configure} script.  Some
+things are impossible for @command{configure} to detect; these are
+described in two ways, either by macros defined in a file named
+@file{xm-@var{machine}.h} or by hook functions in the file specified
+by the @var{out_host_hook_obj} variable in @file{config.gcc}.  (The
+intention is that very few hosts will need a header file but nearly
+every fully supported host will need to override some hooks.)
+
+If you need to define only a few macros, and they have simple
+definitions, consider using the @code{xm_defines} variable in your
+@file{config.gcc} entry instead of creating a host configuration
+header.  @xref{System Config}.
+
+@menu
+* Host Common::		Things every host probably needs implemented.
+* Filesystem::          Your host can't have the letter `a' in filenames?
+* Host Misc::         	Rare configuration options for hosts.
+@end menu
+
+@node Host Common
+@section Host Common
+@cindex host hooks
+@cindex host functions
+
+Some things are just not portable, even between similar operating systems,
+and are too difficult for autoconf to detect.  They get implemented using
+hook functions in the file specified by the @var{host_hook_obj}
+variable in @file{config.gcc}.
+
+@deftypefn {Host Hook} void HOST_HOOKS_EXTRA_SIGNALS (void)
+This host hook is used to set up handling for extra signals.  The most
+common thing to do in this hook is to detect stack overflow.
+@end deftypefn
+
+@deftypefn {Host Hook} void * HOST_HOOKS_GT_PCH_GET_ADDRESS (size_t @var{size}, int @var{fd})
+This host hook returns the address of some space that is likely to be
+free in some subsequent invocation of the compiler.  We intend to load
+the PCH data at this address such that the data need not be relocated.
+The area should be able to hold @var{size} bytes.  If the host uses
+@code{mmap}, @var{fd} is an open file descriptor that can be used for
+probing.
+@end deftypefn
+
+@deftypefn {Host Hook} int HOST_HOOKS_GT_PCH_USE_ADDRESS (void * @var{address}, size_t @var{size}, int @var{fd}, size_t @var{offset})
+This host hook is called when a PCH file is about to be loaded.
+We want to load @var{size} bytes from @var{fd} at @var{offset}
+into memory at @var{address}.  The given address will be the result of
+a previous invocation of @code{HOST_HOOKS_GT_PCH_GET_ADDRESS}.
+Return @minus{}1 if we couldn't allocate @var{size} bytes at @var{address}.
+Return 0 if the memory is allocated but the data is not loaded.  Return 1
+if the hook has performed everything.
+
+If the implementation uses reserved address space, free any reserved
+space beyond @var{size}, regardless of the return value.  If no PCH will
+be loaded, this hook may be called with @var{size} zero, in which case
+all reserved address space should be freed.
+
+Do not try to handle values of @var{address} that could not have been
+returned by this executable; just return @minus{}1.  Such values usually
+indicate an out-of-date PCH file (built by some other GCC executable),
+and such a PCH file won't work.
+@end deftypefn
+
+@deftypefn {Host Hook} size_t HOST_HOOKS_GT_PCH_ALLOC_GRANULARITY (void);
+This host hook returns the alignment required for allocating virtual
+memory.  Usually this is the same as getpagesize, but on some hosts the
+alignment for reserving memory differs from the pagesize for committing
+memory.
+@end deftypefn
+
+@node Filesystem
+@section Host Filesystem
+@cindex configuration file
+@cindex @file{xm-@var{machine}.h}
+
+GCC needs to know a number of things about the semantics of the host
+machine's filesystem.  Filesystems with Unix and MS-DOS semantics are
+automatically detected.  For other systems, you can define the
+following macros in @file{xm-@var{machine}.h}.
+
+@ftable @code
+@item HAVE_DOS_BASED_FILE_SYSTEM
+This macro is automatically defined by @file{system.h} if the host
+file system obeys the semantics defined by MS-DOS instead of Unix.
+DOS file systems are case insensitive, file specifications may begin
+with a drive letter, and both forward slash and backslash (@samp{/}
+and @samp{\}) are directory separators.
+
+@item DIR_SEPARATOR
+@itemx DIR_SEPARATOR_2
+If defined, these macros expand to character constants specifying
+separators for directory names within a file specification.
+@file{system.h} will automatically give them appropriate values on
+Unix and MS-DOS file systems.  If your file system is neither of
+these, define one or both appropriately in @file{xm-@var{machine}.h}.
+
+However, operating systems like VMS, where constructing a pathname is
+more complicated than just stringing together directory names
+separated by a special character, should not define either of these
+macros.
+
+@item PATH_SEPARATOR
+If defined, this macro should expand to a character constant
+specifying the separator for elements of search paths.  The default
+value is a colon (@samp{:}).  DOS-based systems usually, but not
+always, use semicolon (@samp{;}).
+
+@item VMS
+Define this macro if the host system is VMS@.
+
+@item HOST_OBJECT_SUFFIX
+Define this macro to be a C string representing the suffix for object
+files on your host machine.  If you do not define this macro, GCC will
+use @samp{.o} as the suffix for object files.
+
+@item HOST_EXECUTABLE_SUFFIX
+Define this macro to be a C string representing the suffix for
+executable files on your host machine.  If you do not define this macro,
+GCC will use the null string as the suffix for executable files.
+
+@item HOST_BIT_BUCKET
+A pathname defined by the host operating system, which can be opened as
+a file and written to, but all the information written is discarded.
+This is commonly known as a @dfn{bit bucket} or @dfn{null device}.  If
+you do not define this macro, GCC will use @samp{/dev/null} as the bit
+bucket.  If the host does not support a bit bucket, define this macro to
+an invalid filename.
+
+@item UPDATE_PATH_HOST_CANONICALIZE (@var{path})
+If defined, a C statement (sans semicolon) that performs host-dependent
+canonicalization when a path used in a compilation driver or
+preprocessor is canonicalized.  @var{path} is a malloc-ed path to be
+canonicalized.  If the C statement does canonicalize @var{path} into a
+different buffer, the old path should be freed and the new buffer should
+have been allocated with malloc.
+
+@item DUMPFILE_FORMAT
+Define this macro to be a C string representing the format to use for
+constructing the index part of debugging dump file names.  The resultant
+string must fit in fifteen bytes.  The full filename will be the
+concatenation of: the prefix of the assembler file name, the string
+resulting from applying this format to an index number, and a string
+unique to each dump file kind, e.g.@: @samp{rtl}.
+
+If you do not define this macro, GCC will use @samp{.%02d.}.  You should
+define this macro if using the default will create an invalid file name.
+
+@item DELETE_IF_ORDINARY
+Define this macro to be a C statement (sans semicolon) that performs
+host-dependent removal of ordinary temp files in the compilation driver.
+
+If you do not define this macro, GCC will use the default version.  You
+should define this macro if the default version does not reliably remove
+the temp file as, for example, on VMS which allows multiple versions
+of a file.
+
+@item HOST_LACKS_INODE_NUMBERS
+Define this macro if the host filesystem does not report meaningful inode
+numbers in struct stat.
+@end ftable
+
+@node Host Misc
+@section Host Misc
+@cindex configuration file
+@cindex @file{xm-@var{machine}.h}
+
+@ftable @code
+@item FATAL_EXIT_CODE
+A C expression for the status code to be returned when the compiler
+exits after serious errors.  The default is the system-provided macro
+@samp{EXIT_FAILURE}, or @samp{1} if the system doesn't define that
+macro.  Define this macro only if these defaults are incorrect.
+
+@item SUCCESS_EXIT_CODE
+A C expression for the status code to be returned when the compiler
+exits without serious errors.  (Warnings are not serious errors.)  The
+default is the system-provided macro @samp{EXIT_SUCCESS}, or @samp{0} if
+the system doesn't define that macro.  Define this macro only if these
+defaults are incorrect.
+
+@item USE_C_ALLOCA
+Define this macro if GCC should use the C implementation of @code{alloca}
+provided by @file{libiberty.a}.  This only affects how some parts of the
+compiler itself allocate memory.  It does not change code generation.
+
+When GCC is built with a compiler other than itself, the C @code{alloca}
+is always used.  This is because most other implementations have serious
+bugs.  You should define this macro only on a system where no
+stack-based @code{alloca} can possibly work.  For instance, if a system
+has a small limit on the size of the stack, GCC's builtin @code{alloca}
+will not work reliably.
+
+@item COLLECT2_HOST_INITIALIZATION
+If defined, a C statement (sans semicolon) that performs host-dependent
+initialization when @code{collect2} is being initialized.
+
+@item GCC_DRIVER_HOST_INITIALIZATION
+If defined, a C statement (sans semicolon) that performs host-dependent
+initialization when a compilation driver is being initialized.
+
+@item HOST_LONG_LONG_FORMAT
+If defined, the string used to indicate an argument of type @code{long
+long} to functions like @code{printf}.  The default value is
+@code{"ll"}. 
+@end ftable
+
+In addition, if @command{configure} generates an incorrect definition of
+any of the macros in @file{auto-host.h}, you can override that
+definition in a host configuration header.  If you need to do this,
+first see if it is possible to fix @command{configure}.

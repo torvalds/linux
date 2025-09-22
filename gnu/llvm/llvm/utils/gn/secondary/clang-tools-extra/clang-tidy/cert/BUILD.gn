@@ -1,0 +1,33 @@
+static_library("cert") {
+  output_name = "clangTidyCERTModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/google",
+    "//clang-tools-extra/clang-tidy/misc",
+    "//clang-tools-extra/clang-tidy/performance",
+    "//clang-tools-extra/clang-tidy/readability",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "CERTTidyModule.cpp",
+    "CommandProcessorCheck.cpp",
+    "DefaultOperatorNewAlignmentCheck.cpp",
+    "DontModifyStdNamespaceCheck.cpp",
+    "FloatLoopCounter.cpp",
+    "LimitedRandomnessCheck.cpp",
+    "MutatingCopyCheck.cpp",
+    "NonTrivialTypesLibcMemoryCallsCheck.cpp",
+    "ProperlySeededRandomGeneratorCheck.cpp",
+    "SetLongJmpCheck.cpp",
+    "StaticObjectExceptionCheck.cpp",
+    "StrToNumCheck.cpp",
+    "ThrownExceptionTypeCheck.cpp",
+    "VariadicFunctionDefCheck.cpp",
+  ]
+}

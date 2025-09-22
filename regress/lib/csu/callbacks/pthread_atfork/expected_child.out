@@ -1,0 +1,20 @@
+testp atfork1_child
+libaa atfork_child
+testp atfork2_child
+libab atfork_child
+testp atfork3_child
+finished 0
+
+testp atfork1_child
+testp atfork2_child
+testp atfork3_child
+finished 1
+
+testp atfork1_child
+testp atfork3_child
+finished 2
+
+testp atfork1_child
+testp atfork2_child
+finished 3
+

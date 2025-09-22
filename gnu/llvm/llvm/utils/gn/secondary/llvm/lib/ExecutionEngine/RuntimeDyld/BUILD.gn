@@ -1,0 +1,20 @@
+static_library("RuntimeDyld") {
+  output_name = "LLVMRuntimeDyld"
+  deps = [
+    "//llvm/include/llvm/Config:config",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "JITSymbol.cpp",
+    "RTDyldMemoryManager.cpp",
+    "RuntimeDyld.cpp",
+    "RuntimeDyldCOFF.cpp",
+    "RuntimeDyldChecker.cpp",
+    "RuntimeDyldELF.cpp",
+    "RuntimeDyldMachO.cpp",
+    "Targets/RuntimeDyldELFMips.cpp",
+  ]
+}

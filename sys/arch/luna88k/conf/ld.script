@@ -1,0 +1,67 @@
+/*	$OpenBSD: ld.script,v 1.6 2019/11/09 20:07:00 guenther Exp $	*/
+
+/*
+ * Copyright (c) 2012 Miodrag Vallat.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+OUTPUT_FORMAT("elf32-m88k")
+OUTPUT_ARCH(m88k)
+ENTRY(__start)
+
+PHDRS
+{
+	text			PT_LOAD;
+	data			PT_LOAD;
+	openbsd_randomize	PT_OPENBSD_RANDOMIZE;
+}
+
+SECTIONS
+{
+	.text :
+	{
+		*(.text)
+		PROVIDE(etext = ABSOLUTE(.));
+	}
+	. = ALIGN(0x80000);
+	.rodata :
+	{
+		*(.rodata*)
+		PROVIDE(erodata = ABSOLUTE(.));
+	}
+	. = ALIGN(0x80000);
+	.data :
+	{
+		*(.data)
+	} :data
+	.openbsd.randomdata :
+	{
+		/* XXX shouldn't this be placed next to rodata? */
+		__retguard_start = ABSOLUTE(.);
+		*(.openbsd.randomdata.retguard .openbsd.randomdata.retguard.*)
+		/* XXX . = ALIGN(0x80000); */
+		__retguard_end = ABSOLUTE(.);
+		*(.openbsd.randomdata .openbsd.randomdata.*)
+	} :data :openbsd_randomize
+	PROVIDE(edata = ABSOLUTE(.));
+	.bss :
+	{
+		*(.bss)
+	} :data
+	PROVIDE(end = ABSOLUTE(.));
+	/DISCARD/ :
+	{
+		*(.comment)
+	}
+}

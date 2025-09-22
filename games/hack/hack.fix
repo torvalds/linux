@@ -1,0 +1,116 @@
+$OpenBSD: hack.fix,v 1.4 2001/09/19 10:51:38 pjanzen Exp $
+$NetBSD: hack.fix,v 1.2 1995/03/23 08:30:17 cgd Exp $
+
+/***** unido:net.games.hack / ab /  7:23 pm  Sep 13, 1985*/
+
+Recently hack (1.0.3) crashed with core dumps during some good games.
+The crashes occurred in the onbill-routine. After investigating the core
+dump I found that the shopkeeper's bill was still to be paid.  Normaly
+if you leave a shop the bill will be cleared and onbill() would not
+check it. But under certain conditions you can leave a shop without
+clearing the bill. The conditions are:
+
+     1. You have to rob a shop in order to make the shopkeeper
+	follow you.
+
+     2. After leaving the shop being followed by the shopkeeper
+	you must return to the shop...
+
+     3. ...and then leave the unguarded shop again.
+	- The shopkeeper mustn't be present!
+
+If you climb the stairs to the previous level, chances are that your
+bill now contains much more items than allowed. If so the next call to
+onbill() will dump the core.
+
+Following is a context diff to fix the bug. Actually just the last hunk
+does the fix [it deletes two lines which have been inserted in 1.0.3],
+but I think the other fix was intended by the now deleted lines.
+
+	Andreas
+
+--
+Andreas Bormann			ab@unido.UUCP
+University of Dortmund		N 51 29' 05"   E 07 24' 42"
+West Germany
+
+------ the diff follows:
+
+*** hack.shk.c.orig	Sun Aug  4 12:07:51 1985
+--- hack.shk.c	Fri Sep 13 14:29:52 1985
+***************
+*** 133,139
+  	/* Did we just leave a shop? */
+  	if(u.uinshop &&
+  	    (u.uinshop != roomno + 1 || shlevel != dlevel || !shopkeeper)) {
+- 		u.uinshop = 0;
+  		if(shopkeeper) {
+  		    if(ESHK(shopkeeper)->billct) {
+  			pline("Somehow you escaped the shop without paying!");
+
+--- 133,138 -----
+  	/* Did we just leave a shop? */
+  	if(u.uinshop &&
+  	    (u.uinshop != roomno + 1 || shlevel != dlevel || !shopkeeper)) {
+  		if(shopkeeper) {
+  		    if(ESHK(shopkeeper)->billct) {
+  			if(inroom(shopkeeper->mx, shopkeeper->my) 
+***************
+*** 136,142
+  		u.uinshop = 0;
+  		if(shopkeeper) {
+  		    if(ESHK(shopkeeper)->billct) {
+! 			pline("Somehow you escaped the shop without paying!");
+  			addupbill();
+  			pline("You stole for a total worth of %ld zorkmids.",
+  				total);
+
+--- 135,143 -----
+  	    (u.uinshop != roomno + 1 || shlevel != dlevel || !shopkeeper)) {
+  		if(shopkeeper) {
+  		    if(ESHK(shopkeeper)->billct) {
+! 			if(inroom(shopkeeper->mx, shopkeeper->my) 
+! 			    == u.uinshop - 1)	/* ab@unido */
+! 			    pline("Somehow you escaped the shop without paying!");
+  			addupbill();
+  			pline("You stole for a total worth of %ld zorkmids.",
+  				total);
+***************
+*** 149,154
+  		    shopkeeper = 0;
+  		    shlevel = 0;
+  		}
+  	}
+  
+  	/* Did we just enter a zoo of some kind? */
+
+--- 150,156 -----
+  		    shopkeeper = 0;
+  		    shlevel = 0;
+  		}
++ 		u.uinshop = 0;
+  	}
+  
+  	/* Did we just enter a zoo of some kind? */
+***************
+*** 183,190
+  		findshk(roomno);
+  	    if(!shopkeeper) {
+  		rooms[roomno].rtype = 0;
+- 		u.uinshop = 0;
+- 	    } else if(inroom(shopkeeper->mx, shopkeeper->my) != roomno) {
+  		u.uinshop = 0;
+  	    } else if(!u.uinshop){
+  		if(!ESHK(shopkeeper)->visitct ||
+
+--- 185,190 -----
+  		findshk(roomno);
+  	    if(!shopkeeper) {
+  		rooms[roomno].rtype = 0;
+  		u.uinshop = 0;
+  	    } else if(!u.uinshop){
+  		if(!ESHK(shopkeeper)->visitct ||
+/* ---------- */
+
+
+

@@ -1,0 +1,23 @@
+static_library("ExecutionEngine") {
+  output_name = "LLVMExecutionEngine"
+  public_deps = [
+    # Must be a public_dep because ExecutionEngine's headers include
+    # llvm-config.h.
+    "//llvm/include/llvm/Config:llvm-config",
+  ]
+  deps = [
+    "//llvm/lib/ExecutionEngine/Orc/TargetProcess",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "ExecutionEngine.cpp",
+    "ExecutionEngineBindings.cpp",
+    "GDBRegistrationListener.cpp",
+    "SectionMemoryManager.cpp",
+    "TargetSelect.cpp",
+  ]
+}

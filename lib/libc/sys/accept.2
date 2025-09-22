@@ -1,0 +1,230 @@
+.\"	$OpenBSD: accept.2,v 1.31 2025/08/04 04:59:31 guenther Exp $
+.\"	$NetBSD: accept.2,v 1.7 1996/01/31 20:14:42 mycroft Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)accept.2	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: August 4 2025 $
+.Dt ACCEPT 2
+.Os
+.Sh NAME
+.Nm accept ,
+.Nm accept4
+.Nd accept a connection on a socket
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn accept "int s" "struct sockaddr *addr" "socklen_t *addrlen"
+.Ft int
+.Fn accept4 "int s" "struct sockaddr *addr" "socklen_t *addrlen" "int flags"
+.Sh DESCRIPTION
+The argument
+.Fa s
+is a socket that has been created with
+.Xr socket 2 ,
+bound to an address with
+.Xr bind 2 ,
+and is listening for connections after a
+.Xr listen 2 .
+The
+.Fn accept
+call extracts the first connection request on the queue of pending
+connections, creates a new socket with the same non-blocking I/O mode as
+.Fa s ,
+and allocates a new file descriptor for the socket with the
+close-on-exec and close-on-fork flags clear.
+.Pp
+The
+.Fn accept4
+system call is similar, however the non-blocking I/O mode,
+close-on-exec flag,
+and close-on-fork flag on the new file descriptor are
+determined by the
+.Dv SOCK_NONBLOCK , SOCK_CLOEXEC ,
+and
+.Dv SOCK_CLOFORK
+flags, respectively, in the
+.Fa flags
+argument.
+.Pp
+If no pending connections are present on the queue,
+and the socket is not marked as non-blocking,
+.Fn accept
+blocks the caller until a connection is present.
+If the socket is marked non-blocking and no pending
+connections are present on the queue,
+.Fn accept
+returns an error as described below.
+The accepted socket may not be used to accept more connections.
+The original socket
+.Fa s
+remains open.
+.Pp
+The argument
+.Fa addr
+is a result parameter that is filled in with the address of the connecting
+entity as known to the communications layer.
+The exact format of the
+.Fa addr
+parameter is determined by the domain in which the communication
+is occurring.
+The structure
+.Vt sockaddr_storage
+exists for greater portability.
+It is large enough to hold any of the types that may be returned in the
+.Fa addr
+parameter.
+.Pp
+The
+.Fa addrlen
+is a value-result parameter; it should initially contain the
+amount of space pointed to by
+.Fa addr ;
+on return it will contain the actual length (in bytes) of the
+address returned.
+If
+.Fa addrlen
+does not point to enough space to hold the entire socket address, the
+result will be truncated to the initial value of
+.Fa addrlen
+(in bytes).
+This call is used with connection-based socket types, currently with
+.Dv SOCK_STREAM .
+.Pp
+It is possible to
+.Xr select 2
+or
+.Xr poll 2
+a socket for the purposes of doing an
+.Fn accept
+by selecting it for read.
+.Sh RETURN VALUES
+If successful,
+.Fn accept
+and
+.Fn accept4
+return a non-negative integer, the accepted socket file descriptor.
+Otherwise, a value of \-1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh EXAMPLES
+The following code uses struct
+.Vt sockaddr_storage
+to allocate enough space for the returned address:
+.Bd -literal -offset indent
+#include <sys/types.h>
+#include <sys/socket.h>
+
+struct sockaddr_storage addr;
+socklen_t len = sizeof(addr);
+int retcode;
+
+retcode = accept(s, (struct sockaddr *)&addr, &len);
+if (retcode == -1)
+	err(1, "accept");
+.Ed
+.Sh ERRORS
+.Fn accept
+and
+.Fn accept4
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The descriptor is invalid.
+.It Bq Er ENOTSOCK
+The descriptor doesn't reference a socket.
+.It Bq Er EOPNOTSUPP
+The referenced socket is not of type
+.Dv SOCK_STREAM .
+.It Bq Er EINTR
+A signal was caught before a connection arrived.
+.It Bq Er EINVAL
+The referenced socket is not listening for connections (that is,
+.Xr listen 2
+has not yet been called).
+.It Bq Er EFAULT
+The
+.Fa addr
+or
+.Fa addrlen
+parameter is not in a valid part of the process address space.
+.It Bq Er EWOULDBLOCK
+The socket is marked non-blocking and no connections
+are present to be accepted.
+.It Bq Er EMFILE
+The per-process descriptor table is full.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er ECONNABORTED
+A connection has been aborted.
+.El
+.Pp
+In addition,
+.Fn accept4
+will fail if
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa flags
+is invalid.
+.El
+.Sh SEE ALSO
+.Xr bind 2 ,
+.Xr connect 2 ,
+.Xr listen 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr socket 2
+.Sh STANDARDS
+The
+.Fn accept
+and
+.Fn accept4
+functions conform to
+.St -p1003.1-2024 .
+.Sh HISTORY
+The
+.Fn accept
+system call first appeared in
+.Bx 4.1c
+and
+.Fn accept4
+in
+.Ox 5.7 .
+.Sh CAVEATS
+When
+.Er EMFILE
+or
+.Er ENFILE
+is returned,
+new connections are neither dequeued nor discarded.
+Thus considerable care is required in
+.Xr select 2
+and
+.Xr poll 2
+loops.

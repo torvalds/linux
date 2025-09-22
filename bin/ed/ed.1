@@ -1,0 +1,859 @@
+.\"	$OpenBSD: ed.1,v 1.77 2022/06/19 05:49:51 jmc Exp $
+.\"
+.\" Copyright (c) 1993 Andrew Moore, Talke Studio.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 19 2022 $
+.Dt ED 1
+.Os
+.Sh NAME
+.Nm ed
+.Nd text editor
+.Sh SYNOPSIS
+.Nm ed
+.Op Fl
+.Op Fl s
+.Op Fl p Ar string
+.Op Ar file
+.Sh DESCRIPTION
+.Nm
+is a line-oriented text editor.
+It is used to create, display, modify, and otherwise manipulate text files.
+If invoked with a
+.Ar file
+argument, then a copy of
+.Ar file
+is read into the editor's buffer.
+Changes are made to this copy and not directly to
+.Ar file
+itself.
+Upon quitting
+.Nm ed ,
+any changes not explicitly saved with a
+.Ic w
+command are lost.
+.Pp
+Editing is done in two distinct modes:
+.Em command
+and
+.Em input .
+When first invoked,
+.Nm
+is in command mode.
+In this mode, commands are read from the standard input and
+executed to manipulate the contents of the editor buffer.
+.Pp
+A typical command might look like:
+.Pp
+.Dl ,s/old/new/g
+.Pp
+which replaces all occurrences of the string
+.Qq old
+with
+.Qq new .
+.Pp
+When an input command, such as
+.Ic a
+.Pq append ,
+.Ic i
+.Pq insert ,
+or
+.Ic c
+.Pq change
+is given,
+.Nm
+enters input mode.
+This is the primary means of adding text to a file.
+In this mode, no commands are available;
+instead, the standard input is written directly to the editor buffer.
+Lines consist of text up to and including a newline character.
+Input mode is terminated by entering a single period
+.Pq Ql \&.
+on a line.
+.Pp
+All
+.Nm
+commands operate on whole lines or ranges of lines; e.g.,
+the
+.Ic d
+command deletes lines; the
+.Ic m
+command moves lines, and so on.
+It is possible to modify only a portion of a line by means of replacement,
+as in the example above.
+However, even here, the
+.Ic s
+command is applied to whole lines at a time.
+.Pp
+In general,
+.Nm
+commands consist of zero or more line addresses, followed by a single
+character command and possibly additional parameters; i.e.,
+commands have the structure:
+.Pp
+.Sm off
+.D1 Oo Ar address Oo , Ar address Oc Oc Ar command Op Ar parameters
+.Sm on
+.Pp
+The address(es) indicate the line or range of lines to be affected by the
+command.
+If fewer addresses are given than the command accepts, then
+default addresses are supplied.
+.Pp
+Many
+.Nm
+commands and line addresses support basic regular expressions
+.Pq BREs .
+See
+.Xr re_format 7
+for more information on regular expressions.
+.Pp
+The options are as follows:
+.Bl -tag -width "-p string"
+.It Fl
+Same as the
+.Fl s
+option
+.Pq deprecated .
+.It Fl p Ar string
+Specifies a command prompt.
+This may be toggled on and off with the
+.Ic P
+command.
+.It Fl s
+Suppress diagnostics.
+This should be used if
+.Nm
+standard input is from a script.
+.It Ar file
+Specifies the name of a file to read.
+If
+.Ar file
+is prefixed with a
+bang
+.Pq Ql \&! ,
+then it is interpreted as a shell command.
+In this case, what is read is the standard output of
+.Ar file
+executed via
+.Xr sh 1 .
+To read a file whose name begins with a bang, prefix the
+name with a backslash
+.Pq Ql \e .
+The default filename is set to
+.Ar file
+only if it is not prefixed with a bang.
+.El
+.Ss LINE ADDRESSING
+An address represents the number of a line in the buffer.
+.Nm
+maintains a
+.Em current address
+which is typically supplied to commands as the default address
+when none is specified.
+When a file is first read, the current address is set to the last line
+of the file.
+In general, the current address is set to the last line affected by a command.
+.Pp
+A line address is
+constructed from one of the bases in the list below, optionally followed
+by a numeric offset.
+The offset may include any combination of digits, operators (e.g.,
+.Ql + ,
+.Ql - ,
+and
+.Ql ^ ) ,
+and whitespace.
+Addresses are read from left to right, and their values are computed
+relative to the current address.
+.Pp
+One exception to the rule that addresses represent line numbers is the
+address
+.Ad 0
+.Pq zero .
+This means
+.Dq before the first line ,
+and is legal wherever it makes sense.
+.Pp
+An address range is two addresses separated either by a comma or semi-colon.
+The value of the first address in a range cannot exceed the
+value of the second.
+If only one address is given in a range,
+then the second address is set to the given address.
+If an
+.Ar n Ns -tuple
+of addresses is given where
+.Ar n
+\*(Gt 2,
+then the corresponding range is determined by the last two addresses in the
+.Ar n Ns -tuple .
+If only one address is expected, then the last address is used.
+.Pp
+Each address in a comma-delimited range is interpreted relative to the
+current address.
+In a semi-colon-delimited range, the first address is
+used to set the current address, and the second address is interpreted
+relative to the first.
+.Pp
+The following address symbols are recognized:
+.Bl -tag -width Ds
+.It \&.
+The current line
+.Pq address
+in the buffer.
+.It $
+The last line in the buffer.
+.It Ar n
+The
+.Ar n Ns th
+line in the buffer, where
+.Ar n
+is a number in the range
+.Ad [0,$] .
+.It - or ^
+The previous line.
+This is equivalent to
+.Ad \-1
+and may be repeated with cumulative effect.
+.It Xo
+.Pf - Ar n No or\ \&
+.Pf ^ Ar n
+.Xc
+The
+.Ar n Ns th
+previous line, where
+.Ar n
+is a non-negative number.
+.It +
+The next line.
+This is equivalent to
+.Ad +1
+and may be repeated with cumulative effect.
+.It + Ns Ar n
+The
+.Ar n Ns th
+next line, where
+.Ar n
+is a non-negative number.
+.It \&, or %
+The first through last lines in the buffer.
+This is equivalent to the address range
+.Ad 1,$ .
+.It \&;
+The current through last lines in the buffer.
+This is equivalent to the address range
+.Ad .,$ .
+.It / Ns Ar re Ns /
+The next line containing the regular expression
+.Ar re .
+The search wraps to the beginning of the buffer and continues down to the
+current line, if necessary.
+The second slash can be omitted if it ends a line.
+.Qq //
+repeats the last search.
+.It Pf ? Ar re ?
+The previous line containing the regular expression
+.Ar re .
+The search wraps to the end of the buffer and continues up to the
+current line, if necessary.
+The second question mark can be omitted if it ends a line.
+.Qq ??
+repeats the last search.
+.It \&' Ns Ar lc
+The line previously marked by a
+.Ic k
+.Pq mark
+command, where
+.Ar lc
+is a lower case letter.
+.El
+.Ss COMMANDS
+All
+.Nm
+commands are single characters, though some require additional parameters.
+If a command's parameters extend over several lines, then
+each line except for the last must be terminated with a backslash
+.Pq Ql \e .
+.Pp
+In general, at most one command is allowed per line.
+However, most commands accept a print suffix, which is any of
+.Ic p
+.Pq print ,
+.Ic l
+.Pq list ,
+or
+.Ic n
+.Pq enumerate ,
+to print the last line affected by the command.
+.Pp
+.Nm
+recognizes the following commands.
+The commands are shown together with
+the default address or address range supplied if none is specified
+.Pq in parentheses ,
+and other possible arguments on the right.
+.Bl -tag -width Dxxs
+.It (.) Ns Ic a
+Appends text to the buffer after the addressed line.
+Text is entered in input mode.
+The current address is set to last line entered.
+.It (.,.) Ns Ic c
+Changes lines in the buffer.
+The addressed lines are deleted from the buffer,
+and text is appended in their place.
+Text is entered in input mode.
+The current address is set to last line entered.
+.It (.,.) Ns Ic d
+Deletes the addressed lines from the buffer.
+If there is a line after the deleted range, then the current address is set
+to this line.
+Otherwise the current address is set to the line before the deleted range.
+.It Ic e Ar file
+Edits
+.Ar file ,
+and sets the default filename.
+If
+.Ar file
+is not specified, then the default filename is used.
+Any lines in the buffer are deleted before the new file is read.
+The current address is set to the last line read.
+.It Ic e No \&! Ns Ar command
+Edits the standard output of
+.No \&! Ns Ar command ,
+(see
+.Ic \&! Ns Ar command
+below).
+The default filename is unchanged.
+Any lines in the buffer are deleted before the output of
+.Ar command
+is read.
+The current address is set to the last line read.
+.It Ic E Ar file
+Edits
+.Ar file
+unconditionally.
+This is similar to the
+.Ic e
+command, except that unwritten changes are discarded without warning.
+The current address is set to the last line read.
+.It Ic f Ar file
+Sets the default filename to
+.Ar file .
+If
+.Ar file
+is not specified, then the default unescaped filename is printed.
+.Sm off
+.It Xo
+.Pf (1,$) Ic g No /
+.Ar re No / Ar command-list
+.Xc
+.Sm on
+Mark each addressed line matching the regular expression
+.Ar re
+for modification.
+The current address is set to each marked line in turn, and then the
+.Ar command-list
+is executed each time.
+The command-list can change the current line number,
+and it is not changed back after the command-list ended.
+When a marked line is changed, it is unmarked
+and the command-list won't be executed for it any more.
+If no lines were matched,
+the current line number remains unchanged.
+.Pp
+Each command in
+.Ar command-list
+must be on a separate line,
+and every line except for the last must be terminated by a backslash
+.Pq Sq \e .
+Any commands are allowed, except for
+.Ic g ,
+.Ic G ,
+.Ic v ,
+and
+.Ic V .
+An empty
+.Ar command-list
+is equivalent to a
+.Ic p
+command \(em unlike for the
+.Cm G
+command, where an empty command-list does nothing, and unlike an empty
+command, which is equivalent to the command
+.Cm +p .
+If the
+.Ar command-list
+is empty, the trailing slash can be omitted.
+.Sm off
+.It (1,$) Ic G No / Ar re No /
+.Sm on
+Interactively edits the addressed lines matching a regular expression
+.Ar re .
+The trailing slash after
+.Ar re
+can be omitted.
+For each matching line, the line is printed, the current address is set,
+and the user is prompted to enter a
+.Ar command-list .
+At the end of the
+.Ic G
+command, the current address is set to the last line affected by
+.Pq the last
+command-list.
+If no lines were matched,
+the current line number remains unchanged.
+.Pp
+The format of
+.Ar command-list
+is the same as that of the
+.Ic g
+command, but an empty command list does nothing.
+A single
+.Sq &
+repeats the last non-empty command list.
+.It Ic H
+Toggles the printing of error explanations.
+By default, explanations are not printed.
+It is recommended that
+.Nm
+scripts begin with this command to aid in debugging.
+.It Ic h
+Prints an explanation of the last error.
+.It (.) Ns Ic i
+Inserts text in the buffer before the current line.
+Text is entered in input mode.
+The current address is set to the last line entered.
+.It (.,+) Ns Ic j
+Joins the addressed lines.
+The addressed lines are deleted from the buffer and replaced by a single
+line containing their joined text.
+The current address is set to the resultant line.
+.It (.) Ns Ic k Ns Ar lc
+Marks a line with a lower case letter
+.Ar lc .
+The line can then be addressed as
+.Ic ' Ns Ar lc
+(i.e., a single quote followed by
+.Ar lc )
+in subsequent commands.
+The mark is not cleared until the line is deleted or otherwise modified.
+.It (.,.) Ns Ic l
+Prints the addressed lines unambiguously.
+The current address is set to the last line printed.
+.It (.,.) Ns Ic m Ns (.)
+Moves lines in the buffer.
+The addressed lines are moved to after the
+right-hand destination address, which may be the address
+.Ad 0
+.Pq zero .
+The current address is set to the last line moved.
+.It (.,.) Ns Ic n
+Prints the addressed lines along with their line numbers.
+The current address is set to the last line printed.
+.It (.,.) Ns Ic p
+Prints the addressed lines.
+The current address is set to the last line printed.
+.It Ic P
+Toggles the command prompt on and off.
+Unless a prompt was specified with the command-line option
+.Fl p Ar string ,
+the command prompt is by default turned off.
+.It Ic q
+Quits
+.Nm ed .
+.It Ic Q
+Quits
+.Nm
+unconditionally.
+This is similar to the
+.Ic q
+command, except that unwritten changes are discarded without warning.
+.It ($) Ns Ic r Ar file
+Reads
+.Ar file
+to after the addressed line.
+If
+.Ar file
+is not specified, then the default filename is used.
+If there was no default filename prior to the command,
+then the default filename is set to
+.Ar file .
+Otherwise, the default filename is unchanged.
+The current address is set to the last line read.
+.It ($) Ns Ic r No \&! Ns Ar command
+Reads to after the addressed line the standard output of
+.No \&! Ns Ar command ,
+(see
+.Ic \&! Ns Ar command
+below).
+The default filename is unchanged.
+The current address is set to the last line read.
+.Sm off
+.It Xo
+.Pf (.,.) Ic s No / Ar re
+.No / Ar replacement No /\ \&
+.Pf (.,.) Ic s No / Ar re
+.No / Ar replacement No / Ic g\ \&
+.No (.,.) Ic s No / Ar re
+.No / Ar replacement No / Ar n
+.Xc
+.Sm on
+Replaces text in the addressed lines matching a regular expression
+.Ar re
+with
+.Ar replacement .
+By default, only the first match in each line is replaced.
+If the
+.Ic g
+.Pq global
+suffix is given, then every match is replaced.
+The
+.Ar n
+suffix, where
+.Ar n
+is a positive number, causes only the
+.Ar n Ns th
+match to be replaced.
+It is an error if no substitutions are performed on any of the addressed
+lines.
+The current address is set to the last line affected.
+.Pp
+.Ar re
+and
+.Ar replacement
+may be delimited by any character other than space and newline
+(see the
+.Ic s
+command below).
+If one or two of the last delimiters is omitted, then the last line
+affected is printed as though the print suffix
+.Ic p
+were specified.
+.Pp
+An unescaped
+.Ql &
+in
+.Ar replacement
+is replaced by the currently matched text.
+The character sequence
+.Pf \e Ar m ,
+where
+.Ar m
+is a number in the range [1,9], is replaced by the
+.Ar m Ns th
+backreference expression of the matched text.
+If
+.Ar replacement
+consists of a single
+.Ql % ,
+then
+.Ar replacement
+from the last substitution is used.
+Newlines may be embedded in
+.Ar replacement
+if they are escaped with a backslash
+.Pq Ql \e .
+.It (.,.) Ns Ic s
+Repeats the last substitution.
+This form of the
+.Ic s
+command accepts a count suffix
+.Ar n ,
+or any combination of the characters
+.Ic r ,
+.Ic g ,
+and
+.Ic p .
+If a count suffix
+.Ar n
+is given, then only the
+.Ar n Ns th
+match is replaced.
+The
+.Ic r
+suffix causes the regular expression of the last search to be used
+instead of that of the last substitution.
+The
+.Ic g
+suffix toggles the global suffix of the last substitution.
+The
+.Ic p
+suffix toggles the print suffix of the last substitution.
+The current address is set to the last line affected.
+.It (.,.) Ns Ic t Ns (.)
+Copies
+.Pq i.e., transfers
+the addressed lines to after the right-hand destination address,
+which may be the address
+.Ad 0
+.Pq zero .
+The current address is set to the last line copied.
+.It Ic u
+Undoes the last command and restores the current address
+to what it was before the command.
+The global commands
+.Ic g ,
+.Ic G ,
+.Ic v ,
+and
+.Ic V
+are treated as a single command by undo.
+.Ic u
+is its own inverse.
+.Sm off
+.It Xo
+.Pf (1,$) Ic v No / Ar re
+.Pf / Ar command-list
+.Xc
+.Sm on
+The same as the
+.Ic g
+command, except that it applies
+.Ar command-list
+to each of the addressed lines not matching the regular expression
+.Ar re .
+.Sm off
+.It Xo
+.Pf (1,$) Ic V No /
+.Ar re No /
+.Xc
+.Sm on
+The same as the
+.Ic G
+command, except that it interactively edits the addressed lines
+not matching the regular expression
+.Ar re .
+.It (1,$) Ns Ic w Ar file
+Writes the addressed lines to
+.Ar file .
+Any previous contents of
+.Ar file
+are lost without warning.
+If there is no default filename, then the default filename is set to
+.Ar file ,
+otherwise it is unchanged.
+If no filename is specified, then the default filename is used.
+The current address is unchanged.
+.It (1,$) Ns Ic wq Ar file
+Writes the addressed lines to
+.Ar file ,
+and then executes a
+.Ic q
+command.
+.It (1,$) Ns Ic w No \&! Ns Ar command
+Writes the addressed lines to the standard input of
+.No \&! Ns Ar command ,
+(see
+.Ic \&! Ns Ar command
+below).
+The default filename and current address are unchanged.
+.It (1,$) Ns Ic W Ar file
+Appends the addressed lines to the end of
+.Ar file .
+This is similar to the
+.Ic w
+command, except that the previous contents of file are not clobbered.
+The current address is unchanged.
+.It (+) Ns Ic z Ns Ar n
+Scrolls
+.Ar n
+lines at a time starting at addressed line.
+If
+.Ar n
+is not specified, then the current window size is used.
+The current address is set to the last line printed.
+.It ($) Ns Ic =
+Prints the line number of the addressed line.
+.It (+)
+An address without a command prints the addressed line
+and sets the current address to that line.
+If the address is also omitted, it defaults to the next line (+).
+.It Ic \&! Ns Ar command
+Executes
+.Ar command
+via
+.Xr sh 1 .
+If the first character of
+.Ar command
+is
+.Sq !\& ,
+then it is replaced by text of the previous
+.Ic \&! Ns Ar command .
+.Nm
+does not process
+.Ar command
+for
+.Sq \e
+.Pq backslash
+escapes.
+However, an unescaped
+.Sq %
+is replaced by the default filename.
+When the shell returns from execution, a
+.Sq \&!
+is printed to the standard output.
+The current line is unchanged.
+.El
+.Sh ASYNCHRONOUS EVENTS
+.Bl -tag -width "SIGWINCH"
+.It Dv SIGHUP
+If the current buffer has changed since it was last written,
+.Nm
+attempts to write the buffer to the file
+.Pa ed.hup .
+Nothing is written to the currently remembered file, and
+.Nm
+exits.
+.It Dv SIGINT
+When an interrupt occurs,
+.Nm
+prints
+.Sq ?\en
+and returns to command mode.
+If interrupted during text input,
+the text already input is written to the current buffer,
+as if text input had been normally terminated.
+.It Dv SIGQUIT
+This signal is ignored.
+.It Dv SIGWINCH
+The screen is resized.
+.El
+.Sh FILES
+.Bl -tag -width /tmp/ed.* -compact
+.It Pa /tmp/ed.*
+buffer file
+.It Pa ed.hup
+where
+.Nm
+attempts to write the buffer if the terminal hangs up
+.El
+.Sh EXIT STATUS
+.Ex -std ed
+.Sh DIAGNOSTICS
+When an error occurs,
+.Nm
+prints a
+.Sq \&?
+and either returns to command mode or exits if its input is from a script.
+An explanation of the last error can be printed with the
+.Ic h
+.Pq help
+command.
+.Pp
+Since the
+.Ic g
+.Pq global
+command masks any errors from failed searches and substitutions,
+it can be used to perform conditional operations in scripts; e.g.,
+.Pp
+.Dl g/old/s//new/
+.Pp
+replaces any occurrences of
+.Qq old
+with
+.Qq new .
+.Pp
+If the
+.Ic u
+.Pq undo
+command occurs in a global command list,
+then the command list is executed only once.
+.Pp
+If diagnostics are not disabled, attempting to quit
+.Nm
+or edit another file before writing a modified buffer results in an error.
+If the command is entered a second time, it succeeds,
+but any changes to the buffer are lost.
+.Sh SEE ALSO
+.Xr sed 1 ,
+.Xr sh 1 ,
+.Xr vi 1 ,
+.Xr re_format 7
+.Rs
+.\" 4.4BSD USD:9
+.%A B. W. Kernighan
+.%T A Tutorial Introduction to the UNIX Text Editor
+.Re
+.Rs
+.\" 4.4BSD USD:10
+.%A B. W. Kernighan
+.%T Advanced Editing on UNIX
+.Re
+.Rs
+.%A B. W. Kernighan
+.%A P. J. Plauger
+.%B Software Tools in Pascal
+.%O Addison-Wesley
+.%D 1981
+.Re
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The commands
+.Cm s
+(to repeat the last substitution),
+.Cm W ,
+.Cm wq ,
+and
+.Cm z
+as well as the address specifier
+.Sq %
+are extensions to that specification.
+.Pp
+The
+.St -p1003.1-2008
+specification says the
+.Sq ^
+address specifier is neither required nor prohibited;
+additionally, it says behaviour for the
+.Fl
+option is
+.Dq unspecified .
+.Sh HISTORY
+An
+.Nm
+command appeared in
+.At v1 .
+.Sh CAVEATS
+.Nm
+processes
+.Ar file
+arguments for backslash escapes, i.e., in a filename,
+any characters preceded by a backslash
+.Pq Ql \e
+are interpreted literally.
+.Pp
+If a text
+.Pq non-binary
+file is not terminated by a newline character,
+then
+.Nm
+appends one on reading/writing it.
+In the case of a binary file,
+.Nm
+does not append a newline on reading/writing.

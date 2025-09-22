@@ -1,0 +1,11 @@
+declare_args() {
+  if (host_os == "win") {
+    # On Windows, path to a directory containing zlib headers and zlib.lib.
+    zlib_path = ""
+  }
+}
+
+declare_args() {
+  # Whether to include code that links against zlib.
+  llvm_enable_zlib = host_os != "win" || zlib_path != ""
+}

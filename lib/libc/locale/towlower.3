@@ -1,0 +1,121 @@
+.\"	$OpenBSD: towlower.3,v 1.6 2017/09/05 03:16:13 schwarze Exp $
+.\"	$NetBSD: towlower.3,v 1.7 2003/09/08 17:54:31 wiz Exp $
+.\"
+.\" Copyright (c) 1989, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)tolower.3	5.2 (Berkeley) 6/29/91
+.\"
+.Dd $Mdocdate: September 5 2017 $
+.Dt TOWLOWER 3
+.Os
+.Sh NAME
+.Nm towlower ,
+.Nm towlower_l ,
+.Nm towupper ,
+.Nm towupper_l
+.Nd wide-character case letter conversion utilities
+.Sh SYNOPSIS
+.In wctype.h
+.Ft wint_t
+.Fn towlower "wint_t wc"
+.Ft wint_t
+.Fn towlower_l "wint_t wc" "locale_t locale"
+.Ft wint_t
+.Fn towupper "wint_t wc"
+.Ft wint_t
+.Fn towupper_l "wint_t wc" "locale_t locale"
+.Sh DESCRIPTION
+The
+.Fn towlower
+and
+.Fn towlower_l
+functions convert an upper-case wide character
+to the corresponding lower-case letter.
+The
+.Fn towupper
+and
+.Fn towupper_l
+functions convert a lower-case wide character
+to the corresponding upper-case letter.
+.Pp
+The functions
+.Fn towlower_l
+and
+.Fn towupper_l
+use the specified
+.Fa locale ,
+whereas
+.Fn towlower
+and
+.Fn towupper
+use the thread-specific locale set with
+.Xr uselocale 3 ,
+falling back to the global locale set with
+.Xr setlocale 3 .
+.Sh RETURN VALUES
+These functions return the corresponding character, if any.
+Otherwise,
+.Fa wc
+is returned unchanged.
+.Sh SEE ALSO
+.Xr iswlower 3 ,
+.Xr tolower 3 ,
+.Xr toupper 3 ,
+.Xr towctrans 3
+.Sh STANDARDS
+The functions
+.Fn towlower
+and
+.Fn towupper
+conform to
+.St -isoC-amd1
+and
+.St -isoC-99 ,
+and
+.Fn towlower_l
+and
+.Fn towupper_l
+to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The functions
+.Fn towlower
+and
+.Fn towupper
+have been available since
+.Ox 3.8 ,
+and
+.Fn towlower_l
+and
+.Fn towupper_l
+since
+.Ox 6.2 .

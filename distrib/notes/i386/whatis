@@ -1,0 +1,4 @@
+dnl	$OpenBSD: whatis,v 1.13 2020/09/30 09:38:35 jsg Exp $
+
+OpenBSD/MACHINE runs on standard PC computers and clones, based on Intel
+and compatible Pentium or later processors.

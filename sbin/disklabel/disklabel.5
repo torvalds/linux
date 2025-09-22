@@ -1,0 +1,158 @@
+.\"	$OpenBSD: disklabel.5,v 1.22 2015/09/10 17:55:21 schwarze Exp $
+.\"	$NetBSD: disklabel.5,v 1.3 1995/03/18 14:54:36 cgd Exp $
+.\"
+.\" Copyright (c) 1987, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Symmetric Computer Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)disklabel.5.5	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: September 10 2015 $
+.Dt DISKLABEL 5
+.Os
+.Sh NAME
+.Nm disklabel
+.Nd disk pack label
+.Sh SYNOPSIS
+.In sys/disklabel.h
+.Sh DESCRIPTION
+Each disk or disk pack on a system may contain a disk label
+which provides detailed information
+about the geometry of the disk and the partitions into which the disk
+is divided.
+It should be initialized when the disk is formatted,
+and may be changed later with the
+.Xr disklabel 8
+program.
+This information is used by the system disk driver and by the bootstrap
+program to determine how to program the drive
+and where to find the filesystems on the disk partitions.
+Additional information is used by the filesystem in order
+to use the disk most efficiently and to locate important filesystem information.
+The description of each partition contains an identifier for the partition
+type (standard filesystem, swap area, etc.).
+The filesystem updates the in-core copy of the label if it contains
+incomplete information about the filesystem.
+.Pp
+The label is located in sector number
+.Dv LABELSECTOR
+of the drive, usually sector 0 where it may be found
+without any information about the disk geometry.
+It is at an offset
+.Dv LABELOFFSET
+from the beginning of the sector, to allow room for the initial bootstrap.
+.Pp
+A copy of the in-core label for a disk can be obtained with the
+.Dv DIOCGDINFO
+.Em ioctl ;
+this works with a file descriptor for a block or character
+.Pq Dq raw
+device for any partition of the disk.
+The in-core copy of the label is set by the
+.Dv DIOCSDINFO
+.Em ioctl .
+The offset of a partition cannot generally be changed while it is open,
+nor can it be made smaller while it is open.
+One exception is that any change is allowed if no label was found
+on the disk, and the driver was able to construct only a skeletal label
+without partition information.
+The
+.Dv DIOCWDINFO
+.Em ioctl
+operation sets the in-core label and then updates the on-disk label;
+there must be an existing label on the disk for this operation to succeed.
+Thus, the initial label for a disk or disk pack must be installed
+by writing to the raw disk.
+The
+.Dv DIOCGPDINFO
+.Em ioctl
+operation gets the default label for a disk.
+This simulates the case
+where there is no physical label on the disk itself and can be used to
+see the label the kernel would construct in that case.
+The
+.Dv DIOCRLDINFO
+.Em ioctl
+operation causes the kernel to update its copy of the label based on the
+physical label on the disk.
+It can be used when the on-disk version
+of the label was changed directly or, if there is no physical label,
+to update the kernel's skeletal label if some variable affecting label
+generation has changed (e.g. the fdisk partition table).
+All of these operations are normally done using
+.Xr disklabel 8 .
+.Pp
+Note that when a disk has no real
+.Bx
+disklabel the kernel creates a
+default label so that the disk can be used.
+This default label will include other partitions found on the disk if
+they are supported on your architecture.
+For example, on systems that support
+.Xr fdisk 8
+partitions the default label will also include DOS and Linux partitions.
+However, these entries are not dynamic, they are fixed at the time
+.Xr disklabel 8
+is run.
+That means that subsequent changes that affect
+.Pf non- Ox
+partitions will not be present in the default label, though you
+may update them by hand.
+To see the default label, run
+.Xr disklabel 8
+with the
+.Fl d
+flag.
+You can then run
+.Xr disklabel 8
+with the
+.Fl e
+flag and paste any entries you want from the default label into the real
+one.
+.Sh SEE ALSO
+.Xr disktab 5 ,
+.Xr disklabel 8
+.Sh CAVEATS
+.Nm
+only supports up to a maximum of 15 partitions,
+.Sq a
+through
+.Sq p ,
+excluding
+.Sq c .
+The
+.Sq c
+partition is reserved for the entire physical disk.
+By convention, the
+.Sq a
+partition of the boot disk is the root partition, and the
+.Sq b
+partition of the boot disk is the swap partition,
+but all other letters can be used in any order for any other
+partitions as desired.

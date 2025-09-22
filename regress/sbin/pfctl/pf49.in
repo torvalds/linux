@@ -1,0 +1,7 @@
+#test :broadcast and :network modifiers
+pass in on lo0 from lo0:network to any keep state
+pass out on lo0 inet from lo0:network to any
+pass in on lo0 inet6 from lo0:network to any keep state
+
+#broadcast on lo0 doesn't make sense at all!
+#block in on lo0 from any to lo0:broadcast

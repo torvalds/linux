@@ -1,0 +1,103 @@
+.\"     $OpenBSD: route.9,v 1.17 2017/01/11 15:09:52 rzalamena Exp $
+.\"
+.\" Copyright (c) 2011 Bret S. Lambert <blambert@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 11 2017 $
+.Dt RT_SETGATE 9
+.Os
+.Sh NAME
+.Nm rt_setgate ,
+.Nm rtredirect ,
+.Nm rtdeletemsg
+.Nd kernel routing interface
+.Sh SYNOPSIS
+.In net/route.h
+.Ft int
+.Fn rt_setgate "struct rtentry *rt" "struct sockaddr *gate" "u_int tableid"
+.Ft void
+.Fn rtredirect "struct sockaddr *dst" "struct sockaddr *gateway" \
+"struct sockaddr *src" "struct rtentry **rtp" "unsigned int rdomain"
+.Ft int
+.Fn rtdeletemsg "struct rtentry *rt" "struct ifnet *ifp" "u_int tableid"
+.Sh DESCRIPTION
+Routing entries describe the routes to be taken by packets in a router.
+.Bl -tag -width Ds
+.It Fn rt_setgate "struct rtentry *rt" "struct sockaddr *gate" "u_int tableid"
+Set the address of the gateway for routes described by
+.Fa rt
+to
+.Fa gate .
+If memory must be allocated to hold the gateway address,
+the address for which
+.Fa rt
+describes routes will be copied from
+.Fa gate .
+.It Fn rtredirect "struct sockaddr *dst" "struct sockaddr *gateway" \
+"struct sockaddr *src" "struct rtentry **rtp" "unsigned int rdomain"
+Redirect routes to
+.Fa dst
+through
+.Fa gateway ,
+such as in response to an ICMP redirect message.
+.Fa src
+should be the address from which the redirect message was received.
+If
+.Fa rtp
+is not NULL,
+it will be populated by the routing entry corresponding to
+.Fa dst .
+.It Fn rtdeletemsg "struct rtentry *rt" "struct ifnet *ifp" "u_int tableid"
+Delete routing table entry
+.Fa rt
+from table
+.Fa tableid
+and forward a notification message to all
+.Fa AF_ROUTE
+sockets.
+.El
+.Sh RETURN VALUES
+.Fn rt_setgate
+may fail with:
+.Pp
+.Bl -tag -width Er -compact
+.It Bq Er ENOBUFS
+Memory could not be allocated for the gateway.
+.El
+.Pp
+.Fn rtdeletemsg
+may fail with:
+.Pp
+.Bl -tag -width Er -compact
+.It Bq Er EAFNOSUPPORT
+The protocol used by
+.Fa rt
+is not supported by table with ID
+.Fa tableid .
+.It Bq Er ESRCH
+No routing entry for
+.Fa rt
+could be found.
+.It Bq Er ESRCH
+.Fa rt
+is a multipath routing entry that conflicts with an existing one.
+.El
+.Sh SEE ALSO
+.Xr route 4 ,
+.Xr route 8 ,
+.Xr rt_timer_add 9 ,
+.Xr rtable_add 9 ,
+.Xr rtlabel_id2name 9 ,
+.Xr rtrequest 9

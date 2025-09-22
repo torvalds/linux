@@ -1,0 +1,28 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("LLVMExegesisMipsTests") {
+  deps = [
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/Mips",
+
+    # Exegesis reaches inside the Target/Mips tablegen internals and must
+    # depend on these Target/Mips-internal build targets.
+    "//llvm/lib/Target/Mips/MCTargetDesc",
+    "//llvm/tools/llvm-exegesis/lib",
+    "//llvm/tools/llvm-exegesis/lib/Mips",
+  ]
+  include_dirs = [
+    "//llvm/lib/Target/Mips",
+    "//llvm/tools/llvm-exegesis/lib",
+  ]
+  sources = [
+    "BenchmarkResultTest.cpp",
+    "RegisterAliasingTest.cpp",
+    "SnippetGeneratorTest.cpp",
+    "TargetTest.cpp",
+  ]
+}

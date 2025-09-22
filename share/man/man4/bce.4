@@ -1,0 +1,91 @@
+.\" $OpenBSD: bce.4,v 1.16 2013/07/16 16:05:48 schwarze Exp $
+.\" $NetBSD: bce.4,v 1.2 2003/10/05 11:58:36 wiz Exp $
+.\"
+.\" Copyright (c) 2003 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Thomas Klausner.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt BCE 4
+.Os
+.Sh NAME
+.Nm bce
+.Nd Broadcom BCM4401 10/100 Ethernet device
+.Sh SYNOPSIS
+.Cd "bce* at pci?"
+.Cd "bmtphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+provides support for the Broadcom BCM4401 10/100 Ethernet card.
+.Pp
+The following media types and options (as given to
+.Xr ifconfig 8 )
+are supported:
+.Bl -tag -width xxx -offset indent
+.It Cm media No autoselect
+Enable autoselection of the media type and options (default).
+.It Cm media No 100baseTX Cm mediaopt No full-duplex
+Set 100Mbps (Fast Ethernet) operation and force full-duplex mode.
+.It Cm media No 100baseTX Cm mediaopt No half-duplex
+Set 100Mbps (Fast Ethernet) operation and force half-duplex mode.
+.It Cm media No 10baseT Cm mediaopt No full-duplex
+Set 10Mbps operation and force full-duplex.
+.It Cm media No 10baseT Cm mediaopt No half-duplex
+Set 10Mbps operation and force half-duplex.
+.El
+.Pp
+If no media options are present, the
+.Nm
+driver places the card into autoselect mode.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr bmtphy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr mii 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Nx 1.6.2 .
+.Ox
+support was added in
+.Ox 3.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Cliff Wright Aq Mt cliff@snipe444.org
+and ported to
+.Ox
+by
+.An Nathan L. Binkert Aq Mt binkertn@umich.edu .

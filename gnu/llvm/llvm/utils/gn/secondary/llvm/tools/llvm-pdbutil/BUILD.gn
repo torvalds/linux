@@ -1,0 +1,33 @@
+executable("llvm-pdbutil") {
+  deps = [
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/DebugInfo/CodeView",
+    "//llvm/lib/DebugInfo/MSF",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/Object",
+    "//llvm/lib/ObjectYAML",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "BytesOutputStyle.cpp",
+    "DumpOutputStyle.cpp",
+    "ExplainOutputStyle.cpp",
+    "MinimalSymbolDumper.cpp",
+    "MinimalTypeDumper.cpp",
+    "PdbYaml.cpp",
+    "PrettyBuiltinDumper.cpp",
+    "PrettyClassDefinitionDumper.cpp",
+    "PrettyClassLayoutGraphicalDumper.cpp",
+    "PrettyCompilandDumper.cpp",
+    "PrettyEnumDumper.cpp",
+    "PrettyExternalSymbolDumper.cpp",
+    "PrettyFunctionDumper.cpp",
+    "PrettyTypeDumper.cpp",
+    "PrettyTypedefDumper.cpp",
+    "PrettyVariableDumper.cpp",
+    "StreamUtil.cpp",
+    "TypeReferenceTracker.cpp",
+    "YAMLOutputStyle.cpp",
+    "llvm-pdbutil.cpp",
+  ]
+}

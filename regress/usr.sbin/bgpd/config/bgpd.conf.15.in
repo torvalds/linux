@@ -1,0 +1,18 @@
+# $OpenBSD: bgpd.conf.15.in,v 1.1 2023/04/12 09:09:41 claudio Exp $
+# test multiprotocol announce statements
+
+AS 1
+
+neighbor 192.0.2.1 {
+	remote-as	64496
+	announce inet unicast
+	announce inet vpn
+	announce inet flowspec
+}
+
+neighbor 2001:db8::1 {
+	remote-as	64496
+	announce inet6 unicast
+	announce inet6 vpn
+	announce inet6 flowspec
+}

@@ -1,0 +1,58 @@
+//===-- OpenACCClauses.def - List of implemented OpenACC Clauses -- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines a list of currently implemented OpenACC Clauses (and
+// eventually, the entire list) in a way that makes generating 'visitor' and
+// other lists easier.
+//
+// The primary macro is a single-argument version taking the name of the Clause
+// as used in Clang source (so `Default` instead of `default`).
+//
+// VISIT_CLAUSE(CLAUSE_NAME)
+//
+// CLAUSE_ALIAS(ALIAS_NAME, CLAUSE_NAME, DEPRECATED)
+
+#ifndef CLAUSE_ALIAS
+#define CLAUSE_ALIAS(ALIAS_NAME, CLAUSE_NAME, false)
+#endif
+
+VISIT_CLAUSE(Auto)
+VISIT_CLAUSE(Async)
+VISIT_CLAUSE(Attach)
+VISIT_CLAUSE(Copy)
+CLAUSE_ALIAS(PCopy, Copy, true)
+CLAUSE_ALIAS(PresentOrCopy, Copy, true)
+VISIT_CLAUSE(CopyIn)
+CLAUSE_ALIAS(PCopyIn, CopyIn, true)
+CLAUSE_ALIAS(PresentOrCopyIn, CopyIn, true)
+VISIT_CLAUSE(CopyOut)
+CLAUSE_ALIAS(PCopyOut, CopyOut, true)
+CLAUSE_ALIAS(PresentOrCopyOut, CopyOut, true)
+VISIT_CLAUSE(Create)
+CLAUSE_ALIAS(PCreate, Create, true)
+CLAUSE_ALIAS(PresentOrCreate, Create, true)
+VISIT_CLAUSE(Default)
+VISIT_CLAUSE(DevicePtr)
+VISIT_CLAUSE(DeviceType)
+CLAUSE_ALIAS(DType, DeviceType, false)
+VISIT_CLAUSE(FirstPrivate)
+VISIT_CLAUSE(If)
+VISIT_CLAUSE(Independent)
+VISIT_CLAUSE(NoCreate)
+VISIT_CLAUSE(NumGangs)
+VISIT_CLAUSE(NumWorkers)
+VISIT_CLAUSE(Present)
+VISIT_CLAUSE(Private)
+VISIT_CLAUSE(Reduction)
+VISIT_CLAUSE(Self)
+VISIT_CLAUSE(Seq)
+VISIT_CLAUSE(VectorLength)
+VISIT_CLAUSE(Wait)
+
+#undef VISIT_CLAUSE
+#undef CLAUSE_ALIAS

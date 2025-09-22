@@ -1,0 +1,89 @@
+.\" $OpenBSD: ECDH_compute_key.3,v 1.5 2025/06/08 22:40:29 schwarze Exp $
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ECDH_COMPUTE_KEY 3
+.Os
+.Sh NAME
+.Nm ECDH_compute_key ,
+.Nm ECDH_size
+.Nd Elliptic Curve Diffie-Hellman key exchange
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ec.h
+.Ft int
+.Fo ECDH_compute_key
+.Fa "void *out"
+.Fa "size_t outlen"
+.Fa "const EC_POINT *public_key"
+.Fa "EC_KEY *ecdh"
+.Fa "void *(*KDF)(const void *in, size_t inlen, void *out, size_t *outlen)"
+.Fc
+.Ft int
+.Fo ECDH_size
+.Fa "const EC_KEY *ecdh"
+.Fc
+.Sh DESCRIPTION
+.Fn ECDH_compute_key
+performs Elliptic Curve Diffie-Hellman key agreement.
+It combines the private key contained in
+.Fa ecdh
+with the other party's
+.Fa public_key ,
+takes the
+.Fa x
+component of the affine coordinates,
+and optionally applies the key derivation function
+.Fa KDF .
+It stores the resulting symmetric key in the buffer
+.Fa out ,
+which is
+.Fa outlen
+bytes long.
+If
+.Fa KDF
+is
+.Dv NULL ,
+.Fa outlen
+must be at least
+.Fn ECDH_size ecdh .
+.Pp
+.Fn ECDH_size
+returns the number of bytes needed to store an affine coordinate of a
+point on the elliptic curve used by
+.Fa ecdh ,
+which is one eighth of the degree of the finite field underlying
+that elliptic curve, rounded up to the next integer number.
+.Sh RETURN VALUES
+.Fn ECDH_compute_key
+returns the length of the computed key in bytes or -1 if an error occurs.
+.Pp
+.Fn ECDH_size
+returns the number of bytes needed to store an affine coordinate.
+.Sh SEE ALSO
+.Xr DH_generate_key 3 ,
+.Xr DH_size 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EC_POINT_new 3 ,
+.Xr X25519 3
+.Sh HISTORY
+.Fn ECDH_compute_key
+first appeared in OpenSSL 0.9.8 and has been available since
+.Ox 4.5 .
+.Pp
+.Fn ECDH_size
+first appeared in
+.Ox 6.1 .

@@ -1,0 +1,14 @@
+This README file is copied into the directory for GCC-only header files
+when fixincludes is run by the makefile for GCC.
+
+Many of the files in this directory were automatically edited from the
+standard system header files by the fixincludes process.  They are
+system-specific, and will not work on any other kind of system.  They
+are also not part of GCC.  The reason we have to do this is because
+GCC requires ANSI C headers and many vendors supply ANSI-incompatible
+headers.
+
+Because this is an automated process, sometimes headers get "fixed"
+that do not, strictly speaking, need a fix.  As long as nothing is broken
+by the process, it is just an unfortunate collateral inconvenience.
+We would like to rectify it, if it is not "too inconvenient".

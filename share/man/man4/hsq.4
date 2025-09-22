@@ -1,0 +1,103 @@
+.\"	$OpenBSD: hsq.4,v 1.18 2018/01/03 08:43:09 bentley Exp $
+.\"	from: OpenBSD: ast.4,v 1.5 1999/07/09 13:35:43 aaron Exp
+.\"	from: NetBSD: ast.4,v 1.7 1996/03/16 00:07:07 thorpej Exp
+.\"
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Systems Programming Group of the University of Utah Computer
+.\" Science Department.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
+.\"	from: Id: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
+.\"
+.Dd $Mdocdate: January 3 2018 $
+.Dt HSQ 4
+.Os
+.Sh NAME
+.Nm hsq
+.Nd multiplexing serial communications interface
+.Sh SYNOPSIS
+.Cd "hsq0 at isa? port 0x140 irq 10"
+.Cd "com* at hsq?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Hostess
+.Pq Lk https://www.comtrol.com/ "Comtrol Corporation"
+and compatible boards that multiplex together up to four
+.Tn EIA
+.Tn RS-232C
+.Pq Tn CCITT V.28
+communications interfaces.
+.Pp
+Each
+.Nm
+device is the master device for up to four
+.Nm com
+devices.
+The kernel configuration specifies these
+.Nm com
+devices as slave devices of the
+.Nm
+device, as shown in
+.Sx SYNOPSIS .
+The slave ID given for each
+.Nm com
+device determines which bit in the interrupt multiplexing register is
+tested to find interrupts for that device.
+The
+.Cd port
+specification for the
+.Nm
+device is used to compute the base addresses for the
+.Nm com
+subdevices (they are equal to port + ID * 8) and the port for
+the interrupt multiplexing register (it is equal to port + 7).
+More technical details on how the driver works can be found in
+the big comment at the beginning of the driver's source code.
+.Pp
+Information on setup of card's configuration switches should be taken
+from Comtrol Corporation's web site, since the author wrote and tested
+the driver only with Hostess-compatible cards.
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /dev/tty0?
+.It Pa /dev/cua0?
+.El
+.Sh SEE ALSO
+.Xr com 4 ,
+.Xr intro 4 ,
+.Xr isa 4
+.Sh HISTORY
+The
+.Nm
+driver was written by
+.An Denis A. Doroshenko
+based on the
+.Xr ast 4
+driver.

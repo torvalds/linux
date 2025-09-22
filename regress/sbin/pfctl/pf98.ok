@@ -1,0 +1,3 @@
+table <__automatic_0> const { ::1 fe80::1 }
+pass in on lo1000000 all flags S/SA
+match out on lo0 inet6 all nat-to <__automatic_0> round-robin

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="HOWTO for the libstdc++ chapter 25." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 HOWTO:  Chapter 25: Algorithms</title>
+<link rel="StyleSheet" href="../lib3styles.css" type="text/css" />
+<link rel="Start" href="../documentation.html" type="text/html"
+  title="GNU C++ Standard Library" />
+<link rel="Prev" href="../24_iterators/howto.html" type="text/html"
+  title="Iterators" />
+<link rel="Next" href="../26_numerics/howto.html" type="text/html"
+  title="Numerics" />
+<link rel="Copyright" href="../17_intro/license.html" type="text/html" />
+<link rel="Help" href="../faq/index.html" type="text/html" title="F.A.Q." />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Chapter 25:  Algorithms</a></h1>
+
+<p>Chapter 25 deals with the generalized subroutines for automatically
+   transforming lemmings into gold.
+</p>
+
+
+<!-- ####################################################### -->
+<hr />
+<h1>Contents</h1>
+<ul>
+   <li><a href="#1">Prerequisites</a></li>
+   <li><a href="#2">Special <code>swap</code>s</a></li>
+</ul>
+
+<hr />
+
+<!-- ####################################################### -->
+
+<h2><a name="1">Prerequisites</a></h2>
+   <p>The neatest accomplishment of the algorithms chapter is that all the
+      work is done via iterators, not containers directly.  This means two
+      important things:
+   </p>
+   <ol>
+      <li>Anything that behaves like an iterator can be used in one of
+          these algorithms.  Raw pointers make great candidates, thus
+          built-in arrays are fine containers, as well as your own iterators.
+      </li>
+      <li>The algorithms do not (and cannot) affect the container as a
+          whole; only the things between the two iterator endpoints.  If
+          you pass a range of iterators only enclosing the middle third of
+          a container, then anything outside that range is inviolate.
+      </li>
+   </ol>
+   <p>Even strings can be fed through the algorithms here, although the
+      string class has specialized versions of many of these functions (for
+      example, <code>string::find()</code>).  Most of the examples on this
+      page will use simple arrays of integers as a playground for
+      algorithms, just to keep things simple.
+      <a name="Nsize">The use of <strong>N</strong></a> as a size in the
+      examples is to keep things easy to read but probably won't be valid
+      code.  You can use wrappers such as those described in the
+      <a href="../23_containers/howto.html">containers chapter</a> to keep
+      real code readable.
+   </p>
+   <p>The single thing that trips people up the most is the definition of 
+      <em>range</em> used with iterators; the famous
+      &quot;past-the-end&quot; rule that everybody loves to hate.  The
+      <a href="../24_iterators/howto.html#2">iterators chapter</a> of this
+      document has a complete explanation of this simple rule that seems to
+      cause so much confusion.  Once you get <em>range</em> into your head
+      (it's not that hard, honest!), then the algorithms are a cakewalk.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="2">Special <code>swap</code>s</a></h2>
+   <p>If you call <code> std::swap(x,y); </code> where x and y are standard
+      containers, then the call will automatically be replaced by a call to
+      <code> x.swap(y); </code> instead.
+   </p>
+   <p>This allows member functions of each container class to take over, and
+      containers' swap functions should have O(1) complexity according to
+      the standard.  (And while &quot;should&quot; allows implementations to
+      behave otherwise and remain compliant, this implementation does in
+      fact use constant-time swaps.)  This should not be surprising, since
+      for two containers of the same type to swap contents, only some
+      internal pointers to storage need to be exchanged.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="../17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

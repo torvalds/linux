@@ -1,0 +1,8 @@
+$OpenBSD: README,v 1.4 2025/09/01 04:51:04 helg Exp $
+
+These tests must be run as root, on a system with free vnd0 and vnd1 slots.
+The system must be single-user or set to a securelevel < 1 for all tests to
+pass.
+It is also advised that /mnt be unmounted, and clean.
+The NFS tests create an entry in /etc/exports and start NFS server
+daemons for a loopback mount.

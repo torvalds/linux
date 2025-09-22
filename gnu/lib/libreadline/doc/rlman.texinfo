@@ -1,0 +1,108 @@
+\input texinfo    @c -*-texinfo-*-
+@comment %**start of header (This is for running Texinfo on a region.)
+@setfilename readline.info
+@settitle GNU Readline Library
+@comment %**end of header (This is for running Texinfo on a region.)
+@synindex vr fn
+@setchapternewpage odd
+
+@include manvers.texinfo
+
+@ifinfo
+@dircategory Libraries
+@direntry
+* Readline: (readline).       The GNU readline library API
+@end direntry
+
+This document describes the GNU Readline Library, a utility which aids
+in the consistency of user interface across discrete programs that need
+to provide a command line interface.
+
+Copyright (C) 1988-2002 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+pare preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+@end ignore
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Free Software Foundation.
+@end ifinfo
+
+@titlepage  
+@title GNU Readline Library
+@subtitle Edition @value{EDITION}, for @code{Readline Library} Version @value{VERSION}.
+@subtitle @value{UPDATE-MONTH}
+@author Brian Fox, Free Software Foundation
+@author Chet Ramey, Case Western Reserve University
+
+@page
+This document describes the GNU Readline Library, a utility which aids
+in the consistency of user interface across discrete programs that need
+to provide a command line interface.
+
+Published by the Free Software Foundation @*
+59 Temple Place, Suite 330, @*
+Boston, MA 02111 USA
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Free Software Foundation.
+
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1988-2002 Free Software Foundation, Inc.
+@end titlepage
+
+@ifinfo
+@node Top
+@top GNU Readline Library
+
+This document describes the GNU Readline Library, a utility which aids
+in the consistency of user interface across discrete programs that need
+to provide a command line interface.
+
+@menu
+* Command Line Editing::	   GNU Readline User's Manual.
+* Programming with GNU Readline::  GNU Readline Programmer's Manual.
+* Concept Index::		   Index of concepts described in this manual.
+* Function and Variable Index::	   Index of externally visible functions
+				   and variables.
+@end menu
+@end ifinfo
+
+@include rluser.texinfo
+@include rltech.texinfo
+
+@node Concept Index
+@unnumbered Concept Index
+@printindex cp
+
+@node Function and Variable Index
+@unnumbered Function and Variable Index
+@printindex fn
+
+@contents
+@bye

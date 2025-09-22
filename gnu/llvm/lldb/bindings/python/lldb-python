@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+
+import subprocess
+import os
+import sys
+import json
+
+lldb = os.path.join(os.path.dirname(__file__), 'lldb')
+
+info_json = subprocess.run([lldb, "-l", "python", "-print-script-interpreter-info"],
+    check=True, stdout=subprocess.PIPE, encoding='utf8').stdout
+info = json.loads(info_json)
+
+os.environ["PYTHONPATH"] = (
+    info["lldb-pythonpath"] + os.path.pathsep + os.environ.get("PYTHONPATH", ""))
+
+os.execl(info["executable"], info["executable"], *sys.argv[1:])

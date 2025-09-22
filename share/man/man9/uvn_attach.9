@@ -1,0 +1,99 @@
+.\"	$OpenBSD: uvn_attach.9,v 1.1 2019/12/05 15:14:28 mpi Exp $
+.\"	$NetBSD: uvm.9,v 1.14 2000/06/29 06:08:44 mrg Exp $
+.\"
+.\" Copyright (c) 1998 Matthew R. Green
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 5 2019 $
+.Dt UVN_ATTACH 9
+.Os
+.Sh NAME
+.Nm uvn_attach ,
+.Nm uvm_vnp_setsize ,
+.Nm uvm_vnp_sync ,
+.Nm uvm_vnp_terminate ,
+.Nm uvm_vnp_uncache
+.Nd memory mapping files and devices
+.Sh SYNOPSIS
+.In sys/param.h
+.In uvm/uvm.h
+.Ft struct uvm_object *
+.Fn uvn_attach "struct vnode *vp" "vm_prot_t accessprot"
+.Ft void
+.Fn uvm_vnp_setsize "struct vnode *vp" "voff_t newsize"
+.Ft void
+.Fn uvm_vnp_sync "struct mount *mp"
+.Ft void
+.Fn uvm_vnp_terminate "struct vnode *vp"
+.Ft boolean_t
+.Fn uvm_vnp_uncache "struct vnode *vp"
+.Sh DESCRIPTION
+The
+.Fn uvn_attach
+function attaches a UVM object to vnode
+.Fa vp ,
+creating the object if necessary.
+The object is returned.
+.Pp
+The
+.Fn uvm_vnp_setsize
+function sets the size of vnode
+.Fa vp
+to
+.Fa newsize .
+Caller must hold a reference to the vnode.
+If the vnode shrinks, pages no longer used are discarded.
+This function will be removed when the file system and VM buffer caches
+are merged.
+.Pp
+The
+.Fn uvm_vnp_sync
+function flushes dirty vnodes from either the mount point passed in
+.Fa mp ,
+or all dirty vnodes if
+.Fa mp
+is
+.Dv NULL .
+This function will be removed when the file system and VM buffer caches
+are merged.
+.Pp
+The
+.Fn uvm_vnp_terminate
+function frees all VM resources allocated to vnode
+.Fa vp .
+If the vnode still has references, it will not be destroyed; however
+all future operations using this vnode will fail.
+This function will be removed when the file system and VM buffer caches
+are merged.
+.Pp
+The
+.Fn uvm_vnp_uncache
+function disables vnode
+.Fa vp
+from persisting when all references are freed.
+This function will be removed when the file system and UVM caches
+are unified.
+Returns true if there is no active vnode.
+.Sh SEE ALSO
+.Xr uvm_init 9

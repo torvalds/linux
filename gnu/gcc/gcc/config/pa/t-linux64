@@ -1,0 +1,12 @@
+#Plug millicode routines into libgcc.a  We want these on both native and
+#cross compiles.
+
+LIB1ASMFUNCS =  _divI _divU _remI _remU _div_const _mulI
+LIB1ASMSRC = pa/milli64.S
+
+# Compile crtbeginS.o and crtendS.o as PIC.
+# Actually, hppa64 is always PIC but adding -fPIC does no harm.
+CRTSTUFF_T_CFLAGS_S = -fPIC
+
+# Compile libgcc2.a as PIC.
+TARGET_LIBGCC2_CFLAGS = -fPIC -Dpa64=1 -DELF=1

@@ -1,0 +1,418 @@
+.\"	$OpenBSD: rssadapt.9,v 1.8 2015/02/16 16:38:54 naddy Exp $
+.\"     $NetBSD: rssadapt.9,v 1.4 2004/12/08 18:35:56 peter Exp $
+.\"
+.\" Copyright (c) 2004 David Young.  All rights reserved.
+.\"
+.\" This code is by David Young.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above
+.\"    copyright notice, this list of conditions and the following
+.\"    disclaimer in the documentation and/or other materials
+.\"    provided with the distribution.
+.\" 3. The name of David Young may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY David Young ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+.\" THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+.\" PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL David
+.\" Young BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+.\" TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 16 2015 $
+.Dt RSSADAPT 9
+.Os
+.Sh NAME
+.Nm rssadapt ,
+.Nm ieee80211_rssadapt_choose ,
+.Nm ieee80211_rssadapt_input ,
+.Nm ieee80211_rssadapt_lower_rate ,
+.Nm ieee80211_rssadapt_raise_rate ,
+.Nm ieee80211_rssadapt_updatestats
+.Nd rate adaptation based on received signal strength
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.In net80211/ieee80211_rssadapt.h
+.Ft void
+.Fn ieee80211_rssadapt_input "struct ieee80211com *ic" \
+"st construct ieee80211_node *ni" "struct ieee80211_rssadapt *ra" "int rssi"
+.Ft void
+.Fn ieee80211_rssadapt_lower_rate "struct ieee80211com *ic" \
+"const struct ieee80211_node *ni" "struct ieee80211_rssadapt *ra" \
+"const struct ieee80211_rssdesc *id"
+.Ft void
+.Fn ieee80211_rssadapt_raise_rate "struct ieee80211com *ic" \
+"struct ieee80211_rssadapt *ra" "const struct ieee80211_rssdesc *id"
+.Ft void
+.Fn ieee80211_rssadapt_updatestats "struct ieee80211_rssadapt *ra"
+.Ft int
+.Fn ieee80211_rssadapt_choose "struct ieee80211_rssadapt *ra" \
+"const struct ieee80211_rateset *rs" "const struct ieee80211_frame *wh" \
+"u_int len" "int fixed_rate" "const char *dvname" "int do_not_adapt"
+.Sh DESCRIPTION
+The
+.Nm
+module provides rapid adaptation of transmission data rate to 802.11
+device drivers based on received-signal strength
+.Pq RSS .
+A driver needs only to provide
+.Nm
+with indications of RSS and failure/success of transmissions for
+each 802.11 client or peer.
+For each transmit packet,
+.Nm
+chooses the transmission data rate that offers the best expected
+throughput, given the packet's length and destination.
+.Pp
+.Nm
+models an 802.11 channel very simply
+.Po
+see also the
+.Sx BUGS
+section
+.Pc .
+It assumes that the packet-error rate
+.Pq PER
+is determined by the signal-to-noise ratio
+.Pq S/N
+at the receiver, the transmission data rate, and the packet length.
+The S/N determines the choice of data rate that yields the lowest
+PER for all packets of a certain length.
+.Sh FUNCTIONS
+.Bl -tag -width Ds -compact
+.It Fn ieee80211_rssadapt_choose "ra" "rs" "wh" "len" "fixed_rate" "dvname" \
+"do_not_adapt"
+.Pp
+Choose the transmission data rate for a packet.
+.Pp
+.Bl -tag -width "do_not_adapt" -compact
+.It Fa ra
+Ordinarily, the
+.Nm
+state object belonging to the node which is the packet destination.
+However, if the destination is a broadcast/multicast address, then
+.Fa ra
+belongs to the BSS node,
+.Va ic->ic_bss .
+.It Fa rs
+A list of eligible data rates for the node; for example, the
+rates negotiated when the node associated with the network.
+.It Fa len
+The packet length in bytes, including the 802.11 header and
+frame check sequence
+.Pq FCS .
+.It Fa fixed_rate
+If the operator has set the data rate using, for example,
+.Ic "ifconfig wi0 media ds1" ,
+then
+.Fa fixed_rate
+tells the index of that rate in
+.Fa rs .
+.Nm
+obeys a fixed data rate whenever the 802.11 standard allows it:
+sometimes the standard requires multicast/broadcast packets to be
+transmitted at a so-called
+.Dq basic rate .
+.It Fa dvname
+The device driver uses
+.Fa dvname
+to indicate the name of the
+interface for the purpose of diagnostic and debug messages.
+The driver sets
+.Fa dvname
+to
+.Dv NULL
+when no messages are desired.
+.It Fa do_not_adapt
+If
+.Fa do_not_adapt
+is non-zero, then
+.Fn ieee80211_rssadapt_choose
+will choose the highest rate in
+.Fa rs
+that suits the destination, regardless of the RSS.
+.El
+The return value of
+.Fn ieee80211_rssadapt_choose
+is an index into
+.Fa rs ,
+indicating its choice of transmit data rate.
+.Pp
+.It Fn ieee80211_rssadapt_input "ic" "ni" "ra" "rssi"
+The RSS serves as a rough estimate of the S/N at each node.
+A driver provides RSS updates using
+.Fn ieee80211_rssadapt_input ,
+whose arguments are:
+.Pp
+.Bl -tag -width "rssi" -compact
+.It Fa ic
+The wireless interface's 802.11 state object.
+.It Fa ni
+The 802.11 node whose RSS the driver is updating.
+.It Fa ra
+The node's
+.Nm
+state object.
+.It Fa rssi
+The node's received signal strength indication.
+The range of
+.Fa rssi
+is from 0 to 255.
+.El
+.Pp
+.It Fn ieee80211_rssadapt_lower_rate "ic" "ni" "ra" "id"
+.It Fn ieee80211_rssadapt_raise_rate "ic" "ra" "id"
+Drivers call
+.Fn ieee80211_rssadapt_raise_rate
+and
+.Fn ieee80211_rssadapt_lower_rate
+to indicate transmit successes and failures, respectively.
+.Pp
+.Bl -tag -width Ds -compact
+.It Fa ic
+The 802.11 state object.
+.It Fa ni
+The neighbor to whom the driver transmitted.
+.It Fa ra
+The neighbor's
+.Nm
+state object.
+.It Fa id
+Displays statistics on the transmission attempt.
+.El
+.Pp
+.It Fn ieee80211_rssadapt_updatestats "ra"
+An 802.11 node is eligible for its RSS thresholds to decay every
+1/10 to 10 seconds.
+It is eligible more often (every 1/10 second) at high packet rates,
+and less often (every 10 seconds) at low packet rates.
+A driver assists
+.Nm
+in tracking the exponential-average packet rate by calling
+.Fn ieee80211_rssadapt_updatestats
+every 1/10th second for each node's
+.Vt ieee80211_rssadapt
+object.
+.Pp
+.Bl -tag -width Ds -compact
+.It Fa ra
+The neighbor's
+.Nm
+state object.
+.El
+.El
+.Sh ALGORITHM
+.Nm
+monitors the RSS from neighboring 802.11 nodes, recording the
+exponential average RSS in each neighbor's
+.Vt ieee80211_rssadapt
+structure.
+.Nm
+uses transmit success/failure feedback from the
+device driver to fill a table of RSS thresholds.
+The table is indexed by packet size,
+.Va L ,
+and a data rate,
+.Va R ,
+to find out the minimum exponential-average RSS that a node must show before
+.Nm
+will indicate that a packet
+.Va L
+bytes long can be transmitted R bits per second with optimal expected
+throughput.
+.Pp
+When the driver indicates a unicast packet is transmitted unsuccessfully
+.Po
+that is, the NIC received no ACK for the packet
+.Pc ,
+.Nm
+will move the corresponding RSS threshold toward the exponential
+average RSSI at the time of transmission.
+Thus several consecutive transmit failures for the same
+.Ao
+.Va L ,
+.Va R
+.Ac
+tuple will ensure that the RSS threshold rises high enough that
+rate
+.Va R
+is abandoned for packets
+.Va L
+bytes long.
+When the driver indicates a successful transmission,
+the RSS threshold corresponding to the same packet length, but the
+next higher data rate, is lowered slightly.
+The RSS threshold is said to
+.Dq decay .
+This ensures that occasionally
+.Nm
+indicates the driver should try the next higher data rate,
+just in case conditions at the receiver have changed
+.Po
+for example, noise levels have fallen
+.Pc
+and a higher data rate can be supported at the same RSS level.
+.Pp
+The rate of decay is controlled.
+In an interval of 1/10th second
+to 10 seconds, only one RSS threshold per neighbor may decay.
+The interval is connected to the exponential-average rate that packets
+are being transmitted.
+At high packet rates, the interval is shortest.
+It is longest at low packet rates.
+The rationale for this is that RSS thresholds should not decay
+rapidly if there is no information from packet transmissions to
+counteract their decay.
+.Sh DATA STRUCTURES
+An
+.Vt ieee80211_rssdesc
+describes a transmission attempt.
+.Bd -literal -offset indent
+struct ieee80211_rssdesc {
+        u_int                    id_len;
+        u_int                    id_rateidx;
+        struct ieee80211_node   *id_node;
+        u_int8_t                 id_rssi;
+};
+.Ed
+.Pp
+.Fa id_len
+is the length, in bytes, of the transmitted packet.
+.Fa id_node
+points to the neighbor's
+.Vt ieee8021_node ,
+and
+.Fa id_rssi
+is the exponential-average RSS at the time the packet was
+transmitted.
+.Fa id_rateidx
+is an index into the destination neighbor's rate-set,
+.Fa id_node->ni_rates ,
+indicating the transmit data rate for the packet.
+.Pp
+.Vt ieee80211_rssadapt
+contains the rate-adaptation state for a neighboring 802.11 node.
+Ordinarily a driver will
+.Dq subclass
+.Vt ieee80211_node .
+The
+.Vt ieee80211_rssadapt
+structure will be a subclass member.
+In this way, every node's
+.Nm
+condition is independently tracked and stored in its node object.
+.Bd -literal -offset 4n
+struct ieee80211_rssadapt {
+        u_int16_t               ra_avg_rssi;
+        u_int32_t               ra_nfail;
+        u_int32_t               ra_nok;
+        u_int32_t               ra_pktrate;
+        u_int16_t               ra_rate_thresh[IEEE80211_RSSADAPT_BKTS]
+                                              [IEEE80211_RATE_SIZE];
+        struct timeval          ra_last_raise;
+        struct timeval          ra_raise_interval;
+};
+.Ed
+.Pp
+.Fa ra_avg_rssi
+is the exponential-average RSS, shifted left 8 bits.
+.Fa ra_nfail
+indicates the number of transmit failures in the current update interval;
+.Fa ra_nok
+the number of transmit successes in the current update interval.
+.Fa ra_pktrate
+indicates the exponential average number of transmit failure/success
+indications over past update intervals.
+This approximates the rate of packet-transmission.
+.Fa ra_rate_thresh
+contains RSS thresholds that are indexed by
+.Aq packet length, data rate
+tuples.
+When this node's exponential-average RSS exceeds
+.Fa ra_rate_thresh[i][j] ,
+then packets at most 128 x 8^i bytes long are eligible to be
+transmitted at the rate indexed by j.
+.Pp
+.Fa ra_last_raise
+and
+.Fa ra_raise_interval
+are used to control the rate that RSS thresholds
+.Dq decay .
+.Fa ra_last_raise
+indicates when
+.Fn ieee80211_rssadapt_raise_rate
+was last called and
+.Fa ra_raise_interval
+indicates the minimum period between consecutive calls to
+.Fn ieee80211_rssadapt_raise_rate .
+If
+.Fn ieee80211_rssadapt_raise_rate
+is called more than once in any period, the second and subsequent
+calls are ignored.
+.Sh CODE REFERENCES
+This section describes places within the
+.Ox
+source tree where actual code implementing or using
+.Nm
+can be found.
+All pathnames are relative to
+.Pa /usr/src .
+.Pp
+The code for
+.Nm
+is in the file
+.Pa sys/net80211/ieee80211_rssadapt.c .
+.Pp
+.Xr ath 4
+contains a reference implementation.
+See
+.Pa sys/dev/ic/ath.c .
+.Sh SEE ALSO
+.Xr ath 4 ,
+.Xr ieee80211 9
+.Rs
+.%A Javier del Prado Pavon
+.%A Sunghyun Choi
+.%T "Link Adaptation Strategy for IEEE 802.11 WLAN via Received Signal \
+Strength Measurement"
+.%J "ICC'03"
+.%P pp. 1108-1113
+.%C Anchorage, Alaska
+.%D May 2003
+.Re
+.Sh HISTORY
+.Nm
+first appeared in
+.Nx
+and was ported to
+.Ox
+by
+.An Todd C. Miller Aq Mt millert@OpenBSD.org
+.Sh AUTHORS
+.An David Young Aq Mt dyoung@NetBSD.org
+.Sh BUGS
+To cope with interference from microwave ovens, frequency-hopping
+radios, and other sources of RF pulse-trains and bursts,
+.Nm
+should adapt the fragmentation threshold as well as the data rate.
+.Pp
+For improved throughput,
+.Nm
+should indicate to drivers when they should use the 802.11b
+short-preamble.
+.Pp
+The constants in
+.Fn ieee80211_rssadapt_updatestats
+should be configurable.

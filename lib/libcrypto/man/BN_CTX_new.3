@@ -1,0 +1,124 @@
+.\"	$OpenBSD: BN_CTX_new.3,v 1.11 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL aafbe1cc Jun 12 23:42:08 2013 +0100
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000, 2013 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_CTX_NEW 3
+.Os
+.Sh NAME
+.Nm BN_CTX_new ,
+.Nm BN_CTX_free
+.Nd allocate and free BN_CTX structures
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft BN_CTX *
+.Fo BN_CTX_new
+.Fa void
+.Fc
+.Ft void
+.Fo BN_CTX_free
+.Fa "BN_CTX *c"
+.Fc
+.Sh DESCRIPTION
+A
+.Vt BN_CTX
+is a structure that holds
+.Vt BIGNUM
+temporary variables used by library functions.
+Since dynamic memory allocation to create
+.Vt BIGNUM Ns s
+is rather expensive when used in conjunction with repeated subroutine
+calls, the
+.Vt BN_CTX
+structure is used.
+.Pp
+.Fn BN_CTX_new
+allocates and initializes a
+.Vt BN_CTX
+structure.
+.Pp
+.Fn BN_CTX_free
+frees the components of the
+.Vt BN_CTX
+and, if it was created by
+.Fn BN_CTX_new ,
+also the structure itself.
+If
+.Xr BN_CTX_start 3
+has been used on the
+.Vt BN_CTX ,
+.Xr BN_CTX_end 3
+must be called before the
+.Vt BN_CTX
+may be freed by
+.Fn BN_CTX_free .
+If
+.Fa c
+is a
+.Dv NULL
+pointer, no action occurs.
+.Sh RETURN VALUES
+.Fn BN_CTX_new
+returns a pointer to the
+.Vt BN_CTX .
+If the allocation fails, it returns
+.Dv NULL
+and sets an error code that can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr BN_add 3 ,
+.Xr BN_CTX_start 3 ,
+.Xr BN_new 3
+.Sh HISTORY
+.Fn BN_CTX_new
+and
+.Fn BN_CTX_free
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .

@@ -1,0 +1,2686 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "https://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Clang - C Defect Report Status</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+  <style type="text/css">
+    .none { background-color: #FFCCCC }
+    .partial { background-color: #FFE0B0 }
+    .unreleased { background-color: #FFFF99 }
+    .full { background-color: #CCFF99 }
+    .na { background-color: #DDDDDD }
+    .unknown { background-color: #EBCAFE }
+    .open * { color: #AAAAAA }
+    //.open { filter: opacity(0.2) }
+    tr:target { background-color: #FFFFBB }
+    th { background-color: #FFDDAA }
+  </style>
+</head>
+<body>
+
+<!--#include virtual="menu.html.incl"-->
+
+<div id="content">
+
+<!--*************************************************************************-->
+<h1>C Defect Report Support in Clang</h1>
+<!--*************************************************************************-->
+
+<h2 id="cdr">C defect report implementation status</h2>
+
+<p>This page tracks which C defect reports are implemented within Clang.</p>
+
+<p>The implementation status for defect reports against the C Standard are
+currently under investigation. Any defect report whose status in Clang is
+currently unknown will be marked in <span class="unknown">purple</span>.</p>
+
+<p>The <a href="https://github.com/llvm/llvm-project/issues/">LLVM bug tracker</a> uses
+the "c", "c99", "c11", "c17", and "c23" labels to track known bugs with Clang's language
+conformance.</p>
+
+<table width="689" border="1" cellspacing="0">
+  <tr>
+    <th>Number</th>
+    <th>Status</th>
+    <th>Issue title</th>
+    <th>Available in Clang?</th>
+  </tr>
+  <tr id="1">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_001.html">1</a></td>
+    <td>C89</td>
+    <td>Do functions return values by copying?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="2">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_002.html">2</a></td>
+    <td>NAD</td>
+    <td>Subclause 6.8.3.2: Semantics of #</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="3">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_003.html">3</a></td>
+    <td>NAD</td>
+    <td>Subclause 6.1.8: Preprocessing numbers</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="4">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_004.html">4</a></td>
+    <td>NAD</td>
+    <td>Are multiple definitions of unused identifiers with external linkage permitted?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="5">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_005.html">5</a></td>
+    <td>NAD</td>
+    <td>May a conforming implementation define and recognize a pragma which would change the semantics of the language?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="6">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_006.html">6</a></td>
+    <td>C89</td>
+    <td>It is unclear how the strtoul function behaves when presented with a subject sequence that begins with a minus sign</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="7">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_007.html">7</a></td>
+    <td>NAD</td>
+    <td>Are declarations of the form struct-or-union identifier ; permitted after the identifier tag has already been declared?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="8">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_008.html">8</a></td>
+    <td>NAD</td>
+    <td>Can a conforming C compiler to perform dead-store elimination?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="9">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_009.html">9</a></td>
+    <td>C89</td>
+    <td>Use of typedef names in parameter declarations</td>
+    <td class="none" align="center">No</td>
+  </tr>
+  <tr id="10">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_010.html">10</a></td>
+    <td>NAD</td>
+    <td>Is a typedef to an incomplete type legal?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="11">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_011.html">11</a></td>
+    <td>C89</td>
+    <td>Merging of declarations for linked identifier</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="12">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_012.html">12</a></td>
+    <td>NAD</td>
+    <td>Is it valid to take the address of a dereferenced void pointer?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="13">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_013.html">13</a></td>
+    <td>C89</td>
+    <td>Compatible and composite function types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="14">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_014.html">14</a></td>
+    <td>C89</td>
+    <td>Issues with setjmp and fscanf descriptions</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="15">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_015.html">15</a></td>
+    <td>NAD</td>
+    <td>What is the promoted type of a plain int bit-field?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="16">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_016.html">16</a></td>
+    <td>C89</td>
+    <td>What does static storage duration do when zero for the type is not all zero bits?</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="17">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_017.html">17</a></td>
+    <td>C89</td>
+    <td>39 unrelated questions about C89</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="18">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_018.html">18</a></td>
+    <td>NAD</td>
+    <td>How does fscanf behave in the presence of multibyte characters?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="19">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_019.html">19</a></td>
+    <td>NAD</td>
+    <td>Definition of the term "printing character" and isgraph()</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="20">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_020.html">20</a></td>
+    <td>NAD</td>
+    <td>Is a compiler which allows the Relaxed Ref/Def linkage model to be considered a conforming compiler?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="21">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_021.html">21</a></td>
+    <td>C89</td>
+    <td>What is the result of: printf("%#.4o", 345);?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="22">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_022.html">22</a></td>
+    <td>C89</td>
+    <td>What is the result of: strtod("100ergs", &ptr);?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="23">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_023.html">23</a></td>
+    <td>NAD</td>
+    <td>what is the result of strtod("0.0e99999", &ptr);?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="24">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_024.html">24</a></td>
+    <td>NAD</td>
+    <td>In subclause 7.10.1.4 The strtod function: What does '"C" locale' mean?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="25">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_025.html">25</a></td>
+    <td>NAD</td>
+    <td>What is meant by 'representable floating-point value?'</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="26">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_026.html">26</a></td>
+    <td>NAD</td>
+    <td>Can a strictly conforming program contain a string literal with '$' or '@'?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="27">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_027.html">27</a></td>
+    <td>C89</td>
+    <td>Can there be characters in the character set that are not in the required source character set?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="28">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_028.html">28</a></td>
+    <td>NAD</td>
+    <td>Do object access rules apply to dynamically allocated objects?</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="29">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_029.html">29</a></td>
+    <td>NAD</td>
+    <td>Do two types have to have the same tag to be compatible?</td>
+    <td class="none" align="center">No</td>
+  </tr>
+  <tr id="30">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_030.html">30</a></td>
+    <td>NAD</td>
+    <td>Can 'sin(DBL_MAX)' result in 'errno' being set to 'EDOM'?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="31">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_031.html">31</a></td>
+    <td>NAD</td>
+    <td>Can constant expressions overflow?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="32">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_032.html">32</a></td>
+    <td>NAD</td>
+    <td>Must implementations diagnose extensions to the constant evaluation rules?</td>
+    <td class="none" align="center">No</td>
+  </tr>
+  <tr id="33">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_033.html">33</a></td>
+    <td>NAD</td>
+    <td>Conformance questions around 'shall' violations outside of constraints sections</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="34">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_034.html">34</a></td>
+    <td>C89</td>
+    <td>External declarations in different scopes</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="35">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_035.html">35</a></td>
+    <td>NAD</td>
+    <td>Questions about definition of functions without a prototype</td>
+    <td class="partial" align="center">
+      <details><summary>Partial</summary>
+        Tags declared directly within an identifier list are incorrectly scoped
+        to the prototype rather than to the function body.
+      </details>
+    </td>
+  </tr>
+  <tr id="36">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_036.html">36</a></td>
+    <td>NAD</td>
+    <td>May floating-point constants be represented with more precision than implied by its type?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="37">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_037.html">37</a></td>
+    <td>NAD</td>
+    <td>Questions about multibyte characters and Unicode</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="38">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_038.html">38</a></td>
+    <td>NAD</td>
+    <td>Questions about argument substitution during macro expansion</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="39">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_039.html">39</a></td>
+    <td>NAD</td>
+    <td>Questions about the "C" locale</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="40">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_040.html">40</a></td>
+    <td>NAD</td>
+    <td>9 unrelated questions about C89</td>
+    <td class="partial" align="center">
+      <details><summary>Partial</summary>
+        Question 6 has full support, the rest of the questions are currently unknown.
+      </details>
+    </td>
+  </tr>
+  <tr id="41">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_041.html">41</a></td>
+    <td>NAD</td>
+    <td>Do characters defined in 5.2.1 impact 7.3.1?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="42">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_042.html">42</a></td>
+    <td>NAD</td>
+    <td>On the behavior of library functions and overlapping objects</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="43">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_043.html">43</a></td>
+    <td>C89</td>
+    <td>On the definition of the NULL macro</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="44">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_044.html">44</a></td>
+    <td>NAD</td>
+    <td>On the result of the offsetof macro</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="45">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_045.html">45</a></td>
+    <td>NAD</td>
+    <td>Is the behavior of freopen defined when the file is invalid?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="46">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_046.html">46</a></td>
+    <td>NAD</td>
+    <td>Use of typedef names in parameter declarations</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="47">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_047.html">47</a></td>
+    <td>NAD</td>
+    <td>Questions about declaration conformance</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="48">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_048.html">48</a></td>
+    <td>NAD</td>
+    <td>Clarifications on the abort() function</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="49">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_049.html">49</a></td>
+    <td>C89</td>
+    <td>Can strxfrm() output more characters than were input?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="50">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_050.html">50</a></td>
+    <td>NAD</td>
+    <td>Do wide string literals implicitly include &lt;stddef.h&gt;?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="51">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_051.html">51</a></td>
+    <td>NAD</td>
+    <td>Question on pointer arithmetic</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="52">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_052.html">52</a></td>
+    <td>C89</td>
+    <td>Editorial corrections</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="53">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_053.html">53</a></td>
+    <td>C89</td>
+    <td>Accessing a pointer to a function with a prototype through a pointer to pointer to function without a prototype</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="54">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_054.html">54</a></td>
+    <td>C89</td>
+    <td>Can the string handling functions have a length of 0?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="55">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_055.html">55</a></td>
+    <td>C89</td>
+    <td>Signal handler macros should have distinct values</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="56">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_056.html">56</a></td>
+    <td>NAD</td>
+    <td>Floating-point representation precision requirements</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="57">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_057.html">57</a></td>
+    <td>NAD</td>
+    <td>Is there an integral type for every pointer?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="58">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_058.html">58</a></td>
+    <td>NAD</td>
+    <td>Is there a limit on the number of digits processed by scanf and strtdo?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="59">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_059.html">59</a></td>
+    <td>NAD</td>
+    <td>Do types have to be completed?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="60">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_060.html">60</a></td>
+    <td>C89</td>
+    <td>Array initialization from a string literal</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="61">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_061.html">61</a></td>
+    <td>NAD</td>
+    <td>Whitespace in scanf format string</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="62">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_062.html">62</a></td>
+    <td>NAD</td>
+    <td>Can the rename function be defined to fail?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="63">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_063.html">63</a></td>
+    <td>Dup</td>
+    <td>Floating-point representation precision requirements</td>
+    <td class="full" align="center">Duplicate of <a href="#56">56</a></td>
+  </tr>
+  <tr id="64">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_064.html">64</a></td>
+    <td>NAD</td>
+    <td>Null pointer constants</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="65">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_065.html">65</a></td>
+    <td>C89</td>
+    <td>Questions on locales</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="66">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_066.html">66</a></td>
+    <td>NAD</td>
+    <td>Another question on locales</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="67">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_067.html">67</a></td>
+    <td>NAD</td>
+    <td>Integer and integral type confusion</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="68">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_068.html">68</a></td>
+    <td>NAD</td>
+    <td>'char' and signed vs unsigned integer types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="69">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_069.html">69</a></td>
+    <td>NAD</td>
+    <td>Questions about the representation of integer types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="70">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_070.html">70</a></td>
+    <td>NAD</td>
+    <td>Interchangeability of function arguments</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="71">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_071.html">71</a></td>
+    <td>C89</td>
+    <td>Enumerated types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="72">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_072.html">72</a></td>
+    <td>NAD</td>
+    <td>Definition of object and pointer arithmetic</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="73">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_073.html">73</a></td>
+    <td>NAD</td>
+    <td>Definition of object and array access</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="74">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_074.html">74</a></td>
+    <td>NAD</td>
+    <td>Alignment and structure padding</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="75">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_075.html">75</a></td>
+    <td>NAD</td>
+    <td>Alignment of allocated memory</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr class="open" id="76">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_076.html">76</a></td>
+    <td>Open</td>
+    <td>Pointers to the end of arrays</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr id="77">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_077.html">77</a></td>
+    <td>NAD</td>
+    <td>Stability of addresses</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="78">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_078.html">78</a></td>
+    <td>NAD</td>
+    <td>Uniqueness of addresses</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="79">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_079.html">79</a></td>
+    <td>NAD</td>
+    <td>Constancy of system library function addresses</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="80">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_080.html">80</a></td>
+    <td>C89</td>
+    <td>Merging of string constants</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="81">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_081.html">81</a></td>
+    <td>NAD</td>
+    <td>Left shift operator</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="82">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_082.html">82</a></td>
+    <td>C89</td>
+    <td>Multiple varargs</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="83">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_083.html">83</a></td>
+    <td>C89</td>
+    <td>Use of library functions</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="84">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_084.html">84</a></td>
+    <td>NAD</td>
+    <td>Incomplete type in function declaration</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="85">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_085.html">85</a></td>
+    <td>C89</td>
+    <td>Returning from main</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="86">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_086.html">86</a></td>
+    <td>NAD</td>
+    <td>Object-like macros in system headers</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="87">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_087.html">87</a></td>
+    <td>NAD</td>
+    <td>Order of evaluation</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="88">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_088.html">88</a></td>
+    <td>NAD</td>
+    <td>Compatibility of incomplete types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="89">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_089.html">89</a></td>
+    <td>C89</td>
+    <td>Multiple definitions of macros</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="90">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_090.html">90</a></td>
+    <td>NAD</td>
+    <td>Multibyte characters in formats</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="91">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_091.html">91</a></td>
+    <td>NAD</td>
+    <td>Multibyte encodings</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="92">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_092.html">92</a></td>
+    <td>Dup</td>
+    <td>Partial initialization of strings</td>
+    <td class="full" align="center">Duplicate of <a href="#60">60</a></td>
+  </tr>
+  <tr id="93">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_093.html">93</a></td>
+    <td>C89</td>
+    <td>Reservation of identifiers</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="94">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_094.html">94</a></td>
+    <td>NAD</td>
+    <td>Are constraints on function return the same as assignment?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="95">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_095.html">95</a></td>
+    <td>NAD</td>
+    <td>Is initialization as constrained as assignment?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="96">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_096.html">96</a></td>
+    <td>NAD</td>
+    <td>Arrays of incomplete types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="97">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_097.html">97</a></td>
+    <td>Dup</td>
+    <td>Use of offsetof with an incomplete type</td>
+    <td class="full" align="center">Duplicate of <a href="#40">40</a></td>
+  </tr>
+  <tr id="98">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_098.html">98</a></td>
+    <td>NAD</td>
+    <td>Pre/post increment/decrement of function or incomplete types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="99">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_099.html">99</a></td>
+    <td>NAD</td>
+    <td>ANSI/ISO C Defect report #rfg6</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="100">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_100.html">100</a></td>
+    <td>Dup</td>
+    <td>Defect with the return statement</td>
+    <td class="full" align="center">Duplicate of <a href="#1">1</a></td>
+  </tr>
+  <tr id="101">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_101.html">101</a></td>
+    <td>C89</td>
+    <td>Type qualifiers and "as if by assignment"</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="102">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_102.html">102</a></td>
+    <td>NAD</td>
+    <td>Tag redeclaration constraints</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="103">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_103.html">103</a></td>
+    <td>NAD</td>
+    <td>Formal parameters of incomplete type</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="104">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_104.html">104</a></td>
+    <td>Dup</td>
+    <td>Incomplete tag types in a parameter list</td>
+    <td class="full" align="center">Duplicate of <a href="#84">84</a></td>
+  </tr>
+  <tr id="105">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_105.html">105</a></td>
+    <td>Dup</td>
+    <td>Precedence of requirements on compatible types</td>
+    <td class="full" align="center">Duplicate of <a href="#17">17</a></td>
+  </tr>
+  <tr id="106">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_106.html">106</a></td>
+    <td>NAD</td>
+    <td>When can you dereference a void pointer?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="107">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_107.html">107</a></td>
+    <td>NAD</td>
+    <td>Type requirements of the assert macro parameter</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="108">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_108.html">108</a></td>
+    <td>NAD</td>
+    <td>Can a macro identifier hide a keyword?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="109">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_109.html">109</a></td>
+    <td>NAD</td>
+    <td>Are undefined values and undefined behavior the same?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="110">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_110.html">110</a></td>
+    <td>Dup</td>
+    <td>Formal parameters having array-of-non-object types</td>
+    <td class="full" align="center">Duplicate of <a href="#47">47</a></td>
+  </tr>
+  <tr id="111">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_111.html">111</a></td>
+    <td>NAD</td>
+    <td>Conversion of pointer-to-qualified type values to type (void*) values</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="112">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_112.html">112</a></td>
+    <td>NAD</td>
+    <td>Null pointer constants and relational comparisons</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="113">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_113.html">113</a></td>
+    <td>NAD</td>
+    <td>Return expressions in functions declared to return qualified void</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="114">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_114.html">114</a></td>
+    <td>NAD</td>
+    <td>Initialization of multi-dimensional char array objects</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="115">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_115.html">115</a></td>
+    <td>NAD</td>
+    <td>Member declarators as declarators</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="116">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_116.html">116</a></td>
+    <td>NAD</td>
+    <td>Implicit unary & applied to register arrays</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="117">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_117.html">117</a></td>
+    <td>NAD</td>
+    <td>Abstract semantics, sequence points, and expression evaluation</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="118">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_118.html">118</a></td>
+    <td>C89</td>
+    <td>Completion point for enumerated types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="119">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_119.html">119</a></td>
+    <td>NAD</td>
+    <td>Initialization of multi-dimensional array objects</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="120">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_120.html">120</a></td>
+    <td>NAD</td>
+    <td>Semantics of assignment to (and initialization of) bit-fields</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="121">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_121.html">121</a></td>
+    <td>NAD</td>
+    <td>Conversions of pointer values to integral types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="122">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_122.html">122</a></td>
+    <td>Dup</td>
+    <td>Conversion/widening of bit-fields</td>
+    <td class="full" align="center">Duplicate of <a href="#15">15</a></td>
+  </tr>
+  <tr id="123">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_123.html">123</a></td>
+    <td>NAD</td>
+    <td>'Type categories' and qualified types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="124">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_124.html">124</a></td>
+    <td>C89</td>
+    <td>Casts to 'a void type' versus casts to 'the void type'</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="125">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_125.html">125</a></td>
+    <td>NAD</td>
+    <td>Using things declared as 'extern (qualified) void'</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="126">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_126.html">126</a></td>
+    <td>NAD</td>
+    <td>What does 'synonym' mean with respect to typedef names?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="127">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_127.html">127</a></td>
+    <td>Dup</td>
+    <td>Composite type of an enumerated type and an integral type</td>
+    <td class="full" align="center">Duplicate of <a href="#13">13</a></td>
+  </tr>
+  <tr id="128">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_128.html">128</a></td>
+    <td>NAD</td>
+    <td>Editorial issue relating to tag declarations in type specifiers</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="129">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_129.html">129</a></td>
+    <td>NAD</td>
+    <td>Tags and name spaces</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="130">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_130.html">130</a></td>
+    <td>NAD</td>
+    <td>Guarantees when writing text to a stream</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="131">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_131.html">131</a></td>
+    <td>C89</td>
+    <td>const member qualification and assignment</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="132">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_132.html">132</a></td>
+    <td>Dup</td>
+    <td>Can undefined behavior occur at translation time, or only at run time?</td>
+    <td class="full" align="center">Duplicate of <a href="#109">109</a></td>
+  </tr>
+  <tr id="133">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_133.html">133</a></td>
+    <td>NAD</td>
+    <td>Undefined behavior not previously listed in subclause G2</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="134">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_134.html">134</a></td>
+    <td>NAD</td>
+    <td>What is an 'error number' for strerror?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="135">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_135.html">135</a></td>
+    <td>NAD</td>
+    <td>Can the size argument to 'fwrite' be zero?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="136">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_136.html">136</a></td>
+    <td>NAD</td>
+    <td>'mktime' and time gaps</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="137">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_137.html">137</a></td>
+    <td>NAD</td>
+    <td>'printf' and negative floating point values</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="138">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_138.html">138</a></td>
+    <td>C89</td>
+    <td>Is there an allocated storage duration?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="139">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_139.html">139</a></td>
+    <td>C89</td>
+    <td>Compatibility of complete and incomplete types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="140">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_140.html">140</a></td>
+    <td>NAD</td>
+    <td>Behavior of 'setvbuf'</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="141">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_141.html">141</a></td>
+    <td>NAD</td>
+    <td>What is the meaning of EOF?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="142">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_142.html">142</a></td>
+    <td>C89</td>
+    <td>Reservation of macro names</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="143">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_143.html">143</a></td>
+    <td>C89</td>
+    <td>'fopen' modes</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="144">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_144.html">144</a></td>
+    <td>C89</td>
+    <td>Preprocessing of preprocessing directives</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="145">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_145.html">145</a></td>
+    <td>C89</td>
+    <td>Constant expressions</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="146">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_146.html">146</a></td>
+    <td>C89</td>
+    <td>Nugatory constraint</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="147">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_147.html">147</a></td>
+    <td>C89</td>
+    <td>Sequence points in library functions</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="148">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_148.html">148</a></td>
+    <td>NAD</td>
+    <td>Defining library functions</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="149">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_149.html">149</a></td>
+    <td>C89</td>
+    <td>The term "variable"</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="150">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_150.html">150</a></td>
+    <td>C89</td>
+    <td>Initialization of a char array from a string literal</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="151">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_151.html">151</a></td>
+    <td>C89</td>
+    <td>Behavior of 'printf' and flags</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="152">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_152.html">152</a></td>
+    <td>NAD</td>
+    <td>Can you 'longjmp' out of a signal handler?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="153">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_153.html">153</a></td>
+    <td>Dup</td>
+    <td>Can 'f()' be considered a call to a function-like macro with one empty argument?</td>
+    <td class="unknown" align="center">Duplicate of <a href="#3">3</a></td>
+  </tr>
+  <tr id="154">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_154.html">154</a></td>
+    <td>NAD</td>
+    <td>Consistency of implementation-defined values</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="155">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_155.html">155</a></td>
+    <td>C89</td>
+    <td>Zero-sized allocations</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="156">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_156.html">156</a></td>
+    <td>C89</td>
+    <td>Closed streams</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="157">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_157.html">157</a></td>
+    <td>C89</td>
+    <td>Legitimacy of type synonyms</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="158">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_158.html">158</a></td>
+    <td>C89</td>
+    <td>Null pointer conversions</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="159">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_159.html">159</a></td>
+    <td>C89</td>
+    <td>Consistency of the C Standard Defects exist in the way the Standard refers to itself</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr class="open" id="160">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_160.html">160</a></td>
+    <td>Open</td>
+    <td>Reservation of identifiers</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr id="161">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_161.html">161</a></td>
+    <td>NAD</td>
+    <td>Details of reserved symbols</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="162">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_162.html">162</a></td>
+    <td>C89</td>
+    <td>'gmtime' and 'localtime'</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="163">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_163.html">163</a></td>
+    <td>C89</td>
+    <td>Undeclared identifiers</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="164">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_164.html">164</a></td>
+    <td>NAD</td>
+    <td>Bad declarations</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr class="open" id="165">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_165.html">165</a></td>
+    <td>C89</td>
+    <td>Tags and incomplete types</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr class="open" id="166">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_166.html">166</a></td>
+    <td>Open</td>
+    <td>Meaning of lvalue</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr class="open" id="167">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_167.html">167</a></td>
+    <td>Open</td>
+    <td>Consistency of the C Standard (Defect Report UK 015)</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr class="open" id="168">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_168.html">168</a></td>
+    <td>Open</td>
+    <td>Consistency of the C Standard (Defect Report UK 016)</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr id="169">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_169.html">169</a></td>
+    <td>NAD</td>
+    <td>Trigraphs</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr class="open" id="170">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_170.html">170</a></td>
+    <td>C89</td>
+    <td>Operators and punctuators</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr class="open" id="171">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_171.html">171</a></td>
+    <td>Open</td>
+    <td>Ranges of integral types</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr class="open" id="172">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_172.html">172</a></td>
+    <td>Open</td>
+    <td>Relational and equality operators</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr class="open" id="173">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_173.html">173</a></td>
+    <td>Open</td>
+    <td>Line numbers</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr class="open" id="174">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_174.html">174</a></td>
+    <td>Open</td>
+    <td>Implicit conversions</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr class="open" id="175">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_175.html">175</a></td>
+    <td>Open</td>
+    <td>Correction to Technical Corrigendum 1</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr class="open" id="176">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_176.html">176</a></td>
+    <td>Open</td>
+    <td>Diagnostics for #error</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr class="open" id="177">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_177.html">177</a></td>
+    <td>Open</td>
+    <td>Preprocessing directives</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr class="open" id="178">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_178.html">178</a></td>
+    <td>Open</td>
+    <td>Conformance with array members and allocations</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr id="201">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_201.htm">201</a></td>
+    <td>NAD</td>
+    <td>Integer types longer than long</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="202">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_202.htm">202</a></td>
+    <td>C99</td>
+    <td>Change return type of certain &lt;fenv.h&gt; functions</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="203">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_203.htm">203</a></td>
+    <td>C99</td>
+    <td>C locale conflict with ISO/IEC 9945-2</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="204">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_204.htm">204</a></td>
+    <td>C99</td>
+    <td>size_t and ptrdiff_t as a long long type</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="205">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_205.htm">205</a></td>
+    <td>NAD</td>
+    <td>New keyword __at_least</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="206">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_206.htm">206</a></td>
+    <td>NAD</td>
+    <td>Default argument conversion of float _Complex</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="207">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_207.htm">207</a></td>
+    <td>C99</td>
+    <td>Handling of imaginary types</td>
+    <td class="partial" align="center">
+      <details><summary>Partial</summary>
+        Clang detects use of the _Imaginary keyword but does not otherwise
+        support the type yet.
+      </details>
+    </td>
+  </tr>
+  <tr id="208">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_208.htm">208</a></td>
+    <td>C99</td>
+    <td>Ambiguity in initialization</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="209">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_209.htm">209</a></td>
+    <td>C99</td>
+    <td>Problem implementing INTN_C macros</td>
+    <td class="partial" align="center">
+      <details><summary>Partial</summary>
+        Clang provides these definitions in a freestanding compilation, but the
+        type of the value produced by <code>UINT8_C</code> and <code>UINT16_C</code>
+        is not the type after integer promotion per C99 7.18.4p3.
+      </details>
+    </td>
+  </tr>
+  <tr id="210">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_210.htm">210</a></td>
+    <td>C99</td>
+    <td>'fprintf' %a and %A conversions recommended practice</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="211">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_211.htm">211</a></td>
+    <td>C99</td>
+    <td>Accuracy of decimal string to/from "binary" (non-decimal) floating-point conversions</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="212">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_212.htm">212</a></td>
+    <td>NAD</td>
+    <td>Binding of multibyte conversion state objects</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="213">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_213.htm">213</a></td>
+    <td>C99</td>
+    <td>Lacuna in 'mbrtowc'</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="214">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_214.htm">214</a></td>
+    <td>NAD</td>
+    <td>'atexit' function registration</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="215">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_215.htm">215</a></td>
+    <td>C99</td>
+    <td>Equality operators</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="216">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_216.htm">216</a></td>
+    <td>C99</td>
+    <td>Source character encodings</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="217">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_217.htm">217</a></td>
+    <td>NAD</td>
+    <td>'asctime' limits</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="218">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_218.htm">218</a></td>
+    <td>C99</td>
+    <td>Signs of non-numeric floating point values</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="219">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_219.htm">219</a></td>
+    <td>NAD</td>
+    <td>Effective types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="220">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_220.htm">220</a></td>
+    <td>C99</td>
+    <td>Definition of "decimal integer"</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="221">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_221.htm">221</a></td>
+    <td>NAD</td>
+    <td>Lacuna in pointer arithmetic</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="222">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_222.htm">222</a></td>
+    <td>C99</td>
+    <td>Partially initialized structures</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="223">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_223.htm">223</a></td>
+    <td>C99</td>
+    <td>'FP_FAST_FMAF' and 'FP_FAST_FMAL' should be integer constant</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="224">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_224.htm">224</a></td>
+    <td>C99</td>
+    <td>fpclassify return is not defined</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="225">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_225.htm">225</a></td>
+    <td>C99</td>
+    <td>strtod, strtof and strtold expected form of the subject sequence</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="226">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_226.htm">226</a></td>
+    <td>NAD</td>
+    <td>strftime references</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="227">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_227.htm">227</a></td>
+    <td>NAD</td>
+    <td>strftime %U, %V, and %W conversion specifiers</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="228">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_228.htm">228</a></td>
+    <td>C99</td>
+    <td>wmemcmp declaration in Annex B</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="229">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_229.htm">229</a></td>
+    <td>C99</td>
+    <td>localeconv() *_sep_by_space table entries issues</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="230">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_230.htm">230</a></td>
+    <td>C99</td>
+    <td>Enumerated type rank</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="231">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_231.htm">231</a></td>
+    <td>NAD</td>
+    <td>Semantics of text-line and non-directive</td>
+    <td class="none" align="center">No</td>
+  </tr>
+  <tr id="232">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_232.htm">232</a></td>
+    <td>C99</td>
+    <td>Typo in Annex I</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="233">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_233.htm">233</a></td>
+    <td>C99</td>
+    <td>%g, %G precision specification</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="234">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_234.htm">234</a></td>
+    <td>C99</td>
+    <td>Miscellaneous Typos</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="235">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_235.htm">235</a></td>
+    <td>C99</td>
+    <td>"C" locale collating behaviour not defined</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="236">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_236.htm">236</a></td>
+    <td>NAD</td>
+    <td>The interpretation of type based aliasing rule when applied to union objects or allocated objects</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="237">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_237.htm">237</a></td>
+    <td>NAD</td>
+    <td>Declarations using [static]</td>
+    <td class="none" align="center">No</td>
+  </tr>
+  <tr id="238">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_238.htm">238</a></td>
+    <td>C99</td>
+    <td>Decriptions of fma() overflow and underflow errors are missing</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="239">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_239.htm">239</a></td>
+    <td>C99</td>
+    <td>Annex F nexttoward description is inconsistent with 7.12.11.4 and F.9.8.3</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="240">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_240.htm">240</a></td>
+    <td>C99</td>
+    <td>lrint, llrint, lround, llround, and ilogb descriptions are not consistent for unrepresentable results</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="241">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_241.htm">241</a></td>
+    <td>C99</td>
+    <td>Make the base standard and Annex F consistent for pow(0, <0)</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="242">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_242.htm">242</a></td>
+    <td>C99</td>
+    <td>Make the base standard and Annex F consistent for logb(0)</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="243">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_243.htm">243</a></td>
+    <td>C99</td>
+    <td>Make the base standard and Annex F consistent for fmod(), remainder(), and remquo() for a zero divisor</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="244">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_244.htm">244</a></td>
+    <td>C99</td>
+    <td>tgamma(zero or negative integer) should be considered a pole error</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="245">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_245.htm">245</a></td>
+    <td>C99</td>
+    <td>Missing paragraph numbers</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="246">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_246.htm">246</a></td>
+    <td>NAD</td>
+    <td>Completion of declarators</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="247">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_247.htm">247</a></td>
+    <td>C99</td>
+    <td>Are values a form of behaviour?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="248">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_248.htm">248</a></td>
+    <td>C99</td>
+    <td>Limits are required for optional types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="249">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_249.htm">249</a></td>
+    <td>Dup</td>
+    <td>Lacuna applying C89:TC1 to C99</td>
+    <td class="none" align="center">Duplicate of <a href="#9">9</a></td>
+  </tr>
+  <tr id="250">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_250.htm">250</a></td>
+    <td>C99</td>
+    <td>Non-directives within macro arguments</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="251">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_251.htm">251</a></td>
+    <td>C99</td>
+    <td>Are struct fred and union fred the same type?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="252">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_252.htm">252</a></td>
+    <td>NAD</td>
+    <td>Incomplete argument types when calling non-prototyped functions</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="253">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_253.htm">253</a></td>
+    <td>NAD</td>
+    <td>"overriding" in designated initializers</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="254">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_254.htm">254</a></td>
+    <td>NAD</td>
+    <td>mbtowc and partial characters</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="255">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_255.htm">255</a></td>
+    <td>NAD</td>
+    <td>Non-prototyped function calls and argument mismatches</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="256">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_256.htm">256</a></td>
+    <td>NAD</td>
+    <td>Multiple inclusion of headers</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="257">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_257.htm">257</a></td>
+    <td>NAD</td>
+    <td>Common initial sequences and related issues with unions</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="258">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_258.htm">258</a></td>
+    <td>NAD</td>
+    <td>Ordering of "defined" and macro replacement</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="259">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_259.htm">259</a></td>
+    <td>NAD</td>
+    <td>Macro invocations with no arguments</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="260">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_260.htm">260</a></td>
+    <td>NAD</td>
+    <td>Indeterminate values and identical representations</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="261">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_261.htm">261</a></td>
+    <td>NAD</td>
+    <td>Constant expressions</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="262">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_262.htm">262</a></td>
+    <td>C99</td>
+    <td>Maximum size of bit fields</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="263">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_263.htm">263</a></td>
+    <td>C99</td>
+    <td>All-zero bits representations</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="264">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_264.htm">264</a></td>
+    <td>NAD</td>
+    <td>Graphic characters</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="265">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_265.htm">265</a></td>
+    <td>C99</td>
+    <td>Preprocessor arithmetic</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="266">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_266.htm">266</a></td>
+    <td>NAD</td>
+    <td>Overflow of sizeof</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="267">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_267.htm">267</a></td>
+    <td>C99</td>
+    <td>Typos in 5.1.2.3, 7.24.4.4.5, 7.24.6.1, 7.24.6.1</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="268">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_268.htm">268</a></td>
+    <td>C99</td>
+    <td>Jumps into iteration statements</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="269">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_269.htm">269</a></td>
+    <td>C99</td>
+    <td>Lacunae in exact-width integer types</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="270">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_270.htm">270</a></td>
+    <td>C99</td>
+    <td>wint_t is not the promoted version of wchar_t</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="271">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_271.htm">271</a></td>
+    <td>NAD</td>
+    <td>Lacuna in iswctype and towctrans</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="272">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_272.htm">272</a></td>
+    <td>C99</td>
+    <td>Type category</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="273">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_273.htm">273</a></td>
+    <td>C99</td>
+    <td>Meaning of __STDC_ISO_10646__</td>
+    <td class="full" align="center">
+      <details><summary>Yes</summary>
+        The compiler portion of this DR is implemented in Clang, but the
+        <code>__STDC_ISO_10646__</code> macro is not defined by Clang; the
+        standard library behavior factors into whether this macro can or cannot
+        be defined.
+      </details>
+    </td>
+  </tr>
+  <tr id="274">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_274.htm">274</a></td>
+    <td>C99</td>
+    <td>Meaning of "character" in &lt;string.h&gt; functions</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="275">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_275.htm">275</a></td>
+    <td>C99</td>
+    <td>Bitwise-OR of nothing</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="276">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_276.htm">276</a></td>
+    <td>C99</td>
+    <td>Orientation of perror</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="277">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_277.htm">277</a></td>
+    <td>NAD</td>
+    <td>Declarations within iteration statements</td>
+    <td class="none" align="center">No</td>
+  </tr>
+  <tr id="278">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_278.htm">278</a></td>
+    <td>C99</td>
+    <td>Lacuna in character encodings</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="279">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_279.htm">279</a></td>
+    <td>C99</td>
+    <td>Wide character code values for members of the basic character set</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="280">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_280.htm">280</a></td>
+    <td>NAD</td>
+    <td>struct tm, member tm_isdst, and mktime() in &lt;time.h&gt;</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="281">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_281.htm">281</a></td>
+    <td>C99</td>
+    <td>CLOCKS_PER_SEC should not be a constant expression</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="282">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_282.htm">282</a></td>
+    <td>C99</td>
+    <td>Flexible array members & struct padding</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="283">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_283.htm">283</a></td>
+    <td>C99</td>
+    <td>Accessing a non-current union member ("type punning")</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="284">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_284.htm">284</a></td>
+    <td>NAD</td>
+    <td>Does &lt;math.h&gt; define INT_MIN and INT_MAX?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="285">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_285.htm">285</a></td>
+    <td>C99</td>
+    <td>Conversion of an imaginary type to _Bool</td>
+    <td class="partial" align="center">
+      <details><summary>Partial</summary>
+        Clang detects use of the _Imaginary keyword but does not otherwise
+        support the type yet.
+      </details>
+    </td>
+  </tr>
+  <tr id="286">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_286.htm">286</a></td>
+    <td>C99</td>
+    <td>Correctly rounded and rounding direction/mode</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="287">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_287.htm">287</a></td>
+    <td>Dup</td>
+    <td>Floating-point status flags and sequence points</td>
+    <td class="unknown" align="center">Duplicate of <a href="#87">87</a></td>
+  </tr>
+  <tr id="288">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_288.htm">288</a></td>
+    <td>NAD</td>
+    <td>Deficiency on multibyte conversions</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="289">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_289.htm">289</a></td>
+    <td>C99</td>
+    <td>Function prototype with [restrict]</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="290">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_290.htm">290</a></td>
+    <td>C99</td>
+    <td>FLT_EVAL_METHOD and extra precision and/or range</td>
+    <td class="none" align="center">No</td>
+  </tr>
+  <tr id="291">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_291.htm">291</a></td>
+    <td>C99</td>
+    <td>Corrections to requirements on inexact floating-point exceptions</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="292">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_292.htm">292</a></td>
+    <td>C99</td>
+    <td>Use of the word variable</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="293">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_293.htm">293</a></td>
+    <td>C99</td>
+    <td>Typo in Standard - double complex instead of complex in an example</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="294">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_294.htm">294</a></td>
+    <td>NAD</td>
+    <td>Technical question on C99 restrict keyword</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="295">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_295.htm">295</a></td>
+    <td>C99</td>
+    <td>Incomplete types for function parameters</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="296">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_296.htm">296</a></td>
+    <td>C99</td>
+    <td>Is exp(INFINITY) overflow? A range error? A divide-by-zero exception? INFINITY without any errors?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="297">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_297.htm">297</a></td>
+    <td>C99</td>
+    <td>May FE_* floating-point exception flags have bits in common?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="298">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_298.htm">298</a></td>
+    <td>C99</td>
+    <td>Validity of constant in unsigned long long range</td>
+    <td class="partial" align="center">
+      <details><summary>Partial</summary>
+        Clang defines the behavior in this situation by automatically using
+        <code>long long</code> or <code>unsigned long long</code> as the
+        underlying type of the constant; however, Clang fails to diagnose the
+        extension in C89 mode with such constants.
+      </details>
+    </td>
+  </tr>
+  <tr id="299">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_299.htm">299</a></td>
+    <td>C99</td>
+    <td>Is cabs() a type-generic macro?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="300">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_300.htm">300</a></td>
+    <td>NAD</td>
+    <td>Translation-time expresssion evaluation</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="301">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_301.htm">301</a></td>
+    <td>NAD</td>
+    <td>Meaning of FE_* macros in &lt;fenv.h&gt;</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="302">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_302.htm">302</a></td>
+    <td>C99</td>
+    <td>6.10.2p5: Adding underscore to portable include file name character set</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="303">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_303.htm">303</a></td>
+    <td>C99</td>
+    <td>6.10p2: Breaking up the very long sentence describing preprocessing directive</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="304">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_304.htm">304</a></td>
+    <td>C99</td>
+    <td>Clarifying illegal tokens in #if directives</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="305">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_305.htm">305</a></td>
+    <td>C99</td>
+    <td>6.10.1p3: Clarifying handling of keywords in #if directives</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="306">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_306.htm">306</a></td>
+    <td>C99</td>
+    <td>6.10.3p9: Clarifying that rescanning applies to object-like macros</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="307">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_307.htm">307</a></td>
+    <td>C99</td>
+    <td>6.10.3p10: Clarifiying arguments vs. parameters</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="308">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_308.htm">308</a></td>
+    <td>C99</td>
+    <td>Clarify that source files et al. need not be "files"</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="309">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_309.htm">309</a></td>
+    <td>C99</td>
+    <td>Clarifying trigraph substitution</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="310">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_310.htm">310</a></td>
+    <td>C99</td>
+    <td>Add non-corner case example of trigraphs</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="311">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_311.htm">311</a></td>
+    <td>C99</td>
+    <td>Definition of variably modified types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="312">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_312.htm">312</a></td>
+    <td>C99</td>
+    <td>Meaning of "known constant size"</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="313">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_313.htm">313</a></td>
+    <td>NAD</td>
+    <td>Incomplete arrays of VLAs</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="314">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_314.htm">314</a></td>
+    <td>NAD</td>
+    <td>Cross-translation-unit tagged type compatibility</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="315">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_315.htm">315</a></td>
+    <td>C99</td>
+    <td>Implementation-defined bit-field types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="316">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_316.htm">316</a></td>
+    <td>NAD</td>
+    <td>Unprototyped function types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="317">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_317.htm">317</a></td>
+    <td>NAD</td>
+    <td>Function definitions with empty parentheses</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="318">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_318.htm">318</a></td>
+    <td>C99</td>
+    <td>(double)0.1f with FLT_EVAL_METHOD being 2</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="319">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_319.htm">319</a></td>
+    <td>NAD</td>
+    <td>printf("%a", 1.0) and trailing zeros</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="320">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_320.htm">320</a></td>
+    <td>C99</td>
+    <td>Scope of variably modified type</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="321">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_321.htm">321</a></td>
+    <td>C99</td>
+    <td>Wide character code values for members of the basic character set</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="322">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_322.htm">322</a></td>
+    <td>C99</td>
+    <td>Problem with TC2 Change #67 (Add perror to the list defining byte input/output functions)</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="323">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_323.htm">323</a></td>
+    <td>C99</td>
+    <td>Potential problems with TC2 #34, #35, and #36</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="324">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_324.htm">324</a></td>
+    <td>C99</td>
+    <td>Tokenization obscurities</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="325">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_325.htm">325</a></td>
+    <td>NAD</td>
+    <td>strerror()</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="326">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_326.htm">326</a></td>
+    <td>C99</td>
+    <td>asctime()</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="327">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_327.htm">327</a></td>
+    <td>C99</td>
+    <td>Italicize definition of variable length array type, add forward references</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="328">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_328.htm">328</a></td>
+    <td>C99</td>
+    <td>String literals in compound literal initialization</td>
+    <td class="partial" align="center">
+      <details><summary>Partial</summary>
+        Clang properly implements the use of string literals in a compound
+        literal initializer, but fails to diagnose use of a variably-modified
+        type at file scope. DR339 (about variably-modified types) is marked as
+        a duplicate of DR328.
+      </details>
+    </td>
+  </tr>
+  <tr id="329">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_329.htm">329</a></td>
+    <td>C99</td>
+    <td>Math functions and directed rounding</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="330">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_330.htm">330</a></td>
+    <td>C99</td>
+    <td>Externally visible exceptional conditions</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="331">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_331.htm">331</a></td>
+    <td>NAD</td>
+    <td>permit FE_DIVBYZERO when errno says EDOM</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="332">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_332.htm">332</a></td>
+    <td>C99</td>
+    <td>gets is generally unsafe</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="333">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_333.htm">333</a></td>
+    <td>C99</td>
+    <td>Missing Predefined Macro Name</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr class="open" id="334">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_334.htm">334</a></td>
+    <td>Open</td>
+    <td>Missing semantics of comparison macros</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr id="335">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_335.htm">335</a></td>
+    <td>NAD</td>
+    <td>_Bool bit-fields</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="336">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_336.htm">336</a></td>
+    <td>C99</td>
+    <td>What does TMP_MAX actually indicate?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="337">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_337.htm">337</a></td>
+    <td>C99</td>
+    <td>stdio.h macro definition problems</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="338">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_338.htm">338</a></td>
+    <td>C99</td>
+    <td>C99 seems to exclude indeterminate value from being an uninitialized register</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="339">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_339.htm">339</a></td>
+    <td>Dup</td>
+    <td>Variably modified compound literal</td>
+    <td class="partial" align="center">Duplicate of <a href="#328">328</a></td>
+  </tr>
+  <tr id="340">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_340.htm">340</a></td>
+    <td>C99</td>
+    <td>Composite types for variable-length arrays</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="341">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_341.htm">341</a></td>
+    <td>C99</td>
+    <td>[*] in abstract declarators</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="342">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_342.htm">342</a></td>
+    <td>Dup</td>
+    <td>VLAs and conditional expressions</td>
+    <td class="full" align="center">Duplicate of <a href="#340">340</a></td>
+  </tr>
+  <tr id="343">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_343.htm">343</a></td>
+    <td>C99</td>
+    <td>Initializing qualified wchar_t arrays</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="344">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_344.htm">344</a></td>
+    <td>C99</td>
+    <td>Casts in preprocessor conditional expressions</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="345">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/dr_345.htm">345</a></td>
+    <td>C99</td>
+    <td>Where does parameter scope start?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="400">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_400">400</a></td>
+    <td>C11</td>
+    <td>realloc with size zero problems</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="401">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_401">401</a></td>
+    <td>C11</td>
+    <td>"happens before" can not be cyclic</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="402">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_402">402</a></td>
+    <td>C11</td>
+    <td>Memory model coherence is not aligned with C++11</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="403">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_403">403</a></td>
+    <td>C11</td>
+    <td>malloc() and free() in the memory model</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="404">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_404">404</a></td>
+    <td>C11</td>
+    <td>Joke fragment remains in a footnote</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="405">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_405">405</a></td>
+    <td>C11</td>
+    <td>The mutex specification</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="406">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_406">406</a></td>
+    <td>C11</td>
+    <td>Visible sequences of side effects are redundant</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="407">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_407">407</a></td>
+    <td>C11</td>
+    <td>Memory ordering of atomics</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="408">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_408">408</a></td>
+    <td>NAD</td>
+    <td>Should locks provide intra-thread synchronization</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="409">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_409">409</a></td>
+    <td>C11</td>
+    <td>f(inf) is inf being a range error</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="410">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_410">410</a></td>
+    <td>C11</td>
+    <td>ilogb inconsistent with lrint, lround</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="411">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_411">411</a></td>
+    <td>C11</td>
+    <td>Predefined macro values</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="412">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_412">412</a></td>
+    <td>C11</td>
+    <td>#elif</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="413">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_413">413</a></td>
+    <td>NAD</td>
+    <td>Initialization</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="414">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_414">414</a></td>
+    <td>C11</td>
+    <td>Typos in 6.27 Threads &lt;threads.h&gt;</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="415">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_415">415</a></td>
+    <td>C11</td>
+    <td>Missing divide by zero entry in Annex J</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="416">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_416">416</a></td>
+    <td>C11</td>
+    <td>tss_t destruction unspecified</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="417">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_417">417</a></td>
+    <td>C11</td>
+    <td>Annex J not updated with necessary aligned_alloc entries</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="418">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_418">418</a></td>
+    <td>NAD</td>
+    <td>Possible defect report: fmod(0.,NaN) and fmod(NaN,infinity)</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="419">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_419">419</a></td>
+    <td>C11</td>
+    <td>Generic Functions</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="420">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_420">420</a></td>
+    <td>NAD</td>
+    <td>Sytax error in specification of for-statement</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="421">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_421">421</a></td>
+    <td>NAD</td>
+    <td>Initialization of atomic_flag</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="422">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_422">422</a></td>
+    <td>NAD</td>
+    <td>Initialization of atomic types</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="423">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_423">423</a></td>
+    <td>C11</td>
+    <td>Defect Report relative to n1570: underspecification for qualified rvalues</td>
+    <td class="partial" align="center">
+      <details><summary>Partial</summary>
+        Clang properly handles dropping qualifiers from cast operations, but
+        does not yet handle dropping qualifiers from the function return type.
+      </details>
+    </td>
+  </tr>
+  <tr id="424">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_424">424</a></td>
+    <td>Dup</td>
+    <td>Underspecification of tss_t</td>
+    <td class="na" align="center">Duplicate of <a href="#416">416</a></td>
+  </tr>
+  <tr id="425">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_425">425</a></td>
+    <td>NAD</td>
+    <td>No specification for the access to variables with temporary lifetime</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="426">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_426">426</a></td>
+    <td>C11</td>
+    <td>G.5.1: -yv and -x/v are ambiguous</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="427">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_427">427</a></td>
+    <td>NAD</td>
+    <td>Function Parameter and Return Value Assignments</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="428">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_428">428</a></td>
+    <td>C11</td>
+    <td>Runtime-constraint issue with sprintf family of routines in Annex K</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="429">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_429">429</a></td>
+    <td>C11</td>
+    <td>Should gets_s discard next input line when (s == NULL) ?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="430">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_430">430</a></td>
+    <td>C11</td>
+    <td>getenv_s, maxsize should be allowed to be zero</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="431">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_431">431</a></td>
+    <td>C11</td>
+    <td>atomic_compare_exchange: What does it mean to say two structs compare equal?</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="432">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_432">432</a></td>
+    <td>C11</td>
+    <td>Possible defect report: Is 0.0 required to be a representable value?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="433">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_433">433</a></td>
+    <td>C11</td>
+    <td>Issue with constraints for wide character function arguments involving RSIZE_MAX</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="434">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_434">434</a></td>
+    <td>C11</td>
+    <td>Possible defect report: Missing constraint w.r.t. Atomic</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="435">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_435">435</a></td>
+    <td>NAD</td>
+    <td>Possible defect report: Missing constraint w.r.t. Imaginary</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="436">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_436">436</a></td>
+    <td>C11</td>
+    <td>Request for interpretation of C11 6.8.5#6</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="437">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_437">437</a></td>
+    <td>C11</td>
+    <td>clock overflow problems</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="438">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_438">438</a></td>
+    <td>C11</td>
+    <td>ungetc / ungetwc and file position after discarding push back problems</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="439">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_439">439</a></td>
+    <td>C11</td>
+    <td>Issues with the definition of "full expression"</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="440">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_440">440</a></td>
+    <td>NAD</td>
+    <td>Floating-point issues in C11 from PDTS 18661-1 UK review, Issue 1</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="441">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_441">441</a></td>
+    <td>C11</td>
+    <td>Floating-point issues in C11 from PDTS 18661-1 UK review, Issue 2</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="442">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_442">442</a></td>
+    <td>NAD</td>
+    <td>Floating-point issues in C11 from PDTS 18661-1 UK review, Issue 3</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="443">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_443">443</a></td>
+    <td>NAD</td>
+    <td>Floating-point issues in C11 from PDTS 18661-1 UK review, Issue 4</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="444">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_444">444</a></td>
+    <td>C11</td>
+    <td>Issues with alignment in C11, part 1</td>
+    <td class="partial" align="center">
+      <details><summary>Partial</summary>
+      Clang rejects use of an alignment specifier in a compound literal expression.
+      </details>
+    </td>
+  </tr>
+  <tr id="445">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_445">445</a></td>
+    <td>C11</td>
+    <td>Issues with alignment in C11, part 2</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="446">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_446">446</a></td>
+    <td>NAD</td>
+    <td>Use byte instead of character for memcmp, memcpy</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="447">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_447">447</a></td>
+    <td>C11</td>
+    <td>Boolean from complex</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="448">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_448">448</a></td>
+    <td>C11</td>
+    <td>What are the semantics of a # non-directive?</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="449">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_449">449</a></td>
+    <td>NAD</td>
+    <td>What is the value of TSS_DTOR_ITERATIONS for implementations with no maximum?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="450">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_450">450</a></td>
+    <td>C11</td>
+    <td>tmpnam_s clears s[0] when maxsize &gt; RSIZE_MAX</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="451">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_451">451</a></td>
+    <td>NAD</td>
+    <td>Instability of uninitialized automatic variables</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="452">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_452">452</a></td>
+    <td>C11</td>
+    <td>Effective Type in Loop Invariant</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="453">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_453">453</a></td>
+    <td>C11</td>
+    <td>Atomic flag type and operations</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="454">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_454">454</a></td>
+    <td>NAD</td>
+    <td>ATOMIC_VAR_INIT (issues 3 and 4)</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="455">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_455">455</a></td>
+    <td>NAD</td>
+    <td>ATOMIC_VAR_INIT issue 5</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="456">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_456">456</a></td>
+    <td>Dup</td>
+    <td>Compile time definition of UINTN_C(value)</td>
+    <td class="partial" align="center">Duplicate of <a href="#209">209</a></td>
+  </tr>
+  <tr id="457">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_457">457</a></td>
+    <td>C11</td>
+    <td>The ctime_s function in Annex K defined incorrectly</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="458">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_458">458</a></td>
+    <td>C11</td>
+    <td>ATOMIC_XXX_LOCK_FREE macros not constant expressions</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="459">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_459">459</a></td>
+    <td>C11</td>
+    <td>atomic_load missing const qualifier</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="460">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_460">460</a></td>
+    <td>C11</td>
+    <td>aligned_alloc underspecified</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="461">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_461">461</a></td>
+    <td>NAD</td>
+    <td>Problems with references to objects in signal handlers</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="462">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_462">462</a></td>
+    <td>C11</td>
+    <td>Clarifying objects accessed in signal handlers</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="463">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_463">463</a></td>
+    <td>NAD</td>
+    <td>Left-shifting into the sign bit</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="464">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_464">464</a></td>
+    <td>C11</td>
+    <td>Clarifying the Behavior of the #line Directive</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="465">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_465">465</a></td>
+    <td>C11</td>
+    <td>Fixing an inconsistency in atomic_is_lock_free</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="466">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_466">466</a></td>
+    <td>NAD</td>
+    <td>Scope of a for loop control declaration</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="467">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_467">467</a></td>
+    <td>C11</td>
+    <td>Maximum representable finite description vs math</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="468">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_468">468</a></td>
+    <td>C11</td>
+    <td>strncpy_s clobbers buffer past null</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="469">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_469">469</a></td>
+    <td>NAD</td>
+    <td>Lock ownership vs. thread termination</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="470">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_470">470</a></td>
+    <td>C11</td>
+    <td>mtx_trylock should be allowed to fail spuriously</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="471">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_471">471</a></td>
+    <td>C11</td>
+    <td>Complex math functions cacosh and ctanh</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="472">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_472">472</a></td>
+    <td>C11</td>
+    <td>Introduction to complex arithmetic in 7.3.1p3 wrong due to CMPLX</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="473">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_473">473</a></td>
+    <td>C11</td>
+    <td>"A range error occurs if x is too large." is misleading</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="474">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_474">474</a></td>
+    <td>NAD</td>
+    <td>NOTE 1 Clarification for atomic_compare_exchange</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="475">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_475">475</a></td>
+    <td>C11</td>
+    <td>Misleading Atomic library references to atomic types</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="476">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_476">476</a></td>
+    <td>C11</td>
+    <td>volatile semantics for lvalues</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="477">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_477">477</a></td>
+    <td>C11</td>
+    <td>nan should take a string argument</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="478">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_478">478</a></td>
+    <td>NAD</td>
+    <td>Valid uses of the main function</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="479">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_479">479</a></td>
+    <td>Dup</td>
+    <td>Unclear specification of mtx_trylock on non-recursive muteness</td>
+    <td class="na" align="center">Duplicate of <a href="#269">269</a></td>
+  </tr>
+  <tr id="480">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_480">480</a></td>
+    <td>C11</td>
+    <td>cnd_wait and cnd_timewait should allow spurious wake-ups</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="481">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_481">481</a></td>
+    <td>C11</td>
+    <td>Controlling expression of _Generic primary expression</td>
+    <td class="full" align="center">Clang 3.8</td>
+  </tr>
+  <tr id="482">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_482">482</a></td>
+    <td>NAD</td>
+    <td>Macro invocation split over many files</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="483">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_483">483</a></td>
+    <td>NAD</td>
+    <td>__LINE__ and __FILE__ in macro replacement list</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="484">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_484">484</a></td>
+    <td>NAD</td>
+    <td>invalid characters in strcoll()</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="485">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_485">485</a></td>
+    <td>C11</td>
+    <td>Problem with the specification of ATOMIC_VAR_INIT</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="486">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_486">486</a></td>
+    <td>NAD</td>
+    <td>Inconsistent specification for arithmetic on atomic objects</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="487">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_487">487</a></td>
+    <td>C11</td>
+    <td>timespec vs. tm</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="488">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_488">488</a></td>
+    <td>C11</td>
+    <td>c16rtomb() on wide characters encoded as multiple char16_t</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="489">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_489">489</a></td>
+    <td>NAD</td>
+    <td>Integer Constant Expression</td>
+    <td class="partial" align="center">
+      <details><summary>Partial</summary>
+      Clang inconsistently diagnoses folding a constan expression into an ICE
+      as an extension.
+      </details>
+    </td>
+  </tr>
+  <tr id="490">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_490">490</a></td>
+    <td>NAD</td>
+    <td>Unwritten Assumptions About if-then</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="491">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_491">491</a></td>
+    <td>C11</td>
+    <td>Concern with Keywords that Match Reserved Identifiers</td>
+    <td class="partial" align="center">
+      <details><summary>Partial</summary>
+      Clang issues a reserved identifier diagnostic when the identifier leads
+      with an underscore followed by a capital letter or double underscores,
+      even if the identifier is used for a macro definition.
+      </details>
+    </td>
+  </tr>
+  <tr id="492">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_492">492</a></td>
+    <td>NAD</td>
+    <td>Named Child struct-union with no Member</td>
+    <td class="full" align="center">Clang 3.6</td>
+  </tr>
+  <tr id="493">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_493">493</a></td>
+    <td>Dup</td>
+    <td>Mutex Initialization Underspecified</td>
+    <td class="na" align="center">Duplicate of <a href="#469">469</a></td>
+  </tr>
+  <tr id="494">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_494">494</a></td>
+    <td>C11</td>
+    <td>Part 1: Alignment specifier expression evaluation</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr class="open" id="495">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_495">495</a></td>
+    <td>C11</td>
+    <td>Part 2: Atomic specifier expression evaluation</td>
+    <td align="center">Not resolved</td>
+  </tr>
+  <tr id="496">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_496">496</a></td>
+    <td>NAD</td>
+    <td>offsetof questions</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="497">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_497">497</a></td>
+    <td>C11</td>
+    <td>"white-space character" defined in two places</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="498">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_498">498</a></td>
+    <td>C11</td>
+    <td>mblen, mbtowc, and wctomb thread-safety</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="499">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_499">499</a></td>
+    <td>C17</td>
+    <td>Anonymous structure in union behavior</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="500">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_500">500</a></td>
+    <td>C17</td>
+    <td>Ambiguous specification for FLT_EVAL_METHOD</td>
+    <td class="unknown" align="center">Unknown</td>
+  </tr>
+  <tr id="501">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_501">501</a></td>
+    <td>C17</td>
+    <td>Can DECIMAL_DIG be larger than necessary?</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+  <tr id="502">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_502">502</a></td>
+    <td>NAD</td>
+    <td>Flexible array member in an anonymous struct</td>
+    <td class="full" align="center">Yes</td>
+  </tr>
+  <tr id="503">
+    <td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_503">503</a></td>
+    <td>NAD</td>
+    <td>Hexadecimal floating-point and strtod</td>
+    <td class="na" align="center">N/A</td>
+  </tr>
+
+
+</table>
+
+</div>
+</body>
+</html>
+

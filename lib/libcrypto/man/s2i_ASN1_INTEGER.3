@@ -1,0 +1,216 @@
+.\" $OpenBSD: s2i_ASN1_INTEGER.3,v 1.11 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt S2I_ASN1_INTEGER 3
+.Os
+.Sh NAME
+.Nm i2s_ASN1_ENUMERATED ,
+.Nm i2s_ASN1_ENUMERATED_TABLE ,
+.Nm i2s_ASN1_INTEGER ,
+.Nm s2i_ASN1_INTEGER ,
+.Nm i2s_ASN1_OCTET_STRING ,
+.Nm s2i_ASN1_OCTET_STRING
+.Nd ASN.1 data type conversion utilities for certificate extensions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.In openssl/x509v3.h
+.Ft char *
+.Fo i2s_ASN1_ENUMERATED
+.Fa "X509V3_EXT_METHOD *method"
+.Fa "const ASN1_ENUMERATED *a"
+.Fc
+.Ft char *
+.Fo i2s_ASN1_INTEGER
+.Fa "X509V3_EXT_METHOD *method"
+.Fa "const ASN1_INTEGER *a"
+.Fc
+.Ft ASN1_INTEGER *
+.Fo s2i_ASN1_INTEGER
+.Fa "X509V3_EXT_METHOD *method"
+.Fa "const char *value"
+.Fc
+.Ft char *
+.Fo i2s_ASN1_OCTET_STRING
+.Fa "X509V3_EXT_METHOD *method"
+.Fa "const ASN1_OCTET_STRING *aos"
+.Fc
+.Ft ASN1_OCTET_STRING *
+.Fo s2i_ASN1_OCTET_STRING
+.Fa "X509V3_EXT_METHOD *method"
+.Fa "X509V3_CTX *ctx"
+.Fa "const char *value"
+.Fc
+.Ft char *
+.Fo i2s_ASN1_ENUMERATED_TABLE
+.Fa "X509V3_EXT_METHOD *method"
+.Fa "const ASN1_ENUMERATED *a"
+.Fc
+.Sh DESCRIPTION
+These functions convert to and from
+.Vt ASN1_ENUMERATED ,
+.Vt ASN1_INTEGER ,
+and
+.Vt ASN1_OCTET_STRING
+objects.
+They are primarily used internally for parsing configuration files and
+displaying X.509v3 certificate extensions.
+With the exception of
+.Fn i2s_ASN1_ENUMERATED_TABLE ,
+these functions ignore the
+.Fa method
+argument.
+Any object or string returned by these functions must be freed by the caller.
+.Pp
+.Fn i2s_ASN1_ENUMERATED
+and
+.Fn i2s_ASN1_INTEGER
+first convert
+.Fa a
+into a
+.Vt BIGNUM
+object with
+.Xr ASN1_ENUMERATED_to_BN 3
+or
+.Xr ASN1_INTEGER_to_BN 3
+and then derive a string representation using
+.Xr BN_bn2dec 3
+or
+.Xr BN_bn2hex 3 .
+Decimal representation is used if the number has less than 128 bits,
+otherwise hexadecimal representation is used to avoid excessive conversion cost.
+.Pp
+.Fn s2i_ASN1_INTEGER
+converts the NUL-terminated decimal or hexadecimal string representation of
+an integer in
+.Fa value
+into an
+.Vt ASN1_INTEGER
+object.
+A sign prefix of
+.Sq -
+indicates a negative number and the base prefixes
+.Sq 0x
+and
+.Sq 0X
+indicate hexadecimal representation,
+otherwise decimal representation is assumed.
+After skipping the sign and base prefixes, an intermediate conversion into a
+.Vt BIGNUM
+is performed using
+.Xr BN_dec2bn 3
+or
+.Xr BN_hex2bn 3
+and the
+.Vt ASN1_INTEGER
+is then obtained with
+.Xr BN_to_ASN1_INTEGER 3 .
+.Pp
+.Fn i2s_ASN1_OCTET_STRING
+converts the octets in
+.Fa aos
+into a string where the octets are colon-separated and
+represented as pairs of uppercase hexadecimal digits.
+.Pp
+.Fn s2i_ASN1_OCTET_STRING
+converts the NUL-terminated string
+.Fa str
+into an
+.Vt ASN1_OCTET_STRING .
+The
+.Fa method
+and
+.Fa ctx
+arguments are ignored.
+Every pair of hexadecimal digits is converted into an octet.
+Colons are ignored if they are at the start, the end or
+if they separate two pairs of digits.
+.Pp
+.Fn i2s_ASN1_ENUMERATED_TABLE
+looks up the value of
+.Fa a
+in the
+.Fa usr_data
+field of the
+.Pf non- Dv NULL
+.Fa method
+and returns a copy of the associated long name.
+If no match is found,
+.Fa a
+is passed to
+.Fn i2s_ASN1_ENUMERATED .
+The
+.Fa method
+argument can be provided by application programs or it can be a
+default method obtained from
+.Xr X509V3_EXT_get_nid 3 .
+The default
+.Fa methods
+corresponding to the following
+.Fa nid
+arguments have strings configured in their usr_data field:
+.Pp
+.Bl -column NID_netscape_cert_type "Netscape certificate type (obsolete)" -compact
+.It Dv NID_crl_reason           Ta reason codes, RFC 5280, 5.3.1
+.It Dv NID_key_usage            Ta key usage, RFC 5280, 4.2.1.3
+.It Dv NID_netscape_cert_type   Ta Netscape certificate type (obsolete)
+.El
+.Sh RETURN VALUES
+.Fn i2s_ASN1_ENUMERATED ,
+.Fn i2s_ASN1_ENUMERATED_TABLE ,
+.Fn i2s_ASN1_INTEGER ,
+and
+.Fn i2s_ASN1_OCTET_STRING
+return a NUL-terminated string, or NULL on memory allocation failure.
+.Pp
+.Fn s2i_ASN1_INTEGER
+returns an
+.Vt ASN1_INTEGER ,
+or NULL on error.
+Error conditions are memory allocation failure or if
+.Fa value
+is not a valid decimal or hexadecimal encoding of an integer.
+.Pp
+.Fn s2i_ASN1_OCTET_STRING
+returns an
+.Vt ASN1_OCTET_STRING ,
+or NULL on error.
+Error conditions are memory allocation failure or if
+.Fa value
+contains an odd number of hexadecimal digits or anything except
+colons at the start, the end or between pairs of hexadecimal digits.
+.Pp
+Error codes can sometimes be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr a2i_ASN1_INTEGER 3 ,
+.Xr a2i_ipadd 3 ,
+.Xr ASN1_INTEGER_new 3 ,
+.Xr ASN1_INTEGER_to_BN 3 ,
+.Xr ASN1_OCTET_STRING_new 3 ,
+.Xr crypto 3 ,
+.Xr v2i_ASN1_BIT_STRING 3 ,
+.Xr X509V3_get_d2i 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.4 and
+have been available since
+.Ox 2.6 .
+.Sh BUGS
+Of these functions at least
+.Fn i2s_ASN1_ENUMERATED_TABLE
+can succeed while setting an error and fail without setting an error
+on the error stack.

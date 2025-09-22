@@ -1,0 +1,39 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/driver_executable.gni")
+
+tablegen("Options") {
+  visibility = [ ":dsymutil" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+driver_executable("dsymutil") {
+  deps = [
+    ":Options",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/DWARFLinker",
+    "//llvm/lib/DWARFLinker/Classic",
+    "//llvm/lib/DWARFLinker/Parallel",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "BinaryHolder.cpp",
+    "CFBundle.cpp",
+    "DebugMap.cpp",
+    "DwarfLinkerForBinary.cpp",
+    "MachODebugMapParser.cpp",
+    "MachOUtils.cpp",
+    "RelocationMap.cpp",
+    "Reproducer.cpp",
+    "dsymutil.cpp",
+  ]
+  if (host_os == "mac") {
+    frameworks = [ "CoreFoundation.framework" ]
+  }
+}

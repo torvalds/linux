@@ -1,0 +1,61 @@
+@c Copyright (C) 2001, 2002, 2004 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@node Configure Terms
+@section Configure Terms and History
+@cindex configure terms
+@cindex canadian
+
+The configure and build process has a long and colorful history, and can
+be confusing to anyone who doesn't know why things are the way they are.
+While there are other documents which describe the configuration process
+in detail, here are a few things that everyone working on GCC should
+know.
+
+There are three system names that the build knows about: the machine you
+are building on (@dfn{build}), the machine that you are building for
+(@dfn{host}), and the machine that GCC will produce code for
+(@dfn{target}).  When you configure GCC, you specify these with
+@option{--build=}, @option{--host=}, and @option{--target=}.
+
+Specifying the host without specifying the build should be avoided, as
+@command{configure} may (and once did) assume that the host you specify
+is also the build, which may not be true.
+
+If build, host, and target are all the same, this is called a
+@dfn{native}.  If build and host are the same but target is different,
+this is called a @dfn{cross}.  If build, host, and target are all
+different this is called a @dfn{canadian} (for obscure reasons dealing
+with Canada's political party and the background of the person working
+on the build at that time).  If host and target are the same, but build
+is different, you are using a cross-compiler to build a native for a
+different system.  Some people call this a @dfn{host-x-host},
+@dfn{crossed native}, or @dfn{cross-built native}.  If build and target
+are the same, but host is different, you are using a cross compiler to
+build a cross compiler that produces code for the machine you're
+building on.  This is rare, so there is no common way of describing it.
+There is a proposal to call this a @dfn{crossback}.
+
+If build and host are the same, the GCC you are building will also be
+used to build the target libraries (like @code{libstdc++}).  If build and host
+are different, you must have already build and installed a cross
+compiler that will be used to build the target libraries (if you
+configured with @option{--target=foo-bar}, this compiler will be called
+@command{foo-bar-gcc}).
+
+In the case of target libraries, the machine you're building for is the
+machine you specified with @option{--target}.  So, build is the machine
+you're building on (no change there), host is the machine you're
+building for (the target libraries are built for the target, so host is
+the target you specified), and target doesn't apply (because you're not
+building a compiler, you're building libraries).  The configure/make
+process will adjust these variables as needed.  It also sets
+@code{$with_cross_host} to the original @option{--host} value in case you
+need it.
+
+The @code{libiberty} support library is built up to three times: once
+for the host, once for the target (even if they are the same), and once
+for the build if build and host are different.  This allows it to be
+used by all programs which are generated in the course of the build
+process.

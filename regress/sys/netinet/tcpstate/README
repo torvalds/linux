@@ -1,0 +1,13 @@
+These regress tests use a local and remote machine.  On remote
+machine inetd is providing services.  Local machine runs scapy to
+navigate the remote TCP stack through the TCP state diagram.
+For active connections a perl client is started on remote machine.
+
+tcp_closing	FIN packets are retransmitted in CLOSING state.
+tcp_established	data packets are retransmitted in ESTABLISHED state.
+tcp_finwait	FIN retransmitted in FIN_WAIT_1 and goto FIN_WAIT_2 state.
+tcp_lastack	FIN packets are retransmitted in LAST_ACK state.
+tcp_syncache	SYN+ACK packets are retransmitted by SYN cache.
+tcp_synrcvd	SYN+ACK retransmitted in SYN_RCVD after SYN_SENT state.
+tcp_synsent	SYN packets are retransmitted in SYN_SENT state.
+tcp_synfin	FIN retransmitted after SYN_SENT via SYN_RCVD to FIN_WAIT_1

@@ -1,0 +1,4 @@
+copy("hmaptool") {
+  sources = [ "hmaptool" ]
+  outputs = [ "$root_out_dir/bin/{{source_file_part}}" ]
+}

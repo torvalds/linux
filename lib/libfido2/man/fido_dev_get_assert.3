@@ -1,0 +1,77 @@
+.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_DEV_GET_ASSERT 3
+.Os
+.Sh NAME
+.Nm fido_dev_get_assert
+.Nd obtains an assertion from a FIDO2 device
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft int
+.Fn fido_dev_get_assert "fido_dev_t *dev" "fido_assert_t *assert" "const char *pin"
+.Sh DESCRIPTION
+The
+.Fn fido_dev_get_assert
+function asks the FIDO2 device represented by
+.Fa dev
+for an assertion according to the following parameters defined in
+.Fa assert :
+.Pp
+.Bl -dash -compact
+.It
+.Nm relying party ID ;
+.It
+.Nm client data hash ;
+.It
+.Nm list of allowed credential IDs ;
+.It
+.Nm user presence and user verification attributes .
+.El
+.Pp
+See
+.Xr fido_assert_set_authdata 3
+for information on how these values are set.
+.Pp
+If a PIN is not needed to authenticate the request against
+.Fa dev ,
+then
+.Fa pin
+may be NULL.
+Otherwise
+.Fa pin
+must point to a NUL-terminated UTF-8 string.
+.Pp
+After a successful call to
+.Fn fido_dev_get_assert ,
+the
+.Xr fido_assert_count 3 ,
+.Xr fido_assert_user_display_name 3 ,
+.Xr fido_assert_user_icon 3 ,
+.Xr fido_assert_user_name 3 ,
+.Xr fido_assert_authdata_ptr 3 ,
+.Xr fido_assert_user_id_ptr 3 ,
+.Xr fido_assert_sig_ptr 3 ,
+and
+.Xr fido_assert_sigcount 3
+functions may be invoked on
+.Fa assert
+to retrieve the various attributes of the generated assertion.
+.Pp
+Please note that
+.Fn fido_dev_get_assert
+is synchronous and will block if necessary.
+.Sh RETURN VALUES
+The error codes returned by
+.Fn fido_dev_get_assert
+are defined in
+.In fido/err.h .
+On success,
+.Dv FIDO_OK
+is returned.
+.Sh SEE ALSO
+.Xr fido_assert_new 3 ,
+.Xr fido_assert_set_authdata 3

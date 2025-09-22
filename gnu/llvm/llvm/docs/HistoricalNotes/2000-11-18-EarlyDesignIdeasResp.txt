@@ -1,0 +1,199 @@
+Date: Sun, 19 Nov 2000 16:23:57 -0600 (CST)
+From: Chris Lattner <sabre@nondot.org>
+To: Vikram Adve <vadve@cs.uiuc.edu>
+Subject: Re: a few thoughts
+
+Okay... here are a few of my thoughts on this (it's good to know that we
+think so alike!):
+
+> 1. We need to be clear on our goals for the VM.  Do we want to emphasize
+>    portability and safety like the Java VM?  Or shall we focus on the
+>    architecture interface first (i.e., consider the code generation and
+>    processor issues), since the architecture interface question is also
+>    important for portable Java-type VMs?
+
+I forsee the architecture looking kinda like this: (which is completely
+subject to change)
+
+1. The VM code is NOT guaranteed safe in a java sense.  Doing so makes it
+   basically impossible to support C like languages.  Besides that,
+   certifying a register based language as safe at run time would be a
+   pretty expensive operation to have to do.  Additionally, we would like
+   to be able to statically eliminate many bounds checks in Java
+   programs... for example.
+
+ 2. Instead, we can do the following (eventually): 
+   * Java bytecode is used as our "safe" representation (to avoid
+     reinventing something that we don't add much value to).  When the
+     user chooses to execute Java bytecodes directly (ie, not
+     precompiled) the runtime compiler can do some very simple
+     transformations (JIT style) to convert it into valid input for our
+     VM.  Performance is not wonderful, but it works right.
+   * The file is scheduled to be compiled (rigorously) at a later
+     time.  This could be done by some background process or by a second
+     processor in the system during idle time or something...
+   * To keep things "safe" ie to enforce a sandbox on Java/foreign code,
+     we could sign the generated VM code with a host specific private
+     key.  Then before the code is executed/loaded, we can check to see if
+     the trusted compiler generated the code.  This would be much quicker
+     than having to validate consistency (especially if bounds checks have
+     been removed, for example)
+
+>    This is important because the audiences for these two goals are very
+>    different.  Architects and many compiler people care much more about
+>    the second question.  The Java compiler and OS community care much more
+>    about the first one.
+
+3. By focusing on a more low level virtual machine, we have much more room
+   for value add.  The nice safe "sandbox" VM can be provided as a layer
+   on top of it.  It also lets us focus on the more interesting compilers
+   related projects.
+
+> 2. Design issues to consider (an initial list that we should continue
+>    to modify).  Note that I'm not trying to suggest actual solutions here,
+>    but just various directions we can pursue:
+
+Understood.  :)
+
+>    a. A single-assignment VM, which we've both already been thinking
+>       about.
+
+Yup, I think that this makes a lot of sense.  I am still intrigued,
+however, by the prospect of a minimally allocated VM representation... I
+think that it could have definite advantages for certain applications
+(think very small machines, like PDAs).  I don't, however, think that our
+initial implementations should focus on this.  :)
+
+Here are some other auxiliary goals that I think we should consider:
+
+1. Primary goal: Support a high performance dynamic compilation
+   system.  This means that we have an "ideal" division of labor between
+   the runtime and static compilers.  Of course, the other goals of the
+   system somewhat reduce the importance of this point (f.e. portability
+   reduces performance, but hopefully not much)
+2. Portability to different processors.  Since we are most familiar with
+   x86 and solaris, I think that these two are excellent candidates when
+   we get that far...
+3. Support for all languages & styles of programming (general purpose
+   VM).  This is the point that disallows java style bytecodes, where all
+   array refs are checked for bounds, etc...
+4. Support linking between different language families.  For example, call
+   C functions directly from Java without using the nasty/slow/gross JNI
+   layer.  This involves several subpoints:
+  A. Support for languages that require garbage collectors and integration
+     with languages that don't.  As a base point, we could insist on
+     always using a conservative GC, but implement free as a noop, f.e.
+
+>    b. A strongly-typed VM.  One question is do we need the types to be
+>       explicitly declared or should they be inferred by the dynamic
+>       compiler?
+
+  B. This is kind of similar to another idea that I have: make OOP
+     constructs (virtual function tables, class heirarchies, etc) explicit
+     in the VM representation.  I believe that the number of additional
+     constructs would be fairly low, but would give us lots of important
+     information... something else that would/could be important is to
+     have exceptions as first class types so that they would be handled in
+     a uniform way for the entire VM... so that C functions can call Java
+     functions for example...
+
+>    c. How do we get more high-level information into the VM while keeping
+>       to a low-level VM design?
+>       o  Explicit array references as operands?  An alternative is
+>          to have just an array type, and let the index computations be
+>          separate 3-operand instructions.
+
+   C. In the model I was thinking of (subject to change of course), we
+      would just have an array type (distinct from the pointer
+      types).  This would allow us to have arbitrarily complex index
+      expressions, while still distinguishing "load" from "Array load",
+      for example.  Perhaps also, switch jump tables would be first class
+      types as well?  This would allow better reasoning about the program.
+
+5. Support dynamic loading of code from various sources.  Already
+   mentioned above was the example of loading java bytecodes, but we want
+   to support dynamic loading of VM code as well.  This makes the job of
+   the runtime compiler much more interesting:  it can do interprocedural
+   optimizations that the static compiler can't do, because it doesn't
+   have all of the required information (for example, inlining from
+   shared libraries, etc...)
+
+6. Define a set of generally useful annotations to add to the VM
+   representation.  For example, a function can be analysed to see if it
+   has any sideeffects when run... also, the MOD/REF sets could be
+   calculated, etc... we would have to determine what is reasonable.  This
+   would generally be used to make IP optimizations cheaper for the
+   runtime compiler...
+
+>       o  Explicit instructions to handle aliasing, e.g.s:
+>            -- an instruction to say "I speculate that these two values are not
+>               aliased, but check at runtime", like speculative execution in
+>             EPIC?
+>          -- or an instruction to check whether two values are aliased and
+>             execute different code depending on the answer, somewhat like
+>             predicated code in EPIC
+
+These are also very good points... if this can be determined at compile
+time.  I think that an epic style of representation (not the instruction
+packing, just the information presented) could be a very interesting model
+to use... more later...
+
+>         o  (This one is a difficult but powerful idea.)
+>          A "thread-id" field on every instruction that allows the static
+>          compiler to generate a set of parallel threads, and then have
+>          the runtime compiler and hardware do what they please with it.
+>          This has very powerful uses, but thread-id on every instruction
+>          is expensive in terms of instruction size and code size.
+>          We would need to compactly encode it somehow.
+
+Yes yes yes!  :)  I think it would be *VERY* useful to include this kind
+of information (which EPIC architectures *implicitly* encode.  The trend
+that we are seeing supports this greatly:
+
+1. Commodity processors are getting massive SIMD support:
+   * Intel/Amd MMX/MMX2
+   * AMD's 3Dnow!
+   * Intel's SSE/SSE2
+   * Sun's VIS
+2. SMP is becoming much more common, especially in the server space.
+3. Multiple processors on a die are right around the corner.
+
+If nothing else, not designing this in would severely limit our future
+expansion of the project...
+
+>          Also, this will require some reading on at least two other
+>          projects:
+>               -- Multiscalar architecture from Wisconsin
+>               -- Simultaneous multithreading architecture from Washington
+>
+>       o  Or forget all this and stick to a traditional instruction set?
+
+Heh... :)  Well, from a pure research point of view, it is almost more
+attactive to go with the most extreme/different ISA possible.  On one axis
+you get safety and conservatism, and on the other you get degree of
+influence that the results have.  Of course the problem with pure research
+is that often times there is no concrete product of the research... :)
+
+> BTW, on an unrelated note, after the meeting yesterday, I did remember
+> that you had suggested doing instruction scheduling on SSA form instead
+> of a dependence DAG earlier in the semester.  When we talked about
+> it yesterday, I didn't remember where the idea had come from but I
+> remembered later.  Just giving credit where its due...
+
+:) Thanks.  
+
+> Perhaps you can save the above as a file under RCS so you and I can
+> continue to expand on this.
+
+I think it makes sense to do so when we get our ideas more formalized and
+bounce it back and forth a couple of times... then I'll do a more formal
+writeup of our goals and ideas.  Obviously our first implementation will
+not want to do all of the stuff that I pointed out above... be we will
+want to design the project so that we do not artificially limit ourselves
+at sometime in the future...
+
+Anyways, let me know what you think about these ideas... and if they sound
+reasonable...
+
+-Chris
+

@@ -1,0 +1,172 @@
+.\"     $OpenBSD: ifq_enqueue.9,v 1.13 2022/03/31 17:27:23 naddy Exp $
+.\"
+.\"  Copyright (c) 2015 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt IFQ_ENQUEUE 9
+.Os
+.Sh NAME
+.Nm ifq_enqueue ,
+.Nm ifq_dequeue ,
+.Nm ifq_purge ,
+.Nm ifq_len ,
+.Nm ifq_empty ,
+.Nm ifq_hdatalen ,
+.Nm ifq_set_oactive ,
+.Nm ifq_clr_oactive ,
+.Nm ifq_is_oactive ,
+.Nm ifq_restart ,
+.Nm ifq_barrier
+.Nd interface send queue API
+.Sh SYNOPSIS
+.In net/if_var.h
+.Ft int
+.Fn ifq_enqueue "struct ifqueue *ifq" "struct mbuf *m"
+.Ft struct mbuf *
+.Fn ifq_dequeue "struct ifqueue *ifq"
+.Ft unsigned int
+.Fn ifq_purge "struct ifqueue *ifq"
+.Ft unsigned int
+.Fn ifq_len "struct ifqueue *ifq"
+.Ft unsigned int
+.Fn ifq_empty "struct ifqueue *ifq"
+.Ft int
+.Fn ifq_hdatalen "struct ifqueue *ifq"
+.Ft void
+.Fn ifq_set_oactive "struct ifqueue *ifq"
+.Ft void
+.Fn ifq_clr_oactive "struct ifqueue *ifq"
+.Ft unsigned int
+.Fn ifq_is_oactive "struct ifqueue *ifq"
+.Ft void
+.Fn ifq_restart "struct ifqueue *ifq"
+.Ft void
+.Fn ifq_barrier "struct ifqueue *ifq"
+.Sh DESCRIPTION
+The ifqueue API provides implementations of data structures and
+operations for the network stack to queue mbufs for a network driver
+to dequeue from its start routine for transmission.
+.Bl -tag -width Ds
+.It Fn ifq_enqueue "struct ifqueue *ifq" "struct mbuf *m"
+Enqueue mbuf
+.Fa m
+on the
+.Fa ifq
+interface send queue.
+If the queue rejects the packet, it will be freed with
+.Xr m_freem 9
+and counted as a drop.
+.It Fn ifq_dequeue "struct ifqueue *ifq"
+Dequeue the next mbuf to be transmitted from the
+.Fa ifq
+interface send queue.
+.It Fn ifq_purge "struct ifqueue *ifq"
+Free all the mbufs on the interface send queue
+.Fa ifq .
+Freed mbufs will be accounted as drops.
+.It Fn ifq_len "struct ifqueue *ifq"
+Return the number of mbufs on the interface send queue
+.Fa ifq .
+Note that while
+.Fn ifq_len
+may report that mbufs are on the queue, the current queue
+discipline may not make them available for dequeueing with
+.Fn ifq_dequeue
+or
+.Fn ifq_deq_begin .
+.It Fn ifq_empty "struct ifqueue *ifq"
+Return if the interface send queue
+.Fa ifq
+is empty.
+.It Fn ifq_hdatalen "struct ifqueue *ifq"
+Return the number of bytes in the mbuf at the head of the interface
+send queue
+.Fa ifq .
+.It Fn ifq_set_oactive "struct ifqueue *ifq"
+.Fn ifq_set_oactive
+is called by the relevant driver to mark the hardware associated
+with the interface send queue
+.Fa ifq
+as unable to transmit more packets.
+.It Fn ifq_clr_oactive "struct ifqueue *ifq"
+.Fn ifq_clr_oactive
+is called by the relevant driver to clear the "active" mark on the
+hardware associated with the interface send queue
+.Fa ifq ,
+meaning it is now able to transmit packets.
+.It Fn ifq_is_oactive "struct ifqueue *ifq"
+Return if the hardware associated with the interface send queue
+.Fa ifq
+is unable to transmit more packets.
+.It Fn ifq_restart "struct ifqueue *ifq"
+Dispatch a call to
+.Fn ifq_clr_oactive
+and the interface's start routine.
+This call is serialised with other calls to the start routine via
+.Fn if_start
+and therefore provides race free modification of the "active" mark.
+.It Fn ifq_barrier "struct ifqueue *ifq"
+.Fn ifq_barrier
+guarantees that any work currently running in the interface queue
+serialiser (e.g. work dispatched by
+.Fn ifq_restart
+or the interface's start routine) has finished before
+.Fn ifq_barrier
+returns.
+.El
+.Sh CONTEXT
+.Fn ifq_enqueue ,
+.Fn ifq_dequeue ,
+.Fn ifq_purge ,
+.Fn ifq_len ,
+.Fn ifq_empty ,
+.Fn ifq_hdatalen ,
+.Fn ifq_set_oactive ,
+.Fn ifq_clr_oactive ,
+.Fn ifq_is_oactive ,
+and
+.Fn ifq_restart
+can be called during autoconf, from process context, or from interrupt context.
+.Pp
+.Fn ifq_barrier
+can be called from process context.
+.Sh RETURN VALUES
+.Fn ifq_enqueue
+returns 0 if the mbuf was successfully queued, or non-zero if mbuf was freed.
+.Pp
+.Fn ifq_dequeue
+returns the next mbuf to be transmitted by the interface.
+If no packet is available for transmission,
+.Dv NULL
+is returned.
+.Pp
+.Fn ifq_purge
+returns the number of mbufs that were removed from the queue and freed.
+.Pp
+.Fn ifq_len
+returns the number of mbufs on the queue.
+.Pp
+.Fn ifq_empty
+returns a non-zero value if the queue is empty, otherwise 0.
+.Pp
+.Fn ifq_hdatalen
+returns the size of a packet on the queue, or 0 if the queue is empty;
+.Pp
+.Fn ifq_is_oactive
+returns a non-zero value if the hardware associated with the interface
+send queue is unable to transmit more packets, otherwise 0.
+.Sh SEE ALSO
+.Xr ifq_deq_begin 9 ,
+.Xr m_freem 9

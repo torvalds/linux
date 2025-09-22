@@ -1,0 +1,512 @@
+.\" $OpenBSD: bgpctl.8,v 1.112 2024/08/14 19:10:51 claudio Exp $
+.\"
+.\" Copyright (c) 2003 Henning Brauer <henning@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 14 2024 $
+.Dt BGPCTL 8
+.Os
+.Sh NAME
+.Nm bgpctl
+.Nd control the BGP routing daemon
+.Sh SYNOPSIS
+.Nm bgpctl
+.Op Fl jnV
+.Op Fl s Ar socket
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr bgpd 8
+daemon.
+Commands may be abbreviated to the minimum unambiguous prefix; for example,
+.Cm s su
+for
+.Cm show summary .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl j
+Create output as JSON object.
+.It Fl n
+Show neighbors' IP addresses instead of their description.
+.It Fl s Ar socket
+Use
+.Ar socket
+to communicate with
+.Xr bgpd 8
+instead of the default
+.Pa /var/run/bgpd.sock.<rdomain>
+where
+.Ar <rdomain>
+is the routing domain
+.Nm
+is running in.
+To administer
+.Xr bgpd 8
+in a different routing domain, run
+.Nm
+in said routing domain.
+.It Fl V
+Show the version and exit.
+.El
+.Pp
+The commands are as follows:
+.Bl -tag -width xxxxxx
+.It Xo
+.Cm fib
+.Op Cm table Ar number
+.Cm couple
+.Xc
+Insert the learned routes into the specified Forwarding Information Base
+a.k.a. the kernel routing table.
+.It Xo
+.Cm fib
+.Op Cm table Ar number
+.Cm decouple
+.Xc
+Remove the learned routes from the specified Forwarding Information Base
+a.k.a. the kernel routing table.
+.It Cm flowspec add Ar family rule Op Cm set Ar argument ...
+Add the specified flowspec rule to the list of announced rules.
+Currently
+.Ar family
+can be either
+.Cm inet
+or
+.Cm inet6 .
+It is possible to set various path attributes with additional arguments.
+Adding a rule will replace an existing equal rule, including rules loaded
+from the configuration.
+See
+.Xr bgpd.conf 5
+for information on how to write a flowspec rule.
+.It Cm flowspec delete Ar family rule
+Remove the specified flowspec rule from the list of announced rules.
+.It Cm flowspec flush
+Remove all dynamically added (i.e. with
+.Nm Cm flowspec add )
+flowspec rules from the list of announced rules.
+.It Cm flowspec show Ar family
+Show all announced flowspec rules.
+.Ar family ,
+if given, limits the output to the given address family.
+The supported families are
+.Em inet
+and
+.Em inet6 .
+.It Cm log brief
+Disable verbose debug logging.
+.It Cm log verbose
+Enable verbose debug logging.
+.It Cm neighbor Ar peer Cm clear Op Ar reason
+Stop and restart the BGP session to the specified neighbor.
+If a
+.Ar reason
+is provided, the
+.Ar reason
+is sent as Administrative Shutdown Communication to the neighbor.
+.Ar peer
+may be the neighbor's address, description or the word
+.Cm group
+followed by a group description.
+.It Cm neighbor Ar peer Cm destroy
+Destroy a previously cloned peer.
+The peer must be down before calling this function.
+.Ar peer
+may be the neighbor's address, description or the word
+.Cm group
+followed by a group description.
+.It Cm neighbor Ar peer Cm down Op Ar reason
+Take the BGP session to the specified neighbor down.
+If a
+.Ar reason
+is provided, the
+.Ar reason
+is sent as Administrative Shutdown Communication to the neighbor.
+.Ar peer
+may be the neighbor's address, description or the word
+.Cm group
+followed by a group description.
+.It Cm neighbor Ar peer Cm refresh
+Request the neighbor to re-send all routes.
+Note that the neighbor is not obliged to re-send all routes, or any routes at
+all, even if it announced the route refresh capability.
+.Ar peer
+may be the neighbor's address, description or the word
+.Cm group
+followed by a group description.
+.It Cm neighbor Ar peer Cm up
+Bring the BGP session to the specified neighbor up.
+.Ar peer
+may be the neighbor's address, description or the word
+.Cm group
+followed by a group description.
+.It Cm network add Ar prefix Op Ar argument ...
+Add the specified prefix to the list of announced networks.
+It is possible to set various path attributes with additional arguments.
+Adding a prefix will replace an existing equal prefix, including
+prefixes loaded from the configuration.
+.It Xo
+.Cm network bulk add
+.Op Ar argument ...
+.Xc
+Bulk add specified prefixes to the list of announced networks.
+Prefixes should be sent via stdin.
+It is possible to set various path attributes with additional arguments.
+.It Cm network bulk delete
+Bulk remove the specified prefixes from the list of announced networks.
+Prefixes should be sent via stdin.
+.It Cm network delete Ar prefix
+Remove the specified prefix from the list of announced networks.
+.It Cm network flush
+Remove all dynamically added (i.e. with
+.Nm Cm network add )
+prefixes from the list of announced networks.
+.It Cm network mrt file Ar file filter
+Import networks from an MRT table dump for debugging purposes.
+.Ar filter
+can be specified similarly to the
+.Ar show mrt
+command.
+Only networks matching the filter will be imported.
+.It Cm network show Ar family
+Show all announced networks.
+.Ar family ,
+if given, limits the output to the given address family.
+The supported families are
+.Em inet
+and
+.Em inet6 .
+.It Cm reload Op reason
+Reload the configuration file.
+Changes to the following neighbor options in
+.Xr bgpd.conf 5
+only take effect when the session is reset:
+.Ic ipsec
+and
+.Ic tcp md5sig .
+.It Cm show fib Ar filter
+Show routes from
+.Xr bgpd 8 Ns 's
+view of the Forwarding Information Base.
+.Ar filter
+can be an IP address, in which case the route to this address is shown,
+or a flag:
+.Pp
+.Bl -tag -width tableXnumber -compact
+.It Cm bgp
+Show only routes originating from
+.Xr bgpd 8
+itself.
+.It Cm connected
+Show only connected routes.
+.It Cm inet
+Show only IPv4 routes.
+.It Cm inet6
+Show only IPv6 routes.
+.It Cm nexthop
+Show only routes required to reach a BGP nexthop.
+.It Cm static
+Show only static routes.
+.It Cm table Ar number
+Show the routing table with ID
+.Ar number
+instead of the default routing table with ID 0.
+.El
+.It Cm show interfaces
+Show the interface states.
+.It Cm show metrics
+Dump various BGP statistics in OpenMetrics format.
+.It Xo
+.Cm show mrt
+.Op Ar options
+.Ar filter
+.Xc
+Show routes from an MRT table dump file.
+.Ar filter
+can be an IP address, a CIDR prefix, an AS filter, a combination or nothing:
+.Pp
+.Bl -tag -width "address/len or-shorter" -compact
+.It Ar address
+Show best matching route for address.
+.It Ar address Ns Li / Ns Ar len
+Show RIB entry for this CIDR prefix.
+.It Xo
+.Ar address Ns Li / Ns Ar len
+.Cm all
+.Xc
+Show all entries in the specified range.
+.\".It Ar address/len Cm longer-prefixes
+.It Xo
+.Ar address Ns Li / Ns Ar len
+.Cm or-shorter
+.Xc
+Show all entries covering and including the specified prefix.
+.It Cm as Ar as
+Show all entries with
+.Ar as
+anywhere in the AS path.
+.It Cm empty-as
+Show all entries that are internal routes with no AS's in the AS path.
+.It Cm neighbor Ar ip
+Show only entries from the specified peer.
+.It Cm peer-as Ar as
+Show all entries with
+.Ar as
+as leftmost AS.
+.It Cm source-as Ar as
+Show all entries with
+.Ar as
+as rightmost AS.
+.It Cm transit-as Ar as
+Show all entries with
+.Ar as
+anywhere but rightmost.
+.El
+.Pp
+Additionally, the following
+.Ar options
+are defined:
+.Pp
+.Bl -tag -width "file name" -compact
+.It Cm detail
+Show more detailed output for matching routes.
+.It Ar family
+Limit the output to the given address family.
+.It Cm file Ar name
+Read the MRT dump from file
+.Ar name
+instead of using stdin.
+.It Cm peers
+Print the neighbor table of MRT TABLE_DUMP_V2 dumps.
+Using this on other table dumps will only show the neighbor of the first entry.
+.El
+.Pp
+Multiple options and filters can be used at the same time.
+.It Cm show neighbor Ar peer modifier
+Show detailed information about the neighbor identified by
+.Ar peer ,
+according to the given
+.Ar modifier :
+.Pp
+.Bl -tag -width messages -compact
+.It Cm messages
+Show statistics about sent and received BGP messages.
+.It Cm terse
+Show statistics in an easily parseable terse format.
+The printed numbers are the sent and received open, sent and received
+notifications, sent and received updates, sent and received keepalives, and
+sent and received route refresh messages plus the current and maximum
+prefix count, the number of sent and received updates, sent and
+received withdraws, the neighbor's address (or subnet, for a template),
+AS number, and finally description.
+.It Cm timers
+Show the BGP timers.
+.El
+.Ar peer
+may be the neighbor's address, description or the word
+.Cm group
+followed by a group description.
+.It Cm show nexthop
+Show the list of BGP nexthops and the result of their validity check.
+.It Xo
+.Cm show rib
+.Op Ar options
+.Ar filter
+.Xc
+Show routes from the
+.Xr bgpd 8
+Routing Information Base.
+.Ar filter
+can be an IP address, a CIDR prefix, an AS filter or nothing:
+.Pp
+.Bl -tag -width "address/len or-shorter" -compact
+.It Ar address
+Show best matching route for address.
+.It Ar address Ns Li / Ns Ar len
+Show RIB entry for this CIDR prefix.
+.It Xo
+.Ar address Ns Li / Ns Ar len
+.Cm all
+.Xc
+Show all entries in the specified range.
+.\".It Ar address/len Cm longer-prefixes
+.\".It Ar address/len Cm or-longer
+.It Xo
+.Ar address Ns Li / Ns Ar len
+.Cm or-shorter
+.Xc
+Show all entries covering and including the specified prefix.
+.It Cm as Ar as
+Show all entries with
+.Ar as
+anywhere in the AS path.
+.It Cm avs Pq Ic valid | unknown | invalid
+Show all entries with matching ASAP Validation State (AVS).
+.It Cm community Ar community
+Show all entries with community
+.Ar community .
+.It Cm empty-as
+Show all entries that are internal routes with no AS's in the AS path.
+.It Cm large-community Ar large-community
+Show all entries with large-community
+.Ar large-community .
+.It Cm memory
+Show RIB memory statistics.
+.It Cm neighbor Ar peer
+Show only entries from the specified peer.
+.It Cm neighbor group Ar description
+Show only entries from the specified peer group.
+.It Cm ovs Pq Ic valid | not-found | invalid
+Show all entries with matching Origin Validation State (OVS).
+.It Cm path-id Ar pathid
+Show only entries which match the specified
+.Ar pathid .
+Must be used together with either
+.Cm neighbor
+or
+.Cm out .
+.It Cm peer-as Ar as
+Show all entries with
+.Ar as
+as leftmost AS.
+.It Cm source-as Ar as
+Show all entries with
+.Ar as
+as rightmost AS.
+.It Cm summary
+This is the same as the
+.Ic show summary
+command.
+.It Cm table Ar rib
+Show only entries from the specified RIB table.
+.It Cm transit-as Ar as
+Show all entries with
+.Ar as
+anywhere but rightmost.
+.El
+.Pp
+Additionally, the following
+.Ar options
+are defined:
+.Pp
+.Bl -tag -width "disqualified" -compact
+.It Cm best
+Alias for
+.Ic selected .
+.It Cm detail
+Show more detailed output for matching routes.
+.It Cm disqualified
+Show only routes which are not eligible.
+.It Cm error
+Show only prefixes which are marked invalid and were treated as withdrawn.
+.It Ar family
+Limit the output to the given address family.
+.It Cm filtered
+Show only routes which were filtered out.
+Requires
+.Ic rde rib Loc-RIB include filtered
+to be set in the config.
+.It Cm in
+Show routes from the unfiltered Adj-RIB-In.
+The
+.Cm neighbor
+needs to be specified.
+.It Cm leaked
+Show only routes where a route leak was detected.
+.It Cm out
+Show the filtered routes sent to a neighbor.
+The
+.Cm neighbor
+needs to be specified.
+.It Cm selected
+Show only selected routes.
+.It Cm ssv
+Show each RIB entry as a single line, with fields separated by semicolons.
+Only works if
+.Cm detail
+is specified.
+.El
+.Pp
+Options are silently ignored when used together with
+.Ar summary
+or
+.Ar memory .
+Multiple options can be used at the same time and the
+.Ar neighbor
+filter can be combined with other filters.
+.It Cm show rtr
+Show a list of all
+.Em RTR
+sessions, including information about the session state.
+.It Cm show sets
+Show a list summarizing all
+.Em roa-set ,
+.Em as-set ,
+.Em prefix-set ,
+and
+.Em origin-set
+tables.
+.It Cm show summary
+Show a list of all neighbors, including information about the session state
+and message counters:
+.Pp
+.Bl -tag -width xxxxxxxxxxxxxx -compact
+.It Neighbor
+Description of the neighbor.
+.It AS
+Autonomous system number.
+.It MsgRcvd
+Number of messages received from the neighbor.
+.It MsgSent
+Number of messages sent to the neighbor.
+.It OutQ
+Number of outgoing messages queued.
+.It Up/Down
+Number of days and hours that the session has been up.
+.It State/PrfRcvd
+State of the session / Number of routes received.
+The session is up if there is no information for the State column
+(Established is not displayed).
+.El
+.It Cm show summary terse
+Show a list of all neighbors, including information about the session state,
+in a terse format.
+.It Cm show tables
+Show a list of all currently loaded fib routing tables.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/bgpd.sockXXX" -compact
+.It Pa /etc/bgpd.conf
+default
+.Xr bgpd 8
+configuration file
+.It Pa /var/run/bgpd.sock
+default
+.Xr bgpd 8
+control socket
+.El
+.Sh SEE ALSO
+.Xr bgpd.conf 5 ,
+.Xr bgpd 8 ,
+.Xr bgplg 8 ,
+.Xr bgplgsh 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 3.5 .

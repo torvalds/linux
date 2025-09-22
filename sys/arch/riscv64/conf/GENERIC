@@ -1,0 +1,302 @@
+#	$OpenBSD: GENERIC,v 1.53 2025/06/28 04:21:15 kevlo Exp $
+#
+# For further information on compiling OpenBSD kernels, see the config(8)
+# man page.
+#
+# For further information on hardware support for this architecture, see
+# the intro(4) man page.  For further information about kernel options
+# for this architecture, see the options(4) man page.  For an explanation
+# of each device driver in this file see the section 4 man page for the
+# device.
+
+machine		riscv64
+include		"../../../conf/GENERIC"
+maxusers	80
+
+option		PCIVERBOSE
+option		USER_PCICONF
+
+makeoptions	KERNEL_BASE_PHYS="0x00200000"
+makeoptions	KERNEL_BASE_VIRT="0xffffffc000200000"
+#option		DEBUG
+#option		DEBUG_AUTOCONF
+#option		DEBUG_INTC
+
+option		WSDISPLAY_COMPAT_USL
+option		WSDISPLAY_COMPAT_RAWKBD
+option		WSDISPLAY_DEFAULTSCREENS=6
+
+
+config	bsd	swap generic
+
+#
+# Definition of system
+#
+
+# mainbus
+mainbus0	at root
+
+# cpu0
+cpu0		at mainbus0
+intc0		at cpu0
+
+# NS16550 compatible serial ports
+com*		at fdt?
+
+# Allwinner SoCs
+sxiccmu*	at fdt? early 1
+sxidog*		at fdt?
+sximmc*		at fdt?
+sdmmc*		at sximmc?
+sxipio*		at fdt? early 1
+gpio*		at sxipio?
+sxirtc*		at fdt?
+sxitimer*	at fdt?
+
+# PolarFire SoCs
+cdsdhc*		at fdt?
+sdmmc*		at cdsdhc?
+mpfclock*	at fdt? early 1
+mpfgpio*	at fdt?
+gpio*		at mpfgpio?
+mpfiic*		at fdt?
+iic*		at mpfiic?
+
+# SiFive SoCs
+sfclock*	at fdt? early 1 # PRCI
+sfcc*		at fdt? early 1	# L2 Cache Controller
+sfgpio*		at fdt?
+sfuart*		at fdt?
+
+# StarFive SoCs
+stfclock*	at fdt? early 1
+stfpcie*	at fdt?
+pci*		at stfpcie?
+stfpciephy*	at fdt? early 1
+stfpinctrl*	at fdt? early 1
+stfrng*		at fdt?
+stftemp*	at fdt?
+
+virtio*		at fdt?
+virtio*		at pci?
+vio*		at virtio?	# Network
+vioblk*		at virtio?
+vioscsi*	at virtio?	# Disk (SCSI)
+#viomb*		at virtio?	# Memory Ballooning
+viornd*		at virtio?	# Random Source
+
+# simplebus0
+simplebus*	at fdt?
+# Platform Level Interrupt Controller
+plic*		at fdt? early 1
+
+syscon*		at fdt? early 1
+gfrtc*		at fdt?
+gpiorestart*	at fdt?
+
+ohci*		at fdt?
+ehci*		at fdt?
+
+cad*		at fdt?
+dwge*		at fdt?
+dwqe*		at fdt?
+dwxe*		at fdt?
+dwiic*		at fdt?
+iic*		at dwiic?
+dwmmc*		at fdt?
+sdmmc*		at dwmmc?
+
+dwpcie*		at fdt?
+pci*		at dwpcie?
+pciecam*	at fdt?
+pci*		at pciecam?
+
+ociic*		at fdt?
+iic*		at ociic?
+dapmic*		at iic?
+titmp*		at iic?
+
+xhci*		at fdt?
+
+# PCI
+ppb*		at pci?		# PCI-PCI bridges
+pci*		at ppb?
+
+# DRM devices
+radeondrm*	at pci?
+drm*		at radeondrm?
+wsdisplay*	at radeondrm?
+
+# PCI Ethernet
+em*		at pci?		# Intel Pro/1000 Ethernet
+bge*		at pci?		# Broadcom BCM57xx (aka Tigon3)
+oce*		at pci?		# Emulex OneConnect 10Gb ethernet
+aq*		at pci?		# Aquantia aQtion Ethernet
+ix*		at pci?		# Intel 82598EB 10Gb ethernet
+ixl*		at pci?		# Intel Ethernet 700 Series
+igc*		at pci?		# Intel I225 Ethernet
+rge*		at pci?		# Realtek 8125
+
+# Wireless network cards
+iwm*		at pci?		# Intel WiFi Link 7xxx
+iwx*		at pci?		# Intel WiFi Link 22xxx
+
+nvme*		at pci?		# NVMe controllers
+ahci*		at pci?		# AHCI SATA controllers
+
+scsibus*	at scsi?
+sd*		at scsibus?
+cd*		at scsibus?
+ch*		at scsibus?
+uk*		at scsibus?
+
+# USB Controllers
+xhci*		at pci?
+
+# USB bus support
+usb*		at ohci?
+usb*		at ehci?
+usb*		at xhci?
+
+# USB devices
+uhub*		at usb?			# USB Hubs
+uhub*		at uhub?		# USB Hubs
+urng*		at uhub?		# USB Random Number Generator
+uonerng*	at uhub?		# Moonbase Otago OneRNG
+umodem*		at uhub?		# USB Modems/Serial
+ucom*		at umodem?
+uvisor*		at uhub?		# Handspring Visor
+ucom*		at uvisor?
+uvscom*		at uhub?		# SUNTAC Slipper U VS-10U serial
+ucom*		at uvscom?
+ubsa*		at uhub?		# Belkin serial adapter
+ucom*		at ubsa?
+uftdi*		at uhub?		# FTDI FT8U100AX serial adapter
+ucom*		at uftdi?
+uplcom*		at uhub?		# I/O DATA USB-RSAQ2 serial adapter
+ucom*		at uplcom?
+umct*		at uhub?		# MCT USB-RS232 serial adapter
+ucom*		at umct?
+uslcom*		at uhub?		# Silicon Laboratories CP210x serial
+ucom*		at uslcom?
+uscom*		at uhub?		# Simple USB serial adapters
+ucom*		at uscom?
+ucrcom*		at uhub?		# Chromebook serial
+ucom*		at ucrcom?
+uark*		at uhub?		# Arkmicro ARK3116 serial
+ucom*		at uark?
+moscom*		at uhub?		# MosChip MCS7703 serial
+ucom*		at moscom?
+umcs*		at uhub?		# MosChip MCS78x0 serial
+ucom*		at umcs?
+uipaq*		at uhub?		# iPAQ serial adapter
+ucom*		at uipaq?
+umsm*		at uhub?		# Qualcomm MSM EVDO
+ucom*		at umsm?
+uchcom*		at uhub?		# WinChipHead CH341/340 serial
+ucom*		at uchcom?
+uticom*		at uhub?		# TI serial
+ucom*		at uticom?
+uxrcom*		at uhub?		# Exar XR21V1410 serial
+ucom*		at uxrcom?
+uaudio*		at uhub?		# USB Audio
+audio*		at uaudio?
+umidi*		at uhub?		# USB MIDI
+midi*		at umidi?
+ulpt*		at uhub?		# USB Printers
+umass*		at uhub?		# USB Mass Storage devices
+uhidev*		at uhub?		# Human Interface Devices
+ums*		at uhidev?		# USB mouse
+wsmouse*	at ums? mux 0
+umt*		at uhidev?		# USB multitouch touchpad
+wsmouse*	at umt? mux 0
+uts*		at uhub?		# USB touchscreen
+wsmouse*	at uts? mux 0
+uwacom*		at uhidev?		# USB Wacom tablet
+wsmouse*	at uwacom? mux 0
+ukbd*		at uhidev?		# USB keyboard
+wskbd*		at ukbd? mux 1
+ucycom*		at uhidev?		# Cypress serial
+ucom*		at ucycom?
+uslhcom*	at uhidev?		# Silicon Labs CP2110 USB HID UART
+ucom*		at uslhcom?
+uhid*		at uhidev?		# USB generic HID support
+fido*		at uhidev?		# FIDO/U2F security key support
+ucc*		at uhidev?		# Consumer Control keyboards
+wskbd*		at ucc? mux 1
+ujoy*		at uhidev?		# USB joystick/gamecontroller support
+uhidpp*		at uhidev?		# Logitech HID++ Devices
+upd*		at uhidev?		# USB Power Devices sensors
+aue*		at uhub?		# ADMtek AN986 Pegasus Ethernet
+atu*		at uhub?		# Atmel AT76c50x based 802.11b
+axe*		at uhub?		# ASIX Electronics AX88172 USB Ethernet
+axen*		at uhub?		# ASIX Electronics AX88179 USB Ethernet
+cue*		at uhub?		# CATC USB-EL1201A based Ethernet
+kue*		at uhub?		# Kawasaki KL5KUSB101B based Ethernet
+smsc*		at uhub?		# SMSC LAN95xx Ethernet
+cdce*		at uhub?		# CDC Ethernet
+urndis*		at uhub?		# Remote NDIS Ethernet
+upl*		at uhub?		# Prolific PL2301/PL2302 host-to-host `network'
+ugl*		at uhub?		# Genesys Logic GL620USB-A host-to-host `network'
+udav*		at uhub?		# Davicom DM9601 based Ethernet
+mos*		at uhub?		# MOSCHIP MCS7730/7830 10/100 Ethernet
+mue*		at uhub?		# Microchip LAN75xx/LAN78xx Ethernet
+url*		at uhub?		# Realtek RTL8150L based adapters
+ure*		at uhub?		# Realtek RTL8152 based adapters
+wi*		at uhub?		# WaveLAN IEEE 802.11DS
+udsbr*		at uhub?		# D-Link DSB-R100 radio
+radio*		at udsbr?		# USB radio
+uberry*		at uhub?		# Research In Motion BlackBerry
+ugen*		at uhub?		# USB Generic driver
+uath*		at uhub?		# Atheros AR5005UG/AR5005UX
+ural*		at uhub?		# Ralink RT2500USB
+rum*		at uhub?		# Ralink RT2501USB/RT2601USB
+run*		at uhub?		# Ralink RT2700U/RT2800U/RT3000U
+mtw*		at uhub?		# MediaTek MT7601U
+otus*		at uhub?		# Atheros AR9001U
+athn*		at uhub?		# Atheros AR9002U
+zyd*		at uhub?		# Zydas ZD1211
+upgt*		at uhub?		# Conexant/Intersil PrismGT SoftMAC USB
+urtw*		at uhub?		# Realtek 8187
+rsu*		at uhub?		# Realtek RTL8188SU/RTL8191SU/RTL8192SU
+urtwn*		at uhub?		# Realtek RTL8188CU/RTL8192CU
+udcf*		at uhub?		# Gude Expert mouseCLOCK
+umb*		at uhub?		# Mobile Broadband Interface Model
+uthum*		at uhidev?		# TEMPerHUM sensor
+ugold*		at uhidev?		# gold TEMPer sensor
+utrh*		at uhidev?		# USBRH sensor
+utwitch*	at uhidev?		# YUREX BBU sensor
+uoakrh*		at uhidev?		# Toradex OAK temp and rel humidity
+uoaklux*	at uhidev?		# Toradex OAK LUX
+uoakv*		at uhidev?		# Toradex OAK 10V sensor
+uvideo*		at uhub?		# USB Video
+video*		at uvideo?
+utvfu*		at uhub?		# Fushicai Audio-Video Grabber
+video*		at utvfu?
+audio*		at utvfu?
+udl*		at uhub?		# DisplayLink USB displays
+wsdisplay*	at udl?
+bwfm*		at uhub?		# Broadcom FullMAC
+
+acphy*		at mii?			# Altima AC101 PHYs
+amphy*		at mii?			# AMD 79C873 PHYs
+atphy*		at mii?			# Attansic F1 PHYs
+bmtphy*		at mii?			# Broadcom 10/100 PHYs
+brgphy*		at mii?			# Broadcom Gigabit PHYs
+eephy*		at mii?			# Marvell 88E1000 series PHY
+rgephy*		at mii?			# Realtek 8169S/8110S PHY
+rlphy*		at mii?			# Realtek 8139 internal PHYs
+sqphy*		at mii?			# Seeq 8x220 PHYs
+ukphy*		at mii?			# "unknown" PHYs
+urlphy*		at mii?			# Realtek RTL8150L internal PHY
+ytphy*		at mii?			# MotorComm YT8511 PHY
+
+# I2C devices
+axppmic*	at iic?			# AXP15060 PMIC
+
+# Pseudo-Devices
+pseudo-device	openprom
+pseudo-device	hotplug		1	# devices hot plugging
+
+# mouse & keyboard multiplexor pseudo-devices
+pseudo-device	wsmux		2

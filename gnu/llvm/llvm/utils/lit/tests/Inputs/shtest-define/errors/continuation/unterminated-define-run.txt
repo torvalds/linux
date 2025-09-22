@@ -1,0 +1,9 @@
+# You cannot continue a DEFINE with a RUN.
+
+# DEFINE: %{foo}=echo \
+# RUN: %{foo}
+# DEFINE: %{too-late-to-continue}=
+
+# CHECK: Test has unterminated '{{DEFINE}}:' directive (with '\') at line [[#@LINE-4]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

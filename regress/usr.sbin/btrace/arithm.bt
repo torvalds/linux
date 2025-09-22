@@ -1,0 +1,16 @@
+BEGIN
+{
+	@a = 10;
+	@b = 5;
+
+	printf("a + b + 0xf = %d\n", @a + @b + 0xf);
+}
+
+END
+{
+	printf("a - b = %d\n", @a - @b);
+
+	$c = @a + 2 * @b;
+        $d = @a + 0xf5;
+	printf("c = %d, d = 0x%x, total = %d\n", $c, $d, ($c - @b) / 5);
+}

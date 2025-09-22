@@ -1,0 +1,202 @@
+.\"	$OpenBSD: timeradd.3,v 1.3 2019/05/10 19:14:12 cheloha Exp $
+.\"	$NetBSD: getitimer.2,v 1.6 1995/10/12 15:40:54 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getitimer.2	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: May 10 2019 $
+.Dt TIMERADD 3
+.Os
+.Sh NAME
+.Nm timerclear ,
+.Nm timerisset ,
+.Nm timerisvalid ,
+.Nm timercmp ,
+.Nm timersub ,
+.Nm timeradd ,
+.Nm timespecclear ,
+.Nm timespecisset ,
+.Nm timespecisvalid ,
+.Nm timespeccmp ,
+.Nm timespecsub ,
+.Nm timespecadd ,
+.Nm TIMEVAL_TO_TIMESPEC ,
+.Nm TIMESPEC_TO_TIMEVAL
+.Nd manipulate time structures
+.Sh SYNOPSIS
+.In sys/time.h
+.Ft void
+.Fn timerclear "struct timeval *a"
+.Ft int
+.Fn timerisset "struct timeval *a"
+.Ft int
+.Fn timerisvalid "struct timeval *a"
+.Ft int
+.Fn timercmp "struct timeval *a" "struct timeval *b" operator
+.Ft void
+.Fn timersub "struct timeval *a" "struct timeval *b" "struct timeval *c"
+.Ft void
+.Fn timeradd "struct timeval *a" "struct timeval *b" "struct timeval *c"
+.Ft void
+.Fn timespecclear "struct timespec *a"
+.Ft int
+.Fn timespecisset "struct timespec *a"
+.Ft int
+.Fn timespecisvalid "struct timespec *a"
+.Ft int
+.Fn timespeccmp "struct timespec *a" "struct timespec *b" operator
+.Ft void
+.Fn timespecsub "struct timespec *a" "struct timespec *b" "struct timespec *c"
+.Ft void
+.Fn timespecadd "struct timespec *a" "struct timespec *b" "struct timespec *c"
+.Ft void
+.Fn TIMEVAL_TO_TIMESPEC "struct timeval *tv" "struct timespec *ts"
+.Ft void
+.Fn TIMESPEC_TO_TIMEVAL "struct timeval *tv" "struct timespec *ts"
+.Sh DESCRIPTION
+The
+.Fn timer*
+and
+.Fn timespec*
+macros defined in
+.In sys/time.h
+simplify the use of
+.Vt timeval
+and
+.Vt timespec
+structures,
+respectively.
+.Pp
+The following macros are available:
+.Bl -tag -width Ds
+.It Fn timerclear a , Fn timespecclear a
+Set the time value in
+.Fa a
+to zero.
+.It Fn timerisset a , Fn timespecisset a
+Test if the time value in
+.Fa a
+is non-zero.
+.It Fn timerisvalid a
+Test if the microsecond value in
+.Fa a
+is greater than or equal to zero and less than one million.
+.It Fn timespecisvalid a
+Test if the nanosecond value in
+.Fa a
+is greater than or equal to zero and less than one billion.
+.It Fn timercmp a b operator , Fn timespeccmp a b operator
+Test if the expression
+.Fa a operator b
+is true,
+where
+.Fa operator
+is one of
+.Cm < ,
+.Cm <= ,
+.Cm == ,
+.Cm != ,
+.Cm >= ,
+or
+.Cm > .
+.It Fn timersub a b c , Fn timespecsub a b c
+Subtract
+.Fa b
+from
+.Fa a
+and store the result in
+.Fa c .
+.It Fn timeradd a b c , Fn timespecadd a b c
+Add
+.Fa b
+to
+.Fa a
+and store the result in
+.Fa c .
+.It Fn TIMEVAL_TO_TIMESPEC tv ts
+Convert
+.Fa tv
+to a
+.Vt struct timespec
+and store the result in
+.Fa ts .
+.It Fn TIMESPEC_TO_TIMEVAL tv ts
+Convert
+.Fa ts
+to a
+.Vt struct timeval
+and store the result in
+.Fa tv .
+.El
+.Sh RETURN VALUES
+The macros returning
+.Vt int
+return 1 if the tested condition holds or 0 otherwise.
+.Sh SEE ALSO
+.Xr adjtime 2 ,
+.Xr clock_gettime 2 ,
+.Xr futex 2 ,
+.Xr futimens 2 ,
+.Xr futimes 2 ,
+.Xr getitimer 2 ,
+.Xr gettimeofday 2 ,
+.Xr kevent 2 ,
+.Xr nanosleep 2 ,
+.Xr ppoll 2 ,
+.Xr pselect 2
+.Sh STANDARDS
+These macros are non-standard,
+though many systems offer them.
+Similar interfaces are often available in their absence.
+.Sh HISTORY
+The macros
+.Fn timerclear ,
+.Fn timerisset ,
+and
+.Fn timercmp
+first appeared in
+.Bx 4.1c ,
+.Fn TIMEVAL_TO_TIMESPEC
+and
+.Fn TIMESPEC_TO_TIMEVAL
+in
+.Bx 4.4 ,
+.Fn timersub
+and
+.Fn timeradd
+in
+.Nx 1.1 ,
+and
+.Fn timerisvalid
+in
+.Ox 6.5 .
+.Sh CAVEATS
+The argument ordering for
+.Fn TIMESPEC_TO_TIMEVAL
+is unintuitive.

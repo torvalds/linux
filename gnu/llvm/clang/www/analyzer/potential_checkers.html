@@ -1,0 +1,2016 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <title>List of potential checkers</title>
+  <link type="text/css" rel="stylesheet" href="content.css">
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <script type="text/javascript" src="scripts/expandcollapse.js"></script>
+  <script type="text/javascript" src="scripts/menu.js"></script>
+</head>
+<body onload="initExpandCollapse()">
+
+<div id="page">
+
+<!-- menu -->
+<!--#include virtual="menu.html.incl"-->
+<!-- page content -->
+<div id="content">
+<h1>List of potential checkers</h1>
+
+<p>This page contains a list of potential checkers to implement in the static analyzer.  If you are interested in contributing to the analyzer's development, this is a good resource to help you get started.  The specific names of the checkers are subject to review, and are provided here as suggestions.</p>
+
+<!-- ========================= allocation/deallocation ======================= -->
+<h3>memory</h3>
+<table class="checkers">
+<col class="namedescr"><col class="example"><col class="progress">
+<thead><tr><td>Name, Description</td><td>Example</td><td>Progress</td></tr></thead>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+memory.LeakEvalOrder</span><span class="lang">
+(C, C++)</span><div class="descr">
+Potential memory leaks caused by an undefined argument evaluation order.
+<p>Source: <a href="https://www.boost.org/doc/libs/1_49_0/libs/smart_ptr/shared_ptr.htm#BestPractices">
+boost docs: shared_ptr</a>.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void f(int, int);
+int g(void *);
+int h() __attribute__((noreturn));
+
+void test() {
+  // It is possible that 'malloc(1)' is called first,
+  // then 'h()', that is (or calls) noreturn and eventually
+  // 'g()' is never called.
+  f(g(malloc(1)), h()); // warn: 'g()' may never be called.
+}
+</pre></div>
+<div class="example"><pre>
+void f(int, int);
+int g(int *);
+int h() { throw 1; };
+
+void test() {
+  // It is possible that 'new int' is called first,
+  // then 'h()', that throws an exception and eventually
+  // 'g()' is never called.
+  f(g(new int), h()); // warn: 'g()' may never be called.
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+memory.DstBufferTooSmall</span><span class="lang">
+(C, C++)</span><div class="descr">
+Destination buffer passed to memory function is too small.
+<br>Note: <span class="name">security.insecureAPI.strcpy</span> currently warns
+on usage of <code>strcpy</code> and suggests to replace it.
+<br>Note: <span class="name">alpha.unix.CStringChecker</span> contains some similar checks.
+<p>Source: <a href="https://cwe.mitre.org/data/definitions/120.html">CWE-120</a>.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test() {
+  const char* s1 = "abc";
+  char *s2 = new char;
+  strcpy(s2, s1); // warn
+}
+</pre></div>
+<div class="example"><pre>
+void test() {
+  int* p1 = new int[3];
+  int* p2 = new int;
+  memcpy(p2, p1, 3); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+memory.NegativeArraySize</span><span class="lang">
+(C, C++)</span><div class="descr">
+'n' is used to specify the buffer size may be negative.
+<br>Note: possibly an enhancement to <span class="name">
+alpha.security.MallocOverflow</span>.
+<p>Source: <a href="https://cwe.mitre.org/data/definitions/20.html">CWE-20,
+Example 2</a>.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test() {
+  int *p;
+  int n1 = -1;
+  p = new int[n1]; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+memory.ZeroAlloc</span><span class="lang">
+(C, C++)</span><div class="descr">
+Allocation of zero bytes.
+<br>Note: an enhancement to <span class="name">unix.Malloc</span>.
+<br>Note: <span class="name">unix.API</span> perform C-checks for zero
+allocation. This should be moved to <span class="name">unix.Malloc</span>.
+<p>Source: C++03 3.7.3.1p2; C++11 3.7.4.1p2.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;stdlib.h&gt;
+
+void test() {
+  int *p = malloc(0); // warn
+  free(p);
+}
+</pre></div>
+<div class="example"><pre>
+void test() {
+  int *p = new int[0]; // warn
+  delete[] p;
+}
+</pre></div></div></td>
+<td class="aligned"><a href="https://reviews.llvm.org/D6178">
+D6178</a></td></tr>
+
+</table>
+
+<!-- ======================= constructors/destructors ====================== -->
+<h3>constructors/destructors</h3>
+<table class="checkers">
+<col class="namedescr"><col class="example"><col class="progress">
+<thead><tr><td>Name, Description</td><td>Example</td><td>Progress</td></tr></thead>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+ctordtor.ExptInsideDtor</span><span class="lang">
+(C++)</span><div class="descr">
+It is dangerous to let an exception leave a destructor.
+Using <code>try..catch</code> solves the problem.
+<p>Source: Scott Meyers "More Effective C++", item 11: Prevent exceptions from
+leaving destructors.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+class A {
+  A() {}
+  ~A() { throw 1; } // warn
+};
+</pre></div>
+<div class="example"><pre>
+void f() throw(int);
+
+class A {
+  A() {}
+  ~A() { f(); } // warn
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+ctordtor.PlacementSelfCopy</span><span class="lang">
+(C++11)</span><div class="descr">
+For a placement copy or move, it is almost certainly an error if the
+constructed object is also the object being copied from.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+class A {};
+
+void test(A *dst, A *src) {
+  ::new (dst) A(*dst); // warn (should be 'src')
+}
+</pre></div></div></td>
+<td class="aligned"><!--rdar://problem/13688366--></td></tr>
+
+</table>
+
+<!-- ============================== exceptions ============================= -->
+<h3>exceptions</h3>
+<table class="checkers">
+<col class="namedescr"><col class="example"><col class="progress">
+<thead><tr><td>Name, Description</td><td>Example</td><td>Progress</td></tr></thead>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+exceptions.ThrowSpecButNotThrow</span><span class="lang">
+(C++)</span><div class="descr">
+Function declaration has a <code>throw(<i>type</i>)</code> specifier but the
+function do not throw exceptions.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test() throw(int) {
+} // warn
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+exceptions.NoThrowSpecButThrows</span><span class="lang">
+(C++)</span><div class="descr">
+An exception is throw from a function having a <code>throw()</code>
+specifier.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test() throw() {
+  throw(1); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+exceptions.ThrownTypeDiffersSpec</span><span class="lang">
+(C++)</span><div class="descr">
+The type of a thrown exception differs from those specified in
+a <code>throw(<i>type</i>)</code> specifier.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+struct S{};
+
+void test() throw(int) {
+  S s;
+  throw (s); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+</table>
+
+<!-- ========================= smart pointers ============================== -->
+<h3>smart pointers</h3>
+<table class="checkers">
+<col class="namedescr"><col class="example"><col class="progress">
+<thead><tr><td>Name, Description</td><td>Example</td><td>Progress</td></tr></thead>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+smartptr.SmartPtrInit</span><span class="lang">
+(C++)</span><div class="descr">
+C++03: <code>auto_ptr</code> should store a pointer to an object obtained via
+new as allocated memory will be cleaned using <code>delete</code>.<br>
+C++11: one should use <code>unique_ptr&lt;<i>type</i>[]&gt;</code> to keep a
+pointer to memory allocated by <code>new[]</code>.<br>
+C++11: to keep a pointer to memory allocated by <code>new[]</code> in
+a <code>shared_ptr</code> one should use a custom deleter that calls <code>
+delete[].</code>.
+<p>Source: C++03 20.4.5p1; C++11 <code>auto_ptr</code> is deprecated (D.10).</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;stdlib.h&gt;
+#include &lt;memory&gt;
+
+void test() {
+  std::auto_ptr&lt;int&gt; p1(new int); // Ok
+  std::auto_ptr&lt;int&gt; p2(new int[3]); // warn
+}
+</pre></div>
+<div class="example"><pre>
+#include &lt;stdlib.h&gt;
+#include &lt;memory&gt;
+
+void test() {
+  std::auto_ptr&lt;int&gt; p((int *)malloc(sizeof(int))); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+</table>
+
+<!-- ============================== dead code ============================== -->
+<h3>dead code</h3>
+<table class="checkers">
+<col class="namedescr"><col class="example"><col class="progress">
+<thead><tr><td>Name, Description</td><td>Example</td><td>Progress</td></tr></thead>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+deadcode.UnmodifiedVariable</span><span class="lang">
+(C, C++)</span><div class="descr">
+A variable is never modified but was not declared const and is not a
+reference.<br><br><i>(opt-in checker)</i></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+extern int computeDelta();
+
+int test(bool cond) {
+  int i = 0;
+  if (cond) {
+    const int delta = computeDelta();
+    // warn: forgot to modify 'i'
+  }
+  return i;
+}
+</pre></div></div></td>
+<td class="aligned"><a href="https://bugs.llvm.org/show_bug.cgi?id=16890">PR16890</a></td></tr>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+deadcode.IdempotentOperations</span><span class="lang">
+(C)</span><div class="descr">
+Warn about idempotent operations.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test() {
+  int x = 7;
+  x = x; // warn: value is always the same
+}
+</pre></div>
+<div class="example"><pre>
+void test() {
+  int x = 7;
+  x /= x; // warn: value is always 1
+}
+</pre></div>
+<div class="example"><pre>
+void test() {
+  int x = 7, one = 1;
+  x *= one; // warn: right op is always 1
+}
+</pre></div>
+<div class="example"><pre>
+void test() {
+  int x = 7, zero = 0;
+  x = x - zero;
+   // warn: the right operand to '-' is always 0
+}
+</pre></div></div></td>
+<td class="aligned">removed from alpha.deadcode.* at
+<a href="https://reviews.llvm.org/rL198476">r198476</a></td></tr>
+
+</table>
+
+<!-- ================================ POSIX ================================ -->
+<h3>POSIX</h3>
+<table class="checkers">
+<col class="namedescr"><col class="example"><col class="progress">
+<thead><tr><td>Name, Description</td><td>Example</td><td>Progress</td></tr></thead>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+posix.Errno</span><span class="lang">
+(C)</span><div class="descr">
+Record that <code>errno</code> is non-zero when certain functions
+fail.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;stdlib.h&gt;
+
+int readWrapper(int fd, int *count) {
+  int lcount = read(fd, globalBuf, sizeof(globalBuf));
+  if (lcount < 0)
+    return errno;
+  *count = lcount;
+  return 0;
+}
+
+void use(int fd) {
+  int count;
+  if (!readWrapper(fd, &amp;count))
+    print("%d", count); // should not warn
+}
+</pre></div></div></td>
+<td class="aligned"><a href="https://bugs.llvm.org/show_bug.cgi?id=18701">PR18701</a></td></tr>
+
+</table>
+
+<!-- ========================= undefined behavior ========================== -->
+<h3>undefined behavior</h3>
+<table class="checkers">
+<col class="namedescr"><col class="example"><col class="progress">
+<thead><tr><td>Name, Description</td><td>Example</td><td>Progress</td></tr></thead>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.ExitInDtor</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: <code>std::exit()</code> is called to end the program during
+the destruction of an object with static storage duration.
+<p>Source: C++11 3.6.1p4.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;cstdlib&gt;
+
+class A {
+public:
+  ~A() {
+    std::exit(1); // warn
+  }
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.LocalStaticDestroyed</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: function containing a definition of static local object is
+called during the destruction of an object with static storage duration so that
+flow of control passes through the definition of the previously destroyed
+static local object.
+<p>Source: C++11 3.6.3p2.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void f();
+
+class A {
+public:
+  ~A() {
+    f(); // warn
+  }
+};
+
+class B {};
+
+A a;
+
+void f() {
+  static B b;
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.ZeroAllocDereference</span><span class="lang">
+(C, C++)</span><div class="descr">
+The effect of dereferencing a pointer returned as a request for zero size is
+undefined.<br>
+Note: possibly an enhancement to <span class="name">
+unix.Malloc</span>.
+<p>Source: C++03 3.7.3.1p2; C++11 3.7.4.1p2.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;stdlib.h&gt;
+
+void test() {
+  int *p = (int *)malloc(0);
+  *p = 1; // warn
+  free(p);
+}
+</pre></div>
+<div class="example"><pre>
+void f(int);
+
+void test() {
+  int *p = new int[0];
+  f(*p); // warn
+  delete[] p;
+}
+</pre></div></div></td>
+<td class="aligned"><a href="https://reviews.llvm.org/D8273">D8273</a></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.DeadReferenced</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: the following usage of the pointer to the object whose
+lifetime has ended can result in undefined behavior:<br>
+The object will be or was of a class type with a non-trivial destructor and
+<ul><li>the pointer is used as the operand of a delete-expression</li></ul>
+The object will be or was of a non-POD class type (C++11: any class type) and
+<ul><li>the pointer is used to access a non-static data member or call a
+non-static member function of the object</li>
+<li>the pointer is implicitly converted to a pointer to a base class
+type</li>
+<li>the pointer is used as the operand of a <code>static_cast</code> (except
+when the conversion is to <code>void*</code>, or to <code>void*</code> and
+subsequently to <code>char*</code>, or <code>unsigned char*</code>)</li>
+<li>the pointer is used as the operand of a <code>dynamic_cast</code></li></ul>
+<p>Source: C++03 3.8p5, p7; C++11 3.8p5, p7.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;new&gt;
+
+class A {
+public:
+  ~A();
+};
+
+class B : public A {};
+
+void test() {
+  A *a = new A;
+  new(a) B;
+  delete a; // warn
+}
+</pre></div>
+<div class="example"><pre>
+#include &lt;new&gt;
+
+class A {
+public:
+  ~A();
+};
+
+class B {};
+
+void test() {
+  A *a = new A;
+  new(a) B;
+  a->~A();
+}
+</pre></div>
+<div class="example"><pre>
+#include &lt;new&gt;
+
+class A {
+public:
+  ~A();
+};
+
+class B : public A {};
+
+class C {};
+
+void f(A*);
+
+void test() {
+  B *b = new B;
+  new(b) C;
+  f(b); // warn
+}
+</pre></div>
+<div class="example"><pre>
+#include &lt;new&gt;
+
+class A {
+public:
+  ~A();
+};
+
+class B : public A {};
+
+class C {};
+
+A* test() {
+  B *b = new B;
+  new(b) C;
+  return static_cast&lt;A*&gt;(b); // warn
+}
+</pre></div>
+<div class="example"><pre>
+#include &lt;new&gt;
+
+class A {
+public:
+  ~A();
+};
+
+class B : public A {};
+
+class C {};
+
+A* test() {
+  B *b = new B;
+  new(b) C;
+  return dynamic_cast&lt;A*&gt;(b); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.ObjLocChanges</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: the program must ensure that an object occupies the same
+storage location when the implicit or explicit destructor call takes place.
+<p>Source: C++11 3.8p8.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;new&gt;
+
+class A {};
+
+class B {
+public:
+  ~B();
+};
+
+void test() {
+  B b;
+  new (&b) A;
+} // warn
+</pre></div>
+<div class="example"><pre>
+#include &lt;new&gt;
+
+class A {};
+
+class B {
+public:
+  ~B();
+};
+
+void test() {
+  B *b = new B;
+  new (b) A;
+  delete b; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.ExprEvalOrderUndef</span><span class="lang">
+(C, C++03)</span><div class="descr">
+Undefined behavior: a scalar object shall have its stored value modified at
+most once by the evaluation of an expression.<br>
+Note: most cases are currently handled by the Clang core (search for 'multiple
+unsequenced modifications' warning in Clang tests).
+<p>Source: C++03 5p4.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+int test () {
+  int i = 0;
+  i = ++i + 1; // warn
+  return i;
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.StaticInitReentered</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: static declaration is re-entered while the object is being
+initialized.
+<p>Source: C++11 6.7p4.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+int test(int i) {
+  static int s = test(2 * i); // warn
+  return i + 1;
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.ConstModified</span><span class="lang">
+(C, C++)</span><div class="descr">
+Undefined behavior: const object is being modified.
+<p>Source: C++03 7.1.5.1p4, C++11 7.1.6.1p4.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test() {
+  const int *cp = new const int (0);
+  int *p = const_cast&lt;int *&gt;(cp);
+  *p = 1; // warn
+  delete p;
+}
+</pre></div>
+<div class="example"><pre>
+class C {
+public :
+  int i;
+  C();
+};
+
+void test() {
+  const C cb;
+
+  C* cp = const_cast&lt;C *&gt;(&cb);
+  cp-&gt;i = 1; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.DeadDestructed</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: the destructor is invoked for an object whose lifetime
+has ended.
+<p>Source: C++11 12.4p14.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+class A {
+public:
+  void f();
+  A();
+  ~A();
+};
+
+void test() {
+  A a;
+  a.~A();
+} // warn
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.MethodCallBeforeBaseInit</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: calls member function but base not yet initialized.
+<p>Source: C++03 12.6.2p8; C++11 12.6.2p13.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+class A {
+public :
+  A(int);
+};
+
+class B : public A {
+public :
+  int f();
+  B() : A(f()) {} // warn
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.MemberOrBaseRefBeforeCtor</span><span class="lang">
+(C++)</span><div class="descr">
+C++ Undefined behavior: non-static member or base class of non-POD class type
+is referred before constructor begins execution.<br>
+C++11 Undefined behavior: non-static member or base class of a class with a
+non-trivial constructor is referred before constructor begins execution.
+<p>Source: C++03 12.7p1; C++11 12.7p1.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+struct non_POD {
+  int i;
+  non_POD();
+};
+
+extern non_POD non_pod;
+
+int *p = &amp;non_pod.i; // warn
+</pre></div>
+<div class="example"><pre>
+struct POD {
+  int i;
+};
+
+struct non_POD : public POD {
+  POD pod;
+};
+
+extern non_POD non_pod;
+
+int *p = &amp;non_pod.pod.i; // warn
+</pre></div>
+<div class="example"><pre>
+struct POD {
+  int i;
+};
+
+struct non_POD : public POD {};
+
+extern non_POD non_pod;
+
+POD *p = &amp;non_pod; // warn
+</pre></div>
+<div class="example"><pre>
+struct non_POD {
+  int i;
+  non_POD();
+};
+
+struct S {
+  int *k;
+  non_POD non_pod;
+  S() : k(&amp;non_pod.i) {} // warn
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.MemberRefAfterDtor</span><span class="lang">
+(C++)</span><div class="descr">
+C++03: Undefined behavior: non-static member of non-POD class type is referred
+after destructor ends execution.<br>
+C++11: Undefined behavior: non-static member of a class with a non-trivial
+destructor is referred after destructor ends execution.
+<p>Source: C++03 12.7p1; C++11 12.7p1.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+class C {
+public:
+  C();
+  void f();
+};
+
+void test() {
+  C *c = new C();
+  c-&gt;~C();
+  c-&gt;f(); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.CtorForeignCall</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: call to virtual function of an object under construction
+whose type is neither the constructors own class or one of its bases.
+<p>Source: C++11 12.7p4.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+class A {
+public:
+  virtual void f() {};
+};
+
+class B {
+public:
+  B(A* a) { a-&gt;f(); } // warn
+};
+
+class C : public A, B {
+public:
+  C() : B((A*)this) {}
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.CtorForeignTypeid</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: the operand of <code>typeid</code> is an object under
+construction whose type is neither the constructors own class or one of its
+bases.
+<p>Source: C++11 12.7p5.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;typeinfo&gt;
+
+class A {};
+
+class B {
+public:
+  B(A* a) {
+    (void)typeid(*a); // warn
+  }
+};
+
+class C : public A, B {
+public:
+  C() : B((A*)this) {}
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.CtorForeignCast</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: the operand of <code>dynamic_cast</code> is an object under
+construction whose type is neither the constructors own class or one of its
+bases.
+<p>Source: C++11 12.7p6.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;typeinfo&gt;
+
+class A {
+public:
+  virtual void f() {};
+};
+
+class B {
+public:
+  B(A* a) {
+    (void)dynamic_cast&lt;B*&gt;(a); //warn
+  }
+};
+
+class C : public A, B {
+public:
+  C() : B((A*)this) {}
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.MemberOrBaseRefInCatch</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: referring to any non-static member or base class of an
+object in the handler for a function-try-block of a constructor or destructor
+for that object results in undefined behavior.
+<p>Source: C++11 15.3p10.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void f() { throw 1; }
+
+class C {
+  int i;
+public :
+  C()
+  try {
+    f();
+  }
+  catch (...) {
+    i=2; // warn
+  }
+};
+</pre></div>
+<div class="example"><pre>
+void f() { throw 1; }
+
+class Base {
+public:
+  int i;
+};
+
+class C: public Base {
+public :
+  ~C() try {
+    f();
+  }
+  catch (...) {
+    i=2; // warn
+  }
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.ReturnAtCatchEnd</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: a function returns when control reaches the end of a
+handler. This results in undefined behavior in a value-returning function.
+<p>Source: C++11 15.3p10.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void f() { throw 1; }
+
+int test() try {
+  f();
+  return 1;
+}
+catch(int) {
+} // warn
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.AutoptrsOwnSameObj</span><span class="lang">
+(C++03)</span><div class="descr">
+Undefined behavior: if more than one <code>auto_ptr</code> owns the same object
+at the same time the behavior of the program is undefined.
+<p>Source: C++03 20.4.5p3; C++11 <code>auto_ptr</code> is deprecated
+(D.10).</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;memory&gt;
+
+void test() {
+  int *data = new int;
+  std::auto_ptr&lt;int&gt; p(data);
+  std::auto_ptr&lt;int&gt; q(data); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.BasicStringOutOfBound</span><span class="lang">
+(C++03)</span><div class="descr">
+Undefined behavior: out-of-bound <code>basic_string</code> access/modification.
+<br>Note: possibly an enhancement to <span class="name">
+alpha.security.ArrayBoundV2</span>.
+<p>Source: C++03 21.3.4p1; C++11 behavior is defined
+(21.4.5p2).</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;string&gt;
+
+void test() {
+  std::basic_string&lt;char&gt; s;
+  char c = s[10]; // warn
+}
+</pre></div>
+<div class="example"><pre>
+#include &lt;string&gt;
+
+void test() {
+  std::basic_string&lt;char&gt; s;
+  s[10] = 0; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.EosDereference</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: the result of <code>operator*()</code> on an end of a
+stream is undefined.
+<p>Source: C++03 24.5.3p2; C++11 24.6.3p2.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;vector&gt;
+
+int test() {
+  std::vector&lt;int&gt; v;
+  return *v.end(); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.QsortNonPODNonTrivial</span><span class="lang">
+(C++)</span><div class="descr">
+C++03: Undefined behavior: the objects in the array passed to qsort are of
+non-POD type.<br>
+C++11: Undefined behavior: the objects in the array passed to qsort are of
+non-trivial type.
+<p>Source: C++03 25.4p4; C++11 25.5p4.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+// C++03
+#include &lt;cstdlib&gt;
+
+
+struct non_POD {
+  non_POD();
+};
+
+non_POD values[] = { non_POD(), non_POD() };
+
+int compare(const void *a, const void *b);
+
+void test() {
+  qsort(values, 2, sizeof(non_POD), compare); // warn
+}
+</pre></div>
+<div class="example"><pre>
+// C++11
+#include &lt;cstdlib&gt;
+
+struct S {};
+
+struct trivial_non_POD : public S {
+  int i;
+};
+
+struct non_trivial {
+  int i;
+  non_trivial();
+};
+
+trivial_non_POD tnp[2];
+non_trivial nt[2];
+
+int compare1(const void *a, const void *b);
+
+int compare2(const void *a, const void *b);
+
+void test() {
+  qsort(tnp, 2, sizeof(trivial_non_POD), compare1); // ok
+  qsort(nt, 2, sizeof(non_trivial), compare2); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.ThrowWhileCopy</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: copy constructor/assignment operator can throw an exception.
+The effects are undefined if an exception is thrown.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+class C {
+public:
+  int i, j;
+  C (const C &amp;c) {
+    i = c.i;
+    throw 1; // warn
+    j = c.j;
+  };
+};
+</pre></div>
+<div class="example"><pre>
+class C {
+public:
+  int i, j;
+  C &amp;operator=(const C &amp;c) {
+    i = c.i;
+    throw 1; // warn
+    j = c.j;
+  };
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.ValarrayArgBound</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: the value of the <code><i>n</i></code> argument passed
+to <code>valarray</code> constructor is greater than the number of values
+pointed to by the first argument (source).
+<p>Source: C++03 26.3.2.1p4; C++11 26.6.2.2p4.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;valarray&gt;
+
+struct S {
+  int i;
+  S(int ii) : i(ii) {};
+};
+
+void test(void) {
+  S s[] = { S(1), S(2) };
+  std::valarray&lt;S&gt; v(s,3); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.ValarrayLengthDiffer</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: <code>valarray</code> operands are of different length.
+<p>Source: C++03 26.3.2.2p1, 26.3.2.6p3, 26.3.3.1p3, 26.3.3.2p3;
+C++11 defined (26.6.2.3p1), 26.6.2.7p3, 26.6.3.1p3,
+26.6.3.2p3.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+// C++03
+#include &lt;valarray&gt;
+
+void test(void) {
+  std::valarray&lt;int&gt; a(0, 1), b(0, 2);
+  a = b; // warn
+  b.resize(1);
+  a = b; // ok
+}
+</pre></div>
+<div class="example"><pre>
+// C++03, C++11
+#include &lt;valarray&gt;
+
+void test(void) {
+  std::valarray&lt;int&gt; a(0, 1), b(0, 2);
+  a *= b; // warn
+}
+</pre></div>
+<div class="example"><pre>
+// C++03, C++11
+#include &lt;valarray&gt;
+
+void test(void) {
+  std::valarray&lt;int&gt; a(0, 1), b(0, 2);
+  a = a + b; // warn
+}
+</pre></div>
+<div class="example"><pre>
+// C++03, C++11
+#include &lt;valarray&gt;
+
+void test(void) {
+  std::valarray&lt;int&gt; a(0, 1), b(0, 2);
+  std::valarray&lt;bool&gt; c(false, 1);
+  c = a == b; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.ValarrayZeroLength</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: calling <code>sum()</code>/<code>min()</code>/<code>
+max()</code> methods of a zero length <code>valarray<code> the behavior is
+undefined.
+<p>Source: C++03 26.3.2.7p2, p3, p4; C++11 26.6.2.8p5, p6,
+p7.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;valarray&gt;
+
+void test(void) {
+  std::valarray&lt;int&gt; v(0, 0);
+  v.sum(); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.ValarrayBadIndirection</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: element is specified more than once in an indirection.
+<p>Source: C++03 26.3.9.2p2, 26.3.9.3p2; C++11 26.6.9.2p2,
+26.6.9.3p2.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;valarray&gt;
+
+void test() {
+  // '1' is specified more then once
+  size_t addr[] = {0, 1, 1};
+  std::valarray&lt;size_t&gt;indirect(addr, 3);
+  std::valarray&lt;int&gt; a(0, 5), b(1, 3);
+  a[indirect] = b; //warn
+}
+</pre></div>
+<div class="example"><pre>
+#include &lt;valarray&gt;
+
+void test() {
+  // '1' is specified more then once
+  size_t addr[] = {0, 1, 1};
+  std::valarray&lt;size_t&gt;indirect(addr, 3);
+  std::valarray&lt;int&gt; a(0, 5), b(1, 3);
+  a[indirect] *= b; //warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.IosBaseDestroyedBeforeInit</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: <code>ios_base</code> object is destroyed before
+initialization have taken place. <code>basic_ios::init</code> should be call to
+initialize <code>ios_base</code> members.
+<p>Source: C++03 27.4.2.7p1, 27.4.4.1p2; C++11 27.5.3.7p1,
+27.5.5.2p2.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;ios&gt;
+
+using namespace std;
+template &lt;class T, class Traits = std::char_traits&lt;T&gt; &gt;
+class my_stream1 : public std::basic_ios&lt;T, Traits&gt; {
+};
+
+template &lt;class T, class Traits = std::char_traits&lt;T&gt; &gt;
+class my_stream2 : public std::basic_ios&lt;T, Traits&gt; {
+  class my_streambuf
+  : public std::basic_streambuf&lt;T, Traits&gt; {
+  };
+public:
+  my_stream2() {
+    this->init(new my_streambuf);
+  }
+};
+
+void test() {
+  my_stream1&lt;char&gt; *p1 = new my_stream1&lt;char&gt;;
+  my_stream2&lt;char&gt; *p2 = new my_stream2&lt;char&gt;;
+  delete p1; // warn
+  delete p2; // ok
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.IosBaseUsedBeforeInit</span><span class="lang">
+(C++11)</span><div class="descr">
+Undefined behavior: <code>ios_base</code> object is used before initialization
+have taken place. <code>basic_ios::init</code> should be call to
+initialize <code>ios_base</code> members.
+<p>Source: C++11 27.5.3.7p1, 27.5.5.2p2.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;ios&gt;
+
+using namespace std;
+template &lt;class T, class Traits = std::char_traits&lt;T&gt; &gt;
+class my_stream1 : public std::basic_ios&lt;T, Traits&gt; {
+};
+
+template &lt;class T, class Traits = std::char_traits&lt;T&gt; &gt;
+class my_stream2 : public std::basic_ios&lt;T, Traits&gt; {
+  class my_streambuf
+  : public std::basic_streambuf&lt;T, Traits&gt; {
+  };
+public:
+  my_stream2() {
+    this->init(new my_streambuf);
+  }
+};
+
+void test() {
+  my_stream1&lt;char&gt; *p1 = new my_stream1&lt;char&gt;;
+  my_stream2&lt;char&gt; *p2 = new my_stream2&lt;char&gt;;
+  p1->narrow('a', 'b'); // warn
+  p2->narrow('a', 'b'); // ok
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+undefbehavior.MinusOnePosType</span><span class="lang">
+(C++)</span><div class="descr">
+Undefined behavior: passing -1 to any <code>streambuf</code>/<code>
+istream</code>/<code>ostream</code> member that accepts a value of
+type <code>traits::pos_type</code> result in undefined behavior.
+<p>Source: C++03 27.4.3.2p3; C++11 27.5.4.2p3.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;fstream&gt;
+
+class my_streambuf : public std::streambuf {
+  void f() {
+    seekpos(-1); // warn
+  }
+};
+</pre></div>
+<div class="example"><pre>
+#include &lt;fstream&gt;
+
+void test() {
+  std::filebuf fb;
+  std::istream in(&amp;fb);
+  std::filebuf::off_type pos(-1);
+  in.seekg(pos); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+</table>
+
+<!-- ============================ different ================================ -->
+<h3>different</h3>
+<table class="checkers">
+<col class="namedescr"><col class="example"><col class="progress">
+<thead><tr><td>Name, Description</td><td>Example</td><td>Progress</td></tr>
+</thead>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.SuccessiveAssign</span><span class="lang">
+(C)</span><div class="descr">
+Successive assign to a variable.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+int test() {
+  int i;
+  i=1;
+  i=2; // warn
+  return i;
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.NullDerefStmtOrder</span><span class="lang">
+(C)</span><div class="descr">
+Dereferencing of the null pointer might take place. Checking the pointer for
+null should be performed first.
+<br>Note: possibly an enhancement to <span class="name">
+core.NullDereference</span>.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+struct S {
+  int x;
+};
+
+struct S* f();
+
+void test() {
+  struct S *p1 = f();
+  int x1 = p1-&gt;x; // warn
+  if (p1) {};
+
+  struct S *p2 = f();
+  int x2 = p2-&gt;x; // ok
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.NullDerefCondOrder</span><span class="lang">
+(C)</span><div class="descr">
+Dereferencing of the null pointer might take place. Checking the pointer for
+null should be performed first.
+<br>Note: possibly an enhancement to <span class="name">
+core.NullDereference</span>.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+struct S {int i;};
+
+struct S* f();
+
+void test() {
+  struct S *p = f();
+  if (p-&gt;i && p) {}; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.MultipleAccessors</span><span class="lang">
+(C++)</span><div class="descr">
+Identical accessor bodies. Possibly a misprint.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+class A {
+  int i;
+  int j;
+public:
+  int getI() { return i; }
+  int getJ() { return i; } // warn
+};
+</pre></div>
+<div class="example"><pre>
+class A {
+  int i;
+  int j;
+public:
+  void setI(int& ii) { i = ii; }
+  void setJ(int& jj) { i = jj; } // warn
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.AccessorsForPublic</span><span class="lang">
+(C++)</span><div class="descr">
+Accessors exist for a public class field. Should this field really be
+public?</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+class A {
+public:
+  int i; // warn
+  int getI() { return i; }
+  void setI(int& ii) { i = ii; }
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.LibFuncResultUnised</span><span class="lang">
+(C, C++)</span><div class="descr">
+Calling a function ignoring its return value is of no use (create the list of
+known system/library/API functions falling into this category).</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;vector&gt;
+
+void test() {
+  std::vector&lt;int&gt; v;
+  v.empty(); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.WrongVarForStmt</span><span class="lang">
+(C, C++)</span><div class="descr">
+Wrong variable is possibly used in the loop/cond-expression of
+the <code>for</code> statement. Did you mean
+'proper_variable_name'?</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test() {
+  int i = 0;
+  int j = 0;
+  for (i = 0; i < 3; j += 1); // warn
+}
+</pre></div>
+<div class="example"><pre>
+void test() {
+  int i = 0;
+  int j = 0;
+  for (int j = 0; i < 3; ++j); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.FloatingCompare</span><span class="lang">
+(C)</span><div class="descr">
+Comparing floating point numbers may be not precise.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;math.h&gt;
+
+double test() {
+  double b = sin(M_PI / 6.0);
+  if (b == 0.5) // warn
+    b = 0;
+  return b;
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.BitwiseOpBoolArg</span><span class="lang">
+(C, C++)</span><div class="descr">
+Boolean value met at the left/right part of the bitwise <code>&amp;</code>
+or <code>|</code> operator.
+Did you mean <code>&amp;&amp;</code> (<code>||</code>) ?</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+int f();
+
+void test() {
+  bool b = true;
+  if (b &amp; f()) {} // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.LabelInsideSwitch</span><span class="lang">
+(C)</span><div class="descr">
+Possibly a misprint: label found inside a <code>switch()</code>
+statement.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test(int c) {
+  switch(c){
+  case 1:
+    c += 1; break;
+  defalt: // warn (did you mean 'default'?)
+    c -= 1; break;
+  }
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.IdenticalCondIfIf</span><span class="lang">
+(C)</span><div class="descr">
+The conditions of two subsequent <code>if</code> statements are
+identical.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+int test(int c) {
+  if (c &gt; 5)
+    c += 1;
+  if (c &gt; 5) // warn
+    c -= 1;
+  return c;
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.LogicalOpUselessArg</span><span class="lang">
+(C)</span><div class="descr">
+The second operand of a <code>&amp;&amp;</code> operator has no impact on
+expression result.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test(unsigned a) {
+  if (a&lt;7 &amp;&amp; a&lt;10) {}; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.SameResLogicalExpr</span><span class="lang">
+(C)</span><div class="descr">
+An expression is always evaluated to true/false.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test() {
+  int i = 0;
+  if (i != 0) {}; // warn
+}
+</pre></div>
+<div class="example"><pre>
+void test(int i) {
+  if (i == 0 &amp;&amp; i == 1) {}; // warn
+}
+</pre></div>
+<div class="example"><pre>
+void test(int i) {
+  if (i < 0 || i >= 0) {}; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.OpPrecedenceAssignCmp</span><span class="lang">
+(C, C++)</span><div class="descr">
+Comparison operation has higher precedence then assignment. Boolean value is
+assigned to a variable of other type. Parenthesis may bee required around an
+assignment.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+int f();
+
+void test(int x, int y) {
+  bool b;
+  if((b = x != y)) {} // ok
+  if((x = f() != y)) {} // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.OpPrecedenceIifShift</span><span class="lang">
+(C, C++)</span><div class="descr">
+<code>?:</code> has lower precedence then <code>&lt;&lt;</code>.
+<p>Source: Stephen C. Dewhurst "C++ Gotchas: Avoiding Common Problems in Coding
+and Design", advise 15.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;iostream&gt;
+
+void test(int a) {
+  std::cout &lt;&lt; a ? "a" : "b"; // warn
+}
+</pre></div>
+<div class="example"><pre>
+void test(int a) {
+  a &lt;&lt; a &gt; 7 ? 1 : 2; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.ObjectUnused</span><span class="lang">
+(C++)</span><div class="descr">
+The object was created but is not being used.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+struct S {
+  int x, y;
+  S(int xx, int yy) : x(xx), y(yy) {}
+  S(int xx) {
+    S(xx, 0); // warn
+  }
+};
+</pre></div>
+<div class="example"><pre>
+#include &lt;exception&gt;
+
+void test() {
+  std::exception();
+    // warn (did you mean 'throw std::exception()'?)
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.StaticArrayPtrCompare</span><span class="lang">
+(C)</span><div class="descr">
+Pointer to static array is being compared to NULL. May the subscripting is
+missing.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test() {
+  int a[1][1];
+  if (a[0] == 0) {}; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.ConversionToBool</span><span class="lang">
+(C, C++)</span><div class="descr">
+Odd implicit conversion to boolean.
+<br>Note: possibly merge with <span class="name">
+alpha.core.BoolAssignment</span>.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+bool test() {
+  return 1.; // warn
+}
+</pre></div>
+<div class="example"><pre>
+bool test() {
+  return ""; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.ArrayBound</span><span class="lang">
+(C++)</span><div class="descr">
+Out-of-bound dynamic array access.
+<br>Note: possibly an enhancement to <span class="name">
+alpha.security.ArrayBoundV2</span>.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test() {
+  int *p = new int[1];
+  int i = 1;
+  if(p[i]) {}; // warn
+  delete[] p;
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.StrcpyInputSize</span><span class="lang">
+(C)</span><div class="descr">
+Buffer copy without checking the size of input.
+<br>Note: possibly an enhancement to <span class="name">
+alpha.unix.cstring.OutOfBounds</span>.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+void test(char* string) {
+  char buf[24];
+  strcpy(buf, string); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.IntegerOverflow</span><span class="lang">
+(C)</span><div class="descr">
+Integer overflow.
+<br>Note: partially handled by Clang core
+(search for 'overflow in expression' warning in Clang tests).
+<p>Source: <a href="https://cwe.mitre.org/data/definitions/190.html">
+CWE-190</a>.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;limits.h&gt;
+
+int f(int x);
+
+void test() {
+  f(INT_MAX + 1); // warn
+}
+</pre></div>
+<div class="example"><pre>
+#include &lt;limits.h&gt;
+
+int test() {
+  int x = INT_MAX / 2 + 1;
+  return x * 2; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.SignExtension</span><span class="lang">
+(C)</span><div class="descr">
+Unexpected sign extension might take place.
+<p>Source: <a href="https://cwe.mitre.org/data/definitions/194.html">
+CWE-194</a>.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+unsigned long long test(long long sll) {
+  unsigned long long ull = sll; // warn
+  return ull;
+}
+</pre></div>
+<div class="example"><pre>
+void f(unsigned int i);
+
+void test(int si) {
+  f(si); // warn
+}
+</pre></div>
+<div class="example"><pre>
+unsigned int test(int i) {
+  return i;
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.NumericTruncation</span><span class="lang">
+(C)</span><div class="descr">
+Numeric truncation might take place.
+<p>Source: <a href="https://cwe.mitre.org/data/definitions/197.html">
+CWE-197</a>.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+unsigned long test(unsigned long long ull) {
+  unsigned long ul = ull; // warn
+  return ul;
+}
+</pre></div>
+<div class="example"><pre>
+void f(int i);
+
+void test(long long sll) {
+  f(sll); // warn
+}
+</pre></div>
+<div class="example"><pre>
+int f();
+
+short test(long long sll) {
+  short ss = f();
+  return ss;
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+different.MissingCopyCtorAssignOp</span><span class="lang">
+(C++)</span><div class="descr">
+A class has dynamically allocated data members but do not define a copy
+constructor/assignment operator.
+<p>Source: Scott Meyers "Effective C++", item 11: Prevent exceptions from
+leaving destructors.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+class C {
+  int *p; // warn
+public:
+  C() { p = new int; }
+  ~C() { delete p; }
+};
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+</table>
+
+<!-- ============================ WinAPI =================================== -->
+<h3>WinAPI</h3>
+<table class="checkers">
+<col class="namedescr"><col class="example"><col class="progress">
+<thead><tr><td>Name, Description</td><td>Example</td><td>Progress</td></tr></thead>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+WinAPI.CreateProcess</span><span class="lang">
+(C)</span><div class="descr">
+<code>CreateProcess()</code>: if the first parameter <code><i>
+lpApplicationName</i></code> is NULL then the executable name must be in the
+white space-delimited string pointed to by <code><i>lpCommandLine</code></i>.
+If the executable or path name has a space in it, there is a risk that a
+different executable could be run because of the way the function parses
+spaces.
+<p>Source: <a href="https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa#security-remarks">
+MSDN: CreateProcess function, Security Remarks</a>.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;windows.h&gt;
+
+void test() {
+  STARTUPINFO si;
+  PROCESS_INFORMATION pi;
+  CreateProcess(NULL, TEXT("C:\\Program Files\\App -L -S"),
+                NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
+    // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+WinAPI.LoadLibrary</span><span class="lang">
+(C)</span><div class="descr">
+The <code>SearchPath()</code> function is used to retrieve a path to a DLL for
+a subsequent <code>LoadLibrary()</code> call.
+<p>Source: <a href="https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya#security-remarks">
+MSDN: LoadLibrary function, Security Remarks</a>.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;windows.h&gt;
+
+HINSTANCE test() {
+  char filePath[100];
+  SearchPath(NULL, "file.dll", NULL, 100, filePath, NULL);
+  return LoadLibrary(filePath); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+WinAPI.WideCharToMultiByte</span><span class="lang">
+(C)</span><div class="descr">
+Buffer overrun while calling <code>WideCharToMultiByte()</code>. The size of
+the input buffer equals the number of characters in the Unicode string, while
+the size of the output buffer equals the number of bytes.
+<p>Source: <a href="https://docs.microsoft.com/en-us/windows/win32/api/stringapiset/nf-stringapiset-widechartomultibyte">
+MSDN: WideCharToMultiByte function</a>.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;windows.h&gt;
+
+void test() {
+  wchar_t ws[] = L"abc";
+  char s[3];
+  WideCharToMultiByte(CP_UTF8, 0, ws, -1, s,
+                      3, NULL, NULL); // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+</table>
+
+<!-- =========================== optimization ============================== -->
+<h3>optimization</h3>
+<table class="checkers">
+<col class="namedescr"><col class="example"><col class="progress">
+<thead><tr><td>Name, Description</td><td>Example</td><td>Progress</td></tr></thead>
+
+<tr><td><div class="namedescr expandable"><span class="name">
+optimization.PassConstObjByValue</span><span class="lang">
+(C, C++)</span><div class="descr">
+Optimization: It is more effective to pass constant parameter by reference to
+avoid unnecessary object copying.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+struct A {};
+
+void f(const struct A a); // warn
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+optimization.PostfixIncIter</span><span class="lang">
+(C++)</span><div class="descr">
+Optimization: It is more effective to use prefix increment operator with
+iterator.
+<p>Source: Scott Meyers "More Effective C++", item 6:
+Distinguish between prefix and postfix forms of increment and decrement
+operators.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;vector&gt;
+
+void test() {
+  std::vector&lt;int&gt; v;
+  std::vector&lt;int&gt;::const_iterator it;
+  for(it = v.begin();
+      it != v.end(); it++) {}; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+optimization.MultipleCallsStrlen</span><span class="lang">
+(C)</span><div class="descr">
+Optimization: multiple calls to <code>strlen()</code> for a string in an
+expression. It is more effective to hold a value returned
+from <code>strlen()</code> in a temporary variable.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;string.h&gt;
+
+void test(const char* s) {
+  if (strlen(s) &gt; 0 &amp;&amp;
+      strlen(s) &lt; 7) {}; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+optimization.StrLengthCalculation</span><span class="lang">
+(C++)</span><div class="descr">
+Optimization: it is more efficient to use <code>string::length()</code> to
+calculate the length of an <code>std::string</code>.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;string&gt;
+#include &lt;string.h&gt;
+
+void test() {
+  std::string s;
+  if (strlen(s.c_str()) != 0) {}; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+<tr><td><div class="namedescr expandable"><span class="name">
+optimization.EmptyContainerDetect</span><span class="lang">
+(C++)</span><div class="descr">
+Optimization: It is more efficient to use containers <code>empty()</code>
+method to identify an empty container.</div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;list&gt;
+
+void test() {
+  std::list&lt;int&gt; l;
+  if (l.size() != 0) {}; // warn
+}
+</pre></div></div></td>
+<td class="aligned"></td></tr>
+
+
+</table>
+
+<br>
+</div> <!-- page -->
+</div> <!-- content -->
+</body>
+</html>

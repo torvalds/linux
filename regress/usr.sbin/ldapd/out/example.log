@@ -1,0 +1,34 @@
+# extended LDIF
+#
+# LDAPv3
+# base <dc=example,dc=com> with scope subtree
+# filter: (objectclass=*)
+# requesting: ALL
+#
+
+# example.com
+dn: dc=example,dc=com
+objectClass: top
+objectClass: domain
+dc: example
+
+# admin, example.com
+dn: cn=admin,dc=example,dc=com
+objectClass: top
+objectClass: inetOrgPerson
+cn: admin
+sn: admin
+userPassword:: c2VjcmV0
+
+# groups, example.com
+dn: ou=groups,dc=example,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: groups
+
+# search result
+search: 2
+result: 0 Success
+
+# numResponses: 4
+# numEntries: 3

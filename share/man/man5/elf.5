@@ -1,0 +1,1427 @@
+.\"	$OpenBSD: elf.5,v 1.42 2022/03/31 17:27:22 naddy Exp $
+.\"Copyright (c) 1999 Jeroen Ruigrok van der Werven
+.\"All rights reserved.
+.\"
+.\"Redistribution and use in source and binary forms, with or without
+.\"modification, are permitted provided that the following conditions
+.\"are met:
+.\"1. Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\"2. Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\"
+.\"THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\"ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\"FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\"OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\"HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\"LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\"OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"SUCH DAMAGE.
+.\"
+.\"	$FreeBSD: src/share/man/man5/elf.5,v 1.21 2001/10/01 16:09:23 ru Exp $
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt ELF 5
+.Os
+.Sh NAME
+.Nm elf
+.Nd format of ELF executable binary files
+.Sh SYNOPSIS
+.In elf.h
+.Sh DESCRIPTION
+The header file
+.In elf.h
+defines the format of ELF executable binary files.
+Amongst these files are
+normal executable files, relocatable object files, core files and shared
+libraries.
+.Pp
+An executable file using the ELF file format consists of an ELF header,
+followed by a program header table or a section header table, or both.
+The ELF header is always at offset zero of the file.
+The program header
+table and the section header table's offset in the file are defined in the
+ELF header.
+The two tables describe the rest of the particularities of
+the file.
+.Pp
+Applications which wish to process ELF binary files for their native
+architecture only should include
+.In elf.h
+in their source code.
+These applications should need to refer to
+all the types and structures by their generic names
+.Dq Elf_xxx
+and to the macros by
+.Dq ELF_xxx .
+Applications written this way can be compiled on any architecture,
+regardless of whether the host is 32-bit or 64-bit.
+.Pp
+Should an application need to process ELF files of an unknown
+architecture, then the application needs to explicitly use either
+.Dq Elf32_xxx
+or
+.Dq Elf64_xxx
+type and structure names.
+Likewise, the macros need to be identified by
+.Dq ELF32_xxx
+or
+.Dq ELF64_xxx .
+.Pp
+This header file describes the above mentioned headers as C structures
+and also includes structures for dynamic sections, relocation sections and
+symbol tables.
+.Pp
+The following types are used for 32-bit architectures:
+.Bd -literal -offset indent
+Elf32_Addr	Unsigned 32-bit program address
+Elf32_Half	Unsigned 16-bit field
+Elf32_Lword	Unsigned 64-bit field
+Elf32_Off	Unsigned 32-bit file offset
+Elf32_Sword	Signed 32-bit field or integer
+Elf32_Word	Unsigned 32-bit field or integer
+.Ed
+.Pp
+And the following types are used for 64-bit architectures:
+.Bd -literal -offset indent
+Elf64_Addr	Unsigned 64-bit program address
+Elf64_Half	Unsigned 16-bit field
+Elf64_Lword	Unsigned 64-bit field
+Elf64_Off	Unsigned 64-bit file offset
+Elf64_Sword	Signed 32-bit field
+Elf64_Sxword	Signed 64-bit field or integer
+Elf64_Word	Unsigned 32-bit field
+Elf64_Xword	Unsigned 64-bit field or integer
+.Ed
+.Pp
+All data structures that the file format defines follow the
+.Dq natural
+size and alignment guidelines for the relevant class.
+If necessary,
+data structures contain explicit padding to ensure 4-byte alignment
+for 4-byte objects, to force structure sizes to a multiple of 4, etc.
+.Pp
+The ELF header is described by the type Elf32_Ehdr or Elf64_Ehdr:
+.Bd -literal -offset indent
+typedef struct {
+        unsigned char   e_ident[EI_NIDENT];
+        Elf32_Half      e_type;
+        Elf32_Half      e_machine;
+        Elf32_Word      e_version;
+        Elf32_Addr      e_entry;
+        Elf32_Off       e_phoff;
+        Elf32_Off       e_shoff;
+        Elf32_Word      e_flags;
+        Elf32_Half      e_ehsize;
+        Elf32_Half      e_phentsize;
+        Elf32_Half      e_phnum;
+        Elf32_Half      e_shentsize;
+        Elf32_Half      e_shnum;
+        Elf32_Half      e_shstrndx;
+} Elf32_Ehdr;
+.Ed
+.Bd -literal -offset indent
+typedef struct {
+	unsigned char   e_ident[EI_NIDENT];
+	Elf64_Half      e_type;
+	Elf64_Half      e_machine;
+	Elf64_Word      e_version;
+	Elf64_Addr      e_entry;
+	Elf64_Off       e_phoff;
+	Elf64_Off       e_shoff;
+	Elf64_Word      e_flags;
+	Elf64_Half      e_ehsize;
+	Elf64_Half      e_phentsize;
+	Elf64_Half      e_phnum;
+	Elf64_Half      e_shentsize;
+	Elf64_Half      e_shnum;
+	Elf64_Half      e_shstrndx;
+} Elf64_Ehdr;
+.Ed
+.Pp
+The fields have the following meanings:
+.Bl -tag -width "e_phentsize" -offset indent
+.It Dv e_ident
+This array of bytes specifies how to interpret the file,
+independent of the processor or the file's remaining contents.
+Within this array everything is named by macros, which start with
+the prefix
+.Sy EI_
+and may contain values which start with the prefix
+.Sy ELF .
+The following macros are defined:
+.Bl -tag -width "EI_VERSION"
+.It Dv EI_MAG0
+The first byte of the magic number.
+It must be filled with
+.Dv ELFMAG0 .
+.It Dv EI_MAG1
+The second byte of the magic number.
+It must be filled with
+.Dv ELFMAG1 .
+.It Dv EI_MAG2
+The third byte of the magic number.
+It must be filled with
+.Dv ELFMAG2 .
+.It Dv EI_MAG3
+The fourth byte of the magic number.
+It must be filled with
+.Dv ELFMAG3 .
+.It Dv EI_CLASS
+The fifth byte identifies the architecture for this binary:
+.Pp
+.Bl -tag -width "ELFCLASSNONE" -compact
+.It Dv ELFCLASSNONE
+This class is invalid.
+.It Dv ELFCLASS32
+This defines the 32-bit architecture.
+It supports machines with files
+and virtual address spaces up to 4 Gigabytes.
+.It Dv ELFCLASS64
+This defines the 64-bit architecture.
+.El
+.It Dv EI_DATA
+The sixth byte specifies the data encoding of the processor-specific
+data in the file.
+Currently these encodings are supported:
+.Pp
+.Bl -tag -width "ELFDATA2LSB" -compact
+.It Dv ELFDATANONE
+Unknown data format.
+.It Dv ELFDATA2LSB
+Two's complement, little-endian.
+.It Dv ELFDATA2MSB
+Two's complement, big-endian.
+.El
+.It Dv EI_VERSION
+The version number of the ELF specification:
+.Pp
+.Bl -tag -width "EV_CURRENT" -compact
+.It Dv EV_NONE
+Invalid version.
+.It Dv EV_CURRENT
+Current version.
+.El
+.It Dv EI_OSABI
+This byte identifies the OS- or ABI-specific ELF extensions used by
+this object.
+Some fields in other ELF structures have flags and values that have
+platform specific meanings; the interpretation of those fields is
+determined by the value of this byte.
+The following values are currently defined:
+.Pp
+.Bl -tag -width "ELFOSABI_STANDALONE" -compact
+.It Dv ELFOSABI_SYSV
+UNIX System V ABI.
+.It Dv ELFOSABI_HPUX
+HP-UX operating system ABI.
+.It Dv ELFOSABI_NETBSD
+.Nx
+operating system ABI.
+.It Dv ELFOSABI_LINUX
+GNU/Linux operating system ABI.
+.It Dv ELFOSABI_HURD
+GNU/Hurd operating system ABI.
+.It Dv ELFOSABI_86OPEN
+86Open Common IA32 ABI.
+.It Dv ELFOSABI_SOLARIS
+Solaris operating system ABI.
+.It Dv ELFOSABI_MONTEREY
+Monterey project ABI.
+.It Dv ELFOSABI_IRIX
+IRIX operating system ABI.
+.It Dv ELFOSABI_FREEBSD
+.Fx
+operating system ABI.
+.It Dv ELFOSABI_TRU64
+TRU64 UNIX operating system ABI.
+.It Dv ELFOSABI_MODESTO
+Novell Modesto operating system ABI.
+.It Dv ELFOSABI_OPENBSD
+.Ox
+operating system ABI.
+.It Dv ELFOSABI_ARM
+ARM architecture ABI.
+.It Dv ELFOSABI_STANDALONE
+Stand-alone (embedded) ABI.
+.El
+.It Dv EI_ABIVERSION
+This byte identifies the version of the ABI
+to which the object is targeted.
+This field is used to distinguish among incompatible versions of an ABI.
+The interpretation of this version number
+is dependent on the ABI identified by the EI_OSABI field.
+.It Dv EI_PAD
+Start of padding.
+These bytes are reserved and set to zero.
+Programs which read them should ignore them.
+The value for EI_PAD will change in
+the future if currently unused bytes are given meanings.
+.It Dv EI_NIDENT
+The size of the e_ident array.
+.El
+.It Dv e_type
+This member of the structure identifies the object file type:
+.Pp
+.Bl -tag -width "ET_NONE" -compact
+.It Dv ET_NONE
+An unknown type.
+.It Dv ET_REL
+A relocatable file.
+.It Dv ET_EXEC
+An executable file.
+.It Dv ET_DYN
+A shared object.
+.It Dv ET_CORE
+A core file.
+.El
+.It Dv e_machine
+This member specifies the required architecture for an individual file:
+.Pp
+.Bl -tag -width "EM_MIPS_RS4_BE" -compact
+.It Dv EM_NONE
+An unknown machine.
+.It Dv EM_M32
+AT&T WE 32100.
+.It Dv EM_SPARC
+Sun Microsystems SPARC.
+.It Dv EM_386
+Intel 80386.
+.It Dv EM_68K
+Motorola 68000.
+.It Dv EM_88K
+Motorola 88000.
+.It Dv EM_486
+Intel 80486.
+.It Dv EM_860
+Intel 80860.
+.It Dv EM_MIPS
+MIPS RS3000 (big-endian only).
+.It Dv EM_MIPS_RS4_BE
+MIPS RS4000 (big-endian only).
+.It Dv EM_SPARC64
+SPARC v9 64-bit (unofficial).
+.It Dv EM_PARISC
+HPPA.
+.It Dv EM_SPARC32PLUS
+SPARC with enhanced instruction set.
+.It Dv EM_PPC
+PowerPC.
+.It Dv EM_PPC64
+PowerPC 64-bit.
+.It Dv EM_ARM
+Advanced RISC Machines ARM.
+.It Dv EM_ALPHA
+Compaq [DEC] Alpha.
+.It Dv EM_SH
+Hitachi/Renesas Super-H.
+.It Dv EM_SPARCV9
+SPARC v9 64-bit.
+.It Dv EM_IA_64
+Intel IA-64.
+.It Dv EM_AMD64
+AMD64.
+.It Dv EM_VAX
+DEC Vax.
+.It Dv EM_AARCH64
+ARM 64-bit.
+.It Dv EM_RISCV
+RISC-V.
+.It Dv EM_ALPHA_EXP
+Compaq [DEC] Alpha with enhanced instruction set.
+.El
+.It Dv e_version
+This member identifies the file version:
+.Pp
+.Bl -tag -width "EV_CURRENT" -compact
+.It Dv EV_NONE
+Invalid version.
+.It Dv EV_CURRENT
+Current version.
+.El
+.It Dv e_entry
+This member gives the virtual address to which the system first transfers
+control, thus starting the process.
+If the file has no associated entry
+point, this member holds zero.
+.It Dv e_phoff
+This member holds the program header table's file offset in bytes.
+If
+the file has no program header table, this member holds zero.
+.It Dv e_shoff
+This member holds the section header table's file offset in bytes.
+If the
+file has no section header table, this member holds zero.
+.It Dv e_flags
+This member holds processor-specific flags associated with the file.
+Flag names take the form EF_`machine_flag'.
+Currently no flags have been defined.
+.It Dv e_ehsize
+This member holds the ELF header's size in bytes.
+.It Dv e_phentsize
+This member holds the size in bytes of one entry in the file's program header
+table; all entries are the same size.
+.It Dv e_phnum
+This member holds the number of entries in the program header
+table.
+Thus the product of
+.Sy e_phentsize
+and
+.Sy e_phnum
+gives the table's size
+in bytes.
+If a file has no program header,
+.Sy e_phnum
+holds the value zero.
+.It Dv e_shentsize
+This member holds a sections header's size in bytes.
+A section header is one
+entry in the section header table; all entries are the same size.
+.It Dv e_shnum
+This member holds the number of entries in the section header table.
+Thus
+the product of
+.Sy e_shentsize
+and
+.Sy e_shnum
+gives the section header table's size in bytes.
+If a file has no section
+header table,
+.Sy e_shnum
+holds the value of zero.
+.It Dv e_shstrndx
+This member holds the section header table index of the entry associated
+with the section name string table.
+If the file has no section name string
+table, this member holds the value
+.Dv SHN_UNDEF .
+.El
+.Pp
+An executable or shared object file's program header table is an array of
+structures, each describing a segment or other information the system needs
+to prepare the program for execution.
+An object file
+.Em segment
+contains one or more
+.Em sections .
+Program headers are meaningful only for executable and shared object files.
+A file specifies its own program header size with the ELF header's
+.Sy e_phentsize
+and
+.Sy e_phnum
+members.
+As with the ELF executable header, the program header
+also has different versions depending on the architecture:
+.Bd -literal -offset indent
+typedef struct {
+        Elf32_Word      p_type;
+        Elf32_Off       p_offset;
+        Elf32_Addr      p_vaddr;
+        Elf32_Addr      p_paddr;
+        Elf32_Word      p_filesz;
+        Elf32_Word      p_memsz;
+        Elf32_Word      p_flags;
+        Elf32_Word      p_align;
+} Elf32_Phdr;
+.Ed
+.Bd -literal -offset indent
+typedef struct {
+        Elf64_Word      p_type;
+        Elf64_Word      p_flags;
+        Elf64_Off       p_offset;
+        Elf64_Addr      p_vaddr;
+        Elf64_Addr      p_paddr;
+        Elf64_Xword     p_filesz;
+        Elf64_Xword     p_memsz;
+        Elf64_Xword     p_align;
+} Elf64_Phdr;
+.Ed
+.Pp
+The main difference between the 32-bit and the 64-bit program header lies
+only in the location of a
+.Sy p_flags
+member in the total struct.
+.Bl -tag -width "p_offset" -offset indent
+.It Dv p_type
+This member of the Phdr struct tells what kind of segment this array
+element describes or how to interpret the array element's information.
+.Bl -tag -width "PT_DYNAMIC"
+.It Dv PT_NULL
+The array element is unused and the other members' values are undefined.
+This lets the program header have ignored entries.
+.It Dv PT_LOAD
+The array element specifies a loadable segment, described by
+.Sy p_filesz
+and
+.Sy p_memsz .
+The bytes from the file are mapped to the beginning of the memory
+segment.
+If the segment's memory size
+.Pq Sy p_memsz
+is larger than the file size
+.Pq Sy p_filesz ,
+the
+.Dq extra
+bytes are defined to hold the value 0 and to follow the segment's
+initialized area.
+The file size may not be larger than the memory size.
+Loadable segment entries in the program header table appear in ascending
+order, sorted on the
+.Sy p_vaddr
+member.
+.It Dv PT_DYNAMIC
+The array element specifies the location and size of the dynamic section,
+both in the file and in the memory image of the program.
+This segment type may not occur more than once in a file and may
+only occur if the dynamic section is part of the memory image of
+the program.
+.It Dv PT_INTERP
+The array element specifies the location and size of a null-terminated
+path name to invoke as an interpreter.
+This segment type is meaningful
+only for executable files (though it may occur for shared objects).
+However it may not occur more than once in a file.
+If it is present, it must precede any loadable segment entry.
+.It Dv PT_NOTE
+The array element specifies the location and size for auxiliary information.
+.It Dv PT_SHLIB
+This segment type is reserved but has unspecified semantics.
+Programs that
+contain an array element of this type do not conform to the ABI.
+.It Dv PT_PHDR
+The array element specifies the location and size of the program
+header table itself, both in the file and in the memory image of the program.
+This segment type may not occur more than once in a file and may
+only occur if the program header table is part of the memory image
+of the program.
+If it is present, it must precede any loadable segment entry.
+.It Dv PT_TLS
+The array element specifies the location and size of the
+thread-local storage for this file.
+Each thread in a process loading this file will have the segment's
+memory size
+.Pq Sy p_memsz
+allocated for it, where the bytes up to the segment's file size
+.Pq Sy p_filesz
+will be initialized with the data in this segment and the remaining
+.Dq extra
+bytes will be set to zero.
+This segment type may not occur more than once in a file and may
+only occur if the thread-local storage is part of the memory image
+of the program.
+.It Dv PT_GNU_EH_FRAME
+The array element specifies the location and size of the GNU exception
+frame header, both in the file and in the memory image of the program.
+This segment type may not occur more than once in a file and may
+only occur if the GNU exception frame header is part of the memory
+image of the program.
+.It Dv PT_GNU_RELRO
+The array element specifies the location and size of a part of the
+memory image of the program that should be made read-only once all
+immediate relocation processing for the file has been performed.
+This segment type may not occur more than once in a file.
+.It Dv PT_OPENBSD_RANDOMIZE
+The array element specifies the location and size of a part of the
+memory image of the program that must be filled with random data
+before any code in the object is executed.
+The memory region specified by a segment of this type may overlap
+the region specified by a
+.Dv PT_GNU_RELRO
+segment, in which case the intersection will be filled with random
+data before being marked read-only.
+This segment type may occur more than once in a file, but a limit
+on the total number of bytes in the segments for an object of no
+less than 65536 bytes may be imposed.
+.It Dv PT_OPENBSD_WXNEEDED
+The array element specifies that a process executing this file may
+need to be able to map or protect memory regions as simultaneously
+executable and writable.
+If the system is unable or unwilling to permit that for this executable
+then it may fail immediately.
+This segment type is meaningful only for executable files and is
+ignored in other objects.
+.It Dv PT_LOOS
+This value up to and including
+.Dv PT_HIOS
+is reserved for operating system-specific semantics.
+.It Dv PT_HIOS
+This value down to and including
+.Dv PT_LOOS
+is reserved for operating system-specific semantics.
+.It Dv PT_LOPROC
+This value up to and including
+.Dv PT_HIPROC
+is reserved for processor-specific semantics.
+.It Dv PT_HIPROC
+This value down to and including
+.Dv PT_LOPROC
+is reserved for processor-specific semantics.
+.El
+.It Dv p_offset
+This member holds the offset from the beginning of the file at which
+the first byte of the segment resides.
+.It Dv p_vaddr
+This member holds the virtual address at which the first byte of the
+segment resides in memory.
+.It Dv p_paddr
+On systems for which physical addressing is relevant, this member is
+reserved for the segment's physical address.
+Under
+.Bx
+this member is
+not used and must be zero.
+.It Dv p_filesz
+This member holds the number of bytes in the file image of the segment.
+It may be zero.
+.It Dv p_memsz
+This member holds the number of bytes in the memory image of the segment.
+It may be zero.
+.It Dv p_flags
+This member holds flags relevant to the segment:
+.Pp
+.Bl -tag -width "PF_X" -compact
+.It Dv PF_X
+An executable segment.
+.It Dv PF_W
+A writable segment.
+.It Dv PF_R
+A readable segment.
+.El
+.Pp
+A text segment commonly has the flags
+.Dv PF_X
+and
+.Dv PF_R .
+A data segment commonly has
+.Dv PF_X ,
+.Dv PF_W
+and
+.Dv PF_R .
+.It Dv p_align
+This member holds the value to which the segments are aligned in memory
+and in the file.
+Loadable process segments must have congruent values for
+.Sy p_vaddr
+and
+.Sy p_offset ,
+modulo the page size.
+Values of zero and one mean no alignment is required.
+Otherwise,
+.Sy p_align
+should be a positive, integral power of two, and
+.Sy p_vaddr
+should equal
+.Sy p_offset ,
+modulo
+.Sy p_align .
+.El
+.Pp
+A file's section header table lets one locate all the file's sections.
+The
+section header table is an array of Elf32_Shdr or Elf64_Shdr structures.
+The
+ELF header's
+.Sy e_shoff
+member gives the byte offset from the beginning of the file to the section
+header table.
+.Sy e_shnum
+holds the number of entries the section header table contains.
+.Sy e_shentsize
+holds the size in bytes of each entry.
+.Pp
+A section header table index is a subscript into this array.
+Some section
+header table indices are reserved.
+An object file does not have sections for
+these special indices:
+.Bl -tag -width "SHN_LORESERVE"
+.It Dv SHN_UNDEF
+This value marks an undefined, missing, irrelevant or otherwise meaningless
+section reference.
+For example, a symbol
+.Dq defined
+relative to section number
+.Dv SHN_UNDEF
+is an undefined symbol.
+.It Dv SHN_LORESERVE
+This value specifies the lower bound of the range of reserved indices.
+.It Dv SHN_LOPROC
+This value up to and including
+.Dv SHN_HIPROC
+is reserved for processor-specific semantics.
+.It Dv SHN_HIPROC
+This value down to and including
+.Dv SHN_LOPROC
+is reserved for processor-specific semantics.
+.It Dv SHN_ABS
+This value specifies the absolute value for the corresponding reference.
+For
+example, a symbol defined relative to section number
+.Dv SHN_ABS
+has an absolute value and is not affected by relocation.
+.It Dv SHN_COMMON
+Symbols defined relative to this section are common symbols, such as FORTRAN
+COMMON or unallocated C external variables.
+.It Dv SHN_HIRESERVE
+This value specifies the upper bound of the range of reserved indices.
+The
+system reserves indices between
+.Dv SHN_LORESERVE
+and
+.Dv SHN_HIRESERVE ,
+inclusive.
+The section header table does not contain entries for the
+reserved indices.
+.El
+.Pp
+The section header has the following structure:
+.Bd -literal -offset indent
+typedef struct {
+	Elf32_Word      sh_name;
+	Elf32_Word      sh_type;
+	Elf32_Word      sh_flags;
+	Elf32_Addr      sh_addr;
+	Elf32_Off       sh_offset;
+	Elf32_Word      sh_size;
+	Elf32_Word      sh_link;
+	Elf32_Word      sh_info;
+	Elf32_Word      sh_addralign;
+	Elf32_Word      sh_entsize;
+} Elf32_Shdr;
+.Ed
+.Bd -literal -offset indent
+typedef struct {
+	Elf64_Word      sh_name;
+	Elf64_Word      sh_type;
+	Elf64_Xword     sh_flags;
+	Elf64_Addr      sh_addr;
+	Elf64_Off       sh_offset;
+	Elf64_Xword     sh_size;
+	Elf64_Word      sh_link;
+	Elf64_Word      sh_info;
+	Elf64_Xword     sh_addralign;
+	Elf64_Xword     sh_entsize;
+} Elf64_Shdr;
+.Ed
+.Bl -tag -width "sh_addralign"
+.It Dv sh_name
+This member specifies the name of the section.
+Its value is an index
+into the section header string table section, giving the location of
+a null-terminated string.
+.It Dv sh_type
+This member categorizes the section's contents and semantics.
+.Bl -tag -width "SHT_PROGBITS"
+.It Dv SHT_NULL
+This value marks the section header as inactive.
+It does not
+have an associated section.
+Other members of the section header
+have undefined values.
+.It Dv SHT_PROGBITS
+This section holds information defined by the program, whose
+format and meaning are determined solely by the program.
+.It Dv SHT_SYMTAB
+This section holds a symbol table.
+Typically,
+.Dv SHT_SYMTAB
+provides symbols for link editing, though it may also be used
+for dynamic linking.
+As a complete symbol table, it may contain
+many symbols unnecessary for dynamic linking.
+An object file can
+also contain a
+.Dv SHT_DYNSYM
+section.
+.It Dv SHT_STRTAB
+This section holds a string table.
+An object file may have multiple
+string table sections.
+.It Dv SHT_RELA
+This section holds relocation entries with explicit addends, such
+as type
+.Sy Elf32_Rela
+for the 32-bit class of object files.
+An object may have multiple
+relocation sections.
+.It Dv SHT_HASH
+This section holds a symbol hash table.
+An object participating in
+dynamic linking must contain a symbol hash table.
+An object file may
+have only one hash table.
+.It Dv SHT_DYNAMIC
+This section holds information for dynamic linking.
+An object file may
+have only one dynamic section.
+.It Dv SHT_NOTE
+This section holds information that marks the file in some way.
+.It Dv SHT_NOBITS
+A section of this type occupies no space in the file but otherwise
+resembles
+.Dv SHT_PROGBITS .
+Although this section contains no bytes, the
+.Sy sh_offset
+member contains the conceptual file offset.
+.It Dv SHT_REL
+This section holds relocation offsets without explicit addends, such
+as type
+.Sy Elf32_Rel
+for the 32-bit class of object files.
+An object file may have multiple
+relocation sections.
+.It Dv SHT_SHLIB
+This section is reserved but has unspecified semantics.
+.It Dv SHT_DYNSYM
+This section holds a minimal set of dynamic linking symbols.
+An
+object file can also contain a
+.Dv SHT_SYMTAB
+section.
+.It Dv SHT_LOPROC
+This value up to and including
+.Dv SHT_HIPROC
+is reserved for processor-specific semantics.
+.It Dv SHT_HIPROC
+This value down to and including
+.Dv SHT_LOPROC
+is reserved for processor-specific semantics.
+.It Dv SHT_LOUSER
+This value specifies the lower bound of the range of indices reserved for
+application programs.
+.It Dv SHT_HIUSER
+This value specifies the upper bound of the range of indices reserved for
+application programs.
+Section types between
+.Dv SHT_LOUSER
+and
+.Dv SHT_HIUSER
+may be used by the application, without conflicting with current or future
+system-defined section types.
+.El
+.It Dv sh_flags
+Sections support one-bit flags that describe miscellaneous attributes.
+If a flag bit is set in
+.Sy sh_flags ,
+the attribute is
+.Dq on
+for the section.
+Otherwise, the attribute is
+.Dq off
+or does not apply.
+Undefined attributes are set to zero.
+.Pp
+.Bl -tag -width "SHF_EXECINSTR" -compact
+.It Dv SHF_WRITE
+This section contains data that should be writable during process
+execution.
+.It Dv SHF_ALLOC
+This section occupies memory during process execution.
+Some control
+sections do not reside in the memory image of an object file.
+This
+attribute is off for those sections.
+.It Dv SHF_EXECINSTR
+This section contains executable machine instructions.
+.It Dv SHF_TLS
+This section is for thread-local storage.
+.It Dv SHF_MASKPROC
+All bits included in this mask are reserved for processor-specific
+semantics.
+.El
+.It Dv sh_addr
+If this section appears in the memory image of a process, this member
+holds the address at which the section's first byte should reside.
+Otherwise, the member contains zero.
+.It Dv sh_offset
+This member's value holds the byte offset from the beginning of the file
+to the first byte in the section.
+One section type,
+.Dv SHT_NOBITS ,
+occupies no space in the file, and its
+.Sy sh_offset
+member locates the conceptual placement in the file.
+.It Dv sh_size
+This member holds the section's size in bytes.
+Unless the section type
+is
+.Dv SHT_NOBITS ,
+the section occupies
+.Sy sh_size
+bytes in the file.
+A section of type
+.Dv SHT_NOBITS
+may have a non-zero size, but it occupies no space in the file.
+.It Dv sh_link
+This member holds a section header table index link, whose interpretation
+depends on the section type.
+.It Dv sh_info
+This member holds extra information, whose interpretation depends on the
+section type.
+.It Dv sh_addralign
+Some sections have address alignment constraints.
+If a section holds a
+doubleword, the system must ensure doubleword alignment for the entire
+section.
+That is, the value of
+.Sy sh_addr
+must be congruent to zero, modulo the value of
+.Sy sh_addralign .
+Only zero and positive integral powers of two are allowed.
+Values of zero
+or one mean the section has no alignment constraints.
+.It Dv sh_entsize
+Some sections hold a table of fixed-sized entries, such as a symbol table.
+For such a section, this member gives the size in bytes for each entry.
+This member contains zero if the section does not hold a table of
+fixed-size entries.
+.El
+.Pp
+Various sections hold program and control information:
+.Bl -tag -width ".shstrtab"
+.It .SUNW_ctf
+This section contains the (un)compressed Compact C-Type Format data
+describing the object's types and symbols.
+This section is of type
+.Dv SHT_PROGBITS .
+.It .bss
+This section holds uninitialized data that contribute to the program's
+memory image.
+By definition, the system initializes the data with zeros
+when the program begins to run.
+This section is of type
+.Dv SHT_NOBITS .
+The attribute types are
+.Dv SHF_ALLOC
+and
+.Dv SHF_WRITE .
+.It .comment
+This section holds version control information.
+This section is of type
+.Dv SHT_PROGBITS .
+No attribute types are used.
+.It .ctors
+This section holds initialized pointers to the C++ constructor functions.
+This section is of type
+.Dv SHT_PROGBITS .
+The attribute types are
+.Dv SHF_ALLOC
+and
+.Dv SHF_WRITE .
+.It .data
+This section holds initialized data that contribute to the program's
+memory image.
+This section is of type
+.Dv SHT_PROGBITS .
+The attribute types are
+.Dv SHF_ALLOC
+and
+.Dv SHF_WRITE .
+.It .data1
+This section holds initialized data that contribute to the program's
+memory image.
+This section is of type
+.Dv SHT_PROGBITS .
+The attribute types are
+.Dv SHF_ALLOC
+and
+.Dv SHF_WRITE .
+.It .debug
+This section holds information for symbolic debugging.
+The contents
+are unspecified.
+This section is of type
+.Dv SHT_PROGBITS .
+No attribute types are used.
+.It .dtors
+This section holds initialized pointers to the C++ destructor functions.
+This section is of type
+.Dv SHT_PROGBITS .
+The attribute types are
+.Dv SHF_ALLOC
+and
+.Dv SHF_WRITE .
+.It .dynamic
+This section holds dynamic linking information.
+The section's attributes
+will include the
+.Dv SHF_ALLOC
+bit.
+Whether the
+.Dv SHF_WRITE
+bit is set is processor-specific.
+This section is of type
+.Dv SHT_DYNAMIC .
+See the attributes above.
+.It .dynstr
+This section holds strings needed for dynamic linking, most commonly
+the strings that represent the names associated with symbol table entries.
+This section is of type
+.Dv SHT_STRTAB .
+The attribute type used is
+.Dv SHF_ALLOC .
+.It .dynsym
+This section holds the dynamic linking symbol table.
+This section is of type
+.Dv SHT_DYNSYM .
+The attribute used is
+.Dv SHF_ALLOC .
+.It .fini
+This section holds executable instructions that contribute to the process
+termination code.
+When a program exits normally, the system arranges to
+execute the code in this section.
+This section is of type
+.Dv SHT_PROGBITS .
+The attributes used are
+.Dv SHF_ALLOC
+and
+.Dv SHF_EXECINSTR .
+.It .got
+This section holds the global offset table.
+This section is of type
+.Dv SHT_PROGBITS .
+The attributes are processor-specific.
+.It .hash
+This section holds a symbol hash table.
+This section is of type
+.Dv SHT_HASH .
+The attribute used is
+.Dv SHF_ALLOC .
+.It .init
+This section holds executable instructions that contribute to the process
+initialization code.
+When a program starts to run, the system arranges to
+execute the code in this section before calling the main program entry point.
+This section is of type
+.Dv SHT_PROGBITS .
+The attributes used are
+.Dv SHF_ALLOC
+and
+.Dv SHF_EXECINSTR .
+.It .interp
+This section holds the pathname of a program interpreter.
+If the file has
+a loadable segment that includes the section, the section's attributes will
+include the
+.Dv SHF_ALLOC
+bit.
+Otherwise, that bit will be off.
+This section is of type
+.Dv SHT_PROGBITS .
+.It .line
+This section holds line number information for symbolic debugging, which
+describes the correspondence between the program source and the machine code.
+The contents are unspecified.
+This section is of type
+.Dv SHT_PROGBITS .
+No attribute types are used.
+.It .note
+This section holds information in the
+note section
+format described below.
+This section is of type
+.Dv SHT_NOTE .
+No attribute types are used.
+.Ox
+native executables contain a
+.Sy .note.openbsd.ident
+section to identify themselves.
+.It .plt
+This section holds the procedure linkage table.
+This section is of type
+.Dv SHT_PROGBITS .
+The attributes are processor-specific.
+.It .relNAME
+This section holds relocation information as described below.
+If the file
+has a loadable segment that includes relocation, the section's attributes
+will include the
+.Dv SHF_ALLOC
+bit.
+Otherwise the bit will be off.
+By convention,
+.Dq NAME
+is supplied by the section to which the relocations apply.
+Thus a relocation
+section for
+.Sy .text
+normally would have the name
+.Sy .rel.text .
+This section is of type
+.Dv SHT_REL .
+.It .relaNAME
+This section holds relocation information as described below.
+If the file
+has a loadable segment that includes relocation, the section's attributes
+will include the
+.Dv SHF_ALLOC
+bit.
+Otherwise the bit will be off.
+By convention,
+.Dq NAME
+is supplied by the section to which the relocations apply.
+Thus a relocation
+section for
+.Sy .text
+normally would have the name
+.Sy .rela.text .
+This section is of type
+.Dv SHT_RELA .
+.It .rodata
+This section holds read-only data that typically contribute to a
+non-writable segment in the process image.
+This section is of type
+.Dv SHT_PROGBITS .
+The attribute used is
+.Dv SHF_ALLOC .
+.It .rodata1
+This section holds read-only data that typically contribute to a
+non-writable segment in the process image.
+This section is of type
+.Dv SHT_PROGBITS .
+The attribute used is
+.Dv SHF_ALLOC .
+.It .shstrtab
+This section holds section names.
+This section is of type
+.Dv SHT_STRTAB .
+No attribute types are used.
+.It .strtab
+This section holds strings, most commonly the strings that represent the
+names associated with symbol table entries.
+If the file has a loadable
+segment that includes the symbol string table, the section's attributes
+will include the
+.Dv SHF_ALLOC
+bit.
+Otherwise the bit will be off.
+This section is of type
+.Dv SHT_STRTAB .
+.It .symtab
+This section holds a symbol table.
+If the file has a loadable segment
+that includes the symbol table, the section's attributes will include
+the
+.Dv SHF_ALLOC
+bit.
+Otherwise the bit will be off.
+This section is of type
+.Dv SHT_SYMTAB .
+.It .tbss
+This section is the thread-local storage version of
+.Sy .bss ,
+holding uninitialized data that contribute to the program's memory
+image on a per-thread basis.
+By definition, the system allocates and initializes the data with
+zeros for each thread before it first accesses it.
+This section is of type
+.Dv SHT_NOBITS .
+The attribute types are
+.Dv SHF_ALLOC ,
+.Dv SHF_WRITE ,
+and
+.Dv SHF_TLS .
+.It .tdata
+This section is the thread-local storage version of
+.Sy .data ,
+holding initialized data that contribute to the program's memory
+image on a per-thread basis.
+The system allocates and initializes the data for each thread before
+it first accesses it.
+This section is of type
+.Dv SHT_PROGBITS .
+The attribute types are
+.Dv SHF_ALLOC ,
+.Dv SHF_WRITE ,
+and
+.Dv SHF_TLS .
+.It .text
+This section holds the
+.Dq text ,
+or executable instructions, of a program.
+This section is of type
+.Dv SHT_PROGBITS .
+The attributes used are
+.Dv SHF_ALLOC
+and
+.Dv SHF_EXECINSTR .
+.El
+.Pp
+String table sections hold null-terminated character sequences, commonly
+called strings.
+The object file uses these strings to represent symbol
+and section names.
+One references a string as an index into the string
+table section.
+The first byte, which is index zero, is defined to hold
+a null character.
+Similarly, a string table's last byte is defined to
+hold a null character, ensuring null termination for all strings.
+.Pp
+An object file's symbol table holds information needed to locate and
+relocate a program's symbolic definitions and references.
+A symbol table
+index is a subscript into this array.
+.Bd -literal -offset indent
+typedef struct {
+	Elf32_Word      st_name;
+	Elf32_Addr      st_value;
+	Elf32_Word      st_size;
+	unsigned char   st_info;
+	unsigned char   st_other;
+	Elf32_Half      st_shndx;
+} Elf32_Sym;
+.Ed
+.Bd -literal -offset indent
+typedef struct {
+	Elf64_Word      st_name;
+	unsigned char	st_info;
+	unsigned char	st_other;
+	Elf64_Half   	st_shndx;
+	Elf64_Addr	st_value;
+	Elf64_Xword     st_size;
+} Elf64_Sym;
+.Ed
+.Bl -tag -width "st_value"
+.It Dv st_name
+This member holds an index into the object file's symbol string table,
+which holds character representations of the symbol names.
+If the value
+is non-zero, it represents a string table index that gives the symbol
+name.
+Otherwise, the symbol table has no name.
+.It Dv st_value
+This member gives the value of the associated symbol.
+.It Dv st_size
+Many symbols have associated sizes.
+This member holds zero if the symbol
+has no size or an unknown size.
+.It Dv st_info
+This member specifies the symbol's type and binding attributes:
+.Bl -tag -width "STT_SECTION"
+.It Dv STT_NOTYPE
+The symbol's type is not defined.
+.It Dv STT_OBJECT
+The symbol is associated with a data object.
+.It Dv STT_FUNC
+The symbol is associated with a function or other executable code.
+.It Dv STT_SECTION
+The symbol is associated with a section.
+Symbol table entries of
+this type exist primarily for relocation and normally have
+.Dv STB_LOCAL
+bindings.
+.It Dv STT_FILE
+By convention, the symbol's name gives the name of the source file
+associated with the object file.
+A file symbol has
+.Dv STB_LOCAL
+bindings, its section index is
+.Dv SHN_ABS ,
+and it precedes the other
+.Dv STB_LOCAL
+symbols of the file, if it is present.
+.It Dv STT_TLS
+The symbol is associated with an object in thread-local storage.
+The symbol's value is its offset in the TLS storage for this file.
+.It Dv STT_LOPROC
+This value up to and including
+.Dv STT_HIPROC
+is reserved for processor-specific semantics.
+.It Dv STT_HIPROC
+This value down to and including
+.Dv STT_LOPROC
+is reserved for processor-specific semantics.
+.El
+.Bl -tag -width "STB_GLOBAL"
+.It Dv STB_LOCAL
+Local symbols are not visible outside the object file containing their
+definition.
+Local symbols of the same name may exist in multiple files
+without interfering with each other.
+.It Dv STB_GLOBAL
+Global symbols are visible to all object files being combined.
+One file's
+definition of a global symbol will satisfy another file's undefined
+reference to the same symbol.
+.It Dv STB_WEAK
+Weak symbols resemble global symbols, but their definitions have lower
+precedence.
+.It Dv STB_LOPROC
+This value up to and including
+.Dv STB_HIPROC
+is reserved for processor-specific semantics.
+.It Dv STB_HIPROC
+This value down to and including
+.Dv STB_LOPROC
+is reserved for processor-specific semantics.
+.Pp
+There are macros for packing and unpacking the binding and type fields:
+.Pp
+.Bl -tag -width "ELF32_ST_INFO(bind, type)" -compact
+.It Xo
+.Fn ELF32_ST_BIND info
+.Xc
+or
+.Fn ELF64_ST_BIND info
+extract a binding from an st_info value.
+.It Xo
+.Fn ELF64_ST_TYPE info
+.Xc
+or
+.Fn ELF32_ST_TYPE info
+extract a type from an st_info value.
+.It Xo
+.Fn ELF32_ST_INFO bind type
+.Xc
+or
+.Fn ELF64_ST_INFO bind type
+convert a binding and a type into an st_info value.
+.El
+.El
+.It Dv st_other
+This member currently holds zero and has no defined meaning.
+.It Dv st_shndx
+Every symbol table entry is
+.Dq defined
+in relation to some section.
+This member holds the relevant section
+header table index.
+.El
+.Pp
+Relocation is the process of connecting symbolic references with
+symbolic definitions.
+Relocatable files must have information that
+describes how to modify their section contents, thus allowing executable
+and shared object files to hold the right information for a process'
+program image.
+Relocation entries are these data.
+.Pp
+Relocation structures that do not need an addend:
+.Bd -literal -offset indent
+typedef struct {
+	Elf32_Addr      r_offset;
+	Elf32_Word      r_info;
+} Elf32_Rel;
+.Ed
+.Bd -literal -offset indent
+typedef struct {
+	Elf64_Addr      r_offset;
+	Elf64_Xword     r_info;
+} Elf64_Rel;
+.Ed
+.Pp
+Relocation structures that need an addend:
+.Bd -literal -offset indent
+typedef struct {
+	Elf32_Addr      r_offset;
+	Elf32_Word      r_info;
+	Elf32_Sword     r_addend;
+} Elf32_Rela;
+.Ed
+.Bd -literal -offset indent
+typedef struct {
+	Elf64_Addr      r_offset;
+	Elf64_Xword     r_info;
+	Elf64_Sxword    r_addend;
+} Elf64_Rela;
+.Ed
+.Bl -tag -width "r_offset"
+.It Dv r_offset
+This member gives the location at which to apply the relocation action.
+For a relocatable file, the value is the byte offset from the beginning
+of the section to the storage unit affected by the relocation.
+For an
+executable file or shared object, the value is the virtual address of
+the storage unit affected by the relocation.
+.It Dv r_info
+This member gives both the symbol table index with respect to which the
+relocation must be made and the type of relocation to apply.
+Relocation
+types are processor-specific.
+When the text refers to a relocation
+entry's relocation type or symbol table index, it means the result of
+applying
+.Dv ELF[32|64]_R_TYPE
+or
+.Dv ELF[32|64]_R_SYM ,
+respectively, to the entry's
+.Sy r_info
+member.
+.It Dv r_addend
+This member specifies a constant addend used to compute the value to be
+stored into the relocatable field.
+.El
+.Pp
+The note section is used to hold vendor-specific information that
+may be used to help identify a binary's ABI.
+It should start with an Elf_Note struct,
+followed by the section name and the section description.
+The actual note contents follow thereafter.
+.Bd -literal -offset indent
+typedef struct {
+	Elf32_Word namesz;
+	Elf32_Word descsz;
+	Elf32_Word type;
+} Elf32_Note;
+
+typedef struct {
+	Elf64_Word namesz;
+	Elf64_Word descsz;
+	Elf64_Word type;
+} Elf64_Note;
+.Ed
+.Bl -tag -width "r_offset"
+.It Dv namesz
+Length of the note name, rounded up to a 4-byte boundary.
+.It Dv descsz
+Length of the note description, rounded up to a 4-byte boundary.
+.It Dv type
+A vendor-specific note type.
+.El
+.Pp
+The name and description strings follow the note structure.
+Each string is aligned on a 4-byte boundary.
+.Sh SEE ALSO
+.Xr as 1 ,
+.Xr gdb 1 ,
+.Xr ld 1 ,
+.Xr objdump 1 ,
+.Xr execve 2 ,
+.Xr core 5
+.Rs
+.%A Hewlett-Packard
+.%B Elf-64 Object File Format
+.Re
+.Rs
+.%A Santa Cruz Operation
+.%B System V Application Binary Interface
+.Re
+.Rs
+.%A Unix System Laboratories
+.%T Object Files
+.%B "Executable and Linking Format (ELF)"
+.Re
+.Sh HISTORY
+.Ox
+ELF support first appeared in
+.Ox 1.2 .
+Starting with
+.Ox 5.4 ,
+all supported platforms use it as the native binary file format.
+ELF in itself first appeared in
+.At V .
+The ELF format is an adopted standard.
+.Sh AUTHORS
+This manual page was written by
+.An Jeroen Ruigrok van der Werven Aq Mt asmodai@FreeBSD.org
+with inspiration from BSDi's
+.Bsx
+.Nm elf
+manpage.

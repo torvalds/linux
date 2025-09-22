@@ -1,0 +1,3 @@
+stdin: 4: esp does not provide compression
+stdin: 6: no encryption or authentication with ipcomp
+ipsecctl: Syntax error in config file: ipsec rules not loaded

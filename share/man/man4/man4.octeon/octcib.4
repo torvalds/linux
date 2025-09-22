@@ -1,0 +1,38 @@
+.\"	$OpenBSD: octcib.4,v 1.2 2017/08/06 05:49:12 visa Exp $
+.\"
+.\" Copyright (c) 2017 Visa Hankala
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 6 2017 $
+.Dt OCTCIB 4 octeon
+.Os
+.Sh NAME
+.Nm octcib
+.Nd Cavium interrupt bus widget
+.Sh SYNOPSIS
+.Cd "octcib* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Cavium interrupt bus (CIB) widget,
+which is an auxiliary interrupt controller on the CN70xx and CN71xx
+system on chips.
+.Sh SEE ALSO
+.Xr octcit 4 ,
+.Xr octciu 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.2 .

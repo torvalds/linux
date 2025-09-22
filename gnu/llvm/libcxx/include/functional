@@ -1,0 +1,598 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_FUNCTIONAL
+#define _LIBCPP_FUNCTIONAL
+
+/*
+    functional synopsis
+
+namespace std
+{
+
+template <class Arg, class Result>
+struct unary_function
+{
+    typedef Arg    argument_type;
+    typedef Result result_type;
+};
+
+template <class Arg1, class Arg2, class Result>
+struct binary_function
+{
+    typedef Arg1   first_argument_type;
+    typedef Arg2   second_argument_type;
+    typedef Result result_type;
+};
+
+template <class T>
+class reference_wrapper
+    : public unary_function<T1, R> // if wrapping a unary functor
+    : public binary_function<T1, T2, R> // if wrapping a binary functor
+{
+public:
+    // types
+    typedef T type;
+    typedef see below result_type; // Not always defined
+
+    // construct/copy/destroy
+    template<class U>
+      constexpr reference_wrapper(U&&);                                   // constexpr since C++20
+    constexpr reference_wrapper(const reference_wrapper<T>& x) noexcept;  // constexpr since C++20
+
+    // assignment
+    constexpr reference_wrapper&
+    operator=(const reference_wrapper<T>& x) noexcept;                    // constexpr since C++20
+
+    // access
+    constexpr operator T& () const noexcept;                              // constexpr since C++20
+    constexpr T& get() const noexcept;                                    // constexpr since C++20
+
+    // invoke
+    template <class... ArgTypes>
+      constexpr typename result_of<T&(ArgTypes&&...)>::type               // constexpr since C++20
+          operator() (ArgTypes&&...) const
+              noexcept(is_nothrow_invocable_v<T&, ArgTypes...>);          // noexcept since C++17
+};
+
+template <class T>
+  reference_wrapper(T&) -> reference_wrapper<T>;
+
+template <class T> reference_wrapper<T> ref(T& t) noexcept;
+template <class T> void ref(const T&& t) = delete;
+template <class T> reference_wrapper<T> ref(reference_wrapper<T>t) noexcept;
+
+template <class T> reference_wrapper<const T> cref(const T& t) noexcept;
+template <class T> void cref(const T&& t) = delete;
+template <class T> reference_wrapper<const T> cref(reference_wrapper<T> t) noexcept;
+
+template <class T> struct unwrap_reference;                                       // since C++20
+template <class T> struct unwrap_ref_decay : unwrap_reference<decay_t<T>> { };    // since C++20
+template <class T> using unwrap_reference_t = typename unwrap_reference<T>::type; // since C++20
+template <class T> using unwrap_ref_decay_t = typename unwrap_ref_decay<T>::type; // since C++20
+
+// [refwrap.comparisons], comparisons
+friend constexpr bool operator==(reference_wrapper, reference_wrapper);           // Since C++26
+friend constexpr bool operator==(reference_wrapper, const T&);                    // Since C++26
+friend constexpr bool operator==(reference_wrapper, reference_wrapper<const T>);  // Since C++26
+
+friend constexpr auto operator<=>(reference_wrapper, reference_wrapper);          // Since C++26
+friend constexpr auto operator<=>(reference_wrapper, const T&);                   // Since C++26
+friend constexpr auto operator<=>(reference_wrapper, reference_wrapper<const T>); // Since C++26
+
+template <class T> // <class T=void> in C++14
+struct plus {
+    T operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct minus {
+    T operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct multiplies {
+    T operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct divides {
+    T operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct modulus {
+    T operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct negate {
+    T operator()(const T& x) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct equal_to {
+    bool operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct not_equal_to {
+    bool operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct greater {
+    bool operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct less {
+    bool operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct greater_equal {
+    bool operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct less_equal {
+    bool operator()(const T& x, const T& y) const;
+};
+
+// [comparisons.three.way], class compare_three_way
+struct compare_three_way;
+
+template <class T> // <class T=void> in C++14
+struct logical_and {
+    bool operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct logical_or {
+    bool operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct logical_not {
+    bool operator()(const T& x) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct bit_and {
+    T operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct bit_or {
+    T operator()(const T& x, const T& y) const;
+};
+
+template <class T> // <class T=void> in C++14
+struct bit_xor {
+    T operator()(const T& x, const T& y) const;
+};
+
+template <class T=void> // C++14
+struct bit_not {
+    T operator()(const T& x) const;
+};
+
+struct identity; // C++20
+
+template <class Predicate>
+class unary_negate // deprecated in C++17, removed in C++20
+    : public unary_function<typename Predicate::argument_type, bool>
+{
+public:
+    explicit unary_negate(const Predicate& pred);
+    bool operator()(const typename Predicate::argument_type& x) const;
+};
+
+template <class Predicate> // deprecated in C++17, removed in C++20
+unary_negate<Predicate> not1(const Predicate& pred);
+
+template <class Predicate>
+class binary_negate // deprecated in C++17, removed in C++20
+    : public binary_function<typename Predicate::first_argument_type,
+                             typename Predicate::second_argument_type,
+                             bool>
+{
+public:
+    explicit binary_negate(const Predicate& pred);
+    bool operator()(const typename Predicate::first_argument_type& x,
+                    const typename Predicate::second_argument_type& y) const;
+};
+
+template <class Predicate> // deprecated in C++17, removed in C++20
+binary_negate<Predicate> not2(const Predicate& pred);
+
+template <class F>
+constexpr unspecified not_fn(F&& f); // C++17, constexpr in C++20
+
+// [func.bind.partial], function templates bind_front and bind_back
+template<class F, class... Args>
+  constexpr unspecified bind_front(F&&, Args&&...); // C++20
+template<class F, class... Args>
+  constexpr unspecified bind_back(F&&, Args&&...);  // C++23
+
+template<class T> struct is_bind_expression;
+template<class T> struct is_placeholder;
+
+    // See C++14 20.9.9, Function object binders
+template <class T> inline constexpr bool is_bind_expression_v
+  = is_bind_expression<T>::value; // C++17
+template <class T> inline constexpr int is_placeholder_v
+  = is_placeholder<T>::value; // C++17
+
+
+template<class Fn, class... BoundArgs>
+  constexpr unspecified bind(Fn&&, BoundArgs&&...);  // constexpr in C++20
+template<class R, class Fn, class... BoundArgs>
+  constexpr unspecified bind(Fn&&, BoundArgs&&...);  // constexpr in C++20
+
+// [func.invoke]
+template<class F, class... Args>
+ constexpr // constexpr in C++20
+ invoke_result_t<F, Args...> invoke(F&& f, Args&&... args) // C++17
+    noexcept(is_nothrow_invocable_v<F, Args...>);
+
+template<class R, class F, class... Args>
+  constexpr R invoke_r(F&& f, Args&&... args)              // C++23
+    noexcept(is_nothrow_invocable_r_v<R, F, Args...>);
+
+namespace placeholders {
+  // M is the implementation-defined number of placeholders
+  extern unspecified _1;
+  extern unspecified _2;
+  .
+  .
+  .
+  extern unspecified _Mp;
+}
+
+template <class Operation>
+class binder1st     // deprecated in C++11, removed in C++17
+    : public unary_function<typename Operation::second_argument_type,
+                            typename Operation::result_type>
+{
+protected:
+    Operation                               op;
+    typename Operation::first_argument_type value;
+public:
+    binder1st(const Operation& x, const typename Operation::first_argument_type y);
+    typename Operation::result_type operator()(      typename Operation::second_argument_type& x) const;
+    typename Operation::result_type operator()(const typename Operation::second_argument_type& x) const;
+};
+
+template <class Operation, class T>
+binder1st<Operation> bind1st(const Operation& op, const T& x);                  // deprecated in C++11, removed in C++17
+
+template <class Operation>
+class binder2nd                                                                 // deprecated in C++11, removed in C++17
+    : public unary_function<typename Operation::first_argument_type,
+                            typename Operation::result_type>
+{
+protected:
+    Operation                                op;
+    typename Operation::second_argument_type value;
+public:
+    binder2nd(const Operation& x, const typename Operation::second_argument_type y);
+    typename Operation::result_type operator()(      typename Operation::first_argument_type& x) const;
+    typename Operation::result_type operator()(const typename Operation::first_argument_type& x) const;
+};
+
+template <class Operation, class T>
+binder2nd<Operation> bind2nd(const Operation& op, const T& x);                  // deprecated in C++11, removed in C++17
+
+template <class Arg, class Result>                                              // deprecated in C++11, removed in C++17
+class pointer_to_unary_function : public unary_function<Arg, Result>
+{
+public:
+    explicit pointer_to_unary_function(Result (*f)(Arg));
+    Result operator()(Arg x) const;
+};
+
+template <class Arg, class Result>
+pointer_to_unary_function<Arg,Result> ptr_fun(Result (*f)(Arg));                // deprecated in C++11, removed in C++17
+
+template <class Arg1, class Arg2, class Result>                                 // deprecated in C++11, removed in C++17
+class pointer_to_binary_function : public binary_function<Arg1, Arg2, Result>
+{
+public:
+    explicit pointer_to_binary_function(Result (*f)(Arg1, Arg2));
+    Result operator()(Arg1 x, Arg2 y) const;
+};
+
+template <class Arg1, class Arg2, class Result>
+pointer_to_binary_function<Arg1,Arg2,Result> ptr_fun(Result (*f)(Arg1,Arg2));   // deprecated in C++11, removed in C++17
+
+template<class S, class T>                                                      // deprecated in C++11, removed in C++17
+class mem_fun_t : public unary_function<T*, S>
+{
+public:
+    explicit mem_fun_t(S (T::*p)());
+    S operator()(T* p) const;
+};
+
+template<class S, class T, class A>
+class mem_fun1_t : public binary_function<T*, A, S>                             // deprecated in C++11, removed in C++17
+{
+public:
+    explicit mem_fun1_t(S (T::*p)(A));
+    S operator()(T* p, A x) const;
+};
+
+template<class S, class T>          mem_fun_t<S,T>    mem_fun(S (T::*f)());     // deprecated in C++11, removed in C++17
+template<class S, class T, class A> mem_fun1_t<S,T,A> mem_fun(S (T::*f)(A));    // deprecated in C++11, removed in C++17
+
+template<class S, class T>
+class mem_fun_ref_t : public unary_function<T, S>                               // deprecated in C++11, removed in C++17
+{
+public:
+    explicit mem_fun_ref_t(S (T::*p)());
+    S operator()(T& p) const;
+};
+
+template<class S, class T, class A>
+class mem_fun1_ref_t : public binary_function<T, A, S>                          // deprecated in C++11, removed in C++17
+{
+public:
+    explicit mem_fun1_ref_t(S (T::*p)(A));
+    S operator()(T& p, A x) const;
+};
+
+template<class S, class T>
+mem_fun_ref_t<S,T>    mem_fun_ref(S (T::*f)());                                 // deprecated in C++11, removed in C++17
+template<class S, class T, class A>
+mem_fun1_ref_t<S,T,A> mem_fun_ref(S (T::*f)(A));                                // deprecated in C++11, removed in C++17
+
+template <class S, class T>
+class const_mem_fun_t : public unary_function<const T*, S>                      // deprecated in C++11, removed in C++17
+{
+public:
+    explicit const_mem_fun_t(S (T::*p)() const);
+    S operator()(const T* p) const;
+};
+
+template <class S, class T, class A>
+class const_mem_fun1_t : public binary_function<const T*, A, S>                 // deprecated in C++11, removed in C++17
+{
+public:
+    explicit const_mem_fun1_t(S (T::*p)(A) const);
+    S operator()(const T* p, A x) const;
+};
+
+template <class S, class T>
+const_mem_fun_t<S,T>    mem_fun(S (T::*f)() const);                             // deprecated in C++11, removed in C++17
+template <class S, class T, class A>
+const_mem_fun1_t<S,T,A> mem_fun(S (T::*f)(A) const);                            // deprecated in C++11, removed in C++17
+
+template <class S, class T>
+class const_mem_fun_ref_t : public unary_function<T, S>                         // deprecated in C++11, removed in C++17
+{
+public:
+    explicit const_mem_fun_ref_t(S (T::*p)() const);
+    S operator()(const T& p) const;
+};
+
+template <class S, class T, class A>
+class const_mem_fun1_ref_t : public binary_function<T, A, S>                    // deprecated in C++11, removed in C++17
+{
+public:
+    explicit const_mem_fun1_ref_t(S (T::*p)(A) const);
+    S operator()(const T& p, A x) const;
+};
+
+template <class S, class T>
+const_mem_fun_ref_t<S,T>    mem_fun_ref(S (T::*f)() const);                     // deprecated in C++11, removed in C++17
+template <class S, class T, class A>
+const_mem_fun1_ref_t<S,T,A> mem_fun_ref(S (T::*f)(A) const);                    // deprecated in C++11, removed in C++17
+
+template<class R, class T> constexpr unspecified mem_fn(R T::*);                // constexpr in C++20
+
+class bad_function_call
+    : public exception
+{
+};
+
+template<class> class function; // undefined
+
+template<class R, class... ArgTypes>
+class function<R(ArgTypes...)>
+  : public unary_function<T1, R>      // iff sizeof...(ArgTypes) == 1 and
+                                      // ArgTypes contains T1
+  : public binary_function<T1, T2, R> // iff sizeof...(ArgTypes) == 2 and
+                                      // ArgTypes contains T1 and T2
+{
+public:
+    typedef R result_type;
+
+    // construct/copy/destroy:
+    function() noexcept;
+    function(nullptr_t) noexcept;
+    function(const function&);
+    function(function&&) noexcept;
+    template<class F>
+      function(F);
+    template<Allocator Alloc>
+      function(allocator_arg_t, const Alloc&) noexcept;            // removed in C++17
+    template<Allocator Alloc>
+      function(allocator_arg_t, const Alloc&, nullptr_t) noexcept; // removed in C++17
+    template<Allocator Alloc>
+      function(allocator_arg_t, const Alloc&, const function&);    // removed in C++17
+    template<Allocator Alloc>
+      function(allocator_arg_t, const Alloc&, function&&);         // removed in C++17
+    template<class F, Allocator Alloc>
+      function(allocator_arg_t, const Alloc&, F);                  // removed in C++17
+
+    function& operator=(const function&);
+    function& operator=(function&&) noexcept;
+    function& operator=(nullptr_t) noexcept;
+    template<class F>
+      function& operator=(F&&);
+    template<class F>
+      function& operator=(reference_wrapper<F>) noexcept;
+
+    ~function();
+
+    // function modifiers:
+    void swap(function&) noexcept;
+    template<class F, class Alloc>
+      void assign(F&&, const Alloc&);                 // Removed in C++17
+
+    // function capacity:
+    explicit operator bool() const noexcept;
+
+    // function invocation:
+    R operator()(ArgTypes...) const;
+
+    // function target access:
+    const std::type_info& target_type() const noexcept;
+    template <typename T>       T* target() noexcept;
+    template <typename T> const T* target() const noexcept;
+};
+
+// Deduction guides
+template<class R, class ...Args>
+function(R(*)(Args...)) -> function<R(Args...)>; // since C++17
+
+template<class F>
+function(F) -> function<see-below>; // since C++17
+
+// Null pointer comparisons:
+template <class R, class ... ArgTypes>
+  bool operator==(const function<R(ArgTypes...)>&, nullptr_t) noexcept;
+
+template <class R, class ... ArgTypes>
+  bool operator==(nullptr_t, const function<R(ArgTypes...)>&) noexcept; // removed in C++20
+
+template <class R, class ... ArgTypes>
+  bool operator!=(const function<R(ArgTypes...)>&, nullptr_t) noexcept; // removed in C++20
+
+template <class  R, class ... ArgTypes>
+  bool operator!=(nullptr_t, const function<R(ArgTypes...)>&) noexcept; // removed in C++20
+
+// specialized algorithms:
+template <class  R, class ... ArgTypes>
+  void swap(function<R(ArgTypes...)>&, function<R(ArgTypes...)>&) noexcept;
+
+template <class T> struct hash;
+
+template <> struct hash<bool>;
+template <> struct hash<char>;
+template <> struct hash<signed char>;
+template <> struct hash<unsigned char>;
+template <> struct hash<char8_t>; // since C++20
+template <> struct hash<char16_t>;
+template <> struct hash<char32_t>;
+template <> struct hash<wchar_t>;
+template <> struct hash<short>;
+template <> struct hash<unsigned short>;
+template <> struct hash<int>;
+template <> struct hash<unsigned int>;
+template <> struct hash<long>;
+template <> struct hash<long long>;
+template <> struct hash<unsigned long>;
+template <> struct hash<unsigned long long>;
+
+template <> struct hash<float>;
+template <> struct hash<double>;
+template <> struct hash<long double>;
+
+template<class T> struct hash<T*>;
+template <> struct hash<nullptr_t>;  // C++17
+
+namespace ranges {
+  // [range.cmp], concept-constrained comparisons
+  struct equal_to;
+  struct not_equal_to;
+  struct greater;
+  struct less;
+  struct greater_equal;
+  struct less_equal;
+}
+
+}  // std
+
+POLICY:  For non-variadic implementations, the number of arguments is limited
+         to 3.  It is hoped that the need for non-variadic implementations
+         will be minimal.
+
+*/
+
+#include <__config>
+
+#include <__functional/binary_function.h>
+#include <__functional/binary_negate.h>
+#include <__functional/bind.h>
+#include <__functional/binder1st.h>
+#include <__functional/binder2nd.h>
+#include <__functional/hash.h>
+#include <__functional/mem_fn.h> // TODO: deprecate
+#include <__functional/mem_fun_ref.h>
+#include <__functional/operations.h>
+#include <__functional/pointer_to_binary_function.h>
+#include <__functional/pointer_to_unary_function.h>
+#include <__functional/reference_wrapper.h>
+#include <__functional/unary_function.h>
+#include <__functional/unary_negate.h>
+
+#ifndef _LIBCPP_CXX03_LANG
+#  include <__functional/function.h>
+#endif
+
+#if _LIBCPP_STD_VER >= 17
+#  include <__functional/boyer_moore_searcher.h>
+#  include <__functional/default_searcher.h>
+#  include <__functional/invoke.h>
+#  include <__functional/not_fn.h>
+#endif
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__functional/bind_back.h>
+#  include <__functional/bind_front.h>
+#  include <__functional/identity.h>
+#  include <__functional/ranges_operations.h>
+#  include <__type_traits/unwrap_ref.h>
+#endif
+
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && defined(_LIBCPP_CXX03_LANG)
+#  include <limits>
+#  include <new>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 14
+#  include <array>
+#  include <initializer_list>
+#  include <unordered_map>
+#  include <vector>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <atomic>
+#  include <concepts>
+#  include <cstdlib>
+#  include <exception>
+#  include <iosfwd>
+#  include <memory>
+#  include <stdexcept>
+#  include <tuple>
+#  include <type_traits>
+#  include <typeinfo>
+#  include <utility>
+#endif
+
+#endif // _LIBCPP_FUNCTIONAL

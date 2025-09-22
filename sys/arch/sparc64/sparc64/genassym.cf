@@ -1,0 +1,214 @@
+#	$OpenBSD: genassym.cf,v 1.47 2024/11/06 11:57:50 miod Exp $
+#	$NetBSD: genassym.cf,v 1.23 2001/08/08 00:09:30 eeh Exp $
+
+#
+# Copyright (c) 1997 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Christos Zoulas.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# Copyright (c) 1992, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# This software was developed by the Computer Systems Engineering group
+# at Lawrence Berkeley Laboratory under DARPA contract BG 91-66 and
+# contributed to Berkeley.
+#
+# All advertising materials mentioning features or use of this software
+# must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Lawrence Berkeley Laboratory.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)genassym.c	8.1 (Berkeley) 6/11/93
+#
+
+include <sys/param.h>
+include <sys/buf.h>
+include <sys/proc.h>
+include <sys/mbuf.h>
+include <sys/syscall.h>
+include <sys/user.h>
+
+include <uvm/uvm_extern.h>
+
+include <machine/cpu.h>
+include <machine/pmap.h>
+include <machine/pte.h>
+
+include <machine/fsr.h>
+include <machine/reg.h>
+
+# proc fields and values
+struct	proc
+member	p_addr
+member	p_stat
+member	p_vmspace
+member	p_cpu
+member	P_FPSTATE	p_md.md_fpstate
+member	P_MD_ASTPENDING	p_md.md_astpending
+member	P_MD_PCBPADDR	p_md.md_pcbpaddr
+
+export	SONPROC
+
+# user structure fields
+define	USIZ		sizeof(struct user)
+
+# VM structure fields
+define	VM_PMAP		offsetof(struct vmspace, vm_map.pmap)
+
+# pmap structure fields
+struct	pmap
+member	pm_ctx
+member	PM_PHYS		pm_physaddr
+
+# interrupt/fault metering
+struct	uvmexp		V_
+member	swtch
+member	INTR		intrs
+member	faults
+
+# CPU info structure
+struct	cpu_info
+member	ci_self
+member	ci_curproc
+member	ci_cpcb
+member	ci_cpcbpaddr
+member	ci_fpproc
+member	ci_handled_intr_level
+member	ci_intrpending
+member	ci_tickintr
+member	ci_spinup
+member	ci_initstack
+member	ci_paddr
+ifdef SUN4V
+member	ci_rw
+member	ci_rwsp
+member	ci_mmfsa
+member	ci_cpumq
+member	ci_devmq
+endif
+
+# FPU state
+struct	fpstate
+member	fs_regs
+member	fs_fsr
+member	fs_gsr
+export	FPRS_FEF
+export	FPRS_DU
+export	FPRS_DL
+
+# system calls
+export	SYS_sigreturn
+
+# errno
+export	EFAULT
+export	ENAMETOOLONG
+
+# PCB fields
+struct	pcb
+member	pcb_nsaved
+member	pcb_onfault
+member	pcb_pstate
+member	pcb_cwp
+member	pcb_pil
+member	pcb_rw
+member	pcb_rwsp
+member	pcb_sp
+member	pcb_wcookie
+member	pcb_pc
+
+# trapframe fields
+struct	trapframe
+member	tf_tstate
+member	tf_pc
+member	tf_npc
+member	tf_y
+member	tf_pil
+member	tf_oldpil
+member	tf_tt
+member	tf_global
+# shortened versions
+member	TF_G		tf_global
+member	TF_O		tf_out
+member	TF_L		tf_local
+member	TF_I		tf_in
+
+struct	clockframe
+member	saved_intr_level
+
+# interrupt handler fields
+struct	intrhand
+member	ih_pil
+member	IH_PEND		ih_pending
+member	ih_ack
+member	IH_COUNT	ih_count.ec_count
+
+# mbuf fields of import
+struct	mbuf
+member	m_next
+member	m_data
+member	m_len
+
+export	TSB_TAG_LOCKED
+
+export	SUN4U_TLB_ACCESS
+export	SUN4U_TLB_MODIFY
+export	SUN4U_TLB_REAL_W
+export	SUN4U_TLB_EXEC
+export	SUN4U_TLB_EXEC_ONLY
+export	SUN4U_TLB_W
+
+export	SUN4V_TLB_ACCESS
+export	SUN4V_TLB_MODIFY
+export	SUN4V_TLB_REAL_W
+export	SUN4V_TLB_EXEC
+export	SUN4V_TLB_W
+
+export	CPU_SUN4U
+export	CPU_SUN4V

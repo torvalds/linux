@@ -1,0 +1,13 @@
+pass in all flags S/SA
+pass in all flags S/SA
+block drop in proto tcp all flags FPUEW/FSRPAUEW
+block drop in proto tcp all flags FS/FSRA
+block drop in proto tcp all flags /FSRAW
+pass in proto udp all
+pass in proto icmp all
+pass in proto tcp all flags S/SA
+pass in all flags S/SA no state
+pass in all no state
+pass in all flags any
+pass in all flags S/SA
+pass in all flags S/SA

@@ -1,0 +1,274 @@
+.\" $OpenBSD: CMAC_Init.3,v 1.10 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CMAC_INIT 3
+.Os
+.Sh NAME
+.Nm CMAC_CTX_new ,
+.Nm CMAC_Init ,
+.Nm CMAC_Update ,
+.Nm CMAC_Final ,
+.Nm CMAC_CTX_copy ,
+.Nm CMAC_CTX_get0_cipher_ctx ,
+.Nm CMAC_CTX_cleanup ,
+.Nm CMAC_CTX_free
+.Nd Cipher-based message authentication code
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cmac.h
+.Ft CMAC_CTX *
+.Fn CMAC_CTX_new void
+.Ft int
+.Fo CMAC_Init
+.Fa "CMAC_CTX *ctx"
+.Fa "const void *key"
+.Fa "size_t key_len"
+.Fa "const EVP_CIPHER *cipher"
+.Fa "ENGINE *engine"
+.Fc
+.Ft int
+.Fo CMAC_Update
+.Fa "CMAC_CTX *ctx"
+.Fa "const void *in_data"
+.Fa "size_t in_len"
+.Fc
+.Ft int
+.Fo CMAC_Final
+.Fa "CMAC_CTX *ctx"
+.Fa "unsigned char *out_mac"
+.Fa "size_t *out_len"
+.Fc
+.Ft int
+.Fo CMAC_CTX_copy
+.Fa "CMAC_CTX *out_ctx"
+.Fa "CMAC_CTX *in_ctx"
+.Fc
+.Ft EVP_CIPHER_CTX *
+.Fn CMAC_CTX_get0_cipher_ctx "CMAC_CTX *ctx"
+.Ft void
+.Fn CMAC_CTX_cleanup "CMAC_CTX *ctx"
+.Ft void
+.Fn CMAC_CTX_free "CMAC_CTX *ctx"
+.Sh DESCRIPTION
+CMAC is a message authentication code algorithm that can employ an
+arbitrary block cipher using a symmetric key.
+.Pp
+The present manual page describes low-level functions implementing CMAC.
+Instead of using these functions directly,
+application programs normally call
+.Xr EVP_PKEY_new_CMAC_key 3
+and then pass the resulting
+.Vt EVP_PKEY
+object to
+.Xr EVP_DigestSignInit 3 .
+.Pp
+The CMAC API is object-oriented.
+Calculating a message authentication code requires a
+.Vt CMAC_CTX
+object.
+Usually, the functions
+.Fn CMAC_CTX_new ,
+.Fn CMAC_Init ,
+.Fn CMAC_Update ,
+.Fn CMAC_Final ,
+and
+.Fn CMAC_CTX_free
+need to be called in this order.
+.Pp
+.Fn CMAC_CTX_new
+allocates a new
+.Vt CMAC_CTX
+object, initializes the embedded
+.Vt EVP_CIPHER_CTX
+object, and marks the object itself as uninitialized.
+.Pp
+.Fn CMAC_Init
+selects the given block
+.Fa cipher
+for use by
+.Fa ctx .
+Functions to obtain suitable
+.Vt EVP_CIPHER
+objects are listed in the CIPHER LISTING section of the
+.Xr EVP_EncryptInit 3
+manual page.
+Unless
+.Fa key
+is
+.Dv NULL ,
+.Fn CMAC_Init
+also initializes
+.Fa ctx
+for use with the given symmetric
+.Fa key
+that is
+.Fa key_len
+bytes long.
+In particular, it calculates and internally stores the two subkeys
+and initializes
+.Fa ctx
+for subsequently feeding in data with
+.Fn CMAC_Update .
+The
+.Fa engine
+argument is ignored; passing
+.Dv NULL
+is recommended.
+.Pp
+If
+.Fa ctx
+is already initialized,
+.Fn CMAC_Init
+can be called again with
+.Fa key
+and
+.Fa cipher
+both set to
+.Dv NULL
+and
+.Fa key_len
+set to 0.
+In that case, any data already processed is discarded and
+.Fa ctx
+is re-initialized to start reading data anew.
+.Pp
+.Fn CMAC_Update
+processes
+.Fa in_len
+bytes of input data pointed to by
+.Fa in_data .
+Depending on the number of input bytes already cached in
+.Fa ctx ,
+on
+.Fa in_len ,
+and on the block size, this may encrypt zero or more blocks.
+Unless
+.Fa in_len
+is zero, this function leaves at least one byte and at most one
+block of input cached but unprocessed inside the
+.Fa ctx
+object.
+.Fn CMAC_Update
+can be called multiple times
+to concatenate several chunks of input data of varying sizes.
+.Pp
+.Fn CMAC_Final
+stores the length of the message authentication code in bytes,
+which equals the cipher block size, into
+.Pf * Fa out_len .
+Unless
+.Fa out_mac
+is
+.Dv NULL ,
+it encrypts the last block, padding it if required, and copies the
+resulting message authentication code to
+.Fa out_mac .
+The caller is responsible for providing a buffer of sufficient size.
+.Pp
+.Fn CMAC_CTX_copy
+performs a deep copy of the already initialized
+.Fa in_ctx
+into
+.Fa out_ctx .
+.Pp
+.Fn CMAC_CTX_cleanup
+zeros out both subkeys and all temporary data in
+.Fa ctx
+and in the embedded
+.Vt EVP_CIPHER_CTX
+object, frees all allocated memory associated with it,
+except for
+.Fa ctx
+itself, and marks it as uninitialized,
+such that it can be reused for subsequent
+.Fn CMAC_Init .
+.Pp
+.Fn CMAC_CTX_free
+calls
+.Fn CMAC_CTX_cleanup ,
+then frees
+.Fa ctx
+itself.
+If
+.Fa ctx
+is
+.Dv NULL ,
+no action occurs.
+.Sh RETURN VALUES
+.Fn CMAC_CTX_new
+returns the new context object or
+.Dv NULL
+in case of failure.
+It succeeds unless memory is exhausted.
+.Pp
+.Fn CMAC_Init ,
+.Fn CMAC_Update ,
+.Fn CMAC_Final ,
+and
+.Fn CMAC_CTX_copy
+return 1 on success or 0 on failure.
+.Fn CMAC_Init
+fails if initializing the embedded
+.Vt EVP_CIPHER_CTX
+object fails.
+The others fail if
+.Fa in_ctx
+is uninitialized.
+.Fn CMAC_Update
+and
+.Fn CMAC_Final
+also fail if encrypting a block fails, and
+.Fn CMAC_CTX_copy
+if copying the embedded
+.Vt EVP_CIPHER_CTX
+object fails, which can for example happen when memory is exhausted.
+.Pp
+.Fn CMAC_CTX_get0_cipher_ctx
+returns an internal pointer to the
+.Vt EVP_CIPHER_CTX
+object that is embedded in
+.Fa ctx .
+.Sh ERRORS
+The CMAC code itself does not use the
+.In openssl/err.h
+framework, so in general, the reasons for failure cannot be found out with
+.Xr ERR_get_error 3 .
+However, since the
+.Xr EVP_EncryptInit 3
+functions are used internally, entries may still get pushed onto
+the error stack in some cases of failure.
+.Sh SEE ALSO
+.Xr EVP_aes_128_cbc 3 ,
+.Xr EVP_DigestSignInit 3 ,
+.Xr EVP_EncryptInit 3 ,
+.Xr EVP_PKEY_new_CMAC_key 3 ,
+.Xr HMAC 3
+.Sh STANDARDS
+.Rs
+.%A Morris Dworkin
+.%T "Recommendation for Block Cipher Modes of Operation:\
+ The CMAC Mode for Authentication"
+.%I National Institute of Standards and Technology
+.%R NIST Special Publication 800-38B
+.%U https://doi.org/10.6028/NIST.SP.800-38B
+.%C Gaithersburg, Maryland
+.%D May 2005, updated October 6, 2016
+.Re
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.0.1
+and have been available since
+.Ox 5.3 .

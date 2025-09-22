@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="HOWTO for the libstdc++ chapter 21." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 HOWTO:  Chapter 21</title>
+<link rel="StyleSheet" href="../lib3styles.css" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Chapter 21:  Strings</a></h1>
+
+<p>Chapter 21 deals with the C++ strings library (a welcome relief).
+</p>
+
+
+<!-- ####################################################### -->
+<hr />
+<h1>Contents</h1>
+<ul>
+   <li><a href="#1">MFC's CString</a></li>
+   <li><a href="#2">A case-insensitive string class</a></li>
+   <li><a href="#3">Breaking a C++ string into tokens</a></li>
+   <li><a href="#4">Simple transformations</a></li>
+   <li><a href="#5">Making strings of arbitrary character types</a></li>
+</ul>
+
+<hr />
+
+<!-- ####################################################### -->
+
+<h2><a name="1">MFC's CString</a></h2>
+   <p>A common lament seen in various newsgroups deals with the Standard
+      string class as opposed to the Microsoft Foundation Class called
+      CString.  Often programmers realize that a standard portable
+      answer is better than a proprietary nonportable one, but in porting
+      their application from a Win32 platform, they discover that they
+      are relying on special functions offered by the CString class.
+   </p>
+   <p>Things are not as bad as they seem.  In
+      <a href="http://gcc.gnu.org/ml/gcc/1999-04n/msg00236.html">this
+      message</a>, Joe Buck points out a few very important things:
+   </p>
+      <ul>
+         <li>The Standard <code>string</code> supports all the operations
+             that CString does, with three exceptions.
+         </li>
+         <li>Two of those exceptions (whitespace trimming and case 
+             conversion) are trivial to implement.  In fact, we do so
+             on this page.
+         </li>
+         <li>The third is <code>CString::Format</code>, which allows formatting
+             in the style of <code>sprintf</code>.  This deserves some mention:
+         </li>
+      </ul>
+   <p><a name="1.1internal"> <!-- Coming from Chapter 27 -->
+      The old libg++ library had a function called form(), which did much
+      the same thing.  But for a Standard solution, you should use the
+      stringstream classes.  These are the bridge between the iostream
+      hierarchy and the string class, and they operate with regular
+      streams seamlessly because they inherit from the iostream
+      hierarchy.  An quick example:
+      </a>
+   </p>
+   <pre>
+   #include &lt;iostream&gt;
+   #include &lt;string&gt;
+   #include &lt;sstream&gt;
+
+   string f (string&amp; incoming)     // incoming is "foo  N"
+   {
+       istringstream   incoming_stream(incoming);
+       string          the_word;
+       int             the_number;
+
+       incoming_stream &gt;&gt; the_word        // extract "foo"
+                       &gt;&gt; the_number;     // extract N
+
+       ostringstream   output_stream;
+       output_stream &lt;&lt; "The word was " &lt;&lt; the_word
+                     &lt;&lt; " and 3*N was " &lt;&lt; (3*the_number);
+
+       return output_stream.str();
+   } </pre>
+   <p>A serious problem with CString is a design bug in its memory
+      allocation.  Specifically, quoting from that same message:
+   </p>
+   <pre>
+   CString suffers from a common programming error that results in
+   poor performance.  Consider the following code:
+   
+   CString n_copies_of (const CString&amp; foo, unsigned n)
+   {
+           CString tmp;
+           for (unsigned i = 0; i &lt; n; i++)
+                   tmp += foo;
+           return tmp;
+   }
+   
+   This function is O(n^2), not O(n).  The reason is that each +=
+   causes a reallocation and copy of the existing string.  Microsoft
+   applications are full of this kind of thing (quadratic performance
+   on tasks that can be done in linear time) -- on the other hand,
+   we should be thankful, as it's created such a big market for high-end
+   ix86 hardware. :-)
+   
+   If you replace CString with string in the above function, the
+   performance is O(n).
+   </pre>
+   <p>Joe Buck also pointed out some other things to keep in mind when
+      comparing CString and the Standard string class:
+   </p>
+      <ul>
+         <li>CString permits access to its internal representation; coders
+             who exploited that may have problems moving to <code>string</code>.
+         </li>
+         <li>Microsoft ships the source to CString (in the files
+             MFC\SRC\Str{core,ex}.cpp), so you could fix the allocation
+             bug and rebuild your MFC libraries.
+             <em><strong>Note:</strong> It looks like the the CString shipped
+             with VC++6.0 has fixed this, although it may in fact have been
+             one of the VC++ SPs that did it.</em>
+         </li>
+         <li><code>string</code> operations like this have O(n) complexity
+             <em>if the implementors do it correctly</em>.  The libstdc++
+             implementors did it correctly.  Other vendors might not.
+         </li>
+         <li>While parts of the SGI STL are used in libstdc++-v3, their
+             string class is not.  The SGI <code>string</code> is essentially
+             <code>vector&lt;char&gt;</code> and does not do any reference
+             counting like libstdc++-v3's does.  (It is O(n), though.)
+             So if you're thinking about SGI's string or rope classes,
+             you're now looking at four possibilities:  CString, the
+             libstdc++ string, the SGI string, and the SGI rope, and this
+             is all before any allocator or traits customizations!  (More
+             choices than you can shake a stick at -- want fries with that?)
+         </li>
+      </ul>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="2">A case-insensitive string class</a></h2>
+   <p>The well-known-and-if-it-isn't-well-known-it-ought-to-be
+      <a href="http://www.peerdirect.com/resources/">Guru of the Week</a>
+      discussions held on Usenet covered this topic in January of 1998.
+      Briefly, the challenge was, &quot;write a 'ci_string' class which
+      is identical to the standard 'string' class, but is
+      case-insensitive in the same way as the (common but nonstandard)
+      C function stricmp():&quot;
+   </p>
+   <pre>
+   ci_string s( "AbCdE" );
+
+   // case insensitive
+   assert( s == "abcde" );
+   assert( s == "ABCDE" );
+
+   // still case-preserving, of course
+   assert( strcmp( s.c_str(), "AbCdE" ) == 0 );
+   assert( strcmp( s.c_str(), "abcde" ) != 0 ); </pre>
+
+   <p>The solution is surprisingly easy.  The original answer pages
+      on the GotW website were removed into cold storage, in
+      preparation for
+      <a href="http://cseng.aw.com/bookpage.taf?ISBN=0-201-61562-2">a
+      published book of GotW notes</a>.  Before being
+      put on the web, of course, it was posted on Usenet, and that
+      posting containing the answer is <a href="gotw29a.txt">available
+      here</a>.
+   </p>
+   <p>See?  Told you it was easy!</p>
+   <p><strong>Added June 2000:</strong>  The May issue of <u>C++ Report</u>
+      contains
+      a fascinating article by Matt Austern (yes, <em>the</em> Matt Austern)
+      on why case-insensitive comparisons are not as easy as they seem,
+      and why creating a class is the <em>wrong</em> way to go about it in
+      production code.  (The GotW answer mentions one of the principle
+      difficulties; his article mentions more.)
+   </p>
+   <p>Basically, this is &quot;easy&quot; only if you ignore some things,
+      things which may be too important to your program to ignore.  (I chose
+      to ignore them when originally writing this entry, and am surprised
+      that nobody ever called me on it...)  The GotW question and answer
+      remain useful instructional tools, however.
+   </p>
+   <p><strong>Added September 2000:</strong>  James Kanze provided a link to a
+      <a href="http://www.unicode.org/unicode/reports/tr21/">Unicode
+      Technical Report discussing case handling</a>, which provides some
+      very good information.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="3">Breaking a C++ string into tokens</a></h2>
+   <p>The Standard C (and C++) function <code>strtok()</code> leaves a lot to
+      be desired in terms of user-friendliness.  It's unintuitive, it
+      destroys the character string on which it operates, and it requires
+      you to handle all the memory problems.  But it does let the client
+      code decide what to use to break the string into pieces; it allows
+      you to choose the &quot;whitespace,&quot; so to speak.
+   </p>
+   <p>A C++ implementation lets us keep the good things and fix those
+      annoyances.  The implementation here is more intuitive (you only
+      call it once, not in a loop with varying argument), it does not
+      affect the original string at all, and all the memory allocation
+      is handled for you.
+   </p>
+   <p>It's called stringtok, and it's a template function.  It's given
+      <a href="stringtok_h.txt">in this file</a> in a less-portable form than
+      it could be, to keep this example simple (for example, see the
+      comments on what kind of string it will accept).  The author uses
+      a more general (but less readable) form of it for parsing command
+      strings and the like.  If you compiled and ran this code using it:
+   </p>
+   <pre>
+   std::list&lt;string&gt;  ls;
+   stringtok (ls, " this  \t is\t\n  a test  ");
+   for (std::list&lt;string&gt;const_iterator i = ls.begin();
+        i != ls.end(); ++i)
+   {
+       std::cerr &lt;&lt; ':' &lt;&lt; (*i) &lt;&lt; ":\n";
+   } </pre>
+   <p>You would see this as output:
+   </p>
+   <pre>
+   :this:
+   :is:
+   :a:
+   :test: </pre>
+   <p>with all the whitespace removed.  The original <code>s</code> is still
+      available for use, <code>ls</code> will clean up after itself, and
+      <code>ls.size()</code> will return how many tokens there were.
+   </p>
+   <p>As always, there is a price paid here, in that stringtok is not
+      as fast as strtok.  The other benefits usually outweight that, however.
+      <a href="stringtok_std_h.txt">Another version of stringtok is given
+      here</a>, suggested by Chris King and tweaked by Petr Prikryl,
+      and this one uses the
+      transformation functions mentioned below.  If you are comfortable
+      with reading the new function names, this version is recommended
+      as an example.
+   </p>
+   <p><strong>Added February 2001:</strong>  Mark Wilden pointed out that the
+      standard <code>std::getline()</code> function can be used with standard
+      <a href="../27_io/howto.html">istringstreams</a> to perform
+      tokenizing as well.  Build an istringstream from the input text,
+      and then use std::getline with varying delimiters (the three-argument
+      signature) to extract tokens into a string.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="4">Simple transformations</a></h2>
+   <p>Here are Standard, simple, and portable ways to perform common
+      transformations on a <code>string</code> instance, such as &quot;convert
+      to all upper case.&quot;  The word transformations is especially
+      apt, because the standard template function
+      <code>transform&lt;&gt;</code> is used.
+   </p>
+   <p>This code will go through some iterations (no pun).  Here's the
+      simplistic version usually seen on Usenet:
+   </p>
+   <pre>
+   #include &lt;string&gt;
+   #include &lt;algorithm&gt;
+   #include &lt;cctype&gt;      // old &lt;ctype.h&gt;
+
+   struct ToLower
+   {
+     char operator() (char c) const  { return std::tolower(c); }
+   };
+
+   struct ToUpper
+   {
+     char operator() (char c) const  { return std::toupper(c); }
+   };
+
+   int main()
+   {
+     std::string  s ("Some Kind Of Initial Input Goes Here");
+
+     // Change everything into upper case
+     std::transform (s.begin(), s.end(), s.begin(), ToUpper());
+
+     // Change everything into lower case
+     std::transform (s.begin(), s.end(), s.begin(), ToLower());
+
+     // Change everything back into upper case, but store the
+     // result in a different string
+     std::string  capital_s;
+     capital_s.resize(s.size());
+     std::transform (s.begin(), s.end(), capital_s.begin(), ToUpper());
+   } </pre>
+   <p><span class="larger"><strong>Note</strong></span> that these calls all
+      involve the global C locale through the use of the C functions
+      <code>toupper/tolower</code>.  This is absolutely guaranteed to work --
+      but <em>only</em> if the string contains <em>only</em> characters
+      from the basic source character set, and there are <em>only</em>
+      96 of those.  Which means that not even all English text can be
+      represented (certain British spellings, proper names, and so forth).
+      So, if all your input forevermore consists of only those 96
+      characters (hahahahahaha), then you're done.
+   </p>
+   <p><span class="larger"><strong>Note</strong></span> that the
+      <code>ToUpper</code> and <code>ToLower</code> function objects
+      are needed because <code>toupper</code> and <code>tolower</code>
+      are overloaded names (declared in <code>&lt;cctype&gt;</code> and
+      <code>&lt;locale&gt;</code>) so the template-arguments for
+      <code>transform&lt;&gt;</code> cannot be deduced, as explained in
+      <a href="http://gcc.gnu.org/ml/libstdc++/2002-11/msg00180.html">this
+      message</a>.  <!-- section 14.8.2.4 clause 16 in ISO 14882:1998
+      if you're into that sort of thing -->
+      At minimum, you can write short wrappers like
+   </p>
+   <pre>
+   char toLower (char c)
+   {
+      return std::tolower(c);
+   } </pre>
+   <p>The correct method is to use a facet for a particular locale
+      and call its conversion functions.  These are discussed more in
+      Chapter 22; the specific part is
+      <a href="../22_locale/howto.html#7">Correct Transformations</a>,
+      which shows the final version of this code.  (Thanks to James Kanze
+      for assistance and suggestions on all of this.)
+   </p>
+   <p>Another common operation is trimming off excess whitespace.  Much
+      like transformations, this task is trivial with the use of string's
+      <code>find</code> family.  These examples are broken into multiple
+      statements for readability:
+   </p>
+   <pre>
+   std::string  str (" \t blah blah blah    \n ");
+
+   // trim leading whitespace
+   string::size_type  notwhite = str.find_first_not_of(" \t\n");
+   str.erase(0,notwhite);
+
+   // trim trailing whitespace
+   notwhite = str.find_last_not_of(" \t\n"); 
+   str.erase(notwhite+1); </pre>
+   <p>Obviously, the calls to <code>find</code> could be inserted directly
+      into the calls to <code>erase</code>, in case your compiler does not
+      optimize named temporaries out of existence.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="5">Making strings of arbitrary character types</a></h2>
+   <p>The <code>std::basic_string</code> is tantalizingly general, in that
+      it is parameterized on the type of the characters which it holds.
+      In theory, you could whip up a Unicode character class and instantiate
+      <code>std::basic_string&lt;my_unicode_char&gt;</code>, or assuming
+      that integers are wider than characters on your platform, maybe just
+      declare variables of type <code>std::basic_string&lt;int&gt;</code>.
+   </p>
+   <p>That's the theory.  Remember however that basic_string has additional
+      type parameters, which take default arguments based on the character
+      type (called CharT here):
+   </p>
+   <pre>
+      template &lt;typename CharT,
+                typename Traits = char_traits&lt;CharT&gt;,
+                typename Alloc = allocator&lt;CharT&gt; &gt;
+      class basic_string { .... };</pre>
+   <p>Now, <code>allocator&lt;CharT&gt;</code> will probably Do The Right
+      Thing by default, unless you need to implement your own allocator
+      for your characters.
+   </p>
+   <p>But <code>char_traits</code> takes more work.  The char_traits
+      template is <em>declared</em> but not <em>defined</em>.
+      That means there is only
+   </p>
+   <pre>
+      template &lt;typename CharT&gt;
+        struct char_traits
+        {
+            static void foo (type1 x, type2 y);
+            ...
+        };</pre>
+   <p>and functions such as char_traits&lt;CharT&gt;::foo() are not
+      actually defined anywhere for the general case.  The C++ standard
+      permits this, because writing such a definition to fit all possible
+      CharT's cannot be done.  (For a time, in earlier versions of GCC,
+      there was a mostly-correct implementation that let programmers be
+      lazy.  :-)  But it broke under many situations, so it was removed.
+      You are no longer allowed to be lazy and non-portable.)
+   </p>
+   <p>The C++ standard also requires that char_traits be specialized for
+      instantiations of <code>char</code> and <code>wchar_t</code>, and it
+      is these template specializations that permit entities like
+      <code>basic_string&lt;char,char_traits&lt;char&gt;&gt;</code> to work.
+   </p>
+   <p>If you want to use character types other than char and wchar_t,
+      such as <code>unsigned char</code> and <code>int</code>, you will
+      need to write specializations for them at the present time.  If you
+      want to use your own special character class, then you have
+      <a href="http://gcc.gnu.org/ml/libstdc++/2002-08/msg00163.html">a lot
+      of work to do</a>, especially if you with to use i18n features
+      (facets require traits information but don't have a traits argument).
+   </p>
+   <p>One example of how to specialize char_traits is given
+      <a href="http://gcc.gnu.org/ml/libstdc++/2002-08/msg00260.html">in
+      this message</a>.  We agree that the way it's used with basic_string
+      (scroll down to main()) doesn't look nice, but that's because
+      <a href="http://gcc.gnu.org/ml/libstdc++/2002-08/msg00236.html">the
+      nice-looking first attempt</a> turned out to
+      <a href="http://gcc.gnu.org/ml/libstdc++/2002-08/msg00242.html">not
+      be conforming C++</a>, due to the rule that CharT must be a POD.
+      (See how tricky this is?)
+   </p>
+   <p>Other approaches were suggested in that same thread, such as providing
+      more specializations and/or some helper types in the library to assist
+      users writing such code.  So far nobody has had the time...
+      <a href="../17_intro/contribute.html">do you?</a>
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="../17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

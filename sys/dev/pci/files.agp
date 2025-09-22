@@ -1,0 +1,42 @@
+#	$OpenBSD: files.agp,v 1.5 2012/12/04 10:42:04 mpi Exp $
+
+define agpdev {}
+
+# agpbus defined in /sys/conf/files
+device agp: agpdev
+attach agp at agpdev
+file	dev/pci/agp.c		agp		needs-flag
+
+device	aliagp: agpdev
+attach	aliagp at agpbus
+file	dev/pci/agp_ali.c	aliagp
+
+device	amdagp: agpdev
+attach	amdagp at agpbus
+file	dev/pci/agp_amd.c	amdagp
+
+device	appleagp: agpdev
+attach  appleagp at agpbus
+file	dev/pci/agp_apple.c	appleagp
+
+device	intelagp: agpdev
+attach	intelagp at agpbus
+file	dev/pci/agp_intel.c	intelagp
+
+# agpint defined in  /sys/conf/files since it attaches at vga
+device	intagp: agpdev
+attach	intagp at agpint
+# intelagp needs file to check presence of IGD
+file	dev/pci/agp_i810.c	intagp		needs-flag
+
+device	mmuagp: agpdev
+attach	mmuagp at agpbus
+file	dev/pci/mmuagp.c	mmuagp
+
+device	sisagp: agpdev
+attach	sisagp at agpbus
+file	dev/pci/agp_sis.c	sisagp
+
+device	viaagp: agpdev
+attach	viaagp at agpbus
+file	dev/pci/agp_via.c	viaagp

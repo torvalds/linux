@@ -1,0 +1,32 @@
+action("HTMLForestResources") {
+  script = "//clang/utils/bundle_resources.py"
+  inputs = [
+    "HTMLForest.css",
+    "HTMLForest.js",
+    "HTMLForest.html",
+  ]
+  outputs = [ "$target_gen_dir/HTMLForestResources.inc" ]
+  args =
+      rebase_path(outputs, root_build_dir) + rebase_path(inputs, root_build_dir)
+}
+
+executable("clang-pseudo") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    ":HTMLForestResources",
+    "//clang-tools-extra/pseudo/lib",
+    "//clang-tools-extra/pseudo/lib/cli",
+    "//clang/lib/Basic",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [
+    "../include",
+
+    # To pick up HTMLForestResources.inc:
+    target_gen_dir,
+  ]
+  sources = [
+    "ClangPseudo.cpp",
+    "HTMLForest.cpp",
+  ]
+}

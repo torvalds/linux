@@ -1,0 +1,23 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("WebAssemblyGenDisassemblerTables") {
+  visibility = [ ":Disassembler" ]
+  args = [ "-gen-disassembler" ]
+  td_file = "../WebAssembly.td"
+}
+
+static_library("Disassembler") {
+  output_name = "LLVMWebAssemblyDisassembler"
+  deps = [
+    ":WebAssemblyGenDisassemblerTables",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/WebAssembly/MCTargetDesc",
+    "//llvm/lib/Target/WebAssembly/TargetInfo",
+    "//llvm/lib/Target/WebAssembly/Utils",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "WebAssemblyDisassembler.cpp" ]
+}

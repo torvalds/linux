@@ -1,0 +1,171 @@
+.\"	$OpenBSD: getdelim.3,v 1.7 2022/12/20 17:59:29 schwarze Exp $
+.\"     $NetBSD: getdelim.3,v 1.9 2011/04/20 23:37:51 enami Exp $
+.\"
+.\" Copyright (c) 2009 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Roy Marples.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 20 2022 $
+.Dt GETDELIM 3
+.Os
+.Sh NAME
+.Nm getdelim ,
+.Nm getline
+.Nd read a delimited record from a stream
+.\" .Sh LIBRARY
+.\" .Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft ssize_t
+.Fn getdelim "char ** restrict lineptr" "size_t * restrict n" "int delimiter" "FILE * restrict stream"
+.Ft ssize_t
+.Fn getline "char ** restrict lineptr" "size_t * restrict n" "FILE * restrict stream"
+.Sh DESCRIPTION
+The
+.Fn getdelim
+function reads from the
+.Fa stream
+until it encounters a character matching
+.Fa delimiter ,
+storing the input in
+.Fa *lineptr .
+The buffer is
+.Dv NUL Ns No -terminated
+and includes the delimiter.
+The
+.Fa delimiter
+character must be representable as an
+.Vt unsigned char .
+.Pp
+If
+.Fa *n
+is non-zero, then
+.Fa *lineptr
+must be pre-allocated to at least
+.Fa *n
+bytes.
+The buffer should be allocated dynamically;
+it must be possible to
+.Xr free 3
+.Fa *lineptr .
+.Fn getdelim
+will
+.Xr realloc 3
+.Fa *lineptr
+as necessary, updating
+.Fa *n
+to reflect the new size.
+It is the responsibility of the caller to
+.Xr free 3
+.Fa *lineptr
+when it is no longer needed.
+Even when it fails,
+.Fn getdelim
+may update
+.Fa *lineptr .
+.Pp
+The
+.Fn getline
+function is equivalent to
+.Fn getdelim
+with
+.Fa delimiter
+set to the newline character.
+.Sh RETURN VALUES
+The
+.Fn getdelim
+and
+.Fn getline
+functions return the number of characters read, including the delimiter.
+If no characters were read and the stream is at end-of-file, the functions
+return \-1.
+If an error occurs, the functions return \-1 and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+The functions do not distinguish between end-of-file and error,
+and callers must use
+.Xr feof 3
+and
+.Xr ferror 3
+to determine which occurred.
+.Sh EXAMPLES
+The following code fragment reads lines from a file and writes them to
+standard output.
+.Bd -literal -offset indent
+char *line = NULL;
+size_t linesize = 0;
+ssize_t linelen;
+
+while ((linelen = getline(\*[Am]line, \*[Am]linesize, fp)) != -1)
+	fwrite(line, linelen, 1, stdout);
+
+free(line);
+if (ferror(fp))
+	err(1, "getline");
+.Ed
+.Sh ERRORS
+.Bl -tag -width [EOVERFLOW]
+.It Bq Er EINVAL
+.Fa lineptr
+or
+.Fa n
+is a
+.Dv NULL
+pointer.
+.It Bq Er EOVERFLOW
+More than SSIZE_MAX characters were read without encountering the delimiter.
+.El
+.Pp
+The
+.Fn getdelim
+and
+.Fn getline
+functions may also fail and set
+.Va errno
+for any of the errors specified in the routines
+.Xr fflush 3 ,
+.Xr malloc 3 ,
+.Xr read 2 ,
+.Xr stat 2 ,
+or
+.Xr realloc 3 .
+.Sh SEE ALSO
+.Xr ferror 3 ,
+.Xr fgets 3 ,
+.Xr fopen 3
+.Sh STANDARDS
+The
+.Fn getdelim
+and
+.Fn getline
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+These functions were ported from
+.Nx
+to
+.Ox 5.2 .

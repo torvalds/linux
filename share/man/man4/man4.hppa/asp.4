@@ -1,0 +1,97 @@
+.\"	$OpenBSD: asp.4,v 1.18 2018/06/18 06:06:52 jmc Exp $
+.\"
+.\"
+.\" Copyright (c) 1999 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 18 2018 $
+.Dt ASP 4 hppa
+.Os
+.Sh NAME
+.Nm asp
+.Nd core bus controller as present on older HP 9000/700 machines
+.Sh SYNOPSIS
+.Cd "asp0    at mainbus? irq 28"
+.Cd "gsc* at asp?"
+.Sh DESCRIPTION
+The supported Core bus controllers are those present on older
+.Tn PA-RISC
+workstations, and include:
+.Pp
+.Bl -bullet -compact
+.It
+Core bus controller
+.It
+System clock
+.It
+Interrupt controller
+.It
+DMA controller
+.It
+Real-time clock Interface
+.It
+RAM and EEPROM controllers
+.El
+.Pp
+The irq level supplied is hardwired to the CPU pin, so changing the value
+would not produce any noticeable results (except lost interrupts for the whole
+I/O subsystem).
+.Sh MACHINES
+An incomplete list of machines that use the
+.Tn ASP
+bus controller:
+.Pp
+.Bl -bullet -compact
+.It
+705, 710
+.It
+715/{33,50,75}
+.It
+725/{50,75}
+.It
+720, 730, 750
+.It
+735/*
+.It
+745i/{50,75}
+.It
+747i/{50,75}
+.It
+755/*
+.El
+.Sh SEE ALSO
+.Xr gsc 4 ,
+.Xr intro 4 ,
+.Xr io 4
+.Rs
+.%T "Hardball I/O Subsystem ERS"
+.%N Revision 1.1
+.%D 30 September 1991
+.%Q Hewlett-Packard
+.Re
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Ox 2.4 .

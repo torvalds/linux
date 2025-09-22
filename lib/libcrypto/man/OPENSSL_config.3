@@ -1,0 +1,150 @@
+.\" $OpenBSD: OPENSSL_config.3,v 1.18 2025/06/09 12:43:53 schwarze Exp $
+.\" full merge up to: OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2018 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2004 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 9 2025 $
+.Dt OPENSSL_CONFIG 3
+.Os
+.Sh NAME
+.Nm OPENSSL_config ,
+.Nm OPENSSL_no_config
+.Nd simple crypto and ssl library configuration
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/conf.h
+.Ft void
+.Fo OPENSSL_config
+.Fa "const char *appname"
+.Fc
+.Ft void
+.Fn OPENSSL_no_config void
+.Sh DESCRIPTION
+.Fn OPENSSL_config
+initializes the crypto library and calls
+.Xr CONF_modules_load_file 3
+with the standard configuration file and the given
+.Fa appname .
+If
+.Fa appname
+is
+.Dv NULL ,
+then the default name
+.Sy openssl_conf
+is used.
+Any errors are ignored.
+Further calls to
+.Fn OPENSSL_config
+have no effect.
+.Pp
+.Fn OPENSSL_no_config
+suppresses the loading of the standard configuration file, so that any
+future calls to
+.Fn OPENSSL_config
+or to
+.Xr OPENSSL_init_crypto 3
+will ensure the library is initialized but no configuration
+file will be loaded.
+.Pp
+Calling these functions is optional.
+All required initialization of the crypto libraries happens
+automatically when needed.
+.Pp
+To use a non-standard configuration file, refer to
+.Xr CONF_modules_load_file 3 .
+.Pp
+Internally,
+.Fn OPENSSL_config
+calls
+.Xr OPENSSL_init_crypto 3 .
+.Pp
+If an application is compiled with the preprocessor symbol
+.Dv OPENSSL_LOAD_CONF
+defined,
+.Xr OpenSSL_add_all_algorithms 3
+automatically calls
+.Fn OPENSSL_config .
+.Pp
+Applications should free up configuration at application closedown by
+calling
+.Xr CONF_modules_free 3 .
+.Sh FILES
+.Bl -tag -width /etc/ssl/openssl.cnf -compact
+.It Pa /etc/ssl/openssl.cnf
+standard configuration file
+.El
+.Sh SEE ALSO
+.Xr CONF_modules_free 3 ,
+.Xr CONF_modules_load_file 3 ,
+.Xr crypto 3 ,
+.Xr OPENSSL_VERSION_NUMBER 3 ,
+.Xr openssl.cnf 5 ,
+.Xr x509v3.cnf 5
+.Sh HISTORY
+.Fn OPENSSL_config
+and
+.Fn OPENSSL_no_config
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .

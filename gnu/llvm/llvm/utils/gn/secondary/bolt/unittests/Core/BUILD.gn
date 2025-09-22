@@ -1,0 +1,47 @@
+import("//llvm/lib/Target/targets.gni")
+import("//third-party/unittest/unittest.gni")
+
+unittest("CoreTests") {
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [
+    "//bolt/lib/Core",
+    "//bolt/lib/Rewrite",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Target:TargetsToBuild",
+  ]
+  sources = [
+    "BinaryContext.cpp",
+    "DynoStats.cpp",
+    "MCPlusBuilder.cpp",
+  ]
+
+  defines = []
+  include_dirs = []
+  if (llvm_build_AArch64) {
+    defines += [ "AARCH64_AVAILABLE" ]
+
+    # This target reaches into the internal headers of LLVM's AArch64 library.
+    # That target doesn't expect that, so it doesn't use public_deps for
+    # tblgen-generated headers used only in internal headers (...which this
+    # target here questionably includes). So depend on the target that generates
+    # those headers here.
+    include_dirs += [ "//llvm/lib/Target/AArch64" ]
+    deps += [
+      "//llvm/lib/Target/AArch64/MCTargetDesc",
+      "//llvm/lib/Target/AArch64/Utils",
+    ]
+  }
+  if (llvm_build_X86) {
+    defines += [ "X86_AVAILABLE" ]
+
+    # This target reaches into the internal headers of LLVM's X86 library.
+    # That target doesn't expect that, so it doesn't use public_deps for
+    # tblgen-generated headers used only in internal headers (...which this
+    # target here questionably includes). So depend on the target that generates
+    # those headers here.
+    include_dirs += [ "//llvm/lib/Target/X86" ]
+    deps += [ "//llvm/lib/Target/X86/MCTargetDesc" ]
+  }
+}

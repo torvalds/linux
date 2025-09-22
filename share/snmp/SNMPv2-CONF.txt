@@ -1,0 +1,322 @@
+SNMPv2-CONF DEFINITIONS ::= BEGIN
+
+IMPORTS ObjectName, NotificationName, ObjectSyntax
+                                               FROM SNMPv2-SMI;
+
+-- definitions for conformance groups
+
+OBJECT-GROUP MACRO ::=
+BEGIN
+    TYPE NOTATION ::=
+                  ObjectsPart
+                  "STATUS" Status
+                  "DESCRIPTION" Text
+                  ReferPart
+
+    VALUE NOTATION ::=
+                  value(VALUE OBJECT IDENTIFIER)
+
+    ObjectsPart ::=
+                  "OBJECTS" "{" Objects "}"
+    Objects ::=
+                  Object
+                | Objects "," Object
+    Object ::=
+
+                  value(ObjectName)
+
+    Status ::=
+                  "current"
+                | "deprecated"
+                | "obsolete"
+
+    ReferPart ::=
+                  "REFERENCE" Text
+                | empty
+
+    -- a character string as defined in [2]
+    Text ::= value(IA5String)
+END
+
+-- more definitions for conformance groups
+
+NOTIFICATION-GROUP MACRO ::=
+BEGIN
+    TYPE NOTATION ::=
+                  NotificationsPart
+                  "STATUS" Status
+                  "DESCRIPTION" Text
+                  ReferPart
+
+    VALUE NOTATION ::=
+                  value(VALUE OBJECT IDENTIFIER)
+
+    NotificationsPart ::=
+                  "NOTIFICATIONS" "{" Notifications "}"
+    Notifications ::=
+                  Notification
+                | Notifications "," Notification
+    Notification ::=
+                  value(NotificationName)
+
+    Status ::=
+                  "current"
+                | "deprecated"
+                | "obsolete"
+
+    ReferPart ::=
+                  "REFERENCE" Text
+                | empty
+
+    -- a character string as defined in [2]
+    Text ::= value(IA5String)
+END
+
+-- definitions for compliance statements
+
+MODULE-COMPLIANCE MACRO ::=
+BEGIN
+    TYPE NOTATION ::=
+                  "STATUS" Status
+                  "DESCRIPTION" Text
+                  ReferPart
+                  ModulePart
+
+    VALUE NOTATION ::=
+                  value(VALUE OBJECT IDENTIFIER)
+
+    Status ::=
+                  "current"
+                | "deprecated"
+                | "obsolete"
+
+    ReferPart ::=
+                  "REFERENCE" Text
+                | empty
+
+    ModulePart ::=
+                  Modules
+    Modules ::=
+                  Module
+                | Modules Module
+    Module ::=
+                  -- name of module --
+                  "MODULE" ModuleName
+                  MandatoryPart
+                  CompliancePart
+
+    ModuleName ::=
+                  -- identifier must start with uppercase letter
+                  identifier ModuleIdentifier
+                  -- must not be empty unless contained
+                  -- in MIB Module
+                | empty
+    ModuleIdentifier ::=
+                  value(OBJECT IDENTIFIER)
+                | empty
+
+    MandatoryPart ::=
+                  "MANDATORY-GROUPS" "{" Groups "}"
+                | empty
+
+    Groups ::=
+
+                  Group
+                | Groups "," Group
+    Group ::=
+                  value(OBJECT IDENTIFIER)
+
+    CompliancePart ::=
+                  Compliances
+                | empty
+
+    Compliances ::=
+                  Compliance
+                | Compliances Compliance
+    Compliance ::=
+                  ComplianceGroup
+                | Object
+
+    ComplianceGroup ::=
+                  "GROUP" value(OBJECT IDENTIFIER)
+                  "DESCRIPTION" Text
+
+    Object ::=
+                  "OBJECT" value(ObjectName)
+                  SyntaxPart
+                  WriteSyntaxPart
+                  AccessPart
+                  "DESCRIPTION" Text
+
+    -- must be a refinement for object's SYNTAX clause
+    SyntaxPart ::= "SYNTAX" Syntax
+                | empty
+
+    -- must be a refinement for object's SYNTAX clause
+    WriteSyntaxPart ::= "WRITE-SYNTAX" Syntax
+                | empty
+
+    Syntax ::=    -- Must be one of the following:
+                       -- a base type (or its refinement),
+                       -- a textual convention (or its refinement), or
+                       -- a BITS pseudo-type
+                  type
+                | "BITS" "{" NamedBits "}"
+
+    NamedBits ::= NamedBit
+                | NamedBits "," NamedBit
+
+    NamedBit ::= identifier "(" number ")" -- number is nonnegative
+
+    AccessPart ::=
+                  "MIN-ACCESS" Access
+                | empty
+    Access ::=
+                  "not-accessible"
+                | "accessible-for-notify"
+                | "read-only"
+                | "read-write"
+                | "read-create"
+
+    -- a character string as defined in [2]
+    Text ::= value(IA5String)
+END
+
+-- definitions for capabilities statements
+
+AGENT-CAPABILITIES MACRO ::=
+BEGIN
+    TYPE NOTATION ::=
+                  "PRODUCT-RELEASE" Text
+                  "STATUS" Status
+                  "DESCRIPTION" Text
+                  ReferPart
+                  ModulePart
+
+    VALUE NOTATION ::=
+                  value(VALUE OBJECT IDENTIFIER)
+
+    Status ::=
+                  "current"
+                | "obsolete"
+
+    ReferPart ::=
+                  "REFERENCE" Text
+                | empty
+
+    ModulePart ::=
+                  Modules
+                | empty
+    Modules ::=
+                  Module
+                | Modules Module
+    Module ::=
+                  -- name of module --
+                  "SUPPORTS" ModuleName
+                  "INCLUDES" "{" Groups "}"
+                  VariationPart
+
+    ModuleName ::=
+
+                  -- identifier must start with uppercase letter
+                  identifier ModuleIdentifier
+    ModuleIdentifier ::=
+                  value(OBJECT IDENTIFIER)
+                | empty
+
+    Groups ::=
+                  Group
+                | Groups "," Group
+    Group ::=
+                  value(OBJECT IDENTIFIER)
+
+    VariationPart ::=
+                  Variations
+                | empty
+    Variations ::=
+                  Variation
+                | Variations Variation
+
+    Variation ::=
+                  ObjectVariation
+                | NotificationVariation
+
+    NotificationVariation ::=
+                  "VARIATION" value(NotificationName)
+                  AccessPart
+                  "DESCRIPTION" Text
+
+    ObjectVariation ::=
+                  "VARIATION" value(ObjectName)
+                  SyntaxPart
+                  WriteSyntaxPart
+                  AccessPart
+                  CreationPart
+                  DefValPart
+                  "DESCRIPTION" Text
+
+    -- must be a refinement for object's SYNTAX clause
+    SyntaxPart ::= "SYNTAX" Syntax
+                | empty
+
+    WriteSyntaxPart ::= "WRITE-SYNTAX" Syntax
+                | empty
+
+    Syntax ::=    -- Must be one of the following:
+                       -- a base type (or its refinement),
+                       -- a textual convention (or its refinement), or
+                       -- a BITS pseudo-type
+
+                  type
+                | "BITS" "{" NamedBits "}"
+
+    NamedBits ::= NamedBit
+                | NamedBits "," NamedBit
+
+    NamedBit ::= identifier "(" number ")" -- number is nonnegative
+
+    AccessPart ::=
+                  "ACCESS" Access
+                | empty
+
+    Access ::=
+                  "not-implemented"
+                -- only "not-implemented" for notifications
+                | "accessible-for-notify"
+                | "read-only"
+                | "read-write"
+                | "read-create"
+                -- following is for backward-compatibility only
+                | "write-only"
+
+    CreationPart ::=
+                  "CREATION-REQUIRES" "{" Cells "}"
+                | empty
+    Cells ::=
+                  Cell
+                | Cells "," Cell
+    Cell ::=
+                  value(ObjectName)
+
+    DefValPart ::= "DEFVAL" "{" Defvalue "}"
+                | empty
+
+    Defvalue ::=  -- must be valid for the object's syntax
+                  -- in this macro's SYNTAX clause, if present,
+                  -- or if not, in object's OBJECT-TYPE macro
+                  value(ObjectSyntax)
+                | "{" BitsValue "}"
+
+    BitsValue ::= BitNames
+                | empty
+
+    BitNames ::=  BitName
+                | BitNames "," BitName
+
+    BitName ::= identifier
+
+    -- a character string as defined in [2]
+    Text ::= value(IA5String)
+END
+
+END

@@ -1,0 +1,119 @@
+.\" $OpenBSD: curs_bkgrnd.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 2002-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_bkgrnd.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.TH curs_bkgrnd 3 2023-08-12 "ncurses 6.4" "Library calls"
+.SH NAME
+\fBbkgrnd\fP,
+\fBwbkgrnd\fP,
+\fBbkgrndset\fP,
+\fBwbkgrndset\fP,
+\fBgetbkgrnd\fP,
+\fBwgetbkgrnd\fP \- \fBcurses\fP window complex background manipulation routines
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint bkgrnd(\fB const cchar_t *\fIwch\fB);\fR
+.br
+\fBint wbkgrnd(\fB WINDOW *\fIwin\fB, const cchar_t *\fIwch\fB);\fR
+.sp
+\fBvoid bkgrndset(const cchar_t *\fIwch\fR \fB);\fR
+.br
+\fBvoid wbkgrndset(WINDOW *\fIwin\fB, const cchar_t *\fIwch\fB);\fR
+.sp
+\fBint getbkgrnd(cchar_t *\fIwch\fB);\fR
+.br
+\fBint wgetbkgrnd(WINDOW *\fIwin\fB, cchar_t *\fIwch\fB);\fR
+.SH DESCRIPTION
+.SS bkgrndset
+The \fBbkgrndset\fP and \fBwbkgrndset\fP routines manipulate the
+background of the named window.
+The window background is a \fBcchar_t\fP consisting of
+any combination of attributes (i.e., rendition) and a complex character.
+.bP
+The attribute part of the background is combined (OR'ed) with all non-blank
+characters that are written into the window with \fBwaddch\fP.
+.bP
+Both
+the character and attribute parts of the background are combined with
+the blank characters.
+.PP
+The background becomes a property of the
+character and moves with the character through any scrolling and
+insert/delete line/character operations.
+.PP
+To the extent possible on a
+particular terminal, the attribute part of the background is displayed
+as the graphic rendition of the character put on the screen.
+.SS bkgrnd
+The \fBbkgrnd\fP and \fBwbkgrnd\fP functions
+set the background property of the current or specified window
+and then apply this setting to every character position in that window:
+.bP
+The rendition of every character on the screen is changed to
+the new background rendition.
+.bP
+Wherever the former background character
+appears, it is changed to the new background character.
+.SS getbkgrnd
+The \fBgetbkgrnd\fP function returns the given window's current background
+character/attribute pair via the \fBwch\fP pointer.
+If the given window pointer is null,
+the character is not updated (but no error returned).
+.SH NOTES
+Note that
+\fBbkgrnd\fP,
+\fBbkgrndset\fP, and
+\fBgetbkgrnd\fP
+may be macros.
+.PP
+X/Open Curses does not provide details on how the rendition is changed.
+This implementation follows the approach used in SVr4 curses,
+which is explained in the manual page for \fBwbkgd\fP.
+.SH RETURN VALUE
+The \fBbkgrndset\fP and \fBwbkgrndset\fP routines do not return a value.
+.PP
+Upon successful completion, the other functions return \fBOK\fP.
+Otherwise, they return \fBERR\fP:
+.bP
+A null window pointer is treated as an error.
+.bP
+A null character pointer is treated as an error.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4
+(X/Open Curses).
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_bkgd\fP(3)

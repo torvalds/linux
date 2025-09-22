@@ -1,0 +1,171 @@
+# Check rm file operations.
+# Check force remove commands success whether the file does or doesn't exist.
+#
+# RUN: rm -f %t.write
+# RUN: %{python} %S/check_path.py file %t.write > %t.out
+# RUN: FileCheck --check-prefix=REMOVE-FILE < %t.out %s
+# RUN: echo "create a temp file" > %t.write
+# RUN: %{python} %S/check_path.py file %t.write > %t.out
+# RUN: FileCheck --check-prefix=FILE-EXIST < %t.out %s
+# RUN: rm -f %t.write
+# RUN: %{python} %S/check_path.py file %t.write > %t.out
+# RUN: FileCheck --check-prefix=REMOVE-FILE < %t.out %s
+#
+# REMOVE-FILE: False
+# FILE-EXIST: True
+#
+# Check mkdir and rm folder operations.
+# Check force remove commands success whether the directory does or doesn't exist.
+#
+# Check the mkdir command with -p option.
+# RUN: rm -f -r %T/test
+# RUN: %{python} %S/check_path.py dir %T/test > %t.out
+# RUN: FileCheck --check-prefix=REMOVE-PARENT-DIR < %t.out %s
+# RUN: mkdir -p %T/test
+# RUN: %{python} %S/check_path.py dir %T/test > %t.out
+# RUN: FileCheck --check-prefix=MAKE-PARENT-DIR < %t.out %s
+# RUN: rm -f %T/test || true
+# RUN: rm -f -r %T/test
+# RUN: %{python} %S/check_path.py dir %T/test > %t.out
+# RUN: FileCheck --check-prefix=REMOVE-PARENT-DIR < %t.out %s
+#
+# MAKE-PARENT-DIR: True
+# REMOVE-PARENT-DIR: False
+#
+# Check the mkdir command without -p option.
+#
+# RUN: rm -rf %T/test1
+# RUN: mkdir %T/test1
+# RUN: %{python} %S/check_path.py dir %T/test1 > %t.out
+# RUN: FileCheck --check-prefix=MAKE-DIR < %t.out %s
+# RUN: cd %T/test1 && mkdir foo
+# RUN: %{python} %S/check_path.py dir %T/test1 > %t.out
+# RUN: FileCheck --check-prefix=MAKE-DIR < %t.out %s
+# RUN: cd %T && rm -rf %T/test1
+# RUN: %{python} %S/check_path.py dir %T/test1 > %t.out
+# RUN: FileCheck --check-prefix=REMOVE-DIR < %t.out %s
+#
+# MAKE-DIR: True
+# REMOVE-DIR: False
+#
+# Check creating and removing multiple folders and rm * operation.
+#
+# RUN: rm -rf %T/test
+# RUN: mkdir -p %T/test/test1 %T/test/test2
+# RUN: %{python} %S/check_path.py dir %T/test %T/test/test1 %T/test/test2 > %t.out
+# RUN: FileCheck --check-prefix=DIRS-EXIST < %t.out %s
+# RUN: mkdir %T/test || true
+# RUN: echo "create a temp file" > %T/test/temp.write
+# RUN: echo "create a temp1 file" > %T/test/test1/temp1.write
+# RUN: echo "create a temp2 file" > %T/test/test2/temp2.write
+# RUN: %{python} %S/check_path.py file %T/test/temp.write %T/test/test1/temp1.write %T/test/test2/temp2.write> %t.out
+# RUN: FileCheck --check-prefix=FILES-EXIST < %t.out %s
+# RUN: rm -r -f %T/*
+# RUN: %{python} %S/check_path.py dir %T/test > %t.out
+# RUN: FileCheck --check-prefix=REMOVE-ALL < %t.out %s
+#
+# DIRS-EXIST: True
+# DIRS-EXIST-NEXT: True
+# DIRS-EXIST-NEXT: True
+# FILES-EXIST: True
+# FILES-EXIST-NEXT: True
+# FILES-EXIST-NEXT: True
+# REMOVE-ALL: False
+#
+# Check diff operations.
+#
+# RUN: echo "hello" > %t.stdout
+# RUN: echo "hello" > %t1.stdout
+# RUN: diff %t.stdout %t1.stdout
+# RUN: diff -u %t.stdout %t1.stdout
+# RUN: echo "hello-2" > %t1.stdout
+# RUN: diff %t.stdout %t1.stdout || true
+#
+# RUN: mkdir -p %T/dir1 %T/dir2
+# RUN: cd %T/dir1 && echo "hello" > temp1.txt
+# RUN: cd %T/dir2 && echo "hello" > temp2.txt
+# RUN: diff temp2.txt ../dir1/temp1.txt
+#
+# Check cat command with single file.
+#
+# RUN: rm -rf %T/testCat
+# RUN: mkdir -p %T/testCat
+# RUN: echo "abcdefgh" > %T/testCat/temp.write
+# RUN: cat %T/testCat/temp.write > %T/testCat/tempcat.write
+# RUN: %{python} %S/check_path.py file %T/testCat/tempcat.write > %T/testCat/path.out
+# RUN: FileCheck --check-prefix=FILE-EXISTS < %T/testCat/path.out %s
+# RUN: FileCheck --check-prefix=CAT-OUTPUT < %T/testCat/tempcat.write %s
+# FILE-EXISTS: True
+# CAT-OUTPUT: abcdefgh
+#
+# Check cat command with multiple files.
+#
+# RUN: rm -rf %T/testCat
+# RUN: mkdir -p %T/testCat
+# RUN: echo "abcdefgh" > %T/testCat/temp1.write
+# RUN: echo "efghijkl" > %T/testCat/temp2.write
+# RUN: echo "mnopqrst" > %T/testCat/temp3.write
+# RUN: cat %T/testCat/temp1.write %T/testCat/temp2.write %T/testCat/temp3.write > %T/testCat/tempmulticat.write
+# RUN: %{python} %S/check_path.py file %T/testCat/tempmulticat.write > %T/testCat/path.out
+# RUN: FileCheck --check-prefix=MULTI-FILE-EXISTS < %T/testCat/path.out %s
+# RUN: FileCheck --check-prefix=MULTI-CAT-OUTPUT < %T/testCat/tempmulticat.write %s
+# MULTI-FILE-EXISTS: True
+# MULTI-CAT-OUTPUT: abcdefgh
+# MULTI-CAT-OUTPUT-NEXT: efghijkl
+# MULTI-CAT-OUTPUT-NEXT: mnopqrst
+#
+# Check cat command with multiple files and piped output to FileCheck.
+#
+# RUN: rm -rf %T/testCat
+# RUN: mkdir -p %T/testCat
+# RUN: echo "abcdefgh" > %T/testCat/temp1.write
+# RUN: echo "efghijkl" > %T/testCat/temp2.write
+# RUN: cat %T/testCat/temp1.write %T/testCat/temp2.write | FileCheck --check-prefix=PIPED-CAT-OUTPUT %s
+# PIPED-CAT-OUTPUT: abcdefgh
+# PIPED-CAT-OUTPUT-NEXT: efghijkl
+#
+# Check cat command with multiple files and glob expressions.
+#
+# RUN: rm -rf %T/testCat
+# RUN: mkdir -p %T/testCat
+# RUN: echo "cvbnm" > %T/testCat/temp1.write
+# RUN: echo "qwerty" > %T/testCat/temp2.write
+# RUN: cat %T/testCat/*.write | FileCheck --check-prefix=GLOB-CAT-OUTPUT %s
+# GLOB-CAT-OUTPUT: cvbnm
+# GLOB-CAT-OUTPUT-NEXT: qwerty
+#
+# Check cat command with -v option
+#
+# RUN: cat -v %S/cat_nonprinting.bin | FileCheck --check-prefix=NP-CAT-OUTPUT %s
+# NP-CAT-OUTPUT: ^@^A^B^C^D^E^F^G	^H
+# NP-CAT-OUTPUT-NEXT: ^K^L^M^N^O^P^Q^R^S
+# NP-CAT-OUTPUT-NEXT: ^T^U^V^W^X^Y^Z^[^\^]^^^_ !"#$%&'
+# NP-CAT-OUTPUT-NEXT: ()*+,-./0123456789:;
+# NP-CAT-OUTPUT-NEXT: <=>?@ABCDEFGHIJKLMNO
+# NP-CAT-OUTPUT-NEXT: PQRSTUVWXYZ[\]^_`abc
+# NP-CAT-OUTPUT-NEXT: defghijklmnopqrstuvw
+# NP-CAT-OUTPUT-NEXT: xyz{|}~^?M-^@M-^AM-^BM-^CM-^DM-^EM-^FM-^GM-^HM-^IM-^JM-^K
+# NP-CAT-OUTPUT-NEXT: M-^LM-^MM-^NM-^OM-^PM-^QM-^RM-^SM-^TM-^UM-^VM-^WM-^XM-^YM-^ZM-^[M-^\M-^]M-^^M-^_
+# NP-CAT-OUTPUT-NEXT: M- M-!M-"M-#M-$M-%M-&M-'M-(M-)M-*M-+M-,M--M-.M-/M-0M-1M-2M-3
+# NP-CAT-OUTPUT-NEXT: M-4M-5M-6M-7M-8M-9M-:M-;M-<M-=M->M-?M-@M-AM-BM-CM-DM-EM-FM-G
+# NP-CAT-OUTPUT-NEXT: M-HM-IM-JM-KM-LM-MM-NM-OM-PM-QM-RM-SM-TM-UM-VM-WM-XM-YM-ZM-[
+# NP-CAT-OUTPUT-NEXT: M-\M-]M-^M-_M-`M-aM-bM-cM-dM-eM-fM-gM-hM-iM-jM-kM-lM-mM-nM-o
+# NP-CAT-OUTPUT-NEXT: M-pM-qM-rM-sM-tM-uM-vM-wM-xM-yM-zM-{M-|M-}M-~M-^?
+#
+# Check cat command with -show-nonprinting option
+#
+# RUN: cat --show-nonprinting %S/cat_nonprinting.bin | FileCheck --check-prefix=NPLONG-CAT-OUTPUT %s
+# NPLONG-CAT-OUTPUT: ^@^A^B^C^D^E^F^G	^H
+# NPLONG-CAT-OUTPUT-NEXT: ^K^L^M^N^O^P^Q^R^S
+# NPLONG-CAT-OUTPUT-NEXT: ^T^U^V^W^X^Y^Z^[^\^]^^^_ !"#$%&'
+# NPLONG-CAT-OUTPUT-NEXT: ()*+,-./0123456789:;
+# NPLONG-CAT-OUTPUT-NEXT: <=>?@ABCDEFGHIJKLMNO
+# NPLONG-CAT-OUTPUT-NEXT: PQRSTUVWXYZ[\]^_`abc
+# NPLONG-CAT-OUTPUT-NEXT: defghijklmnopqrstuvw
+# NPLONG-CAT-OUTPUT-NEXT: xyz{|}~^?M-^@M-^AM-^BM-^CM-^DM-^EM-^FM-^GM-^HM-^IM-^JM-^K
+# NPLONG-CAT-OUTPUT-NEXT: M-^LM-^MM-^NM-^OM-^PM-^QM-^RM-^SM-^TM-^UM-^VM-^WM-^XM-^YM-^ZM-^[M-^\M-^]M-^^M-^_
+# NPLONG-CAT-OUTPUT-NEXT: M- M-!M-"M-#M-$M-%M-&M-'M-(M-)M-*M-+M-,M--M-.M-/M-0M-1M-2M-3
+# NPLONG-CAT-OUTPUT-NEXT: M-4M-5M-6M-7M-8M-9M-:M-;M-<M-=M->M-?M-@M-AM-BM-CM-DM-EM-FM-G
+# NPLONG-CAT-OUTPUT-NEXT: M-HM-IM-JM-KM-LM-MM-NM-OM-PM-QM-RM-SM-TM-UM-VM-WM-XM-YM-ZM-[
+# NPLONG-CAT-OUTPUT-NEXT: M-\M-]M-^M-_M-`M-aM-bM-cM-dM-eM-fM-gM-hM-iM-jM-kM-lM-mM-nM-o
+# NPLONG-CAT-OUTPUT-NEXT: M-pM-qM-rM-sM-tM-uM-vM-wM-xM-yM-zM-{M-|M-}M-~M-^?

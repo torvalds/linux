@@ -1,0 +1,4 @@
+# XFAIL with a true clause. Test should not run.
+XFAIL: false
+XFAIL: false, a-present-feature && ! a-missing-feature && target=x86_64{{.*}}
+RUN: false

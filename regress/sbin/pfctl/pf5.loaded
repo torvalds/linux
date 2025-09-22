@@ -1,0 +1,32 @@
+@0 block drop in inet proto udp from 10.0.0.0/8 port = 7 to 12.34.56.78 port = 6667
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=2 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 block drop in inet proto udp from 10.0.0.0/8 port = 7 to 12.34.56.78 port = 16
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 block drop in inet proto udp from 10.0.0.0/8 port = 22 to 12.34.56.78 port = 6667
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=4 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 block drop in inet proto udp from 10.0.0.0/8 port = 22 to 12.34.56.78 port = 16
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 block drop in inet proto udp from 10.0.0.0/8 port = 21 to 12.34.56.78 port = 6667
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=6 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 block drop in inet proto udp from 10.0.0.0/8 port = 21 to 12.34.56.78 port = 16
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 block drop in inet proto udp from 10.0.0.0/8 port = 113 to 12.34.56.78 port = 6667
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 block drop in inet proto udp from 10.0.0.0/8 port = 113 to 12.34.56.78 port = 16
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

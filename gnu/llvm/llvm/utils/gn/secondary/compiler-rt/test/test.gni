@@ -1,0 +1,18 @@
+import("//llvm/utils/gn/build/toolchain/target_flags.gni")
+
+declare_args() {
+  # Specifies the serial number of the Android device to be used for testing.
+  android_serial_for_testing = ""
+
+  # Android API level used in compiler-rt tests.
+  android_api_level = 29
+}
+
+target_flags_string = ""
+
+foreach(flag, target_flags + target_ldflags) {
+  if (target_flags_string != "") {
+    target_flags_string += " "
+  }
+  target_flags_string += flag
+}

@@ -1,0 +1,16 @@
+static_library("Breakpad") {
+  output_name = "lldbPluginSymbolFileBreakpad"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Plugins/ObjectFile/Breakpad",
+    "//lldb/source/Symbol",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+
+  # Reaches into Plugins/SymbolFile/Breakpad.
+  include_dirs = [ "//lldb/source" ]
+  sources = [ "SymbolFileBreakpad.cpp" ]
+}

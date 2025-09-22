@@ -1,0 +1,31 @@
+import("//lldb/utils/TableGen/lldb_tablegen.gni")
+
+lldb_tablegen("JITLoaderGDBProperties") {
+  args = [ "-gen-lldb-property-defs" ]
+}
+
+lldb_tablegen("JITLoaderGDBPropertiesEnum") {
+  args = [ "-gen-lldb-property-enum-defs" ]
+  td_file = "JITLoaderGDBProperties.td"
+}
+
+static_library("GDB") {
+  output_name = "lldbPluginJITLoaderGDB"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    ":JITLoaderGDBProperties",
+    ":JITLoaderGDBPropertiesEnum",
+    "//lldb/source/Breakpoint",
+    "//lldb/source/Core",
+    "//lldb/source/Interpreter",
+    "//lldb/source/Plugins/ObjectFile/Mach-O",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+
+  # Reaches into Plugins/ObjectFile/Mach-O.
+  include_dirs = [ "//lldb/source" ]
+  sources = [ "JITLoaderGDB.cpp" ]
+}

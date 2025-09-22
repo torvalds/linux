@@ -1,0 +1,18 @@
+static_library("openmp") {
+  output_name = "clangTidyOpenMPModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "ExceptionEscapeCheck.cpp",
+    "OpenMPTidyModule.cpp",
+    "UseDefaultNoneCheck.cpp",
+  ]
+}

@@ -1,0 +1,115 @@
+.\"	$OpenBSD: ieee80211_input.9,v 1.5 2022/03/29 18:15:52 naddy Exp $
+.\"
+.\" Copyright (c) 2004 Bruce M. Simpson <bms@spc.org>
+.\" Copyright (c) 2004 Darron Broad <darron@kewl.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/ieee80211_input.9,v 1.2 2004/07/07 12:59:39 ru Exp $
+.\" $Id: ieee80211_input.9,v 1.5 2022/03/29 18:15:52 naddy Exp $
+.\"
+.Dd $Mdocdate: March 29 2022 $
+.Dt IEEE80211_INPUT 9
+.Os
+.Sh NAME
+.Nm ieee80211_input , ieee80211_decap , ieee80211_recv_mgmt
+.Nd software 802.11 stack input functions
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.In net80211/ieee80211_proto.h
+.Ft void
+.Fo ieee80211_input
+.Fa "struct ifnet *ifp" "struct mbuf *m" "struct ieee80211_node *ni"
+.Fa "int rssi" "u_int32_t rstamp"
+.Fc
+.Ft struct mbuf *
+.Fn ieee80211_decap "struct ifnet *ifp" "struct mbuf *m"
+.Ft void
+.Fo ieee80211_recv_mgmt
+.Fa "struct ieee80211com *ic" "struct mbuf *m0" "struct ieee80211_node *ni"
+.Fa "int subtype" "int rssi" "u_int32_t rstamp"
+.Fc
+.Sh DESCRIPTION
+These
+functions process received 802.11 frames.
+.Pp
+.\"
+The
+.Fn ieee80211_input
+function takes an mbuf chain
+.Fa m
+containing a complete 802.11 frame from the driver
+.Fa ifp
+and passes it to the software 802.11 stack for input processing.
+The
+.Fa ni
+argument specifies an instance of
+.Vt struct ieee80211_node
+(which may be driver-specific) representing the node from which the
+frame was received.
+The arguments
+.Fa rssi
+and
+.Fa stamp
+are typically derived from on-card data structures; they are used for
+recording the signal strength and time received of the frame respectively.
+.Pp
+.\"
+The
+.Fn ieee80211_decap
+function performs decapsulation of the 802.11 frame in the mbuf chain
+.Fa m
+received by the device
+.Fa ifp ,
+taking the form of the 802.11 address fields into account;
+the structure of 802.11 addresses vary according to the intended
+source and destination of the frame.
+It is typically called from within
+.Fn ieee80211_input .
+.Pp
+.\"
+The
+.Fn ieee80211_recv_mgmt
+function performs input processing for 802.11 management frames.
+It is typically called from within
+.Fn ieee80211_input .
+.\"
+.Sh SEE ALSO
+.Xr ieee80211 9
+.Sh HISTORY
+The
+.Nm ieee80211
+series of functions first appeared in
+.Nx 1.5 ,
+and were later ported to
+.Fx 4.6
+and
+.Ox 3.6 .
+.Sh AUTHORS
+.An -nosplit
+This man page was written by
+.An Bruce M. Simpson Aq Mt bms@FreeBSD.org
+and
+.An Darron Broad Aq Mt darron@kewl.org .
+.Sh BUGS
+There is no netisr queue specifically for the software 802.11 stack yet.

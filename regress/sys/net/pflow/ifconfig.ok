@@ -1,0 +1,65 @@
+#### up
+pflow0: flags=1<UP> mtu 1492
+	pflow: receiver: INVALID:INVALID version: 5
+	groups: pflow
+#### flowdst syntax error
+ifconfig: 'flowdst' requires argument
+pflow0: flags=1<UP> mtu 1492
+	pflow: receiver: INVALID:INVALID version: 5
+	groups: pflow
+#### invalid flowdst port
+pflow0: flags=1<UP> mtu 1492
+	pflow: receiver: 127.0.0.1:INVALID version: 5
+	groups: pflow
+#### flowdst set, invalid flowsrc
+pflow0: flags=41<UP,RUNNING> mtu 1492
+	pflow: receiver: 127.0.0.1:9996 version: 5
+	groups: pflow
+#### flowsrc and flowdst set
+pflow0: flags=41<UP,RUNNING> mtu 1492
+	pflow: sender: 127.0.0.1 receiver: 127.0.0.1:9996 version: 5
+	groups: pflow
+#### unset flowdst
+pflow0: flags=1<UP> mtu 1492
+	pflow: sender: 127.0.0.1 receiver: INVALID:INVALID version: 5
+	groups: pflow
+#### unset flowsrc
+pflow0: flags=1<UP> mtu 1492
+	pflow: receiver: INVALID:INVALID version: 5
+	groups: pflow
+#### flowsrc and flowdst set one command
+pflow0: flags=41<UP,RUNNING> mtu 1492
+	pflow: sender: 127.0.0.1 receiver: 127.0.0.1:9996 version: 5
+	groups: pflow
+#### proto 9
+ifconfig: Invalid pflow protocol: 9
+pflow0: flags=41<UP,RUNNING> mtu 1492
+	pflow: sender: 127.0.0.1 receiver: 127.0.0.1:9996 version: 5
+	groups: pflow
+#### proto 10
+pflow0: flags=41<UP,RUNNING> mtu 1448
+	pflow: sender: 127.0.0.1 receiver: 127.0.0.1:9996 version: 10
+	groups: pflow
+#### proto 5
+pflow0: flags=41<UP,RUNNING> mtu 1492
+	pflow: sender: 127.0.0.1 receiver: 127.0.0.1:9996 version: 5
+	groups: pflow
+#### syntax error proto
+ifconfig: Invalid pflow protocol: 23
+pflow0: flags=41<UP,RUNNING> mtu 1492
+	pflow: sender: 127.0.0.1 receiver: 127.0.0.1:9996 version: 5
+	groups: pflow
+#### flowdst 0.0.0.0:0; INVALID:INVALID
+pflow0: flags=1<UP> mtu 1492
+	pflow: sender: 127.0.0.1 receiver: INVALID:INVALID version: 5
+	groups: pflow
+#### flowdst 0.0.0.0:1234; INVALID:1234
+pflow0: flags=1<UP> mtu 1492
+	pflow: sender: 127.0.0.1 receiver: INVALID:1234 version: 5
+	groups: pflow
+#### flowsrc 0.0.0.0; INVALID
+pflow0: flags=1<UP> mtu 1492
+	pflow: receiver: INVALID:1234 version: 5
+	groups: pflow
+#### destroy
+pflow0: no such interface

@@ -1,0 +1,166 @@
+.\"	$OpenBSD: uvm_pagealloc.9,v 1.3 2024/08/24 10:47:59 mpi Exp $
+.\"	$NetBSD: uvm.9,v 1.14 2000/06/29 06:08:44 mrg Exp $
+.\"
+.\" Copyright (c) 1998 Matthew R. Green
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 24 2024 $
+.Dt UVM_PAGEALLOC 9
+.Os
+.Sh NAME
+.Nm uvm_pagealloc ,
+.Nm uvm_pagerealloc ,
+.Nm uvm_pagefree ,
+.Nm uvm_pglistalloc ,
+.Nm uvm_pglistfree ,
+.Nm uvm_page_physload
+.Nd physical memory allocator
+.Sh SYNOPSIS
+.In sys/param.h
+.In uvm/uvm.h
+.Ft struct vm_page *
+.Fn uvm_pagealloc "struct uvm_object *uobj" "voff_t off" "struct vm_anon *anon" "int flags"
+.Ft void
+.Fn uvm_pagerealloc "struct vm_page *pg" "struct uvm_object *newobj" "voff_t newoff"
+.Ft void
+.Fn uvm_pagefree "struct vm_page *pg"
+.Ft int
+.Fn uvm_pglistalloc "psize_t size" "paddr_t low" "paddr_t high" "paddr_t alignment" "paddr_t boundary" "struct pglist *rlist" "int nsegs" "int flags"
+.Ft void
+.Fn uvm_pglistfree "struct pglist *list"
+.Ft void
+.Fn uvm_page_physload "paddr_t start" "paddr_t end" "paddr_t avail_start" "paddr_t avail_end" "int free_list"
+.Sh DESCRIPTION
+The
+.Fn uvm_pagealloc
+function allocates a page of memory at virtual address
+.Fa off
+in either the object
+.Fa uobj
+or the anonymous memory
+.Fa anon ,
+or returns
+.Dv NULL
+if no pages are free.
+Only one of
+.Fa anon
+and
+.Fa uobj
+can be non
+.Dv NULL .
+The
+.Fa flags
+can be any of:
+.Bd -literal
+#define UVM_PGA_USERESERVE      0x0001  /* ok to use reserve pages */
+#define UVM_PGA_ZERO            0x0002  /* returned page must be zeroed */
+.Ed
+.Pp
+The
+.Dv UVM_PGA_USERESERVE
+flag means to allocate a page even if that will result in the number of
+free pages being lower than
+.Dv uvmexp.reserve_pagedaemon
+(if the current thread is the pagedaemon) or
+.Dv uvmexp.reserve_kernel
+(if the current thread is not the pagedaemon).
+The
+.Dv UVM_PGA_ZERO
+flag causes the returned page to be filled with zeroes, either by allocating it
+from a pool of pre-zeroed pages or by zeroing it in-line as necessary.
+.Pp
+The
+.Fn uvm_pagerealloc
+function reallocates page
+.Fa pg
+to a new object
+.Fa newobj ,
+at a new offset
+.Fa newoff .
+.Pp
+The
+.Fn uvm_pagefree
+function frees the physical page
+.Fa pg .
+.Pp
+The
+.Fn uvm_pglistalloc
+function allocates a list of pages for size
+.Fa size
+byte under various constraints.
+.Fa low
+and
+.Fa high
+describe the lowest and highest addresses acceptable for the list.
+If
+.Fa alignment
+is non-zero, it describes the required alignment of the list, in
+power-of-two notation.
+If
+.Fa boundary
+is non-zero, no segment of the list may cross this power-of-two
+boundary, relative to zero.
+.Fa nsegs
+is the maximum number of physically contiguous segments.
+The allocated memory is returned in the
+.Fa rlist
+list.
+The
+.Fa flags
+can be any of:
+.Bd -literal
+#define UVM_PLA_WAITOK	0x0001	/* may sleep */
+#define UVM_PLA_NOWAIT	0x0002	/* can't sleep */
+#define UVM_PLA_ZERO	0x0004	/* zero all pages before returning */
+.Ed
+.Pp
+The
+.Dv UVM_PLA_WAITOK
+flag means that the function may sleep while trying to allocate the list of
+pages (this is currently ignored).
+Conversely, the
+.Dv UVM_PLA_NOWAIT
+flag signifies that the function may not sleep while allocating.
+It is an error not to provide one of the above flags.
+Optionally, one may also specify the
+.Dv UVM_PLA_ZERO
+flag to receive zeroed memory in the page list.
+.Pp
+The
+.Fn uvm_pglistfree
+function frees the list of pages pointed to by
+.Fa list .
+.Pp
+The
+.Fn uvm_page_physload
+function loads physical memory segments into VM space on the specified
+.Fa free_list .
+.Fn uvm_page_physload
+must be called at system boot time to set up physical memory management pages.
+The arguments describe the
+.Fa start
+and
+.Fa end
+of the physical addresses of the segment, and the available start and end
+addresses of pages not already in use.

@@ -1,0 +1,291 @@
+.\"	$OpenBSD: Makefile.yp.8,v 1.10 2019/08/30 19:34:04 deraadt Exp $
+.\"
+.\" Copyright (c) 2008 Ingo Schwarze <schwarze@usta.de>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 30 2019 $
+.Dt MAKEFILE.YP 8
+.Os
+.Sh NAME
+.Nm Makefile.yp
+.Nd generate and distribute YP maps
+.Sh SYNOPSIS
+.Li cd /var/yp; make
+.Sh DESCRIPTION
+The
+.Nm
+utility generates or updates the YP maps to be served by
+.Xr ypserv 8 .
+.Pp
+Each YP domain to be served must have its own subdirectory below
+.Pa /var/yp .
+Use
+.Xr ypinit 8
+to set up such subdirectories.
+In particular,
+.Xr ypinit 8
+will copy
+.Pa /var/yp/Makefile.yp
+into each new domain subdirectory.
+For common configuration changes affecting all future domains, edit
+.Pa /var/yp/Makefile.yp
+before running
+.Xr ypinit 8 .
+For configuration changes affecting only one individual domain, edit the
+.Pa Makefile
+in the respective domain subdirectory after running
+.Xr ypinit 8 .
+Do
+.Em not
+edit
+.Pa /var/yp/Makefile.yp.dist .
+.Pp
+By default, input data for generating YP maps is collected from the
+.Pa /etc
+directory.
+Edit the
+.Dv DIR
+variable to choose a different source directory.
+.Pp
+To regenerate all maps for all domains, run
+.Xr make 1
+in
+.Pa /var/yp .
+To regenerate all maps for one single domain, run
+.Xr make 1
+in the respective domain subdirectory.
+The
+.Xr makedbm 8
+utility will be used to create the maps in Berkeley DB format,
+and they will be stored inside the appropriate domain subdirectory.
+.Pp
+Whenever a YP map has been updated, it is automatically distributed to all
+slave servers in the respective domain using the
+.Xr yppush 8
+utility.
+To disable automatic distribution, set the
+.Dv NOPUSH
+variable to an arbitrary, non-empty, value.
+.Sh STANDARD YP MAPS
+By default,
+.Nm
+provides the following
+.Xr make 1
+targets:
+.Bl -tag -width protocols
+.It Ic passwd
+Generates the
+.Pa passwd.byname ,
+.Pa passwd.byuid ,
+.Pa master.passwd.byname ,
+and
+.Pa master.passwd.byuid
+maps from
+.Xr master.passwd 5
+for use by
+.Xr getpwent 3 .
+.Pp
+The
+.Pa master.passwd.*\&
+maps always contain complete records in
+.Xr master.passwd 5
+format, including the encrypted passwords.
+.Pp
+The
+.Pa passwd.*\&
+maps follow the reduced
+.Xr passwd 5
+format having the class, change, and expire fields removed but by default
+the encrypted passwords are included too.
+If the
+.Dv UNSECURE
+variable is changed to be empty, the encrypted passwords are replaced by
+asterisks
+.Pq Ql \&* .
+This
+.Dq secure
+mode is compatible with
+.Ox
+and
+.Fx
+clients.
+.Pp
+The
+.Dv MINUID
+and
+.Dv MAXUID
+variables restrict the range of user IDs included into the four passwd maps.
+By default, system users are not included.
+.It Ic netgroup
+Generates the
+.Pa netgroup ,
+.Pa netgroup.byuser ,
+and
+.Pa netgroup.byhost
+maps from
+.Xr netgroup 5
+for use by
+.Xr getnetgrent 3
+and
+.Xr passwd 5 .
+Requires the
+.Xr revnetgroup 8
+utility.
+.It Ic group
+Generates the
+.Pa group.byname
+and
+.Pa group.bygid
+maps from
+.Xr group 5
+for use by
+.Xr getgrent 3 .
+.Pp
+The
+.Dv MINGID
+and
+.Dv MAXGID
+variables restrict the range of group IDs included into both group maps.
+By default, system groups are not included.
+.It Ic netid
+Generates the
+.Pa netid.byname
+map from
+.Xr netid 5 ,
+.Xr passwd 5 ,
+.Xr group 5 ,
+and
+.Xr hosts 5
+for use by
+.Xr getgrouplist 3 .
+Falls back to
+.Xr master.passwd 5
+in case
+.Xr passwd 5
+is not available.
+Requires the
+.Xr mknetid 8
+utility.
+.It Ic hosts
+Generates the
+.Pa hosts.byname
+and
+.Pa hosts.byaddr
+maps from
+.Xr hosts 5
+for use by
+.Xr gethostbyname 3 .
+.Pp
+To get
+.Xr ypserv 8
+to ask DNS for unknown hosts, set the
+.Dv USEDNS
+variable to
+.Fl b .
+.It Ic ethers
+Generates the
+.Pa ethers.byaddr
+and
+.Pa ethers.byname
+maps from
+.Xr ethers 5
+for use by
+.Xr ether_aton 3 .
+.It Ic rpc
+Generates the
+.Pa rpc.bynumber
+map from
+.Xr rpc 5
+for use by
+.Xr getrpcent 3 .
+.It Ic services
+Generates the
+.Pa services.byname
+map from
+.Xr services 5
+for use by
+.Xr getservent 3 .
+.It Ic protocols
+Generates the
+.Pa protocols.byname
+and
+.Pa protocols.bynumber
+maps from
+.Xr protocols 5
+for use by
+.Xr getprotoent 3 .
+.It Ic aliases
+Generates the
+.Pa mail.aliases
+and
+.Pa mail.byaddr
+maps from
+.Xr aliases 5 .
+This target uses both
+.Xr sendmail 8
+with the option
+.Fl bi
+and the
+.Xr mkalias 8
+utility.
+.It Ic amd.home
+Generates the
+.Pa amd.home
+map from the file
+.Pa /etc/amd/amd.home .
+.It Ic all
+Generates all of the above, and sends a hangup signal to
+.Xr ypserv 8
+such that it uses the new maps.
+.El
+.Pp
+In order to keep additional custom YP maps up to date, the
+.Pa Makefile
+should be extended to support additional targets.
+.Sh FILES
+.Bl -tag -width "/var/yp/domainname/ypservers.db" -compact
+.It /var/yp/Makefile
+Top level YP Makefile.
+.It /var/yp/ Ns Ar domainname Ns /Makefile
+Per domain YP maps Makefile.
+.It /var/yp/ Ns Ar domainname Ns /ypservers.db
+Database of hosts serving this domain.
+.It /var/yp/ Ns Ar domainname/mapname Ns .db
+Database files containing the YP maps.
+.It /var/yp/ Ns Ar domainname/target Ns .time
+Cookies controlling the operation of
+.Xr make 1 .
+.El
+.Sh SEE ALSO
+.Xr make 1 ,
+.Xr dbopen 3 ,
+.Xr makedbm 8 ,
+.Xr yp 8 ,
+.Xr ypinit 8 ,
+.Xr yppush 8 ,
+.Xr ypserv 8
+.Sh BUGS
+When
+.Dv NOPUSH
+is set and individual maps are regenerated (as opposed to
+.Ic all ) ,
+the hangup signal to
+.Xr ypserv 8
+must be sent manually, or the new maps won't be used.
+.Pp
+When
+.Dv NOPUSH
+is unset, maps are pushed to the master server on the local host too,
+slowing down
+.Nm .

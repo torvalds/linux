@@ -1,0 +1,229 @@
+.\"	$OpenBSD: ln.1,v 1.33 2016/08/10 19:46:43 schwarze Exp $
+.\"	$NetBSD: ln.1,v 1.10 1995/07/25 19:37:04 jtc Exp $
+.\"
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)ln.1	8.2 (Berkeley) 12/30/93
+.\"
+.Dd $Mdocdate: August 10 2016 $
+.Dt LN 1
+.Os
+.Sh NAME
+.Nm ln
+.Nd make hard and symbolic links to files
+.Sh SYNOPSIS
+.Nm ln
+.Op Fl fhLnPs
+.Ar source
+.Op Ar target
+.Nm ln
+.Op Fl fLPs
+.Ar source ...
+.Op Ar directory
+.Sh DESCRIPTION
+The
+.Nm
+utility creates a new directory entry (linked file) which has the
+same modes as the original file.
+It is useful for maintaining multiple copies of a file in many places
+at once without using up storage for the copies;
+instead, a link
+.Dq points
+to the original copy.
+There are two types of links: hard links and symbolic links.
+How a link points
+to a file is one of the differences between a hard and symbolic link.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl f
+Unlink any already existing file, permitting the link to occur.
+.It Fl h
+If the target is a symlink to a directory, do not descend into it.
+.It Fl L
+When creating a hard link and the source is a symbolic link,
+link to the fully resolved target of the symbolic link.
+This is the default.
+The
+.Fl L
+option overrides any previous
+.Fl P
+options.
+.It Fl n
+An alias for
+.Fl h
+for compatibility with other operating systems.
+.It Fl P
+When creating a hard link and the source is a symbolic link,
+link to the symbolic link itself.
+The
+.Fl P
+option overrides any previous
+.Fl L
+options.
+.It Fl s
+Create a symbolic link.
+.El
+.Pp
+By default,
+.Nm
+makes
+.Dq hard
+links.
+A hard link to a file is indistinguishable from the original directory entry;
+any changes to a file are effectively independent of the name used to reference
+the file.
+Hard links may not normally refer to directories and may not span file systems.
+.Pp
+A symbolic link contains the name of the file to
+which it is linked.
+The referenced file is used when an
+.Xr open 2
+operation is performed on the link.
+A
+.Xr stat 2
+on a symbolic link will return the linked-to file; an
+.Xr lstat 2
+must be done to obtain information about the link.
+The
+.Xr readlink 2
+call may be used to read the contents of a symbolic link.
+Symbolic links may span file systems, refer to directories, and refer to
+non-existent files.
+.Pp
+Given one or two arguments,
+.Nm
+creates a link to an existing file
+.Ar source .
+If
+.Ar target
+is given, the link has that name;
+.Ar target
+may also be a directory in which to place the link.
+Otherwise, it is placed in the current directory.
+If only the directory is specified, the link will be made
+to the last component of
+.Ar source .
+.Pp
+Given more than two arguments,
+.Nm
+makes links in
+.Ar directory
+to all the named source files.
+The links made will have the same name as the files being linked to.
+.Sh EXIT STATUS
+.Ex -std ln
+.Sh EXAMPLES
+Create a symbolic link named
+.Pa /home/www
+and point it to
+.Pa /var/www :
+.Pp
+.Dl # ln -s /var/www /home/www
+.Pp
+Hard link
+.Pa /usr/local/bin/fooprog
+to file
+.Pa /usr/local/bin/fooprog-1.0 :
+.Pp
+.Dl # ln /usr/local/bin/fooprog-1.0 /usr/local/bin/fooprog
+.Pp
+As an exercise, try the following commands:
+.Bd -literal -offset indent
+$ ls -i /bin/[
+11553 /bin/[
+$ ls -i /bin/test
+11553 /bin/test
+.Ed
+.Pp
+Note that both files have the same inode; that is,
+.Pa /bin/[
+is essentially an alias for the
+.Xr test 1
+command.
+This hard link exists so
+.Xr test 1
+may be invoked from shell scripts, for example, using the
+.Li "if [ ]"
+construct.
+.Pp
+In the next example, the second call to
+.Nm
+removes the original
+.Pa foo
+and creates a replacement pointing to
+.Pa baz :
+.Bd -literal -offset indent
+$ mkdir bar baz
+$ ln -s bar foo
+$ ln -shf baz foo
+.Ed
+.Pp
+Without the
+.Fl h
+option, this would instead leave
+.Pa foo
+pointing to
+.Pa bar
+and inside
+.Pa foo
+create a new symlink
+.Pa baz
+pointing to itself.
+This results from directory-walking.
+.Sh SEE ALSO
+.Xr linkat 2 ,
+.Xr lstat 2 ,
+.Xr readlink 2 ,
+.Xr stat 2 ,
+.Xr symlink 2 ,
+.Xr symlink 7
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl hn
+are extensions to that specification.
+.Sh HISTORY
+An
+.Nm
+utility appeared in
+.At v1 .
+.Sh CAVEATS
+Since the
+.Ar source
+file must have its link count incremented, a hard link cannot be created to a
+file which is flagged immutable or append-only (see
+.Xr chflags 1 ) .

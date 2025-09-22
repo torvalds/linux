@@ -1,0 +1,71 @@
+version: '{build}'
+
+shallow_clone: true
+
+build:
+  verbosity: detailed
+
+configuration:
+  - Debug
+
+environment:
+  matrix:
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+      CMAKE_OPTIONS: -DCMAKE_C_COMPILER=clang-cl.exe -DCMAKE_CXX_COMPILER=clang-cl.exe
+      CLANG_VERSION: ToT
+      MSVC_SETUP_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat
+      MSVC_SETUP_ARG: x86
+      GENERATOR: Ninja
+      MAKE_PROGRAM: ninja
+      APPVEYOR_SAVE_CACHE_ON_ERROR: true
+# TODO: Maybe re-enable this configuration? Do we want to support MSVC 2015's runtime?
+#    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+#      MINGW_PATH: C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin
+#      GENERATOR: MinGW Makefiles
+#      MAKE_PROGRAM: mingw32-make
+#      APPVEYOR_SAVE_CACHE_ON_ERROR: true
+
+install:
+  ############################################################################
+  # All external dependencies are installed in C:\projects\deps
+  ############################################################################
+  - call "%APPVEYOR_BUILD_FOLDER%\\appveyor-reqs-install.cmd"
+
+before_build:
+  - if DEFINED MSVC_SETUP_PATH call "%MSVC_SETUP_PATH%" %MSVC_SETUP_ARG%
+  - cd %APPVEYOR_BUILD_FOLDER%
+
+build_script:
+  - md C:\projects\build-libcxx
+  - cd C:\projects\build-libcxx
+  - echo %configuration%
+
+  #############################################################################
+  # Configuration Step
+  #############################################################################
+  - cmake -G "%GENERATOR%" %CMAKE_OPTIONS%
+    "-DCMAKE_BUILD_TYPE=%configuration%"
+    "-DLLVM_PATH=C:\projects\deps\llvm"
+    -DLLVM_LIT_ARGS="-v --show-xfail --show-unsupported"
+    %APPVEYOR_BUILD_FOLDER%
+
+  #############################################################################
+  # Build Step
+  #############################################################################
+  - "%MAKE_PROGRAM%"
+
+test_script:
+  - "%MAKE_PROGRAM% check-cxx"
+
+on_failure:
+  - appveyor PushArtifact CMakeFiles/CMakeOutput.log
+  - appveyor PushArtifact CMakeFiles/CMakeError.log
+
+artifacts:
+  - path: '_build/CMakeFiles/*.log'
+    name: logs
+
+cache:
+ - C:\projects\deps\ninja
+ - C:\projects\deps\cmake
+ - C:\projects\deps\llvm-installer.exe

@@ -1,0 +1,79 @@
+.\"     $OpenBSD: portimport.1,v 1.1 2018/06/26 05:38:49 espie Exp $
+.\"
+.\" Copyright (c) 2013 Robert Peichaer
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 26 2018 $
+.Dt PORTIMPORT 1
+.Os
+.Sh NAME
+.Nm portimport
+.Nd import a new port to the ports cvs repository
+.Sh SYNOPSIS
+.Nm
+.Op Fl p Ar portsdir
+.Op Fl u Ar username
+.Sh DESCRIPTION
+.Nm
+is used to import the directories and files of a new port to the
+.Ox
+ports
+.Xr cvs 1
+repository, avoiding common mistakes.
+It has to be executed from within the new port's directory.
+.Pp
+.Nm
+calls the
+.Xr portcheck 1
+internally to verify that directory and file structure for a port is in
+place and that no bogus files exist, and also to detect the
+.Ev PKGPATH
+for a port.
+.Pp
+The import is done in two steps.
+In the first step, the
+.Fl n
+option of the cvs command is used to only check for possible problems
+without changing anything and shows the cvs path where the new port will
+be imported.
+In the second step, the current ports directory is imported to the
+.Ox
+ports cvs repository.
+After the import, the new port is checked out in the respective directory
+of the local ports tree.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl p Ar portsdir
+Forces the given directory to be treated as ports root directory.
+Passed through to
+.Xr portcheck 1 .
+.It Fl u Ar username
+Set the username used for
+.Xr ssh 1 ,
+and to compose vendor and release tags.
+Defaults to the local username.
+.El
+.Sh SEE ALSO
+.Xr cvs 1 ,
+.Xr portcheck 1
+.Sh HISTORY
+This command is based on the portimport script of Marc Espie, lightly
+modified by Stuart Henderson and rewritten by Robert Peichaer.
+Later, actual checks were moved to a separate utility,
+.Xr portcheck 1 .
+.Sh CAVEATS
+The
+.Ev CVSROOT
+environment variable is not used.

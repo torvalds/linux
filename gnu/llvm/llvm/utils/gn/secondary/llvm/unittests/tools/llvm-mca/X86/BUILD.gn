@@ -1,0 +1,21 @@
+# source_set instead of static_library so that all test cpp files are loaded.
+source_set("X86") {
+  testonly = true
+  deps = [
+    "//llvm/lib/Target/X86",
+    "//third-party/unittest:gtest",
+
+    # This test target reaches inside the Target/X86 tablegen internals and must
+    # depend on this Target/X86-internal build target.
+    "//llvm/lib/Target/X86/MCTargetDesc",
+  ]
+  include_dirs = [
+    "..",
+    "//llvm/lib/Target/X86",
+    "//llvm/tools/llvm-mca",
+  ]
+  sources = [
+    "TestIncrementalMCA.cpp",
+    "X86TestBase.cpp",
+  ]
+}

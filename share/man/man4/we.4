@@ -1,0 +1,117 @@
+.\"	$OpenBSD: we.4,v 1.16 2015/09/10 15:16:43 schwarze Exp $
+.\"	$NetBSD: we.4,v 1.4 1998/08/09 00:39:02 thorpej Exp $
+.\"
+.\" Copyright (c) 1997 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+.\" NASA Ames Research Center.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 10 2015 $
+.Dt WE 4
+.Os
+.Sh NAME
+.Nm we
+.Nd Western Digital/SMC WD80x3, SMC Elite Ultra, and SMC EtherEZ Ethernet device
+.Sh SYNOPSIS
+.Cd "we0 at isa? port 0x280 iomem 0xd0000 irq 9"
+.Cd "we1 at isa? port 0x300 iomem 0xcc000 irq 10"
+.Cd "we* at isapnp?"
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports Western Digital/SMC WD80x3, SMC Elite Ultra, and
+SMC EtherEZ Ethernet cards.
+.Sh MEDIA SELECTION
+The ability to select media from software is dependent on the particular
+model of WD/SMC card.
+The following models support only manual configuration: WD8003S, WD8003E,
+and WD8013EBT.
+.Pp
+Other WD/SMC 80x3 interfaces support two types of media on a single card.
+All support the AUI media type.
+The other media is either BNC or UTP being a transceiver.
+Software cannot differentiate between BNC and UTP cards.
+On some models, the AUI port is always active.
+.Pp
+The SMC Elite Ultra and SMC EtherEZ interfaces support three media on
+a single card: AUI, BNC, and UTP.
+If the transceiver is active, the BNC media is selected.
+Otherwise, the AUI and UTP ports are both active.
+Cards of this vintage may also be found which lack one or two of the
+connectors.
+These cards also know what interrupt they are configured for, and will
+correct such problems (for further interrupt issues, see
+.Xr isa 4
+and
+.Xr pci 4 ) .
+.Pp
+The SMC EtherEZ does not yet work correctly in
+.Xr isapnp 4
+mode.
+The SMC Elite Ultra does not work in
+.Dq soft configuration
+mode.
+.Pp
+To enable the AUI media, select the
+.Em 10base5
+or
+.Em aui
+media type with
+.Xr ifconfig 8 Ns 's
+.Sq media
+directive.
+To select the other media (transceiver), select the
+.Em 10base2
+or
+.Em bnc
+media type.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "we0: overriding IRQ <n> to <m>"
+The IRQ specified in the kernel configuration file is different from that
+found in the card's configuration registers.
+The value in the kernel configuration file is being overridden by the one
+configured into the card.
+.It "we0: can't wildcard IRQ on a <model>"
+The IRQ was wildcarded in the kernel configuration file, and the card is
+a WD8003S, WD8003E, or WD8013EBT, which do not support software IRQ
+configuration.
+.It "we0: failed to clear shared memory at offset <off>"
+The memory test was unable to clear the interface's shared memory
+region.
+This often indicates that the card is configured at a conflicting
+.Em iomem
+address.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr isapnp 4 ,
+.Xr netintro 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8

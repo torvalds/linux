@@ -1,0 +1,86 @@
+{
+   False leak under RegisterPass
+   Memcheck:Leak
+   ...
+   fun:_ZN4llvm12PassRegistry12registerPassERKNS_8PassInfoE
+}
+
+# Python false positives according to
+# http://svn.python.org/projects/python/trunk/Misc/README.valgrind
+
+{
+   ADDRESS_IN_RANGE/Invalid read of size 4
+   Memcheck:Addr4
+   obj:/usr/bin/python*
+}
+
+{
+   ADDRESS_IN_RANGE/Invalid read of size 4
+   Memcheck:Value8
+   obj:/usr/bin/python*
+}
+
+{
+   ADDRESS_IN_RANGE/Conditional jump or move depends on uninitialised value
+   Memcheck:Cond
+   obj:/usr/bin/python*
+}
+
+{
+   We don't care if as leaks
+   Memcheck:Leak
+   obj:/usr/bin/as
+}
+
+{
+   We don't care if bash leaks
+   Memcheck:Leak
+   fun:malloc
+   fun:xmalloc
+   obj:/bin/bash
+}
+
+{
+   We don't care of cmp
+   Memcheck:Cond
+   obj:/usr/bin/cmp
+}
+
+{
+   We don't care if grep leaks
+   Memcheck:Leak
+   obj:/bin/grep
+}
+
+{
+   We don't care if python leaks
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/bin/python*
+}
+
+{
+   We don't care if sed leaks
+   Memcheck:Leak
+   fun:calloc
+   fun:malloc
+   obj:/bin/sed
+}
+
+{
+   We don't care about anything ld.so does.
+   Memcheck:Cond
+   obj:/lib/ld*.so
+}
+
+{
+  suppress optimized strcasecmp, to be fixed in valgrind 3.6.1
+  Memcheck:Value8
+  fun:__GI___strcasecmp_l
+}
+
+{
+  suppress optimized strcasecmp, to be fixed in valgrind 3.6.1
+  Memcheck:Addr8
+  fun:__GI___strcasecmp_l
+}

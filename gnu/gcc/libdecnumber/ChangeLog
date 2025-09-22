@@ -1,0 +1,178 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-05-13  Release Manager
+
+	* GCC 4.2.0 released.
+
+2007-03-08  Ben Elliston  <bje@au.ibm.com>
+
+	* decContext.c, decContext.h, decDPD.h, decimal128.c,
+	decimal128.h, decimal32.c, decimal32.h, decimal64.c, decimal64.h,
+	decLibrary.c, decNumber.c, decNumber.h, decNumberLocal.h,
+	decRound.c, decRound.h, decUtility.c, decUtility.h: Add
+	libgcc-style license exception clause.
+
+2006-10-10  Brooks Moses  <bmoses@stanford.edu>
+
+	* Makefile.in: Added empty "pdf" target.
+
+2006-09-15  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* decNumber.c (decNumberPower): Constify.
+	* decNumber.h (decNumberPower): Likewise.
+
+2006-09-07  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* configure.ac (ACX_PROG_CC_WARNING_OPTS): Add -Wcast-qual.
+	* configure, config.in: Regenerate.
+
+	* decContext.c (decContextStatusToString): Constify.
+	* decContext.h (decContextStatusToString): Likewise.
+	* decNumber.c (decNumberToString, decNumberToEngString,
+	decNumberAbs, decNumberAdd, decNumberCompare, decNumberDivide,
+	decNumberDivideInteger, decNumberMax, decNumberMin,
+	decNumberMinus, decNumberPlus, decNumberMultiply,
+	decNumberNormalize, decNumberQuantize, decNumberRescale,
+	 decNumberRemainder, decNumberRemainderNear,
+	decNumberSameQuantum, decNumberSquareRoot, decNumberSubtract,
+	decNumberToIntegralValue, decNumberCopy, decToString, decAddOp,
+	decDivideOp, decMultiplyOp, decQuantizeOp, decCompareOp,
+	decCompare, decUnitCompare, decUnitAddSub, decRoundOperand,
+	decCopyFit, decSetCoeff, decGetInt, decNaNs, decGetDigits,
+	decNumberShow, decDumpAr, decCheckOperands, decCheckNumber):
+	Likewise.
+	* decNumber.h (decNumberToString, decNumberToEngString,
+	decNumberAbs, decNumberAdd, decNumberCompare, decNumberDivide,
+	decNumberDivideInteger, decNumberMax, decNumberMin,
+	decNumberMinus, decNumberMultiply, decNumberNormalize,
+	decNumberPlus, decNumberQuantize, decNumberRemainder,
+	 decNumberRemainderNear, decNumberRescale,
+	decNumberSameQuantum, decNumberSquareRoot, decNumberSubtract,
+	decNumberToIntegralValue, decNumberCopy): Likewise.
+	* decUtility.c (decDensePackCoeff, decDenseUnpackCoeff):
+	Likewise.
+	* decUtility.h (decDensePackCoeff, decDenseUnpackCoeff):
+	Likewise.
+	* decimal128.c (decimal128FromNumber, decimal128ToNumber,
+	decimal128ToString, decimal128ToEngString, decimal128Show):
+	Likewise.
+	* decimal128.h (decimal128ToString, decimal128ToEngString,
+	decimal128FromNumber, decimal128ToNumber): Likewise.
+	* decimal32.c (decimal32FromNumber, decimal32ToNumber,
+	decimal32ToString, decimal32ToEngString, decimal32Show):
+	Likewise.
+	* decimal32.h (decimal32ToString, decimal32ToEngString,
+	decimal32FromNumber, decimal32ToNumber): Likewise.
+	* decimal64.c (decimal64FromNumber, decimal64ToNumber,
+	decimal64ToString, decimal64ToEngString, decimal64Show):
+	Likewise.
+	* decimal64.h (decimal64ToString, decimal64ToEngString,
+	decimal64FromNumber, decimal64ToNumber): Likewise.
+
+2006-08-21  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* decContext.c (decContextSetStatusFromString): Constify.
+	* decContext.h (decContextSetStatusFromString): Likewise.
+	* decNumber.c (decNumberFromString): Likewise.
+	* decNumber.h (decNumberFromString): Likewise.
+	* decimal128.c (decimal128FromString): Likewise.
+	* decimal128.h (decimal128FromString): Likewise.
+	* decimal32.c (decimal32FromString): Likewise.
+	* decimal32.h (decimal32FromString): Likewise.
+	* decimal64.c (decimal64FromString): Likewise.
+	* decimal64.h (decimal64FromString): Likewise.
+
+2006-07-25  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR build/26188
+	* configure: Regenerate.
+
+2006-06-23  Ben Elliston  <bje@au.ibm.com>
+
+	* decNumber.h (decNumberNegate): Remove.
+
+2006-05-23  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* Makefile.in: Add install-html target. Add install-html to .PHONY
+
+2006-02-06  Ben Elliston  <bje@au.ibm.com>
+
+	* decLibrary.c (__dec_byte_swap): Use uint32_t for argument and
+	return types.
+
+2006-01-03  Roger Sayle  <roger@eyesopen.com>
+	    Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* decNumber.c (__NO_STRING_INLINES): Define to prevent glibc macro
+	definition of strcpy from generating compilation warnings.
+
+2006-01-02  Paolo Bonzini  <bonzini@gnu.org>
+
+        PR target/25259
+        * configure.ac: Use GCC_HEADER_STDINT.
+        * decContext.h: Include gstdint.h.
+        * aclocal.m4: Regenerate.
+        * configure: Regenerate.
+
+2005-12-20  Roger Sayle  <roger@eyesopen.com>
+
+	* decNumber.c (decStrEq): Cast string contents to unsigned char
+	instead of int before calling tolower.
+
+2005-12-20  Roger Sayle  <roger@eyesopen.com>
+
+	* decNumber.c (decStrEq): Cast operands to int before calling
+	tolower to avoid compilation warnings on Tru64.
+
+2005-12-05  Ben Elliston  <bje@au.ibm.com>
+
+	* Makefile.in (clean): Remove stray reference to libcpp.a.
+
+	* decimal128.h, decContext.c, decRound.c, decimal32.c,
+	decNumber.c, decContext.h, decimal64.c, decimal32.h, decNumber.h,
+	decimal64.h, decUtility.c, decLibrary.c, configure.ac,
+	decNumberLocal.h, decUtility.h, decDPD.h, decimal128.c: Update FSF
+	office address.
+
+2005-12-01  Ben Elliston  <bje@au.ibm.com>
+
+	* Makefile.in (libdecnumber_a_SOURCES): Drop decLibrary.c.
+	* decUtility.c (__dec_byte_swap): Move from here ..
+	* decLibrary.c: .. to here.
+
+2005-11-23  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	* decContext.h: Properly guard inclusion of stdint.h
+	* decContext.c: Include config.h
+	* decLibrary.c: Ditto.
+	* decNumber.c: Ditto.
+	* decRound.c: Ditto.
+	* decUtility.c: Ditto.
+	* decimal32.c: Ditto.
+	* decimal64.c: Ditto.
+	* decimal128.c: Ditto.
+	
+2005-11-29  Ben Elliston  <bje@au.ibm.com>
+
+	* decUtility.c: Remove redundant #includes.
+	* decUtility.h (__dec_byte_swap): Remove prototype.
+
+2005-11-29  Ben Elliston  <bje@au.ibm.com>
+
+	* configure.ac: New file.
+	* aclocal.m4: Likewise.
+	* Makefile.in: Likewise.
+	* configure: Generate.
+	* config.in: Likewise.
+
+2005-11-29  Ben Elliston  <bje@au.ibm.com>
+
+	* decimal32.h, decimal64.h, decimal128.h: New.
+        * decimal32.c, decimal64.c, decimal128.c: Likewise.
+	* decContext.c, decContext.h: Likewise.
+	* decUtility.c, decUtility.h: Likewise.
+	* decNumber.c, decNumber.h, decNumberLocal.h: Likewise.
+	* decDPD.h: Likewise.
+	* decLibrary.c, decRound.c: Likewise.

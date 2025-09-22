@@ -1,0 +1,184 @@
+.\"	$OpenBSD: stpcpy.3,v 1.6 2014/02/23 23:09:34 schwarze Exp $
+.\"
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 23 2014 $
+.Dt STPCPY 3
+.Os
+.Sh NAME
+.Nm stpcpy ,
+.Nm stpncpy
+.Nd copy strings
+.Sh SYNOPSIS
+.In string.h
+.Ft char *
+.Fn stpcpy "char *dst" "const char *src"
+.Ft char *
+.Fn stpncpy "char *dst" "const char *src" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn stpcpy
+and
+.Fn stpncpy
+functions copy the string
+.Fa src
+to
+.Fa dst
+(including the terminating
+.Ql \e0
+character).
+.Pp
+The
+.Fn stpncpy
+function copies not more than
+.Fa len
+characters into
+.Fa dst ,
+appending
+.Ql \e0
+characters if
+.Fa src
+is less than
+.Fa len
+characters long, and
+.Em not
+terminating
+.Fa dst
+if the length of
+.Fa src
+is greater than or equal to
+.Fa len .
+.Pp
+If the
+.Fa src
+and
+.Fa dst
+strings overlap, the behavior is undefined.
+.Sh RETURN VALUES
+The
+.Fn stpcpy
+function returns a pointer to the terminating
+.Ql \e0
+character written into
+.Fa dst .
+.Pp
+The
+.Fn stpncpy
+function returns a pointer to the first
+.Ql \e0
+character written into
+.Fa dst ,
+or to
+.Fa &dst[len]
+if the length of
+.Fa src
+is greater than or equal to
+.Fa len .
+.Sh EXAMPLES
+The most common use of
+.Fn stpcpy
+is to build up a string from multiple elements.
+The following example builds up a pathname from
+directory and file components using
+.Fn stpcpy :
+.Bd -literal -offset indent
+char *dir, *file, pname[PATH_MAX];
+
+\&...
+
+if (strlen(dir) + strlen("/") + strlen(file) >= sizeof(pname))
+	goto toolong;
+stpcpy(stpcpy(stpcpy(pname, dir), "/"), file);
+.Ed
+.Pp
+However, the size check required to avoid a buffer overflow is error
+prone since the check can become out of sync with the code that
+performs the copy.
+.Pp
+One might expect that
+.Fn stpncpy
+could be safely used instead, but it suffers from the same defects as
+.Fn strncpy .
+The example below using
+.Fn stpncpy
+is even more prone to error and will not detect when truncation occurs:
+.Bd -literal -offset indent
+char *dir, *file, pname[PATH_MAX];
+char *p1, *p2;
+
+\&...
+
+p1 = stpncpy(pname, dir, sizeof(pname) - 1);
+p2 = stpncpy(p1, "/", sizeof(pname) - 1 - (p1 - pname));
+stpncpy(p2, file, sizeof(pname) - 1 - (p2 - pname));
+pname[sizeof(pname) - 1] = '\e0';
+.Ed
+.Pp
+A safer (and simpler) approach is to use
+.Fn snprintf :
+.Bd -literal -offset indent
+char *dir, *file, pname[PATH_MAX];
+int len;
+
+\&...
+
+len = snprintf(pname, sizeof(pname), "%s/%s", dir, file);
+if (len >= sizeof(pname))
+	goto toolong;
+.Ed
+.Pp
+In most cases, it is better to use
+.Fn snprintf ,
+.Fn strlcpy ,
+or
+.Fn strlcat .
+.Sh SEE ALSO
+.Xr snprintf 3 ,
+.Xr strcpy 3 ,
+.Xr strlcpy 3 ,
+.Xr strncpy 3
+.Sh STANDARDS
+The
+.Fn stpcpy
+and
+.Fn stpncpy
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The function
+.Fn stpcpy
+first appeared in the Lattice C AmigaDOS compiler (1986 or earlier).
+The function
+.Fn stpncpy
+first appeared in the GNU C library version 1.07 (1993).
+Both functions have been available since
+.Ox 5.1 .

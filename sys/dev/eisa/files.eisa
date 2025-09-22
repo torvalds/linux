@@ -1,0 +1,29 @@
+#	$OpenBSD: files.eisa,v 1.14 2020/01/10 01:13:19 jsg Exp $
+#	$NetBSD: files.eisa,v 1.12 1996/09/01 00:10:55 mycroft Exp $
+#
+# Config.new file and device description for machine-independent EISA code.
+# Included by ports that need it.  Requires that the SCSI files be
+# defined first.
+
+device	eisa {[slot = -1]}
+attach	eisa at eisabus
+file	dev/eisa/eisa.c			eisa	needs-flag
+
+# Adaptec AHA-274X and aic7770 motherboard SCSI controllers
+# device declaration in sys/conf/files
+attach	ahc at eisa with ahc_eisa
+file	dev/eisa/ahc_eisa.c		ahc_eisa
+
+# UltraStor UHA-24f boards
+# device declaration in sys/conf/files
+attach	uha at eisa with uha_eisa
+file	dev/eisa/uha_eisa.c		uha_eisa
+
+# Compaq Array Controllers
+attach	cac at eisa with cac_eisa
+file	dev/eisa/cac_eisa.c		cac_eisa
+
+# 3Com 3c579 and 3c509 masquerading as EISA Ethernet Controllers
+# device declaration in sys/conf/files
+attach	ep at eisa with ep_eisa
+file	dev/eisa/if_ep_eisa.c		ep_eisa

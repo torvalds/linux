@@ -1,0 +1,202 @@
+.\" $OpenBSD: bge.4,v 1.67 2022/09/10 10:06:08 jsg Exp $
+.\" Copyright (c) 2001 Wind River Systems
+.\" Copyright (c) 1997, 1998, 1999, 2000, 2001
+.\"	Bill Paul <wpaul@windriver.com>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 10 2022 $
+.Dt BGE 4
+.Os
+.Sh NAME
+.Nm bge
+.Nd Broadcom BCM57xx/BCM590x 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "bge* at pci?"
+.Cd "brgphy* at mii?"
+.Cd "rgephy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various NICs based on the Broadcom BCM570x,
+571x, 572x, 575x, 576x, 578x, 5776x and 5778x Gigabit Ethernet controller
+chips and the 590x and 5779x Fast Ethernet controller chips,
+including the following:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3c996-T (10/100/1000baseT)
+.It
+3Com 3c996-SX (1000baseSX)
+.It
+3Com 3c996B-T (10/100/1000baseT)
+.It
+Allied-Telesis AT-2972LX10/LC
+.It
+Fujitsu PW0G8GE1U (1000baseSX)
+.It
+Fujitsu PW0G8GE2U (10/100/1000baseT)
+.It
+Fujitsu PW008GE4 (1000baseSX)
+.It
+Fujitsu PW008GE5 (10/100/1000baseT)
+.It
+Fujitsu PW008QG1U (10/100/1000baseT)
+.It
+HP ProLiant NC320T PCI-E Gigabit NIC (10/100/1000baseT)
+.It
+HP ProLiant NC320m PCI-E Gigabit NIC (10/100/1000baseT)
+.It
+HP ProLiant NC370F PCI-X Gigabit NIC (1000baseSX)
+.It
+HP ProLiant NC370T PCI-X Gigabit NIC (10/100/1000baseT)
+.It
+HP ProLiant NC1020 PCI Gigabit NIC (10/100/1000baseT)
+.It
+HP ProLiant NC6770 PCI-X Gigabit NIC (1000baseSX)
+.It
+HP ProLiant NC7760 embedded PCI Gigabit NIC (10/100/1000baseT)
+.It
+HP ProLiant NC7770 PCI-X Gigabit NIC (10/100/1000baseT)
+.It
+HP ProLiant NC7771 PCI-X Gigabit NIC (10/100/1000baseT)
+.It
+HP ProLiant NC7780 embedded PCI-X Gigabit NIC (10/100/1000baseT)
+.It
+HP ProLiant NC7781 embedded PCI-X Gigabit NIC (10/100/1000baseT)
+.It
+HP ProLiant NC7782 embedded PCI-X Gigabit NIC (10/100/1000baseT)
+.It
+Netgear GA302T (10/100/1000baseT)
+.It
+SysKonnect SK-9D21 (10/100/1000baseT)
+.It
+SysKonnect SK-9D41 (1000baseSX)
+.El
+.Pp
+The
+.Nm
+driver supports IPv4 receive IP/TCP/UDP checksum offload and transmit IP/TCP
+checksum offload, VLAN tag insertion and stripping,
+as well as a 256-bit multicast hash filter.
+The BCM5717, BCM5718, BCM5723, BCM5754, BCM5755, BCM5761, BCM5764, BCM5784,
+BCM5785, BCM5787 and BCM577xx chips also support IPv6 receive TCP/UDP
+checksum offload.
+.Pp
+The BCM5700, BCM5701, BCM5703, BCM5704, BCM5714, BCM5717, BCM5719, BCM5720,
+BCM5762, BCM5780, BCM57765 and BCM57766
+chips are capable of supporting jumbo frames.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width 1000baseSX
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the appropriate
+.Xr hostname.if 5
+file.
+.It Cm 10baseT
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Ic mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Ic mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseT
+Set 1000baseT operation over twisted pair.
+Both
+.Cm full-duplex
+and
+.Cm half-duplex
+modes are supported.
+.It Cm 1000baseSX
+Set 1000Mbps (Gigabit Ethernet) operation.
+Both
+.Cm full-duplex
+and
+.Cm half-duplex
+modes are supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "bge0: can't find mem space"
+A fatal initialization error has occurred.
+.It "bge0: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "bge0: watchdog timeout -- resetting"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr brgphy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr rgephy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@windriver.com .

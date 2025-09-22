@@ -1,0 +1,74 @@
+.\" $OpenBSD: tga.4,v 1.13 2013/04/17 02:28:40 jsg Exp $
+.\"
+.\" Copyright (c) 2001 Nathan L. Binkert <binkertn@umich.edu>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 17 2013 $
+.Dt TGA 4 alpha
+.Os
+.Sh NAME
+.Nm tga
+.Nd DECchip 21030 (TGA) graphics driver
+.Sh SYNOPSIS
+.Cd "tga* at pci?"
+.Cd "wsdisplay* at tga?"
+.Sh DESCRIPTION
+This driver handles DECchip 21030 (TGA) graphics hardware within the
+.Xr wscons 4
+console framework.
+.Pp
+On TGA adapters, the resolution is set on the card and is not changed
+at runtime.
+On some TGA models, there are four DIP switches.
+On other models, there is a rotary switch with positions 0-F.
+There are also some that use jumpers.
+.Ss TGA Switch Settings
+.Bl -column "Setting" "Freq (MHz)" "Resolution" "Rate (MHz)" -offset indent
+.It Sy Switch Ta Sy Pixel Ta Sy Monitor Ta Sy Refresh
+.It Sy "Setting" Ta Sy "Freq (MHz)" Ta Sy "Resolution" Ta Sy "Rate (MHz)"
+.It Li 0 Ta 130 Ta 1280x1024 Ta 72
+.It Li 1 Ta 119 Ta 1280x1024 Ta 66
+.It Li 2 Ta 108 Ta 1280x1024 Ta 60
+.It Li 3 Ta 104 Ta 1152x900 Ta 72
+.It Li 4 Ta 93 Ta 1152x900 Ta 66
+.It Li 5 Ta 75 Ta 1024x768 Ta 70
+.It Li 6 Ta 74 Ta 1024x768 Ta 72
+.It Li 7 Ta 69 Ta 1024x864 Ta 60
+.It Li 8 Ta 65 Ta 1024x768 Ta 60
+.It Li 9 Ta 50 Ta 800x600 Ta 72
+.It Li A Ta 40 Ta 800x600 Ta 60
+.It Li B Ta 32 Ta 640x480 Ta 72
+.It Li C Ta 25 Ta 640x480 Ta 60
+.El
+.Pp
+The settings for D, E, and F are for 1600x1200 on some cards, but
+there are no guarantees.
+.Pp
+There are also a couple of extra jumpers on some cards.
+One of these jumpers often selects the card to be the primary display.
+Exactly one of the cards in your machine should have that jumper on.
+If you have extra cards, they should have the jumper off.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4 ,
+.Xr wsconscfg 8
+.Rs
+.%T DECchip 21030 PCI Graphics Accelerator Reference Manual
+.%N EC-N0683-72
+.Re
+.Sh BUGS
+There are some problems with the background randomly switching between
+black and blue.

@@ -1,0 +1,37 @@
+stdin:2: invalid use of interface (lo0) as the source address of a binat-to rule
+stdin:2: dynamic interfaces must be used with :0 in a binat-to rule
+stdin:2: skipping rule due to errors
+stdin:2: rule expands to no valid combination
+stdin:3: invalid use of interface (lo0) as the source address of a binat-to rule
+stdin:3: dynamic interfaces must be used with :0 in a binat-to rule
+stdin:3: skipping rule due to errors
+stdin:3: rule expands to no valid combination
+stdin:4: binat-to requires a specified source and redirect address
+stdin:4: skipping rule due to errors
+stdin:4: rule expands to no valid combination
+stdin:6: invalid use of interface (lo0) as the source address of a binat-to rule
+stdin:6: dynamic interfaces must be used with :0 in a binat-to rule
+stdin:6: skipping rule due to errors
+stdin:6: rule expands to no valid combination
+stdin:7: syntax error
+stdin:8: syntax error
+stdin:9: syntax error
+stdin:13: binat-to requires a specified source and redirect address
+stdin:13: source and redir addresess must have a matching network mask in binat-rule
+stdin:13: tables cannot be used as the redirect address of a binat-to rule
+stdin:13: skipping rule due to errors
+stdin:13: rule expands to no valid combination
+stdin:14: af mismatch in translation spec
+stdin:14: source and redir addresess must have a matching network mask in binat-rule
+stdin:14: skipping rule due to errors
+stdin:14: rule expands to no valid combination
+stdin:15: rule expands to no valid combination
+stdin:16: af mismatch in translation spec
+stdin:16: source and redir addresess must have a matching network mask in binat-rule
+stdin:16: skipping rule due to errors
+stdin:16: rule expands to no valid combination
+stdin:17: af mismatch in translation spec
+stdin:17: rule expands to no valid combination
+stdin:18: af mismatch in translation spec
+stdin:18: rule expands to no valid combination
+table <__automatic_0> const { 1.1.1.1 2.2.2.2 }

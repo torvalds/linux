@@ -1,0 +1,168 @@
+.\"	$OpenBSD: kill.2,v 1.26 2020/02/08 01:09:57 jsg Exp $
+.\"	$NetBSD: kill.2,v 1.7 1995/02/27 12:33:53 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)kill.2	8.3 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: February 8 2020 $
+.Dt KILL 2
+.Os
+.Sh NAME
+.Nm kill
+.Nd send signal to a process
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fn kill "pid_t pid" "int sig"
+.Sh DESCRIPTION
+The
+.Fn kill
+function sends the signal given by
+.Fa sig
+to
+.Fa pid ,
+a
+process or a group of processes.
+.Fa sig
+may be one of the signals specified in
+.Xr sigaction 2
+or it may be 0, in which case
+error checking is performed but no
+signal is actually sent.
+This can be used to check the validity of
+.Fa pid .
+.Pp
+For a process to have permission to send a signal to a process designated
+by
+.Fa pid ,
+the real or effective user ID of the receiving process must match
+that of the sending process or the user must have appropriate privileges
+(such as given by a set-user-ID program or the user is the superuser).
+A single exception is the signal
+.Dv SIGCONT ,
+which may always be sent
+to any process with the same session ID as the caller.
+.Bl -tag -width Ds
+.It \&If Fa pid No \&is greater than zero :
+.Fa sig
+is sent to the process whose ID is equal to
+.Fa pid .
+.It \&If Fa pid No \&is zero :
+.Fa sig
+is sent to all processes whose group ID is equal
+to the process group ID of the sender, and for which the
+process has permission;
+this is a variant of
+.Xr killpg 3 .
+.It \&If Fa pid No \&is -1 :
+If the user has superuser privileges,
+the signal is sent to all processes excluding
+system processes and the process sending the signal.
+If the user is not the superuser, the signal is sent to all processes
+with the same uid as the user excluding the process sending the signal.
+No error is returned if any process could be signaled.
+.It \&If Fa pid No \&is negative but not -1 :
+.Fa sig
+is sent to all processes whose process group ID
+is equal to the absolute value of
+.Fa pid ;
+this is a variant of
+.Xr killpg 3 .
+.El
+.Pp
+If the value of
+.Fa pid
+causes
+.Fa sig
+to be sent to the calling process, either
+.Fa sig
+or at least one pending unblocked signal will be delivered before
+.Fn kill
+returns unless
+.Fa sig
+is blocked in the calling thread,
+.Fa sig
+is unblocked in another thread, or another thread is waiting for
+.Fa sig
+in
+.Fn sigwait .
+.Pp
+Setuid and setgid processes are dealt with slightly differently.
+For the non-root user, to prevent attacks against such processes, some signal
+deliveries are not permitted and return the error
+.Er EPERM .
+The following signals are allowed through to this class of processes:
+.Dv SIGKILL ,
+.Dv SIGINT ,
+.Dv SIGTERM ,
+.Dv SIGSTOP ,
+.Dv SIGTTIN ,
+.Dv SIGTTOU ,
+.Dv SIGTSTP ,
+.Dv SIGHUP ,
+.Dv SIGUSR1 ,
+.Dv SIGUSR2 .
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn kill
+will fail and no signal will be sent if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa sig
+is not a valid signal number.
+.It Bq Er ESRCH
+No process can be found corresponding to that specified by
+.Fa pid .
+.It Bq Er EPERM
+The sending process is not the superuser and its effective
+user ID does not match the effective user ID of the receiving process.
+When signaling a process group, this error is returned if none of the members
+of the group could be signaled.
+.El
+.Sh SEE ALSO
+.Xr getpgrp 2 ,
+.Xr getpid 2 ,
+.Xr sigaction 2 ,
+.Xr killpg 3 ,
+.Xr raise 3
+.Sh STANDARDS
+The
+.Fn kill
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn kill
+system call first appeared in
+.At v2 .
+The
+.Fa sig
+argument was introduced in
+.At v4 .

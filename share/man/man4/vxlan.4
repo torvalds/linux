@@ -1,0 +1,245 @@
+.\"	$OpenBSD: vxlan.4,v 1.20 2023/11/23 03:36:42 dlg Exp $
+.\"
+.\" Copyright (c) 2013 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 23 2023 $
+.Dt VXLAN 4
+.Os
+.Sh NAME
+.Nm vxlan
+.Nd Virtual eXtensible Local Area Network tunnel interface
+.Sh SYNOPSIS
+.Cd "pseudo-device vxlan"
+.Sh DESCRIPTION
+The
+.Nm
+pseudo-device provides interfaces for tunnelling or overlaying
+Ethernet networks on top of IPv4 and IPv6 networks using the
+Virtual eXtensible Local Area Network (VXLAN) protocol.
+.Pp
+VXLAN datagrams consist of an Ethernet payload encapsulated by an
+8-byte VXLAN header, which in turn is encapsulated by UDP and IP
+headers.
+Different VXLAN tunnels or overlays between the same VXLAN Tunnel
+Endpoints (VTEPs) can be distinguished by an optional 24-bit Virtual
+Network Identifier (VNI).
+.Pp
+A
+.Nm
+interface can be created using the
+.Ic ifconfig vxlan Ns Ar N Ic create
+command or by setting up a
+.Xr hostname.if 5
+configuration file for
+.Xr netstart 8 .
+.Pp
+For correct operation, encapsulated traffic must not be routed
+over the interface itself.
+This can be implemented by adding a distinct or a more specific
+route to the tunnel destination than the hosts or networks routed
+via the tunnel interface.
+Alternatively, the tunnel traffic may be configured in a separate
+routing table to the encapsulated traffic.
+.Pp
+The interface can operate in the following tunnel modes:
+.Bl -tag -width multicast
+.It Ic point-to-point mode
+When a unicast IP address is configured as the tunnel destination,
+all traffic is sent to a single tunnel endpoint.
+.It Ic learning mode
+When a multicast IP address is configured as the tunnel destination,
+.Nm
+operates as a learning bridge.
+Broadcast, multicast, and unknown unicast packets are sent to the
+specified multicast group.
+Packets received by the tunnel source address are used to dynamically
+learn the endpoint addresses for the encapsulated Ethernet source
+addresses.
+.It Ic endpoint mode
+When configured without a tunnel destination address,
+.Nm
+operates as a bridge, but with learning disabled.
+Endpoints for Ethernet addresses must be added explicitly before
+packets will be encapsulated for those addresses.
+All valid VXLAN packets sent to the local address will be accepted.
+.El
+.Pp
+.Nm
+supports the following
+.Xr ioctl 2
+calls for configuration:
+.Bl -tag -width indent -offset 3n
+.It Dv SIOCSLIFPHYADDR Fa "struct if_laddrreq *"
+Set the IPv4 or IPv6 addresses used for the exchange of encapsulated
+traffic.
+The interface will operate in point-to-point mode if the destination
+address is unicast,
+learning mode if the destination address is multicast,
+or endpoint mode if the destination address is unspecified.
+A non-standard UDP port for VXLAN packets can be specified by the
+port in the source address, otherwise use 0 to request the default.
+The addresses may only be configured while the interface is down.
+.It Dv SIOCGLIFPHYADDR Fa "struct if_laddrreq *"
+Get the addresses configured for the exchange of encapsulated packets.
+.It Dv SIOCDIFPHYADDR Fa "struct ifreq *"
+Clear the addresses used for the exchange of encapsulated packets.
+The addresses may only be cleared while the interface is down.
+.It Dv SIOCSVNETID Fa "struct ifreq *"
+Configure a virtual network identifier for use in the VXLAN header.
+The virtual network identifier may only be configured while the
+interface is down.
+.It Dv SIOCGVNETID Fa "struct ifreq *"
+Get the virtual network identifier used in the VXLAN header.
+.It Dv SIOCDVNETID Fa "struct ifreq *"
+Remove the virtual network identifier.
+The virtual network identifier may only be disabled while the
+interface is down.
+.It Dv SIOCSLIFPHYRTABLE Fa "struct ifreq *"
+Set the routing table the encapsulated traffic operates in.
+The routing table may only be configured while the interface is down.
+.It Dv SIOCGLIFPHYRTABLE Fa "struct ifreq *"
+Get the routing table the encapsulated traffic operates in.
+.It Dv SIOCSLIFPHYTTL Fa "struct ifreq *"
+Set the Time-To-Live field in IPv4 encapsulation headers, or the
+Hop Limit field in IPv6 encapsulation headers.
+.It Dv SIOCGLIFPHYTTL Fa "struct ifreq *"
+Get the value used in the Time-To-Live field in an IPv4 encapsulation
+header or the Hop Limit field in an IPv6 encapsulation header.
+.It Dv SIOCSLIFPHYDF Fa "struct ifreq *"
+Configure whether the encapsulated traffic sent by the interface
+can be fragmented or not.
+This sets the Don't Fragment (DF) bit on IPv4 packets,
+and disables fragmentation of IPv6 packets.
+.It Dv SIOCGLIFPHYDF Fa "struct ifreq *"
+Get whether the encapsulated traffic sent by the interface can be
+fragmented or not.
+.It Dv SIOCSRXHPRIO Fa "struct ifreq *"
+Set the priority value for received packets.
+Values may be from 0 to 7,
+.Dv IF_HDRPRIO_PACKET
+to specify that the current priority of a packet should be kept,
+or
+.Dv IF_HDRPRIO_OUTER
+to use the value in the Type of Service field in IPv4
+or the Traffic Class field in IPv6 encapsulation headers.
+.It Dv SIOCGRXHPRIO Fa "struct ifreq *"
+Get the priority value for received packets.
+.It Dv SIOCSTXHPRIO Fa "struct ifreq *"
+Set the priority value used in the Type of Service field in IPv4
+headers, or the Traffic Class field in IPv6 headers.
+Values may be from 0 to 7, or
+.Dv IF_HDRPRIO_PACKET
+to specify that the current priority of a packet should be used.
+.It Dv SIOCGTXHPRIO Fa "struct ifreq *"
+Get the priority value used in the Type of Service field in IPv4
+headers, or the Traffic Class field in IPv6 headers.
+.It Dv SIOCSIFPARENT Fa "struct if_parent *"
+Configure which interface will be joined to the multicast group
+specified by the tunnel destination address.
+The parent interface may only be configured for interfaces in
+learning mode, and while the interface is down.
+.It Dv SIOCGIFPARENT Fa "struct if_parent *"
+Get the name of the interface used for multicast communication.
+.It Dv SIOCDIFPARENT Fa "struct ifreq *"
+Remove the configuration of the interface used for multicast
+communication.
+.El
+.Sh EXAMPLES
+Create a point-to-point tunnel using Virtual Network Identifier 5:
+.Bd -literal -offset indent
+# ifconfig vxlan0 tunnel 192.168.1.100 192.168.1.200 vnetid 5
+# ifconfig vxlan0 10.1.1.100/24
+.Ed
+.Pp
+The following examples creates a learning overlay network:
+.Bd -literal -offset indent
+# ifconfig vxlan0 tunnel 192.168.1.100 239.1.1.100
+# ifconfig vxlan0 parent ix0
+# ifconfig vxlan0 vnetid 7395
+# ifconfig vxlan0 10.1.2.100/24
+.Ed
+.Pp
+Prior to the assignment of UDP port 4789 by IANA, some early VXLAN
+implementations used port 8472.
+A non-standard port can be specified with the tunnel source
+address:
+.Bd -literal -offset indent
+# ifconfig vxlan0 tunnel 192.168.1.100:8472 239.1.1.100
+.Ed
+.Sh SECURITY
+.Nm
+does not provide any integrated security features.
+It is designed to be a simple protocol that can be used in trusted
+data center environments, to carry VM traffic between virtual machine
+hypervisors, and provide virtualized layer 2 networks in Cloud
+infrastructures.
+.Pp
+To protect
+.Nm
+tunnels, the traffic can be protected with IPsec to add authentication
+and encryption for confidentiality.
+.Pp
+The Packet Filter (PF) can be used to filter tunnel traffic with
+endpoint policies in
+.Xr pf.conf 5 :
+.Bd -literal -offset indent
+table <vxlantep> { 192.168.1.200, 192.168.1.201 }
+block in on em0
+pass out on em0
+pass in on em0 proto udp from <vxlantep> to port vxlan
+.Ed
+.Pp
+The Time-to-Live (TTL) value of the tunnel can be set to 1 or a low
+value to restrict the traffic to the local network:
+.Bd -literal -offset indent
+# ifconfig vxlan0 tunnelttl 1
+.Ed
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr udp 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Sh STANDARDS
+.Rs
+.%A M. Mahalingam
+.%A D. Dutt
+.%A K. Duda
+.%A P. Agarwal
+.%A L. Kreeger
+.%A T. Sridhar
+.%A M. Bursell
+.%A C. Wright
+.%D August 2014
+.%R RFC 7348
+.%T Virtual eXtensible Local Area Network (VXLAN): A Framework for Overlaying Virtualized Layer 2 Networks over Layer 3 Networks
+.Re
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 5.5 .
+.Sh CAVEATS
+The
+.Nm
+interface requires at least 50 bytes for the IP, UDP and VXLAN
+protocol overhead and optionally 4 bytes for the encapsulated VLAN tag.
+The default MTU is set to 1500 bytes but can be adjusted if the
+transport interfaces carrying the tunnel traffic do not support larger
+MTUs, the tunnel traffic is leaving the local network, or if
+interoperability with another implementation requires running a
+decreased MTU of 1450 bytes.
+In any other case, it is commonly recommended to set the MTU of the
+transport interfaces to at least 1600 bytes.

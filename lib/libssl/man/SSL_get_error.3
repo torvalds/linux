@@ -1,0 +1,218 @@
+.\"	$OpenBSD: SSL_get_error.3,v 1.6 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL a528d4f0 Oct 27 13:40:11 2015 -0400
+.\"
+.\" This file was written by Bodo Moeller <bodo@openssl.org>.
+.\" Copyright (c) 2000, 2001, 2002, 2005 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_GET_ERROR 3
+.Os
+.Sh NAME
+.Nm SSL_get_error
+.Nd obtain result code for TLS/SSL I/O operation
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fn SSL_get_error "const SSL *ssl" "int ret"
+.Sh DESCRIPTION
+.Fn SSL_get_error
+returns a result code (suitable for the C
+.Dq switch
+statement) for a preceding call to
+.Xr SSL_connect 3 ,
+.Xr SSL_accept 3 ,
+.Xr SSL_do_handshake 3 ,
+.Xr SSL_read 3 ,
+.Xr SSL_peek 3 ,
+or
+.Xr SSL_write 3
+on
+.Fa ssl .
+The value returned by that TLS/SSL I/O function must be passed to
+.Fn SSL_get_error
+in parameter
+.Fa ret .
+.Pp
+In addition to
+.Fa ssl
+and
+.Fa ret ,
+.Fn SSL_get_error
+inspects the current thread's OpenSSL error queue.
+Thus,
+.Fn SSL_get_error
+must be used in the same thread that performed the TLS/SSL I/O operation,
+and no other OpenSSL function calls should appear in between.
+The current thread's error queue must be empty before the TLS/SSL I/O operation
+is attempted, or
+.Fn SSL_get_error
+will not work reliably.
+.Sh RETURN VALUES
+The following return values can currently occur:
+.Bl -tag -width Ds
+.It Dv SSL_ERROR_NONE
+The TLS/SSL I/O operation completed.
+This result code is returned if and only if
+.Fa ret
+> 0.
+.It Dv SSL_ERROR_ZERO_RETURN
+The TLS/SSL connection has been closed.
+If the protocol version is SSL 3.0 or TLS 1.0, this result code is returned
+only if a closure alert has occurred in the protocol, i.e., if the connection
+has been closed cleanly.
+Note that in this case
+.Dv SSL_ERROR_ZERO_RETURN
+does not necessarily indicate that the underlying transport has been closed.
+.It Dv SSL_ERROR_WANT_READ , Dv SSL_ERROR_WANT_WRITE
+The operation did not complete;
+the same TLS/SSL I/O function should be called again later.
+If, by then, the underlying
+.Vt BIO
+has data available for reading (if the result code is
+.Dv SSL_ERROR_WANT_READ )
+or allows writing data
+.Pq Dv SSL_ERROR_WANT_WRITE ,
+then some TLS/SSL protocol progress will take place,
+i.e., at least part of a TLS/SSL record will be read or written.
+Note that the retry may again lead to a
+.Dv SSL_ERROR_WANT_READ
+or
+.Dv SSL_ERROR_WANT_WRITE
+condition.
+There is no fixed upper limit for the number of iterations that may be
+necessary until progress becomes visible at application protocol level.
+.Pp
+For socket
+.Fa BIO Ns
+s (e.g., when
+.Fn SSL_set_fd
+was used),
+.Xr select 2
+or
+.Xr poll 2
+on the underlying socket can be used to find out when the TLS/SSL I/O function
+should be retried.
+.Pp
+Caveat: Any TLS/SSL I/O function can lead to either of
+.Dv SSL_ERROR_WANT_READ
+and
+.Dv SSL_ERROR_WANT_WRITE .
+In particular,
+.Xr SSL_read 3
+or
+.Xr SSL_peek 3
+may want to write data and
+.Xr SSL_write 3
+may want
+to read data.
+This is mainly because TLS/SSL handshakes may occur at any time during the
+protocol (initiated by either the client or the server);
+.Xr SSL_read 3 ,
+.Xr SSL_peek 3 ,
+and
+.Xr SSL_write 3
+will handle any pending handshakes.
+.It Dv SSL_ERROR_WANT_CONNECT , Dv SSL_ERROR_WANT_ACCEPT
+The operation did not complete; the same TLS/SSL I/O function should be
+called again later.
+The underlying BIO was not connected yet to the peer and the call would block
+in
+.Xr connect 2 Ns / Ns
+.Xr accept 2 .
+The SSL function should be
+called again when the connection is established.
+These messages can only appear with a
+.Xr BIO_s_connect 3
+or
+.Xr BIO_s_accept 3
+.Vt BIO ,
+respectively.
+In order to find out when the connection has been successfully established,
+on many platforms
+.Xr select 2
+or
+.Xr poll 2
+for writing on the socket file descriptor can be used.
+.It Dv SSL_ERROR_WANT_X509_LOOKUP
+The operation did not complete because an application callback set by
+.Xr SSL_CTX_set_client_cert_cb 3
+has asked to be called again.
+The TLS/SSL I/O function should be called again later.
+Details depend on the application.
+.It Dv SSL_ERROR_SYSCALL
+Some I/O error occurred.
+The OpenSSL error queue may contain more information on the error.
+If the error queue is empty (i.e.,
+.Fn ERR_get_error
+returns 0),
+.Fa ret
+can be used to find out more about the error:
+If
+.Fa ret
+== 0, an
+.Dv EOF
+was observed that violates the protocol.
+If
+.Fa ret
+== \(mi1, the underlying
+.Vt BIO
+reported an
+I/O error (for socket I/O on Unix systems, consult
+.Dv errno
+for details).
+.It Dv SSL_ERROR_SSL
+A failure in the SSL library occurred, usually a protocol error.
+The OpenSSL error queue contains more information on the error.
+.El
+.Sh SEE ALSO
+.Xr err 3 ,
+.Xr ssl 3
+.Sh HISTORY
+.Fn SSL_get_error
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .

@@ -1,0 +1,15 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("CrossTUTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/CrossTU",
+    "//clang/lib/Frontend",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+  ]
+  sources = [ "CrossTranslationUnitTest.cpp" ]
+}

@@ -1,0 +1,132 @@
+.\"	$OpenBSD: strncat.3,v 1.4 2014/04/19 16:50:46 jmc Exp $
+.\"
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 19 2014 $
+.Dt STRNCAT 3
+.Os
+.Sh NAME
+.Nm strncat
+.Nd concatenate a string with part of another
+.Sh SYNOPSIS
+.In string.h
+.Ft char *
+.Fn strncat "char *dst" "const char *append" "size_t count"
+.Sh DESCRIPTION
+The
+.Fn strncat
+function appends not more than
+.Fa count
+characters of the string
+.Fa append
+to the end of the string found in the buffer
+.Fa dst .
+Space for the terminating
+.Ql \e0
+should not be included in
+.Fa count .
+.Pp
+Bounds checking must be performed manually with great care.
+If the buffer
+.Fa dst
+is not large enough to hold the result,
+subsequent memory will be damaged.
+.Sh RETURN VALUES
+The
+.Fn strncat
+function returns the pointer
+.Fa dst .
+.Sh EXAMPLES
+The following example shows how to use
+.Fn strncat
+in conjunction with
+.Xr strncpy 3 :
+.Bd -literal -offset indent
+char buf[BUFSIZ];
+char *base, *suffix;
+
+(void)strncpy(buf, base, sizeof(buf) - 1);
+buf[sizeof(buf) - 1] = '\e0';
+(void)strncat(buf, suffix, sizeof(buf) - 1 - strlen(buf));
+.Ed
+.Pp
+The above will copy as many characters from
+.Va base
+to
+.Va buf
+as will fit.
+It then appends as many characters from
+.Va suffix
+as will fit.
+If either
+.Va base
+or
+.Va suffix
+are too large, truncation will occur without detection.
+.Pp
+The above example shows dangerous coding patterns, including an
+inability to detect truncation.
+.Fn strncat
+and
+.Fn strncpy
+are dangerously easy to misuse.
+The
+.Xr strlcpy 3
+and
+.Xr strlcat 3
+functions are safer for this kind of operation:
+.Bd -literal -offset indent
+if (strlcpy(buf, base, sizeof(buf)) >= sizeof(buf) ||
+    strlcat(buf, suffix, sizeof(buf)) >= sizeof(buf))
+        goto toolong;
+
+.Ed
+or for greatest portability,
+.Bd -literal -offset indent
+if (snprintf(buf, sizeof(buf), "%s%s",
+    base, suffix) >= sizeof(buf))
+        goto toolong;
+.Ed
+.Sh SEE ALSO
+.Xr strlcpy 3 ,
+.Xr wcscat 3 ,
+.Xr wcslcpy 3
+.Sh STANDARDS
+The
+.Fn strncat
+function conforms to
+.St -ansiC .
+.Sh HISTORY
+The
+.Fn strncat
+function first appeared in
+.At v7 .

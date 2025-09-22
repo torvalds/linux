@@ -1,0 +1,118 @@
+.\"	$OpenBSD: ESS_SIGNING_CERT_new.3,v 1.6 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ESS_SIGNING_CERT_NEW 3
+.Os
+.Sh NAME
+.Nm ESS_SIGNING_CERT_new ,
+.Nm ESS_SIGNING_CERT_free ,
+.Nm ESS_CERT_ID_new ,
+.Nm ESS_CERT_ID_free ,
+.Nm ESS_ISSUER_SERIAL_new ,
+.Nm ESS_ISSUER_SERIAL_free
+.Nd signing certificates for S/MIME
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ts.h
+.Ft ESS_SIGNING_CERT *
+.Fn ESS_SIGNING_CERT_new void
+.Ft void
+.Fn ESS_SIGNING_CERT_free "ESS_SIGNING_CERT *signing_cert"
+.Ft ESS_CERT_ID *
+.Fn ESS_CERT_ID_new void
+.Ft void
+.Fn ESS_CERT_ID_free "ESS_CERT_ID *cert_id"
+.Ft ESS_ISSUER_SERIAL *
+.Fn ESS_ISSUER_SERIAL_new void
+.Ft void
+.Fn ESS_ISSUER_SERIAL_free "ESS_ISSUER_SERIAL *issuer_serial"
+.Sh DESCRIPTION
+The signing certificate may be included in the signedAttributes
+field of a
+.Vt SignerInfo
+structure to mitigate simple substitution and re-issue attacks.
+.Pp
+.Fn ESS_SIGNING_CERT_new
+allocates and initializes an empty
+.Vt ESS_SIGNING_CERT
+object, representing an ASN.1
+.Vt SigningCertificate
+structure defined in RFC 2634 section 5.4.
+It can hold the certificate used for signing the data,
+additional authorization certificates that can be used during
+validation, and policies applying to the certificate.
+.Fn ESS_SIGNING_CERT_free
+frees
+.Fa signing_cert .
+.Pp
+.Fn ESS_CERT_ID_new
+allocates and initializes an empty
+.Vt ESS_CERT_ID
+object, representing an ASN.1
+.Vt ESSCertID
+structure defined in RFC 2634 section 5.4.1.
+Such objects can be used inside
+.Vt ESS_SIGNING_CERT
+objects, and each one can hold a SHA1 hash of one certificate.
+.Fn ESS_CERT_ID_free
+frees
+.Fa cert_id .
+.Pp
+.Fn ESS_ISSUER_SERIAL_new
+allocates and initializes an empty
+.Vt ESS_ISSUER_SERIAL
+object, representing an ASN.1
+.Vt IssuerSerial
+structure defined in RFC 2634 section 5.4.1.
+It can hold an issuer name and a serial number and can be included in an
+.Vt ESS_CERT_ID
+object, which is useful for additional authorization certificates,
+but redundant for the signing certificate itself.
+.Fn ESS_ISSUER_SERIAL_free
+frees
+.Fa issuer_serial .
+.Sh RETURN VALUES
+.Fn ESS_SIGNING_CERT_new ,
+.Fn ESS_CERT_ID_new ,
+and
+.Fn ESS_ISSUER_SERIAL_new
+return the new
+.Vt ESS_SIGNING_CERT ,
+.Vt ESS_CERT_ID ,
+or
+.Vt ESS_ISSUER_SERIAL
+object, respectively, or
+.Dv NULL
+if an error occurred.
+.Sh SEE ALSO
+.Xr d2i_ESS_SIGNING_CERT 3
+.Sh STANDARDS
+RFC 2634: Enhanced Security Services for S/MIME,
+section 5: Signing Certificate Attribute
+.Pp
+Note that RFC 2634 has been updated by RFC 5035:
+Enhanced Security Services (ESS) Update:
+Adding CertID Algorithm Agility.
+But the current implementation only supports the
+Signing Certificate Attribute Definition Version 1
+according to RFC 2634, not the
+Signing Certificate Attribute Definition Version 2
+according to RFC 5035.
+.Sh HISTORY
+These functions first appeared in OpenSSL 1.0.0
+and have been available since
+.Ox 4.9 .

@@ -1,0 +1,26 @@
+static_library("InstCombine") {
+  output_name = "LLVMInstCombine"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "InstCombineAddSub.cpp",
+    "InstCombineAndOrXor.cpp",
+    "InstCombineAtomicRMW.cpp",
+    "InstCombineCalls.cpp",
+    "InstCombineCasts.cpp",
+    "InstCombineCompares.cpp",
+    "InstCombineLoadStoreAlloca.cpp",
+    "InstCombineMulDivRem.cpp",
+    "InstCombineNegator.cpp",
+    "InstCombinePHI.cpp",
+    "InstCombineSelect.cpp",
+    "InstCombineShifts.cpp",
+    "InstCombineSimplifyDemanded.cpp",
+    "InstCombineVectorOps.cpp",
+    "InstructionCombining.cpp",
+  ]
+}

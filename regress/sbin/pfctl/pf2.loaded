@@ -1,0 +1,88 @@
+@0 block drop out log on tun1000000 all
+  [ Skip steps: i=12 r=end f=6 p=2 sa=6 da=7 sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 block drop in log on tun1000000 all
+  [ Skip steps: i=12 r=end f=6 sa=6 da=7 sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 block return-rst out log on tun1000000 proto tcp all
+  [ Skip steps: i=12 r=end f=6 p=4 sa=6 da=7 sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 block return-rst in log on tun1000000 proto tcp all
+  [ Skip steps: i=12 r=end f=6 sa=6 da=7 sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 block return-icmp(port-unr, port-unr) out log on tun1000000 proto udp all
+  [ Skip steps: i=12 r=end f=6 p=6 sa=6 da=7 sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 block return-icmp(port-unr, port-unr) in log on tun1000000 proto udp all
+  [ Skip steps: i=12 r=end da=7 sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 block drop out log quick on tun1000000 inet from ! 157.161.48.183 to any
+  [ Skip steps: i=12 r=end f=12 p=13 sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 block drop in quick on tun1000000 inet from any to 255.255.255.255
+  [ Skip steps: i=12 d=13 r=end f=12 p=13 sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 block drop in log quick on tun1000000 inet from 10.0.0.0/8 to any
+  [ Skip steps: i=12 d=13 r=end f=12 p=13 da=end sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 block drop in log quick on tun1000000 inet from 172.16.0.0/12 to any
+  [ Skip steps: i=12 d=13 r=end f=12 p=13 da=end sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 block drop in log quick on tun1000000 inet from 192.168.0.0/16 to any
+  [ Skip steps: i=12 d=13 r=end f=12 p=13 da=end sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 block drop in log quick on tun1000000 inet from 255.255.255.255 to any
+  [ Skip steps: d=13 r=end p=13 da=end sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@12 block drop in log quick from no-route to any
+  [ Skip steps: r=end da=end sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@13 pass out on tun1000000 inet proto icmp all icmp-type echoreq code 0
+  [ Skip steps: i=end r=end f=15 p=15 sa=end da=end sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@14 pass in on tun1000000 inet proto icmp all icmp-type echoreq code 0
+  [ Skip steps: i=end r=end sa=end da=end sp=end dp=16 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@15 pass out on tun1000000 proto udp all
+  [ Skip steps: i=end r=end f=end p=17 sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@16 pass in on tun1000000 proto udp from any to any port = 53
+  [ Skip steps: i=end r=end f=end sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@17 pass out on tun1000000 proto tcp all flags S/SA
+  [ Skip steps: i=end r=end f=end p=end sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@18 pass in on tun1000000 proto tcp from any to any port = 22 flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@19 pass in on tun1000000 proto tcp from any to any port = 25 flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@20 pass in on tun1000000 proto tcp from any to any port = 53 flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@21 pass in on tun1000000 proto tcp from any to any port = 113 flags S/SA
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

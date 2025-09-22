@@ -1,0 +1,3 @@
+queue root on lo1000000 bandwidth 1G
+queue def on lo1000000 parent root bandwidth 1M default
+pass set queue x

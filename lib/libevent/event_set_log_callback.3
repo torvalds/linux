@@ -1,0 +1,138 @@
+.\" $OpenBSD: event_set_log_callback.3,v 1.3 2025/06/07 20:50:40 schwarze Exp $
+.\" Copyright (c) 2023 Ted Bullock <tbullock@comlore.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt EVENT_SET_LOG_CALLBACK 3
+.Os
+.Sh NAME
+.Nm event_set_log_callback
+.Nd set callback for diagnostics
+.Sh SYNOPSIS
+.Lb libevent
+.In event.h
+.Ft typedef void
+.Fo (*event_log_cb)
+.Fa "int sev"
+.Fa "const char *msg"
+.Fc
+.Ft void
+.Fo event_set_log_callback
+.Fa "event_log_cb cb"
+.Fc
+.Sh DESCRIPTION
+The event library uses an optional callback function configured using
+.Fn event_set_log_callback
+to report error and diagnostic messages from many functions.
+By default the library does not report diagnostics.
+After executing the callback to report an error the event library invokes
+.Xr exit 3 ;
+this happens even if no callback is configured.
+.Pp
+.Fa cb
+is a function pointer to a callback with the following parameters:
+.Bl -tag -width 4n
+.It Fa sev :
+represents the severity of the message and may be one of:
+.Bl -tag -width "_EVENT_LOG_DEBUG"
+.It Dv _EVENT_LOG_DEBUG
+Messages for debugging purposes.
+These message are suppressed by the library unless it is compiled with
+.Dv USE_DEBUG .
+.It Dv _EVENT_LOG_MSG
+Messages providing information.
+.It Dv _EVENT_LOG_WARN
+Messages indicating non-fatal issues.
+.It Dv _EVENT_LOG_ERR
+Messages indicating fatal issues.
+The library terminates the program by calling
+.Xr exit 3
+after reporting the message.
+.El
+.It Fa msg :
+an ASCII string containing the message.
+.El
+.Pp
+Default behavior is restored and callbacks are prevented if
+.Fa cb
+is
+.Dv NULL .
+.Sh EXAMPLES
+The following C program illustrates use of
+.Fn event_set_log_callback .
+The callback function
+.Fn cb
+includes logic to identify the severity levels of diagnostic messages.
+.Bd -literal -offset indent
+#include <event.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+void
+cb(int sev, const char *msg)
+{
+	switch (sev) {
+	case _EVENT_LOG_DEBUG:
+		printf("DEBUG: %s\en", msg);
+		break;
+	case _EVENT_LOG_MSG:
+		printf("INFO: %s\en", msg);
+		break;
+	case _EVENT_LOG_WARN:
+		printf("WARNING: %s\en", msg);
+		break;
+	case _EVENT_LOG_ERR:
+		printf("ERROR: %s\en", msg);
+		break;
+	}
+}
+
+int
+main(int argc, char *argv[])
+{
+	struct event_base *eb;
+	/* Redirect diagnostic messages to `cb` callback */
+	event_set_log_callback(cb);
+	/* Report the kernel notification method */
+	setenv("EVENT_SHOW_METHOD", "", 1);
+	/* Initialize library; failures won't return */
+	eb = event_base_new();
+	/* Disable diagnostic messages */
+	event_set_log_callback(NULL);
+
+	/* Do something with the event library here */
+
+	/* Deallocate memory */
+	event_base_free(eb);
+	return 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr event_base_new 3 ,
+.Xr exit 3
+.Sh HISTORY
+.Fn event_set_log_callback
+first appeared in libevent-1.0c and has been available since
+.Ox 3.8 .
+.Sh AUTHORS
+The event library was written by
+.An -nosplit
+.An Niels Provos .
+.Pp
+.Fn event_set_log_callback
+and the diagnostic reporting system was written by
+.An Nick Mathewson .
+.Pp
+This manual page was written by
+.An Ted Bullock Aq Mt tbullock@comlore.com .

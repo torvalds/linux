@@ -1,0 +1,7 @@
+pass in inet proto tcp from any to any port = 25 flags S/SA divert-to 127.0.0.1 port 8025
+pass in inet proto tcp from any to any port = 25 flags S/SA divert-to 127.0.0.1 port 8025
+pass in inet proto tcp from any to any port = 25 flags S/SA divert-to 127.0.0.1 port 8025
+pass in inet proto tcp from any to any port = 25 flags S/SA divert-to 127.0.0.1 port 8025
+pass in inet6 proto tcp from any to any port = 25 flags S/SA divert-to ::1 port 8025
+pass in inet6 proto tcp from any to any port = 25 flags S/SA divert-to ::1 port 8025
+pass in inet6 proto tcp from any to any port = 25 flags S/SA divert-to ::1 port 8025

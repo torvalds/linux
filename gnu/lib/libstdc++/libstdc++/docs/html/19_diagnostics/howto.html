@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="HOWTO for the libstdc++ chapter 19." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 HOWTO:  Chapter 19</title>
+<link rel="StyleSheet" href="../lib3styles.css" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Chapter 19:  Diagnostics</a></h1>
+
+<p>Chapter 19 deals with program diagnostics, such as exceptions
+   and assertions.  You know, all the things we wish weren't even
+   necessary at all.
+</p>
+
+
+<!-- ####################################################### -->
+<hr />
+<h1>Contents</h1>
+<ul>
+   <li><a href="#1">Adding data to exceptions</a></li>
+   <li><a href="#2">Exception class hierarchy diagram</a></li>
+   <li><a href="#3">Concept checkers -- <strong>new and improved!</strong></a></li>
+   <li><a href="#4">Verbose <code>terminate</code></a></li>
+</ul>
+
+<hr />
+
+<!-- ####################################################### -->
+
+<h2><a name="1">Adding data to exceptions</a></h2>
+   <p>The standard exception classes carry with them a single string as
+      data (usually describing what went wrong or where the 'throw' took
+      place).  It's good to remember that you can add your own data to
+      these exceptions when extending the hierarchy:
+   </p>
+   <pre>
+   struct My_Exception : public std::runtime_error
+   {
+     public:
+       My_Exception (const string&amp; whatarg)
+           : std::runtime_error(whatarg), e(errno), id(GetDataBaseID()) { }
+       int  errno_at_time_of_throw() const { return e; }
+       DBID id_of_thing_that_threw() const { return id; }
+     protected:
+       int    e;
+       DBID   id;     // some user-defined type
+   };
+   </pre>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="2">Exception class hierarchy diagram</a></h2>
+   <p>At one point we were going to make up a PDF of the exceptions
+      hierarchy, akin to the one done for the I/O class hierarchy.
+      Time was our enemy.  Since then we've moved to Doxygen, which has
+      the useful property of not sucking.  Specifically, when the source
+      code is changed, the diagrams are automatically brought up to date.
+      For the old way, we had to update the diagrams separately.
+   </p>
+   <p>There are several links to the Doxygen-generated pages from
+      <a href="../documentation.html">here</a>.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="3">Concept checkers -- <strong>new and improved!</strong></a></h2>
+   <p>Better taste!  Less fat!  Literally!</p>
+   <p>In 1999, SGI added <em>concept checkers</em> to their implementation
+      of the STL:  code which checked the template parameters of
+      instantiated pieces of the STL, in order to insure that the parameters
+      being used met the requirements of the standard.  For example,
+      the Standard requires that types passed as template parameters to
+      <code>vector</code> be &quot;Assignable&quot; (which means what you think
+      it means).  The checking was done during compilation, and none of
+      the code was executed at runtime.
+   </p>
+   <p>Unfortunately, the size of the compiler files grew significantly
+      as a result.  The checking code itself was cumbersome.  And bugs
+      were found in it on more than one occasion.
+   </p>
+   <p>The primary author of the checking code, Jeremy Siek, had already
+      started work on a replacement implementation.  The new code has been
+      formally reviewed and accepted into
+      <a href="http://www.boost.org/libs/concept_check/concept_check.htm">the
+      Boost libraries</a>, and we are pleased to incorporate it into the
+      GNU C++ library.
+   </p>
+   <p>The new version imposes a much smaller space overhead on the generated
+      object file.  The checks are also cleaner and easier to read and
+      understand.
+   </p>
+   <p>For GCC 3.0 and 3.1 they are off by default.  They can be enabled at
+      configure time with
+      <a href="../configopts.html"><code>--enable-concept-checks</code></a>.
+      For 3.1 you can instead #define _GLIBCPP_CONCEPT_CHECKS to enable them
+      on a per-translation-unit basis.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="4">Verbose <code>terminate</code></a></h2>
+   <p>If you are having difficulty with uncaught exceptions and want a
+      little bit of help debugging the causes of the core dumps, you can
+      make use of a GNU extension in GCC 3.1 and later:
+   </p>
+   <pre>
+   #include &lt;exception&gt;
+
+   int main()
+   {
+       std::set_terminate (__gnu_cxx::__verbose_terminate_handler);
+       ...
+       throw <em>anything</em>;
+   }</pre>
+   <p>The <code> __verbose_terminate_handler </code> function obtains the name
+      of the current exception, attempts to demangle it, and prints it to
+      stderr.  If the exception is derived from <code> std::exception </code>
+      then the output from <code>what()</code> will be included.
+   </p>
+   <p>Any replacement termination function is required to kill the program
+      without returning; this one calls abort.
+   </p>
+   <p>For example:
+   </p>
+   <pre>
+   #include &lt;exception&gt;
+   #include &lt;stdexcept&gt;
+
+   struct BLARGH : std::runtime_error
+   {
+       BLARGH (const string&amp; whatarg)
+           : std::runtime_error(whatarg) { }
+   };
+
+   int main (int argc)
+   {
+       std::set_terminate (__gnu_cxx::__verbose_terminate_handler);
+       if (argc &gt; 5)
+           throw BLARGH(&quot;argc is greater than 5!&quot;);
+       else
+           throw argc;
+   }</pre>
+   <p>In GCC 3.1 and later, this gives
+   </p>
+   <pre>
+   % ./a.out
+   terminate called after throwing a `int'
+   Aborted
+   % ./a.out f f f f f f f f f f f
+   terminate called after throwing a `BLARGH'
+   what(): argc is greater than 5!
+   Aborted
+   %</pre>
+   <p>The 'Aborted' line comes from the call to abort(), of course.
+   </p>
+   <p><strong>UPDATE:</strong> Starting with GCC 3.4, this is the default
+      termination handler; nothing need be done to use it.  To go back to
+      the previous &quot;silent death&quot; method, simply include
+      <code>&lt;exception&gt;</code> and <code>&lt;cstdlib&gt;</code>,
+      and call
+   </p>
+   <pre>
+       std::set_terminate (std::abort);</pre>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="../17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

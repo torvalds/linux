@@ -1,0 +1,44 @@
+.\"	$OpenBSD: installurl.5,v 1.8 2019/04/27 22:30:05 tj Exp $
+.\"
+.\" Copyright (c) 2017 Robert Peichaer <rpe@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 27 2019 $
+.Dt INSTALLURL 5
+.Os
+.Sh NAME
+.Nm installurl
+.Nd OpenBSD mirror server location
+.Sh DESCRIPTION
+The
+.Pa /etc/installurl
+file contains a single line specifying an
+.Ox
+mirror server URL, such as
+.Pp
+.Dl https://cdn.openbsd.org/pub/OpenBSD
+.Pp
+It is created by the installer script during installations and upgrades.
+.Pp
+Empty lines and lines beginning with
+.Sq #
+in the file are ignored.
+.Sh FILES
+.Bl -tag -width /etc/installurl -compact
+.It Pa /etc/installurl
+.El
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr syspatch 8 ,
+.Xr sysupgrade 8

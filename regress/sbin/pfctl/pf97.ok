@@ -1,0 +1,4 @@
+pass in on em0 inet proto tcp from any to any port 220:230 flags S/SA divert-to 127.0.0.1 port 22
+pass out on em0 inet proto tcp from any to any port 220:230 flags S/SA divert-reply
+pass on em0 inet proto tcp from any to any port = 80 flags S/SA divert-to 127.0.0.1 port 8080
+pass in on em0 inet proto pim all divert-to 127.0.0.1 port 103

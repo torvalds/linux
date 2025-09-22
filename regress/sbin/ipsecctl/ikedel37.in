@@ -1,0 +1,2 @@
+ike from 3ffe:1::/64 to 3ffe:2::/64 peer 3ffe::1 \
+        srcid sharleena.as10.net dstid faui31o.informatik.uni-erlangen.de

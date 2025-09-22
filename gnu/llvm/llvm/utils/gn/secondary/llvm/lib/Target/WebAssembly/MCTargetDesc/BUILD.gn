@@ -1,0 +1,69 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("WebAssemblyGenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../WebAssembly.td"
+}
+
+tablegen("WebAssemblyGenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../WebAssembly.td"
+}
+
+tablegen("WebAssemblyGenRegisterInfo") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../WebAssembly.td"
+}
+
+tablegen("WebAssemblyGenSubtargetInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../WebAssembly.td"
+}
+
+# This should contain tablegen targets generating .inc files included
+# by other targets. .inc files only used by .cpp files in this directory
+# should be in deps on the static_library instead.
+group("tablegen") {
+  visibility = [
+    ":MCTargetDesc",
+    "../Utils",
+  ]
+  public_deps = [ ":WebAssemblyGenRegisterInfo" ]
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMWebAssemblyDesc"
+
+  # This should contain tablegen targets generating .inc files included
+  # by other targets. .inc files only used by .cpp files in this directory
+  # should be in deps instead.
+  public_deps = [
+    ":WebAssemblyGenSubtargetInfo",
+    ":tablegen",
+  ]
+  deps = [
+    ":WebAssemblyGenAsmWriter",
+    ":WebAssemblyGenMCCodeEmitter",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/WebAssembly/TargetInfo",
+    "//llvm/lib/Target/WebAssembly/Utils",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "WebAssemblyAsmBackend.cpp",
+    "WebAssemblyInstPrinter.cpp",
+    "WebAssemblyMCAsmInfo.cpp",
+    "WebAssemblyMCCodeEmitter.cpp",
+    "WebAssemblyMCTargetDesc.cpp",
+    "WebAssemblyMCTypeUtilities.cpp",
+    "WebAssemblyTargetStreamer.cpp",
+    "WebAssemblyWasmObjectWriter.cpp",
+  ]
+}

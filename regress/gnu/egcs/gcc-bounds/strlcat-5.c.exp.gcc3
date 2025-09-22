@@ -1,0 +1,2 @@
+strlcat-5.c: In function `main':
+strlcat-5.c:6: warning: sizeof(pointer) possibly incorrect in argument 3

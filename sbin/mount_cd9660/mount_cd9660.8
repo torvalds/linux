@@ -1,0 +1,117 @@
+.\"	$OpenBSD: mount_cd9660.8,v 1.25 2020/04/23 21:28:09 jmc Exp $
+.\"	$NetBSD: mount_cd9660.8,v 1.3 1995/04/23 10:33:13 cgd Exp $
+.\"
+.\" Copyright (c) 1993, 1994
+.\"     The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" Christopher G. Demetriou.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mount_cd9660.8	8.3 (Berkeley) 3/27/94
+.\"
+.Dd $Mdocdate: April 23 2020 $
+.Dt MOUNT_CD9660 8
+.Os
+.Sh NAME
+.Nm mount_cd9660
+.Nd mount an ISO 9660 filesystem
+.Sh SYNOPSIS
+.Nm mount_cd9660
+.Op Fl egjR
+.Op Fl o Ar options
+.Op Fl s Ar offset
+.Ar special node
+.Sh DESCRIPTION
+The
+.Nm
+command attaches the ISO 9660 filesystem residing on the device
+.Ar special
+to the global filesystem namespace at the location indicated by
+.Ar node .
+The filesystem is always mounted readonly.
+This command is invoked by
+.Xr mount 8
+when using the syntax
+.Bd -ragged -offset 4n
+.Nm mount Op options
+-t cd9660
+.Ar special node
+.Ed
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl e
+Enable the use of extended attributes.
+.It Fl g
+Do not strip version numbers on files.
+(By default, if there are files with different version numbers on the disk,
+only the last one will be listed.)
+In either case, files may be opened without explicitly stating a
+version number.
+.It Fl j
+Do not use any Joliet extensions included in the filesystem.
+.It Fl o Ar options
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.It Fl R
+Do not use any Rockridge extensions included in the filesystem.
+.It Fl s Ar offset
+Use the session starting at
+.Ar offset
+(counted in 2048-byte blocks from the start of the media) instead of
+the last session from the Table of Contents (TOC).
+The TOC can be inspected by using
+.Xr cdio 1 .
+.El
+.Sh SEE ALSO
+.Xr cdio 1 ,
+.Xr mount 2 ,
+.Xr fstab 5 ,
+.Xr mount 8 ,
+.Xr umount 8 ,
+.Xr vnconfig 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .
+.Sh BUGS
+The cd9660 filesystem does not support the original "High Sierra"
+("CDROM001") format.
+.Pp
+POSIX device node mapping is currently not supported.
+.Pp
+Version numbers are not stripped if Rockridge extensions are in use.
+In this case, accessing files that don't have Rockridge names without
+version numbers gets the one with the lowest version number and not
+the one with the highest.
+.Pp
+There is no ECMA support.

@@ -1,0 +1,105 @@
+$OpenBSD: Vstat.pod,v 1.1 2020/12/20 15:30:58 daniel Exp $
+
+=head1 NAME
+
+OpenBSD::Vstat - virtual filesystem for C<pkg_add(1)> simulations
+
+=head1 SYNOPSIS
+
+    use OpenBSD::Vstat;
+
+    my $v = OpenBSD::Vstat->new($state);
+
+    $h = $v->add($filename, $size, $tag);
+    $v->remove($filename, $size);
+    $e = $v->exists($filename);
+    $v->tally;
+
+=head1 DESCRIPTION
+
+C<OpenBSD::Vstat> provides methods to layout a virtual file system on top
+of the real one.  This is generally used to simulate file system manipulations
+before doing them for real.
+
+The constructor C<new> expect a C<$state> object, that is, an object with
+C<$state-E<gt>{not}> and C<$state-E<gt>errsay> defined.
+
+Operations on the C<Vstat> object can modify C<$state-E<gt>{problems}>
+and C<$state-E<gt>{overflow}>.
+
+The method C<add> (respectively C<remove>) can be used to add a filename to
+the file system (resp. remove a filename from the file system).
+The method C<exists> looks for
+a given filename: first it checks if it has been added or removed in
+the virtual filesystem. Failing that, it looks into the real file system
+using C<-e>.
+
+Both C<add> and C<remove> also know about
+Unix filesystem semantics, namely C<mount(8)> points and disk usage.
+They return a small object corresponding to the filename's file system with
+the following methods
+
+=over 8
+
+=item ro
+
+defined if the filesystem is read-only. Usually hard to add files there.
+
+=item nodev
+
+defined if the filesystem forbids devices.
+
+=item noexec
+
+defined if the filesystem forbids execution.
+
+=item nosuid
+
+defined if the filesystem forbids SUID files.
+
+=item avail
+
+returns the number of bytes still available on the filesystem.
+
+=back
+
+C<exists> returns a true value if the filename exists.
+If it is a virtual name added through C<add>, it returns
+the C<$tag> specified as an optional argument. Otherwise, it returns 1.
+
+C<tally> displays a summary of filesystem manipulations
+after a series of additions and removals.
+
+Due to the way packages get updated, size modifications through
+C<remove> are delayed until the next call to
+C<synchronize>: old files must be removed before
+adding the new files in order to properly account for collisions,
+but the old files occupy disk space while the new package gets extracted.
+
+Modifications to the virtual file system are stored until a call to
+C<synchronize>, which assumes the real file system will get those changes
+(and thus we can forget them), or C<drop_changes>, which assumes the changes
+won't get through, thus providing transactional semantics.
+
+In case of file system overflow, C<remove_first> can be used to indicate
+file removal happens before the creation of new files.
+
+Typical use is as follows:
+	do lot of changes to the Vstat object
+	check for overflow.
+	if so, drop_changes.
+	redo the changes, with remove_first used instead of remove.
+
+In case C<$state-E<gt>{not}> is true, the real file system will never store
+changes, and thus the C<Vstat> object is layered to allow full transactional
+back-out.
+
+
+=head1 BUGS AND LIMITATIONS
+
+C<OpenBSD::Vstat> now handles C<chroot(8)> situations gracefully, but
+it doesn't know about symbolic links to directories and will report bogus
+results in complicated cases.
+
+C<OpenBSD::Vstat> needs an interface to deal with removed directories that
+get replaced with files. Currently, it will report a conflict.

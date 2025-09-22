@@ -1,0 +1,22 @@
+21     0:d=0 hl=2 l=  0 cons: univ: SEQUENCE          
+ 00     2:d=0 hl=2 l=  9 prim: univ: OBJECT_IDENTIFIER :pkcs-7-signedData
+ 21    13:d=0 hl=2 l=  0 cons: cont: 00			# explicit tag
+  21    15:d=0 hl=2 l=  0 cons: univ: SEQUENCE          
+   00    17:d=0 hl=2 l=  1 prim: univ: INTEGER          # version 
+   20    20:d=0 hl=2 l=  0 cons: univ: SET               
+   21    22:d=0 hl=2 l=  0 cons: univ: SEQUENCE          
+    00    24:d=0 hl=2 l=  9 prim: univ: OBJECT_IDENTIFIER :pkcs-7-data
+    00    35:d=0 hl=2 l=  0 prim: univ: EOC               
+   21    37:d=0 hl=2 l=  0 cons: cont: 00               # cert tag
+    20    39:d=0 hl=4 l=545 cons: univ: SEQUENCE          
+    20   588:d=0 hl=4 l=524 cons: univ: SEQUENCE          
+    00  1116:d=0 hl=2 l=  0 prim: univ: EOC               
+   21  1118:d=0 hl=2 l=  0 cons: cont: 01		# crl tag
+    20  1120:d=0 hl=4 l=653 cons: univ: SEQUENCE          
+    20  1777:d=0 hl=4 l=285 cons: univ: SEQUENCE          
+    00  2066:d=0 hl=2 l=  0 prim: univ: EOC               
+   21  2068:d=0 hl=2 l=  0 cons: univ: SET              # signers 
+    00  2070:d=0 hl=2 l=  0 prim: univ: EOC               
+  00  2072:d=0 hl=2 l=  0 prim: univ: EOC               
+ 00  2074:d=0 hl=2 l=  0 prim: univ: EOC               
+00  2076:d=0 hl=2 l=  0 prim: univ: EOC               

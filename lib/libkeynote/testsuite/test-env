@@ -1,0 +1,10 @@
+# Comments are allowed
+app_domain = "test\
+	     in\g"
+request = "test"
+variable = "yes"
+weirduse = "POLICY"
+foo = "bar"
+bar = "xyz"
+xyz = "qua"
+qua = "weirduse"

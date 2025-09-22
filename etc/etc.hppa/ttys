@@ -1,0 +1,18 @@
+#
+#	$OpenBSD: ttys,v 1.5 2008/01/09 17:39:42 miod Exp $
+#
+# name	getty				type	status		comments
+#
+# If the console is marked insecure, single-user requires
+# the root password.
+console "/usr/libexec/getty std.9600"	vt220	on  secure
+ttyC0	"/usr/libexec/getty std.9600"	vt220	off secure
+ttyD0	"/usr/libexec/getty std.9600"	vt220	off secure
+tty00	"/usr/libexec/getty std.9600"	unknown off secure
+tty01	"/usr/libexec/getty std.9600"	unknown off secure
+tty02	"/usr/libexec/getty std.9600"	unknown off secure
+tty03	"/usr/libexec/getty std.9600"	unknown off secure
+tty04	"/usr/libexec/getty std.9600"	unknown off secure
+tty05	"/usr/libexec/getty std.9600"	unknown off secure
+tty06	"/usr/libexec/getty std.9600"	unknown off secure
+tty07	"/usr/libexec/getty std.9600"	unknown off secure

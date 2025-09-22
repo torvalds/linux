@@ -1,0 +1,83 @@
+.\" $OpenBSD: userinfo.8,v 1.15 2016/11/29 03:59:31 jsg Exp $
+.\" $NetBSD: userinfo.8,v 1.8 2003/02/14 16:11:37 grant Exp $
+.\"
+.\" Copyright (c) 1999 Alistair G. Crooks.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: November 29 2016 $
+.Dt USERINFO 8
+.Os
+.Sh NAME
+.Nm userinfo
+.Nd display user information
+.Sh SYNOPSIS
+.Nm userinfo
+.Op Fl e
+.Ar user
+.Sh DESCRIPTION
+The
+.Nm
+utility displays information about the specified
+.Ar user .
+The fields shown are defined in
+.Xr master.passwd 5 .
+The encrypted password is only displayed if the calling user is the
+superuser.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl e
+Do not display anything (quiet mode).
+This form of the command is useful for
+scripts which need to check whether a particular user
+name or UID is already in use on the system.
+.El
+.Pp
+The
+.Ar user
+argument may be either a user name or a user ID (UID).
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 if
+.Ar user
+exists, and non-zero if it does not.
+.Sh SEE ALSO
+.Xr id 1 ,
+.Xr passwd 5 ,
+.Xr groupinfo 8 ,
+.Xr user 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Ox 2.7 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Alistair G. Crooks Aq Mt agc@NetBSD.org .

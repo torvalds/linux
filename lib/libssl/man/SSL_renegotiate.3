@@ -1,0 +1,167 @@
+.\"	$OpenBSD: SSL_renegotiate.3,v 1.10 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL SSL_key_update.pod 4fbfe86a Feb 16 17:04:40 2017 +0000
+.\"
+.\" This file is a derived work.
+.\" Some parts are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Other parts were written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_RENEGOTIATE 3
+.Os
+.Sh NAME
+.Nm SSL_renegotiate ,
+.Nm SSL_renegotiate_abbreviated ,
+.Nm SSL_renegotiate_pending
+.Nd initiate a new TLS handshake
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fo SSL_renegotiate
+.Fa "SSL *ssl"
+.Fc
+.Ft int
+.Fo SSL_renegotiate_abbreviated
+.Fa "SSL *ssl"
+.Fc
+.Ft int
+.Fo SSL_renegotiate_pending
+.Fa "SSL *ssl"
+.Fc
+.Sh DESCRIPTION
+When called from the client side,
+.Fn SSL_renegotiate
+schedules a completely new handshake over an existing TLS connection.
+The next time an I/O operation such as
+.Fn SSL_read
+or
+.Fn SSL_write
+takes place on the connection, a check is performed to confirm
+that it is a suitable time to start a renegotiation.
+If so, a new handshake is initiated immediately.
+An existing session associated with the connection is not resumed.
+.Pp
+This function is automatically called by
+.Xr SSL_read 3
+and
+.Xr SSL_write 3
+whenever the renegotiation byte count set by
+.Xr BIO_set_ssl_renegotiate_bytes 3
+or the timeout set by
+.Xr BIO_set_ssl_renegotiate_timeout 3
+are exceeded.
+.Pp
+When called from the client side,
+.Fn SSL_renegotiate_abbreviated
+is similar to
+.Fn SSL_renegotiate
+except that resuming the session associated with the current
+connection is attempted in the new handshake.
+.Pp
+When called from the server side,
+.Fn SSL_renegotiate
+and
+.Fn SSL_renegotiate_abbreviated
+behave identically.
+They both schedule a request for a new handshake to be sent to the client.
+The next time an I/O operation is performed, the same checks as on
+the client side are performed and then, if appropriate, the request
+is sent.
+The client may or may not respond with a new handshake and it may
+or may not attempt to resume an existing session.
+If a new handshake is started, it is handled transparently during
+any I/O function.
+.Pp
+If a LibreSSL client receives a renegotiation request from a server,
+it is also handled transparently during any I/O function.
+The client attempts to resume the current session in the new
+handshake.
+For historical reasons, DTLS clients do not attempt to resume
+the session in the new handshake.
+.Sh RETURN VALUES
+.Fn SSL_renegotiate
+and
+.Fn SSL_renegotiate_abbreviated
+return 1 on success or 0 on error.
+.Pp
+.Fn SSL_renegotiate_pending
+returns 1 if a renegotiation or renegotiation request has been
+scheduled but not yet acted on, or 0 otherwise.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_do_handshake 3 ,
+.Xr SSL_num_renegotiations 3 ,
+.Xr SSL_read 3 ,
+.Xr SSL_write 3
+.Sh HISTORY
+.Fn SSL_renegotiate
+first appeared in SSLeay 0.8.0 and has been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_renegotiate_pending
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .
+.Pp
+.Fn SSL_renegotiate_abbreviated
+first appeared in OpenSSL 1.0.1 and has been available since
+.Ox 5.3 .

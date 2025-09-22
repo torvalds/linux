@@ -1,0 +1,38 @@
+FROM = "{ 2.2.2.0/24, 3.3.3.0/24, 4.4.4.0/24 }"
+TO = "{ 5.5.5.0/24, 6.6.6.0/24, 7.7.7.0/24 }"
+t from-2.2.2.0/24-to-5.5.5.0/24
+C rmv [Phase 2]:Connections=from-2.2.2.0/24-to-5.5.5.0/24
+C rms [from-2.2.2.0/24-to-5.5.5.0/24]
+C rms [phase2-from-2.2.2.0/24-to-5.5.5.0/24]
+t from-2.2.2.0/24-to-6.6.6.0/24
+C rmv [Phase 2]:Connections=from-2.2.2.0/24-to-6.6.6.0/24
+C rms [from-2.2.2.0/24-to-6.6.6.0/24]
+C rms [phase2-from-2.2.2.0/24-to-6.6.6.0/24]
+t from-2.2.2.0/24-to-7.7.7.0/24
+C rmv [Phase 2]:Connections=from-2.2.2.0/24-to-7.7.7.0/24
+C rms [from-2.2.2.0/24-to-7.7.7.0/24]
+C rms [phase2-from-2.2.2.0/24-to-7.7.7.0/24]
+t from-3.3.3.0/24-to-5.5.5.0/24
+C rmv [Phase 2]:Connections=from-3.3.3.0/24-to-5.5.5.0/24
+C rms [from-3.3.3.0/24-to-5.5.5.0/24]
+C rms [phase2-from-3.3.3.0/24-to-5.5.5.0/24]
+t from-3.3.3.0/24-to-6.6.6.0/24
+C rmv [Phase 2]:Connections=from-3.3.3.0/24-to-6.6.6.0/24
+C rms [from-3.3.3.0/24-to-6.6.6.0/24]
+C rms [phase2-from-3.3.3.0/24-to-6.6.6.0/24]
+t from-3.3.3.0/24-to-7.7.7.0/24
+C rmv [Phase 2]:Connections=from-3.3.3.0/24-to-7.7.7.0/24
+C rms [from-3.3.3.0/24-to-7.7.7.0/24]
+C rms [phase2-from-3.3.3.0/24-to-7.7.7.0/24]
+t from-4.4.4.0/24-to-5.5.5.0/24
+C rmv [Phase 2]:Connections=from-4.4.4.0/24-to-5.5.5.0/24
+C rms [from-4.4.4.0/24-to-5.5.5.0/24]
+C rms [phase2-from-4.4.4.0/24-to-5.5.5.0/24]
+t from-4.4.4.0/24-to-6.6.6.0/24
+C rmv [Phase 2]:Connections=from-4.4.4.0/24-to-6.6.6.0/24
+C rms [from-4.4.4.0/24-to-6.6.6.0/24]
+C rms [phase2-from-4.4.4.0/24-to-6.6.6.0/24]
+t from-4.4.4.0/24-to-7.7.7.0/24
+C rmv [Phase 2]:Connections=from-4.4.4.0/24-to-7.7.7.0/24
+C rms [from-4.4.4.0/24-to-7.7.7.0/24]
+C rms [phase2-from-4.4.4.0/24-to-7.7.7.0/24]

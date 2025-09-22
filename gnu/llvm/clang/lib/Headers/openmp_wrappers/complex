@@ -1,0 +1,55 @@
+/*===-- complex --- OpenMP complex wrapper for target regions --------- c++ -===
+ *
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+ *
+ *===-----------------------------------------------------------------------===
+ */
+
+#ifndef __CLANG_OPENMP_COMPLEX__
+#define __CLANG_OPENMP_COMPLEX__
+
+#ifndef _OPENMP
+#error "This file is for OpenMP compilation only."
+#endif
+
+// We require std::math functions in the complex builtins below.
+#include <cmath>
+
+#ifdef __NVPTX__
+#define __OPENMP_NVPTX__
+#include <__clang_cuda_complex_builtins.h>
+#undef __OPENMP_NVPTX__
+#endif // __NVPTX__
+
+#ifdef __AMDGCN__
+#define __OPENMP_AMDGCN__
+#include <__clang_cuda_complex_builtins.h>
+#undef __OPENMP_AMDGCN__
+#endif // __AMDGCN__
+
+#endif
+
+// Grab the host header too.
+#include_next <complex>
+
+// If we are compiling against libc++, the macro _LIBCPP_STD_VER should be set
+// after including <cmath> above. Since the complex header we use is a
+// simplified version of the libc++, we don't need it in this case. If we
+// compile against libstdc++, or any other standard library, we will overload
+// the (hopefully template) functions in the <complex> header with the ones we
+// got from libc++ which decomposes math functions, like `std::sin`, into
+// arithmetic and calls to non-complex functions, all of which we can then
+// handle.
+#ifndef _LIBCPP_STD_VER
+
+#pragma omp begin declare variant match(                                       \
+    device = {arch(amdgcn, nvptx, nvptx64)},                                   \
+    implementation = {extension(match_any, allow_templates)})
+
+#include <complex_cmath.h>
+
+#pragma omp end declare variant
+
+#endif // _LIBCPP_STD_VER

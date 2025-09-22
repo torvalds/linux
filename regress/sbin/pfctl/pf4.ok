@@ -1,0 +1,62 @@
+block drop in all
+block drop in proto tcp all
+block drop in proto tcp all
+block drop in proto udp all
+block drop in all
+block drop in inet from 10.0.0.0/8 to any
+block drop in inet from ! 10.0.0.0/8 to any
+block drop in inet from 10.0.0.0/8 to any
+block drop in inet from 172.16.0.0/12 to any
+block drop in proto tcp from any port = 22 to any
+block drop in proto tcp from any port = 22 to any port 1024:2048
+block drop in proto tcp from any port 21 >< 2048 to any port 1024:2048
+block drop in proto tcp from any port != 1234 to any port 1024:2048
+block drop in proto tcp from any port >= 80 to any port 1024:2048
+block drop in inet proto tcp from 10.0.0.0/8 port = 22 to 192.168.0.0/16 port = 6667
+block drop in inet proto tcp from 10.0.0.0/8 port = 22 to 192.168.0.0/16 port = 6668
+block drop in inet proto tcp from 10.0.0.0/8 port = 22 to 192.168.0.0/16 port 6669:65535
+block drop in inet proto tcp from 10.0.0.0/8 port = 21 to 192.168.0.0/16 port = 6667
+block drop in inet proto tcp from 10.0.0.0/8 port = 21 to 192.168.0.0/16 port = 6668
+block drop in inet proto tcp from 10.0.0.0/8 port = 21 to 192.168.0.0/16 port 6669:65535
+block drop in inet proto tcp from 10.0.0.0/8 port = 22 to 12.34.56.78 port = 6667
+block drop in inet proto tcp from 10.0.0.0/8 port = 22 to 12.34.56.78 port = 6668
+block drop in inet proto tcp from 10.0.0.0/8 port = 22 to 12.34.56.78 port 6669:65535
+block drop in inet proto tcp from 10.0.0.0/8 port = 21 to 12.34.56.78 port = 6667
+block drop in inet proto tcp from 10.0.0.0/8 port = 21 to 12.34.56.78 port = 6668
+block drop in inet proto tcp from 10.0.0.0/8 port = 21 to 12.34.56.78 port 6669:65535
+block drop in inet proto tcp from 172.16.0.0/12 port = 22 to 192.168.0.0/16 port = 6667
+block drop in inet proto tcp from 172.16.0.0/12 port = 22 to 192.168.0.0/16 port = 6668
+block drop in inet proto tcp from 172.16.0.0/12 port = 22 to 192.168.0.0/16 port 6669:65535
+block drop in inet proto tcp from 172.16.0.0/12 port = 21 to 192.168.0.0/16 port = 6667
+block drop in inet proto tcp from 172.16.0.0/12 port = 21 to 192.168.0.0/16 port = 6668
+block drop in inet proto tcp from 172.16.0.0/12 port = 21 to 192.168.0.0/16 port 6669:65535
+block drop in inet proto tcp from 172.16.0.0/12 port = 22 to 12.34.56.78 port = 6667
+block drop in inet proto tcp from 172.16.0.0/12 port = 22 to 12.34.56.78 port = 6668
+block drop in inet proto tcp from 172.16.0.0/12 port = 22 to 12.34.56.78 port 6669:65535
+block drop in inet proto tcp from 172.16.0.0/12 port = 21 to 12.34.56.78 port = 6667
+block drop in inet proto tcp from 172.16.0.0/12 port = 21 to 12.34.56.78 port = 6668
+block drop in inet proto tcp from 172.16.0.0/12 port = 21 to 12.34.56.78 port 6669:65535
+block drop in inet proto udp from 10.0.0.0/8 port = 22 to 192.168.0.0/16 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = 22 to 192.168.0.0/16 port = 6668
+block drop in inet proto udp from 10.0.0.0/8 port = 22 to 192.168.0.0/16 port 6669:65535
+block drop in inet proto udp from 10.0.0.0/8 port = 21 to 192.168.0.0/16 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = 21 to 192.168.0.0/16 port = 6668
+block drop in inet proto udp from 10.0.0.0/8 port = 21 to 192.168.0.0/16 port 6669:65535
+block drop in inet proto udp from 10.0.0.0/8 port = 22 to 12.34.56.78 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = 22 to 12.34.56.78 port = 6668
+block drop in inet proto udp from 10.0.0.0/8 port = 22 to 12.34.56.78 port 6669:65535
+block drop in inet proto udp from 10.0.0.0/8 port = 21 to 12.34.56.78 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = 21 to 12.34.56.78 port = 6668
+block drop in inet proto udp from 10.0.0.0/8 port = 21 to 12.34.56.78 port 6669:65535
+block drop in inet proto udp from 172.16.0.0/12 port = 22 to 192.168.0.0/16 port = 6667
+block drop in inet proto udp from 172.16.0.0/12 port = 22 to 192.168.0.0/16 port = 6668
+block drop in inet proto udp from 172.16.0.0/12 port = 22 to 192.168.0.0/16 port 6669:65535
+block drop in inet proto udp from 172.16.0.0/12 port = 21 to 192.168.0.0/16 port = 6667
+block drop in inet proto udp from 172.16.0.0/12 port = 21 to 192.168.0.0/16 port = 6668
+block drop in inet proto udp from 172.16.0.0/12 port = 21 to 192.168.0.0/16 port 6669:65535
+block drop in inet proto udp from 172.16.0.0/12 port = 22 to 12.34.56.78 port = 6667
+block drop in inet proto udp from 172.16.0.0/12 port = 22 to 12.34.56.78 port = 6668
+block drop in inet proto udp from 172.16.0.0/12 port = 22 to 12.34.56.78 port 6669:65535
+block drop in inet proto udp from 172.16.0.0/12 port = 21 to 12.34.56.78 port = 6667
+block drop in inet proto udp from 172.16.0.0/12 port = 21 to 12.34.56.78 port = 6668
+block drop in inet proto udp from 172.16.0.0/12 port = 21 to 12.34.56.78 port 6669:65535

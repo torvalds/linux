@@ -1,0 +1,15 @@
+pass out on lo0 from 10/8 to 172.16/16 nat-to 172.16.0.1
+pass in on lo0 proto tcp from any to 1.2.3.4 port 80 rdr-to 127.0.0.1 port 8080
+pass on lo0 from 10/8 to 11/8 binat-to 12/8
+
+pass out log on lo0 from 10/8 to 172.16/16 nat-to 172.16.0.1
+pass in log on lo0 proto tcp from any to 1.2.3.4 port 80 rdr-to 127.0.0.1 port 8080
+pass log on lo0 from 10/8 to 11/8 binat-to 12/8
+
+pass out log (all) on lo0 from 10/8 to 172.16/16 nat-to 172.16.0.1
+pass in log (all) on lo0 proto tcp from any to 1.2.3.4 port 80 rdr-to 127.0.0.1 port 8080
+pass log (all) on lo0 from 10/8 to 11/8 binat-to 12/8
+
+match out log on lo0 from 10/8 to 172.16/16 nat-to 172.16.0.1
+match in log on lo0 proto tcp from any to 1.2.3.4 port 80 rdr-to 127.0.0.1 port 8080
+match log on lo0 from 10/8 to 11/8 binat-to 12/8

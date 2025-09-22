@@ -1,0 +1,25 @@
+static_library("Vectorize") {
+  output_name = "LLVMVectorize"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "LoadStoreVectorizer.cpp",
+    "LoopIdiomVectorize.cpp",
+    "LoopVectorizationLegality.cpp",
+    "LoopVectorize.cpp",
+    "SLPVectorizer.cpp",
+    "VPlan.cpp",
+    "VPlanAnalysis.cpp",
+    "VPlanHCFGBuilder.cpp",
+    "VPlanRecipes.cpp",
+    "VPlanSLP.cpp",
+    "VPlanTransforms.cpp",
+    "VPlanVerifier.cpp",
+    "VectorCombine.cpp",
+    "Vectorize.cpp",
+  ]
+}

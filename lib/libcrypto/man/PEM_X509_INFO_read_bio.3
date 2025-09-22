@@ -1,0 +1,173 @@
+.\" $OpenBSD: PEM_X509_INFO_read_bio.3,v 1.1 2025/07/17 10:31:50 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 17 2025 $
+.Dt PEM_X509_INFO_READ_BIO 3
+.Os
+.Sh NAME
+.Nm PEM_X509_INFO_read_bio
+.Nd PEM and DER decode X.509 certificates, private keys, and revocation lists
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pem.h
+.Ft STACK_OF(X509_INFO) *
+.Fo PEM_X509_INFO_read_bio
+.Fa "BIO *in_bp"
+.Fa "STACK_OF(X509_INFO) *sk"
+.Fa "pem_password_cb *cb"
+.Fa "void *u"
+.Fc
+.Sh DESCRIPTION
+This function reads zero or more objects
+related to X.509 certificates from
+.Fa in_bp ,
+performs both PEM and DER decoding,
+and wraps the resulting objects in newly allocated
+.Vt X509_INFO
+containers.
+.Pp
+Setting
+.Fa sk
+to
+.Dv NULL
+is recommended, in which case
+a new stack is allocated, populated, and returned.
+If an existing
+.Fa sk
+is passed in, the created
+.Vt X509_INFO
+objects are pushed onto that stack.
+.Pp
+For PEM decoding,
+.Xr PEM_read_bio 3
+is used internally, implying that any non-PEM data
+before, between, and after the objects is silently discarded.
+.Pp
+For subsequent DER decoding,
+the decoding function and the field of the
+.Vt X509_INFO
+structure to store the new object in
+are selected according to the PEM type name:
+.Bl -column "TRUSTED CERTIFICATE" "d2i_PrivateKey()" "revocation list"
+.It PEM type name       Ta decoder             Ta Vt X509_INFO No field
+.It CERTIFICATE         Ta Xr d2i_X509 3       Ta certificate
+.It X509 CERTIFICATE    Ta Xr d2i_X509 3       Ta certificate
+.It TRUSTED CERTIFICATE Ta Xr d2i_X509_AUX 3   Ta certificate
+.It X509 CRL            Ta Xr d2i_X509_CRL 3   Ta revocation list
+.It RSA PRIVATE KEY     Ta Xr d2i_PrivateKey 3 Ta private key
+.It DSA PRIVATE KEY     Ta Xr d2i_PrivateKey 3 Ta private key
+.It EC PRIVATE KEY      Ta Xr d2i_PrivateKey 3 Ta private key
+.El
+.Pp
+Whenever the selected field is already occupied, another new
+.Vt X509_INFO
+container is allocated and pushed onto the stack.
+Depending on the sequence of objects in the input, this can result
+in several partially populated
+.Vt X509_INFO
+containers being pushed onto the stack.
+.Pp
+PEM objects of types not listed in the above table are silently skipped.
+.Pp
+Encrypted certificates and revocation lists are decrypted by calling
+.Xr PEM_do_header 3
+internally, passing through the optional arguments
+.Fa cb
+and
+.Fa u .
+Encrypted private keys are not decrypted.
+Instead, the encrypted form is stored as read.
+All the same,
+.Xr PEM_get_EVP_CIPHER_INFO 3
+is called internally to check that PEM headers, if there are any,
+are valid and specify an encryption the library is prepared to handle.
+.Pp
+If any error occurs, objects that had already been read
+during the same call are deleted again and
+.Fa sk
+is left unchanged.
+.Sh RETURN VALUES
+This function returns a pointer to the stack
+the objects read were pushed onto or
+.Dv NULL
+if an error occurs.
+It fails if
+.Xr PEM_read_bio 3 ,
+.Xr PEM_get_EVP_CIPHER_INFO 3 ,
+.Xr PEM_do_header 3 ,
+or DER decoding fails or if memory is exhausted.
+.Sh ERRORS
+Diagnostics that can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3
+include:
+.Bl -tag -width Ds
+.It Dv ERR_R_ASN1_LIB Qq "ASN1 lib"
+DER decoding of a PEM object failed.
+.It Dv ERR_R_MALLOC_FAILURE Qq "malloc failure"
+.Fn PEM_X509_INFO_read_bio
+failed to allocate a new
+.Vt X509_INFO ,
+.Vt STACK_OF(X509_INFO) ,
+or
+.Vt X509_PKEY
+object.
+.El
+.Pp
+Additional types of errors can result from
+.Xr PEM_read_bio 3 ,
+.Xr PEM_get_EVP_CIPHER_INFO 3 ,
+and
+.Xr PEM_do_header 3 .
+.Pp
+After this function failed due to memory exhaustion,
+.Xr ERR_get_error 3
+may sometimes return 0 anyway.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr d2i_PrivateKey 3 ,
+.Xr d2i_X509 3 ,
+.Xr d2i_X509_CRL 3 ,
+.Xr EVP_PKEY_new 3 ,
+.Xr PEM_read 3 ,
+.Xr PEM_read_bio_PrivateKey 3 ,
+.Xr STACK_OF 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_INFO_new 3 ,
+.Xr X509_LOOKUP_new 3 ,
+.Xr X509_new 3
+.Sh HISTORY
+.Fn PEM_X509_INFO_read_bio
+first appeared in SSLeay 0.6.0 and has been available since
+.Ox 2.4 .
+.Sh CAVEATS
+It is not an error
+if the input does not contain any objects of the desired types.
+In that case, nothing is added to
+.Fa sk ,
+or if
+.Fa sk
+is
+.Dv NULL ,
+a newly allocated, empty stack is returned.
+The only way to detect this situation is by comparing
+the number of objects on the stack before and after the call.
+.Sh BUGS
+When reaching the end of the input, this function calls
+.Xr ERR_clear_error 3 ,
+which may hide errors that occurred before calling it.

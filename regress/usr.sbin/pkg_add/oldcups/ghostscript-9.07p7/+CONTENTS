@@ -1,0 +1,9 @@
+@comment $OpenBSD: +CONTENTS,v 1.2 2019/08/20 11:02:28 espie Exp $
+@name ghostscript-9.07p7
+@comment pkgpath=print/ghostscript/gnu ftp=yes
+@arch *
++DESC
+@sha QlcqzsJK9yj2Eq35ujZkkucSC7PKXuZXpbHKF3jTOwI=
+@size 442
+@depend print/cups,-libs:cups-libs-*:cups-libs-2.2.7
+@wantlib cups.6.4

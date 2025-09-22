@@ -1,0 +1,207 @@
+.\" $OpenBSD: c16rtomb.3,v 1.1 2023/08/20 15:02:51 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 20 2023 $
+.Dt C16RTOMB 3
+.Os
+.Sh NAME
+.Nm c16rtomb
+.Nd convert one UTF-16 encoded character to UTF-8
+.Sh SYNOPSIS
+.In uchar.h
+.Ft size_t
+.Fo c16rtomb
+.Fa "char * restrict s"
+.Fa "char16_t c16"
+.Fa "mbstate_t * restrict mbs"
+.Fc
+.Sh DESCRIPTION
+This function converts one UTF-16 encoded character to UTF-8.
+In some cases, it is necessary to call the function twice
+to convert a single character.
+.Pp
+First, call
+.Fn c16rtomb
+passing the first 16-bit code unit of the UTF-16 encoded character in
+.Fa c16 .
+If the return value is greater than 0, the character is part of the UCS-2
+range, the complete UTF-8 encoding consisting of at most
+.Dv MB_CUR_MAX
+bytes has been written to the storage starting at
+.Fa s ,
+and the function does not need to be called again.
+.Pp
+If the return value is 0, the first 16-bit code unit is a UTF-16
+high surrogate and the function needs to be called a second time,
+this time passing the second 16-bit code unit of the UTF-16 encoded
+character in
+.Fa c16
+and passing the same
+.Fa mbs
+again that was also passed to the first call.
+If the second 16-bit code unit is a UTF-16 low surrogate,
+the second call returns a value greater than 0,
+the surrogate pair represents a Unicode code point
+beyond the basic multilingual plane,
+and the complete UTF-8 encoding consisting of at most
+.Dv MB_CUR_MAX
+bytes is written to the storage starting at
+.Fa s .
+.Pp
+The output encoding that
+.Fn c16rtomb
+uses in
+.Fa s
+is determined by the
+.Dv LC_CTYPE
+category of the current locale.
+.Ox
+only supports UTF-8 and ASCII output,
+and this function is only useful for UTF-8.
+.Pp
+The following arguments cause special processing:
+.Bl -tag -width 012345678901
+.It Fa c16 No == 0
+A NUL byte is stored to
+.Pf * Fa s
+and the state object pointed to by
+.Fa mbs
+is reset to the initial state.
+On operating systems other than
+.Ox
+that support state-dependent multibyte encodings,
+a special byte sequence
+.Pq Dq shift sequence
+is written before the NUL byte to return to the initial state
+if that is required by the output encoding
+and by the current output encoding state.
+.It Fa mbs No == Dv NULL
+An internal
+.Vt mbstate_t
+object specific to the
+.Fn c16rtomb
+function is used instead of the
+.Fa mbs
+argument.
+This internal object is automatically initialized at program startup
+and never changed by any
+.Em libc
+function except
+.Fn c16rtomb .
+.It Fa s No == Dv NULL
+The object pointed to by
+.Fa mbs ,
+or the internal object if
+.Fa mbs
+is a
+.Dv NULL
+pointer, is reset to its initial state,
+.Fa c16
+is ignored, and 1 is returned.
+.El
+.Sh RETURN VALUES
+.Fn c16rtomb
+returns the number of bytes written to
+.Fa s
+on success or
+.Po Vt size_t Pc Ns \-1
+on failure, specifically:
+.Bl -tag -width 10n
+.It 0
+The first 16-bit code unit was successfully decoded
+as a UTF-16 high surrogate.
+Nothing was written to
+.Fa s
+yet.
+.It 1
+The first 16-bit code unit was successfully decoded
+as a character in the range U+0000 to U+007F, or
+.Fa s
+is
+.Dv NULL .
+.It 2
+The first 16-bit code unit was successfully decoded
+as a character in the range U+0080 to U+07FF.
+.It 3
+The first 16-bit code unit was successfully decoded
+as a character in the range U+0800 to U+D7FF or U+E000 to U+FFFF.
+.It 4
+The second 16-bit code unit was successfully decoded as a UTF-16 low
+surrogate, resulting in a character in the range U+10000 to U+10FFFF.
+.It greater
+Return values greater than 4 may occur on operating systems other than
+.Ox
+for output encodings other than UTF-8, in particular when a shift
+sequence was written.
+.It Po Vt size_t Pc Ns \-1
+UTF-16 input decoding or
+.Dv LC_CTYPE
+output encoding failed, or
+.Fa mbs
+is invalid.
+Nothing was written to
+.Fa s ,
+and
+.Va errno
+has been set.
+.El
+.Sh ERRORS
+.Fn c16rtomb
+causes an error in the following cases:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+UTF-16 input decoding failed because the first 16-bit code unit
+is neither a UCS-2 character nor a UTF-16 high surrogate,
+or because the second 16-bit code unit is not a UTF-16 low surrogate;
+or output encoding failed because the resulting character
+cannot be represented in the output encoding selected with
+.Dv LC_CTYPE .
+.It Bq Er EINVAL
+.Fa mbs
+points to an invalid or uninitialized
+.Vt mbstate_t
+object.
+.El
+.Sh SEE ALSO
+.Xr mbrtoc16 3 ,
+.Xr setlocale 3 ,
+.Xr wcrtomb 3
+.Sh STANDARDS
+.Fn c16rtomb
+conforms to
+.St -isoC-2011 .
+.Sh HISTORY
+.Fn c16rtomb
+has been available since
+.Ox 7.4 .
+.Sh CAVEATS
+The C11 standard only requires the
+.Fa c16
+argument to be interpreted according to UTF-16
+if the predefined environment macro
+.Dv __STDC_UTF_16__
+is defined with a value of 1.
+On
+.Ox ,
+.In uchar.h
+provides this definition.
+Other operating systems which do not define
+.Dv __STDC_UTF_16__
+could theoretically use a different,
+implementation-defined input encoding for
+.Fa c16
+instead of UTF-16.
+Using UTF-16 becomes mandatory in C23.

@@ -1,0 +1,2 @@
+pass in proto udp from any to any flags S
+pass in proto { udp, icmp } from any to any flags S

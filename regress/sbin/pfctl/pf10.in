@@ -1,0 +1,31 @@
+# return variants
+pass in inet proto icmp all
+pass in inet6 proto icmp6 all
+block in inet proto icmp all
+block in inet6 proto icmp6 all
+block return-rst in inet proto tcp all
+block return-rst in inet6 proto tcp all
+block return-rst(ttl 10) in inet proto tcp all
+block return-rst(ttl 10) in inet6 proto tcp all
+block return-icmp in inet proto icmp all
+block return-icmp(0) in inet proto icmp all
+block return-icmp(net-unr) in inet proto icmp all
+block return-icmp(5) in inet proto icmp all
+block return-icmp(srcfail) in inet proto icmp all
+block return-icmp(10) in inet proto icmp all
+block return-icmp(host-prohib) in inet proto icmp all
+block return-icmp(15) in inet proto icmp all
+block return-icmp(cutoff-preced) in inet proto icmp all
+block return-icmp6 in inet6 proto icmp6 all
+block return-icmp6(0) in inet6 proto icmp6 all
+block return-icmp6(noroute-unr) in inet6 proto icmp6 all
+block return-icmp6(1) in inet6 proto icmp6 all
+block return-icmp6(admin-unr) in inet6 proto icmp6 all
+block return-icmp6(2) in inet6 proto icmp6 all
+block return-icmp6(beyond-unr) in inet6 proto icmp6 all
+block return-icmp6(3) in inet6 proto icmp6 all
+block return-icmp6(addr-unr) in inet6 proto icmp6 all
+block return-icmp6(4) in inet6 proto icmp6 all
+block return-icmp6(port-unr) in inet6 proto icmp6 all
+block return-icmp(5, 1) in all
+block return-icmp(srcfail, admin-unr) in all

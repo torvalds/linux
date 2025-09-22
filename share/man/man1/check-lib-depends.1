@@ -1,0 +1,141 @@
+.\"	$OpenBSD: check-lib-depends.1,v 1.6 2024/05/24 11:52:45 op Exp $
+.\"
+.\" Copyright (c) 2010 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 24 2024 $
+.Dt CHECK-LIB-DEPENDS 1
+.Os
+.Sh NAME
+.Nm check-lib-depends
+.Nd scan port for shared libraries
+.Sh SYNOPSIS
+.Nm check-lib-depends
+.Op Fl fimqx
+.Op Fl B Ar destdir
+.Op Fl d Ar pkgrepo
+.Op Fl D Ar directory
+.Op Fl F Ar missing
+.Op Fl O Ar dest
+.Op Fl S Ar VAR Ns = Ns Ar value
+.Op Fl s Ar source
+.Op Ar package ...
+.Sh DESCRIPTION
+.Nm
+scans a port or package for shared libraries, and verify that all of them
+are properly recorded.
+.Pp
+.Nm
+can either scan files from a built port after the
+.Ar fake stage
+from the
+.Ev WRKINST
+directory, or look directly inside a
+.Ar package .
+.Pp
+Likewise, it can also verify dependencies of installed packages,
+or figure them out directly from the port directory.
+.Pp
+.Nm
+actually consists of two distinct stages:
+.Bl -bullet
+.It
+scan all binaries inside a package to extract libraries and rpaths,
+using
+.Xr objdump 1 .
+.It
+compare those libraries against the port's registered dependencies
+and report problems.
+.El
+.Pp
+The options are as follows:
+.Bl -tag -width keyword
+.It Fl B Ar destdir
+Scan files under
+.Ar destdir .
+.It Fl d Ar pkgrepo
+Look for all needed packages under directory
+.Ar pkgrepo .
+.It Fl D Ar directory
+Create debug log files under
+.Ar directory
+that show in more details the run of
+.Xr objdump 1 .
+.It Fl f
+Give full reports of every file that requires a missing library.
+.It Fl F Ar missing
+Works in tandem with
+.Fl S .
+Allow backsubstituting even if the
+.Ar missing
+library
+is actually not part of the actual
+.Ev WANTLIB
+of the package.
+Mostly used to waive the presence of
+.Ar pthread ,
+a mandatory dependency of C++ libraries on some architectures.
+.It Fl i
+Read packing-list from standard input.
+.It Fl m
+Always show progress-meter, even if not run from terminal.
+.It Fl O Ar dest
+Save result of first stage in file
+.Ar dest .
+.It Fl q
+Be quiet, do not emit
+.Sq Extra:
+wantlibs unless there's also an actual problem.
+.It Fl S Ar var Ns = Ns Ar value
+Recognize list of libraries listed in a variable, and replace said list
+with variable value.
+For instance,
+.Fl S Ar COMPILER_LIBCXX Ns = Ns Ar stdc++
+will replace
+.Sq stdc++
+with
+.Sq ${COMPILER_LIBCXX}
+in
+.Ev WANTLIB
+lists for compatibility with both clang and gcc.
+Order matters.
+The first
+.Fl S
+option will be handled first.
+.It Fl s Ar src
+Don't scan, directly read result of first stage from file
+.Ar src .
+.It Fl x
+Don't show progress-meter, even if run from terminal.
+.El
+.Pp
+If no
+.Ar package
+is given, and the
+.Fl i
+option is used,
+.Nm
+will retrieve the packing-list from stdin, and scan the package according
+to other options.
+.Sh SEE ALSO
+.Xr ldd 1 ,
+.Xr objdump 1 ,
+.Xr bsd.port.mk 5 ,
+.Xr elf 5
+.Sh BUGS
+Currently,
+.Nm
+doesn't handle libraries living in subdirectories of
+.Sq ${LOCALBASE}
+correctly.

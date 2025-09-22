@@ -1,0 +1,120 @@
+.\"	$OpenBSD: netid.5,v 1.13 2013/07/16 11:13:34 schwarze Exp $
+.\"
+.\" Copyright (c) 2008 Ingo Schwarze <schwarze@usta.de>
+.\" Copyright (c) 1996 Mats O Jansson <moj@stacken.kth.se>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt NETID 5
+.Os
+.Sh NAME
+.Nm netid
+.Nd YP network credential file
+.Sh DESCRIPTION
+The file
+.Pa /etc/netid
+consists of newline separated ASCII records.
+Each record consists of a key, a single blank character, and a value.
+The key and the value may be arbitrary strings except that neither
+may contain blank characters.
+.Pp
+Records in the file
+.Pa /etc/netid
+and in the
+.Pa netid.byname
+YP map are ignored by the system unless they have the following form:
+.Bd -literal
+unix.<uid>@<yp-domain> <uid>:<gid>,<gid>,...
+.Ed
+.Pp
+When YP is enabled in the
+.Xr group 5
+file, such records specify that the function
+.Xr getgrouplist 3
+shall return the specified groups in addition to the groups
+found in the group file.
+The file
+.Pa /etc/netid
+is parsed before the
+.Pa netid.byname
+YP map.
+Only the first matching record is used.
+.Pp
+The main use of the
+.Pa /etc/netid
+file is to allow certain users to log in even while YP is enabled but
+temporarily unavailable.
+These users must also be listed in the local
+.Xr master.passwd 5
+file.
+If consistency of group membership information is required while YP is
+enabled and available, all records in the
+.Pa /etc/netid
+file must agree with records in the
+.Pa netid.byname
+YP map, although the latter may contain additional records.
+If consistency of group membership information is required even while YP is
+enabled but unavailable, the records in the
+.Pa /etc/netid
+file must not grant more group memberships than the
+.Xr group 5
+file, and users having their own record in the
+.Pa /etc/netid
+file must not show up in the
+.Pa group.byname
+and
+.Pa group.bygid
+YP maps.
+.Pp
+On a YP master server,
+.Xr Makefile.yp 8
+uses the
+.Xr mknetid 8
+utility to generate the
+.Pa netid.byname
+YP map.
+In this case, the YP map will also contain records of the following form:
+.Bd -literal
+unix.<hostname>@<yp-domain> 0:<hostname>
+.Ed
+.Pp
+Such records are ignored by the system.
+.Sh FILES
+.Bl -tag -width /etc/netid -compact
+.It Pa /etc/netid
+.El
+.Sh EXAMPLES
+A netid file or YP map might look like the following:
+.Bd -literal -offset indent
+unix.10714@kaka 10714:400,10
+unix.jodie@kaka 0:jodie
+.Ed
+.Sh SEE ALSO
+.Xr getgrouplist 3 ,
+.Xr group 5 ,
+.Xr Makefile.yp 8 ,
+.Xr mknetid 8 ,
+.Xr yp 8
+.Sh AUTHORS
+.An Mats O Jansson Aq Mt moj@stacken.kth.se

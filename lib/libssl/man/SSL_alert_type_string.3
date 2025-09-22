@@ -1,0 +1,254 @@
+.\"	$OpenBSD: SSL_alert_type_string.3,v 1.8 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2001, 2011 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_ALERT_TYPE_STRING 3
+.Os
+.Sh NAME
+.Nm SSL_alert_type_string ,
+.Nm SSL_alert_type_string_long ,
+.Nm SSL_alert_desc_string ,
+.Nm SSL_alert_desc_string_long
+.Nd get textual description of alert information
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft const char *
+.Fn SSL_alert_type_string "int value"
+.Ft const char *
+.Fn SSL_alert_type_string_long "int value"
+.Ft const char *
+.Fn SSL_alert_desc_string "int value"
+.Ft const char *
+.Fn SSL_alert_desc_string_long "int value"
+.Sh DESCRIPTION
+.Fn SSL_alert_type_string
+returns a one letter string indicating the type of the alert specified by
+.Fa value .
+.Pp
+.Fn SSL_alert_type_string_long
+returns a string indicating the type of the alert specified by
+.Fa value .
+.Pp
+.Fn SSL_alert_desc_string
+returns a two letter string as a short form describing the reason of the alert
+specified by
+.Fa value .
+.Pp
+.Fn SSL_alert_desc_string_long
+returns a string describing the reason of the alert specified by
+.Fa value .
+.Pp
+When one side of an SSL/TLS communication wants to inform the peer about
+a special situation, it sends an alert.
+The alert is sent as a special message and does not influence the normal data
+stream (unless its contents results in the communication being canceled).
+.Pp
+A warning alert is sent, when a non-fatal error condition occurs.
+The
+.Dq close notify
+alert is sent as a warning alert.
+Other examples for non-fatal errors are certificate errors
+.Po
+.Dq certificate expired ,
+.Dq unsupported certificate
+.Pc ,
+for which a warning alert may be sent.
+(The sending party may, however, decide to send a fatal error.)
+The receiving side may cancel the connection on reception of a warning alert at
+its discretion.
+.Pp
+Several alert messages must be sent as fatal alert messages as specified
+by the TLS RFC.
+A fatal alert always leads to a connection abort.
+.Sh RETURN VALUES
+The following strings can occur for
+.Fn SSL_alert_type_string
+or
+.Fn SSL_alert_type_string_long :
+.Bl -tag -width Ds
+.It \(dqW\(dq/\(dqwarning\(dq
+.It \(dqF\(dq/\(dqfatal\(dq
+.It \(dqU\(dq/\(dqunknown\(dq
+This indicates that no support is available for this alert type.
+Probably
+.Fa value
+does not contain a correct alert message.
+.El
+.Pp
+The following strings can occur for
+.Fn SSL_alert_desc_string
+or
+.Fn SSL_alert_desc_string_long :
+.Bl -tag -width Ds
+.It \(dqCN\(dq/\(dqclose notify\(dq
+The connection shall be closed.
+This is a warning alert.
+.It \(dqUM\(dq/\(dqunexpected message\(dq
+An inappropriate message was received.
+This alert is always fatal and should never be observed in communication
+between proper implementations.
+.It \(dqBM\(dq/\(dqbad record mac\(dq
+This alert is returned if a record is received with an incorrect MAC.
+This message is always fatal.
+.It \(dqDF\(dq/\(dqdecompression failure\(dq
+The decompression function received improper input
+(e.g., data that would expand to excessive length).
+This message is always fatal.
+.It \(dqHF\(dq/\(dqhandshake failure\(dq
+Reception of a handshake_failure alert message indicates that the sender was
+unable to negotiate an acceptable set of security parameters given the options
+available.
+This is a fatal error.
+.It \(dqNC\(dq/\(dqno certificate\(dq
+A client, that was asked to send a certificate, does not send a certificate
+(SSLv3 only).
+.It \(dqBC\(dq/\(dqbad certificate\(dq
+A certificate was corrupt, contained signatures that did not verify correctly,
+etc.
+.It \(dqUC\(dq/\(dqunsupported certificate\(dq
+A certificate was of an unsupported type.
+.It \(dqCR\(dq/\(dqcertificate revoked\(dq
+A certificate was revoked by its signer.
+.It \(dqCE\(dq/\(dqcertificate expired\(dq
+A certificate has expired or is not currently valid.
+.It \(dqCU\(dq/\(dqcertificate unknown\(dq
+Some other (unspecified) issue arose in processing the certificate,
+rendering it unacceptable.
+.It \(dqIP\(dq/\(dqillegal parameter\(dq
+A field in the handshake was out of range or inconsistent with other fields.
+This is always fatal.
+.It \(dqDC\(dq/\(dqdecryption failed\(dq
+A TLSCiphertext decrypted in an invalid way: either it wasn't an even multiple
+of the block length or its padding values, when checked, weren't correct.
+This message is always fatal.
+.It \(dqRO\(dq/\(dqrecord overflow\(dq
+A TLSCiphertext record was received which had a length more than
+2^14+2048 bytes, or a record decrypted to a TLSCompressed record with more than
+2^14+1024 bytes.
+This message is always fatal.
+.It \(dqCA\(dq/\(dqunknown CA\(dq
+A valid certificate chain or partial chain was received,
+but the certificate was not accepted because the CA certificate could not be
+located or couldn't be matched with a known, trusted CA.
+This message is always fatal.
+.It \(dqAD\(dq/\(dqaccess denied\(dq
+A valid certificate was received, but when access control was applied,
+the sender decided not to proceed with negotiation.
+This message is always fatal.
+.It \(dqDE\(dq/\(dqdecode error\(dq
+A message could not be decoded because some field was out of the specified
+range or the length of the message was incorrect.
+This message is always fatal.
+.It \(dqCY\(dq/\(dqdecrypt error\(dq
+A handshake cryptographic operation failed, including being unable to correctly
+verify a signature, decrypt a key exchange, or validate a finished message.
+.It \(dqER\(dq/\(dqexport restriction\(dq
+A negotiation not in compliance with export restrictions was detected;
+for example, attempting to transfer a 1024 bit ephemeral RSA key for the
+RSA_EXPORT handshake method.
+This message is always fatal.
+.It \(dqPV\(dq/\(dqprotocol version\(dq
+The protocol version the client has attempted to negotiate is recognized,
+but not supported.
+(For example, old protocol versions might be avoided for security reasons.)
+This message is always fatal.
+.It \(dqIS\(dq/\(dqinsufficient security\(dq
+Returned instead of handshake_failure when a negotiation has failed
+specifically because the server requires ciphers more secure than those
+supported by the client.
+This message is always fatal.
+.It \(dqIE\(dq/\(dqinternal error\(dq
+An internal error unrelated to the peer or the correctness of the protocol
+makes it impossible to continue (such as a memory allocation failure).
+This message is always fatal.
+.It \(dqIF\(dq/\(dqinappropriate fallback\(dq
+Sent by a server in response to an invalid connection retry attempt from
+a client (see RFC 7507).
+.It \(dqUS\(dq/\(dquser canceled\(dq
+This handshake is being canceled for some reason unrelated to a protocol
+failure.
+If the user cancels an operation after the handshake is complete,
+just closing the connection by sending a close_notify is more appropriate.
+This alert should be followed by a close_notify.
+This message is generally a warning.
+.It \(dqNR\(dq/\(dqno renegotiation\(dq
+Sent by the client in response to a hello request or by the server in response
+to a client hello after initial handshaking.
+Either of these would normally lead to renegotiation; when that is not
+appropriate, the recipient should respond with this alert; at that point,
+the original requester can decide whether to proceed with the connection.
+One case where this would be appropriate would be where a server has spawned a
+process to satisfy a request; the process might receive security parameters
+(key length, authentication, etc.) at startup and it might be difficult to
+communicate changes to these parameters after that point.
+This message is always a warning.
+.It \(dqUP\(dq/\(dqunknown PSK identity\(dq
+Sent by the server to indicate that it does not recognize a PSK identity or an
+SRP identity.
+.It \(dqCQ\(dq/\(dqcertificate required\(dq
+Sent by servers when a client certificate is desired but none was provided
+by the client.
+.It \(dqAP\(dq/\(dqno application protocol\(dq
+Sent by servers when a client ALPN extension advertises only protocols that
+the server does not support (see RFC 7301).
+.It \(dqUK\(dq/\(dqunknown\(dq
+This indicates that no description is available for this alert type.
+Probably
+.Fa value
+does not contain a correct alert message.
+.El
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_set_info_callback 3
+.Sh HISTORY
+These functions first appeared in SSLeay 0.8.0
+and have been available since
+.Ox 2.4 .

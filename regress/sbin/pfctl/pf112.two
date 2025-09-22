@@ -1,0 +1,2 @@
+table <foo> { 10.0.0.1 }
+pass from <foo>

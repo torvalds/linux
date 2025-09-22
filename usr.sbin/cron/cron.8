@@ -1,0 +1,166 @@
+.\"
+.\" Copyright (c) 2002-2003 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Sponsored in part by the Defense Advanced Research Projects
+.\" Agency (DARPA) and Air Force Research Laboratory, Air Force
+.\" Materiel Command, USAF, under agreement number F39502-99-1-0512.
+.\"
+.\" $OpenBSD: cron.8,v 1.36 2019/01/25 00:19:27 millert Exp $
+.\"
+.Dd $Mdocdate: January 25 2019 $
+.Dt CRON 8
+.Os
+.Sh NAME
+.Nm cron
+.Nd clock daemon
+.Sh SYNOPSIS
+.Nm cron
+.Op Fl n
+.Op Fl l Ar load_avg
+.Sh DESCRIPTION
+The
+.Nm
+daemon schedules commands to be run at specified dates and times.
+Commands that are to be run periodically are specified within
+.Xr crontab 5
+files.
+Commands that are only to be run once are scheduled via the
+.Xr at 1
+and
+.Xr batch 1
+commands.
+Normally, the
+.Nm
+daemon is started from the
+.Pa /etc/rc
+command script.
+Because it can execute commands on a user's behalf,
+.Nm
+should be run late in the startup sequence,
+as close to the time when logins are accepted as possible.
+.Pp
+.Nm
+loads
+.Xr crontab 5
+and
+.Xr at 1
+files when it starts up and also when changes are made via the
+.Xr crontab 1
+and
+.Xr at 1
+commands.
+Additionally,
+.Nm
+checks the modification time on the system crontab file
+.Pq Pa /etc/crontab ,
+the crontab spool
+.Pq Pa /var/cron/tabs ,
+and the at spool
+.Pq Pa /var/cron/atjobs
+once a minute.
+If the modification time has changed, the affected files are reloaded.
+.Pp
+Any output produced by a command is sent to the user specified in the
+.Ev MAILTO
+environment variable as set in the
+.Xr crontab 5
+file or, if no
+.Ev MAILTO
+variable is set (or if this is an
+.Xr at 1
+or
+.Xr batch 1
+job), to the job's owner.
+If a command produces no output or if the
+.Ev MAILTO
+environment variable is set to the empty string, no mail will be sent.
+The exception to this is
+.Xr at 1
+or
+.Xr batch 1
+jobs submitted with the
+.Fl m
+flag.
+In this case, mail will be sent even if the job produces no output.
+.Ss Daylight Saving Time and other time changes
+Local time changes of less than three hours, such as those caused
+by the start or end of Daylight Saving Time, are handled specially.
+This only applies to jobs that run at a specific time and jobs that
+are run with a granularity greater than one hour.
+Jobs that run more frequently are scheduled normally.
+.Pp
+If time has moved forward, those jobs that would have run in the
+interval that has been skipped will be run immediately.
+Conversely, if time has moved backward, care is taken to avoid running
+jobs twice.
+.Pp
+Time changes of more than 3 hours are considered to be corrections to
+the clock or time zone, and the new time is used immediately.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl l Ar load_avg
+If the current load average is greater than
+.Ar load_avg ,
+.Xr batch 1
+jobs will not be run.
+The default value is 1.5.
+To allow
+.Xr batch 1
+jobs to run regardless of the load, a value of 0.0 may be used.
+.It Fl n
+By default,
+.Nm
+will detach from the current tty and become a daemon.
+The
+.Fl n
+option disables this behavior and causes it to run in the foreground.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/cron.sock" -compact
+.It Pa /etc/crontab
+system crontab file
+.It Pa /var/cron/atjobs
+directory containing
+.Xr at 1
+jobs
+.It Pa /var/cron/log
+cron's log file
+.It Pa /var/cron/tabs
+directory containing individual crontab files
+.It Pa /var/run/cron.sock
+used by
+.Xr crontab 1
+to tell
+.Nm
+to check for crontab changes immediately
+.El
+.Sh SEE ALSO
+.Xr at 1 ,
+.Xr crontab 1 ,
+.Xr syslog 3 ,
+.Xr crontab 5
+.Sh AUTHORS
+.An Paul Vixie Aq Mt vixie@isc.org
+.Sh CAVEATS
+.Xr crontab 5
+files will be ignored if they do not have the proper file mode.
+For user crontab files created by
+.Xr crontab 1 ,
+the mode must be 0600.
+If the system crontab file is used,
+.Pa /etc/crontab
+must not be writable by any user other than root and must not have
+the execute, set-user-ID, set-group-ID or sticky bits set.

@@ -1,0 +1,632 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_ATOMIC
+#define _LIBCPP_ATOMIC
+
+/*
+    atomic synopsis
+
+namespace std
+{
+
+// feature test macro [version.syn]
+
+#define __cpp_lib_atomic_is_always_lock_free
+#define __cpp_lib_atomic_flag_test
+#define __cpp_lib_atomic_lock_free_type_aliases
+#define __cpp_lib_atomic_wait
+
+ // order and consistency
+
+ enum memory_order: unspecified // enum class in C++20
+ {
+    relaxed,
+    consume, // load-consume
+    acquire, // load-acquire
+    release, // store-release
+    acq_rel, // store-release load-acquire
+    seq_cst // store-release load-acquire
+ };
+
+ inline constexpr auto memory_order_relaxed = memory_order::relaxed;
+ inline constexpr auto memory_order_consume = memory_order::consume;
+ inline constexpr auto memory_order_acquire = memory_order::acquire;
+ inline constexpr auto memory_order_release = memory_order::release;
+ inline constexpr auto memory_order_acq_rel = memory_order::acq_rel;
+ inline constexpr auto memory_order_seq_cst = memory_order::seq_cst;
+
+template <class T> T kill_dependency(T y) noexcept;
+
+// lock-free property
+
+#define ATOMIC_BOOL_LOCK_FREE unspecified
+#define ATOMIC_CHAR_LOCK_FREE unspecified
+#define ATOMIC_CHAR8_T_LOCK_FREE unspecified // C++20
+#define ATOMIC_CHAR16_T_LOCK_FREE unspecified
+#define ATOMIC_CHAR32_T_LOCK_FREE unspecified
+#define ATOMIC_WCHAR_T_LOCK_FREE unspecified
+#define ATOMIC_SHORT_LOCK_FREE unspecified
+#define ATOMIC_INT_LOCK_FREE unspecified
+#define ATOMIC_LONG_LOCK_FREE unspecified
+#define ATOMIC_LLONG_LOCK_FREE unspecified
+#define ATOMIC_POINTER_LOCK_FREE unspecified
+
+template <class T>
+struct atomic
+{
+    using value_type = T;
+
+    static constexpr bool is_always_lock_free;
+    bool is_lock_free() const volatile noexcept;
+    bool is_lock_free() const noexcept;
+
+    atomic() noexcept = default; // until C++20
+    constexpr atomic() noexcept(is_nothrow_default_constructible_v<T>); // since C++20
+    constexpr atomic(T desr) noexcept;
+    atomic(const atomic&) = delete;
+    atomic& operator=(const atomic&) = delete;
+    atomic& operator=(const atomic&) volatile = delete;
+
+    T load(memory_order m = memory_order_seq_cst) const volatile noexcept;
+    T load(memory_order m = memory_order_seq_cst) const noexcept;
+    operator T() const volatile noexcept;
+    operator T() const noexcept;
+    void store(T desr, memory_order m = memory_order_seq_cst) volatile noexcept;
+    void store(T desr, memory_order m = memory_order_seq_cst) noexcept;
+    T operator=(T) volatile noexcept;
+    T operator=(T) noexcept;
+
+    T exchange(T desr, memory_order m = memory_order_seq_cst) volatile noexcept;
+    T exchange(T desr, memory_order m = memory_order_seq_cst) noexcept;
+    bool compare_exchange_weak(T& expc, T desr,
+                               memory_order s, memory_order f) volatile noexcept;
+    bool compare_exchange_weak(T& expc, T desr, memory_order s, memory_order f) noexcept;
+    bool compare_exchange_strong(T& expc, T desr,
+                                 memory_order s, memory_order f) volatile noexcept;
+    bool compare_exchange_strong(T& expc, T desr,
+                                 memory_order s, memory_order f) noexcept;
+    bool compare_exchange_weak(T& expc, T desr,
+                               memory_order m = memory_order_seq_cst) volatile noexcept;
+    bool compare_exchange_weak(T& expc, T desr,
+                               memory_order m = memory_order_seq_cst) noexcept;
+    bool compare_exchange_strong(T& expc, T desr,
+                                memory_order m = memory_order_seq_cst) volatile noexcept;
+    bool compare_exchange_strong(T& expc, T desr,
+                                 memory_order m = memory_order_seq_cst) noexcept;
+
+    void wait(T, memory_order = memory_order::seq_cst) const volatile noexcept;
+    void wait(T, memory_order = memory_order::seq_cst) const noexcept;
+    void notify_one() volatile noexcept;
+    void notify_one() noexcept;
+    void notify_all() volatile noexcept;
+    void notify_all() noexcept;
+};
+
+template <>
+struct atomic<integral>
+{
+    using value_type = integral;
+    using difference_type = value_type;
+
+    static constexpr bool is_always_lock_free;
+    bool is_lock_free() const volatile noexcept;
+    bool is_lock_free() const noexcept;
+
+    atomic() noexcept = default;
+    constexpr atomic(integral desr) noexcept;
+    atomic(const atomic&) = delete;
+    atomic& operator=(const atomic&) = delete;
+    atomic& operator=(const atomic&) volatile = delete;
+
+    integral load(memory_order m = memory_order_seq_cst) const volatile noexcept;
+    integral load(memory_order m = memory_order_seq_cst) const noexcept;
+    operator integral() const volatile noexcept;
+    operator integral() const noexcept;
+    void store(integral desr, memory_order m = memory_order_seq_cst) volatile noexcept;
+    void store(integral desr, memory_order m = memory_order_seq_cst) noexcept;
+    integral operator=(integral desr) volatile noexcept;
+    integral operator=(integral desr) noexcept;
+
+    integral exchange(integral desr,
+                      memory_order m = memory_order_seq_cst) volatile noexcept;
+    integral exchange(integral desr, memory_order m = memory_order_seq_cst) noexcept;
+    bool compare_exchange_weak(integral& expc, integral desr,
+                               memory_order s, memory_order f) volatile noexcept;
+    bool compare_exchange_weak(integral& expc, integral desr,
+                               memory_order s, memory_order f) noexcept;
+    bool compare_exchange_strong(integral& expc, integral desr,
+                                 memory_order s, memory_order f) volatile noexcept;
+    bool compare_exchange_strong(integral& expc, integral desr,
+                                 memory_order s, memory_order f) noexcept;
+    bool compare_exchange_weak(integral& expc, integral desr,
+                               memory_order m = memory_order_seq_cst) volatile noexcept;
+    bool compare_exchange_weak(integral& expc, integral desr,
+                               memory_order m = memory_order_seq_cst) noexcept;
+    bool compare_exchange_strong(integral& expc, integral desr,
+                                memory_order m = memory_order_seq_cst) volatile noexcept;
+    bool compare_exchange_strong(integral& expc, integral desr,
+                                 memory_order m = memory_order_seq_cst) noexcept;
+
+    integral fetch_add(integral op, memory_order m = memory_order_seq_cst) volatile noexcept;
+    integral fetch_add(integral op, memory_order m = memory_order_seq_cst) noexcept;
+    integral fetch_sub(integral op, memory_order m = memory_order_seq_cst) volatile noexcept;
+    integral fetch_sub(integral op, memory_order m = memory_order_seq_cst) noexcept;
+    integral fetch_and(integral op, memory_order m = memory_order_seq_cst) volatile noexcept;
+    integral fetch_and(integral op, memory_order m = memory_order_seq_cst) noexcept;
+    integral fetch_or(integral op, memory_order m = memory_order_seq_cst) volatile noexcept;
+    integral fetch_or(integral op, memory_order m = memory_order_seq_cst) noexcept;
+    integral fetch_xor(integral op, memory_order m = memory_order_seq_cst) volatile noexcept;
+    integral fetch_xor(integral op, memory_order m = memory_order_seq_cst) noexcept;
+
+    integral operator++(int) volatile noexcept;
+    integral operator++(int) noexcept;
+    integral operator--(int) volatile noexcept;
+    integral operator--(int) noexcept;
+    integral operator++() volatile noexcept;
+    integral operator++() noexcept;
+    integral operator--() volatile noexcept;
+    integral operator--() noexcept;
+    integral operator+=(integral op) volatile noexcept;
+    integral operator+=(integral op) noexcept;
+    integral operator-=(integral op) volatile noexcept;
+    integral operator-=(integral op) noexcept;
+    integral operator&=(integral op) volatile noexcept;
+    integral operator&=(integral op) noexcept;
+    integral operator|=(integral op) volatile noexcept;
+    integral operator|=(integral op) noexcept;
+    integral operator^=(integral op) volatile noexcept;
+    integral operator^=(integral op) noexcept;
+
+    void wait(integral, memory_order = memory_order::seq_cst) const volatile noexcept;
+    void wait(integral, memory_order = memory_order::seq_cst) const noexcept;
+    void notify_one() volatile noexcept;
+    void notify_one() noexcept;
+    void notify_all() volatile noexcept;
+    void notify_all() noexcept;
+};
+
+template <class T>
+struct atomic<T*>
+{
+    using value_type = T*;
+    using difference_type = ptrdiff_t;
+
+    static constexpr bool is_always_lock_free;
+    bool is_lock_free() const volatile noexcept;
+    bool is_lock_free() const noexcept;
+
+    atomic() noexcept = default; // until C++20
+    constexpr atomic() noexcept; // since C++20
+    constexpr atomic(T* desr) noexcept;
+    atomic(const atomic&) = delete;
+    atomic& operator=(const atomic&) = delete;
+    atomic& operator=(const atomic&) volatile = delete;
+
+    T* load(memory_order m = memory_order_seq_cst) const volatile noexcept;
+    T* load(memory_order m = memory_order_seq_cst) const noexcept;
+    operator T*() const volatile noexcept;
+    operator T*() const noexcept;
+    void store(T* desr, memory_order m = memory_order_seq_cst) volatile noexcept;
+    void store(T* desr, memory_order m = memory_order_seq_cst) noexcept;
+    T* operator=(T*) volatile noexcept;
+    T* operator=(T*) noexcept;
+
+    T* exchange(T* desr, memory_order m = memory_order_seq_cst) volatile noexcept;
+    T* exchange(T* desr, memory_order m = memory_order_seq_cst) noexcept;
+    bool compare_exchange_weak(T*& expc, T* desr,
+                               memory_order s, memory_order f) volatile noexcept;
+    bool compare_exchange_weak(T*& expc, T* desr,
+                               memory_order s, memory_order f) noexcept;
+    bool compare_exchange_strong(T*& expc, T* desr,
+                                 memory_order s, memory_order f) volatile noexcept;
+    bool compare_exchange_strong(T*& expc, T* desr,
+                                 memory_order s, memory_order f) noexcept;
+    bool compare_exchange_weak(T*& expc, T* desr,
+                               memory_order m = memory_order_seq_cst) volatile noexcept;
+    bool compare_exchange_weak(T*& expc, T* desr,
+                               memory_order m = memory_order_seq_cst) noexcept;
+    bool compare_exchange_strong(T*& expc, T* desr,
+                                memory_order m = memory_order_seq_cst) volatile noexcept;
+    bool compare_exchange_strong(T*& expc, T* desr,
+                                 memory_order m = memory_order_seq_cst) noexcept;
+    T* fetch_add(ptrdiff_t op, memory_order m = memory_order_seq_cst) volatile noexcept;
+    T* fetch_add(ptrdiff_t op, memory_order m = memory_order_seq_cst) noexcept;
+    T* fetch_sub(ptrdiff_t op, memory_order m = memory_order_seq_cst) volatile noexcept;
+    T* fetch_sub(ptrdiff_t op, memory_order m = memory_order_seq_cst) noexcept;
+
+    T* operator++(int) volatile noexcept;
+    T* operator++(int) noexcept;
+    T* operator--(int) volatile noexcept;
+    T* operator--(int) noexcept;
+    T* operator++() volatile noexcept;
+    T* operator++() noexcept;
+    T* operator--() volatile noexcept;
+    T* operator--() noexcept;
+    T* operator+=(ptrdiff_t op) volatile noexcept;
+    T* operator+=(ptrdiff_t op) noexcept;
+    T* operator-=(ptrdiff_t op) volatile noexcept;
+    T* operator-=(ptrdiff_t op) noexcept;
+
+    void wait(T*, memory_order = memory_order::seq_cst) const volatile noexcept;
+    void wait(T*, memory_order = memory_order::seq_cst) const noexcept;
+    void notify_one() volatile noexcept;
+    void notify_one() noexcept;
+    void notify_all() volatile noexcept;
+    void notify_all() noexcept;
+};
+
+template<>
+struct atomic<floating-point-type> {  // since C++20
+  using value_type = floating-point-type;
+  using difference_type = value_type;
+
+  static constexpr bool is_always_lock_free = implementation-defined;
+  bool is_lock_free() const volatile noexcept;
+  bool is_lock_free() const noexcept;
+
+  constexpr atomic() noexcept;
+  constexpr atomic(floating-point-type) noexcept;
+  atomic(const atomic&) = delete;
+  atomic& operator=(const atomic&) = delete;
+  atomic& operator=(const atomic&) volatile = delete;
+
+  void store(floating-point-type, memory_order = memory_order::seq_cst) volatile noexcept;
+  void store(floating-point-type, memory_order = memory_order::seq_cst) noexcept;
+  floating-point-type operator=(floating-point-type) volatile noexcept;
+  floating-point-type operator=(floating-point-type) noexcept;
+  floating-point-type load(memory_order = memory_order::seq_cst) volatile noexcept;
+  floating-point-type load(memory_order = memory_order::seq_cst) noexcept;
+  operator floating-point-type() volatile noexcept;
+  operator floating-point-type() noexcept;
+
+  floating-point-type exchange(floating-point-type,
+                               memory_order = memory_order::seq_cst) volatile noexcept;
+  floating-point-type exchange(floating-point-type,
+                               memory_order = memory_order::seq_cst) noexcept;
+  bool compare_exchange_weak(floating-point-type&, floating-point-type,
+                             memory_order, memory_order) volatile noexcept;
+  bool compare_exchange_weak(floating-point-type&, floating-point-type,
+                             memory_order, memory_order) noexcept;
+  bool compare_exchange_strong(floating-point-type&, floating-point-type,
+                               memory_order, memory_order) volatile noexcept;
+  bool compare_exchange_strong(floating-point-type&, floating-point-type,
+                               memory_order, memory_order) noexcept;
+  bool compare_exchange_weak(floating-point-type&, floating-point-type,
+                             memory_order = memory_order::seq_cst) volatile noexcept;
+  bool compare_exchange_weak(floating-point-type&, floating-point-type,
+                             memory_order = memory_order::seq_cst) noexcept;
+  bool compare_exchange_strong(floating-point-type&, floating-point-type,
+                               memory_order = memory_order::seq_cst) volatile noexcept;
+  bool compare_exchange_strong(floating-point-type&, floating-point-type,
+                               memory_order = memory_order::seq_cst) noexcept;
+
+  floating-point-type fetch_add(floating-point-type,
+                                memory_order = memory_order::seq_cst) volatile noexcept;
+  floating-point-type fetch_add(floating-point-type,
+                                memory_order = memory_order::seq_cst) noexcept;
+  floating-point-type fetch_sub(floating-point-type,
+                                memory_order = memory_order::seq_cst) volatile noexcept;
+  floating-point-type fetch_sub(floating-point-type,
+                                memory_order = memory_order::seq_cst) noexcept;
+
+  floating-point-type operator+=(floating-point-type) volatile noexcept;
+  floating-point-type operator+=(floating-point-type) noexcept;
+  floating-point-type operator-=(floating-point-type) volatile noexcept;
+  floating-point-type operator-=(floating-point-type) noexcept;
+
+  void wait(floating-point-type, memory_order = memory_order::seq_cst) const volatile noexcept;
+  void wait(floating-point-type, memory_order = memory_order::seq_cst) const noexcept;
+  void notify_one() volatile noexcept;
+  void notify_one() noexcept;
+  void notify_all() volatile noexcept;
+  void notify_all() noexcept;
+};
+
+// [atomics.nonmembers], non-member functions
+template<class T>
+  bool atomic_is_lock_free(const volatile atomic<T>*) noexcept;
+template<class T>
+  bool atomic_is_lock_free(const atomic<T>*) noexcept;
+template<class T>
+  void atomic_store(volatile atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  void atomic_store(atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  void atomic_store_explicit(volatile atomic<T>*, atomic<T>::value_type,
+                             memory_order) noexcept;
+template<class T>
+  void atomic_store_explicit(atomic<T>*, atomic<T>::value_type,
+                             memory_order) noexcept;
+template<class T>
+  T atomic_load(const volatile atomic<T>*) noexcept;
+template<class T>
+  T atomic_load(const atomic<T>*) noexcept;
+template<class T>
+  T atomic_load_explicit(const volatile atomic<T>*, memory_order) noexcept;
+template<class T>
+  T atomic_load_explicit(const atomic<T>*, memory_order) noexcept;
+template<class T>
+  T atomic_exchange(volatile atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  T atomic_exchange(atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  T atomic_exchange_explicit(volatile atomic<T>*, atomic<T>::value_type,
+                             memory_order) noexcept;
+template<class T>
+  T atomic_exchange_explicit(atomic<T>*, atomic<T>::value_type,
+                             memory_order) noexcept;
+template<class T>
+  bool atomic_compare_exchange_weak(volatile atomic<T>*, atomic<T>::value_type*,
+                                    atomic<T>::value_type) noexcept;
+template<class T>
+  bool atomic_compare_exchange_weak(atomic<T>*, atomic<T>::value_type*,
+                                    atomic<T>::value_type) noexcept;
+template<class T>
+  bool atomic_compare_exchange_strong(volatile atomic<T>*, atomic<T>::value_type*,
+                                      atomic<T>::value_type) noexcept;
+template<class T>
+  bool atomic_compare_exchange_strong(atomic<T>*, atomic<T>::value_type*,
+                                      atomic<T>::value_type) noexcept;
+template<class T>
+  bool atomic_compare_exchange_weak_explicit(volatile atomic<T>*, atomic<T>::value_type*,
+                                             atomic<T>::value_type,
+                                             memory_order, memory_order) noexcept;
+template<class T>
+  bool atomic_compare_exchange_weak_explicit(atomic<T>*, atomic<T>::value_type*,
+                                             atomic<T>::value_type,
+                                             memory_order, memory_order) noexcept;
+template<class T>
+  bool atomic_compare_exchange_strong_explicit(volatile atomic<T>*, atomic<T>::value_type*,
+                                               atomic<T>::value_type,
+                                               memory_order, memory_order) noexcept;
+template<class T>
+  bool atomic_compare_exchange_strong_explicit(atomic<T>*, atomic<T>::value_type*,
+                                               atomic<T>::value_type,
+                                               memory_order, memory_order) noexcept;
+
+template<class T>
+  T atomic_fetch_add(volatile atomic<T>*, atomic<T>::difference_type) noexcept;
+template<class T>
+  T atomic_fetch_add(atomic<T>*, atomic<T>::difference_type) noexcept;
+template<class T>
+  T atomic_fetch_add_explicit(volatile atomic<T>*, atomic<T>::difference_type,
+                              memory_order) noexcept;
+template<class T>
+  T atomic_fetch_add_explicit(atomic<T>*, atomic<T>::difference_type,
+                              memory_order) noexcept;
+template<class T>
+  T atomic_fetch_sub(volatile atomic<T>*, atomic<T>::difference_type) noexcept;
+template<class T>
+  T atomic_fetch_sub(atomic<T>*, atomic<T>::difference_type) noexcept;
+template<class T>
+  T atomic_fetch_sub_explicit(volatile atomic<T>*, atomic<T>::difference_type,
+                              memory_order) noexcept;
+template<class T>
+  T atomic_fetch_sub_explicit(atomic<T>*, atomic<T>::difference_type,
+                              memory_order) noexcept;
+template<class T>
+  T atomic_fetch_and(volatile atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  T atomic_fetch_and(atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  T atomic_fetch_and_explicit(volatile atomic<T>*, atomic<T>::value_type,
+                              memory_order) noexcept;
+template<class T>
+  T atomic_fetch_and_explicit(atomic<T>*, atomic<T>::value_type,
+                              memory_order) noexcept;
+template<class T>
+  T atomic_fetch_or(volatile atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  T atomic_fetch_or(atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  T atomic_fetch_or_explicit(volatile atomic<T>*, atomic<T>::value_type,
+                             memory_order) noexcept;
+template<class T>
+  T atomic_fetch_or_explicit(atomic<T>*, atomic<T>::value_type,
+                             memory_order) noexcept;
+template<class T>
+  T atomic_fetch_xor(volatile atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  T atomic_fetch_xor(atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  T atomic_fetch_xor_explicit(volatile atomic<T>*, atomic<T>::value_type,
+                              memory_order) noexcept;
+template<class T>
+  T atomic_fetch_xor_explicit(atomic<T>*, atomic<T>::value_type,
+                              memory_order) noexcept;
+
+template<class T>
+  void atomic_wait(const volatile atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  void atomic_wait(const atomic<T>*, atomic<T>::value_type) noexcept;
+template<class T>
+  void atomic_wait_explicit(const volatile atomic<T>*, atomic<T>::value_type,
+                            memory_order) noexcept;
+template<class T>
+  void atomic_wait_explicit(const atomic<T>*, atomic<T>::value_type,
+                            memory_order) noexcept;
+template<class T>
+  void atomic_notify_one(volatile atomic<T>*) noexcept;
+template<class T>
+  void atomic_notify_one(atomic<T>*) noexcept;
+template<class T>
+  void atomic_notify_all(volatile atomic<T>*) noexcept;
+template<class T>
+  void atomic_notify_all(atomic<T>*) noexcept;
+
+// Atomics for standard typedef types
+
+typedef atomic<bool>               atomic_bool;
+typedef atomic<char>               atomic_char;
+typedef atomic<signed char>        atomic_schar;
+typedef atomic<unsigned char>      atomic_uchar;
+typedef atomic<short>              atomic_short;
+typedef atomic<unsigned short>     atomic_ushort;
+typedef atomic<int>                atomic_int;
+typedef atomic<unsigned int>       atomic_uint;
+typedef atomic<long>               atomic_long;
+typedef atomic<unsigned long>      atomic_ulong;
+typedef atomic<long long>          atomic_llong;
+typedef atomic<unsigned long long> atomic_ullong;
+typedef atomic<char8_t>            atomic_char8_t; // C++20
+typedef atomic<char16_t>           atomic_char16_t;
+typedef atomic<char32_t>           atomic_char32_t;
+typedef atomic<wchar_t>            atomic_wchar_t;
+
+typedef atomic<int_least8_t>   atomic_int_least8_t;
+typedef atomic<uint_least8_t>  atomic_uint_least8_t;
+typedef atomic<int_least16_t>  atomic_int_least16_t;
+typedef atomic<uint_least16_t> atomic_uint_least16_t;
+typedef atomic<int_least32_t>  atomic_int_least32_t;
+typedef atomic<uint_least32_t> atomic_uint_least32_t;
+typedef atomic<int_least64_t>  atomic_int_least64_t;
+typedef atomic<uint_least64_t> atomic_uint_least64_t;
+
+typedef atomic<int_fast8_t>   atomic_int_fast8_t;
+typedef atomic<uint_fast8_t>  atomic_uint_fast8_t;
+typedef atomic<int_fast16_t>  atomic_int_fast16_t;
+typedef atomic<uint_fast16_t> atomic_uint_fast16_t;
+typedef atomic<int_fast32_t>  atomic_int_fast32_t;
+typedef atomic<uint_fast32_t> atomic_uint_fast32_t;
+typedef atomic<int_fast64_t>  atomic_int_fast64_t;
+typedef atomic<uint_fast64_t> atomic_uint_fast64_t;
+
+typedef atomic<int8_t>   atomic_int8_t;
+typedef atomic<uint8_t>  atomic_uint8_t;
+typedef atomic<int16_t>  atomic_int16_t;
+typedef atomic<uint16_t> atomic_uint16_t;
+typedef atomic<int32_t>  atomic_int32_t;
+typedef atomic<uint32_t> atomic_uint32_t;
+typedef atomic<int64_t>  atomic_int64_t;
+typedef atomic<uint64_t> atomic_uint64_t;
+
+typedef atomic<intptr_t>  atomic_intptr_t;
+typedef atomic<uintptr_t> atomic_uintptr_t;
+typedef atomic<size_t>    atomic_size_t;
+typedef atomic<ptrdiff_t> atomic_ptrdiff_t;
+typedef atomic<intmax_t>  atomic_intmax_t;
+typedef atomic<uintmax_t> atomic_uintmax_t;
+
+typedef see-below         atomic_signed_lock_free;   // since C++20
+typedef see-below         atomic_unsigned_lock_free; // since C++20
+
+// flag type and operations
+
+typedef struct atomic_flag
+{
+    atomic_flag() noexcept = default; // until C++20
+    constexpr atomic_flag() noexcept; // since C++20
+    atomic_flag(const atomic_flag&) = delete;
+    atomic_flag& operator=(const atomic_flag&) = delete;
+    atomic_flag& operator=(const atomic_flag&) volatile = delete;
+
+    bool test(memory_order m = memory_order_seq_cst) volatile noexcept;
+    bool test(memory_order m = memory_order_seq_cst) noexcept;
+    bool test_and_set(memory_order m = memory_order_seq_cst) volatile noexcept;
+    bool test_and_set(memory_order m = memory_order_seq_cst) noexcept;
+    void clear(memory_order m = memory_order_seq_cst) volatile noexcept;
+    void clear(memory_order m = memory_order_seq_cst) noexcept;
+
+    void wait(bool, memory_order = memory_order::seq_cst) const volatile noexcept;
+    void wait(bool, memory_order = memory_order::seq_cst) const noexcept;
+    void notify_one() volatile noexcept;
+    void notify_one() noexcept;
+    void notify_all() volatile noexcept;
+    void notify_all() noexcept;
+} atomic_flag;
+
+bool atomic_flag_test(volatile atomic_flag* obj) noexcept;
+bool atomic_flag_test(atomic_flag* obj) noexcept;
+bool atomic_flag_test_explicit(volatile atomic_flag* obj,
+                               memory_order m) noexcept;
+bool atomic_flag_test_explicit(atomic_flag* obj, memory_order m) noexcept;
+bool atomic_flag_test_and_set(volatile atomic_flag* obj) noexcept;
+bool atomic_flag_test_and_set(atomic_flag* obj) noexcept;
+bool atomic_flag_test_and_set_explicit(volatile atomic_flag* obj,
+                                       memory_order m) noexcept;
+bool atomic_flag_test_and_set_explicit(atomic_flag* obj, memory_order m) noexcept;
+void atomic_flag_clear(volatile atomic_flag* obj) noexcept;
+void atomic_flag_clear(atomic_flag* obj) noexcept;
+void atomic_flag_clear_explicit(volatile atomic_flag* obj, memory_order m) noexcept;
+void atomic_flag_clear_explicit(atomic_flag* obj, memory_order m) noexcept;
+
+void atomic_wait(const volatile atomic_flag* obj, T old) noexcept;
+void atomic_wait(const atomic_flag* obj, T old) noexcept;
+void atomic_wait_explicit(const volatile atomic_flag* obj, T old, memory_order m) noexcept;
+void atomic_wait_explicit(const atomic_flag* obj, T old, memory_order m) noexcept;
+void atomic_one(volatile atomic_flag* obj) noexcept;
+void atomic_one(atomic_flag* obj) noexcept;
+void atomic_all(volatile atomic_flag* obj) noexcept;
+void atomic_all(atomic_flag* obj) noexcept;
+
+// fences
+
+void atomic_thread_fence(memory_order m) noexcept;
+void atomic_signal_fence(memory_order m) noexcept;
+
+// deprecated
+
+template <class T>
+  void atomic_init(volatile atomic<T>* obj, atomic<T>::value_type desr) noexcept;
+
+template <class T>
+  void atomic_init(atomic<T>* obj, atomic<T>::value_type desr) noexcept;
+
+#define ATOMIC_VAR_INIT(value) see below
+
+#define ATOMIC_FLAG_INIT see below
+
+}  // std
+
+*/
+
+#include <__config>
+
+#if _LIBCPP_STD_VER < 23 && defined(_LIBCPP_STDATOMIC_H)
+#  error <atomic> is incompatible with <stdatomic.h> before C++23. Please compile with -std=c++23.
+#endif
+
+#include <__atomic/aliases.h>
+#include <__atomic/atomic.h>
+#include <__atomic/atomic_base.h>
+#include <__atomic/atomic_flag.h>
+#include <__atomic/atomic_init.h>
+#include <__atomic/atomic_lock_free.h>
+#include <__atomic/atomic_sync.h>
+#include <__atomic/check_memory_order.h>
+#include <__atomic/contention_t.h>
+#include <__atomic/cxx_atomic_impl.h>
+#include <__atomic/fence.h>
+#include <__atomic/is_always_lock_free.h>
+#include <__atomic/kill_dependency.h>
+#include <__atomic/memory_order.h>
+#include <version>
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__atomic/atomic_ref.h>
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#ifdef _LIBCPP_HAS_NO_ATOMIC_HEADER
+#  error <atomic> is not implemented
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cmath>
+#  include <compare>
+#  include <cstdlib>
+#  include <cstring>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_ATOMIC

@@ -1,0 +1,95 @@
+.\"	$OpenBSD: memcmp.9,v 1.1 2018/04/23 10:30:39 dlg Exp $
+.\"
+.\" Copyright (c) 2002, 2003 CubeSoft Communications, Inc.
+.\" <http://www.csoft.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 23 2018 $
+.Dt MEMCMP 9
+.Os
+.Sh NAME
+.Nm skpc ,
+.Nm scanc ,
+.Nm bcmp ,
+.Nm timingsafe_bcmp ,
+.Nm memchr ,
+.Nm memcmp
+.Nd kernel library byte string routines
+.Sh SYNOPSIS
+.In lib/libkern/libkern.h
+.Ft int
+.Fn skpc "int mask" "size_t size" "u_char *cp"
+.Ft int
+.Fn scanc "u_int size" "const u_char *cp" "const u_char *table" "int mask"
+.Ft int
+.Fn bcmp "const void *b1" "const void *b2" "size_t len"
+.Ft int
+.Fn timingsafe_bcmp "const void *b1" "const void *b2" "size_t len"
+.Ft void *
+.Fn memchr "const void *b" "int c" "size_t len"
+.Ft int
+.Fn memcmp "const void *b1" "const void *b2" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn skpc
+function locates the first unsigned character of value different than
+.Fa mask
+inside the string
+.Fa cp .
+.Pp
+The
+.Fn scanc
+function expects a string of indexes into the table
+.Fa table .
+Each table element is bitwise ANDed against
+.Fa mask .
+.Pp
+.Fn skpc
+and
+.Fn scanc
+expect the string to be of size
+.Fa size ,
+and return the index relative to the end of the string where the match
+occurred, or zero if
+.Fa mask
+is not present in the string.
+.Pp
+The remaining functions have the same semantics as their libc counterparts,
+.Xr bcmp 3 ,
+.Xr timingsafe_bcmp 3 ,
+.Xr memchr 3 ,
+and
+.Xr memcmp 3 .
+.Sh STANDARDS
+The
+.Fn memchr
+and
+.Fn memcmp
+functions conform to
+.St -ansiC .
+.Sh HISTORY
+The
+.Fn skpc
+and
+.Fn scanc
+functions are based on vax instructions of the same name.

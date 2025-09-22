@@ -1,0 +1,65 @@
+.\"	$OpenBSD: gscpcib.4,v 1.9 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2004 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt GSCPCIB 4 i386
+.Os
+.Sh NAME
+.Nm gscpcib
+.Nd National Semiconductor Geode SC1100 PCI-ISA bridge with GPIO
+.Sh SYNOPSIS
+.Cd "gscpcib* at pci?"
+.Cd "isa* at gscpcib?"
+.Cd "gpio* at gscpcib?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the National Semiconductor Geode SC1100
+System-on-Chip
+.Tn PCI-ISA
+bridge.
+This device is a
+.Tn PCI-ISA
+bridge, but with some additional sub-devices.
+Besides the core functionality, the
+.Nm
+driver provides support for the
+.Tn GPIO
+interface of this device.
+.Pp
+The device has 64 I/O pins which can be accessed
+through the
+.Xr gpio 4
+framework.
+The
+.Xr gpioctl 8
+program provides a convenient way to manipulate these pins from userland.
+.Sh SEE ALSO
+.Xr gpio 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr pci 4 ,
+.Xr gpioctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

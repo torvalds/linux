@@ -1,0 +1,27 @@
+static_library("PDB") {
+  output_name = "lldbPluginSymbolFilePDB"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Lex",
+    "//lldb/source/Core",
+    "//lldb/source/Plugins/SymbolFile/NativePDB",
+    "//lldb/source/Symbol",
+    "//lldb/source/Utility",
+
+    #"//lldb/source/Plugins/TypeSystem/Clang", # Dependency cycle.
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/Support",
+  ]
+
+  # Reaches into Plugins/ExpressionParser/Clang.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "PDBASTParser.cpp",
+    "PDBLocationToDWARFExpression.cpp",
+    "SymbolFilePDB.cpp",
+  ]
+}

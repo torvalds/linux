@@ -1,0 +1,151 @@
+dnl	$OpenBSD: install,v 1.30 2022/09/12 10:16:09 jsg Exp $
+dnl lots of texts coming from {mvme68k,vax}/install initially
+OpenBSDInstallPrelude
+
+Bootstrapping the installation ramdisk kernel is supported
+from either the network or a CD-ROM.
+
+
+Booting from CD-ROM installation media:
+
+  To boot from SCSI CD-ROM, simply insert the CD into the drive before power
+  up, then during the computer's self-test cycle, press the space bar.
+  Subsequently at the PROM prompt issue a command:
+
+	BOOT_ADMIN> search
+
+  to initiate a search for all bootable devices available.  This procedure
+  may take a few minutes and should you have configured network boot services
+  present may find those too.  A sample output might be:
+
+   Path Number        Device Path              Device Type
+   -----------        -----------------        -----------
+   P0                 SESCSI.2.0               TOSHIBA CD-ROM XM-6201TA
+   P1                 LAN.10.0.0.5.3.254       boron
+   P2                 FWSCSI.5.0               IBM     DDRS-34560WS
+   P3                 FWSCSI.0.0               SEAGATE ST318436LW
+   P4                 SESCSI.6.0               HP     HP35480A
+
+  To boot from your CD-ROM type:
+
+	BOOT_ADMIN> boot p0
+
+
+Booting from Network:
+
+  In order to bootstrap via the network, you must provide a second system to
+  act as a boot server. It is convenient if this is a second OpenBSD machine
+  as the necessary services are already installed, although source code for
+  such programs as dhcpd can be found in OpenBSD's source tree, and should be
+  reasonably portable to other Unix-like operating systems. More information
+  on diskless booting can be found in the OpenBSD diskless(8) manual page.
+
+  Your MACHINE expects to be able to download a LIF (``Logical
+  Interchange Format'') image, containing both the boot code and the kernel,
+  via the HP rboot protocol, for older firmware, or via the bootp protocol,
+  for more recent firmware.
+
+  Old firmware operation
+
+    Most of the 7xx models (except the 712, the second generation of 715, i.e.
+    715/64/80/100/100XC, and the 74x) have an older version of PDC. There are
+    two levels of interactive commands in this version.
+    The first level is a short menu:
+
+	b)   Boot from specified device
+	s)   Search for bootable device
+	a)   Enter Boot Administration mode
+	x)   Exit and continue boot sequence
+
+	Select from menu:
+
+    In this case, you will need to set up rbootd on the server. Start by
+    creating an /etc/rbootd.conf file on the bootserver. The format of this
+    file is the Ethernet address followed by the LIF filename. Here is an
+    example:
+
+	08:00:09:70:c4:11		lif{:--:}OSrev.img
+
+    Then start rbootd (or configure /etc/rc.conf to always start rbootd). Once
+    rbootd is running, the server name will then appear on the MACHINE as part
+    of the possible boot choices in a boot device search (``s'' command).
+
+  Modern firmware operation
+
+    More recent machines mostly those based on the 7100LC, 7200 and 7300LC CPU
+    types have a different PDC version.  There is only one interactive mode,
+    with a BOOT_ADMIN> prompt, which provides both boot settings and commands.
+
+    In this case, you will need to set up dhcpd on the server, which can
+    serve bootp protocol requests.  Start by editing the /etc/dhcpd.conf on
+    the bootserver, and declare an information block. Here is an example:
+
+	subnet 10.0.0.0 netmask 255.0.0.0 {
+		host boron {
+			filename "lif{:--:}OSrev.img";
+			hardware ethernet 08:00:09:70:c4:11;
+			fixed-address 10.42.42.42;
+		}
+	}
+
+    Do not forget to enable dhcpd.
+
+    You will also need to enable tftpd, for the MACHINE to download the
+    installation kernel (`filename' entry) from the server in its tftp
+    directory.
+
+  Common operation
+
+    You are now ready to bootstrap the installation kernel. On your machine,
+    escape to a prompt and boot from the network by entering ``boot lan isl''.
+    On old PDC firmware, you will need to enter administration mode first.
+
+
+Installing using the netboot procedure:
+
+OpenBSDInstallPart2
+
+	Boot your machine from the installation media as described above.
+
+	It will take a while to load the installation kernel, especially from
+	a slow network connection or a CD-ROM, most likely more than a minute.
+	If some action doesn't eventually happen, or the spinning cursor
+	has stopped and nothing further has happened, either your boot
+	media is bad, your diskless setup is incorrect, or you may have
+	a hardware or configuration problem.
+
+OpenBSDInstallPart3(,"sd0")
+
+OpenBSDInstallPart4
+
+OpenBSDInstallPart5(,{:-
+	Due to prom limitations, you should make sure the whole 'a'
+	partition is CONTAINED WITHIN THE FIRST 2GB of the disk if
+	you intend to boot from it.-:})
+
+	Since the target disk will become the boot disk for your new
+	OpenBSD/MACHINE installation, the disklabel program will restrict
+	the available disk area to keep the first cylinder, which will
+	contain the bootblock, safe from being overwritten. If you don't
+	plan to install a bootblock on this disk, you can reclaim this
+	space with the 'b' command.
+
+OpenBSDInstallPart6({:-CD-ROM, -:})
+
+OpenBSDURLInstall
+
+OpenBSDCDROMInstall
+
+OpenBSDNFSInstall
+
+OpenBSDDISKInstall(,{:-only -:})
+
+OpenBSDCommonInstall
+
+OpenBSDInstallWrapup
+
+OpenBSDCongratulations
+
+
+
+OpenBSDUnattendedInstallation

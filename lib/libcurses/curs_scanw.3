@@ -1,0 +1,171 @@
+.\" $OpenBSD: curs_scanw.3,v 1.12 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2021,2022 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_scanw.3,v 1.12 2023/10/17 09:52:08 nicm Exp $
+.TH curs_scanw 3 2022-02-12 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fBscanw\fP,
+\fBwscanw\fP,
+\fBmvscanw\fP,
+\fBmvwscanw\fP,
+\fBvwscanw\fP, \fBvw_scanw\fP \- convert formatted input from a \fBcurses\fP window
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint scanw(const char *\fIfmt\fB, ...);\fR
+.br
+\fBint wscanw(WINDOW *\fIwin\fB, const char *\fIfmt\fB, ...);\fR
+.br
+\fBint mvscanw(int \fIy\fB, int \fIx\fB, const char *\fIfmt\fB, ...);\fR
+.br
+\fBint mvwscanw(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, const char *\fIfmt\fB, ...);\fR
+.sp
+\fBint vw_scanw(WINDOW *\fIwin\fB, const char *\fIfmt\fB, va_list \fIvarglist\fB);\fR
+.sp
+/* obsolete */
+.br
+\fBint vwscanw(WINDOW *\fIwin\fB, const char *\fIfmt\fB, va_list \fIvarglist\fB);\fR
+.SH DESCRIPTION
+The \fBscanw\fP, \fBwscanw\fP and \fBmvscanw\fP routines are analogous to
+\fBscanf\fP [see \fBscanf\fP(3)].
+The effect of these routines is as though
+\fBwgetstr\fP were called on the window, and the resulting line used as input
+for \fBsscanf\fP(3).
+Fields which do not map to a variable in the \fIfmt\fP
+field are lost.
+.PP
+The \fBvwscanw\fP and \fBvw_scanw\fP routines are analogous to \fBvscanf\fP(3).
+They perform a \fBwscanw\fP using a variable argument list.
+The third argument is a \fBva_list\fP,
+a pointer to a list of arguments, as defined in \fB<stdarg.h>\fP.
+.SH RETURN VALUE
+\fBvwscanw\fP returns \fBERR\fP on failure and an integer equal to the
+number of fields scanned on success.
+.PP
+Applications may use the return value from the \fBscanw\fP, \fBwscanw\fP,
+\fBmvscanw\fP and \fBmvwscanw\fP routines to determine the number of fields
+which were mapped in the call.
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH HISTORY
+While \fBscanw\fP was implemented in 4BSD,
+none of the BSD releases used it until 4.4BSD (in a game).
+That early version of curses was before the ANSI C standard.
+It did not use <varargs.h>, though that was available.
+In 1991 (a couple of years after SVr4 was generally available,
+and after the C standard was published),
+other developers updated the library,
+using <stdarg.h> internally in 4.4BSD curses.
+Even with this improvement,
+BSD curses did not use function prototypes (or even declare
+functions) in the <curses.h> header until 1992.
+.PP
+SVr2 documented
+\fBscanw\fP,
+\fBwscanw\fP
+tersely as \*(``scanf through \fIstdscr\fP\*('' and
+tersely as \*(``scanf through \fIwin\fP\*('', respectively.
+.PP
+SVr3 added
+\fBmvscanw\fP, and
+\fBmvwscanw\fP, with a three-line summary saying that they were analogous
+to \fBscanf\fP(3),
+explaining that the string which would be output from \fBscanf\fP(3) would
+instead be output using \fBwaddstr\fP on the given window.
+SVr3 also added \fBvwscanw\fP, saying that the third parameter
+is a \fBva_list\fP, defined in <varargs.h>,
+and referring the reader to the manual pages for \fIvarargs\fP and
+\fBvprintf\fP for detailed descriptions.
+(Because the SVr3 documentation does not mention \fBvscanf\fP,
+that reference to \fBvprintf\fP may not be an error).
+.PP
+SVr4 added no new variations of \fBscanw\fP,
+but provided for using <varargs.h> or <stdarg.h> to define the \fBva_list\fP
+type.
+.PP
+X/Open Curses added \fBvw_scanw\fP to replace \fBvwscanw\fP,
+stating that its \fBva_list\fP definition requires <stdarg.h>.
+.SH PORTABILITY
+In this implementation, \fBvw_scanw\fP and \fBvwscanw\fP are equivalent,
+to support legacy applications.
+However, the latter (\fBvwscanw\fP) is obsolete:
+.bP
+The XSI Curses standard, Issue 4 described these functions,
+noting that the function
+\fBvwscanw\fP is marked TO BE WITHDRAWN, and is to be replaced by a function
+\fBvw_scanw\fP using the \fB<stdarg.h>\fP interface.
+.bP
+The Single Unix Specification, Version 2 states that
+\fBvw_scanw\fP  is preferred to \fBvwscanw\fP since the latter requires
+including \fB<varargs.h>\fP, which
+cannot be used in the same file as \fB<stdarg.h>\fP.
+This implementation uses \fB<stdarg.h>\fP for both, because that header
+is included in \fB<curses.h\fP>.
+.bP
+X/Open Curses, Issue 5 (December 2007) marked \fBvwscanw\fP (along with
+\fBvwprintw\fP and the termcap interface) as withdrawn.
+.LP
+Both XSI and The Single Unix Specification, Version 2 state that these
+functions return \fBERR\fP or \fBOK\fP.
+.bP
+Since the underlying \fBscanf\fP(3) can return the number of items scanned,
+and the SVr4 code was documented to use this feature,
+this is probably an editing error which was introduced in XSI,
+rather than being done intentionally.
+.bP
+This implementation returns the number of items scanned,
+for compatibility with SVr4 curses.
+As of 2018, NetBSD curses also returns the number of items scanned.
+Both ncurses and NetBSD curses call \fBvsscanf\fP to scan the string,
+which returns \fBEOF\fP on error.
+.bP
+Portable applications should only test if the return value is \fBERR\fP,
+since the \fBOK\fP value (zero) is likely to be misleading.
+.IP
+One possible way to get useful results would be to use a "%n" conversion
+at the end of the format string to ensure that something was processed.
+.SH SEE ALSO
+.na
+\fBcurses\fP(3),
+\fBcurs_getstr\fP(3),
+\fBcurs_printw\fP(3),
+\fBtermcap\fP(3),
+\fBscanf\fP(3).

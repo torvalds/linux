@@ -1,0 +1,570 @@
+\input texinfo
+
+@c ---------------------------------------------------------------------
+@c Prologue
+@c ---------------------------------------------------------------------
+
+@setfilename porting.info
+@settitle Porting libstdc++-v3
+@setchapternewpage odd
+
+@copying
+Copyright @copyright{} 2000, 2001, 2002, 2003, 2005 
+Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.2 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``GNU General Public License'', the Front-Cover
+texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
+
+@ifinfo
+This file explains how to port libstdc++-v3 (the GNU C++ library) to 
+a new target.
+
+@insertcopying
+@end ifinfo
+
+@c ---------------------------------------------------------------------
+@c Titlepage
+@c ---------------------------------------------------------------------
+
+@titlepage
+@title Porting libstdc++-v3
+@author Mark Mitchell
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@c ---------------------------------------------------------------------
+@c Top
+@c ---------------------------------------------------------------------
+
+@node Top
+@top Porting libstdc++-v3
+
+This document explains how to port libstdc++-v3 (the GNU C++ library) to 
+a new target.
+
+In order to make the GNU C++ library (libstdc++-v3) work with a new
+target, you must edit some configuration files and provide some new
+header files.  Unless this is done, libstdc++-v3 will use generic
+settings which may not be correct for your target; even if they are
+correct, they will likely be inefficient.
+
+Before you get started, make sure that you have a working C library on
+your target.  The C library need not precisely comply with any
+particular standard, but should generally conform to the requirements
+imposed by the ANSI/ISO standard.
+
+In addition, you should try to verify that the C++ compiler generally
+works.  It is difficult to test the C++ compiler without a working
+library, but you should at least try some minimal test cases.
+
+(Note that what we think of as a ``target,'' the library refers to as
+a ``host.''  The comment at the top of @file{configure.ac} explains why.)
+
+Here are the primary steps required to port the library:
+
+@menu
+* Operating system::    Configuring for your operating system.
+* CPU::                 Configuring for your processor chip.
+* Character types::     Implementing character classification.
+* Thread safety::       Implementing atomic operations.
+* Numeric limits::	Implementing numeric limits.
+* Libtool::             Using libtool.
+* GNU Free Documentation License:: How you can copy and share this manual.
+@end menu
+
+@c ---------------------------------------------------------------------
+@c Operating system
+@c ---------------------------------------------------------------------
+
+@node Operating system
+@chapter Operating system
+
+If you are porting to a new operating system (as opposed to a new chip
+using an existing operating system), you will need to create a new
+directory in the @file{config/os} hierarchy.  For example, the IRIX
+configuration files are all in @file{config/os/irix}.  There is no set
+way to organize the OS configuration directory.  For example,
+@file{config/os/solaris/solaris-2.6} and
+@file{config/os/solaris/solaris-2.7} are used as configuration
+directories for these two versions of Solaris.  On the other hand, both
+Solaris 2.7 and Solaris 2.8 use the @file{config/os/solaris/solaris-2.7}
+directory.  The important information is that there needs to be a
+directory under @file{config/os} to store the files for your operating
+system.
+
+You might have to change the @file{configure.host} file to ensure that
+your new directory is activated.  Look for the switch statement that sets
+@code{os_include_dir}, and add a pattern to handle your operating system
+if the default will not suffice.  The switch statement switches on only
+the OS portion of the standard target triplet; e.g., the @code{solaris2.8}
+in @code{sparc-sun-solaris2.8}.  If the new directory is named after the
+OS portion of the triplet (the default), then nothing needs to be changed.
+
+The first file to create in this directory, should be called
+@file{os_defines.h}.  This file contains basic macro definitions
+that are required to allow the C++ library to work with your C library.
+
+Several libstdc++-v3 source files unconditionally define the macro
+@code{_POSIX_SOURCE}.  On many systems, defining this macro causes
+large portions of the C library header files to be eliminated
+at preprocessing time.  Therefore, you may have to @code{#undef} this
+macro, or define other macros (like @code{_LARGEFILE_SOURCE} or
+@code{__EXTENSIONS__}).  You won't know what macros to define or
+undefine at this point; you'll have to try compiling the library and
+seeing what goes wrong.  If you see errors about calling functions
+that have not been declared, look in your C library headers to see if
+the functions are declared there, and then figure out what macros you
+need to define.  You will need to add them to the
+@code{CPLUSPLUS_CPP_SPEC} macro in the GCC configuration file for your
+target.  It will not work to simply define these macros in
+@file{os_defines.h}.
+
+At this time, there are a few libstdc++-v3-specific macros which may be
+defined:
+
+@code{_GLIBCXX_USE_C99_CHECK} may be defined to 1 to check C99
+function declarations (which are not covered by specialization below)
+found in system headers against versions found in the library headers
+derived from the standard.
+
+@code{_GLIBCXX_USE_C99_DYNAMIC} may be defined to an expression that
+yields 0 if and only if the system headers are exposing proper support
+for C99 functions (which are not covered by specialization below).  If
+defined, it must be 0 while bootstrapping the compiler/rebuilding the
+library.
+
+@code{_GLIBCXX_USE_C99_LONG_LONG_CHECK} may be defined to 1 to check
+the set of C99 long long function declarations found in system headers
+against versions found in the library headers derived from the
+standard.
+
+@code{_GLIBCXX_USE_C99_LONG_LONG_DYNAMIC} may be defined to an
+expression that yields 0 if and only if the system headers are
+exposing proper support for the set of C99 long long functions.  If
+defined, it must be 0 while bootstrapping the compiler/rebuilding the
+library.
+
+@code{_GLIBCXX_USE_C99_FP_MACROS_DYNAMIC} may be defined to an
+expression that yields 0 if and only if the system headers
+are exposing proper support for the related set of macros.  If defined,
+it must be 0 while bootstrapping the compiler/rebuilding the library.
+
+@code{_GLIBCXX_USE_C99_FLOAT_TRANSCENDENTALS_CHECK} may be defined
+to 1 to check the related set of function declarations found in system
+headers against versions found in the library headers derived from
+the standard.
+
+@code{_GLIBCXX_USE_C99_FLOAT_TRANSCENDENTALS_DYNAMIC} may be defined
+to an expression that yields 0 if and only if the system headers
+are exposing proper support for the related set of functions.  If defined,
+it must be 0 while bootstrapping the compiler/rebuilding the library.
+
+Finally, you should bracket the entire file in an include-guard, like
+this:
+
+@example
+#ifndef _GLIBCXX_OS_DEFINES
+#define _GLIBCXX_OS_DEFINES
+...
+#endif
+@end example
+
+We recommend copying an existing @file{os_defines.h} to use as a
+starting point.
+
+@c ---------------------------------------------------------------------
+@c CPU
+@c ---------------------------------------------------------------------
+
+@node CPU
+@chapter CPU
+
+If you are porting to a new chip (as opposed to a new operating system
+running on an existing chip), you will need to create a new directory in the
+@file{config/cpu} hierarchy.  Much like the @ref{Operating system} setup,
+there are no strict rules on how to organize the CPU configuration
+directory, but careful naming choices will allow the configury to find your
+setup files without explicit help.
+
+We recommend that for a target triplet @code{<CPU>-<vendor>-<OS>}, you
+name your configuration directory @file{config/cpu/<CPU>}.  If you do this,
+the configury will find the directory by itself.  Otherwise you will need to
+edit the @file{configure.host} file and, in the switch statement that sets
+@code{cpu_include_dir}, add a pattern to handle your chip.
+
+Note that some chip families share a single configuration directory, for
+example, @code{alpha}, @code{alphaev5}, and @code{alphaev6} all use the
+@file{config/cpu/alpha} directory, and there is an entry in the
+@file{configure.host} switch statement to handle this.
+
+The @code{cpu_include_dir} sets default locations for the files controlling
+@ref{Thread safety} and @ref{Numeric limits}, if the defaults are not
+appropriate for your chip.
+
+
+@c ---------------------------------------------------------------------
+@c Character types
+@c ---------------------------------------------------------------------
+
+@node Character types
+@chapter Character types
+
+The library requires that you provide three header files to implement
+character classification, analogous to that provided by the C libraries
+@file{<ctype.h>} header.  You can model these on the files provided in
+@file{config/os/generic}.  However, these files will almost
+certainly need some modification.
+
+The first file to write is @file{ctype_base.h}.  This file provides
+some very basic information about character classification.  The libstdc++-v3
+library assumes that your C library implements @file{<ctype.h>} by using
+a table (indexed by character code) containing integers, where each of
+these integers is a bit-mask indicating whether the character is
+upper-case, lower-case, alphabetic, etc.  The @file{ctype_base.h}
+file gives the type of the integer, and the values of the various bit
+masks.  You will have to peer at your own @file{<ctype.h>} to figure out
+how to define the values required by this file.
+
+The @file{ctype_base.h} header file does not need include guards.
+It should contain a single @code{struct} definition called
+@code{ctype_base}.  This @code{struct} should contain two type
+declarations, and one enumeration declaration, like this example, taken
+from the IRIX configuration:
+
+@example
+struct ctype_base
+@{
+  typedef unsigned int 	mask;
+  typedef int* 		__to_type;
+
+  enum
+  @{
+    space = _ISspace,
+    print = _ISprint,
+    cntrl = _IScntrl,
+    upper = _ISupper,
+    lower = _ISlower,
+    alpha = _ISalpha,
+    digit = _ISdigit,
+    punct = _ISpunct,
+    xdigit = _ISxdigit,
+    alnum = _ISalnum,
+    graph = _ISgraph
+  @};
+@};
+@end example
+
+@noindent
+The @code{mask} type is the type of the elements in the table.  If your
+C library uses a table to map lower-case numbers to upper-case numbers,
+and vice versa, you should define @code{__to_type} to be the type of the
+elements in that table.  If you don't mind taking a minor performance
+penalty, or if your library doesn't implement @code{toupper} and
+@code{tolower} in this way, you can pick any pointer-to-integer type,
+but you must still define the type.
+
+The enumeration should give definitions for all the values in the above
+example, using the values from your native @file{<ctype.h>}.  They can
+be given symbolically (as above), or numerically, if you prefer.  You do
+not have to include @file{<ctype.h>} in this header; it will always be
+included before @file{ctype_base.h} is included.
+
+The next file to write is @file{ctype_noninline.h}, which also does
+not require include guards.  This file defines a few member functions
+that will be included in @file{include/bits/locale_facets.h}.  The first
+function that must be written is the @code{ctype<char>::ctype}
+constructor.  Here is the IRIX example:
+
+@example
+ctype<char>::ctype(const mask* __table = 0, bool __del = false, 
+      size_t __refs = 0)
+  : _Ctype_nois<char>(__refs), _M_del(__table != 0 && __del), 
+    _M_toupper(NULL),
+    _M_tolower(NULL),
+    _M_ctable(NULL), 
+    _M_table(!__table
+             ? (const mask*) (__libc_attr._ctype_tbl->_class + 1)
+             : __table) 
+  @{ @}
+@end example
+
+@noindent
+There are two parts of this that you might choose to alter. The first,
+and most important, is the line involving @code{__libc_attr}.  That is
+IRIX system-dependent code that gets the base of the table mapping
+character codes to attributes.  You need to substitute code that obtains
+the address of this table on your system.  If you want to use your
+operating system's tables to map upper-case letters to lower-case, and
+vice versa, you should initialize @code{_M_toupper} and
+@code{_M_tolower} with those tables, in similar fashion.
+
+Now, you have to write two functions to convert from upper-case to
+lower-case, and vice versa.  Here are the IRIX versions:
+
+@example
+char
+ctype<char>::do_toupper(char __c) const
+@{ return _toupper(__c); @}
+
+char
+ctype<char>::do_tolower(char __c) const
+@{ return _tolower(__c); @}
+@end example
+
+@noindent
+Your C library provides equivalents to IRIX's @code{_toupper} and
+@code{_tolower}.  If you initialized @code{_M_toupper} and
+@code{_M_tolower} above, then you could use those tables instead.
+
+Finally, you have to provide two utility functions that convert strings
+of characters.  The versions provided here will always work -- but you
+could use specialized routines for greater performance if you have
+machinery to do that on your system:
+
+@example
+const char*
+ctype<char>::do_toupper(char* __low, const char* __high) const
+@{
+  while (__low < __high)
+    @{
+      *__low = do_toupper(*__low);
+      ++__low;
+    @}
+  return __high;
+@}
+
+const char* 
+ctype<char>::do_tolower(char* __low, const char* __high) const
+@{
+  while (__low < __high)
+    @{
+      *__low = do_tolower(*__low);
+      ++__low;
+    @}
+  return __high;
+@}
+@end example
+
+You must also provide the @file{ctype_inline.h} file, which
+contains a few more functions.  On most systems, you can just copy
+@file{config/os/generic/ctype_inline.h} and use it on your system.
+
+In detail, the functions provided test characters for particular
+properties; they are analogous to the functions like @code{isalpha} and
+@code{islower} provided by the C library.
+
+The first function is implemented like this on IRIX:
+
+@example
+bool
+ctype<char>::
+is(mask __m, char __c) const throw()
+@{ return (_M_table)[(unsigned char)(__c)] & __m; @}
+@end example
+
+@noindent
+The @code{_M_table} is the table passed in above, in the constructor.
+This is the table that contains the bitmasks for each character.  The
+implementation here should work on all systems.
+
+The next function is:
+
+@example
+const char*
+ctype<char>::
+is(const char* __low, const char* __high, mask* __vec) const throw()
+@{
+  while (__low < __high)
+    *__vec++ = (_M_table)[(unsigned char)(*__low++)];
+  return __high;
+@}
+@end example
+
+@noindent
+This function is similar; it copies the masks for all the characters
+from @code{__low} up until @code{__high} into the vector given by
+@code{__vec}.
+
+The last two functions again are entirely generic:
+
+@example
+const char*
+ctype<char>::
+scan_is(mask __m, const char* __low, const char* __high) const throw()
+@{
+  while (__low < __high && !this->is(__m, *__low))
+    ++__low;
+  return __low;
+@}
+
+const char*
+ctype<char>::
+scan_not(mask __m, const char* __low, const char* __high) const throw()
+@{
+  while (__low < __high && this->is(__m, *__low))
+    ++__low;
+  return __low;
+@}
+@end example
+
+@c ---------------------------------------------------------------------
+@c Thread safety
+@c ---------------------------------------------------------------------
+
+@node Thread safety
+@chapter Thread safety
+
+The C++ library string functionality requires a couple of atomic
+operations to provide thread-safety.  If you don't take any special
+action, the library will use stub versions of these functions that are
+not thread-safe.  They will work fine, unless your applications are
+multi-threaded.
+
+If you want to provide custom, safe, versions of these functions, there
+are two distinct approaches.  One is to provide a version for your CPU,
+using assembly language constructs.  The other is to use the
+thread-safety primitives in your operating system.  In either case, you
+make a file called @file{atomicity.h}, and the variable
+@code{ATOMICITYH} must point to this file.
+
+If you are using the assembly-language approach, put this code in
+@file{config/cpu/<chip>/atomicity.h}, where chip is the name of
+your processor (@pxref{CPU}).  No additional changes are necessary to
+locate the file in this case; @code{ATOMICITYH} will be set by default.
+
+If you are using the operating system thread-safety primitives approach,
+you can also put this code in the same CPU directory, in which case no more
+work is needed to locate the file.  For examples of this approach,
+see the @file{atomicity.h} file for IRIX or IA64.
+
+Alternatively, if the primitives are more closely related to the OS
+than they are to the CPU, you can put the @file{atomicity.h} file in
+the @ref{Operating system} directory instead.  In this case, you must
+edit @file{configure.host}, and in the switch statement that handles
+operating systems, override the @code{ATOMICITYH} variable to point to
+the appropriate @code{os_include_dir}.  For examples of this approach,
+see the @file{atomicity.h} file for AIX.
+
+With those bits out of the way, you have to actually write
+@file{atomicity.h} itself.  This file should be wrapped in an
+include guard named @code{_GLIBCXX_ATOMICITY_H}.  It should define one
+type, and two functions.  
+
+The type is @code{_Atomic_word}.  Here is the version used on IRIX:
+
+@example
+typedef long _Atomic_word;
+@end example
+
+@noindent
+This type must be a signed integral type supporting atomic operations.
+If you're using the OS approach, use the same type used by your system's
+primitives.  Otherwise, use the type for which your CPU provides atomic
+primitives.
+
+Then, you must provide two functions.  The bodies of these functions
+must be equivalent to those provided here, but using atomic operations:
+
+@example
+static inline _Atomic_word
+__attribute__ ((__unused__))
+__exchange_and_add (_Atomic_word* __mem, int __val)
+@{
+  _Atomic_word __result = *__mem;
+  *__mem += __val;
+  return __result;
+@}
+
+static inline void
+__attribute__ ((__unused__))
+__atomic_add (_Atomic_word* __mem, int __val)
+@{
+  *__mem += __val;
+@}
+@end example
+
+@c ---------------------------------------------------------------------
+@c Numeric limits
+@c ---------------------------------------------------------------------
+
+@node Numeric limits
+@chapter Numeric limits
+
+The C++ library requires information about the fundamental data types,
+such as the minimum and maximum representable values of each type.
+You can define each of these values individually, but it is usually
+easiest just to indicate how many bits are used in each of the data
+types and let the library do the rest.  For information about the
+macros to define, see the top of @file{include/bits/std_limits.h}.
+
+If you need to define any macros, you can do so in @file{os_defines.h}.
+However, if all operating systems for your CPU are likely to use the
+same values, you can provide a CPU-specific file instead so that you
+do not have to provide the same definitions for each operating system.
+To take that approach, create a new file called @file{cpu_limits.h} in
+your CPU configuration directory (@pxref{CPU}).
+
+@c ---------------------------------------------------------------------
+@c Libtool
+@c ---------------------------------------------------------------------
+
+@node Libtool
+@chapter Libtool
+
+The C++ library is compiled, archived and linked with libtool.
+Explaining the full workings of libtool is beyond the scope of this
+document, but there are a few, particular bits that are necessary for
+porting.
+
+Some parts of the libstdc++-v3 library are compiled with the libtool
+@code{--tags CXX} option (the C++ definitions for libtool).  Therefore,
+@file{ltcf-cxx.sh} in the top-level directory needs to have the correct
+logic to compile and archive objects equivalent to the C version of libtool,
+@file{ltcf-c.sh}.  Some libtool targets have definitions for C but not
+for C++, or C++ definitions which have not been kept up to date.
+
+The C++ run-time library contains initialization code that needs to be
+run as the library is loaded.  Often, that requires linking in special
+object files when the C++ library is built as a shared library, or
+taking other system-specific actions.
+
+The libstdc++-v3 library is linked with the C version of libtool, even
+though it is a C++ library.  Therefore, the C version of libtool needs to
+ensure that the run-time library initializers are run.  The usual way to
+do this is to build the library using @code{gcc -shared}.
+
+If you need to change how the library is linked, look at
+@file{ltcf-c.sh} in the top-level directory.  Find the switch statement
+that sets @code{archive_cmds}.  Here, adjust the setting for your
+operating system.
+
+@c ---------------------------------------------------------------------
+@c GFDL
+@c ---------------------------------------------------------------------
+
+@include fdl.texi
+
+@c ---------------------------------------------------------------------
+@c Epilogue
+@c ---------------------------------------------------------------------
+
+@contents
+@bye

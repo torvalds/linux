@@ -1,0 +1,1 @@
+flow ipip out from 0.0.0.0/0 to 192.168.11.0/24 peer 10.0.0.2 type use

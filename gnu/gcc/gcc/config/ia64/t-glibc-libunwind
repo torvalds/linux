@@ -1,0 +1,4 @@
+# Build libunwind for IA-64 GLIBC based system.
+LIBUNWIND = $(srcdir)/config/ia64/fde-glibc.c \
+  $(srcdir)/config/ia64/unwind-ia64.c
+LIBUNWINDDEP = unwind.inc

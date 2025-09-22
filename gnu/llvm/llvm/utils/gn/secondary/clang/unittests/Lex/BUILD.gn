@@ -1,0 +1,27 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("LexTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Parse",
+    "//clang/lib/Sema",
+    "//llvm/lib/Support",
+    "//llvm/lib/Testing/Annotations",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "DependencyDirectivesScannerTest.cpp",
+    "HeaderMapTest.cpp",
+    "HeaderSearchTest.cpp",
+    "LexerTest.cpp",
+    "ModuleDeclStateTest.cpp",
+    "PPCallbacksTest.cpp",
+    "PPConditionalDirectiveRecordTest.cpp",
+    "PPDependencyDirectivesTest.cpp",
+    "PPMemoryAllocationsTest.cpp",
+  ]
+}

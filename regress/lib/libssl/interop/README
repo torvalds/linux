@@ -1,0 +1,18 @@
+Test TLS interoperability between LibreSSL and OpenSSL.
+
+Implement simple SSL client and server in C.  Create six binaries
+by linking them with LibreSSL or OpenSSL 1.1 or OpenSSL 3.0.  This
+way API compatibility is tested.
+
+To self test each SSL library, connect client with server.  Check
+that the highest available TLS version is selected.  LibreSSL TLS
+1.3 check has to be enabled when the feature becomes available.
+
+Connect and accept with netcat to test protocol compatibility with
+libtls.  Test TLS session reuse multiple times with different library
+combinations.  The cert subdir is testing all combinations of
+certificate validation.  Having the three libraries, client and
+server certificates, missing or invalid CA or certificates, and
+enforcing peer certificate results in 1944 test cases.  The cipher
+test establishes connections between implementations for each
+supported cipher.

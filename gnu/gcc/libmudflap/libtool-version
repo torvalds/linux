@@ -1,0 +1,6 @@
+# This file is used to maintain libtool version info for libmudflap.  See
+# the libtool manual to understand the meaning of the fields.  This is
+# a separate file so that version updates don't involve re-running
+# automake.
+# CURRENT:REVISION:AGE
+0:0:0

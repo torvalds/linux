@@ -1,0 +1,446 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content=
+ "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+<title>Interface</title>
+<meta http-equiv="Content-Type" content=
+ "text/html; charset=us-ascii" />
+</head>
+
+<body>
+<div id="page">
+<h1>Interface Specifics</h1>
+
+<p>Following are the library's interface specifics. <a href=
+    "tutorial.html">Short Tutorial</a> is a short tutorial, and
+    <a href="concepts.html">Concepts</a> describes some
+    concepts.</p>
+    <hr />
+
+    <h2><a name="namespaces" id="namespaces">Namespace</a></h2>
+
+    <p>All code is enclosed in namespace <tt>pb_ds</tt>. Nested within
+    this is namespace <tt>detail</tt>, which contains the parts of this
+    library that are considered implementation details.</p>
+    <hr />
+
+    <h2><a name="containers" id="containers">Containers</a></h2>
+
+    <h3><a name="containers_assoc" id=
+    "containers_assoc">Associative Containers</a></h3>
+
+    <ol>
+      <li><a href=
+      "container_base.html"><tt>container_base</tt></a> -
+      abstract base class for associative containers.</li>
+
+      <li>Hash-based:
+
+        <ol>
+          <li><a href=
+          "basic_hash_table.html"><tt>basic_hash_table</tt></a>
+          - abstract base class for hash-based
+          containers</li>
+
+          <li><a href=
+          "cc_hash_table.html"><tt>cc_hash_table</tt></a>
+          - concrete collision-chaining hash-based
+          containers</li>
+
+          <li><a href=
+          "gp_hash_table.html"><tt>gp_hash_table</tt></a>
+          - concrete (general) probing hash-based
+          containers</li>
+        </ol>
+      </li>
+
+      <li>Tree-based:
+
+        <ol>
+          <li><a href=
+          "basic_tree.html"><tt>basic_tree</tt></a>
+          - abstract base class for tree and trie based
+          containers</li>
+
+          <li><a href=
+          "tree.html"><tt>tree</tt></a>
+          - concrete base class for tree-based
+          containers</li>
+
+          <li><a href=
+          "trie.html"><tt>trie</tt></a>
+          - concrete base class for trie-based
+          containers</li>
+        </ol>
+      </li>
+
+      <li>List-based:
+
+        <ol>
+          <li><a href=
+          "list_update.html"><tt>list_update</tt></a> -
+          singly-linked list with update-policy container</li>
+        </ol>
+      </li>
+    </ol>
+
+    <h3><a name="containers_pq" id="containers_pq">Priority
+    Queues</a></h3>
+
+    <ol>
+      <li><a href="priority_queue.html"><tt>priority_queue</tt></a>
+      - priority queue</li>
+    </ol>
+    <hr />
+
+    <h2><a name="tag" id="tag">Container Tags and
+    Traits</a></h2>
+
+    <h3><a name="ds_ts" id="ds_ts">Container Tags</a></h3>
+
+    <h4><a name="ds_ts_common" id="ds_ts_common">Common</a></h4>
+
+    <ol>
+      <li><a href="container_tag.html"><tt>container_tag</tt></a> -
+      base class for data structure tags</li>
+    </ol>
+
+    <h4><a name="ds_ts_assoc" id=
+    "ds_ts_assoc">Associative-Containers</a></h4>
+
+     <ol>
+      <li><a href=
+      "associative_container_tag.html"><tt>associative_container_tag</tt></a> -
+      base class for associative-container data structure tags</li>
+
+      <li><a href=
+      "basic_hash_tag.html"><tt>basic_hash_tag</tt></a> -
+      base class for hash-based structure tags</li>
+
+      <li><a href="cc_hash_tag.html"><tt>cc_hash_tag</tt></a>
+      - collision-chaining hash structure tag</li>
+
+      <li><a href="gp_hash_tag.html"><tt>gp_hash_tag</tt></a>
+      - (general) probing hash structure tag</li>
+
+      <li><a href=
+      "basic_tree_tag.html"><tt>basic_tree_tag</tt></a>
+      - base class for tree-like structure tags</li>
+
+      <li><a href=
+      "tree_tag.html"><tt>tree_tag</tt></a> -
+      base class for tree structure tags</li>
+
+      <li><a href="rb_tree_tag.html"><tt>rb_tree_tag</tt></a>
+      - red-black tree structure tag/li&gt;</li>
+
+      <li><a href=
+      "splay_tree_tag.html"><tt>splay_tree_tag</tt></a> -
+      splay tree structure tag</li>
+
+      <li><a href="ov_tree_tag.html"><tt>ov_tree_tag</tt></a>
+      - ordered-vector tree structure tag</li>
+
+      <li><a href=
+      "trie_tag.html"><tt>trie_tag</tt></a> -
+      trie structure tag</li>
+
+      <li><a href=
+      "pat_trie_tag.html"><tt>pat_trie_tag</tt></a> -
+      PATRICIA trie structure tag</li>
+
+      <li><a href="list_update_tag.html"><tt>list_update_tag</tt></a> - list
+      (with updates) structure tag</li>
+    </ol>
+
+    <h4><a name="ds_ts_pq" id="ds_ts_pq">Priority-Queues</a></h4>
+
+     <ol>
+      <li><a href=
+      "priority_queue_tag.html"><tt>priority_queue_tag</tt></a> - base
+      class for priority-queue data structure tags</li>
+
+      <li><a href=
+      "pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a> -
+      pairing-heap structure tag.</li>
+
+      <li><a href=
+      "binomial_heap_tag.html"><tt>binomial_heap_tag</tt></a>
+      - binomial-heap structure tag</li>
+
+      <li><a href=
+      "rc_binomial_heap_tag.html"><tt>rc_binomial_heap_tag</tt></a>
+      - redundant-counter binomial-heap (<i>i.e.</i>, a heap where
+      binomial trees form a sequence that is similar to a
+      de-amortized bit-addition algorithm) structure tag</li>
+
+      <li><a href=
+      "binary_heap_tag.html"><tt>binary_heap_tag</tt></a> -
+      binary heap (based on an array or an array of nodes)
+      structure tag</li>
+
+      <li><a href=
+      "thin_heap_tag.html"><tt>thin_heap_tag</tt></a> - thin
+      heap (an alternative [<a href=
+      "references.html#kt99fat_heaps">kt99fat_heaps</a>] to
+      Fibonacci heap) data structure tag.</li>
+    </ol>
+
+    <h3><a name="ds_inv_tag" id="ds_inv_tag">Invalidation-Guarantee
+    Tags</a></h3>
+
+    <ol>
+      <li><a href=
+      "basic_invalidation_guarantee.html"><tt>basic_invalidation_guarantee</tt></a>
+      - weakest invalidation guarantee</li>
+
+      <li><a href=
+      "point_invalidation_guarantee.html"><tt>point_invalidation_guarantee</tt></a>
+      - stronger invalidation guarantee</li>
+
+      <li><a href=
+      "range_invalidation_guarantee.html"><tt>range_invalidation_guarantee</tt></a>
+      - strongest invalidation guarantee</li>
+    </ol>
+
+    <h3><a name="container_traits" id="container_traits">Container
+    Traits</a></h3>
+
+    <ol>
+      <li><a href="pq_container_traits.html"><tt>container_traits</tt></a> -
+      traits for determining underlying data structure 
+      properties</li>
+    </ol>
+    <hr />
+
+    <h2><a name="ds_policy_classes" id=
+    "ds_policy_classes">Container Policy Classes</a></h2>
+
+    <h3><a name="hash_related_policies" id=
+    "hash_related_policies">Hash Policies</a></h3>
+
+    <h4>Hash and Probe Policies</h4>
+
+    <ol>
+      <li>Hash Functions:
+
+        <ol>
+          <li><a href="null_hash_fn.html"><tt>null_hash_fn</tt></a>
+          - type indicating one-step range-hashing</li>
+        </ol>
+      </li>
+
+      <li>Range-Hashing Functions:
+
+        <ol>
+          <li><a href="sample_range_hashing.html">Sample
+          range-hashing function</a> - interface required of a
+          range-hashing functor</li>
+
+          <li><a href=
+          "direct_mask_range_hashing.html"><tt>direct_mask_range_hashing</tt></a>
+          - (bit) mask-based range hashing functor</li>
+
+          <li><a href=
+          "direct_mod_range_hashing.html"><tt>direct_mod_range_hashing</tt></a>
+          - modulo-based range hashing functor</li>
+        </ol>
+      </li>
+
+      <li>Probe Functions:
+
+        <ol>
+          <li><a href="sample_probe_fn.html">Sample probe
+          function</a> - interface required of a probe functor</li>
+
+          <li><a href=
+          "null_probe_fn.html"><tt>null_probe_fn</tt></a> - type
+          indicating one-step ranged-probe</li>
+
+          <li><a href=
+          "linear_probe_fn.html"><tt>linear_probe_fn</tt></a> -
+          linear-probe functor</li>
+
+          <li><a href=
+          "quadratic_probe_fn.html"><tt>quadratic_probe_fn</tt></a>-
+          quadratic-probe functor</li>
+        </ol>
+      </li>
+
+      <li>Ranged-Hash Functions:
+
+        <ol>
+          <li><a href="sample_ranged_hash_fn.html">Sample
+          ranged-hash function</a> - interface required of a
+          ranged-hash functor</li>
+        </ol>
+      </li>
+
+      <li>Ranged-Probe Functions:
+
+        <ol>
+          <li><a href="sample_ranged_probe_fn.html">Sample
+          ranged-probe function</a> - interface required of a
+          ranged-probe functor</li>
+        </ol>
+      </li>
+    </ol>
+
+    <h4>Resize Policies</h4>
+    <ol>
+      <li>Resize Policies:
+
+        <ol>
+          <li><a href="sample_resize_policy.html">Sample resize
+          policy</a> - interface required of a resize policy</li>
+
+          <li><a href=
+          "hash_standard_resize_policy.html"><tt>hash_standard_resize_policy</tt></a>
+          - standard resize policy</li>
+        </ol>
+      </li>
+
+      <li>Size Policies:
+
+        <ol>
+          <li><a href="sample_size_policy.html">Sample size
+          policy</a> - interface required of a size policy</li>
+
+          <li><a href=
+          "hash_exponential_size_policy.html"><tt>hash_exponential_size_policy</tt></a>
+          - exponential size policy (typically used with (bit) mask
+          range-hashing)</li>
+
+          <li><a href=
+          "hash_prime_size_policy.html"><tt>hash_prime_size_policy</tt></a>
+          - prime size policy (typically used with modulo
+          range-hashing)</li>
+        </ol>
+      </li>
+
+      <li>Trigger Policies:
+
+        <ol>
+          <li><a href="sample_resize_trigger.html">Sample trigger
+          policy</a> - interface required of a trigger policy</li>
+
+          <li><a href=
+          "hash_load_check_resize_trigger.html"><tt>hash_load_check_resize_trigger</tt></a>
+          - trigger policy based on load checks</li>
+
+          <li><a href=
+          "cc_hash_max_collision_check_resize_trigger.html"><tt>cc_hash_max_collision_check_resize_trigger</tt></a>
+          - trigger policy based on collision checks</li>
+        </ol>
+      </li>
+    </ol>
+
+    <h3><a name="tree_related_policies" id=
+    "tree_related_policies">Tree Policies</a></h3>
+
+    <h4>Tree Node-Update Policies</h4>
+
+
+<ol>
+<li><a href="sample_tree_node_update.html">Sample node
+updater policy</a> - interface required of a tree
+node-updating functor</li>
+
+<li><a href=
+     "null_tree_node_update.html"><tt>null_tree_node_update</tt></a>
+- null policy indicating no updates are required</li>
+
+<li><a href=
+     "tree_order_statistics_node_update.html"><tt>tree_order_statistics_node_update</tt></a>
+- updater enabling order statistics queries</li>
+</ol>
+
+<h3><a name="trie_related_policies" id=
+     "trie_related_policies">Trie Policies</a></h3>
+
+
+<h4>Trie Element-Access Traits</h4>
+
+    <ol>
+      <li><a href="sample_trie_e_access_traits.html">Sample
+      element-access traits</a> - interface required of
+      element-access traits</li>
+
+      <li><a href=
+      "string_trie_e_access_traits.html"><tt>string_trie_e_access_traits</tt></a>
+      - String element-access traits</li>
+    </ol>
+
+    <h4>Trie Node-Update Policies</h4>
+
+
+<ol>
+<li><a href="sample_trie_node_update.html">Sample node
+updater policy</a> - interface required of a trie node
+updater</li>
+
+<li><a href=
+     "null_trie_node_update.html"><tt>null_trie_node_update</tt></a>
+- null policy indicating no updates are required</li>
+
+<li><a href=
+     "trie_prefix_search_node_update.html"><tt>trie_prefix_search_node_update</tt></a>
+- updater enabling prefix searches</li>
+
+<li><a href=
+     "trie_order_statistics_node_update.html"><tt>trie_order_statistics_node_update</tt></a>
+- updater enabling order statistics queries</li>
+</ol>
+
+<h3><a name="list_related_policies" id=
+     "list_related_policies">List Policies</a></h3>
+
+<h4>List Update Policies</h4>
+
+
+    <ol>
+      <li><a href="sample_update_policy.html">Sample list update
+      policy</a> - interface required of a list update policy</li>
+
+      <li><a href=
+      "move_to_front_lu_policy.html"><tt>move_to_front_lu_policy</tt></a>
+      - move-to-front update algorithm</li>
+
+      <li><a href=
+      "counter_lu_policy.html"><tt>counter_lu_policy</tt></a> -
+      counter update algorithm</li>
+    </ol>
+
+    <h3><a name="ds_pol" id="ds_pol">Mapped-Type Policies</a></h3>
+
+
+    <ol>
+      <li><a href=
+      "null_mapped_type.html"><tt>null_mapped_type</tt></a> - data
+      policy indicating that a container is a "set"</li>
+    </ol>
+    <hr />
+
+    <h2><a name="exceptions" id="exceptions">Exceptions</a></h2>
+
+
+    <ol>
+      <li><a href="exceptions.html"><tt>container_error</tt></a>
+      - base class for all policy-based data structure errors</li>
+
+      <li><a href=
+      "insert_error.html"><tt>insert_error</tt></a></li>
+
+      <li><a href="join_error.html"><tt>join_error</tt></a></li>
+
+      <li><a href=
+      "resize_error.html"><tt>resize_error</tt></a></li>
+    </ol>
+
+  </div>
+</body>
+</html>

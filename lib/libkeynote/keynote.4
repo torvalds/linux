@@ -1,0 +1,896 @@
+.\" $OpenBSD: keynote.4,v 1.41 2025/06/05 18:59:11 schwarze Exp $
+.\"
+.\" The author of this code is Angelos D. Keromytis (angelos@dsl.cis.upenn.edu)
+.\"
+.\" This code was written by Angelos D. Keromytis in Philadelphia, PA, USA,
+.\" in April-May 1998
+.\"
+.\" Copyright (C) 1998, 1999 by Angelos D. Keromytis.
+.\"
+.\" Permission to use, copy, and modify this software with or without fee
+.\" is hereby granted, provided that this entire notice is included in
+.\" all copies of any software which is or includes a copy or
+.\" modification of this software.
+.\" You may use this code under the GNU public license if you so wish. Please
+.\" contribute changes back to the author.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTY. IN PARTICULAR, THE AUTHORS MAKES NO
+.\" REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE
+.\" MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
+.\" PURPOSE.
+.\"
+.Dd $Mdocdate: June 5 2025 $
+.Dt KEYNOTE 4
+.\" .TH KeyNote 4 local
+.Os
+.Sh NAME
+.Nm keynote
+.Nd a trust-management system
+.Sh SYNOPSIS
+.Lb libkeynote libm libcrypto
+.In sys/types.h
+.In regex.h
+.In keynote.h
+.Sh DESCRIPTION
+For more details on
+.Nm keynote ,
+see RFC 2704.
+.Pp
+Details on the API, assertion syntax, and command-line tool are given in
+the man pages listed at the end of this manual.
+.Pp
+Trust management, introduced in the PolicyMaker system, is a unified
+approach to specifying and interpreting security policies,
+credentials, and relationships; it allows direct authorization of
+security-critical actions.
+A trust-management system provides standard, general-purpose mechanisms
+for specifying application security policies and credentials.
+Trust-management credentials describe a specific delegation of trust
+and subsume the role of public key certificates; unlike traditional
+certificates, which bind keys to names, credentials can bind keys directly
+to the authorization to perform specific tasks.
+.Pp
+A trust-management system has five basic components:
+.Bl -bullet -offset "xxx"
+.It
+A language for describing
+.Sq actions ,
+which are operations with security consequences that are
+to be controlled by the system.
+.It
+A mechanism for identifying
+.Sq principals ,
+which are entities that can be authorized to perform actions.
+.It
+A language for specifying application
+.Sq policies ,
+which govern the actions that principals are authorized to perform.
+.It
+A language for specifying
+.Sq credentials ,
+which allow principals to delegate authorization to other principals.
+.It
+A
+.Sq compliance checker ,
+which provides a service to applications for determining how an action
+requested by principals should be handled, given a policy and a set
+of credentials.
+.El
+.Pp
+The trust-management approach has a number of advantages over other
+mechanisms for specifying and controlling authorization, especially
+when security policy is distributed over a network or is otherwise
+decentralized.
+.Pp
+Trust management unifies the notions of security policy, credentials,
+access control, and authorization.
+An application that uses a trust-management system can simply ask the
+compliance checker whether a requested action should be allowed.
+Furthermore, policies and credentials are written in standard languages
+that are shared by all trust-managed applications; the security configuration
+mechanism for one application carries exactly the same syntactic and semantic
+structure as that of another, even when the semantics of the applications
+themselves are quite different.
+.Pp
+Trust-management policies are easy to distribute across networks, helping
+to avoid the need for application-specific distributed policy configuration
+mechanisms, access control lists, and certificate parsers and interpreters.
+.Pp
+For a general discussion of the use of trust management in distributed
+system security, see the papers listed at the end of this manual.
+.Pp
+KeyNote is a simple and flexible trust-management system designed to
+work well for a variety of large- and small- scale Internet-based
+applications.
+It provides a single, unified language for both local policies and
+credentials.
+KeyNote policies and credentials, called
+.Sq assertions ,
+contain predicates that describe the trusted actions permitted by
+the holders of specific public keys.
+KeyNote assertions are essentially small, highly-structured programs.
+A signed assertion, which can be sent over an untrusted network, is also
+called a
+.Sq credential assertion .
+Credential assertions, which also serve the role of certificates, have
+the same syntax as policy assertions but are also signed by the principal
+delegating the trust.
+.Pp
+In KeyNote:
+.Bl -bullet -offset "xxx"
+.It
+Actions are specified as a collection of name-value pairs.
+.It
+Principal names can be any convenient string and can directly represent
+cryptographic public keys.
+.It
+The same language is used for both policies and credentials.
+.It
+The policy and credential language is concise, highly expressive, human
+readable and writable, and compatible with a variety of storage and
+transmission media, including electronic mail.
+.It
+The compliance checker returns an application-configured
+.Sq policy compliance value
+that describes how a request should be handled by the application.
+Policy compliance values are always positively derived from policy and
+credentials, facilitating analysis of KeyNote-based systems.
+.It
+Compliance checking is efficient enough for high-performance and real-time
+applications.
+.El
+.Pp
+In KeyNote, the authority to perform trusted actions is associated
+with one or more
+.Sq principals .
+A principal may be a physical entity, a process in an operating system,
+a public key, or any other convenient abstraction.
+KeyNote principals are identified by a string called a
+.Sq Principal Identifier .
+In some cases, a Principal Identifier will contain a cryptographic key
+interpreted by the KeyNote system (e.g., for credential signature
+verification).
+In other cases, Principal Identifiers may have a structure that is opaque
+to KeyNote.
+.Pp
+Principals perform two functions of concern to KeyNote: They request
+.Sq actions
+and they issue
+.Sq assertions .
+Actions are any trusted operations that an application places under
+KeyNote control.
+Assertions delegate the authorization to perform actions to other principals.
+.Pp
+Actions are described to the KeyNote compliance checker in terms of a
+collection of name-value pairs called an
+.Sq action attribute set .
+The action attribute set is created by the invoking application.
+Its structure and format are described in detail elsewhere of this document.
+.Pp
+KeyNote provides advice to applications on the interpretation of
+policy with regard to specific requested actions.
+Applications invoke the KeyNote compliance checker by issuing a
+.Sq query
+containing a proposed action attribute set and identifying the principal(s)
+requesting it.
+The KeyNote system determines and returns an appropriate
+.Sq policy compliance value
+from an ordered set of possible responses.
+.Pp
+The policy compliance value returned from a KeyNote query advises the
+application how to process the requested action.
+In the simplest case, the compliance value is Boolean (e.g.,
+.Qq reject
+or
+.Qq approve ) .
+Assertions can also be written to select from a range of possible
+compliance values, when appropriate for the application (e.g.,
+.Qq no access ,
+.Qq restricted access ,
+.Qq full access ) .
+Applications can configure the relative ordering (from
+.Sq weakest
+to
+.Sq strongest )
+of compliance values at query time.
+.Pp
+Assertions are the basic programming unit for specifying policy and
+delegating authority.
+Assertions describe the conditions under which a principal authorizes actions
+requested by other principals.
+An assertion identifies the principal that made it, which other principals
+are being authorized, and the conditions under which the authorization
+applies.
+The syntax of assertions is given in
+.Xr keynote 5 .
+.Pp
+A special principal, whose identifier is
+.Qq POLICY ,
+provides the root of trust in KeyNote.
+.Qq POLICY
+is therefore considered to be authorized to perform any action.
+.Pp
+Assertions issued by the
+.Qq POLICY
+principal are called
+.Sq policy assertions
+and are used to delegate authority to otherwise untrusted principals.
+The KeyNote security policy of an application consists of a collection
+of policy assertions.
+.Pp
+When a principal is identified by a public key, it can digitally sign
+assertions and distribute them over untrusted networks for use by
+other KeyNote compliance checkers.
+These signed assertions are also called
+.Sq credentials ,
+and serve a role similar to that of traditional public key certificates.
+Policies and credentials share the same syntax and are evaluated according
+to the same semantics.
+A principal can therefore convert its policy assertions into credentials
+simply by digitally signing them.
+.Pp
+KeyNote is designed to encourage the creation of human-readable
+policies and credentials that are amenable to transmission and storage
+over a variety of media.
+Its assertion syntax is inspired by the format of RFC 822 message headers.
+A KeyNote assertion contains a sequence of sections, called
+.Sq fields ,
+each of which specifying one aspect of the assertion's semantics.
+Fields start with an identifier at the beginning of a line and continue
+until the next field is encountered.
+For example:
+.Bd -literal
+  KeyNote-Version: 2
+  Comment: A simple, if contrived, email certificate for user mab
+  Local-Constants:  ATT_CA_key = "RSA:acdfa1df1011bbac"
+                    mab_key = "DSA:deadbeefcafe001a"
+  Authorizer: ATT_CA_key
+  Licensees: mab_key
+  Conditions: ((app_domain == "email")  # valid for email only
+            && (address == "mab@research.att.com"));
+  Signature: "RSA-SHA1:f00f2244"
+.Ed
+.Pp
+For the exact meanings of all the fields, see the RFC reference at the
+end of this manual, and/or
+.Xr keynote 5 .
+.Pp
+KeyNote semantics resolve the relationship between an application's
+policy and actions requested by other principals, as supported by
+credentials.
+The KeyNote compliance checker processes the assertions against the action
+attribute set to determine the policy compliance value of a requested action.
+These semantics are defined later in this document.
+.Pp
+An important principle in KeyNote's design is
+.Sq assertion monotonicity ;
+the policy compliance value of an action is always positively derived from
+assertions made by trusted principals.
+Removing an assertion never results in increasing the compliance value
+returned by KeyNote for a given query.
+The monotonicity property can simplify the design and analysis of complex
+network-based security protocols; network failures that prevent the
+transmission of credentials can never result in spurious authorization of
+dangerous actions.
+.Pp
+Trusted actions to be evaluated by KeyNote are described by a collection of
+name-value pairs called the
+.Sq action attribute set .
+Action attributes are the mechanism by which applications communicate
+requests to KeyNote and are the primary objects on which KeyNote
+assertions operate.
+An action attribute set is passed to the KeyNote compliance checker with
+each query.
+.Pp
+Each action attribute consists of a name and a value.
+The semantics of the names and values are not interpreted by KeyNote itself;
+they vary from application to application and must be agreed upon by the
+writers of applications and the writers of the policies and credentials that
+will be used by them.
+.Pp
+Action attribute names and values are represented by arbitrary-length
+strings.
+KeyNote guarantees support of attribute names and values up
+to 2048 characters long.
+Applications and assertions should therefore avoid depending on the use of
+attributes with names or values longer than 2048 characters.
+.Pp
+Attribute values are inherently untyped and are represented as
+character strings by default.
+Attribute values may contain any non-NUL ASCII character.
+Numeric attribute
+values should first be converted to an ASCII text representation by the
+invoking application, e.g., the value 1234.5 would be represented by
+the string
+.Qq 1234.5 .
+.Pp
+An
+.Aq AttributeID
+begins with an alphabetic or underscore character and can be followed
+by any number of alphanumerics and underscores.
+Attribute names are case sensitive.
+.Pp
+If an action attribute is not defined, its value is considered to be
+the empty string.
+.Pp
+Attribute names beginning with the
+.Sq _
+character are reserved for use by the KeyNote runtime environment and
+cannot be passed from applications as part of queries.
+The following special attribute names are used:
+.Bl -tag -width indent
+.It _MIN_TRUST
+Lowest-order (minimum) compliance value in query.
+.It _MAX_TRUST
+Highest-order (maximum) compliance value in query.
+.It _VALUES
+Linearly ordered set of compliance value in query.
+.It _ACTION_AUTHORIZERS
+Names of principals directly authorizing action in query.
+Comma separated.
+.El
+.Pp
+In addition, attributes with names of the form
+.Qq _ Ns Aq N ,
+where
+.Aq N
+is an ASCII-encoded integer, are used by the regular expression matching
+mechanism described in
+.Xr keynote 5 .
+.Pp
+By convention, the name of the application domain over which action
+attributes should be interpreted is given in the attribute named
+.Qq app_domain .
+The IANA (or some other suitable authority) will provide a registry
+of reserved app_domain names.
+The registry will list the names and meanings of each application's
+attributes.
+.Pp
+The app_domain convention helps to ensure that credentials are
+interpreted as they were intended.
+An attribute with any given name may be used in many different application
+domains but might have different meanings in each of them.
+However, the use of a global registry is not always required for
+small-scale, closed applications; the only requirement is that the
+policies and credentials made available to the KeyNote compliance checker
+interpret attributes according to the same semantics assumed by the
+application that created them.
+.Pp
+For example, an email application might reserve the app_domain
+.Qq RFC822-EMAIL
+and might use the attributes named
+.Qq address
+(the mail address of a message's sender),
+.Qq name
+(the human name of the message sender), and any
+.Qq organization
+headers present (the organization name).
+The values of these attributes would be derived in the obvious way from
+the email message headers.
+The public key of the message's signer would be given in the
+.Qq _ACTION_AUTHORIZERS
+attribute
+.Sh QUERY SEMANTICS
+The discussion in the following sections assume some familiarity with
+assertion syntax.
+Refer to
+.Xr keynote 5
+for more details on the syntax.
+.Sh QUERY PARAMETERS
+A KeyNote query has four parameters:
+.Bl -bullet -offset "xxx"
+.It
+The identifier of the principal(s) requesting the action.
+.It
+The action attribute set describing the action.
+.It
+The set of compliance values of interest to the application,
+ordered from _MIN_TRUST to _MAX_TRUST.
+.It
+The policy and credential assertions that should be included in
+the evaluation.
+.El
+.Pp
+The mechanism for passing these parameters to the KeyNote evaluator is
+application dependent.
+In particular, an evaluator might provide for some parameters to be passed
+explicitly, while others are looked up externally (e.g., credentials might
+be looked up in a network- based distribution system), while still others
+might be requested from the application as needed by the evaluator,
+through a
+.Sq callback
+mechanism (e.g., for attribute values that represent values from among
+a very large namespace).
+.Sh ACTION REQUESTER
+At least one Principal must be identified in each query as the
+.Sq requester
+of the action.
+Actions may be requested by several principals, each
+considered to have individually requested it.
+This allows policies that require multiple authorizations, e.g.,
+.Sq two person control .
+The set of authorizing principals is made available in the special
+attribute
+.Qq _ACTION_AUTHORIZERS ;
+if several principals are authorizers, their identifiers are separated
+with commas.
+.Sh ORDERED COMPLIANCE VALUE SET
+The set of compliance values of interest to an application (and their
+relative ranking to one another) is determined by the invoking
+application and passed to the KeyNote evaluator as a parameter of the
+query.
+In many applications, this will be Boolean, e.g., the ordered
+sets {FALSE, TRUE} or {REJECT, APPROVE}.
+Other applications may require a range of possible values, e.g.,
+{No_Access, Limited_Access, Full_Access}.
+Note that applications should
+include in this set only compliance value names that are actually returned
+by the assertions.
+.Pp
+The lowest-order and highest-order compliance value strings given in
+the query are available in the special attributes named
+.Qq _MIN_TRUST
+and
+.Qq _MAX_TRUST ,
+respectively.
+The complete set of query compliance values is made
+available in ascending order (from _MIN_TRUST to _MAX_TRUST) in
+the special attribute named
+.Qq _VALUES .
+Values are separated with commas; applications that use assertions
+that make use of the _VALUES attribute should therefore avoid the
+use of compliance value strings that themselves contain commas.
+.Sh PRINCIPAL IDENTIFIER NORMALIZATION
+Principal identifier comparisons among Cryptographic Principal
+Identifiers (that represent keys) in the Authorizer and Licensees
+fields or in an action's direct authorizers are performed after
+normalizing them by conversion to a canonical form.
+.Pp
+Every cryptographic algorithm used in KeyNote defines a method for
+converting keys to their canonical form and that specifies how the
+comparison for equality of two keys is performed.
+If the algorithm named in the identifier is unknown to KeyNote,
+the identifier is treated as opaque.
+.Pp
+Opaque identifiers are compared as case sensitive strings.
+.Pp
+Notice that use of opaque identifiers in the Authorizer field requires
+that the assertion's integrity be locally trusted (since it cannot be
+cryptographically verified by the compliance checker).
+.Sh POLICY COMPLIANCE VALUE CALCULATION
+The Policy Compliance Value of a query is the Principal Compliance
+Value of the principal named
+.Qq POLICY .
+.Sh PRINCIPAL COMPLIANCE VALUE
+The Compliance Value of a principal
+.Aq X
+is the highest order (maximum) of:
+.Bl -bullet -offset "xxx"
+.It
+the Direct Authorization Value of principal
+.Aq X ;
+and
+.It
+the Assertion Compliance Values of all assertions identifying
+.Aq X
+in the Authorizer field.
+.El
+.Sh DIRECT AUTHORIZATION VALUE
+The Direct Authorization Value of a principal
+.Aq X
+is _MAX_TRUST if
+.Aq X
+is listed in the query as an authorizer of the action.
+Otherwise, the Direct Authorization Value of
+.Aq X
+is _MIN_TRUST.
+.Sh ASSERTION COMPLIANCE VALUE
+The Assertion Compliance Value of an assertion is the lowest order
+(minimum) of the assertion's Conditions Compliance Value and its
+Licensee Compliance Value.
+.Sh CONDITIONS COMPLIANCE VALUE
+The Conditions Compliance Value of an assertion is the highest-order
+(maximum) value among all successful clauses listed in the conditions
+section.
+.Pp
+If no clause's test succeeds or the Conditions field is empty, an
+assertion's Conditions Compliance Value is considered to be the
+_MIN_TRUST value, as described previously.
+.Pp
+If an assertion's Conditions field is missing entirely, its Conditions
+Compliance Value is considered to be the _MAX_TRUST value, as defined
+previously.
+.Pp
+The set of successful test clause values is calculated as follows:
+.Pp
+Recall from the grammar of the Conditions field (see
+.Xr keynote 5
+for more details) that each clause in the conditions section has two
+logical parts: a `test' and an optional
+.Sq value ,
+which, if present, is separated from the test with the
+.Qq \->
+token.
+The test subclause is a
+predicate that either succeeds (evaluates to logical
+.Sq true )
+or fails (evaluates to logical
+.Sq false ) .
+The value subclause is a string
+expression that evaluates to one value from the ordered set of
+compliance values given with the query.
+If the value subclause is missing, it is considered to be _MAX_TRUST.
+That is, the clause
+.Pp
+.Dl foo=="bar";
+.Pp
+is equivalent to
+.Pp
+.Dl foo=="bar" \-> _MAX_TRUST;
+.Pp
+If the value component of a clause is present, in the simplest case it
+contains a string expression representing a possible compliance value.
+For example, consider an assertion with the following Conditions
+field:
+.Bd -literal
+       Conditions:
+          @user_id == 0 -> "full_access";             # clause (1)
+          @user_id < 1000 -> "user_access";           # clause (2)
+          @user_id < 10000 -> "guest_access";         # clause (3)
+          user_name == "root" -> "full_access";       # clause (4)
+.Ed
+.Pp
+Here, if the value of the
+.Qq user_id
+attribute is
+.Qq 1073
+and the
+.Qq user_name
+attribute is
+.Qq root ,
+the possible compliance value set would contain the values
+.Qq guest_access
+(by clause (3)) and
+.Qq full_access
+(by clause (4)).
+If the ordered set of compliance values
+given in the query (in ascending order) is
+.Pf { Qo no_access Qc ,
+.Qq guest_access ,
+.Qq user_access ,
+.Qo full_access Qc Ns } ,
+the Conditions Compliance Value of the assertion would be
+.Qq full_access
+(because
+.Qq full_access
+has a higher-order value than
+.Qq guest_access ) .
+If the
+.Qq user_id
+attribute had the value
+.Qq 19283
+and the
+.Qq user_name
+attribute had the value
+.Qq nobody ,
+no clause would succeed and the Conditions Compliance Value would be
+.Qq no_access ,
+which is the lowest-order possible value (_MIN_TRUST).
+.Pp
+If a clause lists an explicit value, its value string must be named in
+the query ordered compliance value set.
+Values not named in the query
+compliance value set are considered equivalent to _MIN_TRUST.
+.Pp
+The value component of a clause can also contain recursively-nested
+clauses.
+Recursively-nested clauses are evaluated only if their parent test is true.
+That is,
+.Bd -literal
+       a=="b" ->  { b=="c" -> "value1";
+                    d=="e"  -> "value2";
+                    true -> "value3"; } ;
+.Ed
+.Pp
+is equivalent to
+.Bd -literal
+       (a=="b") && (b=="c") -> "value1";
+       (a=="b") && (d=="e") -> "value2";
+       (a=="b") -> "value3";
+.Ed
+.Pp
+Notice that string comparisons are case sensitive.
+.Pp
+A regular expression comparison
+.Po
+.Qq ~=
+.Pc
+is considered true if the left-hand-side string expression matches
+the right-hand-side regular expression.
+If the POSIX regular expression group matching scheme is
+used, the number of groups matched is placed in the temporary meta-
+attribute
+.Qq _0
+(dereferenced as _0), and each match is placed in
+sequence in the temporary attributes (_1, _2, ..., _N).
+These match-attributes' values are valid only within subsequent references
+made within the same clause.
+Regular expression evaluation is case sensitive.
+.Pp
+A runtime error occurring in the evaluation of a test, such as
+division by zero or an invalid regular expression, causes the test to
+be considered false.
+For example:
+.Bd -literal
+      foo == "bar" -> {
+                        @a == 1/0 -> "oneval";    # subclause 1
+                        @a == 2 -> "anotherval";  # subclause 2
+                      };
+.Ed
+.Pp
+Here, subclause 1 triggers a runtime error.
+Subclause 1 is therefore false (and has the value _MIN_TRUST).
+Subclause 2, however, would be evaluated normally.
+.Pp
+An invalid
+.Aq RegExpr
+is considered a runtime error and causes the test
+in which it occurs to be considered false.
+.Sh LICENSEE COMPLIANCE VALUE
+The Licensee Compliance Value of an assertion is calculated by
+evaluating the expression in the Licensees field, based on the
+Principal Compliance Value of the principals named there.
+.Pp
+If an assertion's Licensees field is empty, its Licensee Compliance
+Value is considered to be _MIN_TRUST.
+If an assertion's Licensees field is missing altogether, its Licensee
+Compliance Value is considered to be _MAX_TRUST.
+.Pp
+For each principal named in the Licensees field, its Principal
+Compliance Value is substituted for its name.
+If no Principal Compliance Value can be found for some named principal,
+its name is substituted with the _MIN_TRUST value.
+.Pp
+The licensees expression (see
+.Xr keynote 5 )
+is evaluated as follows:
+.Bl -bullet -offset "xxx"
+.It
+A
+.Qq (...)
+expression has the value of the enclosed subexpression.
+.It
+A
+.Qq &&
+expression has the lower-order (minimum) of its two subexpression values.
+.It
+A
+.Qq ||
+expression has the higher-order (maximum) of its two subexpression values.
+.It
+A
+.Qq Ao K Ac Ns -of Ns Pq Aq List
+expression has the K-th highest order compliance value listed in
+.Aq list .
+Values that appear multiple times are counted with multiplicity.
+For example, if K = 3 and the orders of the listed compliance values are
+(0, 1, 2, 2, 3), the value of the expression is the compliance value of
+order 2.
+.El
+.Pp
+For example, consider the following Licensees field:
+.Pp
+.Dl Licensees: ("alice" && \&"bob") || \&"eve"
+.Pp
+If the Principal Compliance Value is
+.Qq yes
+for principal
+.Qq alice ,
+.Qq no
+for principal
+.Qq bob ,
+and
+.Qq no
+for principal
+.Qq eve ,
+and
+.Qq yes
+is higher order than
+.Qq no
+in the query's Compliance Value Set, then the resulting Licensee Compliance
+Value is
+.Qq no .
+.Pp
+Observe that if there are exactly two possible compliance values
+(e.g.,
+.Qq false
+and
+.Qq true ) ,
+the rules of Licensee Compliance Value resolution reduce exactly to standard
+Boolean logic.
+.Sh ASSERTION MANAGEMENT
+Assertions may be either signed or unsigned.
+Only signed assertions should be used as credentials or transmitted or
+stored on untrusted media.
+Unsigned assertions should be used only to specify policy and for assertions
+whose integrity has already been verified as conforming
+to local policy by some mechanism external to the KeyNote system
+itself (e.g., X.509 certificates converted to KeyNote assertions by a
+trusted conversion program).
+.Pp
+Implementations that permit signed credentials to be verified by the
+KeyNote compliance checker generally provide two
+.Sq channels
+through which applications can make assertions available.
+Unsigned, locally-trusted assertions are provided over a
+.Sq trusted
+interface, while signed credentials are provided over an
+.Sq untrusted
+interface.
+The KeyNote compliance checker verifies correct signatures for all
+assertions submitted over the untrusted interface.
+The integrity of KeyNote evaluation requires that only assertions trusted
+as reflecting local policy are submitted to KeyNote via the trusted interface.
+.Pp
+Note that applications that use KeyNote exclusively as a local policy
+specification mechanism need use only trusted assertions.
+Other applications might need only a small number of infrequently changed
+trusted assertions to
+.Sq bootstrap
+a policy whose details are specified in signed credentials issued
+by others and submitted over the untrusted interface.
+.Sh FILES
+.Bl -tag -width libkeynote.a -compact
+.It Pa keynote.h
+.It Pa libkeynote.a
+.El
+.Sh EXAMPLES
+A policy that delegates authority for the
+.Qq SPEND
+application domain to RSA key dab212 when the amount given in the
+.Qq dollars
+attribute is less than 10000.
+.Bd -literal
+        Authorizer: "POLICY"
+        Licensees: "RSA:dab212"  # the CFO's key
+        Conditions: (app_domain=="SPEND") && (@dollars < 10000);
+.Ed
+.Pp
+RSA key dab212 delegates authorization to any two signers, from a
+list, one of which must be DSA key feed1234 in the
+.Qq SPEND
+application when @dollars < 7500.
+If the amount in @dollars is 2500 or greater, the request is approved
+but logged.
+.Bd -literal
+        KeyNote-Version: 2
+        Comment: This credential specifies a spending policy
+        Authorizer: "RSA:dab212"        # the CFO
+        Licensees: "DSA:feed1234" &&    # The vice president
+                       ("RSA:abc123" || # middle manager #1
+                        "DSA:bcd987" || # middle manager #2
+                        "DSA:cde333" || # middle manager #3
+                        "DSA:def975" || # middle manager #4
+                        "DSA:978add")   # middle manager #5
+        Conditions: (app_domain=="SPEND")  # note nested clauses
+                      -> { (@(dollars) < 2500)
+                             -> _MAX_TRUST;
+                           (@(dollars) < 7500)
+                             -> "ApproveAndLog";
+                         };
+        Signature: "RSA-SHA1:9867a1"
+.Ed
+.Pp
+According to this policy, any two signers from the list of managers
+will do if @(dollars) < 1000:
+.Bd -literal
+        KeyNote-Version: 2
+        Authorizer: "POLICY"
+        Licensees: 2-of("DSA:feed1234", # The VP
+                        "RSA:abc123",   # Middle management clones
+                        "DSA:bcd987",
+                        "DSA:cde333",
+                        "DSA:def975",
+                        "DSA:978add")
+        Conditions: (app_domain=="SPEND") &&
+                    (@(dollars) < 1000);
+.Ed
+.Pp
+A credential from dab212 with a similar policy, but only one signer is
+required if @(dollars) < 500.
+A log entry is made if the amount is at least 100.
+.Bd -literal
+        KeyNote-Version: 2
+        Comment: This one credential is equivalent to six separate
+                 credentials, one for each VP and middle manager.
+                 Individually, they can spend up to $500, but if
+                 it's $100 or more, we log it.
+        Authorizer: "RSA:dab212"      # From the CFO
+        Licensees: "DSA:feed1234" ||  # The VP
+                   "RSA:abc123" ||    # The middle management clones
+                   "DSA:bcd987" ||
+                   "DSA:cde333" ||
+                   "DSA:def975" ||
+                   "DSA:978add"
+        Conditions: (app_domain="SPEND")  # nested clauses
+                      -> { (@(dollars) < 100) -> _MAX_TRUST;
+                           (@(dollars) < 500) -> "ApproveAndLog";
+                         };
+        Signature: "RSA-SHA1:186123"
+.Ed
+.Pp
+Assume a query in which the ordered set of Compliance Values is
+.Pf { Qo Reject Qc ,
+.Qq ApproveAndLog ,
+.Qo Approve Qc Ns } .
+Under policies E and G, and
+credentials F and H, the Policy Compliance Value is
+.Qq Approve
+(_MAX_TRUST) when:
+.Bd -literal
+        _ACTION_AUTHORIZERS = "DSA:978add"
+        app_domain = "SPEND"
+        dollars = "45"
+        unmentioned_attribute = "whatever"
+    and
+        _ACTION_AUTHORIZERS = "RSA:abc123,DSA:cde333"
+        app_domain = "SPEND"
+        dollars = "550"
+.Ed
+.Pp
+The following return "ApproveAndLog":
+.Bd -literal
+        _ACTION_AUTHORIZERS = "DSA:feed1234,DSA:cde333"
+        app_domain = "SPEND"
+        dollars = "5500"
+    and
+        _ACTION_AUTHORIZERS = "DSA:cde333"
+        app_domain = "SPEND"
+        dollars = "150"
+.Ed
+.Pp
+However, the following return "Reject" (_MIN_TRUST):
+.Bd -literal
+        _ACTION_AUTHORIZERS = "DSA:def975"
+        app_domain = "SPEND"
+        dollars = "550"
+    and
+        _ACTION_AUTHORIZERS = "DSA:cde333,DSA:978add"
+        app_domain = "SPEND"
+        dollars = "5500"
+.Ed
+.Sh SEE ALSO
+.Xr keynote 1 ,
+.Xr keynote 3 ,
+.Xr keynote 5
+.Rs
+.%A M. Blaze
+.%A J. Feigenbaum
+.%A J. Lacy
+.%D 1996
+.%J IEEE Symposium on Security and Privacy
+.%T Decentralized Trust Management
+.Re
+.Rs
+.%A M. Blaze
+.%A J. Feigenbaum
+.%A M. Strauss
+.%D 1998
+.%J Financial Crypto Conference
+.%T Compliance-Checking in the PolicyMaker Trust Management System
+.Re
+.Sh STANDARDS
+.Rs
+.%A M. Blaze
+.%A J. Feigenbaum
+.%A J. Ioannidis
+.%A A. Keromytis
+.%D September 1999
+.%R RFC 2704
+.%T The KeyNote Trust-Management System Version 2
+.Re
+.Sh AUTHORS
+.An Angelos D. Keromytis Aq Mt angelos@cs.columbia.edu
+.Sh WEB PAGE
+.Lk https://www1.cs.columbia.edu/~angelos/keynote.html

@@ -1,0 +1,5640 @@
+.\"	$OpenBSD: ksh.1,v 1.222 2025/04/24 12:25:02 jmc Exp $
+.\"
+.\"	Public Domain
+.\"
+.Dd $Mdocdate: April 24 2025 $
+.Dt KSH 1
+.Os
+.Sh NAME
+.Nm ksh ,
+.Nm rksh
+.Nd public domain Korn shell
+.Sh SYNOPSIS
+.Nm ksh
+.Bk -words
+.Op Fl +abCefhiklmnpruvXx
+.Op Fl +o Ar option
+.Op Fl c Ar string | Fl s | Ar file Op Ar argument ...
+.Ek
+.Sh DESCRIPTION
+.Nm
+is a command interpreter intended for both interactive and shell
+script use.
+Its command language is a superset of the
+.Xr sh 1
+shell language.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c Ar string
+.Nm
+will execute the command(s) contained in
+.Ar string .
+.It Fl i
+Interactive shell.
+A shell is
+.Dq interactive
+if this
+option is used or if both standard input and standard error are attached
+to a
+.Xr tty 4 .
+An interactive shell has job control enabled, ignores the
+.Dv SIGINT ,
+.Dv SIGQUIT ,
+and
+.Dv SIGTERM
+signals, and prints prompts before reading input (see the
+.Ev PS1
+and
+.Ev PS2
+parameters).
+For non-interactive shells, the
+.Ic trackall
+option is on by default (see the
+.Ic set
+command below).
+.It Fl l
+Login shell.
+If the basename the shell is called with (i.e. argv[0])
+starts with
+.Ql -
+or if this option is used,
+the shell is assumed to be a login shell and the shell reads and executes
+the contents of
+.Pa /etc/profile
+and
+.Pa $HOME/.profile
+if they exist and are readable.
+.It Fl p
+Privileged shell.
+A shell is
+.Dq privileged
+if this option is used
+or if the real user ID or group ID does not match the
+effective user ID or group ID (see
+.Xr getuid 2
+and
+.Xr getgid 2 ) .
+A privileged shell does not process
+.Pa $HOME/.profile
+nor the
+.Ev ENV
+parameter (see below).
+Instead, the file
+.Pa /etc/suid_profile
+is processed.
+Clearing the privileged option causes the shell to set
+its effective user ID (group ID) to its real user ID (group ID).
+.It Fl r
+Restricted shell.
+A shell is
+.Dq restricted
+if this
+option is used;
+if the basename the shell was invoked with was
+.Dq rksh ;
+or if the
+.Ev SHELL
+parameter is set to
+.Dq rksh .
+The following restrictions come into effect after the shell processes any
+profile and
+.Ev ENV
+files:
+.Pp
+.Bl -bullet -compact
+.It
+The
+.Ic cd
+command is disabled.
+.It
+The
+.Ev SHELL ,
+.Ev ENV ,
+and
+.Ev PATH
+parameters cannot be changed.
+.It
+Command names can't be specified with absolute or relative paths.
+.It
+The
+.Fl p
+option of the built-in command
+.Ic command
+can't be used.
+.It
+Redirections that create files can't be used (i.e.\&
+.Sq Cm > ,
+.Sq Cm >| ,
+.Sq Cm >> ,
+.Sq Cm <> ) .
+.El
+.It Fl s
+The shell reads commands from standard input; all non-option arguments
+are positional parameters.
+.El
+.Pp
+In addition to the above, the options described in the
+.Ic set
+built-in command can also be used on the command line:
+both
+.Op Fl +abCefhkmnuvXx
+and
+.Op Fl +o Ar option
+can be used for single letter or long options, respectively.
+.Pp
+If neither the
+.Fl c
+nor the
+.Fl s
+option is specified, the first non-option argument specifies the name
+of a file the shell reads commands from.
+If there are no non-option
+arguments, the shell reads commands from the standard input.
+The name of the shell (i.e. the contents of $0)
+is determined as follows: if the
+.Fl c
+option is used and there is a non-option argument, it is used as the name;
+if commands are being read from a file, the file is used as the name;
+otherwise, the basename the shell was called with (i.e. argv[0]) is used.
+.Pp
+If the
+.Ev ENV
+parameter is set when an interactive shell starts (or,
+in the case of login shells,
+after any profiles are processed), its value is subjected to parameter,
+command, arithmetic, and tilde
+.Pq Sq ~
+substitution and the resulting file
+(if any) is read and executed.
+In order to have an interactive (as opposed to login) shell
+process a startup file,
+.Ev ENV
+may be set and exported (see below) in
+.Pa $HOME/.profile
+\- future interactive shell invocations will process any file pointed to by
+.Ev $ENV :
+.Pp
+.Dl export ENV=$HOME/.kshrc
+.Pp
+.Pa $HOME/.kshrc
+is then free to specify instructions for interactive shells.
+For example, the global configuration file may be sourced:
+.Bd -literal -offset indent
+\&. /etc/ksh.kshrc
+.Ed
+.Pp
+The above strategy may be employed to keep
+setup procedures for login shells in
+.Pa $HOME/.profile
+and setup procedures for interactive shells in
+.Pa $HOME/.kshrc .
+Of course, since login shells are also interactive,
+any commands placed in
+.Pa $HOME/.kshrc
+will be executed by login shells too.
+.Pp
+The exit status of the shell is 127 if the command file specified on the
+command line could not be opened, or non-zero if a fatal syntax error
+occurred during the execution of a script.
+In the absence of fatal errors,
+the exit status is that of the last command executed, or zero, if no
+command is executed.
+.Ss Command syntax
+The shell begins parsing its input by breaking it into
+.Em words .
+Words, which are sequences of characters, are delimited by unquoted whitespace
+characters (space, tab, and newline) or meta-characters
+.Po
+.Ql < ,
+.Ql > ,
+.Ql | ,
+.Ql \&; ,
+.Ql \&( ,
+.Ql \&) ,
+and
+.Ql &
+.Pc .
+Aside from delimiting words, spaces and tabs are ignored, while newlines
+usually delimit commands.
+The meta-characters are used in building the following
+.Em tokens :
+.Sq Cm < ,
+.Sq Cm <& ,
+.Sq Cm << ,
+.Sq Cm > ,
+.Sq Cm >& ,
+.Sq Cm >> ,
+etc. are used to specify redirections (see
+.Sx Input/output redirection
+below);
+.Ql |
+is used to create pipelines;
+.Ql |&
+is used to create co-processes (see
+.Sx Co-processes
+below);
+.Ql \&;
+is used to separate commands;
+.Ql &
+is used to create asynchronous pipelines;
+.Ql &&
+and
+.Ql ||
+are used to specify conditional execution;
+.Ql ;;
+is used in
+.Ic case
+statements;
+.Ql (( .. ))
+is used in arithmetic expressions;
+and lastly,
+.Ql \&( .. )\&
+is used to create subshells.
+.Pp
+Whitespace and meta-characters can be quoted individually using a backslash
+.Pq Sq \e ,
+or in groups using double
+.Pq Sq \&"
+or single
+.Pq Sq '
+quotes.
+The following characters are also treated specially by the
+shell and must be quoted if they are to represent themselves:
+.Ql \e ,
+.Ql \&" ,
+.Ql ' ,
+.Ql # ,
+.Ql $ ,
+.Ql ` ,
+.Ql ~ ,
+.Ql { ,
+.Ql } ,
+.Ql * ,
+.Ql \&? ,
+and
+.Ql \&[ .
+The first three of these are the above mentioned quoting characters (see
+.Sx Quoting
+below);
+.Ql # ,
+if used at the beginning of a word, introduces a comment \(em everything after
+the
+.Ql #
+up to the nearest newline is ignored;
+.Ql $
+is used to introduce parameter, command, and arithmetic substitutions (see
+.Sx Substitution
+below);
+.Ql `
+introduces an old-style command substitution (see
+.Sx Substitution
+below);
+.Ql ~
+begins a directory expansion (see
+.Sx Tilde expansion
+below);
+.Ql {
+and
+.Ql }
+delimit
+.Xr csh 1 Ns -style
+alternations (see
+.Sx Brace expansion
+below);
+and finally,
+.Ql * ,
+.Ql \&? ,
+and
+.Ql \&[
+are used in file name generation (see
+.Sx File name patterns
+below).
+.Pp
+As words and tokens are parsed, the shell builds commands, of which there
+are two basic types:
+.Em simple-commands ,
+typically programs that are executed, and
+.Em compound-commands ,
+such as
+.Ic for
+and
+.Ic if
+statements, grouping constructs, and function definitions.
+.Pp
+A simple-command consists of some combination of parameter assignments
+(see
+.Sx Parameters
+below),
+input/output redirections (see
+.Sx Input/output redirections
+below),
+and command words; the only restriction is that parameter assignments come
+before any command words.
+The command words, if any, define the command
+that is to be executed and its arguments.
+The command may be a shell built-in command, a function,
+or an external command
+(i.e. a separate executable file that is located using the
+.Ev PATH
+parameter; see
+.Sx Command execution
+below).
+.Pp
+All command constructs have an exit status.
+For external commands,
+this is related to the status returned by
+.Xr wait 2
+(if the command could not be found, the exit status is 127; if it could not
+be executed, the exit status is 126).
+The exit status of other command
+constructs (built-in commands, functions, compound-commands, pipelines, lists,
+etc.) are all well-defined and are described where the construct is
+described.
+The exit status of a command consisting only of parameter
+assignments is that of the last command substitution performed during the
+parameter assignment or 0 if there were no command substitutions.
+.Pp
+Commands can be chained together using the
+.Ql |
+token to form pipelines, in which the standard output of each command but the
+last is piped (see
+.Xr pipe 2 )
+to the standard input of the following command.
+The exit status of a pipeline is that of its last command, unless the
+.Ic pipefail
+option is set.
+A pipeline may be prefixed by the
+.Ql \&!
+reserved word, which causes the exit status of the pipeline to be logically
+complemented: if the original status was 0, the complemented status will be 1;
+if the original status was not 0, the complemented status will be 0.
+.Pp
+.Em Lists
+of commands can be created by separating pipelines by any of the following
+tokens:
+.Ql && ,
+.Ql || ,
+.Ql & ,
+.Ql |& ,
+and
+.Ql \&; .
+The first two are for conditional execution:
+.Dq Ar cmd1 No && Ar cmd2
+executes
+.Ar cmd2
+only if the exit status of
+.Ar cmd1
+is zero;
+.Ql ||
+is the opposite \(em
+.Ar cmd2
+is executed only if the exit status of
+.Ar cmd1
+is non-zero.
+.Ql &&
+and
+.Ql ||
+have equal precedence which is higher than that of
+.Ql & ,
+.Ql |& ,
+and
+.Ql \&; ,
+which also have equal precedence.
+The
+.Ql &&
+and
+.Ql ||
+operators are
+.Qq left-associative .
+For example, both of these commands will print only
+.Qq bar :
+.Bd -literal -offset indent
+$ false && echo foo || echo bar
+$ true || echo foo && echo bar
+.Ed
+.Pp
+The
+.Ql &
+token causes the preceding command to be executed asynchronously; that is,
+the shell starts the command but does not wait for it to complete (the shell
+does keep track of the status of asynchronous commands; see
+.Sx Job control
+below).
+When an asynchronous command is started when job control is disabled
+(i.e. in most scripts), the command is started with signals
+.Dv SIGINT
+and
+.Dv SIGQUIT
+ignored and with input redirected from
+.Pa /dev/null
+(however, redirections specified in the asynchronous command have precedence).
+The
+.Ql |&
+operator starts a co-process which is a special kind of asynchronous process
+(see
+.Sx Co-processes
+below).
+A command must follow the
+.Ql &&
+and
+.Ql ||
+operators, while it need not follow
+.Ql & ,
+.Ql |& ,
+or
+.Ql \&; .
+The exit status of a list is that of the last command executed, with the
+exception of asynchronous lists, for which the exit status is 0.
+.Pp
+Compound commands are created using the following reserved words.
+These words
+are only recognized if they are unquoted and if they are used as the first
+word of a command (i.e. they can't be preceded by parameter assignments or
+redirections):
+.Bd -literal -offset indent
+case   esac       in       until   ((   }
+do     fi         name     while   ))
+done   for        select   !       [[
+elif   function   then     (       ]]
+else   if         time     )       {
+.Ed
+.Pp
+.Sy Note :
+Some shells (but not this one) execute control structure commands in a
+subshell when one or more of their file descriptors are redirected, so any
+environment changes inside them may fail.
+To be portable, the
+.Ic exec
+statement should be used instead to redirect file descriptors before the
+control structure.
+.Pp
+In the following compound command descriptions, command lists (denoted as
+.Em list )
+that are followed by reserved words must end with a semicolon, a newline, or
+a (syntactically correct) reserved word.
+For example, the following are all valid:
+.Bd -literal -offset indent
+$ { echo foo; echo bar; }
+$ { echo foo; echo bar<newline> }
+$ { { echo foo; echo bar; } }
+.Ed
+.Pp
+This is not valid:
+.Pp
+.Dl $ { echo foo; echo bar }
+.Bl -tag -width Ds
+.It Pq Ar list
+Execute
+.Ar list
+in a subshell.
+There is no implicit way to pass environment changes from a
+subshell back to its parent.
+.It { Ar list ; No }
+Compound construct;
+.Ar list
+is executed, but not in a subshell.
+Note that
+.Ql {
+and
+.Ql }
+are reserved words, not meta-characters.
+.It Xo Ic case Ar word Cm in
+.Oo Op \&(
+.Ar pattern
+.Op | Ar pattern
+.No ... )
+.Ar list No ;;\ \& Oc ... Cm esac
+.Xc
+The
+.Ic case
+statement attempts to match
+.Ar word
+against a specified
+.Ar pattern ;
+the
+.Ar list
+associated with the first successfully matched pattern is executed.
+Patterns used in
+.Ic case
+statements are the same as those used for file name patterns except that the
+restrictions regarding
+.Ql \&.
+and
+.Ql /
+are dropped.
+Note that any unquoted space before and after a pattern is
+stripped; any space within a pattern must be quoted.
+Both the word and the
+patterns are subject to parameter, command, and arithmetic substitution, as
+well as tilde substitution.
+The initial
+.Sq (\&
+is optional,
+as is the terminating
+.Sq ;;
+for the final
+.Ar list .
+For historical reasons, open and close braces may be used instead of
+.Cm in
+and
+.Cm esac
+e.g.\&
+.Ic case $foo { *) echo bar; } .
+The exit status of a
+.Ic case
+statement is that of the executed
+.Ar list ;
+if no
+.Ar list
+is executed, the exit status is zero.
+.It Xo Ic for Ar name
+.Op Cm in Op Ar word ... ;
+.Cm do Ar list ; Cm done
+.Xc
+For each
+.Ar word
+in the specified word list, the parameter
+.Ar name
+is set to the word and
+.Ar list
+is executed.
+If
+.Cm in
+is not used to specify a word list, the positional parameters
+($1, $2, etc.)\&
+are used instead.
+For historical reasons, open and close braces may be used instead of
+.Cm do
+and
+.Cm done
+e.g.\&
+.Ic for i; { echo $i; } .
+The exit status of a
+.Ic for
+statement is the last exit status of
+.Ar list .
+If there are no items,
+.Ar list
+is not executed and the exit status is zero.
+.It Xo Ic if Ar list ;
+.Cm then Ar list ;
+.Oo Cm elif Ar list ;
+.Cm then Ar list ; Oc ...
+.Oo Cm else Ar list ; Oc
+.Cm fi
+.Xc
+If the exit status of the first
+.Ar list
+is zero, the second
+.Ar list
+is executed; otherwise, the
+.Ar list
+following the
+.Cm elif ,
+if any, is executed with similar consequences.
+If all the lists following the
+.Ic if
+and
+.Cm elif Ns s
+fail (i.e. exit with non-zero status), the
+.Ar list
+following the
+.Cm else
+is executed.
+The exit status of an
+.Ic if
+statement is that of non-conditional
+.Ar list
+that is executed; if no non-conditional
+.Ar list
+is executed, the exit status is zero.
+.It Xo Ic select Ar name
+.Oo Cm in Ar word No ... Oc ;
+.Cm do Ar list ; Cm done
+.Xc
+The
+.Ic select
+statement provides an automatic method of presenting the user with a menu and
+selecting from it.
+An enumerated list of the specified
+.Ar word Ns (s)
+is printed on standard error, followed by a prompt
+.Po
+.Ev PS3 :
+normally
+.Sq #?\ \&
+.Pc .
+A number corresponding to one of the enumerated words is then read from
+standard input,
+.Ar name
+is set to the selected word (or unset if the selection is not valid),
+.Ev REPLY
+is set to what was read (leading/trailing space is stripped), and
+.Ar list
+is executed.
+If a blank line (i.e. zero or more
+.Ev IFS
+characters) is entered, the menu is reprinted without executing
+.Ar list .
+.Pp
+When
+.Ar list
+completes, the enumerated list is printed if
+.Ev REPLY
+is
+.Dv NULL ,
+the prompt is printed, and so on.
+This process continues until an end-of-file
+is read, an interrupt is received, or a
+.Ic break
+statement is executed inside the loop.
+If
+.Dq in word ...
+is omitted, the positional parameters are used
+(i.e. $1, $2, etc.).
+For historical reasons, open and close braces may be used instead of
+.Cm do
+and
+.Cm done
+e.g.\&
+.Ic select i; { echo $i; } .
+The exit status of a
+.Ic select
+statement is zero if a
+.Ic break
+statement is used to exit the loop, non-zero otherwise.
+.It Xo Ic until Ar list ;
+.Cm do Ar list ;
+.Cm done
+.Xc
+This works like
+.Ic while ,
+except that the body is executed only while the exit status of the first
+.Ar list
+is non-zero.
+.It Xo Ic while Ar list ;
+.Cm do Ar list ;
+.Cm done
+.Xc
+A
+.Ic while
+is a pre-checked loop.
+Its body is executed as often as the exit status of the first
+.Ar list
+is zero.
+The exit status of a
+.Ic while
+statement is the last exit status of the
+.Ar list
+in the body of the loop; if the body is not executed, the exit status is zero.
+.It Xo Ic function Ar name
+.No { Ar list ; No }
+.Xc
+Defines the function
+.Ar name
+(see
+.Sx Functions
+below).
+Note that redirections specified after a function definition are
+performed whenever the function is executed, not when the function definition
+is executed.
+.It Ar name Ns () Ar command
+Mostly the same as
+.Ic function
+(see
+.Sx Functions
+below).
+.It Xo Ic time Op Fl p
+.Op Ar pipeline
+.Xc
+The
+.Ic time
+reserved word is described in the
+.Sx Command execution
+section.
+.It Ic (( Ar expression Cm ))
+The arithmetic expression
+.Ar expression
+is evaluated; equivalent to
+.Ic let Ar expression
+(see
+.Sx Arithmetic expressions
+and the
+.Ic let
+command, below).
+.It Ic [[ Ar expression Cm ]]
+Similar to the
+.Ic test
+and
+.Ic \&[ No ... Cm \&]
+commands (described later), with the following exceptions:
+.Bl -bullet -offset indent
+.It
+Field splitting and file name generation are not performed on arguments.
+.It
+The
+.Fl a
+.Pq AND
+and
+.Fl o
+.Pq OR
+operators are replaced with
+.Ql &&
+and
+.Ql || ,
+respectively.
+.It
+Operators (e.g.\&
+.Sq Fl f ,
+.Sq = ,
+.Sq \&! )
+must be unquoted.
+.It
+The second operand of the
+.Sq = ,
+.Sq ==
+and
+.Sq !=
+expressions are patterns (e.g. the comparison
+.Ic [[ foobar = f*r ]]
+succeeds).
+.It
+The
+.Ql <
+and
+.Ql >
+binary operators do not need to be quoted with the
+.Ql \e
+character.
+.It
+The single argument form of
+.Ic test ,
+which tests if the argument has a non-zero length, is not valid; explicit
+operators must always be used e.g. instead of
+.No \&[ Ar str No \&]
+use
+.No \&[[ -n Ar str No \&]] .
+.It
+Parameter, command, and arithmetic substitutions are performed as expressions
+are evaluated and lazy expression evaluation is used for the
+.Ql &&
+and
+.Ql ||
+operators.
+This means that in the following statement,
+.Ic $(< foo)
+is evaluated if and only if the file
+.Pa foo
+exists and is readable:
+.Bd -literal -offset indent
+$ [[ -r foo && $(< foo) = b*r ]]
+.Ed
+.El
+.El
+.Ss Quoting
+Quoting is used to prevent the shell from treating characters or words
+specially.
+There are three methods of quoting.
+First,
+.Ql \e
+quotes the following character, unless it is at the end of a line, in which
+case both the
+.Ql \e
+and the newline are stripped.
+Second, a single quote
+.Pq Sq '
+quotes everything up to the next single quote (this may span lines).
+Third, a double quote
+.Pq Sq \&"
+quotes all characters, except
+.Ql $ ,
+.Ql `
+and
+.Ql \e ,
+up to the next unquoted double quote.
+.Ql $
+and
+.Ql `
+inside double quotes have their usual meaning (i.e. parameter, command, or
+arithmetic substitution) except no field splitting is carried out on the
+results of double-quoted substitutions.
+If a
+.Ql \e
+inside a double-quoted string is followed by
+.Ql \e ,
+.Ql $ ,
+.Ql ` ,
+or
+.Ql \&" ,
+it is replaced by the second character; if it is followed by a newline, both
+the
+.Ql \e
+and the newline are stripped; otherwise, both the
+.Ql \e
+and the character following are unchanged.
+.Ss Aliases
+There are two types of aliases: normal command aliases and tracked aliases.
+Command aliases are normally used as a short hand for a long or often used
+command.
+The shell expands command aliases (i.e. substitutes the alias name
+for its value) when it reads the first word of a command.
+An expanded alias is re-processed to check for more aliases.
+If a command alias ends in a
+space or tab, the following word is also checked for alias expansion.
+The alias expansion process stops when a word that is not an alias is found,
+when a quoted word is found, or when an alias word that is currently being
+expanded is found.
+.Pp
+The following command aliases are defined automatically by the shell:
+.Pp
+.Bl -item -compact -offset indent
+.It
+.Ic autoload Ns ='typeset -fu'
+.It
+.Ic functions Ns ='typeset -f'
+.It
+.Ic hash Ns ='alias -t'
+.It
+.Ic history Ns ='fc -l'
+.It
+.Ic integer Ns ='typeset -i'
+.It
+.Ic local Ns ='typeset'
+.It
+.Ic login Ns ='exec login'
+.It
+.Ic nohup Ns ='nohup '
+.It
+.Ic r Ns ='fc -s'
+.It
+.Ic stop Ns ='kill -STOP'
+.El
+.Pp
+Tracked aliases allow the shell to remember where it found a particular
+command.
+The first time the shell does a path search for a command that is
+marked as a tracked alias, it saves the full path of the command.
+The next
+time the command is executed, the shell checks the saved path to see that it
+is still valid, and if so, avoids repeating the path search.
+Tracked aliases can be listed and created using
+.Ic alias -t .
+Note that changing the
+.Ev PATH
+parameter clears the saved paths for all tracked aliases.
+If the
+.Ic trackall
+option is set (i.e.\&
+.Ic set -o Ic trackall
+or
+.Ic set -h ) ,
+the shell tracks all commands.
+This option is set automatically for non-interactive shells.
+For interactive shells, only the following commands are
+automatically tracked:
+.Xr cat 1 ,
+.Xr cc 1 ,
+.Xr chmod 1 ,
+.Xr cp 1 ,
+.Xr date 1 ,
+.Xr ed 1 ,
+.Sy emacs ,
+.Xr grep 1 ,
+.Xr ls 1 ,
+.Xr mail 1 ,
+.Xr make 1 ,
+.Xr mv 1 ,
+.Xr pr 1 ,
+.Xr rm 1 ,
+.Xr sed 1 ,
+.Xr sh 1 ,
+.Xr vi 1 ,
+and
+.Xr who 1 .
+.Ss Substitution
+The first step the shell takes in executing a simple-command is to perform
+substitutions on the words of the command.
+There are three kinds of
+substitution: parameter, command, and arithmetic.
+Parameter substitutions,
+which are described in detail in the next section, take the form
+.Pf $ Ar name
+or
+.Pf ${ Ar ... Ns } ;
+command substitutions take the form
+.Pf $( Ar command )
+or
+.Pf ` Ar command Ns ` ;
+and arithmetic substitutions take the form
+.Pf $(( Ar expression ) ) .
+.Pp
+If a substitution appears outside of double quotes, the results of the
+substitution are generally subject to word or field splitting according to
+the current value of the
+.Ev IFS
+parameter.
+The
+.Ev IFS
+parameter specifies a list of characters which are used to break a string up
+into several words; any characters from the set space, tab, and newline that
+appear in the
+.Ev IFS
+characters are called
+.Dq IFS whitespace .
+Sequences of one or more
+.Ev IFS
+whitespace characters, in combination with zero or one
+.Pf non- Ev IFS
+whitespace
+characters, delimit a field.
+As a special case, leading and trailing
+.Ev IFS
+whitespace is stripped (i.e. no leading or trailing empty field is created by
+it); leading
+.Pf non- Ev IFS
+whitespace does create an empty field.
+.Pp
+Example: If
+.Ev IFS
+is set to
+.Dq <space>: ,
+and VAR is set to
+.Dq <space>A<space>:<space><space>B::D ,
+the substitution for $VAR results in four fields:
+.Sq A ,
+.Sq B ,
+.Sq
+(an empty field),
+and
+.Sq D .
+Note that if the
+.Ev IFS
+parameter is set to the
+.Dv NULL
+string, no field splitting is done; if the parameter is unset, the default
+value of space, tab, and newline is used.
+.Pp
+Also, note that the field splitting applies only to the immediate result of
+the substitution.
+Using the previous example, the substitution for $VAR:E
+results in the fields:
+.Sq A ,
+.Sq B ,
+.Sq ,
+and
+.Sq D:E ,
+not
+.Sq A ,
+.Sq B ,
+.Sq ,
+.Sq D ,
+and
+.Sq E .
+This behavior is POSIX compliant, but incompatible with some other shell
+implementations which do field splitting on the word which contained the
+substitution or use
+.Dv IFS
+as a general whitespace delimiter.
+.Pp
+The results of substitution are, unless otherwise specified, also subject to
+brace expansion and file name expansion (see the relevant sections below).
+.Pp
+A command substitution is replaced by the output generated by the specified
+command, which is run in a subshell.
+For
+.Pf $( Ar command )
+substitutions, normal quoting rules are used when
+.Ar command
+is parsed; however, for the
+.Pf ` Ar command Ns `
+form, a
+.Ql \e
+followed by any of
+.Ql $ ,
+.Ql ` ,
+or
+.Ql \e
+is stripped (a
+.Ql \e
+followed by any other character is unchanged).
+As a special case in command substitutions, a command of the form
+.Pf < Ar file
+is interpreted to mean substitute the contents of
+.Ar file .
+Note that
+.Ic $(< foo)
+has the same effect as
+.Ic $(cat foo) ,
+but it is carried out more efficiently because no process is started.
+.Pp
+Arithmetic substitutions are replaced by the value of the specified expression.
+For example, the command
+.Ic echo $((2+3*4))
+prints 14.
+See
+.Sx Arithmetic expressions
+for a description of an expression.
+.Ss Parameters
+Parameters are shell variables; they can be assigned values and their values
+can be accessed using a parameter substitution.
+A parameter name is either one
+of the special single punctuation or digit character parameters described
+below, or a letter followed by zero or more letters or digits
+.Po
+.Ql _
+counts as a letter
+.Pc .
+The latter form can be treated as arrays by appending an array index of the
+form
+.Op Ar expr
+where
+.Ar expr
+is an arithmetic expression.
+Parameter substitutions take the form
+.Pf $ Ar name ,
+.Pf ${ Ar name Ns } ,
+or
+.Sm off
+.Pf ${ Ar name Bo Ar expr Bc }
+.Sm on
+where
+.Ar name
+is a parameter name.
+If
+.Ar expr
+is a literal
+.Ql @
+then the named array is expanded using the same quoting rules as
+.Ql $@ ,
+while if
+.Ar expr
+is a literal
+.Ql *
+then the named array is expanded using the same quoting rules as
+.Ql $* .
+If substitution is performed on a parameter
+(or an array parameter element)
+that is not set, a null string is substituted unless the
+.Ic nounset
+option
+.Po
+.Ic set Fl o Ic nounset
+or
+.Ic set Fl u
+.Pc
+is set, in which case an error occurs.
+.Pp
+Parameters can be assigned values in a number of ways.
+First, the shell implicitly sets some parameters like
+.Ql # ,
+.Ql PWD ,
+and
+.Ql $ ;
+this is the only way the special single character parameters are set.
+Second, parameters are imported from the shell's environment at startup.
+Third, parameters can be assigned values on the command line: for example,
+.Ic FOO=bar
+sets the parameter
+.Dq FOO
+to
+.Dq bar ;
+multiple parameter assignments can be given on a single command line and they
+can be followed by a simple-command, in which case the assignments are in
+effect only for the duration of the command (such assignments are also
+exported; see below for the implications of this).
+Note that both the parameter name and the
+.Ql =
+must be unquoted for the shell to recognize a parameter assignment.
+The fourth way of setting a parameter is with the
+.Ic export ,
+.Ic readonly ,
+and
+.Ic typeset
+commands; see their descriptions in the
+.Sx Command execution
+section.
+Fifth,
+.Ic for
+and
+.Ic select
+loops set parameters as well as the
+.Ic getopts ,
+.Ic read ,
+and
+.Ic set -A
+commands.
+Lastly, parameters can be assigned values using assignment operators
+inside arithmetic expressions (see
+.Sx Arithmetic expressions
+below) or using the
+.Pf ${ Ar name Ns = Ns Ar value Ns }
+form of the parameter substitution (see below).
+.Pp
+Parameters with the export attribute (set using the
+.Ic export
+or
+.Ic typeset Fl x
+commands, or by parameter assignments followed by simple commands) are put in
+the environment (see
+.Xr environ 7 )
+of commands run by the shell as
+.Ar name Ns = Ns Ar value
+pairs.
+The order in which parameters appear in the environment of a command is
+unspecified.
+When the shell starts up, it extracts parameters and their values
+from its environment and automatically sets the export attribute for those
+parameters.
+.Pp
+Modifiers can be applied to the
+.Pf ${ Ar name Ns }
+form of parameter substitution:
+.Bl -tag -width Ds
+.Sm off
+.It ${ Ar name No :- Ar word No }
+.Sm on
+If
+.Ar name
+is set and not
+.Dv NULL ,
+it is substituted; otherwise,
+.Ar word
+is substituted.
+.Sm off
+.It ${ Ar name No :+ Ar word No }
+.Sm on
+If
+.Ar name
+is set and not
+.Dv NULL ,
+.Ar word
+is substituted; otherwise, nothing is substituted.
+.Sm off
+.It ${ Ar name No := Ar word No }
+.Sm on
+If
+.Ar name
+is set and not
+.Dv NULL ,
+it is substituted; otherwise, it is assigned
+.Ar word
+and the resulting value of
+.Ar name
+is substituted.
+.Sm off
+.It ${ Ar name No :? Ar word No }
+.Sm on
+If
+.Ar name
+is set and not
+.Dv NULL ,
+it is substituted; otherwise,
+.Ar word
+is printed on standard error (preceded by
+.Ar name : )
+and an error occurs (normally causing termination of a shell script, function,
+or script sourced using the
+.Sq Ic \&.
+built-in command).
+If
+.Ar word
+is omitted, the string
+.Dq parameter null or not set
+is used instead.
+.El
+.Pp
+In the above modifiers, the
+.Ql \&:
+can be omitted, in which case the conditions only depend on
+.Ar name
+being set (as opposed to set and not
+.Dv NULL ) .
+If
+.Ar word
+is needed, parameter, command, arithmetic, and tilde substitution are performed
+on it; if
+.Ar word
+is not needed, it is not evaluated.
+.Pp
+The following forms of parameter substitution can also be used:
+.Pp
+.Bl -tag -width Ds -compact
+.It Pf ${# Ar name Ns }
+The number of positional parameters if
+.Ar name
+is
+.Ql * ,
+.Ql @ ,
+or not specified; otherwise the length of the string value of parameter
+.Ar name .
+.Pp
+.It Pf ${# Ar name Ns [*]}
+.It Pf ${# Ar name Ns [@]}
+The number of elements in the array
+.Ar name .
+.Pp
+.It Pf ${ Ar name Ns # Ns Ar pattern Ns }
+.It Pf ${ Ar name Ns ## Ns Ar pattern Ns }
+If
+.Ar pattern
+matches the beginning of the value of parameter
+.Ar name ,
+the matched text is deleted from the result of substitution.
+A single
+.Ql #
+results in the shortest match, and two
+of them result in the longest match.
+.Pp
+.It Pf ${ Ar name Ns % Ns Ar pattern Ns }
+.It Pf ${ Ar name Ns %% Ns Ar pattern Ns }
+Like ${..#..} substitution, but it deletes from the end of the value.
+.El
+.Pp
+The following special parameters are implicitly set by the shell and cannot be
+set directly using assignments:
+.Bl -tag -width "1 ... 9"
+.It Ev \&!
+Process ID of the last background process started.
+If no background processes have been started, the parameter is not set.
+.It Ev \&#
+The number of positional parameters ($1, $2, etc.).
+.It Ev \&$
+The PID of the shell, or the PID of the original shell if it is a subshell.
+Do
+.Em NOT
+use this mechanism for generating temporary file names; see
+.Xr mktemp 1
+instead.
+.It Ev -
+The concatenation of the current single letter options (see the
+.Ic set
+command below for a list of options).
+.It Ev \&?
+The exit status of the last non-asynchronous command executed.
+If the last command was killed by a signal,
+.Ic $?\&
+is set to 128 plus the signal number.
+.It Ev 0
+The name of the shell, determined as follows:
+the first argument to
+.Nm
+if it was invoked with the
+.Fl c
+option and arguments were given; otherwise the
+.Ar file
+argument, if it was supplied;
+or else the basename the shell was invoked with (i.e.\&
+.Li argv[0] ) .
+.Ev $0
+is also set to the name of the current script or
+the name of the current function, if it was defined with the
+.Ic function
+keyword (i.e. a Korn shell style function).
+.It Ev 1 No ... Ev 9
+The first nine positional parameters that were supplied to the shell, function,
+or script sourced using the
+.Sq Ic \&.
+built-in command.
+Further positional parameters may be accessed using
+.Pf ${ Ar number Ns } .
+.It Ev *
+All positional parameters (except parameter 0) i.e. $1, $2, $3, ...
+If used
+outside of double quotes, parameters are separate words (which are subjected
+to word splitting); if used within double quotes, parameters are separated
+by the first character of the
+.Ev IFS
+parameter (or the empty string if
+.Ev IFS
+is
+.Dv NULL ) .
+.It Ev @
+Same as
+.Ic $* ,
+unless it is used inside double quotes, in which case a separate word is
+generated for each positional parameter.
+If there are no positional parameters, no word is generated.
+.Ic $@
+can be used to access arguments, verbatim, without losing
+.Dv NULL
+arguments or splitting arguments with spaces.
+.El
+.Pp
+The following parameters are set and/or used by the shell:
+.Bl -tag -width "EXECSHELL"
+.It Ev _ No (underscore)
+When an external command is executed by the shell, this parameter is set in the
+environment of the new process to the path of the executed command.
+In interactive use, this parameter is also set in the parent shell to the last
+word of the previous command.
+When
+.Ev MAILPATH
+messages are evaluated, this parameter contains the name of the file that
+changed (see the
+.Ev MAILPATH
+parameter, below).
+.It Ev CDPATH
+Search path for the
+.Ic cd
+built-in command.
+It works the same way as
+.Ev PATH
+for those directories not beginning with
+.Ql /
+or
+.Ql .\&
+in
+.Ic cd
+commands.
+Note that if
+.Ev CDPATH
+is set and does not contain
+.Sq \&.
+or an empty path, the current directory is not searched.
+Also, the
+.Ic cd
+built-in command will display the resulting directory when a match is found
+in any search path other than the empty path.
+.It Ev COLUMNS
+Set to the number of columns on the terminal or window.
+Currently set to the
+.Dq cols
+value as reported by
+.Xr stty 1
+if that value is non-zero.
+This parameter is used by the interactive line editing modes, and by the
+.Ic select ,
+.Ic set -o ,
+and
+.Ic kill -l
+commands to format information columns.
+.It Ev EDITOR
+If the
+.Ev VISUAL
+parameter is not set, this parameter controls the command-line editing mode for
+interactive shells.
+See the
+.Ev VISUAL
+parameter below for how this works.
+.Pp
+Note:
+traditionally,
+.Ev EDITOR
+was used to specify the name of an (old-style) line editor, such as
+.Xr ed 1 ,
+and
+.Ev VISUAL
+was used to specify a (new-style) screen editor, such as
+.Xr vi 1 .
+Hence if
+.Ev VISUAL
+is set, it overrides
+.Ev EDITOR .
+.It Ev ENV
+If this parameter is found to be set after any profile files are executed, the
+expanded value is used as a shell startup file.
+It typically contains function and alias definitions.
+.It Ev EXECSHELL
+If set, this parameter is assumed to contain the shell that is to be used to
+execute commands that
+.Xr execve 2
+fails to execute and which do not start with a
+.Dq #! Ns Ar shell
+sequence.
+.It Ev FCEDIT
+The editor used by the
+.Ic fc
+command (see below).
+.It Ev FPATH
+Like
+.Ev PATH ,
+but used when an undefined function is executed to locate the file defining the
+function.
+It is also searched when a command can't be found using
+.Ev PATH .
+See
+.Sx Functions
+below for more information.
+.It Ev HISTCONTROL
+A colon separated list of history settings.
+If
+.Sy ignoredups
+is present, lines identical to the previous history line will not be saved.
+If
+.Sy ignorespace
+is present, lines starting with a space will not be saved.
+Unknown settings are ignored.
+.It Ev HISTFILE
+The name of the file used to store command history.
+When assigned to, history is loaded from the specified file.
+Also, several invocations of the shell
+running on the same machine will share history if their
+.Ev HISTFILE
+parameters all point to the same file.
+.Pp
+.Sy Note :
+If
+.Ev HISTFILE
+isn't set, no history file is used.
+This is different from the original Korn shell, which uses
+.Pa $HOME/.sh_history .
+.It Ev HISTSIZE
+The number of commands normally stored for history.
+The default is 500.
+.It Ev HOME
+The default directory for the
+.Ic cd
+command and the value substituted for an unqualified
+.Ic ~
+(see
+.Sx Tilde expansion
+below).
+.It Ev IFS
+Internal field separator, used during substitution and by the
+.Ic read
+command, to split values into distinct arguments; normally set to space, tab,
+and newline.
+See
+.Sx Substitution
+above for details.
+.Pp
+.Sy Note :
+This parameter is not imported from the environment when the shell is
+started.
+.It Ev KSH_VERSION
+The version of the shell and the date the version was created (read-only).
+.It Ev LINENO
+The line number of the function or shell script that is currently being
+executed.
+.It Ev LINES
+Set to the number of lines on the terminal or window.
+.It Ev MAIL
+If set, the user will be informed of the arrival of mail in the named file.
+This parameter is ignored if the
+.Ev MAILPATH
+parameter is set.
+.It Ev MAILCHECK
+How often, in seconds, the shell will check for mail in the file(s) specified
+by
+.Ev MAIL
+or
+.Ev MAILPATH .
+If set to 0, the shell checks before each prompt.
+The default is 600 (10 minutes).
+.It Ev MAILPATH
+A list of files to be checked for mail.
+The list is colon separated, and each file may be followed by a
+.Ql \&?
+and a message to be printed if new mail has arrived.
+Command, parameter, and
+arithmetic substitution is performed on the message and, during substitution,
+the parameter
+.Ic $_
+contains the name of the file.
+The default message is
+.Dq you have mail in $_ .
+.It Ev OLDPWD
+The previous working directory.
+Unset if
+.Ic cd
+has not successfully changed directories since the shell started, or if the
+shell doesn't know where it is.
+.It Ev OPTARG
+When using
+.Ic getopts ,
+it contains the argument for a parsed option, if it requires one.
+.It Ev OPTIND
+The index of the next argument to be processed when using
+.Ic getopts .
+Assigning 1 to this parameter causes
+.Ic getopts
+to process arguments from the beginning the next time it is invoked.
+.It Ev PATH
+A colon separated list of directories that are searched when looking for
+commands and files sourced using the
+.Sq \&.
+command (see below).
+An empty string resulting from a leading or trailing
+colon, or two adjacent colons, is treated as a
+.Sq \&.
+(the current directory).
+.It Ev POSIXLY_CORRECT
+If set, this parameter causes the
+.Ic posix
+option to be enabled.
+See
+.Sx POSIX mode
+below.
+.It Ev PPID
+The process ID of the shell's parent (read-only).
+.It Ev PS1
+The primary prompt for interactive shells.
+Parameter, command, and arithmetic
+substitutions are performed,
+and the prompt string can be customised using
+backslash-escaped special characters.
+.Pp
+Note that since the command-line editors try to figure out how long the prompt
+is (so they know how far it is to the edge of the screen), escape codes in
+the prompt tend to mess things up.
+You can tell the shell not to count certain
+sequences (such as escape codes) by using the
+.Sy \e[ Ns Ar ... Ns Sy \e]
+substitution (see below) or by prefixing your prompt with a non-printing
+character (such as control-A) followed by a carriage return and then delimiting
+the escape codes with this non-printing character.
+By the way, don't blame me for
+this hack; it's in the original
+.Nm .
+.Pp
+The default prompt is the first part of the hostname, followed by
+.Sq $\ \&
+for non-root users,
+.Sq #\ \&
+for root.
+.Pp
+The following backslash-escaped special characters can be used
+to customise the prompt:
+.Pp
+.Bl -tag -width "\eD{format}XX" -compact
+.It Sy \ea
+Insert an ASCII bell character.
+.It Sy \ed
+The current date, in the format
+.Dq Day Month Date
+for example
+.Dq Wed Nov 03 .
+.It Sy \eD Ns Brq Ar format
+The current date, with
+.Ar format
+converted by
+.Xr strftime 3 .
+The braces must be specified.
+.It Sy \ee
+Insert an ASCII escape character.
+.It Sy \eh
+The hostname, minus domain name.
+.It Sy \eH
+The full hostname, including domain name.
+.It Sy \ej
+Current number of jobs running
+(see
+.Sx Job control
+below).
+.It Sy \el
+The controlling terminal.
+.It Sy \en
+Insert a newline character.
+.It Sy \er
+Insert a carriage return character.
+.It Sy \es
+The name of the shell.
+.It Sy \et
+The current time, in 24-hour HH:MM:SS format.
+.It Sy \eT
+The current time, in 12-hour HH:MM:SS format.
+.It Sy \e@
+The current time, in 12-hour HH:MM:SS AM/PM format.
+.It Sy \eA
+The current time, in 24-hour HH:MM format.
+.It Sy \eu
+The current user's username.
+.It Sy \ev
+The current version of
+.Nm .
+.It Sy \eV
+Like
+.Sy \ev ,
+but more verbose.
+.It Sy \ew
+The current working directory.
+.Dv $HOME
+is abbreviated as
+.Sq ~ .
+.It Sy \eW
+The basename of
+the current working directory.
+.Dv $HOME
+is abbreviated as
+.Sq ~ .
+.It Sy \e!
+The current history number.
+An unescaped
+.Sq Sy !\&
+will produce the current history number too,
+as per the POSIX specification.
+A literal
+.Ql \&!
+can be put in the prompt by placing
+.Sq Sy !!
+in
+.Ev PS1 .
+.It Sy \e#
+The current command number.
+This could be different to the current history number,
+if
+.Ev HISTFILE
+contains a history list from a previous session.
+.It Sy \e$
+The default prompt character i.e.\&
+.Sq #
+if the effective UID is 0,
+otherwise
+.Sq $ .
+Since the shell interprets
+.Sq $
+as a special character within double quotes,
+it is safer in this case to escape the backslash
+than to try quoting it.
+.It Sy \e Ns Ar nnn
+The octal character
+.Ar nnn .
+.It Sy \e\e
+Insert a single backslash character.
+.It Sy \e[
+Normally the shell keeps track of the number of characters in the prompt.
+Use of this sequence turns off that count.
+.It Sy \e]
+Use of this sequence turns the count back on.
+.El
+.Pp
+Note that the backslash itself may be interpreted by the shell.
+Hence, to set
+.Ev PS1
+either escape the backslash itself,
+or use double quotes.
+The latter is more practical:
+.Bd -literal -offset indent
+PS1="\eu "
+.Ed
+.Pp
+This is a more complex example,
+which does not rely on the above backslash-escaped sequences.
+It embeds the current working directory,
+in reverse video,
+in the prompt string:
+.Bd -literal -offset indent
+x=$(print \e\e001)
+PS1="$x$(print \e\er)$x$(tput so)$x\e$PWD$x$(tput se)$x> "
+.Ed
+.It Ev PS2
+Secondary prompt string, by default
+.Sq >\ \& ,
+used when more input is needed to complete a command.
+.It Ev PS3
+Prompt used by the
+.Ic select
+statement when reading a menu selection.
+The default is
+.Sq #?\ \& .
+.It Ev PS4
+Used to prefix commands that are printed during execution tracing (see the
+.Ic set Fl x
+command below).
+Parameter, command, and arithmetic substitutions are performed
+before it is printed.
+The default is
+.Sq +\ \& .
+.It Ev PWD
+The current working directory.
+May be unset or
+.Dv NULL
+if the shell doesn't know where it is.
+.It Ev RANDOM
+A random number generator.
+Every time
+.Ev RANDOM
+is referenced, it is assigned the next random number in the range
+0\-32767.
+By default,
+.Xr arc4random 3
+is used to produce values.
+If the variable
+.Ev RANDOM
+is assigned a value, the value is used as the seed to
+.Xr srand_deterministic 3
+and subsequent references of
+.Ev RANDOM
+produce a predictable sequence.
+.It Ev REPLY
+Default parameter for the
+.Ic read
+command if no names are given.
+Also used in
+.Ic select
+loops to store the value that is read from standard input.
+.It Ev SECONDS
+The number of seconds since the shell started or, if the parameter has been
+assigned an integer value, the number of seconds since the assignment plus the
+value that was assigned.
+.It Ev TERM
+The user's terminal type.
+If set, it will be used to determine the escape sequence used to
+clear the screen.
+.It Ev TMOUT
+If set to a positive integer in an interactive shell, it specifies the maximum
+number of seconds the shell will wait for input after printing the primary
+prompt
+.Pq Ev PS1 .
+If the time is exceeded, the shell exits.
+.It Ev TMPDIR
+The directory temporary shell files are created in.
+If this parameter is not
+set, or does not contain the absolute path of a writable directory, temporary
+files are created in
+.Pa /tmp .
+.It Ev VISUAL
+If set, this parameter controls the command-line editing mode for interactive
+shells.
+If the last component of the path specified in this parameter contains
+the string
+.Dq vi ,
+.Dq emacs ,
+or
+.Dq gmacs ,
+the
+.Xr vi 1 ,
+emacs, or gmacs (Gosling emacs) editing mode is enabled, respectively.
+See also the
+.Ev EDITOR
+parameter, above.
+.El
+.Ss Tilde expansion
+Tilde expansion, which is done in parallel with parameter substitution, is done
+on words starting with an unquoted
+.Ql ~ .
+The characters following the tilde, up to the first
+.Ql / ,
+if any, are assumed to be a login name.
+If the login name is empty,
+.Ql + ,
+or
+.Ql - ,
+the value of the
+.Ev HOME ,
+.Ev PWD ,
+or
+.Ev OLDPWD
+parameter is substituted, respectively.
+Otherwise, the password file is
+searched for the login name, and the tilde expression is substituted with the
+user's home directory.
+If the login name is not found in the password file or
+if any quoting or parameter substitution occurs in the login name, no
+substitution is performed.
+.Pp
+In parameter assignments
+(such as those preceding a simple-command or those occurring
+in the arguments of
+.Ic alias ,
+.Ic export ,
+.Ic readonly ,
+and
+.Ic typeset ) ,
+tilde expansion is done after any assignment
+(i.e. after the equals sign)
+or after an unquoted colon
+.Pq Sq \&: ;
+login names are also delimited by colons.
+.Pp
+The home directory of previously expanded login names are cached and re-used.
+The
+.Ic alias -d
+command may be used to list, change, and add to this cache (e.g.\&
+.Ic alias -d fac=/usr/local/facilities; cd ~fac/bin ) .
+.Ss Brace expansion (alternation)
+Brace expressions take the following form:
+.Bd -unfilled -offset indent
+.Sm off
+.Ar prefix No { Ar str1 No ,...,
+.Ar strN No } Ar suffix
+.Sm on
+.Ed
+.Pp
+The expressions are expanded to
+.Ar N
+words, each of which is the concatenation of
+.Ar prefix ,
+.Ar str Ns i ,
+and
+.Ar suffix
+(e.g.\&
+.Dq a{c,b{X,Y},d}e
+expands to four words:
+.Dq ace ,
+.Dq abXe ,
+.Dq abYe ,
+and
+.Dq ade ) .
+As noted in the example, brace expressions can be nested and the resulting
+words are not sorted.
+Brace expressions must contain an unquoted comma
+.Pq Sq \&,
+for expansion to occur (e.g.\&
+.Ic {}
+and
+.Ic {foo}
+are not expanded).
+Brace expansion is carried out after parameter substitution
+and before file name generation.
+.Ss File name patterns
+A file name pattern is a word containing one or more unquoted
+.Ql \&? ,
+.Ql * ,
+.Ql + ,
+.Ql @ ,
+or
+.Ql \&!
+characters or
+.Dq [..]
+sequences.
+Once brace expansion has been performed, the shell replaces file
+name patterns with the sorted names of all the files that match the pattern
+(if no files match, the word is left unchanged).
+The pattern elements have the following meaning:
+.Bl -tag -width Ds
+.It \&?
+Matches any single character.
+.It \&*
+Matches any sequence of characters.
+.It [..]
+Matches any of the characters inside the brackets.
+Ranges of characters can be
+specified by separating two characters by a
+.Ql -
+(e.g.\&
+.Dq [a0-9]
+matches the letter
+.Sq a
+or any digit).
+In order to represent itself, a
+.Ql -
+must either be quoted or the first or last character in the character list.
+Similarly, a
+.Ql \&]
+must be quoted or the first character in the list if it is to represent itself
+instead of the end of the list.
+Also, a
+.Ql \&!
+appearing at the start of the list has special meaning (see below), so to
+represent itself it must be quoted or appear later in the list.
+.Pp
+Within a bracket expression, the name of a
+.Em character class
+enclosed in
+.Sq [:
+and
+.Sq :]
+stands for the list of all characters belonging to that class.
+Supported character classes:
+.Bd -literal -offset indent
+alnum	cntrl	lower	space
+alpha	digit	print	upper
+blank	graph	punct	xdigit
+.Ed
+.Pp
+These match characters using the macros specified in
+.Xr isalnum 3 ,
+.Xr isalpha 3 ,
+and so on.
+A character class may not be used as an endpoint of a range.
+.It [!..]
+Like [..],
+except it matches any character not inside the brackets.
+.Sm off
+.It *( Ar pattern Ns | No ...| Ar pattern )
+.Sm on
+Matches any string of characters that matches zero or more occurrences of the
+specified patterns.
+Example: The pattern
+.Ic *(foo|bar)
+matches the strings
+.Dq ,
+.Dq foo ,
+.Dq bar ,
+.Dq foobarfoo ,
+etc.
+.Sm off
+.It +( Ar pattern Ns | No ...| Ar pattern )
+.Sm on
+Matches any string of characters that matches one or more occurrences of the
+specified patterns.
+Example: The pattern
+.Ic +(foo|bar)
+matches the strings
+.Dq foo ,
+.Dq bar ,
+.Dq foobar ,
+etc.
+.Sm off
+.It ?( Ar pattern Ns | No ...| Ar pattern )
+.Sm on
+Matches the empty string or a string that matches one of the specified
+patterns.
+Example: The pattern
+.Ic ?(foo|bar)
+only matches the strings
+.Dq ,
+.Dq foo ,
+and
+.Dq bar .
+.Sm off
+.It @( Ar pattern Ns | No ...| Ar pattern )
+.Sm on
+Matches a string that matches one of the specified patterns.
+Example: The pattern
+.Ic @(foo|bar)
+only matches the strings
+.Dq foo
+and
+.Dq bar .
+.Sm off
+.It !( Ar pattern Ns | No ...| Ar pattern )
+.Sm on
+Matches any string that does not match one of the specified patterns.
+Examples: The pattern
+.Ic !(foo|bar)
+matches all strings except
+.Dq foo
+and
+.Dq bar ;
+the pattern
+.Ic !(*)
+matches no strings; the pattern
+.Ic !(?)*\&
+matches all strings (think about it).
+.El
+.Pp
+Unlike most shells,
+.Nm ksh
+never matches
+.Sq \&.
+and
+.Sq .. .
+.Pp
+Note that none of the above pattern elements match either a period
+.Pq Sq \&.
+at the start of a file name or a slash
+.Pq Sq / ,
+even if they are explicitly used in a [..] sequence; also, the names
+.Sq \&.
+and
+.Sq ..
+are never matched, even by the pattern
+.Sq .* .
+.Pp
+If the
+.Ic markdirs
+option is set, any directories that result from file name generation are marked
+with a trailing
+.Ql / .
+.Ss Input/output redirection
+When a command is executed, its standard input, standard output, and standard
+error (file descriptors 0, 1, and 2, respectively) are normally inherited from
+the shell.
+Three exceptions to this are commands in pipelines, for which
+standard input and/or standard output are those set up by the pipeline,
+asynchronous commands created when job control is disabled, for which standard
+input is initially set to be from
+.Pa /dev/null ,
+and commands for which any of the following redirections have been specified:
+.Bl -tag -width Ds
+.It Cm > Ar file
+Standard output is redirected to
+.Ar file .
+If
+.Ar file
+does not exist, it is created; if it does exist, is a regular file, and the
+.Ic noclobber
+option is set, an error occurs; otherwise, the file is truncated.
+Note that this means the command
+.Ic cmd < foo > foo
+will open
+.Ar foo
+for reading and then truncate it when it opens it for writing, before
+.Ar cmd
+gets a chance to actually read
+.Ar foo .
+.It Cm >| Ar file
+Same as
+.Cm > ,
+except the file is truncated, even if the
+.Ic noclobber
+option is set.
+.It Cm >> Ar file
+Same as
+.Cm > ,
+except if
+.Ar file
+exists it is appended to instead of being truncated.
+Also, the file is opened
+in append mode, so writes always go to the end of the file (see
+.Xr open 2 ) .
+.It Cm < Ar file
+Standard input is redirected from
+.Ar file ,
+which is opened for reading.
+.It Cm <> Ar file
+Same as
+.Cm < ,
+except the file is opened for reading and writing.
+.It Cm << Ar marker
+After reading the command line containing this kind of redirection (called a
+.Dq here document ) ,
+the shell copies lines from the command source into a temporary file until a
+line matching
+.Ar marker
+is read.
+When the command is executed, standard input is redirected from the
+temporary file.
+If
+.Ar marker
+contains no quoted characters, the contents of the temporary file are processed
+as if enclosed in double quotes each time the command is executed, so
+parameter, command, and arithmetic substitutions are performed, along with
+backslash
+.Pq Sq \e
+escapes for
+.Ql $ ,
+.Ql ` ,
+.Ql \e ,
+and
+.Ql \enewline .
+If multiple here documents are used on the same command line, they are saved in
+order.
+.It Cm <<- Ar marker
+Same as
+.Cm << ,
+except leading tabs are stripped from lines in the here document.
+.It Cm <& Ar fd
+Standard input is duplicated from file descriptor
+.Ar fd .
+.Ar fd
+can be a single digit, indicating the number of an existing file descriptor;
+the letter
+.Ql p ,
+indicating the file descriptor associated with the output of the current
+co-process; or the character
+.Ql - ,
+indicating standard input is to be closed.
+.It Cm >& Ar fd
+Same as
+.Cm <& ,
+except the operation is done on standard output.
+.El
+.Pp
+In any of the above redirections, the file descriptor that is redirected
+(i.e. standard input or standard output)
+can be explicitly given by preceding the
+redirection with a single digit.
+Parameter, command, and arithmetic
+substitutions, tilde substitutions, and (if the shell is interactive)
+file name generation are all performed on the
+.Ar file ,
+.Ar marker ,
+and
+.Ar fd
+arguments of redirections.
+Note, however, that the results of any file name
+generation are only used if a single file is matched; if multiple files match,
+the word with the expanded file name generation characters is used.
+Note
+that in restricted shells, redirections which can create files cannot be used.
+.Pp
+For simple-commands, redirections may appear anywhere in the command; for
+compound-commands
+.Po
+.Ic if
+statements, etc.
+.Pc ,
+any redirections must appear at the end.
+Redirections are processed after
+pipelines are created and in the order they are given, so the following
+will print an error with a line number prepended to it:
+.Pp
+.D1 $ cat /foo/bar 2>&1 > /dev/null | cat -n
+.Ss Arithmetic expressions
+Integer arithmetic expressions can be used with the
+.Ic let
+command, inside $((..)) expressions, inside array references (e.g.\&
+.Ar name Ns Bq Ar expr ) ,
+as numeric arguments to the
+.Ic test
+command, and as the value of an assignment to an integer parameter.
+.Pp
+Expressions may contain alpha-numeric parameter identifiers, array references,
+and integer constants and may be combined with the following C operators
+(listed and grouped in increasing order of precedence):
+.Pp
+Unary operators:
+.Bd -literal -offset indent
++ - ! ~ ++ --
+.Ed
+.Pp
+Binary operators:
+.Bd -literal -offset indent
+,
+= *= /= %= += -= <<= >>= &= ^= |=
+||
+&&
+|
+^
+&
+== !=
+< <= >= >
+<< >>
++ -
+* / %
+.Ed
+.Pp
+Ternary operators:
+.Bd -literal -offset indent
+?: (precedence is immediately higher than assignment)
+.Ed
+.Pp
+Grouping operators:
+.Bd -literal -offset indent
+( )
+.Ed
+.Pp
+A parameter that is NULL or unset evaluates to 0.
+Integer constants may be specified with arbitrary bases using the notation
+.Ar base Ns # Ns Ar number ,
+where
+.Ar base
+is a decimal integer specifying the base, and
+.Ar number
+is a number in the specified base.
+Additionally,
+integers may be prefixed with
+.Sq 0X
+or
+.Sq 0x
+(specifying base 16)
+or
+.Sq 0
+(base 8)
+in all forms of arithmetic expressions,
+except as numeric arguments to the
+.Ic test
+command.
+.Pp
+The operators are evaluated as follows:
+.Bl -tag -width Ds -offset indent
+.It unary +
+Result is the argument (included for completeness).
+.It unary -
+Negation.
+.It \&!
+Logical NOT;
+the result is 1 if argument is zero, 0 if not.
+.It ~
+Arithmetic (bit-wise) NOT.
+.It ++
+Increment; must be applied to a parameter (not a literal or other expression).
+The parameter is incremented by 1.
+When used as a prefix operator, the result
+is the incremented value of the parameter; when used as a postfix operator, the
+result is the original value of the parameter.
+.It --
+Similar to
+.Ic ++ ,
+except the parameter is decremented by 1.
+.It \&,
+Separates two arithmetic expressions; the left-hand side is evaluated first,
+then the right.
+The result is the value of the expression on the right-hand side.
+.It =
+Assignment; the variable on the left is set to the value on the right.
+.It Xo
+.No *= /= += -= <<=
+.No >>= &= ^= |=
+.Xc
+Assignment operators.
+.Sm off
+.Ao Ar var Ac Xo
+.Aq Ar op
+.No = Aq Ar expr
+.Xc
+.Sm on
+is the same as
+.Sm off
+.Ao Ar var Ac Xo
+.No = Aq Ar var
+.Aq Ar op
+.Aq Ar expr ,
+.Xc
+.Sm on
+with any operator precedence in
+.Aq Ar expr
+preserved.
+For example,
+.Dq var1 *= 5 + 3
+is the same as specifying
+.Dq var1 = var1 * (5 + 3) .
+.It ||
+Logical OR;
+the result is 1 if either argument is non-zero, 0 if not.
+The right argument is evaluated only if the left argument is zero.
+.It &&
+Logical AND;
+the result is 1 if both arguments are non-zero, 0 if not.
+The right argument is evaluated only if the left argument is non-zero.
+.It |
+Arithmetic (bit-wise) OR.
+.It ^
+Arithmetic (bit-wise) XOR
+(exclusive-OR).
+.It &
+Arithmetic (bit-wise) AND.
+.It ==
+Equal; the result is 1 if both arguments are equal, 0 if not.
+.It !=
+Not equal; the result is 0 if both arguments are equal, 1 if not.
+.It <
+Less than; the result is 1 if the left argument is less than the right, 0 if
+not.
+.It <= >= >
+Less than or equal, greater than or equal, greater than.
+See
+.Ic < .
+.It << >>
+Shift left (right); the result is the left argument with its bits shifted left
+(right) by the amount given in the right argument.
+.It + - * /
+Addition, subtraction, multiplication, and division.
+.It %
+Remainder; the result is the remainder of the division of the left argument by
+the right.
+The sign of the result is unspecified if either argument is negative.
+.It Xo
+.Sm off
+.Aq Ar arg1 ?
+.Aq Ar arg2 :
+.Aq Ar arg3
+.Sm on
+.Xc
+If
+.Aq Ar arg1
+is non-zero, the result is
+.Aq Ar arg2 ;
+otherwise the result is
+.Aq Ar arg3 .
+.El
+.Ss Co-processes
+A co-process, which is a pipeline created with the
+.Sq |&
+operator, is an asynchronous process that the shell can both write to (using
+.Ic print -p )
+and read from (using
+.Ic read -p ) .
+The input and output of the co-process can also be manipulated using
+.Cm >&p
+and
+.Cm <&p
+redirections, respectively.
+Once a co-process has been started, another can't
+be started until the co-process exits, or until the co-process's input has been
+redirected using an
+.Ic exec Ar n Ns Cm >&p
+redirection.
+If a co-process's input is redirected in this way, the next
+co-process to be started will share the output with the first co-process,
+unless the output of the initial co-process has been redirected using an
+.Ic exec Ar n Ns Cm <&p
+redirection.
+.Pp
+Some notes concerning co-processes:
+.Bl -bullet
+.It
+The only way to close the co-process's input (so the co-process reads an
+end-of-file) is to redirect the input to a numbered file descriptor and then
+close that file descriptor e.g.\&
+.Ic exec 3>&p; exec 3>&- .
+.It
+In order for co-processes to share a common output, the shell must keep the
+write portion of the output pipe open.
+This means that end-of-file will not be
+detected until all co-processes sharing the co-process's output have exited
+(when they all exit, the shell closes its copy of the pipe).
+This can be
+avoided by redirecting the output to a numbered file descriptor (as this also
+causes the shell to close its copy).
+Note that this behaviour is slightly
+different from the original Korn shell which closes its copy of the write
+portion of the co-process output when the most recently started co-process
+(instead of when all sharing co-processes) exits.
+.It
+.Ic print -p
+will ignore
+.Dv SIGPIPE
+signals during writes if the signal is not being trapped or ignored; the same
+is true if the co-process input has been duplicated to another file descriptor
+and
+.Ic print -u Ns Ar n
+is used.
+.El
+.Ss Functions
+Functions are defined using either Korn shell
+.Ic function Ar function-name
+syntax or the Bourne/POSIX shell
+.Ar function-name Ns ()
+syntax (see below for the difference between the two forms).
+Functions are like
+.Ic \&. Ns -scripts
+(i.e. scripts sourced using the
+.Sq Ic \&.
+built-in command)
+in that they are executed in the current environment.
+However, unlike
+.Ic \&. Ns -scripts,
+shell arguments (i.e. positional parameters $1, $2, etc.)\&
+are never visible inside them.
+When the shell is determining the location of a command, functions
+are searched after special built-in commands, before regular and
+non-regular built-ins, and before the
+.Ev PATH
+is searched.
+.Pp
+An existing function may be deleted using
+.Ic unset Fl f Ar function-name .
+A list of functions can be obtained using
+.Ic typeset +f
+and the function definitions can be listed using
+.Ic typeset -f .
+The
+.Ic autoload
+command (which is an alias for
+.Ic typeset -fu )
+may be used to create undefined functions: when an undefined function is
+executed, the shell searches the path specified in the
+.Ev FPATH
+parameter for a file with the same name as the function, which, if found, is
+read and executed.
+If after executing the file the named function is found to
+be defined, the function is executed; otherwise, the normal command search is
+continued (i.e. the shell searches the regular built-in command table and
+.Ev PATH ) .
+Note that if a command is not found using
+.Ev PATH ,
+an attempt is made to autoload a function using
+.Ev FPATH
+(this is an undocumented feature of the original Korn shell).
+.Pp
+Functions can have two attributes,
+.Dq trace
+and
+.Dq export ,
+which can be set with
+.Ic typeset -ft
+and
+.Ic typeset -fx ,
+respectively.
+When a traced function is executed, the shell's
+.Ic xtrace
+option is turned on for the function's duration; otherwise, the
+.Ic xtrace
+option is turned off.
+The
+.Dq export
+attribute of functions is currently not used.
+In the original Korn shell,
+exported functions are visible to shell scripts that are executed.
+.Pp
+Since functions are executed in the current shell environment, parameter
+assignments made inside functions are visible after the function completes.
+If this is not the desired effect, the
+.Ic typeset
+command can be used inside a function to create a local parameter.
+Note that special parameters (e.g.\&
+.Ic \&$$ , $! )
+can't be scoped in this way.
+.Pp
+The exit status of a function is that of the last command executed in the
+function.
+A function can be made to finish immediately using the
+.Ic return
+command; this may also be used to explicitly specify the exit status.
+.Pp
+Functions defined with the
+.Ic function
+reserved word are treated differently in the following ways from functions
+defined with the
+.Ic ()
+notation:
+.Bl -bullet
+.It
+The $0 parameter is set to the name of the function
+(Bourne-style functions leave $0 untouched).
+.It
+Parameter assignments preceding function calls are not kept in the shell
+environment (executing Bourne-style functions will keep assignments).
+.It
+.Ev OPTIND
+is saved/reset and restored on entry and exit from the function so
+.Ic getopts
+can be used properly both inside and outside the function (Bourne-style
+functions leave
+.Ev OPTIND
+untouched, so using
+.Ic getopts
+inside a function interferes with using
+.Ic getopts
+outside the function).
+.El
+.Ss POSIX mode
+The shell is intended to be POSIX compliant;
+however, in some cases, POSIX behaviour is contrary either to
+the original Korn shell behaviour or to user convenience.
+How the shell behaves in these cases is determined by the state of the
+.Ic posix
+option
+.Pq Ic set -o posix .
+If it is on, the POSIX behaviour is followed; otherwise, it is not.
+The
+.Ic posix
+option is set automatically when the shell starts up if the environment
+contains the
+.Ev POSIXLY_CORRECT
+parameter.
+The shell can also be compiled so that it is in POSIX mode by default;
+however, this is usually not desirable.
+.Pp
+The following is a list of things that are affected by the state of the
+.Ic posix
+option:
+.Bl -bullet
+.It
+.Ic kill -l
+output.
+In POSIX mode, only signal names are listed (in a single line);
+in non-POSIX mode,
+signal numbers, names, and descriptions are printed (in columns).
+.It
+.Ic echo
+options.
+In POSIX mode,
+.Fl e
+and
+.Fl E
+are not treated as options, but printed like other arguments;
+in non-POSIX mode, these options control the interpretation
+of backslash sequences.
+.It
+.Ic fg
+exit status.
+In POSIX mode, the exit status is 0 if no errors occur;
+in non-POSIX mode, the exit status is that of the last foregrounded job.
+.It
+.Ic eval
+exit status.
+If
+.Ic eval
+gets to see an empty command (i.e.\&
+.Ic eval `false` ) ,
+its exit status in POSIX mode will be 0.
+In non-POSIX mode,
+it will be the exit status of the last command substitution that was
+done in the processing of the arguments to
+.Ic eval
+(or 0 if there were no command substitutions).
+.It
+.Ic getopts .
+In POSIX mode, options must start with a
+.Ql - ;
+in non-POSIX mode, options can start with either
+.Ql -
+or
+.Ql + .
+.It
+Brace expansion (also known as alternation).
+In POSIX mode, brace expansion is disabled;
+in non-POSIX mode, brace expansion is enabled.
+Note that
+.Ic set -o posix
+(or setting the
+.Ev POSIXLY_CORRECT
+parameter) automatically turns the
+.Ic braceexpand
+option off; however, it can be explicitly turned on later.
+.It
+.Ic set - .
+In POSIX mode, this does not clear the
+.Ic verbose
+or
+.Ic xtrace
+options; in non-POSIX mode, it does.
+.It
+.Ic set
+exit status.
+In POSIX mode, the exit status of
+.Ic set
+is 0 if there are no errors;
+in non-POSIX mode, the exit status is that of any
+command substitutions performed in generating the
+.Ic set
+command.
+For example,
+.Ic set -- `false`; echo $?\&
+prints 0 in POSIX mode, 1 in non-POSIX mode.
+This construct is used in most shell scripts that use the old
+.Xr getopt 1
+command.
+.It
+Argument expansion of the
+.Ic alias ,
+.Ic export ,
+.Ic readonly ,
+and
+.Ic typeset
+commands.
+In POSIX mode, normal argument expansion is done; in non-POSIX mode,
+field splitting, file globbing, brace expansion, and (normal) tilde expansion
+are turned off, while assignment tilde expansion is turned on.
+.It
+Signal specification.
+In POSIX mode, signals can be specified as digits, only
+if signal numbers match POSIX values
+(i.e. HUP=1, INT=2, QUIT=3, ABRT=6, KILL=9, ALRM=14, and TERM=15);
+in non-POSIX mode, signals can always be digits.
+.It
+Alias expansion.
+In POSIX mode, alias expansion is only carried out when reading command words;
+in non-POSIX mode, alias expansion is carried out on any
+word following an alias that ended in a space.
+For example, the following
+.Ic for
+loop uses parameter
+.Sq i
+in POSIX mode and
+.Sq j
+in non-POSIX mode:
+.Bd -literal -offset indent
+alias a='for ' i='j'
+a i in 1 2; do echo i=$i j=$j; done
+.Ed
+.El
+.Ss Strict Bourne shell mode
+When the
+.Ic sh
+option is enabled (see the
+.Ic set
+command),
+.Nm
+will behave like
+.Xr sh 1
+in the following ways:
+.Bl -bullet
+.It
+The parameter
+.Ic $_
+is not set to:
+.Pp
+.Bl -dash -compact
+.It
+the expanded alias' full program path after entering commands
+that are tracked aliases
+.It
+the last argument on the command line after entering external
+commands
+.It
+the file that changed when
+.Ev MAILPATH
+is set to monitor a mailbox
+.El
+.It
+File descriptors are left untouched when executing
+.Ic exec
+with no arguments.
+.It
+Backslash-escaped special characters are not substituted in
+.Ev PS1 .
+.It
+Sequences of
+.Sq ((...))
+are not interpreted as arithmetic expressions.
+.El
+.Ss Command execution
+After evaluation of command-line arguments, redirections, and parameter
+assignments, the type of command is determined: a special built-in, a
+function, a regular built-in, or the name of a file to execute found using the
+.Ev PATH
+parameter.
+The checks are made in the above order.
+Special built-in commands differ from other commands in that the
+.Ev PATH
+parameter is not used to find them, an error during their execution can
+cause a non-interactive shell to exit, and parameter assignments that are
+specified before the command are kept after the command completes.
+Just to confuse things, if the
+.Ic posix
+option is turned off (see the
+.Ic set
+command below), some special commands are very special in that no field
+splitting, file globbing, brace expansion, nor tilde expansion is performed
+on arguments that look like assignments.
+Regular built-in commands are different only in that the
+.Ev PATH
+parameter is not used to find them.
+.Pp
+The original
+.Nm ksh
+and POSIX differ somewhat in which commands are considered
+special or regular:
+.Pp
+POSIX special commands
+.Pp
+.Ic \&. , \&: , break , continue ,
+.Ic eval , exec , exit , export ,
+.Ic readonly , return , set , shift ,
+.Ic times , trap , unset
+.Pp
+Additional
+.Nm
+special commands
+.Pp
+.Ic builtin , typeset
+.Pp
+Very special commands
+.Pq when POSIX mode is off
+.Pp
+.Ic alias , readonly , set , typeset
+.Pp
+POSIX regular commands
+.Pp
+.Ic alias , bg , cd , command ,
+.Ic false , fc , fg , getopts ,
+.Ic jobs , kill , pwd , read ,
+.Ic true , umask , unalias , wait
+.Pp
+Additional
+.Nm
+regular commands
+.Pp
+.Ic \&[ , echo , let ,
+.Ic print , suspend , test ,
+.Ic ulimit , whence
+.Pp
+Once the type of command has been determined, any command-line parameter
+assignments are performed and exported for the duration of the command.
+.Pp
+The following describes the special and regular built-in commands:
+.Pp
+.Bl -tag -width Ds -compact
+.It Ic \&. Ar file Op Ar arg ...
+Execute the commands in
+.Ar file
+in the current environment.
+The file is searched for in the directories of
+.Ev PATH .
+If arguments are given, the positional parameters may be used to access them
+while
+.Ar file
+is being executed.
+If no arguments are given, the positional parameters are
+those of the environment the command is used in.
+.Pp
+.It Ic \&: Op Ar ...
+The null command.
+Exit status is set to zero.
+.Pp
+.It Xo Ic alias
+.Oo Fl d | t Oo Fl r Oc |
+.Cm +-x Oc
+.Op Fl p
+.Op Cm +
+.Op Ar name Ns Oo = Ns Ar value Oc Ar ...
+.Xc
+Without arguments,
+.Ic alias
+lists all aliases.
+For any name without a value, the existing alias is listed.
+Any name with a value defines an alias (see
+.Sx Aliases
+above).
+.Pp
+When listing aliases, one of two formats is used.
+Normally, aliases are listed as
+.Ar name Ns = Ns Ar value ,
+where
+.Ar value
+is quoted.
+If options were preceded with
+.Ql + ,
+or a lone
+.Ql +
+is given on the command line, only
+.Ar name
+is printed.
+.Pp
+The
+.Fl d
+option causes directory aliases, which are used in tilde expansion, to be
+listed or set (see
+.Sx Tilde expansion
+above).
+.Pp
+If the
+.Fl p
+option is used, each alias is prefixed with the string
+.Dq alias\ \& .
+.Pp
+The
+.Fl t
+option indicates that tracked aliases are to be listed/set (values specified on
+the command line are ignored for tracked aliases).
+The
+.Fl r
+option indicates that all tracked aliases are to be reset.
+.Pp
+The
+.Fl x
+option sets
+.Pq Ic +x No clears
+the export attribute of an alias or, if no names are given, lists the aliases
+with the export attribute (exporting an alias has no effect).
+.Pp
+.It Ic bg Op Ar job ...
+Resume the specified stopped job(s) in the background.
+If no jobs are specified,
+.Ic %+
+is assumed.
+See
+.Sx Job control
+below for more information.
+.Pp
+.It Ic bind Op Fl l
+The current bindings are listed.
+If the
+.Fl l
+flag is given,
+.Ic bind
+instead lists the names of the functions to which keys may be bound.
+See
+.Sx Emacs editing mode
+for more information.
+.Pp
+.It Xo Ic bind Op Fl m
+.Ar string Ns = Ns Op Ar substitute
+.Ar ...
+.Xc
+.It Xo Ic bind
+.Ar string Ns = Ns Op Ar editing-command
+.Ar ...
+.Xc
+In
+.Sx Emacs editing mode ,
+the specified editing command is bound to the given
+.Ar string .
+Future input of the
+.Ar string
+will cause the editing command to be immediately invoked.
+Bindings have no effect in
+.Sx Vi editing mode .
+.Pp
+If the
+.Fl m
+flag is given, the specified input
+.Ar string
+will afterwards be immediately replaced by the given
+.Ar substitute
+string, which may contain editing commands.
+Control characters may be written using caret notation.
+For example, ^X represents Control-X.
+.Pp
+If a certain character occurs as the first character of any bound
+multi-character
+.Ar string
+sequence, that character becomes a command prefix character.
+Any character sequence that starts with a command prefix character
+but that is not bound to a command or substitute
+is implicitly considered as bound to the
+.Sq error
+command.
+By default, two command prefix characters exist:
+Escape
+.Pq ^[
+and Control-X
+.Pq ^X .
+.Pp
+The following default bindings show how the arrow keys
+on an ANSI terminal or xterm are bound
+(of course some escape sequences won't work out quite this nicely):
+.Bd -literal -offset indent
+bind '^[[A'=up-history
+bind '^[[B'=down-history
+bind '^[[C'=forward-char
+bind '^[[D'=backward-char
+.Ed
+.Pp
+.It Ic break Op Ar level
+Exit the
+.Ar level Ns th
+inner-most
+.Ic for ,
+.Ic select ,
+.Ic until ,
+or
+.Ic while
+loop.
+.Ar level
+defaults to 1.
+.Pp
+.It Ic builtin Ar command Op Ar arg ...
+Execute the built-in command
+.Ar command .
+.Pp
+.It Xo
+.Ic cd
+.Op Fl LP
+.Op Ar dir
+.Xc
+Set the working directory to
+.Ar dir .
+If the parameter
+.Ev CDPATH
+is set, it lists the search path for the directory containing
+.Ar dir .
+A
+.Dv NULL
+path or
+.Ql .\&
+means the current directory.
+If
+.Ar dir
+is found in any component of the
+.Ev CDPATH
+search path other than the
+.Dv NULL
+path, the name of the new working directory will be written to standard output.
+If
+.Ar dir
+is missing, the home directory
+.Ev HOME
+is used.
+If
+.Ar dir
+is
+.Ql - ,
+the previous working directory is used (see the
+.Ev OLDPWD
+parameter).
+.Pp
+If the
+.Fl L
+option (logical path) is used or if the
+.Ic physical
+option isn't set (see the
+.Ic set
+command below), references to
+.Sq ..
+in
+.Ar dir
+are relative to the path used to get to the directory.
+If the
+.Fl P
+option (physical path) is used or if the
+.Ic physical
+option is set,
+.Sq ..
+is relative to the filesystem directory tree.
+The
+.Ev PWD
+and
+.Ev OLDPWD
+parameters are updated to reflect the current and old working directory,
+respectively.
+.Pp
+.It Xo
+.Ic cd
+.Op Fl LP
+.Ar old new
+.Xc
+The string
+.Ar new
+is substituted for
+.Ar old
+in the current directory, and the shell attempts to change to the new
+directory.
+.Pp
+.It Xo
+.Ic command
+.Op Fl pVv
+.Ar cmd
+.Op Ar arg ...
+.Xc
+If neither the
+.Fl v
+nor
+.Fl V
+option is given,
+.Ar cmd
+is executed exactly as if
+.Ic command
+had not been specified, with two exceptions:
+firstly,
+.Ar cmd
+cannot be an alias or a shell function;
+and secondly, special built-in commands lose their specialness
+(i.e. redirection and utility errors do not cause the shell to
+exit, and command assignments are not permanent).
+.Pp
+If the
+.Fl p
+option is given, a default search path is used instead of the current value of
+.Ev PATH
+(the actual value of the default path is system dependent: on
+POSIX-ish systems, it is the value returned by
+.Ic getconf PATH ) .
+Nevertheless, reserved words, aliases, shell functions, and
+builtin commands are still found before external commands.
+.Pp
+If the
+.Fl v
+option is given, instead of executing
+.Ar cmd ,
+information about what would be executed is given (and the same is done for
+.Ar arg ... ) .
+For special and regular built-in commands and functions, their names are simply
+printed; for aliases, a command that defines them is printed; and for commands
+found by searching the
+.Ev PATH
+parameter, the full path of the command is printed.
+If no command is found
+(i.e. the path search fails), nothing is printed and
+.Ic command
+exits with a non-zero status.
+The
+.Fl V
+option is like the
+.Fl v
+option, except it is more verbose.
+.Pp
+.It Ic continue Op Ar level
+Jumps to the beginning of the
+.Ar level Ns th
+inner-most
+.Ic for ,
+.Ic select ,
+.Ic until ,
+or
+.Ic while
+loop.
+.Ar level
+defaults to 1.
+.Pp
+.It Xo
+.Ic echo
+.Op Fl Een
+.Op Ar arg ...
+.Xc
+Prints its arguments (separated by spaces) followed by a newline, to the
+standard output.
+The newline is suppressed if any of the arguments contain the
+backslash sequence
+.Ql \ec .
+See the
+.Ic print
+command below for a list of other backslash sequences that are recognized.
+.Pp
+The options are provided for compatibility with
+.Bx
+shell scripts.
+The
+.Fl n
+option suppresses the trailing newline,
+.Fl e
+enables backslash interpretation (a no-op, since this is normally done), and
+.Fl E
+suppresses backslash interpretation.
+If the
+.Ic posix
+option is set, only the first argument is treated as an option, and only
+if it is exactly
+.Dq -n .
+.Pp
+.It Ic eval Ar command ...
+The arguments are concatenated (with spaces between them) to form a single
+string which the shell then parses and executes in the current environment.
+.Pp
+.It Xo
+.Ic exec
+.Op Ar command Op Ar arg ...
+.Xc
+The command is executed without forking, replacing the shell process.
+.Pp
+If no command is given except for I/O redirection, the I/O redirection is
+permanent and the shell is
+not replaced.
+Any file descriptors greater than 2 which are opened or
+.Xr dup 2 Ns 'd
+in this way are not made available to other executed commands (i.e. commands
+that are not built-in to the shell).
+Note that the Bourne shell differs here;
+it does pass these file descriptors on.
+.Pp
+.It Ic exit Op Ar status
+The shell exits with the specified exit status.
+If
+.Ar status
+is not specified, the exit status is the current value of the
+.Ic $?\&
+parameter.
+.Pp
+.It Xo
+.Ic export
+.Op Fl p
+.Op Ar parameter Ns Op = Ns Ar value
+.Xc
+Sets the export attribute of the named parameters.
+Exported parameters are passed in the environment to executed commands.
+If values are specified, the named parameters are also assigned.
+.Pp
+If no parameters are specified, the names of all parameters with the export
+attribute are printed one per line, unless the
+.Fl p
+option is used, in which case
+.Ic export
+commands defining all exported parameters, including their values, are printed.
+.Pp
+.It Ic false
+A command that exits with a non-zero status.
+.Pp
+.It Xo
+.Ic fc
+.Oo
+.Fl e Ar editor |
+.Fl l Op Fl n
+.Oc
+.Op Fl r
+.Op Ar first Op Ar last
+.Xc
+Fix command.
+.Ar first
+and
+.Ar last
+select commands from the history.
+Commands can be selected by history number
+or a string specifying the most recent command starting with that string.
+The
+.Fl l
+option lists the command on standard output, and
+.Fl n
+inhibits the default command numbers.
+The
+.Fl r
+option reverses the order of the list.
+Without
+.Fl l ,
+the selected commands are edited by the editor specified with the
+.Fl e
+option, or if no
+.Fl e
+is specified, the editor specified by the
+.Ev FCEDIT
+parameter (if this parameter is not set,
+.Pa /bin/ed
+is used), and then executed by the shell.
+.Pp
+.It Xo
+.Ic fc Fl s
+.Op Fl g
+.Op Ar old Ns = Ns Ar new
+.Op Ar prefix
+.Xc
+Re-execute the most recent command beginning with
+.Ar prefix ,
+or the previous command if no
+.Ar prefix
+is specified,
+performing the optional substitution of
+.Ar old
+with
+.Ar new .
+If
+.Fl g
+is specified, all occurrences of
+.Ar old
+are replaced with
+.Ar new .
+The editor is not invoked when the
+.Fl s
+flag is used.
+The obsolescent equivalent
+.Dq Fl e No -
+is also accepted.
+This command is usually accessed with the predefined
+.Ic alias r='fc -s' .
+.Pp
+.It Ic fg Op Ar job ...
+Resume the specified job(s) in the foreground.
+If no jobs are specified,
+.Ic %+
+is assumed.
+See
+.Sx Job control
+below for more information.
+.Pp
+.It Xo
+.Ic getopts
+.Ar optstring name
+.Op Ar arg ...
+.Xc
+Used by shell procedures to parse the specified arguments (or positional
+parameters, if no arguments are given) and to check for legal options.
+.Ar optstring
+contains the option letters that
+.Ic getopts
+is to recognize.
+If a letter is followed by a colon, the option is expected to
+have an argument.
+Options that do not take arguments may be grouped in a single argument.
+If an option takes an argument and the option character is not the
+last character of the argument it is found in, the remainder of the argument is
+taken to be the option's argument; otherwise, the next argument is the option's
+argument.
+.Pp
+Each time
+.Ic getopts
+is invoked, it places the next option in the shell parameter
+.Ar name
+and the index of the argument to be processed by the next call to
+.Ic getopts
+in the shell parameter
+.Ev OPTIND .
+If the option was introduced with a
+.Ql + ,
+the option placed in
+.Ar name
+is prefixed with a
+.Ql + .
+When an option requires an argument,
+.Ic getopts
+places it in the shell parameter
+.Ev OPTARG .
+.Pp
+When an illegal option or a missing option argument is encountered, a question
+mark or a colon is placed in
+.Ar name
+(indicating an illegal option or missing argument, respectively) and
+.Ev OPTARG
+is set to the option character that caused the problem.
+Furthermore, if
+.Ar optstring
+does not begin with a colon, a question mark is placed in
+.Ar name ,
+.Ev OPTARG
+is unset, and an error message is printed to standard error.
+.Pp
+When the end of the options is encountered,
+.Ic getopts
+exits with a non-zero exit status.
+Options end at the first (non-option
+argument) argument that does not start with a
+.Ql - ,
+or when a
+.Ql --
+argument is encountered.
+.Pp
+Option parsing can be reset by setting
+.Ev OPTIND
+to 1 (this is done automatically whenever the shell or a shell procedure is
+invoked).
+.Pp
+Warning: Changing the value of the shell parameter
+.Ev OPTIND
+to a value other than 1, or parsing different sets of arguments without
+resetting
+.Ev OPTIND ,
+may lead to unexpected results.
+.Pp
+The following code fragment shows how one might process the arguments
+for a command that can take the option
+.Fl a
+and the option
+.Fl o ,
+which requires an argument.
+.Bd -literal -offset indent
+while getopts ao: name
+do
+	case $name in
+	a)	flag=1 ;;
+	o)	oarg=$OPTARG ;;
+	?)	echo "Usage: ..."; exit 2 ;;
+	esac
+done
+shift $(($OPTIND - 1))
+echo "Non-option arguments: " "$@"
+.Ed
+.Pp
+.It Xo
+.Ic hash
+.Op Fl r
+.Op Ar name ...
+.Xc
+Without arguments, any hashed executable command pathnames are listed.
+The
+.Fl r
+option causes all hashed commands to be removed from the hash table.
+Each
+.Ar name
+is searched as if it were a command name and added to the hash table if it is
+an executable command.
+.Pp
+.It Xo
+.Ic jobs
+.Op Fl lnp
+.Op Ar job ...
+.Xc
+Display information about the specified job(s); if no jobs are specified, all
+jobs are displayed.
+The
+.Fl n
+option causes information to be displayed only for jobs that have changed
+state since the last notification.
+If the
+.Fl l
+option is used, the process ID of each process in a job is also listed.
+The
+.Fl p
+option causes only the process group of each job to be printed.
+See
+.Sx Job control
+below for the format of
+.Ar job
+and the displayed job.
+.Pp
+.It Xo
+.Ic kill
+.Oo Fl s Ar signame |
+.No - Ns Ar signum |
+.No - Ns Ar signame Oc
+.No { Ar job | pid | pgrp No }
+.Ar ...
+.Xc
+Send the specified signal to the specified jobs, process IDs, or process
+groups.
+If no signal is specified, the
+.Dv TERM
+signal is sent.
+If a job is specified, the signal is sent to the job's process group.
+See
+.Sx Job control
+below for the format of
+.Ar job .
+.Pp
+.It Xo
+.Ic kill
+.Fl l
+.Op Ar exit-status ...
+.Xc
+Print the signal name corresponding to
+.Ar exit-status .
+If no arguments are specified, a list of all the signals, their numbers, and
+a short description of them are printed.
+.Pp
+.It Ic let Op Ar expression ...
+Each expression is evaluated (see
+.Sx Arithmetic expressions
+above).
+If all expressions are successfully evaluated, the exit status is 0 (1)
+if the last expression evaluated to non-zero (zero).
+If an error occurs during
+the parsing or evaluation of an expression, the exit status is greater than 1.
+Since expressions may need to be quoted,
+.No (( Ar expr No ))
+is syntactic sugar for
+.No let \&" Ns Ar expr Ns \&" .
+.Pp
+.It Xo
+.Ic print
+.Oo
+.Fl nprsu Ns Oo Ar n Oc |
+.Fl R Op Fl en
+.Oc
+.Op Ar argument ...
+.Xc
+.Ic print
+prints its arguments on the standard output, separated by spaces and
+terminated with a newline.
+The
+.Fl n
+option suppresses the newline.
+By default, certain C escapes are translated.
+These include
+.Ql \eb ,
+.Ql \ef ,
+.Ql \en ,
+.Ql \er ,
+.Ql \et ,
+.Ql \ev ,
+and
+.Ql \e0###
+.Po
+.Ql #
+is an octal digit, of which there may be 0 to 3
+.Pc .
+.Ql \ec
+is equivalent to using the
+.Fl n
+option.
+.Ql \e
+expansion may be inhibited with the
+.Fl r
+option.
+The
+.Fl s
+option prints to the history file instead of standard output; the
+.Fl u
+option prints to file descriptor
+.Ar n
+.Po
+.Ar n
+defaults to 1 if omitted
+.Pc ;
+and the
+.Fl p
+option prints to the co-process (see
+.Sx Co-processes
+above).
+.Pp
+The
+.Fl R
+option is used to emulate, to some degree, the
+.Bx
+.Xr echo 1
+command, which does not process
+.Ql \e
+sequences unless the
+.Fl e
+option is given.
+As above, the
+.Fl n
+option suppresses the trailing newline.
+.Pp
+.It Ic pwd Op Fl LP
+Print the present working directory.
+If the
+.Fl L
+option is used or if the
+.Ic physical
+option isn't set (see the
+.Ic set
+command below), the logical path is printed (i.e. the path used to
+.Ic cd
+to the current directory).
+If the
+.Fl P
+option (physical path) is used or if the
+.Ic physical
+option is set, the path determined from the filesystem (by following
+.Sq ..
+directories to the root directory) is printed.
+.Pp
+.It Xo
+.Ic read
+.Op Fl prsu Ns Op Ar n
+.Op Ar parameter ...
+.Xc
+Reads a line of input from the standard input, separates the line into fields
+using the
+.Ev IFS
+parameter (see
+.Sx Substitution
+above), and assigns each field to the specified parameters.
+If there are more parameters than fields, the extra parameters are set to
+.Dv NULL ,
+or alternatively, if there are more fields than parameters, the last parameter
+is assigned the remaining fields (inclusive of any separating spaces).
+If no parameters are specified, the
+.Ev REPLY
+parameter is used.
+If the input line ends in a backslash and the
+.Fl r
+option was not used, the backslash and the newline are stripped and more input
+is read.
+If no input is read,
+.Ic read
+exits with a non-zero status.
+.Pp
+The first parameter may have a question mark and a string appended to it, in
+which case the string is used as a prompt (printed to standard error before
+any input is read) if the input is a
+.Xr tty 4
+(e.g.\&
+.Ic read nfoo?'number of foos: ' ) .
+.Pp
+The
+.Fl u Ns Ar n
+and
+.Fl p
+options cause input to be read from file descriptor
+.Ar n
+.Pf ( Ar n
+defaults to 0 if omitted)
+or the current co-process (see
+.Sx Co-processes
+above for comments on this), respectively.
+If the
+.Fl s
+option is used, input is saved to the history file.
+.Pp
+.It Xo
+.Ic readonly
+.Op Fl p
+.Op Ar parameter Ns Oo = Ns Ar value Oc Ar ...
+.Xc
+Sets the read-only attribute of the named parameters.
+If values are given,
+parameters are set to them before setting the attribute.
+Once a parameter is
+made read-only, it cannot be unset and its value cannot be changed.
+.Pp
+If no parameters are specified, the names of all parameters with the read-only
+attribute are printed one per line, unless the
+.Fl p
+option is used, in which case
+.Ic readonly
+commands defining all read-only parameters, including their values, are
+printed.
+.Pp
+.It Ic return Op Ar status
+Returns from a function or
+.Ic .\&
+script, with exit status
+.Ar status .
+If no
+.Ar status
+is given, the exit status of the last executed command is used.
+If used outside of a function or
+.Ic .\&
+script, it has the same effect as
+.Ic exit .
+Note that
+.Nm ksh
+treats both profile and
+.Ev ENV
+files as
+.Ic .\&
+scripts, while the original Korn shell only treats profiles as
+.Ic .\&
+scripts.
+.Pp
+.It Xo
+.Ic set Op Ic +-abCefhkmnpsuvXx
+.Op Ic +-o Ar option
+.Op Ic +-A Ar name
+.Op Fl -
+.Op Ar arg ...
+.Xc
+The
+.Ic set
+command can be used to set
+.Pq Ic -
+or clear
+.Pq Ic +
+shell options, set the positional parameters, or set an array parameter.
+Options can be changed using the
+.Cm +-o Ar option
+syntax, where
+.Ar option
+is the long name of an option, or using the
+.Cm +- Ns Ar letter
+syntax, where
+.Ar letter
+is the option's single letter name (not all options have a single letter name).
+The following table lists both option letters (if they exist) and long names
+along with a description of what the option does:
+.Bl -tag -width 15n
+.It Fl A Ar name
+Sets the elements of the array parameter
+.Ar name
+to
+.Ar arg ...
+If
+.Fl A
+is used, the array is reset (i.e. emptied) first; if
+.Ic +A
+is used, the first N elements are set (where N is the number of arguments);
+the rest are left untouched.
+.It Fl a | Ic allexport
+All new parameters are created with the export attribute.
+.It Fl b | Ic notify
+Print job notification messages asynchronously, instead of just before the
+prompt.
+Only used if job control is enabled
+.Pq Fl m .
+.It Fl C | Ic noclobber
+Prevent
+.Cm >
+redirection from overwriting existing files.
+Instead,
+.Cm >|
+must be used to force an overwrite.
+.It Fl e | Ic errexit
+Exit (after executing the
+.Dv ERR
+trap) as soon as an error occurs or a command fails (i.e. exits with a
+non-zero status).
+This does not apply to commands whose exit status is
+explicitly tested by a shell construct such as
+.Ic if ,
+.Ic until ,
+.Ic while ,
+or
+.Ic !\&
+statements.
+For
+.Ic &&
+or
+.Ic || ,
+only the status of the last command is tested.
+.It Fl f | Ic noglob
+Do not expand file name patterns.
+.It Fl h | Ic trackall
+Create tracked aliases for all executed commands (see
+.Sx Aliases
+above).
+Enabled by default for non-interactive shells.
+.It Fl k | Ic keyword
+Parameter assignments are recognized anywhere in a command.
+.It Fl m | Ic monitor
+Enable job control (default for interactive shells).
+.It Fl n | Ic noexec
+Do not execute any commands.
+Useful for checking the syntax of scripts
+(ignored if interactive).
+.It Fl p | Ic privileged
+The shell is a privileged shell.
+It is set automatically if, when the shell starts,
+the real UID or GID does not match
+the effective UID (EUID) or GID (EGID), respectively.
+See above for a description of what this means.
+.It Fl s | Ic stdin
+If used when the shell is invoked, commands are read from standard input.
+Set automatically if the shell is invoked with no arguments.
+.Pp
+When
+.Fl s
+is used with the
+.Ic set
+command it causes the specified arguments to be sorted before assigning them to
+the positional parameters (or to array
+.Ar name ,
+if
+.Fl A
+is used).
+.It Fl u | Ic nounset
+Referencing of an unset parameter is treated as an error, unless one of the
+.Ql - ,
+.Ql + ,
+or
+.Ql =
+modifiers is used.
+.It Fl v | Ic verbose
+Write shell input to standard error as it is read.
+.It Fl X | Ic markdirs
+Mark directories with a trailing
+.Ql /
+during file name generation.
+.It Fl x | Ic xtrace
+Print commands and parameter assignments when they are executed, preceded by
+the value of
+.Ev PS4 .
+.It Ic bgnice
+Background jobs are run with lower priority.
+.It Ic braceexpand
+Enable brace expansion (a.k.a. alternation).
+.It Ic csh-history
+Enables a subset of
+.Xr csh 1 Ns -style
+history editing using the
+.Ql !\&
+character.
+.It Ic emacs
+Enable BRL emacs-like command-line editing (interactive shells only); see
+.Sx Emacs editing mode .
+.It Ic gmacs
+Enable gmacs-like command-line editing (interactive shells only).
+Currently identical to emacs editing except that transpose (^T) acts slightly
+differently.
+.It Ic ignoreeof
+The shell will not (easily) exit when end-of-file is read;
+.Ic exit
+must be used.
+To avoid infinite loops, the shell will exit if
+.Dv EOF
+is read 13 times in a row.
+.It Ic interactive
+The shell is an interactive shell.
+This option can only be used when the shell is invoked.
+See above for a description of what this means.
+.It Ic login
+The shell is a login shell.
+This option can only be used when the shell is invoked.
+See above for a description of what this means.
+.It Ic nohup
+Do not kill running jobs with a
+.Dv SIGHUP
+signal when a login shell exits.
+Currently set by default;
+this is different from the original Korn shell (which
+doesn't have this option, but does send the
+.Dv SIGHUP
+signal).
+.It Ic nolog
+No effect.
+In the original Korn shell, this prevents function definitions from
+being stored in the history file.
+.It Ic physical
+Causes the
+.Ic cd
+and
+.Ic pwd
+commands to use
+.Dq physical
+(i.e. the filesystem's)
+.Sq ..
+directories instead of
+.Dq logical
+directories (i.e. the shell handles
+.Sq .. ,
+which allows the user to be oblivious of symbolic links to directories).
+Clear by default.
+Note that setting this option does not affect the current value of the
+.Ev PWD
+parameter; only the
+.Ic cd
+command changes
+.Ev PWD .
+See the
+.Ic cd
+and
+.Ic pwd
+commands above for more details.
+.It Ic pipefail
+The exit status of a pipeline is the exit status of the rightmost
+command in the pipeline that doesn't return 0, or 0 if all commands
+returned a 0 exit status.
+.It Ic posix
+Enable POSIX mode.
+See
+.Sx POSIX mode
+above.
+.It Ic restricted
+The shell is a restricted shell.
+This option can only be used when the shell is invoked.
+See above for a description of what this means.
+.It Ic sh
+Enable strict Bourne shell mode (see
+.Sx Strict Bourne shell mode
+above).
+.It Ic vi
+Enable
+.Xr vi 1 Ns -like
+command-line editing (interactive shells only).
+.It Ic vi-esccomplete
+In vi command-line editing, do command and file name completion when escape
+(^[) is entered in command mode.
+.It Ic vi-show8
+Prefix characters with the eighth bit set with
+.Sq M- .
+If this option is not set, characters in the range 128\-160 are printed as is,
+which may cause problems.
+.It Ic vi-tabcomplete
+In vi command-line editing, do command and file name completion when tab (^I)
+is entered in insert mode.
+This is the default.
+.It Ic viraw
+No effect.
+In the original Korn shell, unless
+.Ic viraw
+was set, the vi command-line mode would let the
+.Xr tty 4
+driver do the work until ESC (^[) was entered.
+.Nm ksh
+is always in viraw mode.
+.El
+.Pp
+These options can also be used upon invocation of the shell.
+The current set of
+options (with single letter names) can be found in the parameter
+.Sq $- .
+.Ic set Fl o
+with no option name will list all the options and whether each is on or off;
+.Ic set +o
+will print the current shell options in a form that
+can be reinput to the shell to achieve the same option settings.
+.Pp
+Remaining arguments, if any, are positional parameters and are assigned, in
+order, to the positional parameters (i.e. $1, $2, etc.).
+If options end with
+.Ql --
+and there are no remaining arguments, all positional parameters are cleared.
+If no options or arguments are given, the values of all names are printed.
+For unknown historical reasons, a lone
+.Ql -
+option is treated specially \- it clears both the
+.Fl x
+and
+.Fl v
+options.
+.Pp
+.It Ic shift Op Ar number
+The positional parameters
+.Ar number Ns +1 ,
+.Ar number Ns +2 ,
+etc. are renamed to
+.Sq 1 ,
+.Sq 2 ,
+etc.
+.Ar number
+defaults to 1.
+.Pp
+.It Ic suspend
+Stops the shell as if it had received the suspend character from
+the terminal.
+It is not possible to suspend a login shell unless the parent process
+is a member of the same terminal session but is a member of a different
+process group.
+As a general rule, if the shell was started by another shell or via
+.Xr su 1 ,
+it can be suspended.
+.Pp
+.It Ic test Ar expression
+.It Ic \&[ Ar expression Ic \&]
+.Ic test
+evaluates the
+.Ar expression
+and returns zero status if true, 1 if false, or greater than 1 if there
+was an error.
+It is normally used as the condition command of
+.Ic if
+and
+.Ic while
+statements.
+Symbolic links are followed for all
+.Ar file
+expressions except
+.Fl h
+and
+.Fl L .
+.Pp
+The following basic expressions are available:
+.Bl -tag -width 17n
+.It Fl a Ar file
+.Ar file
+exists.
+.It Fl b Ar file
+.Ar file
+is a block special device.
+.It Fl c Ar file
+.Ar file
+is a character special device.
+.It Fl d Ar file
+.Ar file
+is a directory.
+.It Fl e Ar file
+.Ar file
+exists.
+.It Fl f Ar file
+.Ar file
+is a regular file.
+.It Fl G Ar file
+.Ar file Ns 's
+group is the shell's effective group ID.
+.It Fl g Ar file
+.Ar file Ns 's
+mode has the setgid bit set.
+.It Fl h Ar file
+.Ar file
+is a symbolic link.
+.It Fl k Ar file
+.Ar file Ns 's
+mode has the
+.Xr sticky 8
+bit set.
+.It Fl L Ar file
+.Ar file
+is a symbolic link.
+.It Fl O Ar file
+.Ar file Ns 's
+owner is the shell's effective user ID.
+.It Fl o Ar option
+Shell
+.Ar option
+is set (see the
+.Ic set
+command above for a list of options).
+As a non-standard extension, if the option starts with a
+.Ql \&! ,
+the test is negated; the test always fails if
+.Ar option
+doesn't exist (so [ -o foo -o -o !foo ] returns true if and only if option
+.Ar foo
+exists).
+.It Fl p Ar file
+.Ar file
+is a named pipe.
+.It Fl r Ar file
+.Ar file
+exists and is readable.
+.It Fl S Ar file
+.Ar file
+is a
+.Xr unix 4 Ns -domain
+socket.
+.It Fl s Ar file
+.Ar file
+is not empty.
+.It Fl t Ar fd
+File descriptor
+.Ar fd
+is a
+.Xr tty 4
+device.
+.It Fl u Ar file
+.Ar file Ns 's
+mode has the setuid bit set.
+.It Fl w Ar file
+.Ar file
+exists and is writable.
+.It Fl x Ar file
+.Ar file
+exists and is executable.
+.It Ar file1 Fl nt Ar file2
+.Ar file1
+is newer than
+.Ar file2
+or
+.Ar file1
+exists and
+.Ar file2
+does not.
+.It Ar file1 Fl ot Ar file2
+.Ar file1
+is older than
+.Ar file2
+or
+.Ar file2
+exists and
+.Ar file1
+does not.
+.It Ar file1 Fl ef Ar file2
+.Ar file1
+is the same file as
+.Ar file2 .
+.It Ar string
+.Ar string
+has non-zero length.
+.It Fl n Ar string
+.Ar string
+is not empty.
+.It Fl z Ar string
+.Ar string
+is empty.
+.It Ar string No = Ar string
+Strings are equal.
+.It Ar string No == Ar string
+Strings are equal.
+.It Ar string No != Ar string
+Strings are not equal.
+.It Ar string No > Ar string
+Strings compare greater than based on the ASCII value of their characters.
+.It Ar string No < Ar string
+Strings compare less than based on the ASCII value of their characters.
+.It Ar number Fl eq Ar number
+Numbers compare equal.
+.It Ar number Fl ne Ar number
+Numbers compare not equal.
+.It Ar number Fl ge Ar number
+Numbers compare greater than or equal.
+.It Ar number Fl gt Ar number
+Numbers compare greater than.
+.It Ar number Fl le Ar number
+Numbers compare less than or equal.
+.It Ar number Fl \&lt Ar number
+Numbers compare less than.
+.El
+.Pp
+The above basic expressions, in which unary operators have precedence over
+binary operators, may be combined with the following operators (listed in
+increasing order of precedence):
+.Bd -literal -offset indent
+expr -o expr		Logical OR.
+expr -a expr		Logical AND.
+! expr			Logical NOT.
+( expr )		Grouping.
+.Ed
+.Pp
+On operating systems not supporting
+.Pa /dev/fd/ Ns Ar n
+devices (where
+.Ar n
+is a file descriptor number), the
+.Ic test
+command will attempt to fake it for all tests that operate on files (except the
+.Fl e
+test).
+For example,
+[ -w /dev/fd/2 ] tests if file descriptor 2 is writable.
+.Pp
+Note that some special rules are applied (courtesy of POSIX)
+if the number of
+arguments to
+.Ic test
+or
+.Ic \&[ ... \&]
+is less than five: if leading
+.Ql \&!
+arguments can be stripped such that only one argument remains then a string
+length test is performed (again, even if the argument is a unary operator); if
+leading
+.Ql \&!
+arguments can be stripped such that three arguments remain and the second
+argument is a binary operator, then the binary operation is performed (even
+if the first argument is a unary operator, including an unstripped
+.Ql \&! ) .
+.Pp
+.Sy Note :
+A common mistake is to use
+.Dq if \&[ $foo = bar \&]
+which fails if parameter
+.Dq foo
+is
+.Dv NULL
+or unset, if it has embedded spaces (i.e.\&
+.Ev IFS
+characters), or if it is a unary operator like
+.Sq \&!
+or
+.Sq Fl n .
+Use tests like
+.Dq if \&[ \&"X$foo\&" = Xbar \&]
+instead.
+.Pp
+.It Xo
+.Ic time
+.Op Fl p
+.Op Ar pipeline
+.Xc
+If a
+.Ar pipeline
+is given, the times used to execute the pipeline are reported.
+If no pipeline
+is given, then the user and system time used by the shell itself, and all the
+commands it has run since it was started, are reported.
+The times reported are the real time (elapsed time from start to finish),
+the user CPU time (time spent running in user mode), and the system CPU time
+(time spent running in kernel mode).
+Times are reported to standard error; the format of the output is:
+.Pp
+.Dl "0m0.00s real     0m0.00s user     0m0.00s system"
+.Pp
+If the
+.Fl p
+option is given, the output is slightly longer:
+.Bd -literal -offset indent
+real     0.00
+user     0.00
+sys      0.00
+.Ed
+.Pp
+It is an error to specify the
+.Fl p
+option unless
+.Ar pipeline
+is a simple command.
+.Pp
+Simple redirections of standard error do not affect the output of the
+.Ic time
+command:
+.Pp
+.Dl $ time sleep 1 2> afile
+.Dl $ { time sleep 1; } 2> afile
+.Pp
+Times for the first command do not go to
+.Dq afile ,
+but those of the second command do.
+.Pp
+.It Ic times
+Print the accumulated user and system times used both by the shell
+and by processes that the shell started which have exited.
+The format of the output is:
+.Bd -literal -offset indent
+0m0.00s 0m0.00s
+0m0.00s 0m0.00s
+.Ed
+.Pp
+.It Ic trap Op Ar handler signal ...
+Sets a trap handler that is to be executed when any of the specified signals are
+received.
+.Ar handler
+is either a
+.Dv NULL
+string, indicating the signals are to be ignored, a minus sign
+.Pq Sq - ,
+indicating that the default action is to be taken for the signals (see
+.Xr signal 3 ) ,
+or a string containing shell commands to be evaluated and executed at the first
+opportunity (i.e. when the current command completes, or before printing the
+next
+.Ev PS1
+prompt) after receipt of one of the signals.
+.Ar signal
+is the name of a signal (e.g.\&
+.Dv PIPE
+or
+.Dv ALRM )
+or the number of the signal (see the
+.Ic kill -l
+command above).
+.Pp
+There are two special signals:
+.Dv EXIT
+(also known as 0), which is executed when the shell is about to exit, and
+.Dv ERR ,
+which is executed after an error occurs (an error is something that would cause
+the shell to exit if the
+.Fl e
+or
+.Ic errexit
+option were set \- see the
+.Ic set
+command above).
+.Dv EXIT
+handlers are executed in the environment of the last executed command.
+Note
+that for non-interactive shells, the trap handler cannot be changed for signals
+that were ignored when the shell started.
+.Pp
+With no arguments,
+.Ic trap
+lists, as a series of
+.Ic trap
+commands, the current state of the traps that have been set since the shell
+started.
+Note that the output of
+.Ic trap
+cannot be usefully piped to another process (an artifact of the fact that
+traps are cleared when subprocesses are created).
+.Pp
+The original Korn shell's
+.Dv DEBUG
+trap and the handling of
+.Dv ERR
+and
+.Dv EXIT
+traps in functions are not yet implemented.
+.Pp
+.It Ic true
+A command that exits with a zero value.
+.Pp
+.It Ic type
+Short form of
+.Ic command Fl V
+(see above).
+.Pp
+.It Xo
+.Ic typeset
+.Oo
+.Op Ic +-lprtUux
+.Op Fl L Ns Op Ar n
+.Op Fl R Ns Op Ar n
+.Op Fl Z Ns Op Ar n
+.Op Fl i Ns Op Ar n
+.No \&| Fl f Op Fl tux
+.Oc
+.Op Ar name Ns Oo = Ns Ar value Oc Ar ...
+.Xc
+Display or set parameter attributes.
+With no
+.Ar name
+arguments, parameter attributes are displayed; if no options are used, the
+current attributes of all parameters are printed as
+.Ic typeset
+commands; if an option is given (or
+.Ql -
+with no option letter), all parameters and their values with the specified
+attributes are printed; if options are introduced with
+.Ql + ,
+parameter values are not printed.
+.Pp
+If
+.Ar name
+arguments are given, the attributes of the named parameters are set
+.Pq Ic -
+or cleared
+.Pq Ic + .
+Values for parameters may optionally be specified.
+If
+.Ic typeset
+is used inside a function, any newly created parameters are local to the
+function.
+.Pp
+When
+.Fl f
+is used,
+.Ic typeset
+operates on the attributes of functions.
+As with parameters, if no
+.Ar name
+arguments are given,
+functions are listed with their values (i.e. definitions) unless
+options are introduced with
+.Ql + ,
+in which case only the function names are reported.
+.Bl -tag -width Ds
+.It Fl f
+Function mode.
+Display or set functions and their attributes, instead of parameters.
+.It Fl i Ns Op Ar n
+Integer attribute.
+.Ar n
+specifies the base to use when displaying the integer (if not specified, the
+base given in the first assignment is used).
+Parameters with this attribute may
+be assigned values containing arithmetic expressions.
+.It Fl L Ns Op Ar n
+Left justify attribute.
+.Ar n
+specifies the field width.
+If
+.Ar n
+is not specified, the current width of a parameter (or the width of its first
+assigned value) is used.
+Leading whitespace (and zeros, if used with the
+.Fl Z
+option) is stripped.
+If necessary, values are either truncated or space padded
+to fit the field width.
+.It Fl l
+Lower case attribute.
+All upper case characters in values are converted to lower case.
+(In the original Korn shell, this parameter meant
+.Dq long integer
+when used with the
+.Fl i
+option.)
+.It Fl p
+Print complete
+.Ic typeset
+commands that can be used to re-create the attributes (but not the values) of
+parameters.
+This is the default action (option exists for ksh93 compatibility).
+.It Fl R Ns Op Ar n
+Right justify attribute.
+.Ar n
+specifies the field width.
+If
+.Ar n
+is not specified, the current width of a parameter (or the width of its first
+assigned value) is used.
+Trailing whitespace is stripped.
+If necessary, values are either stripped of leading characters or space
+padded to make them fit the field width.
+.It Fl r
+Read-only attribute.
+Parameters with this attribute may not be assigned to or unset.
+Once this attribute is set, it cannot be turned off.
+.It Fl t
+Tag attribute.
+Has no meaning to the shell; provided for application use.
+.Pp
+For functions,
+.Fl t
+is the trace attribute.
+When functions with the trace attribute are executed, the
+.Ic xtrace
+.Pq Fl x
+shell option is temporarily turned on.
+.It Fl U
+Unsigned integer attribute.
+Integers are printed as unsigned values (only
+useful when combined with the
+.Fl i
+option).
+This option is not in the original Korn shell.
+.It Fl u
+Upper case attribute.
+All lower case characters in values are converted to upper case.
+(In the original Korn shell, this parameter meant
+.Dq unsigned integer
+when used with the
+.Fl i
+option, which meant upper case letters would never be used for bases greater
+than 10.
+See the
+.Fl U
+option.)
+.Pp
+For functions,
+.Fl u
+is the undefined attribute.
+See
+.Sx Functions
+above for the implications of this.
+.It Fl x
+Export attribute.
+Parameters (or functions) are placed in the environment of
+any executed commands.
+Exported functions are not yet implemented.
+.It Fl Z Ns Op Ar n
+Zero fill attribute.
+If not combined with
+.Fl L ,
+this is the same as
+.Fl R ,
+except zero padding is used instead of space padding.
+.El
+.Pp
+.It Xo
+.Ic ulimit
+.Op Fl acdfHlmnpSst Op Ar value
+.Ar ...
+.Xc
+Display or set process limits.
+If no options are used, the file size limit
+.Pq Fl f
+is assumed.
+.Ar value ,
+if specified, may be either an arithmetic expression starting with a
+number or the word
+.Dq unlimited .
+The limits affect the shell and any processes created by the shell after a
+limit is imposed; limits may not be increased once they are set.
+.Bl -tag -width 5n
+.It Fl a
+Display all limits; unless
+.Fl H
+is used, soft limits are displayed.
+.It Fl c Ar n
+Impose a size limit of
+.Ar n
+blocks on the size of core dumps.
+.It Fl d Ar n
+Impose a size limit of
+.Ar n
+kilobytes on the size of the data area.
+.It Fl f Ar n
+Impose a size limit of
+.Ar n
+blocks on files written by the shell and its child processes (files of any
+size may be read).
+.It Fl H
+Set the hard limit only (the default is to set both hard and soft limits).
+.It Fl l Ar n
+Impose a limit of
+.Ar n
+kilobytes on the amount of locked (wired) physical memory.
+.It Fl m Ar n
+Impose a limit of
+.Ar n
+kilobytes on the amount of physical memory used.
+This limit is not enforced.
+.It Fl n Ar n
+Impose a limit of
+.Ar n
+file descriptors that can be open at once.
+.It Fl p Ar n
+Impose a limit of
+.Ar n
+processes that can be run by the user at any one time.
+.It Fl S
+Set the soft limit only (the default is to set both hard and soft limits).
+.It Fl s Ar n
+Impose a size limit of
+.Ar n
+kilobytes on the size of the stack area.
+.It Fl t Ar n
+Impose a time limit of
+.Ar n
+CPU seconds spent in user mode to be used by each process.
+.\".It Fl v Ar n
+.\"Impose a limit of
+.\"Ar n
+.\"kilobytes on the amount of virtual memory used.
+.El
+.Pp
+As far as
+.Ic ulimit
+is concerned, a block is 512 bytes.
+.Pp
+.It Xo
+.Ic umask
+.Op Fl S
+.Op Ar mask
+.Xc
+Display or set the file permission creation mask, or umask (see
+.Xr umask 2 ) .
+If the
+.Fl S
+option is used, the mask displayed or set is symbolic; otherwise, it is an
+octal number.
+.Pp
+Symbolic masks are like those used by
+.Xr chmod 1 .
+When used, they describe what permissions may be made available (as opposed to
+octal masks in which a set bit means the corresponding bit is to be cleared).
+For example,
+.Dq ug=rwx,o=
+sets the mask so files will not be readable, writable, or executable by
+.Dq others ,
+and is equivalent (on most systems) to the octal mask
+.Dq 007 .
+.Pp
+.It Xo
+.Ic unalias
+.Op Fl adt
+.Op Ar name ...
+.Xc
+The aliases for the given names are removed.
+If the
+.Fl a
+option is used, all aliases are removed.
+If the
+.Fl t
+or
+.Fl d
+options are used, the indicated operations are carried out on tracked or
+directory aliases, respectively.
+.Pp
+.It Xo
+.Ic unset
+.Op Fl fv
+.Ar parameter ...
+.Xc
+Unset the named parameters
+.Po
+.Fl v ,
+the default
+.Pc
+or functions
+.Pq Fl f .
+The exit status is non-zero if any of the parameters have the read-only
+attribute set, zero otherwise.
+.Pp
+.It Ic wait Op Ar job ...
+Wait for the specified job(s) to finish.
+The exit status of
+.Ic wait
+is that of the last specified job; if the last job is killed by a signal, the
+exit status is 128 + the number of the signal (see
+.Ic kill -l Ar exit-status
+above); if the last specified job can't be found (because it never existed, or
+had already finished), the exit status of
+.Ic wait
+is 127.
+See
+.Sx Job control
+below for the format of
+.Ar job .
+.Ic wait
+will return if a signal for which a trap has been set is received, or if a
+.Dv SIGHUP ,
+.Dv SIGINT ,
+or
+.Dv SIGQUIT
+signal is received.
+.Pp
+If no jobs are specified,
+.Ic wait
+waits for all currently running jobs (if any) to finish and exits with a zero
+status.
+If job monitoring is enabled, the completion status of jobs is printed
+(this is not the case when jobs are explicitly specified).
+.Pp
+.It Xo
+.Ic whence
+.Op Fl pv
+.Op Ar name ...
+.Xc
+For each
+.Ar name ,
+the type of command is listed (reserved word, built-in, alias,
+function, tracked alias, or executable).
+If the
+.Fl p
+option is used, a path search is performed even if
+.Ar name
+is a reserved word, alias, etc.
+Without the
+.Fl v
+option,
+.Ic whence
+is similar to
+.Ic command Fl v
+except that
+.Ic whence
+won't print aliases as alias commands.
+With the
+.Fl v
+option,
+.Ic whence
+is the same as
+.Ic command Fl V .
+Note that for
+.Ic whence ,
+the
+.Fl p
+option does not affect the search path used, as it does for
+.Ic command .
+If the type of one or more of the names could not be determined, the exit
+status is non-zero.
+.El
+.Ss Job control
+Job control refers to the shell's ability to monitor and control jobs, which
+are processes or groups of processes created for commands or pipelines.
+At a minimum, the shell keeps track of the status of the background (i.e.\&
+asynchronous) jobs that currently exist; this information can be displayed
+using the
+.Ic jobs
+commands.
+If job control is fully enabled (using
+.Ic set -m
+or
+.Ic set -o monitor ) ,
+as it is for interactive shells, the processes of a job are placed in their
+own process group.
+Foreground jobs can be stopped by typing the suspend
+character from the terminal (normally ^Z), jobs can be restarted in either the
+foreground or background using the
+.Ic fg
+and
+.Ic bg
+commands, and the state of the terminal is saved or restored when a foreground
+job is stopped or restarted, respectively.
+.Pp
+Note that only commands that create processes (e.g. asynchronous commands,
+subshell commands, and non-built-in, non-function commands) can be stopped;
+commands like
+.Ic read
+cannot be.
+.Pp
+When a job is created, it is assigned a job number.
+For interactive shells, this number is printed inside
+.Dq [..] ,
+followed by the process IDs of the processes in the job when an asynchronous
+command is run.
+A job may be referred to in the
+.Ic bg ,
+.Ic fg ,
+.Ic jobs ,
+.Ic kill ,
+and
+.Ic wait
+commands either by the process ID of the last process in the command pipeline
+(as stored in the
+.Ic $!\&
+parameter) or by prefixing the job number with a percent
+sign
+.Pq Sq % .
+Other percent sequences can also be used to refer to jobs:
+.Bl -tag -width "%+ | %% | %XX"
+.It %+ | %% | %
+The most recently stopped job or, if there are no stopped jobs, the oldest
+running job.
+.It %-
+The job that would be the
+.Ic %+
+job if the latter did not exist.
+.It % Ns Ar n
+The job with job number
+.Ar n .
+.It %? Ns Ar string
+The job with its command containing the string
+.Ar string
+(an error occurs if multiple jobs are matched).
+.It % Ns Ar string
+The job with its command starting with the string
+.Ar string
+(an error occurs if multiple jobs are matched).
+.El
+.Pp
+When a job changes state (e.g. a background job finishes or foreground job is
+stopped), the shell prints the following status information:
+.Pp
+.D1 [ Ns Ar number ] Ar flag status command
+.Pp
+where...
+.Bl -tag -width "command"
+.It Ar number
+is the job number of the job;
+.It Ar flag
+is the
+.Ql +
+or
+.Ql -
+character if the job is the
+.Ic %+
+or
+.Ic %-
+job, respectively, or space if it is neither;
+.It Ar status
+indicates the current state of the job and can be:
+.Bl -tag -width "RunningXX"
+.It Done Op Ar number
+The job exited.
+.Ar number
+is the exit status of the job, which is omitted if the status is zero.
+.It Running
+The job has neither stopped nor exited (note that running does not necessarily
+mean consuming CPU time \-
+the process could be blocked waiting for some event).
+.It Stopped Op Ar signal
+The job was stopped by the indicated
+.Ar signal
+(if no signal is given, the job was stopped by
+.Dv SIGTSTP ) .
+.It Ar signal-description Op Dq core dumped
+The job was killed by a signal (e.g. memory fault, hangup); use
+.Ic kill -l
+for a list of signal descriptions.
+The
+.Dq core dumped
+message indicates the process created a core file.
+.El
+.It Ar command
+is the command that created the process.
+If there are multiple processes in
+the job, each process will have a line showing its
+.Ar command
+and possibly its
+.Ar status ,
+if it is different from the status of the previous process.
+.El
+.Pp
+When an attempt is made to exit the shell while there are jobs in the stopped
+state, the shell warns the user that there are stopped jobs and does not exit.
+If another attempt is immediately made to exit the shell, the stopped jobs are
+sent a
+.Dv SIGHUP
+signal and the shell exits.
+Similarly, if the
+.Ic nohup
+option is not set and there are running jobs when an attempt is made to exit
+a login shell, the shell warns the user and does not exit.
+If another attempt
+is immediately made to exit the shell, the running jobs are sent a
+.Dv SIGHUP
+signal and the shell exits.
+.Ss Interactive input line editing
+The shell supports three modes of reading command lines from a
+.Xr tty 4
+in an interactive session, controlled by the
+.Ic emacs ,
+.Ic gmacs ,
+and
+.Ic vi
+options (at most one of these can be set at once).
+The default is
+.Ic emacs .
+Editing modes can be set explicitly using the
+.Ic set
+built-in, or implicitly via the
+.Ev EDITOR
+and
+.Ev VISUAL
+environment variables.
+If none of these options are enabled,
+the shell simply reads lines using the normal
+.Xr tty 4
+driver.
+If the
+.Ic emacs
+or
+.Ic gmacs
+option is set, the shell allows emacs-like editing of the command; similarly,
+if the
+.Ic vi
+option is set, the shell allows vi-like editing of the command.
+These modes are described in detail in the following sections.
+.Pp
+In these editing modes, if a line is longer than the screen width (see the
+.Ev COLUMNS
+parameter),
+a
+.Ql > ,
+.Ql + ,
+or
+.Ql <
+character is displayed in the last column indicating that there are more
+characters after, before and after, or before the current position,
+respectively.
+The line is scrolled horizontally as necessary.
+.Ss Emacs editing mode
+When the
+.Ic emacs
+option is set, interactive input line editing is enabled.
+Warning: This mode is
+slightly different from the emacs mode in the original Korn shell.
+In this mode, various editing commands
+(typically bound to one or more control characters) cause immediate actions
+without waiting for a newline.
+Several editing commands are bound to particular
+control characters when the shell is invoked; these bindings can be changed
+using the
+.Ic bind
+command.
+.Pp
+The following is a list of available editing commands.
+Each description starts with the name of the command,
+suffixed with a colon;
+an
+.Op Ar n
+(if the command can be prefixed with a count); and any keys the command is
+bound to by default, written using caret notation
+e.g. the ASCII ESC character is written as ^[.
+^[A-Z] sequences are not case sensitive.
+A count prefix for a command is entered using the sequence
+.Pf ^[ Ar n ,
+where
+.Ar n
+is a sequence of 1 or more digits.
+Unless otherwise specified, if a count is
+omitted, it defaults to 1.
+.Pp
+Note that editing command names are used only with the
+.Ic bind
+command.
+Furthermore, many editing commands are useful only on terminals with
+a visible cursor.
+The default bindings were chosen to resemble corresponding
+Emacs key bindings.
+The user's
+.Xr tty 4
+characters (e.g.\&
+.Dv ERASE )
+are bound to
+reasonable substitutes and override the default bindings.
+.Bl -tag -width Ds
+.It abort: ^C, ^G
+Useful as a response to a request for a
+.Ic search-history
+pattern in order to abort the search.
+.It auto-insert: Op Ar n
+Simply causes the character to appear as literal input.
+Most ordinary characters are bound to this.
+.It Xo backward-char:
+.Op Ar n
+.No ^B , ^X^D
+.Xc
+Moves the cursor backward
+.Ar n
+characters.
+.It Xo backward-word:
+.Op Ar n
+.No ^[b
+.Xc
+Moves the cursor backward to the beginning of the word; words consist of
+alphanumerics, underscore
+.Pq Sq _ ,
+and dollar sign
+.Pq Sq $
+characters.
+.It beginning-of-history: ^[<
+Moves to the beginning of the history.
+.It beginning-of-line: ^A
+Moves the cursor to the beginning of the edited input line.
+.It Xo capitalize-word:
+.Op Ar n
+.No ^[C , ^[c
+.Xc
+Uppercase the first character in the next
+.Ar n
+words, leaving the cursor past the end of the last word.
+.It clear-screen: ^L
+Clears the screen if the
+.Ev TERM
+parameter is set and the terminal supports clearing the screen, then
+reprints the prompt string and the current input line.
+.It comment: ^[#
+If the current line does not begin with a comment character, one is added at
+the beginning of the line and the line is entered (as if return had been
+pressed); otherwise, the existing comment characters are removed and the cursor
+is placed at the beginning of the line.
+.It complete: ^[^[
+Automatically completes as much as is unique of the command name or the file
+name containing the cursor.
+If the entire remaining command or file name is
+unique, a space is printed after its completion, unless it is a directory name
+in which case
+.Ql /
+is appended.
+If there is no command or file name with the current partial word
+as its prefix, a bell character is output (usually causing a beep to be
+sounded).
+.Pp
+Custom completions may be configured by creating an array named
+.Ql complete_command ,
+optionally suffixed with an argument number to complete only for a single
+argument.
+So defining an array named
+.Ql complete_kill
+provides possible completions for any argument to the
+.Xr kill 1
+command, but
+.Ql complete_kill_1
+only completes the first argument.
+For example, the following command makes
+.Nm
+offer a selection of signal names for the first argument to
+.Xr kill 1 :
+.Pp
+.Dl set -A complete_kill_1 -- -9 -HUP -INFO -KILL -TERM
+.It complete-command: ^X^[
+Automatically completes as much as is unique of the command name having the
+partial word up to the cursor as its prefix, as in the
+.Ic complete
+command above.
+.It complete-file: ^[^X
+Automatically completes as much as is unique of the file name having the
+partial word up to the cursor as its prefix, as in the
+.Ic complete
+command described above.
+.It complete-list: ^I, ^[=
+Complete as much as is possible of the current word,
+and list the possible completions for it.
+If only one completion is possible,
+match as in the
+.Ic complete
+command above.
+.It Xo delete-char-backward:
+.Op Ar n
+.No ERASE , ^? , ^H
+.Xc
+Deletes
+.Ar n
+characters before the cursor.
+.It Xo delete-char-forward:
+.Op Ar n
+.No Delete
+.Xc
+Deletes
+.Ar n
+characters after the cursor.
+.It Xo delete-word-backward:
+.Op Ar n
+.No WERASE , ^[ERASE , ^W, ^[^? , ^[^H , ^[h
+.Xc
+Deletes
+.Ar n
+words before the cursor.
+.It Xo delete-word-forward:
+.Op Ar n
+.No ^[d
+.Xc
+Deletes
+.Ar n
+words after the cursor.
+.It Xo down-history:
+.Op Ar n
+.No ^N , ^XB
+.Xc
+Scrolls the history buffer forward
+.Ar n
+lines (later).
+Each input line originally starts just after the last entry
+in the history buffer, so
+.Ic down-history
+is not useful until either
+.Ic search-history
+or
+.Ic up-history
+has been performed.
+.It Xo downcase-word:
+.Op Ar n
+.No ^[L , ^[l
+.Xc
+Lowercases the next
+.Ar n
+words.
+.It end-of-history: ^[>
+Moves to the end of the history.
+.It end-of-line: ^E
+Moves the cursor to the end of the input line.
+.It eot: ^_
+Acts as an end-of-file; this is useful because edit-mode input disables
+normal terminal input canonicalization.
+.It Xo eot-or-delete:
+.Op Ar n
+.No ^D
+.Xc
+Acts as
+.Ic eot
+if alone on a line; otherwise acts as
+.Ic delete-char-forward .
+.It error:
+Error (ring the bell).
+.It exchange-point-and-mark: ^X^X
+Places the cursor where the mark is and sets the mark to where the cursor was.
+.It expand-file: ^[*
+Appends a
+.Ql *
+to the current word and replaces the word with the result of performing file
+globbing on the word.
+If no files match the pattern, the bell is rung.
+.It Xo forward-char:
+.Op Ar n
+.No ^F , ^XC
+.Xc
+Moves the cursor forward
+.Ar n
+characters.
+.It Xo forward-word:
+.Op Ar n
+.No ^[f
+.Xc
+Moves the cursor forward to the end of the
+.Ar n Ns th
+word.
+.It Xo goto-history:
+.Op Ar n
+.No ^[g
+.Xc
+Goes to history number
+.Ar n .
+.It kill-line: KILL
+Deletes the entire input line.
+.It Xo kill-to-eol:
+.Op Ar n
+.No ^K
+.Xc
+Deletes the input from the cursor to the end of the line if
+.Ar n
+is not specified; otherwise deletes characters between the cursor and column
+.Ar n .
+.It list: ^[?
+Prints a sorted, columnated list of command names or file names (if any) that
+can complete the partial word containing the cursor.
+Directory names have
+.Ql /
+appended to them.
+.It list-command: ^X?
+Prints a sorted, columnated list of command names (if any) that can complete
+the partial word containing the cursor.
+.It list-file: ^X^Y
+Prints a sorted, columnated list of file names (if any) that can complete the
+partial word containing the cursor.
+File type indicators are appended as described under
+.Ic list
+above.
+.It newline: ^J , ^M
+Causes the current input line to be processed by the shell.
+The current cursor position may be anywhere on the line.
+.It newline-and-next: ^O
+Causes the current input line to be processed by the shell, and the next line
+from history becomes the current line.
+This is only useful after an
+.Ic up-history
+or
+.Ic search-history .
+.It no-op: QUIT
+This does nothing.
+.It Xo prev-hist-word:
+.Op Ar n
+.No ^[. , ^[_
+.Xc
+The last
+.Pq Ar n Ns th
+word of the previous command is inserted at the cursor.
+.It quote: ^^
+The following character is taken literally rather than as an editing command.
+.It redraw:
+Reprints the prompt string and the current input line.
+.It Xo search-character-backward:
+.Op Ar n
+.No ^[^]
+.Xc
+Search backward in the current line for the
+.Ar n Ns th
+occurrence of the next character typed.
+.It Xo search-character-forward:
+.Op Ar n
+.No ^]
+.Xc
+Search forward in the current line for the
+.Ar n Ns th
+occurrence of the next character typed.
+.It search-history: ^R
+Enter incremental search mode.
+The internal history list is searched
+backwards for commands matching the input.
+An initial
+.Ql ^
+in the search string anchors the search.
+The abort key will leave search mode.
+Other commands will be executed after leaving search mode.
+Successive
+.Ic search-history
+commands continue searching backward to the next previous occurrence of the
+pattern.
+The history buffer retains only a finite number of lines; the oldest
+are discarded as necessary.
+.It set-mark-command: ^[ Ns Aq space
+Set the mark at the cursor position.
+.It transpose-chars: ^T
+If at the end of line, or if the
+.Ic gmacs
+option is set, this exchanges the two previous characters; otherwise, it
+exchanges the previous and current characters and moves the cursor one
+character to the right.
+.It Xo up-history:
+.Op Ar n
+.No ^P , ^XA
+.Xc
+Scrolls the history buffer backward
+.Ar n
+lines (earlier).
+.It Xo upcase-word:
+.Op Ar n
+.No ^[U , ^[u
+.Xc
+Uppercase the next
+.Ar n
+words.
+.It quote: ^V
+Synonym for ^^.
+.It yank: ^Y
+Inserts the most recently killed text string at the current cursor position.
+.It yank-pop: ^[y
+Immediately after a
+.Ic yank ,
+replaces the inserted text string with the next previously killed text string.
+.El
+.Pp
+The following editing commands lack default bindings but can be used with the
+.Ic bind
+command:
+.Bl -tag -width Ds
+.It kill-region
+Deletes the input between the cursor and the mark.
+.El
+.Ss Vi editing mode
+The vi command-line editor in
+.Nm
+has basically the same commands as the
+.Xr vi 1
+editor with the following exceptions:
+.Bl -bullet
+.It
+You start out in insert mode.
+.It
+There are file name and command completion commands:
+=, \e, *, ^X, ^E, ^F, and, optionally,
+.Aq tab
+and
+.Aq esc .
+.It
+The
+.Ic _
+command is different (in
+.Nm
+it is the last argument command; in
+.Xr vi 1
+it goes to the start of the current line).
+.It
+The
+.Ic /
+and
+.Ic G
+commands move in the opposite direction to the
+.Ic j
+command.
+.It
+Commands which don't make sense in a single line editor are not available
+(e.g. screen movement commands and
+.Xr ex 1 Ns -style
+colon
+.Pq Ic \&:
+commands).
+.El
+.Pp
+Note that the ^X stands for control-X; also
+.Aq esc ,
+.Aq space ,
+and
+.Aq tab
+are used for escape, space, and tab, respectively (no kidding).
+.Pp
+Like
+.Xr vi 1 ,
+there are two modes:
+.Dq insert
+mode and
+.Dq command
+mode.
+In insert mode, most characters are simply put in the buffer at the
+current cursor position as they are typed; however, some characters are
+treated specially.
+In particular, the following characters are taken from current
+.Xr tty 4
+settings
+(see
+.Xr stty 1 )
+and have their usual meaning (normal values are in parentheses): kill (^U),
+erase (^?), werase (^W), eof (^D), intr (^C), and quit (^\e).
+In addition to
+the above, the following characters are also treated specially in insert mode:
+.Bl -tag -width 10n
+.It ^E
+Command and file name enumeration (see below).
+.It ^F
+Command and file name completion (see below).
+If used twice in a row, the
+list of possible completions is displayed; if used a third time, the completion
+is undone.
+.It ^H
+Erases previous character.
+.It ^J | ^M
+End of line.
+The current line is read, parsed, and executed by the shell.
+.It ^L
+Clear the screen (if possible) and redraw the current line.
+See the
+.Em clear-screen
+command in
+.Sx Emacs editing mode
+for more information.
+.It ^R
+Redraw the current line.
+.It ^V
+Literal next.
+The next character typed is not treated specially (can be used
+to insert the characters being described here).
+.It ^X
+Command and file name expansion (see below).
+.It Aq esc
+Puts the editor in command mode (see below).
+.It Aq tab
+Optional file name and command completion (see
+.Ic ^F
+above), enabled with
+.Ic set -o vi-tabcomplete .
+.El
+.Pp
+In command mode, each character is interpreted as a command.
+Characters that
+don't correspond to commands, are illegal combinations of commands, or are
+commands that can't be carried out, all cause beeps.
+In the following command descriptions, an
+.Op Ar n
+indicates the command may be prefixed by a number (e.g.\&
+.Ic 10l
+moves right 10 characters); if no number prefix is used,
+.Ar n
+is assumed to be 1 unless otherwise specified.
+The term
+.Dq current position
+refers to the position between the cursor and the character preceding the
+cursor.
+A
+.Dq word
+is a sequence of letters, digits, and underscore characters or a sequence of
+non-letter, non-digit, non-underscore, and non-whitespace characters (e.g.\&
+.Dq ab2*&^
+contains two words) and a
+.Dq big-word
+is a sequence of non-whitespace characters.
+.Pp
+Special
+.Nm
+vi commands:
+.Pp
+The following commands are not in, or are different from, the normal vi file
+editor:
+.Bl -tag -width 10n
+.It Xo
+.Oo Ar n Oc Ns _
+.Xc
+Insert a space followed by the
+.Ar n Ns th
+big-word from the last command in the history at the current position and enter
+insert mode; if
+.Ar n
+is not specified, the last word is inserted.
+.It #
+Insert the comment character
+.Pq Sq #
+at the start of the current line and return the line to the shell (equivalent
+to
+.Ic I#^J ) .
+.It Xo
+.Oo Ar n Oc Ns g
+.Xc
+Like
+.Ic G ,
+except if
+.Ar n
+is not specified, it goes to the most recent remembered line.
+.It Xo
+.Oo Ar n Oc Ns v
+.Xc
+Edit line
+.Ar n
+using the
+.Xr vi 1
+editor; if
+.Ar n
+is not specified, the current line is edited.
+The actual command executed is
+.Ic fc -e ${VISUAL:-${EDITOR:-vi}} Ar n .
+.It * and ^X
+Command or file name expansion is applied to the current big-word (with an
+appended
+.Ql *
+if the word contains no file globbing characters) \- the big-word is replaced
+with the resulting words.
+If the current big-word is the first on the line
+or follows one of the characters
+.Ql \&; ,
+.Ql | ,
+.Ql & ,
+.Ql \&( ,
+or
+.Ql \&) ,
+and does not contain a slash
+.Pq Sq / ,
+then command expansion is done; otherwise file name expansion is done.
+Command expansion will match the big-word against all aliases, functions, and
+built-in commands as well as any executable files found by searching the
+directories in the
+.Ev PATH
+parameter.
+File name expansion matches the big-word against the files in the
+current directory.
+After expansion, the cursor is placed just past the last
+word and the editor is in insert mode.
+.It Xo
+.Oo Ar n Oc Ns \e ,
+.Oo Ar n Oc Ns ^F ,
+.Oo Ar n Oc Ns Aq tab ,
+.No and
+.Oo Ar n Oc Ns Aq esc
+.Xc
+Command/file name completion.
+Replace the current big-word with the
+longest unique match obtained after performing command and file name expansion.
+.Aq tab
+is only recognized if the
+.Ic vi-tabcomplete
+option is set, while
+.Aq esc
+is only recognized if the
+.Ic vi-esccomplete
+option is set (see
+.Ic set -o ) .
+If
+.Ar n
+is specified, the
+.Ar n Ns th
+possible completion is selected (as reported by the command/file name
+enumeration command).
+.It = and ^E
+Command/file name enumeration.
+List all the commands or files that match the current big-word.
+.It @ Ns Ar c
+Macro expansion.
+Execute the commands found in the alias
+.No _ Ns Ar c .
+.El
+.Pp
+Intra-line movement commands:
+.Bl -tag -width Ds
+.It Xo
+.Oo Ar n Oc Ns h and
+.Oo Ar n Oc Ns ^H
+.Xc
+Move left
+.Ar n
+characters.
+.It Xo
+.Oo Ar n Oc Ns l and
+.Oo Ar n Oc Ns Aq space
+.Xc
+Move right
+.Ar n
+characters.
+.It 0
+Move to column 0.
+.It ^
+Move to the first non-whitespace character.
+.It Xo
+.Oo Ar n Oc Ns |
+.Xc
+Move to column
+.Ar n .
+.It $
+Move to the last character.
+.It Xo
+.Oo Ar n Oc Ns b
+.Xc
+Move back
+.Ar n
+words.
+.It Xo
+.Oo Ar n Oc Ns B
+.Xc
+Move back
+.Ar n
+big-words.
+.It Xo
+.Oo Ar n Oc Ns e
+.Xc
+Move forward to the end of the word,
+.Ar n
+times.
+.It Xo
+.Oo Ar n Oc Ns E
+.Xc
+Move forward to the end of the big-word,
+.Ar n
+times.
+.It Xo
+.Oo Ar n Oc Ns w
+.Xc
+Move forward
+.Ar n
+words.
+.It Xo
+.Oo Ar n Oc Ns W
+.Xc
+Move forward
+.Ar n
+big-words.
+.It %
+Find match.
+The editor looks forward for the nearest parenthesis, bracket, or
+brace and then moves the cursor to the matching parenthesis, bracket, or brace.
+.It Xo
+.Oo Ar n Oc Ns f Ns Ar c
+.Xc
+Move forward to the
+.Ar n Ns th
+occurrence of the character
+.Ar c .
+.It Xo
+.Oo Ar n Oc Ns F Ns Ar c
+.Xc
+Move backward to the
+.Ar n Ns th
+occurrence of the character
+.Ar c .
+.It Xo
+.Oo Ar n Oc Ns t Ns Ar c
+.Xc
+Move forward to just before the
+.Ar n Ns th
+occurrence of the character
+.Ar c .
+.It Xo
+.Oo Ar n Oc Ns T Ns Ar c
+.Xc
+Move backward to just before the
+.Ar n Ns th
+occurrence of the character
+.Ar c .
+.It Xo
+.Oo Ar n Oc Ns \&;
+.Xc
+Repeats the last
+.Ic f , F , t ,
+or
+.Ic T
+command.
+.It Xo
+.Oo Ar n Oc Ns \&,
+.Xc
+Repeats the last
+.Ic f , F , t ,
+or
+.Ic T
+command, but moves in the opposite direction.
+.El
+.Pp
+Inter-line movement commands:
+.Bl -tag -width Ds
+.It Xo
+.Oo Ar n Oc Ns j ,
+.Oo Ar n Oc Ns + ,
+.No and
+.Oo Ar n Oc Ns ^N
+.Xc
+Move to the
+.Ar n Ns th
+next line in the history.
+.It Xo
+.Oo Ar n Oc Ns k ,
+.Oo Ar n Oc Ns - ,
+.No and
+.Oo Ar n Oc Ns ^P
+.Xc
+Move to the
+.Ar n Ns th
+previous line in the history.
+.It Xo
+.Oo Ar n Oc Ns G
+.Xc
+Move to line
+.Ar n
+in the history; if
+.Ar n
+is not specified, the number of the first remembered line is used.
+.It Xo
+.Oo Ar n Oc Ns g
+.Xc
+Like
+.Ic G ,
+except if
+.Ar n
+is not specified, it goes to the most recent remembered line.
+.It Xo
+.Oo Ar n Oc Ns / Ns Ar string
+.Xc
+Search backward through the history for the
+.Ar n Ns th
+line containing
+.Ar string ;
+if
+.Ar string
+starts with
+.Ql ^ ,
+the remainder of the string must appear at the start of the history line for
+it to match.
+.It Xo
+.Oo Ar n Oc Ns \&? Ns Ar string
+.Xc
+Same as
+.Ic / ,
+except it searches forward through the history.
+.It Xo
+.Oo Ar n Oc Ns n
+.Xc
+Search for the
+.Ar n Ns th
+occurrence of the last search string;
+the direction of the search is the same as the last search.
+.It Xo
+.Oo Ar n Oc Ns N
+.Xc
+Search for the
+.Ar n Ns th
+occurrence of the last search string;
+the direction of the search is the opposite of the last search.
+.El
+.Pp
+Edit commands
+.Bl -tag -width Ds
+.It Xo
+.Oo Ar n Oc Ns a
+.Xc
+Append text
+.Ar n
+times; goes into insert mode just after the current position.
+The append is
+only replicated if command mode is re-entered i.e.\&
+.Aq esc
+is used.
+.It Xo
+.Oo Ar n Oc Ns A
+.Xc
+Same as
+.Ic a ,
+except it appends at the end of the line.
+.It Xo
+.Oo Ar n Oc Ns i
+.Xc
+Insert text
+.Ar n
+times; goes into insert mode at the current position.
+The insertion is only
+replicated if command mode is re-entered i.e.\&
+.Aq esc
+is used.
+.It Xo
+.Oo Ar n Oc Ns I
+.Xc
+Same as
+.Ic i ,
+except the insertion is done just before the first non-blank character.
+.It Xo
+.Oo Ar n Oc Ns s
+.Xc
+Substitute the next
+.Ar n
+characters (i.e. delete the characters and go into insert mode).
+.It S
+Substitute whole line.
+All characters from the first non-blank character to the
+end of the line are deleted and insert mode is entered.
+.It Xo
+.Oo Ar n Oc Ns c Ns Ar move-cmd
+.Xc
+Change from the current position to the position resulting from
+.Ar n move-cmd Ns s
+(i.e. delete the indicated region and go into insert mode); if
+.Ar move-cmd
+is
+.Ic c ,
+the line starting from the first non-blank character is changed.
+.It C
+Change from the current position to the end of the line (i.e. delete to the
+end of the line and go into insert mode).
+.It Xo
+.Oo Ar n Oc Ns x
+.Xc
+Delete the next
+.Ar n
+characters.
+.It Xo
+.Oo Ar n Oc Ns X
+.Xc
+Delete the previous
+.Ar n
+characters.
+.It D
+Delete to the end of the line.
+.It Xo
+.Oo Ar n Oc Ns d Ns Ar move-cmd
+.Xc
+Delete from the current position to the position resulting from
+.Ar n move-cmd Ns s ;
+.Ar move-cmd
+is a movement command (see above) or
+.Ic d ,
+in which case the current line is deleted.
+.It Xo
+.Oo Ar n Oc Ns r Ns Ar c
+.Xc
+Replace the next
+.Ar n
+characters with the character
+.Ar c .
+.It Xo
+.Oo Ar n Oc Ns R
+.Xc
+Replace.
+Enter insert mode but overwrite existing characters instead of
+inserting before existing characters.
+The replacement is repeated
+.Ar n
+times.
+.It Xo
+.Oo Ar n Oc Ns ~
+.Xc
+Change the case of the next
+.Ar n
+characters.
+.It Xo
+.Oo Ar n Oc Ns y Ns Ar move-cmd
+.Xc
+Yank from the current position to the position resulting from
+.Ar n move-cmd Ns s
+into the yank buffer; if
+.Ar move-cmd
+is
+.Ic y ,
+the whole line is yanked.
+.It Y
+Yank from the current position to the end of the line.
+.It Xo
+.Oo Ar n Oc Ns p
+.Xc
+Paste the contents of the yank buffer just after the current position,
+.Ar n
+times.
+.It Xo
+.Oo Ar n Oc Ns P
+.Xc
+Same as
+.Ic p ,
+except the buffer is pasted at the current position.
+.El
+.Pp
+Miscellaneous vi commands
+.Bl -tag -width Ds
+.It ^J and ^M
+The current line is read, parsed, and executed by the shell.
+.It ^L
+Clear the screen (if possible) and redraw the current line.
+.It ^R
+Redraw the current line.
+.It Xo
+.Oo Ar n Oc Ns \&.
+.Xc
+Redo the last edit command
+.Ar n
+times.
+.It u
+Undo the last edit command.
+.It U
+Undo all changes that have been made to the current line.
+.It Ar intr No and Ar quit
+The interrupt and quit terminal characters cause the current line to be
+deleted and a new prompt to be printed.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/suid_profileXX" -compact
+.It Pa ~/.profile
+User's login profile.
+.It Pa /etc/ksh.kshrc
+Global configuration file.
+Not sourced by default.
+.It Pa /etc/profile
+System login profile.
+.It Pa /etc/shells
+Shell database.
+.It Pa /etc/suid_profile
+Privileged shell profile.
+.El
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr ed 1 ,
+.Xr mg 1 ,
+.Xr sh 1 ,
+.Xr stty 1 ,
+.Xr vi 1 ,
+.Xr shells 5 ,
+.Xr environ 7 ,
+.Xr script 7
+.Rs
+.%A S. R. Bourne
+.%T The UNIX Shell
+.%J Bell System Technical Journal
+.%V 57:6
+.%P pp. 1971-1990
+.%D 1978
+.Re
+.Rs
+.\" 4.4BSD USD:3
+.%A S. R. Bourne
+.%T \&An Introduction to the UNIX Shell
+.%I AT&T Bell Laboratories
+.%R Computing Science Technical Report
+.%N 70
+.%D 1978
+.Re
+.Rs
+.%A Morris Bolsky
+.%A David Korn
+.%B The KornShell Command and Programming Language
+.%D First Edition 1989
+.%I Prentice Hall
+.%O ISBN 0135169720
+.\" The second edition of the above book (1995) is about ksh93,
+.\" but the OpenBSD ksh is a descendant from ksh88 via pdksh.
+.Re
+.Rs
+.%A Stephen G. Kochan
+.%A Patrick H. Wood
+.%B UNIX Shell Programming, 3rd Edition
+.%D 2003
+.%I Sams
+.%O ISBN 0672324903
+.Re
+.Rs
+.%A IEEE Inc.
+.%D 1993
+.%O ISBN 1-55937-266-9
+.%T IEEE Standard for Information Technology \- Portable Operating \
+    System Interface (POSIX) \- Part 2: Shell and Utilities
+.Re
+.Sh VERSION
+This page documents version @(#)PD KSH v5.2.14 99/07/13.2 of the public
+domain Korn shell.
+.Sh AUTHORS
+.An -nosplit
+This shell is based on the public domain 7th edition Bourne shell clone by
+.An Charles Forsyth
+and parts of the BRL shell by
+.An Doug A. Gwyn ,
+.An Doug Kingston ,
+.An Ron Natalie ,
+.An Arnold Robbins ,
+.An Lou Salkind ,
+and others.
+The first release of
+.Nm pdksh
+was created by
+.An Eric Gisin ,
+and it was subsequently maintained by
+.An John R. MacMillan Aq Mt change!john@sq.sq.com ,
+.An Simon J. Gerraty Aq Mt sjg@zen.void.oz.au ,
+and
+.An Michael Rendell Aq Mt michael@cs.mun.ca .
+The
+.Pa CONTRIBUTORS
+file in the source distribution contains a more complete list of people and
+their part in the shell's development.
+.Sh BUGS
+.Pf $( Ar command )
+expressions are currently parsed by finding the closest matching (unquoted)
+parenthesis.
+Thus constructs inside
+.Pf $( Ar command )
+may produce an error.
+For example, the parenthesis in
+.Ql x);;
+is interpreted as the closing parenthesis in
+.Ql $(case x in x);; *);; esac) .

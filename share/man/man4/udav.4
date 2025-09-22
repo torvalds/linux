@@ -1,0 +1,109 @@
+.\"	$OpenBSD: udav.4,v 1.17 2015/07/15 18:02:15 sobrado Exp $
+.\"	$NetBSD: udav.4,v 1.1 2003/08/22 06:42:01 itojun Exp $
+.\"
+.\" Copyright (c) 2003
+.\"     Shingo WATANABE <nabe@nabechan.org>. All rights reserved.
+.\" Copyright (c) 2014
+.\"     Takayoshi SASANO <uaa@uaa.org.uk>. (RD9700 support)
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 15 2015 $
+.Dt UDAV 4
+.Os
+.Sh NAME
+.Nm udav
+.Nd Davicom DM9601 10/100 USB Ethernet device
+.Sh SYNOPSIS
+.Cd "udav*  at uhub?"
+.Cd "amphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB
+.Tn Ethernet
+adapters based on the Davicom DM9601 USB-ether bridge chip.
+.Pp
+The
+.Nm
+driver supports the following adapters:
+.Pp
+.Bl -tag -width Dv -offset indent -compact
+.It Tn Corega FEther USB-TXC
+.It Tn HenTong WK-668
+.It Tn Konig CMP-NWUSB10
+.It Tn ShanTou ST268
+.It Tn ShanTou ZT6688
+.It Tn ShanTou ADM8515
+.El
+.Pp
+The
+.Nm
+driver also supports CoreChip RD9700.
+As many of these units ship with the same MAC address, it is
+highly recommended to use
+.Xr ifconfig 8
+.Cm lladdr
+to set the address manually, or
+.Cm lladdr random
+to assign a random address.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr amphy 4 ,
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr mii 4 ,
+.Xr netintro 4 ,
+.Xr uhub 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Rs
+.%T Davicom DM9601 data sheet
+.%U http://www.davicom.com.tw/big5/download/Data%20Sheet/DM9601-DS-P01-930914.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Shingo WATANABE Aq Mt nabe@nabechan.org
+and ported to
+.Ox
+by
+.An Jonathan Gray Aq Mt jsg@openbsd.org .
+.Pp
+RD9700 support by
+.An Takayoshi SASANO Aq Mt uaa@uaa.org.uk .
+.Sh BUGS
+The RD9700 sometimes lacks zero-length packets to terminate
+USB transactions, which can cause USB IOERRORs.

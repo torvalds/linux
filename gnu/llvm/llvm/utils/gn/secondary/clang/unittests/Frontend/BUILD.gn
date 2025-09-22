@@ -1,0 +1,30 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("FrontendTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/CodeGen",
+    "//clang/lib/Frontend",
+    "//clang/lib/FrontendTool",
+    "//clang/lib/Lex",
+    "//clang/lib/Sema",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "ASTUnitTest.cpp",
+    "CodeGenActionTest.cpp",
+    "CompilerInstanceTest.cpp",
+    "CompilerInvocationTest.cpp",
+    "FixedPointString.cpp",
+    "FrontendActionTest.cpp",
+    "OutputStreamTest.cpp",
+    "PCHPreambleTest.cpp",
+    "ParsedSourceLocationTest.cpp",
+    "ReparseWorkingDirTest.cpp",
+    "TextDiagnosticTest.cpp",
+    "UtilsTest.cpp",
+  ]
+}

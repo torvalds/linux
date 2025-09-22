@@ -1,0 +1,130 @@
+.\"	$OpenBSD: physio.9,v 1.11 2019/12/06 19:12:37 jmc Exp $
+.\"	$NetBSD: physio.9,v 1.5 1999/03/16 00:40:47 garbled Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 6 2019 $
+.Dt PHYSIO 9
+.Os
+.Sh NAME
+.Nm physio
+.Nd initiate I/O on raw devices
+.Sh SYNOPSIS
+.Ft int
+.Fo physio
+.Fa "void (*strategy)(struct buf *)"
+.Fa "dev_t dev"
+.Fa "int flags"
+.Fa "void (*minphys)(struct buf *)"
+.Fa "struct uio *uio"
+.Fc
+.Sh DESCRIPTION
+.Fn physio
+is a helper function typically called from character device read and write
+routines to start I/O on a user process buffer.
+It calls back on the provided
+.Fa strategy
+routine one or more times to complete the transfer described by
+.Fa uio .
+The maximum amount of data to transfer with each call to
+.Fa strategy
+is determined by the
+.Fa minphys
+routine.
+Since
+.Fa uio
+normally describes user space addresses,
+.Fn physio
+needs to lock the appropriate data area into memory before each transaction
+with
+.Fa strategy
+(see
+.Xr uvm_vslock_device 9
+and
+.Xr uvm_vsunlock_device 9 ) .
+.Fn physio
+always awaits the completion of the entire requested transfer before
+returning, unless an error condition is detected earlier.
+.Pp
+In all cases, a temporary buffer is allocated from a system pool.
+This buffer will have the
+.Dv B_BUSY ,
+.Dv B_PHYS ,
+and
+.Dv B_RAW
+flags set when passed to the strategy routine.
+.Pp
+A break-down of the arguments follows:
+.Bl -tag -width indent
+.It Fa strategy
+The device strategy routine to call for each chunk of data to initiate
+device I/O.
+.It Fa dev
+The device number identifying the device to interact with.
+.It Fa flags
+Direction of transfer; the only valid settings are
+.Dv B_READ
+or
+.Dv B_WRITE .
+.It Fa minphys
+A device specific routine called to determine the maximum transfer size
+that the device's strategy routine can handle.
+.It Fa uio
+The description of the entire transfer as requested by the user process.
+Currently, the results of passing a
+.Fa uio
+structure with the
+.Sq uio_segflg
+set to anything other than
+.Dv UIO_USERSPACE ,
+are undefined.
+.El
+.Sh RETURN VALUES
+If successful,
+.Fn physio
+returns 0.
+.Er EFAULT
+is returned if the address range described by
+.Fa uio
+is not accessible by the requesting process.
+.Fn physio
+will return any error resulting from calls to the device strategy routine,
+by examining the
+.Dv B_ERROR
+buffer flag and the
+.Sq b_error
+field.
+Note that the actual transfer size may be less than requested by
+.Fa uio
+if the device signals an
+.Dq end of file
+condition.
+.Sh SEE ALSO
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr uvm_vslock 9

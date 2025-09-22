@@ -1,0 +1,7 @@
+executable("yaml2obj") {
+  deps = [
+    "//llvm/lib/ObjectYAML",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "yaml2obj.cpp" ]
+}

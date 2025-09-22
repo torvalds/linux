@@ -1,0 +1,2 @@
+pkg_add: User USER couldn't create temp file as /nonexistent/session.XXXXXXXXXX: No such file or directory
+1

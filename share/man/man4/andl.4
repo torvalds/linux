@@ -1,0 +1,54 @@
+.\"	$OpenBSD: andl.4,v 1.5 2022/02/18 02:11:56 jsg Exp $
+.\"
+.\" Copyright (c) 2008 Constantine A. Murenin <cnst+openbsd@bugmail.mojo.ru>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt ANDL 4
+.Os
+.Sh NAME
+.Nm andl
+.Nd Andigilog aSC7611 temperature, voltage, and fan sensor
+.Sh SYNOPSIS
+.Cd "andl* at iic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Andigilog aSC7611 hardware monitor.
+The device provides 3 temperature sensors,
+5 voltage sensors and 4 fan sensors.
+Sensor values are made available through the
+.Xr sysctl 8
+interface.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Rs
+.%T Andigilog aSC7611 Hardware Monitor with Integrated Fan Control
+.%D October 2006
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Constantine A. Murenin Aq Mt cnst@openbsd.org
+whilst at the University of Waterloo.

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.apple.lldb-dap</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>lldb-dap</string>
+	<key>CFBundleVersion</key>
+	<string>${LLDB_VERSION}</string>
+	<key>SecTaskAccess</key>
+	<array>
+		<string>allowed</string>
+		<string>debug</string>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,33 @@
+
+// MY_TAG.
+// foo bar baz
+// MY_RUN: baz
+// MY_LIST: one, two
+// MY_LIST: three, four
+// MY_SPACE_LIST: orange
+// MY_SPACE_LIST: tabby tortie tuxedo
+// MY_SPACE_LIST: void
+// MY_SPACE_LIST: multiple   spaces
+// MY_SPACE_LIST: cute, fluffy, kittens
+// MY_RUN: foo \
+// MY_RUN: bar
+//
+// MY_CUSTOM: a b c
+//
+// MY_BOOL: a && (\
+// MY_BOOL: b)
+// MY_BOOL: d
+//
+// MY_INT: 4
+// MY_INT: 6
+//
+// MY_BOOL_UNTERMINATED: a \
+//
+// MY_DEFINE: %{name} = value one
+//
+// MY_REDEFINE: %{name} = value \
+// MY_REDEFINE:           two
+//
+// END.
+// MY_LIST: five
+// MY_SPACE_LIST: zebra

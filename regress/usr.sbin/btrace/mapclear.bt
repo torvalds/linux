@@ -1,0 +1,9 @@
+BEGIN {
+	@notamap = 123;
+
+	/*
+	 * Parser doesn't know the type of a variable and these check
+	 * are performed at run-time.
+	 */
+	clear(@notamap);
+}

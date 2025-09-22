@@ -1,0 +1,50 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Options") {
+  visibility = [ ":COFF" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+static_library("COFF") {
+  output_name = "lldCOFF"
+  configs += [ "//llvm/utils/gn/build:lld_code" ]
+  deps = [
+    ":Options",
+    "//lld/Common",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/DebugInfo/CodeView",
+    "//llvm/lib/DebugInfo/MSF",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/IR",
+    "//llvm/lib/LTO",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/ToolDrivers/llvm-lib:LibDriver",
+    "//llvm/lib/WindowsDriver",
+    "//llvm/lib/WindowsManifest",
+  ]
+  sources = [
+    "COFFLinkerContext.cpp",
+    "CallGraphSort.cpp",
+    "Chunks.cpp",
+    "DLL.cpp",
+    "DebugTypes.cpp",
+    "Driver.cpp",
+    "DriverUtils.cpp",
+    "ICF.cpp",
+    "InputFiles.cpp",
+    "LLDMapFile.cpp",
+    "LTO.cpp",
+    "MapFile.cpp",
+    "MarkLive.cpp",
+    "MinGW.cpp",
+    "PDB.cpp",
+    "SymbolTable.cpp",
+    "Symbols.cpp",
+    "Writer.cpp",
+  ]
+}

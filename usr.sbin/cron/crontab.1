@@ -1,0 +1,173 @@
+.\"/* Copyright 1988,1990,1993 by Paul Vixie
+.\" * All rights reserved
+.\" */
+.\"
+.\" Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (c) 1997,2000 by Internet Software Consortium, Inc.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $OpenBSD: crontab.1,v 1.34 2020/01/06 18:49:28 schwarze Exp $
+.\"
+.Dd $Mdocdate: January 6 2020 $
+.Dt CRONTAB 1
+.Os
+.Sh NAME
+.Nm crontab
+.Nd maintain crontab files for individual users
+.Sh SYNOPSIS
+.Nm
+.Op Fl u Ar user
+.Ar file
+.Nm
+.Oo
+.Fl e | l | r
+.Oc
+.Op Fl u Ar user
+.Sh DESCRIPTION
+.Nm
+is the program used to install, deinstall, or list the tables
+used to drive the
+.Xr cron 8
+daemon.
+Each user can have their own
+.Xr crontab 5 ,
+and though these are files in
+.Pa /var/cron/tabs ,
+they are not intended to be edited directly.
+.Pp
+The first form of this command is used to install a new crontab from some
+named file, or standard input if the pseudo-filename
+.Sq -
+is given.
+.Pp
+If the
+.Pa /var/cron/cron.allow
+file exists, then you must be listed therein in order to use
+.Nm .
+If the
+.Pa /var/cron/cron.allow
+file does not exist but the
+.Pa /var/cron/cron.deny
+file does exist, then you must
+.Em not
+be listed in the
+.Pa /var/cron/cron.deny
+file in order to use
+.Nm .
+If neither of these files exists then only the super user
+will be allowed to use
+.Nm .
+.Em NOTE :
+if they exist,
+.Pa /var/cron/cron.allow
+and
+.Pa /var/cron/cron.deny
+must be readable by group crontab.
+If
+.Nm
+is unable to read the files, users will not be allowed to use
+.Nm .
+.Pp
+The options are as follows:
+.Bl -tag -width "-u userX"
+.It Fl e
+Edit the current crontab using the editor specified by
+the
+.Ev VISUAL
+or
+.Ev EDITOR
+environment variables.
+After you exit from the editor, the modified
+.Xr crontab 5
+will be installed automatically.
+.It Fl l
+Causes the current crontab to be displayed on standard output.
+.It Fl r
+Causes the current crontab to be removed.
+.It Fl u Ar user
+Specifies the name of the user whose
+.Xr crontab 5
+is to be edited.
+If this option is not given,
+.Nm
+examines
+.Dq your
+.Xr crontab 5 ;
+i.e., the
+crontab of the person executing the command.
+Note that
+.Xr su 1
+can confuse
+.Nm
+and that if you are running inside of
+.Xr su 1
+you should always use the
+.Fl u
+option for safety's sake.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width "EDITOR"
+.It Ev EDITOR , VISUAL
+Specifies an editor to use.
+If both
+.Ev EDITOR
+and
+.Ev VISUAL
+are set,
+.Ev VISUAL
+takes precedence.
+If neither
+.Ev EDITOR
+nor
+.Ev VISUAL
+are set, the default is
+.Xr vi 1 .
+.El
+.Sh FILES
+.Bl -tag -width "/var/cron/cron.allow" -compact
+.It Pa /var/cron/cron.allow
+list of users allowed to use crontab
+.It Pa /var/cron/cron.deny
+list of users prohibited from using crontab
+.It Pa /var/cron/tabs
+directory of individual crontabs
+.El
+.Sh SEE ALSO
+.Xr at 1 ,
+.Xr crontab 5 ,
+.Xr cron 8
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flag
+.Op Fl u
+is an extension to that specification.
+.Pp
+The flag
+.Op Fl e
+is marked by
+.St -p1003.1-2008
+as being optional.
+.Pp
+The cron.allow/deny mechanism is marked by
+.St -p1003.1-2008
+as being an
+X/Open System Interfaces
+option.
+.Sh AUTHORS
+.An Paul Vixie Aq Mt vixie@isc.org

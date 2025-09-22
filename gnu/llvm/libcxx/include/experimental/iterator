@@ -1,0 +1,127 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_ITERATOR
+#define _LIBCPP_EXPERIMENTAL_ITERATOR
+
+/*
+namespace std {
+  namespace experimental {
+    inline namespace fundamentals_v2 {
+
+    template <class DelimT, class charT = char, class traits = char_traits<charT>>
+        class ostream_joiner {
+        public:
+         typedef charT                        char_type;
+         typedef traits                       traits_type;
+         typedef basic_ostream<charT, traits> ostream_type;
+         typedef output_iterator_tag          iterator_category;
+         typedef void                         value_type;
+         typedef void                         difference_type;
+         typedef void                         pointer;
+         typedef void                         reference;
+
+         ostream_joiner(ostream_type& s, const DelimT& delimiter);
+         ostream_joiner(ostream_type& s, DelimT&& delimiter);
+
+         template<typename T>
+         ostream_joiner& operator=(const T& value);
+
+         ostream_joiner& operator*() noexcept;
+         ostream_joiner& operator++() noexcept;
+         ostream_joiner& operator++(int) noexcept;
+   private:
+      ostream_type* out_stream;   // exposition only
+      DelimT delim;               // exposition only
+      bool first_element;         // exposition only
+   };
+
+  template <class charT, class traits, class DelimT>
+    ostream_joiner<decay_t<DelimT>, charT, traits>
+    make_ostream_joiner(basic_ostream<charT, traits>& os, DelimT&& delimiter);
+
+    } // inline namespace fundamentals_v2
+  } // namespace experimental
+} // namespace std
+
+*/
+
+#include <__memory/addressof.h>
+#include <__type_traits/decay.h>
+#include <__utility/forward.h>
+#include <__utility/move.h>
+#include <experimental/__config>
+#include <iterator>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+#if _LIBCPP_STD_VER >= 14
+
+_LIBCPP_BEGIN_NAMESPACE_LFTS
+
+template <class _Delim, class _CharT = char, class _Traits = char_traits<_CharT>>
+class ostream_joiner {
+public:
+  typedef _CharT char_type;
+  typedef _Traits traits_type;
+  typedef basic_ostream<char_type, traits_type> ostream_type;
+  typedef output_iterator_tag iterator_category;
+  typedef void value_type;
+  typedef void difference_type;
+  typedef void pointer;
+  typedef void reference;
+
+  _LIBCPP_HIDE_FROM_ABI ostream_joiner(ostream_type& __os, _Delim&& __d)
+      : __output_iter_(std::addressof(__os)), __delim_(std::move(__d)), __first_(true) {}
+
+  _LIBCPP_HIDE_FROM_ABI ostream_joiner(ostream_type& __os, const _Delim& __d)
+      : __output_iter_(std::addressof(__os)), __delim_(__d), __first_(true) {}
+
+  template <typename _Tp>
+  _LIBCPP_HIDE_FROM_ABI ostream_joiner& operator=(const _Tp& __v) {
+    if (!__first_)
+      *__output_iter_ << __delim_;
+    __first_ = false;
+    *__output_iter_ << __v;
+    return *this;
+  }
+
+  _LIBCPP_HIDE_FROM_ABI ostream_joiner& operator*() _NOEXCEPT { return *this; }
+  _LIBCPP_HIDE_FROM_ABI ostream_joiner& operator++() _NOEXCEPT { return *this; }
+  _LIBCPP_HIDE_FROM_ABI ostream_joiner& operator++(int) _NOEXCEPT { return *this; }
+
+private:
+  ostream_type* __output_iter_;
+  _Delim __delim_;
+  bool __first_;
+};
+
+template <class _CharT, class _Traits, class _Delim>
+_LIBCPP_HIDE_FROM_ABI ostream_joiner<__decay_t<_Delim>, _CharT, _Traits>
+make_ostream_joiner(basic_ostream<_CharT, _Traits>& __os, _Delim&& __d) {
+  return ostream_joiner<__decay_t<_Delim>, _CharT, _Traits>(__os, std::forward<_Delim>(__d));
+}
+
+_LIBCPP_END_NAMESPACE_LFTS
+
+#endif // _LIBCPP_STD_VER >= 14
+
+_LIBCPP_POP_MACROS
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <iosfwd>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_EXPERIMENTAL_ITERATOR

@@ -1,0 +1,516 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_MUTEX
+#define _LIBCPP_MUTEX
+
+/*
+    mutex synopsis
+
+namespace std
+{
+
+class mutex
+{
+public:
+     constexpr mutex() noexcept;
+     ~mutex();
+
+    mutex(const mutex&) = delete;
+    mutex& operator=(const mutex&) = delete;
+
+    void lock();
+    bool try_lock();
+    void unlock();
+
+    typedef pthread_mutex_t* native_handle_type;
+    native_handle_type native_handle();
+};
+
+class recursive_mutex
+{
+public:
+     recursive_mutex();
+     ~recursive_mutex();
+
+    recursive_mutex(const recursive_mutex&) = delete;
+    recursive_mutex& operator=(const recursive_mutex&) = delete;
+
+    void lock();
+    bool try_lock() noexcept;
+    void unlock();
+
+    typedef pthread_mutex_t* native_handle_type;
+    native_handle_type native_handle();
+};
+
+class timed_mutex
+{
+public:
+     timed_mutex();
+     ~timed_mutex();
+
+    timed_mutex(const timed_mutex&) = delete;
+    timed_mutex& operator=(const timed_mutex&) = delete;
+
+    void lock();
+    bool try_lock();
+    template <class Rep, class Period>
+        bool try_lock_for(const chrono::duration<Rep, Period>& rel_time);
+    template <class Clock, class Duration>
+        bool try_lock_until(const chrono::time_point<Clock, Duration>& abs_time);
+    void unlock();
+};
+
+class recursive_timed_mutex
+{
+public:
+     recursive_timed_mutex();
+     ~recursive_timed_mutex();
+
+    recursive_timed_mutex(const recursive_timed_mutex&) = delete;
+    recursive_timed_mutex& operator=(const recursive_timed_mutex&) = delete;
+
+    void lock();
+    bool try_lock() noexcept;
+    template <class Rep, class Period>
+        bool try_lock_for(const chrono::duration<Rep, Period>& rel_time);
+    template <class Clock, class Duration>
+        bool try_lock_until(const chrono::time_point<Clock, Duration>& abs_time);
+    void unlock();
+};
+
+struct defer_lock_t { explicit defer_lock_t() = default; };
+struct try_to_lock_t { explicit try_to_lock_t() = default; };
+struct adopt_lock_t { explicit adopt_lock_t() = default; };
+
+inline constexpr defer_lock_t  defer_lock{};
+inline constexpr try_to_lock_t try_to_lock{};
+inline constexpr adopt_lock_t  adopt_lock{};
+
+template <class Mutex>
+class lock_guard
+{
+public:
+    typedef Mutex mutex_type;
+
+    explicit lock_guard(mutex_type& m);
+    lock_guard(mutex_type& m, adopt_lock_t);
+    ~lock_guard();
+
+    lock_guard(lock_guard const&) = delete;
+    lock_guard& operator=(lock_guard const&) = delete;
+};
+
+template <class... MutexTypes>
+class scoped_lock // C++17
+{
+public:
+    using mutex_type = Mutex;  // Only if sizeof...(MutexTypes) == 1
+
+    explicit scoped_lock(MutexTypes&... m);
+    scoped_lock(adopt_lock_t, MutexTypes&... m);
+    ~scoped_lock();
+    scoped_lock(scoped_lock const&) = delete;
+    scoped_lock& operator=(scoped_lock const&) = delete;
+private:
+    tuple<MutexTypes&...> pm; // exposition only
+};
+
+template <class Mutex>
+class unique_lock
+{
+public:
+    typedef Mutex mutex_type;
+    unique_lock() noexcept;
+    explicit unique_lock(mutex_type& m);
+    unique_lock(mutex_type& m, defer_lock_t) noexcept;
+    unique_lock(mutex_type& m, try_to_lock_t);
+    unique_lock(mutex_type& m, adopt_lock_t);
+    template <class Clock, class Duration>
+        unique_lock(mutex_type& m, const chrono::time_point<Clock, Duration>& abs_time);
+    template <class Rep, class Period>
+        unique_lock(mutex_type& m, const chrono::duration<Rep, Period>& rel_time);
+    ~unique_lock();
+
+    unique_lock(unique_lock const&) = delete;
+    unique_lock& operator=(unique_lock const&) = delete;
+
+    unique_lock(unique_lock&& u) noexcept;
+    unique_lock& operator=(unique_lock&& u) noexcept;
+
+    void lock();
+    bool try_lock();
+
+    template <class Rep, class Period>
+        bool try_lock_for(const chrono::duration<Rep, Period>& rel_time);
+    template <class Clock, class Duration>
+        bool try_lock_until(const chrono::time_point<Clock, Duration>& abs_time);
+
+    void unlock();
+
+    void swap(unique_lock& u) noexcept;
+    mutex_type* release() noexcept;
+
+    bool owns_lock() const noexcept;
+    explicit operator bool () const noexcept;
+    mutex_type* mutex() const noexcept;
+};
+
+template <class Mutex>
+  void swap(unique_lock<Mutex>& x, unique_lock<Mutex>& y) noexcept;
+
+template <class L1, class L2, class... L3>
+  int try_lock(L1&, L2&, L3&...);
+template <class L1, class L2, class... L3>
+  void lock(L1&, L2&, L3&...);
+
+struct once_flag
+{
+    constexpr once_flag() noexcept;
+
+    once_flag(const once_flag&) = delete;
+    once_flag& operator=(const once_flag&) = delete;
+};
+
+template<class Callable, class ...Args>
+  void call_once(once_flag& flag, Callable&& func, Args&&... args);
+
+}  // std
+
+*/
+
+#include <__chrono/steady_clock.h>
+#include <__chrono/time_point.h>
+#include <__condition_variable/condition_variable.h>
+#include <__config>
+#include <__memory/shared_ptr.h>
+#include <__mutex/lock_guard.h>
+#include <__mutex/mutex.h>
+#include <__mutex/once_flag.h>
+#include <__mutex/tag_types.h>
+#include <__mutex/unique_lock.h>
+#include <__thread/id.h>
+#include <__thread/support.h>
+#include <__utility/forward.h>
+#include <cstddef>
+#include <limits>
+#ifndef _LIBCPP_CXX03_LANG
+#  include <tuple>
+#endif
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#ifndef _LIBCPP_HAS_NO_THREADS
+
+class _LIBCPP_EXPORTED_FROM_ABI recursive_mutex {
+  __libcpp_recursive_mutex_t __m_;
+
+public:
+  recursive_mutex();
+  ~recursive_mutex();
+
+  recursive_mutex(const recursive_mutex&)            = delete;
+  recursive_mutex& operator=(const recursive_mutex&) = delete;
+
+  void lock();
+  bool try_lock() _NOEXCEPT;
+  void unlock() _NOEXCEPT;
+
+  typedef __libcpp_recursive_mutex_t* native_handle_type;
+
+  _LIBCPP_HIDE_FROM_ABI native_handle_type native_handle() { return &__m_; }
+};
+
+class _LIBCPP_EXPORTED_FROM_ABI timed_mutex {
+  mutex __m_;
+  condition_variable __cv_;
+  bool __locked_;
+
+public:
+  timed_mutex();
+  ~timed_mutex();
+
+  timed_mutex(const timed_mutex&)            = delete;
+  timed_mutex& operator=(const timed_mutex&) = delete;
+
+public:
+  void lock();
+  bool try_lock() _NOEXCEPT;
+  template <class _Rep, class _Period>
+  _LIBCPP_HIDE_FROM_ABI bool try_lock_for(const chrono::duration<_Rep, _Period>& __d) {
+    return try_lock_until(chrono::steady_clock::now() + __d);
+  }
+  template <class _Clock, class _Duration>
+  _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS bool
+  try_lock_until(const chrono::time_point<_Clock, _Duration>& __t);
+  void unlock() _NOEXCEPT;
+};
+
+template <class _Clock, class _Duration>
+bool timed_mutex::try_lock_until(const chrono::time_point<_Clock, _Duration>& __t) {
+  using namespace chrono;
+  unique_lock<mutex> __lk(__m_);
+  bool __no_timeout = _Clock::now() < __t;
+  while (__no_timeout && __locked_)
+    __no_timeout = __cv_.wait_until(__lk, __t) == cv_status::no_timeout;
+  if (!__locked_) {
+    __locked_ = true;
+    return true;
+  }
+  return false;
+}
+
+class _LIBCPP_EXPORTED_FROM_ABI recursive_timed_mutex {
+  mutex __m_;
+  condition_variable __cv_;
+  size_t __count_;
+  __thread_id __id_;
+
+public:
+  recursive_timed_mutex();
+  ~recursive_timed_mutex();
+
+  recursive_timed_mutex(const recursive_timed_mutex&)            = delete;
+  recursive_timed_mutex& operator=(const recursive_timed_mutex&) = delete;
+
+  void lock();
+  bool try_lock() _NOEXCEPT;
+  template <class _Rep, class _Period>
+  _LIBCPP_HIDE_FROM_ABI bool try_lock_for(const chrono::duration<_Rep, _Period>& __d) {
+    return try_lock_until(chrono::steady_clock::now() + __d);
+  }
+  template <class _Clock, class _Duration>
+  _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS bool
+  try_lock_until(const chrono::time_point<_Clock, _Duration>& __t);
+  void unlock() _NOEXCEPT;
+};
+
+template <class _Clock, class _Duration>
+bool recursive_timed_mutex::try_lock_until(const chrono::time_point<_Clock, _Duration>& __t) {
+  using namespace chrono;
+  __thread_id __id = this_thread::get_id();
+  unique_lock<mutex> __lk(__m_);
+  if (__id == __id_) {
+    if (__count_ == numeric_limits<size_t>::max())
+      return false;
+    ++__count_;
+    return true;
+  }
+  bool __no_timeout = _Clock::now() < __t;
+  while (__no_timeout && __count_ != 0)
+    __no_timeout = __cv_.wait_until(__lk, __t) == cv_status::no_timeout;
+  if (__count_ == 0) {
+    __count_ = 1;
+    __id_    = __id;
+    return true;
+  }
+  return false;
+}
+
+template <class _L0, class _L1>
+_LIBCPP_HIDE_FROM_ABI int try_lock(_L0& __l0, _L1& __l1) {
+  unique_lock<_L0> __u0(__l0, try_to_lock_t());
+  if (__u0.owns_lock()) {
+    if (__l1.try_lock()) {
+      __u0.release();
+      return -1;
+    } else
+      return 1;
+  }
+  return 0;
+}
+
+#  ifndef _LIBCPP_CXX03_LANG
+
+template <class _L0, class _L1, class _L2, class... _L3>
+_LIBCPP_HIDE_FROM_ABI int try_lock(_L0& __l0, _L1& __l1, _L2& __l2, _L3&... __l3) {
+  int __r = 0;
+  unique_lock<_L0> __u0(__l0, try_to_lock);
+  if (__u0.owns_lock()) {
+    __r = std::try_lock(__l1, __l2, __l3...);
+    if (__r == -1)
+      __u0.release();
+    else
+      ++__r;
+  }
+  return __r;
+}
+
+#  endif // _LIBCPP_CXX03_LANG
+
+template <class _L0, class _L1>
+_LIBCPP_HIDE_FROM_ABI void lock(_L0& __l0, _L1& __l1) {
+  while (true) {
+    {
+      unique_lock<_L0> __u0(__l0);
+      if (__l1.try_lock()) {
+        __u0.release();
+        break;
+      }
+    }
+    __libcpp_thread_yield();
+    {
+      unique_lock<_L1> __u1(__l1);
+      if (__l0.try_lock()) {
+        __u1.release();
+        break;
+      }
+    }
+    __libcpp_thread_yield();
+  }
+}
+
+#  ifndef _LIBCPP_CXX03_LANG
+
+template <class _L0, class _L1, class _L2, class... _L3>
+void __lock_first(int __i, _L0& __l0, _L1& __l1, _L2& __l2, _L3&... __l3) {
+  while (true) {
+    switch (__i) {
+    case 0: {
+      unique_lock<_L0> __u0(__l0);
+      __i = std::try_lock(__l1, __l2, __l3...);
+      if (__i == -1) {
+        __u0.release();
+        return;
+      }
+    }
+      ++__i;
+      __libcpp_thread_yield();
+      break;
+    case 1: {
+      unique_lock<_L1> __u1(__l1);
+      __i = std::try_lock(__l2, __l3..., __l0);
+      if (__i == -1) {
+        __u1.release();
+        return;
+      }
+    }
+      if (__i == sizeof...(_L3) + 1)
+        __i = 0;
+      else
+        __i += 2;
+      __libcpp_thread_yield();
+      break;
+    default:
+      std::__lock_first(__i - 2, __l2, __l3..., __l0, __l1);
+      return;
+    }
+  }
+}
+
+template <class _L0, class _L1, class _L2, class... _L3>
+inline _LIBCPP_HIDE_FROM_ABI void lock(_L0& __l0, _L1& __l1, _L2& __l2, _L3&... __l3) {
+  std::__lock_first(0, __l0, __l1, __l2, __l3...);
+}
+
+#  endif // _LIBCPP_CXX03_LANG
+
+#  if _LIBCPP_STD_VER >= 17
+template <class... _Mutexes>
+class _LIBCPP_TEMPLATE_VIS scoped_lock;
+
+template <>
+class _LIBCPP_TEMPLATE_VIS scoped_lock<> {
+public:
+  [[nodiscard]] _LIBCPP_HIDE_FROM_ABI explicit scoped_lock() {}
+  ~scoped_lock() = default;
+
+  [[nodiscard]] _LIBCPP_HIDE_FROM_ABI explicit scoped_lock(adopt_lock_t) {}
+
+  scoped_lock(scoped_lock const&)            = delete;
+  scoped_lock& operator=(scoped_lock const&) = delete;
+};
+
+template <class _Mutex>
+class _LIBCPP_TEMPLATE_VIS _LIBCPP_THREAD_SAFETY_ANNOTATION(scoped_lockable) scoped_lock<_Mutex> {
+public:
+  typedef _Mutex mutex_type;
+
+private:
+  mutex_type& __m_;
+
+public:
+  [[nodiscard]]
+  _LIBCPP_HIDE_FROM_ABI explicit scoped_lock(mutex_type& __m) _LIBCPP_THREAD_SAFETY_ANNOTATION(acquire_capability(__m))
+      : __m_(__m) {
+    __m_.lock();
+  }
+
+  ~scoped_lock() _LIBCPP_THREAD_SAFETY_ANNOTATION(release_capability()) { __m_.unlock(); }
+
+  [[nodiscard]] _LIBCPP_HIDE_FROM_ABI explicit scoped_lock(adopt_lock_t, mutex_type& __m)
+      _LIBCPP_THREAD_SAFETY_ANNOTATION(requires_capability(__m))
+      : __m_(__m) {}
+
+  scoped_lock(scoped_lock const&)            = delete;
+  scoped_lock& operator=(scoped_lock const&) = delete;
+};
+
+template <class... _MArgs>
+class _LIBCPP_TEMPLATE_VIS scoped_lock {
+  static_assert(sizeof...(_MArgs) > 1, "At least 2 lock types required");
+  typedef tuple<_MArgs&...> _MutexTuple;
+
+public:
+  [[nodiscard]] _LIBCPP_HIDE_FROM_ABI explicit scoped_lock(_MArgs&... __margs) : __t_(__margs...) {
+    std::lock(__margs...);
+  }
+
+  [[nodiscard]] _LIBCPP_HIDE_FROM_ABI scoped_lock(adopt_lock_t, _MArgs&... __margs) : __t_(__margs...) {}
+
+  _LIBCPP_HIDE_FROM_ABI ~scoped_lock() {
+    typedef typename __make_tuple_indices<sizeof...(_MArgs)>::type _Indices;
+    __unlock_unpack(_Indices{}, __t_);
+  }
+
+  scoped_lock(scoped_lock const&)            = delete;
+  scoped_lock& operator=(scoped_lock const&) = delete;
+
+private:
+  template <size_t... _Indx>
+  _LIBCPP_HIDE_FROM_ABI static void __unlock_unpack(__tuple_indices<_Indx...>, _MutexTuple& __mt) {
+    (std::get<_Indx>(__mt).unlock(), ...);
+  }
+
+  _MutexTuple __t_;
+};
+_LIBCPP_CTAD_SUPPORTED_FOR_TYPE(scoped_lock);
+
+#  endif // _LIBCPP_STD_VER >= 17
+#endif   // !_LIBCPP_HAS_NO_THREADS
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <atomic>
+#  include <concepts>
+#  include <cstdlib>
+#  include <cstring>
+#  include <ctime>
+#  include <initializer_list>
+#  include <iosfwd>
+#  include <new>
+#  include <stdexcept>
+#  include <system_error>
+#  include <type_traits>
+#  include <typeinfo>
+#endif
+
+#endif // _LIBCPP_MUTEX

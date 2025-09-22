@@ -1,0 +1,76 @@
+#	$OpenBSD: genassym.cf,v 1.17 2024/10/21 22:04:13 jsg Exp $
+#
+# Copyright (c) 1997 Per Fogelstrom / Opsycon AB
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+# OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+
+
+include <sys/param.h>
+include <sys/proc.h>
+include <uvm/uvm_extern.h>
+
+include <machine/pcb.h>
+include <machine/cpu.h>
+
+export	SONPROC
+
+struct	proc
+member	p_addr
+member	p_cpu
+member	p_stat
+member	p_vmspace
+member	P_ASTPENDING	p_md.md_astpending
+member	P_TCB		p_md.md_tcb
+
+struct	pcb
+member	pcb_regs
+member	PCB_FPREGS	pcb_regs.f0
+member	pcb_context
+member	pcb_onfault
+member	pcb_segtab
+
+struct	cpu_info
+member	ci_cpuid
+member	ci_curproc
+member	ci_curprocpaddr
+member	ci_fpuproc
+member	ci_ipl
+
+export	CKSEG0_BASE
+export	CKSEG1_BASE
+export	VM_MIN_KERNEL_ADDRESS
+
+struct	vmspace
+member	VMSPACE_PMAP	vm_map.pmap
+
+struct	pmap
+member	PM_ASID pm_asid[0].pma_asid
+export	NPDEPG
+export	NPTEPG
+export	PMAP_SEGTABSIZE
+export	SEGSHIFT
+export	DIRSHIFT
+
+export	CCA_CACHED
+export	CCA_COHERENT_EXCLWRITE
+export	CCA_NC

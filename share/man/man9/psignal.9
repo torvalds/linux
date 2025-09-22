@@ -1,0 +1,125 @@
+.\"	$OpenBSD: psignal.9,v 1.8 2022/03/31 17:27:23 naddy Exp $
+.\"	$NetBSD: psignal.9,v 1.5 1999/03/16 00:40:47 garbled Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt PSIGNAL 9
+.Os
+.Sh NAME
+.Nm psignal ,
+.Nm pgsignal ,
+.Nm pgsigio
+.Nd post signal to a process
+.Sh SYNOPSIS
+.Ft void
+.Fn psignal "struct proc *p" "int signum"
+.Ft void
+.Fn pgsignal "struct pgrp *pgrp" "int signum" "int checkctty"
+.Ft void
+.Fn pgsigio "struct sigio_ref *sir" "int sigum" "int checkctty"
+.Sh DESCRIPTION
+These functions post a signal to one or more processes.
+The argument
+.Fa signum
+common to all three functions should be in the range
+.Bq 1- Ns Dv NSIG .
+.Pp
+The
+.Fn psignal
+function posts signal number
+.Fa signum
+to the process represented by the process structure
+.Fa p .
+With a few exceptions noted below, the target process signal disposition is
+updated and is marked as runnable, so further handling of the signal is done
+in the context of the target process after a context switch.
+Note that
+.Fn psignal
+does not by itself cause a context switch to happen.
+.Pp
+The target process is not marked as runnable in the following cases:
+.Bl -bullet -offset indent
+.It
+The target process is sleeping uninterruptibly.
+The signal will be
+noticed when the process returns from the system call or trap.
+.It
+The target process is currently ignoring the signal.
+.It
+If a stop signal is sent to a sleeping process that takes the
+default action
+.Pq see Xr sigaction 2 ,
+the process is stopped without awakening it.
+.It
+.Dv SIGCONT
+restarts a stopped process
+.Pq or puts them back to sleep
+regardless of the signal action
+.Pq e.g., blocked or ignored .
+.El
+.Pp
+If the target process is being traced,
+.Fn psignal
+behaves as if the target process were taking the default action for
+.Fa signum .
+This allows the tracing process to be notified of the signal.
+.Pp
+The
+.Fn pgsignal
+function posts signal number
+.Fa signum
+to each member of the process group described by
+.Fa pgrp .
+If
+.Fa checkctty
+is non-zero, the signal will be posted only to processes that have
+a controlling terminal.
+If
+.Fa pgrp
+is
+.Dv NULL ,
+no action is taken.
+.Pp
+The
+.Fn pgsigio
+function posts signal number
+.Fa signum
+to the process or each member of the process group indicated by reference
+.Fa sir .
+If
+.Fa checkctty
+is non-zero, the signal will be posted only to processes that have
+a controlling terminal.
+.Sh CODE REFERENCES
+These functions are implemented in the file
+.Pa sys/kern/kern_sig.c .
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr sigio_setown 9 ,
+.Xr tsleep 9

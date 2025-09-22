@@ -1,0 +1,38 @@
+.\"	$OpenBSD: shpcic.4,v 1.3 2010/09/19 12:41:23 jmc Exp $
+.\"
+.\" Copyright (c) 2004 Martin Reindl
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 19 2010 $
+.Dt SHPCIC 4 landisk
+.Os
+.Sh NAME
+.Nm shpcic
+.Nd landisk SuperH PCI-Host Bridge
+.Sh SYNOPSIS
+.Cd "shpcic* at mainbus?"
+.Cd "pci0 at shpcic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the landisk on-board PCI bus.
+This device is largely transparent and provides no user accessible entry points.
+.Sh SEE ALSO
+.Xr mainbus 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.1 .

@@ -1,0 +1,22 @@
+static_library("Syntax") {
+  output_name = "clangToolingSyntax"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/include/clang/Tooling/Syntax:Nodes",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  public_deps = [ "//clang/include/clang/Tooling/Syntax:NodeClasses" ]
+  sources = [
+    "BuildTree.cpp",
+    "ComputeReplacements.cpp",
+    "Mutations.cpp",
+    "Nodes.cpp",
+    "Synthesis.cpp",
+    "TokenBufferTokenManager.cpp",
+    "Tokens.cpp",
+    "Tree.cpp",
+  ]
+}

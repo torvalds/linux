@@ -1,6 +1,0 @@
-# Override the value
-key.word = 1,2,4
-key.word := 2,3
-
-# No pre-defined key
-key.new.word := "new"

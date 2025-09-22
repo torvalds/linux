@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+
+# This simple script can be used to set up a CI node running MacOS.
+# An additional requirement that is *not* handled by this script is the
+# installation of Xcode, which requires manual intervention.
+#
+# This script should first be run from an administrator account to install
+# the dependencies necessary for running CI. It can be run without having
+# to clone the LLVM repository with:
+#
+#   $ /bin/bash -c "$(curl -fsSl https://raw.githubusercontent.com/llvm/llvm-project/main/libcxx/utils/ci/macos-ci-setup)"
+#
+# If you perform system updates, you should re-run the script from the
+# administrator account -- this allows updating the packages used for
+# CI and the BuildKite agent tags.
+#
+# Once the necessary dependencies have been installed, you can switch
+# to a non-administrator account and run the script again, passing the
+# --setup-launchd argument. That will install a Launchd agent to run the
+# BuildKite agent whenever the current user is logged in. You should enable
+# automatic login for that user, so that if the CI node goes down, the user
+# is logged back in automatically when the node goes up again, and the
+# BuildKite agent starts automatically.
+#
+# Alternatively, you can simply run the BuildKite agent by hand using:
+#
+#   $ caffeinate -s buildkite-agent start --build-path /tmp/buildkite-builds
+
+set -e
+
+# Install a Launchd agent that will automatically start the BuildKite agent at login
+if [[ ${1} == "--setup-launchd" ]]; then
+  HOMEBREW_PREFIX="$(brew --prefix)"
+  mkdir -p ~/Library/LaunchAgents
+  cat <<EOF > ~/Library/LaunchAgents/libcxx.buildkite-agent.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>libcxx.buildkite-agent</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>${HOMEBREW_PREFIX}/bin/buildkite-agent</string>
+    <string>start</string>
+    <string>--build-path</string>
+    <string>${HOME}/libcxx.buildkite-agent/builds</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>${HOMEBREW_PREFIX}/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <key>ProcessType</key>
+  <string>Interactive</string>
+
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+
+  <key>StandardOutPath</key>
+  <string>${HOME}/libcxx.buildkite-agent/stdout.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>${HOME}/libcxx.buildkite-agent/stderr.log</string>
+</dict>
+</plist>
+EOF
+
+  echo "Starting BuildKite agent"
+  launchctl load ~/Library/LaunchAgents/libcxx.buildkite-agent.plist
+
+else
+  echo "Installing CI dependencies for macOS"
+
+  if [[ -z "${BUILDKITE_AGENT_TOKEN}" ]]; then
+    echo "The BUILDKITE_AGENT_TOKEN environment variable must be set to a BuildKite Agent token when calling this script."
+    exit 1
+  fi
+
+  # Install Homebrew
+  if ! which -s brew; then
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+  fi
+
+  # Install the required tools to run CI
+  brew update
+  for package in sphinx-doc python3 ninja cmake clang-format buildkite/buildkite/buildkite-agent; do
+    if brew ls --versions "${package}" >/dev/null; then
+      brew upgrade "${package}"
+    else
+      brew install "${package}"
+    fi
+  done
+  python3 -m pip install --upgrade psutil
+
+  echo "Setting up BuildKite Agent config"
+  version="$(sw_vers -productVersion | sed -E 's/([0-9]+).([0-9]+).[0-9]+/\1.\2/')"
+  arch="$(uname -m)"
+  cat <<EOF > "$(brew --prefix)/etc/buildkite-agent/buildkite-agent.cfg"
+token="${BUILDKITE_AGENT_TOKEN}"
+tags="queue=libcxx-builders,arch=${arch},os=macos,os=macos${version}"
+build-path=/tmp/buildkite-builds # Note that this is actually overwritten when starting the agent with launchd
+EOF
+fi

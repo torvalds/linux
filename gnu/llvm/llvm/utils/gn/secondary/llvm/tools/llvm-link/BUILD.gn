@@ -1,0 +1,14 @@
+executable("llvm-link") {
+  deps = [
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/Linker",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/IPO",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [ "llvm-link.cpp" ]
+}

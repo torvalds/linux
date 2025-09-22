@@ -1,0 +1,138 @@
+.\" $OpenBSD: BN_CTX_start.3,v 1.9 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 35fd9953 May 28 14:49:38 2019 +0200
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_CTX_START 3
+.Os
+.Sh NAME
+.Nm BN_CTX_start ,
+.Nm BN_CTX_get ,
+.Nm BN_CTX_end
+.Nd use temporary BIGNUM variables
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft void
+.Fo BN_CTX_start
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft BIGNUM *
+.Fo BN_CTX_get
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft void
+.Fo BN_CTX_end
+.Fa "BN_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+These functions are used to obtain temporary
+.Vt BIGNUM
+variables from a
+.Vt BN_CTX
+(which can be created using
+.Xr BN_CTX_new 3 )
+in order to save the overhead of repeatedly creating and freeing
+.Vt BIGNUM Ns s
+in functions that are called from inside a loop.
+.Pp
+A function must call
+.Fn BN_CTX_start
+first.
+Then,
+.Fn BN_CTX_get
+may be called repeatedly to obtain temporary
+.Vt BIGNUM Ns s .
+All
+.Fn BN_CTX_get
+calls must be made before calling any other functions that use the
+.Fa ctx
+as an argument.
+.Pp
+Finally,
+.Fn BN_CTX_end
+must be called before returning from the function.
+When
+.Fn BN_CTX_end
+is called, the
+.Vt BIGNUM
+pointers obtained from
+.Fn BN_CTX_get
+become invalid.
+If
+.Fa ctx
+is
+.Dv NULL ,
+no action occurs.
+.Sh RETURN VALUES
+.Fn BN_CTX_get
+returns a pointer to the
+.Vt BIGNUM ,
+or
+.Dv NULL
+on error.
+Once
+.Fn BN_CTX_get
+has failed, the subsequent calls will return
+.Dv NULL
+as well, so it is sufficient to check the return value of the last
+.Fn BN_CTX_get
+call.
+In case of an error, an error code is set which can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr BN_CTX_new 3 ,
+.Xr BN_new 3
+.Sh HISTORY
+.Fn BN_CTX_start ,
+.Fn BN_CTX_get ,
+and
+.Fn BN_CTX_end
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .

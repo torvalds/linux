@@ -1,0 +1,366 @@
+.\" $OpenBSD: ikectl.8,v 1.28 2022/03/31 17:27:30 naddy Exp $
+.\"
+.\" Copyright (c) 2007-2013 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt IKECTL 8
+.Os
+.Sh NAME
+.Nm ikectl
+.Nd control the IKEv2 daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl q
+.Op Fl s Ar socket
+.Ar command
+.Op Ar arg ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr iked 8
+daemon and provides commands to maintain a simple X.509 certificate
+authority (CA) for IKEv2 peers.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl q
+Don't ask for confirmation of any default options.
+.It Fl s Ar socket
+Use
+.Ar socket
+instead of the default
+.Pa /var/run/iked.sock
+to communicate with
+.Xr iked 8 .
+.El
+.Sh IKED CONTROL COMMANDS
+The following commands are available to control
+.Xr iked 8 :
+.Bl -tag -width Ds
+.It Cm active
+Set
+.Xr iked 8
+to active mode.
+.It Cm passive
+Set
+.Xr iked 8
+to passive mode.
+In passive mode no packets are sent to peers and no connections
+are initiated by
+.Xr iked 8 .
+.It Cm couple
+Load the negotiated security associations (SAs) and flows into the kernel.
+.It Cm decouple
+Unload the negotiated SAs and flows from the kernel.
+This mode is only useful for testing and debugging.
+.It Cm load Ar filename
+Reload the configuration from the specified file.
+.It Cm log brief
+Disable verbose logging.
+.It Cm log verbose
+Enable verbose logging.
+.It Cm monitor
+Monitor internal messages of the
+.Xr iked 8
+subsystems.
+.It Cm reload
+Reload the configuration from the default configuration file.
+.It Cm reset all
+Reset the running state.
+.It Cm reset ca
+Reset the X.509 CA and certificate state.
+.It Cm reset policy
+Flush the configured policies.
+.It Cm reset sa
+Flush the running SAs.
+.It Cm reset user
+Flush the local user database.
+.It Cm reset id Ar ikeid
+Delete all IKE SAs with matching ID.
+.It Cm show sa
+Show internal state of active IKE SAs, Child SAs and IPsec flows.
+.El
+.Sh PKI AND CERTIFICATE AUTHORITY COMMANDS
+In order to use public key based authentication with IKEv2,
+a public key infrastructure (PKI) has to be set up to create and sign
+the peer certificates.
+.Nm
+includes commands to simplify maintenance of the PKI
+and to set up a simple certificate authority (CA) for
+.Xr iked 8
+and its peers.
+.Pp
+The following commands are available to control the CA:
+.Bl -tag -width Ds
+.It Xo
+.Cm ca Ar name Cm create
+.Op Cm password Ar password
+.Xc
+Create a new certificate authority with the specified
+.Ar name .
+The command will prompt for a CA password unless it is specified with
+the optional
+.Ar password
+argument.
+The password will be saved in a protected file
+.Pa ikeca.passwd
+in the CA directory and used for subsequent commands.
+.It Cm ca Ar name Cm delete
+Delete the certificate authority with the specified
+.Ar name .
+.It Xo
+.Cm ca Ar name Cm export
+.Op Cm peer Ar peer
+.Op Cm password Ar password
+.Xc
+Export the certificate authority with the specified
+.Ar name
+into the current directory for transport to other systems.
+This command will create a compressed tarball called
+.Pa ca.tgz
+in the local directory and optionally
+.Pa ca.zip
+if the
+.Sq zip
+tool is installed.
+The optional
+.Ar peer
+argument can be used to specify the address or FQDN of the local gateway
+which will be written into a text file
+.Pa peer.txt
+and included in the archives.
+.It Xo
+.Cm ca Ar name
+.Cm install Op Ar path
+.Xc
+Install the certificate and Certificate Revocation List (CRL) for CA
+.Ar name
+as the currently active CA or into the specified
+.Ar path .
+.It Xo
+.Cm ca Ar name Cm certificate Ar host
+.Cm create
+.Op Ic server | client | ocsp
+.Xc
+Create a private key and certificate for
+.Ar host
+and sign then with the key of certificate authority with the specified
+.Ar name .
+.Pp
+The certificate will be valid for client and server authentication by
+default by setting both flags as the extended key usage in the certificate;
+this can be restricted using the optional
+.Ic server
+or
+.Ic client
+argument.
+If the
+.Ic ocsp
+argument is specified, the extended key usage will be set for OCSP signing.
+.It Xo
+.Cm ca Ar name Cm certificate Ar host
+.Cm delete
+.Xc
+Deletes the private key and certificates associated with
+.Ar host .
+.It Xo
+.Cm ca Ar name Cm certificate Ar host
+.Cm export
+.Op Cm peer Ar peer
+.Op Cm password Ar password
+.Xc
+Export key files for
+.Ar host
+of the certificate authority with the specified
+.Ar name
+into the current directory for transport to other systems.
+This command will create a compressed tarball
+.Pa host.tgz
+in the local directory and optionally
+.Pa host.zip
+if the
+.Sq zip
+tool is installed.
+The optional
+.Ar peer
+argument can be used to specify the address or FQDN of the local gateway
+which will be written into a text file
+.Pa peer.txt
+and included in the archives.
+.It Xo
+.Cm ca Ar name Cm certificate Ar host
+.Cm install Op Ar path
+.Xc
+Install the private and public key for
+.Ar host
+into the active configuration or specified
+.Ar path .
+.It Xo
+.Cm ca Ar name Cm certificate Ar host
+.Cm revoke
+.Xc
+Revoke the certificate specified by
+.Ar host
+and generate a new Certificate Revocation List (CRL).
+.It Xo
+.Cm show Cm ca Ar name Cm certificates
+.Op Ar host
+.Xc
+Display a listing of certificates associated with CA
+.Ar name
+or display certificate details if
+.Ar host
+is specified.
+.It Xo
+.Cm ca Ar name Cm key Ar host
+.Cm create
+.Xc
+Create a private key for
+.Ar host
+if one does not already exist.
+.It Xo
+.Cm ca Ar name Cm key Ar host
+.Cm install Op Ar path
+.Xc
+Install the private and public keys for
+.Ar host
+into the active configuration or specified
+.Ar path .
+.It Xo
+.Cm ca Ar name Cm key Ar host
+.Cm delete
+.Xc
+Delete the private key for
+.Ar host .
+.It Xo
+.Cm ca Ar name Cm key Ar host
+.Cm import
+.Ar file
+.Xc
+Source the private key for
+.Ar host
+from the named
+.Ar file .
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/iked.sockXX" -compact
+.It Pa /etc/iked/
+Active configuration.
+.It Pa /etc/ssl/
+Directory to store the CA files.
+.It Pa /usr/share/iked/
+If this optional directory exists,
+.Nm
+will include the contents with the
+.Cm ca export
+commands.
+.It Pa /var/run/iked.sock
+Default
+.Ux Ns -domain
+socket used for communication with
+.Xr iked 8 .
+.El
+.Sh EXAMPLES
+First create a new certificate authority:
+.Bd -literal -offset indent
+# ikectl ca vpn create
+.Ed
+.Pp
+Now create the certificates for the VPN peers.
+The specified hostname, either IP address or FQDN, will be saved in
+the signed certificate and has to match the IKEv2 identity, or
+.Ar srcid ,
+of the peers:
+.Bd -literal -offset indent
+# ikectl ca vpn certificate 10.1.2.3 create
+# ikectl ca vpn certificate 10.2.3.4 create
+# ikectl ca vpn certificate 10.3.4.5 create
+.Ed
+.Pp
+It is possible that the host that was used to create the CA is also
+one of the VPN peers.
+In this case you can install the peer and CA certificates locally:
+.Bd -literal -offset indent
+# ikectl ca vpn install
+# ikectl ca vpn certificate 10.1.2.3 install
+.Ed
+.Pp
+Now export the individual host key, the certificate and the CA
+certificate to each other peer.
+First run the
+.Ic export
+command to create tarballs that include the required files:
+.Bd -literal -offset indent
+# ikectl ca vpn certificate 10.2.3.4 export
+# ikectl ca vpn certificate 10.3.4.5 export
+.Ed
+.Pp
+These commands will produce two tarballs
+.Em 10.2.3.4.tgz
+and
+.Em 10.3.4.5.tgz .
+Copy these tarballs over to the appropriate peers and extract them
+to the
+.Pa /etc/iked/
+directory:
+.Bd -literal -offset indent
+10.2.3.4# tar -C /etc/iked -xzpf 10.2.3.4.tgz
+10.3.4.5# tar -C /etc/iked -xzpf 10.3.4.5.tgz
+.Ed
+.Pp
+.Nm
+will also create
+.Sq zip
+archives 10.2.3.4.zip and 10.3.4.5.zip
+in addition to the tarballs if the zip tool is found in
+.Pa /usr/local/bin/zip .
+These archives can be exported to peers running Windows and will
+include the certificates in a format that is supported by the OS.
+The zip tool can be installed from the
+.Ox
+packages or ports collection before running the
+.Ic export
+commands, see
+.Xr packages 7
+for more information.
+For example:
+.Bd -literal -offset indent
+# pkg_add zip
+.Ed
+.Sh SEE ALSO
+.Xr packages 7 ,
+.Xr iked 8 ,
+.Xr ssl 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.8 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org
+and
+.An Jonathan Gray Aq Mt jsg@openbsd.org .
+.Sh CAVEATS
+For ease of use, the
+.Ic ca
+commands maintain all peers' private keys on the CA machine.
+In contrast to a
+.Sq real
+CA, it does not support signing of public keys that have been imported
+from peers that do not want to expose their private keys to the CA.

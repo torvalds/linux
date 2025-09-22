@@ -1,0 +1,518 @@
+.\"	$OpenBSD: route.4,v 1.56 2021/11/10 20:24:22 bket Exp $
+.\"	$NetBSD: route.4,v 1.3 1994/11/30 16:22:31 jtc Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)route.4	8.6 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: November 10 2021 $
+.Dt ROUTE 4
+.Os
+.Sh NAME
+.Nm route
+.Nd kernel packet forwarding database
+.Sh SYNOPSIS
+.In sys/socket.h
+.In net/if.h
+.In net/route.h
+.Ft int
+.Fn socket AF_ROUTE SOCK_RAW family
+.Sh DESCRIPTION
+.Ox
+provides some packet routing facilities.
+The kernel maintains a routing information database, which
+is used in selecting the appropriate network interface when
+transmitting packets.
+.Pp
+A user process (or possibly multiple co-operating processes)
+maintains this database by sending messages over a special kind
+of socket.
+This supplants fixed size
+.Xr ioctl 2 Ns 's
+used in earlier releases.
+Routing table changes may only be carried out by the super user.
+.Pp
+The operating system may spontaneously emit routing messages in response
+to external events, such as receipt of a redirect, or failure to
+locate a suitable route for a request.
+The message types are described in greater detail below.
+.Pp
+Routing database entries come in two flavors: for a specific
+host, or for all hosts on a generic subnetwork (as specified
+by a bit mask and value under the mask).
+The effect of wildcard or default route may be achieved by using
+a mask of all zeros, and there may be hierarchical routes.
+.Pp
+When the system is booted and addresses are assigned
+to the network interfaces, each protocol family
+installs a routing table entry for each interface when it is ready for traffic.
+Normally the protocol specifies the route
+through each interface as a
+.Dq direct
+connection to the destination host
+or network.
+If the route is direct, the transport layer of a protocol family usually
+requests the packet be sent to the same host specified in the packet.
+Otherwise, the interface is requested to address the packet to the gateway
+listed in the routing entry (i.e., the packet is forwarded).
+.Pp
+When routing a packet,
+the kernel will attempt to find
+the most specific route matching the destination.
+(If there are two different mask and value-under-the-mask pairs
+that match, the more specific is the one with more bits in the mask.
+A route to a host is regarded as being supplied with a mask of
+as many ones as there are bits in the destination.)
+If no entry is found, the destination is declared to be unreachable,
+and a routing\-miss message is generated if there are any
+listeners on the routing control socket described below.
+.Pp
+If there are two identical destinations, the route priority acts as a
+tie-breaker.
+If there are multiple routes to the same destination,
+the one with the lowest priority wins.
+The kernel assigns certain default priorities based on the type of
+route, as given in the table below.
+For connected and static routes, this default priority is added to the
+interface's priority.
+.Pp
+A wildcard routing entry is specified with a zero
+destination address value and a mask of all zeroes.
+Wildcard routes will be used
+when the system fails to find other routes matching the
+destination.
+The combination of wildcard routes and routing redirects can provide
+an economical mechanism for routing traffic.
+Routes created by redirects from wildcard routes and other routes
+will be marked
+.Em cloned ,
+until their
+.Dq parent
+from which they were created has disappeared.
+.Pp
+Route labels can be attached to routes and may contain arbitrary
+information about the route.
+Labels are sent over the routing socket (see below) as
+.Vt sockaddr_rtlabel
+structures.
+.Ss The Routing Socket
+One opens the channel for passing routing control messages
+by using the
+.Xr socket 2
+call shown in the
+.Sx SYNOPSIS
+above.
+.Pp
+The
+.Fa family
+parameter may be
+.Dv AF_UNSPEC ,
+which will provide
+routing information for all address families, or can be restricted
+to a specific address family by specifying which one is desired.
+There can be more than one routing socket open per system.
+.Pp
+Messages are formed by a header followed by a small
+number of
+.Vt sockaddr
+structures (which are variable length),
+interpreted by position, and delimited
+by the length entry in the
+.Vt sockaddr .
+An example of a message with four addresses might be an
+IPv4 route addition: the destination, netmask, gateway, and label,
+since both netmasks and labels are sent over the routing socket as
+.Vt sockaddr
+structures.
+The interpretation of which addresses are present is given by a
+bit mask within the header, and the sequence is least significant
+to most significant bit within the vector.
+.Pp
+Any messages sent to the kernel are returned, and copies are sent
+to all interested listeners.
+The kernel will provide the process ID
+of the sender, and the sender may use an additional sequence
+field to distinguish between outstanding messages.
+However, message replies may be lost when kernel buffers are exhausted.
+.Pp
+The kernel may reject certain messages, and will indicate this
+by filling in the
+.Va rtm_errno
+field.
+The routing code returns
+.Er EEXIST
+if
+requested to duplicate an existing entry,
+.Er ESRCH
+if
+requested to delete a non-existent entry,
+or
+.Er ENOBUFS
+if insufficient resources were available
+to install a new route.
+In the current implementation, all routing processes run locally,
+and the values for
+.Va rtm_errno
+are available through the normal
+.Va errno
+mechanism, even if the routing reply message is lost.
+.Pp
+A process may avoid the expense of reading replies to
+its own messages by issuing a
+.Xr setsockopt 2
+call indicating that the
+.Dv SO_USELOOPBACK
+option at the
+.Dv SOL_SOCKET
+level is to be turned off.
+A process may ignore all messages from the routing socket
+by doing a
+.Xr shutdown 2
+system call for further input.
+.Pp
+There are three filter options that can be used to restrict the received route messages
+to a subset of all the route messages processed by the kernel:
+.Pp
+.Bl -tag -width xxxxxxxx -compact
+.It ROUTE_TABLEFILTER
+.It ROUTE_MSGFILTER
+.It ROUTE_FLAGFILTER
+.El
+.Pp
+A process can specify an alternate routing table by using the
+.Dv ROUTE_TABLEFILTER
+.Xr setsockopt 2 .
+A value of
+.Dv RTABLE_ANY
+specifies all routing tables.
+For example, to receive messages for routing table 5:
+.Bd -literal -offset indent
+unsigned int rdomain = 5;
+
+if (setsockopt(routefd, AF_ROUTE, ROUTE_TABLEFILTER,
+    &rdomain, sizeof(rdomain)) == -1)
+	err(1, "setsockopt(ROUTE_TABLEFILTER)");
+.Ed
+.Pp
+A process can specify which route message types it's interested in
+by using
+.Dv ROUTE_FILTER(int type)
+and issuing a setsockopt call with the
+.Dv ROUTE_MSGFILTER
+option at the
+.Dv AF_ROUTE
+level.
+For example, to only get interface specific messages:
+.Bd -literal -offset indent
+unsigned int rtfilter;
+
+rtfilter = ROUTE_FILTER(RTM_IFINFO) |
+    ROUTE_FILTER(RTM_IFANNOUNCE);
+
+if (setsockopt(routefd, AF_ROUTE, ROUTE_MSGFILTER,
+    &rtfilter, sizeof(rtfilter)) == -1)
+	err(1, "setsockopt(ROUTE_MSGFILTER)");
+.Ed
+.Pp
+Similarly, a process can specify that it is only interested in messages
+relating to routes where the priority is no more than a certain value
+by issuing a setsockopt call with the
+.Dv ROUTE_PRIOFILTER
+option.
+For example, to select only local, directly connected and static routes:
+.Bd -literal -offset indent
+unsigned int maxprio = RTP_STATIC;
+
+if (setsockopt(routefd, AF_ROUTE, ROUTE_PRIOFILTER,
+    &maxprio, sizeof(maxprio)) == -1)
+	err(1, "setsockopt(ROUTE_PRIOFILTER)");
+.Ed
+.Pp
+The
+.Dv ROUTE_FLAGFILTER
+socket option can be used to exclude a subset of
+.Vt rtm_flags
+flags from the received route messages:
+.Bd -literal -offset indent
+int rtfilter = RTF_LLINFO | RTF_BROADCAST;
+
+if (setsockopt(routefd, AF_ROUTE, ROUTE_FLAGFILTER, &rtfilter,
+    sizeof(rtfilter)) == -1)
+	err(1, "setsockopt(ROUTE_FLAGFILTER)");
+.Ed
+.Pp
+The predefined constants for the routing priorities are:
+.Bd -literal
+#define RTP_NONE	0	/* unset priority use sane default */
+#define RTP_LOCAL	1	/* local address routes (must be the highest) */
+#define RTP_CONNECTED	4	/* directly connected routes */
+#define RTP_STATIC	8	/* static routes base priority */
+#define RTP_EIGRP	28	/* EIGRP routes */
+#define RTP_OSPF	32	/* OSPF routes */
+#define RTP_ISIS	36	/* IS-IS routes */
+#define RTP_RIP		40	/* RIP routes */
+#define RTP_BGP		48	/* BGP routes */
+#define RTP_DEFAULT	56	/* routes that have nothing set */
+#define RTP_PROPOSAL_STATIC	57
+#define RTP_PROPOSAL_DHCLIENT	58
+#define RTP_PROPOSAL_SLAAC	59
+#define RTP_PROPOSAL_UMB	60
+#define RTP_PROPOSAL_PPP	61
+#define RTP_PROPOSAL_SOLICIT	62	/* request reply of all RTM_PROPOSAL */
+#define RTP_MAX		63	/* maximum priority */
+#define RTP_ANY		64	/* any of the above */
+#define RTP_MASK	0x7f
+#define RTP_DOWN	0x80	/* route/link is down */
+.Ed
+.Pp
+If a route is in use when it is deleted,
+the routing entry will be marked down and removed from the routing table,
+but the resources associated with it will not
+be reclaimed until all references to it are released.
+User processes can obtain information about the routing
+entry to a specific destination by using a
+.Dv RTM_GET
+message or via the
+.Dv PF_ROUTE
+.Xr sysctl 2 .
+.Pp
+Messages include:
+.Bd -literal
+#define RTM_ADD		0x1	/* Add Route */
+#define RTM_DELETE	0x2	/* Delete Route */
+#define RTM_CHANGE	0x3	/* Change Metrics or flags */
+#define RTM_GET		0x4	/* Report Metrics */
+#define RTM_LOSING	0x5	/* Kernel Suspects Partitioning */
+#define RTM_REDIRECT	0x6	/* Told to use different route */
+#define RTM_MISS	0x7	/* Lookup failed on this address */
+#define RTM_RESOLVE	0xb	/* req to resolve dst to LL addr */
+#define RTM_NEWADDR	0xc	/* address being added to iface */
+#define RTM_DELADDR	0xd	/* address being removed from iface */
+#define RTM_IFINFO	0xe	/* iface going up/down etc. */
+#define RTM_IFANNOUNCE	0xf	/* iface arrival/departure */
+#define RTM_DESYNC	0x10	/* route socket buffer overflow */
+#define RTM_INVALIDATE	0x11	/* Invalidate cache of L2 route */
+.Ed
+.Pp
+A message header consists of one of the following:
+.Bd -literal
+struct rt_msghdr {
+	u_short	rtm_msglen;	/* to skip over non-understood messages */
+	u_char	rtm_version;	/* future binary compatibility */
+	u_char	rtm_type;	/* message type */
+	u_short	rtm_hdrlen;	/* sizeof(rt_msghdr) to skip over the header */
+	u_short	rtm_index;	/* index for associated ifp */
+	u_short rtm_tableid;	/* routing table id */
+	u_char	rtm_priority;	/* routing priority */
+	u_char	rtm_mpls;	/* MPLS additional infos */
+	int	rtm_addrs;	/* bitmask identifying sockaddrs in msg */
+	int	rtm_flags;	/* flags, incl. kern & message, e.g. DONE */
+	int	rtm_fmask;	/* bitmask used in RTM_CHANGE message */
+	pid_t	rtm_pid;	/* identify sender */
+	int	rtm_seq;	/* for sender to identify action */
+	int	rtm_errno;	/* why failed */
+	u_int	rtm_inits;	/* which metrics we are initializing */
+	struct	rt_metrics rtm_rmx; /* metrics themselves */
+};
+
+struct if_msghdr {
+	u_short	ifm_msglen;	/* to skip over non-understood messages */
+	u_char	ifm_version;	/* future binary compatibility */
+	u_char	ifm_type;	/* message type */
+	u_short ifm_hdrlen;	/* sizeof(if_msghdr) to skip over the header */
+	u_short	ifm_index;	/* index for associated ifp */
+	u_short	ifm_tableid;	/* routing table id */
+	u_char	ifm_pad1;
+	u_char	ifm_pad2;
+	int	ifm_addrs;	/* like rtm_addrs */
+	int	ifm_flags;	/* value of if_flags */
+	int	ifm_xflags;
+	struct	if_data ifm_data;/* statistics and other data about if */
+};
+
+struct ifa_msghdr {
+	u_short	ifam_msglen;	/* to skip over non-understood messages */
+	u_char	ifam_version;	/* future binary compatibility */
+	u_char	ifam_type;	/* message type */
+	u_short ifam_hdrlen;	/* sizeof(ifa_msghdr) to skip over the header */
+	u_short	ifam_index;	/* index for associated ifp */
+	u_short	ifam_tableid;	/* routing table id */
+	u_char	ifam_pad1;
+	u_char	ifam_pad2;
+	int	ifam_addrs;	/* like rtm_addrs */
+	int	ifam_flags;	/* value of ifa_flags */
+	int	ifam_metric;	/* value of ifa_metric */
+};
+
+struct if_announcemsghdr {
+	u_short	ifan_msglen;	/* to skip over non-understood messages */
+	u_char	ifan_version;	/* future binary compatibility */
+	u_char	ifan_type;	/* message type */
+	u_short ifan_hdrlen;	/* sizeof(ifa_msghdr) to skip over the header */
+	u_short	ifan_index;	/* index for associated ifp */
+	u_short	ifan_what;	/* what type of announcement */
+	char	ifan_name[IFNAMSIZ];	/* if name, e.g. "en0" */
+};
+.Ed
+.Pp
+The
+.Dv RTM_IFINFO
+message uses an
+.Vt if_msghdr
+header, the
+.Dv RTM_NEWADDR
+and
+.Dv RTM_DELADDR
+messages use an
+.Vt ifa_msghdr
+header,
+the
+.Dv RTM_IFANNOUNCE
+message uses an
+.Vt if_announcemsghdr
+header,
+.Dv RTM_INVALIDATE
+is used only internally in the kernel and should never appear in a route
+message,
+and all other messages use the
+.Vt rt_msghdr
+header.
+.Pp
+The metrics structure is:
+.Bd -literal
+struct rt_metrics {
+	u_int64_t	rmx_pksent;	/* packets sent using this route */
+	int64_t		rmx_expire;	/* lifetime for route, e.g. redirect */
+	u_int		rmx_locks;	/* Kernel must leave these values */
+	u_int		rmx_mtu;	/* MTU for this path */
+	u_int		rmx_refcnt;	/* # references hold */
+	u_int		rmx_hopcount;	/* max hops expected */
+	u_int		rmx_recvpipe;	/* inbound delay-bandwidth product */
+	u_int		rmx_sendpipe;	/* outbound delay-bandwidth product */
+	u_int		rmx_ssthresh;	/* outbound gateway buffer limit */
+	u_int		rmx_rtt;	/* estimated round trip time */
+	u_int		rmx_rttvar;	/* estimated rtt variance */
+	u_int		rmx_pad;
+};
+.Ed
+.Pp
+Only
+.Va rmx_mtu , rmx_expire , rmx_pksent ,
+and
+.Va rmx_locks
+are used by the kernel routing table.
+All other values will be ignored when inserting them into the kernel and are
+set to zero in routing messages sent by the kernel.
+They are left for compatibility reasons with other systems.
+.Pp
+Flags include the values:
+.Bd -literal
+#define	RTF_UP        0x1       /* route usable */
+#define	RTF_GATEWAY   0x2       /* destination is a gateway */
+#define	RTF_HOST      0x4       /* host entry (net otherwise) */
+#define	RTF_REJECT    0x8       /* host or net unreachable */
+#define	RTF_DYNAMIC   0x10      /* created dynamically (by redirect) */
+#define	RTF_MODIFIED  0x20      /* modified dynamically (by redirect) */
+#define	RTF_DONE      0x40      /* message confirmed */
+#define	RTF_CLONING   0x100     /* generate new routes on use */
+#define	RTF_MULTICAST 0x200     /* route associated to a mcast addr.  */
+#define	RTF_LLINFO    0x400     /* generated by ARP or NDP */
+#define	RTF_STATIC    0x800     /* manually added */
+#define	RTF_BLACKHOLE 0x1000    /* just discard pkts (during updates) */
+#define	RTF_PROTO3    0x2000    /* protocol specific routing flag */
+#define	RTF_PROTO2    0x4000    /* protocol specific routing flag */
+#define	RTF_PROTO1    0x8000    /* protocol specific routing flag */
+#define	RTF_CLONED    0x10000   /* this is a cloned route */
+#define RTF_MPATH     0x40000   /* multipath route or operation */
+#define RTF_MPLS      0x100000  /* MPLS additional infos */
+#define RTF_LOCAL     0x200000	/* route to a local address */
+#define RTF_BROADCAST 0x400000	/* route associated to a bcast addr. */
+#define RTF_CONNECTED 0x800000	/* interface route */
+.Ed
+.Pp
+The following flags (defined as
+.Dv RTF_FMASK )
+can be changed by an RTM_CHANGE request:
+.Dv RTF_LLINFO ,
+.Dv RTF_PROTO1 ,
+.Dv RTF_PROTO2 ,
+.Dv RTF_PROTO3 ,
+.Dv RTF_BLACKHOLE ,
+.Dv RTF_REJECT ,
+.Dv RTF_STATIC
+and
+.Dv RTF_MPLS .
+.Pp
+Specifiers for metric values in
+.Va rmx_locks
+and
+.Va rtm_inits
+are:
+.Bd -literal
+#define RTV_MTU		0x1	/* init or lock _mtu */
+#define RTV_HOPCOUNT	0x2	/* init or lock _hopcount */
+#define RTV_EXPIRE	0x4	/* init or lock _expire */
+#define RTV_RPIPE	0x8	/* init or lock _recvpipe */
+#define RTV_SPIPE	0x10	/* init or lock _sendpipe */
+#define RTV_SSTHRESH	0x20	/* init or lock _ssthresh */
+#define RTV_RTT		0x40	/* init or lock _rtt */
+#define RTV_RTTVAR	0x80	/* init or lock _rttvar */
+.Ed
+.Pp
+Only
+.Dv RTV_MTU
+and
+.Dv RTV_EXPIRE
+should be used; all other flags are ignored.
+.Pp
+Specifiers for which addresses are present in the messages are:
+.Bd -literal
+#define RTA_DST		0x1	/* destination sockaddr present */
+#define RTA_GATEWAY	0x2	/* gateway sockaddr present */
+#define RTA_NETMASK	0x4	/* netmask sockaddr present */
+#define RTA_IFP		0x10	/* interface name sockaddr present */
+#define RTA_IFA		0x20	/* interface addr sockaddr present */
+#define RTA_AUTHOR	0x40	/* sockaddr for author of redirect */
+#define RTA_BRD		0x80	/* for NEWADDR, bcast or p-p dest addr */
+#define RTA_SRC		0x100	/* source sockaddr present */
+#define RTA_SRCMASK	0x200	/* source netmask present */
+#define RTA_LABEL	0x400	/* route label present */
+.Ed
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr socket 2 ,
+.Xr sysctl 2 ,
+.Xr rtable 4 ,
+.Xr mygate 5 ,
+.Xr route 8 ,
+.Xr route 9
+.Sh HISTORY
+A
+.Dv PF_ROUTE
+protocol family first appeared in
+.Bx 4.3 Reno .

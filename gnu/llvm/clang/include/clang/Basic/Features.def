@@ -1,0 +1,312 @@
+//===--- Features.def - Features and Extensions database --------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines features exposed via __has_feature and extensions exposed
+// via __has_extension. Users of this file must either define the FEATURE or
+// EXTENSION macros (or both) to make use of this information. Note that these
+// macros expect the following declarations to be available for the Predicate:
+//
+//   const LangOptions &LangOpts;
+//   const Preprocessor &PP;
+//
+// The Predicate field dictates the conditions under which the feature or
+// extension will be made available.
+//
+// FEATURE(...) should be used to advertise support for standard language
+// features, whereas EXTENSION(...) should be used for clang extensions. Note
+// that many of the identifiers in this file don't follow this rule for backward
+// compatibility reasons.
+//
+//===----------------------------------------------------------------------===//
+
+#if !defined(FEATURE) && !defined(EXTENSION)
+#  error Define either the FEATURE or EXTENSION macro to handle features
+#endif
+
+#ifndef FEATURE
+#define FEATURE(Name, Predicate)
+#endif
+
+#ifndef EXTENSION
+#define EXTENSION(Name, Predicate)
+#endif
+
+FEATURE(speculative_load_hardening, LangOpts.SpeculativeLoadHardening)
+FEATURE(address_sanitizer,
+        LangOpts.Sanitize.hasOneOf(SanitizerKind::Address |
+                                   SanitizerKind::KernelAddress))
+FEATURE(leak_sanitizer,
+        LangOpts.Sanitize.has(SanitizerKind::Leak))
+FEATURE(hwaddress_sanitizer,
+        LangOpts.Sanitize.hasOneOf(SanitizerKind::HWAddress |
+                                   SanitizerKind::KernelHWAddress))
+FEATURE(memtag_stack,
+        LangOpts.Sanitize.has(SanitizerKind::MemtagStack))
+FEATURE(memtag_heap,
+        LangOpts.Sanitize.has(SanitizerKind::MemtagHeap))
+FEATURE(memtag_globals,
+        LangOpts.Sanitize.has(SanitizerKind::MemtagGlobals))
+FEATURE(xray_instrument, LangOpts.XRayInstrument)
+FEATURE(undefined_behavior_sanitizer,
+        LangOpts.Sanitize.hasOneOf(SanitizerKind::Undefined))
+FEATURE(coverage_sanitizer, LangOpts.SanitizeCoverage)
+FEATURE(assume_nonnull, true)
+FEATURE(attribute_analyzer_noreturn, true)
+FEATURE(attribute_availability, true)
+FEATURE(attribute_availability_with_message, true)
+FEATURE(attribute_availability_app_extension, true)
+FEATURE(attribute_availability_with_version_underscores, true)
+FEATURE(attribute_availability_tvos, true)
+FEATURE(attribute_availability_watchos, true)
+FEATURE(attribute_availability_driverkit, true)
+FEATURE(attribute_availability_with_strict, true)
+FEATURE(attribute_availability_with_replacement, true)
+FEATURE(attribute_availability_in_templates, true)
+FEATURE(attribute_availability_swift, true)
+FEATURE(attribute_cf_returns_not_retained, true)
+FEATURE(attribute_cf_returns_retained, true)
+FEATURE(attribute_cf_returns_on_parameters, true)
+FEATURE(attribute_deprecated_with_message, true)
+FEATURE(attribute_deprecated_with_replacement, true)
+FEATURE(attribute_ext_vector_type, true)
+FEATURE(attribute_ns_returns_not_retained, true)
+FEATURE(attribute_ns_returns_retained, true)
+FEATURE(attribute_ns_consumes_self, true)
+FEATURE(attribute_ns_consumed, true)
+FEATURE(attribute_cf_consumed, true)
+FEATURE(attribute_objc_ivar_unused, true)
+FEATURE(attribute_objc_method_family, true)
+FEATURE(attribute_overloadable, true)
+FEATURE(attribute_unavailable_with_message, true)
+FEATURE(attribute_unused_on_fields, true)
+FEATURE(attribute_diagnose_if_objc, true)
+FEATURE(blocks, LangOpts.Blocks)
+FEATURE(c_thread_safety_attributes, true)
+FEATURE(cxx_exceptions, LangOpts.CXXExceptions)
+FEATURE(cxx_rtti, LangOpts.RTTI &&LangOpts.RTTIData)
+EXTENSION(define_target_os_macros,
+          PP.getPreprocessorOpts().DefineTargetOSMacros)
+FEATURE(enumerator_attributes, true)
+FEATURE(nullability, true)
+FEATURE(nullability_on_arrays, true)
+FEATURE(nullability_on_classes, true)
+FEATURE(nullability_nullable_result, true)
+FEATURE(numerical_stability_sanitizer, LangOpts.Sanitize.has(SanitizerKind::NumericalStability))
+FEATURE(memory_sanitizer,
+        LangOpts.Sanitize.hasOneOf(SanitizerKind::Memory |
+                                   SanitizerKind::KernelMemory))
+FEATURE(thread_sanitizer, LangOpts.Sanitize.has(SanitizerKind::Thread))
+FEATURE(dataflow_sanitizer, LangOpts.Sanitize.has(SanitizerKind::DataFlow))
+FEATURE(scudo, LangOpts.Sanitize.hasOneOf(SanitizerKind::Scudo))
+FEATURE(ptrauth_intrinsics, LangOpts.PointerAuthIntrinsics)
+FEATURE(ptrauth_calls, LangOpts.PointerAuthCalls)
+FEATURE(ptrauth_returns, LangOpts.PointerAuthReturns)
+FEATURE(ptrauth_vtable_pointer_address_discrimination, LangOpts.PointerAuthVTPtrAddressDiscrimination)
+FEATURE(ptrauth_vtable_pointer_type_discrimination, LangOpts.PointerAuthVTPtrTypeDiscrimination)
+FEATURE(ptrauth_type_info_vtable_pointer_discrimination, LangOpts.PointerAuthTypeInfoVTPtrDiscrimination)
+FEATURE(ptrauth_member_function_pointer_type_discrimination, LangOpts.PointerAuthCalls)
+FEATURE(ptrauth_init_fini, LangOpts.PointerAuthInitFini)
+FEATURE(ptrauth_function_pointer_type_discrimination, LangOpts.PointerAuthFunctionTypeDiscrimination)
+FEATURE(ptrauth_indirect_gotos, LangOpts.PointerAuthIndirectGotos)
+EXTENSION(swiftcc,
+  PP.getTargetInfo().checkCallingConvention(CC_Swift) ==
+  clang::TargetInfo::CCCR_OK)
+EXTENSION(swiftasynccc,
+  PP.getTargetInfo().checkCallingConvention(CC_SwiftAsync) ==
+  clang::TargetInfo::CCCR_OK)
+FEATURE(pragma_stdc_cx_limited_range, true)
+// Objective-C features
+FEATURE(objc_arr, LangOpts.ObjCAutoRefCount) // FIXME: REMOVE?
+FEATURE(objc_arc, LangOpts.ObjCAutoRefCount)
+FEATURE(objc_arc_fields, true)
+FEATURE(objc_arc_weak, LangOpts.ObjCWeak)
+FEATURE(objc_default_synthesize_properties, LangOpts.ObjC)
+FEATURE(objc_fixed_enum, LangOpts.ObjC)
+FEATURE(objc_instancetype, LangOpts.ObjC)
+FEATURE(objc_kindof, LangOpts.ObjC)
+FEATURE(objc_modules, LangOpts.ObjC && LangOpts.Modules)
+FEATURE(objc_nonfragile_abi, LangOpts.ObjCRuntime.isNonFragile())
+FEATURE(objc_property_explicit_atomic, true)
+FEATURE(objc_protocol_qualifier_mangling, true)
+FEATURE(objc_weak_class, LangOpts.ObjCRuntime.hasWeakClassImport())
+FEATURE(ownership_holds, true)
+FEATURE(ownership_returns, true)
+FEATURE(ownership_takes, true)
+FEATURE(objc_bool, true)
+FEATURE(objc_subscripting, LangOpts.ObjCRuntime.isNonFragile())
+FEATURE(objc_array_literals, LangOpts.ObjC)
+FEATURE(objc_dictionary_literals, LangOpts.ObjC)
+FEATURE(objc_boxed_expressions, LangOpts.ObjC)
+FEATURE(objc_boxed_nsvalue_expressions, LangOpts.ObjC)
+FEATURE(arc_cf_code_audited, true)
+FEATURE(objc_bridge_id, true)
+FEATURE(objc_bridge_id_on_typedefs, true)
+FEATURE(objc_generics, LangOpts.ObjC)
+FEATURE(objc_generics_variance, LangOpts.ObjC)
+FEATURE(objc_class_property, LangOpts.ObjC)
+FEATURE(objc_c_static_assert, LangOpts.C11)
+FEATURE(objc_cxx_static_assert, LangOpts.CPlusPlus11)
+EXTENSION(objc_c_static_assert, true)
+// C11 features
+FEATURE(c_alignas, LangOpts.C11)
+FEATURE(c_alignof, LangOpts.C11)
+FEATURE(c_atomic, LangOpts.C11)
+FEATURE(c_generic_selections, LangOpts.C11)
+FEATURE(c_static_assert, LangOpts.C11)
+FEATURE(c_thread_local, LangOpts.C11 &&PP.getTargetInfo().isTLSSupported())
+// C++11 features
+FEATURE(cxx_access_control_sfinae, LangOpts.CPlusPlus11)
+FEATURE(cxx_alias_templates, LangOpts.CPlusPlus11)
+FEATURE(cxx_alignas, LangOpts.CPlusPlus11)
+FEATURE(cxx_alignof, LangOpts.CPlusPlus11)
+FEATURE(cxx_atomic, LangOpts.CPlusPlus11)
+FEATURE(cxx_attributes, LangOpts.CPlusPlus11)
+FEATURE(cxx_auto_type, LangOpts.CPlusPlus11)
+FEATURE(cxx_constexpr, LangOpts.CPlusPlus11)
+FEATURE(cxx_constexpr_string_builtins, LangOpts.CPlusPlus11)
+FEATURE(cxx_decltype, LangOpts.CPlusPlus11)
+FEATURE(cxx_decltype_incomplete_return_types, LangOpts.CPlusPlus11)
+FEATURE(cxx_default_function_template_args, LangOpts.CPlusPlus11)
+FEATURE(cxx_defaulted_functions, LangOpts.CPlusPlus11)
+FEATURE(cxx_delegating_constructors, LangOpts.CPlusPlus11)
+FEATURE(cxx_deleted_functions, LangOpts.CPlusPlus11)
+FEATURE(cxx_explicit_conversions, LangOpts.CPlusPlus11)
+FEATURE(cxx_generalized_initializers, LangOpts.CPlusPlus11)
+FEATURE(cxx_implicit_moves, LangOpts.CPlusPlus11)
+FEATURE(cxx_inheriting_constructors, LangOpts.CPlusPlus11)
+FEATURE(cxx_inline_namespaces, LangOpts.CPlusPlus11)
+FEATURE(cxx_lambdas, LangOpts.CPlusPlus11)
+FEATURE(cxx_local_type_template_args, LangOpts.CPlusPlus11)
+FEATURE(cxx_nonstatic_member_init, LangOpts.CPlusPlus11)
+FEATURE(cxx_noexcept, LangOpts.CPlusPlus11)
+FEATURE(cxx_nullptr, LangOpts.CPlusPlus11)
+FEATURE(cxx_override_control, LangOpts.CPlusPlus11)
+FEATURE(cxx_range_for, LangOpts.CPlusPlus11)
+FEATURE(cxx_raw_string_literals, LangOpts.CPlusPlus11)
+FEATURE(cxx_reference_qualified_functions, LangOpts.CPlusPlus11)
+FEATURE(cxx_rvalue_references, LangOpts.CPlusPlus11)
+FEATURE(cxx_strong_enums, LangOpts.CPlusPlus11)
+FEATURE(cxx_static_assert, LangOpts.CPlusPlus11)
+FEATURE(cxx_thread_local,
+        LangOpts.CPlusPlus11 &&PP.getTargetInfo().isTLSSupported())
+FEATURE(cxx_trailing_return, LangOpts.CPlusPlus11)
+FEATURE(cxx_unicode_literals, LangOpts.CPlusPlus11)
+FEATURE(cxx_unrestricted_unions, LangOpts.CPlusPlus11)
+FEATURE(cxx_user_literals, LangOpts.CPlusPlus11)
+FEATURE(cxx_variadic_templates, LangOpts.CPlusPlus11)
+// C++14 features
+FEATURE(cxx_aggregate_nsdmi, LangOpts.CPlusPlus14)
+FEATURE(cxx_binary_literals, LangOpts.CPlusPlus14)
+FEATURE(cxx_contextual_conversions, LangOpts.CPlusPlus14)
+FEATURE(cxx_decltype_auto, LangOpts.CPlusPlus14)
+FEATURE(cxx_generic_lambdas, LangOpts.CPlusPlus14)
+FEATURE(cxx_init_captures, LangOpts.CPlusPlus14)
+FEATURE(cxx_relaxed_constexpr, LangOpts.CPlusPlus14)
+FEATURE(cxx_return_type_deduction, LangOpts.CPlusPlus14)
+FEATURE(cxx_variable_templates, LangOpts.CPlusPlus14)
+// NOTE: For features covered by SD-6, it is preferable to provide *only*
+// the SD-6 macro and not a __has_feature check.
+
+// C++ TSes
+// FEATURE(cxx_runtime_arrays, LangOpts.CPlusPlusTSArrays)
+// FEATURE(cxx_concepts, LangOpts.CPlusPlusTSConcepts)
+// FIXME: Should this be __has_feature or __has_extension?
+// FEATURE(raw_invocation_type, LangOpts.CPlusPlus)
+// Type traits
+// N.B. Additional type traits should not be added to the following list.
+// Instead, they should be detected by has_builtin.
+FEATURE(has_nothrow_assign, LangOpts.CPlusPlus)
+FEATURE(has_nothrow_copy, LangOpts.CPlusPlus)
+FEATURE(has_nothrow_constructor, LangOpts.CPlusPlus)
+FEATURE(has_trivial_assign, LangOpts.CPlusPlus)
+FEATURE(has_trivial_copy, LangOpts.CPlusPlus)
+FEATURE(has_trivial_constructor, LangOpts.CPlusPlus)
+FEATURE(has_trivial_destructor, LangOpts.CPlusPlus)
+FEATURE(has_virtual_destructor, LangOpts.CPlusPlus)
+FEATURE(is_abstract, LangOpts.CPlusPlus)
+FEATURE(is_base_of, LangOpts.CPlusPlus)
+FEATURE(is_class, LangOpts.CPlusPlus)
+FEATURE(is_constructible, LangOpts.CPlusPlus)
+FEATURE(is_convertible_to, LangOpts.CPlusPlus)
+FEATURE(is_empty, LangOpts.CPlusPlus)
+FEATURE(is_enum, LangOpts.CPlusPlus)
+FEATURE(is_final, LangOpts.CPlusPlus)
+FEATURE(is_literal, LangOpts.CPlusPlus)
+FEATURE(is_standard_layout, LangOpts.CPlusPlus)
+FEATURE(is_pod, LangOpts.CPlusPlus)
+FEATURE(is_polymorphic, LangOpts.CPlusPlus)
+FEATURE(is_sealed, LangOpts.CPlusPlus &&LangOpts.MicrosoftExt)
+FEATURE(is_trivial, LangOpts.CPlusPlus)
+FEATURE(is_trivially_assignable, LangOpts.CPlusPlus)
+FEATURE(is_trivially_constructible, LangOpts.CPlusPlus)
+FEATURE(is_trivially_copyable, LangOpts.CPlusPlus)
+FEATURE(is_union, LangOpts.CPlusPlus)
+FEATURE(kcfi, LangOpts.Sanitize.has(SanitizerKind::KCFI))
+FEATURE(modules, LangOpts.Modules)
+FEATURE(safe_stack, LangOpts.Sanitize.has(SanitizerKind::SafeStack))
+FEATURE(shadow_call_stack,
+        LangOpts.Sanitize.has(SanitizerKind::ShadowCallStack))
+FEATURE(tls, PP.getTargetInfo().isTLSSupported())
+FEATURE(underlying_type, LangOpts.CPlusPlus)
+FEATURE(experimental_library, LangOpts.ExperimentalLibrary)
+
+// C11 features supported by other languages as extensions.
+EXTENSION(c_alignas, true)
+EXTENSION(c_alignof, true)
+EXTENSION(c_atomic, true)
+EXTENSION(c_generic_selections, true)
+EXTENSION(c_generic_selection_with_controlling_type, true)
+EXTENSION(c_static_assert, true)
+EXTENSION(c_thread_local, PP.getTargetInfo().isTLSSupported())
+// C23 features supported by other languages as extensions
+EXTENSION(c_attributes, true)
+// C++11 features supported by other languages as extensions.
+EXTENSION(cxx_atomic, LangOpts.CPlusPlus)
+EXTENSION(cxx_default_function_template_args, LangOpts.CPlusPlus)
+EXTENSION(cxx_defaulted_functions, LangOpts.CPlusPlus)
+EXTENSION(cxx_deleted_functions, LangOpts.CPlusPlus)
+EXTENSION(cxx_explicit_conversions, LangOpts.CPlusPlus)
+EXTENSION(cxx_inline_namespaces, LangOpts.CPlusPlus)
+EXTENSION(cxx_lambdas, LangOpts.CPlusPlus)
+EXTENSION(cxx_local_type_template_args, LangOpts.CPlusPlus)
+EXTENSION(cxx_nonstatic_member_init, LangOpts.CPlusPlus)
+EXTENSION(cxx_override_control, LangOpts.CPlusPlus)
+EXTENSION(cxx_range_for, LangOpts.CPlusPlus)
+EXTENSION(cxx_reference_qualified_functions, LangOpts.CPlusPlus)
+EXTENSION(cxx_rvalue_references, LangOpts.CPlusPlus)
+EXTENSION(cxx_variadic_templates, LangOpts.CPlusPlus)
+EXTENSION(cxx_fixed_enum, true)
+// C++14 features supported by other languages as extensions.
+EXTENSION(cxx_binary_literals, true)
+EXTENSION(cxx_init_captures, LangOpts.CPlusPlus11)
+EXTENSION(cxx_variable_templates, LangOpts.CPlusPlus)
+//C++20
+EXTENSION(cxx_generalized_nttp, LangOpts.CPlusPlus20)
+//C++23
+EXTENSION(cxx_explicit_this_parameter, LangOpts.CPlusPlus23)
+// Miscellaneous language extensions
+EXTENSION(overloadable_unmarked, true)
+EXTENSION(pragma_clang_attribute_namespaces, true)
+EXTENSION(pragma_clang_attribute_external_declaration, true)
+EXTENSION(statement_attributes_with_gnu_syntax, true)
+EXTENSION(gnu_asm, LangOpts.GNUAsm)
+EXTENSION(gnu_asm_goto_with_outputs, LangOpts.GNUAsm)
+EXTENSION(gnu_asm_goto_with_outputs_full, LangOpts.GNUAsm)
+EXTENSION(matrix_types, LangOpts.MatrixTypes)
+EXTENSION(matrix_types_scalar_division, true)
+EXTENSION(cxx_attributes_on_using_declarations, LangOpts.CPlusPlus11)
+EXTENSION(datasizeof, LangOpts.CPlusPlus)
+
+FEATURE(cxx_abi_relative_vtable, LangOpts.CPlusPlus && LangOpts.RelativeCXXABIVTables)
+
+// CUDA/HIP Features
+FEATURE(cuda_noinline_keyword, LangOpts.CUDA)
+EXTENSION(cuda_implicit_host_device_templates, LangOpts.CUDA && LangOpts.OffloadImplicitHostDeviceTemplates)
+
+#undef EXTENSION
+#undef FEATURE

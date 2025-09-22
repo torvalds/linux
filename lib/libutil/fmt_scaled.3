@@ -1,0 +1,135 @@
+.\"	$OpenBSD: fmt_scaled.3,v 1.9 2025/06/06 22:01:40 schwarze Exp $
+.\" Copyright (c) 2001, 2003 Ian Darwin.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt FMT_SCALED 3
+.Os
+.Sh NAME
+.Nm fmt_scaled ,
+.Nm scan_scaled
+.Nd handle numbers with a human-readable scale
+.Sh SYNOPSIS
+.Lb libutil
+.In util.h
+.Ft int
+.Fn scan_scaled "char *number_w_scale" "long long *result"
+.Ft int
+.Fn fmt_scaled "long long number" "char *result"
+.Sh DESCRIPTION
+The
+.Fn scan_scaled
+function scans the given number and looks for a terminal scale multiplier
+of B, K, M, G, T, P or E
+.Pq in either upper or lower case
+for Byte, Kilobyte, Megabyte, Gigabyte, Terabyte, Petabyte, Exabyte
+.Po computed using powers of two, i.e., Megabyte = 1024*1024
+.Pc .
+The number can have a decimal point, as in 1.5K, which returns 1536
+.Pq 1024+512 .
+If no scale factor is found, B is assumed.
+.Pp
+The
+.Fn fmt_scaled
+function formats a number for display using the same
+"human-readable" format, that is, a number with one of the above scale factors.
+Numbers will be printed with a maximum of four digits (preceded by
+a minus sign if the value is negative); values such
+as 0B, 100B, 1023B, 1K, 1.5K, 5.5M, and so on, will be generated.
+The
+.Qq result
+buffer must be allocated with at least
+.Dv FMT_SCALED_STRSIZE
+bytes.
+The result will be left-justified in the given space, and NUL-terminated.
+.Sh RETURN VALUES
+The
+.Fn scan_scaled
+and
+.Fn fmt_scaled
+functions
+return 0 on success.
+In case of error, they return \-1, leave
+.Va *result
+as is, and set
+.Va errno
+to one of the following values:
+.Dv ERANGE
+if the input string represents a number that is too large to represent.
+.Dv EINVAL
+if an unknown character was used as scale factor, or
+if the input to
+.Fn scan_scaled
+was malformed, e.g., too many '.' characters.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+char *cinput = "1.5K";
+long long result;
+if (scan_scaled(cinput, &result) == 0)
+	printf("%s -> %lld\en", cinput, result);
+else
+	fprintf(stderr, "%s - invalid\en", cinput);
+
+char buf[FMT_SCALED_STRSIZE];
+long long ninput = 10483892;
+if (fmt_scaled(ninput, buf) == 0)
+	printf("%lld -> %s\en", ninput, buf);
+else
+	fprintf(stderr, "fmt scaled failed (errno %d)", errno);
+.Ed
+.Sh SEE ALSO
+.Xr printf 3 ,
+.Xr scanf 3
+.Sh HISTORY
+The functions
+.Fn fmt_scaled
+and
+.Fn scan_scaled
+first appeared in
+.Ox 3.4 .
+.Sh AUTHORS
+.An -nosplit
+.An Ken Stailey
+wrote the first version of the code that became
+.Fn fmt_scaled ,
+originally inside
+.Ox
+.Xr df 1 .
+.An Ian Darwin
+excerpted this and made it into a library routine
+(with significant help from
+.An Paul Janzen ) ,
+and wrote
+.Fn scan_scaled .
+.Sh BUGS
+Some of the scale factors have misleading meanings in lower case
+(p for P is incorrect; p should be pico- and P for Peta-).
+However, we bend the SI rules in favor of common sense here.
+A person creating a disk partition of "100m" is unlikely to require
+100 millibytes (i.e., 0.1 byte) of storage in the partition;
+100 megabytes is the only reasonable interpretation.
+.Pp
+Cannot represent the larger scale factors on all architectures.
+.Pp
+Ignores the current locale.

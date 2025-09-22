@@ -1,0 +1,268 @@
+.\" $OpenBSD: X509_ATTRIBUTE_set1_object.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_ATTRIBUTE_SET1_OBJECT 3
+.Os
+.Sh NAME
+.Nm X509_ATTRIBUTE_set1_object ,
+.Nm X509_ATTRIBUTE_set1_data ,
+.Nm X509_ATTRIBUTE_create_by_OBJ ,
+.Nm X509_ATTRIBUTE_create_by_NID ,
+.Nm X509_ATTRIBUTE_create_by_txt
+.\" In the following line, "X.501" and "Attribute" are not typos.
+.\" The "Attribute" type is defined in X.501, not in X.509.
+.\" The type is called "Attribute" with capital "A", not "attribute".
+.Nd modify an X.501 Attribute
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_ATTRIBUTE_set1_object
+.Fa "X509_ATTRIBUTE *attr"
+.Fa "const ASN1_OBJECT *obj"
+.Fc
+.Ft int
+.Fo X509_ATTRIBUTE_set1_data
+.Fa "X509_ATTRIBUTE *attr"
+.Fa "int type"
+.Fa "const void *data"
+.Fa "int len"
+.Fc
+.Ft X509_ATTRIBUTE *
+.Fo X509_ATTRIBUTE_create_by_OBJ
+.Fa "X509_ATTRIBUTE **pattr"
+.Fa "const ASN1_OBJECT *obj"
+.Fa "int type"
+.Fa "const void *data"
+.Fa "int len"
+.Fc
+.Ft X509_ATTRIBUTE *
+.Fo X509_ATTRIBUTE_create_by_NID
+.Fa "X509_ATTRIBUTE **pattr"
+.Fa "int nid"
+.Fa "int type"
+.Fa "const void *data"
+.Fa "int len"
+.Fc
+.Ft X509_ATTRIBUTE *
+.Fo X509_ATTRIBUTE_create_by_txt
+.Fa "X509_ATTRIBUTE **pattr"
+.Fa "const char *name"
+.Fa "int type"
+.Fa "const unsigned char *data"
+.Fa "int len"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_ATTRIBUTE_set1_object
+sets the type of
+.Fa attr
+to
+.Fa obj .
+If
+.Fa obj
+is dynamically allocated, a deep copy is created.
+If the type of
+.Fa attr
+was already set, the old type is freed
+as far as it was dynamically allocated.
+After calling this function,
+.Fa attr
+may be in an inconsistent state
+because its values may not agree with the new attribute type.
+.Pp
+.Fn X509_ATTRIBUTE_set1_data
+sets
+.Fa attr
+to be multi-valued and initializes its set of values
+to contain a single new ASN.1 ANY object representing the
+.Fa data .
+.Pp
+The interpretation of the
+.Fa data
+depends on the values of the
+.Fa type
+and
+.Fa len
+arguments; there are four different cases.
+.Pp
+If the
+.Fa type
+argument has the bit
+.Dv MBSTRING_FLAG
+set,
+.Fa data
+is expected to point to a multibyte character string that is
+.Fa len
+bytes long and uses the encoding specified by the
+.Fa type
+argument, and it is expected that an attribute type was already assigned to
+.Fa attr ,
+for example by calling
+.Fn X509_ATTRIBUTE_set1_object
+before calling
+.Fn X509_ATTRIBUTE_set1_data .
+In this case, an appropriate ASN.1 multibyte string type is chosen and
+a new object of that type is allocated and populated to represent the
+.Fa data
+by calling
+.Xr ASN1_STRING_set_by_NID 3 .
+The type of that new ASN.1 string object is subsequently used instead of the
+.Fa type
+argument.
+.Pp
+If the
+.Fa type
+argument does not have the bit
+.Dv MBSTRING_FLAG
+set and the
+.Fa len argument
+is not \-1, the
+.Fa type
+argument is expected to be one of the types documented in
+.Xr ASN1_STRING_new 3
+and
+.Fa data
+is expected to point to a buffer of
+.Fa len
+bytes.
+In this case, a new object is allocated with
+.Xr ASN1_STRING_type_new 3
+and populated with
+.Xr ASN1_STRING_set 3 .
+.Pp
+If the
+.Fa type
+argument does not have the bit
+.Dv MBSTRING_FLAG
+set and the
+.Fa len argument
+is \-1,
+.Fa data
+is expected to point to an object of the given
+.Fa type
+rather than to a buffer.
+In this case, a deep copy of the existing object
+into the new ASN.1 ANY object is performed with
+.Xr ASN1_TYPE_set1 3 .
+.Pp
+If the
+.Fa type
+argument is 0, the
+.Fa data
+and
+.Fa len
+arguments are ignored and the set of values is left empty
+instead of adding a single ASN.1 ANY object to it.
+This violates section 8.2 of the X.501 standard, which requires
+every attribute to contain at least one value, but some attribute
+types used by the library use empty sets of values anyway.
+.Pp
+.Fn X509_ATTRIBUTE_create_by_OBJ
+sets the type of
+.Pf ** Fa attr
+to
+.Fa obj
+using
+.Fn X509_ATTRIBUTE_set1_object
+and copies the
+.Fa data
+into it using
+.Fn X509_ATTRIBUTE_set1_data .
+If
+.Fa attr
+or
+.Pf * Fa attr
+is
+.Dv NULL ,
+a new
+.Vt X509_ATTRIBUTE
+object is allocated, populated, and returned.
+.Pp
+.Fn X509_ATTRIBUTE_create_by_NID
+is a wrapper around
+.Fn X509_ATTRIBUTE_create_by_OBJ
+that obtains the required
+.Fa obj
+argument by calling
+.Xr OBJ_nid2obj 3
+on the
+.Fa nid
+argument.
+.Pp
+.Fn X509_ATTRIBUTE_create_by_txt
+is a similar wrapper that obtains
+.Fa obj
+by calling
+.Xr OBJ_txt2obj 3
+with the arguments
+.Fa name
+and 0, which means that long names, short names, and numerical OID
+strings are all acceptable.
+.Sh RETURN VALUES
+.Fn X509_ATTRIBUTE_set1_object
+returns 1 if successful or 0 if
+.Fa attr
+or
+.Fa obj
+is
+.Dv NULL
+or if memory allocation fails.
+.Pp
+.Fn X509_ATTRIBUTE_set1_data
+returns 1 if successful or 0 if
+.Fa attr
+is
+.Dv NULL
+or if
+.Xr ASN1_STRING_set_by_NID 3 ,
+.Xr ASN1_STRING_set 3 ,
+.Xr ASN1_TYPE_set1 3 ,
+or memory allocation fails.
+.Pp
+.Fn X509_ATTRIBUTE_create_by_OBJ ,
+.Fn X509_ATTRIBUTE_create_by_NID ,
+and
+.Fn X509_ATTRIBUTE_create_by_txt
+return a pointer to the changed or new object or
+.Dv NULL
+if obtaining
+.Fa obj ,
+allocating memory, or copying fails.
+.Sh SEE ALSO
+.Xr ASN1_OBJECT_new 3 ,
+.Xr ASN1_STRING_new 3 ,
+.Xr ASN1_STRING_set 3 ,
+.Xr ASN1_STRING_set_by_NID 3 ,
+.Xr ASN1_TYPE_new 3 ,
+.Xr OBJ_nid2obj 3 ,
+.Xr X509_ATTRIBUTE_get0_object 3 ,
+.Xr X509_ATTRIBUTE_new 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.5
+and have been available since
+.Ox 2.7 .
+.Sh BUGS
+If
+.Fa attr
+already contains one or more values,
+.Fn X509_ATTRIBUTE_set1_data ,
+.Fn X509_ATTRIBUTE_create_by_OBJ ,
+.Fn X509_ATTRIBUTE_create_by_NID ,
+and
+.Fn X509_ATTRIBUTE_create_by_txt
+silently overwrite the pointers to the old values
+and leak the memory used for them.

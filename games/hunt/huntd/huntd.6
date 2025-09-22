@@ -1,0 +1,282 @@
+.\"	$NetBSD: huntd.6,v 1.3 1998/01/09 08:03:42 perry Exp $
+.\"	$OpenBSD: huntd.6,v 1.25 2015/09/25 17:50:53 schwarze Exp $
+.\"
+.\"  Hunt
+.\"  Copyright (c) 1985 Conrad C. Huang, Gregory S. Couch, Kenneth C.R.C. Arnold
+.\"  San Francisco, California
+.\"
+.\"  Copyright (c) 1985 Regents of the University of California.
+.\"  All rights reserved.  The Berkeley software License Agreement
+.\"  specifies the terms and conditions for redistribution.
+.\"
+.Dd $Mdocdate: September 25 2015 $
+.Dt HUNTD 6
+.Os
+.Sh NAME
+.Nm huntd
+.Nd hunt daemon, back-end for hunt game
+.Sh SYNOPSIS
+.Nm huntd
+.Op Fl bs
+.Op Fl a Ar addr
+.Op Fl D Ar var Ns = Ns Ar value
+.Op Fl p Ar port
+.Sh DESCRIPTION
+.Nm
+controls the multi-player
+.Xr hunt 6
+game.
+.Pp
+The
+.Fl a Ar addr
+option is used to cause the server to listen only on a
+specific interface address.
+The
+.Ar addr
+argument must be given as an IP address.
+.Pp
+If the
+.Fl b
+option is specified,
+.Nm
+will fork and go into the background.
+In this mode, errors will be logged via
+.Va syslog
+instead of to
+.Va stderr .
+.Pp
+Options given with
+.Fl D
+override those read from configuration files
+.Po
+see
+.Sx CONFIGURATION ,
+below
+.Pc .
+.Pp
+The
+.Fl p Ar port
+option changes the UDP port number used to rendezvous with the player
+process and thus allows for private games of
+.Xr hunt 6 .
+.Pp
+The
+.Fl s
+option is for running
+.Nm
+forever
+.Pq server mode .
+This is similar to running it under the control of
+.Xr inetd 8
+.Pq see below ,
+but it consumes a process table entry when no one is playing,
+and monitor clients are not disconnected.
+.Ss INETD
+To run
+.Nm
+from
+.Xr inetd 8 ,
+you'll need to
+add this line to
+.Pa /etc/inetd.conf :
+.Pp
+.Dl hunt dgram udp wait nobody /usr/games/huntd HUNT
+.Pp
+Do not use any of the command line options \(em if you want
+.Xr inetd 8
+to start up
+.Nm huntd
+on a private port, change the port listed in
+.Pa /etc/services .
+.Ss NETWORK RENDEZVOUS
+When
+.Xr hunt 6
+starts up, it broadcasts on attached networks,
+using the broadcast or point-to-point destination address for each interface,
+to find a
+.Nm hunt
+game in progress.
+If a
+.Nm huntd
+hears the request, it sends back the port number for the
+.Nm hunt
+process to connect to.
+.Ss CONFIGURATION
+When
+.Nm
+starts, it looks for configuration files that determine
+game parameters.
+Each line of a configuration file is of the form
+.Ar var No = Ar value .
+Comments start with a hash sign
+.Pq Sq # .
+The configuration files loaded in order
+.Pq if they exist
+are:
+.Pa /etc/hunt.conf ,
+.Pa $HOME/.hunt.conf ,
+and
+.Pa ./.hunt.conf .
+.Pp
+Many of these variables require intimate knowledge of the
+driver source code.
+The complete list of configurable variables is as follows.
+.Pp
+.Bl -tag -width pdroneabsorb -compact
+.It Va random
+enable dispersion doors
+.Pq default 1
+.It Va reflect
+enable generation of reflection walls
+.Pq default 1
+.It Va monitor
+enable monitors
+.Pq default 1
+.It Va ooze
+enable slime shots
+.Pq default 1
+.It Va fly
+enable flight
+.Pq default 1
+.It Va volcano
+enable volcanoes
+.Pq default 1
+.It Va drone
+enable drone
+.Pq default 1
+.It Va boots
+enable boots
+.Pq default 1
+.It Va scan
+enable scanning
+.Pq default 1
+.It Va cloak
+enable cloaking
+.Pq default 1
+.It Va logerr
+errors to stderr
+.Pq default 1
+.It Va syslog
+errors to
+.Xr syslogd 8
+.Pq default 0
+.It Va scoredecay
+nr deaths before nr kills begins to decay
+.Pq default 15
+.It Va maxremove
+Maximum number of holes in the maze wall
+.Pq default 40
+.It Va linger
+Seconds to keep game open with no players.
+\&-1 means forever
+.Pq default 90
+.It Va flytime
+max time flying
+.Pq default 20
+.It Va flystep
+max displacement each flying time unit
+.Pq default 5
+.It Va volcano_max
+max size of volcano
+.Pq default 50
+.It Va ptrip_face
+percentage chance of tripping a grenade on pickup
+.Pq default 2
+.It Va ptrip_back
+percentage chance of same when backing onto it
+.Pq default 95
+.It Va ptrip_side
+percentage chance of same when walking sideways into it
+.Pq default 50
+.It Va prandom
+percentage of time dispersion doors appear
+.Pq default 1
+.It Va preflect
+percentage of time reflection walls appear
+.Pq default 1
+.It Va pshot_coll
+percentage chance of shots colliding
+.Pq default 5
+.It Va pgren_coll
+percentage chance of grenades colliding
+.Pq default 10
+.It Va pgren_catch
+facing player chance of catching grenade
+.Pq default 10
+.It Va pmiss
+percentage chance of bullet missing player
+.Pq default 5
+.It Va pdroneabsorb
+percentage chance of absorbing a drone
+.Pq default 1
+.It Va fall_frac
+divisor of damage used for fall damage
+.Pq default 5
+.It Va bulspd
+speed of bullets
+.Pq default 5
+.It Va ishots
+initial ammo for player
+.Pq default 15
+.It Va nshots
+ammo boost for all when new player joins
+.Pq default 5
+.It Va maxncshot
+max number of simultaneous shots per player
+.Pq default 2
+.It Va maxdam
+the initial shield for each player
+.Pq default 10
+.It Va mindam
+minimum damage from one unit of ammo
+.Pq default 5
+.It Va stabdam
+damage from stabbing
+.Pq default 2
+.It Va killgain
+shield gained from killing someone
+.Pq default 2
+.It Va slimefactor
+charge multiplier for slime
+.Pq default 3
+.It Va slimespeed
+speed of slime
+.Pq default 5
+.It Va lavaspeed
+speed of volcano lava
+.Pq default 1
+.It Va cloaklen
+duration of a cloak
+.Pq default 20
+.It Va scanlen
+duration of a scan
+.Pq default 20
+.It Va mindshot
+minimum shot class needed to make a drone
+.Pq default 2
+.It Va simstep
+maximum simulation step in microseconds.
+Zero means traditional blocking behaviour.
+Try 55000 for something reasonable
+.Pq default 0
+.El
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /etc/hunt.conf
+.It Pa "$HOME/.hunt.conf"
+.It Pa ./.hunt.conf
+.El
+.Sh SEE ALSO
+.Xr hunt 6 ,
+.Xr inetd 8
+.Sh AUTHORS
+.An -nosplit
+.An Conrad Huang ,
+.An Ken Arnold ,
+and
+.An Greg Couch ;
+.br
+University of California, San Francisco, Computer Graphics Lab
+.Pp
+.An David Leonard
+tidied up, and added the configuration file.

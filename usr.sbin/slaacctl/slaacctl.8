@@ -1,0 +1,79 @@
+.\"	$OpenBSD: slaacctl.8,v 1.7 2023/11/27 09:29:48 kn Exp $
+.\"
+.\" Copyright (c) 2017 Florian Obser <florian@openbsd.org>
+.\" Copyright (c) 2016 Kenneth R Westerback <kwesterback@gmail.com>
+.\" Copyright (c) 2004, 2005 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 27 2023 $
+.Dt SLAACCTL 8
+.Os
+.Sh NAME
+.Nm slaacctl
+.Nd control the SLAAC daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar socket
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr slaacd 8
+daemon.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl s Ar socket
+Use
+.Ar socket
+instead of the default
+.Pa /dev/slaacd.sock
+to communicate with
+.Xr slaacd 8 .
+.El
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Cm log brief
+Disable verbose debug logging.
+.It Cm log verbose
+Enable verbose debug logging.
+.It Cm send solicitation Ar interface
+Send a router solicitation on interface
+.Ar interface .
+.It Cm show interface Op Ar interface
+Display status about network interfaces.
+If
+.Ar interface
+is specified, only information relative to
+.Ar interface
+is shown.
+Otherwise information on all interfaces is shown.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/slaacd.sockXX" -compact
+.It Pa /dev/slaacd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr slaacd 8 .
+.El
+.Sh SEE ALSO
+.Xr slaacd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 6.2 .

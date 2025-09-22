@@ -1,0 +1,244 @@
+.\"	$OpenBSD: date.1,v 1.72 2021/04/29 00:47:53 deraadt Exp $
+.\"	$NetBSD: date.1,v 1.12 1996/03/12 04:32:37 phil Exp $
+.\"
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)date.1	8.3 (Berkeley) 4/28/95
+.\"
+.Dd $Mdocdate: April 29 2021 $
+.Dt DATE 1
+.Os
+.Sh NAME
+.Nm date
+.Nd display or set date and time
+.Sh SYNOPSIS
+.Nm date
+.Op Fl aju
+.Op Fl f Ar pformat
+.Op Fl r Ar seconds
+.Op Fl z Ar output_zone
+.Op Cm + Ns Ar format
+.Sm off
+.Oo Oo Oo Oo Oo Oo
+.Ar cc Oc
+.Ar yy Oc
+.Ar mm Oc
+.Ar dd Oc
+.Ar HH Oc
+.Ar MM
+.Op . Ar SS
+.Oc
+.Sm on
+.Sh DESCRIPTION
+When invoked without arguments, the
+.Nm
+utility displays the current date and time.
+Otherwise, depending on the options specified,
+.Nm
+will set the date and time or print it in a user-defined way.
+.Pp
+Changing the system date has some risks, as described in
+.Xr settimeofday 2 .
+Only the superuser may change the date.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Use the
+.Xr adjtime 2
+call to gradually skew the local time to the
+desired time rather than just hopping.
+.It Fl f Ar pformat
+Parse the specified time using
+.Xr strptime 3
+with a format string of
+.Ar pformat .
+.It Fl j
+Parse the provided date and time and display the result without changing
+the clock.
+.It Fl r Ar seconds
+Print out (in specified format) the date and time represented by
+.Ar seconds
+from the Epoch.
+.It Fl u
+Display or set the date in UTC (Coordinated Universal) time.
+.It Fl z Ar output_zone
+Just before printing the time, change to the specified timezone;
+see the description of
+.Ev TZ
+below.
+This can be used with
+.Fl j
+to easily convert time specifications from one zone to another.
+.El
+.Pp
+An operand with a leading plus sign
+.Pq Sq +
+signals a user-defined format
+string which specifies the format in which to display the date and time.
+The format string may contain any of the conversion specifications described
+in the
+.Xr strftime 3
+manual page, as well as any arbitrary text.
+A newline
+.Pq Ql \en
+character is always output after the characters specified by
+the format string.
+The format string for the default display is:
+.Bd -literal -offset indent
+%a %b %e %H:%M:%S %Z %Y
+.Ed
+.Pp
+If an operand does not have a leading plus sign, it is interpreted as
+a value for setting the system's notion of the current date and time.
+The canonical representation for setting the date and time is:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar ccyy
+Year.
+If yy is specified, but cc is not,
+a value for yy between 69 and 99 results in a cc value of 19.
+Otherwise, a cc value of 20 is used.
+.It Ar mm
+Month:
+a number from 1 to 12.
+.It Ar dd
+Day:
+a number from 1 to 31.
+.It Ar HH
+Hour:
+a number from 0 to 23.
+.It Ar MM
+Minute:
+a number from 0 to 59.
+.It Ar SS
+Second:
+a number from 0 to 60
+(permitting a leap second),
+preceded by a period.
+.El
+.Pp
+Everything but the minute is optional.
+.Pp
+Time changes for Daylight Saving Time, standard time, leap seconds,
+and leap years are handled automatically.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev TZ
+The time zone to use when parsing or displaying dates.
+It is normally specified as a pathname relative to
+.Pa /usr/share/zoneinfo ,
+though see
+.Xr tzset 3
+for more information.
+If this variable is not set, the time zone is determined based on
+.Pa /etc/localtime ,
+which the administrator adjusts using
+the
+.Fl l
+option of
+.Xr zic 8 .
+.El
+.Sh FILES
+.Bl -tag -width /var/log/messages -compact
+.It Pa /var/log/wtmp
+record of date resets and time changes
+.It Pa /var/log/messages
+record of the user setting the time
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Display the date using the specified format string:
+.Bd -literal -offset indent
+$ date "+DATE: %Y-%m-%d%nTIME: %H:%M:%S"
+DATE: 1987-11-21
+TIME: 13:36:16
+.Ed
+.Pp
+Set the date to
+June 13, 1985, 4:27 PM:
+.Pp
+.Dl # date 198506131627
+.Pp
+Set the time to
+2:32 PM,
+without modifying the date:
+.Pp
+.Dl # date 1432
+.Pp
+If the mailing list server located in California
+is being taken offline at 5:45 AM,
+work out what time it will be locally, here in Tokyo:
+.Pp
+.Dl $ TZ=America/Los_Angeles date -j -z Asia/Tokyo 0545
+.Sh SEE ALSO
+.Xr adjtime 2 ,
+.Xr gettimeofday 2 ,
+.Xr strftime 3 ,
+.Xr utmp 5 ,
+.Xr ntpd 8 ,
+.Xr rdate 8
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl afjrz ,
+as well as the conversion specifiers
+.Ql \&%F ,
+.Ql \&%G ,
+.Ql \&%g ,
+.Ql \&%k ,
+.Ql \&%l ,
+.Ql \&%R ,
+.Ql \&%s ,
+.Ql \&%v ,
+and
+.Ql \&%+ ,
+are extensions to that specification.
+.Pp
+This implementation requires the traditional
+.Bx
+date format,
+[[[[[cc]yy]mm]dd]HH]MM[.SS],
+which differs from the
+X/Open System Interfaces option of the
+.St -p1003.1-2008
+specification.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .

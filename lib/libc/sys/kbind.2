@@ -1,0 +1,120 @@
+.\" $OpenBSD: kbind.2,v 1.4 2021/11/21 23:44:55 jan Exp $
+.\"
+.\" Copyright (c) 2015 Philip Guenther <guenther@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 21 2021 $
+.Dt KBIND 2
+.Os
+.Sh NAME
+.Nm kbind
+.Nd update protected memory for lazy-binding
+.Sh SYNOPSIS
+.In sys/unistd.h
+.Bd -literal
+struct __kbind {
+	void	*kb_addr;
+	size_t	 kb_size;
+};
+#define KBIND_BLOCK_MAX 2  /* powerpc and sparc64 need 2 blocks */
+#define KBIND_DATA_MAX  24 /* sparc64 needs 6, four-byte words */
+.Ed
+.Pp
+.Ft int
+.Fn kbind "const struct __kbind *param" "size_t psize" "int64_t cookie"
+.Sh DESCRIPTION
+The
+.Nm
+syscall updates the contents of one or more blocks of the process's memory
+with the supplied replacement data.
+This is used to efficiently and securely perform lazy-binding.
+.Pp
+.Fa param
+points to an array of
+.Vt __kbind
+structures giving the addresses and lengths to update.
+The last
+.Vt __kbind
+structure is immediately followed in the same order by the source
+data for the blocks to copy.
+.Fa psize
+specifies the total length of the parameters: both the
+.Vt __kbind
+structures and the associated source data.
+There may be at most
+.Dv KBIND_BLOCK_MAX
+.Vt __kbind
+structures and each block may be at most
+.Dv KBIND_DATA_MAX
+bytes in size.
+.Pp
+.Nm
+updates memory
+.Do
+as if
+.Dc
+the thread temporarily made the memory writable with
+.Xr mprotect 2 .
+If the process does not have write access to the underlying memory object,
+.Nm
+will fail without making the requested change.
+.Pp
+.Nm
+is currently intended for use by
+.Xr ld.so 1
+only.
+It is therefore not provided as a function and two security checks
+are performed to bind it (pun intended) to its use in
+.Xr ld.so 1 :
+the first time
+.Nm
+is used, the kernel records both the text address of the call and
+the value of the
+.Fa cookie
+argument.
+If those values differ in a later
+.Nm
+call, then the process is killed.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn kbind
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Cannot allocate memory when updating a copy-on-write page.
+.It Bq Er EINVAL
+The parameters are inconsistent or exceed
+.Nm
+limits.
+.It Bq Er EFAULT
+Part of the structures or additional data pointed to by
+.Fa param
+is outside the process's allocated address space,
+or the underlying memory object is not writable.
+.El
+.Sh SEE ALSO
+.Xr ld.so 1 ,
+.Xr mprotect 2
+.Sh STANDARDS
+The
+.Nm
+syscall is specific to the
+.Ox
+dynamic linker and should not be used in portable applications.
+.Sh HISTORY
+The
+.Nm
+syscall appeared in
+.Ox 5.8 .

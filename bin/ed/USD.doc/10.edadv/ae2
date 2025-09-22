@@ -1,0 +1,1015 @@
+.\"	$OpenBSD: ae2,v 1.4 2004/04/06 08:19:20 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ae2	8.1 (Berkeley) 6/8/93
+.\"
+.NH
+SPECIAL CHARACTERS
+.PP
+The editor
+.UL ed
+is the primary interface to the system
+for many people, so
+it is worthwhile to know
+how to get the most out of
+.UL ed
+for the least effort.
+.PP
+The next few sections will discuss
+shortcuts
+and labor-saving devices.
+Not all of these will be instantly useful
+to any one person, of course,
+but a few will be,
+and the others should give you ideas to store
+away for future use.
+And as always,
+until you try these things,
+they will remain theoretical knowledge,
+not something you have confidence in.
+.SH
+The List command `l'
+.PP
+.UL ed
+provides two commands for printing the contents of the lines
+you're editing.
+Most people are familiar with
+.UL p ,
+in combinations like
+.P1
+1,$p
+.P2
+to print all the lines you're editing,
+or
+.P1
+s/abc/def/p
+.P2
+to change 
+`abc'
+to
+`def'
+on the current line.
+Less familiar is the
+.ul
+list
+command
+.UL l
+(the letter `\fIl\|\fR'),
+which gives slightly more information than
+.UL p .
+In particular,
+.UL l
+makes visible characters that are normally invisible,
+such as tabs.
+If you list a line that contains tabs,
+.UL l
+will print each tab as
+.UL \*et .
+This makes it much easier to correct the sort of typing mistake
+that inserts extra spaces adjacent to tabs,
+or inserts a backspace followed by a space.
+.PP
+The
+.UL l
+command
+also `folds' long lines for printing _
+any line that exceeds 72 characters is printed on multiple lines;
+each printed line except the last is terminated by a backslash 
+.UL \*e ,
+so you can tell it was folded.
+This is useful for printing long lines on short terminals.
+.PP
+Occasionally the
+.UL l
+command will print in a line a string of numbers preceded by a backslash,
+such as \*e07 or \*e16.
+These combinations are used to make visible characters that normally don't print,
+like form feed or vertical tab or bell.
+Each such combination is a single character.
+When you see such characters, be wary _
+they may have surprising meanings when printed on some terminals.
+Often their presence means that your finger slipped while you were typing;
+you almost never want them.
+.SH
+The Substitute Command `s'
+.PP
+Most of the next few sections will be taken up with a discussion
+of the
+substitute
+command
+.UL s .
+Since this is the command for changing the contents of individual
+lines,
+it probably has the most complexity of any 
+.UL ed 
+command,
+and the most potential for effective use.
+.PP
+As the simplest place to begin,
+recall the meaning of a trailing
+.UL g
+after a substitute command.
+With
+.P1
+s/this/that/
+.P2
+and
+.P1
+s/this/that/g
+.P2
+the
+first
+one replaces the
+.ul
+first
+`this' on the line
+with `that'.
+If there is more than one `this' on the line,
+the second form
+with the trailing
+.UL g
+changes
+.ul
+all
+of them.
+.PP
+Either form of the
+.UL s
+command can be followed by
+.UL p
+or
+.UL l
+to `print' or `list' (as described in the previous section)
+the contents of the line:
+.P1
+s/this/that/p
+s/this/that/l
+s/this/that/gp
+s/this/that/gl
+.P2
+are all legal, and mean slightly different things.
+Make sure you know what the differences are.
+.PP
+Of course, any
+.UL s
+command can be preceded by one or two `line numbers'
+to specify that the substitution is to take place
+on a group of lines. 
+Thus
+.P1
+1,$s/mispell/misspell/
+.P2
+changes the 
+.ul
+first
+occurrence of
+`mispell' to `misspell' on every line of the file.
+But
+.P1
+1,$s/mispell/misspell/g
+.P2
+changes 
+.ul
+every
+occurrence in every line
+(and this is more likely to be what you wanted in this
+particular case).
+.PP
+You should also notice that if you add a
+.UL p
+or
+.UL l
+to the end of any of these substitute commands,
+only the last line that got changed will be printed,
+not all the lines.
+We will talk later about how to print all the lines
+that were modified.
+.SH
+The Undo Command `u'
+.PP
+Occasionally you will make a substitution in a line,
+only to realize too late that it was a ghastly mistake.
+The `undo' command
+.UL u
+lets you `undo' the last substitution:
+the last line that was substituted can be restored to
+its previous state by typing the command
+.P1
+u
+.P2
+.SH
+The Metacharacter `\*.'
+.PP
+As you have undoubtedly noticed
+when you use
+.UL ed ,
+certain characters have unexpected meanings
+when they occur in the left side of a substitute command,
+or in a search for a particular line.
+In the next several sections, we will talk about
+these special characters,
+which are often called `metacharacters'.
+.PP
+The first one is the period `\*.'.
+On the left side of a substitute command,
+or in a search with `/.../',
+`\*.' stands for
+.ul
+any
+single character.
+Thus the search
+.P1
+/x\*.y/
+.P2
+finds any line where `x' and `y' occur separated by
+a single character, as in
+.P1
+x+y
+x\-y
+x\*(BLy
+x\*.y
+.P2
+and so on.
+(We will use \*(BL to stand for a space whenever we need to
+make it visible.)
+.PP
+Since `\*.' matches a single character,
+that gives you a way to deal with funny characters
+printed by
+.UL l .
+Suppose you have a line that, when printed with the
+.UL l
+command, appears as
+.P1
+ ....   th\*e07is   ....
+.P2
+and you want to get rid of the 
+\*e07
+(which represents the bell character, by the way).
+.PP
+The most obvious solution is to try
+.P1
+s/\*e07//
+.P2
+but this will fail. (Try it.)
+The brute force solution, which most people would now take,
+is to re-type the entire line.
+This is guaranteed, and is actually quite a reasonable tactic
+if the line in question isn't too big,
+but for a very long line,
+re-typing is a bore.
+This is where the metacharacter `\*.' comes in handy.
+Since `\*e07' really represents a single character,
+if we say
+.P1
+s/th\*.is/this/
+.P2
+the job is done.
+The `\*.' matches the mysterious character between the `h' and the `i',
+.UL "whatever it is" .
+.PP
+Bear in mind that since `\*.' matches any single character,
+the command
+.P1
+s/\*./,/
+.P2
+converts the first character on a line into a `,',
+which very often is not what you intended.
+.PP
+As is true of many characters in
+.UL ed ,
+the `\*.' has several meanings, depending
+on its context.
+This line shows all three:
+.P1
+\&\*.s/\*./\*./
+.P2
+The first `\*.' is a line number,
+the number of
+the line we are editing,
+which is called `line dot'.
+(We will discuss line dot more in Section 3.)
+The second `\*.' is a metacharacter
+that matches any single character on that line.
+The third `\*.' is the only one that really is
+an honest literal period.
+On the
+.ul
+right
+side of a substitution, `\*.'
+is not special.
+If you apply this command to the line
+.P1
+Now is the time\*.
+.P2
+the result will
+be
+.P1
+\&\*.ow is the time\*.
+.P2
+which is probably not what you intended.
+.SH
+The Backslash `\*e'
+.PP
+Since a period means `any character',
+the question naturally arises of what to do
+when you really want a period.
+For example, how do you convert the line
+.P1
+Now is the time\*.
+.P2
+into
+.P1
+Now is the time?
+.P2
+The backslash `\*e' does the job.
+A backslash turns off any special meaning that the next character
+might have; in particular,
+`\*e\*.' converts the `\*.' from a `match anything'
+into a period, so
+you can use it to replace
+the period in
+.P1
+Now is the time\*.
+.P2
+like this:
+.P1
+s/\*e\*./?/
+.P2
+The pair of characters `\*e\*.' is considered by
+.UL ed
+to be a single real period.
+.PP
+The backslash can also be used when searching for lines
+that contain a special character.
+Suppose you are looking for a line that contains
+.P1
+\&\*.PP
+.P2
+The search
+.P1
+/\*.PP/
+.P2
+isn't adequate, for it will find
+a line like
+.P1
+THE APPLICATION OF ...
+.P2
+because the `\*.' matches the letter `A'.
+But if you say
+.P1
+/\*e\*.PP/
+.P2
+you will find only lines that contain `\*.PP'.
+.PP
+The backslash can also be used to turn off special meanings for
+characters other than `\*.'.
+For example, consider finding a line that contains a backslash.
+The search
+.P1
+/\*e/
+.P2
+won't work,
+because the `\*e' isn't a literal `\*e', but instead means that the second `/'
+no longer \%delimits the search.
+But by preceding a backslash with another one,
+you can search for a literal backslash.
+Thus
+.P1
+/\*e\*e/
+.P2
+does work.
+Similarly, you can search for a forward slash `/' with
+.P1
+/\*e//
+.P2
+The backslash turns off the meaning of the immediately following `/' so that
+it doesn't terminate the /.../ construction prematurely.
+.PP
+As an exercise, before reading further, find two substitute commands each of which will
+convert the line
+.P1
+\*ex\*e\*.\*ey
+.P2
+into the line
+.P1
+\*ex\*ey
+.P2
+.PP
+Here are several solutions;
+verify that each works as advertised.
+.P1
+s/\*e\*e\*e\*.//
+s/x\*.\*./x/
+s/\*.\*.y/y/
+.P2
+.PP
+A couple of miscellaneous notes about
+backslashes and special characters.
+First, you can use any character to delimit the pieces
+of an
+.UL s
+command: there is nothing sacred about slashes.
+(But you must use slashes for context searching.)
+For instance, in a line that contains a lot of slashes already, like
+.P1
+//exec //sys.fort.go // etc...
+.P2
+you could use a colon as the delimiter _
+to delete all the slashes, type
+.P1
+s:/::g
+.P2
+.PP
+Second, if # and @ are your character erase and line kill characters,
+you have to type \*e# and \*e@;
+this is true whether you're talking to
+.UL ed
+or any other program.
+.PP
+When you are adding text with
+.UL a
+or
+.UL i
+or
+.UL c ,
+backslash is not special, and you should only put in
+one backslash for each one you really want.
+.SH
+The Dollar Sign `$'
+.PP
+The next metacharacter, the `$', stands for `the end of the line'.
+As its most obvious use, suppose you have the line
+.P1
+Now is the
+.P2
+and you wish to add the word `time' to the end.
+Use the $ like this:
+.P1
+s/$/\*(BLtime/
+.P2
+to get
+.P1
+Now is the time
+.P2
+Notice that a space is needed before `time' in
+the substitute command,
+or you will get
+.P1
+Now is thetime
+.P2
+.PP
+As another example, replace the second comma in
+the following line with a period without altering the first:
+.P1
+Now is the time, for all good men,
+.P2
+The command needed is
+.P1
+s/,$/\*./
+.P2
+The $ sign here provides context to make specific which comma we mean.
+Without it, of course, the
+.UL s
+command would operate on the first comma to produce
+.P1
+Now is the time\*. for all good men,
+.P2
+.PP
+As another example, to convert
+.P1
+Now is the time\*.
+.P2
+into
+.P1
+Now is the time?
+.P2
+as we did earlier, we can use
+.P1
+s/\*.$/?/
+.P2
+.PP
+Like `\*.', the `$'
+has multiple meanings depending on context.
+In the line
+.P1
+$s/$/$/
+.P2
+the first `$' refers to the
+last line of the file,
+the second refers to the end of that line,
+and the third is a literal dollar sign,
+to be added to that line.
+.SH
+The Circumflex `^'
+.PP
+The circumflex (or hat or caret)
+`^' stands for the beginning of the line.
+For example, suppose you are looking for a line that begins
+with `the'.
+If you simply say 
+.P1
+/the/
+.P2
+you will in all likelihood find several lines that contain `the' in the middle before
+arriving at the one you want.
+But with
+.P1
+/^the/
+.P2
+you narrow the context, and thus arrive at the desired one
+more easily.
+.PP
+The other use of `^' is of course to enable you to insert
+something at the beginning of a line:
+.P1
+s/^/\*(BL/
+.P2
+places a space at the beginning of the current line.
+.PP
+Metacharacters can be combined. To search for a
+line that contains 
+.ul
+only 
+the characters
+.P1
+\&\*.PP
+.P2
+you can use the command
+.P1
+/^\*e\*.PP$/
+.P2
+.SH
+The Star `*'
+.PP
+Suppose you have a line that looks like this:
+.P1
+\fItext \fR x                y \fI text \fR
+.P2
+where 
+.ul
+text 
+stands
+for lots of text,
+and there are some indeterminate number of spaces between the
+.UL x
+and the
+.UL y .
+Suppose the job is to replace all the spaces between
+.UL x
+and
+.UL y
+by a single space.
+The line is too long to retype, and there are too many spaces
+to count.
+What now?
+.PP
+This is where the metacharacter `*'
+comes in handy.
+A character followed by a star
+stands for as many consecutive occurrences of that
+character as possible.
+To refer to all the spaces at once, say
+.P1
+s/x\*(BL*y/x\*(BLy/
+.P2
+The construction
+`\*(BL*'
+means
+`as many spaces as possible'.
+Thus `x\*(BL*y' means `an x, as many spaces as possible, then a y'.
+.PP
+The star can be used with any character, not just space.
+If the original example was instead
+.P1
+\fItext \fR x--------y \fI text \fR
+.P2
+then all `\-' signs can be replaced by a single space
+with the command
+.P1
+s/x-*y/x\*(BLy/
+.P2
+.PP
+Finally, suppose that the line was
+.P1
+\fItext \fR x\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.y \fI text \fR
+.P2
+Can you see what trap lies in wait for the unwary?
+If you blindly type
+.P1
+s/x\*.*y/x\*(BLy/
+.P2
+what will happen?
+The answer, naturally, is that it depends.
+If there are no other x's or y's on the line,
+then everything works, but it's blind luck, not good management.
+Remember that `\*.' matches
+.ul
+any
+single character?
+Then `\*.*' matches as many single characters as possible,
+and unless you're careful, it can eat up a lot more of the line
+than you expected.
+If the line was, for example, like this:
+.P1
+\fItext  \fRx\fI  text  \fR x\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.\*.y \fI  text  \fRy\fI  text  \fR
+.P2
+then saying
+.P1
+s/x\*.*y/x\*(BLy/
+.P2
+will take everything from the
+.ul
+first
+`x' to the
+.ul
+last
+`y',
+which, in this example, is undoubtedly more than you wanted.
+.PP
+The solution, of course, is to turn off the special meaning of
+`\*.' with
+`\*e\*.':
+.P1
+s/x\*e\*.*y/x\*(BLy/
+.P2
+Now everything works, for `\*e\*.*' means `as many
+.ul
+periods
+as possible'.
+.PP
+There are times when the pattern `\*.*' is exactly what you want.
+For example, to change
+.P1
+Now is the time for all good men ....
+.P2
+into
+.P1
+Now is the time\*.
+.P2
+use `\*.*' to eat up everything after the `for':
+.P1
+s/\*(BLfor\*.*/\*./
+.P2
+.PP
+There are a couple of additional pitfalls associated with `*' that you should be aware of.
+Most notable is the fact that `as many as possible' means
+.ul
+zero
+or more.
+The fact that zero is a legitimate possibility is
+sometimes rather surprising.
+For example, if our line contained
+.P1
+\fItext \fR xy \fI text \fR x             y \fI text \fR
+.P2
+and we said
+.P1
+s/x\*(BL*y/x\*(BLy/
+.P2
+the
+.ul
+first
+`xy' matches this pattern, for it consists of an `x',
+zero spaces, and a `y'.
+The result is that the substitute acts on the first `xy',
+and does not touch the later one that actually contains some intervening spaces.
+.PP
+The way around this, if it matters, is to specify a pattern like
+.P1
+/x\*(BL\*(BL*y/
+.P2
+which says `an x, a space, then as many more spaces as possible, then a y',
+in other words, one or more spaces.
+.SH
+The Brackets `[ ]'
+.PP
+Suppose that you want to delete any numbers
+that appear
+at the beginning of all lines of a file.
+You might first think of trying a series of commands like
+.P1
+1,$s/^1*//
+1,$s/^2*//
+1,$s/^3*//
+.P2
+and so on,
+but this is clearly going to take forever if the numbers are at all long.
+Unless you want to repeat the commands over and over until
+finally all numbers are gone,
+you must get all the digits on one pass.
+This is the purpose of the brackets [ and ].
+.PP
+The construction
+.P1
+[0123456789]
+.P2
+matches any single digit _
+the whole thing is called a `character class'.
+With a character class, the job is easy.
+The pattern `[0123456789]*' matches zero or more digits (an entire number), so
+.P1
+1,$s/^[0123456789]*//
+.P2
+deletes all digits from the beginning of all lines.
+.PP
+Any characters can appear within a character class,
+and just to confuse the issue there are essentially no special characters
+inside the brackets;
+even the backslash doesn't have a special meaning.
+To search for special characters, for example, you can say
+.P1
+/[\*.\*e$^[]/
+.P2
+Within [...], the `[' is not special.
+To get a `]' into a character class,
+make it the first character.
+.PP
+It's a nuisance to have to spell out the digits,
+so you can abbreviate them as
+[0\-9];
+similarly, [a\-z] stands for the lower case letters,
+and
+[A\-Z] for upper case.
+.PP
+As a final frill on character classes, you can specify a class
+that means `none of the following characters'.
+This is done by beginning the class with a `^':
+.P1
+[^0-9]
+.P2
+stands for `any character 
+.ul
+except
+a digit'.
+Thus you might find the first line that doesn't begin with a tab or space
+by a search like
+.P1
+/^[^(space)(tab)]/
+.P2
+.PP
+Within a character class,
+the circumflex has a special meaning 
+only if it occurs at the beginning.
+Just to convince yourself, verify that
+.P1
+/^[^^]/
+.P2
+finds a line that doesn't begin with a circumflex.
+.SH
+The Ampersand `&'
+.PP
+The ampersand `&' is used primarily to save typing.
+Suppose you have the line
+.P1
+Now is the time
+.P2
+and you want to make it
+.P1
+Now is the best time
+.P2
+Of course you can always say
+.P1
+s/the/the best/
+.P2
+but it seems silly to have to repeat the `the'.
+The `&' is used to eliminate the repetition.
+On the
+.ul
+right
+side of a substitute, the ampersand means `whatever
+was just matched', so you can say
+.P1
+s/the/& best/
+.P2
+and the `&' will stand for `the'.
+Of course this isn't much of a saving if the thing
+matched is just `the', but if it is something truly long or awful,
+or if it is something like `.*'
+which matches a lot of text,
+you can save some tedious typing.
+There is also much less chance of making a typing error
+in the replacement text.
+For example, to parenthesize a line,
+regardless of its length,
+.P1
+s/\*.*/(&)/
+.P2
+.PP
+The ampersand can occur more than once on the right side:
+.P1
+s/the/& best and & worst/
+.P2
+makes
+.P1
+Now is the best and the worst time
+.P2
+and
+.P1
+s/\*.*/&? &!!/
+.P2
+converts the original line into
+.P1
+Now is the time? Now is the time!!
+.P2
+.PP
+To get a literal ampersand, naturally the backslash is used to turn off the special meaning:
+.P1
+s/ampersand/\*e&/
+.P2
+converts the word into the symbol.
+Notice that `&' is not special on the left side
+of a substitute, only on the
+.ul
+right 
+side.
+.SH
+Substituting Newlines
+.PP
+.UL ed
+provides a facility for splitting a single line into two or more shorter lines by `substituting in a newline'.
+As the simplest example, suppose a line has gotten unmanageably long
+because of editing (or merely because it was unwisely typed).
+If it looks like
+.P1
+\fItext \fR   xy  \fI text \fR
+.P2
+you can break it between the `x' and the `y' like this:
+.P1
+s/xy/x\*e
+y/
+.P2
+This is actually a single command,
+although it is typed on two lines.
+Bearing in mind that `\*e' turns off special meanings,
+it seems relatively intuitive that a `\*e' at the end of
+a line would make the newline there
+no longer special.
+.PP
+You can in fact make a single line into several lines
+with this same mechanism.
+As a large example, consider underlining the word `very'
+in a long line
+by splitting `very' onto a separate line,
+and preceding it by the
+.UL roff
+or
+.UL nroff
+formatting command `.ul'.
+.P1
+\fItext \fR a very big \fI text \fR
+.P2
+The command
+.P1
+s/\*(BLvery\*(BL/\*e
+\&.ul\*e
+very\*e
+/
+.P2
+converts the line into four shorter lines,
+preceding the word `very' by the
+line
+`.ul',
+and eliminating the spaces around the `very',
+all at the same time.
+.PP
+When a newline is substituted
+in, dot is left pointing at the last line created.
+.PP
+.SH
+Joining Lines
+.PP
+Lines may also be joined together,
+but this is done with the
+.UL j
+command
+instead of
+.UL s .
+Given the lines
+.P1
+Now is
+\*(BLthe time
+.P2
+and supposing that dot is set to the first of them,
+then the command
+.P1
+j
+.P2
+joins them together.
+No blanks are added,
+which is why we carefully showed a blank 
+at the beginning of the second line.
+.PP
+All by itself,
+a
+.UL j
+command
+joins line dot to line dot+1,
+but any contiguous set of lines can be joined.
+Just specify the starting and ending line numbers.
+For example,
+.P1
+1,$jp
+.P2
+joins all the lines into one big one
+and prints it.
+(More on line numbers in Section 3.)
+.SH
+Rearranging a Line with \*e( ... \*e)
+.PP
+(This section should be skipped on first reading.)
+Recall that `&' is a shorthand that stands for whatever
+was matched by the left side of an
+.UL s
+command.
+In much the same way you can capture separate pieces
+of what was matched;
+the only difference is that you have to specify
+on the left side just what pieces you're interested in.
+.PP
+Suppose, for instance, that 
+you have a file of lines that consist of names in the form
+.P1
+Smith, A. B.
+Jones, C.
+.P2
+and so on,
+and you want the initials to precede the name, as in
+.P1
+A. B. Smith
+C. Jones
+.P2
+It is possible to do this with a series of editing commands,
+but it is tedious and error-prone.
+(It is instructive to figure out how it is done, though.)
+.PP
+The alternative
+is to `tag' the pieces of the pattern (in this case,
+the last name, and the initials),
+and then rearrange the pieces.
+On the left side of a substitution,
+if part of the pattern is enclosed between
+\*e( and \*e),
+whatever matched that part is remembered,
+and available for use on the right side.
+On the right side,
+the symbol `\*e1' refers to whatever
+matched the first \*e(...\*e) pair,
+`\*e2' to the second \*e(...\*e),
+and so on.
+.PP
+The command
+.P1
+1,$s/^\*e([^,]*\*e),\*(BL*\*e(\*.*\*e)/\*e2\*(BL\*e1/
+.P2
+although hard to read, does the job.
+The first \*e(...\*e) matches the last name,
+which is any string up to the comma;
+this is referred to on the right side with `\*e1'.
+The second \*e(...\*e) is whatever follows
+the comma and any spaces,
+and is referred to as `\*e2'.
+.PP
+Of course, with any editing sequence this complicated,
+it's foolhardy to simply run it and hope.
+The global commands 
+.UL g
+and 
+.UL v
+discussed in section 4
+provide a way for you to print exactly those
+lines which were affected by the
+substitute command,
+and thus verify that it did what you wanted
+in all cases.

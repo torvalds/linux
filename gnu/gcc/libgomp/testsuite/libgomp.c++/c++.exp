@@ -1,0 +1,20 @@
+set lang_library_path	"../libstdc++-v3/src/.libs"
+set lang_test_file	"${lang_library_path}/libstdc++.a"
+set lang_link_flags	"-lstdc++"
+
+load_lib libgomp-dg.exp
+
+# Initialize dg.
+dg-init
+
+if [file exists "${blddir}/${lang_test_file}"] {
+
+    # Gather a list of all tests.
+    set tests [lsort [glob -nocomplain $srcdir/$subdir/*.C]]
+
+    # Main loop.
+    gfortran-dg-runtest $tests ""
+}
+
+# All done.
+dg-finish

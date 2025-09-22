@@ -1,0 +1,155 @@
+#	$OpenBSD: RAMDISK,v 1.32 2020/09/30 22:23:41 patrick Exp $
+
+machine		loongson mips64
+maxusers	4
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		MINIROOTSIZE=8192
+option		RAMDISK_HOOKS
+
+option		PCIVERBOSE
+option		USBVERBOSE
+
+option		FFS
+option		FFS2
+option		NFSCLIENT
+option		CD9660
+option		UDF
+option		EXT2FS
+option		MSDOSFS
+option		INET6
+
+option		CPU_LOONGSON2
+option		CPU_LOONGSON3
+option		CPU_MIPS64R2		# required by CPU_LOONGSON3
+makeoption	LINK_ADDRESS="0xffffffff80200000"
+
+config		bsd root on rd0a swap on rd0b
+
+mainbus0	at root
+cpu0		at mainbus0
+clock0		at mainbus0
+
+bonito*		at mainbus0
+pci*		at bonito?
+
+htb*		at mainbus0
+pci*		at htb?
+ppb*		at pci?
+pci*		at ppb?
+
+glxpcib*	at pci?
+isa0		at glxpcib?
+mcclock0	at isa? port 0x70
+pckbc0		at isa?				# Yeeloong only
+pckbd*		at pckbc?			# Yeeloong only
+wskbd*		at pckbd? mux 1			# Yeeloong only
+com0		at isa? port 0x2f8 irq 3	# Fuloong 2F only
+com1		at isa? port 0x3f8 irq 3	# Fuloong 2E only
+pciide*		at pci?
+wd*		at pciide? flags 0x0000
+sisfb*		at pci?				# Lynloong/Fuloong 2F only
+wsdisplay*	at sisfb?
+smfb*		at pci?				# Yeeloong only
+wsdisplay*	at smfb?
+
+voyager*	at pci?
+gpio0		at voyager?
+gdiumiic0	at gpio0 offset 6 mask 0x81	# pins 6 and 13
+gdiumiic0	at gpio0 offset 46 mask 0x03	# pins 46 and 47
+iic0		at gdiumiic0
+mfokrtc0	at iic0				# M41T8x RTC
+ohci*		at voyager?
+smfb*		at voyager?
+wsdisplay*	at smfb?
+
+piixpm*		at pci?
+iic*		at piixpm?
+spdmem*		at iic?
+radeonfb*	at pci?
+wsdisplay*	at radeonfb?
+
+pcib*		at pci?
+isa0		at pcib?
+vga*		at pci?
+wsdisplay*	at vga?
+
+leioc0		at mainbus0
+com*		at leioc?
+ahci*		at pci?
+
+ohci*		at pci?
+uhci*		at pci?
+ehci*		at pci?
+usb*		at ohci?
+usb*		at uhci?
+usb*		at ehci?
+
+uhub*		at usb?
+uhub*		at uhub?
+umodem*		at uhub?		# USB Modems/Serial
+ucom*		at umodem?
+uvscom*		at uhub?		# SUNTAC Slipper U VS-10U serial
+ucom*		at uvscom?
+ubsa*		at uhub?		# Belkin serial adapter
+ucom*		at ubsa?
+uplcom*		at uhub?		# I/O DATA USB-RSAQ2 serial adapter
+ucom*		at uplcom?
+umass*		at uhub?
+uhidev*		at uhub?		# Human Interface Devices
+ukbd*		at uhidev?		# USB keyboard
+wskbd*		at ukbd? mux 1
+uslhcom* 	at uhidev?		# Silicon Labs CP2110 USB HID UART
+ucom*		at uslhcom?
+uhid*		at uhidev?		# USB generic HID support
+atu*		at uhub?		# Atmel AT76c50x based 802.11b
+aue*		at uhub?		# ADMtek AN986 Pegasus Ethernet
+axe*		at uhub?		# ASIX Electronics AX88172 USB Ethernet
+axen*		at uhub?		# ASIX Electronics AX88179 USB Ethernet
+bwfm*		at uhub?		# Broadcom FullMAC
+cdce*		at uhub?		# CDC Ethernet
+cue*		at uhub?		# CATC USB-EL1201A based Ethernet
+kue*		at uhub?		# Kawasaki KL5KUSB101B based Ethernet
+mos*		at uhub?		# MOSCHIP MCS7730/7830 10/100 Ethernet
+smsc*		at uhub?		# SMSC LAN95xx Ethernet
+otus*		at uhub?		# Atheros AR9001U
+rum*		at uhub?		# Ralink RT2501USB/RT2601USB
+run*		at uhub?		# Ralink RT2700U/RT2800U/RT3000U
+uath*		at uhub?		# Atheros AR5005UG/AR5005UX
+udav*		at uhub?		# Davicom DM9601 based Ethernet
+upgt*		at uhub?		# Conexant/Intersil PrismGT SoftMAC USB
+upl*		at uhub?		# Prolific PL2301/PL2302 host-to-host
+ugl*		at uhub?		# Genesys Logic GL620USB-A host-to-host
+ural*		at uhub?		# Ralink RT2500USB
+url*		at uhub?		# Realtek RTL8150L based adapters
+ure*		at uhub?		# Realtek RTL8152 based adapters
+urtw*		at uhub?		# Realtek 8187
+wi*		at uhub?		# WaveLAN IEEE 802.11DS
+zyd*		at uhub?		# Zydas ZD1211
+ugen*		at uhub?		# USB Generic driver
+
+em*		at pci?			# Intel Pro/1000 ethernet
+ral*		at pci?
+re*		at pci?
+rl*		at pci?
+
+acphy*		at mii?			# Altima AC101 PHYs
+amphy*		at mii?			# AMD 79C873 PHYs
+bmtphy*		at mii?			# Broadcom 10/100 PHYs
+eephy*		at mii?			# Marvell 88E1000 series PHY
+rgephy*		at mii?			# Realtek 8169S/8110S PHY
+rlphy*		at mii?			# Realtek 8139 internal PHYs
+urlphy*		at mii?			# Realtek RTL8150L internal PHY
+ukphy*		at mii?			# "unknown" PHYs
+
+scsibus*	at scsi?
+sd*		at scsibus?
+cd*		at scsibus?
+
+pseudo-device	loop 1
+pseudo-device	bpfilter 1
+pseudo-device	rd 1
+pseudo-device	wsmux 2

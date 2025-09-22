@@ -1,0 +1,19 @@
+static_library("Breakpad") {
+  output_name = "lldbPluginObjectFileBreakpad"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Symbol",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+
+  # Reaches into Plugins/Process/Utility.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "BreakpadRecords.cpp",
+    "ObjectFileBreakpad.cpp",
+  ]
+}

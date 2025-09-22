@@ -1,0 +1,92 @@
+# $OpenBSD: bgpd.conf.11.in,v 1.2 2019/02/26 10:51:09 claudio Exp $
+# test communities
+
+AS 64512
+
+# extended communities 2-byte AS
+match from any ext-community rt 64496:1
+match from any ext-community soo 64496:2
+match from any ext-community odi 64496:3
+match from any ext-community bdc 64496:4
+match from any ext-community srcas 64496:5
+match from any ext-community l2vid 64496:6
+# extended communities 4-byte AS
+match from any ext-community rt 4200000001:7
+match from any ext-community soo 4200000001:8
+match from any ext-community odi 4200000001:9
+match from any ext-community bdc 4200000001:10
+match from any ext-community srcas 4200000001:11
+# extended communities IPv4
+match from any ext-community rt 127.0.0.1:12
+match from any ext-community soo 127.0.0.1:13
+match from any ext-community odi 127.0.0.1:14
+match from any ext-community ori 127.0.0.1:15
+match from any ext-community l2vid 127.0.0.1:16
+match from any ext-community vrfri 127.0.0.1:17
+# extended communities opaque
+match from any ext-community ort 0x123456789ab0
+match from any ext-community defgw 0x123456789ab1
+# extended communities evpn
+match from any ext-community mac-mob 0x123456789ab2
+match from any ext-community esi-lab 0x123456789ab3
+match from any ext-community esi-rt 0x123456789ab4
+# extended communities ovs
+match from any ext-community ovs valid
+match from any ext-community ovs invalid
+match from any ext-community ovs not-found
+
+# multiple
+match from any ext-community rt 64496:201 ext-community soo 64496:202
+match from any ext-community rt 64496:301 ext-community soo 4200000001:302 ext-community odi 127.0.0.1:303
+
+# set and delete community
+match from any set ext-community rt 64496:5001
+match from any set ext-community soo 4200000001:5002
+match from any set ext-community odi 127.0.0.1:5003
+match from any set ext-community ort 0x123456789abc
+match from any set ext-community ovs valid
+match from any set ext-community delete rt 64496:6001
+match from any set ext-community delete soo 4200000001:6002
+match from any set ext-community delete odi 127.0.0.1:6003
+match from any set ext-community delete ort 0x123456789abf
+match from any set ext-community delete ovs valid
+
+# wildchar matching
+match from any ext-community * *
+match from any ext-community rt *
+match from any ext-community soo *
+match from any ext-community odi *
+match from any ext-community ort *
+match from any ext-community mac-mob *
+match from any ext-community ovs *
+# more wildchar matching
+match from any ext-community rt 64496:*
+match from any ext-community rt 4200000001:*
+match from any ext-community rt 127.0.0.1:*
+match from any ext-community soo 64496:*
+match from any ext-community soo 4200000001:*
+match from any ext-community soo 127.0.0.1:*
+#  wildchar matching on sets
+match from any set ext-community delete rt *
+match from any set ext-community delete soo *
+match from any set ext-community delete odi *
+match from any set ext-community delete ort *
+match from any set ext-community delete mac-mob *
+match from any set ext-community delete ovs *
+match from any set ext-community delete rt 64496:*
+match from any set ext-community delete soo 4200000001:*
+match from any set ext-community delete odi 127.0.0.1:*
+
+# local-as/neighbor-as matching
+match from any ext-community rt 64496:local-as
+match from any ext-community soo 4200000001:local-as
+match from any ext-community odi 127.0.0.1:local-as
+match from any ext-community rt 64497:neighbor-as
+match from any ext-community soo 4200000002:neighbor-as
+match from any ext-community odi 127.0.0.2:neighbor-as
+match from any ext-community rt local-as:1234
+match from any ext-community soo local-as:2345
+match from any ext-community rt neighbor-as:1235
+match from any ext-community soo neighbor-as:2346
+match from any ext-community rt neighbor-as:local-as
+match from any ext-community soo local-as:neighbor-as

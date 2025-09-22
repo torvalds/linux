@@ -1,0 +1,14 @@
+# tablenames cannot be numbers
+table <444> { 1.2.3.4 }
+pass in on lo1000000 proto tcp to 10.0.0.1 port 80 flags S/SA modulate state \
+        (max-src-conn 100, max-src-conn-rate 10/5, overload <444> flush)
+
+# filename cannot be a number
+# XXX not easy to test
+#table <filetest> file 666
+
+# labels, tags, anchors cannot be numbers
+pass in on lo0 from 1.2.3.4 keep state label 88
+pass in on lo0 from 1.2.3.4 keep state tag 57
+pass in on lo0 from 1.2.3.4 keep state tagged 57
+anchor 23 on lo0

@@ -1,0 +1,133 @@
+.\" $OpenBSD: X509v3_addr_get_range.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509V3_ADDR_GET_RANGE 3
+.Os
+.Sh NAME
+.Nm X509v3_addr_get_afi ,
+.Nm X509v3_addr_get_range
+.Nd parse helpers for the IP address delegation extension
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft unsigned
+.Fn X509v3_addr_get_afi "const IPAddressFamily *af"
+.Ft int
+.Fo X509v3_addr_get_range
+.Fa "IPAddressOrRange *aor"
+.Fa "const unsigned afi"
+.Fa "unsigned char *min"
+.Fa "unsigned char *max"
+.Fa "const int length"
+.Fc
+.Sh DESCRIPTION
+.Fn X509v3_addr_get_afi
+returns the address family identifier (AFI) of
+.Fa af .
+.Pp
+.Fn X509v3_addr_get_range
+converts the minimum and maximum addresses in
+the address prefix or range
+.Fa aor
+from internal encoding to IP addresses in network byte order
+and places copies in the arrays
+.Fa min
+and
+.Fa max ,
+of size
+.Fa length .
+The
+.Fa length
+must be large enough to accommodate an address for
+.Fa afi ,
+which is at least 4 for
+.Dv IANA_AFI_IPV4
+and at least 16 for
+.Dv IANA_AFI_IPV6 .
+.Sh RETURN VALUES
+.Fn X509v3_addr_get_afi
+returns the AFI encoded in
+.Fa af
+or 0 if
+.Fa af
+does not contain a valid AFI, or if the AFI is not IPv4 or IPv6.
+.Pp
+.Fn X509v3_addr_get_range
+returns the number of bytes copied into
+.Fa min
+and
+.Fa max
+or 0 on error.
+An error occurs if
+.Fa aor
+is malformed, if
+.Fa afi
+is not
+.Dv IANA_AFI_IPV4
+or
+.Dv IANA_AFI_IPV6 ,
+if either
+.Fa min
+or
+.Fa max
+is
+.Dv NULL ,
+or if
+.Fa length
+is smaller than 4 or 16, respectively.
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr inet_ntop 3 ,
+.Xr IPAddressRange_new 3 ,
+.Xr X509_new 3 ,
+.Xr X509v3_addr_add_inherit 3
+.Sh STANDARDS
+RFC 3779: X.509 Extensions for IP Addresses and AS Identifiers:
+.Bl -dash -compact
+.It
+section 2: IP Address delegation extension
+.It
+section 2.2.3.3: Element addressFamily
+.It
+section 2.2.3.7: Type IPAddressOrRange
+.It
+section 2.2.3.8: Element addressPrefix and Type IPAddress
+.El
+.Pp
+.Rs
+.%T Address Family Numbers
+.%U https://www.iana.org/assignments/address-family-numbers
+.Re
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8e
+and have been available since
+.Ox 7.1 .
+.Sh BUGS
+There is no accessor for the SAFI of
+.Fa af .
+.Pp
+An error from
+.Fn X509v3_addr_get_afi
+is indistinguishable from the reserved AFI 0 being set on
+.Fa af .
+.Pp
+It is not entirely clear how a caller is supposed to obtain an
+.Vt IPAddressFamily
+object or an
+.Vt IPAddressOrRange
+object without reaching into various structs documented in
+.Xr IPAddressRange_new 3 .

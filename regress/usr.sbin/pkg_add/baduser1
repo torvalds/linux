@@ -1,0 +1,4 @@
+$OpenBSD: baduser1,v 1.1 2018/06/06 10:33:07 espie Exp $
+This is a bad user list without any
+"------"
+marker

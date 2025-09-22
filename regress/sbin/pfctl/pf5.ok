@@ -1,0 +1,11 @@
+foo = "ssh, ftp"
+bar = "other thing"
+inside = "10.0.0.0/8"
+block drop in inet proto udp from 10.0.0.0/8 port = 7 to 12.34.56.78 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = 7 to 12.34.56.78 port = 16
+block drop in inet proto udp from 10.0.0.0/8 port = 22 to 12.34.56.78 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = 22 to 12.34.56.78 port = 16
+block drop in inet proto udp from 10.0.0.0/8 port = 21 to 12.34.56.78 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = 21 to 12.34.56.78 port = 16
+block drop in inet proto udp from 10.0.0.0/8 port = 113 to 12.34.56.78 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = 113 to 12.34.56.78 port = 16

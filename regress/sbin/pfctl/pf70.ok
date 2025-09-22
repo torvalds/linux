@@ -1,0 +1,2 @@
+match out on lo0 inet from 10.0.0.0/8 to any nat-to 127.0.0.1
+block drop out on lo0 all tagged regress

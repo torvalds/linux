@@ -1,0 +1,82 @@
+import("//llvm/utils/gn/build/toolchain/compiler.gni")
+import("//third-party/unittest/unittest.gni")
+
+test_cflags = [ "-DSCUDO_DEBUG=1" ]
+
+unittest("ScudoUnitTest") {
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  cflags = test_cflags
+  deps = [ "//compiler-rt/lib/scudo/standalone:sources" ]
+  sources = [
+    "allocator_config_test.cpp",
+    "atomic_test.cpp",
+    "bytemap_test.cpp",
+    "checksum_test.cpp",
+    "chunk_test.cpp",
+    "combined_test.cpp",
+    "common_test.cpp",
+    "condition_variable_test.cpp",
+    "flags_test.cpp",
+    "list_test.cpp",
+    "map_test.cpp",
+    "memtag_test.cpp",
+    "mutex_test.cpp",
+    "primary_test.cpp",
+    "quarantine_test.cpp",
+    "release_test.cpp",
+    "report_test.cpp",
+    "scudo_unit_test.h",
+    "scudo_unit_test_main.cpp",
+    "secondary_test.cpp",
+    "size_class_map_test.cpp",
+    "stats_test.cpp",
+    "strings_test.cpp",
+    "timing_test.cpp",
+    "tsd_test.cpp",
+    "vector_test.cpp",
+  ]
+  has_custom_main = true
+}
+
+unittest("ScudoCUnitTest") {
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  cflags = test_cflags
+  deps = [
+    "//compiler-rt/lib/scudo/standalone:c_wrapper_sources",
+    "//compiler-rt/lib/scudo/standalone:sources",
+  ]
+  sources = [
+    "scudo_unit_test_main.cpp",
+    "wrappers_c_test.cpp",
+  ]
+  has_custom_main = true
+}
+
+unittest("ScudoCxxUnitTest") {
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  cflags = test_cflags
+  deps = [
+    "//compiler-rt/lib/scudo/standalone:c_wrapper_sources",
+    "//compiler-rt/lib/scudo/standalone:cxx_wrapper_sources",
+    "//compiler-rt/lib/scudo/standalone:sources",
+  ]
+  sources = [
+    "scudo_unit_test_main.cpp",
+    "wrappers_cpp_test.cpp",
+  ]
+  if (is_clang) {
+    cflags += [ "-Wno-mismatched-new-delete" ]
+  }
+  has_custom_main = true
+}
+
+unittest("ScudoHooksUnitTest") {
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  cflags = test_cflags
+  deps = [
+    "//compiler-rt/lib/scudo/standalone:c_wrapper_sources",
+    "//compiler-rt/lib/scudo/standalone:sources",
+  ]
+  sources = [ "scudo_unit_test_main.cpp" ]
+  has_custom_main = true
+}

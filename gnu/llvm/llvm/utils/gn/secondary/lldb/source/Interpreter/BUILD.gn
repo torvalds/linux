@@ -1,0 +1,77 @@
+import("//lldb/utils/TableGen/lldb_tablegen.gni")
+
+lldb_tablegen("InterpreterProperties") {
+  args = [ "-gen-lldb-property-defs" ]
+}
+
+lldb_tablegen("InterpreterPropertiesEnum") {
+  args = [ "-gen-lldb-property-enum-defs" ]
+  td_file = "InterpreterProperties.td"
+}
+
+static_library("Interpreter") {
+  output_name = "lldbInterpreter"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    ":InterpreterProperties",
+    ":InterpreterPropertiesEnum",
+    "//lldb/source/Commands",
+    "//lldb/source/Core",
+    "//lldb/source/DataFormatters",
+    "//lldb/source/Host",
+
+    #"//lldb/source/Target", # FIXME: 2-hop dependency cyle (Interpreter->Target->Expression->Interpreter)
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+
+  # Reaches into source/Commands implementation details.
+  include_dirs = [ ".." ]
+  sources = [
+    "CommandAlias.cpp",
+    "CommandHistory.cpp",
+    "CommandInterpreter.cpp",
+    "CommandObject.cpp",
+    "CommandOptionValidators.cpp",
+    "CommandReturnObject.cpp",
+    "OptionArgParser.cpp",
+    "OptionGroupArchitecture.cpp",
+    "OptionGroupBoolean.cpp",
+    "OptionGroupFile.cpp",
+    "OptionGroupFormat.cpp",
+    "OptionGroupMemoryTag.cpp",
+    "OptionGroupOutputFile.cpp",
+    "OptionGroupPlatform.cpp",
+    "OptionGroupPythonClassWithDict.cpp",
+    "OptionGroupString.cpp",
+    "OptionGroupUInt64.cpp",
+    "OptionGroupUUID.cpp",
+    "OptionGroupValueObjectDisplay.cpp",
+    "OptionGroupVariable.cpp",
+    "OptionGroupWatchpoint.cpp",
+    "OptionValue.cpp",
+    "OptionValueArch.cpp",
+    "OptionValueArgs.cpp",
+    "OptionValueArray.cpp",
+    "OptionValueBoolean.cpp",
+    "OptionValueChar.cpp",
+    "OptionValueDictionary.cpp",
+    "OptionValueEnumeration.cpp",
+    "OptionValueFileColonLine.cpp",
+    "OptionValueFileSpec.cpp",
+    "OptionValueFileSpecList.cpp",
+    "OptionValueFormat.cpp",
+    "OptionValueFormatEntity.cpp",
+    "OptionValueLanguage.cpp",
+    "OptionValuePathMappings.cpp",
+    "OptionValueProperties.cpp",
+    "OptionValueRegex.cpp",
+    "OptionValueSInt64.cpp",
+    "OptionValueString.cpp",
+    "OptionValueUInt64.cpp",
+    "OptionValueUUID.cpp",
+    "Options.cpp",
+    "Property.cpp",
+    "ScriptInterpreter.cpp",
+  ]
+}

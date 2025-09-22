@@ -1,0 +1,50 @@
+.\"	$OpenBSD: xspd.4,v 1.1 2015/12/09 00:34:09 mikeb Exp $
+.\"
+.\" Copyright (c) 2015 Mike Belopuhov
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 9 2015 $
+.Dt XSPD 4
+.Os
+.Sh NAME
+.Nm xspd
+.Nd XenSource Platform Device driver
+.Sh SYNOPSIS
+.Cd "xspd0 at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides
+.Xr xen 4
+with alternative means to deliver virtual interrupts into the guest
+system via
+.Xr pci 4
+interrupt allocation.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr xen 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mike Belopuhov Aq Mt mikeb@openbsd.org
+from scratch, inspired by the
+.Fx
+implementation.

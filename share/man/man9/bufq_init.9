@@ -1,0 +1,145 @@
+.\"	$OpenBSD: bufq_init.9,v 1.7 2025/05/17 10:13:40 jsg Exp $
+.\"
+.\" Copyright (c) 2013 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 17 2025 $
+.Dt BUFQ_INIT 9
+.Os
+.Sh NAME
+.Nm bufq_init ,
+.Nm bufq_destroy ,
+.Nm bufq_queue ,
+.Nm bufq_dequeue ,
+.Nm bufq_peek ,
+.Nm bufq_drain
+.\" .Nm bufq_wait ,
+.\" .Nm bufq_done ,
+.\" .Nm bufq_quiesce ,
+.\" .Nm bufq_restart
+.Nd buf queues
+.Sh SYNOPSIS
+.In sys/buf.h
+.Ft int
+.Fn bufq_init "struct bufq *bufq" "int type"
+.Ft void
+.Fn bufq_destroy "struct bufq *bufq"
+.Ft void
+.Fn bufq_queue "struct bufq *bufq" "struct buf *bp"
+.Ft struct buf *
+.Fn bufq_dequeue "struct bufq *bufq"
+.Ft int
+.Fn bufq_peek "struct bufq *bufq"
+.Ft void
+.Fn bufq_drain "struct bufq *bufq"
+.Sh DESCRIPTION
+The bufq API implements queueing and scheduling of I/O operations on disk
+devices.
+It provides multiple scheduling algorithms within the API.
+.Pp
+It is the responsibility of the disk device driver to provide
+pre-allocated bufq structures.
+.Pp
+.Fn bufq_init
+initialises the
+.Fa bufq
+structure and allocates any state required by the scheduling algorithm
+by the
+.Fa type
+argument.
+.Pp
+The
+.Fa type
+argument to
+.Fn bufq_init
+can be one of the following scheduling algorithms:
+.Pp
+.Bl -tag -offset indent -width BUFQ_DEFAULT -compact
+.It Dv BUFQ_FIFO
+A simple First-In First-Out queue.
+.It Dv BUFQ_NSCAN
+Takes batches of "N" bufs from the queue and sorts them for optimal
+head movement.
+.It Dv BUFQ_DEFAULT
+This currently aliases
+.Dv BUFQ_NSCAN .
+.El
+.Pp
+.Fn bufq_destroy
+frees any state that was used by the scheduler.
+.Pp
+.Fn bufq_queue
+is used to add the buf specified by
+.Fa bp
+to the
+.Fa bufq
+queue.
+.Pp
+.Fn bufq_dequeue
+is used to get the next buf the
+.Fa bufq
+has scheduled to be serviced by a disk.
+The buf will be removed from the queue.
+.Pp
+.Fn bufq_peek
+allows the caller to determine if there are more bufs queued on
+.Fa bufq
+without modifying the list of bufs.
+.Pp
+.Fn bufq_drain
+is a convenience function for devices that have detached.
+It removes all the bufs currently queued on
+.Fa bufq ,
+marks them as failed with an
+.Er ENXIO
+error, and returns them to the block layer via
+.Xr biodone 9 .
+.Sh CONTEXT
+.Fn bufq_init
+and
+.Fn bufq_destroy
+can be called during autoconf, or from process context.
+.Pp
+.Nm bufq_queue ,
+.Nm bufq_dequeue ,
+.Nm bufq_peek ,
+and
+.Nm bufq_drain
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn bufq_init
+will return 0 on success, or an error code as per
+.Xr errno 2 .
+.Pp
+.Fn bufq_dequeue
+returns the next buf that is scheduled to be serviced by the disk.
+.Dv NULL
+is returned if there are no bufs available on the queue.
+.Pp
+.Fn bufq_peek
+returns 1 if there are bufs available to be scheduled on the disk, otherwise 0.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr autoconf 9 ,
+.Xr biodone 9 ,
+.Xr disk 9
+.Sh HISTORY
+The bufq API was written by
+.An Thordur I. Bjornsson
+and
+.An David Gwynne Aq Mt dlg@openbsd.org .
+The bufq API first appeared in
+.Ox 4.8
+and finally succeeded in fully replacing disksort in
+.Ox 5.5 .

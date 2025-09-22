@@ -1,0 +1,136 @@
+.\" $OpenBSD: pflow.4,v 1.19 2014/03/29 11:26:03 florian Exp $
+.\"
+.\" Copyright (c) 2008 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2008 Joerg Goltermann <jg@osn.de>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 29 2014 $
+.Dt PFLOW 4
+.Os
+.Sh NAME
+.Nm pflow
+.Nd kernel interface for pflow data export
+.Sh SYNOPSIS
+.Cd "pseudo-device pflow"
+.Sh DESCRIPTION
+The
+.Nm
+interface is a pseudo-device which exports
+.Nm
+accounting data from the kernel using
+.Xr udp 4
+packets.
+.Nm
+is compatible with netflow version 5 and IPFIX (10).
+The data is extracted from the
+.Xr pf 4
+state table.
+.Pp
+Multiple
+.Nm
+interfaces can be created at runtime using the
+.Ic ifconfig pflow Ns Ar N Ic create
+command.
+Each interface must be configured with a flow receiver IP address
+and a flow receiver port number.
+.Pp
+Only states created by a rule marked with the
+.Ar pflow
+keyword are exported by the
+.Nm
+interface.
+.Pp
+The
+.Nm
+interface will attempt to export multiple
+.Nm
+records in one
+UDP packet, but will not hold a record for longer than 30 seconds.
+The packet size and thus the maximum number of flows is controlled by the
+.Cm mtu
+parameter of
+.Xr ifconfig 8 .
+.Pp
+Each packet seen on this interface has one header and a variable number of
+flows.
+The header indicates the version of the protocol, number of
+flows in the packet, a unique sequence number, system time, and an engine
+ID and type.
+Header and flow structs are defined in
+.In net/if_pflow.h .
+.Pp
+There is a one-to-one correspondence between packets seen by
+.Xr bpf 4
+on the
+.Nm
+interface and packets sent out to the flow receiver.
+That is, a packet with 30 flows on
+.Nm
+means that the same 30 flows were sent out to the receiver.
+.Pp
+The
+.Nm
+source and destination addresses are controlled by
+.Xr ifconfig 8 .
+.Cm flowsrc
+is the sender IP address of the UDP packet which can be used
+to identify the source of the data on the
+.Nm
+collector.
+.Cm flowdst
+defines the collector IP address and the port.
+The
+.Cm flowdst
+IP address and port must be defined to enable the export of flows.
+.Pp
+For example, the following command sets 10.0.0.1 as the source
+and 10.0.0.2:1234 as destination:
+.Bd -literal -offset indent
+# ifconfig pflow0 flowsrc 10.0.0.1 flowdst 10.0.0.2:1234
+.Ed
+.Pp
+The protocol is set to IPFIX with the following command:
+.Bd -literal -offset indent
+# ifconfig pflow0 pflowproto 10
+.Ed
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr pf 4 ,
+.Xr udp 4 ,
+.Xr pf.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr tcpdump 8
+.Sh STANDARDS
+.Rs
+.%A B. Claise
+.%D January 2008
+.%R RFC 5101
+.%T "Specification of the IP Flow Information Export (IPFIX) Protocol for the Exchange of IP Traffic Flow Information"
+.Re
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 4.5 .
+.Sh BUGS
+A state created by
+.Xr pfsync 4
+can have a creation or expiration time before the machine came up.
+In this case,
+.Nm
+pretends such flows were created or expired when the machine came up.
+.Pp
+The IPFIX implementation is incomplete:
+The required transport protocol SCTP is not supported.
+Transport over TCP and DTLS protected flow export is also not supported.

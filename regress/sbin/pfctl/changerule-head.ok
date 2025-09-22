@@ -1,0 +1,6 @@
+pass in proto tcp from any to any port = 50 flags S/SA
+pass in proto tcp from any to any port = 40 flags S/SA
+pass in proto tcp from any to any port = 30 flags S/SA
+pass in proto tcp from any to any port = 20 flags S/SA
+pass in proto tcp from any to any port = 10 flags S/SA
+pass all flags S/SA

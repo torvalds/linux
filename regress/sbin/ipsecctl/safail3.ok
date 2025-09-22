@@ -1,0 +1,11 @@
+stdin: 4: aesctr is disallowed with static keys
+stdin: 8: aes-128-ctr is disallowed with static keys
+stdin: 12: aes-192-ctr is disallowed with static keys
+stdin: 16: aes-256-ctr is disallowed with static keys
+stdin: 19: aes-128-gcm is disallowed with static keys
+stdin: 22: aes-192-gcm is disallowed with static keys
+stdin: 25: aes-256-gcm is disallowed with static keys
+stdin: 28: aes-128-gmac is disallowed with static keys
+stdin: 31: aes-192-gmac is disallowed with static keys
+stdin: 34: aes-256-gmac is disallowed with static keys
+ipsecctl: Syntax error in config file: ipsec rules not loaded

@@ -1,0 +1,127 @@
+.\"	$OpenBSD: pkg_check.8,v 1.12 2020/11/16 17:52:08 jmc Exp $
+.\"
+.\" Copyright (c) 2010 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 16 2020 $
+.Dt PKG_CHECK 8
+.Os
+.Sh NAME
+.Nm pkg_check
+.Nd check consistency of installed packages
+.Sh SYNOPSIS
+.Nm pkg_check
+.Bk -words
+.Op Fl FfIimnqvx
+.Op Fl D Ar name Ns Op = Ns Ar value
+.Ek
+.Sh DESCRIPTION
+.Nm
+verifies as much information as it can about installed packages.
+.Pp
+.Nm
+is not needed under normal circumstances, but it can be used to recover after
+a catastrophic system failure in the middle of a
+.Xr pkg_add 1
+or
+.Xr pkg_delete 1 .
+.Pp
+.Nm
+performs the following checks:
+.Bl -tag -width small
+.It Packing-list sanity
+Checks that
+.Pa /var/db/pkg
+only contains directories, that each directory holds a packing-list,
+and that said packing-list is an actual packing-list that matches the directory.
+.It Direct dependencies
+Checks that all direct dependencies are recorded correctly,
+specifically, that
+.Cm @depend ,
+.Cm @tag
+and
+.Cm @wantlib
+match actual packages.
+It currently does not verify that
+.Cm @wantlib
+or
+.Cm @tag
+are reachable from the base package.
+.It Reverse dependencies
+Checks that all direct dependencies have corresponding reverse dependencies.
+.It Files from packages
+Checks that each file, link or directory in those packing-lists actually exist,
+and that their checksum matches what's recorded in the packing-list.
+.It Other files Po option Fl F Pc
+Checks that there are no other random objects under
+.Pa /usr/local .
+.El
+.Pp
+By default,
+.Nm
+will only perform very safe transformations, such as the removal of core-dumps.
+.Nm
+will ask the user for more permanent changes in interactive mode,
+or perform them anyway with option
+.Fl f .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Xo
+.Fl D
+.Ar name Ns Op = Ns Ar value
+.Xc
+Extra options.
+Recognized keywords include:
+.Bl -tag -width "nosigXXX"
+.It Cm nosig
+Do not check digital signatures.
+.El
+.It Fl F
+Check the filesystem for random objects.
+.It Fl f
+Force the removal of bogus package information.
+.It Fl I
+Force non-interactive mode.
+Default is to be interactive when run from a tty.
+.It Fl i
+Force interactive mode, even if not run from a tty.
+.It Fl m
+Causes
+.Nm
+to always display the progress meter in cases it would not do so by default.
+.It Fl n
+Don't actually modify packages, just perform checks.
+.It Fl q
+Don't verify checksums for files, just check for their existence.
+Doubling
+.Fl q
+will bypass that check entirely.
+.It Fl v
+Turn on verbose output.
+Several
+.Fl v
+may turn on more verbose output.
+.It Fl x
+Disable progress meter.
+.El
+.Sh SEE ALSO
+.Xr fsck 8
+.Sh AUTHORS
+This program was written by
+.An Marc Espie .
+.Sh BUGS
+Work in progress.
+The order of checks is not definitive, and more checks may be added.
+Use with caution.

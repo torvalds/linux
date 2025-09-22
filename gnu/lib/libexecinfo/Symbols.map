@@ -1,0 +1,10 @@
+{
+	global:
+		backtrace;
+		backtrace_symbols;
+		backtrace_symbols_fd;
+		backtrace_symbols_fmt;
+		backtrace_symbols_fd_fmt;
+	local:
+		*;
+};

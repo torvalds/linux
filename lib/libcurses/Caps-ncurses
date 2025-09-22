@@ -1,0 +1,476 @@
+##############################################################################
+# Copyright 2019-2022,2023 Thomas E. Dickey                                  #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey
+#
+# $Id: Caps-ncurses,v 1.1 2023/10/17 09:52:08 nicm Exp $
+#
+#############################################################################
+#
+# TERMINFO EXTENSION CAPABILITIES
+#
+# This section is all comments (selected lines are copied/uncommented into
+# specific "Caps" files).  The section describes what capabilities need to be
+# squeezed out to get down to the XSI Curses standard set.  They are flagged
+# with K.
+#
+# HP extensions
+#
+# These extensions follow ptr_non (replacing everything after it) in HP
+# terminfo files.  Except for memory_lock and memory_unlock, they are
+# functionally identical to SVr4 extensions, but they make the binary format
+# different.  Grrr....
+#
+#memory_lock			meml	str	ml	-		-	----K	lock memory above cursor
+#memory_unlock			memu	str	mu	-		-	----K	unlock memory
+#plab_norm			pln	str	pn	-		-	-----	program label #1 to show string #2
+#label_on			smln	str	LO	-		-	-----	turn on soft labels
+#label_off			rmln	str	LF	-		-	-----	turn off soft labels
+#key_f11			kf11	str	F1	-		-	-----	F11 function key
+#key_f12			kf12	str	F2	-		-	-----	F12 function key
+#key_f13			kf13	str	F3	-		-	-----	F13 function key
+#key_f14			kf14	str	F4	-		-	-----	F14 function key
+#key_f15			kf15	str	F5	-		-	-----	F15 function key
+#key_f16			kf16	str	F6	-		-	-----	F16 function key
+#key_f17			kf17	str	F7	-		-	-----	F17 function key
+#key_f18			kf18	str	F8	-		-	-----	F18 function key
+#key_f19			kf19	str	F9	-		-	-----	F19 function key
+#key_f20			kf20	str	FA	-		-	-----	F20 function key
+#key_f21			kf21	str	FB	-		-	-----	F21 function key
+#key_f22			kf22	str	FC	-		-	-----	F22 function key
+#key_f23			kf23	str	FD	-		-	-----	F23 function key
+#key_f24			kf24	str	FE	-		-	-----	F24 function key
+#key_f25			kf25	str	FF	-		-	-----	F25 function key
+#key_f26			kf26	str	FG	-		-	-----	F26 function key
+#key_f27			kf27	str	FH	-		-	-----	F27 function key
+#key_f28			kf28	str	FI	-		-	-----	F28 function key
+#key_f29			kf29	str	FJ	-		-	-----	F29 function key
+#key_f30			kf30	str	FK	-		-	-----	F30 function key
+#key_f31			kf31	str	FL	-		-	-----	F31 function key
+#key_f32			kf32	str	FM	-		-	-----	F32 function key
+#key_f33			kf33	str	FN	-		-	-----	F33 function key
+#key_f34			kf34	str	FO	-		-	-----	F34 function key
+#key_f35			kf35	str	FP	-		-	-----	F35 function key
+#key_f36			kf36	str	FQ	-		-	-----	F36 function key
+#key_f37			kf37	str	FR	-		-	-----	F37 function key
+#key_f38			kf38	str	FS	-		-	-----	F38 function key
+#key_f39			kf39	str	FT	-		-	-----	F39 function key
+#key_f40			kf40	str	FU	-		-	-----	F40 function key
+#key_f41			kf41	str	FV	-		-	-----	F41 function key
+#key_f42			kf42	str	FW	-		-	-----	F42 function key
+#key_f43			kf43	str	FX	-		-	-----	F43 function key
+#key_f44			kf44	str	FY	-		-	-----	F44 function key
+#key_f45			kf45	str	FZ	-		-	-----	F45 function key
+#key_f46			kf46	str	Fa	-		-	-----	F46 function key
+#key_f47			kf47	str	Fb	-		-	-----	F47 function key
+#key_f48			kf48	str	Fc	-		-	-----	F48 function key
+#key_f49			kf49	str	Fd	-		-	-----	F49 function key
+#key_f50			kf50	str	Fe	-		-	-----	F50 function key
+#key_f51			kf51	str	Ff	-		-	-----	F51 function key
+#key_f52			kf52	str	Fg	-		-	-----	F52 function key
+#key_f53			kf53	str	Fh	-		-	-----	F53 function key
+#key_f54			kf54	str	Fi	-		-	-----	F54 function key
+#key_f55			kf55	str	Fj	-		-	-----	F55 function key
+#key_f56			kf56	str	Fk	-		-	-----	F56 function key
+#key_f57			kf57	str	Fl	-		-	-----	F57 function key
+#key_f58			kf58	str	Fm	-		-	-----	F58 function key
+#key_f59			kf59	str	Fn	-		-	-----	F59 function key
+#key_f60			kf60	str	Fo	-		-	-----	F60 function key
+#key_f61			kf61	str	Fp	-		-	-----	F61 function key
+#key_f62			kf62	str	Fq	-		-	-----	F62 function key
+#key_f63			kf63	str	Fr	-		-	-----	F63 function key
+#
+# IBM extensions
+#
+# These extensions follow ptr_non (replacing everything after it) in IBM
+# terminfo files.
+#
+# The places in the box[12] capabilities correspond to acsc characters, here is
+# the mapping:
+#
+#	box1[0]  = ACS_ULCORNER
+#	box1[1]  = ACS_HLINE
+#	box1[2]  = ACS_URCORNER
+#	box1[3]  = ACS_VLINE
+#	box1[4]  = ACS_LRCORNER
+#	box1[5]  = ACS_LLCORNER
+#	box1[6]  = ACS_TTEE
+#	box1[7]  = ACS_RTEE
+#	box1[8]  = ACS_BTEE
+#	box1[9]  = ACS_LTEE
+#	box1[10] = ACS_PLUS
+#
+# The box2 characters are the double-line versions of these forms graphics.
+#
+#box_chars_1			box1	str	bx	-		-	----K	box characters primary set
+#box_chars_2			box2	str	by	-		-	----K	box characters secondary set
+#box_attr_1			batt1	str	Bx	-		-	----K	attributes for box1
+#box_attr_2			batt2	str	By	-		-	----K	attributes for box2
+#color_bg_0			colb0	str	d0	-		-	----K	background color 0
+#color_bg_1			colb1	str	d1	-		-	----K	background color 1
+#color_bg_2			colb2	str	d2	-		-	----K	background color 2
+#color_bg_3			colb3	str	d3	-		-	----K	background color 3
+#color_bg_4			colb4	str	d4	-		-	----K	background color 4
+#color_bg_5			colb5	str	d5	-		-	----K	background color 5
+#color_bg_6			colb6	str	d6	-		-	----K	background color 6
+#color_bg_7			colb7	str	d7	-		-	----K	background color 7
+#color_fg_0			colf0	str	c0	-		-	----K	foreground color 0
+#color_fg_1			colf1	str	c1	-		-	----K	foreground color 1
+#color_fg_2			colf2	str	c2	-		-	----K	foreground color 2
+#color_fg_3			colf3	str	c3	-		-	----K	foreground color 3
+#color_fg_4			colf4	str	c4	-		-	----K	foreground color 4
+#color_fg_5			colf5	str	c5	-		-	----K	foreground color 5
+#color_fg_6			colf6	str	c6	-		-	----K	foreground color 6
+#color_fg_7			colf7	str	c7	-		-	----K	foreground color 7
+#font_0				font0	str	f0	-		-	-----	select font 0
+#font_1				font1	str	f1	-		-	-----	select font 1
+#font_2				font2	str	f2	-		-	-----	select font 2
+#font_3				font3	str	f3	-		-	-----	select font 3
+#font_4				font4	str	f4	-		-	----K	select font 4
+#font_5				font5	str	f5	-		-	----K	select font 5
+#font_6				font6	str	f6	-		-	----K	select font 6
+#font_7				font7	str	f7	-		-	----K	select font 7
+#key_back_tab			kbtab	str	k0	-		-	-----	backtab key
+#key_do				kdo	str	ki	-		-	----K	do request key
+#key_command			kcmd	str	kd	-		-	----K	command-request key
+#key_command_pane		kcpn	str	kW	-		-	----K	command-pane key
+#key_end			kend	str	kw	-		-	-----	end key
+#key_help			khlp	str	kq	-		-	-----	help key
+#key_newline			knl	str	nl	-		-	----K	newline key
+#key_next_pane			knpn	str	kv	-		-	----K	next-pane key
+#key_prev_cmd			kppn	str	kp	-		-	----K	previous-command key
+#key_prev_pane			kppn	str	kV	-		-	----K	previous-pane key
+#key_quit			kquit	str	kQ	-		-	----K	quit key
+#key_select			ksel	str	kU	-		-	-----	select key
+#key_scroll_left		kscl	str	kz	-		-	----K	scroll left
+#key_scroll_right		kscr	str	kZ	-		-	----K	scroll right
+#key_tab			ktab	str	ko	-		-	----K	tab key
+#key_smap_in1			kmpf1	str	Kv	-		-	----K	special mapped key 1 input
+#key_smap_out1			kmpt1	str	KV	-		-	----K	special mapped key 1 output
+#key_smap_in2			kmpf2	str	Kw	-		-	----K	special mapped key 2 input
+#key_smap_out2			kmpt2	str	KW	-		-	----K	special mapped key 2 output
+#key_smap_in3			kmpf3	str	Kx	-		-	----K	special mapped key 3 input
+#key_smap_out3			kmpt3	str	KX	-		-	----K	special mapped key 3 output
+#key_smap_in4			kmpf4	str	Ky	-		-	----K	special mapped key 4 input
+#key_smap_out4			kmpt4	str	KY	-		-	----K	special mapped key 4 output
+#key_smap_in5			kmpf5	str	Kz	-		-	----K	special mapped key 5 input
+#key_smap_out5			kmpt5	str	KZ	-		-	----K	special mapped key 5 output
+#appl_defined_str		apstr	str	za	-		-	----K	application-defined string
+# The key_smap_in[6789] and key_smap_out[6789] capabilities aren't described in
+# the IBM manual pages, so the cap name strings are guesses.  The terminfo
+# names are almost certainly right, the termcap ones almost certainly wrong.
+#key_smap_in6			kmpf6	str	k!	-		-	----K	special mapped key 6 input
+#key_smap_out6			kmpt6	str	K@	-		-	----K	special mapped key 6 output
+#key_smap_in7			kmpf7	str	k#	-		-	----K	special mapped key 7 input
+#key_smap_out7			kmpt7	str	K$	-		-	----K	special mapped key 7 output
+#key_smap_in8			kmpf8	str	k%	-		-	----K	special mapped key 8 input
+#key_smap_out8			kmpt8	str	K^	-		-	----K	special mapped key 8 output
+#key_smap_in9			kmpf9	str	k&	-		-	----K	special mapped key 9 input
+#key_smap_out9			kmpt9	str	K*	-		-	----K	special mapped key 9 output
+# Undocumented capabilities end here
+#key_sf1			ksf1	str	S1	-		-	----K	special function key 1
+#key_sf2			ksf2	str	S2	-		-	----K	special function key 2
+#key_sf3			ksf3	str	S3	-		-	----K	special function key 3
+#key_sf4			ksf4	str	S4	-		-	----K	special function key 4
+#key_sf5			ksf5	str	S5	-		-	----K	special function key 5
+#key_sf6			ksf6	str	S6	-		-	----K	special function key 6
+#key_sf7			ksf7	str	S7	-		-	----K	special function key 7
+#key_sf8			ksf8	str	S8	-		-	----K	special function key 8
+#key_sf9			ksf9	str	S9	-		-	----K	special function key 9
+#key_sf10			ksf10	str	SA	-		-	----K	special function key 10
+# AIX version 3 documents different codes for F11, F12 and does not mention
+# F13-F64.  AIX version 4 uses the same naming for F0-F63 as above.
+#key_f11			kf11	str	k<	-		-	-----	function key 11
+#key_f12			kf12	str	k>	-		-	-----	function key 12
+# Undocumented capabilities end here.
+#key_action			kact	str	kJ	-		-	----K	sent by action key
+# The IBM docs say these capabilities are for table-drawing, and are
+# valid only for aixterm descriptions.
+#enter_topline_mode		topl	str	tp	-		-	----K	start top-line mode
+#enter_bottom_mode		btml	str	bm	-		-	----K	start bottom-line mode
+#enter_rvert_mode		rvert	str	rv	-		-	----K	start right-vertical mode
+#enter_lvert_mode		lvert	str	lv	-		-	----K	start left-vertical mode
+#
+#############################################################################
+#
+# ALIAS DECLARATIONS
+#
+# Here we set up aliases for translating extensions into standard terminfo.
+#
+#---------------------------------- Termcap aliases -------------------------
+#
+# BSD aliases:
+#
+# This is a common error in many termcap files.  We'll get notified during
+# translation when this (or any other alias) fires.
+#
+capalias	sb	sr	BSD	scroll text down
+#
+# AT&T extensions:
+#
+# The old AT&T 5410, 5420, 5425, pc6300plus, 610, and s4 entries used a set of
+# nonstandard capabilities.  Its signature is the KM capability, used to name
+# some sort of keymap file.  EE, BO, CI, CV, XS, DS, FL and FE are in this
+# set.  Comments in the original, and a little cross-checking with other AT&T
+# documentation, seem to establish the following mappings:
+#
+capalias	BO	mr	AT&T	enter_reverse_mode
+capalias	CI	vi	AT&T	cursor_invisible
+capalias	CV	ve	AT&T	cursor_normal
+capalias	DS	mh	AT&T	enter_dim_mode
+#capalias	EE	me	AT&T	exit_attribute_mode
+capalias	FE	LF	AT&T	label_on
+capalias	FL	LO	AT&T	label_off
+capalias	XS	mk	AT&T	enter_secure_mode
+#
+# We comment out EE because the conflicting XENIX EE is more common in
+# old entries.
+#
+# XENIX extensions:
+#
+# These are the ones we know how to translate directly:
+#
+capalias	EE	mh	XENIX	exit_attribute_mode
+capalias	GE	ae	XENIX	exit_alt_charset_mode
+capalias	GS	as	XENIX	enter_alt_charset_mode
+capalias	CF	vi	XENIX	cursor_invis
+capalias	CO	ve	XENIX	cursor_normal
+capalias	EN	@7	XENIX	key_end
+capalias	HM	kh	XENIX	key_home
+capalias	LD	kL	XENIX	key_dl
+capalias	PD	kN	XENIX	key_npage
+capalias	PN	po	XENIX	prtr_off
+capalias	PS	pf	XENIX	prtr_on
+capalias	PU	kP	XENIX	key_ppage
+capalias	RT	@8	XENIX	kent
+capalias	UP	ku	XENIX	kcuu1
+capalias	G6	IGNORE	XENIX	double-ACS_ULCORNER
+capalias	G7	IGNORE	XENIX	double-ACS_LLCORNER
+capalias	G5	IGNORE	XENIX	double-ACS_URCORNER
+capalias	G8	IGNORE	XENIX	double-ACS_LRCORNER
+capalias	Gr	IGNORE	XENIX	double-ACS_LTEE
+capalias	Gr	IGNORE	XENIX	double-ACS_RTEE
+capalias	Gu	IGNORE	XENIX	double-ACS_BTEE
+capalias	Gd	IGNORE	XENIX	double ACS_TTEE
+capalias	Gh	IGNORE	XENIX	double-ACS_HLINE
+capalias	Gv	IGNORE	XENIX	double-ACS_VLINE
+capalias	Gc	IGNORE	XENIX	double-ACS_PLUS
+capalias	GG	IGNORE	XENIX	acs-glitch
+#
+# IBM extensions:
+#
+capalias	kq	%1	IBM	key_help
+#
+# Iris extensions:
+#
+capalias	HS	mh	IRIS	enter_dim_mode
+#
+# Tektronix extensions:
+#
+capalias	KA	k;	Tek	key_f10
+capalias	KB	F1	Tek	key_f11
+capalias	KC	F2	Tek	key_f12
+capalias	KD	F3	Tek	key_f13
+capalias	KE	F4	Tek	key_f14
+capalias	KF	F5	Tek	key_f15
+capalias	BC	Sb	Tek	set_background
+capalias	FC	Sf	Tek	set_foreground
+#
+# There are also the following:
+#
+#	XENIX	XENIX variable name	name clash with terminfo?
+#	-----	-------------------	-------------------------
+#	CL	key_char_left
+#	CR	key_char_right
+#	CW	key_change_window
+#	HP	??
+#	LF	key_linefeed 		label_off
+#	NU	key_next_unlocked_cell
+#	PL	??
+#	PR	??
+#	RC	key_recalc		remove_clock
+#	RF	key_toggle_ref		req_for_input
+#	WL	key_word_left
+#	WR	key_word_right
+#
+# If you know what any of the question-marked ones mean, please tell us.
+#
+#--------------------------------- Terminfo aliases ------------------------
+#
+# IBM extensions:
+#
+infoalias	font0	s0ds	IBM	set0_des_seq
+infoalias	font1	s1ds	IBM	set1_des_seq
+infoalias	font2	s2ds	IBM	set2_des_seq
+infoalias	font3	s3ds	IBM	set3_des_seq
+infoalias	kbtab	kcbt	IBM	key_backtab
+infoalias	ksel	kslt	IBM	key_select
+#
+# Some others are identical to SVr4/XPG4 capabilities, in particular:
+# kcmd, kend, khlp, and kf11...kf63.
+#
+#############################################################################
+# This is a table of ncurses user-definable capabilities which applications
+# developers may have used.  ncurses may use the table to check consistency of
+# types/parameters.  Applications may have defined others (such as screen's
+# LP and NF), but where a standard capability is available, those alternatives
+# are not listed here.
+#
+used_by ncurses
+userdef	CO 	num	n	number of indexed colors overlaying RGB space
+userdef	E3	str	-	clears the terminal's scrollback buffer.
+userdef	NQ	bool	-	terminal does not support query/response
+userdef	RGB	bool	-	use direct colors with 1/3 of color-pair bits per color.
+userdef	RGB	num	n	use direct colors with given number of bits per color.
+userdef	RGB	str	-	use direct colors with given bit-layout.
+userdef	TS	str	-	like "tsl", but uses no parameter.
+userdef	U8	num	n	terminal does/does not support VT100 SI/SO when processing UTF-8 encoding.
+userdef	XM	str	n	initialize alternate xterm mouse mode
+userdef	grbom	str	-	disable real bold (not intensity bright) mode.
+userdef	gsbom	str	-	enable real bold (not intensity bright) mode.
+userdef	xm	str	-	mouse response, no parameters
+userdef	xm	str	n	mouse response, p1 = y-ordinate
+userdef	xm	str	nn	mouse response, p2 = x-ordinate
+userdef	xm	str	nnn	mouse response, p3 = button
+userdef	xm	str	nnns	mouse response, p4 = state, e.g., pressed or released
+userdef	xm	str	nnnsn	mouse response, p5 = y-ordinate starting region
+userdef	xm	str	nnnsnn	mouse response, p6 = x-ordinate starting region
+userdef	xm	str	nnnsnnn	mouse response, p7 = y-ordinate ending region
+userdef	xm	str	nnnsnnnn mouse response, p8 = x-ordinate ending region
+#
+used_by mintty
+userdef Rmol	str	-	remove overline-mode
+userdef Smol	str	-	set overline-mode
+userdef blink2	str	-	turn on rapid blinking
+userdef norm	str	-	turn off bold and half-bright mode
+userdef opaq	str	-	turn off blank mode
+userdef	setal	str	n	set underline-color
+userdef smul2	str	-	begin double underline mode
+#
+used_by screen
+userdef	AN	bool	-	turn on autonuke.
+userdef	AX	bool	-	understands ANSI set default fg/bg color (\E[39m / \E[49m).
+userdef	C0	str	-	use the string as a conversion table for font '0', like acsc.
+userdef	C8	bool	-	terminal shows bold as high-intensity colors.
+userdef	CE	str	-	switch cursor-keys back to normal mode.
+userdef	CS	str	-	switch cursor-keys to application mode.
+userdef	E0	str	-	switch charset 'G0' back to standard charset. Default is '\E(B'.
+userdef	G0	bool	-	terminal can deal with ISO 2022 font selection sequences.
+userdef	KJ	str	s	set the encoding of the terminal.
+userdef	OL	num	n	set the screen program's output buffer limit.
+userdef	S0	str	s	switch charset 'G0' to the specified charset. Default is '\E(%.'.
+userdef	TF	bool	-	add missing capabilities to screen's termcap/info entry. (Set by default).
+userdef	WS	str	nn	resize display. This capability has the desired width and height as arguments. SunView(tm) example: '\E[8;%d;%dt'.
+userdef	XC	str	s	describe a translation of characters to strings depending on the current font.
+userdef	XT	bool	-	terminal understands special xterm sequences (OSC, mouse tracking).
+userdef	Z0	str	-	change width to 132 columns.
+userdef	Z1	str	-	change width to 80 columns.
+#
+used_by tmux
+userdef	Cr	str	-	restore the default cursor color.
+userdef	Cs	str	s	set the cursor color.
+userdef	Csr	str	n	change the cursor style, overriding Ss.
+userdef	Ms	str	ss	store the current buffer in the host terminal's selection (clipboard).
+userdef	Se	str	-	reset the cursor style to the terminal initial state.
+userdef	Smulx	str	n	modify the appearance of underlines in VTE.
+userdef	Ss	str	n	change the cursor style.
+userdef	rmxx	str	-	reset ECMA-48 strikeout/crossed-out attributes.
+userdef	smxx	str	-	set ECMA-48 strikeout/crossed-out attributes.
+#
+used_by vim
+userdef	BD	str	-	disables bracketed paste
+userdef	BE	str	-	enables bracketed paste
+userdef	PE	str	-	is sent after pasted text
+userdef	PS	str	-	is sent before pasted text
+userdef	RV	str	-	report terminal secondary device attributes
+userdef	XR	str	-	report terminal version as a free-format string.
+userdef	XF	bool	-	terminal supports xterm focus in/out
+userdef	rv	str	-	response to RV, regular expression
+userdef	xr	str	-	response to XR, regular expression
+#
+used_by xterm
+userdef	csl	str	-	clear status line
+userdef	kDC3	str	-	alt delete-character
+userdef	kDC4	str	-	shift+alt delete-character
+userdef	kDC5	str	-	control delete-character
+userdef	kDC6	str	-	shift+control delete-character
+userdef	kDC7	str	-	alt+control delete-character
+userdef	kDN	str	-	shift down-cursor
+userdef	kDN3	str	-	alt down-cursor
+userdef	kDN4	str	-	shift+alt down-cursor
+userdef	kDN5	str	-	control down-cursor
+userdef	kDN6	str	-	shift+control down-cursor
+userdef	kDN7	str	-	alt+control down-cursor
+userdef	kEND3	str	-	alt end
+userdef	kEND4	str	-	shift+alt end
+userdef	kEND5	str	-	control end
+userdef	kEND6	str	-	shift+control end
+userdef	kEND7	str	-	alt+control end
+userdef	kHOM3	str	-	alt home
+userdef	kHOM4	str	-	shift+alt home
+userdef	kHOM5	str	-	control home
+userdef	kHOM6	str	-	shift+control home
+userdef	kHOM7	str	-	alt+control home
+userdef	kIC3	str	-	alt insert-character
+userdef	kIC4	str	-	shift+alt insert-character
+userdef	kIC5	str	-	control insert-character
+userdef	kIC6	str	-	shift+control insert-character
+userdef	kIC7	str	-	alt+control insert-character
+userdef	kLFT3	str	-	alt left-cursor
+userdef	kLFT4	str	-	shift+alt left-cursor
+userdef	kLFT5	str	-	control left-cursor
+userdef	kLFT6	str	-	shift+control left-cursor
+userdef	kLFT7	str	-	alt+control left-cursor
+userdef	kNXT3	str	-	alt next
+userdef	kNXT4	str	-	shift+alt next
+userdef	kNXT5	str	-	control next
+userdef	kNXT6	str	-	shift+control next
+userdef	kNXT7	str	-	alt+control next
+userdef	kPRV3	str	-	alt previous
+userdef	kPRV4	str	-	shift+alt previous
+userdef	kPRV5	str	-	control previous
+userdef	kPRV6	str	-	shift+control previous
+userdef	kPRV7	str	-	alt+control previous
+userdef	kRIT3	str	-	alt right-cursor
+userdef	kRIT4	str	-	shift+alt right-cursor
+userdef	kRIT5	str	-	control right-cursor
+userdef	kRIT6	str	-	shift+control right-cursor
+userdef	kRIT7	str	-	alt+control right-cursor
+userdef	kUP	str	-	shift up-cursor
+userdef	kUP3	str	-	alt up-cursor
+userdef	kUP4	str	-	shift+alt up-cursor
+userdef	kUP5	str	-	control up-cursor
+userdef	kUP6	str	-	shift+control up-cursor
+userdef	kUP7	str	-	alt+control up-cursor
+userdef	ka2	str	-	vt220-keypad extensions
+userdef	kb1	str	-	vt220-keypad extensions
+userdef	kb3	str	-	vt220-keypad extensions
+userdef	kc2	str	-	vt220-keypad extensions
+userdef	kxIN	str	-	mouse response on focus-in
+userdef	kxOUT	str	-	mouse response on focus-out
+#############################################################################

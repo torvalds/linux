@@ -1,0 +1,171 @@
+# This file provides information and services to the final user.
+
+@LLVM_CONFIG_CODE@
+
+# For finding self-installed Find*.cmake packages.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+
+set(LLVM_VERSION_MAJOR @LLVM_VERSION_MAJOR@)
+set(LLVM_VERSION_MINOR @LLVM_VERSION_MINOR@)
+set(LLVM_VERSION_PATCH @LLVM_VERSION_PATCH@)
+set(LLVM_VERSION_SUFFIX @LLVM_VERSION_SUFFIX@)
+set(LLVM_PACKAGE_VERSION @PACKAGE_VERSION@)
+set(LLVM_PACKAGE_BUGREPORT @PACKAGE_BUGREPORT@)
+
+set(LLVM_BUILD_TYPE @CMAKE_BUILD_TYPE@)
+
+set(CMAKE_MSVC_RUNTIME_LIBRARY @CMAKE_MSVC_RUNTIME_LIBRARY@)
+
+set(LLVM_USE_SPLIT_DWARF @LLVM_USE_SPLIT_DWARF@)
+
+set(LLVM_COMMON_DEPENDS @LLVM_COMMON_DEPENDS@)
+
+set(LLVM_AVAILABLE_LIBS @LLVM_AVAILABLE_LIBS@)
+
+@LLVM_CONFIG_LINK_LLVM_DYLIB@
+
+set(LLVM_DYLIB_COMPONENTS @LLVM_DYLIB_COMPONENTS@)
+
+set(LLVM_ALL_TARGETS @LLVM_ALL_TARGETS@)
+
+set(LLVM_TARGETS_TO_BUILD @LLVM_TARGETS_TO_BUILD@)
+
+set(LLVM_TARGETS_WITH_JIT @LLVM_TARGETS_WITH_JIT@)
+
+@all_llvm_lib_deps@
+
+set(LLVM_TARGET_TRIPLE "@LLVM_TARGET_TRIPLE@")
+
+set(LLVM_HOST_TRIPLE "@LLVM_HOST_TRIPLE@")
+
+set(LLVM_ABI_BREAKING_CHECKS @LLVM_ABI_BREAKING_CHECKS@)
+
+set(LLVM_ENABLE_WARNINGS @LLVM_ENABLE_WARNINGS@)
+
+set(LLVM_ENABLE_EXPENSIVE_CHECKS @LLVM_ENABLE_EXPENSIVE_CHECKS@)
+
+set(LLVM_ENABLE_ASSERTIONS @LLVM_ENABLE_ASSERTIONS@)
+
+set(LLVM_ENABLE_EH @LLVM_ENABLE_EH@)
+
+set(LLVM_ENABLE_FFI @LLVM_ENABLE_FFI@)
+if(LLVM_ENABLE_FFI)
+  find_package(FFI)
+endif()
+
+set(LLVM_ENABLE_RTTI @LLVM_ENABLE_RTTI@)
+
+set(LLVM_ENABLE_LIBEDIT @HAVE_LIBEDIT@)
+if(LLVM_ENABLE_LIBEDIT)
+  find_package(LibEdit)
+endif()
+
+set(LLVM_ENABLE_THREADS @LLVM_ENABLE_THREADS@)
+
+set(LLVM_ENABLE_UNWIND_TABLES @LLVM_ENABLE_UNWIND_TABLES@)
+
+set(LLVM_ENABLE_ZLIB @LLVM_ENABLE_ZLIB@)
+if(LLVM_ENABLE_ZLIB)
+  set(ZLIB_ROOT @ZLIB_ROOT@)
+  find_package(ZLIB)
+endif()
+
+set(LLVM_ENABLE_ZSTD @LLVM_ENABLE_ZSTD@)
+if(LLVM_ENABLE_ZSTD)
+  find_package(zstd)
+endif()
+
+set(LLVM_ENABLE_LIBXML2 @LLVM_ENABLE_LIBXML2@)
+if(LLVM_ENABLE_LIBXML2)
+  find_package(LibXml2)
+endif()
+
+set(LLVM_ENABLE_CURL @LLVM_ENABLE_CURL@)
+if(LLVM_ENABLE_CURL)
+  find_package(CURL)
+endif()
+
+set(LLVM_ENABLE_HTTPLIB @LLVM_ENABLE_HTTPLIB@)
+if(LLVM_ENABLE_HTTPLIB)
+  find_package(httplib)
+endif()
+
+set(LLVM_WITH_Z3 @LLVM_WITH_Z3@)
+
+set(LLVM_ENABLE_DIA_SDK @LLVM_ENABLE_DIA_SDK@)
+
+set(LLVM_NATIVE_ARCH @LLVM_NATIVE_ARCH@)
+
+set(LLVM_ENABLE_PIC @LLVM_ENABLE_PIC@)
+
+set(LLVM_BUILD_32_BITS @LLVM_BUILD_32_BITS@)
+
+if (NOT "@LLVM_PTHREAD_LIB@" STREQUAL "")
+  set(LLVM_PTHREAD_LIB "@LLVM_PTHREAD_LIB@")
+endif()
+
+set(LLVM_ENABLE_PLUGINS @LLVM_ENABLE_PLUGINS@)
+set(LLVM_EXPORT_SYMBOLS_FOR_PLUGINS @LLVM_EXPORT_SYMBOLS_FOR_PLUGINS@)
+set(LLVM_PLUGIN_EXT @LLVM_PLUGIN_EXT@)
+
+set(LLVM_ON_UNIX @LLVM_ON_UNIX@)
+
+set(LLVM_LIBDIR_SUFFIX @LLVM_LIBDIR_SUFFIX@)
+
+set(LLVM_INCLUDE_DIRS "@LLVM_CONFIG_INCLUDE_DIRS@")
+set(LLVM_LIBRARY_DIRS "@LLVM_CONFIG_LIBRARY_DIRS@")
+
+set(LLVM_APPEND_VC_REV "@LLVM_APPEND_VC_REV@")
+
+# These variables are duplicated for install tree but they have different
+# values for build tree.  LLVM_INCLUDE_DIRS contains both source
+# and generated include directories while the following variables have
+# them split.
+
+# These are the "main" dirs
+set(LLVM_MAIN_INCLUDE_DIR "@LLVM_CONFIG_MAIN_INCLUDE_DIR@")
+set(LLVM_LIBRARY_DIR "@LLVM_CONFIG_LIBRARY_DIR@")
+
+# This is a secondary one for generated files
+set(LLVM_INCLUDE_DIR "@LLVM_CONFIG_INCLUDE_DIR@")
+
+set(LLVM_DEFINITIONS "@LLVM_DEFINITIONS@")
+set(LLVM_BINARY_DIR "@LLVM_CONFIG_BINARY_DIR@")
+set(LLVM_CMAKE_DIR "@LLVM_CONFIG_CMAKE_DIR@")
+set(LLVM_TOOLS_BINARY_DIR "@LLVM_CONFIG_TOOLS_BINARY_DIR@")
+set(LLVM_HAVE_OPT_VIEWER_MODULES @LLVM_HAVE_OPT_VIEWER_MODULES@)
+set(LLVM_CONFIGURATION_TYPES @CMAKE_CONFIGURATION_TYPES@)
+set(LLVM_ENABLE_SHARED_LIBS @BUILD_SHARED_LIBS@)
+
+set(LLVM_DEFAULT_EXTERNAL_LIT "@LLVM_CONFIG_DEFAULT_EXTERNAL_LIT@")
+set(LLVM_LIT_ARGS "@LLVM_LIT_ARGS@")
+
+if(NOT TARGET LLVMSupport)
+  @LLVM_CONFIG_INCLUDE_EXPORTS@
+  @llvm_config_include_buildtree_only_exports@
+endif()
+
+# By creating the following targets here, subprojects that depend on
+# LLVM's tablegen-generated headers can always depend on this target
+# whether building in-tree with LLVM or not.
+if(NOT TARGET intrinsics_gen)
+  add_custom_target(intrinsics_gen)
+endif()
+if(NOT TARGET omp_gen)
+  add_custom_target(omp_gen)
+endif()
+if(NOT TARGET acc_gen)
+  add_custom_target(acc_gen)
+endif()
+if(NOT TARGET ARMTargetParserTableGen)
+  add_custom_target(ARMTargetParserTableGen)
+endif()
+if(NOT TARGET AArch64TargetParserTableGen)
+  add_custom_target(AArch64TargetParserTableGen)
+endif()
+if(NOT TARGET RISCVTargetParserTableGen)
+  add_custom_target(RISCVTargetParserTableGen)
+endif()
+
+set_property(GLOBAL PROPERTY LLVM_TARGETS_CONFIGURED On)
+include(${LLVM_CMAKE_DIR}/LLVM-Config.cmake)

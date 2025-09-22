@@ -1,0 +1,119 @@
+/*	$OpenBSD: monop.def,v 1.7 2016/01/08 18:19:47 mestre Exp $	*/
+/*	$NetBSD: monop.def,v 1.3 1995/03/23 08:34:54 cgd Exp $	*/
+
+/*-
+ * Copyright (c) 1980, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	@(#)monop.def	5.5 (Berkeley) 5/31/93
+ */
+
+#include "deck.h"
+#include "monop.h"
+
+bool	fixing = FALSE,		/* set if fixing up debt		*/
+	trading = FALSE,	/* set if in process of trading		*/
+	told_em,		/* set if told user he's out of debt	*/
+	spec;			/* set if moving by card to RR or UTIL	*/
+
+char	*name_list[MAX_PL+2],	/* list of players' names		*/
+	*comlist[]	= {	/* list of normal commands		*/
+	"quit",		/*  0 */	"print",	/*  1 */
+	"where",	/*  2 */	"own holdings",	/*  3 */
+	"holdings",	/*  4 */	"mortgage",	/*  5 */
+	"unmortgage",	/*  6 */	"buy houses",	/*  7 */
+	"sell houses",	/*  8 */	"card",		/*  9 */
+	"pay",		/* 10 */	"trade",	/* 11 */
+	"resign",	/* 12 */	"save",		/* 13 */
+	"restore",	/* 14 */	"roll",		/* 15 */
+	"",		/* 16 */
+	0
+	},
+	*ynlist[]	= {	/* list of commands for yes/no answers	*/
+	"yes",		/*  0 */	"no",		/*  1 */
+	"quit",		/*  2 */	"print",	/*  3 */
+	"where",	/*  4 */	"own holdings",	/*  5 */
+	"holdings",	/*  6 */
+	0
+	},
+	*lucky_mes[]	= {	/* "got lucky" messages			*/
+	"You lucky stiff",		"You got lucky",
+	"What a lucky person!",		"You must have a 4-leaf clover",
+	"My, my!  Aren't we lucky!",	"Luck smiles upon you",
+	"You got lucky this time",	"Lucky person!",
+	"Your karma must certainly be together",
+	"How beautifully Cosmic",	"Wow, you must be really with it"
+	/* "I want your autograph",	-- Save for later */
+	};
+
+int	player,			/* current player number		*/
+	num_play,		/* current number of players		*/
+	num_doub,		/* # of doubles current player rolled	*/
+				/* # of "got lucky" messages		*/
+	num_luck	= sizeof lucky_mes / sizeof (char *);
+
+/* list of command functions		*/
+void (*func[])(void) = {	/* array of function calls for commands	*/
+	quit,			/* quit game		|*  0 *|	*/
+	printboard,		/* print board		|*  1 *|	*/
+	where,			/* where players are	|*  2 *|	*/
+	list,			/* own holdings		|*  3 *|	*/
+	list_all,		/* holdings list	|*  4 *|	*/
+	mortgage,		/* mortgage property	|*  5 *|	*/
+	unmortgage,		/* unmortgage property	|*  6 *|	*/
+	buy_houses,		/* buy houses		|*  7 *|	*/
+	sell_houses,		/* sell houses		|*  8 *|	*/
+	card,			/* card for jail	|*  9 *|	*/
+	pay,			/* pay for jail		|* 10 *|	*/
+	trade,			/* trade		|* 11 *|	*/
+	resign,			/* resign		|* 12 *|	*/
+	save,			/* save game		|* 13 *|	*/
+	game_restore,		/* restore game		|* 14 *|	*/
+	do_move,		/* roll			|* 15 *|	*/
+	do_move			/* ""			|* 16 *|	*/
+	};
+
+DECK	deck[2];		/* Chance and Community Chest		*/
+
+PLAY	*play,			/* player structure array ("calloc"ed)	*/
+	*cur_p;			/* pointer to current player's struct	*/
+
+RR_S	rr[N_RR];		/* railroad descriptions		*/
+
+UTIL_S	util[2];		/* utility descriptions			*/
+
+MON	mon[N_MON]	= {	/* monopoly descriptions		*/
+#include	"mon.dat"
+};
+
+PROP	prop[N_PROP]	= {	/* typical properties			*/
+#include	"prop.dat"
+};
+
+SQUARE	board[N_SQRS+1]	= {	/* board itself (+1 for Jail)		*/
+#include	"brd.dat"
+};

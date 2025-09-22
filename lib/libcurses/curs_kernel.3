@@ -1,0 +1,225 @@
+.\" $OpenBSD: curs_kernel.3,v 1.10 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_kernel.3,v 1.10 2023/10/17 09:52:08 nicm Exp $
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.TH curs_kernel 3 2023-08-19 "ncurses 6.4" "Library calls"
+.na
+.hy 0
+.SH NAME
+\fBdef_prog_mode\fP,
+\fBdef_shell_mode\fP,
+\fBreset_prog_mode\fP,
+\fBreset_shell_mode\fP,
+\fBresetty\fP,
+\fBsavetty\fP,
+\fBgetsyx\fP,
+\fBsetsyx\fP,
+\fBripoffline\fP,
+\fBcurs_set\fP,
+\fBnapms\fP \- low-level \fBcurses\fP routines
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint def_prog_mode(void);\fP
+.br
+\fBint def_shell_mode(void);\fP
+.sp
+\fBint reset_prog_mode(void);\fP
+.br
+\fBint reset_shell_mode(void);\fP
+.sp
+\fBint resetty(void);\fP
+.br
+\fBint savetty(void);\fP
+.sp
+\fBvoid getsyx(int \fIy\fB, int \fIx\fB);\fR
+.br
+\fBvoid setsyx(int \fIy\fB, int \fIx\fB);\fR
+.sp
+\fBint ripoffline(int \fIline\fB, int (*\fIinit\fB)(WINDOW *, int));\fR
+.br
+\fBint curs_set(int \fIvisibility\fB);\fR
+.br
+\fBint napms(int \fIms\fB);\fR
+.SH DESCRIPTION
+The following routines give low-level access
+to various \fBcurses\fP capabilities.
+These routines typically are used inside library routines.
+.SS def_prog_mode, def_shell_mode
+The \fBdef_prog_mode\fP and \fBdef_shell_mode\fP routines save the
+current terminal modes as the \*(``program\*(''
+(in \fBcurses\fP) or \*(``shell\*(''
+(not in \fBcurses\fP) state for use by the \fBreset_prog_mode\fP and
+\fBreset_shell_mode\fP routines.
+This is done automatically by \fBinitscr\fP.
+There is one such save area for each screen context
+allocated by \fBnewterm\fP.
+.SS reset_prog_mode, reset_shell_mode
+The \fBreset_prog_mode\fP and \fBreset_shell_mode\fP routines restore
+the terminal to \*(``program\*('' (in \fBcurses\fP) or \*(``shell\*('' (out of
+\fBcurses\fP) state.
+These are done automatically by \fBendwin\fP(3) and,
+after an \fBendwin\fP, by \fBdoupdate\fP,
+so they normally are not called.
+.SS resetty, savetty
+The \fBresetty\fP and \fBsavetty\fP routines save and restore the
+state of the terminal modes.
+\fBsavetty\fP saves the current state in
+a buffer and \fBresetty\fP restores the state to what it was at the
+last call to \fBsavetty\fP.
+.SS getsyx
+The \fBgetsyx\fP routine returns the current coordinates
+of the \fIvirtual screen\fP cursor in \fIy\fP and \fIx\fP.
+If \fBleaveok\fP is currently \fBTRUE\fP, then
+\fB\-1\fP,\fB\-1\fP is returned.
+If lines have been removed from the top of the
+screen, using \fBripoffline\fP, \fIy\fP and \fIx\fP include these lines;
+therefore, \fIy\fP and \fIx\fP should be used only as arguments for
+\fBsetsyx\fP.
+.PP
+Few applications will use this feature,
+most use \fBgetyx\fP instead.
+.SS setsyx
+The \fBsetsyx\fP routine sets
+the \fIvirtual screen\fP cursor to \fIy\fP, \fIx\fP.
+If \fIy\fP and \fIx\fP are both \fB\-1\fP, then
+\fBleaveok\fP is set.
+The two routines \fBgetsyx\fP and \fBsetsyx\fP
+are designed to be used by a library routine, which manipulates
+\fBcurses\fP windows but does not want to change the current position
+of the program's cursor.
+The library routine would call \fBgetsyx\fP
+at the beginning, do its manipulation of its own windows, do a
+\fBwnoutrefresh\fP on its windows, call \fBsetsyx\fP, and then call
+\fBdoupdate\fP.
+.PP
+Few applications will use this feature,
+most use \fBwmove\fP instead.
+.SS ripoffline
+The \fBripoffline\fP routine provides access to the same facility that
+\fBslk_init\fP [see \fBcurs_slk\fP(3)] uses to reduce the size of the
+screen.
+\fBripoffline\fP must be called before \fBinitscr\fP or
+\fBnewterm\fP is called, to prepare these initial actions:
+.bP
+If \fIline\fP is positive, a line is removed from the top of \fBstdscr\fP.
+.bP
+if \fIline\fP is negative, a line is removed from the bottom.
+.PP
+When the resulting initialization is done inside \fBinitscr\fP, the
+routine \fBinit\fP (supplied by the user) is called with two
+arguments:
+.bP
+a window pointer to the one-line window that has been
+allocated and
+.bP
+an integer with the number of columns in the window.
+.PP
+Inside this initialization routine, the integer variables \fBLINES\fP
+and \fBCOLS\fP (defined in \fB<curses.h>\fP) are not guaranteed to be
+accurate and \fBwrefresh\fP or \fBdoupdate\fP must not be called.
+It is allowable to call \fBwnoutrefresh\fP during the initialization routine.
+.PP
+\fBripoffline\fP can be called up to five times before calling \fBinitscr\fP or
+\fBnewterm\fP.
+.SS curs_set
+The \fBcurs_set\fP routine sets the cursor state to invisible,
+normal, or very visible for \fBvisibility\fP equal to \fB0\fP,
+\fB1\fP, or \fB2\fP respectively.
+If the terminal supports the \fIvisibility\fP requested,
+the previous \fIcursor\fP state is returned;
+otherwise, \fBERR\fP is returned.
+.SS napms
+The \fBnapms\fP routine is used to sleep for \fIms\fP milliseconds.
+.SH RETURN VALUE
+Except for \fBcurs_set\fP, these routines always return \fBOK\fP.
+.PP
+\fBcurs_set\fP
+returns the previous cursor state, or \fBERR\fP if the
+requested \fIvisibility\fP is not supported.
+.PP
+X/Open defines no error conditions.
+In this implementation
+.TP 5
+.na
+.hy 0
+\fBdef_prog_mode\fP, \fBdef_shell_mode\fP, \fBreset_prog_mode\fP, \fBreset_shell_mode\fP
+.hy
+.ad
+return an error
+if the terminal was not initialized, or
+if the I/O call to obtain the terminal settings fails.
+.TP 5
+\fBripoffline\fP
+returns an error if the maximum number of ripped-off lines
+exceeds the maximum (NRIPS = 5).
+.SH NOTES
+Note that \fBgetsyx\fP is a macro, so \fB&\fP is not necessary before
+the variables \fIy\fP and \fIx\fP.
+.PP
+Older SVr4 man pages warn that the return value
+of \fBcurs_set\fP \*(``is currently incorrect\*(''.
+This implementation gets it right, but it may be unwise to count
+on the correctness of the return value anywhere else.
+.PP
+Both ncurses and SVr4 will call \fBcurs_set\fP in \fBendwin\fP
+if \fBcurs_set\fP
+has been called to make the cursor other than normal, i.e., either
+invisible or very visible.
+There is no way for ncurses to determine the initial cursor state to
+restore that.
+.SH PORTABILITY
+The \fIvirtual screen\fP functions \fBsetsyx\fP and \fBgetsyx\fP
+are not described in the XSI Curses standard, Issue 4.
+All other functions are as described in XSI Curses.
+.PP
+The SVr4 documentation describes \fBsetsyx\fP and \fBgetsyx\fP
+as having return type int.
+This is misleading, as they are macros with no documented semantics
+for the return value.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_initscr\fP(3),
+\fBcurs_outopts\fP(3),
+\fBcurs_refresh\fP(3),
+\fBcurs_scr_dump\fP(3),
+\fBcurs_slk\fP(3),
+\fBcurs_variables\fP(3).

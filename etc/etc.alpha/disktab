@@ -1,0 +1,16 @@
+#	$OpenBSD: disktab,v 1.25 2023/03/07 16:41:08 krw Exp $
+
+fakeramdisk:\
+	:dt=rdroot:se#512:nt#1:ns#32:nc#190:\
+	:pa#6080:oa#0:ba#8192:fa#4096:ta=4.2BSD:\
+	:pc#6080:oc#0:
+
+floppy|floppy3|3in|3.5in High Density Floppy:\
+	:dt=floppy:se#512:nt#2:ns#18:nc#80:\
+	:pa#2880:oa#0:ba#4096:fa#512:ta=4.2BSD: \
+	:pc#2880:oc#0:
+
+rdroot:\
+	:dt=rdroot:se#512:nt#2:rm#300:ns#8:nc#359:\
+	:pa#5744:oa#0:ta=4.2BSD:ba#8192:fa#1024: \
+	:pc#5744:oc#0:

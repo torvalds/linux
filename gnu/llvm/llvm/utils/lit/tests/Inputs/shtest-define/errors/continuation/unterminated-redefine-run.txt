@@ -1,0 +1,9 @@
+# You cannot continue a REDEFINE with a RUN.
+
+# REDEFINE: %{global:what}=echo \
+# RUN: %{global:what}
+# REDEFINE: %{too-late-to-continue}=
+
+# CHECK: Test has unterminated '{{REDEFINE}}:' directive (with '\') at line [[#@LINE-4]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

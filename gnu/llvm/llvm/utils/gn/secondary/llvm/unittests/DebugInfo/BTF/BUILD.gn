@@ -1,0 +1,10 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("DebugInfoBTFTests") {
+  deps = [
+    "//llvm/lib/DebugInfo/BTF",
+    "//llvm/lib/ObjectYAML",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [ "BTFParserTest.cpp" ]
+}

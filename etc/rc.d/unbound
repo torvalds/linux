@@ -1,0 +1,20 @@
+#!/bin/ksh
+#
+# $OpenBSD: unbound,v 1.9 2024/10/09 15:42:56 kn Exp $
+
+daemon="/usr/sbin/unbound"
+daemon_flags="-c /var/unbound/etc/unbound.conf"
+
+. /etc/rc.d/rc.subr
+
+rc_pre() {
+	local _anchor=$(/usr/sbin/unbound-checkconf -o auto-trust-anchor-file)
+
+	if [[ -n $_anchor && ! -f $_anchor ]]; then
+		/usr/sbin/unbound-anchor -v
+	fi
+
+	/usr/sbin/unbound-checkconf
+}
+
+rc_cmd $1

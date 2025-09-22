@@ -1,0 +1,201 @@
+.\"	$OpenBSD: pgt.4,v 1.47 2022/01/05 17:39:25 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Theo de Raadt.
+.\" Copyright (c) 2006 The DragonFly Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. Neither the name of The DragonFly Project nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific, prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 5 2022 $
+.Dt PGT 4
+.Os
+.Sh NAME
+.Nm pgt
+.Nd Conexant/Intersil Prism GT Full-MAC IEEE 802.11a/b/g wireless network device
+.Sh SYNOPSIS
+.Cd "pgt* at cardbus?"
+.Cd "pgt* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Conexant/Intersil GT-series devices
+which can support the Full-MAC firmware, using the ISL3877,
+ISL3880, and ISL3890 chips.
+The
+.Nm
+driver will not (yet) work on similar devices using the ISL3886 or
+similar chips which use the Soft-MAC firmware.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It IBSS mode
+Also known as
+.Em IEEE ad-hoc
+mode or
+.Em peer-to-peer
+mode.
+This is the standardized method of operating without an access point.
+Stations associate with a service set.
+However, actual connections between stations are peer-to-peer.
+.It Host AP
+In this mode the driver acts as an access point (base station)
+for other cards.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use hardware
+Wired Equivalent Privacy (WEP).
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+.Pp
+In BSS mode,
+the driver supports powersave mode,
+which can be enabled via
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The driver needs a set of firmware files which are loaded when
+an interface is brought up:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/pgt-isl3877
+.It Pa /etc/firmware/pgt-isl3890
+.El
+.Pp
+These firmware files are not free because Conexant refuses
+to grant distribution rights.
+In fact they have rebuffed thousands
+of attempts to start a dialogue on this issue.
+As a result, even though
+.Ox
+includes the driver, the firmware files cannot be included and
+users have to download these files on their own.
+.Pp
+A prepackaged version of the firmware can be installed using
+.Xr fw_update 8 .
+.Sh HARDWARE
+The following cards are among those supported by the
+.Nm
+driver:
+.Bl -column "NETGEAR WG511 (Taiwanese, not Chinese)" "ISL3880" "CardBus" -offset 6n
+.It Em Card Ta Em Chip Ta Em Bus
+.It "3COM 3CRWE154G72" Ta ISL3880 Ta CardBus
+.It "D-Link DWL-g650 A1" Ta ISL3890 Ta PCI
+.It "I-O Data WN-G54/CB" Ta ISL3890 Ta PCI
+.It "I4 Z-Com XG-600" Ta ISL3890 Ta PCI
+.It "I4 Z-Com XG-900" Ta ISL3890 Ta PCI
+.It "Intersil PRISM Indigo" Ta ISL3877 Ta PCI
+.It "Intersil PRISM Duette" Ta ISL3890 Ta PCI
+.It "NETGEAR WG511 (Taiwanese, not Chinese)" Ta ISL3890 Ta CardBus
+.It "PLANEX GW-DS54G" Ta ISL3890 Ta PCI
+.It "SMC EZ Connect g 2.4GHz SMC2802W" Ta ISL3890 Ta PCI
+.It "SMC EZ Connect g 2.4GHz SMC2835W-v2" Ta ISL3890 Ta CardBus
+.It "SMC 2802Wv2" Ta ISL3890 Ta PCI
+.It "Soyo Aerielink" Ta ISL3890 Ta CardBus
+.It "ZyXEL ZyAIR G-100" Ta ISL3890 Ta CardBus
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig pgt0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures pgt0 to join network
+.Dq mynwid ,
+using WEP key
+.Dq mywepkey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+nwid mynwid nwkey mywepkey
+inet autoconf
+.Ed
+.Pp
+The following
+.Xr hostname.if 5
+example creates a host-based access point on boot:
+.Bd -literal -offset indent
+mediaopt hostap
+nwid mynwid nwkey mywepkey
+inet 192.168.1.1 255.255.255.0
+.Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr cardbus 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was originally written for
+.Fx
+by
+.An Brian Fundakowski ,
+and then rewritten for
+.Ox
+by
+.An Marcus Glocker
+and
+.An Claudio Jeker .
+.Sh CAVEATS
+Host AP mode doesn't support power saving.
+Clients attempting to use power saving mode may experience significant
+packet loss (disabling power saving on the client will fix this).

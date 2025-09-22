@@ -1,0 +1,13 @@
+__divl
+__divlu
+__divq
+__divqu
+__reml
+__remlu
+__remq
+__remqu
+_mcount
+fabsl
+frexpl
+ldexpl
+modfl

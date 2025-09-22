@@ -1,0 +1,61 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CLOCALE
+#define _LIBCPP_CLOCALE
+
+/*
+    clocale synopsis
+
+Macros:
+
+    LC_ALL
+    LC_COLLATE
+    LC_CTYPE
+    LC_MONETARY
+    LC_NUMERIC
+    LC_TIME
+    NULL
+
+namespace std
+{
+
+struct lconv;
+char* setlocale(int category, const char* locale);
+lconv* localeconv();
+
+}  // std
+
+*/
+
+#include <__config>
+
+#include <locale.h>
+
+#ifndef _LIBCPP_LOCALE_H
+#   error <clocale> tried including <locale.h> but didn't find libc++'s <locale.h> header. \
+          This usually means that your header search paths are not configured properly. \
+          The header search paths should contain the C++ Standard Library headers before \
+          any C Standard Library, and you are probably using compiler flags that make that \
+          not be the case.
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::lconv _LIBCPP_USING_IF_EXISTS;
+using ::setlocale _LIBCPP_USING_IF_EXISTS;
+using ::localeconv _LIBCPP_USING_IF_EXISTS;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_CLOCALE

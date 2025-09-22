@@ -1,0 +1,348 @@
+.\" $OpenBSD: EVP_PKEY_new.3,v 1.27 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 4dcfdfce May 27 11:50:05 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2022, 2024 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>
+.\" and Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2002, 2018, 2020 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_PKEY_NEW 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_new ,
+.Nm EVP_PKEY_up_ref ,
+.Nm EVP_PKEY_free ,
+.Nm EVP_PKEY_new_raw_private_key ,
+.Nm EVP_PKEY_new_raw_public_key ,
+.Nm EVP_PKEY_new_mac_key ,
+.Nm EVP_PKEY_get_raw_private_key ,
+.Nm EVP_PKEY_get_raw_public_key
+.Nd public and private key allocation and raw key handling functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft EVP_PKEY *
+.Fn EVP_PKEY_new void
+.Ft int
+.Fo EVP_PKEY_up_ref
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Ft void
+.Fo EVP_PKEY_free
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Ft EVP_PKEY *
+.Fo EVP_PKEY_new_raw_private_key
+.Fa "int type"
+.Fa "ENGINE *engine"
+.Fa "const unsigned char *rawpriv"
+.Fa "size_t rawlen"
+.Fc
+.Ft EVP_PKEY *
+.Fo EVP_PKEY_new_raw_public_key
+.Fa "int type"
+.Fa "ENGINE *engine"
+.Fa "const unsigned char *rawpub"
+.Fa "size_t rawlen"
+.Fc
+.Ft EVP_PKEY *
+.Fo EVP_PKEY_new_mac_key
+.Fa "int type"
+.Fa "ENGINE *engine"
+.Fa "const unsigned char *rawpriv"
+.Fa "int rawlen"
+.Fc
+.Ft int
+.Fo EVP_PKEY_get_raw_private_key
+.Fa "const EVP_PKEY *pkey"
+.Fa "unsigned char *rawpriv"
+.Fa "size_t *rawlen"
+.Fc
+.Ft int
+.Fo EVP_PKEY_get_raw_public_key
+.Fa "const EVP_PKEY *pkey"
+.Fa "unsigned char *rawpub"
+.Fa "size_t *rawlen"
+.Fc
+.Sh DESCRIPTION
+The
+.Vt EVP_PKEY
+structure is used by various OpenSSL functions which require a general
+private or public key without reference to any particular algorithm.
+.Pp
+The
+.Fn EVP_PKEY_new
+function allocates an empty
+.Vt EVP_PKEY
+structure.
+The reference count is set to 1.
+To add a private or public key to it, use the functions described in
+.Xr EVP_PKEY_set1_RSA 3 .
+.Pp
+.Fn EVP_PKEY_up_ref
+increments the reference count of
+.Fa pkey
+by 1.
+.Pp
+.Fn EVP_PKEY_free
+decrements the reference count of
+.Fa pkey
+by 1, and if the reference count reaches zero, frees it up.
+If
+.Fa pkey
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn EVP_PKEY_new_raw_private_key
+allocates a new
+.Vt EVP_PKEY .
+The NID of a public key algorithm that supports raw private keys, i.e.\&
+.Dv EVP_PKEY_HMAC ,
+.Dv EVP_PKEY_X25519 ,
+or
+.Dv EVP_PKEY_ED25519 ,
+is provided in the
+.Fa type
+argument and
+.Fa rawlen
+bytes of raw private key data of that type in
+.Fa rawpriv .
+The public key data is automatically derived from the given private
+key data, if appropriate for the algorithm type.
+The
+.Fa ENGINE *engine
+argument is always ignored and passing
+.Dv NULL
+is recommended.
+.Pp
+.Fn EVP_PKEY_new_raw_public_key
+works in the same way as
+.Fn EVP_PKEY_new_raw_private_key
+except that
+.Fa rawpub
+points to the raw public key data.
+The
+.Vt EVP_PKEY
+structure is initialised without any private key information.
+Algorithm types that support raw public keys are
+.Dv EVP_PKEY_X25519
+and
+.Dv EVP_PKEY_ED25519 .
+.Pp
+.Fn EVP_PKEY_new_mac_key
+is a deprecated function that achieves the same effect as
+.Fn EVP_PKEY_new_raw_private_key
+in a more complicated way and only works with a
+.Fa type
+of
+.Dv EVP_PKEY_HMAC .
+.Pp
+.Fn EVP_PKEY_get_raw_private_key
+writes up to
+.Pf * Fa rawlen
+bytes of raw private key data to the buffer starting at
+.Fa rawpriv
+and stores the number of bytes written in
+.Pf * Fa rawlen .
+The calling application is responsible for ensuring that the buffer
+is large enough to receive the private key data.
+If the
+.Fa rawpriv
+argument is
+.Dv NULL ,
+the number of bytes required to hold the key is stored in
+.Pf * Fa rawlen .
+This function only works for algorithms that support raw private keys.
+Currently these are
+.Dv EVP_PKEY_HMAC ,
+.Dv EVP_PKEY_X25519 ,
+and
+.Dv EVP_PKEY_ED25519 .
+.Pp
+.Fn EVP_PKEY_get_raw_public_key
+is similar to
+.Fn EVP_PKEY_get_raw_private_key
+except that it writes raw public key data.
+This function only works for algorithms that support raw public keys.
+Currently these are
+.Dv EVP_PKEY_X25519
+and
+.Dv EVP_PKEY_ED25519 .
+.Sh RETURN VALUES
+.Fn EVP_PKEY_new ,
+.Fn EVP_PKEY_new_raw_private_key ,
+.Fn EVP_PKEY_new_raw_public_key ,
+and
+.Fn EVP_PKEY_new_mac_key
+return either the newly allocated
+.Vt EVP_PKEY
+structure or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn EVP_PKEY_up_ref ,
+.Fn EVP_PKEY_get_raw_private_key ,
+and
+.Fn EVP_PKEY_get_raw_public_key
+return 1 for success or 0 for failure.
+.Sh EXAMPLES
+The following code digests a message with HMAC-SHA256:
+.Bd -literal -offset indent
+/* Bogus key: would normally be set from another source */
+const unsigned char *key = "key";
+const size_t key_len = strlen(key);
+
+const char *msg = "The quick brown fox jumps over the lazy dog";
+const size_t msg_len = strlen(msg);
+
+unsigned char *out_mac;
+size_t out_len, i;
+
+EVP_PKEY *pkey;
+EVP_MD_CTX *md_ctx;
+
+pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_HMAC, NULL,
+    key, key_len);
+if (pkey == NULL)
+	err(1, "EVP_PKEY_new_raw_private_key");
+
+md_ctx = EVP_MD_CTX_new();
+if (md_ctx == NULL)
+	err(1, "EVP_MD_CTX_new");
+
+if (EVP_DigestSignInit(md_ctx, NULL, EVP_sha256(), NULL, pkey) == 0)
+	err(1, "EVP_DigestSignInit");
+if (EVP_DigestSign(md_ctx, NULL, &out_len, msg, msg_len) == 0)
+	err(1, "EVP_DigestSign(NULL)");
+if ((out_mac = calloc(1, out_len)) == NULL)
+	err(1, "calloc");
+if (EVP_DigestSign(md_ctx, out_mac, &out_len, msg, msg_len) == 0)
+	err(1, "EVP_DigestSign(MAC)");
+
+EVP_MD_CTX_free(md_ctx);
+EVP_PKEY_free(pkey);
+
+printf(" MAC = ");
+for (i = 0; i < out_len; i++)
+	printf("%02x", out_mac[i]);
+printf("\en");
+free(out_mac);
+.Ed
+.Pp
+Even though the type name
+.Vt EVP_PKEY
+was originally intended to stand for
+.Dq private key
+and the
+.Xr EVP_DigestSignInit 3
+API was designed for digital signatures in the context of public key
+cryptography, both are also used here because a MAC also requires a key,
+even though that is a symmetric key.
+.Pp
+The same code can be used for signing with Ed25519 by making the key
+.Dv ED25519_PRIVATE_KEY_LENGTH No = 32
+bytes long, replacing
+.Dv EVP_PKEY_HMAC
+with
+.Dv EVP_PKEY_ED25519 ,
+and replacing the call to
+.Xr EVP_sha256 3
+with
+.Dv NULL .
+.Sh SEE ALSO
+.Xr CMAC_Init 3 ,
+.Xr d2i_PrivateKey 3 ,
+.Xr evp 3 ,
+.Xr EVP_PKCS82PKEY 3 ,
+.Xr EVP_PKEY_cmp 3 ,
+.Xr EVP_PKEY_CTX_new 3 ,
+.Xr EVP_PKEY_get_default_digest_nid 3 ,
+.Xr EVP_PKEY_new_CMAC_key 3 ,
+.Xr EVP_PKEY_print_private 3 ,
+.Xr EVP_PKEY_set1_RSA 3 ,
+.Xr EVP_PKEY_size 3 ,
+.Xr X509_get_pubkey_parameters 3
+.Sh HISTORY
+.Fn EVP_PKEY_new
+and
+.Fn EVP_PKEY_free
+first appeared in SSLeay 0.6.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_PKEY_new_mac_key
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .
+.Pp
+.Fn EVP_PKEY_up_ref
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .
+.Pp
+.Fn EVP_PKEY_new_raw_private_key ,
+.Fn EVP_PKEY_new_raw_public_key ,
+.Fn EVP_PKEY_get_raw_private_key ,
+and
+.Fn EVP_PKEY_get_raw_public_key
+first appeared in OpenSSL 1.1.1 and have been available since
+.Ox 7.3 .

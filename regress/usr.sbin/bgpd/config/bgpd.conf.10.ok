@@ -1,0 +1,45 @@
+AS 64512
+router-id 127.0.0.1
+socket "/var/run/bgpd.sock.0"
+listen on 0.0.0.0
+listen on ::
+
+
+rde rib Adj-RIB-In no evaluate
+rde rib Loc-RIB rtable 0 fib-update yes
+
+match from any community 1234:5678 
+match from any community local-as:5678 
+match from any community neighbor-as:5678 
+match from any community *:5678 
+match from any community 1234:local-as 
+match from any community 1234:neighbor-as 
+match from any community 1234:* 
+match from any community *:* 
+match from any community 1234:1 community 1234:2 
+match from any community 1234:1 community 1234:2 community 1234:3 
+match from any community 65535:666 
+match from any community 65535:0 
+match from any community 65535:65281 
+match from any community 65535:65282 
+match from any community 65535:65283 
+match from any community 65535:65284 
+match from any large-community 1234:5678:90 
+match from any large-community local-as:5678:90 
+match from any large-community neighbor-as:5678:90 
+match from any large-community 1234:local-as:90 
+match from any large-community 1234:neighbor-as:90 
+match from any large-community 1234:5678:local-as 
+match from any large-community 1234:5678:neighbor-as 
+match from any large-community *:5678:90 
+match from any large-community 1234:*:90 
+match from any large-community 1234:5678:* 
+match from any large-community 1234:*:* 
+match from any large-community *:5678:* 
+match from any large-community *:*:90 
+match from any large-community *:*:* 
+match from any large-community 1234:5678:1 large-community 1234:5678:2 
+match from any large-community 1234:5678:1 large-community 1234:5678:2 large-community 1234:5678:3 
+match from any community 1234:1 large-community 1234:5678:1 
+match from any large-community 1234:5678:1 community 1234:1 
+match from any set { community delete 1234:5678 large-community delete 1234:15:5678 community delete *:5678 large-community delete *:15:5678 community delete local-as:5678 large-community delete local-as:15:5678 community delete 1234:* community delete local-as:neighbor-as large-community delete local-as:15:* large-community delete local-as:*:* large-community delete local-as:15:neighbor-as community 1234:5678 large-community 1234:15:5678 community local-as:5678 large-community local-as:15:5678 community local-as:neighbor-as large-community local-as:15:neighbor-as }

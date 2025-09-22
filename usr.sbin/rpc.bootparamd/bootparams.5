@@ -1,0 +1,78 @@
+.\" $OpenBSD: bootparams.5,v 1.13 2022/03/31 17:27:31 naddy Exp $
+.\"
+.\" Copyright (c) 1994 Gordon W. Ross
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt BOOTPARAMS 5
+.Os
+.Sh NAME
+.Nm bootparams
+.Nd boot parameter database
+.Sh DESCRIPTION
+The
+.Nm bootparams
+file specifies the boot parameters that
+.Xr diskless 8
+clients may request when booting over the network.
+Each client supported by this server must have an entry in the
+.Nm bootparams
+file containing the pathnames for its "root" and (optionally) "swap" areas.
+.Pp
+Each line in the file
+(other than comment lines that begin with a
+.Sq # )
+specifies the client name followed by the pathnames that
+the client may request by their logical names.
+The components of the line are delimited with blank or tab,
+and may be continued onto multiple lines with a backslash.
+.Pp
+For example:
+.Bd -literal -offset indent
+client	root=server:/export/client/root \e
+	swap=server:/export/client/swap \e
+	dump=server:/export/client/swap
+.Ed
+.Pp
+When the client named "client" requests the pathname for
+its logical "root", it will be given the server name "server"
+and the pathname
+.Pa /export/client/root
+as the response to its
+.Tn RPC
+request.
+.Pp
+A line containing simply
+.Sq +
+will cause YP lookups to be done on the YP map "bootparams".
+.Sh FILES
+.Bl -tag -width /etc/bootparams -compact
+.It Pa /etc/bootparams
+default configuration file
+.El
+.Sh SEE ALSO
+.Xr diskless 8 ,
+.Xr rpc.bootparamd 8 ,
+.Xr yp 8

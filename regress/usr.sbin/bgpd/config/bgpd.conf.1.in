@@ -1,0 +1,4 @@
+# $OpenBSD: bgpd.conf.1.in,v 1.1 2018/09/07 08:38:35 claudio Exp $
+# Only test the bare minimum configuration
+
+AS 1

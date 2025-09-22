@@ -1,0 +1,48 @@
+import("//llvm/lib/Target/targets.gni")
+
+static_library("Rewrite") {
+  output_name = "LLVMBOLTRewrite"
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [
+    "//bolt/lib/Core",
+    "//bolt/lib/Passes",
+    "//bolt/lib/Profile",
+    "//bolt/lib/RuntimeLibs",
+    "//bolt/lib/Utils",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/DWARFLinker",
+    "//llvm/lib/DWARFLinker/Classic",
+    "//llvm/lib/DWP",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/ExecutionEngine/JITLink",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/utils/gn/build/libs/pthread",
+  ]
+  sources = [
+    "BinaryPassManager.cpp",
+    "BoltDiff.cpp",
+    "BuildIDRewriter.cpp",
+    "DWARFRewriter.cpp",
+    "ExecutableFileMemoryManager.cpp",
+    "JITLinkLinker.cpp",
+    "LinuxKernelRewriter.cpp",
+    "MachORewriteInstance.cpp",
+    "MetadataManager.cpp",
+    "PseudoProbeRewriter.cpp",
+    "RewriteInstance.cpp",
+    "SDTRewriter.cpp",
+  ]
+
+  defines = []
+  if (llvm_build_AArch64) {
+    defines += [ "AARCH64_AVAILABLE" ]
+    deps += [ "//bolt/lib/Target/AArch64" ]
+  }
+  if (llvm_build_X86) {
+    defines += [ "X86_AVAILABLE" ]
+    deps += [ "//bolt/lib/Target/X86" ]
+  }
+}

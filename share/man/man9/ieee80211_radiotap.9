@@ -1,0 +1,259 @@
+.\"	$OpenBSD: ieee80211_radiotap.9,v 1.15 2020/10/09 08:53:16 mpi Exp $
+.\"
+.\" Copyright (c) 2004	Bruce M. Simpson <bms@spc.org>,
+.\"			Darron Broad <darron@kewl.org>,
+.\"			David Young <dyoung@pobox.com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/ieee80211_radiotap.9,v 1.3 2004/07/07 12:59:39 ru Exp $
+.\" $Id: ieee80211_radiotap.9,v 1.15 2020/10/09 08:53:16 mpi Exp $
+.\"
+.Dd $Mdocdate: October 9 2020 $
+.Dt IEEE80211_RADIOTAP 9
+.Os
+.Sh NAME
+.Nm ieee80211_radiotap
+.Nd software 802.11 stack packet capture definitions
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.In net80211/ieee80211_ioctl.h
+.In net80211/ieee80211_radiotap.h
+.In net/bpf.h
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+definitions provide a device-independent
+.Xr bpf 4
+attachment for the
+capture of information about 802.11 traffic which is not part of
+the 802.11 frame structure.
+.Pp
+Radiotap was designed to balance the desire for a capture format
+that conserved CPU and memory bandwidth on embedded systems,
+with the desire for a hardware-independent, extensible format
+that would support the diverse capabilities of virtually all
+802.11
+radios.
+.Pp
+These considerations led radiotap to settle on a format consisting of
+a standard preamble followed by an extensible bitmap indicating the
+presence of optional capture fields.
+.Pp
+The capture fields were packed into the header as compactly as possible,
+modulo the requirements that they had to be packed swiftly,
+with suitable alignment, in the same order as the bits indicating
+their presence.
+.Pp
+This typically includes information such as signal quality and
+timestamps.
+This information may be used by a variety of user agents, including
+.Xr tcpdump 8 .
+It is requested by using the
+.Xr bpf 4
+data-link type
+.Dv DLT_IEEE802_11_RADIO .
+.Pp
+.\"
+Each frame using this attachment has the following header prepended to it:
+.Bd -literal -offset indent
+struct ieee80211_radiotap_header {
+	u_int8_t	it_version;	/* set to 0 */
+	u_int8_t	it_pad;
+	u_int16_t	it_len;		/* entire length */
+	u_int32_t	it_present;	/* fields present */
+} __packed;
+.Ed
+.Pp
+.\"
+A device driver implementing
+.Vt radiotap
+typically defines a packed structure embedding an instance of
+.Vt "struct ieee80211_radiotap_header"
+at the beginning,
+with subsequent fields in the appropriate order,
+and a macro to set the bits of the
+.Va it_present
+bitmap to indicate which fields exist and are filled in by the driver.
+.\"
+.Pp
+Radiotap headers are copied to userland via a separate bpf attachment.
+It is necessary for the driver to create this attachment after calling
+.Xr ieee80211_ifattach 9
+by calling
+.Fn bpfattach2
+with the data-link type set to
+.Dv DLT_IEEE802_11_RADIO .
+.Pp
+.\"
+When the information is available,
+usually immediately before a link-layer transmission or after a receive,
+the driver copies it to the bpf layer using the
+.Fn bpf_mtap2
+function.
+.Pp
+.\"
+The following extension fields are defined for
+.Vt radiotap ,
+in the order in which they should appear in the buffer copied to userland:
+.Bl -tag -width indent
+.It Dv IEEE80211_RADIOTAP_TSFT
+This field contains the unsigned 64-bit value, in microseconds,
+of the MAC's 802.11 Time Synchronization Function timer,
+when the first bit of the MPDU arrived at the MAC.
+This field should be present for received frames only.
+.It Dv IEEE80211_RADIOTAP_FLAGS
+This field contains a single unsigned 8-bit value, containing a bitmap
+of flags specifying properties of the frame being transmitted or received.
+.It Dv IEEE80211_RADIOTAP_RATE
+This field contains a single unsigned 8-bit value, which is the data rate in
+use in units of 500Kbps.
+If the most significant bit is set, the remaining bits contain an MCS index
+instead of a data rate.
+.It Dv IEEE80211_RADIOTAP_CHANNEL
+This field contains two unsigned 16-bit values.
+The first value is the frequency upon which this PDU was transmitted
+or received.
+The second value is a bitmap containing flags which specify properties of
+the channel in use.
+These are documented within the header file
+.In net80211/ieee80211_radiotap.h .
+.It Dv IEEE80211_RADIOTAP_FHSS
+This field contains two 8-bit values.
+This field should be present for frequency-hopping radios only.
+The first byte is the hop set.
+The second byte is the pattern in use.
+.It Dv IEEE80211_RADIOTAP_DBM_ANTSIGNAL
+This field contains a single signed 8-bit value, which indicates the
+RF signal power at the antenna, in decibels difference from 1mW.
+.It Dv IEEE80211_RADIOTAP_DBM_ANTNOISE
+This field contains a single signed 8-bit value, which indicates the
+RF noise power at the antenna, in decibels difference from 1mW.
+.It Dv IEEE80211_RADIOTAP_LOCK_QUALITY
+This field contains a single unsigned 16-bit value, indicating the
+quality of the Barker Code lock.
+No unit is specified for this field.
+There does not appear to be a standard way of measuring this at this time;
+this quantity is often referred to as
+.Dq "Signal Quality"
+in some datasheets.
+.It Dv IEEE80211_RADIOTAP_TX_ATTENUATION
+This field contains a single unsigned 16-bit value, expressing transmit
+power as unitless distance from maximum power set at factory calibration.
+0 indicates maximum transmit power.
+Monotonically nondecreasing with lower power levels.
+.It Dv IEEE80211_RADIOTAP_DB_TX_ATTENUATION
+This field contains a single unsigned 16-bit value, expressing transmit
+power as decibel distance from maximum power set at factory calibration.
+0 indicates maximum transmit power.
+Monotonically nondecreasing with lower power levels.
+.It Dv IEEE80211_RADIOTAP_DBM_TX_POWER
+Transmit power expressed as decibels from a 1mW reference.
+This field is a single signed 8-bit value.
+This is the absolute power level measured at the antenna port.
+.It Dv IEEE80211_RADIOTAP_ANTENNA
+For radios which support antenna diversity, this field contains a single
+unsigned 8-bit value specifying which antenna is being used to transmit
+or receive this frame.
+The first antenna is antenna 0.
+.It Dv IEEE80211_RADIOTAP_DB_ANTSIGNAL
+This field contains a single unsigned 8-bit value, which indicates the
+RF signal power at the antenna, in decibels difference from an
+arbitrary, fixed reference.
+.It Dv IEEE80211_RADIOTAP_DB_ANTNOISE
+This field contains a single unsigned 8-bit value, which indicates the
+RF noise power at the antenna, in decibels difference from an
+arbitrary, fixed reference.
+.It Dv IEEE80211_RADIOTAP_RSSI
+This field contains two unsigned 8-bit values.
+The first value is the received signal strength index (RSSI)
+which indicates the RF signal power at the antenna.
+The second value is the relative maximum RSSI value of the RF
+interface.
+.It Dv IEEE80211_RADIOTAP_EXT
+This bit is reserved for any future extensions to the
+.Vt radiotap
+structure.
+A driver can set
+.Dv IEEE80211_RADIOTAP_EXT
+to extend the it_present bitmap by another 64 bits.
+The bitmap can be extended by multiples of 32 bits to 96, 128, 160 bits,
+or longer, by setting
+.Dv IEEE80211_RADIOTAP_EXT
+in the extensions.
+The bitmap ends at the first extension field where
+.Dv IEEE80211_RADIOTAP_EXT
+is not set.
+.El
+.Sh EXAMPLES
+Radiotap header for the Realtek RTL8180L driver
+.Xr rtw 4 :
+.Bd -literal -offset indent
+struct rtw_rx_radiotap_header {
+	struct ieee80211_radiotap_header	rr_ihdr;
+	u_int64_t				rr_tsft;
+	u_int8_t				rr_flags;
+	u_int8_t				rr_rate;
+	u_int16_t				rr_chan_freq;
+	u_int16_t				rr_chan_flags;
+	u_int16_t				rr_barker_lock;
+	u_int8_t				rr_antsignal;
+} __packed;
+.Ed
+.Pp
+Bitmap indicating which fields are present in the above structure:
+.Bd -literal -offset indent
+#define RTW_RX_RADIOTAP_PRESENT					\e
+	((1 << IEEE80211_RADIOTAP_TSFT)			|	\e
+	 (1 << IEEE80211_RADIOTAP_FLAGS)		|	\e
+	 (1 << IEEE80211_RADIOTAP_RATE)			|	\e
+	 (1 << IEEE80211_RADIOTAP_CHANNEL)		|	\e
+	 (1 << IEEE80211_RADIOTAP_LOCK_QUALITY)		|	\e
+	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL)		|	\e
+	 0)
+.Ed
+.Sh SEE ALSO
+.Xr bpf 4 ,
+.Xr ieee80211 9
+.Sh HISTORY
+The
+.Nm
+definitions first appeared in
+.Nx 1.5 ,
+and were later ported to
+.Fx 4.6
+and
+.Ox 3.6 .
+.\"
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+interface was designed and implemented by
+.An David Young Aq Mt dyoung@pobox.com .
+.Pp
+This manual page was written by
+.An Bruce M. Simpson Aq Mt bms@FreeBSD.org
+and
+.An Darron Broad Aq Mt darron@kewl.org .

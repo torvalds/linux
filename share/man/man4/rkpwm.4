@@ -1,0 +1,42 @@
+.\"	$OpenBSD: rkpwm.4,v 1.1 2019/12/03 09:37:04 patrick Exp $
+.\"
+.\" Copyright (c) 2019 Patrick Wildt <patrick@blueri.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 3 2019 $
+.Dt RKPWM 4
+.Os
+.Sh NAME
+.Nm rkpwm
+.Nd Rockchip PWM controller
+.Sh SYNOPSIS
+.Cd "rkpwm* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the PWM controllers integrated on various
+Rockchip SoCs.
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 6.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Patrick Wildt Aq Mt patrick@blueri.se .

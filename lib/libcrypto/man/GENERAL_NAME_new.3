@@ -1,0 +1,166 @@
+.\"	$OpenBSD: GENERAL_NAME_new.3,v 1.7 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt GENERAL_NAME_NEW 3
+.Os
+.Sh NAME
+.Nm GENERAL_NAME_new ,
+.Nm GENERAL_NAME_free ,
+.Nm GENERAL_NAMES_new ,
+.Nm GENERAL_NAMES_free ,
+.Nm EDIPARTYNAME_new ,
+.Nm EDIPARTYNAME_free ,
+.Nm OTHERNAME_new ,
+.Nm OTHERNAME_free
+.Nd names for use in X.509 extensions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft GENERAL_NAME *
+.Fn GENERAL_NAME_new void
+.Ft void
+.Fn GENERAL_NAME_free "GENERAL_NAME *name"
+.Ft GENERAL_NAMES *
+.Fn GENERAL_NAMES_new void
+.Ft void
+.Fn GENERAL_NAMES_free "GENERAL_NAMES *names"
+.Ft EDIPARTYNAME *
+.Fn EDIPARTYNAME_new void
+.Ft void
+.Fn EDIPARTYNAME_free "EDIPARTYNAME *name"
+.Ft OTHERNAME *
+.Fn OTHERNAME_new void
+.Ft void
+.Fn OTHERNAME_free "OTHERNAME *name"
+.Sh DESCRIPTION
+Even though the X.501
+.Vt Name
+documented in
+.Xr X509_NAME_new 3
+is a complicated multi-layered structure, it is very rigid and not
+flexible enough to represent various entities that many people want
+to use as names in certificates.
+For that reason, X.509 extensions use the X.509
+.Vt GeneralName
+wrapper structure rather than using the X.501
+.Vt Name
+structure directly, at the expense of adding one or two additional
+layers of indirection.
+.Pp
+.Fn GENERAL_NAME_new
+allocates and initializes an empty
+.Vt GENERAL_NAME
+object, representing the ASN.1
+.Vt GeneralName
+structure defined in RFC 5280 section 4.2.1.6.
+It can for example hold an
+.Vt X509_name
+object, an IP address, a DNS host name, a uniform resource identifier,
+an email address, or an
+.Vt EDIPARTYNAME
+or
+.Vt OTHERNAME
+object described below.
+.Fn GENERAL_NAME_free
+frees
+.Fa name .
+.Pp
+.Fn GENERAL_NAMES_new
+allocates and initializes an empty
+.Vt GENERAL_NAMES
+object, which is a
+.Vt STACK_OF(GENERAL_NAME)
+and represents the ASN.1
+.Vt GeneralNames
+structure defined in RFC 5280 section 4.2.1.6.
+It is used by extension structures that can contain multiple names,
+for example key identifier, alternative name, and distribution point
+extensions.
+.Fn GENERAL_NAMES_free
+frees
+.Fa names .
+.Pp
+.Fn EDIPARTYNAME_new
+allocates and initializes an empty
+.Vt EDIPARTYNAME
+object, representing the ASN.1
+.Vt EDIPartyName
+structure defined in RFC 5280 section 4.2.1.6, where
+.Dq EDI
+stands for
+.Dq electronic data identifier .
+It can hold two strings, the name itself and the name of the authority
+that assigned that name.
+.Fn EDIPARTYNAME_free
+frees
+.Fa name .
+.Pp
+.Fn OTHERNAME_new
+allocates and initializes an empty
+.Vt OTHERNAME
+object, representing the ASN.1
+.Vt OtherName
+structure defined in RFC 5280 section 4.2.1.6.
+It can hold data of any
+.Vt ASN1_TYPE
+together with a type identifier.
+.Fn OTHERNAME_free
+frees
+.Fa name .
+.Sh RETURN VALUES
+.Fn GENERAL_NAME_new ,
+.Fn GENERAL_NAMES_new ,
+.Fn EDIPARTYNAME_new ,
+and
+.Fn OTHERNAME_new
+return a new
+.Vt GENERAL_NAME ,
+.Vt GENERAL_NAMES ,
+.Vt EDIPARTYNAME ,
+or
+.Vt OTHERNAME
+object or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr d2i_GENERAL_NAME 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_NAME_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile,
+section 4.2: Certificate Extensions
+.Sh HISTORY
+.Fn GENERAL_NAME_new ,
+.Fn GENERAL_NAME_free ,
+.Fn GENERAL_NAMES_new ,
+and
+.Fn GENERAL_NAMES_free
+first appeared in OpenSSL 0.9.2b and have been available since
+.Ox 2.6 .
+.Pp
+.Fn OTHERNAME_new
+and
+.Fn OTHERNAME_free
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn EDIPARTYNAME_new
+and
+.Fn EDIPARTYNAME_free
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .

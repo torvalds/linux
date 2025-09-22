@@ -1,0 +1,11 @@
+import("//clang/utils/TableGen/clang_tablegen.gni")
+
+clang_tablegen("AttrPCHRead") {
+  args = [ "-gen-clang-attr-pch-read" ]
+  td_file = "../Basic/Attr.td"
+}
+
+clang_tablegen("AttrPCHWrite") {
+  args = [ "-gen-clang-attr-pch-write" ]
+  td_file = "../Basic/Attr.td"
+}

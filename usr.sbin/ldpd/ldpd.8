@@ -1,0 +1,195 @@
+.\"	$OpenBSD: ldpd.8,v 1.22 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2013, 2016 Renato Westphal <renato@openbsd.org>
+.\" Copyright (c) 2009 Michele Marchetto <michele@openbsd.org>
+.\" Copyright (c) 2004, 2005, 2006 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt LDPD 8
+.Os
+.Sh NAME
+.Nm ldpd
+.Nd Label Distribution Protocol (LDP) routing daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+.Nm
+is the Label Distribution Protocol
+.Pq LDP
+daemon, which distributes MPLS label mappings between routers.
+.Pp
+A running
+.Nm
+can be controlled with the
+.Xr ldpctl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Specify an alternative configuration file.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl s Ar socket
+Use an alternate location for the default control socket.
+.It Fl v
+Produce more verbose output.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/ldpd.sockXX" -compact
+.It Pa /etc/ldpd.conf
+Default
+.Nm
+configuration file.
+.It Pa /var/run/ldpd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr ldpctl 8 .
+.El
+.Sh SEE ALSO
+.Xr mpe 4 ,
+.Xr ldpd.conf 5 ,
+.Xr ldpctl 8 ,
+.Xr rc.conf 8
+.Sh STANDARDS
+.Rs
+.%A E. Rosen
+.%A A. Viswanathan
+.%A R. Callon
+.%D January 2001
+.%R RFC 3031
+.%T Multiprotocol Label Switching Architecture
+.Re
+.Pp
+.Rs
+.%A S. Bryant
+.%A G. Swallow
+.%A L. Martini
+.%A D. McPherson
+.%D February 2006
+.%R RFC 4385
+.%T Pseudowire Emulation Edge-to-Edge (PWE3) Control Word for Use over an MPLS PSN
+.Re
+.Pp
+.Rs
+.%A L. Martini
+.%A E. Rosen
+.%A N. El-Aawar
+.%A T. Smith
+.%A G. Heron
+.%D April 2006
+.%R RFC 4447
+.%T Pseudowire Setup and Maintenance Using the Label Distribution Protocol (LDP)
+.Re
+.Pp
+.Rs
+.%A M. Lasserre
+.%A V. Kompella
+.%D January 2007
+.%R RFC 4762
+.%T Virtual Private LAN Service (VPLS) Using Label Distribution Protocol (LDP) Signaling
+.Re
+.Pp
+.Rs
+.%A L. Andersson
+.%A I. Minei
+.%A B. Thomas
+.%D October 2007
+.%R RFC 5036
+.%T LDP Specification
+.Re
+.Pp
+.Rs
+.%A B. Thomas
+.%A K. Raza
+.%A S. Aggarwal
+.%A R. Aggarwal
+.%A JL. Le Roux
+.%D July 2009
+.%R RFC 5561
+.%T LDP Capabilities
+.Re
+.Pp
+.Rs
+.%A R. Asati
+.%A I. Minei
+.%A B. Thomas
+.%D August 2010
+.%R RFC 5918
+.%T Label Distribution Protocol (LDP) 'Typed Wildcard' Forward Equivalence Class (FEC)
+.Re
+.Pp
+.Rs
+.%A R. Asati
+.%A P. Mohapatra
+.%A E. Chen
+.%A B. Thomas
+.%D August 2010
+.%R RFC 5919
+.%T Signaling LDP Label Advertisement Completion
+.Re
+.Pp
+.Rs
+.%A K. Raza
+.%A S. Boutros
+.%A C. Pignataro
+.%D July 2012
+.%R RFC 6667
+.%T LDP 'Typed Wildcard' Forwarding Equivalence Class (FEC) for PWid and Generalized PWid FEC Elements
+.Re
+.Pp
+.Rs
+.%A C. Pignataro
+.%A R. Asati
+.%D August 2012
+.%R RFC 6720
+.%T The Generalized TTL Security Mechanism (GTSM) for the Label Distribution Protocol (LDP)
+.Re
+.Pp
+.Rs
+.%A R. Asati
+.%A C. Pignataro
+.%A K. Raza
+.%A V. Manral
+.%A R. Papneja
+.%D June 2015
+.%R RFC 7552
+.%T Updates to LDP for IPv6
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.6 .

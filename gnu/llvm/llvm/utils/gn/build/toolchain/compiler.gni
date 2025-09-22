@@ -1,0 +1,29 @@
+declare_args() {
+  # If set, this is prepended to compile action command lines (e.g. `"ccache"`).
+  compiler_wrapper = ""
+
+  # Set this to a clang build directory. If set, that clang is used as compiler.
+  # On Windows, setting this also causes lld-link to be used as linker.
+  # Example value: getenv("HOME") + "/src/llvm-build/Release+Asserts"
+  clang_base_path = ""
+
+  # Set this to the path to Android NDK r21. If set, cross compilation targeting
+  # Android will be enabled.
+  android_ndk_path = ""
+
+  # Set this to the path of the Win SDK. Only used for cross compilation. If set, cross compilation targeting Windows will be enabled.
+  win_sysroot = ""
+}
+
+declare_args() {
+  # Set if the host compiler is clang.  On by default on Mac or if
+  # clang_base_path is set.
+  is_clang = host_os == "mac" || clang_base_path != ""
+
+  # Set this to true to link with LLD instead of the default linker.
+  use_lld = clang_base_path != ""
+}
+
+assert(
+    !(host_os == "win" && win_sysroot != ""),
+    "win_sysroot should only be used for cross compilation, use sysroot on Windows")

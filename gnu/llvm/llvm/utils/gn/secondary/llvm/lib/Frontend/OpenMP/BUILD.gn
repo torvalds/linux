@@ -1,0 +1,19 @@
+static_library("OpenMP") {
+  output_name = "LLVMFrontendOpenMP"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/Frontend/Offloading",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/Scalar",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  public_deps = [ "//llvm/include/llvm/Frontend/OpenMP:public_tablegen" ]
+  sources = [
+    "OMP.cpp",
+    "OMPContext.cpp",
+    "OMPIRBuilder.cpp",
+  ]
+}

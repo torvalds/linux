@@ -1,0 +1,238 @@
+.\"	$OpenBSD: getrlimit.2,v 1.29 2022/09/11 06:38:11 jmc Exp $
+.\"	$NetBSD: getrlimit.2,v 1.8 1995/10/12 15:40:58 jtc Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getrlimit.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt GETRLIMIT 2
+.Os
+.Sh NAME
+.Nm getrlimit ,
+.Nm setrlimit
+.Nd control maximum system resource consumption
+.Sh SYNOPSIS
+.In sys/resource.h
+.Ft int
+.Fn getrlimit "int resource" "struct rlimit *rlp"
+.Ft int
+.Fn setrlimit "int resource" "const struct rlimit *rlp"
+.Sh DESCRIPTION
+Limits on the consumption of system resources by the current process
+and each process it creates may be obtained with the
+.Fn getrlimit
+call, and set with the
+.Fn setrlimit
+call.
+.Pp
+The
+.Fa resource
+parameter is one of the following:
+.Bl -tag -width RLIMIT_FSIZEAA
+.It Li RLIMIT_CORE
+The largest size (in bytes)
+.Pa core
+file that may be created.
+.It Li RLIMIT_CPU
+The maximum amount of CPU time (in seconds) to be used by
+each process.
+.It Li RLIMIT_DATA
+The maximum size (in bytes) of the data segment for a process;
+this includes memory allocated via
+.Xr malloc 3
+and all other anonymous memory mapped via
+.Xr mmap 2 .
+.It Li RLIMIT_FSIZE
+The largest size (in bytes) file that may be created.
+.It Li RLIMIT_MEMLOCK
+The maximum size (in bytes) which a process may lock into memory
+using the
+.Xr mlock 2
+function.
+.It Li RLIMIT_NOFILE
+The maximum number of open files for this process.
+.It Li RLIMIT_NPROC
+The maximum number of simultaneous processes for this user id.
+.It Li RLIMIT_RSS
+The maximum size (in bytes) to which a process's resident set size may
+grow.
+This setting is no longer enforced, but retained for compatibility.
+.It Li RLIMIT_STACK
+The maximum size (in bytes) of the stack segment for a process,
+which defines how far a process's stack segment may be extended.
+Stack extension is performed automatically by the system,
+and is only used by the main thread of a process.
+.El
+.Pp
+A resource limit is specified as a soft limit and a hard limit.
+When a soft limit is exceeded a process may receive a signal (for example,
+if the CPU time or file size is exceeded), but it will be allowed to
+continue execution until it reaches the hard limit (or modifies
+its resource limit).
+The
+.Em rlimit
+structure is used to specify the hard and soft limits on a resource,
+.Bd -literal -offset indent
+struct rlimit {
+	rlim_t	rlim_cur;	/* current (soft) limit */
+	rlim_t	rlim_max;	/* hard limit */
+};
+.Ed
+.Pp
+Only the superuser may raise the maximum limits.
+Other users may only alter
+.Fa rlim_cur
+within the range from 0 to
+.Fa rlim_max
+or (irreversibly) lower
+.Fa rlim_max .
+.Pp
+An
+.Dq infinite
+value for a limit is defined as
+.Dv RLIM_INFINITY .
+.Pp
+A value of
+.Dv RLIM_SAVED_CUR
+or
+.Dv RLIM_SAVED_MAX
+will be stored in
+.Fa rlim_cur
+or
+.Fa rlim_max
+respectively by
+.Fn getrlimit
+if the value for the current or maximum resource limit cannot be stored in an
+.Vt rlim_t .
+The values
+.Dv RLIM_SAVED_CUR
+and
+.Dv RLIM_SAVED_MAX
+should not be used in a call to
+.Fn setrlimit
+unless they were returned by a previous call to
+.Fn getrlimit .
+.Pp
+Because this information is stored in the per-process information,
+this system call must be executed directly by the shell if it
+is to affect all future processes created by the shell;
+.Ic limit
+is thus a built-in command to
+.Xr csh 1
+and
+.Ic ulimit
+is the
+.Xr sh 1
+equivalent.
+.Pp
+The system refuses to extend the data or stack space when the limits
+would be exceeded in the normal way: a
+.Xr brk 2
+call fails if the data space limit is reached.
+When the stack limit is reached, the process receives
+a segmentation fault
+.Pq Dv SIGSEGV ;
+if this signal is not
+caught by a handler using the signal stack, this signal
+will kill the process.
+.Pp
+A file I/O operation that would create a file larger than the process'
+soft limit will cause the write to fail and a signal
+.Dv SIGXFSZ
+to be
+generated; this normally terminates the process, but may be caught.
+When the soft CPU time limit is exceeded, a signal
+.Dv SIGXCPU
+is sent to the
+offending process.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn getrlimit
+and
+.Fn setrlimit
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The address specified for
+.Fa rlp
+is invalid.
+.It Bq Er EINVAL
+An unrecognized value for
+.Fa resource
+was specified.
+.El
+.Pp
+In addition,
+.Fn setrlimit
+may return the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The new
+.Fa rlim_cur
+is greater than the new
+.Fa rlim_max .
+.It Bq Er EPERM
+The new
+.Fa rlim_max
+is greater than the current maximum limit value,
+and the caller is not the superuser.
+.El
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr sh 1 ,
+.Xr quotactl 2 ,
+.Xr sigaction 2 ,
+.Xr sigaltstack 2 ,
+.Xr sysctl 2
+.Sh STANDARDS
+The
+.Fn getrlimit
+and
+.Fn setrlimit
+functions conform to
+.St -p1003.1-2008 .
+.Pp
+The
+.Dv RLIMIT_MEMLOCK ,
+.Dv RLIMIT_NPROC ,
+and
+.Dv RLIMIT_RSS
+resources are non-standard extensions.
+.Sh HISTORY
+The
+.Fn getrlimit
+and
+.Fn setrlimit
+system calls first appeared in
+.Bx 4.1c .
+.Sh BUGS
+The
+.Dv RLIMIT_AS
+resource is missing.

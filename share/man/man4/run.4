@@ -1,0 +1,243 @@
+.\" $OpenBSD: run.4,v 1.58 2025/03/27 15:12:14 jmc Exp $
+.\"
+.\" Copyright (c) 2008 Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt RUN 4
+.Os
+.Sh NAME
+.Nm run
+.Nd Ralink Technology/MediaTek USB IEEE 802.11a/b/g/n wireless network device
+.Sh SYNOPSIS
+.Cd "run* at uhub? port ?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 2.0 wireless adapters based on the Ralink RT2700U,
+RT2800U, RT3000U and RT3900E chipsets.
+.Pp
+The RT2700U chipset consists of two integrated chips, an RT2770 MAC/BBP and
+an RT2720 (1T2R) or RT2750 (dual-band 1T2R) radio transceiver.
+.Pp
+The RT2800U chipset consists of two integrated chips, an RT2870 MAC/BBP and
+an RT2820 (2T3R) or RT2850 (dual-band 2T3R) radio transceiver.
+.Pp
+The RT3000U is a single-chip solution based on an RT3070 MAC/BBP and
+an RT3020 (1T1R), RT3021 (1T2R), RT3022 (2T2R) or RT3052 (dual-band 2T2R)
+radio transceiver.
+.Pp
+The RT3900E is a single-chip solution based on an RT3593, RT5390,
+RT5392 or an RT5592 MAC/BBP and an RT3053 (dual-band 3T3R),
+RT5370 (1T1R), RT5372 (2T2R), or RT5572 (dual-band 2T2R)
+radio transceiver.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+The
+.Nm
+driver offloads both encryption and decryption of data frames to the
+hardware for the WEP40, WEP104, TKIP(+MIC) and CCMP ciphers.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The driver needs the following firmware files,
+which are loaded when an interface is brought up:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It /etc/firmware/run-rt2870
+.It /etc/firmware/run-rt3071
+.El
+.Sh HARDWARE
+The following adapters should work:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Airlink101 AWLL6090
+.It ASUS USB-N11
+.It ASUS USB-N13 ver. A1
+.It ASUS USB-N53
+.It ASUS USB-N66
+.It ASUS WL-160N
+.It Belkin F5D8051 ver 3000
+.It Belkin F5D8053
+.It Belkin F5D8055
+.It Belkin F6D4050 ver 1
+.It Belkin F6D4050 ver 2
+.It Belkin F7D1101 ver 2
+.It Belkin F9L1103
+.It Buffalo WLI-UC-AG300N
+.It Buffalo WLI-UC-G300N
+.It Buffalo WLI-UC-G301N
+.It Buffalo WLI-UC-GN
+.It Buffalo WLI-UC-GNHP
+.It Buffalo WLI-UC-GNM
+.It Buffalo WLI-UC-GNM2
+.It Cisco AM10
+.It Corega CG-WLUSB2GNL
+.It Corega CG-WLUSB2GNR
+.It Corega CG-WLUSB300AGN
+.It Corega CG-WLUSB300GNM
+.It D-Link DWA-125 rev B2
+.It D-Link DWA-127
+.It D-Link DWA-130 rev B1, F1
+.It D-Link DWA-140 rev B1, B2, B3, \&D1
+.It D-Link DWA-160 rev B2
+.It D-Link DWA-162
+.It DrayTek Vigor N61
+.It Edimax EW-7711UAn
+.It Edimax EW-7711USn
+.It Edimax EW-7711UTn
+.It Edimax EW-7717Un
+.It Edimax EW-7718Un
+.It Edimax EW-7722UTn
+.It Edimax EW-7733UnD
+.It Gigabyte GN-WB30N
+.It Gigabyte GN-WB31N
+.It Gigabyte GN-WB32L
+.It Hawking HWDN1
+.It Hawking HWUN1
+.It Hawking HWUN2
+.It Hercules HWNU-300
+.It Keebox W150NU
+.It Linksys AE1000
+.It Linksys WUSB54GC v3
+.It Linksys WUSB600N
+.It LogiLink WL0084B
+.It Logitec gLAN-W150NU2BK
+.It Logitec LAN-W150N/U2
+.It Logitec LAN-W300N/U2
+.It Logitec LAN-W300N/U2S
+.It Mvix Nubbin MS-811N
+.It Planex GW-USMicroN
+.It Planex GW-US300MiniS
+.It Sitecom WL-182
+.It Sitecom WL-188
+.It Sitecom WL-301
+.It Sitecom WL-302
+.It Sitecom WL-315
+.It Sitecom WLA-4000
+.It Sitecom WLA-5000
+.It SMC SMCWUSBS-N2
+.It Sweex LW153
+.It Sweex LW303
+.It Sweex LW313
+.It Tenda W311M
+.It TP-LINK TL-WDN3200
+.It TP-LINK TL-WN727N v3
+.It TRENDnet TEW-645UB
+.It Unex DNUR-81
+.It Unex DNUR-82
+.It ZyXEL NWD-211AN
+.It ZyXEL NWD-271N
+.It ZyXEL NWD2105
+.It ZyXEL NWD210N
+.It ZyXEL NWD2205
+.It ZyXEL NWD270N
+.It ZyXEL NWD2705
+.El
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig run0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures run0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "run0: error N, could not read firmware ..."
+For some reason, the driver was unable to read the microcode file from the
+filesystem.
+The file might be missing or corrupted.
+.It "run0: could not load 8051 microcode"
+An error occurred while attempting to upload the microcode to the onboard 8051
+microcontroller unit.
+.It "run0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.5 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.Sh CAVEATS
+The
+.Nm
+driver does not support any of the 802.11n capabilities offered by the
+RT2800 and RT3000 chipsets.
+Additional work is required in
+.Xr ieee80211 9
+before those features can be supported.

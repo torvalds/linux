@@ -1,0 +1,108 @@
+.\"	$OpenBSD: kubsan.4,v 1.5 2024/09/06 13:31:59 mbuhl Exp $
+.\"
+.\" Copyright (c) 2019 Anton Lindqvist <anton@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: September 6 2024 $
+.Dt KUBSAN 4
+.Os
+.Sh NAME
+.Nm kubsan
+.Nd kernel undefined behavior sanitizer
+.Sh SYNOPSIS
+.Cd option KUBSAN
+.Sh DESCRIPTION
+.Nm
+detects undefined behavior at runtime inside the kernel.
+Detected undefined behavior is printed to the system console,
+including the offending line in the source code.
+.Pp
+By default,
+.Nm
+is not enabled but instead requires the following line to be present in the
+kernel configuration:
+.Bd -literal -offset indent
+option KUBSAN
+.Ed
+.Pp
+The following undefined behavior is detected:
+.Bl -tag -width 4n
+.It Float cast overflow
+The conversion from a floating point to an integer cannot be represented by
+the destination type.
+.It Integer overflow
+The result of an arithmetic computation on two integer operands cannot be
+represented by the destination type.
+.It Negate overflow
+Negation of an integer cannot be represented by the destination type.
+.It Pointer overflow
+Pointer arithmetic overflow.
+.It Out of bounds
+Array indexing out of bounds, limited to cases where the size of the array
+can be statically determined.
+.It Shift out of bounds
+Undefined logical shift caused by:
+.Bl -dash
+.It
+The shift amount being negative.
+.It
+The shift operand being negative.
+.It
+The shift amount exceeds the number of bits as given by the shift operand
+type.
+.It
+The result of the shift computation cannot be represented by the destination
+type.
+.El
+.It Non-null argument
+Passing
+.Dv NULL
+as the value for a function argument annotated with
+.Dv __nonnull__ .
+.It Invalid builtin
+Passing zero to a compiler builtin where not allowed.
+.It Invalid load
+Loading a value that cannot be represented by the destination type.
+.It Type mismatch
+Mismatch between pointer and value type caused by:
+.Bl -dash
+.It
+A pointer which does not fulfill the alignment requirements of the value type.
+.It
+A pointer to an address which lacks sufficient space to store the value type.
+.El
+.It Unreachable
+Execution reached passed a function annotated with
+.Dv __dead .
+.El
+.Sh SEE ALSO
+.Xr options 4
+.Sh HISTORY
+The
+.Nm
+implementation
+is derived from
+.Nx
+and first appeared in
+.Ox 6.5 .
+.Sh AUTHORS
+The
+.Nm
+implementation was written by
+.An Anton Lindqvist Aq Mt anton@openbsd.org .
+.Sh CAVEATS
+The
+.Nm
+implementation is limited to architectures using
+.Xr clang 1
+as their default compiler.

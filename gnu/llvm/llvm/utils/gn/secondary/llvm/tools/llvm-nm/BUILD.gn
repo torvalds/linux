@@ -1,0 +1,42 @@
+import("//llvm/tools/binutils_symlinks.gni")
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/driver_executable.gni")
+import("//llvm/utils/gn/build/symlink_or_copy.gni")
+
+tablegen("Opts") {
+  visibility = [ ":llvm-nm" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+if (llvm_install_binutils_symlinks) {
+  symlink_or_copy("nm") {
+    deps = [ ":llvm-nm" ]
+    source = "llvm-nm"
+    output = "$root_out_dir/bin/nm"
+  }
+}
+
+# //:llvm-nm depends on this symlink target, see comment in //BUILD.gn.
+group("symlinks") {
+  deps = [ ":llvm-nm" ]
+  if (llvm_install_binutils_symlinks) {
+    deps += [ ":nm" ]
+  }
+}
+
+driver_executable("llvm-nm") {
+  deps = [
+    ":Opts",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsAsmParsers",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsInfos",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "llvm-nm.cpp" ]
+}

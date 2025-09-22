@@ -1,0 +1,47 @@
+.\"	$OpenBSD: acpisurface.4,v 1.2 2018/07/01 05:47:16 jmc Exp $
+.\"
+.\" Copyright (c) 2018 Mike Larkin <mlarkin@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 1 2018 $
+.Dt ACPISURFACE 4
+.Os
+.Sh NAME
+.Nm acpisurface
+.Nd Microsoft Surface Book ACPI support
+.Sh SYNOPSIS
+.Cd "acpisurface* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides ACPI support for Microsoft Surface Book laptops.
+It responds to various button presses such as volume up/down and power
+buttons, all of which are located on the top of the tablet/detachable display.
+It does not provide support for the hotkeys in the keyboard/base unit.
+.Pp
+Volume up/down button presses are routed to the master system mixer via the
+.Xr wscons 4
+subsystem.
+Power button presses result in a soft power off request being queued by the
+.Xr acpi 4
+subsystem.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr audio 4 ,
+.Xr wscons 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.4 .

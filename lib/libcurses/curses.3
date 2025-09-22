@@ -1,0 +1,1537 @@
+'\" t
+.\" $OpenBSD: curses.3,v 1.6 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2021,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curses.3,v 1.6 2023/10/17 09:52:08 nicm Exp $
+.hy 0
+.TH ncurses 3 2023-08-19 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.de NS
+.ie n  .sp
+.el    .sp .5
+.ie n  .in +4
+.el    .in +2
+.nf
+.ft CR			\" Courier
+..
+.de NE
+.fi
+.ft R
+.ie n  .in -4
+.el    .in -2
+..
+.ds n 5
+.ds d /usr/share/terminfo
+.SH NAME
+\fBncurses\fP \- CRT screen handling and optimization package
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.SH DESCRIPTION
+The \fBncurses\fP library routines give the user a terminal-independent method
+of updating character screens with reasonable optimization.
+This implementation is \*(``new curses\*('' (ncurses) and
+is the approved replacement for
+4.4BSD classic curses, which has been discontinued.
+This describes \fBncurses\fP
+version 6.4 (patch 20230826).
+.PP
+The \fBncurses\fP library emulates the curses library of
+System V Release 4 UNIX,
+and XPG4 (X/Open Portability Guide) curses (also known as XSI curses).
+XSI stands for X/Open System Interfaces Extension.
+The \fBncurses\fP library is freely redistributable in source form.
+Differences from the SVr4
+curses are summarized under the
+\fIEXTENSIONS\fP and \fIPORTABILITY\fP sections below and
+described in detail in the respective
+\fIEXTENSIONS\fP, \fIPORTABILITY\fP and \fIBUGS\fP sections
+of individual man pages.
+.PP
+The \fBncurses\fP library also provides many useful extensions,
+i.e., features which cannot be implemented by a simple add-on library
+but which require access to the internals of the library.
+.PP
+A program using these routines must be linked with the \fB\-lncurses\fP option,
+or (if it has been generated) with the debugging library \fB\-lncurses_g\fP.
+(Your system integrator may also have installed these libraries under
+the names \fB\-lcurses\fP and \fB\-lcurses_g\fP.)
+The ncurses_g library generates trace logs
+(in a file called \*(``trace\*('' in the current directory)
+that describe curses actions.
+See also the section on \fBALTERNATE CONFIGURATIONS\fP.
+.PP
+The \fBncurses\fP package supports: overall screen, window and pad
+manipulation; output to windows and pads; reading terminal input; control over
+terminal and \fBcurses\fP input and output options; environment query
+routines; color manipulation; use of soft label keys; terminfo capabilities;
+and access to low-level terminal-manipulation routines.
+.SS Initialization
+The library uses the locale which the calling program has initialized.
+That is normally done with \fBsetlocale\fP(3):
+.NS
+\fBsetlocale(LC_ALL, "");\fP
+.NE
+.PP
+If the locale is not initialized,
+the library assumes that characters are printable as in ISO\-8859\-1,
+to work with certain legacy programs.
+You should initialize the locale and not rely on specific details of
+the library when the locale has not been setup.
+.PP
+The function \fBinitscr\fP or \fBnewterm\fP
+must be called to initialize the library
+before any of the other routines that deal with windows
+and screens are used.
+The routine \fBendwin\fP(3) must be called before exiting.
+.PP
+To get character-at-a-time input without echoing (most
+interactive, screen oriented programs want this), the following
+sequence should be used:
+.NS
+\fBinitscr(); cbreak(); noecho();\fP
+.NE
+.PP
+Most programs would additionally use the sequence:
+.NS
+\fBintrflush(stdscr, FALSE);\fP
+\fBkeypad(stdscr, TRUE);\fP
+.NE
+.PP
+Before a \fBcurses\fP program is run, the tab stops of the terminal
+should be set and its initialization strings, if defined, must be output.
+This can be done by executing the \fBtput init\fP command
+after the shell environment variable \fBTERM\fP has been exported.
+\fBtset(1)\fP is usually responsible for doing this.
+[See \fBterminfo\fP(\*n) for further details.]
+.SS Datatypes
+The \fBncurses\fP library permits manipulation of data structures,
+called \fIwindows\fP, which can be thought of as two-dimensional
+arrays of characters representing all or part of a CRT screen.
+A default window called \fBstdscr\fP, which is the size of the terminal
+screen, is supplied.
+Others may be created with \fBnewwin\fP.
+.PP
+Note that \fBcurses\fP does not handle overlapping windows, that's done by
+the \fBpanel\fP(3) library.
+This means that you can either use
+\fBstdscr\fP or divide the screen into tiled windows and not using
+\fBstdscr\fP at all.
+Mixing the two will result in unpredictable, and undesired, effects.
+.PP
+Windows are referred to by variables declared as \fBWINDOW *\fP.
+These data structures are manipulated with routines described here and
+elsewhere in the \fBncurses\fP manual pages.
+Among those, the most basic
+routines are \fBmove\fP and \fBaddch\fP.
+More general versions of
+these routines are included with names beginning with \fBw\fP,
+allowing the user to specify a window.
+The routines not beginning
+with \fBw\fP affect \fBstdscr\fP.
+.PP
+After using routines to manipulate a window, \fBrefresh\fP(3) is called,
+telling \fBcurses\fP to make the user's CRT screen look like
+\fBstdscr\fP.
+The characters in a window are actually of type
+\fBchtype\fP, (character and attribute data) so that other information
+about the character may also be stored with each character.
+.PP
+Special windows called \fIpads\fP may also be manipulated.
+These are windows
+which are not constrained to the size of the screen and whose contents need not
+be completely displayed.
+See \fBcurs_pad\fP(3) for more information.
+.PP
+In addition to drawing characters on the screen, video attributes and colors
+may be supported, causing the characters to show up in such modes as
+underlined, in reverse video, or in color on terminals that support such
+display enhancements.
+Line drawing characters may be specified to be output.
+On input, \fBcurses\fP is also able to translate arrow and function keys that
+transmit escape sequences into single values.
+The video attributes, line
+drawing characters, and input values use names, defined in \fB<curses.h>\fP,
+such as \fBA_REVERSE\fP, \fBACS_HLINE\fP, and \fBKEY_LEFT\fP.
+.SS Environment variables
+If the environment variables \fBLINES\fP and \fBCOLUMNS\fP are set, or if the
+program is executing in a window environment, line and column information in
+the environment will override information read by \fIterminfo\fP.
+This would affect a program running in an AT&T 630 layer,
+for example, where the size of a
+screen is changeable (see \fBENVIRONMENT\fP).
+.PP
+If the environment variable \fBTERMINFO\fP is defined, any program using
+\fBcurses\fP checks for a local terminal definition before checking in the
+standard place.
+For example, if \fBTERM\fP is set to \fBatt4424\fP, then the
+compiled terminal definition is found in
+.NS
+\fB\*d/a/att4424\fP.
+.NE
+.PP
+(The \fBa\fP is copied from the first letter of \fBatt4424\fP to avoid
+creation of huge directories.)  However, if \fBTERMINFO\fP is set to
+\fB$HOME/myterms\fP, \fBcurses\fP first checks
+.NS
+\fB$HOME/myterms/a/att4424\fP,
+.NE
+.PP
+and if that fails, it then checks
+.NS
+\fB\*d/a/att4424\fP.
+.NE
+.PP
+This is useful for developing experimental definitions or when write
+permission in \fB\*d\fP is not available.
+.PP
+The integer variables \fBLINES\fP and \fBCOLS\fP are defined in
+\fB<curses.h>\fP and will be filled in by \fBinitscr\fP with the size of the
+screen.
+The constants \fBTRUE\fP and \fBFALSE\fP have the values \fB1\fP and
+\fB0\fP, respectively.
+.PP
+The \fBcurses\fP routines also define the \fBWINDOW *\fP variable \fBcurscr\fP
+which is used for certain low-level operations like clearing and redrawing a
+screen containing garbage.
+The \fBcurscr\fP can be used in only a few routines.
+.\"
+.SS Routine and Argument Names
+Many \fBcurses\fP routines have two or more versions.
+The routines prefixed with \fIw\fP require a window argument.
+The routines prefixed with \fIp\fP require a pad argument.
+Those without a prefix generally use \fBstdscr\fP.
+.PP
+The routines prefixed with \fBmv\fP require a \fIy\fP and \fIx\fP
+coordinate to move to before performing the appropriate action.
+The \fBmv\fP routines imply a call to \fBmove\fP before the call to the
+other routine.
+The coordinate \fIy\fP always refers to the row (of
+the window), and \fIx\fP always refers to the column.
+The upper left-hand corner is always (0,0), not (1,1).
+.PP
+The routines prefixed with \fBmvw\fP take both a window argument and
+\fIx\fP and \fIy\fP coordinates.
+The window argument is always specified before the coordinates.
+.PP
+In each case, \fIwin\fP is the window affected, and \fIpad\fP is the
+pad affected; \fIwin\fP and \fIpad\fP are always pointers to type
+\fBWINDOW\fP.
+.PP
+Option setting routines require a Boolean flag \fIbf\fP with the value
+\fBTRUE\fP or \fBFALSE\fP; \fIbf\fP is always of type \fBbool\fP.
+Most of the data types used in the library routines,
+such as \fBWINDOW\fP, \fBSCREEN\fP, \fBbool\fP, and \fBchtype\fP
+are defined in \fB<curses.h>\fP.
+Types used for the terminfo routines such as
+\fBTERMINAL\fP are defined in \fB<term.h>\fP.
+.PP
+This manual page describes functions which may appear in any configuration
+of the library.
+There are two common configurations of the library:
+.RS 3
+.TP 5
+.I ncurses
+the \*(``normal\*('' library, which handles 8-bit characters.
+The normal (8-bit) library stores characters combined with attributes
+in \fBchtype\fP data.
+.IP
+Attributes alone (no corresponding character) may be stored in \fBchtype\fP
+or the equivalent \fBattr_t\fP data.
+In either case, the data is stored in something like an integer.
+.IP
+Each cell (row and column) in a \fBWINDOW\fP is stored as a \fBchtype\fP.
+.TP 5
+.I ncursesw
+the so-called \*(``wide\*('' library, which handles multibyte characters
+(see the section on \fBALTERNATE CONFIGURATIONS\fP).
+The \*(``wide\*('' library includes all of the calls
+from the \*(``normal\*('' library.
+It adds about one third more calls using data types which store
+multibyte characters:
+.RS 5
+.TP 5
+.B cchar_t
+corresponds to \fBchtype\fP.
+However it is a structure, because more data is stored than can fit into
+an integer.
+The characters are large enough to require a full integer value \- and there
+may be more than one character per cell.
+The video attributes and color are stored in separate fields of the structure.
+.IP
+Each cell (row and column) in a \fBWINDOW\fP is stored as a \fBcchar_t\fP.
+.IP
+The \fBsetcchar\fP(3) and \fBgetcchar\fP(3)
+functions store and retrieve the data from
+a \fBcchar_t\fP structure.
+.TP 5
+.B wchar_t
+stores a \*(``wide\*('' character.
+Like \fBchtype\fP, this may be an integer.
+.TP 5
+.B wint_t
+stores a \fBwchar_t\fP or \fBWEOF\fP \- not the same, though both may have
+the same size.
+.RE
+.IP
+The \*(``wide\*('' library provides new functions which are analogous to
+functions in the \*(``normal\*('' library.
+There is a naming convention which relates many of the normal/wide variants:
+a \*(``_w\*('' is inserted into the name.
+For example, \fBwaddch\fP becomes \fBwadd_wch\fP.
+.RE
+.\"
+.SS Routine Name Index
+The following table lists the \fBcurses\fP routines provided in
+the \*(``normal\*('' and \*(``wide\*('' libraries and the names of
+the manual pages on which they are described.
+Routines flagged with \*(``*\*(''
+are ncurses-specific, not described by XPG4 or present in SVr4.
+.PP
+.TS
+center tab(/);
+l l
+l l .
+\fBcurses\fP Routine Name/Manual Page Name
+=
+COLOR_PAIR/\fBcurs_color\fP(3)
+PAIR_NUMBER/\fBcurs_attr\fP(3)
+add_wch/\fBcurs_add_wch\fP(3)
+add_wchnstr/\fBcurs_add_wchstr\fP(3)
+add_wchstr/\fBcurs_add_wchstr\fP(3)
+addch/\fBcurs_addch\fP(3)
+addchnstr/\fBcurs_addchstr\fP(3)
+addchstr/\fBcurs_addchstr\fP(3)
+addnstr/\fBcurs_addstr\fP(3)
+addnwstr/\fBcurs_addwstr\fP(3)
+addstr/\fBcurs_addstr\fP(3)
+addwstr/\fBcurs_addwstr\fP(3)
+alloc_pair/\fBnew_pair\fP(3)*
+assume_default_colors/\fBdefault_colors\fP(3)*
+attr_get/\fBcurs_attr\fP(3)
+attr_off/\fBcurs_attr\fP(3)
+attr_on/\fBcurs_attr\fP(3)
+attr_set/\fBcurs_attr\fP(3)
+attroff/\fBcurs_attr\fP(3)
+attron/\fBcurs_attr\fP(3)
+attrset/\fBcurs_attr\fP(3)
+baudrate/\fBcurs_termattrs\fP(3)
+beep/\fBcurs_beep\fP(3)
+bkgd/\fBcurs_bkgd\fP(3)
+bkgdset/\fBcurs_bkgd\fP(3)
+bkgrnd/\fBcurs_bkgrnd\fP(3)
+bkgrndset/\fBcurs_bkgrnd\fP(3)
+border/\fBcurs_border\fP(3)
+border_set/\fBcurs_border_set\fP(3)
+box/\fBcurs_border\fP(3)
+box_set/\fBcurs_border_set\fP(3)
+can_change_color/\fBcurs_color\fP(3)
+cbreak/\fBcurs_inopts\fP(3)
+chgat/\fBcurs_attr\fP(3)
+clear/\fBcurs_clear\fP(3)
+clearok/\fBcurs_outopts\fP(3)
+clrtobot/\fBcurs_clear\fP(3)
+clrtoeol/\fBcurs_clear\fP(3)
+color_content/\fBcurs_color\fP(3)
+color_set/\fBcurs_attr\fP(3)
+copywin/\fBcurs_overlay\fP(3)
+curs_set/\fBcurs_kernel\fP(3)
+curses_trace/\fBcurs_trace\fP(3)*
+curses_version/\fBcurs_extend\fP(3)*
+def_prog_mode/\fBcurs_kernel\fP(3)
+def_shell_mode/\fBcurs_kernel\fP(3)
+define_key/\fBdefine_key\fP(3)*
+del_curterm/\fBterminfo\fP(3)
+delay_output/\fBcurs_util\fP(3)
+delch/\fBcurs_delch\fP(3)
+deleteln/\fBcurs_deleteln\fP(3)
+delscreen/\fBcurs_initscr\fP(3)
+delwin/\fBcurs_window\fP(3)
+derwin/\fBcurs_window\fP(3)
+doupdate/\fBcurs_refresh\fP(3)
+dupwin/\fBcurs_window\fP(3)
+echo/\fBcurs_inopts\fP(3)
+echo_wchar/\fBcurs_add_wch\fP(3)
+echochar/\fBcurs_addch\fP(3)
+endwin/\fBcurs_initscr\fP(3)
+erase/\fBcurs_clear\fP(3)
+erasechar/\fBcurs_termattrs\fP(3)
+erasewchar/\fBcurs_termattrs\fP(3)
+exit_curses/\fBcurs_memleaks\fP(3)*
+exit_terminfo/\fBcurs_memleaks\fP(3)*
+extended_color_content/\fBcurs_color\fP(3)*
+extended_pair_content/\fBcurs_color\fP(3)*
+extended_slk_color/\fBcurs_slk\fP(3)*
+filter/\fBcurs_util\fP(3)
+find_pair/\fBnew_pair\fP(3)*
+flash/\fBcurs_beep\fP(3)
+flushinp/\fBcurs_util\fP(3)
+free_pair/\fBnew_pair\fP(3)*
+get_wch/\fBcurs_get_wch\fP(3)
+get_wstr/\fBcurs_get_wstr\fP(3)
+getattrs/\fBcurs_attr\fP(3)
+getbegx/\fBcurs_legacy\fP(3)*
+getbegy/\fBcurs_legacy\fP(3)*
+getbegyx/\fBcurs_getyx\fP(3)
+getbkgd/\fBcurs_bkgd\fP(3)
+getbkgrnd/\fBcurs_bkgrnd\fP(3)
+getcchar/\fBcurs_getcchar\fP(3)
+getch/\fBcurs_getch\fP(3)
+getcurx/\fBcurs_legacy\fP(3)*
+getcury/\fBcurs_legacy\fP(3)*
+getmaxx/\fBcurs_legacy\fP(3)*
+getmaxy/\fBcurs_legacy\fP(3)*
+getmaxyx/\fBcurs_getyx\fP(3)
+getmouse/\fBcurs_mouse\fP(3)*
+getn_wstr/\fBcurs_get_wstr\fP(3)
+getnstr/\fBcurs_getstr\fP(3)
+getparx/\fBcurs_legacy\fP(3)*
+getpary/\fBcurs_legacy\fP(3)*
+getparyx/\fBcurs_getyx\fP(3)
+getstr/\fBcurs_getstr\fP(3)
+getsyx/\fBcurs_kernel\fP(3)
+getwin/\fBcurs_util\fP(3)
+getyx/\fBcurs_getyx\fP(3)
+halfdelay/\fBcurs_inopts\fP(3)
+has_colors/\fBcurs_color\fP(3)
+has_ic/\fBcurs_termattrs\fP(3)
+has_il/\fBcurs_termattrs\fP(3)
+has_key/\fBcurs_getch\fP(3)*
+has_mouse/\fBcurs_mouse\fP(3)*
+hline/\fBcurs_border\fP(3)
+hline_set/\fBcurs_border_set\fP(3)
+idcok/\fBcurs_outopts\fP(3)
+idlok/\fBcurs_outopts\fP(3)
+immedok/\fBcurs_outopts\fP(3)
+in_wch/\fBcurs_in_wch\fP(3)
+in_wchnstr/\fBcurs_in_wchstr\fP(3)
+in_wchstr/\fBcurs_in_wchstr\fP(3)
+inch/\fBcurs_inch\fP(3)
+inchnstr/\fBcurs_inchstr\fP(3)
+inchstr/\fBcurs_inchstr\fP(3)
+init_color/\fBcurs_color\fP(3)
+init_extended_color/\fBcurs_color\fP(3)*
+init_extended_pair/\fBcurs_color\fP(3)*
+init_pair/\fBcurs_color\fP(3)
+initscr/\fBcurs_initscr\fP(3)
+innstr/\fBcurs_instr\fP(3)
+innwstr/\fBcurs_inwstr\fP(3)
+ins_nwstr/\fBcurs_ins_wstr\fP(3)
+ins_wch/\fBcurs_ins_wch\fP(3)
+ins_wstr/\fBcurs_ins_wstr\fP(3)
+insch/\fBcurs_insch\fP(3)
+insdelln/\fBcurs_deleteln\fP(3)
+insertln/\fBcurs_deleteln\fP(3)
+insnstr/\fBcurs_insstr\fP(3)
+insstr/\fBcurs_insstr\fP(3)
+instr/\fBcurs_instr\fP(3)
+intrflush/\fBcurs_inopts\fP(3)
+inwstr/\fBcurs_inwstr\fP(3)
+is_cbreak/\fBcurs_inopts\fP(3)*
+is_cleared/\fBcurs_opaque\fP(3)*
+is_echo/\fBcurs_inopts\fP(3)*
+is_idcok/\fBcurs_opaque\fP(3)*
+is_idlok/\fBcurs_opaque\fP(3)*
+is_immedok/\fBcurs_opaque\fP(3)*
+is_keypad/\fBcurs_opaque\fP(3)*
+is_leaveok/\fBcurs_opaque\fP(3)*
+is_linetouched/\fBcurs_touch\fP(3)
+is_nl/\fBcurs_inopts\fP(3)*
+is_nodelay/\fBcurs_opaque\fP(3)*
+is_notimeout/\fBcurs_opaque\fP(3)*
+is_pad/\fBcurs_opaque\fP(3)*
+is_raw/\fBcurs_inopts\fP(3)*
+is_scrollok/\fBcurs_opaque\fP(3)*
+is_subwin/\fBcurs_opaque\fP(3)*
+is_syncok/\fBcurs_opaque\fP(3)*
+is_term_resized/\fBresizeterm\fP(3)*
+is_wintouched/\fBcurs_touch\fP(3)
+isendwin/\fBcurs_initscr\fP(3)
+key_defined/\fBkey_defined\fP(3)*
+key_name/\fBcurs_util\fP(3)
+keybound/\fBkeybound\fP(3)*
+keyname/\fBcurs_util\fP(3)
+keyok/\fBkeyok\fP(3)*
+keypad/\fBcurs_inopts\fP(3)
+killchar/\fBcurs_termattrs\fP(3)
+killwchar/\fBcurs_termattrs\fP(3)
+leaveok/\fBcurs_outopts\fP(3)
+longname/\fBcurs_termattrs\fP(3)
+mcprint/\fBcurs_print\fP(3)*
+meta/\fBcurs_inopts\fP(3)
+mouse_trafo/\fBcurs_mouse\fP(3)*
+mouseinterval/\fBcurs_mouse\fP(3)*
+mousemask/\fBcurs_mouse\fP(3)*
+move/\fBcurs_move\fP(3)
+mvadd_wch/\fBcurs_add_wch\fP(3)
+mvadd_wchnstr/\fBcurs_add_wchstr\fP(3)
+mvadd_wchstr/\fBcurs_add_wchstr\fP(3)
+mvaddch/\fBcurs_addch\fP(3)
+mvaddchnstr/\fBcurs_addchstr\fP(3)
+mvaddchstr/\fBcurs_addchstr\fP(3)
+mvaddnstr/\fBcurs_addstr\fP(3)
+mvaddnwstr/\fBcurs_addwstr\fP(3)
+mvaddstr/\fBcurs_addstr\fP(3)
+mvaddwstr/\fBcurs_addwstr\fP(3)
+mvchgat/\fBcurs_attr\fP(3)
+mvcur/\fBterminfo\fP(3)
+mvdelch/\fBcurs_delch\fP(3)
+mvderwin/\fBcurs_window\fP(3)
+mvget_wch/\fBcurs_get_wch\fP(3)
+mvget_wstr/\fBcurs_get_wstr\fP(3)
+mvgetch/\fBcurs_getch\fP(3)
+mvgetn_wstr/\fBcurs_get_wstr\fP(3)
+mvgetnstr/\fBcurs_getstr\fP(3)
+mvgetstr/\fBcurs_getstr\fP(3)
+mvhline/\fBcurs_border\fP(3)
+mvhline_set/\fBcurs_border_set\fP(3)
+mvin_wch/\fBcurs_in_wch\fP(3)
+mvin_wchnstr/\fBcurs_in_wchstr\fP(3)
+mvin_wchstr/\fBcurs_in_wchstr\fP(3)
+mvinch/\fBcurs_inch\fP(3)
+mvinchnstr/\fBcurs_inchstr\fP(3)
+mvinchstr/\fBcurs_inchstr\fP(3)
+mvinnstr/\fBcurs_instr\fP(3)
+mvinnwstr/\fBcurs_inwstr\fP(3)
+mvins_nwstr/\fBcurs_ins_wstr\fP(3)
+mvins_wch/\fBcurs_ins_wch\fP(3)
+mvins_wstr/\fBcurs_ins_wstr\fP(3)
+mvinsch/\fBcurs_insch\fP(3)
+mvinsnstr/\fBcurs_insstr\fP(3)
+mvinsstr/\fBcurs_insstr\fP(3)
+mvinstr/\fBcurs_instr\fP(3)
+mvinwstr/\fBcurs_inwstr\fP(3)
+mvprintw/\fBcurs_printw\fP(3)
+mvscanw/\fBcurs_scanw\fP(3)
+mvvline/\fBcurs_border\fP(3)
+mvvline_set/\fBcurs_border_set\fP(3)
+mvwadd_wch/\fBcurs_add_wch\fP(3)
+mvwadd_wchnstr/\fBcurs_add_wchstr\fP(3)
+mvwadd_wchstr/\fBcurs_add_wchstr\fP(3)
+mvwaddch/\fBcurs_addch\fP(3)
+mvwaddchnstr/\fBcurs_addchstr\fP(3)
+mvwaddchstr/\fBcurs_addchstr\fP(3)
+mvwaddnstr/\fBcurs_addstr\fP(3)
+mvwaddnwstr/\fBcurs_addwstr\fP(3)
+mvwaddstr/\fBcurs_addstr\fP(3)
+mvwaddwstr/\fBcurs_addwstr\fP(3)
+mvwchgat/\fBcurs_attr\fP(3)
+mvwdelch/\fBcurs_delch\fP(3)
+mvwget_wch/\fBcurs_get_wch\fP(3)
+mvwget_wstr/\fBcurs_get_wstr\fP(3)
+mvwgetch/\fBcurs_getch\fP(3)
+mvwgetn_wstr/\fBcurs_get_wstr\fP(3)
+mvwgetnstr/\fBcurs_getstr\fP(3)
+mvwgetstr/\fBcurs_getstr\fP(3)
+mvwhline/\fBcurs_border\fP(3)
+mvwhline_set/\fBcurs_border_set\fP(3)
+mvwin/\fBcurs_window\fP(3)
+mvwin_wch/\fBcurs_in_wch\fP(3)
+mvwin_wchnstr/\fBcurs_in_wchstr\fP(3)
+mvwin_wchstr/\fBcurs_in_wchstr\fP(3)
+mvwinch/\fBcurs_inch\fP(3)
+mvwinchnstr/\fBcurs_inchstr\fP(3)
+mvwinchstr/\fBcurs_inchstr\fP(3)
+mvwinnstr/\fBcurs_instr\fP(3)
+mvwinnwstr/\fBcurs_inwstr\fP(3)
+mvwins_nwstr/\fBcurs_ins_wstr\fP(3)
+mvwins_wch/\fBcurs_ins_wch\fP(3)
+mvwins_wstr/\fBcurs_ins_wstr\fP(3)
+mvwinsch/\fBcurs_insch\fP(3)
+mvwinsnstr/\fBcurs_insstr\fP(3)
+mvwinsstr/\fBcurs_insstr\fP(3)
+mvwinstr/\fBcurs_instr\fP(3)
+mvwinwstr/\fBcurs_inwstr\fP(3)
+mvwprintw/\fBcurs_printw\fP(3)
+mvwscanw/\fBcurs_scanw\fP(3)
+mvwvline/\fBcurs_border\fP(3)
+mvwvline_set/\fBcurs_border_set\fP(3)
+napms/\fBcurs_kernel\fP(3)
+newpad/\fBcurs_pad\fP(3)
+newterm/\fBcurs_initscr\fP(3)
+newwin/\fBcurs_window\fP(3)
+nl/\fBcurs_inopts\fP(3)
+nocbreak/\fBcurs_inopts\fP(3)
+nodelay/\fBcurs_inopts\fP(3)
+noecho/\fBcurs_inopts\fP(3)
+nofilter/\fBcurs_util\fP(3)*
+nonl/\fBcurs_inopts\fP(3)
+noqiflush/\fBcurs_inopts\fP(3)
+noraw/\fBcurs_inopts\fP(3)
+notimeout/\fBcurs_inopts\fP(3)
+overlay/\fBcurs_overlay\fP(3)
+overwrite/\fBcurs_overlay\fP(3)
+pair_content/\fBcurs_color\fP(3)
+pecho_wchar/\fBcurs_pad\fP(3)*
+pechochar/\fBcurs_pad\fP(3)
+pnoutrefresh/\fBcurs_pad\fP(3)
+prefresh/\fBcurs_pad\fP(3)
+printw/\fBcurs_printw\fP(3)
+putp/\fBterminfo\fP(3)
+putwin/\fBcurs_util\fP(3)
+qiflush/\fBcurs_inopts\fP(3)
+raw/\fBcurs_inopts\fP(3)
+redrawwin/\fBcurs_refresh\fP(3)
+refresh/\fBcurs_refresh\fP(3)
+reset_color_pairs/\fBcurs_color\fP(3)*
+reset_prog_mode/\fBcurs_kernel\fP(3)
+reset_shell_mode/\fBcurs_kernel\fP(3)
+resetty/\fBcurs_kernel\fP(3)
+resize_term/\fBresizeterm\fP(3)*
+resizeterm/\fBresizeterm\fP(3)*
+restartterm/\fBterminfo\fP(3)
+ripoffline/\fBcurs_kernel\fP(3)
+savetty/\fBcurs_kernel\fP(3)
+scanw/\fBcurs_scanw\fP(3)
+scr_dump/\fBcurs_scr_dump\fP(3)
+scr_init/\fBcurs_scr_dump\fP(3)
+scr_restore/\fBcurs_scr_dump\fP(3)
+scr_set/\fBcurs_scr_dump\fP(3)
+scrl/\fBcurs_scroll\fP(3)
+scroll/\fBcurs_scroll\fP(3)
+scrollok/\fBcurs_outopts\fP(3)
+set_curterm/\fBterminfo\fP(3)
+set_term/\fBcurs_initscr\fP(3)
+setcchar/\fBcurs_getcchar\fP(3)
+setscrreg/\fBcurs_outopts\fP(3)
+setsyx/\fBcurs_kernel\fP(3)
+setupterm/\fBterminfo\fP(3)
+slk_attr/\fBcurs_slk\fP(3)*
+slk_attr_off/\fBcurs_slk\fP(3)
+slk_attr_on/\fBcurs_slk\fP(3)
+slk_attr_set/\fBcurs_slk\fP(3)
+slk_attroff/\fBcurs_slk\fP(3)
+slk_attron/\fBcurs_slk\fP(3)
+slk_attrset/\fBcurs_slk\fP(3)
+slk_clear/\fBcurs_slk\fP(3)
+slk_color/\fBcurs_slk\fP(3)
+slk_init/\fBcurs_slk\fP(3)
+slk_label/\fBcurs_slk\fP(3)
+slk_noutrefresh/\fBcurs_slk\fP(3)
+slk_refresh/\fBcurs_slk\fP(3)
+slk_restore/\fBcurs_slk\fP(3)
+slk_set/\fBcurs_slk\fP(3)
+slk_touch/\fBcurs_slk\fP(3)
+slk_wset/\fBcurs_slk\fP(3)*
+standend/\fBcurs_attr\fP(3)
+standout/\fBcurs_attr\fP(3)
+start_color/\fBcurs_color\fP(3)
+subpad/\fBcurs_pad\fP(3)
+subwin/\fBcurs_window\fP(3)
+syncok/\fBcurs_window\fP(3)
+term_attrs/\fBcurs_termattrs\fP(3)
+termattrs/\fBcurs_termattrs\fP(3)
+termname/\fBcurs_termattrs\fP(3)
+tgetent/\fBtermcap\fP(3)
+tgetflag/\fBtermcap\fP(3)
+tgetnum/\fBtermcap\fP(3)
+tgetstr/\fBtermcap\fP(3)
+tgoto/\fBtermcap\fP(3)
+tigetflag/\fBterminfo\fP(3)
+tigetnum/\fBterminfo\fP(3)
+tigetstr/\fBterminfo\fP(3)
+timeout/\fBcurs_inopts\fP(3)
+tiparm/\fBterminfo\fP(3)*
+tiparm_s/\fBterminfo\fP(3)*
+tiscan_s/\fBterminfo\fP(3)*
+touchline/\fBcurs_touch\fP(3)
+touchwin/\fBcurs_touch\fP(3)
+tparm/\fBterminfo\fP(3)
+tputs/\fBtermcap\fP(3)
+tputs/\fBterminfo\fP(3)
+trace/\fBcurs_trace\fP(3)*
+typeahead/\fBcurs_inopts\fP(3)
+unctrl/\fBcurs_util\fP(3)
+unget_wch/\fBcurs_get_wch\fP(3)
+ungetch/\fBcurs_getch\fP(3)
+ungetmouse/\fBcurs_mouse\fP(3)*
+untouchwin/\fBcurs_touch\fP(3)
+use_default_colors/\fBdefault_colors\fP(3)*
+use_env/\fBcurs_util\fP(3)
+use_extended_names/\fBcurs_extend\fP(3)*
+use_legacy_coding/\fBlegacy_coding\fP(3)*
+use_tioctl/\fBcurs_util\fP(3)*
+vid_attr/\fBterminfo\fP(3)
+vid_puts/\fBterminfo\fP(3)
+vidattr/\fBterminfo\fP(3)
+vidputs/\fBterminfo\fP(3)
+vline/\fBcurs_border\fP(3)
+vline_set/\fBcurs_border_set\fP(3)
+vw_printw/\fBcurs_printw\fP(3)
+vw_scanw/\fBcurs_scanw\fP(3)
+vwprintw/\fBcurs_printw\fP(3)
+vwscanw/\fBcurs_scanw\fP(3)
+wadd_wch/\fBcurs_add_wch\fP(3)
+wadd_wchnstr/\fBcurs_add_wchstr\fP(3)
+wadd_wchstr/\fBcurs_add_wchstr\fP(3)
+waddch/\fBcurs_addch\fP(3)
+waddchnstr/\fBcurs_addchstr\fP(3)
+waddchstr/\fBcurs_addchstr\fP(3)
+waddnstr/\fBcurs_addstr\fP(3)
+waddnwstr/\fBcurs_addwstr\fP(3)
+waddstr/\fBcurs_addstr\fP(3)
+waddwstr/\fBcurs_addwstr\fP(3)
+wattr_get/\fBcurs_attr\fP(3)
+wattr_off/\fBcurs_attr\fP(3)
+wattr_on/\fBcurs_attr\fP(3)
+wattr_set/\fBcurs_attr\fP(3)
+wattroff/\fBcurs_attr\fP(3)
+wattron/\fBcurs_attr\fP(3)
+wattrset/\fBcurs_attr\fP(3)
+wbkgd/\fBcurs_bkgd\fP(3)
+wbkgdset/\fBcurs_bkgd\fP(3)
+wbkgrnd/\fBcurs_bkgrnd\fP(3)
+wbkgrndset/\fBcurs_bkgrnd\fP(3)
+wborder/\fBcurs_border\fP(3)
+wborder_set/\fBcurs_border_set\fP(3)
+wchgat/\fBcurs_attr\fP(3)
+wclear/\fBcurs_clear\fP(3)
+wclrtobot/\fBcurs_clear\fP(3)
+wclrtoeol/\fBcurs_clear\fP(3)
+wcolor_set/\fBcurs_attr\fP(3)
+wcursyncup/\fBcurs_window\fP(3)
+wdelch/\fBcurs_delch\fP(3)
+wdeleteln/\fBcurs_deleteln\fP(3)
+wecho_wchar/\fBcurs_add_wch\fP(3)
+wechochar/\fBcurs_addch\fP(3)
+wenclose/\fBcurs_mouse\fP(3)*
+werase/\fBcurs_clear\fP(3)
+wget_wch/\fBcurs_get_wch\fP(3)
+wget_wstr/\fBcurs_get_wstr\fP(3)
+wgetbkgrnd/\fBcurs_bkgrnd\fP(3)
+wgetch/\fBcurs_getch\fP(3)
+wgetdelay/\fBcurs_opaque\fP(3)*
+wgetn_wstr/\fBcurs_get_wstr\fP(3)
+wgetnstr/\fBcurs_getstr\fP(3)
+wgetparent/\fBcurs_opaque\fP(3)*
+wgetscrreg/\fBcurs_opaque\fP(3)*
+wgetstr/\fBcurs_getstr\fP(3)
+whline/\fBcurs_border\fP(3)
+whline_set/\fBcurs_border_set\fP(3)
+win_wch/\fBcurs_in_wch\fP(3)
+win_wchnstr/\fBcurs_in_wchstr\fP(3)
+win_wchstr/\fBcurs_in_wchstr\fP(3)
+winch/\fBcurs_inch\fP(3)
+winchnstr/\fBcurs_inchstr\fP(3)
+winchstr/\fBcurs_inchstr\fP(3)
+winnstr/\fBcurs_instr\fP(3)
+winnwstr/\fBcurs_inwstr\fP(3)
+wins_nwstr/\fBcurs_ins_wstr\fP(3)
+wins_wch/\fBcurs_ins_wch\fP(3)
+wins_wstr/\fBcurs_ins_wstr\fP(3)
+winsch/\fBcurs_insch\fP(3)
+winsdelln/\fBcurs_deleteln\fP(3)
+winsertln/\fBcurs_deleteln\fP(3)
+winsnstr/\fBcurs_insstr\fP(3)
+winsstr/\fBcurs_insstr\fP(3)
+winstr/\fBcurs_instr\fP(3)
+winwstr/\fBcurs_inwstr\fP(3)
+wmouse_trafo/\fBcurs_mouse\fP(3)*
+wmove/\fBcurs_move\fP(3)
+wnoutrefresh/\fBcurs_refresh\fP(3)
+wprintw/\fBcurs_printw\fP(3)
+wredrawln/\fBcurs_refresh\fP(3)
+wrefresh/\fBcurs_refresh\fP(3)
+wresize/\fBwresize\fP(3)*
+wscanw/\fBcurs_scanw\fP(3)
+wscrl/\fBcurs_scroll\fP(3)
+wsetscrreg/\fBcurs_outopts\fP(3)
+wstandend/\fBcurs_attr\fP(3)
+wstandout/\fBcurs_attr\fP(3)
+wsyncdown/\fBcurs_window\fP(3)
+wsyncup/\fBcurs_window\fP(3)
+wtimeout/\fBcurs_inopts\fP(3)
+wtouchln/\fBcurs_touch\fP(3)
+wunctrl/\fBcurs_util\fP(3)
+wvline/\fBcurs_border\fP(3)
+wvline_set/\fBcurs_border_set\fP(3)
+.TE
+.PP
+Depending on the configuration,
+additional sets of functions may be available:
+.RS 3
+.TP 5
+\fBcurs_memleaks\fP(3) - curses memory-leak checking
+.TP 5
+\fBcurs_sp_funcs\fP(3) - curses screen-pointer extension
+.TP 5
+\fBcurs_threads\fP(3) - curses thread support
+.TP 5
+\fBcurs_trace\fP(3) - curses debugging routines
+.RE
+.SH RETURN VALUE
+Routines that return an integer return \fBERR\fP upon failure and an
+integer value other than \fBERR\fP upon successful completion, unless
+otherwise noted in the routine descriptions.
+.PP
+As a general rule, routines check for null pointers passed as parameters,
+and handle this as an error.
+.PP
+All macros return the value of the \fBw\fP version, except \fBsetscrreg\fP,
+\fBwsetscrreg\fP, \fBgetyx\fP, \fBgetbegyx\fP, and \fBgetmaxyx\fP.
+The return values of
+\fBsetscrreg\fP,
+\fBwsetscrreg\fP,
+\fBgetyx\fP,
+\fBgetbegyx\fP, and
+\fBgetmaxyx\fP are undefined (i.e., these should not be used as the
+right-hand side of assignment statements).
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+Most \*(``mv\*(''-prefixed functions
+(except variadic functions such as \fBmvprintw\fP)
+are provided both as macros and functions.
+.PP
+Routines that return pointers return \fBNULL\fP on error.
+.SH ENVIRONMENT
+The following environment symbols are useful for customizing the
+runtime behavior of the \fBncurses\fP library.
+The most important ones have been already discussed in detail.
+.SS CC command-character
+When set, change occurrences of the command_character
+(i.e., the \fBcmdch\fP capability)
+of the loaded terminfo entries to the value of this variable.
+Very few terminfo entries provide this feature.
+.PP
+Because this name is also used in development environments to represent
+the C compiler's name, \fBncurses\fP ignores it if it does not happen to
+be a single character.
+.SS BAUDRATE
+The debugging library checks this environment variable when the application
+has redirected output to a file.
+The variable's numeric value is used for the baudrate.
+If no value is found, \fBncurses\fP uses 9600.
+This allows testers to construct repeatable test-cases
+that take into account costs that depend on baudrate.
+.SS COLUMNS
+Specify the width of the screen in characters.
+Applications running in a windowing environment usually are able to
+obtain the width of the window in which they are executing.
+If neither the \fBCOLUMNS\fP value nor the terminal's screen size is available,
+\fBncurses\fP uses the size which may be specified in the terminfo database
+(i.e., the \fBcols\fP capability).
+.PP
+It is important that your application use a correct size for the screen.
+This is not always possible because your application may be
+running on a host which does not honor NAWS (Negotiations About Window
+Size), or because you are temporarily running as another user.
+However, setting \fBCOLUMNS\fP and/or \fBLINES\fP overrides the library's
+use of the screen size obtained from the operating system.
+.PP
+Either \fBCOLUMNS\fP or \fBLINES\fP symbols may be specified independently.
+This is mainly useful to circumvent legacy misfeatures of terminal descriptions,
+e.g., xterm which commonly specifies a 65 line screen.
+For best results, \fBlines\fP and \fBcols\fP should not be specified in
+a terminal description for terminals which are run as emulations.
+.PP
+Use the \fBuse_env\fP function to disable all use of external environment
+(but not including system calls) to determine the screen size.
+Use the \fBuse_tioctl\fP function to update \fBCOLUMNS\fP or \fBLINES\fP
+to match the screen size obtained from system calls or the terminal database.
+.SS ESCDELAY
+Specifies the total time, in milliseconds, for which ncurses will
+await a character sequence, e.g., a function key.
+The default value, 1000 milliseconds, is enough for most uses.
+However, it is made a variable to accommodate unusual applications.
+.PP
+The most common instance where you may wish to change this value
+is to work with slow hosts, e.g., running on a network.
+If the host cannot read characters rapidly enough, it will have the same
+effect as if the terminal did not send characters rapidly enough.
+The library will still see a timeout.
+.PP
+Note that xterm mouse events are built up from character sequences
+received from the xterm.
+If your application makes heavy use of multiple-clicking, you may
+wish to lengthen this default value because the timeout applies
+to the composed multi-click event as well as the individual clicks.
+.PP
+In addition to the environment variable,
+this implementation provides a global variable with the same name.
+Portable applications should not rely upon the presence of ESCDELAY
+in either form,
+but setting the environment variable rather than the global variable
+does not create problems when compiling an application.
+.SS HOME
+Tells \fBncurses\fP where your home directory is.
+That is where it may read and write auxiliary terminal descriptions:
+.NS
+$HOME/.termcap
+$HOME/.terminfo
+.NE
+.SS LINES
+Like COLUMNS, specify the height of the screen in characters.
+See COLUMNS for a detailed description.
+.SS MOUSE_BUTTONS_123
+This applies only to the OS/2 EMX port.
+It specifies the order of buttons on the mouse.
+OS/2 numbers a 3-button mouse inconsistently from other
+platforms:
+.NS
+1 = left
+.br
+2 = right
+.br
+3 = middle.
+.NE
+.PP
+This variable lets you customize the mouse.
+The variable must be three numeric digits 1\-3 in any order, e.g., 123 or 321.
+If it is not specified, \fBncurses\fP uses 132.
+.SS NCURSES_ASSUMED_COLORS
+Override the compiled-in assumption that the
+terminal's default colors are white-on-black
+(see \fBdefault_colors\fP(3)).
+You may set the foreground and background color values with this environment
+variable by proving a 2-element list: foreground,background.
+For example, to tell ncurses to not assume anything
+about the colors, set this to "\-1,\-1".
+To make it green-on-black, set it to "2,0".
+Any positive value from zero to the terminfo \fBmax_colors\fP value is allowed.
+.SS NCURSES_CONSOLE2
+This applies only to the MinGW port of ncurses.
+.PP
+The \fBConsole2\fP program's handling of the Microsoft Console API call
+\fBCreateConsoleScreenBuffer\fP is defective.
+Applications which use this will hang.
+However, it is possible to simulate the action of this call by
+mapping coordinates,
+explicitly saving and restoring the original screen contents.
+Setting the environment variable \fBNCGDB\fP has the same effect.
+.SS NCURSES_GPM_TERMS
+This applies only to ncurses configured to use the GPM interface.
+.PP
+If present,
+the environment variable is a list of one or more terminal names
+against which the \fBTERM\fP environment variable is matched.
+Setting it to an empty value disables the GPM interface;
+using the built-in support for xterm, etc.
+.PP
+If the environment variable is absent,
+ncurses will attempt to open GPM if \fBTERM\fP contains \*(``linux\*(''.
+.SS NCURSES_NO_HARD_TABS
+\fBNcurses\fP may use tabs as part of the cursor movement optimization.
+In some cases,
+your terminal driver may not handle these properly.
+Set this environment variable to disable the feature.
+You can also adjust your \fBstty\fP(1) settings to avoid the problem.
+.SS NCURSES_NO_MAGIC_COOKIE
+Some terminals use a magic-cookie feature which requires special handling
+to make highlighting and other video attributes display properly.
+You can suppress the highlighting entirely for these terminals by
+setting this environment variable.
+.SS NCURSES_NO_PADDING
+Most of the terminal descriptions in the terminfo database are written
+for real \*(``hardware\*('' terminals.
+Many people use terminal emulators
+which run in a windowing environment and use curses-based applications.
+Terminal emulators can duplicate
+all of the important aspects of a hardware terminal, but they do not
+have the same limitations.
+The chief limitation of a hardware terminal from the standpoint
+of your application is the management of dataflow, i.e., timing.
+Unless a hardware terminal is interfaced into a terminal concentrator
+(which does flow control),
+it (or your application) must manage dataflow, preventing overruns.
+The cheapest solution (no hardware cost)
+is for your program to do this by pausing after
+operations that the terminal does slowly, such as clearing the display.
+.PP
+As a result, many terminal descriptions (including the vt100)
+have delay times embedded.
+You may wish to use these descriptions,
+but not want to pay the performance penalty.
+.PP
+Set the NCURSES_NO_PADDING environment variable to disable all but mandatory
+padding.
+Mandatory padding is used as a part of special control
+sequences such as \fBflash\fP.
+.SS NCURSES_NO_SETBUF
+This setting is obsolete.
+Before changes
+.RS 3
+.bP
+started with 5.9 patch 20120825
+and
+.bP
+continued
+though 5.9 patch 20130126
+.RE
+.PP
+\fBncurses\fP enabled buffered output during terminal initialization.
+This was done (as in SVr4 curses) for performance reasons.
+For testing purposes, both of \fBncurses\fP and certain applications,
+this feature was made optional.
+Setting the NCURSES_NO_SETBUF variable
+disabled output buffering, leaving the output in the original (usually
+line buffered) mode.
+.PP
+In the current implementation,
+ncurses performs its own buffering and does not require this workaround.
+It does not modify the buffering of the standard output.
+.PP
+The reason for the change was to make the behavior for interrupts and
+other signals more robust.
+One drawback is that certain nonconventional programs would mix
+ordinary stdio calls with ncurses calls and (usually) work.
+This is no longer possible since ncurses is not using
+the buffered standard output but its own output (to the same file descriptor).
+As a special case, the low-level calls such as \fBputp\fP still use the
+standard output.
+But high-level curses calls do not.
+.SS NCURSES_NO_UTF8_ACS
+During initialization, the \fBncurses\fP library
+checks for special cases where VT100 line-drawing (and the corresponding
+alternate character set capabilities) described in the terminfo are known
+to be missing.
+Specifically, when running in a UTF\-8 locale,
+the Linux console emulator and the GNU screen program ignore these.
+Ncurses checks the \fBTERM\fP environment variable for these.
+For other special cases, you should set this environment variable.
+Doing this tells ncurses to use Unicode values which correspond to
+the VT100 line-drawing glyphs.
+That works for the special cases cited,
+and is likely to work for terminal emulators.
+.PP
+When setting this variable, you should set it to a nonzero value.
+Setting it to zero (or to a nonnumber)
+disables the special check for \*(``linux\*('' and \*(``screen\*(''.
+.PP
+As an alternative to the environment variable,
+ncurses checks for an extended terminfo capability \fBU8\fP.
+This is a numeric capability which can be compiled using \fBtic\ \-x\fP.
+For example
+.RS 3
+.ft CW
+.sp
+.nf
+# linux console, if patched to provide working
+# VT100 shift-in/shift-out, with corresponding font.
+linux-vt100|linux console with VT100 line-graphics,
+        U8#0, use=linux,
+.sp
+# uxterm with vt100Graphics resource set to false
+xterm-utf8|xterm relying on UTF-8 line-graphics,
+        U8#1, use=xterm,
+.fi
+.ft
+.RE
+.PP
+The name \*(``U8\*('' is chosen to be two characters,
+to permit it to be used by applications that use ncurses'
+termcap interface.
+.SS NCURSES_TRACE
+During initialization, the \fBncurses\fP debugging library
+checks the NCURSES_TRACE environment variable.
+If it is defined, to a numeric value, \fBncurses\fP calls the \fBtrace\fP
+function, using that value as the argument.
+.PP
+The argument values, which are defined in \fBcurses.h\fP, provide several
+types of information.
+When running with traces enabled, your application will write the
+file \fBtrace\fP to the current directory.
+.PP
+See \fBcurs_trace\fP(3) for more information.
+.SS TERM
+Denotes your terminal type.
+Each terminal type is distinct, though many are similar.
+.PP
+\fBTERM\fP is commonly set by terminal emulators to help
+applications find a workable terminal description.
+Some of those choose a popular approximation, e.g.,
+\*(``ansi\*('', \*(``vt100\*('', \*(``xterm\*('' rather than an exact fit.
+Not infrequently, your application will have problems with that approach,
+e.g., incorrect function-key definitions.
+.PP
+If you set \fBTERM\fP in your environment,
+it has no effect on the operation of the terminal emulator.
+It only affects the way applications work within the terminal.
+Likewise, as a general rule (\fBxterm\fP(1) being a rare exception),
+terminal emulators which allow you to
+specify \fBTERM\fP as a parameter or configuration value do
+not change their behavior to match that setting.
+.SS TERMCAP
+If the \fBncurses\fP library has been configured with \fItermcap\fP
+support, \fBncurses\fP will check for a terminal's description in
+termcap form if it is not available in the terminfo database.
+.PP
+The \fBTERMCAP\fP environment variable contains
+either a terminal description (with newlines stripped out),
+or a file name telling where the information denoted by
+the \fBTERM\fP environment variable exists.
+In either case, setting it directs \fBncurses\fP to ignore
+the usual place for this information, e.g., /etc/termcap.
+.SS TERMINFO
+\fBncurses\fP can be configured to read from multiple terminal databases.
+The \fBTERMINFO\fP variable overrides the location for
+the default terminal database.
+Terminal descriptions (in terminal format) are stored in terminal databases:
+.bP
+Normally these are stored in a directory tree,
+using subdirectories named by the first letter of the terminal names therein.
+.IP
+This is the scheme used in System V, which legacy Unix systems use,
+and the \fBTERMINFO\fP variable is used by \fIcurses\fP applications on those
+systems to override the default location of the terminal database.
+.bP
+If \fBncurses\fP is built to use hashed databases,
+then each entry in this list may be the path of a hashed database file, e.g.,
+.NS
+/usr/share/terminfo.db
+.NE
+.IP
+rather than
+.NS
+/usr/share/terminfo/
+.NE
+.IP
+The hashed database uses less disk-space and is a little faster than the
+directory tree.
+However,
+some applications assume the existence of the directory tree,
+reading it directly
+rather than using the terminfo library calls.
+.bP
+If \fBncurses\fP is built with a support for reading termcap files
+directly, then an entry in this list may be the path of a termcap file.
+.bP
+If the \fBTERMINFO\fP variable begins with
+\*(``hex:\*('' or \*(``b64:\*('',
+\fBncurses\fP uses the remainder of that variable as a compiled terminal
+description.
+You might produce the base64 format using \fBinfocmp\fP(1):
+.NS
+TERMINFO="$(infocmp -0 -Q2 -q)"
+export TERMINFO
+.NE
+.IP
+The compiled description is used if it corresponds to the terminal identified
+by the \fBTERM\fP variable.
+.PP
+Setting \fBTERMINFO\fP is the simplest,
+but not the only way to set location of the default terminal database.
+The complete list of database locations in order follows:
+.RS 3
+.bP
+the last terminal database to which \fBncurses\fP wrote,
+if any, is searched first
+.bP
+the location specified by the TERMINFO environment variable
+.bP
+$HOME/.terminfo
+.bP
+locations listed in the TERMINFO_DIRS environment variable
+.bP
+one or more locations whose names are configured and compiled into the
+ncurses library, i.e.,
+.RS 3
+.bP
+? (corresponding to the TERMINFO_DIRS variable)
+.bP
+/usr/share/terminfo (corresponding to the TERMINFO variable)
+.RE
+.RE
+.SS TERMINFO_DIRS
+Specifies a list of locations to search for terminal descriptions.
+Each location in the list is a terminal database as described in
+the section on the \fBTERMINFO\fP variable.
+The list is separated by colons (i.e., ":") on Unix, semicolons on OS/2 EMX.
+.PP
+There is no corresponding feature in System V terminfo;
+it is an extension developed for \fBncurses\fP.
+.SS TERMPATH
+If \fBTERMCAP\fP does not hold a file name then \fBncurses\fP checks
+the \fBTERMPATH\fP environment variable.
+This is a list of filenames separated by spaces or colons (i.e., ":") on Unix,
+semicolons on OS/2 EMX.
+.PP
+If the \fBTERMPATH\fP environment variable is not set,
+\fBncurses\fP looks in the files
+.NS
+/etc/termcap, /usr/share/misc/termcap and $HOME/.termcap,
+.NE
+.PP
+in that order.
+.PP
+The library may be configured to disregard the following variables when the
+current user is the superuser (root), or if the application uses setuid or
+setgid permissions:
+.NS
+$TERMINFO, $TERMINFO_DIRS, $TERMPATH, as well as $HOME.
+.NE
+.SH ALTERNATE CONFIGURATIONS
+Several different configurations are possible,
+depending on the configure script options used when building \fBncurses\fP.
+There are a few main options whose effects are visible to the applications
+developer using \fBncurses\fP:
+.TP 5
+\-\-disable\-overwrite
+The standard include for \fBncurses\fP is as noted in \fBSYNOPSIS\fP:
+.NS
+\fB#include <curses.h>\fP
+.NE
+.IP
+This option is used to avoid filename conflicts when \fBncurses\fP
+is not the main implementation of curses of the computer.
+If \fBncurses\fP is installed disabling overwrite, it puts its headers in
+a subdirectory, e.g.,
+.NS
+\fB#include <ncurses/curses.h>\fP
+.NE
+.IP
+It also omits a symbolic link which would allow you to use \fB\-lcurses\fP
+to build executables.
+.TP 5
+\-\-enable\-widec
+The configure script renames the library and
+(if the \fB\-\-disable\-overwrite\fP option is used)
+puts the header files in a different subdirectory.
+All of the library names have a \*(``w\*('' appended to them,
+i.e., instead of
+.NS
+\fB\-lncurses\fP
+.NE
+.IP
+you link with
+.NS
+\fB\-lncursesw\fP
+.NE
+.IP
+You must also enable the wide-character features in the header file
+when compiling for the wide-character library
+to use the extended (wide-character) functions.
+The symbol which enables these features has changed since XSI Curses, Issue 4:
+.RS
+.bP
+Originally, the wide-character feature required the symbol
+\fB_XOPEN_SOURCE_EXTENDED\fP
+but that was only valid for XPG4 (1996).
+.bP
+Later, that was deemed conflicting with \fB_XOPEN_SOURCE\fP defined to 500.
+.bP
+As of mid-2018,
+none of the features in this implementation require a \fB_XOPEN_SOURCE\fP
+feature greater than 600.
+However, X/Open Curses, Issue 7 (2009) recommends defining it to 700.
+.bP
+Alternatively, you can enable the feature by defining \fBNCURSES_WIDECHAR\fP
+with the caveat that some other header file than \fBcurses.h\fP
+may require a specific value for \fB_XOPEN_SOURCE\fP
+(or a system-specific symbol).
+.RE
+.IP
+The \fBcurses.h\fP file which is installed for the wide-character
+library is designed to be compatible with the normal library's header.
+Only the size of the \fBWINDOW\fP structure differs, and very few
+applications require more than a pointer to \fBWINDOW\fPs.
+.IP
+If the headers are installed allowing overwrite,
+the wide-character library's headers should be installed last,
+to allow applications to be built using either library
+from the same set of headers.
+.TP 5
+\-\-with\-pthread
+The configure script renames the library.
+All of the library names have a \*(``t\*('' appended to them
+(before any \*(``w\*('' added by \fB\-\-enable\-widec\fP).
+.IP
+The global variables such as \fBLINES\fP are replaced by macros to
+allow read-only access.
+At the same time, setter-functions are provided to set these values.
+Some applications (very few) may require changes to work with this convention.
+.TP 5
+\-\-with\-shared
+.TP
+\-\-with\-normal
+.TP
+\-\-with\-debug
+.TP
+\-\-with\-profile
+The shared and normal (static) library names differ by their suffixes,
+e.g., \fBlibncurses.so\fP and \fBlibncurses.a\fP.
+The debug and profiling libraries add a \*(``_g\*(''
+and a \*(``_p\*('' to the root names respectively,
+e.g., \fBlibncurses_g.a\fP and \fBlibncurses_p.a\fP.
+.TP 5
+\-\-with\-termlib
+Low-level functions which do not depend upon whether the library
+supports wide-characters, are provided in the tinfo library.
+.IP
+By doing this, it is possible to share the tinfo library between
+wide/normal configurations as well as reduce the size of the library
+when only low-level functions are needed.
+.IP
+Those functions are described in these pages:
+.RS
+.bP
+\fBcurs_extend\fP(3) \- miscellaneous curses extensions
+.bP
+\fBcurs_inopts\fP(3) \- \fBcurses\fP input options
+.bP
+\fBcurs_kernel\fP(3) \- low-level \fBcurses\fP routines
+.bP
+\fBcurs_termattrs\fP(3) \- \fBcurses\fP environment query routines
+.bP
+\fBtermcap\fP(3) \- \fBcurses\fP emulation of termcap
+.bP
+\fBterminfo\fP(3) \- \fBcurses\fP interfaces to terminfo database
+.bP
+\fBcurs_util\fP(3) \- miscellaneous \fBcurses\fP utility routines
+.RE
+.TP 5
+\-\-with\-trace
+The \fBtrace\fP function normally resides in the debug library,
+but it is sometimes useful to configure this in the shared library.
+Configure scripts should check for the function's existence rather
+than assuming it is always in the debug library.
+.SH FILES
+.TP 5
+/usr/share/tabset
+directory containing initialization files for the terminal capability database
+/usr/share/terminfo
+terminal capability database
+.SH SEE ALSO
+\fBterminfo\fP(\*n) and related pages whose names begin
+\*(``curs_\*('' for detailed routine descriptions.
+.br
+\fBcurs_variables\fP(3)
+.br
+\fBuser_caps\fP(5) for user-defined capabilities
+.SH EXTENSIONS
+The \fBncurses\fP library can be compiled with an option (\fB\-DUSE_GETCAP\fP)
+that falls back to the old-style /etc/termcap file if the terminal setup code
+cannot find a terminfo entry corresponding to \fBTERM\fP.
+Use of this feature
+is not recommended, as it essentially includes an entire termcap compiler in
+the \fBncurses\fP startup code, at significant cost in core and startup cycles.
+.PP
+The \fBncurses\fP library includes facilities for capturing mouse events on
+certain terminals (including xterm).
+See the \fBcurs_mouse\fP(3)
+manual page for details.
+.PP
+The \fBncurses\fP library includes facilities for responding to window
+resizing events, e.g., when running in an xterm.
+See the \fBresizeterm\fP(3)
+and \fBwresize\fP(3) manual pages for details.
+In addition, the library may be configured with a \fBSIGWINCH\fP handler.
+.PP
+The \fBncurses\fP library extends the fixed set of function key capabilities
+of terminals by allowing the application designer to define additional
+key sequences at runtime.
+See the \fBdefine_key\fP(3)
+\fBkey_defined\fP(3),
+and \fBkeyok\fP(3) manual pages for details.
+.PP
+The \fBncurses\fP library can exploit the capabilities of terminals which
+implement the ISO\-6429 SGR 39 and SGR 49 controls, which allow an application
+to reset the terminal to its original foreground and background colors.
+From the users' perspective, the application is able to draw colored
+text on a background whose color is set independently, providing better
+control over color contrasts.
+See the \fBdefault_colors\fP(3) manual page for details.
+.PP
+The \fBncurses\fP library includes a function for directing application output
+to a printer attached to the terminal device.
+See the \fBcurs_print\fP(3) manual page for details.
+.SH PORTABILITY
+The \fBncurses\fP library is intended to be BASE-level conformant with XSI
+Curses.
+The EXTENDED XSI Curses functionality
+(including color support) is supported.
+.PP
+A small number of local differences (that is, individual differences between
+the XSI Curses and \fBncurses\fP calls) are described in \fBPORTABILITY\fP
+sections of the library man pages.
+.SS Error checking
+In many cases, X/Open Curses is vague about error conditions,
+omitting some of the SVr4 documentation.
+.PP
+Unlike other implementations, this one checks parameters such as pointers
+to WINDOW structures to ensure they are not null.
+The main reason for providing this behavior is to guard against programmer
+error.
+The standard interface does not provide a way for the library
+to tell an application which of several possible errors were detected.
+Relying on this (or some other) extension will adversely affect the
+portability of curses applications.
+.SS Extensions versus portability
+Most of the extensions provided by ncurses have not been standardized.
+Some have been incorporated into other implementations, such as
+PDCurses or NetBSD curses.
+Here are a few to consider:
+.bP
+The routine \fBhas_key\fP is not part of XPG4, nor is it present in SVr4.
+See the \fBcurs_getch\fP(3) manual page for details.
+.bP
+The routine \fBslk_attr\fP is not part of XPG4, nor is it present in SVr4.
+See the \fBcurs_slk\fP(3) manual page for details.
+.bP
+The routines \fBgetmouse\fP, \fBmousemask\fP, \fBungetmouse\fP,
+\fBmouseinterval\fP, and \fBwenclose\fP relating to mouse interfacing are not
+part of XPG4, nor are they present in SVr4.
+See the \fBcurs_mouse\fP(3) manual page for details.
+.bP
+The routine \fBmcprint\fP was not present in any previous curses implementation.
+See the \fBcurs_print\fP(3) manual page for details.
+.bP
+The routine \fBwresize\fP is not part of XPG4, nor is it present in SVr4.
+See the \fBwresize\fP(3) manual page for details.
+.bP
+The WINDOW structure's internal details can be hidden from application
+programs.
+See \fBcurs_opaque\fP(3) for the discussion of \fBis_scrollok\fP, etc.
+.bP
+This implementation can be configured to provide rudimentary support
+for multi-threaded applications.
+See \fBcurs_threads\fP(3) for details.
+.bP
+This implementation can also be configured to provide a set of functions which
+improve the ability to manage multiple screens.
+See \fBcurs_sp_funcs\fP(3) for details.
+.SS Padding differences
+In historic curses versions, delays embedded in the capabilities \fBcr\fP,
+\fBind\fP, \fBcub1\fP, \fBff\fP and \fBtab\fP activated corresponding delay
+bits in the UNIX tty driver.
+In this implementation, all padding is done by sending NUL bytes.
+This method is slightly more expensive, but narrows the interface
+to the UNIX kernel significantly and increases the package's portability
+correspondingly.
+.SS Header files
+The header file \fB<curses.h>\fP automatically includes the header files
+\fB<stdio.h>\fP and \fB<unctrl.h>\fP.
+.PP
+X/Open Curses has more to say,
+but does not finish the story:
+.RS 4
+.PP
+The inclusion of <curses.h> may make visible all symbols
+from the headers <stdio.h>, <term.h>, <termios.h>, and <wchar.h>.
+.RE
+.PP
+Here is a more complete story:
+.bP
+Starting with BSD curses, all implementations have included <stdio.h>.
+.IP
+BSD curses included <curses.h> and <unctrl.h> from an internal header
+"curses.ext" ("ext" was a short name for \fIexterns\fP).
+.IP
+BSD curses used <stdio.h> internally (for \fBprintw\fP and \fBscanw\fP),
+but nothing in <curses.h> itself relied upon <stdio.h>.
+.bP
+SVr2 curses added \fBnewterm\fP(3), which relies upon <stdio.h>.
+That is, the function prototype uses \fBFILE\fP.
+.IP
+SVr4 curses added \fBputwin\fP and \fBgetwin\fP, which also use <stdio.h>.
+.IP
+X/Open Curses documents all three of these functions.
+.IP
+SVr4 curses and X/Open Curses do not require the developer to
+include <stdio.h> before including <curses.h>.
+Both document curses showing <curses.h> as the only required header.
+.IP
+As a result, standard <curses.h> will always include <stdio.h>.
+.bP
+X/Open Curses is inconsistent with respect to SVr4 regarding <unctrl.h>.
+.IP
+As noted in \fBcurs_util\fP(3), ncurses includes <unctrl.h> from
+<curses.h> (like SVr4).
+.bP
+X/Open's comments about <term.h> and <termios.h> may refer to HP-UX and AIX:
+.IP
+HP-UX curses includes <term.h> from <curses.h>
+to declare \fBsetupterm\fP in curses.h,
+but ncurses (and Solaris curses) do not.
+.IP
+AIX curses includes <term.h> and <termios.h>.
+Again, ncurses (and Solaris curses) do not.
+.bP
+X/Open says that <curses.h> \fImay\fP include <term.h>,
+but there is no requirement that it do that.
+.IP
+Some programs use functions declared in both <curses.h> and <term.h>,
+and must include both headers in the same module.
+Very old versions of AIX curses required including <curses.h>
+before including <term.h>.
+.IP
+Because ncurses header files include the headers needed to
+define datatypes used in the headers,
+ncurses header files can be included in any order.
+But for portability, you should include <curses.h> before <term.h>.
+.bP
+X/Open Curses says \fI"may make visible"\fP
+because including a header file does not necessarily make all symbols
+in it visible (there are ifdef's to consider).
+.IP
+For instance, in ncurses <wchar.h> \fImay\fP be included if
+the proper symbol is defined, and if ncurses is configured for
+wide-character support.
+If the header is included, its symbols may be made visible.
+That depends on the value used for \fB_XOPEN_SOURCE\fP
+feature test macro.
+.bP
+X/Open Curses documents one required header,
+in a special case: <stdarg.h> before <curses.h> to prototype
+the \fBvw_printw\fP and \fBvw_scanw\fP functions
+(as well as the obsolete
+the \fBvwprintw\fP and \fBvwscanw\fP functions).
+Each of those uses a \fBva_list\fP parameter.
+.IP
+The two obsolete functions were introduced in SVr3.
+The other functions were introduced in X/Open Curses.
+In between, SVr4 curses provided for the possibility that
+an application might include either <varargs.h> or <stdarg.h>.
+Initially, that was done by using \fBvoid*\fP for the \fBva_list\fP
+parameter.
+Later, a special type (defined in <stdio.h>) was introduced,
+to allow for compiler type-checking.
+That special type is always available,
+because <stdio.h> is always included by <curses.h>.
+.IP
+None of the X/Open Curses implementations require an application
+to include <stdarg.h> before <curses.h> because they either
+have allowed for a special type, or (like ncurses) include <stdarg.h>
+directly to provide a portable interface.
+.SH NOTES
+If standard output from a \fBncurses\fP program is re-directed to something
+which is not a tty, screen updates will be directed to standard error.
+This was an undocumented feature of AT&T System V Release 3 curses.
+.SH AUTHORS
+Zeyd M. Ben-Halim, Eric S. Raymond, Thomas E. Dickey.
+Based on \fIpcurses\fP by Pavel Curtis.

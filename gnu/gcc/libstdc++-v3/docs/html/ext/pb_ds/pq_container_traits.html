@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>container_traits Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>container_traits</tt> Interface</h1>
+
+    <p>Traits of a priority-queue container based on its underlying
+    data structure.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/tag_and_trait.hpp"><tt>tag_and_trait.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Template Parameters</a></h2>
+
+    <table class="c1" width="100%" border="1" summary=
+    "Template Parameters">
+      <tr>
+        <td width="20%" align="left"><b>Parameter</b></td>
+
+        <td width="50%" align="left"><b>Description</b></td>
+
+        <td width="30%" align="left"><b>Default Value</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Cntnr59189" id="Cntnr59189"><b>class</b> Cntnr</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Container type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link3" id="link3">Container Attributes</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="container_category1247973216" id=
+"container_category1247973216">container_category</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+Underlying data structure.
+</pre>
+        </td>
+
+        <td>
+          <p>Data structure category.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="invalidation_guarantee3793555937" id=
+"invalidation_guarantee3793555937">invalidation_guarantee</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+Invalidation guarantee.
+</pre>
+        </td>
+
+        <td>
+          <p>Invalidation-guarantee type.</p>
+
+          <p>This is either <a href=
+          "basic_invalidation_guarantee.html"><span class=
+          "c2"><tt>basic_invalidation_guarantee</tt></span></a>,
+          <a href="point_invalidation_guarantee.html"><span class=
+          "c2"><tt>point_invalidation_guarantee</tt></span></a>, or
+          <a href="range_invalidation_guarantee.html"><span class=
+          "c2"><tt>range_invalidation_guarantee</tt></span></a></p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="split_join_can_throw3200477759" id=
+"split_join_can_throw3200477759">split_join_can_throw</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+True only if split or join operations can throw.
+</pre>
+        </td>
+
+        <td>
+          <p>Split-join throw indicator.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

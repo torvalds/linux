@@ -1,0 +1,147 @@
+.\"	$OpenBSD: fdformat.1,v 1.21 2018/09/17 15:44:16 jmc Exp $
+.\"
+.\" Copyright (C) 1993, 1994 by Joerg Wunsch, Dresden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 17 2018 $
+.Dt FDFORMAT 1
+.Os
+.Sh NAME
+.Nm fdformat
+.Nd format floppy disks
+.Sh SYNOPSIS
+.Nm fdformat
+.Bk -words
+.Op Fl nqv
+.Op Fl c Ar cyls
+.Op Fl F Ar fillbyte
+.Op Fl g Ar gap3len
+.Op Fl h Ar heads
+.Op Fl i Ar intleave
+.Op Fl r Ar rate
+.Op Fl S Ar secshft
+.Op Fl s Ar secs
+.Op Fl t Ar steps_per_track
+.Ar device_name
+.Ek
+.Sh DESCRIPTION
+.Nm fdformat
+formats a floppy disk at device
+.Ar device_name .
+.Ar device_name
+should be a character device; it may be given either with a full path
+name of a raw device node for a floppy disk drive
+.Pq e.g., Pa /dev/rfd0c ,
+or default name in an abbreviated form,
+.Pq e.g., Em fd0 .
+Note that any geometry constraints of the device node
+.Pq minor device number
+are meaningless, since they're overridden by
+.Nm fdformat .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c Ar cyls
+Number of cylinders
+.Pq 40 or 80 .
+.It Fl F Ar fillbyte
+Use
+.Ar fillbyte
+as fill byte.
+.It Fl g Ar gap3len
+Length of gap at the end of any sector
+.Pq Dq gap 3 .
+.It Fl h Ar heads
+Number of floppy heads
+.Pq 1 or 2 .
+.It Fl i Ar intleave
+Sector interleave to be used.
+.It Fl n
+Don't verify floppy after formatting.
+.It Fl q
+Suppress any normal output from the command, and don't ask the
+user for confirmation whether to format the floppy disk at
+.Ar device_name .
+.It Fl r Ar rate
+Data transfer rate in kilobyte/sec
+.Pq 250, 300, or 500 .
+.It Fl S Ar secshft
+Sector size code: 0 for 128, 1 for 256, and 2 for 512 byte
+sectors.
+.It Fl s Ar secs
+Number of sectors per track
+.Pq 9, 10, 15, or 18 .
+.It Fl t Ar steps_per_track
+Number of steps per track.
+An alternate method to specify the
+geometry data to write to the floppy disk.
+.It Fl v
+Don't format; verify only.
+.El
+.Pp
+If the
+.Fl q
+flag has not been specified, the user is asked for confirmation
+of the intended formatting process.
+In order to continue, an answer of
+.Dq y
+must be given.
+.Sh EXIT STATUS
+An exit status of 0 is returned upon successful operation.
+Exit status
+1 is returned on any errors during floppy formatting, and an exit status
+of 2 reflects invalid arguments given to the program (along with
+appropriate information written to diagnostic output).
+.Sh DIAGNOSTICS
+Unless
+.Fl q
+has been specified, a single letter is printed to standard output
+to inform the user about the progress of work.
+First, an
+.Dq F
+is printed when the track(s) is being formatted, then a
+.Dq V
+while it's being verified, and if an error has been detected, it
+will finally change to
+.Dq E .
+.Sh SEE ALSO
+.Xr fdc 4
+.Sh HISTORY
+.Nm fdformat
+was developed for 386BSD 0.1 and upgraded to the new
+.Xr fdc 4
+floppy disk driver.
+It later became part of
+.Fx 1.1 ,
+and was then ported to
+.Ox 1.2 .
+.Sh AUTHORS
+.An -nosplit
+The program was contributed by
+.An Joerg Wunsch ,
+Dresden, with changes by
+.An Serge Vakulenko
+and
+.An Andrew A. Chernov ,
+Moscow.

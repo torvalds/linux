@@ -1,0 +1,162 @@
+.\"	$OpenBSD: se.4,v 1.9 2021/09/08 20:29:21 jmc Exp $
+.\"
+.\" Copyright (c) 2010
+.\"	Christopher Zimmermann <madroach@zakweb.de>. All rights reserved.
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ee.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man4/sis.4,v 1.2 1999/11/15 23:14:27 phantom Exp $
+.\"
+.Dd $Mdocdate: September 8 2021 $
+.Dt SE 4
+.Os
+.Sh NAME
+.Nm se
+.Nd SiS 190/191 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "se* at pci?"
+.Cd "atphy* at mii?"
+.Cd "brgphy* at mii?"
+.Cd "eephy* at mii?"
+.Cd "etphy* at mii?"
+.Cd "rlphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the SiS190 Fast Ethernet controller
+integrated into the SiS965L and SiS966L southbridges,
+and the SiS191 Gigabit controller
+integrated into the SiS965 and SiS966 southbridges.
+.Pp
+Both SiS 190 and SiS 191 embed an Ethernet MAC with external PHY.
+They use a bus master DMA and a scatter/gather descriptor scheme
+and include a 64-bit multicast hash filter.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width full-duplex
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the
+.Xr hostname.if 5
+file.
+.It 10baseT
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 1000baseSX
+Set 1000Mbps (Gigabit Ethernet) on fiber operation.
+Only
+.Ar full-duplex
+mode is supported at this speed.
+.It 1000baseT
+Set 1000Mbps (Gigabit Ethernet) on copper operation.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It full-duplex
+Force full duplex operation.
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "se0: EEPROM read timeout"
+The driver could not read the controller's MAC address from its EEPROM.
+.It "se0: invalid EEPROM signature"
+The driver could not find the expected EEPROM signature and could not read
+the controller's MAC address.
+.It "se0: Could not find PCI-ISA bridge"
+The driver could not read the controller's MAC address from the CMOS memory
+connected to the PCI-ISA bridge.
+.It "se0: PHY read timeout"
+The driver could not read data from the PHY.
+.It "se0: PHY write timeout"
+The driver could not write data to the PHY.
+.It "se0: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr atphy 4 ,
+.Xr brgphy 4 ,
+.Xr eephy 4 ,
+.Xr etphy 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr rlphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was adapted by
+.An Alexander Pohoyda Aq Mt alexander.pohoyda@gmx.net
+from the
+.Xr sis 4
+driver written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu ,
+and ported to
+.Ox
+by
+.An Christopher Zimmermann Aq Mt madroach@zakweb.de .
+SiS 191 support was added by
+.An Nikolay Denev Aq Mt ndenev@gmail.com .

@@ -1,0 +1,253 @@
+.\"	$OpenBSD: pfsync.4,v 1.39 2024/01/31 06:50:16 jmc Exp $
+.\"
+.\" Copyright (c) 2002 Michael Shalayeff
+.\" Copyright (c) 2003-2004 Ryan McBride
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF MIND,
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 31 2024 $
+.Dt PFSYNC 4
+.Os
+.Sh NAME
+.Nm pfsync
+.Nd packet filter state table synchronisation interface
+.Sh SYNOPSIS
+.Cd "pseudo-device pfsync"
+.Sh DESCRIPTION
+The
+.Nm
+interface is a pseudo-device which exposes certain changes to the state
+table used by
+.Xr pf 4 .
+State changes can be viewed by invoking
+.Xr tcpdump 8
+on the
+.Nm
+interface.
+If configured with a physical synchronisation interface,
+.Nm
+will also send state changes out on that interface,
+and insert state changes received on that interface from other systems
+into the state table.
+.Pp
+By default, all local changes to the state table are exposed via
+.Nm .
+State changes from packets received by
+.Nm
+over the network are not rebroadcast.
+Updates to states created by a rule marked with the
+.Ar no-sync
+keyword are ignored by the
+.Nm
+interface (see
+.Xr pf.conf 5
+for details).
+.Pp
+The
+.Nm
+interface will attempt to collapse multiple state updates into a single
+packet where possible.
+The maximum number of times a single state can be updated before a
+.Nm
+packet will be sent out is controlled by the
+.Xr ifconfig 8
+.Ar maxupd
+parameter.
+The sending out of a
+.Nm
+packet will be delayed by a maximum of one second.
+.Pp
+Where more than one firewall might actively handle packets, e.g. with certain
+.Xr ospfd 8 ,
+.Xr bgpd 8
+or
+.Xr carp 4
+configurations, it is beneficial to defer transmission of the initial
+packet of a connection.
+The
+.Nm
+state insert message is sent immediately; the packet is queued until
+either this message is acknowledged by another system, or a timeout has
+expired.
+This behaviour is enabled with the
+.Ar defer
+parameter to
+.Xr ifconfig 8 .
+.Sh NETWORK SYNCHRONISATION
+States can be synchronised between two or more firewalls using this
+interface, by specifying a synchronisation interface using
+.Xr ifconfig 8 .
+For example, the following command configures an address on fxp0 and
+sets it as the synchronisation interface:
+.Bd -literal -offset indent
+# ifconfig fxp0 inet 172.19.13.1/28
+# ifconfig pfsync0 syncdev fxp0
+.Ed
+.Pp
+By default, state change messages are sent out on the synchronisation
+interface using IP multicast packets to the 224.0.0.240 group address.
+An alternative destination address for
+.Nm
+packets can be specified using the
+.Ic syncpeer
+keyword.
+.\" This can be used in combination with
+.\" .Xr ipsec 4
+.\" to protect the synchronisation traffic.
+.\" In such a configuration, the syncdev should be set to the
+.\" .Xr enc 4
+.\" interface, as this is where the traffic arrives when it is decapsulated,
+.\" e.g.:
+.\" .Bd -literal -offset indent
+.\" # ifconfig pfsync0 syncpeer 10.0.0.2 syncdev enc0
+.\" .Ed
+.Pp
+It is important that the pfsync traffic be well secured
+as there is no authentication on the protocol and it would
+be trivial to spoof packets which create states, bypassing the pf ruleset.
+Only run the pfsync protocol on a trusted network \- ideally a network
+dedicated to pfsync messages such as a crossover cable between two firewalls.
+.\" or specify a peer address and protect the traffic with
+.\" .Xr ipsec 4 .
+.Pp
+.Nm
+will increase the
+.Xr carp 4
+demotion counter for any interface groups associated with the interface
+by 32 during initialisation, and by 1 if the
+.Nm
+link is down or if a bulk update fails.
+.Sh EXAMPLES
+.Nm
+and
+.Xr carp 4
+can be used together to provide automatic failover of a pair of firewalls
+configured in parallel.
+One firewall will handle all traffic until it dies, is shut down, or is
+manually demoted, at which point the second firewall will take over
+automatically.
+.Pp
+Both firewalls in this example have three
+.Xr sis 4
+interfaces.
+sis0 is the external interface, on the 10.0.0.0/24 subnet; sis1 is the
+internal interface, on the 192.168.0.0/24 subnet; and sis2 is the
+.Nm
+interface, using the 192.168.254.0/24 subnet.
+A crossover cable connects the two firewalls via their sis2 interfaces.
+On all three interfaces, firewall A uses the .254 address, while firewall B
+uses .253.
+The interfaces are configured as follows (firewall A unless otherwise
+indicated):
+.Pp
+.Pa /etc/hostname.sis0 :
+.Dl inet 10.0.0.254 255.255.255.0 NONE
+.Pp
+.Pa /etc/hostname.sis1 :
+.Dl inet 192.168.0.254 255.255.255.0 NONE
+.Pp
+.Pa /etc/hostname.sis2 :
+.Dl inet 192.168.254.254 255.255.255.0 NONE
+.Pp
+.Pa /etc/hostname.carp0 :
+.Bd -literal -offset indent -compact
+inet 10.0.0.1 255.255.255.0 10.0.0.255 \e
+	vhid 1 carpdev sis0 pass foo
+.Ed
+.Pp
+.Pa /etc/hostname.carp1 :
+.Bd -literal -offset indent -compact
+inet 192.168.0.1 255.255.255.0 192.168.0.255 \e
+	vhid 2 carpdev sis1 pass bar
+.Ed
+.Pp
+.Pa /etc/hostname.pfsync0 :
+.Bd -literal -offset indent -compact
+syncdev sis2
+up
+.Ed
+.Pp
+.Xr pf 4
+must also be configured to allow
+.Nm
+and
+.Xr carp 4
+traffic through.
+The following should be added to the top of
+.Pa /etc/pf.conf :
+.Bd -literal -offset indent
+pass quick on { sis2 } proto pfsync keep state (no-sync)
+pass on { sis0 sis1 } proto carp keep state (no-sync)
+.Ed
+.Pp
+It is preferable that one firewall handle the forwarding of all the traffic,
+therefore the
+.Ar advskew
+on the backup firewall's
+.Xr carp 4
+interfaces should be set to something higher than
+the primary's.
+For example, if firewall B is the backup, its
+.Pa /etc/hostname.carp1
+would look like this:
+.Bd -literal -offset indent
+inet 192.168.0.1 255.255.255.0 192.168.0.255 \e
+	vhid 2 pass bar advskew 100
+.Ed
+.Pp
+The following must also be added to
+.Pa /etc/sysctl.conf :
+.Bd -literal -offset indent
+net.inet.carp.preempt=1
+.Ed
+.Sh SEE ALSO
+.Xr bpf 4 ,
+.Xr carp 4 ,
+.\" .Xr enc 4 ,
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.\" .Xr ipsec 4 ,
+.Xr netintro 4 ,
+.Xr pf 4 ,
+.Xr hostname.if 5 ,
+.Xr pf.conf 5 ,
+.Xr protocols 5 ,
+.Xr ifconfig 8 ,
+.Xr ifstated 8 ,
+.Xr tcpdump 8
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 3.3 .
+.Pp
+The
+.Nm
+protocol and kernel implementation were significantly modified between
+.Ox 4.4
+and
+.Ox 4.5 .
+The two protocols are incompatible and will not interoperate.
+.Sh BUGS
+.Nm
+does not currently work with
+.Xr ipsec 4 .

@@ -1,0 +1,97 @@
+.\"	$OpenBSD: posix_memalign.3,v 1.4 2017/05/13 07:11:29 otto Exp $
+.\" Copyright (C) 2006 Jason Evans <jasone@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/lib/libc/stdlib/posix_memalign.3,v 1.3 2007/03/28 04:32:51 jasone Exp $
+.\"
+.Dd $Mdocdate: May 13 2017 $
+.Dt POSIX_MEMALIGN 3
+.Os
+.Sh NAME
+.Nm posix_memalign
+.Nd aligned memory allocation
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft int
+.Fn posix_memalign "void **ptr" "size_t alignment" "size_t size"
+.Sh DESCRIPTION
+The
+.Fn posix_memalign
+function allocates
+.Fa size
+bytes of memory such that the allocation's base address is a multiple of
+.Fa alignment ,
+and returns the allocation in the value pointed to by
+.Fa ptr .
+.Pp
+The requested
+.Fa alignment
+must be a power of 2 at least as large as
+.Fn sizeof "void *" .
+.Pp
+Memory that is allocated via
+.Fn posix_memalign
+can be used as an argument in subsequent calls to
+.Xr realloc 3 ,
+.Xr reallocarray 3
+and
+.Xr free 3 ,
+but not
+.Xr recallocarray 3
+and
+.Xr freezero 3 .
+.Sh RETURN VALUES
+The
+.Fn posix_memalign
+function returns the value 0 if successful; otherwise it returns an error value.
+.Sh ERRORS
+The
+.Fn posix_memalign
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa alignment
+parameter is not a power of 2 at least as large as
+.Fn sizeof "void *" .
+.It Bq Er ENOMEM
+Memory allocation error.
+.El
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr malloc 3 ,
+.Xr realloc 3
+.Sh STANDARDS
+The
+.Fn posix_memalign
+function conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn posix_memalign
+function first appeared in
+.Ox 4.8 .

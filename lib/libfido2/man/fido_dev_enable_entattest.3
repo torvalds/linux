@@ -1,0 +1,122 @@
+.\" Copyright (c) 2020 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_DEV_ENABLE_ENTATTEST 3
+.Os
+.Sh NAME
+.Nm fido_dev_enable_entattest ,
+.Nm fido_dev_toggle_always_uv ,
+.Nm fido_dev_force_pin_change ,
+.Nm fido_dev_set_pin_minlen ,
+.Nm fido_dev_set_pin_minlen_rpid
+.Nd CTAP 2.1 configuration authenticator API
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.In fido/config.h
+.Ft int
+.Fn fido_dev_enable_entattest "fido_dev_t *dev" "const char *pin"
+.Ft int
+.Fn fido_dev_toggle_always_uv "fido_dev_t *dev" "const char *pin"
+.Ft int
+.Fn fido_dev_force_pin_change "fido_dev_t *dev" "const char *pin"
+.Ft int
+.Fn fido_dev_set_pin_minlen "fido_dev_t *dev" "size_t len" "const char *pin"
+.Ft int
+.Fn fido_dev_set_pin_minlen_rpid "fido_dev_t *dev" "const char * const *rpid" "size_t n" "const char *pin"
+.Sh DESCRIPTION
+The functions described in this page allow configuration of a
+CTAP 2.1 authenticator.
+.Pp
+The
+.Fn fido_dev_enable_entattest
+function enables the
+.Em Enterprise Attestation
+feature on
+.Fa dev .
+.Em Enterprise Attestation
+instructs the authenticator to include uniquely identifying
+information in subsequent attestation statements.
+The
+.Fa pin
+parameter may be NULL if
+.Fa dev
+does not have a PIN set.
+.Pp
+The
+.Fn fido_dev_toggle_always_uv
+function toggles the
+.Dq user verification always
+feature on
+.Fa dev .
+When set, this toggle enforces user verification at the
+authenticator level for all known credentials.
+If
+.Fa dev
+supports U2F (CTAP1) and the user verification methods supported by
+the authenticator do not allow protection of U2F credentials, the
+U2F subsystem will be disabled by the authenticator.
+The
+.Fa pin
+parameter may be NULL if
+.Fa dev
+does not have a PIN set.
+.Pp
+The
+.Fn fido_dev_force_pin_change
+function instructs
+.Fa dev
+to require a PIN change.
+Subsequent PIN authentication attempts against
+.Fa dev
+will fail until its PIN is changed.
+.Pp
+The
+.Fn fido_dev_set_pin_minlen
+function sets the minimum PIN length of
+.Fa dev
+to
+.Fa len .
+Minimum PIN lengths may only be increased.
+.Pp
+The
+.Fn fido_dev_set_pin_minlen_rpid
+function sets the list of relying party identifiers
+.Pq RP IDs
+that are allowed to obtain the minimum PIN length of
+.Fa dev
+through the CTAP 2.1
+.Dv FIDO_EXT_MINPINLEN
+extension.
+The list of RP identifiers is denoted by
+.Fa rpid ,
+a vector of
+.Fa n
+NUL-terminated UTF-8 strings.
+A copy of
+.Fa rpid
+is made, and no reference to it or its contents is kept.
+.Pp
+Configuration settings are reflected in the payload returned by the
+authenticator in response to a
+.Xr fido_dev_get_cbor_info 3
+call.
+.Sh RETURN VALUES
+The error codes returned by
+.Fn fido_dev_enable_entattest ,
+.Fn fido_dev_toggle_always_uv ,
+.Fn fido_dev_force_pin_change ,
+.Fn fido_dev_set_pin_minlen ,
+and
+.Fn fido_dev_set_pin_minlen_rpid
+are defined in
+.In fido/err.h .
+On success,
+.Dv FIDO_OK
+is returned.
+.Sh SEE ALSO
+.Xr fido_cred_pin_minlen 3 ,
+.Xr fido_dev_get_cbor_info 3 ,
+.Xr fido_dev_reset 3

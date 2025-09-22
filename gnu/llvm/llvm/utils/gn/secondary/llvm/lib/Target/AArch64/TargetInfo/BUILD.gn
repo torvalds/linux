@@ -1,0 +1,6 @@
+static_library("TargetInfo") {
+  output_name = "LLVMAArch64Info"
+  deps = [ "//llvm/lib/Support" ]
+  include_dirs = [ ".." ]
+  sources = [ "AArch64TargetInfo.cpp" ]
+}

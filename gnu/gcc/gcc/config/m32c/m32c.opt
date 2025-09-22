@@ -1,0 +1,45 @@
+; Target Options for R8C/M16C/M32C
+; Copyright (C) 2005
+; Free Software Foundation, Inc.
+; Contributed by Red Hat.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it
+; under the terms of the GNU General Public License as published
+; by the Free Software Foundation; either version 2, or (at your
+; option) any later version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT
+; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+; License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+msim
+Target
+-msim	Use simulator runtime
+
+mcpu=r8c
+Target RejectNegative Var(target_cpu,'r') Init('r')
+-mcpu=r8c	Compile code for R8C variants
+
+mcpu=m16c
+Target RejectNegative Var(target_cpu,'6')
+-mcpu=m16c	Compile code for M16C variants
+
+mcpu=m32cm
+Target RejectNegative Var(target_cpu,'m')
+-mcpu=m32cm	Compile code for M32CM variants
+
+mcpu=m32c
+Target RejectNegative Var(target_cpu,'3')
+-mcpu=m32c	Compile code for M32C variants
+
+memregs=
+Target RejectNegative Joined Var(target_memregs_string)
+-memregs=	Number of memreg bytes (default: 16, range: 0..16)

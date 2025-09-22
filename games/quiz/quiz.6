@@ -1,0 +1,122 @@
+.\"	$OpenBSD: quiz.6,v 1.9 2014/11/15 14:41:02 bentley Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jim R. Oldroyd at The Instruction Set.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)quiz.6	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: November 15 2014 $
+.Dt QUIZ 6
+.Os
+.Sh NAME
+.Nm quiz
+.Nd random knowledge tests
+.Sh SYNOPSIS
+.Nm quiz
+.Op Fl t
+.Op Fl i Ar file
+.Ar category1 category2
+.Sh DESCRIPTION
+The
+.Nm
+utility tests your knowledge of random facts.
+It has a database of subjects from which you can choose.
+With no arguments,
+.Nm
+displays the list of available subjects.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl i Ar file
+Specify an alternative index file.
+.It Fl t
+Use tutorial mode, in which questions are repeated later if you didn't get
+them right the first time, and new questions are presented less frequently
+to help you learn the older ones.
+.El
+.Pp
+Subjects are divided into categories.
+You can pick any two categories from the same subject.
+.Nm
+will ask questions from the first category and it expects answers from
+the second category.
+For example, the command
+.Dq quiz victim killer
+asks questions which are
+the names of victims, and expects you to answer with the cause of their
+untimely demise, whereas the command
+.Dq quiz killer victim
+works the other way around.
+.Pp
+If you get the answer wrong,
+.Nm
+lets you try again.
+To see the right answer, enter a blank line.
+.Sh INDEX AND DATA FILE SYNTAX
+The index and data files have a similar syntax.
+Lines in them consist of several categories separated by colons.
+The categories are regular expressions formed using the following
+meta-characters:
+.Pp
+.Bl -tag -width "pat|pat" -compact -offset indent
+.It pat|pat
+alternative patterns
+.It {pat}
+optional pattern
+.It [pat]
+delimiters, as in pat[pat|pat]pat
+.El
+.Pp
+In an index file, each line represents a subject.
+The first category in each subject is the pathname of the data file for
+the subject.
+The remaining categories are regular expressions for the titles of each
+category in the subject.
+.Pp
+In data files, each line represents a question/answer set.
+Each category is the information for the question/answer for that category.
+.Pp
+The backslash character
+.Pq Sq \e
+is used to quote syntactically significant
+characters, or at the end of a line to signify that a continuation line
+follows.
+.Pp
+If either a question or its answer is empty,
+.Nm
+will refrain from asking it.
+.Sh FILES
+.Bl -tag -width /usr/share/games/quiz.db -compact
+.It Pa /usr/share/games/quiz.db
+The default index and data files.
+.El
+.Sh BUGS
+.Nm
+is pretty cynical about certain subjects.

@@ -1,0 +1,127 @@
+.\"***************************************************************************
+.\" Copyright 2019-2021,2022 Thomas E. Dickey                                *
+.\" Copyright 2008-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_memleaks.3,v 1.1 2023/10/17 09:52:08 nicm Exp $
+.TH curs_memleaks 3 2022-06-04 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.na
+.hy 0
+.SH NAME
+\fBexit_curses\fP,
+\fBexit_terminfo\fP \- \fBcurses\fP memory-leak checking
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.br
+\fBvoid exit_curses(int \fIcode\fB);\fR
+.sp
+\fB#include <term.h>\fP
+.br
+\fBvoid exit_terminfo(int \fIcode\fB);\fR
+.sp
+/* deprecated (intentionally not declared in curses.h or term.h) */
+.br
+\fBvoid _nc_freeall(void);\fP
+.br
+\fBvoid _nc_free_and_exit(int \fIcode\fB);\fR
+.br
+\fBvoid _nc_free_tinfo(int \fIcode\fB);\fR
+.SH DESCRIPTION
+These functions are used to simplify analysis of memory leaks in the ncurses
+library.
+.PP
+Any implementation of curses must not free the memory associated with
+a screen, since (even after calling \fBendwin\fP(3)), it must be available
+for use in the next call to \fBrefresh\fP(3).
+There are also chunks of memory held for performance reasons.
+That makes it hard to analyze curses applications for memory leaks.
+When using the specially configured debugging version of the ncurses library,
+applications can call functions which free those chunks of memory,
+simplifying the process of memory-leak checking.
+.PP
+Some of the functions are named with a \*(``_nc_\*('' prefix
+because they are not intended for use in the non-debugging library:
+.TP 5
+\fB_nc_freeall\fP
+This frees (almost) all of the memory allocated by ncurses.
+.TP 5
+\fB_nc_free_and_exit\fP
+This frees the memory allocated by ncurses (like \fB_nc_freeall\fP),
+and exits the program.
+It is preferred over \fB_nc_freeall\fP since some of that memory
+may be required to keep the application running.
+Simply exiting (with the given exit-code) is safer.
+.TP 5
+\fB_nc_free_tinfo\fP
+Use this function if only the low-level terminfo functions (and
+corresponding library) are used.
+Like \fB_nc_free_and_exit\fP, it exits the program after freeing memory.
+.PP
+The functions prefixed \*(``_nc\*('' are normally not available;
+they must be configured into the library
+at build time using the \fB\-\-disable-leaks\fP option.
+That compiles-in code that frees memory that normally would not be freed.
+.PP
+The \fBexit_curses\fP and \fBexit_terminfo\fP functions
+call \fB_nc_free_and_exit\fP and \fB_nc_free_tinfo\fP if
+the library is configured to support memory-leak checking.
+If the library is not configured to support memory-leak checking,
+they simply call \fBexit\fP.
+.SH RETURN VALUE
+These functions do not return a value.
+.SH PORTABILITY
+These functions are not part of X/Open Curses;
+nor do other implementations of curses provide a similar feature.
+.PP
+In any implementation of X/Open Curses, an application can free part
+of the memory allocated by curses:
+.bP
+The portable part of \fBexit_curses\fP can be freed using \fBdelscreen\fP,
+passing the \fBSCREEN*\fP pointer returned by \fBnewterm\fP.
+.IP
+In some implementations, there is a global variable \fBsp\fP
+which could be used, e.g., if the screen were only initialized
+using \fBinitscr\fP.
+.bP
+The portable part of \fBexit_terminfo\fP can be freed using \fBdel_curterm\fP.
+.IP
+In this case, there is a global variable \fBcur_term\fP which can be
+used as parameter.
+.SH SEE ALSO
+\fBcurs_initscr\fP(3),
+\fBterminfo\fP(3).
+\fBcurses\fP(3).

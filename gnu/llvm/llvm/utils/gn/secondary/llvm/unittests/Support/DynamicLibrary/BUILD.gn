@@ -1,0 +1,47 @@
+import("//third-party/unittest/unittest.gni")
+
+# FIXME: If we add -Wl,-z,nodelete to the global ldflags, we need to remove
+# it again for these tests (cf CMake).
+
+template("dynlib_add_module") {
+  not_needed(invoker, "*")
+
+  loadable_module(target_name) {
+    # Put plugin next to the unit test executable.
+    # This assumes that unittest() puts tests in target_out_dir.
+    output_dir = target_out_dir
+
+    sources = [ "PipSqueak.cpp" ]
+
+    if (host_os != "mac" && host_os != "win") {
+      # The GN build currently doesn't globally pass -fPIC, but that's
+      # needed for building .so files on ELF.  Just pass it manually
+      # for loadable_modules for now.
+      cflags = [ "-fPIC" ]
+    }
+  }
+}
+
+dynlib_add_module("PipSqueak") {
+}
+
+dynlib_add_module("SecondLib") {
+}
+
+unittest("DynamicLibraryTests") {
+  deps = [
+    ":PipSqueak",
+    ":SecondLib",
+    "//llvm/include/llvm/Config:config",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "DynamicLibraryTest.cpp",
+    "ExportedFuncs.cpp",
+  ]
+
+  if (host_os != "mac" && host_os != "win") {
+    # Corresponds to export_executable_symbols() in cmake.
+    ldflags = [ "-rdynamic" ]
+  }
+}

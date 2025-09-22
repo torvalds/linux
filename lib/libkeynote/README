@@ -1,0 +1,69 @@
+# $OpenBSD: README,v 1.10 2000/09/26 23:28:45 angelos Exp $
+
+This is release 2.3 of the KeyNote trust management library reference
+implementation (in case you are wondering, there was never an official 1.0
+release).
+
+For details on the KeyNote spec, read RFC 2704, included in this distribution
+(in the doc/ directory).
+
+To build the distribution, just type "./configure" and then "make" or
+"make crypt". To test the distribution, type "make test". The query should
+evaluate to "true" (look at the last line of output). To build without
+crypto support, use "make nocrypto" instead (you still need to run
+"configure"). If you have built crypto support, "make test-sig" will run
+some more tests on the cryptographic algorithms.
+
+A sample application is provided in sample-app.c. To build it, use
+"make test-sample".
+
+Compile tips:
+- You need the SSLeay/OpenSSL library if you compile with crypto
+  (default), version 0.8.1b or later.  OpenSSL can be found at:
+	   http://www.openssl.org/
+
+The Makefile creates the libkeynote.a library and the keynote program.
+*** Notice that the 4 programs of previous releases have been folded into one
+
+There is a man page for the library calls (keynote.3) and one for the command
+line tool (keynote.1), in the man/ directory. There is also a man page
+about KeyNote itself (keynote.4) and one about assertion syntax
+(keynote.5) which contain some text from the spec.
+
+To view them, use:
+
+  nroff -mandoc keynote.1 | more
+  nroff -mandoc keynote.3 | more
+  nroff -mandoc keynote.4 | more
+  nroff -mandoc keynote.5 | more
+
+Alternatively, you can just install them in your manpath. If your
+nroff does not support the -mandoc flag, use -man instead. For those
+systems that do not have nroff, the text version of the man pages are
+provided as well (the files with .cat? suffixes in the same directory).
+
+The "keynote verify" function can be used to verify a request, given a
+set of assertions and an environment file. The directory testsuite/
+has some examples assertions. The "keynote keygen" function can
+be used to generate keys. The "keynote sign" and "keynote sigver" can be
+used to sign assertions, and verify signed assertions respectively.
+
+The file base64.c was taken from the OpenBSD libc and was slightly
+modified.
+
+Read the TODO file to see what's missing (and eventually coming).
+
+When in doubt on how to use a library call (despite the man pages),
+consult the implementation of the various utilities.
+
+For any questions, comments, bug reports, praise, or anything else,
+contact us at keynote@research.att.com
+
+There is also a users mailing list at keynote-users@nsa.research.att.com
+To subscribe, send a message to majordomo@nsa.research.att.com with the word
+"subscribe keynote-users" (without the quotes) in the message body.
+
+Finally, there is a web page for KeyNote at
+  http://www.cis.upenn.edu/~keynote
+
+Angelos D. Keromytis

@@ -1,0 +1,332 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>Priority-Queue Performance Tests</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1>Priority-Queue Performance Tests</h1>
+<h2><a name="settings" id="settings">Settings</a></h2>
+<p>This section describes performance tests and their results.
+    In the following, <a href="#gcc"><u>g++</u></a>, <a href="#msvc"><u>msvc++</u></a>, and <a href="#local"><u>local</u></a> (the build used for generating this
+    documentation) stand for three different builds:</p>
+<div id="gcc_settings_div">
+<div class="c1">
+<h3><a name="gcc" id="gcc"><u>g++</u></a></h3>
+<ul>
+<li>CPU speed - cpu MHz : 2660.644</li>
+<li>Memory - MemTotal: 484412 kB</li>
+<li>Platform -
+          Linux-2.6.12-9-386-i686-with-debian-testing-unstable</li>
+<li>Compiler - g++ (GCC) 4.0.2 20050808 (prerelease)
+          (Ubuntu 4.0.1-4ubuntu9) Copyright (C) 2005 Free Software
+          Foundation, Inc. This is free software; see the source
+          for copying conditions. There is NO warranty; not even
+          for MERCHANTABILITY or FITNESS FOR A PARTICULAR
+          PURPOSE.</li>
+</ul>
+</div>
+<div class="c2"></div>
+</div>
+<div id="msvc_settings_div">
+<div class="c1">
+<h3><a name="msvc" id="msvc"><u>msvc++</u></a></h3>
+<ul>
+<li>CPU speed - cpu MHz : 2660.554</li>
+<li>Memory - MemTotal: 484412 kB</li>
+<li>Platform - Windows XP Pro</li>
+<li>Compiler - Microsoft (R) 32-bit C/C++ Optimizing
+          Compiler Version 13.10.3077 for 80x86 Copyright (C)
+          Microsoft Corporation 1984-2002. All rights
+          reserved.</li>
+</ul>
+</div>
+<div class="c2"></div>
+</div>
+<div id="local_settings_div"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h3><a name = "local"><u>local</u></a></h3><ul>
+<li>CPU speed - cpu MHz		: 2250.000</li>
+<li>Memory - MemTotal:      2076248 kB</li>
+<li>Platform - Linux-2.6.16-1.2133_FC5-i686-with-redhat-5-Bordeaux</li>
+<li>Compiler - g++ (GCC) 4.1.1 20060525 (Red Hat 4.1.1-1)
+Copyright (C) 2006 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+</li>
+</ul>
+</div><div style = "width: 100%; height: 20px"></div></div>
+<h2><a name="pq_tests" id="pq_tests">Tests</a></h2>
+<ol>
+<li><a href="priority_queue_text_push_timing_test.html">Priority Queue
+      Text <tt>push</tt> Timing Test</a></li>
+<li><a href="priority_queue_text_push_pop_timing_test.html">Priority
+      Queue Text <tt>push</tt> and <tt>pop</tt> Timing
+      Test</a></li>
+<li><a href="priority_queue_random_int_push_timing_test.html">Priority
+      Queue Random Integer <tt>push</tt> Timing Test</a></li>
+<li><a href="priority_queue_random_int_push_pop_timing_test.html">Priority
+      Queue Random Integer <tt>push</tt> and <tt>pop</tt> Timing
+      Test</a></li>
+<li><a href="priority_queue_text_pop_mem_usage_test.html">Priority Queue
+      Text <tt>pop</tt> Memory Use Test</a></li>
+<li><a href="priority_queue_text_join_timing_test.html">Priority Queue
+      Text <tt>join</tt> Timing Test</a></li>
+<li><a href="priority_queue_text_modify_up_timing_test.html">Priority
+      Queue Text <tt>modify</tt> Timing Test - I</a></li>
+<li><a href="priority_queue_text_modify_down_timing_test.html">Priority
+      Queue Text <tt>modify</tt> Timing Test - II</a></li>
+</ol>
+<h2><a name="pq_observations" id="pq_observations">Observations</a></h2>
+<h3><a name="pq_observations_cplx" id="pq_observations_cplx">Underlying Data Structures
+    Complexity</a></h3>
+<p>The following table shows the complexities of the different
+    underlying data structures in terms of orders of growth. It is
+    interesting to note that this table implies something about the
+    constants of the operations as well (see <a href="#pq_observations_amortized_push_pop">Amortized <tt>push</tt>
+    and <tt>pop</tt> operations</a>).</p>
+<table class="c1" width="100%" border="1" summary="pq complexities">
+<tr>
+<td align="left"></td>
+<td align="left"><tt>push</tt></td>
+<td align="left"><tt>pop</tt></td>
+<td align="left"><tt>modify</tt></td>
+<td align="left"><tt>erase</tt></td>
+<td align="left"><tt>join</tt></td>
+</tr>
+<tr>
+<td align="left">
+<p><tt>std::priority_queue</tt></p>
+</td>
+<td align="left">
+<p><i>&Theta;(n)</i> worst</p>
+<p><i>&Theta;(log(n))</i> amortized</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(log(n)) Worst</p>
+</td>
+<td align="left">
+<p><i>Theta;(n log(n))</i> Worst</p>
+<p><sub><a href="#std_mod1">[std note 1]</a></sub></p>
+</td>
+<td align="left">
+<p class="c3">&Theta;(n log(n))</p>
+<p><sub><a href="#std_mod2">[std note 2]</a></sub></p>
+</td>
+<td align="left">
+<p class="c3">&Theta;(n log(n))</p>
+<p><sub><a href="#std_mod1">[std note 1]</a></sub></p>
+</td>
+</tr>
+<tr>
+<td align="left">
+<p><a href="priority_queue.html"><tt>priority_queue</tt></a></p>
+<p>with <tt>Tag</tt> =</p>
+<p><a href="pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a></p>
+</td>
+<td align="left">
+<p class="c1">O(1)</p>
+</td>
+<td align="left">
+<p><i>&Theta;(n)</i> worst</p>
+<p><i>&Theta;(log(n))</i> amortized</p>
+</td>
+<td align="left">
+<p><i>&Theta;(n)</i> worst</p>
+<p><i>&Theta;(log(n))</i> amortized</p>
+</td>
+<td align="left">
+<p><i>&Theta;(n)</i> worst</p>
+<p><i>&Theta;(log(n))</i> amortized</p>
+</td>
+<td align="left">
+<p class="c1">O(1)</p>
+</td>
+</tr>
+<tr>
+<td align="left">
+<p><a href="priority_queue.html"><tt>priority_queue</tt></a></p>
+<p>with <tt>Tag</tt> =</p>
+<p><a href="binary_heap_tag.html"><tt>binary_heap_tag</tt></a></p>
+</td>
+<td align="left">
+<p><i>&Theta;(n)</i> worst</p>
+<p><i>&Theta;(log(n))</i> amortized</p>
+</td>
+<td align="left">
+<p><i>&Theta;(n)</i> worst</p>
+<p><i>&Theta;(log(n))</i> amortized</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(n)</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(n)</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(n)</p>
+</td>
+</tr>
+<tr>
+<td align="left">
+<p><a href="priority_queue.html"><tt>priority_queue</tt></a></p>
+<p>with <tt>Tag</tt> =</p>
+<p><a href="binomial_heap_tag.html"><tt>binomial_heap_tag</tt></a></p>
+</td>
+<td align="left">
+<p><i>&Theta;(log(n))</i> worst</p>
+<p><i>O(1)</i> amortized</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(log(n))</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(log(n))</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(log(n))</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(log(n))</p>
+</td>
+</tr>
+<tr>
+<td align="left">
+<p><a href="priority_queue.html"><tt>priority_queue</tt></a></p>
+<p>with <tt>Tag</tt> =</p>
+<p><a href="rc_binomial_heap_tag.html"><tt>rc_binomial_heap_tag</tt></a></p>
+</td>
+<td align="left">
+<p class="c1">O(1)</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(log(n))</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(log(n))</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(log(n))</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(log(n))</p>
+</td>
+</tr>
+<tr>
+<td align="left">
+<p><a href="priority_queue.html"><tt>priority_queue</tt></a></p>
+<p>with <tt>Tag</tt> =</p>
+<p><a href="thin_heap_tag.html"><tt>thin_heap_tag</tt></a></p>
+</td>
+<td align="left">
+<p class="c1">O(1)</p>
+</td>
+<td align="left">
+<p><i>&Theta;(n)</i> worst</p>
+<p><i>&Theta;(log(n))</i> amortized</p>
+</td>
+<td align="left">
+<p><i>&Theta;(log(n))</i> worst</p>
+<p><i>O(1)</i> amortized,</p>or
+
+          <p><i>&Theta;(log(n))</i> amortized</p>
+<p><sub><a href="#thin_heap_note">[thin_heap_note]</a></sub></p>
+</td>
+<td align="left">
+<p><i>&Theta;(n)</i> worst</p>
+<p><i>&Theta;(log(n))</i> amortized</p>
+</td>
+<td align="left">
+<p class="c1">&Theta;(n)</p>
+</td>
+</tr>
+</table>
+<p><sub><a name="std_mod1" id="std_mod1">[std note 1]</a> This
+    is not a property of the algorithm, but rather due to the fact
+    that the STL's priority queue implementation does not support
+    iterators (and consequently the ability to access a specific
+    value inside it). If the priority queue is adapting an
+    <tt>std::vector</tt>, then it is still possible to reduce this
+    to <i>&Theta;(n)</i> by adapting over the STL's adapter and
+    using the fact that <tt>top</tt> returns a reference to the
+    first value; if, however, it is adapting an
+    <tt>std::deque</tt>, then this is impossible.</sub></p>
+<p><sub><a name="std_mod2" id="std_mod2">[std note 2]</a> As
+    with <a href="#std_mod1">[std note 1]</a>, this is not a
+    property of the algorithm, but rather the STL's implementation.
+    Again, if the priority queue is adapting an
+    <tt>std::vector</tt> then it is possible to reduce this to
+    <i>&Theta;(n)</i>, but with a very high constant (one must call
+    <tt>std::make_heap</tt> which is an expensive linear
+    operation); if the priority queue is adapting an
+    <tt>std::dequeu</tt>, then this is impossible.</sub></p>
+<p><sub><a name="thin_heap_note" id="thin_heap_note">[thin_heap_note]</a> A thin heap has
+    <i>&amp;Theta(log(n))</i> worst case <tt>modify</tt> time
+    always, but the amortized time depends on the nature of the
+    operation: I) if the operation increases the key (in the sense
+    of the priority queue's comparison functor), then the amortized
+    time is <i>O(1)</i>, but if II) it decreases it, then the
+    amortized time is the same as the worst case time. Note that
+    for most algorithms, I) is important and II) is not.</sub></p>
+<h3><a name="pq_observations_amortized_push_pop" id="pq_observations_amortized_push_pop">Amortized <tt>push</tt>
+    and <tt>pop</tt> operations</a></h3>
+<p>In many cases, a priority queue is needed primarily for
+    sequences of <tt>push</tt> and <tt>pop</tt> operations. All of
+    the underlying data structures have the same amortized
+    logarithmic complexity, but they differ in terms of
+    constants.</p>
+<p>The table above shows that the different data structures are
+    "constrained" in some respects. In general, if a data structure
+    has lower worst-case complexity than another, then it will
+    perform slower in the amortized sense. Thus, for example a
+    redundant-counter binomial heap (<a href="priority_queue.html"><tt>priority_queue</tt></a> with
+    <tt>Tag</tt> = <a href="rc_binomial_heap_tag.html"><tt>rc_binomial_heap_tag</tt></a>)
+    has lower worst-case <tt>push</tt> performance than a binomial
+    heap (<a href="priority_queue.html"><tt>priority_queue</tt></a>
+    with <tt>Tag</tt> = <a href="binomial_heap_tag.html"><tt>binomial_heap_tag</tt></a>),
+    and so its amortized <tt>push</tt> performance is slower in
+    terms of constants.</p>
+<p>As the table shows, the "least constrained" underlying
+    data structures are binary heaps and pairing heaps.
+    Consequently, it is not surprising that they perform best in
+    terms of amortized constants.</p>
+<ol>
+<li>Pairing heaps seem to perform best for non-primitive
+      types (<i>e.g.</i>, <tt>std::string</tt>s), as shown by
+      <a href="priority_queue_text_push_timing_test.html">Priority
+      Queue Text <tt>push</tt> Timing Test</a> and <a href="priority_queue_text_push_pop_timing_test.html">Priority
+      Queue Text <tt>push</tt> and <tt>pop</tt> Timing
+      Test</a></li>
+<li>binary heaps seem to perform best for primitive types
+      (<i>e.g.</i>, <tt><b>int</b></tt>s), as shown by <a href="priority_queue_random_int_push_timing_test.html">Priority
+      Queue Random Integer <tt>push</tt> Timing Test</a> and
+      <a href="priority_queue_random_int_push_pop_timing_test.html">Priority
+      Queue Random Integer <tt>push</tt> and <tt>pop</tt> Timing
+      Test</a>.</li>
+</ol>
+<h3><a name="pq_observations_graph" id="pq_observations_graph">Graph Algorithms</a></h3>
+<p>In some graph algorithms, a decrease-key operation is
+    required [<a href="references.html#clrs2001">clrs2001</a>];
+    this operation is identical to <tt>modify</tt> if a value is
+    increased (in the sense of the priority queue's comparison
+    functor). The table above and <a href="priority_queue_text_modify_up_timing_test.html">Priority Queue
+    Text <tt>modify</tt> Timing Test - I</a> show that a thin heap
+    (<a href="priority_queue.html"><tt>priority_queue</tt></a> with
+    <tt>Tag</tt> = <a href="thin_heap_tag.html"><tt>thin_heap_tag</tt></a>)
+    outperforms a pairing heap (<a href="priority_queue.html"><tt>priority_queue</tt></a> with
+    <tt>Tag</tt> =<tt>Tag</tt> = <a href="pairing_heap_tag.html"><tt>pairing_heap_tag</tt></a>),
+    but the rest of the tests show otherwise.</p>
+<p>This makes it difficult to decide which implementation to
+    use in this case. Dijkstra's shortest-path algorithm, for
+    example, requires <i>&Theta;(n)</i> <tt>push</tt> and
+    <tt>pop</tt> operations (in the number of vertices), but
+    <i>O(n<sup>2</sup>)</i> <tt>modify</tt> operations, which can
+    be in practice <i>&Theta;(n)</i> as well. It is difficult to
+    find an <i>a-priori</i> characterization of graphs in which the
+    <u>actual</u> number of <tt>modify</tt> operations will dwarf
+    the number of <tt>push</tt> and <tt>pop</tt> operations.</p>
+</div>
+</body>
+</html>

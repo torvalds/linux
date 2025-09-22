@@ -1,0 +1,20 @@
+table <__automatic_0> const { 127.0.0.1 127.0.0.2 }
+table <__automatic_1> const { 127.0.0.1 127.0.0.2 }
+table <__automatic_2> const { 127.0.0.1 127.0.0.2 }
+table <__automatic_3> const { 127.0.0.1 127.0.0.2 }
+table <__automatic_4> const { 127.0.0.1 127.0.0.2 }
+table <__automatic_5> const { 127.0.0.1 127.0.0.2 }
+table <__automatic_6> const { 127.0.0.1 127.0.0.2 }
+match out on lo0 inet from any to 127.0.0.1 nat-to <__automatic_0> round-robin
+match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.0/24 bitmask static-port
+match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.0/24 random
+match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.0/24 source-hash 0x0123456789abcdef0123456789abcdef
+match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.0/24 source-hash 0x4da8e393fd22f577426cfdf7fe52d3b0
+match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.0/24 round-robin
+match in on lo0 inet from any to 127.0.0.1 rdr-to <__automatic_3> round-robin
+match in on lo0 inet from any to 127.0.0.1 rdr-to <__automatic_6> round-robin
+match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.0/24 bitmask
+match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.0/24 random
+match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.0/24 source-hash 0x0123456789abcdef0123456789abcdef
+match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.0/24 source-hash 0x4da8e393fd22f577426cfdf7fe52d3b0
+match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.0/24 round-robin

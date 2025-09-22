@@ -1,0 +1,5 @@
+// Test multiple statements inside a single block;
+BEGIN {
+	printf("One"); printf(", %d", "2");
+	printf(" %s three!\n", "and");
+}

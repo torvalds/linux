@@ -1,0 +1,44 @@
+.\"	$OpenBSD: mvodog.4,v 1.2 2023/03/02 11:56:25 jsg Exp $
+.\"
+.\" Copyright (c) 2019 Patrick Wildt <patrick@blueri.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt MVODOG 4 armv7
+.Os
+.Sh NAME
+.Nm mvodog
+.Nd Marvell Armada 38x watchdog timer
+.Sh SYNOPSIS
+.Cd "mvodog* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the integrated watchdog timer in Marvell Armada
+38x SoCs.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr watchdog 4 ,
+.Xr watchdogd 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jonathan Matthew Aq Mt jmatthew@openbsd.org .

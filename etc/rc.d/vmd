@@ -1,0 +1,19 @@
+#!/bin/ksh
+#
+# $OpenBSD: vmd,v 1.12 2022/08/29 19:14:25 ajacoutot Exp $
+
+daemon="/usr/sbin/vmd"
+
+. /etc/rc.d/rc.subr
+
+rc_configtest() {
+	# use rc_exec here since daemon_flags may contain arguments with spaces
+	rc_exec "${daemon} -n ${daemon_flags}"
+}
+
+rc_stop() {
+	_rc_do vmctl stop -a -w
+	pkill -T "${daemon_rtable}" -xf "${pexp}"
+}
+
+rc_cmd $1

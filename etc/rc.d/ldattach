@@ -1,0 +1,15 @@
+#!/bin/ksh
+#
+# $OpenBSD: ldattach,v 1.4 2018/01/11 21:09:26 rpe Exp $
+
+daemon="/sbin/ldattach"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=NO
+
+rc_pre() {
+	[[ -n ${ldattach_flags} ]]
+}
+
+rc_cmd $1

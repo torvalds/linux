@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mlgo-utils"
+description = "Tooling for ML in LLVM"
+readme = "README.md"
+requires-python = ">=3.8"
+dynamic = ["version"]
+license = {text = "Apache-2.0 WITH LLVM-exception"}
+classifiers = [
+  "License :: OSI Approved :: Apache Software License"
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "mlgo.__version__"}
+
+[project.scripts]
+combine_training_corpus = "mlgo.corpus.combine_training_corpus:parse_args_and_run"
+extract_ir = "mlgo.corpus.extract_ir:parse_args_and_run"
+make_corpus = "mlgo.corpus.make_corpus:parse_args_and_run"

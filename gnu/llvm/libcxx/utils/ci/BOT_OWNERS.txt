@@ -1,0 +1,22 @@
+This file is a list of the people or groups responsible for ensuring that bots
+are running correctly. They will also deal with platform specific issues that
+cannot be figured out by the community alone.
+
+The list is sorted by surname and formatted to allow easy grepping and
+beautification by scripts. The fields are: name (N), email (E), web-address
+(W), PGP key ID and fingerprint (P), description (D), snail-mail address
+(S), Phabricator handle (H) and IRC handle (I). Each entry should contain at
+least the (N), (E) and (D) fields.
+
+N: Linaro Toolchain Working Group
+E: linaro-toolchain@lists.linaro.org
+D: Arm platforms
+
+N: LLVM on Power
+E: powerllvm@ca.ibm.com
+D: AIX, ppc64le
+
+N: Android libc++
+E: rprichard@google.com
+H: rprichard
+D: Emulator-based x86[-64] libc++ CI testing

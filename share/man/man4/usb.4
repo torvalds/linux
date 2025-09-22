@@ -1,0 +1,704 @@
+.\"	$OpenBSD: usb.4,v 1.222 2025/05/23 03:06:09 kevlo Exp $
+.\"	$NetBSD: usb.4,v 1.15 1999/07/29 14:20:32 augustss Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 23 2025 $
+.Dt USB 4
+.Os
+.Sh NAME
+.Nm usb ,
+.Nm uhub
+.Nd introduction to Universal Serial Bus support
+.Sh SYNOPSIS
+.Cd "# arm specific"
+.Cd "mtxhci* at fdt?"
+.Cd "usb*    at mtxhci?"
+.Pp
+.Cd "# octeon specific"
+.Cd "dwctwo0 at iobus? irq 56"
+.Pp
+.Cd "# all architectures"
+.Cd "ehci*   at cardbus?"
+.Cd "ohci*   at cardbus?"
+.Cd "uhci*   at cardbus?"
+.Cd "ehci*   at fdt?"
+.Cd "ohci*   at fdt?"
+.Cd "xhci*   at fdt?"
+.Cd "ehci*   at pci?"
+.Cd "ohci*   at pci?"
+.Cd "uhci*   at pci?"
+.Cd "xhci*   at pci?"
+.Cd "usb*    at dwctwo?"
+.Cd "usb*    at ehci? flags 0x00"
+.Cd "usb*    at ohci? flags 0x00"
+.Cd "usb*    at uhci? flags 0x00"
+.Cd "usb*    at xhci? flags 0x00"
+.Cd "uhub*   at usb?"
+.Cd "uhub*   at uhub?"
+.Pp
+.Cd option	USBVERBOSE
+.Pp
+.In dev/usb/usb.h
+.In dev/usb/usbhid.h
+.Sh DESCRIPTION
+.Ox
+provides machine-independent bus support and drivers for Universal
+Serial Bus (USB) devices.
+.Pp
+The
+.Ox
+.Nm
+driver has three layers (like
+.Xr scsi 4
+and
+.Xr pcmcia 4 ) :
+the controller, the bus, and the device layer.
+The controller attaches to a physical bus (like
+.Xr pci 4
+or
+.Xr cardbus 4 ) .
+The USB bus attaches to the controller and the root hub attaches
+to the USB bus.
+Devices, which may include further hubs, attach to the root hub.
+The attachment forms the same tree structure as the physical USB
+device tree.
+For each USB device there may be additional drivers attached to it.
+.Pp
+The
+.Cm uhub
+driver controls USB hubs and must always be present since there is
+at least one root hub in any USB system.
+.Pp
+The
+.Cm flags
+are used to specify if the devices on the USB bus should be probed
+early in the boot process.
+If the
+.Cm flags
+are specified with a value of 1, the USB bus will be probed when
+the USB host device is attached instead of waiting until kernel
+processes start running.
+.Pp
+.Ox
+provides support for the following devices.
+Note that not all architectures support all devices.
+.Ss Storage devices
+.Bl -tag -width 12n -offset ind -compact
+.It Xr umass 4
+USB Mass Storage Devices, e.g., external disk drives
+.El
+.Ss Wired network interfaces
+.Bl -tag -width 12n -offset ind -compact
+.It Xr aue 4
+ADMtek AN986/ADM8511 Pegasus family 10/100 USB Ethernet device
+.It Xr axe 4
+ASIX Electronics AX88172/AX88178/AX88772 10/100/1Gb USB Ethernet device
+.It Xr axen 4
+ASIX Electronics AX88179/AX88179A/AX88772D 10/100/1Gb USB Ethernet device
+.It Xr cdce 4
+USB Communication Device Class Ethernet device
+.It Xr cue 4
+CATC USB-EL1201A USB Ethernet device
+.It Xr kue 4
+Kawasaki LSI KL5KUSB101B USB Ethernet device
+.It Xr mos 4
+MosChip MCS7730/7830/7832 10/100 USB Ethernet device
+.It Xr mue 4
+Microchip LAN75xx/LAN78xx 10/100/1Gb USB Ethernet device
+.It Xr smsc 4
+SMSC LAN95xx 10/100 USB Ethernet device
+.It Xr uaq 4
+Aquantia AQC111U/AQC112U 100/1Gb/2.5Gb/5Gb USB Ethernet device
+.It Xr udav 4
+Davicom DM9601 10/100 USB Ethernet device
+.It Xr ure 4
+Realtek RTL8152/RTL8153/RTL8156/RTL8157 10/100/1Gb/2.5Gb/5Gb USB Ethernet device
+.It Xr url 4
+Realtek RTL8150L 10/100 USB Ethernet device
+.It Xr urndis 4
+USB Remote NDIS Ethernet device
+.El
+.Ss Wireless network interfaces
+.Bl -tag -width 12n -offset ind -compact
+.It Xr athn 4
+Atheros IEEE 802.11a/b/g/n wireless network device
+.It Xr atu 4
+Atmel AT76C50x IEEE 802.11b wireless network device
+.It Xr bwfm 4
+Broadcom and Cypress IEEE 802.11a/ac/ax/b/g/n wireless network device
+.It Xr mtw 4
+MediaTek USB IEEE 802.11b/g/n wireless network device
+.It Xr otus 4
+Atheros USB IEEE 802.11a/b/g/n wireless network device
+.It Xr rsu 4
+Realtek RTL8188SU/RTL8192SU USB IEEE 802.11b/g/n wireless network device
+.It Xr rum 4
+Ralink Technology/MediaTek USB IEEE 802.11a/b/g wireless network device
+.It Xr run 4
+Ralink Technology/MediaTek USB IEEE 802.11a/b/g/n wireless network device
+.It Xr uath 4
+Atheros USB IEEE 802.11a/b/g wireless network device
+.It Xr upgt 4
+Conexant/Intersil PrismGT SoftMAC USB IEEE 802.11b/g wireless network device
+.It Xr ural 4
+Ralink Technology/MediaTek USB IEEE 802.11b/g wireless network device
+.It Xr urtw 4
+Realtek RTL8187L/RTL8187B USB IEEE 802.11b/g wireless network device
+.It Xr urtwn 4
+Realtek RTL8188CU/RTL8188EU/RTL8188FTV/RTL8192CU/RTL8192EU USB IEEE 802.11b/g/n wireless
+network device
+.It Xr wi 4
+Intersil PRISM 2-3 IEEE 802.11b wireless network device
+.It Xr zyd 4
+ZyDAS ZD1211/ZD1211B USB IEEE 802.11b/g wireless network device
+.El
+.Ss Serial and parallel interfaces
+.Bl -tag -width 12n -offset ind -compact
+.It Xr moscom 4
+MosChip Semiconductor MCS7703 based USB serial adapter
+.It Xr uark 4
+Arkmicro Technologies ARK3116 based USB serial adapter
+.It Xr ubsa 4
+Belkin USB serial adapter
+.It Xr uchcom 4
+WinChipHead CH9102/343/341/340 based USB serial adapter
+.It Xr ucom 4
+USB tty support
+.It Xr ucrcom 4
+Chromebook USB serial console
+.It Xr ucycom 4
+Cypress microcontroller based USB serial adapter
+.It Xr uftdi 4
+FTDI USB serial adapter
+.It Xr uipaq 4
+iPAQ USB units
+.It Xr ukspan 4
+Keyspan USB serial adapter
+.It Xr ulpt 4
+USB printer support
+.It Xr umcs 4
+MosChip Semiconductor based USB multiport serial adapter
+.It Xr umct 4
+MCT USB-RS232 USB serial adapter
+.It Xr umodem 4
+USB modem support
+.It Xr umsm 4
+Qualcomm MSM modem device
+.It Xr uplcom 4
+Prolific PL-2303 USB serial adapter
+.It Xr uscom 4
+simple USB serial adapters
+.It Xr uslcom 4
+Silicon Laboratories CP210x based USB serial adapter
+.It Xr uslhcom 4
+Silicon Laboratories CP2110 based USB serial adapter
+.It Xr uticom 4
+Texas Instruments TUSB3410 USB serial adapter
+.It Xr uvisor 4
+USB Handspring Visor
+.It Xr uvscom 4
+SUNTAC Slipper U VS-10U USB serial adapter
+.It Xr uxrcom 4
+Exar XR21V1410 USB serial adapter
+.El
+.Ss Audio devices
+.Bl -tag -width 12n -offset ind -compact
+.It Xr uaudio 4
+USB audio devices
+.It Xr umidi 4
+USB MIDI devices
+.El
+.Ss Video devices
+.Bl -tag -width 12n -offset ind -compact
+.It Xr udl 4
+DisplayLink DL-120/DL-160 USB display devices
+.It Xr utvfu 4
+USB Fushicai USBTV007 audio/video capture device
+.It Xr uvideo 4
+USB video devices
+.El
+.Ss Time receiver devices
+.Bl -tag -width 12n -offset ind -compact
+.It Xr udcf 4
+Gude ADS Expert mouseCLOCK USB timedelta sensor
+.It Xr umbg 4
+Meinberg Funkuhren USB5131 timedelta sensor
+.El
+.Ss Radio receiver devices
+.Bl -tag -width 12n -offset ind -compact
+.It Xr udsbr 4
+D-Link DSB-R100 USB radio device
+.El
+.Ss Human Interface Devices
+.Bl -tag -width 12n -offset ind -compact
+.It Xr fido 4
+FIDO/U2F security keys
+.It Xr ubcmtp 4
+Broadcom trackpad mouse
+.It Xr ucc 4
+Consumer Control keyboards
+.It Xr ugold 4
+TEMPer gold HID thermometer and hygrometer
+.It Xr uhid 4
+Generic driver for Human Interface Devices
+.It Xr uhidev 4
+Base driver for all Human Interface Devices
+.It Xr uhidpp 4
+Logitech HID++ devices
+.It Xr ujoy 4
+USB joysticks/gamecontrollers
+.It Xr ukbd 4
+USB keyboards that follow the boot protocol
+.It Xr ums 4
+USB HID mouse, touchscreen and digitiser devices
+.It Xr umstc 4
+Microsoft Surface Type Cover keyboard
+.It Xr umt 4
+USB HID multitouch touchpad devices
+.It Xr uoaklux 4
+Toradex OAK USB illuminance sensor
+.It Xr uoakrh 4
+Toradex OAK USB temperature and relative humidity sensor
+.It Xr uoakv 4
+Toradex OAK USB +/-10V 8channel ADC interface
+.It Xr upd 4
+USB Power Devices sensor
+.It Xr uthum 4
+TEMPer HID thermometer and hygrometer
+.It Xr utpms 4
+Apple touchpad mouse
+.It Xr utrh 4
+USBRH temperature and humidity sensor
+.It Xr utwitch 4
+YUREX USB twitch/jiggle of knee sensor
+.It Xr uwacom 4
+Wacom USB tablets
+.El
+.Ss WAN network devices
+.Bl -tag -width 12n -offset ind -compact
+.It Xr umb 4
+USB Mobile Broadband Interface Model (MBIM)
+.El
+.Ss Miscellaneous devices
+.Bl -tag -width 12n -offset ind -compact
+.It Xr uberry 4
+Research In Motion BlackBerry
+.It Xr ugen 4
+USB generic device support
+.It Xr ugl 4
+Genesys Logic based host-to-host adapters
+.It Xr uonerng 4
+Moonbase Otago OneRNG TRNG
+.It Xr uow 4
+Maxim/Dallas DS2490 USB 1-Wire adapter
+.It Xr upl 4
+Prolific based host-to-host adapters
+.It Xr urng 4
+USB Random Number Generator devices
+.It Xr usps 4
+USPS composite AC power and temperature sensor
+.It Xr uts 4
+USB touchscreen support
+.El
+.Sh INTRODUCTION TO USB
+There are different versions of the USB
+which provide different speeds.
+USB 3 can operate up to 5.0Gb/s.
+USB 2 operates at 480Mb/s, while USB versions 1 and 1.1 operate at
+12 Mb/s and 1.5 Mb/s for low speed devices.
+Each USB has a host controller that is the master of the bus;
+all other devices on the bus only speak when spoken to.
+.Pp
+There can be up to 127 devices (apart from the host controller)
+on a bus, each with its own address.
+The addresses are assigned
+dynamically by the host when each device is attached to the bus.
+.Pp
+Within each device there can be up to 16 endpoints.
+Each endpoint
+is individually addressed and the addresses are static.
+Each of these endpoints will communicate in one of four different modes:
+control, isochronous, bulk, or interrupt.
+A device always has at least one endpoint.
+This is a control endpoint at address 0
+and is used to give commands to the device and extract basic data,
+such as descriptors, from the device.
+Each endpoint, except the control endpoint, is unidirectional.
+.Pp
+The endpoints in a device are grouped into interfaces.
+An interface is a logical unit within a device; e.g.,
+a compound device with both a keyboard and a trackball would present
+one interface for each.
+An interface can sometimes be set into different modes,
+called alternate settings, which affects how it operates.
+Different alternate settings can have different endpoints
+within it.
+.Pp
+A device may operate in different configurations.
+Depending on the
+configuration the device may present different sets of endpoints
+and interfaces.
+.Pp
+Each device located on a hub has several
+.Xr config 8
+locators:
+.Pp
+.Bl -tag -width configuration -compact
+.It Cd port
+Number of the port on closest upstream hub.
+.It Cd configuration
+Configuration the device must be in for this driver to attach.
+This locator does not set the configuration; it is iterated by the bus
+enumeration.
+.It Cd interface
+Interface number within a device that an interface driver attaches to.
+.It Cd vendor
+16-bit vendor ID of the device.
+.It Cd product
+16-bit product ID of the device.
+.It Cd release
+16-bit release (revision) number of the device.
+.El
+.Pp
+The first locator can be used to pin down a particular device
+according to its physical position in the device tree.
+The last three locators can be used to pin down a particular
+device according to what device it actually is.
+.Pp
+The bus enumeration of the USB bus proceeds in several steps:
+.Bl -enum
+.It
+Any device-specific driver can attach to the device.
+.It
+If none is found, any device class specific driver can attach.
+.It
+If none is found, all configurations are iterated over.
+For each configuration all the interfaces are iterated over and interface
+drivers can attach.
+If any interface driver attached in a certain
+configuration, the iteration over configurations is stopped.
+.It
+If still no drivers have been found, the generic USB driver can attach.
+.El
+.Sh USB CONTROLLER INTERFACE
+Use the following to get access to the USB specific structures
+and defines:
+.Bd -literal -offset indent
+#include <dev/usb/usb.h>
+.Ed
+.Pp
+The
+.Pa /dev/usbN
+device can be opened and a few operations can be performed on it.
+The following
+.Xr ioctl 2
+commands are supported on the controller device:
+.Bl -tag -width xxxxxx
+.It Dv USB_DEVICEINFO Fa "struct usb_device_info"
+This command can be used to retrieve some information about a device
+on the bus.
+The
+.Va udi_addr
+field should be filled before the call and the other fields will
+be filled by information about the device on that address.
+Should no such device exist, an error is reported.
+.Bd -literal
+#define USB_MAX_DEVNAMES 4
+#define USB_MAX_DEVNAMELEN 16
+struct usb_device_info {
+	u_int8_t	udi_bus;
+	u_int8_t	udi_addr;	/* device address */
+	char		udi_product[USB_MAX_STRING_LEN];
+	char		udi_vendor[USB_MAX_STRING_LEN];
+	char		udi_release[8];
+	u_int16_t	udi_productNo;
+	u_int16_t	udi_vendorNo;
+	u_int16_t	udi_releaseNo;
+	u_int8_t	udi_class;
+	u_int8_t	udi_subclass;
+	u_int8_t	udi_protocol;
+	u_int8_t	udi_config;
+	u_int8_t	udi_speed;
+#define USB_SPEED_LOW	1
+#define USB_SPEED_FULL	2
+#define USB_SPEED_HIGH	3
+#define USB_SPEED_SUPER	4
+	u_int8_t	udi_port;
+	int		udi_power;	/* power consumption */
+	int		udi_nports;
+	char		udi_devnames[USB_MAX_DEVNAMES]
+			    [USB_MAX_DEVNAMELEN];
+	u_int32_t	udi_ports[16];	/* hub only */
+	char		udi_serial[USB_MAX_STRING_LEN];
+};
+.Ed
+.Pp
+The
+.Va udi_bus
+field contains the device unit number of the device.
+.Pp
+The
+.Va udi_product ,
+.Va udi_vendor ,
+and
+.Va udi_release
+fields contain self-explanatory descriptions of the device.
+The
+.Va udi_productNo ,
+.Va udi_vendorNo ,
+and
+.Va udi_releaseNo
+fields contain numeric identifiers for the device.
+.Pp
+The
+.Va udi_class
+and
+.Va udi_subclass
+fields contain the device class and subclass.
+.Pp
+The
+.Va udi_config
+field shows the current configuration of the device.
+.Pp
+The
+.Va udi_protocol
+field contains the device protocol as given from the device.
+.Pp
+The
+.Va udi_speed
+field
+contains the speed of the device.
+.Pp
+The
+.Va udi_power
+field shows the power consumption in milli-amps drawn at 5 volts
+or is zero if the device is self powered.
+.Pp
+The
+.Va udi_devnames
+field contains the names and instance numbers of the device drivers
+for the devices attached to this device.
+.Pp
+If the device is a hub, the
+.Va udi_nports
+field is non-zero and the
+.Va udi_ports
+field contains the addresses of the connected devices.
+If no device is connected to a port, one of the
+.Dv USB_PORT_*
+values indicates its status.
+.It Dv USB_DEVICESTATS Fa "struct usb_device_stats"
+This command retrieves statistics about the controller.
+.Bd -unfilled
+struct usb_device_stats {
+	u_long	uds_requests[4];
+};
+.Ed
+.Pp
+The
+.Va uds_requests
+field is indexed by the transfer kind, i.e.\&
+.Dv UE_* ,
+and indicates how many transfers of each kind have been completed
+by the controller.
+.It Dv USB_DEVICE_GET_DDESC Fa "struct usb_device_ddesc"
+This command can be used to retrieve the device descriptor
+of a device on the bus.
+The
+.Va udd_addr
+field needs to be filled with the bus device address:
+.Bd -literal
+struct usb_device_ddesc {
+	u_int8_t	udd_bus;
+	u_int8_t	udd_addr;	/* device address */
+	usb_device_descriptor_t udd_desc;
+};
+.Ed
+.Pp
+The
+.Va udd_bus
+field contains the device unit number.
+.Pp
+The
+.Va udd_desc
+field contains the device descriptor structure.
+.It Dv USB_DEVICE_GET_CDESC Fa "struct usb_device_cdesc"
+This command can be used to retrieve the configuration descriptor for the
+given configuration of a device on the bus.
+The
+.Va udc_addr
+field needs to be filled with the bus device address.
+The
+.Va udc_config_index
+field needs to be filled with the configuration index for the
+relevant configuration descriptor.
+For convenience the current configuration can be specified by
+.Dv USB_CURRENT_CONFIG_INDEX :
+.Bd -literal
+struct usb_device_cdesc {
+	u_int8_t	udc_bus;
+	u_int8_t	udc_addr;	/* device address */
+	int		udc_config_index;
+	usb_config_descriptor_t udc_desc;
+};
+.Ed
+.Pp
+The
+.Va udc_bus
+field contains the device unit number.
+.Pp
+The
+.Va udc_desc
+field contains the configuration descriptor structure.
+.It Dv USB_DEVICE_GET_FDESC Fa "struct usb_device_fdesc"
+This command can be used to retrieve all descriptors for the
+given configuration of a device on the bus.
+The
+.Va udf_addr
+field needs to be filled with the bus device address.
+The
+.Va udf_config_index
+field needs to be filled with the configuration index for the
+relevant configuration descriptor.
+For convenience the current configuration can be specified by
+.Dv USB_CURRENT_CONFIG_INDEX .
+The
+.Va udf_data
+field needs to point to a memory area of the size given in the
+.Va udf_size
+field.
+The proper size can be determined by first issuing a
+.Dv USB_DEVICE_GET_CDESC
+command and inspecting the
+.Va wTotalLength
+field:
+.Bd -literal
+struct usb_device_fdesc {
+	u_int8_t	 udf_bus;
+	u_int8_t	 udf_addr;	/* device address */
+	int		 udf_config_index;
+	u_int		 udf_size;
+	u_char		*udf_data;
+};
+.Ed
+.Pp
+The
+.Va udf_bus
+field contains the device unit number.
+.Pp
+The
+.Va udf_data
+field contains all descriptors.
+.It Dv USB_REQUEST Fa "struct usb_ctl_request"
+This command can be used to execute arbitrary requests on the control pipe.
+This is
+.Em DANGEROUS
+and should be used with great care since it
+can destroy the bus integrity.
+.Pp
+The
+.Vt usb_ctl_request
+structure has the following definition:
+.Bd -literal
+typedef struct {
+        uByte           bmRequestType;
+        uByte           bRequest;
+        uWord           wValue;
+        uWord           wIndex;
+        uWord           wLength;
+} __packed usb_device_request_t;
+
+struct usb_ctl_request {
+	int	ucr_addr;
+	usb_device_request_t ucr_request;
+	void	*ucr_data;
+	int	ucr_flags;
+#define USBD_SHORT_XFER_OK 0x04	/* allow short reads */
+	int	ucr_actlen;	/* actual length transferred */
+};
+.Ed
+.Pp
+The
+.Va ucr_addr
+field identifies the device on which to perform the request.
+The
+.Va ucr_request
+field identifies parameters of the request, such as length and type.
+The
+.Va ucr_data
+field contains the location where data will be read from or written to.
+The
+.Va ucr_flags
+field specifies options for the request, and the
+.Va ucr_actlen
+field contains the actual length transferred as the result of the request.
+.El
+.Pp
+The include file
+.In dev/usb/usb.h
+contains definitions for the types used by the various
+.Xr ioctl 2
+calls.
+The naming convention of the fields for the various USB descriptors
+exactly follows the naming in the USB specification.
+Byte sized fields can be accessed directly, but word (16-bit)
+sized fields must be accessed by the
+.Fn UGETW field
+and
+.Fn USETW field value
+macros and double word (32-bit) sized fields must be accessed by the
+.Fn UGETDW field
+and
+.Fn USETDW field value
+macros to handle byte order and alignment properly.
+.Pp
+The include file
+.In dev/usb/usbhid.h
+similarly contains the definitions for
+Human Interface Devices (HID).
+.Sh SEE ALSO
+.Xr usbhidaction 1 ,
+.Xr usbhidctl 1 ,
+.Xr ioctl 2 ,
+.Xr dwctwo 4 ,
+.Xr ehci 4 ,
+.Xr ohci 4 ,
+.Xr uhci 4 ,
+.Xr xhci 4 ,
+.Xr config 8 ,
+.Xr usbdevs 8
+.Pp
+The USB specifications can be found at:
+.Lk https://www.usb.org/documents
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Ox 2.6 .

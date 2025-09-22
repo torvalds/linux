@@ -1,0 +1,22 @@
+Section,Description,Assignee,Complete
+| `[sf.cmath.assoc.laguerre] <https://wg21.link/sf.cmath.assoc.laguerre>`_, std::assoc_laguerre, None, |Not Started|
+| `[sf.cmath.assoc.legendre] <https://wg21.link/sf.cmath.assoc.legendre>`_, std::assoc_legendre, None, |Not Started|
+| `[sf.cmath.beta] <https://wg21.link/sf.cmath.beta>`_, std::beta, None, |Not Started|
+| `[sf.cmath.comp.ellint.1] <https://wg21.link/sf.cmath.comp.ellint.1>`_, std::comp_ellint_1, None, |Not Started|
+| `[sf.cmath.comp.ellint.2] <https://wg21.link/sf.cmath.comp.ellint.2>`_, std::comp_ellint_2, None, |Not Started|
+| `[sf.cmath.comp.ellint.3] <https://wg21.link/sf.cmath.comp.ellint.3>`_, std::comp_ellint_3, None, |Not Started|
+| `[sf.cmath.cyl.bessel.i] <https://wg21.link/sf.cmath.cyl.bessel.i>`_, std::cyl_bessel_i, None, |Not Started|
+| `[sf.cmath.cyl.bessel.j] <https://wg21.link/sf.cmath.cyl.bessel.j>`_, std::cyl_bessel_j, None, |Not Started|
+| `[sf.cmath.cyl.bessel.k] <https://wg21.link/sf.cmath.cyl.bessel.k>`_, std::cyl_bessel_k, None, |Not Started|
+| `[sf.cmath.cyl.neumann] <https://wg21.link/sf.cmath.cyl.neumann>`_, std::cyl_neumann, None, |Not Started|
+| `[sf.cmath.ellint.1] <https://wg21.link/sf.cmath.ellint.1>`_, std::ellint_1, None, |Not Started|
+| `[sf.cmath.ellint.2] <https://wg21.link/sf.cmath.ellint.2>`_, std::ellint_2, None, |Not Started|
+| `[sf.cmath.ellint.3] <https://wg21.link/sf.cmath.ellint.3>`_, std::ellint_3, None, |Not Started|
+| `[sf.cmath.expint] <https://wg21.link/sf.cmath.expint>`_, std::expint, None, |Not Started|
+| `[sf.cmath.hermite] <https://wg21.link/sf.cmath.hermite>`_, std::hermite, Paul Xi Cao, |Complete|
+| `[sf.cmath.laguerre] <https://wg21.link/sf.cmath.laguerre>`_, std::laguerre, None, |Not Started|
+| `[sf.cmath.legendre] <https://wg21.link/sf.cmath.legendre>`_, std::legendre, None, |Not Started|
+| `[sf.cmath.riemann.zeta] <https://wg21.link/sf.cmath.riemann.zeta>`_, std::riemann_zeta, None, |Not Started|
+| `[sf.cmath.sph.bessel] <https://wg21.link/sf.cmath.sph.bessel>`_, std::sph_bessel, None, |Not Started|
+| `[sf.cmath.sph.legendre] <https://wg21.link/sf.cmath.sph.legendre>`_, std::sph_legendre, None, |Not Started|
+| `[sf.cmath.sph.neumann] <https://wg21.link/sf.cmath.sph.neumann>`_, std::sph_neumann, None, |Not Started|

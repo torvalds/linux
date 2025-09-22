@@ -1,0 +1,67 @@
+.\"	$OpenBSD: pkg_check-version.1,v 1.3 2022/04/19 15:03:12 espie Exp $
+.\"
+.\" Copyright (c) 2021 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 19 2022 $
+.Dt PKG_CHECK-VERSION 1
+.Os
+.Sh NAME
+.Nm pkg_check-version
+.Nd verify parsing and ordering of package names
+.Sh SYNOPSIS
+.Nm
+.Op Fl Hv
+.Ar pkgname ...
+.Sh DESCRIPTION
+.Nm
+takes a list of
+.Ar pkgname
+and processes them.
+.Bl -bullet -compact
+.It
+each name is parsed and checked for issues.
+.It
+in addition, comparable names (same stem and same flavor) are sorted
+from older to newer version.
+.El
+.Pp
+Options are as follows:
+.Bl -tag -width Hv
+.It Fl H
+displays a human-readable version of each
+.Ar pkgname
+(full version parsing, including known suffixes, dewey numbers parsing,
+REVISION, EPOCH, flavor markers).
+.It Fl v
+verbose mode, which will explicitly state
+.Ar pkgname
+with no issues and sort one element lists.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with 0, unless one of the
+.Ar pkgname
+was malformed, or two names are actually non comparable
+.Po
+such as
+.Sq moo-1.23pre1
+and
+.Sq moo-1.23rc1
+.Pc .
+.Sh SEE ALSO
+.Xr packages-specs 7
+.Sh AUTHORS
+.An Marc Espie Aq Mt espie@openbsd.org

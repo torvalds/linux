@@ -1,0 +1,9 @@
+import("//clang/resource_dir.gni")
+
+copy("include") {
+  sources = [
+    "__cxxabi_config.h",
+    "cxxabi.h",
+  ]
+  outputs = [ "$root_build_dir/include/c++/v1/{{source_target_relative}}" ]
+}

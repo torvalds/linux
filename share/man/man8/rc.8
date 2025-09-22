@@ -1,0 +1,223 @@
+.\"	$OpenBSD: rc.8,v 1.48 2025/06/01 07:36:05 kn Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: June 1 2025 $
+.Dt RC 8
+.Os
+.Sh NAME
+.Nm rc ,
+.Nm rc.firsttime ,
+.Nm rc.local ,
+.Nm rc.securelevel
+.Nd command scripts for system startup
+.Sh DESCRIPTION
+.Nm rc
+is the command script that is invoked by
+.Xr init 8
+when the system starts up.
+It performs system housekeeping chores and starts up system daemons.
+Additionally,
+.Nm rc
+is intricately tied to the
+.Xr netstart 8
+script, which runs commands and daemons pertaining to the network.
+.Nm rc
+is also used to execute any
+.Xr rc.d 8
+scripts defined in
+.Xr rc.conf.local 8 .
+The
+.Nm rc.securelevel ,
+.Nm rc.firsttime ,
+and
+.Nm rc.local
+scripts hold commands which are pertinent only to a specific site.
+.Pp
+All of these startup scripts are controlled to some
+extent by variables defined in
+.Xr rc.conf 8 ,
+which specify which daemons and services to run.
+.Pp
+Before
+.Xr init 8
+starts
+.Nm rc ,
+it sets the process priority, umask, and resource limits according to the
+.Dq daemon
+login class as described in
+.Xr login.conf 5 .
+It then starts
+.Nm rc
+and attempts to execute the sequence of commands therein.
+.Pp
+The first part of
+.Nm rc
+runs an
+.Xr fsck 8
+with option
+.Fl p
+to
+.Dq preen
+all disks of minor inconsistencies resulting
+from the last system shutdown and to check for serious inconsistencies
+caused by hardware or software failure.
+If this auto-check and repair succeeds, then the second part of
+.Nm rc
+is run.
+However, if the file
+.Pa /fastboot
+exists,
+fsck will not be invoked.
+The file is then removed so that fsck will be run on subsequent boots.
+.Pp
+The second part of
+.Nm rc
+then asks
+.Xr rc.conf 8
+for configuration variables,
+mounts filesystems, saves
+.Xr dmesg 8
+output to the file
+.Pa /var/run/dmesg.boot ,
+starts system daemons,
+preserves editor files,
+clears the scratch directory
+.Pa /tmp ,
+uses
+.Xr savecore 8
+to save any possible core image that might have been
+generated as a result of a system crash,
+and relinks kernel objects in a random order.
+.Pp
+If at any point the boot script fails,
+.Xr init 8
+enters single-user mode,
+allowing the superuser a shell on the console.
+On exiting this mode,
+init again invokes
+.Nm rc ,
+but this time without performing the file system preen.
+.Pp
+Before
+.Nm rc
+starts most system daemons,
+.Xr netstart 8
+is executed.
+.Pp
+.Nm rc.securelevel
+is executed by
+.Nm rc
+to start daemons that must be run before the security level changes.
+Following this,
+.Nm rc
+then sets the security level to '1' if it wasn't set already by
+.Nm rc.securelevel .
+See
+.Xr securelevel 7
+for the effects of setting the security level.
+.Pp
+If
+.Nm rc.firsttime
+exists, it is executed once and then deleted.
+Any output is mailed to root.
+.Pp
+.Nm rc.local
+is executed towards the end of
+.Nm rc
+(it is not the very last as there are a few services that must be
+started at the very end).
+Normally,
+.Nm rc.local
+contains commands and daemons that are not part of the
+stock installation.
+.Sh FILES
+.Bl -tag -width "/etc/rc.securelevelXX" -compact
+.It Pa /etc/netstart
+Command script for network startup.
+.It Pa /etc/rc
+Command scripts for system startup.
+.It Pa /etc/rc.conf
+System daemon configuration database.
+.It Pa /etc/rc.conf.local
+Site specific daemon configuration database.
+.It Pa /etc/rc.d
+Directory to hold
+.Xr rc.d 8
+scripts.
+.It Pa /etc/rc.d/rc.subr
+Functions used by the
+.Xr rc.d 8
+scripts.
+.It Pa /etc/rc.firsttime
+Commands run on the first boot after creation.
+.It Pa /etc/rc.local
+Site specific command scripts for system startup.
+.It Pa /etc/rc.securelevel
+Commands run before the security level changes.
+.It Pa /etc/rc.shutdown
+Commands run at system shutdown.
+.It Pa /etc/examples/rc.*
+Examples of site specific scripts.
+.It Pa /fastboot
+Tells
+.Nm rc
+not to run
+.Xr fsck 8
+during the next boot.
+.It Pa /var/run/dmesg.boot
+Copy of
+.Xr dmesg 8
+saved by
+.Nm rc
+at boot time.
+.It Pa /etc/random.seed
+Random seed file read by the bootloader;
+updated at system startup and shutdown.
+.It Pa /var/db/host.random
+Random seed file read by
+.Nm rc
+and the installer on upgrades;
+updated at system startup and shutdown.
+.El
+.Sh SEE ALSO
+.Xr sysctl.conf 5 ,
+.Xr securelevel 7 ,
+.Xr init 8 ,
+.Xr netstart 8 ,
+.Xr rc.conf 8 ,
+.Xr rc.d 8 ,
+.Xr rc.shutdown 8 ,
+.Xr rcctl 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.At v4 .

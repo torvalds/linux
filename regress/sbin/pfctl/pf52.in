@@ -1,0 +1,7 @@
+# test setting all optimizations to avoid future keyword clashes
+
+set optimization normal
+set optimization satellite
+set optimization high-latency
+set optimization conservative
+set optimization aggressive

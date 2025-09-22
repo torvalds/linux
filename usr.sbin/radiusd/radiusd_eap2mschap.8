@@ -1,0 +1,87 @@
+.\"	$OpenBSD: radiusd_eap2mschap.8,v 1.4 2024/08/04 05:18:28 jmc Exp $
+.\"
+.\" Copyright (c) 2024 Internet Initiative Japan Inc.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The following requests are required for all man pages.
+.\"
+.Dd $Mdocdate: August 4 2024 $
+.Dt RADIUSD_EAP2MSCHAP 8
+.Os
+.Sh NAME
+.Nm radiusd_eap2mschap
+.Nd provides conversion from EAP-MSCHAPv2 to MSCHAPv2
+.Sh SYNOPSIS
+.Nm radiusd_eap2mschap
+.Sh DESCRIPTION
+The
+.Nm
+module is executed by
+.Xr radiusd 8
+as an
+.Dq authentication-filter
+module to provide conversion from EAP-MSCHAPv2 authentication messages to
+MS-CHAPv2 authentication messages.
+.Sh CONFIGURATIONS
+The
+.Nm
+module supports the following configuration key and value:
+.Bl -tag -width Ds
+.It Ic chap-name Ar name
+Specify the name in CHAP.
+The default is
+.Dq radiusd .
+.El
+.Sh FILES
+.Bl -tag -width "/usr/libexec/radiusd/radiusd_eap2mschap" -compact
+.It Pa /usr/libexec/radiusd/radiusd_eap2mschap
+.Dq eap2mschap
+module executable.
+.El
+.Sh EXAMPLES
+An example showing the
+.Nm
+module providing an authentication server that supports EAP-MSCHAPv2.
+Although the
+.Xr radiusd_file 8
+module itself doesn't support any EAP methods,
+when used with the
+.Nm
+module it becomes possible to support EAP-MSCHAPv2.
+.Pp
+.Pa /etc/radiusd.conf :
+.Bd -literal -offset indent
+listen on 192.168.0.1
+client 192.168.0.0/24 {
+    secret SECRET
+}
+
+module file {
+    set path "/etc/npppd/npppd-users"
+}
+module eap2mschap
+
+authentication-filter * by eap2mschap
+authenticate * by file
+.Ed
+.Sh SEE ALSO
+.Xr authenticate 3 ,
+.Xr radiusd.conf 5 ,
+.Xr radiusd 8 ,
+.Xr radiusd_file 8
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Ox 7.6 .

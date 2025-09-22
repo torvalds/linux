@@ -1,0 +1,80 @@
+.\" $OpenBSD: SSL_copy_session_id.3,v 1.8 2025/06/08 22:52:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_COPY_SESSION_ID 3
+.Os
+.Sh NAME
+.Nm SSL_copy_session_id
+.Nd copy session details between SSL objects
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fo SSL_copy_session_id
+.Fa "SSL *to"
+.Fa "const SSL *from"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_copy_session_id
+copies the following data from
+.Fa from
+to
+.Fa to :
+.Bl -dash
+.It
+the pointer to the
+.Vt SSL_SESSION
+object, incrementing its reference count by 1
+.It
+the pointer to the
+.Vt SSL_METHOD
+object; if that changes the method, protocol-specific data is
+reinitialized
+.It
+the pointer to the
+.Vt CERT
+object, incrementing its reference count by 1
+.It
+the session ID context
+.El
+.Pp
+This function is used internally by
+.Xr SSL_dup 3
+and by
+.Xr BIO_ssl_copy_session_id 3 .
+.Sh RETURN VALUES
+.Fn SSL_copy_session_id
+returns 1 on success and 0 on error.
+.Sh SEE ALSO
+.Xr BIO_ssl_copy_session_id 3 ,
+.Xr ssl 3 ,
+.Xr SSL_dup 3 ,
+.Xr SSL_get_session 3 ,
+.Xr SSL_SESSION_get_id 3 ,
+.Xr SSL_SESSION_new 3 ,
+.Xr SSL_set_session 3 ,
+.Xr SSL_set_session_id_context 3
+.Sh HISTORY
+.Fn SSL_copy_session_id
+appeared in SSLeay 0.4 or earlier and has been available since
+.Ox 2.4 .
+.Sh BUGS
+Failures of
+.Xr CRYPTO_add 3
+are silently ignored and may leave
+.Fa to
+in an invalid or inconsistent state.

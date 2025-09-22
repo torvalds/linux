@@ -1,0 +1,166 @@
+.\"	$OpenBSD: BN_copy.3,v 1.11 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>
+.\" and Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2000, 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_COPY 3
+.Os
+.Sh NAME
+.Nm BN_copy ,
+.Nm BN_dup ,
+.Nm BN_with_flags
+.Nd copy BIGNUMs
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft BIGNUM *
+.Fo BN_copy
+.Fa "BIGNUM *to"
+.Fa "const BIGNUM *from"
+.Fc
+.Ft BIGNUM *
+.Fo BN_dup
+.Fa "const BIGNUM *from"
+.Fc
+.Ft void
+.Fo BN_with_flags
+.Fa "BIGNUM *dest"
+.Fa "const BIGNUM *b"
+.Fa "int flags"
+.Fc
+.Sh DESCRIPTION
+.Fn BN_copy
+copies
+.Fa from
+to
+.Fa to .
+.Pp
+.Fn BN_dup
+creates a new
+.Vt BIGNUM
+containing the value
+.Fa from .
+.Pp
+.Fn BN_with_flags
+creates a
+.Em temporary
+shallow copy of
+.Fa b
+in
+.Fa dest .
+It places significant restrictions on the copied data.
+Applications that do not adhere to these restrictions
+may encounter unexpected side effects or crashes.
+For that reason, use of this function is discouraged.
+.Pp
+Any flags provided in
+.Fa flags
+will be set in
+.Fa dest
+in addition to any flags already set in
+.Fa b .
+For example, this can be used to create a temporary copy of a
+.Vt BIGNUM
+with the
+.Dv BN_FLG_CONSTTIME
+flag set for constant time operations.
+.Pp
+The temporary copy in
+.Fa dest
+will share some internal state with
+.Fa b .
+For this reason, the following restrictions apply to the use of
+.Fa dest :
+.Bl -bullet
+.It
+.Fa dest
+should be a newly allocated
+.Vt BIGNUM
+obtained via a call to
+.Xr BN_new 3 .
+It should not have been used for other purposes or initialised in any way.
+.It
+.Fa dest
+must only be used in "read-only" operations, i.e. typically those
+functions where the relevant parameter is declared "const".
+.It
+.Fa dest
+must be used and freed before any further subsequent use of
+.Fa b .
+.El
+.Sh RETURN VALUES
+.Fn BN_copy
+returns
+.Fa to
+on success or
+.Dv NULL
+on error.
+.Fn BN_dup
+returns the new
+.Vt BIGNUM
+or
+.Dv NULL
+on error.
+The error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr BN_new 3 ,
+.Xr BN_set_flags 3
+.Sh HISTORY
+.Fn BN_copy
+and
+.Fn BN_dup
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn BN_with_flags
+first appeared in OpenSSL 0.9.7h and 0.9.8a
+and has been available since
+.Ox 4.0 .

@@ -1,0 +1,434 @@
+.TH "libunbound" "3" "Jul 16, 2025" "NLnet Labs" "unbound 1.23.1"
+.\"
+.\" libunbound.3 -- unbound library functions manual
+.\"
+.\" Copyright (c) 2007, NLnet Labs. All rights reserved.
+.\"
+.\" See LICENSE for the license.
+.\"
+.\"
+.SH "NAME"
+.B libunbound,
+.B unbound.h,
+.B ub_ctx,
+.B ub_result,
+.B ub_callback_type,
+.B ub_ctx_create,
+.B ub_ctx_delete,
+.B ub_ctx_set_option,
+.B ub_ctx_get_option,
+.B ub_ctx_config,
+.B ub_ctx_set_fwd,
+.B ub_ctx_set_stub,
+.B ub_ctx_set_tls,
+.B ub_ctx_resolvconf,
+.B ub_ctx_hosts,
+.B ub_ctx_add_ta,
+.B ub_ctx_add_ta_autr,
+.B ub_ctx_add_ta_file,
+.B ub_ctx_trustedkeys,
+.B ub_ctx_debugout,
+.B ub_ctx_debuglevel,
+.B ub_ctx_async,
+.B ub_poll,
+.B ub_wait,
+.B ub_fd,
+.B ub_process,
+.B ub_resolve,
+.B ub_resolve_async,
+.B ub_cancel,
+.B ub_resolve_free,
+.B ub_strerror,
+.B ub_ctx_print_local_zones,
+.B ub_ctx_zone_add,
+.B ub_ctx_zone_remove,
+.B ub_ctx_data_add,
+.B ub_ctx_data_remove
+\- Unbound DNS validating resolver 1.23.1 functions.
+.SH "SYNOPSIS"
+.B #include <unbound.h>
+.LP
+\fIstruct ub_ctx *\fR
+\fBub_ctx_create\fR(\fIvoid\fR);
+.LP
+\fIvoid\fR
+\fBub_ctx_delete\fR(\fIstruct ub_ctx*\fR ctx);
+.LP
+\fIint\fR
+\fBub_ctx_set_option\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR opt, \fIchar*\fR val);
+.LP
+\fIint\fR
+\fBub_ctx_get_option\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR opt, \fIchar**\fR val);
+.LP
+\fIint\fR
+\fBub_ctx_config\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR fname);
+.LP
+\fIint\fR
+\fBub_ctx_set_fwd\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR addr);
+.LP
+\fIint\fR
+\fBub_ctx_set_stub\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR zone,
+\fIchar*\fR addr,
+.br
+		\fIint\fR isprime);
+.LP
+\fIint\fR
+\fBub_ctx_set_tls\fR(\fIstruct ub_ctx*\fR ctx, \fIint\fR tls);
+.LP
+\fIint\fR
+\fBub_ctx_resolvconf\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR fname);
+.LP
+\fIint\fR
+\fBub_ctx_hosts\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR fname);
+.LP
+\fIint\fR
+\fBub_ctx_add_ta\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR ta);
+.LP
+\fIint\fR
+\fBub_ctx_add_ta_autr\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR fname);
+.LP
+\fIint\fR
+\fBub_ctx_add_ta_file\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR fname);
+.LP
+\fIint\fR
+\fBub_ctx_trustedkeys\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR fname);
+.LP
+\fIint\fR
+\fBub_ctx_debugout\fR(\fIstruct ub_ctx*\fR ctx, \fIFILE*\fR out);
+.LP
+\fIint\fR
+\fBub_ctx_debuglevel\fR(\fIstruct ub_ctx*\fR ctx, \fIint\fR d);
+.LP
+\fIint\fR
+\fBub_ctx_async\fR(\fIstruct ub_ctx*\fR ctx, \fIint\fR dothread);
+.LP
+\fIint\fR
+\fBub_poll\fR(\fIstruct ub_ctx*\fR ctx);
+.LP
+\fIint\fR
+\fBub_wait\fR(\fIstruct ub_ctx*\fR ctx);
+.LP
+\fIint\fR
+\fBub_fd\fR(\fIstruct ub_ctx*\fR ctx);
+.LP
+\fIint\fR
+\fBub_process\fR(\fIstruct ub_ctx*\fR ctx);
+.LP
+\fIint\fR
+\fBub_resolve\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR name, 
+.br
+           \fIint\fR rrtype, \fIint\fR rrclass, \fIstruct ub_result**\fR result);
+.LP
+\fIint\fR
+\fBub_resolve_async\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR name, 
+.br
+                 \fIint\fR rrtype, \fIint\fR rrclass, \fIvoid*\fR mydata, 
+.br
+                 \fIub_callback_type\fR callback, \fIint*\fR async_id);
+.LP
+\fIint\fR
+\fBub_cancel\fR(\fIstruct ub_ctx*\fR ctx, \fIint\fR async_id);
+.LP
+\fIvoid\fR
+\fBub_resolve_free\fR(\fIstruct ub_result*\fR result);
+.LP
+\fIconst char *\fR
+\fBub_strerror\fR(\fIint\fR err);
+.LP
+\fIint\fR
+\fBub_ctx_print_local_zones\fR(\fIstruct ub_ctx*\fR ctx);
+.LP
+\fIint\fR
+\fBub_ctx_zone_add\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR zone_name, \fIchar*\fR zone_type);
+.LP
+\fIint\fR
+\fBub_ctx_zone_remove\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR zone_name);
+.LP
+\fIint\fR
+\fBub_ctx_data_add\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR data);
+.LP
+\fIint\fR
+\fBub_ctx_data_remove\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR data);
+.SH "DESCRIPTION"
+.B Unbound 
+is an implementation of a DNS resolver, that does caching and 
+DNSSEC validation. This is the library API, for using the \-lunbound library.
+The server daemon is described in \fIunbound\fR(8).
+The library works independent from a running unbound server, and
+can be used to convert hostnames to ip addresses, and back,
+and obtain other information from the DNS. The library performs public\-key
+validation of results with DNSSEC.
+.P
+The library uses a variable of type \fIstruct ub_ctx\fR to keep context
+between calls. The user must maintain it, creating it with
+.B ub_ctx_create
+and deleting it with
+.B ub_ctx_delete\fR.
+It can be created and deleted at any time. Creating it anew removes any 
+previous configuration (such as trusted keys) and clears any cached results.
+.P
+The functions are thread\-safe, and a context can be used in a threaded (as 
+well as in a non\-threaded) environment. Also resolution (and validation) 
+can be performed blocking and non\-blocking (also called asynchronous). 
+The async method returns from the call immediately, so that processing 
+can go on, while the results become available later. 
+.P
+The functions are discussed in turn below.
+.SH "FUNCTIONS"
+.TP 
+.B ub_ctx_create
+Create a new context, initialised with defaults.
+The information from /etc/resolv.conf and /etc/hosts is not utilised 
+by default. Use 
+.B ub_ctx_resolvconf
+and
+.B ub_ctx_hosts
+to read them.
+Before you call this, use the openssl functions CRYPTO_set_id_callback and
+CRYPTO_set_locking_callback to set up asynchronous operation if you use
+lib openssl (the application calls these functions once for initialisation).
+Openssl 1.0.0 or later uses the CRYPTO_THREADID_set_callback function.
+.TP
+.B ub_ctx_delete
+Delete validation context and free associated resources.
+Outstanding async queries are killed and callbacks are not called for them.
+.TP
+.B ub_ctx_set_option
+A power\-user interface that lets you specify one of the options from the
+config file format, see \fIunbound.conf\fR(5). Not all options are
+relevant. For some specific options, such as adding trust anchors, special
+routines exist. Pass the option name with the trailing ':'.
+.TP
+.B ub_ctx_get_option
+A power\-user interface that gets an option value.  Some options cannot be
+gotten, and others return a newline separated list.  Pass the option name
+without trailing ':'.  The returned value must be free(2)d by the caller.
+.TP
+.B ub_ctx_config
+A power\-user interface that lets you specify an unbound config file, see
+\fIunbound.conf\fR(5), which is read for configuration. Not all options are
+relevant. For some specific options, such as adding trust anchors, special
+routines exist.  This function is thread\-safe only if a single instance of
+ub_ctx* exists in the application.  If several instances exist the
+application has to ensure that ub_ctx_config is not called in parallel by
+the different instances.
+.TP
+.B ub_ctx_set_fwd
+Set machine to forward DNS queries to, the caching resolver to use. 
+IP4 or IP6 address. Forwards all DNS requests to that machine, which 
+is expected to run a recursive resolver. If the proxy is not 
+DNSSEC capable, validation may fail. Can be called several times, in 
+that case the addresses are used as backup servers.
+At this time it is only possible to set configuration before the
+first resolve is done.
+.TP
+.B ub_ctx_set_stub
+Set a stub zone, authoritative dns servers to use for a particular zone.
+IP4 or IP6 address.  If the address is NULL the stub entry is removed.
+Set isprime true if you configure root hints with it.  Otherwise similar to
+the stub zone item from unbound's config file.  Can be called several times,
+for different zones, or to add multiple addresses for a particular zone.
+At this time it is only possible to set configuration before the
+first resolve is done.
+.TP
+.B ub_ctx_set_tls
+Enable DNS over TLS (DoT) for machines set with 
+.B ub_ctx_set_fwd.
+At this time it is only possible to set configuration before the
+first resolve is done.
+.TP
+.B ub_ctx_resolvconf
+By default the root servers are queried and full resolver mode is used, but
+you can use this call to read the list of nameservers to use from the
+filename given.
+Usually "/etc/resolv.conf". Uses those nameservers as caching proxies.
+If they do not support DNSSEC, validation may fail.
+Only nameservers are picked up, the searchdomain, ndots and other
+settings from \fIresolv.conf\fR(5) are ignored.
+If fname NULL is passed, "/etc/resolv.conf" is used (if on Windows, 
+the system\-wide configured nameserver is picked instead).
+At this time it is only possible to set configuration before the
+first resolve is done.
+.TP
+.B ub_ctx_hosts
+Read list of hosts from the filename given.
+Usually "/etc/hosts". When queried for, these addresses are not marked 
+DNSSEC secure. If fname NULL is passed, "/etc/hosts" is used 
+(if on Windows, etc/hosts from WINDIR is picked instead).
+At this time it is only possible to set configuration before the
+first resolve is done.
+.TP
+.B
+ub_ctx_add_ta
+Add a trust anchor to the given context.
+At this time it is only possible to add trusted keys before the
+first resolve is done.
+The format is a string, similar to the zone\-file format,
+[domainname] [type] [rdata contents]. Both DS and DNSKEY records are accepted.
+.TP
+.B ub_ctx_add_ta_autr
+Add filename with automatically tracked trust anchor to the given context.
+Pass name of a file with the managed trust anchor.  You can create this
+file with \fIunbound\-anchor\fR(8) for the root anchor.  You can also
+create it with an initial file with one line with a DNSKEY or DS record.
+If the file is writable, it is updated when the trust anchor changes.
+At this time it is only possible to add trusted keys before the
+first resolve is done.
+.TP
+.B ub_ctx_add_ta_file
+Add trust anchors to the given context.
+Pass name of a file with DS and DNSKEY records in zone file format.
+At this time it is only possible to add trusted keys before the
+first resolve is done.
+.TP
+.B ub_ctx_trustedkeys
+Add trust anchors to the given context.
+Pass the name of a bind\-style config file with trusted\-keys{}.
+At this time it is only possible to add trusted keys before the
+first resolve is done.
+.TP
+.B ub_ctx_debugout
+Set debug and error log output to the given stream. Pass NULL to disable
+output. Default is stderr. File\-names or using syslog can be enabled
+using config options, this routine is for using your own stream.
+.TP
+.B ub_ctx_debuglevel
+Set debug verbosity for the context. Output is directed to stderr.
+Higher debug level gives more output.
+.TP
+.B ub_ctx_async
+Set a context behaviour for asynchronous action.
+if set to true, enables threading and a call to 
+.B ub_resolve_async 
+creates a thread to handle work in the background.
+If false, a process is forked to handle work in the background.
+Changes to this setting after 
+.B ub_resolve_async 
+calls have been made have no effect (delete and re\-create the context 
+to change).
+.TP
+.B ub_poll
+Poll a context to see if it has any new results.
+Do not poll in a loop, instead extract the fd below to poll for readiness,
+and then check, or wait using the wait routine.
+Returns 0 if nothing to read, or nonzero if a result is available.
+If nonzero, call 
+.B ub_process 
+to do callbacks.
+.TP
+.B ub_wait
+Wait for a context to finish with results. Calls 
+.B ub_process 
+after the wait for you. After the wait, there are no more outstanding 
+asynchronous queries.
+.TP
+.B ub_fd
+Get file descriptor. Wait for it to become readable, at this point
+answers are returned from the asynchronous validating resolver.
+Then call the \fBub_process\fR to continue processing.
+.TP
+.B ub_process
+Call this routine to continue processing results from the validating
+resolver (when the fd becomes readable).
+Will perform necessary callbacks.
+.TP
+.B ub_resolve
+Perform resolution and validation of the target name.
+The name is a domain name in a zero terminated text string.
+The rrtype and rrclass are DNS type and class codes.
+The result structure is newly allocated with the resulting data.
+.TP
+.B ub_resolve_async
+Perform asynchronous resolution and validation of the target name.
+Arguments mean the same as for \fBub_resolve\fR except no
+data is returned immediately, instead a callback is called later.
+The callback receives a copy of the mydata pointer, that you can use to pass
+information to the callback. The callback type is a function pointer to
+a function declared as
+.IP
+void my_callback_function(void* my_arg, int err, 
+.br
+                  struct ub_result* result);
+.IP
+The async_id is returned so you can (at your option) decide to track it
+and cancel the request if needed.  If you pass a NULL pointer the async_id
+is not returned. 
+.TP
+.B ub_cancel
+Cancel an async query in progress.  This may return an error if the query
+does not exist, or the query is already being delivered, in that case you 
+may still get a callback for the query.
+.TP
+.B ub_resolve_free
+Free struct ub_result contents after use.
+.TP
+.B ub_strerror
+Convert error value from one of the unbound library functions 
+to a human readable string.
+.TP
+.B ub_ctx_print_local_zones
+Debug printout the local authority information to debug output.
+.TP
+.B ub_ctx_zone_add
+Add new zone to local authority info, like local\-zone \fIunbound.conf\fR(5) 
+statement.
+.TP
+.B ub_ctx_zone_remove
+Delete zone from local authority info.
+.TP
+.B ub_ctx_data_add
+Add resource record data to local authority info, like local\-data
+\fIunbound.conf\fR(5) statement.
+.TP
+.B ub_ctx_data_remove
+Delete local authority data from the name given.
+.SH "RESULT DATA STRUCTURE"
+The result of the DNS resolution and validation is returned as 
+\fIstruct ub_result\fR. The result structure contains the following entries.
+.P
+.nf
+	struct ub_result {
+		char* qname; /* text string, original question */
+		int qtype;   /* type code asked for */
+		int qclass;  /* class code asked for */
+		char** data; /* array of rdata items, NULL terminated*/
+		int* len;    /* array with lengths of rdata items */
+		char* canonname; /* canonical name of result */
+		int rcode;   /* additional error code in case of no data */
+		void* answer_packet; /* full network format answer packet */
+		int answer_len;  /* length of packet in octets */
+		int havedata; /* true if there is data */
+		int nxdomain; /* true if nodata because name does not exist */
+		int secure;   /* true if result is secure */
+		int bogus;    /* true if a security failure happened */
+		char* why_bogus; /* string with error if bogus */
+		int was_ratelimited; /* true if the query was ratelimited (SERVFAIL) by unbound */
+		int ttl;     /* number of seconds the result is valid */
+	};
+.fi
+.P
+If both secure and bogus are false, security was not enabled for the 
+domain of the query.  Else, they are not both true, one of them is true.
+.SH "RETURN VALUES"
+Many routines return an error code. The value 0 (zero) denotes no error
+happened. Other values can be passed to
+.B ub_strerror
+to obtain a readable error string.
+.B ub_strerror
+returns a zero terminated string.
+.B ub_ctx_create
+returns NULL on an error (a malloc failure).
+.B ub_poll
+returns true if some information may be available, false otherwise.
+.B ub_fd
+returns a file descriptor or \-1 on error.
+.B ub_ctx_config
+and
+.B ub_ctx_resolvconf
+attempt to leave errno informative on a function return with file read failure.
+.SH "SEE ALSO"
+\fIunbound.conf\fR(5), 
+\fIunbound\fR(8).
+.SH "AUTHORS"
+.B Unbound
+developers are mentioned in the CREDITS file in the distribution.

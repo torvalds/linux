@@ -1,0 +1,226 @@
+.\" $OpenBSD: tls_conn_version.3,v 1.12 2025/07/07 10:54:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2015 Bob Beck <beck@openbsd.org>
+.\" Copyright (c) 2016, 2018 Joel Sing <jsing@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt TLS_CONN_VERSION 3
+.Os
+.Sh NAME
+.Nm tls_conn_version ,
+.Nm tls_conn_cipher ,
+.Nm tls_conn_cipher_strength ,
+.Nm tls_conn_alpn_selected ,
+.Nm tls_conn_servername ,
+.Nm tls_conn_session_resumed ,
+.Nm tls_peer_cert_provided ,
+.Nm tls_peer_cert_contains_name ,
+.Nm tls_peer_cert_chain_pem ,
+.Nm tls_peer_cert_issuer ,
+.Nm tls_peer_cert_subject ,
+.Nm tls_peer_cert_common_name ,
+.Nm tls_peer_cert_hash ,
+.Nm tls_peer_cert_notbefore ,
+.Nm tls_peer_cert_notafter
+.Nd inspect an established TLS connection
+.Sh SYNOPSIS
+.Lb libtls libssl libcrypto
+.In tls.h
+.Ft const char *
+.Fn tls_conn_version "struct tls *ctx"
+.Ft const char *
+.Fn tls_conn_cipher "struct tls *ctx"
+.Ft int
+.Fn tls_conn_cipher_strength "struct tls *ctx"
+.Ft const char *
+.Fn tls_conn_alpn_selected "struct tls *ctx"
+.Ft const char *
+.Fn tls_conn_servername "struct tls *ctx"
+.Ft int
+.Fn tls_conn_session_resumed "struct tls *ctx"
+.Ft int
+.Fn tls_peer_cert_provided "struct tls *ctx"
+.Ft int
+.Fo tls_peer_cert_contains_name
+.Fa "struct tls *ctx"
+.Fa "const char *name"
+.Fc
+.Ft const uint8_t *
+.Fo tls_peer_cert_chain_pem
+.Fa "struct tls *ctx"
+.Fa "size_t *size"
+.Fc
+.Ft const char *
+.Fn tls_peer_cert_issuer "struct tls *ctx"
+.Ft const char *
+.Fn tls_peer_cert_subject "struct tls *ctx"
+.Ft const char *
+.Fn tls_peer_cert_common_name "struct tls *ctx"
+.Ft const char *
+.Fn tls_peer_cert_hash "struct tls *ctx"
+.Ft time_t
+.Fn tls_peer_cert_notbefore "struct tls *ctx"
+.Ft time_t
+.Fn tls_peer_cert_notafter "struct tls *ctx"
+.Sh DESCRIPTION
+These functions return information about a TLS connection and will only
+succeed after the handshake is complete (the connection information applies
+to both clients and servers, unless noted otherwise):
+.Pp
+.Fn tls_conn_version
+returns a string corresponding to a TLS version negotiated with the peer
+connected to
+.Ar ctx .
+.Pp
+.Fn tls_conn_cipher
+returns a string corresponding to the cipher suite negotiated with the peer
+connected to
+.Ar ctx .
+.Pp
+.Fn tls_conn_cipher_strength
+returns the strength in bits for the symmetric cipher that is being
+used with the peer connected to
+.Ar ctx .
+.Pp
+.Fn tls_conn_alpn_selected
+returns a string that specifies the ALPN protocol selected for use with the peer
+connected to
+.Ar ctx .
+If no protocol was selected then NULL is returned.
+.Pp
+.Fn tls_conn_servername
+returns a string corresponding to the servername that the client connected to
+.Ar ctx
+requested by sending a TLS Server Name Indication extension (server only).
+.Pp
+.Fn tls_conn_session_resumed
+indicates whether a TLS session has been resumed during the handshake with
+the server connected to
+.Ar ctx
+(client only).
+.Pp
+.Fn tls_peer_cert_provided
+checks if the peer of
+.Ar ctx
+has provided a certificate.
+.Pp
+.Fn tls_peer_cert_contains_name
+checks if the peer of a TLS
+.Ar ctx
+has provided a certificate that contains a
+SAN or CN that matches
+.Ar name .
+.Pp
+.Fn tls_peer_cert_chain_pem
+returns a pointer to memory containing a PEM-encoded certificate chain for the
+peer certificate from
+.Ar ctx .
+.Pp
+.Fn tls_peer_cert_subject
+returns a string
+corresponding to the subject of the peer certificate from
+.Ar ctx .
+.Pp
+.Fn tls_peer_cert_issuer
+returns a string
+corresponding to the issuer of the peer certificate from
+.Ar ctx .
+.Fn tls_peer_cert_common_name
+returns a string
+corresponding to the common name of the peer certificate from
+.Ar ctx
+or the empty string if no common name is present.
+.Pp
+.Fn tls_peer_cert_hash
+returns a string
+corresponding to a hash of the raw peer certificate from
+.Ar ctx
+prefixed by a hash name followed by a colon.
+The hash currently used is SHA256, though this
+could change in the future.
+The hash string for a certificate in file
+.Ar mycert.crt
+can be generated using the commands:
+.Bd -literal -offset indent
+h=$(openssl x509 -outform der -in mycert.crt | sha256)
+printf "SHA256:${h}\\n"
+.Ed
+.Pp
+.Fn tls_peer_cert_notbefore
+returns the time corresponding to the start of the validity period of
+the peer certificate from
+.Ar ctx .
+.Pp
+.Fn tls_peer_cert_notafter
+returns the time corresponding to the end of the validity period of
+the peer certificate from
+.Ar ctx .
+.Sh RETURN VALUES
+The
+.Fn tls_conn_session_resumed
+function returns 1 if a TLS session was resumed or 0 if it was not.
+.Pp
+The
+.Fn tls_peer_cert_provided
+and
+.Fn tls_peer_cert_contains_name
+functions return 1 if the check succeeds or 0 if it does not.
+.Pp
+.Fn tls_peer_cert_notbefore
+and
+.Fn tls_peer_cert_notafter
+return a time in epoch-seconds on success or -1 on error.
+.Pp
+The functions that return a pointer return
+.Dv NULL
+on error or an out of memory condition.
+.Sh SEE ALSO
+.Xr tls_configure 3 ,
+.Xr tls_handshake 3 ,
+.Xr tls_init 3 ,
+.Xr tls_ocsp_process_response 3
+.Sh HISTORY
+.Fn tls_conn_version ,
+.Fn tls_conn_cipher ,
+.Fn tls_peer_cert_provided ,
+.Fn tls_peer_cert_contains_name ,
+.Fn tls_peer_cert_issuer ,
+.Fn tls_peer_cert_subject ,
+.Fn tls_peer_cert_hash ,
+.Fn tls_peer_cert_notbefore ,
+and
+.Fn tls_peer_cert_notafter
+appeared in
+.Ox 5.9 .
+.Pp
+.Fn tls_conn_servername
+and
+.Fn tls_conn_alpn_selected
+appeared in
+.Ox 6.1 .
+.Pp
+.Fn tls_conn_session_resumed
+appeared in
+.Ox 6.3 .
+.Pp
+.Fn tls_conn_cipher_strength
+appeared in
+.Ox 6.7 .
+.Fn tls_peer_cert_common_name
+appeared in
+.Ox 7.7 .
+.Sh AUTHORS
+.An Bob Beck Aq Mt beck@openbsd.org
+.An Joel Sing Aq Mt jsing@openbsd.org

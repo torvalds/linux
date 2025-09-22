@@ -1,0 +1,95 @@
+import("//clang/lib/StaticAnalyzer/Frontend/enable.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+import("enable.gni")
+
+config("clang-tidy-config_Config") {
+  visibility = [ ":clang-tidy-config" ]
+  include_dirs = [ "$target_gen_dir" ]
+}
+
+write_cmake_config("clang-tidy-config") {
+  input = "clang-tidy-config.h.cmake"
+  output = "$target_gen_dir/clang-tidy-config.h"
+  values = []
+
+  if (clang_tidy_enable_static_analyzer) {
+    values += [ "CLANG_TIDY_ENABLE_STATIC_ANALYZER=1" ]
+  } else {
+    values += [ "CLANG_TIDY_ENABLE_STATIC_ANALYZER=" ]
+  }
+
+  # Let targets depending on this find the generated file.
+  public_configs = [ ":clang-tidy-config_Config" ]
+}
+
+static_library("clang-tidy") {
+  output_name = "clangTidy"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    ":clang-tidy-config",
+    "//clang/include/clang/StaticAnalyzer/Checkers",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Sema",
+    "//clang/lib/Serialization",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Support",
+  ]
+
+  if (clang_tidy_enable_static_analyzer) {
+    deps += [
+      "//clang/lib/StaticAnalyzer/Core",
+      "//clang/lib/StaticAnalyzer/Frontend",
+    ]
+  }
+
+  sources = [
+    "ClangTidy.cpp",
+    "ClangTidyCheck.cpp",
+    "ClangTidyDiagnosticConsumer.cpp",
+    "ClangTidyModule.cpp",
+    "ClangTidyOptions.cpp",
+    "ClangTidyProfiling.cpp",
+    "ExpandModularHeadersPPCallbacks.cpp",
+    "GlobList.cpp",
+    "NoLintDirectiveHandler.cpp",
+  ]
+}
+
+group("all-checks") {
+  # If you add a check, also add it to ClangTidyForceLinker.h.
+  deps = [
+    "//clang-tools-extra/clang-tidy/abseil",
+    "//clang-tools-extra/clang-tidy/altera",
+    "//clang-tools-extra/clang-tidy/android",
+    "//clang-tools-extra/clang-tidy/boost",
+    "//clang-tools-extra/clang-tidy/bugprone",
+    "//clang-tools-extra/clang-tidy/cert",
+    "//clang-tools-extra/clang-tidy/concurrency",
+    "//clang-tools-extra/clang-tidy/cppcoreguidelines",
+    "//clang-tools-extra/clang-tidy/darwin",
+    "//clang-tools-extra/clang-tidy/fuchsia",
+    "//clang-tools-extra/clang-tidy/google",
+    "//clang-tools-extra/clang-tidy/hicpp",
+    "//clang-tools-extra/clang-tidy/linuxkernel",
+    "//clang-tools-extra/clang-tidy/llvm",
+    "//clang-tools-extra/clang-tidy/llvmlibc",
+    "//clang-tools-extra/clang-tidy/misc",
+    "//clang-tools-extra/clang-tidy/modernize",
+    "//clang-tools-extra/clang-tidy/objc",
+    "//clang-tools-extra/clang-tidy/openmp",
+    "//clang-tools-extra/clang-tidy/performance",
+    "//clang-tools-extra/clang-tidy/portability",
+    "//clang-tools-extra/clang-tidy/readability",
+    "//clang-tools-extra/clang-tidy/zircon",
+  ]
+  if (clang_tidy_enable_static_analyzer) {
+    deps += [ "//clang-tools-extra/clang-tidy/mpi" ]
+  }
+}

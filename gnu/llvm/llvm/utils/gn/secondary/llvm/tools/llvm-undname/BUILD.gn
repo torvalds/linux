@@ -1,0 +1,7 @@
+executable("llvm-undname") {
+  deps = [
+    "//llvm/lib/Demangle",
+    "//llvm/lib/Support",
+  ]
+  sources = [ "llvm-undname.cpp" ]
+}

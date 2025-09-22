@@ -1,0 +1,164 @@
+.\"	$OpenBSD: backgammon.6,v 1.21 2015/12/02 20:05:01 tb Exp $
+.\"
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)backgammon.6	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: December 2 2015 $
+.Dt BACKGAMMON 6
+.Os
+.Sh NAME
+.Nm backgammon
+.Nd the game of backgammon
+.Sh SYNOPSIS
+.Nm backgammon
+.Op Fl bdnrw
+.Op Fl s Ar file
+.Sh DESCRIPTION
+This program lets you play backgammon against the computer
+or against a
+.Sq friend .
+All commands are only one letter,
+so you don't need to type a carriage return,
+except at the end of a move.
+The program is mostly self-explanatory:
+a question mark (?) will usually get some help.
+If you answer
+.Sq y
+when the program asks if you want the rules,
+you will get text explaining the rules of the game,
+some hints on strategy,
+instructions on how to use the program,
+and a tutorial consisting of a practice game against the computer.
+A description of how to use the program can be
+obtained by answering
+.Sq y
+when it asks if you want instructions.
+.Pp
+The possible arguments for
+.Nm
+are described below.
+In each case
+.Fl n
+is implied.
+.Bl -tag -width indent
+.It Fl b
+Two players, red and white.
+.It Fl d
+Play without doubling.
+.It Fl n
+Don't ask for rules or instructions.
+.It Fl r
+Player is red.
+.It Fl s Ar file
+Recover previously saved game from
+.Ar file .
+.It Fl w
+Player is white.
+.El
+.Sh QUICK REFERENCE
+When the program prompts by typing only your color,
+type a space or carriage return to roll,
+or one of the following:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Ic d
+to double
+.It Ic q
+to quit
+.It Ic r
+to redraw the board
+.It Ic s
+to save the game for later
+.El
+.Pp
+When the program prompts with 'Move:',
+type one of the following:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Ic q
+to quit
+.It Ic r
+to redraw the board
+.It Ic s
+to save the game
+.El
+.Pp
+Or a
+.Em move ,
+which is a sequence of one of the following:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Ic s-f
+move from
+.Ic s
+to
+.Ic f
+.It Ic s/r
+move one man on
+.Ic s
+the roll
+.Ic r
+separated by commas or spaces and ending with a newline.
+Available abbreviations are as follows:
+.Pp
+.Bl -tag -width "s-f1-f2XXX" -offset indent -compact
+.It Ic s-f1-f2
+means
+.Ic s-f1,f1-f2
+.It Ic s/r1r2
+means
+.Ic s/r1,s/r2
+.El
+.El
+.Pp
+Use
+.Ic b
+for bar and
+.Ic h
+for home,
+or 0 or 25 as appropriate.
+.Sh FILES
+.Bl -tag -width /usr/games/teachgammon -compact
+.It Pa /usr/games/teachgammon
+rules and tutorial
+.El
+.Sh HISTORY
+The game
+.Nm
+first appeared in
+.Bx 3 .
+.Sh AUTHORS
+.An -nosplit
+.An Alan Char
+.Pp
+The strategy is the
+.Dq pubeval
+algorithm of
+.An Gerry Tesauro ,
+with minimal doubling logic added.

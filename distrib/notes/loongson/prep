@@ -1,0 +1,67 @@
+dnl	$OpenBSD: prep,v 1.4 2010/02/18 20:44:41 jasper Exp $
+Most MACHINE systems are shipped with a Linux system installed on the disk
+drive or SSD.  This system will likely use two partitions, one for the
+system and applications, and another for the user data. OpenBSD will in turn
+need its own MBR partition.
+
+If there is no unpartitioned space left on the disk, it will be necessary to
+shrink and recreate the data partition; before installing OpenBSD/MACHINE,
+you should make sure any important data on this partition is backed up.
+
+If you intend to only use OpenBSD on your machine, please note that, at this
+point, it is necessary to keep an ext2 or ext3 Linux partition, to be able
+to boot the system.
+
+Before you install your system, you should familiarize yourself with PMON,
+the open source firmware and bootloader of your machine.
+
+Entering PMON:
+
+    Upon power-up, or after a reset, a splash screen is displayed while PMON
+    initializes.
+
+    On Lemote systems, after PMON initializes, a text mode boot menu appears.
+    At this menu, you can either select one of the systems to boot with the
+    arrows keys and press enter, or abort the countdown sequence and get to
+    the PMON commandline by hitting `c'.
+
+    If you have set up your machine to automatically boot into OpenBSD,
+    and want to enter PMON, you should press the `Del' key or
+    `ESC [ G' if you are using a serial console. You must have attached a
+    VGA monitor for the last step, as the commands you type on the console,
+    will show up on the VGA monitor.
+
+    On Gdium systems, the system proceeds to immediately boot into the
+    operating system; to enter PMON, repeatedly press the `del' key
+    (on the top right corner of the keyboard) before the G-Key lits,
+    until the splash screen disappears and a PMON prompt appears.
+dnl XXX it does not work for me anymore ?!?
+dnl    Another way to abort autoboot is to start the system with the G-Key
+dnl    removed; the system will then stop with the splash screen displayed,
+dnl    and pressing the `del' key will get you to the PMON prompt.
+
+    PMON command are entered at the ``PMON>'' prompt; you may correct typos
+    using the backspace key, and retrieve previous commands from the history
+    using Ctrl-P. On Lemote systems, unfortunately, there is no cursor shape
+    displayed, which can make command line editing quite tedious.
+
+PMON file path concepts:
+
+    The filenames used by PMON always mention explicitly the location of
+    the filesystem they refer to, as well as the filesystem type. They
+    are constructed as
+    	/dev/fs/<filesystem type>@<device name>/<path within the filesystem>
+
+    On Lemote systems, the internal storage (either a disk drive or an SSD)
+    is `wd0'. On the Gdium Liberty, the G-Key slot is `usbg0'. Other devices
+    connected to the USB ports are named `usb0', `usb1', etc, in the order
+    PMON configures them. At any time the ``devls'' command will list
+    the devices you can boot from. Note that it is not possible to boot from
+    the SD card reader.
+
+    Supported filesystems are `ext2', for Linux ext2 and ext3 filesystem
+    partition, and `iso9660' for CD-ROM.
+
+    As an example, the /boot/vmlinux file on the first partition of the
+    hard disk becomes:
+	/dev/fs/ext2@wd0/boot/vmlinux

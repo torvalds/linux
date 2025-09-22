@@ -1,0 +1,256 @@
+.\"	$OpenBSD: biosboot.8,v 1.15 2022/06/27 16:39:34 jmc Exp $
+.\"
+.\" Copyright (c) 2003 Tom Cosgrove <tom.cosgrove@arches-consulting.com>
+.\" Copyright (c) 1997 Michael Shalayeff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF MIND, USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 27 2022 $
+.Dt BIOSBOOT 8 amd64
+.Os
+.Sh NAME
+.Nm biosboot
+.Nd amd64-specific first-stage system bootstrap
+.Sh DESCRIPTION
+This small program (roughly 512 bytes of code) is responsible for
+loading the second-stage
+.Xr boot 8
+program (typically /boot), which in turn will load the kernel.
+.Pp
+.Nm
+must be installed by
+.Xr installboot 8 .
+As part of the installation,
+.Xr installboot 8
+patches
+.Nm
+with information about the location of
+.Xr boot 8
+on disk.
+Specifically, it writes the filesystem block number of
+.Xr boot 8 Ns 's
+inode,
+the offset within this block of the inode,
+and various filesystem parameters (taken from the superblock)
+required to convert filesystem blocks to disk sectors.
+Usually,
+.Xr boot 8
+is loaded from the root filesystem of the boot disk.
+If the boot disk is a
+.Xr softraid 4
+volume,
+.Xr installboot 8
+arranges for a copy of
+.Xr boot 8
+to be loaded from a dedicated single-inode filesystem located within
+the volume's meta data area.
+.Pp
+You must re-run
+.Xr installboot 8
+whenever
+.Xr boot 8
+is changed, as its inode may change.
+While it should not be necessary,
+it may also be advisable to re-run
+.Xr installboot 8
+if you move your disk between machines and/or controllers.
+.Pp
+When
+.Nm
+receives control from either the BIOS or the
+master boot record (MBR), it will print the message:
+.Pp
+.Dl Loading
+.Pp
+followed by a dot for every filesystem block it attempts to load.
+If /boot is loaded successfully,
+.Nm
+will put the cursor on the next line just before
+transferring control to the newly-loaded program.
+.Pp
+If possible,
+.Nm
+will read disk sectors using calls detailed in the Phoenix
+Enhanced Disk Drive Specification (EDD, sometimes known as LBA, reads).
+It will fall back to CHS reads only if EDD calls are not available.
+.Pp
+.Nm
+prints a
+.Sq ;\&
+after the
+.Dq Loading
+message if it is going to use CHS reads for any reason.
+For example, when booting from floppy or CD-ROM.
+.Pp
+.Nm
+may fail with any of the following error messages:
+.Bl -tag -width ERR_X__
+.It Er ERR I
+Too many indirect blocks.
+.Nm
+is capable of reading the direct blocks in
+.Xr boot 8 Ns 's
+inode (the location of which is patched into
+.Nm
+by
+.Xr installboot 8 )
+and the first indirect block,
+but it is not capable of reading further indirect blocks.
+This error indicates that further such indirect blocks were found.
+The system will not be able to boot.
+.Pp
+This is unlikely to ever happen in practice, as
+.Xr boot 8
+has to be quite large for this to be an issue.
+The smallest possible filesystem block size is 512 bytes
+(one sector per filesystem block).
+On such a system, there are 140 filesystem blocks that
+.Nm
+can read, so
+.Xr boot 8
+can be up to 70 KB.
+.Pp
+However, even on floppy disks the filesystem block size is 1024 bytes.
+This allows
+.Xr boot 8
+to occupy up to 268 disk blocks,
+i.e. to be 268 KB.
+On hard disks (default filesystem block size 16 KB)
+4,108 disk blocks are available, to allow
+.Xr boot 8
+to be over 64 MB in size!
+(Only direct blocks are required for
+.Xr boot 8 Ns s
+of up to 192 KB.)
+.It Er ERR M
+Bad magic.
+The ELF
+.Dq magic number
+\e7fELF in
+.Xr boot 8 Ns 's
+header was not found.
+This indicates that the first block of
+.Xr boot 8
+was not read correctly.
+This could be due to disk corruption,
+failing to run
+.Xr installboot 8 ,
+giving an invalid
+.Xr boot 8
+program as the
+.Ar boot
+argument to
+.Xr installboot 8 ,
+or
+incorrect geometry translation.
+.It Er ERR R
+Read error.
+The BIOS returned an error indication when
+.Nm
+attempted to read a disk sector.
+This might be any media error, including bad sectors (common on floppy disks),
+and invalid sectors (can occur with bad geometry translations).
+.It Er ERR X
+Can't boot.
+Issued when trying to read sectors in CHS mode,
+but the BIOS call
+.Em get\ drive\ parameters
+failed or gave a value of 0 for the number of sectors per track.
+In either case, it is not possible for
+.Nm
+to calculate the (cylinder, head, sector) values required to
+read any sectors.
+.El
+.Sh NOTES
+Using
+.Nm
+as the MBR,
+as has been done in the past,
+is not recommended, and is not supported.
+Instead, create a single
+.Xr fdisk 8
+partition that spans the entire disk.
+.Pp
+Despite the support for
+.Xr boot 8
+over the 8 GB boundary,
+good
+.Xr disklabel 8
+partitioning practices should still be followed.
+.Sh FILES
+.Bl -tag -width /usr/mdec/biosbootxx -compact
+.It Pa /usr/mdec/mbr
+Master Boot Record block
+.It Pa /usr/mdec/biosboot
+primary bootstrap
+.It Pa /boot
+secondary bootstrap
+.It Pa /usr/mdec/pxeboot
+PXE bootstrap
+.It Pa /bsd
+.Ox
+kernel
+.It Pa /bsd.sp
+.Ox
+kernel for single processor machines
+.It Pa /bsd.mp
+.Ox
+kernel for multiprocessor machines
+.It Pa /bsd.rd
+.Ox
+kernel for installation/recovery
+.El
+.Sh SEE ALSO
+.Xr softraid 4 ,
+.Xr boot 8 ,
+.Xr boot_amd64 8 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr installboot 8 ,
+.Xr pxeboot 8
+.Sh HISTORY
+.Nm
+was originally written by Michael Shalayeff for
+.Ox 2.1 .
+However it was based on bootstrap code from older versions of this
+operating system, other operating systems, other programs, and
+other people's work.
+.Pp
+It was significantly revised in December 2003 by Tom Cosgrove,
+in order to support LBA disk access (via the Phoenix Enhanced Disk
+Drive Specification API).
+At that time the internal table of disk blocks was removed, and
+.Nm
+modified to read filesystem block numbers from the inode.
+.Sh BUGS
+.Nm
+should perform and verify a checksum across the entire loaded
+.Xr boot 8
+image,
+rather than just checking the magic number in the first block.
+.Pp
+There is no BIOS error number reported nor is the location of the error
+reported.
+.Pp
+You can pick your motherboard, and you can pick your BIOS,
+but you can't pick your motherboard's BIOS.

@@ -1,0 +1,162 @@
+[
+  {
+    "name": "cxxopts",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/jarro2783/cxxopts.git",
+    "commit": "794c975",
+    "size": "tiny"
+  },
+  {
+    "name": "box2d",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/erincatto/box2d.git",
+    "commit": "1025f9a",
+    "size": "small"
+  },
+  {
+    "name": "tinyexpr",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/codeplea/tinyexpr.git",
+    "commit": "ffb0d41",
+    "size": "tiny"
+  },
+  {
+    "name": "symengine",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/symengine/symengine.git",
+    "commit": "4f669d59",
+    "size": "small"
+  },
+  {
+    "name": "termbox",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/nsf/termbox.git",
+    "commit": "0df1355",
+    "size": "tiny"
+  },
+  {
+    "name": "tinyvm",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/jakogut/tinyvm.git",
+    "commit": "10c25d8",
+    "size": "tiny"
+  },
+  {
+    "name": "tinyspline",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/msteinbeck/tinyspline.git",
+    "commit": "f8b1ab7",
+    "size": "tiny"
+  },
+  {
+    "name": "oatpp",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/oatpp/oatpp.git",
+    "commit": "d3e60fb",
+    "size": "small"
+  },
+  {
+    "name": "libsoundio",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/andrewrk/libsoundio.git",
+    "commit": "b810bf2",
+    "size": "tiny"
+  },
+  {
+    "name": "zstd",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/facebook/zstd.git",
+    "commit": "2af4e073",
+    "size": "small"
+  },
+  {
+    "name": "simbody",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/simbody/simbody.git",
+    "commit": "5cf513d",
+    "size": "big"
+  },
+  {
+    "name": "duckdb",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/cwida/duckdb.git",
+    "commit": "d098c9f",
+    "size": "big"
+  },
+  {
+    "name": "drogon",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/an-tao/drogon.git",
+    "commit": "fd2a612",
+    "size": "small"
+  },
+  {
+    "name": "fmt",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/fmtlib/fmt.git",
+    "commit": "5e7c70e",
+    "size": "small"
+  },
+  {
+    "name": "re2",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/google/re2.git",
+    "commit": "2b25567",
+    "size": "small"
+  },
+  {
+    "name": "cppcheck",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/danmar/cppcheck.git",
+    "commit": "5fa3d53",
+    "size": "small"
+  },
+  {
+    "name": "harfbuzz",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/harfbuzz/harfbuzz.git",
+    "commit": "f8d345e",
+    "size": "small"
+  },
+  {
+    "name": "capnproto",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/capnproto/capnproto.git",
+    "commit": "8be1c9f",
+    "size": "small"
+  },
+  {
+    "name": "tmux",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/tmux/tmux.git",
+    "commit": "a5f99e1",
+    "size": "big"
+  },
+  {
+    "name": "faiss",
+    "mode": 1,
+    "source": "git",
+    "origin": "https://github.com/facebookresearch/faiss.git",
+    "commit": "9e5d5b7",
+    "size": "small"
+  }
+]

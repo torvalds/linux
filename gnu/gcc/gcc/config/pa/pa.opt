@@ -1,0 +1,119 @@
+; Options for the HP PA-RISC port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+march=1.0
+Target RejectNegative
+Generate PA1.0 code
+
+march=1.1
+Target RejectNegative
+Generate PA1.1 code
+
+march=2.0
+Target RejectNegative
+Generate PA2.0 code (requires binutils 2.10 or later)
+
+mbig-switch
+Target Report Mask(BIG_SWITCH)
+Generate code for huge switch statements
+
+mdisable-fpregs
+Target Report Mask(DISABLE_FPREGS)
+Disable FP regs
+
+mdisable-indexing
+Target Report Mask(DISABLE_INDEXING)
+Disable indexed addressing
+
+mfast-indirect-calls
+Target Report Mask(FAST_INDIRECT_CALLS)
+Generate fast indirect calls
+
+mfixed-range=
+Target RejectNegative Joined
+Specify range of registers to make fixed
+
+mgas
+Target Report Mask(GAS)
+Assume code will be assembled by GAS
+
+mjump-in-delay
+Target Report Mask(JUMP_IN_DELAY)
+Put jumps in call delay slots
+
+;; Not used by gcc
+mlinker-opt
+Target RejectNegative
+Enable linker optimizations
+
+mlong-calls
+Target Report Mask(LONG_CALLS)
+Always generate long calls
+
+mlong-load-store
+Target Report Mask(LONG_LOAD_STORE)
+Emit long load/store sequences
+
+mnosnake
+Target RejectNegative
+Generate PA1.0 code
+
+mno-space-regs
+Target RejectNegative Report Mask(NO_SPACE_REGS)
+Disable space regs
+
+mpa-risc-1-0
+Target RejectNegative
+Generate PA1.0 code
+
+mpa-risc-1-1
+Target RejectNegative Mask(PA_11)
+Generate PA1.1 code
+
+mpa-risc-2-0
+Target RejectNegative Mask(PA_20)
+Generate PA2.0 code (requires binutils 2.10 or later)
+
+mportable-runtime
+Target Report Mask(PORTABLE_RUNTIME)
+Use portable calling conventions
+
+mschedule=
+Target RejectNegative Joined
+Specify CPU for scheduling purposes.  Valid arguments are 700, 7100, 7100LC, 7200, 7300, and 8000
+
+msoft-float
+Target Report Mask(SOFT_FLOAT)
+Use software floating point
+
+msnake
+Target RejectNegative
+Generate PA1.1 code
+
+mspace-regs
+Target RejectNegative Report InverseMask(NO_SPACE_REGS)
+Do not disable space regs
+
+Mask(SIO)
+;; Generate cpp defines for server I/O.
+
+Mask(GNU_LD)
+;; Assume GNU linker by default

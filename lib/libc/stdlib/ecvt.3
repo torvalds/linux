@@ -1,0 +1,166 @@
+.\" $OpenBSD: ecvt.3,v 1.13 2019/01/25 00:19:25 millert Exp $
+.\"
+.\" Copyright (c) 2002 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Sponsored in part by the Defense Advanced Research Projects
+.\" Agency (DARPA) and Air Force Research Laboratory, Air Force
+.\" Materiel Command, USAF, under agreement number F39502-99-1-0512.
+.\"
+.Dd $Mdocdate: January 25 2019 $
+.Dt ECVT 3
+.Os
+.Sh NAME
+.Nm ecvt ,
+.Nm fcvt ,
+.Nm gcvt
+.Nd convert double to ASCII string
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft char *
+.Fn ecvt "double value" "int ndigit" "int *decpt" "int *sign"
+.Ft char *
+.Fn fcvt "double value" "int ndigit" "int *decpt" "int *sign"
+.Ft char *
+.Fn gcvt "double value" "int ndigit" "char *buf"
+.Sh DESCRIPTION
+.Bf -symbolic
+These functions are provided for compatibility with legacy code.
+New code should use the
+.Xr snprintf 3
+function for improved safety and portability.
+.Ef
+.Pp
+The
+.Fn ecvt ,
+.Fn fcvt
+and
+.Fn gcvt
+functions convert the double precision floating-point number
+.Fa value
+to a NUL-terminated
+.Tn ASCII
+string.
+.Pp
+The
+.Fn ecvt
+function converts
+.Fa value
+to a NUL-terminated string of exactly
+.Fa ndigit
+digits and returns a pointer to that string.
+The result is padded with zeroes from left to right as needed.
+There are no leading zeroes unless
+.Fa value
+itself is 0.
+The least significant digit is rounded in an implementation-dependent manner.
+The position of the decimal point relative to the beginning of the string
+is stored in
+.Fa decpt .
+A negative value indicates that the decimal point is located
+to the left of the returned digits (this occurs when there is no
+whole number component to
+.Fa value ) .
+If
+.Fa value
+is zero, it is unspecified whether the integer pointed to by
+.Fa decpt
+will be 0 or 1.
+The decimal point itself is not included in the returned string.
+If the sign of the result is negative, the integer pointed to by
+.Fa sign
+is non-zero; otherwise, it is 0.
+.Pp
+If the converted value is out of range or is not representable,
+the contents of the returned string are unspecified.
+.Pp
+The
+.Fn fcvt
+function is identical to
+.Fn ecvt
+with the exception that
+.Fa ndigit
+specifies the number of digits after the decimal point (zero-padded as
+needed).
+.Pp
+The
+.Fn gcvt
+function converts
+.Fa value
+to a NUL-terminated string similar to the %g
+.Xr printf 3
+format specifier and stores the result in
+.Fa buf .
+It produces
+.Fa ndigit
+significant digits similar to the %f
+.Xr printf 3
+format specifier where possible.
+If
+.Fa ndigit
+does allow sufficient precision, the result is stored in
+exponential notation similar to the %e
+.Xr printf 3
+format specifier.
+If
+.Fa value
+is less than zero,
+.Fa buf
+will be prefixed with a minus sign.
+A decimal point is included in the returned string if
+.Fa value
+is not a whole number.
+Unlike the
+.Fn ecvt
+and
+.Fn fcvt
+functions,
+.Fa buf
+is not zero-padded.
+.Sh RETURN VALUES
+The
+.Fn ecvt ,
+.Fn fcvt
+and
+.Fn gcvt
+functions return a NUL-terminated string representation of
+.Fa value .
+.Sh SEE ALSO
+.Xr printf 3 ,
+.Xr strtod 3
+.Sh STANDARDS
+The
+.Fn ecvt ,
+.Fn fcvt
+and
+.Fn gcvt
+functions conform to
+.St -p1003.1-2001 ;
+as of
+.St -p1003.1-2008
+they are no longer a part of the standard.
+.Sh CAVEATS
+The
+.Fn ecvt
+and
+.Fn fcvt
+functions return a pointer to internal storage space that will be
+overwritten by subsequent calls to either function.
+.Pp
+The maximum possible precision of the return value is limited by the
+precision of a double and may not be the same on all architectures.
+.Pp
+The
+.Xr snprintf 3
+function is preferred over these functions for new code.

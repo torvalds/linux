@@ -1,0 +1,3396 @@
+\input texinfo		@c -*-texinfo-*-
+@c
+@c Copyright (c) 1989 Jan-Simon Pendry
+@c Copyright (c) 1989 Imperial College of Science, Technology & Medicine
+@c Copyright (c) 1989 The Regents of the University of California.
+@c All rights reserved.
+@c
+@c This code is derived from software contributed to Berkeley by
+@c Jan-Simon Pendry at Imperial College, London.
+@c
+@c Redistribution and use in source and binary forms, with or without
+@c modification, are permitted provided that the following conditions
+@c are met:
+@c 1. Redistributions of source code must retain the above copyright
+@c    notice, this list of conditions and the following disclaimer.
+@c 2. Redistributions in binary form must reproduce the above copyright
+@c    notice, this list of conditions and the following disclaimer in the
+@c    documentation and/or other materials provided with the distribution.
+@c 3. All advertising materials mentioning features or use of this software
+@c    must display the following acknowledgement:
+@c      This product includes software developed by the University of
+@c      California, Berkeley and its contributors.
+@c 4. Neither the name of the University nor the names of its contributors
+@c    may be used to endorse or promote products derived from this software
+@c    without specific prior written permission.
+@c
+@c THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+@c ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+@c IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+@c ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+@c FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+@c DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+@c OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+@c HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+@c LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+@c OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+@c
+@c	from: @(#)amdref.texinfo	8.1 (Berkeley) 6/6/93
+@c	$Id: amdref.texinfo,v 1.15 2022/12/28 21:30:15 jmc Exp $
+@c
+@setfilename amdref.info
+@c @setfilename /usr/local/emacs/info/amd
+@tex
+\overfullrule=0pt
+@end tex
+
+@settitle 4.4 BSD Automounter Reference Manual
+@dircategory Miscellaneous
+@direntry
+* Amdref: (amdref).                 4.4 BSD Automounter Reference Manual
+@end direntry
+
+@titlepage
+@sp 6
+@center @titlefont{Amd}
+@sp 2
+@center @titlefont{The 4.4 BSD Automounter}
+@sp 2
+@center @titlefont{Reference Manual}
+@sp 2
+@center @authorfont{Jan-Simon Pendry}
+@sp
+@center @i{and}
+@sp
+@center @authorfont{Nick Williams}
+@sp 4
+@center Last updated March 1991
+@center Documentation for software revision 5.3 Alpha
+@page
+Copyright @copyright{} 1989 Jan-Simon Pendry
+@sp -1
+Copyright @copyright{} 1989 Imperial College of Science, Technology & Medicine
+@sp -1
+Copyright @copyright{} 1989 The Regents of the University of California.
+@sp 0
+All Rights Reserved.
+@vskip 1ex
+Permission to copy this document, or any portion of it, as
+necessary for use of this software is granted provided this
+copyright notice and statement of permission are included.
+@end titlepage
+@page
+@ifinfo
+@node Top, License, , (DIR)
+
+Amd - The 4.4 BSD Automounter
+*****************************
+
+Amd is the 4.4 BSD Automounter.  This Info file describes how
+to use and understand Amd.
+@end ifinfo
+
+@menu
+* License::                  Explains the terms and conditions for using
+                             and distributing Amd.
+* Distrib::                  How to get the latest Amd distribution.
+* Intro::                    An introduction to Automounting concepts.
+* Overview::                 An overview of Amd.
+* Supported Platforms::      Machines and Systems supported by Amd.
+* Mount Maps::               Details of mount maps
+* Amd Command Line Options:: All the Amd command line options explained. 
+* Filesystem Types::         The different mount types supported by Amd.
+* Run-time Administration::  How to start, stop and control Amd.
+* Examples::                 Some examples showing how Amd might be used.
+* Internals::                Implementation details.
+* Acknowledgements & Trademarks:: Legal notes.
+
+Indexes
+* Index::                    An item for each concept.
+@end menu
+
+@iftex
+@unnumbered Preface
+
+This manual documents the use of the 4.4 BSD automounter---@i{Amd}.
+This is primarily a reference manual.  Unfortunately, no tutorial
+exists.
+
+This manual comes in two forms: the published form and the Info form.
+The Info form is for on-line perusal with the INFO program which is
+distributed along with GNU Emacs.  Both forms contain substantially the
+same text and are generated from a common source file, which is
+distributed with the @i{Amd} source.
+@end iftex
+
+@node License, Distrib, Top, Top
+@unnumbered License
+@cindex License Information
+
+@i{Amd} is not in the public domain; it is copyrighted and there are
+restrictions on its distribution.
+
+Redistribution and use in source and binary forms are permitted provided
+that: (1) source distributions  retain this entire  copyright notice and
+comment, and (2) distributions including  binaries display the following
+acknowledgement: ``This product  includes  software  developed  by   The
+University  of California,   Berkeley  and its  Contributors''  in   the
+documentation  or other materials provided with  the distribution and in
+all advertising materials mentioning  features  or use of this software.
+neither the name of the University nor the names of its Contributors may
+be  used   to endorse or promote   products  derived from  this software
+without specific prior written permission.
+
+THIS SOFTWARE IS  PROVIDED ``AS IS''  AND WITHOUT ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING,  WITHOUT  LIMITATION,  THE IMPLIED  WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+@node Distrib, Intro, License, Top
+@unnumbered Source Distribution
+@cindex Source code distribution
+@cindex Obtaining the source code
+
+If you have access to the Internet, you can get the latest distribution
+version of @i{Amd} from host @file{usc.edu} using anonymous FTP.  Move to
+the directory @file{/pub/amd} on that host and fetch the file @file{amd.tar.Z}.
+
+If you are in the UK, you can get the latest distribution version of
+@i{Amd} from the UKnet info-server.  Start by sending email to
+@file{info-server@@doc.ic.ac.uk}.
+
+Sites on the UK JANET network can get the latest distribution by using
+anonymous NIFTP to fetch the file @samp{<AMD>amd.tar.Z} from host
+@samp{uk.ac.imperial.doc.src}.
+
+Revision 5.2 was part of the 4.3 BSD Reno distribution.
+
+Revision 5.3bsdnet, a late alpha version of 5.3, was part
+of the BSD network version 2 distribution
+
+@unnumberedsec Bug Reports
+@cindex Bug reports
+
+Send all bug reports to @file{jsp@@doc.ic.ac.uk} quoting the details of
+the release and your configuration.  These can be obtained by running
+the command @samp{amd -v}.
+
+@unnumberedsec Mailing List
+@cindex Mailing list
+
+There is a mailing list for people interested in keeping uptodate with
+developments.  To subscribe, send a note to @file{amd-workers-request@@acl.lanl.gov}.
+
+@node Intro, Overview, Distrib, Top
+@unnumbered Introduction
+@cindex Introduction
+
+An @dfn{automounter} maintains a cache of mounted filesystems.
+Filesystems are mounted on demand when they are first referenced,
+and unmounted after a period of inactivity.
+
+@i{Amd} may be used as a replacement for Sun's automounter.  The choice
+of which filesystem to mount can be controlled dynamically with
+@dfn{selectors}.  Selectors allow decisions of the form ``hostname is
+@var{this},'' or ``architecture is not @var{that}.''  Selectors may be
+combined arbitrarily.  @i{Amd} also supports a variety of filesystem
+types, including NFS, UFS and the novel @dfn{program} filesystem.  The
+combination of selectors and multiple filesystem types allows identical
+configuration files to be used on all machines so reducing the
+administrative overhead.
+
+@i{Amd} ensures that it will not hang if a remote server goes down.
+Moreover, @i{Amd} can determine when a remote server has become
+inaccessible and then mount replacement filesystems as and when they
+become available.
+
+@i{Amd} contains no proprietary source code and has been ported to
+numerous flavours of Unix.
+
+@node Overview, Supported Platforms, Intro, Top
+@chapter Overview
+
+@i{Amd} maintains a cache of mounted filesystems.  Filesystems are
+@dfn{demand-mounted} when they are first referenced, and unmounted after
+a period of inactivity.  @i{Amd} may be used as a replacement for Sun's
+@b{automount}(8) program.  It contains no proprietary source code and
+has been ported to numerous flavours of Unix.  @xref{Supported Operating
+Systems}.@refill
+
+@i{Amd} was designed as the basis for experimenting with filesystem
+layout and management.  Although @i{Amd} has many direct applications it
+is loaded with additional features which have little practical use.  At
+some point the infrequently used components may be removed to streamline
+the production system.
+
+@c @i{Amd} supports the notion of @dfn{replicated} filesystems by evaluating
+@c each member of a list of possible filesystem locations in parallel.
+@c @i{Amd} checks that each cached mapping remains valid.  Should a mapping be
+@c lost -- such as happens when a fileserver goes down -- @i{Amd} automatically
+@c selects a replacement should one be available.
+@c
+@menu
+* Fundamentals::
+* Filesystems and Volumes::
+* Volume Naming::
+* Volume Binding::
+* Operational Principles::
+* Mounting a Volume::
+* Automatic Unmounting::
+* Keep-alives::
+* Non-blocking Operation::
+@end menu
+
+@node     Fundamentals, Filesystems and Volumes, Overview, Overview
+@comment  node-name,  next,  previous,  up
+@section Fundamentals
+@cindex Automounter fundamentals
+
+The fundamental concept behind @i{Amd} is the ability to separate the
+name used to refer to a file from the name used to refer to its physical
+storage location.  This allows the same files to be accessed with the
+same name regardless of where in the network the name is used.  This is
+very different from placing @file{/n/hostname} in front of the pathname
+since that includes location dependent information which may change if
+files are moved to another machine.
+
+By placing the required mappings in a centrally administered database,
+filesystems can be re-organised without requiring changes to
+configuration files, shell scripts and so on.
+
+@node     Filesystems and Volumes, Volume Naming, Fundamentals, Overview
+@comment  node-name,  next,  previous,  up
+@section Filesystems and Volumes
+@cindex Filesystem
+@cindex Volume
+@cindex Fileserver
+@cindex sublink
+
+@i{Amd} views the world as a set of fileservers, each containing one or
+more filesystems where each filesystem contains one or more
+@dfn{volumes}.  Here the term @dfn{volume} is used to refer to a
+coherent set of files such as a user's home directory or a @TeX{}
+distribution.@refill
+
+In order to access the contents of a volume, @i{Amd} must be told in
+which filesystem the volume resides and which host owns the filesystem.
+By default the host is assumed to be local and the volume is assumed to
+be the entire filesystem.  If a filesystem contains more than one
+volume, then a @dfn{sublink} is used to refer to the sub-directory
+within the filesystem where the volume can be found.
+
+@node     Volume Naming, Volume Binding, Filesystems and Volumes, Overview
+@comment  node-name,  next,  previous,  up
+@section Volume Naming
+@cindex Volume names
+@cindex Network-wide naming
+@cindex Replicated volumes
+@cindex Duplicated volumes
+@cindex Replacement volumes
+
+Volume names are defined to be unique across the entire network.  A
+volume name is the pathname to the volume's root as known by the users
+of that volume.  Since this name uniquely identifies the volume
+contents, all volumes can be named and accessed from each host, subject
+to administrative controls.
+
+Volumes may be replicated or duplicated.  Replicated volumes contain
+identical copies of the same data and reside at two or more locations in
+the network.  Each of the replicated volumes can be used
+interchangeably.  Duplicated volumes each have the same name but contain
+different, though functionally identical, data.  For example,
+@samp{/vol/tex} might be the name of a @TeX{} distribution which varied
+for each machine architecture.@refill
+
+@i{Amd} provides facilities to take advantage of both replicated and
+duplicated volumes.  Configuration options allow a single set of
+configuration data to be shared across an entire network by taking
+advantage of replicated and duplicated volumes.
+
+@i{Amd} can take advantage of replacement volumes by mounting them as
+required should an active fileserver become unavailable.
+
+@node     Volume Binding, Operational Principles, Volume Naming, Overview
+@comment  node-name,  next,  previous,  up
+@section Volume Binding
+@cindex Volume binding
+@cindex Unix namespace
+@cindex Namespace
+@cindex Binding names to filesystems
+
+Unix implements a namespace of hierarchically mounted filesystems.  Two
+forms of binding between names and files are provided.  A @dfn{hard
+link} completes the binding when the name is added to the filesystem.  A
+@dfn{soft link} delays the binding until the name is accessed.  An
+@dfn{automounter} adds a further form in which the binding of name to
+filesystem is delayed until the name is accessed.@refill
+
+The target volume, in its general form, is a tuple (host, filesystem,
+sublink) which can be used to name the physical location of any volume
+in the network.
+
+When a target is referenced, @i{Amd} ignores the sublink element and
+determines whether the required filesystem is already mounted.  This is
+done by computing the local mount point for the filesystem and checking
+for an existing filesystem mounted at the same place.  If such a
+filesystem already exists then it is assumed to be functionally
+identical to the target filesystem.  By default there is a one-to-one
+mapping between the pair (host, filesystem) and the local mount point so
+this assumption is valid.
+
+@node     Operational Principles, Mounting a Volume, Volume Binding, Overview
+@comment  node-name,  next,  previous,  up
+@section Operational Principles
+@cindex Operational principles
+
+@i{Amd} operates by introducing new mount points into the namespace.
+These are called @dfn{automount} points.  The kernel sees these
+automount points as NFS filesystems being served by @i{Amd}.  Having
+attached itself to the namespace, @i{Amd} is now able to control the
+view the rest of the system has of those mount points.  RPC calls are
+received from the kernel one at a time.
+
+When a @dfn{lookup} call is received @i{Amd} checks whether the name is
+already known.  If it is not, the required volume is mounted.  A
+symbolic link pointing to the volume root is then returned.  Once the
+symbolic link is returned, the kernel will send all other requests
+direct to the mounted filesystem.
+
+If a volume is not yet mounted, @i{Amd} consults a configuration
+@dfn{mount-map} corresponding to the automount point.  @i{Amd} then
+makes a runtime decision on what and where to mount a filesystem based
+on the information obtained from the map.
+
+@i{Amd} does not implement all the NFS requests; only those relevant
+to name binding such as @dfn{lookup}, @dfn{readlink} and @dfn{readdir}.
+Some other calls are also implemented but most simply return an error
+code; for example @dfn{mkdir} always returns ``read-only filesystem''.
+
+@node     Mounting a Volume, Automatic Unmounting, Operational Principles, Overview
+@comment  node-name,  next,  previous,  up
+@section Mounting a Volume
+@cindex Mounting a volume
+@cindex Location lists
+@cindex Alternate locations
+@cindex Mount retries
+@cindex Background mounts
+
+Each automount point has a corresponding mount map.  The mount map
+contains a list of key--value pairs.  The key is the name of the volume
+to be mounted.  The value is a list of locations describing where the
+filesystem is stored in the network.  In the source for the map the
+value would look like
+
+@display
+location1  location2  @dots{}  locationN
+@end display
+
+@i{Amd} examines each location in turn.  Each location may contain
+@dfn{selectors} which control whether @i{Amd} can use that location.
+For example, the location may be restricted to use by certain hosts.
+Those locations which cannot be used are ignored.
+
+@i{Amd} attempts to mount the filesystem described by each remaining
+location until a mount succeeds or @i{Amd} can no longer proceed.  The
+latter can occur in three ways:
+
+@itemize @bullet
+@item
+If none of the locations could be used, or if all of the locations
+caused an error, then the last error is returned.
+
+@item
+If a location could be used but was being mounted in the background then
+@i{Amd} marks that mount as being ``in progress'' and continues with
+the next request; no reply is sent to the kernel.
+
+@item
+Lastly, one or more of the mounts may have been @dfn{deferred}.  A mount
+is deferred if extra information is required before the mount can
+proceed.  When the information becomes available the mount will take
+place, but in the mean time no reply is sent to the kernel.  If the
+mount is deferred, @i{Amd} continues to try any remaining locations.
+@end itemize
+
+Once a volume has been mounted, @i{Amd} establishes a @dfn{volume
+mapping} which is used to satisfy subsequent requests.@refill
+
+@node     Automatic Unmounting, Keep-alives, Mounting a Volume, Overview
+@comment  node-name,  next,  previous,  up
+@section Automatic Unmounting
+
+To avoid an ever increasing number of filesystem mounts, @i{Amd} removes
+volume mappings which have not been used recently.  A time-to-live
+interval is associated with each mapping and when that expires the
+mapping is removed.  When the last reference to a filesystem is removed,
+that filesystem is unmounted.  If the unmount fails, for example the
+filesystem is still busy, the mapping is re-instated and its
+time-to-live interval is extended.  The global default for this grace
+period is controlled by the ``-w'' command-line option (@pxref{-w
+Option, -w}).  It is also possible to set this value on a per-mount
+basis (@pxref{opts Option, opts, opts}).@refill
+
+Filesystems can be forcefully timed out using the @i{Amq} command.
+@xref{Run-time Administration}.
+
+@node     Keep-alives, Non-blocking Operation, Automatic Unmounting, Overview
+@comment  node-name,  next,  previous,  up
+@section Keep-alives
+@cindex Keep-alives
+@cindex Server crashes
+@cindex NFS ping
+
+Use of some filesystem types requires the presence of a server on
+another machine.  If a machine crashes then it is of no concern to
+processes on that machine that the filesystem is unavailable.  However,
+to processes on a remote host using that machine as a fileserver this
+event is important.  This situation is most widely recognised when an
+NFS server crashes and the behaviour observed on client machines is that
+more and more processes hang.  In order to provide the possibility of
+recovery, @i{Amd} implements a @dfn{keep-alive} interval timer for some
+filesystem types.  Currently only NFS makes use of this service.
+
+The basis of the NFS keep-alive implementation is the observation that
+most sites maintain replicated copies of common system data such as
+manual pages, most or all programs, system source code and so on.  If
+one of those servers goes down it would be reasonable to mount one of
+the others as a replacement.
+
+The first part of the process is to keep track of which fileservers are
+up and which are down.  @i{Amd} does this by sending RPC requests to the
+servers' NFS @code{NullProc} and checking whether a reply is returned.
+While the server state is uncertain the requests are re-transmitted at
+three second intervals and if no reply is received after four attempts
+the server is marked down.  If a reply is received the fileserver is
+marked up and stays in that state for 30 seconds at which time another
+NFS ping is sent.
+
+Once a fileserver is marked down, requests continue to be sent every 30
+seconds in order to determine when the fileserver comes back up.  During
+this time any reference through @i{Amd} to the filesystems on that
+server fail with the error ``Operation would block''.  If a replacement
+volume is available then it will be mounted, otherwise the error is
+returned to the user.
+
+@c @i{Amd} keeps track of which servers are up and which are down.
+@c It does this by sending RPC requests to the servers' NFS {\sc NullProc} and
+@c checking whether a reply is returned.  If no replies are received after a
+@c short period, @i{Amd} marks the fileserver @dfn{down}.
+@c RPC requests continue to be sent so that it will notice when a fileserver
+@c comes back up.
+@c ICMP echo packets \cite{rfc:icmp} are not used because it is the availability
+@c of the NFS service that is important, not the existence of a base kernel.
+@c Whenever a reference to a fileserver which is down is made via @i{Amd}, an alternate
+@c filesystem is mounted if one is available.
+@c
+Although this action does not protect user files, which are unique on
+the network, or processes which do not access files via @i{Amd} or
+already have open files on the hung filesystem, it can prevent most new
+processes from hanging.
+
+By default, fileserver state is not maintained for NFS/TCP mounts.  The
+remote fileserver is always assumed to be up.
+@c
+@c With a suitable combination of filesystem management and mount-maps,
+@c machines can be protected against most server downtime.  This can be
+@c enhanced by allocating boot-servers dynamically which allows a diskless
+@c workstation to be quickly restarted if necessary.  Once the root filesystem
+@c is mounted, @i{Amd} can be started and allowed to mount the remainder of
+@c the filesystem from whichever fileservers are available.
+
+@node     Non-blocking Operation, , Keep-alives, Overview
+@comment  node-name,  next,  previous,  up
+@section Non-blocking Operation
+@cindex Non-blocking operation
+@cindex Multiple-threaded server
+@cindex RPC retries
+
+Since there is only one instance of @i{Amd} for each automount point,
+and usually only one instance on each machine, it is important that it
+is always available to service kernel calls.  @i{Amd} goes to great
+lengths to ensure that it does not block in a system call.  As a last
+resort @i{Amd} will fork before it attempts a system call that may block
+indefinitely, such as mounting an NFS filesystem.  Other tasks such as
+obtaining filehandle information for an NFS filesystem, are done using a
+purpose built non-blocking RPC library which is integrated with
+@i{Amd}'s task scheduler.  This library is also used to implement NFS
+keep-alives (@pxref{Keep-alives}).
+
+Whenever a mount is deferred or backgrounded, @i{Amd} must wait for it
+to complete before replying to the kernel.  However, this would cause
+@i{Amd} to block waiting for a reply to be constructed.  Rather than do
+this, @i{Amd} simply @dfn{drops} the call under the assumption that the
+kernel RPC mechanism will automatically retry the request.
+
+@node     Supported Platforms, Mount Maps, Overview, Top
+@comment  node-name,  next,  previous,  up
+@chapter Supported Platforms
+
+@i{Amd} has been ported to a wide variety of machines and operating systems.
+The table below lists those platforms supported by the current release.
+
+@menu
+* Supported Operating Systems::
+* Supported Machine Architectures::
+@end menu
+
+@node     Supported Operating Systems, Supported Machine Architectures, Supported Platforms, Supported Platforms
+@comment  node-name,  next,  previous,  up
+@section Supported Operating Systems
+@cindex Operating system names
+@cindex Operating systems supported by Amd
+@cindex Supported operating systems
+
+The following operating systems are currently supported by @i{Amd}.
+@i{Amd}'s conventional name for each system is given.
+
+@table @code
+@item acis43
+4.3 BSD for IBM RT.  Contributed by Jan-Simon Pendry @t{<jsp@@doc.ic.ac.uk>}
+@item aix3
+AIX 3.1.  Contributed by Jan-Simon Pendry @t{<jsp@@doc.ic.ac.uk>}
+@item aux
+System V for Mac-II.  Contributed by Julian Onions @t{<jpo@@cs.nott.ac.uk>}
+@item bsd44
+4.4 BSD.  Contributed by Jan-Simon Pendry @t{<jsp@@doc.ic.ac.uk>}
+@item concentrix
+Concentrix 5.0.  Contributed by Sjoerd Mullender @t{<sjoerd@@cwi.nl>}
+@item convex
+Convex OS 7.1.  Contributed by Eitan Mizrotsky @t{<eitan@@shumuji.ac.il>}
+@item dgux
+Data General DG/UX.  Contributed by Mark Davies @t{<mark@@comp.vuw.ac.nz>}
+@item fpx4
+Celerity FPX 4.1/2.  Contributed by Stephen Pope @t{<scp@@grizzly.acl.lanl.gov>}
+@item hcx
+Harris HCX/UX.  Contributed by Chris Metcalf @t{<metcalf@@masala.lcs.mit.edu>}
+@item hlh42
+HLH OTS 1.@i{x} (4.2 BSD).  Contributed by Jan-Simon Pendry @t{<jsp@@doc.ic.ac.uk>}
+@item hpux
+HP-UX 6.@i{x} or 7.0.  Contributed by Jan-Simon Pendry @t{<jsp@@doc.ic.ac.uk>}
+@item irix
+SGI Irix.  Contributed by Scott R. Presnell @t{<srp@@cgl.ucsf.edu>}
+@item next
+Mach for NeXT.  Contributed by Bill Trost @t{<trost%reed@@cse.ogi.edu>}
+@item pyrOSx
+Pyramid OSx.  Contributed by Stefan Petri @t{<petri@@tubsibr.UUCP>}
+@item riscix
+Acorn RISC iX.  Contributed by Piete Brooks @t{<pb@@cam.cl.ac.uk>}
+@item sos3
+SunOS 3.4 & 3.5.  Contributed by Jan-Simon Pendry @t{<jsp@@doc.ic.ac.uk>}
+@item sos4
+SunOS 4.@i{x}.  Contributed by Jan-Simon Pendry @t{<jsp@@doc.ic.ac.uk>}
+@item u2_2
+Ultrix 2.2.  Contributed by Piete Brooks @t{<pb@@cam.cl.ac.uk>}
+@item u3_0
+Ultrix 3.  Contributed by Piete Brooks @t{<pb@@cam.cl.ac.uk>}
+@item u4_0
+Ultrix 4.0.  Contributed by Chris Lindblad @t{<cjl@@ai.mit.edu>}
+@item umax43
+Umax 4.3 BSD.  Contributed by Sjoerd Mullender @t{<sjoerd@@cwi.nl>}
+@item utek
+Utek 4.0.  Contributed by Bill Trost @t{<trost%reed@@cse.ogi.edu>}
+@item xinu43
+mt Xinu MORE/bsd.  Contributed by Jan-Simon Pendry @t{<jsp@@doc.ic.ac.uk>}
+@end table
+
+@node     Supported Machine Architectures, , Supported Operating Systems, Supported Platforms
+@comment  node-name,  next,  previous,  up
+@section Supported Machine Architectures
+@cindex Supported machine architectures
+@cindex Machine architecture names
+@cindex Machine architectures supported by Amd
+
+@table @code
+@item alliant
+Alliant FX/4
+@item arm
+Acorn ARM
+@item aviion
+Data General AViiON
+@item encore
+Encore
+@item fps500
+FPS Model 500
+@item hp9000
+HP 9000/300 family
+@item hp9k8
+HP 9000/800 family
+@item ibm032
+IBM RT
+@item ibm6000
+IBM RISC System/6000
+@item iris4d
+SGI Iris 4D
+@item macII
+Apple Mac II
+@item mips
+MIPS RISC
+@item multimax
+Encore Multimax
+@item orion105
+HLH Orion 1/05
+@item sun3
+Sun-3 family
+@item sun4
+Sun-4 family
+@item tahoe
+Tahoe family
+@item vax
+DEC Vax
+@end table
+
+@node     Mount Maps, Amd Command Line Options, Supported Platforms, Top
+@comment  node-name,  next,  previous,  up
+@chapter Mount Maps
+@cindex Mount maps
+@cindex Automounter configuration maps
+@cindex Mount information
+
+@i{Amd} has no built-in knowledge of machines or filesystems.
+External @dfn{mount-maps} are used to provide the required information.
+Specifically, @i{Amd} needs to know when and under what conditions it
+should mount filesystems.
+
+The map entry corresponding to the requested name contains a list of
+possible locations from which to resolve the request.  Each location
+specifies filesystem type, information required by that filesystem (for
+example the block special device in the case of UFS), and some
+information describing where to mount the filesystem (@pxref{fs Option}).  A
+location may also contain @dfn{selectors} (@pxref{Selectors}).@refill
+
+@menu
+* Map Types::
+* Key Lookup::
+* Location Format::
+@end menu
+
+@node     Map Types, Key Lookup, Mount Maps, Mount Maps
+@comment  node-name,  next,  previous,  up
+@section Map Types
+@cindex Mount map types
+@cindex Map types
+@cindex Configuration map types
+@cindex Types of mount map
+@cindex Types of configuration map
+@cindex Determining the map type
+
+A mount-map provides the run-time configuration information to @i{Amd}.
+Maps can be implemented in many ways.  Some of the forms supported by
+@i{Amd} are regular files, NIS maps the @dfn{Hesiod} name server and
+even the password file.
+
+A mount-map @dfn{name} is a sequence of characters.  When an automount
+point is created a handle on the mount-map is obtained.  For each map
+type configured @i{Amd} attempts to reference the a map of the
+appropriate type.  If a map is found, @i{Amd} notes the type for future
+use and deletes the reference, for example closing any open file
+descriptors.  The available maps are configure when @i{Amd} is built and
+can be displayed by running the command @samp{amd -v}.
+
+By default, @i{Amd} caches data in a mode dependent on the type of map.
+This is the same as specifying @samp{cache:=mapdefault} and selects a
+suitable default cache mode depending on the map type.  The individual
+defaults are described below.  The @var{cache} option can be specified
+on automount points to alter the caching behaviour (@pxref{Automount
+Filesystem}).@refill
+
+The following map types have been implemented, though some are not
+available on all machines.  Run the command @samp{amd -v} to obtain a
+list of map types configured on your machine.
+
+@menu
+* File maps::
+* NIS maps::
+* Hesiod maps::
+* Password maps::
+* Union maps::
+@end menu
+
+@node     File maps, NIS maps, Map Types, Map Types
+@comment  node-name,  next,  previous,  up
+@subsection File maps
+@cindex File maps
+@cindex Flat file maps
+@cindex File map syntactic conventions
+
+When @i{Amd} searches a file for a map entry it does a simple scan of
+the file and supports both comments and continuation lines.
+
+Continuation lines are indicated by a backslash character (@samp{\}) as
+the last character of a line in the file.  The backslash, newline character
+@emph{and any leading white space on the following line} are discarded.  A maximum
+line length of 2047 characters is enforced after continuation lines are read
+but before comments are stripped.  Each line must end with
+a newline character; that is newlines are terminators, not separators.
+The following examples illustrate this:
+
+@example
+key     valA   valB;   \
+          valC
+@end example
+
+specifies @emph{three} locations, and is identical to
+
+@example
+key     valA   valB;   valC
+@end example
+
+However,
+
+@example
+key     valA   valB;\
+          valC
+@end example
+
+specifies only @emph{two} locations, and is identical to
+
+@example
+key     valA   valB;valC
+@end example
+
+After a complete line has been read from the file, including
+continuations, @i{Amd} determines whether there is a comment on the
+line.  A comment begins with a hash (``@samp{#}'') character and
+continues to the end of the line.  There is no way to escape or change
+the comment lead-in character.
+
+Note that continuation lines and comment support @dfn{only} apply to
+file maps.
+
+When caching is enabled, file maps have a default cache mode of
+@code{all} (@pxref{Automount Filesystem}).
+
+@node     NIS maps, Hesiod maps, File maps, Map Types
+@comment  node-name,  next,  previous,  up
+@subsection NIS maps
+@cindex NIS (YP) maps
+
+When using NIS (formerly YP), an @i{Amd} map is implemented directly
+by the underlying NIS map.  Comments and continuation lines are
+@emph{not} supported in the automounter and must be stripped when
+constructing the NIS server's database.
+
+NIS maps do not support cache mode @code{all} and, when caching is
+enabled, have a default cache mode of @code{inc} (@pxref{Automount Filesystem}).
+
+The following rule illustrates what could be added to your NIS @file{Makefile},
+in this case causing the @file{amd.home} map to be rebuilt:
+@example
+$(YPTSDIR)/amd.home.time: $(ETCDIR)/amd.home
+        -@@sed -e "s/#.*$$//" -e "/^$$/d" $(ETCDIR)/amd.home | \
+          awk '@{  \
+                 for (i = 1; i <= NF; i++) \
+                     if (i == NF) @{ \
+                         if (substr($$i, length($$i), 1) == "\\") \
+                             printf("%s", substr($$i, 1, length($$i) - 1)); \
+                         else \
+                             printf("%s\n", $$i); \
+                     @} \
+                     else \
+                         printf("%s ", $$i); \
+             @}' | \
+        $(MAKEDBM) - $(YPDBDIR)/amd.home; \
+        touch $(YPTSDIR)/amd.home.time; \
+        echo "updated amd.home"; \
+        if [ ! $(NOPUSH) ]; then \
+                $(YPPUSH) amd.home; \
+                echo "pushed amd.home"; \
+        else \
+                : ; \
+        fi
+@end example
+
+Here @code{$(YPTSDIR)} contains the time stamp files, and @code{$(YPDBDIR)} contains
+the dbm format NIS files.
+
+@node     Hesiod maps, Password maps, NIS maps, Map Types
+@comment  node-name,  next,  previous,  up
+@subsection Hesiod maps
+@cindex Hesiod maps
+
+When the map name begins with the string @samp{hesiod.} lookups are made
+using the @dfn{Hesiod} name server.  The string following the dot is
+used as a name qualifier and is prepended with the key being located.
+The entire string is then resolved in the @code{automount} context.  For
+example, if the key is @samp{jsp} and map name is
+@samp{hesiod.homes} then @dfn{Hesiod} is asked to resolve
+@samp{jsp.homes.automount}.
+
+Hesiod maps do not support cache mode @samp{all} and, when caching is
+enabled, have a default cache mode of @samp{inc} (@pxref{Automount Filesystem}).
+
+The following is an example of a @dfn{Hesiod} map entry:
+
+@example
+jsp.homes.automount HS TXT "rfs:=/home/charm;rhost:=charm;sublink:=jsp"
+njw.homes.automount HS TXT "rfs:=/home/dylan/dk2;rhost:=dylan;sublink:=njw"
+@end example
+
+@node     Password maps, Union maps, Hesiod maps, Map Types
+@comment  node-name,  next,  previous,  up
+@subsection Password maps
+@cindex Password file maps
+@cindex /etc/passwd maps
+@cindex User maps, automatic generation
+@cindex Automatic generation of user maps
+@cindex Using the password file as a map
+
+The password map support is unlike the four previous map types.  When
+the map name is the string @file{/etc/passwd} @i{Amd} can lookup a user
+name in the password file and re-arrange the home directory field to
+produce a usable map entry.
+
+@i{Amd} assumes the home directory has the format
+`@t{/}@i{anydir}@t{/}@i{dom1}@t{/../}@i{domN}@t{/}@i{login}'.
+@c @footnote{This interpretation is not necessarily exactly what you want.}
+It breaks this string into a map entry where @code{$@{rfs@}} has the
+value `@t{/}@i{anydir}@t{/}@i{domN}', @code{$@{rhost@}} has the value
+`@i{domN}@t{.}@i{...}@t{.}@i{dom1}', and @code{$@{sublink@}} has the
+value @samp{login}.@refill
+
+Thus if the password file entry was
+
+@example
+/home/achilles/jsp
+@end example
+
+the map entry used by @i{Amd} would be
+
+@example
+rfs:=/home/achilles;rhost:=achilles;sublink:=jsp
+@end example
+
+Similarly, if the password file entry was
+
+@example
+/home/cc/sugar/mjh
+@end example
+
+the map entry used by @i{Amd} would be 
+
+@example
+rfs:=/home/sugar;rhost:=sugar.cc;sublink:=jsp
+@end example
+
+@node     Union maps, , Password maps, Map Types
+@comment  node-name,  next,  previous,  up
+@subsection Union maps
+@cindex Union file maps
+
+The union map support is provided specifically for use with the union
+filesystem, @pxref{Union Filesystem}.
+
+It is identified by the string @samp{union:} which is followed by a
+colon separated list of directories.  The directories are read in order,
+and the names of all entries are recorded in the map cache.  Later
+directories take precedence over earlier ones.  The union filesystem
+type then uses the map cache to determine the union of the names in all
+the directories.
+
+@c subsection Gdbm
+
+@node     Key Lookup, Location Format, Map Types, Mount Maps
+@comment  node-name,  next,  previous,  up
+@section How keys are looked up
+@cindex Key lookup
+@cindex Map lookup
+@cindex Looking up keys
+@cindex How keys are looked up
+@cindex Wildcards in maps
+
+The key is located in the map whose type was determined when the
+automount point was first created.  In general the key is a pathname
+component.  In some circumstances this may be modified by variable
+expansion (@pxref{Variable Expansion}) and prefixing.  If the automount
+point has a prefix, specified by the @var{pref} option, then that is
+prepended to the search key before the map is searched.
+
+If the map cache is a @samp{regexp} cache then the key is treated as an
+egrep-style regular expression, otherwise a normal string comparison is
+made.
+
+If the key cannot be found then a @dfn{wildcard} match is attempted.
+@i{Amd} repeatedly strips the basename from the key, appends @samp{/*} and
+attempts a lookup.  Finally, @i{Amd} attempts to locate the special key @samp{*}.
+
+@group
+For example, the following sequence would be checked if @file{home/dylan/dk2} was
+being located:
+
+@example
+   home/dylan/dk2
+   home/dylan/*
+   home/*
+   *
+@end example
+@end group
+
+At any point when a wildcard is found, @i{Amd} proceeds as if an exact
+match had been found and the value field is then used to resolve the
+mount request, otherwise an error code is propagated back to the kernel.
+(@pxref{Filesystem Types}).@refill
+
+@node     Location Format, , Key Lookup, Mount Maps
+@comment  node-name,  next,  previous,  up
+@section Location Format
+@cindex Location format
+@cindex Map entry format
+@cindex How locations are parsed
+
+The value field from the lookup provides the information required to
+mount a filesystem.  The information is parsed according to the syntax
+shown below.
+
+@display
+@i{location-list}:
+                  @i{location-selection}
+                  @i{location-list} @i{white-space} @t{||} @i{white-space} @i{location-selection}
+@i{location-selection}:
+                  @i{location}
+                  @i{location-selection} @i{white-space} @i{location}
+@i{location}:
+                  @i{location-info}
+                  @t{-}@i{location-info}
+                  @t{-}
+@i{location-info}:
+                  @i{sel-or-opt}
+                  @i{location-info}@t{;}@i{sel-or-opt}
+                  @t{;}
+@i{sel-or-opt}:
+                  @i{selection}
+                  @i{opt-ass}
+@i{selection}:
+                  selector@t{==}@i{value}
+                  selector@t{!=}@i{value}
+@i{opt-ass}:
+                  option@t{:=}@i{value}
+@i{white-space}:
+                  space
+                  tab
+@end display
+
+Note that unquoted whitespace is not allowed in a location description.
+White space is only allowed, and is mandatory, where shown with non-terminal
+@samp{white-space}.
+
+A @dfn{location-selection} is a list of possible volumes with which to
+satisfy the request.  @dfn{location-selection}s are separated by the
+@samp{||} operator.  The effect of this operator is to prevent use of
+location-selections to its right if any of the location-selections on
+its left were selected whether or not any of them were successfully
+mounted (@pxref{Selectors}).@refill
+
+The location-selection, and singleton @dfn{location-list},
+@samp{type:=ufs;dev:=/dev/xd1g} would inform @i{Amd} to mount a UFS
+filesystem from the block special device @file{/dev/xd1g}.
+
+The @dfn{sel-or-opt} component is either the name of an option required
+by a specific filesystem, or it is the name of a built-in, predefined
+selector such as the architecture type.  The value may be quoted with
+double quotes @samp{"}, for example
+@samp{type:="ufs";dev:="/dev/xd1g"}.  These quotes are stripped when the
+value is parsed and there is no way to get a double quote into a value
+field.  Double quotes are used to get white space into a value field,
+which is needed for the program filesystem (@pxref{Program Filesystem}).@refill
+
+@menu
+* Map Defaults::
+* Variable Expansion::
+* Selectors::
+* Map Options::
+@end menu
+
+@node     Map Defaults, Variable Expansion, Location Format, Location Format
+@comment  node-name,  next,  previous,  up
+@subsection Map Defaults
+@cindex Map defaults
+@cindex How to set default map parameters
+@cindex Setting default map parameters
+
+A location beginning with a dash @samp{-} is used to specify default
+values for subsequent locations.  Any previously specified defaults in
+the location-list are discarded.  The default string can be empty in
+which case no defaults apply.
+
+The location @samp{-fs:=/mnt;opts:=ro} would set the local mount point
+to @file{/mnt} and cause mounts to be read-only by default.  Defaults
+specified this way are appended to, and so override, any global map
+defaults given with @samp{/defaults}).
+@c
+@c A @samp{/defaults} value @dfn{gdef} and a location list
+@c \begin{quote}
+@c $@samp{-}@dfn{def}_a $\verb*+ +$ @dfn{loc}_{a_1} $\verb*+ +$ @dfn{loc}_{a_2} $\verb*+ +$ @samp{-}@dfn{def}_b $\verb*+ +$ @dfn{loc}_{b_1} \ldots$
+@c \end{quote}
+@c is equivalent to
+@c \begin{quote}
+@c $@samp{-}@dfn{gdef}@samp{;}@dfn{def}_a $\verb*+ +$ @dfn{loc}_{a_1} $\verb*+ +$ @dfn{loc}_{a_2} $\verb*+ +$ @samp{-}@dfn{gdef}@samp{;}@dfn{def}_b $\verb*+ +$ @dfn{loc}_{b_1} \ldots$
+@c \end{quote}
+@c which is equivalent to
+@c \begin{quote}
+@c $@dfn{gdef}@samp{;}@dfn{def}_a@samp{;}@dfn{loc}_{a_1} $\verb*+ +$@dfn{gdef}@samp{;}@dfn{def}_a@samp{;}@dfn{loc}_{a_2} $\verb*+ +$@dfn{gdef}@samp{;}@dfn{def}_b@samp{;}@dfn{loc}_{b_1} \ldots$
+@c \end{quote}
+
+@node     Variable Expansion, Selectors, Map Defaults, Location Format
+@comment  node-name,  next,  previous,  up
+@subsection Variable Expansion
+@cindex Variable expansion
+@cindex How variables are expanded
+@cindex Pathname operators
+@cindex Domain stripping
+@cindex Domainname operators
+@cindex Stripping the local domain name
+@cindex Environment variables
+@cindex How to access environment variables in maps
+
+To allow generic location specifications @i{Amd} does variable expansion
+on each location and also on some of the option strings.  Any option or
+selector appearing in the form @code{$@dfn{var}} is replaced by the
+current value of that option or selector.  For example, if the value of
+@code{$@{key@}} was @samp{bin}, @code{$@{autodir@}} was @samp{/tmp_mnt} and
+@code{$@{fs@}} was `@t{$@{autodir@}}@t{/local/}@t{$@{key@}}' then
+after expansion @code{$@{fs@}} would have the value @samp{/tmp_mnt/local/bin}.
+Any environment variable can be accessed in a similar way.@refill
+
+Two pathname operators are available when expanding a variable.  If the
+variable name begins with @samp{/} then only the last component of
+then pathname is substituted.  For example, if @code{$@{path@}} was
+@samp{/foo/bar} then @code{$@{/path@}} would be expanded to @samp{bar}.
+Similarly, if the variable name ends with @samp{/} then all but the
+last component of the pathname is substituted.  In the previous example,
+@code{$@{path/@}} would be expanded to @samp{/foo}.@refill
+
+Two domain name operators are also provided.  If the variable name
+begins with @samp{.} then only the domain part of the name is
+substituted.  For example, if @code{$@{rhost@}} was
+@samp{swan.doc.ic.ac.uk} then @code{$@{.rhost@}} would be expanded to
+@samp{doc.ic.ac.uk}.  Similarly, if the variable name ends with @samp{.}
+then only the host component is substituted.  In the previous example,
+@code{$@{rhost.@}} would be expanded to @samp{swan}.@refill
+
+Variable expansion is a two phase process.  Before a location is parsed,
+all references to selectors, @i{eg} @code{$@{path@}}, are expanded.  The
+location is then parsed, selections are evaluated and option assignments
+recorded.  If there were no selections or they all succeeded the
+location is used and the values of the following options are expanded in
+the order given: @var{sublink}, @var{rfs}, @var{fs}, @var{opts},
+@var{remopts}, @var{mount} and @var{unmount}.
+
+Note that expansion of option values is done after @dfn{all} assignments
+have been completed and not in a purely left to right order as is done
+by the shell.  This generally has the desired effect but care must be
+taken if one of the options references another, in which case the
+ordering can become significant.
+
+There are two special cases concerning variable expansion:
+
+@enumerate
+@item
+before a map is consulted, any selectors in the name received
+from the kernel are expanded.  For example, if the request from the
+kernel was for `@t{$@{arch@}}@t{.bin}' and the machine architecture
+was @samp{vax}, the value given to @code{$@{key@}} would be
+@samp{vax.bin}.@refill
+
+@item
+the value of @code{$@{rhost@}} is expanded and normalized before the
+other options are expanded.  The normalization process strips any local
+sub-domain components.  For example, if @code{$@{domain@}} was
+@samp{Berkeley.EDU} and @code{$@{rhost@}} was initially
+@samp{snow.Berkeley.EDU}, after the normalization it would simply be
+@samp{snow}.  Hostname normalization is currently done in a
+@emph{case-dependent} manner.@refill
+@end enumerate
+
+@node     Selectors, Map Options, Variable Expansion, Location Format
+@comment  node-name,  next,  previous,  up
+@subsection Selectors
+@cindex Selectors
+
+Selectors are used to control the use of a location.  It is possible to
+share a mount map between many machines in such a way that filesystem
+location, architecture and operating system differences are hidden from
+the users.  A selector of the form @samp{arch==sun3;os==sos4} would only
+apply on Sun-3s running SunOS 4.x.
+
+Selectors are evaluated left to right.  If a selector fails then that
+location is ignored.  Thus the selectors form a conjunction and the
+locations form a disjunction.  If all the locations are ignored or
+otherwise fail then @i{Amd} uses the @dfn{error} filesystem
+(@pxref{Error Filesystem}).  This is equivalent to having a location
+@samp{type:=error} at the end of each mount-map entry.@refill
+
+The selectors currently implemented are:
+
+@table @samp
+@cindex arch, mount selector
+@cindex Mount selector; arch
+@cindex Selector; arch
+@item arch
+the machine architecture which was automatically determined at compile
+time.  The architecture type can be displayed by running the command
+@samp{amd -v}.  @xref{Supported Machine Architectures}.@refill
+
+@item autodir
+@cindex autodir, mount selector
+@cindex Mount selector; autodir
+@cindex Selector; autodir
+the default directory under which to mount filesystems.  This may be
+changed by the ``-a'' command line option.  See the @var{fs} option.
+
+@item byte
+@cindex byte, mount selector
+@cindex Mount selector; byte
+@cindex Selector; byte
+the machine's byte ordering.  This is either @samp{little}, indicating
+little-endian, or @samp{big}, indicating big-endian.  One possible use
+is to share @samp{rwho} databases (@pxref{rwho servers}).
+
+@item cluster
+@cindex cluster, mount selector
+@cindex Mount selector; cluster
+@cindex Selector; cluster
+is provided as a hook for the name of the local cluster.  This can be
+used to decide which servers to use for copies of replicated
+filesystems.  @code{$@{cluster@}} defaults to the value of
+@code{$@{domain@}} unless a different value is set with the ``-C''
+command line option.
+
+@item domain
+@cindex domain, mount selector
+@cindex Mount selector; domain
+@cindex Selector; domain
+the local domain name as specified by the ``-d'' command line option.
+See @samp{host}.
+
+@item host
+@cindex host, mount selector
+@cindex Mount selector; host
+@cindex Selector; host
+the local hostname as determined by @b{gethostname}(2).  If no domain
+name was specified on the command line and the hostname contains a
+period @samp{.} then the string before the period is used as the
+host name, and the string after the period is assigned to
+@code{$@{domain@}}.  For example, if the hostname is
+@samp{styx.doc.ic.ac.uk} then @code{host} would be @samp{styx} and
+@code{domain} would be @samp{doc.ic.ac.uk}.  @code{hostd} would be
+@samp{styx.doc.ic.ac.uk}.@refill
+
+@item hostd
+@cindex hostd, mount selector
+@cindex Mount selector; hostd
+@cindex Selector; hostd
+is @code{$@{host@}} and @code{$@{domain@}} concatenated with a
+@samp{.} inserted between them if required.  If @code{$@{domain@}}
+is an empty string then @code{$@{host@}} and @code{$@{hostd@}} will be
+identical.
+
+@item karch
+@cindex karch, mount selector
+@cindex Mount selector; karch
+@cindex Selector; karch
+is provided as a hook for the kernel architecture.  This is used on
+SunOS 4, for example, to distinguish between different @samp{/usr/kvm}
+volumes.  @code{$@{karch@}} defaults to the value of @code{$@{arch@}}
+unless a different value is set with the ``-k'' command line option.
+
+@item os
+@cindex os, mount selector
+@cindex Mount selector; os
+@cindex Selector; os
+the operating system.  Like the machine architecture, this is
+automatically determined at compile time.  The operating system name can
+be displayed by running the command @samp{amd -v}.  @xref{Supported
+Operating Systems}.@refill
+
+@end table
+
+The following selectors are also provided.  Unlike the other selectors,
+they vary for each lookup.  Note that when the name from the kernel is
+expanded prior to a map lookup, these selectors are all defined as empty
+strings.
+
+@table @samp
+@item key
+@cindex key, mount selector
+@cindex Mount selector; key
+@cindex Selector; key
+the name being resolved.  For example, if @file{/home} is an automount
+point, then accessing @file{/home/foo} would set @code{$@{key@}} to the
+string @samp{foo}.  The key is prefixed by the @var{pref} option set in
+the parent mount point.  The default prefix is an empty string.  If the
+prefix was @file{blah/} then @code{$@{key@}} would be set to
+@file{blah/foo}.@refill
+
+@item map
+@cindex map, mount selector
+@cindex Mount selector; map
+@cindex Selector; map
+the name of the mount map being used.
+
+@item path
+@cindex path, mount selector
+@cindex Mount selector; path
+@cindex Selector; path
+the full pathname of the name being resolved.  For example
+@file{/home/foo} in the example above.
+
+@item wire
+@cindex wire, mount selector
+@cindex Mount selector; wire
+@cindex Selector; wire
+the name of the network to which the primary network interface is
+attached.  If a symbolic name cannot be found in the hosts
+database then dotted IP address format is used.  This value is also
+output by the ``-v'' option.
+
+@end table
+
+Selectors can be negated by using @samp{!=} instead of @samp{==}.  For
+example to select a location on all non-Vax machines the selector
+@samp{arch!=vax} would be used.
+
+@node     Map Options,  , Selectors, Location Format
+@comment  node-name,  next,  previous,  up
+@subsection Map Options
+@cindex Map options
+@cindex Setting map options
+
+Options are parsed concurrently with selectors.  The difference is that
+when an option is seen the string following the @samp{:=} is
+recorded for later use.  As a minimum the @var{type} option must be
+specified.  Each filesystem type has other options which must also be
+specified.  @xref{Filesystem Types}, for details on the filesystem
+specific options.@refill
+
+Superfluous option specifications are ignored and are not reported
+as errors.
+
+The following options apply to more than one filesystem type.
+
+@menu
+* delay Option::
+* fs Option::
+* opts Option::
+* remopts Option::
+* sublink Option::
+* type Option::
+@end menu
+
+@node     delay Option, fs Option, Map Options, Map Options
+@comment  node-name,  next,  previous,  up
+@subsubsection delay Option
+@cindex Setting a delay on a mount location
+@cindex Delaying mounts from specific locations
+@cindex Primary server
+@cindex Secondary server
+@cindex delay, mount option
+@cindex Mount option; delay
+
+The delay, in seconds, before an attempt will be made to mount from the current location.
+Auxilliary data, such as network address, file handles and so on are computed
+regardless of this value.
+
+A delay can be used to implement the notion of primary and secondary file servers.
+The secondary servers would have a delay of a few seconds,
+thus giving the primary servers a chance to respond first.
+
+@node     fs Option, opts Option, delay Option, Map Options
+@comment  node-name,  next,  previous,  up
+@subsubsection fs Option
+@cindex Setting the local mount point
+@cindex Overriding the default mount point
+@cindex fs, mount option
+@cindex Mount option; fs
+
+The local mount point.  The semantics of this option vary between
+filesystems.
+
+For NFS and UFS filesystems the value of @code{$@{fs@}} is used as the
+local mount point.  For other filesystem types it has other meanings
+which are described in the section describing the respective filesystem
+type.  It is important that this string uniquely identifies the
+filesystem being mounted.  To satisfy this requirement, it should
+contain the name of the host on which the filesystem is resident and the
+pathname of the filesystem on the local or remote host.
+
+The reason for requiring the hostname is clear if replicated filesystems
+are considered.  If a fileserver goes down and a replacement filesystem
+is mounted then the @dfn{local} mount point @dfn{must} be different from
+that of the filesystem which is hung.  Some encoding of the filesystem
+name is required if more than one filesystem is to be mounted from any
+given host.
+
+If the hostname is first in the path then all mounts from a particular
+host will be gathered below a single directory.  If that server goes
+down then the hung mount points are less likely to be accidentally
+referenced, for example when @b{getwd}(3) traverses the namespace to
+find the pathname of the current directory.
+
+The @samp{fs} option defaults to
+@code{$@{autodir@}/$@{rhost@}$@{rfs@}}.  In addition,
+@samp{rhost} defaults to the local host name (@code{$@{host@}}) and
+@samp{rfs} defaults to the value of @code{$@{path@}}, which is the full
+path of the requested file; @samp{/home/foo} in the example above
+(@pxref{Selectors}).  @code{$@{autodir@}} defaults to @samp{/tmp_mnt}
+but may be changed with the ``-a'' command line option.
+Note that there is no @samp{/} between
+the @code{$@{rhost@}} and @code{$@{rfs@}} since @code{$@{rfs@}} begins
+with a @samp{/}.@refill
+
+@node     opts Option, remopts Option, fs Option, Map Options
+@comment  node-name,  next,  previous,  up
+@subsubsection opts Option
+@cindex Setting system mount options
+@cindex Passing parameters to the mount system call
+@cindex mount system call
+@cindex mount system call flags
+@cindex The mount system call
+@cindex opts, mount option
+@cindex Mount option; opts
+
+The options to pass to the mount system call.  A leading @samp{-} is
+silently ignored.  The mount options supported generally correspond to
+those used by @b{mount}(8) and are listed below.  Some additional
+pseudo-options are interpreted by @i{Amd} and are also listed.
+
+Unless specifically overridden, each of the system default mount options
+applies.  Any options not recognised are ignored.  If no options list is
+supplied the string @samp{rw,defaults} is used and all the system
+default mount options apply.  Options which are not applicable for a
+particular operating system are silently ignored.  For example, only 4.4
+BSD is known to implement the @code{compress} and @code{spongy} options.
+
+@table @code
+@item compress
+Use NFS compression protocol.
+@item grpid
+Use BSD directory group-id semantics.
+@item intr
+Allow keyboard interrupts on hard mounts.
+@item noconn
+Don't make a connection on datagram transports.
+@item nocto
+No close-to-open consistency.
+@item nodevs
+Don't allow local special devices on this filesystem.
+@item nolooklease
+When nqnfs is selected, disable the automatic acquiring of leases on
+lookups.
+@item nosuid
+Don't allow set-uid or set-gid executables on this filesystem.
+@item nqnfs
+Enable leasing extensions to the NFS protocol know as Not Quite NFS.
+Only supported by the 4.4BSD NFS implementation.
+@item quota
+Enable quota checking on this mount.
+@item resvport
+Use a reserved port number (one less than 1024).  Some NFS servers
+require this.
+@item retrans=@i{n}
+The number of NFS retransmits made before a user error is generated by a
+@samp{soft} mounted filesystem, and before a @samp{hard} mounted
+filesystem reports @samp{NFS server @dfn{yoyo} not responding still
+trying}.
+@item ro
+Mount this filesystem readonly.
+@item rsize=@var{n}
+The NFS read packet size.  You may need to set this if you are using
+NFS/UDP through a gateway.
+@item soft
+Give up after @dfn{retrans} retransmissions.
+@item spongy
+Like @samp{soft} for status requests, and @samp{hard} for data transfers.
+@item tcp
+Use TCP/IP instead of UDP/IP, ignored if the NFS implementation does not
+support TCP/IP mounts.
+@item timeo=@var{n}
+The NFS timeout, in tenth-seconds, before a request is retransmitted.
+@item wsize=@var{n}
+The NFS write packet size.  You may need to set this if you are using
+NFS/UDP through a gateway.
+@end table
+
+The following options are implemented by @i{Amd}, rather than being
+passed to the kernel.
+
+@table @code
+@item nounmount
+Configures the mount so that its time-to-live will
+never expire.  This is also the default for some filesystem types.
+@c
+@c Implementation broken:
+@item ping=@var{n}
+The interval, in seconds, between keep-alive pings.  When four
+consecutive pings have failed the mount point is marked as hung.  This
+interval defaults to 30 seconds.  If the ping interval is less than zero,
+no pings are sent and the host is assumed to be always
+up.  By default, pings are not sent for an NFS/TCP mount.
+@item retry=@var{n}
+The number of times to retry the mount system call.
+@item utimeout=@var{n}
+The interval, in seconds, by which the mount's
+time-to-live is extended after an unmount attempt
+has failed.  In fact the interval is extended before the unmount is
+attempted to avoid thrashing.  The default value is 120 seconds (two
+minutes) or as set by the ``-w'' command line option.
+@end table
+
+@node     remopts Option, sublink Option, opts Option, Map Options
+@comment  node-name,  next,  previous,  up
+@subsubsection remopts Option
+@cindex Setting system mount options for non-local networks
+@cindex remopts, mount option
+@cindex Mount option; remopts
+
+This option has the same use as @code{$@{opts@}} but applies only when
+the remote host is on a non-local network.  For example, when using NFS
+across a gateway it is often necessary to use smaller values for the
+data read and write sizes.  This can simply be done by specifying the
+small values in @var{remopts}.  When a non-local host is accessed, the
+smaller sizes will automatically be used.
+
+@i{Amd} determines whether a host is local by examining the network
+interface configuration at startup.  Any interface changes made after
+@i{Amd} has been started will not be noticed.  The likely effect will
+be that a host may incorrectly be declared non-local.
+
+Unless otherwise set, the value of @code{$@{rem@}} is the same as the
+value of @code{$@{opts@}}.
+
+@node     sublink Option, type Option, remopts Option, Map Options
+@comment  node-name,  next,  previous,  up
+@subsubsection sublink Option
+@cindex Setting the sublink option
+@cindex sublink, mount option
+@cindex Mount option; sublink
+
+The subdirectory within the mounted filesystem to which the reference
+should point.  This can be used to prevent duplicate mounts in cases
+where multiple directories in the same mounted filesystem are used.
+
+@node     type Option, , sublink Option, Map Options
+@comment  node-name,  next,  previous,  up
+@subsubsection type Option
+@cindex Setting the filesystem type option
+@cindex type, mount option
+@cindex Mount option; type
+
+The filesystem type to be used.  @xref{Filesystem Types}, for a full
+description of each type.@refill
+
+@node     Amd Command Line Options, Filesystem Types, Mount Maps, Top
+@comment  node-name,  next,  previous,  up
+@chapter @i{Amd} Command Line Options
+@cindex Command line options, Amd
+@cindex Amd command line options
+@cindex Overriding defaults on the command line
+
+Many of @i{Amd}'s parameters can be set from the command line.  The
+command line is also used to specify automount points and maps.
+
+The general format of a command line is
+
+@example
+amd [@i{options}] @{ @i{directory} @i{map-name} [-@i{map-options}] @} ...
+@end example
+
+For each directory and map-name given, @i{Amd} establishes an
+automount point.  The @dfn{map-options} may be any sequence of options
+or selectors---@pxref{Location Format}.  The @dfn{map-options}
+apply only to @i{Amd}'s mount point.
+
+@samp{type:=toplvl;cache:=mapdefault;fs:=$@{map@}} is the default value for the
+map options.  Default options for a map are read from a special entry in
+the map whose key is the string @samp{/defaults}.  When default options
+are given they are prepended to any options specified in the mount-map
+locations as explained in.  @xref{Map Defaults}, for more details.
+
+The @dfn{options} are any combination of those listed below.
+
+Once the command line has been parsed, the automount points are mounted.
+The mount points are created if they do not already exist, in which case they
+will be removed when @i{Amd} exits.
+Finally, @i{Amd} disassociates itself from its controlling terminal and
+forks into the background.
+
+Note: Even if @i{Amd} has been built with @samp{-DDEBUG} it will still
+background itself and disassociate itself from the controlling terminal.
+To use a debugger it is necessary to specify @samp{-D nodaemon} on the
+command line.
+
+@menu
+* -a Option::	Automount directory.
+* -c Option::	Cache timeout interval.
+* -d Option::	Domain name.
+* -k Option::	Kernel architecture.
+* -l Option::	Log file.
+* -n Option::	Hostname normalisation.
+* -p Option::	Output process id.
+* -r Option::	Restart existing mounts.
+* -t Option::	Kernel RPC timeout.
+* -v Option::	Version information.
+* -w Option::	Wait interval after failed unmount.
+* -x Option::	Log options.
+* -y Option::	NIS domain.
+* -C-Option::	Cluster name.
+* -D-Option::	Debug flags.
+@end menu
+
+@node     -a Option, -c Option, Amd Command Line Options, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-a} @var{directory}
+@cindex Automount directory
+@cindex Setting the default mount directory
+
+Specifies the default mount directory.  This option changes the variable
+@code{$@{autodir@}} which otherwise defaults to @file{/tmp_mnt}.  For example,
+some sites prefer @file{/amd}.
+
+@example
+amd -a /amd ...
+@end example
+
+@node     -c Option, -d Option, -a Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-c} @var{cache-interval}
+@cindex Cache interval
+@cindex Interval before a filesystem times out
+@cindex Setting the interval before a filesystem times out
+@cindex Changing the interval before a filesystem times out
+
+Selects the period, in seconds, for which a name is cached by @i{Amd}.
+If no reference is made to the volume in this period, @i{Amd} discards
+the volume name to filesystem mapping.
+
+Once the last reference to a filesystem has been removed, @i{Amd}
+attempts to unmount the filesystem.  If the unmount fails the interval
+is extended by a further period as specified by the @samp{-w} command
+line option or by the @samp{utimeout} mount option.
+
+The default @dfn{cache-interval} is 300 seconds (five minutes).
+
+@node     -d Option, -k Option, -c Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-d} @var{domain}
+@cindex Domain name
+@cindex Setting the local domain name
+@cindex Overriding the local domain name
+
+Specifies the host's domain.  This sets the internal variable
+@code{$@{domain@}} and affects the @code{$@{hostd@}} variable.
+
+If this option is not specified and the hostname already contains the
+local domain then that is used, otherwise the default value of
+@code{$@{domain@}} is @samp{unknown.domain}.
+
+For example, if the local domain was @samp{doc.ic.ac.uk}, @i{Amd} could
+be started as follows:
+
+@example
+amd -d doc.ic.ac.uk ...
+@end example
+
+@node     -k Option, -l Option, -d Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-k} @var{kernel-architecture}
+@cindex Setting the Kernel architecture
+
+Specifies the kernel architecture of the system.  This is usually the
+output of @samp{arch -k} and its only effect is to set the variable
+@code{$@{karch@}}.  If this option is not given, @code{$@{karch@}} has
+the same value as @code{$@{arch@}}.
+
+This would be used as follows:
+
+@example
+amd -k `arch -k` ...
+@end example
+
+@node     -l Option, -n Option, -k Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-l} @var{log-option}
+@cindex Log filename
+@cindex Setting the log file
+@cindex Using syslog to log errors
+@cindex syslog
+
+Selects the form of logging to be made.  Two special @dfn{log-options}
+are recognised.
+
+@enumerate
+@item
+If @dfn{log-option} is the string @samp{syslog}, @i{Amd} will use the
+@b{syslog}(3) mechanism.@refill
+
+@item
+If @dfn{log-option} is the string @samp{/dev/stderr}, @i{Amd} will use
+standard error, which is also the default target for log messages.  To
+implement this, @i{Amd} simulates the effect of the @samp{/dev/fd}
+driver.
+@end enumerate
+
+Any other string is taken as a filename to use for logging.  Log
+messages are appended to the file if it already exists, otherwise a new
+file is created.  The file is opened once and then held open, rather
+than being re-opened for each message.
+
+If the @samp{syslog} option is specified but the system does not support
+syslog or if the named file cannot be opened or created, @i{Amd} will
+use standard error.  Error messages generated before @i{Amd} has
+finished parsing the command line are printed on standard error.
+
+Using @samp{syslog} is usually best, in which case @i{Amd} would be
+started as follows:
+
+@example
+amd -l syslog ...
+@end example
+
+@node     -n Option, -p Option, -l Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-n}
+@cindex Hostname normalisation
+@cindex Aliased hostnames
+@cindex Resolving aliased hostnames
+@cindex Normalising hostnames
+
+Normalises the remote hostname before using it.  Normalisation is done
+by replacing the value of @code{$@{rhost@}} with the primary name
+returned by a hostname lookup.
+
+This option should be used if several names are used to refer to a
+single host in a mount map.
+
+@node     -p Option, -r Option, -n Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-p}
+@cindex Process id
+@cindex Displaying the process id
+@cindex process id of Amd daemon
+@cindex pid file, creating with -p option
+@cindex Creating a pid file
+
+Causes @i{Amd}'s process id to be printed on standard output.
+This can be redirected to a suitable file for use with kill:
+
+@example
+amd -p > /var/run/amd.pid ...
+@end example
+
+This option only has an affect if @i{Amd} is running in daemon mode.
+If @i{Amd} is started with the @code{-D nodaemon} debug flag, this
+option is ignored.
+
+@node     -r Option, -t Option, -p Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-r}
+@cindex Restarting existing mounts
+@cindex Picking up existing mounts
+
+Tells @i{Amd} to restart existing mounts (@pxref{Inheritance Filesystem}).
+@c @dfn{This option will be made the default in the next release.}
+
+@node     -t Option, -v Option, -r Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-t} @var{timeout.retransmit}
+@cindex Setting Amd's RPC parameters
+
+Specifies the RPC @dfn{timeout} and @dfn{retransmit} intervals used by
+the kernel to communicate to @i{Amd}.  These are used to set the
+@samp{timeo} and @samp{retrans} mount options.
+
+@i{Amd} relies on the kernel RPC retransmit mechanism to trigger mount
+retries.  The value of this parameter changes the retry interval.  Too
+long an interval gives poor interactive response, too short an interval
+causes excessive retries.
+
+@node     -v Option, -w Option, -t Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-v}
+@cindex Version information
+@cindex Discovering version information
+@cindex How to discover your version of Amd
+
+Print version information on standard error and then exit.  The output
+is of the form:
+
+@example
+amd 5.2.1.11 of 91/03/17 18:04:05 5.3Alpha11 #0: Sun Mar 17 18:07:28 GMT 1991
+Built by pendry@@vangogh.Berkeley.EDU for a hp300 running bsd44 (big-endian).
+Map support for: root, passwd, union, file, error.
+FS: ufs, nfs, nfsx, host, link, program, union, auto, direct, toplvl, error.
+Primary network is 128.32.130.0.
+@end example
+
+The information includes the version number, release date and name of
+the release.  The architecture (@pxref{Supported Machine Architectures}),
+operating system (@pxref{Supported Operating Systems})
+and byte ordering are also printed as they appear in the @code{$@{os@}},
+@code{$@{arch@}} and @code{$@{byte@}} variables.@refill
+
+@node     -w Option, -x Option, -v Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-w} @var{wait-timeout}
+@cindex Setting the interval between unmount attempts
+@cindex unmount attempt backoff interval
+
+Selects the interval in seconds between unmount attempts after the
+initial time-to-live has expired.
+
+This defaults to 120 seconds (two minutes).
+
+@node     -x Option, -y Option, -w Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-x} @var{opts}
+@cindex Log message selection
+@cindex Selecting specific log messages
+@cindex How to select log messages
+@cindex syslog priorities
+
+Specifies the type and verbosity of log messages.  @dfn{opts} is
+a comma separated list selected from the following options:
+
+@table @code
+@item fatal
+Fatal errors
+@item error
+Non-fatal errors
+@item user
+Non-fatal user errors
+@item warn
+Recoverable errors
+@item warning
+Alias for @code{warn}
+@item info
+Information messages
+@item map
+Mount map usage
+@item stats
+Additional statistics
+@item all
+All of the above
+@end table
+
+Initially a set of default logging flags is enabled.  This is as if
+@samp{-x all,nomap,nostats} had been selected.  The command line is
+parsed and logging is controlled by the ``-x'' option.  The very first
+set of logging flags is saved and can not be subsequently disabled using
+@i{Amq}.  This default set of options is useful for general production
+use.@refill
+
+The @samp{info} messages include details of what is mounted and
+unmounted and when filesystems have timed out.  If you want to have the
+default set of messages without the @samp{info} messages then you simply
+need @samp{-x noinfo}.  The messages given by @samp{user} relate to
+errors in the mount maps, so these are useful when new maps are
+installed.  The following table lists the syslog priorites used for each
+of the message types.@refill
+
+@table @code
+@item fatal
+LOG_CRIT
+@item error
+LOG_ERR
+@item user
+LOG_WARNING
+@item warning
+LOG_WARNING
+@item info
+LOG_INFO
+@item debug
+LOG_DEBUG
+@item map
+LOG_DEBUG
+@item stats
+LOG_INFO
+@end table
+
+
+The options can be prefixed by the string @samp{no} to indicate
+that this option should be turned off.  For example, to obtain all
+but @samp{info} messages the option @samp{-x all,noinfo} would be used.
+
+If @i{Amd} was built with debugging enabled the @code{debug} option is
+automatically enabled regardless of the command line options.
+
+@node     -y Option, -C-Option, -x Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-y} @var{NIS-domain}
+@cindex NIS (YP) domain name
+@cindex Overriding the NIS (YP) domain name
+@cindex Setting the NIS (YP) domain name
+@cindex YP domain name
+
+Selects an alternate NIS domain.  This is useful for debugging and
+cross-domain shared mounting.  If this flag is specified, @i{Amd}
+immediately attempts to bind to a server for this domain.
+@c @i{Amd} refers to NIS maps when it starts, unless the ``-m'' option
+@c is specified, and whenever required in a mount map.
+
+@node     -C-Option, -D-Option, -y Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-C} @var{cluster-name}
+@cindex Cluster names
+@cindex Setting the cluster name
+
+Specifies the name of the cluster of which the local machine is a member.
+The only effect is to set the variable @code{$@{cluster@}}.
+The @dfn{cluster-name} is will usually obtained by running another command which uses
+a database to map the local hostname into a cluster name.
+@code{$@{cluster@}} can then be used as a selector to restrict mounting of
+replicated data.
+If this option is not given, @code{$@{cluster@}} has the same value as @code{$@{domain@}}.
+This would be used as follows:
+
+@example
+amd -C `clustername` ...
+@end example
+
+@node     -D-Option, , -C-Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-D} @var{opts}
+@cindex Debug options
+@cindex Setting debug flags
+
+Controls the verbosity and coverage of the debugging trace; @dfn{opts}
+is a comma separated list of debugging options.  The ``-D'' option is
+only available if @i{Amd} was compiled with @samp{-DDEBUG}.  The memory
+debugging facilities are only available if @i{Amd} was compiled with
+@samp{-DDEBUG_MEM} (in addition to @samp{-DDEBUG}).
+
+The most common options to use are @samp{-D trace} and @samp{-D test}
+(which turns on all the useful debug options).  See the program source
+for a more detailed explanation of the available options.
+
+@node     Filesystem Types, Run-time Administration, Amd Command Line Options, Top
+@comment  node-name,  next,  previous,  up
+@chapter Filesystem Types
+@cindex Filesystem types
+@cindex Mount types
+@cindex Types of filesystem
+
+To mount a volume, @i{Amd} must be told the type of filesystem to be
+used.  Each filesystem type typically requires additional information
+such as the fileserver name for NFS.
+
+From the point of view of @i{Amd}, a @dfn{filesystem} is anything that
+can resolve an incoming name lookup.  An important feature is support
+for multiple filesystem types.  Some of these filesystems are
+implemented in the local kernel and some on remote fileservers, whilst
+the others are implemented internally by @i{Amd}.@refill
+
+The two common filesystem types are UFS and NFS.  Four other user
+accessible filesystems (@samp{link}, @samp{program}, @samp{auto} and
+@samp{direct}) are also implemented internally by @i{Amd} and these are
+described below.  There are two additional filesystem types internal to
+@i{Amd} which are not directly accessible to the user (@samp{inherit}
+and @samp{error}).  Their use is described since they may still have an
+effect visible to the user.@refill
+
+@menu
+* Network Filesystem::		A single NFS filesystem.
+* Network Host Filesystem::	NFS mount a host's entire export tree.
+* Network Filesystem Group::	An atomic group of NFS filesystems.
+* Unix Filesystem::		Native disk filesystem.
+* Program Filesystem::		Generic Program mounts.
+* Symbolic Link Filesystem::	Local link referencing filesystem.
+* Symbolic Link Filesystem II::	Local link referencing existing filesystem.
+* Automount Filesystem::
+* Direct Automount Filesystem::
+* Union Filesystem::
+* Error Filesystem::
+* Top-level Filesystem::
+* Root Filesystem::
+* Inheritance Filesystem::
+@end menu
+
+@node     Network Filesystem, Network Host Filesystem, Filesystem Types, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Network Filesystem (@samp{type:=nfs})
+@cindex NFS
+@cindex Mounting an NFS filesystem
+@cindex How to mount and NFS filesystem
+@cindex nfs, filesystem type
+@cindex Filesystem type; nfs
+
+The @dfn{nfs} filesystem type provides access to Sun's NFS.
+
+@noindent
+The following options must be specified:
+
+@table @code
+@cindex rhost, mount option
+@cindex Mount option; rhost
+@item rhost
+the remote fileserver.  This must be an entry in the hosts database.  IP
+addresses are not accepted.  The default value is taken
+from the local host name (@code{$@{host@}}) if no other value is
+specified.
+
+@cindex rfs, mount option
+@cindex Mount option; rfs
+@item rfs
+the remote filesystem.
+If no value is specified for this option, an internal default of
+@code{$@{path@}} is used.
+@end table
+
+NFS mounts require a two stage process.  First, the @dfn{file handle} of
+the remote file system must be obtained from the server.  Then a mount
+system call must be done on the local system.  @i{Amd} keeps a cache
+of file handles for remote file systems.  The cache entries have a
+lifetime of a few minutes.
+
+If a required file handle is not in the cache, @i{Amd} sends a request
+to the remote server to obtain it.  @i{Amd} @dfn{does not} wait for
+a response; it notes that one of the locations needs retrying, but
+continues with any remaining locations.  When the file handle becomes
+available, and assuming none of the other locations was successfully
+mounted, @i{Amd} will retry the mount.  This mechanism allows several
+NFS filesystems to be mounted in parallel.
+@c @footnote{The mechanism
+@c is general, however NFS is the only filesystem
+@c for which the required hooks have been written.}
+The first one which responds with a valid file handle will be used.
+
+@noindent
+An NFS entry might be:
+
+@example
+jsp  host!=charm;type:=nfs;rhost:=charm;rfs:=/home/charm;sublink:=jsp
+@end example
+
+The mount system call and any unmount attempts are always done
+in a new task to avoid the possibility of blocking @i{Amd}.
+
+@node     Network Host Filesystem, Network Filesystem Group, Network Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Network Host Filesystem (@samp{type:=host})
+@cindex Network host filesystem
+@cindex Mounting entire export trees
+@cindex How to mount all NFS exported filesystems
+@cindex host, filesystem type
+@cindex Filesystem type; host
+
+@c NOTE: the current implementation of the @dfn{host} filesystem type
+@c sometimes fails to maintain a consistent view of the remote mount tree.
+@c This happens when the mount times out and only some of the remote mounts
+@c are successfully unmounted.  To prevent this from occurring, use the
+@c @samp{nounmount} mount option.
+
+The @dfn{host} filesystem allows access to the entire export tree of an
+NFS server.  The implementation is layered above the @samp{nfs}
+implementation so keep-alives work in the same way.  The only option
+which needs to specified is @samp{rhost} which is the name of the
+fileserver to mount.
+
+The @samp{host} filesystem type works by querying the mount daemon on
+the given fileserver to obtain its export list.  @i{Amd} then obtains
+filehandles for each of the exported filesystems.  Any errors at this
+stage cause that particular filesystem to be ignored.  Finally each
+filesystem is mounted.  Again, errors are logged but ignored.  One
+common reason for mounts to fail is that the mount point does not exist.
+Although @i{Amd} attempts to automatically create the mount point, it
+may be on a remote filesystem to which @i{Amd} does not have write
+permission.
+
+When an attempt to unmount a @samp{host} filesystem mount fails, @i{Amd}
+remounts any filesystems which had successfully been unmounted.  To do
+this @i{Amd} queries the mount daemon again and obtains a fresh copy of
+the export list.  @i{Amd} then tries to mount any exported filesystems
+which are not currently mounted.
+
+Sun's automounter provides a special @samp{-hosts} map.  To achieve the
+same effect with @i{Amd} requires two steps.  First a mount map must
+be created as follows:
+
+@example
+/defaults  type:=host;fs:=$@{autodir@}/$@{rhost@}/root;rhost:=$@{key@}
+*          opts:=rw,nosuid,grpid
+@end example
+
+@noindent
+and then start @i{Amd} with the following command
+
+@example
+amd /n net.map
+@end example
+
+@noindent
+where @samp{net.map} is the name of map described above.  Note that the
+value of @code{$@{fs@}} is overridden in the map.  This is done to avoid
+a clash between the mount tree and any other filesystem already mounted
+from the same fileserver.
+
+If different mount options are needed for different hosts then
+additional entries can be added to the map, for example
+
+@example
+host2       opts:=ro,nosuid,soft
+@end example
+
+@noindent
+would soft mount @samp{host2} read-only.
+
+@node     Network Filesystem Group, Unix Filesystem, Network Host Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Network Filesystem Group (@samp{type:=nfsx})
+@cindex Network filesystem group
+@cindex Atomic NFS mounts
+@cindex Mounting an atomic group of NFS filesystems
+@cindex How to mount an atomic group of NFS filesystems
+@cindex nfsx, filesystem type
+@cindex Filesystem type; nfsx
+
+The @dfn{nfsx} filesystem allows a group of filesystems to be mounted
+from a single NFS server.  The implementation is layered above the
+@samp{nfs} implementation so keep-alives work in the same way.
+
+The options are the same as for the @samp{nfs} filesystem with one
+difference.
+
+@noindent
+The following options must be specified:
+
+@table @code
+@item rhost
+the remote fileserver.  This must be an entry in the hosts database.  IP
+addresses are not accepted.  The default value is taken from the local
+host name (@code{$@{host@}}) if no other value is specified.
+
+@item rfs
+as a list of filesystems to mount.  The list is in the form of a comma
+separated strings.
+@end table
+
+@noindent
+For example:
+
+@example
+pub      type:=nfsx;rhost:=gould;\
+		rfs:=/public,/,graphics,usenet;fs:=$@{autodir@}/$@{rhost@}/root
+@end example
+
+The first string defines the root of the tree, and is applied as a
+prefix to the remaining members of the list which define the individual
+filesystems.  The first string is @emph{not} used as a filesystem name.
+A parallel operation is used to determine the local mount points to
+ensure a consistent layout of a tree of mounts.
+
+Here, the @emph{three} filesystems, @samp{/public},
+@samp{/public/graphics} and @samp{/public/usenet}, would be mounted.@refill
+
+A local mount point, @code{$@{fs@}}, @emph{must} be specified.  The
+default local mount point will not work correctly in the general case.
+A suggestion is to use @samp{fs:=$@{autodir@}/$@{rhost@}/root}.@refill
+
+@node     Unix Filesystem, Program Filesystem, Network Filesystem Group, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Unix Filesystem (@samp{type:=ufs})
+@cindex Unix filesystem
+@cindex UFS
+@cindex Mounting a UFS filesystem
+@cindex Mounting a local disk
+@cindex How to mount a UFS filesystems
+@cindex How to mount a local disk
+@cindex Disk filesystems
+@cindex ufs, filesystem type
+@cindex Filesystem type; ufs
+
+The @dfn{ufs} filesystem type provides access to the system's
+standard disk filesystem---usually a derivative of the Berkeley Fast Filesystem.
+
+@noindent
+The following option must be specified:
+
+@table @code
+@cindex dev, mount option
+@cindex Mount option; dev
+@item dev
+the block special device to be mounted.
+@end table
+
+A UFS entry might be:
+
+@example
+jsp   host==charm;type:=ufs;dev:=/dev/xd0g;sublink:=jsp
+@end example
+
+@node     Program Filesystem, Symbolic Link Filesystem, Unix Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Program Filesystem (@samp{type:=program})
+@cindex Program filesystem
+@cindex Mount a filesystem under program control
+@cindex program, filesystem type
+@cindex Filesystem type; program
+
+The @dfn{program} filesystem type allows a program to be run whenever a
+mount or unmount is required.  This allows easy addition of support for
+other filesystem types, such as MIT's Remote Virtual Disk (RVD)
+which has a programmatic interface via the commands
+@samp{rvdmount} and @samp{rvdunmount}.
+
+@noindent
+The following options must be specified:
+
+@table @code
+@cindex mount, mount option
+@cindex Mount option; mount
+@item mount
+the program which will perform the mount.
+
+@cindex unmount, mount option
+@cindex Mount option; unmount
+@item unmount
+the program which will perform the unmount.
+@end table
+
+The exit code from these two programs is interpreted as a Unix error
+code.  As usual, exit code zero indicates success.  To execute the
+program @i{Amd} splits the string on whitespace to create an array of
+substrings.  Single quotes @samp{'} can be used to quote whitespace
+if that is required in an argument.  There is no way to escape or change
+the quote character.
+
+To run the program @samp{rvdmount} with a host name and filesystem as
+arguments would be specified by @samp{mount:="/etc/rvdmount rvdmount
+fserver $@{path@}"}.
+
+The first element in the array is taken as the pathname of the program
+to execute.  The other members of the array form the argument vector to
+be passed to the program, @dfn{including argument zero}.  This means
+that the split string must have at least two elements.  The program is
+directly executed by @i{Amd}, not via a shell.  This means that scripts
+must begin with a @code{#!} interpreter specification.
+
+If a filesystem type is to be heavily used, it may be worthwhile adding
+a new filesystem type into @i{Amd}, but for most uses the program
+filesystem should suffice.
+
+When the program is run, standard input and standard error are inherited
+from the current values used by @i{Amd}.  Standard output is a
+duplicate of standard error.  The value specified with the ``-l''
+command line option has no effect on standard error.
+
+@node     Symbolic Link Filesystem, Symbolic Link Filesystem II, Program Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Symbolic Link Filesystem (@samp{type:=link})
+@cindex Symbolic link filesystem
+@cindex Referencing part of the local name space
+@cindex Mounting part of the local name space
+@cindex How to reference part of the local name space
+@cindex link, filesystem type
+@cindex symlink, link filesystem type
+@cindex Filesystem type; link
+
+Each filesystem type creates a symbolic link to point from the volume
+name to the physical mount point.  The @samp{link} filesystem does the
+same without any other side effects.  This allows any part of the
+machines name space to be accessed via @i{Amd}.
+
+One common use for the symlink filesystem is @file{/homes} which can be
+made to contain an entry for each user which points to their
+(auto-mounted) home directory.  Although this may seem rather expensive,
+it provides a great deal of administrative flexibility.
+
+@noindent
+The following option must be defined:
+
+@table @code
+@item fs
+The value of @var{fs} option specifies the destination of the link, as
+modified by the @var{sublink} option.  If @var{sublink} is non-null, it
+is appended to @code{$@{fs@}}@code{/} and the resulting string is used
+as the target.
+@end table
+
+The @samp{link} filesystem can be though of as identical to the
+@samp{ufs} filesystem but without actually mounting anything.
+
+An example entry might be:
+
+@example
+jsp   host==charm;type:=link;fs:=/home/charm;sublink:=jsp
+@end example
+which would return a symbolic link pointing to @file{/home/charm/jsp}.
+
+@node     Symbolic Link Filesystem II, Automount Filesystem, Symbolic Link Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Symbolic Link Filesystem II (@samp{type:=linkx})
+@cindex Symbolic link filesystem II
+@cindex Referencing an existing part of the local name space
+@cindex Mounting an existing part of the local name space
+@cindex How to reference an existing part of the local name space
+@cindex linkx, filesystem type
+@cindex symlink, linkx filesystem type
+@cindex Filesystem type; linkx
+
+The @samp{linkx} filesystem type is identical to @samp{link} with the
+exception that the target of the link must exist.  Existence is checked
+with the @samp{lstat} system call.
+
+The @samp{linkx} filesystem type is particularly useful for wildcard map
+entries.  In this case, a list of possible targets can be give and
+@i{Amd} will choose the first one which exists on the local machine.
+
+@node     Automount Filesystem, Direct Automount Filesystem, Symbolic Link Filesystem II, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Automount Filesystem (@samp{type:=auto})
+@cindex Automount filesystem
+@cindex Map cache types
+@cindex Setting map cache parameters
+@cindex How to set map cache parameters
+@cindex How to start an indirect automount point
+@cindex auto, filesystem type
+@cindex Filesystem type; auto
+@cindex SIGHUP signal
+@cindex Map cache synchronising
+@cindex Synchronising the map cache
+@cindex Map cache options
+@cindex Regular expressions in maps
+
+The @dfn{auto} filesystem type creates a new automount point below an
+existing automount point.  Top-level automount points appear as system
+mount points.  An automount mount point can also appear as a
+sub-directory of an existing automount point.  This allows some
+additional structure to be added, for example to mimic the mount tree of
+another machine.
+
+The following options may be specified:
+
+@table @code
+@cindex cache, mount option
+@cindex Mount option; cache
+@item cache
+specifies whether the data in this mount-map should be
+cached.  The default value is @samp{none}, in which case
+no caching is done in order to conserve memory.
+However, better performance and reliability can be obtained by caching
+some or all of a mount-map.
+
+If the cache option specifies @samp{all},
+the entire map is enumerated when the mount point is created.
+
+If the cache option specifies @samp{inc}, caching is done incrementally
+as and when data is required.
+Some map types do not support cache mode @samp{all}, in which case @samp{inc}
+is used whenever @samp{all} is requested.
+
+Caching can be entirely disabled by using cache mode @samp{none}.
+
+If the cache option specifies @samp{regexp} then the entire map will be
+enumerated and each key will be treated as an egrep-style regular
+expression.  The order in which a cached map is searched does not
+correspond to the ordering in the source map so the regular expressions
+should be mutually exclusive to avoid confusion.
+
+Each mount map type has a default cache type, usually @samp{inc}, which
+can be selected by specifying @samp{mapdefault}.
+
+The cache mode for a mount map can only be selected on the command line.
+Starting @i{Amd} with the command:
+
+@example
+amd /homes hesiod.homes -cache:=inc
+@end example
+
+will cause @samp{/homes} to be automounted using the @dfn{Hesiod} name
+server with local incremental caching of all successfully resolved names.
+
+All cached data is forgotten whenever @i{Amd} receives a @samp{SIGHUP}
+signal and, if cache @samp{all} mode was selected, the cache will be
+reloaded.  This can be used to inform @i{Amd} that a map has been
+updated.  In addition, whenever a cache lookup fails and @i{Amd} needs
+to examine a map, the map's modify time is examined.  If the cache is
+out of date with respect to the map then it is flushed as if a
+@samp{SIGHUP} had been received.
+
+An additional option (@samp{sync}) may be specified to force @i{Amd} to
+check the map's modify time whenever a cached entry is being used.  For
+example, an incremental, synchronised cache would be created by the
+following command:
+
+@example
+amd /homes hesiod.homes -cache:=inc,sync
+@end example
+
+@item fs
+specifies the name of the mount map to use for the new mount point.
+
+Arguably this should have been specified with the @code{$@{rfs@}} option but
+we are now stuck with it due to historical accident.
+
+@c %If the string @samp{.} is used then the same map is used;
+@c %in addition the lookup prefix is set to the name of the mount point followed
+@c %by a slash @samp{/}.
+@c %This is the same as specifying @samp{fs:=\$@{map@};pref:=\$@{key@}/}.
+@c
+
+@item pref
+alters the name that is looked up in the mount map.  If
+@code{$@{pref@}}, the @dfn{prefix}, is non-null then it is prepended to
+the name requested by the kernel @dfn{before} the map is searched.
+@end table
+
+The server @samp{dylan.doc.ic.ac.uk} has two user disks:
+@samp{/dev/dsk/2s0} and @samp{/dev/dsk/5s0}.  These are accessed as
+@samp{/home/dylan/dk2} and @samp{/home/dylan/dk5} respectively.  Since
+@samp{/home} is already an automount point, this naming is achieved with
+the following map entries:@refill
+
+@example
+dylan        type:=auto;fs:=$@{map@};pref:=$@{key@}/
+dylan/dk2    type:=ufs;dev:=/dev/dsk/2s0
+dylan/dk5    type:=ufs;dev:=/dev/dsk/5s0
+@end example
+
+@node     Direct Automount Filesystem, Union Filesystem, Automount Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Direct Automount Filesystem (@samp{type:=direct})
+@cindex Direct automount filesystem
+@cindex How to start a direct automount point
+@cindex direct, filesystem type
+@cindex Filesystem type; direct
+
+The @dfn{direct} filesystem is almost identical to the automount
+filesystem.  Instead of appearing to be a directory of mount points, it
+appears as a symbolic link to a mounted filesystem.  The mount is done
+at the time the link is accessed.  @xref{Automount Filesystem}, for a
+list of required options.
+
+Direct automount points are created by specifying the @samp{direct}
+filesystem type on the command line:
+
+@example
+amd ... /usr/man auto.direct -type:=direct
+@end example
+
+where @samp{auto.direct} would contain an entry such as:
+
+@example
+usr/man    -type:=nfs;rfs:=/usr/man \
+           rhost:=man-server1  rhost:=man-server2
+@end example
+
+In this example, @samp{man-server1} and @samp{man-server2} are file
+servers which export copies of the manual pages.  Note that the key
+which is looked up is the name of the automount point without the
+leading @samp{/}.
+
+@node     Union Filesystem, Error Filesystem, Direct Automount Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Union Filesystem (@samp{type:=union})
+@cindex Union filesystem
+@cindex union, filesystem type
+@cindex Filesystem type; union
+
+The @dfn{union} filesystem type allows the contents of several
+directories to be merged and made visible in a single directory.  This
+can be used to overcome one of the major limitations of the Unix mount
+mechanism which only allows complete directories to be mounted.
+
+For example, supposing @file{/tmp} and @file{/var/tmp} were to be merged
+into a new directory called @file{/mtmp}, with files in @file{/var/tmp}
+taking precedence.  The following command could be used to achieve this
+effect:
+
+@example
+amd ... /mtmp union:/tmp:/var/tmp -type:=union
+@end example
+
+Currently, the unioned directories must @emph{not} be automounted.  That
+would cause a deadlock.  This seriously limits the current usefulness of
+this filesystem type and the problem will be addressed in a future
+release of @i{Amd}.
+
+Files created in the union directory are actually created in the last
+named directory.  This is done by creating a wildcard entry which points
+to the correct directory.  The wildcard entry is visible if the union
+directory is listed, so allowing you to see which directory has
+priority.
+
+The files visible in the union directory are computed at the time
+@i{Amd} is started, and are not kept uptodate with respect to the
+underlying directories.  Similarly, if a link is removed, for example
+with the @samp{rm} command, it will be lost forever.
+
+@node     Error Filesystem, Top-level Filesystem, Union Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Error Filesystem (@samp{type:=error})
+@cindex Error filesystem
+@cindex error, filesystem type
+@cindex Filesystem type; error
+
+The @dfn{error} filesystem type is used internally as a catch-all in
+the case where none of the other filesystems was selected, or some other
+error occurred.
+Lookups and mounts always fail with ``No such file or directory''.
+All other operations trivially succeed.
+
+The error filesystem is not directly accessible.
+
+@node     Top-level Filesystem, Root Filesystem, Error Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Top-level Filesystem (@samp{type:=toplvl})
+@cindex Top level filesystem
+@cindex toplvl, filesystem type
+@cindex Filesystem type; toplvl
+
+The @dfn{toplvl} filesystems is derived from the @samp{auto} filesystem
+and is used to mount the top-level automount nodes.  Requests of this
+type are automatically generated from the command line arguments.
+
+@node     Root Filesystem, Inheritance Filesystem, Top-level Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Root Filesystem
+@cindex Root filesystem
+@cindex root, filesystem type
+@cindex Filesystem type; root
+
+The @dfn{root} (@samp{type:=root}) filesystem type acts as an internal
+placeholder onto which @i{Amd} can pin @samp{toplvl} mounts.  Only one
+node of this type need ever exist and one is created automatically
+during startup.  The effect of creating a second root node is undefined.
+
+@node     Inheritance Filesystem, , Root Filesystem, Filesystem Types
+@comment  node-name,  next,  previous,  up
+@section Inheritance Filesystem
+@cindex Inheritance filesystem
+@cindex Nodes generated on a restart
+@cindex inherit, filesystem type
+@cindex Filesystem type; inherit
+
+The @dfn{inheritance} (@samp{type:=inherit}) filesystem is not directly
+accessible.  Instead, internal mount nodes of this type are
+automatically generated when @i{Amd} is started with the ``-r'' option.
+At this time the system mount table is scanned to locate any filesystems
+which are already mounted.  If any reference to these filesystems is
+made through @i{Amd} then instead of attempting to mount it, @i{Amd}
+simulates the mount and @dfn{inherits} the filesystem.  This allows a
+new version of @i{Amd} to be installed on a live system simply by
+killing the old daemon with @code{SIGTERM} and starting the new one.@refill
+
+This filesystem type is not generally visible externally, but it is
+possible that the output from @samp{amq -m} may list @samp{inherit} as
+the filesystem type.  This happens when an inherit operation cannot
+be completed for some reason, usually because a fileserver is down.
+
+@node     Run-time Administration, Examples, Filesystem Types, Top
+@comment  node-name,  next,  previous,  up
+@chapter Run-time Administration
+@cindex Run-time administration
+@cindex Amq command
+
+@menu
+* Starting Amd::
+* Stopping Amd::
+* Controlling Amd::
+@end menu
+
+@node     Starting Amd, Stopping Amd, Run-time Administration, Run-time Administration
+@comment  node-name,  next,  previous,  up
+@section Starting @i{Amd}
+@cindex Starting Amd
+@cindex Additions to /etc/rc.local
+@cindex /etc/rc.local additions
+@cindex /etc/amd.start
+
+@i{Amd} is best started from @samp{/etc/rc.local}:
+
+@example
+if [ -f /etc/amd.start ]; then
+        sh /etc/amd.start; (echo -n ' amd')      >/dev/console
+fi
+@end example
+
+@noindent
+The shell script, @samp{amd.start}, contains:
+
+@example
+#!/bin/sh -
+PATH=/etc:/bin:/usr/bin:/usr/ucb:$PATH export PATH
+
+#
+# Either name of logfile or "syslog"
+#
+LOGFILE=syslog
+#LOGFILE=/var/log/amd
+
+#
+# Figure out whether domain name is in host name
+# If the hostname is just the machine name then
+# pass in the name of the local domain so that the
+# hostnames in the map are domain stripped correctly.
+#
+case `hostname` in
+*.*) dmn= ;;
+*) dmn='-d doc.ic.ac.uk'
+esac
+
+#
+# Zap earlier log file
+#
+case "$LOGFILE" in
+*/*)
+        mv "$LOGFILE" "$LOGFILE"-
+        > "$LOGFILE"
+        ;;
+syslog)
+        : nothing
+        ;;
+esac
+
+cd /usr/sbin
+#
+# -r            restart
+# -d dmn        local domain
+# -w wait       wait between unmount attempts
+# -l log        logfile or "syslog"
+#
+eval ./amd -r $dmn -w 240 -l "$LOGFILE" \
+        /homes amd.homes -cache:=inc \
+        /home amd.home -cache:=inc \
+        /vol amd.vol -cache:=inc \
+        /n amd.net -cache:=inc
+@end example
+
+If the list of automount points and maps is contained in a file or NIS map
+it is easily incorporated onto the command line:
+
+@example
+...
+eval ./amd -r $dmn -w 240 -l "$LOGFILE" `ypcat -k auto.master`
+@end example
+
+@node     Stopping Amd, Controlling Amd, Starting Amd, Run-time Administration
+@comment  node-name,  next,  previous,  up
+@section Stopping @i{Amd}
+@cindex Stopping Amd
+@cindex SIGTERM signal
+@cindex SIGINT signal
+
+@i{Amd} stops in response to two signals.
+
+@table @samp
+@item SIGTERM
+causes the top-level automount points to be unmounted and then @i{Amd}
+to exit.  Any automounted filesystems are left mounted.  They can be
+recovered by restarting @i{Amd} with the ``-r'' command line option.@refill
+
+@item SIGINT
+causes @i{Amd} to attempt to unmount any filesystems which it has
+automounted, in addition to the actions of @samp{SIGTERM}.  This signal
+is primarly used for debugging.@refill
+@end table
+
+Actions taken for other signals are undefined.
+
+@node     Controlling Amd, , Stopping Amd, Run-time Administration
+@comment  node-name,  next,  previous,  up
+@section Controlling @i{Amd}
+@cindex Controlling Amd
+@cindex Discovering what is going on at run-time
+@cindex Listing currently mounted filesystems
+
+It is sometimes desirable or necessary to exercise external control
+over some of @i{Amd}'s internal state.  To support this requirement,
+@i{Amd} implements an RPC interface which is used by the @dfn{Amq} program.
+A variety of information is available.
+
+@i{Amq} generally applies an operation, specified by a single letter option,
+to a list of mount points.  The default operation is to obtain statistics
+about each mount point.  This is similar to the output shown above
+but includes information about the number and type of accesses to each
+mount point.
+
+@menu
+* Amq default::      Default command behaviour.
+* Amq -f option::     Flushing the map cache.
+* Amq -h option::     Controlling a non-local host.
+* Amq -m option::     Obtaining mount statistics.
+* Amq -s option::     Obtaining global statistics.
+* Amq -u option::     Forcing volumes to time out.
+* Amq -v option::     Version information.
+* Other Amq options:: Three other special options.
+@end menu
+
+@node     Amq default, Amq -f option, Controlling Amd, Controlling Amd
+@comment  node-name,  next,  previous,  up
+@subsection @i{Amq} default information
+
+With no arguments, @dfn{Amq} obtains a brief list of all existing
+mounts created by @i{Amd}.  This is different from the list displayed by
+@b{df}(1) since the latter only includes system mount points.
+
+@noindent
+The output from this option includes the following information:
+
+@itemize @bullet
+@item
+the automount point,
+@item
+the filesystem type,
+@item
+the mount map or mount information,
+@item
+the internal, or system mount point.
+@end itemize
+
+@noindent
+For example:
+
+@example
+/            root   "root"                    sky:(pid75)
+/homes       toplvl /usr/local/etc/amd.homes  /homes
+/home        toplvl /usr/local/etc/amd.home   /home
+/homes/jsp   nfs    charm:/home/charm         /tmp_mnt/charm/home/charm/jsp
+/homes/phjk  nfs    toytown:/home/toytown     /tmp_mnt/toytown/home/toytown/ai/phjk
+@end example
+
+@noindent
+If an argument is given then statistics for that volume name will
+be output.  For example:
+
+@example
+What            Uid   Getattr Lookup RdDir   RdLnk   Statfs Mounted@@
+/homes          0     1196    512    22      0       30     90/09/14 12:32:55
+/homes/jsp      0     0       0      0       1180    0      90/10/13 12:56:58
+@end example
+
+@table @code
+@item What
+the volume name.
+
+@item Uid
+ignored.
+
+@item Getattr
+the count of NFS @dfn{getattr} requests on this node.  This should only be
+non-zero for directory nodes.
+
+@item Lookup
+the count of NFS @dfn{lookup} requests on this node.  This should only be
+non-zero for directory nodes.
+
+@item RdDir
+the count of NFS @dfn{readdir} requests on this node.  This should only
+be non-zero for directory nodes.
+
+@item RdLnk
+the count of NFS @dfn{readlink} requests on this node.  This should be
+zero for directory nodes.
+
+@item Statfs
+the could of NFS @dfn{statfs} requests on this node.  This should only
+be non-zero for top-level automount points.
+
+@item Mounted@@
+the date and time the volume name was first referenced.
+@end table
+
+@node     Amq -f option, Amq -h option, Amq default, Controlling Amd
+@comment  node-name,  next,  previous,  up
+@subsection @i{Amq} -f option
+@cindex Flushing the map cache
+@cindex Map cache, flushing
+
+The ``-f'' option causes @i{Amd} to flush the internal mount map cache.
+This is useful for Hesiod maps since @i{Amd} will not automatically
+notice when they have been updated.  The map cache can also be
+synchronised with the map source by using the @samp{sync} option
+(@pxref{Automount Filesystem}).@refill
+
+@node     Amq -h option, Amq -m option, Amq -f option, Controlling Amd
+@comment  node-name,  next,  previous,  up
+@subsection @i{Amq} -h option
+@cindex Querying an alternate host
+
+By default the local host is used.  In an HP-UX cluster the root server
+is used since that is the only place in the cluster where @i{Amd} will
+be running.  To query @i{Amd} on another host the ``-h'' option should
+be used.
+
+@node     Amq -m option, Amq -s option, Amq -h option, Controlling Amd
+@comment  node-name,  next,  previous,  up
+@subsection @i{Amq} -m option
+
+The ``-m'' option displays similar information about mounted
+filesystems, rather than automount points.  The output includes the
+following information:
+
+@itemize @bullet
+@item
+the mount information,
+@item
+the mount point,
+@item
+the filesystem type,
+@item
+the number of references to this filesystem,
+@item
+the server hostname,
+@item
+the state of the file server,
+@item
+any error which has occured.
+@end itemize
+
+For example:
+
+@example
+"root"           truth:(pid602)           root   1 localhost is up
+hesiod.home      /home                    toplvl 1 localhost is up
+hesiod.vol       /vol                     toplvl 1 localhost is up
+hesiod.homes     /homes                   toplvl 1 localhost is up
+amy:/home/amy    /tmp_mnt/amy/home/amy    nfs    5 amy is up
+swan:/home/swan  /tmp_mnt/swan/home/swan  nfs    0 swan is up (Permission denied)
+ex:/home/ex      /tmp_mnt/ex/home/ex      nfs    0 ex is down
+@end example
+
+When the reference count is zero the filesystem is not mounted but
+the mount point and server information is still being maintained
+by @i{Amd}.
+
+@node     Amq -s option, Amq -u option, Amq -m option, Controlling Amd
+@comment  node-name,  next,  previous,  up
+@subsection @i{Amq} -s option
+@cindex Global statistics
+@cindex Statistics
+
+The ``-s'' option displays global statistics.  If any other options are specified
+or any filesystems named then this option is ignored.  For example:
+
+@example
+requests  stale     mount     mount     unmount
+deferred  fhandles  ok        failed    failed
+1054      1         487       290       7017
+@end example
+
+@table @samp
+@item Deferred requests
+are those for which an immediate reply could not be constructed.  For
+example, this would happen if a background mount was required.
+
+@item Stale filehandles
+counts the number of times the kernel passes a stale filehandle to @i{Amd}.
+Large numbers indicate problems.
+
+@item Mount ok
+counts the number of automounts which were successful.
+
+@item Mount failed
+counts the number of automounts which failed.
+
+@item Unmount failed
+counts the number of times a filesystem could not be unmounted.  Very
+large numbers here indicate that the time between unmount attempts
+should be increased.
+@end table
+
+@node     Amq -u option, Amq -v option, Amq -s option, Controlling Amd
+@comment  node-name,  next,  previous,  up
+@subsection @i{Amq} -u option
+@cindex Forcing filesystem to time out
+@cindex Unmounting a filesystem
+
+The ``-u'' option causes the time-to-live interval of the named mount
+points to be expired, thus causing an unmount attempt.  This is the only
+safe way to unmount an automounted filesystem.  It is not possible to
+unmount a filesystem which has been mounted with the @samp{nounmount}
+flag.
+
+@c The ``-H'' option informs @i{Amd} that the specified mount point has hung -
+@c as if its keepalive timer had expired.
+
+@node     Amq -v option, Other Amq options, Amq -u option, Controlling Amd
+@comment  node-name,  next,  previous,  up
+@subsection @i{Amq} -v option
+@cindex Version information at run-time
+
+The ``-v'' option displays the version of @i{Amd} in a similar way to
+@i{Amd}'s ``-v'' option.
+
+@node     Other Amq options, , Amq -v option, Controlling Amd
+@comment  node-name,  next,  previous,  up
+@subsection Other @i{Amq} options
+
+Three other operations are implemented.  These modify the state of
+@i{Amd} as a whole, rather than any particular filesystem.  The ``-l'',
+``-x'' and ``-D'' options have exactly the same effect as @i{Amd}'s
+corresponding command line options.  The ``-l'' option is rejected by
+@i{Amd} in the current version for obvious security reasons.  When
+@i{Amd} receives a ``-x''flag it limits the log options being modified
+to those which were not enabled at startup.  This prevents a user
+turning @emph{off} any logging option which was specified at startup,
+though any which have been turned off since then can still be turned
+off.  The ``-D'' option has a similar behaviour.
+
+@node     Examples, Internals, Run-time Administration, Top
+@comment  node-name,  next,  previous,  up
+@chapter Examples
+
+@menu
+* User Filesystems::
+* Home Directories::
+* Architecture Sharing::
+* Wildcard Names::
+* rwho servers::
+* /vol::
+@end menu
+
+@node     User Filesystems, Home Directories, Examples, Examples
+@comment  node-name,  next,  previous,  up
+@section User Filesystems
+@cindex User filesystems
+@cindex Mounting user filesystems
+
+With more than one fileserver, the directories most frequently
+cross-mounted are those containing user home directories.  A common
+convention used at Imperial College is to mount the user disks under
+@t{/home/}@i{machine}.
+
+Typically, the @samp{/etc/fstab} file contained a long list of entries
+such as:
+
+@example
+@i{machine}:/home/@i{machine} /home/@i{machine} nfs ...
+@end example
+
+for each fileserver on the network.
+
+There are numerous problems with this system.  The mount list can become
+quite large and some of the machines may be down when a system is
+booted.  When a new fileserver is installed, @samp{/etc/fstab} must be
+updated on every machine, the mount directory created and the filesystem
+mounted.
+
+In many environments most people use the same few workstations, but
+it is convenient to go to a colleague's machine and access your own
+files.  When a server goes down, it can cause a process on a client
+machine to hang.  By minimising the mounted filesystems to only include
+those actively being used, there is less chance that a filesystem will
+be mounted when a server goes down.
+
+The following is a short extract from a map taken from a research fileserver
+at Imperial College.
+
+Note the entry for @samp{localhost} which is used for users such as
+the operator (@samp{opr}) who have a home directory on most machine as
+@samp{/home/localhost/opr}.
+
+@example
+/defaults       opts:=rw,intr,grpid,nosuid
+charm           host!=$@{key@};type:=nfs;rhost:=$@{key@};rfs:=/home/$@{key@} \
+                host==$@{key@};type:=ufs;dev:=/dev/xd0g
+#
+...
+
+#
+localhost       type:=link;fs:=$@{host@}
+...
+#
+# dylan has two user disks so have a
+# top directory in which to mount them.
+#
+dylan           type:=auto;fs:=$@{map@};pref:=$@{key@}/
+#
+dylan/dk2       host!=dylan;type:=nfs;rhost:=dylan;rfs:=/home/$@{key@} \
+                host==dylan;type:=ufs;dev:=/dev/dsk/2s0
+#
+dylan/dk5       host!=dylan;type:=nfs;rhost:=dylan;rfs:=/home/$@{key@} \
+                host==dylan;type:=ufs;dev:=/dev/dsk/5s0
+...
+#
+toytown         host!=$@{key@};type:=nfs;rhost:=$@{key@};rfs:=/home/$@{key@} \
+                host==$@{key@};type:=ufs;dev:=/dev/xy1g
+...
+#
+zebedee         host!=$@{key@};type:=nfs;rhost:=$@{key@};rfs:=/home/$@{key@} \
+                host==$@{key@};type:=ufs;dev:=/dev/dsk/1s0
+#
+# Just for access...
+#
+gould           type:=auto;fs:=$@{map@};pref:=$@{key@}/
+gould/staff     host!=gould;type:=nfs;rhost:=gould;rfs:=/home/$@{key@}
+#
+gummo           host!=$@{key@};type:=nfs;rhost:=$@{key@};rfs:=/home/$@{key@}
+...
+@end example
+
+This map is shared by most of the machines listed so on those
+systems any of the user disks is accessible via a consistent name.
+@i{Amd} is started with the following command
+
+@example
+amd /home amd.home
+@end example
+
+Note that when mounting a remote filesystem, the @dfn{automounted}
+mount point is referenced, so that the filesystem will be mounted if
+it is not yet (at the time the remote @samp{mountd} obtains the file handle).
+
+@node     Home Directories, Architecture Sharing, User Filesystems, Examples
+@comment  node-name,  next,  previous,  up
+@section Home Directories
+@cindex Home directories
+@cindex Example of mounting home directories
+@cindex Mount home directories
+
+One convention for home directories is to locate them in @samp{/homes}
+so user @samp{jsp}'s home directory is @samp{/homes/jsp}.  With more
+than a single fileserver it is convenient to spread user files across
+several machines.  All that is required is a mount-map which converts
+login names to an automounted directory.
+
+Such a map might be started by the command:
+
+@example
+amd /homes amd.homes
+@end example
+
+where the map @samp{amd.homes} contained the entries:
+
+@example
+/defaults   type:=link   # All the entries are of type:=link
+jsp         fs:=/home/charm/jsp
+njw         fs:=/home/dylan/dk5/njw
+...
+phjk        fs:=/home/toytown/ai/phjk
+sjv         fs:=/home/ganymede/sjv
+@end example
+
+Whenever a login name is accessed in @samp{/homes} a symbolic link
+appears pointing to the real location of that user's home directory.  In
+this example, @samp{/homes/jsp} would appear to be a symbolic link
+pointing to @samp{/home/charm/jsp}.  Of course, @samp{/home} would also
+be an automount point.
+
+This system causes an extra level of symbolic links to be used.
+Although that turns out to be relatively inexpensive, an alternative is
+to directly mount the required filesystems in the @samp{/homes}
+map.  The required map is simple, but long, and its creation is best automated.
+The entry for @samp{jsp} could be:
+
+@example
+jsp   -sublink:=$@{key@};rfs:=/home/charm \
+               host==charm;type:=ufs;dev:=/dev/xd0g \
+               host!=charm;type:=nfs;rhost:=charm
+@end example
+
+This map can become quite big if it contains a large number of entries.
+By combining two other features of @i{Amd} it can be greatly simplified.
+
+First the UFS partitions should be mounted under the control of
+@samp{/etc/fstab}, taking care that they are mounted in the same place
+that @i{Amd} would have automounted them.  In most cases this would be
+something like @samp{/tmp_mnt/@dfn{host}/home/@dfn{host}} and
+@samp{/etc/fstab} on host @samp{charm} would have a line:@refill
+
+@example
+/dev/xy0g /tmp_mnt/charm/home/charm 4.2 rw,nosuid,grpid 1 5
+@end example
+
+The map can then be changed to:
+
+@example
+/defaults    type:=nfs;sublink:=$@{key@};opts:=rw,intr,nosuid,grpid
+jsp          rhost:=charm;rfs:=/home/charm
+njw          rhost:=dylan;rfs:=/home/dylan/dk5
+...
+phjk         rhost:=toytown;rfs:=/home/toytown;sublink:=ai/$@{key@}
+sjv          rhost:=ganymede;rfs:=/home/ganymede
+@end example
+
+This map operates as usual on a remote machine (@i{ie} @code{$@{host@}}
+not equal to @code{$@{rhost@}}).  On the machine where the filesystem is
+stored (@i{ie} @code{$@{host@}} equal to @code{$@{rhost@}}), @i{Amd}
+will construct a local filesystem mount point which corresponds to the
+name of the locally mounted UFS partition.  If @i{Amd} is started with
+the ``-r'' option then instead of attempting an NFS mount, @i{Amd} will
+simply inherit the UFS mount (@pxref{Inheritance Filesystem}).  If
+``-r'' is not used then a loopback NFS mount will be made.  This type of
+mount is known to cause a deadlock on many systems.
+
+@node     Architecture Sharing, Wildcard Names, Home Directories, Examples
+@comment  node-name,  next,  previous,  up
+@section Architecture Sharing
+@cindex Architecture sharing
+@cindex Sharing a fileserver between architectures
+@cindex Architecture dependent volumes
+
+@c %At the moment some of the research machines have sets of software
+@c %mounted in @samp{/vol}.  This contains subdirectories for \TeX,
+@c %system sources, local sources, prolog libraries and so on.
+Often a filesystem will be shared by machines of different architectures.
+Separate trees can be maintained for the executable images for each
+architecture, but it may be more convenient to have a shared tree,
+with distinct subdirectories.
+
+A shared tree might have the following structure on the fileserver (called
+@samp{fserver} in the example):
+
+@example
+local/tex
+local/tex/fonts
+local/tex/lib
+local/tex/bin
+local/tex/bin/sun3
+local/tex/bin/sun4
+local/tex/bin/hp9000
+...
+@end example
+
+In this example, the subdirectories of @samp{local/tex/bin} should be
+hidden when accessed via the automount point (conventionally @samp{/vol}).
+A mount-map for @samp{/vol} to achieve this would look like:
+
+@example
+/defaults   sublink:=$@{/key@};rhost:=fserver;type:=link
+tex         type:=auto;fs:=$@{map@};pref:=$@{key@}/
+tex/fonts   host!=fserver;type:=nfs;rfs:=/vol/tex \
+            host==fserver;fs:=/usr/local/tex
+tex/lib     host!=fserver;type:=nfs;rfs:=/vol/tex \
+            host==fserver;fs:=/usr/local/tex
+tex/bin     -sublink:=$@{/key@}/$@{arch@} host!=fserver;type:=nfs;rfs:=/vol/tex \
+            host:=fserver;fs:=/usr/local/tex
+@end example
+
+When @samp{/vol/tex/bin} is referenced, the current machine architecture
+is automatically appended to the path by the @code{$@{sublink@}}
+variable.  This means that users can have @samp{/vol/tex/bin} in their
+@samp{PATH} without concern for architecture dependencies.
+
+@node     Wildcard Names, rwho servers, Architecture Sharing, Examples
+@comment  node-name,  next,  previous,  up
+@section Wildcard names & Replicated Servers
+
+By using the wildcard facility, @i{Amd} can @dfn{overlay} an existing
+directory with additional entries.
+The system files are usually mounted under @samp{/usr}.  If instead
+@i{Amd} is mounted on @samp{/usr}, additional
+names can be overlaid to augment or replace names in the ``master'' @samp{/usr}.
+A map to do this would have the form:
+
+@example
+local  type:=auto;fs:=local-map
+share  type:=auto;fs:=share-map
+*      -type:=nfs;rfs:=/export/exec/$@{arch@};sublink:="$@{key@}" \
+        rhost:=fserv1  rhost:=fserv2  rhost:=fserv3
+@end example
+
+Note that the assignment to @code{$@{sublink@}} is surrounded by double
+quotes to prevent the incoming key from causing the map to be
+misinterpreted.  This map has the effect of directing any access to
+@samp{/usr/local} or @samp{/usr/share} to another automount point.
+
+In this example, it is assumed that the @samp{/usr} files are replicated
+on three fileservers: @samp{fserv1}, @samp{fserv2} and @samp{fserv3}.
+For any references other than to @samp{local} and @samp{share} one of
+the servers is used and a symbolic link to
+@t{$@{autodir@}/$@{rhost@}/export/exec/$@{arch@}/@i{whatever}} is
+returned once an appropriate filesystem has been mounted.@refill
+
+@node     rwho servers, /vol, Wildcard Names, Examples
+@comment  node-name,  next,  previous,  up
+@section @samp{rwho} servers
+@cindex rwho servers
+@cindex Architecture specific mounts
+@cindex Example of architecture specific mounts
+
+The @samp{/usr/spool/rwho} directory is a good candidate for automounting.
+For efficiency reasons it is best to capture the rwho data on a small
+number of machines and then mount that information onto a large number
+of clients.  The data written into the rwho files is byte order dependent
+so only servers with the correct byte ordering can be used by a client:
+
+@example
+/defaults         type:=nfs
+usr/spool/rwho    -byte==little;rfs:=/usr/spool/rwho \
+                      rhost:=vaxA  rhost:=vaxB \
+                  || -rfs:=/usr/spool/rwho \
+                      rhost:=sun4  rhost:=hp300
+@end example
+
+@node     /vol, , rwho servers, Examples
+@comment  node-name,  next,  previous,  up
+@section @samp{/vol}
+@cindex /vol
+@cindex Catch-all mount point
+@cindex Generic volume name
+
+@samp{/vol} is used as a catch-all for volumes which do not have other
+conventional names.
+
+Below is part of the @samp{/vol} map for the domain @samp{doc.ic.ac.uk}.
+The @samp{r+d} tree is used for new or experimental software that needs
+to be available everywhere without installing it on all the fileservers.
+Users wishing to try out the new software then simply include
+@samp{/vol/r+d/@{bin,ucb@}} in their path.@refill
+
+The main tree resides on one host @samp{gould.doc.ic.ac.uk}, which has
+different @samp{bin}, @samp{etc}, @samp{lib} and @samp{ucb}
+sub-directories for each machine architecture.  For example,
+@samp{/vol/r+d/bin} for a Sun-4 would be stored in the sub-directory
+@samp{bin/sun4} of the filesystem @samp{/usr/r+d}.  When it was accessed
+a symbolic link pointing to @samp{/tmp_mnt/gould/usr/r+d/bin/sun4} would be
+returned.@refill
+
+@example
+/defaults    type:=nfs;opts:=rw,grpid,nosuid,intr,soft
+wp           -opts:=rw,grpid,nosuid;rhost:=charm \
+             host==charm;type:=link;fs:=/usr/local/wp \
+             host!=charm;type:=nfs;rfs:=/vol/wp
+...
+#
+src          -opts:=rw,grpid,nosuid;rhost:=charm \
+             host==charm;type:=link;fs:=/usr/src \
+             host!=charm;type:=nfs;rfs:=/vol/src
+#
+r+d          type:=auto;fs:=$@{map@};pref:=r+d/
+# per architecture bin,etc,lib&ucb...
+r+d/bin      rhost:=gould.doc.ic.ac.uk;rfs:=/usr/r+d;sublink:=$@{/key@}/$@{arch@}
+r+d/etc      rhost:=gould.doc.ic.ac.uk;rfs:=/usr/r+d;sublink:=$@{/key@}/$@{arch@}
+r+d/include  rhost:=gould.doc.ic.ac.uk;rfs:=/usr/r+d;sublink:=$@{/key@}
+r+d/lib      rhost:=gould.doc.ic.ac.uk;rfs:=/usr/r+d;sublink:=$@{/key@}/$@{arch@}
+r+d/man      rhost:=gould.doc.ic.ac.uk;rfs:=/usr/r+d;sublink:=$@{/key@}
+r+d/src      rhost:=gould.doc.ic.ac.uk;rfs:=/usr/r+d;sublink:=$@{/key@}
+r+d/ucb      rhost:=gould.doc.ic.ac.uk;rfs:=/usr/r+d;sublink:=$@{/key@}/$@{arch@}
+# hades pictures
+pictures     -opts:=rw,grpid,nosuid;rhost:=thpfs \
+             host==thpfs;type:=link;fs:=/nbsd/pictures \
+             host!=thpfs;type:=nfs;rfs:=/nbsd;sublink:=pictures
+# hades tools
+hades        -opts:=rw,grpid,nosuid;rhost:=thpfs \
+             host==thpfs;type:=link;fs:=/nbsd/hades \
+             host!=thpfs;type:=nfs;rfs:=/nbsd;sublink:=hades
+# bsd tools for hp.
+bsd          -opts:=rw,grpid,nosuid;arch==hp9000;rhost:=thpfs \
+             host==thpfs;type:=link;fs:=/nbsd/bsd \
+             host!=thpfs;type:=nfs;rfs:=/nbsd;sublink:=bsd
+@end example
+
+@node     Internals, Acknowledgements & Trademarks, Examples, Top
+@comment  node-name,  next,  previous,  up
+@chapter Internals
+
+@menu
+* Log Messages::
+@end menu
+
+@node     Log Messages, , Internals, Internals
+@comment  node-name,  next,  previous,  up
+@section Log Messages
+
+In the following sections a brief explanation is given of some of the
+log messages made by @i{Amd}.  Where the message is in @samp{typewriter}
+font, it corresponds exactly to the message produced by @i{Amd}.  Words
+in @dfn{italic} are replaced by an appropriate string.  Variables,
+@code{$@{var@}}, indicate that the value of the appropriate variable is
+output.
+
+Log messages are either sent direct to a file,
+or logged via the @b{syslog}(3) mechanism.
+Messages are logged with facility @samp{LOG_DAEMON} when using @b{syslog}(3).
+In either case, entries in the file are of the form:
+@example
+@i{date-string}  @i{hostname} @t{amd[}@i{pid}@t{]}  @i{message}
+@end example
+
+@menu
+* Fatal errors::
+* Info messages::
+@end menu
+
+@node     Fatal errors, Info messages, Log Messages, Log Messages
+@comment  node-name,  next,  previous,  up
+@subsection Fatal errors
+
+@i{Amd} attempts to deal with unusual events.  Whenever it is not
+possible to deal with such an error, @i{Amd} will log an appropriate
+message and, if it cannot possibly continue, will either exit or abort.
+These messages are selected by @samp{-x fatal} on the command line.
+When @b{syslog}(3) is being used, they are logged with level
+@samp{LOG_FATAL}.  Even if @i{Amd} continues to operate it is likely to
+remain in a precarious state and should be restarted at the earliest
+opportunity.
+
+@table @asis
+@item @t{Attempting to inherit not-a-filesystem}
+The prototype mount point created during a filesystem restart did not
+contain a reference to the restarted filesystem.  This erorr ``should
+never happen''.
+
+@item @t{Can't bind to domain "@i{NIS-domain}"}
+A specific NIS domain was requested on the command line, but no server
+for that domain is available on the local net.
+
+@item @t{Can't determine IP address of this host (@i{hostname})}
+When @i{Amd} starts it determines its own IP address.  If this lookup
+fails then @i{Amd} cannot continue.  The hostname it looks up is that
+obtained returned by @b{gethostname}(2) system call.
+
+@item @t{Can't find root file handle for @i{automount point}}
+@i{Amd} creates its own file handles for the automount points.  When it
+mounts itself as a server, it must pass these file handles to the local
+kernel.  If the filehandle is not obtainable the mount point is ignored.
+This error ``should never happen''.
+
+@item @t{Must be root to mount filesystems (euid = @i{euid})}
+To prevent embarrassment, @i{Amd} makes sure it has appropriate system
+privileges.  This amounts to having an euid of 0.  The check is made
+after argument processing complete to give non-root users a chance to
+access the ``-v'' option.
+
+@item @t{No work to do - quitting}
+No automount points were given on the command line and so there is no
+work to do.
+
+@item @t{Out of memory in realloc}
+While attempting to realloc some memory, the memory space available to
+@i{Amd} was exhausted.  This is an unrecoverable error.
+
+@item @t{Out of memory}
+While attempting to malloc some memory, the memory space available to
+@i{Amd} was exhausted.  This is an unrecoverable error.
+
+@item @t{cannot create rpc/udp service}
+Either the NFS or AMQ endpoint could not be created.
+
+@item @t{gethostname:} @i{description}
+The @b{gethostname}(2) system call failed during startup.
+
+@item @t{host name is not set}
+The @b{gethostname}(2) system call returned a zero length host name.
+This can happen if @i{Amd} is started in single user mode just after
+booting the system.
+
+@item @t{ifs_match called!}
+An internal error occurred while restarting a pre-mounted filesystem.
+This error ``should never happen''.
+
+@item @t{mount_afs:} @i{description}
+An error occured while @i{Amd} was mounting itself.
+
+@item @t{run_rpc failed}
+Somehow the main NFS server loop failed.  This error ``should never
+happen''.
+
+@item @t{unable to free rpc arguments in amqprog_1}
+The incoming arguments to the AMQ server could not be free'ed.
+
+@item @t{unable to free rpc arguments in nfs_program_1}
+The incoming arguments to the NFS server could not be free'ed.
+
+@item @t{unable to register (AMQ_PROGRAM, AMQ_VERSION, udp)}
+The AMQ server could not be registered with the local portmapper or the
+internal RPC dispatcher.
+
+@item @t{unable to register (NFS_PROGRAM, NFS_VERSION, 0)}
+The NFS server could not be registered with the internal RPC dispatcher.
+
+@end table
+
+@node     Info messages, , Fatal errors, Log Messages
+@comment  node-name,  next,  previous,  up
+@subsection Info messages
+
+@i{Amd} generates information messages to record state changes.  These
+messages are selected by @samp{-x info} on the command line.  When
+@b{syslog}(3) is being used, they are logged with level @samp{LOG_INFO}.
+
+The messages listed below can be generated and are in a format suitable
+for simple statistical analysis.  @dfn{mount-info} is the string
+that is displayed by @dfn{Amq} in its mount information column and
+placed in the system mount table.
+
+@table @asis
+@item @t{mount of "@t{$@{@i{path}@}}" on @t{$@{@i{fs}@}} timed out}
+Attempts to mount a filesystem for the given automount point have failed
+to complete within 30 seconds.
+
+@item @t{"@t{$@{@i{path}@}}" forcibly timed out}
+An automount point has been timed out by the @i{Amq} command.
+
+@item @t{restarting @i{mount-info} on @t{$@{@i{fs}@}}}
+A pre-mounted file system has been noted.
+
+@item @t{"@t{$@{@i{path}@}}" has timed out}
+No access to the automount point has been made within the timeout
+period.
+
+@item @t{file server @t{$@{@i{rhost}@}} is down - timeout of "@t{$@{@i{path}@}}" ignored}
+An automount point has timed out, but the corresponding file server is
+known to be down.  This message is only produced once for each mount
+point for which the server is down.
+
+@item @t{Re-synchronizing cache for map @t{$@{@i{map}@}}}
+The named map has been modified and the internal cache is being re-synchronized.
+
+@item @t{Filehandle denied for "@t{$@{@i{rhost}@}}:@t{$@{@i{rfs}@}}"}
+The mount daemon refused to return a file handle for the requested filesystem.
+
+@item @t{Filehandle error for "$@{@i{rhost}@}:$@{@i{rfs}@}":} @i{description}
+The mount daemon gave some other error for the requested filesystem.
+
+@item @t{file server @t{$@{@i{rhost}@}} type nfs starts up}
+A new NFS file server has been referenced and is known to be up.
+
+@item @t{file server @t{$@{@i{rhost}@}} type nfs starts down}
+A new NFS file server has been referenced and is known to be down.
+
+@item @t{file server @t{$@{@i{rhost}@}} type nfs is up}
+An NFS file server that was previously down is now up.
+
+@item @t{file server @t{$@{@i{rhost}@}} type nfs is down}
+An NFS file server that was previously up is now down.
+
+@item @t{Finishing with status @i{exit-status}}
+@i{Amd} is about to exit with the given exit status. 
+
+@item @t{@i{mount-info} mounted fstype @t{$@{@i{type}@}} on @t{$@{@i{fs}@}}}
+A new file system has been mounted.
+
+@item @t{@i{mount-info} restarted fstype @t{$@{@i{type}@}} on @t{$@{@i{fs}@}}}
+@i{Amd} is using a pre-mounted filesystem to satisfy a mount request.
+
+@item @t{@i{mount-info} unmounted fstype @t{$@{@i{type}@}} from @t{$@{@i{fs}@}}}
+A file system has been unmounted.
+
+@item @t{@i{mount-info} unmounted fstype @t{$@{@i{type}@}} from @t{$@{@i{fs}@}} link @t{$@{@i{fs}@}}/@t{$@{@i{sublink}@}}}
+A file system of which only a sub-directory was in use has been unmounted.
+
+@end table
+
+@node     Acknowledgements & Trademarks, Index, Internals, Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Acknowledgements & Trademarks
+
+Thanks to the Formal Methods Group at Imperial College for
+suffering patiently while @i{Amd} was being developed on their machines.
+
+Thanks to the many people who have helped with the development of
+@i{Amd}, especially Piete Brooks at the Cambridge University Computing
+Lab for many hours of testing, experimentation and discussion.
+
+@itemize @bullet
+@item
+@b{DEC}, @b{VAX} and @b{Ultrix} are registered trademarks of Digital
+Equipment Corporation.
+@item
+@b{AIX} and @b{IBM} are registered trademarks of International Business
+Machines Corporation.
+@item
+@b{Sun}, @b{NFS} and @b{SunOS} are registered trademarks of Sun
+Microsystems, Inc.
+@item
+@b{Unix} is a registered trademark of AT&T Unix Systems Laboratories
+in the USA and other countries.
+@end itemize
+
+@node Index, , Acknowledgements & Trademarks, Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Index
+
+@printindex cp
+
+@contents
+@bye

@@ -1,0 +1,13 @@
+executable("llvm-bolt-heatmap") {
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [
+    "//bolt/lib/Profile",
+    "//bolt/lib/Rewrite",
+    "//bolt/lib/Utils",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+  ]
+  sources = [ "heatmap.cpp" ]
+}

@@ -1,0 +1,65 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("LanaiGenCallingConv") {
+  visibility = [ ":LLVMLanaiCodeGen" ]
+  args = [ "-gen-callingconv" ]
+  td_file = "Lanai.td"
+}
+
+tablegen("LanaiGenDAGISel") {
+  visibility = [ ":LLVMLanaiCodeGen" ]
+  args = [ "-gen-dag-isel" ]
+  td_file = "Lanai.td"
+}
+
+static_library("LLVMLanaiCodeGen") {
+  deps = [
+    ":LanaiGenCallingConv",
+    ":LanaiGenDAGISel",
+    "MCTargetDesc",
+    "TargetInfo",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "LanaiAsmPrinter.cpp",
+    "LanaiDelaySlotFiller.cpp",
+    "LanaiFrameLowering.cpp",
+    "LanaiISelDAGToDAG.cpp",
+    "LanaiISelLowering.cpp",
+    "LanaiInstrInfo.cpp",
+    "LanaiMCInstLower.cpp",
+    "LanaiMachineFunctionInfo.cpp",
+    "LanaiMemAluCombiner.cpp",
+    "LanaiRegisterInfo.cpp",
+    "LanaiSelectionDAGInfo.cpp",
+    "LanaiSubtarget.cpp",
+    "LanaiTargetMachine.cpp",
+    "LanaiTargetObjectFile.cpp",
+  ]
+}
+
+# This is a bit different from most build files: Due to this group
+# having the directory's name, "//llvm/lib/Target/Lanai" will refer to this
+# target, which pulls in the code in this directory *and all subdirectories*.
+# For most other directories, "//llvm/lib/Foo" only pulls in the code directly
+# in "llvm/lib/Foo". The forwarding targets in //llvm/lib/Target expect this
+# different behavior.
+group("Lanai") {
+  deps = [
+    ":LLVMLanaiCodeGen",
+    "AsmParser",
+    "Disassembler",
+    "MCTargetDesc",
+    "TargetInfo",
+  ]
+}

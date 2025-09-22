@@ -1,0 +1,46 @@
+.\"	$OpenBSD: offsetof.3,v 1.3 2013/06/05 03:42:03 tedu Exp $
+.\"
+.\" Copyright (c) 2010 Thomas Pfaff <tpfaff@tp76.info>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt OFFSETOF 3
+.Os
+.Sh NAME
+.Nm offsetof
+.Nd offset of a structure member
+.Sh SYNOPSIS
+.In stddef.h
+.Ft size_t
+.Fn offsetof "type" "member"
+.Sh DESCRIPTION
+The
+.Fn offsetof
+macro expands to an integer constant expression of type
+.Ft size_t
+and yields the offset,
+in bytes, of the field
+.Ar member
+from the start of the structure
+.Ar type .
+.Pp
+A compiler error will result if
+.Ar member
+is not aligned to a byte boundary (i.e. it is a bit-field).
+.Sh STANDARDS
+The
+.Fn offsetof
+macro conforms to
+.St -ansiC .

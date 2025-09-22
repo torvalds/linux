@@ -1,0 +1,46 @@
+#	$OpenBSD: files.exynos,v 1.14 2021/02/14 10:57:40 kettenis Exp $
+
+#device exdisplay: wsemuldisplaydev, rasops16
+#attach exdisplay at exynos
+#file	arch/armv7/exynos/exdisplay.c		exdisplay
+
+device exclock
+attach exclock at fdt
+file	arch/armv7/exynos/exclock.c		exclock
+
+device expower: fdt
+attach expower at fdt
+file	arch/armv7/exynos/expower.c		expower
+
+device exmct
+attach exmct at fdt
+file	arch/armv7/exynos/exmct.c		exmct
+
+device exdog
+attach exdog at fdt
+file	arch/armv7/exynos/exdog.c		exdog
+
+device exgpio
+attach exgpio at fdt
+file	arch/armv7/exynos/exgpio.c		exgpio
+
+device	exiic: i2cbus
+attach	exiic at fdt
+file	arch/armv7/exynos/exiic.c		exiic
+
+device exehci: usbus
+attach exehci at fdt
+file	arch/armv7/exynos/exehci.c		exehci
+
+device	exdwusb: fdt
+attach	exdwusb at fdt
+file	arch/armv7/exynos/exdwusb.c		exdwusb
+
+device	crosec: wskbddev
+attach	crosec at i2c
+file	arch/armv7/exynos/crosec.c		crosec
+file	arch/armv7/exynos/crosec_kbd.c		crosec
+
+device	tpspmic
+attach	tpspmic at i2c
+file	arch/armv7/exynos/tps65090.c		tpspmic

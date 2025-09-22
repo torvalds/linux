@@ -1,0 +1,359 @@
+.\"	$OpenBSD: files.conf.5,v 1.23 2016/03/02 15:04:20 naddy Exp $
+.\"
+.\" Copyright (c) 2002 Miodrag Vallat.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistribution of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: March 2 2016 $
+.Dt FILES.CONF 5
+.Os
+.Sh NAME
+.Nm files.conf
+.Nd rules base for the config utility
+.Sh DESCRIPTION
+The various
+.Pa files.*\&
+files located in the kernel source tree
+contain all the necessary information needed by
+.Xr config 8
+to parse a kernel configuration file and determine the list of files to
+compile.
+.Pp
+The
+.Pa files.*\&
+rules base are simple, human-readable, text files.
+Empty lines, as well as text prefixed by the
+.Sq #
+character, are ignored.
+.Sh DEVICE TREE CONCEPT
+The
+.Ox
+kernel
+.Dq sees
+the various devices as a hierarchical tree, where the various devices
+.Dq attach
+to parent entities, which can either be physical devices themselves
+.Pq such as a computer bus ,
+or logical entities, designed to make the driver code simpler.
+Usually, the top-most devices are attached to the pseudo-device
+.Dq mainbus ,
+which is itself reported as attached to a fictitious
+.Dq root
+node.
+There is no restriction on the
+.Dq children
+a device node may have;
+some device drivers can attach themselves to different kinds of parent devices.
+For example, the logical
+.Xr scsibus 4
+device can either attach at a SCSI controller device,
+or at the logical
+.Xr atapiscsi 4
+bus.
+.Sh LOCATORS
+Some device attachments need to provide attachment information.
+For example, an
+.Xr isa 4
+device will use a range of I/O ports, one or more DMA channels, and one
+interrupt vector.
+This attachment information is known as the
+.Dq locators
+for the device.
+Most of the buses support default values for unspecified locators, for devices
+that either do not require them
+.Po
+such as
+.Xr isa 4
+cards not using interrupts
+.Pc ,
+or which can autoconfigure themselves
+.Po
+such as
+.Xr pci 4
+devices
+.Pc .
+.Pp
+Attachment lines in the kernel configuration file must match the locators of
+the device they are attaching to.
+For example:
+.Bd -literal -offset indent
+define pci {[dev = -1], [function = -1]}
+.Ed
+.Pp
+With the rule above,
+the following kernel configuration lines are valid:
+.Bd -literal -offset indent
+pciknob0 at pci? dev 2 function 42 # use fixed values
+pciknob* at pci? dev ? function ?  # use default values
+pciknob* at pci?                   # use default locators
+.Ed
+.Pp
+But the following are not:
+.Bd -literal -offset indent
+pciknob* at pci? trick ? treat ?               # unknown locators
+pciknob* at pci? dev ? function ? usefulness ? # unknown locators
+.Ed
+.Sh ATTRIBUTES
+The following syntax defines a simple attribute,
+which can be later used to factorize code dependencies:
+.Pp
+.Dl define attribute
+.Pp
+An attachment-like attribute will also require locators to be specified.
+If no locators are necessary:
+.Pp
+.Dl define attribute {}
+.Pp
+If locators are provided:
+.Pp
+.Dl define attribute {[locator1 = default1], [locator2 = default2]}
+.Sh DEVICES
+For simple device attachment, the following syntax
+defines a simple device, with no locators:
+.Pp
+.Dl device devicename {}
+.Pp
+If locators are necessary, they are specified as:
+.Pp
+.Dl device devicename {[locator1 = default1], [locator2 = default2]}
+.Pp
+A device can also reference an attribute with locators.
+This is in fact a dependency rule.
+For example,
+.Pa sys/conf/files
+defines the following attribute for SCSI controllers:
+.Pp
+.Dl define scsi {}			# no locators
+.Pp
+And SCSI drivers can then be defined as:
+.Pp
+.Dl device scsictrl: scsi
+.Pp
+A device may depend on as many attributes as necessary:
+.Pp
+.Dl device complexdev: simpledev, otherdev, specialattribute
+.Sh PSEUDO DEVICES
+Pseudo devices are defined as regular devices, except that they do not
+need locators, and use a different keyword:
+.Bd -literal -offset indent
+pseudo-device loop: inet
+pseudo-device ksyms
+.Ed
+.Pp
+The rules above define, respectively,
+the loopback network interface and the kernel symbols pseudo-device.
+.Sh DEVICE ATTACHMENT RULES
+Due to the tree structure of the device nodes, every device but the pseudo
+devices need to attach to some parent node.
+A device driver has to specify to which parents it can attach, with the
+following syntax:
+.Pp
+.Dl attach device at parent, parent2, parent3
+.Pp
+The rule above lists all the parent attributes a device may attach to.
+For example, given the following:
+.Bd -literal -offset indent
+device smartknob: bells, whistles
+attach smartknob at brainbus
+.Ed
+.Pp
+The following configuration line is then valid:
+.Pp
+.Dl smartknob* at brainbus?
+.Pp
+Whilst the following is not:
+.Pp
+.Dl smartknob* at dumbbus?
+.Pp
+If a device supports attachments to multiple parents, using different
+.Dq glue
+routines every time, the following syntax specifies the details:
+.Bd -literal -offset indent
+attach device at parent with device_parent_glue
+attach device at parent2 with device_parent2_glue
+.Ed
+.Pp
+This will define more required attributes, depending on the kernel
+configuration file's contents.
+.Sh RULE FILE INCLUSION
+It is possible to include other rules files anywhere in a file, using the
+.Dq include
+keyword:
+.Pp
+.Dl include \&"dev/pci/files.pci\&"
+.Pp
+The above rule will include the rules for machine-independent PCI code.
+.Pp
+The files
+.Pa sys/arch/machine/conf/files.machine ,
+for every
+.Dq machine
+listed in the machine line in the kernel configuration file, as well as
+.Pa sys/conf/files ,
+are always processed, and do not need to be included.
+.Sh ATTRIBUTE REQUIREMENTS
+The kernel configuration file description passed to
+.Xr config 8
+lists several compilation options, as well as several device definitions.
+From this list,
+.Xr config 8
+will build a list of required attributes, which are:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+The
+.Dq option
+lines, with the option name translated to lowercase (for example, an
+.Dq option INET6
+line will produce the
+.Dq inet6
+attribute).
+.It
+The device and pseudo-device names, except for
+.Dq root .
+.El
+.Sh KERNEL FILE LIST
+Kernel source files are defined as:
+.Bd -literal -offset indent
+file file-list	dependencies	need-rules
+.Ed
+.Pp
+.Dq file-list
+typically only specifies a single filename.
+If instead it contains a list of filenames separated by the
+.Sq \&|
+character,
+.Xr config 8
+will select the first file from the list which exists.
+If
+.Dq ${MACHINE_ARCH}
+or
+.Dq ${MACHINE}
+is found in the filename, it will be substituted with the
+relevant base architecture name.
+.Pp
+If the
+.Dq dependencies
+part is empty, the file will always be compiled in.
+This is the case for the core kernel files.
+Otherwise, the file will only be added to the list if the dependencies are met.
+Dependencies are based upon attributes and device names.
+Multiple dependencies can be written using the
+.Dq \&|
+and
+.Dq &
+operators.
+For example:
+.Pp
+.Dl file netinet/ipsec_input.c	(inet | inet6) & ipsec
+.Pp
+The above rule teaches
+.Xr config 8
+to only add
+.Pa sys/netinet/ipsec_input.c
+to the filelist if the
+.Dq ipsec
+attribute, and at least one of the
+.Dq inet
+and
+.Dq inet6
+attributes, are required.
+.Pp
+The
+.Dq need
+rules can be empty, or one of the following keywords:
+.Pp
+.Bl -tag -width "needs-count" -compact
+.It Ar needs-flag
+Create an attribute header file, defining whether or not this
+attribute is compiled in.
+.It Ar needs-count
+Create an attribute header file, defining how many instances of this
+attribute are to be compiled in.
+This rule is mostly used for pseudo-devices.
+.El
+.Pp
+The
+.Dq attribute header files
+are simple C header files created in the kernel compilation directory,
+with the name
+.Pa attribute.h
+and containing the following line:
+.Pp
+.Dl #define NATTRIBUTE	0
+.Pp
+This would substitute the attribute name and its uppercase form, prefixed with
+the letter
+.Dq N ,
+to
+.Dq attribute
+and
+.Dq NATTRIBUTE ,
+respectively.
+For a
+.Dq needs-flag
+rule, the value on the
+.Dq #define
+line is either 1 if the attribute is required, or 0 if it is not required.
+For a
+.Dq needs-count
+rule, the value is the number of device instances required, or 0
+if the device is not required.
+.Pp
+Attribute files are created for every attribute listed with a
+.Dq need
+rule, even if it is never referenced from the kernel configuration file.
+.Sh MISCELLANEOUS ITEMS
+.Pa sys/arch/machine/conf/files.machine
+must also supply the following special commands:
+.Bl -tag -width maxpartitions
+.It Ar maxpartitions
+Defines how many partitions are available on disk block devices, usually 16.
+This value is used by
+.Xr config 8
+to set up various device information structures.
+.It Ar maxusers
+Defines the bounds, and the default value, for the
+.Dq maxusers
+parameter in the kernel configuration file.
+The usual values are 2 8 64 ;
+.Xr config 8
+will report an error if the
+.Dq maxusers parameter
+in the kernel configuration file does not fit in the specified range.
+.El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa sys/arch/machine/conf/files.machine
+Rules for architecture-dependent files, for the
+.Dq machine
+architecture.
+.It Pa sys/dev/class/files.class
+Rules for the
+.Dq class
+class of devices.
+.It Pa sys/scsi/files.scsi
+Rules for the common SCSI subsystem.
+.El
+.Sh SEE ALSO
+.Xr config 8

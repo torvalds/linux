@@ -1,0 +1,10 @@
+EXTRA_MULTILIB_PARTS=crtbegin.o crtend.o crti.o crtn.o
+
+# Add flags here as required.
+CRTSTUFF_T_CFLAGS =
+
+# Assemble startup files.
+$(T)crti.o: $(srcdir)/config/m68k/crti.s $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crti.o $(srcdir)/config/m68k/crti.s
+$(T)crtn.o: $(srcdir)/config/m68k/crtn.s $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crtn.o $(srcdir)/config/m68k/crtn.s

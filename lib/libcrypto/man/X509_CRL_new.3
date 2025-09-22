@@ -1,0 +1,144 @@
+.\" $OpenBSD: X509_CRL_new.3,v 1.15 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016, 2018, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_CRL_NEW 3
+.Os
+.Sh NAME
+.Nm X509_CRL_new ,
+.Nm X509_CRL_dup ,
+.Nm X509_CRL_up_ref ,
+.Nm X509_CRL_free ,
+.Nm X509_CRL_INFO_new ,
+.Nm X509_CRL_INFO_free
+.Nd X.509 certificate revocation lists
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_CRL *
+.Fn X509_CRL_new void
+.Ft X509_CRL *
+.Fn X509_CRL_dup "X509_CRL *crl"
+.Ft int
+.Fn X509_CRL_up_ref "X509_CRL *crl"
+.Ft void
+.Fn X509_CRL_free "X509_CRL *crl"
+.Ft X509_CRL_INFO *
+.Fn X509_CRL_INFO_new void
+.Ft void
+.Fn X509_CRL_INFO_free "X509_CRL_INFO *crl_info"
+.Sh DESCRIPTION
+.Fn X509_CRL_new
+allocates and initializes an empty
+.Vt X509_CRL
+object, representing an ASN.1
+.Vt CertificateList
+structure defined in RFC 5280 section 5.1.
+It can hold a pointer to an
+.Vt X509_CRL_INFO
+object discussed below together with a cryptographic signature
+and information about the signature algorithm used.
+The reference count is set to 1.
+.Pp
+.Fn X509_CRL_dup
+creates a deep copy of
+.Fa crl .
+.Pp
+.Fn X509_CRL_up_ref
+increments the reference count of
+.Fa crl
+by 1.
+.Pp
+.Fn X509_CRL_free
+decrements the reference count of
+.Fa crl
+by 1.
+If the reference count reaches 0, it frees
+.Fa crl .
+.Pp
+.Fn X509_CRL_INFO_new
+allocates and initializes an empty
+.Vt X509_CRL_INFO
+object, representing an ASN.1
+.Vt TBSCertList
+structure defined in RFC 5280 section 5.1.
+It is used inside the
+.Vt X509_CRL
+object and can hold a list of revoked certificates, an issuer name,
+the time the list was issued, the time when the next update of the
+list is due, and optional extensions.
+.Fn X509_CRL_INFO_free
+frees
+.Fa crl_info .
+.Sh RETURN VALUES
+.Fn X509_CRL_new ,
+.Fn X509_CRL_dup ,
+and
+.Fn X509_CRL_INFO_new
+return the new
+.Vt X509_CRL
+or
+.Vt X509_CRL_INFO
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn X509_CRL_up_ref
+returns 1 on success or 0 on error.
+.Sh SEE ALSO
+.Xr ACCESS_DESCRIPTION_new 3 ,
+.Xr AUTHORITY_KEYID_new 3 ,
+.Xr d2i_X509_CRL 3 ,
+.Xr DIST_POINT_new 3 ,
+.Xr PEM_read_X509_CRL 3 ,
+.Xr X509_CRL_digest 3 ,
+.Xr X509_CRL_get0_by_serial 3 ,
+.Xr X509_CRL_get0_lastUpdate 3 ,
+.Xr X509_CRL_get0_signature 3 ,
+.Xr X509_CRL_get_ext 3 ,
+.Xr X509_CRL_get_ext_d2i 3 ,
+.Xr X509_CRL_get_issuer 3 ,
+.Xr X509_CRL_get_version 3 ,
+.Xr X509_CRL_match 3 ,
+.Xr X509_CRL_print 3 ,
+.Xr X509_CRL_sign 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_INFO_new 3 ,
+.Xr X509_load_crl_file 3 ,
+.Xr X509_new 3 ,
+.Xr X509_OBJECT_get0_X509_CRL 3 ,
+.Xr X509_REVOKED_new 3 ,
+.Xr X509_STORE_CTX_set0_crls 3 ,
+.Xr X509_STORE_get1_crls 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile, section 5: CRL and CRL
+Extensions Profile
+.Sh HISTORY
+.Fn X509_CRL_new ,
+.Fn X509_CRL_free ,
+.Fn X509_CRL_INFO_new ,
+and
+.Fn X509_CRL_INFO_free
+first appeared in SSLeay 0.4.4.
+.Fn X509_CRL_dup
+first appeared in SSLeay 0.5.1.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_CRL_up_ref
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .

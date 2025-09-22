@@ -1,0 +1,18 @@
+test-rrdp: type: delete
+test-rrdp: uri: rsync://rpki.example.com/repository/DEFAULT/95/d58727-d970-44d9-abdc-93b3ad12d2f3/1/gSk6an-JyWyxV5LYX0AB2BOJb7I.roa
+test-rrdp: data: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+test-rrdp: hash: 6F19C7760D83B12E259F35924F40BE76C6A9C963DB23A692CE192C2FAEF94271
+test-rrdp: type: update
+test-rrdp: uri: rsync://rpki.example.com/repository/DEFAULT/95/d58727-d970-44d9-abdc-93b3ad12d2f3/1/nBETmuVT1txzB4h_Rn5CB4gARes.crl
+test-rrdp: data: 27b240ccb4adefc4438a0b0c94cf995fed9e1a227987e31b7fde9b67209e04c7
+test-rrdp: hash: 9AAF87B277EFB7E47AB00A4A86CAD1CD132D8A06A782D9B54202C4BFFEDE347B
+test-rrdp: type: update
+test-rrdp: uri: rsync://rpki.example.com/repository/DEFAULT/95/d58727-d970-44d9-abdc-93b3ad12d2f3/1/nBETmuVT1txzB4h_Rn5CB4gARes.mft
+test-rrdp: data: 9148c46222a49fc9b18607474d549ec126d2f4dbf4fa4fe2007588b9a958d29d
+test-rrdp: hash: B45FA2DAAEEDA2B37BFF1A039ADA2C299DC6ACE28CA16DBC22664E3D89B8D556
+test-rrdp: type: add
+test-rrdp: uri: rsync://rpki.example.com/repository/DEFAULT/95/d58727-d970-44d9-abdc-93b3ad12d2f3/1/x7OkhL6fs-x6CQ4Kqd5jOkkB4pY.roa
+test-rrdp: data: 28b761092849ea963824de57bd8b0bef1de6f467b91af51c2d847fa5ae90c6dc
+test-rrdp: version: 1
+test-rrdp: session_id: 9b3f7e31-4979-4f8c-9818-73e4dadc3e6b serial: 13755
+OK

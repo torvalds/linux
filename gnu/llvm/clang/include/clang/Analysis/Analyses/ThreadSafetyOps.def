@@ -1,0 +1,56 @@
+//===- ThreadSafetyTIL.h ---------------------------------------*- C++ --*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the list of core opcodes for the Thread Safety
+// Typed Intermediate language.  Please see ThreadSafetyTIL.h for more
+// information.
+//
+//===----------------------------------------------------------------------===//
+
+
+TIL_OPCODE_DEF(Future)
+TIL_OPCODE_DEF(Undefined)
+TIL_OPCODE_DEF(Wildcard)
+
+TIL_OPCODE_DEF(Literal)
+TIL_OPCODE_DEF(LiteralPtr)
+TIL_OPCODE_DEF(Variable)
+TIL_OPCODE_DEF(Function)
+TIL_OPCODE_DEF(SFunction)
+TIL_OPCODE_DEF(Code)
+TIL_OPCODE_DEF(Field)
+
+TIL_OPCODE_DEF(Apply)
+TIL_OPCODE_DEF(SApply)
+TIL_OPCODE_DEF(Project)
+
+TIL_OPCODE_DEF(Call)
+TIL_OPCODE_DEF(Alloc)
+TIL_OPCODE_DEF(Load)
+TIL_OPCODE_DEF(Store)
+TIL_OPCODE_DEF(ArrayIndex)
+TIL_OPCODE_DEF(ArrayAdd)
+
+TIL_OPCODE_DEF(UnaryOp)
+TIL_OPCODE_DEF(BinaryOp)
+TIL_OPCODE_DEF(Cast)
+
+TIL_OPCODE_DEF(SCFG)
+TIL_OPCODE_DEF(BasicBlock)
+TIL_OPCODE_DEF(Phi)
+
+// Terminator instructions
+TIL_OPCODE_DEF(Goto)
+TIL_OPCODE_DEF(Branch)
+TIL_OPCODE_DEF(Return)
+
+// pseudo-terms
+TIL_OPCODE_DEF(Identifier)
+TIL_OPCODE_DEF(IfThenElse)
+TIL_OPCODE_DEF(Let)
+

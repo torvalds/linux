@@ -1,0 +1,17 @@
+=== Start 8000MB disk ===
+Writing MBR at offset 0.
+
+  a:             1.1G              128  4.2BSD   2048 16384     1 # /
+  a:          2208224              128  4.2BSD   2048 16384     1 
+  b:             0.2G          2208352    swap                    
+  b:           524288          2208352    swap                    
+  d:             3.0G          2732640  4.2BSD   2048 16384     1 # /usr
+  d:          6291456          2732640  4.2BSD   2048 16384     1 
+  e:             2.0G          9024096  4.2BSD   2048 16384     1 # /home
+  e:          4194304          9024096  4.2BSD   2048 16384     1 
+
+/dev/vnd0a / ffs rw 1 1
+/dev/vnd0e /home ffs rw 1 2
+/dev/vnd0d /usr ffs rw 1 2
+/dev/vnd0b none swap sw
+=== End 8000MB disk ===

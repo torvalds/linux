@@ -1,0 +1,219 @@
+.\"	$OpenBSD: rmt.8,v 1.13 2015/09/20 10:05:48 halex Exp $
+.\"
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)rmt.8	6.5 (Berkeley) 3/16/91
+.\"
+.Dd $Mdocdate: September 20 2015 $
+.Dt RMT 8
+.Os
+.Sh NAME
+.Nm rmt
+.Nd remote magtape protocol module
+.Sh SYNOPSIS
+.Nm
+.Op Fl r | w
+.Op Fl d Ar directory
+.Sh DESCRIPTION
+.Nm
+is a program used by the remote dump and restore programs
+through an interprocess communication connection.
+Traditionally it is used for manipulating a magnetic tape drive but it may
+be used for regular file access as well.
+.Nm
+is normally started up with an
+.Xr rcmd 3
+or
+.Xr rcmdsh 3
+call.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d Ar directory
+Confine file access to
+.Ar directory .
+Forward slashes in filenames are disallowed and symlinks are not followed.
+.It Fl r
+Read-only mode, suitable for use with
+.Xr rrestore 8 .
+.It Fl w
+File write mode, suitable for use with
+.Xr rdump 8
+for dumping to regular files.
+Creates missing files and refuses to open existing ones.
+The file permission bits are set to readonly.
+.El
+.Pp
+The
+.Nm
+program accepts requests specific to the manipulation of
+magnetic tapes, performs the commands, then responds with
+a status indication.
+All responses are in ASCII and in one of two forms.
+Successful commands have responses of:
+.Pp
+.D1 Sy A Ns Ar number Ns \en
+.Pp
+.Ar number
+is an ASCII representation of a decimal number.
+Unsuccessful commands are responded to with:
+.Bd -filled -offset indent
+.Sm off
+.Sy E Ar error-number No \en Ar error-message No \en
+.Sm on
+.Ed
+.Pp
+.Ar error-number
+is one of the possible error
+numbers described in
+.Xr intro 2
+and
+.Ar error-message
+is the corresponding error string as printed
+from a call to
+.Xr perror 3 .
+The protocol is comprised of the
+following commands, which are sent as indicated - no spaces are supplied
+between the command and its arguments, or between its arguments, and
+.Ql \en
+indicates that a newline should be supplied:
+.Bl -tag -width Ds
+.Sm off
+.It Xo Ic \&O Ar device
+.No \en Ar mode No \en
+.Xc
+.Sm on
+Open the specified
+.Ar device
+using the indicated
+.Ar mode .
+.Ar device
+is a full pathname and
+.Ar mode
+is an ASCII representation of a decimal
+number suitable for passing to
+.Xr open 2 .
+If a device had already been opened, it is
+closed before a new open is performed.
+.It Ic C Ns Ar device Ns \en
+Close the currently open device.
+The
+.Ar device
+specified is ignored.
+.Sm off
+.It Xo Ic L
+.Ar offset No \en
+.Ar whence No \en
+.Xc
+.Sm on
+Perform an
+.Xr lseek 2
+operation using the specified parameters.
+The response value is that returned from the
+.Xr lseek 2
+call.
+.It Ic W Ns Ar count Ns \en
+Write data onto the open device.
+.Nm
+reads
+.Ar count
+bytes from the connection, aborting if
+a premature end-of-file is encountered.
+The response value is that returned from
+the
+.Xr write 2
+call.
+.It Ic R Ns Ar count Ns \en
+Read
+.Ar count
+bytes of data from the open device.
+If
+.Ar count
+exceeds the size of the data buffer (10 kilobytes), it is
+truncated to the data buffer size.
+.Nm
+then performs the requested
+.Xr read 2
+and responds with
+.Sy A Ns Ar count-read Ns \en
+if the read was
+successful; otherwise an error in the
+standard format is returned.
+If the read was successful, the data read is then sent.
+.Sm off
+.It Xo Ic I Ar operation
+.No \en Ar count No \en
+.Xc
+.Sm on
+Perform an
+.Dv MTIOCOP
+.Xr ioctl 2
+command using the specified parameters.
+The parameters are interpreted as the
+ASCII representations of the decimal values
+to place in the
+.Ar mt_op
+and
+.Ar mt_count
+fields of the structure used in the
+.Xr ioctl 2
+call.
+The return value is the
+.Ar count
+parameter when the operation is successful.
+.It Ic S
+Return the status of the open device, as
+obtained with a
+.Dv MTIOCGET
+.Xr ioctl 2
+call.
+If the operation was successful, an
+.Dq ack
+is sent with the size of the status buffer, then the status buffer is
+sent (in binary).
+.El
+.Pp
+Any other command causes
+.Nm
+to exit.
+.Sh DIAGNOSTICS
+All responses are of the form described above.
+.Sh SEE ALSO
+.Xr rcmd 3 ,
+.Xr rcmdsh 3 ,
+.Xr mtio 4 ,
+.Xr rdump 8 ,
+.Xr rrestore 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
+.Sh BUGS
+People tempted to use this for a remote file access protocol
+are discouraged.

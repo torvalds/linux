@@ -1,0 +1,164 @@
+.\"	$OpenBSD: tunefs.8,v 1.27 2019/04/23 18:13:11 schwarze Exp $
+.\"	$NetBSD: tunefs.8,v 1.36 2004/12/20 10:28:47 hubertf Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)tunefs.8	8.3 (Berkeley) 5/3/95
+.\"
+.Dd $Mdocdate: April 23 2019 $
+.Dt TUNEFS 8
+.Os
+.Sh NAME
+.Nm tunefs
+.Nd tune up an existing file system
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl AFN
+.Op Fl e Ar maxbpg
+.Op Fl g Ar avgfilesize
+.Op Fl h Ar avgfpdir
+.Op Fl m Ar minfree
+.\" .Op Fl n Ar soft_dependency_enabling
+.Op Fl o Ar optimize_preference
+.Ar special | filesys
+.Ek
+.Sh DESCRIPTION
+.Nm
+is designed to change the dynamic parameters of a file system
+which affect the layout policies.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl A
+Cause the values to be updated in all the alternate
+superblocks instead of just the standard superblock.
+If this option is not used,
+then use of a backup superblock by
+.Xr fsck 8
+will lose anything changed by
+.Nm .
+.Fl A
+is ignored when
+.Fl N
+is specified.
+.It Fl e Ar maxbpg
+This indicates the maximum number of blocks any single file can
+allocate out of a cylinder group before it is forced to begin
+allocating blocks from another cylinder group.
+Typically this value is set to about one quarter of the total blocks
+in a cylinder group.
+The intent is to prevent any single file from using up all the
+blocks in a single cylinder group,
+thus degrading access times for all files subsequently allocated
+in that cylinder group.
+The effect of this limit is to cause big files to do long seeks
+more frequently than if they were allowed to allocate all the blocks
+in a cylinder group before seeking elsewhere.
+For file systems with exclusively large files,
+this parameter should be set higher.
+.It Fl F
+Indicates that
+.Ar special
+is a file system image, rather than a device name or file system mount point.
+.Ar special
+will be accessed
+.Sq as-is .
+.It Fl g Ar avgfilesize
+This specifies the expected average file size.
+.It Fl h Ar avgfpdir
+This specifies the expected number of files per directory.
+.It Fl m Ar minfree
+This value specifies the percentage of space held back
+from normal users; the minimum free space threshold.
+The default value is set during creation of the filesystem; see
+.Xr newfs 8 .
+This value can be set to zero, however up to a factor of three
+in throughput will be lost over the performance obtained at a 5%
+threshold.
+Note that if the value is raised above the current usage level,
+users will be unable to allocate files until enough files have
+been deleted to get under the higher threshold.
+.It Fl N
+Display all the settable options
+(after any changes from the tuning options)
+but do not cause any of them to be changed.
+.It Fl o Ar optimize_preference
+The file system can either try to minimize the time spent
+allocating blocks, or it can attempt to minimize the space
+fragmentation on the disk.
+If the value of
+.Ar minfree
+(see above) is less than 5%,
+then the file system should optimize for space to avoid
+running out of full sized blocks.
+For values of
+.Ar minfree
+greater than or equal to 5%,
+fragmentation is unlikely to be problematical, and
+the file system can be optimized for time.
+.Pp
+.Ar optimize_preference
+can be specified as either
+.Li space
+or
+.Li time .
+.El
+.Sh SEE ALSO
+.Xr fs 5 ,
+.Xr dumpfs 8 ,
+.Xr fsck_ffs 8 ,
+.Xr growfs 8 ,
+.Xr newfs 8
+.Rs
+.%A M. McKusick
+.%A W. Joy
+.%A S. Leffler
+.%A R. Fabry
+.%T "A Fast File System for UNIX"
+.%J "ACM Transactions on Computer Systems 2"
+.%N 3
+.%P pp. 181\(en197
+.%D August 1984
+.Re
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
+.Sh BUGS
+This program should work on mounted and active file systems.
+Because the super-block is not kept in the buffer cache,
+the changes will only take effect if the program
+is run on unmounted file systems.
+To change the root file system, the system must be rebooted
+after the file system is tuned.
+.Pp
+.\" Take this out and a Unix Demon will dog your steps from now until
+.\" the time_t's wrap around.
+You can tune a file system, but you can't tune a fish.

@@ -1,0 +1,51 @@
+.\"     $OpenBSD: glxpcib.4,v 1.7 2013/11/24 12:58:17 sthen Exp $
+.\"
+.\" Michael Shalayeff, 2007. Public Domain.
+.\"
+.Dd $Mdocdate: November 24 2013 $
+.Dt GLXPCIB 4 loongson
+.Os
+.Sh NAME
+.Nm glxpcib
+.\" .Nd AMD CS5536 PCI-ISA bridge with timecounter, watchdog timer, and GPIO
+.Nd AMD CS5536 PCI-ISA bridge with timecounter
+.Sh SYNOPSIS
+.Cd "glxpcib* at pci?"
+.\" .Cd "gpio* at glxpcib?"
+.\" .Cd "iic* at glxpcib?"
+.Cd "glxclk* at glxpcib?"
+.Cd "isa* at glxpcib?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the AMD Geode CS5536 Companion chip.
+This device contains a number of components, including a PCI-ISA bridge.
+Besides the core functionality, the
+.Nm
+.\" driver implements a 32-bit 3.5 MHz timecounter, a watchdog timer device,
+.\" a GPIO device, and an SMBus interface.
+driver implements a 32-bit 3.5 MHz timecounter.
+.Sh SEE ALSO
+.\" .Xr gpio 4 ,
+.\" .Xr iic 4 ,
+.Xr glxclk 4 ,
+.Xr intro 4 ,
+.Xr isa 4 ,
+.Xr pci 4 ,
+.Xr pcib 4 ,
+.\" .Xr watchdog 4 ,
+.Xr gpioctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.3
+on the i386 platform.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Michael Shalayeff .
+.\" The GPIO parts were added by
+.\" .An Marc Balmer Aq Mt mbalmer@openbsd.org .

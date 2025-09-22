@@ -1,0 +1,495 @@
+.\" $OpenBSD: snmpd.conf.5,v 1.66 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2007, 2008, 2012 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt SNMPD.CONF 5
+.Os
+.Sh NAME
+.Nm snmpd.conf
+.Nd SNMP daemon configuration file
+.Sh DESCRIPTION
+.Nm
+is the configuration file for the
+.Xr snmpd 8
+daemon.
+.Pp
+The
+.Nm
+file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global runtime settings for
+.Xr snmpd 8 .
+.It Sx User configuration
+USM user definitions.
+.It Sx OID configuration
+Custom configuration of SNMP object identifiers and values.
+.El
+.Pp
+The current line can be extended over multiple lines using a backslash
+.Pq Sq \e .
+Comments can be put anywhere in the file using a hash mark
+.Pq Sq # ,
+and extend to the end of the current line.
+Care should be taken when commenting out multi-line text:
+the comment is effective until the end of the entire block.
+.Pp
+Argument names not beginning with a letter, digit, or underscore
+must be quoted.
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/snmpd.conf.local"
+.Ed
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic community ,
+.Ic system ,
+or
+.Ic oid ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+ext_addr="192.168.0.1"
+listen on $ext_addr
+.Ed
+.Ss Global configuration
+The following options can be set globally:
+.Bl -tag -width Ds
+.It Ic blocklist Ar oid
+Remove the
+.Ar oid
+subtree from view.
+Multiple
+.Ic blocklist
+statements are supported.
+.It Ic filter-routes Pq Ic yes | no
+If set to
+.Ic yes ,
+ask the kernel to filter route update messages on the routing socket.
+Routing table information will not be available, but CPU use will be
+reduced during bulk updates.
+The default is
+.Ic no .
+.It Ic listen on Oo Ic tcp | udp Oc Ar address Oo Ic port Ar port Oc Op Ar flags
+Specify the local
+.Ar address
+.Xr snmpd 8
+should listen on for incoming SNMP messages,
+or
+.Cm any
+to listen on all local IPv4 and IPv6 addresses.
+Multiple
+.Ic listen on
+statements are supported.
+If no
+.Ic listen on
+statement is present, the default is
+.Ic listen on Cm any .
+.Pp
+The
+.Ar flags
+are as follows:
+.Bl -tag -width Ds
+.It Ic read
+Accept get, getnext and bulkget requests.
+.It Ic write
+Accepts set requests.
+.It Ic notify
+Accepts trapv1 and trapv2 requests.
+.It Ic snmpv1
+Enable SNMPv1 subsystem on the listen address.
+.It Ic snmpv2c
+Enable SNMPv2c subsystem on the listen address.
+.It Ic snmpv3
+Enable SNMPv3 subsystem on the listen address.
+.El
+.Pp
+The default protocol is
+.Ic udp .
+The default
+.Ar port
+is 161, unless
+.Ic notify
+is the only permission flag; which sets the
+.Ar port
+to 162.
+If no permission flags are specified it defaults to
+.Dq Ic read Ic write ,
+or
+.Ic notify
+when
+.Ar port
+is 162.
+If no subsystem flags are specified, it defaults to
+.Ic snmpv3 .
+.Pp
+Having
+.Ic notify
+set requires at least one
+.Ic trap handle
+statement.
+.It Ic agentx Oo Ic path Ar path Oc Oo Ic owner Ar owner Oc Oo Ic group Ar group Oc Oo Ic mode Ar mode Oc
+Set up an agentx master socket at
+.Ar path
+and defaults to
+.Pa /var/agentx/master .
+Socket owner, group, and permissions can be set with
+.Ar owner ,
+.Ar group ,
+and
+.Ar mode
+respectively and defaults to root, _agentx, and 660.
+Multiple
+.Ic agentx
+statements are supported.
+Only unix sockets are supported.
+.It Ic engineid Oo Ic pen Ar enterprise Oc Ar format
+Set the snmp engineid, used for instance identification and key
+generation for the
+.Ic user
+.Ar auth
+and
+.Ar key .
+.Ar enterprise
+specifies the private enterprise number of the instance and can be either an
+integer or
+.Ic openbsd
+.Pq default .
+.Pp
+.Ar format
+can be one of the following:
+.Bl -tag -width Ds
+.It Ic ipv4 Ar address
+The engineID's format identifier is set to 1 and the ipv4
+.Ar address
+is used in the format.
+.It Ic ipv6 Ar address
+The engineID's format identifier is set to 2 and the ipv6
+.Ar address
+is used in the format.
+.It Ic mac Ar address
+The engineID's format identifier is set to 3 and the mac
+.Ar address
+is used in the format.
+.It Ic text Ar text
+The engineID's format identifier is set to 4 and the ASCII
+.Ar text
+is used in the format.
+.It Ic octets Ar octetstring
+The engineID's format identifier is set to 5 and the
+.Ar octetstring
+in hexadecimal is used in the format.
+.It Ic hosthash Op Ar hostname
+The engineID's format identifier is set to 129 and the first 27 bytes of the
+sha256 hash of the
+.Ar hostname
+are used in the format.
+This option is only valid for
+.Ar enterprise
+.Ic openbsd .
+If used for the local engineID, then
+.Ar hostname
+defaults to the value of
+.Xr hostname 1 .
+This format is the default.
+.It Ar number Ar octetstring
+The engineID's format identifier is set to
+.Ar number
+and the
+.Ar octetstring
+in hexadecimal is used in the format.
+This format is only available if
+.Ar enterprise
+is not
+.Ic openbsd .
+.It Ic agentid Ar octetstring
+RFC1910 legacy format.
+.Ar octetstring
+must be 8 bytes
+.Pq or 16 characters in hexadecimal format .
+.El
+.It Ic mib directory Ar path
+Specify which directories to recursively search for MIB files.
+Multiple directories can be specified.
+If no directory is specified it defaults to
+.Pa /usr/share/snmp/mibs .
+.It Ic read-only community Ar string
+Specify the name of the read-only community.
+There is no default value.
+.It Ic read-write Ic community Ar string
+Specify the name of the read-write community.
+There is no default value.
+.It Ic seclevel Pq Ic none | auth | enc
+Specify the lowest security level that
+.Xr snmpd 8
+accepts on SNMPv3:
+.Bl -tag -width "auth" -offset ident
+.It Ic none
+Both authentication and encryption of messages is optional.
+.It Ic auth
+Authentication of messages is mandatory.
+.Xr snmpd 8
+will discard any messages that don't have a valid digest.
+Encryption of messages is optional.
+.It Ic enc
+Messages must be encrypted and must have a valid digest for authentication.
+Otherwise they will be discarded.
+This is the default value.
+.El
+.It Ic system contact Ar string
+Specify the name or description of the system contact, typically a
+name or an email address.
+The default value is
+.Ar root@hostname
+using the hostname of the local machine.
+.It Ic system description Ar string
+Specify a description of the local system.
+The default value is the operating system identification as printed by the
+.Xr uname 1
+command using the
+.Fl a
+flag:
+.Bd -literal -offset indent
+OpenBSD myhost.example.com 4.2 GENERIC#595 i386
+.Ed
+.It Ic system location Ar string
+Specify the string describing the location of the local system,
+typically a physical location.
+The default value is an empty string.
+.It Ic system name Ar string
+Specify the name of the local system, typically a fully-qualified
+domain name.
+The default value is the hostname of the local system.
+.It Ic system oid Ar oid-string
+Specify the authoritative identification of the local system.
+The default value is
+.Ar 1.3.6.1.4.1.30155.23.1
+.Pq iso.org.dod.internet.private.enterprises.openbsd.23.1
+identifying a common
+.Ox
+system.
+.It Ic system services Ar number
+Specify a magic value which indicates the set of services that the local
+system may provide.
+Refer to the
+.Ar sysServices
+description in the SNMP MIB for details.
+The value is given in decimal.
+.\"XXX describe the complicated services alg here
+.It Ic trap community Ar string
+Specify the name of the trap community.
+There is no default value.
+.It Ic trap handle Ar oid Qq Ar command
+Execute
+.Ic command
+upon receipt of an SNMP trap that begins with a prefix of
+.Ic oid .
+Alternately, the string
+.Qq Ic default
+may be used, in which case the prefix used is
+.Ic 1.3 .
+The invoked
+.Ar command
+will receive the following information about the trap on standard input,
+one per line, in this order:
+the resolved hostname of the host sending the trap,
+the IP address of the host sending the trap,
+and any variable bindings contained in the trap
+(the OID followed by the value, separated by a single space).
+This option requires at least one
+.Ic listen on
+statement with a
+.Ic notify
+flag set.
+Traps over SNMPv3 are currently unsupported.
+.It Xo
+.Ic trap receiver Ar address
+.Op Ic oid Ar oid-string
+.Ic snmpv2c
+.Op Ic community Ar string
+.Op Ic source-address Ar address
+.Xc
+Specify the
+.Ar address
+or FQDN of a remote trap receiver for outgoing traps
+sent by
+.Xr snmpd 8 .
+This option may be specified multiple times.
+The daemon will send outgoing traps in
+.Ic snmpv2c
+format.
+The default community is specified by the global
+.Ic trap community
+option.
+The IPv4 or IPv6 source address of the traps can be enforced using
+.It Xo
+.Ic trap receiver Ar address
+.Op Ic oid Ar oid-string
+.Op Ic snmpv3
+.Ic user Ar name Oo Ic seclevel Ar level Oc
+.Op Ic source-address Ar address
+.Xc
+Specify the
+.Ar address
+or FQDN of a remote trap receiver for outgoing traps
+sent by
+.Xr snmpd 8 .
+This option may be specified multiple times.
+The daemon will send outgoing traps in
+.Ic snmpv3
+format.
+.Ic user
+must point to an existing global
+.Ic user .
+If
+.Ic seclevel
+is not defined, it defaults to the global
+.Ic seclevel
+option.
+The IPv4 or IPv6 source address of the traps can be enforced using
+.Ic source-address .
+.El
+.Ss User configuration
+Users for the SNMP User-based Security Model (USM, RFC 3414) must be
+defined in the configuration file:
+.Bl -tag -width xxxx
+.It Xo
+.Ic user Ar name
+.Op Ic authkey Ar key Ic auth Ar hmac
+.Op Ic enckey Ar key Ic enc Ar cipher
+.Xc
+Defines a known user.
+The
+.Ic authkey
+keyword is required to specify the digest key used to authenticate
+messages.
+If this keyword is omitted then authentication is disabled
+for this user account.
+Optionally the HMAC algorithm used for authentication can be specified.
+.Ar hmac
+must be either
+.Ic hmac-md5 ,
+.Ic hmac-sha1 ,
+.Ic hmac-sha224 ,
+.Ic hmac-sha256 ,
+.Ic hmac-sha384 ,
+or
+.Ic hmac-sha512 .
+If omitted, the default is
+.Ic hmac-sha1 .
+.Pp
+With
+.Ic enckey
+the encryption key used to encrypt and decrypt messages for privacy is defined.
+Without an
+.Ic enckey
+specification the user account will neither accept encrypted incoming
+messages nor will it encrypt outgoing messages.
+The
+.Ar enc
+algorithm can be either
+.Ic des
+or
+.Ic aes
+and defaults to
+.Ic aes .
+.Pp
+Any user account that has encryption enabled requires authentication to
+be enabled too.
+.El
+.Ss OID configuration
+It is possible to specify user-defined OIDs in the configuration file:
+.Bl -tag -width Ds
+.It Xo
+.Ic oid Ar oid-string
+.Ic name Ar name
+.Op Ic read-only | read-write
+.Op Ar type
+.Ar value
+.Xc
+Return the specified value to the client for this OID.
+The
+.Ic read-write
+option may allow the client to override it,
+and the type is either
+.Ic string
+or
+.Ic integer .
+.El
+.Sh FILES
+.Bl -tag -width /etc/examples/snmpd.conf -compact
+.It Pa /etc/snmpd.conf
+Default location of the configuration file.
+.It Pa /etc/examples/snmpd.conf
+Example configuration file.
+.El
+.Sh EXAMPLES
+The following example will tell
+.Xr snmpd 8
+to listen on localhost for SNMPv2c messages only with the community
+.Dq 8LHQtm1QLGzk ,
+override the default system OID, set the magic services value,
+and provide some custom OID values:
+.Bd -literal -offset indent
+listen on 127.0.0.1 snmpv2c
+read-only community 8LHQtm1QLGzk
+
+system oid 1.3.6.1.4.1.30155.23.2
+system services 74
+
+oid 1.3.6.1.4.1.30155.42.1 name myName read-only string "humppa"
+oid 1.3.6.1.4.1.30155.42.2 name myStatus read-only integer 1
+.Ed
+.Pp
+The next example will enforce SNMPv3 with authenticated and encrypted
+communication and the user-based security model.
+The configuration defines several users using varying encryption and
+authentication algorithms.
+.Bd -literal -offset indent
+seclevel enc
+
+user "mgmt" auth hmac-sha256 authkey "password123" enc aes enckey "321drowssap"
+user "hans" auth hmac-sha1 authkey "password456" enc aes enckey "654drowssap"
+user "sophie" auth hmac-md5 authkey "password789" enc des enckey "987drowssap"
+.Ed
+.Sh SEE ALSO
+.Xr snmp 1 ,
+.Xr snmpd 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 4.3 .
+.Sh AUTHORS
+The
+.Xr snmpd 8
+program was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

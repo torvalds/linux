@@ -1,0 +1,538 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="bkoz@redhat.com (Benjamin Kosnik)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, locale name LC_ALL" />
+   <meta name="DESCRIPTION" content="Notes on the locale implementation." />
+   <title>Notes on the locale implementation.</title>
+<link rel="StyleSheet" href="../lib3styles.css" />
+</head>
+<body>
+  <h1>
+  Notes on the locale implementation.
+  </h1>
+<em>
+prepared by Benjamin Kosnik (bkoz@redhat.com) on October 14, 2002
+</em>
+
+<h2>
+1. Abstract 
+</h2>
+<p>
+Describes the basic locale object, including nested
+classes id, facet, and the reference-counted implementation object,
+class _Impl.
+</p>
+
+<h2>
+2. What the standard says
+</h2>
+Class locale is non-templatized and has two distinct types nested
+inside of it:
+
+<blockquote>
+<em>
+class facet
+22.1.1.1.2 Class locale::facet
+</em>
+</blockquote>
+
+<p>
+Facets actually implement locale functionality. For instance, a facet
+called numpunct is the data objects that can be used to query for the
+thousands separator is in the German locale.
+</p>
+
+Literally, a facet is strictly defined:
+<ul>
+  <li>containing the following public data member:
+  <p>
+  <code>static locale::id id;</code>
+  </p>
+  </li>
+
+  <li>derived from another facet:
+  <p>
+  <code> class gnu_codecvt: public std::ctype&lt;user-defined-type&gt;</code>
+  </p>
+  </li>
+</ul>
+
+<p>
+Of interest in this class are the memory management options explicitly
+specified as an argument to facet's constructor. Each constructor of a
+facet class takes a std::size_t __refs argument: if __refs == 0, the
+facet is deleted when the locale containing it is destroyed. If __refs
+== 1, the facet is not destroyed, even when it is no longer
+referenced.
+</p>
+
+<blockquote>
+<em>
+class id
+22.1.1.1.3 - Class locale::id
+</em>
+</blockquote>
+
+<p>
+Provides an index for looking up specific facets.
+</p>
+
+
+<h2>
+3. Interacting with &quot;C&quot; locales.
+</h2>
+
+<p>
+Some help on determining the underlying support for locales on a system. 
+Note, this is specific to linux (and glibc-2.3.x)
+</p>
+
+<ul>
+   <li> <code>`locale -a`</code> displays available locales. 
+<blockquote>
+<pre>
+af_ZA
+ar_AE
+ar_AE.utf8
+ar_BH
+ar_BH.utf8
+ar_DZ
+ar_DZ.utf8
+ar_EG
+ar_EG.utf8
+ar_IN
+ar_IQ
+ar_IQ.utf8
+ar_JO
+ar_JO.utf8
+ar_KW
+ar_KW.utf8
+ar_LB
+ar_LB.utf8
+ar_LY
+ar_LY.utf8
+ar_MA
+ar_MA.utf8
+ar_OM
+ar_OM.utf8
+ar_QA
+ar_QA.utf8
+ar_SA
+ar_SA.utf8
+ar_SD
+ar_SD.utf8
+ar_SY
+ar_SY.utf8
+ar_TN
+ar_TN.utf8
+ar_YE
+ar_YE.utf8
+be_BY
+be_BY.utf8
+bg_BG
+bg_BG.utf8
+br_FR
+bs_BA
+C
+ca_ES
+ca_ES@euro
+ca_ES.utf8
+ca_ES.utf8@euro
+cs_CZ
+cs_CZ.utf8
+cy_GB
+da_DK
+da_DK.iso885915
+da_DK.utf8
+de_AT
+de_AT@euro
+de_AT.utf8
+de_AT.utf8@euro
+de_BE
+de_BE@euro
+de_BE.utf8
+de_BE.utf8@euro
+de_CH
+de_CH.utf8
+de_DE
+de_DE@euro
+de_DE.utf8
+de_DE.utf8@euro
+de_LU
+de_LU@euro
+de_LU.utf8
+de_LU.utf8@euro
+el_GR
+el_GR.utf8
+en_AU
+en_AU.utf8
+en_BW
+en_BW.utf8
+en_CA
+en_CA.utf8
+en_DK
+en_DK.utf8
+en_GB
+en_GB.iso885915
+en_GB.utf8
+en_HK
+en_HK.utf8
+en_IE
+en_IE@euro
+en_IE.utf8
+en_IE.utf8@euro
+en_IN
+en_NZ
+en_NZ.utf8
+en_PH
+en_PH.utf8
+en_SG
+en_SG.utf8
+en_US
+en_US.iso885915
+en_US.utf8
+en_ZA
+en_ZA.utf8
+en_ZW
+en_ZW.utf8
+es_AR
+es_AR.utf8
+es_BO
+es_BO.utf8
+es_CL
+es_CL.utf8
+es_CO
+es_CO.utf8
+es_CR
+es_CR.utf8
+es_DO
+es_DO.utf8
+es_EC
+es_EC.utf8
+es_ES
+es_ES@euro
+es_ES.utf8
+es_ES.utf8@euro
+es_GT
+es_GT.utf8
+es_HN
+es_HN.utf8
+es_MX
+es_MX.utf8
+es_NI
+es_NI.utf8
+es_PA
+es_PA.utf8
+es_PE
+es_PE.utf8
+es_PR
+es_PR.utf8
+es_PY
+es_PY.utf8
+es_SV
+es_SV.utf8
+es_US
+es_US.utf8
+es_UY
+es_UY.utf8
+es_VE
+es_VE.utf8
+et_EE
+et_EE.utf8
+eu_ES
+eu_ES@euro
+eu_ES.utf8
+eu_ES.utf8@euro
+fa_IR
+fi_FI
+fi_FI@euro
+fi_FI.utf8
+fi_FI.utf8@euro
+fo_FO
+fo_FO.utf8
+fr_BE
+fr_BE@euro
+fr_BE.utf8
+fr_BE.utf8@euro
+fr_CA
+fr_CA.utf8
+fr_CH
+fr_CH.utf8
+fr_FR
+fr_FR@euro
+fr_FR.utf8
+fr_FR.utf8@euro
+fr_LU
+fr_LU@euro
+fr_LU.utf8
+fr_LU.utf8@euro
+ga_IE
+ga_IE@euro
+ga_IE.utf8
+ga_IE.utf8@euro
+gl_ES
+gl_ES@euro
+gl_ES.utf8
+gl_ES.utf8@euro
+gv_GB
+gv_GB.utf8
+he_IL
+he_IL.utf8
+hi_IN
+hr_HR
+hr_HR.utf8
+hu_HU
+hu_HU.utf8
+id_ID
+id_ID.utf8
+is_IS
+is_IS.utf8
+it_CH
+it_CH.utf8
+it_IT
+it_IT@euro
+it_IT.utf8
+it_IT.utf8@euro
+iw_IL
+iw_IL.utf8
+ja_JP.eucjp
+ja_JP.utf8
+ka_GE
+kl_GL
+kl_GL.utf8
+ko_KR.euckr
+ko_KR.utf8
+kw_GB
+kw_GB.utf8
+lt_LT
+lt_LT.utf8
+lv_LV
+lv_LV.utf8
+mi_NZ
+mk_MK
+mk_MK.utf8
+mr_IN
+ms_MY
+ms_MY.utf8
+mt_MT
+mt_MT.utf8
+nl_BE
+nl_BE@euro
+nl_BE.utf8
+nl_BE.utf8@euro
+nl_NL
+nl_NL@euro
+nl_NL.utf8
+nl_NL.utf8@euro
+nn_NO
+nn_NO.utf8
+no_NO
+no_NO.utf8
+oc_FR
+pl_PL
+pl_PL.utf8
+POSIX
+pt_BR
+pt_BR.utf8
+pt_PT
+pt_PT@euro
+pt_PT.utf8
+pt_PT.utf8@euro
+ro_RO
+ro_RO.utf8
+ru_RU
+ru_RU.koi8r
+ru_RU.utf8
+ru_UA
+ru_UA.utf8
+se_NO
+sk_SK
+sk_SK.utf8
+sl_SI
+sl_SI.utf8
+sq_AL
+sq_AL.utf8
+sr_YU
+sr_YU@cyrillic
+sr_YU.utf8
+sr_YU.utf8@cyrillic
+sv_FI
+sv_FI@euro
+sv_FI.utf8
+sv_FI.utf8@euro
+sv_SE
+sv_SE.iso885915
+sv_SE.utf8
+ta_IN
+te_IN
+tg_TJ
+th_TH
+th_TH.utf8
+tl_PH
+tr_TR
+tr_TR.utf8
+uk_UA
+uk_UA.utf8
+ur_PK
+uz_UZ
+vi_VN
+vi_VN.tcvn
+wa_BE
+wa_BE@euro
+yi_US
+zh_CN
+zh_CN.gb18030
+zh_CN.gbk
+zh_CN.utf8
+zh_HK
+zh_HK.utf8
+zh_TW
+zh_TW.euctw
+zh_TW.utf8
+</pre>
+</blockquote>
+</li>
+   
+   <li> <code>`locale`</code> displays environmental variables
+   that impact how locale("") will be deduced.
+
+<blockquote>
+<pre>
+LANG=en_US
+LC_CTYPE="en_US"
+LC_NUMERIC="en_US"
+LC_TIME="en_US"
+LC_COLLATE="en_US"
+LC_MONETARY="en_US"
+LC_MESSAGES="en_US"
+LC_PAPER="en_US"
+LC_NAME="en_US"
+LC_ADDRESS="en_US"
+LC_TELEPHONE="en_US"
+LC_MEASUREMENT="en_US"
+LC_IDENTIFICATION="en_US"
+LC_ALL=
+</pre>
+</blockquote>
+</li>
+</ul>
+
+<p>
+From Josuttis, p. 697-698, which says, that "there is only *one*
+relation (of the C++ locale mechanism) to the C locale mechanism: the
+global C locale is modified if a named C++ locale object is set as the
+global locale" (emphasis Paolo), that is:
+</p>
+    <code>std::locale::global(std::locale(""));</code>
+
+<p>affects the C functions as if the following call was made:</p>
+
+    <code>std::setlocale(LC_ALL, "");</code>
+
+<p>
+On the other hand, there is *no* viceversa, that is, calling setlocale
+has *no* whatsoever on the C++ locale mechanism, in particular on the
+working of locale(""), which constructs the locale object from the
+environment of the running program, that is, in practice, the set of
+LC_ALL, LANG, etc. variable of the shell.
+</p>
+
+
+<h2>
+4. Design
+</h2>
+
+
+<p>
+The major design challenge is fitting an object-orientated and
+non-global locale design ontop of POSIX and other relevant stanards,
+which include the Single Unix (nee X/Open.)
+</p>
+
+<p>
+Because POSIX falls down so completely, portibility is an issue.
+</p>
+
+class _Impl
+The internal representation of the std::locale object.
+
+
+<h2>
+5.  Examples
+</h2>
+
+More information can be found in the following testcases:
+<ul>
+<li> testsuite/22_locale/all   </li>
+</ul>
+
+<h2>
+6.  Unresolved Issues
+</h2>
+
+<ul>
+   <li> locale initialization: at what point does _S_classic,
+   _S_global get initialized? Can named locales assume this
+   initialization has already taken place? </li>
+
+   <li> document how named locales error check when filling data
+   members. Ie, a fr_FR locale that doesn't have
+   numpunct::truename(): does it use "true"? Or is it a blank
+   string? What's the convention? </li>
+
+   <li> explain how locale aliasing happens. When does "de_DE"
+   use "de" information? What is the rule for locales composed of
+   just an ISO language code (say, "de") and locales with both an
+   ISO language code and ISO country code (say, "de_DE"). </li>
+
+   <li> what should non-required facet instantiations do?  If the
+   generic implemenation is provided, then how to end-users
+   provide specializations? </li>
+</ul>
+
+<h2>
+7. Acknowledgments
+</h2>
+
+<h2>
+8. Bibliography / Referenced Documents
+</h2>
+
+Drepper, Ulrich, GNU libc (glibc) 2.2 manual. In particular, Chapters &quot;6. Character Set Handling&quot; and &quot;7 Locales and Internationalization&quot;
+
+<p>
+Drepper, Ulrich, Numerous, late-night email correspondence
+</p>
+
+<p>
+ISO/IEC 14882:1998 Programming languages - C++
+</p>
+
+<p>
+ISO/IEC 9899:1999 Programming languages - C
+</p>
+
+<p>
+Langer, Angelika and Klaus Kreft, Standard C++ IOStreams and Locales, Advanced Programmer's Guide and Reference, Addison Wesley Longman, Inc. 2000
+</p>
+
+<p>
+Stroustrup, Bjarne, Appendix D, The C++ Programming Language, Special Edition, Addison Wesley, Inc. 2000
+</p>
+
+<p>
+System Interface Definitions, Issue 6 (IEEE Std. 1003.1-200x)
+The Open Group/The Institute of Electrical and Electronics Engineers, Inc.
+http://www.opennc.org/austin/docreg.html
+</p>
+
+</body>
+</html>
+
+

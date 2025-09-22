@@ -1,0 +1,57 @@
+.\"     $OpenBSD: acpibat.4,v 1.8 2017/03/30 16:04:36 jcs Exp $
+.\"
+.\" Copyright (c) 2006 Dmitri Alenitchev <dmitri@wave.net.ru>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 30 2017 $
+.Dt ACPIBAT 4
+.Os
+.Sh NAME
+.Nm acpibat
+.Nd ACPI control method battery
+.Sh SYNOPSIS
+.Cd "acpibat* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the ACPI Control Method Battery interface between the
+battery and the host.
+Information about the battery, such as capacity, recharge rate, voltage,
+and serial number, is available through this driver.
+Battery status is updated through an event triggered when a battery
+changes state (such as starting to charge) and, as a failsafe if the
+system does not support passing such events, every 10 seconds.
+Battery status can be monitored using
+.Xr sysctl 8
+or
+.Xr sensorsd 8 .
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpisbs 4 ,
+.Xr intro 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Marco Peereboom Aq Mt marco@openbsd.org .
+.Sh BUGS
+Some systems do not propagate battery insertion up to the driver.

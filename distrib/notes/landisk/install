@@ -1,0 +1,35 @@
+dnl	$OpenBSD: install,v 1.10 2014/03/19 01:59:48 tedu Exp $
+OpenBSDInstallPrelude
+
+OpenBSDInstallPart2
+
+	If you have copied the miniroot image to the disk, it will
+	boot automatically upon power-up.
+
+OpenBSDInstallPart3(,"wd0")
+
+OpenBSDInstallPart4({:-"wd0" for IDE drives-:})
+
+OpenBSDInstallMBRPart1
+
+OpenBSDInstallMBRPart2(that's the way things are)
+
+OpenBSDInstallPart5
+
+OpenBSDInstallPart6({:-CD-ROM, -:})
+
+OpenBSDURLInstall
+
+OpenBSDCDROMInstall
+
+OpenBSDDISKInstall({:-"wdN" or -:},,{:-, Linux (ext2) or MS-DOS-:})
+
+OpenBSDCommonInstall
+
+OpenBSDInstallWrapup
+
+OpenBSDCongratulations
+
+
+
+OpenBSDUnattendedInstallation

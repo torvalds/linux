@@ -1,0 +1,4 @@
+# test address family / icmp version mismatches
+
+pass in inet6 proto icmp all
+pass inet proto icmp6

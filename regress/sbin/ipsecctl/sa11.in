@@ -1,0 +1,27 @@
+esp transport from 1.1.1.1 to 2.2.2.2 spi 0x1eadbeef:0xbeef1ead \
+	authkey file "DIR/ak256:DIR/ak256" \
+	enckey file "DIR/ek128:DIR/ek128"
+esp transport from 1.1.1.2 to 2.2.2.2 spi 0x2eadbeef:0xbeef2ead \
+	enc 3des-cbc \
+	auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160" \
+	enckey file "DIR/ek192:DIR/ek192"
+esp transport from 1.1.1.4 to 2.2.2.2 spi 0x4eadbeef:0xbeef4ead \
+	enc aes \
+	auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160" \
+	enckey file "DIR/ek128:DIR/ek128"
+esp transport from 1.1.1.6 to 2.2.2.2 spi 0x6eadbeef:0xbeef6ead \
+	enc blowfish \
+	auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160" \
+	enckey file "DIR/ek160:DIR/ek160"
+esp transport from 1.1.1.7 to 2.2.2.2 spi 0x7eadbeef:0xbeef7ead \
+	enc cast128 \
+	auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160" \
+	enckey file "DIR/ek128:DIR/ek128"
+esp transport from 1.1.1.8 to 2.2.2.2 spi 0x8eadbeef:0xbeef8ead \
+	enc null \
+	auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160"

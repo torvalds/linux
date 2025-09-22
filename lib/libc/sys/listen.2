@@ -1,0 +1,109 @@
+.\"	$OpenBSD: listen.2,v 1.15 2015/09/10 17:55:21 schwarze Exp $
+.\"	$NetBSD: listen.2,v 1.7 1996/02/16 20:38:45 phil Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)listen.2	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: September 10 2015 $
+.Dt LISTEN 2
+.Os
+.Sh NAME
+.Nm listen
+.Nd listen for connections on a socket
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn listen "int s" "int backlog"
+.Sh DESCRIPTION
+To accept connections, a socket
+is first created with
+.Xr socket 2 ,
+a willingness to accept incoming connections and
+a queue limit for incoming connections are specified with
+.Fn listen ,
+and then the connections are
+accepted with
+.Xr accept 2 .
+The
+.Fn listen
+call applies only to sockets of type
+.Dv SOCK_STREAM
+or
+.Dv SOCK_SEQPACKET .
+.Pp
+The
+.Fa backlog
+parameter defines the maximum length the queue of
+pending connections may grow to.
+If a connection
+request arrives with the queue full the client may
+receive an error with an indication of
+.Er ECONNREFUSED ,
+or, if the underlying protocol supports retransmission,
+the request may be ignored so that retries may succeed.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn listen
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The argument
+.Fa s
+is not a valid descriptor.
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+is not a socket.
+.It Bq Er EOPNOTSUPP
+The socket is not of a type that supports the operation
+.Fn listen .
+.It Bq Er EINVAL
+The socket is already connected.
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr connect 2 ,
+.Xr socket 2 ,
+.Xr sysctl 8
+.Sh STANDARDS
+The
+.Fn listen
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn listen
+system call first appeared in
+.Bx 4.1c .
+.Sh BUGS
+The
+.Fa backlog
+is currently limited (silently) to the value of the kern.somaxconn
+sysctl, which defaults to 128.

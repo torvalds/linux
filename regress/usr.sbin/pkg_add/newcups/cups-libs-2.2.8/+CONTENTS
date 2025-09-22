@@ -1,0 +1,12 @@
+@comment $OpenBSD: +CONTENTS,v 1.2 2019/08/20 11:02:28 espie Exp $
+@name cups-libs-2.2.8
+@comment pkgpath=print/cups,-libs ftp=yes
+@arch *
++DESC
+@sha PR0u8PFMga/b6TrujLc3mwZyc4f2PuCKAFWEro5+E1w=
+@size 299
+@cwd /usr/local
+@lib lib/libcups.so.6.4
+@sha 8G6TFClL0MBr/Se4Pjvin4ljJv2/j9zFqMKNSK1jVWw=
+@size 616344
+@ts 1528501337

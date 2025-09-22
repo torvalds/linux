@@ -1,0 +1,9 @@
+import("//llvm/lib/Target/targets.gni")
+
+targets_with_disassemblers = []
+foreach(target, llvm_targets_to_build) {
+  # These targets don't have Disassemblers.
+  if (target != "NVPTX") {
+    targets_with_disassemblers += [ target ]
+  }
+}

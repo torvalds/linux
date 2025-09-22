@@ -1,0 +1,73 @@
+.\"	$OpenBSD: tht.4,v 1.8 2022/02/17 12:24:08 jsg Exp $
+.\"
+.\" Copyright (c) 2007 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 17 2022 $
+.Dt THT 4
+.Os
+.Sh NAME
+.Nm tht ,
+.Nm thtc
+.Nd Tehuti Networks 10Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "thtc* at pci?"
+.Cd "tht* at thtc?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Tehuti Networks 10 Gigabit Ethernet
+controllers and adapters, including the following:
+.Pp
+.Bl -bullet -compact
+.It
+TN3017-S 10 GbE Single Port XAUI Server Controller
+.It
+TN3017-D 10 GbE Dual Port XAUI Server Controller
+.It
+TN7581-D 10 GbE Dual XFP Server Adapter
+.It
+TN7585-D 10 GbE Dual CX4 Low Profile Server Adapter
+.It
+TN7588-S 10 GbE Single 10GBASET Low Profile Server Adapter
+.It
+TN7588-D 10 GbE Dual 10GBASET Low Profile Server Adapter
+.It
+TN7589-S 10 GbE Single CX4 Low Profile Server Adapter
+.El
+.Sh FILES
+The adapter needs a firmware file, which is loaded on demand by the
+driver when the device is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/tht
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An David Gwynne Aq Mt dlg@openbsd.org .

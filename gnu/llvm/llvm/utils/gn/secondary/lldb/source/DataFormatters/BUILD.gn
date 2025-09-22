@@ -1,0 +1,31 @@
+static_library("DataFormatters") {
+  output_name = "lldbDataFormatters"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+
+    #"//lldb/source/Interpreter", # FIXME: Dependency cycle.
+    #"//lldb/source/Symbol", # FIXME: 3-hop Dependency cycle (DataFormatters->Symbol->Expression->Interpreter->DataFormatters)
+    #"//lldb/source/Target",  # FIXME: 3-hop Dependency cycle (DataFormatters->Target->Expression->Interpreter->DataFormatters)
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "CXXFunctionPointer.cpp",
+    "DataVisualization.cpp",
+    "DumpValueObjectOptions.cpp",
+    "FormatCache.cpp",
+    "FormatClasses.cpp",
+    "FormatManager.cpp",
+    "FormattersHelpers.cpp",
+    "LanguageCategory.cpp",
+    "StringPrinter.cpp",
+    "TypeCategory.cpp",
+    "TypeCategoryMap.cpp",
+    "TypeFormat.cpp",
+    "TypeSummary.cpp",
+    "TypeSynthetic.cpp",
+    "ValueObjectPrinter.cpp",
+    "VectorType.cpp",
+  ]
+}

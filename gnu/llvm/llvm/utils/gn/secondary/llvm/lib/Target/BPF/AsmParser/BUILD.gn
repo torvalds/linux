@@ -1,0 +1,21 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("BPFGenAsmMatcher") {
+  visibility = [ ":AsmParser" ]
+  args = [ "-gen-asm-matcher" ]
+  td_file = "../BPF.td"
+}
+
+static_library("AsmParser") {
+  output_name = "LLVMBPFAsmParser"
+  deps = [
+    ":BPFGenAsmMatcher",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/BPF/MCTargetDesc",
+    "//llvm/lib/Target/BPF/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "BPFAsmParser.cpp" ]
+}

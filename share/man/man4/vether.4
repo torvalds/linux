@@ -1,0 +1,60 @@
+.\"	$OpenBSD: vether.4,v 1.5 2017/10/17 22:47:58 schwarze Exp $
+.\"
+.\" Copyright (c) 2009 Theo de Raadt <deraadt@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 17 2017 $
+.Dt VETHER 4
+.Os
+.Sh NAME
+.Nm vether
+.Nd virtual Ethernet interface
+.Sh SYNOPSIS
+.Cd "pseudo-device vether"
+.Sh DESCRIPTION
+The
+.Nm
+interface simulates a normal Ethernet interface by encapsulating
+standard network frames with an Ethernet header, specifically
+for use as a member in a
+.Xr bridge 4 .
+.Pp
+To use
+.Nm
+the administrator needs to configure an address onto the interface
+so that packets can be routed to it.
+An Ethernet header will be prepended and, if the
+.Nm
+interface is a member of a
+.Xr bridge 4 ,
+the frame will show up there.
+.Sh SEE ALSO
+.Xr bridge 4 ,
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr netstart 8
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Ox 4.7 .
+.Sh AUTHORS
+.An Theo de Raadt Aq Mt deraadt@openbsd.org
+.Sh BUGS
+Like
+.Xr tun 4 ,
+the Ethernet address chosen will be partially random, and may
+occasionally collide with another address.

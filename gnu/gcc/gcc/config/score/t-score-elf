@@ -1,0 +1,45 @@
+# Additional Backend Files
+score-mdaux.o: $(srcdir)/config/score/score-mdaux.c $(CONFIG_H) $(SYSTEM_H) \
+  coretypes.h $(TM_H) $(RTL_H) output.h flags.h $(TREE_H) \
+  expr.h toplev.h $(TM_P_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	$(srcdir)/config/score/score-mdaux.c
+
+# Assemble startup files.
+$(T)crti.o: $(srcdir)/config/score/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crti.o -x assembler-with-cpp $(srcdir)/config/score/crti.asm
+
+$(T)crtn.o: $(srcdir)/config/score/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crtn.o -x assembler-with-cpp $(srcdir)/config/score/crtn.asm
+
+LIB1ASMSRC = score/mul-div.S
+
+LIB1ASMFUNCS = _mulsi3 _divsi3 _flush_cache
+
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+# If any special flags are necessary when building libgcc2 put them here.
+TARGET_LIBGCC2_CFLAGS = -g
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+# We must build libgcc2.a with -G 0, in case the user wants to link
+# without the $gp register.
+TARGET_LIBGCC2_CFLAGS = -G 0
+
+MULTILIB_OPTIONS = mmac mel fPIC
+MULTILIB_MATCHES = fPIC=fpic
+
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o crti.o crtn.o
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+

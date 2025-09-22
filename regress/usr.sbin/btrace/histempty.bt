@@ -1,0 +1,18 @@
+BEGIN
+{
+        @histmap = hist(1);
+        print(@histmap);
+}
+
+END
+{
+        clear(@histmap);
+        printf("=> clear() after clear:\n");
+        clear(@histmap);
+        printf("=> delete() after clear:\n");
+        delete(@histmap[0]);
+        printf("=> zero() after clear:\n");
+        zero(@histmap);
+        print(@histmap);
+
+}

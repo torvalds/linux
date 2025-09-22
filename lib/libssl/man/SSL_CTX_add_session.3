@@ -1,0 +1,133 @@
+.\"	$OpenBSD: SSL_CTX_add_session.3,v 1.6 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL SSL_CTX_add_session.pod 1722496f Jun 8 15:18:38 2017 -0400
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org> and
+.\" Geoff Thorpe <geoff@openssl.org>.
+.\" Copyright (c) 2001, 2002, 2014 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_ADD_SESSION 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_add_session ,
+.Nm SSL_CTX_remove_session
+.Nd manipulate session cache
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fn SSL_CTX_add_session "SSL_CTX *ctx" "SSL_SESSION *c"
+.Ft int
+.Fn SSL_CTX_remove_session "SSL_CTX *ctx" "SSL_SESSION *c"
+.Sh DESCRIPTION
+.Fn SSL_CTX_add_session
+adds the session
+.Fa c
+to the context
+.Fa ctx .
+The reference count for session
+.Fa c
+is incremented by 1.
+If a session with the same session id already exists,
+the old session is removed by calling
+.Xr SSL_SESSION_free 3 .
+.Pp
+.Fn SSL_CTX_remove_session
+removes the session
+.Fa c
+from the context
+.Fa ctx
+and marks it as non-resumable.
+.Xr SSL_SESSION_free 3
+is called once for
+.Fa c .
+.Pp
+When adding a new session to the internal session cache, it is examined
+whether a session with the same session id already exists.
+In this case it is assumed that both sessions are identical.
+If the same session is stored in a different
+.Vt SSL_SESSION
+object, the old session is removed and replaced by the new session.
+If the session is actually identical (the
+.Vt SSL_SESSION
+object is identical),
+.Fn SSL_CTX_add_session
+is a no-op, and the return value is 0.
+.Pp
+If a server
+.Vt SSL_CTX
+is configured with the
+.Dv SSL_SESS_CACHE_NO_INTERNAL_STORE
+flag then the internal cache will not be populated automatically by new
+sessions negotiated by the SSL/TLS implementation, even though the internal
+cache will be searched automatically for session-resume requests (the
+latter can be suppressed by
+.Dv SSL_SESS_CACHE_NO_INTERNAL_LOOKUP ) .
+So the application can use
+.Fn SSL_CTX_add_session
+directly to have full control over the sessions that can be resumed if desired.
+.Sh RETURN VALUES
+The following values are returned by all functions:
+.Bl -tag -width Ds
+.It 0
+The operation failed.
+In case of the add operation, it was tried to add the same (identical) session
+twice.
+In case of the remove operation, the session was not found in the cache.
+.It 1
+The operation succeeded.
+.El
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_set_session_cache_mode 3 ,
+.Xr SSL_SESSION_free 3
+.Sh HISTORY
+.Fn SSL_CTX_add_session
+and
+.Fn SSL_CTX_remove_session
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .

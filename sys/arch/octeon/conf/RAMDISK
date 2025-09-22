@@ -1,0 +1,134 @@
+#	$OpenBSD: RAMDISK,v 1.47 2023/01/11 03:28:42 visa Exp $
+
+machine		octeon mips64
+maxusers	4
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		RAMDISK_HOOKS
+option		MINIROOTSIZE=10240
+
+option		PCIVERBOSE
+option		USBVERBOSE
+
+option		FFS
+option		FFS2
+option		CD9660
+option		UDF
+option		EXT2FS
+option		MSDOSFS
+option		NFSCLIENT
+option		INET6
+
+option		CPU_MIPS64R2
+option		CPU_OCTEON
+option		FPUEMUL
+option		MIPS_PTE64
+makeoption	LINK_ADDRESS="0xffffffff81000000"
+
+config		bsd root on rd0a swap on rd0b
+
+mainbus0	at root
+cpu0		at mainbus0
+clock0		at mainbus0
+iobus0		at mainbus0
+octcf0		at iobus0
+amdcf0		at iobus0
+
+simplebus*	at fdt?
+simplebus*	at iobus?
+
+octrtc0		at mainbus0
+
+octpcie*	at iobus0
+pci*		at octpcie?
+pcibus*		at iobus0
+pci*		at pcibus?
+ppb*		at pci?
+pci*		at ppb?
+
+octsmi*		at fdt?		# MDIO controller
+com*		at fdt_octeon?
+octcib*		at fdt?		# Interrupt controller
+octcit*		at fdt?		# Interrupt controller v3
+octciu*		at fdt?		# Interrupt controller v1
+octgpio*	at fdt?		# GPIO controller
+octmmc*		at fdt?		# MMC host controller
+octpip*		at fdt?		# Packet input processing unit
+sdmmc*		at octmmc?	# SD/MMC bus
+
+octgmx*		at octpip?
+cnmac*		at octgmx?
+
+ogxnexus*	at fdt?
+ogx*		at ogxnexus?
+
+pciide*		at pci? flags 0x0000
+wd*		at pciide? flags 0x0000
+
+# AHCI controllers
+octsctl*	at fdt?
+ahci*		at octsctl?
+
+# NVMe controllers
+nvme*		at pci?
+
+dwctwo0		at iobus0 irq 56
+octuctl*	at fdt?
+octxctl*	at fdt?
+ehci0		at octuctl?
+ohci0		at octuctl?
+xhci*		at octxctl?
+
+usb*		at dwctwo?
+usb*		at ehci?
+usb*		at ohci?
+usb*		at xhci?
+
+uhub*		at usb?
+uhub*		at uhub?
+umass*		at uhub?
+aue*		at uhub?	# ADMtek AN986 Pegasus Ethernet
+atu*		at uhub?	# Atmel AT76c50x based 802.11b
+axe*		at uhub?	# ASIX Electronics AX88172 USB Ethernet
+axen*		at uhub?	# ASIX Electronics AX88179 USB Ethernet
+cue*		at uhub?	# CATC USB-EL1201A based Ethernet
+kue*		at uhub?	# Kawasaki KL5KUSB101B based Ethernet
+smsc*		at uhub?	# SMSC LAN95xx Ethernet
+cdce*		at uhub?	# CDC Ethernet
+upl*		at uhub?	# Prolific PL2301/PL2302 host-to-host `network'
+ugl*		at uhub?	# Genesys Logic GL620USB-A host-to-host `network'
+udav*		at uhub?	# Davicom DM9601 based Ethernet
+mos*		at uhub?	# MOSCHIP MCS7730/7830 10/100 Ethernet
+url*		at uhub?	# Realtek RTL8150L based adapters
+ure*		at uhub?	# Realtek RTL8152 based adapters
+wi*		at uhub?	# WaveLAN IEEE 802.11DS
+uath*		at uhub?	# Atheros AR5005UG/AR5005UX
+ural*		at uhub?	# Ralink RT2500USB
+rum*		at uhub?	# Ralink RT2501USB/RT2601USB
+run*		at uhub?	# Ralink RT2700U/RT2800U/RT3000U
+otus*		at uhub?	# Atheros AR9001U
+athn*		at uhub?	# Atheros AR9002U
+zyd*		at uhub?	# Zydas ZD1211
+upgt*		at uhub?	# Conexant/Intersil PrismGT SoftMAC USB
+urtw*		at uhub?	# Realtek 8187
+rsu*		at uhub?	# Realtek RTL8188SU/RTL8191SU/RTL8192SU
+urtwn*		at uhub?	# Realtek RTL8188CU/RTL8192CU
+
+scsibus*	at scsi?
+sd*		at scsibus?
+
+rgephy*		at mii?
+ukphy*		at mii?
+atphy*		at mii?
+eephy*		at mii?
+brswphy*	at mii?
+brgphy*		at mii?
+
+pseudo-device	openprom
+pseudo-device	loop 1
+pseudo-device	bpfilter 1
+pseudo-device	rd 1
+pseudo-device	wsmux 2

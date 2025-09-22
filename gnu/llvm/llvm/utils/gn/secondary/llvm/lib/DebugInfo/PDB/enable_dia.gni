@@ -1,0 +1,7 @@
+declare_args() {
+  # Whether to build code that requires the Microsoft DIA SDK.
+  # If this is set, %INCLUDE% must contain ".../DIA SDK/include"
+  # and %LIB% must contain ".../DIA SDK/lib/amd64". Or use
+  # llvm/utils/sysroot.py and set sysroot in args.gn.
+  llvm_enable_dia_sdk = false
+}

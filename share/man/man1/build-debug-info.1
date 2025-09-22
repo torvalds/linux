@@ -1,0 +1,81 @@
+.\"	$OpenBSD: build-debug-info.1,v 1.3 2021/03/01 17:56:16 jmc Exp $
+.\"
+.\" Copyright (c) 2019 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 1 2021 $
+.Dt BUILD-DEBUG-INFO 1
+.Os
+.Sh NAME
+.Nm build-debug-info
+.Nd generate packing-lists and Makefiles for debug packages
+.Sh SYNOPSIS
+.Ev PORTSDIR Ns = Ns Ar path
+.Nm
+.Op Fl mnqvx
+.Fl P Ar pkgdir
+.Fl -
+.Ar pkg_create_args ...
+.Sh DESCRIPTION
+.Nm
+is a helper script for generating debug package information in
+.Xr bsd.port.mk 5 ,
+with similar calling conventions to
+.Xr update-plist 1 .
+.Pp
+Along with options and environment variables,
+.Nm
+uses the exact same options and arguments that would be passed to
+.Xr pkg_create 1 .
+Since
+.Xr pkg_create 1
+normally takes one single actual
+.Ar pkgname ,
+there is no ambiguity in
+.Ev MULTI_PACKAGES
+situations.
+.Pp
+The first set of arguments correspond to the
+.Sq default package .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl P Ar pkgdir
+directory used  for generating output (mandatory).
+.It Fl q
+Quiet mode.
+Do not display status progress messages.
+Note that this is not the opposite of verbose mode.
+.It Fl v
+Verbose mode.
+Explain about directories stripped from dependencies.
+Note that this is not the opposite of quiet mode.
+.El
+.Pp
+.Nm
+will read each packing-list
+.Ar list
+and generate a corresponding
+.Ar debug-list
+under
+.Ar pkgdir .
+.Pp
+The full list of Makefile rules needed to generate those files and
+directories will be written as
+.Ar pkgdir/Makefile .
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr update-plist 1 ,
+.Xr bsd.port.mk 5

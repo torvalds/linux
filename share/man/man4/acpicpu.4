@@ -1,0 +1,75 @@
+.\"	$OpenBSD: acpicpu.4,v 1.10 2022/10/21 04:02:16 guenther Exp $
+.\"
+.\" Copyright (c) 2006 Michael Knudsen <mk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 21 2022 $
+.Dt ACPICPU 4
+.Os
+.Sh NAME
+.Nm acpicpu
+.Nd ACPI processor power and performance state
+.Sh SYNOPSIS
+.Cd "acpicpu* at acpi?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for extracting processor power and performance
+levels from ACPI tables.
+This information is used to enter deeper CPU power states when idle,
+and can be used to throttle processor speed to reduce
+power usage and extend battery life through the
+.Va hw.setperf
+.Xr sysctl 2
+mechanism.
+.Pp
+.Nm
+reports the C-states offered by ACPI using the format
+.Dl C%d(%d@%d %s.%x@%#x)
+where the respective fields are the ACPI state,
+the reported power consumption,
+the reported latency,
+the method,
+the flags on the method,
+and the address for the method.
+Inapplicable or unspecified fields are elided.
+If the state won't be used for any reason then the entry will have a
+.Sq !\&
+prefix.
+If the state is the fallback state used when no valid C-state entries were
+found then flags will be a
+.Sq !\& .
+For the
+.Va mwait
+method the address is the hints value for the instruction.
+.Sh SEE ALSO
+.Xr sysctl 2 ,
+.Xr acpi 4 ,
+.Xr cpu 4 ,
+.Xr intro 4 ,
+.Xr apmd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Marco Peereboom Aq Mt marco@openbsd.org .
+CPU power state (C-state) support was added by
+.An Philip Guenther Aq Mt guenther@openbsd.org .

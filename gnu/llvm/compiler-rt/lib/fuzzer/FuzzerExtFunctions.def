@@ -1,0 +1,50 @@
+//===- FuzzerExtFunctions.def - External functions --------------*- C++ -* ===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+// This defines the external function pointers that
+// ``fuzzer::ExternalFunctions`` should contain and try to initialize.  The
+// EXT_FUNC macro must be defined at the point of inclusion. The signature of
+// the macro is:
+//
+// EXT_FUNC(<name>, <return_type>, <function_signature>, <warn_if_missing>)
+//===----------------------------------------------------------------------===//
+
+// Optional user functions
+EXT_FUNC(LLVMFuzzerInitialize, int, (int *argc, char ***argv), false);
+EXT_FUNC(LLVMFuzzerCustomMutator, size_t,
+         (uint8_t *Data, size_t Size, size_t MaxSize, unsigned int Seed),
+         false);
+EXT_FUNC(LLVMFuzzerCustomCrossOver, size_t,
+         (const uint8_t *Data1, size_t Size1,
+          const uint8_t *Data2, size_t Size2,
+          uint8_t *Out, size_t MaxOutSize, unsigned int Seed),
+         false);
+
+// Sanitizer functions
+EXT_FUNC(__lsan_enable, void, (), false);
+EXT_FUNC(__lsan_disable, void, (), false);
+EXT_FUNC(__lsan_do_recoverable_leak_check, int, (), false);
+EXT_FUNC(__sanitizer_acquire_crash_state, int, (), true);
+EXT_FUNC(__sanitizer_install_malloc_and_free_hooks, int,
+         (void (*malloc_hook)(const volatile void *, size_t),
+          void (*free_hook)(const volatile void *)),
+         false);
+EXT_FUNC(__sanitizer_log_write, void, (const char *buf, size_t len), false);
+EXT_FUNC(__sanitizer_purge_allocator, void, (), false);
+EXT_FUNC(__sanitizer_print_memory_profile, void, (size_t, size_t), false);
+EXT_FUNC(__sanitizer_print_stack_trace, void, (), true);
+EXT_FUNC(__sanitizer_symbolize_pc, void,
+         (void *, const char *fmt, char *out_buf, size_t out_buf_size), false);
+EXT_FUNC(__sanitizer_get_module_and_offset_for_pc, int,
+         (void *pc, char *module_path,
+         size_t module_path_len,void **pc_offset), false);
+EXT_FUNC(__sanitizer_set_death_callback, void, (void (*)(void)), true);
+EXT_FUNC(__sanitizer_set_report_fd, void, (void*), false);
+EXT_FUNC(__msan_scoped_disable_interceptor_checks, void, (), false);
+EXT_FUNC(__msan_scoped_enable_interceptor_checks, void, (), false);
+EXT_FUNC(__msan_unpoison, void, (const volatile void *, size_t size), false);
+EXT_FUNC(__msan_unpoison_param, void, (size_t n), false);

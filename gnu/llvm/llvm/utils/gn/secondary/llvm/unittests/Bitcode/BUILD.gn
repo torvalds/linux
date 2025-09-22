@@ -1,0 +1,15 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("BitcodeTests") {
+  deps = [
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "BitReaderTest.cpp",
+    "DataLayoutUpgradeTest.cpp",
+  ]
+}

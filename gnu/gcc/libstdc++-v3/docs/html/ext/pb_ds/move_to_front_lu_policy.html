@@ -1,0 +1,194 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>move_to_front_lu_policy Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>move_to_front_lu_policy</tt> Interface</h1>
+
+    <p>A list-update policy that unconditionally moves elements to
+    the front of the list.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/list_update_policy.hpp"><tt>list_update_policy.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Template Parameters</a></h2>
+
+    <table class="c1" width="100%" border="1" summary=
+    "Template Parameters">
+      <tr>
+        <td width="20%" align="left"><b>Parameter</b></td>
+
+        <td width="50%" align="left"><b>Description</b></td>
+
+        <td width="30%" align="left"><b>Default Value</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Allocator35940069" id=
+"Allocator35940069"><b>class</b> Allocator </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Allocator type.</p>
+
+          <p>This is used only for definitions, e.g., the size
+          type.</p>
+        </td>
+
+        <td>
+          <pre>
+std::allocator&lt;<b>char</b>&gt;
+</pre>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link3" id="link3">Policy Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="allocator48440069" id="allocator48440069">allocator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Allocator35940069"><tt>Allocator</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p><a href="#Allocator35940069"><tt>Allocator</tt></a>
+          type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link4" id="link4">Metadata-Type
+    Definitions</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="metadata_type2849297114" id=
+"metadata_type2849297114">metadata_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="null_lu_metadata.html"><span class=
+"c2"><tt>null_lu_metadata</tt></span></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Metadata on which this functor operates.</p>
+
+          <p>In this case, none.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="metadata_reference583863863" id=
+"metadata_reference583863863">metadata_reference</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<b>typename</b> <a href=
+"#Allocator35940069"><tt>Allocator</tt></a>::<b>template</b> rebind&lt;  
+    <a href=
+"#metadata_type2849297114"><tt>metadata_type</tt></a>&gt;::other::reference
+</pre>
+        </td>
+
+        <td>
+          <p>Reference to metadata on which this functor
+          operates.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link5" id="link5">Public Methods</a></h2>
+
+    <h3><a name="link6" id="link6">Metadata Methods</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="#metadata_type2849297114"><tt>metadata_type</tt></a>
+  <b>operator</b>()
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Creates a metadata object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>bool</b> 
+  <b>operator</b>()
+  (<a href=
+"#metadata_reference583863863"><tt>metadata_reference</tt></a> r_metadata) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Decides whether a metadata object should be moved to
+          the front of the list.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

@@ -1,0 +1,42 @@
+static_library("Breakpoint") {
+  output_name = "lldbBreakpoint"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/include/lldb/Host:Config",
+    "//lldb/source/Core",
+    "//lldb/source/Expression",
+    "//lldb/source/Interpreter",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "Breakpoint.cpp",
+    "BreakpointID.cpp",
+    "BreakpointIDList.cpp",
+    "BreakpointList.cpp",
+    "BreakpointLocation.cpp",
+    "BreakpointLocationCollection.cpp",
+    "BreakpointLocationList.cpp",
+    "BreakpointName.cpp",
+    "BreakpointOptions.cpp",
+    "BreakpointPrecondition.cpp",
+    "BreakpointResolver.cpp",
+    "BreakpointResolverAddress.cpp",
+    "BreakpointResolverFileLine.cpp",
+    "BreakpointResolverFileRegex.cpp",
+    "BreakpointResolverName.cpp",
+    "BreakpointResolverScripted.cpp",
+    "BreakpointSite.cpp",
+    "StopPointSiteList.cpp",
+    "Stoppoint.cpp",
+    "StoppointCallbackContext.cpp",
+    "StoppointSite.cpp",
+    "Watchpoint.cpp",
+    "WatchpointAlgorithms.cpp",
+    "WatchpointList.cpp",
+    "WatchpointOptions.cpp",
+    "WatchpointResource.cpp",
+  ]
+}

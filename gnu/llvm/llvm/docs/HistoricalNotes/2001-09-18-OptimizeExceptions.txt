@@ -1,0 +1,56 @@
+Date: Tue, 18 Sep 2001 00:38:37 -0500 (CDT)
+From: Chris Lattner <sabre@nondot.org>
+To: Vikram S. Adve <vadve@cs.uiuc.edu>
+Subject: Idea for a simple, useful link time optimization
+
+
+In C++ programs, exceptions suck, and here's why:
+
+1. In virtually all function calls, you must assume that the function
+   throws an exception, unless it is defined as 'nothrow'.  This means
+   that every function call has to have code to invoke dtors on objects
+   locally if one is thrown by the function.  Most functions don't throw
+   exceptions, so this code is dead [with all the bad effects of dead
+   code, including icache pollution].
+2. Declaring a function nothrow causes catch blocks to be added to every
+   call that isnot  provably nothrow.  This makes them very slow.
+3. Extra extraneous exception edges reduce the opportunity for code
+   motion.
+4. EH is typically implemented with large lookup tables.  Ours is going to
+   be much smaller (than the "standard" way of doing it) to start with,
+   but eliminating it entirely would be nice. :)
+5. It is physically impossible to correctly put (accurate, correct)
+   exception specifications on generic, templated code.  But it is trivial
+   to analyze instantiations of said code.
+6. Most large C++ programs throw few exceptions.  Most well designed
+   programs only throw exceptions in specific planned portions of the
+   code.
+
+Given our _planned_ model of handling exceptions, all of this would be
+pretty trivial to eliminate through some pretty simplistic interprocedural
+analysis.  The DCE factor alone could probably be pretty significant.  The
+extra code motion opportunities could also be exploited though...
+
+Additionally, this optimization can be implemented in a straight forward
+conservative manner, allowing libraries to be optimized or individual
+files even (if there are leaf functions visible in the translation unit
+that are called).
+
+I think it's a reasonable optimization that hasn't really been addressed
+(because assembly is way too low level for this), and could have decent
+payoffs... without being a overly complex optimization.
+
+After I wrote all of that, I found this page that is talking about
+basically the same thing I just wrote, except that it is translation unit
+at a time, tree based approach:
+http://www.ocston.org/~jls/ehopt.html
+
+but is very useful from "expected gain" and references perspective.  Note
+that their compiler is apparently unable to inline functions that use
+exceptions, so there numbers are pretty worthless... also our results
+would (hopefully) be better because it's interprocedural...
+
+What do you think?
+
+-Chris
+

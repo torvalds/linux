@@ -1,0 +1,2798 @@
+.\"	$OpenBSD: csh.1,v 1.88 2023/03/30 16:16:32 jmc Exp $
+.\"	$NetBSD: csh.1,v 1.10 1995/03/21 09:02:35 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)csh.1	8.2 (Berkeley) 1/21/94
+.\"
+.Dd $Mdocdate: March 30 2023 $
+.Dt CSH 1
+.Os
+.Sh NAME
+.Nm csh
+.Nd a shell (command interpreter) with C-like syntax
+.Sh SYNOPSIS
+.Nm csh
+.Op Fl bcefimnstVvXx
+.Op Ar argument ...
+.Nm csh
+.Op Fl l
+.Sh DESCRIPTION
+.Nm
+is a command language interpreter
+incorporating a history mechanism (see
+.Sx History substitutions ) ,
+job control facilities (see
+.Sx Jobs ) ,
+interactive file name
+and user name completion (see
+.Sx File name completion ) ,
+and a C-like syntax.
+It is used both as an interactive
+login shell and a shell script command processor.
+.Ss Argument list processing
+If the first argument (argument 0) to the shell is a dash
+.Pq Sq \- ,
+then this is a login shell.
+A login shell also can be specified by invoking the shell with the
+.Fl l
+flag as the only argument.
+.Pp
+The rest of the flag arguments are interpreted as follows:
+.Bl -tag -width 5n
+.It Fl b
+This flag forces a
+.Dq break
+from option processing, causing any further
+shell arguments to be treated as non-option arguments.
+The remaining arguments will not be interpreted as shell options.
+This may be used to pass options to a shell script without confusion
+or possible subterfuge.
+The shell will not run a set-user-ID script without this option.
+.It Fl c
+Commands are read from the (single) following argument which must
+be present.
+Any remaining arguments are placed in
+.Ar argv .
+.It Fl e
+The shell exits if any invoked command terminates abnormally
+or yields a non-zero exit status.
+.It Fl f
+The shell will start faster, because it will not execute user or
+system startup files, load saved history or perform command hashing.
+Note: if the environment variable
+.Ev HOME
+is not set, fast startup is the default.
+.It Fl i
+The shell is interactive and prompts for its top-level input,
+even if it appears not to be a terminal.
+Shells are interactive without this option if their inputs
+and outputs are terminals.
+.It Fl l
+The shell is a login shell (only applicable if
+.Fl l
+is the only flag specified).
+.It Fl m
+Read
+.Pa .cshrc ,
+regardless of its owner and group.
+This option is dangerous and should only be used by
+.Xr su 1 .
+.It Fl n
+Commands are parsed, but not executed.
+This aids in syntactic checking of shell scripts.
+When used interactively, the
+shell can be terminated by pressing control-D (end-of-file character), since
+.Ic exit
+will not work.
+.It Fl s
+Command input is taken from the standard input.
+.It Fl t
+A single line of input is read and executed.
+A backslash
+.Pq Ql \e
+may be used to escape the newline at the end of this
+line and continue onto another line.
+.It Fl V
+Causes the
+.Va verbose
+variable to be set even before
+.Pa .cshrc
+is executed.
+.It Fl v
+Causes the
+.Va verbose
+variable to be set, with the effect
+that command input is echoed after history substitution.
+.It Fl X
+Causes the
+.Va echo
+variable to be set even before
+.Pa .cshrc
+is executed.
+.It Fl x
+Causes the
+.Va echo
+variable to be set, so that commands are echoed immediately before execution.
+.El
+.Pp
+After processing of flag arguments, if arguments remain but none of the
+.Fl c ,
+.Fl i ,
+.Fl s ,
+or
+.Fl t
+options were given, the first argument is taken as the name of a file of
+commands to be executed.
+The shell opens this file, and saves its name for possible resubstitution
+by
+.Sq $0 .
+Since many systems use either the standard version 6 or version 7 shells
+whose shell scripts are not compatible with this shell, the shell will
+execute such a
+.Dq standard
+shell if the first character of a script
+is not a hash mark
+.Pq Ql # ;
+i.e., if the script does not start with a comment.
+Remaining arguments initialize the variable
+.Va argv .
+.Pp
+An instance of
+.Nm
+begins by executing commands from the file
+.Pa /etc/csh.cshrc
+and,
+if this is a login shell,
+.Pa /etc/csh.login .
+It then executes
+commands from
+.Pa .cshrc
+in the home directory of the invoker,
+and, if this is a login shell, the file
+.Pa .login
+in the same location.
+It is typical for users on CRTs to put the command
+.Ic stty crt
+in their
+.Pa .login
+file, and to also invoke
+.Xr tset 1
+there.
+.Pp
+In the normal case, the shell will begin reading commands from the
+terminal, prompting with
+.Sq "% " .
+Processing of arguments and the use of the shell to process files
+containing command scripts will be described later.
+.Pp
+The shell repeatedly performs the following actions:
+a line of command input is read and broken into
+.Dq words .
+This sequence of words is placed on the command history list and parsed.
+Finally each command in the current line is executed.
+.Pp
+When a login shell terminates, it executes commands from the files
+.Pa .logout
+in the user's home directory and
+.Pa /etc/csh.logout .
+.Ss Lexical structure
+The shell splits input lines into words at blanks and tabs with the
+following exceptions.
+The characters
+.Ql & ,
+.Ql | ,
+.Ql \&; ,
+.Ql < ,
+.Ql > ,
+.Ql \&( ,
+and
+.Ql \&)
+form separate words.
+If doubled in
+.Ql && ,
+.Ql || ,
+.Ql << ,
+or
+.Ql >> ,
+these pairs form single words.
+These parser metacharacters may be made part of other words, or have their
+special meaning prevented, by preceding them with a backslash
+.Pq Ql \e .
+A newline preceded by a
+.Ql \e
+is equivalent to a blank.
+.Pp
+Strings enclosed in matched pairs of quotations,
+.Ql \(aq ,
+.Ql \` ,
+or
+.Ql \&" ,
+form parts of a word; metacharacters in these strings, including blanks
+and tabs, do not form separate words.
+These quotations have semantics to be described later.
+Within pairs of
+.Ql \(aq
+or
+.Ql \&"
+characters, a newline preceded by a
+.Ql \e
+gives
+a true newline character.
+.Pp
+When the shell's input is not a terminal,
+the character
+.Ql #
+introduces a comment that continues to the end of the
+input line.
+This special meaning is prevented when preceded by
+.Ql \e
+and in quotations using
+.Ql \` ,
+.Ql \(aq ,
+and
+.Ql \&" .
+.Ss Commands
+A simple command is a sequence of words, the first of which
+specifies the command to be executed.
+A simple command or
+a sequence of simple commands separated by
+.Ql |
+characters forms a pipeline.
+The output of each command in a pipeline is connected to the input of the next.
+Sequences of pipelines may be separated by
+.Ql \&; ,
+and are then executed sequentially.
+A sequence of pipelines may be executed without immediately
+waiting for it to terminate by following it with a
+.Ql & .
+.Pp
+Any of the above may be placed in
+.Ql \&(
+.Ql \&)
+to form a simple command (that
+may be a component of a pipeline, for example).
+It is also possible to separate pipelines with
+.Ql ||
+or
+.Ql &&
+showing,
+as in the C language,
+that the second is to be executed only if the first fails or succeeds,
+respectively.
+(See
+.Em Expressions . )
+.Ss Jobs
+The shell associates a
+.Em job
+with each pipeline.
+It keeps a table of current jobs, printed by the
+.Ic jobs
+command, and assigns them small integer numbers.
+When a job is started asynchronously with
+.Ql & ,
+the shell prints a line that looks
+like:
+.Bd -filled -offset indent
+.Op 1
+1234
+.Ed
+.Pp
+showing that the job which was started asynchronously was job number
+1 and had one (top-level) process, whose process ID was 1234.
+.Pp
+If you are running a job and wish to do something else you may hit
+.Ic ^Z
+(control-Z), which sends a
+.Dv SIGSTOP
+signal to the current job.
+The shell will then normally show that the job has been
+.Dq Stopped ,
+and print another prompt.
+You can then manipulate the state of this job, putting it in the
+.Em background
+with the
+.Ic bg
+command, or run some other
+commands and eventually bring the job back into the
+.Em foreground
+with the
+.Ic fg
+command.
+A
+.Ic ^Z
+takes effect immediately and
+is like an interrupt in that pending output and unread input are discarded
+when it is typed.
+There is another special key
+.Ic ^Y
+that does not generate a
+.Dv SIGSTOP
+signal until a program attempts to
+.Xr read 2
+it.
+This request can usefully be typed ahead when you have prepared some commands
+for a job that you wish to stop after it has read them.
+.Pp
+A job being run in the background will stop if it tries to read
+from the terminal.
+Background jobs are normally allowed to produce output,
+but this can be disabled by giving the command
+.Ic stty tostop .
+If you set this
+tty option, then background jobs will stop when they try to produce
+output like they do when they try to read input.
+.Pp
+There are several ways to refer to jobs in the shell.
+The character
+.Ql %
+introduces a job name.
+If you wish to refer to job number 1, you can name it as
+.Ql %1 .
+Just naming a job brings it to the foreground; thus
+.Ic %1
+is a synonym for
+.Ic fg %1 ,
+bringing job number 1 back into the foreground.
+Similarly, saying
+.Ic %1 &
+resumes job number 1 in the background.
+Jobs can also be named by prefixes of the string typed in to start them,
+if these prefixes are unambiguous; thus
+.Ic %ex
+would normally restart a suspended
+.Xr ex 1
+job, if there were only one suspended job whose name began with
+the string
+.Qq ex .
+It is also possible to say
+.Ic %?string ,
+which specifies a job whose text contains
+.Ar string ,
+if there is only one such job.
+.Pp
+The shell maintains a notion of the current and previous jobs.
+In output about jobs, the current job is marked with a
+.Ql +
+and the previous job with a
+.Ql \- .
+The abbreviation
+.Ql %+
+refers to the current job and
+.Ql %\-
+refers to the previous job.
+For close analogy with the syntax of the
+.Ic history
+mechanism (described below),
+.Ql %%
+is also a synonym for the current job.
+.Pp
+The job control mechanism requires that the
+.Xr stty 1
+option
+.Ic new
+be set.
+It is an artifact from a
+.Em new
+implementation
+of the
+tty driver that allows generation of interrupt characters from
+the keyboard to tell jobs to stop.
+See
+.Xr stty 1
+for details
+on setting options in the new tty driver.
+.Ss Status reporting
+The shell learns immediately whenever a process changes state.
+It normally informs you whenever a job becomes blocked so that
+no further progress is possible, but only just before it prints
+a prompt.
+This is done so that it does not otherwise disturb your work.
+If, however, you set the shell variable
+.Va notify ,
+the shell will notify you immediately of changes of status in background
+jobs.
+There is also a shell command
+.Ic notify
+that marks a single process so that its status changes will be immediately
+reported.
+By default
+.Ic notify
+marks the current process;
+simply say
+.Ic notify
+after starting a background job to mark it.
+.Pp
+When you try to leave the shell while jobs are stopped, you will
+be warned that
+.Dq You have stopped jobs .
+You may use the
+.Ic jobs
+command to see what they are.
+If you try to exit again immediately,
+the shell will not warn you a second time, and the suspended
+jobs will be terminated.
+.Ss File name completion
+When the file name completion feature is enabled by setting
+the shell variable
+.Va filec
+(see
+.Ic set ) ,
+.Nm
+will
+interactively complete file names and user names from unique
+prefixes when they are input from the terminal followed by
+the escape character (the escape key, or control-[).
+For example,
+if the current directory looks like
+.Bd -literal -offset indent
+DSC.OLD  bin      cmd      lib      xmpl.c
+DSC.NEW  chaosnet cmtest   mail     xmpl.o
+bench    class    dev      mbox     xmpl.out
+.Ed
+.Pp
+and the input is
+.Pp
+.Dl % vi ch<escape>
+.Pp
+.Nm
+will complete the prefix
+.Dq ch
+to the only matching file name
+.Dq chaosnet ,
+changing the input line to
+.Pp
+.Dl % vi chaosnet
+.Pp
+However, given
+.Pp
+.Dl % vi D<escape>
+.Pp
+.Nm
+will only expand the input to
+.Pp
+.Dl % vi DSC.
+.Pp
+and will sound the terminal bell to indicate that the expansion is
+incomplete, since there are two file names matching the prefix
+.Ql D .
+.Pp
+If a partial file name is followed by the end-of-file character
+(usually control-D), then, instead of completing the name,
+.Nm
+will list all file names matching the prefix.
+For example, the input
+.Pp
+.Dl % vi D<control-D>
+.Pp
+causes all files beginning with
+.Ql D
+to be listed:
+.Pp
+.Dl DSC.NEW	DSC.OLD
+.Pp
+while the input line remains unchanged.
+.Pp
+The same system of escape and end-of-file can also be used to
+expand partial user names, if the word to be completed
+(or listed) begins with the tilde character
+.Pq Ql ~ .
+For example, typing
+.Pp
+.Dl cd ~ro<escape>
+.Pp
+may produce the expansion
+.Pp
+.Dl cd ~root
+.Pp
+The use of the terminal bell to signal errors or multiple matches
+can be inhibited by setting the variable
+.Va nobeep .
+.Pp
+Normally, all files in the particular directory are candidates
+for name completion.
+Files with certain suffixes can be excluded
+from consideration by setting the variable
+.Va fignore
+to the
+list of suffixes to be ignored.
+Thus, if
+.Va fignore
+is set by
+the command
+.Pp
+.Dl % set fignore = (.o .out)
+.Pp
+then typing
+.Pp
+.Dl % vi x<escape>
+.Pp
+would result in the completion to
+.Pp
+.Dl % vi xmpl.c
+.Pp
+ignoring the files
+.Qq xmpl.o
+and
+.Qq xmpl.out .
+However, if the only completion possible requires not ignoring these
+suffixes, then they are not ignored.
+In addition,
+.Va fignore
+does not affect the listing of file names by control-D.
+All files are listed regardless of their suffixes.
+.Ss Substitutions
+We now describe the various transformations the shell performs on the
+input in the order in which they occur.
+.Ss History substitutions
+History substitutions place words from previous command input as portions
+of new commands, making it easy to repeat commands, repeat arguments
+of a previous command in the current command, or fix spelling mistakes
+in the previous command with little typing and a high degree of confidence.
+History substitutions begin with the character
+.Ql \&!
+and may begin
+.Em anywhere
+in the input stream (with the proviso that they do
+.Em not
+nest).
+This
+.Ql \&!
+may be preceded by a
+.Ql \e
+to prevent its special meaning; for
+convenience, a
+.Ql \&!
+character is passed unchanged when it is followed by a blank,
+tab, newline,
+.Ql =
+or
+.Ql \&( .
+(History substitutions also occur when an input line begins with
+.Ql ^ .
+This special abbreviation will be described later.)
+Any input line that contains history substitution is echoed on the terminal
+before it is executed as it would have been typed without history substitution.
+.Pp
+Commands input from the terminal that consist of one or more words
+are saved on the history list.
+The history substitutions reintroduce sequences of words from these
+saved commands into the input stream.
+The size of the history list is controlled by the
+.Va history
+variable; the previous command is always retained,
+regardless of the value of the history variable.
+Commands are numbered sequentially from 1.
+.Pp
+For definiteness, consider the following output from the
+.Ic history
+command:
+.Bd -literal -offset indent
+09  write michael
+10  ex write.c
+11  cat oldwrite.c
+12  diff *write.c
+.Ed
+.Pp
+The commands are shown with their event numbers.
+It is not usually necessary to use event numbers, but the current event
+number can be made part of the prompt by placing a
+.Ql \&!
+in the prompt string.
+.Pp
+With the current event 13 we can refer to previous events by event
+number
+.Ql !11 ,
+relatively as in
+.Ql !\-2
+(referring to the same event),
+by a prefix of a command word
+as in
+.Ql !d
+for event 12 or
+.Ql !wri
+for event 9, or by a string contained in
+a word in the command as in
+.Ql !?mic?
+also referring to event 9.
+These forms, without further change, simply reintroduce the words
+of the specified events, each separated by a single blank.
+As a special case,
+.Ql !!
+refers to the previous command; thus
+.Ql !!
+alone is a
+.Em redo .
+.Pp
+To select words from an event we can follow the event specification by
+a
+.Ql \&:
+and a designator for the desired words.
+The words of an input line are numbered from 0,
+the first (usually command) word being 0, the second word (first argument)
+being 1, etc.
+The basic word designators are:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It \&0
+first (command) word
+.It Ar n
+.Ar n Ns 'th
+argument
+.It ^
+first argument; i.e.,
+.Ql 1
+.It $
+last argument
+.It %
+word matched by (immediately preceding)
+.No \&? Ns Ar s Ns ?\&
+search
+.It Ar \&x\-y
+range of words
+.It Ar \&\-y
+abbreviates
+.Ql \&0\-y
+.It *
+abbreviates
+.Ql ^\-$ ,
+or nothing if only 1 word in event
+.It Ar x*
+abbreviates
+.Ql x\-$
+.It Ar x\-
+like
+.Ql x*
+but omitting word
+.Ql $
+.El
+.Pp
+The
+.Ql \&:
+separating the event specification from the word designator
+can be omitted if the argument selector begins with a
+.Ql ^ ,
+.Ql $ ,
+.Ql * ,
+.Ql \- ,
+or
+.Ql % .
+After the optional word designator,
+a sequence of modifiers can be placed, each preceded by a
+.Ql \&: .
+The following modifiers are defined:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It h
+Remove a trailing pathname component, leaving the head.
+.It r
+Remove a trailing
+.Ql .xxx
+component, leaving the root name.
+.It e
+Remove all but the extension
+.Ql .xxx
+part.
+.It s Ns Ar /l/r/
+Substitute
+.Ar l
+for
+.Ar r .
+.It t
+Remove all leading pathname components, leaving the tail.
+.It \&&
+Repeat the previous substitution.
+.It g
+Apply the change once on each word, prefixing the above; e.g.,
+.Ql g& .
+.It a
+Apply the change as many times as possible on a single word, prefixing
+the above.
+It can be used together with
+.Ql g
+to apply a substitution globally.
+.It p
+Print the new command line but do not execute it.
+.It q
+Quote the substituted words, preventing further substitutions.
+.It x
+Like
+.Ql q ,
+but break into words at blanks, tabs, and newlines.
+.El
+.Pp
+Unless preceded by a
+.Ql g ,
+the change is applied only to the first
+modifiable word.
+With substitutions, it is an error for no word to be applicable.
+.Pp
+The left-hand side of substitutions are not regular expressions in the sense
+of the editors, but instead strings.
+Any character may be used as the delimiter in place of
+.Ql / ;
+a
+.Ql \e
+quotes the delimiter into the
+.Ar l
+and
+.Ar r
+strings.
+The character
+.Ql &
+in the right-hand side is replaced by the text from
+the left.
+A
+.Ql \e
+also quotes
+.Ql & .
+A
+.Dv NULL
+.Ar l
+.Pq Ql //
+uses the previous string either from an
+.Ar l
+or from a
+contextual scan string
+.Ar s
+in
+.Ql !? Ns Ar s Ns \e? .
+The trailing delimiter in the substitution may be omitted if a newline
+follows immediately as may the trailing
+.Ql \&?
+in a contextual scan.
+.Pp
+A history reference may be given without an event specification; e.g.,
+.Ql !$ .
+Here, the reference is to the previous command unless a previous
+history reference occurred on the same line in which case this form repeats
+the previous reference.
+Thus
+.Dq !?foo?^ !$
+gives the first and last arguments
+from the command matching
+.Dq ?foo? .
+.Pp
+A special abbreviation of a history reference occurs when the first
+non-blank character of an input line is a
+.Ql ^ .
+This is equivalent to
+.Dq !:s^
+providing a convenient shorthand for substitutions
+on the text of the previous line.
+Thus
+.Ic ^lb^lib
+fixes the spelling of
+.Dq lib
+in the previous command.
+Finally, a history substitution may be surrounded with
+.Ql {
+and
+.Ql }
+if necessary to insulate it from the characters that follow.
+Thus, after
+.Ic ls \-ld ~paul
+we might do
+.Ic !{l}a
+to do
+.Ic ls \-ld ~paula ,
+while
+.Ic !la
+would look for a command starting with
+.Dq la .
+.Ss Quotations with \(aq and \&"
+The quotation of strings by
+.Ql \(aq
+and
+.Ql \&"
+can be used
+to prevent all or some of the remaining substitutions.
+Strings enclosed in
+.Ql \(aq
+are prevented from any further interpretation.
+Strings enclosed in
+.Ql \&"
+may be expanded as described below.
+.Pp
+In both cases the resulting text becomes (all or part of) a single word;
+only in one special case (see
+.Em Command Substitution
+below) does a
+.Ql \&"
+quoted string yield parts of more than one word;
+.Ql \(aq
+quoted strings never do.
+.Ss Alias substitution
+The shell maintains a list of aliases that can be established, displayed
+and modified by the
+.Ic alias
+and
+.Ic unalias
+commands.
+After a command line is scanned, it is parsed into distinct commands and
+the first word of each command, left-to-right, is checked to see if it
+has an alias.
+If it does, then the text that is the alias for that command is reread
+with the history mechanism available
+as though that command were the previous input line.
+The resulting words replace the
+command and argument list.
+If no reference is made to the history list, then the argument list is
+left unchanged.
+.Pp
+Thus if the alias for
+.Dq ls
+is
+.Dq ls \-l ,
+the command
+.Ic ls /usr
+would map to
+.Ic ls \-l /usr ,
+the argument list here being undisturbed.
+Similarly, if the alias for
+.Dq lookup
+was
+.Dq grep !^ /etc/passwd
+then
+.Ic lookup bill
+would map to
+.Ic grep bill /etc/passwd .
+.Pp
+If an alias is found, the word transformation of the input text
+is performed and the aliasing process begins again on the reformed input line.
+Looping is prevented if the first word of the new text is the same as the old
+by flagging it to prevent further aliasing.
+Other loops are detected and cause an error.
+.Pp
+Note that the mechanism allows aliases to introduce parser metasyntax.
+Thus, we can
+.Ic alias print 'pr \e!* \&| lpr'
+to make a command that
+.Ic pr Ns 's
+its arguments to the line printer.
+.Ss Variable substitution
+The shell maintains a set of variables, each of which has as value a list
+of zero or more words.
+Some of these variables are set by the shell or referred to by it.
+For instance, the
+.Va argv
+variable is an image of the shell's argument list, and words of this
+variable's value are referred to in special ways.
+.Pp
+The values of variables may be displayed and changed by using the
+.Ic set
+and
+.Ic unset
+commands.
+Of the variables referred to by the shell a number are toggles;
+the shell does not care what their value is,
+only whether they are set or not.
+For instance, the
+.Va verbose
+variable is a toggle that causes command input to be echoed.
+The setting of this variable results from the
+.Fl v
+command-line option.
+.Pp
+Other operations treat variables numerically.
+The
+.Ic @
+command permits numeric calculations to be performed and the result
+assigned to a variable.
+Variable values are, however, always represented as (zero or more) strings.
+For the purposes of numeric operations, the null string is considered to be
+zero, and the second and additional words of multiword values are ignored.
+.Pp
+After the input line is aliased and parsed, and before each command
+is executed, variable substitution
+is performed, keyed by
+.Ql $
+characters.
+This expansion can be prevented by preceding the
+.Ql $
+with a
+.Ql \e
+except
+within double quotes
+.Pq Ql \&" ,
+where it
+.Em always
+occurs, and within single quotes
+.Pq Ql \(aq ,
+where it
+.Em never
+occurs.
+Strings quoted by backticks
+.Pq \` \`
+are interpreted later (see
+.Sx Command substitution
+below), so
+.Ql $
+substitution does not occur there until later, if at all.
+A
+.Ql $
+is passed unchanged if followed by a blank, tab, or end-of-line.
+.Pp
+Input/output redirections are recognized before variable expansion,
+and are variable expanded separately.
+Otherwise, the command name and entire argument list are expanded together.
+It is thus possible for the first (command) word (to this point) to generate
+more than one word, the first of which becomes the command name,
+and the rest of which become arguments.
+.Pp
+Unless enclosed in
+.Ql \&"
+or given the
+.Ql :q
+modifier, the results of variable
+substitution may eventually be command and filename substituted.
+Within
+.Ql \&" ,
+a variable whose value consists of multiple words expands to
+(a portion of) a single word, with the words of the variable's value
+separated by blanks.
+When the
+.Ql :q
+modifier is applied to a substitution,
+the variable will expand to multiple words with each word separated
+by a blank and quoted to prevent later command or filename substitution.
+.Pp
+The following metasequences are provided for introducing variable values into
+the shell input.
+Except as noted, it is an error to reference a variable that is not set.
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It $name
+.It ${name}
+Are replaced by the words of the value of variable
+.Ar name ,
+each separated by a blank.
+Braces insulate
+.Ar name
+from following characters that would otherwise be part of it.
+Shell variables have names consisting of up to 20 letters and digits
+starting with a letter.
+The underscore character is considered a letter.
+If
+.Ar name
+is not a shell variable, but is set in the environment, then
+that value is returned (but
+.Ql \&:
+modifiers and the other forms
+given below are not available here).
+.It $name Ns Op selector
+.It ${name Ns [ selector ] Ns }
+May be used to select only some of the words from the value of
+.Ar name .
+The selector is subjected to
+.Ql $
+substitution and may consist of a single
+number or two numbers separated by a
+.Ql \- .
+The first word of a variable's value is numbered
+.Ql 1 .
+If the first number of a range is omitted, it defaults to
+.Ql 1 .
+If the last number of a range is omitted, it defaults to
+.Ql $#name .
+The selector
+.Ql *
+selects all words.
+It is not an error for a range to be empty if the second argument is omitted
+or in range.
+.It $#name
+.It ${#name}
+Gives the number of words in the variable.
+This is useful for later use in a
+.Dq $argv[selector] .
+.It $0
+Substitutes the name of the file from which command input is being read.
+An error occurs if the name is not known.
+.It $number
+.It ${number}
+Equivalent to
+.Dq $argv[number] .
+.It $*
+Equivalent to
+.Dq $argv[*] .
+.El
+.Pp
+The modifiers
+.Ql :e ,
+.Ql :h ,
+.Ql :t ,
+.Ql :r ,
+.Ql :q ,
+and
+.Ql :x
+may be applied to
+the substitutions above as may
+.Ql :gh ,
+.Ql :gt ,
+and
+.Ql :gr .
+If braces
+.Ql {
+.Ql }
+appear in the command form then the modifiers
+must appear within the braces.
+The current implementation allows only one
+.Ql \&:
+modifier on each
+.Ql $
+expansion.
+.Pp
+The following substitutions may not be modified with
+.Ql \&:
+modifiers.
+.Bl -tag -width Ds -compact -offset indent
+.It $?name
+.It ${?name}
+Substitutes the string
+.Dq 1
+if name is set,
+.Dq 0
+if it is not.
+.It $?0
+Substitutes
+.Ql 1
+if the current input filename is known,
+.Ql 0
+if it is not.
+.It \&$\&$\&
+Substitute the (decimal) process number of the (parent) shell.
+Do
+.Em NOT
+use this mechanism for generating temporary file names; see
+.Xr mktemp 1
+instead.
+.It $!
+Substitute the (decimal) process number of the last background process
+started by this shell.
+.It $<
+Substitutes a line from the standard
+input, with no further interpretation.
+It can be used to read from the keyboard in a shell script.
+.El
+.Ss Command and filename substitution
+The remaining substitutions, command and filename substitution,
+are applied selectively to the arguments of built-in commands.
+By selectively, we mean that portions of expressions which are
+not evaluated are not subjected to these expansions.
+For commands that are not internal to the shell, the command
+name is substituted separately from the argument list.
+This occurs very late,
+after input-output redirection is performed, and in a child
+of the main shell.
+.Ss Command substitution
+Command substitution is shown by a command enclosed in
+.Ql \` .
+The output from such a command is normally broken into separate words
+at blanks, tabs, and newlines, with null words being discarded;
+this text then replaces the original string.
+Within double quotes
+.Pq Ql \&" ,
+only newlines force new words;
+blanks and tabs are preserved.
+.Pp
+In any case, the single final newline does not force a new word.
+Note that it is thus possible for a command substitution to yield
+only part of a word, even if the command outputs a complete line.
+.Ss Filename substitution
+If a word contains any of the characters
+.Ql * ,
+.Ql \&? ,
+.Ql \&[ ,
+or
+.Ql { ,
+or begins with the character
+.Ql ~ ,
+then that word is a candidate for
+filename substitution, also known as
+.Dq globbing .
+This word is then regarded as a pattern, and replaced with an alphabetically
+sorted list of file names that match the pattern.
+In a list of words specifying filename substitution it is an error for
+no pattern to match an existing file name, but it is not required
+for each pattern to match.
+Only the metacharacters
+.Ql * ,
+.Ql \&? ,
+and
+.Ql \&[
+imply pattern matching,
+the characters
+.Ql ~
+and
+.Ql {
+being more akin to abbreviations.
+.Pp
+In matching filenames, the character
+.Ql \&.
+at the beginning of a filename
+or immediately following a
+.Ql / ,
+as well as the character
+.Ql /
+must be matched explicitly.
+The character
+.Ql *
+matches any string of characters, including the null
+string.
+The character
+.Ql \&?
+matches any single character.
+.Pp
+The sequence
+.Dq Op ...
+matches any one of the characters enclosed.
+Within
+.Dq Op ... ,
+a pair of characters separated by
+.Ql \-
+matches any character lexically between
+the two (inclusive).
+Within
+.Dq Op ... ,
+the name of a
+.Em character class
+enclosed in
+.Sq [:
+and
+.Sq :]
+stands for the list of all characters belonging to that class.
+Supported character classes:
+.Bd -literal -offset indent
+alnum	cntrl	lower	space
+alpha	digit	print	upper
+blank	graph	punct	xdigit
+.Ed
+.Pp
+These match characters using the macros specified in
+.Xr isalnum 3 ,
+.Xr isalpha 3 ,
+and so on.
+A character class may not be used as an endpoint of a range.
+.Pp
+The character
+.Ql ~
+at the beginning of a filename refers to home
+directories.
+Standing alone, i.e.,
+.Ql ~ ,
+it expands to the invoker's home directory as reflected
+in the value of the variable
+.Ar home .
+When followed by a name consisting of letters, digits, and
+.Ql \-
+characters,
+the shell searches for a user with that name and substitutes their
+home directory; thus
+.Dq ~ken
+might expand to
+.Dq /usr/ken
+and
+.Dq ~ken/chmach
+to
+.Dq /usr/ken/chmach .
+If the character
+.Ql ~
+is followed by a character other than a letter or
+.Ql / ,
+or does not appear at the beginning of a word,
+it is left undisturbed.
+.Pp
+The metanotation
+.Dq a{b,c,d}e
+is a shorthand for
+.Dq abe ace ade .
+Left to right order is preserved, with results of matches being sorted
+separately at a low level to preserve this order.
+This construct may be nested.
+Thus,
+.Dq ~source/s1/{oldls,ls}.c
+expands to
+.Dq /usr/source/s1/oldls.c /usr/source/s1/ls.c
+without chance of error
+if the home directory for
+.Dq source
+is
+.Dq /usr/source .
+Similarly
+.Dq ../{memo,*box}
+might expand to
+.Dq ../memo ../box ../mbox .
+(Note that
+.Dq memo
+was not sorted with the results of the match to
+.Dq *box . )
+As a special case
+.Ql { ,
+.Ql } ,
+and
+.Ql {}
+are passed undisturbed.
+.Ss Input/output
+The standard input and the standard output of a command may be redirected
+with the following syntax:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It < name
+Open file
+.Ar name
+(which is first variable, command, and filename expanded) as the standard
+input.
+.It << word
+Read the shell input up to a line that is identical to
+.Ar word .
+.Ar word
+is not subjected to variable, command, or filename substitution,
+and each input line is compared to
+.Ar word
+before any substitutions are done on the input line.
+Unless a quoting
+.Ql \e ,
+.Ql \&" ,
+.Ql \(aq
+or
+.Ql \`
+appears in
+.Ar word ,
+variable and command substitution is performed on the intervening lines,
+allowing
+.Ql \e
+to quote
+.Ql $ ,
+.Ql \e
+and
+.Ql \` .
+Commands that are substituted have all blanks, tabs, and newlines
+preserved, except for the final newline which is dropped.
+The resultant text is placed in an anonymous temporary file that
+is given to the command as its standard input.
+.It > name
+.It >! name
+.It >& name
+.It >&! name
+The file
+.Ar name
+is used as the standard output.
+If the file does not exist then it is created;
+if the file exists, it is truncated; its previous contents are lost.
+.Pp
+If the variable
+.Va noclobber
+is set, then the file must not exist or be a character special file (e.g., a
+terminal or
+.Pa /dev/null )
+or an error results.
+This helps prevent accidental destruction of files.
+Here, the
+.Ql \&!
+forms can be used to suppress this check.
+.Pp
+The forms involving
+.Ql &
+route the standard error output into the specified
+file as well as the standard output.
+.Ar name
+is expanded in the same way as
+.Ql <
+input filenames are.
+.It >> name
+.It >>& name
+.It >>! name
+.It >>&! name
+Uses file
+.Ar name
+as the standard output;
+like
+.Ql >
+but places output at the end of the file.
+If the variable
+.Va noclobber
+is set, then it is an error for the file not to exist unless
+one of the
+.Ql \&!
+forms is given.
+Otherwise similar to
+.Ql > .
+.El
+.Pp
+A command receives the environment in which the shell was
+invoked as modified by the input-output parameters and
+the presence of the command in a pipeline.
+Thus, unlike some previous shells, commands run from a file of shell commands
+have no access to the text of the commands by default;
+instead they receive the original standard input of the shell.
+The
+.Ql <<
+mechanism should be used to present inline data.
+This permits shell command scripts to function as components of pipelines
+and allows the shell to block read its input.
+Note that the default standard input for a command run detached is
+.Ar not
+modified to be the empty file
+.Pa /dev/null ;
+instead the standard input
+remains as the original standard input of the shell.
+If this is a terminal
+and if the process attempts to read from the terminal, then the process
+will block and the user will be notified (see
+.Sx Jobs
+above).
+.Pp
+The standard error output may be directed through
+a pipe with the standard output.
+Simply use the form
+.Ql |&
+instead of just
+.Ql | .
+.Ss Expressions
+Several of the built-in commands (to be described later)
+take expressions, in which the operators are similar to those of C, with
+the same precedence, but with the
+.Em opposite grouping :
+right to left.
+These expressions appear in the
+.Ic @ ,
+.Ic exit ,
+.Ic if ,
+and
+.Ic while
+commands.
+The following operators are available:
+.Bd -ragged -offset indent
+||  &&  |  ^  &  ==  !=  =~  !~  <=  >=
+<  > <<  >>  +  \-  *  /  %  !  ~  (  )
+.Ed
+.Pp
+Here the precedence increases to the right,
+.Ql ==
+.Ql !=
+.Ql =~
+and
+.Ql !~ ,
+.Ql <=
+.Ql >=
+.Ql <
+and
+.Ql > ,
+.Ql <<
+and
+.Ql >> ,
+.Ql +
+and
+.Ql \- ,
+.Ql *
+.Ql /
+and
+.Ql %
+being, in groups, at the same level.
+The
+.Ql ==
+.Ql !=
+.Ql =~
+and
+.Ql !~
+operators compare their arguments as strings;
+all others operate on numbers.
+The operators
+.Ql =~
+and
+.Ql !~
+are like
+.Ql !=
+and
+.Ql ==
+except that the right
+hand side is a
+.Ar pattern
+(containing, e.g., *'s, ?'s, and instances of
+.Dq [...] )
+against which the left-hand operand is matched.
+This reduces the need for use of the
+.Ar switch
+statement in shell scripts when all that is really needed is pattern matching.
+.Pp
+Strings that begin with
+.Ql 0
+are considered octal numbers.
+Null or missing arguments are considered
+.Ql 0 .
+The results of all expressions are strings,
+which represent decimal numbers.
+It is important to note that no two components of an expression can appear
+in the same word; except when adjacent to components of expressions that
+are syntactically significant to the parser
+.Po
+.Ql & ,
+.Ql | ,
+.Ql < ,
+.Ql > ,
+.Ql \&( ,
+and
+.Ql \&)
+.Pc ,
+they should be surrounded by spaces.
+.Pp
+Also available in expressions as primitive operands are command executions
+enclosed in
+.Ql {
+and
+.Ql }
+and file enquiries of the form
+.Fl l
+.Ar name
+where
+.Ic l
+is one of:
+.Bd -literal -offset indent
+r	read access
+w	write access
+x	execute access
+e	existence
+o	ownership
+z	zero size
+f	plain file
+d	directory
+p	named pipe (FIFO)
+l	symbolic link
+.\" Intentionally undocumented since it is incompatible with tcsh:
+.\" s	socket
+.Ed
+.Pp
+The specified name is command and filename expanded and then tested
+to see if it has the specified relationship to the real user.
+If the file does not exist or is inaccessible then all enquiries return
+false, i.e.,
+.Ql 0 .
+Command executions succeed, returning true, i.e.,
+.Ql 1 ,
+if the command exits with status 0, otherwise they fail, returning
+false, i.e.,
+.Ql 0 .
+If more detailed status information is required then the command
+should be executed outside an expression and the variable
+.Ar status
+examined.
+.Ss Control flow
+The shell contains several commands that can be used to regulate the
+flow of control in command files (shell scripts) and
+(in limited but useful ways) from terminal input.
+These commands all operate by forcing the shell to reread or skip in its
+input and, because of the implementation, restrict the placement of some
+of the commands.
+.Pp
+The
+.Ic foreach ,
+.Ic switch ,
+and
+.Ic while
+statements, as well as the
+.Ic if\-then\-else
+form of the
+.Ic if
+statement require that the major keywords appear in a single simple command
+on an input line as shown below.
+.Pp
+If the shell's input is not seekable,
+the shell buffers up input whenever a loop is being read
+and performs seeks in this internal buffer to accomplish the rereading
+implied by the loop.
+(To the extent that this allows, backward goto's will succeed on
+non-seekable inputs.)
+.Ss Built-in commands
+Built-in commands are executed within the shell.
+If a built-in command occurs as any component of a pipeline
+except the last then it is executed in a sub-shell.
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ic alias
+.It Ic alias Ar name
+.It Ic alias Ar name wordlist
+The first form prints all aliases.
+The second form prints the alias for name.
+The final form assigns the specified
+.Ar wordlist
+as the alias of
+.Ar name ;
+.Ar wordlist
+is command and filename substituted.
+.Ar name
+is not allowed to be
+.Dq alias
+or
+.Dq unalias .
+.Pp
+.It Ic bg
+.It Ic bg \&% Ns Ar job ...
+Puts the current or specified jobs into the background, continuing them
+if they were stopped.
+.Pp
+.It Ic break
+Causes execution to resume after the
+.Ic end
+of the nearest enclosing
+.Ic foreach
+or
+.Ic while .
+The remaining commands on the current line are executed.
+Multi-level breaks are thus possible by writing them all on one line.
+.Pp
+.It Ic breaksw
+Causes a break from a
+.Ic switch ,
+resuming after the
+.Ic endsw .
+.Pp
+.It Ic case Ar label :
+A label in a
+.Ic switch
+statement as discussed below.
+.Pp
+.It Ic cd
+.It Ic cd Ar name
+.It Ic chdir
+.It Ic chdir Ar name
+Change the shell's working directory to directory
+.Ar name .
+If no argument is given then change to the home directory of the user.
+If
+.Ar name
+is not found as a subdirectory of the current directory (and does not begin
+with
+.Ql / ,
+.Ql ./
+or
+.Ql ../ ) ,
+then each
+component of the variable
+.Va cdpath
+is checked to see if it has a subdirectory
+.Ar name .
+Finally, if all else fails but
+.Ar name
+is a shell variable whose value begins with
+.Ql / ,
+then this
+is tried to see if it is a directory.
+.Pp
+.It Ic continue
+Continue execution of the nearest enclosing
+.Ic while
+or
+.Ic foreach .
+The rest of the commands on the current line are executed.
+.Pp
+.It Ic default :
+Labels the default case in a
+.Ic switch
+statement.
+The default should come after all
+.Ic case
+labels.
+.Pp
+.It Ic dirs
+Prints the directory stack; the top of the stack is at the left,
+the first directory in the stack being the current directory.
+.Pp
+.It Ic echo Ar wordlist
+.It Ic echo Fl n Ar wordlist
+The specified words are written to the shell's standard output, separated
+by spaces, and terminated with a newline unless the
+.Fl n
+option is specified.
+.Pp
+.It Ic else
+.It Ic end
+.It Ic endif
+.It Ic endsw
+See the description of the
+.Ic foreach ,
+.Ic if ,
+.Ic switch ,
+and
+.Ic while
+statements below.
+.Pp
+.It Ic eval Ar arg ...
+(As in
+.Xr sh 1 . )
+The arguments are read as input to the shell and the resulting
+command(s) executed in the context of the current shell.
+This is usually used to execute commands
+generated as the result of command or variable substitution, since
+parsing occurs before these substitutions.
+See
+.Xr tset 1
+for an example of using
+.Ic eval .
+.Pp
+.It Ic exec Ar command
+The specified command is executed in place of the current shell.
+.Pp
+.It Ic exit
+.It Ic exit ( Ar expr )
+The shell exits either with the value of the
+.Ic status
+variable (first form) or with the value of the specified
+.Ic expr
+(second form).
+.Pp
+.It Ic fg
+.It Ic fg % Ns Ar job ...
+Brings the current or specified jobs into the foreground, continuing them if
+they were stopped.
+.Pp
+.It Ic foreach Ar name ( Ar wordlist )
+.It ...
+.It Ic end
+The variable
+.Ar name
+is successively set to each member of
+.Ar wordlist
+and the sequence of commands between this command and the matching
+.Ic end
+are executed.
+(Both
+.Ic foreach
+and
+.Ic end
+must appear alone on separate lines.)
+The built-in command
+.Ic continue
+may be used to continue the loop prematurely and the built-in
+command
+.Ic break
+to terminate it prematurely.
+When this command is read from the terminal, the loop is read once
+prompting with
+.Ql \&?
+before any statements in the loop are executed.
+If you make a mistake typing in a loop at the terminal, you can rub it out.
+.Pp
+.It Ic glob Ar wordlist
+Like
+.Ic echo
+but no
+.Ql \e
+escapes are recognized and words are delimited
+by NUL characters in the output.
+Useful for programs that wish to use the shell to filename expand a list
+of words.
+.Pp
+.It Ic goto Ar word
+The specified
+.Ar word
+is filename and command expanded to yield a string of the form
+.Ql label .
+The shell rewinds its input as much as possible
+and searches for a line of the form
+.Dq label: ,
+possibly preceded by blanks or tabs.
+Execution continues after the specified line.
+.Pp
+.It Ic hashstat
+Print a statistics line showing how effective the internal hash
+table has been at locating commands (and avoiding
+.Ic exec Ns 's ) .
+An
+.Ic exec
+is attempted for each component of the
+.Em path
+where the hash function indicates a possible hit, and in each component
+that does not begin with a
+.Ql / .
+.Pp
+.It Ic history
+.It Ic history Ar n
+.It Ic history Fl h Ar n
+.It Ic history Fl r Ar n
+Displays the history event list; if
+.Ar n
+is given, only the
+.Ar n
+most recent events are printed.
+The
+.Fl h
+option causes the history list to be printed without leading numbers.
+This format produces files suitable for sourcing using the
+.Fl h
+option to
+.Ic source .
+The
+.Fl r
+option reverses the order of printout to be most recent first
+instead of oldest first.
+.Pp
+.It Ic if ( Ar expr ) No command
+If the specified expression evaluates to true, then the single
+.Ar command
+with arguments is executed.
+Variable substitution on
+.Ar command
+happens early, at the same
+time it does for the rest of the
+.Ic if
+command.
+.Ar command
+must be a simple command, not
+a pipeline, a command list, or a parenthesized command list.
+Input/output redirection occurs even if
+.Ar expr
+is false, i.e., when command is
+.Em not
+executed (this is a bug).
+.Pp
+.It Ic if ( Ar expr ) Ic then
+.It ...
+.It Ic else if ( Ar expr2 ) Ic then
+.It ...
+.It Ic else
+.It ...
+.It Ic endif
+If the specified
+.Ar expr
+is true then the commands up to the first
+.Ic else
+are executed; otherwise if
+.Ar expr2
+is true then the commands up to the
+second
+.Ic else
+are executed, etc.
+Any number of
+.Ic else-if
+pairs are possible; only one
+.Ic endif
+is needed.
+The
+.Ic else
+part is likewise optional.
+(The words
+.Ic else
+and
+.Ic endif
+must appear at the beginning of input lines;
+the
+.Ic if
+must appear alone on its input line or after an
+.Ic else . )
+.Pp
+.It Ic jobs
+.It Ic jobs Fl l
+Lists the active jobs; the
+.Fl l
+option lists process IDs in addition to the normal information.
+.Pp
+.It Ic kill % Ns Ar job
+.It Ic kill Oo Fl s Ar signal_name Oc Ar pid
+.It Ic kill Fl sig Ar pid ...
+.It Ic kill Fl l Op exit_status
+Sends either the
+.Dv SIGTERM
+(terminate) signal or the
+specified signal to the specified jobs or processes.
+Signals are either given by number or by names (as given in
+.In signal.h ,
+stripped of the prefix
+.Dq SIG ) .
+The signal names are listed by
+.Dq kill \-l ;
+if an
+.Ar exit_status
+is specified, only the corresponding signal name will be written.
+There is no default; just saying
+.Dq kill
+does not
+send a signal to the current job.
+If the signal being sent is
+.Dv SIGTERM
+(terminate) or
+.Dv SIGHUP
+(hangup),
+then the job or process will be sent a
+.Dv SIGCONT
+(continue) signal as well.
+.Pp
+.It Ic limit
+.It Ic limit Ar resource
+.It Ic limit Ar resource maximum\-use
+.It Ic limit Fl h
+.It Ic limit Fl h Ar resource
+.It Ic limit Fl h Ar resource maximum\-use
+Limits the consumption by the current process and each process
+it creates to not individually exceed
+.Ar maximum\-use
+on the
+specified
+.Ar resource .
+If no
+.Ar maximum\-use
+is given, then
+the current limit is printed; if no
+.Ar resource
+is given, then
+all limitations are given.
+If the
+.Fl h
+flag is given, the hard limits are used instead of the current limits.
+The hard limits impose a ceiling on the values of the current limits.
+Only the superuser may raise the hard limits,
+but a user may lower or raise the current limits within the legal range.
+.Pp
+Resources controllable currently include:
+.Bl -tag -width coredumpsize
+.It Ar cputime
+the maximum number of CPU-seconds to be used by each process.
+.It Ar filesize
+the largest single file (in bytes) that can be created.
+.It Ar datasize
+the maximum growth (in bytes) of the data segment.
+.It Ar stacksize
+the maximum
+size of the automatically-extended stack region.
+.It Ar coredumpsize
+the size of the largest core dump (in bytes) that will be created.
+.It Ar memoryuse
+the maximum size (in bytes) to which a process's resident set
+size (RSS) may grow.
+Not enforced.
+.It Ar memorylocked
+The maximum size (in bytes) which a process may lock into memory using the
+.Xr mlock 2
+function.
+.It Ar maxproc
+The maximum number of simultaneous processes for this user ID.
+.It Ar openfiles
+The maximum number of simultaneous open files for this user ID.
+.It Ar vmemoryuse
+the maximum size (in bytes) to which a process's total size may grow.
+.El
+.Pp
+The
+.Ar maximum\-use
+may be given as a (floating point or integer)
+number followed by a scale factor.
+For all limits other than
+.Ar cputime
+the default scale is
+.Ql k
+or
+.Dq kilobytes
+(1024 bytes);
+a scale factor of
+.Ql m
+or
+.Dq megabytes
+may also be used.
+For
+.Ar cputime
+the default scale is
+.Dq seconds ;
+a scale factor of
+.Ql m
+for minutes
+or
+.Ql h
+for hours, or a time of the form
+.Dq mm:ss
+giving minutes
+and seconds also may be used.
+.Pp
+For both
+.Ar resource
+names and scale factors, unambiguous prefixes
+of the names suffice.
+.Pp
+.It Ic login
+Terminate a login shell, replacing it with an instance of
+.Pa /usr/bin/login .
+This is one way to log off, included for compatibility with
+.Xr sh 1 .
+.Pp
+.It Ic logout
+Terminate a login shell.
+Especially useful if
+.Va ignoreeof
+is set.
+.Pp
+.It Ic nice
+.It Ic nice Ar +number
+.It Ic nice Ar command
+.It Ic nice Ar +number command
+The first form sets the
+scheduling priority
+for this shell to 4.
+The second form sets the
+priority
+to the given
+.Ar number .
+The final two forms run command at priority 4 and
+.Ar number
+respectively.
+The greater the number, the less CPU the process will get.
+The superuser may specify negative priority by using
+.Dq nice \-number ... .
+.Ar command
+is always executed in a sub-shell, and the restrictions
+placed on commands in simple
+.Ic if
+statements apply.
+.Pp
+.It Ic nohup
+.It Ic nohup Ar command
+The first form can be used in shell scripts to cause hangups to be
+ignored for the remainder of the script.
+The second form causes the specified command to be run with hangups
+ignored.
+All processes detached with
+.Ql &
+are effectively
+.Ic nohup Ns 'ed .
+.Pp
+.It Ic notify
+.It Ic notify % Ns Ar job ...
+Causes the shell to notify the user asynchronously when the status of the
+current or specified jobs change; normally notification is presented
+before a prompt.
+This is automatic if the shell variable
+.Va notify
+is set.
+.Pp
+.It Ic onintr
+.It Ic onintr Fl
+.It Ic onintr Ar label
+Control the action of the shell on interrupts.
+The first form restores the default action of the shell on interrupts,
+which is to terminate shell scripts or to return to the terminal command
+input level.
+The second form
+.Ic onintr \-
+causes all interrupts to be ignored.
+The final form causes the shell to execute a
+.Ic goto label
+when
+an interrupt is received or a child process terminates because
+it was interrupted.
+.Pp
+In any case, if the shell is running detached and interrupts are
+being ignored, all forms of
+.Ic onintr
+have no meaning and interrupts
+continue to be ignored by the shell and all invoked commands.
+Finally,
+.Ic onintr
+statements are ignored in the system startup files where interrupts
+are disabled
+.Pq Pa /etc/csh.cshrc , /etc/csh.login .
+.Pp
+.It Ic popd
+.It Ic popd Ar +n
+Pops the directory stack, returning to the new top directory.
+With an argument
+.Dq + Ns Ar n
+discards the
+.Ar n Ns 'th
+entry in the stack.
+The members of the directory stack are numbered from the top starting at 0.
+.Pp
+.It Ic pushd
+.It Ic pushd Ar name
+.It Ic pushd Ar +n
+With no arguments,
+.Ic pushd
+exchanges the top two elements of the directory stack.
+Given a
+.Ar name
+argument,
+.Ic pushd
+changes to the new directory (ala
+.Ic cd )
+and pushes the old current working directory
+(as in
+.Ic cwd )
+onto the directory stack.
+With a numeric argument,
+.Ic pushd
+rotates the
+.Ar n Ns 'th
+argument of the directory
+stack around to be the top element and changes to it.
+The members
+of the directory stack are numbered from the top starting at 0.
+.Pp
+.It Ic rehash
+Causes the internal hash table of the contents of the directories in
+the
+.Va path
+variable to be recomputed.
+This is needed if new commands are added to directories in the
+.Ic path
+while you are logged in.
+This should only be necessary if you add
+commands to one of your own directories, or if a systems programmer
+changes the contents of a system directory.
+.Pp
+.It Ic repeat Ar count command
+The specified
+.Ar command ,
+which is subject to the same restrictions
+as the
+.Ar command
+in the one line
+.Ic if
+statement above,
+is executed
+.Ar count
+times.
+I/O redirections occur exactly once, even if
+.Ar count
+is 0.
+.Pp
+.It Ic set
+.It Ic set Ar name
+.It Ic set Ar name Ns =word
+.It Ic set Ar name[index] Ns =word
+.It Ic set Ar name Ns =(wordlist)
+The first form of the command shows the value of all shell variables.
+Variables that have other than a single word as their
+value print as a parenthesized word list.
+The second form sets
+.Ar name
+to the null string.
+The third form sets
+.Ar name
+to the single
+.Ar word .
+The fourth form sets
+the
+.Ar index Ns 'th
+component of
+.Ar name
+to
+.Ar word ;
+this component must already exist.
+The final form sets
+.Ar name
+to the list of words in
+.Ar wordlist .
+The value is always command and filename expanded.
+.Pp
+These arguments may be repeated to set multiple values in a single set command.
+Note however, that variable expansion happens for all arguments before any
+setting occurs.
+.Pp
+.It Ic setenv
+.It Ic setenv Ar name
+.It Ic setenv Ar name value
+The first form lists all current environment variables.
+It is equivalent to
+.Xr printenv 1 .
+The last form sets the value of environment variable
+.Ar name
+to be
+.Ar value ,
+a single string.
+The second form sets
+.Ar name
+to an empty string.
+The most commonly used environment variables
+.Ev USER ,
+.Ev TERM ,
+and
+.Ev PATH
+are automatically imported to and exported from the
+.Nm
+variables
+.Ar user ,
+.Ar term ,
+and
+.Ar path ;
+there is no need to use
+.Ic setenv
+for these.
+.Pp
+.It Ic shift
+.It Ic shift Ar variable
+The members of
+.Ic argv
+are shifted to the left, discarding
+.Ic argv Ns Bq 1 .
+It is an error for
+.Ic argv
+not to be set or to have less than one word as value.
+The second form performs the same function on the specified variable.
+.Pp
+.It Ic source Ar name
+.It Ic source Fl h Ar name
+The shell reads commands from
+.Ar name .
+.Ic source
+commands may be nested; if they are nested too deeply the shell may
+run out of file descriptors.
+An error in a
+.Ic source
+at any level terminates all nested
+.Ic source
+commands.
+Normally input during
+.Ic source
+commands is not placed on the history list;
+the
+.Fl h
+option causes the commands to be placed on the
+history list without being executed.
+.Pp
+.It Ic stop
+.It Ic stop % Ns Ar job ...
+Stops the current or specified jobs that are executing in the background.
+.Pp
+.It Ic suspend
+Causes the shell to stop in its tracks, much as if it had been sent a stop
+signal with
+.Ic ^Z .
+This is most often used to stop shells started by
+.Xr su 1 .
+.Pp
+.It Ic switch ( Ar string )
+.It Ic case Ar str1 :
+.It \ \ \ \ \&...
+.It Ic \ \ \ \ breaksw
+.It \ \ \ \ \&...
+.It Ic default :
+.It \ \ \ \ \&...
+.It Ic \ \ \ \ breaksw
+.It Ic endsw
+Each case label is successively matched against the specified
+.Ar string ,
+which is first command and filename expanded.
+The file metacharacters
+.Ql * ,
+.Ql \&?
+and
+.Dq [...]
+may be used in the case labels,
+which are variable expanded.
+If none of the labels match before the
+.Dq default
+label is found, then
+the execution begins after the default label.
+Each case label and the default label must appear at the beginning of a line.
+The command
+.Ic breaksw
+causes execution to continue after the
+.Ic endsw .
+Otherwise control may fall through case labels and the default label as in C.
+If no label matches and there is no default, execution continues after
+the
+.Ic endsw .
+.Pp
+.It Ic time
+.It Ic time Ar command
+With no argument, a summary of time used by this shell and its children
+is printed.
+If arguments are given,
+the specified simple command is timed and a time summary
+as described under the
+.Ic time
+variable is printed.
+If necessary, an extra shell is created to print the time
+statistic when the command completes.
+.Pp
+.It Ic umask
+.It Ic umask Ar value
+The file creation mask is displayed (first form) or set to the specified
+value (second form).
+The mask is given in octal.
+Common values for
+the mask are 002 giving all access to the group and read and execute
+access to others or 022 giving all access except write access for
+users in the group or others.
+The
+.Xr chmod 2
+manual page provides the complete list of bits that can be set.
+.Pp
+.It Ic unalias Ar pattern
+All aliases whose names match the specified pattern are discarded.
+Thus all aliases are removed by
+.Ic unalias * .
+It is not an error for nothing to be
+.Ic unalias Ns ed.
+.Pp
+.It Ic unhash
+Use of the internal hash table to speed location of executed programs
+is disabled.
+.Pp
+.It Ic unlimit
+.It Ic unlimit Ar resource
+.It Ic unlimit Fl h
+.It Ic unlimit Fl h Ar resource
+Removes the limitation on
+.Ar resource .
+If no
+.Ar resource
+is specified, then all
+.Ar resource
+limitations are removed.
+If
+.Fl h
+is given, the corresponding hard limits are removed.
+Only the superuser may do this.
+.Pp
+.It Ic unset Ar pattern
+All variables whose names match the specified pattern are removed.
+Thus all variables are removed by
+.Ic unset * ;
+this has noticeably
+distasteful side-effects.
+It is not an error for nothing to be
+.Ic unset .
+.Pp
+.It Ic unsetenv Ar pattern
+Removes all variables whose names match the specified pattern from the
+environment.
+See also the
+.Ic setenv
+command above and
+.Xr printenv 1 .
+.Pp
+.It Ic wait
+Wait for all background jobs.
+If the shell is interactive, then an interrupt can disrupt the wait.
+After the interrupt, the shell prints names and job numbers of all jobs
+known to be outstanding.
+.Pp
+.It Ic which Ar command
+Displays the resolved command that will be executed by the shell.
+.Pp
+.It Ic while ( Ar expr )
+.It \&...
+.It Ic end
+While the specified expression evaluates to non-zero, the commands between
+the
+.Ic while
+and the matching
+.Ic end
+are evaluated.
+.Ic break
+and
+.Ic continue
+may be used to terminate or continue the loop prematurely.
+(The
+.Ic while
+and
+.Ic end
+must appear alone on their input lines.)
+Prompting occurs here the first time through the loop as for the
+.Ic foreach
+statement if the input is a terminal.
+.Pp
+.It Ic % Ns Ar job
+Brings the specified job into the foreground.
+.Pp
+.It Ic % Ns Ar job Ic &
+Continues the specified job in the background.
+.Pp
+.It Ic @
+.It Ic @ Ar name Ns = expr
+.It Ic @ Ar name[index] Ns = expr
+The first form prints the values of all the shell variables.
+The second form sets the specified
+.Ar name
+to the value of
+.Ar expr .
+If the expression contains
+.Ql < ,
+.Ql > ,
+.Ql &
+or
+.Ql |
+then at least
+this part of the expression must be placed within
+.Ql \&(
+.Ql \&) .
+The third form assigns the value of
+.Ar expr
+to the
+.Ar index Ns 'th
+argument of
+.Ar name .
+Both
+.Ar name
+and its
+.Ar index Ns 'th
+component must already exist.
+.Pp
+The operators
+.Ql *= ,
+.Ql += ,
+etc. are available as in C.
+The space separating the name from the assignment operator is optional.
+Spaces are, however, mandatory in separating components of
+.Ar expr ,
+which would otherwise be single words.
+.Pp
+Special postfix
+.Ql +\|+
+and
+.Ql \-\|\-
+operators increment and decrement
+.Ar name
+respectively; i.e.,
+.Dq @  i++ .
+.El
+.Ss Pre-defined and environment variables
+The following variables have special meaning to the shell.
+Of these,
+.Va argv ,
+.Va cwd ,
+.Va home ,
+.Va path ,
+.Va prompt ,
+.Va shell
+and
+.Va status
+are always set by the shell.
+Except for
+.Ar cwd
+and
+.Ar status ,
+this setting occurs only at initialization;
+these variables will not then be modified unless done
+explicitly by the user.
+.Pp
+The shell copies the environment variable
+.Ev USER
+into the variable
+.Ar user ,
+.Ev TERM
+into
+.Ar term ,
+and
+.Ev HOME
+into
+.Ar home ,
+and copies these back into the environment whenever the normal
+shell variables are reset.
+The environment variable
+.Ev PATH
+is likewise handled; it is not
+necessary to worry about its setting other than in the file
+.Pa .cshrc
+as inferior
+.Nm
+processes will import the definition of
+.Ar path
+from the environment, and re-export it if you then change it.
+.Bl -tag -width histchars
+.It Ic argv
+Set to the arguments to the shell, it is from this variable that
+positional parameters are substituted; i.e.,
+.Dq $1
+is replaced by
+.Dq $argv[1] ,
+etc.
+.It Ic cdpath
+Gives a list of alternate directories searched to find subdirectories
+in
+.Ic chdir
+commands.
+.It Ic cwd
+The full pathname of the current directory.
+.It Ic echo
+Set when the
+.Fl x
+command-line option is given.
+Causes each command and its arguments
+to be echoed just before it is executed.
+For non-built-in commands all expansions occur before echoing.
+Built-in commands are echoed before command and filename substitution,
+since these substitutions are then done selectively.
+.It Ic filec
+Enable file name completion.
+.It Ic histchars
+Can be given a string value to change the characters used in history
+substitution.
+The first character of its value is used as the
+history substitution character, replacing the default character
+.Ql \&! .
+The second character of its value replaces the character
+.Ql ^
+in quick substitutions.
+.It Ic histfile
+Can be set to the pathname where history is going to be saved/restored.
+.It Ic history
+Can be given a numeric value to control the size of the history list.
+Any command that has been referenced in this many events will not be
+discarded.
+Too large values of
+.Va history
+may run the shell out of memory.
+The last executed command is always saved on the history list.
+.It Ic home
+The home directory of the invoker, initialized from the environment.
+The filename expansion of
+.Dq Pa ~
+refers to this variable.
+.It Ic ignoreeof
+If set, the shell ignores
+end-of-file from input devices which are terminals.
+This prevents shells from accidentally being killed by control-Ds.
+.It Ic mail
+The files where the shell checks for mail.
+This checking is done after each command completion that will
+result in a prompt,
+if a specified interval has elapsed.
+The shell says
+.Dq You have new mail.
+if the file exists with an access time not greater than its modify time.
+.Pp
+If the first word of the value of
+.Ar mail
+is numeric it specifies a different mail checking interval, in seconds,
+than the default, which is 10 minutes.
+.Pp
+If multiple mail files are specified, then the shell says
+.Dq New mail in Ar name
+when there is mail in the file
+.Ar name .
+.It Ic noclobber
+As described in the section on
+.Sx Input/output ,
+restrictions are placed on output redirection to ensure that
+files are not accidentally destroyed, and that
+.Ql >>
+redirections
+refer to existing files.
+.It Ic noglob
+If set, filename expansion is inhibited.
+This inhibition is most useful in shell scripts that
+are not dealing with filenames,
+or after a list of filenames has been obtained and further expansions
+are not desirable.
+.It Ic nonomatch
+If set, it is not an error for a filename expansion to not match any
+existing files; instead the primitive pattern is returned.
+It is still an error for the primitive pattern to be malformed; i.e.,
+.Dq echo [
+still gives an error.
+.It Ic notify
+If set, the shell notifies asynchronously of job completions;
+the default is to present job completions just before printing
+a prompt.
+.It Ic path
+Each word of the
+.Va path
+variable specifies a directory in which
+commands are to be sought for execution.
+A null word specifies the current directory.
+If there is no
+.Ar path
+variable then only full path names will execute.
+The usual search path is
+.Dq \&. ,
+.Dq /bin ,
+.Dq /usr/bin ,
+.Dq /sbin
+and
+.Dq /usr/sbin ,
+but this
+may vary from system to system.
+For the superuser the default search path is
+.Dq /bin ,
+.Dq /usr/bin ,
+.Dq /sbin ,
+and
+.Dq /usr/sbin .
+A shell that is given neither the
+.Fl c
+nor the
+.Fl t
+option will normally hash the contents of the directories in the
+.Ar path
+variable after reading
+.Ar \&.cshrc ,
+and each time the
+.Ar path
+variable is reset.
+If new commands are added to these directories
+while the shell is active, it may be necessary to do a
+.Ic rehash
+or the commands may not be found.
+.It Ic prompt
+The string that is printed before each command is read from
+an interactive terminal input.
+If a
+.Ql \&!
+appears in the string, it will be replaced by the current event number
+unless a preceding
+.Ql \e
+is given.
+Default is the first part of the hostname, followed by
+.Dq % ,
+or
+.Dq #
+for the superuser.
+.It Ic savehist
+Is given a numeric value to control the number of entries of the
+history list that are saved in
+.Pa ~/.history
+when the user logs out.
+Any command that has been referenced in this many events will be saved.
+During start up the shell sources
+.Pa ~/.history
+into the history list
+enabling history to be saved across logins.
+Too large values of
+.Va savehist
+will slow down the shell during start up.
+If
+.Va savehist
+is just set, the shell will use the value of
+.Va history .
+.It Ic shell
+The file in which the shell resides.
+This variable is used in forking shells to interpret files that have execute
+bits set, but which are not executable by the system.
+(See the description of
+.Sx Non-built-in command execution
+below.)
+Initialized to the (system-dependent) home of the shell.
+.It Ic status
+The status returned by the last command.
+If it terminated abnormally, then 0200 is added to the status.
+Built-in commands that fail return exit status 1,
+all other built-in commands set status to 0.
+.It Ic time
+Controls automatic timing of commands.
+If set, then any command that takes more than this many CPU seconds
+will cause a line giving user, system, and real times, and a utilization
+percentage which is the ratio of user plus system times to real time
+to be printed when it terminates.
+.It Ic verbose
+Set by the
+.Fl v
+command-line option, causes the words of each command to be printed
+after history substitution.
+.El
+.Ss Non-built-in command execution
+When a command to be executed is found to not be a built-in command,
+the shell attempts to execute the command via
+.Xr execve 2 .
+Each word in the variable
+.Ar path
+names a directory from which the shell will attempt to execute the command.
+If it is given neither a
+.Fl c
+nor a
+.Fl t
+option, the shell will hash the names in these directories into an internal
+table so that it will only try an
+.Ic exec
+in a directory if there is a possibility that the command resides there.
+This shortcut greatly speeds command location when many directories
+are present in the search path.
+If this mechanism has been turned off (via
+.Ic unhash ) ,
+or if the shell was given a
+.Fl c
+or
+.Fl t
+argument, and in any case for each directory component of
+.Ar path
+that does not begin with a
+.Ql / ,
+the shell concatenates with the given command name to form a path name
+of a file which it then attempts to execute.
+.Pp
+Parenthesized commands are always executed in a sub-shell.
+Thus
+.Pp
+.Dl (cd ; pwd) ; pwd
+.Pp
+prints the
+.Ar home
+directory; leaving you where you were (printing this after the home directory),
+while
+.Pp
+.Dl cd ; pwd
+.Pp
+leaves you in the
+.Ar home
+directory.
+Parenthesized commands are most often used to prevent
+.Ic chdir
+from affecting the current shell.
+.Pp
+If the file has execute permissions but is not an
+executable binary to the system, then it is assumed to be a
+file containing shell commands and a new shell is spawned to read it.
+.Pp
+If there is an alias for
+.Ic shell
+then the words of the alias will be prepended to the argument list to form
+the shell command.
+The first word of the alias
+should be the full path name of the shell
+(e.g.,
+.Dq $shell ) .
+Note that this is a special, late occurring, case of
+.Ic alias
+substitution,
+and only allows words to be prepended to the argument list without change.
+.Ss Signal handling
+The shell normally ignores
+.Dv SIGQUIT
+signals.
+Jobs running detached (either by
+.Ic \&&
+or the
+.Ic bg
+or
+.Ic %... &
+commands) are immune to signals generated from the keyboard, including
+hangups.
+Other signals have the values which the shell inherited from its parent.
+The shell's handling of interrupts and terminate signals
+in shell scripts can be controlled by
+.Ic onintr .
+Login shells catch the
+.Dv SIGTERM
+(terminate) signal;
+otherwise this signal is passed on to children from the state in the
+shell's parent.
+Interrupts are not allowed when a login shell is reading the file
+.Pa .logout .
+.Sh LIMITATIONS
+Word lengths:
+Words can be no longer than 1024 characters.
+The number of arguments to a command that involves filename expansion
+is limited to 1/6th the number of characters allowed in an argument list.
+Command substitutions may substitute no more characters than are
+allowed in an argument list.
+To detect looping, the shell restricts the number of
+.Ic alias
+substitutions on a single line to 20.
+.Sh FILES
+.Bl -tag -width /etc/passwd -compact
+.It Pa ~/.cshrc
+read at beginning of execution by each shell
+.It Pa ~/.login
+read by login shell, after
+.Pa .cshrc
+at login
+.It Pa ~/.logout
+read by login shell, at logout
+.It Pa /bin/sh
+standard shell, for shell scripts not starting with a
+.Ql #
+.It Pa /tmp/sh.*
+temporary file for
+.Ql <<
+.It Pa /etc/passwd
+source of home directories for
+.Dq ~name
+.El
+.Sh SEE ALSO
+.Xr ksh 1 ,
+.Xr sh 1 ,
+.Xr tty 4 ,
+.Xr environ 7 ,
+.Xr script 7
+.Rs
+.\" 4.4BSD USD:4
+.%A W. Joy
+.%T \&An Introduction to the C shell
+.Re
+.Sh HISTORY
+.Nm
+first appeared in
+.Bx 2 .
+It
+was a first implementation of a command language interpreter
+incorporating a history mechanism (see
+.Sx History substitutions ) ,
+job control facilities (see
+.Sx Jobs ) ,
+interactive file name
+and user name completion (see
+.Sx File name completion ) ,
+and a C-like syntax.
+There are now many shells that also have these mechanisms, plus
+a few more (and maybe some bugs too), which are available through the
+usenet.
+.Sh AUTHORS
+.An -nosplit
+.An Bill Joy ,
+1978.
+Job control and directory stack features first implemented by
+.An J.E. Kulp
+of IIASA, Laxenburg, Austria,
+with different syntax than that used now.
+File name completion code written by
+.An Ken Greer ,
+HP Labs.
+Eight-bit implementation by
+.An Christos S. Zoulas ,
+Cornell University.
+.Sh BUGS
+When a command is restarted from a stop,
+the shell prints the directory it started in if this is different
+from the current directory; this can be misleading (i.e., wrong)
+as the job may have changed directories internally.
+.Pp
+Shell built-in functions are not stoppable/restartable.
+Command sequences of the form
+.Dq a \&; b \&; c
+are also not handled gracefully
+when stopping is attempted.
+If you suspend
+.Ql b ,
+the shell will immediately execute
+.Ql c .
+This is especially noticeable if this
+expansion results from an alias.
+It suffices to place the sequence of commands in ()'s to force it to
+a sub-shell; i.e.,
+.Dq Po a \&; b \&; c Pc .
+.Pp
+Control over tty output after processes are started is primitive;
+perhaps this will inspire someone to work on a good virtual
+terminal interface.
+In a virtual terminal interface much more
+interesting things could be done with output control.
+.Pp
+Alias substitution is most often used to clumsily simulate shell procedures;
+shell procedures should be provided instead of aliases.
+.Pp
+Commands within loops, prompted for by
+.Ql \&? ,
+are not placed on the
+.Ic history
+list.
+Control structure should be parsed instead of being recognized as built-in
+commands.
+This would allow control commands to be placed anywhere,
+to be combined with
+.Ql | ,
+and to be used with
+.Ql &
+and
+.Ql \&;
+metasyntax.
+.Pp
+It should be possible to use the
+.Ql \&:
+modifiers on the output of command
+substitutions.
+.Pp
+The way the
+.Va filec
+facility is implemented is ugly and expensive.

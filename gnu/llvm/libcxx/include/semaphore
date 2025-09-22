@@ -1,0 +1,188 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_SEMAPHORE
+#define _LIBCPP_SEMAPHORE
+
+/*
+    semaphore synopsis
+
+namespace std {
+
+template<ptrdiff_t least_max_value = implementation-defined>
+class counting_semaphore
+{
+public:
+static constexpr ptrdiff_t max() noexcept;
+
+constexpr explicit counting_semaphore(ptrdiff_t desired);
+~counting_semaphore();
+
+counting_semaphore(const counting_semaphore&) = delete;
+counting_semaphore& operator=(const counting_semaphore&) = delete;
+
+void release(ptrdiff_t update = 1);
+void acquire();
+bool try_acquire() noexcept;
+template<class Rep, class Period>
+    bool try_acquire_for(const chrono::duration<Rep, Period>& rel_time);
+template<class Clock, class Duration>
+    bool try_acquire_until(const chrono::time_point<Clock, Duration>& abs_time);
+
+private:
+ptrdiff_t counter; // exposition only
+};
+
+using binary_semaphore = counting_semaphore<1>;
+
+}
+
+*/
+
+#include <__config>
+
+#if !defined(_LIBCPP_HAS_NO_THREADS)
+
+#  include <__assert>
+#  include <__atomic/atomic_base.h>
+#  include <__atomic/atomic_sync.h>
+#  include <__atomic/memory_order.h>
+#  include <__chrono/time_point.h>
+#  include <__thread/poll_with_backoff.h>
+#  include <__thread/support.h>
+#  include <__thread/timed_backoff_policy.h>
+#  include <cstddef>
+#  include <limits>
+#  include <version>
+
+#  if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#    pragma GCC system_header
+#  endif
+
+_LIBCPP_PUSH_MACROS
+#  include <__undef_macros>
+
+#  if _LIBCPP_STD_VER >= 14
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+/*
+
+__atomic_semaphore_base is the general-case implementation.
+It is a typical Dijkstra semaphore algorithm over atomics, wait and notify
+functions. It avoids contention against users' own use of those facilities.
+
+*/
+
+#    define _LIBCPP_SEMAPHORE_MAX (numeric_limits<ptrdiff_t>::max())
+
+class __atomic_semaphore_base {
+  __atomic_base<ptrdiff_t> __a_;
+
+public:
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit __atomic_semaphore_base(ptrdiff_t __count) : __a_(__count) {}
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI void release(ptrdiff_t __update = 1) {
+    auto __old = __a_.fetch_add(__update, memory_order_release);
+    _LIBCPP_ASSERT_ARGUMENT_WITHIN_DOMAIN(
+        __update <= _LIBCPP_SEMAPHORE_MAX - __old, "update is greater than the expected value");
+    if (__old == 0) {
+      __a_.notify_all();
+    }
+  }
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI void acquire() {
+    std::__atomic_wait_unless(
+        __a_, [this](ptrdiff_t& __old) { return __try_acquire_impl(__old); }, memory_order_relaxed);
+  }
+  template <class _Rep, class _Period>
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI bool
+  try_acquire_for(chrono::duration<_Rep, _Period> const& __rel_time) {
+    if (__rel_time == chrono::duration<_Rep, _Period>::zero())
+      return try_acquire();
+    auto const __poll_fn = [this]() { return try_acquire(); };
+    return std::__libcpp_thread_poll_with_backoff(__poll_fn, __libcpp_timed_backoff_policy(), __rel_time);
+  }
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI bool try_acquire() {
+    auto __old = __a_.load(memory_order_relaxed);
+    return __try_acquire_impl(__old);
+  }
+
+private:
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI bool __try_acquire_impl(ptrdiff_t& __old) {
+    while (true) {
+      if (__old == 0)
+        return false;
+      if (__a_.compare_exchange_weak(__old, __old - 1, memory_order_acquire, memory_order_relaxed))
+        return true;
+    }
+  }
+};
+
+template <ptrdiff_t __least_max_value = _LIBCPP_SEMAPHORE_MAX>
+class _LIBCPP_DEPRECATED_ATOMIC_SYNC counting_semaphore {
+  __atomic_semaphore_base __semaphore_;
+
+public:
+  static_assert(__least_max_value >= 0, "The least maximum value must be a positive number");
+
+  static constexpr ptrdiff_t max() noexcept { return __least_max_value; }
+
+  _LIBCPP_HIDE_FROM_ABI constexpr explicit counting_semaphore(ptrdiff_t __count) : __semaphore_(__count) {
+    _LIBCPP_ASSERT_ARGUMENT_WITHIN_DOMAIN(
+        __count >= 0,
+        "counting_semaphore::counting_semaphore(ptrdiff_t): counting_semaphore cannot be "
+        "initialized with a negative value");
+    _LIBCPP_ASSERT_ARGUMENT_WITHIN_DOMAIN(
+        __count <= max(),
+        "counting_semaphore::counting_semaphore(ptrdiff_t): counting_semaphore cannot be "
+        "initialized with a value greater than max()");
+  }
+  ~counting_semaphore() = default;
+
+  counting_semaphore(const counting_semaphore&)            = delete;
+  counting_semaphore& operator=(const counting_semaphore&) = delete;
+
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI void release(ptrdiff_t __update = 1) {
+    _LIBCPP_ASSERT_ARGUMENT_WITHIN_DOMAIN(__update >= 0, "counting_semaphore:release called with a negative value");
+    __semaphore_.release(__update);
+  }
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI void acquire() { __semaphore_.acquire(); }
+  template <class _Rep, class _Period>
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI bool
+  try_acquire_for(chrono::duration<_Rep, _Period> const& __rel_time) {
+    return __semaphore_.try_acquire_for(chrono::duration_cast<chrono::nanoseconds>(__rel_time));
+  }
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI bool try_acquire() { return __semaphore_.try_acquire(); }
+  template <class _Clock, class _Duration>
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI bool
+  try_acquire_until(chrono::time_point<_Clock, _Duration> const& __abs_time) {
+    auto const __current = _Clock::now();
+    if (__current >= __abs_time)
+      return try_acquire();
+    else
+      return try_acquire_for(__abs_time - __current);
+  }
+};
+
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
+using binary_semaphore _LIBCPP_DEPRECATED_ATOMIC_SYNC = counting_semaphore<1>;
+_LIBCPP_SUPPRESS_DEPRECATED_POP
+
+_LIBCPP_END_NAMESPACE_STD
+
+#  endif // _LIBCPP_STD_VER >= 14
+
+_LIBCPP_POP_MACROS
+
+#endif // !defined(_LIBCPP_HAS_NO_THREADS)
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <atomic>
+#endif
+
+#endif //_LIBCPP_SEMAPHORE

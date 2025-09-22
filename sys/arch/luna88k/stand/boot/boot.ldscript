@@ -1,0 +1,51 @@
+/*	$OpenBSD: boot.ldscript,v 1.3 2023/01/10 17:10:57 miod Exp $	*/
+
+/*
+ * Copyright (c) 2012 Miodrag Vallat.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * This linker script is used to merge .rodata into .text.  This allows
+ * objcopy to correctly be able to convert it to an OMAGIC binary, suitable
+ * to be booted from the PROM.
+ */
+OUTPUT_FORMAT("elf32-m88k")
+OUTPUT_ARCH(m88k)
+ENTRY(__start)
+SECTIONS
+{
+	.text :
+	{
+		*(.text)
+		*(.rodata*)
+		PROVIDE(etext = ABSOLUTE(.));
+		FILL(0xf4005800)
+		. = ALIGN(0x10);
+	}
+	.data :
+	{
+		*(.data)
+		PROVIDE(edata = ABSOLUTE(.));
+	}
+	.bss :
+	{
+		*(.bss)
+	}
+	PROVIDE(end = ABSOLUTE(.));
+	/DISCARD/ :
+	{
+		*(.comment)
+	}
+}

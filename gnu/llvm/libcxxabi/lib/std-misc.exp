@@ -1,0 +1,9 @@
+# Other std:: functions implemented in libc++abi
+__ZSt10unexpectedv
+__ZSt13get_terminatev
+__ZSt13set_terminatePFvvE
+__ZSt14get_unexpectedv
+__ZSt14set_unexpectedPFvvE
+__ZSt15get_new_handlerv
+__ZSt15set_new_handlerPFvvE
+__ZSt9terminatev

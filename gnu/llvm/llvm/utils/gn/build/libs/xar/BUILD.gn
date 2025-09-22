@@ -1,0 +1,12 @@
+import("//llvm/utils/gn/build/libs/xar/enable.gni")
+
+config("xar_config") {
+  visibility = [ ":xar" ]
+  libs = [ "xar" ]
+}
+
+group("xar") {
+  if (llvm_enable_libxar) {
+    public_configs = [ ":xar_config" ]
+  }
+}

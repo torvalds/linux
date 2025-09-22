@@ -1,0 +1,147 @@
+.\" $OpenBSD: usermgmt.conf.5,v 1.14 2016/11/30 20:26:37 jmc Exp $
+.\" $NetBSD: usermgmt.conf.5,v 1.3 2002/10/02 13:49:11 grant Exp $
+.\"
+.\" Copyright (c) 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This document is derived from works contributed to The NetBSD Foundation
+.\" by Grant Beattie.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 30 2016 $
+.Dt USERMGMT.CONF 5
+.Os
+.Sh NAME
+.Nm usermgmt.conf
+.Nd user management tools configuration file
+.Sh DESCRIPTION
+The
+.Nm usermgmt.conf
+file defines the default values used by the user management tools,
+.Xr user 8 .
+.Pp
+Options in this file can be set by manually editing
+.Pa /etc/usermgmt.conf
+or using the
+.Fl D
+option to
+.Xr useradd 8 .
+.Bl -tag -width preserveX
+.It Ic base_dir
+Sets the base directory name, in which new users' home directories
+are created when using the
+.Fl m
+option to
+.Xr useradd 8 .
+.It Ic class
+Sets the default login class for new users.
+See
+.Xr login.conf 5
+for more information on user login classes.
+.It Ic expire
+Sets the default time at which the new accounts expire.
+Both the
+.Ar expire
+and
+.Ar inactive
+fields should be entered in the form
+.Dq month day year ,
+where month is the month name (the first three characters are
+sufficient), day is the day of the month, and year is the year.
+Time in seconds since the Epoch (UTC) is also valid.
+A value of 0 can be used to disable this feature.
+.It Ic group
+Sets the default primary group for new users.
+If this is the special string
+.Cm =uid ,
+a group is created with the same numeric ID as the UID;
+if such a group already exists a warning is given
+and no group is created.
+It has the format:
+.Bd -ragged -offset indent
+.Ic group
+.Ar gid | name | Cm =uid
+.Ed
+.It Ic inactive
+Sets the default time at which the passwords of new accounts expire.
+A value of 0 can be used to disable this feature.
+Also see the
+.Ar expire
+field.
+.It Ic password
+Specifies a default password encrypted with
+.Xr encrypt 1 .
+.It Ic preserve
+If this value is one of
+.Ql true ,
+.Ql yes ,
+or a non-zero number, then the user login information will be
+preserved when removing a user with
+.Xr userdel 8 .
+.It Ic range
+Specifies the UID boundaries for new users.
+If unspecified, the default is
+.Dq 1000..60000 .
+It has the format:
+.Bd -unfilled -offset indent
+.Ic range Ar starting-uid Ns Li .. Ns Ar ending-uid
+.Ed
+.It Ic shell
+Sets the default login shell for new users.
+.It Ic skel_dir
+Sets the default skeleton directory in which to find files
+with which to populate the new user's home directory.
+.El
+.Sh FILES
+.Bl -tag -width /etc/usermgmt.conf -compact
+.It Pa /etc/usermgmt.conf
+.It Pa /etc/skel/*
+.It Pa /etc/login.conf
+.El
+.Sh SEE ALSO
+.Xr login.conf 5 ,
+.Xr passwd 5 ,
+.Xr user 8 ,
+.Xr useradd 8 ,
+.Xr userdel 8 ,
+.Xr usermod 8
+.Sh STANDARDS
+Other implementations of the
+.Xr user 8
+utilities use the
+.Ar inactive-time
+parameter to refer to the maximum number of days allowed between logins (this
+is used to lock "stale" accounts that have not been used for a period of time).
+However, on
+.Ox
+systems this parameter refers instead to the password change time.
+This is due to differences in the
+.Xr passwd 5
+database compared to other operating systems.
+.Sh HISTORY
+The
+.Nm
+configuration file first appeared in
+.Ox 2.7 .

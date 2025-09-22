@@ -1,0 +1,335 @@
+.\" $OpenBSD: EVP_EncodeInit.3,v 1.8 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL f430ba31 Jun 19 19:39:01 2016 +0200
+.\" selective merge up to: OpenSSL e9b77246 Jan 20 19:58:49 2017 +0100
+.\"
+.\" This file was written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_ENCODEINIT 3
+.Os
+.Sh NAME
+.Nm EVP_ENCODE_CTX_new ,
+.Nm EVP_ENCODE_CTX_free ,
+.Nm EVP_EncodeInit ,
+.Nm EVP_EncodeUpdate ,
+.Nm EVP_EncodeFinal ,
+.Nm EVP_EncodeBlock ,
+.Nm EVP_DecodeInit ,
+.Nm EVP_DecodeUpdate ,
+.Nm EVP_DecodeFinal ,
+.Nm EVP_DecodeBlock
+.Nd EVP base64 encode/decode routines
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft EVP_ENCODE_CTX *
+.Fn EVP_ENCODE_CTX_new void
+.Ft void
+.Fo EVP_ENCODE_CTX_free
+.Fa "EVP_ENCODE_CTX *ctx"
+.Fc
+.Ft void
+.Fo EVP_EncodeInit
+.Fa "EVP_ENCODE_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_EncodeUpdate
+.Fa "EVP_ENCODE_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *outl"
+.Fa "const unsigned char *in"
+.Fa "int inl"
+.Fc
+.Ft void
+.Fo EVP_EncodeFinal
+.Fa "EVP_ENCODE_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *outl"
+.Fc
+.Ft int
+.Fo EVP_EncodeBlock
+.Fa "unsigned char *t"
+.Fa "const unsigned char *f"
+.Fa "int n"
+.Fc
+.Ft void
+.Fo EVP_DecodeInit
+.Fa "EVP_ENCODE_CTX *ctx"
+.Fc
+.Ft int
+.Fo EVP_DecodeUpdate
+.Fa "EVP_ENCODE_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *outl"
+.Fa "const unsigned char *in"
+.Fa "int inl"
+.Fc
+.Ft int
+.Fo EVP_DecodeFinal
+.Fa "EVP_ENCODE_CTX *ctx"
+.Fa "unsigned char *out"
+.Fa "int *outl"
+.Fc
+.Ft int
+.Fo EVP_DecodeBlock
+.Fa "unsigned char *t"
+.Fa "const unsigned char *f"
+.Fa "int n"
+.Fc
+.Sh DESCRIPTION
+The EVP encode routines provide a high level interface to base64
+encoding and decoding.
+Base64 encoding converts binary data into a printable form that uses
+the characters A-Z, a-z, 0-9, "+" and "/" to represent the data.
+For every 3 bytes of binary data provided, 4 bytes of base64-encoded
+data will be produced, plus some occasional newlines.
+If the input data length is not a multiple of 3, then the output data
+will be padded at the end using the "=" character.
+.Pp
+.Fn EVP_ENCODE_CTX_new
+allocates, initializes and returns a context to be used for the encode
+and decode functions.
+.Pp
+.Fn EVP_ENCODE_CTX_free
+frees
+.Fa ctx .
+.Pp
+Encoding of binary data is performed in blocks of 48 input bytes (or
+less for the final block).
+For each 48-byte input block encoded, 64 bytes of base64 data is output,
+plus an additional newline character, i.e. 65 bytes in total.
+The final block, which may be less than 48 bytes, will output 4 bytes
+for every 3 bytes of input.
+If the data length is not divisible by 3, then a full 4 bytes is still
+output for the final 1 or 2 bytes of input.
+Similarly a newline character will also be output.
+.Pp
+.Fn EVP_EncodeInit
+initialises
+.Fa ctx
+for the start of a new encoding operation.
+.Pp
+.Fn EVP_EncodeUpdate
+encodes
+.Fa inl
+bytes of data found in the buffer pointed to by
+.Fa in .
+The output is stored in the buffer
+.Fa out
+and the number of bytes output is stored in
+.Pf * Fa outl .
+It is the caller's responsibility to ensure that the buffer at
+.Fa out
+is sufficiently large to accommodate the output data.
+Only full blocks of data (48 bytes) will be immediately processed and
+output by this function.
+Any remainder is held in the
+.Fa ctx
+object and will be processed by a subsequent call to
+.Fn EVP_EncodeUpdate
+or
+.Fn EVP_EncodeFinal .
+To calculate the required size of the output buffer, add together the
+value of
+.Fa inl
+with the amount of unprocessed data held in
+.Fa ctx
+and divide the result by 48 (ignore any remainder).
+This gives the number of blocks of data that will be processed.
+Ensure the output buffer contains 65 bytes of storage for each block,
+plus an additional byte for a NUL terminator.
+.Fn EVP_EncodeUpdate
+may be called repeatedly to process large amounts of input data.
+In the event of an error ,
+.Fn EVP_EncodeUpdate
+will set
+.Pf * Fa outl
+to 0 and return 0.
+On success 1 will be returned.
+.Pp
+.Fn EVP_EncodeFinal
+must be called at the end of an encoding operation.
+It will process any partial block of data remaining in the
+.Fa ctx
+object.
+The output data will be stored in
+.Fa out
+and the length of the data written will be stored in
+.Pf * Fa outl .
+It is the caller's responsibility to ensure that
+.Fa out
+is sufficiently large to accommodate the output data, which will
+never be more than 65 bytes plus an additional NUL terminator, i.e.
+66 bytes in total.
+.Pp
+.Fn EVP_EncodeBlock
+encodes a full block of input data in
+.Fa f
+and of length
+.Fa n
+and stores it in
+.Fa t .
+For every 3 bytes of input provided, 4 bytes of output data will be
+produced.
+If
+.Sy n
+is not divisible by 3, then the block is encoded as a final block
+of data and the output is padded such that it is always divisible
+by 4.
+Additionally a NUL terminator character will be added.
+For example, if 16 bytes of input data are provided, then 24 bytes
+of encoded data is created plus 1 byte for a NUL terminator,
+i.e. 25 bytes in total.
+The length of the data generated
+.Em without
+the NUL terminator is returned from the function.
+.Pp
+.Fn EVP_DecodeInit
+initialises
+.Fa ctx
+for the start of a new decoding operation.
+.Pp
+.Fn EVP_DecodeUpdate
+decodes
+.Fa inl
+characters of data found in the buffer pointed to by
+.Fa in .
+The output is stored in the buffer
+.Fa out
+and the number of bytes output is stored in
+.Pf * Fa outl .
+It is the caller's responsibility to ensure that the buffer at
+.Fa out
+is sufficiently large to accommodate the output data.
+This function will attempt to decode as much data as possible in 4-byte
+chunks.
+Any whitespace, newline or carriage return characters are ignored.
+Any partial chunk of unprocessed data (1, 2 or 3 bytes) that remains at
+the end will be held in the
+.Fa ctx
+object and processed by a subsequent call to
+.Fn EVP_DecodeUpdate .
+If any illegal base64 characters are encountered or if the base64
+padding character "=" is encountered in the middle of the data,
+then the function returns -1 to indicate an error.
+A return value of 0 or 1 indicates successful processing of the data.
+A return value of 0 additionally indicates that the last input data
+characters processed included the base64 padding character "=" and
+therefore no more non-padding character data is expected to be
+processed.
+For every 4 valid base64 bytes processed \(em ignoring whitespace,
+carriage returns and line feeds \(em 3 bytes of binary output data
+will be produced, or less at the end of the data where the padding
+character "=" has been used.
+.Pp
+.Fn EVP_DecodeFinal
+must be called at the end of a decoding operation.
+If there is any unprocessed data still in
+.Fa ctx ,
+then the input data must not have been a multiple of 4 and therefore an
+error has occurred.
+The function will return -1 in this case.
+Otherwise the function returns 1 on success.
+.Pp
+.Fn EVP_DecodeBlock
+will decode the block of
+.Fa n
+characters of base64 data contained in
+.Fa f
+and store the result in
+.Fa t .
+Any leading whitespace will be trimmed as will any trailing whitespace,
+newlines, carriage returns or EOF characters.
+After such trimming the length of the data in
+.Fa f
+must be divisible by 4.
+For every 4 input bytes, exactly 3 output bytes will be produced.
+The output will be padded with 0 bits if necessary to ensure that the
+output is always 3 bytes for every 4 input bytes.
+This function will return the length of the data decoded or -1 on error.
+.Sh RETURN VALUES
+.Fn EVP_ENCODE_CTX_new
+returns a pointer to the newly allocated
+.Vt EVP_ENCODE_CTX
+object or
+.Dv NULL
+on error.
+.Pp
+.Fn EVP_EncodeUpdate
+returns 0 on error or 1 on success.
+.Pp
+.Fn EVP_EncodeBlock
+returns the number of bytes encoded excluding the NUL terminator.
+.Pp
+.Fn EVP_DecodeUpdate
+returns -1 on error and 0 or 1 on success.
+If 0 is returned, then no more non-padding base64 characters are
+expected.
+.Pp
+.Fn EVP_DecodeFinal
+returns -1 on error or 1 on success.
+.Pp
+.Fn EVP_DecodeBlock
+returns the length of the data decoded or -1 on error.
+.Sh SEE ALSO
+.Xr BIO_f_base64 3 ,
+.Xr evp 3
+.Sh HISTORY
+The
+.Fn EVP_Encode*
+and
+.Fn EVP_Decode*
+functions first appeared in SSLeay 0.5.1
+and have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_ENCODE_CTX_new
+and
+.Fn EVP_ENCODE_CTX_free
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.5 .

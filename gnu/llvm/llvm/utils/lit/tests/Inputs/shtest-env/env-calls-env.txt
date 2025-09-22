@@ -1,0 +1,32 @@
+# Check that internal env can call internal env.
+
+# RUN: env env %{python} print_environment.py \
+# RUN: | FileCheck -check-prefix=CHECK-2-EMPTY-ARGS %s
+#
+# CHECK-2-EMPTY-ARGS: BAR = 2
+# CHECK-2-EMPTY-ARGS: FOO = 1
+
+# RUN: env FOO=2 env BAR=1 %{python} print_environment.py \
+# RUN: | FileCheck -check-prefix=CHECK-2-VAL %s
+#
+# CHECK-2-VAL: BAR = 1
+# CHECK-2-VAL: FOO = 2
+
+# RUN: env -u FOO env -u BAR %{python} print_environment.py \
+# RUN: | FileCheck -check-prefix=CHECK-2-U %s
+#
+# CHECK-2-U-NOT: BAR
+# CHECK-2-U-NOT: FOO
+
+# RUN: env -u FOO BAR=1 env -u BAR FOO=2 %{python} print_environment.py \
+# RUN: | FileCheck -check-prefix=CHECK-2-U-VAL %s
+#
+# CHECK-2-U-VAL-NOT: BAR
+# CHECK-2-U-VAL: FOO = 2
+
+# RUN: env -u FOO BAR=1 env -u BAR FOO=2 env BAZ=3 %{python} print_environment.py \
+# RUN: | FileCheck -check-prefix=CHECK-3 %s
+#
+# CHECK-3-NOT: BAR
+# CHECK-3: BAZ = 3
+# CHECK-3: FOO = 2

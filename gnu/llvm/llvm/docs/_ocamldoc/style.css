@@ -1,0 +1,97 @@
+/* A style for ocamldoc. Daniel C. Buenzli */
+
+/* Reset a few things. */
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,
+a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,
+small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,
+form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td
+{ margin: 0; padding: 0; border: 0 none; outline: 0; font-size: 100%;
+  font-weight: inherit; font-style:inherit; font-family:inherit;
+  line-height: inherit; vertical-align: baseline; text-align:inherit;
+  color:inherit; background: transparent; }
+
+table { border-collapse: collapse; border-spacing: 0; }
+
+/* Basic page layout */
+
+body { font: normal 10pt/1.375em helvetica, arial, sans-serif; text-align:left;
+       margin: 1.375em 10%; min-width: 40ex; max-width: 72ex;
+       color: black; background: transparent /* url(line-height-22.gif) */; }
+
+b { font-weight: bold }
+em { font-style: italic }
+
+tt, code, pre { font-family: WorkAroundWebKitAndMozilla, monospace;
+                font-size: 1em; }
+pre code { font-size : inherit; }
+.codepre { margin-bottom:1.375em /* after code example we introduce space. */ }
+
+.superscript,.subscript
+{ font-size : 0.813em; line-height:0; margin-left:0.4ex;}
+.superscript { vertical-align: super; }
+.subscript { vertical-align: sub; }
+
+/* ocamldoc markup workaround hacks */
+
+
+
+hr, hr + br, div + br, center + br, span + br, ul + br, ol + br, pre + br
+{ display: none } /* annoying */
+
+div.info + br { display:block}
+
+.codepre br + br { display: none }
+h1 + pre { margin-bottom:1.375em} /* Toplevel module description */
+
+/* Sections and document divisions */
+
+/* .navbar { margin-bottom: -1.375em } */
+h1 { font-weight: bold; font-size: 1.5em; /* margin-top:1.833em; */
+     margin-top:0.917em; padding-top:0.875em;
+     border-top-style:solid; border-width:1px; border-color:#AAA; }
+h2 { font-weight: bold; font-size: 1.313em; margin-top: 1.048em }
+h3 { font-weight: bold; font-size: 1.125em; margin-top: 1.222em }
+h3 { font-weight: bold; font-size: 1em; margin-top: 1.375em}
+h4 { font-style: italic;  }
+
+/* Used by OCaml's own library documentation. */
+ h6 { font-weight: bold; font-size: 1.125em; margin-top: 1.222em }
+ .h7 { font-weight: bold; font-size: 1em; margin-top: 1.375em }
+
+p { margin-top: 1.375em }
+pre { margin-top: 1.375em }
+.info { margin: 0.458em 0em -0.458em 2em;}/* Description of types values etc. */
+td .info { margin:0; padding:0; margin-left: 2em;} /* Description in indexes */
+
+ul, ol { margin-top:0.688em; padding-bottom:0.687em;
+   list-style-position:outside}
+ul + p, ol + p { margin-top: 0em }
+ul { list-style-type: square }
+
+
+/* h2 + ul, h3 + ul, p + ul { } */
+ul > li { margin-left: 1.375em; }
+ol > li { margin-left: 1.7em; }
+/* Links */
+
+a, a:link, a:visited, a:active, a:hover { color : #00B; text-decoration: none }
+a:hover { text-decoration : underline }
+*:target {background-color: #FFFF99;} /* anchor highlight */
+
+/* Code */
+
+.keyword { font-weight: bold; }
+.comment { color : red }
+.constructor { color : green }
+.string { color : brown }
+.warning { color : red ; font-weight : bold }
+
+/* Functors */
+
+.paramstable { border-style : hidden ; padding-bottom:1.375em}
+.paramstable code { margin-left: 1ex; margin-right: 1ex }
+.sig_block {margin-left: 1em}
+
+/* Images */
+
+img { margin-top: 1.375em }

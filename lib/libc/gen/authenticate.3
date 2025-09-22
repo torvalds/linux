@@ -1,0 +1,308 @@
+.\"	$OpenBSD: authenticate.3,v 1.19 2022/03/31 17:27:15 naddy Exp $
+.\"
+.\" Copyright (c) 1997 Berkeley Software Design, Inc. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Berkeley Software Design,
+.\"	Inc.
+.\" 4. The name of Berkeley Software Design, Inc.  may not be used to endorse
+.\"    or promote products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN, INC. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	BSDI $From: authenticate.3,v 2.7 1998/09/03 20:27:20 prb Exp $
+.Dd $Mdocdate: March 31 2022 $
+.Dt AUTH_APPROVAL 3
+.Os
+.Sh NAME
+.Nm auth_approval ,
+.Nm auth_cat ,
+.Nm auth_checknologin ,
+.Nm auth_mkvalue ,
+.Nm auth_userchallenge ,
+.Nm auth_usercheck ,
+.Nm auth_userokay ,
+.Nm auth_userresponse ,
+.Nm auth_verify
+.Nd simplified interface to the BSD Authentication system
+.Sh SYNOPSIS
+.In sys/types.h
+.In login_cap.h
+.In bsd_auth.h
+.Ft int
+.Fn auth_userokay "char *name" "char *style" "char *type" "char *password"
+.Ft auth_session_t *
+.Fn auth_userchallenge "char *name" "char *style" "char *type" "char **challengep"
+.Ft auth_session_t *
+.Fn auth_usercheck "char *name" "char *style" "char *type" "char *password"
+.Ft int
+.Fn auth_userresponse "auth_session_t *as" "char *response" "int more"
+.Ft int
+.Fn auth_approval "auth_session_t *as" "struct login_cap *lc" "char *name" "char *type"
+.Ft int
+.Fn auth_cat "char *file"
+.Ft void
+.Fn auth_checknologin "struct login_cap *lc"
+.Ft char *
+.Fn auth_mkvalue "char *value"
+.Ft auth_session_t *
+.Fn auth_verify "auth_session_t *as" "char *style" "char *name" "..."
+.Sh DESCRIPTION
+These functions provide a simplified interface to the
+.Bx
+Authentication system
+.Pq see Xr auth_subr 3 .
+The
+.Fn auth_userokay
+function provides a single function call interface.
+Provided with a user's name in
+.Ar name ,
+and an optional
+.Ar style ,
+.Ar type ,
+and
+.Ar password ,
+the
+.Fn auth_userokay
+function returns a simple yes/no response.
+A return value of 0 implies failure; a non-zero return value implies success.
+If
+.Ar style
+is not
+.Dv NULL ,
+it specifies the desired style of authentication to be used.
+If it is
+.Dv NULL
+then the default style for the user is used.
+In this case,
+.Ar name
+may include the desired style by appending it to the user's name with a
+single colon
+.Pq Sq \&:
+as a separator.
+If
+.Ar type
+is not
+.Dv NULL
+then it is used as the authentication type (such as
+.Dq auth-myservice ) .
+If
+.Ar password
+is
+.Dv NULL
+then
+.Fn auth_userokay
+operates in an interactive mode with the user on standard input, output,
+and error.
+If
+.Ar password
+is specified,
+.Fn auth_userokay
+operates in a non-interactive mode and only tests the specified passwords.
+This non-interactive method does not work with challenge-response
+authentication styles.
+For security reasons, when a
+.Ar password
+is specified,
+.Fn auth_userokay
+will zero out its value before it returns.
+.Pp
+The
+.Fn auth_usercheck
+function operates the same as the
+.Fn auth_userokay
+function except that it does not close the
+.Bx
+Authentication session created.
+Rather than returning the status of the session, it returns
+a pointer to the newly created
+.Bx
+Authentication session.
+.Pp
+The
+.Fn auth_userchallenge
+function takes the same
+.Ar name , style ,
+and
+.Ar type
+arguments as does
+.Fn auth_userokay .
+However, rather than authenticating the user, it returns a possible
+challenge in the pointer pointed to by
+.Ar challengep .
+The return value of the function is a pointer to a newly created
+.Bx
+Authentication session.
+This challenge, if not
+.Dv NULL ,
+should be displayed to the user.
+In any case, the user should provide a password which is
+the
+.Ar response
+in a call to
+.Fn auth_userresponse .
+In addition to the password, the pointer returned by
+.Fn auth_userchallenge
+should be passed in as
+.Ar as
+and the value of
+.Va more
+should be non-zero if the program wishes to allow more attempts.
+If
+.Va more
+is zero then the session will be closed.
+The
+.Fn auth_userresponse
+function closes the
+.Bx
+Authentication session and has the same
+return value as
+.Fn auth_userokay .
+For security reasons, when a
+.Ar response
+is specified,
+.Fn auth_userresponse
+will zero out its value before it returns.
+.Pp
+The
+.Fn auth_approval
+function calls the approval script for the user of the specified
+.Ar type .
+The string
+.Dq approve-
+will be prepended to
+.Ar type
+if missing.
+The resulting type is used to look up an entry in
+.Pa /etc/login.conf
+for the user's class.
+If the entry is missing, the generic entry for
+.Dq approve
+will be used.
+The
+.Ar name
+argument will be passed to the approval program as the name of the user.
+The
+.Ar lc
+argument points to a login class structure.
+If it is
+.Dv NULL
+then a login class structure will be looked up for the class of
+user
+.Ar name .
+The
+.Fn auth_approval
+function returns a value of 0 on failure to approve the user.
+.Pp
+Prior to actually calling the approval script, the account's
+expiration time, the associated nologin file, and existence
+of the account's home directory
+.Po
+if
+.Li requirehome
+is set for this class
+.Pc
+are checked.
+Failure on any of these points causes the
+.Fn auth_approval
+function to return a value of 0 and not actually call the approval script.
+.Pp
+The
+.Fn auth_cat
+function opens
+.Ar file
+for reading and copies its contents to standard output.
+It returns 0 if it was unable to open
+.Ar file
+and 1 otherwise.
+.Pp
+The
+.Fn auth_checknologin
+function must be provided with a pointer to a login class.
+If the class has a
+.Dq nologin
+entry defined and it points to a file that can be opened,
+the contents of the file will be copied to standard output and
+.Xr exit 3
+will be called with a value of 1.
+If the class does not have the field
+.Dq ignorenologin
+and the file
+.Pa /etc/nologin
+exists, its contents will be copied to standard output and
+.Xr exit 3
+will be called with a value of 1.
+.Pp
+The
+.Fn auth_verify
+function is a front end to the
+.Xr auth_call 3
+function.
+It will open a
+.Bx
+Authentication session, if needed, and will set
+the style and user name based on the
+.Ar style
+and
+.Ar name
+arguments, if not
+.Dv NULL .
+Values for the style and user name in an existing
+.Bx
+Authentication
+session will be replaced and the old values freed (if the calling program
+has obtained pointers to the style or user name via
+.Xr auth_getitem 3 ,
+those pointers will become invalid).
+The variable arguments are passed to
+.Fn auth_call
+via the
+.Xr auth_set_va_list 3
+function.
+The, possibly created,
+.Bx
+Authentication session is returned.
+The
+.Xr auth_getstate 3
+or
+.Xr auth_close 3
+function
+should be used to determine the outcome of the authentication request.
+.Pp
+The
+.Fn auth_mkvalue
+function takes a NUL-terminated string pointed to by
+.Ar value
+and returns a NUL-terminated string suitable for passing
+back to a calling program on the back channel.
+This function is for use by the login scripts themselves.
+The string returned should be freed by
+.Xr free 3
+when it is no longer needed.
+A value of
+.Dv NULL
+is returned if no memory was available for the new copy of the string.
+.Sh SEE ALSO
+.Xr auth_subr 3 ,
+.Xr getpwent 3 ,
+.Xr pw_dup 3

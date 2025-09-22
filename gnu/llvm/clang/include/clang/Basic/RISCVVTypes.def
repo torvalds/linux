@@ -1,0 +1,516 @@
+//===-- RISCVVTypes.def - Metadata for the RISC-V V types ------*- C++ -*--===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines various RISC-V V builtin types.  The macros are:
+//
+// - RVV_TYPE(Name, Id, SingletonId)
+//   A builtin type that has not been covered by any other #define
+//   Defining this macro covers all the builtins.
+//
+// - RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, IsSigned, IsFP,
+// IsBF)
+//   A RISC-V V scalable vector.
+//
+// - RVV_PREDICATE_TYPE(Name, Id, SingletonId, NumEls)
+//   An RISC-V V scalable mask.
+//
+// where:
+//
+// - Name is the name of the builtin type.
+//
+// - Id is the enumerator defining the type.
+//
+// - SingletonId is the global singleton of this type.
+//
+// - NumEls enumerates the number of the elements.
+//
+// - ElBits is the size of one element in bits (SEW).
+//
+// - NF is the number of fields (NFIELDS) used in the Load/Store Segment
+//   instructions (TODO).
+//
+// - IsSigned is true for vectors of signed integer elements and
+//   for vectors of floating-point elements.
+//
+// - IsFP is true for vectors of floating-point elements.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef RVV_TYPE
+#define RVV_TYPE(Name, Id, SingletonId)
+#endif
+
+#ifndef RVV_VECTOR_TYPE
+#define RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, IsSigned,   \
+                        IsFP, IsBF)                                            \
+  RVV_TYPE(Name, Id, SingletonId)
+#endif
+
+#ifndef RVV_PREDICATE_TYPE
+#define RVV_PREDICATE_TYPE(Name, Id, SingletonId, NumEls)\
+  RVV_TYPE(Name, Id, SingletonId)
+#endif
+
+#ifndef RVV_VECTOR_TYPE_INT
+#define RVV_VECTOR_TYPE_INT(Name, Id, SingletonId, NumEls, ElBits, NF,         \
+                            IsSigned)                                          \
+  RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, IsSigned, false,  \
+                  false)
+#endif
+
+#ifndef RVV_VECTOR_TYPE_FLOAT
+#define RVV_VECTOR_TYPE_FLOAT(Name, Id, SingletonId, NumEls, ElBits, NF)       \
+  RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, false, true, false)
+#endif
+
+#ifndef RVV_VECTOR_TYPE_BFLOAT
+#define RVV_VECTOR_TYPE_BFLOAT(Name, Id, SingletonId, NumEls, ElBits, NF)      \
+  RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, false, false, true)
+#endif
+
+//===- Vector types -------------------------------------------------------===//
+
+RVV_VECTOR_TYPE_INT("__rvv_int8mf8_t", RvvInt8mf8, RvvInt8mf8Ty, 1,   8, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf4_t", RvvInt8mf4, RvvInt8mf4Ty, 2,   8, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf2_t", RvvInt8mf2, RvvInt8mf2Ty, 4,   8, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m1_t",  RvvInt8m1,  RvvInt8m1Ty,  8,   8, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m2_t",  RvvInt8m2,  RvvInt8m2Ty,  16,  8, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m4_t",  RvvInt8m4,  RvvInt8m4Ty,  32,  8, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m8_t",  RvvInt8m8,  RvvInt8m8Ty,  64,  8, 1, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf8_t",RvvUint8mf8,RvvUint8mf8Ty,1,   8, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf4_t",RvvUint8mf4,RvvUint8mf4Ty,2,   8, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf2_t",RvvUint8mf2,RvvUint8mf2Ty,4,   8, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m1_t", RvvUint8m1, RvvUint8m1Ty, 8,   8, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m2_t", RvvUint8m2, RvvUint8m2Ty, 16,  8, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m4_t", RvvUint8m4, RvvUint8m4Ty, 32,  8, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m8_t", RvvUint8m8, RvvUint8m8Ty, 64,  8, 1, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_int16mf4_t",RvvInt16mf4,RvvInt16mf4Ty,1,  16, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf2_t",RvvInt16mf2,RvvInt16mf2Ty,2,  16, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m1_t", RvvInt16m1, RvvInt16m1Ty, 4,  16, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m2_t", RvvInt16m2, RvvInt16m2Ty, 8,  16, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m4_t", RvvInt16m4, RvvInt16m4Ty, 16, 16, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m8_t", RvvInt16m8, RvvInt16m8Ty, 32, 16, 1, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf4_t",RvvUint16mf4,RvvUint16mf4Ty,1,  16, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf2_t",RvvUint16mf2,RvvUint16mf2Ty,2,  16, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m1_t", RvvUint16m1, RvvUint16m1Ty, 4,  16, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m2_t", RvvUint16m2, RvvUint16m2Ty, 8,  16, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m4_t", RvvUint16m4, RvvUint16m4Ty, 16, 16, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m8_t", RvvUint16m8, RvvUint16m8Ty, 32, 16, 1, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_int32mf2_t",RvvInt32mf2,RvvInt32mf2Ty,1,  32, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m1_t", RvvInt32m1, RvvInt32m1Ty, 2,  32, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m2_t", RvvInt32m2, RvvInt32m2Ty, 4,  32, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m4_t", RvvInt32m4, RvvInt32m4Ty, 8,  32, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m8_t", RvvInt32m8, RvvInt32m8Ty, 16, 32, 1, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint32mf2_t",RvvUint32mf2,RvvUint32mf2Ty,1,  32, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m1_t", RvvUint32m1, RvvUint32m1Ty, 2,  32, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m2_t", RvvUint32m2, RvvUint32m2Ty, 4,  32, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m4_t", RvvUint32m4, RvvUint32m4Ty, 8,  32, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m8_t", RvvUint32m8, RvvUint32m8Ty, 16, 32, 1, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_int64m1_t", RvvInt64m1, RvvInt64m1Ty, 1,  64, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int64m2_t", RvvInt64m2, RvvInt64m2Ty, 2,  64, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int64m4_t", RvvInt64m4, RvvInt64m4Ty, 4,  64, 1, true)
+RVV_VECTOR_TYPE_INT("__rvv_int64m8_t", RvvInt64m8, RvvInt64m8Ty, 8,  64, 1, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint64m1_t",RvvUint64m1,RvvUint64m1Ty,1,  64, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint64m2_t",RvvUint64m2,RvvUint64m2Ty,2,  64, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint64m4_t",RvvUint64m4,RvvUint64m4Ty,4,  64, 1, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint64m8_t",RvvUint64m8,RvvUint64m8Ty,8,  64, 1, false)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf4_t",RvvFloat16mf4,RvvFloat16mf4Ty,1,  16, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf2_t",RvvFloat16mf2,RvvFloat16mf2Ty,2,  16, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m1_t", RvvFloat16m1, RvvFloat16m1Ty, 4,  16, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m2_t", RvvFloat16m2, RvvFloat16m2Ty, 8,  16, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m4_t", RvvFloat16m4, RvvFloat16m4Ty, 16, 16, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m8_t", RvvFloat16m8, RvvFloat16m8Ty, 32, 16, 1)
+
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf4_t", RvvBFloat16mf4, RvvBFloat16mf4Ty,
+                       1, 16, 1)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf2_t", RvvBFloat16mf2, RvvBFloat16mf2Ty,
+                       2, 16, 1)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m1_t", RvvBFloat16m1, RvvBFloat16m1Ty, 4,
+                       16, 1)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m2_t", RvvBFloat16m2, RvvBFloat16m2Ty, 8,
+                       16, 1)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m4_t", RvvBFloat16m4, RvvBFloat16m4Ty, 16,
+                       16, 1)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m8_t", RvvBFloat16m8, RvvBFloat16m8Ty, 32,
+                       16, 1)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32mf2_t",RvvFloat32mf2,RvvFloat32mf2Ty,1,  32, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m1_t", RvvFloat32m1, RvvFloat32m1Ty, 2,  32, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m2_t", RvvFloat32m2, RvvFloat32m2Ty, 4,  32, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m4_t", RvvFloat32m4, RvvFloat32m4Ty, 8,  32, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m8_t", RvvFloat32m8, RvvFloat32m8Ty, 16, 32, 1)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m1_t", RvvFloat64m1, RvvFloat64m1Ty, 1,  64, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m2_t", RvvFloat64m2, RvvFloat64m2Ty, 2,  64, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m4_t", RvvFloat64m4, RvvFloat64m4Ty, 4,  64, 1)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m8_t", RvvFloat64m8, RvvFloat64m8Ty, 8,  64, 1)
+
+RVV_PREDICATE_TYPE("__rvv_bool1_t",  RvvBool1,  RvvBool1Ty,  64)
+RVV_PREDICATE_TYPE("__rvv_bool2_t",  RvvBool2,  RvvBool2Ty,  32)
+RVV_PREDICATE_TYPE("__rvv_bool4_t",  RvvBool4,  RvvBool4Ty,  16)
+RVV_PREDICATE_TYPE("__rvv_bool8_t",  RvvBool8,  RvvBool8Ty,  8)
+RVV_PREDICATE_TYPE("__rvv_bool16_t", RvvBool16, RvvBool16Ty, 4)
+RVV_PREDICATE_TYPE("__rvv_bool32_t", RvvBool32, RvvBool32Ty, 2)
+RVV_PREDICATE_TYPE("__rvv_bool64_t", RvvBool64, RvvBool64Ty, 1)
+
+//===- Tuple vector types -------------------------------------------------===//
+//===- Int8 tuple types --------------------------------------------------===//
+RVV_VECTOR_TYPE_INT("__rvv_int8mf8x2_t", RvvInt8mf8x2, RvvInt8mf8x2Ty, 1, 8, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf8x3_t", RvvInt8mf8x3, RvvInt8mf8x3Ty, 1, 8, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf8x4_t", RvvInt8mf8x4, RvvInt8mf8x4Ty, 1, 8, 4, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf8x5_t", RvvInt8mf8x5, RvvInt8mf8x5Ty, 1, 8, 5, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf8x6_t", RvvInt8mf8x6, RvvInt8mf8x6Ty, 1, 8, 6, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf8x7_t", RvvInt8mf8x7, RvvInt8mf8x7Ty, 1, 8, 7, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf8x8_t", RvvInt8mf8x8, RvvInt8mf8x8Ty, 1, 8, 8, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int8mf4x2_t", RvvInt8mf4x2, RvvInt8mf4x2Ty, 2, 8, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf4x3_t", RvvInt8mf4x3, RvvInt8mf4x3Ty, 2, 8, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf4x4_t", RvvInt8mf4x4, RvvInt8mf4x4Ty, 2, 8, 4, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf4x5_t", RvvInt8mf4x5, RvvInt8mf4x5Ty, 2, 8, 5, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf4x6_t", RvvInt8mf4x6, RvvInt8mf4x6Ty, 2, 8, 6, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf4x7_t", RvvInt8mf4x7, RvvInt8mf4x7Ty, 2, 8, 7, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf4x8_t", RvvInt8mf4x8, RvvInt8mf4x8Ty, 2, 8, 8, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int8mf2x2_t", RvvInt8mf2x2, RvvInt8mf2x2Ty, 4, 8, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf2x3_t", RvvInt8mf2x3, RvvInt8mf2x3Ty, 4, 8, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf2x4_t", RvvInt8mf2x4, RvvInt8mf2x4Ty, 4, 8, 4, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf2x5_t", RvvInt8mf2x5, RvvInt8mf2x5Ty, 4, 8, 5, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf2x6_t", RvvInt8mf2x6, RvvInt8mf2x6Ty, 4, 8, 6, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf2x7_t", RvvInt8mf2x7, RvvInt8mf2x7Ty, 4, 8, 7, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8mf2x8_t", RvvInt8mf2x8, RvvInt8mf2x8Ty, 4, 8, 8, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int8m1x2_t", RvvInt8m1x2, RvvInt8m1x2Ty, 8, 8, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m1x3_t", RvvInt8m1x3, RvvInt8m1x3Ty, 8, 8, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m1x4_t", RvvInt8m1x4, RvvInt8m1x4Ty, 8, 8, 4, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m1x5_t", RvvInt8m1x5, RvvInt8m1x5Ty, 8, 8, 5, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m1x6_t", RvvInt8m1x6, RvvInt8m1x6Ty, 8, 8, 6, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m1x7_t", RvvInt8m1x7, RvvInt8m1x7Ty, 8, 8, 7, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m1x8_t", RvvInt8m1x8, RvvInt8m1x8Ty, 8, 8, 8, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int8m2x2_t", RvvInt8m2x2, RvvInt8m2x2Ty, 16, 8, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m2x3_t", RvvInt8m2x3, RvvInt8m2x3Ty, 16, 8, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int8m2x4_t", RvvInt8m2x4, RvvInt8m2x4Ty, 16, 8, 4, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int8m4x2_t", RvvInt8m4x2, RvvInt8m4x2Ty, 32, 8, 2, true)
+
+//===- Uint8 tuple types -------------------------------------------------===//
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf8x2_t", RvvUint8mf8x2, RvvUint8mf8x2Ty, 1, 8, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf8x3_t", RvvUint8mf8x3, RvvUint8mf8x3Ty, 1, 8, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf8x4_t", RvvUint8mf8x4, RvvUint8mf8x4Ty, 1, 8, 4, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf8x5_t", RvvUint8mf8x5, RvvUint8mf8x5Ty, 1, 8, 5, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf8x6_t", RvvUint8mf8x6, RvvUint8mf8x6Ty, 1, 8, 6, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf8x7_t", RvvUint8mf8x7, RvvUint8mf8x7Ty, 1, 8, 7, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf8x8_t", RvvUint8mf8x8, RvvUint8mf8x8Ty, 1, 8, 8, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf4x2_t", RvvUint8mf4x2, RvvUint8mf4x2Ty, 2, 8, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf4x3_t", RvvUint8mf4x3, RvvUint8mf4x3Ty, 2, 8, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf4x4_t", RvvUint8mf4x4, RvvUint8mf4x4Ty, 2, 8, 4, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf4x5_t", RvvUint8mf4x5, RvvUint8mf4x5Ty, 2, 8, 5, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf4x6_t", RvvUint8mf4x6, RvvUint8mf4x6Ty, 2, 8, 6, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf4x7_t", RvvUint8mf4x7, RvvUint8mf4x7Ty, 2, 8, 7, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf4x8_t", RvvUint8mf4x8, RvvUint8mf4x8Ty, 2, 8, 8, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf2x2_t", RvvUint8mf2x2, RvvUint8mf2x2Ty, 4, 8, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf2x3_t", RvvUint8mf2x3, RvvUint8mf2x3Ty, 4, 8, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf2x4_t", RvvUint8mf2x4, RvvUint8mf2x4Ty, 4, 8, 4, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf2x5_t", RvvUint8mf2x5, RvvUint8mf2x5Ty, 4, 8, 5, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf2x6_t", RvvUint8mf2x6, RvvUint8mf2x6Ty, 4, 8, 6, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf2x7_t", RvvUint8mf2x7, RvvUint8mf2x7Ty, 4, 8, 7, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8mf2x8_t", RvvUint8mf2x8, RvvUint8mf2x8Ty, 4, 8, 8, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint8m1x2_t", RvvUint8m1x2, RvvUint8m1x2Ty, 8, 8, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m1x3_t", RvvUint8m1x3, RvvUint8m1x3Ty, 8, 8, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m1x4_t", RvvUint8m1x4, RvvUint8m1x4Ty, 8, 8, 4, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m1x5_t", RvvUint8m1x5, RvvUint8m1x5Ty, 8, 8, 5, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m1x6_t", RvvUint8m1x6, RvvUint8m1x6Ty, 8, 8, 6, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m1x7_t", RvvUint8m1x7, RvvUint8m1x7Ty, 8, 8, 7, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m1x8_t", RvvUint8m1x8, RvvUint8m1x8Ty, 8, 8, 8, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint8m2x2_t", RvvUint8m2x2, RvvUint8m2x2Ty, 16, 8, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m2x3_t", RvvUint8m2x3, RvvUint8m2x3Ty, 16, 8, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint8m2x4_t", RvvUint8m2x4, RvvUint8m2x4Ty, 16, 8, 4, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint8m4x2_t", RvvUint8m4x2, RvvUint8m4x2Ty, 32, 8, 2, false)
+
+//===- Int16 tuple types --------------------------------------------------===//
+RVV_VECTOR_TYPE_INT("__rvv_int16mf4x2_t", RvvInt16mf4x2, RvvInt16mf4x2Ty, 1, 16, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf4x3_t", RvvInt16mf4x3, RvvInt16mf4x3Ty, 1, 16, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf4x4_t", RvvInt16mf4x4, RvvInt16mf4x4Ty, 1, 16, 4, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf4x5_t", RvvInt16mf4x5, RvvInt16mf4x5Ty, 1, 16, 5, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf4x6_t", RvvInt16mf4x6, RvvInt16mf4x6Ty, 1, 16, 6, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf4x7_t", RvvInt16mf4x7, RvvInt16mf4x7Ty, 1, 16, 7, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf4x8_t", RvvInt16mf4x8, RvvInt16mf4x8Ty, 1, 16, 8, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int16mf2x2_t", RvvInt16mf2x2, RvvInt16mf2x2Ty, 2, 16, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf2x3_t", RvvInt16mf2x3, RvvInt16mf2x3Ty, 2, 16, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf2x4_t", RvvInt16mf2x4, RvvInt16mf2x4Ty, 2, 16, 4, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf2x5_t", RvvInt16mf2x5, RvvInt16mf2x5Ty, 2, 16, 5, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf2x6_t", RvvInt16mf2x6, RvvInt16mf2x6Ty, 2, 16, 6, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf2x7_t", RvvInt16mf2x7, RvvInt16mf2x7Ty, 2, 16, 7, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16mf2x8_t", RvvInt16mf2x8, RvvInt16mf2x8Ty, 2, 16, 8, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int16m1x2_t", RvvInt16m1x2, RvvInt16m1x2Ty, 4, 16, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m1x3_t", RvvInt16m1x3, RvvInt16m1x3Ty, 4, 16, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m1x4_t", RvvInt16m1x4, RvvInt16m1x4Ty, 4, 16, 4, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m1x5_t", RvvInt16m1x5, RvvInt16m1x5Ty, 4, 16, 5, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m1x6_t", RvvInt16m1x6, RvvInt16m1x6Ty, 4, 16, 6, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m1x7_t", RvvInt16m1x7, RvvInt16m1x7Ty, 4, 16, 7, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m1x8_t", RvvInt16m1x8, RvvInt16m1x8Ty, 4, 16, 8, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int16m2x2_t", RvvInt16m2x2, RvvInt16m2x2Ty, 8, 16, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m2x3_t", RvvInt16m2x3, RvvInt16m2x3Ty, 8, 16, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int16m2x4_t", RvvInt16m2x4, RvvInt16m2x4Ty, 8, 16, 4, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int16m4x2_t", RvvInt16m4x2, RvvInt16m4x2Ty, 16, 16, 2, true)
+
+//===- Uint16 tuple types -------------------------------------------------===//
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf4x2_t", RvvUint16mf4x2, RvvUint16mf4x2Ty, 1, 16, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf4x3_t", RvvUint16mf4x3, RvvUint16mf4x3Ty, 1, 16, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf4x4_t", RvvUint16mf4x4, RvvUint16mf4x4Ty, 1, 16, 4, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf4x5_t", RvvUint16mf4x5, RvvUint16mf4x5Ty, 1, 16, 5, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf4x6_t", RvvUint16mf4x6, RvvUint16mf4x6Ty, 1, 16, 6, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf4x7_t", RvvUint16mf4x7, RvvUint16mf4x7Ty, 1, 16, 7, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf4x8_t", RvvUint16mf4x8, RvvUint16mf4x8Ty, 1, 16, 8, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf2x2_t", RvvUint16mf2x2, RvvUint16mf2x2Ty, 2, 16, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf2x3_t", RvvUint16mf2x3, RvvUint16mf2x3Ty, 2, 16, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf2x4_t", RvvUint16mf2x4, RvvUint16mf2x4Ty, 2, 16, 4, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf2x5_t", RvvUint16mf2x5, RvvUint16mf2x5Ty, 2, 16, 5, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf2x6_t", RvvUint16mf2x6, RvvUint16mf2x6Ty, 2, 16, 6, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf2x7_t", RvvUint16mf2x7, RvvUint16mf2x7Ty, 2, 16, 7, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16mf2x8_t", RvvUint16mf2x8, RvvUint16mf2x8Ty, 2, 16, 8, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint16m1x2_t", RvvUint16m1x2, RvvUint16m1x2Ty, 4, 16, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m1x3_t", RvvUint16m1x3, RvvUint16m1x3Ty, 4, 16, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m1x4_t", RvvUint16m1x4, RvvUint16m1x4Ty, 4, 16, 4, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m1x5_t", RvvUint16m1x5, RvvUint16m1x5Ty, 4, 16, 5, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m1x6_t", RvvUint16m1x6, RvvUint16m1x6Ty, 4, 16, 6, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m1x7_t", RvvUint16m1x7, RvvUint16m1x7Ty, 4, 16, 7, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m1x8_t", RvvUint16m1x8, RvvUint16m1x8Ty, 4, 16, 8, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint16m2x2_t", RvvUint16m2x2, RvvUint16m2x2Ty, 8, 16, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m2x3_t", RvvUint16m2x3, RvvUint16m2x3Ty, 8, 16, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint16m2x4_t", RvvUint16m2x4, RvvUint16m2x4Ty, 8, 16, 4, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint16m4x2_t", RvvUint16m4x2, RvvUint16m4x2Ty, 16, 16, 2, false)
+
+//===- Int32 tuple types --------------------------------------------------===//
+RVV_VECTOR_TYPE_INT("__rvv_int32mf2x2_t", RvvInt32mf2x2, RvvInt32mf2x2Ty, 1, 32, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32mf2x3_t", RvvInt32mf2x3, RvvInt32mf2x3Ty, 1, 32, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32mf2x4_t", RvvInt32mf2x4, RvvInt32mf2x4Ty, 1, 32, 4, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32mf2x5_t", RvvInt32mf2x5, RvvInt32mf2x5Ty, 1, 32, 5, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32mf2x6_t", RvvInt32mf2x6, RvvInt32mf2x6Ty, 1, 32, 6, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32mf2x7_t", RvvInt32mf2x7, RvvInt32mf2x7Ty, 1, 32, 7, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32mf2x8_t", RvvInt32mf2x8, RvvInt32mf2x8Ty, 1, 32, 8, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int32m1x2_t", RvvInt32m1x2, RvvInt32m1x2Ty, 2, 32, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m1x3_t", RvvInt32m1x3, RvvInt32m1x3Ty, 2, 32, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m1x4_t", RvvInt32m1x4, RvvInt32m1x4Ty, 2, 32, 4, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m1x5_t", RvvInt32m1x5, RvvInt32m1x5Ty, 2, 32, 5, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m1x6_t", RvvInt32m1x6, RvvInt32m1x6Ty, 2, 32, 6, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m1x7_t", RvvInt32m1x7, RvvInt32m1x7Ty, 2, 32, 7, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m1x8_t", RvvInt32m1x8, RvvInt32m1x8Ty, 2, 32, 8, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int32m2x2_t", RvvInt32m2x2, RvvInt32m2x2Ty, 4, 32, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m2x3_t", RvvInt32m2x3, RvvInt32m2x3Ty, 4, 32, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int32m2x4_t", RvvInt32m2x4, RvvInt32m2x4Ty, 4, 32, 4, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int32m4x2_t", RvvInt32m4x2, RvvInt32m4x2Ty, 8, 32, 2, true)
+
+//===- Uint32 tuple types -------------------------------------------------===//
+RVV_VECTOR_TYPE_INT("__rvv_uint32mf2x2_t", RvvUint32mf2x2, RvvUint32mf2x2Ty, 1, 32, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32mf2x3_t", RvvUint32mf2x3, RvvUint32mf2x3Ty, 1, 32, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32mf2x4_t", RvvUint32mf2x4, RvvUint32mf2x4Ty, 1, 32, 4, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32mf2x5_t", RvvUint32mf2x5, RvvUint32mf2x5Ty, 1, 32, 5, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32mf2x6_t", RvvUint32mf2x6, RvvUint32mf2x6Ty, 1, 32, 6, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32mf2x7_t", RvvUint32mf2x7, RvvUint32mf2x7Ty, 1, 32, 7, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32mf2x8_t", RvvUint32mf2x8, RvvUint32mf2x8Ty, 1, 32, 8, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint32m1x2_t", RvvUint32m1x2, RvvUint32m1x2Ty, 2, 32, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m1x3_t", RvvUint32m1x3, RvvUint32m1x3Ty, 2, 32, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m1x4_t", RvvUint32m1x4, RvvUint32m1x4Ty, 2, 32, 4, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m1x5_t", RvvUint32m1x5, RvvUint32m1x5Ty, 2, 32, 5, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m1x6_t", RvvUint32m1x6, RvvUint32m1x6Ty, 2, 32, 6, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m1x7_t", RvvUint32m1x7, RvvUint32m1x7Ty, 2, 32, 7, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m1x8_t", RvvUint32m1x8, RvvUint32m1x8Ty, 2, 32, 8, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint32m2x2_t", RvvUint32m2x2, RvvUint32m2x2Ty, 4, 32, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m2x3_t", RvvUint32m2x3, RvvUint32m2x3Ty, 4, 32, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint32m2x4_t", RvvUint32m2x4, RvvUint32m2x4Ty, 4, 32, 4, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint32m4x2_t", RvvUint32m4x2, RvvUint32m4x2Ty, 8, 32, 2, false)
+
+//===- Int64 tuple types -------------------------------------------------===//
+RVV_VECTOR_TYPE_INT("__rvv_int64m1x2_t", RvvInt64m1x2, RvvInt64m1x2Ty, 1, 64, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int64m1x3_t", RvvInt64m1x3, RvvInt64m1x3Ty, 1, 64, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int64m1x4_t", RvvInt64m1x4, RvvInt64m1x4Ty, 1, 64, 4, true)
+RVV_VECTOR_TYPE_INT("__rvv_int64m1x5_t", RvvInt64m1x5, RvvInt64m1x5Ty, 1, 64, 5, true)
+RVV_VECTOR_TYPE_INT("__rvv_int64m1x6_t", RvvInt64m1x6, RvvInt64m1x6Ty, 1, 64, 6, true)
+RVV_VECTOR_TYPE_INT("__rvv_int64m1x7_t", RvvInt64m1x7, RvvInt64m1x7Ty, 1, 64, 7, true)
+RVV_VECTOR_TYPE_INT("__rvv_int64m1x8_t", RvvInt64m1x8, RvvInt64m1x8Ty, 1, 64, 8, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int64m2x2_t", RvvInt64m2x2, RvvInt64m2x2Ty, 2, 64, 2, true)
+RVV_VECTOR_TYPE_INT("__rvv_int64m2x3_t", RvvInt64m2x3, RvvInt64m2x3Ty, 2, 64, 3, true)
+RVV_VECTOR_TYPE_INT("__rvv_int64m2x4_t", RvvInt64m2x4, RvvInt64m2x4Ty, 2, 64, 4, true)
+
+RVV_VECTOR_TYPE_INT("__rvv_int64m4x2_t", RvvInt64m4x2, RvvInt64m4x2Ty, 4, 64, 2, true)
+
+//===- Uint64 tuple types -------------------------------------------------===//
+RVV_VECTOR_TYPE_INT("__rvv_uint64m1x2_t", RvvUint64m1x2, RvvUint64m1x2Ty, 1, 64, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint64m1x3_t", RvvUint64m1x3, RvvUint64m1x3Ty, 1, 64, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint64m1x4_t", RvvUint64m1x4, RvvUint64m1x4Ty, 1, 64, 4, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint64m1x5_t", RvvUint64m1x5, RvvUint64m1x5Ty, 1, 64, 5, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint64m1x6_t", RvvUint64m1x6, RvvUint64m1x6Ty, 1, 64, 6, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint64m1x7_t", RvvUint64m1x7, RvvUint64m1x7Ty, 1, 64, 7, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint64m1x8_t", RvvUint64m1x8, RvvUint64m1x8Ty, 1, 64, 8, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint64m2x2_t", RvvUint64m2x2, RvvUint64m2x2Ty, 2, 64, 2, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint64m2x3_t", RvvUint64m2x3, RvvUint64m2x3Ty, 2, 64, 3, false)
+RVV_VECTOR_TYPE_INT("__rvv_uint64m2x4_t", RvvUint64m2x4, RvvUint64m2x4Ty, 2, 64, 4, false)
+
+RVV_VECTOR_TYPE_INT("__rvv_uint64m4x2_t", RvvUint64m4x2, RvvUint64m4x2Ty, 4, 64, 2, false)
+
+//===- Float16 tuple types ------------------------------------------------===//
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf4x2_t", RvvFloat16mf4x2, RvvFloat16mf4x2Ty, 1, 16, 2)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf4x3_t", RvvFloat16mf4x3, RvvFloat16mf4x3Ty, 1, 16, 3)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf4x4_t", RvvFloat16mf4x4, RvvFloat16mf4x4Ty, 1, 16, 4)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf4x5_t", RvvFloat16mf4x5, RvvFloat16mf4x5Ty, 1, 16, 5)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf4x6_t", RvvFloat16mf4x6, RvvFloat16mf4x6Ty, 1, 16, 6)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf4x7_t", RvvFloat16mf4x7, RvvFloat16mf4x7Ty, 1, 16, 7)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf4x8_t", RvvFloat16mf4x8, RvvFloat16mf4x8Ty, 1, 16, 8)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf2x2_t", RvvFloat16mf2x2, RvvFloat16mf2x2Ty, 2, 16, 2)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf2x3_t", RvvFloat16mf2x3, RvvFloat16mf2x3Ty, 2, 16, 3)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf2x4_t", RvvFloat16mf2x4, RvvFloat16mf2x4Ty, 2, 16, 4)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf2x5_t", RvvFloat16mf2x5, RvvFloat16mf2x5Ty, 2, 16, 5)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf2x6_t", RvvFloat16mf2x6, RvvFloat16mf2x6Ty, 2, 16, 6)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf2x7_t", RvvFloat16mf2x7, RvvFloat16mf2x7Ty, 2, 16, 7)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16mf2x8_t", RvvFloat16mf2x8, RvvFloat16mf2x8Ty, 2, 16, 8)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m1x2_t", RvvFloat16m1x2, RvvFloat16m1x2Ty, 4, 16, 2)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m1x3_t", RvvFloat16m1x3, RvvFloat16m1x3Ty, 4, 16, 3)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m1x4_t", RvvFloat16m1x4, RvvFloat16m1x4Ty, 4, 16, 4)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m1x5_t", RvvFloat16m1x5, RvvFloat16m1x5Ty, 4, 16, 5)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m1x6_t", RvvFloat16m1x6, RvvFloat16m1x6Ty, 4, 16, 6)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m1x7_t", RvvFloat16m1x7, RvvFloat16m1x7Ty, 4, 16, 7)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m1x8_t", RvvFloat16m1x8, RvvFloat16m1x8Ty, 4, 16, 8)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m2x2_t", RvvFloat16m2x2, RvvFloat16m2x2Ty, 8, 16, 2)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m2x3_t", RvvFloat16m2x3, RvvFloat16m2x3Ty, 8, 16, 3)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m2x4_t", RvvFloat16m2x4, RvvFloat16m2x4Ty, 8, 16, 4)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float16m4x2_t", RvvFloat16m4x2, RvvFloat16m4x2Ty, 16, 16, 2)
+
+//===- Float32 tuple types ------------------------------------------------===//
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32mf2x2_t", RvvFloat32mf2x2, RvvFloat32mf2x2Ty, 1, 32, 2)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32mf2x3_t", RvvFloat32mf2x3, RvvFloat32mf2x3Ty, 1, 32, 3)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32mf2x4_t", RvvFloat32mf2x4, RvvFloat32mf2x4Ty, 1, 32, 4)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32mf2x5_t", RvvFloat32mf2x5, RvvFloat32mf2x5Ty, 1, 32, 5)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32mf2x6_t", RvvFloat32mf2x6, RvvFloat32mf2x6Ty, 1, 32, 6)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32mf2x7_t", RvvFloat32mf2x7, RvvFloat32mf2x7Ty, 1, 32, 7)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32mf2x8_t", RvvFloat32mf2x8, RvvFloat32mf2x8Ty, 1, 32, 8)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m1x2_t", RvvFloat32m1x2, RvvFloat32m1x2Ty, 2, 32, 2)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m1x3_t", RvvFloat32m1x3, RvvFloat32m1x3Ty, 2, 32, 3)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m1x4_t", RvvFloat32m1x4, RvvFloat32m1x4Ty, 2, 32, 4)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m1x5_t", RvvFloat32m1x5, RvvFloat32m1x5Ty, 2, 32, 5)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m1x6_t", RvvFloat32m1x6, RvvFloat32m1x6Ty, 2, 32, 6)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m1x7_t", RvvFloat32m1x7, RvvFloat32m1x7Ty, 2, 32, 7)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m1x8_t", RvvFloat32m1x8, RvvFloat32m1x8Ty, 2, 32, 8)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m2x2_t", RvvFloat32m2x2, RvvFloat32m2x2Ty, 4, 32, 2)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m2x3_t", RvvFloat32m2x3, RvvFloat32m2x3Ty, 4, 32, 3)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m2x4_t", RvvFloat32m2x4, RvvFloat32m2x4Ty, 4, 32, 4)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float32m4x2_t", RvvFloat32m4x2, RvvFloat32m4x2Ty, 8, 32, 2)
+
+//===- Float64 tuple types ------------------------------------------------===//
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m1x2_t", RvvFloat64m1x2, RvvFloat64m1x2Ty, 1, 64, 2)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m1x3_t", RvvFloat64m1x3, RvvFloat64m1x3Ty, 1, 64, 3)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m1x4_t", RvvFloat64m1x4, RvvFloat64m1x4Ty, 1, 64, 4)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m1x5_t", RvvFloat64m1x5, RvvFloat64m1x5Ty, 1, 64, 5)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m1x6_t", RvvFloat64m1x6, RvvFloat64m1x6Ty, 1, 64, 6)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m1x7_t", RvvFloat64m1x7, RvvFloat64m1x7Ty, 1, 64, 7)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m1x8_t", RvvFloat64m1x8, RvvFloat64m1x8Ty, 1, 64, 8)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m2x2_t", RvvFloat64m2x2, RvvFloat64m2x2Ty, 2, 64, 2)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m2x3_t", RvvFloat64m2x3, RvvFloat64m2x3Ty, 2, 64, 3)
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m2x4_t", RvvFloat64m2x4, RvvFloat64m2x4Ty, 2, 64, 4)
+
+RVV_VECTOR_TYPE_FLOAT("__rvv_float64m4x2_t", RvvFloat64m4x2, RvvFloat64m4x2Ty, 4, 64, 2)
+
+//===- BFloat16 tuple types -----------------------------------------------===//
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf4x2_t", RvvBFloat16mf4x2, RvvBFloat16mf4x2Ty,
+                       1, 16, 2)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf4x3_t", RvvBFloat16mf4x3, RvvBFloat16mf4x3Ty,
+                       1, 16, 3)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf4x4_t", RvvBFloat16mf4x4, RvvBFloat16mf4x4Ty,
+                       1, 16, 4)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf4x5_t", RvvBFloat16mf4x5, RvvBFloat16mf4x5Ty,
+                       1, 16, 5)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf4x6_t", RvvBFloat16mf4x6, RvvBFloat16mf4x6Ty,
+                       1, 16, 6)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf4x7_t", RvvBFloat16mf4x7, RvvBFloat16mf4x7Ty,
+                       1, 16, 7)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf4x8_t", RvvBFloat16mf4x8, RvvBFloat16mf4x8Ty,
+                       1, 16, 8)
+
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf2x2_t", RvvBFloat16mf2x2, RvvBFloat16mf2x2Ty,
+                       2, 16, 2)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf2x3_t", RvvBFloat16mf2x3, RvvBFloat16mf2x3Ty,
+                       2, 16, 3)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf2x4_t", RvvBFloat16mf2x4, RvvBFloat16mf2x4Ty,
+                       2, 16, 4)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf2x5_t", RvvBFloat16mf2x5, RvvBFloat16mf2x5Ty,
+                       2, 16, 5)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf2x6_t", RvvBFloat16mf2x6, RvvBFloat16mf2x6Ty,
+                       2, 16, 6)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf2x7_t", RvvBFloat16mf2x7, RvvBFloat16mf2x7Ty,
+                       2, 16, 7)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16mf2x8_t", RvvBFloat16mf2x8, RvvBFloat16mf2x8Ty,
+                       2, 16, 8)
+
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m1x2_t", RvvBFloat16m1x2, RvvBFloat16m1x2Ty,
+                       4, 16, 2)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m1x3_t", RvvBFloat16m1x3, RvvBFloat16m1x3Ty,
+                       4, 16, 3)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m1x4_t", RvvBFloat16m1x4, RvvBFloat16m1x4Ty,
+                       4, 16, 4)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m1x5_t", RvvBFloat16m1x5, RvvBFloat16m1x5Ty,
+                       4, 16, 5)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m1x6_t", RvvBFloat16m1x6, RvvBFloat16m1x6Ty,
+                       4, 16, 6)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m1x7_t", RvvBFloat16m1x7, RvvBFloat16m1x7Ty,
+                       4, 16, 7)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m1x8_t", RvvBFloat16m1x8, RvvBFloat16m1x8Ty,
+                       4, 16, 8)
+
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m2x2_t", RvvBFloat16m2x2, RvvBFloat16m2x2Ty,
+                       8, 16, 2)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m2x3_t", RvvBFloat16m2x3, RvvBFloat16m2x3Ty,
+                       8, 16, 3)
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m2x4_t", RvvBFloat16m2x4, RvvBFloat16m2x4Ty,
+                       8, 16, 4)
+
+RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m4x2_t", RvvBFloat16m4x2, RvvBFloat16m4x2Ty,
+                       16, 16, 2)
+
+#undef RVV_VECTOR_TYPE_BFLOAT
+#undef RVV_VECTOR_TYPE_FLOAT
+#undef RVV_VECTOR_TYPE_INT
+#undef RVV_VECTOR_TYPE
+#undef RVV_PREDICATE_TYPE
+#undef RVV_TYPE

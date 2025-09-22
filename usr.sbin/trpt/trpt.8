@@ -1,0 +1,149 @@
+.\"	$OpenBSD: trpt.8,v 1.17 2016/09/25 23:31:50 deraadt Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)trpt.8	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: September 25 2016 $
+.Dt TRPT 8
+.Os
+.Sh NAME
+.Nm trpt
+.Nd transliterate protocol trace
+.Sh SYNOPSIS
+.Nm trpt
+.Op Fl afjst
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl p Ar hex-address
+.Sh DESCRIPTION
+.Nm
+interrogates the buffer of
+.Tn TCP
+trace records created
+when a socket is marked for
+.Dq debugging
+(see
+.Xr setsockopt 2 ) ,
+and prints a readable description of these records.
+When no options are supplied,
+.Nm
+prints all the trace records found in the system
+grouped according to
+.Tn TCP
+connection protocol control
+block
+.Pq Tn PCB .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+In addition to the normal output,
+print the values of the source and destination
+addresses for each packet recorded.
+.It Fl f
+Follow the trace as it occurs, waiting a short time for additional records
+each time the end of the log is reached.
+.It Fl j
+Just give a list of the protocol control block
+addresses for which there are trace records.
+.It Fl M Ar core
+Extract values associated with the name list from
+.Pa core
+instead of the running kernel.
+.It Fl N Ar system
+Extract the name list from
+.Pa system
+instead of the running kernel.
+.It Fl p Ar hex-address
+Show only trace records associated with the protocol
+control block at the given address
+.Ar hex-address .
+.It Fl s
+In addition to the normal output,
+print a detailed description of the packet
+sequencing information.
+.It Fl t
+In addition to the normal output,
+print the values for all timers at each
+point in the trace.
+.El
+.Pp
+The recommended use of
+.Nm
+is as follows.
+Isolate the problem and enable debugging on the
+socket(s) involved in the connection.
+Find the address of the protocol control blocks
+associated with the sockets using the
+.Fl A
+option to
+.Xr netstat 1 .
+Then run
+.Nm
+with the
+.Fl p
+option, supplying the associated
+protocol control block addresses.
+The
+.Fl f
+option can be used to follow the trace log once the trace is located.
+If there are
+many sockets using the debugging option, the
+.Fl j
+option may be useful in checking to see if
+any trace records are present for the socket in
+question.
+.Pp
+.Nm
+requires the ability to open
+.Pa /dev/kmem
+which may be restricted based upon the value of the
+.Ar kern.allowkmem
+.Xr sysctl 8 .
+.Sh DIAGNOSTICS
+.Bl -tag -width Ds
+.It Sy no namelist
+When the system image doesn't
+contain the proper symbols to find the trace buffer;
+others which should be self explanatory.
+.El
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr setsockopt 2
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
+.Sh BUGS
+Should also print the data for each input or output,
+but this is not saved in the trace record.
+.Pp
+The output format is inscrutable and should be described
+here.

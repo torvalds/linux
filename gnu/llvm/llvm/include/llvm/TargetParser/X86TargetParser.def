@@ -1,0 +1,277 @@
+//===- X86TargetParser.def - X86 target parsing defines ---------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file provides defines to build up the X86 target parser's logic.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+#ifndef X86_VENDOR
+#define X86_VENDOR(ENUM, STR)
+#endif
+X86_VENDOR(VENDOR_INTEL, "intel")
+X86_VENDOR(VENDOR_AMD,   "amd")
+#undef X86_VENDOR
+
+// This macro is used for cpu types present in compiler-rt/libgcc.
+#ifndef X86_CPU_TYPE
+#define X86_CPU_TYPE(ENUM, STR)
+#endif
+
+#ifndef X86_CPU_TYPE_ALIAS
+#define X86_CPU_TYPE_ALIAS(ENUM, STR)
+#endif
+
+// This list must match what is implemented in libgcc and compilert-rt. Clang
+// uses this to know how to implement __builtin_cpu_is.
+X86_CPU_TYPE(INTEL_BONNELL,       "bonnell")
+X86_CPU_TYPE(INTEL_CORE2,         "core2")
+X86_CPU_TYPE(INTEL_COREI7,        "corei7")
+X86_CPU_TYPE(AMDFAM10H,           "amdfam10h")
+X86_CPU_TYPE(AMDFAM15H,           "amdfam15h")
+X86_CPU_TYPE(INTEL_SILVERMONT,    "silvermont")
+X86_CPU_TYPE(INTEL_KNL,           "knl")
+X86_CPU_TYPE(AMD_BTVER1,          "btver1")
+X86_CPU_TYPE(AMD_BTVER2,          "btver2")
+X86_CPU_TYPE(AMDFAM17H,           "amdfam17h")
+X86_CPU_TYPE(INTEL_KNM,           "knm")
+X86_CPU_TYPE(INTEL_GOLDMONT,      "goldmont")
+X86_CPU_TYPE(INTEL_GOLDMONT_PLUS, "goldmont-plus")
+X86_CPU_TYPE(INTEL_TREMONT,       "tremont")
+X86_CPU_TYPE(AMDFAM19H,           "amdfam19h")
+X86_CPU_TYPE(ZHAOXIN_FAM7H,       "zhaoxin_fam7h")
+X86_CPU_TYPE(INTEL_SIERRAFOREST,  "sierraforest")
+X86_CPU_TYPE(INTEL_GRANDRIDGE,    "grandridge")
+X86_CPU_TYPE(INTEL_CLEARWATERFOREST, "clearwaterforest")
+X86_CPU_TYPE(AMDFAM1AH,           "amdfam1ah")
+
+// Alternate names supported by __builtin_cpu_is and target multiversioning.
+X86_CPU_TYPE_ALIAS(INTEL_BONNELL,    "atom")
+X86_CPU_TYPE_ALIAS(AMDFAM10H,        "amdfam10")
+X86_CPU_TYPE_ALIAS(AMDFAM15H,        "amdfam15")
+X86_CPU_TYPE_ALIAS(AMDFAM1AH,        "amdfam1a")
+X86_CPU_TYPE_ALIAS(INTEL_SILVERMONT, "slm")
+
+#undef X86_CPU_TYPE_ALIAS
+#undef X86_CPU_TYPE
+
+// This macro is used for cpu subtypes present in compiler-rt/libgcc.
+#ifndef X86_CPU_SUBTYPE
+#define X86_CPU_SUBTYPE(ENUM, STR)
+#endif
+
+#ifndef X86_CPU_SUBTYPE_ALIAS
+#define X86_CPU_SUBTYPE_ALIAS(ENUM, STR)
+#endif
+
+// This list must match what is implemented in libgcc and compilert-rt. Clang
+// uses this to know how to implement __builtin_cpu_is.
+X86_CPU_SUBTYPE(INTEL_COREI7_NEHALEM,        "nehalem")
+X86_CPU_SUBTYPE(INTEL_COREI7_WESTMERE,       "westmere")
+X86_CPU_SUBTYPE(INTEL_COREI7_SANDYBRIDGE,    "sandybridge")
+X86_CPU_SUBTYPE(AMDFAM10H_BARCELONA,         "barcelona")
+X86_CPU_SUBTYPE(AMDFAM10H_SHANGHAI,          "shanghai")
+X86_CPU_SUBTYPE(AMDFAM10H_ISTANBUL,          "istanbul")
+X86_CPU_SUBTYPE(AMDFAM15H_BDVER1,            "bdver1")
+X86_CPU_SUBTYPE(AMDFAM15H_BDVER2,            "bdver2")
+X86_CPU_SUBTYPE(AMDFAM15H_BDVER3,            "bdver3")
+X86_CPU_SUBTYPE(AMDFAM15H_BDVER4,            "bdver4")
+X86_CPU_SUBTYPE(AMDFAM17H_ZNVER1,            "znver1")
+X86_CPU_SUBTYPE(INTEL_COREI7_IVYBRIDGE,      "ivybridge")
+X86_CPU_SUBTYPE(INTEL_COREI7_HASWELL,        "haswell")
+X86_CPU_SUBTYPE(INTEL_COREI7_BROADWELL,      "broadwell")
+X86_CPU_SUBTYPE(INTEL_COREI7_SKYLAKE,        "skylake")
+X86_CPU_SUBTYPE(INTEL_COREI7_SKYLAKE_AVX512, "skylake-avx512")
+X86_CPU_SUBTYPE(INTEL_COREI7_CANNONLAKE,     "cannonlake")
+X86_CPU_SUBTYPE(INTEL_COREI7_ICELAKE_CLIENT, "icelake-client")
+X86_CPU_SUBTYPE(INTEL_COREI7_ICELAKE_SERVER, "icelake-server")
+X86_CPU_SUBTYPE(AMDFAM17H_ZNVER2,            "znver2")
+X86_CPU_SUBTYPE(INTEL_COREI7_CASCADELAKE,    "cascadelake")
+X86_CPU_SUBTYPE(INTEL_COREI7_TIGERLAKE,      "tigerlake")
+X86_CPU_SUBTYPE(INTEL_COREI7_COOPERLAKE,     "cooperlake")
+X86_CPU_SUBTYPE(INTEL_COREI7_SAPPHIRERAPIDS, "sapphirerapids")
+X86_CPU_SUBTYPE(INTEL_COREI7_ALDERLAKE,      "alderlake")
+X86_CPU_SUBTYPE(AMDFAM19H_ZNVER3,            "znver3")
+X86_CPU_SUBTYPE(INTEL_COREI7_ROCKETLAKE,     "rocketlake")
+X86_CPU_SUBTYPE(ZHAOXIN_FAM7H_LUJIAZUI,      "zhaoxin_fam7h_lujiazui")
+X86_CPU_SUBTYPE(AMDFAM19H_ZNVER4,            "znver4")
+X86_CPU_SUBTYPE(INTEL_COREI7_GRANITERAPIDS,  "graniterapids")
+X86_CPU_SUBTYPE(INTEL_COREI7_GRANITERAPIDS_D,"graniterapids-d")
+X86_CPU_SUBTYPE(INTEL_COREI7_ARROWLAKE,      "arrowlake")
+X86_CPU_SUBTYPE(INTEL_COREI7_ARROWLAKE_S,    "arrowlake-s")
+X86_CPU_SUBTYPE(INTEL_COREI7_PANTHERLAKE,    "pantherlake")
+X86_CPU_SUBTYPE(AMDFAM1AH_ZNVER5,            "znver5")
+
+// Alternate names supported by __builtin_cpu_is and target multiversioning.
+X86_CPU_SUBTYPE_ALIAS(INTEL_COREI7_ALDERLAKE, "raptorlake")
+X86_CPU_SUBTYPE_ALIAS(INTEL_COREI7_ALDERLAKE, "meteorlake")
+X86_CPU_SUBTYPE_ALIAS(INTEL_COREI7_SAPPHIRERAPIDS, "emeraldrapids")
+X86_CPU_SUBTYPE_ALIAS(INTEL_COREI7_ARROWLAKE_S,"lunarlake")
+X86_CPU_SUBTYPE_ALIAS(INTEL_COREI7_ALDERLAKE, "gracemont")
+
+#undef X86_CPU_SUBTYPE_ALIAS
+#undef X86_CPU_SUBTYPE
+
+// This macro is used for cpu types present in compiler-rt/libgcc. The third
+// parameter PRIORITY is as required by the attribute 'target' checking. Note
+// that not all are supported/prioritized by GCC, so synchronization with GCC's
+// implementation may require changing some existing values.
+//
+// We cannot just re-sort the list though because its order is dictated by the
+// order of bits in CodeGenFunction::GetX86CpuSupportsMask.
+// We cannot re-adjust the position of X86_FEATURE_COMPAT at the whole list.
+#ifndef X86_FEATURE_COMPAT
+#define X86_FEATURE_COMPAT(ENUM, STR, PRIORITY) X86_FEATURE(ENUM, STR)
+#endif
+
+#ifndef X86_FEATURE
+#define X86_FEATURE(ENUM, STR)
+#endif
+
+#ifndef X86_MICROARCH_LEVEL
+#define X86_MICROARCH_LEVEL(ENUM, STR, PRIORITY)
+#endif
+
+X86_FEATURE_COMPAT(CMOV,            "cmov",                  0)
+X86_FEATURE_COMPAT(MMX,             "mmx",                   1)
+X86_FEATURE_COMPAT(POPCNT,          "popcnt",                9)
+X86_FEATURE_COMPAT(SSE,             "sse",                   2)
+X86_FEATURE_COMPAT(SSE2,            "sse2",                  3)
+X86_FEATURE_COMPAT(SSE3,            "sse3",                  4)
+X86_FEATURE_COMPAT(SSSE3,           "ssse3",                 5)
+X86_FEATURE_COMPAT(SSE4_1,          "sse4.1",                7)
+X86_FEATURE_COMPAT(SSE4_2,          "sse4.2",                8)
+X86_FEATURE_COMPAT(AVX,             "avx",                   12)
+X86_FEATURE_COMPAT(AVX2,            "avx2",                  18)
+X86_FEATURE_COMPAT(SSE4_A,          "sse4a",                 6)
+X86_FEATURE_COMPAT(FMA4,            "fma4",                  14)
+X86_FEATURE_COMPAT(XOP,             "xop",                   15)
+X86_FEATURE_COMPAT(FMA,             "fma",                   16)
+X86_FEATURE_COMPAT(AVX512F,         "avx512f",               19)
+X86_FEATURE_COMPAT(BMI,             "bmi",                   13)
+X86_FEATURE_COMPAT(BMI2,            "bmi2",                  17)
+X86_FEATURE_COMPAT(AES,             "aes",                   10)
+X86_FEATURE_COMPAT(PCLMUL,          "pclmul",                11)
+X86_FEATURE_COMPAT(AVX512VL,        "avx512vl",              20)
+X86_FEATURE_COMPAT(AVX512BW,        "avx512bw",              21)
+X86_FEATURE_COMPAT(AVX512DQ,        "avx512dq",              22)
+X86_FEATURE_COMPAT(AVX512CD,        "avx512cd",              23)
+X86_FEATURE       (NF,              "nf")
+X86_FEATURE       (CF,              "cf")
+X86_FEATURE_COMPAT(AVX512VBMI,      "avx512vbmi",            24)
+X86_FEATURE_COMPAT(AVX512IFMA,      "avx512ifma",            25)
+X86_FEATURE_COMPAT(AVX5124VNNIW,    "avx5124vnniw",          26)
+X86_FEATURE_COMPAT(AVX5124FMAPS,    "avx5124fmaps",          27)
+X86_FEATURE_COMPAT(AVX512VPOPCNTDQ, "avx512vpopcntdq",       28)
+X86_FEATURE_COMPAT(AVX512VBMI2,     "avx512vbmi2",           29)
+X86_FEATURE_COMPAT(GFNI,            "gfni",                  30)
+X86_FEATURE_COMPAT(VPCLMULQDQ,      "vpclmulqdq",            31)
+X86_FEATURE_COMPAT(AVX512VNNI,      "avx512vnni",            32)
+X86_FEATURE_COMPAT(AVX512BITALG,    "avx512bitalg",          33)
+X86_FEATURE_COMPAT(AVX512BF16,      "avx512bf16",            34)
+X86_FEATURE_COMPAT(AVX512VP2INTERSECT, "avx512vp2intersect", 35)
+// Below Features has some missings comparing to gcc, it's because gcc has some
+// not one-to-one mapped in llvm.
+
+// FIXME: dummy features were added to keep the numeric values of later features
+// stable. Since the values need to be ABI stable, they should be changed to
+// have explicitly assigned values, and then these dummy features removed.
+X86_FEATURE       (DUMMYFEATURE1,   "__dummyfeature1")
+X86_FEATURE       (DUMMYFEATURE2,   "__dummyfeature2")
+X86_FEATURE_COMPAT(ADX,             "adx",                    0)
+X86_FEATURE       (64BIT,           "64bit")
+X86_FEATURE_COMPAT(CLDEMOTE,        "cldemote",               0)
+X86_FEATURE_COMPAT(CLFLUSHOPT,      "clflushopt",             0)
+X86_FEATURE_COMPAT(CLWB,            "clwb",                   0)
+X86_FEATURE_COMPAT(CLZERO,          "clzero",                 0)
+X86_FEATURE_COMPAT(CMPXCHG16B,      "cx16",                   0)
+X86_FEATURE       (CMPXCHG8B,       "cx8")
+X86_FEATURE_COMPAT(ENQCMD,          "enqcmd",                 0)
+X86_FEATURE_COMPAT(F16C,            "f16c",                   0)
+X86_FEATURE_COMPAT(FSGSBASE,        "fsgsbase",               0)
+X86_FEATURE       (CRC32,           "crc32")
+X86_FEATURE       (INVPCID,         "invpcid")
+X86_FEATURE       (RDPRU,           "rdpru")
+X86_FEATURE       (SAHF,            "sahf")
+X86_FEATURE       (VZEROUPPER,      "vzeroupper")
+X86_FEATURE_COMPAT(LWP,             "lwp",                    0)
+X86_FEATURE_COMPAT(LZCNT,           "lzcnt",                  0)
+X86_FEATURE_COMPAT(MOVBE,           "movbe",                  0)
+X86_FEATURE_COMPAT(MOVDIR64B,       "movdir64b",              0)
+X86_FEATURE_COMPAT(MOVDIRI,         "movdiri",                0)
+X86_FEATURE_COMPAT(MWAITX,          "mwaitx",                 0)
+X86_FEATURE       (X87,             "x87")
+X86_FEATURE_COMPAT(PCONFIG,         "pconfig",                0)
+X86_FEATURE_COMPAT(PKU,             "pku",                    0)
+X86_FEATURE       (EVEX512,         "evex512")
+X86_FEATURE_COMPAT(PRFCHW,          "prfchw",                 0)
+X86_FEATURE_COMPAT(PTWRITE,         "ptwrite",                0)
+X86_FEATURE_COMPAT(RDPID,           "rdpid",                  0)
+X86_FEATURE_COMPAT(RDRND,           "rdrnd",                  0)
+X86_FEATURE_COMPAT(RDSEED,          "rdseed",                 0)
+X86_FEATURE_COMPAT(RTM,             "rtm",                    0)
+X86_FEATURE_COMPAT(SERIALIZE,       "serialize",              0)
+X86_FEATURE_COMPAT(SGX,             "sgx",                    0)
+X86_FEATURE_COMPAT(SHA,             "sha",                    0)
+X86_FEATURE_COMPAT(SHSTK,           "shstk",                  0)
+X86_FEATURE_COMPAT(TBM,             "tbm",                    0)
+X86_FEATURE_COMPAT(TSXLDTRK,        "tsxldtrk",               0)
+X86_FEATURE_COMPAT(VAES,            "vaes",                   0)
+X86_FEATURE_COMPAT(WAITPKG,         "waitpkg",                0)
+X86_FEATURE_COMPAT(WBNOINVD,        "wbnoinvd",               0)
+X86_FEATURE_COMPAT(XSAVE,           "xsave",                  0)
+X86_FEATURE_COMPAT(XSAVEC,          "xsavec",                 0)
+X86_FEATURE_COMPAT(XSAVEOPT,        "xsaveopt",               0)
+X86_FEATURE_COMPAT(XSAVES,          "xsaves",                 0)
+X86_FEATURE_COMPAT(AMX_TILE,        "amx-tile",               0)
+X86_FEATURE_COMPAT(AMX_INT8,        "amx-int8",               0)
+X86_FEATURE_COMPAT(AMX_BF16,        "amx-bf16",               0)
+X86_FEATURE_COMPAT(UINTR,           "uintr",                  0)
+X86_FEATURE_COMPAT(HRESET,          "hreset",                 0)
+X86_FEATURE_COMPAT(KL,              "kl",                     0)
+X86_FEATURE       (FXSR,            "fxsr")
+X86_FEATURE_COMPAT(WIDEKL,          "widekl",                 0)
+X86_FEATURE_COMPAT(AVXVNNI,         "avxvnni",                0)
+X86_FEATURE_COMPAT(AVX512FP16,      "avx512fp16",             0)
+X86_FEATURE       (CCMP,            "ccmp")
+X86_FEATURE       (Push2Pop2,       "push2pop2")
+X86_FEATURE       (PPX,             "ppx")
+X86_FEATURE       (NDD,             "ndd")
+X86_FEATURE_COMPAT(AVXIFMA,         "avxifma",                0)
+X86_FEATURE_COMPAT(AVXVNNIINT8,     "avxvnniint8",            0)
+X86_FEATURE_COMPAT(AVXNECONVERT,    "avxneconvert",           0)
+X86_FEATURE_COMPAT(CMPCCXADD,       "cmpccxadd",              0)
+X86_FEATURE_COMPAT(AMX_FP16,        "amx-fp16",               0)
+X86_FEATURE_COMPAT(PREFETCHI,       "prefetchi",              0)
+X86_FEATURE_COMPAT(RAOINT,          "raoint",                 0)
+X86_FEATURE_COMPAT(AMX_COMPLEX,     "amx-complex",            0)
+X86_FEATURE_COMPAT(AVXVNNIINT16,    "avxvnniint16",           0)
+X86_FEATURE_COMPAT(SM3,             "sm3",                    0)
+X86_FEATURE_COMPAT(SHA512,          "sha512",                 0)
+X86_FEATURE_COMPAT(SM4,             "sm4",                    0)
+X86_FEATURE       (EGPR,            "egpr")
+X86_FEATURE_COMPAT(USERMSR,         "usermsr",                0)
+X86_FEATURE_COMPAT(AVX10_1,         "avx10.1-256",           36)
+X86_FEATURE_COMPAT(AVX10_1_512,     "avx10.1-512",           37)
+X86_FEATURE       (ZU,              "zu")
+// These features aren't really CPU features, but the frontend can set them.
+X86_FEATURE       (RETPOLINE_EXTERNAL_THUNK,    "retpoline-external-thunk")
+X86_FEATURE       (RETPOLINE_INDIRECT_BRANCHES, "retpoline-indirect-branches")
+X86_FEATURE       (RETPOLINE_INDIRECT_CALLS,    "retpoline-indirect-calls")
+X86_FEATURE       (LVI_CFI,                     "lvi-cfi")
+X86_FEATURE       (LVI_LOAD_HARDENING,          "lvi-load-hardening")
+
+X86_MICROARCH_LEVEL(X86_64_BASELINE,"x86-64",               95)
+X86_MICROARCH_LEVEL(X86_64_V2,      "x86-64-v2",            96)
+X86_MICROARCH_LEVEL(X86_64_V3,      "x86-64-v3",            97)
+X86_MICROARCH_LEVEL(X86_64_V4,      "x86-64-v4",            98)
+X86_MICROARCH_LEVEL(APXF,           "apxf",                111)
+#undef X86_FEATURE_COMPAT
+#undef X86_FEATURE
+#undef X86_MICROARCH_LEVEL

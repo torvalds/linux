@@ -1,0 +1,424 @@
+.\"	$OpenBSD: pmap.9,v 1.21 2025/01/19 22:14:45 kettenis Exp $
+.\"
+.\" Copyright (c) 2001, 2002, 2003 CubeSoft Communications, Inc.
+.\" <http://www.csoft.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 19 2025 $
+.Dt PMAP_INIT 9
+.Os
+.Sh NAME
+.Nm pmap_init ,
+.Nm pmap_enter ,
+.Nm pmap_kenter_pa ,
+.Nm pmap_remove ,
+.Nm pmap_kremove ,
+.Nm pmap_unwire ,
+.Nm pmap_protect ,
+.Nm pmap_page_protect ,
+.Nm pmap_is_modified ,
+.Nm pmap_clear_modify ,
+.Nm pmap_is_referenced ,
+.Nm pmap_clear_reference ,
+.Nm pmap_copy_page ,
+.Nm pmap_zero_page ,
+.Nm pmap_create ,
+.Nm pmap_reference ,
+.Nm pmap_destroy ,
+.Nm pmap_steal_memory ,
+.Nm pmap_growkernel ,
+.Nm pmap_update ,
+.Nm pmap_collect ,
+.Nm pmap_populate ,
+.Nm pmap_virtual_space
+.Nd machine dependent interface to the MMU
+.Sh SYNOPSIS
+.In machine/pmap.h
+.Sh DESCRIPTION
+The architecture-dependent
+.Nm pmap
+module describes how the physical mapping is done between the user-processes
+and kernel virtual addresses and the physical addresses of the main memory,
+providing machine-dependent translation and access tables that are used
+directly or indirectly by the memory-management hardware.
+The
+.Nm pmap
+layer can be viewed as a big array of mapping entries that are indexed by
+virtual address to produce a physical address and flags.
+These flags describe
+the page's protection, whether the page has been referenced or modified and
+other characteristics.
+.Pp
+The
+.Nm pmap
+interface is consistent across all platforms and hides the way page mappings
+are stored.
+.Sh INITIALIZATION
+.nr nS 1
+.Ft void
+.Fn pmap_init "void"
+.nr nS 0
+.Pp
+The
+.Fn pmap_init
+function is called from the machine-independent
+.Xr uvm_init 9
+initialization code, when the MMU is enabled.
+.Sh PAGE MANAGEMENT
+Modified/referenced information is only tracked for pages managed by UVM
+(pages for which a vm_page structure exists).
+Only managed mappings of those pages have modified/referenced tracking.
+The use of unmanaged mappings should be limited to code which may execute
+in interrupt context (such as
+.Xr malloc 9 )
+or to enter mappings for physical addresses which are not managed by UVM.
+This allows
+.Nm pmap
+modules to avoid blocking interrupts when manipulating data structures or
+holding locks.
+Unmanaged mappings may only be entered into the kernel's virtual address space.
+The modified/referenced bits must be tracked on a per-page basis, as they
+are not attributes of a mapping, but attributes of a page.
+Therefore, even after all mappings for a given page have been removed, the
+modified/referenced bits for that page must be preserved.
+The only time the modified/referenced bits may be cleared is when UVM
+explicitly calls the
+.Fn pmap_clear_modify
+and
+.Fn pmap_clear_reference
+functions.
+These functions must also change any internal state necessary to detect
+the page being modified or referenced again after the modified/referenced
+state is cleared.
+.Pp
+Mappings entered by
+.Fn pmap_enter
+are managed, mappings entered by
+.Fn pmap_kenter_pa
+are not.
+.Sh MAPPING ALLOCATION
+.nr nS 1
+.Ft int
+.Fn pmap_enter "pmap_t pmap" "vaddr_t va" "paddr_t pa" "vm_prot_t prot" \
+               "int flags"
+.Ft void
+.Fn pmap_kenter_pa "vaddr_t va" "paddr_t pa" "vm_prot_t prot"
+.Ft void
+.Fn pmap_remove "pmap_t pmap" "vaddr_t sva" "vaddr_t eva"
+.Ft void
+.Fn pmap_kremove "vaddr_t va" "vsize_t size"
+.nr nS 0
+.Pp
+The
+.Fn pmap_enter
+function creates a managed mapping for physical page
+.Fa pa
+at the specified virtual address
+.Fa va
+in the target physical map
+.Fa pmap
+with protection specified by
+.Fa prot :
+.Bl -tag -width "PROT_WRITE"
+.It PROT_READ
+The mapping must allow reading.
+.It PROT_WRITE
+The mapping must allow writing.
+.It PROT_EXEC
+The page mapped contains instructions that will be executed by the
+processor.
+.El
+.Pp
+The
+.Fa flags
+argument contains protection bits (the same bits used in the
+.Fa prot
+argument) indicating the type of access that caused the mapping to
+be created.
+This information may be used to seed modified/referenced
+information for the page being mapped, possibly avoiding redundant
+faults on platforms that track modified/referenced information in
+software.
+Other information provided by
+.Fa flags :
+.Bl -tag -width "PMAP_CANFAIL"
+.It PMAP_WIRED
+The mapping being created is a wired mapping.
+.It PMAP_CANFAIL
+The call to
+.Fn pmap_enter
+is allowed to fail.
+If this flag is not set, and the
+.Fn pmap_enter
+call is unable to create the mapping, perhaps due to insufficient
+resources, the
+.Nm pmap
+module must panic.
+.El
+.Pp
+The access type provided in the
+.Fa flags
+argument will never exceed the protection specified by
+.Fa prot .
+.Pp
+The
+.Fn pmap_enter
+function is called by the fault routine to establish a mapping for
+the page being faulted in.
+If
+.Fn pmap_enter
+is called to enter a mapping at a virtual address for which a mapping
+already exists, the previous mapping must be invalidated.
+.Fn pmap_enter
+is sometimes called to change the protection for a pre-existing mapping,
+or to change the
+.Dq wired
+attribute for a pre-existing mapping.
+.Pp
+The
+.Fn pmap_kenter_pa
+function creates an unmanaged mapping of physical address
+.Fa pa
+at the specified virtual address
+.Fa va
+with the protection specified by
+.Fa prot .
+.Pp
+The
+.Fn pmap_remove
+function removes the range of virtual addresses
+.Fa sva
+to
+.Fa eva
+from
+.Fa pmap ,
+assuming proper alignment.
+.Fn pmap_remove
+is called during an unmap
+operation to remove low-level machine dependent mappings.
+.Pp
+The
+.Fn pmap_kremove
+function removes an unmanaged mapping at virtual address
+.Fa va
+of size
+.Fa size .
+.Pp
+A call to
+.Fn pmap_update
+must be made after
+.Fn pmap_kenter_pa
+or
+.Fn pmap_kremove
+to notify the
+.Nm pmap
+layer that the mappings need to be made correct.
+.Sh ACCESS PROTECTION
+.nr nS 1
+.Ft void
+.Fn pmap_unwire "pmap_t pmap" "vaddr_t va"
+.Ft void
+.Fn pmap_protect "pmap_t pmap" "vaddr_t sva" "vaddr_t eva" "vm_prot_t prot"
+.Ft void
+.Fn pmap_page_protect "struct vm_page *pg" "vm_prot_t prot"
+.nr nS 0
+.Pp
+The
+.Fn pmap_unwire
+function clears the wired attribute for a map/virtual-address pair.
+The mapping must already exist in
+.Fa pmap .
+.Pp
+The
+.Fn pmap_protect
+function sets the physical protection on range
+.Fa sva
+to
+.Fa eva ,
+in
+.Fa pmap .
+.Pp
+The
+.Fn pmap_protect
+function is called during a copy-on-write operation to write protect
+copy-on-write memory, and when paging out a page to remove all mappings
+of a page.
+The
+.Fn pmap_page_protect
+function sets the permission for all mapping to page
+.Fa pg .
+The
+.Fn pmap_page_protect
+function is called before a pageout operation to ensure that all pmap
+references to a page are removed.
+.Sh PHYSICAL PAGE-USAGE INFORMATION
+.nr nS 1
+.Ft boolean_t
+.Fn pmap_is_modified "struct vm_page *pg"
+.Ft boolean_t
+.Fn pmap_clear_modify "struct vm_page *pg"
+.Ft boolean_t
+.Fn pmap_is_referenced "struct vm_page *pg"
+.Ft boolean_t
+.Fn pmap_clear_reference "struct vm_page *pg"
+.nr nS 0
+.Pp
+The
+.Fn pmap_is_modified
+and
+.Fn pmap_clear_modify
+functions read/set the modify bits on the specified physical page
+.Fa pg .
+The
+.Fn pmap_is_referenced
+and
+.Fn pmap_clear_reference
+functions read/set the reference bits on the specified physical page
+.Fa pg .
+.Pp
+The
+.Fn pmap_is_referenced
+and
+.Fn pmap_is_modified
+functions are called by the pagedaemon when looking for pages to free.
+The
+.Fn pmap_clear_referenced
+and
+.Fn pmap_clear_modify
+functions are called by the pagedaemon to help identification of pages
+that are no longer in demand.
+.Sh PHYSICAL PAGE INITIALIZATION
+.nr nS 1
+.Ft void
+.Fn pmap_copy_page "struct vm_page *src" "struct vm_page *dst"
+.Ft void
+.Fn pmap_zero_page "struct vm_page *page"
+.nr nS 0
+.Pp
+The
+.Fn pmap_copy_page
+function copies the content of the physical page
+.Fa src
+to physical page
+.Fa dst .
+.Pp
+The
+.Fn pmap_zero_page
+function fills
+.Fa page
+with zeroes.
+.Sh INTERNAL DATA STRUCTURE MANAGEMENT
+.nr nS 1
+.Ft pmap_t
+.Fn pmap_create "void"
+.Ft void
+.Fn pmap_reference "pmap_t pmap"
+.Ft void
+.Fn pmap_destroy "pmap_t pmap"
+.nr nS 0
+.Pp
+The
+.Fn pmap_create
+function creates an instance of the
+.Em pmap
+structure.
+.Pp
+The
+.Fn pmap_reference
+function increments the reference count on
+.Fa pmap .
+.Pp
+The
+.Fn pmap_destroy
+function decrements the reference count on physical map
+.Fa pmap
+and retires it from service if the count drops to zero, assuming
+it contains no valid mappings.
+.Sh OPTIONAL FUNCTIONS
+.nr nS 1
+.Ft vaddr_t
+.Fn pmap_steal_memory "vsize_t size" "vaddr_t *vstartp" "vaddr_t *vendp"
+.Ft vaddr_t
+.Fn pmap_growkernel "vaddr_t maxkvaddr"
+.Ft void
+.Fn pmap_update "pmap_t pmap"
+.Ft void
+.Fn pmap_collect "pmap_t pmap"
+.Ft void
+.Fn pmap_populate "pmap_t pmap" "vaddr_t va"
+.Ft void
+.Fn pmap_virtual_space "vaddr_t *vstartp" "vaddr_t *vendp"
+.nr nS 0
+.Pp
+Wired memory allocation before the virtual memory system is bootstrapped
+is accomplished by the
+.Fn pmap_steal_memory
+function.
+After that point, the kernel memory allocation routines should be used.
+.Pp
+The
+.Fn pmap_growkernel
+function can preallocate kernel page tables to a specified virtual address.
+.Pp
+The
+.Fn pmap_update
+function notifies the
+.Nm pmap
+module to force processing of all delayed actions for all pmaps.
+.Pp
+The
+.Fn pmap_populate
+function makes sure the resources necessary for mapping the specified
+virtual address
+.Fa va
+are allocated in the target physical map
+.Fa pmap .
+.Pp
+The
+.Fn pmap_collect
+function informs the
+.Nm pmap
+module that the given
+.Em pmap
+is not expected to be used for some time, giving the
+.Nm pmap
+module a chance to prioritize.
+The initial bounds of the kernel virtual address space are returned by
+.Fn pmap_virtual_space .
+.Sh SEE ALSO
+.Xr fork 2 ,
+.Xr uvm_init 9
+.Sh HISTORY
+The
+.Bx 4.4
+.Nm pmap
+module is based on Mach 3.0.
+The introduction of UVM
+left the
+.Nm pmap
+interface unchanged for the most part.
+.Sh BUGS
+Ifdefs must be documented.
+.Pp
+.Fn pmap_update
+should be mandatory.

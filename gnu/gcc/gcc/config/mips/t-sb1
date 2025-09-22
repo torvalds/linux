@@ -1,0 +1,44 @@
+# GP-rel: G0 only
+#
+# Endianness: EB or EL
+#
+# ABIs: mabi=32
+#	mabi=o64
+#	mabi=o64/mlong64
+#
+# FPU: (default mhard-float)
+#      msoft-float (only for mabi=32)
+#
+
+MULTILIB_EXTRA_OPTS = G0
+
+MULTILIB_OPTIONS =			\
+	EB/EL				\
+	mabi=32/mabi=o64		\
+	mips32/mips64                   \
+	mlong64/msoft-float		\
+
+MULTILIB_DIRNAMES =			\
+	eb el				\
+	o32 o64				\
+	mips32 mips64			\
+	long64 soft-float		\
+
+MULTILIB_MATCHES =			\
+	EB=meb EL=mel			\
+
+MULTILIB_EXCEPTIONS =			\
+        *mabi=32/*mlong64*		\
+
+MULTILIB_EXCLUSIONS =			\
+	mips32/!mabi=32                 \
+	mabi=32/!mips32			\
+	msoft-float/!mabi=32		\
+
+# Small multilib list for quick builds and tests.
+# Must either comment out everything above these lines, or everything below
+# these lines.
+
+#MULTILIB_OPTIONS = EB/EL msoft-float
+#MULTILIB_DIRNAMES = eb el soft-float
+#MULTILIB_MATCHES = EB=meb EL=mel

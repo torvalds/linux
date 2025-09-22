@@ -1,0 +1,74 @@
+.\"	$OpenBSD: AUTHORITY_KEYID_new.3,v 1.5 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt AUTHORITY_KEYID_NEW 3
+.Os
+.Sh NAME
+.Nm AUTHORITY_KEYID_new ,
+.Nm AUTHORITY_KEYID_free
+.Nd X.509 authority key identifier extension
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft AUTHORITY_KEYID *
+.Fn AUTHORITY_KEYID_new void
+.Ft void
+.Fn AUTHORITY_KEYID_free "AUTHORITY_KEYID *id"
+.Sh DESCRIPTION
+Using the authority key identifier extension, an X.509 certificate
+or certificate revocation list can specify which key pair was used
+for signing it.
+.Pp
+.Fn AUTHORITY_KEYID_new
+allocates and initializes an empty
+.Vt AUTHORITY_KEYID
+object, representing an ASN.1
+.Vt AuthorityKeyIdentifier
+structure defined in RFC 5280 section 4.2.1.1.
+It can hold an issuer name, a serial number, and a key identifier.
+.Pp
+.Fn AUTHORITY_KEYID_free
+frees
+.Fa id .
+.Sh RETURN VALUES
+.Fn AUTHORITY_KEYID_new
+returns the new
+.Vt AUTHORITY_KEYID
+object or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr d2i_AUTHORITY_KEYID 3 ,
+.Xr GENERAL_NAMES_new 3 ,
+.Xr X509_CRL_new 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile:
+.Bl -dash -compact
+.It
+section 4.2.1.1: Certificate Extensions: Authority Key Identifier
+.It
+section 5.2.1: CRL Extensions: Authority Key Identifier
+.El
+.Sh HISTORY
+.Fn AUTHORITY_KEYID_new
+and
+.Fn AUTHORITY_KEYID_free
+first appeared in OpenSSL 0.9.2b and have been available since
+.Ox 2.6 .

@@ -1,0 +1,1207 @@
+/* This file contains the definitions and documentation for the
+   Register Transfer Expressions (rtx's) that make up the
+   Register Transfer Language (rtl) used in the Back End of the GNU compiler.
+   Copyright (C) 1987, 1988, 1992, 1994, 1995, 1997, 1998, 1999, 2000, 2004,
+   2005, 2006
+   Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+
+/* Expression definitions and descriptions for all targets are in this file.
+   Some will not be used for some targets.
+
+   The fields in the cpp macro call "DEF_RTL_EXPR()"
+   are used to create declarations in the C source of the compiler.
+
+   The fields are:
+
+   1.  The internal name of the rtx used in the C source.
+   It is a tag in the enumeration "enum rtx_code" defined in "rtl.h".
+   By convention these are in UPPER_CASE.
+
+   2.  The name of the rtx in the external ASCII format read by
+   read_rtx(), and printed by print_rtx().
+   These names are stored in rtx_name[].
+   By convention these are the internal (field 1) names in lower_case.
+
+   3.  The print format, and type of each rtx->u.fld[] (field) in this rtx.
+   These formats are stored in rtx_format[].
+   The meaning of the formats is documented in front of this array in rtl.c
+   
+   4.  The class of the rtx.  These are stored in rtx_class and are accessed
+   via the GET_RTX_CLASS macro.  They are defined as follows:
+
+     RTX_CONST_OBJ
+         an rtx code that can be used to represent a constant object
+         (e.g, CONST_INT)
+     RTX_OBJ
+         an rtx code that can be used to represent an object (e.g, REG, MEM)
+     RTX_COMPARE
+         an rtx code for a comparison (e.g, LT, GT)
+     RTX_COMM_COMPARE
+         an rtx code for a commutative comparison (e.g, EQ, NE, ORDERED)
+     RTX_UNARY
+         an rtx code for a unary arithmetic expression (e.g, NEG, NOT)
+     RTX_COMM_ARITH
+         an rtx code for a commutative binary operation (e.g,, PLUS, MULT)
+     RTX_TERNARY
+         an rtx code for a non-bitfield three input operation (IF_THEN_ELSE)
+     RTX_BIN_ARITH
+         an rtx code for a non-commutative binary operation (e.g., MINUS, DIV)
+     RTX_BITFIELD_OPS
+         an rtx code for a bit-field operation (ZERO_EXTRACT, SIGN_EXTRACT)
+     RTX_INSN
+         an rtx code for a machine insn (INSN, JUMP_INSN, CALL_INSN)
+     RTX_MATCH
+         an rtx code for something that matches in insns (e.g, MATCH_DUP)
+     RTX_AUTOINC
+         an rtx code for autoincrement addressing modes (e.g. POST_DEC)
+     RTX_EXTRA
+         everything else
+
+   All of the expressions that appear only in machine descriptions,
+   not in RTL used by the compiler itself, are at the end of the file.  */
+
+/* Unknown, or no such operation; the enumeration constant should have
+   value zero.  */
+DEF_RTL_EXPR(UNKNOWN, "UnKnown", "*", RTX_EXTRA)
+
+/* ---------------------------------------------------------------------
+   Expressions used in constructing lists.
+   --------------------------------------------------------------------- */
+
+/* a linked list of expressions */
+DEF_RTL_EXPR(EXPR_LIST, "expr_list", "ee", RTX_EXTRA)
+
+/* a linked list of instructions.
+   The insns are represented in print by their uids.  */
+DEF_RTL_EXPR(INSN_LIST, "insn_list", "ue", RTX_EXTRA)
+
+/* a linked list of dependencies. 
+   The insns are represented in print by their uids. 
+   Operand 2 is the status of a dependence (see sched-int.h for more).  */
+DEF_RTL_EXPR(DEPS_LIST, "deps_list", "uei", RTX_EXTRA)
+
+/* SEQUENCE appears in the result of a `gen_...' function
+   for a DEFINE_EXPAND that wants to make several insns.
+   Its elements are the bodies of the insns that should be made.
+   `emit_insn' takes the SEQUENCE apart and makes separate insns.  */
+DEF_RTL_EXPR(SEQUENCE, "sequence", "E", RTX_EXTRA)
+
+/* Refers to the address of its argument.  This is only used in alias.c.  */
+DEF_RTL_EXPR(ADDRESS, "address", "e", RTX_MATCH)
+
+/* ----------------------------------------------------------------------
+   Expression types used for things in the instruction chain.
+
+   All formats must start with "iuu" to handle the chain.
+   Each insn expression holds an rtl instruction and its semantics
+   during back-end processing.
+   See macros's in "rtl.h" for the meaning of each rtx->u.fld[].
+
+   ---------------------------------------------------------------------- */
+
+/* An instruction that cannot jump.  */
+DEF_RTL_EXPR(INSN, "insn", "iuuBieiee", RTX_INSN)
+
+/* An instruction that can possibly jump.
+   Fields ( rtx->u.fld[] ) have exact same meaning as INSN's.  */
+DEF_RTL_EXPR(JUMP_INSN, "jump_insn", "iuuBieiee0", RTX_INSN)
+
+/* An instruction that can possibly call a subroutine
+   but which will not change which instruction comes next
+   in the current function.
+   Field ( rtx->u.fld[9] ) is CALL_INSN_FUNCTION_USAGE.
+   All other fields ( rtx->u.fld[] ) have exact same meaning as INSN's.  */
+DEF_RTL_EXPR(CALL_INSN, "call_insn", "iuuBieieee", RTX_INSN)
+
+/* A marker that indicates that control will not flow through.  */
+DEF_RTL_EXPR(BARRIER, "barrier", "iuu000000", RTX_EXTRA)
+
+/* Holds a label that is followed by instructions.
+   Operand:
+   4: is used in jump.c for the use-count of the label.
+   5: is used in flow.c to point to the chain of label_ref's to this label.
+   6: is a number that is unique in the entire compilation.
+   7: is the user-given name of the label, if any.  */
+DEF_RTL_EXPR(CODE_LABEL, "code_label", "iuuB00is", RTX_EXTRA)
+
+#ifdef USE_MAPPED_LOCATION
+/* Say where in the code a source line starts, for symbol table's sake.
+   Operand:
+   4: unused if line number > 0, note-specific data otherwise.
+   5: line number if > 0, enum note_insn otherwise.
+   6: CODE_LABEL_NUMBER if line number == NOTE_INSN_DELETED_LABEL.  */
+#else
+/* Say where in the code a source line starts, for symbol table's sake.
+   Operand:
+   4: filename, if line number > 0, note-specific data otherwise.
+   5: line number if > 0, enum note_insn otherwise.
+   6: unique number if line number == note_insn_deleted_label.  */
+#endif
+DEF_RTL_EXPR(NOTE, "note", "iuuB0ni", RTX_EXTRA)
+
+/* ----------------------------------------------------------------------
+   Top level constituents of INSN, JUMP_INSN and CALL_INSN.
+   ---------------------------------------------------------------------- */
+   
+/* Conditionally execute code.
+   Operand 0 is the condition that if true, the code is executed.
+   Operand 1 is the code to be executed (typically a SET). 
+
+   Semantics are that there are no side effects if the condition
+   is false.  This pattern is created automatically by the if_convert
+   pass run after reload or by target-specific splitters.  */
+DEF_RTL_EXPR(COND_EXEC, "cond_exec", "ee", RTX_EXTRA)
+
+/* Several operations to be done in parallel (perhaps under COND_EXEC).  */
+DEF_RTL_EXPR(PARALLEL, "parallel", "E", RTX_EXTRA)
+
+/* A string that is passed through to the assembler as input.
+     One can obviously pass comments through by using the
+     assembler comment syntax.
+     These occur in an insn all by themselves as the PATTERN.
+     They also appear inside an ASM_OPERANDS
+     as a convenient way to hold a string.  */
+DEF_RTL_EXPR(ASM_INPUT, "asm_input", "s", RTX_EXTRA)
+
+#ifdef USE_MAPPED_LOCATION
+/* An assembler instruction with operands.
+   1st operand is the instruction template.
+   2nd operand is the constraint for the output.
+   3rd operand is the number of the output this expression refers to.
+     When an insn stores more than one value, a separate ASM_OPERANDS
+     is made for each output; this integer distinguishes them.
+   4th is a vector of values of input operands.
+   5th is a vector of modes and constraints for the input operands.
+     Each element is an ASM_INPUT containing a constraint string
+     and whose mode indicates the mode of the input operand.
+   6th is the source line number.  */
+DEF_RTL_EXPR(ASM_OPERANDS, "asm_operands", "ssiEEi", RTX_EXTRA)
+#else
+/* An assembler instruction with operands.
+   1st operand is the instruction template.
+   2nd operand is the constraint for the output.
+   3rd operand is the number of the output this expression refers to.
+     When an insn stores more than one value, a separate ASM_OPERANDS
+     is made for each output; this integer distinguishes them.
+   4th is a vector of values of input operands.
+   5th is a vector of modes and constraints for the input operands.
+     Each element is an ASM_INPUT containing a constraint string
+     and whose mode indicates the mode of the input operand.
+   6th is the name of the containing source file.
+   7th is the source line number.  */
+DEF_RTL_EXPR(ASM_OPERANDS, "asm_operands", "ssiEEsi", RTX_EXTRA)
+#endif
+
+/* A machine-specific operation.
+   1st operand is a vector of operands being used by the operation so that
+     any needed reloads can be done.
+   2nd operand is a unique value saying which of a number of machine-specific
+     operations is to be performed.
+   (Note that the vector must be the first operand because of the way that
+   genrecog.c record positions within an insn.)
+   This can occur all by itself in a PATTERN, as a component of a PARALLEL,
+   or inside an expression.  */
+DEF_RTL_EXPR(UNSPEC, "unspec", "Ei", RTX_EXTRA)
+
+/* Similar, but a volatile operation and one which may trap.  */
+DEF_RTL_EXPR(UNSPEC_VOLATILE, "unspec_volatile", "Ei", RTX_EXTRA)
+
+/* Vector of addresses, stored as full words.  */
+/* Each element is a LABEL_REF to a CODE_LABEL whose address we want.  */
+DEF_RTL_EXPR(ADDR_VEC, "addr_vec", "E", RTX_EXTRA)
+
+/* Vector of address differences X0 - BASE, X1 - BASE, ...
+   First operand is BASE; the vector contains the X's.
+   The machine mode of this rtx says how much space to leave
+   for each difference and is adjusted by branch shortening if
+   CASE_VECTOR_SHORTEN_MODE is defined.
+   The third and fourth operands store the target labels with the
+   minimum and maximum addresses respectively.
+   The fifth operand stores flags for use by branch shortening.
+  Set at the start of shorten_branches:
+   min_align: the minimum alignment for any of the target labels.
+   base_after_vec: true iff BASE is after the ADDR_DIFF_VEC.
+   min_after_vec: true iff minimum addr target label is after the ADDR_DIFF_VEC.
+   max_after_vec: true iff maximum addr target label is after the ADDR_DIFF_VEC.
+   min_after_base: true iff minimum address target label is after BASE.
+   max_after_base: true iff maximum address target label is after BASE.
+  Set by the actual branch shortening process:
+   offset_unsigned: true iff offsets have to be treated as unsigned.
+   scale: scaling that is necessary to make offsets fit into the mode.
+
+   The third, fourth and fifth operands are only valid when
+   CASE_VECTOR_SHORTEN_MODE is defined, and only in an optimizing
+   compilations.  */
+     
+DEF_RTL_EXPR(ADDR_DIFF_VEC, "addr_diff_vec", "eEee0", RTX_EXTRA)
+
+/* Memory prefetch, with attributes supported on some targets.
+   Operand 1 is the address of the memory to fetch.
+   Operand 2 is 1 for a write access, 0 otherwise.
+   Operand 3 is the level of temporal locality; 0 means there is no
+   temporal locality and 1, 2, and 3 are for increasing levels of temporal
+   locality.
+
+   The attributes specified by operands 2 and 3 are ignored for targets
+   whose prefetch instructions do not support them.  */
+DEF_RTL_EXPR(PREFETCH, "prefetch", "eee", RTX_EXTRA)
+
+/* ----------------------------------------------------------------------
+   At the top level of an instruction (perhaps under PARALLEL).
+   ---------------------------------------------------------------------- */
+
+/* Assignment.
+   Operand 1 is the location (REG, MEM, PC, CC0 or whatever) assigned to.
+   Operand 2 is the value stored there.
+   ALL assignment must use SET.
+   Instructions that do multiple assignments must use multiple SET,
+   under PARALLEL.  */
+DEF_RTL_EXPR(SET, "set", "ee", RTX_EXTRA)
+
+/* Indicate something is used in a way that we don't want to explain.
+   For example, subroutine calls will use the register
+   in which the static chain is passed.  */
+DEF_RTL_EXPR(USE, "use", "e", RTX_EXTRA)
+
+/* Indicate something is clobbered in a way that we don't want to explain.
+   For example, subroutine calls will clobber some physical registers
+   (the ones that are by convention not saved).  */
+DEF_RTL_EXPR(CLOBBER, "clobber", "e", RTX_EXTRA)
+
+/* Call a subroutine.
+   Operand 1 is the address to call.
+   Operand 2 is the number of arguments.  */
+
+DEF_RTL_EXPR(CALL, "call", "ee", RTX_EXTRA)
+
+/* Return from a subroutine.  */
+
+DEF_RTL_EXPR(RETURN, "return", "", RTX_EXTRA)
+
+/* Conditional trap.
+   Operand 1 is the condition.
+   Operand 2 is the trap code.
+   For an unconditional trap, make the condition (const_int 1).  */
+DEF_RTL_EXPR(TRAP_IF, "trap_if", "ee", RTX_EXTRA)
+
+/* Placeholder for _Unwind_Resume before we know if a function call
+   or a branch is needed.  Operand 1 is the exception region from
+   which control is flowing.  */
+DEF_RTL_EXPR(RESX, "resx", "i", RTX_EXTRA)
+
+/* ----------------------------------------------------------------------
+   Primitive values for use in expressions.
+   ---------------------------------------------------------------------- */
+
+/* numeric integer constant */
+DEF_RTL_EXPR(CONST_INT, "const_int", "w", RTX_CONST_OBJ)
+
+/* numeric floating point constant.
+   Operands hold the value.  They are all 'w' and there may be from 2 to 6;
+   see real.h.  */
+DEF_RTL_EXPR(CONST_DOUBLE, "const_double", CONST_DOUBLE_FORMAT, RTX_CONST_OBJ)
+
+/* Describes a vector constant.  */
+DEF_RTL_EXPR(CONST_VECTOR, "const_vector", "E", RTX_CONST_OBJ)
+
+/* String constant.  Used for attributes in machine descriptions and
+   for special cases in DWARF2 debug output.  NOT used for source-
+   language string constants.  */
+DEF_RTL_EXPR(CONST_STRING, "const_string", "s", RTX_OBJ)
+
+/* This is used to encapsulate an expression whose value is constant
+   (such as the sum of a SYMBOL_REF and a CONST_INT) so that it will be
+   recognized as a constant operand rather than by arithmetic instructions.  */
+
+DEF_RTL_EXPR(CONST, "const", "e", RTX_CONST_OBJ)
+
+/* program counter.  Ordinary jumps are represented
+   by a SET whose first operand is (PC).  */
+DEF_RTL_EXPR(PC, "pc", "", RTX_OBJ)
+
+/* Used in the cselib routines to describe a value.  Objects of this
+   kind are only allocated in cselib.c, in an alloc pool instead of
+   in GC memory.  The only operand of a VALUE is a cselib_val_struct.  */
+DEF_RTL_EXPR(VALUE, "value", "0", RTX_OBJ)
+
+/* A register.  The "operand" is the register number, accessed with
+   the REGNO macro.  If this number is less than FIRST_PSEUDO_REGISTER
+   than a hardware register is being referred to.  The second operand
+   holds the original register number - this will be different for a
+   pseudo register that got turned into a hard register.  The third
+   operand points to a reg_attrs structure.
+   This rtx needs to have as many (or more) fields as a MEM, since we
+   can change REG rtx's into MEMs during reload.  */
+DEF_RTL_EXPR(REG, "reg", "i00", RTX_OBJ)
+
+/* A scratch register.  This represents a register used only within a
+   single insn.  It will be turned into a REG during register allocation
+   or reload unless the constraint indicates that the register won't be
+   needed, in which case it can remain a SCRATCH.  This code is
+   marked as having one operand so it can be turned into a REG.  */
+DEF_RTL_EXPR(SCRATCH, "scratch", "0", RTX_OBJ)
+
+/* One word of a multi-word value.
+   The first operand is the complete value; the second says which word.
+   The WORDS_BIG_ENDIAN flag controls whether word number 0
+   (as numbered in a SUBREG) is the most or least significant word.
+
+   This is also used to refer to a value in a different machine mode.
+   For example, it can be used to refer to a SImode value as if it were
+   Qimode, or vice versa.  Then the word number is always 0.  */
+DEF_RTL_EXPR(SUBREG, "subreg", "ei", RTX_EXTRA)
+
+/* This one-argument rtx is used for move instructions
+   that are guaranteed to alter only the low part of a destination.
+   Thus, (SET (SUBREG:HI (REG...)) (MEM:HI ...))
+   has an unspecified effect on the high part of REG,
+   but (SET (STRICT_LOW_PART (SUBREG:HI (REG...))) (MEM:HI ...))
+   is guaranteed to alter only the bits of REG that are in HImode.
+
+   The actual instruction used is probably the same in both cases,
+   but the register constraints may be tighter when STRICT_LOW_PART
+   is in use.  */
+
+DEF_RTL_EXPR(STRICT_LOW_PART, "strict_low_part", "e", RTX_EXTRA)
+
+/* (CONCAT a b) represents the virtual concatenation of a and b
+   to make a value that has as many bits as a and b put together.
+   This is used for complex values.  Normally it appears only
+   in DECL_RTLs and during RTL generation, but not in the insn chain.  */
+DEF_RTL_EXPR(CONCAT, "concat", "ee", RTX_OBJ)
+
+/* A memory location; operand is the address.  The second operand is the
+   alias set to which this MEM belongs.  We use `0' instead of `w' for this
+   field so that the field need not be specified in machine descriptions.  */
+DEF_RTL_EXPR(MEM, "mem", "e0", RTX_OBJ)
+
+/* Reference to an assembler label in the code for this function.
+   The operand is a CODE_LABEL found in the insn chain.  */
+DEF_RTL_EXPR(LABEL_REF, "label_ref", "u", RTX_CONST_OBJ)
+
+/* Reference to a named label: 
+   Operand 0: label name
+   Operand 1: flags (see SYMBOL_FLAG_* in rtl.h)
+   Operand 2: tree from which this symbol is derived, or null.
+   This is either a DECL node, or some kind of constant.  */
+DEF_RTL_EXPR(SYMBOL_REF, "symbol_ref", "s00", RTX_CONST_OBJ)
+
+/* The condition code register is represented, in our imagination,
+   as a register holding a value that can be compared to zero.
+   In fact, the machine has already compared them and recorded the
+   results; but instructions that look at the condition code
+   pretend to be looking at the entire value and comparing it.  */
+DEF_RTL_EXPR(CC0, "cc0", "", RTX_OBJ)
+
+/* ----------------------------------------------------------------------
+   Expressions for operators in an rtl pattern
+   ---------------------------------------------------------------------- */
+
+/* if_then_else.  This is used in representing ordinary
+   conditional jump instructions.
+     Operand:
+     0:  condition
+     1:  then expr
+     2:  else expr */
+DEF_RTL_EXPR(IF_THEN_ELSE, "if_then_else", "eee", RTX_TERNARY)
+
+/* Comparison, produces a condition code result.  */
+DEF_RTL_EXPR(COMPARE, "compare", "ee", RTX_BIN_ARITH)
+
+/* plus */
+DEF_RTL_EXPR(PLUS, "plus", "ee", RTX_COMM_ARITH)
+
+/* Operand 0 minus operand 1.  */
+DEF_RTL_EXPR(MINUS, "minus", "ee", RTX_BIN_ARITH)
+
+/* Minus operand 0.  */
+DEF_RTL_EXPR(NEG, "neg", "e", RTX_UNARY)
+
+DEF_RTL_EXPR(MULT, "mult", "ee", RTX_COMM_ARITH)
+
+/* Operand 0 divided by operand 1.  */
+DEF_RTL_EXPR(DIV, "div", "ee", RTX_BIN_ARITH)
+/* Remainder of operand 0 divided by operand 1.  */
+DEF_RTL_EXPR(MOD, "mod", "ee", RTX_BIN_ARITH)
+
+/* Unsigned divide and remainder.  */
+DEF_RTL_EXPR(UDIV, "udiv", "ee", RTX_BIN_ARITH)
+DEF_RTL_EXPR(UMOD, "umod", "ee", RTX_BIN_ARITH)
+
+/* Bitwise operations.  */
+DEF_RTL_EXPR(AND, "and", "ee", RTX_COMM_ARITH)
+DEF_RTL_EXPR(IOR, "ior", "ee", RTX_COMM_ARITH)
+DEF_RTL_EXPR(XOR, "xor", "ee", RTX_COMM_ARITH)
+DEF_RTL_EXPR(NOT, "not", "e", RTX_UNARY)
+
+/* Operand:
+     0:  value to be shifted.
+     1:  number of bits.  */
+DEF_RTL_EXPR(ASHIFT, "ashift", "ee", RTX_BIN_ARITH) /* shift left */
+DEF_RTL_EXPR(ROTATE, "rotate", "ee", RTX_BIN_ARITH) /* rotate left */
+DEF_RTL_EXPR(ASHIFTRT, "ashiftrt", "ee", RTX_BIN_ARITH) /* arithmetic shift right */
+DEF_RTL_EXPR(LSHIFTRT, "lshiftrt", "ee", RTX_BIN_ARITH) /* logical shift right */
+DEF_RTL_EXPR(ROTATERT, "rotatert", "ee", RTX_BIN_ARITH) /* rotate right */
+
+/* Minimum and maximum values of two operands.  We need both signed and
+   unsigned forms.  (We cannot use MIN for SMIN because it conflicts
+   with a macro of the same name.)   The signed variants should be used
+   with floating point.  Further, if both operands are zeros, or if either
+   operand is NaN, then it is unspecified which of the two operands is
+   returned as the result.  */
+
+DEF_RTL_EXPR(SMIN, "smin", "ee", RTX_COMM_ARITH)
+DEF_RTL_EXPR(SMAX, "smax", "ee", RTX_COMM_ARITH)
+DEF_RTL_EXPR(UMIN, "umin", "ee", RTX_COMM_ARITH)
+DEF_RTL_EXPR(UMAX, "umax", "ee", RTX_COMM_ARITH)
+
+/* These unary operations are used to represent incrementation
+   and decrementation as they occur in memory addresses.
+   The amount of increment or decrement are not represented
+   because they can be understood from the machine-mode of the
+   containing MEM.  These operations exist in only two cases:
+   1. pushes onto the stack.
+   2. created automatically by the life_analysis pass in flow.c.  */
+DEF_RTL_EXPR(PRE_DEC, "pre_dec", "e", RTX_AUTOINC)
+DEF_RTL_EXPR(PRE_INC, "pre_inc", "e", RTX_AUTOINC)
+DEF_RTL_EXPR(POST_DEC, "post_dec", "e", RTX_AUTOINC)
+DEF_RTL_EXPR(POST_INC, "post_inc", "e", RTX_AUTOINC)
+
+/* These binary operations are used to represent generic address
+   side-effects in memory addresses, except for simple incrementation
+   or decrementation which use the above operations.  They are
+   created automatically by the life_analysis pass in flow.c.
+   The first operand is a REG which is used as the address.
+   The second operand is an expression that is assigned to the
+   register, either before (PRE_MODIFY) or after (POST_MODIFY)
+   evaluating the address.
+   Currently, the compiler can only handle second operands of the
+   form (plus (reg) (reg)) and (plus (reg) (const_int)), where
+   the first operand of the PLUS has to be the same register as
+   the first operand of the *_MODIFY.  */
+DEF_RTL_EXPR(PRE_MODIFY, "pre_modify", "ee", RTX_AUTOINC)
+DEF_RTL_EXPR(POST_MODIFY, "post_modify", "ee", RTX_AUTOINC)
+
+/* Comparison operations.  The ordered comparisons exist in two
+   flavors, signed and unsigned.  */
+DEF_RTL_EXPR(NE, "ne", "ee", RTX_COMM_COMPARE)
+DEF_RTL_EXPR(EQ, "eq", "ee", RTX_COMM_COMPARE)
+DEF_RTL_EXPR(GE, "ge", "ee", RTX_COMPARE)
+DEF_RTL_EXPR(GT, "gt", "ee", RTX_COMPARE)
+DEF_RTL_EXPR(LE, "le", "ee", RTX_COMPARE)
+DEF_RTL_EXPR(LT, "lt", "ee", RTX_COMPARE)
+DEF_RTL_EXPR(GEU, "geu", "ee", RTX_COMPARE)
+DEF_RTL_EXPR(GTU, "gtu", "ee", RTX_COMPARE)
+DEF_RTL_EXPR(LEU, "leu", "ee", RTX_COMPARE)
+DEF_RTL_EXPR(LTU, "ltu", "ee", RTX_COMPARE)
+
+/* Additional floating point unordered comparison flavors.  */
+DEF_RTL_EXPR(UNORDERED, "unordered", "ee", RTX_COMM_COMPARE)
+DEF_RTL_EXPR(ORDERED, "ordered", "ee", RTX_COMM_COMPARE)
+
+/* These are equivalent to unordered or ...  */
+DEF_RTL_EXPR(UNEQ, "uneq", "ee", RTX_COMM_COMPARE)
+DEF_RTL_EXPR(UNGE, "unge", "ee", RTX_COMPARE)
+DEF_RTL_EXPR(UNGT, "ungt", "ee", RTX_COMPARE)
+DEF_RTL_EXPR(UNLE, "unle", "ee", RTX_COMPARE)
+DEF_RTL_EXPR(UNLT, "unlt", "ee", RTX_COMPARE)
+
+/* This is an ordered NE, ie !UNEQ, ie false for NaN.  */
+DEF_RTL_EXPR(LTGT, "ltgt", "ee", RTX_COMM_COMPARE)
+
+/* Represents the result of sign-extending the sole operand.
+   The machine modes of the operand and of the SIGN_EXTEND expression
+   determine how much sign-extension is going on.  */
+DEF_RTL_EXPR(SIGN_EXTEND, "sign_extend", "e", RTX_UNARY)
+
+/* Similar for zero-extension (such as unsigned short to int).  */
+DEF_RTL_EXPR(ZERO_EXTEND, "zero_extend", "e", RTX_UNARY)
+
+/* Similar but here the operand has a wider mode.  */
+DEF_RTL_EXPR(TRUNCATE, "truncate", "e", RTX_UNARY)
+
+/* Similar for extending floating-point values (such as SFmode to DFmode).  */
+DEF_RTL_EXPR(FLOAT_EXTEND, "float_extend", "e", RTX_UNARY)
+DEF_RTL_EXPR(FLOAT_TRUNCATE, "float_truncate", "e", RTX_UNARY)
+
+/* Conversion of fixed point operand to floating point value.  */
+DEF_RTL_EXPR(FLOAT, "float", "e", RTX_UNARY)
+
+/* With fixed-point machine mode:
+   Conversion of floating point operand to fixed point value.
+   Value is defined only when the operand's value is an integer.
+   With floating-point machine mode (and operand with same mode):
+   Operand is rounded toward zero to produce an integer value
+   represented in floating point.  */
+DEF_RTL_EXPR(FIX, "fix", "e", RTX_UNARY)
+
+/* Conversion of unsigned fixed point operand to floating point value.  */
+DEF_RTL_EXPR(UNSIGNED_FLOAT, "unsigned_float", "e", RTX_UNARY)
+
+/* With fixed-point machine mode:
+   Conversion of floating point operand to *unsigned* fixed point value.
+   Value is defined only when the operand's value is an integer.  */
+DEF_RTL_EXPR(UNSIGNED_FIX, "unsigned_fix", "e", RTX_UNARY)
+
+/* Absolute value */
+DEF_RTL_EXPR(ABS, "abs", "e", RTX_UNARY)
+
+/* Square root */
+DEF_RTL_EXPR(SQRT, "sqrt", "e", RTX_UNARY)
+
+/* Find first bit that is set.
+   Value is 1 + number of trailing zeros in the arg.,
+   or 0 if arg is 0.  */
+DEF_RTL_EXPR(FFS, "ffs", "e", RTX_UNARY)
+
+/* Count leading zeros.  */
+DEF_RTL_EXPR(CLZ, "clz", "e", RTX_UNARY)
+
+/* Count trailing zeros.  */
+DEF_RTL_EXPR(CTZ, "ctz", "e", RTX_UNARY)
+
+/* Population count (number of 1 bits).  */
+DEF_RTL_EXPR(POPCOUNT, "popcount", "e", RTX_UNARY)
+
+/* Population parity (number of 1 bits modulo 2).  */
+DEF_RTL_EXPR(PARITY, "parity", "e", RTX_UNARY)
+
+/* Reference to a signed bit-field of specified size and position.
+   Operand 0 is the memory unit (usually SImode or QImode) which
+   contains the field's first bit.  Operand 1 is the width, in bits.
+   Operand 2 is the number of bits in the memory unit before the
+   first bit of this field.
+   If BITS_BIG_ENDIAN is defined, the first bit is the msb and
+   operand 2 counts from the msb of the memory unit.
+   Otherwise, the first bit is the lsb and operand 2 counts from
+   the lsb of the memory unit.
+   This kind of expression can not appear as an lvalue in RTL.  */
+DEF_RTL_EXPR(SIGN_EXTRACT, "sign_extract", "eee", RTX_BITFIELD_OPS)
+
+/* Similar for unsigned bit-field.
+   But note!  This kind of expression _can_ appear as an lvalue.  */
+DEF_RTL_EXPR(ZERO_EXTRACT, "zero_extract", "eee", RTX_BITFIELD_OPS)
+
+/* For RISC machines.  These save memory when splitting insns.  */
+
+/* HIGH are the high-order bits of a constant expression.  */
+DEF_RTL_EXPR(HIGH, "high", "e", RTX_CONST_OBJ)
+
+/* LO_SUM is the sum of a register and the low-order bits
+   of a constant expression.  */
+DEF_RTL_EXPR(LO_SUM, "lo_sum", "ee", RTX_OBJ)
+
+/* Describes a merge operation between two vector values.
+   Operands 0 and 1 are the vectors to be merged, operand 2 is a bitmask
+   that specifies where the parts of the result are taken from.  Set bits
+   indicate operand 0, clear bits indicate operand 1.  The parts are defined
+   by the mode of the vectors.  */
+DEF_RTL_EXPR(VEC_MERGE, "vec_merge", "eee", RTX_TERNARY)
+
+/* Describes an operation that selects parts of a vector.
+   Operands 0 is the source vector, operand 1 is a PARALLEL that contains
+   a CONST_INT for each of the subparts of the result vector, giving the
+   number of the source subpart that should be stored into it.  */
+DEF_RTL_EXPR(VEC_SELECT, "vec_select", "ee", RTX_BIN_ARITH)
+
+/* Describes a vector concat operation.  Operands 0 and 1 are the source
+   vectors, the result is a vector that is as long as operands 0 and 1
+   combined and is the concatenation of the two source vectors.  */
+DEF_RTL_EXPR(VEC_CONCAT, "vec_concat", "ee", RTX_BIN_ARITH)
+
+/* Describes an operation that converts a small vector into a larger one by
+   duplicating the input values.  The output vector mode must have the same
+   submodes as the input vector mode, and the number of output parts must be
+   an integer multiple of the number of input parts.  */
+DEF_RTL_EXPR(VEC_DUPLICATE, "vec_duplicate", "e", RTX_UNARY)
+     
+/* Addition with signed saturation */
+DEF_RTL_EXPR(SS_PLUS, "ss_plus", "ee", RTX_COMM_ARITH)
+
+/* Addition with unsigned saturation */
+DEF_RTL_EXPR(US_PLUS, "us_plus", "ee", RTX_COMM_ARITH)
+
+/* Operand 0 minus operand 1, with signed saturation.  */
+DEF_RTL_EXPR(SS_MINUS, "ss_minus", "ee", RTX_BIN_ARITH)
+
+/* Negation with signed saturation.  */
+DEF_RTL_EXPR(SS_NEG, "ss_neg", "e", RTX_UNARY)
+
+/* Shift left with signed saturation.  */
+DEF_RTL_EXPR(SS_ASHIFT, "ss_ashift", "ee", RTX_BIN_ARITH)
+
+/* Operand 0 minus operand 1, with unsigned saturation.  */
+DEF_RTL_EXPR(US_MINUS, "us_minus", "ee", RTX_BIN_ARITH)
+
+/* Signed saturating truncate.  */
+DEF_RTL_EXPR(SS_TRUNCATE, "ss_truncate", "e", RTX_UNARY)
+
+/* Unsigned saturating truncate.  */
+DEF_RTL_EXPR(US_TRUNCATE, "us_truncate", "e", RTX_UNARY)
+
+/* Information about the variable and its location.  */
+DEF_RTL_EXPR(VAR_LOCATION, "var_location", "te", RTX_EXTRA)
+
+/* All expressions from this point forward appear only in machine
+   descriptions.  */
+#ifdef GENERATOR_FILE
+
+/* Include a secondary machine-description file at this point.  */
+DEF_RTL_EXPR(INCLUDE, "include", "s", RTX_EXTRA)
+
+/* Pattern-matching operators:  */
+
+/* Use the function named by the second arg (the string)
+   as a predicate; if matched, store the structure that was matched
+   in the operand table at index specified by the first arg (the integer).
+   If the second arg is the null string, the structure is just stored.
+
+   A third string argument indicates to the register allocator restrictions
+   on where the operand can be allocated.
+
+   If the target needs no restriction on any instruction this field should
+   be the null string.
+
+   The string is prepended by:
+   '=' to indicate the operand is only written to.
+   '+' to indicate the operand is both read and written to.
+
+   Each character in the string represents an allocable class for an operand.
+   'g' indicates the operand can be any valid class.
+   'i' indicates the operand can be immediate (in the instruction) data.
+   'r' indicates the operand can be in a register.
+   'm' indicates the operand can be in memory.
+   'o' a subset of the 'm' class.  Those memory addressing modes that
+       can be offset at compile time (have a constant added to them).
+
+   Other characters indicate target dependent operand classes and
+   are described in each target's machine description.
+
+   For instructions with more than one operand, sets of classes can be
+   separated by a comma to indicate the appropriate multi-operand constraints.
+   There must be a 1 to 1 correspondence between these sets of classes in
+   all operands for an instruction.
+   */
+DEF_RTL_EXPR(MATCH_OPERAND, "match_operand", "iss", RTX_MATCH)
+
+/* Match a SCRATCH or a register.  When used to generate rtl, a
+   SCRATCH is generated.  As for MATCH_OPERAND, the mode specifies
+   the desired mode and the first argument is the operand number.
+   The second argument is the constraint.  */
+DEF_RTL_EXPR(MATCH_SCRATCH, "match_scratch", "is", RTX_MATCH)
+
+/* Apply a predicate, AND match recursively the operands of the rtx.
+   Operand 0 is the operand-number, as in match_operand.
+   Operand 1 is a predicate to apply (as a string, a function name).
+   Operand 2 is a vector of expressions, each of which must match
+   one subexpression of the rtx this construct is matching.  */
+DEF_RTL_EXPR(MATCH_OPERATOR, "match_operator", "isE", RTX_MATCH)
+
+/* Match a PARALLEL of arbitrary length.  The predicate is applied
+   to the PARALLEL and the initial expressions in the PARALLEL are matched.
+   Operand 0 is the operand-number, as in match_operand.
+   Operand 1 is a predicate to apply to the PARALLEL.
+   Operand 2 is a vector of expressions, each of which must match the 
+   corresponding element in the PARALLEL.  */
+DEF_RTL_EXPR(MATCH_PARALLEL, "match_parallel", "isE", RTX_MATCH)
+
+/* Match only something equal to what is stored in the operand table
+   at the index specified by the argument.  Use with MATCH_OPERAND.  */
+DEF_RTL_EXPR(MATCH_DUP, "match_dup", "i", RTX_MATCH)
+
+/* Match only something equal to what is stored in the operand table
+   at the index specified by the argument.  Use with MATCH_OPERATOR.  */
+DEF_RTL_EXPR(MATCH_OP_DUP, "match_op_dup", "iE", RTX_MATCH)
+
+/* Match only something equal to what is stored in the operand table
+   at the index specified by the argument.  Use with MATCH_PARALLEL.  */
+DEF_RTL_EXPR(MATCH_PAR_DUP, "match_par_dup", "iE", RTX_MATCH)
+
+/* Appears only in define_predicate/define_special_predicate
+   expressions.  Evaluates true only if the operand has an RTX code
+   from the set given by the argument (a comma-separated list).  If the
+   second argument is present and nonempty, it is a sequence of digits
+   and/or letters which indicates the subexpression to test, using the
+   same syntax as genextract/genrecog's location strings: 0-9 for
+   XEXP (op, n), a-z for XVECEXP (op, 0, n); each character applies to
+   the result of the one before it.  */
+DEF_RTL_EXPR(MATCH_CODE, "match_code", "ss", RTX_MATCH)
+
+/* Appears only in define_predicate/define_special_predicate
+    expressions.  The argument is a C expression to be injected at this
+    point in the predicate formula.  */
+DEF_RTL_EXPR(MATCH_TEST, "match_test", "s", RTX_MATCH)
+
+/* Insn (and related) definitions.  */
+
+/* Definition of the pattern for one kind of instruction.
+   Operand:
+   0: names this instruction.
+      If the name is the null string, the instruction is in the
+      machine description just to be recognized, and will never be emitted by
+      the tree to rtl expander.
+   1: is the pattern.
+   2: is a string which is a C expression
+      giving an additional condition for recognizing this pattern.
+      A null string means no extra condition.
+   3: is the action to execute if this pattern is matched.
+      If this assembler code template starts with a * then it is a fragment of
+      C code to run to decide on a template to use.  Otherwise, it is the
+      template to use.
+   4: optionally, a vector of attributes for this insn.
+     */
+DEF_RTL_EXPR(DEFINE_INSN, "define_insn", "sEsTV", RTX_EXTRA)
+
+/* Definition of a peephole optimization.
+   1st operand: vector of insn patterns to match
+   2nd operand: C expression that must be true
+   3rd operand: template or C code to produce assembler output.
+   4: optionally, a vector of attributes for this insn.
+
+   This form is deprecated; use define_peephole2 instead.  */
+DEF_RTL_EXPR(DEFINE_PEEPHOLE, "define_peephole", "EsTV", RTX_EXTRA)
+
+/* Definition of a split operation.
+   1st operand: insn pattern to match
+   2nd operand: C expression that must be true
+   3rd operand: vector of insn patterns to place into a SEQUENCE
+   4th operand: optionally, some C code to execute before generating the
+	insns.  This might, for example, create some RTX's and store them in
+	elements of `recog_data.operand' for use by the vector of
+	insn-patterns.
+	(`operands' is an alias here for `recog_data.operand').  */
+DEF_RTL_EXPR(DEFINE_SPLIT, "define_split", "EsES", RTX_EXTRA)
+
+/* Definition of an insn and associated split.
+   This is the concatenation, with a few modifications, of a define_insn
+   and a define_split which share the same pattern.
+   Operand:
+   0: names this instruction.
+      If the name is the null string, the instruction is in the
+      machine description just to be recognized, and will never be emitted by
+      the tree to rtl expander.
+   1: is the pattern.
+   2: is a string which is a C expression
+      giving an additional condition for recognizing this pattern.
+      A null string means no extra condition.
+   3: is the action to execute if this pattern is matched.
+      If this assembler code template starts with a * then it is a fragment of
+      C code to run to decide on a template to use.  Otherwise, it is the
+      template to use.
+   4: C expression that must be true for split.  This may start with "&&"
+      in which case the split condition is the logical and of the insn 
+      condition and what follows the "&&" of this operand.
+   5: vector of insn patterns to place into a SEQUENCE
+   6: optionally, some C code to execute before generating the
+	insns.  This might, for example, create some RTX's and store them in
+	elements of `recog_data.operand' for use by the vector of
+	insn-patterns.
+	(`operands' is an alias here for `recog_data.operand').  
+   7: optionally, a vector of attributes for this insn.  */
+DEF_RTL_EXPR(DEFINE_INSN_AND_SPLIT, "define_insn_and_split", "sEsTsESV", RTX_EXTRA)
+
+/* Definition of an RTL peephole operation.
+   Follows the same arguments as define_split.  */
+DEF_RTL_EXPR(DEFINE_PEEPHOLE2, "define_peephole2", "EsES", RTX_EXTRA)
+
+/* Define how to generate multiple insns for a standard insn name.
+   1st operand: the insn name.
+   2nd operand: vector of insn-patterns.
+	Use match_operand to substitute an element of `recog_data.operand'.
+   3rd operand: C expression that must be true for this to be available.
+	This may not test any operands.
+   4th operand: Extra C code to execute before generating the insns.
+	This might, for example, create some RTX's and store them in
+	elements of `recog_data.operand' for use by the vector of
+	insn-patterns.
+	(`operands' is an alias here for `recog_data.operand').  */
+DEF_RTL_EXPR(DEFINE_EXPAND, "define_expand", "sEss", RTX_EXTRA)
+   
+/* Define a requirement for delay slots.
+   1st operand: Condition involving insn attributes that, if true,
+	        indicates that the insn requires the number of delay slots
+		shown.
+   2nd operand: Vector whose length is the three times the number of delay
+		slots required.
+	        Each entry gives three conditions, each involving attributes.
+		The first must be true for an insn to occupy that delay slot
+		location.  The second is true for all insns that can be
+		annulled if the branch is true and the third is true for all
+		insns that can be annulled if the branch is false. 
+
+   Multiple DEFINE_DELAYs may be present.  They indicate differing
+   requirements for delay slots.  */
+DEF_RTL_EXPR(DEFINE_DELAY, "define_delay", "eE", RTX_EXTRA)
+
+/* Define attribute computation for `asm' instructions.  */
+DEF_RTL_EXPR(DEFINE_ASM_ATTRIBUTES, "define_asm_attributes", "V", RTX_EXTRA)
+
+/* Definition of a conditional execution meta operation.  Automatically
+   generates new instances of DEFINE_INSN, selected by having attribute
+   "predicable" true.  The new pattern will contain a COND_EXEC and the
+   predicate at top-level.
+
+   Operand:
+   0: The predicate pattern.  The top-level form should match a
+      relational operator.  Operands should have only one alternative.
+   1: A C expression giving an additional condition for recognizing
+      the generated pattern.
+   2: A template or C code to produce assembler output.  */
+DEF_RTL_EXPR(DEFINE_COND_EXEC, "define_cond_exec", "Ess", RTX_EXTRA)
+
+/* Definition of an operand predicate.  The difference between
+   DEFINE_PREDICATE and DEFINE_SPECIAL_PREDICATE is that genrecog will
+   not warn about a match_operand with no mode if it has a predicate
+   defined with DEFINE_SPECIAL_PREDICATE.
+
+   Operand:
+   0: The name of the predicate.
+   1: A boolean expression which computes whether or not the predicate
+      matches.  This expression can use IOR, AND, NOT, MATCH_OPERAND,
+      MATCH_CODE, and MATCH_TEST.  It must be specific enough that genrecog
+      can calculate the set of RTX codes that can possibly match.
+   2: A C function body which must return true for the predicate to match.
+      Optional.  Use this when the test is too complicated to fit into a
+      match_test expression.  */
+DEF_RTL_EXPR(DEFINE_PREDICATE, "define_predicate", "ses", RTX_EXTRA)
+DEF_RTL_EXPR(DEFINE_SPECIAL_PREDICATE, "define_special_predicate", "ses", RTX_EXTRA)
+
+/* Definition of a register operand constraint.  This simply maps the
+   constraint string to a register class.
+
+   Operand:
+   0: The name of the constraint (often, but not always, a single letter).
+   1: A C expression which evaluates to the appropriate register class for
+      this constraint.  If this is not just a constant, it should look only
+      at -m switches and the like.
+   2: A docstring for this constraint, in Texinfo syntax; not currently
+      used, in future will be incorporated into the manual's list of
+      machine-specific operand constraints.  */
+DEF_RTL_EXPR(DEFINE_REGISTER_CONSTRAINT, "define_register_constraint", "sss", RTX_EXTRA)
+
+/* Definition of a non-register operand constraint.  These look at the
+   operand and decide whether it fits the constraint.
+
+   DEFINE_CONSTRAINT gets no special treatment if it fails to match.
+   It is appropriate for constant-only constraints, and most others.
+
+   DEFINE_MEMORY_CONSTRAINT tells reload that this constraint can be made
+   to match, if it doesn't already, by converting the operand to the form
+   (mem (reg X)) where X is a base register.  It is suitable for constraints
+   that describe a subset of all memory references.
+
+   DEFINE_ADDRESS_CONSTRAINT tells reload that this constraint can be made
+   to match, if it doesn't already, by converting the operand to the form
+   (reg X) where X is a base register.  It is suitable for constraints that
+   describe a subset of all address references.
+
+   When in doubt, use plain DEFINE_CONSTRAINT.  
+
+   Operand:
+   0: The name of the constraint (often, but not always, a single letter).
+   1: A docstring for this constraint, in Texinfo syntax; not currently
+      used, in future will be incorporated into the manual's list of
+      machine-specific operand constraints.
+   2: A boolean expression which computes whether or not the constraint
+      matches.  It should follow the same rules as a define_predicate
+      expression, including the bit about specifying the set of RTX codes
+      that could possibly match.  MATCH_TEST subexpressions may make use of
+      these variables:
+        `op'    - the RTL object defining the operand.
+        `mode'  - the mode of `op'.
+	`ival'  - INTVAL(op), if op is a CONST_INT.
+        `hval'  - CONST_DOUBLE_HIGH(op), if op is an integer CONST_DOUBLE.
+        `lval'  - CONST_DOUBLE_LOW(op), if op is an integer CONST_DOUBLE.
+        `rval'  - CONST_DOUBLE_REAL_VALUE(op), if op is a floating-point
+                  CONST_DOUBLE.
+      Do not use ival/hval/lval/rval if op is not the appropriate kind of
+      RTL object.  */
+DEF_RTL_EXPR(DEFINE_CONSTRAINT, "define_constraint", "sse", RTX_EXTRA)
+DEF_RTL_EXPR(DEFINE_MEMORY_CONSTRAINT, "define_memory_constraint", "sse", RTX_EXTRA)
+DEF_RTL_EXPR(DEFINE_ADDRESS_CONSTRAINT, "define_address_constraint", "sse", RTX_EXTRA)
+   
+
+/* Constructions for CPU pipeline description described by NDFAs.  */
+
+/* (define_cpu_unit string [string]) describes cpu functional
+   units (separated by comma).
+
+   1st operand: Names of cpu functional units.
+   2nd operand: Name of automaton (see comments for DEFINE_AUTOMATON).
+
+   All define_reservations, define_cpu_units, and
+   define_query_cpu_units should have unique names which may not be
+   "nothing".  */
+DEF_RTL_EXPR(DEFINE_CPU_UNIT, "define_cpu_unit", "sS", RTX_EXTRA)
+
+/* (define_query_cpu_unit string [string]) describes cpu functional
+   units analogously to define_cpu_unit.  The reservation of such
+   units can be queried for automaton state.  */
+DEF_RTL_EXPR(DEFINE_QUERY_CPU_UNIT, "define_query_cpu_unit", "sS", RTX_EXTRA)
+
+/* (exclusion_set string string) means that each CPU functional unit
+   in the first string can not be reserved simultaneously with any
+   unit whose name is in the second string and vise versa.  CPU units
+   in the string are separated by commas.  For example, it is useful
+   for description CPU with fully pipelined floating point functional
+   unit which can execute simultaneously only single floating point
+   insns or only double floating point insns.  All CPU functional
+   units in a set should belong to the same automaton.  */
+DEF_RTL_EXPR(EXCLUSION_SET, "exclusion_set", "ss", RTX_EXTRA)
+
+/* (presence_set string string) means that each CPU functional unit in
+   the first string can not be reserved unless at least one of pattern
+   of units whose names are in the second string is reserved.  This is
+   an asymmetric relation.  CPU units or unit patterns in the strings
+   are separated by commas.  Pattern is one unit name or unit names
+   separated by white-spaces.
+ 
+   For example, it is useful for description that slot1 is reserved
+   after slot0 reservation for a VLIW processor.  We could describe it
+   by the following construction
+
+      (presence_set "slot1" "slot0")
+
+   Or slot1 is reserved only after slot0 and unit b0 reservation.  In
+   this case we could write
+
+      (presence_set "slot1" "slot0 b0")
+
+   All CPU functional units in a set should belong to the same
+   automaton.  */
+DEF_RTL_EXPR(PRESENCE_SET, "presence_set", "ss", RTX_EXTRA)
+
+/* (final_presence_set string string) is analogous to `presence_set'.
+   The difference between them is when checking is done.  When an
+   instruction is issued in given automaton state reflecting all
+   current and planned unit reservations, the automaton state is
+   changed.  The first state is a source state, the second one is a
+   result state.  Checking for `presence_set' is done on the source
+   state reservation, checking for `final_presence_set' is done on the
+   result reservation.  This construction is useful to describe a
+   reservation which is actually two subsequent reservations.  For
+   example, if we use 
+
+      (presence_set "slot1" "slot0")
+
+   the following insn will be never issued (because slot1 requires
+   slot0 which is absent in the source state).
+
+      (define_reservation "insn_and_nop" "slot0 + slot1")
+
+   but it can be issued if we use analogous `final_presence_set'.  */
+DEF_RTL_EXPR(FINAL_PRESENCE_SET, "final_presence_set", "ss", RTX_EXTRA)
+
+/* (absence_set string string) means that each CPU functional unit in
+   the first string can be reserved only if each pattern of units
+   whose names are in the second string is not reserved.  This is an
+   asymmetric relation (actually exclusion set is analogous to this
+   one but it is symmetric).  CPU units or unit patterns in the string
+   are separated by commas.  Pattern is one unit name or unit names
+   separated by white-spaces.
+
+   For example, it is useful for description that slot0 can not be
+   reserved after slot1 or slot2 reservation for a VLIW processor.  We
+   could describe it by the following construction
+
+      (absence_set "slot2" "slot0, slot1")
+
+   Or slot2 can not be reserved if slot0 and unit b0 are reserved or
+   slot1 and unit b1 are reserved .  In this case we could write
+
+      (absence_set "slot2" "slot0 b0, slot1 b1")
+
+   All CPU functional units in a set should to belong the same
+   automaton.  */
+DEF_RTL_EXPR(ABSENCE_SET, "absence_set", "ss", RTX_EXTRA)
+
+/* (final_absence_set string string) is analogous to `absence_set' but
+   checking is done on the result (state) reservation.  See comments
+   for `final_presence_set'.  */
+DEF_RTL_EXPR(FINAL_ABSENCE_SET, "final_absence_set", "ss", RTX_EXTRA)
+
+/* (define_bypass number out_insn_names in_insn_names) names bypass
+   with given latency (the first number) from insns given by the first
+   string (see define_insn_reservation) into insns given by the second
+   string.  Insn names in the strings are separated by commas.  The
+   third operand is optional name of function which is additional
+   guard for the bypass.  The function will get the two insns as
+   parameters.  If the function returns zero the bypass will be
+   ignored for this case.  Additional guard is necessary to recognize
+   complicated bypasses, e.g. when consumer is load address.  */
+DEF_RTL_EXPR(DEFINE_BYPASS, "define_bypass", "issS", RTX_EXTRA)
+
+/* (define_automaton string) describes names of automata generated and
+   used for pipeline hazards recognition.  The names are separated by
+   comma.  Actually it is possibly to generate the single automaton
+   but unfortunately it can be very large.  If we use more one
+   automata, the summary size of the automata usually is less than the
+   single one.  The automaton name is used in define_cpu_unit and
+   define_query_cpu_unit.  All automata should have unique names.  */
+DEF_RTL_EXPR(DEFINE_AUTOMATON, "define_automaton", "s", RTX_EXTRA)
+
+/* (automata_option string) describes option for generation of
+   automata.  Currently there are the following options:
+
+   o "no-minimization" which makes no minimization of automata.  This
+     is only worth to do when we are debugging the description and
+     need to look more accurately at reservations of states.
+
+   o "time" which means printing additional time statistics about
+      generation of automata.
+  
+   o "v" which means generation of file describing the result
+     automata.  The file has suffix `.dfa' and can be used for the
+     description verification and debugging.
+
+   o "w" which means generation of warning instead of error for
+     non-critical errors.
+
+   o "ndfa" which makes nondeterministic finite state automata.
+
+   o "progress" which means output of a progress bar showing how many
+     states were generated so far for automaton being processed.  */
+DEF_RTL_EXPR(AUTOMATA_OPTION, "automata_option", "s", RTX_EXTRA)
+
+/* (define_reservation string string) names reservation (the first
+   string) of cpu functional units (the 2nd string).  Sometimes unit
+   reservations for different insns contain common parts.  In such
+   case, you can describe common part and use its name (the 1st
+   parameter) in regular expression in define_insn_reservation.  All
+   define_reservations, define_cpu_units, and define_query_cpu_units
+   should have unique names which may not be "nothing".  */
+DEF_RTL_EXPR(DEFINE_RESERVATION, "define_reservation", "ss", RTX_EXTRA)
+
+/* (define_insn_reservation name default_latency condition regexpr)
+   describes reservation of cpu functional units (the 3nd operand) for
+   instruction which is selected by the condition (the 2nd parameter).
+   The first parameter is used for output of debugging information.
+   The reservations are described by a regular expression according
+   the following syntax:
+
+       regexp = regexp "," oneof
+              | oneof
+
+       oneof = oneof "|" allof
+             | allof
+
+       allof = allof "+" repeat
+             | repeat
+ 
+       repeat = element "*" number
+              | element
+
+       element = cpu_function_unit_name
+               | reservation_name
+               | result_name
+               | "nothing"
+               | "(" regexp ")"
+
+       1. "," is used for describing start of the next cycle in
+       reservation.
+
+       2. "|" is used for describing the reservation described by the
+       first regular expression *or* the reservation described by the
+       second regular expression *or* etc.
+
+       3. "+" is used for describing the reservation described by the
+       first regular expression *and* the reservation described by the
+       second regular expression *and* etc.
+
+       4. "*" is used for convenience and simply means sequence in
+       which the regular expression are repeated NUMBER times with
+       cycle advancing (see ",").
+
+       5. cpu functional unit name which means its reservation.
+
+       6. reservation name -- see define_reservation.
+
+       7. string "nothing" means no units reservation.  */
+
+DEF_RTL_EXPR(DEFINE_INSN_RESERVATION, "define_insn_reservation", "sies", RTX_EXTRA)
+
+/* Expressions used for insn attributes.  */
+
+/* Definition of an insn attribute.
+   1st operand: name of the attribute
+   2nd operand: comma-separated list of possible attribute values
+   3rd operand: expression for the default value of the attribute.  */
+DEF_RTL_EXPR(DEFINE_ATTR, "define_attr", "sse", RTX_EXTRA)
+
+/* Marker for the name of an attribute.  */
+DEF_RTL_EXPR(ATTR, "attr", "s", RTX_EXTRA)
+
+/* For use in the last (optional) operand of DEFINE_INSN or DEFINE_PEEPHOLE and
+   in DEFINE_ASM_INSN to specify an attribute to assign to insns matching that
+   pattern.
+
+   (set_attr "name" "value") is equivalent to
+   (set (attr "name") (const_string "value"))  */
+DEF_RTL_EXPR(SET_ATTR, "set_attr", "ss", RTX_EXTRA)
+
+/* In the last operand of DEFINE_INSN and DEFINE_PEEPHOLE, this can be used to
+   specify that attribute values are to be assigned according to the
+   alternative matched.
+
+   The following three expressions are equivalent:
+
+   (set (attr "att") (cond [(eq_attrq "alternative" "1") (const_string "a1")
+			    (eq_attrq "alternative" "2") (const_string "a2")]
+			   (const_string "a3")))
+   (set_attr_alternative "att" [(const_string "a1") (const_string "a2")
+				 (const_string "a3")])
+   (set_attr "att" "a1,a2,a3")
+ */
+DEF_RTL_EXPR(SET_ATTR_ALTERNATIVE, "set_attr_alternative", "sE", RTX_EXTRA)
+
+/* A conditional expression true if the value of the specified attribute of
+   the current insn equals the specified value.  The first operand is the
+   attribute name and the second is the comparison value.  */
+DEF_RTL_EXPR(EQ_ATTR, "eq_attr", "ss", RTX_EXTRA)
+
+/* A special case of the above representing a set of alternatives.  The first
+   operand is bitmap of the set, the second one is the default value.  */
+DEF_RTL_EXPR(EQ_ATTR_ALT, "eq_attr_alt", "ii", RTX_EXTRA)
+
+/* A conditional expression which is true if the specified flag is
+   true for the insn being scheduled in reorg.
+
+   genattr.c defines the following flags which can be tested by
+   (attr_flag "foo") expressions in eligible_for_delay.
+
+   forward, backward, very_likely, likely, very_unlikely, and unlikely.  */
+
+DEF_RTL_EXPR (ATTR_FLAG, "attr_flag", "s", RTX_EXTRA)
+
+/* General conditional. The first operand is a vector composed of pairs of
+   expressions.  The first element of each pair is evaluated, in turn.
+   The value of the conditional is the second expression of the first pair
+   whose first expression evaluates nonzero.  If none of the expressions is
+   true, the second operand will be used as the value of the conditional.  */
+DEF_RTL_EXPR(COND, "cond", "Ee", RTX_EXTRA)
+
+#endif /* GENERATOR_FILE */
+
+/*
+Local variables:
+mode:c
+End:
+*/

@@ -1,0 +1,14 @@
+ah transport from 3ffe::1 to 3ffe::8 spi 0x1eadbeef:0xbeef1ead \
+	authkey file "DIR/ak256:DIR/ak256"
+ah transport from 3ffe::2 to 3ffe::8 spi 0x2eadbeef:0xbeef2ead auth hmac-md5 \
+	authkey file "DIR/ak128:DIR/ak128"
+ah transport from 3ffe::3 to 3ffe::8 spi 0x3eadbeef:0xbeef3ead auth hmac-ripemd160 \
+	authkey file "DIR/ak160:DIR/ak160"
+ah transport from 3ffe::4 to 3ffe::8 spi 0x4eadbeef:0xbeef4ead auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160"
+ah transport from 3ffe::5 to 3ffe::8 spi 0x5eadbeef:0xbeef5ead auth hmac-sha2-256 \
+	authkey file "DIR/ak256:DIR/ak256"
+ah transport from 3ffe::6 to 3ffe::8 spi 0x6eadbeef:0xbeef6ead auth hmac-sha2-384 \
+	authkey file "DIR/ak384:DIR/ak384"
+ah transport from 3ffe::7 to 3ffe::8 spi 0x7eadbeef:0xbeef7ead auth hmac-sha2-512 \
+	authkey file "DIR/ak512:DIR/ak512"

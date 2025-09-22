@@ -1,0 +1,81 @@
+#
+# Example magic file for mkhybrid
+#
+# The "message" for the offset MUST be 4 characters for the CREATOR
+# and 4 characters for the TYPE - white space is optional between them.
+# Any other characters on this line are ignored. Continuation lines (starting
+# with '>') are also ignored i.e. only the initial offset lines are used.
+#
+# The continuation lines are given here, but they do not need to exist.
+
+#
+# James Pearson 20/5/98
+
+# off	type		test		message
+
+# GIF
+0	string		GIF8		8BIM GIFf
+>4	string		7a		\b, version 8%s,
+>4	string		9a		\b, version 8%s,
+>6	leshort		>0		%hd x
+>8	leshort		>0		%hd,
+#>10	byte		&0x80		color mapped,
+#>10	byte&0x07	=0x00		2 colors
+#>10	byte&0x07	=0x01		4 colors
+#>10	byte&0x07	=0x02		8 colors
+#>10	byte&0x07	=0x03		16 colors
+#>10	byte&0x07	=0x04		32 colors
+#>10	byte&0x07	=0x05		64 colors
+#>10	byte&0x07	=0x06		128 colors
+#>10	byte&0x07	=0x07		256 colors
+
+# JPEG images
+#
+0	ubeshort		0xffd8		8BIM JPEG  image data
+
+# StuffIt
+#
+0	string		SIT!		SIT!SIT!
+
+# standard unix compress
+0	string		\037\235	LZIV ZIVU
+>2	byte&0x80	>0		block compressed
+>2	byte&0x1f	x		%d bits
+
+# gzip (GNU zip, not to be confused with Info-ZIP or PKWARE zip archiver)
+0       string          \037\213        GNUz ZIVU gzip compressed data
+>2      byte            <8              \b, reserved method,
+>2      byte            8               \b, deflated,
+>3	byte		&0x01		ASCII,
+>3	byte		&0x02		continuation,
+>3	byte		&0x04		extra field,
+>3	byte		&0x08		original filename,
+>3	byte		&0x10		comment,
+>3	byte		&0x20		encrypted,
+>4	ledate		x		last modified: %s,
+>8	byte		2		max compression,
+>8	byte		4		max speed,
+>9	byte		=0x00		os: MS-DOS
+>9	byte		=0x01		os: Amiga
+>9	byte		=0x02		os: VMS
+>9	byte		=0x03		os: Unix
+>9	byte		=0x05		os: Atari
+>9	byte		=0x06		os: OS/2
+>9	byte		=0x07		os: MacOS
+>9	byte		=0x0A		os: Tops/20
+>9	byte		=0x0B		os: Win/32
+
+# Postscript
+0	string		%!		ASPSTEXT
+>2	string		PS-Adobe-	conforming
+>>11	string		>\0		at level %.3s
+>>>15	string		EPS		- type %s
+>>>15	string		Query		- type %s
+>>>15	string		ExitServer	- type %s
+# Some PCs have the annoying habit of adding a ^D as a document separator
+0	string		\004%!		ASPS TEXT PostScript document text
+>3	string		PS-Adobe-	conforming
+>>12	string		>\0		at level %.3s
+>>>16	string		EPS		- type %s
+>>>16	string		Query		- type %s
+>>>16	string		ExitServer	- type %s

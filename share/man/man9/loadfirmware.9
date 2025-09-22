@@ -1,0 +1,58 @@
+.\"	$OpenBSD: loadfirmware.9,v 1.4 2013/06/04 19:27:08 schwarze Exp $
+.\"
+.\" Copyright (c) 2004 Theo de Raadt
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 4 2013 $
+.Dt LOADFIRMWARE 9
+.Os
+.Sh NAME
+.Nm loadfirmware
+.Nd load a firmware file from the filesystem
+.Sh SYNOPSIS
+.In sys/device.h
+.Ft int
+.Fn loadfirmware "const char *filename" "u_char **buf" "size_t *buflen"
+.Sh DESCRIPTION
+The
+.Fn loadfirmware
+function loads a firmware from the file specified by
+.Ar filename
+in the directory
+.Pa /etc/firmware .
+Memory for the firmware is allocated using
+.Xr malloc 9
+with type
+.Va M_DEVBUF
+as need be, within a reasonable size limit.
+.Pp
+If no longer needed, the firmware buffer
+.Va buf
+can be freed using
+.Xr free 9
+with type
+.Va M_DEVBUF .
+.Sh RETURN VALUES
+If successful,
+.Ar buf
+is set to point to the allocation and
+.Ar buflen
+is set to the size of the firmware.
+Then
+.Fn loadfirmware
+returns 0.
+Otherwise, it returns an
+.Va errno
+style error.

@@ -1,0 +1,41 @@
+.\"	$OpenBSD: sysbutton.4,v 1.6 2007/05/31 19:19:55 jmc Exp $
+.\"
+.\" Copyright (c) 2007 Gordon Willem Klok <gwk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt SYSBUTTON 4 macppc
+.Os
+.Sh NAME
+.Nm sysbutton
+.Nd Xserve G4 and G5 front system identifier button
+.Sh SYNOPSIS
+.Cd "sysbutton* at macgpio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the system identifier button found on
+the front panel of Apple G4 and G5 Xserve machines.
+.Pp
+If the
+.Va ddb.console
+.Xr sysctl 8
+is set,
+pressing the system identifier
+button will cause the machine to enter
+.Xr ddb 4 .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr macgpio 4 ,
+.Xr sysctl 8

@@ -1,0 +1,26 @@
+This file is a list of the people responsible for ensuring that patches for a
+particular part of LLD are reviewed, either by themself or by someone else.
+They are also the gatekeepers for their part of LLD, with the final word on
+what goes in or not.
+
+The list is sorted by surname and formatted to allow easy grepping and
+beautification by scripts.  The fields are: name (N), email (E), web-address
+(W), PGP key ID and fingerprint (P), description (D), and snail-mail address
+(S). Each entry should contain at least the (N), (E) and (D) fields.
+
+
+N: Rui Ueyama
+E: ruiu@google.com
+D: COFF, ELF backends (COFF/* ELF/*)
+
+N: Lang Hames, Nick Kledzik
+E: lhames@gmail.com, kledzik@apple.com
+D: Old Mach-O backend
+
+N: Sam Clegg
+E: sbc@chromium.org
+D: WebAssembly backend (wasm/*)
+
+N: Jez Ng, Greg McGary, Shoaib Meenai
+E: jezng@fb.com, gkm@fb.com, smeenai@fb.com
+D: New Mach-O backend

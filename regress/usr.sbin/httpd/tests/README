@@ -1,0 +1,20 @@
+Run httpd regression tests.  The framework runs a client and an httpd.
+Each test creates a special httpd.conf and starts those two processes.
+All processes write log files that are checked for certain messages.
+The test arguments are kept in the args-*.pl files.
+
+SUDO=doas
+As httpd needs root privileges, either run the tests as root or set
+this variable and run make as a regular user.  Only the code that
+requires it is run as root.
+
+KTRACE=ktrace
+Set this variable if you want a ktrace output from httpd.  Note that
+ktrace is invoked after SUDO as SUDO would disable it.
+
+HTTPD=/usr/src/usr.sbin/httpd/obj/httpd
+Start an alternative httpd program that is not in the path.
+
+HTDOCS_SPARSE=no
+Set to anything other than "yes" to create real test files instead of
+sparse files.  This needs more than 1G of free disk space.

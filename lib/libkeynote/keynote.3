@@ -1,0 +1,939 @@
+.\" $OpenBSD: keynote.3,v 1.56 2025/06/05 18:59:11 schwarze Exp $
+.\"
+.\" The author of this code is Angelos D. Keromytis (angelos@dsl.cis.upenn.edu)
+.\"
+.\" This code was written by Angelos D. Keromytis in Philadelphia, PA, USA,
+.\" in April-May 1998
+.\"
+.\" Copyright (C) 1998, 1999 by Angelos D. Keromytis.
+.\"
+.\" Permission to use, copy, and modify this software with or without fee
+.\" is hereby granted, provided that this entire notice is included in
+.\" all copies of any software which is or includes a copy or
+.\" modification of this software.
+.\" You may use this code under the GNU public license if you so wish. Please
+.\" contribute changes back to the author.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTY. IN PARTICULAR, THE AUTHORS MAKES NO
+.\" REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE
+.\" MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
+.\" PURPOSE.
+.\"
+.Dd $Mdocdate: June 5 2025 $
+.Dt KN_INIT 3
+.\" .TH KeyNote 3 local
+.Os
+.Sh NAME
+.Nm kn_init ,
+.Nm kn_add_assertion ,
+.Nm kn_remove_assertion ,
+.Nm kn_add_action ,
+.Nm kn_remove_action ,
+.Nm kn_add_authorizer ,
+.Nm kn_remove_authorizer ,
+.Nm kn_do_query ,
+.Nm kn_get_failed ,
+.Nm kn_cleanup_action_environment ,
+.Nm kn_close ,
+.Nm kn_query ,
+.Nm kn_read_asserts ,
+.Nm kn_keycompare ,
+.Nm kn_get_authorizer ,
+.Nm kn_get_licensees ,
+.Nm kn_encode_base64 ,
+.Nm kn_decode_base64 ,
+.Nm kn_encode_hex ,
+.Nm kn_decode_hex ,
+.Nm kn_encode_key ,
+.Nm kn_decode_key ,
+.Nm kn_sign_assertion ,
+.Nm kn_verify_assertion ,
+.Nm kn_free_key ,
+.Nm kn_get_string
+.Nd a trust-management system library
+.Sh SYNOPSIS
+.Lb libkeynote libm libcrypto
+.In sys/types.h
+.In regex.h
+.In keynote.h
+.Bd -literal
+struct environment {
+	char               *env_name;
+	char               *env_value;
+	int                 env_flags;
+	regex_t             env_regex;
+	struct environment *env_next;
+};
+
+struct keynote_deckey {
+	int   dec_algorithm;
+	void *dec_key;
+};
+
+struct keynote_binary {
+	int   bn_len;
+	char *bn_key;
+};
+
+struct keynote_keylist {
+	int                     key_alg;
+	void                   *key_key;
+	char                   *key_stringkey;
+	struct keynote_keylist *key_next;
+};
+.Ed
+.Vt extern int keynote_errno;
+.Ft int
+.Fn kn_init "void"
+.Ft int
+.Fn kn_add_assertion "int sessid" "char *assertion" "int len" "int flags"
+.Ft int
+.Fn kn_remove_assertion "int sessid" "int assertid"
+.Ft int
+.Fn kn_add_action "int sessid" "char *name" "char *value" "int flags"
+.Ft int
+.Fn kn_remove_action "int sessid" "char *name"
+.Ft int
+.Fn kn_add_authorizer "int sessid" "char *principal"
+.Ft int
+.Fn kn_remove_authorizer "int sessid" "char *principal"
+.Ft int
+.Fn kn_do_query "int sessid" "char **returnvalues" "int numvalues"
+.Ft int
+.Fn kn_get_failed "int sessid" "int type" "int seq"
+.Ft int
+.Fn kn_cleanup_action_environment "int sessid"
+.Ft int
+.Fn kn_close "int sessid"
+.Ft int
+.Fo kn_query
+.Fa "struct environment *env"
+.Fa "char **returnvalues"
+.Fa "int numvalues"
+.Fa "char **trusted"
+.Fa "int *trustedlen"
+.Fa "int numtrusted"
+.Fa "char **untrusted"
+.Fa "int *untrustedlen"
+.Fa "int numuntrusted"
+.Fa "char **authorizers"
+.Fa "int numauthorizers"
+.Fc
+.Ft char **
+.Fn kn_read_asserts "char *array" "int arraylen" "int *numassertions"
+.Ft int
+.Fn kn_keycompare "void *key1" "void *key2" "int algorithm"
+.Ft void *
+.Fn kn_get_authorizer "int sessid" "int assertid" "int *algorithm"
+.Ft struct keynote_keylist *
+.Fn kn_get_licensees "int sessid" "int assertid"
+.Ft int
+.Fn kn_encode_base64 "unsigned char const *src" "unsigned int srclen" "char *dst" "unsigned int dstlen"
+.Ft int
+.Fn kn_decode_base64 "char const *src" "unsigned char *dst" "unsigned int dstlen"
+.Ft int
+.Fn kn_encode_hex "unsigned char *src" "char **dst" "int srclen"
+.Ft int
+.Fn kn_decode_hex "char *src" "char **dst"
+.Ft char *
+.Fn kn_encode_key "struct keynote_deckey *dc" "int iencoding" "int encoding" "int keytype"
+.Ft int
+.Fn kn_decode_key "struct keynote_deckey *dc" "char *key" "int keytype"
+.Ft char *
+.Fn kn_sign_assertion "char *assertion" "int len" "char *key" "char *algorithm" "int vflag"
+.Ft int
+.Fn kn_verify_assertion "char *assertion" "int len"
+.Ft void
+.Fn kn_free_key "struct keynote_deckey *"
+.Ft char *
+.Fn kn_get_string "char *"
+.Sh DESCRIPTION
+For more details on
+.Nm keynote ,
+see RFC 2704.
+.Pp
+.Va keynote_errno
+contains an error code if some library call failed.
+Failed calls return \-1 (if their return value is integer), or
+.Dv NULL
+(if their return value is a pointer) and set
+.Va keynote_errno .
+The defined error codes are:
+.Bl -tag -width "ERROR_NOTFOUND" -offset indent
+.It Li ERROR_MEMORY
+Some memory allocation or usage error was encountered.
+.It Li ERROR_SYNTAX
+Some syntactic or logical error was encountered.
+.It Li ERROR_NOTFOUND
+One of the arguments referred to a nonexistent structure or entry.
+.El
+.Pp
+If no errors were encountered,
+.Va keynote_errno
+will be set to 0.
+This variable should be reset to 0 if an error was encountered,
+prior to calling other library routines.
+.Pp
+The main interface to
+.Nm
+is centered around the concept of a session.
+A session describes a collection of policies, assertions, action
+authorizers, return values, and action attributes that the
+.Nm
+system uses to evaluate a query.
+Information is not shared between sessions.
+Policies, credentials, action authorizers, and action
+attributes can be added or deleted at any point during the lifetime of
+a session.
+Furthermore, an application can discover which assertions failed to be
+evaluated, and in what way, during a query.
+.Pp
+For those applications that only need to do a simple query, there
+exists a single call that takes as arguments all the necessary
+information and performs all the necessary steps.
+This is essentially a wrapper that calls the session API functions as
+necessary.
+.Pp
+Finally, there exist functions for doing ASCII to hexadecimal and
+Base64 encoding (and vice versa), for encoding/decoding keys between
+ASCII and binary formats, and for signing and verifying assertions.
+.Pp
+The description of all
+.Nm
+library functions follows.
+.Pp
+.Fn kn_init
+creates a new
+.Nm
+session, and performs any necessary initializations.
+On success, this function returns the new session ID, which is used by
+all subsequent calls with a
+.Fa sessid
+argument.
+On failure, it returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_MEMORY .
+.Pp
+.Fn kn_add_assertion
+adds the assertion pointed to by the array
+.Fa assertion ,
+of length
+.Fa len
+in the session identified by
+.Fa sessid .
+The first argument can be discarded after the call to this function.
+The following flags are defined:
+.Bl -tag -width ASSERT_FLAG_LOCAL -offset indent
+.It ASSERT_FLAG_LOCAL
+Mark this assertion as ultimately trusted.
+Trusted assertions need not be signed, and the
+.Fa Authorizer
+and
+.Fa Licensees
+fields can have non-key entries.
+.El
+.Pp
+At least one (trusted) assertion should have
+.Dv POLICY
+as the
+.Fa Authorizer .
+On success, this function will return an assertion ID which can be
+used to remove the assertion from the session, by using
+.Fn kn_remove_assertion .
+On failure, \-1 is returned, and
+.Va keynote_errno
+is set to
+.Er ERROR_NOTFOUND
+if the session was not found,
+.Er ERROR_SYNTAX
+if the assertion was syntactically incorrect, or
+.Er ERROR_MEMORY
+if necessary memory could not be allocated.
+.Pp
+.Fn kn_remove_assertion
+removes the assertion identified by
+.Fa assertid
+from the session identified by
+.Fa sessid .
+On success, this function returns 0.
+On failure, it returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_NOTFOUND .
+.Pp
+.Fn kn_add_action
+inserts the variable
+.Fa name
+in the action environment of session
+.Fa sessid ,
+with the value
+.Fa value .
+The same attribute may be added more than once, but only the last
+instance will be used (memory resources are consumed however).
+.Pp
+The
+.Fa flags
+specified are formed by or'ing the following values:
+.Bl -tag -width ENVIRONMENT_FLAG_REGEX -offset indent
+.It ENVIRONMENT_FLAG_FUNC
+In this case,
+.Fa value
+is a pointer to a function that takes as argument a string and returns
+a string.
+This is used to implement callbacks for getting action attribute values.
+The argument passed to such a callback function is a string identifying
+the action attribute whose value is requested, and should return a pointer
+to string containing that value (this pointer will not be freed by the
+library), the empty string if the value was not found, or a
+.Dv NULL
+to indicate an error (and may set
+.Va keynote_errno
+appropriately).
+Prior to first use (currently, at the time the attribute is added to the
+session environment), such functions are called with
+.Dv KEYNOTE_CALLBACK_INITIALIZE
+as the argument (defined in keynote.h) so that they can perform any special
+initializations.
+Furthermore, when the session is deleted, all such functions will be called
+with
+.Dv KEYNOTE_CALLBACK_CLEANUP
+to perform any special cleanup (such as free any allocated memory).
+A function may be called with either of these arguments more than once,
+if it has been defined as the callback function for more than one attribute.
+.It ENVIRONMENT_FLAG_REGEX
+In this case,
+.Fa name
+is a regular expression that may match more than one attribute.
+In case of conflict between a regular expression and a
+.Dq simple
+attribute, the latter will be given priority.
+In case of conflict between two regular expression attributes, the one added
+later will be given priority.
+A callback function should never change the current
+.Nm
+session, start/invoke/operate on another session, or call one of the
+session-API functions.
+.El
+.Pp
+The combination of the two flags may be used to specify callback
+functions that handle large sets of attributes (even to the extent of
+having one callback function handling all attribute references).
+This is particularly useful when the action attribute set is particularly
+large.
+.Pp
+On success,
+.Fn kn_add_action
+returns 0.
+On failure, it returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_NOTFOUND
+if the session was not found,
+.Er ERROR_SYNTAX
+if the
+.Fa name
+was invalid (e.g., started with an underscore character) or was
+.Dv NULL ,
+or
+.Er ERROR_MEMORY
+if necessary memory could not be allocated.
+.Pp
+.Fn kn_remove_action
+removes action attribute
+.Fa name
+from the environment of session
+.Fa sessid .
+Notice that if more than one instances of
+.Fa name
+exist, only the one added last will be deleted.
+On success, this function returns 0.
+On failure, it returns \-1 and
+.Va keynote_errno
+is set to
+.Er ERROR_NOTFOUND
+if the session or the attribute were not found, or
+.Er ERROR_SYNTAX
+if the name was invalid.
+If the attribute value was a callback, that function will be called with
+the define
+.Dv KEYNOTE_CALLBACK_CLEANUP
+as the argument.
+.Pp
+.Fn kn_add_authorizer
+adds the principal pointed to by
+.Fa principal
+to the action authorizers list of session
+.Fa sessid .
+The principal is typically an ASCII-encoded key.
+On success, this function will return 0.
+On failure, it returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_NOTFOUND
+if the session was not found,
+.Er ERROR_SYNTAX
+if the encoding was invalid, or
+.Er ERROR_MEMORY
+if necessary memory could not be allocated.
+.Pp
+.Fn kn_remove_authorizer
+removes
+.Fa principal
+from the action authorizer list of session
+.Fa sessid .
+On success, this function returns 0.
+On failure, it returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_NOTFOUND
+if the session was not found.
+.Pp
+.Fn kn_do_query
+evaluates the request based on the assertions, action attributes, and
+action authorizers added to session
+.Fa sessid .
+.Fa returnvalues
+is an ordered array of strings that contain the return values.
+The lowest-ordered return value is contained in
+.Fa returnvalues Ns Bq 0 ,
+and the highest-ordered value is
+.Fa returnvalues Ns Bq Fa numvalues No \- 1 .
+If
+.Fa returnvalues
+is
+.Dv NULL ,
+the
+.Fa returnvalues
+from the previous call to
+.Fn kn_do_query
+will be used.
+The programmer SHOULD NOT free
+.Fa returnvalues
+after the call to
+.Fn kn_do_query
+if this feature is used, as the array is not replicated internally.
+On success, this function returns an index into the
+.Fa returnvalues
+array.
+On failure, it returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_NOTFOUND
+if the session was not found or the authorizers list was empty,
+.Er ERROR_SYNTAX
+if no
+.Fa returnvalues
+have been specified, or
+.Er ERROR_MEMORY
+if necessary memory could not be allocated.
+.Pp
+.Fn kn_get_failed
+returns the assertion ID of the
+.Fa num'th
+assertion (starting from zero) in session
+.Fa sessid
+that was somehow invalid during evaluation.
+This function is typically called after
+.Fn kn_do_query
+is used to evaluate a request.
+.Fa type
+specifies the type of failure the application is interested in.
+It can be set to:
+.Bl -tag -width KEYNOTE_ERROR_SIGNATURE -offset indent
+.It KEYNOTE_ERROR_ANY
+to indicate interest in any error.
+.It KEYNOTE_ERROR_SYNTAX
+for syntactic or semantic errors.
+.It KEYNOTE_ERROR_MEMORY
+for memory-related problems.
+.It KEYNOTE_ERROR_SIGNATURE
+if the assertion could not be cryptographically verified.
+.El
+.Pp
+These values are defined in keynote.h.
+An application can then delete the offending assertion using
+.Fn kn_remove_assertion .
+For example, to remove all assertion whose signature failed, an application
+could do something like:
+.Bd -literal
+  while ((assertid = kn_get_failed(sessid, KEYNOTE_ERROR_SIGNATURE, 0)
+         != -1)
+    kn_remove_assertion(sessid, assertid);
+.Ed
+.Pp
+On success,
+.Fn kn_get_failed
+returns an assertion ID.
+On failure, or when no assertion matching the given criteria is found,
+it returns \-1 and set
+.Va keynote_errno
+to
+.Er ERROR_NOTFOUND .
+.Pp
+.Fn kn_cleanup_action_environment
+removes all action attributes from the action environment of session
+.Fa sessid .
+It returns 0 on success.
+.Pp
+.Fn kn_close
+closes session
+.Fa sessid
+and frees all related resources, deleting action attributes, action
+authorizers, and assertions.
+On success, this function returns 0.
+On failure, it returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_NOTFOUND
+if the session was not found.
+.Pp
+.Fn kn_read_asserts
+parses the string
+.Fa array
+of length
+.Fa arraylen
+and returns an array of pointers to strings containing copies of
+the assertions found in
+.Fa array .
+Both the array of pointers and the strings are allocated by
+.Fn kn_read_asserts
+dynamically, and thus should be freed by the programmer when they are
+no longer needed.
+.Fa numassertions
+contains the number of assertions (and thus strings in the returned
+array) found in
+.Fa array .
+On failure, this function returns
+.Dv NULL
+and sets
+.Va keynote_errno
+to
+.Er ERROR_MEMORY
+if necessary memory could not be allocated, or
+.Er ERROR_SYNTAX
+if
+.Fa array
+was
+.Dv NULL .
+Note that if there were no assertions found in
+.Fa array ,
+a valid pointer will be returned, but
+.Fa numassertions
+will contain the value zero on return.
+The returned pointer should be freed by the programmer.
+.Pp
+.Fn kn_keycompare
+compares
+.Fa key1
+and
+.Fa key2
+(which must be of the same
+.Fa algorithm )
+and returns 1 if equal and 0 otherwise.
+.Pp
+.Fn kn_get_authorizer
+returns the authorizer key (in binary format) for assertion
+.Fa assertid
+in session
+.Fa sessid .
+It also sets the
+.Fa algorithm
+argument to the algorithm of the authorizer key.
+On failure,
+.Fn kn_get_authorizer
+returns
+.Dv NULL ,
+and sets
+.Va keynote_errno
+to
+.Er ERROR_NOTFOUND .
+.Pp
+.Fn kn_get_licensees
+returns the licensee key(s) for assertion
+.Fa assertid
+in session
+.Fa sessid .
+The keys are returned in a linked list of
+.Fa struct keynote_keylist
+structures.
+On failure,
+.Fn kn_get_licensees
+returns
+.Dv NULL .
+and sets
+.Va keynote_errno
+to
+.Er ERROR_NOTFOUND .
+.Pp
+.Fn kn_query
+takes as arguments a list of action attributes in
+.Fa env ,
+a list of return values in
+.Fa returnvalues
+(the number of returnvalues is indicated by
+.Fa numvalues ) ,
+a number
+.Pf ( Fa numtrusted )
+of locally-trusted assertions in
+.Fa trusted
+(the length of each assertion is given by the respective element of
+.Fa trustedlen ) ,
+a number
+.Pf ( Fa numuntrusted )
+of assertions that need to be cryptographically verified in
+.Fa untrusted
+(the length of each assertion is given by the respective element of
+.Fa untrustedlen ) ,
+and a number
+.Pf ( Fa numauthorizers )
+of action authorizers in
+.Fa authorizers .
+.Fa env
+is a linked list of
+.Fa struct environment
+structures.
+The
+.Fa env_name ,
+.Fa env_value ,
+and
+.Fa env_flags
+fields correspond to the
+.Fa name ,
+.Fa value ,
+and
+.Fa flags
+arguments to
+.Fn kn_add_assertion
+respectively.
+.Fa env_regex
+is not used.
+On success, this function returns an index in
+.Fa returnvalues
+indicating the returned value to the query.
+On failure, it returns \-1 and sets
+.Va keynote_errno
+to the same values as
+.Fn kn_do_query ,
+or to
+.Er ERROR_MEMORY
+if a trusted or untrusted assertion could not be added to the session due
+to lack of memory resources.
+Syntax errors in assertions will not be reported by
+.Fn kn_query .
+.Pp
+.Fn kn_encode_base64
+converts the data of length
+.Fa srclen
+contained in
+.Fa src
+in Base64 encoding and stores them in
+.Fa dst
+which is of length
+.Fa dstlen .
+The actual length of the encoding stored in
+.Fa dst
+is returned.
+.Fa dst
+should be long enough to also contain the trailing
+string terminator.
+If
+.Fa dst
+is not long enough to contain the encoded data, this function returns
+\-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_SYNTAX .
+.Pp
+.Fn kn_decode_base64
+decodes the Base64-encoded data stored in
+.Fa src
+and stores the result in
+.Fa dst ,
+which is of length
+.Fa dstlen .
+The actual length of the decoded data is returned on success.
+On failure, this function returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_SYNTAX ,
+denoting either an invalid Base64 encoding or insufficient space in
+.Fa dst .
+.Pp
+.Fn kn_encode_hex
+encodes in ASCII-hexadecimal format the data of length
+.Fa srclen
+contained in
+.Fa src .
+This function allocates a chunk of memory to store the result, which
+is returned in
+.Fa dst .
+Thus, this function should be used as follows:
+.Bd -literal
+  char *dst;
+
+  kn_encode_hex(src, &dst, srclen);
+.Ed
+.Pp
+The length of the allocated buffer will be (2 * srclen + 1).
+On success, this function returns 0.
+On failure, it returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_MEMORY
+if it failed to allocate enough memory,
+.Er ERROR_SYNTAX
+if
+.Fa dst
+was
+.Dv NULL .
+.Pp
+.Fn kn_decode_hex
+decodes the ASCII hex-encoded string in
+.Fa src
+and stores the result in a memory chunk allocated by the function.
+A pointer to that memory is stored in
+.Fa dst .
+The length of the allocated memory will be (strlen(src) / 2).
+On success, this function returns 0.
+On failure, it returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_MEMORY
+if it could not allocate enough memory, or
+.Er ERROR_SYNTAX
+if
+.Fa dst
+was
+.Dv NULL ,
+or the length of
+.Fa src
+is not even.
+.Pp
+.Fn kn_encode_key
+ASCII-encodes a cryptographic key.
+The binary representation of the key is contained in
+.Fa dc .
+The field
+.Fa dec_key
+in that structure is a pointer to some cryptographic algorithm
+dependent information describing the key.
+In this implementation, this pointer should be a
+.Fa DSA *
+or
+.Fa RSA *
+for DSA or RSA keys respectively, as used in the SSL library, or a
+.Fa keynote_binary *
+for cryptographic keys whose algorithm
+.Nm
+does not know about but the application wishes to include in the
+action authorizers (and thus need to be canonicalized).
+The field
+.Fa dec_algorithm
+describes the cryptographic algorithm, and may be one of
+.Dv KEYNOTE_ALGORITHM_DSA ,
+.Dv KEYNOTE_ALGORITHM_RSA ,
+or
+.Dv KEYNOTE_ALGORITHM_BINARY
+in this implementation.
+.Pp
+.Fa iencoding
+describes how the key should be binary-encoded.
+This implementation supports
+.Dv INTERNAL_ENC_PKCS1
+for RSA keys,
+.Dv INTERNAL_ENC_ASN1
+for DSA keys, and
+.Dv INTERNAL_ENC_NONE
+for BINARY keys.
+.Fa encoding
+describes what ASCII encoding should be applied to the key.
+Valid values are
+.Dv ENCODING_HEX
+and
+.Dv ENCODING_BASE64 ,
+for hexadecimal and Base64 encoding respectively.
+.Fa keytype
+is one of
+.Dv KEYNOTE_PUBLIC_KEY
+or
+.Dv KEYNOTE_PRIVATE_KEY
+to indicate whether the key is public or private.
+Private keys have the string
+.Dv KEYNOTE_PRIVATE_KEY_PREFIX
+(defined in keynote.h) prefixed to the algorithm name.
+On success, this function returns a string containing the encoded key.
+On failure, it returns
+.Dv NULL
+and sets
+.Va keynote_errno
+to
+.Er ERROR_NOTFOUND
+if the
+.Fa dc
+argument was invalid,
+.Er ERROR_MEMORY
+if it failed to allocate the necessary memory, or
+.Er ERROR_SYNTAX
+if the key to be converted was invalid.
+.Pp
+.Fn kn_decode_key
+decodes the ASCII-encoded string contained in
+.Fa key .
+The result is placed in
+.Fa dc ,
+with
+.Fa dec_algorithm
+describing the algorithm (see
+.Fn kn_encode_key ) ,
+and
+.Fa dec_key
+pointing to an algorithm-dependent structure.
+In this implementation, this is an SSLeay/OpenSSL-defined
+.Fa DSA *
+for DSA keys,
+.Fa RSA *
+for RSA and X.509-based keys, and a
+.Fa keynote_binary *
+for BINARY keys.
+.Fa keytype
+takes the values
+.Dv KEYNOTE_PUBLIC_KEY
+or
+.Dv KEYNOTE_PRIVATE_KEY
+to specify a public or private key, where applicable.
+On success, this function returns 0.
+On failure, it returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_MEMORY
+if necessary memory could not be allocated, or
+.Er ERROR_SYNTAX
+if the key or the ASCII encoding was malformed.
+.Pp
+.Fn kn_sign_assertion
+produces the cryptographic signature for the assertion of length
+.Fa len
+stored in
+.Fa assertion ,
+using the ASCII-encoded cryptographic key contained in
+.Fa key .
+The type of signature to be produced is described by the string
+.Fa algorithm .
+Possible values for this string are
+.Dv SIG_RSA_SHA1_PKCS1_HEX ,
+.Dv SIG_RSA_SHA1_PKCS1_BASE64 ,
+.Dv SIG_RSA_MD5_HEX
+and
+.Dv SIG_RSA_MD5_HEX
+for RSA keys,
+.Dv SIG_DSA_SHA1_HEX
+and
+.Dv SIG_DSA_SHA1_BASE64
+for DSA keys,
+.Dv SIG_X509_SHA1_HEX
+and
+.Dv SIG_X509_SHA1_BASE64
+for X.509-based keys.
+No other cryptographic signatures are currently
+supported by this implementation.
+If
+.Fa vflag
+is set to 1, then the generated signature will also be verified.
+On success, this function returns a string containing the ASCII-encoded
+signature, without modifying the
+.Fa assertion .
+On failure, it returns
+.Dv NULL
+and sets
+.Va keynote_errno
+to
+.Er ERROR_NOTFOUND
+if one of the arguments was
+.Dv NULL ,
+.Er ERROR_MEMORY
+if necessary memory could not be allocated, or
+.Er ERROR_SYNTAX
+if the
+.Fa algorithm ,
+the
+.Fa key ,
+or the
+.Fa assertion
+(if signature verification was requested) was invalid.
+.Pp
+.Fn kn_verify_assertion
+verifies the cryptographic signature on the assertion of length
+.Fa len
+contained in string
+.Fa assertion .
+On success, this function returns
+.Dv SIGRESULT_TRUE
+if the signature could be verified, or
+.Dv SIGRESULT_FALSE
+otherwise.
+On failure, this function returns \-1 and sets
+.Va keynote_errno
+to
+.Er ERROR_MEMORY
+if necessary memory could not be allocated, or
+.Er ERROR_SYNTAX
+if the assertion contained a syntactic error, or the cryptographic
+algorithm was not supported.
+.Pp
+.Fn kn_free_key
+frees a cryptographic key.
+.Pp
+.Fn kn_get_string
+parses the argument, treating it as a
+.Xr keynote 4
+(quoted) string.
+This is useful for parsing key files.
+On success, this function returns a pointer to the parsing result.
+The result is dynamically allocated and should be freed after use.
+On failure,
+.Dv NULL
+is returned.
+.Sh FILES
+.Bl -tag -width libkeynote.a -compact
+.It Pa keynote.h
+.It Pa libkeynote.a
+.El
+.Sh DIAGNOSTICS
+The return values of all the functions have been given along with the
+function description above.
+.Sh SEE ALSO
+.Xr keynote 1 ,
+.Xr keynote 4 ,
+.Xr keynote 5
+.Rs
+.%A M. Blaze
+.%A J. Feigenbaum
+.%A J. Lacy
+.%D 1996
+.%J IEEE Symposium on Security and Privacy
+.%T Decentralized Trust Management
+.Re
+.Rs
+.%A M. Blaze
+.%A J. Feigenbaum
+.%A M. Strauss
+.%D 1998
+.%J Financial Crypto Conference
+.%T Compliance-Checking in the PolicyMaker Trust Management System
+.Re
+.Sh STANDARDS
+.Rs
+.%A M. Blaze
+.%A J. Feigenbaum
+.%A J. Ioannidis
+.%A A. Keromytis
+.%D September 1999
+.%R RFC 2704
+.%T The KeyNote Trust-Management System Version 2
+.Re
+.Sh AUTHORS
+.An Angelos D. Keromytis Aq Mt angelos@cs.columbia.edu
+.Sh WEB PAGE
+.Lk https://www1.cs.columbia.edu/~angelos/keynote.html

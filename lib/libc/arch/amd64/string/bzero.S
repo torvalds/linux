@@ -1,0 +1,43 @@
+/*
+ * Written by J.T. Conklin <jtc@netbsd.org>.
+ * Public domain.
+ * Adapted for NetBSD/x86_64 by Frank van der Linden <fvdl@wasabisystems.com>
+ */
+
+#include "DEFS.h"
+
+ENTRY_NB(bzero)
+	RETGUARD_SETUP(bzero, r11)
+	movq	%rsi,%rdx
+
+	cld				/* set fill direction forward */
+	xorq	%rax,%rax		/* set fill data to 0 */
+
+	/*
+	 * if the string is too short, it's really not worth the overhead
+	 * of aligning to word boundaries, etc.  So we jump to a plain
+	 * unaligned set.
+	 */
+	cmpq	$16,%rdx
+	jb	L1
+
+	movq	%rdi,%rcx		/* compute misalignment */
+	negq	%rcx
+	andq	$7,%rcx
+	subq	%rcx,%rdx
+	rep				/* zero until word aligned */
+	stosb
+
+	movq	%rdx,%rcx		/* zero by words */
+	shrq	$3,%rcx
+	andq	$7,%rdx
+	rep
+	stosq
+
+L1:	movq	%rdx,%rcx		/* zero remainder by bytes */
+	rep
+	stosb
+
+	RETGUARD_CHECK(bzero, r11)
+	ret
+END_WEAK(bzero)

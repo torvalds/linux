@@ -1,0 +1,24 @@
+static_library("lib") {
+  output_name = "clangIncludeCleaner"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Tooling/Core",
+    "//clang/lib/Tooling/Inclusions",
+    "//clang/lib/Tooling/Inclusions/Stdlib",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ "../include" ]
+  sources = [
+    "Analysis.cpp",
+    "FindHeaders.cpp",
+    "HTMLReport.cpp",
+    "IncludeSpeller.cpp",
+    "LocateSymbol.cpp",
+    "Record.cpp",
+    "Types.cpp",
+    "WalkAST.cpp",
+  ]
+}

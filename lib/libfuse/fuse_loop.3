@@ -1,0 +1,84 @@
+.\" $OpenBSD: fuse_loop.3,v 1.4 2025/09/20 15:01:23 helg Exp $
+.\"
+.\" Copyright (c) 2018 Helg Bredow <helg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 20 2025 $
+.Dt FUSE_LOOP 3
+.Os
+.Sh NAME
+.Nm fuse_loop ,
+.Nm fuse_loop_mt
+.Nd wait for and process FUSE messages
+.Sh SYNOPSIS
+.Lb libfuse
+.In fuse.h
+.Ft int
+.Fn fuse_loop "struct fuse *fuse"
+.Ft int
+.Fn fuse_loop_mt "struct fuse *fuse"
+.Sh DESCRIPTION
+.Fn fuse_loop
+reads from the FUSE device and blocks, waiting for the
+kernel to send it fbuf messages.
+Each of these specifies a FUSE file system operation to execute.
+The callbacks to invoke are specified by calling
+.Xr fuse_new 3
+or
+.Xr fuse_setup 3
+prior to calling
+.Fn fuse_loop .
+.Pp
+.Fn fuse_loop
+will return when it reads the FBT_DESTROY message, which indicates that
+the file system is being unmounted.
+.Pp
+If FUSE signaler handlers have been installed and either SIGHUP, SIGINT
+or SIGTERM is received then
+.Fn fuse_loop
+will terminate.
+See
+.Xr fuse_set_signal_handlers 3 .
+.Pp
+.Fn fuse_loop_mt
+is a multi-threaded variant that allows the file system to process
+multiple file system operations in parallel.
+This is not implemented on
+.Ox .
+.Sh RETURN VALUES
+.Fn fuse_loop
+will return 0 on success and -1 on failure.
+.Pp
+.Fn fuse_loop_mt
+always returns -1.
+.Sh SEE ALSO
+.Xr fuse_main 3 ,
+.Xr fuse_set_signal_handlers 3 ,
+.Xr fb_queue 9
+.Sh STANDARDS
+The
+.Fn fuse_loop
+and
+.Fn fuse_loop_mt
+functions conform to FUSE 2.6.
+.Sh HISTORY
+The
+.Fn fuse_loop
+and
+.Fn fuse_loop_mt
+functions first appeared in
+.Ox 5.4 .
+.Sh AUTHORS
+.An Sylvestre Gallon Aq Mt ccna.syl@gmail.com
+.An Helg Bredow Aq Mt helg@openbsd.org

@@ -1,0 +1,2 @@
+flow esp out from 3ffe:1::1 to 3ffe:3::/64 peer 3ffe:2::1 srcid host1.one.net dstid host2.two.net type require
+flow esp in from 3ffe:3::/64 to 3ffe:1::1 peer 3ffe:2::1 srcid host1.one.net dstid host2.two.net type require

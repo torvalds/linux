@@ -1,0 +1,111 @@
+.\"	$OpenBSD: ferror.3,v 1.11 2021/10/31 16:56:47 schwarze Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: October 31 2021 $
+.Dt FERROR 3
+.Os
+.Sh NAME
+.Nm clearerr ,
+.Nm feof ,
+.Nm ferror ,
+.Nm fileno
+.Nd check and reset stream status
+.Sh SYNOPSIS
+.In stdio.h
+.Ft void
+.Fn clearerr "FILE *stream"
+.Ft int
+.Fn feof "FILE *stream"
+.Ft int
+.Fn ferror "FILE *stream"
+.Ft int
+.Fn fileno "FILE *stream"
+.Sh DESCRIPTION
+The function
+.Fn clearerr
+clears the end-of-file and error indicators for the stream pointed to by
+.Fa stream .
+.Pp
+The function
+.Fn feof
+tests the end-of-file indicator for the stream pointed to by
+.Fa stream ,
+returning non-zero if it is set.
+.Pp
+The function
+.Fn ferror
+tests the error indicator for the stream pointed to by
+.Fa stream ,
+returning non-zero if it is set.
+The error indicator can only be reset by the
+.Fn clearerr
+function.
+.Pp
+The function
+.Fn fileno
+returns the file descriptor associated with the given
+.Fa stream
+or \-1 if it is not associated with any file descriptor,
+for example if it was created with
+.Xr fmemopen 3 ,
+.Xr open_memstream 3 ,
+or
+.Xr funopen 3 .
+.Sh ERRORS
+These functions should not fail and do not set the external
+variable
+.Va errno .
+.Sh SEE ALSO
+.Xr open 2 ,
+.Xr stdio 3
+.Sh STANDARDS
+The functions
+.Fn clearerr ,
+.Fn feof ,
+and
+.Fn ferror
+conform to
+.St -ansiC .
+The function
+.Fn fileno
+conforms to
+.St -p1003.1-90 .
+.Sh HISTORY
+The functions
+.Fn clearerr ,
+.Fn feof ,
+.Fn ferror ,
+and
+.Fn fileno
+first appeared in
+.At v7 .

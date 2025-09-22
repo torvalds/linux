@@ -1,0 +1,122 @@
+.\"	$OpenBSD: vmm.4,v 1.10 2024/11/05 15:08:46 mlarkin Exp $
+.\"
+.\"Copyright (c) 2015 Mike Larkin <mlarkin@openbsd.org>
+.\"
+.\"Permission to use, copy, modify, and distribute this software for any
+.\"purpose with or without fee is hereby granted, provided that the above
+.\"copyright notice and this permission notice appear in all copies.
+.\"
+.\"THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\"WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\"MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\"ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\"WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\"ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\"OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 5 2024 $
+.Dt VMM 4 amd64
+.Os
+.Sh NAME
+.Nm vmm
+.Nd virtual machine monitor
+.Sh SYNOPSIS
+.Cd "vmm0    at mainbus0"
+.Pp
+.In machine/vmmvar.h
+.Sh DESCRIPTION
+The
+.Nm
+driver implements a virtual machine monitor (VMM) suitable for executing
+.Em virtual machines
+(VMs).
+A VMM runs on the
+.Em host
+operating system and provides facilities to execute one or more
+VMs, each of which is provided with a suitable complement of
+virtual hardware.
+.Pp
+These VMs run independently of the host, but may interact with
+it as any other machine would (e.g. via network communications or
+other means).
+.Pp
+VMs are allocated hardware resources by the VMM during creation,
+including:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Virtual CPUs
+.It
+Virtual network interfaces
+.It
+Virtual disk images
+.It
+Virtual serial ports
+.El
+.Pp
+Although VMs execute independently of each other and the host, they
+do consume host resources and, as such, the number of VMs (and their
+configurations) should be taken into consideration when planning
+host capacity.
+.Pp
+The
+.Nm
+driver requires suitable host CPU capabilities in order to provide
+VM services.
+The
+.Nm
+driver requires at least one CPU with hardware-assisted virtualization
+capabilities and nested or extended paging capabilities to be
+present on the host.
+For more information, consult the CPU vendor's documentation.
+.Pp
+The following
+.Xr ioctl 2
+commands are provided for managing
+.Nm
+guests:
+.Bl -tag -width Ds -offset indent
+.It Dv VMM_IOC_CREATE Fa "struct vm_create_params *"
+Create a VM, initializing
+.Nm
+if not yet started.
+(Does not start the VCPU.)
+.It Dv VMM_IOC_RUN Fa "struct vm_run_params *"
+Run a VCPU for a defined VM.
+Return on VM-exit, when the VCPU stopped, or an error occurred.
+.It Dv VMM_IOC_INFO Fa "struct vm_info_params *"
+Get information about the VMs currently hosted by
+.Nm .
+.It Dv VMM_IOC_TERM Fa "struct vm_terminate_params *"
+Terminate a given VM.
+.It Dv VMM_IOC_RESETCPU Fa "struct vm_resetcpu_params *"
+Reset a VCPU to power-on-init state using the provided register state.
+.It Dv VMM_IOC_INTR Fa "struct vm_intr_params *"
+Signal a pending interrupt for a VCPU.
+.It Dv VMM_IOC_READREGS Fa "struct vm_rwregs_params *"
+Read registers of a VCPU.
+.It Dv VMM_IOC_WRITEREGS Fa "struct vm_rwregs_params *"
+Write register values of a VCPU.
+.It Dv VMM_IOC_READVMPARAMS Fa "struct vm_rwvmparams_params *"
+Read paravirtualized hardware parameters (such as
+.Xr pvclock 4
+version) for a VM.
+.It Dv VMM_IOC_WRITEVMPARAMS Fa "struct vm_rwvmparams_params *"
+Write paravirtualized hardware parameters (such as
+.Xr pvclock 4
+guest physical address) for a VM.
+.El
+.Sh SEE ALSO
+.Xr cpu 4 ,
+.Xr intro 4 ,
+.Xr virtio 4 ,
+.Xr vmctl 8 ,
+.Xr vmd 8
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+.An Mike Larkin Aq Mt mlarkin@openbsd.org

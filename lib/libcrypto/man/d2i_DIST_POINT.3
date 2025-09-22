@@ -1,0 +1,202 @@
+.\"	$OpenBSD: d2i_DIST_POINT.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_DIST_POINT 3
+.Os
+.Sh NAME
+.Nm d2i_DIST_POINT ,
+.Nm i2d_DIST_POINT ,
+.Nm d2i_CRL_DIST_POINTS ,
+.Nm i2d_CRL_DIST_POINTS ,
+.Nm d2i_DIST_POINT_NAME ,
+.Nm i2d_DIST_POINT_NAME ,
+.Nm d2i_ISSUING_DIST_POINT ,
+.Nm i2d_ISSUING_DIST_POINT ,
+.Nm d2i_ACCESS_DESCRIPTION ,
+.Nm i2d_ACCESS_DESCRIPTION ,
+.Nm d2i_AUTHORITY_INFO_ACCESS ,
+.Nm i2d_AUTHORITY_INFO_ACCESS
+.Nd decode and encode X.509 data access extensions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft DIST_POINT *
+.Fo d2i_DIST_POINT
+.Fa "DIST_POINT_NAME **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_DIST_POINT
+.Fa "DIST_POINT *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft CRL_DIST_POINTS *
+.Fo d2i_CRL_DIST_POINTS
+.Fa "CRL_DIST_POINTS_NAME **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_CRL_DIST_POINTS
+.Fa "CRL_DIST_POINTS *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft DIST_POINT_NAME *
+.Fo d2i_DIST_POINT_NAME
+.Fa "DIST_POINT_NAME_NAME **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_DIST_POINT_NAME
+.Fa "DIST_POINT_NAME *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft ISSUING_DIST_POINT *
+.Fo d2i_ISSUING_DIST_POINT
+.Fa "ISSUING_DIST_POINT_NAME **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ISSUING_DIST_POINT
+.Fa "ISSUING_DIST_POINT *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft ACCESS_DESCRIPTION *
+.Fo d2i_ACCESS_DESCRIPTION
+.Fa "ACCESS_DESCRIPTION_NAME **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ACCESS_DESCRIPTION
+.Fa "ACCESS_DESCRIPTION *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft AUTHORITY_INFO_ACCESS *
+.Fo d2i_AUTHORITY_INFO_ACCESS
+.Fa "AUTHORITY_INFO_ACCESS_NAME **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_AUTHORITY_INFO_ACCESS
+.Fa "AUTHORITY_INFO_ACCESS *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode X.509 extensions that communicate
+where to retrieve additional information online.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_DIST_POINT
+and
+.Fn i2d_DIST_POINT
+decode and encode an ASN.1
+.Vt DistributionPoint
+structure defined in RFC 5280 section 4.2.1.13.
+.Pp
+.Fn d2i_CRL_DIST_POINTS
+and
+.Fn i2d_CRL_DIST_POINTS
+decode and encode an ASN.1
+.Vt CRLDistributionPoints
+structure defined in RFC 5280 section 4.2.1.13.
+.Pp
+.Fn d2i_DIST_POINT_NAME
+and
+.Fn i2d_DIST_POINT_NAME
+decode and encode an ASN.1
+.Vt DistributionPointName
+structure defined in RFC 5280 section 4.2.1.13.
+.Pp
+.Fn d2i_ISSUING_DIST_POINT
+and
+.Fn i2d_ISSUING_DIST_POINT
+decode and encode an ASN.1
+.Vt IssuingDistributionPoint
+structure defined in RFC 5280 section 5.2.5.
+.Pp
+.Fn d2i_ACCESS_DESCRIPTION
+and
+.Fn i2d_ACCESS_DESCRIPTION
+decode and encode an ASN.1
+.Vt AccessDescription
+structure defined in RFC 5280 section 4.2.2.1.
+.Pp
+.Fn d2i_AUTHORITY_INFO_ACCESS
+and
+.Fn i2d_AUTHORITY_INFO_ACCESS
+decode and encode an ASN.1
+.Vt AuthorityInfoAccessSyntax
+structure defined in RFC 5280 section 4.2.2.1.
+.Sh RETURN VALUES
+.Fn d2i_DIST_POINT ,
+.Fn d2i_CRL_DIST_POINTS ,
+.Fn d2i_DIST_POINT_NAME ,
+.Fn d2i_ISSUING_DIST_POINT ,
+.Fn d2i_ACCESS_DESCRIPTION ,
+and
+.Fn d2i_AUTHORITY_INFO_ACCESS
+return an object of the respective type or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_DIST_POINT ,
+.Fn i2d_CRL_DIST_POINTS ,
+.Fn i2d_DIST_POINT_NAME ,
+.Fn i2d_ISSUING_DIST_POINT ,
+.Fn i2d_ACCESS_DESCRIPTION ,
+and
+.Fn i2d_AUTHORITY_INFO_ACCESS
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Sh SEE ALSO
+.Xr ACCESS_DESCRIPTION_new 3 ,
+.Xr ASN1_item_d2i 3 ,
+.Xr DIST_POINT_new 3 ,
+.Xr X509_EXTENSION_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Sh HISTORY
+.Fn d2i_DIST_POINT ,
+.Fn i2d_DIST_POINT ,
+.Fn d2i_CRL_DIST_POINTS ,
+.Fn i2d_CRL_DIST_POINTS ,
+.Fn d2i_DIST_POINT_NAME ,
+and
+.Fn i2d_DIST_POINT_NAME
+first appeared in OpenSSL 0.9.3 and have been available since
+.Ox 2.6 .
+.Pp
+.Fn d2i_ACCESS_DESCRIPTION ,
+.Fn i2d_ACCESS_DESCRIPTION ,
+.Fn d2i_AUTHORITY_INFO_ACCESS ,
+and
+.Fn i2d_AUTHORITY_INFO_ACCESS
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn d2i_ISSUING_DIST_POINT
+and
+.Fn i2d_ISSUING_DIST_POINT
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .

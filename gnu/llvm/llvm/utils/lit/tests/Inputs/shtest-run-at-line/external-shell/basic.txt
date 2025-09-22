@@ -1,0 +1,6 @@
+# These commands must run under both bash and windows cmd.exe (with GnuWin32
+# tools).
+
+# RUN: true
+# RUN: false
+# RUN: true

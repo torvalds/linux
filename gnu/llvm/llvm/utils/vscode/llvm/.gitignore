@@ -1,0 +1,4 @@
+node_modules
+*~
+syntaxes/ll.tmLanguage.json
+out/

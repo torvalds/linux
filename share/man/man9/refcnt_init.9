@@ -1,0 +1,131 @@
+.\"	$OpenBSD: refcnt_init.9,v 1.8 2025/08/05 12:52:20 bluhm Exp $
+.\"
+.\" Copyright (c) 2015 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 5 2025 $
+.Dt REFCNT_INIT 9
+.Os
+.Sh NAME
+.Nm refcnt_init ,
+.Nm refcnt_init_trace ,
+.Nm refcnt_take ,
+.Nm refcnt_rele ,
+.Nm refcnt_rele_wake ,
+.Nm refcnt_finalize ,
+.Nm refcnt_shared ,
+.Nm refcnt_read ,
+.Nm REFCNT_INITIALIZER
+.Nd reference count API
+.Sh SYNOPSIS
+.In sys/refcnt.h
+.Ft void
+.Fn "refcnt_init" "struct refcnt *r"
+.Ft void
+.Fn "refcnt_init_trace" "struct refcnt *r" "int trace"
+.Ft void
+.Fn "refcnt_take" "struct refcnt *r"
+.Ft int
+.Fn "refcnt_rele" "struct refcnt *r"
+.Ft void
+.Fn "refcnt_rele_wake" "struct refcnt *r"
+.Ft void
+.Fn "refcnt_finalize" "struct refcnt *r" "const char *wmesg"
+.Ft int
+.Fn "refcnt_shared" "const struct refcnt *r"
+.Ft unsigned int
+.Fn "refcnt_read" "const struct refcnt *r"
+.Fn "REFCNT_INITIALIZER"
+.Sh DESCRIPTION
+The refcnt API provides simple reference counters that can be used
+to manage the lifetime of a shared object.
+.Pp
+.Fn refcnt_init
+sets the initial value of the counter to 1 to account for the caller's
+reference to the object.
+.Fn refcnt_init_trace
+additionally accepts a
+.Xr dt 4
+static probe index.
+.Pp
+.Fn refcnt_take
+is used to acquire a new reference.
+It is the responsibility of the caller to guarantee that it holds
+a valid reference before taking a new reference.
+.Pp
+.Fn refcnt_rele
+is used to release an existing reference.
+.Pp
+.Fn refcnt_rele_wake
+is used to release an existing reference and wakes up a process
+that is currently waiting in
+.Fn refcnt_finalize
+for all the references to be released.
+.Pp
+.Fn refcnt_finalize
+releases the caller's reference and sleeps until all the other
+references to the relevant object have been released.
+There may only be one caller to
+.Fn refcnt_finalize
+per refcnt
+.Fa r .
+.Pp
+.Fn refcnt_rele ,
+.Fn refcnt_rele_wake
+and
+.Fn refcnt_finalize
+order prior memory loads and stores before the release of the reference.
+The functions enforce control dependency so that after the final reference
+has been released, subsequent loads and stores happen after the release.
+These ensure that concurrent accesses cease before the object's destructor
+runs and that the destructor sees all updates done during the lifetime
+of the object.
+.Pp
+.Fn refcnt_shared
+tests if the object has multiple references.
+.Pp
+.Fn refcnt_read
+returns a snapshot of the counter value.
+Its use is discouraged,
+code should use
+.Fn refcnt_shared
+whenever possible.
+.Pp
+.Fn REFCNT_INITIALIZER
+initialises a declaration of a refcnt to 1.
+.Sh CONTEXT
+.Fn refcnt_init ,
+.Fn refcnt_init_trace ,
+.Fn refcnt_take ,
+.Fn refcnt_rele ,
+.Fn refcnt_rele_wake ,
+.Fn refcnt_shared
+and
+.Fn refcnt_read
+can be called during autoconf, from process context, or from interrupt
+context.
+.Pp
+.Fn refcnt_finalize
+can be called from process context.
+.Sh RETURN VALUES
+.Fn refcnt_rele
+returns a non-zero value if the last reference has been released,
+otherwise 0.
+.Pp
+.Fn refcnt_shared
+returns a non-zero value if the object has multiple references,
+otherwise 0.
+.Pp
+.Fn refcnt_read
+returns a snapshot of the counter value.

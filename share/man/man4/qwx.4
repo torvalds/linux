@@ -1,0 +1,135 @@
+.\" $OpenBSD: qwx.4,v 1.9 2025/08/04 17:57:28 schwarze Exp $
+.\"
+.\" Copyright (c) 2022 Martin Pieuchot <mpi@openbsd.org>
+.\" Copyright (c) 2024 Stefan Sperling <stsp@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 4 2025 $
+.Dt QWX 4
+.Os
+.Sh NAME
+.Nm qwx
+.Nd Qualcomm IEEE 802.11a/ac/ax/b/g/n wireless network device
+.Sh SYNOPSIS
+.Cd "qwx* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Qualcomm Technologies QCNFA765
+802.11ax devices.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+The
+.Nm
+driver offloads both encryption and decryption of unicast data frames to the
+hardware for the CCMP cipher.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The driver needs the following firmware files,
+which are loaded when an interface is brought up:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/qwx-wcn6855-hw2.0-amss
+.It Pa /etc/firmware/qwx-wcn6855-hw2.0-board-2
+.It Pa /etc/firmware/qwx-wcn6855-hw2.0-m3
+.It Pa /etc/firmware/qwx-wcn6855-hw2.0-regdb
+.It Pa /etc/firmware/qwx-wcn6855-hw2.1-amss
+.It Pa /etc/firmware/qwx-wcn6855-hw2.1-board-2
+.It Pa /etc/firmware/qwx-wcn6855-hw2.1-m3
+.It Pa /etc/firmware/qwx-wcn6855-hw2.1-regdb
+.El
+.Pp
+These firmware files are not free because Qualcomm refuses to grant
+distribution rights without contractual obligations.
+As a result, even though
+.Ox
+includes the driver, the firmware files cannot be included and
+users have to download these files on their own.
+.Pp
+A prepackaged version of the firmware can be installed using
+.Xr fw_update 8 .
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig qwx0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures qwx0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.5 .
+.Sh CAVEATS
+The
+.Nm
+driver does not support any of the 802.11ac and 802.11ax
+capabilities offered by the hardware.
+.Sh BUGS
+Broadcast and Multicast frames are only received on networks which
+do not use encryption or which use WPA.
+This prevents ARP and IPv6 from working correctly on networks which
+use WEP encryption.

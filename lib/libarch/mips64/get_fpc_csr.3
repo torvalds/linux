@@ -1,0 +1,63 @@
+.\"	$OpenBSD: get_fpc_csr.3,v 1.8 2025/06/06 21:09:33 schwarze Exp $
+.\"
+.\" Copyright (c) 2010 Miodrag Vallat.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt GET_FPC_CSR 3 mips64
+.Os
+.Sh NAME
+.Nm get_fpc_csr ,
+.Nm set_fpc_csr
+.Nd floating-point control register access
+.Sh SYNOPSIS
+.\" These functions live in libc.
+.In machine/fpu.h
+.Ft int
+.Fn get_fpc_csr void
+.Ft int
+.Fn set_fpc_csr "int csr"
+.Sh DESCRIPTION
+The
+.Fn get_fpc_csr
+function returns the current value of the floating-point control register.
+The
+.Fn set_fpc_csr
+function replaces the value of the floating-point control register with
+.Fa csr
+and returns the previous value.
+.Pp
+These functions are provided for IRIX compatibility,
+and should only be used to control the value of the
+.Li FPCSR_FS
+bit in the floating-point control register.
+Portable code should use the
+.Xr fpgetmask 3 ,
+.Xr fpgetround 3 ,
+.Xr fpgetsticky 3 ,
+.Xr fpsetmask 3 ,
+.Xr fpsetround 3 ,
+and
+.Xr fpsetsticky 3
+functions to inquire or alter the floating-point control register.
+.Sh RETURN VALUES
+The
+.Fn get_fpc_csr
+and
+.Fn set_fpc_csr
+functions return the
+.Pq previous
+value of the floating-point control register.
+.Sh SEE ALSO
+.Xr fpgetmask 3

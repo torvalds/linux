@@ -1,0 +1,47 @@
+.\"	$OpenBSD: stfrng.4,v 1.1 2023/09/23 19:11:00 kettenis Exp $
+.\"
+.\" Copyright (c) 2023 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 23 2023 $
+.Dt STFRNG 4 riscv64
+.Os
+.Sh NAME
+.Nm stfrng
+.Nd StarFive JH7110 random number generator
+.Sh SYNOPSIS
+.Cd "stfrng* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the random number generator found on the
+StarFive JH7110 SoC.
+.Pp
+It feeds the random subsystem's entropy pool with 256 bits of random
+data every second.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr random 4 ,
+.Xr arc4random 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

@@ -1,0 +1,171 @@
+.\"	$OpenBSD: feclearexcept.3,v 1.8 2025/06/07 10:33:06 schwarze Exp $
+.\"
+.\" Copyright (c) 2011 Martynas Venckus <martynas@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt FECLEAREXCEPT 3
+.Os
+.Sh NAME
+.Nm feclearexcept ,
+.Nm fegetexceptflag ,
+.Nm feraiseexcept ,
+.Nm fesetexceptflag ,
+.Nm fetestexcept
+.Nd access floating-point status flags
+.Sh SYNOPSIS
+.Lb libm
+.In fenv.h
+.Ft int
+.Fn feclearexcept "int excepts"
+.Ft int
+.Fn fegetexceptflag "fexcept_t *flagp" "int excepts"
+.Ft int
+.Fn feraiseexcept "int excepts"
+.Ft int
+.Fn fesetexceptflag "const fexcept_t *flagp" "int excepts"
+.Ft int
+.Fn fetestexcept "int excepts"
+.Sh DESCRIPTION
+These functions provide access to the floating-point status flags.
+The
+.Fa excepts
+input argument is a bitmask specifying an exception type and
+containing any of the values listed below.
+.Bl -tag -width "FE_DIVBYZERO"
+.It Dv FE_DIVBYZERO
+A divide-by-zero exception occurs when the program attempts to
+divide a finite non-zero number by zero.
+.It Dv FE_INEXACT
+An inexact exception is raised whenever there is a loss of precision
+due to rounding.
+.It Dv FE_INVALID
+Invalid operation exceptions occur when a program attempts to
+perform calculations for which there is no reasonable representable
+answer.
+.Pp
+For instance, subtraction of infinities, division of zero by zero,
+ordered comparison involving NaNs, and taking the square root of a
+negative number are all invalid operations.
+.It Dv FE_OVERFLOW
+An overflow exception occurs when the magnitude of the result of a
+computation is too large to fit in the destination type.
+.It Dv FE_UNDERFLOW
+Underflow occurs when the result of a computation is too close to zero
+to be represented as a non-zero value in the destination type.
+.It Dv FE_DENORMAL
+Denormalization exception occurs when the result of a floating-point
+expression is a denormalized number.
+.Pp
+This is available only on the floating-point implementations of
+amd64 and i386 processors.
+.El
+.Pp
+Additionally, the macro
+.Dv FE_ALL_EXCEPT
+is simply the bitwise OR of all floating-point exception macros
+listed above.
+.Pp
+The
+.Fn feclearexcept
+function clears the floating-point exceptions represented by
+.Fa excepts .
+.Pp
+The
+.Fn fegetexceptflag
+function stores a representation of the states of the floating-point
+flags indicated by
+.Pa excepts
+in the object pointed to by
+.Pa flagp .
+.Pp
+The
+.Fn feraiseexcept
+function raises floating-point exceptions represented by
+.Pa excepts .
+.Pp
+The
+.Fn fesetexceptflag
+function sets the floating-point status flags indicated by
+.Pa excepts
+to the states stored in the object pointed to by
+.Pa flagp .
+The value of
+.Pa flagp
+shall have been set by a previous call to
+.Fn fegetexceptflag
+whose second argument represented at least those floating-point
+exceptions represented by
+.Pa excepts .
+This function does not raise floating-point exceptions, but only
+sets the state of the flags.
+.Pp
+The
+.Fn fetestexcept
+function determines which of a specified subset of the floating-point
+exception flags are currently set.
+The
+.Pa excepts
+specifies the floating-point status flags to be queried.
+.Sh RETURN VALUES
+The
+.Fn feclearexcept ,
+.Fn fegetexceptflag ,
+.Fn feraiseexcept ,
+and
+.Fn fesetexceptflag
+functions return zero on success, and non-zero if an error occurred.
+The
+.Fn fetestexcept
+function returns a bitmask of a specified subset of the floating-point
+exception flags which are currently set.
+.Sh SEE ALSO
+.Xr feenableexcept 3 ,
+.Xr fegetenv 3 ,
+.Xr fegetround 3
+.Sh STANDARDS
+The
+.Fn feclearexcept ,
+.Fn fegetexceptflag ,
+.Fn feraiseexcept ,
+.Fn fesetexceptflag ,
+and
+.Fn fetestexcept
+functions conform to
+.St -isoC-99 .
+.Pp
+The return types for
+.Fn feclearexcept ,
+.Fn fegetexceptflag ,
+.Fn feraiseexcept ,
+and
+.Fn fesetexceptflag
+are
+.Vt int
+for alignment with
+.St -isoC-99
+Defect Report #202.
+.Sh HISTORY
+These functions first appeared in
+.Ox 5.0 .
+.Sh CAVEATS
+On some architectures,
+.Fn feraiseexcept
+additionally raises the
+.Dq inexact
+floating-point exception whenever it raises the
+.Dq overflow
+or
+.Dq underflow
+floating-point exception.

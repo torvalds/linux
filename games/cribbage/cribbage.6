@@ -1,0 +1,206 @@
+.\"	$OpenBSD: cribbage.6,v 1.16 2022/02/18 23:17:13 jsg Exp $
+.\"
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)cribbage.6	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt CRIBBAGE 6
+.Os
+.Sh NAME
+.Nm cribbage
+.Nd the card game cribbage
+.Sh SYNOPSIS
+.Nm cribbage
+.Op Fl emqr
+.Sh DESCRIPTION
+.Nm
+plays the card game cribbage, with the program playing one hand
+and the user the other.
+The program will initially ask the user if the rules of the game
+are needed \(en if so, it will print out the appropriate section from
+.Em According to Hoyle .
+.Pp
+.Nm
+options include:
+.Bl -tag -width indent
+.It Fl e
+When players make a mistake scoring their hand or crib, provide an
+explanation of the correct score.
+.Po
+This is especially useful for beginning players.
+.Pc
+.It Fl m
+.Dq Muggins
+\(en if a player mistakenly scores less than is due,
+the opponent may claim the overlooked points.
+.Pq Of course, the computer never miscalculates!
+.It Fl q
+Print a shorter form of all messages \(en this is only recommended for
+users who have played the game without specifying this option.
+.It Fl r
+Instead of asking players to cut the deck, the program will randomly
+cut the deck.
+.El
+.Pp
+.Nm
+first asks whether to play a short game
+.Po
+.Dq once around ,
+to 61
+.Pc
+or a long game
+.Po
+.Dq twice around ,
+to 121
+.Pc .
+A response of
+.Sq Ic s
+or
+.Sq Ic S
+will result in a short game; any other response will
+play a long game.
+.Pp
+At the start of the first game, the program
+asks the player to cut the deck to determine who gets the
+first crib.
+The user should respond with a number between 4 and
+48, indicating how many cards down the deck is to be cut.
+The player who cuts the lower ranked card gets the first crib.
+If more than one game is played, the
+loser of the previous game gets the first crib in the current game.
+.Pp
+For each hand, the program first prints the player's hand and
+whose crib it is, and then asks the player
+to discard two cards into the crib.
+The cards are prompted for one per line, and are entered as explained below.
+.Pp
+After discarding, the program cuts the deck
+.Pq if it is the player's crib
+or asks the player to cut the deck
+.Pq if it's its crib ;
+in the latter
+case, the appropriate response is a number from 4 to 36 indicating
+how far down the remaining 40 cards are to be cut.
+.Pp
+After the deck is cut, play starts with the non-dealer
+.Pq the person who doesn't have the crib
+leading the first card.
+Play continues until all cards are exhausted.
+The program keeps track of the scoring of all points and the total of
+the cards on the table.
+.Pp
+After play, the hands are scored.
+The program requests players to score their hand
+.Pq and the crib, if it is theirs
+by printing out the appropriate cards.
+Play continues until one player reaches the game limit
+.Pq 61 or 121 .
+.Pp
+A carriage return when a numeric input is expected is equivalent
+to typing the lowest legal value; when cutting the deck this
+is equivalent to cutting after the fourth card.
+.Pp
+Cards are specified as rank followed by suit,
+with letters case insensitive.
+The ranks may be specified as one of:
+.Sq a ,
+.Sq 2 ,
+.Sq 3 ,
+.Sq 4 ,
+.Sq 5 ,
+.Sq 6 ,
+.Sq 7 ,
+.Sq 8 ,
+.Sq 9 ,
+.Sq t ,
+.Sq j ,
+.Sq q ,
+and
+.Sq k ,
+or alternatively, one of:
+.Sq ace ,
+.Sq two ,
+.Sq three ,
+.Sq four ,
+.Sq five ,
+.Sq six ,
+.Sq seven ,
+.Sq eight ,
+.Sq nine ,
+.Sq ten ,
+.Sq jack ,
+.Sq queen ,
+and
+.Sq king .
+Suits may be specified as:
+.Sq s ,
+.Sq h ,
+.Sq d ,
+and
+.Sq c ,
+or alternatively as:
+.Sq spades ,
+.Sq hearts ,
+.Sq diamonds ,
+and
+.Sq clubs .
+A card may be specified as:
+.Dq Ar rank suit ,
+or:
+.Dq Ar rank No of Ar suit .
+If the single letter rank and suit designations are used, the space
+separating the suit and rank may be left out.
+Also, if only one card of the desired rank is playable,
+typing the rank is sufficient.
+For example, if your hand was
+.Dq 2H, 4D, 5C, 6H, JC, and KD
+and it was desired to discard the king of diamonds, any of
+the following could be typed:
+.Sq k ,
+.Sq king ,
+.Sq kd ,
+.Sq k d ,
+.Sq k of d ,
+.Sq king d ,
+.Sq king of d ,
+.Sq k diamonds ,
+.Sq k of diamonds ,
+.Sq king diamonds ,
+.Sq king of diamonds .
+.Sh FILES
+.Bl -tag -width /usr/share/games/cribbage.instr -compact
+.It Pa /usr/share/games/cribbage.instr
+instructions
+.El
+.Sh AUTHORS
+.An -nosplit
+.An Earl T. Cohen
+wrote the logic.
+.An Ken Arnold
+added the screen-oriented interface.

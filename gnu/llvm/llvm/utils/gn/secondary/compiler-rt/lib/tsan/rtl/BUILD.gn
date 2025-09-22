@@ -1,0 +1,184 @@
+import("//compiler-rt/target.gni")
+
+source_set("cxx_sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+  sources = [ "tsan_new_delete.cpp" ]
+}
+
+if (current_os == "mac") {
+  tsan_target_type = "shared_library"
+} else {
+  tsan_target_type = "static_library"
+}
+
+target(tsan_target_type, "rtl") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
+
+  output_dir = crt_current_out_dir
+  if (current_os == "mac") {
+    output_name = "clang_rt.tsan_osx_dynamic"
+  } else {
+    assert(current_os != "win", "Tsan does not work on Windows")
+    output_name = "clang_rt.tsan$crt_current_target_suffix"
+  }
+
+  deps = [
+    "//compiler-rt/lib/interception:sources",
+    "//compiler-rt/lib/sanitizer_common:sources",
+    "//compiler-rt/lib/ubsan:sources",
+  ]
+
+  if (tsan_target_type == "static_library") {
+    complete_static_lib = true
+    configs -= [ "//llvm/utils/gn/build:thin_archive" ]
+    deps += [ ":tsan_cxx" ]
+  } else {
+    deps += [
+      ":cxx_sources",
+      "//compiler-rt/lib/ubsan:cxx_sources",
+    ]
+  }
+
+  # It's performance-critical for TSan runtime to be built with -fPIE to reduce
+  # the number of register spills.
+  cflags = [ "-fPIE" ]
+
+  sources = [
+    "tsan_debugging.cpp",
+    "tsan_defs.h",
+    "tsan_dense_alloc.h",
+    "tsan_external.cpp",
+    "tsan_fd.cpp",
+    "tsan_fd.h",
+    "tsan_flags.cpp",
+    "tsan_flags.h",
+    "tsan_flags.inc",
+    "tsan_ignoreset.cpp",
+    "tsan_ignoreset.h",
+    "tsan_ilist.h",
+    "tsan_interceptors.h",
+    "tsan_interceptors_memintrinsics.cpp",
+    "tsan_interceptors_posix.cpp",
+    "tsan_interface.cpp",
+    "tsan_interface.h",
+    "tsan_interface.inc",
+    "tsan_interface_ann.cpp",
+    "tsan_interface_ann.h",
+    "tsan_interface_atomic.cpp",
+    "tsan_interface_java.cpp",
+    "tsan_interface_java.h",
+    "tsan_malloc_mac.cpp",
+    "tsan_md5.cpp",
+    "tsan_mman.cpp",
+    "tsan_mman.h",
+    "tsan_mutexset.cpp",
+    "tsan_mutexset.h",
+    "tsan_platform.h",
+    "tsan_ppc_regs.h",
+    "tsan_preinit.cpp",
+    "tsan_report.cpp",
+    "tsan_report.h",
+    "tsan_rtl.cpp",
+    "tsan_rtl.h",
+    "tsan_rtl_access.cpp",
+    "tsan_rtl_mutex.cpp",
+    "tsan_rtl_proc.cpp",
+    "tsan_rtl_report.cpp",
+    "tsan_rtl_thread.cpp",
+    "tsan_shadow.h",
+    "tsan_stack_trace.cpp",
+    "tsan_stack_trace.h",
+    "tsan_suppressions.cpp",
+    "tsan_suppressions.h",
+    "tsan_symbolize.cpp",
+    "tsan_symbolize.h",
+    "tsan_sync.cpp",
+    "tsan_sync.h",
+    "tsan_trace.h",
+    "tsan_update_shadow_word.inc",
+    "tsan_vector_clock.cpp",
+    "tsan_vector_clock.h",
+  ]
+  if (target_os == "mac") {
+    sources += [
+      "tsan_interceptors_libdispatch.cpp",
+      "tsan_interceptors_mac.cpp",
+      "tsan_interceptors_mach_vm.cpp",
+      "tsan_platform_mac.cpp",
+      "tsan_platform_posix.cpp",
+    ]
+    cflags += [ "-fblocks" ]
+  } else {
+    # Assume Linux
+    sources += [
+      "tsan_platform_linux.cpp",
+      "tsan_platform_posix.cpp",
+    ]
+  }
+  if (target_cpu == "x64") {
+    sources += [ "tsan_rtl_amd64.S" ]
+  } else if (target_cpu == "arm64") {
+    sources += [ "tsan_rtl_aarch64.S" ]
+  } else if (target_cpu == "loongarch64") {
+    sources += [ "tsan_rtl_loongarch64.S" ]
+  } else if (target_cpu == "mips64") {
+    sources += [ "tsan_rtl_mips64.S" ]
+  } else if (target_cpu == "powerpc64") {
+    sources += [ "tsan_rtl_ppc64.S" ]
+  } else if (target_cpu == "riscv64") {
+    sources += [ "tsan_rtl_riscv64.S" ]
+  } else if (target_cpu == "s390x") {
+    sources += [ "tsan_rtl_s390x.S" ]
+  }
+
+  # FIXME: link rt dl m pthread log
+  # FIXME: dep on libcxx-headers?
+  # FIXME: add_sanitizer_rt_version_list (cf hwasan)
+  # FIXME: need libclang_rt.tsan*.a.syms?
+  # FIXME: tsan_ignorelist.txt
+
+  if (target_os == "mac") {
+    # The -U flags below correspond to the add_weak_symbols() calls in CMake.
+    ldflags = [
+      "-lc++",
+      "-lc++abi",
+      "-lobjc",
+
+      # sanitizer_common
+      "-Wl,-U,___sanitizer_free_hook",
+      "-Wl,-U,___sanitizer_malloc_hook",
+      "-Wl,-U,___sanitizer_report_error_summary",
+      "-Wl,-U,___sanitizer_sandbox_on_notify",
+      "-Wl,-U,___sanitizer_symbolize_code",
+      "-Wl,-U,___sanitizer_symbolize_data",
+      "-Wl,-U,___sanitizer_symbolize_frame",
+      "-Wl,-U,___sanitizer_symbolize_demangle",
+      "-Wl,-U,___sanitizer_symbolize_flush",
+      "-Wl,-U,___sanitizer_symbolize_set_demangle",
+      "-Wl,-U,___sanitizer_symbolize_set_inline_frames",
+
+      # FIXME: better
+      "-Wl,-install_name,@rpath/libclang_rt.tsan_osx_dynamic.dylib",
+    ]
+    # FIXME: -Wl,-rpath
+    # FIXME: codesign (??)
+  }
+}
+
+if (tsan_target_type == "static_library") {
+  static_library("tsan_cxx") {
+    assert(current_os != "win", "FIXME")
+    output_dir = crt_current_out_dir
+    output_name = "clang_rt.tsan_cxx$crt_current_target_suffix"
+    complete_static_lib = true
+    configs -= [ "//llvm/utils/gn/build:thin_archive" ]
+    deps = [
+      ":cxx_sources",
+      "//compiler-rt/lib/ubsan:cxx_sources",
+    ]
+  }
+}
+# FIXME:
+# Build libcxx instrumented with TSan.

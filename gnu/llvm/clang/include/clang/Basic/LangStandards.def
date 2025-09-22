@@ -1,0 +1,262 @@
+//===-- LangStandards.def - Language Standard Data --------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LANGSTANDARD
+#error "LANGSTANDARD must be defined before including this file"
+#endif
+
+/// LANGSTANDARD(IDENT, NAME, LANG, DESC, FEATURES)
+///
+/// \param IDENT - The name of the standard as a C++ identifier.
+/// \param NAME - The name of the standard.
+/// \param LANG - The Language for which this is a standard.
+/// \param DESC - A short description of the standard.
+/// \param FEATURES - The standard features as flags, these are enums from the
+/// clang::frontend namespace, which is assumed to be available.
+
+/// LANGSTANDARD_ALIAS(IDENT, ALIAS)
+/// \param IDENT - The name of the standard as a C++ identifier.
+/// \param ALIAS - The alias of the standard.
+
+/// LANGSTANDARD_ALIAS_DEPR(IDENT, ALIAS)
+/// Same as LANGSTANDARD_ALIAS, but for a deprecated alias.
+
+#ifndef LANGSTANDARD_ALIAS
+#define LANGSTANDARD_ALIAS(IDENT, ALIAS)
+#endif
+
+#ifndef LANGSTANDARD_ALIAS_DEPR
+#define LANGSTANDARD_ALIAS_DEPR(IDENT, ALIAS) LANGSTANDARD_ALIAS(IDENT, ALIAS)
+#endif
+
+// C89-ish modes.
+LANGSTANDARD(c89, "c89",
+             C, "ISO C 1990", 0)
+LANGSTANDARD_ALIAS(c89, "c90")
+LANGSTANDARD_ALIAS(c89, "iso9899:1990")
+
+LANGSTANDARD(c94, "iso9899:199409",
+             C, "ISO C 1990 with amendment 1",
+             Digraphs)
+
+LANGSTANDARD(gnu89, "gnu89",
+             C, "ISO C 1990 with GNU extensions",
+             LineComment | Digraphs | GNUMode)
+LANGSTANDARD_ALIAS(gnu89, "gnu90")
+
+// C99-ish modes
+LANGSTANDARD(c99, "c99",
+             C, "ISO C 1999",
+             LineComment | C99 | Digraphs | HexFloat)
+LANGSTANDARD_ALIAS(c99, "iso9899:1999")
+LANGSTANDARD_ALIAS_DEPR(c99, "c9x")
+LANGSTANDARD_ALIAS_DEPR(c99, "iso9899:199x")
+
+LANGSTANDARD(gnu99, "gnu99",
+             C, "ISO C 1999 with GNU extensions",
+             LineComment | C99 | Digraphs | GNUMode | HexFloat)
+LANGSTANDARD_ALIAS_DEPR(gnu99, "gnu9x")
+
+// C11 modes
+LANGSTANDARD(c11, "c11",
+             C, "ISO C 2011",
+             LineComment | C99 | C11 | Digraphs | HexFloat)
+LANGSTANDARD_ALIAS(c11, "iso9899:2011")
+LANGSTANDARD_ALIAS_DEPR(c11, "c1x")
+LANGSTANDARD_ALIAS_DEPR(c11, "iso9899:201x")
+
+LANGSTANDARD(gnu11, "gnu11",
+             C, "ISO C 2011 with GNU extensions",
+             LineComment | C99 | C11 | Digraphs | GNUMode | HexFloat)
+LANGSTANDARD_ALIAS_DEPR(gnu11, "gnu1x")
+
+// C17 modes
+LANGSTANDARD(c17, "c17",
+             C, "ISO C 2017",
+             LineComment | C99 | C11 | C17 | Digraphs | HexFloat)
+LANGSTANDARD_ALIAS(c17, "iso9899:2017")
+LANGSTANDARD_ALIAS(c17, "c18")
+LANGSTANDARD_ALIAS(c17, "iso9899:2018")
+LANGSTANDARD(gnu17, "gnu17",
+             C, "ISO C 2017 with GNU extensions",
+             LineComment | C99 | C11 | C17 | Digraphs | GNUMode | HexFloat)
+LANGSTANDARD_ALIAS(gnu17, "gnu18")
+
+// C23 modes
+LANGSTANDARD(c23, "c23",
+             C, "Working Draft for ISO C23",
+             LineComment | C99 | C11 | C17 | C23 | Digraphs | HexFloat)
+LANGSTANDARD_ALIAS_DEPR(c23, "c2x")
+LANGSTANDARD(gnu23, "gnu23",
+             C, "Working Draft for ISO C23 with GNU extensions",
+             LineComment | C99 | C11 | C17 | C23 | Digraphs | GNUMode | HexFloat)
+LANGSTANDARD_ALIAS_DEPR(gnu23, "gnu2x")
+// FIXME: Add the alias for iso9899:202* once we know the year ISO publishes
+// the document (expected to be 2024).
+
+// C2y modes
+LANGSTANDARD(c2y, "c2y",
+             C, "Working Draft for ISO C2y",
+             LineComment | C99 | C11 | C17 | C23 | C2y | Digraphs | HexFloat)
+LANGSTANDARD(gnu2y, "gnu2y",
+             C, "Working Draft for ISO C2y with GNU extensions",
+             LineComment | C99 | C11 | C17 | C23 | C2y | Digraphs | GNUMode | HexFloat)
+
+
+// C++ modes
+LANGSTANDARD(cxx98, "c++98",
+             CXX, "ISO C++ 1998 with amendments",
+             LineComment | CPlusPlus | Digraphs)
+LANGSTANDARD_ALIAS(cxx98, "c++03")
+
+LANGSTANDARD(gnucxx98, "gnu++98",
+             CXX, "ISO C++ 1998 with amendments and GNU extensions",
+             LineComment | CPlusPlus | Digraphs | GNUMode)
+LANGSTANDARD_ALIAS(gnucxx98, "gnu++03")
+
+LANGSTANDARD(cxx11, "c++11",
+             CXX, "ISO C++ 2011 with amendments",
+             LineComment | CPlusPlus | CPlusPlus11 | Digraphs)
+LANGSTANDARD_ALIAS_DEPR(cxx11, "c++0x")
+
+LANGSTANDARD(gnucxx11, "gnu++11", CXX,
+             "ISO C++ 2011 with amendments and GNU extensions",
+             LineComment | CPlusPlus | CPlusPlus11 | Digraphs | GNUMode)
+LANGSTANDARD_ALIAS_DEPR(gnucxx11, "gnu++0x")
+
+LANGSTANDARD(cxx14, "c++14",
+             CXX, "ISO C++ 2014 with amendments",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | Digraphs)
+LANGSTANDARD_ALIAS_DEPR(cxx14, "c++1y")
+
+LANGSTANDARD(gnucxx14, "gnu++14",
+             CXX, "ISO C++ 2014 with amendments and GNU extensions",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | Digraphs |
+             GNUMode)
+LANGSTANDARD_ALIAS_DEPR(gnucxx14, "gnu++1y")
+
+LANGSTANDARD(cxx17, "c++17",
+             CXX, "ISO C++ 2017 with amendments",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
+             Digraphs | HexFloat)
+LANGSTANDARD_ALIAS_DEPR(cxx17, "c++1z")
+
+LANGSTANDARD(gnucxx17, "gnu++17",
+             CXX, "ISO C++ 2017 with amendments and GNU extensions",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
+             Digraphs | HexFloat | GNUMode)
+LANGSTANDARD_ALIAS_DEPR(gnucxx17, "gnu++1z")
+
+LANGSTANDARD(cxx20, "c++20",
+             CXX, "ISO C++ 2020 DIS",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
+             CPlusPlus20 | Digraphs | HexFloat)
+LANGSTANDARD_ALIAS_DEPR(cxx20, "c++2a")
+
+LANGSTANDARD(gnucxx20, "gnu++20",
+             CXX, "ISO C++ 2020 DIS with GNU extensions",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
+             CPlusPlus20 | Digraphs | HexFloat | GNUMode)
+LANGSTANDARD_ALIAS_DEPR(gnucxx20, "gnu++2a")
+
+LANGSTANDARD(cxx23, "c++23",
+             CXX, "ISO C++ 2023 DIS",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
+             CPlusPlus20 | CPlusPlus23 | Digraphs | HexFloat)
+LANGSTANDARD_ALIAS_DEPR(cxx23, "c++2b")
+
+LANGSTANDARD(gnucxx23, "gnu++23",
+             CXX, "ISO C++ 2023 DIS with GNU extensions",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
+             CPlusPlus20 | CPlusPlus23 | Digraphs | HexFloat | GNUMode)
+LANGSTANDARD_ALIAS_DEPR(gnucxx23, "gnu++2b")
+
+LANGSTANDARD(cxx26, "c++2c",
+             CXX, "Working draft for C++2c",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
+             CPlusPlus20 | CPlusPlus23 | CPlusPlus26 | Digraphs | HexFloat)
+LANGSTANDARD_ALIAS(cxx26, "c++26")
+
+LANGSTANDARD(gnucxx26, "gnu++2c",
+             CXX, "Working draft for C++2c with GNU extensions",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
+             CPlusPlus20 | CPlusPlus23 | CPlusPlus26 | Digraphs | HexFloat | GNUMode)
+LANGSTANDARD_ALIAS(gnucxx26, "gnu++26")
+
+// OpenCL
+LANGSTANDARD(opencl10, "cl1.0",
+             OpenCL, "OpenCL 1.0",
+             LineComment | C99 | Digraphs | HexFloat | OpenCL)
+LANGSTANDARD_ALIAS_DEPR(opencl10, "cl")
+
+LANGSTANDARD(opencl11, "cl1.1",
+             OpenCL, "OpenCL 1.1",
+             LineComment | C99 | Digraphs | HexFloat | OpenCL)
+LANGSTANDARD(opencl12, "cl1.2",
+             OpenCL, "OpenCL 1.2",
+             LineComment | C99 | Digraphs | HexFloat | OpenCL)
+LANGSTANDARD(opencl20, "cl2.0",
+             OpenCL, "OpenCL 2.0",
+             LineComment | C99 | Digraphs | HexFloat | OpenCL)
+LANGSTANDARD(opencl30, "cl3.0",
+             OpenCL, "OpenCL 3.0",
+             LineComment | C99 | Digraphs | HexFloat | OpenCL)
+
+LANGSTANDARD(openclcpp10, "clc++1.0",
+             OpenCL, "C++ for OpenCL 1.0",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
+             Digraphs | HexFloat | OpenCL)
+LANGSTANDARD_ALIAS(openclcpp10, "clc++")
+
+LANGSTANDARD(openclcpp2021, "clc++2021",
+             OpenCL, "C++ for OpenCL 2021",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
+             Digraphs | HexFloat | OpenCL)
+
+LANGSTANDARD_ALIAS_DEPR(opencl10, "CL")
+LANGSTANDARD_ALIAS_DEPR(opencl11, "CL1.1")
+LANGSTANDARD_ALIAS_DEPR(opencl12, "CL1.2")
+LANGSTANDARD_ALIAS_DEPR(opencl20, "CL2.0")
+LANGSTANDARD_ALIAS_DEPR(opencl30, "CL3.0")
+LANGSTANDARD_ALIAS_DEPR(openclcpp10, "CLC++")
+LANGSTANDARD_ALIAS_DEPR(openclcpp10, "CLC++1.0")
+LANGSTANDARD_ALIAS_DEPR(openclcpp2021, "CLC++2021")
+
+// HLSL
+LANGSTANDARD(hlsl, "hlsl",
+             HLSL, "High Level Shader Language",
+             LineComment | HLSL | CPlusPlus )
+
+LANGSTANDARD(hlsl2015, "hlsl2015",
+             HLSL, "High Level Shader Language 2015",
+             LineComment | HLSL | CPlusPlus )
+
+LANGSTANDARD(hlsl2016, "hlsl2016",
+             HLSL, "High Level Shader Language 2016",
+             LineComment | HLSL | CPlusPlus )
+
+LANGSTANDARD(hlsl2017, "hlsl2017",
+             HLSL, "High Level Shader Language 2017",
+             LineComment | HLSL | CPlusPlus )
+
+LANGSTANDARD(hlsl2018, "hlsl2018",
+             HLSL, "High Level Shader Language 2018",
+             LineComment | HLSL | CPlusPlus )
+
+LANGSTANDARD(hlsl2021, "hlsl2021",
+             HLSL, "High Level Shader Language 2021",
+             LineComment | HLSL | CPlusPlus )
+
+LANGSTANDARD(hlsl202x, "hlsl202x",
+             HLSL, "High Level Shader Language 202x",
+             LineComment | HLSL | CPlusPlus | CPlusPlus11)
+
+
+#undef LANGSTANDARD
+#undef LANGSTANDARD_ALIAS
+#undef LANGSTANDARD_ALIAS_DEPR

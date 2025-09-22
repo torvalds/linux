@@ -1,0 +1,227 @@
+.\" $OpenBSD: CMS_decrypt.3,v 1.9 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL e9b77246 Jan 20 19:58:49 2017 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2008, 2014 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CMS_DECRYPT 3
+.Os
+.Sh NAME
+.Nm CMS_decrypt ,
+.Nm CMS_decrypt_set1_pkey ,
+.Nm CMS_decrypt_set1_key
+.Nd decrypt content from a CMS EnvelopedData structure
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cms.h
+.Ft int
+.Fo CMS_decrypt
+.Fa "CMS_ContentInfo *cms"
+.Fa "EVP_PKEY *private_key"
+.Fa "X509 *certificate"
+.Fa "BIO *dcont"
+.Fa "BIO *out"
+.Fa "unsigned int flags"
+.Fc
+.Ft int
+.Fo CMS_decrypt_set1_pkey
+.Fa "CMS_ContentInfo *cms"
+.Fa "EVP_PKEY *private_key"
+.Fa "X509 *certificate"
+.Fc
+.Ft int
+.Fo CMS_decrypt_set1_key
+.Fa "CMS_ContentInfo *cms"
+.Fa "unsigned char *symmetric_key"
+.Fa "size_t keylen"
+.Fa "const unsigned char *id"
+.Fa "size_t idlen"
+.Fc
+.Sh DESCRIPTION
+.Fn CMS_decrypt
+extracts and decrypts the content from the CMS
+.Vt EnvelopedData
+structure
+.Fa cms
+using the
+.Fa private_key
+and the
+.Fa certificate
+of the recipient.
+It writes the decrypted content to
+.Fa out .
+.Pp
+In the rare case where the compressed content is detached, pass it in via
+.Fa dcont .
+For normal use, set
+.Fa dcont
+to
+.Dv NULL .
+.Pp
+Although the recipient's
+.Fa certificate
+is not needed to decrypt the data, it is needed to locate the
+appropriate (of possibly several) recipients in the CMS structure.
+.Pp
+If the
+.Fa certificate
+is set to
+.Dv NULL ,
+all possible recipients are tried.
+This case however is problematic.
+To thwart the MMA attack (Bleichenbacher's attack on PKCS #1 v1.5 RSA
+padding), all recipients are tried whether they succeed or not.
+If no recipient succeeds, a random symmetric key is used to decrypt
+the content: this will typically output garbage and may (but is not
+guaranteed to) ultimately return a padding error only.
+If
+.Fn CMS_decrypt
+just returned an error when all recipient encrypted keys failed to
+decrypt, an attacker could use this in a timing attack.
+If the special flag
+.Dv CMS_DEBUG_DECRYPT
+is set, the above behaviour is modified and an error
+.Em is
+returned if no recipient encrypted key can be decrypted
+.Em without
+generating a random content encryption key.
+Applications should use this flag with extreme caution
+especially in automated gateways as it can leave them open to attack.
+.Pp
+It is possible to determine the correct recipient key by other means
+(for example by looking them up in a database) and setting them in the
+.Fa cms
+structure in advance using the CMS utility functions such as
+.Fn CMS_decrypt_set1_pkey .
+In this case both
+.Fa certificate
+and
+.Fa private_key
+should be set to
+.Dv NULL
+when calling
+.Fn CMS_decrypt
+later on.
+.Pp
+To process
+.Vt KEKRecipientInfo
+types,
+.Fn CMS_decrypt_set1_key
+or
+.Xr CMS_RecipientInfo_set0_key 3
+and
+.Xr CMS_RecipientInfo_decrypt 3
+should be called before
+.Fn CMS_decrypt
+and
+.Fa certificate
+and
+.Fa private_key
+set to
+.Dv NULL
+when calling
+.Fn CMS_decrypt
+later on.
+.Pp
+If the
+.Dv CMS_TEXT
+bit is set in
+.Fa flags ,
+MIME headers for type text/plain are deleted from the content.
+If the content is not of type text/plain, an error occurs.
+.Sh RETURN VALUES
+.Fn CMS_decrypt ,
+.Fn CMS_decrypt_set1_pkey ,
+and
+.Fn CMS_decrypt_set1_key
+return 1 for success or 0 for failure.
+The error can be obtained from
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr CMS_ContentInfo_new 3 ,
+.Xr CMS_encrypt 3 ,
+.Xr CMS_get0_RecipientInfos 3
+.Sh STANDARDS
+RFC 5652: Cryptographic Message Syntax (CMS)
+.Bl -dash -compact -offset indent
+.It
+section 6.1: EnvelopedData Type
+.It
+section 6.2.3: KEKRecipientInfo Type
+.El
+.Sh HISTORY
+.Fn CMS_decrypt ,
+.Fn CMS_decrypt_set1_pkey ,
+and
+.Fn CMS_decrypt_set1_key
+first appeared in OpenSSL 0.9.8h
+and have been available since
+.Ox 6.7 .
+.Sh BUGS
+The lack of single pass processing and the need to hold all data in
+memory as mentioned in
+.Xr CMS_verify 3
+also applies to
+.Fn CMS_decrypt .

@@ -1,0 +1,72 @@
+.\" $OpenBSD: ASN1_item_digest.3,v 1.3 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_ITEM_DIGEST 3
+.Os
+.Sh NAME
+.Nm ASN1_item_digest
+.Nd DER-encode and hash an ASN.1 value
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo ASN1_item_digest
+.Fa "const ASN1_ITEM *it"
+.Fa "const EVP_MD *type"
+.Fa "void *val_in"
+.Fa "unsigned char *md"
+.Fa "unsigned int *s"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_item_digest
+assumes that
+.Fa val_in
+is an
+.Vt ASN1_VALUE
+of the type specified by
+.Fa it ,
+encodes it into DER format by calling
+.Xr ASN1_item_i2d 3 ,
+hashes the resulting byte array using the digest
+.Fa type
+by calling
+.Xr EVP_Digest 3 ,
+places the digest value into
+.Pf * Fa md ,
+and, unless
+.Fa s
+is
+.Dv NULL ,
+places the length in bytes of the digest into
+.Pf * Fa s .
+Providing a buffer
+.Pf * Fa md
+large enough to contain the digest is the responsibility of the caller;
+providing a buffer of
+.Dv EVP_MAX_MD_SIZE
+bytes is recommended.
+.Sh RETURN VALUES
+.Fn ASN1_item_digest
+returns 1 for success or 0 if encoding or hashing fails.
+.Sh SEE ALSO
+.Xr ASN1_item_i2d 3 ,
+.Xr ASN1_item_sign 3 ,
+.Xr EVP_Digest 3
+.Sh HISTORY
+.Fn ASN1_item_digest
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.1 .

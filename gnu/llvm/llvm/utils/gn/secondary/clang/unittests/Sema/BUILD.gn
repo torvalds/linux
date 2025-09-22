@@ -1,0 +1,24 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("SemaTests") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Parse",
+    "//clang/lib/Sema",
+    "//clang/lib/Testing",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+    "//llvm/lib/Testing/Annotations",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "CodeCompleteTest.cpp",
+    "ExternalSemaSourceTest.cpp",
+    "GslOwnerPointerInference.cpp",
+    "SemaLookupTest.cpp",
+    "SemaNoloadLookupTest.cpp",
+  ]
+}

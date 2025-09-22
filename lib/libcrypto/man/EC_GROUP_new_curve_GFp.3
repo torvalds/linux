@@ -1,0 +1,463 @@
+.\" $OpenBSD: EC_GROUP_new_curve_GFp.3,v 1.6 2025/08/31 11:32:03 tb Exp $
+.\"
+.\" Copyright (c) 2025 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 31 2025 $
+.Dt EC_GROUP_NEW_CURVE_GFP 3
+.Os
+.Sh NAME
+.Nm EC_GROUP_new_curve_GFp ,
+.Nm EC_GROUP_set_curve ,
+.Nm EC_GROUP_get_curve ,
+.Nm EC_GROUP_set_generator ,
+.Nm EC_GROUP_get0_generator ,
+.Nm EC_GROUP_get_degree ,
+.Nm EC_GROUP_get_order ,
+.Nm EC_GROUP_order_bits ,
+.Nm EC_GROUP_get_cofactor ,
+.Nm EC_GROUP_clear_free ,
+.Nm EC_GROUP_set_curve_GFp ,
+.Nm EC_GROUP_get_curve_GFp
+.Nd define elliptic curves and retrieve information from them
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.In openssl/ec.h
+.Ft EC_GROUP *
+.Fo EC_GROUP_new_curve_GFp
+.Fa "const BIGNUM *p"
+.Fa "const BIGNUM *a"
+.Fa "const BIGNUM *b"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_GROUP_set_curve
+.Fa "EC_GROUP *group"
+.Fa "const BIGNUM *p"
+.Fa "const BIGNUM *a"
+.Fa "const BIGNUM *b"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_GROUP_get_curve
+.Fa "const EC_GROUP *group"
+.Fa "BIGNUM *p"
+.Fa "BIGNUM *a"
+.Fa "BIGNUM *b"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_GROUP_set_generator
+.Fa "EC_GROUP *group"
+.Fa "const EC_POINT *generator"
+.Fa "const BIGNUM *order"
+.Fa "const BIGNUM *cofactor"
+.Fc
+.Ft const EC_POINT *
+.Fo EC_GROUP_get0_generator
+.Fa "const EC_GROUP *group"
+.Fc
+.Ft int
+.Fo EC_GROUP_get_degree
+.Fa "const EC_GROUP *"
+.Fc
+.Ft int
+.Fo EC_GROUP_get_order
+.Fa "const EC_GROUP *group"
+.Fa "BIGNUM *order"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_GROUP_order_bits
+.Fa "const EC_GROUP *group"
+.Fc
+.Ft int
+.Fo EC_GROUP_get_cofactor
+.Fa "const EC_GROUP *group"
+.Fa "BIGNUM *cofactor"
+.Fa "BN_CTX *ctx"
+.Fc
+.Pp
+Deprecated:
+.Pp
+.Ft void
+.Fo EC_GROUP_clear_free
+.Fa "EC_GROUP *group"
+.Fc
+.Ft int
+.Fo EC_GROUP_set_curve_GFp
+.Fa "EC_GROUP *group"
+.Fa "const BIGNUM *p"
+.Fa "const BIGNUM *a"
+.Fa "const BIGNUM *b"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_GROUP_get_curve_GFp
+.Fa "const EC_GROUP *group"
+.Fa "BIGNUM *p"
+.Fa "BIGNUM *a"
+.Fa "BIGNUM *b"
+.Fa "BN_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+With the exception of the getters
+the functions in this manual should not be used.
+Use
+.Xr EC_GROUP_new_by_curve_name 3
+instead.
+.Pp
+The EC library uses
+.Vt EC_GROUP
+objects to represent
+elliptic curves in Weierstrass form.
+These curves are defined over the prime field of order
+.Fa p
+via the Weierstrass equation
+.Pp
+.Dl y^2 = x^3 + ax + b
+.Pp
+where
+.Fa a
+and
+.Fa b
+are such that the discriminant 4a^3 - 27b^2 is non-zero.
+They consist of
+.Em affine points ,
+which are pairs of field elements (x, y) satisfying
+the Weierstrass equation, and an extra
+.Em point at infinity .
+.Pp
+The points on an elliptic curve form a group.
+Cryptographic applications usually depend on the choice of a
+.Fa generator
+whose multiples form a cyclic subgroup of a certain
+.Fa order .
+By Lagrange's theorem, the number of points on the elliptic curve is
+the product of
+.Fa order
+and another integer called the
+.Fa cofactor .
+Hasse's theorem is the inequality
+.Pp
+.Dl | Ns Fa order No * Fa cofactor No - (p + 1)| <= 2 sqrt(p)
+.Pp
+which implies an upper bound on
+.Fa order
+in terms of
+.Fa p
+and allows the computation of
+.Fa cofactor
+provided that
+.Fa order
+is large enough.
+.Pp
+.Fn EC_GROUP_new_curve_GFp
+instantiates a new
+.Vt EC_GROUP
+object over the prime field of size
+.Fa p
+with Weierstrass equation given by the coefficients
+.Fa a
+and
+.Fa b .
+The optional
+.Fa ctx
+is used to transform the other arguments into internal representation.
+It is the caller's responsibility to ensure that
+.Fa p
+is a prime number greater than three and that
+the discriminant is non-zero.
+This can be done with
+.Xr EC_GROUP_check_discriminant 3
+or as part of
+.Xr EC_GROUP_check 3
+after
+.Fn EC_GROUP_set_generator .
+.Pp
+.Fn EC_GROUP_set_curve
+sets the curve parameters of
+.Fa group
+to
+.Fa p ,
+.Fa a ,
+.Fa b
+using the optional
+.Fa ctx
+and the comments in
+.Fn EC_GROUP_new_curve_GFp
+apply.
+Existing
+.Fa generator ,
+.Fa order ,
+or
+.Fa cofactor
+on
+.Fa group
+are left unmodified and become most likely invalid.
+They must therefore be set to legitimate values using
+.Fn EC_GROUP_set_generator .
+.Pp
+.Fn EC_GROUP_get_curve
+copies the curve parameters of
+.Fa group
+into the caller-owned
+.Fa p ,
+.Fa a ,
+and
+.Fa b ,
+possibly making use of the
+.Fa ctx
+for conversion from internal representations.
+Except for
+.Fa group ,
+all arguments are optional.
+.Pp
+.Fn EC_GROUP_set_generator
+performs sanity checks based on Hasse's theorem
+and copies
+.Fa generator ,
+.Fa order
+and the optional
+.Fa cofactor
+into
+.Fa group ,
+replacing all existing entries.
+It is the caller's responsibility to ensure that
+.Fa generator
+is a point on the curve and that
+.Fa order
+is its order,
+which can partially be accomplished with a subsequent call to
+.Xr EC_GROUP_check 3 .
+If
+.Fa cofactor
+is
+.Dv NULL ,
+it can be computed on curves of cryptographic interest,
+in which case
+.Fa cofactor
+is set to the computed value, otherwise it is set to zero.
+.Pp
+.Fn EC_GROUP_get0_generator
+returns an internal pointer to the
+.Fa group Ns 's
+.Fa generator ,
+which may be
+.Dv NULL
+if no generator was set.
+.Pp
+.Fn EC_GROUP_get_degree
+returns the bit length of the prime
+.Fa p
+set on
+.Fa group .
+.Pp
+.Fn EC_GROUP_get_order
+copies the value of the
+.Fa group Ns 's
+.Fa order
+into the caller-owned
+.Fa order ,
+returning failure if the
+.Fa group Ns 's
+.Fa order
+is zero.
+The
+.Fa ctx
+argument is ignored.
+.Pp
+.Fn EC_GROUP_order_bits
+returns the number of bits in the
+.Fa group Ns 's
+.Fa order ,
+which is the result of calling
+.Xr BN_num_bits 3
+on
+.Fa order .
+Unlike
+.Fn EC_GROUP_get_order ,
+it does not fail if
+.Fa order
+is zero.
+.Pp
+.Fn EC_GROUP_get_cofactor
+copies the value of the
+.Fa group Ns 's
+.Fa cofactor
+into the caller-owned
+.Fa cofactor ,
+returning failure if the
+.Fa group Ns 's
+.Fa cofactor
+is zero.
+The
+.Fa ctx
+argument is ignored.
+.Pp
+The deprecated
+.Fn EC_GROUP_clear_free
+uses
+.Xr explicit_bzero 3
+and
+.Xr freezero 3
+to clear and free all data associated with
+.Fa group .
+If
+.Fa group
+is
+.Dv NULL ,
+no action occurs.
+Since there is no secret data in
+.Fa group ,
+this API is useless.
+In LibreSSL,
+.Xr EC_GROUP_free 3
+and
+.Fn EC_GROUP_clear_free
+behave identically.
+.Pp
+.Fn EC_GROUP_set_curve_GFp
+and
+.Fn EC_GROUP_get_curve_GFp
+are deprecated aliases for
+.Fn EC_GROUP_set_curve
+and
+.Fn EC_GROUP_get_curve ,
+respectively.
+.Sh RETURN VALUES
+.Fn EC_GROUP_new_curve_GFp
+returns a newly allocated group or
+.Dv NULL
+if memory allocation fails,
+or if some minimal sanity checks on
+.Fa p ,
+.Fa a ,
+and
+.Fa b
+fail.
+.Pp
+.Fn EC_GROUP_set_curve
+and
+.Fn EC_GROUP_set_curve_GFp
+return 1 on success and 0 on failure.
+Failure conditions include that
+.Fa p
+is smaller than or equal to three, or even, or
+memory allocation failure.
+.Pp
+.Fn EC_GROUP_get_curve
+and
+.Fn EC_GROUP_get_curve_GFp
+return 1 on success and 0 on memory allocation failure.
+.Pp
+.Fn EC_GROUP_set_generator
+returns 1 on success and 0 on memory allocation failure, or if
+.Fa order
+or
+.Fa cofactor
+are larger than Hasse's theorem allows.
+.Pp
+.Fn EC_GROUP_get0_generator
+returns an internal pointer to the
+.Fa generator
+or
+.Dv NULL
+if none was set on
+.Fa group .
+.Pp
+.Fn EC_GROUP_get_order
+returns 1 on success or 0 on memory allocation failure or if the
+.Fa order
+is zero.
+.Pp
+.Fn EC_GROUP_get_cofactor
+returns 1 on success or 0 on memory allocation failure or if the
+.Fa cofactor
+is zero.
+.Pp
+.Fn EC_GROUP_get_degree ,
+and
+.Fn EC_GROUP_order_bits
+return the number of bits in the
+.Fa group Ns 's
+.Fa p ,
+and
+.Fa order ,
+respectively.
+.Sh SEE ALSO
+.Xr BN_new 3 ,
+.Xr BN_num_bits 3 ,
+.Xr crypto 3 ,
+.Xr d2i_ECPKParameters 3 ,
+.Xr EC_GROUP_check 3 ,
+.Xr EC_GROUP_get_curve_name 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr EC_KEY_METHOD_new 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EC_POINT_add 3 ,
+.Xr EC_POINT_get_affine_coordinates 3 ,
+.Xr EC_POINT_new 3 ,
+.Xr EC_POINT_point2oct 3 ,
+.Xr ECDH_compute_key 3 ,
+.Xr ECDSA_SIG_new 3
+.Sh STANDARDS
+.Rs
+.%T SEC 1: Elliptic Curve Cryptography, Version 2.0
+.%U https://www.secg.org/sec1-v2.pdf
+.%D May 21, 2009
+.Re
+.Pp
+.Rs
+.%T SEC 2: Recommended Elliptic Curve Domain Parameters, Version 2.0
+.%U https://www.secg.org/sec2-v2.pdf
+.%D Jan 27, 2010
+.Re
+.Sh HISTORY
+.Fn EC_GROUP_new_curve_GFp ,
+.Fn EC_GROUP_clear_free ,
+.Fn EC_GROUP_set_curve_GFp ,
+.Fn EC_GROUP_get_curve_GFp ,
+.Fn EC_GROUP_set_generator ,
+.Fn EC_GROUP_get0_generator ,
+.Fn EC_GROUP_get_order ,
+and
+.Fn EC_GROUP_get_cofactor
+first appeared in OpenSSL 0.9.7 and
+have been available since
+.Ox 3.2 .
+.Pp
+.Fn EC_GROUP_get_degree
+first appeared in OpenSSL 0.9.8 and
+has been available since
+.Ox 4.5 .
+.Pp
+.Fn EC_GROUP_set_curve ,
+.Fn EC_GROUP_get_curve ,
+and
+.Fn EC_GROUP_order_bits
+first appeared in OpenSSL 1.1.1 and
+have been available since
+.Ox 7.0
+.Sh BUGS
+Too many.
+The API is unergonomic and the design is very poor even by
+OpenSSL's standards.
+Naming is inconsistent, especially in regard to the _GFp suffix
+and the _get_ infix.
+Function signatures are inconsistent.
+In particular, functions that should have a
+.Vt BN_CTX
+argument don't have one and functions that don't need it have one.

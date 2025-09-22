@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!DOCTYPE foo [  
+<!ELEMENT foo ANY >
+<!ENTITY xxe SYSTEM "file:///etc/passwd" >]><notification version="1" session_id="9b3f7e31-4979-4f8c-9818-73e4dadc3e6b" serial="13756" xmlns="http://www.ripe.net/rpki/rrdp">&xxe;</notification>

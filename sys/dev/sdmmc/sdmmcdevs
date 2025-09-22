@@ -1,0 +1,89 @@
+	$OpenBSD: sdmmcdevs,v 1.9 2022/03/18 11:09:39 miod Exp $
+
+/*
+ * Copyright (c) 2006 Uwe Stuehler <uwe@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * List of known SD card vendors
+ */
+
+vendor CGUYS			0x0092	C-guys, Inc.
+vendor TOSHIBA			0x0098	Toshiba
+vendor SOCKETCOM		0x0104	Socket Communications, Inc.
+vendor ATHEROS			0x0271	Atheros
+vendor BROADCOM			0x02d0	Broadcom
+vendor SYCHIP			0x02db	SyChip Inc.
+vendor SPECTEC			0x02fe	Spectec Computer Co., Ltd
+vendor GLOBALSAT		0x0501	Globalsat Technology Co.
+vendor MEDIATEK			0x037a	MediaTek Inc.
+vendor ABOCOM			0x13d1	AboCom Systems, Inc.
+
+/*
+ * List of known products, grouped by vendor
+ */
+
+/* AboCom Systems, Inc. */
+product ABOCOM SDW11G		0xac02	SDW11G
+
+/* Atheros */
+product ATHEROS AR6001_8	0x0108	AR6001
+product ATHEROS AR6001_9	0x0109	AR6001
+product ATHEROS AR6001_a	0x010a	AR6001
+product ATHEROS AR6001_b	0x010b	AR6001
+
+/* Broadcom */
+product BROADCOM BCM4324	0x4324	BCM4324
+product BROADCOM BCM4329	0x4329	BCM4329
+product BROADCOM BCM4330	0x4330	BCM4330
+product BROADCOM BCM4334	0x4334	BCM4334
+product BROADCOM BCM4335	0x4335	BCM4335
+product BROADCOM BCM4339	0x4339	BCM4339
+product BROADCOM BCM4345	0x4345	BCM4345
+product BROADCOM BCM4354	0x4354	BCM4354
+product BROADCOM BCM4356	0x4356	BCM4356
+product BROADCOM BCM4359	0x4359	BCM4359
+product BROADCOM BCM43143	0xa887	BCM43143
+product BROADCOM BCM43340	0xa94c	BCM43340
+product BROADCOM BCM43341	0xa94d	BCM43341
+product BROADCOM BCM43362	0xa962	BCM43362
+product BROADCOM BCM43430	0xa9a6	BCM43430
+product BROADCOM BCM43364	0xa9bf	BCM43364
+
+/* C-guys, Inc. */
+product CGUYS TIACX100		0x0001	TI ACX100 SD-Link11b WiFi Card
+product CGUYS SDFMRADIO2	0x0005	C-guys SD FM Radio 2
+product CGUYS SDFMRADIO		0x5544	C-guys SD FM Radio
+
+/* Globalsat Technology Co. */
+product GLOBALSAT SD501		0xf501	Globalsat SD-501 GPS Card
+
+/* MediaTek Inc. */
+product MEDIATEK S2YWLAN	0x5911	MediaTek/Spectec WLAN-11b/g
+
+/* Spectec Computer Co., Ltd */
+product SPECTEC SDW820		0x2128	Spectec SDIO WLAN Card
+
+/* SyChip Inc. */
+product SYCHIP WLAN6060SD	0x0002	SyChip Pegasus WLAN SDIO Card
+
+/* Toshiba */
+product TOSHIBA SDBTCARD1	0x0001	Toshiba SD BT Card 1
+product TOSHIBA SDBTCARD2	0x0002	Toshiba SD BT Card 2
+product TOSHIBA SDBTCARD3	0x0003	Toshiba SD BT Card 3
+
+/* Socket Communications, Inc. */
+product SOCKETCOM SDSCANNER	0x005e	Socket SD Scanner
+product SOCKETCOM BTCARD	0x00c5	Socket BT Card

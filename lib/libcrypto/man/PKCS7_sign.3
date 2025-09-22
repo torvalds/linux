@@ -1,0 +1,252 @@
+.\" $OpenBSD: PKCS7_sign.3,v 1.14 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL df75c2bf Dec 9 01:02:36 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2003, 2006-2009, 2015 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS7_SIGN 3
+.Os
+.Sh NAME
+.Nm PKCS7_sign
+.Nd create a PKCS#7 signedData structure
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft PKCS7 *
+.Fo PKCS7_sign
+.Fa "X509 *signcert"
+.Fa "EVP_PKEY *pkey"
+.Fa "STACK_OF(X509) *certs"
+.Fa "BIO *data"
+.Fa "int flags"
+.Fc
+.Sh DESCRIPTION
+.Fn PKCS7_sign
+creates and returns a PKCS#7 signedData structure.
+.Fa signcert
+is the certificate to sign with,
+.Fa pkey
+is the corresponding private key.
+.Fa certs
+is an optional additional set of certificates to include in the PKCS#7
+structure (for example any intermediate CAs in the chain).
+.Pp
+The data to be signed is read from
+.Vt BIO
+.Fa data .
+.Pp
+.Fa flags
+is an optional set of flags.
+.Pp
+Any of the following flags (OR'ed together) can be passed in the
+.Fa flags
+parameter.
+.Pp
+Many S/MIME clients expect the signed content to include valid MIME
+headers.
+If the
+.Dv PKCS7_TEXT
+flag is set, MIME headers for type
+.Sy text/plain
+are prepended to the data.
+.Pp
+If
+.Dv PKCS7_NOCERTS
+is set, the signer's certificate will not be included in the PKCS7
+structure, though the signer's certificate must still be supplied in the
+.Fa signcert
+parameter.
+This can reduce the size of the signature if the signer's certificate can
+be obtained by other means: for example a previously signed message.
+.Pp
+The data being signed is included in the
+.Vt PKCS7
+structure, unless
+.Dv PKCS7_DETACHED
+is set, in which case it is omitted.
+This is used for PKCS7 detached signatures which are used in S/MIME
+plaintext signed messages for example.
+.Pp
+Normally the supplied content is translated into MIME canonical format
+(as required by the S/MIME specifications).
+If
+.Dv PKCS7_BINARY
+is set, no translation occurs.
+This option should be used if the supplied data is in binary format;
+otherwise, the translation will corrupt it.
+.Pp
+The signedData structure includes several PKCS#7 authenticatedAttributes
+including the signing time, the PKCS#7 content type and the supported
+list of ciphers in an SMIMECapabilities attribute.
+If
+.Dv PKCS7_NOATTR
+is set, then no authenticatedAttributes will be used.
+If
+.Dv PKCS7_NOSMIMECAP
+is set, then just the SMIMECapabilities are omitted.
+.Pp
+If present, the SMIMECapabilities attribute indicates support for the
+following algorithms: triple DES, 128-bit RC2, 64-bit RC2, DES
+and 40-bit RC2.
+If any of these algorithms is disabled then it will not be included.
+.Pp
+If the flags
+.Dv PKCS7_STREAM
+is set, then the returned
+.Vt PKCS7
+structure is just initialized ready to perform the signing operation.
+The signing is however
+.Sy not
+performed and the data to be signed is not read from the
+.Fa data
+parameter.
+Signing is deferred until after the data has been written.
+In this way data can be signed in a single pass.
+.Pp
+If the
+.Dv PKCS7_PARTIAL
+flag is set, a partial
+.Vt PKCS7
+structure is output to which additional signers and capabilities can be
+added before finalization.
+.Pp
+If the flag
+.Dv PKCS7_STREAM
+is set, the returned
+.Vt PKCS7
+structure is
+.Sy not
+complete and outputting its contents via a function that does not
+properly finalize the
+.Vt PKCS7
+structure will give unpredictable results.
+.Pp
+Several functions including
+.Xr PKCS7_final 3 ,
+.Xr SMIME_write_PKCS7 3 ,
+.Xr PEM_write_bio_PKCS7_stream 3 ,
+and
+.Xr i2d_PKCS7_bio_stream 3
+finalize the structure.
+Alternatively finalization can be performed by obtaining the streaming
+ASN.1
+.Vt BIO
+directly using
+.Fn BIO_new_PKCS7 .
+.Pp
+If a signer is specified, it will use the default digest for the
+signing algorithm.
+This is
+.Sy SHA1
+for both RSA and DSA keys.
+.Pp
+In OpenSSL 1.0.0, the
+.Fa certs ,
+.Fa signcert ,
+and
+.Fa pkey
+parameters can all be
+.Dv NULL
+if the
+.Dv PKCS7_PARTIAL
+flag is set.
+One or more signers can be added using the function
+.Xr PKCS7_sign_add_signer 3
+and attributes can be added using the functions described in
+.Xr PKCS7_add_attribute 3 .
+.Xr PKCS7_final 3
+must also be called to finalize the structure if streaming is not
+enabled.
+Alternative signing digests can also be specified using this method.
+.Pp
+In OpenSSL 1.0.0, if
+.Fa signcert
+and
+.Fa pkey
+are
+.Dv NULL ,
+then a certificate-only PKCS#7 structure is output.
+.Pp
+In versions of OpenSSL before 1.0.0 the
+.Fa signcert
+and
+.Fa pkey
+parameters must
+.Sy NOT
+be
+.Dv NULL .
+.Sh RETURN VALUES
+.Fn PKCS7_sign
+returns either a valid
+.Vt PKCS7
+structure or
+.Dv NULL
+if an error occurred.
+The error can be obtained from
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr PKCS7_add_attribute 3 ,
+.Xr PKCS7_encrypt 3 ,
+.Xr PKCS7_final 3 ,
+.Xr PKCS7_get_signer_info 3 ,
+.Xr PKCS7_new 3 ,
+.Xr PKCS7_sign_add_signer 3 ,
+.Xr PKCS7_verify 3
+.Sh HISTORY
+.Fn PKCS7_sign
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+The
+.Dv PKCS7_PARTIAL
+and
+.Dv PKCS7_STREAM
+flags were added in OpenSSL 1.0.0.
+.Sh BUGS
+Some advanced attributes such as counter signatures are not supported.

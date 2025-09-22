@@ -1,0 +1,62 @@
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: getdtablesize.3,v 1.14 2022/07/17 08:33:01 jsg Exp $
+.\"
+.Dd $Mdocdate: July 17 2022 $
+.Dt GETDTABLESIZE 3
+.Os
+.Sh NAME
+.Nm getdtablesize
+.Nd get descriptor table size
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn getdtablesize void
+.Sh DESCRIPTION
+Each process has a fixed size descriptor table,
+which is guaranteed to have at least 20 slots.
+The entries in
+the descriptor table are numbered with small integers starting at 0.
+The call
+.Fn getdtablesize
+returns the size of this table.
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr dup 2 ,
+.Xr getdtablecount 2 ,
+.Xr getrlimit 2 ,
+.Xr open 2 ,
+.Xr select 2 ,
+.Xr setrlimit 2 ,
+.Xr sysctl 2 ,
+.Xr sysconf 3
+.Sh HISTORY
+The
+.Fn getdtablesize
+function call appeared in
+.Bx 4.2 .

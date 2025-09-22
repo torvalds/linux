@@ -1,0 +1,53 @@
+.\"	$OpenBSD: pijuice.4,v 1.4 2022/10/24 09:23:27 jsg Exp $
+.\"
+.\" Copyright (c) 2022 Marcus Glocker <mglocker@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 24 2022 $
+.Dt PIJUICE 4
+.Os
+.Sh NAME
+.Nm pijuice
+.Nd PiJuice HAT UPS
+.Sh SYNOPSIS
+.Cd "pijuice* at iic?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the PiJuice HAT,
+an uninterruptible power supply for the Raspberry Pi.
+The integrated STM32F030CCT6 micro controller provides access through the I2C
+bus to several battery status values.
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr maxrtc 4 ,
+.Xr apm 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Marcus Glocker Aq Mt mglocker@openbsd.org .
+.Sh CAVEATS
+The PiJuice HAT EEPROM currently doesn't contain the device tree information
+to match and attach this device.
+It requires a custom device tree blob overlay which gets loaded during the
+bootstrapping process.

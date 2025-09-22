@@ -1,0 +1,94 @@
+#	$OpenBSD: genassym.cf,v 1.29 2025/07/10 13:59:27 claudio Exp $
+#
+# Copyright (c) 1982, 1990 The Regents of the University of California.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)genassym.c	7.8 (Berkeley) 5/7/91
+#
+
+include <sys/param.h>
+include <sys/proc.h>
+include <uvm/uvm_extern.h>
+
+include <machine/pcb.h>
+include <machine/pmap.h>
+include <machine/cpu.h>
+
+export	FRAMELEN
+struct	trapframe	FRAME_
+member	0		fixreg[0]
+member	1		fixreg[1]
+member	2		fixreg[2]
+member	3		fixreg[3]
+member	lr
+member	cr
+member	ctr
+member	xer
+member	srr0
+member	srr1
+member	dar
+member	dsisr
+member	exc
+
+define	SFRAMELEN	roundup(sizeof(struct switchframe), 16)
+
+struct	pcb
+member	PCB_PMR		pcb_pmreal
+member	pcb_sp
+member	PCB_FAULT	pcb_onfault
+
+struct	pmap
+member	PM_SR		pm_sr[0]
+member	PM_USRSR	pm_sr[PPC_USER_SR]
+member	PM_KERNELSR	pm_sr[PPC_KERNEL_SR]
+
+struct	proc
+member	p_addr
+member	p_stat
+member	p_cpu
+member  P_MD_ASTPENDING	p_md.md_astpending
+
+struct	sigframe
+member	sf_sc
+
+struct fpsig
+
+export	SONPROC
+
+struct	cpu_info
+member	ci_curproc
+member	ci_curpcb
+member	ci_curpm
+member	ci_want_resched
+member	ci_cpl
+member	ci_flags
+export	CI_FLAGS_SLEEPING
+member	ci_idepth
+member	ci_intstk
+member	ci_tempsave
+member	ci_ddbsave
+member	ci_disisave

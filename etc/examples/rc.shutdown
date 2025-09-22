@@ -1,0 +1,8 @@
+#!/bin/sh
+#
+# $OpenBSD: rc.shutdown,v 1.3 2014/07/14 10:15:33 ajacoutot Exp $
+#
+# If it exists, this script is run at system-shutdown by reboot(8),
+# halt(8).  If the architecture supports keyboard requested halting,
+# it is also run by init(8) when such an event happens.
+#

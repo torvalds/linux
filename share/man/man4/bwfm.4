@@ -1,0 +1,164 @@
+.\" $OpenBSD: bwfm.4,v 1.23 2025/03/27 15:12:14 jmc Exp $
+.\"
+.\" Copyright (c) 2017 Patrick Wildt <patrick@blueri.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt BWFM 4
+.Os
+.Sh NAME
+.Nm bwfm
+.Nd Broadcom and Cypress IEEE 802.11a/ac/ax/b/g/n wireless network device
+.Sh SYNOPSIS
+.Cd "bwfm* at pci?"
+.Cd "bwfm* at sdmmc?"
+.Cd "bwfm* at usb?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Broadcom and Cypress FullMAC wireless network
+adapters.
+.Pp
+The following table summarizes supported chipsets and their capabilities,
+as well as the bus attachments recognized by the
+.Nm
+driver:
+.Bl -column BCM43236 2GHz/5GHz Type MIMO SDMMC/USB -offset 6n
+.It Em Chipset Ta Em Spectrum Ta Em Type Ta Em MIMO Ta Em Bus
+.It BCM43143 Ta 2GHz Ta 11n Ta 1x1 Ta SDMMC/USB
+.It BCM43236 Ta 2GHz/5GHz Ta 11n Ta 2x2 Ta USB
+.It BCM4324 Ta  2GHz/5GHz Ta 11n Ta 2x2 Ta SDMMC
+.It BCM43242 Ta 2GHz/5GHz Ta 11n Ta 2x2 Ta USB
+.It BCM4329 Ta  2GHz/5GHz Ta 11n Ta 2x2 Ta SDMMC
+.It BCM4330 Ta  2GHz/5GHz Ta 11n Ta 2x2 Ta SDMMC
+.It BCM4334 Ta  2GHz/5GHz Ta 11n Ta 2x2 Ta SDMMC
+.It BCM43340 Ta 2GHz/5GHz Ta 11n Ta 1x1 Ta SDMMC
+.It BCM43341 Ta 2GHz/5GHz Ta 11n Ta 1x1 Ta SDMMC
+.It BCM4335 Ta  2GHz/5GHz Ta 11ac Ta 1x1 Ta SDMMC
+.It BCM43362 Ta 2GHz Ta 11n Ta 1x1 Ta SDMMC
+.It BCM43364 Ta 2GHz Ta 11n Ta 1x1 Ta SDMMC
+.It BCM4339 Ta  2GHz/5GHz Ta 11ac Ta 1x1 Ta SDMMC
+.It BCM43430 Ta 2GHz Ta 11n Ta 1x1 Ta SDMMC
+.It BCM43455 Ta  2GHz/5GHz Ta 11ac Ta 1x1 Ta SDMMC
+.It BCM43456 Ta  2GHz/5GHz Ta 11ac Ta 2x2 Ta SDMMC
+.It BCM4350 Ta 2GHz/5GHz Ta 11ac Ta 2x2 Ta PCI
+.It BCM4354 Ta  2GHz/5GHz Ta 11ac Ta 2x2 Ta SDMMC
+.It BCM4356 Ta 2GHz/5GHz Ta 11ac Ta 2x2 Ta PCI/SDMMC
+.It BCM43569 Ta 2GHz/5GHz Ta 11ac Ta 2x2 Ta USB
+.It BCM43602 Ta 2GHz/5GHz Ta 11ac Ta 3x3 Ta PCI
+.It BCM4371 Ta 2GHz/5GHz Ta 11ac Ta 2x2 Ta PCI
+.It BCM4378 Ta 2GHz/5GHz Ta 11ax Ta 2x2 Ta PCI
+.It BCM4387 Ta 2GHz/5GHz Ta 11ax Ta 2x2 Ta PCI
+.El
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It Host AP
+In this mode the driver acts as an access point (base station)
+for other cards.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+The
+.Nm
+driver relies on the software 802.11 stack for the WPA handshake.
+Both encryption and decryption of data frames are handled by the
+firmware.
+.Pp
+The firmware automatically selects the transmit speed and the channel
+depending on the received signal strength.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The driver needs a firmware file which is loaded when the driver
+attaches.
+A prepackaged version of the firmware can be installed using
+.Xr fw_update 8 .
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig bwfm0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures bwfm0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+nwid mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Pp
+The following
+.Xr hostname.if 5
+example creates a host-based access point on boot:
+.Bd -literal -offset indent
+mediaopt hostap
+nwid mynwid wpakey mywpakey
+inet 192.168.1.1 255.255.255.0
+.Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Patrick Wildt Aq Mt patrick@blueri.se .
+.Sh CAVEATS
+The firmware is outdated and contains known vulnerabilities.

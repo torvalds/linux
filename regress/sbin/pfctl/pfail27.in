@@ -1,0 +1,6 @@
+# various anchor limitations
+
+anchor foo from 10/8 port 1024 to any
+anchor foo to 10/8 port { 80, 443 }
+anchor foo to 10/8 port 6000:7000
+anchor foo keep state

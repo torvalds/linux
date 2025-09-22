@@ -1,0 +1,64 @@
+@0 pass in on lo0 inet from 127.1.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass in on lo0 inet from 127.2.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 pass in on lo0 inet from 127.3.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass in on lo0 inet from 127.4.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass in on lo0 inet from 127.5.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 pass in on lo0 inet from 127.6.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 pass in on lo0 inet from 127.7.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 pass in on lo0 inet from 127.8.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 pass in on lo0 inet from 127.9.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 pass in on lo0 inet from 127.10.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 pass in on lo0 inet from 127.11.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 pass in on lo0 inet from 127.12.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@12 pass in on lo0 inet from 127.13.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@13 pass in on lo0 inet from 127.14.0.0/16 to any flags S/SA
+  [ Skip steps: i=15 d=15 r=end f=15 p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@14 pass in on lo0 inet from 127.15.0.0/16 to any flags S/SA
+  [ Skip steps: r=end p=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@15 pass all flags S/SA label "ruleNo:15"
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

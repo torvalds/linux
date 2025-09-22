@@ -1,0 +1,164 @@
+std::allocator
+
+  - persistent allocator
+ 
+  - shared memory allocator (use or link to boost::shmem::allocator)
+
+std::string 
+
+  - document __gnu_cxx::__versa_string, add new policies
+    (Policy-based design incorporating COW
+    vs. deep copy issues, MT scalability
+    See Andrei Alexandrescu, June 2001, C/C++ Users Journal
+    "Generic<Programming>: A Policy-Based basic_string Implementation"
+    http://www.cuj.com/documents/s=7994/cujcexp1906alexandr/)
+
+  - operator!= and utility/rel_ops operators need to be made safe with
+    string and vector iterator classes. basic_string::reverse_iterator may
+    be implemented incorrectly, or need things like
+    operator==(__normal_iterator, const char*&), and swap(vector)
+
+  - 'do the right thing' ctor fixing needs to be done for string. This
+    is still subject to some debate on the library issues list, so I
+    suggest punting till the dust clears.
+
+  - fix template members of basic_string<> to overload iterators and
+    non-iterators properly.  (This is the infamous hack as in vector<> etc
+    23.1.1 para 10.)
+
+std::locale  
+
+  - implement __convert_to_v and __convert_from_v without "C" library
+    functions and and LANG environment variable dependencies.
+
+  - use localedata to implement generic named (non-MT-safe) locales?
+    Figure out a way to use ICU data, like libjava? Re-package and use
+    the glibc localedata, even if we aren't on linux? Need a generic
+    locale model that does something besides the "C" locale.
+
+  - make locale::classic() separate from named locale code. This will
+    improve the static linkage situation, but will require new
+    initialization code. In particular, we need lazy-initialization of
+    locale::classic(), and maybe the has_facet/use_facet functions for all
+    the required facets. The end goal is a self-contained
+    locale_init.cc, or one with transitive closure without the locale
+    instantiations (locale-inst.cc) or the named locale bits
+    (localename.cc).
+
+  - Jerry(?)/Paolo(?) work on __float_to_char.
+
+  - minimize ctype convertion in data facets, see numpunct/num_put/num_get
+
+std::basic_filebuf, 27_io
+
+  - wfilebuf, get variable-encoding working and tested, including
+    positioning and seeking. (I think this may be done now)
+
+  - wfilebuf testsuite (getting there...)
+
+  - look ahead for unbuffered io, so know when multiple putc's can be
+    coalesced.
+
+  - unlocked __basic_file + new mutext class
+
+  - optimized the sentries for istream/ostream
+
+  - v2 vs. v3 speed
+
+  - add optimization hooks (esp. whitespace eating) to streambuf
+  - add _M_begin() and _M_end() to streambuf
+  - add algorithm specializations for [io]streambuf_iterator (copy find etc.)
+
+testsuite
+
+  - valgrind hooks into make check so can tell memory leakage
+    Some commentary on the valgrind users list
+
+  - add hooks for qmtest, pychart, other for visual diffs 
+
+  - automatic testing of interactive tests
+
+  - diffing generated output files
+
+  - provide testsuites for numerics.
+
+  - make check-abi needs to have full symbol checking. Scope the LSB
+    testsuite, see what's going on with the typeinfo etc. bits.
+
+  - try to do a better job of ABI testing, with instantiations of all
+    standard-specified types checked, not just exported symbols.
+
+g++/binutils
+
+  - compression for wide versions of basic types, not just narrow
+
+threads
+
+  - create MT abstraction layer for atomicity to pthreads.
+
+  - solution for threads + C++.
+
+other/random
+
+- relocations, work on getting these down
+
+- issues with __builtin_memcpy and std::copy from Jerry Quinn
+  http://gcc.gnu.org/ml/libstdc++/2003-02/msg00056.html
+  http://gcc.gnu.org/ml/libstdc++/2003-02/msg00302.html
+  http://gcc.gnu.org/ml/gcc/2003-10/msg01305.html
+
+- fix dependency tracking for includes (.h, .tcc) during build process.
+
+- coordinate with "C" library people the "C" compatibility headers.
+
+- Think about naming all member data and member functions consistently
+  as per
+  funtions: _M_verb_adverb
+  data: _M_noun_adjective
+
+- A C++STYLE guide that deals with nested namespaces, and that
+everybody can live with.
+
+- exception specifications need to be reviewed for all parts of the
+library support and utility areas, particularly <new>. Part of this is
+a standards issue, where the 27_io standard is really in an odd
+spot. Do the work to make this consistent.
+
+- C-related issues WRT to io and filepos, mbstate_t. Seeking in wide
+streams. May need to define operators for mbstate_t so that
+'mbstate_t& == mbstate_t' is something that can be done.
+
+- scoping/linking issues WRT to C structs need to be worked out. See
+Nathan's commentary on cantrip, http://www.cantrip.org/cheaders.html
+
+- auto_ptr: seems to be some disagreement on what is
+standards-conformant behavior, specially on conversion operators.
+
+- list::assignment operator needs const_cast
+
+- a cleaner division between pointers-to-value_type and true iterators
+needs to be drawn throughout the entire STL implementation.
+
+- priority_queue conversions may be non-conformant
+
+- Protect valarray::result_type (not Standard) and make it work with
+  the various helper classes.
+
+- Make sure `valarray<bool> & == _Expr<_BinClos<logical_or,_ValArray,_ValArray,double,double>,bool>' 
+  is defined
+
+- All of the Library working group closed issues need to be
+addressed. Some of them proposed resolutions are already in the v-3
+sources, with macro-guards. Also, same with the TR.
+
+- need to think about doing a .texi or DocBook manual, instead of all
+these HTML pages. In addition, it would be nice to have a full manual,
+instead of a lot of ad-hoc pages. Weaknesses include numerics, locale,
+and io.
+
+- add FAQ entries -- improve the install instructions
+
+- add HOWTO entries
+
+- do more doxygen manpages
+

@@ -1,0 +1,83 @@
+Code Generation Notes for MSA
+=============================
+
+Intrinsics are lowered to SelectionDAG nodes where possible in order to enable
+optimisation, reduce the size of the ISel matcher, and reduce repetition in
+the implementation. In a small number of cases, this can cause different
+(semantically equivalent) instructions to be used in place of the requested
+instruction, even when no optimisation has taken place.
+
+Instructions
+============
+
+This section describes any quirks of instruction selection for MSA. For
+example, two instructions might be equally valid for some given IR and one is
+chosen in preference to the other.
+
+bclri.b:
+        It is not possible to emit bclri.b since andi.b covers exactly the
+        same cases. andi.b should use fractionally less power than bclri.b in
+        most hardware implementations so it is used in preference to bclri.b.
+
+vshf.w:
+        It is not possible to emit vshf.w when the shuffle description is
+        constant since shf.w covers exactly the same cases. shf.w is used
+        instead. It is also impossible for the shuffle description to be
+        unknown at compile-time due to the definition of shufflevector in
+        LLVM IR.
+
+vshf.[bhwd]
+        When the shuffle description describes a splat operation, splat.[bhwd]
+        instructions will be selected instead of vshf.[bhwd]. Unlike the ilv*,
+        and pck* instructions, this is matched from MipsISD::VSHF instead of
+        a special-case MipsISD node.
+
+ilvl.d, pckev.d:
+        It is not possible to emit ilvl.d, or pckev.d since ilvev.d covers the
+        same shuffle. ilvev.d will be emitted instead.
+
+ilvr.d, ilvod.d, pckod.d:
+        It is not possible to emit ilvr.d, or pckod.d since ilvod.d covers the
+        same shuffle. ilvod.d will be emitted instead.
+
+splat.[bhwd]
+        The intrinsic will work as expected. However, unlike other intrinsics
+        it lowers directly to MipsISD::VSHF instead of using common IR.
+
+splati.w:
+        It is not possible to emit splati.w since shf.w covers the same cases.
+        shf.w will be emitted instead.
+
+copy_s.w:
+        On MIPS32, the copy_u.d intrinsic will emit this instruction instead of
+        copy_u.w. This is semantically equivalent since the general-purpose
+        register file is 32-bits wide.
+
+binsri.[bhwd],  binsli.[bhwd]:
+        These two operations are equivalent to each other with the operands
+        swapped and condition inverted. The compiler may use either one as
+        appropriate.
+        Furthermore, the compiler may use bsel.[bhwd] for some masks that do
+        not survive the legalization process (this is a bug and will be fixed).
+
+bmnz.v, bmz.v, bsel.v:
+        These three operations differ only in the operand that is tied to the
+        result and the order of the operands.
+        It is (currently) not possible to emit bmz.v, or bsel.v since bmnz.v is
+        the same operation and will be emitted instead.
+        In future, the compiler may choose between these three instructions
+        according to register allocation.
+        These three operations can be very confusing so here is a mapping
+        between the instructions and the vselect node in one place:
+                bmz.v  wd, ws, wt/i8 -> (vselect wt/i8, wd, ws)
+                bmnz.v wd, ws, wt/i8 -> (vselect wt/i8, ws, wd)
+                bsel.v wd, ws, wt/i8 -> (vselect wd, wt/i8, ws)
+
+bmnzi.b, bmzi.b:
+        Like their non-immediate counterparts, bmnzi.v and bmzi.v are the same
+        operation with the operands swapped. bmnzi.v will (currently) be emitted
+        for both cases.
+
+bseli.v:
+        Unlike the non-immediate versions, bseli.v is distinguishable from
+        bmnzi.b and bmzi.b and can be emitted.

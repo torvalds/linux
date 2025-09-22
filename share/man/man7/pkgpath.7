@@ -1,0 +1,169 @@
+.\" $OpenBSD: pkgpath.7,v 1.5 2017/03/27 10:37:43 fcambus Exp $
+.\"
+.\" Copyright (c) 2011 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: March 27 2017 $
+.Dt PKGPATH 7
+.Os
+.Sh NAME
+.Nm pkgpath
+.Nd ports tree location for a package build
+.Sh DESCRIPTION
+Each location in the ports tree is uniquely identified through a
+.Nm ,
+which encodes the directory, flavor and subpackage information
+that allows the build of a package.
+This is not to be confused with
+.Ev PKG_PATH ,
+the list of URLs from which
+.Xr pkg_add 1
+retrieves binary packages.
+.Pp
+Every
+.Nm
+conforms to the pattern
+.Ar some/directory[,-sub][,flavor...] .
+.Pp
+The
+.Ar some/directory
+part refers to the directory part, to find under the
+portstree, usually in
+.Pa /usr/ports
+(or
+.Pa /usr/ports/mystuff
+for port developers).
+.Pp
+The
+.Ar ,-sub
+optional part refers to a specific subpackage from a
+multi-package port.
+It can be left blank for non multi-package ports, or to get
+the default subpackage
+(usually
+.Ar -main ) .
+.Pp
+The
+.Ar ,flavor...
+optional part refers to the flavors or pseudo-flavors to use
+when building the package.
+If left blank, it refers to the default flavor.
+An explicit empty flavor can also be specified to make sure to
+get an empty flavor, even if it does not correspond to the default
+flavor.
+.Pp
+Note that
+.Ar -sub
+and
+.Ar flavor
+parts can be specified in any order, as all subpackages start with
+a dash.
+It is an error to ask for several subs at once, e.g.\&
+.Ar some/path,-sub1,-sub2 ,
+though it won't always be flagged as a problem.
+.Pp
+For instance:
+.Bl -tag -width small
+.It Ar misc/screen
+A simple directory, default flavor, which happens to be empty.
+.It Ar misc/screen,static
+Same port,
+.Ar static
+flavor.
+.It Ar x11/kde/libs3
+A multi-package port with no subpackage nor flavor, refers to
+.Ar x11/kde/libs3,-main .
+.It Ar net/avahi
+Multi-package port with default flavor.
+Will actually build with FLAVOR="no_gui no_mono no_qt3 no_qt4 bootstrap"
+(all of which are pseudo-flavors), so that only the main package will build.
+.It Ar net/avahi,no_mono,-qt3
+Build avahi with the "no_mono" pseudo-flavor, which will build the
+-main, -qt3, -qt4, -gui, -gtk, -gtk3, and -ui subpackages, and refer to the
+.Ar -qt3
+subpackage.
+.It Ar net/avahi,
+.Ar net/avahi
+with an explicit empty flavor, default subpackage
+.Po
+which happens to be
+.Ar -main
+.Pc .
+.It Ar net/avahi,,-qt4
+.Ar net/avahi
+with an explicit empty flavor,
+.Ar -qt4
+subpackage.
+.El
+.Pp
+The ports tree can iterate over lists of
+.Nm
+through
+.Li SUBDIR="pkgpath1 pkgpath2..."
+or through a full list through
+.Li SUBDIRLIST=file .
+.Pp
+.Xr dpb 1
+also handles
+.Nm
+lists for many options.
+.Sh NORMALISATION AND THE FULLPATH CONVENTION
+When the ports tree handles dependencies, it passes
+.Nm
+from
+.Ev BUILD_DEPENDS ,
+.Ev LIB_DEPENDS ,
+.Ev RUN_DEPENDS ,
+and
+.Ev TEST_DEPENDS
+to the dependent port for normalisation purposes.
+That way, the
+.Nm
+that gets recorded in the package doesn't have any "default" flavor
+or "default" subpackage left: those are always resolved to the correct
+value.
+.Pp
+Likewise, pseudo-flavors vanish from the
+.Nm pkgpath ,
+since they only participate in the build process, but do not intervene
+in the built package.
+.Pp
+As a result, such
+.Nm
+are slightly different from the description above, as a flavor left blank
+is the empty flavor (and not the default flavor).
+This is the
+.Qq fullpath convention .
+.Pp
+Tools such as
+.Xr dpb 1
+display fullpath pkgpaths,
+and binary packages store full pkgpaths.
+.Pp
+.Ev SUBDIR
+and
+.Ev SUBDIRLIST
+can be forced to follow the fullpath convention by explicitly passing
+.Li FULLPATH=Yes
+to the corresponding
+.Xr make 1
+invocations.
+.Pp
+Most tools that process binary packages do so.
+.Sh SEE ALSO
+.Xr dpb 1 ,
+.Xr bsd.port.mk 5 ,
+.Xr library-specs 7 ,
+.Xr packages 7 ,
+.Xr packages-specs 7 ,
+.Xr ports 7

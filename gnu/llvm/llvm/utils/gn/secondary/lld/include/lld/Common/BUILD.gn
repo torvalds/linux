@@ -1,0 +1,8 @@
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+import("//llvm/version.gni")
+
+write_cmake_config("version") {
+  input = "Version.inc.in"
+  output = "$target_gen_dir/Version.inc"
+  values = [ "LLD_VERSION=$llvm_version" ]
+}

@@ -1,0 +1,158 @@
+.\"	$OpenBSD: quotacheck.8,v 1.15 2009/08/15 18:46:12 sobrado Exp $
+.\"	$NetBSD: quotacheck.8,v 1.4 1995/03/18 14:59:20 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Robert Elz at The University of Melbourne.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)quotacheck.8	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: August 15 2009 $
+.Dt QUOTACHECK 8
+.Os
+.Sh NAME
+.Nm quotacheck
+.Nd filesystem quota consistency checker
+.Sh SYNOPSIS
+.Nm quotacheck
+.Op Fl adguv
+.Op Fl l Ar maxparallel
+.Ar filesystem ...
+.Sh DESCRIPTION
+.Nm
+examines each filesystem,
+builds a table of current disk usage,
+and compares this table against that recorded
+in the disk quota file for the filesystem.
+If any inconsistencies are detected, both the
+quota file and the current system copy of the
+incorrect quotas are updated (the latter only
+occurs if an active filesystem is checked).
+By default, both user and group quotas are checked.
+.Pp
+Available options:
+.Bl -tag -width Ds
+.It Fl a
+If the
+.Fl a
+flag is supplied in place of any filesystem names,
+.Nm
+will check all the filesystems indicated in
+.Pa /etc/fstab
+to be read-write with disk quotas.
+By default, only the types of quotas listed in
+.Pa /etc/fstab
+are checked.
+.It Fl d
+Enable debugging mode.
+No actual data will be written on disk(s).
+.It Fl g
+Only group quotas listed in
+.Pa /etc/fstab
+are to be checked.
+.It Fl l Ar maxparallel
+Limit the number of parallel checks to the number
+.Ar maxparallel
+specified in the argument (see
+.Xr fsck 8 ) .
+.It Fl u
+Only user quotas listed in
+.Pa /etc/fstab
+are to be checked.
+.It Fl v
+.Nm
+reports discrepancies between the
+calculated and recorded disk quotas.
+.El
+.Pp
+Specifying both
+.Fl g
+and
+.Fl u
+is equivalent to the default.
+Parallel passes are run on the filesystems required,
+using the pass numbers in
+.Pa /etc/fstab
+in an identical fashion to
+.Xr fsck 8 .
+.Pp
+Normally
+.Nm
+operates silently.
+.Pp
+.Nm
+expects each filesystem to be checked to have
+quota files named
+.Pa quota.user
+and
+.Pa quota.group
+located at the root of the associated file system.
+These defaults may be overridden in
+.Pa /etc/fstab .
+If a file is not present,
+.Nm
+will create it.
+.Pp
+.Nm
+is normally run at boot time from the
+.Pa /etc/rc
+file
+.Pq see Xr rc 8
+before enabling disk quotas with
+.Xr quotaon 8 .
+.Pp
+.Nm
+accesses the raw device in calculating the actual
+disk usage for each user.
+Thus, the filesystems
+checked should be quiescent while
+.Nm
+is running.
+.Sh FILES
+.Bl -tag -width quota.group -compact
+.It Pa quota.user
+at the filesystem root with user quotas
+.It Pa quota.group
+at the filesystem root with group quotas
+.It Pa /etc/fstab
+default filesystems
+.El
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr quotactl 2 ,
+.Xr fstab 5 ,
+.Xr edquota 8 ,
+.Xr fsck 8 ,
+.Xr quotaon 8 ,
+.Xr repquota 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

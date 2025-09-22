@@ -1,0 +1,165 @@
+.\"	$OpenBSD: vnd.4,v 1.28 2014/07/02 22:35:42 matthew Exp $
+.\"	$NetBSD: vnd.4,v 1.1 1995/12/30 18:10:48 thorpej Exp $
+.\"
+.\" Copyright (c) 1995 Jason R. Thorpe.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed for the NetBSD Project
+.\"	by Jason R. Thorpe.
+.\" 4. Neither the name of the author nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 2 2014 $
+.Dt VND 4
+.Os
+.Sh NAME
+.Nm vnd
+.Nd vnode disk driver
+.Sh SYNOPSIS
+.Cd "pseudo-device vnd" Op Ar count
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a disk-like interface to a file.
+This is useful for a variety of applications, such as building miniroot or
+floppy disk images.
+.Pp
+This document assumes familiarity with how to generate kernels and
+how to properly configure disks and pseudo-devices in a kernel
+configuration file.
+.Pp
+In order to compile in support for
+.Nm vnd
+devices, a line similar to the following must be present in the kernel
+configuration file:
+.Bd -unfilled -offset indent
+pseudo-device	vnd	4	# vnode disk driver
+.Ed
+.Pp
+The
+.Ar count
+argument is how many
+.Nm vnds
+memory is allocated for at boot time.
+In this example, no more than 4
+.Nm vnds
+may be configured.
+.Pp
+There is a run-time utility that is used for configuring
+.Nm vnds .
+See
+.Xr vnconfig 8
+for more information.
+.Sh IOCTL INTERFACE
+The following
+.Xr ioctl 2
+calls are defined in
+.In dev/vndioctl.h :
+.Bl -tag -width Ds
+.It Dv VNDIOCSET Fa "struct vnd_ioctl *"
+Associate the file
+.Va vnd_file
+with a
+.Nm
+pseudo device, optionally encrypted using the Blowfish cipher and the key
+specified in
+.Va vnd_key
+of length
+.Va vnd_keylen .
+The size of the configured device is returned in
+.Va vnd_size .
+.Bd -literal -offset indent
+struct vnd_ioctl {
+	char	*vnd_file;
+	off_t	vnd_size;
+	u_char	*vnd_key;
+	int	vnd_keylen;
+};
+.Ed
+.It Dv VNDIOCCLR Fa "struct vnd_ioctl *"
+Disassociate a
+.Nm
+device.
+.It Dv VNDIOCGET Fa "struct vnd_user *"
+Get the associated file name, device, inode number, and unit number of a
+.Nm
+device.
+If
+.Va vnu_unit
+is \-1, information on the
+.Nm
+device corresponding to the file descriptor passed to
+.Xr ioctl 2
+will be returned.
+Otherwise,
+.Va vnu_unit
+may contain the unit number of another
+.Nm
+device.
+This allows for opening just
+.Li vnd0
+and querying all available devices.
+.Bd -literal -offset indent
+struct vnd_user {
+	char	vnufile[VNDNLEN];
+	int	vnu_unit;
+	dev_t	vnu_dev;
+	ino_t	vnu_ino;
+};
+.Ed
+.El
+.Pp
+Additionally, some
+.Xr disklabel 8
+related
+.Xr ioctl 2
+calls defined in
+.In sys/dkio.h
+are available:
+.Dv DIOCGDINFO ,
+.Dv DIOCSDINFO ,
+and
+.Dv DIOCWDINFO .
+They are documented in
+.Xr sd 4 .
+.Sh FILES
+.Bl -tag -width /dev/{,r}vnd* -compact
+.It Pa /dev/{,r}vnd*
+.Nm
+device special files
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr sd 4 ,
+.Xr disklabel 5 ,
+.Xr config 8 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr fsck 8 ,
+.Xr MAKEDEV 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr vnconfig 8

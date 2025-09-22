@@ -1,0 +1,527 @@
+.\"	$OpenBSD: intro.3,v 1.100 2024/05/09 17:57:36 jmc Exp $
+.\"	$NetBSD: intro.3,v 1.5 1995/05/10 22:46:24 jtc Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)intro.3	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: May 9 2024 $
+.Dt INTRO 3
+.Os
+.Sh NAME
+.Nm intro
+.Nd introduction to the C libraries
+.Sh SYNOPSIS
+.Nm cc
+.Op Ar flags
+.Ar
+.Op Fl llibrary
+.Sh DESCRIPTION
+The manual pages in section 3 provide an overview of the C library
+functions, their error returns, and other common definitions and concepts.
+Most of these functions are available from the C library,
+.Em libc .
+Other libraries, such as the math library,
+.Em libm ,
+must be indicated at compile time with the
+.Fl l
+option of the compiler.
+.Pp
+The various libraries (followed by the loader flag):
+.Pp
+.Bl -tag -width "libkvm" -compact
+.It libLLVM Pq Fl lLLVM
+LLVM components in a single library.
+.Pp
+.It libagentx Pq Fl lagentx
+AgentX client library.
+Used for applications to export metrics to AgentX capable snmp daemons.
+See
+.Xr agentx 3 .
+.Pp
+.It libc Pq Fl lc
+Standard C library functions.
+When using the C compiler
+.Xr cc 1 ,
+it is not necessary to supply the loader flag
+.Fl lc
+for these functions.
+There are several
+.Dq libraries
+or groups of functions included inside of libc: the standard I/O routines,
+database routines,
+bit operators,
+string operators,
+character tests and character operators,
+cryptographic routines,
+storage allocation,
+time functions,
+signal handling,
+and more.
+.Pp
+.It libc++ Pq Fl lc++
+LLVM standard C++ library.
+Note: users do not normally have to explicitly link with this library.
+.Pp
+.It libc++abi Pq Fl lc++abi
+LLVM C++ runtime library.
+Note: users do not normally have to explicitly link with this library.
+.Pp
+.It libcbor Pq Fl lcbor
+An implementation of the Concise Binary Object Representation
+.Pq CBOR
+encoding format defined in RFC 7049.
+.Pp
+.It libcrypto Pq Fl lcrypto
+Provides functionality such as symmetric encryption, public key cryptography,
+digests, message authentication codes,
+and certificate handling.
+See
+.Xr crypto 3 .
+.Pp
+.It libcurses Pq Fl lcurses
+.It libncurses Pq Fl lncurses
+.It libncursesw Pq Fl lncursesw
+.It libtermcap Pq Fl ltermcap
+.It libtermlib Pq Fl ltermlib
+Terminal-independent screen management routines for two-dimensional
+non-bitmap display terminals.
+This implementation is
+.Dq new curses
+and is a replacement for
+.Bx 4.2
+classic curses.
+The libraries
+.Em libncurses ,
+.Em libncursesw ,
+.Em libtermcap ,
+and
+.Em libtermlib
+are all hard links to
+.Em libcurses .
+This is for compatibility purposes only;
+new programs should link with
+.Fl lcurses .
+See
+.Xr curses 3
+and
+.Xr termcap 3 .
+.Pp
+.It libedit Pq Fl ledit
+Generic line editing and history functions, similar to those found in
+.Xr sh 1 .
+Functions using the
+.Em libedit
+library must be linked with the
+.Em libcurses
+library, i.e.\&
+.Fl ledit lcurses .
+See
+.Xr editline 3 .
+.Pp
+.It libelf Pq Fl lelf
+Library routines for manipulating ELF objects.
+See
+.Xr elf 3 .
+.Pp
+.It libevent Pq Fl levent
+Provides a mechanism to execute a function when a specific event on a
+file descriptor occurs or after a given time has passed.
+See
+.Xr event 3 .
+.Pp
+.It libexecinfo Pq Fl lexecinfo
+Library providing backtrace functions.
+See
+.Xr backtrace 3 .
+.Pp
+.It libexpat Pq Fl lexpat
+Library routines for parsing XML documents.
+.Pp
+.It libfido2 Pq Fl lfido2
+Library for communication with U2F/FIDO2 devices over USB.
+.Pp
+.It libform Pq Fl lform
+.It libformw Pq Fl lformw
+Terminal-independent facilities for composing form screens on
+character-cell terminals.
+Functions using the
+.Em libform
+library must be linked with the
+.Em libcurses
+library, i.e.\&
+.Fl lform lcurses .
+.Em libformw
+is a hard link to
+.Em libform
+intended for use with
+.Em libncursesw
+wide-character functions.
+See
+.Xr form 3 .
+.Pp
+.It libfuse Pq Fl lfuse
+File system in userland library.
+See
+.Xr fuse_main 3 .
+.Pp
+.It libgcc Pq Fl lgcc
+GCC runtime support,
+including long arithmetic, propolice,
+and language independent exception support.
+Note: users do not normally have to explicitly link with this library.
+.Pp
+.It libiberty Pq Fl liberty
+Collection of subroutines missing in other operating systems,
+as well as the C++ demangler and other functions used by
+the GNU toolchain.
+.Pp
+.It libkeynote Pq Fl lkeynote
+System library for the keynote trust-management system.
+Trust-management systems provide standard, general-purpose mechanisms
+for specifying application security policies and credentials.
+Functions using the libkeynote library must be linked with the
+.Em libm
+and
+.Em libcrypto
+libraries, i.e.\&
+.Fl lkeynote lm lcrypto .
+See
+.Xr keynote 3
+and
+.Xr keynote 4 .
+.Pp
+.It libkvm Pq Fl lkvm
+Kernel memory interface library.
+Provides a uniform interface for accessing kernel virtual memory images,
+including live systems and crash dumps.
+See
+.Xr kvm 3 .
+.Pp
+.It libl Pq Fl l\&l
+.It libfl Pq Fl lfl
+The library for
+.Xr lex 1 ,
+a lexical analyzer generator.
+The
+.Em libfl
+library
+is a hard link to
+.Em libl .
+.Pp
+.It libm Pq Fl lm
+Mathematical functions which comprise the C math library,
+.Em libm .
+.Pp
+.It libmenu Pq Fl lmenu
+.It libmenuw Pq Fl lmenuw
+Terminal-independent facilities for composing menu systems on
+character-cell terminals.
+Functions using the
+.Em libmenu
+library must be linked with the
+.Em libcurses
+library, i.e.\&
+.Fl lmenu lcurses .
+.Em libmenuw
+is a hard link to
+.Em libmenu
+intended for use with
+.Em libncursesw
+wide-character functions.
+See
+.Xr menu 3 .
+.Pp
+.It libossaudio Pq Fl lossaudio
+Provides an emulation of the OSS
+.Pq Linux
+audio interface.
+This is used only for porting programs.
+See
+.Xr ossaudio 3 .
+.Pp
+.It libpanel Pq Fl lpanel
+.It libpanelw Pq Fl lpanelw
+Terminal-independent facilities for stacked windows on
+character-cell terminals.
+Functions using the
+.Em libpanel
+library must be linked with the
+.Em libcurses
+library, i.e.\&
+.Fl lpanel lcurses .
+.Em libpanelw
+is a hard link to
+.Em libpanel
+intended for use with
+.Em libncursesw
+wide-character functions.
+See
+.Xr panel 3 .
+.Pp
+.It libpcap Pq Fl lpcap
+Packet capture library.
+All packets on the network, even those destined for other hosts,
+are accessible through this library.
+See
+.Xr pcap_open_live 3 .
+.Pp
+.It libperl Pq Fl lperl
+Support routines for
+.Xr perl 1 .
+.Pp
+.It libpthread Pq Fl lpthread
+.St -p1003.1-2001
+threads API.
+See
+.Xr pthreads 3 .
+.Pp
+.It libradius Pq Fl lradius
+Support routines for the RADIUS library.
+See
+.Xr radius_new_request_packet 3 .
+.Pp
+.It libreadline Pq Fl lreadline
+Command line editing interface.
+See
+.Xr readline 3 .
+.Pp
+.It librpcsvc Pq Fl lrpcsvc
+Generated by
+.Xr rpcgen 1 ,
+containing stub functions for many common
+.Xr rpc 3
+protocols.
+.Pp
+.It libskey Pq Fl lskey
+Support library for the S/Key one time password
+.Pq OTP
+authentication toolkit.
+See
+.Xr skey 3 .
+.Pp
+.It libsndio Pq Fl lsndio
+Library for
+.Xr audio 4
+hardware and the
+.Xr sndiod 8
+audio server.
+See
+.Xr sio_open 3 .
+.Pp
+.It libssl Pq Fl lssl
+Implements the Transport Layer Security
+.Pq TLS
+protocol, the successor to the Secure Sockets Layer (SSL) protocol.
+See
+.Xr ssl 3 .
+.Pp
+.It libstdc++ Pq Fl lstdc++
+GNU standard C++ library.
+Note: users do not normally have to explicitly link with this library.
+.Pp
+.It libsupc++ Pq Fl lsupc++
+GNU C++ runtime library.
+Note: users do not normally have to explicitly link with this library.
+.Pp
+.It libtls Pq Fl ltls
+A Transport Layer Security library with a clean and easy to use interface.
+See
+.Xr tls_init 3 .
+.Pp
+.It libusbhid Pq Fl lusbhid
+Routines to extract data from USB Human Interface Devices
+.Pq HIDs .
+See
+.Xr usbhid 3 .
+.Pp
+.It libutil Pq Fl lutil
+System utility functions.
+.Pp
+.It liby Pq Fl ly
+The library for
+.Xr yacc 1 ,
+an LALR parser generator.
+.Pp
+.It libz Pq Fl lz
+General purpose data compression library.
+The functions in this library are documented in
+.Xr compress 3 .
+The data format is described in RFCs 1950 \- 1952.
+.El
+.Pp
+Platform-specific libraries:
+.Bl -tag -width "libkvm"
+.It libalpha Pq Fl lalpha
+Alpha I/O and memory access functions.
+See
+.Xr inb 2 .
+.It libamd64 Pq Fl lamd64
+AMD64 I/O and memory access functions.
+See
+.Xr amd64_iopl 2 .
+.It libi386 Pq Fl li386
+i386 I/O and memory access functions.
+See
+.Xr i386_iopl 2 .
+.El
+.Sh LIBRARY TYPES
+The system libraries are located in
+.Pa /usr/lib .
+Typically, a library will have a number of variants:
+.Bd -unfilled -offset indent
+libc.a
+libc_p.a
+libc.so.30.1
+.Ed
+.Pp
+Libraries with an
+.Sq .a
+suffix are static.
+When a program is linked against a library, all the library code
+will be linked into the binary.
+This means the binary can be run even when the libraries are unavailable.
+However, it can be inefficient with memory usage.
+The C compiler,
+.Xr cc 1 ,
+can be instructed to link statically by specifying the
+.Fl static
+flag.
+.Pp
+Libraries with a
+.Sq _p.a
+suffix are profiling libraries.
+They contain extra information suitable for analysing programs,
+such as execution speed and call counts.
+This in turn can be interpreted by utilities such as
+.Xr gprof 1 .
+The C compiler,
+.Xr cc 1 ,
+can be instructed to generate profiling code,
+or to link with profiling libraries, by specifying the
+.Fl pg
+flag.
+.Pp
+Libraries with a
+.Sq .so.X.Y
+suffix are dynamic libraries.
+When code is compiled dynamically, the library code that the application needs
+is not linked into the binary.
+Instead, data structures are added containing information about which dynamic
+libraries to link with.
+When the binary is executed, the run-time linker
+.Xr ld.so 1
+reads these data structures, and loads them at a virtual address using the
+.Xr mmap 2
+system call.
+.Pp
+.Sq X
+represents the major number of the library, and
+.Sq Y
+represents the minor number.
+In general, a binary will be able to use a dynamic library with a differing
+minor number, but the major numbers must match.
+In the example above, a binary linked with minor number
+.Sq 3
+would be linkable against libc.so.30.1,
+while a binary linked with major number
+.Sq 31
+would not.
+.Pp
+The advantages of dynamic libraries are that multiple instances of the same
+program can share address space, and the physical size of the binary is
+smaller.
+The disadvantage is the added complexity that comes with loading the
+libraries dynamically, and the extra time taken to load the libraries.
+Of course, if the libraries are not available, the binary will be unable
+to execute.
+The C compiler,
+.Xr cc 1 ,
+can be instructed to link dynamically by specifying the
+.Fl shared
+flag, although on systems that support it, this will be the default and
+need not be specified.
+.Pp
+Shared libraries, as well as static libraries on architectures which produce
+position-independent executables
+.Pq PIEs
+by default, contain position-independent code
+.Pq PIC .
+Normally, compilers produce relocatable code.
+Relocatable code needs to be modified at run-time, depending on where in
+memory it is to be run.
+PIC code does not need to be modified at run-time, but is less efficient than
+relocatable code.
+The C compiler,
+.Xr cc 1 ,
+can be instructed to generate PIC code by specifying the
+.Fl fpic
+or
+.Fl fPIC
+flags.
+.Pp
+With the exception of dynamic libraries, libraries are generated using the
+.Xr ar 1
+utility.
+The libraries contain an index to the contents of the library,
+stored within the library itself.
+The index lists each symbol defined by a member of a library that is a
+relocatable object file.
+This speeds up linking to the library, and allows routines in the library
+to call each other regardless of their placement within the library.
+The index is created by
+.Xr ranlib 1
+and can be viewed using
+.Xr nm 1 .
+.Pp
+The building of dynamic libraries can be prevented by setting the variable
+.Dv NOPIC
+in
+.Pa /etc/mk.conf .
+The building of profiling versions of libraries can
+be prevented by setting the variable
+.Dv NOPROFILE
+in
+.Pa /etc/mk.conf .
+See
+.Xr mk.conf 5
+for more details.
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr cc 1 ,
+.Xr gprof 1 ,
+.Xr ld 1 ,
+.Xr ld.so 1 ,
+.Xr nm 1 ,
+.Xr ranlib 1 ,
+.Xr mk.conf 5
+.Sh HISTORY
+An
+.Nm
+manual for section 3 first appeared in
+.At v7 .

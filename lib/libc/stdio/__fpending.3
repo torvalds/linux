@@ -1,0 +1,129 @@
+.\"	$OpenBSD: __fpending.3,v 1.3 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2024 Philip Guenther <guenther@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt __FPENDING 3
+.Os
+.Sh NAME
+.Nm __fpending ,
+.Nm __freadahead ,
+.Nm __freading ,
+.Nm __freadptr ,
+.Nm __freadptrinc ,
+.Nm __fseterr ,
+.Nm __fwriting
+.Nd stream extension functions
+.Sh SYNOPSIS
+.In stdio_ext.h
+.Ft size_t
+.Fn __fpending "FILE *stream"
+.Ft size_t
+.Fn __freadahead "FILE *stream"
+.Ft int
+.Fn __freading "FILE *stream"
+.Ft const char *
+.Fn __freadptr "FILE *stream" "size_t *sizep"
+.Ft void
+.Fn __freadptrinc "FILE *stream" "size_t increment"
+.Ft void
+.Fn __fseterr "FILE *stream"
+.Ft int
+.Fn __fwriting "FILE *stream"
+.Sh DESCRIPTION
+The
+.Fn __fpending
+function returns the number of bytes of output data currently
+buffered on
+.Fa stream .
+.Pp
+The
+.Fn __freadahead
+function returns the number of bytes of input data currently
+buffered on
+.Fa stream .
+.Pp
+The
+.Fn __freading
+function returns non-zero if
+.Fa stream
+either was opened read-only or if the last operation on the stream
+was a read or push-back operation.
+.Pp
+The
+.Fn __freadptr
+function returns either a pointer to the next byte of buffered input
+data on
+.Fa stream
+and stores the number of consecutive bytes of buffered data available
+to the location pointed to by
+.Fa sizep ,
+or return
+.Dv NULL
+if there's no buffered input data.
+The value returned via
+.Fa sizep
+may differ from the value that would be returned by
+.Fn __freadahead .
+.Pp
+The
+.Fn __freadptrinc
+function consumes
+.Fa increment
+bytes of buffered input data on
+.Fa stream .
+This is only valid immediately after a non-NULL return from
+.Fn __freadptr
+and
+.Fa increment
+must not be greater than the size value from that call.
+.Pp
+The
+.Fn __fseterr
+function sets the error indicator for
+.Fa stream .
+.Pp
+The
+.Fn __fwriting
+function returns non-zero if
+.Fa stream
+either was opened write-only or append-only or if the last operation
+on the stream was a write operation.
+.Sh ERRORS
+These functions should not fail and do not set the external
+variable
+.Va errno .
+.Sh SEE ALSO
+.Xr fflush 3
+.Sh HISTORY
+The
+.Fn __fpending ,
+.Fn __freadahead ,
+.Fn __freading ,
+.Fn __freadptr ,
+.Fn __freadptrinc ,
+.Fn __fseterr ,
+and
+.Fn __fwriting
+functions appeared in
+.Ox 7.6 .
+.Sh BUGS
+These functions are under-specified and non-portable.
+They exist to permit a particular
+.Dq portability
+library to function without direct manipulation of stdio structures;
+everyone else should either implement their own stdio layer,
+do the work of defining and standardizing the required functionality,
+or reconsider their life decisions.

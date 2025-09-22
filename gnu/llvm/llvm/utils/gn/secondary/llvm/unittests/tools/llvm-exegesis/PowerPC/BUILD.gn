@@ -1,0 +1,27 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("LLVMExegesisPowerPCTests") {
+  deps = [
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/PowerPC",
+
+    # Exegesis reaches inside the Target/PowerPC tablegen internals and must
+    # depend on these Target/PowerPC-internal build targets.
+    "//llvm/lib/Target/PowerPC/MCTargetDesc",
+    "//llvm/tools/llvm-exegesis/lib",
+    "//llvm/tools/llvm-exegesis/lib/PowerPC",
+  ]
+  include_dirs = [
+    "//llvm/lib/Target/PowerPC",
+    "//llvm/tools/llvm-exegesis/lib",
+  ]
+  sources = [
+    "AnalysisTest.cpp",
+    "SnippetGeneratorTest.cpp",
+    "TargetTest.cpp",
+  ]
+}

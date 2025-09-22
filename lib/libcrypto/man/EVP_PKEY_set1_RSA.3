@@ -1,0 +1,499 @@
+.\" $OpenBSD: EVP_PKEY_set1_RSA.3,v 1.27 2025/07/02 06:40:28 tb Exp $
+.\" full merge up to: OpenSSL 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2019, 2020, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2015, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 2 2025 $
+.Dt EVP_PKEY_SET1_RSA 3
+.Os
+.Sh NAME
+.Nm EVP_PKEY_set1_RSA ,
+.Nm EVP_PKEY_set1_DSA ,
+.Nm EVP_PKEY_set1_DH ,
+.Nm EVP_PKEY_set1_EC_KEY ,
+.Nm EVP_PKEY_get1_RSA ,
+.Nm EVP_PKEY_get1_DSA ,
+.Nm EVP_PKEY_get1_DH ,
+.Nm EVP_PKEY_get1_EC_KEY ,
+.Nm EVP_PKEY_get0_RSA ,
+.Nm EVP_PKEY_get0_DSA ,
+.Nm EVP_PKEY_get0_DH ,
+.Nm EVP_PKEY_get0_EC_KEY ,
+.Nm EVP_PKEY_get0_hmac ,
+.Nm EVP_PKEY_get0 ,
+.Nm EVP_PKEY_assign_RSA ,
+.Nm EVP_PKEY_assign_DSA ,
+.Nm EVP_PKEY_assign_DH ,
+.Nm EVP_PKEY_assign_EC_KEY ,
+.Nm EVP_PKEY_assign ,
+.Nm EVP_PKEY_base_id ,
+.Nm EVP_PKEY_id ,
+.Nm EVP_PKEY_type ,
+.Nm EVP_PKEY_set_type ,
+.Nm EVP_PKEY_set_type_str
+.\" The function X509_certificate_type(3) is intentionally undocumented
+.\" and scheduled for deletion from the library.  BoringSSL already
+.\" deleted it and OpenSSL deprecates it in version 3.0.
+.\" The following constants are also intentionally undocumented
+.\" because they are only used by that function:
+.\" EVP_PK_DH EVP_PK_DSA EVP_PK_EC EVP_PK_RSA
+.\" EVP_PKS_DSA EVP_PKS_EC EVP_PKS_RSA
+.\" EVP_PKT_ENC EVP_PKT_EXCH EVP_PKT_EXP EVP_PKT_SIGN
+.Nd EVP_PKEY assignment functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft int
+.Fo EVP_PKEY_set1_RSA
+.Fa "EVP_PKEY *pkey"
+.Fa "RSA *key"
+.Fc
+.Ft int
+.Fo EVP_PKEY_set1_DSA
+.Fa "EVP_PKEY *pkey"
+.Fa "DSA *key"
+.Fc
+.Ft int
+.Fo EVP_PKEY_set1_DH
+.Fa "EVP_PKEY *pkey"
+.Fa "DH *key"
+.Fc
+.Ft int
+.Fo EVP_PKEY_set1_EC_KEY
+.Fa "EVP_PKEY *pkey"
+.Fa "EC_KEY *key"
+.Fc
+.Ft RSA *
+.Fo EVP_PKEY_get1_RSA
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft DSA *
+.Fo EVP_PKEY_get1_DSA
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft DH *
+.Fo EVP_PKEY_get1_DH
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft EC_KEY *
+.Fo EVP_PKEY_get1_EC_KEY
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft RSA *
+.Fo EVP_PKEY_get0_RSA
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft DSA *
+.Fo EVP_PKEY_get0_DSA
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft DH *
+.Fo EVP_PKEY_get0_DH
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft EC_KEY *
+.Fo EVP_PKEY_get0_EC_KEY
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft const unsigned char *
+.Fo EVP_PKEY_get0_hmac
+.Fa "const EVP_PKEY *pkey"
+.Fa "size_t *len"
+.Fc
+.Ft void *
+.Fo EVP_PKEY_get0
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft int
+.Fo EVP_PKEY_assign_RSA
+.Fa "EVP_PKEY *pkey"
+.Fa "RSA *key"
+.Fc
+.Ft int
+.Fo EVP_PKEY_assign_DSA
+.Fa "EVP_PKEY *pkey"
+.Fa "DSA *key"
+.Fc
+.Ft int
+.Fo EVP_PKEY_assign_DH
+.Fa "EVP_PKEY *pkey"
+.Fa "DH *key"
+.Fc
+.Ft int
+.Fo EVP_PKEY_assign_EC_KEY
+.Fa "EVP_PKEY *pkey"
+.Fa "EC_KEY *key"
+.Fc
+.Ft int
+.Fo EVP_PKEY_assign
+.Fa "EVP_PKEY *pkey"
+.Fa "int type"
+.Fa "void *key"
+.Fc
+.Ft int
+.Fo EVP_PKEY_base_id
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft int
+.Fo EVP_PKEY_id
+.Fa "const EVP_PKEY *pkey"
+.Fc
+.Ft int
+.Fo EVP_PKEY_type
+.Fa "int type"
+.Fc
+.Ft int
+.Fo EVP_PKEY_set_type
+.Fa "EVP_PKEY *pkey"
+.Fa "int type"
+.Fc
+.Ft int
+.Fo EVP_PKEY_set_type_str
+.Fa "EVP_PKEY *pkey"
+.Fa "const char *str"
+.Fa "int len"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_PKEY_set1_RSA ,
+.Fn EVP_PKEY_set1_DSA ,
+.Fn EVP_PKEY_set1_DH ,
+and
+.Fn EVP_PKEY_set1_EC_KEY
+set the key referenced by
+.Fa pkey
+to
+.Fa key
+and increment the reference count of
+.Fa key
+by 1 in case of success.
+.Pp
+.Fn EVP_PKEY_get1_RSA ,
+.Fn EVP_PKEY_get1_DSA ,
+.Fn EVP_PKEY_get1_DH ,
+and
+.Fn EVP_PKEY_get1_EC_KEY
+return the key referenced in
+.Fa pkey ,
+incrementing its reference count by 1, or
+.Dv NULL
+if the key is not of the correct type.
+.Pp
+.Fn EVP_PKEY_get0_RSA ,
+.Fn EVP_PKEY_get0_DSA ,
+.Fn EVP_PKEY_get0_DH ,
+.Fn EVP_PKEY_get0_EC_KEY ,
+and
+.Fn EVP_PKEY_get0
+are identical except that they do not increment the reference count.
+Consequently, the returned key must not be freed by the caller.
+.Pp
+.Fn EVP_PKEY_get0_hmac
+returns an internal pointer to the key referenced in
+.Fa pkey
+and sets
+.Pf * Fa len
+to its length in bytes.
+The returned pointer must not be freed by the caller.
+If
+.Fa pkey
+is not of the correct type,
+.Dv NULL
+is returned and the content of
+.Pf * Fa len
+becomes unspecified.
+.Pp
+.Fn EVP_PKEY_assign_RSA ,
+.Fn EVP_PKEY_assign_DSA ,
+.Fn EVP_PKEY_assign_DH ,
+.Fn EVP_PKEY_assign_EC_KEY ,
+and
+.Fn EVP_PKEY_assign
+also set the referenced key to
+.Fa key ;
+however these use the supplied
+.Fa key
+internally without incrementing its reference count, such that
+.Fa key
+will be freed when the parent
+.Fa pkey
+is freed.
+If the
+.Fa key
+is of the wrong type, these functions report success even though
+.Fa pkey
+ends up in a corrupted state.
+Even the functions explicitly containing the type in their name are
+.Em not
+type safe because they are implemented as macros.
+The following types are supported:
+.Dv EVP_PKEY_RSA ,
+.Dv EVP_PKEY_DSA ,
+.Dv EVP_PKEY_DH ,
+and
+.Dv EVP_PKEY_EC .
+.Pp
+.Fn EVP_PKEY_base_id
+returns the type of
+.Fa pkey
+according to the following table:
+.Pp
+.Bl -column -compact -offset 2n EVP_PKEY_RSA_PSS NID_X9_62_id_ecPublicKey
+.It Sy return value      Ta                               Ta Sy PEM type string
+.It Dv EVP_PKEY_CMAC     Ta = Dv NID_cmac                 Ta CMAC
+.It Dv EVP_PKEY_DH       Ta = Dv NID_dhKeyAgreement       Ta DH
+.It Dv EVP_PKEY_DSA      Ta = Dv NID_dsa                  Ta DSA
+.It Dv EVP_PKEY_EC       Ta = Dv NID_X9_62_id_ecPublicKey Ta EC
+.It Dv EVP_PKEY_HMAC     Ta = Dv NID_hmac                 Ta HMAC
+.It Dv EVP_PKEY_RSA      Ta = Dv NID_rsaEncryption        Ta RSA
+.It Dv EVP_PKEY_RSA_PSS  Ta = Dv NID_rsassaPss            Ta RSA-PSS
+.El
+.Pp
+.Fn EVP_PKEY_id
+returns the actual OID associated with
+.Fa pkey .
+Historically keys using the same algorithm could use different OIDs.
+The following deprecated aliases are still supported:
+.Pp
+.Bl -column -compact -offset 2n EVP_PKEY_DSA4 NID_dsaWithSHA1_2
+.It Sy return value         Ta                                  Ta Sy alias for
+.It Dv EVP_PKEY_DSA1        Ta = Dv NID_dsa_2                     Ta DSA
+.It Dv EVP_PKEY_DSA2        Ta = Dv NID_dsaWithSHA                Ta DSA
+.It Dv EVP_PKEY_DSA3        Ta = Dv NID_dsaWithSHA1               Ta DSA
+.It Dv EVP_PKEY_DSA4        Ta = Dv NID_dsaWithSHA1_2             Ta DSA
+.It Dv EVP_PKEY_RSA2        Ta = Dv NID_rsa                       Ta RSA
+.El
+.Pp
+Most applications wishing to know a key type will simply call
+.Fn EVP_PKEY_base_id
+and will not care about the actual type,
+which will be identical in almost all cases.
+.Pp
+.Fn EVP_PKEY_type
+returns the underlying type of the NID
+.Fa type .
+For example,
+.Fn EVP_PKEY_type EVP_PKEY_RSA2
+will return
+.Dv EVP_PKEY_RSA .
+.Pp
+.Fn EVP_PKEY_set_type
+frees the key referenced in
+.Fa pkey ,
+if any, and sets the key type of
+.Fa pkey
+to
+.Fa type
+without referencing a new key from
+.Fa pkey
+yet.
+For
+.Fa type ,
+any of the possible return values of
+.Fn EVP_PKEY_base_id
+and
+.Fn EVP_PKEY_id
+can be passed.
+.Pp
+.Fn EVP_PKEY_set_type_str
+frees the key referenced in
+.Fa pkey ,
+if any, and sets the key type of
+.Fa pkey
+according to the PEM type string given by the first
+.Fa len
+bytes of
+.Fa str .
+If
+.Fa len
+is \-1, the
+.Xr strlen 3
+of
+.Fa str
+is used instead.
+The PEM type strings supported by default are listed in the table above.
+This function does not reference a new key from
+.Fa pkey .
+.Pp
+If
+.Fa pkey
+is a
+.Dv NULL
+pointer,
+.Fn EVP_PKEY_set_type
+and
+.Fn EVP_PKEY_set_type_str
+check that a matching key type exists but do not change any object.
+.Pp
+In accordance with the OpenSSL naming convention, the key obtained from
+or assigned to
+.Fa pkey
+using the
+.Sy 1
+functions must be freed as well as
+.Fa pkey .
+.Sh RETURN VALUES
+.Fn EVP_PKEY_set1_RSA ,
+.Fn EVP_PKEY_set1_DSA ,
+.Fn EVP_PKEY_set1_DH ,
+.Fn EVP_PKEY_set1_EC_KEY ,
+.Fn EVP_PKEY_assign_RSA ,
+.Fn EVP_PKEY_assign_DSA ,
+.Fn EVP_PKEY_assign_DH ,
+.Fn EVP_PKEY_assign_EC_KEY ,
+.Fn EVP_PKEY_assign ,
+.Fn EVP_PKEY_set_type ,
+and
+.Fn EVP_PKEY_set_type_str
+return 1 for success or 0 for failure.
+.Pp
+.Fn EVP_PKEY_get1_RSA ,
+.Fn EVP_PKEY_get1_DSA ,
+.Fn EVP_PKEY_get1_DH ,
+.Fn EVP_PKEY_get1_EC_KEY ,
+.Fn EVP_PKEY_get0_RSA ,
+.Fn EVP_PKEY_get0_DSA ,
+.Fn EVP_PKEY_get0_DH ,
+.Fn EVP_PKEY_get0_EC_KEY ,
+.Fn EVP_PKEY_get0_hmac ,
+and
+.Fn EVP_PKEY_get0
+return the referenced key or
+.Dv NULL
+if an error occurred.
+For
+.Fn EVP_PKEY_get0 ,
+the return value points to an
+.Vt RSA ,
+.Vt DSA ,
+.Vt DH ,
+.Vt EC_KEY ,
+or
+.Vt ASN1_OCTET_STRING
+object depending on the type of
+.Fa pkey .
+.Pp
+.Fn EVP_PKEY_base_id ,
+.Fn EVP_PKEY_id ,
+and
+.Fn EVP_PKEY_type
+return a key type or
+.Dv NID_undef
+(equivalently
+.Dv EVP_PKEY_NONE )
+on error.
+.Sh SEE ALSO
+.Xr DH_new 3 ,
+.Xr DSA_new 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EVP_PKEY_get0_asn1 3 ,
+.Xr EVP_PKEY_new 3 ,
+.Xr RSA_new 3
+.Sh HISTORY
+.Fn EVP_PKEY_assign_RSA ,
+.Fn EVP_PKEY_assign_DSA ,
+.Fn EVP_PKEY_assign_DH ,
+.Fn EVP_PKEY_assign ,
+and
+.Fn EVP_PKEY_type
+first appeared in SSLeay 0.8.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_PKEY_set1_RSA ,
+.Fn EVP_PKEY_set1_DSA ,
+.Fn EVP_PKEY_set1_DH ,
+.Fn EVP_PKEY_get1_RSA ,
+.Fn EVP_PKEY_get1_DSA ,
+and
+.Fn EVP_PKEY_get1_DH
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn EVP_PKEY_set1_EC_KEY ,
+.Fn EVP_PKEY_get1_EC_KEY ,
+and
+.Fn EVP_PKEY_assign_EC_KEY
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Pp
+.Fn EVP_PKEY_get0 ,
+.Fn EVP_PKEY_base_id ,
+.Fn EVP_PKEY_id ,
+.Fn EVP_PKEY_set_type ,
+and
+.Fn EVP_PKEY_set_type_str
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .
+.Pp
+.Fn EVP_PKEY_get0_RSA ,
+.Fn EVP_PKEY_get0_DSA ,
+.Fn EVP_PKEY_get0_DH ,
+and
+.Fn EVP_PKEY_get0_EC_KEY
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 6.3 .
+.Pp
+.Fn EVP_PKEY_get0_hmac
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.5 .

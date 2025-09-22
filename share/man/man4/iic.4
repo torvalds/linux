@@ -1,0 +1,304 @@
+.\"	$OpenBSD: iic.4,v 1.135 2024/03/02 22:08:50 jmc Exp $
+.\"
+.\" Copyright (c) 2004, 2006 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2024 $
+.Dt IIC 4
+.Os
+.Sh NAME
+.Nm iic
+.Nd Inter IC (I2C) bus
+.Sh SYNOPSIS
+.Cd "iic* at kiic?                  # macppc"
+.Cd "iic* at piic?                  # macppc"
+.Cd "iic* at smu?                   # macppc"
+.Cd "iic* at alipm?                 # alpha i386 sparc64 "
+.Cd "iic* at amdiic?                # amd64 i386"
+.Cd "iic* at amdpm?                 # i386"
+.Cd "iic* at glxpcib?               # i386"
+.Cd "iic* at gscsio?                # i386"
+.Cd "iic* at ichiic?                # amd64 i386"
+.Cd "iic* at iicmux?                # arm64"
+.Cd "iic* at nviic?                 # amd64 i386"
+.Cd "iic* at pcamux?                # arm64"
+.Cd "iic* at pcfiic?                # sparc64"
+.Cd "iic* at piixpm?                # amd64 i386"
+.Cd "iic* at viapm?                 # amd64 i386"
+.Cd "iic* at gpioiic?               # i386"
+.Cd "iic* at gdiumiic?              # loongson"
+.Cd "iic* at tsciic?                # alpha"
+.Cd "iic* at amliic?                # arm64"
+.Cd "iic* at apliic?                # arm64"
+.Cd "iic* at bcmbsc?                # arm64 armv7"
+.Cd "iic* at dwiic?                 # amd64 arm64"
+.Cd "iic* at octiic?                # octeon"
+.Cd "iic* at imxiic?                # arm64 armv7"
+.Cd "iic* at mviic?                 # arm64"
+.Cd "iic* at rkiic?                 # arm64 armv7"
+.Cd "iic* at qciic?                 # arm64"
+.Cd "iic* at sxitwi?                # arm64 armv7"
+.Cd "iic* at mpfiic?                # riscv64"
+.Cd "iic* at ociic?                 # riscv64"
+.Sh DESCRIPTION
+I2C is a two-wire bus developed by Philips used for connecting
+integrated circuits.
+It is commonly used for connecting devices such as EEPROMs,
+temperature sensors, fan controllers, real-time clocks, tuners,
+and other types of integrated circuits.
+.Pp
+The
+.Nm
+driver provides a uniform programming interface layer between
+I2C master controllers and various I2C slave devices.
+Each I2C master controller attaches an
+.Nm
+framework; several slave devices can then be attached to the
+.Nm
+bus.
+.Pp
+All I2C slave devices are uniquely identified by the address on the bus.
+The master accesses a particular slave device using its address.
+Devices are found on the bus using a sophisticated scanning routine
+which attempts to identify commonly available devices.
+On other machines (such as sparc64 and macppc) where the machine ROM
+supplies a list of I2C devices, that list is used instead.
+.Pp
+System Management Bus (SMBus) protocol is also supported by emulating
+it with the I2C commands.
+.Sh SUPPORTED MASTERS
+.Bl -tag -width 13n -compact
+.It Xr alipm 4
+Acer Labs M7101 SMBus controller
+.It Xr amdiic 4
+AMD-8111 SMBus controller
+.It Xr amdpm 4
+AMD-756/766/768/8111 Power Management and SMBus controller
+.It Xr amliic 4
+Amlogic I2C controller
+.It Xr apliic 4
+Apple I2C controller
+.It Xr bcmbsc 4
+Broadcom Serial Control controller
+.It Xr dwiic 4
+Synopsys DesignWare I2C controller
+.It Xr glxpcib 4
+AMD CS5536 PCI-ISA bridge with timecounter, watchdog timer, and GPIO
+.It Xr gpioiic 4
+GPIO I2C controller
+.It Xr gscsio 4
+National Semiconductor Geode SC1100 I2C controller
+.It Xr ichiic 4
+Intel ICH SMBus controller
+.It Xr imxiic 4
+Freescale i.MX I2C controller
+.It Xr kiic 4
+Apple Kauai I2C controller
+.It Xr mpfiic 4
+Microchip PolarFire SoC MSS I2C controller
+.It Xr mviic 4
+Marvell Armada 3700 onboard I2C controller
+.It Xr nviic 4
+NVIDIA nForce2/3/4 SMBus controller
+.It Xr ociic 4
+OpenCores I2C controller
+.It Xr octiic 4
+OCTEON two-wire serial interface
+.It Xr pcfiic 4
+Philips PCF8584 I2C controller
+.It Xr piic 4
+Apple via-pmu I2C controller
+.It Xr piixpm 4
+Intel PIIX SMBus controller
+.It Xr rkiic 4
+Rockchip I2C controller
+.It Xr qciic 4
+Qualcomm Snapdragon GENI I2C controller
+.It Xr rkpmic 4
+Rockchip RK8xx Power Management IC
+.It Xr smu 4
+Apple System Management Unit
+.It Xr sxitwi 4
+Allwinner Two Wire Interface controller
+.It Xr tsciic 4
+DECchip 21272 and 21274 Core Logic chipset I2C controller
+.It Xr viapm 4
+VIA SMBus controller
+.El
+.Sh SUPPORTED SLAVES
+.Bl -tag -width 13n -compact
+.It Xr abcrtc 4
+Abracon AB1805 real-time clock
+.It Xr adc 4
+Analog Devices AD7416/AD7417/7418 temperature sensor
+.It Xr adl 4
+Andigilog aSC7621 temperature, voltage, and fan sensor
+.It Xr admcts 4
+Analog Devices ADM1026 temperature and voltage sensor
+.It Xr admlc 4
+Analog Devices ADM1024 temperature and voltage sensor
+.It Xr admtemp 4
+Analog Devices ADM1021 temperature sensor
+.It Xr admtm 4
+Analog Devices ADM1025 temperature and voltage sensor
+.It Xr admtmp 4
+Analog Devices ADM1030 temperature sensor
+.It Xr admtt 4
+Analog Devices ADM1031 temperature sensor
+.It Xr adt 4
+Analog Devices ADT7460 temperature, voltage, and fan sensor
+.It Xr adtfsm 4
+Analog Devices ADT7462 temperature, voltage, and fan sensor
+.It Xr andl 4
+Andigilog aSC7611 temperature, voltage, and fan sensor
+.It Xr asbtm 4
+Asus ASB 100 temperature sensor
+.It Xr asms 4
+Apple sudden motion sensor
+.It Xr axppmic 4
+X-Powers AXP Power Management IC
+.It Xr bdpmic 4
+ROHM BD718x7 Power Management IC
+.It Xr bgw 4
+Bosch motion sensor
+.It Xr ccpmic 4
+Intel Crystal Cove Power Management IC
+.It Xr cwfg 4
+CellWise CW201x fuel gauge
+.It Xr dapmic 4
+Dialog DA9063 Power Management IC
+.It Xr dsxrtc 4
+Maxim DS3231/DS3232 real-time clock
+.It Xr ecadc 4
+environmental monitoring subsystem temperature sensor
+.It Xr escodec 4
+Everest Semiconductor ES8316 audio codec
+.It Xr fanpwr 4
+Fairchild FAN53555 voltage regulator
+.It Xr fcu 4
+Apple Fan Control Unit sensor device
+.It Xr fintek 4
+Fintek F75375 temperature sensor
+.It Xr fusbtc 4
+Fairchild FUSB302 USB Type-C Port controller
+.It Xr glenv 4
+Genesys Logic GL518SM temperature, voltage, and fan sensor
+.It Xr iatp 4
+Atmel maXTouch touchpad and touchscreen
+.It Xr ietp 4
+Elantech touchpad
+.It Xr ihidev 4
+HID over I2C support
+.It Xr ipmi 4
+Intelligent Platform Management Interface driver
+.It Xr islrtc 4
+Intersil ISL1208/1218 real-time clock
+.It Xr lisa 4
+STMicroelectronics LIS331DL MEMS motion sensor
+.It Xr lm 4
+National Semiconductor LM78/79/81 temperature, voltage, and fan sensor
+.It Xr lmenv 4
+National Semiconductor LM87 temperature, voltage, and fan sensor
+.It Xr lmn 4
+National Semiconductor LM93 temperature, voltage, and fan sensor
+.It Xr lmtemp 4
+National Semiconductor LM75/LM76/LM77 temperature sensor
+.It Xr maxds 4
+Maxim DS1624/DS1631/DS1721 temperature sensor
+.It Xr maxrtc 4
+Maxim DS1307/DS1339 real-time clock
+.It Xr maxtmp 4
+Maxim MAX6642/MAX6690 temperature sensor
+.It Xr mcprtc 4
+Microchip MCP79400 real-time clock
+.It Xr mfokrtc 4
+M41T8x real-time clock
+.It Xr nvt 4
+Nuvoton W83795G/ADG temperature, voltage, and fan sensor
+.It Xr pcagpio 4
+Philips PCA955[4567] GPIO controller
+.It Xr pcaled 4
+Philips PCA9532/9552 GPIO LED dimmer
+.It Xr pcamux 4
+Philips PCA954[678] I2C switch/mux
+.It Xr pcfadc 4
+Philips PCF8591 temperature sensor
+.It Xr pcfrtc 4
+NXP PCF8523 real-time clock
+.It Xr pcxrtc 4
+NXP PCF8563 real-time clock
+.It Xr pcyrtc 4
+NXP PCF85063A/TP real-time clock
+.It Xr pijuice 4
+PiJuice HAT UPS
+.It Xr ricohrtc 4
+Ricoh RS5C372 real-time clock
+.It Xr rkpmic 4
+Rockchip RK8xx Power Management IC
+.It Xr sdtemp 4
+SO-DIMM (JC-42.4) temperature sensor
+.It Xr sncodec 4
+Texas Instruments TAS2764 digital amplifier
+.It Xr spdmem 4
+Serial Presence Detect memory
+.It Xr ssdfb 4
+Solomon Systech SSD1306/SSD1309 OLED display module
+.It Xr stsec 4
+ST7 embedded controller
+.It Xr sypwr 4
+Silergy SY8106A voltage regulator
+.It Xr tascodec 4
+Texas Instruments TAS2770 digital amplifier
+.It Xr tcpci 4
+USB Type-C Port Controller Interface
+.It Xr tda 4
+Philips TDA8444 fan controller
+.It Xr thmc 4
+TI THMC50, Analog ADM1022/1028 temperature sensor
+.It Xr tipd 4
+TI USB Type-C power delivery controller
+.It Xr tipmic 4
+Intel Dollar Cove TI Power Management IC
+.It Xr titmp 4
+TI TMP451 temperature sensor
+.It Xr tsl 4
+TAOS TSL2560/61 light sensor
+.It Xr wbenv 4
+Winbond W83L784R/W83L785R/W83L785TS-L temperature, voltage, and fan sensor
+.It Xr wbng 4
+Winbond W83793G temperature, voltage, and fan sensor
+.El
+.Sh SEE ALSO
+.Xr iicmux 4 ,
+.Xr intro 4 ,
+.Xr iic 9
+.Sh HISTORY
+The I2C framework first appeared in
+.Nx 2.0 .
+.Ox
+support was added in
+.Ox 3.6 .
+I2C bus scanning was added in
+.Ox 3.9 .
+.Sh AUTHORS
+The I2C framework was written by
+.An Steve C. Woodford
+and
+.An Jason R. Thorpe
+for
+.Nx
+and then ported to
+.Ox
+by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

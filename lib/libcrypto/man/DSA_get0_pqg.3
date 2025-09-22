@@ -1,0 +1,321 @@
+.\" $OpenBSD: DSA_get0_pqg.3,v 1.13 2025/06/13 18:34:00 schwarze Exp $
+.\" full merge up to: OpenSSL e90fc053 Jul 15 09:39:45 2017 -0400
+.\"
+.\" This file was written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt DSA_GET0_PQG 3
+.Os
+.Sh NAME
+.Nm DSA_get0_pqg ,
+.Nm DSA_get0_p ,
+.Nm DSA_get0_q ,
+.Nm DSA_get0_g ,
+.Nm DSA_set0_pqg ,
+.Nm DSA_get0_key ,
+.Nm DSA_get0_pub_key ,
+.Nm DSA_get0_priv_key ,
+.Nm DSA_set0_key ,
+.Nm DSA_clear_flags ,
+.Nm DSA_test_flags ,
+.Nm DSA_set_flags ,
+.Nm DSA_get0_engine
+.Nd get data from and set data in a DSA object
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/dsa.h
+.Ft void
+.Fo DSA_get0_pqg
+.Fa "const DSA *d"
+.Fa "const BIGNUM **p"
+.Fa "const BIGNUM **q"
+.Fa "const BIGNUM **g"
+.Fc
+.Ft const BIGNUM *
+.Fo DSA_get0_p
+.Fa "const DSA *d"
+.Fc
+.Ft const BIGNUM *
+.Fo DSA_get0_q
+.Fa "const DSA *d"
+.Fc
+.Ft const BIGNUM *
+.Fo DSA_get0_g
+.Fa "const DSA *d"
+.Fc
+.Ft int
+.Fo DSA_set0_pqg
+.Fa "DSA *d"
+.Fa "BIGNUM *p"
+.Fa "BIGNUM *q"
+.Fa "BIGNUM *g"
+.Fc
+.Ft void
+.Fo DSA_get0_key
+.Fa "const DSA *d"
+.Fa "const BIGNUM **pub_key"
+.Fa "const BIGNUM **priv_key"
+.Fc
+.Ft const BIGNUM *
+.Fo DSA_get0_pub_key
+.Fa "const DSA *d"
+.Fc
+.Ft const BIGNUM *
+.Fo DSA_get0_priv_key
+.Fa "const DSA *d"
+.Fc
+.Ft int
+.Fo DSA_set0_key
+.Fa "DSA *d"
+.Fa "BIGNUM *pub_key"
+.Fa "BIGNUM *priv_key"
+.Fc
+.Ft void
+.Fo DSA_clear_flags
+.Fa "DSA *d"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo DSA_test_flags
+.Fa "const DSA *d"
+.Fa "int flags"
+.Fc
+.Ft void
+.Fo DSA_set_flags
+.Fa "DSA *d"
+.Fa "int flags"
+.Fc
+.Ft ENGINE *
+.Fo DSA_get0_engine
+.Fa "DSA *d"
+.Fc
+.Sh DESCRIPTION
+A
+.Vt DSA
+object contains the parameters
+.Fa p ,
+.Fa q ,
+and
+.Fa g .
+It also contains a public key
+.Fa pub_key
+and an optional private key
+.Fa priv_key .
+.Pp
+The
+.Fa p ,
+.Fa q ,
+and
+.Fa g
+parameters can be obtained by calling
+.Fn DSA_get0_pqg .
+If the parameters have not yet been set, then
+.Pf * Fa p ,
+.Pf * Fa q ,
+and
+.Pf * Fa g
+are set to
+.Dv NULL .
+Otherwise, they are set to pointers to the internal representations
+of the values that should not be freed by the application.
+.Pp
+The
+.Fa p ,
+.Fa q ,
+and
+.Fa g
+values can be set by calling
+.Fn DSA_set0_pqg .
+Calling this function transfers the memory management of the values to
+.Fa d ,
+and therefore they should not be freed by the caller.
+.Pp
+The
+.Fn DSA_get0_key
+function stores pointers to the internal representations
+of the public key in
+.Pf * Fa pub_key
+and to the private key in
+.Pf * Fa priv_key .
+Either may be
+.Dv NULL
+if it has not yet been set.
+If the private key has been set, then the public key must be.
+.Pp
+The public and private key values can be set using
+.Fn DSA_set0_key .
+The public key must be
+.Pf non- Dv NULL
+the first time this function is called on a given
+.Vt DSA
+object.
+The private key may be
+.Dv NULL .
+On subsequent calls, either may be
+.Dv NULL ,
+which means the corresponding
+.Vt DSA
+field is left untouched.
+.Fn DSA_set0_key
+transfers the memory management of the key values to
+.Fa d ,
+and therefore they should not be freed by the caller.
+.Pp
+Values retrieved with
+.Fn DSA_get0_pqg
+and
+.Fn DSA_get0_key
+are owned by the
+.Vt DSA
+object and may therefore not be passed to
+.Fn DSA_set0_pqg
+or
+.Fn DSA_set0_key .
+If needed, duplicate the received values using
+.Xr BN_dup 3
+and pass the duplicates.
+.Pp
+Any of the values
+.Fa p ,
+.Fa q ,
+.Fa g ,
+.Fa pub_key ,
+and
+.Fa priv_key
+can also be retrieved separately by the corresponding functions
+.Fn DSA_get0_p ,
+.Fn DSA_get0_q ,
+.Fn DSA_get0_g ,
+.Fn DSA_get0_pub_key ,
+and
+.Fn DSA_get0_priv_key ,
+respectively.
+The pointers are owned by the
+.Vt DSA
+object.
+.Pp
+.Fn DSA_clear_flags
+clears the specified
+.Fa flags
+in
+.Fa d .
+.Fn DSA_test_flags
+tests the
+.Fa flags
+in
+.Fa d .
+.Fn DSA_set_flags
+sets the
+.Fa flags
+in
+.Fa d ;
+any flags already set remain set.
+For all three functions, multiple flags can be passed in one call,
+OR'ed together bitwise.
+.Sh RETURN VALUES
+.Fn DSA_get0_p ,
+.Fn DSA_get0_q ,
+.Fn DSA_get0_g ,
+.Fn DSA_get0_pub_key ,
+and
+.Fn DSA_get0_priv_key
+return a pointer owned by the
+.Vt DSA
+object if the corresponding value has been set,
+otherwise they return
+.Dv NULL .
+.Fn DSA_set0_pqg
+and
+.Fn DSA_set0_key
+return 1 on success or 0 on failure.
+.Pp
+.Fn DSA_test_flags
+returns those of the given
+.Fa flags
+currently set in
+.Fa d
+or 0 if none of the given
+.Fa flags
+are set.
+.Pp
+.Fn DSA_get0_engine
+always returns
+.Dv NULL .
+.Sh SEE ALSO
+.Xr DSA_do_sign 3 ,
+.Xr DSA_dup_DH 3 ,
+.Xr DSA_generate_key 3 ,
+.Xr DSA_generate_parameters_ex 3 ,
+.Xr DSA_new 3 ,
+.Xr DSA_print 3 ,
+.Xr DSA_security_bits 3 ,
+.Xr DSA_sign 3 ,
+.Xr DSA_size 3
+.Sh HISTORY
+.Fn DSA_get0_pqg ,
+.Fn DSA_set0_pqg ,
+.Fn DSA_get0_key ,
+.Fn DSA_set0_key ,
+.Fn DSA_clear_flags ,
+.Fn DSA_test_flags ,
+.Fn DSA_set_flags ,
+and
+.Fn DSA_get0_engine
+first appeared in OpenSSL 1.1.0
+and have been available since
+.Ox 6.3 .
+.Pp
+.Fn DSA_get0_p ,
+.Fn DSA_get0_q ,
+.Fn DSA_get0_g ,
+.Fn DSA_get0_pub_key ,
+and
+.Fn DSA_get0_priv_key
+first appeared in OpenSSL 1.1.1
+and have been available since
+.Ox 7.1 .

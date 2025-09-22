@@ -1,0 +1,11 @@
+#!/bin/ksh
+#
+# $OpenBSD: ftpproxy6,v 1.2 2018/01/11 19:52:12 rpe Exp $
+
+daemon="/usr/sbin/ftp-proxy -6"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=NO
+
+rc_cmd $1

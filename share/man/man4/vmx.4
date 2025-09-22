@@ -1,0 +1,116 @@
+.\"	$OpenBSD: vmx.4,v 1.2 2017/10/17 22:47:58 schwarze Exp $
+.\"
+.\" Copyright (c) 2006,2013 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 17 2017 $
+.Dt VMX 4
+.Os
+.Sh NAME
+.Nm vmx
+.Nd VMware VMXNET3 Virtual Interface Controller device
+.Sh SYNOPSIS
+.Cd vmx* at pci?
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the VMXNET3 virtual NIC available in virtual
+machines by VMware.
+It appears as a simple Ethernet device but is actually a virtual network
+interface to the underlying host operating system.
+.Pp
+This driver supports the
+.Ic VMXNET3
+driver protocol, as an alternative to the emulated
+.Xr pcn 4 ,
+.Xr em 4
+and the earlier VMXNET
+.Xr vic 4
+interfaces also available in the VMware environment.
+The
+.Nm vmx
+driver is optimized for the virtual machine, it can provide advanced
+capabilities depending on the underlying host operating system and
+the physical network interface controller of the host.
+In comparison to the earlier VMXNET versions,
+as supported by the
+.Xr vic 4
+driver,
+VMXNET3 supports additional features like multiqueue support, IPv6
+checksum offloading, MSI/MSI-X support and hardware VLAN tagging in
+VMware's VLAN Guest Tagging (VGT) mode.
+.Pp
+The
+.Nm
+driver supports VMXNET3 VMware virtual NICs provided by the virtual
+machine hardware version 7 or newer, as provided by the following
+products:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+VMware ESX/ESXi 4.0 and newer
+.It
+VMware Server 2.0 and newer
+.It
+VMware Workstation 6.5 and newer
+.It
+VMware Fusion 2.0 and newer
+.El
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width autoselect
+.It autoselect
+Enable autoselection of the media type and options.
+The driver always uses the fastest available speed and the media
+options provided by the underlying host of the virtual machine.
+.It 10GbaseT mediaopt full-duplex
+Set 10Gbps operation.
+.It 1000baseT mediaopt full-duplex
+Set 1000Mbps operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh EXAMPLES
+The following entry must be added to the VMware configuration file
+to provide the
+.Nm
+device:
+.Bd -literal -offset indent
+ethernet0.virtualDev = "vmxnet3"
+.Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr em 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr pcn 4 ,
+.Xr vic 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Tsubai Masanari .

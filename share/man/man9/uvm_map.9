@@ -1,0 +1,331 @@
+.\"	$OpenBSD: uvm_map.9,v 1.3 2022/12/09 21:19:53 jmc Exp $
+.\"	$NetBSD: uvm.9,v 1.14 2000/06/29 06:08:44 mrg Exp $
+.\"
+.\" Copyright (c) 1998 Matthew R. Green
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 9 2022 $
+.Dt UVM_MAP 9
+.Os
+.Sh NAME
+.Nm uvm_map ,
+.Nm uvm_map_pageable ,
+.Nm uvm_map_pageable_all ,
+.Nm uvm_map_checkprot ,
+.Nm uvm_map_protect ,
+.Nm uvmspace_alloc ,
+.Nm uvmspace_exec ,
+.Nm uvmspace_fork ,
+.Nm uvmspace_free ,
+.Nm uvmspace_share ,
+.Nm uvm_uarea_alloc ,
+.Nm uvm_uarea_free ,
+.Nm UVM_MAPFLAG
+.Nd virtual address space management interface
+.Sh SYNOPSIS
+.In sys/param.h
+.In uvm/uvm.h
+.Ft int
+.Fn uvm_map "vm_map_t map" "vaddr_t *startp" "vsize_t size" "struct uvm_object *uobj" "voff_t uoffset" "vsize_t alignment" "unsigned int flags"
+.Ft int
+.Fn uvm_map_pageable "vm_map_t map" "vaddr_t start" "vaddr_t end" "boolean_t new_pageable" "int lockflags"
+.Ft int
+.Fn uvm_map_pageable_all "vm_map_t map" "int flags" "vsize_t limit"
+.Ft boolean_t
+.Fn uvm_map_checkprot "vm_map_t map" "vaddr_t start" "vaddr_t end" "vm_prot_t protection"
+.Ft int
+.Fn uvm_map_protect "vm_map_t map" "vaddr_t start" "vaddr_t end" "vm_prot_t new_prot" "int et" "boolean_t set_max" "boolean_t checkimmutable"
+.Ft struct vmspace *
+.Fn uvmspace_alloc "vaddr_t min" "vaddr_t max" "boolean_t pageable" "boolean_t remove_holes"
+.Ft void
+.Fn uvmspace_exec "struct proc *p" "vaddr_t start" "vaddr_t end"
+.Ft struct vmspace *
+.Fn uvmspace_fork "struct process *pr"
+.Ft void
+.Fn uvmspace_free "struct vmspace *vm"
+.Ft struct vmspace *
+.Fn uvmspace_share "struct process *pr"
+.Ft vaddr_t
+.Fn uvm_uarea_alloc "void"
+.Ft void
+.Fn uvm_uarea_free "struct proc *p"
+.Ft unsigned int
+.Fn UVM_MAPFLAG "vm_prot_t prot" "vm_prot_t maxprot" "vm_inherit_t inh" "int advice" "int flags"
+.Sh DESCRIPTION
+The
+.Fn uvm_map
+function establishes a valid mapping in map
+.Fa map ,
+which must be unlocked.
+The new mapping has size
+.Fa size ,
+which must be in
+.Dv PAGE_SIZE
+units.
+If
+.Fa alignment
+is non-zero, it describes the required alignment of the list, in
+power-of-two notation.
+The
+.Fa uobj
+and
+.Fa uoffset
+arguments can have four meanings.
+When
+.Fa uobj
+is
+.Dv NULL
+and
+.Fa uoffset
+is
+.Dv UVM_UNKNOWN_OFFSET ,
+.Fn uvm_map
+does not use the machine-dependent
+.Dv PMAP_PREFER
+function.
+If
+.Fa uoffset
+is any other value, it is used as the hint to
+.Dv PMAP_PREFER .
+When
+.Fa uobj
+is not
+.Dv NULL
+and
+.Fa uoffset
+is
+.Dv UVM_UNKNOWN_OFFSET ,
+.Fn uvm_map
+finds the offset based upon the virtual address, passed as
+.Fa startp .
+If
+.Fa uoffset
+is any other value, we are doing a normal mapping at this offset.
+The start address of the map will be returned in
+.Fa startp .
+.Pp
+.Fa flags
+passed to
+.Fn uvm_map
+are typically created using the
+.Fn UVM_MAPFLAG
+macro, which uses the following values.
+The
+.Fa prot
+and
+.Fa maxprot
+can take a mix of the following values:
+.Bd -literal
+#define PROT_MASK   0x07    /* protection mask */
+#define PROT_NONE   0x00    /* protection none */
+#define PROT_READ   0x01    /* read */
+#define PROT_WRITE  0x02    /* write */
+#define PROT_EXEC   0x04    /* exec */
+.Ed
+.Pp
+The values that
+.Fa inh
+can take are:
+.Bd -literal
+#define MAP_INHERIT_MASK    0x30    /* inherit mask */
+#define MAP_INHERIT_SHARE   0x00    /* "share" */
+#define MAP_INHERIT_COPY    0x10    /* "copy" */
+#define MAP_INHERIT_NONE    0x20    /* "none" */
+#define MAP_INHERIT_ZERO    0x30    /* "zero" */
+.Ed
+.Pp
+The values that
+.Fa advice
+can take are:
+.Bd -literal
+#define MADV_NORMAL  0x0     /* 'normal' */
+#define MADV_RANDOM  0x1     /* 'random' */
+#define MADV_SEQUENTIAL 0x2  /* 'sequential' */
+#define MADV_MASK    0x7     /* mask */
+.Ed
+.Pp
+The values that
+.Fa flags
+can take are:
+.Bd -literal
+#define UVM_FLAG_FIXED   0x0010000 /* find space */
+#define UVM_FLAG_OVERLAY 0x0020000 /* establish overlay */
+#define UVM_FLAG_NOMERGE 0x0040000 /* don't merge map entries */
+#define UVM_FLAG_COPYONW 0x0080000 /* set copy_on_write flag */
+#define UVM_FLAG_TRYLOCK 0x0100000 /* fail if we can not lock map */
+#define UVM_FLAG_HOLE    0x0200000 /* no backend */
+#define UVM_FLAG_QUERY   0x0400000 /* do everything,
+                                      except actual execution */
+#define UVM_FLAG_NOFAULT 0x0800000 /* don't fault */
+#define UVM_FLAG_UNMAP   0x1000000 /* unmap to make space */
+#define UVM_FLAG_STACK   0x2000000 /* page may contain a stack */
+.Ed
+.Pp
+The
+.Dv UVM_MAPFLAG
+macro arguments can be combined with an or operator.
+There are also some additional macros to extract bits from the flags.
+The
+.Dv UVM_PROTECTION ,
+.Dv UVM_INHERIT ,
+.Dv UVM_MAXPROTECTION
+and
+.Dv UVM_ADVICE
+macros return the protection, inheritance, maximum protection and advice,
+respectively.
+.Fn uvm_map
+returns a standard errno.
+.Pp
+The
+.Fn uvm_map_pageable
+function changes the pageability of the pages in the range from
+.Fa start
+to
+.Fa end
+in map
+.Fa map
+to
+.Fa new_pageable .
+The
+.Fn uvm_map_pageable_all
+function changes the pageability of all mapped regions.
+If
+.Fa limit
+is non-zero and
+.Fn pmap_wired_count
+is implemented,
+.Dv ENOMEM
+is returned if the amount of wired pages exceed
+.Fa limit .
+The map is locked on entry if
+.Fa lockflags
+contain
+.Dv UVM_LK_ENTER ,
+and locked on exit if
+.Fa lockflags
+contain
+.Dv UVM_LK_EXIT .
+.Fn uvm_map_pageable
+and
+.Fn uvm_map_pageable_all
+return a standard errno.
+.Pp
+The
+.Fn uvm_map_checkprot
+function checks the protection of the range from
+.Fa start
+to
+.Fa end
+in map
+.Fa map
+against
+.Fa protection .
+This returns either
+.Dv TRUE
+or
+.Dv FALSE .
+.Pp
+The
+.Fn uvm_map_protect
+function changes the protection
+.Fa start
+to
+.Fa end
+in map
+.Fa map
+to
+.Fa new_prot ,
+also setting the maximum protection to the region to
+.Fa new_prot
+if
+.Fa set_max
+is non-zero.
+The
+.Fa et
+parameter should be 0, unless a
+.Dv PROT_READ | PROT_WRITE
+mapping is being changed to extend the stack limit, then it may be
+.Dv UVM_ET_STACK .
+This function returns a standard errno.
+.Pp
+The
+.Fn uvmspace_alloc
+function allocates and returns a new address space, with ranges from
+.Fa min
+to
+.Fa max ,
+setting the pageability of the address space to
+.Fa pageable .
+If
+.Fa remove_holes
+is non-zero, hardware
+.Sq holes
+in the virtual address space will be removed from the newly allocated
+address space.
+.Pp
+The
+.Fn uvmspace_exec
+function either reuses the address space of process
+.Fa p
+if there are no other references to it, or creates
+a new one with
+.Fn uvmspace_alloc .
+The range of valid addresses in the address space is reset to
+.Fa start
+through
+.Fa end .
+.Pp
+The
+.Fn uvmspace_fork
+function creates and returns a new address space based upon the
+address space of process
+.Fa pr
+and is typically used when allocating an address space for a
+child process.
+.Pp
+The
+.Fn uvmspace_free
+function lowers the reference count on the address space
+.Fa vm ,
+freeing the data structures if there are no other references.
+.Pp
+The
+.Fn uvmspace_share
+function returns a reference to the address space of process
+.Fa pr ,
+increasing its reference count.
+.Pp
+The
+.Fn uvm_uarea_alloc
+function allocates a thread's
+.Sq uarea ,
+the memory where its kernel stack and PCB are stored.
+The
+.Fn uvm_uarea_free
+function frees the uarea for
+thread
+.Fa p ,
+which must no longer be running.
+.Sh SEE ALSO
+.Xr pmap 9

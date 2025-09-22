@@ -1,0 +1,49 @@
+.\"	$OpenBSD: mtxhci.4,v 1.1 2025/03/25 04:21:07 hastings Exp $
+.\"
+.\" Copyright (c) 2025 James Hastings <hastings@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 25 2025 $
+.Dt MTXHCI 4
+.Os
+.Sh NAME
+.Nm mtxhci
+.Nd MediaTek USB xHCI controller
+.Sh SYNOPSIS
+.Cd "mtxhci* at fdt?"
+.Cd "usb*    at mtxhci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver controls the interface logic and supports
+the USB eXtensible Host Controller Interface
+integrated on MediaTek SoCs.
+.Pp
+It provides an interface to
+.Xr usb 4
+devices and supports all USB 3.0, 2.0 and 1.x device speeds.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 7.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An James Hastings Aq Mt hastings@openbsd.org .

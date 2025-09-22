@@ -1,0 +1,9 @@
+dnl	$OpenBSD: hardware,v 1.4 2023/03/16 18:04:08 miod Exp $
+The following machines are supported by OpenBSD/MACHINE:
+
+	SiFive HiFive Unmatched
+
+The following systems are being worked on and partially supported:
+
+	Microsemi PolarFire SoC Icicle Kit
+	StarFive VisionFive

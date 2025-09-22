@@ -1,0 +1,135 @@
+.\"	$OpenBSD: nanosleep.2,v 1.19 2022/03/31 17:27:16 naddy Exp $
+.\"	$NetBSD: nanosleep.2,v 1.1 1997/04/17 18:12:02 jtc Exp $
+.\"
+.\" Copyright (c) 1986, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)sleep.3	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt NANOSLEEP 2
+.Os
+.Sh NAME
+.Nm nanosleep
+.Nd high resolution sleep
+.Sh SYNOPSIS
+.In time.h
+.Ft int
+.Fn nanosleep "const struct timespec *timeout" "struct timespec *remainder"
+.Sh DESCRIPTION
+The
+.Fn nanosleep
+function suspends execution of the calling thread for at least the given
+.Fa timeout .
+Delivery of an unmasked signal terminates this sleep early,
+even if
+.Dv SA_RESTART
+is set with
+.Xr sigaction 2
+for the interrupting signal.
+.Sh RETURN VALUES
+If
+.Fn nanosleep
+sleeps the full
+.Fa timeout
+without interruption, it returns 0.
+Unless
+.Fa remainder
+is
+.Dv NULL ,
+it is set to zero.
+.Pp
+If
+.Fn nanosleep
+is interrupted by a signal, it returns \-1 and the global variable
+.Va errno
+is set to
+.Dv EINTR .
+Unless
+.Fa remainder
+is
+.Dv NULL ,
+it is set to the unslept portion of the
+.Fa timeout .
+.Pp
+Otherwise,
+.Fn nanosleep
+returns \-1 and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn nanosleep
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINTR
+The call is interrupted by the delivery of a signal.
+.It Bq Er EINVAL
+.Fa timeout
+specifies a nanosecond value less than zero or greater than or equal to
+one billion,
+or a second value less than zero.
+.It Bq Er EFAULT
+.Fa timeout
+points to memory that is not a valid part of the process address space.
+.It Bq Er EFAULT
+.Fa remainder
+is not
+.Dv NULL
+and points to memory that is not a valid part of the process address space.
+.El
+.Sh SEE ALSO
+.Xr sleep 1 ,
+.Xr sigaction 2 ,
+.Xr sleep 3
+.Sh STANDARDS
+The
+.Fn nanosleep
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The predecessor of this system call,
+.Fn sleep ,
+first appeared in
+.At v2 .
+It was removed in
+.At v7
+and replaced with a C library implementation based on
+.Xr alarm 3
+and
+.Xr signal 3 .
+.Pp
+The
+.Fn nanosleep
+function first appeared in
+.St -p1003.1b-93 .
+.Pp
+This implementation of
+.Fn nanosleep
+first appeared in
+.Nx 1.3
+and was ported to
+.Ox 2.1 .

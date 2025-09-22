@@ -1,0 +1,49 @@
+.\"	$OpenBSD: port-search-helper.1,v 1.3 2018/11/30 18:40:57 danj Exp $
+.\"
+.\" Copyright (c) 2010 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 30 2018 $
+.Dt PORT-SEARCH-HELPER 1
+.Os
+.Sh NAME
+.Nm port-search-helper
+.Nd find index entry in ports index according to selected criteria
+.Sh SYNOPSIS
+.Nm
+.Cm index Ns = Ns Ar file
+.Op Cm category Ns = Ns Ar cat
+.Op Cm maintainer Ns = Ns Ar person
+.Op Cm key Ns = Ns Ar value
+.Sh DESCRIPTION
+.Nm
+scans index file
+.Ar file
+for index entry (or entries) according to selected criteria,
+such as category, maintainer name or actual name.
+.Pp
+Matching is done using perl regular expressions, and corresponding entries
+get printed as a list on a single line on standard output.
+.Nm
+is a helper script used by
+.Pa ${PORTSDIR}/Makefile
+for searches.
+.Pp
+It relies on
+.Pa ${LOCALBASE}/share/ports-INDEX
+being accurate.
+Note the portslist package must be installed.
+.Sh SEE ALSO
+.Xr perlre 1 ,
+.Xr ports 7

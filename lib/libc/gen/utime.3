@@ -1,0 +1,145 @@
+.\"	$OpenBSD: utime.3,v 1.23 2022/09/11 06:38:10 jmc Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt UTIME 3
+.Os
+.Sh NAME
+.Nm utime
+.Nd set file times
+.Sh SYNOPSIS
+.In sys/types.h
+.In utime.h
+.Ft int
+.Fn utime "const char *file" "const struct utimbuf *timep"
+.Sh DESCRIPTION
+.Bf -symbolic
+This interface is obsoleted by
+.Xr utimes 2 .
+.Ef
+.Pp
+The
+.Fn utime
+function sets the access and modification times of the named file.
+.Pp
+If
+.Fa timep
+is
+.Dv NULL ,
+the access and modification times are set to the current time.
+The calling process must be the owner of the file or have permission to
+write the file.
+.Pp
+If
+.Fa timep
+is non-null, it specifies a pointer to a
+.Vt utimbuf
+structure, as defined in
+.In utime.h :
+.Bd -literal -offset indent
+struct utimbuf {
+	time_t actime;		/* Access time */
+	time_t modtime;		/* Modification time */
+};
+.Ed
+.Pp
+The access time is set to the value of the
+.Fa actime
+member, and the modification
+time is set to the value of the
+.Fa modtime
+member.
+The times are measured in
+seconds since 0 hours, 0 minutes, 0 seconds, January 1, 1970, Coordinated
+Universal Time (UTC).
+The calling process must be the owner of the file or be the superuser.
+.Pp
+In either case, the inode change-time of the file is set to the current
+time.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn utime
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix;
+or the
+.Fa timep
+argument is
+.Dv NULL
+and the effective user ID of the process does not
+match the owner of the file, the effective user ID is not that of the
+superuser,
+and write access is denied.
+.It Bq Er EFAULT
+.Fa file
+or
+.Fa timep
+points outside the process's allocated address space.
+.It Bq Er EINVAL
+The pathname contains a character with the high-order bit set.
+.It Bq Er EIO
+An I/O error occurred while reading or writing the affected inode.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Dv NAME_MAX
+characters, or an entire pathname (including the terminating NUL)
+exceeded
+.Dv PATH_MAX
+bytes.
+.It Bq Er ENOENT
+The named file does not exist.
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er EPERM
+The
+.Fa timep
+argument is not
+.Dv NULL
+and the calling process's effective user ID
+does not match the owner of the file and is not the superuser.
+.It Bq Er EROFS
+The file system containing the file is mounted read-only.
+.El
+.Sh SEE ALSO
+.Xr stat 2 ,
+.Xr utimes 2
+.Sh STANDARDS
+The
+.Fn utime
+function conforms to
+.St -p1003.1-88 .
+.Sh HISTORY
+A
+.Fn utime
+function appeared in
+.At v7 .

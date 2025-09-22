@@ -1,0 +1,228 @@
+.\" $OpenBSD: intro.4,v 1.25 2022/03/31 17:27:21 naddy Exp $
+.\"
+.\" Copyright (c) 2002,2003 Paul Weissmann
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Copyright (c) 1983, 1986, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt INTRO 4 hppa
+.Os
+.Sh NAME
+.Nm intro
+.Nd introduction to special files and hardware support
+.Sh DESCRIPTION
+This section describes the special files, related driver functions,
+and networking support available in the system.
+In this part of the manual,
+the SYNOPSIS section of each configurable device gives a sample specification
+for use in constructing a system description for the
+.Xr config 8
+program.
+The DIAGNOSTICS section lists messages which may appear on the console
+and/or in the system error log
+.Pa /var/log/messages
+due to errors in device operation; see
+.Xr syslogd 8
+for more information.
+.Pp
+This section contains both devices which may be configured into the system
+and network related information.
+The networking support is introduced in
+.Xr netintro 4 .
+.Sh DEVICE SUPPORT
+This section describes the hardware supported on the
+.Tn HP PA-RISC
+platform.
+Software support for these devices comes in two forms.
+A hardware device may be supported with a character or block
+.Em device driver ,
+or it may be used within the networking subsystem and have a
+.Em network interface driver .
+Character and block devices are accessed through files in the file
+system of a special type; see
+.Xr mknod 8 .
+Network interfaces are indirectly accessed through the interprocess
+communication facilities provided by the system; see
+.Xr socket 2 .
+.Pp
+A hardware device is identified to the system at configuration time
+and the appropriate device or network interface driver is then compiled
+into the system.
+When the resultant system is booted, the autoconfiguration facilities
+in the system probe for the device and, if found,
+enable the software support for it.
+If a device does not respond at autoconfiguration
+time, it is not accessible at any time afterwards.
+To enable a device which did not autoconfigure, the system must be rebooted.
+.Pp
+The autoconfiguration system is described in
+.Xr autoconf 4 .
+.Sh SUPPORTED SYSTEMS
+A list of
+.Tn HP 9000/700
+models targeted for support is listed below, including basic
+system characteristics.
+.Bl -column "J210XC" "200" "7300LC" "64/64(+1MB)" "Expansion" -offset left
+.It Sy "Model" Ta Sy "MHz" Ta Sy "CPU" Ta Sy "Caches, KB" Ta Sy "Expansion"
+.It "705" Ta "35" Ta "7000" Ta "32/64" Ta "N/A"
+.It "710" Ta "50" Ta "7000" Ta "32/64" Ta "N/A"
+.It "720" Ta "50" Ta "7000" Ta "128/256" Ta "EISA, GSC"
+.It "730" Ta "66" Ta "7000" Ta "128/256" Ta "EISA, GSC"
+.It "750" Ta "66" Ta "7000" Ta "256/256" Ta "4 EISA, 2 SGC"
+.It "715" Ta "33" Ta "7100" Ta "64/64" Ta "EISA/SGC"
+.It "715" Ta "50" Ta "7100" Ta "64/64" Ta "EISA/SGC"
+.It "715" Ta "75" Ta "7100" Ta "256/256" Ta "EISA/SGC"
+.It "725" Ta "50" Ta "7100" Ta "64/64" Ta "3 EISA, EISA/SGC"
+.It "725" Ta "75" Ta "7100" Ta "256/256" Ta "3 EISA, EISA/SGC"
+.It "735" Ta "100" Ta "7100" Ta "256/256" Ta "EISA, SGC"
+.It "742i" Ta "50" Ta "7100" Ta "64/64" Ta "N/A"
+.It "745i" Ta "50" Ta "7100" Ta "64/64" Ta "4 EISA"
+.It "745i" Ta "100" Ta "7100" Ta "256/256" Ta "4 EISA"
+.It "747i" Ta "50" Ta "7100" Ta "64/64" Ta "2 EISA, SGC, 6 VME"
+.It "747i" Ta "100" Ta "7100" Ta "256/256" Ta "2 EISA, SGC, 6 VME"
+.It "755" Ta "100" Ta "7100" Ta "256/256" Ta "4 EISA, 2 SGC"
+.It "735" Ta "125" Ta "7150" Ta "256/256" Ta "EISA, SGC"
+.It "755" Ta "125" Ta "7150" Ta "256/256" Ta "4 EISA, 2 SGC"
+.It "712" Ta "60" Ta "7100LC" Ta "32/32" Ta "GIO, TSIO"
+.It "712" Ta "80" Ta "7100LC" Ta "128/128" Ta "GIO, TSIO"
+.It "712" Ta "100" Ta "7100LC" Ta "128/128" Ta "GIO, TSIO"
+.It "715" Ta "64" Ta "7100LC" Ta "128/128" Ta "EISA/GSC"
+.It "715" Ta "80" Ta "7100LC" Ta "128/128" Ta "EISA/GSC"
+.It "715" Ta "100" Ta "7100LC" Ta "128/128" Ta "EISA/GSC"
+.It "715XC" Ta "100" Ta "7100LC" Ta "512/512" Ta "EISA/GSC"
+.It "725" Ta "64" Ta "7100LC" Ta "128/128" Ta "EISA, 3 EISA/GSC"
+.It "725" Ta "100" Ta "7100LC" Ta "128/128" Ta "EISA, 3 EISA/GSC"
+.It "743i" Ta "64" Ta "7100LC" Ta "128/128" Ta "2 GSC-M/2(4), VME"
+.It "743i" Ta "100" Ta "7100LC" Ta "128/128" Ta "2 GSC-M/2(4), VME"
+.It "748i" Ta "64" Ta "7100LC" Ta "128/128" Ta "2 GSC-M/2(4), 4 EISA/PCI, 6 VME"
+.It "748i" Ta "100" Ta "7100LC" Ta "128/128" Ta "2 GSC-M/2(4), 4 EISA/PCI, 6 VME"
+.It "SAIC" Ta "60" Ta "7100LC" Ta "32/32" Ta "GIO, TSIO, 2 PCMCIA"
+.It "SAIC" Ta "80" Ta "7100LC" Ta "128/128" Ta "GIO, TSIO, 2 PCMCIA"
+.It "J200" Ta "100" Ta "7200" Ta "256/256" Ta "GSC, 2 EISA, 2 EISA/GSC"
+.It "J210" Ta "120" Ta "7200" Ta "256/256" Ta "GSC, 2 EISA, 2 EISA/GSC"
+.It "J210XC" Ta "120" Ta "7200" Ta "1MB/1MB" Ta "GSC, 2 EISA, 2 EISA/GSC"
+.It "C100" Ta "100" Ta "7200" Ta "256/256" Ta "GSC, 3 EISA/GSC"
+.It "C110" Ta "120" Ta "7200" Ta "256/256" Ta "GSC, 3 EISA/GSC"
+.It "744" Ta "132" Ta "7300LC" Ta "64/64" Ta "2 GSC-M/2(4), VME"
+.It "744" Ta "165" Ta "7300LC" Ta "64/64+512" Ta "2 GSC-M/2(4), VME"
+.It "745" Ta "132" Ta "7300LC" Ta "64/64" Ta "2 GSC-M/2(4), 4 EISA/PCI"
+.It "745" Ta "165" Ta "7300LC" Ta "64/64+512" Ta "2 GSC-M/2(4), 4 EISA/PCI"
+.It "748" Ta "132" Ta "7300LC" Ta "64/64" Ta "2 GSC-M/2(4), 4 EISA/PCI, 6 VME"
+.It "748" Ta "165" Ta "7300LC" Ta "64/64+512" Ta "2 GSC-M/2(4), 4 EISA/PCI, 6 VME"
+.It "A180" Ta "180" Ta "7300LC" Ta "64/64" Ta "2 HSC/PCI"
+.It "A180C" Ta "180" Ta "7300LC" Ta "64/64+1MB" Ta "2 HSC/PCI"
+.It "B132L" Ta "132" Ta "7300LC" Ta "64/64(+1MB)" Ta "GSC/PCI, GSC/PCI/EISA"
+.It "B132L+" Ta "132" Ta "7300LC" Ta "64/64(+1MB)" Ta "GSC/PCI, GSC/PCI/EISA"
+.It "B160L" Ta "160" Ta "7300LC" Ta "64/64(+1MB)" Ta "GSC/PCI, GSC/PCI/EISA"
+.It "B180L+" Ta "180" Ta "7300LC" Ta "64/64(+1MB)" Ta "GSC/PCI, GSC/PCI/EISA"
+.It "C132L" Ta "132" Ta "7300LC" Ta "64/64(+1MB)" Ta "2 GSC/PCI/EISA, 2 GSC/EISA"
+.It "C160L" Ta "160" Ta "7300LC" Ta "64/64(+1MB)" Ta "2 GSC/PCI/EISA, 2 GSC/EISA"
+.It "RDI" Ta "132" Ta "7300LC" Ta "64/64(+1MB)" Ta "2 CardBus"
+.It "RDI" Ta "160" Ta "7300LC" Ta "64/64(+1MB)" Ta "2 CardBus"
+.It "RDI"  Ta "180" Ta "7300LC" Ta "64/64(+1MB)" Ta "2 CardBus"
+.It "C160" Ta "160" Ta "8000" Ta "512/512" Ta "2 GSC/PCI/EISA, 2 GSC/EISA"
+.It "C180" Ta "180" Ta "8000" Ta "1024/1024" Ta "2 GSC/PCI/EISA, 2 GSC/EISA"
+.It "J280" Ta "180" Ta "8000" Ta "1024/1024" Ta "3 GSC/PCI, PCI, PCI/EISA"
+.It "J282" Ta "180" Ta "8000" Ta "1024/1024" Ta "3 GSC/PCI, PCI, PCI/EISA"
+.It "C200" Ta "200" Ta "8200" Ta "512/1024" Ta "GSC/PCI/EISA, 3 GSC/PCI"
+.It "C240" Ta "240" Ta "8200" Ta "2048/2048" Ta "GSC/PCI/EISA, 3 GSC/PCI"
+.It "J2240" Ta "240" Ta "8200" Ta "2048/2048" Ta "3 GSC/PCI, PCI, PCI/EISA"
+.It "B1000" Ta "300" Ta "8500" Ta "512/1024" Ta "6 PCI"
+.It "C360" Ta "360" Ta "8500" Ta "512/1024" Ta "GSC/PCI/EISA, 3 GSC/PCI"
+.It "B2000" Ta "400" Ta "8500" Ta "512/1024" Ta "4 PCI"
+.It "C3000" Ta "400" Ta "8500" Ta "512/1024" Ta "6 PCI"
+.It "J5000" Ta "440" Ta "8500" Ta "512/1024" Ta "7 PCI"
+.It "J7000" Ta "440" Ta "8500" Ta "512/1024" Ta "7 PCI"
+.It "B2600" Ta "500" Ta "8600" Ta "512/1024" Ta "4 PCI"
+.It "C3600" Ta "552" Ta "8600" Ta "512/1024" Ta "6 PCI"
+.It "J5600" Ta "552" Ta "8600" Ta "512/1024" Ta "7 PCI"
+.It "J6000" Ta "552" Ta "8600" Ta "512/1024" Ta "7 PCI"
+.It "J7600" Ta "552" Ta "8600" Ta "512/1024" Ta "7 PCI"
+.It "C3650" Ta "625" Ta "8700" Ta "768/1536" Ta "6 PCI"
+.It "C3700" Ta "750" Ta "8700" Ta "768/1536" Ta "6 PCI"
+.It "J6700" Ta "750" Ta "8700" Ta "768/1536" Ta "3 PCI"
+.It "C3750" Ta "875" Ta "8700+" Ta "768/1536" Ta "6 PCI"
+.It "J6750" Ta "875" Ta "8700+" Ta "768/1536" Ta "3 PCI"
+.El
+.Sh LIST OF DEVICES
+A complete list of available devices is contained within the pages
+describing the system buses and controllers.
+For example, a PCI device would be listed in the
+.Xr pci 4
+man page.
+The following buses and controllers list these devices:
+.Pp
+.Bl -tag -width "cardbus(4)XX" -offset ind -compact
+.It Xr cardbus 4
+introduction to CardBus support
+.It Xr gsc 4
+introduction to HP 9000/700 GSC bus support
+.It Xr hil 4
+introduction to HP-HIL support
+.It Xr onewire 4
+1-Wire bus
+.It Xr pci 4
+introduction to PCI bus support
+.It Xr pcmcia 4
+introduction to PCMCIA (PC Card) support
+.It Xr usb 4
+introduction to Universal Serial Bus support
+.El
+.Sh SEE ALSO
+.Xr autoconf 4 ,
+.Xr cpu 4 ,
+.Xr io 4 ,
+.Xr runway 4 ,
+.Xr config 8
+.Sh HISTORY
+The
+hppa
+.Nm
+first appeared with
+.Ox 3.1 .

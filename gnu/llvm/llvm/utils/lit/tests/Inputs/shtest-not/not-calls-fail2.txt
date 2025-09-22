@@ -1,0 +1,4 @@
+# Check that "not not" either returns 0 or 1, even if the original
+# program exited with a different code.
+
+# RUN: not not %{python} fail2.py

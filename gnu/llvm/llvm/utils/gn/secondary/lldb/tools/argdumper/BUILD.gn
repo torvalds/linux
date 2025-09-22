@@ -1,0 +1,7 @@
+executable("lldb-argdumper") {
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [ "//llvm/lib/Support" ]
+  sources = [ "argdumper.cpp" ]
+
+  # XXX ADD_TO_FRAMEWORK
+}

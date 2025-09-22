@@ -1,0 +1,19 @@
+import("//llvm/utils/gn/build/libs/zlib/enable.gni")
+
+config("zlib_config") {
+  visibility = [ ":zlib" ]
+  if (host_os == "win" && zlib_path != "") {
+    include_dirs = [ zlib_path ]
+    libs = [ "$zlib_path/zlib.lib" ]
+  } else {
+    libs = [ "z" ]
+  }
+}
+
+group("zlib") {
+  if (llvm_enable_zlib) {
+    assert(host_os != "win" || zlib_path != "",
+           "Please set zlib_path on Windows.")
+    public_configs = [ ":zlib_config" ]
+  }
+}

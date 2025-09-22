@@ -1,0 +1,308 @@
+.\"	$OpenBSD: st.4,v 1.22 2024/12/21 01:00:31 jsg Exp $
+.\"	$NetBSD: st.4,v 1.2 1996/10/20 23:15:24 explorer Exp $
+.\"
+.\" Copyright (c) 1996
+.\"     Julian Elischer <julian@freebsd.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 21 2024 $
+.Dt ST 4
+.Os
+.Sh NAME
+.Nm st
+.Nd SCSI tape driver
+.Sh SYNOPSIS
+.Cd "st* at scsibus?"
+.Cd "#st0 at scsibus0 target 4 lun 0" Pq fixed-configuration example
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for
+.Tn SCSI
+tape drives.
+.Pp
+.Tn SCSI
+devices have a relatively high level interface and talk to the system via a
+.Tn SCSI
+adapter and a
+.Tn SCSI
+adapter driver
+e.g.\&
+.Xr ahc 4 .
+The
+.Tn SCSI
+adapter must be separately configured into the system before a
+.Tn SCSI
+tape can be configured.
+.Pp
+As the
+.Tn SCSI
+adapter is probed during boot, the
+.Tn SCSI
+bus is scanned for devices.
+Any devices found which answer as
+.Em Sequential
+type devices will be attached to the
+.Nm
+driver.
+.Sh MOUNT SESSIONS
+The
+.Nm
+driver is based around the concept of a
+.Em mount session ,
+which is defined as the period between the time that a tape is
+mounted and the time when it is unmounted.
+Any parameters set during a mount session remain in effect for the remainder
+of the session or until replaced.
+The tape can be unmounted, bringing the session to a close in several ways.
+These include:
+.Bl -enum
+.It
+Closing an
+.Dq unmount device .
+.It
+Using the
+.Dv MTOFFL
+.Xr ioctl 2
+command, reachable through the
+.Cm offline
+command of
+.Xr mt 1 .
+.El
+.Sh EJECT and REWIND
+Bit 0 of the minor number specifies whether a rewind is attempted when the
+device is closed.
+When it is set, the device will not attempt a rewind on close
+and the device will have an
+.Sq n
+in its name.
+For example,
+.Pa /dev/rst0
+will rewind on close but
+.Pa /dev/nrst0
+will not.
+.Pp
+Bit 1 of the minor number specifies whether an eject is attempted when the
+device is closed.
+When it is set, the device will attempt to eject its media on close
+and the device will have an
+.Sq e
+in its name.
+For example,
+.Pa /dev/erst0
+will eject its media on close but
+.Pa /dev/rst0
+will not.
+.Pp
+If both bit 0 and bit 1 are set then an eject will
+be attempted without a rewind and the device will have both an
+.Sq e
+and an
+.Sq n
+in its name.
+For example,
+.Pa /dev/enrst0
+will eject its media without first rewinding it on close.
+.Pp
+There is no guarantee that the attempted eject or rewind will be supported
+by the actual hardware.
+.Sh BLOCKING MODES
+.Tn SCSI
+tapes may run in either
+.Em variable
+or
+.Em fixed
+block-size modes.
+Most
+.Tn QIC Ns -type
+devices run in fixed block-size mode, whereas most nine-track tapes
+and many new cartridge formats allow variable block-size.
+The difference between the two is as follows:
+.Bl -inset
+.It Variable block-size:
+Each write made to the device results in a single logical record
+written to the tape.
+One can never read or write
+.Em part
+of a record from tape (though you may request a larger block and
+read a smaller record); nor can one read multiple blocks.
+Data from a single write is therefore read by a single read.
+The block size used may be any value supported by the device, the
+.Tn SCSI
+adapter and the system (usually between 1 byte and 64 Kbytes,
+sometimes more).
+.Pp
+When reading a variable record/block from the tape, the head is
+logically considered to be immediately after the last item read,
+and before the next item after that.
+If the next item is a file mark, but it was never read, then the next
+process to read will immediately hit the file mark and receive an
+end-of-file notification.
+.It Fixed block-size
+data written by the user is passed to the tape as a succession of
+fixed size blocks.
+It may be contiguous in memory, but it is considered to be a series of
+independent blocks.
+One may never write an amount of data that is not an exact multiple of the
+blocksize.
+One may read and write the same data as a different set of records.
+In other words, blocks that were written together may be read separately,
+and vice-versa.
+.Pp
+If one requests more blocks than remain in the file, the drive will
+encounter the file mark.
+Because there is some data to return (unless there were no records before
+the file mark), the read will succeed, returning that data.
+The next read will return immediately with an
+.Dv EOF .
+(As above, if the file mark is never read, it remains for the next process
+to read if in no-rewind mode.)
+.El
+.Sh FILE MARK HANDLING
+The handling of file marks on write is automatic.
+If the user has written to the tape, and has not done a read since the last
+write, then a file mark will be written to the tape when the device is closed.
+If a rewind is requested after a write, then the driver
+assumes that the last file on the tape has been written, and ensures
+that there are two file marks written to the tape.
+The exception to this is that there seems to be a standard (which we follow,
+but don't understand why) that certain types of tape do not actually
+write two file marks to tape, but when read, report a
+.Dq phantom
+file mark when the last file is read.
+These devices include the QIC family of devices.
+(It might be that this set of devices is the same set as that of fixed.
+This has not yet been determined, and they are treated as separate
+behaviors by the driver at this time.)
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+calls apply to
+.Tn SCSI
+tapes.
+Some also apply to other tapes.
+They are defined in the header file
+.In sys/mtio.h .
+.\"
+.\" Almost all of this discussion belongs in a separate mt(4)
+.\" manual page, since it is common to all magnetic tapes.
+.\"
+.Bl -tag -width MTIOCEEOT
+.It Dv MTIOCGET Fa "struct mtget *"
+Retrieve the status and parameters of the tape.
+.It Dv MTIOCTOP "struct mtop *"
+Perform a multiplexed operation.
+The argument structure is as follows:
+.Bd -literal -offset indent
+struct mtop {
+	short	mt_op;
+	int	mt_count;
+};
+.Ed
+.Pp
+The following operation values are defined for
+.Va mt_op :
+.Bl -tag -width MTSELDNSTY
+.It Dv MTWEOF
+Write
+.Va mt_count
+end of file marks at the present head position.
+.It Dv MTFSF
+Skip over
+.Va mt_count
+file marks.
+Leave the head on the EOM side of the last skipped file mark.
+.It Dv MTBSF
+Skip
+.Em backwards
+over
+.Va mt_count
+file marks.
+Leave the head on the BOM (beginning of media) side of the last skipped
+file mark.
+.It Dv MTFSR
+Skip forwards over
+.Va mt_count
+records.
+.It Dv MTBSR
+Skip backwards over
+.Va mt_count
+records.
+.It Dv MTREW
+Rewind the device to the beginning of the media.
+.It Dv MTOFFL
+Rewind the media (and, if possible, eject).
+Even if the device cannot eject the media, it will often no longer respond
+to normal requests.
+.It Dv MTNOP
+No-op; set status only.
+.It Dv MTCACHE
+Enable controller buffering.
+.It Dv MTNOCACHE
+Disable controller buffering.
+.It Dv MTSETBSIZ
+Set the blocksize to use for the device/mode.
+If the device is capable of variable blocksize operation, and the blocksize
+is set to 0, then the drive will be driven in variable mode.
+This parameter is in effect for the present mount session only.
+.It Dv MTSETDNSTY
+Set the density value (see
+.Xr mt 1 )
+to use when running in the mode opened (minor bits 2 and 3).
+This parameter is in effect for the present
+mount session only.
+.El
+.It Dv MTIOCIEOT
+Set end-of-tape processing (not presently supported for
+.Nm
+devices).
+.It Dv MTIOCEEOT
+Set end-of-tape processing (not presently supported for
+.Nm
+devices).
+.El
+.Sh FILES
+.Bl -tag -width /dev/[e][n][r]st[0-9] -compact
+.It Pa /dev/[e][n][r]st[0-9]
+General form.
+.It Pa /dev/rst0
+No eject, rewind on close.
+.It Pa /dev/nrst0
+No eject, no rewind on close.
+.It Pa /dev/erst0
+Eject, rewind on close.
+.It Pa /dev/enrst0
+Eject, no rewind on close.
+.El
+.Sh SEE ALSO
+.Xr chio 1 ,
+.Xr mt 1 ,
+.Xr intro 4 ,
+.Xr mtio 4 ,
+.Xr scsi 4
+.Sh HISTORY
+.An Julian Elischer
+wrote
+.Nm
+for Mach 2.5 and ported it to 386BSD.

@@ -1,0 +1,172 @@
+.\" $OpenBSD: X509_keyid_set1.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_KEYID_SET1 3
+.Os
+.Sh NAME
+.Nm X509_keyid_set1 ,
+.Nm X509_keyid_get0 ,
+.Nm X509_alias_set1 ,
+.Nm X509_alias_get0
+.Nd auxiliary certificate data for PKCS#12
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_keyid_set1
+.Fa "X509 *x"
+.Fa "const unsigned char *data"
+.Fa "int len"
+.Fc
+.Ft unsigned char *
+.Fo X509_keyid_get0
+.Fa "X509 *x"
+.Fa "int *plen"
+.Fc
+.Ft int
+.Fo X509_alias_set1
+.Fa "X509 *x"
+.Fa "const unsigned char *data"
+.Fa "int len"
+.Fc
+.Ft unsigned char *
+.Fo X509_alias_get0
+.Fa "X509 *x"
+.Fa "int *plen"
+.Fc
+.Sh DESCRIPTION
+These functions store non-standard auxiliary data in
+.Fa x
+and retrieve it.
+.Pp
+The
+.Fa len
+bytes of
+.Fa data
+stored using
+.Fn X509_keyid_set1
+will be written to the
+.Sy localKeyID
+attribute of the PKCS#12 structure if
+.Xr PKCS12_create 3
+is later called on
+.Fa x ,
+and the
+.Fa data
+stored using
+.Fn X509_alias_set1
+will be written to the
+.Sy friendlyName
+attribute.
+If
+.Fa data
+points to a NUL-terminated string, \-1 can be passed as the
+.Fa len
+argument to let
+.Fa len
+be calculated internally using
+.Xr strlen 3 .
+If a
+.Dv NULL
+pointer is passed as the
+.Fa data
+argument, the respective auxiliary data stored in
+.Fa x ,
+if any, is removed from
+.Fa x
+and freed.
+.Pp
+Conversely,
+.Xr PKCS12_parse 3
+retrieves these attributes from a PKCS#12 structure such that they can
+subsequently be accessed with
+.Fn X509_keyid_get0
+and
+.Fn X509_alias_get0 .
+Unless
+.Dv NULL
+is passed for the
+.Fa plen
+argument, these functions store the size of the returned buffer in bytes in
+.Pf * Fa plen .
+After the call, the returned buffer is not necessarily NUL-terminated,
+but it may contain internal NUL bytes.
+.Pp
+API design is very incomplete; given the complexity of PKCS#12,
+that's probably an asset rather than a defect.
+The PKCS#12 standard defines many attributes that cannot be stored in
+.Vt X509
+objects.
+.Pp
+To associate certificates with alternative names and key identifiers,
+X.509 certificate extensions are more commonly used than PKCS#12
+attributes, for example using
+.Xr X509_EXTENSION_create_by_NID 3
+with
+.Dv NID_subject_alt_name
+or
+.Dv NID_subject_key_identifier .
+.Sh RETURN VALUES
+.Fn X509_keyid_set1
+and
+.Fn X509_alias_set1
+return 1 if
+.Fa data
+is
+.Dv NULL
+or if the input
+.Fa data
+was successfully copied into
+.Fa x ,
+or 0 if
+.Fa data
+is not
+.Dv NULL
+but could not be copied because
+.Fa x
+is
+.Dv NULL
+or memory allocation failed.
+.Pp
+.Fn X509_keyid_get0
+and
+.Fn X509_alias_get0
+return an internal pointer to an array of bytes or
+.Dv NULL
+if
+.Fa x
+does not contain auxiliary data of the requested kind.
+.Sh SEE ALSO
+.Xr ASN1_STRING_set 3 ,
+.Xr X509_CERT_AUX_new 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_new 3 ,
+.Xr X509V3_get_d2i 3
+.Sh HISTORY
+.Fn X509_alias_set1
+and
+.Fn X509_alias_get0
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn X509_keyid_set1
+first appeared in OpenSSL 0.9.6 and has been available since
+.Ox 2.9 .
+.Pp
+.Fn X509_keyid_get0
+first appeared in OpenSSL 0.9.8 and has been available since
+.Ox 4.5 .

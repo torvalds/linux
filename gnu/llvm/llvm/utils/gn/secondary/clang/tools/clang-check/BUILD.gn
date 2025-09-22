@@ -1,0 +1,17 @@
+executable("clang-check") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Driver",
+    "//clang/lib/Frontend",
+    "//clang/lib/Frontend/Rewrite",
+    "//clang/lib/StaticAnalyzer/Frontend",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Syntax",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+  ]
+  sources = [ "ClangCheck.cpp" ]
+}

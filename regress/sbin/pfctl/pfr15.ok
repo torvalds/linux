@@ -1,0 +1,24 @@
+# create
+# pass list 
+regress
+# pass list -v
+-pa----	regress	regress
+# pass load table <regress> { 1.2.3.4 1.2.3.4 weight 1 4.3.2.1 weight 5 } persist
+# pass show 
+   1.2.3.4
+   4.3.2.1
+	Weight:             5
+# pass load table <regress> persist
+# pass show 
+   1.2.3.4
+   4.3.2.1
+	Weight:             5
+# pass load table <regress> persist {}
+# pass show 
+# kill
+1 tables deleted.
+rules cleared
+ktable: 6 allocated, 6 released, 0 leaked.
+pfrke_plain: 1 allocated, 1 released, 0 leaked.
+pfrke_route: 0 allocated, 0 released, 0 leaked.
+pfrke_cost: 1 allocated, 1 released, 0 leaked.

@@ -1,0 +1,77 @@
+.\"	$OpenBSD: km.4,v 1.11 2019/04/23 18:23:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2008 Constantine A. Murenin <cnst+openbsd@bugmail.mojo.ru>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 23 2019 $
+.Dt KM 4
+.Os
+.Sh NAME
+.Nm km
+.Nd AMD K10 temperature sensor
+.Sh SYNOPSIS
+.Cd "km* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the temperature sensors available in the
+AMD Family 10h, 11h, 14h, 15h, and 16h processors.
+.Pp
+Each chip reports one temperature sensor.
+Multiprocessor systems have one instance of
+.Nm
+per chip.
+The highest resolution supported by the driver is 0.125 degC.
+.Pp
+Sensor values are made available through the
+.Xr sysctl 8
+interface.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Rs
+.%T "BIOS and Kernel Developer's Guide for AMD Family 10h Processors"
+.%D March 26, 2008
+.%R Publication # 31116
+.%P pp. 236\(en237 and pp. 243\(en244
+.\" .%U http://support.amd.com/us/Processor_TechDocs/31116.pdf
+.Re
+.Rs
+.%T "BIOS and Kernel Developer's Guide for AMD Family 11h Processors"
+.%D July 07, 2008
+.%R Publication # 41256
+.%P pp. 156\(en157 and pp. 159\(en160
+.\" .%U http://support.amd.com/us/Processor_TechDocs/41256.pdf
+.Re
+.Rs
+.%T "BIOS and Kernel Developer's Guide for AMD Family 14h Models 00h-04h Processors"
+.%D May 02, 2011
+.%R Publication # 43170
+.%P pp. 277\(en278 and pp. 280\(en282
+.\" .%U http://support.amd.com/us/Processor_TechDocs/43170.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Constantine A. Murenin Aq Mt cnst@openbsd.org ,
+University of Waterloo.

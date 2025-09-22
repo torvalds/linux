@@ -1,0 +1,614 @@
+.\" Copyright (c) 1995 FreeBSD Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL [your name] OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: style.9,v 1.79 2022/09/11 06:38:11 jmc Exp $
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt STYLE 9
+.Os
+.Sh NAME
+.Nm style
+.Nd Kernel source file style guide (KNF)
+.Sh DESCRIPTION
+This file specifies the preferred style for kernel source files in the
+.Ox
+source tree.
+It is also a guide for preferred userspace code style.
+These guidelines should be followed for all new code.
+In general, code can be considered
+.Dq new code
+when it makes up about 50% or more of the file(s) involved.
+This is enough to break precedents in the existing code and use the
+current style guidelines.
+.Bd -literal -offset indent
+/*
+ * Style guide for the OpenBSD KNF (Kernel Normal Form).
+ */
+
+/*
+ * VERY important single-line comments look like this.
+ */
+
+/* Most single-line comments look like this. */
+
+/*
+ * Multi-line comments look like this.  Make them real sentences.
+ * Fill them so they look like real paragraphs.
+ */
+.Ed
+.Pp
+Kernel include files (i.e.,
+.In sys/*.h )
+come first; normally, you'll need
+.In sys/types.h
+OR
+.In sys/param.h ,
+but not both!
+.In sys/types.h
+includes
+.In sys/cdefs.h ,
+and it's okay to depend on that.
+.Bd -literal -offset indent
+#include <sys/types.h>	/* Non-local includes in brackets. */
+.Ed
+.Pp
+If it's a network program, put the network include files next.
+.Bd -literal -offset indent
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/route.h>
+#include <netinet/in.h>
+.Ed
+.Pp
+Then there's a blank line, followed by the
+.Pa /usr/include
+files.
+The
+.Pa /usr/include
+files, for the most part, should be sorted.
+.Pp
+Global pathnames are defined in
+.Pa /usr/include/paths.h .
+Pathnames local to the program go in
+.Pa pathnames.h
+in the local directory.
+.Bd -literal -offset indent
+#include <paths.h>
+.Ed
+.Pp
+Then there's a blank line, and the user include files.
+.Bd -literal -offset indent
+#include "pathnames.h"	/* Local includes in double quotes. */
+.Ed
+.Pp
+All non-static functions are prototyped somewhere.
+.Pp
+Function prototypes for private functions (i.e., functions not used
+elsewhere) go at the top of the first source module.
+In the kernel, private functions do not require a prototype as long
+as they are defined before they are used.
+In userspace, functions local to one source module should be declared
+.Ql static .
+This should not be done in the kernel since it makes it impossible
+to use the kernel debugger.
+.Pp
+Functions used from other files are prototyped in the
+relevant include file.
+.Pp
+Functions that are used locally in more than one module go into a
+separate header file, e.g.,
+.Pa extern.h .
+.Pp
+Prototypes should not have variable names associated with the types; i.e.,
+.Bd -literal -offset indent
+void	function(int);
+.Ed
+not:
+.Bd -literal -offset indent -compact
+void	function(int a);
+.Ed
+.Pp
+Prototypes may have an extra space after a tab to enable function names
+to line up:
+.Bd -literal -offset indent
+static char	*function(int, const char *);
+static void	 usage(void);
+.Ed
+.Pp
+There should be no space between the function name and the argument list.
+.Pp
+Use
+.Li __dead
+from
+.In sys/cdefs.h
+for functions that don't return, i.e.,
+.Bd -literal -offset indent
+__dead void	abort(void);
+.Ed
+.Pp
+In header files, put function prototypes within
+.Dv __BEGIN_DECLS / __END_DECLS
+matching pairs.
+This makes the header file usable from C++.
+.Pp
+Macros are capitalized and parenthesized, and should avoid side-effects.
+If they are an inline expansion of a function, the function is defined
+all in lowercase; the macro has the same name all in uppercase.
+If the macro needs more than a single line, use braces.
+Right-justify the backslashes, as the resulting definition is easier to read.
+If the macro encapsulates a compound statement, enclose it in a
+.Dq Li do
+loop,
+so that it can safely be used in
+.Dq Li if
+statements.
+Any final statement-terminating semicolon should be
+supplied by the macro invocation rather than the macro, to make parsing easier
+for pretty-printers and editors.
+.Bd -literal -offset indent
+#define	MACRO(x, y) do {					\e
+	variable = (x) + (y);					\e
+	(y) += 2;						\e
+} while (0)
+.Ed
+.Pp
+If a macro with arguments declares local variables,
+those variables should use identifiers beginning with two underscores.
+This is required for macros implementing C and POSIX interfaces
+and recommended for all macros for consistency.
+.Pp
+Enumeration values are all uppercase.
+.Bd -literal -offset indent
+enum enumtype { ONE, TWO } et;
+.Ed
+.Pp
+When defining unsigned integers, use
+.Dq "unsigned int"
+rather than just
+.Dq "unsigned" ;
+the latter has been a source of confusion in the past.
+.Pp
+When declaring variables in structures, declare them sorted by use, then
+by size (largest to smallest), then by alphabetical order.
+The first category normally doesn't apply, but there are exceptions.
+Each one gets its own line.
+Put a tab after the first word, i.e., use
+.Ql int^Ix;
+and
+.Ql struct^Ifoo *x; .
+.Pp
+Major structures should be declared at the top of the file in which they
+are used, or in separate header files if they are used in multiple
+source files.
+Use of the structures should be by separate declarations and should be
+.Dq Li extern
+if they are declared in a header file.
+.Bd -literal -offset indent
+struct foo {
+	struct	foo *next;	/* List of active foo */
+	struct	mumble amumble;	/* Comment for mumble */
+	int	bar;
+};
+struct foo *foohead;		/* Head of global foo list */
+.Ed
+.Pp
+Use
+.Xr queue 3
+macros rather than rolling your own lists, whenever possible.
+Thus, the previous example would be better written:
+.Bd -literal -offset indent
+#include <sys/queue.h>
+struct	foo {
+	LIST_ENTRY(foo)	link;	/* Queue macro glue for foo lists */
+	struct	mumble amumble;	/* Comment for mumble */
+	int	bar;
+};
+LIST_HEAD(, foo) foohead;	/* Head of global foo list */
+.Ed
+.Pp
+Avoid using typedefs for structure types.
+This makes it impossible
+for applications to use pointers to such a structure opaquely, which
+is both possible and beneficial when using an ordinary struct tag.
+When convention requires a typedef, make its name match the struct tag.
+Avoid typedefs ending in
+.Dq Li \&_t ,
+except as specified in Standard C or by POSIX.
+.Bd -literal -offset indent
+/*
+ * All major routines should have a comment briefly describing what
+ * they do.  The comment before the "main" routine should describe
+ * what the program does.
+ */
+int
+main(int argc, char *argv[])
+{
+	int aflag, bflag, ch, num;
+	const char *errstr;
+.Ed
+.Pp
+For consistency,
+.Xr getopt 3
+should be used to parse options.
+Options should be sorted in the
+.Xr getopt 3
+call and the switch statement, unless
+parts of the switch cascade.
+Elements in a switch statement that cascade should have a FALLTHROUGH comment.
+Numerical arguments should be checked for accuracy.
+.Bd -literal -offset indent
+while ((ch = getopt(argc, argv, "abn:")) != -1) {
+	switch (ch) {		/* Indent the switch. */
+	case 'a':		/* Don't indent the case. */
+		aflag = 1;
+		/* FALLTHROUGH */
+	case 'b':
+		bflag = 1;
+		break;
+	case 'n':
+		num = strtonum(optarg, 0, INT_MAX, &errstr);
+		if (errstr) {
+			warnx("number is %s: %s", errstr, optarg);
+			usage();
+		}
+		break;
+	default:
+		usage();
+	}
+}
+argc -= optind;
+argv += optind;
+.Ed
+.Pp
+Use a space after keywords
+.Pf ( Li if ,
+.Li while ,
+.Li for ,
+.Li return ,
+.Li switch ) .
+No braces are
+used for control statements with zero or only a single statement unless that
+statement is more than a single line, in which case they are permitted.
+.Bd -literal -offset indent
+for (p = buf; *p != '\e0'; ++p)
+	continue;
+for (;;)
+	stmt;
+for (;;) {
+	z = a + really + long + statement + that + needs +
+	    two + lines + gets + indented + four + spaces +
+	    on + the + second + and + subsequent + lines;
+}
+for (;;) {
+	if (cond)
+		stmt;
+}
+.Ed
+.Pp
+Parts of a for loop may be left empty.
+.Bd -literal -offset indent
+for (; cnt < 15; cnt++) {
+	stmt1;
+	stmt2;
+}
+.Ed
+.Pp
+Indentation is an 8 character tab.
+Second level indents are four spaces.
+All code should fit in 80 columns.
+.Bd -literal -offset indent
+while (cnt < 20)
+	z = a + really + long + statement + that + needs +
+	    two + lines + gets + indented + four + spaces +
+	    on + the + second + and + subsequent + lines;
+.Ed
+.Pp
+Do not add whitespace at the end of a line, and only use tabs
+followed by spaces to form the indentation.
+Do not use more spaces than a tab will produce
+and do not use spaces in front of tabs.
+.Pp
+Closing and opening braces go on the same line as the else.
+Braces that aren't necessary may be left out, unless they cause
+a compiler warning.
+.Bd -literal -offset indent
+if (test)
+	stmt;
+else if (bar) {
+	stmt;
+	stmt;
+} else
+	stmt;
+.Ed
+.Pp
+Do not use spaces after function names.
+Commas have a space after them.
+Do not use spaces after
+.Sq \&(
+or
+.Sq \&[
+or preceding
+.Sq \&]
+or
+.Sq \&)
+characters.
+.Bd -literal -offset indent
+if ((error = function(a1, a2)))
+	exit(error);
+.Ed
+.Pp
+Unary operators don't require spaces; binary operators do.
+Don't use parentheses unless they're required for precedence, the statement
+is confusing without them, or the compiler generates a warning without them.
+Remember that other people may be confused more easily than you.
+Do YOU understand the following?
+.Bd -literal -offset indent
+a = b->c[0] + ~d == (e || f) || g && h ? i : j >> 1;
+k = !(l & FLAGS);
+.Ed
+.Pp
+Exits should be 0 on success, or non-zero for errors.
+.Bd -literal -offset indent
+/*
+ * Avoid obvious comments such as
+ * "Exit 0 on success."
+ */
+exit(0);
+.Ed
+.Pp
+The function type should be on a line by itself
+preceding the function.
+.Bd -literal -offset indent
+static char *
+function(int a1, int a2, float fl, int a4)
+{
+.Ed
+.Pp
+When declaring variables in functions, declare them sorted by size (largest to
+smallest), then in alphabetical order; multiple ones per line are okay.
+If a line overflows, reuse the type keyword.
+.Pp
+Be careful not to obfuscate the code by initializing variables in
+the declarations.
+Use this feature only thoughtfully.
+DO NOT use function calls in initializers!
+.Bd -literal -offset indent
+struct foo one, *two;
+double three;
+int *four, five;
+char *six, seven, eight, nine, ten, eleven, twelve;
+
+four = myfunction();
+.Ed
+.Pp
+Do not declare functions inside other functions.
+.Pp
+Casts and
+.Fn sizeof
+calls are not followed by a space.
+Note that
+.Xr indent 1
+does not understand this rule.
+.Pp
+Use of the
+.Dq register
+specifier is discouraged in new code.
+Optimizing compilers such as gcc can generally do a better job
+of choosing which variables to place in registers to improve
+code performance.
+The exception to this is in functions containing assembly code where the
+.Dq register
+specifier is required for proper code generation in the absence of
+compiler optimization.
+.Pp
+When using
+.Fn longjmp
+or
+.Fn vfork
+in a program, the
+.Fl W
+or
+.Fl Wall
+flag should be used to verify that the compiler does not generate
+warnings such as
+.Bd -literal -offset indent
+warning: variable `foo' might be clobbered by `longjmp' or `vfork'.
+.Ed
+.Pp
+If any warnings of this type occur, you must apply the
+.Dq volatile
+type-qualifier to the variable in question.
+Failure to do so may result in improper code generation when optimization
+is enabled.
+Note that for pointers, the location of
+.Dq volatile
+specifies if the type-qualifier applies to the pointer, or the thing being
+pointed to.
+A volatile pointer is declared with
+.Dq volatile
+to the right of the
+.Dq * .
+Example:
+.Bd -literal -offset indent
+char *volatile foo;
+.Ed
+.Pp
+says that
+.Dq foo
+is volatile, but
+.Dq *foo
+is not.
+To make
+.Dq *foo
+volatile use the syntax
+.Bd -literal -offset indent
+volatile char *foo;
+.Ed
+.Pp
+If both the pointer and the thing pointed to are volatile, use
+.Bd -literal -offset indent
+volatile char *volatile foo;
+.Ed
+.Pp
+.Dq const
+is also a type-qualifier and the same rules apply.
+The description of a read-only hardware register might look something like:
+.Bd -literal -offset indent
+const volatile char *reg;
+.Ed
+.Pp
+Global flags set inside signal handlers should be of type
+.Dq volatile sig_atomic_t
+if possible.
+This guarantees that the variable may be accessed as an atomic entity,
+even when a signal has been delivered.
+Global variables of other types (such as structures) are not
+guaranteed to have consistent values when accessed via a signal handler.
+.Pp
+.Dv NULL
+is the preferred null pointer constant.
+Use
+.Dv NULL
+instead of
+(type\ *)0 or (type\ *)NULL in all cases except for arguments to variadic
+functions where the compiler does not know the type.
+.Pp
+Don't use
+.Ql \&!
+for tests unless it's a boolean, i.e., use
+.Bd -literal -offset indent
+if (*p == '\e0')
+.Ed
+not
+.Bd -literal -offset indent -compact
+if (!*p)
+.Ed
+.Pp
+Routines returning
+.Vt void *
+should not have their return values cast to any pointer type.
+.Pp
+Use the
+.Xr err 3
+and
+.Xr warn 3
+family of functions.
+Don't roll your own!
+.Bd -literal -offset indent
+if ((four = malloc(sizeof(struct foo))) == NULL)
+	err(1, NULL);
+if ((six = (int *)overflow()) == NULL)
+	errx(1, "Number overflowed.");
+return eight;
+.Ed
+.Pp
+Always use ANSI function definitions.
+Long parameter lists are wrapped with a normal four space indent.
+.Pp
+Variable numbers of arguments should look like this:
+.Bd -literal -offset indent
+#include <stdarg.h>
+
+void
+vaf(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+
+	STUFF;
+
+	va_end(ap);
+
+	/* No return needed for void functions. */
+}
+
+static void
+usage(void)
+{
+.Ed
+.Pp
+Usage statements should take the same form as the synopsis in manual pages.
+Options without
+operands come first, in alphabetical order inside a single set of
+braces, followed by options with operands, in alphabetical order,
+each in braces, followed by required arguments in the order they
+are specified, followed by optional arguments in the order they
+are specified.
+.Pp
+A bar
+.Pq Sq \&|
+separates either-or options/arguments,
+and multiple options/arguments which are specified together are
+placed in a single set of braces.
+.Pp
+If numbers are used as options, they should be placed first,
+as shown in the example below.
+Uppercase letters take precedence over lowercase.
+.Bd -literal -offset indent
+"usage: f [-12aDde] [-b b_arg] [-m m_arg] req1 req2 [opt1 [opt2]]\en"
+"usage: f [-a | -b] [-c [-de] [-n number]]\en"
+.Ed
+.Pp
+The
+.Xr getprogname 3
+function may be used instead of hard-coding the program name.
+.Bd -literal -offset indent
+fprintf(stderr, "usage: %s [-ab]\en", getprogname());
+exit(1);
+.Ed
+.Pp
+New core kernel code should be reasonably compliant with the style guides.
+The guidelines for third-party maintained modules and device drivers are more
+relaxed but at a minimum should be internally consistent with their style.
+.Pp
+Whenever possible, code should be run through a code checker
+(e.g.,
+.Dq Li gcc -Wall -W -Wpointer-arith -Wbad-function-cast ...\&
+or splint from the ports tree) and produce minimal warnings.
+Since lint has been removed, the only lint-style comment that should
+be used is FALLTHROUGH, as it's useful to humans.
+Other lint-style comments such as ARGSUSED, LINTED, and NOTREACHED
+may be deleted.
+.Pp
+Note that documentation follows its own style guide,
+as documented in
+.Xr mdoc 7 .
+.Sh FILES
+.Bl -tag -width "/usr/share/misc/license.template " -compact
+.It Pa /usr/share/misc/license.template
+Example license for new code.
+.El
+.Sh SEE ALSO
+.Xr indent 1 ,
+.Xr err 3 ,
+.Xr queue 3 ,
+.Xr warn 3 ,
+.Xr mdoc 7
+.Sh HISTORY
+This man page is largely based on the src/admin/style/style file from the
+.Bx 4.4 Lite2
+release, with updates to reflect the current practice and
+desire of the
+.Ox
+project.

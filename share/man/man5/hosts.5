@@ -1,0 +1,118 @@
+.\"	$OpenBSD: hosts.5,v 1.27 2023/11/25 08:14:43 florian Exp $
+.\"	$NetBSD: hosts.5,v 1.4 1994/11/30 19:31:20 jtc Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)hosts.5	8.2 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: November 25 2023 $
+.Dt HOSTS 5
+.Os
+.Sh NAME
+.Nm hosts
+.Nd host and network name database
+.Sh DESCRIPTION
+The
+.Nm
+file associates names and IP addresses.
+Each line has the following format:
+.Bd -unfilled -offset indent
+Internet address
+Host or network name
+Aliases
+.Ed
+.Pp
+Items are separated by any number of blanks and/or tab characters.
+A
+.Ql #
+indicates the beginning of a comment; characters up to the end of the line
+are not interpreted by routines which search the file.
+.Pp
+The system configuration file
+.Xr resolv.conf 5
+controls where host name information will be searched for.
+The mechanism provided permits the administrator to describe the
+databases to search; the databases currently known include
+DNS
+and the
+.Nm hosts
+database.
+.Pp
+When using a name server,
+this file provides a backup when the name server is not running.
+For the name server, it is suggested that only a few addresses
+be included in this file.
+These include addresses for the local interfaces that
+.Xr ifconfig 8
+needs at boot time and a few machines on the local network.
+.Pp
+Internet addresses are specified using either
+dot notation (IPv4) or colon separated notation (IPv6) as described in
+.Xr inet_pton 3 .
+Host names may contain any printable character other than a field delimiter,
+newline, or comment character.
+.Pp
+The host "localhost" and all names underneath the localhost domain will
+always resolve to the loopback addresses 127.0.0.1 or ::1.
+.Sh FILES
+.Bl -tag -width /etc/hosts -compact
+.It Pa /etc/hosts
+.El
+.Sh SEE ALSO
+.Xr getaddrinfo 3 ,
+.Xr gethostbyname 3 ,
+.Xr getnameinfo 3 ,
+.Xr inet_pton 3 ,
+.Xr resolv.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr nsd 8 ,
+.Xr unbound 8
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.2 .
+.Pp
+An official host database used to be maintained at
+the Network Information Control Center (NIC).
+.Pp
+Up to
+.Ox 6.3 ,
+a separate file
+.Pa /etc/networks
+could be used to store network names.
+.Sh BUGS
+A name server should be used instead of a static file.
+.Pp
+Lines in
+.Pa /etc/hosts
+are limited to
+.Dv BUFSIZ
+characters
+.Pq currently 1024 .
+Longer lines will be ignored.

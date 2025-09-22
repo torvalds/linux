@@ -1,0 +1,8 @@
+# Exclude various symbols which should not be visible in libgcc.so for SH.
+%exclude {
+  __ashlsi3
+  __ashrsi3
+  __lshrsi3
+  __mulsi3 # this is an SH1-only symbol.
+  __udivsi3
+}

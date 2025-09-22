@@ -1,0 +1,15 @@
+static_library("MCDisassembler") {
+  output_name = "LLVMMCDisassembler"
+  deps = [
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "Disassembler.cpp",
+    "MCDisassembler.cpp",
+    "MCExternalSymbolizer.cpp",
+    "MCRelocationInfo.cpp",
+    "MCSymbolizer.cpp",
+  ]
+}

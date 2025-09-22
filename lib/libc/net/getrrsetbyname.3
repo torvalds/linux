@@ -1,0 +1,164 @@
+.\" $OpenBSD: getrrsetbyname.3,v 1.22 2022/09/11 06:38:10 jmc Exp $
+.\"
+.\" Copyright (C) 2000, 2001  Internet Software Consortium.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+.\" DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+.\" INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+.\" FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+.\" NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+.\" WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt GETRRSETBYNAME 3
+.Os
+.Sh NAME
+.Nm freerrset ,
+.Nm getrrsetbyname
+.Nd retrieve DNS records
+.Sh SYNOPSIS
+.In netdb.h
+.Ft int
+.Fn getrrsetbyname "const char *hostname" "unsigned int rdclass" \
+"unsigned int rdtype" "unsigned int flags" "struct rrsetinfo **res"
+.Ft void
+.Fn freerrset "struct rrsetinfo *rrset"
+.Sh DESCRIPTION
+.Fn getrrsetbyname
+gets a set of resource records associated with a
+.Fa hostname ,
+.Fa rdclass ,
+and
+.Fa rdtype .
+.Fa hostname
+is a pointer to a NUL-terminated string.
+The
+.Fa flags
+field is currently unused and must be zero.
+.Pp
+After a successful call to
+.Fn getrrsetbyname ,
+.Fa *res
+is a pointer to an
+.Vt rrsetinfo
+structure, containing a list of one or more
+.Vt rdatainfo
+structures containing resource records and potentially another list of
+.Vt rdatainfo
+structures containing SIG resource records associated with those records.
+The members
+.Li rri_rdclass
+and
+.Li rri_rdtype
+are copied from the parameters.
+.Li rri_ttl
+and
+.Li rri_name
+are properties of the obtained rrset.
+The resource records contained in
+.Li rri_rdatas
+and
+.Li rri_sigs
+are in uncompressed DNS wire format.
+Properties of the rdataset are represented in the
+.Li rri_flags
+bitfield.
+If the
+.Dv RRSET_VALIDATED
+bit is set, the data has been DNSSEC
+validated and the signatures verified.
+.Pp
+The following structures are used:
+.Bd -literal -offset indent
+struct  rdatainfo {
+	unsigned int	rdi_length;	/* length of data */
+	unsigned char	*rdi_data;	/* record data */
+};
+
+struct  rrsetinfo {
+	unsigned int	 rri_flags;	/* RRSET_VALIDATED ... */
+	unsigned int	 rri_rdclass;	/* class number */
+	unsigned int	 rri_rdtype;	/* RR type number */
+	unsigned int	 rri_ttl;	/* time to live */
+	unsigned int	 rri_nrdatas;	/* size of rdatas array */
+	unsigned int	 rri_nsigs;	/* size of sigs array */
+	char		 *rri_name;	/* canonical name */
+	struct rdatainfo *rri_rdatas;	/* individual records */
+	struct rdatainfo *rri_sigs;	/* individual signatures */
+};
+.Ed
+.Pp
+All of the information returned by
+.Fn getrrsetbyname
+is dynamically allocated: the
+.Vt rrsetinfo
+and
+.Vt rdatainfo
+structures,
+and the canonical host name strings pointed to by the
+.Vt rrsetinfo
+structure.
+Memory allocated for the dynamically allocated structures created by
+a successful call to
+.Fn getrrsetbyname
+is released by
+.Fn freerrset .
+.Li rrset
+is a pointer to a
+.Vt struct rrsetinfo
+created by a call to
+.Fn getrrsetbyname .
+.\" .Pp
+.\" If the EDNS0 option is activated in
+.\" .Xr resolv.conf 5 ,
+.\" .Fn getrrsetbyname
+.\" will request DNSSEC authentication using the EDNS0 DNSSEC OK (DO) bit.
+.Sh RETURN VALUES
+.Fn getrrsetbyname
+returns zero on success, and one of the following error
+codes if an error occurred:
+.Bl -tag -width ERRSET_NOMEMORY
+.It Bq Er ERRSET_NONAME
+The name does not exist.
+.It Bq Er ERRSET_NODATA
+The name exists, but does not have data of the desired type.
+.It Bq Er ERRSET_NOMEMORY
+Memory could not be allocated.
+.It Bq Er ERRSET_INVAL
+A parameter is invalid.
+.It Bq Er ERRSET_FAIL
+Other failure.
+.El
+.Sh SEE ALSO
+.Xr res_init 3 ,
+.Xr resolv.conf 5
+.Sh HISTORY
+.Fn getrrsetbyname
+first appeared in
+.Ox 3.0 .
+The API first appeared in ISC BIND version 9.
+.Sh AUTHORS
+.An Jakob Schlyter Aq Mt jakob@openbsd.org
+.Sh CAVEATS
+The
+.Dv RRSET_VALIDATED
+flag in
+.Li rri_flags
+is set if the AD (authenticated data) bit in the DNS answer is
+set.
+This flag
+.Em should not
+be trusted unless the transport between the nameserver and the resolver
+is secure (e.g. IPsec, trusted network, loopback communication).
+.Sh BUGS
+The data in
+.Li *rdi_data
+should be returned in uncompressed wire format.
+Currently, the data is in compressed format and the caller can't
+uncompress since it doesn't have the full message.

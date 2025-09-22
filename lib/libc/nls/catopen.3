@@ -1,0 +1,62 @@
+.\"	$OpenBSD: catopen.3,v 1.8 2013/06/05 03:39:23 tedu Exp $
+.\"
+.\" Written by J.T. Conklin <jtc@netbsd.org>.
+.\" Public domain.
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt CATOPEN 3
+.Os
+.Sh NAME
+.Nm catopen
+.Nd open message catalog
+.Sh SYNOPSIS
+.In nl_types.h
+.Ft nl_catd
+.Fn catopen "const char *name" "int oflag"
+.Sh DESCRIPTION
+The
+.Fn catopen
+function opens the message catalog specified by
+.Fa name
+and returns a message catalog descriptor.
+If
+.Fa name
+contains a
+.Ql / ,
+then
+.Fa name
+specifies the full pathname for the message catalog, otherwise the value
+of the environment variable
+.Ev NLSPATH
+is used with
+.Fa name
+substituted for
+.Ql \&%N .
+.Pp
+If the
+.Fa oflag
+argument is
+.Dv NL_CAT_LOCALE ,
+the
+.Ev LC_MESSAGES
+environment variable is used to select the message catalog.
+If the
+.Fa oflag
+argument is zero, the
+.Ev LANG
+environment variable is used to select the message catalog.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn catopen
+returns a message catalog descriptor.
+Otherwise, \-1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh SEE ALSO
+.Xr catclose 3 ,
+.Xr catgets 3
+.Sh STANDARDS
+The
+.Fn catopen
+function conforms to
+.St -p1003.1-2008 .

@@ -1,0 +1,386 @@
+
+C++ Standard Library Style Guidelines  DRAFT 2001-01-15
+-------------------------------------
+
+This library is written to appropriate C++ coding standards.  As such,
+it is intended to precede the recommendations of the GNU Coding
+Standard, which can be referenced here:
+
+http://www.gnu.org/prep/standards_toc.html
+
+ChangeLog entries for member functions should use the
+classname::member function name syntax as follows:
+
+1999-04-15  Dennis Ritchie  <dr@att.com>
+
+	* src/basic_file.cc (__basic_file::open): Fix thinko in
+	_G_HAVE_IO_FILE_OPEN bits.
+
+Notable areas of divergence from what may be previous local practice
+(particularly for GNU C) include:
+
+01. Pointers and references
+  char* p = "flop";
+  char& c = *p;
+     -NOT-
+  char *p = "flop";  // wrong
+  char &c = *p;      // wrong
+  
+    Reason: In C++, definitions are mixed with executable code.  Here,       
+	    p is being initialized, not *p.  This is near-universal
+            practice among C++ programmers; it is normal for C hackers
+            to switch spontaneously as they gain experience.
+
+02. Operator names and parentheses
+  operator==(type)
+     -NOT-
+  operator == (type)  // wrong
+     
+    Reason: The == is part of the function name.  Separating
+            it makes the declaration look like an expression. 
+
+03. Function names and parentheses
+  void mangle()
+     -NOT-
+  void mangle ()  // wrong
+
+     Reason: no space before parentheses (except after a control-flow
+     keyword) is near-universal practice for C++.  It identifies the
+     parentheses as the function-call operator or declarator, as 
+     opposed to an expression or other overloaded use of parentheses.
+
+04. Template function indentation
+  template<typename T>
+    void 
+    template_function(args)
+    { }
+      -NOT-
+  template<class T>
+  void template_function(args) {};
+  
+     Reason: In class definitions, without indentation whitespace is
+             needed both above and below the declaration to distinguish
+	     it visually from other members.  (Also, re: "typename"
+	     rather than "class".)  T often could be int, which is 
+	     not a class.  ("class", here, is an anachronism.)
+
+05. Template class indentation
+  template<typename _CharT, typename _Traits>
+    class basic_ios : public ios_base
+    {
+    public:
+      // Types:
+    };
+  -NOT-
+  template<class _CharT, class _Traits>
+  class basic_ios : public ios_base
+    {
+    public:
+      // Types:
+    };
+  -NOT-
+  template<class _CharT, class _Traits>
+    class basic_ios : public ios_base
+  {
+    public:
+      // Types:
+  };
+
+06. Enumerators
+  enum
+  {
+    space = _ISspace,
+    print = _ISprint,
+    cntrl = _IScntrl
+  };
+  -NOT-
+  enum { space = _ISspace, print = _ISprint, cntrl = _IScntrl };
+
+07. Member initialization lists
+   All one line, separate from class name.
+
+  gribble::gribble() 
+  : _M_private_data(0), _M_more_stuff(0), _M_helper(0);
+  { }
+  -NOT-
+  gribble::gribble() : _M_private_data(0), _M_more_stuff(0), _M_helper(0);
+  { }
+
+08. Try/Catch blocks
+  try 
+    {
+      //
+    }   
+  catch (...)
+    {
+      //
+    }   
+  -NOT-
+  try {
+    // 
+  } catch(...) { 
+    //
+  }
+
+09. Member functions declarations and definitions
+   Keywords such as extern, static, export, explicit, inline, etc
+   go on the line above the function name. Thus
+
+  virtual int   
+  foo()
+  -NOT-
+  virtual int foo()
+
+	Reason: GNU coding conventions dictate return types for functions
+     	are on a separate line than the function name and parameter list
+     	for definitions. For C++, where we have member functions that can
+    	be either inline definitions or declarations, keeping to this
+     	standard allows all member function names for a given class to be
+	aligned to the same margin, increasing readibility.
+
+
+10. Invocation of member functions with "this->"
+   For non-uglified names, use this->name to call the function.
+
+  this->sync()
+  -NOT-
+  sync()
+
+	Reason: Koenig lookup.
+
+11. Namespaces
+  namespace std
+  {
+    blah blah blah;
+  } // namespace std
+
+  -NOT-
+
+  namespace std {
+    blah blah blah;
+  } // namespace std
+
+12. Spacing under protected and private in class declarations:
+   space above, none below
+   ie
+
+   public:
+     int foo;
+
+   -NOT-
+   public:
+   
+     int foo;
+
+13. Spacing WRT return statements.
+   no extra spacing before returns, no parenthesis
+   ie
+
+   }
+   return __ret;
+
+   -NOT-
+   }
+
+   return __ret;
+
+   -NOT-
+
+   }
+   return (__ret);
+
+
+14. Location of global variables.
+   All global variables of class type, whether in the "user visable"
+   space (e.g., cin) or the implementation namespace, must be defined
+   as a character array with the appropriate alignment and then later
+   re-initialized to the correct value.
+
+   This is due to startup issues on certain platforms, such as AIX.
+   For more explanation and examples, see src/globals.cc.  All such
+   variables should be contained in that file, for simplicity.
+
+15. Exception abstractions
+    Use the exception abstractions found in functexcept.h, which allow
+    C++ programmers to use this library with -fno-exceptions. (Even if
+    that is rarely advisable, it's a necessary evil for backwards
+    compatibility.)
+
+16. Exception error messages
+    All start with the name of the function where the exception is
+    thrown, and then (optional) descriptive text is added. Example:
+
+    __throw_logic_error(__N("basic_string::_S_construct NULL not valid"));
+
+    Reason: The verbose terminate handler prints out exception::what(),
+    as well as the typeinfo for the thrown exception. As this is the
+    default terminate handler, by putting location info into the
+    exception string, a very useful error message is printed out for
+    uncaught exceptions. So useful, in fact, that non-programmers can
+    give useful error messages, and programmers can intelligently
+    speculate what went wrong without even using a debugger.
+
+The library currently has a mixture of GNU-C and modern C++ coding
+styles.  The GNU C usages will be combed out gradually.
+
+Name patterns:
+
+For nonstandard names appearing in Standard headers, we are constrained 
+to use names that begin with underscores.  This is called "uglification".
+The convention is:
+
+  Local and argument names:  __[a-z].*
+
+    Examples:  __count  __ix  __s1  
+
+  Type names and template formal-argument names: _[A-Z][^_].*
+
+    Examples:  _Helper  _CharT  _N 
+
+  Member data and function names: _M_.*
+
+    Examples:  _M_num_elements  _M_initialize ()
+
+  Static data members, constants, and enumerations: _S_.*
+
+    Examples: _S_max_elements  _S_default_value
+
+Don't use names in the same scope that differ only in the prefix, 
+e.g. _S_top and _M_top.  See BADNAMES for a list of forbidden names.
+(The most tempting of these seem to be and "_T" and "__sz".)
+
+Names must never have "__" internally; it would confuse name
+unmanglers on some targets.  Also, never use "__[0-9]", same reason.
+
+--------------------------
+
+[BY EXAMPLE]
+    
+#ifndef  _HEADER_
+#define  _HEADER_ 1
+
+namespace std
+{
+  class gribble
+  {
+  public:
+    // ctor, op=, dtor
+    gribble() throw();
+
+    gribble(const gribble&);
+
+    explicit 
+    gribble(int __howmany);
+
+    gribble& 
+    operator=(const gribble&);
+
+    virtual 
+    ~gribble() throw ();
+
+    // argument
+    inline void  
+    public_member(const char* __arg) const;
+
+    // in-class function definitions should be restricted to one-liners.
+    int 
+    one_line() { return 0 }
+
+    int 
+    two_lines(const char* arg) 
+    { return strchr(arg, 'a'); }
+
+    inline int 
+    three_lines();  // inline, but defined below.
+
+    // note indentation
+    template<typename _Formal_argument>
+      void 
+      public_template() const throw();
+
+    template<typename _Iterator>
+      void 
+      other_template();
+
+  private:
+    class _Helper;
+
+    int _M_private_data;
+    int _M_more_stuff;
+    _Helper* _M_helper;
+    int _M_private_function();
+
+    enum _Enum 
+      { 
+	_S_one, 
+	_S_two 
+      };
+
+    static void 
+    _S_initialize_library();
+  };
+
+// More-or-less-standard language features described by lack, not presence:
+# ifndef _G_NO_LONGLONG
+  extern long long _G_global_with_a_good_long_name;  // avoid globals!
+# endif
+
+  // Avoid in-class inline definitions, define separately;
+  // likewise for member class definitions:
+  inline int
+  gribble::public_member() const
+  { int __local = 0; return __local; }
+
+  class gribble::_Helper
+  {
+    int _M_stuff;
+
+    friend class gribble;
+  };
+}
+
+// Names beginning with "__": only for arguments and
+//   local variables; never use "__" in a type name, or
+//   within any name; never use "__[0-9]".
+
+#endif /* _HEADER_ */
+
+
+namespace std 
+{
+  template<typename T>  // notice: "typename", not "class", no space
+    long_return_value_type<with_many, args>  
+    function_name(char* pointer,               // "char *pointer" is wrong.
+		  char* argument, 
+		  const Reference& ref)
+    {
+      // int a_local;  /* wrong; see below. */
+      if (test) 
+      { 
+	  nested code 
+      }
+    
+      int a_local = 0;  // declare variable at first use.
+
+      //  char a, b, *p;   /* wrong */
+      char a = 'a';
+      char b = a + 1;
+      char* c = "abc";  // each variable goes on its own line, always.
+
+      // except maybe here...
+      for (unsigned i = 0, mask = 1; mask; ++i, mask <<= 1) {
+	  // ...
+      }
+    }
+  
+  gribble::gribble()
+  : _M_private_data(0), _M_more_stuff(0), _M_helper(0);
+  { }
+
+  inline int 
+  gribble::three_lines()
+  {
+    // doesn't fit in one line.
+  }
+} // namespace std
+

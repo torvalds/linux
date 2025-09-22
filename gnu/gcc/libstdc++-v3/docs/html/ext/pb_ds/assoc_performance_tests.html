@@ -1,0 +1,345 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta name="generator" content="HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+<title>Associative-Container Performance Tests</title>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
+</head>
+<body>
+<div id="page">
+<h1><a name="assoc" id="assoc">Associative-Container
+    Performance Tests</a></h1>
+<h2><a name="settings" id="settings">Settings</a></h2>
+<p>This section describes performance tests and their results.
+    In the following, <a href="#gcc"><u>g++</u></a>, <a href="#msvc"><u>msvc++</u></a>, and <a href="#local"><u>local</u></a> (the build used for generating this
+    documentation) stand for three different builds:</p>
+<div id="gcc_settings_div">
+<div class="c1">
+<h3><a name="gcc" id="gcc"><u>g++</u></a></h3>
+<ul>
+<li>CPU speed - cpu MHz : 2660.644</li>
+<li>Memory - MemTotal: 484412 kB</li>
+<li>Platform -
+          Linux-2.6.12-9-386-i686-with-debian-testing-unstable</li>
+<li>Compiler - g++ (GCC) 4.0.2 20050808 (prerelease)
+          (Ubuntu 4.0.1-4ubuntu9) Copyright (C) 2005 Free Software
+          Foundation, Inc. This is free software; see the source
+          for copying conditions. There is NO warranty; not even
+          for MERCHANTABILITY or FITNESS FOR A PARTICULAR
+          PURPOSE.</li>
+</ul>
+</div>
+<div class="c2"></div>
+</div>
+<div id="msvc_settings_div">
+<div class="c1">
+<h3><a name="msvc" id="msvc"><u>msvc++</u></a></h3>
+<ul>
+<li>CPU speed - cpu MHz : 2660.554</li>
+<li>Memory - MemTotal: 484412 kB</li>
+<li>Platform - Windows XP Pro</li>
+<li>Compiler - Microsoft (R) 32-bit C/C++ Optimizing
+          Compiler Version 13.10.3077 for 80x86 Copyright (C)
+          Microsoft Corporation 1984-2002. All rights
+          reserved.</li>
+</ul>
+</div>
+<div class="c2"></div>
+</div>
+<div id="local_settings_div"><div style = "border-style: dotted; border-width: 1px; border-color: lightgray"><h3><a name = "local"><u>local</u></a></h3><ul>
+<li>CPU speed - cpu MHz		: 2250.000</li>
+<li>Memory - MemTotal:      2076248 kB</li>
+<li>Platform - Linux-2.6.16-1.2133_FC5-i686-with-redhat-5-Bordeaux</li>
+<li>Compiler - g++ (GCC) 4.1.1 20060525 (Red Hat 4.1.1-1)
+Copyright (C) 2006 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+</li>
+</ul>
+</div><div style = "width: 100%; height: 20px"></div></div>
+<h2><a name="assoc_tests" id="assoc_tests">Tests</a></h2>
+<h3><a name="hash_based" id="hash_based">Hash-Based
+    Containers</a></h3>
+<ol>
+<li><a href="hash_text_find_find_timing_test.html">Hash-Based
+      Text <tt>find</tt> Find Timing Test</a></li>
+<li><a href="hash_random_int_find_find_timing_test.html">Hash-Based
+      Random-Integer <tt>find</tt> Find Timing Test</a></li>
+<li><a href="hash_random_int_subscript_find_timing_test.html">Hash-Based
+      Random-Integer Subscript Find Timing Test</a></li>
+<li><a href="hash_random_int_subscript_insert_timing_test.html">Hash-Based
+      Random-Integer Subscript Insert Timing Test</a></li>
+<li><a href="hash_zlob_random_int_find_find_timing_test.html">Hash-Based
+      Skewed-Distribution Random-Integer <tt>find</tt> Find Timing
+      Test</a></li>
+<li><a href="hash_random_int_erase_mem_usage_test.html">Hash-Based Erase
+      Memory Use Test</a></li>
+</ol>
+<h3><a name="tree_like_based" id="tree_like_based">Tree-Like-Based Containers</a></h3>
+<ol>
+<li><a href="tree_text_insert_timing_test.html">Tree-Based
+      and Trie-Based Text Insert Timing Test</a></li>
+<li><a href="tree_text_find_find_timing_test.html">Tree-Based
+      and Trie-Based Text <tt>find</tt> Find Timing Test</a></li>
+<li><a href="tree_text_lor_find_find_timing_test.html">Tree-Based
+      Locality-of-Reference Text <tt>find</tt> Find Timing
+      Test</a></li>
+<li><a href="tree_random_int_find_find_timing_test.html">Tree-Based
+      Random-Integer <tt>find</tt> Find Timing Test</a></li>
+<li><a href="tree_split_join_timing_test.html">Tree Split and
+      Join Timing Test</a></li>
+<li><a href="tree_order_statistics_timing_test.html">Tree
+      Order-Statistics Timing Test</a></li>
+</ol>
+<h3><a name="multimaps" id="multimaps">Multimaps</a></h3>
+<ol>
+<li><a href="multimap_text_find_timing_test_small.html">"Multimap"
+      Text Find Timing Test with <u>Small</u> Average Secondary-Key
+      to Primary-Key Ratio</a></li>
+<li><a href="multimap_text_find_timing_test_large.html">"Multimap"
+      Text Find Timing Test with <u>Large</u> Average Secondary-Key
+      to Primary-Key Ratio</a></li>
+<li><a href="multimap_text_insert_timing_test_small.html">"Multimap"
+      Text Insert Timing Test with <u>Small</u> Average
+      Secondary-Key to Primary-Key Ratio</a></li>
+<li><a href="multimap_text_insert_timing_test_large.html">"Multimap"
+      Text Insert Timing Test with <u>Large</u> Average
+      Secondary-Key to Primary-Key Ratio</a></li>
+<li><a href="multimap_text_insert_mem_usage_test_small.html">"Multimap"
+      Text Insert Memory-Use Test with <u>Small</u> Average
+      Secondary-Key to Primary-Key Ratio</a></li>
+<li><a href="multimap_text_insert_mem_usage_test_large.html">"Multimap"
+      Text Insert Memory-Use Test with <u>Large</u> Average
+      Secondary-Key to Primary-Key Ratio</a></li>
+</ol>
+<h2><a name="assoc_observations" id="assoc_observations">Observations</a></h2>
+<h3><a name="dss_family_choice" id="dss_family_choice">Underlying Data-Structure Families</a></h3>
+<p>In general, hash-based containers (see <a href="hash_based_containers.html">Design::Associative
+    Containers::Hash-Based Containers</a>) have better timing
+    performance than containers based on different underlying-data
+    structures. The main reason to choose a tree-based (see
+    <a href="tree_based_containers.html">Design::Associative
+    Containers::Tree-Based Containers</a>) or trie-based container
+    (see <a href="trie_based_containers.html">Design::Associative
+    Containers::Trie-Based Containers</a>) is if a byproduct of the
+    tree-like structure is required: either order-preservation, or
+    the ability to utilize node invariants (see <a href="tree_based_containers.html#invariants">Design::Associative
+    Containers::Tree-Based Containers::Node Invariants</a> and
+    <a href="trie_based_containers.html#invariants">Design::Associative
+    Containers::Trie-Based Containers::Node Invariants</a>). If
+    memory-use is the major factor, an ordered-vector tree (see
+    <a href="tree_based_containers.html">Design::Associative
+    Containers::Tree-Based Containers</a>) gives optimal results
+    (albeit with high modificiation costs), and a list-based
+    container (see <a href="lu_based_containers.html">Design::Associative
+    Containers::List-Based Containers</a>) gives reasonable
+    results.</p>
+<h3><a name="hash_based_types" id="hash_based_types">Hash-Based
+    Container Types</a></h3>
+<p>Hash-based containers are typically either collision
+    chaining or probing (see <a href="hash_based_containers.html">Design::Associative
+    Containers::Hash-Based Containers</a>). Collision-chaining
+    containers are more flexible internally, and so offer better
+    timing performance. Probing containers, if used for simple
+    value-types, manage memory more efficiently (they perform far
+    fewer allocation-related calls). In general, therefore, a
+    collision-chaining table should be used. A probing container,
+    conversely, might be used efficiently for operations such as
+    eliminating duplicates in a sequence, or counting the number of
+    occurrences within a sequence. Probing containers might be more
+    useful also in multithreaded applications where each thread
+    manipulates a hash-based container: in the STL, allocators have
+    class-wise semantics (see [<a href="references.html#meyers96more">meyers96more</a>] - Item 10); a
+    probing container might incur less contention in this case.</p>
+<h3><a name="hash_based_policies" id="hash_based_policies">Hash-Based Containers' Policies</a></h3>
+<p>In hash-based containers, the range-hashing scheme (see
+    <a href="hash_based_containers.html#hash_policies">Design::Associative
+    Containers::Hash-Based Containers::Hash Policies</a>) seems to
+    affect performance more than other considerations. In most
+    settings, a mask-based scheme works well (or can be made to
+    work well). If the key-distribution can be estimated a-priori,
+    a simple hash function can produce nearly uniform hash-value
+    distribution. In many other cases (<i>e.g.</i>, text hashing,
+    floating-point hashing), the hash function is powerful enough
+    to generate hash values with good uniformity properties
+    [<a href="references.html#knuth98sorting">knuth98sorting</a>];
+    a modulo-based scheme, taking into account all bits of the hash
+    value, appears to overlap the hash function in its effort.</p>
+<p>The range-hashing scheme determines many of the other
+    policies (see <a href="hash_based_containers.html#policy_interaction">Design::Hash-Based
+    Containers::Policy Interaction</a>). A mask-based scheme works
+    well with an exponential-size policy (see <a href="hash_based_containers.html#resize_policies">Design::Associative
+    Containers::Hash-Based Containers::Resize Policies</a>) ; for
+    probing-based containers, it goes well with a linear-probe
+    function (see <a href="hash_based_containers.html#hash_policies">Design::Associative
+    Containers::Hash-Based Containers::Hash Policies</a>).</p>
+<p>An orthogonal consideration is the trigger policy (see
+    <a href="hash_based_containers.html#resize_policies">Design::Associative
+    Containers::Hash-Based Containers::Resize Policies</a>). This
+    presents difficult tradeoffs. <i>E.g.</i>, different load
+    factors in a load-check trigger policy yield a
+    space/amortized-cost tradeoff.</p>
+<h3><a name="tree_like_based_types" id="tree_like_based_types">Tree-Like-Based Container
+    Types</a></h3>
+<p>In general, there are several families of tree-based
+    underlying data structures: balanced node-based trees
+    (<i>e.g.</i>, red-black or AVL trees), high-probability
+    balanced node-based trees (<i>e.g.</i>, random treaps or
+    skip-lists), competitive node-based trees (<i>e.g.</i>, splay
+    trees), vector-based "trees", and tries. (Additionally, there
+    are disk-residing or network-residing trees, such as B-Trees
+    and their numerous variants. An interface for this would have
+    to deal with the execution model and ACID guarantees; this is
+    out of the scope of this library.) Following are some
+    observations on their application to different settings.</p>
+<p>Of the balanced node-based trees, this library includes a
+    red-black tree (see <a href="tree_based_containers.html">Design::Associative
+    Containers::Tree-Based Containers</a>), as does STL (in
+    practice). This type of tree is the "workhorse" of tree-based
+    containers: it offers both reasonable modification and
+    reasonable lookup time. Unfortunately, this data structure
+    stores a huge amount of metadata. Each node must contain,
+    besides a value, three pointers and a boolean. This type might
+    be avoided if space is at a premium [<a href="references.html#austern00noset">austern00noset</a>].</p>
+<p>High-probability balanced node-based trees suffer the
+    drawbacks of deterministic balanced trees. Although they are
+    fascinating data structures, preliminary tests with them showed
+    their performance was worse than red-black trees. The library
+    does not contain any such trees, therefore.</p>
+<p>Competitive node-based trees have two drawbacks. They are
+    usually somewhat unbalanced, and they perform a large number of
+    comparisons. Balanced trees perform one comparison per each
+    node they encounter on a search path; a splay tree performs two
+    comparisons. If the keys are complex objects, <i>e.g.</i>,
+    <tt>std::string</tt>, this can increase the running time.
+    Conversely, such trees do well when there is much locality of
+    reference. It is difficult to determine in which case to prefer
+    such trees over balanced trees. This library includes a splay
+    tree (see <a href="tree_based_containers.html">Design::Associative
+    Containers::Tree-Based Containers</a>).</p>
+<p>Ordered-vector trees (see <a href="tree_based_containers.html">Design::Associative
+    Containers::Tree-Based Containers</a>) use very little space
+    [<a href="references.html#austern00noset">austern00noset</a>].
+    They do not have any other advantages (at least in this
+    implementation).</p>
+<p>Large-fan-out PATRICIA tries (see <a href="trie_based_containers.html">Design::Associative
+    Containers::Trie-Based Containers</a>) have excellent lookup
+    performance, but they do so through maintaining, for each node,
+    a miniature "hash-table". Their space efficiency is low, and
+    their modification performance is bad. These tries might be
+    used for semi-static settings, where order preservation is
+    important. Alternatively, red-black trees cross-referenced with
+    hash tables can be used. [<a href="references.html#okasaki98mereable">okasaki98mereable</a>]
+    discusses small-fan-out PATRICIA tries for integers, but the
+    cited results seem to indicate that the amortized cost of
+    maintaining such trees is higher than that of balanced trees.
+    Moderate-fan-out trees might be useful for sequences where each
+    element has a limited number of choices, <i>e.g.</i>, DNA
+    strings (see <a href="assoc_examples.html#trie_based">Examples::Associative
+    Containers::Trie-Based Containers</a>).</p>
+<h3><a name="msc" id="msc">Mapping-Semantics
+    Considerations</a></h3>
+<p>Different mapping semantics were discussed in <a href="motivation.html#assoc_mapping_semantics">Motivation::Associative
+    Containers::Alternative to Multiple Equivalent Keys</a> and
+    <a href="tutorial.html#assoc_ms">Tutorial::Associative
+    Containers::Associative Containers Others than Maps</a>. We
+    will focus here on the case where a keys can be composed into
+    primary keys and secondary keys. (In the case where some keys
+    are completely identical, it is trivial that one should use an
+    associative container mapping values to size types.) In this
+    case there are (at least) five possibilities:</p>
+<ol>
+<li>Use an associative container that allows equivalent-key
+      values (such as <tt>std::multimap</tt>)</li>
+<li>Use a unique-key value associative container that maps
+      each primary key to some complex associative container of
+      secondary keys, say a tree-based or hash-based container (see
+      <a href="tree_based_containers.html">Design::Associative
+      Containers::Tree-Based Containers</a> and <a href="hash_based_containers.html">Design::Associative
+      Containers::Hash-Based Containers</a>)</li>
+<li>Use a unique-key value associative container that maps
+      each primary key to some simple associative container of
+      secondary keys, say a list-based container (see <a href="lu_based_containers.html">Design::Associative
+      Containers::List-Based Containers</a>)</li>
+<li>Use a unique-key value associative container that maps
+      each primary key to some non-associative container
+      (<i>e.g.</i>, <tt>std::vector</tt>)</li>
+<li>Use a unique-key value associative container that takes
+      into account both primary and secondary keys.</li>
+</ol>
+<p>We do not think there is a simple answer for this (excluding
+    option 1, which we think should be avoided in all cases).</p>
+<p>If the expected ratio of secondary keys to primary keys is
+    small, then 3 and 4 seem reasonable. Both types of secondary
+    containers are relatively lightweight (in terms of memory use
+    and construction time), and so creating an entire container
+    object for each primary key is not too expensive. Option 4
+    might be preferable to option 3 if changing the secondary key
+    of some primary key is frequent - one cannot modify an
+    associative container's key, and the only possibility,
+    therefore, is erasing the secondary key and inserting another
+    one instead; a non-associative container, conversely, can
+    support in-place modification. The actual cost of erasing a
+    secondary key and inserting another one depends also on the
+    allocator used for secondary associative-containers (The tests
+    above used the standard allocator, but in practice one might
+    choose to use, <i>e.g.</i>, [<a href="references.html#boost_pool">boost_pool</a>]). Option 2 is
+    definitely an overkill in this case. Option 1 loses out either
+    immediately (when there is one secondary key per primary key)
+    or almost immediately after that. Option 5 has the same
+    drawbacks as option 2, but it has the additional drawback that
+    finding all values whose primary key is equivalent to some key,
+    might be linear in the total number of values stored (for
+    example, if using a hash-based container).</p>
+<p>If the expected ratio of secondary keys to primary keys is
+    large, then the answer is more complicated. It depends on the
+    distribution of secondary keys to primary keys, the
+    distribution of accesses according to primary keys, and the
+    types of operations most frequent.</p>
+<p>To be more precise, assume there are <i>m</i> primary keys,
+    primary key <i>i</i> is mapped to <i>n<sub>i</sub></i>
+    secondary keys, and each primary key is mapped, on average, to
+    <i>n</i> secondary keys (<i>i.e.</i>,
+    <i><b>E</b>(n<sub>i</sub>) = n</i>).</p>
+<p>Suppose one wants to find a specific pair of primary and
+    secondary keys. Using 1 with a tree based container
+    (<tt>std::multimap</tt>), the expected cost is
+    <i><b>E</b>(&Theta;(log(m) + n<sub>i</sub>)) = &Theta;(log(m) +
+    n)</i>; using 1 with a hash-based container
+    (<tt>std::tr1::unordered_multimap</tt>), the expected cost is
+    <i>&Theta;(n)</i>. Using 2 with a primary hash-based container
+    and secondary hash-based containers, the expected cost is
+    <i>O(1)</i>; using 2 with a primary tree-based container and
+    secondary tree-based containers, the expected cost is (using
+    the Jensen inequality [<a href="references.html#motwani95random">motwani95random</a>])
+    <i><b>E</b>(O(log(m) + log(n<sub>i</sub>)) = O(log(m)) +
+    <b>E</b>(O(log(n<sub>i</sub>)) = O(log(m)) + O(log(n))</i>,
+    assuming that primary keys are accessed equiprobably. 3 and 4
+    are similar to 1, but with lower constants. Using 5 with a
+    hash-based container, the expected cost is <i>O(1)</i>; using 5
+    with a tree based container, the cost is
+    <i><b>E</b>(&Theta;(log(mn))) = &Theta;(log(m) +
+    log(n))</i>.</p>
+<p>Suppose one needs the values whose primary key matches some
+    given key. Using 1 with a hash-based container, the expected
+    cost is <i>&Theta;(n)</i>, but the values will not be ordered
+    by secondary keys (which may or may not be required); using 1
+    with a tree-based container, the expected cost is
+    <i>&Theta;(log(m) + n)</i>, but with high constants; again the
+    values will not be ordered by secondary keys. 2, 3, and 4 are
+    similar to 1, but typically with lower constants (and,
+    additionally, if one uses a tree-based container for secondary
+    keys, they will be ordered). Using 5 with a hash-based
+    container, the cost is <i>&Theta;(mn)</i>.</p>
+<p>Suppose one wants to assign to a primary key all secondary
+    keys assigned to a different primary key. Using 1 with a
+    hash-based container, the expected cost is <i>&Theta;(n)</i>,
+    but with very high constants; using 1 with a tree-based
+    container, the cost is <i>&Theta;(nlog(mn))</i>. Using 2, 3,
+    and 4, the expected cost is <i>&Theta;(n)</i>, but typically
+    with far lower costs than 1. 5 is similar to 1.</p>
+</div>
+</body>
+</html>

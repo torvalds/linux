@@ -1,0 +1,477 @@
+.\"	$OpenBSD: getaddrinfo.3,v 1.61 2022/09/11 06:38:10 jmc Exp $
+.\"	$KAME: getaddrinfo.3,v 1.36 2005/01/05 03:23:05 itojun Exp $
+.\"
+.\" Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000, 2001  Internet Software Consortium.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt GETADDRINFO 3
+.Os
+.Sh NAME
+.Nm getaddrinfo ,
+.Nm freeaddrinfo
+.Nd host and service name to socket address structure
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netdb.h
+.Ft int
+.Fn getaddrinfo "const char *hostname" "const char *servname" \
+    "const struct addrinfo *hints" "struct addrinfo **res"
+.Ft void
+.Fn freeaddrinfo "struct addrinfo *ai"
+.Sh DESCRIPTION
+The
+.Fn getaddrinfo
+function is used to get a list of
+.Tn IP
+addresses and port numbers for host
+.Fa hostname
+and service
+.Fa servname .
+It is a replacement for and provides more flexibility than the
+.Xr gethostbyname 3
+and
+.Xr getservbyname 3
+functions.
+.Pp
+The
+.Fa hostname
+and
+.Fa servname
+arguments are either pointers to NUL-terminated strings or the null pointer.
+An acceptable value for
+.Fa hostname
+is either a valid host name or a numeric host address string consisting
+of a dotted decimal IPv4 address or an IPv6 address.
+The
+.Fa servname
+is either a decimal port number or a service name listed in
+.Xr services 5 .
+At least one of
+.Fa hostname
+and
+.Fa servname
+must be non-null.
+.Pp
+.Fa hints
+is an optional pointer to a
+.Vt struct addrinfo ,
+as defined by
+.In netdb.h :
+.Bd -literal
+struct addrinfo {
+	int ai_flags;		/* input flags */
+	int ai_family;		/* address family for socket */
+	int ai_socktype;	/* socket type */
+	int ai_protocol;	/* protocol for socket */
+	socklen_t ai_addrlen;	/* length of socket-address */
+	struct sockaddr *ai_addr; /* socket-address for socket */
+	char *ai_canonname;	/* canonical name for service location */
+	struct addrinfo *ai_next; /* pointer to next in list */
+};
+.Ed
+.Pp
+This structure can be used to provide hints concerning the type of socket
+that the caller supports or wishes to use.
+The caller can supply the following structure elements in
+.Fa hints :
+.Bl -tag -width "ai_socktypeXX"
+.It Fa ai_family
+The address family that should be used.
+When
+.Fa ai_family
+is set to
+.Dv AF_UNSPEC ,
+it means the caller will accept any address family supported by the
+operating system.
+.It Fa ai_socktype
+Denotes the type of socket that is wanted:
+.Dv SOCK_STREAM ,
+.Dv SOCK_DGRAM ,
+or
+.Dv SOCK_RAW .
+When
+.Fa ai_socktype
+is zero, the caller will accept any socket type.
+.It Fa ai_protocol
+Indicates which transport protocol is desired,
+.Dv IPPROTO_UDP
+or
+.Dv IPPROTO_TCP .
+If
+.Fa ai_protocol
+is zero, the caller will accept any protocol.
+.It Fa ai_flags
+.Fa ai_flags
+is formed by
+.Tn OR Ns 'ing
+the following values:
+.Bl -tag -width "AI_CANONNAMEXX"
+.It Dv AI_ADDRCONFIG
+If the
+.Dv AI_ADDRCONFIG
+bit is set, IPv4 addresses will be returned only if an IPv4 address is
+configured on an interface, and IPv6 addresses will be returned only if an IPv6
+address is configured on an interface.
+Addresses on a loopback interface and link-local IPv6 addresses are not
+considered valid as configured addresses.
+This bit is only considered when determining whether a DNS query should
+be performed or not.
+.It Dv AI_CANONNAME
+If the
+.Dv AI_CANONNAME
+bit is set, a successful call to
+.Fn getaddrinfo
+will return a NUL-terminated string containing the canonical name
+of the specified host name in the
+.Fa ai_canonname
+element of the first
+.Vt addrinfo
+structure returned.
+.It Dv AI_FQDN
+If the
+.Dv AI_FQDN
+bit is set, a successful call to
+.Fn getaddrinfo
+will return a NUL-terminated string containing the fully qualified domain name
+of the specified host name in the
+.Fa ai_canonname
+element of the first
+.Vt addrinfo
+structure returned.
+.Pp
+This is different from the
+.Dv AI_CANONNAME
+bit flag that returns the canonical name registered in DNS,
+which may be different from the fully qualified domain name
+that the host name resolved to.
+Only one of the
+.Dv AI_FQDN
+and
+.Dv AI_CANONNAME
+bits can be set.
+.It Dv AI_NUMERICHOST
+If the
+.Dv AI_NUMERICHOST
+bit is set, it indicates that
+.Fa hostname
+should be treated as a numeric string defining an IPv4 or IPv6 address
+and no name resolution should be attempted.
+.It Dv AI_NUMERICSERV
+If the
+.Dv AI_NUMERICSERV
+bit is set, it indicates that
+.Fa servname
+should be treated as a numeric port string
+and no service name resolution should be attempted.
+.It Dv AI_PASSIVE
+If the
+.Dv AI_PASSIVE
+bit is set, it indicates that the returned socket address structure
+is intended for use in a call to
+.Xr bind 2 .
+In this case, if the
+.Fa hostname
+argument is the null pointer, then the IP address portion of the
+socket address structure will be set to
+.Dv INADDR_ANY
+for an IPv4 address or
+.Dv IN6ADDR_ANY_INIT
+for an IPv6 address.
+.Pp
+If the
+.Dv AI_PASSIVE
+bit is not set, the returned socket address structure will be ready
+for use in a call to
+.Xr connect 2
+for a connection-oriented protocol or
+.Xr connect 2 ,
+.Xr sendto 2 ,
+or
+.Xr sendmsg 2
+if a connectionless protocol was chosen.
+The
+.Tn IP
+address portion of the socket address structure will be set to the
+loopback address if
+.Fa hostname
+is the null pointer and
+.Dv AI_PASSIVE
+is not set.
+.El
+.El
+.Pp
+All other elements of the
+.Vt addrinfo
+structure passed via
+.Fa hints
+must be zero or the null pointer.
+.Pp
+If
+.Fa hints
+is the null pointer,
+.Fn getaddrinfo
+behaves as if the caller provided a
+.Vt struct addrinfo
+with
+.Fa ai_family
+set to
+.Dv AF_UNSPEC ,
+.Fa ai_flags
+set to
+.Dv AI_ADDRCONFIG ,
+and all other elements set to zero or
+.Dv NULL .
+.Pp
+After a successful call to
+.Fn getaddrinfo ,
+.Fa *res
+is a pointer to a linked list of one or more
+.Vt addrinfo
+structures.
+The list can be traversed by following the
+.Fa ai_next
+pointer in each
+.Vt addrinfo
+structure until a null pointer is encountered.
+The three members
+.Fa ai_family ,
+.Fa ai_socktype ,
+and
+.Fa ai_protocol
+in each returned
+.Vt addrinfo
+structure are suitable for a call to
+.Xr socket 2 .
+For each
+.Vt addrinfo
+structure in the list, the
+.Fa ai_addr
+member points to a filled-in socket address structure of length
+.Fa ai_addrlen .
+.Pp
+This implementation of
+.Fn getaddrinfo
+allows numeric IPv6 address notation with scope identifier,
+as documented in RFC 4007.
+By appending the percent character and scope identifier to addresses,
+one can fill the
+.Li sin6_scope_id
+field for addresses.
+This would make management of scoped addresses easier
+and allows cut-and-paste input of scoped addresses.
+.Pp
+At this moment the code supports only link-local addresses with the format.
+The scope identifier is hardcoded to the name of the hardware interface
+associated
+with the link
+.Po
+such as
+.Li ne0
+.Pc .
+An example is
+.Dq Li fe80::1%ne0 ,
+which means
+.Do
+.Li fe80::1
+on the link associated with the
+.Li ne0
+interface
+.Dc .
+.Pp
+The current implementation assumes a one-to-one relationship between
+the interface and link, which is not necessarily true from the specification.
+.Pp
+All of the information returned by
+.Fn getaddrinfo
+is dynamically allocated: the
+.Vt addrinfo
+structures themselves as well as the socket address structures and
+the canonical host name strings included in the
+.Vt addrinfo
+structures.
+.Pp
+Memory allocated for the dynamically allocated structures created by
+a successful call to
+.Fn getaddrinfo
+is released by the
+.Fn freeaddrinfo
+function.
+The
+.Fa ai
+pointer should be an
+.Vt addrinfo
+structure created by a call to
+.Fn getaddrinfo .
+.Sh RETURN VALUES
+.Fn getaddrinfo
+returns zero on success or one of the error codes listed in
+.Xr gai_strerror 3
+if an error occurs.
+If an error occurs, no memory is allocated by
+.Fn getaddrinfo ,
+therefore it is not necessary to release the
+.Vt addrinfo
+structure(s).
+.Sh EXAMPLES
+The following code tries to connect to
+.Dq Li www.kame.net
+service
+.Dq Li www
+via a stream socket.
+It loops through all the addresses available, regardless of address family.
+If the destination resolves to an IPv4 address, it will use an
+.Dv AF_INET
+socket.
+Similarly, if it resolves to IPv6, an
+.Dv AF_INET6
+socket is used.
+Observe that there is no hardcoded reference to a particular address family.
+The code works even if
+.Fn getaddrinfo
+returns addresses that are not IPv4/v6.
+.Bd -literal -offset indent
+struct addrinfo hints, *res, *res0;
+int error;
+int save_errno;
+int s;
+const char *cause = NULL;
+
+memset(&hints, 0, sizeof(hints));
+hints.ai_family = AF_UNSPEC;
+hints.ai_socktype = SOCK_STREAM;
+error = getaddrinfo("www.kame.net", "www", &hints, &res0);
+if (error)
+	errx(1, "%s", gai_strerror(error));
+s = -1;
+for (res = res0; res; res = res->ai_next) {
+	s = socket(res->ai_family, res->ai_socktype,
+	    res->ai_protocol);
+	if (s == -1) {
+		cause = "socket";
+		continue;
+	}
+
+	if (connect(s, res->ai_addr, res->ai_addrlen) == -1) {
+		cause = "connect";
+		save_errno = errno;
+		close(s);
+		errno = save_errno;
+		s = -1;
+		continue;
+	}
+
+	break;	/* okay we got one */
+}
+if (s == -1)
+	err(1, "%s", cause);
+freeaddrinfo(res0);
+.Ed
+.Pp
+The following example tries to open a wildcard listening socket onto service
+.Dq Li www ,
+for all the address families available.
+.Bd -literal -offset indent
+struct addrinfo hints, *res, *res0;
+int error;
+int save_errno;
+int s[MAXSOCK];
+int nsock;
+const char *cause = NULL;
+
+memset(&hints, 0, sizeof(hints));
+hints.ai_family = AF_UNSPEC;
+hints.ai_socktype = SOCK_STREAM;
+hints.ai_flags = AI_PASSIVE;
+error = getaddrinfo(NULL, "www", &hints, &res0);
+if (error)
+	errx(1, "%s", gai_strerror(error));
+nsock = 0;
+for (res = res0; res && nsock < MAXSOCK; res = res->ai_next) {
+	s[nsock] = socket(res->ai_family, res->ai_socktype,
+	    res->ai_protocol);
+	if (s[nsock] == -1) {
+		cause = "socket";
+		continue;
+	}
+
+	if (bind(s[nsock], res->ai_addr, res->ai_addrlen) == -1) {
+		cause = "bind";
+		save_errno = errno;
+		close(s[nsock]);
+		errno = save_errno;
+		continue;
+	}
+	(void) listen(s[nsock], 5);
+
+	nsock++;
+}
+if (nsock == 0)
+	err(1, "%s", cause);
+freeaddrinfo(res0);
+.Ed
+.Sh SEE ALSO
+.Xr bind 2 ,
+.Xr connect 2 ,
+.Xr send 2 ,
+.Xr socket 2 ,
+.Xr gai_strerror 3 ,
+.Xr gethostbyname 3 ,
+.Xr getnameinfo 3 ,
+.Xr getservbyname 3 ,
+.Xr res_init 3 ,
+.Xr hosts 5 ,
+.Xr resolv.conf 5 ,
+.Xr services 5 ,
+.Xr hostname 7
+.Rs
+.%A Craig Metz
+.%B Proceedings of the Freenix Track: 2000 USENIX Annual Technical Conference
+.%D June 2000
+.%T Protocol Independence Using the Sockets API
+.Re
+.Sh STANDARDS
+The
+.Fn getaddrinfo
+function is defined by the
+.St -p1003.1g-2000
+draft specification and documented in RFC 3493.
+.Pp
+The
+.Dv AI_FQDN
+flag bit first appeared in Windows 7.
+.Pp
+.Rs
+.%A R. Gilligan
+.%A S. Thomson
+.%A J. Bound
+.%A J. McCann
+.%A W. Stevens
+.%D February 2003
+.%R RFC 3493
+.%T Basic Socket Interface Extensions for IPv6
+.Re
+.Pp
+.Rs
+.%A S. Deering
+.%A B. Haberman
+.%A T. Jinmei
+.%A E. Nordmark
+.%A B. Zill
+.%D March 2005
+.%R RFC 4007
+.%T IPv6 Scoped Address Architecture
+.Re

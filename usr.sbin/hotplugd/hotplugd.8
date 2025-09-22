@@ -1,0 +1,127 @@
+.\"	$OpenBSD: hotplugd.8,v 1.13 2015/07/27 17:28:39 sobrado Exp $
+.\"
+.\" Copyright (c) 2004 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 27 2015 $
+.Dt HOTPLUGD 8
+.Os
+.Sh NAME
+.Nm hotplugd
+.Nd devices hot plugging monitor daemon
+.Sh SYNOPSIS
+.Nm hotplugd
+.Op Fl d Ar device
+.Sh DESCRIPTION
+The
+.Nm
+daemon monitors the
+.Xr hotplug 4
+pseudo-device, acting on signaled events by executing the scripts in the
+.Pa /etc/hotplug
+directory.
+By default it uses the
+.Pa /dev/hotplug
+device for reading events from, but an alternative device can be
+specified with the
+.Fl d
+option.
+.Pp
+Actions can be configured either for device attachment or detachment.
+On device attachment the
+.Pa attach
+script is executed if it exists.
+On device detachment the
+.Pa detach
+script is executed if it exists.
+In both cases two parameters are passed to the scripts: the class and name
+of the attached or detached device.
+The device class corresponds to the classes described in the
+.In sys/device.h
+header file and can be one of the following:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 0
+generic, no special info
+.It 1
+CPU (carries resource utilization)
+.It 2
+disk drive
+.It 3
+network interface
+.It 4
+tape device
+.It 5
+serial line interface
+.El
+.Pp
+Not all classes are really usable.
+For example, it's unlikely that a CPU will be hotplugged.
+.Pp
+The device name is the usual name,
+as listed in
+.Xr MAKEDEV 8 ,
+and the unit number, e.g.\&
+.Pa sd1 .
+.Sh FILES
+.Bl -tag -width "/dev/hotplug/attach" -compact
+.It Pa /dev/hotplug
+Pseudo-device file.
+.It Pa /etc/hotplug
+Directory where the scripts to execute are located.
+.It Pa /etc/hotplug/attach
+Script to execute on device attachment.
+.It Pa /etc/hotplug/detach
+Script to execute on device detachment.
+.El
+.Sh EXAMPLES
+Sample
+.Pa attach
+script:
+.Bd -literal -offset indent
+#!/bin/sh
+
+DEVCLASS=$1
+DEVNAME=$2
+
+case $DEVCLASS in
+2)
+	# disk devices
+	disklabel=`/sbin/disklabel $DEVNAME 2\*(Gt&1 | \e
+	    sed -n '/^label: /s/^label: //p'`
+	case $disklabel in
+	Sony*DSC*)
+		# Sony DSC camera
+		mount -o nodev,nosuid /dev/"$DEVNAME"i /mnt/camera
+		;;
+	esac
+	;;
+3)
+	# network devices; requires hostname.$DEVNAME
+	sh /etc/netstart $DEVNAME
+	;;
+esac
+.Ed
+.Sh SEE ALSO
+.Xr hotplug 4
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 3.6 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

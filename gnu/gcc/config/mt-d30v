@@ -1,0 +1,4 @@
+# Build libraries optimizing for space, not speed.
+# Turn off warnings about symbols named the same as registers
+ CFLAGS_FOR_TARGET = -g -Os -Wa,-C
+ CXXFLAGS_FOR_TARGET = -g -Os -Wa,-C

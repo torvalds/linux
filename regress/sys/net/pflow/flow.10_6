@@ -1,0 +1,45 @@
+4 flows
+12 elements
+SetId: 257
+sourceIPv6Address: 20010db8000000000000000000000013
+destinationIPv6Address: 20010db8000000000000000000000013
+packetDeltaCount: 000000000000000e
+octetDeltaCount: 000000000000a3fc
+sourceTransportPort: 3039
+destinationTransportPort: 303a
+ipClassOfService: 00
+protocolIdentifier: 06
+ingressInterface == egressInterface && egressInterface > 0: 1
+12 elements
+SetId: 257
+sourceIPv6Address: 20010db8000000000000000000000013
+destinationIPv6Address: 20010db8000000000000000000000013
+packetDeltaCount: 000000000000000d
+octetDeltaCount: 00000000000003b4
+sourceTransportPort: 303a
+destinationTransportPort: 3039
+ipClassOfService: 00
+protocolIdentifier: 06
+ingressInterface == egressInterface && egressInterface > 0: 1
+12 elements
+SetId: 257
+sourceIPv6Address: 20010db8000000000000000000000013
+destinationIPv6Address: 20010db8000000000000000000000013
+packetDeltaCount: 000000000000000e
+octetDeltaCount: 000000000000a3fc
+sourceTransportPort: 3039
+destinationTransportPort: 303a
+ipClassOfService: 00
+protocolIdentifier: 06
+ingressInterface == egressInterface && egressInterface > 0: 1
+12 elements
+SetId: 257
+sourceIPv6Address: 20010db8000000000000000000000013
+destinationIPv6Address: 20010db8000000000000000000000013
+packetDeltaCount: 000000000000000d
+octetDeltaCount: 00000000000003b4
+sourceTransportPort: 303a
+destinationTransportPort: 3039
+ipClassOfService: 00
+protocolIdentifier: 06
+ingressInterface == egressInterface && egressInterface > 0: 1

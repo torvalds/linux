@@ -1,0 +1,114 @@
+.\" $OpenBSD: X509_REQ_add_extensions.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_REQ_ADD_EXTENSIONS 3
+.Os
+.Sh NAME
+.Nm X509_REQ_add_extensions ,
+.Nm X509_REQ_add_extensions_nid ,
+.Nm X509_REQ_get_extensions ,
+.Nm X509_REQ_extension_nid
+.Nd extensions in certification requests
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_REQ_add_extensions
+.Fa "X509_REQ *req"
+.Fa "STACK_OF(X509_EXTENSION) *extensions"
+.Fc
+.Ft int
+.Fo X509_REQ_add_extensions_nid
+.Fa "X509_REQ *req"
+.Fa "STACK_OF(X509_EXTENSION) *extensions"
+.Fa "int nid"
+.Fc
+.Ft STACK_OF(X509_EXTENSION) *
+.Fn X509_REQ_get_extensions "X509_REQ *req"
+.Ft int
+.Fn X509_REQ_extension_nid "int nid"
+.Sh DESCRIPTION
+.Fn X509_REQ_add_extensions
+encodes the array of
+.Fa extensions
+using
+.Xr i2d_X509_EXTENSIONS 3
+and adds a new X.501 Attribute object of the type
+.Dv NID_ext_req
+to
+.Fa req
+using the equivalent of
+.Xr X509_ATTRIBUTE_create_by_NID 3
+with a
+.Fa type
+of
+.Dv V_ASN1_SEQUENCE .
+.Pp
+.Fn X509_REQ_add_extensions_nid
+is identical except that the specified
+.Fa nid
+is used as the X.501 Attribute type instead of
+.Dv NID_ext_req .
+.Pp
+.Fn X509_REQ_get_extensions
+retrieves the first value of the first X.501 Attribute of appropriate type.
+By default, the attribute types
+.Dv NID_ext_req
+and
+.Dv NID_ms_ext_req
+are considered appropriate.
+.Pp
+.Fn X509_REQ_extension_nid
+checks whether
+.Fn X509_REQ_get_extensions
+regards the
+.Fa nid
+argument as a type appropriate for storing extensions.
+.Sh RETURN VALUES
+.Fn X509_REQ_add_extensions
+and
+.Fn X509_REQ_add_extensions_nid
+returns 1 for success or 0 for failure.
+.Pp
+.Fn X509_REQ_get_extensions
+returns a newly allocated array of ASN.1
+.Vt Extension
+objects or
+.Dv NULL
+if
+.Fa req
+is
+.Dv NULL ,
+does not contain
+.Vt CertificationRequestInfo ,
+contains no attribute of an appropriate type,
+or if decoding or memory allocation fails.
+.Pp
+.Fn X509_REQ_extension_nid
+returns 1 if
+.Fa nid
+is considered appropriate or 0 otherwise.
+.Sh SEE ALSO
+.Xr d2i_X509_EXTENSION 3 ,
+.Xr STACK_OF 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_REQ_new 3 ,
+.Xr X509V3_extensions_print 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.5
+and have been available since
+.Ox 2.7 .

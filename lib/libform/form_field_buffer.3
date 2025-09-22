@@ -1,0 +1,145 @@
+'\" t
+.\" $OpenBSD: form_field_buffer.3,v 1.14 2023/10/17 09:52:10 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form_field_buffer.3,v 1.14 2023/10/17 09:52:10 nicm Exp $
+.TH form_field_buffer 3 2023-07-01 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fBform_field_buffer\fP \- field buffer control
+.SH SYNOPSIS
+\fB#include <form.h>\fP
+.sp
+\fBint set_field_buffer(FIELD *\fIfield\fB, int \fIbuf\fB, const char *\fIvalue\fB);\fR
+.br
+\fBchar *field_buffer(const FIELD *\fIfield\fB, int \fIbuffer\fB);\fR
+.sp
+\fBint set_field_status(FIELD *\fIfield\fB, bool \fIstatus\fB);\fR
+.br
+\fBbool field_status(const FIELD *\fIfield\fB);\fR
+.sp
+\fBint set_max_field(FIELD *\fIfield\fB, int \fImax\fB);\fR
+.SH DESCRIPTION
+The function \fBset_field_buffer\fP sets the numbered buffer of the given field
+to contain a given string:
+.RS 3
+.bP
+Buffer 0 is the displayed value of the field.
+.bP
+Other numbered buffers may be allocated by applications through the \fBnbuf\fP
+argument of (see \fBform_field_new\fP(3))
+but are not manipulated by the forms library.
+.RE
+.PP
+The function \fBfield_buffer\fP returns a pointer to
+the contents of the given numbered buffer:
+.RS 3
+.bP
+The buffer contents always have the same length,
+and are padded with trailing spaces
+as needed to ensure this length is the same.
+.bP
+The buffer may contain leading spaces, depending on how it was set.
+.bP
+The buffer contents are set with \fBset_field_buffer\fP,
+or as a side effect of any editing operations on the corresponding field.
+.bP
+Editing operations are based on the \fIwindow\fP which displays the field,
+rather than a \fIstring\fP.
+The window contains only printable characters, and is filled with blanks.
+If you want the raw data, you must write your
+own routine that copies the value out of the buffer and removes the leading
+and trailing spaces.
+.bP
+Because editing operations change the content of the buffer to
+correspond to the window, you should not rely on using buffers
+for long-term storage of form data.
+.RE
+.PP
+The function \fBset_field_status\fP sets the associated status flag of
+\fIfield\fP; \fBfield_status\fP gets the current value.
+The status flag
+is set to a nonzero value whenever the field changes.
+.PP
+The function \fBset_max_field\fP sets the maximum size for a dynamic field.
+An argument of 0 turns off any maximum size threshold for that field.
+.SH RETURN VALUE
+The \fBfield_buffer\fP function returns NULL on error.
+It sets \fBerrno\fP according to their success:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.PP
+The \fBfield_status\fP function returns \fBTRUE\fP or \fBFALSE\fP.
+.PP
+The remaining routines return one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fP(3)).
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.SH SEE ALSO
+\fBcurses\fP(3) and related pages whose names begin \*(``form_\*('' for detailed
+descriptions of the entry points.
+.SH NOTES
+The header file \fB<form.h>\fP automatically includes the header file
+.PP
+When configured for wide characters, \fBfield_buffer\fP returns a pointer
+to temporary storage (allocated and freed by the library).
+The application should not attempt to modify the data.
+It will be freed on the next call to \fBfield_buffer\fP to return the
+same buffer.
+\fB<curses.h>\fP.
+.SH PORTABILITY
+These routines emulate the System V forms library.
+They were not supported on
+Version 7 or BSD versions.
+.PP
+The \fBset_max_field\fP function checks for an ncurses extension
+\fBO_INPUT_FIELD\fP which allows a dynamic field to shrink if the new
+limit is smaller than the current field size.
+.SH AUTHORS
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

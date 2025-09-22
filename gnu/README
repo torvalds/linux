@@ -1,0 +1,19 @@
+$OpenBSD: README,v 1.2 2016/09/03 22:32:04 benno Exp $
+
+This directory contains software that is Gigantic and Nasty but
+Unavoidable.
+
+Some, but not all, of the software in this subtree follows special
+rules, i.e.  licences other than BSD.
+
+So:
+- check the history of external code before importing it.
+- for GPL software be ready to arrange for copyright papers somewhat
+in advance if you want to work on it (the FSF takes a few months to
+process these).
+
+Otherwise, changes might not make it to the main distribution, and may
+need some further maintenance over time, or risk getting lost.
+
+Some internal changes are acceptable, but OpenBSD can't afford to maintain
+a complete separate toolchain on its own.

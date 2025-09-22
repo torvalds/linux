@@ -1,0 +1,145 @@
+.\"	$OpenBSD: core.5,v 1.25 2021/05/01 16:11:10 visa Exp $
+.\"	$NetBSD: core.5,v 1.4 1994/11/30 19:31:11 jtc Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)core.5	8.3 (Berkeley) 12/11/93
+.\"
+.Dd $Mdocdate: May 1 2021 $
+.Dt CORE 5
+.Os
+.Sh NAME
+.Nm core
+.Nd memory image file format
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/exec_elf.h
+.Sh DESCRIPTION
+A small number of signals which cause abnormal termination of a process
+also cause a record of the process's in-core state to be written
+to disk for later examination by one of the available debuggers (see
+.Xr sigaction 2 ) .
+.Pp
+By default, this memory image is written to a file named
+.Pa programname.core
+in the working directory, provided the terminated process had write
+permission in the directory,
+and the terminated process either had an effective user ID of zero or
+had never changed user or group ID.
+See the description of
+.Dv KERN_NOSUIDCOREDUMP
+in
+.Xr sysctl 2
+for other options.
+.Pp
+The maximum size of a
+.Pa programname.core
+file is limited by
+.Xr setrlimit 2 .
+Files which would be larger than the limit are not created.
+.Pp
+The
+.Pa programname.core
+file is in the ELF binary file format with an
+.Va e_type
+of
+.Dv ET_CORE .
+It has no section header table and a segment header that contains
+.Dv PT_LOAD
+and
+.Dv PT_NOTE
+segments that describe the state of the process when terminated.
+.Pp
+The
+.Dv PT_LOAD
+segments hold images of the process memory when it was terminated.
+Device mappings are excluded,
+as are read-only mappings that do not have private mapping changes.
+Each segment's
+.Va p_vaddr ,
+.Va p_memsz ,
+and
+.Va p_flags
+specify the address, size, and access protection of the memory
+segment it describes.
+.Pp
+The
+.Dv PT_NOTE
+segment contains notes describing the kernel state and CPU registers
+of each thread in the process.
+Notes describing the process as a whole have the name
+.Dq OpenBSD .
+An
+.Dv NT_OPENBSD_PROCINFO
+note is included containing an
+.Vt elfcore_procinfo
+structure with information about the kernel state of the process.
+An
+.Dv NT_OPENBSD_AUXV
+note is included containing a copy of the original process environment strings.
+On sparc64, an
+.Dv NT_OPENBSD_WCOOKIE
+note is included containing the process's
+.Sq window cookie .
+.Pp
+Notes describing the individual threads in the process have names
+in the format
+.Dq OpenBSD@%d
+where the suffix is the thread ID.
+For each thread, an
+.Dv NT_OPENBSD_REGS
+note is included containing the state of the regular registers of
+the thread and, on architectures other than luna88k, an
+.Dv NT_OPENBSD_FPREGS
+note is also included containing the state of the floating-point
+registers of the thread.
+.Sh SEE ALSO
+.Xr gdb 1 ,
+.Xr setrlimit 2 ,
+.Xr sigaction 2 ,
+.Xr sysctl 2
+.Sh HISTORY
+A
+.Nm
+file format appeared in
+.At v1 .
+.Ox 2.0
+started using the ELF format for some architectures.
+All architectures used ELF starting in
+.Ox 5.4 .
+.Sh CAVEATS
+Programs which are started with either the set-user-ID or
+set-group-ID bits set,
+or which change their UID or GID after starting, will normally not
+dump core.
+This is to prevent sensitive information from inadvertently ending
+up on disk.
+This behaviour can be changed (for debugging purposes) by changing the
+.Li kern.nosuidcoredump
+.Xr sysctl 2
+variable to the right settings.

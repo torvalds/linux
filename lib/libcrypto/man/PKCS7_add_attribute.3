@@ -1,0 +1,370 @@
+.\" $OpenBSD: PKCS7_add_attribute.3,v 1.6 2025/07/27 19:31:20 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 27 2025 $
+.Dt PKCS7_ADD_ATTRIBUTE 3
+.Os
+.Sh NAME
+.Nm PKCS7_add_attribute ,
+.Nm PKCS7_set_attributes ,
+.Nm PKCS7_get_attribute ,
+.Nm PKCS7_add_signed_attribute ,
+.Nm PKCS7_set_signed_attributes ,
+.Nm PKCS7_get_signed_attribute ,
+.Nm PKCS7_add_attrib_content_type ,
+.Nm PKCS7_add1_attrib_digest ,
+.Nm PKCS7_add0_attrib_signing_time ,
+.Nm PKCS7_add_attrib_smimecap
+.Nd attributes of SignerInfo objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft int
+.Fo PKCS7_add_attribute
+.Fa "PKCS7_SIGNER_INFO *si"
+.Fa "int nid"
+.Fa "int attrtype"
+.Fa "void *value"
+.Fc
+.Ft int
+.Fo PKCS7_set_attributes
+.Fa "PKCS7_SIGNER_INFO *si"
+.Fa "STACK_OF(X509_ATTRIBUTE) *sk"
+.Fc
+.Ft ASN1_TYPE *
+.Fo PKCS7_get_attribute
+.Fa "PKCS7_SIGNER_INFO *si"
+.Fa "int nid"
+.Fc
+.Ft int
+.Fo PKCS7_add_signed_attribute
+.Fa "PKCS7_SIGNER_INFO *si"
+.Fa "int nid"
+.Fa "int attrtype"
+.Fa "void *value"
+.Fc
+.Ft int
+.Fo PKCS7_set_signed_attributes
+.Fa "PKCS7_SIGNER_INFO *si"
+.Fa "STACK_OF(X509_ATTRIBUTE) *sk"
+.Fc
+.Ft ASN1_TYPE *
+.Fo PKCS7_get_signed_attribute
+.Fa "PKCS7_SIGNER_INFO *si"
+.Fa "int nid"
+.Fc
+.Ft int
+.Fo PKCS7_add_attrib_content_type
+.Fa "PKCS7_SIGNER_INFO *si"
+.Fa "ASN1_OBJECT *coid"
+.Fc
+.Ft int
+.Fo PKCS7_add1_attrib_digest
+.Fa "PKCS7_SIGNER_INFO *si"
+.Fa "const unsigned char *md"
+.Fa "int mdlen"
+.Fc
+.Ft int
+.Fo PKCS7_add0_attrib_signing_time
+.Fa "PKCS7_SIGNER_INFO *si"
+.Fa "ASN1_TIME *t"
+.Fc
+.Ft int
+.Fo PKCS7_add_attrib_smimecap
+.Fa "PKCS7_SIGNER_INFO *si"
+.Fa "STACK_OF(X509_ALGOR) *cap"
+.Fc
+.Sh DESCRIPTION
+.Fn PKCS7_add_attribute
+appends a new attribute of type
+.Fa nid
+to the
+.Fa unauthenticatedAttributes
+list of
+.Fa si ,
+and it adds a new ASN.1 ANY object of type
+.Fa attrtype
+with the given
+.Fa value
+to the new attribute.
+Ownership of the
+.Fa value
+is transferred into the new attribute object, so the calling code
+must not
+.Xr free 3
+the
+.Fa value .
+If the list already contains an unauthenticated attribute of type
+.Fa nid
+before the call, the new attribute replaces the old one
+instead of being appended to the end of the list.
+.Pp
+.Fn PKCS7_set_attributes
+frees the
+.Fa unauthenticatedAttributes
+list of
+.Fa si
+and all the attributes contained in it and replaces it with a deep copy of
+.Fa sk .
+.Pp
+.Fn PKCS7_get_attribute
+retrieves the first ASN.1 ANY member of the attribute of type
+.Fa nid
+from the
+.Fa unauthenticatedAttributes
+list of
+.Fa si .
+.Pp
+The behaviour of
+.Fn PKCS7_add_signed_attribute ,
+.Fn PKCS7_set_signed_attributes ,
+and
+.Fn PKCS7_get_signed_attribute
+is identical except that they operate on the list of
+.Fa authenticatedAttributes .
+.Pp
+The normal way to use
+.Fn PKCS7_add_signed_attribute
+is to first create a
+.Vt SignedInfo
+object with
+.Xr PKCS7_sign 3
+using the
+.Dv PKCS7_PARTIAL
+or
+.Dv PKCS7_STREAM
+flag, retrieve the
+.Vt PKCS7_SIGNER_INFO
+object with
+.Xr PKCS7_get_signer_info 3
+or add an additional one with
+.Xr PKCS7_sign_add_signer 3 ,
+call
+.Fn PKCS7_add_signed_attribute
+for each desired additional attribute, then do the signing with
+.Xr PKCS7_final 3
+or with another finalizing function.
+.Pp
+The four remaining functions are wrappers around
+.Fn PKCS7_add_signed_attribute .
+.Pp
+.Fn PKCS7_add_attrib_content_type
+sets the
+.Dv NID_pkcs9_contentType
+attribute to
+.Fa coid ,
+which specifies the content type of the
+.Vt ContentInfo
+value to be signed.
+This attribute is mandatory and automatically added by
+.Xr PKCS7_sign 3
+and
+.Xr PKCS7_sign_add_signer 3
+unless the
+.Dv PKCS7_NOATTR
+flag is present.
+Objects suitable as
+.Fa coid
+arguments can for example be obtained with
+.Xr OBJ_nid2obj 3 .
+If
+.Fa coid
+is
+.Dv NULL ,
+the content type defaults to
+.Dv NID_pkcs7_data .
+.Pp
+.Fn PKCS7_add1_attrib_digest
+sets or replaces the
+.Dv NID_pkcs9_messageDigest
+attribute, which is the message digest of the contents octets
+of the DER-encoding of the content field of the
+.Vt ContentInfo
+value being signed, to a copy of
+.Fa md ,
+which is assumed to be
+.Fa mdlen
+bytes long.
+If
+.Fa mdlen
+is -1, then
+.Fn strlen md
+is used instead of
+.Fa mdlen .
+This attribute is mandatory and automatically added by
+.Xr PKCS7_dataFinal 3
+and
+.Xr PKCS7_final 3 .
+.Pp
+.Fn PKCS7_add0_attrib_signing_time
+sets or replaces the optional
+.Dv NID_pkcs9_signingTime
+attribute to
+.Fa t ,
+specifying the time at which the signer performed the signing process.
+Ownership of
+.Fa t
+is transferred into the new attribute object, so the calling code
+must not
+.Xr free 3
+.Fa t .
+If
+.Fa t
+is
+.Dv NULL ,
+a new
+.Vt ASN1_TIME
+structure is allocated.
+This attribute is automatically added by
+.Xr PKCS7_dataFinal 3
+and
+.Xr PKCS7_final 3 .
+.Pp
+.Fn PKCS7_add_attrib_smimecap
+sets or replaces the optional
+.Dv NID_SMIMECapabilities
+attribute, indicating algorithms the sender is prepared to handle.
+The
+.Fa cap
+pointer is not stored in the new attribute object and can be passed to
+.Fn sk_X509_ALGOR_pop_free
+after the call.
+This attribute is automatically added by
+.Xr PKCS7_sign 3
+and
+.Xr PKCS7_sign_add_signer 3
+unless the
+.Dv PKCS7_NOATTR
+or
+.Dv PKCS7_NOSMIMECAP
+flag is present.
+.Sh RETURN VALUES
+.Fn PKCS7_add_attribute ,
+.Fn PKCS7_set_attributes ,
+.Fn PKCS7_add_signed_attribute ,
+.Fn PKCS7_set_signed_attributes ,
+.Fn PKCS7_add_attrib_content_type ,
+.Fn PKCS7_add1_attrib_digest ,
+.Fn PKCS7_add0_attrib_signing_time ,
+and
+.Fn PKCS7_add_attrib_smimecap
+return 1 on success or 0 on failure.
+The most common reason for failure is lack of memory.
+.Fn PKCS7_add_attribute
+and
+.Fn PKCS7_add_signed_attribute
+also fail if
+.Fa nid
+is invalid, and
+.Fn PKCS7_add_attrib_content_type
+if
+.Fa si
+already contains an authenticated attribute of type
+.Dv NID_pkcs9_contentType .
+.Pp
+.Fn PKCS7_get_attribute
+and
+.Fn PKCS7_get_signed_attribute
+return an internal pointer to an ASN.1 ANY object or
+.Dv NULL
+on failure.
+They fail if
+.Fa nid
+is invalid, if the respective list in
+.Fa si
+contains no attribute of the requested type, or if an invalid element
+is found in the list before finding the attribute of the requested type.
+.Sh SEE ALSO
+.Xr ASN1_TIME_new 3 ,
+.Xr ASN1_TYPE_new 3 ,
+.Xr OBJ_nid2obj 3 ,
+.Xr PKCS7_final 3 ,
+.Xr PKCS7_get_signer_info 3 ,
+.Xr PKCS7_new 3 ,
+.Xr PKCS7_sign 3 ,
+.Xr PKCS7_sign_add_signer 3 ,
+.Xr STACK_OF 3 ,
+.Xr X509_ALGOR_new 3 ,
+.Xr X509_ATTRIBUTE_new 3
+.Sh STANDARDS
+RFC 2315: PKCS #7: Cryptographic Message Syntax Version 1.5,
+section 9.2: SignerInfo type
+.Pp
+RFC 2985: PKCS #9: Selected Object Classes and Attribute Types Version 2.0,
+section 5.3: Attribute types for use in PKCS #7 data
+and section 5.6: Attributes defined in S/MIME
+.Pp
+RFC 5652: Cryptographic Message Syntax (CMS),
+section 5.3: SignerInfo Type
+and section 11: Useful Attributes
+.Pp
+RFC 8551: Secure/Multipurpose Internet Mail Extensions (S/MIME)
+Version 4.0 Message Specification,
+section 2.5.2: SMIMECapabilities Attribute
+.Sh HISTORY
+.Fn PKCS7_add_attribute ,
+.Fn PKCS7_set_attributes ,
+.Fn PKCS7_get_attribute ,
+.Fn PKCS7_add_signed_attribute ,
+.Fn PKCS7_set_signed_attributes ,
+and
+.Fn PKCS7_get_signed_attribute
+first appeared in OpenSSL 0.9.1 and have been available since
+.Ox 2.6 .
+.Pp
+.Fn PKCS7_add_attrib_smimecap
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Pp
+.Fn PKCS7_add_attrib_content_type ,
+.Fn PKCS7_add1_attrib_digest ,
+and
+.Fn PKCS7_add0_attrib_signing_time
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .
+.Sh CAVEATS
+.Fn PKCS7_set_signed_attributes
+does not validate that
+.Fa sk
+contains the PKCS #9 content type and message digest attributes
+required by RFC 2315.
+It succeeds even when
+.Fa sk
+is empty, leaving
+.Fa si
+in a state that violates the standard.
+.Pp
+.Fn PKCS7_add0_attrib_signing_time
+does not validate
+.Fa t
+beyond checking that it is well-formed per RFC 5652, section 11.3.
+In particular, it may set the signing time to the future
+or to the remote past.
+.Sh BUGS
+A function to remove individual attributes from these lists
+does not appear to exist.
+A program desiring to do that might have to manually iterate the fields
+.Fa auth_attr
+and
+.Fa unauth_attr
+of
+.Fa si ,
+which are both of type
+.Vt STACK_OF(X509_ATTRIBUTE) ,
+using the facilities described in
+.Xr STACK_OF 3
+and
+.Xr OPENSSL_sk_new 3 .

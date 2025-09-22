@@ -1,0 +1,22 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("AVRGenDisassemblerTables") {
+  visibility = [ ":Disassembler" ]
+  args = [ "-gen-disassembler" ]
+  td_file = "../AVR.td"
+}
+
+static_library("Disassembler") {
+  output_name = "LLVMAVRDisassembler"
+  deps = [
+    ":AVRGenDisassemblerTables",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/AVR:LLVMAVRCodeGen",
+    "//llvm/lib/Target/AVR/MCTargetDesc",
+    "//llvm/lib/Target/AVR/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "AVRDisassembler.cpp" ]
+}

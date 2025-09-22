@@ -1,0 +1,36 @@
+# $OpenBSD: Makefile.common,v 1.5 2017/07/24 19:22:49 robert Exp $
+
+.include <bsd.own.mk>
+
+.if ${COMPILER_VERSION:L} == "clang"
+CC=	gcc
+CXX=	g++
+.endif
+
+GCCDIR= ${.CURDIR}/../../gcc/gcc
+GCCLIB= ${GCCDIR}/gcc
+SRCDIR=	${.CURDIR}/../../gcc/libstdc++-v3
+SUPDIR=	${SRCDIR}/libsupc++
+
+.PATH:	${SRCDIR}/src ${SRCDIR}/libmath ${SRCDIR}/config/io \
+	${SRCDIR}/config/locale/generic \
+	${SRCDIR}/include ${SUPDIR} ${.CURDIR}/../libiberty/src \
+	${.CURDIR}/../libstdc++-v3/obj
+
+CPPFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
+CPPFLAGS+=	-I${.CURDIR}/../libstdc++-v3/ -I${SUPDIR} -I${GCCDIR} -I${SRCDIR}/include
+CPPFLAGS+=	-I${GCCLIB}/include -I${SRCDIR}/include -I${.CURDIR}/../libiberty/include -I.
+CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
+CXXFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
+CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
+		-Wno-deprecated
+
+SUPSRCS=del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc eh_alloc.cc eh_arm.cc \
+	eh_aux_runtime.cc eh_call.cc eh_catch.cc eh_exception.cc eh_globals.cc \
+	eh_personality.cc eh_term_handler.cc eh_terminate.cc eh_throw.cc \
+	eh_type.cc eh_unex_handler.cc guard.cc new_handler.cc new_op.cc \
+	new_opnt.cc new_opv.cc new_opvnt.cc pure.cc tinfo.cc tinfo2.cc \
+	vec.cc vterminate.cc
+
+# from libiberty:
+SUPSRCS+=	cp-demangle.c

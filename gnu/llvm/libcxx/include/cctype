@@ -1,0 +1,127 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CCTYPE
+#define _LIBCPP_CCTYPE
+
+/*
+    cctype synopsis
+
+namespace std
+{
+
+int isalnum(int c);
+int isalpha(int c);
+int isblank(int c);  // C99
+int iscntrl(int c);
+int isdigit(int c);
+int isgraph(int c);
+int islower(int c);
+int isprint(int c);
+int ispunct(int c);
+int isspace(int c);
+int isupper(int c);
+int isxdigit(int c);
+int tolower(int c);
+int toupper(int c);
+
+}  // std
+*/
+
+#include <__config>
+
+#include <ctype.h>
+
+#ifndef _LIBCPP_CTYPE_H
+#   error <cctype> tried including <ctype.h> but didn't find libc++'s <ctype.h> header. \
+          This usually means that your header search paths are not configured properly.  \
+          The header search paths should contain the C++ Standard Library headers before \
+          any C Standard Library.
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#ifdef isalnum
+#  undef isalnum
+#endif
+
+#ifdef isalpha
+#  undef isalpha
+#endif
+
+#ifdef isblank
+#  undef isblank
+#endif
+
+#ifdef iscntrl
+#  undef iscntrl
+#endif
+
+#ifdef isdigit
+#  undef isdigit
+#endif
+
+#ifdef isgraph
+#  undef isgraph
+#endif
+
+#ifdef islower
+#  undef islower
+#endif
+
+#ifdef isprint
+#  undef isprint
+#endif
+
+#ifdef ispunct
+#  undef ispunct
+#endif
+
+#ifdef isspace
+#  undef isspace
+#endif
+
+#ifdef isupper
+#  undef isupper
+#endif
+
+#ifdef isxdigit
+#  undef isxdigit
+#endif
+
+#ifdef tolower
+#  undef tolower
+#endif
+
+#ifdef toupper
+#  undef toupper
+#endif
+
+using ::isalnum _LIBCPP_USING_IF_EXISTS;
+using ::isalpha _LIBCPP_USING_IF_EXISTS;
+using ::isblank _LIBCPP_USING_IF_EXISTS;
+using ::iscntrl _LIBCPP_USING_IF_EXISTS;
+using ::isdigit _LIBCPP_USING_IF_EXISTS;
+using ::isgraph _LIBCPP_USING_IF_EXISTS;
+using ::islower _LIBCPP_USING_IF_EXISTS;
+using ::isprint _LIBCPP_USING_IF_EXISTS;
+using ::ispunct _LIBCPP_USING_IF_EXISTS;
+using ::isspace _LIBCPP_USING_IF_EXISTS;
+using ::isupper _LIBCPP_USING_IF_EXISTS;
+using ::isxdigit _LIBCPP_USING_IF_EXISTS;
+using ::tolower _LIBCPP_USING_IF_EXISTS;
+using ::toupper _LIBCPP_USING_IF_EXISTS;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_CCTYPE

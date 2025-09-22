@@ -1,0 +1,217 @@
+#	$OpenBSD: RAMDISKBIG,v 1.104 2020/05/23 06:28:29 jsg Exp $
+
+machine		alpha
+maxusers	4
+
+option		SMALL_KERNEL
+option		NO_PROPOLICE
+option		BOOT_CONFIG
+
+option		RAMDISK_HOOKS
+option		MINIROOTSIZE=5744
+
+option		EISAVERBOSE
+option		PCIVERBOSE
+option		TCVERBOSE
+
+option		FFS
+option		FFS2
+option		CD9660
+option		INET6
+
+option		DEC_3000_500	# Flamingo etc:	3000/[4-9]00*
+option		DEC_3000_300	# Pelican etc:	3000/300*
+option		DEC_2100_A50	# Avanti etc:	AlphaStation 400, 200, etc.
+option		DEC_KN20AA	# KN20AA:	AlphaStation 600
+option		DEC_KN300	# KN300:	AlphaServer 4100 and 1200
+option		DEC_ALPHABOOK1	# AlphaBook1:	Tadpole/DEC AlphaBook
+option		DEC_AXPPCI_33	# NoName:	AXPpci33, etc.
+option		DEC_EB164	# EB164:	AlphaPC 164
+option		DEC_EB64PLUS	# EB64+:	AlphaPC 64, etc.
+option		DEC_2000_300	# "Jensen":	2000/300 (DECpc AXP 150)
+option		DEC_550		# Miata:	Digital Personal Workstation
+option		DEC_1000	# Mikasa etc:	Digital AlphaServer 1000
+option		DEC_1000A	# Corelle etc:	Digital AlphaServer 800/1000A
+option		DEC_6600	# EV6:		XP1000, 264DP OEM Board
+option		API_UP1000	# EV6:		Alpha Processor UP1000
+
+
+config		bsd root on rd0a swap on rd0b and wd0b and sd0b
+
+mainbus0	at root
+cpu*		at mainbus0
+option		NO_IEEE		# Disable IEEE math
+
+ehci*		at pci?
+uhci*		at pci?
+ohci*		at pci?
+usb*		at ehci?
+usb*		at uhci?
+usb*		at ohci?
+
+uhub*		at usb?
+uhub*		at uhub?
+uhidev*		at uhub?
+uhid*		at uhidev?		# USB Generic HID devices
+umass*		at uhub?
+aue*		at uhub?		# ADMtek AN986 Pegasus Ethernet
+axe*		at uhub?		# ASIX Electronics AX88172 USB Ethernet
+axen*		at uhub?		# ASIX Electronics AX88179 USB Ethernet
+cdce*		at uhub?		# CDC Ethernet
+cue*		at uhub?		# CATC USB-EL1201A based Ethernet
+kue*		at uhub?		# Kawasaki KL5KUSB101B based Ethernet
+smsc*		at uhub?		# SMSC LAN95xx Ethernet
+udav*		at uhub?		# Davicom DM9601 based Ethernet
+upl*		at uhub?		# Prolific PL2301/PL2302 host-to-host
+ugl*		at uhub?		# Genesys Logic GL620USB-A host-to-host
+url*		at uhub?		# Realtek RTL8150L based adapters
+ure*		at uhub?		# Realtek RTL8152 based adapters
+wi*		at uhub?		# WaveLAN IEEE 802.11DS
+
+mcbus*		at mainbus0
+mcmem*		at mcbus? mid ?
+
+tcasic*		at mainbus0
+tc*		at tcasic?
+ioasic*		at tc?
+mcclock*	at ioasic?
+le*		at ioasic?
+zs*		at ioasic?
+zstty*		at zs? channel 1
+tcds*		at tc?
+asc*		at tcds?
+asc*		at tc?
+le*		at tc?
+
+apecs*		at mainbus?
+cia*		at mainbus?
+irongate*	at mainbus?
+lca*		at mainbus?
+tsc*		at mainbus0
+tsp*		at tsc?
+mcpcia*		at mcbus? mid?
+
+pci*		at apecs?
+pci*		at cia?
+pci*		at irongate?
+pci*		at lca?
+pci*		at ppb?
+pci*		at tsp?
+pci*		at mcpcia?
+
+ppb*		at pci?
+sio*		at pci?			# Intel PCI-ISA bridge
+pceb*		at pci?			# Intel PCI-EISA bridge
+
+ahc*		at pci?			# Adaptec 2940 SCSI controllers
+qlw*		at pci?			# QLogic ISP SCSI
+qla*		at pci?			# Qlogic ISP 2[123]xx SCSI/FibreChannel
+qle*		at pci?			# Qlogic ISP 2[45]xx SCSI/FibreChannel
+siop*		at pci?			# NCR 53c8xx SCSI
+pcscp*		at pci?			# AMD 53c974 PCscsi-PCI SCSI
+twe*		at pci?			# 3ware Escalade RAID controllers
+softraid0	at root
+adw*		at pci?			# AdvanSys ULTRA WIDE SCSI
+ciss*		at pci?			# Compaq Smart ARRAY [56]* RAID
+gdt*		at pci?			# ICP Vortex GDT RAID controllers
+
+pcn*		at pci?			# AMD PCnet-PCI Ethernet
+de*		at pci?			# 21x4[012]-based Ethernet
+dc*		at pci?			# 21143, "tulip" clone ethernet
+ne*		at pci?			# NE2000-compat ethernet cards
+fxp*		at pci?			# EtherExpress 10/100B ethernet
+ep*		at pci?			# 3COM 3c59x
+xl*		at pci?			# 3COM 3c9xx
+txp*		at pci?			# 3COM 3CR990
+bge*		at pci?			# Broadcom BCM570x (aka Tigon3)
+vge*		at pci?			# VIA VT612x
+re*		at pci?			# Realtek 8169/8169S/8110S
+stge*		at pci?			# Sundance TC9021 GigE
+lge*		at pci?			# Level1 LXT1001 GigE
+hme*		at pci?			# Sun Happy Meal
+ti*		at pci?			# Alteon Tigon 1Gb ethernet
+rl*		at pci?			# Realtek 81[23]9 ethernet
+vr*		at pci?			# VIA Rhine ethernet
+em*		at pci?			# Intel Pro/1000 ethernet
+sis*		at pci?			# SiS 900/7016 ethernet
+mtd*		at pci?			# Myson MTD800/803/891
+epic*		at pci?			# SMC EPIC/100 ethernet
+skc*		at pci?			# SysKonnect GEnesis 984x
+sk*		at skc?			#  each port of above
+mskc*		at pci?			# Marvell Yukon-2
+msk*		at mskc?		#  each port of above
+tl*		at pci?			# Compaq Thunderlan ethernet
+ste*		at pci?			# Sundance ST201 ethernet
+ral*		at pci?			# Ralink RT2500/RT2501/RT2600
+xge*		at pci?			# Neterion Xframe-I/II 10Gb ethernet
+sf*		at pci?			# Adaptec AIC-6915 ethernet
+wb*		at pci?			# Winbond W89C840F ethernet
+an*		at pci?			# Cisco/Aironet 802.11DS
+
+vga*		at pci?			# PCI VGA graphics
+tga*		at pci?			# DEC ZLXp-E[123] graphics
+
+eephy*		at mii?			# Marvell PHYs
+exphy*		at mii?			# 3Com internal PHYs
+inphy*		at mii?			# Intel 82555 PHYs
+iophy*		at mii?			# Intel 82553 PHYs
+icsphy*		at mii?			# ICS 1890 PHYs
+lxtphy*		at mii?			# Level1 LXT970 PHYs
+nsphy*		at mii?			# NS and compatible PHYs
+nsphyter*	at mii?			# NS and compatible PHYs
+qsphy*		at mii?			# Quality Semi QS6612 PHYs
+luphy*		at mii?			# Lucent LU6612 PHY
+sqphy*		at mii?			# Seeq 8x220 PHYs
+tlphy*		at mii?			# ThunderLAN PHYs
+rlphy*		at mii?			# Realtek 8139 internal PHYs
+mtdphy*		at mii?			# Myson MTD972 PHYs
+dcphy*		at mii?			# Digital Clone PHYs
+acphy*		at mii?			# Altima AC101 PHYs
+amphy*		at mii?			# AMD 79C873 PHYs
+tqphy*		at mii?			# TDK 78Q212x PHYs
+bmtphy*		at mii?			# Broadcom 10/100 PHYs
+brgphy*		at mii?			# Broadcom Gigabit PHYs
+xmphy*		at mii?			# XaQti XMAC-II PHYs
+urlphy*		at mii?			# Realtek RTL8150L internal PHY
+rgephy*		at mii?			# Realtek 8169S/8110S PHY
+ciphy*		at mii?			# Cicada CS8201 10/100/1000 copper PHY
+ipgphy*		at mii?			# IC Plus IP1000A PHYs
+mlphy*		at mii?			# Micro Linear 6692 PHY
+ukphy*		at mii?			# "unknown" PHYs
+
+isa*		at pceb?
+eisa*		at pceb?
+isa*		at sio?
+isadma0		at isa?
+isapnp0		at isa?
+
+mcclock*	at isa? port 0x70
+pckbc*		at isa?				# PC keyboard controller
+pckbd*		at pckbc?			# PC keyboard (kbd port)
+com*		at isa? port 0x3f8 irq 4	# standard serial ports
+com*		at isa? port 0x2f8 irq 3
+vga*		at isa?				# ISA (EISA: XXX) VGA
+ep*		at isa?				# 3C509 ethernet cards
+ep*		at isapnp?
+lc0		at isa? port 0x200		# DEC EtherWorks
+lc1		at isa? port 0x280		# DEC EtherWorks
+ahc*		at eisa?			# Adaptec 274x, aic7770 SCSI
+
+scsibus*	at scsi?
+cd*		at scsibus?
+sd*		at scsibus?
+st*		at scsibus?
+
+pciide*		at pci? flags 0x0000
+wd*		at pciide? flags 0x0000
+atapiscsi*	at pciide?
+
+wsdisplay*	at vga?
+wsdisplay*	at tga?
+wskbd*		at pckbd?
+
+pseudo-device	bpfilter 1
+pseudo-device	vlan
+pseudo-device	loop 1
+pseudo-device	rd 1
+pseudo-device	bio 1

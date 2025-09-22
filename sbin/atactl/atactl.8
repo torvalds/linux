@@ -1,0 +1,520 @@
+.\"	$OpenBSD: atactl.8,v 1.48 2022/03/31 17:27:19 naddy Exp $
+.\"	$NetBSD: atactl.8,v 1.5 1999/02/24 18:49:14 jwise Exp $
+.\"
+.\" Copyright (c) 1998 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Ken Hornstein.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt ATACTL 8
+.Os
+.Sh NAME
+.Nm atactl
+.Nd a program to manipulate ATA (IDE) devices
+.Sh SYNOPSIS
+.Nm atactl
+.Ar device
+.Op Ar command Op Ar arg ...
+.Sh DESCRIPTION
+.Nm
+allows a user or system administrator to issue commands to and otherwise
+control devices which reside on standard IDE and ATA controllers.
+It is used by specifying
+a device to manipulate, a command to perform, and any arguments
+the command may require.
+.Pp
+.Nm
+supports the following commands:
+acousticdisable,
+acousticset,
+apmdisable,
+apmset,
+checkpower,
+dump,
+identify (the default),
+idle,
+poddisable,
+podenable,
+puisdisable,
+puisenable,
+puisspinup,
+readaheaddisable,
+readaheadenable,
+readattr,
+secdisablepass,
+secerase,
+secfreeze,
+secsetpass,
+secunlock,
+setidle,
+setstandby,
+sleep,
+smartautosave,
+smartdisable,
+smartenable,
+smartoffline,
+smartread,
+smartreadlog,
+smartstatus,
+standby,
+writecachedisable,
+and
+writecacheenable.
+.Pp
+Support for
+Self-Monitoring, Analysis, and Reporting Technology (SMART) functionality
+is indicated by the device with
+.Sq SMART feature set
+in the output of the
+.Li identify
+command.
+SMART commands and the
+.Li readattr
+command are for experts only.
+.Pp
+Support for
+Security Mode functionality
+is indicated by the device with
+.Sq Security Mode feature set
+in the output of the
+.Li identify
+command.
+.Em Be very careful
+while playing with these commands:
+loss of the user and master passwords for the device will result
+in an inaccessible device.
+.Pp
+A full description of the commands follows:
+.Pp
+.Bl -tag -width xxxxxxx -compact
+.It Li acousticdisable
+Disables support for automatic acoustic management on the specified device.
+Note that devices supporting automatic acoustic management may refuse to
+disable it, resulting in an
+.Sq ATA device returned Aborted Command
+warning.
+.Pp
+.It Li acousticset Ar acoustic-management-level
+Enables and sets the automatic acoustic management level to the requested
+level on the specified device (if supported).
+Device performance may
+increase with increasing automatic acoustic management levels at the cost of
+potentially generating more noise and requiring more power.
+Valid values are 0 up to and including 126.
+Support for automatic acoustic management is indicated by the device with
+.Sq Automatic Acoustic Management feature set
+in the output of the
+.Li identify
+command.
+.Pp
+.It Li apmdisable
+Disables support for advanced power management on the specified device.
+Note that devices supporting advanced power management may refuse to
+disable it, resulting in an
+.Sq ATA device returned Aborted Command
+warning.
+.Pp
+.It Li apmset Ar power-management-level
+Enables and sets the advanced power management level to the requested
+level on the specified device (if supported).
+Device performance may
+increase with increasing power management levels at the cost of
+potentially requiring more power.
+Values up to and including 126 allow
+the device to go into standby mode and spin-down the disk.
+This
+.Em may cause disk time-outs
+and is therefore
+.Em not
+recommended.
+These values are more suitable optimization for low power
+usage on infrequently used devices.
+Values 127 up to and including 253 do not allow the device to go to
+standby mode and are more suitable for optimization for performance.
+Support for advanced power management is indicated by the device with
+.Sq Advanced Power Management feature set
+in the output of the
+.Li identify
+command.
+.Pp
+.It Li checkpower
+Will print out if the device is in Active, Idle, or Standby power
+management mode.
+.Pp
+.It Li dump
+Extracts the records about issued ATA commands from the log buffer.
+The log buffer is cleared after extraction.
+.Pp
+.It Li identify
+Identify the specified device, displaying the device's vendor, product,
+revision strings, supported capabilities and enabled capabilities.
+This command is the default.
+.Pp
+.It Li idle
+Place the specified device into Idle mode.
+This mode may consume less power than Active mode.
+.Pp
+.It Li poddisable
+Disallows the specified device to revert to power-on default (pod) settings
+after a software reset.
+In other words this permits the settings that have been modified since
+power-on to remain after a software reset.
+.Pp
+.It Li podenable
+Allows the specified device to revert to power-on default (pod) settings
+after a software reset.
+.Pp
+.It Li puisdisable
+Disables power-up in standby (puis) on the specified device, causing the
+device to spin up the disks after power-up.
+This should be the factory
+default setting of the device and it is recommended to leave this
+setting disabled.
+.Pp
+.It Li puisenable
+Enables power-up in standby (puis) on the specified device, causing the
+device to wait while spinning up the disks after power-up.
+This may cause problems at boot if the device is too slow in spin-up.
+This option is therefore
+.Em not recommended
+unless the implications are understood.
+Note that the power-up in standby mode stays enabled over power-downs,
+hardware and software resets.
+Support for power-up in standby is indicated by the device with
+.Sq Power-up in standby feature set
+in the output of the
+.Li identify
+command.
+.Pp
+.It Li puisspinup
+Explicitly spins up the device if power-up in standby (puis) mode
+is enabled.
+.Pp
+.It Li readaheaddisable
+Disables read look-ahead on the specified device.
+This may decrease performance.
+Note that the device may use
+.Sq vendor specific
+behaviour in implementing this, so it is
+.Em not
+recommended to issue this command on a disk containing any currently
+mounted filesystems.
+.Pp
+.It Li readaheadenable
+Enables read look-ahead on the specified device.
+This may increase performance.
+Support for and status of read look-ahead is indicated by
+the device with
+.Sq read look-ahead
+in the output of the
+.Li identify
+command.
+.Pp
+.It Li readattr
+Displays attribute thresholds and values for the specified device.
+Besides attribute values, device vendors may provide additional information
+shown in the last column,
+.Dq Raw .
+Attributes names can be completely wrong since they vary between vendors and
+even models, so don't rely on it.
+SMART must be enabled while executing this command or the device will return
+an error.
+.Pp
+.It Li secdisablepass Ar user | master
+Disables the lock mode for the specified device with user or master password.
+This command won't change the master password.
+The master password will be reactivated when a user password is set.
+.Pp
+.It Li secerase Ar user | master Oo
+.Ar enhanced
+.Oc
+Erases all user data and unlocks the specified device.
+Execution of this command with the master password is the only way to unlock a
+device locked at maximum security level with the
+.Li secsetpass
+command if the user's password is lost or unknown.
+There are two erase modes: normal and enhanced.
+Default erase mode is normal.
+In the normal erase mode this command will write binary zeroes to
+all user data areas.
+The enhanced erase mode is optional and may not be supported by the device.
+When enhanced erase mode is specified, the device will write predetermined
+data patterns to all user data areas.
+In enhanced erase mode, all previously written user data will be overwritten,
+including sectors that are no longer in use due to reallocation.
+This command will disable the device lock mode, however, the master password
+will still be stored internally within the device and may be reactivated later
+when a new user password is set.
+.Pp
+.It Li secfreeze
+Prevents changes to passwords until a following power cycle.
+The purpose of this command is to prevent password setting attacks on the
+security system.
+After command completion any other commands that update the device lock mode
+will be aborted.
+.Pp
+.It Li secsetpass Ar user high | maximum
+.It Li secsetpass Ar master
+Sets password and security level for the specified device.
+There are two passwords, user and master, and two security levels, high and
+maximum.
+The maximum password length is 32 symbols.
+The security system is enabled by sending a user password to the device with
+this command.
+When the security system is enabled, access to user data on the device is
+denied after a power cycle until the user password is sent to the device with
+the
+.Li secunlock
+command.
+A master password may be set in addition to the user password.
+The purpose of the master password is to allow an administrator to establish
+a password that is kept secret from the user, and which may be used to unlock
+the device if the user password is lost.
+Setting the master password does not enable security system.
+Each master password change decrements the master password revision
+code value which is displayed in the
+.Li identify
+command output if supported.
+After value 0x0001 is reached, the next value will be 0xfffe.
+The security level determines device behavior when the master password is used
+to unlock the device.
+When the security level is set to high, the device requires the
+.Li secunlock
+command if the master password is used to unlock.
+When the security level is set to maximum, the device requires a
+.Li secerase
+command if the master password is used to unlock it.
+Execution of the
+.Li secerase
+command erases all user data on the device.
+.Pp
+.It Li secunlock Ar user | master
+Unlocks the specified device with user or master password.
+The device will always unlock if a valid user password is received.
+If the security level was set to high during the last
+.Li secsetpass
+command, the device will unlock if the master password is received.
+If the security level was set to maximum during the last
+.Li secsetpass
+command, the device won't unlock even if the master password is received.
+.Pp
+.It Li setidle Ar idle-timer
+Places the specified device into Idle mode, and sets the Idle timer to
+.Ar idle-timer
+seconds.
+A value of 0 will disable the Idle timer.
+.Pp
+.It Li setstandby Ar standby-timer
+Places the specified device into Standby mode, and sets the Standby timer
+to
+.Ar standby-timer
+seconds.
+A value of 0 will disable the Standby timer.
+.Pp
+.It Li sleep
+Place the specified device into Sleep mode.
+This mode will consume less power than Standby mode,
+but requires a device reset to resume operation.
+Typically the
+.Xr wd 4
+driver performs this reset automatically, but this should still be
+used with caution.
+.Pp
+.It Li smartautosave Ar enable | disable
+Enables/disables attribute autosave feature on the specified device.
+.Pp
+.It Li smartdisable
+Disables support for SMART on the specified device.
+Note that this means that the device will no longer record any SMART
+information.
+.Pp
+Note that SMART
+.Em must
+be enabled while executing the following commands or the device will
+return an error.
+.Pp
+.It Li smartenable
+Enables SMART (Self-Monitoring, Analysis, and Reporting Technology) on the
+specified device (if supported).
+This causes the device to record information
+for prediction of device degradation and/or faults.
+.Pp
+.It Li smartoffline Ar subcommand
+Causes the specified device to immediately initiate the optional set of
+activities that collect SMART data in off-line mode and then save this data
+to the device's non-volatile memory, or execute self-diagnostic test
+routines in either captive or off-line mode.
+The
+.Ar subcommand
+may be one of the following:
+.Pp
+.Bl -tag -width indent -compact
+.It Em abort
+Abort off-line mode self-test routine.
+.Pp
+.It Em collect
+Start SMART off-line data collection immediately.
+.Pp
+.It Em extencaptive
+Execute SMART extended self-test routine immediately in captive mode.
+.Pp
+.It Em extenoffline
+Execute SMART extended self-test routine immediately in off-line mode.
+.Pp
+.It Em shortcaptive
+Execute SMART short self-test routine immediately in captive mode.
+.Pp
+.It Em shortoffline
+Execute SMART short self-test routine immediately in off-line mode.
+.El
+.Pp
+Note that executing self-test routines in captive mode causes the device to
+be not accessible until the routine completes.
+This option is therefore
+.Em not recommended
+unless the implications are understood.
+.Pp
+.It Li smartread
+Reads various SMART information from the specified device and prints it to
+stdout.
+.Pp
+.It Li smartreadlog Ar log
+Reads specified
+.Ar log
+and prints it to stdout.
+The
+.Ar log
+may be one of the following:
+.Pp
+.Bl -tag -width "directoryXX" -offset indent -compact
+.It Em comp
+The comprehensive error log.
+.It Em directory
+The error log directory.
+.It Em selftest
+The self-test log.
+.It Em summary
+The summary error log.
+.El
+.Pp
+.It Li smartstatus
+Reads the reliability status of the specified device.
+If the device reports
+that one of its thresholds is exceeded (a strong indication of imminent
+failure), the warning
+.Sq SMART threshold exceeded!\&
+is printed to stderr and a status of 2 is returned.
+.Pp
+.It Li standby
+Place the specified device into Standby mode.
+This mode will consume less power than Idle mode.
+.Pp
+.It Li writecachedisable
+Disable the write cache on the specified device (if supported).
+This may decrease performance.
+Support for and status of write caching is indicated by the device with
+.Sq write cache
+in the output of the
+.Li identify
+command.
+.Pp
+.It Li writecacheenable
+Enables the write cache on the specified device (if supported).
+This may increase performance, however data still in the device's cache at
+powerdown
+.Em may be lost .
+The
+.Xr wd 4
+driver performs a cache flush automatically before shutdown.
+.El
+.Sh EXAMPLES
+Display the vendor, product, revision strings, and capabilities (such as
+SMART support) as reported by
+.Pa /dev/wd0 :
+.Pp
+.Dl # atactl /dev/wd0c identify
+.Pp
+Enable SMART support on
+.Pa /dev/wd0
+for detection of early warning signs of device failure:
+.Pp
+.Dl # atactl /dev/wd0c smartenable
+.Pp
+A
+.Xr crontab 5
+entry which queries
+.Pa /dev/wd0
+each hour for early warning signs of failure.
+If the device exceeds one of the SMART thresholds,
+.Nm
+will output
+.Sq SMART threshold exceeded!\&
+to stderr and
+.Xr cron 8
+will mail it.
+.Pp
+.Dl 0 * * * * /sbin/atactl /dev/wd0c smartstatus \*(Gt/dev/null
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr wd 4
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Ox 2.6 .
+Support for acoustic management, advanced power management, power-up in
+standby, read look-ahead, and SMART was added in
+.Ox 2.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+command was written by
+.An Ken Hornstein .
+It was based heavily on the scsictl command written by
+.An Jason R. Thorpe .
+Support for acoustic management, advanced power management, power-up in
+standby, read look-ahead, and SMART was added by
+.An Wouter Slegers .
+.Sh CAVEATS
+Not all devices are created equally.
+Some may not support the feature sets
+and/or commands needed to perform the requested action, even when the
+.Li identify
+command indicates support for the requested action.
+The device will typically respond with an
+.Sq ATA device returned Aborted Command
+if the requested action is not supported.
+Similarly a device might not implement all commands in a feature set,
+so even though disabling a feature works, enabling might not.
+.Sh BUGS
+The output from the
+.Li identify
+command is rather ugly.
+.Pp
+Disabling read look-ahead with
+.Li readaheaddisable
+might cause problems with mounted filesystems on that device.

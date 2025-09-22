@@ -1,0 +1,18 @@
+// Test support for empty statement lists.
+BEGIN
+{
+      exit();
+}
+
+syscall:open:return
+{
+}
+
+syscall:close:return
+/comm != "ksh"/
+{
+}
+
+END
+{
+}

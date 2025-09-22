@@ -1,0 +1,16 @@
+Routing tables
+
+Internet6:
+Destination                                 Gateway                                 Flags   Refs      Use   Mtu  Prio Iface
+fd88::1                                     fd88::1                                 UHl        0        0 32768     1 lo10002
+fd88::666                                   fd99::1                                 UGHS       0        0 32768     8 lo10002
+fd99::1                                     fd99::1                                 UHhl       1        2 32768     1 lo10003
+fe80::1%lo10001                             fe80::1%lo10001                         UHl        0        0 32768     1 lo10001
+fe80::1%lo10002                             fe80::1%lo10002                         UHl        0        0 32768     1 lo10002
+fe80::1%lo10003                             fe80::1%lo10003                         UHl        0        0 32768     1 lo10003
+ff01::%lo10001/32                           fe80::1%lo10001                         Um         0        0 32768     4 lo10001
+ff01::%lo10002/32                           fe80::1%lo10002                         Um         0        1 32768     4 lo10002
+ff01::%lo10003/32                           fe80::1%lo10003                         Um         0        1 32768     4 lo10003
+ff02::%lo10001/32                           fe80::1%lo10001                         Um         0        0 32768     4 lo10001
+ff02::%lo10002/32                           fe80::1%lo10002                         Um         0        1 32768     4 lo10002
+ff02::%lo10003/32                           fe80::1%lo10003                         Um         0        1 32768     4 lo10003

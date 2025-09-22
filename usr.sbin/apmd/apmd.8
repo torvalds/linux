@@ -1,0 +1,273 @@
+.\"	$OpenBSD: apmd.8,v 1.62 2025/06/01 08:17:22 kn Exp $
+.\"
+.\" Copyright (c) 1995 John T. Kohl
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR `AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 1 2025 $
+.Dt APMD 8
+.Os
+.Sh NAME
+.Nm apmd
+.Nd Advanced Power Management daemon
+.Sh SYNOPSIS
+.Nm apmd
+.Op Fl AadHLs
+.Op Fl f Ar devname
+.Op Fl S Ar sockname
+.Op Fl t Ar seconds
+.Op Fl w Ar percent
+.Op Fl Z Ar percent
+.Op Fl z Ar percent
+.Sh DESCRIPTION
+.Nm
+monitors the advanced power management device,
+.Xr apm 4 ,
+acting on signaled events and upon user requests as sent by the
+.Xr apm 8
+program.
+.Pp
+On
+.Ox ,
+power management is handled by the kernel,
+and the default policy can be set using the
+.Va hw.perfpolicy
+.Xr sysctl 2 .
+If
+.Nm
+is not running,
+.Xr apm 8
+is still able to query the
+.Xr apm 4
+driver for a limited amount of information,
+but
+.Nm
+provides more advanced functionality,
+such as the ability to switch performance modes.
+.Pp
+For suspend and standby request events delivered by the BIOS, or via
+.Xr apm 8 ,
+.Nm
+runs the appropriate configuration program (if one exists),
+syncs the buffer cache to disk and initiates the requested state.
+When resuming after suspend or standby,
+.Nm
+runs the appropriate configuration program (if one exists).
+.Pp
+When the power status changes
+(external power is connected or disconnected),
+.Nm
+fetches the current status and reports it via
+.Xr syslog 3
+with logging facility
+.Dv LOG_DAEMON .
+.Pp
+.Nm
+can change the system performance policy at startup when called
+with the
+.Fl A ,
+.Fl H
+or
+.Fl L
+options, and during runtime when requested by
+.Xr apm 8 .
+.\" XXX keep in sync with hw.perfpolicy in sysctl(2)
+The default performance policy is "high" when connected to line current,
+and "auto" when running on battery.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl A
+Start
+.Nm
+in automatic performance adjustment mode.
+.It Fl a
+BIOS-initiated suspend or standby requests are
+ignored if the system is connected to line current and not running from
+batteries (user requests are still honored).
+.It Fl d
+.Nm
+enters debug mode, staying in the foreground.
+Logging output is printed to stderr.
+.It Fl f Ar devname
+Specify an alternate device file name,
+.Ar devname .
+.It Fl H
+Start
+.Nm
+in manual performance adjustment mode, initialising
+.Va hw.setperf
+to 100.
+.It Fl L
+Start
+.Nm
+in manual performance adjustment mode, initialising
+.Va hw.setperf
+to 0.
+.It Fl S Ar sockname
+Specify an alternate socket name,
+.Ar sockname .
+The socket is protected to mode 0660, UID 0, GID 0; this protects access
+to suspend requests to authorized users only.
+.It Fl s
+Current battery statistics are reported via
+.Xr syslog 3
+and
+.Nm
+exits without monitoring the APM status.
+.It Fl t Ar seconds
+.Nm
+periodically polls the APM driver for the current power state.
+If the battery charge level changes substantially or the external power
+status changes, the new status is logged.
+The polling rate defaults to
+once per 10 minutes, but may be specified using the
+.Fl t
+command-line flag.
+.It Fl w Ar percent
+Log warning and enable
+.Dq warnlow
+actions if no AC is connected and the
+estimated battery life is equal or below
+.Ar percent .
+.It Fl Z Ar percent
+Automatically hibernate the system if no AC is connected and the
+estimated battery life is equal or below
+.Ar percent .
+.It Fl z Ar percent
+Automatically suspend the system if no AC is connected and the
+estimated battery life is equal or below
+.Ar percent .
+.Pp
+If both
+.Fl Z
+and
+.Fl z
+are specified, the last one will supersede the other.
+After a resume, the effect of those options is inhibited for 60 seconds.
+.El
+.Pp
+When a client requests a suspend or stand-by state,
+.Nm
+does not wait for positive confirmation that the requested
+state has been entered before replying to the client; to do so would mean
+the client does not get a reply until the system resumes from its sleep state.
+Rather,
+.Nm
+replies with the intended state to the client and then places the system
+in the requested state after running the configuration script and
+flushing the buffer cache.
+.Pp
+Actions can be configured for the following transitions:
+hibernate,
+powerdown,
+powerup,
+resume,
+standby,
+suspend,
+and
+warnlow.
+The warnlow action is run if
+.Fl w
+is used.
+The suspend, hibernate and standby actions are run prior to
+.Nm
+performing any other actions (such as disk syncs) and entering the new
+state.
+The resume program is run after resuming from a stand-by or
+suspended state.
+The powerup and powerdown programs are run after the power status (AC
+connected or not) changes, as well as after a resume (if the power
+status changed in the mean time).
+.Sh FILES
+.Bl -tag -width "/etc/apm/powerdownXX" -compact
+.It Pa /dev/apmctl
+Default device used to control
+.Xr apm 4 .
+.Pp
+.It Pa /etc/apm/hibernate
+.It Pa /etc/apm/powerdown
+.It Pa /etc/apm/powerup
+.It Pa /etc/apm/resume
+.It Pa /etc/apm/standby
+.It Pa /etc/apm/suspend
+.It Pa /etc/apm/warnlow
+Action hook files which, if present, must be executable.
+Each file must be an executable binary or shell script.
+A single program or script can be used to control all transitions
+by examining the name by which it was called.
+.Pp
+.It Pa /etc/random.seed
+Random seed file read by the bootloader;
+updated on
+.Dq hibernate ,
+.Dq standby
+and
+.Dq suspend .
+.Pp
+.It Pa /var/run/apmdev
+Default
+.Ux Ns -domain
+socket used for communication with
+.Xr apm 8 .
+.El
+.Sh EXAMPLES
+.Bl -tag -width Ds
+.It Pa /etc/apm/suspend
+.Bd -literal -offset indent -compact
+# X11 screen lock
+pkill -USR1 xidle
+.Ed
+.It Pa /etc/apm/warnlow
+.Bd -literal -offset indent -compact
+# low battery notifications
+aucat -i /etc/apm/tired.wav
+.Ed
+.El
+.Sh SEE ALSO
+.Xr syslog 3 ,
+.Xr apm 4 ,
+.Xr apm 8 ,
+.Xr sysctl 8
+.Pp
+Advanced Power Management (APM) BIOS Interface Specification
+(revision 1.2),
+Intel Corporation and Microsoft Corporation.
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Nx 1.3 .
+.Ox
+support was added in
+.Ox 1.2 .
+.Sh CAVEATS
+.Nm
+does not support specifying an alternate performance policy to be used
+when the system is running on battery.
+See the
+.Va hw.perfpolicy
+setting documented in
+.Xr sysctl 2 .

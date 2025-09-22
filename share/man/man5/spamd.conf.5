@@ -1,0 +1,200 @@
+.\"	$OpenBSD: spamd.conf.5,v 1.23 2019/09/02 21:18:41 deraadt Exp $
+.\"
+.\" Copyright (c) 2003 Jason L. Wright (jason@thought.net)
+.\" Copyright (c) 2003 Bob Beck
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 2 2019 $
+.Dt SPAMD.CONF 5
+.Os
+.Sh NAME
+.Nm spamd.conf
+.Nd spamd-setup configuration file
+.Sh DESCRIPTION
+The
+.Nm
+file is read by
+.Xr spamd-setup 8
+to configure
+.Em blacklists
+for
+.Xr spamd 8 .
+Blacklists are lists of addresses of likely spammers.
+Mail from these addresses never reaches the actual mail server,
+but is instead redirected to
+.Xr spamd 8
+and tarpitted.
+.Pp
+.Nm
+follows the syntax of configuration databases as documented in
+.Xr cgetent 3 .
+Here is an example:
+.Bd -literal -offset indent
+all:\e
+	:nixspam:override:myblack:
+
+nixspam:\e
+	:black:\e
+	:msg="Your address %A is in the nixspam list\en\e
+	See http://www.heise.de/ix/nixspam/dnsbl_en/ for details":\e
+	:method=https:\e
+	:file=www.openbsd.org/spamd/nixspam.gz
+
+override:\e
+	:white:\e
+	:method=file:\e
+	:file=/etc/mail/override.txt:
+
+myblack:\e
+	:black:\e
+	:msg=/etc/mail/myblackmsg.txt:\e
+	:method=file:\e
+	:file=/etc/mail/myblack.txt:
+.Ed
+.Pp
+The default configuration file must include the entry
+.Ar all ,
+which specifies the order in which lists
+are to be applied.
+Lists are constructed by name:
+blacklists are identified by the capability
+.Pf : Ar black : .
+If a list is instead given the
+.Pf : Ar white :
+capability,
+addresses in it will not be blacklisted.
+The addresses in such a list are removed from the preceding blacklist.
+.Pp
+In the above example,
+if an address was present in all three lists,
+blacklists
+.Ar nixspam
+and
+.Ar myblack ,
+as well as the exceptions list
+.Ar override ,
+the address would be removed from list
+.Ar nixspam
+by the subsequent
+.Ar override
+list.
+However, the address would not be removed from the
+.Ar myblack
+list.
+To remove all the addresses in
+.Ar override
+from
+.Ar myblack ,
+the following configuration
+would be used instead:
+.Bd -literal -offset indent
+all:\e
+	:nixspam:override:myblack:override:
+.Ed
+.Pp
+The source of the addresses for lists is
+specified using the
+.Ar method
+and
+.Ar file
+capability entries.
+.Pp
+.Ar method
+specifies the method by which to retrieve a file containing a list of
+addresses and may be one of
+.Ar http ,
+.Ar https ,
+.Ar ftp ,
+.Ar file ,
+or
+.Ar exec .
+The
+.Ar http ,
+.Ar https ,
+.Ar ftp ,
+and
+.Ar file
+methods will make
+.Nm
+retrieve the file from the location specified by the
+.Ar file
+capability.
+The
+.Ar exec
+method will make
+.Nm
+spawn the program with arguments indicated in the
+.Ar file
+capability for the list, and reads a list of addresses
+from the output of the program.
+.Pp
+The format of the list of addresses is expected to consist of one
+network block or address per line (optionally followed by a space and
+text that is ignored).
+Comment lines beginning with
+.Ar #
+are ignored.
+Network blocks may be specified in any of the formats as in
+the following example:
+.Bd -literal -offset indent
+# CIDR format
+192.168.20.0/24
+# A start - end range
+192.168.21.0 - 192.168.21.255
+# As a single IP address
+192.168.23.1
+.Ed
+.Pp
+Each blacklist must include a message, specified in the
+.Ar msg
+capability as a string.
+If the
+.Ar msg
+string is enclosed in double quotes, the characters in the quoted string
+are escaped as specified in
+.Xr cgetent 3
+with the exception that a colon (:) is allowed in the quoted string.
+The resulting string is used as the message.
+Alternatively, if the
+.Ar msg
+string is not specified in quotes, it is assumed to be a local filename
+from which the message text may be read.
+.Pp
+The message is configured in
+.Xr spamd 8
+to be displayed in the SMTP dialogue to any connections that match
+addresses in the blacklist.
+The sequence \e" in the message will produce a double quote in the output.
+The sequence %% will produce a single % in the output,
+and the sequence \&%A will be expanded in the message by
+.Xr spamd 8
+to display the connecting IP address in the output.
+.Sh FILES
+.Bl -tag -width "/etc/mail/spamd.conf"
+.It Pa /etc/mail/spamd.conf
+Configuration file for
+.Xr spamd-setup 8 .
+.El
+.Sh SEE ALSO
+.Xr spamd 8 ,
+.Xr spamd-setup 8

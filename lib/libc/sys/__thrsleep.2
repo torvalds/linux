@@ -1,0 +1,219 @@
+.\" $OpenBSD: __thrsleep.2,v 1.7 2018/04/24 16:28:42 pirofti Exp $
+.\"
+.\" Copyright (c) 2012 Philip Guenther <guenther@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 24 2018 $
+.Dt __THRSLEEP 2
+.Os
+.Sh NAME
+.Nm __thrsleep ,
+.Nm __thrwakeup
+.Nd userspace thread sleep and wakeup
+.Sh SYNOPSIS
+.In sys/time.h
+.Ft int
+.Fn __thrsleep "const volatile void *id" "clockid_t clock_id" "const struct timespec *abstime" "void *lock" "const int *abort"
+.Ft int
+.Fn __thrwakeup "const volatile void *id" "int count"
+.Sh DESCRIPTION
+The
+.Fn __thrsleep
+and
+.Fn __thrwakeup
+functions provide thread sleep and wakeup primitives with which
+synchronization primitives such as mutexes and condition variables
+can be implemented.
+.Fn __thrsleep
+blocks the calling thread on the abstract
+.Dq wait channel
+identified by the
+.Fa id
+argument until another thread calls
+.Fn __thrwakeup
+with the same
+.Fa id
+value.
+If the
+.Fa abstime
+argument is not
+.Dv NULL ,
+then it specifies an absolute time,
+measured against the
+.Fa clock_id
+clock,
+after which
+.Fn __thrsleep
+should time out and return.
+If the specified time is in the past then
+.Fn __thrsleep
+will return immediately without blocking.
+.Pp
+The
+.Fa lock
+argument,
+if not
+.Dv NULL ,
+points to a locked spinlock that will be unlocked by
+.Fn __thrsleep
+atomically with respect to calls to
+.Fn __thrwakeup ,
+such that if another thread locks the spinlock before calling
+.Fn __thrwakeup
+with the same
+.Fa id ,
+then the thread that called
+.Fn __thrsleep
+will be eligible for being woken up and unblocked.
+.Pp
+The
+.Fa abort
+argument,
+if not
+.Dv NULL ,
+points to an
+.Vt int
+that will be examined after unlocking the spinlock pointed to by
+.Fa lock
+and immediately before blocking.
+If that
+.Vt int
+is non-zero then
+.Fn __thrsleep
+will immediately return
+.Er EINTR
+without blocking.
+This provides a mechanism for a signal handler to keep a call to
+.Fn __thrsleep
+from blocking,
+even if the signal is delivered immediately before the call.
+.Pp
+The
+.Fn __thrwakeup
+function unblocks one or more threads that are sleeping on the
+wait channel identified by
+.Fa id .
+The number of threads unblocked is specified by the
+.Fa count
+argument,
+except that if zero is specified then all threads sleeping on that
+.Fa id
+are unblocked.
+.Sh RETURN VALUES
+.Fn __thrsleep
+will return zero if woken by a matching call to
+.Fn __thrwakeup ,
+otherwise an error number will be returned to indicate the error.
+.Pp
+.Fn __thrwakeup
+will return zero if at least one matching call to
+.Fn __thrsleep
+was unblocked,
+otherwise an error number will be returned to indicate the error.
+.Sh ERRORS
+.Fn __thrsleep
+and
+.Fn __thrwakeup
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa ident
+argument is
+.Dv NULL .
+.El
+.Pp
+In addition,
+.Fn __thrsleep
+may return one of the following errors:
+.Bl -tag -width Er
+.It Bq Er EWOULDBLOCK
+The time specified by the
+.Fa abstime
+and
+.Fa clock_id
+arguments was reached.
+.It Bq Er EINTR
+A signal arrived or the
+.Fa abort
+argument pointed to a non-zero value.
+.It Bq Er ECANCELED
+A signal arrived and
+.Fa SA_RESTART
+was set.
+.It Bq Er EINVAL
+The
+.Fa clock_id
+argument is not a valid
+.Xr clock_gettime 2
+clock id
+or
+.Fa abstime
+specified a nanosecond value less than zero or greater than 1000 million.
+.El
+.Pp
+.Fn __thrwakeup
+may return the following error:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+No threads calling
+.Fn __thrsleep
+with the same
+.Fa id
+were found.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr pthread_cond_wait 3 ,
+.Xr pthread_mutex_lock 3 ,
+.Xr tsleep 9
+.Sh STANDARDS
+The
+.Fn __thrsleep
+and
+.Fn __thrwakeup
+functions are specific to
+.Ox
+and should not be used in portable applications.
+.Sh HISTORY
+The
+.Fn thrsleep
+and
+.Fn thrwakeup
+syscalls appeared in
+.Ox 3.9 .
+The
+.Fa clock_id
+and
+.Fa abstime
+arguments were added in
+.Ox 4.9 .
+The functions were renamed to
+.Fn __thrsleep
+and
+.Fn __thrwakeup
+and the
+.Fa abort
+argument was added in
+.Ox 5.1
+.Sh AUTHORS
+.An -nosplit
+The
+.Fn thrsleep
+and
+.Fn thrwakeup
+syscalls were created by
+.An Ted Unangst Aq Mt tedu@OpenBSD.org .
+This manual page was written by
+.An Philip Guenther Aq Mt guenther@OpenBSD.org .

@@ -1,0 +1,267 @@
+# some intial checks to make sure common things work
+--- ctime --- 1
+Tue Jan 20 23:27:46 1998
+%a %b %d %T %Y
+--- ctime --- 2
+Tue Jan 20 23:27:46 1998
+%a %b %d %H:%M:%S %Y
+--- ctime --- 3
+Tue Jan 20 23:27:46 1998
+%c
+
+# test some valid and invalid day names
+--- %a --- 1
+Sun
+%a
+--- %a --- 2
+Sunday
+%a
+--- %a --- 3
+Mon
+%a
+--- %a --- 4
+Monday
+%a
+--- %a --- 5
+Tue
+%a
+--- %a --- 6
+Tuesday
+%a
+--- %a --- 7
+Wed
+%a
+--- %a --- 8
+Wednesday
+%a
+--- %a --- 9
+Thu
+%a
+--- %a --- 10
+Thursday
+%a
+--- %a --- 11
+Fri
+%a
+--- %a --- 12
+Friday
+%a
+--- %a --- 13
+Sat
+%a
+--- %a --- 14
+Saturday
+%a
+--- %a --- 15
+Saturn
+%a
+--- %a --- 16
+Moon
+%a
+--- %A --- 1
+Sun
+%A
+--- %A --- 2
+Sunday
+%A
+--- %A --- 3
+Mon
+%A
+--- %A --- 4
+Monday
+%A
+--- %A --- 5
+Tue
+%A
+--- %A --- 6
+Tuesday
+%A
+--- %A --- 7
+Wed
+%A
+--- %A --- 8
+Wednesday
+%A
+--- %A --- 9
+Thu
+%A
+--- %A --- 10
+Thursday
+%A
+--- %A --- 11
+Fri
+%A
+--- %A --- 12
+Friday
+%A
+--- %A --- 13
+Sat
+%A
+--- %A --- 14
+Saturday
+%A
+--- %A --- 15
+Saturn
+%A
+--- %A --- 16
+Moon
+%A
+
+# test some valid and invalid month names
+--- %b --- 1
+Jan
+%b
+--- %b --- 2
+January
+%b
+--- %b --- 3
+Feb
+%b
+--- %b --- 4
+February
+%b
+--- %b --- 5
+Mar
+%b
+--- %b --- 6
+March
+%b
+--- %b --- 7
+Apr
+%b
+--- %b --- 8
+April
+%b
+--- %b --- 9
+May
+%b
+--- %b --- 10
+Jun
+%b
+--- %b --- 11
+June
+%b
+--- %b --- 12
+Jul
+%b
+--- %b --- 13
+July
+%b
+--- %b --- 14
+Aug
+%b
+--- %b --- 15
+August
+%b
+--- %b --- 16
+Sep
+%b
+--- %b --- 17
+September
+%b
+--- %b --- 18
+Oct
+%b
+--- %b --- 19
+October
+%b
+--- %b --- 20
+Nov
+%b
+--- %b --- 21
+November
+%b
+--- %b --- 22
+Dec
+%b
+--- %b --- 23
+December
+%b
+--- %b --- 25
+Mayor
+%b
+--- %b --- 24
+Mars
+%b
+--- %b --- 26
+Rover
+%b
+--- %B --- 1
+Jan
+%B
+--- %B --- 2
+January
+%B
+--- %B --- 3
+Feb
+%B
+--- %B --- 4
+February
+%B
+--- %B --- 5
+Mar
+%B
+--- %B --- 6
+March
+%B
+--- %B --- 7
+Apr
+%B
+--- %B --- 8
+April
+%B
+--- %B --- 9
+May
+%B
+--- %B --- 10
+Jun
+%B
+--- %B --- 11
+June
+%B
+--- %B --- 12
+Jul
+%B
+--- %B --- 13
+July
+%B
+--- %B --- 14
+Aug
+%B
+--- %B --- 15
+August
+%B
+--- %B --- 16
+Sep
+%B
+--- %B --- 17
+September
+%B
+--- %B --- 18
+Oct
+%B
+--- %B --- 19
+October
+%B
+--- %B --- 20
+Nov
+%B
+--- %B --- 21
+November
+%B
+--- %B --- 22
+Dec
+%B
+--- %B --- 23
+December
+%B
+--- %B --- 25
+Mayor
+%B
+--- %B --- 24
+Mars
+%B
+--- %B --- 26
+Rover
+%B
+EOF

@@ -1,0 +1,41 @@
+/*
+ * config.h.in -- configuration header template
+ *
+ * Copyright (c) 2024, NLnet Labs. All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ */
+#ifndef CONFIG_H
+#define CONFIG_H
+
+/* Define to 1 if you have the declaration of `bswap16', and to 0 if you
+   don't. */
+#cmakedefine01 HAVE_DECL_BSWAP16
+
+/* Define to 1 if you have the declaration of `bswap32', and to 0 if you
+   don't. */
+#cmakedefine01 HAVE_DECL_BSWAP32
+
+/* Define to 1 if you have the declaration of `bswap64', and to 0 if you
+   don't. */
+#cmakedefine01 HAVE_DECL_BSWAP64
+
+/* Define to 1 if you have the <endian.h> header file. */
+#cmakedefine HAVE_ENDIAN_H 1
+
+/* Define to 1 if you have the `getopt' function. */
+#cmakedefine HAVE_GETOPT 1
+
+/* Wether or not to compile support for AVX2 */
+#cmakedefine HAVE_HASWELL 1
+
+/* Wether or not to compile support for SSE4.2 */
+#cmakedefine HAVE_WESTMERE 1
+
+/* Defines _XOPEN_SOURCE and _POSIX_C_SOURCE implicitly in features.h */
+#ifndef _DEFAULT_SOURCE
+# define _DEFAULT_SOURCE 1
+#endif
+
+#endif // CONFIG_H

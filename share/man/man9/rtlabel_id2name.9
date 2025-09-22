@@ -1,0 +1,75 @@
+.\"     $OpenBSD: rtlabel_id2name.9,v 1.4 2014/10/15 11:58:13 mpi Exp $
+.\"
+.\" Copyright (c) 2011 Bret S. Lambert <blambert@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 15 2014 $
+.Dt RTLABEL_ID2NAME 9
+.Os
+.Sh NAME
+.Nm rtlabel_id2name ,
+.Nm rtlabel_id2sa ,
+.Nm rtlabel_name2id ,
+.Nm rtlabel_unref
+.Nd manipulate route labels
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In net/route.h
+.Ft const char *
+.Fn rtlabel_id2name "u_int16_t id"
+.Ft struct sockaddr *
+.Fn rtlabel_id2sa "u_int16_t labelid" "struct sockaddr_rtlabel *sa_rl"
+.Ft u_int16_t
+.Fn rtlabel_name2id "char *name"
+.Ft void
+.Fn rtlabel_unref "u_int16_t id"
+.Sh DESCRIPTION
+Route labels are arbitrary data appended to route entries and can be acted
+upon by
+.Xr pf 4 .
+.Bl -tag -width Ds
+.It Fn rtlabel_name2id "char *name"
+Return numerical ID of the route label named
+.Fa name ,
+creating the label if it does not already exist.
+.It Fn rtlabel_id2name "u_int16_t id"
+Return the string name of the route label with ID
+.Fa id .
+.It Fn rtlabel_id2sa "u_int16_t labelid" "struct sockaddr_rtlabel *sa_rl"
+Populate
+.Fa sa_rl
+with the data from the route label specified by
+.Fa labelid .
+.It Fn rtlabel_unref "u_int16_t id"
+Remove a reference to the route label with ID
+.Fa id ,
+freeing the label if the reference count drops to 0.
+.El
+.Sh CONTEXT
+.Fn rtlabel_id2name ,
+.Fn rtlabel_id2sa ,
+.Fn rtlabel_name2id ,
+and
+.Fn rtlabel_unref
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn rtlabel_name2id
+returns
+.Fa 0
+if it was unable to create a route label.
+.Sh SEE ALSO
+.Xr route 4 ,
+.Xr route 9

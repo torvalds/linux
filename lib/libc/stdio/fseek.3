@@ -1,0 +1,259 @@
+.\"	$OpenBSD: fseek.3,v 1.19 2022/09/11 06:38:11 jmc Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt FSEEK 3
+.Os
+.Sh NAME
+.Nm fgetpos ,
+.Nm fseek ,
+.Nm fseeko ,
+.Nm fsetpos ,
+.Nm ftell ,
+.Nm ftello ,
+.Nm rewind
+.Nd reposition a stream
+.Sh SYNOPSIS
+.In stdio.h
+.Ft int
+.Fn fgetpos "FILE *stream" "fpos_t *pos"
+.Ft int
+.Fn fseek "FILE *stream" "long offset" "int whence"
+.Ft int
+.Fn fseeko "FILE *stream" "off_t offset" "int whence"
+.Ft int
+.Fn fsetpos "FILE *stream" "const fpos_t *pos"
+.Ft long
+.Fn ftell "FILE *stream"
+.Ft off_t
+.Fn ftello "FILE *stream"
+.Ft void
+.Fn rewind "FILE *stream"
+.Sh DESCRIPTION
+The
+.Fn fseek
+function sets the file position indicator for the stream pointed to by
+.Fa stream .
+The new position, measured in bytes, is obtained by adding
+.Fa offset
+bytes to the position specified by
+.Fa whence .
+If
+.Fa whence
+is set to
+.Dv SEEK_SET ,
+.Dv SEEK_CUR ,
+or
+.Dv SEEK_END ,
+the offset is relative to the
+start of the file, the current position indicator, or end-of-file,
+respectively.
+A successful call to the
+.Fn fseek
+function clears the end-of-file indicator for the stream and undoes
+any effects of the
+.Xr ungetc 3
+function on the same stream.
+.Pp
+The
+.Fn fseeko
+function is identical to
+.Fn fseek
+except that it takes an
+.Vt off_t
+as its
+.Fa offset .
+.Pp
+The
+.Fn ftell
+function obtains the current value of the file position indicator for the
+stream pointed to by
+.Fa stream .
+.Pp
+The
+.Fn ftello
+function is identical to
+.Fn ftell
+except that its return value is of type
+.Vt off_t .
+.Pp
+The
+.Fn rewind
+function sets the file position indicator for the stream pointed
+to by
+.Fa stream
+to the beginning of the file.
+It is equivalent to:
+.Pp
+.Dl (void)fseek(stream, 0L, SEEK_SET)
+.Pp
+except that the error indicator for the stream is also cleared
+(see
+.Xr clearerr 3 ) .
+.Pp
+The
+.Fn fgetpos
+and
+.Fn fsetpos
+functions are alternate interfaces equivalent to
+.Fn ftell
+and
+.Fn fseek
+(with whence set to
+.Dv SEEK_SET ) ,
+setting and storing the current value of
+the file offset into or from the object referenced by
+.Fa pos .
+On some systems an
+.Dq Fa fpos_t
+object may be a complex object
+and these routines may be the only way to portably reposition a text stream.
+.Sh RETURN VALUES
+The
+.Fn rewind
+function returns no value.
+Prefer
+.Fn fseek ,
+which is just as portable, and does not hide errors.
+Upon successful completion,
+.Fn fgetpos ,
+.Fn fseek ,
+.Fn fseeko ,
+and
+.Fn fsetpos
+return 0 and
+.Fn ftell
+and
+.Fn ftello
+return the current offset.
+Otherwise,
+.Fn fseek ,
+.Fn fseeko ,
+.Fn ftell ,
+and
+.Fn ftello
+return \-1 and
+.Fn fgetpos
+and
+.Fn fsetpos
+return a non-zero value and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn fgetpos ,
+.Fn fseek ,
+.Fn fseeko ,
+.Fn fsetpos ,
+.Fn ftell ,
+.Fn ftello ,
+and
+.Fn rewind
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa stream
+specified is not a seekable stream.
+.El
+.Pp
+Additionally, the
+.Fn fseek
+and
+.Fn fseeko
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa whence
+argument was not
+.Dv SEEK_SET ,
+.Dv SEEK_END ,
+or
+.Dv SEEK_CUR .
+.El
+.Pp
+Additionally, the
+.Fn ftell
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EOVERFLOW
+The value of the file position indicator is too large to be represented by a
+.Vt long .
+.El
+.Pp
+Finally, the functions
+.Fn fgetpos ,
+.Fn fseek ,
+.Fn fseeko ,
+.Fn fsetpos ,
+.Fn ftell ,
+and
+.Fn ftello
+may also fail and set
+.Va errno
+for any of the errors specified for the routines
+.Xr fflush 3 ,
+.Xr fstat 2 ,
+.Xr lseek 2 ,
+and
+.Xr malloc 3 .
+.Sh SEE ALSO
+.Xr lseek 2
+.Sh STANDARDS
+The
+.Fn fgetpos ,
+.Fn fsetpos ,
+.Fn fseek ,
+.Fn ftell ,
+and
+.Fn rewind
+functions conform to
+.St -ansiC
+and
+.St -xpg4 .
+.Pp
+The
+.Fn fseeko
+and
+.Fn ftello
+functions conform to
+.St -xpg4 .
+.Sh HISTORY
+The functions
+.Fn fseek ,
+.Fn ftell ,
+and
+.Fn rewind
+first appeared in
+.At v7 .

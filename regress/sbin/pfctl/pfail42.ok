@@ -1,0 +1,3 @@
+netmask 64 invalid for IPv4 address
+stdin:3: skipping rule due to errors
+stdin:3: rule expands to no valid combination

@@ -1,0 +1,6 @@
+# Build CRT files and libgcc with the "longcalls" option
+CRTSTUFF_T_CFLAGS += -mlongcalls
+CRTSTUFF_T_CFLAGS_S += -mlongcalls
+TARGET_LIBGCC2_CFLAGS += -mlongcalls
+
+EXTRA_MULTILIB_PARTS = crti.o crtn.o crtbegin.o crtend.o

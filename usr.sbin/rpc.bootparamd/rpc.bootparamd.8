@@ -1,0 +1,83 @@
+.\" $OpenBSD: rpc.bootparamd.8,v 1.21 2022/09/27 13:30:36 kn Exp $
+.\" @(#)bootparamd.8
+.\"
+.\" This code is not copyright, and is placed in the public domain.
+.\" Feel free to use and modify. Please send modifications and/or
+.\" suggestions + bug fixes to Klas Heggemann <klas@nada.kth.se>
+.\"
+.\" Various small changes by Theo de Raadt <deraadt@fsa.ca>
+.\" Parser rewritten (adding YP support) by Roland McGrath <roland@frob.com>
+.\"
+.Dd $Mdocdate: September 27 2022 $
+.Dt RPC.BOOTPARAMD 8
+.Os
+.Sh NAME
+.Nm rpc.bootparamd
+.Nd boot parameter server
+.Sh SYNOPSIS
+.Nm rpc.bootparamd
+.Op Fl ds
+.Op Fl f Ar file
+.Op Fl r Ar router
+.Sh DESCRIPTION
+.Nm
+is a server process that provides information to diskless clients
+necessary for booting.
+It consults the file
+.Pa /etc/bootparams .
+It should normally be started from
+.Pa /etc/rc .
+.Pp
+This version will allow the use of aliases on the hostname in the
+.Pa /etc/bootparams
+file.
+The hostname returned in response to the booting client's whoami request
+will be the name that appears in the config file, not the canonical name.
+In this way you can keep the answer short enough
+so that machines that cannot handle long hostnames won't fail during boot.
+.Pp
+While parsing, if a line containing just
+.Dq \&+
+is found, and the YP subsystem is active, the YP map
+.Pa bootparams
+will be searched immediately.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Display the debugging information.
+The daemon does not fork in this case.
+.It Fl f Ar file
+Specify the
+.Ar file
+to read boot parameters from.
+Defaults to
+.Pa /etc/bootparams .
+.It Fl r Ar router
+Set the default
+.Ar router
+(a hostname or IP address).
+This defaults to the machine running the server.
+.It Fl s
+Log the debugging information with syslog.
+.El
+.Sh FILES
+.Bl -tag -width /etc/bootparams -compact
+.It Pa /etc/bootparams
+default configuration file
+.El
+.Sh SEE ALSO
+.Xr bootparams 5 ,
+.Xr diskless 8
+.Sh AUTHORS
+Originally written by
+.An Klas Heggemann Aq Mt klas@nada.kth.se .
+.Sh BUGS
+You may find the syslog loggings too verbose.
+.Pp
+It's not clear if the non-canonical hack mentioned above is a good idea.
+.Sh WARNING
+If
+.Nm rpc.bootparamd
+is run on a system which is also running YP, your YP
+domainname will be made public information.

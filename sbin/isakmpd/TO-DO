@@ -1,0 +1,145 @@
+$OpenBSD: TO-DO,v 1.26 2003/08/28 14:43:35 markus Exp $
+$EOM: TO-DO,v 1.45 2000/04/07 22:47:38 niklas Exp $
+
+This file mixes small nitpicks with large projects to be done.
+
+* Add debugging messages, maybe possible to control asynchronously. [done]
+
+* Implement the local policy governing logging and notification of exceptional
+  conditions.
+
+* A field description mechanism used for things like making packet dumps
+  readable etc.  Both Photurisd and Pluto does this. [done]
+
+* Fix the cookies. <Niels> [done]
+
+* Garbage collect transports (ref-counting?). [done]
+
+* Retransmission/dup packet handling. [done]
+
+* Generic payload checks. [mostly done]
+
+* For math, speed up multiplication and division functions.
+
+* Cleanup of SAs when dropping messages. [done]
+
+* Look over message resource tracking. [done]
+
+* Retransmission timing & count adaptivity and configurability.
+  [configurability done]
+
+* Quick mode exchanges [done]
+
+* Aggressive mode exchange. [done]
+
+* Finish main mode exchange [done]
+
+* Separation of key exchange from the IPsec DOI, i.e. factor out IKE details.
+
+* Setup the IPsec situation field in the main mode. [done]
+
+* Kernel interface for IPsec parameter passing. [done]
+
+* Notify of unsupported situations.
+
+* Set/get field macros generated from the field descriptions. [done]
+
+* SIGHUP handler with reparsing of config file. [done]
+
+* RSA signature authentication. <Niels> [done]
+
+* DSS signature authentication.
+
+* RSA encryption authentication.
+
+* New group mode.
+
+* DELETE payload handling, and generation from ui. [generation done]
+
+* Deal well with incoming informational exchanges. [done]
+
+* Generate all possible SA attributes in quick mode. [done]
+
+* Validate incoming attribute according to policy, main mode. [done]
+
+* Validate incoming attribute according to policy, quick mode. [done]
+
+* Cleanup reserved SPIs on cleanup of associated SAs. [done]
+
+* Validate attribute types (i.e. that what the specs tells should be
+  basic).
+
+* Cleanup reserved SPIs in proposals never chosen. [done]
+
+* Add time measuring and reporting to the exchange code for catching of
+  bottlenecks.
+
+* Rescan interfaces on SIGHUP and on reception of messages on the INADDR_ANY
+  listener socket. [done]
+
+* Validate the configuration file.
+
+* Do a soft-limit on ISAKMP SA lifetime. [done]
+
+* Let the hard-limit on ISAKMP SA lifetime destroy the SA ASAP. [done]
+
+* IPsec rekeying. [done]
+
+* Store tunnels into SPD, and handle acquire SA events. [done]
+
+* If an exchange is on-going when a rekey event happens, drop the request.
+  [done]
+
+* INITIAL CONTACT notification sending when appropriate. [done]
+
+* INITIAL CONTACT notification handling. [done]
+
+* IPsec SAs could also do with timers protecting its lifetime, if say,
+  someone changed the lifetime of the IPsec SA in stack under us. [done]
+
+* Handle notifications showing the peer did not want to continue this exchange.
+
+* Flexible identification.
+
+* Remove referring flows when a SPI is removed. [done]
+
+* IPCOMP.
+
+* Acknowledged notification exchange.
+
+* Tiger hash.
+
+* El-Gamal public key encryption.
+
+* Check of attributes not being changed by the responder in phase 2.
+
+* See to the commit bit will never be used in phase 1.  Give INVALID-FLAGS
+  if seeing it.
+
+* Base mode.
+
+* IKECFG [protocol done, configuration controls remain]
+
+* XAUTH framework.
+
+* PKCS#11
+
+* XAUTH hybrid frame work.
+
+* Specify extra certificates to send somehow.
+
+* Handle CERTs anywhere in an exchange.
+
+* Add a way to do multiple configuration commands via ui.
+
+* Replace ui's fifo with a slightly more versatile interface.
+
+* Report current configuration. [done]
+
+* IPv6 [done]
+
+* AES in phase 1 [done]
+
+* x509_certreq_validate needs implementing.
+
+* Smartcard support.

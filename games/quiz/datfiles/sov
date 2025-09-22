@@ -1,0 +1,43 @@
+W[illia|]m [I|1|the Conqueror]:11:W[illia|]m [II|2|Rufus|the Red]
+W[illia|]m [II|2|Rufus|the Red]:11:Hen[ry|] [I|1]
+Hen[ry|] [I|1]:12:Stephen
+Stephen:12:Hen[ry|] [II|2]
+Hen[ry|] [II|2]:12:Rich[ard|] [I|1]
+Rich[ard|] [I|1]:12:John
+John:13|12-13:Hen[ry|] [III|3]
+Hen[ry|] [III|3]:13:Ed[w[ard|]|] [I|1]
+Ed[w[ard|]|] [I|1]:13-14|13|14:Ed[w[ard|]|] [II|2]
+Ed[w[ard|]|] [II|2]:14:Ed[w[ard|]|] [III|3]
+Ed[w[ard|]|] [III|3]:14:Rich[ard|] [II|2]
+Rich[ard|] [II|2]:14:Hen[ry|] [IV|4] Part 1
+Hen[ry|] [IV|4] Part 1:15|14-15:Hen[ry|] [IV|4] Part 2
+Hen[ry|] [IV|4] Part 2:15|14-15:Hen[ry|] [V|5]
+Hen[ry|] [V|5]:15:Hen[ry|] [VI|6]
+Hen[ry|] [VI|6]:15:Ed[w[ard|]|] [IV|4]
+Ed[w[ard|]|] [IV|4]:15:Ed[w[ard|]|] [V|5]
+Ed[w[ard|]|] [V|5]:15:Rich[ard|] [III|3]
+Rich[ard|] [III|3]:15:Hen[ry|] [VII|7]
+Hen[ry|] [VII|7]:15-16|15|16:Hen[ry|] [VIII|8]
+Hen[ry|] [VIII|8]:16:Ed[w[ard|]|] [VI|6]
+Ed[w[ard|]|] [VI|6]:16:Mary
+Mary:16:Eliz[abeth|][ [I|1]|]
+Elizabeth[ [I|1]|]:16-17|16:Ja[me|]s [I|1]
+Ja[me|]s [I|1]:17:Cha[rle|]s [I|1]
+Cha[rle|]s [I|1]:17:[Oliver |]Cromwell
+[Oliver |]Cromwell:17:Rich[ard|] Cromwell
+Rich[ard|] Cromwell:17:Ch[arle|]s [II|2]
+Cha[rle|]s [II|2]:17:Ja[me|]s [II|2]
+Ja[me|]s [II|2]:17:W[illia|]m and Mary
+W[illia|]m and Mary:17-18|17:Anne
+Anne:18:Geo[rge|] [I|1]
+Geo[rge|] [I|1]:18:Geo[rge|] [II|2]
+Geo[rge|] [II|2]:18:Geo[rge|] [III|3]
+Geo[rge|] [III|3]:18-19|18|19:Geo[rge|] [IV|4]
+Geo[rge|] [IV|4]:19:W[illia|]m [IV|4]
+W[illia|]m [IV|4]:19:Victoria
+Victoria:19:Ed[w[ard|]|] [VII|7]
+Ed[w[ard|]|] [VII|7]:19-20|19|20:Geo[rge|] [V|5]
+Geo[rge|] [V|5]:20:Ed[w[ard|]|] [VIII|8]
+Ed[w[ard|]|] [VIII|8]:20:Geo[rge|] [VI|6]
+Geo[rge|] [VI|6]:20:Eliz[abeth|] [II|2]
+Eliz[abeth|] [II|2]:21:Cha[rle|]s [III|3]

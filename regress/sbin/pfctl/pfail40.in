@@ -1,0 +1,4 @@
+# totally invalid netmasks
+pass in from 10.0.0.0/161
+pass in from 2000::/161
+

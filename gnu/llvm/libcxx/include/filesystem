@@ -1,0 +1,577 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_FILESYSTEM
+#define _LIBCPP_FILESYSTEM
+
+/*
+    filesystem synopsis
+
+    namespace std::filesystem {
+
+    // `class path` from http://eel.is/c++draft/fs.class.path.general#6
+    class path {
+      public:
+        using value_type  = see below;
+        using string_type = basic_string<value_type>;
+        static constexpr value_type preferred_separator = see below;
+
+        enum format;
+
+        path() noexcept;
+        path(const path& p);
+        path(path&& p) noexcept;
+        path(string_type&& source, format fmt = auto_format);
+        template<class Source>
+          path(const Source& source, format fmt = auto_format);
+        template<class InputIterator>
+          path(InputIterator first, InputIterator last, format fmt = auto_format);
+        template<class Source>
+          path(const Source& source, const locale& loc, format fmt = auto_format);
+        template<class InputIterator>
+          path(InputIterator first, InputIterator last, const locale& loc, format fmt = auto_format);
+        ~path();
+
+        path& operator=(const path& p);
+        path& operator=(path&& p) noexcept;
+        path& operator=(string_type&& source);
+        path& assign(string_type&& source);
+        template<class Source>
+          path& operator=(const Source& source);
+        template<class Source>
+          path& assign(const Source& source);
+        template<class InputIterator>
+          path& assign(InputIterator first, InputIterator last);
+
+        path& operator/=(const path& p);
+        template<class Source>
+          path& operator/=(const Source& source);
+        template<class Source>
+          path& append(const Source& source);
+        template<class InputIterator>
+          path& append(InputIterator first, InputIterator last);
+
+        path& operator+=(const path& x);
+        path& operator+=(const string_type& x);
+        path& operator+=(basic_string_view<value_type> x);
+        path& operator+=(const value_type* x);
+        path& operator+=(value_type x);
+        template<class Source>
+          path& operator+=(const Source& x);
+        template<class EcharT>
+          path& operator+=(EcharT x);
+        template<class Source>
+          path& concat(const Source& x);
+        template<class InputIterator>
+          path& concat(InputIterator first, InputIterator last);
+
+        void  clear() noexcept;
+        path& make_preferred();
+        path& remove_filename();
+        path& replace_filename(const path& replacement);
+        path& replace_extension(const path& replacement = path());
+        void  swap(path& rhs) noexcept;
+
+        friend bool operator==(const path& lhs, const path& rhs) noexcept;
+        friend bool operator!=(const path& lhs, const path& rhs) noexcept;             // removed in C++20
+        friend bool operator< (const path& lhs, const path& rhs) noexcept;             // removed in C++20
+        friend bool operator<=(const path& lhs, const path& rhs) noexcept;             // removed in C++20
+        friend bool operator> (const path& lhs, const path& rhs) noexcept;             // removed in C++20
+        friend bool operator>=(const path& lhs, const path& rhs) noexcept;             // removed in C++20
+        friend strong_ordering operator<=>(const path& lhs, const path& rhs) noexcept; // C++20
+
+        friend path operator/(const path& lhs, const path& rhs);
+
+        const string_type& native() const noexcept;
+        const value_type*  c_str() const noexcept;
+        operator string_type() const;
+
+        template<class EcharT, class traits = char_traits<EcharT>,
+                 class Allocator = allocator<EcharT>>
+          basic_string<EcharT, traits, Allocator>
+            string(const Allocator& a = Allocator()) const;
+        std::string    string() const;
+        std::wstring   wstring() const;
+        std::u8string  u8string() const;
+        std::u16string u16string() const;
+        std::u32string u32string() const;
+
+        template<class EcharT, class traits = char_traits<EcharT>,
+                 class Allocator = allocator<EcharT>>
+          basic_string<EcharT, traits, Allocator>
+            generic_string(const Allocator& a = Allocator()) const;
+        std::string    generic_string() const;
+        std::wstring   generic_wstring() const;
+        std::u8string  generic_u8string() const;
+        std::u16string generic_u16string() const;
+        std::u32string generic_u32string() const;
+
+        int compare(const path& p) const noexcept;
+        int compare(const string_type& s) const;
+        int compare(basic_string_view<value_type> s) const;
+        int compare(const value_type* s) const;
+
+        path root_name() const;
+        path root_directory() const;
+        path root_path() const;
+        path relative_path() const;
+        path parent_path() const;
+        path filename() const;
+        path stem() const;
+        path extension() const;
+
+        [[nodiscard]] bool empty() const noexcept;
+        bool has_root_name() const;
+        bool has_root_directory() const;
+        bool has_root_path() const;
+        bool has_relative_path() const;
+        bool has_parent_path() const;
+        bool has_filename() const;
+        bool has_stem() const;
+        bool has_extension() const;
+        bool is_absolute() const;
+        bool is_relative() const;
+
+        path lexically_normal() const;
+        path lexically_relative(const path& base) const;
+        path lexically_proximate(const path& base) const;
+
+        class iterator;
+        using const_iterator = iterator;
+
+        iterator begin() const;
+        iterator end() const;
+
+        template<class charT, class traits>
+          friend basic_ostream<charT, traits>&
+            operator<<(basic_ostream<charT, traits>& os, const path& p);
+        template<class charT, class traits>
+          friend basic_istream<charT, traits>&
+            operator>>(basic_istream<charT, traits>& is, path& p);
+    };
+
+    void swap(path& lhs, path& rhs) noexcept;
+    size_t hash_value(const path& p) noexcept;
+
+    // [fs.path.hash], hash support
+    template<> struct hash<filesystem::path>;
+
+    template <class Source>
+      path u8path(const Source& source);
+    template <class InputIterator>
+      path u8path(InputIterator first, InputIterator last);
+
+    class filesystem_error;
+
+    class directory_entry {
+    public:
+      directory_entry() noexcept = default;
+      directory_entry(const directory_entry&) = default;
+      directory_entry(directory_entry&&) noexcept = default;
+      explicit directory_entry(const filesystem::path& p);
+      directory_entry(const filesystem::path& p, error_code& ec);
+      ~directory_entry();
+
+      directory_entry& operator=(const directory_entry&) = default;
+      directory_entry& operator=(directory_entry&&) noexcept = default;
+
+      void assign(const filesystem::path& p);
+      void assign(const filesystem::path& p, error_code& ec);
+      void replace_filename(const filesystem::path& p);
+      void replace_filename(const filesystem::path& p, error_code& ec);
+      void refresh();
+      void refresh(error_code& ec) noexcept;
+
+      const filesystem::path& path() const noexcept;
+      operator const filesystem::path&() const noexcept;
+      bool exists() const;
+      bool exists(error_code& ec) const noexcept;
+      bool is_block_file() const;
+      bool is_block_file(error_code& ec) const noexcept;
+      bool is_character_file() const;
+      bool is_character_file(error_code& ec) const noexcept;
+      bool is_directory() const;
+      bool is_directory(error_code& ec) const noexcept;
+      bool is_fifo() const;
+      bool is_fifo(error_code& ec) const noexcept;
+      bool is_other() const;
+      bool is_other(error_code& ec) const noexcept;
+      bool is_regular_file() const;
+      bool is_regular_file(error_code& ec) const noexcept;
+      bool is_socket() const;
+      bool is_socket(error_code& ec) const noexcept;
+      bool is_symlink() const;
+      bool is_symlink(error_code& ec) const noexcept;
+      uintmax_t file_size() const;
+      uintmax_t file_size(error_code& ec) const noexcept;
+      uintmax_t hard_link_count() const;
+      uintmax_t hard_link_count(error_code& ec) const noexcept;
+      file_time_type last_write_time() const;
+      file_time_type last_write_time(error_code& ec) const noexcept;
+      file_status status() const;
+      file_status status(error_code& ec) const noexcept;
+      file_status symlink_status() const;
+      file_status symlink_status(error_code& ec) const noexcept;
+
+      bool operator==(const directory_entry& rhs) const noexcept;
+      bool operator!=(const directory_entry& rhs) const noexcept;             // removed  in C++20
+      bool operator< (const directory_entry& rhs) const noexcept;             // removed  in C++20
+      bool operator<=(const directory_entry& rhs) const noexcept;             // removed  in C++20
+      bool operator> (const directory_entry& rhs) const noexcept;             // removed  in C++20
+      bool operator>=(const directory_entry& rhs) const noexcept;             // removed  in C++20
+      strong_ordering operator<=>(const directory_entry& rhs) const noexcept; // since C++20
+
+      template<class charT, class traits>
+        friend basic_ostream<charT, traits>&
+          operator<<(basic_ostream<charT, traits>& os, const directory_entry& d);
+
+    private:
+      filesystem::path pathobject;        // exposition only
+      friend class directory_iterator;    // exposition only
+    };
+
+  class directory_iterator {
+  public:
+    using iterator_category = input_iterator_tag;
+    using value_type        = directory_entry;
+    using difference_type   = ptrdiff_t;
+    using pointer           = const directory_entry*;
+    using reference         = const directory_entry&;
+
+    // [fs.dir.itr.members], member functions
+    directory_iterator() noexcept;
+    explicit directory_iterator(const path& p);
+    directory_iterator(const path& p, directory_options options);
+    directory_iterator(const path& p, error_code& ec);
+    directory_iterator(const path& p, directory_options options,
+                       error_code& ec);
+    directory_iterator(const directory_iterator& rhs);
+    directory_iterator(directory_iterator&& rhs) noexcept;
+    ~directory_iterator();
+
+    directory_iterator& operator=(const directory_iterator& rhs);
+    directory_iterator& operator=(directory_iterator&& rhs) noexcept;
+
+    const directory_entry& operator*() const;
+    const directory_entry* operator->() const;
+    directory_iterator&    operator++();
+    directory_iterator&    increment(error_code& ec);
+
+    bool operator==(default_sentinel_t) const noexcept {          // since C++20
+      return *this == directory_iterator();
+    }
+
+    // other members as required by [input.iterators], input iterators
+  };
+
+    // enable directory_iterator range-based for statements
+    directory_iterator begin(directory_iterator iter) noexcept;
+    directory_iterator end(directory_iterator) noexcept;
+
+class recursive_directory_iterator {
+  public:
+    using iterator_category = input_iterator_tag;
+    using value_type        = directory_entry;
+    using difference_type   = ptrdiff_t;
+    using pointer           = const directory_entry*;
+    using reference         = const directory_entry&;
+
+    // [fs.rec.dir.itr.members], constructors and destructor
+    recursive_directory_iterator() noexcept;
+    explicit recursive_directory_iterator(const path& p);
+    recursive_directory_iterator(const path& p, directory_options options);
+    recursive_directory_iterator(const path& p, directory_options options,
+                                 error_code& ec);
+    recursive_directory_iterator(const path& p, error_code& ec);
+    recursive_directory_iterator(const recursive_directory_iterator& rhs);
+    recursive_directory_iterator(recursive_directory_iterator&& rhs) noexcept;
+    ~recursive_directory_iterator();
+
+    // [fs.rec.dir.itr.members], observers
+    directory_options  options() const;
+    int                depth() const;
+    bool               recursion_pending() const;
+
+    const directory_entry& operator*() const;
+    const directory_entry* operator->() const;
+
+    // [fs.rec.dir.itr.members], modifiers
+    recursive_directory_iterator&
+      operator=(const recursive_directory_iterator& rhs);
+    recursive_directory_iterator&
+      operator=(recursive_directory_iterator&& rhs) noexcept;
+
+    recursive_directory_iterator& operator++();
+    recursive_directory_iterator& increment(error_code& ec);
+
+    void pop();
+    void pop(error_code& ec);
+    void disable_recursion_pending();
+
+    bool operator==(default_sentinel_t) const noexcept {          // since C++20
+      return *this == recursive_directory_iterator();
+    }
+
+    // other members as required by [input.iterators], input iterators
+  };
+
+    // enable recursive_directory_iterator range-based for statements
+    recursive_directory_iterator begin(recursive_directory_iterator iter) noexcept;
+    recursive_directory_iterator end(recursive_directory_iterator) noexcept;
+
+  class file_status {
+  public:
+    // [fs.file.status.cons], constructors and destructor
+    file_status() noexcept : file_status(file_type::none) {}
+    explicit file_status(file_type ft,
+                         perms prms = perms::unknown) noexcept;
+    file_status(const file_status&) noexcept = default;
+    file_status(file_status&&) noexcept = default;
+    ~file_status();
+
+    // assignments
+    file_status& operator=(const file_status&) noexcept = default;
+    file_status& operator=(file_status&&) noexcept = default;
+
+    // [fs.file.status.mods], modifiers
+    void       type(file_type ft) noexcept;
+    void       permissions(perms prms) noexcept;
+
+    // [fs.file.status.obs], observers
+    file_type  type() const noexcept;
+    perms      permissions() const noexcept;
+
+    friend bool operator==(const file_status& lhs, const file_status& rhs) noexcept
+      { return lhs.type() == rhs.type() && lhs.permissions() == rhs.permissions(); } // C++20
+  };
+
+    struct space_info
+    {
+      uintmax_t capacity;
+      uintmax_t free;
+      uintmax_t available;
+
+      friend bool operator==(const space_info&, const space_info&) = default; // C++20
+    };
+
+    enum class file_type;
+    enum class perms;
+    enum class perm_options;
+    enum class copy_options;
+    enum class directory_options;
+
+    typedef chrono::time_point<trivial-clock>  file_time_type;
+
+    // operational functions
+
+    path absolute(const path& p);
+    path absolute(const path& p, error_code &ec);
+
+    path canonical(const path& p);
+    path canonical(const path& p, error_code& ec);
+
+    void copy(const path& from, const path& to);
+    void copy(const path& from, const path& to, error_code& ec);
+    void copy(const path& from, const path& to, copy_options options);
+    void copy(const path& from, const path& to, copy_options options,
+                   error_code& ec);
+
+    bool copy_file(const path& from, const path& to);
+    bool copy_file(const path& from, const path& to, error_code& ec);
+    bool copy_file(const path& from, const path& to, copy_options option);
+    bool copy_file(const path& from, const path& to, copy_options option,
+                           error_code& ec);
+
+    void copy_symlink(const path& existing_symlink, const path& new_symlink);
+    void copy_symlink(const path& existing_symlink, const path& new_symlink,
+                              error_code& ec) noexcept;
+
+    bool create_directories(const path& p);
+    bool create_directories(const path& p, error_code& ec);
+
+    bool create_directory(const path& p);
+    bool create_directory(const path& p, error_code& ec) noexcept;
+
+    bool create_directory(const path& p, const path& attributes);
+    bool create_directory(const path& p, const path& attributes,
+                                  error_code& ec) noexcept;
+
+    void create_directory_symlink(const path& to, const path& new_symlink);
+    void create_directory_symlink(const path& to, const path& new_symlink,
+                                          error_code& ec) noexcept;
+
+    void create_hard_link(const path& to, const path& new_hard_link);
+    void create_hard_link(const path& to, const path& new_hard_link,
+                                  error_code& ec) noexcept;
+
+    void create_symlink(const path& to, const path& new_symlink);
+    void create_symlink(const path& to, const path& new_symlink,
+                                error_code& ec) noexcept;
+
+    path current_path();
+    path current_path(error_code& ec);
+    void current_path(const path& p);
+    void current_path(const path& p, error_code& ec) noexcept;
+
+    bool exists(file_status s) noexcept;
+    bool exists(const path& p);
+    bool exists(const path& p, error_code& ec) noexcept;
+
+    bool equivalent(const path& p1, const path& p2);
+    bool equivalent(const path& p1, const path& p2, error_code& ec) noexcept;
+
+    uintmax_t    file_size(const path& p);
+    uintmax_t    file_size(const path& p, error_code& ec) noexcept;
+
+    uintmax_t    hard_link_count(const path& p);
+    uintmax_t    hard_link_count(const path& p, error_code& ec) noexcept;
+
+    bool is_block_file(file_status s) noexcept;
+    bool is_block_file(const path& p);
+    bool is_block_file(const path& p, error_code& ec) noexcept;
+
+    bool is_character_file(file_status s) noexcept;
+    bool is_character_file(const path& p);
+    bool is_character_file(const path& p, error_code& ec) noexcept;
+
+    bool is_directory(file_status s) noexcept;
+    bool is_directory(const path& p);
+    bool is_directory(const path& p, error_code& ec) noexcept;
+
+    bool is_empty(const path& p);
+    bool is_empty(const path& p, error_code& ec) noexcept;
+
+    bool is_fifo(file_status s) noexcept;
+    bool is_fifo(const path& p);
+    bool is_fifo(const path& p, error_code& ec) noexcept;
+
+    bool is_other(file_status s) noexcept;
+    bool is_other(const path& p);
+    bool is_other(const path& p, error_code& ec) noexcept;
+
+    bool is_regular_file(file_status s) noexcept;
+    bool is_regular_file(const path& p);
+    bool is_regular_file(const path& p, error_code& ec) noexcept;
+
+    bool is_socket(file_status s) noexcept;
+    bool is_socket(const path& p);
+    bool is_socket(const path& p, error_code& ec) noexcept;
+
+    bool is_symlink(file_status s) noexcept;
+    bool is_symlink(const path& p);
+    bool is_symlink(const path& p, error_code& ec) noexcept;
+
+    file_time_type  last_write_time(const path& p);
+    file_time_type  last_write_time(const path& p, error_code& ec) noexcept;
+    void last_write_time(const path& p, file_time_type new_time);
+    void last_write_time(const path& p, file_time_type new_time,
+                                 error_code& ec) noexcept;
+
+    void permissions(const path& p, perms prms,
+                     perm_options opts=perm_options::replace);
+    void permissions(const path& p, perms prms, error_code& ec) noexcept;
+    void permissions(const path& p, perms prms, perm_options opts,
+                     error_code& ec);
+
+    path proximate(const path& p, error_code& ec);
+    path proximate(const path& p, const path& base = current_path());
+    path proximate(const path& p, const path& base, error_code &ec);
+
+    path read_symlink(const path& p);
+    path read_symlink(const path& p, error_code& ec);
+
+    path relative(const path& p, error_code& ec);
+    path relative(const path& p, const path& base=current_path());
+    path relative(const path& p, const path& base, error_code& ec);
+
+    bool remove(const path& p);
+    bool remove(const path& p, error_code& ec) noexcept;
+
+    uintmax_t    remove_all(const path& p);
+    uintmax_t    remove_all(const path& p, error_code& ec);
+
+    void rename(const path& from, const path& to);
+    void rename(const path& from, const path& to, error_code& ec) noexcept;
+
+    void resize_file(const path& p, uintmax_t size);
+    void resize_file(const path& p, uintmax_t size, error_code& ec) noexcept;
+
+    space_info   space(const path& p);
+    space_info   space(const path& p, error_code& ec) noexcept;
+
+    file_status  status(const path& p);
+    file_status  status(const path& p, error_code& ec) noexcept;
+
+    bool status_known(file_status s) noexcept;
+
+    file_status  symlink_status(const path& p);
+    file_status  symlink_status(const path& p, error_code& ec) noexcept;
+
+    path temp_directory_path();
+    path temp_directory_path(error_code& ec);
+
+    path weakly_canonical(path const& p);
+    path weakly_canonical(path const& p, error_code& ec);
+
+} // namespace std::filesystem
+
+template <>
+inline constexpr bool std::ranges::enable_borrowed_range<std::filesystem::directory_iterator> = true;
+template <>
+inline constexpr bool std::ranges::enable_borrowed_range<std::filesystem::recursive_directory_iterator> = true;
+
+template <>
+inline constexpr bool std::ranges::enable_view<std::filesystem::directory_iterator> = true;
+template <>
+inline constexpr bool std::ranges::enable_view<std::filesystem::recursive_directory_iterator> = true;
+
+*/
+
+#include <__config>
+
+#if _LIBCPP_STD_VER >= 17
+#  include <__filesystem/copy_options.h>
+#  include <__filesystem/directory_entry.h>
+#  include <__filesystem/directory_iterator.h>
+#  include <__filesystem/directory_options.h>
+#  include <__filesystem/file_status.h>
+#  include <__filesystem/file_time_type.h>
+#  include <__filesystem/file_type.h>
+#  include <__filesystem/filesystem_error.h>
+#  include <__filesystem/operations.h>
+#  include <__filesystem/path.h>
+#  include <__filesystem/path_iterator.h>
+#  include <__filesystem/perm_options.h>
+#  include <__filesystem/perms.h>
+#  include <__filesystem/recursive_directory_iterator.h>
+#  include <__filesystem/space_info.h>
+#  include <__filesystem/u8path.h>
+#endif
+
+#include <version>
+
+// standard-mandated includes
+
+// [fs.filesystem.syn]
+#include <compare>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <concepts>
+#  include <cstdlib>
+#  include <cstring>
+#  include <iosfwd>
+#  include <new>
+#  include <system_error>
+#endif
+
+#endif // _LIBCPP_FILESYSTEM

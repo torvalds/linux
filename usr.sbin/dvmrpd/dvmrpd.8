@@ -1,0 +1,118 @@
+.\"	$OpenBSD: dvmrpd.8,v 1.12 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2004, 2005, 2006 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt DVMRPD 8
+.Os
+.Sh NAME
+.Nm dvmrpd
+.Nd Distance Vector Multicast Routing Protocol (DVMRP) daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnv
+.Op Fl f Ar file
+.Sh DESCRIPTION
+.Nm
+is the Distance Vector Multicast Routing Protocol
+.Pq DVMRP
+daemon, which manages multicast routing tables.
+This implementation supports DVMRP version 3.255,
+thus it is only capable of maintaining IPv4 multicast routing tables.
+.Pp
+DVMRP uses a distance vector routing algorithm to build
+reverse path multicast delivery trees.
+A flood and prune approach is used to determine which branches in
+the network have multicast listeners.
+The usual drawbacks of a distance vector route protocol applies to DVMRP:
+slow convergence and scalability issues.
+.Pp
+DVMRP routers communicate via the multicast group 224.0.0.4
+All DVMRP Routers.
+IP protocol number 2
+.Pq IGMP
+is used, furthermore DVMRP packets omit the use of TCP and UDP.
+.Pp
+It is possible to interconnect multicast networks with the use of tunnels.
+Tunnels can traverse routers and networks not supporting multicast.
+.Nm
+does not support tunneling as described in RFC 1075,
+since it has been abandoned.
+.Nm
+can tunnel multicast traffic using generic solutions such as
+.Xr gre 4 .
+.Pp
+DVMRP is used for handling multicast routing exclusively.
+It is not required that a unicast routing protocol is used in
+conjunction with DVMRP.
+.Pp
+To have
+.Nm
+enabled at boot time, use
+.Dq rcctl enable dvmrpd ,
+which sets
+.Pp
+.Dl dvmrpd_flags=\(dq\(dq
+.Pp
+in
+.Xr rc.conf.local 8 .
+.Pp
+A running
+.Nm
+can be controlled with the
+.Xr dvmrpctl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Specify an alternative configuration file.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl v
+Produce more verbose output.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/dvmrpd.sockXX" -compact
+.It Pa /etc/dvmrpd.conf
+Default
+.Nm
+configuration file.
+.It Pa /var/run/dvmrpd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr dvmrpctl 8 .
+.El
+.Sh SEE ALSO
+.Xr dvmrpd.conf 5 ,
+.Xr dvmrpctl 8
+.Sh STANDARDS
+.Rs
+.%D August 2000
+.%R draft-ietf-idmr-dvmrp-v3-11
+.%T DVMRP Version 3
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.0 .

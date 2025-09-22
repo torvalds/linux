@@ -1,0 +1,170 @@
+.\"	$OpenBSD: pvbus.4,v 1.15 2023/01/07 06:40:21 asou Exp $
+.\"
+.\" Copyright (c) 2015 Reyk Floeter <reyk@openbsd.org>
+.\" Copyright (c) 2006 Jason McIntyre <jmc@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 7 2023 $
+.Dt PVBUS 4
+.Os
+.Sh NAME
+.Nm pvbus
+.Nd paravirtual device tree root
+.Sh SYNOPSIS
+.Cd "pvbus0 at mainbus0"
+.Pp
+.In sys/types.h
+.In sys/ioctl.h
+.In dev/pv/pvvar.h
+.Sh DESCRIPTION
+.Nm
+is used on virtual machines that are running on hypervisors.
+It provides a pseudo-bus for all paravirtual devices that do not
+attach to a well-known bus like
+.Xr pci 4 .
+The
+.Nm
+driver is responsible for detecting the hypervisor interface,
+checking the capabilities, attaching the paravirtual devices,
+and providing access to supported information stores.
+.Ss Supported hypervisors
+.Bl -tag -width 13n -offset ind -compact
+.It KVM
+Kernel-based Virtual Machine
+.It Hyper-V
+Microsoft Hyper-V
+.It OpenBSD
+.Ox
+.Xr vmm 4
+.It VMware
+VMware vSphere Hypervisor and ESXi
+.It Xen
+Xen VMM
+.El
+.Pp
+Note that a hypervisor can attempt to emulate other hypervisors, so
+multiple hypervisor interfaces may be available on the same host.
+.Ss VMware paravirtual devices
+.Bl -tag -width 13n -offset ind -compact
+.It Xr vmt 4
+VMware Tools driver and
+.Dq guestinfo
+information store
+.El
+.Ss Hyper-V paravirtual devices
+.Bl -tag -width 13n -offset ind -compact
+.It Xr hvn 4
+Hyper-V virtual networking interface
+.It Xr hvs 4
+Hyper-V virtual disk
+.It Xr hyperv 4
+Hyper-V guest nexus device
+.El
+.Ss Xen paravirtual devices
+.Bl -tag -width 13n -offset ind -compact
+.It Xr xbf 4
+Xen Blkfront virtual disk
+.It Xr xen 4
+Xen domU nexus device and XenStore information store
+.It Xr xnf 4
+Xen Netfront virtual networking interface
+.El
+.Sh IOCTL INTERFACE
+.Nm
+supports
+.Xr ioctl 2
+commands to exchange information with the hypervisor interface,
+as implemented in the
+.Xr hostctl 8
+program.
+Each detected hypervisor interface is available as a character special
+device file,
+.Pa /dev/pvbus0 ,
+.Pa /dev/pvbus1 ,
+etc.
+All available commands use the same
+.Fa pvbus_req
+structure:
+.Bd -literal
+struct pvbus_req {
+	size_t			 pvr_keylen;
+	char			*pvr_key;
+	size_t			 pvr_valuelen;
+	char			*pvr_value;
+};
+.Ed
+.Pp
+The caller is responsible for attaching character buffers to the
+.Fa pvr_key
+and
+.Fa pvr_value
+fields and to set their length in
+.Fa pvr_keylen
+and
+.Fa pvr_valuelen
+accordingly.
+All keys and values are nul-terminated strings.
+.Pp
+The following
+.Xr ioctl 2
+commands are available:
+.Bl -tag -width PVBUSIOC_KVWRITE
+.It Dv PVBUSIOC_KVREAD
+Read the value from
+.Fa pvr_key
+and return it in
+.Fa pvr_value .
+If
+.Fa pvr_valuelen
+is not enough for the value,
+the command will fail and
+.Xr errno 2
+is set to
+.Er ERANGE .
+.It Dv PVBUSIOC_KVTYPE
+Return the type of the attached hypervisor interface as a string in
+.Fa pvr_key ;
+see
+.Sx Supported hypervisors .
+.It Dv PVBUSIOC_KVWRITE
+Write the new value
+.Fa pvr_value
+to the key
+.Fa pvr_key .
+This command requires write permissions on the device file.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/pvbusX" -compact
+.It /dev/pvbus Ns Ar u
+.Nm
+device unit
+.Ar u
+file.
+.El
+.Sh SEE ALSO
+.Xr autoconf 4 ,
+.Xr intro 4 ,
+.Xr mainbus 4 ,
+.Xr vmm 4 ,
+.Xr hostctl 8
+.Sh HISTORY
+The
+.Nm
+pseudo-bus first appeared in
+.Ox 5.8 .
+.Sh AUTHORS
+The
+.Nm
+pseudo-bus was written by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .

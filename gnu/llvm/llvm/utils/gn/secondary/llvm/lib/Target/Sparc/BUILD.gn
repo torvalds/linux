@@ -1,0 +1,63 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("SparcGenCallingConv") {
+  visibility = [ ":LLVMSparcCodeGen" ]
+  args = [ "-gen-callingconv" ]
+  td_file = "Sparc.td"
+}
+
+tablegen("SparcGenDAGISel") {
+  visibility = [ ":LLVMSparcCodeGen" ]
+  args = [ "-gen-dag-isel" ]
+  td_file = "Sparc.td"
+}
+
+static_library("LLVMSparcCodeGen") {
+  deps = [
+    ":SparcGenCallingConv",
+    ":SparcGenDAGISel",
+    "MCTargetDesc",
+    "TargetInfo",
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/TargetParser",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "DelaySlotFiller.cpp",
+    "LeonPasses.cpp",
+    "SparcAsmPrinter.cpp",
+    "SparcFrameLowering.cpp",
+    "SparcISelDAGToDAG.cpp",
+    "SparcISelLowering.cpp",
+    "SparcInstrInfo.cpp",
+    "SparcMCInstLower.cpp",
+    "SparcMachineFunctionInfo.cpp",
+    "SparcRegisterInfo.cpp",
+    "SparcSubtarget.cpp",
+    "SparcTargetMachine.cpp",
+    "SparcTargetObjectFile.cpp",
+  ]
+}
+
+# This is a bit different from most build files: Due to this group
+# having the directory's name, "//llvm/lib/Target/Sparc" will refer to this
+# target, which pulls in the code in this directory *and all subdirectories*.
+# For most other directories, "//llvm/lib/Foo" only pulls in the code directly
+# in "llvm/lib/Foo". The forwarding targets in //llvm/lib/Target expect this
+# different behavior.
+group("Sparc") {
+  deps = [
+    ":LLVMSparcCodeGen",
+    "AsmParser",
+    "Disassembler",
+    "MCTargetDesc",
+    "TargetInfo",
+  ]
+}

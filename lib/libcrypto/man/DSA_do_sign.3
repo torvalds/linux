@@ -1,0 +1,120 @@
+.\"	$OpenBSD: DSA_do_sign.3,v 1.11 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt DSA_DO_SIGN 3
+.Os
+.Sh NAME
+.Nm DSA_do_sign ,
+.Nm DSA_do_verify
+.Nd raw DSA signature operations
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/dsa.h
+.Ft DSA_SIG *
+.Fo DSA_do_sign
+.Fa "const unsigned char *dgst"
+.Fa "int dlen"
+.Fa "DSA *dsa"
+.Fc
+.Ft int
+.Fo DSA_do_verify
+.Fa "const unsigned char *dgst"
+.Fa "int dgst_len"
+.Fa "DSA_SIG *sig"
+.Fa "DSA *dsa"
+.Fc
+.Sh DESCRIPTION
+.Fn DSA_do_sign
+computes a digital signature on the
+.Fa dlen
+byte message digest
+.Fa dgst
+using the private key
+.Fa dsa
+and returns it in a newly allocated
+.Vt DSA_SIG
+structure.
+.Pp
+.Xr DSA_sign_setup 3
+may be used to precompute part of the signing operation in case
+signature generation is time-critical.
+.Pp
+.Fn DSA_do_verify
+verifies that the signature
+.Fa sig
+matches a given message digest
+.Fa dgst
+of size
+.Fa dgst_len .
+.Fa dsa
+is the signer's public key.
+.Sh RETURN VALUES
+.Fn DSA_do_sign
+returns the signature or
+.Dv NULL
+on error.
+.Fn DSA_do_verify
+returns 1 for a valid signature, 0 for an incorrect signature,
+and -1 on error.
+The error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr DSA_get0_key 3 ,
+.Xr DSA_meth_set_sign 3 ,
+.Xr DSA_new 3 ,
+.Xr DSA_SIG_new 3 ,
+.Xr DSA_sign 3
+.Sh HISTORY
+.Fn DSA_do_sign
+and
+.Fn DSA_do_verify
+first appeared in OpenSSL 0.9.3 and have been available since
+.Ox 2.6 .

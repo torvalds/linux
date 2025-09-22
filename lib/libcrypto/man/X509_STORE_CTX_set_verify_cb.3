@@ -1,0 +1,310 @@
+.\" $OpenBSD: X509_STORE_CTX_set_verify_cb.3,v 1.13 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL aebb9aac Jul 19 09:27:53 2016 -0400
+.\" selective merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2009 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_STORE_CTX_SET_VERIFY_CB 3
+.Os
+.Sh NAME
+.Nm X509_STORE_CTX_verify_cb ,
+.Nm X509_STORE_CTX_set_verify_cb ,
+.Nm X509_STORE_CTX_get_verify_cb
+.Nd set and retrieve verification callback
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509_vfy.h
+.Ft typedef int
+.Fo (*X509_STORE_CTX_verify_cb)
+.Fa "int ok"
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Ft void
+.Fo X509_STORE_CTX_set_verify_cb
+.Fa "X509_STORE_CTX *ctx"
+.Fa "X509_STORE_CTX_verify_cb verify_cb"
+.Fc
+.Ft X509_STORE_CTX_verify_cb
+.Fo X509_STORE_CTX_get_verify_cb
+.Fa "X509_STORE_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_STORE_CTX_set_verify_cb
+sets the verification callback of
+.Fa ctx
+to
+.Fa verify_cb
+overwriting any existing callback.
+.Pp
+The verification callback can be used to modify the operation of
+certificate verification, either by overriding error conditions or
+logging errors for debugging purposes.
+The use of a verification callback is not essential, and should not
+be used in security sensitive programs.
+.Pp
+Do not use this function.
+It is extremely fragile and unpredictable.
+This callback exposes implementation details of certificate verification,
+which change as the library evolves.
+Attempting to use it for security checks can introduce vulnerabilities if
+making incorrect assumptions about when the callback is called.
+Additionally, overriding
+.Fa ok
+may leave
+.Fa ctx
+in an inconsistent state and break invariants.
+.Pp
+Instead, customize certificate verification by configuring options on the
+.Vt X509_STORE_CTX
+before verification, or applying additional checks after
+.Xr X509_verify_cert 3
+completes successfully.
+.Pp
+The
+.Fa ok
+parameter to the callback indicates the value the callback should return
+to retain the default behaviour.
+If it is zero then an error condition is indicated.
+If it is 1 then no error occurred.
+As the default behaviour is internal to the verifier, and possibly unknown
+to the caller, changing this parameter is inherently dangerous and should not
+normally be done except for debugging purposes, and should not be expected to
+be consistent if the verifier changes.
+If the flag
+.Dv X509_V_FLAG_NOTIFY_POLICY
+is set, then
+.Fa ok
+is set to 2 to indicate the policy checking is complete.
+.Pp
+The
+.Fa ctx
+parameter to the callback is the
+.Vt X509_STORE_CTX
+structure that is performing the verification operation.
+A callback can examine this structure and receive additional information
+about the error, for example by calling
+.Xr X509_STORE_CTX_get_current_cert 3 .
+Additional application data can be passed to the callback via the
+.Sy ex_data
+mechanism.
+.Pp
+The verification callback can be set and inherited from the parent
+structure performing the operation.
+In some cases (such as S/MIME verification) the
+.Vt X509_STORE_CTX
+structure is created and destroyed internally and the only way to set a
+custom verification callback is by inheriting it from the associated
+.Vt X509_STORE .
+.Sh RETURN VALUES
+.Fn X509_STORE_CTX_get_verify_cb
+returns a pointer to the current callback function
+used by the specified
+.Fa ctx .
+If no callback was set using
+.Fn X509_STORE_CTX_set_verify_cb ,
+that is a pointer to a built-in static function
+which does nothing except returning the
+.Fa ok
+argument passed to it.
+.Sh EXAMPLES
+Default callback operation:
+.Bd -literal
+int
+verify_callback(int ok, X509_STORE_CTX *ctx)
+{
+	return ok;
+}
+.Ed
+.Pp
+This is likely the only safe callback to use.
+.Pp
+Simple and terrible example that should not be used.
+Suppose a certificate in the chain is expired and we
+wish to continue after this error:
+.Bd -literal
+int
+verify_callback(int ok, X509_STORE_CTX *ctx)
+{
+	/* Tolerate certificate expiration */
+	if (X509_STORE_CTX_get_error(ctx) == X509_V_ERR_CERT_HAS_EXPIRED)
+		return 1;
+	/* Otherwise don't override */
+	return ok;
+}
+.Ed
+.Pp
+While this example is presented for historical purposes,
+this is not the correct way to accomplish this.
+The verification flag
+.Dv X509_V_FLAG_NO_CHECK_TIME
+should be set on the
+.Vt STORE_CTX
+using
+.Xr X509_VERIFY_PARAM_set_flags 3
+instead.
+.Pp
+Full featured debugging logging callback - note that the output and
+order that things happen from this can change over time and should not
+be parsed or expected to be consistent.
+In this case the
+.Fa bio_err
+is assumed to be a global logging
+.Vt BIO ,
+an alternative would to store a
+.Vt BIO
+in
+.Fa ctx
+using
+.Sy ex_data .
+.Bd -literal
+int
+verify_callback(int ok, X509_STORE_CTX *ctx)
+{
+	X509 *err_cert;
+	int err,depth;
+
+	err_cert = X509_STORE_CTX_get_current_cert(ctx);
+	err =	X509_STORE_CTX_get_error(ctx);
+	depth =	X509_STORE_CTX_get_error_depth(ctx);
+
+	BIO_printf(bio_err,"depth=%d ",depth);
+	if (err_cert) {
+		X509_NAME_print_ex(bio_err,
+		    X509_get_subject_name(err_cert), 0,
+		    XN_FLAG_ONELINE);
+		BIO_puts(bio_err, "\en");
+	} else
+		BIO_puts(bio_err, "<no cert>\en");
+	if (!ok)
+		BIO_printf(bio_err, "verify error:num=%d:%s\en",
+		    err, X509_verify_cert_error_string(err));
+	switch (err) {
+	case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
+		BIO_puts(bio_err, "issuer= ");
+		X509_NAME_print_ex(bio_err,
+		    X509_get_issuer_name(err_cert), 0,
+		    XN_FLAG_ONELINE);
+		BIO_puts(bio_err, "\en");
+		break;
+	case X509_V_ERR_CERT_NOT_YET_VALID:
+	case X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
+		BIO_printf(bio_err, "notBefore=");
+		ASN1_TIME_print(bio_err,
+		    X509_get_notBefore(err_cert));
+		BIO_printf(bio_err, "\en");
+		break;
+	case X509_V_ERR_CERT_HAS_EXPIRED:
+	case X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
+		BIO_printf(bio_err, "notAfter=");
+		ASN1_TIME_print(bio_err, X509_get_notAfter(err_cert));
+		BIO_printf(bio_err, "\en");
+		break;
+	case X509_V_ERR_NO_EXPLICIT_POLICY:
+		policies_print(bio_err, ctx);
+		break;
+	}
+	if (err == X509_V_OK && ok == 2)
+		/* print out policies */
+
+	BIO_printf(bio_err,"verify return:%d\en",ok);
+	return(ok);
+}
+.Ed
+.Sh SEE ALSO
+.Xr X509_STORE_CTX_get_error 3 ,
+.Xr X509_STORE_CTX_get_ex_new_index 3 ,
+.Xr X509_STORE_CTX_new 3 ,
+.Xr X509_STORE_CTX_set_error 3 ,
+.Xr X509_STORE_CTX_set_flags 3 ,
+.Xr X509_STORE_CTX_set_verify 3 ,
+.Xr X509_STORE_set_verify_cb 3 ,
+.Xr X509_verify_cert 3 ,
+.Xr X509_VERIFY_PARAM_set_flags 3
+.Sh HISTORY
+.Fn X509_STORE_CTX_set_verify_cb
+first appeared in OpenSSL 0.9.6c and has been available since
+.Ox 3.2 .
+.Pp
+.Fn X509_STORE_CTX_get_verify_cb
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 7.1 .
+.Pp
+.Fn X509_STORE_CTX_verify_cb
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 7.2 .
+.Sh CAVEATS
+In general a verification callback should
+.Sy NOT
+return a changed value of
+.Fa ok
+because this can allow the verification to appear to succeed
+in an unpredictable way.
+This can effectively remove all security from the application because
+untrusted or invalid certificates may be accepted.
+Doing this can possibly make
+.Xr X509_verify_cert 3
+return what appears to be a validated chain of certificates that has not
+been validated or even had the signatures checked.

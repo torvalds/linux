@@ -1,0 +1,60 @@
+.\" $OpenBSD: sysctl.conf.5,v 1.15 2025/04/05 16:56:29 kn Exp $
+.\"
+.\" Copyright (c) 1998 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 5 2025 $
+.Dt SYSCTL.CONF 5
+.Os
+.Sh NAME
+.Nm sysctl.conf
+.Nd sysctl variables to set at system startup
+.Sh DESCRIPTION
+.Nm
+is made up of
+.Xr sysctl 8
+variable assignments
+.Pq Ar variable Ns = Ns Ar value
+with comments designated by a hash mark
+.Pq Sq # .
+.Pp
+.Pa /etc/sysctl.conf
+is read at system startup by
+.Xr rc 8
+early on in the boot sequence.
+.Sh FILES
+.Bl -tag -width /etc/examples/sysctl.conf -compact
+.It Pa /etc/sysctl.conf
+.It Pa /etc/examples/sysctl.conf
+.El
+.Sh EXAMPLES
+To turn on IP forwarding, one would use the following line:
+.Bd -literal -offset indent
+net.inet.ip.forwarding=1
+.Ed
+.Pp
+To cause the kernel to reboot on a panic, instead of dropping into
+the debugger, the following can be used:
+.Bd -literal -offset indent
+ddb.panic=0
+.Ed
+.Sh SEE ALSO
+.Xr sysctl 2 ,
+.Xr rc 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+A
+.Nm
+file first appeared in
+.Ox 2.3 .

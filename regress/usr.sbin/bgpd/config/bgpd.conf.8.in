@@ -1,0 +1,28 @@
+# $OpenBSD: bgpd.conf.8.in,v 1.2 2018/09/10 14:29:19 benno Exp $
+# test network prefix-set
+
+AS 64512
+
+prefix-set mynetworks {
+	192.0.2.0/24
+	2001:db8:abcd::/56
+}
+
+network prefix-set mynetworks
+network prefix-set mynetworks set { community 64512:3000 }
+network 10.10.10.0/25
+network 10.10.10.128/25 set { community 64512:3001 }
+network 2001:db8:cafe::/56
+network 2001:db8:f00d::/56 set { community 64512:3002 }
+network inet static
+network inet static set { community 64512:3003 }
+network inet6 static
+network inet6 static set { community 64512:3004 }
+network inet connected
+network inet connected set { community 64512:3005 }
+network inet6 connected
+network inet6 connected set { community 64512:3006 }
+network inet rtlabel LABEL
+network inet rtlabel LABEL set { community 64512:3007 }
+network inet6 rtlabel LABEL6
+network inet6 rtlabel LABEL6 set { community 64512:3008 }

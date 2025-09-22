@@ -1,0 +1,83 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_MEMORY_RESOURCE
+#define _LIBCPP_MEMORY_RESOURCE
+
+/**
+    memory_resource synopsis
+
+// C++17
+
+namespace std::pmr {
+
+  class memory_resource;
+
+  bool operator==(const memory_resource& a,
+                  const memory_resource& b) noexcept;
+  bool operator!=(const memory_resource& a,
+                  const memory_resource& b) noexcept;           // removed in C++20
+
+  template <class Tp> class polymorphic_allocator;
+
+  template <class T1, class T2>
+  bool operator==(const polymorphic_allocator<T1>& a,
+                  const polymorphic_allocator<T2>& b) noexcept;
+  template <class T1, class T2>
+  bool operator!=(const polymorphic_allocator<T1>& a,
+                  const polymorphic_allocator<T2>& b) noexcept; // removed in C++20
+
+  // Global memory resources
+  memory_resource* set_default_resource(memory_resource* r) noexcept;
+  memory_resource* get_default_resource() noexcept;
+  memory_resource* new_delete_resource() noexcept;
+  memory_resource* null_memory_resource() noexcept;
+
+  // Pool resource classes
+  struct pool_options;
+  class synchronized_pool_resource;
+  class unsynchronized_pool_resource;
+  class monotonic_buffer_resource;
+
+} // namespace std::pmr
+
+ */
+
+#include <__config>
+
+#if _LIBCPP_STD_VER >= 17
+#  include <__memory_resource/memory_resource.h>
+#  include <__memory_resource/monotonic_buffer_resource.h>
+#  include <__memory_resource/polymorphic_allocator.h>
+#  include <__memory_resource/pool_options.h>
+#  include <__memory_resource/synchronized_pool_resource.h>
+#  include <__memory_resource/unsynchronized_pool_resource.h>
+#endif
+
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 14
+#  include <cstddef>
+#  include <cstdint>
+#  include <limits>
+#  include <mutex>
+#  include <new>
+#  include <stdexcept>
+#  include <tuple>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <stdexcept>
+#endif
+
+#endif /* _LIBCPP_MEMORY_RESOURCE */

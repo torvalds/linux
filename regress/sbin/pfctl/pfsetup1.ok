@@ -1,0 +1,1 @@
+pass in inet from any to 192.168.0.1/24 flags S/SA keep state

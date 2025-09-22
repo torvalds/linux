@@ -1,0 +1,160 @@
+.\"	$OpenBSD: wcslcpy.3,v 1.8 2024/08/07 04:59:45 guenther Exp $
+.\"
+.\" Copyright (c) 1998, 2000 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 7 2024 $
+.Dt WCSLCPY 3
+.Os
+.Sh NAME
+.Nm wcslcpy ,
+.Nm wcslcat
+.Nd size-bounded wide string copying and concatenation
+.Sh SYNOPSIS
+.In wchar.h
+.Ft size_t
+.Fn wcslcpy "wchar_t * restrict dst" "const wchar_t * restrict src" "size_t size"
+.Ft size_t
+.Fn wcslcat "wchar_t * restrict dst" "const wchar_t * restrict src" "size_t size"
+.Sh DESCRIPTION
+The
+.Fn wcslcpy
+and
+.Fn wcslcat
+functions copy and concatenate wide strings respectively.
+They are designed to be safer, more consistent, and less error prone
+replacements for
+.Xr wcsncpy 3
+and
+.Xr wcsncat 3 .
+Unlike those functions,
+.Fn wcslcpy
+and
+.Fn wcslcat
+take the full size of the buffer (not just the length) and guarantee to
+terminate the result with a null wide character (as long as
+.Fa size
+is larger than 0 or, in the case of
+.Fn wcslcat ,
+as long as there is at least one wide character free in
+.Fa dst ) .
+Note that a wide character for the null wide character should be included in
+.Fa size .
+Also note that
+.Fn wcslcpy
+and
+.Fn wcslcat
+only operate on wide strings that are terminated with a null wide character
+(L'\e0').
+This means that for
+.Fn wcslcpy
+.Fa src
+must be terminated with a null wide character and for
+.Fn wcslcat
+both
+.Fa src
+and
+.Fa dst
+must be terminated with a null wide character.
+.Pp
+The
+.Fn wcslcpy
+function copies up to
+.Fa size
+\(mi 1 wide characters from the wide string
+.Fa src
+to
+.Fa dst ,
+terminating the result with a null wide character.
+.Pp
+The
+.Fn wcslcat
+function appends the wide string
+.Fa src
+to the end of
+.Fa dst .
+It will append at most
+.Fa size
+\(mi wcslen(dst) \(mi 1 wide characters, terminating the result with a null
+wide character.
+.Pp
+If the
+.Fa src
+and
+.Fa dst
+strings overlap, the behavior is undefined.
+.Sh RETURN VALUES
+The
+.Fn wcslcpy
+and
+.Fn wcslcat
+functions return the total length of the wide string they tried to create.
+For
+.Fn wcslcpy
+that means the length of
+.Fa src .
+For
+.Fn wcslcat
+that means the initial length of
+.Fa dst
+plus
+the length of
+.Fa src .
+While this may seem somewhat confusing, it was done to make
+truncation detection simple.
+.Pp
+Note, however, that if
+.Fn wcslcat
+traverses
+.Fa size
+wide characters without finding a null wide character, the length of the
+string is considered to be
+.Fa size
+and the destination wide string will not be terminated with a null wide
+character (since there was no space for it).
+This keeps
+.Fn wcslcat
+from running off the end of a wide string.
+In practice this should not happen (as it means that either
+.Fa size
+is incorrect or that
+.Fa dst
+is not terminated with a null wide character).
+The check exists to prevent potential security problems in incorrect code.
+.Sh SEE ALSO
+.Xr strlcpy 3 ,
+.Xr swprintf 3 ,
+.Xr wcsncat 3 ,
+.Xr wcsncpy 3
+.Sh STANDARDS
+The
+.Fn wcslcpy
+and
+.Fn wcslcat
+functions conform to
+.St -p1003.1-2024 .
+.Sh HISTORY
+The
+.Fn wcslcpy
+and
+.Fn wcslcat
+functions first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+The
+.Fn wcslcpy
+and
+.Fn wcslcat
+functions are based on code by
+.An Todd C. Miller Aq Mt millert@openbsd.org .

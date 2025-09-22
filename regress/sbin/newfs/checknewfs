@@ -1,0 +1,60 @@
+#!/bin/ksh
+#	$OpenBSD: checknewfs,v 1.10 2023/10/12 16:59:23 anton Exp $
+# Written by Otto Moerbeek, 2007,  Public domain
+
+
+cleanup() {
+	[ -z "$vnd" ] || { vnconfig -u "$vnd" || :; }
+	rm -f $image
+}
+
+trap 'cleanup' INT
+
+dotest() {
+	if ! grep -q "$2|" /etc/disktab; then
+		echo disk type $2 does not exist in /etc/disktab
+		echo SKIPPED
+		return
+	fi
+	image=$(mktemp -t imageXXXXXXXXXX);
+	dd if=/dev/random of=$image bs=512 count=$1 2>/dev/null &&
+	vnd=$(vnconfig $image) || exit 1
+	disklabel -w $vnd $2 &&
+	newfs -O 1 $3 /dev/r${vnd}a
+	if [ $? != 0 ]; then
+		ret=$(($ret + 1))
+		echo TEST $1 $2 \"$3\" failed
+	else
+		(fsck -nf /dev/${vnd}a | fgrep SALVAGE)
+		if [ $? == 0 ]; then
+			ret=$(($ret + 1))
+			echo TEST $1 $2 \"$3\" failed
+		else
+			echo TEST $1 $2 \"$3\" OK
+		fi
+	fi
+	echo ==========================
+	if [ $clean == 1 ]; then
+		cleanup
+	fi
+}
+
+ret=0
+vnd=
+
+if [ $# == 0 ]; then 
+	clean=1
+	dotest 3800 rdroot "-m 0 -o space -i 4096" 
+	dotest 5760 floppy288 "-m 0 -o space -i 81920 -c 5760" 
+	dotest 5760 floppy288 "-m 0 -o space -i 81920 -c 5752" 
+	dotest 5760 floppy288 "-m 0 -o space -i 524288 -c 5760" 
+	dotest 5760 floppy288 "-m 0 -o space -i 524288 -c 5761" 
+	dotest 2880 floppy3 "-m 0 -o space -i 81920"
+	dotest 2880 floppy3 "-m 0 -o space -i 81920 -c 2880"
+	dotest 2880 floppy3 "-m 0 -o space -i 524288 -c 2880"
+else
+	clean=0
+	dotest "${@}"
+fi
+
+exit $ret

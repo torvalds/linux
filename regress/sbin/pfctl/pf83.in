@@ -1,0 +1,3 @@
+# test antispoof with ip-less interface
+
+antispoof for lo1000000

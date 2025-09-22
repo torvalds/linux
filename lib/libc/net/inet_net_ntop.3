@@ -1,0 +1,195 @@
+.\"	$OpenBSD: inet_net_ntop.3,v 1.4 2022/09/11 06:38:10 jmc Exp $
+.\"	$NetBSD: inet_net.3,v 1.1 1997/06/18 02:25:27 lukem Exp $
+.\"
+.\" Copyright (c) 1997 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt INET_NET_NTOP 3
+.Os
+.Sh NAME
+.Nm inet_net_ntop ,
+.Nm inet_net_pton
+.Nd Internet network number manipulation routines
+.Sh SYNOPSIS
+.In sys/socket.h
+.In arpa/inet.h
+.Ft char *
+.Fn inet_net_ntop "int af" "const void *src" "int bits" "char *dst" "size_t size"
+.Ft int
+.Fn inet_net_pton "int af" "const char *src" "void *dst" "size_t size"
+.Sh DESCRIPTION
+The
+.Fn inet_net_ntop
+function converts an Internet network number from network format (usually a
+.Vt struct in_addr
+or some other binary form, in network byte order) to CIDR presentation format
+(suitable for external display purposes).
+.Fa bits
+is the number of bits in
+.Fa src
+that are the network number.
+It returns
+.Dv NULL
+if a system error occurs (in which case,
+.Va errno
+will have been set), or it returns a pointer to the destination string.
+.Pp
+The
+.Fn inet_net_pton
+function converts a presentation format Internet network number (that is,
+printable form as held in a character string) to network format (usually a
+.Vt struct in_addr
+or some other internal binary representation, in network byte order).
+It returns the number of bits (either computed based on the class, or
+specified with /CIDR), or \-1 if a failure occurred
+(in which case
+.Va errno
+will have been set.
+It will be set to
+.Er ENOENT
+if the Internet network number was not valid).
+.Pp
+Caution:
+The
+.Fa dst
+field should be zeroed before calling
+.Fn inet_net_pton
+as the function will only fill the number of bytes necessary to
+encode the network number in network byte order.
+.Pp
+The only values for
+.Fa af
+currently supported are
+.Dv AF_INET
+and
+.Dv AF_INET6 .
+.Fa size
+is the size of the result buffer
+.Fa dst .
+.Sh NETWORK NUMBERS (IP VERSION 4)
+The external representation of Internet network numbers may be specified in
+one of the following forms:
+.Bd -literal -offset indent
+a
+a.b
+a.b.c
+a.b.c.d
+.Ed
+.Pp
+Any of the above four forms may have
+.Dq Li /bits
+appended where
+.Dq Li bits
+is in the range
+.Li 0-32
+and is used to explicitly specify the number of bits in the network address.
+When
+.Dq Li /bits
+is not specified, the number of bits in the network address is calculated
+as the larger of the number of bits in the class to which the address
+belongs and the number of bits provided rounded up modulo 8.
+Examples:
+.Pp
+.Bl -tag -width 10.1.2.3/24 -offset indent -compact
+.It Li 10
+an 8-bit network number (class A), value
+.Li 10.0.0.0 .
+.It Li 192
+a 24-bit network number (class C), value
+.Li 192.0.0.0 .
+.It Li 10.10
+a 16-bit network number, value
+.Li 10.10.0.0 .
+.It Li 10.1.2
+a 24-bit network number, value
+.Li 10.1.2.0 .
+.It Li 10.1.2.3
+a 32-bit network number, value
+.Li 10.1.2.3 .
+.It Li 10.1.2.3/24
+a 24-bit network number (explicit), value
+.Li 10.1.2.3 .
+.El
+.Pp
+Note that when the number of bits is specified using
+.Dq Li /bits
+notation, the value of the address still includes all bits supplied
+in the external representation, even those bits which are the host
+part of an Internet address.
+Also, unlike
+.Xr inet_pton 3
+where the external representation is assumed to be a host address, the
+external representation for
+.Fn inet_net_pton
+is assumed to be a network address.
+Thus
+.Dq Li 10.1
+is assumed to be
+.Dq Li 10.1.0.0
+not
+.Dq Li 10.0.0.1
+.Pp
+All numbers supplied as
+.Dq parts
+in a
+.Ql \&.
+notation
+may be decimal, octal, or hexadecimal, as specified
+in the C language (i.e., a leading 0x or 0X implies
+hexadecimal; otherwise, a leading 0 implies octal;
+otherwise, the number is interpreted as decimal).
+.Sh NETWORK NUMBERS (IP VERSION 6)
+See
+.Xr inet_pton 3
+for valid external representations of IP version 6 addresses.
+A valid external representation may have
+.Dq Li /bits
+appended where
+.Dq Li bits
+is in the range
+.Li 0-128
+and is used to explicitly specify the number of bits in the network address.
+When
+.Dq Li /bits
+is not specified, 128 is used.
+Note that when the number of bits is specified using
+.Dq Li /bits
+notation, the value of the address still includes all bits supplied
+in the external representation, even those bits which are the host
+part of an Internet address.
+.Sh SEE ALSO
+.Xr htonl 3 ,
+.Xr inet_pton 3 ,
+.Xr inet 4 ,
+.Xr hosts 5
+.Sh HISTORY
+The
+.Nm inet_net_ntop
+and
+.Nm inet_net_pton
+functions first appeared in BIND 4.9.4.

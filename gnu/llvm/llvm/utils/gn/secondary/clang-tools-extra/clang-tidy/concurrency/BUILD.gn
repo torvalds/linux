@@ -1,0 +1,20 @@
+static_library("concurrency") {
+  output_name = "clangTidyConcurrencyModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Analysis",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/Serialization",
+    "//clang/lib/Tooling",
+  ]
+  sources = [
+    "ConcurrencyTidyModule.cpp",
+    "MtUnsafeCheck.cpp",
+    "ThreadCanceltypeAsynchronousCheck.cpp",
+  ]
+}

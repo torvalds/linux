@@ -1,0 +1,115 @@
+.\" $OpenBSD: curs_inchstr.3,v 1.9 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_inchstr.3,v 1.9 2023/10/17 09:52:08 nicm Exp $
+.TH curs_inchstr 3 2023-07-01 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.na
+.hy 0
+.SH NAME
+\fBinchstr\fP,
+\fBinchnstr\fP,
+\fBwinchstr\fP,
+\fBwinchnstr\fP,
+\fBmvinchstr\fP,
+\fBmvinchnstr\fP,
+\fBmvwinchstr\fP,
+\fBmvwinchnstr\fP \- get a string of characters (and attributes) from a \fBcurses\fP window
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint inchstr(chtype *\fIchstr\fB);\fR
+.br
+\fBint inchnstr(chtype *\fIchstr\fB, int \fIn\fB);\fR
+.br
+\fBint winchstr(WINDOW *\fIwin\fB, chtype *\fIchstr\fB);\fR
+.br
+\fBint winchnstr(WINDOW *\fIwin\fB, chtype *\fIchstr\fB, int \fIn\fB);\fR
+.sp
+\fBint mvinchstr(int \fIy\fB, int \fIx\fB, chtype *\fIchstr\fB);\fR
+.br
+\fBint mvinchnstr(int \fIy\fB, int \fIx\fB, chtype *\fIchstr\fB, int \fIn\fB);\fR
+.br
+\fBint mvwinchstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, chtype *\fIchstr\fB);\fR
+.br
+\fBint mvwinchnstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, chtype *\fIchstr\fB, int \fIn\fB);\fR
+.SH DESCRIPTION
+These routines return a NULL-terminated array of \fBchtype\fP quantities,
+starting at the current cursor position in the named window and ending at the
+right margin of the window.
+The four functions with \fIn\fP as
+the last argument, return a leading substring at most \fIn\fP characters long
+(exclusive of the trailing (chtype)0).
+Constants defined in \fB<curses.h>\fP can be used with the \fB&\fP (logical
+AND) operator to extract the character or the attribute alone from any position
+in the \fIchstr\fP [see \fBcurs_inch\fP(3)].
+.SH RETURN VALUE
+All routines return the integer \fBERR\fP upon failure and an integer value
+other than \fBERR\fP upon successful completion (the number of characters
+retrieved, exclusive of the trailing 0).
+.PP
+X/Open Curses defines no error conditions.
+In this implementation:
+.bP
+If the \fIwin\fP parameter is null, an error is returned,
+.bP
+If the \fIchstr\fP parameter is null, an error is returned,
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+Note that all routines except \fBwinchnstr\fP may be macros.
+SVr4 does not
+document whether the result string is zero-terminated; it does not document
+whether a length limit argument includes any trailing 0; and it does not
+document the meaning of the return value.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+It is no
+more specific than the SVr4 documentation on the trailing 0.
+It does specify
+that the successful return of the functions is \fBOK\fP.
+.SH SEE ALSO
+\fBcurses\fP(3), \fBcurs_inch\fP(3).
+.PP
+Comparable functions in the wide-character (ncursesw) library are
+described in
+\fBcurs_in_wchstr\fP(3).

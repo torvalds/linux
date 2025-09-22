@@ -1,0 +1,46 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_UTILITY
+#define _LIBCPP_EXPERIMENTAL_UTILITY
+
+/*
+    experimental/utility synopsis
+
+// C++1y
+
+#include <utility>
+
+namespace std {
+namespace experimental {
+inline namespace fundamentals_v1 {
+
+  3.1.2, erased-type placeholder
+  struct erased_type { };
+
+} // namespace fundamentals_v1
+} // namespace experimental
+} // namespace std
+
+ */
+
+#include <experimental/__config>
+#include <utility>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_LFTS
+
+struct _LIBCPP_TEMPLATE_VIS erased_type {};
+
+_LIBCPP_END_NAMESPACE_LFTS
+
+#endif /* _LIBCPP_EXPERIMENTAL_UTILITY */

@@ -1,0 +1,114 @@
+.\"	$OpenBSD: magma.4,v 1.13 2013/07/16 16:05:50 schwarze Exp $
+.\"
+.\"
+.\" Copyright (c) 1998 Iain Hibbert
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt MAGMA 4 sparc64
+.Os
+.Sh NAME
+.Nm magma
+.Nd Magma Sp Serial/Parallel board device driver
+.Sh SYNOPSIS
+.Cd "magma? at sbus?"
+.Cd "mtty? at magma?"
+.Cd "mbpp? at magma?"
+.Sh DESCRIPTION
+This driver provides an interface to Magma LC2+1Sp, 2+1Sp, 4+1Sp, 8+2Sp,
+4Sp, 8Sp, 12Sp, 16Sp, 1P, 2P, and 2+1HS boards.
+These boards are based around the Cirrus Logic CD1400 serial/parallel
+communications engine and the Cirrus Logic CD1190 parallel communications
+engine.
+.Pp
+The device minor numbers for this driver are encoded as follows:
+.Bd -literal
+    +---+---+---+---+---+---+---+---+
+    | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+    +---+---+---+---+---+---+---+---+
+      |   |   |   |   |   |   |   |
+      |   |   |   |   +---+---+---+---> port number
+      |   |   |   |
+      |   |   |   +-------------------> dial-out (on tty ports)
+      |   |   |
+      |   |   +-----------------------> unused
+      |   |
+      +---+---------------------------> card number
+.Ed
+.Pp
+Up to four cards are supported in the system.
+.Pp
+All tty ports have full automatic hardware (RTS/CTS) flow control available
+and a 12 byte FIFO on the chip in each direction so errors should be minimal.
+.Sh FILES
+.Bl -tag -width /dev/bpp[0-3][0-1] -compact
+.It /dev/tty[mno][0-f]
+Serial ports
+.It /dev/bpp[mno][0-1]
+Parallel ports
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "mtty0X: ring buffer overflow"
+Incoming characters have been discarded due to a buffer overflow.
+This is caused by the process in control of the device not reading characters
+fast enough.
+If need be you can make the ring buffer bigger by changing the
+.Dv MAGMA_RBUF_SIZE
+#define to something bigger, but it should be a multiple of two.
+.It "mtty0X: fifo overflow"
+Incoming characters have been discarded due to a CD1400 channel overrun.
+This is caused by interrupts not being serviced sufficiently quickly to prevent
+the 12 byte receive FIFO on a serial channel from overflowing.
+Reducing the value of either the
+.Dv MTTY_RX_FIFO_THRESHOLD
+or
+.Dv MTTY_RX_DTR_THRESHOLD
+#define's to something smaller may help slow machines avoid this problem.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sbus 4 ,
+.Xr tty 4
+.Sh HISTORY
+The driver was loosely based upon the
+.Xr cy 4
+Cyclades Cyclom device driver written
+by Andrew Herbert and Timo Rossi.
+.Sh AUTHORS
+The driver was written by
+.An Iain Hibbert Aq Mt plunky@skate.demon.co.uk
+.Sh TODO
+CD1190 parallel support.
+.Pp
+bpp input.
+.Pp
+Dial-out (cua) devices are not yet supported.
+.Pp
+mdmbuf is unsupported.
+.Pp
+Automatic XON/XOFF handshaking could be implemented fairly easily.
+.Pp
+It would be good if the tty port waited for the FIFO to empty before allowing
+a close, so that I could turn off the channel interrupts at that time.
+It can be done.

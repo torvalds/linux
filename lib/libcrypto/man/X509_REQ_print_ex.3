@@ -1,0 +1,175 @@
+.\" $OpenBSD: X509_REQ_print_ex.3,v 1.4 2025/06/08 22:30:52 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_REQ_PRINT_EX 3
+.Os
+.Sh NAME
+.Nm X509_REQ_print_ex ,
+.Nm X509_REQ_print ,
+.Nm X509_REQ_print_fp
+.Nd pretty-print a PKCS#10 certification request
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_REQ_print_ex
+.Fa "BIO *bio"
+.Fa "X509_REQ *req"
+.Fa "unsigned long nameflags"
+.Fa "unsigned long skipflags"
+.Fc
+.Ft int
+.Fo X509_REQ_print
+.Fa "BIO *bio"
+.Fa "X509_REQ *req"
+.Fc
+.Ft int
+.Fo X509_REQ_print_fp
+.Fa "FILE *fp"
+.Fa "X509_REQ *req"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_REQ_print_ex
+prints information contained in
+.Fa req
+to
+.Fa bio
+in human-readable form.
+Printing is aborted as soon as any operation fails, with the exception
+that failures while attempting to decode or print the public key
+are not considered as errors.
+.Pp
+By default, the following blocks of information
+are printed in the following order.
+Each block can be skipped by setting the corresponding bit in
+.Fa skipflags ,
+provided in parentheses after each block description.
+.Bl -bullet
+.It
+A pair of lines reading
+.Qq Certificate Request:\&
+and
+.Qq Data:\&
+containing no information.
+.Pq Dv X509_FLAG_NO_HEADER
+.It
+The value contained in the version field
+in decimal and hexadecimal notation.
+.Pq Dv X509_FLAG_NO_VERSION
+.It
+The subject name is printed with
+.Xr X509_NAME_print_ex 3 .
+.Pq Dv X509_FLAG_NO_SUBJECT
+.It
+The public key algorithm is printed with
+.Xr i2a_ASN1_OBJECT 3 ,
+and the public key returned from
+.Xr X509_REQ_get_pubkey 3
+with
+.Xr EVP_PKEY_print_public 3 .
+.Pq Dv X509_FLAG_NO_PUBKEY
+.It
+For each X.501 attribute that is not a requested extension according to
+.Xr X509_REQ_extension_nid 3 ,
+the object identifier is printed with
+.Xr i2a_ASN1_OBJECT 3 ,
+and all values of the types
+.Dv V_ASN1_PRINTABLESTRING ,
+.Dv V_ASN1_T61STRING ,
+and
+.Dv V_ASN1_IA5STRING
+are printed with
+.Xr BIO_write 3 .
+.Pq Dv X509_FLAG_NO_ATTRIBUTES
+.It
+The requested extensions are retrieved with
+.Xr X509_REQ_get_extensions 3
+and their types and values are printed with
+.Xr i2a_ASN1_OBJECT 3
+and
+.Xr X509V3_EXT_print 3 ,
+or, if the latter fails, with
+.Xr ASN1_STRING_print 3 .
+.Pq Dv X509_FLAG_NO_EXTENSIONS
+.It
+The signature is printed with
+.Xr X509_signature_print 3 .
+.Pq Dv X509_FLAG_NO_SIGDUMP
+.El
+.Pp
+The
+.Fa nameflags
+argument modifies the format for printing X.501
+.Vt Name
+objects contained in
+.Fa req .
+It is passed through to
+.Xr X509_NAME_print_ex 3 .
+If
+.Fa nameflags
+is
+.Dv X509_FLAG_COMPAT ,
+the
+.Fa indent
+argument of
+.Xr X509_NAME_print_ex 3
+is set to 16 spaces and the traditional SSLeay format is used.
+Otherwise, if the only bit set in
+.Dv XN_FLAG_SEP_MASK
+is
+.Dv XN_FLAG_SEP_MULTILINE ,
+.Fa indent
+is set to 12 spaces.
+Otherwise, indent is set to zero.
+.Pp
+.Fn X509_REQ_print
+is a wrapper function setting the
+.Fa nameflags
+to
+.Dv XN_FLAG_COMPAT
+and the
+.Fa skipflags
+to
+.Dv X509_FLAG_COMPAT .
+.Pp
+.Fn X509_REQ_print_fp
+is similar to
+.Fn X509_REQ_print
+except that it prints to
+.Fa fp .
+.Sh RETURN VALUES
+These functions return 1 if all requested information was successfully
+printed, even if failures occurred while attempting to decode or
+print the public key, or 0 if any operation fails.
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr X509_print_ex 3 ,
+.Xr X509_REQ_new 3
+.Sh HISTORY
+.Fn X509_REQ_print
+first appeared in SSLeay 0.4.4 and
+.Fn X509_REQ_print_fp
+in SSLeay 0.6.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_REQ_print_ex
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .
+.Sh BUGS
+Some printing failures are silently ignored while printing extensions,
+which may result in incomplete data being printed.

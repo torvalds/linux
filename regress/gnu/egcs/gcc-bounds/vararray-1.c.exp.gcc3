@@ -1,0 +1,2 @@
+vararray-1.c: In function `main':
+vararray-1.c:8: warning: ISO C90 forbids variable-size array `sample_buffer'

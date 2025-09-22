@@ -1,0 +1,28 @@
+.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_STRERR 3
+.Os
+.Sh NAME
+.Nm fido_strerr
+.Nd FIDO2 error codes
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft const char *
+.Fn fido_strerr "int n"
+.Sh DESCRIPTION
+The
+.Fn fido_strerr
+function translates the error code
+.Fa n
+into a readable string,
+where
+.Fa n
+is an error code defined in
+.In fido/err.h .
+.Fn fido_strerr
+never returns NULL.
+Returned pointers point to static strings.

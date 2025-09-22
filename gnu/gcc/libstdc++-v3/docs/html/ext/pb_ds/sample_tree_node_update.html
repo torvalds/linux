@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>sample_tree_node_update Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>sample_tree_node_update</tt> Interface</h1>
+
+    <p>A sample node updater.</p>
+
+    <p>This class serves to show the interface a node update
+    functor needs to support.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/detail/tree_policy/sample_tree_node_update.hpp"><tt>
+    sample_tree_node_update.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Template Parameters</a></h2>
+
+    <table class="c1" width="100%" border="1" summary=
+    "Template Parameters">
+      <tr>
+        <td width="20%" align="left"><b>Parameter</b></td>
+
+        <td width="50%" align="left"><b>Description</b></td>
+
+        <td width="30%" align="left"><b>Default Value</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Const_Node_Iterator1933878761" id=
+"Const_Node_Iterator1933878761"><b>class</b> Const_Node_Iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Const node iterator type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Node_Iterator4206909839" id=
+"Node_Iterator4206909839"><b>class</b> Node_Iterator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Node iterator type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Cmp_Fn294335" id="Cmp_Fn294335"><b>class</b> Cmp_Fn</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Comparison functor.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Allocator35940069" id=
+"Allocator35940069"><b>class</b> Allocator</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Allocator type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link3" id="link3">Metadata definitions.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="metadata_type2849297114" id=
+"metadata_type2849297114">metadata_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+size_t
+</pre>
+        </td>
+
+        <td>
+          <p>Metadata type.</p>
+
+          <p>This can be any type; size_t is merely an example.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link4" id="link4">Protected Methods</a></h2>
+
+    <h3><a name="link5" id="link5">Conclassors, declassor, and
+    related.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  sample_tree_node_update
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Default constructor.</p>
+
+          <p>Must be default constructable.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link6" id="link6">Operators.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  <b>operator</b>()
+  (node_iterator node_it,
+    const_node_iterator end_nd_it) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Updates the rank of a node through a <span class=
+          "c1"><tt>node_iterator</tt></span> <span class=
+          "c1"><tt>node_it</tt></span>; <span class=
+          "c1"><tt>end_nd_it</tt></span> is the end node
+          iterator.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

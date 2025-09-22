@@ -1,0 +1,239 @@
+define(COMM,`#')dnl
+include(MAKEDEV.sub)dnl
+dnl
+vers(a, {-$OpenBSD: MAKEDEV.mi,v 1.83 2016/09/11 03:06:31 deraadt Exp $-})dnl
+dnl
+divert(1)dnl
+{-#-}
+{-#-} Copyright (c) 2001-2004 Todd T. Fries <todd@OpenBSD.org>
+{-#-}
+{-#-} Permission to use, copy, modify, and distribute this software for any
+{-#-} purpose with or without fee is hereby granted, provided that the above
+{-#-} copyright notice and this permission notice appear in all copies.
+{-#-}
+{-#-} THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+{-#-} WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+{-#-} MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+{-#-} ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+{-#-} WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+{-#-} ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+{-#-} OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+{-#-}
+define(quote,{-"$1" -})dnl
+include(MAKEDEV.common)dnl
+dnl
+__devtitle(make, {-Device "make" file.  Valid arguments-})dnl
+__devitem({-all-}, {-all-}, {-makes all known devices{-,-} including local devices.
+{-#-}		Tries to make the ``standard'' number of each type.-})dnl
+__devitem(std,{-std-},Standard devices)dnl
+__devitem(local,local,Configuration specific devices)dnl
+dnl
+dnl _std
+dnl
+dnl $1: tty
+dnl $2: memstuff
+dnl $3: ksyms
+dnl $4: klog
+dnl
+define({-_std-},{-dnl
+std)
+	M console	c 0 0 600
+	M tty		c $1 0
+	M mem		c $2 0 640 kmem
+	M kmem		c $2 1 640 kmem
+	M null		c $2 2
+	M zero		c $2 12
+	M stdin		c major_fdesc_c 0
+	M stdout	c major_fdesc_c 1
+	M stderr	c major_fdesc_c 2
+	M ksyms		c $3 0 640 kmem
+	M klog		c $4 0 600-})dnl
+dnl
+divert(1)dnl
+define(__mddivert,7)dnl
+include(MAKEDEV.md)dnl
+dnl
+dnl
+divert(0)dnl
+#!/bin/sh -
+#
+# THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
+# generated from:
+#
+show_vers()dnl <-- now that all files are included, show versions
+#
+dnl
+divert(2)dnl
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+T=$0
+
+# set this to echo for Echo-Only debugging
+[ "$eo" ] || eo=
+
+hex()
+{
+	case ${--}1 in
+	[0-9]) echo -n {-$-}1;;
+	10) echo -n a;;
+	11) echo -n b;;
+	12) echo -n c;;
+	13) echo -n d;;
+	14) echo -n e;;
+	15) echo -n f;;
+	esac
+}
+
+alph2d()
+{
+	local t="$1"
+	local p="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	local sub=${p%${t}*}
+	echo ${#sub}
+}
+
+h2d()
+{
+	local s="$1"
+	local f=${s%*[0-9a-f]} n=${s#[0-9a-f]*}
+
+	echo $(($(_h2d $f)*16+ $(_h2d $n) ))
+}
+
+_h2d()
+{
+	case $1 in
+	[0-9]) echo -n $1;;
+	a) echo -n 10;;
+	b) echo -n 11;;
+	c) echo -n 12;;
+	d) echo -n 13;;
+	e) echo -n 14;;
+	f) echo -n 15;;
+	esac
+}
+
+unt()
+{
+	# XXX pdksh can't seem to deal with locally scoped variables
+	# in ${foo#$bar} expansions
+	arg="{-$-}1"
+	tmp="${arg#[a-zA-Z]*}"
+	tmp="${tmp%*[a-zA-Z]}"
+	while [ "$tmp" != "$arg" ]
+	do
+		arg=$tmp
+		tmp="${arg#[a-zA-Z]*}"
+		tmp="${tmp%*[a-zA-Z]}"
+	done
+	echo $arg
+}
+dnl
+dnl dodisk(name, unit, blkmaj, chrmaj, unit, off[, stepping])
+dnl   arg: 1    2    3      4      5    6    7
+dnl
+
+dodisk()
+{
+	[ "$DEBUG" ] && set -x
+	n=Add(Mult(${5}, ${7:-16}), ${6}) count=0
+	[ 0$7 -ne 8 ] && l="i j k l m n o p"
+	for d in a b c d e f g h $l
+	do
+		M {-$-}1{-$-}2$d	b {-$-}3 Add($n, $count) 640 operator
+		M r{-$-}1{-$-}2$d	c {-$-}4 Add($n, $count) 640 operator
+		let count=count+1
+	done
+}
+dnl
+dnl dodisk2(name, unit, blkmaj, chrmaj, unit, off[, stepping])
+dnl
+dnl 1. name    - prefix name of the device
+dnl 2. unit    - beginning unit number for block devices
+dnl 3. blkmaj  - block device major number
+dnl 4. chrmaj  - character device major number
+dnl 5. unit    - beginning unit number for character devices
+dnl 6. off     - offset from 0 for all minor numbers
+dnl 7. step    - optional, defaults to 16, number of partitions per device
+dnl
+
+dodisk2()
+{
+	n=Add(Mult({-$-}5, ${7:-16}), {-$-}6)
+	M {-$-}1{-$-}2a b {-$-}3 $n 640 operator
+	M r{-$-}1{-$-}2a c {-$-}4 $n 640 operator
+	n=Add($n, 2)
+	M {-$-}1{-$-}2c b {-$-}3 $n 640 operator
+	M r{-$-}1{-$-}2c c {-$-}4 $n 640 operator
+}
+
+# M name b/c major minor [mode] [group]
+RMlist[0]="rm -f"
+
+mkl() {
+dnl
+dnl multi mknod
+dnl
+	: {-$-}{mklist[0]:=";mknod"}
+	mklist[{-$-}{#mklist[*]}]=" -m {-$-}1 {-$-}2 {-$-}3 {-$-}4 {-$-}5"
+}
+
+M() {
+	RMlist[{-$-}{#RMlist[*]}]={-$-}1
+	mkl ${5-666} {-$-}1 {-$-}2 {-$-}3 {-$-}4
+	G={-$-}{6:-wheel}
+	[ "{-$-}7" ] && {
+		MKlist[{-$-}{#MKlist[*]}]="&& chown {-$-}7:{-$-}G {-$-}1"
+	} || {
+		case $G in
+		wheel)
+			[ {-$-}{#whlist[*]} = 0 ] && whlist[0]="&& chgrp wheel"
+			whlist[{-$-}{#whlist[*]}]="$1"
+		;;
+		operator)
+			[ {-$-}{#oplist[*]} = 0 ] && oplist[0]="&& chgrp operator"
+			oplist[{-$-}{#oplist[*]}]="$1"
+		;;
+		*)
+			MKlist[{-$-}{#MKlist[*]}]="&& chgrp $G $1";
+		esac
+	}
+	return 0
+}
+divert(7)dnl
+dnl
+dnl there is no blank line at the end of etc.arch/MAKEDEV.md files, so add one
+dnl on the following line:
+
+show_devs()dnl
+dnl
+divert(9)dnl
+*)
+	echo $i: unknown device
+	;;
+esac
+done
+}
+_recurse "$@"
+{
+echo -n ${RMlist[*]}
+echo -n ${mklist[*]}
+echo -n ${MKlist[*]}
+echo -n ${whlist[*]}
+echo ${oplist[*]}
+} | if [ "$eo" = "echo" ]; then
+	cat
+else
+	sh
+fi
+divert(3)dnl
+dnl
+
+R() {
+[ "$DEBUG" ] && set -x
+for i in "$@"
+do
+U=`unt $i`
+[ "$U" ] || U=0
+
+case $i in
+dnl

@@ -1,0 +1,6 @@
+pass inet from 127.0.0.1 to any flags S/SA tag 127.0.0.1
+pass inet from 127.0.0.2 to any flags S/SA tag 127.0.0.2
+pass inet from 127.0.0.3 to any flags S/SA tag 127.0.0.3
+pass inet from 127.0.0.1 to any flags S/SA tagged 127.0.0.1
+pass inet from 127.0.0.2 to any flags S/SA tagged 127.0.0.2
+pass inet from 127.0.0.3 to any flags S/SA tagged 127.0.0.3

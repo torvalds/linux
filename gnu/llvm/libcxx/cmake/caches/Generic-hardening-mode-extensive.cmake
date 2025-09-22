@@ -1,0 +1,1 @@
+set(LIBCXX_HARDENING_MODE "extensive" CACHE STRING "")

@@ -1,0 +1,30 @@
+Date: Wed, 20 Jun 2001 12:32:22 -0500
+From: Vikram Adve <vadve@cs.uiuc.edu>
+To: Chris Lattner <lattner@cs.uiuc.edu>
+Subject: .NET vs. our VM
+
+One significant difference between .NET CLR and our VM is that the CLR
+includes full information about classes and inheritance.  In fact, I just
+sat through the paper on adding templates to .NET CLR, and the speaker
+indicated that the goal seems to be to do simple static compilation (very
+little lowering or optimization).  Also, the templates implementation in CLR
+"relies on dynamic class loading and JIT compilation".
+
+This is an important difference because I think there are some significant
+advantages to have a much lower level VM layer, and do significant static
+analysis and optimization.
+
+I also talked to the lead guy for KAI's C++ compiler (Arch Robison) and he
+said that SGI and other commercial compilers have included options to export
+their *IR* next to the object code (i.e., .il files) and use them for
+link-time code generation.  In fact, he said that the .o file was nearly
+empty and was entirely generated from the .il at link-time.  But he agreed
+that this limited the link-time interprocedural optimization to modules
+compiled by the same compiler, whereas our approach allows us to link and
+optimize modules from multiple different compilers.  (Also, of course, they
+don't do anything for runtime optimization).
+
+All issues to bring up in Related Work.
+
+--Vikram
+

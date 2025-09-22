@@ -1,0 +1,2 @@
+add_compiler_rt_script(hwasan_symbolize)
+add_dependencies(hwasan hwasan_symbolize)

@@ -1,0 +1,21 @@
+static_library("portability") {
+  output_name = "clangTidyPortabilityModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "PortabilityTidyModule.cpp",
+    "RestrictSystemIncludesCheck.cpp",
+    "SIMDIntrinsicsCheck.cpp",
+    "StdAllocatorConstCheck.cpp",
+  ]
+}

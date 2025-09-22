@@ -1,0 +1,324 @@
+.\" $OpenBSD: OCSP_sendreq_new.3,v 1.11 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2018, 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2014, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OCSP_SENDREQ_NEW 3
+.Os
+.Sh NAME
+.Nm OCSP_sendreq_new ,
+.Nm OCSP_sendreq_nbio ,
+.Nm OCSP_REQ_CTX_free ,
+.Nm OCSP_REQ_CTX_add1_header ,
+.Nm OCSP_REQ_CTX_set1_req ,
+.Nm OCSP_parse_url ,
+.Nm OCSP_sendreq_bio
+.Nd OCSP responder query functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ocsp.h
+.Ft OCSP_REQ_CTX *
+.Fo OCSP_sendreq_new
+.Fa "BIO *io"
+.Fa "const char *path"
+.Fa "OCSP_REQUEST *req"
+.Fa "int maxline"
+.Fc
+.Ft int
+.Fo OCSP_sendreq_nbio
+.Fa "OCSP_RESPONSE **presp"
+.Fa "OCSP_REQ_CTX *rctx"
+.Fc
+.Ft void
+.Fo OCSP_REQ_CTX_free
+.Fa "OCSP_REQ_CTX *rctx"
+.Fc
+.Ft int
+.Fo OCSP_REQ_CTX_add1_header
+.Fa "OCSP_REQ_CTX *rctx"
+.Fa "const char *name"
+.Fa "const char *value"
+.Fc
+.Ft int
+.Fo OCSP_REQ_CTX_set1_req
+.Fa "OCSP_REQ_CTX *rctx"
+.Fa "OCSP_REQUEST *req"
+.Fc
+.Ft int
+.Fo OCSP_parse_url
+.Fa "const char *url"
+.Fa "char **phost"
+.Fa "char **pport"
+.Fa "char **ppath"
+.Fa "int *pssl"
+.Fc
+.Ft OCSP_RESPONSE *
+.Fo OCSP_sendreq_bio
+.Fa "BIO *io"
+.Fa "const char *path"
+.Fa "OCSP_REQUEST *req"
+.Fc
+.Sh DESCRIPTION
+The function
+.Fn OCSP_sendreq_new
+returns an
+.Vt OCSP_REQ_CTX
+structure using the responder
+.Fa io ,
+the URI path
+.Fa path ,
+the OCSP request
+.Fa req
+and with a response header maximum line length of
+.Fa maxline .
+If
+.Fa maxline
+is zero, a default value of 4k is used.
+The OCSP request
+.Fa req
+may be set to
+.Dv NULL
+and provided later if required.
+.Pp
+The arguments to
+.Fn OCSP_sendreq_new
+correspond to the components of the URI.
+For example, if the responder URI is
+.Pa http://ocsp.com/ocspreq ,
+the BIO
+.Fa io
+should be connected to host
+.Pa ocsp.com
+on port 80 and
+.Fa path
+should be set to
+.Qq /ocspreq .
+.Pp
+.Fn OCSP_sendreq_nbio
+performs non-blocking I/O on the OCSP request context
+.Fa rctx .
+When the operation is complete, it returns the response in
+.Pf * Fa presp .
+If
+.Fn OCSP_sendreq_nbio
+indicates an operation should be retried, the corresponding BIO can
+be examined to determine which operation (read or write) should be
+retried and appropriate action can be taken, for example a
+.Xr select 2
+call on the underlying socket.
+.Pp
+.Fn OCSP_REQ_CTX_free
+frees up the OCSP context
+.Fa rctx .
+.Pp
+.Fn OCSP_REQ_CTX_add1_header
+adds header
+.Fa name
+with value
+.Fa value
+to the context
+.Fa rctx .
+The added headers are of the form
+.Qq Fa name : value
+or just
+.Qq Fa name
+if
+.Fa value
+is
+.Dv NULL .
+.Fn OCSP_REQ_CTX_add1_header
+can be called more than once to add multiple headers.
+It must be called before any calls to
+.Fn OCSP_sendreq_nbio .
+The
+.Fa req
+parameter in the initial to
+.Fn OCSP_sendreq_new
+call must be set to
+.Dv NULL
+if additional headers are set.
+.Pp
+.Fn OCSP_REQ_CTX_set1_req
+sets the OCSP request in
+.Fa rctx
+to
+.Fa req .
+This function should be called after any calls to
+.Fn OCSP_REQ_CTX_add1_header .
+.Pp
+.Fn OCSP_parse_url
+is a utility function to parse a
+.Fa url
+of the form
+.Sm off
+.Sy http Op Sy s
+.Pf :// Ar host
+.Op : Ar port
+.Op / Ar path
+.Sm on
+and store pointers to newly allocated copies of the strings
+.Ar host ,
+.Ar port ,
+and
+.Ar path
+in
+.Pf * phost ,
+.Pf * pport ,
+and
+.Pf * ppath ,
+respectively.
+By default,
+.Pf * ppath
+is set to
+.Qq /
+and
+.Pf * pport
+to
+.Qq 443
+for
+.Sy https
+or
+.Qq 80
+for
+.Sy http .
+For
+.Sy https ,
+.Pf * Fa pssl
+is set to 1; otherwise, to 0.
+.Pp
+.Fn OCSP_sendreq_bio
+performs an OCSP request using the responder
+.Fa io ,
+the URI path
+.Fa path ,
+the OCSP request
+.Fa req .
+It does not support retries and so cannot handle non-blocking I/O
+efficiently.
+It is retained for compatibility and its use in new applications
+is not recommended.
+.Sh RETURN VALUES
+.Fn OCSP_sendreq_new
+returns a valid
+.Vt OCSP_REQ_CTX
+structure or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn OCSP_sendreq_nbio
+returns 1 if the operation was completed successfully,
+-1 if the operation should be retried,
+or 0 if an error occurred.
+.Pp
+.Fn OCSP_REQ_CTX_add1_header ,
+.Fn OCSP_REQ_CTX_set1_req ,
+and
+.Fn OCSP_parse_url
+return 1 for success or 0 for failure.
+.Pp
+.Fn OCSP_sendreq_bio
+returns the
+.Vt OCSP_RESPONSE
+structure sent by the responder or
+.Dv NULL
+if an error occurred.
+.Sh EXAMPLES
+Add a Host header for
+.Pa ocsp.com :
+.Pp
+.Dl OCSP_REQ_CTX_add1_header(ctx, "Host", "ocsp.com");
+.Sh SEE ALSO
+.Xr OCSP_cert_to_id 3 ,
+.Xr OCSP_request_add1_nonce 3 ,
+.Xr OCSP_REQUEST_new 3 ,
+.Xr OCSP_resp_find_status 3 ,
+.Xr OCSP_response_status 3 ,
+.Xr X509_get1_ocsp 3
+.Sh HISTORY
+.Fn OCSP_parse_url
+and
+.Fn OCSP_sendreq_bio
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn OCSP_sendreq_new ,
+.Fn OCSP_sendreq_nbio ,
+and
+.Fn OCSP_REQ_CTX_free
+first appeared in OpenSSL 0.9.8h and have been available since
+.Ox 4.5 .
+.Pp
+.Fn OCSP_REQ_CTX_add1_header
+and
+.Fn OCSP_REQ_CTX_set1_req
+first appeared in OpenSSL 1.0.0 and have been available since
+.Ox 4.9 .
+.Sh CAVEATS
+These functions only perform a minimal HTTP query to a responder.
+If an application wishes to support more advanced features, it
+should use an alternative, more complete, HTTP library.
+.Pp
+Currently only HTTP POST queries to responders are supported.

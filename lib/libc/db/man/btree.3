@@ -1,0 +1,241 @@
+.\"	$OpenBSD: btree.3,v 1.25 2022/03/31 17:27:15 naddy Exp $
+.\"	$NetBSD: btree.3,v 1.6 1996/05/03 21:26:48 cgd Exp $
+.\"
+.\" Copyright (c) 1997, Phillip F Knaack. All rights reserved.
+.\"
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)btree.3	8.4 (Berkeley) 8/18/94
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt BTREE 3
+.Os
+.Sh NAME
+.Nm btree
+.Nd btree database access method
+.Sh SYNOPSIS
+.In sys/types.h
+.In db.h
+.Sh DESCRIPTION
+The
+.Fn dbopen
+routine is the library interface to database files.
+One of the supported file formats is btree files.
+The general description of the database access methods is in
+.Xr dbopen 3 .
+This manual page describes only the btree specific information.
+.Pp
+The btree data structure is a sorted, balanced tree structure storing
+associated key/data pairs.
+.Pp
+The btree access method specific data structure provided to
+.Fn dbopen
+is defined in the
+.In db.h
+include file as follows:
+.Bd -literal -offset indent
+typedef struct {
+	unsigned long flags;
+	unsigned int cachesize;
+	int maxkeypage;
+	int minkeypage;
+	unsigned int psize;
+	int (*compare)(const DBT *key1, const DBT *key2);
+	size_t (*prefix)(const DBT *key1, const DBT *key2);
+	int lorder;
+} BTREEINFO;
+.Ed
+.Pp
+The elements of this structure are as follows:
+.Bl -tag -width "XXXXXX"
+.It Fa flags
+The flag value is specified by OR'ing any of the following values:
+.Bl -tag -width XXXXX
+.It Dv R_DUP
+Permit duplicate keys in the tree, i.e., permit insertion if the key to be
+inserted already exists in the tree.
+The default behavior, as described in
+.Xr dbopen 3 ,
+is to overwrite a matching key when inserting a new key or to fail if
+the
+.Dv R_NOOVERWRITE
+flag is specified.
+The
+.Dv R_DUP
+flag is overridden by the
+.Dv R_NOOVERWRITE
+flag, and if the
+.Dv R_NOOVERWRITE
+flag is specified, attempts to insert duplicate keys into
+the tree will fail.
+.Pp
+If the database contains duplicate keys, the order of retrieval of
+key/data pairs is undefined if the
+.Fn get
+routine is used; however,
+.Fn seq
+routine calls with the
+.Dv R_CURSOR
+flag set will always return the logical
+.Dq first
+of any group of duplicate keys.
+.El
+.It Fa cachesize
+A suggested maximum size (in bytes) of the memory cache.
+This value is
+.Em only
+advisory, and the access method will allocate more memory rather than fail.
+Since every search examines the root page of the tree, caching the most
+recently used pages substantially improves access time.
+In addition, physical writes are delayed as long as possible, so a moderate
+cache can reduce the number of I/O operations significantly.
+Obviously, using a cache increases (but only increases) the likelihood of
+corruption or lost data if the system crashes while a tree is being modified.
+If
+.Fa cachesize
+is 0 (no size is specified), a default cache is used.
+.It Fa maxkeypage
+The maximum number of keys which will be stored on any single page.
+Not currently implemented.
+.It Fa minkeypage
+The minimum number of keys which will be stored on any single page.
+This value is used to determine which keys will be stored on overflow
+pages, i.e., if a key or data item is longer than the pagesize divided
+by the minkeypage value, it will be stored on overflow pages instead
+of in the page itself.
+If
+.Fa minkeypage
+is 0 (no minimum number of keys is specified), a value of 2 is used.
+.It Fa psize
+Page size is the size (in bytes) of the pages used for nodes in the tree.
+The minimum page size is 512 bytes and the maximum page size is 64K.
+If
+.Fa psize
+is 0 (no page size is specified), a page size is chosen based on the
+underlying file system I/O block size.
+.It Fa compare
+Compare is the key comparison function.
+It must return an integer less than, equal to, or greater than zero if the
+first key argument is considered to be respectively less than, equal to,
+or greater than the second key argument.
+The same comparison function must be used on a given tree every time it
+is opened.
+If
+.Fa compare
+is
+.Dv NULL
+(no comparison function is specified), the keys are compared
+lexically, with shorter keys considered less than longer keys.
+.It Fa prefix
+Prefix is the prefix comparison function.
+If specified, this routine must return the number of bytes of the second key
+argument which are necessary to determine that it is greater than the first
+key argument.
+If the keys are equal, the key length should be returned.
+Note, the usefulness of this routine is very data dependent, but in some
+data sets it can produce significantly reduced tree sizes and search times.
+If
+.Fa prefix
+is
+.Dv NULL
+(no prefix function is specified),
+.Em and
+no comparison function is specified, a default lexical comparison routine
+is used.
+If
+.Fa prefix
+is
+.Dv NULL
+and a comparison routine is specified, no prefix comparison is done.
+.It Fa lorder
+The byte order for integers in the stored database metadata.
+The number should represent the order as an integer; for example,
+big endian order would be the number 4,321.
+If
+.Fa lorder
+is 0 (no order is specified), the current host order is used.
+.El
+.Pp
+If the file already exists (and the
+.Dv O_TRUNC
+flag is not specified), the
+values specified for the parameters
+.Fa flags ,
+.Fa lorder ,
+and
+.Fa psize
+are ignored in favor of the values used when the tree was created.
+.Pp
+Forward sequential scans of a tree are from the least key to the greatest.
+.Pp
+Space freed up by deleting key/data pairs from the tree is never reclaimed,
+although it is normally made available for reuse.
+This means that the btree storage structure is grow-only.
+The only solutions are to avoid excessive deletions, or to create a fresh
+tree periodically from a scan of an existing one.
+.Pp
+Searches, insertions, and deletions in a btree will all complete in
+O(lg\ base\ N) where base is the average fill factor.
+Often, inserting ordered data into btrees results in a low fill factor.
+This implementation has been modified to make ordered insertion the best
+case, resulting in a much better than normal page fill factor.
+.Sh ERRORS
+The
+.Nm
+access method routines may fail and set
+.Va errno
+for any of the errors specified for the library routine
+.Xr dbopen 3 .
+.Sh SEE ALSO
+.Xr dbopen 3 ,
+.Xr hash 3 ,
+.Xr recno 3
+.Rs
+.%T "The Ubiquitous B-tree"
+.%A Douglas Comer
+.%J ACM Comput. Surv. 11
+.%D June 1979
+.%P pp. 121\(en138
+.Re
+.Rs
+.%T "Prefix B-trees"
+.%A Rudolf Bayer
+.%A Karl Unterauer
+.%J ACM Transactions on Database Systems
+.%V Vol. 2 , 1
+.%D March 1977
+.%P pp. 11\(en26
+.Re
+.Rs
+.%B "The Art of Computer Programming Vol. 3: Sorting and Searching"
+.%A D. E. Knuth
+.%D 1968
+.%P pp. 471\(en480
+.Re
+.Sh BUGS
+Only big and little endian byte order is supported.

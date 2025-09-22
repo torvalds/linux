@@ -1,0 +1,22 @@
+executable("modularize") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Driver",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Serialization",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "CoverageChecker.cpp",
+    "Modularize.cpp",
+    "ModularizeUtilities.cpp",
+    "ModuleAssistant.cpp",
+    "PreprocessorTracker.cpp",
+  ]
+}

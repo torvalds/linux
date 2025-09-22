@@ -1,0 +1,2 @@
+match out on lo0 inet all tag regress nat-to 127.0.0.1
+pass out quick on lo0 all flags S/SA tagged regress

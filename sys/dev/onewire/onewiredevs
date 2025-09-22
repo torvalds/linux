@@ -1,0 +1,54 @@
+$OpenBSD: onewiredevs,v 1.4 2008/02/23 23:20:52 miod Exp $
+
+/*
+ * Copyright (c) 2006 Alexander Yurchenko <grange@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * List of known 1-Wire family types.
+ */
+
+family	DS1990		0x01	ID
+family	DS1991		0x02	MultiKey
+family	DS1994		0x04	4kb NVRAM + RTC
+family	DS2405		0x05	Addressable Switch
+family	DS1993		0x06	4kb NVRAM
+family	DS1992		0x08	1kb NVRAM
+family	DS1982		0x09	1kb EPROM
+family	DS1995		0x0a	16kb NVRAM
+family	DS2505		0x0b	16kb EPROM
+family	DS1996		0x0c	64kb NVRAM
+family	DS2506		0x0f	64kb EPROM
+family	DS1920		0x10	Temperature
+family	DS2406		0x12	Addressable Switch + 1kb NVRAM
+family	DS2430		0x14	256b EEPROM
+family	DS195X		0x16	Java
+family	DS28E04		0x1c	4kb EEPROM + PIO
+family	DS2423		0x1d	4kb NVRAM + Counter
+family	DS2409		0x1f	Microlan Coupler
+family	DS1822		0x22	Temperature
+family	DS2433		0x23	4kb EEPROM
+family	DS2415		0x24	RTC
+family	DS2438		0x26	Smart Battery Monitor
+family	DS2417		0x27	RTC with interrupt
+family	DS18B20		0x28	Temperature
+family	DS2408		0x29	8-channel Addressable Switch
+family	DS2890		0x2c	Digital Potentiometer
+family	DS2431		0x2d	1kb EEPROM
+family	DS2760		0x30	Lithium Battery Monitor
+family	DS2413		0x3a	2-channel Addressable Switch
+family	DS2422		0x41	Temperature + 8kb datalog
+family	DS28EA00	0x42	Temperature
+family	DS28EC20	0x43	20kb EEPROM

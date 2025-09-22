@@ -1,0 +1,110 @@
+.\" $OpenBSD: EVP_rc4.3,v 1.2 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL 8fa4d95e Oct 21 11:59:09 2017 +0900
+.\"
+.\" This file was written by Ronald Tse <ronald.tse@ribose.com>
+.\" Copyright (c) 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_RC4 3
+.Os
+.Sh NAME
+.Nm EVP_rc4 ,
+.Nm EVP_rc4_40 ,
+.Nm EVP_rc4_hmac_md5
+.Nd EVP RC4 stream cipher
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft const EVP_CIPHER *
+.Fn EVP_rc4 void
+.Ft const EVP_CIPHER *
+.Fn EVP_rc4_40 void
+.Ft const EVP_CIPHER *
+.Fn EVP_rc4_hmac_md5 void
+.Sh DESCRIPTION
+These functions provide the RC4 stream cipher in the
+.Xr evp 3
+framework.
+It is a variable key length cipher.
+.Pp
+.Fn EVP_rc4
+uses a default key length of 128 bits.
+.Pp
+.Fn EVP_rc4_40
+uses a key length of 40 bits instead.
+This function is deprecated.
+Use
+.Fn EVP_rc4
+and
+.Xr EVP_CIPHER_CTX_set_key_length 3
+instead.
+.Pp
+.Fn EVP_rc4_hmac_md5
+provides authenticated encryption with the RC4 stream cipher
+with MD5 as HMAC.
+This function is not intended for usage outside of TLS
+and requires calling of some undocumented control functions.
+It does not conform to the EVP AEAD interface.
+.Sh RETURN VALUES
+These functions return an
+.Vt EVP_CIPHER
+structure that provides the implementation of the symmetric cipher.
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_EncryptInit 3
+.Sh HISTORY
+.Fn EVP_rc4
+first appeared in SSLeay 0.5.1
+and
+.Fn EVP_rc4_40
+in OpenSSL 0.9.1.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_rc4_hmac_md5
+first appeared in OpenSSL 1.0.1 and has been available since
+.Ox 5.3 .

@@ -1,0 +1,52 @@
+.\"	$OpenBSD: xnf.4,v 1.6 2016/01/15 22:21:56 jmc Exp $
+.\"
+.\" Copyright (c) 2016 Mike Belopuhov
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 15 2016 $
+.Dt XNF 4
+.Os
+.Sh NAME
+.Nm xnf
+.Nd Xen Netfront networking interface
+.Sh SYNOPSIS
+.Cd "xnf* at xen?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for a paravirtual networking interface
+.Dq Netfront
+native to the Xen hypervisor.
+.Pp
+During attach the
+.Nm
+driver will ask the hypervisor to switch all configured virtual interfaces
+over to the Netfront interface regardless of the VM configuration.
+.Sh SEE ALSO
+.Xr autoconf 4 ,
+.Xr intro 4 ,
+.Xr xen 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mike Belopuhov Aq Mt mikeb@openbsd.org
+from scratch, inspired by the
+.Fx
+implementation.

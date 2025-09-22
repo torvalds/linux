@@ -1,0 +1,305 @@
+.\" $OpenBSD: EVP_aes_128_cbc.3,v 1.9 2025/06/08 22:40:29 schwarze Exp $
+.\" selective merge up to: OpenSSL 7c6d372a Nov 20 13:20:01 2018 +0000
+.\"
+.\" This file was written by Ronald Tse <ronald.tse@ribose.com>
+.\" Copyright (c) 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_AES_128_CBC 3
+.Os
+.Sh NAME
+.Nm EVP_aes_128_cbc ,
+.Nm EVP_aes_192_cbc ,
+.Nm EVP_aes_256_cbc ,
+.Nm EVP_aes_128_cfb1 ,
+.Nm EVP_aes_192_cfb1 ,
+.Nm EVP_aes_256_cfb1 ,
+.Nm EVP_aes_128_cfb8 ,
+.Nm EVP_aes_192_cfb8 ,
+.Nm EVP_aes_256_cfb8 ,
+.Nm EVP_aes_128_cfb128 ,
+.Nm EVP_aes_192_cfb128 ,
+.Nm EVP_aes_256_cfb128 ,
+.Nm EVP_aes_128_cfb ,
+.Nm EVP_aes_192_cfb ,
+.Nm EVP_aes_256_cfb ,
+.Nm EVP_aes_128_ctr ,
+.Nm EVP_aes_192_ctr ,
+.Nm EVP_aes_256_ctr ,
+.Nm EVP_aes_128_ecb ,
+.Nm EVP_aes_192_ecb ,
+.Nm EVP_aes_256_ecb ,
+.Nm EVP_aes_128_ofb ,
+.Nm EVP_aes_192_ofb ,
+.Nm EVP_aes_256_ofb ,
+.Nm EVP_aes_128_cbc_hmac_sha1 ,
+.Nm EVP_aes_256_cbc_hmac_sha1 ,
+.Nm EVP_aes_128_wrap ,
+.Nm EVP_aes_192_wrap ,
+.Nm EVP_aes_256_wrap ,
+.Nm EVP_aes_128_xts ,
+.Nm EVP_aes_256_xts
+.Nd EVP AES cipher
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_cbc void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_192_cbc void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_cbc void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_cfb1 void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_192_cfb1 void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_cfb1 void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_cfb8 void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_192_cfb8 void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_cfb8 void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_cfb128 void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_192_cfb128 void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_cfb128 void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_cfb void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_192_cfb void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_cfb void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_ctr void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_192_ctr void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_ctr void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_ecb void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_192_ecb void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_ecb void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_ofb void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_192_ofb void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_ofb void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_cbc_hmac_sha1 void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_cbc_hmac_sha1 void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_wrap void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_192_wrap void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_wrap void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_128_xts void
+.Ft const EVP_CIPHER *
+.Fn EVP_aes_256_xts void
+.Sh DESCRIPTION
+These functions provide the AES encryption algorithm in the
+.Xr evp 3
+framework.
+AES is a family of block ciphers operating on 128 bit blocks
+using key lengths of 128, 192, and 256 bits.
+.Pp
+.Fn EVP_aes_128_cbc ,
+.Fn EVP_aes_192_cbc ,
+.Fn EVP_aes_256_cbc ,
+.Fn EVP_aes_128_cfb1 ,
+.Fn EVP_aes_192_cfb1 ,
+.Fn EVP_aes_256_cfb1 ,
+.Fn EVP_aes_128_cfb8 ,
+.Fn EVP_aes_192_cfb8 ,
+.Fn EVP_aes_256_cfb8 ,
+.Fn EVP_aes_128_cfb128 ,
+.Fn EVP_aes_192_cfb128 ,
+.Fn EVP_aes_256_cfb128 ,
+.Fn EVP_aes_128_ctr ,
+.Fn EVP_aes_192_ctr ,
+.Fn EVP_aes_256_ctr ,
+.Fn EVP_aes_128_ecb ,
+.Fn EVP_aes_192_ecb ,
+.Fn EVP_aes_256_ecb ,
+.Fn EVP_aes_128_ofb ,
+.Fn EVP_aes_192_ofb ,
+and
+.Fn EVP_aes_256_ofb
+provide AES for 128, 192, and 256-bit keys in the following modes:
+CBC, CFB with 1-bit shift, CFB with 8-bit shift, CFB with 128-bit shift,
+CTR, ECB, and OFB.
+.Pp
+.Fn EVP_aes_128_cfb ,
+.Fn EVP_aes_192_cfb ,
+and
+.Fn EVP_aes_256_cfb
+are aliases for
+.Fn EVP_aes_128_cfb128 ,
+.Fn EVP_aes_192_cfb128 ,
+and
+.Fn EVP_aes_256_cfb128 ,
+implemented as macros.
+.Pp
+.Fn EVP_aes_128_cbc_hmac_sha1
+and
+.Fn EVP_aes_256_cbc_hmac_sha1
+provide authenticated encryption with AES in CBC mode using SHA-1 as HMAC,
+with keys of 128 and 256-bit length respectively.
+The authentication tag is 160 bits long.
+This is not intended for usage outside of TLS and requires
+calling of some undocumented control functions.
+These ciphers do not conform to the EVP AEAD interface.
+.Pp
+.Fn EVP_aes_128_wrap ,
+.Fn EVP_aes_192_wrap ,
+and
+.Fn EVP_aes_256_wrap
+provide AES key wrap with 128, 192 and 256-bit keys
+according to RFC 3394 section 2.2.1 ("wrap").
+When the returned
+.Vt EVP_CIPHER
+object is later passed to
+.Xr EVP_CipherInit_ex 3 ,
+.Xr EVP_EncryptInit_ex 3 ,
+or
+.Xr EVP_DecryptInit_ex 3
+together with an
+.Vt EVP_CIPHER_CTX
+object, the flag
+.Dv EVP_CIPHER_CTX_FLAG_WRAP_ALLOW
+must have been set in the
+.Vt EVP_CIPHER_CTX
+using
+.Xr EVP_CIPHER_CTX_set_flags 3 .
+Otherwise, or when passing the returned
+.Vt EVP_CIPHER
+object to
+.Xr EVP_CipherInit 3 ,
+.Xr EVP_EncryptInit 3 ,
+or
+.Xr EVP_DecryptInit 3 ,
+initialization fails with a
+.Dq wrap not allowed
+error.
+.Pp
+.Fn EVP_aes_128_xts
+and
+.Fn EVP_aes_256_xts
+provide XEX-based tweaked-codebook mode with ciphertext stealing (XTS-AES)
+as specified in IEEE Std. 1619-2007 and described in NIST SP 800-38E.
+It was designed for encrypting data on a storage device,
+provides confidentiality but not authentication of data,
+and requires a key of double length for protection of a certain key size.
+In particular, XTS-AES-128 takes input of a 256-bit key to achieve
+AES 128-bit security, and XTS-AES-256 takes input of a 512-bit key
+to achieve AES 256-bit security.
+.Sh RETURN VALUES
+These functions return an
+.Vt EVP_CIPHER
+structure that provides the implementation of the symmetric cipher.
+.Sh SEE ALSO
+.Xr AES_encrypt 3 ,
+.Xr evp 3 ,
+.Xr EVP_aes_128_ccm 3 ,
+.Xr EVP_aes_128_gcm 3 ,
+.Xr EVP_EncryptInit 3
+.Sh HISTORY
+.Fn EVP_aes_128_cbc ,
+.Fn EVP_aes_192_cbc ,
+.Fn EVP_aes_256_cbc ,
+.Fn EVP_aes_128_cfb ,
+.Fn EVP_aes_192_cfb ,
+.Fn EVP_aes_256_cfb ,
+.Fn EVP_aes_128_ebc ,
+.Fn EVP_aes_192_ebc ,
+.Fn EVP_aes_256_ebc ,
+.Fn EVP_aes_128_ofb ,
+.Fn EVP_aes_192_ofb ,
+and
+.Fn EVP_aes_256_ofb
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn EVP_aes_128_cfb1 ,
+.Fn EVP_aes_192_cfb1 ,
+.Fn EVP_aes_256_cfb1 ,
+.Fn EVP_aes_128_cfb8 ,
+.Fn EVP_aes_192_cfb8 ,
+.Fn EVP_aes_256_cfb8 ,
+.Fn EVP_aes_128_cfb128 ,
+.Fn EVP_aes_192_cfb128 ,
+and
+.Fn EVP_aes_256_cfb128
+first appeared in OpenSSL 0.9.7e and have been available since
+.Ox 3.8 .
+.Pp
+.Fn EVP_aes_128_ctr ,
+.Fn EVP_aes_192_ctr ,
+.Fn EVP_aes_256_ctr ,
+.Fn EVP_aes_128_cbc_hmac_sha1 ,
+.Fn EVP_aes_256_cbc_hmac_sha1 ,
+.Fn EVP_aes_128_xts ,
+and
+.Fn EVP_aes_256_xts
+first appeared in OpenSSL 1.0.1 and have been available since
+.Ox 5.3 .
+.Pp
+.Fn EVP_aes_128_wrap ,
+.Fn EVP_aes_192_wrap ,
+and
+.Fn EVP_aes_256_wrap
+first appeared in OpenSSL 1.0.2 and have been available since
+.Ox 6.5 .

@@ -1,0 +1,60 @@
+.\"     $OpenBSD: viornd.4,v 1.2 2015/02/17 16:29:16 bentley Exp $
+.\"
+.\" Copyright (c) 2014 Stefan Fritsch <sf@sfritsch.de>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 17 2015 $
+.Dt VIORND 4
+.Os
+.Sh NAME
+.Nm viornd
+.Nd VirtIO random number device
+.Sh SYNOPSIS
+.Cd "viornd* at virtio? flags 0x00"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a virtual random number generator using a
+.Xr virtio 4
+entropy device provided by QEMU 1.3 and later, and possibly by other
+hypervisors.
+.Pp
+As there is currently no way for
+.Nm
+to determine how much entropy is needed, the second byte of the flags value
+can be used to configure how often it should request more entropy from the
+host.
+If the second lowest byte of the flags has a value from 1 to 15,
+.Nm
+will ask for 16 bytes of entropy every 15 * (1 << value) seconds.
+For example, flags == 0x100 means an interval of 30 seconds,
+0x500 means 8 minutes, 0xa00 means 256 minutes, and 0xf00 means about 6 days.
+For flags == 0, a default value will be used (currently 8 minutes).
+If the bit 0x1000 is set in the flags,
+.Nm
+will only request entropy from the host once during system boot.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr virtio 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.5 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Stefan Fritsch Aq Mt sf@sfritsch.de .

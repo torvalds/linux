@@ -1,0 +1,173 @@
+.\" $OpenBSD: SSL_set1_host.3,v 1.5 2025/06/08 22:52:00 schwarze Exp $
+.\" selective merge up to: OpenSSL 6328d367 Jul 4 21:58:30 2020 +0200
+.\"
+.\" This file was written by Viktor Dukhovni <viktor@openssl.org>
+.\" Copyright (c) 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_SET1_HOST 3
+.Os
+.Sh NAME
+.Nm SSL_set1_host ,
+.Nm SSL_set_hostflags ,
+.Nm SSL_get0_peername
+.Nd SSL server verification parameters
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fo SSL_set1_host
+.Fa "SSL *ssl"
+.Fa "const char *hostname"
+.Fc
+.Ft void
+.Fo SSL_set_hostflags
+.Fa "SSL *ssl"
+.Fa "unsigned int flags"
+.Fc
+.Ft const char *
+.Fo SSL_get0_peername
+.Fa "SSL *ssl"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_set1_host
+configures a server hostname check in the
+.Fa ssl
+client, setting the expected DNS hostname to
+.Fa hostname
+and clearing any previously specified hostname.
+If
+.Fa hostname
+is
+.Dv NULL
+or the empty string, name checks are not performed on the peer certificate.
+If a nonempty
+.Fa hostname
+is specified, certificate verification automatically checks the peer
+hostname via
+.Xr X509_check_host 3
+with
+.Fa flags
+set to 0.
+.Pp
+.Fn SSL_set_hostflags
+sets the flags that will be passed to
+.Xr X509_check_host 3
+when name checks are applicable,
+by default the flags value is 0.
+See
+.Xr X509_check_host 3
+for the list of available flags and their meaning.
+.Pp
+.Fn SSL_get0_peername
+returns the DNS hostname or subject CommonName from the peer certificate
+that matched one of the reference identifiers.
+Unless wildcard matching is disabled, the name matched in the peer
+certificate may be a wildcard name.
+A reference identifier starting with
+.Sq \&.
+indicates a parent domain prefix rather than a fixed name.
+In this case, the matched peername may be a sub-domain
+of the reference identifier.
+The returned string is owned by the library and is no longer valid
+once the associated
+.Fa ssl
+object is cleared or freed, or if a renegotiation takes place.
+Applications must not free the return value.
+.Pp
+SSL clients are advised to use these functions in preference to
+explicitly calling
+.Xr X509_check_host 3 .
+.Sh RETURN VALUES
+.Fn SSL_set1_host
+returns 1 for success or 0 for failure.
+.Pp
+.Fn SSL_get0_peername
+returns the matched peername or
+.Dv NULL
+if peername verification is not applicable
+or no trusted peername was matched.
+Use
+.Xr SSL_get_verify_result 3
+to determine whether verification succeeded.
+.Sh EXAMPLES
+The calls below check the hostname.
+Wildcards are supported, but they must match the entire label.
+The actual name matched in the certificate (which might be a wildcard)
+is retrieved, and must be copied by the application if it is to be
+retained beyond the lifetime of the SSL connection.
+.Bd -literal
+if (!SSL_set1_host(ssl, "smtp.example.com"))
+	/* error */
+
+/* XXX: Perform SSL_connect() handshake and handle errors here */
+
+if (SSL_get_verify_result(ssl) == X509_V_OK) {
+	const char *peername = SSL_get0_peername(ssl);
+
+	if (peername != NULL)
+		/* Name checks were in scope and matched the peername */
+}
+.Ed
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_set_verify 3 ,
+.Xr SSL_get_peer_certificate 3 ,
+.Xr SSL_get_verify_result 3 ,
+.Xr X509_check_host 3 ,
+.Xr X509_VERIFY_PARAM_set1_host 3
+.Sh HISTORY
+All three functions first appeared in OpenSSL 1.1.0.
+.Fn SSL_set1_host
+has been available since
+.Ox 6.5 ,
+and
+.Fn SSL_set_hostflags
+and
+.Fn SSL_get0_peername
+since
+.Ox 6.9 .

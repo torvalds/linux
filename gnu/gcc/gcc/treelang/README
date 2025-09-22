@@ -1,0 +1,19 @@
+This is a sample language front end for GCC.
+
+This is a replacement for 'toy' which had potential copyright issues,
+but more importantly it did not exercise very much of GCC. The intent
+of this language is that it should provide a cookbook of language
+elements that you can use in any language front end.
+
+To this end, treelang is essentially an implementation of a subset of 
+the GCC back end 'tree' interface in syntax.
+
+Thanks to Richard Kenner, Joachim Nadler and many others for helping
+me to understand enough of GCC to do this.
+
+Please note, the documentation is not a good model to use for GCC
+front end documentation. 
+
+Tim Josling
+19 June 2002
+

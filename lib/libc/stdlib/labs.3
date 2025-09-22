@@ -1,0 +1,88 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: labs.3,v 1.17 2019/01/18 07:32:17 schwarze Exp $
+.\"
+.Dd $Mdocdate: January 18 2019 $
+.Dt LABS 3
+.Os
+.Sh NAME
+.Nm labs ,
+.Nm llabs ,
+.Nm qabs
+.Nd return the absolute value of a long integer
+.Sh SYNOPSIS
+.In limits.h
+.In stdlib.h
+.Ft long
+.Fn labs "long i"
+.Ft long long
+.Fn llabs "long long j"
+.Ft quad_t
+.Fn qabs "quad_t j"
+.Sh DESCRIPTION
+The
+.Fn labs
+function returns the absolute value of the long integer
+.Fa i .
+The
+.Fn llabs
+function returns the absolute value of the long long integer
+.Fa j .
+.Pp
+The
+.Fn qabs
+function is a deprecated equivalent of
+.Fn llabs .
+.Sh SEE ALSO
+.Xr abs 3 ,
+.Xr cabs 3 ,
+.Xr floor 3 ,
+.Xr imaxabs 3
+.Sh STANDARDS
+The
+.Fn labs
+and
+.Fn llabs
+functions conform to
+.St -isoC-99 .
+.Sh CAVEATS
+The results of applying
+.Fn labs
+to
+.Dv LONG_MIN
+and
+.Fn llabs
+to
+.Dv LLONG_MIN
+are undefined, and
+.Fn qabs
+is not portable in the first place.

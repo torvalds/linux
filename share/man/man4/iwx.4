@@ -1,0 +1,171 @@
+.\" $OpenBSD: iwx.4,v 1.21 2025/03/27 15:12:14 jmc Exp $
+.\"
+.\" Copyright (c) 2020 Stefan Sperling <stsp@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 27 2025 $
+.Dt IWX 4
+.Os
+.Sh NAME
+.Nm iwx
+.Nd Intel AX200/AX201/AX210/AX211 IEEE 802.11a/ac/ax/b/g/n wireless network device
+.Sh SYNOPSIS
+.Cd "iwx* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Intel Wireless AX200/AX210 M.2 network adapters,
+and for Intel Wireless AX201/AX211 Integrated Connectivity (CNVi) network
+adapters with companion RF M.2 modules.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA1 and WPA2).
+WPA2 is currently the most secure encryption standard for wireless networks
+supported by
+.Ox .
+It is strongly recommended that neither WEP nor WPA1
+are used as the sole mechanism to secure wireless communication,
+due to serious weaknesses.
+WPA1 is disabled by default and may be enabled using the option
+.Qq Cm wpaprotos Ar wpa1,wpa2 .
+For standard WPA networks which use pre-shared keys (PSK),
+keys are configured using the
+.Qq Cm wpakey
+option.
+WPA-Enterprise networks require use of the wpa_supplicant package.
+The
+.Nm
+driver offloads both encryption and decryption of unicast data frames to the
+hardware for the CCMP cipher.
+.Pp
+In BSS mode the driver supports background scanning;
+see
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or on boot with
+.Xr hostname.if 5 .
+.Sh FILES
+The driver needs one of the following firmware files,
+which are loaded when an interface is brought up:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/iwx-cc-a0-77
+.It Pa /etc/firmware/iwx-Qu-b0-hr-b0-77
+.It Pa /etc/firmware/iwx-Qu-b0-jf-b0-77
+.It Pa /etc/firmware/iwx-Qu-c0-hr-b0-77
+.It Pa /etc/firmware/iwx-Qu-c0-jf-b0-77
+.It Pa /etc/firmware/iwx-QuZ-a0-hr-b0-77
+.It Pa /etc/firmware/iwx-QuZ-a0-jf-b0-77
+.It Pa /etc/firmware/iwx-so-a0-gf-a0-77
+.It Pa /etc/firmware/iwx-so-a0-gf4-a0-77
+.It Pa /etc/firmware/iwx-so-a0-hr-b0-77
+.It Pa /etc/firmware/iwx-so-a0-jf-b0-77
+.It Pa /etc/firmware/iwx-ty-a0-gf-a0-77
+.El
+.Pp
+These firmware files are not free because Intel refuses to grant
+distribution rights without contractual obligations.
+As a result, even though
+.Ox
+includes the driver, the firmware files cannot be included and
+users have to download these files on their own.
+.Pp
+A prepackaged version of the firmware can be installed using
+.Xr fw_update 8 .
+.Sh EXAMPLES
+The following example scans for available networks:
+.Pp
+.Dl # ifconfig iwx0 scan
+.Pp
+The following
+.Xr hostname.if 5
+example configures iwx0 to join network
+.Dq mynwid ,
+using WPA key
+.Dq mywpakey ,
+obtaining an IP address using DHCP:
+.Bd -literal -offset indent
+join mynwid wpakey mywpakey
+inet autoconf
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "iwx0: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.It "iwx0: fatal firmware error"
+For some reason, the firmware crashed.
+The driver will reset the hardware.
+This should not happen.
+.It "iwx0: radio is disabled by hardware switch"
+The radio transmitter is off and thus no packet can go out.
+The driver will reset the hardware.
+Make sure the laptop radio switch is on.
+.It "iwx0: could not read firmware ... (error N)"
+For some reason, the driver was unable to read the firmware image from the
+filesystem.
+The file might be missing or corrupted.
+.It "iwx0: firmware too short: N bytes"
+The firmware image is corrupted and can't be loaded into the adapter.
+.It "iwx0: could not load firmware"
+An attempt to load the firmware into the adapter failed.
+The driver will reset the hardware.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 6.7 .
+.Sh CAVEATS
+The
+.Nm
+driver does not support any of the 802.11ax capabilities offered
+by the adapters.
+Additional work is required in
+.Xr ieee80211 9
+before those features can be supported.

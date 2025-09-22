@@ -1,0 +1,38 @@
+mkhybrid can be compiled on Win9X/NT4 using Cygnus' cygwin
+available from:
+
+	http://sourceware.cygnus.com/cygwin/
+
+To build, start a "bash" shell (open a DOS/Command window, cd to the required
+directory and type "bash"), and type "./configure" and "make"
+
+A pre-compiled current Win32 binary is available from:
+
+	ftp://ftp.ge.ucl.ac.uk/pub/mkhfs/win32
+
+To use the pre-compiled binary, extract the files from the Zip archive, put
+the files cygwin1.dll, mount.exe and mkhybrid.exe in your WINDOWS directory
+and from a Command/MS-DOS window type mkhybrid for usage (also see 
+mkhybrid_man.html).
+
+mkhybrid is a Unix command line utility and knows nothing about DOS/WIN.
+Therefore all directory names are given in Unix format (i.e. use '/' for a
+directory separator, not '\'). To access files on another disk (i.e.
+floppy, CDROM and network disk), you need to use the supplied "mount"
+command e.g.
+
+mount a: /a
+mount d: /cdrom
+
+i.e. files on the floppy disk are accessed as being in directory /a and
+files on the CDROM are accessed as /cdrom (assuming your CDROM is drive d:)
+e.g. the following command creates a CD image in the current directory
+using a source directories on the CDROM drive, a sub-directory and the
+floppy drive:
+
+mkhybrid -o hfs.iso -h -J -r /cdrom/subdir dir1 /a 
+
+Please note: Starting with v1.12b5.0 the Win32 executable uses the b20.1
+version of the cygwin DLL. If you are using an earlier version of mkhybrid,
+then you will need this DLL as well.
+

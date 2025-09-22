@@ -1,0 +1,1673 @@
+VM-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE, TimeTicks,
+    Counter64, Integer32, mib-2
+        FROM SNMPv2-SMI
+    OBJECT-GROUP, MODULE-COMPLIANCE, NOTIFICATION-GROUP
+        FROM SNMPv2-CONF
+    TEXTUAL-CONVENTION, PhysAddress, TruthValue
+        FROM SNMPv2-TC
+    SnmpAdminString
+        FROM SNMP-FRAMEWORK-MIB
+    UUIDorZero
+        FROM UUID-TC-MIB
+    InterfaceIndexOrZero
+        FROM IF-MIB
+
+    IANAStorageMediaType
+        FROM IANA-STORAGE-MEDIA-TYPE-MIB;
+
+vmMIB MODULE-IDENTITY
+    LAST-UPDATED "201510120000Z"        -- 12 October 2015
+    ORGANIZATION "IETF Operations and Management Area Working Group"
+    CONTACT-INFO
+            "WG Email: opsawg@ietf.org
+            Mailing list subscription info:
+            https://www.ietf.org/mailman/listinfo/opsawg
+
+            Hirochika Asai
+            The University of Tokyo
+            7-3-1 Hongo
+            Bunkyo-ku, Tokyo  113-8656
+            Japan
+            Phone: +81 3 5841 6748
+            Email: panda@hongo.wide.ad.jp
+
+            Michael MacFaden
+            VMware Inc.
+            Email: mrm@vmware.com
+
+            Juergen Schoenwaelder
+            Jacobs University
+            Campus Ring 1
+            Bremen 28759
+            Germany
+            Email: j.schoenwaelder@jacobs-university.de
+
+            Keiichi Shima
+            IIJ Innovation Institute Inc.
+            3-13 Kanda-Nishikicho
+            Chiyoda-ku, Tokyo  101-0054
+            Japan
+            Email: keiichi@iijlab.net
+
+            Tina Tsou
+            Huawei Technologies (USA)
+            2330 Central Expressway
+            Santa Clara, CA 95050
+            United States
+            Email: tina.tsou.zouting@huawei.com"
+    DESCRIPTION
+            "This MIB module is for use in managing a hypervisor and
+            virtual machines controlled by the hypervisor.
+
+            Copyright (c) 2015 IETF Trust and the persons identified
+            as authors of the code.  All rights reserved.
+
+            Redistribution and use in source and binary forms, with
+            or without modification, is permitted pursuant to, and
+            subject to the license terms contained in, the
+            Simplified BSD License set forth in Section 4.c of the
+            IETF Trust's Legal Provisions Relating to IETF Documents
+            (http://trustee.ietf.org/license-info)."
+
+    REVISION "201510120000Z"        -- 12 October 2015
+    DESCRIPTION
+            "The initial version of this MIB, published as
+            RFC 7666."
+    ::= { mib-2 236 }
+
+vmNotifications OBJECT IDENTIFIER ::= { vmMIB 0 }
+vmObjects       OBJECT IDENTIFIER ::= { vmMIB 1 }
+vmConformance   OBJECT IDENTIFIER ::= { vmMIB 2 }
+
+-- Textual conversion definitions
+--
+VirtualMachineIndex ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d"
+    STATUS       current
+    DESCRIPTION
+            "A unique value, greater than zero, identifying a
+            virtual machine.  The value for each virtual machine
+            MUST remain constant at least from one re-initialization
+            of the hypervisor to the next re-initialization."
+    SYNTAX       Integer32 (1..2147483647)
+
+VirtualMachineIndexOrZero ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d"
+    STATUS       current
+    DESCRIPTION
+            "This textual convention is an extension of the
+            VirtualMachineIndex convention.  This extension permits
+            the additional value of zero.  The meaning of the value
+            zero is object-specific and MUST therefore be defined as
+            part of the description of any object that uses this
+            syntax.  Examples of the usage of zero might include
+            situations where a virtual machine is unknown, or when
+            none or all virtual machines need to be referenced."
+    SYNTAX       Integer32 (0..2147483647)
+
+VirtualMachineAdminState ::= TEXTUAL-CONVENTION
+    STATUS      current
+    DESCRIPTION
+            "The administrative state of a virtual machine:
+
+            running(1)    The administrative state of the virtual
+                          machine indicating the virtual machine
+                          is currently online or should be brought
+                          online.
+
+            suspended(2)  The administrative state of the virtual
+                          machine where its memory and CPU execution
+                          state has been saved to persistent store
+                          and will be restored at next running(1).
+
+            paused(3)     The administrative state indicating the
+                          virtual machine is resident in memory but
+                          is no longer scheduled to execute by the
+                          hypervisor.
+
+            shutdown(4)   The administrative state of the virtual
+                          machine indicating the virtual machine
+                          is currently offline or should be
+                          shutting down."
+    SYNTAX       INTEGER {
+                    running(1),
+                    suspended(2),
+                    paused(3),
+                    shutdown(4)
+                 }
+
+VirtualMachineOperState ::= TEXTUAL-CONVENTION
+    STATUS       current
+    DESCRIPTION
+            "The operational state of a virtual machine:
+
+            unknown(1)     The operational state of the virtual
+                           machine is unknown, e.g., because the
+                           implementation failed to obtain the state
+                           from the hypervisor.
+
+            other(2)       The operational state of the virtual
+                           machine indicating that an operational
+                           state is obtained from the hypervisor, but
+                           it is not a state defined in this MIB
+                           module.
+
+            preparing(3)   The operational state of the virtual
+                           machine indicating the virtual machine is
+
+                           currently in the process of preparation,
+                           e.g., allocating and initializing virtual
+                           storage after creating (defining) the
+                           virtual machine.
+
+            running(4)     The operational state of the virtual
+                           machine indicating the virtual machine is
+                           currently executed, but it is not in the
+                           process of preparing(3), suspending(5),
+                           resuming(7), migrating(9), and
+                           shuttingdown(10).
+
+            suspending(5)  The operational state of the virtual
+                           machine indicating the virtual machine is
+                           currently in the process of suspending
+                           to save its memory and CPU execution
+                           state to persistent store.  This is a
+                           transient state from running(4) to
+                           suspended(6).
+
+            suspended(6)   The operational state of the virtual
+                           machine indicating the virtual machine is
+                           currently suspended, which means the
+                           memory and CPU execution state of the
+                           virtual machine are saved to persistent
+                           store.  During this state, the virtual
+                           machine is not scheduled to execute by
+                           the hypervisor.
+
+            resuming(7)    The operational state of the virtual
+                           machine indicating the virtual machine is
+                           currently in the process of resuming
+                           to restore its memory and CPU execution
+                           state from persistent store.  This is a
+                           transient state from suspended(6) to
+                           running(4).
+
+            paused(8)      The operational state of the virtual
+                           machine indicating the virtual machine is
+                           resident in memory but no longer
+                           scheduled to execute by the hypervisor.
+
+            migrating(9)   The operational state of the virtual
+                           machine indicating the virtual machine is
+                           currently in the process of migration
+                           from/to another hypervisor.
+
+            shuttingdown(10)
+
+                           The operational state of the virtual
+                           machine indicating the virtual machine is
+                           currently in the process of shutting
+                           down.  This is a transient state from
+                           running(4) to shutdown(11).
+
+            shutdown(11)   The operational state of the virtual
+                           machine indicating the virtual machine is
+                           down, and CPU execution is no longer
+                           scheduled by the hypervisor and its
+                           memory is not resident in the hypervisor.
+
+            crashed(12)    The operational state of the virtual
+                           machine indicating the virtual machine
+                           has crashed."
+    SYNTAX       INTEGER {
+                    unknown(1),
+                    other(2),
+                    preparing(3),
+                    running(4),
+                    suspending(5),
+                    suspended(6),
+                    resuming(7),
+                    paused(8),
+                    migrating(9),
+                    shuttingdown(10),
+                    shutdown(11),
+                    crashed(12)
+                 }
+
+VirtualMachineAutoStart ::= TEXTUAL-CONVENTION
+    STATUS       current
+    DESCRIPTION
+            "The autostart configuration of a virtual machine:
+
+            unknown(1)     The autostart configuration is unknown,
+                           e.g., because the implementation failed
+                           to obtain the autostart configuration
+                           from the hypervisor.
+
+            enabled(2)     The autostart configuration of the
+                           virtual machine is enabled.  The virtual
+                           machine should be automatically brought
+                           online at the next re-initialization of
+                           the hypervisor.
+
+            disabled(3)    The autostart configuration of the
+                           virtual machine is disabled.  The virtual
+
+                           machine should not be automatically
+                           brought online at the next
+                           re-initialization of the hypervisor."
+    SYNTAX      INTEGER {
+                    unknown(1),
+                    enabled(2),
+                    disabled(3)
+                }
+
+VirtualMachinePersistent ::= TEXTUAL-CONVENTION
+    STATUS       current
+    DESCRIPTION
+            "This value indicates whether a virtual machine has a
+            persistent configuration, which means the virtual machine
+            will still exist after shutting down:
+
+            unknown(1)     The persistent configuration is unknown,
+                           e.g., because the implementation failed
+                           to obtain the persistent configuration
+                           from the hypervisor. (read-only)
+
+            persistent(2)  The virtual machine is persistent, i.e.,
+                           the virtual machine will exist after it
+                           shuts down.
+
+            transient(3)   The virtual machine is transient, i.e.,
+                           the virtual machine will not exist after
+                           it shuts down."
+    SYNTAX       INTEGER {
+                    unknown(1),
+                    persistent(2),
+                    transient(3)
+                 }
+
+VirtualMachineCpuIndex ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d"
+    STATUS       current
+    DESCRIPTION
+            "A unique value for each virtual machine, greater than
+            zero, identifying a virtual CPU assigned to a virtual
+            machine.  The value for each virtual CPU MUST remain
+            constant at least from one re-initialization of the
+            hypervisor to the next re-initialization."
+     SYNTAX      Integer32 (1..2147483647)
+
+VirtualMachineStorageIndex ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d"
+    STATUS       current
+    DESCRIPTION
+            "A unique value for each virtual machine, greater than
+            zero, identifying a virtual storage device allocated to
+            a virtual machine.  The value for each virtual storage
+            device MUST remain constant at least from one
+            re-initialization of the hypervisor to the next
+            re-initialization."
+     SYNTAX      Integer32 (1..2147483647)
+
+VirtualMachineStorageSourceType ::= TEXTUAL-CONVENTION
+    STATUS       current
+    DESCRIPTION
+            "The source type of a virtual storage device:
+
+            unknown(1)     The source type is unknown, e.g., because
+                           the implementation failed to obtain the
+                           media type from the hypervisor.
+
+            other(2)       The source type is other than those
+                           defined in this conversion.
+
+            block(3)       The source type is a block device.
+
+            raw(4)         The source type is a raw-formatted file.
+
+            sparse(5)      The source type is a sparse file.
+
+            network(6)     The source type is a network device."
+    SYNTAX       INTEGER {
+                    unknown(1),
+                    other(2),
+                    block(3),
+                    raw(4),
+                    sparse(5),
+                    network(6)
+                 }
+
+VirtualMachineStorageAccess ::= TEXTUAL-CONVENTION
+    STATUS       current
+    DESCRIPTION
+            "The access permission of a virtual storage:
+
+            unknown(1)     The access permission of the virtual
+                           storage is unknown.
+
+            readwrite(2)   The virtual storage is a read-write
+                           device.
+
+            readonly(3)    The virtual storage is a read-only
+                           device."
+    SYNTAX       INTEGER {
+                    unknown(1),
+                    readwrite(2),
+                    readonly(3)
+                 }
+
+VirtualMachineNetworkIndex ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d"
+    STATUS       current
+    DESCRIPTION
+            "A unique value for each virtual machine, greater than
+            zero, identifying a virtual network interface allocated
+            to the virtual machine.  The value for each virtual
+            network interface MUST remain constant at least from one
+            re-initialization of the hypervisor to the next
+            re-initialization."
+     SYNTAX      Integer32 (1..2147483647)
+
+VirtualMachineList ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "1x"
+    STATUS       current
+    DESCRIPTION
+            "Each octet within this value specifies a set of eight
+            virtual machine vmIndex values, with the first octet
+            specifying virtual machine 1 through 8, the second octet
+            specifying virtual machine 9 through 16, etc.  Within
+            each octet, the most significant bit represents the
+            lowest-numbered vmIndex, and the least significant bit
+            represents the highest-numbered vmIndex.  Thus, each
+            virtual machine of the host is represented by a single
+            bit within the value of this object.  If that bit has
+            a value of '1', then that virtual machine is included
+            in the set of virtual machines; the virtual machine is
+            not included if its bit has a value of '0'."
+    SYNTAX      OCTET STRING
+
+-- The hypervisor group
+--
+-- A collection of objects common to all hypervisors.
+--
+vmHypervisor    OBJECT IDENTIFIER ::= { vmObjects 1 }
+
+vmHvSoftware OBJECT-TYPE
+    SYNTAX       SnmpAdminString (SIZE (0..255))
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "A textual description of the hypervisor software.  This
+            value SHOULD NOT include its version as it SHOULD be
+            included in 'vmHvVersion'."
+    ::= { vmHypervisor 1 }
+
+vmHvVersion OBJECT-TYPE
+    SYNTAX       SnmpAdminString (SIZE (0..255))
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "A textual description of the version of the hypervisor
+            software."
+    ::= { vmHypervisor 2 }
+
+vmHvObjectID OBJECT-TYPE
+    SYNTAX       OBJECT IDENTIFIER
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The vendor's authoritative identification of the
+            hypervisor software contained in the entity.  This value
+            is allocated within the SMI enterprises
+            subtree (1.3.6.1.4.1).  Note that this is different from
+            sysObjectID in the SNMPv2-MIB (RFC 3418) because
+            sysObjectID is not the identification of the hypervisor
+            software but the device, firmware, or management
+            operating system."
+    ::= { vmHypervisor 3 }
+
+vmHvUpTime OBJECT-TYPE
+    SYNTAX       TimeTicks
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The time (in centiseconds) since the hypervisor was
+            last re-initialized.  Note that this is different from
+            sysUpTime in the SNMPv2-MIB (RFC 3418) and hrSystemUptime
+            in the HOST-RESOURCES-MIB (RFC 2790) because sysUpTime is
+            the uptime of the network management portion of the
+            system, and hrSystemUptime is the uptime of the
+            management operating system but not the hypervisor
+            software."
+    ::= { vmHypervisor 4 }
+
+-- The virtual machine information
+--
+
+-- A collection of objects common to all virtual machines.
+--
+vmNumber  OBJECT-TYPE
+    SYNTAX       Integer32 (0..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The number of virtual machines (regardless of their
+            current state) present on this hypervisor."
+    ::= { vmObjects 2 }
+
+vmTableLastChange  OBJECT-TYPE
+    SYNTAX       TimeTicks
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The value of vmHvUpTime at the time of the last creation
+            or deletion of an entry in the vmTable."
+    ::= { vmObjects 3 }
+
+vmTable OBJECT-TYPE
+    SYNTAX       SEQUENCE OF VmEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "A list of virtual machine entries.  The number of
+            entries is given by the value of vmNumber."
+    ::= { vmObjects 4 }
+
+vmEntry OBJECT-TYPE
+    SYNTAX       VmEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "An entry containing management information applicable
+            to a particular virtual machine."
+    INDEX   { vmIndex }
+    ::= { vmTable 1 }
+
+VmEntry ::=
+    SEQUENCE {
+        vmIndex                 VirtualMachineIndex,
+        vmName                  SnmpAdminString,
+        vmUUID                  UUIDorZero,
+        vmOSType                SnmpAdminString,
+        vmAdminState            VirtualMachineAdminState,
+        vmOperState             VirtualMachineOperState,
+        vmAutoStart             VirtualMachineAutoStart,
+        vmPersistent            VirtualMachinePersistent,
+        vmCurCpuNumber          Integer32,
+        vmMinCpuNumber          Integer32,
+        vmMaxCpuNumber          Integer32,
+        vmMemUnit               Integer32,
+        vmCurMem                Integer32,
+        vmMinMem                Integer32,
+        vmMaxMem                Integer32,
+        vmUpTime                TimeTicks,
+        vmCpuTime               Counter64
+    }
+
+vmIndex OBJECT-TYPE
+    SYNTAX       VirtualMachineIndex
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "A unique value, greater than zero, identifying the
+            virtual machine.  The value assigned to a given virtual
+            machine may not persist across re-initialization of the
+            hypervisor.  A command generator MUST use the vmUUID to
+            identify a given virtual machine of interest."
+    ::= { vmEntry 1 }
+
+vmName OBJECT-TYPE
+    SYNTAX       SnmpAdminString (SIZE (0..255))
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "A textual name of the virtual machine."
+    ::= { vmEntry 2 }
+
+vmUUID OBJECT-TYPE
+    SYNTAX       UUIDorZero
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The virtual machine's 128-bit Universally Unique
+            Identifier (UUID) or the zero-length string when a
+            UUID is not available.  If set, the UUID MUST uniquely
+            identify a virtual machine from all other virtual
+            machines in an administrative domain.  A zero-length
+            octet string is returned if no UUID information is
+            known."
+    ::= { vmEntry 3 }
+
+vmOSType OBJECT-TYPE
+    SYNTAX       SnmpAdminString (SIZE (0..255))
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "A textual description containing operating system
+            information installed on the virtual machine.  This
+            value corresponds to the operating system the hypervisor
+            assumes to be running when the virtual machine is
+            started.  This may differ from the actual operating
+            system in case the virtual machine boots into a
+            different operating system."
+    ::= { vmEntry 4 }
+
+vmAdminState OBJECT-TYPE
+    SYNTAX       VirtualMachineAdminState
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The administrative state of the virtual machine."
+    ::= { vmEntry 5 }
+
+vmOperState OBJECT-TYPE
+    SYNTAX       VirtualMachineOperState
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The operational state of the virtual machine."
+    ::= { vmEntry 6 }
+
+vmAutoStart OBJECT-TYPE
+    SYNTAX       VirtualMachineAutoStart
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The autostart configuration of the virtual machine.  If
+            this value is enable(2), the virtual machine
+            automatically starts at the next initialization of the
+            hypervisor."
+    ::= { vmEntry 7 }
+
+vmPersistent OBJECT-TYPE
+    SYNTAX       VirtualMachinePersistent
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "This value indicates whether the virtual machine has a
+            persistent configuration, which means the virtual machine
+            will still exist after its shutdown."
+    ::= { vmEntry 8 }
+
+vmCurCpuNumber OBJECT-TYPE
+    SYNTAX       Integer32 (0..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The number of virtual CPUs currently assigned to the
+            virtual machine."
+    ::= { vmEntry 9 }
+
+vmMinCpuNumber OBJECT-TYPE
+    SYNTAX       Integer32 (-1|0..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The minimum number of virtual CPUs that are assigned to
+            the virtual machine when it is in a power-on state.  The
+            value -1 indicates that there is no hard boundary for
+            the minimum number of virtual CPUs."
+    ::= { vmEntry 10 }
+
+vmMaxCpuNumber OBJECT-TYPE
+    SYNTAX       Integer32 (-1|0..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The maximum number of virtual CPUs that are assigned to
+            the virtual machine when it is in a power-on state.  The
+            value -1 indicates that there is no limit."
+    ::= { vmEntry 11 }
+
+vmMemUnit OBJECT-TYPE
+    SYNTAX       Integer32 (1..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The multiplication unit in bytes for vmCurMem, vmMinMem,
+            and vmMaxMem.  For example, when this value is 1024, the
+            memory size unit for vmCurMem, vmMinMem, and vmMaxMem is
+            KiB."
+    ::= { vmEntry 12 }
+
+vmCurMem OBJECT-TYPE
+    SYNTAX       Integer32 (0..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The current memory size currently allocated to the
+            virtual memory module in the unit designated by
+
+            vmMemUnit."
+    ::= { vmEntry 13 }
+
+vmMinMem OBJECT-TYPE
+    SYNTAX       Integer32 (-1|0..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The minimum memory size defined to the virtual machine
+            in the unit designated by vmMemUnit.  The value -1
+            indicates that there is no hard boundary for the minimum
+            memory size."
+    ::= { vmEntry 14 }
+
+vmMaxMem OBJECT-TYPE
+    SYNTAX       Integer32 (-1|0..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The maximum memory size defined to the virtual machine
+            in the unit designated by vmMemUnit.  The value -1
+            indicates that there is no limit."
+    ::= { vmEntry 15 }
+
+vmUpTime OBJECT-TYPE
+    SYNTAX       TimeTicks
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The time (in centiseconds) since the administrative
+            state of the virtual machine was last changed from
+            shutdown(4) to running(1)."
+    ::= { vmEntry 16 }
+
+vmCpuTime OBJECT-TYPE
+    SYNTAX       Counter64
+    UNITS        "microsecond"
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The total CPU time used in microseconds.  If the number
+            of virtual CPUs is larger than 1, vmCpuTime may exceed
+            real time.
+
+            Discontinuities in the value of this counter can occur
+            at re-initialization of the hypervisor and
+            administrative state (vmAdminState) changes of the
+
+            virtual machine."
+    ::= { vmEntry 17 }
+
+-- The virtual CPU on each virtual machines
+vmCpuTable OBJECT-TYPE
+    SYNTAX       SEQUENCE OF VmCpuEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "The table of virtual CPUs provided by the hypervisor."
+    ::= { vmObjects 5 }
+
+vmCpuEntry OBJECT-TYPE
+    SYNTAX       VmCpuEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "An entry for one virtual processor assigned to a
+            virtual machine."
+    INDEX { vmIndex, vmCpuIndex }
+    ::= { vmCpuTable 1 }
+
+VmCpuEntry ::=
+    SEQUENCE {
+        vmCpuIndex              VirtualMachineCpuIndex,
+        vmCpuCoreTime           Counter64
+    }
+
+vmCpuIndex OBJECT-TYPE
+    SYNTAX       VirtualMachineCpuIndex
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "A unique value identifying a virtual CPU assigned to
+            the virtual machine."
+    ::= { vmCpuEntry 1 }
+
+vmCpuCoreTime OBJECT-TYPE
+    SYNTAX       Counter64
+    UNITS        "microsecond"
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The total CPU time used by this virtual CPU in
+            microseconds.
+
+            Discontinuities in the value of this counter can occur
+            at re-initialization of the hypervisor and
+
+            administrative state (vmAdminState) changes of the
+            virtual machine."
+    ::= { vmCpuEntry 2 }
+
+-- The virtual CPU affinity on each virtual machines
+
+vmCpuAffinityTable OBJECT-TYPE
+    SYNTAX       SEQUENCE OF VmCpuAffinityEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "A list of CPU affinity entries of a virtual CPU."
+    ::= { vmObjects 6 }
+
+vmCpuAffinityEntry OBJECT-TYPE
+    SYNTAX       VmCpuAffinityEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "An entry containing CPU affinity associated with a
+            particular virtual machine."
+    INDEX   { vmIndex, vmCpuIndex, vmCpuPhysIndex }
+    ::= { vmCpuAffinityTable 1 }
+
+VmCpuAffinityEntry ::=
+    SEQUENCE {
+        vmCpuPhysIndex          Integer32,
+        vmCpuAffinity           INTEGER
+    }
+
+vmCpuPhysIndex OBJECT-TYPE
+    SYNTAX       Integer32 (1..2147483647)
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "A value identifying a physical CPU on the hypervisor.
+            On systems implementing the HOST-RESOURCES-MIB, the
+            value MUST be the same value that is used as the index
+            in the hrProcessorTable (hrDeviceIndex)."
+    ::= { vmCpuAffinityEntry 2 }
+
+vmCpuAffinity OBJECT-TYPE
+    SYNTAX       INTEGER {
+                    unknown(0),   -- unknown
+                    enable(1),    -- enabled
+                    disable(2)    -- disabled
+                 }
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The CPU affinity of this virtual CPU to the physical
+            CPU represented by 'vmCpuPhysIndex'."
+    ::= { vmCpuAffinityEntry 3 }
+
+-- The virtual storage devices on each virtual machine.  This
+-- document defines some overlapped objects with hrStorage in
+-- HOST-RESOURCES-MIB (RFC 2790), because virtual resources are
+-- allocated from the hypervisor's resources, which is the 'host
+-- resources'.
+vmStorageTable OBJECT-TYPE
+    SYNTAX       SEQUENCE OF VmStorageEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "The conceptual table of virtual storage devices
+            attached to the virtual machine."
+    ::= { vmObjects 7 }
+
+vmStorageEntry OBJECT-TYPE
+    SYNTAX       VmStorageEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "An entry for one virtual storage device attached to the
+            virtual machine."
+    INDEX { vmStorageVmIndex, vmStorageIndex }
+    ::= { vmStorageTable 1 }
+
+VmStorageEntry ::=
+    SEQUENCE {
+        vmStorageVmIndex        VirtualMachineIndexOrZero,
+        vmStorageIndex          VirtualMachineStorageIndex,
+        vmStorageParent         Integer32,
+        vmStorageSourceType     VirtualMachineStorageSourceType,
+        vmStorageSourceTypeString
+                                SnmpAdminString,
+        vmStorageResourceID     SnmpAdminString,
+        vmStorageAccess         VirtualMachineStorageAccess,
+        vmStorageMediaType      IANAStorageMediaType,
+        vmStorageMediaTypeString
+                                SnmpAdminString,
+        vmStorageSizeUnit       Integer32,
+        vmStorageDefinedSize    Integer32,
+        vmStorageAllocatedSize  Integer32,
+        vmStorageReadIOs        Counter64,
+        vmStorageWriteIOs       Counter64,
+        vmStorageReadOctets     Counter64,
+        vmStorageWriteOctets    Counter64,
+        vmStorageReadLatency    Counter64,
+        vmStorageWriteLatency   Counter64
+    }
+
+vmStorageVmIndex OBJECT-TYPE
+    SYNTAX       VirtualMachineIndexOrZero
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "This value identifies the virtual machine (guest) this
+            storage device has been allocated to.  The value zero
+            indicates that the storage device is currently not
+            allocated to any virtual machines."
+    ::= { vmStorageEntry 1 }
+
+vmStorageIndex OBJECT-TYPE
+    SYNTAX       VirtualMachineStorageIndex
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "A unique value identifying a virtual storage device
+            allocated to the virtual machine."
+    ::= { vmStorageEntry 2 }
+
+vmStorageParent OBJECT-TYPE
+    SYNTAX       Integer32 (0..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The value of hrStorageIndex, which is the parent (i.e.,
+            physical) device of this virtual device on systems
+            implementing the HOST-RESOURCES-MIB.  The value zero
+            denotes this virtual device is not any child
+            represented in the hrStorageTable."
+    ::= { vmStorageEntry 3 }
+
+vmStorageSourceType OBJECT-TYPE
+    SYNTAX       VirtualMachineStorageSourceType
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The source type of the virtual storage device."
+    ::= { vmStorageEntry 4 }
+
+vmStorageSourceTypeString OBJECT-TYPE
+    SYNTAX       SnmpAdminString (SIZE (0..255))
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "A (detailed) textual string of the source type of the
+            virtual storage device.  For example, this represents
+            the specific format name of the sparse file."
+    ::= { vmStorageEntry 5 }
+
+vmStorageResourceID OBJECT-TYPE
+    SYNTAX       SnmpAdminString (SIZE (0..255))
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "A textual string that represents the resource
+            identifier of the virtual storage.  For example, this
+            contains the path to the disk image file that
+            corresponds to the virtual storage."
+    ::= { vmStorageEntry 6 }
+
+vmStorageAccess OBJECT-TYPE
+    SYNTAX       VirtualMachineStorageAccess
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The access permission of the virtual storage device."
+    ::= { vmStorageEntry 7 }
+
+vmStorageMediaType OBJECT-TYPE
+    SYNTAX       IANAStorageMediaType
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The media type of the virtual storage device."
+    ::= { vmStorageEntry 8 }
+
+vmStorageMediaTypeString OBJECT-TYPE
+    SYNTAX       SnmpAdminString (SIZE (0..255))
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "A (detailed) textual string of the virtual storage
+            media.  For example, this represents the specific driver
+            name of the emulated media such as 'IDE' and 'SCSI'."
+    ::= { vmStorageEntry 9 }
+
+vmStorageSizeUnit OBJECT-TYPE
+    SYNTAX       Integer32 (1..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The multiplication unit in bytes for
+            vmStorageDefinedSize and vmStorageAllocatedSize.  For
+            example, when this value is 1048576, the storage size
+            unit for vmStorageDefinedSize and vmStorageAllocatedSize
+            is MiB."
+    ::= { vmStorageEntry 10 }
+
+vmStorageDefinedSize OBJECT-TYPE
+    SYNTAX       Integer32 (-1|0..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The defined virtual storage size defined in the unit
+            designated by vmStorageSizeUnit.  If this information is
+            not available, this value MUST be -1."
+    ::= { vmStorageEntry 11 }
+
+vmStorageAllocatedSize OBJECT-TYPE
+    SYNTAX       Integer32 (-1|0..2147483647)
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The storage size allocated to the virtual storage from
+            a physical storage in the unit designated by
+            vmStorageSizeUnit.  When the virtual storage is block
+            device or raw file, this value and vmStorageDefinedSize
+            are supposed to equal.  This value MUST NOT be different
+            from vmStorageDefinedSize when vmStorageSourceType is
+            'block' or 'raw'.  If this information is not available,
+            this value MUST be -1."
+    ::= { vmStorageEntry 12 }
+
+vmStorageReadIOs OBJECT-TYPE
+    SYNTAX       Counter64
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The number of read I/O requests.
+
+            Discontinuities in the value of this counter can occur
+            at re-initialization of the hypervisor and
+            administrative state (vmAdminState) changes of the
+            virtual machine."
+    ::= { vmStorageEntry 13 }
+
+vmStorageWriteIOs OBJECT-TYPE
+    SYNTAX       Counter64
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The number of write I/O requests.
+
+            Discontinuities in the value of this counter can occur
+            at re-initialization of the hypervisor and
+            administrative state (vmAdminState) changes of the
+            virtual machine."
+    ::= { vmStorageEntry 14 }
+
+vmStorageReadOctets OBJECT-TYPE
+    SYNTAX       Counter64
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The total number of bytes read from this device.
+
+            Discontinuities in the value of this counter can occur
+            at re-initialization of the hypervisor and
+            administrative state (vmAdminState) changes of the
+            virtual machine."
+    ::= { vmStorageEntry 15 }
+
+vmStorageWriteOctets OBJECT-TYPE
+    SYNTAX       Counter64
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The total number of bytes written to this device.
+
+            Discontinuities in the value of this counter can occur
+            at re-initialization of the hypervisor and
+            administrative state (vmAdminState) changes of the
+            virtual machine."
+    ::= { vmStorageEntry 16 }
+
+vmStorageReadLatency OBJECT-TYPE
+    SYNTAX       Counter64
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The total number of microseconds read requests have
+            been queued for this device.
+
+            This would typically be implemented by storing the high
+            precision system timestamp of when the request is
+
+            received from the virtual machine with the request, the
+            difference between this initial timestamp and the time
+            at which the requested operation has completed SHOULD be
+            converted to microseconds and accumulated.
+
+            Discontinuities in the value of this counter can occur at
+            re-initialization of the hypervisor and administrative
+            state (vmAdminState) changes of the virtual machine."
+    ::= { vmStorageEntry 17 }
+
+vmStorageWriteLatency OBJECT-TYPE
+    SYNTAX       Counter64
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The total number of microseconds write requests have
+            been queued for this device.
+
+            This would typically be implemented by storing the high
+            precision system timestamp of when the request is
+            received from the virtual machine with the request; the
+            difference between this initial timestamp and the time
+            at which the requested operation has completed SHOULD be
+            converted to microseconds and accumulated.
+
+            Discontinuities in the value of this counter can occur
+            at re-initialization of the hypervisor and
+            administrative state (vmAdminState) changes of the
+            virtual machine."
+    ::= { vmStorageEntry 18 }
+
+-- The virtual network interfaces on each virtual machine.
+vmNetworkTable OBJECT-TYPE
+    SYNTAX       SEQUENCE OF VmNetworkEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "The conceptual table of virtual network interfaces
+            attached to the virtual machine."
+    ::= { vmObjects 8 }
+
+vmNetworkEntry OBJECT-TYPE
+    SYNTAX       VmNetworkEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "An entry for one virtual network interface attached to
+
+            the virtual machine."
+    INDEX { vmIndex, vmNetworkIndex }
+    ::= { vmNetworkTable 1 }
+
+VmNetworkEntry ::=
+    SEQUENCE {
+        vmNetworkIndex          VirtualMachineNetworkIndex,
+        vmNetworkIfIndex        InterfaceIndexOrZero,
+        vmNetworkParent         InterfaceIndexOrZero,
+        vmNetworkModel          SnmpAdminString,
+        vmNetworkPhysAddress    PhysAddress
+    }
+
+vmNetworkIndex OBJECT-TYPE
+    SYNTAX       VirtualMachineNetworkIndex
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "A unique value identifying a virtual network interface
+            allocated to the virtual machine."
+    ::= { vmNetworkEntry 1 }
+
+vmNetworkIfIndex OBJECT-TYPE
+    SYNTAX       InterfaceIndexOrZero
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The value of ifIndex, which corresponds to this virtual
+            network interface.  If this device is not represented in
+            the ifTable, then this value MUST be zero."
+    ::= { vmNetworkEntry 2 }
+
+vmNetworkParent OBJECT-TYPE
+    SYNTAX       InterfaceIndexOrZero
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The value of ifIndex, which corresponds to the parent
+            (i.e., physical) device of this virtual device.  The
+            value zero denotes this virtual device is not any
+            child represented in the ifTable."
+    ::= { vmNetworkEntry 3 }
+
+vmNetworkModel OBJECT-TYPE
+    SYNTAX       SnmpAdminString (SIZE (0..255))
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "A textual string containing the (emulated) model of the
+            virtual network interface.  For example, this value is
+            'virtio' when the emulation driver model is virtio."
+    ::= { vmNetworkEntry 4 }
+
+vmNetworkPhysAddress OBJECT-TYPE
+    SYNTAX       PhysAddress
+    MAX-ACCESS   read-only
+    STATUS       current
+    DESCRIPTION
+            "The Media Access Control (MAC) address of the virtual
+            network interface."
+    ::= { vmNetworkEntry 5 }
+
+-- Notification definitions:
+
+vmPerVMNotificationsEnabled OBJECT-TYPE
+    SYNTAX       TruthValue
+    MAX-ACCESS   read-write
+    STATUS       current
+    DESCRIPTION
+            "Indicates if the notification generator will send
+            notifications per virtual machine.  Changes to this
+            object MUST NOT persist across re-initialization of
+            the management system, e.g., SNMP agent."
+    ::= { vmObjects 9 }
+
+vmBulkNotificationsEnabled OBJECT-TYPE
+    SYNTAX       TruthValue
+    MAX-ACCESS   read-write
+    STATUS       current
+    DESCRIPTION
+            "Indicates if the notification generator will send
+            notifications per set of virtual machines.  Changes to
+            this object MUST NOT persist across re-initialization of
+            the management system, e.g., SNMP agent."
+    ::= { vmObjects 10 }
+
+vmAffectedVMs OBJECT-TYPE
+    SYNTAX       VirtualMachineList
+    MAX-ACCESS   accessible-for-notify
+    STATUS       current
+    DESCRIPTION
+            "A complete list of virtual machines whose state has
+            changed.  This object is the only object sent with bulk
+            notifications."
+    ::= { vmObjects 11 }
+
+vmRunning NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmName,
+                    vmUUID,
+                    vmOperState
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of a virtual machine has been changed to
+            running(4) from some other state.  The other state is
+            indicated by the included value of vmOperState."
+    ::= { vmNotifications 1 }
+
+vmShuttingdown NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmName,
+                    vmUUID,
+                    vmOperState
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of a virtual machine has been changed to
+            shuttingdown(10) from some other state.  The other state
+            is indicated by the included value of vmOperState."
+    ::= { vmNotifications 2 }
+
+vmShutdown NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmName,
+                    vmUUID,
+                    vmOperState
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of a virtual machine has been changed to
+            shutdown(11) from some other state.  The other state is
+            indicated by the included value of vmOperState."
+    ::= { vmNotifications 3 }
+
+vmPaused NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmName,
+                    vmUUID,
+                    vmOperState
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of a virtual machine has been changed to
+            paused(8) from some other state.  The other state is
+            indicated by the included value of vmOperState."
+    ::= { vmNotifications 4 }
+
+vmSuspending NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmName,
+                    vmUUID,
+                    vmOperState
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of a virtual machine has been changed to
+            suspending(5) from some other state.  The other state is
+            indicated by the included value of vmOperState."
+    ::= { vmNotifications 5 }
+
+vmSuspended NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmName,
+                    vmUUID,
+                    vmOperState
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of a virtual machine has been changed to
+            suspended(6) from some other state.  The other state is
+            indicated by the included value of vmOperState."
+    ::= { vmNotifications 6 }
+
+vmResuming NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmName,
+                    vmUUID,
+                    vmOperState
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of a virtual machine has been changed to
+            resuming(7) from some other state.  The other state is
+            indicated by the included value of vmOperState."
+    ::= { vmNotifications 7 }
+
+vmMigrating NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmName,
+                    vmUUID,
+                    vmOperState
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of a virtual machine has been changed to
+            migrating(9) from some other state.  The other state is
+            indicated by the included value of vmOperState."
+    ::= { vmNotifications 8 }
+
+vmCrashed NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmName,
+                    vmUUID,
+                    vmOperState
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when a virtual machine
+            has been crashed.  The previous state of the virtual
+            machine is indicated by the included value of
+            vmOperState."
+    ::= { vmNotifications 9 }
+
+vmDeleted NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmName,
+                    vmUUID,
+                    vmOperState,
+                    vmPersistent
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when a virtual machine
+            has been deleted.  The prior state of the virtual
+            machine is indicated by the included value of
+            vmOperState."
+    ::= { vmNotifications 10 }
+
+vmBulkRunning NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmAffectedVMs
+
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of one or more virtual machines has been changed
+            to running(4) from any prior state, except for
+            running(4).  Management stations are encouraged to
+            subsequently poll the subset of virtual machines of
+            interest for vmOperState."
+    ::= { vmNotifications 11 }
+
+vmBulkShuttingdown NOTIFICATION-TYPE
+    OBJECTS      {
+                   vmAffectedVMs
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of one or more virtual machines has been changed
+            to shuttingdown(10) from a state other than
+            shuttingdown(10).  Management stations are encouraged to
+            subsequently poll the subset of virtual machines of
+            interest for vmOperState."
+    ::= { vmNotifications 12 }
+
+vmBulkShutdown NOTIFICATION-TYPE
+    OBJECTS      {
+                   vmAffectedVMs
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of one or more virtual machine has been changed to
+            shutdown(11) from a state other than shutdown(11).
+            Management stations are encouraged to subsequently poll
+            the subset of virtual machines of interest for
+            vmOperState."
+    ::= { vmNotifications 13 }
+
+vmBulkPaused NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmAffectedVMs
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of one or more virtual machines has been changed
+            to paused(8) from a state other than paused(8).
+
+            Management stations are encouraged to subsequently poll
+            the subset of virtual machines of interest for
+            vmOperState."
+    ::= { vmNotifications 14 }
+
+vmBulkSuspending NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmAffectedVMs
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of one or more virtual machines has been changed
+            to suspending(5) from a state other than suspending(5).
+            Management stations are encouraged to subsequently poll
+            the subset of virtual machines of interest for
+            vmOperState."
+    ::= { vmNotifications 15 }
+
+vmBulkSuspended NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmAffectedVMs
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of one or more virtual machines has been changed
+            to suspended(6) from a state other than suspended(6).
+            Management stations are encouraged to subsequently poll
+            the subset of virtual machines of interest for
+            vmOperState."
+    ::= { vmNotifications 16 }
+
+vmBulkResuming NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmAffectedVMs
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of one or more virtual machines has been changed
+            to resuming(7) from a state other than resuming(7).
+            Management stations are encouraged to subsequently poll
+            the subset of virtual machines of interest for
+            vmOperState."
+    ::= { vmNotifications 17 }
+
+vmBulkMigrating NOTIFICATION-TYPE
+
+    OBJECTS      {
+                    vmAffectedVMs
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when the operational
+            state of one or more virtual machines has been changed
+            to migrating(9) from a state other than migrating(9).
+            Management stations are encouraged to subsequently poll
+            the subset of virtual machines of interest for
+            vmOperState."
+    ::= { vmNotifications 18 }
+
+vmBulkCrashed NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmAffectedVMs
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when one or more virtual
+            machines have been crashed.  Management stations are
+            encouraged to subsequently poll the subset of virtual
+            machines of interest for vmOperState."
+    ::= { vmNotifications 19 }
+
+vmBulkDeleted NOTIFICATION-TYPE
+    OBJECTS      {
+                    vmAffectedVMs
+                 }
+    STATUS       current
+    DESCRIPTION
+            "This notification is generated when one or more virtual
+            machines have been deleted.  Management stations are
+            encouraged to subsequently poll the subset of virtual
+            machines of interest for vmOperState."
+    ::= { vmNotifications 20 }
+
+-- Compliance definitions:
+vmCompliances  OBJECT IDENTIFIER ::= { vmConformance 1 }
+vmGroups       OBJECT IDENTIFIER ::= { vmConformance 2 }
+
+vmFullCompliances MODULE-COMPLIANCE
+    STATUS       current
+    DESCRIPTION
+            "Compliance statement for implementations supporting
+            read/write access, according to the object definitions."
+    MODULE     -- this module
+    MANDATORY-GROUPS {
+
+        vmHypervisorGroup,
+        vmVirtualMachineGroup,
+        vmCpuGroup,
+        vmCpuAffinityGroup,
+        vmStorageGroup,
+        vmNetworkGroup
+    }
+    GROUP  vmPerVMNotificationOptionalGroup
+    DESCRIPTION
+            "Support for per-VM notifications is optional.  If not
+            implemented, then vmPerVMNotificationsEnabled MUST report
+            false(2)."
+    GROUP  vmBulkNotificationsVariablesGroup
+    DESCRIPTION
+            "Necessary only if vmPerVMNotificationOptionalGroup is
+            implemented."
+    GROUP  vmBulkNotificationOptionalGroup
+    DESCRIPTION
+            "Support for bulk notifications is optional.  If not
+            implemented, then vmBulkNotificationsEnabled MUST report
+            false(2)."
+    ::= { vmCompliances 1 }
+
+vmReadOnlyCompliances MODULE-COMPLIANCE
+    STATUS       current
+    DESCRIPTION
+            "Compliance statement for implementations supporting
+            only read-only access."
+    MODULE     -- this module
+    MANDATORY-GROUPS {
+        vmHypervisorGroup,
+        vmVirtualMachineGroup,
+        vmCpuGroup,
+        vmCpuAffinityGroup,
+        vmStorageGroup,
+        vmNetworkGroup
+    }
+
+    OBJECT vmPerVMNotificationsEnabled
+    MIN-ACCESS   read-only
+    DESCRIPTION
+            "Write access is not required."
+
+    OBJECT vmBulkNotificationsEnabled
+    MIN-ACCESS   read-only
+    DESCRIPTION
+            "Write access is not required."
+    ::= { vmCompliances 2 }
+
+vmHypervisorGroup OBJECT-GROUP
+    OBJECTS {
+        vmHvSoftware,
+        vmHvVersion,
+        vmHvObjectID,
+        vmHvUpTime,
+        vmNumber,
+        vmTableLastChange,
+        vmPerVMNotificationsEnabled,
+        vmBulkNotificationsEnabled
+    }
+    STATUS       current
+    DESCRIPTION
+            "A collection of objects providing insight into the
+            hypervisor itself."
+     ::= { vmGroups 1 }
+
+vmVirtualMachineGroup OBJECT-GROUP
+    OBJECTS {
+        -- vmIndex
+        vmName,
+        vmUUID,
+        vmOSType,
+        vmAdminState,
+        vmOperState,
+        vmAutoStart,
+        vmPersistent,
+        vmCurCpuNumber,
+        vmMinCpuNumber,
+        vmMaxCpuNumber,
+        vmMemUnit,
+        vmCurMem,
+        vmMinMem,
+        vmMaxMem,
+        vmUpTime,
+        vmCpuTime
+    }
+    STATUS       current
+    DESCRIPTION
+            "A collection of objects providing insight into the
+            virtual machines controlled by a hypervisor."
+    ::= { vmGroups 2 }
+
+vmCpuGroup OBJECT-GROUP
+    OBJECTS {
+        -- vmCpuIndex,
+        vmCpuCoreTime
+    }
+    STATUS       current
+    DESCRIPTION
+            "A collection of objects providing insight into the
+            virtual machines controlled by a hypervisor."
+    ::= { vmGroups 3 }
+
+vmCpuAffinityGroup OBJECT-GROUP
+    OBJECTS {
+        -- vmCpuPhysIndex,
+        vmCpuAffinity
+    }
+    STATUS       current
+    DESCRIPTION
+            "A collection of objects providing insight into the
+            virtual machines controlled by a hypervisor."
+    ::= { vmGroups 4 }
+
+vmStorageGroup OBJECT-GROUP
+    OBJECTS {
+        -- vmStorageVmIndex,
+        -- vmStorageIndex,
+        vmStorageParent,
+        vmStorageSourceType,
+        vmStorageSourceTypeString,
+        vmStorageResourceID,
+        vmStorageAccess,
+        vmStorageMediaType,
+        vmStorageMediaTypeString,
+        vmStorageSizeUnit,
+        vmStorageDefinedSize,
+        vmStorageAllocatedSize,
+        vmStorageReadIOs,
+        vmStorageWriteIOs,
+        vmStorageReadOctets,
+        vmStorageWriteOctets,
+        vmStorageReadLatency,
+        vmStorageWriteLatency
+    }
+    STATUS       current
+    DESCRIPTION
+            "A collection of objects providing insight into the
+            virtual storage devices controlled by a hypervisor."
+    ::= { vmGroups 5 }
+
+vmNetworkGroup OBJECT-GROUP
+    OBJECTS {
+
+        -- vmNetworkIndex,
+        vmNetworkIfIndex,
+        vmNetworkParent,
+        vmNetworkModel,
+        vmNetworkPhysAddress
+    }
+    STATUS       current
+    DESCRIPTION
+            "A collection of objects providing insight into the
+            virtual network interfaces controlled by a hypervisor."
+    ::= { vmGroups 6 }
+
+vmPerVMNotificationOptionalGroup NOTIFICATION-GROUP
+    NOTIFICATIONS {
+        vmRunning,
+        vmShuttingdown,
+        vmShutdown,
+        vmPaused,
+        vmSuspending,
+        vmSuspended,
+        vmResuming,
+        vmMigrating,
+        vmCrashed,
+        vmDeleted
+    }
+    STATUS       current
+    DESCRIPTION
+            "A collection of notifications for per-VM notification
+            of changes to virtual machine state (vmOperState) as
+            reported by a hypervisor."
+    ::= { vmGroups 7 }
+
+vmBulkNotificationsVariablesGroup OBJECT-GROUP
+    OBJECTS {
+        vmAffectedVMs
+    }
+    STATUS       current
+    DESCRIPTION
+            "The variables used in vmBulkNotificationOptionalGroup
+            virtual network interfaces controlled by a hypervisor."
+    ::= { vmGroups 8 }
+
+vmBulkNotificationOptionalGroup NOTIFICATION-GROUP
+    NOTIFICATIONS {
+        vmBulkRunning,
+        vmBulkShuttingdown,
+        vmBulkShutdown,
+        vmBulkPaused,
+        vmBulkSuspending,
+        vmBulkSuspended,
+        vmBulkResuming,
+        vmBulkMigrating,
+        vmBulkCrashed,
+        vmBulkDeleted
+    }
+    STATUS       current
+    DESCRIPTION
+            "A collection of notifications for bulk notification of
+            changes to virtual machine state (vmOperState) as
+            reported by a given hypervisor."
+    ::= { vmGroups 9 }
+
+END

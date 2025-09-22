@@ -1,0 +1,9 @@
+# Check a define's continuation line that is unterminated.
+
+# RUN: echo "Don't complain about no RUN lines."
+# DEFINE: %{foo} = foo \
+# DEFINE:          bar \
+
+# CHECK: Test has unterminated '{{DEFINE}}:' directive (with '\') from line [[#@LINE-3]] to [[#@LINE-2]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

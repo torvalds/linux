@@ -1,0 +1,1389 @@
+//===-- VecFuncs.def - Library information -------------*- C++ -*-----------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+// This .def file will create mappings from scalar math functions to vector
+// functions along with their vectorization factor. The current support includes
+// such mappings for Accelerate framework, MASS vector library, and SVML library.
+// This .def file also allows creating an array of vector functions supported in
+// the specified framework or library.
+
+#define FIXED(NL) ElementCount::getFixed(NL)
+#define SCALABLE(NL) ElementCount::getScalable(NL)
+#define NOMASK false
+#define MASKED true
+
+#if !(defined(TLI_DEFINE_VECFUNC))
+#define TLI_DEFINE_VECFUNC(SCAL, VEC, VF, VABI_PREFIX) {SCAL, VEC, VF, NOMASK, VABI_PREFIX},
+#endif
+
+#if defined(TLI_DEFINE_ACCELERATE_VECFUNCS)
+// Accelerate framework's Vector Functions
+
+// Floating-Point Arithmetic and Auxiliary Functions
+TLI_DEFINE_VECFUNC("ceilf", "vceilf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("fabsf", "vfabsf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.fabs.f32", "vfabsf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("floorf", "vfloorf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sqrtf", "vsqrtf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sqrt.f32", "vsqrtf", FIXED(4), "_ZGV_LLVM_N4v")
+
+// Exponential and Logarithmic Functions
+TLI_DEFINE_VECFUNC("expf", "vexpf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "vexpf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("expm1f", "vexpm1f", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("logf", "vlogf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log.f32", "vlogf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log1pf", "vlog1pf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log10f", "vlog10f", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "vlog10f", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("logbf", "vlogbf", FIXED(4), "_ZGV_LLVM_N4v")
+
+// Trigonometric Functions
+TLI_DEFINE_VECFUNC("sinf", "vsinf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "vsinf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cosf", "vcosf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "vcosf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tanf", "vtanf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "vtanf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("asinf", "vasinf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("acosf", "vacosf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("atanf", "vatanf", FIXED(4), "_ZGV_LLVM_N4v")
+
+// Hyperbolic Functions
+TLI_DEFINE_VECFUNC("sinhf", "vsinhf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("coshf", "vcoshf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tanhf", "vtanhf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("asinhf", "vasinhf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("acoshf", "vacoshf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("atanhf", "vatanhf", FIXED(4), "_ZGV_LLVM_N4v")
+
+#elif defined(TLI_DEFINE_DARWIN_LIBSYSTEM_M_VECFUNCS)
+// Darwin libsystem_m vector functions.
+
+// Exponential and Logarithmic Functions
+TLI_DEFINE_VECFUNC("exp", "_simd_exp_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "_simd_exp_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("expf", "_simd_exp_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "_simd_exp_f4", FIXED(4), "_ZGV_LLVM_N4v")
+
+// Trigonometric Functions
+TLI_DEFINE_VECFUNC("acos", "_simd_acos_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.acos.f64", "_simd_acos_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("acosf", "_simd_acos_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.acos.f32", "_simd_acos_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("asin", "_simd_asin_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.asin.f64", "_simd_asin_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("asinf", "_simd_asin_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.asin.f32", "_simd_asin_f4", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("atan", "_simd_atan_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.atan.f64", "_simd_atan_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("atanf", "_simd_atan_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.atan.f32", "_simd_atan_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("atan2", "_simd_atan2_d2", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("atan2f", "_simd_atan2_f4", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("cos", "_simd_cos_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "_simd_cos_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("cosf", "_simd_cos_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "_simd_cos_f4", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("sin", "_simd_sin_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "_simd_sin_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("sinf", "_simd_sin_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "_simd_sin_f4", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("tan", "_simd_tan_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "_simd_tan_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("tanf", "_simd_tan_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "_simd_tan_f4", FIXED(4), "_ZGV_LLVM_N4v")
+
+// Floating-Point Arithmetic and Auxiliary Functions
+TLI_DEFINE_VECFUNC("cbrt", "_simd_cbrt_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("cbrtf", "_simd_cbrt_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("erf", "_simd_erf_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("erff", "_simd_erf_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("pow", "_simd_pow_d2", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "_simd_pow_d2", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("powf", "_simd_pow_f4", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "_simd_pow_f4", FIXED(4), "_ZGV_LLVM_N4vv")
+
+// Hyperbolic Functions
+TLI_DEFINE_VECFUNC("sinh", "_simd_sinh_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.sinh.f64", "_simd_sinh_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("sinhf", "_simd_sinh_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sinh.f32", "_simd_sinh_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cosh", "_simd_cosh_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.cosh.f64", "_simd_cosh_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("coshf", "_simd_cosh_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cosh.f32", "_simd_cosh_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tanh", "_simd_tanh_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.tanh.f64", "_simd_tanh_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("tanhf", "_simd_tanh_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tanh.f32", "_simd_tanh_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("asinh", "_simd_asinh_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("asinhf", "_simd_asinh_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("acosh", "_simd_acosh_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("acoshf", "_simd_acosh_f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("atanh", "_simd_atanh_d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("atanhf", "_simd_atanh_f4", FIXED(4), "_ZGV_LLVM_N4v")
+
+#elif defined(TLI_DEFINE_LIBMVEC_X86_VECFUNCS)
+// GLIBC Vector math Functions
+
+TLI_DEFINE_VECFUNC("sin", "_ZGVbN2v_sin", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("sin", "_ZGVdN4v_sin", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("sinf", "_ZGVbN4v_sinf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sinf", "_ZGVdN8v_sinf", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "_ZGVbN2v_sin", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "_ZGVdN4v_sin", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "_ZGVbN4v_sinf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "_ZGVdN8v_sinf", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("cos", "_ZGVbN2v_cos", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("cos", "_ZGVdN4v_cos", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("cosf", "_ZGVbN4v_cosf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cosf", "_ZGVdN8v_cosf", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "_ZGVbN2v_cos", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "_ZGVdN4v_cos", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "_ZGVbN4v_cosf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "_ZGVdN8v_cosf", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("tan", "_ZGVbN2v_tan", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("tan", "_ZGVdN4v_tan", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("tanf", "_ZGVbN4v_tanf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tanf", "_ZGVdN8v_tanf", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "_ZGVbN2v_tan", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "_ZGVdN4v_tan", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "_ZGVbN4v_tanf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "_ZGVdN8v_tanf", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("pow", "_ZGVbN2vv_pow", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("pow", "_ZGVdN4vv_pow", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("powf", "_ZGVbN4vv_powf", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("powf", "_ZGVdN8vv_powf", FIXED(8), "_ZGV_LLVM_N8vv")
+
+TLI_DEFINE_VECFUNC("__pow_finite", "_ZGVbN2vv___pow_finite", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("__pow_finite", "_ZGVdN4vv___pow_finite", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("__powf_finite", "_ZGVbN4vv___powf_finite", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("__powf_finite", "_ZGVdN8vv___powf_finite", FIXED(8), "_ZGV_LLVM_N8vv")
+
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "_ZGVbN2vv_pow", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "_ZGVdN4vv_pow", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "_ZGVbN4vv_powf", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "_ZGVdN8vv_powf", FIXED(8), "_ZGV_LLVM_N8vv")
+
+TLI_DEFINE_VECFUNC("exp", "_ZGVbN2v_exp", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("exp", "_ZGVdN4v_exp", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("expf", "_ZGVbN4v_expf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("expf", "_ZGVdN8v_expf", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__exp_finite", "_ZGVbN2v___exp_finite", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__exp_finite", "_ZGVdN4v___exp_finite", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("__expf_finite", "_ZGVbN4v___expf_finite", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__expf_finite", "_ZGVdN8v___expf_finite", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "_ZGVbN2v_exp", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "_ZGVdN4v_exp", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "_ZGVbN4v_expf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "_ZGVdN8v_expf", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("log", "_ZGVbN2v_log", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log", "_ZGVdN4v_log", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("logf", "_ZGVbN4v_logf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("logf", "_ZGVdN8v_logf", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__log_finite", "_ZGVbN2v___log_finite", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__log_finite", "_ZGVdN4v___log_finite", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("__logf_finite", "_ZGVbN4v___logf_finite", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__logf_finite", "_ZGVdN8v___logf_finite", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.log.f64", "_ZGVbN2v_log", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log.f64", "_ZGVdN4v_log", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("llvm.log.f32", "_ZGVbN4v_logf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log.f32", "_ZGVdN8v_logf", FIXED(8), "_ZGV_LLVM_N8v")
+
+#elif defined(TLI_DEFINE_MASSV_VECFUNCS)
+// IBM MASS library's vector Functions
+
+// Floating-Point Arithmetic and Auxiliary Functions
+TLI_DEFINE_VECFUNC("cbrt", "__cbrtd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("cbrtf", "__cbrtf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("pow", "__powd2", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "__powd2", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("powf", "__powf4", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "__powf4", FIXED(4), "_ZGV_LLVM_N4vv")
+
+// Exponential and Logarithmic Functions
+TLI_DEFINE_VECFUNC("exp", "__expd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "__expd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("expf", "__expf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "__expf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("exp2", "__exp2d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f64", "__exp2d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("exp2f", "__exp2f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f32", "__exp2f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("expm1", "__expm1d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("expm1f", "__expm1f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log", "__logd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log.f64", "__logd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("logf", "__logf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log.f32", "__logf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log1p", "__log1pd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log1pf", "__log1pf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log10", "__log10d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log10.f64", "__log10d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log10f", "__log10f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "__log10f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log2", "__log2d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log2.f64", "__log2d2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log2f", "__log2f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log2.f32", "__log2f4", FIXED(4), "_ZGV_LLVM_N4v")
+
+// Trigonometric Functions
+TLI_DEFINE_VECFUNC("sin", "__sind2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "__sind2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("sinf", "__sinf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "__sinf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cos", "__cosd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "__cosd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("cosf", "__cosf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "__cosf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tan", "__tand2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("tanf", "__tanf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("asin", "__asind2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("asinf", "__asinf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("acos", "__acosd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("acosf", "__acosf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("atan", "__atand2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("atanf", "__atanf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("atan2", "__atan2d2", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("atan2f", "__atan2f4", FIXED(4), "_ZGV_LLVM_N4vv")
+
+// Hyperbolic Functions
+TLI_DEFINE_VECFUNC("sinh", "__sinhd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("sinhf", "__sinhf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cosh", "__coshd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("coshf", "__coshf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tanh", "__tanhd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("tanhf", "__tanhf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("asinh", "__asinhd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("asinhf", "__asinhf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("acosh", "__acoshd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("acoshf", "__acoshf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("atanh", "__atanhd2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("atanhf", "__atanhf4", FIXED(4), "_ZGV_LLVM_N4v")
+
+
+#elif defined(TLI_DEFINE_SVML_VECFUNCS)
+// Intel SVM library's Vector Functions
+
+TLI_DEFINE_VECFUNC("sin", "__svml_sin2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("sin", "__svml_sin4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sin", "__svml_sin8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("sinf", "__svml_sinf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sinf", "__svml_sinf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("sinf", "__svml_sinf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "__svml_sin2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "__svml_sin4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "__svml_sin8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "__svml_sinf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "__svml_sinf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "__svml_sinf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("cos", "__svml_cos2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("cos", "__svml_cos4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cos", "__svml_cos8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("cosf", "__svml_cosf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cosf", "__svml_cosf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("cosf", "__svml_cosf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "__svml_cos2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "__svml_cos4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "__svml_cos8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "__svml_cosf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "__svml_cosf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "__svml_cosf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("tan", "__svml_tan2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("tan", "__svml_tan4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tan", "__svml_tan8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("tanf", "__svml_tanf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tanf", "__svml_tanf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("tanf", "__svml_tanf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "__svml_tan2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "__svml_tan4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "__svml_tan8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "__svml_tanf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "__svml_tanf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "__svml_tanf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("pow", "__svml_pow2", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("pow", "__svml_pow4", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("pow", "__svml_pow8", FIXED(8), "_ZGV_LLVM_N8vv")
+
+TLI_DEFINE_VECFUNC("powf", "__svml_powf4", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("powf", "__svml_powf8", FIXED(8), "_ZGV_LLVM_N8vv")
+TLI_DEFINE_VECFUNC("powf", "__svml_powf16", FIXED(16), "_ZGV_LLVM_N16vv")
+
+TLI_DEFINE_VECFUNC("__pow_finite", "__svml_pow2", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("__pow_finite", "__svml_pow4", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("__pow_finite", "__svml_pow8", FIXED(8), "_ZGV_LLVM_N8vv")
+
+TLI_DEFINE_VECFUNC("__powf_finite", "__svml_powf4", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("__powf_finite", "__svml_powf8", FIXED(8), "_ZGV_LLVM_N8vv")
+TLI_DEFINE_VECFUNC("__powf_finite", "__svml_powf16", FIXED(16), "_ZGV_LLVM_N16vv")
+
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "__svml_pow2", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "__svml_pow4", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "__svml_pow8", FIXED(8), "_ZGV_LLVM_N8vv")
+
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "__svml_powf4", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "__svml_powf8", FIXED(8), "_ZGV_LLVM_N8vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "__svml_powf16", FIXED(16), "_ZGV_LLVM_N16vv")
+
+TLI_DEFINE_VECFUNC("exp", "__svml_exp2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("exp", "__svml_exp4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("exp", "__svml_exp8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("expf", "__svml_expf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("expf", "__svml_expf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("expf", "__svml_expf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("__exp_finite", "__svml_exp2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__exp_finite", "__svml_exp4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__exp_finite", "__svml_exp8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__expf_finite", "__svml_expf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__expf_finite", "__svml_expf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("__expf_finite", "__svml_expf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "__svml_exp2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "__svml_exp4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "__svml_exp8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "__svml_expf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "__svml_expf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "__svml_expf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("log", "__svml_log2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log", "__svml_log4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log", "__svml_log8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("logf", "__svml_logf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("logf", "__svml_logf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("logf", "__svml_logf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("__log_finite", "__svml_log2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__log_finite", "__svml_log4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__log_finite", "__svml_log8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__logf_finite", "__svml_logf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__logf_finite", "__svml_logf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("__logf_finite", "__svml_logf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("llvm.log.f64", "__svml_log2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log.f64", "__svml_log4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log.f64", "__svml_log8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.log.f32", "__svml_logf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log.f32", "__svml_logf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.log.f32", "__svml_logf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("log2", "__svml_log22", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log2", "__svml_log24", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log2", "__svml_log28", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("log2f", "__svml_log2f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log2f", "__svml_log2f8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("log2f", "__svml_log2f16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("__log2_finite", "__svml_log22", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__log2_finite", "__svml_log24", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__log2_finite", "__svml_log28", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__log2f_finite", "__svml_log2f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__log2f_finite", "__svml_log2f8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("__log2f_finite", "__svml_log2f16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("llvm.log2.f64", "__svml_log22", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log2.f64", "__svml_log24", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log2.f64", "__svml_log28", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.log2.f32", "__svml_log2f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log2.f32", "__svml_log2f8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.log2.f32", "__svml_log2f16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("log10", "__svml_log102", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log10", "__svml_log104", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log10", "__svml_log108", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("log10f", "__svml_log10f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log10f", "__svml_log10f8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("log10f", "__svml_log10f16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("__log10_finite", "__svml_log102", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__log10_finite", "__svml_log104", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__log10_finite", "__svml_log108", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__log10f_finite", "__svml_log10f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__log10f_finite", "__svml_log10f8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("__log10f_finite", "__svml_log10f16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("llvm.log10.f64", "__svml_log102", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log10.f64", "__svml_log104", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log10.f64", "__svml_log108", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "__svml_log10f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "__svml_log10f8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "__svml_log10f16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("sqrt", "__svml_sqrt2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("sqrt", "__svml_sqrt4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sqrt", "__svml_sqrt8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("sqrtf", "__svml_sqrtf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sqrtf", "__svml_sqrtf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("sqrtf", "__svml_sqrtf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("__sqrt_finite", "__svml_sqrt2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__sqrt_finite", "__svml_sqrt4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__sqrt_finite", "__svml_sqrt8", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__sqrtf_finite", "__svml_sqrtf4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__sqrtf_finite", "__svml_sqrtf8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("__sqrtf_finite", "__svml_sqrtf16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("exp2", "__svml_exp22", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("exp2", "__svml_exp24", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("exp2", "__svml_exp28", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("exp2f", "__svml_exp2f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("exp2f", "__svml_exp2f8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("exp2f", "__svml_exp2f16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("llvm.exp2.f64", "__svml_exp22", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f64", "__svml_exp24", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f64", "__svml_exp28", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.exp2.f32", "__svml_exp2f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f32", "__svml_exp2f8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f32", "__svml_exp2f16", FIXED(16), "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("__exp2_finite", "__svml_exp22", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__exp2_finite", "__svml_exp24", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__exp2_finite", "__svml_exp28", FIXED(8), "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__exp2f_finite", "__svml_exp2f4", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__exp2f_finite", "__svml_exp2f8", FIXED(8), "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("__exp2f_finite", "__svml_exp2f16", FIXED(16), "_ZGV_LLVM_N16v")
+
+#elif defined(TLI_DEFINE_SLEEFGNUABI_VF2_VECFUNCS)
+
+TLI_DEFINE_VECFUNC("acos", "_ZGVnN2v_acos", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.acos.f64", "_ZGVnN2v_acos", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("acosh", "_ZGVnN2v_acosh", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("asin", "_ZGVnN2v_asin", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.asin.f64", "_ZGVnN2v_asin", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("asinh", "_ZGVnN2v_asinh", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("atan", "_ZGVnN2v_atan", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.atan.f64", "_ZGVnN2v_atan", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("atan2", "_ZGVnN2vv_atan2", FIXED(2), "_ZGV_LLVM_N2vv")
+
+TLI_DEFINE_VECFUNC("atanh", "_ZGVnN2v_atanh", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("cbrt", "_ZGVnN2v_cbrt", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("copysign", "_ZGVnN2vv_copysign", FIXED(2), "_ZGV_LLVM_N2vv")
+
+TLI_DEFINE_VECFUNC("cos", "_ZGVnN2v_cos", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "_ZGVnN2v_cos", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("cosh", "_ZGVnN2v_cosh", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.cosh.f64", "_ZGVnN2v_cosh", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("cospi", "_ZGVnN2v_cospi", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("erf", "_ZGVnN2v_erf", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("erfc", "_ZGVnN2v_erfc", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("exp", "_ZGVnN2v_exp", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "_ZGVnN2v_exp", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("exp10", "_ZGVnN2v_exp10", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp10.f64", "_ZGVnN2v_exp10", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("exp2", "_ZGVnN2v_exp2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f64", "_ZGVnN2v_exp2", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("expm1", "_ZGVnN2v_expm1", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("fdim", "_ZGVnN2vv_fdim", FIXED(2), "_ZGV_LLVM_N2vv")
+
+TLI_DEFINE_VECFUNC("fma", "_ZGVnN2vvv_fma", FIXED(2), "_ZGV_LLVM_N2vvv")
+
+TLI_DEFINE_VECFUNC("fmax", "_ZGVnN2vv_fmax", FIXED(2), "_ZGV_LLVM_N2vv")
+
+TLI_DEFINE_VECFUNC("fmin", "_ZGVnN2vv_fmin", FIXED(2), "_ZGV_LLVM_N2vv")
+
+TLI_DEFINE_VECFUNC("fmod", "_ZGVnN2vv_fmod", FIXED(2), "_ZGV_LLVM_N2vv")
+
+TLI_DEFINE_VECFUNC("hypot", "_ZGVnN2vv_hypot", FIXED(2), "_ZGV_LLVM_N2vv")
+
+TLI_DEFINE_VECFUNC("ilogb", "_ZGVnN2v_ilogb", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("ldexp", "_ZGVnN2vv_ldexp", FIXED(2), "_ZGV_LLVM_N2vv")
+
+TLI_DEFINE_VECFUNC("lgamma", "_ZGVnN2v_lgamma", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("log", "_ZGVnN2v_log", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log.f64", "_ZGVnN2v_log", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("log10", "_ZGVnN2v_log10", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log10.f64", "_ZGVnN2v_log10", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("log1p", "_ZGVnN2v_log1p", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("log2", "_ZGVnN2v_log2", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log2.f64", "_ZGVnN2v_log2", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("modf", "_ZGVnN2vl8_modf", FIXED(2), "_ZGV_LLVM_N2vl8")
+
+TLI_DEFINE_VECFUNC("nextafter", "_ZGVnN2vv_nextafter", FIXED(2), "_ZGV_LLVM_N2vv")
+
+TLI_DEFINE_VECFUNC("pow", "_ZGVnN2vv_pow", FIXED(2), "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "_ZGVnN2vv_pow", FIXED(2), "_ZGV_LLVM_N2vv")
+
+TLI_DEFINE_VECFUNC("sin", "_ZGVnN2v_sin", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "_ZGVnN2v_sin", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("sincos", "_ZGVnN2vl8l8_sincos", FIXED(2), "_ZGV_LLVM_N2vl8l8")
+
+TLI_DEFINE_VECFUNC("sincospi", "_ZGVnN2vl8l8_sincospi", FIXED(2), "_ZGV_LLVM_N2vl8l8")
+
+TLI_DEFINE_VECFUNC("sinh", "_ZGVnN2v_sinh", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.sinh.f64", "_ZGVnN2v_sinh", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("sinpi", "_ZGVnN2v_sinpi", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("sqrt", "_ZGVnN2v_sqrt", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("tan", "_ZGVnN2v_tan", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "_ZGVnN2v_tan", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("tanh", "_ZGVnN2v_tanh", FIXED(2), "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.tanh.f64", "_ZGVnN2v_tanh", FIXED(2), "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("tgamma", "_ZGVnN2v_tgamma", FIXED(2), "_ZGV_LLVM_N2v")
+
+#elif defined(TLI_DEFINE_SLEEFGNUABI_VF4_VECFUNCS)
+
+TLI_DEFINE_VECFUNC("acosf", "_ZGVnN4v_acosf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.acos.f32", "_ZGVnN4v_acosf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("acoshf", "_ZGVnN4v_acoshf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("asinf", "_ZGVnN4v_asinf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.asin.f32", "_ZGVnN4v_asinf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("asinhf", "_ZGVnN4v_asinhf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("atanf", "_ZGVnN4v_atanf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.atan.f32", "_ZGVnN4v_atanf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("atan2f", "_ZGVnN4vv_atan2f", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("atanhf", "_ZGVnN4v_atanhf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("cbrtf", "_ZGVnN4v_cbrtf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("copysignf", "_ZGVnN4vv_copysignf", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("cosf", "_ZGVnN4v_cosf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "_ZGVnN4v_cosf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("coshf", "_ZGVnN4v_coshf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cosh.f32", "_ZGVnN4v_coshf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("cospif", "_ZGVnN4v_cospif", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("erff", "_ZGVnN4v_erff", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("erfcf", "_ZGVnN4v_erfcf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("expf", "_ZGVnN4v_expf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "_ZGVnN4v_expf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("exp10f", "_ZGVnN4v_exp10f", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp10.f32", "_ZGVnN4v_exp10f", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("exp2f", "_ZGVnN4v_exp2f", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f32", "_ZGVnN4v_exp2f", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("expm1f", "_ZGVnN4v_expm1f", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("fdimf", "_ZGVnN4vv_fdimf", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("fmaf", "_ZGVnN4vvv_fmaf", FIXED(4), "_ZGV_LLVM_N4vvv")
+
+TLI_DEFINE_VECFUNC("fmaxf", "_ZGVnN4vv_fmaxf", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("fminf", "_ZGVnN4vv_fminf", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("fmodf", "_ZGVnN4vv_fmodf", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("hypotf", "_ZGVnN4vv_hypotf", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("ilogbf", "_ZGVnN4v_ilogbf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("ldexpf", "_ZGVnN4vv_ldexpf", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("lgammaf", "_ZGVnN4v_lgammaf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("logf", "_ZGVnN4v_logf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log.f32", "_ZGVnN4v_logf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("log10f", "_ZGVnN4v_log10f", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "_ZGVnN4v_log10f", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("log1pf", "_ZGVnN4v_log1pf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("log2f", "_ZGVnN4v_log2f", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log2.f32", "_ZGVnN4v_log2f", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("modff", "_ZGVnN4vl4_modff", FIXED(4), "_ZGV_LLVM_N4vl4")
+
+TLI_DEFINE_VECFUNC("nextafterf", "_ZGVnN4vv_nextafterf", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("powf", "_ZGVnN4vv_powf", FIXED(4), "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "_ZGVnN4vv_powf", FIXED(4), "_ZGV_LLVM_N4vv")
+
+TLI_DEFINE_VECFUNC("sinf", "_ZGVnN4v_sinf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "_ZGVnN4v_sinf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("sincosf", "_ZGVnN4vl4l4_sincosf", FIXED(4), "_ZGV_LLVM_N4vl4l4")
+
+TLI_DEFINE_VECFUNC("sincospif", "_ZGVnN4vl4l4_sincospif", FIXED(4), "_ZGV_LLVM_N4vl4l4")
+
+TLI_DEFINE_VECFUNC("sinhf", "_ZGVnN4v_sinhf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sinh.f32", "_ZGVnN4v_sinhf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("sinpif", "_ZGVnN4v_sinpif", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("sqrtf", "_ZGVnN4v_sqrtf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("tanf", "_ZGVnN4v_tanf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "_ZGVnN4v_tanf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("tanhf", "_ZGVnN4v_tanhf", FIXED(4), "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tanh.f32", "_ZGVnN4v_tanhf", FIXED(4), "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("tgammaf", "_ZGVnN4v_tgammaf", FIXED(4), "_ZGV_LLVM_N4v")
+
+#elif defined(TLI_DEFINE_SLEEFGNUABI_SCALABLE_VECFUNCS)
+
+TLI_DEFINE_VECFUNC("acos", "_ZGVsMxv_acos",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("acosf", "_ZGVsMxv_acosf", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.acos.f64", "_ZGVsMxv_acos", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.acos.f32", "_ZGVsMxv_acosf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("acosh", "_ZGVsMxv_acosh",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("acoshf", "_ZGVsMxv_acoshf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("asin", "_ZGVsMxv_asin",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("asinf", "_ZGVsMxv_asinf", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.asin.f64", "_ZGVsMxv_asin", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.asin.f32", "_ZGVsMxv_asinf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("asinh", "_ZGVsMxv_asinh",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("asinhf", "_ZGVsMxv_asinhf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("atan", "_ZGVsMxv_atan",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("atanf", "_ZGVsMxv_atanf", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.atan.f64", "_ZGVsMxv_atan", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.atan.f32", "_ZGVsMxv_atanf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("atan2", "_ZGVsMxvv_atan2",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("atan2f", "_ZGVsMxvv_atan2f", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("atanh", "_ZGVsMxv_atanh",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("atanhf", "_ZGVsMxv_atanhf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("cbrt", "_ZGVsMxv_cbrt",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("cbrtf", "_ZGVsMxv_cbrtf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("copysign", "_ZGVsMxvv_copysign",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("copysignf", "_ZGVsMxvv_copysignf", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("cos", "_ZGVsMxv_cos",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("cosf", "_ZGVsMxv_cosf", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "_ZGVsMxv_cos", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "_ZGVsMxv_cosf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("cosh", "_ZGVsMxv_cosh",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("coshf", "_ZGVsMxv_coshf", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.cosh.f64", "_ZGVsMxv_cosh", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.cosh.f32", "_ZGVsMxv_coshf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("cospi", "_ZGVsMxv_cospi",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("cospif", "_ZGVsMxv_cospif", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("erf", "_ZGVsMxv_erf",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("erff", "_ZGVsMxv_erff", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("erfc", "_ZGVsMxv_erfc",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("erfcf", "_ZGVsMxv_erfcf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("exp", "_ZGVsMxv_exp",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("expf", "_ZGVsMxv_expf", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "_ZGVsMxv_exp", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "_ZGVsMxv_expf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("exp10", "_ZGVsMxv_exp10",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("exp10f", "_ZGVsMxv_exp10f", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.exp10.f64", "_ZGVsMxv_exp10",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.exp10.f32", "_ZGVsMxv_exp10f", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("exp2", "_ZGVsMxv_exp2",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("exp2f", "_ZGVsMxv_exp2f", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.exp2.f64", "_ZGVsMxv_exp2", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.exp2.f32", "_ZGVsMxv_exp2f", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("expm1", "_ZGVsMxv_expm1",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("expm1f", "_ZGVsMxv_expm1f", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("fdim", "_ZGVsMxvv_fdim",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("fdimf", "_ZGVsMxvv_fdimf", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("fma", "_ZGVsMxvvv_fma",  SCALABLE(2), MASKED, "_ZGVsMxvvv")
+TLI_DEFINE_VECFUNC("fmaf", "_ZGVsMxvvv_fmaf", SCALABLE(4), MASKED, "_ZGVsMxvvv")
+
+TLI_DEFINE_VECFUNC("fmax", "_ZGVsMxvv_fmax",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("fmaxf", "_ZGVsMxvv_fmaxf", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("fmin", "_ZGVsMxvv_fmin",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("fminf", "_ZGVsMxvv_fminf", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("fmod", "_ZGVsMxvv_fmod", SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("fmodf", "_ZGVsMxvv_fmodf", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("hypot", "_ZGVsMxvv_hypot", SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("hypotf", "_ZGVsMxvv_hypotf", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("ilogb", "_ZGVsMxv_ilogb",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("ilogbf", "_ZGVsMxv_ilogbf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("ldexp", "_ZGVsMxvv_ldexp",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("ldexpf", "_ZGVsMxvv_ldexpf", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("lgamma", "_ZGVsMxv_lgamma",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("lgammaf", "_ZGVsMxv_lgammaf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("log", "_ZGVsMxv_log",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("logf", "_ZGVsMxv_logf", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.log.f64", "_ZGVsMxv_log", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.log.f32", "_ZGVsMxv_logf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("log10", "_ZGVsMxv_log10",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("log10f", "_ZGVsMxv_log10f", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.log10.f64", "_ZGVsMxv_log10", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "_ZGVsMxv_log10f", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("log1p", "_ZGVsMxv_log1p",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("log1pf", "_ZGVsMxv_log1pf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("log2", "_ZGVsMxv_log2", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("log2f", "_ZGVsMxv_log2f", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.log2.f64", "_ZGVsMxv_log2", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.log2.f32", "_ZGVsMxv_log2f", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("modf", "_ZGVsNxvl8_modf", SCALABLE(2), NOMASK, "_ZGVsNxvl8")
+TLI_DEFINE_VECFUNC("modff", "_ZGVsNxvl4_modff", SCALABLE(4), NOMASK, "_ZGVsNxvl4")
+
+TLI_DEFINE_VECFUNC("nextafter", "_ZGVsMxvv_nextafter", SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("nextafterf", "_ZGVsMxvv_nextafterf", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("pow", "_ZGVsMxvv_pow", SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("powf", "_ZGVsMxvv_powf", SCALABLE(4), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "_ZGVsMxvv_pow", SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "_ZGVsMxvv_powf", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("sin", "_ZGVsMxv_sin",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("sinf", "_ZGVsMxv_sinf", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "_ZGVsMxv_sin", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "_ZGVsMxv_sinf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("sincos", "_ZGVsNxvl8l8_sincos", SCALABLE(2), NOMASK, "_ZGVsNxvl8l8")
+TLI_DEFINE_VECFUNC("sincosf", "_ZGVsNxvl4l4_sincosf", SCALABLE(4), NOMASK, "_ZGVsNxvl4l4")
+
+TLI_DEFINE_VECFUNC("sincospi", "_ZGVsNxvl8l8_sincospi", SCALABLE(2), NOMASK, "_ZGVsNxvl8l8")
+TLI_DEFINE_VECFUNC("sincospif", "_ZGVsNxvl4l4_sincospif", SCALABLE(4), NOMASK, "_ZGVsNxvl4l4")
+
+TLI_DEFINE_VECFUNC("sinh", "_ZGVsMxv_sinh",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("sinhf", "_ZGVsMxv_sinhf", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.sinh.f64", "_ZGVsMxv_sinh", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.sinh.f32", "_ZGVsMxv_sinhf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("sinpi", "_ZGVsMxv_sinpi",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("sinpif", "_ZGVsMxv_sinpif", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("sqrt", "_ZGVsMxv_sqrt",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("sqrtf", "_ZGVsMxv_sqrtf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("tan", "_ZGVsMxv_tan",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("tanf", "_ZGVsMxv_tanf", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "_ZGVsMxv_tan", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "_ZGVsMxv_tanf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("tanh", "_ZGVsMxv_tanh",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("tanhf", "_ZGVsMxv_tanhf", SCALABLE(4), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.tanh.f64", "_ZGVsMxv_tanh", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.tanh.f32", "_ZGVsMxv_tanhf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("tgamma", "_ZGVsMxv_tgamma",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("tgammaf", "_ZGVsMxv_tgammaf", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+#elif defined(TLI_DEFINE_ARMPL_VECFUNCS)
+
+TLI_DEFINE_VECFUNC("acos", "armpl_vacosq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("acosf", "armpl_vacosq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("acos", "armpl_svacos_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("acosf", "armpl_svacos_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.acos.f64", "armpl_vacosq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.acos.f32", "armpl_vacosq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.acos.f64", "armpl_svacos_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.acos.f32", "armpl_svacos_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("acosh", "armpl_vacoshq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("acoshf", "armpl_vacoshq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("acosh", "armpl_svacosh_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("acoshf", "armpl_svacosh_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("asin", "armpl_vasinq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("asinf", "armpl_vasinq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("asin", "armpl_svasin_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("asinf", "armpl_svasin_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.asin.f64", "armpl_vasinq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.asin.f32", "armpl_vasinq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.asin.f64", "armpl_svasin_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.asin.f32", "armpl_svasin_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("asinh", "armpl_vasinhq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("asinhf", "armpl_vasinhq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("asinh", "armpl_svasinh_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("asinhf", "armpl_svasinh_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("atan", "armpl_vatanq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("atanf", "armpl_vatanq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("atan", "armpl_svatan_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("atanf", "armpl_svatan_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.atan.f64", "armpl_vatanq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.atan.f32", "armpl_vatanq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.atan.f64", "armpl_svatan_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.atan.f32", "armpl_svatan_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("atan2", "armpl_vatan2q_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("atan2f", "armpl_vatan2q_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("atan2", "armpl_svatan2_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("atan2f", "armpl_svatan2_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("atanh", "armpl_vatanhq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("atanhf", "armpl_vatanhq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("atanh", "armpl_svatanh_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("atanhf", "armpl_svatanh_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("cbrt", "armpl_vcbrtq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("cbrtf", "armpl_vcbrtq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cbrt", "armpl_svcbrt_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("cbrtf", "armpl_svcbrt_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("copysign", "armpl_vcopysignq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("copysignf", "armpl_vcopysignq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("copysign", "armpl_svcopysign_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("copysignf", "armpl_svcopysign_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("cos", "armpl_vcosq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("cosf", "armpl_vcosq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cos", "armpl_svcos_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("cosf", "armpl_svcos_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "armpl_vcosq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "armpl_vcosq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "armpl_svcos_f64_x", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "armpl_svcos_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("cosh", "armpl_vcoshq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("coshf", "armpl_vcoshq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cosh", "armpl_svcosh_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("coshf", "armpl_svcosh_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.cosh.f64", "armpl_vcoshq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.cosh.f32", "armpl_vcoshq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cosh.f64", "armpl_svcosh_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.cosh.f32", "armpl_svcosh_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("cospi", "armpl_vcospiq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("cospif", "armpl_vcospiq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cospi", "armpl_svcospi_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("cospif", "armpl_svcospi_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("erf", "armpl_verfq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("erff", "armpl_verfq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("erf", "armpl_sverf_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("erff", "armpl_sverf_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("erfc", "armpl_verfcq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("erfcf", "armpl_verfcq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("erfc", "armpl_sverfc_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("erfcf", "armpl_sverfc_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("exp", "armpl_vexpq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("expf", "armpl_vexpq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("exp", "armpl_svexp_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("expf", "armpl_svexp_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "armpl_vexpq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "armpl_vexpq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "armpl_svexp_f64_x", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "armpl_svexp_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("exp10", "armpl_vexp10q_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("exp10f", "armpl_vexp10q_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("exp10", "armpl_svexp10_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("exp10f", "armpl_svexp10_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.exp10.f64", "armpl_vexp10q_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp10.f32", "armpl_vexp10q_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp10.f64", "armpl_svexp10_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.exp10.f32", "armpl_svexp10_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("exp2", "armpl_vexp2q_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("exp2f", "armpl_vexp2q_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("exp2", "armpl_svexp2_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("exp2f", "armpl_svexp2_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.exp2.f64", "armpl_vexp2q_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f32", "armpl_vexp2q_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f64", "armpl_svexp2_f64_x", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.exp2.f32", "armpl_svexp2_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("expm1", "armpl_vexpm1q_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("expm1f", "armpl_vexpm1q_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("expm1", "armpl_svexpm1_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("expm1f", "armpl_svexpm1_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("fdim", "armpl_vfdimq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("fdimf", "armpl_vfdimq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("fdim", "armpl_svfdim_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("fdimf", "armpl_svfdim_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("fma", "armpl_vfmaq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vvv")
+TLI_DEFINE_VECFUNC("fmaf", "armpl_vfmaq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vvv")
+TLI_DEFINE_VECFUNC("fma", "armpl_svfma_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxvvv")
+TLI_DEFINE_VECFUNC("fmaf", "armpl_svfma_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvvv")
+
+TLI_DEFINE_VECFUNC("fmax", "armpl_vfmaxq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("fmaxf", "armpl_vfmaxq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("fmax", "armpl_svfmax_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("fmaxf", "armpl_svfmax_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("fmin", "armpl_vfminq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("fminf", "armpl_vfminq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("fmin", "armpl_svfmin_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("fminf", "armpl_svfmin_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("fmod", "armpl_vfmodq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("fmodf", "armpl_vfmodq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("fmod", "armpl_svfmod_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("fmodf", "armpl_svfmod_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("hypot", "armpl_vhypotq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("hypotf", "armpl_vhypotq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("hypot", "armpl_svhypot_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("hypotf", "armpl_svhypot_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("ilogb", "armpl_vilogbq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("ilogbf", "armpl_vilogbq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("ilogb", "armpl_svilogb_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("ilogbf", "armpl_svilogb_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("ldexp", "armpl_vldexpq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("ldexpf", "armpl_vldexpq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("ldexp", "armpl_svldexp_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("ldexpf", "armpl_svldexp_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("lgamma", "armpl_vlgammaq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("lgammaf", "armpl_vlgammaq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("lgamma", "armpl_svlgamma_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("lgammaf", "armpl_svlgamma_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("log", "armpl_vlogq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("logf", "armpl_vlogq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log", "armpl_svlog_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("logf", "armpl_svlog_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.log.f64", "armpl_vlogq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log.f32", "armpl_vlogq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log.f64", "armpl_svlog_f64_x", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.log.f32", "armpl_svlog_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("log10", "armpl_vlog10q_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log10f", "armpl_vlog10q_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log10", "armpl_svlog10_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("log10f", "armpl_svlog10_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.log10.f64", "armpl_vlog10q_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "armpl_vlog10q_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log10.f64", "armpl_svlog10_f64_x", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "armpl_svlog10_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("log1p", "armpl_vlog1pq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log1pf", "armpl_vlog1pq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log1p", "armpl_svlog1p_f64_x", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("log1pf", "armpl_svlog1p_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("log2", "armpl_vlog2q_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log2f", "armpl_vlog2q_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log2", "armpl_svlog2_f64_x", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("log2f", "armpl_svlog2_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.log2.f64", "armpl_vlog2q_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log2.f32", "armpl_vlog2q_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log2.f64", "armpl_svlog2_f64_x", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.log2.f32", "armpl_svlog2_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("modf", "armpl_vmodfq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vl8")
+TLI_DEFINE_VECFUNC("modff", "armpl_vmodfq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vl4")
+TLI_DEFINE_VECFUNC("modf", "armpl_svmodf_f64_x", SCALABLE(2), MASKED, "_ZGVsMxvl8")
+TLI_DEFINE_VECFUNC("modff", "armpl_svmodf_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvl4")
+
+TLI_DEFINE_VECFUNC("nextafter", "armpl_vnextafterq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("nextafterf", "armpl_vnextafterq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("nextafter", "armpl_svnextafter_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("nextafterf", "armpl_svnextafter_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("pow", "armpl_vpowq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("powf", "armpl_vpowq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("pow", "armpl_svpow_f64_x", SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("powf", "armpl_svpow_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "armpl_vpowq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "armpl_vpowq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "armpl_svpow_f64_x", SCALABLE(2), MASKED, "_ZGVsMxvv")
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "armpl_svpow_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvv")
+
+TLI_DEFINE_VECFUNC("sin", "armpl_vsinq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("sinf", "armpl_vsinq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sin", "armpl_svsin_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("sinf", "armpl_svsin_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "armpl_vsinq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "armpl_vsinq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "armpl_svsin_f64_x", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "armpl_svsin_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("sincos", "armpl_vsincosq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vl8l8")
+TLI_DEFINE_VECFUNC("sincosf", "armpl_vsincosq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vl4l4")
+TLI_DEFINE_VECFUNC("sincos", "armpl_svsincos_f64_x", SCALABLE(2), MASKED, "_ZGVsMxvl8l8")
+TLI_DEFINE_VECFUNC("sincosf", "armpl_svsincos_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvl4l4")
+
+TLI_DEFINE_VECFUNC("sincospi", "armpl_vsincospiq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2vl8l8")
+TLI_DEFINE_VECFUNC("sincospif", "armpl_vsincospiq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4vl4l4")
+TLI_DEFINE_VECFUNC("sincospi", "armpl_svsincospi_f64_x", SCALABLE(2), MASKED, "_ZGVsMxvl8l8")
+TLI_DEFINE_VECFUNC("sincospif", "armpl_svsincospi_f32_x", SCALABLE(4), MASKED, "_ZGVsMxvl4l4")
+
+TLI_DEFINE_VECFUNC("sinh", "armpl_vsinhq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("sinhf", "armpl_vsinhq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sinh", "armpl_svsinh_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("sinhf", "armpl_svsinh_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.sinh.f64", "armpl_vsinhq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.sinh.f32", "armpl_vsinhq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sinh.f64", "armpl_svsinh_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.sinh.f32", "armpl_svsinh_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("sinpi", "armpl_vsinpiq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("sinpif", "armpl_vsinpiq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sinpi", "armpl_svsinpi_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("sinpif", "armpl_svsinpi_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("sqrt", "armpl_vsqrtq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("sqrtf", "armpl_vsqrtq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sqrt", "armpl_svsqrt_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("sqrtf", "armpl_svsqrt_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("tan", "armpl_vtanq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("tanf", "armpl_vtanq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tan", "armpl_svtan_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("tanf", "armpl_svtan_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "armpl_vtanq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "armpl_vtanq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "armpl_svtan_f64_x", SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "armpl_svtan_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("tanh", "armpl_vtanhq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("tanhf", "armpl_vtanhq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tanh", "armpl_svtanh_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("tanhf", "armpl_svtanh_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("llvm.tanh.f64", "armpl_vtanhq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.tanh.f32", "armpl_vtanhq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tanh.f64", "armpl_svtanh_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("llvm.tanh.f32", "armpl_svtanh_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+TLI_DEFINE_VECFUNC("tgamma", "armpl_vtgammaq_f64", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("tgammaf", "armpl_vtgammaq_f32", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tgamma", "armpl_svtgamma_f64_x",  SCALABLE(2), MASKED, "_ZGVsMxv")
+TLI_DEFINE_VECFUNC("tgammaf", "armpl_svtgamma_f32_x", SCALABLE(4), MASKED, "_ZGVsMxv")
+
+#elif defined(TLI_DEFINE_AMDLIBM_VECFUNCS)
+TLI_DEFINE_VECFUNC("sinf", "amd_vrs16_sinf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("sinf", "amd_vrs8_sinf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("sinf", "amd_vrs4_sinf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sin", "amd_vrd8_sin", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("sin", "amd_vrd4_sin", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("sin", "amd_vrd2_sin", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "amd_vrs16_sinf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "amd_vrs8_sinf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.sin.f32", "amd_vrs4_sinf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "amd_vrd8_sin", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "amd_vrd4_sin", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.sin.f64", "amd_vrd2_sin", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("cosf", "amd_vrs16_cosf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("cosf", "amd_vrs8_cosf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("cosf", "amd_vrs4_cosf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cos", "amd_vrd8_cos", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("cos", "amd_vrd4_cos", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("cos", "amd_vrd2_cos", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "amd_vrs16_cosf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "amd_vrs8_cosf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.cos.f32", "amd_vrs4_cosf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "amd_vrd8_cos", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "amd_vrd4_cos", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.cos.f64", "amd_vrd2_cos", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("expf", "amd_vrs16_expf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("expf", "amd_vrs8_expf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("expf", "amd_vrs4_expf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("exp", "amd_vrd2_exp", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("exp", "amd_vrd4_exp", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("exp", "amd_vrd8_exp", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__expf_finite", "amd_vrs16_expf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("__expf_finite", "amd_vrs8_expf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("__expf_finite", "amd_vrs4_expf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__exp_finite", "amd_vrd2_exp", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__exp_finite", "amd_vrd4_exp", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__exp_finite", "amd_vrd8_exp", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "amd_vrs16_expf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "amd_vrs8_expf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.exp.f32", "amd_vrs4_expf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "amd_vrd2_exp", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "amd_vrd4_exp", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp.f64", "amd_vrd8_exp", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("exp2f", "amd_vrs16_exp2f", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("exp2f", "amd_vrs8_exp2f", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("exp2f", "amd_vrs4_exp2f", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("exp2", "amd_vrd2_exp2", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("exp2", "amd_vrd4_exp2", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("exp2", "amd_vrd8_exp2", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__exp2f_finite", "amd_vrs16_exp2f", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("__exp2f_finite", "amd_vrs8_exp2f", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("__exp2f_finite", "amd_vrs4_exp2f", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__exp2_finite", "amd_vrd2_exp2", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__exp2_finite", "amd_vrd4_exp2", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__exp2_finite", "amd_vrd8_exp2", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.exp2.f32", "amd_vrs16_exp2f", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f32", "amd_vrs8_exp2f", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f32", "amd_vrs4_exp2f", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f64", "amd_vrd2_exp2", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f64", "amd_vrd4_exp2", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.exp2.f64", "amd_vrd8_exp2", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("powf", "amd_vrs16_powf", FIXED(16), NOMASK, "_ZGV_LLVM_N16vv")
+TLI_DEFINE_VECFUNC("powf", "amd_vrs8_powf", FIXED(8), NOMASK, "_ZGV_LLVM_N8vv")
+TLI_DEFINE_VECFUNC("powf", "amd_vrs4_powf", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("pow", "amd_vrd2_pow", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("pow", "amd_vrd4_pow", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("pow", "amd_vrd8_pow", FIXED(8), NOMASK, "_ZGV_LLVM_N8vv")
+
+TLI_DEFINE_VECFUNC("__powf_finite", "amd_vrs16_powf", FIXED(16), NOMASK, "_ZGV_LLVM_N16vv")
+TLI_DEFINE_VECFUNC("__powf_finite", "amd_vrs8_powf", FIXED(8), NOMASK, "_ZGV_LLVM_N8vv")
+TLI_DEFINE_VECFUNC("__powf_finite", "amd_vrs4_powf", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("__pow_finite", "amd_vrd2_pow", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("__pow_finite", "amd_vrd4_pow", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("__pow_finite", "amd_vrd8_pow", FIXED(8), NOMASK, "_ZGV_LLVM_N8vv")
+
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "amd_vrs16_powf", FIXED(16), NOMASK, "_ZGV_LLVM_N16vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "amd_vrs8_powf", FIXED(8), NOMASK, "_ZGV_LLVM_N8vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f32", "amd_vrs4_powf", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "amd_vrd2_pow", FIXED(2), NOMASK, "_ZGV_LLVM_N2vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "amd_vrd4_pow", FIXED(4), NOMASK, "_ZGV_LLVM_N4vv")
+TLI_DEFINE_VECFUNC("llvm.pow.f64", "amd_vrd8_pow", FIXED(8), NOMASK, "_ZGV_LLVM_N8vv")
+
+TLI_DEFINE_VECFUNC("logf", "amd_vrs16_logf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("logf", "amd_vrs8_logf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("logf", "amd_vrs4_logf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log", "amd_vrd2_log", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log", "amd_vrd4_log", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log", "amd_vrd8_log", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__logf_finite", "amd_vrs16_logf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("__logf_finite", "amd_vrs8_logf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("__logf_finite", "amd_vrs4_logf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__log_finite", "amd_vrd2_log", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__log_finite", "amd_vrd4_log", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__log_finite", "amd_vrd8_log", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.log.f32", "amd_vrs16_logf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("llvm.log.f32", "amd_vrs8_logf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.log.f32", "amd_vrs4_logf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log.f64", "amd_vrd2_log", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log.f64", "amd_vrd4_log", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log.f64", "amd_vrd8_log", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("log2f", "amd_vrs16_log2f", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("log2f", "amd_vrs8_log2f", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("log2f", "amd_vrs4_log2f", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log2", "amd_vrd2_log2", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log2", "amd_vrd4_log2", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("log2", "amd_vrd8_log2", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("__log2f_finite", "amd_vrs16_log2f", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("__log2f_finite", "amd_vrs8_log2f", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("__log2f_finite", "amd_vrs4_log2f", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__log2_finite", "amd_vrd2_log2", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("__log2_finite", "amd_vrd4_log2", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("__log2_finite", "amd_vrd8_log2", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("llvm.log2.f32", "amd_vrs16_log2f", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("llvm.log2.f32", "amd_vrs8_log2f", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.log2.f32", "amd_vrs4_log2f", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log2.f64", "amd_vrd2_log2", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("llvm.log2.f64", "amd_vrd4_log2", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.log2.f64", "amd_vrd8_log2", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("log10f", "amd_vrs16_log10f", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("log10f", "amd_vrs8_log10f", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("log10f", "amd_vrs4_log10f", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("__log10f_finite", "amd_vrs16_log10f", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("__log10f_finite", "amd_vrs8_log10f", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("__log10f_finite", "amd_vrs4_log10f", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "amd_vrs16_log10f", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "amd_vrs8_log10f", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.log10.f32", "amd_vrs4_log10f", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("erff", "amd_vrs4_erff", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("erff", "amd_vrs8_erff", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("erff", "amd_vrs16_erff", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("erf", "amd_vrd2_erf", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("erf", "amd_vrd4_erf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("erf", "amd_vrd8_erf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("exp10", "amd_vrd2_exp10", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("exp10f", "amd_vrs4_exp10f", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("expm1", "amd_vrd2_expm1", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("expm1f", "amd_vrs4_expm1f", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("log1p", "amd_vrd2_log1p", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("log1pf", "amd_vrs4_log1pf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+
+TLI_DEFINE_VECFUNC("tan", "amd_vrd2_tan", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("tan", "amd_vrd4_tan", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tan", "amd_vrd8_tan", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("tanf", "amd_vrs4_tanf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tanf", "amd_vrs8_tanf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("tanf", "amd_vrs16_tanf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "amd_vrs16_tanf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "amd_vrs8_tanf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.tan.f32", "amd_vrs4_tanf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "amd_vrd8_tan", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "amd_vrd4_tan", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("llvm.tan.f64", "amd_vrd2_tan", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+
+TLI_DEFINE_VECFUNC("asin", "amd_vrd8_asin", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("asinf", "amd_vrs4_asinf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("asinf", "amd_vrs8_asinf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("asinf", "amd_vrs16_asinf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("acosf", "amd_vrs4_acosf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("acosf", "amd_vrs8_acosf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("atan", "amd_vrd2_atan", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("atan", "amd_vrd4_atan", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("atan", "amd_vrd8_atan", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("atanf", "amd_vrs4_atanf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("atanf", "amd_vrs8_atanf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+TLI_DEFINE_VECFUNC("atanf", "amd_vrs16_atanf", FIXED(16), NOMASK, "_ZGV_LLVM_N16v")
+
+TLI_DEFINE_VECFUNC("coshf", "amd_vrs4_coshf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("coshf", "amd_vrs8_coshf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("tanhf", "amd_vrs4_tanhf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+TLI_DEFINE_VECFUNC("tanhf", "amd_vrs8_tanhf", FIXED(8), NOMASK, "_ZGV_LLVM_N8v")
+
+TLI_DEFINE_VECFUNC("cbrt", "amd_vrd2_cbrt", FIXED(2), NOMASK, "_ZGV_LLVM_N2v")
+TLI_DEFINE_VECFUNC("cbrtf", "amd_vrs4_cbrtf", FIXED(4), NOMASK, "_ZGV_LLVM_N4v")
+
+#else
+#error "Must choose which vector library functions are to be defined."
+#endif
+
+#undef MASKED
+#undef NOMASK
+#undef SCALABLE
+#undef FIXED
+
+#undef TLI_DEFINE_VECFUNC

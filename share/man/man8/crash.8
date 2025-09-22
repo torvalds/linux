@@ -1,0 +1,343 @@
+.\"	$OpenBSD: crash.8,v 1.37 2022/09/11 06:38:11 jmc Exp $
+.\"
+.\" Copyright (c) 1980, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)crash.8	6.5 (Berkeley) 4/20/91
+.\"
+.Dd $Mdocdate: September 11 2022 $
+.Dt CRASH 8
+.Os
+.Sh NAME
+.Nm crash
+.Nd system failure and diagnosis
+.Sh DESCRIPTION
+This section explains what happens when the system crashes
+and (very briefly) how to analyze crash dumps.
+.Pp
+When the system crashes voluntarily it prints a message of the form
+.Bd -literal -offset indent
+panic: why i gave up the ghost
+.Ed
+.Pp
+on the console and enters the kernel debugger,
+.Xr ddb 4 .
+.Pp
+If you wish to report this panic, you should include the output of
+the
+.Ic ps
+and
+.Ic trace
+commands.
+Unless the
+.Sq ddb.log
+sysctl has been disabled, anything output to screen will be
+appended to the system message buffer, from where it may be
+possible to retrieve it through the
+.Xr dmesg 8
+command after a warm reboot.
+If the debugger command
+.Ic boot dump
+is entered, or if the debugger was not compiled into the kernel, or
+the debugger was disabled with
+.Xr sysctl 8 ,
+then the system dumps the contents of physical memory
+onto a mass storage peripheral device.
+The particular device used is determined by the
+.Sq dumps on
+directive in the
+.Xr config 8
+file used to build the kernel.
+.Pp
+After the dump has been written, the system then
+invokes the automatic reboot procedure as
+described in
+.Xr reboot 8 .
+If auto-reboot is disabled (in a machine dependent way), the system
+will simply halt at this point.
+.Pp
+Upon rebooting, and
+unless some unexpected inconsistency is encountered in the state
+of the file systems due to hardware or software failure, the system
+will copy the previously written dump into
+.Pa /var/crash
+using
+.Xr savecore 8 ,
+before resuming multi-user operations.
+.Ss Causes of system failure
+The system has a large number of internal consistency checks; if one
+of these fails, then it will panic with a very short message indicating
+which one failed.
+In many instances, this will be the name of the routine which detected
+the error, or a two-word description of the inconsistency.
+A full understanding of most panic messages requires perusal of the
+source code for the system.
+.Pp
+The most common cause of system failures is hardware failure
+.Pq e.g., bad memory
+which
+can reflect itself in different ways.
+Here are the messages which are most likely, with some hints as to causes.
+Left unstated in all cases is the possibility that a hardware or software
+error produced the message in some unexpected way.
+.Bl -tag -width indent
+.It no init
+This panic message indicates filesystem problems, and reboots are likely
+to be futile.
+Late in the bootstrap procedure, the system was unable to
+locate and execute the initialization process,
+.Xr init 8 .
+The root filesystem is incorrect or has been corrupted, or the mode
+or type of
+.Pa /sbin/init
+forbids execution.
+.It trap type %d, code=%x, pc=%x
+A unexpected trap has occurred within the system; the trap types are
+machine dependent and can be found listed in
+.Pa /sys/arch/ARCH/include/trap.h .
+.Pp
+The code is the referenced address, and the pc is the program counter at the
+time of the fault is printed.
+Hardware flakiness will sometimes generate this panic, but if the cause
+is a kernel bug,
+the kernel debugger
+.Xr ddb 4
+can be used to locate the instruction and subroutine inside the kernel
+corresponding
+to the PC value.
+If that is insufficient to suggest the nature of the problem,
+more detailed examination of the system status at the time of the trap
+usually can produce an explanation.
+.It init died
+The system initialization process has exited.
+This is bad news, as no new users will then be able to log in.
+Rebooting is the only fix, so the system just does it right away.
+.It out of mbufs: map full
+The network has exhausted its private page map for network buffers.
+This usually indicates that buffers are being lost, and rather than
+allow the system to slowly degrade, it reboots immediately.
+The map may be made larger if necessary.
+.El
+.Pp
+That completes the list of panic types you are likely to see.
+.Ss Analyzing a dump
+When the system crashes it writes (or at least attempts to write)
+an image of memory, including the kernel image, onto the dump device.
+On reboot, the kernel image and memory image are separated and preserved in
+the directory
+.Pa /var/crash .
+.Pp
+To analyze the kernel and memory images preserved as
+.Pa bsd.0
+and
+.Pa bsd.0.core ,
+you should run
+.Xr gdb 1 ,
+loading in the images with the following commands:
+.Bd -literal -offset indent
+# gdb
+GNU gdb 6.3
+Copyright 2004 Free Software Foundation, Inc.
+GDB is free software, covered by the GNU General Public License, and you are
+welcome to change it and/or distribute copies of it under certain conditions.
+Type "show copying" to see the conditions.
+There is absolutely no warranty for GDB.  Type "show warranty" for details.
+This GDB was configured as "i386-unknown-openbsd4.6".
+(gdb) file /var/crash/bsd.0
+Reading symbols from /var/crash/bsd.0...(no debugging symbols found)...done.
+(gdb) target kvm /var/crash/bsd.0.core
+.Ed
+.Pp
+[Note that the
+.Dq kvm
+target is currently only supported by
+.Xr gdb 1
+on some architectures.]
+.Pp
+After this, you can use the
+.Ic where
+command to show trace of procedure calls that led to the crash.
+.Pp
+For custom-built kernels, you should use
+.Pa bsd.gdb
+instead of
+.Pa bsd ,
+thus allowing
+.Xr gdb 1
+to show symbolic names for addresses and line numbers from the source.
+.Pp
+Analyzing saved system images is sometimes called post-mortem debugging.
+There are a class of analysis tools designed to work on
+both live systems and saved images, most of them are linked with the
+.Xr kvm 3
+library and share option flags to specify the kernel and memory image.
+These tools typically take the following flags:
+.Bl -tag -width indent
+.It Fl M Ar core
+Normally this
+.Ar core
+is an image produced by
+.Xr savecore 8
+but it can be
+.Pa /dev/mem
+too, if you are looking at the live system.
+.It Fl N Ar system
+Takes a kernel
+.Ar system
+image as an argument.
+This is where the symbolic information is gotten from,
+which means the image cannot be stripped.
+In some cases, using a
+.Pa bsd.gdb
+version of the kernel can assist even more.
+.El
+.Pp
+The following commands understand these options:
+.Xr fstat 1 ,
+.Xr netstat 1 ,
+.Xr nfsstat 1 ,
+.Xr ps 1 ,
+.Xr w 1 ,
+.Xr dmesg 8 ,
+.Xr iostat 8 ,
+.Xr kgmon 8 ,
+.Xr pstat 8 ,
+.Xr trpt 8 ,
+.Xr vmstat 8
+and many others.
+There are exceptions, however.
+For instance,
+.Xr ipcs 1
+has renamed the
+.Fl M
+argument to be
+.Fl C
+instead.
+.Pp
+Examples of use:
+.Bd -literal -offset indent
+# ps -N /var/crash/bsd.0 -M /var/crash/bsd.0.core -O paddr
+.Ed
+.Pp
+The
+.Fl O Ar paddr
+option prints each process'
+.Vt struct proc
+address.
+This is very useful information if you are analyzing process contexts in
+.Xr gdb 1 .
+.Bd -literal -offset indent
+# vmstat -N /var/crash/bsd.0 -M /var/crash/bsd.0.core -m
+.Ed
+.Pp
+This analyzes memory allocations at the time of the crash.
+Perhaps some resource was starving the system?
+.Ss Analyzing a live kernel
+Like the tools mentioned above,
+.Xr gdb 1
+can be used to analyze a live system as well.
+This can be accomplished by not specifying a crash dump when selecting the
+.Dq kvm
+target:
+.Bd -literal -offset indent
+(gdb) target kvm
+.Ed
+.Pp
+It is possible to inspect processes that entered the kernel by
+specifying a process'
+.Vt struct proc
+address to the
+.Ic kvm proc
+command:
+.Bd -literal -offset indent
+(gdb) kvm proc 0xd69dada0
+#0  0xd0355d91 in sleep_finish (sls=0x0, do_sleep=0)
+    at ../../../../kern/kern_synch.c:217
+217                     mi_switch();
+.Ed
+.Pp
+After this, the
+.Ic where
+command will show a trace of procedure calls, right back to where the
+selected process entered the kernel.
+.Sh CRASH LOCATION DETERMINATION
+The following example should make it easier for a novice kernel
+developer to find out where the kernel crashed.
+.Pp
+First, in
+.Xr ddb 4
+find the function that caused the crash.
+It is either the function at the top of the traceback or the function
+under the call to
+.Fn panic
+or
+.Fn uvm_fault .
+.Pp
+The point of the crash usually looks something like this "function+0x4711".
+.Pp
+Find the function in the sources, let's say that the function is in "foo.c".
+.Pp
+Go to the kernel build directory, e.g.,
+.Pa /sys/arch/ARCH/compile/GENERIC ,
+and do the following:
+.Bd -literal -offset indent
+# objdump -S foo.o | less
+.Ed
+.Pp
+Find the function in the output.
+The function will look something like this:
+.Bd -literal -offset indent
+0: 17 47 11 42         foo %x, bar, %y
+4: foo bar             allan %kaka
+8: XXXX                boink %bloyt
+etc.
+.Ed
+.Pp
+The first number is the offset.
+Find the offset that you got in the ddb trace
+(in this case it's 4711).
+.Pp
+When reporting data collected in this way, include ~20 lines before and ~10
+lines after the offset from the objdump output in the crash report, as well
+as the output of
+.Xr ddb 4 Ns 's
+"show registers" command.
+It's important that the output from objdump includes at least two or
+three lines of C code.
+.Sh REPORTING
+If you are sure you have found a reproducible software bug in the kernel,
+and need help in further diagnosis, or already have a fix, use
+.Xr sendbug 1
+to send the developers a detailed description including the entire session
+from
+.Xr gdb 1 .
+.Sh SEE ALSO
+.Xr gdb 1 ,
+.Xr sendbug 1 ,
+.Xr ddb 4 ,
+.Xr reboot 8 ,
+.Xr savecore 8

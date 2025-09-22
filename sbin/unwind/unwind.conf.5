@@ -1,0 +1,186 @@
+.\"	$OpenBSD: unwind.conf.5,v 1.37 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2018 Florian Obser <florian@openbsd.org>
+.\" Copyright (c) 2005 Esben Norby <norby@openbsd.org>
+.\" Copyright (c) 2004 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2002 Daniel Hartmeier <dhartmei@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt UNWIND.CONF 5
+.Os
+.Sh NAME
+.Nm unwind.conf
+.Nd validating DNS resolver configuration file
+.Sh DESCRIPTION
+The
+.Xr unwind 8
+daemon is a validating DNS resolver.
+.Pp
+The
+.Nm
+config file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global settings for
+.Xr unwind 8 .
+.El
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword.
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic forwarder ,
+.Ic port ,
+or
+.Ic DoT ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+fwd1=192.0.2.53
+fwd2=192.0.2.153
+forwarder { $fwd1 $fwd2 }
+.Ed
+.Ss Global configuration
+.Bl -tag -width Ds
+.It Ic block list Ar file Op Cm log
+A file containing domains to block, one per line.
+If a domain from this list is queried,
+.Nm unwind
+answers with a return code of
+.Dv REFUSED .
+With
+.Cm log
+blocked queries are logged.
+The list supports limited wildcard syntax: domains starting with . (dot)
+are treated as any subdomains on that zone.
+.It Ic forwarder Brq Ar address Oo Ic port Ar number Oc Oo Oo Ic authentication name Ar name Oc Ic DoT Oc ...
+A list of addresses of DNS name servers to forward queries to.
+.Ic port
+defaults to 53.
+If
+.Ic DoT
+is specified, use DNS over TLS when sending queries to the server at
+.Ar address .
+The default
+.Ic port
+is 853.
+.Ar name
+validates the certificate of the DNS over TLS server.
+.It Ic preference Brq Ar type ...
+A list of DNS name server types to specify the order in which
+name servers are picked when measured round-trip time medians are equal.
+Additionally, the first mentioned type gets a time bonus.
+Validating name servers are always picked over non-validating name servers.
+DNS name server types are,
+in default order of preference:
+.Bl -tag -width "oDoT-forwarder"
+.It Ic DoT
+DNS over TLS name servers configured in
+.Nm .
+.It Ic oDoT-forwarder
+Name servers configured in
+.Nm .
+.Nm unwind
+tries to opportunistically use DNS over TLS.
+.It Ic forwarder
+Name servers configured in
+.Nm .
+.It Ic recursor
+.Nm unwind
+itself recursively resolves names.
+.It Ic oDoT-autoconf
+Name servers learned from autoconfiguration.
+A list of sources for proposals learned through autoconfiguration
+is documented in
+.Xr resolvd 8 .
+.Nm unwind
+tries to opportunistically use DNS over TLS.
+.It Ic autoconf
+Name servers learned from autoconfiguration.
+.It Ic stub
+Name servers learned from autoconfiguration,
+queried using the libc functions
+(see
+.Xr asr_run 3 ) .
+Will never validate.
+Useful when running behind broken middle boxes that do not like edns0.
+DNS answers from stub name servers are not cached.
+.El
+.It Ic force Oo Cm accept bogus Oc Ar type Brq Ar name ...
+Force resolving of
+.Ar name
+and its subdomains by the given resolver
+.Ar type .
+The
+.Ar type
+must be listed in the
+.Ic preference
+list to be used.
+If
+.Cm accept bogus
+is specified, validation is not enforced.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/unwind.conf" -compact
+.It Pa /etc/unwind.conf
+The default
+.Xr unwind 8
+configuration file.
+.El
+.Sh EXAMPLES
+Block requests for domains in
+.Pa /etc/blocklist
+and log each blocked request:
+.Bd -literal -offset indent
+block list "/etc/blocklist" log
+.Ed
+.Pp
+Define a DNS over TLS (DoT) forwarder and make it the preferred resolver:
+.Bd -literal -offset indent
+forwarder { 192.168.1.250 port 8080 authentication name "resolver.local" DoT }
+preference { DoT }
+.Ed
+.Pp
+Where a domain requires a specific nameserver
+and it may only exist in a nameserver available on the local network,
+force
+.Xr unwind 8
+to use a specific resolver type:
+.Bd -literal -offset indent
+force autoconf { domain.local }
+.Ed
+.Sh SEE ALSO
+.Xr rc.conf.local 8 ,
+.Xr unwind 8 ,
+.Xr unwindctl 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 6.5 .

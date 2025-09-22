@@ -1,0 +1,154 @@
+.\"	$OpenBSD: shutdown.2,v 1.15 2014/09/09 09:00:17 guenther Exp $
+.\"	$NetBSD: shutdown.2,v 1.5 1995/02/27 12:37:11 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)shutdown.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: September 9 2014 $
+.Dt SHUTDOWN 2
+.Os
+.Sh NAME
+.Nm shutdown
+.Nd disable sends or receives on a socket
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn shutdown "int s" "int how"
+.Sh DESCRIPTION
+The
+.Fn shutdown
+system call disables sends or receives on a socket.
+.Pp
+If the file descriptor
+.Fa s
+is associated with a
+.Dv SOCK_STREAM
+socket, all or part of the full-duplex connection will be shut down.
+.Pp
+The
+.Fa how
+argument specifies the type of shutdown.
+Possible values are:
+.Bl -tag -width "SHUT_RDWRXXX" -offset indent
+.It Dv SHUT_RD
+Further receives will be disallowed.
+.It Dv SHUT_WR
+Further sends will be disallowed.
+This may cause actions specific to the protocol family of the socket
+.Fa s
+to happen.
+.It Dv SHUT_RDWR
+Further sends and receives will be disallowed.
+.El
+.Pp
+The following protocol specific actions apply to the use of
+.Dv SHUT_WR
+based on the properties of the socket associated with the file descriptor
+.Fa s :
+.Bl -column "AF_INET6" "SOCK_STREAM" "IPPROTO_UDP" -offset indent
+.It DOMAIN Ta TYPE Ta PROTOCOL Ta "RETURN VALUE AND ACTION"
+.Pp
+.It Dv AF_INET Ta Dv SOCK_DGRAM Ta Dv IPPROTO_UDP Ta
+Return 0.
+ICMP messages will
+.Em not
+be generated.
+.It Dv AF_INET Ta Dv SOCK_STREAM Ta Dv IPPROTO_TCP Ta
+Return 0.
+Send queued data, wait for ACK, then send FIN.
+.It Dv AF_INET6 Ta Dv SOCK_DGRAM Ta Dv IPPROTO_UDP Ta
+Return 0.
+ICMP messages will
+.Em not
+be generated.
+.It Dv AF_INET6 Ta Dv SOCK_STREAM Ta Dv IPPROTO_TCP Ta
+Return 0.
+Send queued data, wait for ACK, then send FIN.
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn shutdown
+system call fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa s
+argument is not a valid file descriptor.
+.It Bq Er EINVAL
+The
+.Fa how
+argument is invalid.
+.It Bq Er ENOTCONN
+The
+.Fa s
+argument specifies a
+.Dv SOCK_STREAM
+socket which is not connected.
+.It Bq Er ENOTSOCK
+The
+.Fa s
+argument does not refer to a socket.
+.It Bq Er EOPNOTSUPP
+The socket associated with the file descriptor
+.Fa s
+does not support this operation.
+.El
+.Sh SEE ALSO
+.Xr connect 2 ,
+.Xr socket 2 ,
+.Xr inet 4 ,
+.Xr inet6 4
+.Sh STANDARDS
+The
+.Fn shutdown
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn shutdown
+system call first appeared in
+.Bx 4.1c .
+The
+.Dv SHUT_RD , SHUT_WR ,
+and
+.Dv SHUT_RDWR
+constants appeared in
+.St -p1003.1g-2000 .
+.Sh BUGS
+The ICMP
+.Dq port unreachable
+message should be generated in response to
+datagrams received on a local port to which
+.Fa s
+is bound
+after
+.Fn shutdown
+is called.

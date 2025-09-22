@@ -1,0 +1,4 @@
+host-linux.o : $(srcdir)/config/host-linux.c $(CONFIG_H) $(SYSTEM_H) \
+  coretypes.h hosthooks.h hosthooks-def.h $(HOOKS_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+		$(srcdir)/config/host-linux.c

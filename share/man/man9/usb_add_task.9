@@ -1,0 +1,122 @@
+.\"	$OpenBSD: usb_add_task.9,v 1.3 2021/01/19 16:05:59 anton Exp $
+.\"
+.\" Copyright (c) 2016 Adam Wolk <awolk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 19 2021 $
+.Dt USB_ADD_TASK 9
+.Os
+.Sh NAME
+.Nm usb_add_task ,
+.Nm usb_rem_task ,
+.Nm usb_wait_task ,
+.Nm usb_rem_wait_task ,
+.Nm usb_init_task
+.Nd USB task queues
+.Sh SYNOPSIS
+.In dev/usb/usbdi.h
+.Ft void
+.Fn usb_add_task "struct usbd_device *dev" "struct usb_task *task"
+.Ft void
+.Fn usb_rem_task "struct usbd_device *dev" "struct usb_task *task"
+.Ft void
+.Fn usb_wait_task "struct usbd_device *dev" "struct usb_task *task"
+.Ft void
+.Fn usb_rem_wait_task "struct usbd_device *dev" "struct usb_task *task"
+.Ft void
+.Fn usb_init_task "struct usb_task *task" "void (*fn)(void *)" "void *arg" "char type"
+.Sh DESCRIPTION
+The USB stack provides an API to manage task execution in a thread context at
+the soonest opportunity.
+There are three different task queues
+that are executed on two separate threads.
+All tasks executed via the USB task API are
+serialized with USB events such as device detachments.
+.Pp
+The
+.Fn usb_add_task
+function enqueues a task to be executed by the task thread.
+Subsequent calls to
+.Fn usb_add_task
+will not result in multiple executions being scheduled.
+The task structure must already be initialised by
+.Fn usb_init_task .
+.Pp
+The
+.Fn usb_rem_task
+function removes a scheduled task from its queue.
+If the work was already executed or has not been added to the task queue,
+the call will have no effect.
+Calling
+.Fn usb_rem_task
+while the task is executing will not abort it.
+.Pp
+The
+.Fn usb_wait_task
+function sleeps until the given task is neither queued for execution
+nor currently running.
+.Pp
+The
+.Fn usb_rem_wait_task
+function is the equivalent of calling
+.Fn usb_rem_task
+followed by
+.Fn usb_wait_task .
+.Pp
+The
+.Fn usb_init_task
+macro prepares the task structure
+.Fa task
+to be used in future calls to
+.Fn usb_add_task ,
+.Fn usb_rem_task ,
+.Fn usb_wait_task ,
+and
+.Fn usb_rem_wait_task .
+.Fa task
+will be prepared to call the function
+.Fa fn
+with the argument specified by
+.Fa arg .
+The
+.Fa type
+of the task determines the queue
+and thread that will be used for its execution:
+.Bl -tag -width "USB_TASK_TYPE_EXPLORE" -offset indent
+.It Dv USB_TASK_TYPE_GENERIC
+Tasks used for general work that need to happen in a process context.
+.It Dv USB_TASK_TYPE_EXPLORE
+Device discovery tasks exploring the tree from the root.
+.It Dv USB_TASK_TYPE_ABORT
+Tasks of this type execute on a dedicated thread
+not shared with other USB task types.
+.El
+.Pp
+Most drivers will only define tasks of type
+.Dv USB_TASK_TYPE_GENERIC .
+Note that
+.Dv USB_TASK_TYPE_ABORT
+tasks are only used by host controller drivers
+and should never be used by drivers.
+Once initialised, the
+.Fa task
+can be used repeatedly in the API functions listed above
+and does not need to be reinitialised
+unless the function called and/or its argument must change.
+.Sh CONTEXT
+.Fn usb_task_add
+can be called from any context.
+.Sh SEE ALSO
+.Xr usb 4 ,
+.Xr task_add 9

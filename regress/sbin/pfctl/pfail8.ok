@@ -1,0 +1,10 @@
+stdin:1: af mismatch in routing spec
+stdin:1: route-to, reply-to and dup-to require keep state
+stdin:1: route-to, reply-to and dup-to are not supported on block rules
+stdin:1: skipping rule due to errors
+stdin:1: rule expands to no valid combination
+stdin:2: af mismatch in routing spec
+stdin:2: route-to, reply-to and dup-to require keep state
+stdin:2: route-to, reply-to and dup-to are not supported on block rules
+stdin:2: skipping rule due to errors
+stdin:2: rule expands to no valid combination

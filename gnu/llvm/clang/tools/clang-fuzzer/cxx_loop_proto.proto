@@ -1,0 +1,81 @@
+//===-- cxx_loop_proto.proto - Protobuf description of C++ with for loops -===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+///  This file describes a subset of C++ as a protobuf. It is used to
+///  more easily find interesting inputs for fuzzing LLVM's vectorizer.
+///  This subset differs from the one defined in cxx_proto.proto by eliminating
+///  while loops and conditionals. The goal is that the C++ code generated will
+///  be more likely to stress the LLVM loop vectorizer. The code generated will
+///  contain either a single loop or two nested loops.
+///
+//===----------------------------------------------------------------------===//
+
+syntax = "proto2";
+
+message Const {
+  required int32 val = 1;
+}
+
+message VarRef {
+  // Add an enum for each array in function signature
+  enum Arr {
+    ARR_A = 0;
+    ARR_B = 1;
+    ARR_C = 2;
+  };
+  required Arr arr = 1;
+}
+
+message BinaryOp {
+  enum Op {
+    PLUS = 0;
+    MINUS = 1;
+    MUL = 2;
+    XOR = 3;
+    AND = 4;
+    OR = 5;
+    EQ = 6;
+    NE = 7;
+    LE = 8;
+    GE = 9;
+    LT = 10;
+    GT = 11;
+  };
+  required Op op = 1;
+  required Rvalue left = 2;
+  required Rvalue right = 3;
+}
+
+message Rvalue {
+  oneof rvalue_oneof {
+    Const cons = 1;
+    BinaryOp binop = 2;
+    VarRef varref = 3;
+  }
+}
+
+message AssignmentStatement {
+  required VarRef varref = 1;
+  required Rvalue rvalue = 2;
+}
+
+message Statement {
+  required AssignmentStatement assignment = 1;
+}
+
+message StatementSeq {
+  repeated Statement statements = 1;
+}
+
+message LoopFunction {
+  optional StatementSeq inner_statements = 1;
+  required StatementSeq outer_statements = 2;
+}
+
+package clang_fuzzer;

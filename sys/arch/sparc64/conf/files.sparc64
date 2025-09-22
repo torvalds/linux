@@ -1,0 +1,477 @@
+#	$OpenBSD: files.sparc64,v 1.156 2024/03/29 21:11:31 miod Exp $
+#	$NetBSD: files.sparc64,v 1.50 2001/08/10 20:53:50 eeh Exp $
+
+# maxpartitions must be first item in files.${ARCH}
+maxpartitions 16
+
+maxusers 2 8 1024
+
+define	mainbus {}
+device	mainbus: pcibus, mainbus
+attach	mainbus at root
+
+device	ssm: mainbus
+attach	ssm at mainbus
+file	arch/sparc64/dev/ssm.c			ssm
+
+define	upa {}
+device	upa
+attach	upa at mainbus
+file	arch/sparc64/dev/upa.c			upa
+
+define	central {}
+device	central
+attach	central at mainbus
+file	arch/sparc64/dev/central.c		central
+
+define	fhc {}
+device	fhc
+file	arch/sparc64/dev/fhc.c			fhc
+
+attach	fhc at central with fhc_central
+file	arch/sparc64/dev/fhc_central.c		fhc_central
+
+attach	fhc at mainbus with fhc_mainbus
+file	arch/sparc64/dev/fhc_mainbus.c		fhc_mainbus
+
+device	clkbrd
+attach	clkbrd at fhc
+file	arch/sparc64/dev/clkbrd.c		clkbrd
+
+device	environ
+attach	environ at fhc
+file	arch/sparc64/dev/environ.c		environ
+
+device	vbus {}
+attach	vbus at mainbus
+file	arch/sparc64/dev/vbus.c			vbus
+
+device	cbus {}
+attach	cbus at vbus
+file	arch/sparc64/dev/cbus.c			cbus
+
+# Sun HME Ethernet controllers
+device	hme: ether, ifnet, mii, ifmedia
+file	dev/ic/hme.c				hme
+
+device	uperf
+file	arch/sparc64/dev/uperf.c		uperf needs-flag
+
+# Framebuffer support
+
+file	arch/sparc64/dev/fb.c
+include	"dev/wscons/files.wscons"
+include	"dev/rasops/files.rasops"
+include	"dev/wsfont/files.wsfont"
+
+device	pcons: wsemuldisplaydev
+attach	pcons at mainbus
+file	arch/sparc64/dev/pcons.c		pcons needs-flag
+
+device	prtc
+attach	prtc at mainbus
+file	arch/sparc64/dev/prtc.c			prtc
+
+include	"dev/sbus/files.sbus"
+include	"dev/mii/files.mii"
+include	"dev/atapiscsi/files.atapiscsi"
+include	"dev/ata/files.ata"
+include	"dev/pckbc/files.pckbc"
+include	"dev/pcmcia/files.pcmcia"
+
+# Needs to be declared before including files.sun
+device	zs {[channel = -1]}
+
+# Sun specific files
+include	"dev/sun/files.sun"
+
+define	iommu
+define	viommu
+file	arch/sparc64/dev/iommu.c		iommu | viommu | sbus
+file	arch/sparc64/dev/viommu.c		viommu
+
+define msi
+file	arch/sparc64/dev/msi.c			msi
+
+attach	sbus at mainbus with sbus_mb
+attach	sbus at xbox with sbus_xbox
+file	arch/sparc64/dev/sbus.c			sbus
+
+device	creator: wsemuldisplaydev, rasops32, firmload
+attach	creator at mainbus, upa
+file	arch/sparc64/dev/creator.c		creator
+
+device	gfb: wsemuldisplaydev, rasops32
+attach	gfb at upa
+file	arch/sparc64/dev/gfb.c			gfb
+
+include	"dev/pci/files.pci"
+major	{wd = 12}
+
+device	psycho: pcibus, iommu
+attach	psycho at mainbus
+file	arch/sparc64/dev/psycho.c		psycho
+
+device	schizo: pcibus, iommu
+attach	schizo at mainbus
+file	arch/sparc64/dev/schizo.c		schizo
+
+device	pyro: pcibus, iommu, msi
+attach	pyro at mainbus
+file	arch/sparc64/dev/pyro.c			pyro
+
+device	vpci: pcibus, viommu, msi
+attach	vpci at mainbus
+file	arch/sparc64/dev/vpci.c			vpci
+
+file	arch/sparc64/dev/pci_machdep.c		psycho | schizo | pyro | vpci
+
+attach	hme at pci with hme_pci
+file	dev/pci/if_hme_pci.c			hme_pci
+
+define	ifb_ident
+file	arch/sparc64/dev/ifb_ident.c		ifb_ident
+
+device	vgafb: ifb_ident, wsemuldisplaydev, rasops_bswap, rasops8, rasops16, rasops32
+attach	vgafb at pci
+file	arch/sparc64/dev/vgafb.c		vgafb
+
+device	machfb: wsemuldisplaydev, rasops_bswap, rasops8
+attach	machfb at pci
+file	arch/sparc64/dev/machfb.c		machfb
+
+device	radeonfb: wsemuldisplaydev, rasops_bswap, rasops8, rasops32
+attach	radeonfb at pci
+file	arch/sparc64/dev/radeonfb.c		radeonfb
+
+device	ifb: ifb_ident, wsemuldisplaydev, rasops_bswap, rasops8
+attach	ifb at pci
+file	arch/sparc64/dev/ifb.c			ifb
+
+device	raptor: wsemuldisplaydev, rasops_bswap, rasops8
+attach	raptor at pci
+file	arch/sparc64/dev/raptor.c		raptor
+
+device	gfxp: wsemuldisplaydev, rasops_bswap, rasops8, rasops32
+attach	gfxp at pci
+file	arch/sparc64/dev/gfxp.c			gfxp
+
+device	sbbc
+attach	sbbc at pci
+file	arch/sparc64/dev/sbbc.c			sbbc needs-flag
+
+# Starfire PC is needed for sbus and pci
+file	arch/sparc64/dev/starfire.c		sbus | psycho
+
+device	ebus {[addr = -1]}: pcibus
+attach	ebus at pci
+attach	ebus at mainbus with ebus_mainbus
+file	arch/sparc64/dev/ebus.c			ebus
+file	arch/sparc64/dev/ebus_mainbus.c		ebus_mainbus
+
+attach	uperf at ebus with uperf_ebus
+file	arch/sparc64/dev/uperf_ebus.c		uperf_ebus
+
+device	clock: mk48txx
+attach	clock at mainbus, sbus with clock_sbus
+attach	clock at ebus with clock_ebus
+attach	clock at fhc with clock_fhc
+
+device	timer
+attach	timer at mainbus, sbus
+
+device	eeprom
+attach	eeprom at sbus, ebus
+file	arch/sparc64/sparc64/clock.c
+
+device	cmp {}
+attach	cmp at mainbus
+file	arch/sparc64/dev/cmp.c			cmp
+
+device	core {}
+attach	core at cmp
+file	arch/sparc64/dev/core.c			core
+
+device	cpu
+attach	cpu at mainbus, cmp, core
+file	arch/sparc64/sparc64/cpu.c
+
+device	auxio
+attach	auxio at ebus with auxio_ebus
+attach	auxio at sbus with auxio_sbus
+file	arch/sparc64/dev/auxio.c		auxio
+
+device	bbc
+attach	bbc at ebus
+file	arch/sparc64/dev/bbc.c			bbc
+
+device	beeper
+attach	beeper at ebus
+file	arch/sparc64/dev/beeper.c		beeper
+
+device	beep
+attach	beep at ebus
+file	arch/sparc64/dev/beep.c			beep
+
+device	led
+attach	led at ebus
+file	arch/sparc64/dev/led.c			led
+
+device	lom
+attach	lom at ebus
+file	arch/sparc64/dev/lom.c			lom
+
+device	pmc
+attach	pmc at ebus
+file	arch/sparc64/dev/pmc.c			pmc
+
+device	ppm
+attach	ppm at ebus
+file	arch/sparc64/dev/ppm.c			ppm
+
+device	power
+attach	power at ebus
+file	arch/sparc64/dev/power.c		power
+
+device	rtc
+attach	rtc at ebus
+file	arch/sparc64/dev/rtc.c			rtc
+
+device	sab {}
+attach	sab at ebus
+device	sabtty
+attach	sabtty at sab
+file	arch/sparc64/dev/sab.c			sab | sabtty needs-flag
+
+device	audioce: audio
+attach	audioce at ebus
+file	arch/sparc64/dev/ce4231.c		audioce
+
+file	arch/sparc64/dev/stp_sbus.c		stp_sbus
+
+attach	wbsd at ebus with wbsd_ebus
+file	arch/sparc64/dev/wbsd_ebus.c		wbsd
+
+#
+# Console related stuff
+#
+
+attach	com at ebus with com_ebus
+file	arch/sparc64/dev/com_ebus.c		com_ebus
+
+attach	pckbc at ebus with pckbc_ebus
+file	arch/sparc64/dev/pckbc_ebus.c		pckbc_ebus
+
+device	comkbd: wskbddev, sunkbd
+attach	comkbd at ebus
+file	arch/sparc64/dev/comkbd_ebus.c		comkbd
+
+device	comms: wsmousedev, sunms
+attach	comms at ebus
+file	arch/sparc64/dev/comms_ebus.c		comms
+
+attach	lpt at ebus with lpt_ebus
+file	arch/sparc64/dev/lpt_ebus.c		lpt_ebus
+
+#device	zs {[channel = -1]}
+attach	zs at sbus with zs_sbus
+attach	zs at fhc with zs_fhc
+file	arch/sparc64/dev/zs.c			zs
+file	dev/ic/z8530sc.c			zs
+
+define	zstty {}
+device	zstty: tty
+attach	zstty at zs
+file	dev/ic/z8530tty.c			zstty needs-flag
+
+device	zskbd: wskbddev, sunkbd
+attach	zskbd at zs
+file	arch/sparc64/dev/z8530kbd.c		zskbd
+
+# Floppy drive
+device	fdc {}
+attach	fdc at sbus with fdc_sbus
+attach	fdc at ebus with fdc_ebus
+device	fd: disk
+attach	fd at fdc
+file	arch/sparc64/dev/fd.c			fdc | fd	needs-flag
+
+# PCF8584 I2C Controller
+attach	pcfiic at ebus with pcfiic_ebus
+file	arch/sparc64/dev/pcfiic_ebus.c		pcfiic_ebus
+
+file	arch/sparc64/dev/consinit.c
+
+file	arch/sparc64/fpu/fpu.c
+file	arch/sparc64/fpu/fpu_add.c
+file	arch/sparc64/fpu/fpu_compare.c
+file	arch/sparc64/fpu/fpu_div.c
+file	arch/sparc64/fpu/fpu_explode.c
+file	arch/sparc64/fpu/fpu_implode.c
+file	arch/sparc64/fpu/fpu_mul.c
+file	arch/sparc64/fpu/fpu_sqrt.c
+file	arch/sparc64/fpu/fpu_subr.c
+
+file	arch/sparc64/sparc64/autoconf.c
+file	arch/sparc64/sparc64/busop.c
+file	arch/sparc64/sparc64/conf.c
+file	arch/sparc64/sparc64/disksubr.c
+file	arch/sparc64/sparc64/emul.c
+file	arch/sparc64/sparc64/hvcall.S		sun4v
+file	arch/sparc64/sparc64/in_cksum.S
+file	arch/sparc64/sparc64/in4_cksum.c
+file	arch/sparc64/sparc64/intr.c
+file	arch/sparc64/sparc64/ipifuncs.c		multiprocessor
+# sparc64/sparc64/locore.s is handled specially in the makefile,
+# because it must come first in the "ld" command line.
+file	arch/sparc64/sparc64/machdep.c
+file	arch/sparc64/sparc64/mdesc.c		sun4v
+file	arch/sparc64/sparc64/mem.c
+file	arch/sparc64/sparc64/openprom.c
+file	arch/sparc64/sparc64/openfirm.c
+file	arch/sparc64/sparc64/ofw_machdep.c
+file	arch/sparc64/sparc64/pmap.c
+file	arch/sparc64/sparc64/process_machdep.c
+file	arch/sparc64/sparc64/sys_machdep.c
+file	arch/sparc64/sparc64/trap.c
+file	arch/sparc64/sparc64/vm_machdep.c
+
+file	arch/sparc64/sparc64/db_interface.c	ddb
+file	arch/sparc64/sparc64/db_trace.c		ddb
+file	arch/sparc64/sparc64/db_disasm.c	ddb
+
+file	lib/libkern/ctzdi2.c
+
+#
+# Machine-independent SCSI drivers
+#
+include	"scsi/files.scsi"
+major	{sd = 7}
+major	{vnd = 8}
+major	{cd = 18}
+major	{rd = 5}
+
+#
+# Machine-independent HID support
+#
+include	"dev/hid/files.hid"
+
+#
+# Machine-independent I2C drivers
+#
+include "dev/i2c/files.i2c"
+file	arch/sparc64/dev/ofwi2c.c		i2cbus
+
+#
+# Machine-independent SD/MMC drivers
+#
+include "dev/sdmmc/files.sdmmc"
+
+#
+# Machine-independent USB drivers
+#
+include	"dev/usb/files.usb"
+
+#
+# Cardbus
+#
+include "dev/cardbus/files.cardbus"
+file	arch/sparc64/sparc64/rbus_machdep.c	cardbus
+
+#
+# Machine-dependent I2C drivers
+#
+
+# PCF8591 ADC I2C Sensor (needs ofw, so sparc64 only for now)
+device	pcfadc
+attach	pcfadc at i2c
+file	arch/sparc64/dev/pcf8591_ofw.c		pcfadc
+
+# PCF8591 ADC I2C Sensor (envctrl, so sparc64 only)
+device	ecadc
+attach	ecadc at i2c
+file	arch/sparc64/dev/pcf8591_envctrl.c	ecadc
+
+# TDA8444 (sparc64 only for now)
+device	tda
+attach	tda at i2c
+file	arch/sparc64/dev/tda.c			tda needs-flag
+
+#
+# Machine-independent GPIO drivers
+#
+include "dev/gpio/files.gpio"
+
+#
+# Machine-independent 1-Wire drivers
+#
+include "dev/onewire/files.onewire"
+
+# Virtual console
+device	vcons
+attach	vcons at vbus
+file	arch/sparc64/dev/vcons.c		vcons needs-flag
+
+# Virtual random number generator
+device	vrng
+attach	vrng at vbus
+file	arch/sparc64/dev/vrng.c			vrng
+
+# Virtual rtc
+device	vrtc
+attach	vrtc at vbus
+file	arch/sparc64/dev/vrtc.c			vrtc
+
+define	ldc
+file	arch/sparc64/dev/ldc.c			ldc
+
+# Virtual disk server
+device	vds {}
+attach	vds at cbus
+file	arch/sparc64/dev/vds.c			vds
+
+# Virtual disk server port
+device	vdsp: ldc
+attach	vdsp at vds
+file	arch/sparc64/dev/vdsp.c			vdsp needs-flag
+
+# Virtual disk
+device	vdsk: ldc, scsi
+attach	vdsk at cbus
+file	arch/sparc64/dev/vdsk.c			vdsk
+
+# Virtual network switch
+device	vsw {}
+attach	vsw at cbus
+file	arch/sparc64/dev/vsw.c			vsw
+
+# Virtual network
+device	vnet: ldc
+attach	vnet at cbus, vsw
+file	arch/sparc64/dev/vnet.c			vnet
+
+# Virtual console concentrator
+device	vcc {}
+attach	vcc at cbus
+file	arch/sparc64/dev/vcc.c			vcc
+
+device	vcctty: ldc
+attach	vcctty at vcc
+file	arch/sparc64/dev/vcctty.c		vcctty needs-flag
+
+# Virtual channel
+device	vldc {}
+attach	vldc at cbus
+file	arch/sparc64/dev/vldc.c			vldc
+
+device	vldcp: ldc
+attach	vldcp at vldc
+file	arch/sparc64/dev/vldcp.c		vldcp needs-flag
+
+device	mgiic: i2cbus
+attach	mgiic at mainbus
+file	arch/sparc64/dev/mgiic.c		mgiic
+
+# 128 bits math
+file	lib/libkern/lshrti3.c
+file	lib/libkern/multi3.c

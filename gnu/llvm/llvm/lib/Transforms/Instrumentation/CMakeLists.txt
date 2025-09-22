@@ -1,0 +1,44 @@
+add_llvm_component_library(LLVMInstrumentation
+  AddressSanitizer.cpp
+  BoundsChecking.cpp
+  CGProfile.cpp
+  ControlHeightReduction.cpp
+  DataFlowSanitizer.cpp
+  GCOVProfiling.cpp
+  BlockCoverageInference.cpp
+  MemProfiler.cpp
+  MemorySanitizer.cpp
+  NumericalStabilitySanitizer.cpp
+  IndirectCallPromotion.cpp
+  Instrumentation.cpp
+  InstrOrderFile.cpp
+  InstrProfiling.cpp
+  KCFI.cpp
+  LowerAllowCheckPass.cpp
+  PGOCtxProfLowering.cpp
+  PGOForceFunctionAttrs.cpp
+  PGOInstrumentation.cpp
+  PGOMemOPSizeOpt.cpp
+  PoisonChecking.cpp
+  SanitizerCoverage.cpp
+  SanitizerBinaryMetadata.cpp
+  ValueProfileCollector.cpp
+  ThreadSanitizer.cpp
+  HWAddressSanitizer.cpp
+
+  ADDITIONAL_HEADER_DIRS
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms
+
+  DEPENDS
+  intrinsics_gen
+
+  LINK_COMPONENTS
+  Analysis
+  Core
+  Demangle
+  MC
+  Support
+  TargetParser
+  TransformUtils
+  ProfileData
+  )

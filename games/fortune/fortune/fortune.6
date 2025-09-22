@@ -1,0 +1,212 @@
+.\"	$OpenBSD: fortune.6,v 1.17 2022/03/31 17:27:14 naddy Exp $
+.\"
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Ken Arnold.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)fortune.6	8.3 (Berkeley) 4/19/94
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt FORTUNE 6
+.Os
+.Sh NAME
+.Nm fortune
+.Nd print a random, hopefully interesting, adage
+.Sh SYNOPSIS
+.Nm fortune
+.Op Fl aefilosw
+.Op Fl m Ar pattern
+.Oo
+.Op Ar N Ns %
+.Sm off
+.Ar file | Ar directory | Cm all
+.Sm on
+.Oc
+.Sh DESCRIPTION
+When
+.Nm
+is run with no arguments, it prints out a random epigram.
+Epigrams are divided into several categories, where each category
+is subdivided into those which are potentially offensive and those
+which are not.
+The options are as follows:
+.Bl -tag -width flag
+.It Fl a
+Choose from all lists of maxims, both offensive and not.
+(See the
+.Fl o
+option for more information on offensive fortunes.)
+.It Fl e
+Consider all fortune files to be of equal size (see discussion below
+on multiple files).
+.It Fl f
+Print out the list of files which would be searched, but don't
+print a fortune.
+.It Fl i
+Ignore case for
+.Fl m
+patterns.
+.It Fl l
+Long dictums only.
+.It Fl m Ar pattern
+Print out all fortunes which match the regular expression
+.Ar pattern .
+See
+.Xr re_format 7
+for a description of patterns.
+.It Fl o
+Choose only from potentially offensive aphorisms.
+.Bf -symbolic
+Please, please, please request a potentially offensive fortune if and
+only if you believe, deep down in your heart, that you are willing
+to be offended.
+(And that if you are, you'll just quit using
+.Fl o
+rather than give us
+grief about it, okay?)
+.Ef
+.Bd -unfilled -offset indent
+\&... let us keep in mind the basic governing philosophy
+of The Brotherhood, as handsomely summarized in these words:
+we believe in healthy, hearty laughter -- at the expense of
+the whole human race, if needs be.  Needs be.
+		--H. Allen Smith, "Rude Jokes"
+.Ed
+.It Fl s
+Short apothegms only.
+.It Fl w
+Wait before termination for an amount of time calculated from the
+number of characters in the message.
+This is useful if it is executed as part of the logout procedure
+to guarantee that the message can be read before the screen is cleared.
+.El
+.Pp
+The user may specify alternate sayings.
+You can specify a specific
+.Ar file ,
+a
+.Ar directory
+which contains one or more files, or the special word
+.Cm all ,
+which says to use all the standard databases.
+Any of these may be preceded by a percentage, which is a number
+.Ar N
+between 0 and 100 inclusive, followed by a
+.Sq %
+character.
+If it is, there will be an
+.Ar N
+percent probability that an adage will be picked from that
+.Ar file
+or
+.Ar directory .
+If the percentages do not sum to 100, and there are specifications
+without percentages, the remaining percent will apply to those files
+and/or directories, in which case the probability of selecting from
+one of them will be based on their relative sizes.
+.Pp
+As an example, given two databases
+.Pa funny
+and
+.Pa not-funny ,
+with
+.Pa funny
+twice as big, saying
+.Bd -literal -offset indent
+$ fortune funny not-funny
+.Ed
+.Pp
+will get you fortunes out of
+.Pa funny
+two-thirds of the time.
+The command
+.Bd -literal -offset indent
+$ fortune 90% funny 10% not-funny
+.Ed
+.Pp
+will pick out 90% of its fortunes from
+.Pa funny
+(the
+.Dq 10%
+is unnecessary, since 10% is all that's left).
+The
+.Fl e
+option says to consider all files equal;
+thus
+.Bd -literal -offset indent
+$ fortune -e
+.Ed
+.Pp
+is equivalent to
+.Bd -literal -offset indent
+$ fortune 50% funny 50% not-funny
+.Ed
+.Pp
+Datafiles for
+.Nm
+are created by a utility called
+.Nm strfile .
+Although not installed by default,
+the source code and a manual page for this utility
+can be found in
+.Pa /usr/src/games/fortune/strfile/ ,
+if it exists.
+.Sh ENVIRONMENT
+.Bl -tag -width LC_CTYPE
+.It Ev LC_CTYPE
+The character encoding
+.Xr locale 1 .
+If unset or set to
+.Qq C ,
+.Qq POSIX ,
+or an unsupported value, bytes that are not printable ASCII characters
+are replaced with question marks in the output.
+.El
+.Sh FILES
+.Bl -tag -width "/usr/share/games/fortune/*XX" -compact
+.It Pa /usr/share/games/fortune/*
+Fortune files.
+.El
+.Sh EXIT STATUS
+.Ex -std
+In particular, if
+.Fl l ,
+.Fl m ,
+or
+.Fl s
+is specified, failure to find a matching citation in the selected
+files counts as an error.
+.Sh SEE ALSO
+.Xr random 6 ,
+.Xr rot13 6 ,
+.Xr re_format 7
+.Sh HISTORY
+.Nm
+first favored
+.At v7 .

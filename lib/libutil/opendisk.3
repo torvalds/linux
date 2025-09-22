@@ -1,0 +1,160 @@
+.\"	$OpenBSD: opendisk.3,v 1.10 2025/06/06 22:01:40 schwarze Exp $
+.\"	$NetBSD: opendisk.3,v 1.4 1999/07/02 15:49:12 simonb Exp $
+.\"
+.\" Copyright (c) 1997 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 6 2025 $
+.Dt OPENDISK 3
+.Os
+.Sh NAME
+.Nm opendisk
+.Nd open a disk's raw partition
+.Sh SYNOPSIS
+.Lb libutil
+.In sys/types.h
+.In util.h
+.Ft int
+.Fo opendisk
+.Fa "const char *path"
+.Fa "int flags"
+.Fa "char *buf"
+.Fa "size_t buflen"
+.Fa "int iscooked"
+.Fc
+.Sh DESCRIPTION
+.Fn opendisk
+opens
+.Fa path ,
+for reading and/or writing as specified by the argument
+.Fa flags
+using
+.Xr open 2 ,
+and the file descriptor is returned to the caller.
+.Fa buf
+is used to store the resultant filename.
+.Fa buflen
+is the size, in bytes, of the array referenced by
+.Fa buf
+(usually
+.Dv MAXPATHLEN
+bytes).
+If
+.Fa iscooked
+is non zero, the
+.Dq cooked
+partition (block device) is opened, rather than the
+.Dq raw
+partition (character device).
+.Pp
+.Fn opendisk
+attempts to open the following variations of
+.Fa path ,
+in order:
+.Bl -tag -width "/dev/rpathX"
+.It Fa path
+The pathname as given.
+.It Fa path Ns Em X
+.Fa path
+with a suffix of
+.Sq Em X ,
+where
+.Sq Em X
+represents the raw partition of the device, as determined by
+.Xr getrawpartition 3 ,
+usually
+.Dq c .
+.El
+.Pp
+If
+.Fa iscooked
+is zero, then the following two variations are attempted:
+.Bl -tag -width "/dev/rpathX"
+.It Pa /dev/r Ns Fa path
+.Fa path
+with a prefix of
+.Dq Pa /dev/r .
+.It Pa /dev/r Ns Fa path Ns Em X
+.Fa path
+with a prefix of
+.Dq Pa /dev/r
+and a suffix of
+.Sq Em X
+(q.v.).
+.El
+.Pp
+Otherwise (i.e.,
+.Fa iscooked
+is non-zero), the following variations are attempted:
+.Bl -tag -width "/dev/rpathX"
+.It Pa /dev/ Ns Fa path
+.Fa path
+with a prefix of
+.Dq Pa /dev/ .
+.It Pa /dev/ Ns Fa path Ns Em X
+.Fa path
+with a prefix of
+.Dq Pa /dev/
+and a suffix of
+.Sq Em X
+(q.v.).
+.El
+.Sh RETURN VALUES
+An open file descriptor, or -1 if the
+.Xr open 2
+failed.
+.Sh ERRORS
+.Fn opendisk
+may set
+.Va errno
+to one of the following values:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Dv O_CREAT
+was set in
+.Fa flags ,
+or
+.Xr getrawpartition 3
+didn't return a valid partition.
+.El
+.Pp
+The
+.Fn opendisk
+function
+may also set
+.Va errno
+to any value specified by the
+.Xr open 2
+function.
+.Sh SEE ALSO
+.Xr open 2 ,
+.Xr getrawpartition 3
+.Sh HISTORY
+The
+.Fn opendisk
+function first appeared in
+.Nx 1.3 .

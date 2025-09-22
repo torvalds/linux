@@ -1,0 +1,2322 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html 
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+  <link rev="made" href="mailto:gcc@gcc.gnu.org" />
+  <link rel="shortcut icon" href="http://gcc.gnu.org/favicon.ico" />
+
+  <title>
+    Status of TR1 features in GCC
+    - GNU Project - Free Software Foundation (FSF)
+  </title>
+
+</head>
+
+<body>
+
+<h1 align="center">
+ Status of TR1 features in GCC
+</h1>
+
+<p>
+This table is based on the table of contents of ISO/IEC DTR 19768
+Doc No: N1836=05-0096 Date: 2005-06-24
+Draft Technical Report on C++ Library Extensions
+</p>
+
+<p>
+In this implementation the header names are prefixed by
+<code>tr1/</code>, for instance <code>&lt;tr1/functional&gt;</code>,
+<code>&lt;tr1/memory&gt;</code>, and so on.
+</p>
+
+<p>
+This page describes the TR1 support in mainline GCC CVS, not in any particular
+release.
+</p>
+
+<table border="1">
+  <thead>
+    <tr>
+      <td><span style="font-weight: bold;">Section</span></td>
+      <td><span style="font-weight: bold;">Description</span></td>
+      <td><span style="font-weight: bold;">Done</span></td>
+      <td><span style="font-weight: bold;">Broken</span></td>
+      <td><span style="font-weight: bold;">Missing</span></td>
+      <td><span style="font-weight: bold;">Comments</span></td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>2</b></td>
+      <td colspan="5"><b>General Utilities</b></td>
+    </tr>
+    <tr>
+      <td>2.1</td>
+      <td>Reference wrappers</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.1.1</td>
+      <td>Additions to header <code>&lt;functional&gt;</code> synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.1.2</td>
+      <td>Class template <code>reference_wrapper</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.1.2.1</td>
+      <td><code>reference_wrapper</code> construct/copy/destroy</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.1.2.2</td>
+      <td><code>reference_wrapper</code> assignment</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.1.2.3</td>
+      <td><code>reference_wrapper</code> access</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.1.2.4</td>
+      <td><code>reference_wrapper</code> invocation</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.1.2.5</td>
+      <td><code>reference_wrapper</code> helper functions</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2</td>
+      <td>Smart pointers</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.1</td>
+      <td>Additions to header <code>&lt;memory&gt;</code> synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.2</td>
+      <td>Class <code>bad_weak_ptr</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.3</td>
+      <td>Class template <code>shared_ptr</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td><a href="tr1.html#1">1</a></td>
+    </tr>
+    <tr>
+      <td>2.2.3.1</td>
+      <td><code>shared_ptr</code> constructors</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.3.2</td>
+      <td><code>shared_ptr</code> destructor</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.3.3</td>
+      <td><code>shared_ptr</code> assignment</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.3.4</td>
+      <td><code>shared_ptr</code> modifiers</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.3.5</td>
+      <td><code>shared_ptr</code> observers</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.3.6</td>
+      <td><code>shared_ptr</code> comparison</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.3.7</td>
+      <td><code>shared_ptr</code> I/O</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.3.8</td>
+      <td><code>shared_ptr</code> specialized algorithms</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.3.9</td>
+      <td><code>shared_ptr</code> casts</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.3.10</td>
+      <td><code>get_deleter</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.4</td>
+      <td>Class template <code>weak_ptr</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.4.1</td>
+      <td><code>weak_ptr</code> constructors</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.4.2</td>
+      <td><code>weak_ptr</code> destructor</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.4.3</td>
+      <td><code>weak_ptr</code> assignment</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.4.4</td>
+      <td><code>weak_ptr</code> modifiers</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.4.5</td>
+      <td><code>weak_ptr</code> observers</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.4.6</td>
+      <td><code>weak_ptr</code> comparison</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.4.7</td>
+      <td><code>weak_ptr</code> specialized algorithms</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>2.2.5</td>
+      <td>Class template <code>enable_shared_from_this</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><b>3</b></td>
+      <td colspan="5"><b>Function objects</b></td>
+    </tr>
+    <tr>
+      <td>3.1</td>
+      <td>Definitions</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.2</td>
+      <td>Additions to <code>&lt;functional&gt; synopsis</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.3</td>
+      <td>Requirements</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.4</td>
+      <td>Function return types</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.5</td>
+      <td>Function template <code>mem_fn</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.6</td>
+      <td>Function object binders</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.6.1</td>
+      <td>Class template <code>is_bind_expression</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.6.2</td>
+      <td>Class template <code>is_placeholder</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.6.3</td>
+      <td>Function template <code>bind</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.6.4</td>
+      <td>Placeholders</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7</td>
+      <td>Polymorphic function wrappers</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7.1</td>
+      <td>Class <code>bad_function_call<code></code></code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7.1.1</td>
+      <td><code>bad_function_call</code> constructor</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7.2</td>
+      <td>Class template <code>function</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7.2.1</td>
+      <td><code>function</code> construct/copy/destroy</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7.2.2</td>
+      <td><code>function</code> modifiers</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7.2.3</td>
+      <td><code>function</code> capacity</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7.2.4</td>
+      <td><code>function</code> invocation</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7.2.5</td>
+      <td><code>function</code> target access</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7.2.6</td>
+      <td>undefined operators</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7.2.7</td>
+      <td>null pointer comparison operators</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>3.7.2.8</td>
+      <td>specialized algorithms</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><b>4</b></td>
+      <td colspan="5"><b>Metaprogramming and type traits</b></td>
+    </tr>
+    <tr>
+      <td>4.1</td>
+      <td>Requirements</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.2</td>
+      <td>Header <code>&lt;type_traits&gt;</code> synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.3</td>
+      <td>Helper classes</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.4</td>
+      <td>General Requirements</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.5</td>
+      <td>Unary Type Traits</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.5.1</td>
+      <td>Primary Type Categories</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.5.2</td>
+      <td>Composite type traits</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.5.3</td>
+      <td>Type properties</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.6</td>
+      <td>Relationships between types</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.7</td>
+      <td>Transformations between types</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.7.1</td>
+      <td>Const-volatile modifications</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.7.2</td>
+      <td>Reference modifications</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.7.3</td>
+      <td>Array modifications</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.7.4</td>
+      <td>Pointer modifications</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.8</td>
+      <td>Other transformations</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>4.9</td>
+      <td>Implementation requirements</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><b>5</b></td>
+      <td colspan="5"><b>Numerical facilities</b></td>
+    </tr>
+    <tr>
+      <td>5.1</td>
+      <td>Random number generation</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.1</td>
+      <td>Requirements</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.2</td>
+      <td>Header <code>&lt;random&gt;</code> synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.3</td>
+      <td>Class template <code>variate_generator</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.4</td>
+      <td>Random number engine class templates</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.4.1</td>
+      <td>Class template <code>linear_congruential</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.4.2</td>
+      <td>Class template <code>mersenne_twister</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.4.3</td>
+      <td>Class template <code>subtract_with_carry</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.4.4</td>
+      <td>Class template <code>subtract_with_carry_01</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.4.5</td>
+      <td>Class template <code>discard_block</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.4.6</td>
+      <td>Class template <code>xor_combine</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td>operator()() per N2079</td>
+    </tr>
+    <tr>
+      <td>5.1.5</td>
+      <td>Engines with predefined parameters</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.6</td>
+      <td>Class <code>random_device</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.7</td>
+      <td>Random distribution class templates</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.7.1</td>
+      <td>Class template <code>uniform_int</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.7.2</td>
+      <td>Class <code>bernoulli_distribution</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.7.3</td>
+      <td>Class template <code>geometric_distribution</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.7.4</td>
+      <td>Class template <code>poisson_distribution</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.7.5</td>
+      <td>Class template <code>binomial_distribution</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.7.6</td>
+      <td>Class template <code>uniform_real</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.7.7</td>
+      <td>Class template <code>exponential_distribution</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.7.8</td>
+      <td>Class template <code>normal_distribution</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.1.7.9</td>
+      <td>Class template <code>gamma_distribution</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2</td>
+      <td>Mathematical special functions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1</td>
+      <td>Additions to header <code>&lt;cmath&gt;</code> synopsis</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.1</td>
+      <td>associated Laguerre polynomials</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.2</td>
+      <td>associated Legendre functions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.3</td>
+      <td>beta function</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.4</td>
+      <td>(complete) elliptic integral of the first kind</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.5</td>
+      <td>(complete) elliptic integral of the second kind</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.6</td>
+      <td>(complete) elliptic integral of the third kind</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.7</td>
+      <td>confluent hypergeometric functions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.8</td>
+      <td>regular modified cylindrical Bessel functions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.9</td>
+      <td>cylindrical Bessel functions (of the first kind)</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.10</td>
+      <td>irregular modified cylindrical Bessel functions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.11</td>
+      <td>cylindrical Neumann functions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.12</td>
+      <td>(incomplete) elliptic integral of the first kind</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.13</td>
+      <td>(incomplete) elliptic integral of the second kind</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.14</td>
+      <td>(incomplete) elliptic integral of the third kind</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.15</td>
+      <td>exponential integral</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.16</td>
+      <td>Hermite polynomials</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.17</td>
+      <td>hypergeometric functions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.18</td>
+      <td>Laguerre polynomials</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.19</td>
+      <td>Legendre polynomials</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.20</td>
+      <td>Riemann zeta function</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.21</td>
+      <td>spherical Bessel functions (of the first kind)</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.22</td>
+      <td>spherical associated Legendre functions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.1.23</td>
+      <td>spherical Neumann functions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.2.2</td>
+      <td>Additions to header <code>&lt;math.h&gt;</code> synopsis</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><b>6</b></td>
+      <td colspan="5"><b>Containers</b></td>
+    </tr>
+    <tr>
+      <td>6.1</td>
+      <td>Tuple types</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.1.1</td>
+      <td>Header <code>&lt;tuple&gt;</code> synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.1.2</td>
+      <td>Additions to header <code>&lt;utility&gt;</code> synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.1.3</td>
+      <td>Class template <code>tuple</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.1.3.1</td>
+      <td>Construction</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.1.3.2</td>
+      <td>Tuple creation functions</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.1.3.3</td>
+      <td>Tuple helper classes</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.1.3.4</td>
+      <td>Element access</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.1.3.5</td>
+      <td>Relational operators</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.1.4</td>
+      <td>Pairs</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.2</td>
+      <td>Fixed size array</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.2.1</td>
+      <td>Header <code>&lt;array&gt;</code> synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.2.2</td>
+      <td>Class template <code>array</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.2.2.1</td>
+      <td><code>array</code> constructors, copy, and assignment</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.2.2.2</td>
+      <td><code>array</code> specialized algorithms</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.2.2.3</td>
+      <td><code>array</code> size</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.2.2.4</td>
+      <td>Zero sized <code>array</code>s</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.2.2.5</td>
+      <td>Tuple interface to class template <code>array</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3</td>
+      <td>Unordered associative containers</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.1</td>
+      <td>Unordered associative container requirements</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.1.1</td>
+      <td>Exception safety guarantees</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.2</td>
+      <td>Additions to header <code>&lt;functional&gt;</code> synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.3</td>
+      <td>Class template <code>hash</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4</td>
+      <td>Unordered associative container classes</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.1</td>
+      <td>Header <code>&lt;unordered_set&gt;</code> synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.2</td>
+      <td>Header <code>&lt;unordered_map&gt;</code> synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.3</td>
+      <td>Class template <code>unordered_set</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.3.1</td>
+      <td><code>unordered_set</code> constructors</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.3.2</td>
+      <td><code>unordered_set</code> swap</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.4</td>
+      <td>Class template <code>unordered_map</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.4.1</td>
+      <td><code>unordered_map</code> constructors</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.4.2</td>
+      <td><code>unordered_map</code> element access</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.4.3</td>
+      <td><code>unordered_map</code> swap</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.5</td>
+      <td>Class template <code>unordered_multiset<code></code></code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.5.1</td>
+      <td><code>unordered_multiset</code> constructors</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.5.2</td>
+      <td><code>unordered_multiset</code> swap</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.6</td>
+      <td>Class template <code>unordered_multimap</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.6.1</td>
+      <td><code>unordered_multimap</code> constructors</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.3.4.6.2</td>
+      <td><code>unordered_multimap</code> swap</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><b>7</b></td>
+      <td colspan="5"><b>Regular expressions</b></td>
+    </tr>
+    <tr>
+      <td>7.1</td>
+      <td>Definitions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.2</td>
+      <td>Requirements</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.3</td>
+      <td>Regular expressions summary</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.4</td>
+      <td>Header <code>&lt;regex&gt;</code> synopsis</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.5</td>
+      <td>Namespace <code>tr1::regex_constants</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.5.1</td>
+      <td>Bitmask Type <code>syntax_option_type</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.5.2</td>
+      <td>Bitmask Type <code>regex_constants::match_flag_type</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.5.3</td>
+      <td>Implementation defined <code>error_type</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.6</td>
+      <td>Class <code>regex_error</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.7</td>
+      <td>Class template <code>regex_traits</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.8</td>
+      <td>Class template <code>basic_regex</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.8.1</td>
+      <td><code>basic_regex</code> constants</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.8.2</td>
+      <td><code>basic_regex</code> constructors</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.8.3</td>
+      <td><code>basic_regex</code> assign</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.8.4</td>
+      <td><code>basic_regex</code> constant operations</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.8.5</td>
+      <td><code>basic_regex</code> locale</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.8.6</td>
+      <td><code>basic_regex</code> swap</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.8.7</td>
+      <td><code>basic_regex</code> non-member functions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.8.7.1</td>
+      <td><code>basic_regex</code> non-member swap</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.9</td>
+      <td>Class template <code>sub_match</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.9.1</td>
+      <td><code>sub_match</code> members</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.9.2</td>
+      <td><code>sub_match</code> non-member operators</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.10</td>
+      <td>Class template <code>match_results</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.10.1</td>
+      <td><code>match_results</code> constructors</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.10.2</td>
+      <td><code>match_results</code> size</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.10.3</td>
+      <td><code>match_results</code> element access</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.10.4</td>
+      <td><code>match_results</code> formatting</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.10.5</td>
+      <td><code>match_results</code> allocator</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.10.6</td>
+      <td><code>match_results</code> swap</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.11</td>
+      <td>Regular expression algorithms</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.11.1</td>
+      <td>exceptions</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.11.2</td>
+      <td><code>regex_match</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.11.3</td>
+      <td><code>regex_search</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.11.4</td>
+      <td><code>regex_replace</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.12</td>
+      <td>Regular expression Iterators</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.12.1</td>
+      <td>Class template <code>regex_iterator</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.12.1.1</td>
+      <td><code>regex_iterator</code> constructors</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.12.1.2</td>
+      <td><code>regex_iterator</code> comparisons</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.12.1.3</td>
+      <td><code>regex_iterator</code> dereference</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.12.1.4</td>
+      <td><code>regex_iterator</code> increment</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.12.2</td>
+      <td>Class template <code>regex_token_iterator</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.12.2.1</td>
+      <td><code>regex_token_iterator</code> constructors</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.12.2.2</td>
+      <td><code>regex_token_iterator</code> comparisons</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.12.2.3</td>
+      <td><code>regex_token_iterator</code> dereference</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.12.2.4</td>
+      <td><code>regex_token_iterator</code> increment</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>7.13</td>
+      <td>Modified ECMAScript regular expression grammar</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><b>8</b></td>
+      <td colspan="5"><b>C compatibility</b></td>
+    </tr>
+    <tr>
+      <td>8.1</td>
+      <td>Additions to header <code>&lt;complex&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.1.1</td>
+      <td>Synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.1.2</td>
+      <td>Function <code>acos</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.1.3</td>
+      <td>Function <code>asin</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.1.4</td>
+      <td>Function <code>atan</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.1.5</td>
+      <td>Function <code>acosh</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.1.6</td>
+      <td>Function <code>asinh</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.1.7</td>
+      <td>Function <code>atanh</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.1.8</td>
+      <td>Function <code>fabs</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.1.9</td>
+      <td>Additional Overloads</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.2</td>
+      <td>Header <code>&lt;ccomplex&gt;</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td>DR 551</td>
+    </tr>
+    <tr>
+      <td>8.3</td>
+      <td>Header <code>&lt;complex.h&gt;</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td>DR 551</td>
+    </tr>
+    <tr>
+      <td>8.4</td>
+      <td>Additions to header <code>&lt;cctype&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.4.1</td>
+      <td>Synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.4.2</td>
+      <td>Function <code>isblank</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.5</td>
+      <td>Additions to header <code>&lt;ctype.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.6</td>
+      <td>Header <code>&lt;cfenv&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.6.1</td>
+      <td>Synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.6.2</td>
+      <td>Definitions</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.7</td>
+      <td>Header <code>&lt;fenv.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.8</td>
+      <td>Additions to header <code>&lt;cfloat&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.9</td>
+      <td>Additions to header <code>&lt;float.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.10</td>
+      <td>Additions to header <code>&lt;ios&gt;</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.10.1</td>
+      <td>Synopsis</td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.10.2</td>
+      <td>Function <code>hexfloat</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.11</td>
+      <td>Header <code>&lt;cinttypes&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.11.1</td>
+      <td>Synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td>DR 557</td>
+    </tr>
+    <tr>
+      <td>8.11.2</td>
+      <td>Definitions</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.12</td>
+      <td>Header <code>&lt;inttypes.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.13</td>
+      <td>Additions to header <code>&lt;climits&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.14</td>
+      <td>Additions to header <code>&lt;limits.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.15</td>
+      <td>Additions to header <code>&lt;locale&gt;</code></td>
+      <td></td>
+      <td></td>
+      <td>missing</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.16</td>
+      <td>Additions to header <code>&lt;cmath&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.16.1</td>
+      <td>Synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.16.2</td>
+      <td>Definitions</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.16.3</td>
+      <td>Function template definitions</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.16.4</td>
+      <td>Additional overloads</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td>DR 568; DR 550</td>
+    </tr>
+    <tr>
+      <td>8.17</td>
+      <td>Additions to header <code>&lt;math.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.18</td>
+      <td>Additions to header <code>&lt;cstdarg&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.19</td>
+      <td>Additions to header <code>&lt;stdarg.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.20</td>
+      <td>The header <code>&lt;cstdbool&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.21</td>
+      <td>The header <code>&lt;stdbool.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.22</td>
+      <td>The header <code>&lt;cstdint&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.22.1</td>
+      <td>Synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.22.2</td>
+      <td>Definitions</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.23</td>
+      <td>The header <code>&lt;stdint.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.24</td>
+      <td>Additions to header <code>&lt;cstdio&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.24.1</td>
+      <td>Synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.24.2</td>
+      <td>Definitions</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.24.3</td>
+      <td>Additional format specifiers</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td>C library responsability</td>
+    </tr>
+    <tr>
+      <td>8.24.4</td>
+      <td>Additions to header <code>&lt;stdio.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.25</td>
+      <td>Additions to header <code>&lt;cstdlib&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.25.1</td>
+      <td>Synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.25.2</td>
+      <td>Definitions</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.25.3</td>
+      <td>Function <code>abs</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.25.4</td>
+      <td>Function <code>div</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.26</td>
+      <td>Additions to header <code>&lt;stdlib.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.27</td>
+      <td>Header <code>&lt;ctgmath&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td>DR 551</td>
+    </tr>
+    <tr>
+      <td>8.28</td>
+      <td>Header <code>&lt;tgmath.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td>DR 551</td>
+    </tr>
+    <tr>
+      <td>8.29</td>
+      <td>Additions to header <code>&lt;ctime&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td>C library responsability</td>
+    </tr>
+    <tr>
+      <td>8.30</td>
+      <td>Additions to header <code>&lt;cwchar&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.30.1</td>
+      <td>Synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.30.2</td>
+      <td>Definitions</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.30.3</td>
+      <td>Additional wide format specifiers</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td>C library responsability</td>
+    </tr>
+    <tr>
+      <td>8.31</td>
+      <td>Additions to header <code>&lt;wchar.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.32</td>
+      <td>Additions to header <code>&lt;cwctype&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.32.1</td>
+      <td>Synopsis</td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.32.2</td>
+      <td>Function <code>iswblank</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>8.33</td>
+      <td>Additions to header <code>&lt;wctype.h&gt;</code></td>
+      <td>done</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Footnotes</h3>
+
+<ol>
+
+  <li>
+    <a name="1"/>
+    The shared_ptr implementation uses some code from the
+    <a href="http://www.boost.org/libs/smart_ptr/shared_ptr.htm">Boost 
+    shared_ptr</a> library.
+  </li>
+
+</ol>
+
+<p>
+Please send FSF &amp; GNU inquiries &amp; questions to
+<a href="mailto:gnu@gnu.org">gnu@gnu.org</a>.
+There are also <a href="http://www.gnu.org/home.html#ContactInfo">other ways
+to contact</a> the FSF.
+</p>
+
+<p>
+These pages are maintained by
+<a href="http://gcc.gnu.org/about.html">the GCC team</a>.
+</p>
+
+<address>
+For questions related to the use of GCC, please consult these web
+pages and the <a href="http://gcc.gnu.org/onlinedocs/">GCC manuals</a>. If
+that fails, the <a href="mailto:gcc-help@gcc.gnu.org">gcc-help@gcc.gnu.org</a>
+mailing list might help.<br />
+Please send comments on these web pages and the development of GCC to our
+developer mailing list at <a href="mailto:gcc@gnu.org">gcc@gnu.org</a>
+or <a href="mailto:gcc@gcc.gnu.org">gcc@gcc.gnu.org</a>.  All of our lists
+have <a href="http://gcc.gnu.org/lists.html">public archives</a>.
+</address>
+
+<p>
+Copyright (C) Free Software Foundation, Inc.,
+51 Franklin St, Fifth Floor, Boston, MA 02110, USA.
+</p>
+<p>
+Verbatim copying and distribution of this entire article is
+permitted in any medium, provided this notice is preserved.
+</p>
+
+<table width="100%" border="0">
+<tr>
+  <td>
+    <!-- IGNORE DIFF -->Last modified 2006-10-01
+  </td>
+  <td align="right" valign="bottom">
+    <a href="http://validator.w3.org/check/referer">
+        <img src="http://www.w3.org/Icons/valid-xhtml10"
+       alt="Valid XHTML 1.0" border="0" width="88" height="31" />
+    </a>
+  </td>
+</tr>
+</table>
+
+</body>
+</html>

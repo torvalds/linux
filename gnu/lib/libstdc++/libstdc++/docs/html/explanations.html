@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="libstdc++, libstdc++-v3, GCC, g++" />
+   <meta name="DESCRIPTION" content="Explanatory notes about libstdc++-v3." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>Explanatory notes about libstdc++-v3 design</title>
+<link rel="StyleSheet" href="lib3styles.css" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Explanatory notes about libstdc++-v3
+design</a></h1>
+
+<p class="fineprint"><em>
+   The latest version of this document is always available at
+   <a href="http://gcc.gnu.org/onlinedocs/libstdc++/explanations.html">
+   http://gcc.gnu.org/onlinedocs/libstdc++/explanations.html</a>.
+</em></p>
+
+<p><em>
+   To the <a href="http://gcc.gnu.org/libstdc++/">libstdc++-v3 homepage</a>.
+</em></p>
+
+
+<!-- ####################################################### -->
+<hr />
+<h3><a name="cstdio">&quot;I/O packages&quot;, <code>--enable-cstdio</code></a></h3>
+<p>In addition to all the nifty things which C++ can do for I/O, its library
+   also includes all of the I/O capabilites of C.  Making them work together
+   can be a challenge, not only
+   <a href="27_io/howto.html#8">for the programmer</a> but for the
+   implementors as well.
+</p>
+<p>There are two ways to do a C++ library:  the cool way, and the easy way.
+   More specifically, the cool-but-easy-to-get-wrong way, and the
+   easy-to-guarantee-correct-behavior way.  For 3.0, the easy way is used.
+</p>
+<p>Choosing 'stdio' is the easy way.  It builds a C++ library which forwards
+   all operations to the C library.  Many of the C++ I/O functions are
+   specified in the standard 'as if' they called a certain C function; the
+   easiest way to get it correct is to actually call that function.  The
+   disadvantage is that the C++ code will run slower (fortunately, the layer
+   is thin).
+</p>
+<p>Other packages are possible.  For a new package, a header must be
+   written to provide types like streamsize (usually just a typedef), as
+   well as some internal types like<code> __c_file_type </code> and
+   <code> __c_lock </code> (for the stdio case, these are FILE (as in
+   &quot;FILE*&quot;) and a simple POSIX mutex, respectively).  An
+   interface class called <code> __basic_file </code> must also be filled in;
+   as an example, for the stdio case, these member functions are all
+   inline calles to fread, fwrite, etc.
+</p>
+<p>Return <a href="#top">to the top of the page</a> or
+   <a href="http://gcc.gnu.org/libstdc++/">to the homepage</a>.
+</p>
+
+
+<hr />
+<h3><a name="alloc">Internal Allocators</a></h3>
+<p>
+</p>
+<p>Return <a href="#top">to the top of the page</a> or
+   <a href="http://gcc.gnu.org/libstdc++/">to the homepage</a>.
+</p>
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

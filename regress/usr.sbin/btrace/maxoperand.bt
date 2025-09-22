@@ -1,0 +1,9 @@
+/*
+ * Check the hard limit of operands
+ */
+BEGIN
+{
+	@ok = 1 + 2 * 3 - 4 + 5;
+	printf("That's ok: '%d'\n", @ok); 
+	@notok = 6 * 5 - 4 / 3 + 2 - 1;
+}

@@ -1,0 +1,522 @@
+.\" $OpenBSD: OBJ_nid2obj.3,v 1.23 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL c264592d May 14 11:28:00 2006 +0000
+.\" selective merge up to: OpenSSL 35fd9953 May 28 14:49:38 2019 +0200
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2017, 2021, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2006, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt OBJ_NID2OBJ 3
+.Os
+.Sh NAME
+.Nm OBJ_nid2obj ,
+.Nm OBJ_nid2ln ,
+.Nm OBJ_nid2sn ,
+.Nm OBJ_obj2nid ,
+.Nm OBJ_ln2nid ,
+.Nm OBJ_sn2nid ,
+.Nm OBJ_txt2nid ,
+.Nm OBJ_txt2obj ,
+.Nm OBJ_obj2txt ,
+.Nm OBJ_cmp ,
+.Nm OBJ_dup ,
+.Nm i2t_ASN1_OBJECT ,
+.Nm i2a_ASN1_OBJECT
+.Nd inspect and create ASN.1 object identifiers
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/objects.h
+.Ft ASN1_OBJECT *
+.Fo OBJ_nid2obj
+.Fa "int nid"
+.Fc
+.Ft const char *
+.Fo OBJ_nid2ln
+.Fa "int nid"
+.Fc
+.Ft const char *
+.Fo OBJ_nid2sn
+.Fa "int nid"
+.Fc
+.Ft int
+.Fo OBJ_obj2nid
+.Fa "const ASN1_OBJECT *object"
+.Fc
+.Ft int
+.Fo OBJ_ln2nid
+.Fa "const char *ln"
+.Fc
+.Ft int
+.Fo OBJ_sn2nid
+.Fa "const char *sn"
+.Fc
+.Ft int
+.Fo OBJ_txt2nid
+.Fa "const char *s"
+.Fc
+.Ft ASN1_OBJECT *
+.Fo OBJ_txt2obj
+.Fa "const char *s"
+.Fa "int no_name"
+.Fc
+.Ft int
+.Fo OBJ_obj2txt
+.Fa "char *buf"
+.Fa "int buf_len"
+.Fa "const ASN1_OBJECT *object"
+.Fa "int no_name"
+.Fc
+.Ft int
+.Fo OBJ_cmp
+.Fa "const ASN1_OBJECT *a"
+.Fa "const ASN1_OBJECT *b"
+.Fc
+.Ft ASN1_OBJECT *
+.Fo OBJ_dup
+.Fa "const ASN1_OBJECT *object"
+.Fc
+.In openssl/asn1.h
+.Ft int
+.Fo i2t_ASN1_OBJECT
+.Fa "char *buf"
+.Fa "int buf_len"
+.Fa "const ASN1_OBJECT *object"
+.Fc
+.Ft int
+.Fo i2a_ASN1_OBJECT
+.Fa "BIO *out_bio"
+.Fa "const ASN1_OBJECT *object"
+.Fc
+.Sh DESCRIPTION
+The ASN.1 object utility functions process
+.Vt ASN1_OBJECT
+structures, in the following called
+.Dq objects .
+An object represents an ASN.1
+.Vt OBJECT IDENTIFIER
+.Pq OID .
+The library maintains an internal global table of objects.
+Many of these objects are built into the library
+and contained in the global table by default.
+The application program can add additional objects to the global table
+by using functions documented in the
+.Xr OBJ_create 3
+manual page.
+Consequently, there are three classes of objects:
+built-in table objects, user-defined table objects, and non-table objects.
+.Pp
+In addition to the OID, each object can hold
+a long name, a short name, and a numerical identifier (NID).
+Even though the concept of NIDs is specific to the library
+and not standardized, using the NID is often the most convenient way
+for source code to refer to a specific OID.
+The NIDs of the built-in objects are available as defined constants.
+.Pp
+Built-in table objects have certain advantages
+over objects that are not in the global table:
+for example, their NIDs can be used in C language switch statements.
+They are also shared:
+there is only a single static constant structure for each built-on OID.
+.Pp
+Some functions operate on table objects only:
+.Pp
+.Fn OBJ_nid2obj
+retrieves the table object associated with the
+.Fa nid .
+.Fn OBJ_nid2ln
+and
+.Fn OBJ_nid2sn
+retrieve its long and short name, respectively.
+.Pp
+.Fn OBJ_obj2nid
+retrieves the NID associated with the given
+.Fa object ,
+which is either the NID stored in the
+.Fa object
+itself, if any, or otherwise the NID stored in a table object
+containing the same OID.
+.Pp
+.Fn OBJ_ln2nid
+and
+.Fn OBJ_sn2nid
+retrieve the NID from the table object with the long name
+.Fa ln
+or the short name
+.Fa sn ,
+respectively.
+.Pp
+.Fn OBJ_txt2nid
+retrieves the NID from the table object described by the text string
+.Fa s ,
+which can be a long name, a short name,
+or the numerical representation of an OID.
+.Pp
+The remaining functions can be used both on table objects
+and on objects that are not in the global table:
+.Pp
+.Fn OBJ_txt2obj
+retrieves or creates an object matching the text string
+.Fa s .
+If
+.Fa no_name
+is 1, only the numerical representation of an OID is accepted.
+If
+.Fa no_name
+is 0, long names and short names are accepted as well.
+.Pp
+.Fn OBJ_obj2txt
+writes a NUL terminated textual representation
+of the OID contained in the given
+.Fa object
+into
+.Fa buf .
+At most
+.Fa buf_len
+bytes are written, truncating the result if necessary.
+The total amount of space required is returned.
+If
+.Fa no_name
+is 0 and the table object containing the same OID
+contains a long name, the long name is written.
+Otherwise, if
+.Fa no_name
+is 0 and the table object containing the same OID
+contains a short name, the short name is written.
+Otherwise, the numerical representation of the OID is written.
+.Pp
+.Fn i2t_ASN1_OBJECT
+is the same as
+.Fn OBJ_obj2txt
+with
+.Fa no_name
+set to 0.
+.Pp
+.Fn i2a_ASN1_OBJECT
+writes a textual representation of the OID contained in the given
+.Fa object
+to
+.Fa out_bio
+using
+.Xr BIO_write 3 .
+It does not write a terminating NUL byte.
+If the
+.Fa object
+argument is
+.Dv NULL
+or contains no OID, it writes the 4-byte string
+.Qq NULL .
+If
+.Fn i2t_ASN1_OBJECT
+fails,
+.Fn i2a_ASN1_OBJECT
+writes the 9-byte string
+.Qq <INVALID> .
+Otherwise, it writes the string constructed with
+.Fn i2t_ASN1_OBJECT .
+.Pp
+.Fn OBJ_cmp
+tests whether
+.Fa a
+and
+.Fa b
+represent the same ASN.1
+.Vt OBJECT IDENTIFIER .
+Any names and NIDs contained in the two objects are ignored,
+even if they differ between both objects.
+.Pp
+.Fn OBJ_dup
+returns a deep copy of the given
+.Fa object
+if it is marked as dynamically allocated.
+The new object and all data contained in it are marked as dynamically
+allocated.
+If the given
+.Fa object
+is not marked as dynamically allocated,
+.Fn OBJ_dup
+just returns a pointer to the
+.Fa object
+itself.
+.Sh RETURN VALUES
+Application code should treat all returned values \(em
+objects, names, and NIDs \(em as constants.
+.Pp
+.Fn OBJ_nid2obj
+returns a pointer to a table object owned by the library or
+.Dv NULL
+if no matching table object is found.
+.Pp
+.Fn OBJ_nid2ln
+and
+.Fn OBJ_nid2sn
+return a pointer to a string owned by a table object or
+.Dv NULL
+if no matching table object is found.
+For
+.Dv NID_undef ,
+they return the constant static strings
+.Qq undefined
+and
+.Qq UNDEF ,
+respectively.
+.Pp
+.Fn OBJ_obj2nid
+returns an NID on success, or
+.Dv NID_undef
+if
+.Fa object
+is
+.Dv NULL ,
+does not contain an OID,
+if no table object matching the OID is found,
+or if the matching object does not contain an NID.
+.Pp
+.Fn OBJ_ln2nid
+and
+.Fn OBJ_sn2nid
+return an NID on success or
+.Dv NID_undef
+if no matching table object is found
+or if the matching object does not contain an NID.
+.Pp
+.Fn OBJ_txt2nid
+returns an NID on success or
+.Dv NID_undef
+if parsing of
+.Fa s
+or memory allocation fails, if no matching table object is found,
+or if the matching object does not contain an NID.
+.Pp
+.Fn OBJ_txt2obj
+returns a pointer to a table object owned by the library if lookup of
+.Fa s
+as a long or short name succeeds.
+Otherwise, it returns a newly created object,
+transferring ownership to the caller, or
+.Dv NULL
+if parsing of
+.Fa s
+or memory allocation fails.
+.Pp
+.Fn OBJ_obj2txt
+and
+.Fn i2t_ASN1_OBJECT
+return the amount of space required in bytes,
+including the terminating NUL byte,
+or zero if an error occurs before the required space can be calculated,
+in particular if
+.Fa buf_len
+is negative,
+.Fa object
+is
+.Dv NULL
+or does not contain an OID,
+or if memory allocation fails.
+.Pp
+.Fn OBJ_cmp
+returns 0 if both objects refer to the same OID
+or neither of them are associated with any OID,
+or a non-zero value if at least one of them refers to an OID
+but the other one does not refer to the same OID.
+.Pp
+.Fn OBJ_dup
+returns the pointer to the original
+.Fa object
+if it is not marked as dynamically allocated.
+Otherwise, it returns a newly created object,
+transferring ownership to the caller, or
+.Dv NULL
+if
+.Fa object
+is
+.Dv NULL
+or memory allocation fails.
+.Pp
+.Fn i2a_ASN1_OBJECT
+returns the number of bytes written, even if the given
+.Fa object
+is invalid or contains invalid data,
+but a negative value if memory allocation or a write operation fails.
+.Pp
+In some cases of failure of
+.Fn OBJ_nid2obj ,
+.Fn OBJ_nid2ln ,
+.Fn OBJ_nid2sn ,
+.Fn OBJ_txt2nid ,
+.Fn OBJ_txt2obj ,
+.Fn OBJ_obj2txt ,
+.Fn OBJ_dup ,
+.Fn i2t_ASN1_OBJECT ,
+and
+.Fn i2a_ASN1_OBJECT ,
+the reason can be determined with
+.Xr ERR_get_error 3 .
+.Sh EXAMPLES
+Retrieve the object for
+.Sy commonName :
+.Bd -literal -offset indent
+ASN1_OBJECT *object;
+object = OBJ_nid2obj(NID_commonName);
+.Ed
+.Pp
+Check whether an object contains the OID for
+.Sy commonName :
+.Bd -literal -offset indent
+if (OBJ_obj2nid(object) == NID_commonName)
+	/* Do something */
+.Ed
+.Pp
+Create a new object directly:
+.Bd -literal -offset indent
+object = OBJ_txt2obj("1.2.3.4", 1);
+.Ed
+.Sh SEE ALSO
+.Xr ASN1_OBJECT_new 3 ,
+.Xr BIO_new 3 ,
+.Xr d2i_ASN1_OBJECT 3 ,
+.Xr OBJ_create 3
+.Sh HISTORY
+.Fn OBJ_nid2obj ,
+.Fn OBJ_nid2ln ,
+.Fn OBJ_nid2sn ,
+.Fn OBJ_obj2nid ,
+.Fn OBJ_ln2nid ,
+.Fn OBJ_sn2nid ,
+.Fn OBJ_txt2nid ,
+.Fn OBJ_cmp ,
+and
+.Fn OBJ_dup
+first appeared in SSLeay 0.5.1.
+.Fn i2a_ASN1_OBJECT
+first appeared in SSLeay 0.6.0, and
+.Fn i2t_ASN1_OBJECT
+in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn OBJ_txt2obj
+first appeared in OpenSSL 0.9.2b.
+.Fn OBJ_obj2txt
+first appeared in OpenSSL 0.9.4.
+Both functions have been available since
+.Ox 2.6 .
+.Sh CAVEATS
+The API contract of
+.Fn OBJ_txt2obj
+when called with a
+.Fa no_name
+argument of 0 and of
+.Fn OBJ_dup
+is scary in so far as the caller cannot find out from the returned
+object whether it is owned by the library or whether ownership was
+transferred to the caller.
+Consequently, it is best practice to assume that ownership of the object
+may have been transferred and call
+.Xr ASN1_OBJECT_free 3
+on the returned object when the caller no longer needs it.
+In case the library retained ownership of the returned object,
+.Xr ASN1_OBJECT_free 3
+has no effect and is harmless.
+.Pp
+Objects returned from
+.Fn OBJ_txt2obj
+with a
+.Fa no_name
+argument of 1 always require
+.Xr ASN1_OBJECT_free 3
+to prevent memory leaks.
+.Pp
+Objects returned from
+.Fn OBJ_nid2obj
+never require
+.Xr ASN1_OBJECT_free 3 ,
+but calling it anyway has no effect and is harmless.
+.Sh BUGS
+Usually, an object is expected to contain an NID other than
+.Dv NID_undef
+if and only if it is a table object.
+However, this is not an invariant guaranteed by the API.
+In particular,
+.Xr ASN1_OBJECT_create 3
+allows the creation of non-table objects containing bogus NIDs.
+.Fn OBJ_obj2nid
+returns such bogus NIDs even though
+.Fn OBJ_nid2obj
+cannot use them for retrieval.
+On top of that, the global table contains one built-in object with an NID of
+.Dv NID_undef .
+.Pp
+.Fn OBJ_obj2txt
+is awkward and messy to use: it doesn't follow the convention of other
+OpenSSL functions where the buffer can be set to
+.Dv NULL
+to determine the amount of data that should be written.
+Instead
+.Fa buf
+must point to a valid buffer and
+.Fa buf_len
+should be set to a positive value.
+A buffer length of 80 should be more than enough to handle any OID
+encountered in practice.

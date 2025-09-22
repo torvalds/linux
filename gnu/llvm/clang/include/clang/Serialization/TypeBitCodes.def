@@ -1,0 +1,71 @@
+//===--- TypeNodeBitCodes.def - Type to bitcode correspondance --*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file provides an x-macro link between AST Type IDs and
+// their stable serialized bit-code record type IDs.
+//
+//===----------------------------------------------------------------------===//
+
+TYPE_BIT_CODE(Complex, COMPLEX, 3)
+TYPE_BIT_CODE(Pointer, POINTER, 4)
+TYPE_BIT_CODE(BlockPointer, BLOCK_POINTER, 5)
+TYPE_BIT_CODE(LValueReference, LVALUE_REFERENCE, 6)
+TYPE_BIT_CODE(RValueReference, RVALUE_REFERENCE, 7)
+TYPE_BIT_CODE(MemberPointer, MEMBER_POINTER, 8)
+TYPE_BIT_CODE(ConstantArray, CONSTANT_ARRAY, 9)
+TYPE_BIT_CODE(IncompleteArray, INCOMPLETE_ARRAY, 10)
+TYPE_BIT_CODE(VariableArray, VARIABLE_ARRAY, 11)
+TYPE_BIT_CODE(Vector, VECTOR, 12)
+TYPE_BIT_CODE(ExtVector, EXT_VECTOR, 13)
+TYPE_BIT_CODE(FunctionNoProto, FUNCTION_NO_PROTO, 14)
+TYPE_BIT_CODE(FunctionProto, FUNCTION_PROTO, 15)
+TYPE_BIT_CODE(Typedef, TYPEDEF, 16)
+TYPE_BIT_CODE(TypeOfExpr, TYPEOF_EXPR, 17)
+TYPE_BIT_CODE(TypeOf, TYPEOF, 18)
+TYPE_BIT_CODE(Record, RECORD, 19)
+TYPE_BIT_CODE(Enum, ENUM, 20)
+TYPE_BIT_CODE(ObjCInterface, OBJC_INTERFACE, 21)
+TYPE_BIT_CODE(ObjCObjectPointer, OBJC_OBJECT_POINTER, 22)
+TYPE_BIT_CODE(Decltype, DECLTYPE, 23)
+TYPE_BIT_CODE(Elaborated, ELABORATED, 24)
+TYPE_BIT_CODE(SubstTemplateTypeParm, SUBST_TEMPLATE_TYPE_PARM, 25)
+TYPE_BIT_CODE(UnresolvedUsing, UNRESOLVED_USING, 26)
+TYPE_BIT_CODE(InjectedClassName, INJECTED_CLASS_NAME, 27)
+TYPE_BIT_CODE(ObjCObject, OBJC_OBJECT, 28)
+TYPE_BIT_CODE(TemplateTypeParm, TEMPLATE_TYPE_PARM, 29)
+TYPE_BIT_CODE(TemplateSpecialization, TEMPLATE_SPECIALIZATION, 30)
+TYPE_BIT_CODE(DependentName, DEPENDENT_NAME, 31)
+TYPE_BIT_CODE(DependentTemplateSpecialization, DEPENDENT_TEMPLATE_SPECIALIZATION, 32)
+TYPE_BIT_CODE(DependentSizedArray, DEPENDENT_SIZED_ARRAY, 33)
+TYPE_BIT_CODE(Paren, PAREN, 34)
+TYPE_BIT_CODE(PackExpansion, PACK_EXPANSION, 35)
+TYPE_BIT_CODE(Attributed, ATTRIBUTED, 36)
+TYPE_BIT_CODE(SubstTemplateTypeParmPack, SUBST_TEMPLATE_TYPE_PARM_PACK, 37)
+TYPE_BIT_CODE(Auto, AUTO, 38)
+TYPE_BIT_CODE(UnaryTransform, UNARY_TRANSFORM, 39)
+TYPE_BIT_CODE(Atomic, ATOMIC, 40)
+TYPE_BIT_CODE(Decayed, DECAYED, 41)
+TYPE_BIT_CODE(Adjusted, ADJUSTED, 42)
+TYPE_BIT_CODE(Pipe, PIPE, 43)
+TYPE_BIT_CODE(ObjCTypeParam, OBJC_TYPE_PARAM, 44)
+TYPE_BIT_CODE(DeducedTemplateSpecialization, DEDUCED_TEMPLATE_SPECIALIZATION, 45)
+TYPE_BIT_CODE(DependentSizedExtVector, DEPENDENT_SIZED_EXT_VECTOR, 46)
+TYPE_BIT_CODE(DependentAddressSpace, DEPENDENT_ADDRESS_SPACE, 47)
+TYPE_BIT_CODE(DependentVector, DEPENDENT_SIZED_VECTOR, 48)
+TYPE_BIT_CODE(MacroQualified, MACRO_QUALIFIED, 49)
+TYPE_BIT_CODE(BitInt, BIT_INT, 50)
+TYPE_BIT_CODE(DependentBitInt, DEPENDENT_BIT_INT, 51)
+TYPE_BIT_CODE(ConstantMatrix, CONSTANT_MATRIX, 52)
+TYPE_BIT_CODE(DependentSizedMatrix, DEPENDENT_SIZE_MATRIX, 53)
+TYPE_BIT_CODE(Using, USING, 54)
+TYPE_BIT_CODE(BTFTagAttributed, BTFTAG_ATTRIBUTED, 55)
+TYPE_BIT_CODE(PackIndexing, PACK_INDEXING, 56)
+TYPE_BIT_CODE(CountAttributed, COUNT_ATTRIBUTED, 57)
+TYPE_BIT_CODE(ArrayParameter, ARRAY_PARAMETER, 58)
+
+#undef TYPE_BIT_CODE

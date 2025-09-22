@@ -1,0 +1,8 @@
+#scrub opts in unusual order
+
+match in on lo0 from any to any scrub(min-ttl 15, no-df, max-mss 224)
+match in on lo0 from any to any scrub(no-df max-mss 224 min-ttl 15)
+match in on lo0 from any to any scrub(max-mss 224, min-ttl 15 no-df)
+match in on lo0 from any to any scrub(min-ttl 15 no-df, max-mss 224)
+match in on lo0 from any to any scrub(no-df max-mss 224 min-ttl 15)
+match in on lo0 from any to any scrub(max-mss 224 min-ttl 15 no-df reassemble tcp)

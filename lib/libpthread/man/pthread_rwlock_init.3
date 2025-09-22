@@ -1,0 +1,273 @@
+.\" $OpenBSD: pthread_rwlock_init.3,v 1.12 2025/07/08 02:23:49 jsg Exp $
+.\" Copyright (c) 1998 Alex Nash
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: pthread_rwlock_init.3,v 1.2 1999/08/28 00:03:09 peter Exp $
+.\" $FreeBSD: pthread_rwlock_destroy.3,v 1.3 1999/08/28 00:03:09 peter Exp $
+.\" $FreeBSD: pthread_rwlock_rdlock.3,v 1.2 1999/08/28 00:03:09 peter Exp $
+.\" $FreeBSD: pthread_rwlock_wrlock.3,v 1.2 1999/08/28 00:03:10 peter Exp $
+.\" $FreeBSD: pthread_rwlock_unlock.3,v 1.2 1999/08/28 00:03:10 peter Exp $
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt PTHREAD_RWLOCK_INIT 3
+.Os
+.Sh NAME
+.Nm pthread_rwlock_init ,
+.Nm pthread_rwlock_destroy ,
+.Nm pthread_rwlock_rdlock ,
+.Nm pthread_rwlock_timedrdlock ,
+.Nm pthread_rwlock_tryrdlock ,
+.Nm pthread_rwlock_wrlock ,
+.Nm pthread_rwlock_timedwrlock ,
+.Nm pthread_rwlock_trywrlock ,
+.Nm pthread_rwlock_unlock
+.Nd operations on read/write locks
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fo pthread_rwlock_init
+.Fa "pthread_rwlock_t *lock"
+.Fa "const pthread_rwlockattr_t *attr"
+.Fc
+.Ft int
+.Fo pthread_rwlock_destroy
+.Fa "pthread_rwlock_t *lock"
+.Fc
+.Ft int
+.Fo pthread_rwlock_rdlock
+.Fa "pthread_rwlock_t *lock"
+.Fc
+.Ft int
+.Fo pthread_rwlock_timedrdlock
+.Fa "pthread_rwlock_t *lock"
+.Fa "const struct timespec *abstime"
+.Fc
+.Ft int
+.Fo pthread_rwlock_tryrdlock
+.Fa "pthread_rwlock_t *lock"
+.Fc
+.Ft int
+.Fo pthread_rwlock_wrlock
+.Fa "pthread_rwlock_t *lock"
+.Fc
+.Ft int
+.Fo pthread_rwlock_timedwrlock
+.Fa "pthread_rwlock_t *lock"
+.Fa "const struct timespec *abstime"
+.Fc
+.Ft int
+.Fo pthread_rwlock_trywrlock
+.Fa "pthread_rwlock_t *lock"
+.Fc
+.Ft int
+.Fo pthread_rwlock_unlock
+.Fa "pthread_rwlock_t *lock"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn pthread_rwlock_init
+function initializes a read/write lock, with attributes
+specified by
+.Fa attr .
+If
+.Fa attr
+is NULL, the default read/write lock attributes are used.
+The results of calling
+.Fn pthread_rwlock_init
+with an already initialized lock are undefined.
+.Pp
+The
+.Fn pthread_rwlock_destroy
+function destroys a read/write lock previously created with
+.Fn pthread_rwlock_init .
+.Pp
+The
+.Fn pthread_rwlock_rdlock
+function acquires a read lock on
+.Fa lock
+provided that
+.Fa lock
+is not presently held for writing and no writer threads are
+presently blocked on the lock.
+If the read lock cannot be immediately acquired,
+the calling thread blocks until it can acquire the lock.
+.Pp
+The
+.Fn pthread_rwlock_wrlock
+function blocks until a write lock can be acquired against
+.Fa lock .
+.Pp
+The
+.Fn pthread_rwlock_timedrdlock
+and
+.Fn pthread_rwlock_timedwrlock
+functions perform the same action,
+but will not wait beyond
+.Fa abstime
+to obtain the lock before returning.
+.Pp
+The
+.Fn pthread_rwlock_tryrdlock
+and
+.Fn pthread_rwlock_trywrlock
+functions perform the same action
+but do not block if the lock cannot be immediately obtained.
+.Pp
+The
+.Fn pthread_rwlock_unlock
+function releases the read/write lock previously obtained.
+.Pp
+A thread may hold multiple concurrent read locks.
+If so,
+.Fn pthread_rwlock_unlock
+must be called once for each lock obtained.
+.Sh RETURN VALUES
+If successful, these functions return zero.
+Otherwise an error number will be returned to indicate the error.
+.Sh ERRORS
+.Fn pthread_rwlock_init
+fails if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The system lacked the necessary resources (other than memory) to
+initialize the lock.
+.It Bq Er ENOMEM
+Insufficient memory exists to initialize the lock.
+.It Bq Er EPERM
+The caller does not have sufficient privilege to perform the
+operation.
+.It Bq Er EBUSY
+The system has detected an attempt to re-initialize the object
+referenced by
+.Fa lock ,
+a previously initialized but not yet destroyed read/write lock.
+.It Bq Er EINVAL
+The value specified by
+.Fa attr
+is invalid.
+.El
+.Pp
+Other functions fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa lock
+is invalid.
+.It Bq Er ENOMEM
+Insufficient memory exists to initialize the lock (applies to
+statically initialized locks only).
+.El
+.Pp
+.Fn pthread_rwlock_destroy
+fails if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The system has detected an attempt to destroy the object referenced by
+.Fa lock
+while it is locked.
+.El
+.Pp
+.Fn pthread_rwlock_tryrdlock
+and
+.Fn pthread_rwlock_trywrlock
+fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The lock could not be acquired without blocking.
+.El
+.Pp
+.Fn pthread_rwlock_timedrdlock
+and
+.Fn pthread_rwlock_timedwrlock
+fail if:
+.Bl -tag -width Er
+.It Bq Er ETIMEDOUT
+The time specified by
+.Fa abstime
+was reached before the lock could be obtained.
+.El
+.Pp
+The
+.Fn pthread_rwlock_rdlock ,
+.Fn pthread_rwlock_timedrdlock ,
+and
+.Fn pthread_rwlock_tryrdlock
+functions fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The lock could not be acquired because the maximum number of read locks
+against
+.Fa lock
+has been exceeded.
+.It Bq Er EDEADLK
+The current thread already owns
+.Fa lock
+for writing.
+.El
+.Pp
+The
+.Fn pthread_rwlock_wrlock ,
+.Fn pthread_rwlock_timedwrlock ,
+and
+.Fn pthread_rwlock_trywrlock
+functions fail if:
+.Bl -tag -width Er
+.It Bq Er EDEADLK
+The calling thread already owns the read/write lock (for reading
+or writing).
+.El
+.Pp
+The
+.Fn pthread_rwlock_unlock
+fails if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The current thread does not own the read/write lock.
+.El
+.Sh SEE ALSO
+.Xr pthread_rwlockattr_init 3 ,
+.Xr pthreads 3
+.Sh STANDARDS
+These functions are expected to conform to
+.St -susv2 .
+.Sh HISTORY
+.Fn pthread_rwlock_init ,
+.Fn pthread_rwlock_destroy ,
+.Fn pthread_rwlock_rdlock ,
+.Fn pthread_rwlock_tryrdlock ,
+.Fn pthread_rwlock_wrlock ,
+.Fn pthread_rwlock_trywrlock ,
+and
+.Fn pthread_rwlock_unlock
+have been available since
+.Ox 2.5 ,
+and
+.Fn pthread_rwlock_timedrdlock
+and
+.Fn pthread_rwlock_timedwrlock
+since
+.Ox 4.8 .
+.Sh BUGS
+The PTHREAD_PROCESS_SHARED attribute is not supported.

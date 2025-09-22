@@ -1,0 +1,89 @@
+'\" t
+.\" $OpenBSD: menu_format.3,v 1.9 2023/10/17 09:52:10 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: menu_format.3,v 1.9 2023/10/17 09:52:10 nicm Exp $
+.TH menu_format 3 2023-07-01 "ncurses 6.4" "Library calls"
+.SH NAME
+\fBset_menu_format\fP,
+\fBmenu_format\fP \- set and get menu sizes
+.SH SYNOPSIS
+\fB#include <menu.h>\fP
+.sp
+\fBint set_menu_format(MENU *\fImenu\fB, int \fIrows\fB, int \fIcols\fB);\fR
+.br
+\fBvoid menu_format(const MENU *\fImenu\fB, int *\fIrows\fB, int *\fIcols\fB);\fR
+.SH DESCRIPTION
+The function \fBset_menu_format\fP sets the maximum display size of the given
+menu.
+If this size is too small to display all menu items, the menu will be
+made scrollable.
+If this size is larger than the menus subwindow and the
+subwindow is too small to display all menu items, \fBpost_menu\fP will fail.
+.PP
+The default format is 16 rows, 1 column.
+Calling \fBset_menu_format\fP with a
+null menu pointer will change this default.
+A zero row or column argument to
+\fBset_menu_format\fP is interpreted as a request not to change the current
+value.
+.PP
+The function \fBmenu_format\fP returns the maximum-size constraints for the
+given menu into the storage addressed by \fBrows\fP and \fBcols\fP.
+.SH RETURN VALUE
+These routines returns one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fP(3)).
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_POSTED
+The menu is already posted.
+.TP 5
+.B E_NOT_CONNECTED
+No items are connected to the menu.
+.SH SEE ALSO
+\fBcurses\fP(3), \fBmenu\fP(3).
+.SH NOTES
+The header file \fB<menu.h>\fP automatically includes the header file
+\fB<curses.h>\fP.
+.SH PORTABILITY
+These routines emulate the System V menu library.
+They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

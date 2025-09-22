@@ -1,0 +1,84 @@
+.\"     $OpenBSD: config_attach.9,v 1.4 2025/06/13 18:34:00 schwarze Exp $
+.\"     $NetBSD: autoconf.9,v 1.9 2002/02/13 08:18:35 ross Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Gregory McGarry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt CONFIG_ATTACH 9
+.Os
+.Sh NAME
+.Nm config_attach ,
+.Nm config_detach ,
+.Nm config_detach_children
+.Nd attach and detach devices
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/device.h
+.Ft struct device *
+.Fn config_attach "struct device *parent" "void *cf" "void *aux" \
+                  "cfprint_t print"
+.Ft int
+.Fn config_detach "struct device *dev" "int flags"
+.Ft int
+.Fn config_detach_children "struct device *parent" "int flags"
+.Sh DESCRIPTION
+The
+.Fn config_attach
+function attaches a found device.
+Memory is allocated for the
+.Em softc
+structure and the driver's attach function is called according to the
+configuration table.
+If successful,
+.Fn config_attach
+returns the
+.Em softc .
+If unsuccessful, it returns
+.Dv NULL .
+.Pp
+The
+.Fn config_detach
+function is called by the parent to detach the child device.
+The second argument
+.Fa flags
+contains detachment flags:
+.Bd -literal
+#define	DETACH_FORCE	0x01	/* Force detachment; hardware gone */
+#define	DETACH_QUIET	0x02	/* Don't print a notice */
+.Ed
+.Sh CONTEXT
+.Fn config_detach
+is always called from process context, allowing
+.Xr tsleep 9
+to be called while the device detaches itself (to deal with processes
+which have a device open).
+.Sh RETURN VALUES
+.Fn config_detach
+returns zero if successful and an error code otherwise.
+.Sh SEE ALSO
+.Xr config_found 9

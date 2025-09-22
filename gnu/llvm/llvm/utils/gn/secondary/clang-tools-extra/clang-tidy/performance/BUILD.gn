@@ -1,0 +1,37 @@
+static_library("performance") {
+  output_name = "clangTidyPerformanceModule"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clang-tidy",
+    "//clang-tools-extra/clang-tidy/utils",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Analysis",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "AvoidEndlCheck.cpp",
+    "EnumSizeCheck.cpp",
+    "FasterStringFindCheck.cpp",
+    "ForRangeCopyCheck.cpp",
+    "ImplicitConversionInLoopCheck.cpp",
+    "InefficientAlgorithmCheck.cpp",
+    "InefficientStringConcatenationCheck.cpp",
+    "InefficientVectorOperationCheck.cpp",
+    "MoveConstArgCheck.cpp",
+    "MoveConstructorInitCheck.cpp",
+    "NoAutomaticMoveCheck.cpp",
+    "NoIntToPtrCheck.cpp",
+    "NoexceptDestructorCheck.cpp",
+    "NoexceptFunctionBaseCheck.cpp",
+    "NoexceptMoveConstructorCheck.cpp",
+    "NoexceptSwapCheck.cpp",
+    "PerformanceTidyModule.cpp",
+    "TriviallyDestructibleCheck.cpp",
+    "TypePromotionInMathFnCheck.cpp",
+    "UnnecessaryCopyInitialization.cpp",
+    "UnnecessaryValueParamCheck.cpp",
+  ]
+}

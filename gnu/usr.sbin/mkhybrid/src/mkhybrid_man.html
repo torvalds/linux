@@ -1,0 +1,1290 @@
+<HTML>
+<HEAD>
+<TITLE>MKHYBRID</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<CENTER><H1>MKHYBRID</H1></CENTER>
+<HR>
+<PRE>
+
+</PRE>
+<A NAME="NAME"><H2>NAME</H2></A><PRE>
+       mkhybrid  - create an hybrid ISO9660/JOLIET/HFS filesystem
+       with optional Rock Ridge attributes.
+
+
+</PRE>
+<A NAME="SYNOPSIS"><H2>SYNOPSIS</H2></A><PRE>
+       <STRONG>mkhybrid</STRONG> [ <STRONG>-a</STRONG> ] [ <STRONG>-abstract</STRONG> <EM>FILE</EM> ] [ <STRONG>-biblio</STRONG> <EM>FILE</EM> ]  [  <STRONG>-b</STRONG>
+       <EM>boot</EM><STRONG>_</STRONG><EM>image</EM>  ] [ <STRONG>-c</STRONG> <EM>boot</EM><STRONG>_</STRONG><EM>catalog</EM> ] [ <STRONG>-copyright</STRONG> <EM>FILE</EM> ] [ <STRONG>-A</STRONG>
+       <EM>application</EM><STRONG>_</STRONG><EM>id</EM> ] [ <STRONG>-f</STRONG> ] [ <STRONG>-d</STRONG> ] [ <STRONG>-D</STRONG> ] [  <STRONG>-hide</STRONG>  <EM>glob</EM>  ]  [
+       <STRONG>-hide-list</STRONG>  <EM>file</EM>  ]  [ <STRONG>-hide-joliet</STRONG> <EM>glob</EM> ] [ <STRONG>-hide-joliet-</STRONG>
+       <STRONG>list</STRONG> <EM>file</EM> ] [ <STRONG>-J</STRONG> ] [ <STRONG>-l</STRONG> ] [ <STRONG>-L</STRONG> ] [ <STRONG>-log-file</STRONG> <EM>log</EM><STRONG>_</STRONG><EM>file</EM> ]  [
+       <STRONG>-no-split-symlink-components</STRONG>  ] [ <STRONG>-no-split-symlink-fields</STRONG>
+       ] [ <STRONG>-path-list</STRONG> <EM>file</EM> ] [ <STRONG>-p</STRONG> <EM>preparer</EM> ] [ <STRONG>-print-size</STRONG> ] [ <STRONG>-P</STRONG>
+       <EM>publisher</EM>  ] [ <STRONG>-quiet</STRONG> ] [ <STRONG>-r</STRONG> ] [ <STRONG>-R</STRONG> ] [ <STRONG>-sysid</STRONG> <EM>ID</EM> ] [ <STRONG>-T</STRONG> |
+       <STRONG>-table-name</STRONG> <EM>TABLE</EM><STRONG>_</STRONG><EM>NAME</EM> ] [ <STRONG>-v</STRONG> ] [ <STRONG>-V</STRONG> <EM>volid</EM> ] [ <STRONG>-volset</STRONG>  <EM>ID</EM>
+       ]  [ <STRONG>-volset-size</STRONG> <EM>#</EM> ] [ <STRONG>-volset-seqno</STRONG> <EM>#</EM> ] [ <STRONG>-x</STRONG> <EM>path</EM> ] [ <STRONG>-z</STRONG>
+       ] [ <STRONG>-m</STRONG> <EM>glob</EM> ] [ <STRONG>-hfs</STRONG> | <STRONG>-apple</STRONG> ] [ <STRONG>-map</STRONG>  <EM>mapping</EM><STRONG>_</STRONG><EM>file</EM>  ]  [
+       <STRONG>-magic</STRONG>  <EM>magic</EM><STRONG>_</STRONG><EM>file</EM>  ]  [ <STRONG>-no-mac-files</STRONG> ] [ <STRONG>-probe</STRONG> ] [ <STRONG>-no-</STRONG>
+       <STRONG>desktop</STRONG> ] [ <STRONG>-mac-name</STRONG> ]  [  <STRONG>-boot-hfs-file</STRONG>  <EM>driver</EM><STRONG>_</STRONG><EM>file</EM>  [
+       <STRONG>-part</STRONG>  ] [ <STRONG>-auto</STRONG> <EM>AutoStart</EM><STRONG>_</STRONG><EM>file</EM> ] [ <STRONG>-cluster-size</STRONG> <EM>size</EM> ] [
+       <STRONG>-hide-hfs</STRONG> <EM>glob</EM> ] [  <STRONG>-hide-hfs-list</STRONG>  <EM>file</EM>  ]  [  <STRONG>-hfs-volid</STRONG>
+       <EM>hfs</EM><STRONG>_</STRONG><EM>volid</EM>  ]  [  <STRONG>--cap</STRONG>  ]  [  <STRONG>--netatalk</STRONG>  ] [ <STRONG>--double</STRONG> ] [
+       <STRONG>--ethershare</STRONG> ] [ <STRONG>--ushare</STRONG> ] [ <STRONG>--exchange</STRONG> ]  [  <STRONG>--sgi</STRONG>  ]  [
+       <STRONG>--xinet</STRONG>  ]  [ <STRONG>--macbin</STRONG> ] [ <STRONG>--single</STRONG> ] <STRONG>-o</STRONG> <EM>filename</EM> <EM>pathspec</EM>
+       <EM>[pathspec]</EM>
+
+
+</PRE>
+<A NAME="DESCRIPTION"><H2>DESCRIPTION</H2></A><PRE>
+       <STRONG>mkhybrid</STRONG> is effectively a pre-mastering program to  gener-
+       ate  an  HFS/ISO9660/JOLIET hybrid filesystem. It is based
+       on <STRONG>mkisofs</STRONG>(1) and will generate a pure ISO9660  filesystem
+       unless the HFS hybrid command line options are given.
+
+       <STRONG>mkhybrid</STRONG>  can  generate  a  <EM>true</EM>  (or  <EM>shared)</EM>  HFS hybrid
+       filesystem. The same files are  seen  as  HFS  files  when
+       accessed  from  a  Macintosh  and  as  ISO9660  files when
+       accessed from other machines. HFS stands for  <EM>Hierarchical</EM>
+       <EM>File</EM>  <EM>System</EM>  and is the native file system used on Macin-
+       tosh computers.
+
+       As an alternative, <STRONG>mkhybrid</STRONG> can generate the <EM>Apple</EM>  <EM>Enten-</EM>
+       <EM>sions</EM>  <EM>to</EM>  <EM>ISO9660</EM> for each file. These extensions provide
+       each file with CREATOR, TYPE and certain Finder Flags when
+       accessed  from a Macintosh. See the <STRONG>MACINTOSH</STRONG> <STRONG>FILE</STRONG> <STRONG>FORMATS</STRONG>
+       section below.
+
+       <STRONG>mkhybrid</STRONG> takes a snapshot of a given directory  tree,  and
+       generates  a  binary  image  which  will  correspond to an
+       ISO9660 or HFS filesystem when written to a block  device.
+
+       <STRONG>mkhybrid</STRONG>  is  also  capable  of  generating the System Use
+       Sharing Protocol  records  specified  by  the  Rock  Ridge
+       Interchange  Protocol.   This  is used to further describe
+       the files in the iso9660 filesystem to a  unix  host,  and
+       provides  information  such  as longer filenames, uid/gid,
+       posix permissions, and block and character devices.
+       Each file written to the iso9660 filesystem  must  have  a
+       filename  in the 8.3 format (8 characters, period, 3 char-
+       acters, all upper case), even if Rock  Ridge  is  in  use.
+       This filename is used on systems that are not able to make
+       use of the Rock Ridge extensions  (such  as  MS-DOS),  and
+       each filename in each directory must be different from the
+       other filenames in the same directory.  <STRONG>mkhybrid</STRONG> generally
+       tries  to  form correct names by forcing the unix filename
+       to upper case and truncating as required, but often  times
+       this  yields  unsatisfactory  results when there are cases
+       where the truncated names are not  all  unique.   <STRONG>mkhybrid</STRONG>
+       assigns weightings to each filename, and if two names that
+       are otherwise the same are found the name with  the  lower
+       priority  is renamed to have a 3 digit number as an exten-
+       sion (where the number is guaranteed to  be  unique).   An
+       example of this would be the files foo.bar and foo.bar.~1~
+       - the file foo.bar.~1~ would be written as  FOO.000;1  and
+       the file foo.bar would be written as FOO.BAR;1
+
+       When  used  with the HFS options, <STRONG>mkhybrid</STRONG> will attempt to
+       recognise files stored in a number of Apple/Unix file for-
+       mats  and will copy the data and resource forks as well as
+       any relevant finder information. See  the  <STRONG>MACINTOSH</STRONG>  <STRONG>FILE</STRONG>
+       <STRONG>FORMATS</STRONG> section below for more about formats <STRONG>mkhybrid</STRONG> sup-
+       ports.
+
+       Note that <STRONG>mkhybrid</STRONG> is not designed to communicate with the
+       writer  directly.   Most  writers have proprietary command
+       sets which vary from one manufacturer to another, and  you
+       need  a  specialized  tool to actually burn the disk.  The
+       <STRONG>cdwrite</STRONG> utility is one such tool that runs under Linux and
+       performs  this  task.   The  latest  version of <STRONG>cdwrite</STRONG> is
+       capable of communicating with Phillips/IMS/Kodak,  HP  and
+       Yamaha drives.  Most writers come with some version of DOS
+       software that allows a direct image  copy  of  an  iso9660
+       image  to  the  writer.  The current version of <STRONG>cdwrite</STRONG> is
+       available  from   <STRONG><A HREF="ftp://sunsite.unc.edu/utils/disk-management/cdwrite-2.0.tar.gz">ftp://sunsite.unc.edu/utils/disk-manage-</A></STRONG>
+       <STRONG><A HREF="ftp://sunsite.unc.edu/utils/disk-management/cdwrite-2.0.tar.gz">ment/cdwrite-2.0.tar.gz</A></STRONG>  Note  that  cdwrite  has not been
+       actively maintained in recent times.
+
+       The <STRONG>cdrecord</STRONG> utility is another utility capable of burning
+       an  actual disc.  The latest version of <STRONG>cdrecord</STRONG> is avail-
+       able     from     <STRONG><A HREF="ftp://ftp.fokus.gmd.de/pub/unix/cdrecord">ftp://ftp.fokus.gmd.de/pub/unix/cdrecord</A></STRONG>
+       Cdrecord is under constant development.
+
+       Also you should know that most cd writers are very partic-
+       ular about timing.  Once you start to  burn  a  disc,  you
+       cannot  let their buffer empty before you are done, or you
+       will end up with a corrupt disc.  Thus it is critical that
+       you  be  able  to maintain an uninterrupted data stream to
+       the writer for the entire time  that  the  disc  is  being
+       written.
+
+       <EM>pathspec</EM>  is  the  path of the directory tree to be copied
+       into the iso9660 filesystem.  Multiple paths can be speci-
+       fied,  and  <STRONG>mkhybrid</STRONG>  will merge the files found in all of
+       the specified path components to form the cdrom image.
+
+       It is possible to graft the paths at points other than the
+       root  directory,  and  it  is  possible  to graft files or
+       directories onto the cdrom image with names different than
+       what  they have in the source filesystem.  This is easiest
+       to illustrate with a couple of examples.   Let's start  by
+       assuming that a local file ../old.lis exists, and you wish
+       to include it in the cdrom image.
+
+
+            foo/bar/=../old.lis
+
+       will include the  file  old.lis  in  the  cdrom  image  at
+       /foo/bar/old.lis, while
+
+            foo/bar/xxx=../old.lis
+
+       will  include  the  file  old.lis  in  the  cdrom image at
+       /foo/bar/xxx.  The same sort of syntax can  be  used  with
+       directories as well.  <STRONG>mkhybrid</STRONG> will create any directories
+       required such that the graft points  exist  on  the  cdrom
+       image  -  the  directories do not need to appear in one of
+       the paths.  Any directories that are created  on  the  fly
+       like  this  will  have  permissions  0555 and appear to be
+       owned by the person running mkhybrid.  If you  wish  other
+       permissions or owners of the intermediate directories, the
+       easiest solution is to create real directories in the path
+       such that mkhybrid doesn't have to invent them.
+
+       <EM>mkhybrid</EM> will also run on Win9X/NT4 machines when compiled
+       with  Cygnus'  cygwin   (available   from   <STRONG><A HREF="http://sourceware.cygnus.com/cygwin/">http://source-</A></STRONG>
+       <STRONG><A HREF="http://sourceware.cygnus.com/cygwin/">ware.cygnus.com/cygwin/</A></STRONG>).  Therefore  most  references  in
+       this man page to <EM>Unix</EM> can be replaced with <EM>Win32</EM>.
+
+
+
+</PRE>
+<A NAME="OPTIONS"><H2>OPTIONS</H2></A><PRE>
+       <STRONG>-a</STRONG>     Include all files on the iso9660 filesystem.   Nor-
+              mally  files that contain the characters '~' or '#'
+              will not be included (these  are  typically  backup
+              files for editors under unix).
+
+       <STRONG>-abstract</STRONG> <EM>FILE</EM>
+              Specifies  the  abstract file name.  This parameter
+              can  also  be  set  in  the  file  <STRONG>.mkisofsrc</STRONG>  with
+              ABST=filename.   If  specified  in both places, the
+              command line version is used.
+
+       <STRONG>-A</STRONG> <EM>application</EM><STRONG>_</STRONG><EM>id</EM>
+              Specifies a text string that will be  written  into
+              the volume header.  This should describe the appli-
+              cation that will be on the disc.  There is space on
+              the  disc  for 128 characters of information.  This
+              parameter can also be set in  the  file  <EM>.mkisofsrc</EM>
+              with  APPI=id.   If  specified  in both places, the
+              command line version is used.
+
+       <STRONG>-biblio</STRONG> <EM>FILE</EM>
+              Specifies the bibliographic file name.  This param-
+              eter  can  also  be set in the file <STRONG>.mkisofsrc</STRONG> with
+              BIBLO=filename.  If specified in both  places,  the
+              command line version is used.
+
+       <STRONG>-b</STRONG> <EM>boot</EM><STRONG>_</STRONG><EM>image</EM>
+              Specifies  the  path and filename of the boot image
+              to be used when making an "El Torito" bootable  CD.
+              The  pathname  must  be relative to the source path
+              specified to <STRONG>mkhybrid</STRONG>.  This option is required  to
+              make a bootable CD.  The boot image must be exactly
+              the size of one of a 1.2, 1.44, or 2.88 MB  floppy,
+              or  of a 2 KB CD sector, and <STRONG>mkhybrid</STRONG> will use this
+              size when creating the output  iso9660  filesystem.
+              If  the boot file is 2 KB long, a no-emulation boot
+              CD will be created, and the whole 2 KB will be read
+              on  boot.  If the boot file is a floppy image, then
+              only the first 512-byte sector will  be  read  from
+              the  boot  image  (it  is emulating a normal floppy
+              drive).  This will work, for example, if  the  boot
+              image is a LILO-based boot floppy.
+
+       <STRONG>-C</STRONG> <EM>last</EM><STRONG>_</STRONG><EM>sess</EM><STRONG>_</STRONG><EM>start,next</EM><STRONG>_</STRONG><EM>sess</EM><STRONG>_</STRONG><EM>start</EM>
+              This option is needed when <STRONG>mkisofs</STRONG> is used to  cre-
+              ate the image of a second session or a higher level
+              session for a multi session disk.   The  option  <STRONG>-C</STRONG>
+              takes  a  pair of two numbers separated by a comma.
+              The first number is the sector number of the  first
+              sector  in the last session of the disk that should
+              be appended to.  The second number is the  starting
+              sector  number  of  the  new session.  The expected
+              pair  of  numbers  may  be  retrieved  by   calling
+              <STRONG>cdrecord</STRONG>  <STRONG>-msinfo</STRONG>  <STRONG>...</STRONG>   the  <STRONG>-C</STRONG> option may only be
+              uses in conjunction with the <STRONG>-M</STRONG> option.
+
+       <STRONG>-c</STRONG> <EM>boot</EM><STRONG>_</STRONG><EM>catalog</EM>
+              Specifies the path and filename of the boot catalog
+              to  be used when making an "El Torito" bootable CD.
+              The pathname must be relative to  the  source  path
+              specified  to <STRONG>mkhybrid.</STRONG>  This option is required to
+              make a bootable CD.  This file will be  created  by
+              <STRONG>mkhybrid</STRONG>  in  the source filesystem, so be sure the
+              specified filename does not conflict with an exist-
+              ing  file,  as it will be quietly overwritten! Usu-
+              ally a name like "boot.catalog" is chosen.
+
+       <STRONG>-copyright</STRONG> <EM>FILE</EM>
+              Specifies the Copyright file name.  This  parameter
+              can  also  be  set  in  the  file  <STRONG>.mkisofsrc</STRONG>  with
+              COPY=filename.  If specified in  both  places,  the
+              command line version is used.
+
+       <STRONG>-d</STRONG>     Omit  trailing period from files that do not have a
+              period.  This violates the ISO9660 standard, but it
+              happens to work on many systems.  Use with caution.
+
+       <STRONG>-D</STRONG>     Do not use deep directory relocation,  and  instead
+              just  pack  them in the way we see them.  This vio-
+              lates the ISO9660 standard, but it  works  on  many
+              systems.  Use with caution.
+
+       <STRONG>-f</STRONG>     Follow  symbolic links when generating the filesys-
+              tem.  When this option  is  not  in  use,  symbolic
+              links  will be entered using Rock Ridge if enabled,
+              otherwise the file will be ignored.
+
+       <STRONG>-hide</STRONG> <EM>glob</EM>
+              Hide <EM>glob</EM> from being seen on the  ISO9660  or  Rock
+              Ridge  directory.   <EM>glob</EM> is a shell wild-card-style
+              pattern that must match any part of the filename or
+              path.   Multiple  globs may be hidden (up to 1000).
+              If <EM>glob</EM> matches a directory, then the  contents  of
+              that  directory  will  be  hidden.   All the hidden
+              files will still be written to the output CD  image
+              file.  Should be used with the <EM>-hide-joliet</EM> option.
+
+       <STRONG>-hide-list</STRONG> <EM>file</EM>
+              A file containing a list of <EM>globs</EM> to be  hidden  as
+              above.
+
+       <STRONG>-hide-joliet</STRONG> <EM>glob</EM>
+              Hide  <EM>glob</EM> from being seen on the Joliet directory.
+              <EM>glob</EM> is a shell wild-card-style pattern  that  must
+              match  any  part of the filename or path.  Multiple
+              globs may be hidden (up to 1000).  If <EM>glob</EM>  matches
+              a  directory,  then  the contents of that directory
+              will be hidden.  All the hidden files will still be
+              written  to  the  output  CD image file.  Should be
+              used with the <EM>-hide</EM> option.
+
+       <STRONG>-hide-joliet-list</STRONG> <EM>file</EM>
+              A file containing a list of <EM>globs</EM> to be  hidden  as
+              above.
+
+       <STRONG>-l</STRONG>     Allow  full  32  character filenames.  Normally the
+              ISO9660 filename will be in an 8.3 format which  is
+              compatible  with  MS-DOS,  even  though the ISO9660
+              standard allows filenames of up to  32  characters.
+              If  you  use this option, the disc may be difficult
+              to use on a MS-DOS system, but this comes in  handy
+              on  some  other  systems  (such as the Amiga).  Use
+              with caution.
+
+       <STRONG>-J</STRONG>     Generate Joliet directory records  in  addition  to
+              regular iso9660 file names.  This is primarily use-
+              ful when the discs are to be used on Windows-NT  or
+              Windows-95  machines.    The  Joliet  filenames are
+              specified in Unicode and each path component can be
+              up to 64 Unicode characters long.
+
+       <STRONG>-L</STRONG>     Allow filenames to begin with a period.  Usually, a
+              leading dot is replaced with an underscore in order
+              to maintain MS-DOS compatibility.
+
+       <STRONG>-log-file</STRONG> <EM>log</EM><STRONG>_</STRONG><EM>file</EM>
+              Redirect  all error, warning and informational mes-
+              sages to <EM>log</EM><STRONG>_</STRONG><EM>file</EM> instead of the standard error.
+
+       <STRONG>-m</STRONG> <EM>glob</EM>
+              Exclude <EM>glob</EM> from being written to CDROM.  <EM>glob</EM>  is
+              a  shell  wild-card-style  pattern  that must match
+              part of the filename (not the path as  with  option
+              <STRONG>-x</STRONG>).   Technically  <EM>glob</EM>  is  matched  against  the
+              <EM>d-&gt;d</EM><STRONG>_</STRONG><EM>name</EM> part of the  directory  entry.   Multiple
+              globs may be excluded (up to 1000).  Example:
+
+              mkhybrid -o rom -m '*.o' -m core -m foobar
+
+              would  exclude  all  files  ending  in ".o", called
+              "core" or "foobar" to be copied to CDROM. Note that
+              if  you had a directory called "foobar" it too (and
+              of course all its descendants) would be excluded.
+
+              NOTE: The -m and -x option description should  both
+              be  updated, they are wrong.  Both now work identi-
+              cal and use filename globbing. A file is exluded if
+              either the last component matches or the whole path
+              matches.
+
+       <STRONG>-exclude-list</STRONG> <EM>file</EM>
+              A file containing a list of <EM>globs</EM> to be exclude  as
+              above.
+
+       <STRONG>-M</STRONG> <EM>path</EM>
+              or
+
+       <STRONG>-M</STRONG> <EM>device</EM>
+              Specifies  path  to  existing  iso9660  image to be
+              merged. The alternate  form  takes  a  SCSI  device
+              specifier  that  uses  the  same syntax as the <STRONG>dev=</STRONG>
+              parameter of <STRONG>cdrecord.</STRONG>  The output of <STRONG>mkhybrid</STRONG> will
+              be  a  new  session which should get written to the
+              end of the image specified in -M.   Typically  this
+              requires  multi-session capability for the recorder
+              and cdrom drive that you are  attempting  to  write
+              this  image  to.   This  option may only be used in
+              conjunction with the <STRONG>-C</STRONG> option.
+
+       <STRONG>-N</STRONG>     Omit version numbers from ISO9660 file names.  This
+              may violate the ISO9660 standard, but no one really
+              uses the version numbers anyway.  Use with caution.
+
+       <STRONG>-no-split-symlink-components</STRONG>
+              Don't split the SL components, but begin a new Con-
+              tinuation Area (CE) instead. This  may  waste  some
+              space,  but  the SunOS 4.1.4 cdrom driver has a bug
+              in reading split SL components (link_size =  compo-
+              nent_size  instead of link_size += component_size).
+
+       <STRONG>-no-split-symlink-fields</STRONG>
+              Don't split the SL fields, but begin a new Continu-
+              ation Area (CE) instead. This may waste some space,
+              but the SunOS 4.1.4 and Solaris 2.5.1 cdrom  driver
+              have a bug in reading split SL fields (a `/' can be
+              dropped).
+
+       <STRONG>-o</STRONG> <EM>filename</EM>
+              is the name  of  the  file  to  which  the  iso9660
+              filesystem  image should be written.  This can be a
+              disk file, a  tape  drive,  or  it  can  correspond
+              directly  to  the  device  name of the optical disc
+              writer.  If not specified, stdout  is  used.   Note
+              that  the output can also be a block special device
+              for a regular disk drive, in which  case  the  disk
+              partition  can  be  mounted  and examined to ensure
+              that the premastering was done correctly.
+
+       <STRONG>-path-list</STRONG> <EM>file</EM>
+              A file containing a list  of  <EM>filespec</EM>  directories
+              and  filenames  to be added to the ISO9660 filesys-
+              tem. This list of filespecs are processed after any
+              that appear on the command line. If the argument is
+              <EM>-</EM>, then the list is read from the standard input.
+
+       <STRONG>-P</STRONG> <EM>publisher</EM><STRONG>_</STRONG><EM>id</EM>
+              Specifies a text string that will be  written  into
+              the  volume  header.  This should describe the pub-
+              lisher of the CDROM, usually with a mailing address
+              and  phone  number.  There is space on the disc for
+              128 characters of information.  This parameter  can
+              also  be set in the file <EM>.mkisofsrc</EM> with PUBL=.  If
+              specified in both places, the command line  version
+              is used.
+
+       <STRONG>-p</STRONG> <EM>preparer</EM><STRONG>_</STRONG><EM>id</EM>
+              Specifies  a  text string that will be written into
+              the volume header.  This should describe  the  pre-
+              parer  of the CDROM, usually with a mailing address
+              and phone number.  There is space on the  disc  for
+              128  characters of information.  This parameter can
+              also be set in the file <EM>.mkisofsrc</EM> with PREP=.   If
+              specified  in both places, the command line version
+              is used.
+
+       <STRONG>-print-size</STRONG>
+              Print estimated  filesystem  size  and  exit.  This
+              option  is  needed  for  Disk At Once mode and with
+              some  CD-R  drives  when   piping   directly   into
+              <STRONG>cdrecord.</STRONG>   In  this  case it is needed to know the
+              size of the filesystem before  the  actual  CD-cre-
+              ation  is  done.   The option -print-size allows to
+              get this size from a "dry-run"  before  the  CD  is
+              actually written.
+
+       <STRONG>-quiet</STRONG> This makes <STRONG>mkhybrid</STRONG> even less verbose.  No progress
+              output will be provided.
+
+       <STRONG>-R</STRONG>     Generate SUSP and RR records using the  Rock  Ridge
+              protocol  to  further  describe  the  files  on the
+              iso9660 filesystem.
+
+       <STRONG>-r</STRONG>     This is like the -R option, but file ownership  and
+              modes  are  set to more useful values.  The uid and
+              gid are set to zero, because they are usually  only
+              useful  on  the  author's system, and not useful to
+              the client.  All the file read bits are  set  true,
+              so that files and directories are globally readable
+              on the client.  If any execute bit  is  set  for  a
+              file, set all of the execute bits, so that executa-
+              bles are globally executable on the client.  If any
+              search  bit  is set for a directory, set all of the
+              search  bits,  so  that  directories  are  globally
+              searchable  on  the  client.   All  write  bits are
+              cleared, because the CD-Rom will be  mounted  read-
+              only  in any case.  If any of the special mode bits
+              are set, clear them, because  file  locks  are  not
+              useful  on a read-only file system, and set-id bits
+              are not desirable for uid 0 or gid 0.  When used on
+              Win32, the execute bit is set on <EM>all</EM> files.
+
+       <STRONG>-sysid</STRONG> <EM>ID</EM>
+              Specifies  the  system ID.  This parameter can also
+              be set in the file <STRONG>.mkisofsrc</STRONG> with  SYSI=system_id.
+              If  specified in both places, the command line ver-
+              sion is used.
+
+       <STRONG>-T</STRONG>     Generate a file TRANS.TBL in each directory on  the
+              CDROM,  which can be used on non-Rock Ridge capable
+              systems to help establish the correct  file  names.
+              There  is also information present in the file that
+              indicates the major and minor numbers for block and
+              character devices, and each symlink has the name of
+              the link file given.
+
+       <STRONG>-table-name</STRONG> <EM>TABLE</EM><STRONG>_</STRONG><EM>NAME</EM>
+              Alternative  translation  table  file   name   (see
+              above). Implies the <EM>-T</EM> option.
+
+       <STRONG>-V</STRONG> <EM>volid</EM>
+              Specifies  the  volume ID (volume name or label) to
+              be written into the master block.   This  parameter
+              can  also  be  set  in  the  file  <EM>.mkisofsrc</EM>  with
+              VOLI=id.  If specified in both places, the  command
+              line  version  is  used.  Note that if you assign a
+              volume ID, this is the name that will  be  used  as
+              the  mount point used by the Solaris volume manage-
+              ment system and the name that is  assigned  to  the
+              disc on a Windows or Mac platform.
+
+       <STRONG>-volset</STRONG> <EM>ID</EM>
+              Specifies  the  volset ID.  This parameter can also
+              be set in the file <STRONG>.mkisofsrc</STRONG> with  VOLS=volset_id.
+              If  specified in both places, the command line ver-
+              sion is used.
+
+       <STRONG>-volset-size</STRONG> <EM>#</EM>
+              Sets the volume set size to #.  The volume set size
+              is  the  number  of CD's that are in a CD set.  The
+              <STRONG>-volset-size</STRONG> option may be used to create CD's that
+              are  part  of  e.g. a Operation System installation
+              set of CD's.  The option <STRONG>-volset-size</STRONG> must be spec-
+              ified before <STRONG>-volset-seqno</STRONG> on each command line.
+
+       <STRONG>-volset-seqno</STRONG> <EM>#</EM>
+              Sets the volume set sequence number to #.  The vol-
+              ume set sequence number is the index number of  the
+              current  CD  in  a CD set.  The option <STRONG>-volset-size</STRONG>
+              must be specified before <STRONG>-volset-seqno</STRONG> on each com-
+              mand line.
+
+       <STRONG>-v</STRONG>     Verbose  execution.  If  given twice on the command
+              line, extra debug information will be printed.
+
+       <STRONG>-x</STRONG> <EM>path</EM>
+              Exclude <EM>path</EM> from being  written  to  CDROM.   <EM>path</EM>
+              must  be  the  complete  pathname that results from
+              concatenating the pathname given  as  command  line
+              argument  and  the path relative to this directory.
+              Multiple paths may be excluded (up to 1000).  Exam-
+              ple:
+
+              mkhybrid -o cd -x /local/dir1 -x /local/dir2 /local
+
+              NOTE: The -m and -x option description should  both
+              be  updated, they are wrong.  Both now work identi-
+              cal and use filename globbing. A file is exluded if
+              either the last component matches or the whole path
+              matches.
+
+       <STRONG>-z</STRONG>     Generate special  SUSP  records  for  transparently
+              compressed files.  This is only of use and interest
+              for hosts that support  transparent  decompression.
+              This  is  an experimental feature, and no hosts yet
+              support this, but there are ALPHA patches for Linux
+              that can make use of this feature.
+
+
+</PRE>
+<A NAME="HFS_OPTIONS"><H2>HFS OPTIONS</H2></A><PRE>
+       <STRONG>-hfs</STRONG>   Create  an  ISO9660/HFS  hybrid CD. By default, all
+              source files are checked to  attempt  to  recognise
+              files  stored  in  one of the known Apple/Unix file
+              formats.  See the <STRONG>MACINTOSH</STRONG>  <STRONG>FILE</STRONG>  <STRONG>FORMATS</STRONG>  section
+              below for more about these formats
+
+       <STRONG>-apple</STRONG> Create an ISO9660 CD with Apple's extensions. Simi-
+              lar to the  <EM>-hfs</EM>  option,  except  that  the  Apple
+              Extensions to ISO9660 are added instead of creating
+              an HFS hybrid volume.
+
+       <STRONG>-map</STRONG> <EM>mapping</EM><STRONG>_</STRONG><EM>file</EM>
+              Use the <EM>mapping</EM><STRONG>_</STRONG><EM>file</EM> to set the  CREATOR  and  TYPE
+              information  for  a  file  based  on the filename's
+              extension. A filename is mapped only if it  is  not
+              one  of  the  know Apple/Unix file formats. See the
+              <STRONG>CREATOR/TYPE</STRONG> section below.
+
+       <STRONG>-magic</STRONG> <EM>magic</EM><STRONG>_</STRONG><EM>file</EM>
+              The CREATOR and TYPE information is set by using  a
+              file's <EM>magic</EM> <EM>number</EM> (usually the first few bytes of
+              a file). The <EM>magic</EM><STRONG>_</STRONG><EM>file</EM> is only used if a  file  is
+              not  one  of  the known Apple/Unix file formats, or
+              the filename extension has not  been  mapped  using
+              the <EM>-map</EM> option. See the <STRONG>CREATOR/TYPE</STRONG> section below
+              for more details.
+
+       <STRONG>-no-mac-files</STRONG>
+              Disables searching for Apple/Unix files. This  will
+              speed  up processing if there are none of the known
+              Apple/Unix format files  in  the  source  directory
+              trees (the source directories just contain ordinary
+              files). The <EM>-map</EM> and/or <EM>-magic</EM> option can  be  used
+              to set the CREATOR and TYPE for each file.
+
+       <STRONG>-probe</STRONG> Search  the  contents  of files for Apple/Unix file
+              formats. When <EM>-hfs</EM> or <EM>-apple</EM> is used, mkhybrid will
+              attempt  to  work  out  automatically  what type of
+              Apple/Unix format each file is. However,  the  only
+              way to check for <EM>MacBinary</EM> and <EM>AppleSingle</EM> files is
+              to open and read them. Therefore, if  <EM>MacBinary</EM>  or
+              <EM>AppleSingle</EM>  format  files are being used, then you
+              need to give this option.  This saves  opening  and
+              searching   every   file  if  no  <EM>MacBinary</EM>  and/or
+              <EM>AppleSingle</EM> files exist. Or you could use the rele-
+              vant <EM>double</EM> <EM>dash</EM> options given below.
+
+       <STRONG>-no-desktop</STRONG>
+              Do  not  create  (empty)  Desktop  files.  New  HFS
+              Desktop files will be created when the CD  is  used
+              on  a  Macintosh (and stored in the System Folder).
+              By default, empty Desktop files are  added  to  the
+              HFS volume.
+
+       <STRONG>-mac-name</STRONG>
+              Use  the HFS filename as the starting point for the
+              ISO9660, Joliet and Rock Ridge file names. See  the
+              <STRONG>MACINTOSH</STRONG>  <STRONG>FILE</STRONG> <STRONG>NAMES</STRONG> section below for more infor-
+              mation.
+
+       <STRONG>-boot-hfs-file</STRONG> <EM>driver</EM><STRONG>_</STRONG><EM>file</EM>
+              Installs the  <EM>driver</EM><STRONG>_</STRONG><EM>file</EM>  that  <EM>may</EM>  make  the  CD
+              bootable  on  a  Macintosh. See the <STRONG>HFS</STRONG> <STRONG>BOOT</STRONG> <STRONG>DRIVER</STRONG>
+              section below. (Alpha).
+
+       <STRONG>-part</STRONG>  Generate an HFS partition  table.  By  default,  no
+              partition table is generated, but some older Macin-
+              tosh CDROM drivers need an HFS partition  table  on
+              the CDROM to be able to recognize a hybrid CDROM.
+
+       <STRONG>-auto</STRONG> <EM>AutoStart</EM><STRONG>_</STRONG><EM>file</EM>
+              Make  the  HFS  CD  use the QuickTime 2.0 Autostart
+              feature to launch an application or  document.  The
+              given  filename  must  be the name of a document or
+              application located at the top level of the CD. The
+              filename  must be less than 12 characters. (Alpha).
+
+       <STRONG>-cluster-size</STRONG> <EM>size</EM>
+              Set the size in bytes of the cluster or  allocation
+              units  of PC Exchange files. See the <STRONG>MACINTOSH</STRONG> <STRONG>FILE</STRONG>
+              <STRONG>FORMATS</STRONG> section below.
+
+       <STRONG>-hide-hfs</STRONG> <EM>glob</EM>
+              Hide <EM>glob</EM> from the HFS volume. The file  or  direc-
+              tory  will still exist in the ISO9660 and/or Joliet
+              directory.  <EM>glob</EM> is a shell wild-card-style pattern
+              that  must  match any part of the filename Multiple
+              globs may be excluded (up to 1000).  Example:
+
+              mkhybrid -o rom -hfs -hide-hfs '*.o' -hide-hfs foo-
+              bar
+
+              would  exclude  all  files ending in ".o" or called
+              "foobar" from the HFS volume. Note that if you  had
+              a  directory  called "foobar" it too (and of course
+              all its descendants) would be excluded.   The  <EM>glob</EM>
+              can  also  be  a  path  name relative to the source
+              directories given on the command line. Example:
+
+              mkhybrid -o rom -hfs -hide-hfs src/html src
+
+              would exclude just the  file  or  directory  called
+              "html"  from the "src" directory. Any other file or
+              directory called "html" in the  tree  will  not  be
+              excluded.   Should  be  used  with the <EM>-hide</EM> and/or
+              <EM>-hide-joliet</EM> options.
+
+       <STRONG>-hide-hfs-list</STRONG> <EM>file</EM>
+              A file containing a list of <EM>globs</EM> to be  hidden  as
+              above.
+
+       <STRONG>-hfs-volid</STRONG> <EM>hfs</EM><STRONG>_</STRONG><EM>volid</EM>
+              Volume name for the HFS partition. This is the name
+              that is assigned to the disc  on  a  Macintosh  and
+              replaces the <EM>volid</EM> used with the <EM>-V</EM> option
+
+       <STRONG>--cap</STRONG>  Look  for  AUFS CAP Macintosh files. Search for CAP
+              Apple/Unix file formats  only.  Searching  for  the
+              other possible Apple/Unix file formats is disabled,
+              unless other <EM>double</EM> <EM>dash</EM> options are given.
+
+       <STRONG>--netatalk</STRONG>
+              Look for NETATALK Macintosh files
+
+       <STRONG>--double</STRONG>
+              Look for AppleDouble Macintosh files
+
+       <STRONG>--ethershare</STRONG>
+              Look for Helios EtherShare Macintosh files
+
+       <STRONG>--ushare</STRONG>
+              Look for IPT UShare Macintosh files
+
+       <STRONG>--exchange</STRONG>
+              Look for PC Exchange Macintosh files
+
+       <STRONG>--sgi</STRONG>  Look for SGI Macintosh files
+
+       <STRONG>--xinet</STRONG>
+              Look for XINET Macintosh files
+
+       <STRONG>--macbin</STRONG>
+              Look for MacBinary Macintosh files
+
+       <STRONG>--single</STRONG>
+              Look for AppleSingle Macintosh files
+
+
+
+
+</PRE>
+<A NAME="CREATOR_TYPE"><H2>CREATOR/TYPE</H2></A><PRE>
+       A Macintosh file has two  properties  associated  with  it
+       which  define which application created the file, the <EM>CRE-</EM>
+       <EM>ATOR</EM> and what data the file contains, the <EM>TYPE</EM>.  Both  are
+       (exactly)  4  letter strings. Usually this allows a Macin-
+       tosh user to double-click on a file and launch the correct
+       application etc. The CREATOR and TYPE of a particular file
+       can be found by using something like ResEdit (or  similar)
+       on a Macintosh.
+
+       The CREATOR and TYPE information is stored in all the var-
+       ious Apple/Unix encoded files.  For other files it is pos-
+       sible  to  base  the  CREATOR  and  TYPE on the filename's
+       extension using a <EM>mapping</EM> file (the  <EM>-map</EM>  option)  and/or
+       using  the  <EM>magic</EM> <EM>number</EM> (usually a <EM>signature</EM> in the first
+       few bytes) of a file (the <EM>-magic</EM> option).  If  both  these
+       options are given, then their order on the command line is
+       important. If the <EM>-map</EM> option is given first, then a file-
+       name  extension  match  is attempted before a magic number
+       match. However, if the <EM>-magic</EM> option is given first,  then
+       a magic number match is attempted before a filename exten-
+       sion match.
+
+       If a mapping or magic file is not used,  or  no  match  is
+       found  then  the  default CREATOR and TYPE for all regular
+       files can be set by using entries in the <EM>.mkisofsrc</EM>  file,
+       otherwise  the  default  CREATOR  and  TYPE are 'unix' and
+       'TEXT'.
+
+       The format of the <EM>mapping</EM> file is the same <EM>afpfile</EM>  format
+       as  used  by  <EM>aufs</EM>.   This  file  has five columns for the
+       <EM>extension</EM>, <EM>file</EM> <EM>translation</EM>, <EM>CREATOR</EM>,  <EM>TYPE</EM>  and  <EM>Comment</EM>.
+       Lines  starting  with  the '#' character are comment lines
+       and are ignored. An example file would be like:
+
+       # Example filename mapping file
+       #
+       # EXTN   XLate   CREATOR   TYPE     Comment
+       .tif     Raw     '8BIM'    'TIFF'   "Photoshop TIFF image"
+       .hqx     Ascii   'BnHq'    'TEXT'   "BinHex file"
+       .doc     Raw     'MSWD'    'WDBN'   "Word file"
+       .mov     Raw     'TVOD'    'MooV'   "QuickTime Movie"
+       *        Ascii   'ttxt'    'TEXT'   "Text file"
+
+       Where:
+
+              The first column <EM>EXTN</EM>  defines  the  Unix  filename
+              extension to be mapped. The default mapping for any
+              filename extension that doesn't  match  is  defined
+              with the "*" character.
+
+              The  <EM>Xlate</EM> column defines the type of text transla-
+              tion between the Unix  and  Macintosh  file  it  is
+              ignored  by  <EM>mkhybrid,</EM> but is kept to be compatible
+              with <EM>aufs</EM>(1).  Although <EM>mkhybrid</EM> does not alter the
+              contents  of a file, if a binary file has it's TYPE
+              set as 'TEXT', it <EM>may</EM> be read incorrectly on a Mac-
+              intosh.  Therefore  a better choice for the default
+              TYPE may be '????'
+
+              The <EM>CREATOR</EM> and <EM>TYPE</EM> keywords must be 4  characters
+              long and enclosed in single quotes.
+              The comment field is enclosed in double quotes - it
+              is ignored by <EM>mkhybrid</EM>, but is kept to be  compati-
+              ble with <EM>aufs</EM>.
+
+       The  format  of  the <EM>magic</EM> file is almost identical to the
+       <EM>magic</EM>(4) file used by the Linux <EM>file</EM>(1) command - the rou-
+       tines for reading and decoding the <EM>magic</EM> file are based on
+       the Linux <EM>file</EM>(1) command.
+
+       This file has four tab separated columns for the <EM>byte</EM> <EM>off-</EM>
+       <EM>set</EM>,  <EM>type</EM>, <EM>test</EM> and <EM>message</EM>.  Lines starting with the '#'
+       character are comment lines and are  ignored.  An  example
+       file would be like:
+
+       # Example magic file
+       #
+       # off   type      test       message
+       0       string    GIF8       8BIM GIFf  GIF image
+       0       beshort   0xffd8     8BIM JPEG  image data
+       0       string    SIT!       SIT! SIT!  StuffIt Archive
+       0       string    \037\235   LZIV ZIVU  standard unix compress
+       0       string    \037\213   GNUz ZIVU  gzip compressed data
+       0       string    %!         ASPS TEXT  Postscript
+       0       string    \004%!     ASPS TEXT  PC Postscript with a ^D to start
+       4       string    moov       txtt MooV  QuickTime movie file (moov)
+       4       string    mdat       txtt MooV  QuickTime movie file (mdat)
+
+       The  format  of  the file is described in the <EM>magic</EM>(4) man
+       page. The only difference here is that for each  entry  in
+       the magic file, the <EM>message</EM> for the initial offset <STRONG>must</STRONG> be
+       4 characters for the CREATOR followed by 4 characters  for
+       the TYPE - white space is optional between them. Any other
+       characters on this line are ignored.   Continuation  lines
+       (starting  with a '&gt;') are also ignored i.e. only the ini-
+       tial offset lines are used.
+
+       Using the <EM>-magic</EM> option may  significantly  increase  pro-
+       cessing  time  as each file has to opened and read to find
+       it's magic number.
+
+       In summary, for all files, the default CREATOR  is  'unix'
+       and  the  default TYPE is 'TEXT'.  These can be changed by
+       using entries in the <EM>.mkisofsrc</EM> file.
+
+       If the a file is in one of the  known  Apple/Unix  formats
+       (and  the  format has been selected), then the CREATOR and
+       TYPE are taken from the values stored  in  the  Apple/Unix
+       file.
+
+       Other files can have their CREATOR and TYPE set from their
+       file name extension (the <EM>-map</EM> option), or their magic num-
+       ber  (the  <EM>-magic</EM> option). If the default match is used in
+       the <EM>mapping</EM> file, then these values override  the  default
+       CREATOR and TYPE.
+       A   full   CREATOR/TYPE   database   can   be   found   at
+       <STRONG><A HREF="http://www.angelfire.com/il/szekely/index.html">http://www.angelfire.com/il/szekely/index.html</A></STRONG>
+
+
+
+</PRE>
+<A NAME="MACINTOSH_FILE_FORMATS"><H2>MACINTOSH FILE FORMATS</H2></A><PRE>
+       Macintosh  files  have  two  parts  called  the  <EM>Data</EM>  and
+       <EM>Resource</EM>  fork.  Either may be empty. Unix (and many other
+       OSs) can only cope with files having one part  (or  fork).
+       To   add  to  this,  Macintosh  files  have  a  number  of
+       attributes associated with them - probably the most impor-
+       tant  are  the TYPE and CREATOR. Again Unix has no concept
+       of these types of attributes.
+
+       e.g. a Macintosh file may be a JPEG image where the  image
+       is  stored in the Data fork and a desktop thumbnail stored
+       in the Resource fork. It is usually the information in the
+       data fork that is useful across platforms.
+
+       Therefore  to store a Macintosh file on a Unix filesystem,
+       a way has to be found to cope with the two forks  and  the
+       extra  attributes  (which  are  referred  to as the <EM>finder</EM>
+       <EM>info).</EM>  Unfortunately, it seems that every software  pack-
+       age  that stores Macintosh files on Unix has chosen a com-
+       pletely different storage method.
+
+       The Apple/Unix formats that <EM>mkhybrid</EM> (partially)  supports
+       are:
+
+       CAP AUFS format
+              Data fork stored in a file. Resource fork in subdi-
+              rectory .resource with same filename as data  fork.
+              Finder  info  in .finderinfo subdirectory with same
+              filename.
+
+       AppleDouble/Netatalk
+              Data fork stored in a file. Resource fork stored in
+              a  file  with  same  name prefixed with "%". Finder
+              info also stored in same "%"  file.  Netatalk  uses
+              the  same  format, but the resource fork/finderinfo
+              stored in subdirectory .AppleDouble with same  name
+              as data fork.
+
+       AppleSingle
+              Data structures similar to above, except both forks
+              and finder info are stored in one file.
+
+       Helios EtherShare
+              Data fork stored  in  a  file.  Resource  fork  and
+              finder  info  together  in  subdirectory .rsrc with
+              same filename as data fork.
+
+       IPT UShare
+              Very similar to  the  EtherShare  format,  but  the
+              finder info is stored slightly differently.
+
+       MacBinary
+              Both forks and finder info stored in one file.
+
+       Apple PC Exchange
+              Used  by  Macintoshes  to  store Apple files on DOS
+              (FAT) disks.  Data fork stored in a file.  Resource
+              fork     in     subdirectory    resource.frk    (or
+              RESOURCE.FRK). Finder info as one  record  in  file
+              finder.dat (or FINDER.DAT). Separate finder.dat for
+              each data fork directory.
+
+              Note: normally files should  be  accessed  directly
+              from  the  DOS  media as <EM>mkhybrid</EM> needs to find out
+              the native FAT cluster size.   If  the  native  FAT
+              cluster  size  is  known,  then  the  <EM>-cluster-size</EM>
+              option can be used to set the cluster size - useful
+              if  PC Exchange files have be copied from DOS disks
+              before running <EM>mkhybrid</EM>.  The cluster or allocation
+              size  can be found by using the DOS utility <EM>CHKDSK</EM>.
+
+              May not work with PC Exchange v2.2 or higher  files
+              (available  with  MacOS 8.1).  DOS media containing
+              PC Exchange files should be mounted as  type  <STRONG>msdos</STRONG>
+              (not <STRONG>vfat</STRONG>) when using Linux.
+
+       SGI/XINET
+              Used  by  SGI  machines  when they mount HFS disks.
+              Data fork stored in a file. Resource fork in subdi-
+              rectory  .HSResource with same name. Finder info as
+              one record in file .HSancillary. Separate .HSancil-
+              lary for each data fork directory.
+
+       <EM>mkhybrid</EM>  will  attempt to set the CREATOR, TYPE, date and
+       possibly other flags from the finder  info.  Additionally,
+       if  it  exists,  the  Macintosh  filename  is set from the
+       finder info, otherwise the Macintosh name is based on  the
+       Unix  filename  -  see  the  MACINTOSH  FILE NAMES section
+       below.
+
+       When using the <EM>-apple</EM> option, the  TYPE  and  CREATOR  are
+       stored  in  the  optional  System Use or SUSP field in the
+       ISO9660 Directory Record - in much the  same  way  as  the
+       Rock  Ridge attributes are. In fact to make life easy, the
+       Apple extensions are added at the beginning of the  exist-
+       ing  Rock  Ridge  attributes (i.e. to get the Apple exten-
+       sions you get the Rock Ridge extensions as well).
+
+       The Apple extensions  require  the  resource  fork  to  be
+       stored  as  an  ISO9660 <EM>associated</EM> file. This is just like
+       any normal file stored in the  ISO9660  filesystem  except
+       that  the  associated  file  flag  is set in the Directory
+       Record (bit 2). This file has the same name  as  the  data
+       fork  (the  file  seen  by non-Apple machines). Associated
+       files are normally ignored by other OSs
+       When using the <EM>-hfs</EM> option,  the  TYPE  and  CREATOR  plus
+       other finder info, are stored in a separate HFS directory,
+       not visible on the ISO9660 volume. The HFS directory  ref-
+       erences  the  same  data and resource fork files described
+       above.
+
+       In most cases, it is better to use the <EM>-hfs</EM> option instead
+       of  the  <EM>-apple</EM>  option, as the latter imposes the limited
+       ISO9660 characters  allowed  in  filenames.  However,  the
+       Apple  extensions do give the advantage that the files are
+       packed on the disk more efficiently and it may be possible
+       to  fit more files on a CD - important when the total size
+       of the source files is approaching 650MB.
+
+
+
+
+
+</PRE>
+<A NAME="MACINTOSH_FILE_NAMES"><H2>MACINTOSH FILE NAMES</H2></A><PRE>
+       Where possible, the HFS filename that is  stored  with  an
+       Apple/Unix  file  is used for the HFS part of the CD. How-
+       ever, not all the Apple/Unix encodings store the HFS file-
+       name  with  the finderinfo. In these cases, the Unix file-
+       name is used - with escaped  special  characters.  Special
+       characters include '/' and characters with codes over 127.
+
+       Aufs escapes these characters by using ":" followed by the
+       character  code as two hex digits. Netatalk and EtherShare
+       have a similar scheme, but uses "%" instead of a ":".
+
+       If mkhybrid can't find an HFS filename, then it  uses  the
+       Unix  name,  with any %xx or :xx characters (xx == two hex
+       digits) converted to a single character code. If "xx"  are
+       not  hex  digits ([0-9a-fA-F]), then they are left alone -
+       although any remaining ":" is converted to "%" as colon is
+       the  HFS  directory  separator.  Care must be taken, as an
+       ordinary Unix file with %xx or :xx will also be converted.
+       e.g.
+
+       This:2fFile   converted to This/File
+
+       This:File     converted to This%File
+
+       This:t7File   converted to This%t7File
+
+       Although  HFS  filenames appear to support upper and lower
+       case letters, the filesystem is case insensitive. i.e. the
+       filenames "aBc" and "AbC" are the same. If a file is found
+       in a directory with the same HFS name, then <EM>mkhybrid</EM>  will
+       attempt,  where  possible, to make a unique name by adding
+       '_' characters to one of the filenames.
+
+       If an HFS filename exists for a file,  then  mkhybrid  can
+       use  this  name  as  the  starting  point for the ISO9660,
+       Joliet  and  Rock  Ridge  filenames  using  the  <EM>-mac-name</EM>
+       option.  Normal  Unix files without an HFS name will still
+       use their Unix name.  e.g.
+
+       If a <EM>MacBinary</EM> (or <EM>PC</EM> <EM>Exchange</EM>) file is stored as  <EM>someim-</EM>
+       <EM>age.gif.bin</EM>  on  the  Unix  filesystem, but contains a HFS
+       file called <EM>someimage.gif</EM>, then  this  is  the  name  that
+       would  appear on the HFS part of the CD. However, as mkhy-
+       brid uses the Unix name as  the  starting  point  for  the
+       other names, then the ISO9660 name generated will probably
+       be <EM>SOMEIMAG.BIN</EM> and the Joliet/Rock Ridge would be <EM>someim-</EM>
+       <EM>age.gif.bin</EM>.  Although the actual data (in this case) is a
+       GIF image. This option will use the HFS  filename  as  the
+       starting  point  and  the  ISO9660  name  will probably be
+       <EM>SOMEIMAG.GIF</EM> and the Joliet/Rock Ridge  would  be  <EM>someim-</EM>
+       <EM>age.gif</EM>.
+
+       Using  the  <EM>-mac-name</EM>  option will not currently work with
+       the <EM>-T</EM> option  -  the  Unix  name  will  be  used  in  the
+       TRANS.TBL file, not the Macintosh name.
+
+       The  existing  mkisofs  code  will  filter out any illegal
+       characters for the ISO9660 and Joliet  filenames,  but  as
+       mkisofs expects to be dealing directly with Unix names, it
+       leaves the Rock Ridge names as is.  But as '/' is a  legal
+       HFS  filename  character, the <EM>-mac-name</EM> option coverts '/'
+       to a '_' in a Rock Ridge filenames.
+
+       If the Apple extensions are used, then  only  the  ISO9660
+       filenames  will  appear  on the Macintosh. However, as the
+       Macintosh ISO9660 drivers can use <EM>Level</EM> <EM>2</EM> filenames,  then
+       you  can use the <EM>-l</EM> option without problems on a Macintosh
+       -  still  take  care   over   the   names,   for   example
+       <EM>this.file.name</EM>  will  be  converted to <EM>THIS.FILE</EM> i.e. only
+       have one '.', also  filename  <EM>abcdefgh</EM>  will  be  seen  as
+       <EM>ABCDEFGH</EM>  but  <EM>abcdefghi</EM>  will be seen as <EM>ABCDEFGHI.</EM>  i.e.
+       with a '.' at the end - don't know if this is a  Macintosh
+       problem or mkisofs/mkhybrid problem. All filenames will be
+       in uppercase  when  viewed  on  a  Macintosh.  Of  course,
+       DOS/Win3.X  machines will not be able to see Level 2 file-
+       names...
+
+       As Macintosh filenames do use the '~' and  '#'  characters
+       (especially  when using PC Exchange Macintosh files), then
+       the <EM>-a</EM> option should be given.
+
+
+
+</PRE>
+<A NAME="HFS_BOOT_DRIVER"><H2>HFS BOOT DRIVER</H2></A><PRE>
+       It <EM>may</EM> be possible to make the hybrid  CD  bootable  on  a
+       Macintosh.
+
+       A bootable HFS CD requires an Apple CD-ROM (or compatible)
+       driver, a bootable HFS partition and the necessary System,
+       Finder, etc. files.
+
+       A driver can be obtained from any other Macintosh bootable
+       CD-ROM using the <EM>apple</EM><STRONG>_</STRONG><EM>driver</EM> utility. This file can  then
+       be used with the <EM>-boot-hfs-file</EM> option.
+
+       The  HFS partition (i.e. the hybrid disk in our case) must
+       contain a suitable System Folder, again from  another  CD-
+       ROM or disk.
+
+       For  a  partition  to  be bootable, it must have it's <EM>boot</EM>
+       <EM>block</EM> set. The boot block is in the first two blocks of  a
+       partition.  For a non-bootable partition the boot block is
+       full of zeros. Normally, when a System file is  copied  to
+       partition  on  a  Macintosh disk, the boot block is filled
+       with a number of required settings - unfortunately I don't
+       know  the  full  spec  for the boot block, so I'm guessing
+       that the following will work OK.
+
+       Therefore, the utility <EM>apple</EM><STRONG>_</STRONG><EM>driver</EM> also extracts the boot
+       block  from  the first HFS partition it finds on the given
+       CD-ROM and this is used for the HFS partition  created  by
+       <EM>mkhybrid</EM>.
+
+       PLEASE NOTE
+              By  using  a  driver  from  an Apple CD and copying
+              Apple software to your CD,  you  become  liable  to
+              obey  Apple  Computer, Inc. Software License Agree-
+              ments.
+
+
+
+
+</PRE>
+<A NAME="CONFIGURATION"><H2>CONFIGURATION</H2></A><PRE>
+       <STRONG>mkhybrid</STRONG> looks for the <EM>.mkisofsrc</EM> file, first in the  cur-
+       rent working directory, then in the user's home directory,
+       and then in the directory in which the <STRONG>mkhybrid</STRONG> binary  is
+       stored.  This file is assumed to contain a series of lines
+       of the form "TAG=value", and in this way you  can  specify
+       certain  options.  The case of the tag is not significant.
+       Some fields in the volume header are not settable  on  the
+       command  line,  but  can be altered through this facility.
+       Comments may be placed in this  file,  using  lines  which
+       start with a hash (#) character.
+
+       APPI   The  application  identifier  should  describe  the
+              application that will be on  the  disc.   There  is
+              space  on  the  disc for 128 characters of informa-
+              tion.  May be overridden using the -A command  line
+              option.
+
+       COPY   The copyright information, often the name of a file
+              on the disc containing the copyright notice.  There
+              is  space in the disc for 37 characters of informa-
+              tion.  May be overridden using the <STRONG>-copyright</STRONG>  com-
+              mand line option.
+
+       ABST   The  abstract information, often the name of a file
+              on the disc containing an abstract.  There is space
+              in  the disc for 37 characters of information.  May
+              be overridden  using  the  <STRONG>-abstract</STRONG>  command  line
+              option.
+
+       BIBL   The  bibliographic information, often the name of a
+              file on the disc containing a bibliography.   There
+              is  space in the disc for 37 characters of informa-
+              tion.  May be overridden using the  <STRONG>-bilio</STRONG>  command
+              line option.
+
+       PREP   This  should  describe  the  preparer of the CDROM,
+              usually with a mailing address  and  phone  number.
+              There  is  space  on the disc for 128 characters of
+              information.  May be overridden using the  <STRONG>-p</STRONG>  com-
+              mand line option.
+
+       PUBL   This  should  describe  the publisher of the CDROM,
+              usually with a mailing address  and  phone  number.
+              There  is  space  on the disc for 128 characters of
+              information.  May be overridden using the  <STRONG>-P</STRONG>  com-
+              mand line option.
+
+       SYSI   The  System Identifier.  There is space on the disc
+              for 32 characters of information.  May be  overrid-
+              den using the <STRONG>-sysid</STRONG> command line option.
+
+       VOLI   The  Volume Identifier.  There is space on the disc
+              for 32 characters of information.  May be  overrid-
+              den using the <STRONG>-V</STRONG> command line option.
+
+       VOLS   The  Volume  Set  Name.  There is space on the disc
+              for 278 characters of information.  May be overrid-
+              den using the <STRONG>-volset</STRONG> command line option.
+
+       TYPE   The  default  TYPE  for  Macintosh  files.  Must be
+              exactly 4 characters.
+
+       CREATOR
+              The default CREATOR for Macintosh  files.  Must  be
+              exactly 4 characters.
+
+       <STRONG>mkhybrid</STRONG>  can  also  be  configured  at  compile time with
+       defaults  for  many  of  these  fields.   See   the   file
+       defaults.h.
+
+
+</PRE>
+<A NAME="AUTHOR"><H2>AUTHOR</H2></A><PRE>
+       <STRONG>mkisofs</STRONG> is not based on the standard mk*fs tools for unix,
+       because we must generate a complete  copy of  an  existing
+       filesystem on a disk in the  iso9660 filesystem.  The name
+       mkisofs is probably a bit of a misnomer, since it not only
+       creates  the filesystem, but it also populates it as well.
+
+       Eric       Youngdale       &lt;ericy@gnu.ai.mit.edu&gt;       or
+       &lt;eric@andante.jic.com&gt;  wrote  both  the  Linux  isofs9660
+       filesystem and the mkisofs utility, and is currently main-
+       taining  them.   The  copyright for the mkisofs utility is
+       held by Yggdrasil Computing, Incorporated.
+
+       <STRONG>mkhybrid</STRONG> is based on <STRONG>mkisofs</STRONG> and works in exactly the same
+       way as <STRONG>mkisofs</STRONG> without the HFS options. The change in name
+       is to signify that it does something extra. If you do  not
+       need  the  HFS  options,  then  you should really be using
+       <EM>mkisofs</EM>.
+
+       HFS hybrid code Copyright (C) James  Pearson  1997,  1998,
+       1999
+       libhfs code Copyright (C) 1996, 1997 Robert Leslie
+       libfile code Copyright (C) Ian F. Darwin 1986, 1987, 1989,
+       1990, 1991, 1992, 1994, 1995.
+
+
+
+
+</PRE>
+<A NAME="BUGS"><H2>BUGS</H2></A><PRE>
+       Any files that have hard links to files not  in  the  tree
+       being copied to the iso9660 filesystem will have an incor-
+       rect file reference count.
+
+       There may be some other ones.  Please, report them to  the
+       author.
+
+
+
+</PRE>
+<A NAME="HFS_PROBLEMS_LIMITATIONS"><H2>HFS PROBLEMS/LIMITATIONS</H2></A><PRE>
+       I have had to make several assumptions on how I expect the
+       modified libhfs routines to work,  however  there  may  be
+       situations  that  either  I  haven't  thought  of, or come
+       across when these assumptions  fail.   Therefore  I  can't
+       guarantee  that mkhybrid will work as expected (although I
+       haven't had a major problem yet). Most of the HFS features
+       work  fine,  however, some are not fully tested. These are
+       marked as <EM>Alpha</EM> above.
+
+       Output volume size must be at least 800Kb (libhfs limit  -
+       shouldn't really be a problem).
+
+       Although  HFS  filenames appear to support upper and lower
+       case letters, the filesystem is case insensitive. i.e. the
+       filenames "aBc" and "AbC" are the same. If a file is found
+       in a directory with the same HFS name, then <EM>mkhybrid</EM>  will
+       attempt,  where  possible, to make a unique name by adding
+       '_' characters to one of the filenames.
+
+       HFS file/directory names that share the first  31  charac-
+       ters  have  _N'  (N == decimal number) substituted for the
+       last few characters to generate unique names.
+
+       Care must be taken when  "grafting"  Apple/Unix  files  or
+       directories   (see   above   for  the  method  and  syntax
+       involved). It is not possible to use a  new  name  for  an
+       Apple/Unix  encoded  file/directory.  e.g. If a Apple/Unix
+       encoded file called "oldname" is to added to the CD,  then
+       you can not use the command line:
+
+              mkhybrid -o output.raw -hfs newname=oldname cd_dir
+
+       mkhybrid  will be unable to decode "oldname". However, you
+       can graft Apple/Unix encoded files or directories as  long
+       as you do not atempt to give them new names as above.
+
+       The <EM>-M</EM> option has no real meaning with an HFS volume - and
+       will probably not work.
+
+       Symbolic links (as with all other non-regular  files)  are
+       not added to the HFS directory.
+
+       Hybrid  volumes  may  be  larger than pure ISO9660 volumes
+       containing the same data.
+
+       The resulting hybrid volume can  be  accessed  on  a  Unix
+       machine  by  using  the  hfsutils  routines.  However,  no
+       changes should be made to the contents of  the  volume  as
+       it's not a "real" HFS volume.
+
+       Using  the  <EM>-mac-name</EM>  option will not currently work with
+       the <EM>-T</EM> option  -  the  Unix  name  will  be  used  in  the
+       TRANS.TBL file, not the Macintosh name.
+
+       Although  <EM>mkhybrid</EM>  does not alter the contents of a file,
+       if a binary file has it's TYPE set as 'TEXT',  it  <EM>may</EM>  be
+       read incorrectly on a Macintosh. Therefore a better choice
+       for the default TYPE may be '????'
+
+       The <EM>-mac-boot-file</EM> option may not work at all...
+
+       The <EM>-a</EM> option should be used at all  times.  It  may  well
+       become the default in future releases.
+
+       May not work with PC Exchange v2.2 or higher files (avail-
+       able with MacOS 8.1).  DOS media  containing  PC  Exchange
+       files  should  be  mounted  as  type <STRONG>msdos</STRONG> (not <STRONG>vfat</STRONG>) when
+       using Linux.
+
+
+
+</PRE>
+<A NAME="SEE_ALSO"><H2>SEE ALSO</H2></A><PRE>
+       <EM>mkisofs</EM>(8), <EM>magic</EM>(5), <EM>apple</EM><STRONG>_</STRONG><EM>driver</EM>(8)
+
+
+</PRE>
+<A NAME="FUTURE_IMPROVEMENTS"><H2>FUTURE IMPROVEMENTS</H2></A><PRE>
+       Some sort of gui interface.
+
+
+</PRE>
+<A NAME="AVAILABILITY"><H2>AVAILABILITY</H2></A><PRE>
+       <STRONG>mkisofs</STRONG>   is   available   for    anonymous    ftp    from
+       <STRONG><A HREF="ftp://tsx-11.mit.edu/pub/linux/packages/mkisofs">ftp://tsx-11.mit.edu/pub/linux/packages/mkisofs</A></STRONG>  and  many
+       other mirror sites.
+
+       <STRONG>mkhybrid</STRONG>           is            available            from
+       <STRONG><A HREF="ftp://ftp.ge.ucl.ac.uk/pub/mkhfs">ftp://ftp.ge.ucl.ac.uk/pub/mkhfs</A></STRONG>    and    <STRONG>hfsutils</STRONG>   from
+       <STRONG><A HREF="ftp://ftp.mars.org/pub/hfs">ftp://ftp.mars.org/pub/hfs</A></STRONG>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

@@ -1,0 +1,252 @@
+.\"     $OpenBSD: autoconf.9,v 1.18 2025/06/13 18:34:00 schwarze Exp $
+.\"     $NetBSD: autoconf.9,v 1.9 2002/02/13 08:18:35 ross Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Gregory McGarry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt CONFIG_SEARCH 9
+.Os
+.Sh NAME
+.Nm config_search ,
+.Nm config_rootsearch ,
+.Nm config_found_sm ,
+.Nm config_found ,
+.Nm config_rootfound
+.Nd autoconfiguration framework
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/device.h
+.Ft void *
+.Fn config_search "cfmatch_t func" "struct device *parent" "void *aux"
+.Ft void *
+.Fn config_rootsearch "cfmatch_t func" "char *rootname" "void *aux"
+.Ft struct device *
+.Fo config_found_sm
+.Fa "struct device *parent"
+.Fa "void *aux"
+.Fa "cfprint_t print"
+.Fa "cfmatch_t submatch"
+.Fc
+.Ft struct device *
+.Fn config_found "struct device *parent" "void *aux" "cfprint_t print"
+.Ft struct device *
+.Fn config_rootfound "char *rootname" "void *aux"
+.Sh DESCRIPTION
+Autoconfiguration is the process of matching hardware devices with an
+appropriate device driver.
+In its most basic form, autoconfiguration consists of the recursive
+process of finding and attaching all devices on a bus, including other buses.
+.Pp
+The autoconfiguration framework supports
+.Em direct configuration
+where the bus driver can determine the devices present.
+.Pp
+The autoconfiguration framework also supports
+.Em indirect configuration
+where the drivers must probe the bus looking for the presence of a device.
+Direct configuration is preferred since it can find hardware regardless of
+the presence of proper drivers.
+.Pp
+The autoconfiguration process occurs at system bootstrap and is driven by a
+table generated from a
+.Do
+machine description
+.Dc
+file by
+.Xr config 8 .
+For a description of the
+.Xr config 8
+.Do
+device definition
+.Dc
+language, see
+.Xr files.conf 5 .
+.Pp
+Each device must have a name consisting of an alphanumeric string that
+ends with a unit number.
+The unit number identifies an instance of the driver.
+Device data structures are allocated dynamically during autoconfiguration,
+giving a unique address for each instance.
+.Ss Indirect Configuration
+The
+.Fn config_search
+function performs indirect configuration of physical devices by iterating
+over all potential children, calling the given function
+.Fa func
+for each one.
+.Pp
+The
+.Fn config_rootsearch
+function finds the root device identified by the string
+.Fa rootname ,
+in a manner similar to
+.Fn config_search ,
+except that there is no parent device.
+If
+.Fa func
+is
+.Dv NULL ,
+.Fn config_search
+applies each child's match function instead.
+The argument
+.Fa parent
+is the pointer to the parent's device structure.
+The given
+.Fa aux
+argument describes the device that has been found and is simply passed
+on through
+.Fa func
+to the child.
+.Fn config_search
+returns a pointer to the best-matched child or
+.Dv NULL
+otherwise.
+.Pp
+The role of
+.Fa func
+is to call
+the match function for each device and call
+.Fn config_attach
+for any positive matches.
+.Bd -literal
+typedef int (*cfmatch_t)(struct device *parent, void *child, void *aux);
+.Ed
+.Pp
+If
+.Fa func
+is
+.Dv NULL ,
+then the parent should record the return value from
+.Fn config_search
+and call
+.Fn config_attach
+itself.
+.Pp
+Note that this function is designed so that it can be used to apply an
+arbitrary function to all potential children.
+In this case callers may choose to ignore the return value.
+.Ss Direct Configuration
+The
+.Fn config_found_sm
+function performs direct configuration on a physical device.
+.Fn config_found_sm
+is called by the parent and in turn calls the
+.Fa submatch
+function to call the match function as determined by the configuration table.
+If
+.Fa submatch
+is
+.Dv NULL ,
+the driver match functions are called directly.
+The argument
+.Fa parent
+is the pointer to the parent's device structure.
+The given
+.Fa aux
+argument describes the device that has been found.
+The
+.Em softc
+structure for the matched device will be allocated, and the appropriate
+driver attach function will be called.
+.Pp
+If the device is matched, the system prints the name of the child and
+parent devices, and then calls the
+.Fa print
+function to produce additional information if desired.
+If no driver takes a match, the same
+.Fa print
+function is called to complain.
+The print function is called with the
+.Fa aux
+argument and, if the matches failed, the full name (including unit
+number) of the parent device, otherwise
+.Dv NULL .
+.Bd -literal
+typedef int (*cfprint_t)(void *aux, const char *parentname);
+#define	QUIET	0		/* print nothing */
+#define	UNCONF	1		/* print " not configured" */
+#define	UNSUPP	2		/* print " not supported" */
+.Ed
+.Pp
+Two special strings,
+.Do
+not configured
+.Dc
+and
+.Do
+unsupported
+.Dc
+will be appended automatically to non-driver reports if the return
+value is
+.Dv UNCONF
+or
+.Dv UNSUPP
+respectively, otherwise the function should return the value
+.Dv QUIET .
+.Pp
+The
+.Fn config_found_sm
+function returns a pointer to the attached device's
+.Em softc
+structure if the device is attached,
+.Dv NULL
+otherwise.
+Most callers can ignore this value, since the system will already have
+printed a diagnostic.
+.Pp
+The
+.Fn config_found
+macro expands to
+.Fn config_found_sm "parent" "aux" "print" "submatch"
+with
+.Fa submatch
+set to
+.Dv NULL
+and is provided for compatibility with older drivers.
+.Pp
+The
+.Fn config_rootfound
+function performs the same operation on the root device identified
+by the
+.Fa rootname
+string.
+.Sh CODE REFERENCES
+The autoconfiguration framework itself is implemented within the file
+.Pa sys/kern/subr_autoconf.c .
+Data structures and function prototypes for the framework are located in
+.Pa sys/sys/device.h .
+.Sh SEE ALSO
+.Xr autoconf 4 ,
+.Xr files.conf 5 ,
+.Xr config 8 ,
+.Xr config_attach 9
+.Sh HISTORY
+Autoconfiguration first appeared in
+.Bx 4.1 .
+The autoconfiguration framework was completely revised in
+.Bx 4.4 .

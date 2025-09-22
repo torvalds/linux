@@ -1,0 +1,4 @@
+V	420817003032Z		1000	unknown	/C=CA/ST=Edmonton/O=Muppet Show/OU=Pigs In Space OCSP division/CN=localhost
+R	420817003033Z	200921003033Z	1001	unknown	/C=CA/ST=Edmonton/O=Muppet Show/OU=Pigs In Space Revoked Certs/CN=localhost
+V	420817003033Z		1002	unknown	/C=CA/ST=Edmonton/O=Muppet Show/OU=Pigs In Space Server Certs/CN=localhost
+V	420817003033Z		1003	unknown	/C=CA/ST=Edmonton/O=Muppet Show/OU=Pigs In Space Client Certs/CN=localhost/emailAddress=beck@openbsd.org

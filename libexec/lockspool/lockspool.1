@@ -1,0 +1,77 @@
+.\"	$OpenBSD: lockspool.1,v 1.14 2019/01/25 00:19:26 millert Exp $
+.\"
+.\" Copyright (c) 1998 Todd C. Miller <millert@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 25 2019 $
+.Dt LOCKSPOOL 1
+.Os
+.Sh NAME
+.Nm lockspool
+.Nd lock user's system mailbox
+.Sh SYNOPSIS
+.Nm lockspool
+.Op Ar username
+.Sh DESCRIPTION
+.Nm
+is useful for a client mail program to attain proper locking.
+.Nm
+obtains a
+.Pa username.lock
+for the calling user and retains it until stdin is closed or a signal like
+.Dv SIGINT ,
+.Dv SIGTERM ,
+or
+.Dv SIGHUP
+is received.
+Additionally, the superuser may specify the name of a user in order
+to lock a different mailbox.
+.Pp
+If
+.Nm
+is able to create the lock file,
+.Dq 1
+is written to stdout, otherwise
+.Dq 0
+is written and an error message is written to stderr.
+.Nm
+will try up to 10 times to get the lock (sleeping
+for a short period in between tries).
+.Pp
+Typical usage is for a user mail agent (such as
+.Xr mail 1 )
+to open a pipe to
+.Nm
+when it needs to lock the user's mail spool.
+Closing the pipe will cause
+.Nm
+to release the lock.
+.Sh FILES
+.Bl -tag -width /var/mail/username.lock -compact
+.It Pa /var/mail/username.lock
+user's mail lock file
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success, and 1 if an error occurs.
+.Sh SEE ALSO
+.Xr mail 1 ,
+.Xr mail.local 8 ,
+.Xr smtpd 8
+.Sh HISTORY
+The
+.Nm
+program appeared in
+.Ox 2.4 .

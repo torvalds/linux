@@ -1,0 +1,143 @@
+.\" $OpenBSD: bemtoh32.9,v 1.8 2022/03/31 17:27:23 naddy Exp $
+.\"
+.\" Copyright (c) 2014 David Gwynne <dlg@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt BEMTOH32 9
+.Os
+.Sh NAME
+.Nm bemtoh16 ,
+.Nm bemtoh32 ,
+.Nm bemtoh64 ,
+.Nm lemtoh16 ,
+.Nm lemtoh32 ,
+.Nm lemtoh64 ,
+.Nm htobem16 ,
+.Nm htobem32 ,
+.Nm htobem64 ,
+.Nm htolem16 ,
+.Nm htolem32 ,
+.Nm htolem64
+.Nd byte swapping memory load and store operations
+.Sh SYNOPSIS
+.In sys/types.h
+.Ft uint16_t
+.Fn bemtoh16 "volatile const uint16_t *m"
+.Ft uint32_t
+.Fn bemtoh32 "volatile const uint32_t *m"
+.Ft uint64_t
+.Fn bemtoh64 "volatile const uint64_t *m"
+.Ft uint16_t
+.Fn lemtoh16 "volatile const uint16_t *m"
+.Ft uint32_t
+.Fn lemtoh32 "volatile const uint32_t *m"
+.Ft uint64_t
+.Fn lemtoh64 "volatile const uint64_t *m"
+.Ft void
+.Fn htobem16 "volatile uint16_t *m" "uint16_t v"
+.Ft void
+.Fn htobem32 "volatile uint32_t *m" "uint32_t v"
+.Ft void
+.Fn htobem64 "volatile uint64_t *m" "uint64_t v"
+.Ft void
+.Fn htolem16 "volatile uint16_t *m" "uint16_t v"
+.Ft void
+.Fn htolem32 "volatile uint32_t *m" "uint32_t v"
+.Ft void
+.Fn htolem64 "volatile uint64_t *m" "uint64_t v"
+.Sh DESCRIPTION
+This API provides a way to take advantage of an architecture's ability
+to load and store words in memory of different endians.
+If an architecture has no specialised support for these operations,
+they will be implemented as a wrapper around the
+.Xr htobe64 3
+API.
+.Pp
+These operations are subject to the same alignment restrictions as
+the host's normal memory loads and stores.
+.Pp
+.Fn bemtoh16 ,
+.Fn bemtoh32 ,
+and
+.Fn bemtoh64
+read a big endian value from the memory located at
+.Fa m
+into the host's native byte order.
+.Fn lemtoh16 ,
+.Fn lemtoh32 ,
+and
+.Fn lemtoh64
+read a little endian value from the memory located at
+.Fa m
+into the host's native byte order.
+.Pp
+.Fn htobem16 ,
+.Fn htobem32 ,
+and
+.Fn htobem64
+store the host's native byte ordered value of
+.Fa v
+as a big endian value in the memory located at
+.Fa m .
+.Fn htolem16 ,
+.Fn htolem32 ,
+and
+.Fn htolem64
+store the host's native byte ordered value of
+.Fa v
+as a little endian value in the memory located at
+.Fa m .
+.Sh CONTEXT
+.Fn bemtoh16 ,
+.Fn bemtoh32 ,
+.Fn bemtoh64 ,
+.Fn lemtoh16 ,
+.Fn lemtoh32 ,
+.Fn lemtoh64 ,
+.Fn htobem16 ,
+.Fn htobem32 ,
+.Fn htobem64 ,
+.Fn htolem16 ,
+.Fn htolem32 ,
+and
+.Fn htolem64
+can be called during autoconf, from process context, or from interrupt
+context.
+.Sh RETURN VALUES
+.Fn bemtoh16 ,
+.Fn bemtoh32 ,
+.Fn bemtoh64 ,
+.Fn lemtoh16 ,
+.Fn lemtoh32 ,
+and
+.Fn lemtoh64
+return the host's native byte ordered value of the memory at
+.Fa m
+after the appropriate byteswapping has occurred.
+.Pp
+.Fn htobem16 ,
+.Fn htobem32 ,
+.Fn htobem64 ,
+.Fn htolem16 ,
+.Fn htolem32 ,
+and
+.Fn htolem64
+do not return a value.
+.Sh SEE ALSO
+.Xr htobe64 3
+.Sh HISTORY
+These functions first appeared in
+.Ox 5.6 .

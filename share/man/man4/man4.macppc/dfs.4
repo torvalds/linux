@@ -1,0 +1,53 @@
+.\"	$OpenBSD: dfs.4,v 1.2 2011/05/25 18:13:54 jmc Exp $
+.\"
+.\" Copyright (c) 2011 Martin Pieuchot <mpi@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 25 2011 $
+.Dt DFS 4 macppc
+.Os
+.Sh NAME
+.Nm dfs
+.Nd Dynamic Frequency Switching
+.Sh SYNOPSIS
+.Cd "dfs* at macgpio?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Dynamic Frequency Switching
+feature found on some PowerPC microprocessors.
+.Pp
+It conserves power by lowering the processor operating frequency.
+Depending on the processor model, the processor-to-system bus ratio can
+be divided by two or four.
+.Sh HARDWARE
+Processors supported by the
+.Nm
+driver are part of the PowerPC G4 family and are found on various iBook
+and PowerBook machines:
+.Bd -literal -offset indent
+MPC7447A	PowerPC 7447 "Apollo 7"
+MPC7448		PowerPC 7448 "Apollo 8"
+.Ed
+.Sh SEE ALSO
+.Xr macgpio 4 ,
+.Xr sysctl 8
+.Rs
+.%T MPC7450 RISC Microprocessor Family Reference Manual
+.Re
+.Sh HISTORY
+Support for the
+.Nm
+driver first appeared in
+.Ox 5.0 .

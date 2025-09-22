@@ -1,0 +1,330 @@
+/*===---- module.modulemap - intrinsics module map -------------------------===
+ *
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+ *
+ *===-----------------------------------------------------------------------===
+ */
+
+module _Builtin_intrinsics [system] [extern_c] {
+  explicit module altivec {
+    requires altivec
+    header "altivec.h"
+  }
+
+  explicit module arm {
+    requires arm
+
+    explicit module acle {
+      header "arm_acle.h"
+      export *
+    }
+
+    explicit module neon {
+      requires neon
+      header "arm_neon.h"
+      header "arm_fp16.h"
+      export *
+    }
+
+    explicit module sve {
+      requires sve
+      header "arm_sve.h"
+      export *
+    }
+  }
+
+  explicit module intel {
+    requires x86
+    export *
+
+    header "immintrin.h"
+    textual header "f16cintrin.h"
+    textual header "avxintrin.h"
+    textual header "avx2intrin.h"
+    textual header "avx512fintrin.h"
+    textual header "fmaintrin.h"
+
+    header "x86intrin.h"
+    textual header "bmiintrin.h"
+    textual header "bmi2intrin.h"
+    textual header "lzcntintrin.h"
+    textual header "xopintrin.h"
+    textual header "fma4intrin.h"
+    textual header "mwaitxintrin.h"
+    textual header "clzerointrin.h"
+    textual header "wbnoinvdintrin.h"
+    textual header "cldemoteintrin.h"
+    textual header "waitpkgintrin.h"
+    textual header "movdirintrin.h"
+    textual header "pconfigintrin.h"
+    textual header "sgxintrin.h"
+    textual header "ptwriteintrin.h"
+    textual header "invpcidintrin.h"
+
+    textual header "__wmmintrin_aes.h"
+    textual header "__wmmintrin_pclmul.h"
+
+    explicit module mm_malloc {
+      requires !freestanding
+      header "mm_malloc.h"
+      export * // note: for <stdlib.h> dependency
+    }
+
+    explicit module cpuid {
+      requires gnuinlineasm
+      header "cpuid.h"
+    }
+
+    explicit module mmx {
+      header "mmintrin.h"
+    }
+
+    explicit module sse {
+      export mm_malloc
+      export mmx
+      export sse2 // note: for hackish <emmintrin.h> dependency
+      header "xmmintrin.h"
+    }
+
+    explicit module sse2 {
+      export sse
+      header "emmintrin.h"
+    }
+
+    explicit module sse3 {
+      export sse2
+      header "pmmintrin.h"
+    }
+
+    explicit module ssse3 {
+      export sse3
+      header "tmmintrin.h"
+    }
+
+    explicit module sse4_1 {
+      export ssse3
+      header "smmintrin.h"
+    }
+
+    explicit module sse4_2 {
+      export sse4_1
+      header "nmmintrin.h"
+    }
+
+    explicit module sse4a {
+      export sse3
+      header "ammintrin.h"
+    }
+
+    explicit module popcnt {
+      header "popcntintrin.h"
+    }
+
+    explicit module mm3dnow {
+      header "mm3dnow.h"
+    }
+
+    explicit module aes_pclmul {
+      header "wmmintrin.h"
+      export aes
+      export pclmul
+    }
+  }
+
+  explicit module systemz {
+    requires systemz
+    export *
+
+    header "s390intrin.h"
+
+    explicit module htm {
+      requires htm
+      header "htmintrin.h"
+      header "htmxlintrin.h"
+    }
+
+    explicit module zvector {
+      requires zvector, vx
+      header "vecintrin.h"
+    }
+  }
+}
+
+// Start -fbuiltin-headers-in-system-modules affected modules
+
+// The following modules all ignore their headers when
+// -fbuiltin-headers-in-system-modules is passed, and many of
+// those headers join system modules when present.
+
+// e.g. if -fbuiltin-headers-in-system-modules is passed, then
+// float.h will not be in the _Builtin_float module (that module
+// will be empty). If there is a system module that declares
+// `header "float.h"`, then the builtin float.h will join
+// that module. The system float.h (if present) will be treated
+// as a textual header in the sytem module.
+module _Builtin_float [system] {
+  header "float.h"
+  export *
+}
+
+module _Builtin_inttypes [system] {
+  header "inttypes.h"
+  export *
+}
+
+module _Builtin_iso646 [system] {
+  header "iso646.h"
+  export *
+}
+
+module _Builtin_limits [system] {
+  header "limits.h"
+  export *
+}
+
+module _Builtin_stdalign [system] {
+  header "stdalign.h"
+  export *
+}
+
+module _Builtin_stdarg [system] {
+  textual header "stdarg.h"
+
+  explicit module __gnuc_va_list {
+    header "__stdarg___gnuc_va_list.h"
+    export *
+  }
+
+  explicit module __va_copy {
+    header "__stdarg___va_copy.h"
+    export *
+  }
+
+  explicit module header_macro {
+    header "__stdarg_header_macro.h"
+    export *
+  }
+
+  explicit module va_arg {
+    header "__stdarg_va_arg.h"
+    export *
+  }
+
+  explicit module va_copy {
+    header "__stdarg_va_copy.h"
+    export *
+  }
+
+  explicit module va_list {
+    header "__stdarg_va_list.h"
+    export *
+  }
+}
+
+module _Builtin_stdatomic [system] {
+  header "stdatomic.h"
+  export *
+}
+
+module _Builtin_stdbool [system] {
+  header "stdbool.h"
+  export *
+}
+
+module _Builtin_stddef [system] {
+  textual header "stddef.h"
+
+  explicit module header_macro {
+    header "__stddef_header_macro.h"
+    export *
+  }
+  // __stddef_max_align_t.h is always in this module, even if
+  // -fbuiltin-headers-in-system-modules is passed.
+  explicit module max_align_t {
+    header "__stddef_max_align_t.h"
+    export *
+  }
+
+  explicit module null {
+    header "__stddef_null.h"
+    export *
+  }
+
+  explicit module nullptr_t {
+    header "__stddef_nullptr_t.h"
+    export *
+  }
+
+  explicit module offsetof {
+    header "__stddef_offsetof.h"
+    export *
+  }
+
+  explicit module ptrdiff_t {
+    header "__stddef_ptrdiff_t.h"
+    export *
+  }
+
+  explicit module rsize_t {
+    header "__stddef_rsize_t.h"
+    export *
+  }
+
+  explicit module size_t {
+    header "__stddef_size_t.h"
+    export *
+  }
+
+  explicit module unreachable {
+    header "__stddef_unreachable.h"
+    export *
+  }
+
+  explicit module wchar_t {
+    header "__stddef_wchar_t.h"
+    export *
+  }
+}
+
+// wint_t is provided by <wchar.h> and not <stddef.h>. It's here
+// for compatibility, but must be explicitly requested. Therefore
+// __stddef_wint_t.h is not part of _Builtin_stddef. It is always in
+// this module even if -fbuiltin-headers-in-system-modules is passed.
+module _Builtin_stddef_wint_t [system] {
+  header "__stddef_wint_t.h"
+  export *
+}
+
+module _Builtin_stdint [system] {
+  header "stdint.h"
+  export *
+}
+
+module _Builtin_stdnoreturn [system] {
+  header "stdnoreturn.h"
+  export *
+}
+
+module _Builtin_tgmath [system] {
+  header "tgmath.h"
+  export *
+}
+
+module _Builtin_unwind [system] {
+  header "unwind.h"
+  export *
+}
+// End -fbuiltin-headers-in-system-modules affected modules
+
+module opencl_c {
+  requires opencl
+  header "opencl-c.h"
+  header "opencl-c-base.h"
+}
+
+module ptrauth {
+  header "ptrauth.h"
+  export *
+}

@@ -1,0 +1,109 @@
+.\"	$OpenBSD: ripctl.8,v 1.13 2023/03/02 17:09:53 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Michele Marchetto <mydecay@openbeer.it>
+.\" Copyright (c) 2004, 2005 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 2 2023 $
+.Dt RIPCTL 8
+.Os
+.Sh NAME
+.Nm ripctl
+.Nd control the RIP routing daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar socket
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr ripd 8
+daemon.
+Commands may be abbreviated to the minimum unambiguous prefix; for example,
+.Cm s n
+for
+.Cm show neighbor .
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl s Ar socket
+Use
+.Ar socket
+instead of the default
+.Pa /var/run/ripd.sock
+to communicate with
+.Xr ripd 8 .
+.El
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Cm fib couple
+Insert the learned routes into the Forward Information Base a.k.a. the kernel
+routing table.
+.It Cm fib decouple
+Remove the learned routes from the Forward Information Base a.k.a. the kernel
+routing table.
+Decoupling the FIB from an RIP router may create routing loops and could cause
+major routing issues.
+.It Cm log brief
+Disable verbose debug logging.
+.It Cm log verbose
+Enable verbose debug logging.
+.It Cm show fib Op Ar destination | filter
+Show the Forwarding Information Base.
+.Ar destination
+can be specified to show the route matching a destination IP address.
+.Ar filter
+can be any of the following:
+.Pp
+.Bl -tag -width "interfaceXXinterfaceXX" -compact
+.It Cm connected
+Show only connected routes.
+.It Cm interface
+Show only interfaces.
+.It Cm rip
+Show only RIP routes.
+.It Cm static
+Show only static routes.
+.El
+.Pp
+.Cm connected ,
+.Cm rip ,
+and
+.Cm static
+may be specified together.
+.It Cm show interfaces
+Show details for all interfaces.
+.It Cm show neighbor
+Show neighbors.
+.It Cm show rib
+Show the Routing Information Base.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/ripd.sockXX" -compact
+.It Pa /var/run/ripd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr ripd 8 .
+.El
+.Sh SEE ALSO
+.Xr ripd.conf 5 ,
+.Xr ripd 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.1 .

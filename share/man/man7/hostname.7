@@ -1,0 +1,80 @@
+.\"	$OpenBSD: hostname.7,v 1.11 2019/05/12 16:55:11 schwarze Exp $
+.\"	$NetBSD: hostname.7,v 1.4 1994/11/30 19:07:14 jtc Exp $
+.\"
+.\" Copyright (c) 1987, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)hostname.7	8.2 (Berkeley) 12/30/93
+.\"
+.Dd $Mdocdate: May 12 2019 $
+.Dt HOSTNAME 7
+.Os
+.Sh NAME
+.Nm hostname
+.Nd host name resolution description
+.Sh DESCRIPTION
+Hostnames are domains, where a domain is a hierarchical, dot-separated
+list of subdomains; for example, the machine monet, in the Berkeley
+subdomain of the EDU subdomain of the Internet would be represented as
+.Pp
+.Dl monet.Berkeley.EDU
+.Pp
+(with no trailing dot).
+.Pp
+Hostnames are often used with network client and server programs,
+which must generally translate the name to an address for use.
+(This function is generally performed by the library routine
+.Xr gethostbyname 3 . )
+Hostnames are resolved by the Internet name resolver in the following
+fashion.
+.Pp
+If the input name ends with a trailing dot,
+the trailing dot is removed,
+and the remaining name is looked up with no further processing.
+.Pp
+If the input name does not end with a trailing dot, it is looked up
+by searching through a list of domains until a match is found.
+The default search list includes first the local domain,
+then its parent domains with at least 2 name components (longest first).
+For example,
+in the domain CS.Berkeley.EDU, the name lithium.CChem will be checked first
+as lithium.CChem.CS.Berkeley.EDU and then as lithium.CChem.Berkeley.EDU.
+Lithium.CChem.EDU will not be tried, as there is only one component
+remaining from the local domain.
+The search path can be changed from the default
+by a system-wide configuration file (see
+.Xr resolv.conf 5 ) .
+.Sh SEE ALSO
+.Xr gethostbyname 3 ,
+.Xr resolv.conf 5 ,
+.Xr nsd 8 ,
+.Xr unbound 8
+.Sh HISTORY
+A
+.Nm
+manual page appeared in
+.Bx 4.2 .

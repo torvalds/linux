@@ -1,0 +1,129 @@
+.\"	$OpenBSD: rmdir.2,v 1.16 2022/02/18 00:15:53 jsg Exp $
+.\"	$NetBSD: rmdir.2,v 1.7 1995/02/27 12:36:30 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)rmdir.2	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt RMDIR 2
+.Os
+.Sh NAME
+.Nm rmdir
+.Nd remove a directory file
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn rmdir "const char *path"
+.Sh DESCRIPTION
+.Fn rmdir
+removes a directory file
+whose name is given by
+.Fa path .
+The directory must not have any entries other
+than
+.Ql \&.
+and
+.Ql \&.. .
+.Pp
+There is no
+.Fn rmdirat
+function;
+to remove a directory with a path relative to the directory associated
+with a file descriptor use the
+.Xr unlinkat 2
+function with the
+.Dv AT_REMOVEDIR
+flag.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The named file is removed unless:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Dv NAME_MAX
+characters, or an entire pathname (including the terminating NUL)
+exceeded
+.Dv PATH_MAX
+bytes.
+.It Bq Er ENOENT
+The named directory does not exist.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er ENOTEMPTY
+The named directory contains files other than
+.Ql \&.
+and
+.Ql \&..
+in it.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.It Bq Er EACCES
+Write permission is denied on the directory containing the directory
+to be removed.
+.It Bq Er EPERM
+The directory containing the directory to be removed is marked sticky,
+and neither the containing directory nor the directory to be removed
+are owned by the effective user ID.
+.It Bq Er EPERM
+The directory to be removed or the directory containing it has its
+immutable or append-only flag set (see
+.Xr chflags 2 ) .
+.It Bq Er EBUSY
+The directory to be removed is the mount point
+for a mounted file system.
+.It Bq Er EINVAL
+The last path element of the directory to be removed consists of
+.Ql \&. .
+.It Bq Er EIO
+An I/O error occurred while deleting the directory entry
+or deallocating the inode.
+.It Bq Er EROFS
+The directory entry to be removed resides on a read-only file system.
+.It Bq Er EFAULT
+.Fa path
+points outside the process's allocated address space.
+.El
+.Sh SEE ALSO
+.Xr rmdir 1 ,
+.Xr chflags 2 ,
+.Xr mkdir 2 ,
+.Xr unlink 2
+.Sh STANDARDS
+The
+.Fn rmdir
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn rmdir
+function call appeared in
+.Bx 4.1c .

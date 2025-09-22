@@ -1,0 +1,28 @@
+2003-04-26
+
+- _GLIBCPP_HAS_BUILTIN_SINF: We should still hold out for a cleaner solution the is currenly the case in bits/std_cmath.h. 
+
+- there may be one set of remaining string bugs, dependent on final
+clarification of the string::find technicalities when finding in an
+empty string or using an empty string for an argument. At the very
+least, v-3 has interpreted the standard in a way that is in opposition
+to other libraries on other platforms.
+
+- trigraphs and keywords a la the iso646 header are not correctly
+implemented. It looks like the compiler recognizes them as keywords
+but then doesn't translate into the correct bit ops. It is a mystery.
+
+- wide strings have not been tested, and may therefore be unusable.
+
+- Chapter 27 io functionality is not finished. As such, there are
+known bugs in: filebuf::putbackfail
+
+- Many facet implementations are stubs. (22) 
+
+- Almost no optimizations for small-footprint/low-overhead. (22,27) 
+
+- There has been some work to wrap the C headers in namespace std::, but 
+   it may not be complete yet, and C macros are not shadowed. Please consult 
+   the mailing list archives for more information. 
+
+

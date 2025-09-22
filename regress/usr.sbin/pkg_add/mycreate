@@ -1,0 +1,57 @@
+#! /usr/bin/perl
+
+# ex:ts=8 sw=4:
+# $OpenBSD: mycreate,v 1.7 2019/07/09 10:48:30 espie Exp $
+#
+# Copyright (c) 2009 Marc Espie <espie@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+use strict;
+use warnings;
+use File::Basename;
+use File::Path;
+use OpenBSD::PackageName;
+
+my $target = pop @ARGV;
+my $basename = basename($target, '.tgz');
+File::Path::make_path(dirname($target));
+my $pkgname = OpenBSD::PackageName->from_string($basename);
+my $pkgpath = $ENV{'PACKAGE_PATH'};
+if (!defined $pkgpath) {
+	$pkgpath = 't/'.$pkgname->{stem};
+}
+
+my @l;
+push(@l, 
+	'-p', $ENV{'PACKAGE_BASE'} || '/usr/local',
+	"-DFULLPKGPATH=$pkgpath",
+	'-DMAINTAINER=regress-tests',
+	'-DCOMMENT='.($ENV{'PACKAGE_COMMENT'} || 'comment'),
+	'-DSHARED_LIBS=1',
+	'-d', $ENV{'PACKAGE_DESCR'} || '-descr',
+	'-A', $ENV{'PACKAGE_ARCH'} || '*');
+	
+
+my @args = ('pkg_create', @l, @ARGV, $target);
+print join(' ', @args), "\n" if $ENV{'VERBOSE'};
+if ($ENV{INJECT}) {
+	require OpenBSD::PkgCreate;
+	eval "require \"$ENV{INJECT}\"";
+	if ($@) {
+		die $@;
+	}
+	@ARGV = @args;
+	exit(OpenBSD::PkgCreate->parse_and_run(shift @ARGV));
+} else {
+	exec {$args[0]}  @args;
+}

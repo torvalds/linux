@@ -1,0 +1,52 @@
+import("//llvm/lib/Target/targets.gni")
+import("//llvm/lib/Target/targets_with_exegesis.gni")
+
+static_library("lib") {
+  output_name = "LLVMExegesis"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/ExecutionEngine",
+    "//llvm/lib/ExecutionEngine/Orc",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/MCA",
+    "//llvm/lib/Object",
+    "//llvm/lib/ObjectYAML",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "Analysis.cpp",
+    "Assembler.cpp",
+    "BenchmarkResult.cpp",
+    "BenchmarkRunner.cpp",
+    "Clustering.cpp",
+    "CodeTemplate.cpp",
+    "DisassemblerHelper.cpp",
+    "Error.cpp",
+    "LatencyBenchmarkRunner.cpp",
+    "LlvmState.cpp",
+    "MCInstrDescView.cpp",
+    "ParallelSnippetGenerator.cpp",
+    "PerfHelper.cpp",
+    "RegisterAliasing.cpp",
+    "RegisterValue.cpp",
+    "ResultAggregator.cpp",
+    "SchedClassResolution.cpp",
+    "SerialSnippetGenerator.cpp",
+    "SnippetFile.cpp",
+    "SnippetGenerator.cpp",
+    "SnippetRepetitor.cpp",
+    "SubprocessMemory.cpp",
+    "Target.cpp",
+    "UopsBenchmarkRunner.cpp",
+    "ValidationEvent.cpp",
+  ]
+
+  deps += targets_with_exegesis
+}

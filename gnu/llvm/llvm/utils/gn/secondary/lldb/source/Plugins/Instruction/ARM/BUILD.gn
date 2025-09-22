@@ -1,0 +1,20 @@
+static_library("ARM") {
+  output_name = "lldbPluginInstructionARM"
+  configs += [ "//llvm/utils/gn/build:lldb_code" ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Host",
+    "//lldb/source/Interpreter",
+    "//lldb/source/Plugins/Process/Utility",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//llvm/lib/Support",
+  ]
+
+  # Reaches into Plugins/Process/Utility.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "EmulateInstructionARM.cpp",
+    "EmulationStateARM.cpp",
+  ]
+}

@@ -1,0 +1,2 @@
+#test negated interface matching
+block in on ! lo0 all

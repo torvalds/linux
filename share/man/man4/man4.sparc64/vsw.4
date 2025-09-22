@@ -1,0 +1,58 @@
+.\"     $OpenBSD: vsw.4,v 1.4 2022/07/21 08:00:31 kn Exp $
+.\"
+.\" Copyright (c) 2009 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 21 2022 $
+.Dt VSW 4 sparc64
+.Os
+.Sh NAME
+.Nm vsw
+.Nd virtual network switch
+.Sh SYNOPSIS
+.Cd "vsw* at cbus?"
+.Cd "vnet* at vsw?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a network switch using the services provided by the
+UltraSPARC Hypervisor as found on sun4v systems.
+It attaches a separate
+.Xr vnet 4
+interface for each switch port.
+These ports can be added to a
+.Xr bridge 4
+or
+.Xr veb 4
+to create a functional network switch.
+.Pp
+The
+.Nm
+driver supports version 1.0 of the vNet protocol.
+.Sh SEE ALSO
+.Xr bridge 4 ,
+.Xr cbus 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr veb 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.7 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

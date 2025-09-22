@@ -1,0 +1,154 @@
+.\"	$OpenBSD: ieee80211_output.9,v 1.6 2015/11/23 17:53:57 jmc Exp $
+.\"
+.\" Copyright (c) 2004 Bruce M. Simpson <bms@spc.org>
+.\" Copyright (c) 2004 Darron Broad <darron@kewl.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man9/ieee80211_output.9,v 1.2 2004/07/07 12:59:39 ru Exp $
+.\" $Id: ieee80211_output.9,v 1.6 2015/11/23 17:53:57 jmc Exp $
+.\"
+.Dd $Mdocdate: November 23 2015 $
+.Dt IEEE80211_ENCAP 9
+.Os
+.Sh NAME
+.Nm ieee80211_encap , ieee80211_add_rates ,
+.Nm ieee80211_add_xrates ,
+.Nm ieee80211_send_mgmt
+.Nd software 802.11 stack output functions
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.In net80211/ieee80211_proto.h
+.Ft struct mbuf *
+.Fo ieee80211_encap
+.Fa "struct ifnet *ifp" "struct mbuf *m" "struct ieee80211_node **pni"
+.Fc
+.Ft u_int8_t *
+.Fn ieee80211_add_rates "u_int8_t *frm" "const struct ieee80211_rateset *rs"
+.Ft u_int8_t *
+.Fn ieee80211_add_xrates "u_int8_t *frm" "const struct ieee80211_rateset *rs"
+.Ft int
+.Fo ieee80211_send_mgmt
+.Fa "struct ieee80211com *ic" "struct ieee80211_node *ni" "int type" "int arg"
+.Fc
+.Sh DESCRIPTION
+These functions handle the encapsulation and transmission of 802.11 frames
+within the software 802.11 stack.
+.Pp
+The
+.Fn ieee80211_encap
+function encapsulates an outbound data frame contained within the
+mbuf chain
+.Fa m
+from the interface
+.Fa ifp .
+The argument
+.Fa *pni
+is a reference to the destination node.
+.Pp
+If the function is successful, the mbuf chain is updated with the
+802.11 frame header prepended, and a pointer to the head of the chain
+is returned.
+If an error occurs,
+.Dv NULL
+will be returned, and
+.Fa *pni
+is also set to
+.Dv NULL .
+The caller is responsible for freeing the node reference if
+.Fa *pni
+is
+.Pf non- Dv NULL
+on return.
+The convention is that
+.Va ic_bss
+is not reference counted; the caller is responsible for maintaining this
+reference count.
+.Pp
+.\"
+The
+.Fn ieee80211_add_rates
+utility function is used to add the rate set element
+.Fa *rs
+to the frame
+.Fa frm .
+A pointer to the location in the buffer after the addition of the rate set
+is returned.
+It is typically used when constructing management frames from within the
+software 802.11 stack.
+.Pp
+.\"
+The
+.Fn ieee80211_add_xrates
+utility function is used to add the extended rate set element
+.Fa *rs
+to the frame
+.Fa frm .
+A pointer to the location in the buffer after the addition of the rate set
+is returned.
+It is typically used when constructing management frames from within the
+software 802.11 stack in 802.11g mode.
+.Pp
+.\"
+The
+.Fn ieee80211_send_mgmt
+function transmits a management frame on the interface
+.Fa ic
+to the destination node
+.Fa ni
+of type
+.Fa type .
+.Pp
+The argument
+.Fa arg
+specifies either a sequence number for authentication operations,
+a status code for [re]association operations,
+or a reason for deauthentication and deassociation operations.
+.Pp
+Nodes other than
+.Va ic_bss
+have their reference count incremented to reflect their use for an
+indeterminate amount of time.
+This reference is freed when the function returns.
+.Pp
+The function returns 0 if successful; if temporary buffer space is not
+available, the function returns
+.Er ENOMEM .
+.\"
+.Sh SEE ALSO
+.Xr ieee80211 9
+.Sh HISTORY
+The
+.Nm ieee80211
+series of functions first appeared in
+.Nx 1.5 ,
+and were later ported to
+.Fx 4.6
+and
+.Ox 3.6 .
+.Sh AUTHORS
+.An -nosplit
+This man page was written by
+.An Bruce M. Simpson Aq Mt bms@FreeBSD.org
+and
+.An Darron Broad Aq Mt darron@kewl.org .

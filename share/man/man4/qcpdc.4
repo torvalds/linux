@@ -1,0 +1,43 @@
+.\"	$OpenBSD: qcpdc.4,v 1.2 2022/11/10 12:59:26 patrick Exp $
+.\"
+.\" Copyright (c) 2022 Patrick Wildt <patrick@blueri.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 10 2022 $
+.Dt QCPDC 4
+.Os
+.Sh NAME
+.Nm qcpdc
+.Nd Qualcomm power domain controller
+.Sh SYNOPSIS
+.Cd "qcpdc* at fdt?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Qualcomm power domain controller (PDC).
+It acts as a "transparent" interrupt controller and hands interrupt
+handlers to the parent interrupt controller.
+.Sh SEE ALSO
+.Xr intro 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Patrick Wildt Aq Mt patrick@blueri.se .

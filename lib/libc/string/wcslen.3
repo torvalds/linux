@@ -1,0 +1,102 @@
+.\"	$OpenBSD: wcslen.3,v 1.4 2024/07/14 09:51:18 jca Exp $
+.\"
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 14 2024 $
+.Dt WCSLEN 3
+.Os
+.Sh NAME
+.Nm wcslen ,
+.Nm wcsnlen
+.Nd find length of a wide string
+.Sh SYNOPSIS
+.In wchar.h
+.Ft size_t
+.Fn wcslen "const wchar_t *s"
+.Ft size_t
+.Fn wcsnlen "const wchar_t *s" "size_t maxlen"
+.Sh DESCRIPTION
+The
+.Fn wcslen
+function computes the length of the wide string
+.Fa s .
+The
+.Fn wcsnlen
+function computes the length of the wide string
+.Fa s ,
+up to
+.Fa maxlen
+wide characters.
+The
+.Fn wcsnlen
+function will never attempt to address more than
+.Fa maxlen
+wide characters, making it suitable for use with wide character arrays
+that are not guaranteed to be NUL-terminated.
+.Sh RETURN VALUES
+The
+.Fn wcslen
+function returns the number of wide characters that precede the terminating
+null wide character.
+.Pp
+The
+.Fn wcsnlen
+function returns the number of wide characters that precede the terminating
+null wide character
+or
+.Fa maxlen ,
+whichever is smaller.
+.Sh SEE ALSO
+.Xr strlen 3 ,
+.Xr wcswidth 3
+.Sh STANDARDS
+The
+.Fn wcslen
+function conforms to
+.St -isoC-99
+and was first introduced in
+.St -isoC-amd1 .
+The
+.Fn wcsnlen
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn wcslen
+function was ported from
+.Nx
+and first appeared in
+.Ox 3.8 .
+The
+.Fn wcsnlen
+function first appeared in
+.Ox 7.6 .

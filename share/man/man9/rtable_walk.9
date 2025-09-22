@@ -1,0 +1,74 @@
+.\"     $OpenBSD: rtable_walk.9,v 1.1 2019/07/12 16:53:57 mpi Exp $
+.\"
+.\" Copyright (c) 2019 Martin Pieuchot <mpi@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 12 2019 $
+.Dt RTABLE_WALK 9
+.Os
+.Sh NAME
+.Nm rtable_walk
+.Nd iterate over a routing table
+.Sh SYNOPSIS
+.In net/rtable.h
+.Ft int
+.Fo rtable_walk
+.Fa "unsigned int rtableid"
+.Fa "sa_family_t af"
+.Fa "struct rtentry **prt"
+.Fa "int (*func)(struct rtentry *, void *, unsigned int)"
+.Fa "void *arg"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn rtable_walk
+function iterates over the routing table
+.Fa rtableid
+and applies
+.Fa func
+to all entries of address family
+.Fa af .
+.Pp
+The iteration is interrupted as soon as
+.Fa func
+returns a non-zero value.
+If
+.Fa prt
+is not
+.Dv NULL
+when the iteration is interrupted, it is set to the current
+routing entry.
+In that case
+.Fn rtfree
+must be called on the routing entry pointed to by
+.Fa prt .
+.Sh CONTEXT
+.Fn rtable_walk
+can be called during autoconf or from process context.
+.Sh RETURN VALUES
+.Fn rtable_walk
+returns any non-zero value returned by
+.Fa func .
+It may also fail with:
+.Pp
+.Bl -tag -width Er -compact
+.It Bq Er EAFNOSUPPORT
+A routing table with ID of
+.Fa rtableid
+and address family of
+.Fa af
+doesn't exist.
+.El
+.Sh SEE ALSO
+.Xr rtfree 9

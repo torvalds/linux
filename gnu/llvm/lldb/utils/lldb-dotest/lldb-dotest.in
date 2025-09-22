@@ -1,0 +1,53 @@
+#!@Python3_EXECUTABLE@
+import os
+import subprocess
+import sys
+
+dotest_path = '@LLDB_SOURCE_DIR_CONFIGURED@/test/API/dotest.py'
+dotest_args_str = '@LLDB_DOTEST_ARGS_CONFIGURED@'
+arch = '@LLDB_TEST_ARCH@'
+executable = '@LLDB_TEST_EXECUTABLE_CONFIGURED@'
+compiler = '@LLDB_TEST_COMPILER_CONFIGURED@'
+dsymutil = '@LLDB_TEST_DSYMUTIL_CONFIGURED@'
+lldb_build_dir = '@LLDB_TEST_BUILD_DIRECTORY_CONFIGURED@'
+lldb_build_intel_pt = "@LLDB_BUILD_INTEL_PT@"
+lldb_framework_dir = "@LLDB_FRAMEWORK_DIR_CONFIGURED@"
+lldb_libs_dir = "@LLDB_LIBS_DIR_CONFIGURED@"
+llvm_tools_dir = "@LLVM_TOOLS_DIR_CONFIGURED@"
+lldb_obj_root = "@LLDB_BINARY_DIR@"
+has_libcxx = @LLDB_HAS_LIBCXX@
+libcxx_libs_dir = "@LIBCXX_LIBRARY_DIR@"
+libcxx_include_dir = "@LIBCXX_GENERATED_INCLUDE_DIR@"
+libcxx_include_target_dir = "@LIBCXX_GENERATED_INCLUDE_TARGET_DIR@"
+
+if __name__ == '__main__':
+    wrapper_args = sys.argv[1:]
+    dotest_args = []
+    # split on an empty string will produce [''] and if you
+    # add that to the command, it will be treated as a directory...
+    if len(dotest_args_str) > 0:
+        dotest_args = dotest_args_str.split(';')
+    # Build dotest.py command.
+    cmd = [sys.executable, dotest_path]
+    cmd.extend(['--arch', arch])
+    cmd.extend(dotest_args)
+    cmd.extend(['--build-dir', lldb_build_dir])
+    cmd.extend(['--executable', executable])
+    cmd.extend(['--compiler', compiler])
+    cmd.extend(['--dsymutil', dsymutil])
+    cmd.extend(['--lldb-libs-dir', lldb_libs_dir])
+    cmd.extend(['--llvm-tools-dir', llvm_tools_dir])
+    if has_libcxx:
+        cmd.extend(['--libcxx-include-dir', libcxx_include_dir])
+        if libcxx_include_target_dir:
+            cmd.extend(['--libcxx-include-target-dir', libcxx_include_target_dir])
+        cmd.extend(['--libcxx-library-dir', libcxx_libs_dir])
+    if lldb_framework_dir:
+        cmd.extend(['--framework', lldb_framework_dir])
+    if lldb_build_intel_pt == "1":
+        cmd.extend(['--enable-plugin', 'intel-pt'])
+    cmd.extend(['--lldb-obj-root', lldb_obj_root])
+    cmd.extend(wrapper_args)
+    # Invoke dotest.py and return exit code.
+    print(' '.join(cmd))
+    sys.exit(subprocess.call(cmd))

@@ -1,0 +1,104 @@
+.\" $OpenBSD: X509_NAME_new.3,v 1.10 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_NAME_NEW 3
+.Os
+.Sh NAME
+.Nm X509_NAME_new ,
+.Nm X509_NAME_free
+.\" In the following line, "X.501" and "Name" are not typos.
+.\" The "Name" type is defined in X.501, not in X.509.
+.\" The type in called "Name" with capital "N", not "name".
+.Nd X.501 Name object
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_NAME *
+.Fn X509_NAME_new void
+.Ft void
+.Fn X509_NAME_free "X509_NAME *name"
+.Sh DESCRIPTION
+An X.501
+.Vt Name
+is an ordered sequence of relative distinguished names.
+A relative distinguished name is a set of key-value pairs; see
+.Xr X509_NAME_ENTRY_new 3
+for details.
+.Pp
+Various X.509 structures contain X.501
+.Vt Name
+substructures.
+They are for example used for the issuers of certificates and
+certificate revocation lists and for the subjects of certificates
+and certificate requests.
+.Pp
+.Fn X509_NAME_new
+allocates and initializes an empty
+.Vt X509_NAME
+object, representing an ASN.1
+.Vt Name
+structure defined in RFC 5280 section 4.1.2.4.
+Data can be added to such objects with the functions described in
+.Xr X509_NAME_add_entry_by_txt 3 ,
+and they can be inspected with the functions described in
+.Xr X509_NAME_get_index_by_NID 3 .
+.Pp
+.Fn X509_NAME_free
+frees
+.Fa name
+and all the
+.Vt X509_NAME_ENTRY
+objects contained in it.
+If
+.Fa name
+is a
+.Dv NULL
+pointer, no action occurs.
+.Sh RETURN VALUES
+.Fn X509_NAME_new
+returns a new
+.Vt X509_NAME
+object or
+.Dv NULL
+if an error occurred.
+.Sh SEE ALSO
+.Xr d2i_X509_NAME 3 ,
+.Xr GENERAL_NAME_new 3 ,
+.Xr NAME_CONSTRAINTS_new 3 ,
+.Xr SSL_load_client_CA_file 3 ,
+.Xr X509_get_subject_name 3 ,
+.Xr X509_NAME_add_entry_by_txt 3 ,
+.Xr X509_NAME_cmp 3 ,
+.Xr X509_NAME_digest 3 ,
+.Xr X509_NAME_ENTRY_new 3 ,
+.Xr X509_NAME_get_index_by_NID 3 ,
+.Xr X509_NAME_hash 3 ,
+.Xr X509_NAME_print_ex 3 ,
+.Xr X509_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Pp
+ITU-T Recommendation X.501, also known as ISO/IEC 9594-2:
+Information Technology \(en Open Systems Interconnection \(en
+The Directory: Models, section 9: Names
+.Sh HISTORY
+.Fn X509_NAME_new
+and
+.Fn X509_NAME_free
+appeared in SSLeay 0.4 or earlier and have been available since
+.Ox 2.4 .

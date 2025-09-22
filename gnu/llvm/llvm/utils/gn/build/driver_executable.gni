@@ -1,0 +1,23 @@
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+
+# Corresponds to GENERATE_DRIVER in cmake (see add_llvm_executable in
+# llvm/cmake/modules/AddLLVM.cmake).
+template("driver_executable") {
+  tool_name = string_replace(target_name, "-", "_")
+
+  write_cmake_config("${tool_name}-driver") {
+    input = "//llvm/cmake/modules/llvm-driver-template.cpp.in"
+    output = "$target_gen_dir/${tool_name}-driver.cpp"
+    values = [ "TOOL_NAME=$tool_name" ]
+  }
+
+  executable(target_name) {
+    forward_variables_from(invoker, "*")
+    deps += [ ":${tool_name}-driver" ]
+    sources += [ "$target_gen_dir/${tool_name}-driver.cpp" ]
+  }
+}
+
+set_defaults("driver_executable") {
+  configs = shared_binary_target_configs
+}

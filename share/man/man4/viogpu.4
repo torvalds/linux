@@ -1,0 +1,49 @@
+.\"     $OpenBSD: viogpu.4,v 1.2 2023/04/20 20:33:55 jmc Exp $
+.\"
+.\" Copyright (c) 2023 joshua stein <jcs@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 20 2023 $
+.Dt VIOGPU 4
+.Os
+.Sh NAME
+.Nm viogpu
+.Nd VirtIO GPU device
+.Sh SYNOPSIS
+.Cd "viogpu* at virtio?"
+.Cd "wsdisplay* at viogpu?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Xr virtio 4
+GPU interface provided by QEMU and other virtual machines to create a
+.Xr wscons 4
+console.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr virtio 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An joshua stein Aq Mt jcs@openbsd.org .

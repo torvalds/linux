@@ -1,0 +1,8 @@
+# Simple case of unterminated define as last directive in the script.
+
+# RUN: echo "Don't complain about no RUN lines."
+# DEFINE: %{foo}=foo\
+
+# CHECK: Test has unterminated '{{DEFINE}}:' directive (with '\') at line [[#@LINE-2]]
+
+# CHECK: Unresolved: 1 {{\([0-9]*.[0-9]*%\)}}

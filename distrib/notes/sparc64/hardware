@@ -1,0 +1,98 @@
+dnl	$OpenBSD: hardware,v 1.162 2015/10/18 07:09:44 jsg Exp $
+OpenBSD/MACHINE OSREV runs on the following classes of machines:
+	Ultra 1/1E
+	Ultra 2
+	Ultra 3 Mobile Workstation
+	Ultra 5/10
+	Ultra 25/45
+	Ultra 30/60/80
+	SPARCengineUltra AX
+	SPARCengineUltra AXe
+	SPARCengineUltra AXi
+	SPARCengineUltra AXdp
+	SPARCengineUltra AXmp
+	SPARCengine CP1500
+	Enterprise 150
+	Enterprise 220R
+	Enterprise 250
+	Enterprise 420R
+	Enterprise 450
+	Enterprise 3000/4000/5000/6000
+	Enterprise 3500/4500/5500/6500
+	Enterprise 10000
+	Sun Blade 100/150
+	Sun Blade 1000/2000
+	Sun Blade 1500/2500
+	Sun Blade T6300
+	Sun Blade T6320
+	Sun Blade T6340
+	Sun Fire V100/V120
+	Sun Fire V125
+	Sun Fire V210/V240/V440
+	Sun Fire V215/V245/V445
+	Sun Fire V250
+	Sun Fire 280R
+	Sun Fire V480/V880
+	Sun Fire V490/V890
+	Sun Fire V1280
+	Sun Fire T1000/T2000
+	Sun SPARC Enterprise T1000/T2000
+	Sun SPARC Enterprise T5120/T5220  (see note below)
+	Sun SPARC Enterprise T5140/T5240
+	Sun SPARC Enterprise T5440
+	Sun SPARC Enterprise M4000/M5000/M8000/M9000
+	Sun SX1500
+	Sun SX2500
+	Sun SX3200
+	Netra AX1105
+	Netra AX2200
+	Netra X1
+	Netra 20/T4
+	Netra 120
+	Netra 210/240/440
+	Netra 1280
+	Netra 1290
+	Netra T1 100/105
+	Netra T1 AC200/DC200
+	Netra T 1100
+	Netra T 1120/1125
+	Netra T 1400/1405
+	Netra CP3060
+	Netra CP3260
+	Netra T2000
+	Netra T5220
+	Netra T5440
+	Sun Fire E2900/E4900/E6900
+dnl XXX uncomment machine entries as they become supported
+dnl	Sun Fire 12K/15K
+dnl	Sun Fire E20K/E25K
+	Fujitsu PRIMEPOWER 1
+	Fujitsu PRIMEPOWER 250/450
+	Fujitsu PRIMEPOWER 650/850  (with SPARC64-V processors only)
+	Fujitsu SPARC Enterprise T1000/T2000
+	Fujitsu SPARC Enterprise T5120/T5220
+	Fujitsu SPARC Enterprise T5140/T5240
+	Fujitsu SPARC Enterprise T5440
+	Fujitsu SPARC Enterprise M4000/M5000/M8000/M9000
+as well on faithful clones of the above Sun systems, including:
+	Momentum Leopard-V
+	RDI/Tadpole UltraBook 170/200
+	Tadpole SPARCLE 550SX/650SX
+	Tadpole Viper
+	Tadpole/Sun Voyager IIi
+
+    Note: SPARC Enterprise T5120 and T5220 systems need at least OpenBoot
+    4.28.0 to run OpenBSD.  Please refer to the ``Updating your firmware''
+    section later for firmware update instructions.
+
+Even if your machine is not listed above, it is possible that OpenBSD/MACHINE
+will work on it.  OpenBSD/MACHINE does not work on machines with Fujitsu's
+SPARC64-I, SPARC64-II, SPARC64-III and SPARC64-IV processors.
+
+OpenBSD/MACHINE OSREV supports SMP (Symmetrical MultiProcessor)
+systems.  To support SMP operation, a separate SMP kernel (bsd.mp) is
+included with the installation file sets.
+
+24MB of RAM should be sufficient to boot and a minimal system can probably
+be squeezed onto a 250MB disk by installing only the `base' set.
+However, a minimum of 32MB is recommended for serious usage of the system.

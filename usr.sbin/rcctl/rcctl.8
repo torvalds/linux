@@ -1,0 +1,238 @@
+.\"	$OpenBSD: rcctl.8,v 1.47 2025/08/10 09:30:55 ajacoutot Exp $
+.\"
+.\" Copyright (c) 2014 Antoine Jacoutot <ajacoutot@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 10 2025 $
+.Dt RCCTL 8
+.Os
+.Sh NAME
+.Nm rcctl
+.Nd configure and control daemons and services
+.Sh SYNOPSIS
+.Nm rcctl
+.Cm get Ns | Ns Cm getdef Ns | Ns Cm set
+.Ar daemon Ns | Ns Ar service Op Ar variable Op Ar argument ...
+.Nm rcctl
+.Op Fl d | q
+.Op Fl f
+.Sm off
+.Cm check | configtest | reload | restart | start | stop
+.Sm on
+.Ar daemon ...
+.Nm rcctl
+.Cm disable Ns | Ns Cm enable Ns | Ns Cm order
+.Op Ar daemon ...
+.Nm rcctl
+.Cm ls
+.Sm off
+.Cm all | failed | off | on | rogue | started | stopped
+.Sm on
+.Sh DESCRIPTION
+The
+.Nm
+utility can enable or disable a base system
+.Ar service
+or a base system or package
+.Ar daemon
+in
+.Xr rc.conf.local 8
+or display its configuration and status.
+For a
+.Ar daemon ,
+it can also change the command line arguments, the user to run as, the
+.Xr rc.d 8
+action timeout or call its
+.Xr rc.d 8
+.Ar daemon
+control script.
+.Pp
+The following commands are available
+.Po
+.Ar variable
+can be one of
+.Cm class ,
+.Cm execdir ,
+.Cm flags ,
+.Cm logger ,
+.Cm rtable ,
+.Cm status ,
+.Cm timeout
+or
+.Cm user
+.Pc :
+.Bl -tag -width Ds
+.It Oo Fl d | q Oc Oo Fl f Oc Ar action daemon ...
+Run the
+.Xr rc.d 8
+.Ar daemon
+scripts with the
+.Ar action
+argument, passing through the specified options, if any.
+.It Cm disable Ar service ... | daemon ...
+Alias for
+.Cm set Ar service Ns | Ns Ar daemon Cm status off .
+.It Cm enable Ar service ... | daemon ...
+Alias for
+.Cm set Ar service Ns | Ns Ar daemon Cm status on .
+.It Cm get Ar service | daemon Op Ar variable
+Display the value of
+.Ar service
+or
+.Ar daemon Ns _ Ns Ar variable .
+If
+.Ar variable
+is empty, display all
+.Ar service
+or
+.Ar daemon
+variables and values in a format
+compatible with
+.Xr rc.conf 8 .
+When
+.Ar daemon
+is set to
+.Qq all ,
+.Ar variable
+must not be set and
+.Nm
+will display all services and daemons variables.
+.It Cm getdef Ar service | daemon Op Ar variable
+Like
+.Cm get
+but returns the default values.
+.It Cm ls Ar lsarg
+Display a list of services and daemons matching
+.Ar lsarg ,
+which can be one of:
+.Pp
+.Bl -tag -width stopped -offset indent -compact
+.It Cm all
+all services and daemons
+.It Cm failed
+enabled but stopped daemons
+.It Cm off
+disabled services and daemons
+.It Cm on
+enabled services and daemons
+.It Cm rogue
+daemons which are disabled but currently running
+.It Cm started
+running daemons
+.It Cm stopped
+stopped daemons
+.El
+.It Cm order Op Ar daemon ...
+Move the specified package daemons to the beginning of
+.Va pkg_scripts .
+They need to be already enabled.
+If no
+.Ar daemon
+is specified, display the current order.
+.Pp
+The
+.Cm order
+command is only needed after enabling a new daemon
+that needs to run before one or more already enabled daemons.
+Specify the new daemon preceded by all that need to run before it,
+but not the ones depending on it.
+.It Cm set Ar service | daemon variable Op Ar argument ...
+For a daemon, set the variable
+.Ar daemon Ns _ Ns Ar variable
+to the specified arguments.
+If
+.Ar variable
+is already set,
+.Ar daemon Ns _ Ns Ar variable
+is reset to the optionally provided arguments or to its default value.
+.Pp
+The
+.Cm status
+.Ar variable
+must be provided with the
+.Cm on
+or
+.Cm off
+arguments.
+It is used to enable or disable
+.Ar service
+or
+.Ar daemon
+in
+.Xr rc.conf.local 8 .
+When a disabled package daemon is enabled, it is appended to the end of
+.Va pkg_scripts .
+When a package daemon is disabled, it is removed from
+.Va pkg_scripts
+and its variables are removed if any.
+.El
+.Sh EXIT STATUS
+.Nm Ar action
+returns with the exit status of the
+.Xr rc.d 8
+.Ar daemon
+script.
+.Nm Cm get Ar daemon | service Op Cm status
+exits with 0 if the daemon or service is enabled and 1 if it is not.
+.Nm Cm getdef Ar daemon | service Op Cm status
+exits with 0 if the daemon or service is enabled by default
+and 1 if it is not.
+.Nm Cm ls failed | rogue
+exits with 1 if an enabled daemon is not running or vice versa.
+Otherwise, the
+.Nm
+utility exits with 0 on success, and >0 if an error occurs
+.Po 2 indicates a non-existent
+.Ar daemon | service
+.Pc .
+.Sh EXAMPLES
+Enable and set
+.Xr apmd 8
+flags:
+.Bd -literal -offset indent
+# rcctl set apmd status on
+# rcctl set apmd flags -A
+# rcctl get apmd
+apmd_class=daemon
+apmd_execdir=
+apmd_flags=-A
+apmd_logger=
+apmd_rtable=0
+apmd_timeout=30
+apmd_user=root
+# echo $?
+0
+.Ed
+.Pp
+The recommended way to run a second copy of a given daemon for a
+different purpose is to create a symbolic link to its
+.Xr rc.d 8
+control script:
+.Bd -literal -offset indent
+# ln -s /etc/rc.d/snmpd /etc/rc.d/snmpd6
+# rcctl set snmpd6 status on
+# rcctl set snmpd6 flags -D addr=2001:db8::1234
+# rcctl start snmpd6
+.Ed
+.Sh SEE ALSO
+.Xr rc.conf.local 8 ,
+.Xr rc.d 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Ox 5.7 .
+.Sh AUTHORS
+.Nm
+was written by
+.An Antoine Jacoutot Aq Mt ajacoutot@openbsd.org .

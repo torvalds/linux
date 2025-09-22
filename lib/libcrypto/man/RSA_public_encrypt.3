@@ -1,0 +1,248 @@
+.\"	$OpenBSD: RSA_public_encrypt.3,v 1.14 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL RSA_public_encrypt.pod 1e3f62a3 Jul 17 16:47:13 2017 +0200
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000, 2004 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt RSA_PUBLIC_ENCRYPT 3
+.Os
+.Sh NAME
+.Nm RSA_public_encrypt ,
+.Nm RSA_private_decrypt ,
+.Nm EVP_PKEY_encrypt_old ,
+.Nm EVP_PKEY_decrypt_old
+.Nd RSA public key cryptography
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/rsa.h
+.Ft int
+.Fo RSA_public_encrypt
+.Fa "int flen"
+.Fa "const unsigned char *from"
+.Fa "unsigned char *to"
+.Fa "RSA *rsa"
+.Fa "int padding"
+.Fc
+.Ft int
+.Fo RSA_private_decrypt
+.Fa "int flen"
+.Fa "const unsigned char *from"
+.Fa "unsigned char *to"
+.Fa "RSA *rsa"
+.Fa "int padding"
+.Fc
+.In openssl/evp.h
+.Ft int
+.Fo EVP_PKEY_encrypt_old
+.Fa "unsigned char *to"
+.Fa "const unsigned char *from"
+.Fa "int flen"
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Ft int
+.Fo EVP_PKEY_decrypt_old
+.Fa "unsigned char *to"
+.Fa "const unsigned char *from"
+.Fa "int flen"
+.Fa "EVP_PKEY *pkey"
+.Fc
+.Sh DESCRIPTION
+.Fn RSA_public_encrypt
+encrypts the
+.Fa flen
+bytes at
+.Fa from
+(usually a session key) using the public key
+.Fa rsa
+and stores the ciphertext in
+.Fa to .
+.Fa to
+must point to
+.Fn RSA_size rsa
+bytes of memory.
+.Pp
+.Fa padding
+denotes one of the following modes:
+.Bl -tag -width Ds
+.It Dv RSA_PKCS1_PADDING
+PKCS #1 v1.5 padding.
+This currently is the most widely used mode.
+.It Dv RSA_PKCS1_OAEP_PADDING
+EME-OAEP as defined in PKCS #1 v2.0 with SHA-1, MGF1 and an empty
+encoding parameter.
+This mode is recommended for all new applications.
+.It Dv RSA_NO_PADDING
+Raw RSA encryption.
+This mode should only be used to implement cryptographically sound
+padding modes in the application code.
+Encrypting user data directly with RSA is insecure.
+.El
+.Pp
+.Fa flen
+must be less than
+.Fn RSA_size rsa
+- 11 for the PKCS #1 v1.5 based padding modes, less than
+.Fn RSA_size rsa
+- 41 for
+.Dv RSA_PKCS1_OAEP_PADDING
+and exactly
+.Fn RSA_size rsa
+for
+.Dv RSA_NO_PADDING .
+.Pp
+.Fn RSA_private_decrypt
+decrypts the
+.Fa flen
+bytes at
+.Fa from
+using the private key
+.Fa rsa
+and stores the plaintext in
+.Fa to .
+.Fa to
+must point to a memory section large enough to hold the decrypted data
+(which is smaller than
+.Fn RSA_size rsa ) .
+.Fa padding
+is the padding mode that was used to encrypt the data.
+.Pp
+.Fn EVP_PKEY_encrypt_old
+is a deprecated wrapper around
+.Fn RSA_public_encrypt
+that uses the
+.Vt RSA
+public key stored in
+.Fa pkey
+and
+.Dv RSA_PKCS1_PADDING .
+.Pp
+.Fn EVP_PKEY_decrypt_old
+is a deprecated wrapper around
+.Fn RSA_private_decrypt
+that uses the
+.Vt RSA
+private key stored in
+.Fa pkey
+and
+.Dv RSA_PKCS1_PADDING .
+.Sh RETURN VALUES
+.Fn RSA_public_encrypt
+and
+.Fn EVP_PKEY_encrypt_old
+return the size of the encrypted data (i.e.\&
+.Fn RSA_size rsa ) .
+.Fn RSA_private_decrypt
+and
+.Fn EVP_PKEY_decrypt_old
+returns the size of the recovered plaintext.
+On error, \-1 is returned; the error codes can be obtained by
+.Xr ERR_get_error 3 .
+.Pp
+In addition to the return values documented above,
+.Fn EVP_PKEY_encrypt_old
+may return 0 if the
+.Xr EVP_PKEY_id 3
+of
+.Fa pkey
+is not
+.Dv EVP_PKEY_RSA .
+.Sh SEE ALSO
+.Xr EVP_PKEY_decrypt 3 ,
+.Xr EVP_PKEY_encrypt 3 ,
+.Xr RSA_meth_set_priv_dec 3 ,
+.Xr RSA_new 3 ,
+.Xr RSA_size 3
+.Sh STANDARDS
+SSL, PKCS #1 v2.0
+.Sh HISTORY
+.Fn RSA_public_encrypt
+and
+.Fn RSA_private_decrypt
+appeared in SSLeay 0.4 or earlier and have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_PKEY_encrypt
+and
+.Fn EVP_PKEY_decrypt
+first appeared in SSLeay 0.9.0 and have been available since
+.Ox 2.4 .
+There were renamed to
+.Fn EVP_PKEY_encrypt_old
+and
+.Fn EVP_PKEY_decrypt_old
+in OpenSSL 1.0.0 and
+.Ox 4.9 .
+.Pp
+.Dv RSA_NO_PADDING
+is available since SSLeay 0.9.0.
+OAEP was added in OpenSSL 0.9.2b.
+.Sh BUGS
+Decryption failures in the
+.Dv RSA_PKCS1_PADDING
+mode leak information which can potentially be used to mount a
+Bleichenbacher padding oracle attack.
+This is an inherent weakness in the PKCS #1 v1.5 padding design.
+Prefer
+.Dv RSA_PKCS1_OAEP_PADDING .

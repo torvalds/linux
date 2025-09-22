@@ -1,0 +1,4 @@
+pass all flags S/SA set (prio 3)
+pass out on lo1000000 proto tcp from any to any port = 22 flags S/SA set (prio(5, 2))
+pass inet proto udp from any to 127.0.0.1 port = 53 set (prio 4)
+pass inet proto udp from any to 127.0.0.2 port = 53 set (prio 4)

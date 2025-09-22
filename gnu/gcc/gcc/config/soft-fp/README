@@ -1,0 +1,4 @@
+Except for t-softfp, the files in this directory are part of the GNU C
+Library, not part of GCC.  As described at
+<http://gcc.gnu.org/codingconventions.html>, changes should be made to
+the GNU C Library and the changed files then imported into GCC.

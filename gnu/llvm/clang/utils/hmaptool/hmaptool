@@ -1,0 +1,297 @@
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, print_function
+
+from ctypes import ArgumentError
+import json
+import optparse
+import os
+import struct
+import sys
+
+###
+
+k_header_magic_LE = b'pamh'
+k_header_magic_BE = b'hmap'
+
+def hmap_hash(str):
+    """hash(str) -> int
+
+    Apply the "well-known" headermap hash function.
+    """
+
+    return sum((ord(c.lower()) * 13
+                for c in str), 0)
+
+class HeaderMap(object):
+    @staticmethod
+    def frompath(path):
+        with open(path, 'rb') as f:
+            magic = f.read(4)
+            if magic == k_header_magic_LE:
+                endian_code = '<'
+            elif magic == k_header_magic_BE:
+                endian_code = '>'
+            else:
+                raise SystemExit("error: %s: not a headermap" % (
+                        path,))
+
+            # Read the header information.
+            header_fmt = endian_code + 'HHIIII'
+            header_size = struct.calcsize(header_fmt)
+            data = f.read(header_size)
+            if len(data) != header_size:
+                raise SystemExit("error: %s: truncated headermap header" % (
+                        path,))
+
+            (version, reserved, strtable_offset, num_entries,
+             num_buckets, _) = struct.unpack(header_fmt, data)
+
+            if version != 1:
+                raise SystemExit("error: %s: unknown headermap version: %r" % (
+                        path, version))
+            if reserved != 0:
+                raise SystemExit("error: %s: invalid reserved value in header" % (
+                        path,))
+
+            # The number of buckets must be a power of two.
+            if num_buckets == 0 or (num_buckets & num_buckets - 1) != 0:
+                raise SystemExit("error: %s: invalid number of buckets" % (
+                        path,))
+
+            # Read all of the buckets.
+            bucket_fmt = endian_code + 'III'
+            bucket_size = struct.calcsize(bucket_fmt)
+            buckets_data = f.read(num_buckets * bucket_size)
+            if len(buckets_data) != num_buckets * bucket_size:
+                raise SystemExit("error: %s: truncated headermap buckets" % (
+                        path,))
+            buckets = [struct.unpack(bucket_fmt,
+                                     buckets_data[i*bucket_size:(i+1)*bucket_size])
+                       for i in range(num_buckets)]
+
+            # Read the string table; the format doesn't explicitly communicate the
+            # size of the string table (which is dumb), so assume it is the rest of
+            # the file.
+            f.seek(0, 2)
+            strtable_size = f.tell() - strtable_offset
+            f.seek(strtable_offset)
+
+            if strtable_size == 0:
+                raise SystemExit("error: %s: unable to read zero-sized string table"%(
+                        path,))
+            strtable = f.read(strtable_size)
+
+            if len(strtable) != strtable_size:
+                raise SystemExit("error: %s: unable to read complete string table"%(
+                        path,))
+            if strtable[-1] != 0:
+                raise SystemExit("error: %s: invalid string table in headermap" % (
+                        path,))
+
+            return HeaderMap(num_entries, buckets, strtable)
+
+    def __init__(self, num_entries, buckets, strtable):
+        self.num_entries = num_entries
+        self.buckets = buckets
+        self.strtable = strtable
+
+    def get_string(self, idx):
+        if idx >= len(self.strtable):
+            raise SystemExit("error: %s: invalid string index" % (
+                    idx,))
+        end_idx = self.strtable.index(0, idx)
+        return self.strtable[idx:end_idx].decode()
+
+    @property
+    def mappings(self):
+        for key_idx,prefix_idx,suffix_idx in self.buckets:
+            if key_idx == 0:
+                continue
+            yield (self.get_string(key_idx),
+                   self.get_string(prefix_idx) + self.get_string(suffix_idx))
+
+###
+
+def action_dump(name, args):
+    "dump a headermap file"
+
+    parser = optparse.OptionParser("%%prog %s [options] <headermap path>" % (
+            name,))
+    parser.add_option("-v", "--verbose", dest="verbose",
+                      help="show more verbose output [%default]",
+                      action="store_true", default=False)
+    (opts, args) = parser.parse_args(args)
+
+    if len(args) != 1:
+        parser.error("invalid number of arguments")
+
+    path, = args
+
+    hmap = HeaderMap.frompath(path)
+
+    # Dump all of the buckets.
+    print ('Header Map: %s' % (path,))
+    if opts.verbose:
+        print ('headermap: %r' % (path,))
+        print ('  num entries: %d' % (hmap.num_entries,))
+        print ('  num buckets: %d' % (len(hmap.buckets),))
+        print ('  string table size: %d' % (len(hmap.strtable),))
+        for i,bucket in enumerate(hmap.buckets):
+            key_idx,prefix_idx,suffix_idx = bucket
+
+            if key_idx == 0:
+                continue
+
+            # Get the strings.
+            key = hmap.get_string(key_idx)
+            prefix = hmap.get_string(prefix_idx)
+            suffix = hmap.get_string(suffix_idx)
+
+            print ("  bucket[%d]: %r -> (%r, %r) -- %d" % (
+                i, key, prefix, suffix, (hmap_hash(key) & (len(hmap.buckets) - 1))))
+    else:
+        mappings = sorted(hmap.mappings)
+        for key,value in mappings:
+            print ("%s -> %s" % (key, value))
+    print ()
+
+def next_power_of_two(value):
+    if value < 0:
+        raise ArgumentError
+    return 1 if value == 0 else 2**(value - 1).bit_length()
+
+def action_write(name, args):
+    "write a headermap file from a JSON definition"
+
+    parser = optparse.OptionParser("%%prog %s [options] <input path> <output path>" % (
+            name,))
+    (opts, args) = parser.parse_args(args)
+
+    if len(args) != 2:
+        parser.error("invalid number of arguments")
+
+    input_path,output_path = args
+
+    with open(input_path, "r") as f:
+        input_data = json.load(f)
+
+    # Compute the headermap contents, we make a table that is 1/3 full.
+    mappings = input_data['mappings']
+    num_buckets = next_power_of_two(len(mappings) * 3)
+
+    table = [(0, 0, 0)
+             for i in range(num_buckets)]
+    max_value_len = 0
+    strtable = "\0"
+    for key,value in mappings.items():
+        if not isinstance(key, str):
+            key = key.decode('utf-8')
+        if not isinstance(value, str):
+            value = value.decode('utf-8')
+        max_value_len = max(max_value_len, len(value))
+
+        key_idx = len(strtable)
+        strtable += key + '\0'
+        prefix = os.path.dirname(value) + '/'
+        suffix = os.path.basename(value)
+        prefix_idx = len(strtable)
+        strtable += prefix + '\0'
+        suffix_idx = len(strtable)
+        strtable += suffix + '\0'
+
+        hash = hmap_hash(key)
+        for i in range(num_buckets):
+            idx = (hash + i) % num_buckets
+            if table[idx][0] == 0:
+                table[idx] = (key_idx, prefix_idx, suffix_idx)
+                break
+        else:
+            raise RuntimeError
+
+    endian_code = '<'
+    magic = k_header_magic_LE
+    magic_size = 4
+    header_fmt = endian_code + 'HHIIII'
+    header_size = struct.calcsize(header_fmt)
+    bucket_fmt = endian_code + 'III'
+    bucket_size = struct.calcsize(bucket_fmt)
+    strtable_offset = magic_size + header_size + num_buckets * bucket_size
+    header = (1, 0, strtable_offset, len(mappings),
+              num_buckets, max_value_len)
+
+    # Write out the headermap.
+    with open(output_path, 'wb') as f:
+        f.write(magic)
+        f.write(struct.pack(header_fmt, *header))
+        for bucket in table:
+            f.write(struct.pack(bucket_fmt, *bucket))
+        f.write(strtable.encode())
+
+def action_tovfs(name, args):
+    "convert a headermap to a VFS layout"
+
+    parser = optparse.OptionParser("%%prog %s [options] <headermap path>" % (
+            name,))
+    parser.add_option("", "--build-path", dest="build_path",
+                      help="build path prefix",
+                      action="store", type=str)
+    (opts, args) = parser.parse_args(args)
+
+    if len(args) != 2:
+        parser.error("invalid number of arguments")
+    if opts.build_path is None:
+        parser.error("--build-path is required")
+
+    input_path,output_path = args
+
+    hmap = HeaderMap.frompath(input_path)
+
+    # Create the table for all the objects.
+    vfs = {}
+    vfs['version'] = 0
+    build_dir_contents = []
+    vfs['roots'] = [{
+            'name' : opts.build_path,
+            'type' : 'directory',
+            'contents' : build_dir_contents }]
+
+    # We assume we are mapping framework paths, so a key of "Foo/Bar.h" maps to
+    # "<build path>/Foo.framework/Headers/Bar.h".
+    for key,value in hmap.mappings:
+        # If this isn't a framework style mapping, ignore it.
+        components = key.split('/')
+        if len(components) != 2:
+            continue
+        framework_name,header_name = components
+        build_dir_contents.append({
+                'name' : '%s.framework/Headers/%s' % (framework_name,
+                                                      header_name),
+                'type' : 'file',
+                'external-contents' : value })
+
+    with open(output_path, 'w') as f:
+        json.dump(vfs, f, indent=2)
+
+commands = dict((name[7:].replace("_","-"), f)
+                for name,f in locals().items()
+                if name.startswith('action_'))
+
+def usage():
+    print ("Usage: %s command [options]" % (
+        os.path.basename(sys.argv[0])), file=sys.stderr)
+    print (file=sys.stderr)
+    print ("Available commands:", file=sys.stderr)
+    cmds_width = max(map(len, commands))
+    for name,func in sorted(commands.items()):
+        print ("  %-*s - %s" % (cmds_width, name, func.__doc__), file=sys.stderr)
+    sys.exit(1)
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] not in commands:
+        usage()
+
+    cmd = sys.argv[1]
+    commands[cmd](cmd, sys.argv[2:])
+
+if __name__ == '__main__':
+    main()

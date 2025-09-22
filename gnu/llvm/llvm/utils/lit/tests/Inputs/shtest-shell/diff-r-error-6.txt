@@ -1,0 +1,8 @@
+# Create two directories for further comparison.
+# RUN: rm -rf %t/dir1 %t/dir2
+# RUN: mkdir -p %t/dir1 %t/dir2
+
+# Empty file vs directory mismatch, diff -r should fail.
+# RUN: echo -n > %t/dir1/extra_file
+# RUN: mkdir -p %t/dir2/extra_file
+# RUN: diff -r %t/dir1 %t/dir2

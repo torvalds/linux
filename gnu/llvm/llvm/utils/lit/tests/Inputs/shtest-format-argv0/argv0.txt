@@ -1,0 +1,6 @@
+# Check that we route argv[0] as it was written, instead of the resolved
+# path. This is important for some tools, in particular '[' which at least on OS
+# X only recognizes that it is in '['-mode when its argv[0] is exactly
+# '['. Otherwise it will refuse to accept the trailing closing bracket.
+#
+# RUN: [ "A" = "A" ]

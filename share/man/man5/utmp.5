@@ -1,0 +1,218 @@
+.\"	$OpenBSD: utmp.5,v 1.26 2019/09/06 19:25:08 schwarze Exp $
+.\"	$NetBSD: utmp.5,v 1.5 1994/11/30 19:31:35 jtc Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)utmp.5	8.2 (Berkeley) 3/17/94
+.\"
+.Dd $Mdocdate: September 6 2019 $
+.Dt UTMP 5
+.Os
+.Sh NAME
+.Nm utmp ,
+.Nm wtmp ,
+.Nm lastlog
+.Nd login records
+.Sh SYNOPSIS
+.In utmp.h
+.Sh DESCRIPTION
+The
+.In utmp.h
+file declares the structures used to record information about current
+users in the
+.Nm utmp
+file, logins and logouts in the
+.Nm wtmp
+file, and last logins in the
+.Nm lastlog
+file.
+The timestamps of date changes, shutdowns, and reboots are also logged in the
+.Nm wtmp
+file.
+.Pp
+.Nm wtmp
+can grow rapidly on busy systems, so daily or weekly rotation is recommended.
+If any one of these files does not exist, it is not created.
+They must be created manually and are maintained by
+.Xr newsyslog 8 .
+.Bd -literal -offset indent
+#define _PATH_UTMP      "/var/run/utmp"
+#define _PATH_WTMP      "/var/log/wtmp"
+#define _PATH_LASTLOG   "/var/log/lastlog"
+
+#define UT_NAMESIZE     32
+#define UT_LINESIZE     8
+#define UT_HOSTSIZE     256
+
+struct lastlog {
+        time_t  ll_time;
+        char    ll_line[UT_LINESIZE];
+        char    ll_host[UT_HOSTSIZE];
+};
+
+struct utmp {
+        char    ut_line[UT_LINESIZE];
+        char    ut_name[UT_NAMESIZE];
+        char    ut_host[UT_HOSTSIZE];
+        time_t	ut_time;
+};
+.Ed
+.Pp
+Each time a user logs in, the
+.Xr login 1
+program looks up the user's
+.Tn UID
+in the
+.Nm lastlog
+file.
+If it is found, the timestamp of the last time the user logged
+in, the terminal line, and the hostname
+are written to the standard output (provided the login is not
+.Dq quiet ;
+see
+.Xr login 1 ) .
+The
+.Xr login 1
+program then records the new login time in the
+.Nm lastlog
+file.
+.Pp
+After the new
+.Fa lastlog
+record is written,
+.\" the
+.\" .Xr libutil 3
+.\" routine
+the
+.Nm utmp
+file is opened and the
+.Fa utmp
+record for the user is inserted.
+This record remains until the user logs out at which time it is deleted.
+The
+.Nm utmp
+file is used by the programs
+.Xr users 1 ,
+.Xr w 1 ,
+and
+.Xr who 1 .
+.Pp
+Next, the
+.Xr login 1
+program opens the
+.Nm wtmp
+file and appends the user's
+.Fa utmp
+record.
+When the user logs out, a
+.Fa utmp
+record with the tty line, an updated timestamp, and zeroed name and host
+fields is appended to the file (see
+.Xr init 8 ) .
+The
+.Nm wtmp
+file is used by the programs
+.Xr last 1
+and
+.Xr ac 8 .
+.Pp
+In the event of a date change, shutdown, or reboot, the
+following items are logged in the
+.Nm wtmp
+file:
+.Pp
+.Bl -tag -width shutdownxx -compact
+.It Li reboot
+.It Li shutdown
+A system reboot or shutdown has been initiated.
+A tilde
+.Pq Sq \&~
+character is placed in the field
+.Fa ut_line ,
+and
+.Dq reboot
+or
+.Dq shutdown
+in the field
+.Fa ut_name
+(see
+.Xr shutdown 8
+and
+.Xr reboot 8 ) .
+.Pp
+.It Li date
+The system time has been manually or automatically updated (see
+.Xr date 1 ) .
+The command name
+.Xr date 1
+is recorded in the field
+.Fa ut_name .
+In the field
+.Fa ut_line ,
+the
+.Dq \&|
+character indicates the time prior to the change and the
+.Dq \&{
+character indicates the new time.
+.El
+.Sh FILES
+.Bl -tag -width /var/log/lastlog -compact
+.It Pa /var/run/utmp
+.It Pa /var/log/wtmp
+.It Pa /var/log/lastlog
+.El
+.Sh SEE ALSO
+.Xr last 1 ,
+.Xr login 1 ,
+.Xr who 1 ,
+.Xr ac 8 ,
+.Xr init 8 ,
+.Xr newsyslog 8
+.Sh HISTORY
+A file
+.Pa /tmp/utmp
+first appeared in
+.At v1
+and a file
+.Pa /tmp/wtmp
+in
+.At v2 .
+The
+.Nm lastlog
+file format appeared in
+.Bx 3.0 .
+.Sh CAVEATS
+The strings in the
+.Fa utmp
+and
+.Fa lastlog
+structures are
+.Em not
+normal
+.Sq C
+strings and are thus not guaranteed to be null terminated.

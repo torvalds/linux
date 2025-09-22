@@ -1,0 +1,3 @@
+# Check error on an internal shell error (extra operand)
+#
+# RUN: diff -u a.txt b.txt c.txt

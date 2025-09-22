@@ -1,0 +1,316 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>list_update Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>list_update</tt> Interface</h1>
+
+    <p>A list-update based associative container.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/assoc_container.hpp"><tt>assoc_container.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Template Parameters</a></h2>
+
+    <table class="c1" width="100%" border="1" summary=
+    "Template Parameters">
+      <tr>
+        <td width="20%" align="left"><b>Parameter</b></td>
+
+        <td width="50%" align="left"><b>Description</b></td>
+
+        <td width="30%" align="left"><b>Default Value</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Key2501" id="Key2501"><b>typename</b> Key</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Key type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Mapped318655" id="Mapped318655"><b>typename</b> Mapped</a>
+</pre>
+        </td>
+
+        <td>
+          <p>Mapped type.</p>
+        </td>
+
+        <td>-</td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Eq_Fn60085" id="Eq_Fn60085"><b>class</b> Eq_Fn </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Equivalence functor.</p>
+        </td>
+
+        <td>
+          <pre>
+std::equal_to&lt;<a href="#Key2501"><tt>Key</tt></a>&gt;
+</pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Update_Policy1671938590" id=
+"Update_Policy1671938590"><b>class</b> Update_Policy </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Update policy (determines when an element will be
+          moved to the front of the list.</p>
+        </td>
+
+        <td><a href="move_to_front_lu_policy.html"><span class=
+        "c2"><tt>move_to_front_lu_policy</tt></span></a></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="Allocator35940069" id=
+"Allocator35940069"><b>class</b> Allocator </a>
+</pre>
+        </td>
+
+        <td>
+          <p>Allocator type.</p>
+        </td>
+
+        <td>
+          <pre>
+std::allocator&lt;<b>char</b>&gt;
+</pre>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link2" id="link2">Base Classes</a></h2>
+
+    <table class="c1" width="100%" border="1" summary="Bases">
+      <tr>
+        <td width="80%" align="left"><b>Class</b></td>
+
+        <td width="20%" align="left"><b>Derivation Type</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a href="container_base.html"><span class=
+"c2"><tt>container_base</tt></span></a>
+</pre>
+        </td>
+
+        <td>
+          <p>public</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link3" id="link3">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link4" id="link4">Policy definitions.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="eq_fn80245" id="eq_fn80245">eq_fn</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Eq_Fn60085"><tt>Eq_Fn</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>Equivalence functor type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="update_policy894603998" id=
+"update_policy894603998">update_policy</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Update_Policy1671938590"><tt>Update_Policy</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p>List update policy type.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="allocator48440069" id="allocator48440069">allocator</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+<a href="#Allocator35940069"><tt>Allocator</tt></a>
+</pre>
+        </td>
+
+        <td>
+          <p><a href="#Allocator35940069"><tt>Allocator</tt></a>
+          type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link5" id="link5">Public Methods</a></h2>
+
+    <h3><a name="link6" id="link6">Constructors, Destructor, and
+    Related</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  list_update
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Default constructor.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>template</b>&lt;
+    <b>class</b> It&gt;
+  list_update
+  (It first_it, 
+    It last_it)
+</pre>
+        </td>
+
+        <td>
+          <p>Constructor taking iterators to a range of
+          value_types. The value_types between <span class=
+          "c1"><tt>first_it</tt></span> and <span class=
+          "c1"><tt>last_it</tt></span> will be inserted into the
+          container object.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  list_update
+  (<b>const</b> <span class=
+"c2"><tt>list_update</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Copy constructor.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> 
+  ~list_update
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Destructor.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<span class="c2"><tt>list_update</tt></span> &amp;
+  <b>operator</b>=
+  (<b>const</b> <span class=
+"c2"><tt>list_update</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Assignment operator.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b>
+  swap
+  (<span class="c2"><tt>list_update</tt></span> &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Swaps content.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

@@ -1,0 +1,253 @@
+.\"	$OpenBSD: chio.1,v 1.36 2022/02/18 02:07:15 jsg Exp $
+.\"	$NetBSD: chio.1,v 1.1.1.1 1996/04/03 00:34:38 thorpej Exp $
+.\"
+.\" Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgments:
+.\"	This product includes software developed by Jason R. Thorpe
+.\"	for And Communications, http://www.and.com/
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt CHIO 1
+.Os
+.Sh NAME
+.Nm chio
+.Nd medium changer control utility
+.Sh SYNOPSIS
+.Nm chio
+.Op Fl f Ar changer
+.Ar command
+.Op Ar arg ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to control the operation of medium changers, such as those
+found in tape and optical disk jukeboxes.
+.Pp
+The options are as follows:
+.Bl -tag -width 10n
+.It Fl f Ar changer
+Use the device
+.Ar changer
+rather than the default device
+.Pa /dev/ch0 .
+.El
+.Pp
+A medium changer apparatus is made up of
+.Em elements .
+There are five element types:
+.Em picker
+(medium transport),
+.Em slot
+(storage),
+.Em portal
+(import/export),
+.Em drive
+(data transfer), and
+.Em voltag
+(select by volume identifier).
+The
+.Em voltag
+pseudo-element type allows the selection of tapes by their volume code,
+which is typically a barcode on the tape.
+In this command description, the shorthand
+.Sq ET
+will be used to represent an element type, and
+.Sq EU
+will be used to represent an element unit.
+For example, to represent
+the first robotic arm in the changer, the ET would be
+.Dq picker
+and the EU would be
+.Dq 0 .
+.Pp
+The following commands are supported:
+.Bl -tag -width Ds
+.It Xo
+.Cm exchange
+.Ar src-ET src-EU dst1-ET dst1-EU
+.Op Ar dst2-ET dst2-EU
+.Op Cm inv1
+.Op Cm inv2
+.Xc
+Performs a media unit exchange operation.
+The media unit in
+.Ar src-ET Ns / Ns Ar src-EU
+is moved to
+.Ar dst1-ET Ns / Ns Ar dst1-EU
+and the media unit previously in
+.Ar dst1-ET Ns / Ns Ar dst1-EU
+is moved to
+.Ar dst2-ET Ns / Ns Ar dst2-EU .
+In the case of a simple exchange,
+.Ar dst2-ET Ns / Ns Ar dst2-EU
+is omitted and the values
+.Ar src-ET Ns / Ns Ar src-EU
+are used in their place.
+The optional modifiers
+.Cm inv1
+and
+.Cm inv2
+specify whether the media units are to be inverted before insertion into
+.Ar dst1-ET Ns / Ns Ar dst2-EU
+and
+.Ar dst2-ET Ns / Ns Ar dst2-EU
+respectively.
+.Pp
+Note that not all medium changers support the
+.Cm exchange
+operation; the changer must have multiple free pickers or emulate
+multiple free pickers with transient storage.
+.It Cm getpicker
+Report which picker unit the changer is currently configured to use.
+.It Xo
+.Cm move
+.Ar from-ET from-EU to-ET to-EU
+.Op Cm inv
+.Xc
+Moves the media unit from
+.Ar from-ET Ns / Ns Ar from-EU
+to
+.Ar to-ET Ns / Ns Ar to-EU .
+If the optional modifier
+.Cm inv
+is specified, the media unit will be inverted before insertion.
+If
+.Ar from-ET
+is a drive,
+.Nm
+will first attempt to open and perform an
+.Dv MTOFFL
+operation on the
+.Xr st 4
+device corresponding to
+.Ar from-EU .
+By default, the
+.Xr st 4
+device
+.No /dev/rst Ns Ar X
+is used, where
+.Ar X
+is the
+.Ar from-EU .
+This mapping can be changed by using the
+.Xr chio.conf 5
+file.
+.It Cm params
+Report the number of slots, drives, pickers, and portals in the changer,
+and which picker unit the changer is currently configured to use.
+.It Cm position Ar to-ET to-EU Op Cm inv
+Position the picker in front of the element described by
+.Ar to-ET Ns / Ns Ar to-EU .
+If the optional modifier
+.Cm inv
+is specified, the media unit will be inverted before insertion.
+.Pp
+Note that not all changers behave as expected in response to this command.
+.It Cm setpicker Ar unit
+Configure the changer to use picker
+.Ar unit .
+.It Cm status
+.Op Fl vVa
+.Op Ar ET
+Report the status of all elements in the changer.
+If
+.Ar ET
+is specified, report the status of all elements of type
+.Ar ET .
+.Bl -tag -width Ds
+.It Fl v
+Print the primary volume tag for each loaded medium, if any.
+The volume
+tag is printed as
+.Dq \*(LtLABEL:SERIAL\*(Gt .
+.It Fl V
+Print the alternate volume tag for each loaded medium, if any.
+.It Fl a
+Print all additional information (as in
+.Fl vV ) .
+.El
+.Pp
+The status bits output are defined as follows:
+.Bl -tag -width indent
+.It Dv FULL
+Element contains a media unit.
+.It Dv IMPEXP
+Media was deposited into element by an outside human operator.
+.It Dv EXCEPT
+Element is in an abnormal state.
+.It Dv ACCESS
+Media in this element is accessible by a picker.
+.It Dv EXENAB
+Element supports passing media (exporting) to an outside human operator.
+.It Dv INENAB
+Element supports receiving media (importing) from an outside human operator.
+.El
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width CHANGER
+.It Ev CHANGER
+The default changer may be overridden by setting this environmental
+variable to the desired changer device.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/chio.confXX"
+.It Pa /dev/ch0
+Default changer device.
+.It Pa /etc/chio.conf
+Optional configuration file to set up a non-default mapping between
+.Xr st 4
+devices and changer drives.
+.El
+.Sh EXAMPLES
+Move the media in slot 3 (fourth slot) to drive 0 (first drive):
+.Pp
+.Dl # chio move slot 3 drive 0
+.Pp
+Move the media with volume tag 000007L2 to drive 1 (second drive):
+.Pp
+.Dl # chio move voltag 00007L2 drive 1
+.Pp
+Configure the changer to use picker 2 (third picker) for operations:
+.Pp
+.Dl # chio setpicker 2
+.Sh SEE ALSO
+.Xr mt 1 ,
+.Xr ch 4 ,
+.Xr st 4 ,
+.Xr chio.conf 5
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.Nx 1.3 .
+.Sh AUTHORS
+The
+.Nm
+program and SCSI changer driver were written by
+.An Jason R. Thorpe
+for And Communications.

@@ -1,0 +1,20 @@
+set(LLVM_LINK_COMPONENTS
+  Object
+  Support
+  Symbolize
+  XRay
+  )
+
+add_llvm_tool(llvm-xray
+  func-id-helper.cpp
+  llvm-xray.cpp
+  xray-account.cpp
+  xray-color-helper.cpp
+  xray-converter.cpp
+  xray-extract.cpp
+  xray-fdr-dump.cpp
+  xray-graph-diff.cpp
+  xray-graph.cpp
+  xray-registry.cpp
+  xray-stacks.cpp
+  )

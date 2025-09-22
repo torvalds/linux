@@ -1,0 +1,7 @@
+# Custom multilibs for RTEMS
+
+MULTILIB_ENDIAN = ml
+MULTILIB_OPTIONS= $(MULTILIB_ENDIAN) m2/m2e/m4-single-only/m4-single/m4
+MULTILIB_DIRNAMES= 
+MULTILIB_MATCHES = m2=m3 m2e=m3e m2=m4-nofpu
+MULTILIB_EXCEPTIONS = ml

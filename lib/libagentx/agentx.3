@@ -1,0 +1,661 @@
+.\" $OpenBSD: agentx.3,v 1.11 2025/06/05 18:43:07 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Martijn van Duren <martijn@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 5 2025 $
+.Dt AGENTX 3
+.Os
+.Sh NAME
+.Nm agentx_log_fatal ,
+.Nm agentx_log_warn ,
+.Nm agentx_log_info ,
+.Nm agentx_log_debug ,
+.Nm agentx ,
+.Nm agentx_connect ,
+.Nm agentx_retry ,
+.Nm agentx_read ,
+.Nm agentx_write ,
+.Nm agentx_wantwrite ,
+.Nm agentx_free ,
+.Nm agentx_session ,
+.Nm agentx_session_free ,
+.Nm agentx_context ,
+.Nm agentx_context_object_find ,
+.Nm agentx_context_object_nfind ,
+.Nm agentx_context_uptime ,
+.Nm agentx_context_free ,
+.Nm agentx_region ,
+.Nm agentx_region_free ,
+.Nm agentx_agentcaps ,
+.Nm agentx_agentcaps_free ,
+.Nm agentx_index_integer_new ,
+.Nm agentx_index_integer_any ,
+.Nm agentx_index_integer_value ,
+.Nm agentx_index_integer_dynamic ,
+.Nm agentx_index_string_dynamic ,
+.Nm agentx_index_nstring_dynamic ,
+.Nm agentx_index_oid_dynamic ,
+.Nm agentx_index_noid_dynamic ,
+.Nm agentx_index_ipaddress_dynamic ,
+.Nm agentx_index_free ,
+.Nm agentx_object ,
+.Nm agentx_object_free ,
+.Nm agentx_varbind_integer ,
+.Nm agentx_varbind_string ,
+.Nm agentx_varbind_nstring ,
+.Nm agentx_varbind_printf ,
+.Nm agentx_varbind_null ,
+.Nm agentx_varbind_oid ,
+.Nm agentx_varbind_object ,
+.Nm agentx_varbind_index ,
+.Nm agentx_varbind_ipaddress ,
+.Nm agentx_varbind_counter32 ,
+.Nm agentx_varbind_gauge32 ,
+.Nm agentx_varbind_unsigned32 ,
+.Nm agentx_varbind_timeticks ,
+.Nm agentx_varbind_opaque ,
+.Nm agentx_varbind_counter64 ,
+.Nm agentx_varbind_notfound ,
+.Nm agentx_varbind_error ,
+.Nm agentx_varbind_request ,
+.Nm agentx_varbind_get_index_integer ,
+.Nm agentx_varbind_get_index_string ,
+.Nm agentx_varbind_get_index_oid ,
+.Nm agentx_varbind_get_index_ipaddress ,
+.Nm agentx_varbind_set_index_integer ,
+.Nm agentx_varbind_set_index_string ,
+.Nm agentx_varbind_set_index_nstring ,
+.Nm agentx_varbind_set_index_oid ,
+.Nm agentx_varbind_set_index_object ,
+.Nm agentx_varbind_set_index_ipaddress
+.Nd manage an interface to an agentx master
+.Sh SYNOPSIS
+.Lb libagentx
+.In agentx.h
+.Ft extern void
+.Fn (*agentx_log_fatal) "const char *fmt" ...
+.Ft extern void
+.Fn (*agentx_log_warn) "const char *fmt" ...
+.Ft extern void
+.Fn (*agentx_log_info) "const char *fmt" ...
+.Ft extern void
+.Fn (*agentx_log_debug) "const char *fmt" ...
+.Ft struct agentx *
+.Fn agentx "void (*nofd)(struct agentx *, void *, int)" "void *cookie"
+.Ft void
+.Fn agentx_connect "struct agentx *sa" "int fd"
+.Ft void
+.Fn agentx_retry "struct agentx *sa"
+.Ft void
+.Fn agentx_read "struct agentx *sa"
+.Ft void
+.Fn agentx_write "struct agentx *sa"
+.Ft extern void
+.Fn (*agentx_wantwrite) "struct agentx *sa" "int fd"
+.Ft void
+.Fn agentx_free "struct agentx *sa"
+.Ft struct agentx_session *
+.Fo agentx_session
+.Fa "struct agentx *sa" "uint32_t oid[]" "size_t oidlen"
+.Fa "const char *descr" "uint8_t timeout"
+.Fc
+.Ft void
+.Fn agentx_session_free "struct agentx_session *sas"
+.Ft struct agentx_context *
+.Fn agentx_context "struct agentx_session *sas" "const char *name"
+.Ft struct agentx_object *
+.Fo agentx_context_object_find
+.Fa "struct agentx_context *sac" "const uint32_t oid[]" "size_t oidlen"
+.Fa "int active" "int instance"
+.Fc
+.Ft struct agentx_object *
+.Fo agentx_context_object_nfind
+.Fa "struct agentx_context *" "const uint32_t oid[]" "size_t oidlen"
+.Fa "int active" "int inclusive"
+.Fc
+.Ft uint32_t
+.Fn agentx_context_uptime "struct agentx_context *sac"
+.Ft void
+.Fn agentx_context_free "struct agentx_context *sac"
+.Ft struct agentx_agentcaps *
+.Fo agentx_agentcaps
+.Fa "struct agentx_context *sac" "uint32_t oid[]" "size_t oidlen"
+.Fa "const char *descr"
+.Fc
+.Ft void
+.Fn agentx_agentcaps_free "struct agentx_agentcaps *saa"
+.Ft struct agentx_region *
+.Fo agentx_region
+.Fa "struct agentx_context *sac" "uint32_t oid[]"
+.Fa "size_t oidlen" "uint8_t timeout"
+.Fc
+.Ft void
+.Fn agentx_region_free "struct agentx_region *sar"
+.Ft struct agentx_index *
+.Fo agentx_index_integer_new
+.Fa "struct agentx_region *sar" "uint32_t oid[]" "size_t oidlen"
+.Fc
+.Ft struct agentx_index *
+.Fo agentx_index_integer_any
+.Fa "struct agentx_region *sar" "uint32_t oid[]" "size_t oidlen"
+.Fc
+.Ft struct agentx_index *
+.Fo agentx_index_integer_value
+.Fa "struct agentx_region *sar" "uint32_t oid[]" "size_t oidlen"
+.Fa "int32_t value"
+.Fc
+.Ft struct agentx_index *
+.Fo agentx_index_integer_dynamic
+.Fa "struct agentx_region *sar" "uint32_t oid[] "size_t oidlen"
+.Fc
+.Ft struct agentx_index *
+.Fo agentx_index_string_dynamic
+.Fa "struct agentx_region *sar" "uint32_t oid[]" "size_t oidlen"
+.Fc
+.Ft struct agentx_index *
+.Fo agentx_index_nstring_dynamic
+.Fa "struct agentx_region *sar" "uint32_t oid[]" "size_t oidlen"
+.Fa "size_t slen"
+.Fc
+.Ft struct agentx_index *
+.Fo agentx_index_oid_dynamic
+.Fa "struct agentx_region *sar" "uint32_t oid[]" "size_t oidlen"
+.Fc
+.Ft struct agentx_index *
+.Fo agentx_index_noid_dynamic
+.Fa "struct agentx_region *sar" "uint32_t oid[]" "size_t oidlen"
+.Fa "size_t vlen"
+.Fc
+.Ft struct agentx_index *
+.Fo agentx_index_ipaddress_dynamic
+.Fa "struct agentx_region *sar" "uint32_t oid[]" "size_t oidlen"
+.Fc
+.Ft void
+.Fn agentx_index_free "struct agentx_index *sai"
+.Ft struct agentx_object *
+.Fo agentx_object
+.Fa "struct agentx_region *sar" "uint32_t oid[]" "size_t oidlen"
+.Fa "struct agentx_index *index[]" "size_t indexlen" "int implied"
+.Fa "void (*getcb)(struct agentx_varbind *)"
+.Fc
+.Ft void
+.Fn agentx_object_free "struct agentx_object *sao"
+.Ft void
+.Fn agentx_varbind_integer "struct agentx_varbind *sav" "int32_t value"
+.Ft void
+.Fn agentx_varbind_string "struct agentx_varbind *sav" "const char *value"
+.Ft void
+.Fo agentx_varbind_nstring
+.Fa "struct agentx_varbind *sav" "const char *value" "size_t slen"
+.Fc
+.Ft void
+.Fo agentx_varbind_printf
+.Fa "struct agentx_varbind *sav" "const char *fmt" ...
+.Fc
+.Ft void
+.Fn agentx_varbind_null "struct agentx_varbind *sav"
+.Ft void
+.Fo agentx_varbind_oid
+.Fa "struct agentx_varbind *sav" "const uint32_t oid[]" "size_t oidlen"
+.Fc
+.Ft void
+.Fo agentx_varbind_object
+.Fa "struct agentx_varbind *sav" "struct agentx_object *sao"
+.Fc
+.Ft void
+.Fo agentx_varbind_index
+.Fa "struct agentx_varbind *sav" "struct agentx_index *sai"
+.Fc
+.Ft void
+.Fo agentx_varbind_ipaddress
+.Fa "struct agentx_varbind *sav" "const struct in_addr *addr"
+.Fc
+.Ft void
+.Fn agentx_varbind_counter32 "struct agentx_varbind *sav" "uint32_t value"
+.Ft void
+.Fn agentx_varbind_gauge32 "struct agentx_varbind *sav" "uint32_t value"
+.Ft void
+.Fn agentx_varbind_unsigned32 "struct agentx_varbind *sav" "uint32_t value"
+.Ft void
+.Fo agentx_varbind_timeticks
+.Fa "struct agentx_varbind *sav"  "uint32_t value"
+.Fc
+.Ft void
+.Fo agentx_varbind_opaque
+.Fa "struct agentx_varbind *sav" "const char *value" "size_t slen"
+.Fc
+.Ft void
+.Fn agentx_varbind_counter64 "struct agentx_varbind *sav" "uint64_t value"
+.Ft void
+.Fn agentx_varbind_notfound "struct agentx_varbind *sav"
+.Ft void
+.Fn agentx_varbind_error "struct agentx_varbind *sav"
+.Ft enum agentx_request_type
+.Fn agentx_varbind_request "struct agentx_varbind *sav"
+.Ft int32_t
+.Fo agentx_varbind_get_index_integer
+.Fa "struct agentx_varbind *sav" "struct agentx_index *sai"
+.Fc
+.Ft const unsigned char *
+.Fo agentx_varbind_get_index_string
+.Fa "struct agentx_varbind *sav" "struct agentx_index *sai" "size_t *slen"
+.Fa "int *implied"
+.Fc
+.Ft const uint32_t *
+.Fo agentx_varbind_get_index_oid
+.Fa "struct agentx_varbind *sav" "struct agentx_index *sai"
+.Fa "size_t *oidlen" "int *implied"
+.Fc
+.Ft const struct in_addr *
+.Fo agentx_varbind_get_index_ipaddress
+.Fa "struct agentx_varbind *sav" "struct agentx_index *sai"
+.Fc
+.Ft void
+.Fo agentx_varbind_set_index_integer
+.Fa "struct agentx_varbind *sav" "struct agentx_index *sai"
+.Fa "int32_t value"
+.Fc
+.Ft void
+.Fo agentx_varbind_set_index_string
+.Fa "struct agentx_varbind *sav" "struct agentx_index *sai"
+.Fa "const unsigned char *value"
+.Fc
+.Ft void
+.Fo agentx_varbind_set_index_nstring
+.Fa "struct agentx_varbind *sav" "struct agentx_index *sai"
+.Fa "const unsigned char *value" "size_t slen"
+.Fc
+.Ft void
+.Fo agentx_varbind_set_index_oid
+.Fa "struct agentx_varbind *sav" "struct agentx_index *sai"
+.Fa "const uint32_t *oid" "size_t oidlen"
+.Fc
+.Ft void
+.Fo agentx_varbind_set_index_object
+.Fa "struct agentx_varbind *sav" "struct agentx_index *sai"
+.Fa "struct agentx_object *sao"
+.Fc
+.Ft void
+.Fo agentx_varbind_set_index_ipaddress
+.Fa "struct agentx_varbind *sav" "struct agentx_index *sai"
+.Fa "const struct in_addr *addr"
+.Fc
+.Bd -literal
+enum agentx_request_type {
+        AGENTX_REQUEST_TYPE_GET,
+        AGENTX_REQUEST_TYPE_GETNEXT,
+        AGENTX_REQUEST_TYPE_GETNEXTINCLUSIVE
+};
+.Ed
+.Fd #define AGENTX_MASTER_PATH \(dq/var/agentx/master\(dq
+.Fd #define AGENTX_OID_MAX_LEN 128
+.Fd #define AGENTX_OID_INDEX_MAX_LEN 10
+.Fd #define AGENTX_OID(...)
+.Fd #define AGENTX_MIB2 1, 3, 6, 1, 2, 1
+.Fd #define AGENTX_ENTERPRISES 1, 3, 6, 1, 4, 1
+.Sh DESCRIPTION
+The
+.Nm agentx
+functions allow an application to describe their MIB layout and provide an
+.Fa fd
+based interface to control the internal agentx state.
+.Nm agentx
+is not thread safe.
+.Ss DESCRIBING THE MIB
+.Nm agentx
+is a framework to abstract away the agentx protocol from the application.
+For the framework to report information to the administrator, the
+.Fn agentx_log_fatal ,
+.Fn agentx_log_warn ,
+.Fn agentx_log_info
+and
+.Fn agentx_log_debug
+functions must be set.
+.Pp
+When
+.Fa sa
+is created by
+.Fn agentx
+or when
+.Fa sa
+detects that there is no connection to the agentx master, it calls out to
+.Fa nofd
+with itself,
+.Fa cookie
+and an integer
+.Fa close
+as arguments.
+If
+.Fa close
+is not set,
+.Fn nofd
+is expected to set up a new
+.Fa fd
+to the agentx master.
+This one can usually be found at
+.Dv AGENTX_MASTER_PATH .
+This
+.Fa fd
+can be returned to
+.Fa sa
+at any moment via
+.Fn agentx_connect ,
+but must always be done as a result of a call to
+.Fn nofd .
+Once
+.Fn agentx_connect
+has been called,
+the application is responsible for retrieving data when available
+on
+.Fa fd
+by calling
+.Fn agentx_read .
+If nonblocking writes are desirable, the
+.Fn agentx_wantwrite
+pointer can be set to an application function and will be called as soon as
+there's data available to be written out.
+Once
+.Fa fd
+is ready for a write, the function
+.Fn agentx_write
+should be called.
+.Pp
+If any of the session, agentcaps, region, index, or objects failed to enable
+correctly
+.Pq as can be seen by the admin through the logs
+they can be retried through
+.Fn agentx_retry .
+.Pp
+.Fa sa
+can be freed via
+.Fn agentx_free .
+It will close all active sessions and free all derived objects.
+Once freed, no new objects can be derived from the freed objects.
+Once all sessions are closed, it will call out to
+.Fn nofd
+with
+.Fa close
+set, indicating that the application can clean up any context related to
+.Fa sa .
+.Pp
+On top of the
+.Fa sa
+connection a
+.Vt agentx_session
+must be set up.
+Normally there's only a single session per
+.Fa sa .
+The
+.Fa timeout
+argument specifies the maximum time in seconds the master should wait for a
+reply before determining we're gone.
+If set to 0, the agentx master determines the timeout.
+The
+.Fa oid
+and
+.Fa oidlen
+combination identifies the subagent and will be visible through the
+agentxSessionObjectID object on the agentx master.
+The
+.Fa descr
+is a short displaystring description of the agent and will be visible through
+the agentxSessionDescr object on the agentx master.
+.Pp
+The
+.Vt agentx_context
+is the SNMPv3 context in which the objects operate and is built on top of
+agentx_session
+.Fa sas .
+If the default context is requested,
+.Fa name
+must be NULL.
+.Pp
+.Fn agentx_agentcaps
+registers an entry in the agentx master's sysORTable.
+The
+.Fa oid ,
+.Fa oidlen
+combination should point to an AGENT-CAPABILITIES object which describes the
+capabilities of the subagent.
+.Fa descr
+should be a textual description of the capabilities.
+If no AGENT-CAPABILITIES object is defined, this function can be omitted.
+.Pp
+A
+.Vt agentx_region
+indicates a region inside the object-tree for which get- and set-requests will
+be queried.
+If the OID has already been claimed by another subagent, it will try to claim it
+on a lower priority.
+The
+.Fa timeout
+parameter overrules its
+.Vt agentx_session
+counterpart.
+.Pp
+For objects in a table one or more
+.Ft agentx_index
+elements must be supplied.
+.Fn agentx_index_integer_new ,
+.Fn agentx_index_integer_any
+and
+.Fn agentx_index_integer_value
+register an integer index at the agentx master.
+Of these
+.Fn agentx_index_integer_new
+registers a new, previously unused, index;
+.Fn agentx_index_integer_any
+registers the first available index;
+and
+.Fn agentx_index_integer_value
+tries to register a specific value.
+If the registration of an index fails, an error will be logged and all objects
+using it will remain disabled.
+The OID where the index should be registered is documented by the MIB.
+These registered indices are usually used for tables where multiple subagents
+are registered.
+.Pp
+For dynamic indices the agentx_index_*_dynamic functions can be used, based
+on the data type of the object.
+The data type should match the data type in the MIB at the
+.Fa oid
+object.
+Indices of data type string or oid with a fixed length should be created via
+.Fn agentx_index_nstring_dynamic
+and
+.Fn agentx_index_noid_dynamic
+respectively.
+.Pp
+.Vt agentx_object
+is an object as described in the MIB.
+For scalar objects
+.Pq without indices
+the final zero must be omitted.
+For table entries a list of 1 or more indices must be added via
+.Fa index
+and
+.Fa indexlen .
+The list of indices must match the INDEX list on the ENTRY object in the MIB.
+The total length of the OID, including indices, can't be more than
+.Dv AGENTX_OID_MAX_LEN
+and indexlen can't be more than
+.Dv AGENTX_OID_INDEX_MAX_LEN .
+If
+.Fa implied
+is set, the final index must be of type OID or string and will omit the leading
+length indicator.
+This value must only be set if specified in the MIB.
+.Fn getcb
+will be called for each varbind in a GET, GETNEXT or GETBULK request that
+matches the object.
+.Ss HANDLING GET REQUESTS
+A call to
+.Fn getcb
+must eventually result in a call to one of the following functions:
+.Bl -tag -width agentx_varbind_counter32()
+.It Fn agentx_varbind_integer
+Set the return value to an int32_t value.
+.It Fn agentx_varbind_string
+A C string wrapper around
+.Fn agentx_varbind_nstring .
+.It Fn agentx_varbind_nstring
+Set the return value to an octetstring.
+.It Fn agentx_varbind_printf
+A printf wrapper around
+.Fn agentx_varbind_nstring .
+.It Fn agentx_varbind_null
+Set the return value to null.
+.It Fn agentx_varbind_oid
+Set the return value to an OID value.
+.It Fn agentx_varbind_object
+An agentx_object wrapper around
+.Fn agentx_varbind_oid .
+.It Fn agentx_varbind_index
+An agentx_index wrapper around
+.Fn agentx_varbind_oid .
+.It Fn agentx_varbind_ipaddress
+Set the return value to ipaddress.
+.It Fn agentx_varbind_counter32
+Set the return value to an uint32_t of type counter32.
+.It Fn agentx_varbind_gauge32
+Set the return value to an uint32_t of type gauge32.
+.It Fn agentx_varbind_unsigned32
+A wrapper around agentx_varbind_gauge32.
+.It Fn agentx_varbind_timeticks
+Set the return value to an uint32_t of type timeticks.
+.It Fn agentx_varbind_opaque
+Set the return value to an opaque value.
+.It Fn agentx_varbind_counter64
+Set the return value to an uint64_t of type counter64.
+.It Fn agentx_varbind_notfound
+When the request is of type GET, return a nosuchinstance error.
+When the request is of type GETNEXT or GETBULK, return an endofmibview error.
+On endofmibview the next object is queried.
+This function can only be called on objects that contain one or more *_dynamic
+indices.
+.It Fn agentx_varbind_error
+Returns a GENERR error to the client.
+.El
+.Pp
+For objects containing *_dynamic indices the following support functions are to
+be used:
+.Bl -tag -width Ds
+.It Fn agentx_varbind_request
+Returns whether the request is of type GET, GETNEXT or GETNEXTINCLUSIVE.
+.It Fn agentx_varbind_get_index_integer
+Retrieve a single int32_t index value.
+.It Fn agentx_varbind_get_index_string
+Retrieve an octetstring index value.
+.Fa slen
+is the length of the string and
+.Fa implied
+indicates if the next value for this index should be length sorted before
+alphabetically sorted.
+.It Fn agentx_varbind_get_index_oid
+Retrieve an oid index value.
+.Fa oidlen
+is the length of the oid and
+.Fa implied
+indicates if the next value for this index should be length sorted before
+alphabetically sorted.
+.It Fn agentx_varbind_get_index_ipaddress
+Retrieve an ipaddress index value.
+.It Fn agentx_varbind_set_index_integer
+Sets a single int32_t index value.
+.It Fn agentx_varbind_set_index_string
+A C string wrapper around
+.Fn agentx_varbind_set_index_nstring .
+.It Fn agentx_varbind_set_index_nstring
+Set an octetstring index value.
+.It Fn agentx_varbind_set_index_oid
+Set an oid index value.
+.It Fn agentx_varbind_set_index_object
+A agentx_object wrapper around
+.Fn agentx_varbind_set_index_oid .
+.It Fn agentx_varbind_set_index_ipaddress
+Set an ipaddress index value.
+.El
+.Pp
+For these functions
+.Fa sai
+must be part of the object the request is performed on.
+The function type must also match the data type of
+.Fa sai .
+.Pp
+Other functions that can retrieve information from the agentx context are:
+.Bl -tag -width Ds
+.It Fn agentx_context_object_find
+Find an agentx_object created inside agentx_context
+.Fa sac
+based on
+.Fa oid
+and
+.Fa oidlen .
+If
+.Fa active
+is set the object must be reachable from the agentx master, else NULL is
+returned.
+If
+.Fa oid
+can be an instance, find its parent object.
+.It Fn agentx_context_object_nfind
+Find the next agentx_object created inside agentx_context
+.Fa sac
+based on
+.Fa oid
+and
+.Fa oidlen .
+If
+.Fa active
+is set the object must be reachable from the agentx master, else NULL is
+returned.
+If
+.Fa inclusive
+is set, the object returned may also exactly match
+.Fa oid .
+.It Fn agentx_context_uptime
+Returns the sysuptime in seconds for
+.Fa sac
+in timeticks.
+.El
+.Sh SEE ALSO
+.Xr snmp 1 ,
+.Xr snmpd 8
+.Sh STANDARDS
+.Rs
+.%A M. Daniele
+.%A B. Wijnen
+.%A M. Ellison, Ed.
+.%A D. Francisco, Ed.
+.%D January 2000
+.%R RFC 2741
+.%T Agent Extensibility (AgentX) Protocol Version 1
+.Re
+.Pp
+.Rs
+.%A L. Heintz
+.%A S. Gudur
+.%A M. Ellison, Ed.
+.%D January 2000
+.%R RFC 2742
+.%T Definitions of Managed Objects for Extensible SNMP Agents
+.Re
+.Sh HISTORY
+The
+.Nm agentx
+API first appeared in
+.Ox 6.9 .
+.Sh AUTHORS
+.An Martijn van Duren Aq Mt martijn@openbsd.org

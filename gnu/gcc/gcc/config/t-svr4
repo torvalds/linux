@@ -1,0 +1,11 @@
+# We need to use -fPIC when we are using gcc to compile the routines in
+# crtstuff.c.  This is only really needed when we are going to use gcc/g++
+# to produce a shared library, but since we don't know ahead of time when
+# we will be doing that, we just always use -fPIC when compiling the
+# routines in crtstuff.c.  Likewise for libgcc2.c.
+
+CRTSTUFF_T_CFLAGS = -fPIC
+TARGET_LIBGCC2_CFLAGS = -fPIC
+
+# See all the declarations.
+FIXPROTO_DEFINES = -D_XOPEN_SOURCE

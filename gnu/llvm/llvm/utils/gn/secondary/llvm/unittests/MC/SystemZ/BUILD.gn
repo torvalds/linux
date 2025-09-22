@@ -1,0 +1,12 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("SystemZAsmLexerTests") {
+  deps = [
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/SystemZ",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "SystemZAsmLexerTest.cpp" ]
+}

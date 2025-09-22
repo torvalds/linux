@@ -1,0 +1,59 @@
+.\"	$OpenBSD: amdmsr.4,v 1.6 2014/01/21 03:15:46 schwarze Exp $
+.\"
+.\" MSR access driver for AMD Geode LX CPUs with graphics processor.
+.\" Copyright 2008 Marc Balmer <mbalmer@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 21 2014 $
+.Dt AMDMSR 4 i386
+.Os
+.Sh NAME
+.Nm amdmsr
+.Nd access MSRs on certain AMD Geode LX systems
+.Sh SYNOPSIS
+.Cd "amdmsr0 at mainbus?"
+.Sh DESCRIPTION
+The
+.Nm
+device provides access to the Model Specific Registers (MSRs) on systems with
+an AMD Geode LX CPU and graphics processor.
+.Ss IOCTL INTERFACE
+MSRs can be read or written via
+.Fn ioctl
+calls performed on
+.Pa /dev/amdmsr .
+Declarations and data types are to be found in
+.In machine/amdmsr.h .
+.Pp
+Read or write requests are performed using:
+.Bd -literal -offset xxxx
+struct amdmsr_req {
+	u_int32_t addr;	/* 32-bit MSR address */
+	u_int64_t val;	/* 64-bit MSR value */
+};
+.Ed
+.Pp
+The
+.Fa RDMSR
+ioctl is used to read an MSR register.
+.Pp
+The
+.Fa WRMSR
+ioctl is used to write an MSR register.
+.Sh SEE ALSO
+.Xr ioctl 2
+.Sh HISTORY
+.Nm
+support was added in
+.Ox 4.4 .

@@ -1,0 +1,53 @@
+.\"     $OpenBSD: auxio.4,v 1.7 2018/01/12 04:36:44 deraadt Exp $
+.\"
+.\" Copyright (c) 2003 Jason L. Wright (jason@thought.net)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: January 12 2018 $
+.Dt AUXIO 4 sparc64
+.Os
+.Sh NAME
+.Nm auxio
+.Nd SPARC64 auxiliary I/O
+.Sh SYNOPSIS
+.Cd "auxio* at ebus?"
+.Cd "auxio* at sbus?"
+.Sh DESCRIPTION
+The
+.Nm
+device contains miscellaneous system controls, including the front panel LED.
+This LED can be made to blink based on the load average on most systems
+by setting the
+.Xr sysctl 2
+variable
+.Ar machdep.led_blink
+to a non-zero value.
+Internally, various status bits for some of the onboard devices are
+found in
+.Nm auxio .
+.Sh SEE ALSO
+.Xr sysctl 2 ,
+.Xr ebus 4 ,
+.Xr intro 4 ,
+.Xr sbus 4

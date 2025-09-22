@@ -1,0 +1,81 @@
+NDK_ROOT := $(shell dirname $(CC))/../../../../..
+
+ifeq "$(findstring 64, $(ARCH))" "64"
+	# lowest 64-bit API level
+	API_LEVEL := 21
+else ifeq "$(ARCH)" "i386"
+	# clone(2) declaration is present only since this api level
+	API_LEVEL := 17
+else
+	# lowest supported 32-bit API level
+	API_LEVEL := 16
+endif
+
+ifeq "$(ARCH)" "arm"
+	SYSROOT_ARCH := arm
+	STL_ARCH := armeabi-v7a
+	TRIPLE := armv7-none-linux-androideabi
+	ARCH_CFLAGS += -march=armv7-a -mfloat-abi=softfp -mfpu=vfpv3-d16 -marm
+else ifeq "$(ARCH)" "aarch64"
+	SYSROOT_ARCH := arm64
+	STL_ARCH := arm64-v8a
+	TRIPLE := aarch64-none-linux-android
+else ifeq "$(ARCH)" "i386"
+	SYSROOT_ARCH := x86
+	STL_ARCH := x86
+	TRIPLE := i686-none-linux-android
+else
+	SYSROOT_ARCH := $(ARCH)
+	STL_ARCH := $(ARCH)
+	TRIPLE := $(ARCH)-none-linux-android
+endif
+
+ifeq "$(findstring 86,$(ARCH))" "86"
+	TOOLCHAIN_DIR := $(STL_ARCH)-4.9
+else ifeq "$(ARCH)" "arm"
+	TOOLCHAIN_DIR := arm-linux-androideabi-4.9
+else
+	TOOLCHAIN_DIR := $(subst -none,,$(TRIPLE))-4.9
+endif
+
+ifeq "$(ARCH)" "arm"
+	TOOL_PREFIX := arm-linux-androideabi
+else
+	TOOL_PREFIX := $(subst -none,,$(TRIPLE))
+endif
+
+ifeq "$(HOST_OS)" "Linux"
+	HOST_TAG := linux-x86_64
+else ifeq "$(HOST_OS)" "Darwin"
+	HOST_TAG := darwin-x86_64
+else
+	HOST_TAG := windows-x86_64
+endif
+
+GCC_TOOLCHAIN = $(NDK_ROOT)/toolchains/$(TOOLCHAIN_DIR)/prebuilt/$(HOST_TAG)
+
+OBJCOPY ?= $(GCC_TOOLCHAIN)/bin/$(TOOL_PREFIX)-objcopy
+ARCHIVER ?= $(GCC_TOOLCHAIN)/bin/$(TOOL_PREFIX)-ar
+
+ifeq "$(findstring clang,$(CC))" "clang"
+	ARCH_CFLAGS += -target $(TRIPLE) --gcc-toolchain=$(GCC_TOOLCHAIN)
+	ARCH_LDFLAGS += -target $(TRIPLE) --gcc-toolchain=$(GCC_TOOLCHAIN)
+endif
+
+ARCH_CFLAGS += --sysroot=$(NDK_ROOT)/sysroot \
+	-isystem $(NDK_ROOT)/sysroot/usr/include/$(TOOL_PREFIX) \
+	-D__ANDROID_API__=$(API_LEVEL) \
+	-isystem $(NDK_ROOT)/platforms/android-$(API_LEVEL)/arch-$(SYSROOT_ARCH)/usr/include
+
+ARCH_LDFLAGS += --sysroot=$(NDK_ROOT)/platforms/android-$(API_LEVEL)/arch-$(SYSROOT_ARCH) -lm
+
+ARCH_CXXFLAGS += \
+	-isystem $(NDK_ROOT)/sources/cxx-stl/llvm-libc++/include \
+	-isystem $(NDK_ROOT)/sources/android/support/include \
+	-isystem $(NDK_ROOT)/sources/cxx-stl/llvm-libc++abi/include
+
+ARCH_LDFLAGS += \
+	-L$(NDK_ROOT)/sources/cxx-stl/llvm-libc++/libs/$(STL_ARCH) \
+	$(NDK_ROOT)/sources/cxx-stl/llvm-libc++/libs/$(STL_ARCH)/libc++_static.a \
+	-lc++abi \
+	-nostdlib++

@@ -1,0 +1,64 @@
+.\" $OpenBSD: usbd_ref_wait.9,v 1.3 2016/06/30 19:54:13 mglocker Exp $
+.\"
+.\" Copyright (c) 2016 Marcus Glocker <mglocker@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 30 2016 $
+.Dt USBD_REF_WAIT 9
+.Os
+.Sh NAME
+.Nm usbd_ref_incr , usbd_ref_decr , usbd_ref_wait
+.Nd wait for all USB device references to complete
+.Sh SYNOPSIS
+.In dev/usb/usb.h
+.In dev/usb/usbdi.h
+.Ft void
+.Fn usbd_ref_incr "struct usbd_device *dev"
+.Ft void
+.Fn usbd_ref_decr "struct usbd_device *dev"
+.Ft void
+.Fn usbd_ref_wait "struct usbd_device *dev"
+.Sh DESCRIPTION
+The
+.Fn usbd_ref_wait
+function is used on a device level to
+.Xr tsleep 9
+until the reference counter has reached zero.
+.Pp
+To increase the reference counter use
+.Fn usbd_ref_incr .
+To decrease the reference counter use
+.Fn usbd_ref_decr .
+Once the reference counter has been decreased to zero,
+.Fn usbd_ref_decr
+will call
+.Fn wakeup
+to interrupt the
+.Fn tsleep
+at the point where
+.Fn usbd_ref_wait
+was previously set.
+.Pp
+Typical use cases to wait for tasks to complete is at device closing
+or detachment.
+.Sh CONTEXT
+.Fn usbd_ref_incr ,
+.Fn usbd_ref_decr ,
+and
+.Fn usbd_ref_wait
+can be called during autoconf or from process context.
+.Sh SEE ALSO
+.Xr usb 4 ,
+.Xr tsleep 9 ,
+.Xr wakeup 9

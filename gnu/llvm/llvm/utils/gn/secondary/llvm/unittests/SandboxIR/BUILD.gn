@@ -1,0 +1,13 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("SandboxIRTests") {
+  deps = [
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/SandboxIR",
+  ]
+  sources = [
+    "SandboxIRTest.cpp",
+    "TrackerTest.cpp",
+  ]
+}

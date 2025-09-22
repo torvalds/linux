@@ -1,0 +1,72 @@
+.\"	$OpenBSD: piixpm.4,v 1.20 2019/12/16 21:46:44 claudio Exp $
+.\"
+.\" Copyright (c) 2004, 2005 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 16 2019 $
+.Dt PIIXPM 4
+.Os
+.Sh NAME
+.Nm piixpm
+.Nd Intel PIIX SMBus controller
+.Sh SYNOPSIS
+.Cd "piixpm* at pci?"
+.Cd "iic* at piixpm?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Intel PIIX and compatible Power Management
+controller.
+Only the SMBus host interface is supported and can be used with the
+.Xr iic 4
+framework.
+.Pp
+Supported chipsets:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+AMD Hudson-2, FCH (KERNCZ)
+.It
+ATI SB200, SB300, SB400, SB600, SB700, SB800
+.It
+Intel 82371AB (PIIX4), 82440MX
+.It
+ServerWorks OSB4, CSB5, CSB6, HT-1000, HT-1100
+.It
+SMSC Victory66
+.El
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr intro 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.7
+to provide support for the power management (ACPI) timer.
+In
+.Ox 3.9 ,
+power management support was dropped in favor of
+.Xr acpitimer 4
+and SMBus functionality was added.
+.Sh AUTHORS
+.An -nosplit
+The current
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .
+.Sh BUGS
+The driver doesn't support I2C commands with a data buffer size of more
+than 2 bytes.

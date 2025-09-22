@@ -1,0 +1,17 @@
+# hidden tables created by rules
+pass list
+pass kill
+pass show
+pass rule pass in from <regress> to any
+pass list
+pass list
+pass rule
+pass list
+pass kill
+pass show
+pass rule pass in from <regress> to any
+pass list
+pass load table <regress> persist
+pass list
+pass rule
+pass list

@@ -1,0 +1,122 @@
+{
+    "name": "llvm",
+    "displayName": "llvm",
+    "description": "VS Code Externsion for LLVM development",
+    "publisher": "llvm-vs-code-extensions",
+    "version": "0.0.1",
+    "repository": "somewhere",
+    "engines": {
+        "vscode": "^1.42.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "activationEvents": [
+        "onCommand:workbench.action.tasks.runTask"
+    ],
+    "main": "./out/extension",
+    "contributes": {
+        "languages": [
+            {
+                "id": "tablegen",
+                "aliases": [
+                    "TableGen",
+                    "tablegen"
+                ],
+                "extensions": [
+                    ".td"
+                ],
+                "configuration": "./language-configuration-tablegen.json"
+            },
+            {
+                "id": "llvm",
+                "aliases": [
+                    "LLVM IR",
+                    "LLVM",
+                    "llvm"
+                ],
+                "extensions": [
+                    ".ll"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "tablegen",
+                "scopeName": "source.tablegen",
+                "path": "./syntaxes/TableGen.tmLanguage"
+            },
+            {
+                "language": "llvm",
+                "scopeName": "source.llvm",
+                "path": "./syntaxes/ll.tmLanguage.json"
+            }
+        ],
+        "taskDefinitions": [
+            {
+                "type": "llvm-lit",
+                "required": [
+                    "task"
+                ],
+                "properties": {
+                    "task": {
+                        "type": "string",
+                        "description": "The Rake task to customize"
+                    }
+                }
+            }
+        ],
+        "problemMatchers": [
+            {
+                "name": "llvm-lit",
+                "fileLocation": [
+                    "absolute"
+                ],
+                "label": "LLVM LIT",
+                "source": "llvm lit",
+                "severity": "error",
+                "pattern": [
+                    {
+                        "regexp": "^(.+):(\\d+)\\((\\d+)\\):\\s+(.+)$",
+                        "kind": "location",
+                        "file": 1,
+                        "line": 2,
+                        "code": 3,
+                        "message": 4
+                    }
+                ]
+            },
+            {
+                "name": "llvm-filecheck",
+                "fileLocation": [
+                    "absolute"
+                ],
+                "label": "LLVM FileCheck",
+                "source": "llvm filecheck",
+                "pattern": [
+                    {
+                        "regexp": "^(.+):(\\d+):\\d+:\\s+(error|warning|note|remark):\\s+(.+)$",
+                        "kind": "location",
+                        "file": 1,
+                        "line": 2,
+                        "severity": 3,
+                        "message": 4
+                    }
+                ]
+            }
+        ]
+    },
+    "devDependencies": {
+        "@types/node": "^8.10.59",
+        "@types/vscode": "^1.39.0",
+        "js-yaml": "^3.13.1",
+        "tslint": "^5.16.0",
+        "typescript": "^3.8.3"
+    },
+    "extensionDependencies": ["ms-vscode.cmake-tools"],
+    "scripts": {
+        "vscode:prepublish": "npx js-yaml syntaxes/ll.tmLanguage.yaml > syntaxes/ll.tmLanguage.json && tsc -b",
+        "watch": "tsc -b -w"
+    }
+}

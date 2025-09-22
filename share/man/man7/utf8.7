@@ -1,0 +1,99 @@
+.\"	$OpenBSD: utf8.7,v 1.9 2022/02/18 10:24:32 jsg Exp $
+.\"
+.\" Copyright (c) 2017 Ted Unangst <tedu@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt UTF8 7
+.Os
+.Sh NAME
+.Nm utf8
+.Nd UTF-8 text encoding
+.Sh DESCRIPTION
+UTF-8 is a multibyte character encoding for Unicode text.
+It is the preferred format for non ASCII text.
+.Pp
+Unicode codepoints are encoded as follows:
+.Bl -tag -width Ds
+.It U+0000 \(en U+007F:
+One byte: 0....... (compatible with ASCII)
+.It U+0080 \(en U+07FF:
+Two bytes: 110..... 10......
+.It U+0800 \(en U+D7FF and U+E000 \(en U+FFFF:
+Three bytes: 1110.... 10...... 10......
+.It U+10000 \(en U+10FFFF:
+Four bytes: 11110... 10...... 10...... 10......
+.El
+.Pp
+The bits shown as dots contain the codepoint represented as a binary
+integer.
+.Pp
+Bytes starting with the bit pattern 11...... are called UTF-8 start
+bytes, and those starting with 10...... UTF-8 continuation bytes.
+The number of leading 1 bits in a start byte indicates the total
+number of bytes used to encode the codepoint, including the start
+byte.
+.Pp
+Encodings using more bytes than required are invalid.
+In particular, 11000000 and 11000001 are not valid start bytes,
+the byte after 11100000 must be at least 10100000,
+and the byte after 11110000 must be at least 10010000.
+.Pp
+The ranges U+D800 to U+DFFF and U+110000 to U+1FFFFF
+do not contain valid Unicode codepoints.
+Consequently, the corresponding three- and four-byte UTF-8 sequences
+are invalid.
+The highest valid byte after 11101101 is 10011111,
+the highest valid byte of the form 1111.... is 11110100,
+and the highest valid byte after 11110100 is 10001111.
+.Pp
+To summarize, the following is a complete list of bytes
+that are invalid in all contexts:
+.Pp
+.Bl -tag -width 5n -offset 4n -compact
+.It c0\(enc1
+two-byte sequence that has to be encoded as a single byte
+.It f5\(enf7
+four-byte sequence beyond the Unicode range
+.It f8\(enff
+invalid sequence of five or more bytes
+.El
+.Pp
+The following is a complete list of invalid two-byte combinations
+of the form 11...... 10...... that consist of two valid bytes:
+.Pp
+.Bl -tag -width 9n -offset 4n -compact
+.It e080\(ene09f
+three-byte sequence that has to be encoded as two bytes
+.It eda0\(enedbf
+start of a UTF-16 surrogate, which is not valid UTF-8
+.It f080\(enf08f
+four-byte sequence that has to be encoded as three bytes
+.It f490\(enf4bf
+four-byte sequence beyond the Unicode range
+.El
+.Sh SEE ALSO
+.Xr locale 1 ,
+.Xr ascii 7
+.Sh STANDARDS
+.Rs
+.%A F. Yergeau
+.%D November 2003
+.%R RFC 3629
+.%T UTF-8, a transformation format of ISO 10646
+.Re
+.Pp
+.Lk https://www.unicode.org/versions/latest/ "The Unicode Standard"
+.Pp
+.Lk https://www.unicode.org/reports/tr44/ "The Unicode Character Database"

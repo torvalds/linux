@@ -1,0 +1,11 @@
+static_library("BinaryReader") {
+  output_name = "LLVMTextAPIBinaryReader"
+  deps = [
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/TextAPI",
+  ]
+  sources = [ "DylibReader.cpp" ]
+}

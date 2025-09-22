@@ -1,0 +1,23 @@
+BEGIN
+{
+	@counter = 0;
+
+	@map[0] = 1;
+	@map[1] = 2;
+	@map[3] = 3;
+}
+
+/*
+ * Overwrite map periodically to ensure there's no double-free.
+ */
+interval:hz:100
+{
+	if (@counter >= 10)
+		exit();
+
+	@counter = @counter + 1;
+
+	@map[0] = 11;
+	@map[1] = 22;
+	@map[3] = 33;
+}

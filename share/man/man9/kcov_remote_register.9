@@ -1,0 +1,95 @@
+.\"	$OpenBSD: kcov_remote_register.9,v 1.6 2021/02/01 07:09:37 jmc Exp $
+.\"
+.\" Copyright (c) 2020 Anton Lindqvist <anton@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 1 2021 $
+.Dt KCOV_REMOTE_REGISTER 9
+.Os
+.Sh NAME
+.Nm kcov_remote_register ,
+.Nm kcov_remote_unregister ,
+.Nm kcov_remote_enter ,
+.Nm kcov_remote_leave
+.Nd remote kernel code coverage collection interface
+.Sh SYNOPSIS
+.In sys/kcov.h
+.Ft void
+.Fn kcov_remote_register "int subsystem" "void *id"
+.Ft void
+.Fn kcov_remote_unregister "int subsystem" "void *id"
+.Ft void
+.Fn kcov_remote_enter "int subsystem" "void *id"
+.Ft void
+.Fn kcov_remote_leave "int subsystem" "void *id"
+.Sh DESCRIPTION
+These functions provide an interface to collect code coverage from various
+kernel subsystems using
+.Xr kcov 4 .
+The
+.Fa subsystem
+must be one of the following:
+.Pp
+.Dl #define KCOV_REMOTE_COMMON 0
+.Pp
+The
+.Va id
+must be a unique identifier for a resource tied to
+.Va subsystem
+that is known both by kernel and user space.
+For instance, a network interface driver could form a subsystem using the
+unique interface identifier as the
+.Fa id .
+.Pp
+.Fn kcov_remote_register
+registers a new instance of the given
+.Fa subsystem .
+Calling this function more than once with the same arguments is idempotent.
+.Pp
+.Fn kcov_remote_unregister
+unregisters an existing instance of the given
+.Fa subsystem ,
+if present.
+If one or many threads are currently within a remote section,
+.Fn kcov_remote_unregister
+will sleep until all the sections have been left.
+.Pp
+.Fn kcov_remote_enter
+enters a remote section.
+If the current thread has
+.Xr kcov 4
+enabled, code coverage will collected inside the remote section.
+Remote sections may not be nested.
+.Pp
+.Fn kcov_remote_leave
+leaves a remote section.
+.Sh CONTEXT
+.Fn kcov_remote_register
+and
+.Fn kcov_remote_unregister
+can be called from process context.
+.Fn kcov_remote_enter
+and
+.Fn kcov_remote_leave
+can be called from interrupt and process context.
+.Sh CODE REFERENCES
+These functions are implemented in
+.Pa sys/dev/kcov.c .
+.Sh SEE ALSO
+.Xr kcov 4
+.Sh HISTORY
+These functions first appeared in
+.Ox 6.8 .
+.Sh AUTHORS
+.An Anton Lindqvist Aq Mt anton@openbsd.org

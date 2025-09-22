@@ -1,0 +1,32 @@
+//===--- FPOptions.def - Floating Point Options database --------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+// This file defines the Floating Point language options. Users of this file
+//  must define the OPTION macro to make use of this information.
+#ifndef OPTION
+#  error Define the OPTION macro to handle floating point language options
+#endif
+
+// OPTION(name, type, width, previousName)
+OPTION(FPContractMode, LangOptions::FPModeKind, 2, First)
+OPTION(RoundingMath, bool, 1, FPContractMode)
+OPTION(ConstRoundingMode, LangOptions::RoundingMode, 3, RoundingMath)
+OPTION(SpecifiedExceptionMode, LangOptions::FPExceptionModeKind, 2, ConstRoundingMode)
+OPTION(AllowFEnvAccess, bool, 1, SpecifiedExceptionMode)
+OPTION(AllowFPReassociate, bool, 1, AllowFEnvAccess)
+OPTION(NoHonorNaNs, bool, 1, AllowFPReassociate)
+OPTION(NoHonorInfs, bool, 1, NoHonorNaNs)
+OPTION(NoSignedZero, bool, 1, NoHonorInfs)
+OPTION(AllowReciprocal, bool, 1, NoSignedZero)
+OPTION(AllowApproxFunc, bool, 1, AllowReciprocal)
+OPTION(FPEvalMethod, LangOptions::FPEvalMethodKind, 2, AllowApproxFunc)
+OPTION(Float16ExcessPrecision, LangOptions::ExcessPrecisionKind, 2, FPEvalMethod)
+OPTION(BFloat16ExcessPrecision, LangOptions::ExcessPrecisionKind, 2, Float16ExcessPrecision)
+OPTION(MathErrno, bool, 1, BFloat16ExcessPrecision)
+OPTION(ComplexRange, LangOptions::ComplexRangeKind, 2, MathErrno)
+#undef OPTION

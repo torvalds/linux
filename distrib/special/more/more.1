@@ -1,0 +1,370 @@
+.\" $OpenBSD: more.1,v 1.12 2020/01/16 16:46:46 schwarze Exp $
+.\"
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)more.1	5.15 (Berkeley) 7/29/91
+.\"
+.Dd $Mdocdate: January 16 2020 $
+.Dt MORE 1
+.Os
+.Sh NAME
+.Nm more , page
+.Nd view files
+.Sh SYNOPSIS
+.Nm more
+.Op Fl cdflpsu
+.Op \- Ns Ar num
+.Op + Ns Ar linenumber
+.Op +/ Ns Ar pattern
+.Op Ar
+.Nm page
+.Op Fl cdflpsu
+.Op \- Ns Ar num
+.Op + Ns Ar linenumber
+.Op +/ Ns Ar pattern
+.Op Ar
+.Sh DESCRIPTION
+.Nm more
+is a filter which allows examination of a continuous text
+one screenful at a time on a soft-copy terminal.
+It normally pauses after each screenful, printing --More--
+at the bottom of the screen.
+If the user then types a carriage return, one more line is displayed.
+If the user hits a space, another screenful is displayed.
+Other possibilities are enumerated later.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c
+.Nm
+will draw each page by beginning at the top of the screen and erasing
+each line just before it draws on it.
+This avoids scrolling the screen, making it easier to read while
+.Nm
+is writing.
+This option will be ignored if the terminal does not have the ability
+to clear to the end of a line.
+.It Fl d
+.Nm
+will prompt the user with the message "[Press space to continue, 'q' to
+quit.]" at the end of each screenful, and will display
+"[Press 'h' for instructions.]" instead of ringing the bell when an
+illegal key is pressed.
+This is useful if
+.Nm
+is being used as a filter in some setting, such as a class,
+where many users may be unsophisticated.
+.It Fl f
+Causes
+.Nm
+to count logical, rather than screen lines (i.e., long lines are not folded).
+This option is recommended if
+.Xr mandoc 1
+output is being piped through
+.Xr ul 1 ,
+since the latter may generate escape sequences.
+These escape sequences contain characters which would ordinarily occupy
+screen positions, but which do not print when they are sent to the
+terminal as part of an escape sequence.
+Thus,
+.Nm
+may think that lines are longer than they actually are, and fold
+lines erroneously.
+.It Fl l
+Do
+not treat
+.Ic ^\&L
+(form feed) specially.
+If this option is not given,
+.Nm
+will pause after any line that contains a
+.Ic ^\&L ,
+as if the end of a screenful had been reached.
+Also, if a file begins with a form feed, the screen will be cleared
+before the file is printed.
+.It Fl p
+A deprecated alias for the
+.Fl c
+option.
+.It Fl s
+Squeeze multiple blank lines from the output, producing only one blank
+line.
+This maximizes the useful information present on the screen.
+.It Fl u
+Suppress underlining.
+Normally,
+.Nm
+will handle underlining such as produced by
+.Xr mandoc 1
+in a manner appropriate to the particular terminal:
+if the terminal can perform underlining or has a stand-out mode,
+.Nm
+will output appropriate escape sequences to enable underlining or stand-out
+mode for underlined information in the source file.
+.It \- Ns Ar num
+An integer specifying the size (in lines) of the window which
+.Nm
+will use instead of the default.
+On a terminal capable of displaying 24 lines, the default
+window size is 23 lines.
+.It + Ns Ar linenumber
+Start at the specified
+.Ar linenumber .
+.It +/ Ns Ar pattern
+Start two lines before the line matching the
+regular expression
+.Ar pattern .
+.El
+.Pp
+If the program is invoked as
+.Nm page ,
+then the screen is cleared before each screenful is printed (but only
+if a full screenful is being printed).
+.Pp
+If
+.Nm
+is reading from a file, rather than a pipe, then a percentage is displayed
+along with the --More-- prompt.
+This gives the fraction of the file (in characters, not lines) that has been
+read so far.
+.Ss Command Sequences
+Command sequences (similar to
+.Xr vi 1 )
+may be typed when
+.Nm
+pauses.
+In the following list,
+.Em i
+is an optional integer argument, defaulting to 1.
+In the following descriptions, ^X means control-X.
+.Bl -tag -width Ds
+.It Em i Ns Aq space
+Display
+.Em i
+more lines, (or another screenful if no argument is given).
+.It ^D
+Display 11 more lines (a
+.Dq scroll ) .
+If
+.Em i
+is given, then the scroll size is set to
+.Em i .
+.It d
+Same as ^D (control-D).
+.It Em i Ns z
+Same as typing a space except that
+.Em i ,
+if present, becomes the new window size.
+.It Em i Ns s
+Skip
+.Em i
+lines and print a screenful of lines.
+.It Em i Ns f
+Skip
+.Em i
+screenfuls and print a screenful of lines.
+.It Em i Ns b
+Skip back
+.Em i
+screenfuls and print a screenful of lines.
+.It Em i Ns ^B
+Same as
+.Sq b .
+.It q
+Exit from
+.Nm more .
+.It Q
+Same as
+.Sq q .
+.It =
+Display the current line number.
+.It v
+Start up the editor at the current line.
+.It h
+Help command; give a description of all the
+.Nm
+commands.
+.It Em i Ns / Ar expr
+Search for the
+.Em i Ns -th
+occurrence of the regular expression
+.Ar expr .
+If there are less than
+.Em i
+occurrences of
+.Ar expr
+and the input is a file (rather than a pipe),
+then the position in the file remains unchanged.
+Otherwise, a screenful is displayed, starting two lines before the place
+where the expression was found.
+The user's erase and kill characters may be used to edit the regular
+expression.
+Erasing back past the first column cancels the search command.
+.It Em i Ns n
+Search for the
+.Em i Ns -th
+occurrence of the last regular expression entered.
+.It \&' (single quote)
+Go to the point from which the last search started.
+If no search has been performed in the current file, this command
+goes back to the beginning of the file.
+.It ! Ns Ar command
+Invoke a shell with
+.Ar command .
+The characters
+.Sq %
+and
+.Sq !\&
+in
+.Ar command
+are replaced with the current file name and the previous shell command
+respectively.
+If there is no current file name,
+.Sq %
+is not expanded.
+The sequences
+.Sq \e%
+and
+.Sq \e!
+are replaced by
+.Sq %
+and
+.Sq !\&
+respectively.
+.It Em i : Ns Ar n
+Skip to the
+.Ar i Ns -th
+next file given in the command line (skips to last file if
+.Ar n
+doesn't make sense).
+.It Em i : Ns Ar p
+Skip to the
+.Ar i Ns -th
+previous file given in the command line.
+If this command is given in the middle of printing out a file,
+.Nm
+goes back to the beginning of the file.
+If
+.Ar i
+doesn't make sense,
+.Nm
+skips back to the first file.
+If
+.Nm
+is not reading from a file, the bell is rung and nothing else happens.
+.It :f
+Display the current file name and line number.
+.It :q or :Q
+Exit from
+.Nm
+(same as q or Q).
+.It \&. (dot)
+Repeat the previous command.
+.El
+.Pp
+Commands take effect immediately, i.e., it is not necessary to
+type a carriage return.
+Up to the time when the command character itself is given,
+the user may hit the line kill character to cancel the numerical
+argument being formed.
+In addition, the user may hit the erase character to redisplay the
+--More--(xx%) message.
+.Pp
+At any time when output is being sent to the terminal, the user can
+hit the quit key (normally control\-\e).
+.Nm
+will stop sending output, and will display the usual --More--
+prompt.
+The user may then enter one of the above commands in the normal manner.
+Unfortunately, some output is lost when this is done, due to the
+fact that any characters waiting in the terminal's output queue
+are flushed when the quit signal occurs.
+.Pp
+The terminal is set to
+.Dq noecho
+mode by this program so that the output can be continuous.
+What you type will thus not show on your terminal, except for the / and !\&
+commands.
+.Pp
+If the standard output is not a teletype, then
+.Nm
+acts just like
+.Xr cat 1 ,
+except that a header is printed before each file (if there is
+more than one).
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev EDITOR
+Editor to be used by the
+.Ic v
+command.
+.It Ev MORE
+A space-separated list of flags to pre-set when running
+.Nm more .
+Note that flags on the command line override those found in
+.Ev MORE .
+.It Ev SHELL
+Shell to be used when running commands.
+If this variable is not set,
+.Pa /bin/sh
+is used.
+.It Ev TERM
+The user's terminal type.
+.It Ev VISUAL
+Editor used in preference to that specified by
+.Ev EDITOR .
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/misc/omore.helpXX -compact
+.It Pa /usr/share/misc/termcap
+Terminal data base
+.It Pa /usr/bin/vi
+Default editor
+.El
+.Sh EXAMPLES
+A sample usage of
+.Nm
+in previewing
+.Xr mandoc 1
+output would be:
+.Pp
+.Dl mandoc doc.1 | more
+.Sh SEE ALSO
+.Xr cat 1 ,
+.Xr mandoc 1 ,
+.Xr sh 1 ,
+.Xr ul 1 ,
+.Xr vi 1 ,
+.Xr environ 7
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3.0 .
+.Sh BUGS
+Skipping backwards is too slow on large files.

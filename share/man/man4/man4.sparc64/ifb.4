@@ -1,0 +1,102 @@
+.\"	$OpenBSD: ifb.4,v 1.7 2011/09/03 22:59:07 jmc Exp $
+.\"
+.\" Copyright (c) 2008 Miodrag Vallat.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies. And
+.\" I won't mind if you keep the disclaimer below.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 3 2011 $
+.Dt IFB 4 sparc64
+.Os
+.Sh NAME
+.Nm ifb
+.Nd inextricable frame buffer
+.Sh SYNOPSIS
+.Cd "ifb* at pci?"
+.Cd "wsdisplay* at ifb?"
+.Sh DESCRIPTION
+The
+.Nm
+driver attempts to support various frame buffer cards based on the
+3DLabs
+.Sq Wildcat
+chips, such as the
+Sun
+Expert3D-Lite,
+Expert3D,
+XVR-500,
+XVR-600
+and
+XVR-1200
+boards.
+It does not provide direct device driver entry points
+but makes its functions available via the internal
+.Xr wsdisplay 4
+interface.
+.Sh DISPLAY RESOLUTION
+If the
+.Nm
+frame buffer is used as the console display, a different resolution than
+the default 1152x900 can be selected by changing the OpenPROM environment.
+To change the default resolution, type the following:
+.Pp
+.Em \   ok
+setenv
+.Em output-device
+screen:r1280x1024x76
+.Pp
+to change to a 76Hz 1280x1024 resolution.
+.Pp
+The
+.Nm
+frame buffer accepts the following resolutions:
+.Bl -column "Mode identifier" "Resolution" "Rate(Hz)" ""
+.It Sy "Mode" Ta Sy "Resolution" Ta Sy "Refresh" Ta ""
+.It Sy "Identifier" Ta "" Ta Sy "Rate (Hz)" Ta ""
+.It Li r640x480x60 Ta 640x480 Ta 60 Ta ""
+.It Li r640x480x60i Ta 640x480 Ta 60 Ta "Composite sync"
+.It Li r768x575x50i Ta 768x575 Ta 50 Ta ""
+.It Li r1024x768x60 Ta 1024x768 Ta 60 Ta "Composite sync"
+.It Li r1024x768x70 Ta 1024x768 Ta 70 Ta ""
+.It Li r1024x768x75 Ta 1024x768 Ta 75 Ta ""
+.It Li r1024x768x77 Ta 1024x768 Ta 77 Ta ""
+.It Li r1024x800x84 Ta 1024x800 Ta 84 Ta "Composite sync"
+.It Li r1152x900x66 Ta 1152x900 Ta 66 Ta "Composite sync"
+.It Li r1152x900x76 Ta 1152x900 Ta 76 Ta "Composite sync"
+.\" .It Li r1280x768x56 Ta 1280x768 Ta 56 Ta ""
+.It Li r1280x800x76 Ta 1280x1024 Ta 76 Ta ""
+.It Li r1280x1024x60 Ta 1280x1024 Ta 60 Ta ""
+.It Li r1280x1024x67 Ta 1280x1024 Ta 67 Ta "Composite sync"
+.It Li r1280x1024x75 Ta 1280x1024 Ta 75 Ta ""
+.It Li r1280x1024x76 Ta 1280x1024 Ta 76 Ta "Composite sync"
+.It Li r1280x1024x85 Ta 1280x1024 Ta 85 Ta ""
+.It Li r1440x900x76 Ta 1440x900 Ta 76 Ta "Composite sync"
+.It Li r1600x1000x66 Ta 1600x1000 Ta 66 Ta ""
+.It Li r1600x1000x76 Ta 1600x1000 Ta 76 Ta "Composite sync"
+.It Li r1600x1280x76 Ta 1600x1280 Ta 76 Ta ""
+.It Li r1792x1344x75 Ta 1792x1344 Ta 75 Ta ""
+.It Li r1920x1080x72 Ta 1920x1080 Ta 72 Ta "Composite sync"
+.It Li r1920x1200x70 Ta 1920x1200 Ta 70 Ta ""
+.It Li r1920x1200x75 Ta 1920x1200 Ta 75 Ta ""
+.El
+.Pp
+Modes with the suffix letter
+.Sq i
+are interlaced.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4
+.Sh BUGS
+The second head of XVR-1200 cards is not supported.

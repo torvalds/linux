@@ -1,0 +1,505 @@
+.\"	$NetBSD: hunt.6,v 1.3 1997/10/10 16:32:30 lukem Exp $
+.\"	$OpenBSD: hunt.6,v 1.23 2022/02/18 23:17:14 jsg Exp $
+.\"
+.\" Copyright (c) 1985 Conrad C. Huang, Gregory S. Couch, Kenneth C.R.C. Arnold
+.\" San Francisco, California
+.\"
+.\" Copyright (c) 1985 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt HUNT 6
+.Os
+.Sh NAME
+.Nm hunt
+.Nd a multi-player multi-terminal game
+.Sh SYNOPSIS
+.Nm hunt
+.Op Fl bcfmqSs
+.Op Fl n Ar name
+.Op Fl p Ar port
+.Op Fl t Ar team
+.Op Fl w Ar message
+.Oo
+.Op Fl h
+.Ar host
+.Oc
+.Sh DESCRIPTION
+The object of the game
+.Nm
+is to kill off the other players.
+There are no rooms, no treasures, and no monsters.
+Instead, you wander around a maze, find grenades, trip mines, and shoot down
+walls and players.
+The more players you kill before you die, the better your score is.
+If the
+.Fl m
+flag is given,
+you enter the game as a monitor
+.Po
+you can see the action but you cannot play
+.Pc .
+.Pp
+.Nm
+looks for an active game on the local network.
+The location of the game may be specified by giving the
+.Ar host
+argument.
+This presupposes that a hunt game is already running on that host:  see
+.Xr huntd 6
+for details on how to set up a game on a specific host.
+If more than one game is found, you may pick which game to play in.
+If no games are found,
+.Nm
+will exit.
+.Pp
+If the
+.Fl q
+flag is given,
+.Nm
+queries the local network
+.Pq or specific host
+and reports on all active games found.
+This is useful for shell startup scripts, e.g., csh's
+.Pa .login .
+.Pp
+The player name may be specified on the command line by using the
+.Fl n
+option.
+.Pp
+The
+.Fl c ,
+.Fl s ,
+and
+.Fl f
+options are for entering the game cloaked, scanning, or flying, respectively.
+.Pp
+The
+.Fl b
+option turns off beeping when you reach the typeahead limit.
+.Pp
+The
+.Fl t
+option aids team play by making everyone else on your team
+appear as the team name.
+A team name is a single digit to avoid conflicting with other characters
+used in the game.
+Use a team name consisting of a single space
+.Pq Sq \
+to remain on your own.
+.Pp
+The
+.Fl p
+.Ar port
+option allows the rendezvous port number to be set.
+.Pp
+The
+.Fl w
+.Ar message
+option is the only way to send a message to everyone else's screen when
+you start up.
+It is most often used to say
+.Dq eat slime death - NickD's coming in .
+.Pp
+When you die and are asked if you wish to re-enter the game,
+there are other answers than just yes or no.
+You can also reply with a
+.Ic w
+to write a message before continuing or
+.Ic o
+to change how you enter the game
+.Pq cloaked, scanning, or flying .
+.Sh "PLAYING HINTS"
+.Nm
+only works on terminals with at least 24 lines, 80 columns, and
+cursor addressing.
+The screen is divided in to 3 areas.
+On the right hand side is the status area.
+It shows damage sustained,
+charges remaining,
+who's in the game,
+who's scanning
+.Po
+the
+.Ql \&*
+in front of the name
+.Pc ,
+who's cloaked
+.Po
+the
+.Ql \&+
+in front of the name
+.Pc ,
+and other players' scores.
+The rest of the screen is taken up by your map of the maze.
+The 24th line
+is used for longer messages that don't fit in the status area.
+.Pp
+.Nm
+uses the same keys to move as
+.Xr vi 1
+does, i.e.,
+.Ic h ,
+.Ic j ,
+.Ic k ,
+and
+.Ic l
+for left, down, up, right, respectively.
+To change which direction you're facing in the maze,
+use the upper case version of the movement key
+.Po
+i.e.,
+.Ic HJKL
+.Pc .
+You can only fire or throw things in the direction you're facing.
+.Pp
+Other commands are:
+.Bl -tag -width Ic -compact
+.It Ic f No or Ic 1
+Fire a bullet
+.Pq Takes 1 charge
+.It Ic g No or Ic 2
+Throw grenade
+.Pq Takes 9 charges
+.It Ic F No or Ic 3
+Throw satchel charge
+.Pq Takes 25 charges
+.It Ic G No or Ic 4
+Throw bomb
+.Pq Takes 49 charges
+.It Ic 5
+Throw big bomb
+.Pq Takes 81 charges
+.It Ic 6
+Throw even bigger bomb
+.Pq Takes 121 charges
+.It Ic 7
+Throw even more big bomb
+.Pq Takes 169 charges
+.It Ic 8
+Throw even more bigger bomb
+.Pq Takes 225 charges
+.It Ic 9
+Throw very big bomb
+.Pq Takes 289 charges
+.It Ic 0
+Throw very, very big bomb
+.Pq Takes 361 charges
+.It Ic @
+Throw biggest bomb
+.Pq Takes 441 charges
+.It Ic o
+Throw small slime
+.Pq Takes 5 charges
+.It Ic O
+Throw big slime
+.Pq Takes 10 charges
+.It Ic p
+Throw bigger slime
+.Pq Takes 15 charges
+.It Ic P
+Throw biggest slime
+.Pq Takes 20 charges
+.It Ic s
+Scan
+.Pq show where other players are
+.Pq Takes 1 charge
+.It Ic c
+Cloak
+.Pq hide from scanners
+.Pq Takes 1 charge
+.It Ic ^L
+Redraw screen
+.It Ic q
+Quit
+.El
+.Pp
+The symbols on the screen are:
+.Bl -tag -width Ic -compact
+.It Li \&- \&| \&+
+walls
+.It Li \&/ \e
+diagonal
+.Pq deflecting
+walls
+.It Li #
+doors
+.Pq dispersion walls
+.It Li \&;
+small mine
+.It Li g
+large mine
+.It Li \&:
+bullet
+.It Li o
+grenade
+.It Li O
+satchel charge
+.It Li @
+bomb
+.It Li s
+small slime
+.It Li $
+big slime
+.It Li > < ^ v
+you, facing right, left, up, or down
+.It Li } { i \&!
+other players facing right, left, up, or down
+.It \&*
+explosion
+.It Li \&\e|/
+.It Li \&-*-
+grenade and large mine explosion
+.It Li \&/|\e
+.El
+.Pp
+Other helpful hints:
+.Bl -bullet -compact
+.It
+You can only fire in the direction you are facing.
+.It
+You can only fire three shots in a row before the gun must cool off.
+.It
+Shots move 5 times faster than you do.
+.It
+To stab someone,
+you face that player and move at them.
+.It
+Stabbing does 2 points worth of damage and shooting does 5 points.
+.It
+Slime does 5 points of damage each time it hits.
+.It
+You start with 15 charges and get 5 more every time a player enters
+or re-enters.
+.It
+Grenade explosions cover a 3 by 3 area, each larger bomb cover a
+correspondingly larger area
+.Po
+ranging from 5 by 5 to 21 by 21
+.Pc .
+All explosions are centered around the square the shot hits and
+do the most damage in the center.
+.It
+Slime affects all squares it oozes over.
+The number of squares is equal to the number of charges used,
+multiplied by
+.Va slimefactor
+as set by
+.Xr huntd 6
+.Pq default 3 .
+.It
+One small mine and one large mine are placed in the maze for every new player.
+A mine has a 2% probability of tripping when you walk forward on to it;
+50% when going sideways;
+95% when backing up.
+Tripping a mine costs you 5 points or 10 points, respectively.
+Defusing a mine is worth 1 charge or 9 charges, respectively.
+.It
+You cannot see behind you.
+.It
+Cloaking consumes 1 ammo charge per 20 of your moves.
+.It
+Scanning consumes 1 ammo charge per (20 \(mu the number of players)
+of other player moves.
+.It
+Turning on cloaking turns off scanning \(em turning on scanning turns off
+cloaking.
+.It
+When you kill someone,
+you get 2 more damage capacity points and 2 damage points get taken away.
+.It
+Maximum typeahead is 5 characters.
+.It
+A shot destroys normal
+.Pq i.e., non-diagonal, non-door
+walls.
+.It
+Diagonal walls deflect shots and change orientation.
+.It
+Doors disperse shots in random directions
+.Pq up, down, left, right .
+.It
+Diagonal walls and doors cannot be destroyed by direct shots but may
+be destroyed by an adjacent grenade explosion.
+.It
+Slime goes around walls, not through them.
+.It
+Walls regenerate, reappearing in the order they were destroyed.
+One percent of the regenerated walls will be diagonal walls or doors.
+When a wall is generated directly beneath a player, they are thrown in
+a random direction for a random period of time.
+When the player lands, they sustain damage
+.Po
+up to 20 percent of the amount of damage already sustained
+.Pc ;
+i.e.,
+the less damage the player had, the more nimble they are and
+therefore less likely to hurt themselves on landing.
+.\"It
+.\"There is a volcano close to the center of the maze which goes off
+.\"close to every 30 deaths.
+.It
+Every 30 deaths or so, a
+.Ql \&?
+will appear.
+It is a wandering bomb which will explode when it hits someone, or
+when it is slimed.
+.It
+If no one moves, everything stands still.
+But see the
+.Va simstep
+configuration variable in
+.Xr huntd 6
+.It
+The environment variable
+.Ev HUNT
+is checked to get the player name.
+If you don't have this variable set,
+.Nm
+will ask you what name you want to play under.
+If you wish to set other options than just your name,
+you can enumerate the options as follows:
+.Dl setenv HUNT "name=Sneaky,team=1,cloak,mapkey=zoFfGg1f2g3F4G"
+sets the player name to Sneaky,
+sets the team to one,
+sets the enter game attribute to cloaked,
+and the maps
+.Ic z No to Ic o ,
+.Ic F No to Ic f ,
+.Ic G No to Ic g ,
+.Ic 1 No to Ic f ,
+.Ic 2 No to Ic g ,
+.Ic 3 No to Ic F ,
+and
+.Ic 4 No to Ic G .
+The
+.Ic mapkey
+option must be last.
+Other options are:
+.Ic scan , fly , nobeep ,
+.Ic port= Ns Ar string ,
+.Ic host= Ns Ar string ,
+and
+.Ic message= Ns Ar string
+\(em which correspond to the command line options.
+String options cannot contain commas since commas
+are used to separate options.
+.It
+It's a boring game if you're the only one playing.
+.El
+.Pp
+Your score is the decayed average of the ratio of number of kills to number
+of times you entered the game and is only kept for the duration
+of a single session of
+.Nm hunt .
+.\" .Pp
+.\" .Nm
+.\" normally drives up the load average to be approximately
+.\" (number_of_players + 0.5) greater than it would be without a
+.\" .Nm
+.\" game executing.
+.Sh STATISTICS
+The
+.Fl S
+option fetches the current game statistics.
+.Pp
+Two groups of statistics are presented: the first group of statistics is
+that of the clients currently connected to the game, and is reset each
+time the client rejoins, while the second group of statistics is on all
+players
+.Pq dead or alive
+by name, and collected over the lifetime of the
+game daemon.
+.Pp
+The meaning of the column headings are as follows:
+.Pp
+.Bl -tag -width No -compact -offset indent
+.It Score
+the player's last score
+.It Ducked
+how many shots a player ducked
+.It Absorb
+how many shots a player absorbed
+.It Faced
+how many shots were fired at player's face
+.It Shot
+how many shots were fired at player
+.It Robbed
+how many of player's shots were absorbed
+.It Missed
+how many of player's shots were ducked
+.It SlimeK
+how many slime kills player had
+.It Enemy
+how many enemies were killed
+.It Friend
+how many friends were killed
+.Pq self and same team
+.It Deaths
+how many times player died
+.It Still
+how many times player died without typing in any commands
+.It Saved
+how many times a shot/bomb would have killed player if they hadn't
+ducked or absorbed it
+.It Connect
+current connection state(s) of player:
+.Sq p
+for playing,
+.Sq m
+for monitoring
+.El
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /usr/games/huntd
+game coordinator
+.El
+.Sh SEE ALSO
+.Xr huntd 6
+.Sh AUTHORS
+.An -nosplit
+.An Conrad Huang ,
+.An Ken Arnold ,
+and
+.An Greg Couch ;
+.br
+University of California, San Francisco, Computer Graphics Lab
+.Sh BUGS
+To keep up the pace, not everything is as realistic as possible.
+.Pp
+The historic behaviour of
+.Nm
+automatically starting
+.Xr huntd 6
+is no longer supported.
+.Sh ACKNOWLEDGEMENTS
+We thank Don Kneller,
+John Thomason, Eric Pettersen, Mark Day,
+and Scott Weiner for providing
+endless hours of play-testing to improve the character of the game.
+We hope their significant others will forgive them;
+we certainly don't.

@@ -1,0 +1,56 @@
+//===--- TargetOSMacros.def - Target OS macros ------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file specifies the predefined TARGET_OS_* conditional macros.
+// A target macro `Name` should be defined if `Predicate` evaluates to true.
+// The macro expects `const llvm::Triple &Triple` and the class `llvm::Triple`
+// to be available for the predicate.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef TARGET_OS
+#define TARGET_OS(Name, Predicate)
+#endif
+
+// Windows targets.
+TARGET_OS(TARGET_OS_WIN32, Triple.isOSWindows())
+TARGET_OS(TARGET_OS_WINDOWS, Triple.isOSWindows())
+
+// Linux target.
+TARGET_OS(TARGET_OS_LINUX, Triple.isOSLinux())
+
+// Unix target.
+TARGET_OS(TARGET_OS_UNIX, Triple.isOSNetBSD() ||
+                          Triple.isOSFreeBSD() ||
+                          Triple.isOSOpenBSD() ||
+                          Triple.isOSSolaris())
+
+// Apple (Mac) targets.
+TARGET_OS(TARGET_OS_MAC, Triple.isOSDarwin())
+TARGET_OS(TARGET_OS_OSX, Triple.isMacOSX())
+TARGET_OS(TARGET_OS_IPHONE, Triple.isiOS() || Triple.isTvOS() ||
+                            Triple.isWatchOS() || Triple.isXROS())
+// Triple::isiOS() also includes tvOS
+TARGET_OS(TARGET_OS_IOS, Triple.getOS() == llvm::Triple::IOS)
+TARGET_OS(TARGET_OS_TV, Triple.isTvOS())
+TARGET_OS(TARGET_OS_WATCH, Triple.isWatchOS())
+TARGET_OS(TARGET_OS_VISION, Triple.isXROS())
+TARGET_OS(TARGET_OS_DRIVERKIT, Triple.isDriverKit())
+TARGET_OS(TARGET_OS_MACCATALYST, Triple.isMacCatalystEnvironment())
+TARGET_OS(TARGET_OS_SIMULATOR, Triple.isSimulatorEnvironment())
+
+// Deprecated Apple target conditionals.
+TARGET_OS(TARGET_OS_EMBEDDED, (Triple.isiOS() || Triple.isTvOS() \
+                               || Triple.isWatchOS() || Triple.isXROS()) \
+                               && !Triple.isMacCatalystEnvironment() \
+                               && !Triple.isSimulatorEnvironment())
+TARGET_OS(TARGET_OS_NANO, Triple.isWatchOS())
+TARGET_OS(TARGET_IPHONE_SIMULATOR, Triple.isSimulatorEnvironment())
+TARGET_OS(TARGET_OS_UIKITFORMAC, Triple.isMacCatalystEnvironment())
+
+#undef TARGET_OS

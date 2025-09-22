@@ -1,0 +1,434 @@
+.\" $OpenBSD: EC_POINT_point2oct.3,v 1.6 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2025 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt EC_POINT_POINT2OCT 3
+.Os
+.Sh NAME
+.Nm EC_POINT_point2oct ,
+.Nm EC_POINT_oct2point ,
+.Nm EC_POINT_point2bn ,
+.Nm EC_POINT_bn2point ,
+.Nm EC_POINT_point2hex ,
+.Nm EC_POINT_hex2point
+.Nd encode and decode elliptic curve points
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.In openssl/ec.h
+.Bd -literal
+typedef enum {
+	POINT_CONVERSION_COMPRESSED = 2,
+	POINT_CONVERSION_UNCOMPRESSED = 4,
+	POINT_CONVERSION_HYBRID = 6
+} point_conversion_form_t;
+
+.Ed
+.Ft size_t
+.Fo EC_POINT_point2oct
+.Fa "const EC_GROUP *group"
+.Fa "const EC_POINT *point"
+.Fa "point_conversion_form_t form"
+.Fa "unsigned char *buf"
+.Fa "size_t len"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_POINT_oct2point
+.Fa "const EC_GROUP *group"
+.Fa "EC_POINT *point"
+.Fa "const unsigned char *buf"
+.Fa "size_t len"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft BIGNUM *
+.Fo EC_POINT_point2bn
+.Fa "const EC_GROUP *group"
+.Fa "const EC_POINT *point"
+.Fa "point_conversion_form_t form"
+.Fa "BIGNUM *bn"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft EC_POINT *
+.Fo EC_POINT_bn2point
+.Fa "const EC_GROUP *group"
+.Fa "const BIGNUM *bn"
+.Fa "EC_POINT *point"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft char *
+.Fo EC_POINT_point2hex
+.Fa "const EC_GROUP *group"
+.Fa "const EC_POINT *point"
+.Fa "point_conversion_form_t form"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft EC_POINT *
+.Fo EC_POINT_hex2point
+.Fa "const EC_GROUP *group"
+.Fa "const char *hex"
+.Fa "EC_POINT *point"
+.Fa "BN_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+The
+.Fa ctx
+argument of all functions in this manual is optional.
+.Pp
+An
+.Vt EC_POINT
+object represents a point on the elliptic curve given by an
+.Vt EC_GROUP
+object.
+It is either the point at infinity or it has a representation
+(x, y) in standard affine coordinates,
+in which case it satisfies the curve's Weierstrass equation
+.Pp
+.Dl y^2 = x^3 + ax + b
+.Pp
+in the prime field of size p.
+Thus, y is a square root of x^3 + ax + b.
+Since p > 3 is odd, p - y is another square root
+with different parity, unless y is zero.
+Point compression uses that x and the parity of y are enough
+to compute y using
+.Xr BN_mod_sqrt 3 .
+.Pp
+Field elements are represented as non-negative integers < p
+in big-endian 2-complement form, zero-padded on the left to the byte
+length l of p.
+If X and Y are the representations of x and y, respectively, and P is
+the parity bit of y, the three encodings of the point (x, y) are
+the byte strings:
+.Bl -column "EncodingX" "CompressedX" "UncompressedX" "Hybrid" -offset indent -compact
+.It Ta Em Compressed Ta Em Uncompressed Ta Em Hybrid
+.It Encoding Ta 2+P || X Ta 4 || X || Y Ta 6+P || X || Y
+.It Length Ta 1 + l Ta 1 + 2l Ta 1 + 2l
+.El
+where the first octet is the point conversion form
+combined with the parity bit in the compressed and hybrid encodings.
+The point at infinity is encoded as a single zero byte.
+.Pp
+.Fn EC_POINT_point2oct
+converts
+.Fa point
+into the octet string encoding of type
+.Fa form .
+It assumes without checking that
+.Fa point
+is a point on the elliptic curve represented by
+.Fa group
+and operates in two modes depending on the
+.Fa buf
+argument.
+If
+.Fa buf
+is
+.Dv NULL ,
+.Fn EC_POINT_point2oct
+returns the length of
+.Fa point Ns 's
+encoding of type
+.Fa form
+and ignores the
+.Fa len
+and
+.Fa ctx
+arguments.
+If
+.Fa buf
+is not
+.Dv NULL
+and its length
+.Fa len
+is sufficiently big,
+.Fn EC_POINT_point2oct
+writes the
+.Fa point Ns 's
+encoding of type
+.Fa form
+to
+.Fa buf
+and returns the number of bytes written.
+Unless
+.Fa point
+is the point at infinity, the coordinates to be encoded are calculated using
+.Xr EC_POINT_get_affine_coordinates 3 .
+.Pp
+.Fn EC_POINT_oct2point
+decodes the octet string representation of a point on
+.Fa group
+in
+.Fa buf
+of size
+.Fa len
+and, if it represents a point on
+.Fa group ,
+sets it on the caller-provided
+.Fa point
+using
+.Xr EC_POINT_set_to_infinity 3
+.Xr EC_POINT_set_compressed_coordinates 3 ,
+or
+.Xr EC_POINT_set_affine_coordinates 3 .
+For hybrid encoding the consistency of
+the parity bit in the leading octet is verified.
+.Pp
+.Fn EC_POINT_point2bn
+returns a
+.Vt BIGNUM
+containing the encoding of type
+.Fa form
+of the
+.Fa point
+on
+.Fa group .
+If
+.Fa bn
+is
+.Dv NULL ,
+this
+.Vt BIGNUM
+is newly allocated, otherwise the result is copied into
+.Fa bn
+and returned.
+.Fn EC_POINT_point2bn
+is equivalent to
+.Fn EC_POINT_point2oct
+followed by
+.Xr BN_bin2bn 3 .
+.Pp
+.Fn EC_POINT_bn2point
+assumes that
+.Fa bn
+contains the encoding of a point on
+.Fa group .
+If
+.Fa point
+is
+.Dv NULL ,
+the result is placed in a newly allocated
+.Vt EC_POINT ,
+otherwise the result is placed in
+.Fa point
+which is then returned.
+.Fn EC_POINT_bn2point
+is equivalent to
+.Xr BN_bn2bin 3
+followed by
+.Fn EC_POINT_oct2point .
+.Pp
+.Fn EC_POINT_point2hex
+returns a printable string containing the hexadecimal encoding of
+the point encoding of type
+.Fa form
+of the
+.Fa point
+on
+.Fa group .
+The string must be freed by the caller using
+.Xr free 3 .
+.Fn EC_POINT_point2hex
+is equivalent to
+.Fn EC_POINT_point2bn
+followed by
+.Xr BN_bn2hex 3 .
+.Pp
+.Fn EC_POINT_hex2point
+interprets
+.Fa hex
+as a hexadecimal encoding of the point encoding of a point on
+.Fa group .
+If
+.Fa point
+is
+.Dv NULL ,
+the result is returned in a newly allocated
+.Vt EC_POINT ,
+otherwise the result is copied into
+.Fa point ,
+which is then returned.
+.Fn EC_POINT_hex2point
+is equivalent to
+.Xr BN_hex2bn 3
+followed by
+.Fn EC_POINT_bn2point .
+.Sh RETURN VALUES
+If
+.Fa buf
+is
+.Dv NULL ,
+.Fn EC_POINT_point2oct
+returns the length needed to encode the
+.Fa point
+on
+.Fa group ,
+or 0 on error.
+If
+.Fa buf
+is not
+.Dv NULL ,
+.Fn EC_POINT_point2oct
+returns the number of bytes written to
+.Fa buf
+or 0 on error.
+Error conditions include that
+.Fa form
+is invalid,
+.Fa len
+is too small, and memory allocation failure.
+.Pp
+.Fn EC_POINT_oct2point
+returns 1 on success and 0 on error.
+Error conditions include invalid encoding,
+.Fa buf
+does not represent a point on
+.Fa group ,
+or memory allocation failure.
+.Pp
+.Fn EC_POINT_point2bn
+returns a
+.Vt BIGNUM
+containing the encoding of
+.Fa point
+or
+.Dv NULL
+on error.
+The returned
+.Vt BIGNUM
+is either
+.Fa bn
+or a newly allocated one which must be freed by the caller.
+Error conditions include those of
+.Fn EC_POINT_point2oct ,
+.Xr BN_bn2bin 3 ,
+or memory allocation failure.
+.Pp
+.Fn EC_POINT_bn2point
+returns an
+.Vt EC_POINT
+corresponding to the encoding in
+.Fa bn
+or
+.Dv NULL
+on error.
+The returned
+.Vt EC_POINT
+is either
+.Fa point
+or a newly allocated one which must be freed by the caller.
+Error conditions include those of
+.Xr BN_bn2bin 3 ,
+.Fn EC_POINT_oct2point ,
+or memory allocation failure.
+.Pp
+.Fn EC_POINT_point2hex
+returns a newly allocated string or
+.Dv NULL
+on error.
+Error conditions include those of
+.Fn EC_POINT_point2bn
+or
+.Xr BN_bn2hex 3 .
+.Pp
+.Fn EC_POINT_hex2point
+returns an
+.Vt EC_POINT
+containing the decoded point on
+.Fa group
+or
+.Dv NULL
+on error.
+The returned
+.Vt EC_POINT
+is either
+.Fa point
+or a newly allocated one which must be freed by the caller.
+Error conditions are those of
+.Xr BN_hex2bn 3 ,
+or
+.Fn EC_POINT_bn2point .
+.Sh SEE ALSO
+.Xr BN_mod_sqrt 3 ,
+.Xr BN_new 3 ,
+.Xr BN_num_bits 3 ,
+.Xr crypto 3 ,
+.Xr d2i_ECPKParameters 3 ,
+.Xr EC_GROUP_check 3 ,
+.Xr EC_GROUP_get_curve_name 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr EC_GROUP_new_curve_GFp 3 ,
+.Xr EC_KEY_METHOD_new 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EC_POINT_add 3 ,
+.Xr EC_POINT_get_affine_coordinates 3 ,
+.Xr EC_POINT_new 3 ,
+.Xr ECDH_compute_key 3 ,
+.Xr ECDSA_SIG_new 3
+.Sh STANDARDS
+.Rs
+.%T SEC 1: Elliptic Curve Cryptography, Version 2.0
+.%U https://www.secg.org/sec1-v2.pdf
+.%D May 21, 2009
+.Re
+.Sh HISTORY
+.Fn EC_POINT_point2oct
+and
+.Fn EC_POINT_oct2point
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn EC_POINT_point2bn ,
+.Fn EC_POINT_bn2point ,
+.Fn EC_POINT_point2hex ,
+and
+.Fn EC_POINT_hex2point
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Sh BUGS
+The
+.Vt point_conversion_form_t
+is not properly exposed in the API.
+There is no representation for the point at infinity nor is there
+an API interface for the parity bit,
+forcing applications to invent their own and do bit twiddling in buffers.
+.Pp
+The poorly chosen signatures of the functions in this manual result
+in an unergonomic API, particularly so for
+.Fn EC_POINT_point2oct
+and
+.Fn EC_POINT_oct2point .
+Due to fundamental misdesign in the EC library,
+points are not directly linked to the curve they live on.
+Adding checks that
+.Fa point
+lives on
+.Fa group
+is too expensive and intrusive, so it is and will continue to be easy
+to make the EC_POINT_point2* API output nonsense.
+.Pp
+.Fn EC_POINT_point2bn
+and
+.Fn EC_POINT_bn2point
+make no sense.
+They abuse
+.Vt BIGNUM
+as a vector type, which is in poor taste.
+.Pp
+.Fn EC_POINT_point2hex
+and
+.Fn EC_POINT_hex2point
+use a non-standard encoding format.

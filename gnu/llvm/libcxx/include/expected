@@ -1,0 +1,62 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPECTED
+#define _LIBCPP_EXPECTED
+
+/*
+  Header <expected> synopsis
+
+namespace std {
+  // [expected.unexpected], class template unexpected
+  template<class E> class unexpected;
+
+  // [expected.bad], class template bad_expected_access
+  template<class E> class bad_expected_access;
+
+  // [expected.bad.void], specialization for void
+  template<> class bad_expected_access<void>;
+
+  // in-place construction of unexpected values
+  struct unexpect_t {
+    explicit unexpect_t() = default;
+  };
+  inline constexpr unexpect_t unexpect{};
+
+  // [expected.expected], class template expected
+  template<class T, class E> class expected;
+
+  // [expected.void], partial specialization of expected for void types
+  template<class T, class E> requires is_void_v<T> class expected<T, E>;
+}
+
+*/
+
+#include <__config>
+
+#if _LIBCPP_STD_VER >= 23
+#  include <__expected/bad_expected_access.h>
+#  include <__expected/expected.h>
+#  include <__expected/unexpect.h>
+#  include <__expected/unexpected.h>
+#endif
+
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <cstddef>
+#  include <initializer_list>
+#  include <new>
+#endif
+
+#endif // _LIBCPP_EXPECTED

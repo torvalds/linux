@@ -1,0 +1,19 @@
+..
+    **************************************************
+    *                                                *
+    *   Automatically generated file, do not edit!   *
+    *                                                *
+    **************************************************
+
+.. _amdgpu_synid_gfx1030_vaddr_373b95:
+
+vaddr
+=====
+
+An optional 32-bit flat scratch offset. Must be specified as :ref:`off<amdgpu_synid_off>` if not used.
+
+* Offset = [:ref:`vaddr<amdgpu_synid_gfx1030_vaddr_373b95>`] + [:ref:`saddr<amdgpu_synid_gfx1030_saddr_d75725>`] + :ref:`offset12s<amdgpu_synid_flat_offset12s>`.
+
+*Size:* 1 dword.
+
+*Operands:* :ref:`v<amdgpu_synid_v>`, :ref:`off<amdgpu_synid_off>`

@@ -1,0 +1,36 @@
+.\"	$OpenBSD: mainbus.4,v 1.2 2007/05/31 19:19:50 jmc Exp $
+.\"
+.\" Copyright (c) 2006 Jason McIntyre <jmc@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt MAINBUS 4
+.Os
+.Sh NAME
+.Nm mainbus
+.Nd device tree root
+.Sh SYNOPSIS
+.Cd "mainbus0 at root"
+.Sh DESCRIPTION
+.Nm
+provides an abstraction for all system buses to attach to.
+It is the start of the device tree and always attached.
+It is not a physical device as such,
+but an abstraction to which other devices may attach.
+.Pp
+The actual buses which attach are largely machine-dependent;
+refer to the individual man pages for more information.
+.Sh SEE ALSO
+.Xr autoconf 4 ,
+.Xr intro 4

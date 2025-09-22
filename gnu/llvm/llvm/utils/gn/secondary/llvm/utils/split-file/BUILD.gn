@@ -1,0 +1,4 @@
+executable("split-file") {
+  deps = [ "//llvm/lib/Support" ]
+  sources = [ "split-file.cpp" ]
+}

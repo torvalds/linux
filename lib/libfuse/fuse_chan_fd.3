@@ -1,0 +1,54 @@
+.\" $OpenBSD: fuse_chan_fd.3,v 1.4 2025/06/10 12:55:33 schwarze Exp $
+.\"
+.\" Copyright (c) 2018 Helg Bredow <helg.bredow@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 10 2025 $
+.Dt FUSE_CHAN_FD 3
+.Os
+.Sh NAME
+.Nm fuse_chan_fd
+.Nd get the file descriptor for an open FUSE device
+.Sh SYNOPSIS
+.Lb libfuse
+.In fuse.h
+.Ft int
+.Fn fuse_chan_fd "struct fuse_chan *ch"
+.Sh DESCRIPTION
+.Fn fuse_chan_fd
+will return the file descriptor to the FUSE device opened for reading
+and writing by
+.Xr fuse_mount 3 .
+.Sh RETURN VALUES
+If successful,
+.Fn fuse_chan_fd
+returns a non-negative integer, termed a file descriptor.
+If
+.Fa ch
+is NULL, a value of -1 is returned.
+.Sh SEE ALSO
+.Xr fuse_mount 3 ,
+.Xr open 3 ,
+.Xr fuse 4
+.Sh STANDARDS
+The
+.Fn fuse_chan_fd
+function conforms to FUSE 2.6.
+.Sh HISTORY
+The
+.Fn fuse_chan_fd
+function first appeared in
+.Ox 5.4 .
+.Sh AUTHORS
+.An Sylvestre Gallon Aq Mt ccna.syl@gmail.com

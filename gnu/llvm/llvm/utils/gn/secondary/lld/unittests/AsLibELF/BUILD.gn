@@ -1,0 +1,13 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("LLDAsLibELFTests") {
+  configs += [ "//llvm/utils/gn/build:lld_code" ]
+  deps = [
+    "//lld/Common",
+    "//lld/ELF",
+  ]
+  sources = [
+    "ROCm.cpp",
+    "SomeDrivers.cpp",
+  ]
+}

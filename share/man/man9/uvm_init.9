@@ -1,0 +1,450 @@
+.\"	$OpenBSD: uvm_init.9,v 1.7 2023/06/21 21:16:21 cheloha Exp $
+.\"	$NetBSD: uvm.9,v 1.14 2000/06/29 06:08:44 mrg Exp $
+.\"
+.\" Copyright (c) 1998 Matthew R. Green
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" XXX this manual sets nS to 1 or 0 in the description, to obtain
+.\" synopsis-like function prototypes.  any better way?
+.\"
+.Dd $Mdocdate: June 21 2023 $
+.Dt UVM_INIT 9
+.Os
+.Sh NAME
+.Nm uvm_init ,
+.Nm uvm_init_limits ,
+.Nm uvm_setpagesize ,
+.Nm uvm_swap_init ,
+.Nm uvm_io ,
+.Nm uvm_pageout ,
+.Nm uao_create ,
+.Nm uao_detach ,
+.Nm uao_reference ,
+.Nm uvm_chgkprot ,
+.Nm uvm_kernacc ,
+.Nm uvm_meter ,
+.Nm uvm_sysctl ,
+.Nm uvm_grow ,
+.Nm uvm_coredump_walkmap
+.Nd virtual memory system external interface
+.Sh SYNOPSIS
+.In sys/param.h
+.In uvm/uvm.h
+.Sh DESCRIPTION
+The UVM virtual memory system manages access to the computer's memory
+resources.
+User processes and the kernel access these resources through
+UVM's external interface.
+UVM's external interface includes functions that:
+.Pp
+.Bl -hyphen -compact
+.It
+initialise UVM subsystems
+.It
+manage virtual address spaces
+.It
+resolve page faults
+.It
+memory map files and devices
+.It
+perform uio-based I/O to virtual memory
+.It
+allocate and free kernel virtual memory
+.It
+allocate and free physical memory
+.El
+.Pp
+In addition to exporting these services, UVM has two kernel-level processes:
+pagedaemon and swapper.
+The pagedaemon process sleeps until physical memory becomes scarce.
+When that happens, pagedaemon is awoken.
+It scans physical memory, paging out and freeing memory that has not been
+recently used.
+The swapper process swaps in runnable processes that are currently swapped out,
+if there is room.
+.Pp
+UVM has a machine independent and a machine dependent layer.
+See
+.Xr pmap 9
+for the machine dependent layer.
+.Sh INITIALISATION
+.nr nS 1
+.Ft void
+.Fn uvm_init "void"
+.Ft void
+.Fn uvm_init_limits "struct plimit *limit0"
+.Ft void
+.Fn uvm_setpagesize "void"
+.Ft void
+.Fn uvm_swap_init "void"
+.nr nS 0
+.Pp
+The
+.Fn uvm_init
+function sets up the UVM system at system boot time, after the
+copyright has been printed.
+It initialises global state, the page, map, kernel virtual memory state,
+machine-dependent physical map, kernel memory allocator,
+pager and anonymous memory subsystems, and then enables
+paging of kernel objects.
+.Fn uvm_init
+must be called after machine-dependent code has registered some free RAM
+with the
+.Fn uvm_page_physload
+function.
+.Pp
+The
+.Fn uvm_init_limits
+function initialises process limits in the given limit structure.
+This is for use by the system startup for process zero, before any other
+processes are created.
+.Pp
+The
+.Fn uvm_setpagesize
+function initialises the uvmexp members pagesize (if not already done by
+machine-dependent code), pageshift and pagemask.
+It should be called by machine-dependent code early in the
+.Xr pmap_init 9
+call.
+.Pp
+The
+.Fn uvm_swap_init
+function initialises the swap subsystem.
+.Sh VIRTUAL MEMORY I/O
+.nr nS 1
+.Ft int
+.Fn uvm_io "vm_map_t map" "struct uio *uio"
+.nr nS 0
+.Pp
+The
+.Fn uvm_io
+function performs the I/O described in
+.Fa uio
+on the memory described in
+.Fa map .
+.Sh PROCESSES
+.nr nS 1
+.Ft void
+.Fn uvm_pageout "void *arg"
+.nr nS 0
+.Pp
+The
+.Fn uvm_pageout
+function is the main loop for the page daemon.
+The
+.Fa arg
+argument is ignored.
+.Sh MISCELLANEOUS FUNCTIONS
+.nr nS 1
+.Ft struct uvm_object *
+.Fn uao_create "vsize_t size" "int flags"
+.Ft void
+.Fn uao_detach "struct uvm_object *uobj"
+.Ft void
+.Fn uao_reference "struct uvm_object *uobj"
+.Ft boolean_t
+.Fn uvm_chgkprot "caddr_t addr" "size_t len" "int rw"
+.Ft void
+.Fn uvm_kernacc "caddr_t addr" "size_t len" "int rw"
+.Ft void
+.Fn uvm_meter
+.Ft int
+.Fn uvm_sysctl "int *name" "u_int namelen" "void *oldp" "size_t *oldlenp" "void *newp " "size_t newlen" "struct proc *p"
+.Ft int
+.Fn uvm_grow "struct proc *p" "vaddr_t sp"
+.Ft int
+.Fn uvm_coredump_walkmap "struct proc *p" "uvm_coredump_setup_cb *setup" "struct uvm_coredump_walk_cb *walk" "void *cookie"
+.nr nS 0
+.Pp
+The
+.Fn uao_create ,
+.Fn uao_detach
+and
+.Fn uao_reference
+functions operate on anonymous memory objects, such as those used to support
+System V shared memory.
+.Fn uao_create
+returns an object of size
+.Fa size
+with flags:
+.Bd -literal
+#define UAO_FLAG_KERNOBJ        0x1     /* create kernel object */
+#define UAO_FLAG_KERNSWAP       0x2     /* enable kernel swap */
+.Pp
+.Ed
+which can only be used once each at system boot time.
+.Fn uao_reference
+creates an additional reference to the named anonymous memory object.
+.Fn uao_detach
+removes a reference from the named anonymous memory object, destroying
+it if removing the last reference.
+.Pp
+The
+.Fn uvm_kernacc
+function checks the access at address
+.Fa addr
+to
+.Fa addr + len
+for
+.Fa rw
+access, in the kernel address space.
+.Pp
+The
+.Fn uvm_meter
+function calculates the load average and wakes up the swapper if necessary.
+.Pp
+The
+.Fn uvm_sysctl
+function provides support for the
+.Dv CTL_VM
+domain of the
+.Xr sysctl 2
+hierarchy.
+.Fn uvm_sysctl
+handles the
+.Dv VM_LOADAVG ,
+.Dv VM_METER
+and
+.Dv VM_UVMEXP
+calls, which return the current load averages, calculates current VM
+totals, and returns the uvmexp structure respectively.
+The load averages are accessed from userland using the
+.Xr getloadavg 3
+function.
+The uvmexp structure has all global state of the UVM system, and has
+the following members:
+.Bd -literal
+/* vm_page constants */
+int pagesize;   /* size of a page (PAGE_SIZE): must be power of 2 */
+int pagemask;   /* page mask */
+int pageshift;  /* page shift */
+
+/* vm_page counters */
+int npages;     /* number of pages we manage */
+int free;       /* number of free pages */
+int active;     /* number of active pages */
+int inactive;   /* number of pages that we free'd but may want back */
+int paging;	/* number of pages in the process of being paged out */
+int wired;      /* number of wired pages */
+
+int zeropages;		/* number of zero'd pages */
+int reserve_pagedaemon; /* number of pages reserved for pagedaemon */
+int reserve_kernel;	/* number of pages reserved for kernel */
+int unused01;		/* formerly anonpages */
+int vnodepages;		/* XXX # of pages used by vnode page cache */
+int vtextpages;		/* XXX # of pages used by vtext vnodes */
+
+/* pageout params */
+int freemin;    /* min number of free pages */
+int freetarg;   /* target number of free pages */
+int inactarg;   /* target number of inactive pages */
+int wiredmax;   /* max number of wired pages */
+int anonmin;	/* min threshold for anon pages */
+int vtextmin;	/* min threshold for vtext pages */
+int vnodemin;	/* min threshold for vnode pages */
+int anonminpct;	/* min percent anon pages */
+int vtextminpct;/* min percent vtext pages */
+int vnodeminpct;/* min percent vnode pages */
+
+/* swap */
+int nswapdev;	/* number of configured swap devices in system */
+int swpages;	/* number of PAGE_SIZE'ed swap pages */
+int swpginuse;	/* number of swap pages in use */
+int swpgonly;	/* number of swap pages in use, not also in RAM */
+int nswget;	/* number of swap pages moved from disk to RAM */
+int nanon;	/* XXX number total of anon's in system */
+int unused05;	/* formerly nanonneeded */
+int unused06;	/* formerly nfreeanon */
+
+/* stat counters */
+int faults;		/* page fault count */
+int traps;		/* trap count */
+int intrs;		/* interrupt count */
+int swtch;		/* context switch count */
+int softs;		/* software interrupt count */
+int syscalls;		/* system calls */
+int pageins;		/* pagein operation count */
+			/* pageouts are in pdpageouts below */
+int unused07;		/* formerly obsolete_swapins */
+int unused08;		/* formerly obsolete_swapouts */
+int pgswapin;		/* pages swapped in */
+int pgswapout;		/* pages swapped out */
+int forks;  		/* forks */
+int forks_ppwait;	/* forks where parent waits */
+int forks_sharevm;	/* forks where vmspace is shared */
+int pga_zerohit;	/* pagealloc where zero wanted and zero
+				was available */
+int pga_zeromiss;	/* pagealloc where zero wanted and zero
+				not available */
+int unused09;		/* formerly zeroaborts */
+
+/* fault subcounters */
+int fltnoram;	/* number of times fault was out of ram */
+int fltnoanon;	/* number of times fault was out of anons */
+int fltnoamap;	/* number of times fault was out of amap chunks */
+int fltpgwait;	/* number of times fault had to wait on a page */
+int fltpgrele;	/* number of times fault found a released page */
+int fltrelck;	/* number of times fault relock called */
+int fltrelckok;	/* number of times fault relock is a success */
+int fltanget;	/* number of times fault gets anon page */
+int fltanretry;	/* number of times fault retrys an anon get */
+int fltamcopy;	/* number of times fault clears "needs copy" */
+int fltnamap;	/* number of times fault maps a neighbor anon page */
+int fltnomap;	/* number of times fault maps a neighbor obj page */
+int fltlget;	/* number of times fault does a locked pgo_get */
+int fltget;	/* number of times fault does an unlocked get */
+int flt_anon;	/* number of times fault anon (case 1a) */
+int flt_acow;	/* number of times fault anon cow (case 1b) */
+int flt_obj;	/* number of times fault is on object page (2a) */
+int flt_prcopy;	/* number of times fault promotes with copy (2b) */
+int flt_przero;	/* number of times fault promotes with zerofill (2b) */
+
+/* daemon counters */
+int pdwoke;	/* number of times daemon woke up */
+int pdrevs;	/* number of times daemon rev'd clock hand */
+int pdswout;	/* number of times daemon called for swapout */
+int pdfreed;	/* number of pages daemon freed since boot */
+int pdscans;	/* number of pages daemon scanned since boot */
+int pdanscan;	/* number of anonymous pages scanned by daemon */
+int pdobscan;	/* number of object pages scanned by daemon */
+int pdreact;	/* number of pages daemon reactivated since boot */
+int pdbusy;	/* number of times daemon found a busy page */
+int pdpageouts;	/* number of times daemon started a pageout */
+int pdpending;	/* number of times daemon got a pending pagout */
+int pddeact;	/* number of pages daemon deactivates */
+int unused11;	/* formerly pdreanon */
+int unused12;	/* formerly pdrevnode */
+int unused13;	/* formerly pdrevtext */
+
+int fpswtch;	/* FPU context switches */
+int kmapent;	/* number of kernel map entries */
+.Ed
+.Pp
+The
+.Fn uvm_grow
+function increases the stack segment of process
+.Fa p
+to include
+.Fa sp .
+.Pp
+The
+.Fn uvm_coredump_walkmap
+function supports writing out the memory image of a process in a
+core file.
+It walks the address space for process
+.Fa p
+and counts the number of segments necessary to hold the
+dumpable memory,
+where a segment consists of one or more present pages followed by
+zero or more mapped but not present (zero-fill) pages,
+or just one or more mapped but not present pages.
+It then invokes
+.Fa setup
+with that segment count and the
+.Fa cookie
+argument.
+.Bd -literal
+typedef int uvm_coredump_setup_cb(int nsegment, void *cookie);
+.Ed
+.Pp
+If that returns non-zero then
+.Fn uvm_coredump_walkmap
+returns that value immediately,
+otherwise it invokes
+.Fa walk
+once for each segment, in ascending address order,
+passing it the start of the segment,
+the start of the mapped-but-not-present pages,
+one past the last address in the segment,
+the protection on the segment,
+the index of the segment,
+and the
+.Fa cookie .
+.Bd -literal
+typedef int uvm_coredump_walk_cb(vaddr_t start, vaddr_t realend,
+    vaddr_t end, vm_prot_t prot, int nsegment, void *cookie);
+.Ed
+.Pp
+If a call to
+.Fa walk
+returns non-zero then
+.Fa uvm_coredump_walkmap
+returns that value immediately.
+.Sh NOTES
+The structure and types whose names begin with
+.Dq vm_
+were named so UVM could coexist with BSD VM during the early
+development stages.
+.Sh SEE ALSO
+.Xr sysctl 2 ,
+.Xr getloadavg 3 ,
+.Xr kvm 3 ,
+.Xr ddb 4 ,
+.Xr options 4 ,
+.Xr core 5 ,
+.Xr pmap 9
+.Rs
+.%A Charles D. Cranor
+.%D August 1998
+.%C St. Louis, Missouri
+.%Q Department of Computer Science, Sever Institute of Technology, Washington University
+.%T Design and Implementation of the UVM Virtual Memory System, D.Sc. dissertation
+.Re
+.Sh HISTORY
+The UVM virtual memory system was developed at Washington University in St. Louis.
+UVM's roots lie partly in the Mach-based
+.Bx 4.4
+VM system, the
+.Fx
+VM system, and the SunOS4 VM system.
+UVM's basic structure is based on the
+.Bx 4.4
+VM system.
+UVM's new anonymous memory system is based on the
+anonymous memory system found in the SunOS4 VM (as described in papers
+published by Sun Microsystems, Inc.).
+UVM also includes a number of features
+new to
+.Bx
+including page loanout, map entry passing, simplified
+copy-on-write, and clustered anonymous memory pageout.
+.Pp
+UVM appeared in
+.Ox 2.9 .
+.Sh AUTHORS
+.An -nosplit
+.An Charles D. Cranor Aq Mt chuck@ccrc.wustl.edu
+designed and implemented UVM.
+.Pp
+.An Matthew Green Aq Mt mrg@eterna.com.au
+wrote the swap-space management code.
+.Pp
+.An Chuck Silvers Aq Mt chuq@chuq.com
+implemented the aobj pager, thus allowing
+UVM to support System V shared memory and process swapping.
+.Pp
+.An Artur Grabowski Aq Mt art@openbsd.org
+handled the logistical issues involved with merging UVM into the
+.Ox
+source tree.

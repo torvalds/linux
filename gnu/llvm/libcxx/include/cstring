@@ -1,0 +1,104 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CSTRING
+#define _LIBCPP_CSTRING
+
+/*
+    cstring synopsis
+
+Macros:
+
+    NULL
+
+namespace std
+{
+
+Types:
+
+    size_t
+
+void* memcpy(void* restrict s1, const void* restrict s2, size_t n);
+void* memmove(void* s1, const void* s2, size_t n);
+char* strcpy (char* restrict s1, const char* restrict s2);
+char* strncpy(char* restrict s1, const char* restrict s2, size_t n);
+char* strcat (char* restrict s1, const char* restrict s2);
+char* strncat(char* restrict s1, const char* restrict s2, size_t n);
+int memcmp(const void* s1, const void* s2, size_t n);
+int strcmp (const char* s1, const char* s2);
+int strncmp(const char* s1, const char* s2, size_t n);
+int strcoll(const char* s1, const char* s2);
+size_t strxfrm(char* restrict s1, const char* restrict s2, size_t n);
+const void* memchr(const void* s, int c, size_t n);
+      void* memchr(      void* s, int c, size_t n);
+const char* strchr(const char* s, int c);
+      char* strchr(      char* s, int c);
+size_t strcspn(const char* s1, const char* s2);
+const char* strpbrk(const char* s1, const char* s2);
+      char* strpbrk(      char* s1, const char* s2);
+const char* strrchr(const char* s, int c);
+      char* strrchr(      char* s, int c);
+size_t strspn(const char* s1, const char* s2);
+const char* strstr(const char* s1, const char* s2);
+      char* strstr(      char* s1, const char* s2);
+char* strtok(char* restrict s1, const char* restrict s2);
+void* memset(void* s, int c, size_t n);
+char* strerror(int errnum);
+size_t strlen(const char* s);
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__type_traits/is_constant_evaluated.h>
+
+#include <string.h>
+
+#ifndef _LIBCPP_STRING_H
+#   error <cstring> tried including <string.h> but didn't find libc++'s <string.h> header. \
+          This usually means that your header search paths are not configured properly. \
+          The header search paths should contain the C++ Standard Library headers before \
+          any C Standard Library, and you are probably using compiler flags that make that \
+          not be the case.
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::size_t _LIBCPP_USING_IF_EXISTS;
+using ::memcpy _LIBCPP_USING_IF_EXISTS;
+using ::memmove _LIBCPP_USING_IF_EXISTS;
+using ::strcpy _LIBCPP_USING_IF_EXISTS;
+using ::strncpy _LIBCPP_USING_IF_EXISTS;
+using ::strcat _LIBCPP_USING_IF_EXISTS;
+using ::strncat _LIBCPP_USING_IF_EXISTS;
+using ::memcmp _LIBCPP_USING_IF_EXISTS;
+using ::strcmp _LIBCPP_USING_IF_EXISTS;
+using ::strncmp _LIBCPP_USING_IF_EXISTS;
+using ::strcoll _LIBCPP_USING_IF_EXISTS;
+using ::strxfrm _LIBCPP_USING_IF_EXISTS;
+using ::memchr _LIBCPP_USING_IF_EXISTS;
+using ::strchr _LIBCPP_USING_IF_EXISTS;
+using ::strcspn _LIBCPP_USING_IF_EXISTS;
+using ::strpbrk _LIBCPP_USING_IF_EXISTS;
+using ::strrchr _LIBCPP_USING_IF_EXISTS;
+using ::strspn _LIBCPP_USING_IF_EXISTS;
+using ::strstr _LIBCPP_USING_IF_EXISTS;
+using ::strtok _LIBCPP_USING_IF_EXISTS;
+using ::memset _LIBCPP_USING_IF_EXISTS;
+using ::strerror _LIBCPP_USING_IF_EXISTS;
+using ::strlen _LIBCPP_USING_IF_EXISTS;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_CSTRING

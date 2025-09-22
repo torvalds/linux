@@ -1,0 +1,207 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_NUMERIC
+#define _LIBCPP_NUMERIC
+
+/*
+    numeric synopsis
+
+namespace std
+{
+
+template <class InputIterator, class T>
+    constexpr T  // constexpr since C++20
+    accumulate(InputIterator first, InputIterator last, T init);
+
+template <class InputIterator, class T, class BinaryOperation>
+    constexpr T  // constexpr since C++20
+    accumulate(InputIterator first, InputIterator last, T init, BinaryOperation binary_op);
+
+template<class InputIterator>
+    constexpr typename iterator_traits<InputIterator>::value_type  // constexpr since C++20
+    reduce(InputIterator first, InputIterator last);  // C++17
+
+template<class InputIterator, class T>
+    constexpr T  // constexpr since C++20
+    reduce(InputIterator first, InputIterator last, T init);  // C++17
+
+template<class InputIterator, class T, class BinaryOperation>
+    constexpr T  // constexpr since C++20
+    reduce(InputIterator first, InputIterator last, T init, BinaryOperation binary_op);  // C++17
+
+template <class InputIterator1, class InputIterator2, class T>
+    constexpr T  // constexpr since C++20
+    inner_product(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, T init);
+
+template <class InputIterator1, class InputIterator2, class T, class BinaryOperation1, class BinaryOperation2>
+    constexpr T  // constexpr since C++20
+    inner_product(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
+                  T init, BinaryOperation1 binary_op1, BinaryOperation2 binary_op2);
+
+
+template<class InputIterator1, class InputIterator2, class T>
+    constexpr T  // constexpr since C++20
+    transform_reduce(InputIterator1 first1, InputIterator1 last1,
+                     InputIterator2 first2, T init);  // C++17
+
+template<class InputIterator1, class InputIterator2, class T, class BinaryOperation1, class BinaryOperation2>
+    constexpr T  // constexpr since C++20
+    transform_reduce(InputIterator1 first1, InputIterator1 last1,
+                     InputIterator2 first2, T init,
+                     BinaryOperation1 binary_op1, BinaryOperation2 binary_op2);  // C++17
+
+template<class InputIterator, class T, class BinaryOperation, class UnaryOperation>
+    constexpr T  // constexpr since C++20
+    transform_reduce(InputIterator first, InputIterator last, T init,
+                     BinaryOperation binary_op, UnaryOperation unary_op);  // C++17
+
+template <class InputIterator, class OutputIterator>
+    constexpr OutputIterator  // constexpr since C++20
+    partial_sum(InputIterator first, InputIterator last, OutputIterator result);
+
+template <class InputIterator, class OutputIterator, class BinaryOperation>
+    constexpr OutputIterator  // constexpr since C++20
+    partial_sum(InputIterator first, InputIterator last, OutputIterator result, BinaryOperation binary_op);
+
+template<class InputIterator, class OutputIterator, class T>
+    constexpr OutputIterator  // constexpr since C++20
+    exclusive_scan(InputIterator first, InputIterator last,
+                   OutputIterator result, T init); // C++17
+
+template<class InputIterator, class OutputIterator, class T, class BinaryOperation>
+    constexpr OutputIterator  // constexpr since C++20
+    exclusive_scan(InputIterator first, InputIterator last,
+                   OutputIterator result, T init, BinaryOperation binary_op); // C++17
+
+template<class InputIterator, class OutputIterator>
+    constexpr OutputIterator  // constexpr since C++20
+    inclusive_scan(InputIterator first, InputIterator last, OutputIterator result);  // C++17
+
+template<class InputIterator, class OutputIterator, class BinaryOperation>
+    constexpr OutputIterator  // constexpr since C++20
+    inclusive_scan(InputIterator first, InputIterator last,
+                   OutputIterator result, BinaryOperation binary_op);  // C++17
+
+template<class InputIterator, class OutputIterator, class BinaryOperation, class T>
+    constexpr OutputIterator  // constexpr since C++20
+    inclusive_scan(InputIterator first, InputIterator last,
+                   OutputIterator result, BinaryOperation binary_op, T init);  // C++17
+
+template<class InputIterator, class OutputIterator, class T,
+         class BinaryOperation, class UnaryOperation>
+    constexpr OutputIterator  // constexpr since C++20
+    transform_exclusive_scan(InputIterator first, InputIterator last,
+                             OutputIterator result, T init,
+                             BinaryOperation binary_op, UnaryOperation unary_op);  // C++17
+
+template<class InputIterator, class OutputIterator,
+         class BinaryOperation, class UnaryOperation>
+    constexpr OutputIterator  // constexpr since C++20
+    transform_inclusive_scan(InputIterator first, InputIterator last,
+                             OutputIterator result,
+                             BinaryOperation binary_op, UnaryOperation unary_op);  // C++17
+
+template<class InputIterator, class OutputIterator,
+         class BinaryOperation, class UnaryOperation, class T>
+    constexpr OutputIterator  // constexpr since C++20
+    transform_inclusive_scan(InputIterator first, InputIterator last,
+                             OutputIterator result,
+                             BinaryOperation binary_op, UnaryOperation unary_op,
+                             T init);  // C++17
+
+template <class InputIterator, class OutputIterator>
+    constexpr OutputIterator  // constexpr since C++20
+    adjacent_difference(InputIterator first, InputIterator last, OutputIterator result);
+
+template <class InputIterator, class OutputIterator, class BinaryOperation>
+    constexpr OutputIterator  // constexpr since C++20
+    adjacent_difference(InputIterator first, InputIterator last, OutputIterator result, BinaryOperation binary_op);
+
+template <class ForwardIterator, class T>
+    constexpr void  // constexpr since C++20
+    iota(ForwardIterator first, ForwardIterator last, T value);
+
+template <class M, class N>
+    constexpr common_type_t<M,N> gcd(M m, N n);    // C++17
+
+template <class M, class N>
+    constexpr common_type_t<M,N> lcm(M m, N n);    // C++17
+
+template<class T>
+    constexpr T midpoint(T a, T b) noexcept;  // C++20
+
+template<class T>
+    constexpr T* midpoint(T* a, T* b);        // C++20
+
+// [numeric.sat], saturation arithmetic
+template<class T>
+constexpr T add_sat(T x, T y) noexcept;                     // freestanding, Since C++26
+template<class T>
+constexpr T sub_sat(T x, T y) noexcept;                     // freestanding, Since C++26
+template<class T>
+constexpr T mul_sat(T x, T y) noexcept;                     // freestanding, Since C++26
+template<class T>
+constexpr T div_sat(T x, T y) noexcept;                     // freestanding, Since C++26
+template<class T, class U>
+constexpr T saturate_cast(U x) noexcept;                    // freestanding, Since C++26
+
+}  // std
+
+*/
+
+#include <__config>
+
+#include <__numeric/accumulate.h>
+#include <__numeric/adjacent_difference.h>
+#include <__numeric/inner_product.h>
+#include <__numeric/iota.h>
+#include <__numeric/partial_sum.h>
+
+#if _LIBCPP_STD_VER >= 17
+#  include <__numeric/exclusive_scan.h>
+#  include <__numeric/gcd_lcm.h>
+#  include <__numeric/inclusive_scan.h>
+#  include <__numeric/pstl.h>
+#  include <__numeric/reduce.h>
+#  include <__numeric/transform_exclusive_scan.h>
+#  include <__numeric/transform_inclusive_scan.h>
+#  include <__numeric/transform_reduce.h>
+#endif
+
+#if _LIBCPP_STD_VER >= 20
+#  include <__numeric/midpoint.h>
+#  include <__numeric/saturation_arithmetic.h>
+#endif
+
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 14
+#  include <initializer_list>
+#  include <limits>
+#endif
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <climits>
+#  include <cmath>
+#  include <concepts>
+#  include <cstdint>
+#  include <execution>
+#  include <functional>
+#  include <iterator>
+#  include <new>
+#  include <optional>
+#  include <type_traits>
+#endif
+
+#endif // _LIBCPP_NUMERIC

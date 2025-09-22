@@ -1,0 +1,110 @@
+Thu Jun 26 14:43:04 CDT 2003
+
+Information about BinInterface
+------------------------------
+
+Take in a set of instructions with some particular register
+allocation. It allows you to add, modify, or delete some instructions,
+in SSA form (kind of like LLVM's MachineInstrs.) Then re-allocate
+registers. It assumes that the transformations you are doing are safe.
+It does not update the mapping information or the LLVM representation
+for the modified trace (so it would not, for instance, support
+multiple optimization passes; passes have to be aware of and update
+manually the mapping information.)
+
+The way you use it is you take the original code and provide it to
+BinInterface; then you do optimizations to it, then you put it in the
+trace cache.
+
+The BinInterface tries to find live-outs for traces so that it can do
+register allocation on just the trace, and stitch the trace back into
+the original code. It has to preserve the live-ins and live-outs when
+it does its register allocation.  (On exits from the trace we have
+epilogues that copy live-outs back into the right registers, but
+live-ins have to be in the right registers.)
+
+
+Limitations of BinInterface
+---------------------------
+
+It does copy insertions for PHIs, which it infers from the machine
+code. The mapping info inserted by LLC is not sufficient to determine
+the PHIs.
+
+It does not handle integer or floating-point condition codes and it
+does not handle floating-point register allocation.
+
+It is not aggressively able to use lots of registers.
+
+There is a problem with alloca: we cannot find our spill space for
+spilling registers, normally allocated on the stack, if the trace
+follows an alloca(). What might be an acceptable solution would be to
+disable trace generation on functions that have variable-sized
+alloca()s. Variable-sized allocas in the trace would also probably
+screw things up.
+
+Because of the FP and alloca limitations, the BinInterface is
+completely disabled right now.
+
+
+Demo
+----
+
+This is a demo of the Ball & Larus version that does NOT use 2-level
+profiling.
+
+1. Compile program with llvm-gcc.
+2. Run opt -lowerswitch -paths -emitfuncs on the bytecode.
+   -lowerswitch change switch statements to branches
+   -paths       Ball & Larus path-profiling algorithm
+   -emitfuncs   emit the table of functions
+3. Run llc to generate SPARC assembly code for the result of step 2.
+4. Use g++ to link the (instrumented) assembly code.
+
+We use a script to do all this:
+------------------------------------------------------------------------------
+#!/bin/sh
+llvm-gcc $1.c -o $1
+opt -lowerswitch -paths -emitfuncs $1.bc > $1.run.bc
+llc -f $1.run.bc 
+LIBS=$HOME/llvm_sparc/lib/Debug
+GXX=/usr/dcs/software/evaluation/bin/g++
+$GXX -g -L $LIBS $1.run.s -o $1.run.llc \
+$LIBS/tracecache.o \
+$LIBS/mapinfo.o \
+$LIBS/trigger.o \
+$LIBS/profpaths.o \
+$LIBS/bininterface.o \
+$LIBS/support.o \
+$LIBS/vmcore.o \
+$LIBS/transformutils.o \
+$LIBS/bcreader.o \
+-lscalaropts -lscalaropts -lanalysis \
+-lmalloc -lcpc -lm -ldl
+------------------------------------------------------------------------------
+
+5. Run the resulting binary.  You will see output from BinInterface
+(described below) intermixed with the output from the program.
+
+
+Output from BinInterface
+------------------------
+
+BinInterface's debugging code prints out the following stuff in order:
+
+1. Initial code provided to BinInterface with original register
+allocation.
+
+2. Section 0 is the trace prolog, consisting mainly of live-ins and
+register saves which will be restored in epilogs.
+
+3. Section 1 is the trace itself, in SSA form used by BinInterface,
+along with the PHIs that are inserted.
+PHIs are followed by the copies that implement them.
+Each branch (i.e., out of the trace) is annotated with the
+section number that represents the epilog it branches to.
+
+4. All the other sections starting with Section 2 are trace epilogs.
+Every branch from the trace has to go to some epilog.
+
+5. After the last section is the register allocation output.

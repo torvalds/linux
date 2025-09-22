@@ -1,0 +1,9 @@
+BEGIN {
+	$c = 0x41; // 'A'
+	printf("%c%c%c\n", $c, 0x41, 65);
+
+	$t = "two "  // multi-line string
+		   "times" /* with comments */ "";
+	printf("%s multi-"
+	       "line\n", $t);
+}

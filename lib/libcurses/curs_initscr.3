@@ -1,0 +1,310 @@
+.\" $OpenBSD: curs_initscr.3,v 1.10 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_initscr.3,v 1.10 2023/10/17 09:52:08 nicm Exp $
+.TH curs_initscr 3 2023-08-19 "ncurses 6.4" "Library calls"
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.na
+.hy 0
+.SH NAME
+\fBinitscr\fP,
+\fBnewterm\fP,
+\fBendwin\fP,
+\fBisendwin\fP,
+\fBset_term\fP,
+\fBdelscreen\fP \- \fBcurses\fP screen initialization and manipulation routines
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBWINDOW *initscr(void);\fP
+.br
+\fBint endwin(void);\fP
+.sp
+\fBbool isendwin(void);\fP
+.sp
+\fBSCREEN *newterm(const char *\fItype\fB, FILE *\fIoutf\fB, FILE *\fIinf\fB);\fR
+.br
+\fBSCREEN *set_term(SCREEN *\fInew\fB);\fR
+.br
+\fBvoid delscreen(SCREEN* \fIsp\fB);\fR
+.SH DESCRIPTION
+.SS initscr
+\fBinitscr\fP is normally the first \fBcurses\fP routine to call when
+initializing a program.
+A few special routines sometimes need to be called before it;
+these are \fBslk_init\fP(3), \fBfilter\fP, \fBripoffline\fP,
+\fBuse_env\fP.
+For multiple-terminal applications,
+\fBnewterm\fP may be called before \fBinitscr\fP.
+.PP
+The initscr code determines the terminal type and initializes all \fBcurses\fP
+data structures.
+\fBinitscr\fP also causes the first call to \fBrefresh\fP(3)
+to clear the screen.
+If errors occur, \fBinitscr\fP writes an appropriate error
+message to standard error and exits;
+otherwise, a pointer is returned to \fBstdscr\fP.
+.SS newterm
+A program that outputs to more than one terminal should use the \fBnewterm\fP
+routine for each terminal instead of \fBinitscr\fP.
+A program that needs to inspect capabilities,
+so it can continue to run in a line-oriented mode if the
+terminal cannot support a screen-oriented program, would also use
+\fBnewterm\fP.
+.PP
+The routine \fBnewterm\fP should be called once for each terminal.
+It returns a variable of type \fBSCREEN *\fP which should be saved
+as a reference to that terminal.
+\fBnewterm\fP's arguments are
+.bP
+the \fItype\fP of the terminal to be used in place of \fB$TERM\fP,
+.bP
+an output stream connected to the terminal, and
+.bP
+an input stream connected to the terminal
+.PP
+If the \fItype\fP parameter is \fBNULL\fP, \fB$TERM\fP will be used.
+.PP
+The file descriptor of the output stream is passed to \fBsetupterm\fP(3),
+which returns a pointer to a \fBTERMINAL\fP structure.
+\fBnewterm\fP's return value holds a pointer to the \fBTERMINAL\fP structure.
+.SS endwin
+The program must also call
+\fBendwin\fP for each terminal being used before exiting from \fBcurses\fP.
+If \fBnewterm\fP is called more than once for the same terminal, the first
+terminal referred to must be the last one for which \fBendwin\fP is called.
+.PP
+A program should always call \fBendwin\fP before exiting or escaping from
+\fBcurses\fP mode temporarily.
+This routine
+.bP
+resets colors to correspond with the default color pair 0,
+.bP
+moves the cursor to the lower left-hand corner of the screen,
+.bP
+clears the remainder of the line so that it uses the default colors,
+.bP
+sets the cursor to normal visibility (see \fBcurs_set\fP(3)),
+.bP
+stops cursor-addressing mode using the \fIexit_ca_mode\fP terminal capability,
+.bP
+restores tty modes (see \fBreset_shell_mode\fP(3)).
+.PP
+Calling \fBrefresh\fP(3) or \fBdoupdate\fP(3) after a
+temporary escape causes the program to resume visual mode.
+.SS isendwin
+The \fBisendwin\fP routine returns \fBTRUE\fP if \fBendwin\fP has been
+called without any subsequent calls to \fBwrefresh\fP,
+and \fBFALSE\fP otherwise.
+.SS set_term
+The \fBset_term\fP routine is used to switch between different terminals.
+The screen reference \fInew\fP becomes the new current terminal.
+The previous terminal is returned by the routine.
+This is the only routine which manipulates \fBSCREEN\fP pointers;
+all other routines affect only the current terminal.
+.SS delscreen
+The \fBdelscreen\fP routine frees storage associated with the
+\fBSCREEN\fP data structure.
+The \fBendwin\fP routine does not do
+this, so \fBdelscreen\fP should be called after \fBendwin\fP if a
+particular \fBSCREEN\fP is no longer needed.
+.SH RETURN VALUE
+\fBendwin\fP returns the integer \fBERR\fP upon failure and \fBOK\fP
+upon successful completion.
+.PP
+Routines that return pointers always return \fBNULL\fP on error.
+.PP
+X/Open defines no error conditions.
+In this implementation
+.bP
+\fBendwin\fP returns an error if the terminal was not initialized.
+.bP
+\fBnewterm\fP
+returns an error if it cannot allocate the data structures for the screen,
+or for the top-level windows within the screen,
+i.e.,
+\fBcurscr\fP, \fBnewscr\fP, or \fBstdscr\fP.
+.bP
+\fBset_term\fP
+returns no error.
+.SH PORTABILITY
+These functions were described in the XSI Curses standard, Issue 4.
+As of 2015, the current document is X/Open Curses, Issue 7.
+.SS Differences
+X/Open specifies that portable applications must not
+call \fBinitscr\fP more than once:
+.bP
+The portable way to use \fBinitscr\fP is once only,
+using \fBrefresh\fP (see curs_refresh(3))
+to restore the screen after \fBendwin\fP.
+.bP
+This implementation allows using \fBinitscr\fP after \fBendwin\fP.
+.PP
+Old versions of curses, e.g., BSD 4.4, would return a null pointer
+from \fBinitscr\fP when an error is detected, rather than exiting.
+It is safe but redundant to check the return value of \fBinitscr\fP
+in XSI Curses.
+.PP
+Calling \fBendwin\fP does not dispose of the memory allocated in \fBinitscr\fP
+or \fBnewterm\fP.
+Deleting a \fBSCREEN\fP provides a way to do this:
+.bP
+X/Open Curses does not say what happens to \fBWINDOW\fPs when \fBdelscreen\fP
+\*(``frees storage associated with the \fBSCREEN\fP\*(''
+nor does the SVr4 documentation help,
+adding that it should be called after \fBendwin\fP if a \fBSCREEN\fP
+is no longer needed.
+.bP
+However, \fBWINDOW\fPs are implicitly associated with a \fBSCREEN\fP.
+so that it is reasonable to expect \fBdelscreen\fP to deal with these.
+.bP
+SVr4 curses deletes the standard \fBWINDOW\fP structures
+\fBstdscr\fP and \fBcurscr\fP as well as a work area \fBnewscr\fP.
+SVr4 curses ignores other windows.
+.bP
+Since version 4.0 (1996), ncurses has maintained a list of all windows
+for each screen,
+using that information to delete those windows when \fBdelscreen\fP is called.
+.bP
+NetBSD copied this feature of ncurses in 2001.
+PDCurses follows the SVr4 model,
+deleting only the standard \fBWINDOW\fP structures.
+.SS High-level versus low-level
+Different implementations may disagree regarding the level of some functions.
+For example, \fBSCREEN\fP (returned by \fBnewterm\fP) and
+\fBTERMINAL\fP (returned by \fBsetupterm\fP(3)) hold file descriptors for
+the output stream.
+If an application switches screens using \fBset_term\fR,
+or switches terminals using \fBset_curterm\fP(3),
+applications which use the output file descriptor can have different
+behavior depending on which structure holds the corresponding descriptor.
+.PP
+For example
+.bP
+NetBSD's \fBbaudrate\fP(3) function uses the descriptor in \fBTERMINAL\fP.
+\fBncurses\fP and SVr4 use the descriptor in \fBSCREEN\fP.
+.bP
+NetBSD and \fBncurses\fP use the descriptor
+in \fBTERMINAL\fP
+for terminal I/O modes,
+e.g.,
+\fBdef_shell_mode\fP(3),
+\fBdef_prog_mode\fP(3).
+SVr4 curses uses the descriptor in \fBSCREEN\fP.
+.SS Unset TERM Variable
+If the TERM variable is missing or empty, \fBinitscr\fP uses the
+value \*(``unknown\*('',
+which normally corresponds to a terminal entry with the \fIgeneric\fP
+(\fIgn\fP) capability.
+Generic entries are detected by \fBsetupterm\fP(3)
+and cannot be used for full-screen operation.
+Other implementations may handle a missing/empty TERM variable differently.
+.SS Signal Handlers
+Quoting from X/Open Curses, section 3.1.1:
+.RS 5
+.hy 0
+.PP
+.I Curses implementations may provide for special handling of the
+.I \fBSIGINT\fP,
+.I \fBSIGQUIT\fP and
+.I \fBSIGTSTP\fP signals
+.I if their disposition is \fBSIG_DFL\fP at the time
+\fBinitscr\fI is called \fR...
+.PP
+.I Any special handling for these signals may remain in effect for the
+.I life of the process or until the process changes the disposition of
+.I the signal.
+.PP
+.I None of the Curses functions are required to be safe
+.I with respect to signals \fP...
+.RE
+.hy
+.PP
+This implementation establishes signal handlers during initialization,
+e.g., \fBinitscr\fP or \fBnewterm\fP.
+Applications which must handle these signals should set up the corresponding
+handlers \fIafter\fP initializing the library:
+.TP 5
+.B SIGINT
+The handler \fIattempts\fP to cleanup the screen on exit.
+Although it \fIusually\fP works as expected, there are limitations:
+.RS 5
+.bP
+Walking the \fBSCREEN\fP list is unsafe, since all list management
+is done without any signal blocking.
+.bP
+On systems which have \fBREENTRANT\fP turned on, \fBset_term\fP uses
+functions which could deadlock or misbehave in other ways.
+.bP
+\fBendwin\fP calls other functions, many of which use stdio or
+other library functions which are clearly unsafe.
+.RE
+.TP 5
+.B SIGTERM
+This uses the same handler as \fBSIGINT\fP, with the same limitations.
+It is not mentioned in X/Open Curses, but is more suitable for this
+purpose than \fBSIGQUIT\fP (which is used in debugging).
+.TP 5
+.B SIGTSTP
+This handles the \fIstop\fP signal, used in job control.
+When resuming the process, this implementation discards pending
+input with \fBflushinput\fP (see curs_util(3)), and repaints the screen
+assuming that it has been completely altered.
+It also updates the saved terminal modes with \fBdef_shell_mode\fP
+(see \fBcurs_kernel\fP(3)).
+.TP 5
+.B SIGWINCH
+This handles the window-size changes which were ignored in
+the standardization efforts.
+The handler sets a (signal-safe) variable
+which is later tested in \fBwgetch\fP (see curs_getch(3)).
+If \fBkeypad\fP has been enabled for the corresponding window,
+\fBwgetch\fP returns the key symbol \fBKEY_RESIZE\fP.
+At the same time, \fBwgetch\fP calls \fBresizeterm\fP to adjust the
+standard screen \fBstdscr\fP,
+and update other data such as \fBLINES\fP and \fBCOLS\fP.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_kernel\fP(3),
+\fBcurs_refresh\fP(3),
+\fBcurs_slk\fP(3),
+\fBterminfo\fP(3),
+\fBcurs_util\fP(3),
+\fBcurs_variables\fP(3).

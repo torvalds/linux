@@ -1,0 +1,4 @@
+dnl	$OpenBSD: whatis,v 1.6 2010/03/16 17:23:09 miod Exp $
+
+OpenBSD/MACHINE runs on the ``New World'' PowerPC-based Apple
+Macintosh systems (i.e. from the iMac onwards).

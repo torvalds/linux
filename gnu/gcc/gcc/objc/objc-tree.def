@@ -1,0 +1,47 @@
+/* This file contains the definitions and documentation for the
+   additional tree codes used in the Objective C front end (see tree.def
+   for the standard codes).
+   Copyright (C) 1990, 1997, 1998, 1999, 2000, 2001, 2003, 2004 
+   Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GCC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
+
+
+/* Objective-C types.  */
+DEFTREECODE (CLASS_INTERFACE_TYPE, "class_interface_type", tcc_type, 0)
+DEFTREECODE (CLASS_IMPLEMENTATION_TYPE, "class_implementation_type",
+	     tcc_type, 0)
+DEFTREECODE (CATEGORY_INTERFACE_TYPE, "category_interface_type", tcc_type, 0)
+DEFTREECODE (CATEGORY_IMPLEMENTATION_TYPE,"category_implementation_type",
+	     tcc_type, 0)
+DEFTREECODE (PROTOCOL_INTERFACE_TYPE, "protocol_interface_type", tcc_type, 0)
+
+/* Objective-C decls.  */
+DEFTREECODE (KEYWORD_DECL, "keyword_decl", tcc_declaration, 0)
+DEFTREECODE (INSTANCE_METHOD_DECL, "instance_method_decl", tcc_declaration, 0)
+DEFTREECODE (CLASS_METHOD_DECL, "class_method_decl", tcc_declaration, 0)
+
+/* Objective-C expressions.  */
+DEFTREECODE (MESSAGE_SEND_EXPR, "message_send_expr", tcc_expression, 3)
+DEFTREECODE (CLASS_REFERENCE_EXPR, "class_reference_expr", tcc_expression, 1)
+
+/*
+Local variables:
+mode:c
+End:
+*/

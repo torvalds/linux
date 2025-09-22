@@ -1,0 +1,25 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+# Generates ARMGenSystemRegister.inc
+tablegen("ARMGenSystemRegister") {
+  visibility = [ ":Utils" ]
+  args = [ "-gen-searchable-tables" ]
+  td_file = "../ARM.td"
+}
+
+static_library("Utils") {
+  output_name = "LLVMARMUtils"
+  public_deps = [ ":ARMGenSystemRegister" ]
+  deps = [
+    "//llvm/lib/Support",
+
+    # MCTargetDesc depends on Utils, so we can't depend on the full
+    # MCTargetDesc target here: it would form a cycle.
+    "//llvm/lib/Target/ARM/MCTargetDesc:tablegen",
+  ]
+
+  # ARMBaseInfo.h includes a header from MCTargetDesc,
+  # https://reviews.llvm.org/D35209#1075113 :-/
+  include_dirs = [ ".." ]
+  sources = [ "ARMBaseInfo.cpp" ]
+}

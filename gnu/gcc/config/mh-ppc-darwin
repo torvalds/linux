@@ -1,0 +1,5 @@
+# The -mdynamic-no-pic ensures that the compiler executable is built without
+# position-independent-code -- the usual default on Darwin. This fix speeds
+# compiles by 3-5%.
+
+BOOT_CFLAGS=-g -O2 -mdynamic-no-pic

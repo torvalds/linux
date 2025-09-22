@@ -1,0 +1,21 @@
+static_library("RuntimeLibs") {
+  output_name = "LLVMBOLTRuntimeLibs"
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [
+    "//bolt/include/bolt/RuntimeLibs:RuntimeLibraryVariables",
+    "//bolt/lib/Core",
+    "//bolt/lib/Passes",
+    "//bolt/lib/Utils",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/ExecutionEngine/JITLink",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ target_gen_dir ]
+  sources = [
+    "HugifyRuntimeLibrary.cpp",
+    "InstrumentationRuntimeLibrary.cpp",
+    "RuntimeLibrary.cpp",
+  ]
+}

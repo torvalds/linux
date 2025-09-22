@@ -1,0 +1,251 @@
+===========================================
+Libc++ 19.0.0 (In-Progress) Release Notes
+===========================================
+
+.. contents::
+   :local:
+   :depth: 2
+
+Written by the `Libc++ Team <https://libcxx.llvm.org>`_
+
+.. warning::
+
+   These are in-progress notes for the upcoming libc++ 19.0.0 release.
+   Release notes for previous releases can be found on
+   `the Download Page <https://releases.llvm.org/download.html>`_.
+
+Introduction
+============
+
+This document contains the release notes for the libc++ C++ Standard Library,
+part of the LLVM Compiler Infrastructure, release 19.0.0. Here we describe the
+status of libc++ in some detail, including major improvements from the previous
+release and new feature work. For the general LLVM release notes, see `the LLVM
+documentation <https://llvm.org/docs/ReleaseNotes.html>`_. All LLVM releases may
+be downloaded from the `LLVM releases web site <https://llvm.org/releases/>`_.
+
+For more information about libc++, please see the `Libc++ Web Site
+<https://libcxx.llvm.org>`_ or the `LLVM Web Site <https://llvm.org>`_.
+
+Note that if you are reading this file from a Git checkout or the
+main Libc++ web page, this document applies to the *next* release, not
+the current one. To see the release notes for a specific release, please
+see the `releases page <https://llvm.org/releases/>`_.
+
+What's New in Libc++ 19.0.0?
+==============================
+
+The main focus of the libc++ team has been to implement new C++20, C++23,
+and C++26 features.
+
+Experimental support for the time zone database has progressed.
+
+Work on the ranges support has progressed. See
+:ref:`ranges-status` for the current status.
+
+Work on the experimental C++17 Parallel STL has progressed. See
+:ref:`pstl-status` for the current status.
+
+Work on the C++17 mathematical special functions has started. See
+:ref:`special-math-status` for the current status.
+
+Implemented Papers
+------------------
+
+- P1132R8 - ``out_ptr`` - a scalable output pointer abstraction
+- P1614R2 - The Mothership has Landed
+- P2637R3 - Member ``visit``
+- P2652R2 - Disallow User Specialization of ``allocator_traits``
+- P2819R2 - Add ``tuple`` protocol to ``complex``
+- P2495R3 - Interfacing ``stringstream``\s with ``string_view``
+- P2867R2 - Remove Deprecated ``strstream``\s From C++26
+- P2872R3 - Remove ``wstring_convert`` From C++26
+- P3142R0 - Printing Blank Lines with ``println`` (as DR against C++23)
+- P2944R3 - Comparisons for ``reference_wrapper`` (comparison operators for ``reference_wrapper`` only)
+- P2591R5 - Concatenation of strings and string views
+- P2968R2 - Make ``std::ignore`` a first-class object
+- P2997R1 - Removing the common reference requirement from the indirectly invocable concepts (as DR against C++20)
+- P2302R4 - ``std::ranges::contains``
+- P1659R3 - ``std::ranges::starts_with`` and ``std::ranges::ends_with``
+- P3029R1 - Better ``mdspan``'s CTAD
+- P2387R3 - Pipe support for user-defined range adaptors
+- P2713R1 - Escaping improvements in ``std::format``
+- P2231R1 - Missing ``constexpr`` in ``std::optional`` and ``std::variant``
+- P0019R8 - ``std::atomic_ref``
+- P2389R2 - Alias template ``dims`` for the ``extents`` of ``mdspan``
+- P1223R5 - ``ranges::find_last()``, ``ranges::find_last_if()``, and ``ranges::find_last_if_not()``
+- P2602R2 - Poison Pills are Too Toxic (as DR against C++20)
+- P1981R0 - Rename ``leap`` to ``leap_second``
+- P1982R0 - Rename ``link`` to ``time_zone_link``
+
+
+Improvements and New Features
+-----------------------------
+
+- The performance of growing ``std::vector`` has been improved for trivially relocatable types.
+
+- A lot of types are considered trivially relocatable now, including ``std::vector`` and ``std::string``.
+
+- The performance of ``std::ranges::fill`` and ``std::ranges::fill_n`` has been improved for ``std::vector<bool>::iterator``\s,
+  resulting in a performance increase of up to 1400x.
+
+- The ``std::mismatch`` algorithm has been optimized for integral types, which can lead up to 40x performance
+  improvements.
+
+- The ``std::ranges::minmax`` algorithm has been optimized for integral types, resulting in a performance increase of
+  up to 100x.
+
+- The ``std::set_intersection`` and ``std::ranges::set_intersection`` algorithms have been optimized to fast-forward over
+  contiguous ranges of non-matching values, reducing the number of comparisons from linear to
+  logarithmic growth with the number of elements in best-case scenarios.
+
+- The ``_LIBCPP_ENABLE_CXX26_REMOVED_STRSTREAM`` macro has been added to make the declarations in ``<strstream>`` available.
+
+- The ``_LIBCPP_ENABLE_CXX26_REMOVED_WSTRING_CONVERT`` macro has been added to make the declarations in ``<locale>``
+  available.
+
+- The formatting library is updated to Unicode 15.1.0.
+
+- ``std::ignore``\s ``const __ignore_t& operator=(_Tp&&) const`` was changed to
+  ``const __ignore_type& operator=(const _Tp&) const noexcept`` for all language versions.
+
+- Vendors can now configure the ABI so that ``string`` and ``vector`` will use bounded iterators when hardening is
+  enabled. Note that checks for iterator invalidation are currently not supported -- any accesses made through an
+  invalidated bounded iterator will still result in undefined behavior (bounded iterators follow the normal invalidation
+  rules of the associated container). ``string`` bounded iterators use the logical size of the container (``index
+  < str.size()``) whereas ``vector`` bounded iterators use the "physical" size of the container (``index
+  < vec.capacity()``) which is a less strict check; refer to the implementation for further details.
+
+  Bounded iterators can be enabled via the ``_LIBCPP_ABI_BOUNDED_ITERATORS_IN_STRING`` ABI macro for ``string`` and via
+  the ``_LIBCPP_ABI_BOUNDED_ITERATORS_IN_VECTOR`` ABI macro for ``vector``; note that checks will only be performed if
+  the hardening mode is set to ``fast`` or above (i.e., no checking is performed in the unchecked mode, even if bounded
+  iterators are enabled in the ABI configuration).
+
+  Note: bounded iterators currently are not supported for ``vector<bool>``.
+
+- In C++23 and C++26 the number of transitive includes in several headers has been reduced, improving the compilation speed.
+
+
+Deprecations and Removals
+-------------------------
+
+- The C++20 synchronization library (``<barrier>``, ``<latch>``, ``std::atomic::wait``, etc.) has been deprecated
+  in language modes prior to C++20. If you are using these features prior to C++20, please update to ``-std=c++20``.
+  In LLVM 20, the C++20 synchronization library will be removed entirely in language modes prior to C++20.
+
+- ``_LIBCPP_DISABLE_NODISCARD_EXT`` has been removed. ``[[nodiscard]]`` applications are now unconditional.
+  This decision is based on LEWGs discussion on `P3122 <https://wg21.link/P3122>`_ and `P3162 <https://wg21.link/P3162>`_
+  to not use ``[[nodiscard]]`` in the standard.
+
+- The ``LIBCXX_ENABLE_ASSERTIONS`` CMake variable that was used to enable the safe mode has been deprecated and setting
+  it triggers an error; use the ``LIBCXX_HARDENING_MODE`` CMake variable with the value ``extensive`` instead. Similarly,
+  the ``_LIBCPP_ENABLE_ASSERTIONS`` macro has been deprecated (setting it to ``1`` still enables the extensive mode in
+  the LLVM 19 release while also issuing a deprecation warning). See :ref:`the hardening documentation
+  <using-hardening-modes>` for more details.
+
+- The base template for ``std::char_traits`` has been removed in LLVM 19. If you are using ``std::char_traits`` with
+  types other than ``char``, ``wchar_t``, ``char8_t``, ``char16_t``, ``char32_t`` or a custom character type for which you
+  specialized ``std::char_traits``, your code will stop working. The Standard does not mandate that a base template is
+  provided, and such a base template is bound to be incorrect for some types, which could currently cause unexpected behavior
+  while going undetected.
+
+- The ``_LIBCPP_ENABLE_NARROWING_CONVERSIONS_IN_VARIANT`` macro that changed the behavior for narrowing conversions
+  in ``std::variant`` has been removed in LLVM 19.
+
+- The ``_LIBCPP_ENABLE_CXX20_REMOVED_ALLOCATOR_MEMBERS`` and ``_LIBCPP_ENABLE_CXX20_REMOVED_ALLOCATOR_VOID_SPECIALIZATION``
+  macros have been removed in LLVM 19.
+
+- The ``_LIBCPP_ENABLE_CXX17_REMOVED_FEATURES`` and ``_LIBCPP_ENABLE_CXX20_REMOVED_FEATURES`` macros have
+  been removed in LLVM 19. C++17 and C++20 removed features can still be re-enabled individually.
+
+- The ``_LIBCPP_INLINE_VISIBILITY`` and ``_VSTD`` macros have been removed in LLVM 19.
+
+- The ``_LIBCPP_ATOMIC_ONLY_USE_BUILTINS`` configuration option has been removed in LLVM 19. This should not affect
+  many users, except perhaps users using the library with ``-ffreestanding`` with a toolchain where compiler-rt or
+  libatomic is not available. If you are one such user, please reach out to the libc++ developers so we can collaborate
+  on a path for supporting atomics properly on freestanding platforms.
+
+- LWG3430 disallow implicit conversion of the source arguments to ``std::filesystem::path`` when
+  constructing ``std::basic_*fstream``. This effectively removes the possibility to directly construct
+  a ``std::basic_*fstream`` from a ``std::basic_string_view``, a input-iterator or a C-string, instead
+  you can construct a temporary ``std::basic_string``. This change has been applied to C++17 and later.
+
+- The ``_LIBCPP_DISABLE_ADDITIONAL_DIAGNOSTICS`` macro has been removed and is not honored anymore. Additional
+  warnings provided by libc++ as a matter of QoI will now be provided unconditionally.
+
+- libc++ no longer supports ``std::allocator<const T>`` and containers of ``const``-qualified element type, such
+  as ``std::vector<const T>`` and ``std::list<const T>``. This used to be supported as an undocumented extension.
+  If you were using ``std::vector<const T>``, replace it with ``std::vector<T>`` instead. The
+  ``_LIBCPP_ENABLE_REMOVED_ALLOCATOR_CONST`` macro can be defined
+  to temporarily re-enable this extension to make it easier to update user code.
+  This macro will be honored for one released and ignored starting in LLVM 20.
+  To assist with the clean-up process, consider running your code through Clang Tidy, with
+  `std-allocator-const <https://clang.llvm.org/extra/clang-tidy/checks/portability/std-allocator-const.html>`_
+  enabled.
+
+- When configuring libc++ with localization or threads disabled, the library no longer emits an error when
+  trying to ``#include <locale>`` and other such headers. Instead, those headers have no content. This is
+  consistent with the behavior for all other libc++ carve-outs like filesystem, wide characters, a source
+  of randomness, and others. Users that were checking whether including a header would fail (e.g. via a script
+  or CMake's ``try_compile`` will experience a change in behavior).
+
+- libc++ no longer supports relational comparison for ``std::chrono::weekday``. The relational comparison operators were
+  provided as an undocumented extension. If you were using relational comparison on ``std::chrono::weekday``, compare
+  the results of ``c_encoding()`` or ``iso_encoding()`` instead. The
+  ``_LIBCPP_ENABLE_REMOVED_WEEKDAY_RELATIONAL_OPERATORS`` macro can be defined to temporarily re-enable this extension.
+  This macro will be honored for one release and ignored starting in LLVM 20.
+
+- The operators in the ``rel_ops`` namespace have been deprecated. The deprecation is part of the paper
+  P0768R1 "Library Support for the Spaceship (Comparison) Operator".
+
+Upcoming Deprecations and Removals
+----------------------------------
+
+LLVM 20
+~~~~~~~
+
+- The ``LIBCXX_ENABLE_ASSERTIONS`` CMake variable and the ``_LIBCPP_ENABLE_ASSERTIONS`` macro that were used to enable
+  the safe mode will be removed in LLVM 20.
+
+- The C++20 synchronization library will be removed entirely in language modes prior to C++20 in LLVM 20.
+
+- The relational operators for ``std::chrono::weekday`` will be removed entirely, and the
+  ``_LIBCPP_ENABLE_REMOVED_WEEKDAY_RELATIONAL_OPERATORS`` macro that was used to re-enable this extension will be
+  ignored in LLVM 20.
+
+- The ``_LIBCPP_ENABLE_REMOVED_ALLOCATOR_CONST`` macro will no longer have an effect.
+
+
+LLVM 21
+~~~~~~~
+
+- The status of the C++03 implementation will be frozen after the LLVM 21 release. This means that starting in LLVM 22, non-critical bug fixes may not be back-ported
+  to C++03, including LWG issues. C++03 is a legacy platform, where most projects are no longer actively maintained. To
+  reduce the amount of fixes required to keep such legacy projects compiling with up-to-date toolchains, libc++ will aim to freeze the status of the headers in C++03 mode to avoid unintended breaking changes.
+  See https://discourse.llvm.org/t/rfc-freezing-c-03-headers-in-libc for more details.
+
+  If you are using C++03 in your project, you should consider moving to a newer version of the Standard to get the most out of libc++.
+
+
+ABI Affecting Changes
+---------------------
+
+- The optional POSIX macro ``ENODATA`` has been deprecated in C++ and POSIX 2017. The
+  ``random_device`` could throw a ``system_error`` with this value. It now
+  throws ``ENOMSG``.
+
+
+Build System Changes
+--------------------
+
+- The ``LIBCXX_EXECUTOR`` and ``LIBCXXABI_EXECUTOR`` CMake variables have been removed. Please
+  set ``LIBCXX_TEST_PARAMS`` to ``executor=<...>`` instead.
+
+- The CMake variable ``LIBCXX_ENABLE_CLANG_TIDY`` has been removed. The build system has been changed
+  to automatically detect the presence of ``clang-tidy`` and the required ``Clang`` libraries.
+
+- The CMake options ``LIBCXX_INSTALL_MODULES`` now defaults to ``ON``.
+
+- The CMake options ``LIBCXX_BENCHMARK_NATIVE_STDLIB`` and ``LIBCXX_BENCHMARK_NATIVE_GCC_TOOLCHAIN`` have
+  been removed. To benchmark the native standard library, configure the test suite against the native
+  standard library directly instead.

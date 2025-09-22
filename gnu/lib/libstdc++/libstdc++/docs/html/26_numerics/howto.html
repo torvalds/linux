@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html
+          PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+   <meta name="AUTHOR" content="pme@gcc.gnu.org (Phil Edwards)" />
+   <meta name="KEYWORDS" content="HOWTO, libstdc++, GCC, g++, libg++, STL" />
+   <meta name="DESCRIPTION" content="HOWTO for the libstdc++ chapter 26." />
+   <meta name="GENERATOR" content="vi and eight fingers" />
+   <title>libstdc++-v3 HOWTO:  Chapter 26</title>
+<link rel="StyleSheet" href="../lib3styles.css" />
+</head>
+<body>
+
+<h1 class="centered"><a name="top">Chapter 26:  Numerics</a></h1>
+
+<p>Chapter 26 deals with building block abstractions to aid in
+   numerical computing:
+</p>
+<ul>
+   <li>Template data structures such as <code>valarray&lt;&gt;</code>
+       and <code>complex&lt;&gt;</code>.
+   </li>
+   <li>Template numerical functions such as <code>accumulate</code>,
+       <code>inner_product</code>, <code>partial_sum</code>, and
+       <code>adjacent_difference</code>.
+   </li>
+</ul>
+<p>All of the Standard C math functions are of course included in C++,
+   and overloaded versions for <code>long</code>, <code>float</code>, and
+   <code>long double</code> have been added for all of them.
+</p>
+
+<!-- ####################################################### -->
+<hr />
+<h1>Contents</h1>
+<ul>
+   <li><a href="#1">Complex Number Processing</a></li>
+   <li><a href="#2">Array Processing</a></li>
+   <li><a href="#3">Numerical Functions</a></li>
+   <li><a href="#4">C99</a></li>
+</ul>
+
+<hr />
+
+<!-- ####################################################### -->
+
+<h2><a name="1">Complex Number Processing</a></h2>
+   <p>Using <code>complex&lt;&gt;</code> becomes even more comple- er, sorry,
+      <em>complicated</em>, with the not-quite-gratuitously-incompatible
+      addition of complex types to the C language.  David Tribble has
+      compiled a list of C++98 and C99 conflict points; his description of
+      C's new type versus those of C++ and how to get them playing together
+      nicely is
+<a href="http://david.tribble.com/text/cdiffs.htm#C99-complex">here</a>.
+   </p>
+   <p><code>complex&lt;&gt;</code> is intended to be instantiated with a
+      floating-point type.  As long as you meet that and some other basic
+      requirements, then the resulting instantiation has all of the usual
+      math operators defined, as well as definitions of <code>op&lt;&lt;</code>
+      and <code>op&gt;&gt;</code> that work with iostreams: <code>op&lt;&lt;</code>
+      prints <code>(u,v)</code> and <code>op&gt;&gt;</code> can read <code>u</code>,
+      <code>(u)</code>, and <code>(u,v)</code>.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="2">Array Processing</a></h2>
+   <p>One of the major reasons why FORTRAN can chew through numbers so well
+      is that it is defined to be free of pointer aliasing, an assumption
+      that C89 is not allowed to make, and neither is C++98.  C99 adds a new
+      keyword, <code>restrict</code>, to apply to individual pointers.  The
+      C++ solution is contained in the library rather than the language
+      (although many vendors can be expected to add this to their compilers
+      as an extension).
+   </p>
+   <p>That library solution is a set of two classes, five template classes,
+      and &quot;a whole bunch&quot; of functions.  The classes are required
+      to be free of pointer aliasing, so compilers can optimize the
+      daylights out of them the same way that they have been for FORTRAN.
+      They are collectively called <code>valarray</code>, although strictly
+      speaking this is only one of the five template classes, and they are
+      designed to be familiar to people who have worked with the BLAS
+      libraries before.
+   </p>
+   <p>Some more stuff should go here once somebody has time to write it.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="3">Numerical Functions</a></h2>
+   <p>There are four generalized functions in the &lt;numeric&gt; header
+      that follow the same conventions as those in &lt;algorithm&gt;.  Each
+      of them is overloaded:  one signature for common default operations,
+      and a second for fully general operations.  Their names are
+      self-explanatory to anyone who works with numerics on a regular basis:
+   </p>
+   <ul>
+      <li><code>accumulate</code></li>
+      <li><code>inner_product</code></li>
+      <li><code>partial_sum</code></li>
+      <li><code>adjacent_difference</code></li>
+   </ul>
+   <p>Here is a simple example of the two forms of <code>accumulate</code>.
+   </p>
+   <pre>
+   int   ar[50];
+   int   someval = somefunction();
+
+   // ...initialize members of ar to something...
+
+   int  sum       = std::accumulate(ar,ar+50,0);
+   int  sum_stuff = std::accumulate(ar,ar+50,someval);
+   int  product   = std::accumulate(ar,ar+50,1,std::multiplies&lt;int&gt;());
+   </pre>
+   <p>The first call adds all the members of the array, using zero as an
+      initial value for <code>sum</code>.  The second does the same, but uses
+      <code>someval</code> as the starting value (thus, <code>sum_stuff == sum +
+      someval</code>).  The final call uses the second of the two signatures,
+      and multiplies all the members of the array; here we must obviously
+      use 1 as a starting value instead of 0.
+   </p>
+   <p>The other three functions have similar dual-signature forms.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+<hr />
+<h2><a name="4">C99</a></h2>
+   <p>In addition to the other topics on this page, we'll note here some
+      of the C99 features that appear in libstdc++-v3.
+   </p>
+   <p>The C99 features depend on the <code>--enable-c99</code> configure flag.
+      This flag is already on by default, but it can be disabled by the
+      user.  Also, the configuration machinery will disable it if the
+      necessary support for C99 (e.g., header files) cannot be found.
+   </p>
+   <p>As of GCC 3.0, C99 support includes classification functions
+      such as <code>isnormal</code>, <code>isgreater</code>,
+      <code>isnan</code>, etc.
+      The functions used for 'long long' support such as <code>strtoll</code>
+      are supported, as is the <code>lldiv_t</code> typedef.  Also supported
+      are the wide character functions using 'long long', like
+      <code>wcstoll</code>.
+   </p>
+   <p>Return <a href="#top">to top of page</a> or
+      <a href="../faq/index.html">to the FAQ</a>.
+   </p>
+
+
+
+<!-- ####################################################### -->
+
+<hr />
+<p class="fineprint"><em>
+See <a href="../17_intro/license.html">license.html</a> for copying conditions.
+Comments and suggestions are welcome, and may be sent to
+<a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing list</a>.
+</em></p>
+
+
+</body>
+</html>

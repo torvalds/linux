@@ -1,0 +1,461 @@
+.\" $OpenBSD: X509_LOOKUP_new.3,v 1.13 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_LOOKUP_NEW 3
+.Os
+.Sh NAME
+.Nm X509_LOOKUP_free ,
+.Nm X509_LOOKUP_ctrl ,
+.Nm X509_LOOKUP_add_dir ,
+.Nm X509_LOOKUP_load_file ,
+.Nm X509_LOOKUP_add_mem ,
+.Nm X509_get_default_cert_dir ,
+.Nm X509_get_default_cert_file ,
+.Nm X509_get_default_cert_dir_env ,
+.Nm X509_get_default_cert_file_env
+.\" X509_get_default_private_dir is intentionally undocumented
+.\" because it appears to be unused by any real-world software
+.\" and because it doesn't do much in the first place.
+.Nd certificate lookup object
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509_vfy.h
+.Ft void
+.Fn X509_LOOKUP_free "X509_LOOKUP *lookup"
+.Ft int
+.Fo X509_LOOKUP_ctrl
+.Fa "X509_LOOKUP *lookup"
+.Fa "int command"
+.Fa "const char *source"
+.Fa "long type"
+.Fa "char **ret"
+.Fc
+.Ft int
+.Fo X509_LOOKUP_add_dir
+.Fa "X509_LOOKUP *lookup"
+.Fa "const char *source"
+.Fa "long type"
+.Fc
+.Ft int
+.Fo X509_LOOKUP_load_file
+.Fa "X509_LOOKUP *lookup"
+.Fa "const char *source"
+.Fa "long type"
+.Fc
+.Ft int
+.Fo X509_LOOKUP_add_mem
+.Fa "X509_LOOKUP *lookup"
+.Fa "const struct iovec *source"
+.Fa "long type"
+.Fc
+.In openssl/x509.h
+.Ft const char *
+.Fn X509_get_default_cert_dir void
+.Ft const char *
+.Fn X509_get_default_cert_file void
+.Ft const char *
+.Fn X509_get_default_cert_dir_env void
+.Ft const char *
+.Fn X509_get_default_cert_file_env void
+.Sh DESCRIPTION
+.Fn X509_LOOKUP_free
+is a deprecated function that
+releases the memory used by
+.Fa lookup .
+It is provided for compatibility only.
+If
+.Fa lookup
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+The operation of
+.Fn X509_LOOKUP_ctrl
+depends on the
+.Vt X509_LOOKUP_METHOD
+used by
+.Fa lookup :
+.Bl -tag -width 4n
+.It Xr X509_LOOKUP_hash_dir 3
+The
+.Fa command
+is required to be
+.Dv X509_L_ADD_DIR
+and the
+.Fa source
+argument is interpreted
+as a colon-separated, NUL-terminated list of directory names.
+These directories are added to an internal list of directories to search
+for certificate files of the given
+.Fa type .
+.Pp
+If
+.Fa type
+is
+.Dv X509_FILETYPE_DEFAULT ,
+the
+.Fa source
+argument is ignored and
+.Pa /etc/ssl/certs
+and a type of
+.Dv X509_FILETYPE_PEM
+are used instead.
+.Pp
+.Fn X509_LOOKUP_add_dir
+is a macro that calls
+.Fn X509_LOOKUP_ctrl
+with a
+.Fa command
+of
+.Dv X509_L_ADD_DIR
+and
+.Fa ret
+set to
+.Dv NULL .
+.Pp
+This lookup method is peculiar in so far as calling
+.Fn X509_LOOKUP_ctrl
+on a lookup object using it does not yet add any certificates to the associated
+.Vt X509_STORE
+object.
+.It Xr X509_LOOKUP_file 3
+The
+.Fa command
+is required to be
+.Dv X509_L_FILE_LOAD
+and the
+.Fa source
+argument is interpreted as a NUL-terminated file name.
+If the
+.Fa type
+is
+.Dv X509_FILETYPE_PEM ,
+the file is read with
+.Xr BIO_new_file 3
+and
+.Xr PEM_X509_INFO_read_bio 3
+and the certificates and revocation lists found are added to the
+.Vt X509_STORE
+object associated with
+.Fa lookup
+using
+.Xr X509_STORE_add_cert 3
+and
+.Xr X509_STORE_add_crl 3 .
+If
+.Fa type
+is
+.Dv X509_FILETYPE_DEFAULT ,
+the
+.Fa source
+argument is ignored and
+.Pa /etc/ssl/certs.pem
+and a type of
+.Dv X509_FILETYPE_PEM
+are used instead.
+If
+.Fa type
+is
+.Dv X509_FILETYPE_ASN1 ,
+the file is read with
+.Xr d2i_X509_bio 3
+and the single certificate is added to the
+.Vt X509_STORE
+object associated with
+.Fa lookup
+using
+.Xr X509_STORE_add_cert 3 .
+.Pp
+.Fn X509_LOOKUP_load_file
+is a macro calling
+.Fn X509_LOOKUP_ctrl
+with a
+.Fa command
+of
+.Dv X509_L_FILE_LOAD
+and
+.Fa ret
+set to
+.Dv NULL .
+.It Xr X509_LOOKUP_mem 3
+The
+.Fa command
+and
+.Fa type
+are required to be
+.Dv X509_L_MEM
+and
+.Dv X509_FILETYPE_PEM ,
+respectively.
+The
+.Fa source
+argument is interpreted as a pointer to an
+.Vt iovec
+structure defined in
+.In sys/uio.h .
+The memory area described by that structure is read with
+.Xr BIO_new_mem_buf 3
+and
+.Xr PEM_X509_INFO_read_bio 3
+and the certificates and revocation lists found are added to the
+.Vt X509_STORE
+object associated with
+.Fa lookup
+using
+.Xr X509_STORE_add_cert 3
+and
+.Xr X509_STORE_add_crl 3 .
+.Pp
+.Fn X509_LOOKUP_add_mem
+is a macro calling
+.Fn X509_LOOKUP_ctrl
+with a command of
+.Dv X509_L_MEM
+and
+.Fa ret
+set to
+.Dv NULL .
+.El
+.Pp
+With LibreSSL,
+.Fn X509_LOOKUP_ctrl
+always ignores the
+.Fa ret
+argument.
+.Pp
+If the
+.Fa type
+is
+.Dv X509_LU_X509 ,
+it searches the configured directories for files having that name,
+with a file name extension that is a small, non-negative decimal integer
+starting at
+.Qq ".0" .
+These files are read with
+.Xr X509_load_cert_file 3 .
+In each directory, the search is ended once a file with the expected name
+and extension does not exists.
+.Pp
+If the
+.Fa type
+is
+.Dv X509_LU_CRL ,
+the file name extensions are expected to have a prefix of
+.Qq "r" ,
+i.e. they start with
+.Qq ".r0" ,
+and the files are read with
+.Xr X509_load_crl_file 3 .
+.Pp
+In case of success, the first match is returned in the
+.Pf * Fa object
+provided by the caller, overwriting any previous content.
+.Sh RETURN VALUES
+.Fn X509_LOOKUP_ctrl
+returns 1 for success or 0 for failure.
+With library implementations other than LibreSSL,
+it might also return \-1 for internal errors.
+.Pp
+.Fn X509_get_default_cert_dir
+returns a pointer to the constant string
+.Qq /etc/ssl/certs ,
+.Fn X509_get_default_cert_file
+to
+.Qq /etc/ssl/certs.pem ,
+.Fn X509_get_default_cert_dir_env
+to
+.Qq SSL_CERT_DIR ,
+and
+.Fn X509_get_default_cert_file_env
+to
+.Qq SSL_CERT_FILE .
+.Sh ENVIRONMENT
+For reasons of security and simplicity,
+LibreSSL ignores the environment variables
+.Ev SSL_CERT_DIR
+and
+.Ev SSL_CERT_FILE ,
+but other library implementations may use their contents instead
+of the standard locations for trusted certificates, and a few
+third-party application programs also inspect these variables
+directly and may pass their values to
+.Fn X509_LOOKUP_add_dir
+and
+.Fn X509_LOOKUP_load_file .
+.Sh FILES
+.Bl -tag -width /etc/ssl/certs.pem -compact
+.It Pa /etc/ssl/certs/
+default directory for storing trusted certificates
+.It Pa /etc/ssl/certs.pem
+default file for storing trusted certificates
+.El
+.Sh ERRORS
+The following diagnostics can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3 :
+.Bl -tag -width Ds
+.It Dv ERR_R_ASN1_LIB Qq "ASN1 lib"
+.Xr d2i_X509_bio 3
+failed in
+.Fn X509_LOOKUP_ctrl .
+.It Dv X509_R_BAD_X509_FILETYPE Qq "bad x509 filetype"
+.Fn X509_LOOKUP_ctrl
+was called with an invalid
+.Fa type .
+.It Dv ERR_R_BUF_LIB Qq "BUF lib"
+Memory allocation failed.
+.It Dv X509_R_INVALID_DIRECTORY Qq "invalid directory"
+The
+.Fa source
+argument of
+.Fn X509_LOOKUP_ctrl
+with
+.Dv X509_L_ADD_DIR
+or
+.Fn X509_LOOKUP_add_dir
+was
+.Dv NULL
+or an empty string.
+.It Dv X509_R_LOADING_CERT_DIR Qq "loading cert dir"
+.Fn X509_LOOKUP_ctrl
+with
+.Dv X509_L_ADD_DIR
+or
+.Fn X509_LOOKUP_add_dir
+was called with
+.Dv X509_FILETYPE_DEFAULT
+and adding the default directories failed.
+This error is added after and in addition to a more specific diagnostic.
+.It Dv X509_R_LOADING_DEFAULTS Qq "loading defaults"
+.Fn X509_LOOKUP_ctrl
+with
+.Dv X509_L_FILE_LOAD
+or
+.Fn X509_LOOKUP_load_file
+was called with
+.Dv X509_FILETYPE_DEFAULT
+and adding the certificates and revocation lists failed.
+This error is added after and in addition to a more specific diagnostic.
+.It Dv ERR_R_MALLOC_FAILURE Qq "malloc failure"
+Memory allocation failed.
+.It Dv ERR_R_PEM_LIB Qq "PEM lib"
+.Xr PEM_X509_INFO_read_bio 3 ,
+.Xr PEM_read_bio_X509_AUX 3 ,
+or
+.Xr PEM_read_bio_X509_CRL 3
+failed in
+.Fn X509_LOOKUP_ctrl .
+.It Dv ERR_R_SYS_LIB Qq "system lib"
+.Xr BIO_new 3 ,
+.Xr BIO_new_file 3 ,
+or
+.Xr BIO_read_filename 3
+failed in
+.Fn X509_LOOKUP_ctrl .
+.It Dv X509_R_WRONG_LOOKUP_TYPE Qq "wrong lookup type"
+.Xr X509_STORE_CTX_get_by_subject 3
+was called with an invalid
+.Fa type .
+.El
+.Pp
+Passing an invalid
+.Fa command
+to
+.Fn X509_LOOKUP_ctrl
+causes failure but provides no diagnostics.
+.Sh SEE ALSO
+.Xr d2i_X509_bio 3 ,
+.Xr PEM_read_bio_X509_AUX 3 ,
+.Xr PEM_X509_INFO_read_bio 3 ,
+.Xr X509_load_cert_file 3 ,
+.Xr X509_LOOKUP_hash_dir 3 ,
+.Xr X509_NAME_hash 3 ,
+.Xr X509_NAME_new 3 ,
+.Xr X509_new 3 ,
+.Xr X509_OBJECT_get_type 3 ,
+.Xr X509_STORE_add_cert 3 ,
+.Xr X509_STORE_get_by_subject 3
+.Sh HISTORY
+.Fn X509_get_default_cert_dir ,
+.Fn X509_get_default_cert_file ,
+.Fn X509_get_default_cert_dir_env ,
+and
+.Fn X509_get_default_cert_file_env
+first appeared in SSLeay 0.4.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_LOOKUP_add_mem
+first appeared in
+.Ox 5.7 .
+.Pp
+The other functions first appeared in SSLeay 0.8.0
+and have been available since
+.Ox 2.4 .
+.Sh BUGS
+If the
+.Fa type
+is
+.Dv X509_FILETYPE_DEFAULT
+or
+.Dv X509_FILETYPE_PEM ,
+.Fn X509_LOOKUP_ctrl
+with
+.Dv X509_L_FILE_LOAD
+and
+.Fn X509_LOOKUP_load_file
+silently ignore failure of
+.Xr X509_STORE_add_cert 3
+and
+.Xr X509_STORE_add_crl 3
+and indicate success anyway.
+.Pp
+Handling of a
+.Dv NULL
+.Fa source
+is inconsistent for
+.Fn X509_LOOKUP_ctrl
+with
+.Dv X509_L_FILE_LOAD
+and for
+.Fn X509_LOOKUP_load_file .
+With
+.Dv X509_FILETYPE_PEM ,
+it causes failure, but with
+.Dv X509_FILETYPE_ASN1 ,
+no action occurs and success is indicated.
+.Pp
+When called on a
+.Fa lookup
+object using
+.Xr X509_LOOKUP_mem 3 ,
+.Fn X509_LOOKUP_ctrl
+raises
+.Dv ERR_R_PEM_LIB
+when called with an invalid
+.Fa command
+or
+.Fa type ,
+when
+.Xr BIO_new_mem_buf 3
+fails, when
+.Fa source
+contains zero objects, or when
+.Xr X509_STORE_add_cert 3
+fails on the first object encountered, which is all inconsistent
+with the behaviour of the other lookup methods.

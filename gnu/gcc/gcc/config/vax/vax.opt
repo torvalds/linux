@@ -1,0 +1,48 @@
+; Options for the VAX port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+md
+Target RejectNegative InverseMask(G_FLOAT)
+Target DFLOAT double precision code
+
+md-float
+Target RejectNegative InverseMask(G_FLOAT)
+Target DFLOAT double precision code
+
+mg
+Target RejectNegative Mask(G_FLOAT)
+Generate GFLOAT double precision code
+
+mg-float
+Target RejectNegative Mask(G_FLOAT) MaskExists
+Generate GFLOAT double precision code
+
+mgnu
+Target RejectNegative InverseMask(UNIX_ASM)
+Generate code for GNU assembler (gas)
+
+munix
+Target RejectNegative Mask(UNIX_ASM)
+Generate code for UNIX assembler
+
+mvaxc-alignment
+Target RejectNegative Mask(VAXC_ALIGNMENT)
+Use VAXC structure conventions

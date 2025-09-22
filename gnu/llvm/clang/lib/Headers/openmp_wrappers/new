@@ -1,0 +1,48 @@
+//===--------- new - OPENMP wrapper for <new> ------------------------------===
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===-----------------------------------------------------------------------===
+
+#ifndef __CLANG_OPENMP_WRAPPERS_NEW
+#define __CLANG_OPENMP_WRAPPERS_NEW
+
+// We need the system <new> for the std::nothrow_t. The new/delete operators
+// which do not use nothrow_t are provided without the <new> header.
+#include_next <new>
+
+#if (defined(__NVPTX__) || defined(__AMDGPU__)) && defined(_OPENMP)
+
+#include <cstdlib>
+
+#pragma push_macro("OPENMP_NOEXCEPT")
+#if __cplusplus >= 201103L
+#define OPENMP_NOEXCEPT noexcept
+#else
+#define OPENMP_NOEXCEPT
+#endif
+
+inline void *operator new(__SIZE_TYPE__ size,
+                          const std::nothrow_t &) OPENMP_NOEXCEPT {
+  return ::operator new(size);
+}
+
+inline void *operator new[](__SIZE_TYPE__ size, const std::nothrow_t &) {
+  return ::operator new(size);
+}
+
+inline void operator delete(void *ptr, const std::nothrow_t &)OPENMP_NOEXCEPT {
+  ::operator delete(ptr);
+}
+
+inline void operator delete[](void *ptr,
+                              const std::nothrow_t &) OPENMP_NOEXCEPT {
+  ::operator delete(ptr);
+}
+
+#pragma pop_macro("OPENMP_NOEXCEPT")
+#endif
+
+#endif // include guard

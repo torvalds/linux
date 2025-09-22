@@ -1,0 +1,202 @@
+#!/bin/sh
+#
+# $OpenBSD: statemachine,v 1.6 2018/02/05 18:28:15 anton Exp $
+#/*
+# * Copyright (c) Rob Pierce <rob@openbsd.org>
+# *
+# * Permission to use, copy, modify, and distribute this software for any
+# * purpose with or without fee is hereby granted, provided that the above
+# * copyright notice and this permission notice appear in all copies.
+# *
+# * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+# */
+
+# Basic ifstated regression script to test the finite state machine.
+
+#
+# NOTE: Increase LSLEEP as required when adding additional test states.
+#
+
+# Ensure OBJDIR is defined
+: ${OBJDIR?} || exit 1
+
+export OBJDIR
+
+# Global variables
+FILE1="truth1.test"
+FILE2="truth2.test"
+EVERY=2
+SLEEP=5
+LSLEEP=35
+
+cleanup() {
+	rm ${OBJDIR}/$FILE1 >/dev/null 2>&1
+	rm ${OBJDIR}/$FILE2 >/dev/null 2>&1
+	rm ${OBJDIR}/ifstated.conf >/dev/null 2>&1
+	rm ${OBJDIR}/ifstated.log >/dev/null 2>&1
+	rm ${OBJDIR}/output.test >/dev/null 2>&1
+	rm ${OBJDIR}/output.new >/dev/null 2>&1
+	rm ${OBJDIR}/nohup.out >/dev/null 2>&1
+}
+
+fail() {
+	echo FAILED
+	cleanup
+	exit 1
+}
+
+skip() {
+	echo SKIPPED
+	cleanup
+	exit 0
+}
+
+trap 'skip' INT
+
+if [ "$(pgrep ifstated)" ]
+then
+	echo "The ifstated daemon is already running."
+	echo SKIPPED
+	exit 0
+fi
+
+rm -f ${OBJDIR}/${FILE1}
+rm -f ${OBJDIR}/${FILE2}
+
+cat > ${OBJDIR}/ifstated.conf <<EOF
+# This is a config template for ifstated regression testing
+init-state one
+true = '( "true" every $EVERY )'
+false = '( "false" every $EVERY )'
+test1 = '( "test -f ${FILE1}" every $EVERY )'
+test2 = '( "test -f ${FILE2}" every $EVERY )'
+state one {
+	init {
+		run "sleep $SLEEP && ( test -f ${FILE2} || touch ${FILE1} )"
+	}
+	if \$test1 && ! \$test2
+		set-state two
+	if \$test2
+		set-state ninetyeight
+}
+state two {
+	init {
+		run "sleep $SLEEP && rm ${FILE1}"
+	}
+	if ! \$test1
+		set-state three
+}
+state three {
+	if ( \$false || \$false ) || ( ! \$test1 || \$false )
+		set-state four
+}
+state four {
+	if ( \$true && \$true ) && ( ! \$test1 && \$true )
+		set-state five
+}
+state five {
+	init {
+		run "sleep $SLEEP && touch ${FILE1}"
+	}
+	if ( \$false || \$true ) && ( ! \$true || \$test1 )
+		set-state six
+}
+state six {
+	init {
+		run "sleep $SLEEP && touch ${FILE1}"
+	}
+	if ( \$false || \$true ) && ( ! \$true || \$test1 )
+		if \$true
+			set-state seven
+}
+state seven {
+	if ( ! \$false )
+		set-state eight
+}
+state eight {
+	if ! ( \$false )
+		set-state nine
+}
+state nine {
+	if ! ( \$false ) {
+		set-state ten
+	}
+}
+state ten {
+	if \$true && ! ( \$true && ! \$test1 ) {
+		run "rm ${FILE1}"
+		run "touch ${FILE2}"
+		set-state one
+	}
+}
+state ninetyeight {
+	init {
+		if \$true
+			if ( \$true && ! \$false ) && ( \$false || \$true ) {
+				if \$true
+					run "touch ${FILE1}"
+			}
+	}
+	if \$test1 && \$test2 {
+		run "rm ${FILE2}"
+		set-state ninetynine
+	}
+}
+state ninetynine {
+	init {
+		run "touch ${FILE2}"
+	}
+	if \$test1 && \$test2
+		set-state onehundred
+}
+state onehundred {
+	if ! ( ! ( ! \$false ) )
+		set-state end
+}
+state end {
+	if \$false
+		set-state one
+}
+EOF
+
+cat > ${OBJDIR}/output.test <<EOF
+changing state to one
+changing state to two
+changing state to three
+changing state to four
+changing state to five
+changing state to six
+changing state to seven
+changing state to eight
+changing state to nine
+changing state to ten
+changing state to one
+changing state to ninetyeight
+changing state to ninetynine
+changing state to onehundred
+changing state to end
+EOF
+
+(cd ${OBJDIR} && nohup ifstated -dvf ./ifstated.conf > ifstated.log 2>&1) &
+
+sleep ${LSLEEP}
+
+grep ^changing ${OBJDIR}/ifstated.log > ${OBJDIR}/output.new
+
+kill $(pgrep ifstated) >/dev/null 2>&1
+
+diff ${OBJDIR}/output.test ${OBJDIR}/output.new
+case $? in
+0)	echo PASSED
+	cleanup
+	exit 0
+	;;
+1)	fail
+	;;
+esac

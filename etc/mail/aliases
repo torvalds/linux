@@ -1,0 +1,101 @@
+#
+#	$OpenBSD: aliases,v 1.73 2025/08/05 19:06:49 sobrado Exp $
+#
+#  Aliases in this file will NOT be expanded in the header from
+#  Mail, but WILL be visible over networks or from /usr/libexec/mail.local.
+#
+#	>>>>>>>>>>	The program "newaliases" must be run after
+#	>> NOTE >>	this file is updated for any changes to
+#	>>>>>>>>>>	show through to smtpd.
+#
+
+# Basic system aliases -- these MUST be present
+MAILER-DAEMON: postmaster
+postmaster: root
+
+# General redirections for important pseudo accounts
+daemon:	root
+ftp-bugs: root
+operator: root
+www:	root
+
+# Redirections for pseudo accounts that should not receive mail
+_bgpd: /dev/null
+_bgplgd: /dev/null
+_dhcp: /dev/null
+_dpb: /dev/null
+_dvmrpd: /dev/null
+_eigrpd: /dev/null
+_fc-cache: /dev/null
+_file: /dev/null
+_fingerd: /dev/null
+_ftp: /dev/null
+_hostapd: /dev/null
+_identd: /dev/null
+_iked: /dev/null
+_isakmpd: /dev/null
+_iscsid: /dev/null
+_ldapd: /dev/null
+_ldpd: /dev/null
+_lldpd: /dev/null
+_mopd: /dev/null
+_nsd: /dev/null
+_ntp: /dev/null
+_ospfd: /dev/null
+_ospf6d: /dev/null
+_pbuild: /dev/null
+_pfetch: /dev/null
+_pflogd: /dev/null
+_ping: /dev/null
+_pkgfetch: /dev/null
+_pkguntar: /dev/null
+_portmap: /dev/null
+_ppp: /dev/null
+_rad: /dev/null
+_radiusd: /dev/null
+_rbootd: /dev/null
+_relayd: /dev/null
+_ripd: /dev/null
+_rstatd: /dev/null
+_rusersd: /dev/null
+_rwalld: /dev/null
+_smtpd: /dev/null
+_smtpq: /dev/null
+_sndio: /dev/null
+_snmpd: /dev/null
+_spamd: /dev/null
+_syslogd: /dev/null
+_tcpdump: /dev/null
+_traceroute: /dev/null
+_tftpd: /dev/null
+_unbound: /dev/null
+_unwind: /dev/null
+_vmd: /dev/null
+_x11:   /dev/null
+_ypldap: /dev/null
+bin:	/dev/null
+build:	/dev/null
+nobody:	/dev/null
+_tftp_proxy: /dev/null
+_ftp_proxy: /dev/null
+_sndiop: /dev/null
+_syspatch: /dev/null
+_slaacd: /dev/null
+sshd:   /dev/null
+
+# Well-known aliases -- these should be filled in!
+# root:
+# manager:
+# dumper:
+
+# RFC 2142: NETWORK OPERATIONS MAILBOX NAMES
+abuse:		root
+# noc:		root
+security:	root
+
+# RFC 2142: SUPPORT MAILBOX NAMES FOR SPECIFIC INTERNET SERVICES
+# hostmaster:	root
+# usenet:	root
+# news:		usenet
+# webmaster:	root
+# ftp:		root

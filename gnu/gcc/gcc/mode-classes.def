@@ -1,0 +1,32 @@
+/* Machine mode class definitions for GCC.
+   Copyright (C) 2003
+   Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+#define MODE_CLASSES							   \
+  DEF_MODE_CLASS (MODE_RANDOM),		/* other */			   \
+  DEF_MODE_CLASS (MODE_CC),		/* condition code in a register */ \
+  DEF_MODE_CLASS (MODE_INT),		/* integer */			   \
+  DEF_MODE_CLASS (MODE_PARTIAL_INT),	/* integer with padding bits */	   \
+  DEF_MODE_CLASS (MODE_FLOAT),		/* floating point */		   \
+  DEF_MODE_CLASS (MODE_DECIMAL_FLOAT),	/* decimal floating point */	   \
+  DEF_MODE_CLASS (MODE_COMPLEX_INT), 	/* complex numbers */		   \
+  DEF_MODE_CLASS (MODE_COMPLEX_FLOAT),					   \
+  DEF_MODE_CLASS (MODE_VECTOR_INT),	/* SIMD vectors */		   \
+  DEF_MODE_CLASS (MODE_VECTOR_FLOAT)

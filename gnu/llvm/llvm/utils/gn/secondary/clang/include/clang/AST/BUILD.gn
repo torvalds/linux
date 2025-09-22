@@ -1,0 +1,93 @@
+import("//clang/utils/TableGen/clang_tablegen.gni")
+
+clang_tablegen("Attrs") {
+  args = [ "-gen-clang-attr-classes" ]
+  td_file = "../Basic/Attr.td"
+}
+
+clang_tablegen("AttrImpl") {
+  args = [ "-gen-clang-attr-impl" ]
+  td_file = "../Basic/Attr.td"
+}
+
+clang_tablegen("AttrTextNodeDump") {
+  args = [ "-gen-clang-attr-text-node-dump" ]
+  td_file = "../Basic/Attr.td"
+}
+
+clang_tablegen("AttrNodeTraverse") {
+  args = [ "-gen-clang-attr-node-traverse" ]
+  td_file = "../Basic/Attr.td"
+}
+
+clang_tablegen("AttrVisitor") {
+  args = [ "-gen-clang-attr-ast-visitor" ]
+  td_file = "../Basic/Attr.td"
+}
+
+clang_tablegen("StmtNodes") {
+  args = [ "-gen-clang-stmt-nodes" ]
+  td_file = "../Basic/StmtNodes.td"
+}
+
+clang_tablegen("DeclNodes") {
+  args = [ "-gen-clang-decl-nodes" ]
+  td_file = "../Basic/DeclNodes.td"
+}
+
+clang_tablegen("TypeNodes") {
+  args = [ "-gen-clang-type-nodes" ]
+  td_file = "../Basic/TypeNodes.td"
+}
+
+clang_tablegen("AbstractBasicReader") {
+  args = [ "-gen-clang-basic-reader" ]
+  td_file = "PropertiesBase.td"
+}
+
+clang_tablegen("AbstractBasicWriter") {
+  args = [ "-gen-clang-basic-writer" ]
+  td_file = "PropertiesBase.td"
+}
+
+clang_tablegen("AbstractTypeReader") {
+  args = [ "-gen-clang-type-reader" ]
+  td_file = "TypeProperties.td"
+}
+
+clang_tablegen("AbstractTypeWriter") {
+  args = [ "-gen-clang-type-writer" ]
+  td_file = "TypeProperties.td"
+}
+
+clang_tablegen("CommentNodes") {
+  args = [ "-gen-clang-comment-nodes" ]
+  td_file = "../Basic/CommentNodes.td"
+}
+
+clang_tablegen("CommentHTMLTags") {
+  args = [ "-gen-clang-comment-html-tags" ]
+}
+
+clang_tablegen("CommentHTMLTagsProperties") {
+  args = [ "-gen-clang-comment-html-tags-properties" ]
+  td_file = "CommentHTMLTags.td"
+}
+
+clang_tablegen("CommentHTMLNamedCharacterReferences") {
+  args = [ "-gen-clang-comment-html-named-character-references" ]
+}
+
+clang_tablegen("CommentCommandInfo") {
+  args = [ "-gen-clang-comment-command-info" ]
+  td_file = "CommentCommands.td"
+}
+
+clang_tablegen("CommentCommandList") {
+  args = [ "-gen-clang-comment-command-list" ]
+  td_file = "CommentCommands.td"
+}
+
+clang_tablegen("StmtDataCollectors") {
+  args = [ "-gen-clang-data-collectors" ]
+}

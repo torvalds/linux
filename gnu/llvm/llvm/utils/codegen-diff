@@ -1,0 +1,135 @@
+#!/usr/bin/env perl
+
+use Getopt::Std;
+$DEBUG = 0;
+
+sub parse_objdump_file {
+  my ($filename) = @_;
+  my @result;
+  open (INPUT, $filename) or die "$filename: $!\n";
+  print "opened objdump output file $filename\n" if $DEBUG;
+  while (<INPUT>) {
+    if (/\s*([0-9a-f]*):\t(([0-9a-f]{2} )+) *\t(.*)$/) {
+      my ($addr, $bytes, $instr) = ($1, $2, $4);
+      $addr = "0x" . $addr;
+      $bytes =~ s/\s*(.*\S)\s*/$1/; # trim any remaining whitespace
+      $instr =~ s/\s*(.*\S)\s*/$1/;
+      push (@result, {'addr' => $addr, 'bytes' => $bytes, 'instr' => $instr});
+      print "addr=$addr bytes='$bytes' instr='$instr'\n" if $DEBUG;
+    }
+  }
+  close INPUT;
+  return @result;
+}
+
+sub parse_gdb_file {
+  my ($filename) = @_;
+  my @result;
+  my $got_addr;
+  open (INPUT, $filename) or die "$filename: $!\n";
+  print "opened gdb output file $filename\n" if $DEBUG;
+  while (<INPUT>) {
+    if (/^(0x[0-9a-f]*):\t([^\t]*)\t[^:]*:\t((0x[0-9a-f]{2}\s*)+)\s*$/) {
+      my ($addr, $bytes, $instr) = ($1, $3, $2);
+      $bytes =~ s/0x//g;
+      $bytes =~ s/\s+/ /g;           # regularize whitespace
+      $bytes =~ s/\s*(.*\S)\s*/$1/;  # trim any remaining whitespace
+      $instr =~ s/\s*(.*\S)\s*/$1/;
+      push (@result, {'addr' => $addr, 'bytes' => $bytes, 'instr' => $instr});
+      print "addr=$addr bytes='$bytes' instr='$instr'\n" if $DEBUG;
+    } elsif (/^(0x[0-9a-f]*):\t$/) { # deal with gdb's line breaker
+      $got_addr = $1;
+    } elsif ($got_addr && /^    ([^\t]*)\t[^:]*:\t((0x[0-9a-f]{2}\s*)+)\s*$/) {
+      my ($addr, $bytes, $instr) = ($got_addr, $2, $1);
+      $bytes =~ s/0x//g;
+      $bytes =~ s/\s+/ /g;           # regularize whitespace
+      $bytes =~ s/\s*(.*\S)\s*/$1/;  # trim any remaining whitespace
+      $instr =~ s/\s*(.*\S)\s*/$1/;
+      push (@result, {'addr' => $addr, 'bytes' => $bytes, 'instr' => $instr});
+      print "addr=$addr bytes='$bytes' instr='$instr'\n" if $DEBUG;
+      undef $got_addr;
+    }
+  }
+  close INPUT;
+  return @result;
+}
+
+sub binary_diffs {
+  my ($objdump_file, $gdb_file) = @_;
+  my @file1 = parse_objdump_file ($objdump_file);
+  my @file2 = parse_gdb_file ($gdb_file);
+  my $lastrecord = ($#file1 >= $#file2) ? ($#file1) : ($#file2);
+  for (my $i = 0; $i <= $lastrecord; ++$i) {
+    my $d1 = $file1[$i];
+    my $d2 = $file2[$i];
+    if ($d1->{'bytes'} ne $d2->{'bytes'}) {
+      next if (($d1->{'instr'} eq $d2->{'instr'}) && $opt_d);
+      printf "0x%08x:\t%30s \t%s\n", 0+$d1->{'addr'}, $d1->{'bytes'}, $d1->{'instr'};
+      printf "0x%08x:\t%30s \t%s\n\n", 0+$d2->{'addr'}, $d2->{'bytes'}, $d2->{'instr'};
+    }
+  }
+}
+
+&getopts('d');
+$objdump_file = $ARGV[0];
+$gdb_file = $ARGV[1];
+binary_diffs ($objdump_file, $gdb_file);
+exit (0);
+__END__
+=pod
+
+=head1 NAME
+
+codegen-diff
+
+=head1 SYNOPSIS
+
+codegen-diff [-d] I<OBJDUMP-OUTPUT-FILE> I<GDB-DISASSEMBLY-FILE>
+
+=head1 DESCRIPTION
+
+B<codegen-diff> is a program that tries to show you the differences
+between the code that B<llc> generated and the code that B<lli> generated.
+
+The way you use it is as follows: first, you create I<OBJDUMP-OUTPUT-FILE>
+by running B<objdump> on the B<llc> compiled and linked binary. You need to
+trim down the result so it contains only the function of interest.
+
+Second, you create I<GDB-DISASSEMBLY-FILE> by running B<gdb>, with my patch
+to print out hex bytes in the B<disassemble> command output, on
+B<lli>.  Set a breakpoint in C<Emitter::finishFunction()> and wait until
+the function you want is compiled.  Then use the B<disassemble> command
+to print out the assembly dump of the function B<lli> just compiled.
+(Use C<lli -debug> to find out where the function starts and ends in memory.)
+It's easiest to save this output by using B<script>.
+
+Finally, you run B<codegen-diff>, as indicated in the Synopsis section of
+this manpage. It will print out a two-line stanza for each mismatched
+instruction, with the  B<llc> version first, and the  B<lli> version second.
+
+=head1 OPTIONS
+
+=over 4
+
+=item -d
+
+Don't show instructions where the bytes are different but they
+disassemble to the same thing. This puts a lot of trust in the
+disassembler, but it might help you highlight the more egregious cases
+of misassembly.
+
+=back
+
+=head1 AUTHOR
+
+B<codegen-diff> was written by Brian Gaeke.
+
+=head1 SEE ALSO
+
+L<gdb(1)>, L<objdump(1)>, L<script(1)>.
+
+You will need my B<gdb> patch:
+
+  http://llvm.cs.uiuc.edu/~gaeke/gdb-disassembly-print-bytes.patch
+
+=cut

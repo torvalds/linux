@@ -1,0 +1,462 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>sample_resize_trigger Interface</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1><tt>sample_resize_trigger</tt> Interface</h1>
+
+    <p>A sample resize trigger policy.</p>
+
+    <p>This class serves to show the interface a trigger policy
+    needs to support.</p>
+
+    <p>Defined in: <a href=
+    "../../../../include/ext/pb_ds/detail/resize_policy/sample_resize_trigger.hpp"><tt>
+    sample_resize_trigger.hpp</tt></a></p>
+
+    <h2><a name="link1" id="link1">Public Types and
+    Constants</a></h2>
+
+    <h3><a name="link2" id="link2">General definitions.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Types">
+      <tr>
+        <td width="30%" align="left"><b>Type</b></td>
+
+        <td width="55%" align="left"><b>Definition</b></td>
+
+        <td width="15%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<a name="size_type55424436" id="size_type55424436">size_type</a>
+</pre>
+        </td>
+
+        <td>
+          <pre>
+size_t, e.g.
+</pre>
+        </td>
+
+        <td>
+          <p>Size type.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link3" id="link3">Public Methods</a></h2>
+
+    <h3><a name="link4" id="link4">Constructors, destructor, and
+    related.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  sample_resize_trigger
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Default constructor.</p>
+
+          <p>Must be default constructable.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+  sample_range_hashing
+  (<b>const</b> sample_resize_trigger &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Copy constructor.</p>
+
+          <p>Must be copy constructable.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  swap
+  (sample_resize_trigger &amp;other)
+</pre>
+        </td>
+
+        <td>
+          <p>Swaps content.</p>
+
+          <p>Must be swappable (if there is such a word).</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link5" id="link5">Protected Methods</a></h2>
+
+    <h3><a name="link6" id="link6">Insert search
+    notifications.</a></h3>
+
+    <p>Notifications called during an insert operation.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_insert_search_start
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search started.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_insert_search_collision
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search encountered a collision.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_insert_search_end
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search ended.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link7" id="link7">Find search
+    notifications.</a></h3>
+
+    <p>Notifications called during a find operation.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_find_search_start
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search started.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_find_search_collision
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search encountered a collision.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_find_search_end
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search ended.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link8" id="link8">Erase search
+    notifications.</a></h3>
+
+    <p>Notifications called during an insert operation.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_erase_search_start
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search started.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_erase_search_collision
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search encountered a collision.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_erase_search_end
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies a search ended.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link9" id="link9">Content change
+    notifications.</a></h3>
+
+    <p>Notifications called when the content of the table changes
+    in a way that can affect the resize policy.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_inserted
+  (<a href="#size_type55424436"><tt>size_type</tt></a> num_entries)
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies an element was inserted. the total number of
+          entries in the table is <span class=
+          "c1"><tt>num_entries</tt></span>.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>void</b>
+  notify_erased
+  (<a href="#size_type55424436"><tt>size_type</tt></a> num_entries)
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies an element was erased.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b> 
+  notify_cleared
+  ()
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies the table was cleared.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link10" id="link10">Size change
+    notifications.</a></h3>
+
+    <p>Notifications called when the table changes size.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b>
+  notify_resized
+  (<a href="#size_type55424436"><tt>size_type</tt></a> new_size)
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies the table was resized as a result of this
+          object's signifying that a resize is needed.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>void</b>
+  notify_externally_resized
+  (<a href="#size_type55424436"><tt>size_type</tt></a> new_size)
+</pre>
+        </td>
+
+        <td>
+          <p>Notifies the table was resized externally.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h3><a name="link11" id="link11">Queries.</a></h3>
+
+    <p>Called to query whether/how to resize.</p>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>bool</b> 
+  is_resize_needed
+  () <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Queries whether a resize is needed.</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>inline</b> <b>bool</b>
+  is_grow_needed
+  (<a href="#size_type55424436"><tt>size_type</tt></a> size, 
+    <a href=
+"#size_type55424436"><tt>size_type</tt></a> num_entries) <b>const</b>
+</pre>
+        </td>
+
+        <td>
+          <p>Queries whether a grow is needed.</p>
+
+          <p>This method is called only if this object indicated
+          resize is needed. The actual <span class=
+          "c1"><tt>size</tt></span> of the table is <span class=
+          "c1"><tt>size</tt></span>, and the number of entries in
+          it is <span class="c1"><tt>num_entries</tt></span>.</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2><a name="link12" id="link12">Private Methods</a></h2>
+
+    <h3><a name="link13" id="link13">Overrides.</a></h3>
+
+    <table class="c1" width="100%" border="1" summary="Methods">
+      <tr>
+        <td width="45%" align="left"><b>Method</b></td>
+
+        <td width="55%" align="left"><b>Description</b></td>
+      </tr>
+
+      <tr>
+        <td>
+          <pre>
+<b>virtual</b> <b>void</b>
+  do_resize
+  (<a href="#size_type55424436"><tt>size_type</tt></a> new_size)
+</pre>
+        </td>
+
+        <td>
+          <p>Resizes to <span class=
+          "c1"><tt>new_size</tt></span>.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

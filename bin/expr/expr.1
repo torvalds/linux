@@ -1,0 +1,157 @@
+.\"	$OpenBSD: expr.1,v 1.25 2022/12/22 19:53:22 kn Exp $
+.\"	$NetBSD: expr.1,v 1.9 1995/04/28 23:27:13 jtc Exp $
+.\"
+.\" Written by J.T. Conklin <jtc@netbsd.org>.
+.\" Public domain.
+.\"
+.Dd $Mdocdate: December 22 2022 $
+.Dt EXPR 1
+.Os
+.Sh NAME
+.Nm expr
+.Nd evaluate expression
+.Sh SYNOPSIS
+.Nm expr
+.Ar expression ...
+.Sh DESCRIPTION
+The
+.Nm
+utility evaluates each
+.Ar expression
+and writes the result on standard output.
+All operators are separate arguments to the
+.Nm
+utility.
+Characters special to the command interpreter must be escaped.
+.Pp
+Operators are listed below in order of increasing precedence.
+Operators with equal precedence are grouped within { } symbols.
+.Bl -tag -width indent
+.It Ar expr1 | expr2
+Returns the evaluation of
+.Ar expr1
+if it is neither an empty string nor zero;
+otherwise, returns the evaluation of
+.Ar expr2 .
+.It Ar expr1 Li & Ar expr2
+Returns the evaluation of
+.Ar expr1
+if neither expression evaluates to an empty string or zero;
+otherwise, returns zero.
+.It Ar expr1 Li "{=, >, >=, <, <=, !=}" Ar expr2
+Returns the results of integer comparison if both arguments are
+decimal integers; otherwise, returns the results of string comparison
+using the locale-specific collation sequence.
+The result of each comparison is 1 if the specified relation is true,
+or 0 if the relation is false.
+.It Ar expr1 Li "{+, -}" Ar expr2
+Returns the results of addition or subtraction of decimal integer-valued
+arguments.
+.It Ar expr1 Li "{*, /, %}" Ar expr2
+Returns the results of multiplication, integer division, or remainder of
+decimal integer-valued arguments.
+.It Ar expr1 Li \&: Ar expr2
+The
+.Ql \&:
+operator matches
+.Ar expr1
+against
+.Ar expr2 ,
+which must be a basic regular expression.
+The regular expression is anchored
+to the beginning of the string with an implicit
+.Ql ^ .
+.Pp
+If the match succeeds and the pattern contains at least one regular
+expression subexpression
+.Dq "\e(...\e)" ,
+the string corresponding to
+.Dq "\e1"
+is returned;
+otherwise, the matching operator returns the number of characters matched.
+If the match fails and the pattern contains a regular expression subexpression
+the null string is returned;
+otherwise, returns 0.
+.Pp
+Note: the empty string cannot be matched using
+.Bd -literal -offset indent
+expr '' : '$'
+.Ed
+.Pp
+This is because the returned number of matched characters
+.Pq zero
+is indistinguishable from a failed match, so
+.Nm
+returns failure
+.Pq 0 .
+To match the empty string, use a structure such as:
+.Bd -literal -offset indent
+expr X'' : 'X$'
+.Ed
+.El
+.Pp
+Parentheses are used for grouping in the usual manner.
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 0
+The expression is neither an empty string nor 0.
+.It 1
+The expression is an empty string or 0.
+.It 2
+The expression is invalid.
+.It \*(Gt2
+An error occurred (such as memory allocation failure).
+.El
+.Sh EXAMPLES
+Add 1 to the variable
+.Va a :
+.Bd -literal -offset indent
+$ a=`expr $a + 1`
+.Ed
+.Pp
+Return the filename portion of a pathname stored
+in variable
+.Va a .
+The
+.Ql //
+characters act to eliminate ambiguity with the division operator:
+.Bd -literal -offset indent
+$ expr "//$a" \&: '.*/\e(.*\e)'
+.Ed
+.Pp
+Return the number of characters in variable
+.Va a :
+.Bd -literal -offset indent
+$ expr $a \&: '.*'
+.Ed
+.Sh SEE ALSO
+.Xr test 1 ,
+.Xr re_format 7
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Sh HISTORY
+The
+.Nm
+utility first appeared in the Programmer's Workbench (PWB/UNIX)
+and has supported regular expressions since
+.At v7 .
+It was rewritten from scratch for
+.Bx 386 0.1
+and again for
+.Nx 1.1 .
+.Sh AUTHORS
+.An -nosplit
+The first free version was written by
+.An Pace Willisson
+in 1992.
+This version was written by
+.An John T. Conklin
+in 1994.

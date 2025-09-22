@@ -1,0 +1,2 @@
+block drop in log quick on ! lo0 inet from 127.0.0.0/8 to any label "antispoof:lo0:127.0.0.0/8:any"
+block drop in log quick on ! lo1000000 inet from 192.168.0.0/24 to any label "antispoof:lo1000000:192.168.0.0/24:any"

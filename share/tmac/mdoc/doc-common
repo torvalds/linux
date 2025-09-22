@@ -1,0 +1,532 @@
+.\"	$OpenBSD: doc-common,v 1.67 2010/09/26 15:10:20 jmc Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)doc-common	8.1 (Berkeley) 6/8/93
+.\"
+.\"     %beginstrip%
+.nr %A 1
+.nr %J 1
+.nr %N 1
+.nr %O 1
+.nr %R 1
+.nr %T 1
+.nr %V 1
+.nr Ad 12n
+.nr Ac 3
+.nr Ao 12n
+.nr An 12n
+.nr Aq 12n
+.nr Ar 12n
+.nr Bc 3
+.nr Bl 1
+.nr Bo 12n
+.nr Bq 12n
+.nr Cd 12n
+.nr Cm 10n
+.nr Dc 3
+.nr Do 10n
+.nr Dq 12n
+.nr Ds 6n
+.nr Dq 12n
+.nr Dv 12n
+.nr Ec 3
+.nr El 1
+.nr Eo 12n
+.nr Eq 12n
+.nr Em 10n
+.nr Er 12n
+.nr Ev 15n
+.nr Fa 12n
+.nr Fl 10n
+.nr Fc 3
+.nr Fo 16n
+.nr Fn 16n
+.nr I1 6n
+.nr I2 12n
+.nr I3 18n
+.nr Ic 10n
+.nr Li 16n
+.nr Ms 6n
+.nr Nm 10n
+.nr No 12n
+.nr Ns 2
+.nr Oo 10n
+.nr Oc 3
+.nr Op 14n
+.nr Pa 32n
+.nr Pf 12n
+.nr Pc 3
+.nr Po 12n
+.nr Pq 12n
+.nr Qc 3
+.nr Ql 16n
+.nr Qo 12n
+.nr Sc 3
+.nr So 12n
+.nr Sq 12n
+.nr Sy 6n
+.nr Sx 16n
+.nr Rv 1
+.nr Tn 10n
+.nr Ta 1
+.nr Tv 1
+.nr Tx 22n
+.nr Va 12n
+.nr Vt 12n
+.nr Xc 3
+.nr Xo 1
+.nr Xr 10n
+.ds sV \& \&
+.ds hV \&\ \&
+.ds iV \& \&
+.ds tV \&\\t\&
+.\" Punctuation values (3 = closing punctuation, 4 = opening)
+.nr z. 3
+.nr z, 3
+.nr z: 3
+.nr z; 3
+.nr z? 3
+.nr z! 3
+.nr z( 4
+.nr z) 3
+.nr z[ 4
+.nr z] 3
+.\" Matching pairs
+.ds z( z)
+.ds z[ z]
+.ds z< z>
+.\" This is disgusting, troff not parse ``if'' stmt properly
+.nr z0 0
+.nr z1 0
+.nr z2 0
+.nr z3 0
+.nr z4 0
+.nr z5 0
+.nr z6 0
+.nr z7 0
+.nr z8 0
+.nr z9 0
+.nr z# 0
+.\" Header assembly macros
+.de Dt
+.ds dT UNTITLED
+.ds vT LOCAL
+.ds cH Null
+.if !"\\$1"" .ds dT \\$1
+.if !"\\$2"" \{\
+.	ds cH \\$2
+.\" .	if "\\$3"" \{\
+.		if \\$2>=1 .if \\$2<=9 \{\
+.			ds vT OpenBSD Reference Manual
+.			if \\$2>1 .if \\$2<6 .ds vT OpenBSD Programmer's Manual
+.			if "\\$2"8" .ds vT OpenBSD System Manager's Manual
+.			if "\\$2"9" .ds vT OpenBSD Kernel Manual
+.			nr sN \\$2
+.		\}
+.		if "\\$2"unass"  .ds vT DRAFT
+.		if "\\$2"draft"  .ds vT DRAFT
+.		if "\\$2"paper"  .ds vT UNTITLED
+.\" .	\}
+.\}
+.if !"\\$3"" \{\
+.	if "\\$3"USD"   .ds vT OpenBSD User's Supplementary Documents
+.	if "\\$3"PS1"   .ds vT OpenBSD Programmers's Supplementary Documents
+.	if "\\$3"AMD"   .ds vT OpenBSD Ancestral Manual Documents
+.	if "\\$3"SMM"   .ds vT OpenBSD System Manager's Manual
+.	if "\\$3"URM"   .ds vT OpenBSD Reference Manual
+.	if "\\$3"PRM"   .ds vT OpenBSD Programmers's Manual
+.	if "\\$3"KM"    .ds vT OpenBSD Kernel Manual
+.	if "\\$3"IND"   .ds vT OpenBSD Manual Master Index
+.\" .	if "\\$3"CON"   .ds vT OpenBSD Contributed Software Manual
+.\" .	if "\\$3"IMP"	.ds vT OpenBSD Implementation Notes
+.\" .	if "\\$3"HOW"	.ds vT OpenBSD How Pocket Manual
+.	if "\\$3"LOCAL" .ds vT OpenBSD Local Manual
+.	if "\\$3"alpha" .as vT \ (Alpha)
+.	if "\\$3"amd64" .as vT \ (AMD64)
+.	if "\\$3"amiga" .as vT \ (Amiga)
+.	if "\\$3"arc" .as vT \ (ARC)
+.	if "\\$3"armish" .as vT \ (ARMISH)
+.	if "\\$3"aviion" .as vT \ (AViiON)
+.	if "\\$3"hp300" .as vT \ (HP300)
+.	if "\\$3"hppa" .as vT \ (HPPA)
+.	if "\\$3"hppa64" .as vT \ (HPPA64)
+.	if "\\$3"i386"  .as vT \ (i386)
+.	if "\\$3"landisk"  .as vT \ (LANDISK)
+.	if "\\$3"loongson"  .as vT \ (Loongson)
+.	if "\\$3"luna88k" .as vT \ (Luna88K)
+.	if "\\$3"mac68k" .as vT \ (Mac68K)
+.	if "\\$3"macppc"  .as vT \ (MacPPC)
+.	if "\\$3"mips64"  .as vT \ (MIPS64)
+.	if "\\$3"mvme68k" .as vT \ (MVME68K)
+.	if "\\$3"mvme88k" .as vT \ (MVME88K)
+.	if "\\$3"mvmeppc" .as vT \ (MVMEPPC)
+.	if "\\$3"pmax"  .as vT \ (PMAX)
+.	if "\\$3"sgi"  .as vT \ (SGI)
+.	if "\\$3"socppc"  .as vT \ (SOCPPC)
+.	if "\\$3"sparc" .as vT \ (SPARC)
+.	if "\\$3"sparc64" .as vT \ (SPARC64)
+.	if "\\$3"sun3"  .as vT \ (Sun3)
+.	if "\\$3"vax"   .as vT \ (VAX)
+.	if "\\$3"zaurus"  .as vT \ (Zaurus)
+.	if "\\*(vT"LOCAL" .ds vT \\$3
+.\}
+..
+.\" NS Os macro - Operating System (behaviour changes after first call)
+.\" .	ds vT \f(CODRAFT\fP\ \ \-\-\ \ \\*(vT\ \ \-\-\ \ \f(CODRAFT
+.\" .	ds dD \f(CODRAFT\fP\ \ \-\-\ \ \\*(dD\ \ \-\-\ \ \f(CODRAFT
+.\" .ds vT \s+4\f(CODRAFT\fP\s-4\ \ \-\-\ \ \\*(vT\ \ \-\-\ \ \s+4\f(CODRAFT\s-4
+.\" .ds dD \s+4\f(CODRAFT\fP\s-4\ \ \-\-\ \ \\*(dD\ \ \-\-\ \ \s+4\f(CODRAFT\s-4
+.de Os
+.ds oS Null
+.if "\\$1"" \{\
+.	ds oS OpenBSD 4.8
+.\}
+.if "\\$2"" \{\
+.	ds aa Non-Null
+.\}
+.if "\\$1"ATT"   \{\
+.	ds oS AT&T
+.	if "\\$2""    .as oS \0UNIX
+.	if "\\$2"7th" .as oS \07th Edition
+.	if "\\$2"7"   .as oS \07th Edition
+.	if "\\$2"III" .as oS \0System III
+.	if "\\$2"3"   .as oS \0System III
+.	if "\\$2"V"   .as oS \0System V
+.	if "\\$2"V.2" .as oS \0System V Release 2
+.	if "\\$2"V.3" .as oS \0System V Release 3
+.	if "\\$2"V.4" .as oS \0System V Release 4
+.\}
+.if "\\$1"BSD" \{\
+.	if "\\$2"3"    .ds oS 3rd Berkeley Distribution
+.	if "\\$2"4"    .ds oS 4th Berkeley Distribution
+.	if "\\$2"4.1"  .ds oS 4.1 Berkeley Distribution
+.	if "\\$2"4.2"  .ds oS 4.2 Berkeley Distribution
+.	if "\\$2"4.3"  .ds oS 4.3 Berkeley Distribution
+.	if "\\$2"4.3T" .ds oS 4.3-Tahoe Berkeley Distribution
+.	if "\\$2"4.3R" .ds oS 4.3-Reno Berkeley Distribution
+.	if "\\$2"4.3t" .ds oS 4.3-Tahoe Berkeley Distribution
+.	if "\\$2"4.3r" .ds oS 4.3-Reno Berkeley Distribution
+.	if "\\$2"4.4"  .ds oS 4.4BSD
+.\}
+.if "\\$1"NetBSD" \{\
+.	ds oS NetBSD
+.	if "\\$2"0.8"  .as oS \00.8
+.	if "\\$2"0.8a" .as oS \00.8A
+.	if "\\$2"0.9"  .as oS \00.9
+.	if "\\$2"0.9a" .as oS \00.9A
+.	if "\\$2"1.0"  .as oS \01.0
+.	if "\\$2"1.0a" .as oS \01.0A
+.	if "\\$2"1.1"  .as oS \01.1
+.	if "\\$2"1.1a" .as oS \01.1A
+.	if "\\$2"1.2"  .as oS \01.2
+.	if "\\$2"1.2a" .as oS \01.2A
+.	if "\\$2"1.2b" .as oS \01.2B
+.	if "\\$2"1.2c" .as oS \01.2C
+.	if "\\$2"1.2d" .as oS \01.2D
+.	if "\\$2"1.2e" .as oS \01.2E
+.	if "\\$2"1.3"  .as oS \01.3
+.	if "\\$2"1.3a" .as oS \01.3A
+.	if "\\$2"1.4"  .as oS \01.4
+.	if "\\$2"1.5"  .as oS \01.5
+.	if "\\$2"1.6"  .as oS \01.6
+.	if "\\$2"2.0"  .as oS \02.0
+.	if "\\$2"3.0"  .as oS \03.0
+.	if "\\$2"4.0"  .as oS \04.0
+.	if "\\$2"5.0"  .as oS \05.0
+.\}
+.if "\\$1"OpenBSD" \{\
+.	ds oS OpenBSD
+.	if "\\$2"1.2"  .as oS \01.2
+.	if "\\$2"2.0"  .as oS \02.0
+.	if "\\$2"2.1"  .as oS \02.1
+.	if "\\$2"2.2"  .as oS \02.2
+.	if "\\$2"2.3"  .as oS \02.3
+.	if "\\$2"2.4"  .as oS \02.4
+.	if "\\$2"2.5"  .as oS \02.5
+.	if "\\$2"2.6"  .as oS \02.6
+.	if "\\$2"2.7"  .as oS \02.7
+.	if "\\$2"2.8"  .as oS \02.8
+.	if "\\$2"2.9"  .as oS \02.9
+.	if "\\$2"3.0"  .as oS \03.0
+.	if "\\$2"3.1"  .as oS \03.1
+.	if "\\$2"3.2"  .as oS \03.2
+.	if "\\$2"3.3"  .as oS \03.3
+.	if "\\$2"3.4"  .as oS \03.4
+.	if "\\$2"3.5"  .as oS \03.5
+.	if "\\$2"3.6"  .as oS \03.6
+.	if "\\$2"3.7"  .as oS \03.7
+.	if "\\$2"3.8"  .as oS \03.8
+.	if "\\$2"3.9"  .as oS \03.9
+.	if "\\$2"4.0"  .as oS \04.0
+.	if "\\$2"4.1"  .as oS \04.1
+.	if "\\$2"4.2"  .as oS \04.2
+.	if "\\$2"4.3"  .as oS \04.3
+.	if "\\$2"4.4"  .as oS \04.4
+.	if "\\$2"4.5"  .as oS \04.5
+.	if "\\$2"4.6"  .as oS \04.6
+.	if "\\$2"4.7"  .as oS \04.7
+.	if "\\$2"4.8"  .as oS \04.8
+.\}
+.if "\\*(oS"Null" .ds oS \0\\$1
+.if "\\*(aa"Non-Null" .as oS \0\\$2
+.rm aa
+..
+.de Dd
+.if !"\\*(dD"" .nr gX 1
+.ie \\n(.$>0 \{\
+.	ie "\\$1"$Mdocdate:" \{\
+.		ds dD \\$2 \\$3, \\$4
+.	\}
+.	el \{\
+.		ie \\n(.$==3 \{\
+.			ds dD \\$1 \\$2 \\$3
+.		\}
+.		el \{\
+.			if "\\n(mo"1"  .ds dD January
+.			if "\\n(mo"2"  .ds dD February
+.			if "\\n(mo"3"  .ds dD March
+.			if "\\n(mo"4"  .ds dD April
+.			if "\\n(mo"5"  .ds dD May
+.			if "\\n(mo"6"  .ds dD June
+.			if "\\n(mo"7"  .ds dD July
+.			if "\\n(mo"8"  .ds dD August
+.			if "\\n(mo"9"  .ds dD September
+.			if "\\n(mo"10" .ds dD October
+.			if "\\n(mo"11" .ds dD November
+.			if "\\n(mo"12" .ds dD December
+.			nr *year \\n(yr+1900
+.			as dD \&\ \\n(dy, \\n[*year]
+.		\}
+.	\}
+.\}
+.el \{\
+.	ds dD Epoch
+.\}
+..
+.de hM
+.ev 1
+.pL
+.if !\\n(cR 'sp \\n(Hmu
+.tl @\\*(Hs\\*(hT\fP@\\*(Vs\\*(vT\fP@\\*(Hs\\*(hT\fP@
+'sp \\n(Hmu
+.ev
+..
+.de fM
+.ie \\n(cR 'br
+.el \{\
+.	ev 1
+.	pL
+.	if !\\n(cR \{\
+'		sp \\n(Fmu
+.		tl @\\*(Hs\\*(oS\fP@\\*(Vs\\*(dD\fP@%@
+'		bp
+.	\}
+.	ev
+.\}
+..
+.de lM
+.\" We may still have a partial line in the environment.  If this is the case,
+.\" and we happen to be on the last line of the page, the .fl will cause the
+.\" page to be ejected and troff will immediately exit.  If we're in nroff
+.\" mode, this would be unfortunate, since we would never get a chance to
+.\" output the footer.  So we fudge the page length, to make sure that the
+.\" last page is never ejected until we want it to be.
+.if \\n(cR .pl +3v
+.fl
+.if \\n(cR \{\
+'	sp
+.	tl @\\*(Hs\\*(oS\fP@\\*(Vs\\*(dD\fP@%@
+.       pl \\n(nlu
+.\}
+..
+.de Pp
+.sp \\n(Ppu
+.if !\\n(cR .ne 2
+.ns
+..
+.de Lp
+.Pp
+..
+.de LP
+.tm Not a \-mdoc command: .LP
+..
+.de PP
+.tm Not a \-mdoc command: .PP
+..
+.de pp
+.tm Not a \-mdoc command: .pp
+..
+.de Nd
+\&\(en\& \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+..
+.de Ss
+.sp
+.if !\\n(cR .ne 3
+.ti -.25i
+\&\\*(sH\\$1 \|\\$2 \|\\$3 \|\\$4 \|\\$5 \|\\$6 \|\\$7 \|\\$8 \|\\$9
+\&\fP\s0
+.ta .5i 1i 1.5i 2i 2.5i 3i 3.5i 4i 4.5i 5i 5.5i 6i 6.5i
+.if !\\n(cR .ne 2
+.br
+..
+.de Rd
+.tm MDOC REGISTER DUMP
+.tm Db==\\n(Db register DEBUG MODE
+.tm L[0-9] registers - stack of list types
+.tm L0==\\n(L0
+.tm L1==\\n(L1
+.tm L2==\\n(L2
+.tm L3==\\n(L3
+.tm L4==\\n(L4
+.tm L5==\\n(L5
+.tm L6==\\n(L6
+.tm L7==\\n(L7
+.tm L8==\\n(L8
+.tm L9==\\n(L9
+.tm O[0-9] registers - stack of indent
+.tm O0==\\n(O0
+.tm O1==\\n(O1
+.tm O2==\\n(O2
+.tm O3==\\n(O3
+.tm O4==\\n(O4
+.tm O5==\\n(O5
+.tm O6==\\n(O6
+.tm O7==\\n(O7
+.tm O8==\\n(O8
+.tm O9==\\n(O9
+.tm aC==\\n(aC register argument counter (aV/fV)
+.tm aJ==\\n(aJ register (for vR)
+.tm aN==\\n(aN register
+.tm aP==\\n(aP register argument pointer (aV)
+.tm aT==\\n(aT register argument type
+.tm aa==\\n(aa local register
+.tm bK==\\n(bK register - Book Name flag
+.tm cF==\\n(cF register save current font
+.tm cI==\\n(cI register - column indent width
+.tm cZ==\\n(cZ register save current font size
+.tm dK==\\n(dK register - Date flag
+.tm d[0-9] registers - display-type stack
+.tm d0==\\n(d0
+.tm d1==\\n(d1
+.tm d2==\\n(d2
+.tm d3==\\n(d3
+.tm d4==\\n(d4
+.tm d5==\\n(d5
+.tm d6==\\n(d6
+.tm d7==\\n(d7
+.tm d8==\\n(d8
+.tm d9==\\n(d9
+.tm dZ==\\n(dZ register diversion count
+.tm fD==\\n(fD register subroutine test (in synopsis only)
+.tm fV==\\n(fV register argument counter (must set to \\n(.$ prior to
+.tm fY==\\n(fY register - dick with old style function declarations (fortran)
+.tm fZ==\\n(fZ register also subroutine count (in synopsis only)
+.tm h[0-9] register horizontal tag stack (continuous if 1, break if
+.tm h0==\\n(h0
+.tm h1==\\n(h1
+.tm h2==\\n(h2
+.tm h3==\\n(h3
+.tm h4==\\n(h4
+.tm h5==\\n(h5
+.tm h6==\\n(h6
+.tm h7==\\n(h7
+.tm h8==\\n(h8
+.tm h9==\\n(h9
+.tm iD==\\n(iD local register
+.tm iI==\\n(iI local register (indent for inline debug mode)
+.tm iN==\\n(iN register DEBUG MODE (inline if 1, to stderr if
+.tm iS==\\n(iS register - indent second command line in a synopsis
+.tm jK==\\n(jK register - [reference] Journal Name flag
+.tm jM==\\n(jM local register
+.tm jN==\\n(jN local register
+.tm lC==\\n(lC register - list type stack counter
+.tm lK==\\n(lK register count of lines read from input file
+.tm nK==\\n(nK register - [reference] issue number flag
+.tm nU==\\n(nU register count
+.tm oK==\\n(oK register - [reference] optional information flag
+.tm oM==\\n(oM register (extension possible)
+.tm o[0-9] register offset stack (nested tags)
+.tm o0==\\n(o0
+.tm o1==\\n(o1
+.tm o2==\\n(o2
+.tm o3==\\n(o3
+.tm o4==\\n(o4
+.tm o5==\\n(o5
+.tm o6==\\n(o6
+.tm o7==\\n(o7
+.tm o8==\\n(o8
+.tm o9==\\n(o9
+.tm oM==\\n(oM register open ended line flag
+.tm pK==\\n(pK register - [reference] page number flag
+.tm qK==\\n(qK register - Corporate or Foreign Author flag
+.tm rK==\\n(rK register - [reference] report flag
+.tm rS==\\n(rS register - Reference Start flag
+.tm sM==\\n(sM register - default is one (space mode on)
+.tm tK==\\n(tK register - reference title flag
+.tm tP==\\n(tP register tag flag (for diversions)
+.tm tX==\\n(tX register (initial class)
+.tm tY==\\n(tY register (next possible lC value)
+.tm t[0-9] register tag string stack (nested tags)
+.tm t0==\\n(t0
+.tm t1==\\n(t1
+.tm t2==\\n(t2
+.tm t3==\\n(t3
+.tm t4==\\n(t4
+.tm t5==\\n(t5
+.tm t6==\\n(t6
+.tm t7==\\n(t7
+.tm t8==\\n(t8
+.tm t9==\\n(t9
+.tm uK==\\n(uK register - reference author(s) counter
+.tm vK==\\n(vK register - reference volume flag
+.tm v[0-9] register vertical tag break stack
+.tm v0==\\n(v0
+.tm v1==\\n(v1
+.tm v2==\\n(v2
+.tm v3==\\n(v3
+.tm v4==\\n(v4
+.tm v5==\\n(v5
+.tm v6==\\n(v6
+.tm v7==\\n(v7
+.tm v8==\\n(v8
+.tm v9==\\n(v9
+.tm w[0-9] register tag stack (nested tags)
+.tm w0==\\n(w0
+.tm w1==\\n(w1
+.tm w2==\\n(w2
+.tm w3==\\n(w3
+.tm w4==\\n(w4
+.tm w5==\\n(w5
+.tm w6==\\n(w6
+.tm w7==\\n(w7
+.tm w8==\\n(w8
+.tm w9==\\n(w9
+.tm xX==\\n(xX local register
+.tm END OF REGISTER DUMP
+..

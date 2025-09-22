@@ -1,0 +1,76 @@
+.\"	$OpenBSD: uk.4,v 1.19 2024/12/21 01:00:31 jsg Exp $
+.\"	$NetBSD: uk.4,v 1.3 1996/10/20 23:15:26 explorer Exp $
+.\"
+.\" Copyright (c) 1996
+.\"     Julian Elischer <julian@freebsd.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: December 21 2024 $
+.Dt UK 4
+.Os
+.Sh NAME
+.Nm uk
+.Nd SCSI user-level driver
+.Sh SYNOPSIS
+.Cd "uk* at scsibus?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for a
+process to address devices on the SCSI bus for which there is no configured
+driver.
+.Pp
+A SCSI adapter must also be separately configured into the system
+before this driver makes sense.
+.Sh IOCTLS
+The
+.Nm
+driver has no ioctls of its own but rather acts as a medium for the
+generic
+.Xr scsi 4
+ioctls.
+These are described in
+.In sys/scsiio.h .
+.Sh FILES
+.Bl -tag -width /dev/uk[0-255] -compact
+.It Pa /dev/uk[0-255]
+uk{x} is the 'xth' unknown device found.
+.El
+.Sh DIAGNOSTICS
+All
+.Xr scsi 4
+debug ioctls work on
+.Nm
+devices.
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr st 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Nx 1.0 .

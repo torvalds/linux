@@ -1,0 +1,46 @@
+.\"	$OpenBSD: radeonfb.4,v 1.2 2011/01/04 19:25:36 kettenis Exp $
+.\"
+.\" Copyright (c) 2009 Mark Kettenis.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 4 2011 $
+.Dt RADEONFB 4 sparc64
+.Os
+.Sh NAME
+.Nm radeonfb
+.Nd accelerated color frame buffer
+.Sh SYNOPSIS
+.Cd "radeonfb* at pci?"
+.Cd "wsdisplay* at radeonfb?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Sun PCI frame buffer cards based on the
+ATI
+.Sq Radeon
+chips, such as the
+Sun
+XVR-100
+and
+XVR-300
+boards.
+It does not provide direct device driver entry points
+but makes its functions available via the internal
+.Xr wsdisplay 4
+interface.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4

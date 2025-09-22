@@ -1,0 +1,62 @@
+.\"	$OpenBSD: pchb.4,v 1.18 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Michael Shalayeff, 2000. Public Domain.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt PCHB 4
+.Os
+.Sh NAME
+.Nm pchb
+.Nd PCI-Host Bridge
+.Sh SYNOPSIS
+.Cd "pchb* at pci?"
+.Cd "pci* at pchb?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI-Host adapter-specific functions.
+Support is provided for the following devices:
+.Bl -tag -width Ds -offset indent
+.It i450 PCIset (Orion)
+Supports additional PCI buses.
+.It Reliance Computer ROSB4, CNB20HE, CNB20LE
+Supports additional PCI buses.
+.It i82424ZX (Saturn)
+Disables CPU-PCI write posting.
+.It i82443BX
+Provides workaround for the following errata:
+"An incorrect address may be driven on the
+DRAM bus, resulting in memory data being
+fetched from the wrong location."
+.It i82810/810E, i82815/815E, i82820, i82840
+Supports the random numbers generator,
+supplying random bytes from the system's thermal noise.
+Driven by periodic checks for available data from the generator,
+it supplies entropy to the
+.Xr random 4
+driver for common usage.
+.El
+.Pp
+On amd64 and i386 systems, most PCI devices of class
+.Nm Bridge
+and sub-class
+.Nm Bridge Host
+are supported just as PCI attachment points.
+A few other system control devices not listed here are supported by
+.Nm .
+.Pp
+The macppc port supports several Apple and Motorola bridges.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr random 4
+.Sh HISTORY
+Random number generator support first appeared in
+.Ox 2.7 .
+.Sh AUTHORS
+Support for true RNG present on i82810 chips was added by
+.An Michael Shalayeff Aq Mt mickey@openbsd.org .
+.Sh BUGS
+Real RNG probe should fix the PCI scanning loop so it would find the Firmware
+Hub (i82802) which actually contains the RNG device and
+probe it as a real PCI device (i.e., common PCI registers are there).

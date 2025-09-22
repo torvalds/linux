@@ -1,0 +1,70 @@
+static_library("Clang") {
+  output_name = "lldbPluginExpressionParserClang"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/CodeGen",
+    "//clang/lib/Driver",
+    "//clang/lib/Edit",
+    "//clang/lib/Frontend",
+    "//clang/lib/Frontend/Rewrite",
+    "//clang/lib/Lex",
+    "//clang/lib/Parse",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Sema",
+    "//clang/lib/Serialization",
+    "//lldb/source/Core",
+    "//lldb/source/Expression",
+    "//lldb/source/Host",
+    "//lldb/source/Interpreter",
+
+    #"//lldb/source/Plugins/Language/CPlusPlus", # 3-hop dependency cycle
+    "//lldb/source/Plugins/LanguageRuntime/CPlusPlus",
+    "//lldb/source/Plugins/LanguageRuntime/ObjC",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+    "//llvm/lib/ExecutionEngine",
+    "//llvm/lib/ExecutionEngine/MCJIT",
+
+    #"//lldb/source/Plugins/TypeSystem/Clang", # Dependency cycle
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/IPO",
+  ]
+
+  # Uses source-relative paths for own includes (!)
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "ASTResultSynthesizer.cpp",
+    "ASTStructExtractor.cpp",
+    "ASTUtils.cpp",
+    "ClangASTImporter.cpp",
+    "ClangASTMetadata.cpp",
+    "ClangASTSource.cpp",
+    "ClangDeclVendor.cpp",
+    "ClangExpressionDeclMap.cpp",
+    "ClangExpressionHelper.cpp",
+    "ClangExpressionParser.cpp",
+    "ClangExpressionSourceCode.cpp",
+    "ClangExpressionUtil.cpp",
+    "ClangExpressionVariable.cpp",
+    "ClangExternalASTSourceCallbacks.cpp",
+    "ClangFunctionCaller.cpp",
+    "ClangHost.cpp",
+    "ClangModulesDeclVendor.cpp",
+    "ClangPersistentVariables.cpp",
+    "ClangUserExpression.cpp",
+    "ClangUtil.cpp",
+    "ClangUtilityFunction.cpp",
+    "CppModuleConfiguration.cpp",
+    "CxxModuleHandler.cpp",
+    "IRDynamicChecks.cpp",
+    "IRForTarget.cpp",
+    "NameSearchContext.cpp",
+  ]
+}

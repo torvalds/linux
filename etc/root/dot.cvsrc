@@ -1,0 +1,5 @@
+# $OpenBSD: dot.cvsrc,v 1.1 2013/04/01 16:55:26 espie Exp $
+#
+diff -uNp
+update -P
+checkout -P

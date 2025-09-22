@@ -1,0 +1,149 @@
+.\" $OpenBSD: BN_swap.3,v 1.7 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 61f805c1 Jan 16 01:01:46 2018 +0800
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Bodo Moeller <bodo@openssl.org>.
+.\" Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BN_SWAP 3
+.Os
+.Sh NAME
+.Nm BN_swap ,
+.Nm BN_consttime_swap
+.Nd exchange BIGNUMs
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.Ft void
+.Fo BN_swap
+.Fa "BIGNUM *a"
+.Fa "BIGNUM *b"
+.Fc
+.Ft void
+.Fo BN_consttime_swap
+.Fa "BN_ULONG condition"
+.Fa "BIGNUM *a"
+.Fa "BIGNUM *b"
+.Fa "int nwords"
+.Fc
+.Sh DESCRIPTION
+.Fn BN_swap
+and
+.Fn BN_consttime_swap
+exchange the values of
+.Fa a
+and
+.Fa b .
+.Pp
+.Fn BN_swap
+implements this by exchanging the pointers to the data buffers of
+.Fa a
+and
+.Fa b
+and also exchanging the values of the
+.Dv BN_FLG_STATIC_DATA
+bits.
+Consequently, the operation is fast and execution time does not depend
+on any properties of the two numbers.
+However, execution time obviously differs between swapping (by calling
+this function) and not swapping (by not calling this function).
+.Pp
+.Fn BN_consttime_swap
+only performs the exchange if the
+.Fa condition
+is non-zero; otherwise, it has no effect.
+It implements the exchange by exchanging the contents of the data
+buffers rather than the pointers to the data buffers.
+This is slower, but implemented in such a way that the execution time
+is not only independent of the properties of the two numbers, but also
+independent of the
+.Fa condition
+argument, i.e. the same for swapping or not swapping.
+Execution time does however grow in an approximately linear manner with the
+.Fa nwords
+argument.
+.Pp
+.Fn BN_consttime_swap
+calls
+.Xr abort 3
+if at least one of
+.Fa a
+or
+.Fa b
+has fewer than
+.Fa nwords
+data words allocated or more than
+.Fa nwords
+data words are currently in use in at least one of them.
+.Sh SEE ALSO
+.Xr BN_new 3 ,
+.Xr BN_set_flags 3
+.Sh HISTORY
+.Fn BN_swap
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .
+.Pp
+.Fn BN_consttime_swap
+first appeared in OpenSSL 1.0.1g and has been available since
+.Ox 5.6 .

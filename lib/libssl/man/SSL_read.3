@@ -1,0 +1,279 @@
+.\" $OpenBSD: SSL_read.3,v 1.9 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL 5a2443ae Nov 14 11:37:36 2016 +0000
+.\" partial merge up to: OpenSSL 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org> and
+.\" Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2000, 2001, 2008, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_READ 3
+.Os
+.Sh NAME
+.Nm SSL_read_ex ,
+.Nm SSL_read ,
+.Nm SSL_peek_ex ,
+.Nm SSL_peek
+.Nd read bytes from a TLS connection
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fn SSL_read_ex "SSL *ssl" "void *buf" "size_t num" "size_t *readbytes"
+.Ft int
+.Fn SSL_read "SSL *ssl" "void *buf" "int num"
+.Ft int
+.Fn SSL_peek_ex "SSL *ssl" "void *buf" "size_t num" "size_t *readbytes"
+.Ft int
+.Fn SSL_peek "SSL *ssl" "void *buf" "int num"
+.Sh DESCRIPTION
+.Fn SSL_read_ex
+and
+.Fn SSL_read
+try to read
+.Fa num
+bytes from the specified
+.Fa ssl
+into the buffer
+.Fa buf .
+On success
+.Fn SSL_read_ex
+stores the number of bytes actually read in
+.Pf * Fa readbytes .
+.Pp
+.Fn SSL_peek_ex
+and
+.Fn SSL_peek
+are identical to
+.Fn SSL_read_ex
+and
+.Fn SSL_read ,
+respectively,
+except that no bytes are removed from the underlying BIO during
+the read, such that a subsequent call to
+.Fn SSL_read_ex
+or
+.Fn SSL_read
+will yield at least the same bytes once again.
+.Pp
+In the following,
+.Fn SSL_read_ex ,
+.Fn SSL_read ,
+.Fn SSL_peek_ex ,
+and
+.Fn SSL_peek
+are called
+.Dq read functions .
+.Pp
+If necessary, a read function will negotiate a TLS session, if
+not already explicitly performed by
+.Xr SSL_connect 3
+or
+.Xr SSL_accept 3 .
+If the peer requests a re-negotiation, it will be performed
+transparently during the read function operation.
+The behaviour of the read functions depends on the underlying
+.Vt BIO .
+.Pp
+For the transparent negotiation to succeed, the
+.Fa ssl
+must have been initialized to client or server mode.
+This is done by calling
+.Xr SSL_set_connect_state 3
+or
+.Xr SSL_set_accept_state 3
+before the first call to a read function.
+.Pp
+The read functions work based on the TLS records.
+The data are received in records (with a maximum record size of 16kB).
+Only when a record has been completely received, it can be processed
+(decrypted and checked for integrity).
+Therefore, data that was not retrieved at the last read call can
+still be buffered inside the TLS layer and will be retrieved on the
+next read call.
+If
+.Fa num
+is higher than the number of bytes buffered, the read functions
+will return with the bytes buffered.
+If no more bytes are in the buffer, the read functions will trigger
+the processing of the next record.
+Only when the record has been received and processed completely
+will the read functions return reporting success.
+At most the contents of the record will be returned.
+As the size of a TLS record may exceed the maximum packet size
+of the underlying transport (e.g., TCP), it may be necessary to
+read several packets from the transport layer before the record is
+complete and the read call can succeed.
+.Pp
+If the underlying
+.Vt BIO
+is blocking,
+a read function will only return once the read operation has been
+finished or an error occurred, except when a renegotiation takes
+place, in which case an
+.Dv SSL_ERROR_WANT_READ
+may occur.
+This behavior can be controlled with the
+.Dv SSL_MODE_AUTO_RETRY
+flag of the
+.Xr SSL_CTX_set_mode 3
+call.
+.Pp
+If the underlying
+.Vt BIO
+is non-blocking, a read function will also return when the underlying
+.Vt BIO
+could not satisfy the needs of the function to continue the operation.
+In this case a call to
+.Xr SSL_get_error 3
+with the return value of the read function will yield
+.Dv SSL_ERROR_WANT_READ
+or
+.Dv SSL_ERROR_WANT_WRITE .
+As at any time a re-negotiation is possible, a read function may
+also cause write operations.
+The calling process must then repeat the call after taking appropriate
+action to satisfy the needs of the read function.
+The action depends on the underlying
+.Vt BIO .
+When using a non-blocking socket, nothing is to be done, but
+.Xr select 2
+can be used to check for the required condition.
+When using a buffering
+.Vt BIO ,
+like a
+.Vt BIO
+pair, data must be written into or retrieved out of the
+.Vt BIO
+before being able to continue.
+.Pp
+.Xr SSL_pending 3
+can be used to find out whether there are buffered bytes available for
+immediate retrieval.
+In this case a read function can be called without blocking or
+actually receiving new data from the underlying socket.
+.Pp
+When a read function operation has to be repeated because of
+.Dv SSL_ERROR_WANT_READ
+or
+.Dv SSL_ERROR_WANT_WRITE ,
+it must be repeated with the same arguments.
+.Sh RETURN VALUES
+.Fn SSL_read_ex
+and
+.Fn SSL_peek_ex
+return 1 for success or 0 for failure.
+Success means that one or more application data bytes
+have been read from the SSL connection.
+Failure means that no bytes could be read from the SSL connection.
+Failures can be retryable (e.g. we are waiting for more bytes to be
+delivered by the network) or non-retryable (e.g. a fatal network error).
+In the event of a failure, call
+.Xr SSL_get_error 3
+to find out the reason which indicates whether the call is retryable or not.
+.Pp
+For
+.Fn SSL_read
+and
+.Fn SSL_peek ,
+the following return values can occur:
+.Bl -tag -width Ds
+.It >0
+The read operation was successful.
+The return value is the number of bytes actually read from the
+TLS connection.
+.It 0
+The read operation was not successful.
+The reason may either be a clean shutdown due to a
+.Dq close notify
+alert sent by the peer (in which case the
+.Dv SSL_RECEIVED_SHUTDOWN
+flag in the ssl shutdown state is set (see
+.Xr SSL_shutdown 3
+and
+.Xr SSL_set_shutdown 3 ) .
+It is also possible that the peer simply shut down the underlying transport and
+the shutdown is incomplete.
+Call
+.Xr SSL_get_error 3
+with the return value to find out whether an error occurred or the connection
+was shut down cleanly
+.Pq Dv SSL_ERROR_ZERO_RETURN .
+.It <0
+The read operation was not successful, because either an error occurred or
+action must be taken by the calling process.
+Call
+.Xr SSL_get_error 3
+with the return value to find out the reason.
+.El
+.Sh SEE ALSO
+.Xr BIO_new 3 ,
+.Xr ssl 3 ,
+.Xr SSL_accept 3 ,
+.Xr SSL_connect 3 ,
+.Xr SSL_CTX_new 3 ,
+.Xr SSL_CTX_set_mode 3 ,
+.Xr SSL_get_error 3 ,
+.Xr SSL_pending 3 ,
+.Xr SSL_set_connect_state 3 ,
+.Xr SSL_set_shutdown 3 ,
+.Xr SSL_shutdown 3 ,
+.Xr SSL_write 3
+.Sh HISTORY
+.Fn SSL_read
+appeared in SSLeay 0.4 or earlier.
+.Fn SSL_peek
+first appeared in SSLeay 0.6.6.
+Both functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn SSL_read_ex
+and
+.Fn SSL_peek_ex
+first appeared in OpenSSL 1.1.1 and have been available since
+.Ox 7.1 .

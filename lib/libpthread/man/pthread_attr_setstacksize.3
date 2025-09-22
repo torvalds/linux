@@ -1,0 +1,80 @@
+.\" $OpenBSD: pthread_attr_setstacksize.3,v 1.11 2025/06/07 00:16:52 schwarze Exp $
+.\" Manual page derived from TOG's UNIX98 documentation.
+.\"
+.\"  David Leonard, 2000. Public Domain.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_ATTR_SETSTACKSIZE 3
+.Os
+.Sh NAME
+.Nm pthread_attr_setstacksize ,
+.Nm pthread_attr_getstacksize
+.Nd set and get stacksize attribute
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_attr_setstacksize "pthread_attr_t *attr" "size_t stacksize"
+.Ft int
+.Fn pthread_attr_getstacksize "const pthread_attr_t *attr" "size_t *stacksize"
+.Sh DESCRIPTION
+The functions
+.Fn pthread_attr_setstacksize
+and
+.Fn pthread_attr_getstacksize ,
+respectively, set and get the thread
+creation
+.Va stacksize
+attribute in the
+.Fa attr
+object.
+.Pp
+The
+.Va stacksize
+attribute defines the minimum stack size (in bytes)
+allocated for the created thread's stack.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn pthread_attr_setstacksize
+and
+.Fn pthread_attr_getstacksize
+return a value of 0.
+Otherwise, an error number is returned to indicate the error.
+.Pp
+The
+.Fn pthread_attr_getstacksize
+function stores the
+.Va stacksize
+attribute value in
+.Fa stacksize
+if successful.
+.Sh ERRORS
+The
+.Fn pthread_attr_setstacksize
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of
+.Fa stacksize
+is less than
+.Dv PTHREAD_STACK_MIN
+or exceeds a system-imposed limit.
+.El
+.Pp
+These functions will not return an error code of
+.Bq Er EINTR .
+.Sh SEE ALSO
+.Xr pthread_attr_init 3 ,
+.Xr pthread_attr_setdetachstate 3 ,
+.Xr pthread_attr_setguardsize 3 ,
+.Xr pthread_attr_setstack 3 ,
+.Xr pthread_attr_setstackaddr 3 ,
+.Xr pthread_create 3 ,
+.Xr pthreads 3
+.Sh STANDARDS
+.Fn pthread_attr_setstacksize
+and
+.Fn pthread_attr_getstacksize
+conform to ISO/IEC 9945-1 ANSI/IEEE
+.Pq Dq Tn POSIX
+Std 1003.1 Second Edition 1996-07-12.

@@ -1,0 +1,232 @@
+.\"	$OpenBSD: rcmd.3,v 1.34 2016/05/28 15:48:30 millert Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 28 2016 $
+.Dt RCMD 3
+.Os
+.Sh NAME
+.Nm rcmd ,
+.Nm rcmd_af ,
+.Nm rresvport ,
+.Nm rresvport_af ,
+.Nm ruserok
+.Nd routines for returning a stream to a remote command
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn rcmd "char **ahost" "int inport" "const char *locuser" "const char *remuser" "const char *cmd" "int *fd2p"
+.Ft int
+.Fn rcmd_af "char **ahost" "int inport" "const char *locuser" "const char *remuser" "const char *cmd" "int *fd2p" "int af"
+.Ft int
+.Fn rresvport "int *port"
+.Ft int
+.Fn rresvport_af "int *port" "int af"
+.Ft int
+.Fn ruserok "const char *rhost" "int superuser" "const char *ruser" "const char *luser"
+.Sh DESCRIPTION
+The
+.Fn rcmd
+function is used by the superuser to execute a command on a remote
+machine using an authentication scheme based on reserved
+port numbers.
+If the calling process is not setuid, the
+.Ev RSH
+environment variable is set, and
+.Fa inport
+is
+.Dq shell/tcp ,
+.Xr rcmdsh 3
+is called instead with the value of
+.Ev RSH .
+Alternately, if the user is not the superuser,
+.Fn rcmd
+will invoke
+.Xr rcmdsh 3
+to run the command via
+.Xr ssh 1 .
+While
+.Fn rcmd
+can handle IPv4 cases only,
+the
+.Fn rcmd_af
+function can handle other cases as well.
+.Pp
+The
+.Fn rresvport
+and
+.Fn rresvport_af
+functions return a descriptor to a socket
+with an address in the privileged port space.
+The
+.Fn ruserok
+function is used by servers
+to authenticate clients requesting service with
+.Fn rcmd .
+.Pp
+The
+.Fn rcmd
+function looks up the host
+.Fa *ahost
+using
+.Xr getaddrinfo 3
+and, if the host exists,
+.Fa *ahost
+is set to the canonical name of the host.
+A connection is then established to a server
+residing at the well-known Internet port
+.Fa inport .
+If the user is not the superuser, the only valid port is
+.Dq shell/tcp
+(usually port 514).
+.Pp
+If the connection succeeds,
+a socket in the Internet domain of type
+.Dv SOCK_STREAM
+is returned to the caller, and given to the remote
+command as stdin and stdout.
+If
+.Fa fd2p
+is non-zero, then an auxiliary channel to a control
+process will be set up, and a descriptor for it will be placed
+in
+.Fa *fd2p .
+The control process will return diagnostic
+output from the command (unit 2) on this channel, and will also
+accept bytes on this channel as being
+.Tn UNIX
+signal numbers, to be
+forwarded to the process group of the command.
+If
+.Fa fd2p
+is
+.Va NULL ,
+then the standard error (unit 2 of the remote command) will be made
+the same as the standard output and no provision is made for sending
+arbitrary signals to the remote process, although you may be able to
+get its attention by using out-of-band data.
+Note that if the user is not the superuser,
+.Fa fd2p
+must be
+.Va NULL .
+.Pp
+.Fn rcmd_af
+takes address family in the last argument.
+If the last argument is
+.Dv AF_UNSPEC ,
+interpretation of
+.Fa *ahost
+will obey the underlying address resolution like DNS.
+.Pp
+The
+.Fn rresvport
+and
+.Fn rresvport_af
+functions are used to obtain a socket with a privileged
+address bound to it.
+This socket is suitable for use by
+.Fn rcmd
+and several other functions.
+Privileged Internet ports are those in the range 0 to
+.Va IPPORT_RESERVED - 1 ,
+which happens to be 1023.
+Only the superuser is allowed to bind an address of this sort to a socket.
+.Fn rresvport
+and
+.Fn rresvport_af
+need to be seeded with a port number; if that port
+is not available these functions will find another.
+.Pp
+The
+.Fn ruserok
+function takes a remote host's name, two user names,
+and a flag indicating whether the local user's
+name is that of the superuser.
+Then, if the user is
+.Em not
+the superuser, it checks the
+.Pa /etc/hosts.equiv
+file.
+If that lookup is not done, or is unsuccessful, the
+.Pa .rhosts
+in the local user's home directory is checked to see if the request for
+service is allowed.
+.Pp
+If this file does not exist, is not a regular file, is owned by anyone
+other than the user or the superuser, or is writeable by anyone other
+than the owner, the check automatically fails.
+Zero is returned if the machine name is listed in the
+.Pa hosts.equiv
+file, or the host and remote user name are found in the
+.Pa .rhosts
+file; otherwise
+.Fn ruserok
+returns \-1.
+If the local domain (as obtained from
+.Xr getaddrinfo 3 )
+is the same as the remote domain, only the machine name need be specified.
+.Pp
+.Fn ruserok
+implicitly requires trusting the DNS server for the remote host's domain.
+.Sh DIAGNOSTICS
+The
+.Fn rcmd
+function returns a valid socket descriptor on success.
+It returns \-1 on error and prints a diagnostic message on the standard error.
+.Pp
+The
+.Fn rresvport
+and
+.Fn rresvport_af
+functions return a valid, bound socket descriptor on success.
+It returns \-1 on error with the global value
+.Va errno
+set according to the reason for failure.
+The error code
+.Er EAGAIN
+is overloaded to mean
+.Dq all network ports in use .
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr intro 2 ,
+.Xr bindresvport 3 ,
+.Xr bindresvport_sa 3 ,
+.Xr rcmdsh 3
+.Sh HISTORY
+These
+functions appeared in
+.Bx 4.2 .
+.Pp
+The
+.Fn iruserok
+and
+.Fn iruserok_sa
+functions, IP address based versions of
+.Fn ruserok ,
+were removed in
+.Ox 6.0 .

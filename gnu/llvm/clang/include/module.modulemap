@@ -1,0 +1,209 @@
+module Clang_C {
+  umbrella "clang-c"
+  module * { export * }
+}
+
+module Clang_Analysis {
+  requires cplusplus
+  umbrella "clang/Analysis"
+
+  textual header "clang/Analysis/Analyses/ThreadSafetyOps.def"
+
+  module * { export * }
+
+  // FIXME: Exclude these headers to avoid pulling all of the AST matchers
+  // library into clang. Due to inline key functions in the headers,
+  // importing the AST matchers library gives a link dependency on the AST
+  // matchers (and thus the AST), which clang-format should not have.
+  exclude header "clang/Analysis/Analyses/ExprMutationAnalyzer.h"
+}
+
+module Clang_AST {
+  requires cplusplus
+  umbrella "clang/AST"
+
+  textual header "clang/AST/BuiltinTypes.def"
+  textual header "clang/AST/CXXRecordDeclDefinitionBits.def"
+  textual header "clang/AST/OperationKinds.def"
+  textual header "clang/AST/TypeLocNodes.def"
+
+  module * { export * }
+}
+
+module Clang_ASTMatchers { requires cplusplus umbrella "clang/ASTMatchers" module * { export * } }
+
+module Clang_Basic {
+  requires cplusplus
+  umbrella "clang/Basic"
+
+  textual header "clang/Basic/AArch64SVEACLETypes.def"
+  textual header "clang/Basic/AMDGPUTypes.def"
+  textual header "clang/Basic/BuiltinHeaders.def"
+  textual header "clang/Basic/BuiltinsAArch64.def"
+  textual header "clang/Basic/BuiltinsAArch64NeonSVEBridge.def"
+  textual header "clang/Basic/BuiltinsAArch64NeonSVEBridge_cg.def"
+  textual header "clang/Basic/BuiltinsAMDGPU.def"
+  textual header "clang/Basic/BuiltinsARM.def"
+  textual header "clang/Basic/BuiltinsHexagon.def"
+  textual header "clang/Basic/BuiltinsHexagonDep.def"
+  textual header "clang/Basic/BuiltinsHexagonMapCustomDep.def"
+  textual header "clang/Basic/BuiltinsLoongArch.def"
+  textual header "clang/Basic/BuiltinsLoongArchBase.def"
+  textual header "clang/Basic/BuiltinsLoongArchLASX.def"
+  textual header "clang/Basic/BuiltinsLoongArchLSX.def"
+  textual header "clang/Basic/BuiltinsMips.def"
+  textual header "clang/Basic/BuiltinsNEON.def"
+  textual header "clang/Basic/BuiltinsNVPTX.def"
+  textual header "clang/Basic/BuiltinsPPC.def"
+  textual header "clang/Basic/BuiltinsRISCVVector.def"
+  textual header "clang/Basic/BuiltinsSME.def"
+  textual header "clang/Basic/BuiltinsSVE.def"
+  textual header "clang/Basic/BuiltinsSystemZ.def"
+  textual header "clang/Basic/BuiltinsVE.def"
+  textual header "clang/Basic/BuiltinsVEVL.gen.def"
+  textual header "clang/Basic/BuiltinsWebAssembly.def"
+  textual header "clang/Basic/BuiltinsX86.def"
+  textual header "clang/Basic/BuiltinsX86_64.def"
+  textual header "clang/Basic/BuiltinsXCore.def"
+  textual header "clang/Basic/CodeGenOptions.def"
+  textual header "clang/Basic/DebugOptions.def"
+  textual header "clang/Basic/DiagnosticOptions.def"
+  textual header "clang/Basic/FPOptions.def"
+  textual header "clang/Basic/Features.def"
+  textual header "clang/Basic/LangOptions.def"
+  textual header "clang/Basic/MSP430Target.def"
+  textual header "clang/Basic/OpenACCClauses.def"
+  textual header "clang/Basic/OpenCLExtensionTypes.def"
+  textual header "clang/Basic/OpenCLExtensions.def"
+  textual header "clang/Basic/OpenCLImageTypes.def"
+  textual header "clang/Basic/OpenMPKinds.def"
+  textual header "clang/Basic/OperatorKinds.def"
+  textual header "clang/Basic/PPCTypes.def"
+  textual header "clang/Basic/RISCVVTypes.def"
+  textual header "clang/Basic/Sanitizers.def"
+  textual header "clang/Basic/TargetCXXABI.def"
+  textual header "clang/Basic/TargetOSMacros.def"
+  textual header "clang/Basic/TokenKinds.def"
+  textual header "clang/Basic/TransformTypeTraits.def"
+  textual header "clang/Basic/WebAssemblyReferenceTypes.def"
+
+  module * { export * }
+}
+module Clang_Basic_TokenKinds {
+  requires cplusplus
+
+  header "clang/Basic/TokenKinds.h"
+  textual header "clang/Basic/TokenKinds.def"
+
+  export *
+}
+
+module Clang_CodeGen { requires cplusplus umbrella "clang/CodeGen" module * { export * } }
+module Clang_Config { requires cplusplus umbrella "clang/Config" module * { export * } }
+
+// Files for diagnostic groups are spread all over the include/clang/ tree, but
+// logically form a single module.
+module Clang_Diagnostics {
+  requires cplusplus
+
+  module All { header "clang/Basic/AllDiagnostics.h" export * }
+  module Analysis { textual header "clang/Analysis/Analyses/UnsafeBufferUsageGadgets.def" }
+  module AST { header "clang/AST/ASTDiagnostic.h" export * }
+  module Comment { header "clang/AST/CommentDiagnostic.h" export * }
+  module Driver { header "clang/Driver/DriverDiagnostic.h" export * }
+  module Frontend { header "clang/Frontend/FrontendDiagnostic.h" export * }
+  module Lex { header "clang/Lex/LexDiagnostic.h" export * }
+  module Parse { header "clang/Parse/ParseDiagnostic.h" export * }
+  module Sema { header "clang/Sema/SemaDiagnostic.h" export * }
+  module Serialization { header "clang/Serialization/SerializationDiagnostic.h" export * }
+  module Refactoring { header "clang/Tooling/Refactoring/RefactoringDiagnostic.h" export * }
+}
+
+module Clang_Driver {
+  requires cplusplus
+  umbrella "clang/Driver"
+
+  textual header "clang/Driver/Types.def"
+
+  module * { export * }
+}
+
+module Clang_Edit { requires cplusplus umbrella "clang/Edit" module * { export * } }
+module Clang_Format { requires cplusplus umbrella "clang/Format" module * { export * } }
+
+module Clang_Frontend {
+  requires cplusplus
+  umbrella "clang/Frontend"
+
+  textual header "clang/Basic/LangStandards.def"
+
+  module * { export * }
+}
+
+module Clang_FrontendTool { requires cplusplus umbrella "clang/FrontendTool" module * { export * } }
+module Clang_Index { requires cplusplus umbrella "clang/Index" module * { export * } }
+module Clang_Lex { requires cplusplus umbrella "clang/Lex" module * { export * } }
+module Clang_Parse { requires cplusplus umbrella "clang/Parse" module * { export * } }
+module Clang_Rewrite { requires cplusplus umbrella "clang/Rewrite/Core" module * { export * } }
+module Clang_RewriteFrontend { requires cplusplus umbrella "clang/Rewrite/Frontend" module * { export * } }
+module Clang_Sema { requires cplusplus umbrella "clang/Sema" module * { export * } }
+
+module Clang_Serialization {
+  requires cplusplus
+  umbrella "clang/Serialization"
+
+  textual header "clang/Serialization/TypeBitCodes.def"
+
+  module * { export * }
+}
+
+module Clang_StaticAnalyzer_Core {
+  requires cplusplus
+  umbrella "clang/StaticAnalyzer/Core"
+
+  textual header "clang/StaticAnalyzer/Core/Analyses.def"
+  textual header "clang/StaticAnalyzer/Core/AnalyzerOptions.def"
+  textual header "clang/StaticAnalyzer/Core/PathSensitive/SVals.def"
+  textual header "clang/StaticAnalyzer/Core/PathSensitive/Symbols.def"
+  textual header "clang/StaticAnalyzer/Core/PathSensitive/Regions.def"
+
+  module * { export * }
+}
+
+module Clang_StaticAnalyzer_Checkers {
+  requires cplusplus
+  umbrella "clang/StaticAnalyzer/Checkers"
+  module * { export * }
+}
+
+module Clang_StaticAnalyzer_Frontend {
+  requires cplusplus
+  umbrella "clang/StaticAnalyzer/Frontend"
+  module * { export * }
+}
+
+module Clang_Testing {
+  requires cplusplus
+  umbrella "clang/Testing"
+  module * { export * }
+}
+
+module Clang_Tooling {
+  requires cplusplus umbrella "clang/Tooling" module * { export * }
+  // FIXME: Exclude these headers to avoid pulling all of the AST matchers
+  // library into clang-format. Due to inline key functions in the headers,
+  // importing the AST matchers library gives a link dependency on the AST
+  // matchers (and thus the AST), which clang-format should not have.
+  exclude header "clang/Tooling/RefactoringCallbacks.h"
+}
+
+module Clang_ToolingCore {
+  requires cplusplus
+  umbrella "clang/Tooling/Core" module * { export * }
+}
+
+module Clang_ToolingInclusions {
+  requires cplusplus
+  umbrella "clang/Tooling/Inclusions"
+  module * { export * }
+}

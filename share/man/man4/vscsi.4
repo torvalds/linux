@@ -1,0 +1,126 @@
+.\"	$OpenBSD: vscsi.4,v 1.14 2017/09/12 15:06:20 schwarze Exp $
+.\"
+.\" Copyright (c) 2008 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 12 2017 $
+.Dt VSCSI 4
+.Os
+.Sh NAME
+.Nm vscsi
+.Nd virtual SCSI controller
+.Sh SYNOPSIS
+.Cd "vscsi0 at root"
+.Pp
+.In sys/types.h
+.In sys/ioctl.h
+.In scsi/scsi_all.h
+.In dev/vscsivar.h
+.Sh DESCRIPTION
+The
+.Nm
+device takes commands from the kernel SCSI midlayer and makes them available
+to userland for handling.
+Using this interface it is possible to implement virtual SCSI devices that are
+usable by the kernel.
+.Pp
+The following
+.Xr ioctl 2
+commands are provided to allow userland to dequeue SCSI commands and reply to
+them:
+.Pp
+.Bl -tag -width Ds -compact
+.It Dv VSCSI_I2T Fa "struct vscsi_ioc_i2t *"
+Dequeue a SCSI command.
+If no SCSI commands are available to dequeue,
+.Xr ioctl 2
+will fail and set
+.Va errno
+to
+.Dv EAGAIN .
+.Pp
+When one or more SCSI commands are available to dequeue,
+.Xr select 2
+will indicate the descriptor as ready to read.
+.Bd -literal -offset indent
+struct vscsi_ioc_i2t {
+	int			tag;
+
+	u_int			target;
+	u_int			lun;
+
+	struct scsi_generic	cmd;
+	size_t			cmdlen;
+
+	size_t			datalen;
+	int			direction;
+#define VSCSI_DIR_NONE		0
+#define VSCSI_DIR_READ		1
+#define VSCSI_DIR_WRITE		2
+};
+.Ed
+.Pp
+.It Dv VSCSI_DATA_READ Fa "struct vscsi_ioc_data *"
+.It Dv VSCSI_DATA_WRITE Fa "struct vscsi_ioc_data *"
+Read or write data in response to a SCSI command identified by tag.
+.Bd -literal -offset indent
+struct vscsi_ioc_data {
+	int			tag;
+
+	void *			data;
+	size_t			datalen;
+};
+.Ed
+.Pp
+.It Dv VSCSI_T2I Fa "struct vscsi_ioc_t2i *"
+Signal completion of a SCSI command identified by tag.
+.Bd -literal -offset indent
+struct vscsi_ioc_t2i {
+	int			tag;
+
+	int			status;
+#define VSCSI_STAT_DONE		0
+#define VSCSI_STAT_SENSE	1
+#define VSCSI_STAT_RESET	2
+#define VSCSI_STAT_ERR		3
+	struct scsi_sense_data	sense;
+};
+.Ed
+.Pp
+.It Dv VSCSI_REQPROBE Fa "struct vscsi_ioc_devevent *"
+.It Dv VSCSI_REQDETACH Fa "struct vscsi_ioc_devevent *"
+Request a probe or a detach of the device at the addresses specified by the
+target and lun fields.
+.Bd -literal -offset indent
+struct vscsi_ioc_devevent {
+	u_int			target;
+	u_int			lun;
+};
+.Ed
+.El
+.Sh FILES
+.Bl -tag -width /dev/vscsi0
+.It /dev/vscsi0
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr intro 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.5 .
+.Sh AUTHORS
+.An David Gwynne Aq Mt dlg@openbsd.org .

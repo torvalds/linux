@@ -1,0 +1,326 @@
+.\"	$OpenBSD: namei.9,v 1.23 2023/07/15 23:01:25 kn Exp $
+.\"     $NetBSD: namei.9,v 1.9 2003/05/06 10:46:44 jmmv Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Gregory McGarry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 15 2023 $
+.Dt NAMEI 9
+.Os
+.Sh NAME
+.Nm namei ,
+.Nm vfs_lookup ,
+.Nm vfs_relookup ,
+.Nm NDINIT ,
+.Nm NDINITAT
+.Nd pathname lookup
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/namei.h
+.Ft int
+.Fn namei "struct nameidata *ndp"
+.Ft int
+.Fn vfs_lookup "struct nameidata *ndp"
+.Ft int
+.Fn vfs_relookup "struct vnode *dvp" "struct vnode **vpp" \
+"struct componentname *cnp"
+.Ft void
+.Fn NDINIT "struct nameidata *ndp" "u_long op" "u_long flags" \
+"enum uio_seg segflg" "const char *namep" "struct proc *p"
+.Ft void
+.Fn NDINITAT "struct nameidata *ndp" "u_long op" "u_long flags" \
+"enum uio_seg segflg" "int dirfd" "const char *namep" "struct proc *p"
+.Sh DESCRIPTION
+The
+.Fn namei
+function converts a pathname to a
+.Xr vnode 9 .
+It uses the following structure:
+.Bd -literal
+struct nameidata {
+        /*
+         * Arguments to namei/lookup.
+         */
+        const char *ni_dirp;            /* pathname pointer */
+        int     ni_dirfd;               /* AT_FDCWD or fd of base of */
+					/* relative paths */
+        enum    uio_seg ni_segflg;      /* location of pathname */
+        /*
+         * Arguments to lookup.
+         */
+        struct  vnode *ni_startdir;     /* starting directory */
+        struct  vnode *ni_rootdir;      /* logical root directory */
+        uint64_t ni_pledge;             /* expected pledge for namei */
+        u_char ni_unveil;               /* required unveil flags for namei */
+        /*
+         * Results: returned from/manipulated by lookup
+         */
+        struct  vnode *ni_vp;           /* vnode of result */
+        struct  vnode *ni_dvp;          /* vnode of intermediate dir */
+        /*
+         * Shared between namei and lookup/commit routines.
+         */
+        size_t  ni_pathlen;             /* remaining chars in path */
+        char *ni_next;                  /* next location in pathname */
+        u_long  ni_loopcnt;             /* count of symlinks encountered */
+        struct unveil *ni_unveil_match; /* last matching unveil component */
+        /*
+         * Lookup parameters
+         */
+        struct componentname ni_cnd;
+};
+.Ed
+.Pp
+The
+.Fn namei
+function accesses vnode operations by passing arguments in the
+partially initialised
+.Em componentname
+structure
+.Em ni_cnd .
+This structure describes the subset of information from the nameidata
+structure that is passed through to the vnode operations.
+See
+.Xr VOP_LOOKUP 9
+for more information.
+The details of the componentname structure are not absolutely necessary
+since the members are initialised by the helper macros
+.Fn NDINIT
+and
+.Fn NDINITAT .
+It is useful to know the operations and flags as specified in
+.Xr VOP_LOOKUP 9 .
+.Pp
+The
+.Fn namei
+function overloads
+.Em ni_cnd.cn_flags
+with some additional flags.
+These flags should be specific to
+.Fn namei
+and ignored by vnode operations.
+However, due to the historic close relationship between
+.Fn namei
+and the vnode operations, these flags are sometimes used
+(and set) by vnode operations, particularly
+.Fn VOP_LOOKUP .
+The additional flags are:
+.Pp
+.Bl -tag -offset indent -width NOCROSSMOUNT -compact
+.It NOCROSSMOUNT
+do not cross mount points
+.It RDONLY
+lookup with read-only semantics
+.It HASBUF
+caller has allocated pathname buffer
+.Em ni_cnd.cn_pnbuf
+.It SAVENAME
+save pathname buffer
+.It SAVESTART
+save starting directory
+.It ISDOTDOT
+current pathname component is ..
+.It MAKEENTRY
+add entry to the name cache
+.It ISLASTCN
+this is last component of pathname
+.It ISSYMLINK
+symlink needs interpretation
+.It REALPATH
+save pathname buffer for realpath
+.It REQUIREDIR
+must be a directory
+.It STRIPSLASHES
+strip trailing slashes from the pathname
+.It PDIRUNLOCK
+.Fn VOP_LOOKUP
+unlocked parent dir
+.It BYPASSUNVEIL
+bypass pledge paths checks
+.It KERNELPATH
+access file as kernel, not process
+.El
+.Pp
+If the caller of
+.Fn namei
+sets the SAVENAME flag, then it must free the buffer.
+If
+.Fn VOP_LOOKUP
+sets the flag, then the buffer must be freed by either the commit
+routine or the
+.Fn VOP_ABORT
+routine.
+The SAVESTART flag is set only by the callers of
+.Fn namei .
+It implies SAVENAME plus the addition of saving the parent directory
+that contains the name in
+.Em ni_startdir .
+It allows repeated calls to
+.Fn vfs_lookup
+for the name being sought.
+The caller is responsible for releasing the buffer and for invoking
+.Fn vrele
+on
+.Em ni_startdir .
+.Pp
+All access to
+.Fn namei ,
+.Fn vfs_lookup ,
+and
+.Fn vfs_relookup
+must be in process context.
+Pathname lookups cannot be done in interrupt context.
+.Sh FUNCTIONS
+.Bl -tag -width compact
+.It Fn namei "ndp"
+Convert a pathname into a pointer to a vnode.
+The pathname is specified by
+.Em ndp-\*[Gt]ni_dirp
+and is of length
+.Em ndp-\*[Gt]ni_pathlen .
+The
+.Em ndp-\*[Gt]segflg
+flag defines whether the name in
+.Em ndp-\*[Gt]ni_dirp
+is an address in kernel space (UIO_SYSSPACE) or an address in user
+space (UIO_USERSPACE).
+The vnode for the pathname is referenced and returned in
+.Em ndp-\*[Gt]ni_vp .
+.Pp
+If
+.Em ndp-\*[Gt]ni_cnd.cn_flags
+has the FOLLOW flag set then symbolic links are followed when they
+occur at the end of the name translation process.
+Symbolic links are always followed for all other pathname components
+other than the last.
+.Pp
+If the LOCKLEAF flag is set, a locked vnode is returned.
+.It Fn vfs_lookup "ndp"
+Search for a pathname.
+This is a very central and rather complicated routine.
+.Pp
+The pathname is specified by
+.Em ndp-\*[Gt]ni_dirp
+and is of length
+.Em ndp-\*[Gt]ni_pathlen .
+The starting directory is taken from
+.Em ndp-\*[Gt]ni_startdir .
+The pathname is descended until done, or a symbolic link is
+encountered.
+.Pp
+The semantics of
+.Fn vfs_lookup
+are altered by the operation specified by
+.Em ndp-\*[Gt]ni_cnd.cn_nameiop .
+When CREATE, RENAME, or DELETE is specified, information usable in
+creating, renaming, or deleting a directory entry may be calculated.
+.Pp
+If
+.Em ndp-\*[Gt]ci_cnd.cn_flags
+has LOCKPARENT set, the parent directory is returned locked in
+.Em ndp-\*[Gt]ni_dvp .
+If WANTPARENT is set, the parent directory is returned unlocked.
+Otherwise the parent directory is not returned.
+If the target of the pathname exists and LOCKLEAF is set, the target
+is returned locked in
+.Em ndp-\*[Gt]ni_vp ,
+otherwise it is returned unlocked.
+.It Fn vfs_relookup "dvp" "vpp" "cnp"
+Reacquire a path name component in a directory.
+This is a quicker way to lookup a pathname component when the parent
+directory is known.
+The unlocked parent directory vnode is specified by
+.Fa dvp
+and the pathname component by
+.Fa cnp .
+The vnode of the pathname is returned in the address specified by
+.Fa vpp .
+.It Fn NDINITAT "ndp" "op" "flags" "segflg" "dirfd" "namep" "p"
+Initialise a nameidata structure pointed to by
+.Fa ndp
+for use by the
+.Nm
+interfaces.
+It saves having to deal with the componentname structure inside
+.Fa ndp .
+The operation and flags are specified by
+.Fa op
+and
+.Fa flags
+respectively.
+These are the values to which
+.Em ndp-\*[Gt]ni_cnd.cn_nameiop
+and
+.Em ndp-\*[Gt]ni_cnd.cn_flags
+are respectively set.
+The segment flag, which defines whether the pathname is in kernel
+address space or user address space, is specified by
+.Fa segflg .
+The directory from which relative pathnames will be looked up is
+specified by
+.Fa dirfd ,
+with
+.Dv AT_FDCWD
+specifying use of the current working directory of process
+.Fa p .
+The argument
+.Fa namep
+is a pointer to the pathname that
+.Em ndp-\*[Gt]ni_dirp
+is set to and
+.Fa p
+is the calling process.
+.It Fn NDINIT "ndp" "op" "flags" "segflg" "namep" "p"
+Same as
+.Fn NDINITAT "ndp" "op" "flags" "segflg" \fRAT_FDCWD\fP "namep" "p" .
+.El
+.Sh CODE REFERENCES
+The name lookup subsystem is implemented within the file
+.Pa sys/kern/vfs_lookup.c .
+.Sh SEE ALSO
+.Xr intro 9 ,
+.\" .Xr namecache 9 ,
+.Xr vfs 9 ,
+.Xr vnode 9 ,
+.Xr VOP_LOOKUP 9
+.Sh HISTORY
+The
+.Fn namei
+function first appeared in
+.At v4 .
+Its name is an abbreviation for the name-to-inode conversion
+which it performed before the appearance of
+.Xr vfs 9
+in
+.Bx 4.3 Reno .
+.Sh BUGS
+It is unfortunate that much of the
+.Nm
+interface makes assumptions on the underlying vnode operations.
+These assumptions are an artefact of the introduction of the vfs
+interface to split a file system interface which was historically
+designed as a tightly coupled module.

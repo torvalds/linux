@@ -1,0 +1,9 @@
+# This file is only needed by AIX 3.1.
+HDEFINES = -D__IEEE_BIG_ENDIAN
+
+# Most releases of AIX 3.1 include an incorrect internal version of copysign
+# in libc.a for use by some libc public functions including modf.  The public
+# version of copysign in libm.a is usable.  For the sake of libg++ (which
+# uses modf), we add copysign here.  Supposedly, this problem is fixed in AIX
+# 3.1.8 and above, including all releases of AIX 3.2.
+EXTRA_OFILES = copysign.o

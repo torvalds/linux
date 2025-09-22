@@ -1,0 +1,363 @@
+.\" $OpenBSD: d2i_X509.3,v 1.12 2025/06/08 22:40:30 schwarze Exp $
+.\" OpenSSL d2i_X509.pod checked up to:
+.\" 256989ce4 Jun 19 15:00:32 2020 +0200
+.\" OpenSSL i2d_re_X509_tbs.pod checked up to:
+.\" 61f805c1 Jan 16 01:01:46 2018 +0800
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original files were written by Dr. Stephen Henson <steve@openssl.org>,
+.\" Emilia Kasper <emilia@openssl.org>, Viktor Dukhovni <viktor@openssl.org>,
+.\" and Rich Salz <rsalz@openssl.org>.
+.\" Copyright (c) 2002, 2014, 2016 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_X509 3
+.Os
+.Sh NAME
+.Nm d2i_X509 ,
+.Nm i2d_X509 ,
+.Nm d2i_X509_bio ,
+.Nm d2i_X509_fp ,
+.Nm i2d_X509_bio ,
+.Nm i2d_X509_fp ,
+.Nm d2i_X509_AUX ,
+.Nm i2d_X509_AUX ,
+.Nm d2i_X509_CERT_AUX ,
+.Nm i2d_X509_CERT_AUX ,
+.Nm d2i_X509_CINF ,
+.Nm i2d_X509_CINF ,
+.Nm d2i_X509_VAL ,
+.Nm i2d_X509_VAL ,
+.Nm i2d_re_X509_tbs ,
+.Nm i2d_re_X509_CRL_tbs ,
+.Nm i2d_re_X509_REQ_tbs
+.Nd decode and encode X.509 certificates
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509 *
+.Fo d2i_X509
+.Fa "X509 **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509
+.Fa "X509 *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft X509 *
+.Fo d2i_X509_bio
+.Fa "BIO *in_bio"
+.Fa "X509 **val_out"
+.Fc
+.Ft X509 *
+.Fo d2i_X509_fp
+.Fa "FILE *in_fp"
+.Fa "X509 **val_out"
+.Fc
+.Ft int
+.Fo i2d_X509_bio
+.Fa "BIO *out_bio"
+.Fa "X509 *val_in"
+.Fc
+.Ft int
+.Fo i2d_X509_fp
+.Fa "FILE *out_fp"
+.Fa "X509 *val_in"
+.Fc
+.Ft X509 *
+.Fo d2i_X509_AUX
+.Fa "X509 **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_AUX
+.Fa "X509 *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft X509_CERT_AUX *
+.Fo d2i_X509_CERT_AUX
+.Fa "X509_CERT_AUX **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_CERT_AUX
+.Fa "X509_CERT_AUX *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft X509_CINF *
+.Fo d2i_X509_CINF
+.Fa "X509_CINF **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_CINF
+.Fa "X509_CINF *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft X509_VAL *
+.Fo d2i_X509_VAL
+.Fa "X509_VAL **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_VAL
+.Fa "X509_VAL *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft int
+.Fo i2d_re_X509_tbs
+.Fa "X509 *x"
+.Fa "unsigned char **out"
+.Fc
+.Ft int
+.Fo i2d_re_X509_CRL_tbs
+.Fa "X509_CRL *crl"
+.Fa "unsigned char **pp"
+.Fc
+.Ft int
+.Fo i2d_re_X509_REQ_tbs
+.Fa "X509_REQ *req"
+.Fa "unsigned char **pp"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode X.509 certificates
+and some of their substructures.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_X509
+and
+.Fn i2d_X509
+decode and encode an ASN.1
+.Vt Certificate
+structure defined in RFC 5280 section 4.1.
+.Pp
+.Fn d2i_X509_bio ,
+.Fn d2i_X509_fp ,
+.Fn i2d_X509_bio ,
+and
+.Fn i2d_X509_fp
+are similar except that they decode or encode using a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn d2i_X509_AUX
+is similar to
+.Fn d2i_X509 ,
+but the input is expected to consist of an X.509 certificate followed
+by auxiliary trust information.
+This is used by the PEM routines to read TRUSTED CERTIFICATE objects.
+This function should not be called on untrusted input.
+.Pp
+.Fn i2d_X509_AUX
+is similar to
+.Fn i2d_X509 ,
+but the encoded output contains both the certificate and any auxiliary
+trust information.
+This is used by the PEM routines to write TRUSTED CERTIFICATE objects.
+Note that this is a non-standard OpenSSL-specific data format.
+.Pp
+.Fn d2i_X509_CERT_AUX
+and
+.Fn i2d_X509_CERT_AUX
+decode and encode optional non-standard auxiliary data appended to
+a certificate, for example friendly alias names and trust data.
+.Pp
+.Fn d2i_X509_CINF
+and
+.Fn i2d_X509_CINF
+decode and encode an ASN.1
+.Vt TBSCertificate
+structure defined in RFC 5280 section 4.1.
+.Pp
+.Fn d2i_X509_VAL
+and
+.Fn i2d_X509_VAL
+decode and encode an ASN.1
+.Vt Validity
+structure defined in RFC 5280 section 4.1.
+.Pp
+.Fn i2d_re_X509_tbs
+is similar to
+.Fn i2d_X509 ,
+except it encodes only the TBSCertificate portion of the certificate.
+.Fn i2d_re_X509_CRL_tbs
+and
+.Fn i2d_re_X509_REQ_tbs
+are analogous for CRL and certificate request, respectively.
+The "re" in
+.Fn i2d_re_X509_tbs
+stands for "re-encode", and ensures that a fresh encoding is generated
+in case the object has been modified after creation.
+.Pp
+The encoding of the TBSCertificate portion of a certificate is cached in
+the
+.Vt X509
+structure internally to improve encoding performance and to ensure
+certificate signatures are verified correctly in some certificates with
+broken (non-DER) encodings.
+.Pp
+If, after modification, the
+.Vt X509
+object is re-signed with
+.Xr X509_sign 3 ,
+the encoding is automatically renewed.
+Otherwise, the encoding of the TBSCertificate portion of the
+.Vt X509
+can be manually renewed by calling
+.Fn i2d_re_X509_tbs .
+.Sh RETURN VALUES
+.Fn d2i_X509 ,
+.Fn d2i_X509_bio ,
+.Fn d2i_X509_fp ,
+and
+.Fn d2i_X509_AUX
+return a valid
+.Vt X509
+structure or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn d2i_X509_CERT_AUX ,
+.Fn d2i_X509_CINF ,
+and
+.Fn d2i_X509_VAL
+return an
+.Vt X509_CERT_AUX ,
+.Vt X509_CINF ,
+or
+.Vt X509_VAL
+object, respectively, or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_X509 ,
+.Fn i2d_X509_AUX ,
+.Fn i2d_X509_CERT_AUX ,
+.Fn i2d_X509_CINF ,
+and
+.Fn i2d_X509_VAL
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Pp
+.Fn i2d_X509_bio
+and
+.Fn i2d_X509_fp
+return 1 for success or 0 if an error occurs.
+.Pp
+.Fn i2d_re_X509_tbs ,
+.Fn i2d_re_X509_CRL_tbs ,
+and
+.Fn i2d_re_X509_REQ_tbs
+return the number of bytes successfully encoded or 0 if an error occurs.
+.Pp
+For all functions, the error code can be obtained by
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr X509_CINF_new 3 ,
+.Xr X509_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Sh HISTORY
+.Fn d2i_X509 ,
+.Fn i2d_X509 ,
+.Fn d2i_X509_fp ,
+.Fn i2d_X509_fp ,
+.Fn d2i_X509_CINF ,
+.Fn i2d_X509_CINF ,
+.Fn d2i_X509_VAL ,
+and
+.Fn i2d_X509_VAL
+first appeared in SSLeay 0.5.1.
+.Fn d2i_X509_bio
+and
+.Fn i2d_X509_bio
+first appeared in SSLeay 0.6.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn d2i_X509_AUX ,
+.Fn i2d_X509_AUX ,
+.Fn d2i_X509_CERT_AUX ,
+and
+.Fn i2d_X509_CERT_AUX
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Pp
+.Fn i2d_re_X509_tbs ,
+.Fn i2d_re_X509_CRL_tbs ,
+and
+.Fn i2d_re_X509_REQ_tbs
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 7.1 .

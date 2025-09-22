@@ -1,0 +1,46 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Prerequisites</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Usage Prerequisites</h1>
+
+    <p><tt>pb_ds</tt> has been successfully tested with the
+    following compilers:</p>
+
+    <ol>
+      <li>g++ 3.3.1, 3.4.4, 4.0, 4.1, and what will be 4.2</li>
+
+      <li>Intel icpc 8.1 and 9</li>
+
+      <li>Visual C++ .Net 2005</li>
+    </ol>
+
+    <p>The library contains only header files, and does not require
+    any other libraries except the STL. All classes are defined in
+    <tt><b>namespace</b> pb_ds</tt>. The library internally uses
+    macros beginning with <tt>PB_DS</tt> (<i>e.g.</i>, for header
+    guards), but <tt>#<b>undef</b></tt>s anything it
+    <tt>#<b>define</b></tt>s (except for header guards). Compiling
+    the library in an environment where macros beginning in
+    <tt>PB_DS</tt> are defined, may yield unpredictable results in
+    compilation, execution, or both.</p>
+
+    <p> Further dependencies are necessary to create the visual output
+    for the performance tests. To create these graphs, two additional
+    packages will be needed: <b>pychart</b> and <b>Beautiful
+    Soup</b>. Both are freely available.
+    </p>
+  </div>
+</body>
+</html>

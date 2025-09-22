@@ -1,0 +1,18 @@
+executable("clangd-xpc-test-client") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/clangd",
+    "//clang-tools-extra/clangd/xpc:conversions",
+    "//clang-tools-extra/clangd/xpc/framework:ClangdXPC.framework",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Sema",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Support",
+  ]
+
+  include_dirs = [ "../.." ]
+  sources = [ "ClangdXPCTestClient.cpp" ]
+}

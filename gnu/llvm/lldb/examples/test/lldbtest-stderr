@@ -1,0 +1,39 @@
+----------------------------------------------------------------------
+Collected 1 test
+
+
+Configuration: arch=x86_64 compiler=gcc
+test_persistent_variables (TestPersistentVariables.PersistentVariablesTestCase)
+Test that lldb persistent variables works correctly. ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1.397s
+
+OK
+
+Configuration: arch=x86_64 compiler=llvm-gcc
+test_persistent_variables (TestPersistentVariables.PersistentVariablesTestCase)
+Test that lldb persistent variables works correctly. ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1.282s
+
+OK
+
+Configuration: arch=i386 compiler=gcc
+test_persistent_variables (TestPersistentVariables.PersistentVariablesTestCase)
+Test that lldb persistent variables works correctly. ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1.297s
+
+OK
+
+Configuration: arch=i386 compiler=llvm-gcc
+test_persistent_variables (TestPersistentVariables.PersistentVariablesTestCase)
+Test that lldb persistent variables works correctly. ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1.269s
+
+OK

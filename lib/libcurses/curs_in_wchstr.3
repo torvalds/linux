@@ -1,0 +1,127 @@
+.\" $OpenBSD: curs_in_wchstr.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.\"***************************************************************************
+.\" Copyright 2018-2021,2022 Thomas E. Dickey                                *
+.\" Copyright 2002-2012,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_in_wchstr.3,v 1.2 2023/10/17 09:52:08 nicm Exp $
+.TH curs_in_wchstr 3 2022-02-12 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.na
+.hy 0
+.SH NAME
+\fBin_wchstr\fP,
+\fBin_wchnstr\fP,
+\fBwin_wchstr\fP,
+\fBwin_wchnstr\fP,
+\fBmvin_wchstr\fP,
+\fBmvin_wchnstr\fP,
+\fBmvwin_wchstr\fP,
+\fBmvwin_wchnstr\fP \- get an array of complex characters and renditions from a curses window
+.ad
+.hy
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>\fP
+.sp
+\fBint in_wchstr(cchar_t *\fIwchstr\fB);\fR
+.br
+\fBint in_wchnstr(cchar_t *\fIwchstr\fB, int \fIn\fB);\fR
+.br
+\fBint win_wchstr(WINDOW *\fIwin\fB, cchar_t *\fIwchstr\fB);\fR
+.br
+\fBint win_wchnstr(WINDOW *\fIwin\fB, cchar_t *\fIwchstr\fB, int \fIn\fB);\fR
+.sp
+\fBint mvin_wchstr(int \fIy\fB, int \fIx\fB, cchar_t *\fIwchstr\fB);\fR
+.br
+\fBint mvin_wchnstr(int \fIy\fB, int \fIx\fB, cchar_t *\fIwchstr\fB, int \fIn\fB);\fR
+.br
+\fBint mvwin_wchstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, cchar_t *\fIwchstr\fB);\fR
+.br
+\fBint mvwin_wchnstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, cchar_t *\fIwchstr\fR, int \fIn\fB);\fR
+.fi
+.SH DESCRIPTION
+These functions return an array of complex characters in \fIwchstr\fP,
+starting at the current cursor position in the named window.
+Attributes (rendition) are stored with the characters.
+.PP
+The
+\fBin_wchnstr\fP,
+\fBmvin_wchnstr\fP,
+\fBmvwin_wchnstr\fP
+and
+\fBwin_wchnstr\fP
+fill the array
+with at most
+\fIn\fP
+\fBcchar_t\fP
+elements.
+.br
+.SH NOTES
+Note that all routines except
+\fBwin_wchnstr\fP
+may be
+macros.
+.PP
+Reading a line that overflows the array pointed to by
+\fIwchstr\fP
+with
+\fBin_wchstr\fP,
+\fBmvin_wchstr\fP,
+\fBmvwin_wchstr\fP
+or
+\fBwin_wchstr\fP
+causes undefined results.
+Therefore, the use of
+\fBin_wchnstr\fP,
+\fBmvin_wchnstr\fP,
+\fBmvwin_wchnstr\fP, or
+\fBwin_wchnstr\fP
+is recommended.
+.SH RETURN VALUE
+Upon successful completion, these functions return
+\fBOK\fP.
+Otherwise, they return
+\fBERR\fP.
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH PORTABILITY
+The XSI Curses defines no error conditions.
+This implementation checks for null pointers,
+returning \fBERR\fP in that case.
+.SH SEE ALSO
+Functions:
+\fBcurses\fP(3),
+\fBcurs_in_wch\fP(3),
+\fBcurs_instr\fP(3),
+\fBcurs_inwstr\fP(3)
+\fBcurs_inchstr\fP(3)

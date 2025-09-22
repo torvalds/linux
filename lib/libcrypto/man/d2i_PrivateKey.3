@@ -1,0 +1,313 @@
+.\" $OpenBSD: d2i_PrivateKey.3,v 1.12 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to: OpenSSL b0edda11 Mar 20 13:00:17 2018 +0000
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2016, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_PRIVATEKEY 3
+.Os
+.Sh NAME
+.Nm d2i_PrivateKey ,
+.Nm d2i_AutoPrivateKey ,
+.Nm d2i_PrivateKey_bio ,
+.Nm d2i_PrivateKey_fp ,
+.Nm i2d_PrivateKey ,
+.Nm i2d_PrivateKey_bio ,
+.Nm i2d_PrivateKey_fp ,
+.Nm i2d_PKCS8PrivateKeyInfo_bio ,
+.Nm i2d_PKCS8PrivateKeyInfo_fp ,
+.Nm d2i_PublicKey ,
+.Nm i2d_PublicKey
+.Nd decode and encode EVP_PKEY objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft EVP_PKEY *
+.Fo d2i_PrivateKey
+.Fa "int type"
+.Fa "EVP_PKEY **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft EVP_PKEY *
+.Fo d2i_AutoPrivateKey
+.Fa "EVP_PKEY **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft EVP_PKEY *
+.Fo d2i_PrivateKey_bio
+.Fa "BIO *in_bio"
+.Fa "EVP_PKEY **val_out"
+.Fc
+.Ft EVP_PKEY *
+.Fo d2i_PrivateKey_fp
+.Fa "FILE *in_fp"
+.Fa "EVP_PKEY **val_out"
+.Fc
+.Ft int
+.Fo i2d_PrivateKey
+.Fa "EVP_PKEY *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft int
+.Fo i2d_PrivateKey_bio
+.Fa "BIO *out_bio"
+.Fa "EVP_PKEY *val_in"
+.Fc
+.Ft int
+.Fo i2d_PrivateKey_fp
+.Fa "FILE *out_fp"
+.Fa "EVP_PKEY *val_in"
+.Fc
+.Ft int
+.Fo i2d_PKCS8PrivateKeyInfo_bio
+.Fa "BIO *out_bio"
+.Fa "EVP_PKEY *val_in"
+.Fc
+.Ft int
+.Fo i2d_PKCS8PrivateKeyInfo_fp
+.Fa "FILE *out_fp"
+.Fa "EVP_PKEY *val_in"
+.Fc
+.Ft EVP_PKEY *
+.Fo d2i_PublicKey
+.Fa "int type"
+.Fa "EVP_PKEY **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_PublicKey
+.Fa "EVP_PKEY *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Sh DESCRIPTION
+These are algorithm-independent interfaces to decode and encode
+private and public keys.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_PrivateKey
+decodes a private key using algorithm
+.Fa type .
+It attempts to use any algorithm specific format or the PKCS#8 unencrypted
+.Vt PrivateKeyInfo
+format defined in RFC 5208 section 5.
+The
+.Fa type
+parameter should be a public key algorithm constant such as
+.Dv EVP_PKEY_RSA .
+An error occurs if the decoded key does not match
+.Fa type .
+.Pp
+.Fn d2i_AutoPrivateKey
+is similar to
+.Fn d2i_PrivateKey
+except that it attempts to automatically detect the algorithm.
+.Pp
+.Fn d2i_PrivateKey_bio
+and
+.Fn d2i_PrivateKey_fp
+are similar to
+.Fn d2i_PrivateKey
+except that they read from a
+.Vt BIO
+or
+.Vt FILE
+pointer.
+.Pp
+.Fn i2d_PrivateKey
+encodes
+.Fa val_in .
+It uses an algorithm specific format or, if none is defined for
+that key type, the PKCS#8 unencrypted
+.Vt PrivateKeyInfo
+format.
+.Pp
+.Fn i2d_PrivateKey_bio
+and
+.Fn i2d_PrivateKey_fp
+are similar to
+.Fn i2d_PrivateKey
+except that they write to a
+.Vt BIO
+or
+.Vt FILE
+pointer and use a different convention for their return values.
+.Pp
+.Fn i2d_PKCS8PrivateKeyInfo_bio
+and
+.Fn i2d_PKCS8PrivateKeyInfo_fp
+encode
+.Fa val_in
+in PKCS#8 unencrypted
+.Vt PrivateKeyInfo
+format.
+They are similar to
+.Fn i2d_PrivateKey
+except that they don't use any algorithm-specific formats
+and that they write to a
+.Vt BIO
+or
+.Vt FILE
+pointer rather than to a buffer.
+.Pp
+All these functions use DER format and unencrypted keys.
+Applications wishing to encrypt or decrypt private keys should use other
+functions such as
+.Xr d2i_PKCS8PrivateKey_bio 3
+instead.
+.Pp
+If
+.Pf * Fa val_out
+is not
+.Dv NULL
+when calling
+.Fn d2i_PrivateKey
+or
+.Fn d2i_AutoPrivateKey
+(i.e. an existing structure is being reused) and the key format is
+PKCS#8, then
+.Pf * Fa val_out
+will be freed and replaced on a successful call.
+.Pp
+.Fn d2i_PublicKey
+calls
+.Xr d2i_DSAPublicKey 3 ,
+.Xr o2i_ECPublicKey 3 ,
+or
+.Xr d2i_RSAPublicKey 3
+depending on
+.Fa type
+and stores the result in the returned
+.Vt EVP_PKEY
+object.
+.Pp
+.Fn i2d_PublicKey
+calls
+.Xr i2d_DSAPublicKey 3 ,
+.Xr i2o_ECPublicKey 3 ,
+or
+.Xr i2d_RSAPublicKey 3
+depending on the algorithm used by
+.Fa val_in .
+.Sh RETURN VALUES
+.Fn d2i_PrivateKey ,
+.Fn d2i_AutoPrivateKey ,
+.Fn d2i_PrivateKey_bio ,
+.Fn d2i_PrivateKey_fp ,
+and
+.Fn d2i_PublicKey
+return a valid
+.Vt EVP_PKEY
+structure or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_PrivateKey
+and
+.Fn i2d_PublicKey
+return the number of bytes successfully encoded or a negative value if
+an error occurs.
+.Pp
+.Fn i2d_PrivateKey_bio ,
+.Fn i2d_PrivateKey_fp ,
+.Fn i2d_PKCS8PrivateKeyInfo_bio ,
+and
+.Fn i2d_PKCS8PrivateKeyInfo_fp
+return 1 for success or 0 if an error occurs.
+.Pp
+For all functions, the error code can be obtained by calling
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr d2i_PKCS8_PRIV_KEY_INFO 3 ,
+.Xr d2i_PKCS8PrivateKey_bio 3 ,
+.Xr EVP_PKEY_new 3 ,
+.Xr EVP_PKEY_type 3 ,
+.Xr PEM_write_PrivateKey 3 ,
+.Xr PKCS8_PRIV_KEY_INFO_new 3
+.Sh STANDARDS
+RFC 5208: Public-Key Cryptography Standards (PKCS) #8: Private-Key
+Information Syntax Specification
+.Sh HISTORY
+.Fn d2i_PrivateKey ,
+.Fn i2d_PrivateKey ,
+.Fn d2i_PublicKey ,
+and
+.Fn i2d_PublicKey
+first appeared in SSLeay 0.6.0 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn d2i_AutoPrivateKey ,
+.Fn d2i_PrivateKey_bio ,
+.Fn d2i_PrivateKey_fp ,
+.Fn i2d_PrivateKey_bio ,
+.Fn i2d_PrivateKey_fp ,
+.Fn i2d_PKCS8PrivateKeyInfo_bio ,
+and
+.Fn i2d_PKCS8PrivateKeyInfo_fp
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .

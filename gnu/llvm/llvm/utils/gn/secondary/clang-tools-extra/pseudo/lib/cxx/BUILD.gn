@@ -1,0 +1,13 @@
+static_library("cxx") {
+  output_name = "clangPseudoCXX"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang-tools-extra/pseudo/lib/grammar",
+    "//llvm/lib/Support",
+  ]
+
+  # public_deps because this target's public headers include generated headers.
+  public_deps = [ "//clang-tools-extra/pseudo/include:cxx_gen" ]
+  include_dirs = [ "../../include" ]
+  sources = [ "CXX.cpp" ]
+}

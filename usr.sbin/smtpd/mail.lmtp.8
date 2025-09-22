@@ -1,0 +1,55 @@
+.\"	$OpenBSD: mail.lmtp.8,v 1.1 2017/02/14 15:16:34 gilles Exp $
+.\"
+.\" Copyright (c) 2017 Gilles Chehade <gilles@poolp.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: February 14 2017 $
+.Dt MAIL.LMTP 8
+.Os
+.Sh NAME
+.Nm mail.lmtp
+.Nd deliver mail through LMTP
+.Sh SYNOPSIS
+.Nm mail.lmtp
+.Op Fl d Ar destination
+.Op Fl f Ar from
+.Op Fl l Ar lhlo
+.Ar user ...
+.Sh DESCRIPTION
+.Nm
+reads the standard input up to an end-of-file and delivers it to
+an LMTP server for each
+.Ar user Ns 's
+address.
+The
+.Ar user
+must be a valid user name or email address.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d Ar destination
+Specify the destination LMTP address.
+.It Fl f Ar from
+Specify the sender's name or email address.
+.It Fl l Ar lhlo
+Specify the LHLO argument used in the LMTP session.
+By default,
+.Nm mail.lmtp
+will default to "localhost".
+.El
+.Sh EXIT STATUS
+.Ex -std mail.lmtp
+.Sh SEE ALSO
+.Xr mail 1 ,
+.Xr smtpd 8

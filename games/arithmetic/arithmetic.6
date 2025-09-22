@@ -1,0 +1,106 @@
+.\"	$OpenBSD: arithmetic.6,v 1.12 2015/09/12 16:10:25 schwarze Exp $
+.\"
+.\" Copyright (c) 1989, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Eamonn McManus of Trinity College Dublin.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)arithmetic.6	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: September 12 2015 $
+.Dt ARITHMETIC 6
+.Os
+.Sh NAME
+.Nm arithmetic
+.Nd quiz on simple arithmetic
+.Sh SYNOPSIS
+.Nm arithmetic
+.Op Fl o Cm +\-x/
+.Op Fl r Ar range
+.Sh DESCRIPTION
+.Nm
+asks you to solve problems in simple arithmetic.
+Each question must be answered correctly before going on to the next.
+After every 20 problems, it prints the score so far and the time taken.
+You can quit at any time by typing the interrupt or end-of-file character.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o Cm +\-x/
+By default,
+.Nm
+asks questions on addition of numbers from 0 to 10, and corresponding
+subtraction.
+By supplying one or more of the characters
+.Cm +\-x/ ,
+you can ask for problems in addition, subtraction, multiplication, and
+division, respectively.
+If you give one of these characters more than once, that kind of problem
+will be asked correspondingly more often.
+.It Fl r Ar range
+If a
+.Ar range
+is supplied,
+.Nm
+selects the numbers in its problems in the following way.
+For addition and multiplication, the numbers to be added or multiplied
+are between 0 and
+.Ar range ,
+inclusive.
+For subtraction and division, both the required result and the number to
+divide by or subtract will be between 0 and
+.Ar range .
+(Of course,
+.Nm
+will not ask you to divide by 0.)
+The default
+.Ar range
+is 10.
+.El
+.Pp
+When you get a problem wrong,
+.Nm
+will remember the numbers involved, and will tend to select those numbers
+more often than others, in problems of the same sort.
+Eventually it will forgive and forget.
+.Pp
+.Nm
+cannot be persuaded to tell you the right answer.
+You must work it out for yourself.
+.Sh DIAGNOSTICS
+.Dq What?
+if you get a question wrong.
+.Dq Right!
+if you get it right.
+.Dq Please type a number.
+if
+.Nm
+doesn't understand what you typed.
+.Sh SEE ALSO
+.Xr bc 1 ,
+.Xr dc 1

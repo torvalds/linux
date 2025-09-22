@@ -1,0 +1,4 @@
+# Check error on a unsupported rm (can't remove test since it is a directory).
+#
+# RUN: mkdir -p test
+# RUN: rm -f test

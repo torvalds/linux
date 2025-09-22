@@ -1,0 +1,248 @@
+.\" $OpenBSD: SSL_CTX_set_tlsext_servername_callback.3,v 1.8 2025/06/08 22:52:00 schwarze Exp $
+.\" full merge up to: OpenSSL 190b9a03 Jun 28 15:46:13 2017 +0800
+.\" selective merge up to: OpenSSL 6328d367 Jul 4 21:58:30 2020 +0200
+.\"
+.\" This file was written by Jon Spillett <jon.spillett@oracle.com>,
+.\" Paul Yang <yang dot yang at baishancloud dot com>, and
+.\" Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2017, 2019 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_TLSEXT_SERVERNAME_CALLBACK 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_tlsext_servername_callback ,
+.Nm SSL_CTX_set_tlsext_servername_arg ,
+.Nm SSL_get_servername_type ,
+.Nm SSL_get_servername ,
+.Nm SSL_set_tlsext_host_name
+.Nd handle server name indication (SNI)
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft long
+.Fo SSL_CTX_set_tlsext_servername_callback
+.Fa "SSL_CTX *ctx"
+.Fa "int (*cb)(SSL *ssl, int *alert, void *arg)"
+.Fc
+.Ft long
+.Fo SSL_CTX_set_tlsext_servername_arg
+.Fa "SSL_CTX *ctx"
+.Fa "void *arg"
+.Fc
+.Ft const char *
+.Fo SSL_get_servername
+.Fa "const SSL *ssl"
+.Fa "const int type"
+.Fc
+.Ft int
+.Fo SSL_get_servername_type
+.Fa "const SSL *ssl"
+.Fc
+.Ft int
+.Fo SSL_set_tlsext_host_name
+.Fa "SSL *ssl"
+.Fa "const char *name"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_tlsext_servername_callback
+sets the application callback
+.Fa cb
+used by a server to perform any actions or configuration required based
+on the servername extension received in the incoming connection.
+Like the ALPN callback, it is executed during Client Hello processing.
+When
+.Fa cb
+is
+.Dv NULL ,
+SNI is not used.
+.Pp
+The servername callback should return one of the following values:
+.Bl -tag -width Ds
+.It Dv SSL_TLSEXT_ERR_OK
+This is used to indicate that the servername requested by the client
+has been accepted.
+Typically a server will call
+.Xr SSL_set_SSL_CTX 3
+in the callback to set up a different configuration
+for the selected servername in this case.
+.It Dv SSL_TLSEXT_ERR_ALERT_FATAL
+In this case the servername requested by the client is not accepted
+and the handshake will be aborted.
+The value of the alert to be used should be stored in the location
+pointed to by the
+.Fa alert
+parameter to the callback.
+By default this value is initialised to
+.Dv SSL_AD_UNRECOGNIZED_NAME .
+.It Dv SSL_TLSEXT_ERR_ALERT_WARNING
+If this value is returned, then the servername is not accepted by the server.
+However, the handshake will continue and send a warning alert instead.
+The value of the alert should be stored in the location pointed to by the
+.Fa alert
+parameter as for
+.Dv SSL_TLSEXT_ERR_ALERT_FATAL
+above.
+Note that TLSv1.3 does not support warning alerts, so if TLSv1.3 has
+been negotiated then this return value is treated the same way as
+.Dv SSL_TLSEXT_ERR_NOACK .
+.It Dv SSL_TLSEXT_ERR_NOACK
+This return value indicates
+that the servername is not accepted by the server.
+No alerts are sent
+and the server will not acknowledge the requested servername.
+.El
+.Pp
+.Fn SSL_CTX_set_tlsext_servername_arg
+sets a context-specific argument to be passed into the callback via the
+.Fa arg
+parameter for
+.Fa ctx .
+.ig end_of_get_servername_details
+.\" I would suggest to comment out that second wall text of dubious
+.\" usefulness and see if we can meet all these documented API
+.\" requirements in the future or decide that it's not worth the
+.\" effort.  -- tb@ Aug 30, 2021
+.Pp
+The behaviour of
+.Fn SSL_get_servername
+depends on a number of different factors.
+In particular note that in TLSv1.3,
+the servername is negotiated in every handshake.
+In TLSv1.2 the servername is only negotiated on initial handshakes
+and not on resumption handshakes.
+.Bl -tag -width Ds
+.It On the client, before the handshake:
+If a servername has been set via a call to
+.Fn SSL_set_tlsext_host_name ,
+then it will return that servername.
+If one has not been set, but a TLSv1.2 resumption is being attempted
+and the session from the original handshake had a servername
+accepted by the server, then it will return that servername.
+Otherwise it returns
+.Dv NULL .
+.It On the client, during or after the handshake,\
+ if a TLSv1.2 (or below) resumption occurred:
+If the session from the original handshake had a servername accepted by the
+server, then it will return that servername.
+Otherwise it returns the servername set via
+.Fn SSL_set_tlsext_host_name
+or
+.Dv NULL
+if it was not called.
+.It On the client, during or after the handshake,\
+ if a TLSv1.2 (or below) resumption did not occur:
+It will return the servername set via
+.Fn SSL_set_tlsext_host_name
+or
+.Dv NULL
+if it was not called.
+.It On the server, before the handshake:
+The function will always return
+.Dv NULL
+before the handshake.
+.It On the server, after the servername extension has been processed,\
+ if a TLSv1.2 (or below) resumption occurred:
+If a servername was accepted by the server in the original handshake,
+then it will return that servername, or
+.Dv NULL
+otherwise.
+.It On the server, after the servername extension has been processed,\
+ if a TLSv1.2 (or below) resumption did not occur:
+The function will return the servername
+requested by the client in this handshake or
+.Dv NULL
+if none was requested.
+.El
+.Pp
+Note that the early callback occurs before a servername extension
+from the client is processed.
+The servername, certificate and ALPN callbacks occur
+after a servername extension from the client is processed.
+.end_of_get_servername_details
+.Pp
+.Fn SSL_set_tlsext_host_name
+sets the server name indication ClientHello extension
+to contain the value
+.Fa name ,
+or clears it if
+.Fa name
+is
+.Dv NULL .
+The type of server name indication
+extension is set to
+.Dv TLSEXT_NAMETYPE_host_name
+as defined in RFC 3546.
+.Pp
+All three functions are implemented as macros.
+.Sh RETURN VALUES
+.Fn SSL_CTX_set_tlsext_servername_callback
+and
+.Fn SSL_CTX_set_tlsext_servername_arg
+always return 1 indicating success.
+.Pp
+.Fn SSL_get_servername
+returns a servername extension value of the specified type if provided
+in the Client Hello, or
+.Dv NULL
+otherwise.
+.Pp
+.Fn SSL_get_servername_type
+returns the servername type or -1 if no servername is present.
+Currently the only supported type (defined in RFC 3546) is
+.Dv TLSEXT_NAMETYPE_host_name .
+.Pp
+.Fn SSL_set_tlsext_host_name
+returns 1 on success or 0 in case of an error.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_callback_ctrl 3 ,
+.Xr SSL_CTX_set_alpn_select_cb 3
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8f
+and have been available since
+.Ox 4.5 .

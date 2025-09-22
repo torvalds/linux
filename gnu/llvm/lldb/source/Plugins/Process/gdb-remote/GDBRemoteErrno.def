@@ -1,0 +1,39 @@
+//===-- GDBRemoteErrno.def --------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+// HANDLE_ERRNO(name, value)
+#ifndef HANDLE_ERRNO
+#error "HANDLE_ERRNO must be defined"
+#endif
+
+// from gdb's include/gdb/fileio.h
+HANDLE_ERRNO(EPERM,             1)
+HANDLE_ERRNO(ENOENT,            2)
+HANDLE_ERRNO(EINTR,             4)
+HANDLE_ERRNO(EIO,               5)
+HANDLE_ERRNO(EBADF,             9)
+HANDLE_ERRNO(EACCES,           13)
+HANDLE_ERRNO(EFAULT,           14)
+HANDLE_ERRNO(EBUSY,            16)
+HANDLE_ERRNO(EEXIST,           17)
+HANDLE_ERRNO(ENODEV,           19)
+HANDLE_ERRNO(ENOTDIR,          20)
+HANDLE_ERRNO(EISDIR,           21)
+HANDLE_ERRNO(EINVAL,           22)
+HANDLE_ERRNO(ENFILE,           23)
+HANDLE_ERRNO(EMFILE,           24)
+HANDLE_ERRNO(EFBIG,            27)
+HANDLE_ERRNO(ENOSPC,           28)
+HANDLE_ERRNO(ESPIPE,           29)
+HANDLE_ERRNO(EROFS,            30)
+HANDLE_ERRNO(ENOSYS,           88)
+HANDLE_ERRNO(ENAMETOOLONG,     91)
+
+#undef HANDLE_ERRNO

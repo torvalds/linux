@@ -1,0 +1,306 @@
+.\"	$OpenBSD: bpf_mtap.9,v 1.19 2025/03/04 01:33:42 dlg Exp $
+.\"
+.\" Copyright (c) 2016 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 4 2025 $
+.Dt BPF_MTAP 9
+.Os
+.Sh NAME
+.Nm bpfattach ,
+.Nm bpfxattach ,
+.Nm bpfdetach ,
+.Nm bpfsattach ,
+.Nm bpfsdetach ,
+.Nm bpf_filter ,
+.Nm bpf_mfilter ,
+.Nm bpf_validate ,
+.Nm bpf_mtap ,
+.Nm bpf_mtap_hdr ,
+.Nm bpf_mtap_af ,
+.Nm bpf_mtap_ether ,
+.Nm bpf_tap_hdr
+.Nd BPF kernel API
+.Sh SYNOPSIS
+.In net/bpf.h
+.Ft void
+.Fo bpfattach
+.Fa "caddr_t *bpfp"
+.Fa "struct ifnet *ifp"
+.Fa "u_int dlt"
+.Fa "u_int hdrlen"
+.Fc
+.Ft void *
+.Fo bpfxattach
+.Fa "caddr_t *bpfp"
+.Fa "const char *name"
+.Fa "struct ifnet *ifp"
+.Fa "u_int dlt"
+.Fa "u_int hdrlen"
+.Fc
+.Ft void
+.Fn bpfdetach "struct ifnet *ifp"
+.Ft void *
+.Fn bpfsattach "caddr_t *bpfp" "const char *name" "u_int dlt" "u_int hdrlen"
+.Ft void
+.Fn bpfsdetach "void *bpfif"
+.Ft u_int
+.Fo bpf_filter
+.Fa "const struct bpf_insn *pc"
+.Fa "const u_char *pkt"
+.Fa "u_int wirelen"
+.Fa "u_int pktlen"
+.Fc
+.Ft u_int
+.Fo bpf_mfilter
+.Fa "const struct bpf_insn *pc"
+.Fa "const struct mbuf *m"
+.Fa "u_int wirelen"
+.Fc
+.Ft int
+.Fn bpf_validate "struct bpf_insn *pc" "int len"
+.Ft int
+.Fn bpf_mtap "caddr_t bpf" "const struct mbuf *m" "u_int direction"
+.Ft int
+.Fo bpf_mtap_hdr
+.Fa "caddr_t bpf"
+.Fa "const void *hdr"
+.Fa "u_int hdrlen"
+.Fa "const struct mbuf *m"
+.Fa "u_int direction"
+.Fc
+.Ft int
+.Fo bpf_mtap_af
+.Fa "caddr_t bpf"
+.Fa "u_int32_t af"
+.Fa "const struct mbuf *m"
+.Fa "u_int direction"
+.Fc
+.Ft int
+.Fn bpf_mtap_ether "caddr_t bpf" "const struct mbuf *m" "u_int direction"
+.Ft int
+.Fo bpf_tap_hdr
+.Fa "caddr_t bpf"
+.Fa "const void *hdr"
+.Fa "u_int hdrlen"
+.Fa "const void *buf"
+.Fa "u_int buflen"
+.Fa "u_int direction"
+.Fc
+.Sh DESCRIPTION
+The BPF kernel API provides functions for evaluating BPF instructions
+against packets, and incoming linkage from device drivers.
+A packet is parsed by the filters associated with each interface
+and, if accepted, stashed into the corresponding buffer.
+.Pp
+.Fn bpfattach
+allocates and configures a BPF interface for use with the network interface
+.Fa ifp .
+.Fa bpfp
+is the location of BPF interface pointer that the network interface passes to
+the filter functions.
+The BPF interface pointer will be clear until a filter is registered and
+packets can be filtered on it.
+The
+.Fa dlt
+argument identifies the data link-layer type that the network
+interface provides for this BPF interface.
+.Fn bpfattach
+may be called multiple times against the same network interface to
+provide different data link-layer types for filtering.
+.Fa hdrlen
+indicates the length of the link header for the data link-layer type.
+.Pp
+.Fn bpfxattach
+allocates and configures a BPF interface for use with the network interface
+.Fa ifp ,
+but with a BPF interface name provided by the
+.Fa name
+argument instead of the name of the network interface.
+The
+.Fa bpfp ,
+.Fa dlt ,
+.Fa hdrlen
+arguments work like those in
+.Fn bpfattach .
+.Pp
+.Fn bpfdetach
+removes and frees all the BPF interfaces that were configured for
+the network interface
+.Fa ifp .
+.Pp
+.Fn bpfsattach
+allocates and configures a BPF interface for use by the subsystem
+identified by
+.Fa name .
+The
+.Fa bpfp ,
+.Fa dlt ,
+.Fa hdrlen
+arguments work like those in
+.Fn bpfattach .
+.Pp
+.Fn bpfsdetach
+removes and frees the BPF interface referenced by
+.Fa bpfif .
+.Pp
+.Fn bpf_filter
+executes the BPF program referenced by
+.Fa pc
+against the packet buffer starting at
+.Fa pkt
+of
+.Fa pktlen
+bytes in length.
+.Fa wirelen
+is the length of the original packet on the wire.
+.Pp
+.Fn bpf_mfilter
+executes the BPF program referenced by
+.Fa pc
+against the packet in the mbuf
+.Fa m .
+.Fa wirelen
+is the length of the original packet on the wire.
+.Pp
+.Fn bpf_validate
+tests if the BPF program referenced by
+.Fa pc
+is valid.
+.Fa len
+specifies the number of instructions in
+.Fa pc .
+.Pp
+.Fn bpf_tap
+runs the filters on the BPF interface referenced by
+.Fa bpf
+in the direction
+.Fa direction
+against the packet in the
+.Fa pkt
+buffer.
+.Pp
+.Fn bpf_mtap
+runs the filters on the BPF interface referenced by
+.Fa bpf
+in the direction
+.Fa direction
+against the packet in mbuf chain
+.Fa m .
+.Pp
+.Fn bpf_mtap_hdr
+runs the filters on the BPF interface referenced by
+.Fa bpf
+in the direction
+.Fa direction
+against the packet in mbuf chain
+.Fa m .
+The header referenced by
+.Fa hdr
+will be prefixed to the packet during filter evaluation.
+.Pp
+.Fn bpf_mtap_af
+runs the filters on the BPF interface referenced by
+.Fa bpf
+in the direction
+.Fa direction
+against the packet in mbuf chain
+.Fa m .
+The address family specified by
+.Fa af
+will be prepended to the packet before matching occurs.
+.Pp
+.Fn bpf_mtap_ether
+runs the filters on the BPF interface referenced by
+.Fa bpf
+in the direction
+.Fa direction
+against an Ethernet packet in the mbuf
+.Fa m .
+If the mbuf is flagged with
+.Dv M_VLANTAG ,
+an Ethernet VLAN header is constructed using
+m->m_pkthdr.ether_vtag
+and
+m->m_pkthdr.pf.prio
+before matching occurs.
+.Pp
+.Fn bpf_tap_hdr
+runs the filters on the BPF interface referenced by
+.Fa bpf
+in the direction
+.Fa direction
+against the buffer
+.Fa buf
+of length
+.Fa buflen .
+The header
+.Fa hdr
+of length
+.Fa hdrlen
+will be prefixed to the buffer for filter evaluation.
+.Sh CONTEXT
+.Fn bpfattach ,
+.Fn bpfxattach ,
+.Fn bpfdetach ,
+.Fn bpfsattach ,
+and
+.Fn bpfsdetach
+can be called from process context.
+.Pp
+.Fn bpf_filter ,
+.Fn bpf_mfilter ,
+and
+.Fn bpf_validate
+can be called from process context, or from an interrupt context.
+.Pp
+.Fn bpf_mtap ,
+.Fn bpf_mtap_hdr ,
+.Fn bpf_mtap_af ,
+.Fn bpf_mtap_ether ,
+and
+.Fn bpf_tap_hdr
+can be called from process context, or from an interrupt context at or below
+.Dv IPL_NET .
+.Sh RETURN VALUES
+.Fn bpfsattach
+and
+.Fn bpfxattach
+return a reference to the BPF interface they allocate.
+.Pp
+.Fn bpf_filter
+and
+.Fn bpf_mfilter
+return -1 (cast to an unsigned integer) if the filter program is
+.Dv NULL ,
+or the result of the filter program.
+Filter programs should return the maximum number of bytes of the
+packet to capture, or 0 if the packet does not match the filter
+program.
+.Pp
+.Fn bpf_validate
+returns a non-zero value if the BPF program is valid,
+otherwise 0.
+.Pp
+.Fn bpf_mtap ,
+.Fn bpf_mtap_hdr ,
+.Fn bpf_mtap_af ,
+.Fn bpf_mtap_ether ,
+and
+.Fn bpf_tap_hdr
+return 1 if the packet or buffer matched a filter that indicates it
+should be dropped, otherwise 0.
+.Sh SEE ALSO
+.Xr mbuf 9 ,
+.Xr spl 9

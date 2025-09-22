@@ -1,0 +1,68 @@
+.\"	$OpenBSD: ciss.4,v 1.19 2017/07/21 12:28:15 mikeb Exp $
+.\"
+.\" Michael Shalayeff, 2005. Public Domain.
+.\"
+.Dd $Mdocdate: July 21 2017 $
+.Dt CISS 4
+.Os
+.Sh NAME
+.Nm ciss
+.Nd Compaq Smart Array SAS/SATA/SCSI RAID controller
+.Sh SYNOPSIS
+.Cd "ciss* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Compaq Smart Array SAS/SATA/SCSI
+RAID controllers, including:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Compaq 532, 5300, 5312, 5i
+.It
+Compaq 641, 642, 6400, 6400EM, 6422
+.It
+Hewlett-Packard 6i, E200, E200i, E500, H240, H240ar, H240tr, H241, H244br,
+P212, P220i, P222, P224br, P230i, P240tr, P246br, P400, P400i, P410, P410i,
+P411, P420, P420i, P421, P430, P430i, P431, P440, P440ar, P441, P530, P531,
+P542t, P600, P700m, P711m, P712m, P721m, P731m, P741m, P800, P812, P822, P830,
+P830i, P840, P841, V100
+.El
+.Pp
+These controllers support RAID 0, RAID 1, RAID 5, JBOD,
+and superpositions of those configurations.
+.Pp
+Although the controllers are actual RAID controllers,
+the driver makes them look just like SCSI controllers.
+All RAID configuration is done through the controllers' BIOSes.
+.Pp
+Monitoring status for the volume and drives in it is done through the
+.Xr bioctl 8
+utility;
+the current status is provided by the
+.Xr sysctl 8
+variable
+.Va hw.sensors .
+.Sh SEE ALSO
+.Xr bio 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr bioctl 8 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Michael Shalayeff Aq Mt mickey@openbsd.org .
+.Sh CAVEATS
+For purposes of status monitoring,
+the current code only supports one logical
+volume per controller.

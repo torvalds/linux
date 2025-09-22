@@ -1,0 +1,12 @@
+import("//llvm/utils/gn/build/libs/edit/enable.gni")
+
+config("edit_config") {
+  visibility = [ ":edit" ]
+  libs = [ "edit" ]
+}
+
+group("edit") {
+  if (llvm_enable_libedit) {
+    public_configs = [ ":edit_config" ]
+  }
+}

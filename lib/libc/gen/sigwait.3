@@ -1,0 +1,76 @@
+.\" $OpenBSD: sigwait.3,v 1.2 2019/01/13 16:16:43 jca Exp $
+.\"
+.\" David Leonard <d@openbsd.org>, 1998. Public domain.
+.Dd $Mdocdate: January 13 2019 $
+.Dt SIGWAIT 3
+.Os
+.Sh NAME
+.Nm sigwait
+.Nd synchronously accept a signal
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fn sigwait "const sigset_t *set" "int *sig"
+.Sh DESCRIPTION
+The
+.Fn sigwait
+function selects a pending signal from
+.Fa set ,
+atomically clears it from the system's set of pending signals, and returns
+that signal number in the location referenced by
+.Fa sig .
+If prior to the call to
+.Fn sigwait
+there are multiple pending instances of a single signal number,
+it is undefined whether upon successful return there are any remaining pending
+signals for that signal number.
+If no signal in
+.Fa set
+is pending at the time of the call,
+the thread shall be suspended until one or more becomes pending.
+The signals defined by
+.Fa set
+should have been blocked at the time of the call to
+.Fn sigwait ;
+otherwise the behaviour is undefined.
+The effect of
+.Fn sigwait
+on the signal actions for the signals in
+.Fa set
+is unspecified.
+.Pp
+If more than one thread is using
+.Fn sigwait
+to wait for the same signal,
+no more than one of these threads shall return from
+.Fn sigwait
+with the signal number.
+Which thread returns from
+.Fn sigwait
+if more than a single thread is waiting is unspecified.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn sigwait
+stores the signal number of the received signal at the location referenced by
+.Fa sig
+and returns zero.
+.Sh ERRORS
+On error,
+.Fn sigwait
+returns one of these error values:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa set
+argument contains an invalid or unsupported signal number.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr sigpending 2 ,
+.Xr sigsuspend 2 ,
+.Xr pause 3 ,
+.Xr pthread_sigmask 3
+.Sh STANDARDS
+.Fn sigwait
+conforms to
+.St -p1003.1-96 .

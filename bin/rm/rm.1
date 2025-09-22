@@ -1,0 +1,185 @@
+.\"	$OpenBSD: rm.1,v 1.44 2019/09/02 21:18:41 deraadt Exp $
+.\"	$NetBSD: rm.1,v 1.8 1995/07/25 19:37:30 jtc Exp $
+.\"
+.\" Copyright (c) 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
+.\"
+.Dd $Mdocdate: September 2 2019 $
+.Dt RM 1
+.Os
+.Sh NAME
+.Nm rm
+.Nd remove directory entries
+.Sh SYNOPSIS
+.Nm rm
+.Op Fl dfiPRrv
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility attempts to remove the non-directory type files specified on the
+command line.
+If the permissions of the file do not permit writing, and the standard
+input device is a terminal, the user is prompted (on the standard error
+output) for confirmation.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Attempt to remove directories as well as other types of files.
+.It Fl f
+Attempt to remove the files without prompting for confirmation,
+regardless of the file's permissions.
+If the file does not exist, do not display a diagnostic message or modify
+the exit status to reflect an error.
+The
+.Fl f
+option overrides any previous
+.Fl i
+options.
+.It Fl i
+Request confirmation before attempting to remove each file, regardless of
+the file's permissions, or whether or not the standard input device is a
+terminal.
+The
+.Fl i
+option overrides any previous
+.Fl f
+options.
+.It Fl P
+Attempt to overwrite regular writable files before deleting them.
+Files are overwritten once with a random pattern.
+Files with multiple links will be unlinked but not overwritten.
+.It Fl R
+Attempt to remove the file hierarchy rooted in each file argument.
+The
+.Fl R
+option implies the
+.Fl d
+option.
+If the
+.Fl i
+option is specified, the user is prompted for confirmation before
+each directory (and its contents) are processed.
+If the user does not respond affirmatively, the file hierarchy rooted in
+that directory is skipped.
+.It Fl r
+Equivalent to
+.Fl R .
+.It Fl v
+Display each file name after it was removed.
+.El
+.Pp
+The
+.Nm
+utility removes symbolic links, not the files referenced by the links.
+.Pp
+It is an error to attempt to remove the root directory or the files
+.Dq \&.
+or
+.Dq .. .
+It is forbidden to remove the file
+.Dq ..
+merely to avoid the antisocial consequences of inadvertently
+doing something like
+.Dq Cm rm -r .* .
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 if all of the named files or file hierarchies were removed,
+or if the
+.Fl f
+option was specified and all of the existing files or file hierarchies were
+removed.
+If an error occurs,
+.Nm
+exits with a value >0.
+.Sh EXAMPLES
+Recursively remove all files contained within the
+.Pa foobar
+directory hierarchy:
+.Pp
+.Dl $ rm -rf foobar
+.Pp
+Either of these commands will remove the file
+.Pa -f :
+.Bd -literal -offset indent
+$ rm -- -f
+$ rm ./-f
+.Ed
+.Sh SEE ALSO
+.Xr rmdir 1 ,
+.\" .Xr undelete 2 ,
+.Xr unlink 2 ,
+.Xr fts_open 3 ,
+.Xr symlink 7
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl dPv
+are extensions to that specification.
+.Sh HISTORY
+An
+.Nm
+command appeared in
+.At v1 .
+.Pp
+The
+.Nm
+utility differs from historical implementations in that the
+.Fl f
+option only masks attempts to remove non-existent files instead of
+masking a large variety of errors.
+.Pp
+Also, historical
+.Bx
+implementations prompted on the standard output,
+not the standard error output.
+.Pp
+The interactive mode used to be a
+.Nm dsw
+command, a carryover from the ancient past with an
+amusing etymology.
+.Sh BUGS
+The
+.Fl P
+option assumes that both the underlying file system and storage medium write
+in place.
+This is true for the FFS and MS-DOS file systems and magnetic hard disks,
+but not true for most flash storage.
+In addition, only regular files are overwritten; other types of files
+are not.

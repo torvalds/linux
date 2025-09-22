@@ -1,0 +1,181 @@
+.\" $OpenBSD: uhid.4,v 1.20 2021/09/15 04:59:26 anton Exp $
+.\" $NetBSD: uhid.4,v 1.13 2001/12/29 14:41:59 augustss Exp $
+.\"
+.\" Copyright (c) 1999, 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 15 2021 $
+.Dt UHID 4
+.Os
+.Sh NAME
+.Nm uhid
+.Nd USB generic HID support
+.Sh SYNOPSIS
+.Cd "uhid* at uhidev?"
+.Pp
+.In dev/usb/usb.h
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for all HID (Human Interface Device) interfaces
+in USB devices that do not have a special driver.
+.Pp
+The device handles the following
+.Xr ioctl 2
+calls:
+.Bl -tag -width indent
+.It Dv USB_GET_DEVICEINFO Fa struct usb_device_info *devinfo
+Get summarized information about the device.
+.It Dv USB_GET_REPORT_ID Fa int *repid
+Get the report identifier used by this HID report.
+.It Dv USB_GET_REPORT_DESC Fa struct usb_ctl_report_desc *repdesc
+Get the HID report descriptor.
+Using this descriptor the exact layout and meaning of data to/from
+the device can be found.
+The report descriptor is delivered without any processing.
+.Bd -literal
+struct usb_ctl_report_desc {
+    int     ucrd_size;
+    u_char  ucrd_data[1024];	/* filled data size will vary */
+};
+.Ed
+.It Dv USB_GET_REPORT Fa struct usb_ctl_report *rep
+Get a report from the device without waiting for data on
+the interrupt pipe.
+The
+.Fa ucr_report
+field indicates which report is requested.
+It should be
+.Dv UHID_INPUT_REPORT ,
+.Dv UHID_OUTPUT_REPORT ,
+or
+.Dv UHID_FEATURE_REPORT .
+.Bd -literal
+struct usb_ctl_report {
+	int	ucr_report;
+	u_char	ucr_data[1024];	/* filled data size will vary */
+};
+.Ed
+.It Dv USB_SET_REPORT Fa struct usb_ctl_report *rep
+Set a report in the device.
+The
+.Dv report
+field indicates which report is to be set.
+It should be
+.Dv UHID_INPUT_REPORT ,
+.Dv UHID_OUTPUT_REPORT ,
+or
+.Dv UHID_FEATURE_REPORT .
+.El
+.Pp
+The generic ioctls
+.Dv FIONBIO
+and
+.Dv FIOASYNC
+are supported by
+.Nm .
+.Pp
+Use
+.Xr read 2
+to get data from the device.
+Data should be read in chunks of the size prescribed by the report descriptor.
+.Pp
+Use
+.Xr write 2
+to send data to the device.
+Equivalent to issuing an
+.Xr ioctl 2
+.Dv USB_SET_REPORT
+request with the report set to
+.Dv UHID_OUTPUT_REPORT .
+Data should be written in chunks of the size prescribed by the report
+descriptor.
+.Sh FILES
+.Bl -tag -width /dev/tun* -compact
+.It Pa /dev/uhid*
+.El
+.Sh ERRORS
+If
+.Xr ioctl 2
+fails,
+.Xr errno 2
+is set to one of the following:
+.Bl -tag -width Er
+.It Bq Er EIO
+The device could not fulfill a
+.Dv USB_GET_REPORT
+or
+.Dv USB_SET_REPORT
+request.
+.It Bq Er EINVAL
+The report specified by the
+.Fa ucr_report
+field in a
+.Dv USB_GET_REPORT
+or
+.Dv USB_SET_REPORT
+request was invalid.
+.It Bq Er ENOTTY
+Unrecognized command.
+.El
+.Pp
+If
+.Xr read 2
+fails,
+.Xr errno 2
+is set to one of the following:
+.Bl -tag -width Er
+.It Bq Er EIO
+The device has already been detached.
+.It Bq Er EWOULDBLOCK
+Non-blocking I/O was selected and no data were available.
+.El
+.Pp
+If
+.Xr write 2
+fails,
+.Xr errno 2
+is set to one of the following:
+.Bl -tag -width Er
+.It Bq Er EIO
+The device has already been detached or the same device does not have a
+corresponding output report.
+.It Bq Er EMSGSIZE
+The size of the supplied data exceeds the size of the output report.
+.El
+.Sh SEE ALSO
+.Xr usbhidctl 1 ,
+.Xr usbhid 3 ,
+.Xr intro 4 ,
+.Xr uhidev 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Ox 2.6 .

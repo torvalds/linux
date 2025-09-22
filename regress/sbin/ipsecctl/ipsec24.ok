@@ -1,0 +1,20 @@
+FROM = "{ 1.1.1.1, 2.2.2.2, 3.3.3.3 }"
+TO = "{ 4.4.4.4, 5.5.5.5, 6.6.6.6 }"
+flow esp out from 1.1.1.1 to 4.4.4.4 peer 4.4.4.4 type require
+flow esp in from 4.4.4.4 to 1.1.1.1 peer 4.4.4.4 type require
+flow esp out from 1.1.1.1 to 5.5.5.5 peer 5.5.5.5 type require
+flow esp in from 5.5.5.5 to 1.1.1.1 peer 5.5.5.5 type require
+flow esp out from 1.1.1.1 to 6.6.6.6 peer 6.6.6.6 type require
+flow esp in from 6.6.6.6 to 1.1.1.1 peer 6.6.6.6 type require
+flow esp out from 2.2.2.2 to 4.4.4.4 peer 4.4.4.4 type require
+flow esp in from 4.4.4.4 to 2.2.2.2 peer 4.4.4.4 type require
+flow esp out from 2.2.2.2 to 5.5.5.5 peer 5.5.5.5 type require
+flow esp in from 5.5.5.5 to 2.2.2.2 peer 5.5.5.5 type require
+flow esp out from 2.2.2.2 to 6.6.6.6 peer 6.6.6.6 type require
+flow esp in from 6.6.6.6 to 2.2.2.2 peer 6.6.6.6 type require
+flow esp out from 3.3.3.3 to 4.4.4.4 peer 4.4.4.4 type require
+flow esp in from 4.4.4.4 to 3.3.3.3 peer 4.4.4.4 type require
+flow esp out from 3.3.3.3 to 5.5.5.5 peer 5.5.5.5 type require
+flow esp in from 5.5.5.5 to 3.3.3.3 peer 5.5.5.5 type require
+flow esp out from 3.3.3.3 to 6.6.6.6 peer 6.6.6.6 type require
+flow esp in from 6.6.6.6 to 3.3.3.3 peer 6.6.6.6 type require

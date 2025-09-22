@@ -1,0 +1,218 @@
+.\"	$OpenBSD: ae4,v 1.3 2004/04/06 08:19:20 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ae4	8.1 (Berkeley) 6/8/93
+.\"
+.NH
+GLOBAL COMMANDS
+.PP
+The global commands
+.UL g
+and
+.UL v
+are used to perform one or more editing commands on all lines that either
+contain
+.UL g ) (
+or don't contain
+.UL v ) (
+a specified pattern.
+.PP
+As the simplest example, the command
+.P1
+g/UNIX/p
+.P2
+prints all lines that contain the word `UNIX'.
+The pattern that goes between the slashes can be anything
+that could be used in a line search or in a substitute command;
+exactly the same rules and limitations apply.
+.PP
+As another example, then,
+.P1
+g/^\*e\*./p
+.P2
+prints all the formatting commands in a file (lines that begin with `\*.').
+.PP
+The
+.UL v
+command is identical to
+.UL g ,
+except that it operates on those line that do
+.ul
+not
+contain an occurrence of the pattern.
+(Don't look too hard for mnemonic significance to
+the letter `v'.)
+So
+.P1
+v/^\*e\*./p
+.P2
+prints all the lines that don't begin with `\*.' _
+the actual text lines.
+.PP
+The command that follows
+.UL g
+or
+.UL v
+can be anything:
+.P1
+g/^\*e\*./d
+.P2
+deletes all lines that begin with `\*.',
+and
+.P1
+g/^$/d
+.P2
+deletes all empty lines.
+.PP
+Probably the most useful command that can follow a global is the
+substitute command, for this can be used to make a change
+and print each affected line for verification.
+For example, we could change the word `Unix' to `UNIX'
+everywhere, and verify that 
+it really worked, 
+with
+.P1
+g/Unix/s//UNIX/gp
+.P2
+Notice that we used `//' in the substitute command to mean
+`the previous pattern', in this case, `Unix'.
+The 
+.UL p
+command is done on every line
+that matches the pattern,
+not just those on which a substitution took place.
+.PP
+The global command operates by making
+two passes over the file.
+On the first pass, all lines that match the pattern are marked.
+On the second pass, each marked line in turn is examined,
+dot is set to that line, and the command executed.
+This means that it is possible for the command that follows a
+.UL g
+or
+.UL v
+to use addresses, set dot, and so on, quite freely.
+.P1
+g/^\*e\*.PP/+
+.P2
+prints the line that follows each `.PP' command (the signal for
+a new paragraph in some formatting packages).
+Remember that `+' means `one line past dot'.
+And
+.P1
+g/topic/?^\*e\*.SH?1
+.P2
+searches for each line that contains `topic', scans backwards until it finds
+a line that begins `.SH' (a section heading) and prints the line
+that follows that,
+thus showing the section headings under which `topic' is mentioned.
+Finally,
+.P1
+g/^\*e\*.EQ/+,/^\*e\*.EN/-p
+.P2
+prints all the lines that lie between
+lines beginning with `.EQ' and `.EN' formatting commands.
+.PP
+The
+.UL g
+and
+.UL v
+commands can also be
+preceded by line numbers, in which case the lines searched
+are only those in the range specified.
+.SH
+Multi-line Global Commands
+.PP
+It is possible to do more than one command under the control of a
+global command, although the syntax for expressing the operation
+is not especially natural or pleasant.
+As an example,
+suppose the task is to change `x' to `y' and `a' to `b' on all lines
+that contain `thing'.
+Then
+.P1
+g/thing/s/x/y/\*e
+s/a/b/
+.P2
+is sufficient.
+The `\*e' signals the
+.UL g
+command that the set of commands continues on the next line;
+it terminates on the first line that does not end with `\*e'.
+(As a minor blemish, you can't use a substitute command
+to insert a newline within a 
+.UL g
+command.)
+.PP
+You should watch out for this problem:
+the command
+.P1
+g/x/s//y/\*e
+s/a/b/
+.P2
+does
+.ul
+not
+work as you expect.
+The remembered pattern is the last pattern that was actually
+executed,
+so sometimes it will be
+`x' (as expected), and sometimes it will be `a'
+(not expected).
+You must spell it out, like this:
+.P1
+g/x/s/x/y/\*e
+s/a/b/
+.P2
+.PP
+It is also possible to execute 
+.UL a ,
+.UL c ,
+and
+.UL i
+commands under a global command; as with other multi-line constructions,
+all that is needed is to add a `\*e' at the end of each line except the last.
+Thus to add a `.nf' and `.sp' command before each `.EQ' line, type
+.P1
+g/^\*e\*.EQ/i\*e
+\&\*.nf\*e
+\&\*.sp
+.P2
+There is no need for a final line containing a
+`\*.' to terminate the 
+.UL i
+command,
+unless there are further commands
+being done under the global.
+On the other hand, it does no harm to put it in either.

@@ -1,0 +1,5 @@
+neighbor 10.12.57.1 receive update announced 10.12.1.0/24 next-hop 10.12.57.3 origin igp as-path [ 64500 64502 ]
+neighbor 10.12.57.1 receive update announced 10.12.3.0/24 next-hop 10.12.57.3 origin igp as-path [ 64500 64502 64505 ]
+neighbor 10.12.57.1 receive update announced 10.13.1.0/24 next-hop 10.12.57.4 origin igp as-path [ 64500 64503 ]
+neighbor 10.12.57.1 receive update announced 10.13.2.0/24 next-hop 10.12.57.4 origin igp as-path [ 64500 64503 23456 64505 ]
+neighbor 10.12.57.1 receive update announced 10.13.3.0/24 next-hop 10.12.57.4 origin igp as-path [ 64500 64503 64505 ] aggregator ( 23456:127.0.0.1 )

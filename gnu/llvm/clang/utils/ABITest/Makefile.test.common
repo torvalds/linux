@@ -1,0 +1,170 @@
+# -*- Makefile -*-
+
+# Usage: make test.N.report 
+#
+# COUNT can be over-ridden to change the number of tests generated per
+# file, and TESTARGS is used to change the type generation. Make sure
+# to 'make clean' after changing either of these parameters.
+
+TESTARGS := --no-unsigned --no-vector --no-complex --no-bool
+
+COUNT := 1
+TIMEOUT := 5
+
+CFLAGS := -std=gnu99
+
+X_COMPILER := gcc
+X_LL_CFLAGS := -emit-llvm -S
+Y_COMPILER := clang
+Y_LL_CFLAGS := -emit-llvm -S
+CC := gcc
+
+###
+
+ABITESTGEN := ../ABITestGen.py
+
+ifndef VERBOSE
+  Verb := @
+endif
+
+.PHONY: test.%.report
+test.%.report: temps/test.%.xx.diff temps/test.%.xy.diff temps/test.%.yx.diff temps/test.%.yy.diff
+	@ok=1;\
+	for t in $^; do \
+		if [ -s $$t ]; then \
+			echo "TEST $*: $$t failed"; \
+			ok=0;\
+		fi; \
+	done; \
+	if [ $$ok -eq 1 ]; then \
+		true; \
+	else \
+		false; \
+	fi
+
+
+.PHONY: test.%.defs-report
+test.%.defs-report: temps/test.%.defs.diff
+	@for t in $^; do \
+		if [ -s $$t ]; then \
+			echo "TEST $*: $$t failed"; \
+			cat $$t; \
+		fi; \
+	done
+
+.PHONY: test.%.build
+test.%.build: temps/test.%.ref temps/test.%.xx temps/test.%.xy temps/test.%.yx temps/test.%.yy temps/test.%.x.defs temps/test.%.y.defs
+	@true
+
+###
+
+# Diffs and output
+
+.PRECIOUS: temps/.dir
+
+.PRECIOUS: temps/test.%.xx.diff
+temps/test.%.xx.diff: temps/test.%.ref.out temps/test.%.xx.out
+	$(Verb) diff $^ > $@ || true
+.PRECIOUS: temps/test.%.xy.diff
+temps/test.%.xy.diff: temps/test.%.ref.out temps/test.%.xy.out
+	$(Verb) diff $^ > $@ || true
+.PRECIOUS: temps/test.%.yx.diff
+temps/test.%.yx.diff: temps/test.%.ref.out temps/test.%.yx.out
+	$(Verb) diff $^ > $@ || true
+.PRECIOUS: temps/test.%.yy.diff
+temps/test.%.yy.diff: temps/test.%.ref.out temps/test.%.yy.out
+	$(Verb) diff $^ > $@ || true
+.PRECIOUS: temps/test.%.defs.diff
+temps/test.%.defs.diff: temps/test.%.x.defs temps/test.%.y.defs
+	$(Verb) zipdifflines \
+	  --replace "%struct.T[0-9]+" "%struct.s" \
+	  --replace "%union.T[0-9]+" "%struct.s" \
+	  --replace "byval align [0-9]+" "byval" \
+	  $^ > $@
+
+.PRECIOUS: temps/test.%.out
+temps/test.%.out: temps/test.%
+	-$(Verb) ./$< > $@
+
+# Executables
+
+.PRECIOUS: temps/test.%.ref
+temps/test.%.ref: temps/test.%.driver.ref.o temps/test.%.a.ref.o temps/test.%.b.ref.o
+	$(Verb) $(CC) $(CFLAGS) $(CC_CFLAGS) -O3 -o $@ $^
+.PRECIOUS: temps/test.%.xx
+temps/test.%.xx: temps/test.%.driver.ref.o temps/test.%.a.x.o temps/test.%.b.x.o
+	$(Verb) $(CC) $(CFLAGS) $(CC_CFLAGS) -O3  -o $@ $^
+.PRECIOUS: temps/test.%.xy
+temps/test.%.xy: temps/test.%.driver.ref.o temps/test.%.a.x.o temps/test.%.b.y.o
+	$(Verb) $(CC) $(CFLAGS) $(CC_CFLAGS) -O3  -o $@ $^
+.PRECIOUS: temps/test.%.yx
+temps/test.%.yx: temps/test.%.driver.ref.o temps/test.%.a.y.o temps/test.%.b.x.o
+	$(Verb) $(CC) $(CFLAGS) $(CC_CFLAGS) -O3  -o $@ $^
+.PRECIOUS: temps/test.%.yy
+temps/test.%.yy: temps/test.%.driver.ref.o temps/test.%.a.y.o temps/test.%.b.y.o
+	$(Verb) $(CC) $(CFLAGS) $(CC_CFLAGS) -O3  -o $@ $^
+
+# Object files
+
+.PRECIOUS: temps/test.%.ref.o
+temps/test.%.ref.o: inputs/test.%.c temps/.dir
+	$(Verb) $(CC) -c $(CFLAGS) $(CC_CFLAGS) -o $@ $<
+.PRECIOUS: temps/test.%.x.o
+temps/test.%.x.o: inputs/test.%.c temps/.dir
+	$(Verb) $(X_COMPILER) -c $(CFLAGS) $(X_CFLAGS) -o $@ $<
+.PRECIOUS: temps/test.%.y.o
+temps/test.%.y.o: inputs/test.%.c temps/.dir
+	$(Verb) $(Y_COMPILER) -c $(CFLAGS) $(Y_CFLAGS) -o $@ $<
+
+.PRECIOUS: temps/test.%.x.defs
+temps/test.%.x.defs: temps/test.%.a.x.ll temps/.dir
+	-$(Verb) -grep '^define ' $< > $@
+.PRECIOUS: temps/test.%.y.defs
+temps/test.%.y.defs: temps/test.%.a.y.ll temps/.dir
+	-$(Verb) -grep '^define ' $< > $@
+
+.PRECIOUS: temps/test.%.a.x.ll
+temps/test.%.a.x.ll: inputs/test.%.a.c temps/.dir
+	$(Verb) $(X_COMPILER) $(CFLAGS) $(X_LL_CFLAGS) $(X_CFLAGS) -o $@ $<
+.PRECIOUS: temps/test.%.b.x.ll
+temps/test.%.b.x.ll: inputs/test.%.b.c temps/.dir
+	$(Verb) $(X_COMPILER) $(CFLAGS) $(X_LL_CFLAGS) $(X_CFLAGS) -o $@ $<
+.PRECIOUS: temps/test.%.a.y.ll
+temps/test.%.a.y.ll: inputs/test.%.a.c temps/.dir
+	$(Verb) $(Y_COMPILER) $(CFLAGS) $(Y_LL_CFLAGS) $(Y_CFLAGS) -o $@ $<
+.PRECIOUS: temps/test.%.b.y.ll
+temps/test.%.b.y.ll: inputs/test.%.b.c temps/.dir
+	$(Verb) $(Y_COMPILER) $(CFLAGS) $(Y_LL_CFLAGS) $(Y_CFLAGS) -o $@ $<
+
+# Input generation
+
+.PHONY: test.%.top
+test.%.top: inputs/test.%.a.c inputs/test.%.b.c inputs/test.%.driver.c
+	@true
+
+.PRECIOUS: inputs/test.%.a.c inputs/test.%.b.c inputs/test.%.driver.c
+inputs/test.%.a.c: test.%.generate
+	@true
+inputs/test.%.b.c: test.%.generate
+	@true
+inputs/test.%.driver.c: test.%.generate
+	@true
+
+.PHONY: test.%.generate
+.PRECIOUS: inputs/.dir
+test.%.generate: $(ABITESTGEN) inputs/.dir
+	$(Verb) $(ABITESTGEN) $(TESTARGS) -o inputs/test.$*.a.c -T inputs/test.$*.b.c -D inputs/test.$*.driver.c --min=$(shell expr $* '*' $(COUNT))  --count=$(COUNT)
+
+# Cleaning
+
+clean-temps:
+	$(Verb) rm -rf temps
+
+clean:
+	$(Verb) rm -rf temps inputs
+
+# Etc.
+
+%/.dir:
+	$(Verb) mkdir -p $* > /dev/null
+	$(Verb) $(DATE) > $@

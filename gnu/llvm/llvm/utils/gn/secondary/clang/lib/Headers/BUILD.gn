@@ -1,0 +1,318 @@
+import("//clang/resource_dir.gni")
+import("//clang/utils/TableGen/clang_tablegen.gni")
+
+# Generate arm_neon.h
+clang_tablegen("arm_neon") {
+  args = [ "-gen-arm-neon" ]
+  td_file = "//clang/include/clang/Basic/arm_neon.td"
+  output_name = "arm_neon.h"
+}
+
+# Generate arm_fp16.h
+clang_tablegen("arm_fp16") {
+  args = [ "-gen-arm-fp16" ]
+  td_file = "//clang/include/clang/Basic/arm_fp16.td"
+  output_name = "arm_fp16.h"
+}
+
+# Generate arm_sve.h
+clang_tablegen("arm_sve") {
+  args = [ "-gen-arm-sve-header" ]
+  td_file = "//clang/include/clang/Basic/arm_sve.td"
+  output_name = "arm_sve.h"
+}
+
+# Generate arm_sme.h
+clang_tablegen("arm_sme") {
+  args = [ "-gen-arm-sme-header" ]
+  td_file = "//clang/include/clang/Basic/arm_sme.td"
+  output_name = "arm_sme.h"
+}
+
+# Generate arm_bf16.h
+clang_tablegen("arm_bf16") {
+  args = [ "-gen-arm-bf16" ]
+  td_file = "//clang/include/clang/Basic/arm_bf16.td"
+  output_name = "arm_bf16.h"
+}
+
+# Generate arm_mve.h
+clang_tablegen("arm_mve") {
+  args = [ "-gen-arm-mve-header" ]
+  td_file = "//clang/include/clang/Basic/arm_mve.td"
+  output_name = "arm_mve.h"
+}
+
+# Generate arm_cde.h
+clang_tablegen("arm_cde") {
+  args = [ "-gen-arm-cde-header" ]
+  td_file = "//clang/include/clang/Basic/arm_cde.td"
+  output_name = "arm_cde.h"
+}
+
+# Generate arm__vector_types.h
+clang_tablegen("arm_vector_types") {
+  args = [ "-gen-arm-vector-type" ]
+  td_file = "//clang/include/clang/Basic/arm_neon.td"
+  output_name = "arm_vector_types.h"
+}
+
+# Generate riscv_vector.h
+clang_tablegen("riscv_vector") {
+  args = [ "-gen-riscv-vector-header" ]
+  td_file = "//clang/include/clang/Basic/riscv_vector.td"
+  output_name = "riscv_vector.h"
+}
+
+copy("tablegen_headers") {
+  visibility = [ ":Headers" ]
+  deps = [
+    ":arm_bf16",
+    ":arm_cde",
+    ":arm_fp16",
+    ":arm_mve",
+    ":arm_neon",
+    ":arm_sme",
+    ":arm_sve",
+    ":arm_vector_types",
+    ":riscv_vector",
+  ]
+  sources = []
+  foreach(dep, deps) {
+    sources += get_target_outputs(dep)
+  }
+  outputs = [ "$clang_resource_dir/include/{{source_file_part}}" ]
+}
+
+copy("Headers") {
+  deps = [ ":tablegen_headers" ]
+
+  sources = [
+    "__clang_cuda_builtin_vars.h",
+    "__clang_cuda_cmath.h",
+    "__clang_cuda_complex_builtins.h",
+    "__clang_cuda_device_functions.h",
+    "__clang_cuda_intrinsics.h",
+    "__clang_cuda_libdevice_declares.h",
+    "__clang_cuda_math.h",
+    "__clang_cuda_math_forward_declares.h",
+    "__clang_cuda_runtime_wrapper.h",
+    "__clang_cuda_texture_intrinsics.h",
+    "__clang_hip_cmath.h",
+    "__clang_hip_libdevice_declares.h",
+    "__clang_hip_math.h",
+    "__clang_hip_runtime_wrapper.h",
+    "__clang_hip_stdlib.h",
+    "__stdarg___gnuc_va_list.h",
+    "__stdarg___va_copy.h",
+    "__stdarg_header_macro.h",
+    "__stdarg_va_arg.h",
+    "__stdarg_va_copy.h",
+    "__stdarg_va_list.h",
+    "__stddef_header_macro.h",
+    "__stddef_max_align_t.h",
+    "__stddef_null.h",
+    "__stddef_nullptr_t.h",
+    "__stddef_offsetof.h",
+    "__stddef_ptrdiff_t.h",
+    "__stddef_rsize_t.h",
+    "__stddef_size_t.h",
+    "__stddef_unreachable.h",
+    "__stddef_wchar_t.h",
+    "__stddef_wint_t.h",
+    "__wmmintrin_aes.h",
+    "__wmmintrin_pclmul.h",
+    "adcintrin.h",
+    "adxintrin.h",
+    "altivec.h",
+    "ammintrin.h",
+    "amxcomplexintrin.h",
+    "amxfp16intrin.h",
+    "amxintrin.h",
+    "arm64intr.h",
+    "arm_acle.h",
+    "arm_cmse.h",
+    "arm_neon_sve_bridge.h",
+    "armintr.h",
+    "avx2intrin.h",
+    "avx512bf16intrin.h",
+    "avx512bitalgintrin.h",
+    "avx512bwintrin.h",
+    "avx512cdintrin.h",
+    "avx512dqintrin.h",
+    "avx512fintrin.h",
+    "avx512fp16intrin.h",
+    "avx512ifmaintrin.h",
+    "avx512ifmavlintrin.h",
+    "avx512vbmi2intrin.h",
+    "avx512vbmiintrin.h",
+    "avx512vbmivlintrin.h",
+    "avx512vlbf16intrin.h",
+    "avx512vlbitalgintrin.h",
+    "avx512vlbwintrin.h",
+    "avx512vlcdintrin.h",
+    "avx512vldqintrin.h",
+    "avx512vlfp16intrin.h",
+    "avx512vlintrin.h",
+    "avx512vlvbmi2intrin.h",
+    "avx512vlvnniintrin.h",
+    "avx512vlvp2intersectintrin.h",
+    "avx512vnniintrin.h",
+    "avx512vp2intersectintrin.h",
+    "avx512vpopcntdqintrin.h",
+    "avx512vpopcntdqvlintrin.h",
+    "avxifmaintrin.h",
+    "avxintrin.h",
+    "avxneconvertintrin.h",
+    "avxvnniint16intrin.h",
+    "avxvnniint8intrin.h",
+    "avxvnniintrin.h",
+    "bmi2intrin.h",
+    "bmiintrin.h",
+    "builtins.h",
+    "cet.h",
+    "cetintrin.h",
+    "cldemoteintrin.h",
+    "clflushoptintrin.h",
+    "clwbintrin.h",
+    "clzerointrin.h",
+    "cmpccxaddintrin.h",
+    "cpuid.h",
+    "crc32intrin.h",
+    "cuda_wrappers/algorithm",
+    "cuda_wrappers/bits/basic_string.h",
+    "cuda_wrappers/bits/shared_ptr_base.h",
+    "cuda_wrappers/complex",
+    "cuda_wrappers/new",
+    "emmintrin.h",
+    "enqcmdintrin.h",
+    "f16cintrin.h",
+    "float.h",
+    "fma4intrin.h",
+    "fmaintrin.h",
+    "fxsrintrin.h",
+    "gfniintrin.h",
+    "hexagon_circ_brev_intrinsics.h",
+    "hexagon_protos.h",
+    "hexagon_types.h",
+    "hlsl.h",
+    "hlsl/hlsl_basic_types.h",
+    "hlsl/hlsl_intrinsics.h",
+    "hresetintrin.h",
+    "htmintrin.h",
+    "htmxlintrin.h",
+    "hvx_hexagon_protos.h",
+    "ia32intrin.h",
+    "immintrin.h",
+    "intrin.h",
+    "intrin0.h",
+    "inttypes.h",
+    "invpcidintrin.h",
+    "iso646.h",
+    "keylockerintrin.h",
+    "larchintrin.h",
+    "lasxintrin.h",
+    "limits.h",
+    "llvm_libc_wrappers/assert.h",
+    "llvm_libc_wrappers/ctype.h",
+    "llvm_libc_wrappers/inttypes.h",
+    "llvm_libc_wrappers/stdio.h",
+    "llvm_libc_wrappers/stdlib.h",
+    "llvm_libc_wrappers/string.h",
+    "llvm_libc_wrappers/time.h",
+    "lsxintrin.h",
+    "lwpintrin.h",
+    "lzcntintrin.h",
+    "mm3dnow.h",
+    "mm_malloc.h",
+    "mmintrin.h",
+    "module.modulemap",
+    "movdirintrin.h",
+    "msa.h",
+    "mwaitxintrin.h",
+    "nmmintrin.h",
+    "opencl-c-base.h",
+    "opencl-c.h",
+    "openmp_wrappers/__clang_openmp_device_functions.h",
+    "openmp_wrappers/cmath",
+    "openmp_wrappers/complex.h",
+    "openmp_wrappers/complex_cmath.h",
+    "openmp_wrappers/math.h",
+    "pconfigintrin.h",
+    "pkuintrin.h",
+    "pmmintrin.h",
+    "popcntintrin.h",
+    "ppc_wrappers/bmi2intrin.h",
+    "ppc_wrappers/bmiintrin.h",
+    "ppc_wrappers/emmintrin.h",
+    "ppc_wrappers/immintrin.h",
+    "ppc_wrappers/mm_malloc.h",
+    "ppc_wrappers/mmintrin.h",
+    "ppc_wrappers/nmmintrin.h",
+    "ppc_wrappers/pmmintrin.h",
+    "ppc_wrappers/smmintrin.h",
+    "ppc_wrappers/tmmintrin.h",
+    "ppc_wrappers/x86gprintrin.h",
+    "ppc_wrappers/x86intrin.h",
+    "ppc_wrappers/xmmintrin.h",
+    "prfchiintrin.h",
+    "prfchwintrin.h",
+    "ptrauth.h",
+    "ptwriteintrin.h",
+    "raointintrin.h",
+    "rdpruintrin.h",
+    "rdseedintrin.h",
+    "riscv_bitmanip.h",
+    "riscv_crypto.h",
+    "riscv_ntlh.h",
+    "rtmintrin.h",
+    "s390intrin.h",
+    "serializeintrin.h",
+    "sgxintrin.h",
+    "sha512intrin.h",
+    "shaintrin.h",
+    "sifive_vector.h",
+    "sm3intrin.h",
+    "sm4intrin.h",
+    "smmintrin.h",
+    "stdalign.h",
+    "stdarg.h",
+    "stdatomic.h",
+    "stdbool.h",
+    "stdckdint.h",
+    "stddef.h",
+    "stdint.h",
+    "stdnoreturn.h",
+    "tbmintrin.h",
+    "tgmath.h",
+    "tmmintrin.h",
+    "tsxldtrkintrin.h",
+    "uintrintrin.h",
+    "unwind.h",
+    "usermsrintrin.h",
+    "vadefs.h",
+    "vaesintrin.h",
+    "varargs.h",
+    "vecintrin.h",
+    "velintrin.h",
+    "velintrin_approx.h",
+    "velintrin_gen.h",
+    "vpclmulqdqintrin.h",
+    "waitpkgintrin.h",
+    "wasm_simd128.h",
+    "wbnoinvdintrin.h",
+    "wmmintrin.h",
+    "x86gprintrin.h",
+    "x86intrin.h",
+    "xmmintrin.h",
+    "xopintrin.h",
+    "xsavecintrin.h",
+    "xsaveintrin.h",
+    "xsaveoptintrin.h",
+    "xsavesintrin.h",
+    "xtestintrin.h",
+    "yvals_core.h",
+    "zos_wrappers/builtins.h",
+  ]
+  outputs = [ "$clang_resource_dir/include/{{source_target_relative}}" ]
+}

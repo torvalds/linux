@@ -1,0 +1,48 @@
+
+/*****************************************************************
+ * Functions to help treat arrays in a uniform manner.  These were
+ * inspired by a thread on comp.lang.c++.moderated, started by Dietmar
+ * Kuehl and contributed to by the rest of the entire planet.
+ *
+ * beginof (x), endof (x), lengthof (x) now accompany sizeof, where x
+ * can be either a container (currently only sequences) or a builtin
+ * array (/not/ a pointer).  The beginof/endof are intended for use in
+ * the algorithms library, and lengthof is a "sizing" function.
+ *
+ * Note example:
+ *       char  an_array [17];
+ *       cerr << lengthof(an_array) << endl;
+ * produces assembly code of
+ *       mov 17,register0
+ *       call ofstream_put
+ * i.e., the template function inlining really does work; g++
+ * requires -O3 (or -finline-functions) before it does this, though.
+ *
+ * pedwards 13Nov98
+*/
+// beginof
+template <class T>
+  inline typename vector<T>::iterator beginof (vector<T> &v)
+  { return v.begin(); }
+
+template <class T, unsigned int sz>
+  inline T* beginof (T (&array)[sz]) { return array; }
+
+
+// endof
+template <class T>
+  inline typename vector<T>::iterator endof (vector<T> &v)
+  { return v.end(); }
+
+template <class T, unsigned int sz>
+  inline T* endof (T (&array)[sz]) { return array + sz; }
+
+
+// lengthof
+template <class T>
+  inline typename vector<T>::size_type lengthof (vector<T> &v)
+  { return v.size(); }
+
+template <class T, unsigned int sz>
+  inline unsigned int lengthof (T (&)[sz]) { return sz; }
+

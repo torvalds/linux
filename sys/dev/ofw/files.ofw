@@ -1,0 +1,10 @@
+#	$OpenBSD: files.ofw,v 1.7 2019/07/02 20:12:11 kettenis Exp $
+
+file	dev/ofw/fdt.c			fdt
+file	dev/ofw/ofw_clock.c		fdt
+file	dev/ofw/ofw_gpio.c		fdt
+file	dev/ofw/ofw_misc.c		fdt
+file	dev/ofw/ofw_pinctrl.c		fdt
+file	dev/ofw/ofw_power.c		fdt
+file	dev/ofw/ofw_regulator.c		fdt
+file	dev/ofw/ofw_thermal.c		fdt

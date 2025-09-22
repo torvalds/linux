@@ -1,0 +1,86 @@
+UUID-TC-MIB DEFINITIONS ::= BEGIN
+
+     IMPORTS
+       MODULE-IDENTITY, mib-2
+         FROM SNMPv2-SMI             -- RFC 2578
+       TEXTUAL-CONVENTION
+         FROM SNMPv2-TC              -- RFC 2579
+       ;
+
+     uuidTCMIB MODULE-IDENTITY
+
+       LAST-UPDATED "201304050000Z"  -- April 5, 2013
+       ORGANIZATION "IETF Energy Management Working Group"
+       CONTACT-INFO "WG Email: eman@ietf.org
+                     Mailing list subscription info:
+                     http://www.ietf.org/mailman/listinfo/eman
+
+                     Dan Romascanu
+                     Avaya
+                     Park Atidim, Bldg. #3
+                     Tel Aviv, 61581
+                     Israel
+                     Phone: +972-3-6458414
+                     Email: dromasca@avaya.com
+
+                     Juergen Quittek
+                     NEC Europe Ltd.
+                     Network Research Division
+                     Kurfuersten-Anlage 36
+                     Heidelberg  69115
+                     Germany
+                     Phone: +49 6221 4342-115
+                     Email: quittek@neclab.eu
+
+                     Mouli Chandramouli
+                     Cisco Systems, Inc.
+                     Sarjapur Outer Ring Road
+                     Bangalore 560103
+                     India
+                     Phone: +91 80 4429 2409
+                     Email: moulchan@cisco.com"
+       DESCRIPTION
+                  "This MIB module defines TEXTUAL-CONVENTIONs
+                   representing Universally Unique IDentifiers
+                   (UUIDs).
+
+                   Copyright (c) 2013 IETF Trust and the persons
+                   identified as authors of the code.  All rights
+                   reserved.
+
+                   Redistribution and use in source and binary forms,
+                   with or without modification, is permitted
+                   pursuant to, and subject to the license terms
+                   contained in, the Simplified BSD License set forth
+                   in Section 4.c of the IETF Trust's Legal
+                   Provisions Relating to IETF Documents
+                   (http://trustee.ietf.org/license-info)."
+
+       REVISION     "201304050000Z"  -- April 5, 2013
+       DESCRIPTION  "Initial version of this MIB as published in
+                     RFC 6933."
+       ::= { mib-2 217 }
+
+     -- Textual Conventions
+
+UUID ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT    "4x-2x-2x-1x1x-6x"
+    STATUS          current
+    DESCRIPTION
+         "Universally Unique Identifier information.  The syntax must
+          conform to RFC 4122, Section 4.1."
+        SYNTAX      OCTET STRING (SIZE (16))
+
+UUIDorZero ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT    "4x-2x-2x-1x1x-6x"
+    STATUS          current
+    DESCRIPTION
+         "Universally Unique Identifier information.  The syntax must
+          conform to RFC 4122, Section 4.1.
+
+          The semantics of the value zero-length OCTET STRING are
+          object-specific and must therefore be defined as part of
+          the description of any object that uses this syntax."
+        SYNTAX      OCTET STRING (SIZE (0|16))
+
+END

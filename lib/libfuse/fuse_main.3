@@ -1,0 +1,153 @@
+.\" $OpenBSD: fuse_main.3,v 1.9 2025/09/20 15:01:23 helg Exp $
+.\"
+.\" Copyright (c) 2013 Sylvestre Gallon <ccna.syl@gmail.com>
+.\" Copyright (c) 2018 Helg Bredow <helg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 20 2025 $
+.Dt FUSE_MAIN 3
+.Os
+.Sh NAME
+.Nm fuse_main
+.Nd FUSE helper function
+.Sh SYNOPSIS
+.Lb libfuse
+.In fuse.h
+.Ft int
+.Fn fuse_main "int argc" "char **argv" "const struct fuse_operations *ops" \
+    "void *data"
+.Sh DESCRIPTION
+There are two ways of implementing a FUSE filesystem:
+by calling only
+.Fn fuse_main
+and passing this function the
+.Em ops
+argument containing all the callbacks of the filesystem,
+or by using the other functions,
+as detailed in
+.Xr fuse_loop 3
+.Pp
+.Fa argv
+is the list of arguments supplied to the program's main method and
+must at a minimum specify the directory on which the file system is to
+be mounted.
+The other arguments can be custom arguments specific to the
+file system or those supported by
+.Xr fuse_parse_cmdline 3 ,
+.Xr fuse_new 3
+and
+.Xr fuse_mount 3 .
+.Sh EXAMPLES
+Here is a simple example of a FUSE implementation:
+.Bd -literal
+#include <errno.h>
+#include <fuse.h>
+#include <string.h>
+
+static int
+fs_readdir(const char *path, void *data, fuse_fill_dir_t filler,
+           off_t off, struct fuse_file_info *ffi)
+{
+	if (strcmp(path, "/") != 0)
+		return -ENOENT;
+
+	filler(data, ".", NULL, 0);
+	filler(data, "..", NULL, 0);
+	filler(data, "file", NULL, 0);
+	return 0;
+}
+
+static int
+fs_read(const char *path, char *buf, size_t size, off_t off,
+        struct fuse_file_info *ffi)
+{
+	size_t len;
+	const char *file_contents = "fuse filesystem example\\n";
+
+	len = strlen(file_contents);
+
+	if (off < len) {
+		if (off + size > len)
+			size = len - off;
+		memcpy(buf, file_contents + off, size);
+	} else
+		size = 0;
+
+	return size;
+}
+
+static int
+fs_open(const char *path, struct fuse_file_info *ffi)
+{
+	if (strncmp(path, "/file", 10) != 0)
+		return -ENOENT;
+
+	if ((ffi->flags & 3) != O_RDONLY)
+		return -EACCES;
+
+	return 0;
+}
+
+static int
+fs_getattr(const char *path, struct stat *st)
+{
+	if (strcmp(path, "/") == 0) {
+		st->st_blksize = 512;
+		st->st_mode = 0755;
+		st->st_nlink = 2;
+	} else if (strcmp(path, "/file") == 0) {
+		st->st_mode = 0644;
+		st->st_blksize = 512;
+		st->st_nlink = 1;
+		st->st_size = 5;
+	} else {
+		return -ENOENT;
+	}
+
+	return 0;
+}
+
+struct fuse_operations fsops = {
+	.readdir = fs_readdir,
+	.read = fs_read,
+	.open = fs_open,
+	.getattr = fs_getattr,
+};
+
+int
+main(int argc, char **argv)
+{
+	return (fuse_main(argc, argv, &fsops, NULL));
+}
+.Ed
+.Sh SEE ALSO
+.Xr fuse_loop 3 ,
+.Xr fuse_mount 3 ,
+.Xr fuse_new 3 ,
+.Xr fuse_parse_cmdline 3 ,
+.Xr fuse_setup 3 ,
+.Xr fuse_teardown 3 ,
+.Xr fuse 4
+.Sh STANDARDS
+The
+.Fn fuse_main
+function conforms to FUSE 2.6.
+.Sh HISTORY
+The
+.Fn fuse_main
+function first appeared in
+.Ox 5.4 .
+.Sh AUTHORS
+.An Sylvestre Gallon Aq Mt ccna.syl@gmail.com
+.An Helg Bredow Aq Mt helg@openbsd.org

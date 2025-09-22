@@ -1,0 +1,555 @@
+.\" $OpenBSD: lh_new.3,v 1.14 2025/06/08 22:40:30 schwarze Exp $
+.\" full merge up to:
+.\" OpenSSL doc/crypto/lhash.pod 1bc74519 May 20 08:11:46 2016 -0400
+.\" selective merge up to:
+.\" OpenSSL doc/man3/OPENSSL_LH_COMPFUNC.pod 24a535ea Sep 22 13:14:20 2020 +0100
+.\"
+.\" --------------------------------------------------------------------------
+.\" Major patches to this file were contributed by
+.\" Ulf Moeller <ulf@openssl.org>, Geoff Thorpe <geoff@openssl.org>,
+.\" and Ben Laurie <ben@openssl.org>.
+.\" --------------------------------------------------------------------------
+.\" Copyright (c) 2000, 2001, 2002, 2008, 2009 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" --------------------------------------------------------------------------
+.\" Parts of this file are derived from SSLeay documentation,
+.\" which is covered by the following Copyright and license:
+.\" --------------------------------------------------------------------------
+.\"
+.\" Copyright (C) 1995-1998 Tim Hudson (tjh@cryptsoft.com)
+.\" All rights reserved.
+.\"
+.\" This package is an SSL implementation written
+.\" by Eric Young (eay@cryptsoft.com).
+.\" The implementation was written so as to conform with Netscapes SSL.
+.\"
+.\" This library is free for commercial and non-commercial use as long as
+.\" the following conditions are aheared to.  The following conditions
+.\" apply to all code found in this distribution, be it the RC4, RSA,
+.\" lhash, DES, etc., code; not just the SSL code.  The SSL documentation
+.\" included with this distribution is covered by the same copyright terms
+.\" except that the holder is Tim Hudson (tjh@cryptsoft.com).
+.\"
+.\" Copyright remains Eric Young's, and as such any Copyright notices in
+.\" the code are not to be removed.
+.\" If this package is used in a product, Eric Young should be given
+.\" attribution as the author of the parts of the library used.
+.\" This can be in the form of a textual message at program startup or
+.\" in documentation (online or textual) provided with the package.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"    "This product includes cryptographic software written by
+.\"     Eric Young (eay@cryptsoft.com)"
+.\"    The word 'cryptographic' can be left out if the rouines from the
+.\"    library being used are not cryptographic related :-).
+.\" 4. If you include any Windows specific code (or a derivative thereof)
+.\"    from the apps directory (application code) you must include an
+.\"    acknowledgement: "This product includes software written by
+.\"    Tim Hudson (tjh@cryptsoft.com)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" The licence and distribution terms for any publically available version or
+.\" derivative of this code cannot be changed.  i.e. this code cannot simply be
+.\" copied and put under another distribution licence
+.\" [including the GNU Public Licence.]
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt LH_NEW 3
+.Os
+.Sh NAME
+.Nm lh_new ,
+.Nm lh_free ,
+.Nm lh_insert ,
+.Nm lh_delete ,
+.Nm lh_retrieve ,
+.Nm lh_doall ,
+.Nm lh_doall_arg ,
+.Nm lh_error ,
+.Nm LHASH_COMP_FN_TYPE ,
+.Nm LHASH_HASH_FN_TYPE ,
+.Nm LHASH_DOALL_FN_TYPE ,
+.Nm LHASH_DOALL_ARG_FN_TYPE ,
+.Nm lh_strhash
+.Nd dynamic hash table
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/lhash.h
+.Fn DECLARE_LHASH_OF <type>
+.Ft LHASH *
+.Fn lh_<type>_new void
+.Ft void
+.Fo lh_<type>_free
+.Fa "LHASH_OF(<type>) *table"
+.Fc
+.Ft <type> *
+.Fo lh_<type>_insert
+.Fa "LHASH_OF(<type>) *table"
+.Fa "<type> *data"
+.Fc
+.Ft <type> *
+.Fo lh_<type>_delete
+.Fa "LHASH_OF(<type>) *table"
+.Fa "<type> *data"
+.Fc
+.Ft <type> *
+.Fo lh_<type>_retrieve
+.Fa "LHASH_OF(<type>) *table"
+.Fa "<type> *data"
+.Fc
+.Ft void
+.Fo lh_<type>_doall
+.Fa "LHASH_OF(<type>) *table"
+.Fa "LHASH_DOALL_FN_TYPE func"
+.Fc
+.Ft void
+.Fo lh_<type>_doall_arg
+.Fa "LHASH_OF(<type>) *table"
+.Fa "LHASH_DOALL_ARG_FN_TYPE func"
+.Fa "<type2>"
+.Fa "<type2> *arg"
+.Fc
+.Ft int
+.Fo lh_<type>_error
+.Fa "LHASH_OF(<type>) *table"
+.Fc
+.Ft typedef int
+.Fo (*LHASH_COMP_FN_TYPE)
+.Fa "const void *"
+.Fa "const void *"
+.Fc
+.Ft typedef unsigned long
+.Fo (*LHASH_HASH_FN_TYPE)
+.Fa "const void *"
+.Fc
+.Ft typedef void
+.Fo (*LHASH_DOALL_FN_TYPE)
+.Fa "const void *"
+.Fc
+.Ft typedef void
+.Fo (*LHASH_DOALL_ARG_FN_TYPE)
+.Fa "const void *"
+.Fa "const void *"
+.Fc
+.Ft unsigned long
+.Fo lh_strhash
+.Fa "const char *c"
+.Fc
+.Sh DESCRIPTION
+This library implements type-checked dynamic hash tables.
+The hash table entries can be arbitrary structures.
+Usually they consist of key and value fields.
+.Pp
+.Fn lh_<type>_new
+creates a new
+.Vt LHASH_OF(<type>)
+structure to store arbitrary data entries, and provides the hash and
+compare callbacks to be used in organising the table's entries.
+The hash callback takes a pointer to a table entry as its argument
+and returns an unsigned long hash value for its key field.
+The hash value is normally truncated to a power of 2, so make sure that
+your hash function returns well mixed low order bits.
+The compare callback takes two arguments (pointers to two hash table
+entries), and returns 0 if their keys are equal, non-zero otherwise.
+If your hash table will contain items of some particular type and the
+hash and compare callbacks hash and compare these types, then the
+.Fn DECLARE_LHASH_HASH_FN
+and
+.Fn IMPLEMENT_LHASH_COMP_FN
+macros can be used to create callback wrappers of the prototypes
+required by
+.Fn lh_<type>_new .
+These provide per-variable casts before calling the type-specific
+callbacks written by the application author.
+These macros, as well as those used for the doall callbacks, are
+defined as;
+.Bd -literal -offset 2n
+#define	DECLARE_LHASH_HASH_FN(name, o_type) \e
+	unsigned long name##_LHASH_HASH(const void *);
+#define	IMPLEMENT_LHASH_HASH_FN(name, o_type) \e
+	unsigned long name##_LHASH_HASH(const void *arg) { \e
+		const o_type *a = arg; \e
+		return name##_hash(a); }
+#define	LHASH_HASH_FN(name) name##_LHASH_HASH
+
+#define	DECLARE_LHASH_COMP_FN(name, o_type) \e
+	int name##_LHASH_COMP(const void *, const void *);
+#define	IMPLEMENT_LHASH_COMP_FN(name, o_type) \e
+	int name##_LHASH_COMP(const void *arg1, const void *arg2) { \e
+		const o_type *a = arg1;		    \e
+		const o_type *b = arg2; \e
+		return name##_cmp(a,b); }
+#define	LHASH_COMP_FN(name) name##_LHASH_COMP
+
+#define	DECLARE_LHASH_DOALL_FN(name, o_type) \e
+	void name##_LHASH_DOALL(void *);
+#define	IMPLEMENT_LHASH_DOALL_FN(name, o_type) \e
+	void name##_LHASH_DOALL(void *arg) { \e
+		o_type *a = arg; \e
+		name##_doall(a); }
+#define	LHASH_DOALL_FN(name) name##_LHASH_DOALL
+
+#define	DECLARE_LHASH_DOALL_ARG_FN(name, o_type, a_type) \e
+	void name##_LHASH_DOALL_ARG(void *, void *);
+#define	IMPLEMENT_LHASH_DOALL_ARG_FN(name, o_type, a_type) \e
+	void name##_LHASH_DOALL_ARG(void *arg1, void *arg2) { \e
+		o_type *a = arg1; \e
+		a_type *b = arg2; \e
+		name##_doall_arg(a, b); }
+#define	LHASH_DOALL_ARG_FN(name) name##_LHASH_DOALL_ARG
+.Ed
+.Pp
+An example of a hash table storing (pointers to) structures of type
+\&'STUFF' could be defined as follows;
+.Bd -literal -offset 2n
+/* Calculate the hash value of 'tohash' (implemented elsewhere) */
+unsigned long STUFF_hash(const STUFF *tohash);
+/* Order 'arg1' and 'arg2' (implemented elsewhere) */
+int stuff_cmp(const STUFF *arg1, const STUFF *arg2);
+/* Create type-safe wrapper functions for use in the LHASH internals */
+static IMPLEMENT_LHASH_HASH_FN(stuff, STUFF);
+static IMPLEMENT_LHASH_COMP_FN(stuff, STUFF);
+/* ... */
+int main(int argc, char *argv[]) {
+        /* Create the new hash table using the hash/compare wrappers */
+        LHASH_OF(STUFF) *hashtable =
+	    lh_STUFF_new(LHASH_HASH_FN(STUFF_hash),
+        	LHASH_COMP_FN(STUFF_cmp));
+	/* ... */
+}
+.Ed
+.Pp
+.Fn lh_<type>_free
+frees the
+.Vt LHASH_OF(<type>)
+structure
+.Fa table .
+Allocated hash table entries will not be freed; consider using
+.Fn lh_<type>_doall
+to deallocate any remaining entries in the hash table (see below).
+.Pp
+.Fn lh_<type>_insert
+inserts the structure pointed to by
+.Fa data
+into
+.Fa table .
+If there already is an entry with the same key, the old value is
+replaced.
+Note that
+.Fn lh_<type>_insert
+stores pointers, the data are not copied.
+.Pp
+.Fn lh_<type>_delete
+deletes an entry from
+.Fa table .
+.Pp
+.Fn lh_<type>_retrieve
+looks up an entry in
+.Fa table .
+Normally,
+.Fa data
+is a structure with the key field(s) set; the function will return a
+pointer to a fully populated structure.
+.Pp
+.Fn lh_<type>_doall
+will, for every entry in the hash table, call
+.Fa func
+with the data item as its parameter.
+For
+.Fn lh_<type>_doall
+and
+.Fn lh_<type>_doall_arg ,
+function pointer casting should be avoided in the callbacks (see
+.Sx NOTES )
+\(em instead use the declare/implement macros to create type-checked
+wrappers that cast variables prior to calling your type-specific
+callbacks.
+An example of this is illustrated here where the callback is used to
+cleanup resources for items in the hash table prior to the hashtable
+itself being deallocated:
+.Bd -literal -offset 2n
+/* Clean up resources belonging to 'a' (this is implemented elsewhere) */
+void STUFF_cleanup_doall(STUFF *a);
+/* Implement a prototype-compatible wrapper for "STUFF_cleanup" */
+IMPLEMENT_LHASH_DOALL_FN(STUFF_cleanup, STUFF)
+	/* ... then later in the code ... */
+/* So to run "STUFF_cleanup" against all items in a hash table ... */
+lh_STUFF_doall(hashtable, LHASH_DOALL_FN(STUFF_cleanup));
+/* Then the hash table itself can be deallocated */
+lh_STUFF_free(hashtable);
+.Ed
+.Pp
+A callback may delete entries from the hash table, however, it is
+not safe to insert new entries.
+.Pp
+.Fn lh_<type>_doall_arg
+is the same as
+.Fn lh_<type>_doall
+except that
+.Fa func
+will be called with
+.Fa arg
+as the second argument and
+.Fa func
+should be of type
+.Vt LHASH_DOALL_ARG_FN_TYPE
+(a callback prototype that is passed both the table entry and an extra
+argument).
+As with
+.Fn lh_<type>_doall ,
+you can instead choose to declare your callback with a prototype
+matching the types you are dealing with and use the declare/implement
+macros to create compatible wrappers that cast variables before calling
+your type-specific callbacks.
+An example of this is demonstrated here (printing all hash table entries
+to a BIO that is provided by the caller):
+.Bd -literal -offset 2n
+/* Print item 'a' to 'output_bio' (this is implemented elsewhere) */
+void STUFF_print_doall_arg(const STUFF *a, BIO *output_bio);
+/* Implement a prototype-compatible wrapper for "STUFF_print" */
+static IMPLEMENT_LHASH_DOALL_ARG_FN(STUFF, const STUFF, BIO)
+	/* ... then later in the code ... */
+/* Print out the entire hashtable to a particular BIO */
+lh_STUFF_doall_arg(hashtable, LHASH_DOALL_ARG_FN(STUFF_print), BIO,
+	logging_bio);
+.Ed
+.Pp
+.Fn lh_<type>_error
+can be used to determine if an error occurred in the last operation.
+.Sh RETURN VALUES
+.Fn lh_<type>_new
+returns
+.Dv NULL
+on error, otherwise a pointer to the new
+.Vt LHASH
+structure.
+.Pp
+When a hash table entry is replaced,
+.Fn lh_<type>_insert
+returns the value being replaced.
+.Dv NULL
+is returned on normal operation and on error.
+.Pp
+.Fn lh_<type>_delete
+returns the entry being deleted.
+.Dv NULL
+is returned if there is no such value in the hash table.
+.Pp
+.Fn lh_<type>_retrieve
+returns the hash table entry if it has been found, or
+.Dv NULL
+otherwise.
+.Pp
+.Fn lh_<type>_error
+returns 1 if an error occurred in the last operation, or 0 otherwise.
+.Sh NOTES
+The various LHASH macros and callback types exist to make it possible to
+write type-checked code without resorting to function-prototype casting
+\(em an evil that makes application code much harder to audit/verify and
+also opens the window of opportunity for stack corruption and other
+hard-to-find bugs.
+It also, apparently, violates ANSI-C.
+.Pp
+The LHASH code regards table entries as constant data.
+As such, it internally represents
+.Fn lh_<type>_insert Ap ed
+items with a
+.Vt const void *
+pointer type.
+This is why callbacks such as those used by
+.Fn lh_<type>_doall
+and
+.Fn lh_<type>_doall_arg
+declare their prototypes with "const", even for the parameters that pass
+back the table items' data pointers \(em for consistency, user-provided
+data is "const" at all times as far as the LHASH code is concerned.
+However, as callers are themselves providing these pointers, they can
+choose whether they too should be treating all such parameters as
+constant.
+.Pp
+As an example, a hash table may be maintained by code that, for
+reasons of encapsulation, has only "const" access to the data being
+indexed in the hash table (i.e. it is returned as "const" from
+elsewhere in their code) \(em in this case the LHASH prototypes are
+appropriate as-is.
+Conversely, if the caller is responsible for the life-time of the data
+in question, then they may well wish to make modifications to table item
+passed back in the
+.Fn lh_<type>_doall
+or
+.Fn lh_<type>_doall_arg
+callbacks (see the "STUFF_cleanup" example above).
+If so, the caller can either cast the "const" away (if they're providing
+the raw callbacks themselves) or use the macros to declare/implement the
+wrapper functions without "const" types.
+.Pp
+Callers that only have "const" access to data they are indexing in a
+table, yet declare callbacks without constant types (or cast the "const"
+away themselves), are therefore creating their own risks/bugs without
+being encouraged to do so by the API.
+On a related note, those auditing code should pay special attention
+to any instances of DECLARE/IMPLEMENT_LHASH_DOALL_[ARG_]_FN macros
+that provide types without any "const" qualifiers.
+.Sh INTERNALS
+The following description is based on the SSLeay documentation:
+.Pp
+The lhash library implements a hash table described in the
+.Em Communications of the ACM
+in 1991.
+What makes this hash table different is that as the table fills,
+the hash table is increased (or decreased) in size via
+.Xr reallocarray 3 .
+When a 'resize' is done, instead of all hashes being redistributed over
+twice as many 'buckets', one bucket is split.
+So when an 'expand' is done, there is only a minimal cost to
+redistribute some values.
+Subsequent inserts will cause more single 'bucket' redistributions but
+there will never be a sudden large cost due to redistributing all the
+\&'buckets'.
+.Pp
+The state for a particular hash table is kept in the
+.Vt LHASH
+structure.
+The decision to increase or decrease the hash table size is made
+depending on the 'load' of the hash table.
+The load is the number of items in the hash table divided by the size of
+the hash table.
+The default values are as follows.
+If (hash->up_load < load) => expand.
+If (hash->down_load > load) => contract.
+The
+.Fa up_load
+has a default value of 1 and
+.Fa down_load
+has a default value of 2.
+These numbers can be modified by the application by just playing
+with the
+.Fa up_load
+and
+.Fa down_load
+variables.
+The 'load' is kept in a form which is multiplied by 256.
+So hash->up_load=8*256 will cause a load of 8 to be set.
+.Pp
+If you are interested in performance, the field to watch is
+.Fa num_comp_calls .
+The hash library keeps track of the 'hash' value for each item so when a
+lookup is done, the 'hashes' are compared, if there is a match, then a
+full compare is done, and hash->num_comp_calls is incremented.
+If num_comp_calls is not equal to num_delete plus num_retrieve, it means
+that your hash function is generating hashes that are the same for
+different values.
+It is probably worth changing your hash function if this is the case
+because even if your hash table has 10 items in a 'bucket', it can be
+searched with 10
+.Vt unsigned long
+compares and 10 linked list traverses.
+This will be much less expensive that 10 calls to your compare function.
+.Pp
+.Fn lh_strhash
+is a demo string hashing function.
+Since the LHASH routines would normally be passed structures, this
+routine would not normally be passed to
+.Fn lh_<type>_new ,
+rather it would be used in the function passed to
+.Fn lh_<type>_new .
+.Sh SEE ALSO
+.Xr crypto 3
+.Sh HISTORY
+.Fn lh_new ,
+.Fn lh_free ,
+.Fn lh_insert ,
+.Fn lh_delete ,
+.Fn lh_retrieve ,
+.Fn lh_doall ,
+and
+.Fn lh_strhash
+appeared in SSLeay 0.4 or earlier.
+.Fn lh_doall_arg
+first appeared in SSLeay 0.5.1.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn lh_<type>_error
+was added in SSLeay 0.9.1b.
+.Pp
+In OpenSSL 0.9.7, all lhash functions that were passed function pointers
+were changed for better type safety, and the function types
+.Vt LHASH_COMP_FN_TYPE ,
+.Vt LHASH_HASH_FN_TYPE ,
+.Vt LHASH_DOALL_FN_TYPE ,
+and
+.Vt LHASH_DOALL_ARG_FN_TYPE
+became available.
+.Pp
+In OpenSSL 1.0.0, the lhash interface was revamped for even better type
+checking.
+.Sh BUGS
+.Fn lh_<type>_insert
+returns
+.Dv NULL
+both for success and error.

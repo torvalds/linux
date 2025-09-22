@@ -1,0 +1,7 @@
+GCC_3.4.4 {
+  # long double support
+  __gcc_qadd
+  __gcc_qsub
+  __gcc_qmul
+  __gcc_qdiv
+}

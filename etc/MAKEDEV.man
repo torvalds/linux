@@ -1,0 +1,94 @@
+define(COMM,`.\"')dnl
+include(MAKEDEV.mansub)dnl
+dnl
+vers(a, {-$OpenBSD: MAKEDEV.man,v 1.9 2017/06/06 08:11:23 tb Exp $-})dnl
+dnl
+define(quote,{-.Dq $1
+-})dnl
+include(MAKEDEV.common)dnl
+dnl
+__devtitle(make,{-Special device names-})dnl
+__devitem({-all-},{-all-},dnl
+{-Creates special files for all devices on MACHINE-},nothing)dnl
+__devitem(std,{-std-},dnl
+{-Creates the
+.Sq standard
+devices (console, klog, kmem, ksyms, mem, null,
+stderr, stdin, stdout, tty, zero)
+which are absolutely necessary for the system to function properly-},nothing)dnl
+__devitem(local,local,dnl
+{-Creates configuration-specific devices{-,-} by invoking the shell file
+.Pa MAKEDEV.local -},nothing)dnl
+define({-_std-},)dnl
+divert(1)dnl
+dnl send md shell fragments to the bit bucket...
+define(__mddivert,11)dnl
+include(MAKEDEV.md)dnl
+dnl
+.El
+divert(0)dnl
+.\" ${--}OpenBSD{--}$
+.\"
+.\" THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
+.\" generated from:
+.\"
+show_vers()dnl <-- now that all files are included, show versions
+.\"
+.\" Copyright (c) 2004, Miodrag Vallat
+.\" Copyright (c) 2001-2004 Todd T. Fries <todd@OpenBSD.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 6 2017 $
+.Dt MAKEDEV 8 MACHINE
+.Os
+.Sh NAME
+.Nm MAKEDEV
+.Nd create system and device special files
+.Sh SYNOPSIS
+.Nm MAKEDEV
+.Op Ar name ...
+.Sh DESCRIPTION
+The shell script
+.Nm ,
+found in the
+.Pa /dev
+directory, is used to create various special files.
+See
+.Xr intro 4
+for a more complete discussion of special files.
+.Pp
+.Nm
+takes any number of device names as arguments, where the names are
+the common abbreviation for the device or group of devices.
+Files are created in the current working directory.
+.Pp
+Where a device name is followed by a star
+.Sq * ,
+the star must be replaced by a unit number.
+If units are expected for a device but not provided,
+.Nm
+will supply the standard numbers in most cases.
+.Pp
+The MACHINE supports the following devices:
+divert(9)dnl
+.El
+.Sh FILES
+.Bl -tag -width /dev -compact
+.It Pa /dev
+The special file directory.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr config 8 ,
+.Xr mknod 8

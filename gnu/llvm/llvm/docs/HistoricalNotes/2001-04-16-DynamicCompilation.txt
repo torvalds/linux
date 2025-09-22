@@ -1,0 +1,49 @@
+By Chris:
+
+LLVM has been designed with two primary goals in mind.  First we strive to 
+enable the best possible division of labor between static and dynamic 
+compilers, and second, we need a flexible and powerful interface 
+between these two complementary stages of compilation.  We feel that 
+providing a solution to these two goals will yield an excellent solution 
+to the performance problem faced by modern architectures and programming 
+languages.
+
+A key insight into current compiler and runtime systems is that a 
+compiler may fall in anywhere in a "continuum of compilation" to do its 
+job.  On one side, scripting languages statically compile nothing and 
+dynamically compile (or equivalently, interpret) everything.  On the far 
+other side, traditional static compilers process everything statically and 
+nothing dynamically.  These approaches have typically been seen as a 
+tradeoff between performance and portability.  On a deeper level, however, 
+there are two reasons that optimal system performance may be obtained by a
+system somewhere in between these two extremes: Dynamic application 
+behavior and social constraints.
+
+From a technical perspective, pure static compilation cannot ever give 
+optimal performance in all cases, because applications have varying dynamic
+behavior that the static compiler cannot take into consideration.  Even 
+compilers that support profile guided optimization generate poor code in 
+the real world, because using such optimization tunes that application 
+to one particular usage pattern, whereas real programs (as opposed to 
+benchmarks) often have several different usage patterns.
+
+On a social level, static compilation is a very shortsighted solution to 
+the performance problem.  Instruction set architectures (ISAs) continuously 
+evolve, and each implementation of an ISA (a processor) must choose a set 
+of tradeoffs that make sense in the market context that it is designed for.  
+With every new processor introduced, the vendor faces two fundamental 
+problems: First, there is a lag time between when a processor is introduced 
+to when compilers generate quality code for the architecture.  Secondly, 
+even when compilers catch up to the new architecture there is often a large 
+body of legacy code that was compiled for previous generations and will 
+not or can not be upgraded.  Thus a large percentage of code running on a 
+processor may be compiled quite sub-optimally for the current 
+characteristics of the dynamic execution environment.
+
+For these reasons, LLVM has been designed from the beginning as a long-term 
+solution to these problems.  Its design allows the large body of platform 
+independent, static, program optimizations currently in compilers to be 
+reused unchanged in their current form.  It also provides important static 
+type information to enable powerful dynamic and link time optimizations 
+to be performed quickly and efficiently.  This combination enables an 
+increase in effective system performance for real world environments.

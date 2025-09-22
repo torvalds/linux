@@ -1,0 +1,438 @@
+.\"	$OpenBSD: fdisk.8,v 1.128 2025/06/29 16:15:52 krw Exp $
+.\"
+.\"
+.\" Copyright (c) 1997 Tobias Weingartner
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 29 2025 $
+.Dt FDISK 8
+.Os
+.Sh NAME
+.Nm fdisk
+.Nd partition table maintenance program
+.Sh SYNOPSIS
+.Nm fdisk
+.Op Fl evy
+.Op Fl A | g | i | u
+.Op Fl b Ar blocks Ns Op @ Ns Ar offset Ns Op : Ns Ar type
+.Op Fl l Ar blocks | Fl c Ar cylinders Fl h Ar heads Fl s Ar sectors
+.Op Fl f Ar file
+.Ar disk
+.Nm fdisk
+.Fl R
+.Op Fl evy
+.Ar disk Op Ar file
+.Sh DESCRIPTION
+.Nm fdisk
+creates and edits MBR and GPT partition tables.
+These tables are used by the boot process of some
+platforms to find the
+.Ox
+kernel and, when present, are used by the kernel to find the
+.Xr disklabel 5 .
+.Pp
+Caution is advised when editing these tables since some platforms
+rely on specific configurations created at install time.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl A
+Modifies the GPT partition table entries on
+.Ar disk
+to put all available space not taken by
+.Fl b
+into a single
+.Ox
+partition.
+The available space is maximized by deleting all existing partition
+entries except for partition types APFS ISC, APFS, APFS Recovery, BIOS Boot,
+HiFive FSBL, HiFive BBL and partitions with the
+.Sq Required
+GPT attribute set.
+.Pp
+If
+APFS ISC, APFS, or APFS Recovery
+partitions are detected then existing
+EFI system
+partitions are also preserved.
+If the preserved EFI system partition has fewer blocks
+than the number requested with
+.Fl b ,
+the modified GPT is discarded.
+.It Fl b Ar blocks Ns Op @ Ns Ar offset Ns Op : Ns Ar type
+Creates a partition table entry of the specified number of blocks, offset
+and type.
+.Ar offset
+defaults to the first available block, and
+.Ar type
+defaults to
+.Sq EF .
+.Pp
+.Fl b
+is only available in combination with
+.Fl A ,
+.Fl g ,
+or
+.Fl i .
+.Pp
+If
+.Fl A
+or
+.Fl g
+is specified, only the
+.Ar blocks
+value is used.
+.It Xo
+.Fl c Ar cylinders
+.Fl h Ar heads
+.Fl s Ar sectors
+.Xc
+Specifies a geometry for
+.Nm
+to use.
+By default the disk size and geometry are obtained
+from the default
+.Xr disklabel 5
+constructed by the kernel for
+.Ar disk .
+See
+.Xr disklabel 5
+and
+.Xr disklabel 8 .
+.It Fl e
+Invokes the interactive partition table editor.
+See
+.Sx COMMAND MODE
+below.
+.It Fl f Ar file
+Specifies a file containing the bootcode for an MBR.
+The default file is
+.Pa /usr/mdec/mbr .
+.It Fl g
+Writes a default GPT, including a protective MBR, to
+.Ar disk .
+The GPT has a single
+.Ox
+partition containing all available space not taken by
+.Fl b .
+.It Fl i
+Writes a default MBR to
+.Ar disk .
+The MBR has a single
+.Ox
+partition containing all the available space not taken by
+.Fl b .
+The bootcode is initialized as described in
+.Fl u .
+.It Fl l Ar count
+Treat
+.Ar disk
+as though it has a size of
+.Ar count
+blocks.
+.It Fl R Ar disk Op Ar file
+Creates a GPT or MBR partition table based on the contents of
+.Ar file .
+.Ar file
+contains the output of
+.Nm Fl v
+(e.g. the fdisk* files in /var/backups) or
+compact GPT partition descriptions of the form
+.Pp
+.Dl <id>:<type>[<start>:<size>]<attributes><name>
+.Pp
+where a new partition UUID is always generated and <attributes><name> is
+optional.
+For example:
+.Pp
+.Dl 0: EFI Sys [64:66560] 0x0 EFI System Area
+.Pp
+If <start> is 0 it is set to the first usable LBA of the largest
+chunk of free space.
+.Pp
+If
+.Ar file
+is not provided,
+.Nm
+attempts to fully restore a GPT if either a primary or secondary
+GPT exists on
+.Ar disk .
+.It Fl u
+Updates the MBR bootcode.
+If a bootcode file is present (see
+.Fl f )
+the MBR, except for the partition entries, is replaced by
+the first block of the file.
+If no bootcode file is present, zeros are used.
+.Pp
+Not available when editing a GPT.
+.It Fl v
+Prints detailed information about the MBR, the Primary GPT and the
+Secondary GPT.
+.It Fl y
+New or modified partition table is written to disk without
+asking for confirmation.
+.It Ar disk
+.Nm
+creates or modifies the partition table of
+.Ar disk .
+.Ar disk
+can be a full pathname,
+e.g.
+.Pa /dev/rsd0c ,
+a raw partition name, e.g.
+.Pa sd0c ,
+or just the disk name, e.g.
+.Pa sd0 .
+.El
+.Sh TYPICAL LAYOUT
+When called without options,
+.Nm
+prints the partition table of
+.Ar disk .
+.Pp
+If
+.Ar disk
+has a GPT a terse version of its contents is printed:
+.Bd -literal -offset 1n
+# fdisk sd0
+Disk: sd0	Usable LBA: 64 to 500118128 [500118192 Sectors]
+   #: type                                 [       start:         size ]
+------------------------------------------------------------------------
+   1: EFI Sys                              [          64:          960 ]
+   3: OpenBSD                              [        1024:    500117105 ]
+.Ed
+.Pp
+When
+.Ar disk
+does not have a GPT, the first block of
+.Ar disk
+is printed as an MBR:
+.Bd -literal -offset 1n
+# fdisk sd0
+Disk: sd0	geometry: 121601/255/63 [1953525168 Sectors]
+Offset: 0	Signature: 0xAA55
+           Starting       Ending      LBA Info:
+ #: id     C  H  S -      C   H  S [     start:       size ]
+------------------------------------------------------------------------
+ 0: 0B     0  1  1 -  26108   0 63 [        63:  419425020 ] FAT32
+ 1: 00     0  0  0 -      0   0  0 [         0:          0 ] unused
+ 2: 00     0  0  0 -      0   0  0 [         0:          0 ] unused
+*3: A6 26108  1  1 - 121600 254 63 [ 419425083: 1534094982 ] OpenBSD
+.Ed
+.Pp
+.Em NOTE :
+Partition entry #3 of this MBR is flagged as bootable.
+.Pp
+.Em NOTE :
+The
+.Em S
+field in the C/H/S values is
+.Dq 1 based ,
+but the LBA "start" field is
+.Dq 0 based .
+.Pp
+The
+.Fl v
+option causes more information to be printed:
+.Bd -literal -offset 1n
+# fdisk -v sd0
+Primary GPT:
+Disk: sd0	Usable LBA: 64 to 500118128 [500118192 Sectors]
+GUID: f0418899-4976-4604-a783-3ebe135a8f12
+   #: type                                 [       start:         size ]
+      guid                                 name
+------------------------------------------------------------------------
+   1: EFI Sys                              [          64:          960 ]
+      d0834013-dab8-44df-a5e4-123148f17e03 EFI System Area
+   3: OpenBSD                              [        1024:    500117105 ]
+      cd356d77-8369-44b4-996e-79e8b9a47bfe OpenBSD Area
+
+Secondary GPT:
+Disk: sd0	Usable LBA: 64 to 500118128 [500118192 Sectors]
+GUID: f0418899-4976-4604-a783-3ebe135a8f12
+   #: type                                 [       start:         size ]
+      guid                                 name
+------------------------------------------------------------------------
+   1: EFI Sys                              [          64:          960 ]
+      d0834013-dab8-44df-a5e4-123148f17e03 EFI System Area
+   3: OpenBSD                              [        1024:    500117105 ]
+      cd356d77-8369-44b4-996e-79e8b9a47bfe OpenBSD Area
+
+MBR:
+Disk: sd0	geometry: 31130/255/63 [500118192 Sectors]
+Offset: 0	Signature: 0xAA55
+            Starting         Ending         LBA Info:
+ #: id      C   H   S -      C   H   S [       start:        size ]
+-------------------------------------------------------------------------------
+ 0: EE      0   0   2 -  31130 233  63 [           1:   500118191 ] EFI GPT
+ 1: 00      0   0   0 -      0   0   0 [           0:           0 ] unused
+ 2: 00      0   0   0 -      0   0   0 [           0:           0 ] unused
+ 3: 00      0   0   0 -      0   0   0 [           0:           0 ] unused
+.Ed
+.Sh COMMAND MODE
+When
+.Nm
+enters interactive command mode,
+it copies the partition table from
+.Ar disk
+into memory and performs all edits on
+that copy.
+The partition table on
+.Ar disk
+is modified only by
+.Em write
+or
+.Em quit
+commands.
+.Pp
+The prompt contains information about the state of the edit
+process.
+.Pp
+.Dl Ar disk Ns *:1>
+.Pp
+Where
+.Ar disk
+is the name of the disk being edited,
+.Sq *
+means that the partition table has been modified, but
+not yet written to disk and
+1 is the edit level when operating on the MBR or GPT.
+This number is 2 when editing an extended partition in the MBR,
+3 when editing an extended partition within the edit level 2
+extended partition, and so on.
+.Pp
+The list of commands and their functions is
+given below.
+Commands may be abbreviated.
+The first command matching the abbreviation is selected.
+.Bl -tag -width Ds
+.It Cm ?\&
+A synonym for
+.Cm help .
+.It Cm help
+Displays a short summary of available commands.
+.It Cm manual
+Displays this manual page.
+.It Cm reinit Op Cm gpt | Cm mbr
+Initializes the partition table.
+.Pp
+By default an MBR partition table is initialized.
+If
+.Cm gpt
+is specified a GPT partition table is initialized, including the
+protective MBR.
+.It Cm setpid Ar #
+Sets the identifier of the partition table entry.
+.It Cm edit Ar # | Ar desc
+Edit an entry in the partition table.
+.Pp
+.Ar #
+(MBR or GPT) triggers interactive editing of the partition.
+.Pp
+.Ar desc
+(GPT only) immediately modifies the partition.
+.Ar desc
+is in the compact format supported by the
+.Fl R
+command line argument.
+.Pp
+The offset and size of the entry may be specified in CHS mode (MBR only),
+by using sector offsets and sizes, or by using
+the units
+.Sq b ,
+.Sq k ,
+.Sq m ,
+.Sq g ,
+or
+.Sq t
+to indicate bytes, kilobytes, megabytes, gigabytes, or terabytes.
+The special size value
+.Sq *
+causes the partition to be sized to use the remainder of the disk.
+.It Cm flag Ar # Op Ar value
+Set the partition's flag (MBR) or attribute (GPT) value.
+.Ar value
+can be a positive integer or a hex string.
+An MBR partition will accept values from 0 to 0xff.
+A GPT partition will accept values from 0 to 0xfffffffffffffff.
+If
+.Ar value
+is not provided, the partition's bootable flag is set
+and all other partitions have their bootable flags reset.
+MBR partitions with the bootable flag set are printed with a
+.Sq *
+prefix.
+GPT partitions with the bootable flag set display 'bootable' in
+their attributes list.
+.It Cm update
+Updates the MBR bootcode.
+If a bootcode file is present (see
+.Fl f )
+the MBR, except for the partition entries, is replaced by
+the first block of the file.
+If no bootcode file is present, zeros are used.
+.Pp
+Not available when editing a GPT.
+.It Cm select Ar #
+Selects an extended partition entry, increasing the edit level by 1.
+.Pp
+Not available when editing a GPT.
+.It Cm swap Ar # Ar #
+Swaps two partition entries.
+.It Cm print Op Ar unit
+Prints the partition table.
+If
+.Ar unit
+is
+.Sq b ,
+.Sq k ,
+.Sq m ,
+.Sq g ,
+or
+.Sq t
+partition sizes are shown in bytes,
+kilobytes, megabytes, gigabytes, or terabytes.
+If
+.Ar unit
+is not provided, sizes are shown in sectors.
+.It Cm write
+Writes the partition table to disk.
+.It Cm exit
+Discards outstanding changes and exits the current edit level.
+If the edit level is 1,
+.Nm
+terminates.
+.It Cm quit
+Writes outstanding changes to disk and exits the current edit
+level.
+If the edit level is 1,
+.Nm
+terminates.
+.It Cm abort
+Discards outstanding changes and terminates
+.Nm .
+.El
+.Sh FILES
+.Bl -tag -width /usr/mdec/mbr -compact
+.It Pa /usr/mdec/mbr
+default MBR bootcode
+.El
+.Sh SEE ALSO
+.Xr disklabel 5 ,
+.Xr boot 8 ,
+.Xr boot_amd64 8 ,
+.Xr boot_i386 8 ,
+.Xr boot_macppc 8 ,
+.Xr disklabel 8

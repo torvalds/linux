@@ -1,0 +1,176 @@
+SNMPv2-TM DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-IDENTITY,
+    snmpModules, snmpDomains, snmpProxys
+        FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION
+        FROM SNMPv2-TC;
+
+snmpv2tm MODULE-IDENTITY
+    LAST-UPDATED "200210160000Z"
+    ORGANIZATION "IETF SNMPv3 Working Group"
+    CONTACT-INFO
+            "WG-EMail:   snmpv3@lists.tislabs.com
+             Subscribe:  snmpv3-request@lists.tislabs.com
+
+             Co-Chair:   Russ Mundy
+                         Network Associates Laboratories
+             postal:     15204 Omega Drive, Suite 300
+                         Rockville, MD 20850-4601
+                         USA
+             EMail:      mundy@tislabs.com
+             phone:      +1 301 947-7107
+
+             Co-Chair:   David Harrington
+                         Enterasys Networks
+             postal:     35 Industrial Way
+                         P. O. Box 5005
+                         Rochester, NH 03866-5005
+                         USA
+             EMail:      dbh@enterasys.com
+             phone:      +1 603 337-2614
+
+             Editor:     Randy Presuhn
+                         BMC Software, Inc.
+             postal:     2141 North First Street
+                         San Jose, CA 95131
+                         USA
+             EMail:      randy_presuhn@bmc.com
+             phone:      +1 408 546-1006"
+    DESCRIPTION
+            "The MIB module for SNMP transport mappings.
+
+             Copyright (C) The Internet Society (2002). This
+             version of this MIB module is part of RFC 3417;
+             see the RFC itself for full legal notices.
+            "
+    REVISION     "200210160000Z"
+    DESCRIPTION
+            "Clarifications, published as RFC 3417."
+    REVISION    "199601010000Z"
+    DESCRIPTION
+            "Clarifications, published as RFC 1906."
+    REVISION    "199304010000Z"
+    DESCRIPTION
+            "The initial version, published as RFC 1449."
+    ::= { snmpModules 19 }
+
+-- SNMP over UDP over IPv4
+
+snmpUDPDomain  OBJECT-IDENTITY
+    STATUS     current
+    DESCRIPTION
+            "The SNMP over UDP over IPv4 transport domain.
+            The corresponding transport address is of type
+            SnmpUDPAddress."
+    ::= { snmpDomains 1 }
+
+SnmpUDPAddress ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "1d.1d.1d.1d/2d"
+    STATUS       current
+    DESCRIPTION
+            "Represents a UDP over IPv4 address:
+
+               octets   contents        encoding
+                1-4     IP-address      network-byte order
+                5-6     UDP-port        network-byte order
+            "
+    SYNTAX       OCTET STRING (SIZE (6))
+
+-- SNMP over OSI
+
+snmpCLNSDomain OBJECT-IDENTITY
+    STATUS     current
+    DESCRIPTION
+            "The SNMP over CLNS transport domain.
+            The corresponding transport address is of type
+            SnmpOSIAddress."
+    ::= { snmpDomains 2 }
+
+snmpCONSDomain OBJECT-IDENTITY
+    STATUS     current
+    DESCRIPTION
+            "The SNMP over CONS transport domain.
+            The corresponding transport address is of type
+            SnmpOSIAddress."
+    ::= { snmpDomains 3 }
+
+SnmpOSIAddress ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "*1x:/1x:"
+    STATUS       current
+    DESCRIPTION
+            "Represents an OSI transport-address:
+
+          octets   contents           encoding
+             1     length of NSAP     'n' as an unsigned-integer
+                                         (either 0 or from 3 to 20)
+          2..(n+1) NSAP                concrete binary representation
+          (n+2)..m TSEL                string of (up to 64) octets
+            "
+    SYNTAX       OCTET STRING (SIZE (1 | 4..85))
+
+-- SNMP over DDP
+
+snmpDDPDomain  OBJECT-IDENTITY
+    STATUS     current
+    DESCRIPTION
+            "The SNMP over DDP transport domain.  The corresponding
+            transport address is of type SnmpNBPAddress."
+    ::= { snmpDomains 4 }
+
+SnmpNBPAddress ::= TEXTUAL-CONVENTION
+    STATUS       current
+    DESCRIPTION
+            "Represents an NBP name:
+
+         octets        contents          encoding
+            1          length of object  'n' as an unsigned integer
+          2..(n+1)     object            string of (up to 32) octets
+           n+2         length of type    'p' as an unsigned integer
+      (n+3)..(n+2+p)   type              string of (up to 32) octets
+          n+3+p        length of zone    'q' as an unsigned integer
+    (n+4+p)..(n+3+p+q) zone              string of (up to 32) octets
+
+            For comparison purposes, strings are
+            case-insensitive. All strings may contain any octet
+            other than 255 (hex ff)."
+    SYNTAX       OCTET STRING (SIZE (3..99))
+
+-- SNMP over IPX
+
+snmpIPXDomain  OBJECT-IDENTITY
+    STATUS     current
+    DESCRIPTION
+            "The SNMP over IPX transport domain.  The corresponding
+            transport address is of type SnmpIPXAddress."
+    ::= { snmpDomains 5 }
+
+SnmpIPXAddress ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "4x.1x:1x:1x:1x:1x:1x.2d"
+    STATUS       current
+    DESCRIPTION
+            "Represents an IPX address:
+
+               octets   contents            encoding
+                1-4     network-number      network-byte order
+                5-10    physical-address    network-byte order
+               11-12    socket-number       network-byte order
+            "
+    SYNTAX       OCTET STRING (SIZE (12))
+
+-- for proxy to SNMPv1 (RFC 1157)
+
+rfc1157Proxy   OBJECT IDENTIFIER ::= { snmpProxys 1 }
+
+rfc1157Domain  OBJECT-IDENTITY
+    STATUS     deprecated
+    DESCRIPTION
+            "The transport domain for SNMPv1 over UDP over IPv4.
+            The corresponding transport address is of type
+            SnmpUDPAddress."
+    ::= { rfc1157Proxy 1 }
+
+--  ::= { rfc1157Proxy 2 }            this OID is obsolete
+
+END

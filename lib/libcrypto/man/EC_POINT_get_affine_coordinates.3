@@ -1,0 +1,216 @@
+.\" $OpenBSD: EC_POINT_get_affine_coordinates.3,v 1.2 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2025 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EC_POINT_GET_AFFINE_COORDINATES 3
+.Os
+.Sh NAME
+.Nm EC_POINT_get_affine_coordinates ,
+.Nm EC_POINT_set_affine_coordinates ,
+.Nm EC_POINT_set_compressed_coordinates ,
+.Nm EC_POINT_set_to_infinity ,
+.Nm EC_POINT_get_affine_coordinates_GFp ,
+.Nm EC_POINT_set_affine_coordinates_GFp ,
+.Nm EC_POINT_set_compressed_coordinates_GFp
+.Nd get and set coordinates of elliptic curve points
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bn.h
+.In openssl/ec.h
+.Pp
+.Ft int
+.Fo EC_POINT_get_affine_coordinates
+.Fa "const EC_GROUP *group"
+.Fa "const EC_POINT *point"
+.Fa "BIGNUM *x"
+.Fa "BIGNUM *y"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_POINT_set_affine_coordinates
+.Fa "const EC_GROUP *group"
+.Fa "EC_POINT *point"
+.Fa "const BIGNUM *x"
+.Fa "const BIGNUM *y"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_POINT_set_compressed_coordinates
+.Fa "const EC_GROUP *group"
+.Fa "EC_POINT *point"
+.Fa "const BIGNUM *x"
+.Fa "int y_bit"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_POINT_set_to_infinity
+.Fa "const EC_GROUP *group"
+.Fa "EC_POINT *point"
+.Fc
+.Pp
+Deprecated:
+.Pp
+.Ft int
+.Fo EC_POINT_get_affine_coordinates_GFp
+.Fa "const EC_GROUP *group"
+.Fa "const EC_POINT *point"
+.Fa "BIGNUM *x"
+.Fa "BIGNUM *y"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_POINT_set_affine_coordinates_GFp
+.Fa "const EC_GROUP *group"
+.Fa "EC_POINT *point"
+.Fa "const BIGNUM *x"
+.Fa "const BIGNUM *y"
+.Fa "BN_CTX *ctx"
+.Fc
+.Ft int
+.Fo EC_POINT_set_compressed_coordinates_GFp
+.Fa "const EC_GROUP *group"
+.Fa "EC_POINT *point"
+.Fa "const BIGNUM *x"
+.Fa "int y_bit"
+.Fa "BN_CTX *ctx"
+.Fc
+.Sh DESCRIPTION
+.Fn EC_POINT_get_affine_coordinates
+assumes that
+.Fa point
+is a point on
+.Fa group ,
+calculates its affine coordinates from its internal representation
+using the optional
+.Fa ctx ,
+and copies them into the optional user-provided
+.Fa x
+and
+.Fa y .
+.Pp
+.Fn EC_POINT_set_affine_coordinates
+assumes that
+.Fa x
+and
+.Fa y
+are the affine coordinates of a point on
+.Fa group ,
+converts them into internal representation and sets them on
+.Fa point
+using the optional
+.Fa ctx .
+The user-provided
+.Fa point
+should be the result of
+.Fn EC_POINT_new 3
+with an argument of
+.Fa group .
+It then verifies using
+.Xr EC_POINT_is_on_curve 3
+that
+.Fa x
+and
+.Fa y
+are indeed the affine coordinates of a point on
+.Fa group .
+.Pp
+.Fn EC_POINT_set_compressed_coordinates
+assumes that
+.Fa x
+is the x-coordinate and
+.Fa y_bit
+is the parity bit of a point on
+.Fa group
+and sets
+.Fa point
+to the corresponding point on
+.Fa group .
+It does this by solving the quadratic equation y^2 = x^3 + ax + b using
+.Xr BN_mod_sqrt 3
+and the optional
+.Fa ctx ,
+chooses the solution
+.Fa y
+with parity matching
+.Fa y_bit ,
+and passes
+.Fa x
+and
+.Fa y
+to
+.Fn EC_POINT_set_affine_coordinates .
+The user-provided
+.Fa point
+should be the result of
+.Fn EC_POINT_new
+with argument
+.Fa group .
+.Pp
+.Fn EC_POINT_set_to_infinity
+sets
+.Fa point
+to the internal representation of the point at infinity on
+.Fa group .
+.Pp
+.Fn EC_POINT_get_affine_coordinates_GFp
+is a deprecated alias for
+.Fn EC_POINT_get_affine_coordinates .
+Similarly for
+.Fn EC_POINT_set_affine_coordinates_GFp
+and
+.Fn EC_POINT_set_compressed_coordinates_GFp .
+.Sh RETURN VALUES
+All these functions return 1 on success and 0 on error.
+Error conditions include memory allocation failure,
+that
+.Fa point
+is incompatible with
+.Fa group ,
+and, for the coordinate setters, that the provided coordinates
+do not represent a point on
+.Fa group .
+.Sh SEE ALSO
+.Xr BN_CTX_new 3 ,
+.Xr BN_is_zero 3 ,
+.Xr BN_mod_sqrt 3 ,
+.Xr crypto 3 ,
+.Xr d2i_ECPKParameters 3 ,
+.Xr EC_GROUP_check 3 ,
+.Xr EC_GROUP_get_curve_name 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr EC_GROUP_new_curve_GFp 3 ,
+.Xr EC_KEY_METHOD_new 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EC_POINT_add 3 ,
+.Xr EC_POINT_new 3 ,
+.Xr EC_POINT_point2oct 3 ,
+.Xr ECDH_compute_key 3 ,
+.Xr ECDSA_SIG_new 3
+.Sh HISTORY
+.Fn EC_POINT_get_affine_coordinates_GFp ,
+.Fn EC_POINT_set_affine_coordinates_GFp ,
+.Fn EC_POINT_set_compressed_coordinates_GFp ,
+and
+.Fn EC_POINT_set_to_infinity
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn EC_POINT_get_affine_coordinates ,
+.Fn EC_POINT_set_affine_coordinates ,
+and
+.Fn EC_POINT_set_compressed_coordinates
+first appeared in OpenSSL 1.1.1 and have been available since
+.Ox 7.0 .

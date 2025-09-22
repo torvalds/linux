@@ -1,0 +1,80 @@
+.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Use of this source code is governed by a BSD-style
+.\" license that can be found in the LICENSE file.
+.\"
+.Dd $Mdocdate: July 9 2025 $
+.Dt FIDO_ASSERT_VERIFY 3
+.Os
+.Sh NAME
+.Nm fido_assert_verify
+.Nd verifies the signature of a FIDO2 assertion statement
+.Sh SYNOPSIS
+.Lb libfido2 libcbor libcrypto libz
+.In fido.h
+.Ft int
+.Fn fido_assert_verify "const fido_assert_t *assert" "size_t idx" "int cose_alg" "const void *pk"
+.Sh DESCRIPTION
+The
+.Fn fido_assert_verify
+function verifies whether the signature contained in statement index
+.Fa idx
+of
+.Fa assert
+matches the parameters of the assertion.
+Before using
+.Fn fido_assert_verify
+in a sensitive context, the reader is strongly encouraged to make
+herself familiar with the FIDO2 assertion statement process
+as defined in the Web Authentication (webauthn) standard.
+.Pp
+A brief description follows:
+.Pp
+The
+.Fn fido_assert_verify
+function verifies whether the client data hash, relying party ID,
+user presence and user verification attributes of
+.Fa assert
+have been attested by the holder of the private counterpart of
+the public key
+.Fa pk
+of COSE type
+.Fa cose_alg ,
+where
+.Fa cose_alg
+is
+.Dv COSE_ES256 ,
+.Dv COSE_RS256 ,
+or
+.Dv COSE_EDDSA ,
+and
+.Fa pk
+points to a
+.Vt es256_pk_t ,
+.Vt rs256_pk_t ,
+or
+.Vt eddsa_pk_t
+type accordingly.
+.Pp
+Please note that the first statement in
+.Fa assert
+has an
+.Fa idx
+of 0.
+.Sh RETURN VALUES
+The error codes returned by
+.Fn fido_assert_verify
+are defined in
+.In fido/err.h .
+If
+statement
+.Fa idx
+of
+.Fa assert
+passes verification with
+.Fa pk ,
+then
+.Dv FIDO_OK
+is returned.
+.Sh SEE ALSO
+.Xr fido_assert_new 3 ,
+.Xr fido_assert_set_authdata 3

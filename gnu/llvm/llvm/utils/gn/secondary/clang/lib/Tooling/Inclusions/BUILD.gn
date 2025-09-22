@@ -1,0 +1,16 @@
+static_library("Inclusions") {
+  output_name = "clangToolingInclusions"
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "HeaderAnalysis.cpp",
+    "HeaderIncludes.cpp",
+    "IncludeStyle.cpp",
+  ]
+}

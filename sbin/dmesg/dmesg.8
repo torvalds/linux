@@ -1,0 +1,85 @@
+.\"	$OpenBSD: dmesg.8,v 1.18 2024/06/30 23:44:49 jsg Exp $
+.\"	$NetBSD: dmesg.8,v 1.9 1995/03/18 14:54:47 cgd Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)dmesg.8	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: June 30 2024 $
+.Dt DMESG 8
+.Os
+.Sh NAME
+.Nm dmesg
+.Nd display the system message buffer
+.Sh SYNOPSIS
+.Nm dmesg
+.Op Fl s
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Sh DESCRIPTION
+.Nm
+displays the contents of the system message buffer.
+It is most commonly used to review system startup messages.
+On some systems the message buffer can survive reboot and be
+retained (in the hope of exposing information from a crash).
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl M Ar core
+Extract values associated with the name list from the specified
+.Ar core
+instead of the default
+.Pa /dev/kmem .
+.It Fl N Ar system
+Extract the name list from the specified
+.Ar system
+instead of the default
+.Pa /bsd .
+.It Fl s
+Display the contents of the console message buffer instead.
+This can be used to review
+.Xr rc 8
+system startup messages.
+This option is limited to the superuser.
+.El
+.Sh FILES
+.Bl -tag -width /var/run/dmesg.boot -compact
+.It Pa /var/run/dmesg.boot
+copy of
+.Nm
+saved by
+.Xr rc 8
+at boot time
+.El
+.Sh SEE ALSO
+.Xr syslogd 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.At v7 .

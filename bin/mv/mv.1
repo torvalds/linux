@@ -1,0 +1,203 @@
+.\"	$OpenBSD: mv.1,v 1.34 2018/11/14 15:53:31 tedu Exp $
+.\"	$NetBSD: mv.1,v 1.8 1995/03/21 09:06:51 cgd Exp $
+.\"
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mv.1	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: November 14 2018 $
+.Dt MV 1
+.Os
+.Sh NAME
+.Nm mv
+.Nd move files
+.Sh SYNOPSIS
+.Nm mv
+.Op Fl fiv
+.Ar source target
+.Nm mv
+.Op Fl fiv
+.Ar source ... directory
+.Sh DESCRIPTION
+In its first form, the
+.Nm
+utility moves the file named by the
+.Ar source
+operand to the destination path named by the
+.Ar target
+operand.
+This form is assumed when the last operand does not name an already
+existing directory.
+.Pp
+In its second form,
+.Nm
+moves each file named by a
+.Ar source
+operand to the destination specified by the
+.Ar directory
+operand.
+It is an error if the
+.Ar directory
+does not exist.
+The destination path for each
+.Ar source
+operand is the pathname produced by the concatenation of the
+.Ar directory
+operand, a slash, and the final pathname component of the named file.
+.Pp
+In both forms, a
+.Ar source
+operand is skipped with an error message
+when the respective destination path is a non-empty directory,
+or when the source is a non-directory file but the destination path
+is a directory, or vice versa.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl f
+Do not prompt for confirmation before overwriting the destination
+path.
+The
+.Fl f
+option overrides any previous
+.Fl i
+options.
+.It Fl i
+Causes
+.Nm
+to write a prompt to standard error before moving a file that would
+overwrite an existing file.
+If the response from the standard input begins with the character
+.Dq y ,
+the move is attempted.
+The
+.Fl i
+option overrides any previous
+.Fl f
+options.
+.It Fl v
+Display the source and destination after each move.
+.El
+.Pp
+The
+.Nm
+utility moves symbolic links, not the files referenced by the links.
+.Pp
+If the destination path does not have a mode which permits writing,
+.Nm
+prompts the user for confirmation as specified for the
+.Fl i
+option.
+.Pp
+Should the
+.Xr rename 2
+call fail because the source and destination are on different file systems,
+.Nm
+will imitate
+.Xr cp 1
+and
+.Xr rm 1
+to accomplish the move.
+The effect is equivalent to:
+.Bd -literal -offset indent
+$ rm -df -- destination_path && \e
+    cp -PRp -- source destination_path && \e
+    rm -rf -- source
+.Ed
+.Sh EXIT STATUS
+.Ex -std mv
+.Sh EXAMPLES
+Rename file
+.Pa foo
+to
+.Pa bar ,
+overwriting
+.Pa bar
+if it already exists:
+.Pp
+.Dl $ mv -f foo bar
+.Pp
+Either of these commands will rename the file
+.Pa -f
+to
+.Pa bar ,
+prompting for confirmation if
+.Pa bar
+already exists:
+.Bd -literal -offset indent
+$ mv -i -- -f bar
+$ mv -i ./-f bar
+.Ed
+.Sh SEE ALSO
+.Xr cp 1 ,
+.Xr rm 1 ,
+.Xr rename 2 ,
+.Xr symlink 7
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flag
+.Op Fl v
+is an extension to that specification.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .
+.Sh CAVEATS
+In the second synopsis form, incompatible file types in
+.Ar source
+and
+.Ar directory
+cause partial moves.
+For example, if
+.Pa f
+and
+.Pa g
+are non-directory files and
+.Pa d
+and
+.Pa d/f
+are directories, the command
+.Pp
+.Dl $ mv f g d
+.Pp
+will print an error message, leave
+.Pa f
+where it is, move
+.Pa g
+to
+.Pa d/g
+and return a non-zero exit status.

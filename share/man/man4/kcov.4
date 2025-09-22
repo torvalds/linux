@@ -1,0 +1,206 @@
+.\"	$OpenBSD: kcov.4,v 1.10 2021/12/30 06:55:37 anton Exp $
+.\"
+.\" Copyright (c) 2018 Anton Lindqvist <anton@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 30 2021 $
+.Dt KCOV 4
+.Os
+.Sh NAME
+.Nm kcov
+.Nd kernel code coverage tracing
+.Sh SYNOPSIS
+.Cd pseudo-device kcov
+.Pp
+.In sys/kcov.h
+.Sh DESCRIPTION
+The
+.Nm
+driver implements collection of code coverage inside the kernel.
+It can be enabled on a per thread basis from user space,
+allowing the kernel program counter to be collected during syscalls triggered by
+the same thread.
+The collected coverage can be accessed by mapping the device
+using
+.Xr mmap 2 .
+.Pp
+By default,
+.Nm
+is not enabled but instead requires the following line to be present in the
+kernel configuration:
+.Bd -literal -offset indent
+pseudo-device kcov 1
+.Ed
+.Pp
+The following
+.Xr ioctl 2
+calls are provided:
+.Bl -tag -width 4n
+.It Dv KIOSETBUFSIZE Fa unsigned long *nentries
+Allocate a coverage buffer with a capacity of
+.Fa nentries .
+The buffer can be accessed using
+.Xr mmap 2 ,
+whereas the returned pointer must be interpreted as an array of
+.Vt unsigned long
+entries.
+The first entry contains the number of entries in the array,
+excluding the first entry.
+.It Dv KIOENABLE Fa int *mode
+Enable code coverage tracing for the current thread or any remote
+subsystem attached using
+.Dv KIOREMOTEATTACH .
+The
+.Fa mode
+must be one of the following:
+.Bl -ohang
+.It Dv KCOV_MODE_TRACE_PC
+Trace the kernel program counter.
+.It Dv KCOV_MODE_TRACE_CMP
+Trace comparison instructions and switch statements.
+For switch statements, the number of traced comparison instructions is equal to
+the number of switch cases.
+Each traced comparison instruction is represented by 4 entries in the coverage
+buffer:
+.Bl -enum
+.It
+A mask where the least significant bit is set if one of the comparison operands
+is a compile-time constant, which is always true for switch statements.
+The remaining bits represents the log2 size of the operands, ranging from 0 to
+3.
+.It
+First comparison operand.
+For switch statements, this operand corresponds to the case value.
+.It
+Second comparison operand.
+For switch statements, this operand corresponds to the value passed to switch.
+.It
+Kernel program counter where the comparison instruction took place.
+.El
+.Pp
+In this mode, the first entry in the coverage buffer reflects the number of
+traced comparison instructions.
+Thus, the effective number of entries in the coverage buffer is given by
+multiplying the first entry by 4.
+.El
+.It Dv KIODISABLE Fa void
+Disable code coverage tracing for the current thread.
+.It Dv KIOREMOTEATTACH Fa struct kio_remote_attach *remote
+Attach collection of remote coverage from other kernel threads, identified
+by a subsystem.
+Collection of remote coverage is mutually exclusive with coverage collection
+of the current thread.
+The
+.Va remote
+argument is a pointer to the following structure:
+.Bd -literal
+struct kio_remote_attach {
+	int	subsystem;
+	int	id;
+};
+.Ed
+.Pp
+The
+.Va subsystem
+field must be one of the following:
+.Bl -ohang
+.It Dv KCOV_REMOTE_COMMON
+Collect coverage from tasks and timeouts scheduled by the current process,
+see
+.Xr task_add 9
+and
+.Xr timeout 9 .
+The
+.Fa id
+field is ignored.
+.El
+.El
+.Sh FILES
+.Bl -tag -width /dev/kcov -compact
+.It Pa /dev/kcov
+Default device node.
+.El
+.Sh EXAMPLES
+In the following example,
+the
+.Xr read 2
+syscall is traced and the coverage displayed, which in turn can be passed to
+.Xr addr2line 1
+in order to translate the kernel program counter into the file name and line
+number it corresponds to.
+.Bd -literal
+#include <sys/ioctl.h>
+#include <sys/kcov.h>
+#include <sys/mman.h>
+
+#include <err.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int
+main(void)
+{
+	unsigned long *cover, i;
+	unsigned long size = 1024;
+	int fd, mode;
+
+	fd = open("/dev/kcov", O_RDWR);
+	if (fd == -1)
+		err(1, "open");
+
+	if (ioctl(fd, KIOSETBUFSIZE, &size) == -1)
+		err(1, "ioctl: KIOSETBUFSIZE");
+	cover = mmap(NULL, size * sizeof(unsigned long),
+	    PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (cover == MAP_FAILED)
+		err(1, "mmap");
+
+	mode = KCOV_MODE_TRACE_PC;
+	if (ioctl(fd, KIOENABLE, &mode) == -1)
+		err(1, "ioctl: KIOENABLE");
+	read(-1, NULL, 0);
+	if (ioctl(fd, KIODISABLE) == -1)
+		err(1, "ioctl: KIODISABLE");
+
+	for (i = 0; i < cover[0]; i++)
+		printf("%p\en", (void *)cover[i + 1]);
+
+	if (munmap(cover, size * sizeof(unsigned long)) == -1)
+		err(1, "munmap");
+	close(fd);
+
+	return 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr files.conf 5 ,
+.Xr kcov_remote_register 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.4 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Anton Lindqvist Aq Mt anton@openbsd.org .
+.Sh CAVEATS
+The
+.Nm
+driver is limited to architectures using
+.Xr clang 1
+as their default compiler.

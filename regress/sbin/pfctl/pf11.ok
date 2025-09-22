@@ -1,0 +1,18 @@
+pass in inet proto icmp all icmp-type echorep
+pass in inet proto icmp all icmp-type echorep code 0
+pass in inet proto icmp all icmp-type 1
+pass in inet proto icmp all icmp-type 1 code 1
+pass in inet6 proto ipv6-icmp all icmp6-type 0
+pass in inet6 proto ipv6-icmp all icmp6-type 0 code 0
+pass in inet6 proto ipv6-icmp all icmp6-type unreach
+pass in inet6 proto ipv6-icmp all icmp6-type unreach code admin-unr
+block drop in inet proto icmp all icmp-type echorep
+block drop in inet proto icmp all icmp-type echorep code 0
+block drop in inet proto icmp all icmp-type 1
+block drop in inet proto icmp all icmp-type 1 code 1
+block drop in inet6 proto ipv6-icmp all icmp6-type 0
+block drop in inet6 proto ipv6-icmp all icmp6-type 0 code 0
+block drop in inet6 proto ipv6-icmp all icmp6-type unreach
+block drop in inet6 proto ipv6-icmp all icmp6-type unreach code admin-unr
+pass in inet proto icmp all icmp-type unreach code needfrag
+pass in inet6 proto ipv6-icmp all icmp6-type timex code reassemb

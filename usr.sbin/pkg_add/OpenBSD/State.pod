@@ -1,0 +1,149 @@
+$OpenBSD: State.pod,v 1.4 2022/12/28 21:30:18 jmc Exp $
+
+=head1 NAME
+
+OpenBSD::State - user interface framework
+
+=head1 SYNOPSIS
+
+    package MyCmd::State;
+    use OpenBSD::State;
+    our @ISA = qw(OpenBSD::State);
+
+    ...
+    package myCmd;
+
+    my $state = MyCmd::State->new("cmd");
+    $state->handle_options('abc', '[-abc]');
+
+    ...
+    $state->say("I'm sorry #1, I'm afraid I can't do that", $user);
+
+=head1 DESCRIPTION
+
+C<OpenBSD::State> is the base class responsible for handling all user
+interface needs of C<pkg_*(1)> commands.
+
+As such, it contains internal state elements relevant to the working of
+various commands.  It should be used for option handling, usage printing,
+asking questions, or printing out values.
+
+C<OpenBSD::State> is designed for inheritance.
+
+It provides default behavior for options -v and -D value.
+
+Subclass C<OpenBSD::State::AddCreateDelete> adds progressmeter behavior, along
+with options -m, -n and -x.
+
+Some methods can be used and overridden safely.
+
+See also C<OpenBSD::BaseState> which contains most of the stateless utility
+code like C<say> and friends.
+
+=over 4
+
+=item $class->new($cmdname, @params)
+
+create a new state object of the desired class.
+C<$cmdname> is mandatory to options usage printing.
+C<@params> are passed unchanged to C<init>.
+Don't override, override C<init> instead.
+
+=item $state->init(@params);
+
+initialize C<$state> based on C<@params>.
+Meant to be overridden. Always call C<$state-E<gt>SUPER::init(@params)> at end.
+
+=item $state->handle_options($opt_string, @usage);
+
+handle options to relevant to this command. Takes a C<OpenBSD::Getopt>
+C<$opt_string>, and a set of C<@usage> lines that will be printed if
+necessary.
+
+Option results are stored in the C<$state-E<gt>{opt}> hash. This can
+be primed according to C<OpenBSD::Getopt> documentation for options that
+require code.
+
+Unless C<$state-E<gt>{no_exports}> is set, options will also be exported to
+calling package, for legacy commands that still use C<our ($opt_x)> constructs.
+
+In case of an error, usage will call C<die>.
+
+Meant to be overridden.  A subclass C<handle_options> will normally do
+all option parsing and stuff the results in the C<$state> object.
+
+=item $state->usage($extra, @args)
+
+print out usage line, as set in C<handle_options>, along with possible
+extra hints, following C<errprint> conventions.
+
+=item $state->print($msg, @args);
+
+display a formatted message for the user.
+Any C<#n> substring will be replaced by the nth argument from C<@args>.
+Numbering starts at 1, C<#0> can be used to display an actual C<#>.
+
+All messages displayed by C<OpenBSD::State> using commands should use
+this framework, so that messages can be translated (eventually).
+
+Do not print directly to C<STDOUT> as this might garble the display
+(especially with a progressmeter).
+
+=item $state->errprint($msg, @args);
+
+like C<print>, but on C<STDERR>.
+
+=item $state->say($msg, @args);
+
+like C<print>, with a line feed.
+
+=item $state->errsay($msg, @args);
+
+like C<errprint>, with a line feed.
+
+=item $state->fatal($msg, @args);
+
+use the same conventions as C<errsay>, but call C<die> with the resulting
+string.
+
+=item $state->f($msg, @args);
+
+basic formatting function used by C<print> and friends, return the formatted
+string.
+
+=item $state->handle_continue;
+
+callback for C<SIGCONT>, to be overridden by subclasses if some specific
+treatment (such as terminal redraw/reset) is needed.
+
+=item $state->sync_display
+
+hook to be overridden. Called by all the print functions prior to displaying
+anything. To be used to write things out cleanly (e.g., wipe out a 
+progressmeter line prior to writing an error message, for instance)
+
+=item $state->system([child setup], [parent setup], @args)
+
+calls C<exec> without an extra shell, with optional code to be run on the
+child, and optional code to be run on the father, then wait for the child
+and write possible errors
+
+=item $state->verbose_system([child setup], [parent setup], @args)
+
+like system, except it always shows what it's running
+
+=item $state->copy_file(@names)
+
+verbose interface to C<File::Copy> with error reporting.
+
+=item $state->unlink(@names)
+
+verbose interface to C<unlink> with error reporting.
+
+=back
+
+=head1 BUGS
+
+User interface needs are not fully fleshed out and C<OpenBSD::State> is
+a work-in-progress.  What's described here should hopefully no longer
+change too much.

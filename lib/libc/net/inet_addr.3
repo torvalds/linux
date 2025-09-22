@@ -1,0 +1,195 @@
+.\"	$OpenBSD: inet_addr.3,v 1.7 2024/03/06 07:29:37 bentley Exp $
+.\"	$NetBSD: inet.3,v 1.7 1997/06/18 02:25:24 lukem Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)inet.3	8.1 (Berkeley) 6/4/93
+.\"
+.Dd $Mdocdate: March 6 2024 $
+.Dt INET_ADDR 3
+.Os
+.Sh NAME
+.Nm inet_aton ,
+.Nm inet_addr ,
+.Nm inet_network ,
+.Nm inet_ntoa
+.Nd Internet Protocol version 4 (IPv4) address manipulation routines
+.Sh SYNOPSIS
+.In arpa/inet.h
+.Ft int
+.Fn inet_aton "const char *cp" "struct in_addr *addr"
+.Ft in_addr_t
+.Fn inet_addr "const char *cp"
+.Ft in_addr_t
+.Fn inet_network "const char *cp"
+.Ft char *
+.Fn inet_ntoa "struct in_addr in"
+.Sh DESCRIPTION
+The functions presented here only support IPv4 addresses.
+In order to support IPv6 addresses as well,
+.Xr inet_ntop 3
+and
+.Xr inet_pton 3
+should be used rather than the functions presented here.
+Scoped IPv6 addresses are supported via
+.Xr getaddrinfo 3
+and
+.Xr getnameinfo 3 .
+.Pp
+The routines
+.Fn inet_aton ,
+.Fn inet_addr ,
+and
+.Fn inet_network
+interpret character strings representing
+numbers expressed in the Internet standard
+.Dq dot
+notation.
+.Pp
+The
+.Fn inet_aton
+routine interprets the specified character string as an Internet address,
+placing the address into the structure provided.
+It returns 1 if the string was successfully interpreted,
+or 0 if the string was invalid.
+.Pp
+The
+.Fn inet_addr
+and
+.Fn inet_network
+functions return numbers suitable for use
+as Internet addresses and Internet network
+numbers, respectively.
+Both functions return the constant
+.Dv INADDR_NONE
+if the specified character string is malformed.
+.Pp
+The routine
+.Fn inet_ntoa
+takes an Internet address and returns an
+ASCII string representing the address in dot notation.
+.Pp
+All Internet addresses are returned in network
+order (bytes ordered from left to right).
+All network numbers and local address parts are
+returned as machine format integer values.
+.Sh INTERNET ADDRESSES (IP VERSION 4)
+Values specified using dot notation take one of the following forms:
+.Bd -literal -offset indent
+a.b.c.d
+a.b.c
+a.b
+a
+.Ed
+.Pp
+When four parts are specified, each is interpreted
+as a byte of data and assigned, from left to right,
+to the four bytes of an Internet address.
+Note that when an Internet address is viewed as a 32-bit
+integer quantity on a system that uses little-endian
+byte order
+(such as AMD64 or ARM processors)
+the bytes referred to above appear as
+.Dq Li d.c.b.a .
+That is, little-endian bytes are ordered from right to left.
+.Pp
+When a three part address is specified, the last
+part is interpreted as a 16-bit quantity and placed
+in the rightmost two bytes of the network address.
+This makes the three part address format convenient
+for specifying Class B network addresses as
+.Dq Li 128.net.host .
+.Pp
+When a two part address is supplied, the last part
+is interpreted as a 24-bit quantity and placed in
+the rightmost three bytes of the network address.
+This makes the two part address format convenient
+for specifying Class A network addresses as
+.Dq Li net.host .
+.Pp
+When only one part is given, the value is stored
+directly in the network address without any byte
+rearrangement.
+.Pp
+All numbers supplied as
+.Dq parts
+in a dot notation
+may be decimal, octal, or hexadecimal, as specified
+in the C language (i.e., a leading 0x or 0X implies
+hexadecimal; a leading 0 implies octal;
+otherwise, the number is interpreted as decimal).
+.Sh SEE ALSO
+.Xr gethostbyname 3 ,
+.Xr htonl 3 ,
+.Xr inet_lnaof 3 ,
+.Xr inet_net_ntop 3 ,
+.Xr inet_ntop 3 ,
+.Xr hosts 5
+.Sh STANDARDS
+The
+.Nm inet_addr
+and
+.Nm inet_ntoa
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Nm inet_addr
+and
+.Nm inet_network
+functions appeared in
+.Bx 4.2 .
+The
+.Nm inet_aton
+and
+.Nm inet_ntoa
+functions appeared in
+.Bx 4.3 .
+.Sh BUGS
+The value
+.Dv INADDR_NONE
+(0xffffffff) is a valid broadcast address, but
+.Fn inet_addr
+cannot return that value without indicating failure.
+Also,
+.Fn inet_addr
+should have been designed to return a
+.Vt struct in_addr .
+The newer
+.Fn inet_aton
+function does not share these problems, and almost all existing code
+should be modified to use
+.Fn inet_aton
+instead.
+.Pp
+The problem of host byte ordering versus network byte ordering is
+confusing.
+.Pp
+The string returned by
+.Fn inet_ntoa
+resides in a static memory area.

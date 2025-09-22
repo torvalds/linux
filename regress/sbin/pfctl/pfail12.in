@@ -1,0 +1,2 @@
+# ports are invalid for proto icmp
+match in on lo0 proto icmp from any to 11.1.1.1/32 port 12345 rdr-to 172.17.0.2 port 69

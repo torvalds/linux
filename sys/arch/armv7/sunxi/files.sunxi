@@ -1,0 +1,17 @@
+#	$OpenBSD: files.sunxi,v 1.21 2019/10/16 22:11:17 kettenis Exp $
+
+device	sxiintc
+attach	sxiintc at fdt
+file	arch/armv7/sunxi/sxiintc.c		sxiintc
+
+device	sxitimer
+attach	sxitimer at fdt
+file	arch/armv7/sunxi/sxitimer.c		sxitimer
+
+device	sxiahci: scsi, atascsi
+attach	sxiahci at fdt
+file	arch/armv7/sunxi/sxiahci.c		sxiahci
+
+device	sxie: ether, ifnet, mii, ifmedia
+attach	sxie at fdt
+file	arch/armv7/sunxi/sxie.c			sxie

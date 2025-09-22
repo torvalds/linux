@@ -1,0 +1,125 @@
+.\"	$OpenBSD: adv.4,v 1.28 2015/01/15 20:37:36 schwarze Exp $
+.\"
+.\" Copyright (c) 1998, Jason Downs.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: January 15 2015 $
+.Dt ADV 4
+.Os
+.Sh NAME
+.Nm adv , adw
+.Nd AdvanSys PCI SCSI interface
+.Sh SYNOPSIS
+.Cd "adv* at pci?"
+.Cd "adw* at pci?"
+.Sh DESCRIPTION
+The
+.Nm adv
+and
+.Nm adw
+drivers support most AdvanSys PCI SCSI host adapters, as shown in this
+table:
+.Bl -column "ABP-960U (2)" "ASB3940U2W-00" -offset indent
+.It Sy adv Ta Sy adw
+.It "ABP-920" Ta ABP-940UW
+.It "ABP-930 (1)" Ta ABP-940UWD
+.It "ABP-930U" Ta ABP-970UW
+.It "ABP-930UA" Ta ASB-3940UW-00
+.It "ABP-940" Ta ASB-3940U2W-00
+.It "ABP-940U" Ta ASB-3950U160
+.It "ABP-940UA" Ta ""
+.It "ABP-950" Ta ""
+.It "ABP-960 (2)" Ta ""
+.It "ABP-960U (2)" Ta ""
+.It "ABP-970" Ta ""
+.It "ABP-970U" Ta ""
+.It "ABP-980" Ta ""
+.It "ABP-980U" Ta ""
+.El
+.Pp
+.Bl -enum -compact
+.It
+This board has been sold by SIIG as the Fast SCSI Pro PCI.
+.It
+This board has been sold by Iomega as a Jaz Jet PCI adapter.
+.El
+.Pp
+The
+.Nm adw
+driver will log some host adapter errors with general messages such as
+.Bd -literal -offset indent
+adw0:0:0: host adapter error 0x12. See adw(4).
+adw0:0:0: host adapter error 0x12, resetting bus. See adw(4).
+.Ed
+.Pp
+Some further information on the meaning of such errors can be obtained
+from the following table derived from the source code provided by
+ConnectCom.
+.Bl -column "Error" "QHSTA_M_SCSI_BUS_RESET_UNSOL" "Comment"
+.It Em "Error" Ta Em "Define Name" Ta Em "Comment"
+.It 0x12 Ta QHSTA_M_SXFR_XFR_OFLW Ta "SXFR_STATUS Transfer Overflow"
+.It 0x13 Ta QHSTA_M_UNEXPECTED_BUS_FREE Ta ""
+.It 0x15 Ta QHSTA_M_QUEUE_ABORTED Ta ""
+.It 0x16 Ta QHSTA_M_SXFR_SDMA_ERR Ta "SXFR_STATUS SCSI DMA Error"
+.It 0x17 Ta QHSTA_M_SXFR_SXFR_PERR Ta "SXFR_STATUS SCSI Bus Parity Error"
+.It 0x18 Ta QHSTA_M_RDMA_PERR Ta "RISC PCI DMA parity error"
+.It 0x19 Ta QHSTA_M_SXFR_OFF_UFLW Ta "SXFR_STATUS Offset Underflow"
+.It 0x20 Ta QHSTA_M_SXFR_OFF_OFLW Ta "SXFR_STATUS Offset Overflow"
+.It 0x21 Ta QHSTA_M_SXFR_WD_TMO Ta "SXFR_STATUS Watchdog Timeout"
+.It 0x22 Ta QHSTA_M_SXFR_DESELECTED Ta "SXFR_STATUS Deselected"
+.It 0x24 Ta QHSTA_M_SXFR_XFR_PH_ERR Ta "SXFR_STATUS Transfer Phase Error"
+.It 0x25 Ta QHSTA_M_SXFR_UNKNOWN_ERROR Ta "SXFR_STATUS Unknown Error"
+.It 0x30 Ta QHSTA_M_SCSI_BUS_RESET Ta "Request aborted from SBR"
+.It 0x31 Ta QHSTA_M_SCSI_BUS_RESET_UNSOL Ta "Request aborted from unsolicited SBR"
+.It 0x32 Ta QHSTA_M_BUS_DEVICE_RESET Ta "Request aborted from BDR"
+.It 0x35 Ta QHSTA_M_DIRECTION_ERR Ta "Data Phase mismatch"
+.It 0x36 Ta QHSTA_M_DIRECTION_ERR_HUNG Ta "Data Phase mismatch and bus hang"
+.It 0x41 Ta QHSTA_M_WTM_TIMEOUT Ta ""
+.It 0x42 Ta QHSTA_M_BAD_CMPL_STATUS_IN Ta ""
+.It 0x43 Ta QHSTA_M_NO_AUTO_REQ_SENSE Ta ""
+.It 0x44 Ta QHSTA_M_AUTO_REQ_SENSE_FAIL Ta ""
+.It 0x45 Ta QHSTA_M_INVALID_DEVICE Ta "Bad target ID"
+.It 0x46 Ta QHSTA_M_FROZEN_TIDQ Ta "TID Queue frozen"
+.It 0x47 Ta QHSTA_M_SGBACKUP_ERROR Ta "Scatter-Gather backup error"
+.El
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr intro 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr st 4 ,
+.Xr uk 4
+.Sh AUTHORS
+The
+.Nm adv
+and
+.Nm adw
+drivers were originally written by
+.An Baldassare Dante Profeta
+for
+.Nx ,
+based on Linux drivers written by Advanced System Products,
+Inc., which is now ConnectCom Solutions, Inc.

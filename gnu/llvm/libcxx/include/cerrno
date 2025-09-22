@@ -1,0 +1,48 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CERRNO
+#define _LIBCPP_CERRNO
+
+/*
+    cerrno synopsis
+
+Macros:
+
+    EDOM
+    EILSEQ  // C99
+    ERANGE
+    errno
+
+*/
+
+#include <__config>
+
+#include <errno.h>
+
+#ifndef _LIBCPP_ERRNO_H
+#   error <cerrno> tried including <errno.h> but didn't find libc++'s <errno.h> header. \
+          This usually means that your header search paths are not configured properly. \
+          The header search paths should contain the C++ Standard Library headers before \
+          any C Standard Library, and you are probably using compiler flags that make that \
+          not be the case.
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+// LWG3869 Deprecate std::errc constants related to UNIX STREAMS
+//
+// This LWG issue deprecates the POSIX macros ENODATA, ENOSR, ENOSTR, and ETIME. These were
+// deprecated in libc++ in https://github.com/llvm/llvm-project/pull/80542.
+// Based on the post commit feedback the macro are no longer deprecated.
+// Instead libc++ leaves the deprecation to the provider of errno.h.
+
+#endif // _LIBCPP_CERRNO

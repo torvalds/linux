@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE language SYSTEM "language.dtd">
+<language name="LLVM" section="Sources"
+          version="1.00" kateversion="3.4.4"
+          extensions="*.ll"
+          mimetype=""
+          author="LLVM Team"
+          license="LLVM Release License">
+  <highlighting>
+    <list name="keywords">
+      <item> begin </item>
+      <item> end </item>
+      <item> true </item>
+      <item> false </item>
+      <item> declare </item>
+      <item> define </item>
+      <item> global </item>
+      <item> constant </item>
+      <item> gc </item>
+      <item> module </item>
+      <item> asm </item>
+      <item> target </item>
+      <item> datalayout </item>
+      <item> null </item>
+      <item> undef </item>
+      <item> blockaddress </item>
+      <item> sideeffect </item>
+      <item> alignstack </item>
+      <item> to </item>
+      <item> unwind </item>
+      <item> nuw </item>
+      <item> nsw </item>
+      <item> inbounds </item>
+      <item> tail </item>
+      <item> triple </item>
+      <item> type </item>
+      <item> align </item>
+      <item> alias </item>
+      <item> monotonic </item>
+    </list>
+    <list name="linkage-types">
+      <item> private </item>
+      <item> internal </item>
+      <item> available_externally </item>
+      <item> linkonce </item>
+      <item> weak </item>
+      <item> common </item>
+      <item> appending </item>
+      <item> extern_weak </item>
+      <item> linkonce_odr </item>
+      <item> weak_odr </item>
+      <item> dllimport </item>
+      <item> dllexport </item>
+    </list>
+    <list name="calling-conventions">
+      <item> ccc </item>
+      <item> fastcc </item>
+      <item> coldcc </item>
+      <item> cc </item>
+      <item> spir_kernel </item>
+    </list>
+    <list name="visibility-styles">
+      <item> default </item>
+      <item> hidden </item>
+      <item> protected </item>
+    </list>
+    <list name="parameter-attributes">
+      <item> zeroext </item>
+      <item> signext </item>
+      <item> inreg </item>
+      <item> byref </item>
+      <item> byval </item>
+      <item> sret </item>
+      <item> noalias </item>
+      <item> nocapture </item>
+      <item> nest </item>
+    </list>
+    <list name="function-attributes">
+      <item> alignstack </item>
+      <item> allocsize </item>
+      <item> alwaysinline </item>
+      <item> argmemonly </item>
+      <item> arm_aapcscc </item>
+      <item> catch </item>
+      <item> cold </item>
+      <item> convergent </item>
+      <item> dereferenceable_or_null </item>
+      <item> extern_weak </item>
+      <item> hhvmcc </item>
+      <item> hot </item>
+      <item> inaccessiblemem_or_argmemonly </item>
+      <item> inaccessiblememonly </item>
+      <item> inalloca </item>
+      <item> inlinehint </item>
+      <item> inteldialect </item>
+      <item> jumptable </item>
+      <item> local_unnamed_addr </item>
+      <item> mustprogress </item>
+      <item> naked </item>
+      <item> nobuiltin </item>
+      <item> nocallback </item>
+      <item> nocf_check </item>
+      <item> noduplicate </item>
+      <item> nofree </item>
+      <item> noimplicitfloat </item>
+      <item> noinline </item>
+      <item> nomerge </item>
+      <item> noprofile </item>
+      <item> noredzone </item>
+      <item> noreturn </item>
+      <item> nosync </item>
+      <item> nounwind </item>
+      <item> null_pointer_is_valid </item>
+      <item> optdebug </item>
+      <item> optforfuzzing </item>
+      <item> optnone </item>
+      <item> optsize </item>
+      <item> preallocated </item>
+      <item> readnone </item>
+      <item> readonly </item>
+      <item> safestack </item>
+      <item> sanitize_hwaddress </item>
+      <item> sanitize_memtag </item>
+      <item> shadowcallstack </item>
+      <item> speculative_load_hardening </item>
+      <item> ssp </item>
+      <item> sspreq </item>
+      <item> sspstrong </item>
+      <item> swifterror </item>
+      <item> syncscope </item>
+      <item> tailcc </item>
+      <item> willreturn </item>
+      <item> willreturn </item>
+    </list>
+    <list name="types">
+      <item> addrspace </item>
+      <item> half </item>
+      <item> bfloat </item>
+      <item> float </item>
+      <item> double </item>
+      <item> fp128 </item>
+      <item> x86_fp80 </item>
+      <item> ppc_fp128 </item>
+      <item> x86_mmx </item>
+      <item> x86_amx </item>
+      <item> void </item>
+      <item> label </item>
+      <item> metadata </item>
+      <item> opaque </item>
+    </list>
+    <list name="intrinsic-global-variables">
+      <item> llvm.used </item>
+      <item> llvm.compiler.used </item>
+      <item> llvm.global_ctors </item>
+      <item> llvm.global_dtors </item>
+    </list>
+    <list name="instructions">
+      <item> ret </item>
+      <item> br </item>
+      <item> switch </item>
+      <item> indirectbr </item>
+      <item> invoke </item>
+      <item> unwind </item>
+      <item> unreachable </item>
+      <item> add </item>
+      <item> fadd </item>
+      <item> sub </item>
+      <item> fsub </item>
+      <item> fneg </item>
+      <item> mul </item>
+      <item> fmul </item>
+      <item> udiv </item>
+      <item> sdiv </item>
+      <item> fdiv </item>
+      <item> urem </item>
+      <item> srem </item>
+      <item> frem </item>
+      <item> shl </item>
+      <item> lshr </item>
+      <item> ashr </item>
+      <item> and </item>
+      <item> nand </item>
+      <item> or </item>
+      <item> xor </item>
+      <item> min </item>
+      <item> umin </item>
+      <item> max </item>
+      <item> umax </item>
+      <item> extractelement </item>
+      <item> insertelement </item>
+      <item> shufflevector </item>
+      <item> extractvalue </item>
+      <item> insertvalue </item>
+      <item> alloca </item>
+      <item> load </item>
+      <item> store </item>
+      <item> getelementptr </item>
+      <item> trunc </item>
+      <item> zext </item>
+      <item> sext </item>
+      <item> fptrunc </item>
+      <item> fpext </item>
+      <item> fptoui </item>
+      <item> fptosi </item>
+      <item> uitofp </item>
+      <item> sitofp </item>
+      <item> ptrtoint </item>
+      <item> inttoptr </item>
+      <item> bitcast </item>
+      <item> addrspacecast </item>
+      <item> icmp </item>
+      <item> fcmp </item>
+      <item> atomicrmw </item>
+      <item> cmpxchg </item>
+      <item> phi </item>
+      <item> select </item>
+      <item> call </item>
+      <item> va_arg </item>
+    </list>
+    <list name="conditions">
+      <item> eq </item>
+      <item> ne </item>
+      <item> ugt </item>
+      <item> uge </item>
+      <item> ult </item>
+      <item> ule </item>
+      <item> sgt </item>
+      <item> sge </item>
+      <item> slt </item>
+      <item> sle </item>
+      <item> oeq </item>
+      <item> ogt </item>
+      <item> oge </item>
+      <item> olt </item>
+      <item> ole </item>
+      <item> one </item>
+      <item> ord </item>
+      <item> ueq </item>
+      <item> une </item>
+      <item> uno </item>
+    </list>
+    <contexts>
+      <context name="llvm" attribute="Normal Text" lineEndContext="#stay">
+        <DetectSpaces />
+        <AnyChar String="@%" attribute="Symbol" context="symbol" />
+
+        <DetectChar char="{" beginRegion="Brace1" />
+        <DetectChar char="}" endRegion="Brace1" />
+        <DetectChar char=";" attribute="Comment" context="comment" />
+        <DetectChar attribute="String" context="string" char="&quot;" />
+        <RegExpr String="i[0-9]+" attribute="Data Type" context="#stay" />
+        <RegExpr attribute="Symbol" String="[-a-zA-Z$._][-a-zA-Z$._0-9]*:" context="#stay" />
+        <Int attribute="Int" context="#stay" />
+
+        <keyword attribute="Keyword"   String="keywords" />
+        <keyword attribute="Keyword"   String="linkage-types" />
+        <keyword attribute="Keyword"   String="calling-conventions" />
+        <keyword attribute="Keyword"   String="visibility-styles" />
+        <keyword attribute="Keyword"   String="parameter-attributes" />
+        <keyword attribute="Keyword"   String="function-attributes" />
+        <keyword attribute="Data Type" String="types" />
+        <keyword attribute="Keyword"   String="intrinsic-global-variables" />
+        <keyword attribute="Keyword"   String="instructions" />
+        <keyword attribute="Keyword"   String="conditions" />
+      </context>
+
+      <context name="symbol" attribute="Symbol" lineEndContext="#pop">
+        <DetectChar attribute="Symbol" context="symbol-string" char="&quot;" />
+        <RegExpr attribute="Symbol" String="([-a-zA-Z$._][-a-zA-Z$._0-9]*|[0-9]+)" context="#pop" />
+      </context>
+
+      <context name="symbol-string" attribute="Symbol" lineEndContext="#stay">
+        <DetectChar attribute="Symbol" context="#pop#pop" char="&quot;" />
+      </context>
+
+      <context name="string" attribute="String" lineEndContext="#stay">
+        <DetectChar attribute="String" context="#pop" char="&quot;" />
+      </context>
+
+      <context name="comment" attribute="Comment" lineEndContext="#pop">
+        <DetectSpaces />
+        <!-- TODO: Add FileCheck syntax highlighting -->
+        <IncludeRules context="##Alerts" />
+        <DetectIdentifier />
+      </context>
+    </contexts>
+    <itemDatas>
+      <itemData name="Normal Text" defStyleNum="dsNormal" />
+      <itemData name="Keyword" defStyleNum="dsKeyword" />
+      <itemData name="Data Type" defStyleNum="dsDataType" />
+      <itemData name="Int" defStyleNum="dsDecVal" />
+      <itemData name="Hex" defStyleNum="dsBaseN" />
+      <itemData name="Float" defStyleNum="dsFloat" />
+      <itemData name="String" defStyleNum="dsString" />
+      <itemData name="Comment" defStyleNum="dsComment" />
+      <itemData name="Function" defStyleNum="dsFunction" />
+      <itemData name="Symbol" defStyleNum="dsFunction" />
+    </itemDatas>
+  </highlighting>
+  <general>
+    <comments>
+      <comment name="singleLine" start=";" />
+    </comments>
+    <keywords casesensitive="1" weakDeliminator="." />
+  </general>
+</language>
+<!--
+// kate: space-indent on; indent-width 2; replace-tabs on;
+-->

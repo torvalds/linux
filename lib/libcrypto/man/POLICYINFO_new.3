@@ -1,0 +1,219 @@
+.\"	$OpenBSD: POLICYINFO_new.3,v 1.12 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt POLICYINFO_NEW 3
+.Os
+.Sh NAME
+.Nm POLICYINFO_new ,
+.Nm POLICYINFO_free ,
+.Nm CERTIFICATEPOLICIES_new ,
+.Nm CERTIFICATEPOLICIES_free ,
+.Nm POLICYQUALINFO_new ,
+.Nm POLICYQUALINFO_free ,
+.Nm USERNOTICE_new ,
+.Nm USERNOTICE_free ,
+.Nm NOTICEREF_new ,
+.Nm NOTICEREF_free ,
+.Nm POLICY_MAPPING_new ,
+.Nm POLICY_MAPPING_free ,
+.Nm POLICY_CONSTRAINTS_new ,
+.Nm POLICY_CONSTRAINTS_free
+.Nd X.509 certificate policies
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft POLICYINFO *
+.Fn POLICYINFO_new void
+.Ft void
+.Fn POLICYINFO_free "POLICYINFO *pi"
+.Ft CERTIFICATEPOLICIES *
+.Fn CERTIFICATEPOLICIES_new void
+.Ft void
+.Fn CERTIFICATEPOLICIES_free "CERTIFICATEPOLICIES *pis"
+.Ft POLICYQUALINFO *
+.Fn POLICYQUALINFO_new void
+.Ft void
+.Fn POLICYQUALINFO_free "POLICYQUALINFO *pqi"
+.Ft USERNOTICE *
+.Fn USERNOTICE_new void
+.Ft void
+.Fn USERNOTICE_free "USERNOTICE *usernotice"
+.Ft NOTICEREF *
+.Fn NOTICEREF_new void
+.Ft void
+.Fn NOTICEREF_free "NOTICEREF *noticeref"
+.Ft POLICY_MAPPING *
+.Fn POLICY_MAPPING_new void
+.Ft void
+.Fn POLICY_MAPPING_free "POLICY_MAPPING *pm"
+.Ft POLICY_CONSTRAINTS *
+.Fn POLICY_CONSTRAINTS_new void
+.Ft void
+.Fn POLICY_CONSTRAINTS_free "POLICY_CONSTRAINTS *pc"
+.Sh DESCRIPTION
+X.509 CA and end entity certificates can optionally indicate
+restrictions on their intended use.
+.Pp
+.Fn POLICYINFO_new
+allocates and initializes an empty
+.Vt POLICYINFO
+object, representing an ASN.1
+.Vt PolicyInformation
+structure defined in RFC 5280 section 4.2.1.4.
+It can hold a policy identifier and optional advisory qualifiers.
+.Fn POLICYINFO_free
+frees
+.Fa pi .
+.Pp
+.Fn CERTIFICATEPOLICIES_new
+allocates and initializes an empty
+.Vt CERTIFICATEPOLICIES
+object, which is a
+.Vt STACK_OF(POLICYINFO)
+and represents an ASN.1
+.Vt CertificatePolicies
+structure defined in RFC 5280 section 4.2.1.4.
+It can be used by
+.Vt X509
+objects, both by CA certificates and end entity certificates.
+.Fn CERTIFICATEPOLICIES_free
+frees
+.Fa pis .
+.Pp
+.Fn POLICYQUALINFO_new
+allocates and initializes an empty
+.Vt POLICYQUALINFO
+object, representing an ASN.1
+.Vt PolicyQualifierInfo
+structure defined in RFC 5280 section 4.2.1.4.
+It can be used in
+.Vt POLICYINFO
+and it can hold either a uniform resource identifier of a certification
+practice statement published by the CA, or a pointer to a
+.Vt USERNOTICE
+object, or arbitrary other information.
+.Fn POLICYQUALINFO_free
+frees
+.Fa pqi .
+.Pp
+.Fn USERNOTICE_new
+allocates and initializes an empty
+.Vt USERNOTICE
+object, representing an ASN.1
+.Vt UserNotice
+structure defined in RFC 5280 section 4.2.1.4.
+It can be used in
+.Vt POLICYQUALINFO
+and it can hold either an
+.Vt ASN1_STRING
+intended for display to the user or a pointer to a
+.Vt NOTICEREF
+object.
+.Fn NOTICEREF_free
+frees
+.Fa usernotice .
+.Pp
+.Fn NOTICEREF_new
+allocates and initializes an empty
+.Vt NOTICEREF
+object, representing an ASN.1
+.Vt NoticeReference
+structure defined in RFC 5280 section 4.2.1.4.
+It can be used in
+.Vt USERNOTICE
+and can hold an organization name and a stack of notice numbers.
+.Fn NOTICEREF_free
+frees
+.Fa noticeref .
+.Pp
+.Fn POLICY_MAPPING_new
+allocates and initializes an empty
+.Vt POLICY_MAPPING
+object, representing an ASN.1
+.Vt PolicyMappings
+structure defined in RFC 5280 section 4.2.1.5.
+It can be used in
+.Vt X509
+CA certificates and can hold a list of pairs of policy identifiers,
+declaring one of the policies in each pair as equivalent to the
+other.
+.Fn POLICY_MAPPING_free
+frees
+.Fa pm .
+.Pp
+.Fn POLICY_CONSTRAINTS_new
+allocates and initializes an empty
+.Vt POLICY_CONSTRAINTS
+object, representing an ASN.1
+.Vt PolicyConstraints
+structure defined in RFC 5280 section 4.2.1.11.
+It can be used in
+.Vt X509
+CA certificates to restrict policy mapping and/or to require explicit
+certificate policies in subsequent intermediate certificates in the
+certification path.
+.Fn POLICY_CONSTRAINTS_free
+frees
+.Fa pc .
+.Sh RETURN VALUES
+The constructor functions return a new object of the respective
+type or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr BASIC_CONSTRAINTS_new 3 ,
+.Xr d2i_POLICYINFO 3 ,
+.Xr NAME_CONSTRAINTS_new 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_get_extension_flags 3 ,
+.Xr X509_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile:
+.Bl -dash -compact
+.It
+section 4.2.1.4: Certificate Policies
+.It
+section 4.2.1.5: Policy Mappings
+.It
+section 4.2.1.11: Policy Constraints
+.El
+.Sh HISTORY
+.Fn POLICYINFO_new ,
+.Fn POLICYINFO_free ,
+.Fn CERTIFICATEPOLICIES_new ,
+.Fn CERTIFICATEPOLICIES_free ,
+.Fn POLICYQUALINFO_new ,
+.Fn POLICYQUALINFO_free ,
+.Fn USERNOTICE_new ,
+.Fn USERNOTICE_free ,
+.Fn NOTICEREF_new ,
+and
+.Fn NOTICEREF_free
+first appeared in OpenSSL 0.9.3 and have been available since
+.Ox 2.6 .
+.Pp
+.Fn POLICY_MAPPING_new ,
+.Fn POLICY_MAPPING_free ,
+.Fn POLICY_CONSTRAINTS_new ,
+and
+.Fn POLICY_CONSTRAINTS_free
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Sh BUGS
+This is a lot of nested data structures, but most of them are
+designed to have almost no effect.

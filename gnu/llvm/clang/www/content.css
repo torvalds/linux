@@ -1,0 +1,33 @@
+html { margin: 0px; } body { margin: 8px; }
+
+html, body {
+  padding:0px;
+  font-size:small; font-family:"Lucida Grande", "Lucida Sans Unicode", Arial, Verdana, Helvetica, sans-serif; background-color: #fff; color: #222;
+  line-height:1.5;
+}
+
+h1, h2, h3, tt { color: #000 }
+
+h1 { padding-top:0px; margin-top:0px;}
+h2 { color:#333333; padding-top:0.5em; }
+h3 { padding-top: 0.5em; margin-bottom: -0.25em; color:#2d58b7}
+li { padding-bottom: 0.5em; }
+ul { padding-left:1.5em; }
+
+/* Slides */
+IMG.img_slide {
+    display: block;
+    margin-left: auto;
+    margin-right: auto
+}
+
+.itemTitle { color:#2d58b7 }
+
+span.error { color:red }
+span.warning { color:purple }
+span.note { color:gray }
+span.caret { color:green; font-weight:bold }
+span.template-highlight { color:cyan }
+
+/* Tables */
+tr { vertical-align:top }

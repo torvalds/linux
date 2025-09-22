@@ -1,0 +1,1 @@
+sprintf-3.c:: warning: sprintf() is often misused, please use snprintf()

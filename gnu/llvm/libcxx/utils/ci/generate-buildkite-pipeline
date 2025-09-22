@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+#===----------------------------------------------------------------------===##
+#
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+#===----------------------------------------------------------------------===##
+
+#
+# This script generates the appropriate libc++ CI pipeline based on which project(s) were changed.
+#
+
+if git diff --name-only HEAD~1 | grep -q -E "^libcxx/|^libcxxabi/|^libunwind/|^runtimes/|^cmake/"; then
+  LIBCXX_CHANGED=true
+fi
+
+if git diff --name-only HEAD~1 | grep -q -E "^clang/"; then
+  CLANG_CHANGED=true
+fi
+
+if [[ "${CLANG_CHANGED}" == "true" && "${LIBCXX_CHANGED}" != "true" ]]; then
+  cat libcxx/utils/ci/buildkite-pipeline-clang.yml
+else
+  cat libcxx/utils/ci/buildkite-pipeline.yml
+fi

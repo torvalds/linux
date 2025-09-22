@@ -1,0 +1,106 @@
+.\" $OpenBSD: ix.4,v 1.11 2024/11/02 06:47:03 jmc Exp $
+.\"
+.\" Copyright (c) 2008 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 2 2024 $
+.Dt IX 4
+.Os
+.Sh NAME
+.Nm ix
+.Nd Intel 82598/82599/X540/X550 PCI Express 100/1Gb/10Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "ix* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Express 10Gb Ethernet adapters based
+on the Intel 82598EB, 82599EB, X540 and X550 Ethernet controller chips,
+including the following:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Intel 82598AF 10GbE Adapter (10GbaseSR)
+.It
+Intel 82598AF Dual Port 10GbE Adapter (10GbaseSR)
+.It
+Intel 82598EB 10GbE Adapter (10GbaseCX4)
+.It
+Intel 82598EB 10GbE Adapter (SFP+)
+.It
+Intel 82598EB Dual Port 10GbE Adapter (10GbaseCX4)
+.It
+Intel 82598EB XF 10GbE Adapter (10GbaseLR)
+.It
+Intel 82598AT 10GbE Adapter (10GbaseT)
+.It
+Intel 82598AT Dual Port 10GbE Adapter (10GbaseT)
+.It
+Intel 82599EB 10GbE Adapter (10GbaseCX4)
+.It
+Intel X520-DA2 Dual Port 10GbE Adapter (SFP+)
+.It
+Intel X520-SR1 10GbE Adapter (SFP+/10GbaseSR)
+.It
+Intel X520-SR2 Dual Port 10GbE Adapter (SFP+/10GbaseSR)
+.It
+Intel X520-LR1 10GbE Adapter (SFP+/10GbaseLR)
+.It
+Intel X520-QDA1 10GbE Adapter (QSFP)
+.It
+Intel X540-T 10GbE Adapter (10GbaseT/1000baseT/100baseTX)
+.It
+Intel X550-T 10GbE Adapter (10GbaseT/1000baseT/100baseTX)
+.It
+Intel X552 10GbE Adapter (SFP+)
+.It
+Intel Xeon-D X552/X557 embedded 10GbE Adapter (SFP+/10GbaseT)
+.It
+HotLava Tambora 64G4/80G4/64G6/120G6 (SFP+)
+.El
+.Pp
+SFP+ adapters generally also support SFP type modules with their
+associated 1000base-* media types.
+.Pp
+The networking interface should be brought down before
+disconnecting fiber optics, otherwise irreversible damage might be caused
+to the equipment.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr ixv 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Intel Corporation
+and ported to
+.Ox
+by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .
+.An Claudio Jeker Aq Mt claudio@openbsd.org
+and
+.An Mike Belopuhov Aq Mt mikeb@openbsd.org
+have performed multiple updates since.

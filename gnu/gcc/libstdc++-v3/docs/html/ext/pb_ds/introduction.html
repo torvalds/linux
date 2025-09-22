@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Introduction</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Introduction</h1>
+
+    <p>This section describes what problems the library attempts to
+    solve. <a href="motivation.html">Motivation</a> describes the
+    reasons we think it solves these problems better than similar
+    libraries.</p>
+
+    <h2><a name="assoc" id="assoc">Associative Containers</a></h2>
+
+    <ol>
+      <li>Associative containers depend on their policies to a very
+      large extent. Implicitly hard-wiring policies can hamper their
+      performance and limit their functionality. An efficient
+      hash-based container, for example, requires policies for
+      testing key equivalence, hashing keys, translating hash
+      values into positions within the hash table, and determining
+      when and how to resize the table internally. A tree-based
+      container can efficiently support order statistics,
+      <i>i.e.</i>, the ability to query what is the order of each
+      key within the sequence of keys in the container, but only if
+      the container is supplied with a policy to internally update
+      meta-data. There are many other such examples.<p></p></li>
+
+      <li>Ideally, all associative containers would share the same
+      interface. Unfortunately, underlying data structures and
+      mapping semantics differentiate between different containers.
+      For example, suppose one writes a generic function
+      manipulating an associative container <tt>Cntnr</tt>:
+        <pre>
+template&lt;typename Cntnr&gt;
+  void
+  some_op_sequence(Cntnr&amp; r_cnt)
+  {
+    ...
+  }
+</pre>
+
+then what can one assume about <tt>Cntnr</tt>? The answer
+varies according to its underlying data structure. If the
+underlying data structure of <tt>Cntnr</tt> is based on a tree or
+trie, then the order of elements is well defined; otherwise, it is
+not, in general. If the underlying data structure of <tt>Cntnr</tt>
+is based on a collision-chaining hash table, then modifying
+r_<tt>Cntnr</tt> will not invalidate its iterators' order; if the
+underlying data structure is a probing hash table, then this is not
+the case. If the underlying data structure is based on a tree or
+trie, then <tt>r_cnt</tt> can efficiently be split; otherwise, it
+cannot, in general. If the underlying data structure is a red-black
+tree, then splitting <tt>r_cnt</tt> is exception-free; if it is an
+ordered-vector tree, exceptions can be thrown.
+      <p></p></li>
+    </ol>
+
+    <h2><a name="pq" id="pq">Priority Queues</a></h2>
+
+    <p>Priority queues are useful when one needs to efficiently
+    access a minimum (or maximum) value as the set of values
+    changes.</p>
+
+    <ol>
+      <li>Most useful data structures for priority queues have a
+      relatively simple structure, as they are geared toward
+      relatively simple requirements. Unfortunately, these structures
+      do not support access to an arbitrary value, which turns out to
+      be necessary in many algorithms. Say, decreasing an arbitrary
+      value in a graph algorithm. Therefore, some extra mechanism is
+      necessary and must be invented for accessing arbitrary
+      values. There are at least two alternatives: embedding an
+      associative container in a priority queue, or allowing
+      cross-referencing through iterators. The first solution adds
+      significant overhead; the second solution requires a precise
+      definition of iterator invalidation. Which is the next
+      point...<p></p></li>
+
+      <li>Priority queues, like hash-based containers, store values in
+      an order that is meaningless and undefined externally.  For
+      example, a <tt>push</tt> operation can internally reorganize the
+      values. Because of this characteristic, describing a priority
+      queues' iterator is difficult: on one hand, the values to which
+      iterators point can remain valid, but on the other, the logical
+      order of iterators can change unpredictably.<p></p></li>
+
+      <li>Roughly speaking, any element that is both inserted to a
+      priority queue (<i>e.g.</i>, through <tt>push</tt>) and removed
+      from it (<i>e.g.</i>, through <tt>pop</tt>), incurs a
+      logarithmic overhead (in the amortized sense). Different
+      underlying data structures place the actual cost differently:
+      some are optimized for amortized complexity, whereas others
+      guarantee that specific operations only have a constant
+      cost. One underlying data structure might be chosen if modifying
+      a value is frequent (Dijkstra's shortest-path algorithm),
+      whereas a different one might be chosen
+      otherwise. Unfortunately, an array-based binary heap - an
+      underlying data structure that optimizes (in the amortized
+      sense) <tt>push</tt> and <tt>pop</tt> operations, differs from
+      the others in terms of its invalidation guarantees. Other design
+      decisions also impact the cost and placement of the overhead, at
+      the expense of more difference in the the kinds of operations
+      that the underlying data structure can support. These
+      differences pose a challenge when creating a uniform interface
+      for priority queues.<p></p></li>
+    </ol>
+  </div>
+</body>
+</html>

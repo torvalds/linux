@@ -1,0 +1,70 @@
+.\" $OpenBSD: X509_find_by_subject.3,v 1.2 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_FIND_BY_SUBJECT 3
+.Os
+.Sh NAME
+.Nm X509_find_by_subject ,
+.Nm X509_find_by_issuer_and_serial
+.Nd search an array of X.509 certificates
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509 *
+.Fo X509_find_by_subject
+.Fa "STACK_OF(X509) *sk"
+.Fa "X509_NAME *subject"
+.Fc
+.Ft X509 *
+.Fo X509_find_by_issuer_and_serial
+.Fa "STACK_OF(X509) *sk"
+.Fa "X509_NAME *issuer"
+.Fa "ASN1_INTEGER *serial"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_find_by_subject
+searches the variable-sized array
+.Fa sk
+for a certificate with a matching
+.Fa subject
+name.
+.Pp
+.Fn X509_find_by_issuer_and_serial
+searches the array for a certificate where both the
+.Fa issuer
+name and the
+.Fa serial
+number match the arguments.
+.Sh RETURN VALUES
+These functions return a pointer to the first matching certificate or
+.Dv NULL
+if
+.Fa sk
+is
+.Dv NULL
+or does not contain a matching certificate.
+.Sh SEE ALSO
+.Xr ASN1_INTEGER_new 3 ,
+.Xr STACK_OF 3 ,
+.Xr X509_cmp 3 ,
+.Xr X509_get_serialNumber 3 ,
+.Xr X509_get_subject_name 3 ,
+.Xr X509_NAME_new 3 ,
+.Xr X509_new 3
+.Sh HISTORY
+These functions first appeared in SSLeay 0.8.1 and have been available since
+.Ox 2.4 .

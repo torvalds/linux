@@ -1,0 +1,233 @@
+.\"	$OpenBSD: srp_enter.9,v 1.17 2022/07/27 17:05:56 bluhm Exp $
+.\"
+.\" Copyright (c) 2015 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 27 2022 $
+.Dt SRP_ENTER 9
+.Os
+.Sh NAME
+.Nm srp_init ,
+.Nm srp_gc_init ,
+.Nm srp_update ,
+.Nm srp_update_locked ,
+.Nm srp_swap ,
+.Nm srp_swap_locked ,
+.Nm srp_enter ,
+.Nm srp_follow ,
+.Nm srp_leave ,
+.Nm srp_get_locked ,
+.Nm srp_finalize ,
+.Nm srp_gc_finalize ,
+.Nm SRP_INITIALIZER ,
+.Nm SRP_GC_INITIALIZER
+.Nd shared reference pointers
+.Sh SYNOPSIS
+.In sys/srp.h
+.Ft void
+.Fn srp_init "struct srp *p"
+.Ft void
+.Fo srp_gc_init
+.Fa "struct srp_gc *gc"
+.Fa "void (*dtor)(void *, void *)"
+.Fa "void *ctx"
+.Fc
+.Ft void *
+.Fn srp_swap "struct srp *p" "void *v"
+.Ft void *
+.Fn srp_swap_locked "struct srp *p" "void *v"
+.Ft void
+.Fn srp_update "struct srp_gc *gc" "struct srp *p" "void *v"
+.Ft void
+.Fn srp_update_locked "struct srp_gc *gc" "struct srp *p" "void *v"
+.Ft void *
+.Fn srp_enter "struct srp_ref *sr" "struct srp *p"
+.Ft void *
+.Fn srp_follow "struct srp_ref *sr" "struct srp *n"
+.Ft void
+.Fn srp_leave "struct srp_ref *sr"
+.Ft void *
+.Fn srp_get_locked "struct srp *p"
+.Ft void
+.Fn srp_finalize "void *v" "const char *wmesg"
+.Ft void
+.Fn srp_gc_finalize "struct srp_gc *gc"
+.Fn SRP_INITIALIZER
+.Fo SRP_GC_INITIALIZER
+.Fa "void (*dtor)(void *, void *)"
+.Fa "void *ctx"
+.Fc
+.Sh DESCRIPTION
+An
+srp
+structure represents a pointer or reference to an object in memory.
+The
+srp
+API provides concurrent lock free access to these objects, and can
+guarantee that the data isn't destroyed while that reference is in
+use.
+It does not prevent concurrent modification of the referenced object.
+.Pp
+.Fn srp_init
+initialises the srp structure
+.Fa p
+to an empty state.
+.Pp
+.Fn srp_gc_init
+initialises the srp_gc structure
+.Fa gc
+so it can be used as a garbage collector for data that gets referenced by srp
+structures.
+An update to an srp structure will cause the old data to be destroyed when it
+is no longer referenced by any CPU in the system.
+The old data will be destroyed by the garbage collector by a call to
+.Fa dtor
+with
+.Fa ctx
+as the first argument and the pointer to the data as the second argument.
+.Pp
+.Fn srp_update
+and
+.Fn srp_update_locked
+replace the data referenced by the srp struct
+.Fa p
+with the data referenced by
+.Fa v .
+When the original data is no longer in use, it will be destroyed by the garbage
+collector
+.Fa gc .
+.Fn srp_update
+uses atomic CPU operations to change the references.
+.Fn srp_update_locked
+may be used if modifications to
+.Fa p
+are already serialised by the caller.
+Both
+.Fn srp_update
+and
+.Fn srp_update_locked
+may sleep.
+.Pp
+.Fn srp_swap
+and
+.Fn srp_swap_locked
+replace the data referenced by the srp struct
+.Fa p
+with the data referenced by
+.Fa v .
+When clearing or replacing the last reference to a data structure,
+.Fn srp_finalize
+must be used to ensure that the data is no longer in use via any srp
+structures.
+.Fn srp_swap
+uses atomic CPU operations to change the reference.
+.Fn srp_swap_locked
+may be used if modifications to
+.Fa p
+are already serialised by the caller.
+.Pp
+.Fn srp_enter
+returns a pointer to a data structure referenced by the srp struct
+.Fa p
+and guarantees it will remain available for use until it is released with a
+call to
+.Fn srp_leave
+or
+.Fn srp_follow .
+The reference is held via
+.Fa sr .
+.Pp
+.Fn srp_follow
+replaces the reference held via
+.Fa sr
+with a reference to the data structure represented by
+.Fa p .
+.Pp
+.Fn srp_leave
+releases the reference held via
+.Fa sr
+and makes it available for garbage collection.
+.Pp
+.Fn srp_get_locked
+provides access to the data referenced by the srp
+.Fa p
+if the caller has excluded updates to
+.Fa p .
+.Pp
+.Fn srp_finalize
+sleeps until there are no longer any references to
+.Fa v
+via any srp structure in the system.
+.Pp
+.Fn srp_gc_finalize
+sleeps until all references to data by srp structures using the
+garbage collector
+.Fa gc
+have completed.
+That in turn means the
+.Fa gc
+structure will no longer be referenced and can itself be destroyed.
+.Pp
+A srp structure declaration can be initialised with the
+.Fn SRP_INITIALIZER
+macro.
+.Pp
+A srp_gc structure declaration can be initialised with the
+.Fn SRP_GC_INITIALIZER
+macro.
+Data will be destroyed by the garbage collector by a call to
+.Fa dtor
+with
+.Fa ctx
+as the first argument and the pointer to the data as the second argument.
+.Sh CONTEXT
+.Fn srp_init ,
+.Fn srp_gc_init ,
+.Fn srp_update ,
+.Fn srp_update_locked ,
+.Fn srp_get_locked ,
+.Fn srp_finalize ,
+and
+.Fn srp_gc_finalize
+can be called during autoconf or from process context.
+.Pp
+.Fn srp_swap ,
+.Fn srp_swap_locked ,
+.Fn srp_enter ,
+.Fn srp_follow ,
+and
+.Fn srp_leave
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn srp_swap
+and
+.Fn srp_swap_locked
+return a pointer to the previous value referenced by the srp structure
+.Fa p .
+.Pp
+.Fn srp_enter ,
+.Fn srp_follow ,
+and
+.Fn srp_get_locked
+return a pointer to the data referenced by the srp structure
+.Fa p
+or
+.Dv NULL .
+.Sh HISTORY
+The srp API was originally written by
+.An Jonathan Matthew Aq Mt jmatthew@openbsd.org
+and
+.An David Gwynne Aq Mt dlg@openbsd.org .
+The srp API first appeared in
+.Ox 5.8 .

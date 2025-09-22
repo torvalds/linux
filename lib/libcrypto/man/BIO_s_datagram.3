@@ -1,0 +1,574 @@
+.\" $OpenBSD: BIO_s_datagram.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt BIO_S_DATAGRAM 3
+.Os
+.Sh NAME
+.Nm BIO_s_datagram ,
+.Nm BIO_new_dgram ,
+.Nm BIO_dgram_set_peer ,
+.Nm BIO_ctrl_dgram_connect ,
+.Nm BIO_dgram_get_peer ,
+.Nm BIO_ctrl_set_connected ,
+.Nm BIO_dgram_recv_timedout ,
+.Nm BIO_dgram_send_timedout ,
+.Nm BIO_dgram_non_fatal_error
+.\" .Nm BIO_CTRL_DGRAM_QUERY_MTU and
+.\" .Nm BIO_CTRL_DGRAM_MTU_DISCOVER are intentionally undocumented.
+.\" They are almost unused, and OpenBSD does not appear to support them.
+.Nd datagram socket BIO
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/bio.h
+.Ft const BIO_METHOD *
+.Fn BIO_s_datagram void
+.Ft BIO *
+.Fo BIO_new_dgram
+.Fa "int fd"
+.Fa "int close_flag"
+.Fc
+.Ft int
+.Fo BIO_dgram_set_peer
+.Fa "BIO *b"
+.Fa "struct sockaddr *sa"
+.Fc
+.Ft int
+.Fo BIO_ctrl_dgram_connect
+.Fa "BIO *b"
+.Fa "struct sockaddr *sa"
+.Fc
+.Ft int
+.Fo BIO_dgram_get_peer
+.Fa "BIO *b"
+.Fa "struct sockaddr *sa"
+.Fc
+.Ft int
+.Fo BIO_ctrl_set_connected
+.Fa "BIO *b"
+.Fa "long argl"
+.Fa "struct sockaddr *sa"
+.Fc
+.Ft int
+.Fn BIO_dgram_recv_timedout "BIO *b"
+.Ft int
+.Fn BIO_dgram_send_timedout "BIO *b"
+.Ft int
+.Fn BIO_dgram_non_fatal_error "int errnum"
+.Sh DESCRIPTION
+.Fn BIO_s_datagram
+returns the datagram socket BIO method.
+The usual application is to transmit data using the IPv4 or IPv6
+.Xr udp 4
+protocol.
+.Pp
+When called on a datagram socket BIO object,
+.Xr BIO_method_type 3
+returns the constant
+.Dv BIO_TYPE_DGRAM
+and
+.Xr BIO_method_name 3
+returns a pointer to the static string
+.Qq datagram socket .
+.Ss Constructors and destructors
+.Xr BIO_new 3
+allocates a new datagram socket BIO object and initializes all its data
+to zero, including the datagram socket file descriptor, the peer address,
+the init flag that can be retrieved with
+.Xr BIO_get_init 3 ,
+the connected flag, the MTU, and all timeout and error information.
+The reference count and the close flag are set to 1.
+.Pp
+.Fn BIO_new_dgram
+allocates and initializes a new datagram socket BIO object with
+.Xr BIO_new 3 ,
+sets the datagram socket file descriptor and the close flag
+according to its arguments, and sets the init flag to 1.
+.Pp
+If the reference count reaches 0 in
+.Xr BIO_free 3
+and the close and init flags are set,
+.Xr shutdown 2
+and
+.Xr close 2
+are called on the datagram socket file descriptor before freeing the
+storage used by the BIO object.
+.Pp
+When a chain containing a datagram socket BIO is copied with
+.Xr BIO_dup_chain 3 ,
+the datagram socket file descriptor, the init flag, the close flag,
+the flags accessible with
+.Xr BIO_test_flags 3 ,
+and any data that was set with
+.Xr BIO_set_ex_data 3
+are automatically copied from the original BIO object to the new one,
+but the peer address, the connected flag, the MTU and all timeout and
+error information are not copied but instead initialized to zero.
+.Ss Initialization and configuration
+If the close flag is set in
+.Fa b ,
+.Xr BIO_set_fd 3
+clears all flags that are set in
+.Fa b
+and if the init flag was set, it calls
+.Xr shutdown 2
+and
+.Xr close 2
+on the previously assigned file descriptor.
+In any case,
+.Xr BIO_set_fd 3
+then sets the new file descriptor and the new close flag according to
+its arguments and sets the init flag to 1.
+.Pp
+If the init flag is set in
+.Fa b ,
+.Xr BIO_get_fd 3
+returns its datagram socket file descriptor, and unless the
+.Fa c
+argument is a
+.Dv NULL
+pointer, it also stores the file descriptor in
+.Pf * Fa c .
+If the init flag is not set,
+.Xr BIO_get_fd 3
+fails and returns \-1.
+.Pp
+.Xr BIO_set_close 3
+sets the close flag in
+.Fa b
+to the
+.Fa flag
+argument.
+.Xr BIO_get_close 3
+returns the value of the close flag from
+.Fa b .
+.Pp
+For datagram socket BIO objects,
+the shutdown flag is the same flag as the close flag.
+Consequently,
+.Xr BIO_set_shutdown 3
+has the same effect as
+.Xr BIO_set_close 3
+and
+.Xr BIO_get_shutdown 3
+has the same effect as
+.Xr BIO_get_close 3 .
+.Pp
+.Fn BIO_dgram_set_peer
+copies
+.Fa sa
+as the peer address into
+.Fa b .
+.Pp
+.Fn BIO_ctrl_dgram_connect
+does exactly the same as
+.Fn BIO_dgram_set_peer .
+Its name is even more misleading than the name of
+.Fn BIO_ctrl_set_connected .
+In addition to what is said there,
+.Fn BIO_ctrl_dgram_connect
+does not even set the connected flag in
+.Fa b .
+.Pp
+.Fn BIO_dgram_get_peer
+copies the peer address from
+.Fa b
+to
+.Pf * Fa sa .
+Before calling this function, the caller has to make sure
+that the peer address is indeed set in
+.Fa b
+and that sufficient memory is available starting at
+.Fa sa
+to copy a complete
+.Vt struct sockaddr ,
+.Vt struct sockaddr_in ,
+or
+.Vt struct sockaddr_in6
+to that place, depending on which address family
+.Fa b
+is currently used for.
+.Pp
+Unless
+.Fa sa
+is
+.Dv NULL ,
+.Fn BIO_ctrl_set_connected
+sets the connected flag in
+.Fa b
+and copies
+.Fa sa
+as the peer address into
+.Fa b .
+If
+.Fa sa
+is
+.Dv NULL ,
+.Fn BIO_ctrl_set_connected
+clears the connected flag and the peer address in
+.Fa b .
+Considering that communication using a datagram protocol is connectionless,
+the name of this function is misleading.
+It is neither establishing or terminating a connection nor changing
+anything with respect to the state of the datagram socket, but merely
+modifying some purely informational data in the wrapping BIO object.
+The additional
+.Fa argl
+argument is passed through to the callbacks documented in
+.Xr BIO_set_callback 3
+if any such callbacks are installed, but it is otherwise ignored.
+.Pp
+.Xr BIO_ctrl 3
+with a
+.Fa cmd
+of
+.Dv BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT
+interprets the
+.Fa parg
+argument as a pointer to a
+.Vt struct timeval
+and sets the read timeout to the specified absolute UTC time.
+.Pp
+.Xr BIO_ctrl 3
+with a
+.Fa cmd
+of
+.Dv BIO_CTRL_DGRAM_SET_RECV_TIMEOUT ,
+.Dv BIO_CTRL_DGRAM_GET_RECV_TIMEOUT ,
+.Dv BIO_CTRL_DGRAM_SET_SEND_TIMEOUT ,
+or
+.Dv BIO_CTRL_DGRAM_GET_SEND_TIMEOUT
+interprets the
+.Fa parg
+argument as a pointer to a
+.Vt struct timeval
+and calls
+.Xr setsockopt 2
+or
+.Xr getsockopt 2
+on the datagram socket file descriptor of
+.Fa b
+with an argument of
+.Dv SO_RCVTIMEO
+or
+.Dv SO_SNDTIMEO ,
+respectively.
+.Dv BIO_CTRL_DGRAM_SET_RECV_TIMEOUT
+and
+.Dv BIO_CTRL_DGRAM_SET_SEND_TIMEOUT
+return 1 on success,
+.Dv BIO_CTRL_DGRAM_GET_RECV_TIMEOUT
+and
+.Dv BIO_CTRL_DGRAM_GET_SEND_TIMEOUT
+the number of bytes written to
+.Pf * Fa parg .
+All four return \-1 on failure.
+Remember that
+.Xr BIO_read 3
+may actually use a shorter timeout when
+.Dv BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT
+is in effect.
+.Pp
+.Xr BIO_ctrl 3
+with a
+.Fa cmd
+of
+.Dv BIO_CTRL_DGRAM_GET_FALLBACK_MTU
+returns 1232 if the peer address is an IPv6 address that is not IPv4 mapped
+or 548 otherwise.
+Making sure that a peer address is set before issuing this command
+is the responsibility of the caller.
+.Pp
+.Xr BIO_ctrl 3
+with a
+.Fa cmd
+of
+.Dv BIO_CTRL_DGRAM_SET_MTU
+sets the MTU attribute of
+.Fa b
+to the value of the
+.Fa larg
+argument and also returns that argument.
+.Xr BIO_ctrl 3
+with a
+.Fa cmd
+of
+.Dv BIO_CTRL_DGRAM_GET_MTU
+returns the MTU attribute of
+.Fa b
+or 0 if it was not set.
+.Pp
+.Xr BIO_ctrl 3
+with a
+.Fa cmd
+of
+.Dv BIO_CTRL_DGRAM_MTU_EXCEEDED
+returns 1 if the most recent non-fatal failure of
+.Xr BIO_read 3
+or
+.Xr BIO_write 3
+was caused by
+.Er EMSGSIZE
+or 0 otherwise.
+This command also clears the
+.Xr errno 2
+value that was saved internally for this particular purpose, so that
+issuing the same command again will return 0 until the next
+.Er EMSGSIZE
+failure occurs.
+.Pp
+.Fn BIO_dgram_recv_timedout
+and
+.Fn BIO_dgram_send_timedout
+check whether the most recent non-fatal failure of
+.Xr BIO_read 3
+or
+.Xr BIO_write 3
+was caused by
+.Er EAGAIN .
+Despite having different names, both functions do exactly the same,
+and both inspect the most recent non-fatal I/O failure, no matter
+whether it occurred during a receive or send operation.
+Both functions also clear the
+.Xr errno 2
+value that was saved internally for this particular purpose,
+so that calling these functions again will return 0 until the next
+.Er EAGAIN
+failure occurs.
+.Pp
+Datagram socket BIOs do not support
+.Xr BIO_eof 3 ,
+.Xr BIO_get_mem_data 3 ,
+.Xr BIO_pending 3 ,
+.Xr BIO_reset 3 ,
+.Xr BIO_seek 3 ,
+.Xr BIO_tell 3 ,
+and
+.Xr BIO_wpending 3 ,
+and attempting any such operation results in failure
+and returns a value of 0.
+.Pp
+Control commands correspond to accessor functions as follows:
+.Pp
+.Bl -tag -width BIO_CTRL_DGRAM_GET_RECV_TIMER_EXP -compact
+.It Dv BIO_C_GET_FD
+.Xr BIO_get_fd 3
+.It Dv BIO_C_SET_FD
+.Xr BIO_set_fd 3
+.It Dv BIO_CTRL_DGRAM_CONNECT
+.Fn BIO_ctrl_dgram_connect Pq deprecated
+.It Dv BIO_CTRL_DGRAM_GET_PEER
+.Fn BIO_dgram_get_peer
+.It BIO_CTRL_DGRAM_GET_RECV_TIMER_EXP
+.Fn BIO_dgram_recv_timedout
+.It BIO_CTRL_DGRAM_GET_SEND_TIMER_EXP
+.Fn BIO_dgram_send_timedout
+.It Dv BIO_CTRL_DGRAM_SET_CONNECTED
+.Fn BIO_ctrl_set_connected
+.It Dv BIO_CTRL_DGRAM_SET_PEER
+.Fn BIO_dgram_set_peer
+.It Dv BIO_CTRL_GET_CLOSE
+.Xr BIO_get_close 3
+.It Dv BIO_CTRL_SET_CLOSE
+.Xr BIO_set_close 3
+.El
+.Ss Input and output operations
+.Xr BIO_read 3
+attempts to read up to
+.Fa len
+bytes into
+.Fa buf
+from the datagram socket file descriptor using
+.Xr recvfrom 2 .
+If a read timeout is set,
+.Xr setsockopt 2
+is used with an argument of
+.Dv SO_RCVTIMEO
+to temporarily shorten the timeout on the datagram socket during the
+.Xr recvfrom 2
+call such that it returns before the read timeout expires.
+.Pp
+If
+.Xr recvfrom 2
+succeeds and the connected flag is not yet set,
+.Xr BIO_read 3
+also copies the peer address received from
+.Xr recvfrom 2
+into
+.Fa b .
+.Pp
+If
+.Xr recvfrom 2
+is attempted,
+.Xr BIO_read 3
+clears the flags
+.Dv BIO_FLAGS_WRITE
+and
+.Dv BIO_FLAGS_IO_SPECIAL
+in
+.Fa b
+and clears or sets the flags
+.Dv BIO_FLAGS_READ
+and
+.Dv BIO_FLAGS_SHOULD_RETRY
+as appropriate.
+.Pp
+If the connected flag is set in
+.Fa b ,
+.Xr BIO_write 3
+attempts to
+.Xr write 2
+.Fa len
+bytes from
+.Fa buf
+to the datagram socket file descriptor.
+If the connected flag is not set, it attempts to transmit
+.Fa len
+bytes from
+.Fa buf
+to the peer using
+.Xr sendto 2 .
+.Pp
+If
+.Xr write 2
+or
+.Xr sendto 2
+is attempted,
+.Xr BIO_write 3
+clears the flags
+.Dv BIO_FLAGS_READ
+and
+.Dv BIO_FLAGS_IO_SPECIAL
+in
+.Fa b
+and clears or sets the flags
+.Dv BIO_FLAGS_WRITE
+and
+.Dv BIO_FLAGS_SHOULD_RETRY
+as appropriate.
+.Pp
+The effect of
+.Xr BIO_puts 3
+is similar to the effect of
+.Xr BIO_write 3
+with a
+.Fa len
+argument of
+.Fn strlen string .
+.Pp
+Datagram socket BIOs do not support
+.Xr BIO_gets 3 .
+Calling this function fails and returns \-2.
+.Pp
+.Xr BIO_flush 3
+has no effect on a datagram socket BIO.
+It always succeeds and returns 1.
+.Sh RETURN VALUES
+.Fn BIO_s_datagram
+returns the datagram socket BIO method.
+.Pp
+.Fn BIO_new_dgram
+returns a newly allocated datagram socket BIO object or
+.Dv NULL
+on failure.
+.Pp
+.Fn BIO_dgram_set_peer ,
+.Fn BIO_ctrl_dgram_connect ,
+and
+.Fn BIO_ctrl_set_connected
+return 1 on success or a value less than or equal to zero on failure.
+They can only fail if
+.Fa b
+is not a datagram socket BIO object.
+.Pp
+.Fn BIO_dgram_get_peer
+returns the number of bytes copied to
+.Fa sa
+or a value less than or equal to zero on failure.
+It can only fail if
+.Fa b
+is not a datagram socket BIO object.
+.Pp
+.Fn BIO_dgram_recv_timedout
+and
+.Fn BIO_dgram_send_timedout
+return 1 if the most recent non-fatal I/O error was caused by
+.Er EAGAIN
+or 0 otherwise.
+.Pp
+.Fn BIO_dgram_non_fatal_error
+returns 1 if
+.Fa errnum
+is
+.Er EAGAIN ,
+.Er EALREADY ,
+.Er EINPROGRESS ,
+or
+.Er EINTR
+or 0 otherwise, even if
+.Fa errnum
+is 0.
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr getsockopt 2 ,
+.Xr recvfrom 2 ,
+.Xr sendto 2 ,
+.Xr shutdown 2 ,
+.Xr BIO_ctrl 3 ,
+.Xr BIO_get_init 3 ,
+.Xr BIO_new 3 ,
+.Xr BIO_read 3 ,
+.Xr BIO_s_connect 3 ,
+.Xr BIO_set_fd 3 ,
+.Xr BIO_should_retry 3 ,
+.Xr udp 4
+.Sh HISTORY
+.Fn BIO_s_datagram ,
+.Fn BIO_new_dgram ,
+.Fn BIO_dgram_set_peer ,
+.Fn BIO_ctrl_dgram_connect ,
+.Fn BIO_ctrl_set_connected ,
+.Fn BIO_dgram_recv_timedout ,
+.Fn BIO_dgram_send_timedout ,
+and
+.Fn BIO_dgram_non_fatal_error
+first appeared in OpenSSL 0.9.8 and have been available since
+.Ox 4.5 .
+.Pp
+.Fn BIO_dgram_get_peer
+first appeared in OpenSSL 0.9.8m and has been available since
+.Ox 4.9 .
+.Sh BUGS
+If
+.Xr getsockopt 2
+or
+.Xr setsockopt 2
+fails during
+.Xr BIO_read 3 ,
+the library prints an error message to standard error output
+but otherwise ignores the problem, thus possibly using unintended
+timeout values.
+.Pp
+.Xr BIO_read 3
+and
+.Xr BIO_write 3
+may clear the global variable
+.Xr errno 2
+before attempting the
+.Xr recvfrom 2
+or
+.Xr sendto 2
+system call but may not clear it if they fail before reaching this point.

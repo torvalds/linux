@@ -1,0 +1,9 @@
+table <__automatic_0> const { 169.254.0.1 169.254.0.2 }
+table <__automatic_1> const { 169.254.0.1 169.254.0.2 }
+pass in on lo0 inet all flags S/SA route-to <__automatic_0> round-robin
+pass out on lo0 inet all flags S/SA route-to <__automatic_1> round-robin
+pass in on lo0 inet all flags S/SA route-to 169.254.0.0/24 bitmask
+pass out on lo0 inet all flags S/SA dup-to 169.254.0.0/24 random
+pass in on lo0 inet all flags S/SA reply-to 169.254.0.0/28 source-hash 0x0123456789abcdef0123456789abcdef
+pass out on lo0 inet all flags S/SA route-to 169.254.0.0/24 source-hash 0x4da8e393fd22f577426cfdf7fe52d3b0
+pass in on lo0 inet all flags S/SA dup-to 169.254.0.0/24 round-robin

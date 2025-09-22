@@ -1,0 +1,52 @@
+@0 pass in quick on enc0 all flags S/SA
+  [ Skip steps: r=end p=3 sa=5 da=2 sp=end dp=3 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass out quick on tun1000000 inet all flags S/SA route-to (tun1000001:peer:*) round-robin
+  [ Skip steps: i=end d=3 r=end p=3 sa=5 sp=end dp=3 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 pass out quick on tun1000000 inet6 from any to fec0::1 flags S/SA route-to (tun1000001:peer:*) round-robin
+  [ Skip steps: i=end r=end sa=5 sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 pass in on tun1000000 inet proto tcp from any to any port = 21 flags S/SA dup-to 192.168.1.1
+  [ Skip steps: i=end d=end r=end p=5 sa=5 da=5 sp=end dp=5 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass in on tun1000000 inet6 proto tcp from any to any port = 21 flags S/SA dup-to fec0::1
+  [ Skip steps: i=end d=end r=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 pass in quick on tun1000000 inet from 192.168.1.1 to 10.1.1.1 flags S/SA route-to (tun1000001:peer:*) round-robin
+  [ Skip steps: i=end d=end r=end p=7 sp=end dp=7 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 pass in quick on tun1000000 inet6 from fec0::/64 to fec1::2 flags S/SA route-to (tun1000001:peer:*) round-robin
+  [ Skip steps: i=end d=end r=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 pass in on tun1000000 inet proto tcp from any to any port = 21 flags S/SA reply-to 192.168.1.1
+  [ Skip steps: i=end d=end r=end p=9 sa=9 da=9 sp=end dp=9 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 pass in on tun1000000 inet6 proto tcp from any to any port = 21 flags S/SA reply-to fec0::1
+  [ Skip steps: i=end d=end r=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 pass in quick on tun1000000 inet from 192.168.1.1 to 10.1.1.1 flags S/SA reply-to (tun1000001:peer:*) round-robin
+  [ Skip steps: i=end d=end r=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 pass in quick on tun1000000 inet6 from fec0::/64 to fec1::2 flags S/SA reply-to (tun1000001:peer:*) round-robin
+  [ Skip steps: i=end d=end r=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 pass in quick on tun1000000 inet from 192.168.1.1 to 10.1.1.1 flags S/SA dup-to 192.168.1.100
+  [ Skip steps: i=end d=end r=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@12 pass in quick on tun1000000 inet6 from fec0::/64 to fec1::2 flags S/SA dup-to fec1::2
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

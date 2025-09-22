@@ -1,0 +1,64 @@
+#! /usr/bin/perl
+# $OpenBSD: check-beautify,v 1.1 2019/07/06 19:39:43 espie Exp $
+# Written by Marc Espie
+# Public domain
+use strict;
+use warnings;
+use OpenBSD::UpdateSet;
+use OpenBSD::Handle;
+use Test::Simple tests => 2;
+
+package MockRepo;
+sub installed
+{
+	return 'MockInstalled';
+}
+
+package MockInstalled;
+sub find
+{
+	return undef;
+}
+package MockState;
+
+sub repo
+{
+	return 'MockRepo';
+}
+
+package main;
+
+my $state = "MockState";
+
+sub create_set
+{
+	my ($older, $newer) = @_;
+	my $u1 = OpenBSD::UpdateSet->new($state);
+	for my $i (@$newer) {
+		$u1->add_newer(OpenBSD::Handle->create_new($i));
+	}
+	for my $i (@$older) {
+		$u1->add_older(OpenBSD::Handle->create_old($i, $state));
+	}
+	return $u1;
+
+}
+
+sub check_print
+{
+	my ($u, $r) = @_;
+	if ($u->print eq $r) {
+		return 1;
+	} else {
+		print STDERR $u->print, " vs ", $r, "\n";
+		return 0;
+	}
+}
+
+my $u1 = create_set([qw(cups-2.9 cups-libs-2.9 mupdf-2.5)], [qw(mupdf-2.5 cups-3.1 cups-libs-3.1)]);
+
+ok(check_print($u1, 
+    'cups-2.9+cups-libs-2.9+mupdf-2.5->cups-3.1+cups-libs-3.1+mupdf-2.5'));
+
+$u1->move_kept(OpenBSD::Handle->create_old('mupdf-2.5', $state));
+ok(check_print($u1, '[mupdf-2.5]cups+cups-libs-2.9->3.1'));

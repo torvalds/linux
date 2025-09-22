@@ -1,0 +1,8 @@
+pass inet from 1.1.1.1 to (self) flags S/SA
+pass inet6 from 2002:: to (self) flags S/SA
+pass inet6 from 2002:: to (self) flags S/SA
+pass inet from 1.1.1.1 to (self) flags S/SA
+pass inet from 1.1.1.1 to (self) flags S/SA
+pass inet6 from 2002:: to (self)/40 flags S/SA
+pass inet6 from 2002:: to (self)/40 flags S/SA
+pass inet from 1.1.1.1 to (self) flags S/SA

@@ -1,0 +1,588 @@
+.\"	$OpenBSD: fcntl.2,v 1.38 2025/08/04 15:08:16 schwarze Exp $
+.\"	$NetBSD: fcntl.2,v 1.6 1995/02/27 12:32:29 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
+.\"
+.Dd $Mdocdate: August 4 2025 $
+.Dt FCNTL 2
+.Os
+.Sh NAME
+.Nm fcntl
+.Nd file control
+.Sh SYNOPSIS
+.In fcntl.h
+.Ft int
+.Fn fcntl "int fd" "int cmd" "..."
+.Sh DESCRIPTION
+The
+.Fn fcntl
+system call provides control over the properties of a file that is already open.
+The argument
+.Fa fd
+is a descriptor to be operated on by
+.Fa cmd
+as described below.
+The third parameter is called
+.Fa arg
+and is technically a pointer to
+.Fa void ,
+but is interpreted as an
+.Vt int
+by some commands, a pointer to a
+.Vt struct flock
+by others (see below), and ignored by the rest.
+.Pp
+The commands are:
+.Bl -tag -width F_DUPFD_CLOEXEC
+.It Dv F_DUPFD
+Return a new descriptor as follows:
+.Pp
+.Bl -bullet -compact
+.It
+Lowest numbered available descriptor greater than or equal to
+.Fa arg
+(interpreted as an
+.Vt int ) .
+.It
+Same object references as the original descriptor.
+.It
+New descriptor shares the same file offset if the object
+was a file.
+.It
+Same access mode (read, write or read/write).
+.It
+Same file status flags (i.e., both file descriptors
+share the same file status flags).
+.It
+The close-on-exec flag associated with the new file descriptor
+is set to remain open across
+.Xr execve 2
+calls.
+.El
+.It Dv F_DUPFD_CLOEXEC
+Like
+.Dv F_DUPFD ,
+but the
+.Dv FD_CLOEXEC
+flag associated with the new file descriptor is set, so the file descriptor
+is closed when
+.Xr execve 2
+is called.
+.It Dv F_DUPFD_CLOFORK
+Like
+.Dv F_DUPFD ,
+but the
+.Dv FD_CLOFORK
+flag associated with the new file descriptor is set, so the file descriptor
+is closed in the child when
+.Xr fork 2
+or
+.Xr vfork 2
+is called.
+.It Dv F_GETFD
+Get the close-on-exec and close-on-fork flags associated with the
+file descriptor
+.Fa fd
+as
+.Dv FD_CLOEXEC
+and
+.Dv FD_CLOFORK .
+If the returned value ANDed with
+.Dv FD_CLOEXEC
+is 0,
+the file will remain open across
+.Xr execve 2 ,
+otherwise the file will be closed upon execution of
+.Xr execve 2 ;
+if the returned value ANDed with
+.Dv FD_CLOFORK
+is 0,
+the file will remain open across
+.Xr fork 2
+and
+.Xr vfork 2 ,
+otherwise the file will be closed upon execution of
+.Xr fork 2
+or
+.Xr vfork 2
+.Fa ( arg
+is ignored).
+.It Dv F_SETFD
+Set the close-on-exec and close-on-fork flags associated with
+.Fa fd
+to
+.Fa arg ,
+where
+.Fa arg
+(interpreted as an
+.Vt int )
+is the bitwise OR of zero or more of
+.Dv FD_CLOEXEC
+and
+.Dv FD_CLOFORK ,
+as described above.
+.It Dv F_GETFL
+Get file status flags associated with the file descriptor
+.Fa fd ,
+as described below
+.Fa ( arg
+is ignored).
+.It Dv F_SETFL
+Set file status flags associated with the file descriptor
+.Fa fd
+to
+.Fa arg
+(interpreted as an
+.Vt int ) .
+.It Dv F_GETOWN
+Get the process ID or process group
+currently receiving
+.Dv SIGIO
+and
+.Dv SIGURG
+signals; process groups are returned
+as negative values
+.Fa ( arg
+is ignored).
+.It Dv F_SETOWN
+Set the process or process group
+to receive
+.Dv SIGIO
+and
+.Dv SIGURG
+signals;
+process groups are specified by supplying
+.Fa arg
+(interpreted as an
+.Vt int )
+as negative, otherwise
+.Fa arg
+is taken as a process ID.
+.El
+.Pp
+The flags for the
+.Dv F_GETFL
+and
+.Dv F_SETFL
+commands are as follows:
+.Bl -tag -width O_NONBLOCKX
+.It Dv O_NONBLOCK
+Non-blocking I/O; if no data is available to a
+.Xr read 2
+call, or if a
+.Xr write 2
+operation would block,
+the read or write call returns \-1 with the error
+.Er EAGAIN .
+.It Dv O_APPEND
+Force each write to append at the end of file;
+corresponds to the
+.Dv O_APPEND
+flag of
+.Xr open 2 .
+.It Dv O_ASYNC
+Enable the
+.Dv SIGIO
+signal to be sent to the process group when I/O is possible, e.g.,
+upon availability of data to be read.
+.It Dv O_SYNC
+Cause writes to be synchronous.
+Data will be written to the physical device instead of
+just being stored in the buffer cache; corresponds to the
+.Dv O_SYNC
+flag of
+.Xr open 2 .
+.El
+.Pp
+Several commands are available for doing advisory file locking;
+they all operate on the following structure:
+.Bd -literal
+struct flock {
+	off_t	l_start;	/* starting offset */
+	off_t	l_len;		/* len = 0 means until end of file */
+	pid_t	l_pid;		/* lock owner */
+	short	l_type;		/* lock type: read/write, etc. */
+	short	l_whence;	/* type of l_start */
+};
+.Ed
+.Pp
+The commands available for advisory record locking are as follows:
+.Bl -tag -width F_SETLKWX
+.It Dv F_GETLK
+Get the first lock that blocks the lock description pointed to by the
+third argument,
+.Fa arg ,
+taken as a pointer to a
+.Fa "struct flock"
+(see above).
+The information retrieved overwrites the information passed to
+.Fn fcntl
+in the
+.Fa flock
+structure.
+If no lock is found that would prevent this lock from being created,
+the structure is left unchanged by this function call except for the
+lock type which is set to
+.Dv F_UNLCK .
+.It Dv F_SETLK
+Set or clear a file segment lock according to the lock description
+pointed to by the third argument,
+.Fa arg ,
+taken as a pointer to a
+.Fa "struct flock"
+(see above).
+.Dv F_SETLK
+is used to establish shared (or read) locks
+.Pq Dv F_RDLCK
+or exclusive (or write) locks
+.Pq Dv F_WRLCK ,
+as well as remove either type of lock
+.Pq Dv F_UNLCK .
+If a shared or exclusive lock cannot be set,
+.Fn fcntl
+returns immediately with
+.Er EAGAIN .
+.It Dv F_SETLKW
+This command is the same as
+.Dv F_SETLK
+except that if a shared or exclusive lock is blocked by other locks,
+the process waits until the request can be satisfied.
+If a signal that is to be caught is received while
+.Fn fcntl
+is waiting for a region, the
+.Fn fcntl
+will be interrupted if the signal handler has not specified the
+.Dv SA_RESTART
+(see
+.Xr sigaction 2 ) .
+.El
+.Pp
+When a shared lock has been set on a segment of a file,
+other processes can set shared locks on that segment
+or a portion of it.
+A shared lock prevents any other process from setting an exclusive
+lock on any portion of the protected area.
+A request for a shared lock fails if the file descriptor was not
+opened with read access.
+.Pp
+An exclusive lock prevents any other process from setting a shared lock or
+an exclusive lock on any portion of the protected area.
+A request for an exclusive lock fails if the file was not
+opened with write access.
+.Pp
+The value of
+.Fa l_whence
+is
+.Dv SEEK_SET ,
+.Dv SEEK_CUR ,
+or
+.Dv SEEK_END
+to indicate that the relative offset,
+.Fa l_start
+bytes, will be measured from the start of the file,
+current position, or end of the file, respectively.
+The value of
+.Fa l_len
+is the number of consecutive bytes to be locked.
+If
+.Fa l_len
+is negative, the area starting at
+.Fa l_start Ns + Ns Fa l_len
+and ending at
+.Fa l_start Ns -1
+is locked.
+The
+.Fa l_pid
+field is only used with
+.Dv F_GETLK
+to return the process ID of the process holding a blocking lock.
+After a successful
+.Dv F_GETLK
+request, the value of
+.Fa l_whence
+is
+.Dv SEEK_SET .
+.Pp
+Locks may start and extend beyond the current end of a file,
+but may not start or extend before the beginning of the file.
+A lock is set to extend to the largest possible value of the
+file offset for that file if
+.Fa l_len
+is set to zero.
+If
+.Fa l_whence
+and
+.Fa l_start
+point to the beginning of the file, and
+.Fa l_len
+is zero, the entire file is locked.
+If an application wishes only to do entire file locking, the
+.Xr flock 2
+system call is much more efficient.
+.Pp
+There is at most one type of lock set for each byte in the file.
+Before a successful return from an
+.Dv F_SETLK
+or an
+.Dv F_SETLKW
+request when the calling process has previously existing locks
+on bytes in the region specified by the request,
+the previous lock type for each byte in the specified
+region is replaced by the new lock type.
+As specified above under the descriptions
+of shared locks and exclusive locks, an
+.Dv F_SETLK
+or an
+.Dv F_SETLKW
+request fails or blocks respectively when another process has existing
+locks on bytes in the specified region and the type of any of those
+locks conflicts with the type specified in the request.
+.Pp
+This interface follows the completely stupid semantics of System V and
+.St -p1003.1-88
+that require that all locks associated with a file for a given process are
+removed when
+.Em any
+file descriptor for that file is closed by that process.
+This semantic means that applications must be aware of any files that
+a subroutine library may access.
+For example if an application for updating the password file locks the
+password file database while making the update, and then calls
+.Xr getpwnam 3
+to retrieve a record,
+the lock will be lost because
+.Xr getpwnam 3
+opens, reads, and closes the password database.
+The database close will release all locks that the process has
+associated with the database, even if the library routine never
+requested a lock on the database.
+Another minor semantic problem with this interface is that
+locks are not inherited by a child process created using the
+.Xr fork 2
+function.
+The
+.Xr flock 2
+interface has much more rational last close semantics and
+allows locks to be inherited by child processes.
+.Xr flock 2
+is recommended for applications that want to ensure the integrity
+of their locks when using library routines or wish to pass locks
+to their children.
+Note that
+.Xr flock 2
+and
+.Fn fcntl
+locks may be safely used concurrently.
+.Pp
+All locks associated with a file for a given process are
+removed when the process terminates.
+.Pp
+A potential for deadlock occurs if a process controlling a locked region
+is put to sleep by attempting to lock the locked region of another process.
+This implementation detects that sleeping until a locked region is unlocked
+would cause a deadlock and fails with an
+.Er EDEADLK
+error.
+.Sh RETURN VALUES
+Upon successful completion, the value returned depends on
+.Fa cmd
+as follows:
+.Bl -tag -width F_DUPFD_CLOEXEC -offset indent
+.It Dv F_DUPFD
+A new file descriptor.
+.It Dv F_DUPFD_CLOEXEC
+A new file descriptor.
+.It Dv F_DUPFD_CLOFORK
+A new file descriptor.
+.It Dv F_GETFD
+Value of file descriptor flags (only the
+.Dv FD_CLOEXEC
+and
+.Dv FD_CLOFORK
+bits are defined).
+.It Dv F_GETFL
+Value of flags.
+.It Dv F_GETOWN
+Value of file descriptor owner.
+.It other
+Value other than \-1.
+.El
+.Pp
+Otherwise, a value of \-1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn fcntl
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The argument
+.Fa cmd
+is
+.Dv F_SETLK ,
+the type of lock
+.Pq Fa l_type
+is a shared lock
+.Pq Dv F_RDLCK
+or exclusive lock
+.Pq Dv F_WRLCK ,
+and the segment of a file to be locked is already
+exclusive-locked by another process;
+or the type is an exclusive lock and some portion of the
+segment of a file to be locked is already shared-locked or
+exclusive-locked by another process.
+.It Bq Er EBADF
+.Fa fd
+is not a valid open file descriptor.
+.Pp
+The argument
+.Fa cmd
+is
+.Dv F_SETLK
+or
+.Dv F_SETLKW ,
+the type of lock
+.Pq Fa l_type
+is a shared lock
+.Pq Dv F_RDLCK ,
+and
+.Fa fd
+is not a valid file descriptor open for reading.
+.Pp
+The argument
+.Fa cmd
+is
+.Dv F_SETLK
+or
+.Dv F_SETLKW ,
+the type of lock
+.Pq Fa l_type
+is an exclusive lock
+.Pq Dv F_WRLCK ,
+and
+.Fa fd
+is not a valid file descriptor open for writing.
+.It Bq Er EDEADLK
+The argument
+.Fa cmd
+is
+.Dv F_SETLKW ,
+and a deadlock condition was detected.
+.It Bq Er EINTR
+The argument
+.Fa cmd
+is
+.Dv F_SETLK
+or
+.Dv F_SETLKW ,
+and the function was interrupted by a signal.
+.It Bq Er EINVAL
+The argument
+.Fa cmd
+is invalid.
+.Pp
+.Fa cmd
+is
+.Dv F_DUPFD
+and
+.Fa arg
+is negative or greater than the maximum allowable number
+(see
+.Xr getdtablesize 3 ) .
+.Pp
+The argument
+.Fa cmd
+is
+.Dv F_GETLK ,
+.Dv F_SETLK ,
+or
+.Dv F_SETLKW
+and the data to which
+.Fa arg
+points is not valid, or
+.Fa fd
+refers to a file that does not support locking.
+.It Bq Er EMFILE
+The argument
+.Fa cmd
+is
+.Dv F_DUPFD
+and the maximum number of open file descriptors permitted for the
+process are already in use,
+or no file descriptors greater than or equal to
+.Fa arg
+are available.
+.It Bq Er ENOLCK
+The argument
+.Fa cmd
+is
+.Dv F_SETLK
+or
+.Dv F_SETLKW ,
+and satisfying the lock or unlock request would result in the
+number of locked regions in the system exceeding a system-imposed limit.
+.It Bq Er EOVERFLOW
+The argument
+.Fa cmd
+is
+.Dv F_GETLK ,
+.Dv F_SETLK
+or
+.Dv F_SETLKW
+and the segment length of a file to be locked is too large to be represented by
+an
+.Vt off_t .
+.It Bq Er ESRCH
+.Fa cmd
+is
+.Dv F_SETOWN
+and the process ID given in
+.Fa arg
+is not in use.
+.El
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr execve 2 ,
+.Xr flock 2 ,
+.Xr open 2 ,
+.Xr sigaction 2 ,
+.Xr getdtablesize 3
+.Sh STANDARDS
+The
+.Fn fcntl
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn fcntl
+system call first appeared in
+.At III
+and was reimplemented for
+.Bx 4.2 .

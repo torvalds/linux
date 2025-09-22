@@ -1,0 +1,168 @@
+.\" $OpenBSD: tls_ocsp_process_response.3,v 1.7 2025/07/07 10:54:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Bob Beck <beck@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2025 $
+.Dt TLS_OCSP_PROCESS_RESPONSE 3
+.Os
+.Sh NAME
+.Nm tls_ocsp_process_response ,
+.Nm tls_peer_ocsp_url ,
+.Nm tls_peer_ocsp_response_status ,
+.Nm tls_peer_ocsp_cert_status ,
+.Nm tls_peer_ocsp_crl_reason ,
+.Nm tls_peer_ocsp_result ,
+.Nm tls_peer_ocsp_revocation_time ,
+.Nm tls_peer_ocsp_this_update ,
+.Nm tls_peer_ocsp_next_update
+.Nd inspect an OCSP response
+.Sh SYNOPSIS
+.Lb libtls libssl libcrypto
+.In tls.h
+.Ft int
+.Fo tls_ocsp_process_response
+.Fa "struct tls *ctx"
+.Fa "const unsigned char *response"
+.Fa "size_t size"
+.Fc
+.Ft const char *
+.Fn tls_peer_ocsp_url "struct tls *ctx"
+.Ft int
+.Fn tls_peer_ocsp_response_status "struct tls *ctx"
+.Ft int
+.Fn tls_peer_ocsp_cert_status "struct tls *ctx"
+.Ft int
+.Fn tls_peer_ocsp_crl_reason "struct tls *ctx"
+.Ft const char *
+.Fn tls_peer_ocsp_result "struct tls *ctx"
+.Ft time_t
+.Fn tls_peer_ocsp_revocation_time "struct tls *ctx"
+.Ft time_t
+.Fn tls_peer_ocsp_this_update "struct tls *ctx"
+.Ft time_t
+.Fn tls_peer_ocsp_next_update "struct tls *ctx"
+.Sh DESCRIPTION
+.Fn tls_ocsp_process_response
+processes a raw OCSP response in
+.Ar response
+of size
+.Ar size
+to check the revocation status of the peer certificate from
+.Ar ctx .
+A successful return code of 0 indicates that the certificate
+has not been revoked.
+.Pp
+.Fn tls_peer_ocsp_url
+returns the URL for OCSP validation of the peer certificate from
+.Ar ctx .
+.Pp
+The following functions return information about the peer certificate from
+.Ar ctx
+that was obtained by validating a stapled OCSP response during the handshake,
+or via a previous call to
+.Fn tls_ocsp_process_response .
+.Pp
+.Fn tls_peer_ocsp_response_status
+returns the OCSP response status as per RFC 6960 section 2.3.
+.Pp
+.Fn tls_peer_ocsp_cert_status
+returns the OCSP certificate status code as per RFC 6960 section 2.2.
+.Pp
+.Fn tls_peer_ocsp_crl_reason
+returns the OCSP certificate revocation reason status code as per RFC 5280
+section 5.3.1.
+.Pp
+.Fn tls_peer_ocsp_result
+returns a textual representation of the OCSP status code
+returned by one of the previous three functions.
+If the OCSP response was valid and the certificate was not
+revoked, the string indicates the OCSP certificate status.
+Otherwise, the string indicates
+the OCSP certificate revocation reason or the OCSP error.
+.Pp
+.Fn tls_peer_ocsp_revocation_time
+returns the OCSP revocation time.
+.Pp
+.Fn tls_peer_ocsp_this_update
+returns the OCSP this update time.
+.Pp
+.Fn tls_peer_ocsp_next_update
+returns the OCSP next update time.
+.Sh RETURN VALUES
+.Fn tls_ocsp_process_response
+returns 0 on success or -1 on error.
+.Pp
+.Fn tls_peer_ocsp_url
+and
+.Fn tls_peer_ocsp_result
+return
+.Dv NULL
+on error or an out of memory condition.
+.Pp
+The
+.Fn tls_peer_ocsp_response_status
+function returns one of
+.Dv TLS_OCSP_RESPONSE_SUCCESSFUL ,
+.Dv TLS_OCSP_RESPONSE_MALFORMED ,
+.Dv TLS_OCSP_RESPONSE_INTERNALERROR ,
+.Dv TLS_OCSP_RESPONSE_TRYLATER ,
+.Dv TLS_OCSP_RESPONSE_SIGREQUIRED ,
+or
+.Dv TLS_OCSP_RESPONSE_UNAUTHORIZED
+on success or -1 on error.
+.Pp
+The
+.Fn tls_peer_ocsp_cert_status
+function returns one of
+.Dv TLS_OCSP_CERT_GOOD ,
+.Dv TLS_OCSP_CERT_REVOKED ,
+or
+.Dv TLS_OCSP_CERT_UNKNOWN
+on success, and -1 on error.
+.Pp
+The
+.Fn tls_peer_ocsp_crl_reason
+function returns one of
+.Dv TLS_CRL_REASON_UNSPECIFIED ,
+.Dv TLS_CRL_REASON_KEY_COMPROMISE ,
+.Dv TLS_CRL_REASON_CA_COMPROMISE ,
+.Dv TLS_CRL_REASON_AFFILIATION_CHANGED ,
+.Dv TLS_CRL_REASON_SUPERSEDED ,
+.Dv TLS_CRL_REASON_CESSATION_OF_OPERATION ,
+.Dv TLS_CRL_REASON_CERTIFICATE_HOLD ,
+.Dv TLS_CRL_REASON_REMOVE_FROM_CRL ,
+.Dv TLS_CRL_REASON_PRIVILEGE_WITHDRAWN ,
+or
+.Dv  TLS_CRL_REASON_AA_COMPROMISE
+on success or -1 on error.
+.Pp
+.Fn tls_peer_ocsp_revocation_time ,
+.Fn tls_peer_ocsp_this_update ,
+and
+.Fn tls_peer_ocsp_next_update
+return a time in epoch-seconds on success or -1 on error.
+.Sh SEE ALSO
+.Xr tls_client 3 ,
+.Xr tls_config_ocsp_require_stapling 3 ,
+.Xr tls_conn_version 3 ,
+.Xr tls_connect 3 ,
+.Xr tls_handshake 3 ,
+.Xr tls_init 3
+.Sh HISTORY
+These functions appeared in
+.Ox 6.1 .
+.Sh AUTHORS
+.An Bob Beck Aq Mt beck@openbsd.org
+.An Marko Kreen Aq Mt markokr@gmail.com

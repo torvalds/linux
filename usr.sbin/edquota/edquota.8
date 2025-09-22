@@ -1,0 +1,168 @@
+.\"	$OpenBSD: edquota.8,v 1.13 2022/03/31 17:27:29 naddy Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Robert Elz at The University of Melbourne.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)edquota.8	8.1 (Berkeley) 6/6/93
+.\"	$Id: edquota.8,v 1.13 2022/03/31 17:27:29 naddy Exp $
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt EDQUOTA 8
+.Os
+.Sh NAME
+.Nm edquota
+.Nd edit user quotas
+.Sh SYNOPSIS
+.Nm edquota
+.Op Fl u
+.Op Fl p Ar proto-username
+.Ar username | uid ...
+.Nm edquota
+.Fl g
+.Op Fl p Ar proto-groupname
+.Ar groupname | gid ...
+.Nm edquota
+.Fl t
+.Op Fl u
+.Nm edquota
+.Fl g
+.Fl t
+.Sh DESCRIPTION
+.Nm edquota
+is a quota editor.
+By default, or if the
+.Fl u
+flag is specified,
+one or more users may be specified on the command line.
+If a numeric ID is given instead of a name, that UID/GID
+will be used even if there is not a corresponding ID in
+the
+.Pa /etc/passwd
+or
+.Pa /etc/group
+files.
+For each user a temporary file is created
+with an
+.Tn ASCII
+representation of the current
+disk quotas for that user.
+The list of filesystems with user quotas is determined from
+.Pa /etc/fstab .
+An editor is invoked on the
+.Tn ASCII
+file.
+The editor invoked is
+.Xr vi 1
+unless the environment variable
+.Ev EDITOR
+specifies otherwise.
+.Pp
+The quotas may then be modified, new quotas added, etc.
+Setting a quota to zero indicates that no quota should be imposed.
+Setting a hard limit to one indicates that no allocations should
+be permitted.
+Setting a soft limit to one with a hard limit of zero
+indicates that allocations should be permitted on
+only a temporary basis (see
+.Fl t
+below).
+The current usage information in the file is for informational purposes;
+only the hard and soft limits can be changed.
+.Pp
+On leaving the editor,
+.Nm edquota
+reads the temporary file and modifies the binary
+quota files to reflect the changes made.
+.Pp
+If the
+.Fl p
+flag is specified,
+.Nm edquota
+will duplicate the quotas of the prototypical user
+specified for each user specified.
+This is the normal mechanism used to
+initialize quotas for groups of users.
+.Pp
+If the
+.Fl g
+flag is specified,
+.Nm edquota
+is invoked to edit the quotas of
+one or more groups specified on the command line.
+The
+.Fl p
+flag can be specified in conjunction with
+the
+.Fl g
+flag to specify a prototypical group
+to be duplicated among the listed set of groups.
+.Pp
+Users are permitted to exceed their soft limits
+for a grace period that may be specified per filesystem.
+Once the grace period has expired,
+the soft limit is enforced as a hard limit.
+The default grace period for a filesystem is specified in
+.Pa /usr/include/ufs/ufs/quota.h .
+The
+.Fl t
+flag can be used to change the grace period.
+By default, or when invoked with the
+.Fl u
+flag, the grace period is set for all the filesystems with user
+quotas specified in
+.Pa /etc/fstab .
+When invoked with the
+.Fl g
+flag, the grace period is
+set for all the filesystems with group quotas specified in
+.Pa /etc/fstab .
+The grace period may be specified in days, hours, minutes, or seconds.
+Setting a grace period to zero indicates that the default
+grace period should be imposed.
+Setting a grace period to one second indicates that no
+grace period should be granted.
+.Pp
+Only the superuser may edit quotas.
+.Sh FILES
+.Bl -tag -width quota.group -compact
+.It Pa quota.user
+at the filesystem root with user quotas
+.It Pa quota.group
+at the filesystem root with group quotas
+.It Pa /etc/fstab
+to find filesystem names and locations
+.El
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr quotactl 2 ,
+.Xr fstab 5 ,
+.Xr quotacheck 8 ,
+.Xr quotaon 8 ,
+.Xr repquota 8

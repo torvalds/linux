@@ -1,0 +1,10 @@
+static_library("Basic") {
+  deps = [
+    "//llvm/lib/Support",
+    "//llvm/lib/TableGen",
+  ]
+  sources = [
+    "CodeGenIntrinsics.cpp",
+    "SDNodeProperties.cpp",
+  ]
+}

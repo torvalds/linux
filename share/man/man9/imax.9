@@ -1,0 +1,93 @@
+.\"	$OpenBSD: imax.9,v 1.2 2018/04/23 11:11:38 jmc Exp $
+.\"
+.\" Copyright (c) 2002, 2003 CubeSoft Communications, Inc.
+.\" <http://www.csoft.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: April 23 2018 $
+.Dt IMAX 9
+.Os
+.Sh NAME
+.Nm imax ,
+.Nm imin ,
+.Nm lmax ,
+.Nm lmin ,
+.Nm max ,
+.Nm min ,
+.Nm ulmax ,
+.Nm ulmin ,
+.Nm abs
+.Nd kernel library math routines
+.Sh SYNOPSIS
+.In lib/libkern/libkern.h
+.Ft int
+.Fn imax "int a" "int b"
+.Ft int
+.Fn imin "int a" "int b"
+.Ft long
+.Fn lmax "long a" "long b"
+.Ft long
+.Fn lmin "long a" "long b"
+.Ft u_int
+.Fn max "u_int a" "u_int b"
+.Ft u_int
+.Fn min "u_int a" "u_int b"
+.Ft u_long
+.Fn ulmax "u_long a" "u_long b"
+.Ft u_long
+.Fn ulmin "u_long a" "u_long b"
+.Ft int
+.Fn abs "int j"
+.Sh DESCRIPTION
+The
+.Fn min ,
+.Fn imin ,
+.Fn lmin
+and
+.Fn ulmin
+functions return the smallest integer between
+.Fa a
+and
+.Fa b ,
+inclusive.
+The
+.Fn max ,
+.Fn imax ,
+.Fn lmax
+and
+.Fn ulmax
+functions return the largest integer between
+.Fa a
+and
+.Fa b ,
+inclusive.
+.Pp
+The
+.Fn abs
+function computes the absolute value of integer
+.Fa j .
+.Sh STANDARDS
+The
+.Fn abs
+function conforms to
+.St -ansiC .

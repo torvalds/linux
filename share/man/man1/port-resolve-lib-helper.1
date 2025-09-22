@@ -1,0 +1,74 @@
+.\"	$OpenBSD: port-resolve-lib-helper.1,v 1.1 2018/07/09 14:53:30 espie Exp $
+.\"
+.\" Copyright (c) 2010 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 9 2018 $
+.Dt PORT-RESOLVE-LIB-HELPER 1
+.Os
+.Sh NAME
+.Nm port-resolve-lib-helper
+.Nd resolve library specs during ports build
+.Sh SYNOPSIS
+.Nm
+.Op Fl needed
+.Op Fl silent
+.Ar spec ...
+.Sh DESCRIPTION
+.Nm
+resolve library specs against a list of installed libraries.
+.Nm
+takes a list of file names with full path on stdin,
+and matches each library
+.Ar spec
+against those libraries,
+using
+.Xr library-specs 7
+conventions.
+.Pp
+In particular,
+.Ev X11BASE
+and
+.Ev LOCALBASE
+are used to locate X11 libraries and port libraries.
+.Pp
+.Nm
+will print the best libraries found in a format suitable for
+.Cm @wantlib
+.Po
+see
+.Xr pkg_create 1
+.Pc .
+.Pp
+Each
+.Ar spec
+not found will result in an error message and exit code.
+.Pp
+If the option
+.Fl silent
+is used, nothing will be displayed.
+.Pp
+The option
+.Fl needed
+is used to sort out
+.Ev LIB_DEPENDS :
+.Nm
+will succeed if at least one of the libraries matches against a shared
+library passed on the command line.
+.Pp
+This is a helper script used by
+.Xr bsd.port.mk 5
+to complete all wantlib information for
+.Xr pkg_create 1
+and other tools.

@@ -1,0 +1,45 @@
+(lldb) 
+libIGL.so`igl::RenderPipelineDesc::TargetDesc::ColorAttachment::operator==:
+libIGL.so[0x7694] <+0>:  ldr    r2, [r1]
+libIGL.so[0x7696] <+2>:  ldr    r3, [r0]
+libIGL.so[0x7698] <+4>:  cmp    r3, r2
+libIGL.so[0x769a] <+6>:  bne    0x76da                    ; <+70> at RenderPipelineState.cpp
+libIGL.so[0x769c] <+8>:  ldrb   r2, [r1, #0x5]
+libIGL.so[0x769e] <+10>: ldrb   r3, [r0, #0x5]
+libIGL.so[0x76a0] <+12>: cmp    r3, r2
+libIGL.so[0x76a2] <+14>: bne    0x76da                    ; <+70> at RenderPipelineState.cpp
+libIGL.so[0x76a4] <+16>: ldr    r2, [r1, #0x8]
+libIGL.so[0x76a6] <+18>: ldr    r3, [r0, #0x8]
+libIGL.so[0x76a8] <+20>: cmp    r3, r2
+libIGL.so[0x76aa] <+22>: bne    0x76da                    ; <+70> at RenderPipelineState.cpp
+libIGL.so[0x76ac] <+24>: ldr    r2, [r1, #0xc]
+libIGL.so[0x76ae] <+26>: ldr    r3, [r0, #0xc]
+libIGL.so[0x76b0] <+28>: cmp    r3, r2
+libIGL.so[0x76b2] <+30>: bne    0x76da                    ; <+70> at RenderPipelineState.cpp
+libIGL.so[0x76b4] <+32>: ldr    r2, [r1, #0x10]
+libIGL.so[0x76b6] <+34>: ldr    r3, [r0, #0x10]
+libIGL.so[0x76b8] <+36>: cmp    r3, r2
+libIGL.so[0x76ba] <+38>: bne    0x76da                    ; <+70> at RenderPipelineState.cpp
+libIGL.so[0x76bc] <+40>: ldr    r2, [r1, #0x14]
+libIGL.so[0x76be] <+42>: ldr    r3, [r0, #0x14]
+libIGL.so[0x76c0] <+44>: cmp    r3, r2
+libIGL.so[0x76c2] <+46>: bne    0x76da                    ; <+70> at RenderPipelineState.cpp
+libIGL.so[0x76c4] <+48>: ldr    r2, [r1, #0x18]
+libIGL.so[0x76c6] <+50>: ldr    r3, [r0, #0x18]
+libIGL.so[0x76c8] <+52>: cmp    r3, r2
+libIGL.so[0x76ca] <+54>: bne    0x76da                    ; <+70> at RenderPipelineState.cpp
+libIGL.so[0x76cc] <+56>: ldr    r1, [r1, #0x1c]
+libIGL.so[0x76ce] <+58>: ldr    r0, [r0, #0x1c]
+libIGL.so[0x76d0] <+60>: subs   r0, r0, r1
+libIGL.so[0x76d2] <+62>: clz    r0, r0
+libIGL.so[0x76d6] <+66>: lsrs   r0, r0, #0x5
+libIGL.so[0x76d8] <+68>: bx     lr
+libIGL.so[0x76da] <+70>: movs   r0, #0x0
+libIGL.so[0x76dc] <+72>: bx     lr
+(lldb) disassemble --name _ZN3igl20VertexInputStateDesc28sizeForVertexAttributeFormatENS_21VertexAttributeFormatE
+libIGL.so`igl::VertexInputStateDesc::sizeForVertexAttributeFormat:
+libIGL.so[0x787c] <+0>:  ldr    r1, [pc, #0x8]            ; <+12> at VertexInputState.cpp
+libIGL.so[0x787e] <+2>:  add    r1, pc
+libIGL.so[0x7880] <+4>:  ldr.w  r0, [r1, r0, lsl #2]
+libIGL.so[0x7884] <+8>:  bx     lr
+libIGL.so[0x7886] <+10>: nop  

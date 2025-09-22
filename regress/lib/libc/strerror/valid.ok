@@ -1,0 +1,65 @@
+Unknown error: 21345
+Unknown error: -21345
+Undefined error: 0
+Unknown error: 2147483647
+Unknown error: -2147483648
+Operation not permitted
+0 34 255: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+1 34 0: 
+2 34 1: O
+3 34 2: Op
+4 34 3: Ope
+5 34 4: Oper
+6 34 5: Opera
+7 34 6: Operat
+8 34 7: Operati
+9 34 8: Operatio
+10 34 9: Operation
+11 34 10: Operation 
+12 34 11: Operation n
+13 34 12: Operation no
+14 34 13: Operation not
+15 34 14: Operation not 
+16 34 15: Operation not p
+17 34 16: Operation not pe
+18 34 17: Operation not per
+19 34 18: Operation not perm
+20 34 19: Operation not permi
+21 34 20: Operation not permit
+22 34 21: Operation not permitt
+23 34 22: Operation not permitte
+24 0 23: Operation not permitted
+0 34 255: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+1 34 0: 
+2 34 1: U
+3 34 2: Un
+4 34 3: Unk
+5 34 4: Unkn
+6 34 5: Unkno
+7 34 6: Unknow
+8 34 7: Unknown
+9 34 8: Unknown 
+10 34 9: Unknown e
+11 34 10: Unknown er
+12 34 11: Unknown err
+13 34 12: Unknown erro
+14 34 13: Unknown error
+15 34 14: Unknown error:
+16 34 15: Unknown error: 
+17 34 15: Unknown error: 
+18 34 15: Unknown error: 
+19 34 15: Unknown error: 
+20 34 15: Unknown error: 
+21 22 20: Unknown error: 21345
+22 22 20: Unknown error: 21345
+23 22 20: Unknown error: 21345
+24 22 20: Unknown error: 21345
+Unknown signal: 4294967295
+Signal 0
+Bus error
+Thread AST
+Unknown signal: 33
+Unknown signal: 100
+Unknown signal: 2147483647
+Unknown signal: 2147483648
+Unknown signal: 4294967295

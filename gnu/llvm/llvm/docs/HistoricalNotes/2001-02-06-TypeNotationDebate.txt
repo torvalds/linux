@@ -1,0 +1,67 @@
+Date: Tue, 6 Feb 2001 20:27:37 -0600 (CST)
+From: Chris Lattner <sabre@nondot.org>
+To: Vikram S. Adve <vadve@cs.uiuc.edu>
+Subject: Type notation debate...
+
+This is the way that I am currently planning on implementing types:
+
+Primitive Types:        
+type ::= void|bool|sbyte|ubyte|short|ushort|int|uint|long|ulong
+
+Method:
+typelist ::= typelisth | /*empty*/
+typelisth ::= type | typelisth ',' type
+type ::= type (typelist)
+
+Arrays (without and with size):
+type ::= '[' type ']' | '[' INT ',' type ']'
+
+Pointer:
+type ::= type '*'
+
+Structure:
+type ::= '{' typelist '}'
+
+Packed:
+type ::= '<' INT ',' type '>'
+
+Simple examples:
+
+[[ %4, int ]]   - array of (array of 4 (int))
+[ { int, int } ] - Array of structure
+[ < %4, int > ] - Array of 128 bit SIMD packets
+int (int, [[int, %4]])  - Method taking a 2d array and int, returning int
+
+
+Okay before you comment, please look at:
+
+http://www.research.att.com/~bs/devXinterview.html
+
+Search for "In another interview, you defined the C declarator syntax as
+an experiment that failed. However, this syntactic construct has been
+around for 27 years and perhaps more; why do you consider it problematic
+(except for its cumbersome syntax)?" and read that response for me.  :)
+
+Now with this syntax, his example would be represented as:
+
+[ %10, bool (int, int) * ] *
+
+vs 
+
+bool (*(*)[10])(int, int)
+
+in C.
+
+Basically, my argument for this type construction system is that it is
+VERY simple to use and understand (although it IS different than C, it is
+very simple and straightforward, which C is NOT).  In fact, I would assert
+that most programmers TODAY do not understand pointers to member
+functions, and have to look up an example when they have to write them.
+
+In my opinion, it is critically important to have clear and concise type
+specifications, because types are going to be all over the programs.
+
+Let me know your thoughts on this.  :)
+
+-Chris
+

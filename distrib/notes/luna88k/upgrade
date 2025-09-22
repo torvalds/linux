@@ -1,0 +1,2 @@
+dnl	$OpenBSD: upgrade,v 1.5 2014/03/19 01:59:49 tedu Exp $
+OpenBSDUpgrade({:-bsd.rd, or the miniroot-:})

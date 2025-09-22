@@ -1,0 +1,247 @@
+//===- PPCTargetParser.def - PPC target parsing defines ---------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file provides defines to build up the PPC target parser's logic.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+#ifdef PPC_TGT_PARSER_UNDEF_MACROS
+#undef PPC_LNX_FEATURE
+#undef PPC_CPU
+#undef PPC_FAWORD_HWCAP
+#undef PPC_FAWORD_HWCAP2
+#undef PPC_FAWORD_CPUID
+#undef PPC_HWCAP_OFFSET_LE32
+#undef PPC_HWCAP_OFFSET_LE64
+#undef PPC_HWCAP_OFFSET_BE32
+#undef PPC_HWCAP_OFFSET_BE64
+#undef PPC_HWCAP2_OFFSET_LE32
+#undef PPC_HWCAP2_OFFSET_LE64
+#undef PPC_HWCAP2_OFFSET_BE32
+#undef PPC_HWCAP2_OFFSET_BE64
+#undef PPC_CPUID_OFFSET_LE32
+#undef PPC_CPUID_OFFSET_LE64
+#undef PPC_CPUID_OFFSET_BE32
+#undef PPC_CPUID_OFFSET_BE64
+#undef BUILTIN_PPC_TRUE
+#undef BUILTIN_PPC_FALSE
+#undef USE_SYS_CONF
+#undef SYS_CALL
+#undef BUILTIN_PPC_UNSUPPORTED
+#undef AIX_SYSCON_IMPL_IDX
+#undef AIX_PPC7_VALUE
+#undef AIX_PPC8_VALUE
+#undef AIX_PPC9_VALUE
+#undef AIX_PPC10_VALUE
+#undef AIX_PPC11_VALUE
+#else
+#ifndef PPC_LNX_FEATURE
+#define PPC_LNX_FEATURE(NAME, DESC, ENUMNAME, ENUMVAL, HWCAPN)
+#endif
+#ifndef PPC_CPU
+#define PPC_CPU(Name, Linux_SUPPORT_METHOD, LinuxID, AIX_SUPPORT_METHOD, AIXID)
+#endif
+#ifndef PPC_FAWORD_HWCAP
+#define PPC_FAWORD_HWCAP 1
+#endif
+#ifndef PPC_FAWORD_HWCAP2
+#define PPC_FAWORD_HWCAP2 2
+#endif
+#ifndef PPC_FAWORD_CPUID
+#define PPC_FAWORD_CPUID 3
+#endif
+
+// PPC CPUs
+//
+// The value of SUPPORT_METHOD can be:
+//   BUILTIN_PPC_TRUE : feature supported
+//   BUILTIN_PPC_FALSE : feature not supported
+//   USE_SYS_CONF : return value depends on comparing VALUE with the specified
+//                  data member of _system_configuration at INDEX, where the
+//                  data member is masked by Mask.
+//   SYS_CALL : return value depends on comparing a VALUE with the return value
+//              of calling `getsystemcfg` with the parameter INDEX, which is
+//              then masked by Mask.
+//
+// USE_SYS_CONF is only a methond supported on AIX.
+//
+// Supported SUPPORT_METHOD values.
+#define BUILTIN_PPC_TRUE 1
+#define BUILTIN_PPC_FALSE 0
+#define USE_SYS_CONF 2
+#define SYS_CALL 3
+#define BUILTIN_PPC_UNSUPPORTED 4
+
+#define AIX_SYSCON_IMPL_IDX 1
+
+#define AIX_PPC7_VALUE 0x00008000
+#define AIX_PPC8_VALUE 0x00010000
+#define AIX_PPC9_VALUE 0x00020000
+#define AIX_PPC10_VALUE 0x00040000
+#define AIX_PPC11_VALUE 0x00080000
+
+// __builtin_cpu_is() and __builtin_cpu_supports() are supported only on Power7 and up on AIX.
+// PPC_CPU(Name, Linux_SUPPORT_METHOD, LinuxID, AIX_SUPPORT_METHOD, AIXID)
+PPC_CPU("power4",SYS_CALL,32,BUILTIN_PPC_FALSE,0)
+PPC_CPU("ppc970",SYS_CALL,33,BUILTIN_PPC_FALSE,0)
+PPC_CPU("power5",SYS_CALL,34,BUILTIN_PPC_FALSE,0)
+PPC_CPU("power5+",SYS_CALL,35,BUILTIN_PPC_FALSE,0)
+PPC_CPU("power6",SYS_CALL,36,BUILTIN_PPC_FALSE,0)
+PPC_CPU("ppc-cell-be",SYS_CALL,37,BUILTIN_PPC_FALSE,0)
+PPC_CPU("power6x",SYS_CALL,38,BUILTIN_PPC_FALSE,0)
+PPC_CPU("power7",SYS_CALL,39,USE_SYS_CONF,AIX_PPC7_VALUE)
+PPC_CPU("ppca2",SYS_CALL,40,BUILTIN_PPC_FALSE,0)
+PPC_CPU("ppc405",SYS_CALL,41,BUILTIN_PPC_FALSE,0)
+PPC_CPU("ppc440",SYS_CALL,42,BUILTIN_PPC_FALSE,0)
+PPC_CPU("ppc464",SYS_CALL,43,BUILTIN_PPC_FALSE,0)
+PPC_CPU("ppc476",SYS_CALL,44,BUILTIN_PPC_FALSE,0)
+PPC_CPU("power8",SYS_CALL,45,USE_SYS_CONF,AIX_PPC8_VALUE)
+PPC_CPU("power9",SYS_CALL,46,USE_SYS_CONF,AIX_PPC9_VALUE)
+PPC_CPU("power10",SYS_CALL,47,USE_SYS_CONF,AIX_PPC10_VALUE)
+PPC_CPU("power11",SYS_CALL,48,USE_SYS_CONF,AIX_PPC11_VALUE)
+#undef PPC_CPU
+
+// PPC features on Linux:
+//
+// PPC_LNX_FEATURE(Name, Description, EnumName, BitMask, PPC_FAWORD_WORD)
+PPC_LNX_FEATURE("4xxmac","4xx CPU has a Multiply Accumulator",PPCF_4XXMAC,0x02000000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("altivec","CPU has a SIMD/Vector Unit",PPCF_ALTIVEC,0x10000000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("arch_2_05","CPU supports ISA 205 (eg, POWER6)",PPCF_ARCH205,0x00001000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("arch_2_06","CPU supports ISA 206 (eg, POWER7)",PPCF_ARCH206,0x00000100,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("arch_2_07","CPU supports ISA 207 (eg, POWER8)",PPCF_ARCH207,0x80000000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("arch_3_00","CPU supports ISA 30 (eg, POWER9)",PPCF_ARCH30,0x00800000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("arch_3_1","CPU supports ISA 31 (eg, POWER10)",PPCF_ARCH31,0x00040000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("archpmu","CPU supports the set of compatible performance monitoring events",PPCF_ARCHPMU,0x00000040,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("booke","CPU supports the Embedded ISA category",PPCF_BOOKE,0x00008000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("cellbe","CPU has a CELL broadband engine",PPCF_CELLBE,0x00010000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("darn","CPU supports the darn (deliver a random number) instruction",PPCF_DARN,0x00200000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("dfp","CPU has a decimal floating point unit",PPCF_DFP,0x00000400,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("dscr","CPU supports the data stream control register",PPCF_DSCR,0x20000000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("ebb","CPU supports event base branching",PPCF_EBB,0x10000000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("efpdouble","CPU has a SPE double precision floating point unit",PPCF_EFPDOUBLE,0x00200000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("efpsingle","CPU has a SPE single precision floating point unit",PPCF_EFPSINGLE,0x00400000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("fpu","CPU has a floating point unit",PPCF_FPU,0x08000000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("htm","CPU has hardware transaction memory instructions",PPCF_HTM,0x40000000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("htm-nosc","Kernel aborts hardware transactions when a syscall is made",PPCF_HTM_NOSC,0x01000000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("htm-no-suspend","CPU supports hardware transaction memory but does not support the tsuspend instruction.",PPCF_HTM_NO_SUSPEND,0x00080000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("ic_snoop","CPU supports icache snooping capabilities",PPCF_IC_SNOOP,0x00002000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("ieee128","CPU supports 128-bit IEEE binary floating point instructions",PPCF_IEEE128,0x00400000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("isel","CPU supports the integer select instruction",PPCF_ISEL,0x08000000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("mma","CPU supports the matrix-multiply assist instructions",PPCF_MMA,0x00020000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("mmu","CPU has a memory management unit",PPCF_MMU,0x04000000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("notb","CPU does not have a timebase (eg, 601 and 403gx)",PPCF_NOTB,0x00100000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("pa6t","CPU supports the PA Semi 6T CORE ISA",PPCF_PA6T,0x00000800,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("power4","CPU supports ISA 200 (eg, POWER4)",PPCF_POWER4,0x00080000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("power5","CPU supports ISA 202 (eg, POWER5)",PPCF_POWER5,0x00040000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("power5+","CPU supports ISA 203 (eg, POWER5+)",PPCF_POWER5P,0x00020000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("power6x","CPU supports ISA 205 (eg, POWER6) extended opcodes mffgpr and mftgpr.",PPCF_POWER6X,0x00000200,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("ppc32","CPU supports 32-bit mode execution",PPCF_PPC32,0x80000000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("ppc601","CPU supports the old POWER ISA (eg, 601)",PPCF_PPC601,0x20000000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("ppc64","CPU supports 64-bit mode execution",PPCF_PPC64,0x40000000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("ppcle","CPU supports a little-endian mode that uses address swizzling",PPCF_PPCLE,0x00000001,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("scv","Kernel supports system call vectored",PPCF_SCV,0x00100000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("smt","CPU support simultaneous multi-threading",PPCF_SMT,0x00004000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("spe","CPU has a signal processing extension unit",PPCF_SPE,0x00800000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("tar","CPU supports the target address register",PPCF_TAR,0x04000000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("true_le","CPU supports true little-endian mode",PPCF_TRUE_LE,0x00000002,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("ucache","CPU has unified I/D cache",PPCF_UCACHE,0x01000000,PPC_FAWORD_HWCAP)
+PPC_LNX_FEATURE("vcrypto","CPU supports the vector cryptography instructions",PPCF_VCRYPTO,0x02000000,PPC_FAWORD_HWCAP2)
+PPC_LNX_FEATURE("vsx","CPU supports the vector-scalar extension",PPCF_VSX,0x00000080,PPC_FAWORD_HWCAP)
+
+#ifdef PPC_LNX_DEFINE_OFFSETS
+#  define PPC_HWCAP_OFFSET_LE32 -0x703C
+#  define PPC_HWCAP_OFFSET_LE64 -0x7064
+#  define PPC_HWCAP_OFFSET_BE32 -0x7040
+#  define PPC_HWCAP_OFFSET_BE64 -0x7068
+#  define PPC_HWCAP2_OFFSET_LE32 -0x7040
+#  define PPC_HWCAP2_OFFSET_LE64 -0x7068
+#  define PPC_HWCAP2_OFFSET_BE32 -0x703C
+#  define PPC_HWCAP2_OFFSET_BE64 -0x7064
+#  define PPC_CPUID_OFFSET_LE32 -0x7034
+#  define PPC_CPUID_OFFSET_LE64 -0x705C
+#  define PPC_CPUID_OFFSET_BE32 -0x7034
+#  define PPC_CPUID_OFFSET_BE64 -0x705C
+#endif
+#undef PPC_LNX_DEFINE_OFFSETS
+#undef PPC_LNX_FEATURE
+
+// PPC features on AIX
+//
+// Definition of the following values are found in the AIX header
+// file: </usr/include/sys/systemcfg.h>.
+#ifndef AIX_POWERPC_USE_SYS_CONF
+  #define AIX_POWERPC_USE_SYS_CONF
+  #define AIX_SYSCON_CACHE_IDX 5
+  #define AIX_SYSCON_SMT_IDX 44
+  #define AIX_SYSCON_VMX_IDX 46
+  #define AIX_SYSCON_DFP_IDX  53
+
+  #define SYS_CALL_TM_VER   59
+  #define SYS_CALL_MMA_VER  62
+#endif
+
+#ifndef PPC_AIX_FEATURE
+#define PPC_AIX_FEATURE(NAME,DESC,SUPPORT_METHOD,INDEX,MASK,COMPARE_OP,VALUE)
+#endif
+
+PPC_AIX_FEATURE("4xxmac","4xx CPU has a Multiply Accumulator",BUILTIN_PPC_FALSE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("altivec","CPU has a SIMD/Vector Unit",USE_SYS_CONF,AIX_SYSCON_VMX_IDX,0,ICmpInst::ICMP_UGT,0)
+PPC_AIX_FEATURE("arch_2_05","CPU supports ISA 205 (eg, POWER6)",BUILTIN_PPC_TRUE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("arch_2_06","CPU supports ISA 206 (eg, POWER7)",USE_SYS_CONF,AIX_SYSCON_IMPL_IDX,0,ICmpInst::ICMP_UGE,AIX_PPC7_VALUE)
+PPC_AIX_FEATURE("arch_2_07","CPU supports ISA 207 (eg, POWER8)",USE_SYS_CONF,AIX_SYSCON_IMPL_IDX,0,ICmpInst::ICMP_UGE,AIX_PPC8_VALUE)
+PPC_AIX_FEATURE("arch_3_00","CPU supports ISA 30 (eg, POWER9)", USE_SYS_CONF,AIX_SYSCON_IMPL_IDX,0,ICmpInst::ICMP_UGE,AIX_PPC9_VALUE)
+PPC_AIX_FEATURE("arch_3_1","CPU supports ISA 31 (eg, POWER10)", USE_SYS_CONF,AIX_SYSCON_IMPL_IDX,0,ICmpInst::ICMP_UGE,AIX_PPC10_VALUE)
+PPC_AIX_FEATURE("booke","CPU supports the Embedded ISA category",BUILTIN_PPC_FALSE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("cellbe","CPU has a CELL broadband engine",BUILTIN_PPC_FALSE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("darn","CPU supports the darn (deliver a random number) instruction",USE_SYS_CONF,AIX_SYSCON_IMPL_IDX,0,ICmpInst::ICMP_UGE,AIX_PPC9_VALUE)
+PPC_AIX_FEATURE("dfp","CPU has a decimal floating point unit",USE_SYS_CONF,AIX_SYSCON_DFP_IDX,0,ICmpInst::ICMP_NE,0)
+PPC_AIX_FEATURE("dscr","CPU supports the data stream control register",USE_SYS_CONF,AIX_SYSCON_IMPL_IDX,0,ICmpInst::ICMP_UGE,AIX_PPC8_VALUE)
+PPC_AIX_FEATURE("ebb","CPU supports event base branching",USE_SYS_CONF,AIX_SYSCON_IMPL_IDX,0,ICmpInst::ICMP_UGE,AIX_PPC8_VALUE)
+PPC_AIX_FEATURE("efpsingle","CPU has a SPE single precision floating point unit",BUILTIN_PPC_FALSE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("efpdouble","CPU has a SPE double precision floating point unit",BUILTIN_PPC_FALSE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("fpu","CPU has a floating point unit",BUILTIN_PPC_TRUE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("htm","CPU has hardware transaction memory instructions",SYS_CALL,SYS_CALL_TM_VER,0,ICmpInst::ICMP_UGT,0)
+PPC_AIX_FEATURE("isel","CPU supports the integer select instruction",BUILTIN_PPC_TRUE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("mma","CPU supports the matrix-multiply assist instructions",SYS_CALL,SYS_CALL_MMA_VER,0,ICmpInst::ICMP_UGT,0)
+PPC_AIX_FEATURE("mmu","CPU has a memory management unit",BUILTIN_PPC_TRUE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("pa6t","CPU supports the PA Semi 6T CORE ISA",BUILTIN_PPC_FALSE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("power4","CPU supports ISA 200 (eg, POWER4)",BUILTIN_PPC_TRUE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("power5","CPU supports ISA 202 (eg, POWER5)",BUILTIN_PPC_TRUE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("power5+","CPU supports ISA 203 (eg, POWER5+)",BUILTIN_PPC_TRUE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("power6x","CPU supports ISA 205 (eg, POWER6)",BUILTIN_PPC_FALSE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("ppc32","CPU supports 32-bit mode execution",BUILTIN_PPC_TRUE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("ppc601","CPU supports the old POWER ISA (eg, 601)",BUILTIN_PPC_FALSE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("ppc64","CPU supports 64-bit mode execution",BUILTIN_PPC_TRUE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("ppcle","CPU supports a little-endian mode that uses address swizzling",BUILTIN_PPC_FALSE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("smt","CPU supports simultaneous multi-threading",USE_SYS_CONF,AIX_SYSCON_SMT_IDX,0x3,ICmpInst::ICMP_EQ,0x3)
+PPC_AIX_FEATURE("spe","CPU has a signal processing extension unit",BUILTIN_PPC_FALSE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("tar","CPU supports the target address register",USE_SYS_CONF,AIX_SYSCON_IMPL_IDX,0,ICmpInst::ICMP_UGE,AIX_PPC8_VALUE)
+PPC_AIX_FEATURE("true_le","CPU supports true little-endian mode",BUILTIN_PPC_TRUE,0,0,CmpInst::Predicate(),0)
+PPC_AIX_FEATURE("ucache","CPU has unified I/D cache",USE_SYS_CONF,AIX_SYSCON_CACHE_IDX,0x00000002,ICmpInst::ICMP_EQ,0x00000002)
+PPC_AIX_FEATURE("vsx","CPU supports the vector-scalar extension",USE_SYS_CONF,AIX_SYSCON_VMX_IDX,0,ICmpInst::ICMP_UGT,1)
+#undef PPC_AIX_FEATURE
+
+// PPC_SYSTEMCONFIG_TYPE defines the IR data structure of kernel variable
+// `_system_configuration`, that is found in the AIX OS header file: </usr/include/sys/systemcfg.h>.
+#ifndef PPC_SYSTEMCONFIG_TYPE
+#define PPC_SYSTEMCONFIG_TYPE \
+Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty, \
+Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty, \
+Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty, \
+Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty, \
+Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty, \
+Int32Ty, Int32Ty, Int64Ty, Int32Ty, Int32Ty, Int32Ty, \
+Int32Ty, Int64Ty, Int64Ty, Int64Ty, Int64Ty, Int32Ty, \
+Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int64Ty, \
+Int32Ty, Int8Ty, Int8Ty, Int8Ty, Int8Ty, Int32Ty, \
+Int32Ty, Int16Ty, Int16Ty, llvm::ArrayType::get(Int32Ty,3), Int32Ty
+#endif
+
+#endif // !PPC_TGT_PARSER_UNDEF_MACROS

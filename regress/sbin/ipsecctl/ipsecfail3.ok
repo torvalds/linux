@@ -1,0 +1,4 @@
+stdin: 2: no peer specified for destination 3.3.3.0/24
+ipsecctl: Syntax error in config file: ipsec rules not loaded
+flow esp out from 1.1.1.1 to 2.2.2.2 peer 2.2.2.2 type require
+flow esp in from 2.2.2.2 to 1.1.1.1 peer 2.2.2.2 type require

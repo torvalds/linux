@@ -1,0 +1,20 @@
+static_library("POSIX") {
+  output_name = "lldbPluginPlatformPOSIX"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//lldb/source/Core",
+    "//lldb/source/Expression",
+    "//lldb/source/Host",
+    "//lldb/source/Interpreter",
+    "//lldb/source/Plugins/Platform/gdb-server",
+    "//lldb/source/Plugins/TypeSystem/Clang",
+    "//lldb/source/Target",
+  ]
+
+  # Reaches into Plugins/TypeSystem/Clang.
+  include_dirs = [ "//lldb/source" ]
+  sources = [ "PlatformPOSIX.cpp" ]
+}

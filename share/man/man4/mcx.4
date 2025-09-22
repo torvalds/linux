@@ -1,0 +1,66 @@
+.\" $OpenBSD: mcx.4,v 1.4 2024/03/21 04:10:37 jmatthew Exp $
+.\"
+.\" Copyright (c) 2019 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 21 2024 $
+.Dt MCX 4
+.Os
+.Sh NAME
+.Nm mcx
+.Nd Mellanox 5th generation Ethernet device
+.Sh SYNOPSIS
+.Cd "mcx* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Mellanox 5th generation Ethernet devices.
+Chipsets and cards in this group include:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+ConnectX-4 Lx EN
+.It
+ConnectX-4 EN
+.It
+ConnectX-5 EN
+.It
+ConnectX-6 EN
+.It
+ConnectX-6 Dx EN
+.It
+ConnectX-6 Lx EN
+.El
+.Pp
+It supports SR-IOV virtual functions as well as physical functions.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.6 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jonathan Matthew Aq Mt jmatthew@openbsd.org
+and
+.An David Gwynne Aq Mt dlg@openbsd.org .

@@ -1,0 +1,166 @@
+.\" $OpenBSD: io.4,v 1.15 2011/09/03 22:59:07 jmc Exp $
+.\"
+.\" Copyright (c) 2003,2004 Paul Weissmann
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: September 3 2011 $
+.Dt IO 4 hppa
+.Os
+.Sh NAME
+.Nm io
+.Nd HP PA-RISC I/O subsystem reference
+.Sh DESCRIPTION
+The following table lists the
+.Tn PA-RISC
+I/O subsystems and connected devices found in the supported
+.Tn HP 9000/700
+machines.
+.Bl -column "715/100" "DLUW" "SE, FWD" "DX, FDDI" "[GSC/PCI]" "Misc" -offset 6n
+.It Sy Model Ta Sy MBA Ta Sy SCSI Ta Sy Network Ta Sy Video Ta Sy Misc
+.It "705" Ta "A" Ta "SE" Ta "DX" Ta "Timber" Ta ""
+.It "710" Ta "A" Ta "SE" Ta "DX" Ta "Timber" Ta ""
+.It "712" Ta "LW" Ta "SE" Ta "CA, TR" Ta "Artist" Ta ""
+.It "715/33" Ta "A" Ta "SE" Ta "DX" Ta "Stinger" Ta ""
+.It "715/50" Ta "A" Ta "SE" Ta "DX" Ta "Stinger" Ta ""
+.It "715/64" Ta "LW" Ta "SE" Ta "CA" Ta "Artist" Ta ""
+.It "715/75" Ta "A" Ta "SE" Ta "DX" Ta "Stinger" Ta ""
+.It "715/80" Ta "LW" Ta "SE" Ta "CA" Ta "Artist" Ta ""
+.It "715/100" Ta "LW" Ta "SE" Ta "CA" Ta "Artist" Ta ""
+.It "720" Ta "A" Ta "SE" Ta "DX" Ta "[SGC]" Ta ""
+.It "725/50" Ta "A" Ta "SE" Ta "DX" Ta "Stinger" Ta ""
+.It "725/75" Ta "A" Ta "SE" Ta "DX" Ta "Stinger" Ta ""
+.It "725/64" Ta "LW" Ta "SE" Ta "CA" Ta "Artist" Ta ""
+.It "725/100" Ta "LW" Ta "SE" Ta "CA" Ta "Artist" Ta ""
+.It "730" Ta "A" Ta "SE" Ta "DX" Ta "[SGC]" Ta ""
+.It "735" Ta "A" Ta "SE, FWD" Ta "DX, FDDI" Ta "[SGC]" Ta ""
+.It "742i" Ta "A" Ta "SE" Ta "CA" Ta "Stinger" Ta "VME"
+.It "743i" Ta "DLW" Ta "SE" Ta "DX" Ta "Artist" Ta "VME"
+.It "744" Ta "DLW" Ta "SE" Ta "DX" Ta "EG" Ta "VME"
+.It "745" Ta "DLW" Ta "SE" Ta "DX" Ta "EG" Ta "VME"
+.It "745i" Ta "A" Ta "SE" Ta "DX" Ta "Stinger" Ta ""
+.It "747i" Ta "A" Ta "SE" Ta "DX" Ta "Stinger" Ta ""
+.It "748" Ta "DLW" Ta "SE" Ta "DX" Ta "EG" Ta "VME"
+.It "748i" Ta "DLW" Ta "SE" Ta "DX" Ta "Artist" Ta "VME"
+.It "750" Ta "A" Ta "SE" Ta "DX" Ta "[SGC]" Ta ""
+.It "755" Ta "A" Ta "SE, FWD" Ta "DX, FDDI" Ta "[SGC]" Ta ""
+.It "A180/C" Ta "DL" Ta "SE" Ta "DC" Ta "[GSC/PCI]" Ta ""
+.It "B132L" Ta "DLW" Ta "SE, FWD" Ta "CA" Ta "EG" Ta ""
+.It "B160L" Ta "DLW" Ta "SE, UW" Ta "DC" Ta "EG" Ta ""
+.It "B180L" Ta "DLW" Ta "SE, UW" Ta "DC" Ta "EG" Ta ""
+.It "C100" Ta "LUW" Ta "SE, FWD" Ta "CA" Ta "[GSC]" Ta ""
+.It "C110" Ta "LUW" Ta "SE, FWD" Ta "CA" Ta "[GSC]" Ta ""
+.It "C132L" Ta "DLUW" Ta "SE, UW" Ta "DC" Ta "EG" Ta ""
+.It "C160L" Ta "DLUW" Ta "SE, UW" Ta "DC" Ta "EG" Ta ""
+.It "C160" Ta "DLU" Ta "SE, UW" Ta "DC" Ta "[GSC/PCI]" Ta ""
+.It "C180L" Ta "DLUW" Ta "SE, UW" Ta "DC" Ta "EG" Ta ""
+.It "C180" Ta "DLU" Ta "SE, UW" Ta "DC" Ta "[GSC/PCI]" Ta ""
+.It "C200" Ta "DLU" Ta "SE, UW" Ta "DC" Ta "[GSC/PCI]" Ta ""
+.It "C230" Ta "DLU" Ta "SE, UW" Ta "DC" Ta "[GSC/PCI]" Ta ""
+.It "C240" Ta "DLU" Ta "SE, UW" Ta "DC" Ta "[GSC/PCI]" Ta ""
+.It "C360" Ta "DLU" Ta "SE, UW" Ta "DC" Ta "[GSC/PCI]" Ta ""
+.It "J200" Ta "LUW" Ta "SE, FWD" Ta "CA" Ta "[GSC]" Ta ""
+.It "J210/XC" Ta "LUW" Ta "SE, FWD" Ta "CA" Ta "[GSC]" Ta ""
+.It "J280" Ta "DLUW" Ta "SE, UW" Ta "DC" Ta "[GSC/PCI]" Ta ""
+.It "J282" Ta "DLUW" Ta "SE, UW" Ta "DC" Ta "[GSC/PCI]" Ta ""
+.It "J2240" Ta "DLUW" Ta "SE, UW" Ta "DC" Ta "[GSC/PCI]" Ta ""
+.It "RDI" Ta "DL" Ta "SE" Ta "CA" Ta "EG" Ta "CardBus"
+.It "SAIC" Ta "LW" Ta "SE" Ta "CA" Ta "Artist" Ta "PCMCIA"
+.El
+.Pp
+The MBA column denotes the bus adapters in use:
+.Pp
+.Bl -tag -width XXXX -compact -offset indent
+.It A
+.Xr asp 4
+.It D
+.Xr dino 4
+.It L
+.Xr lasi 4
+.It U
+.Xr uturn 4
+.It W
+.Xr wax 4
+.El
+.Pp
+The trailing characters in the SCSI row denote the
+SCSI bus configuration:
+.Pp
+.Bl -tag -width XXXX -compact -offset indent
+.It SE
+.Xr oosiop 4
+or
+.Xr osiop 4 ;
+.Tn Symbios/NCR
+53C700/710 8-bit (fast) single-ended,
+.It FWD
+.Xr siop 4 ;
+.Tn NCR53C720
+16-bit fast differential (HVD),
+.It UW
+.Xr siop 4 ;
+.Tn NCR53C875
+16-bit ultra single-ended.
+.El
+.Pp
+The trailing digits in the Network row denote the
+interface speed:
+.Pp
+.Bl -tag -width XXXXX -compact -offset indent
+.It CA
+.Xr ie 4 ;
+.Tn i82596CA
+10 Mb/s,
+.It DX
+.Xr ie 4 ;
+.Tn i82596DX
+10 Mb/s,
+.It DC
+.Xr dc 4 ;
+.Tn DEC 21142/3
+10/100 Mb/s,
+.It FDDI
+.Tn Am78830
+Formac+ FDDI.
+.El
+.Sh SEE ALSO
+.Xr asp 4 ,
+.Xr dc 4 ,
+.Xr dino 4 ,
+.Xr gsc 4 ,
+.Xr ie 4 ,
+.Xr intro 4 ,
+.Xr lasi 4 ,
+.Xr oosiop 4 ,
+.Xr osiop 4 ,
+.Xr runway 4 ,
+.Xr siop 4 ,
+.Xr sti 4 ,
+.Xr uturn 4 ,
+.Xr wax 4
+.Sh HISTORY
+The
+hppa
+.Nm
+reference first appeared with
+.Ox 3.3 .

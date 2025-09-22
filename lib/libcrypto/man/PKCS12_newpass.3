@@ -1,0 +1,156 @@
+.\"	$OpenBSD: PKCS12_newpass.3,v 1.5 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL c95a8b4e May 5 14:26:26 2016 +0100
+.\"
+.\" This file was written by Jeffrey Walton <noloader@gmail.com>.
+.\" Copyright (c) 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS12_NEWPASS 3
+.Os
+.Sh NAME
+.Nm PKCS12_newpass
+.Nd change the password of a PKCS#12 structure
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs12.h
+.Ft int
+.Fo PKCS12_newpass
+.Fa "PKCS12 *p12"
+.Fa "const char *oldpass"
+.Fa "const char *newpass"
+.Fc
+.Sh DESCRIPTION
+.Fn PKCS12_newpass
+changes the password of a PKCS#12 structure.
+.Pp
+.Fa p12
+is a pointer to a PKCS#12 structure.
+.Fa oldpass
+is the existing password and
+.Fa newpass
+is the new password.
+.Pp
+If the PKCS#12 structure does not have a password, use the empty
+string
+.Qq \&
+for
+.Fa oldpass .
+Passing
+.Dv NULL
+for
+.Fa oldpass
+results in a
+.Fn PKCS12_newpass
+failure.
+.Pp
+If the wrong password is used for
+.Fa oldpass ,
+the function will fail with a MAC verification error.
+In rare cases, the PKCS#12 structure does not contain a MAC:
+in this case it will usually fail with a decryption padding error.
+.Sh RETURN VALUES
+Upon successful completion, 1 is returned;
+otherwise 0 is returned and an error code can be retrieved with
+.Xr ERR_get_error 3 .
+.Sh EXAMPLES
+This example loads a PKCS#12 file, changes its password,
+and writes out the result to a new file.
+.Bd -literal
+#include <stdio.h>
+#include <stdlib.h>
+#include <openssl/pem.h>
+#include <openssl/err.h>
+#include <openssl/pkcs12.h>
+
+int main(int argc, char **argv)
+{
+	FILE *fp;
+	PKCS12 *p12;
+	if (argc != 5) {
+		fprintf(stderr,
+		    "Usage: pkread p12file password newpass opfile\en");
+		return 1;
+	}
+	if ((fp = fopen(argv[1], "rb")) == NULL) {
+		fprintf(stderr, "Error opening file %s\en", argv[1]);
+		return 1;
+	}
+	p12 = d2i_PKCS12_fp(fp, NULL);
+	fclose(fp);
+	if (p12 == NULL) {
+		fprintf(stderr, "Error reading PKCS#12 file\en");
+		ERR_print_errors_fp(stderr);
+		return 1;
+	}
+	if (PKCS12_newpass(p12, argv[2], argv[3]) == 0) {
+		fprintf(stderr, "Error changing password\en");
+		ERR_print_errors_fp(stderr);
+		PKCS12_free(p12);
+		return 1;
+	}
+	if ((fp = fopen(argv[4], "wb")) == NULL) {
+		fprintf(stderr, "Error opening file %s\en", argv[4]);
+		PKCS12_free(p12);
+		return 1;
+	}
+	i2d_PKCS12_fp(fp, p12);
+	PKCS12_free(p12);
+	fclose(fp);
+	return 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr PKCS12_create 3 ,
+.Xr PKCS12_new 3
+.Sh HISTORY
+.Fn PKCS12_newpass
+first appeared in OpenSSL 0.9.5 and has been available since
+.Ox 2.7 .
+.Sh BUGS
+The password format is a NUL terminated ASCII string which is
+converted to Unicode form internally.
+As a result, some passwords cannot be supplied to this function.

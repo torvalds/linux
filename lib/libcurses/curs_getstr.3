@@ -1,0 +1,292 @@
+.\" $OpenBSD: curs_getstr.3,v 1.10 2023/10/17 09:52:08 nicm Exp $
+.\"
+.\"***************************************************************************
+.\" Copyright 2018-2022,2023 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_getstr.3,v 1.10 2023/10/17 09:52:08 nicm Exp $
+.TH curs_getstr 3 2023-08-05 "ncurses 6.4" "Library calls"
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.na
+.hy 0
+.SH NAME
+\fBgetstr\fP,
+\fBgetnstr\fP,
+\fBwgetstr\fP,
+\fBwgetnstr\fP,
+\fBmvgetstr\fP,
+\fBmvgetnstr\fP,
+\fBmvwgetstr\fP,
+\fBmvwgetnstr\fP \- accept character strings from \fBcurses\fP terminal keyboard
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fP
+.sp
+\fBint getstr(char *\fIstr\fB);\fR
+.br
+\fBint getnstr(char *\fIstr\fB, int \fIn\fB);\fR
+.br
+\fBint wgetstr(WINDOW *\fIwin\fB, char *\fIstr\fB);\fR
+.br
+\fBint wgetnstr(WINDOW *\fIwin\fB, char *\fIstr\fB, int \fIn\fB);\fR
+.sp
+\fBint mvgetstr(int \fIy\fB, int \fIx\fB, char *\fIstr\fB);\fR
+.br
+\fBint mvwgetstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, char *\fIstr\fB);\fR
+.br
+\fBint mvgetnstr(int \fIy\fB, int \fIx\fB, char *\fIstr\fB, int \fIn\fB);\fR
+.br
+\fBint mvwgetnstr(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, char *\fIstr\fB, int \fIn\fB);\fR
+.SH DESCRIPTION
+The function
+\fBwgetnstr\fP
+is equivalent to a series of calls to
+\fBwgetch\fP(3),
+until a newline or carriage return terminates the series:
+.bP
+The terminating character is not included in the returned string.
+.bP
+In all instances, the end of the string is terminated
+by a NUL.
+.bP
+The function stores the result in the area pointed to
+by the \fIstr\fP parameter.
+.bP
+The function reads at most \fIn\fP characters,
+thus preventing a possible overflow of the input buffer.
+.IP
+Any attempt to enter more characters
+(other than the terminating newline or carriage return)
+causes a beep.
+.IP
+Function keys also cause a beep and are ignored.
+.PP
+The user's \fIerase\fP and \fIkill\fP characters are interpreted:
+.bP
+The \fIerase\fP character (e.g., \fB^H\fP) erases the character
+at the end of the buffer, moving the cursor to the left.
+.IP
+If \fIkeypad\fP mode is on for the window,
+\fBKEY_LEFT\fP and \fBKEY_BACKSPACE\fP
+are both considered equivalent to the user's \fIerase\fP character.
+.bP
+The \fIkill\fP character (e.g., \fB^U\fP) erases the entire buffer,
+leaving the cursor at the beginning of the buffer.
+.PP
+Characters input are echoed only if \fBecho\fP is currently on.
+In that case,
+backspace is echoed as deletion of the previous character
+(typically a left motion).
+.PP
+The
+\fBgetnstr\fP,
+\fBmvgetnstr\fP,
+\fBmvwgetnstr\fP, and
+\fBwgetnstr\fP
+functions are identical
+to the
+\fBgetstr\fP,
+\fBmvgetstr\fP,
+\fBmvwgetstr\fP, and
+\fBwgetstr\fP
+functions, respectively,
+except that the
+\fB*n*\fP
+versions read at most
+\fIn\fP
+characters, letting the application prevent overflow of the
+input buffer.
+.SH NOTES
+Any of these functions other than
+\fBwgetnstr\fP
+may be macros.
+.PP
+Using
+\fBgetstr\fP,
+\fBmvgetstr\fP,
+\fBmvwgetstr\fP, or
+\fBwgetstr\fP
+to read a line that
+overflows the array pointed to by
+\fBstr\fP
+causes undefined
+results.
+The use of
+\fBgetnstr\fP,
+\fBmvgetnstr\fP,
+\fBmvwgetnstr\fP, or
+\fBwgetnstr\fP,
+respectively, is recommended.
+.SH RETURN VALUE
+All of these functions return the integer \fBOK\fP upon successful completion.
+(SVr4 specifies only \*(``an integer value other than \fBERR\fP\*('')
+If unsuccessful, they return \fBERR\fP.
+.PP
+X/Open defines no error conditions.
+.PP
+In this implementation,
+these functions return an error
+.bP
+if the window pointer is null,
+.bP
+if its timeout expires without having any data, or
+.bP
+if the associated call to
+\fBwgetch\fP
+failed.
+.PP
+This implementation provides an extension as well.
+If a \fBSIGWINCH\fP interrupts the function, it will return \fBKEY_RESIZE\fP
+rather than \fBOK\fP or \fBERR\fP.
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH PORTABILITY
+These functions are described in The Single Unix Specification, Version 2.
+No error conditions are defined.
+.PP
+This implementation returns \fBERR\fP if the window pointer is null,
+or if the lower-level \fBwgetch\fP(3) call returns an \fBERR\fP.
+.PP
+SVr3 and early SVr4 curses implementations did not reject function keys;
+the SVr4.0 documentation claimed that \*(``special keys\*(''
+(such as function keys,
+\*(``home\*('' key,
+\*(``clear\*('' key,
+\fIetc\fP.) are \*(``interpreted\*('',
+without giving details.
+It lied.
+In fact, the \*(``character\*('' value appended to the
+string by those implementations was predictable but not useful
+(being, in fact, the low-order eight bits of the key's KEY_ value).
+.PP
+The functions \fBgetnstr\fP, \fBmvgetnstr\fP, and \fBmvwgetnstr\fP were
+present but not documented in SVr4.
+.PP
+X/Open Curses, Issue 5 (2007) stated that these functions
+\*(``read at most \fIn\fP bytes\*(''
+but did not state whether the terminating NUL is counted in that limit.
+X/Open Curses, Issue 7 (2009) changed that to say they
+\*(``read at most \fIn\fP\-1 bytes\*(''
+to allow for the terminating NUL.
+As of 2018, some implementations count it, some do not:
+.bP
+ncurses 6.1 and PDCurses do not count the NUL in the given limit, while
+.bP
+Solaris SVr4 and NetBSD curses count the NUL as part of the limit.
+.bP
+Solaris xcurses provides both:
+its wide-character \fBwget_nstr\fP reserves a NUL,
+but its \fBwgetnstr\fP does not count the NUL consistently.
+.PP
+In SVr4 curses,
+a negative value of \fIn\fP tells \fBwgetnstr\fP to assume that the
+caller's buffer is large enough to hold the result,
+i.e., to act like \fBwgetstr\fP.
+X/Open Curses does not mention this
+(or anything related to negative or zero values of \fIn\fP),
+however most implementations
+use the feature, with different limits:
+.bP
+Solaris SVr4 curses and PDCurses limit the result to 255 bytes.
+Other Unix systems than Solaris are likely to use the same limit.
+.bP
+Solaris xcurses limits the result to \fBLINE_MAX\fP bytes.
+.bP
+NetBSD 7 assumes no particular limit for the result from \fBwgetstr\fP.
+However, it limits the \fBwgetnstr\fP parameter \fIn\fP to ensure
+that it is greater than zero.
+.IP
+A comment in NetBSD's source code states that this is specified in SUSv2.
+.bP
+ncurses (before 6.2) assumes no particular limit for the result
+from \fBwgetstr\fP, and treats the \fIn\fP parameter of \fBwgetnstr\fP
+like SVr4 curses.
+.bP
+ncurses 6.2 uses \fBLINE_MAX\fP,
+or a larger (system-dependent) value
+which the \fBsysconf\fP function may provide.
+If neither \fBLINE_MAX\fP or \fBsysconf\fP is available,
+ncurses uses the POSIX value for \fBLINE_MAX\fP (a 2048 byte limit).
+In either case, it reserves a byte for the terminating NUL.
+.PP
+Although \fBgetnstr\fP is equivalent to a series of calls to \fBgetch\fP,
+it also makes changes to the curses modes to allow simple editing of
+the input buffer:
+.bP
+\fBgetnstr\fP saves the current value of the \fBnl\fP, \fBecho\fP,
+\fBraw\fP and \fBcbreak\fP modes, and sets
+\fBnl\fP,
+\fBnoecho\fP,
+\fBnoraw\fP, and
+\fBcbreak\fP.
+.IP
+\fBgetnstr\fP handles the echoing of characters,
+rather than relying on the caller to set an appropriate mode.
+.bP
+It also obtains the \fIerase\fP and \fIkill\fP characters
+from \fBerasechar\fP and \fBkillchar\fP, respectively.
+.bP
+On return, \fBgetnstr\fP restores the modes to their previous values.
+.PP
+Other implementations differ in their treatment of special characters:
+.bP
+While they may set the \fIecho\fP mode,
+other implementations do not modify the \fIraw\fP mode,
+They may take the \fIcbreak\fP
+mode set by the caller into account when deciding whether to handle
+echoing within \fBgetnstr\fP or as a side-effect of the \fBgetch\fP calls.
+.bP
+The original ncurses (as \fIpcurses\fP in 1986) set \fBnoraw\fP and \fBcbreak\fP
+when accepting input for \fBgetnstr\fP.
+That may have been done to make function- and cursor-keys work;
+it is not necessary with ncurses.
+.IP
+Since 1995, ncurses has provided signal handlers for INTR and QUIT
+(e.g., \fB^C\fP or \fB^\\\fP).
+With the \fBnoraw\fP and \fBcbreak\fP settings,
+those may catch a signal and stop the program,
+where other implementations allow one to enter those characters in the buffer.
+.bP
+Starting in 2021 (ncurses 6.3), \fBgetnstr\fP sets \fBraw\fP,
+rather than \fBnoraw\fP and \fBcbreak\fP for better compatibility with
+SVr4-curses, e.g., allowing one to enter a \fB^C\fP into the buffer.
+.SH SEE ALSO
+\fBcurses\fP(3),
+\fBcurs_getch\fP(3),
+\fBcurs_termattrs\fP(3),
+\fBcurs_variables\fP(3).

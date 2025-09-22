@@ -1,0 +1,59 @@
+.\" $OpenBSD: X509_ocspid_print.3,v 1.2 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_OCSPID_PRINT 3
+.Os
+.Sh NAME
+.Nm X509_ocspid_print
+.Nd pretty-print hashes of subject name and public key
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_ocspid_print
+.Fa "BIO *bio"
+.Fa "X509 *issuer"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_ocspid_print
+produces human-readable output to
+.Fa bio
+containing hexadecimal representations of SHA-1 hashes of the
+DER-encoded forms of the subject name and the public key of the
+.Fa issuer
+certificate, as these hashes appear in OCSP requests.
+.Sh RETURN VALUES
+.Fn X509_ocspid_print
+returns 1 for success or 0 for failure.
+.Sh EXAMPLES
+This function is used by the
+.Fl ocspid
+flag of the
+.Xr openssl 1
+.Cm x509
+command.
+.Sh SEE ALSO
+.Xr EVP_sha1 3 ,
+.Xr i2d_X509_NAME 3 ,
+.Xr OCSP_cert_to_id 3 ,
+.Xr OCSP_REQUEST_new 3 ,
+.Xr X509_get_pubkey 3 ,
+.Xr X509_get_subject_name 3
+.Sh HISTORY
+.Fn X509_ocspid_print
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .

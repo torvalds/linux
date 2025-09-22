@@ -1,0 +1,134 @@
+.\"	$OpenBSD: cz.4,v 1.13 2018/03/16 16:58:26 schwarze Exp $
+.\"	$NetBSD: cz.4,v 1.3 2001/06/12 14:46:11 wiz Exp $
+.\"
+.\" Copyright (c) 2000 Zembu Labs, Inc.
+.\" All rights reserved.
+.\"
+.\" Author: Jason R. Thorpe <thorpej@zembu.com>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"        This product includes software developed by Zembu Labs, Inc.
+.\" 4. Neither the name of Zembu Labs nor the names of its employees may
+.\"    be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY ZEMBU LABS, INC. ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WAR-
+.\" RANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DIS-
+.\" CLAIMED.  IN NO EVENT SHALL ZEMBU LABS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 16 2018 $
+.Dt CZ 4
+.Os
+.Sh NAME
+.Nm cz
+.Nd Cyclades-Z series multi-port serial adapter device
+.Sh SYNOPSIS
+.Cd "cz* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports the Cyclades-Z series of multi-port serial adapters.
+The Cyclades-Z is an intelligent serial controller comprising:
+.Bl -bullet -offset indent
+.It
+PLX9060ES PCI bus interface
+.It
+Xilinx XC5204 FPGA
+.It
+IDT R3052 MIPS CPU
+.El
+.Pp
+The MIPS CPU runs firmware provided by the device driver.
+Communication with the MIPS is performed by modifying data structures located
+in board local RAM or host RAM.
+.Pp
+The Cyclades-Z comes in three basic flavors:
+.Bl -bullet -offset indent
+.It
+Cyclades-8Zo rev. 1 \(em This is an older 8-port board with no FPGA.
+The serial ports are provided by an octopus cable.
+.It
+Cyclades-8Zo rev. 2 \(em This is the newer 8-port board.
+The serial ports are provided by an octopus cable.
+.It
+Cyclades-Ze \(em This is the expandable version of the Cyclades-Z.
+It uses an HD-50 SCSI cable to connect the board to a 1U rack mountable serial
+expansion box.
+Each box has 16 RJ45 serial ports, and up to 4 boxes may be chained together,
+for a total of 64 ports.
+Boxes 3 and 4 require their own external power supply, otherwise the firmware
+will refuse to start (as it cannot communicate with the UARTs in those boxes).
+.El
+.Pp
+The Cyclades-Z has several features to improve performance under
+high serial I/O load:
+.Bl -bullet -offset indent
+.It
+The board may operate in interrupt-driven mode or polled mode to reduce
+interrupt load.
+.It
+Each channel has a large input and output buffer.
+.It
+Each channel may be programmed to generate an interrupt based on
+reception of a specific character, e.g. a PPP End-Of-Frame character.
+.It
+The MIPS CPU on the board performs all flow-control handling.
+.El
+.Sh FILES
+.Bl -tag -width XXXXXXXXXXX -compact
+.It Pa /dev/ttyZ??
+dial-in (normal) TTY device
+.It Pa /dev/cuaZ??
+dial-out TTY device
+.El
+.\" .Sh DIAGNOSTICS
+.\" XXX to be done.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr termios 4 ,
+.Xr tty 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jason R. Thorpe Aq Mt thorpej@zembu.com
+and
+.An Bill Studenmund Aq Mt wrstuden@zembu.com
+of Zembu Labs, Inc.
+.Sh BUGS
+The
+.Nm
+driver does not currently implement communication via host RAM.
+While this may improve performance by reducing the number of PCI memory
+space read/write cycles, it is not straightforward to implement with
+the current
+.Xr bus_dma 9
+API.
+.Pp
+Interrupt mode has not been tested.
+.Pp
+There is no support for reading or writing the EEPROM connected to
+the PLX PCI bus controller.

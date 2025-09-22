@@ -1,0 +1,56 @@
+.\" $OpenBSD: SSL_dup_CA_list.3,v 1.7 2025/06/08 22:47:20 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_DUP_CA_LIST 3
+.Os
+.Sh NAME
+.Nm SSL_dup_CA_list
+.Nd deep copy of a stack of X.509 Name objects
+.\" The capital "N" in "Name" is intentional (X.509 syntax).
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft STACK_OF(X509_NAME) *
+.Fo SSL_dup_CA_list
+.Fa "const STACK_OF(X509_NAME) *sk"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_dup_CA_list
+constructs a new
+.Vt STACK_OF(X509_NAME)
+object and places copies of all the
+.Vt X509_NAME
+objects found on
+.Fa sk
+on it.
+.Sh RETURN VALUES
+.Fn SSL_dup_CA_list
+returns the new
+.Vt STACK_OF(X509_NAME)
+or
+.Dv NULL
+on failure.
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_set_client_CA_list 3 ,
+.Xr SSL_get_client_CA_list 3 ,
+.Xr SSL_load_client_CA_file 3 ,
+.Xr X509_NAME_new 3
+.Sh HISTORY
+.Fn SSL_dup_CA_list
+first appeared in SSLeay 0.8.0 and has been available since
+.Ox 2.4 .

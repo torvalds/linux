@@ -1,0 +1,102 @@
+.\"	$OpenBSD: ae0,v 1.4 2004/04/06 08:19:20 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ae0	8.1 (Berkeley) 8/14/93
+.\"
+.if n \{\
+.po 5n
+.ll 70n
+.\}
+.nr P1 1
+.EH 'USD:10-%''Advanced Editing on \s-2UNIX\s+2'
+.OH 'Advanced Editing on \s-2UNIX\s+2''USD:10-%'
+.\" .....TM 76-1273-8 39199 39199-11
+.\".RP
+.TL
+Advanced Editing on \s-2UNIX\s+2
+.AU "MH 2C518" 6021
+Brian W. Kernighan
+.AI
+Murray Hill, NJ
+.AU
+(Updated for 4.3BSD by Mark Seiden)
+.AB
+This paper is meant to help
+secretaries, typists and programmers
+to make effective use of the
+.UX
+facilities
+for preparing and editing text.
+It provides explanations and examples of
+.IP \(bu
+special characters, line addressing, and global commands in the editor
+.UL ed ;
+.IP \(bu
+commands for ``cut and paste'' operations on files
+and parts of files,
+including the
+.UL mv ,
+.UL cp ,
+.UL cat ,
+and
+.UL rm
+commands,
+and the
+.UL r ,
+.UL w ,
+.UL m ,
+and
+.UL t
+commands of the editor;
+.IP \(bu
+editing scripts and
+editor-based programs like
+.UL grep
+and
+.UL sed .
+.PP
+Although the treatment is aimed
+at non-programmers,
+new
+UNIX
+users
+with any background
+should find helpful hints
+on how to get their jobs done
+more easily.
+.AE
+.\" .CS 16 0 16 0 0 3
+.\" .if n .ls 2
+.nr PS 9
+.nr VS 11

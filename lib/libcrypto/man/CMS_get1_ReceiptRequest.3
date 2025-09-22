@@ -1,0 +1,199 @@
+.\" $OpenBSD: CMS_get1_ReceiptRequest.3,v 1.8 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 83cf7abf May 29 13:07:08 2018 +0100
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CMS_GET1_RECEIPTREQUEST 3
+.Os
+.Sh NAME
+.Nm CMS_ReceiptRequest_create0 ,
+.Nm CMS_add1_ReceiptRequest ,
+.Nm CMS_get1_ReceiptRequest ,
+.Nm CMS_ReceiptRequest_get0_values
+.Nd CMS signed receipt request functions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/cms.h
+.Ft CMS_ReceiptRequest *
+.Fo CMS_ReceiptRequest_create0
+.Fa "unsigned char *id"
+.Fa "int idlen"
+.Fa "int allorfirst"
+.Fa "STACK_OF(GENERAL_NAMES) *receiptList"
+.Fa "STACK_OF(GENERAL_NAMES) *receiptsTo"
+.Fc
+.Ft int
+.Fo CMS_add1_ReceiptRequest
+.Fa "CMS_SignerInfo *si"
+.Fa "CMS_ReceiptRequest *rr"
+.Fc
+.Ft int
+.Fo CMS_get1_ReceiptRequest
+.Fa "CMS_SignerInfo *si"
+.Fa "CMS_ReceiptRequest **prr"
+.Fc
+.Ft void
+.Fo CMS_ReceiptRequest_get0_values
+.Fa "CMS_ReceiptRequest *rr"
+.Fa "ASN1_STRING **pcid"
+.Fa "int *pallorfirst"
+.Fa "STACK_OF(GENERAL_NAMES) **plist"
+.Fa "STACK_OF(GENERAL_NAMES) **prto"
+.Fc
+.Sh DESCRIPTION
+.Fn CMS_ReceiptRequest_create0
+creates a new
+.Vt ReceiptRequest
+structure.
+The
+.Fa signedContentIdentifier
+field is set using
+.Fa id
+and
+.Fa idlen ,
+or it is set to 32 bytes of pseudo random data if
+.Fa id
+is
+.Dv NULL .
+If
+.Fa receiptList
+is
+.Dv NULL ,
+the
+.Fa allOrFirstTier
+option in the
+.Fa receiptsFrom
+field is set to the value of the
+.Fa allorfirst
+argument.
+If
+.Fa receiptList
+is not
+.Dv NULL ,
+the
+.Fa receiptList
+option in the
+.Fa receiptsFrom
+field is used.
+The
+.Fa receiptsTo
+argument specifies the value of the
+.Fa receiptsTo
+field.
+.Pp
+.Fn CMS_add1_ReceiptRequest
+adds a BER-encoded copy of
+.Fa rr
+to
+.Fa si .
+.Pp
+.Fn CMS_get1_ReceiptRequest
+looks for a signed receipt request in
+.Fa si .
+If any is found, it is decoded and written to
+.Fa prr .
+.Pp
+.Fn CMS_ReceiptRequest_get0_values
+retrieves the values of a receipt request.
+The
+.Fa signedContentIdentifier
+is copied to
+.Fa pcid .
+If the
+.Fa allOrFirstTier
+option is used in the
+.Fa receiptsFrom
+field, its value is copied to
+.Fa pallorfirst ;
+otherwise the
+.Fa receiptList
+field is copied to
+.Fa plist .
+The
+.Fa receiptsTo
+field is copied to
+.Fa prto .
+.Pp
+The contents of a signed receipt should only be considered meaningful if
+the corresponding
+.Vt CMS_ContentInfo
+structure can be successfully verified using
+.Xr CMS_verify 3 .
+.Sh RETURN VALUES
+.Fn CMS_ReceiptRequest_create0
+returns the new signed receipt request structure or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn CMS_add1_ReceiptRequest
+returns 1 for success or 0 if an error occurred.
+.Pp
+.Fn CMS_get1_ReceiptRequest
+returns 1 is a signed receipt request is found and decoded.
+It returns 0 if a signed receipt request is not present or -1 if it is
+present but malformed.
+.Sh SEE ALSO
+.Xr CMS_ContentInfo_new 3 ,
+.Xr CMS_sign 3 ,
+.Xr CMS_sign_receipt 3 ,
+.Xr CMS_verify 3 ,
+.Xr CMS_verify_receipt 3 ,
+.Xr ERR_get_error 3
+.Sh STANDARDS
+RFC 2634: Enhanced Security Services for S/MIME,
+section 2.7: Receipt Request Syntax
+.Sh HISTORY
+.Fn CMS_ReceiptRequest_create0 ,
+.Fn CMS_add1_ReceiptRequest ,
+.Fn CMS_get1_ReceiptRequest ,
+and
+.Fn CMS_ReceiptRequest_get0_values
+first appeared in OpenSSL 0.9.8h
+and have been available since
+.Ox 6.7 .

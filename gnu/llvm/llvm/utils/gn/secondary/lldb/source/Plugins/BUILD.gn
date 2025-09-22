@@ -1,0 +1,254 @@
+import("//llvm/lib/Target/targets.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+
+# In the CMake build, each plugin calls `add_lldb_library(name PLUGIN ...)`,
+# which implicitly adds the plugin name to the LLDB_PLUGINS list.
+# A few places then query that list and add dependencies on it.
+# lldb/source/Plugins/CMakeList.txt then does string munging on the list of
+# plugin names to generate Plugins.def.
+# In the GN build, we instead have an explicit list of all plugins here.
+# Every entry in this list is a (GN target, LLDB_PLUGIN Plugins.def name) pair.
+lldb_plugins = []
+if (llvm_build_X86) {
+  lldb_plugins += [ [
+        "//lldb/source/Plugins/ABI/X86",
+        "ABIX86",
+      ] ]
+}
+lldb_plugins += [
+  [
+    "//lldb/source/Plugins/Architecture/PPC64",
+    "ArchitecturePPC64",
+  ],
+  [
+    "//lldb/source/Plugins/Disassembler/LLVMC",
+    "DisassemblerLLVMC",
+  ],
+  [
+    "//lldb/source/Plugins/DynamicLoader/Darwin-Kernel",
+    "DynamicLoaderDarwinKernel",
+  ],
+  [
+    "//lldb/source/Plugins/DynamicLoader/MacOSX-DYLD",
+    "DynamicLoaderMacOSXDYLD",
+  ],
+  [
+    "//lldb/source/Plugins/DynamicLoader/POSIX-DYLD",
+    "DynamicLoaderPosixDYLD",
+  ],
+  [
+    "//lldb/source/Plugins/DynamicLoader/Static",
+    "DynamicLoaderStatic",
+  ],
+  [
+    "//lldb/source/Plugins/DynamicLoader/Windows-DYLD",
+    "DynamicLoaderWindowsDYLD",
+  ],
+  [
+    "//lldb/source/Plugins/Instruction/ARM",
+    "InstructionARM",
+  ],
+  [
+    "//lldb/source/Plugins/JITLoader/GDB",
+    "JITLoaderGDB",
+  ],
+  [
+    "//lldb/source/Plugins/Language/CPlusPlus",
+    "CPlusPlusLanguage",
+  ],
+  [
+    "//lldb/source/Plugins/Language/ObjC",
+    "ObjCLanguage",
+  ],
+  [
+    "//lldb/source/Plugins/Language/ObjCPlusPlus",
+    "ObjCPlusPlusLanguage",
+  ],
+  [
+    "//lldb/source/Plugins/LanguageRuntime/CPlusPlus/ItaniumABI",
+    "CXXItaniumABI",
+  ],
+  [
+    "//lldb/source/Plugins/LanguageRuntime/ObjC/AppleObjCRuntime",
+    "AppleObjCRuntime",
+  ],
+  [
+    "//lldb/source/Plugins/ObjectContainer/BSD-Archive",
+    "ObjectContainerBSDArchive",
+  ],
+  [
+    "//lldb/source/Plugins/ObjectContainer/Universal-Mach-O",
+    "ObjectContainerMachOArchive",
+  ],
+  [
+    "//lldb/source/Plugins/ObjectFile/Breakpad",
+    "ObjectFileBreakpad",
+  ],
+  [
+    "//lldb/source/Plugins/ObjectFile/ELF",
+    "ObjectFileELF",
+  ],
+  [
+    "//lldb/source/Plugins/ObjectFile/Mach-O",
+    "ObjectFileMachO",
+  ],
+  [
+    "//lldb/source/Plugins/ObjectFile/PDB",
+    "ObjectFilePDB",
+  ],
+  [
+    "//lldb/source/Plugins/ObjectFile/PECOFF",
+    "ObjectFilePECOFF",
+  ],
+  [
+    "//lldb/source/Plugins/ObjectFile/Placeholder",
+    "ObjectFilePlaceholder",
+  ],
+  [
+    "//lldb/source/Plugins/ObjectFile/wasm",
+    "ObjectFileWasm",
+  ],
+  [
+    "//lldb/source/Plugins/Platform/Linux",
+    "PlatformLinux",
+  ],
+  [
+    "//lldb/source/Plugins/Platform/MacOSX",
+    "PlatformMacOSX",
+  ],
+  [
+    "//lldb/source/Plugins/Platform/Windows",
+    "PlatformWindows",
+  ],
+  [
+    "//lldb/source/Plugins/Process/elf-core",
+    "ProcessElfCore",
+  ],
+  [
+    "//lldb/source/Plugins/Process/gdb-remote",
+    "",  # Uses LLDB_PROCESS_GDB_PLUGIN instead.
+  ],
+  [
+    "//lldb/source/Plugins/Process/mach-core",
+    "ProcessMachCore",
+  ],
+  [
+    "//lldb/source/Plugins/Process/minidump",
+    "ProcessMinidump",
+  ],
+  [
+    "//lldb/source/Plugins/REPL/Clang",
+    "ClangREPL",
+  ],
+  [
+    "//lldb/source/Plugins/ScriptInterpreter/None",
+    "",  # Uses LLDB_SCRIPT_PLUGIN instead.
+  ],
+  [
+    "//lldb/source/Plugins/SymbolFile/Breakpad",
+    "SymbolFileBreakpad",
+  ],
+  [
+    "//lldb/source/Plugins/SymbolFile/DWARF",
+    "SymbolFileDWARF",
+  ],
+  [
+    "//lldb/source/Plugins/SymbolFile/PDB",
+    "SymbolFilePDB",
+  ],
+  [
+    "//lldb/source/Plugins/SymbolFile/Symtab",
+    "SymbolFileSymtab",
+  ],
+  [
+    "//lldb/source/Plugins/SymbolLocator/Default",
+    "SymbolLocatorDefault",
+  ],
+]
+if (current_os == "mac") {
+  lldb_plugins += [
+    [
+      "//lldb/source/Plugins/SymbolLocator/DebugSymbols",
+      "SymbolLocatorDebugSymbols",
+    ],
+    [
+      "//lldb/source/Plugins/SymbolVendor/MacOSX",
+      "SymbolVendorMacOSX",
+    ],
+  ]
+}
+lldb_plugins += [
+  [
+    "//lldb/source/Plugins/SymbolVendor/ELF",
+    "SymbolVendorELF",
+  ],
+
+  [
+    "//lldb/source/Plugins/SymbolVendor/wasm",
+    "SymbolVendorWasm",
+  ],
+
+  [
+    "//lldb/source/Plugins/SymbolVendor/PECOFF",
+    "SymbolVendorPECOFF",
+  ],
+
+  [
+    "//lldb/source/Plugins/TypeSystem/Clang",
+    "TypeSystemClang",
+  ],
+
+  [
+    "//lldb/source/Plugins/UnwindAssembly/InstEmulation",
+    "UnwindAssemblyInstEmulation",
+  ],
+  [
+    "//lldb/source/Plugins/UnwindAssembly/x86",
+    "UnwindAssemblyX86",
+  ],
+]
+
+write_cmake_config("Plugins.def") {
+  input = "Plugins.def.in"
+  output = "$target_gen_dir/Plugins.def"
+
+  enum_plugins = ""
+  foreach(plugin, lldb_plugins) {
+    plugin_id = plugin[1]
+    if (plugin_id != "") {
+      # \n is a literal '\' followed by a literal 'n', not a newline character.
+      # write_cmake_config.py replaces it with a real newline.
+      enum_plugins += "LLDB_PLUGIN(" + plugin_id + ")\n"
+    }
+  }
+
+  deps = [ "//lldb/source/Plugins/ScriptInterpreter/None" ]
+  enum_plugins += "LLDB_SCRIPT_PLUGIN(ScriptInterpreterNone)"
+
+  values = [ "LLDB_ENUM_PLUGINS=" + enum_plugins ]
+
+  # These are in separate variables to make sure ProcessWindowsCommon is
+  # initalized after all plugins, but before ProcessGDBRemote.
+  if (current_os == "win") {
+    values +=
+        [ "LLDB_PROCESS_WINDOWS_PLUGIN=LLDB_PLUGIN(ProcessWindowsCommon)" ]
+  } else {
+    values += [ "LLDB_PROCESS_WINDOWS_PLUGIN=" ]
+  }
+  values += [ "LLDB_PROCESS_GDB_PLUGIN=LLDB_PLUGIN(ProcessGDBRemote)" ]
+}
+
+config("AllLldbPlugins_config") {
+  visibility = [ ":LldbAllPlugins" ]
+
+  # To pick up Plugins.def.
+  include_dirs = [ "$root_gen_dir/lldb/source" ]
+}
+
+group("LldbAllPlugins") {
+  deps = [ ":Plugins.def" ]
+  foreach(plugin, lldb_plugins) {
+    deps += [ plugin[0] ]
+  }
+  public_configs = [ ":AllLldbPlugins_config" ]
+}

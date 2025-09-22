@@ -1,0 +1,29 @@
+dnl	$OpenBSD: hardware,v 1.10 2022/08/31 07:25:45 fcambus Exp $
+The following machines are targeted by OpenBSD/MACHINE:
+
+	Allwinner A10/A20
+		Cubieboard and Cubieboard 2
+		LinkSprite pcDuino
+		Banana Pi
+	Allwinner A33/R16
+		Banana Pi M2 Magic
+	Allwinner A80
+		Cubieboard4
+	Allwinner H2+/H3
+		Banana Pi M2+
+		Orange Pi One
+		Orange Pi Zero
+	Allwinner R40/V40
+		Banana Pi M2 Berry
+	Freescale/NXP i.MX6
+		Boundary Devices SABRE Lite/BD-SL-i.MX6
+		Boundary Devices Nitrogen6X
+		Wandboard
+		SolidRun CuBox-i4Pro
+		CompuLab Utilite
+		Kosagi Novena
+	Freescale/NXP i.MX7
+		Technexion PICO-PI-IMX7
+	TI OMAP4/AM3
+		BeagleBone and BeagleBone Black
+		PandaBoard and PandaBoard ES

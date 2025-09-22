@@ -1,0 +1,259 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <title>FAQ and How to Deal with Common False Positives</title>
+  <link type="text/css" rel="stylesheet" href="menu.css">
+  <link type="text/css" rel="stylesheet" href="content.css">
+  <script type="text/javascript" src="scripts/menu.js"></script>
+  <style type="text/css">
+    tr:first-child { width:20%; }
+  </style>
+</head>
+<body>
+
+<div id="page">
+<!--#include virtual="menu.html.incl"-->
+
+<div id="content">
+
+<h1>FAQ and How to Deal with Common False Positives</h1>
+
+<ol>
+  <li><a href="#custom_assert">How do I tell the analyzer that I do not want the bug being
+reported here since my custom error handler will safely end the execution before
+the bug is reached?</a></li>
+  <li><a href="#null_pointer">The analyzer reports a null dereference, but I know that the
+pointer is never null. How can I tell the analyzer that a pointer can never be
+null?</a></li>
+  <li><a href="#dead_store">How do I tell the static analyzer that I don't care about a specific dead store?</a></li>
+  <li><a href="#unused_ivar">How do I tell the static analyzer that I don't care about a specific unused instance variable in Objective C?</a></li>
+  <li><a href="#unlocalized_string">How do I tell the static analyzer that I don't care about a specific unlocalized string?</a></li>
+  <li><a href="#dealloc_mrr">How do I tell the analyzer that my instance variable does not need to be released in -dealloc under Manual Retain/Release?</a></li>
+  <li><a href="#decide_nullability">How do I decide whether a method's return type should be _Nullable or _Nonnull?</a></li>
+  <li><a href="#nullability_intentional_violation">How do I tell the analyzer that I am intentionally violating nullability?</a></li>
+  <li><a href="#use_assert">The analyzer assumes that a loop body is never entered.  How can I tell it that the loop body will be entered at least once?</a></li>
+  <li><a href="#suppress_issue">How can I suppress a specific analyzer warning?</a></li>
+  <li><a href="#exclude_code">How can I selectively exclude code the analyzer examines?</a></li>
+</ol>
+
+
+<h4 id="custom_assert" class="faq">Q: How do I tell the analyzer that I do not want the bug being
+reported here since my custom error handler will safely end the execution before
+the bug is reached?</h4>
+
+<img src="images/example_custom_assert.png" alt="example custom assert">
+
+<p>You can tell the analyzer that this path is unreachable by teaching it about your <a href = "annotations.html#custom_assertions" >custom assertion handlers</a>. For example, you can modify the code segment as following.</p>
+
+<pre class="code_example">
+void customAssert() <span class="code_highlight">__attribute__((analyzer_noreturn))</span>;
+int foo(int *b) {
+  if (!b)
+    customAssert();
+  return *b;
+}</pre>
+
+
+<h4 id="null_pointer" class="faq">Q: The analyzer reports a null dereference, but I know that the
+pointer is never null. How can I tell the analyzer that a pointer can never be
+null?</h4>
+
+<img src="images/example_null_pointer.png" alt="example null pointer">
+
+<p>The reason the analyzer often thinks that a pointer can be null is because the preceding code checked compared it against null. So if you are absolutely sure that it cannot be null, remove the preceding check and, preferably, add an assertion as well. For example, in the code segment above, it will be sufficient to remove the <tt>if (!b)</tt> check. </p>
+
+<pre class="code_example">
+void usePointer(int *b);
+int foo(int *b) {
+  usePointer(b);
+  return *b;
+}</pre>
+
+<h4 id="dead_store" class="faq">Q: How do I tell the static analyzer that I don't care about a specific dead store?</h4>
+
+<p>When the analyzer sees that a value stored into a variable is never used, it's going to produce a message similar to this one:
+<pre class="code_example">Value stored to 'x' is never read</pre>
+You can use the <tt>(void)x;</tt> idiom to acknowledge that there is a dead store in your code but you do not want it to be reported in the future.</p>
+
+<h4 id="unused_ivar" class="faq">Q: How do I tell the static analyzer that I don't care about a specific unused instance variable in Objective C?</h4>
+
+<p>When the analyzer sees that a value stored into a variable is never used, it is going to produce a message similar to this one:
+<pre class="code_example">Instance variable 'commonName' in class 'HappyBird' is never used by the methods in its @implementation</pre>
+You can add <tt>__attribute__((unused))</tt> to the instance variable declaration to suppress the warning.</p>
+
+<h4 id="unlocalized_string" class="faq">Q: How do I tell the static analyzer that I don't care about a specific unlocalized string?</h4>
+
+<p>When the analyzer sees that an unlocalized string is passed to a method that will present that string to the user, it is going to produce a message similar to this one:
+<pre class="code_example">User-facing text should use localized string macro</pre>
+
+If your project deliberately uses unlocalized user-facing strings (for example, in a debugging UI that is never shown to users), you can suppress the analyzer warnings (and document your intent) with a function that just returns its input but is annotated to return a localized string:
+<pre class="code_example">
+__attribute__((annotate("returns_localized_nsstring")))
+static inline NSString *LocalizationNotNeeded(NSString *s) {
+  return s;
+}
+</pre>
+
+You can then call this function when creating your debugging UI:
+<pre class="code_example">
+[field setStringValue:LocalizationNotNeeded(@"Debug")];
+</pre>
+
+Some projects may also find it useful to use NSLocalizedString but add "DNL" or "Do Not Localize" to the string contents as a convention:
+<pre class="code_example">
+UILabel *testLabel = [[UILabel alloc] init];
+NSString *s = NSLocalizedString(@"Hello &lt;Do Not Localize&gt;", @"For debug purposes");
+[testLabel setText:s];
+</pre>
+</p>
+
+<h4 id="dealloc_mrr" class="faq">Q: How do I tell the analyzer that my instance variable does not need to be released in -dealloc under Manual Retain/Release?</h4>
+
+<p>If your class only uses an instance variable for part of its lifetime, it may
+maintain an invariant guaranteeing that the instance variable is always released
+before -dealloc. In this case, you can silence a warning about a missing release
+by either adding <tt>assert(_ivar == nil)</tt> or an explicit release
+<tt>[_ivar release]</tt> (which will be a no-op when the variable is nil) in
+-dealloc. </p>
+
+<h4 id="decide_nullability" class="faq">Q: How do I decide whether a method's return type should be _Nullable or _Nonnull?</h4>
+
+<p> Depending on the implementation of the method, this puts you in one of five situations:
+<ol>
+<li>You actually never return nil.</li>
+<li>You do return nil sometimes, and callers are supposed to handle that. This
+includes cases where your method is documented to return nil given certain
+inputs.</li>
+<li>You return nil based on some external condition (such as an out-of-memory
+error), but the client can't do anything about it either.</li>
+<li>You return nil only when the caller passes input documented to be invalid.
+That means it's the client's fault.</li>
+<li>You return nil in some totally undocumented case.</li>
+</ol>
+</p>
+
+<p>In (1) you should annotate the method as returning a <tt>_Nonnull</tt>
+object.</p>
+<p>In (2) the method should be marked <tt>_Nullable.</tt></p>
+<p>In (3) you should probably annotate the method <tt>_Nonnull</tt>. Why?
+Because no callers will actually check for nil, given that they can't do
+anything about the situation and don't know what went wrong. At this point
+things have gone so poorly that there's basically no way to recover.</p>
+<p>The least happy case is (4) because the resulting program will almost
+certainly either crash or just silently do the wrong thing.
+If this is a new method or you control the callers, you can use
+<tt>NSParameterAssert()</tt> (or the equivalent) to check the precondition and
+remove the nil return. But if you don't control the callers and they rely on
+this behavior, you should return mark the method <tt>_Nonnull</tt> and return
+nil <a href="#nullability_intentional_violation">cast to _Nonnull</a> anyway.
+(Note that (4) doesn't apply in cases where the caller can't know they passed
+bad parameters. For example,
+<tt>+[NSData dataWithContentsOfFile:options:error:]</tt> will fail if the file
+doesn't exist, but there's no way to check for that in advance. This means
+you're really in (2).)</p>
+<p>If you're in (5), document it, then figure out if you're now in (2), (3), or
+(4). :-)</p>
+
+<h4 id="nullability_intentional_violation" class="faq">Q: How do I tell the analyzer that I am intentionally violating nullability?</h4>
+
+<p>In some cases, it may make sense for methods to intentionally violate
+nullability. For example, your method may &mdash; for reasons of backward
+compatibility &mdash; chose to return nil and log an error message in a method
+with a non-null return type when the client violated a documented precondition
+rather than check the precondition with <tt>NSAssert()</tt>. In these cases, you
+can suppress the analyzer warning with a cast:
+<pre class="code_example">
+    return (id _Nonnull)nil;
+</pre>
+Note that this cast does not affect code generation.
+</p>
+
+<h4 id="use_assert" class="faq">Q: The analyzer assumes that a loop body is never entered.  How can I tell it that the loop body will be entered at least once?</h4>
+
+<img src="images/example_use_assert.png" alt="example use assert">
+
+<p> In the contrived example above, the analyzer has detected that the body of
+the loop is never entered for the case where <tt>length <= 0</tt>. In this
+particular example, you may know that the loop will always be entered because
+the input parameter <tt>length</tt> will be greater than zero in all calls to this
+function. You can teach the analyzer facts about your code as well as document
+it by using assertions. By adding <tt>assert(length > 0)</tt> in the beginning
+of the function, you tell the analyzer that your code is never expecting a zero
+or a negative value, so it won't need to test the correctness of those paths.
+</p>
+
+<pre class="code_example">
+int foo(int length) {
+  int x = 0;
+  <span class="code_highlight">assert(length > 0);</span>
+  for (int i = 0; i < length; i++)
+    x += 1;
+  return length/x;
+}
+</pre>
+
+<h4 id="suppress_issue" class="faq">Q: How can I suppress a specific analyzer warning?</h4>
+
+<p>When you encounter an analyzer bug/false positive, check if it's one of the
+issues discussed above or if the analyzer
+<a href = "annotations.html#custom_assertions" >annotations</a> can
+resolve the issue by helping the static analyzer understand the code better.
+Second, please <a href = "filing_bugs.html">report it</a> to help us improve
+user experience.</p>
+
+<p>Sometimes there's really no "good" way to eliminate the issue. In such cases
+you can "silence" it directly by annotating the problematic line of code with
+the help of Clang attribute '<a href="https://clang.llvm.org/docs/AttributeReference.html#suppress">suppress</a>':
+
+<pre class="code_example">
+int foo() {
+  int *x = nullptr;
+  ...
+  <span class="code_highlight">[[clang::suppress]]</span> {
+    // all warnings in this scope are suppressed
+    int y = *x;
+  }
+
+  // null pointer dereference warning suppressed on the next line
+  <span class="code_highlight">[[clang::suppress]]</span>
+  return *x
+}
+
+int bar(bool coin_flip) {
+  // suppress all memory leak warnings about this allocation
+  <span class="code_highlight">[[clang::suppress]]</span>
+  int *result = (int *)malloc(sizeof(int));
+
+  if (coin_flip)
+    return 0;      // including this leak path
+
+  return *result;  // as well as this leak path
+}
+</pre>
+
+
+<p>You can also consider using <tt>__clang_analyzer__</tt> macro
+<a href = "faq.html#exclude_code" >described below</a>.</p>
+
+<h4 id="exclude_code" class="faq">Q: How can I selectively exclude code the analyzer examines?</h4>
+
+<p>When the static analyzer is using clang to parse source files, it implicitly
+defines the preprocessor macro <tt>__clang_analyzer__</tt>. One can use this
+macro to selectively exclude code the analyzer examines. Here is an example:
+
+<pre class="code_example">
+#ifndef __clang_analyzer__
+// Code not to be analyzed
+#endif
+</pre>
+
+This usage is discouraged because it makes the code dead to the analyzer from
+now on. Instead, we prefer that users file bugs against the analyzer when it flags
+false positives.
+</p>
+
+</div>
+</div>
+</body>
+</html>

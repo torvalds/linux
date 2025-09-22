@@ -1,0 +1,254 @@
+.\" $OpenBSD: ChaCha.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CHACHA 3
+.Os
+.Sh NAME
+.Nm ChaCha_set_key ,
+.Nm ChaCha_set_iv ,
+.Nm ChaCha ,
+.Nm CRYPTO_chacha_20 ,
+.Nm CRYPTO_hchacha_20 ,
+.Nm CRYPTO_xchacha_20
+.Nd ChaCha20 stream cipher
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/chacha.h
+.Ft void
+.Fo ChaCha_set_key
+.Fa "ChaCha_ctx *ctx"
+.Fa "const unsigned char *key"
+.Fa "unsigned int keybits"
+.Fc
+.Ft void
+.Fo ChaCha_set_iv
+.Fa "ChaCha_ctx *ctx"
+.Fa "const unsigned char *iv"
+.Fa "const unsigned char *counter"
+.Fc
+.Ft void
+.Fo ChaCha
+.Fa "ChaCha_ctx *ctx"
+.Fa "unsigned char *out"
+.Fa "const unsigned char *in"
+.Fa "size_t len"
+.Fc
+.Ft void
+.Fo CRYPTO_chacha_20
+.Fa "unsigned char *out"
+.Fa "const unsigned char *in"
+.Fa "size_t len"
+.Fa "const unsigned char key[32]"
+.Fa "const unsigned char iv[8]"
+.Fa "uint64_t counter"
+.Fc
+.Ft void
+.Fo CRYPTO_hchacha_20
+.Fa "unsigned char out[32]"
+.Fa "const unsigned char key[32]"
+.Fa "const unsigned char iv[16]"
+.Fc
+.Ft void
+.Fo CRYPTO_xchacha_20
+.Fa "unsigned char *out"
+.Fa "const unsigned char *in"
+.Fa "size_t len"
+.Fa "const unsigned char key[32]"
+.Fa "const unsigned char iv[24]"
+.Fc
+.Sh DESCRIPTION
+These functions provide a low-level implementation
+of the ChaCha stream cipher with 256 and 128-bit keys.
+The number of rounds is hardcoded to 20;
+variants with 8 or 12 rounds are not supported.
+.Pp
+Instead of using these functions directly,
+application programs normally use the more portable
+.Xr EVP_chacha20 3
+high-level interface.
+.Pp
+The ChaCha state is contained in the
+.Vt ChaCha_ctx
+structure and consists of sixteen 32-bit unsigned integers.
+.Pp
+For the recommended value of 256
+.Fa keybits ,
+.Fn ChaCha_set_key
+copies 32 bytes (256 bits) from
+.Fa key
+to the middle eight integers of the ChaCha state,
+using little endian order for each integer.
+For the alternative value of 128
+.Fa keybits ,
+only 16 bytes (128 bits) are copied from
+.Fa key
+to the ChaCha state, but they are copied twice,
+once to the second quarter and once to the third quarter.
+The first quarter of the ChaCha state is set to four constant integers;
+these constants differ depending on whether
+.Fa keybits
+is 128 or 256.
+The last quarter of the ChaCha state remains unchanged.
+.Pp
+.Fn ChaCha_set_iv
+copies eight bytes (64 bits) from
+.Fa counter
+and eight bytes (64 bits) from
+.Fa iv
+to the last quarter of the ChaCha state, the counter to the first
+two integers and the initialization vector to the last two integers,
+again in little endian order.
+If
+.Fa counter
+is
+.Dv NULL ,
+the two respective integers are set to 0 instead.
+The first three quarters of the ChaCha state remain unchanged.
+.Pp
+.Fn ChaCha
+encrypts
+.Fa len
+bytes of data from
+.Fa in
+to
+.Fa out
+using the
+.Fa ctx
+that was previously set up with
+.Fn ChaCha_set_key
+and
+.Fn ChaCha_set_iv .
+Providing an
+.Fa out
+buffer of at least
+.Fa len
+bytes is the responsibility of the caller.
+This function can be called multiple times in a row with varying
+.Fa len
+arguments.
+The
+.Fa len
+does not need to be a multiple of 64.
+.Pp
+.Fn CRYPTO_chacha_20
+encrypts
+.Fa len
+bytes of data from
+.Fa in
+to
+.Fa out
+in a one-shot operation, using the given
+.Fa key
+and
+.Fa iv
+as described for
+.Fn ChaCha_set_key
+and
+.Fn ChaCha_set_iv
+and copying the less significant half of
+.Fa counter
+to the first counter integer in the initial ChaCha state
+and the more significant half to the second integer.
+Providing an
+.Fa out
+buffer of at least
+.Fa len
+bytes is again the responsibility of the caller.
+The maximum supported value for
+.Fa len
+is 2^32 \- 1.
+.Pp
+XChaCha is a variant of ChaCha designed to support longer nonces,
+just like XSalsa20 is a variant of Salsa20 supporting longer nonces.
+.Pp
+.Fn CRYPTO_xchacha_20
+encrypts
+.Fa len
+bytes of data from
+.Fa in
+to
+.Fa out
+in a one-shot operation with the XChaCha algorithm, using the given
+.Fa key
+and
+.Fa iv .
+It is equivalent to
+.Fn CRYPTO_chacha_20
+with the last third of
+.Fa iv ,
+a
+.Fa counter
+of 0, and a key generated with
+.Fn CRYPTO_hchacha_20
+from the first two thirds of
+.Fa iv .
+.Sh SEE ALSO
+.Xr crypto 3 ,
+.Xr EVP_chacha20 3
+.Rs
+.%A Daniel J. Bernstein
+.%T ChaCha, a variant of Salsa20
+.%U https://cr.yp.to/chacha/chacha-20080128.pdf
+.%C Chicago
+.%D January 28, 2008
+.Re
+.Rs
+.%A Daniel J. Bernstein
+.%T Extending the Salsa20 nonce
+.%U https://cr.yp.to/snuffle/xsalsa-20110204.pdf
+.%C Chicago
+.%D August 22, 2017
+.Re
+.Sh STANDARDS
+RFC 8439: ChaCha20 and Poly1305 for IETF Protocols
+.Pp
+Note that the standard specifies
+a 32-bit counter and a 96-bit initialization vector whereas
+this implementation follows Bernstein's original specification
+and uses a 64-bit counter and a 64-bit initialization vector.
+.Pp
+These functions are specific to LibreSSL and not provided by OpenSSL.
+BoringSSL does provide
+.Fn CRYPTO_chacha_20 ,
+but with an incompatible interface, taking a 96-bit
+.Fa iv
+and a 32-bit
+.Fa counter .
+.Sh HISTORY
+.Fn ChaCha_set_key ,
+.Fn ChaCha_set_iv ,
+.Fn ChaCha ,
+and
+.Fn CRYPTO_chacha_20
+first appeared in
+.Ox 5.6 .
+.\" Committed on May 1, 2014.
+.\" BoringSSL added CRYPTO_chacha_20 on June 20, 2014.
+.Pp
+.Fn CRYPTO_hchacha_20
+and
+.Fn CRYPTO_xchacha_20
+first appeared in
+.Ox 6.5 .
+.Sh AUTHORS
+.An -nosplit
+This implementation was written by
+.An Daniel J. Bernstein Aq Mt djb@cr.yp.to .
+The API layer was added by
+.An Joel Sing Aq Mt jsing@openbsd.org
+for ChaCha, and for XChaCha by
+.An David Gwynne Aq Mt dlg@openbsd.org .

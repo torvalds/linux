@@ -1,0 +1,7 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("ProfileTests") {
+  configs += [ "//llvm/utils/gn/build:bolt_code" ]
+  deps = [ "//bolt/lib/Profile" ]
+  sources = [ "DataAggregator.cpp" ]
+}

@@ -1,0 +1,12 @@
+# create
+# fail add 1.2.3.4.5
+no IP address found for 1.2.3.4.5
+# fail add :80
+no IP address found for :80
+# kill
+1 tables deleted.
+rules cleared
+ktable: 3 allocated, 3 released, 0 leaked.
+pfrke_plain: 0 allocated, 0 released, 0 leaked.
+pfrke_route: 0 allocated, 0 released, 0 leaked.
+pfrke_cost: 0 allocated, 0 released, 0 leaked.

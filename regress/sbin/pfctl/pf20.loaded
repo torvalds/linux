@@ -1,0 +1,48 @@
+@0 match out on lo0 inet from 127.0.0.0/24 to 1.2.3.0/25 nat-to 127.0.0.1
+  [ Skip steps: i=8 d=4 r=end f=end p=4 sa=2 sp=end dp=4 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 match out on lo0 inet from 127.0.0.0/24 to 2.4.6.8/30 nat-to 127.0.0.1
+  [ Skip steps: i=8 d=4 r=end f=end p=4 sp=end dp=4 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 match out on lo0 inet from 10.0.1.0/24 to 1.2.3.0/25 nat-to 127.0.0.1
+  [ Skip steps: i=8 d=4 r=end f=end p=4 sa=4 sp=end dp=4 ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 match out on lo0 inet from 10.0.1.0/24 to 2.4.6.8/30 nat-to 127.0.0.1
+  [ Skip steps: i=8 r=end f=end sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 match in on lo0 inet proto tcp from 127.0.0.0/24 to 1.2.3.0/25 port = 21 rdr-to 127.0.0.1 port 8021
+  [ Skip steps: i=8 d=end r=end f=end p=end sa=6 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 match in on lo0 inet proto tcp from 127.0.0.0/24 to 2.4.6.8/30 port = 21 rdr-to 127.0.0.1 port 8021
+  [ Skip steps: i=8 d=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 match in on lo0 inet proto tcp from 10.0.1.0/24 to 1.2.3.0/25 port = 21 rdr-to 127.0.0.1 port 8021
+  [ Skip steps: i=8 d=end r=end f=end p=end sa=8 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 match in on lo0 inet proto tcp from 10.0.1.0/24 to 2.4.6.8/30 port = 21 rdr-to 127.0.0.1 port 8021
+  [ Skip steps: d=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 match in on lo1000000 inet proto tcp from 127.0.0.0/24 to 1.2.3.0/25 port = 21 rdr-to 127.0.0.1 port 8021
+  [ Skip steps: i=end d=end r=end f=end p=end sa=10 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 match in on lo1000000 inet proto tcp from 127.0.0.0/24 to 2.4.6.8/30 port = 21 rdr-to 127.0.0.1 port 8021
+  [ Skip steps: i=end d=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 match in on lo1000000 inet proto tcp from 10.0.1.0/24 to 1.2.3.0/25 port = 21 rdr-to 127.0.0.1 port 8021
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 match in on lo1000000 inet proto tcp from 10.0.1.0/24 to 2.4.6.8/30 port = 21 rdr-to 127.0.0.1 port 8021
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

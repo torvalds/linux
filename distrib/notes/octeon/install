@@ -1,0 +1,118 @@
+dnl	$OpenBSD: install,v 1.20 2022/03/02 09:35:24 stsp Exp $
+OpenBSDInstallPrelude
+
+OpenBSDInstallPart2
+
+OpenBSDInstallPart3(,"octcf0 for internal CompactFlash storage.")
+dnl sd0 for USB storage, or wd0 for internal hard disk storage attached to the SATA port
+
+OpenBSDInstallPart4
+
+OpenBSDInstallMBRPart1
+
+dnl OpenBSDInstallMBRPart2
+	The fdisk(8) utility will be invoked to let you edit your MBR
+	partitioning.  The current MBR partitions defined will be
+	displayed and you will be allowed to modify them, and add new
+	partitions.
+
+	The setup will need two partitions, one 'OpenBSD' for the
+	OpenBSD/MACHINE installation, and one 'MSDOS' for the
+	U-Boot scripts/bootloader.
+
+	If you use the whole disk option, the install script
+	will create a small 'MSDOS' partition and use the rest of
+	the disk for the OpenBSD installation.
+
+	After your OpenBSD MBR partition has been set up, the real
+	partition setup can follow.
+
+OpenBSDInstallPart5({:-
+	U-Boot partitions defined on the disk will usually show up as
+	partition 'i', 'j' and so on.-:})
+
+dnl OpenBSDInstallPart6({:-CD-ROM, -:})
+OpenBSDInstallPart6
+
+OpenBSDURLInstall
+
+dnl OpenBSDCDROMInstall
+
+OpenBSDNFSInstall
+
+OpenBSDDISKInstall({:-"octcfN" or -:},,{:-, Linux (ext2) or MS-DOS-:})
+
+OpenBSDCommonInstall
+
+OpenBSDInstallWrapup
+
+U-Boot has to be configured to load the OpenBSD/octeon bootloader.
+
+From the U-Boot commandline, make a copy of the current ${bootcmd} so you can
+restore it later if needed:
+
+	# setenv old_bootcmd "${bootcmd}"
+
+${bootcmd} is run by U-Boot when ${autoload} is enabled. Now create a new
+${bootcmd} which will load an ELF file called 'boot' from the first active FAT
+partition on the first CF card. The FAT partition has been created by the
+installer.
+
+	# setenv bootcmd 'fatload ide 0:1 ${loadaddr} boot;bootoctlinux rootdev=octcf0'
+	# setenv bootdelay 5
+	# saveenv
+	Saving Environment to Flash...
+	Un-Protected 1 sectors
+	Erasing Flash...
+	. done
+	Erased 1 sectors
+	Writing to Flash... .done
+	Protected 1 sectors
+	#
+
+If you have installed onto SD/MMC, SATA or USB, use the following
+bootcmd instead:
+
+  fatload <bootdev> 0 ${loadaddr} boot; bootoctlinux rootdev=sd0
+
+Replace ``<bootdev>'' with ``mmc'', ``sata'' or ``usb'' as appropriate.
+
+For stable root disk selection, you can use the root disk's
+disklabel(8) UID (DUID) as the value of the rootdev parameter.
+
+On multi-core systems, the numcores parameter enables the secondary CPUs.
+Use the total number of cores on your system as the value of the parameter.
+
+  fatload usb 0 ${loadaddr} boot; bootoctlinux rootdev=sd0 numcores=2
+
+On the EdgeRouter Lite, bootcmd may also reset the USB controller for
+more reliable USB device detection:
+
+  usb reset; fatload usb 0 ${loadaddr} boot; bootoctlinux rootdev=sd0 numcores=2
+
+On some models, such as ER-6p, unattended boot from a USB disk will fail
+if U-Boot attempts to verify the MD5 checksum of the file loaded by fatload:
+
+  reading vmlinux.64.md5
+  33 bytes read in 303 ms (0 Bytes/s)
+  md5 checksum error.
+  Octeon ubnt_e300(ram)#
+
+At this point, the 'bootoctlinux' command can be used to boot manually.
+
+The file 'vmlinux.64.md5' can be renamed from the running OpenBSD system.
+In case of ER-6p, the file 'vmlinux.64.md5' resides on a FAT partition
+of the internal MMC, which is accessible from OpenBSD via /dev/sd1i:
+
+   # mount /dev/sd1i /mnt
+   # mv /mnt/vmlinux.64.md5 /mnt/vmlinux.64.md5.unused
+   # reboot
+
+Unattended boot should now succeed, even though U-Boot will warn:
+
+  reading vmlinux.64.md5
+  ** Unable to read file vmlinux.64.md5 **
+
+OpenBSDCongratulations
+
+OpenBSDUnattendedInstallation

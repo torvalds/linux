@@ -1,0 +1,332 @@
+.\" $OpenBSD: mbrtowc.3,v 1.7 2023/09/12 08:33:37 jsg Exp $
+.\" $NetBSD: mbrtowc.3,v 1.5 2003/09/08 17:54:31 wiz Exp $
+.\"
+.\" Copyright (c)2023 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c)2010 Stefan Sperling <stsp@openbsd.org>
+.\" Copyright (c)2002 Citrus Project,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 12 2023 $
+.Dt MBRTOWC 3
+.Os
+.Sh NAME
+.Nm mbrtowc ,
+.Nm mbrtoc32
+.Nd convert a multibyte character to a wide character (restartable)
+.Sh SYNOPSIS
+.In wchar.h
+.Ft size_t
+.Fo mbrtowc
+.Fa "wchar_t * restrict wc"
+.Fa "const char * restrict s"
+.Fa "size_t n"
+.Fa "mbstate_t * restrict mbs"
+.Fc
+.In uchar.h
+.Ft size_t
+.Fo mbrtoc32
+.Fa "char32_t * restrict wc"
+.Fa "const char * restrict s"
+.Fa "size_t n"
+.Fa "mbstate_t * restrict mbs"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn mbrtowc
+and
+.Fn mbrtoc32
+functions examine at most
+.Fa n
+bytes of the multibyte character byte string pointed to by
+.Fa s ,
+convert those bytes to a wide character, and store the wide character into
+.Pf * Fa wc
+if
+.Fa wc
+is not
+.Dv NULL
+and
+.Fa s
+points to a valid character.
+.Pp
+Conversion happens in accordance with the conversion state
+.Pf * Fa mbs ,
+which must be initialized to zero before the application's first call to
+.Fn mbrtowc
+or
+.Fn mbrtoc32 .
+If the previous call did not return
+.Po Vt size_t Pc Ns \-1 ,
+.Fa mbs
+can safely be reused without reinitialization.
+.Pp
+The input encoding that
+.Fn mbrtowc
+and
+.Fn mbrtoc32
+use for
+.Fa s
+is determined by the
+.Dv LC_CTYPE
+category of the current locale.
+If the locale is changed without reinitialization of
+.Pf * Fa mbs ,
+the behaviour is undefined.
+.Pp
+Unlike
+.Xr mbtowc 3 ,
+.Fn mbrtowc
+and
+.Fn mbrtoc32
+accept an incomplete byte sequence pointed to by
+.Fa s
+which does not form a complete character but is potentially part of
+a valid character.
+In this case, both functions consume all such bytes.
+The conversion state saved in
+.Pf * Fa mbs
+will be used to restart the suspended conversion during the next call.
+.Pp
+On systems other than
+.Ox
+that support state-dependent encodings,
+.Fa s
+may point to a special sequence of bytes called a
+.Dq shift sequence .
+Shift sequences switch between character code sets available within an
+encoding scheme.
+One encoding scheme using shift sequences is ISO/IEC 2022-JP, which
+can switch e.g. from ASCII (which uses one byte per character) to
+JIS X 0208 (which uses two bytes per character).
+Shift sequence bytes correspond to no individual wide character, so
+.Fn mbrtowc
+and
+.Fn mbrtoc32
+treat them as if they were part of the subsequent multibyte character.
+Therefore they do contribute to the number of bytes in the multibyte character.
+.Pp
+The following arguments cause special processing:
+.Bl -tag -width 012345678901
+.It Fa wc No == Dv NULL
+The conversion from a multibyte character to a wide character is performed
+and the conversion state may be affected, but the resulting wide character
+is discarded.
+This can be used to find out how many bytes are contained in the
+multibyte character pointed to by
+.Fa s .
+.It Fa s No == Dv NULL
+The arguments
+.Fa wc
+and
+.Fa n
+are ignored and starting or continuing the conversion with an empty string
+is attempted, discarding the conversion result.
+If conversion succeeds, this call always returns zero.
+Unlike
+.Xr mbtowc 3 ,
+the value returned does not indicate whether the current encoding of
+the locale is state-dependent, i.e. uses shift sequences.
+.It Fa mbs No == Dv NULL
+.Fn mbrtowc
+and
+.Fn mbrtoc32
+each use their own internal state object instead of the
+.Fa mbs
+argument.
+Both internal state objects are initialized at startup time of the program,
+and no other libc function ever changes either of them.
+.Pp
+If
+.Fn mbrtowc
+or
+.Fn mbrtoc32
+is called with a
+.Dv NULL
+.Fa mbs
+argument and that call returns
+.Po Vt size_t Pc Ns \-1 ,
+the internal conversion state of the respective function becomes
+permanently undefined and there is no way to reset it to any defined state.
+Consequently, after such a mishap, it is not safe
+to call the same function with a
+.Dv NULL
+.Fa mbs
+argument ever again until the program is terminated.
+.El
+.Sh RETURN VALUES
+.Bl -tag -width 012345678901
+.It 0
+The bytes pointed to by
+.Fa s
+form a terminating NUL character.
+If
+.Fa wc
+is not
+.Dv NULL ,
+a NUL wide character has been stored in the wchar_t object pointed to by
+.Fa wc .
+.It positive
+.Fa s
+points to a valid character, and the value returned is the number of
+bytes completing the character.
+If
+.Fa wc
+is not
+.Dv NULL ,
+the corresponding wide character has been stored in the wchar_t object
+pointed to by
+.Fa wc .
+.It Po Vt size_t Pc Ns \-1
+.Fa s
+points to an illegal byte sequence which does not form a valid multibyte
+character in the current locale, or
+.Fa mbs
+points to an invalid or uninitialized object.
+.Va errno
+is set to
+.Er EILSEQ
+or
+.Er EINVAL ,
+respectively.
+The conversion state object pointed to by
+.Fa mbs
+is left in an undefined state and must be reinitialized before being
+used again.
+.Pp
+Because applications using
+.Fn mbrtowc
+or
+.Fn mbrtoc32
+are shielded from the specifics of the multibyte character encoding scheme,
+it is impossible to repair byte sequences containing encoding errors.
+Such byte sequences must be treated as invalid and potentially malicious input.
+Applications must stop processing the byte string pointed to by
+.Fa s
+and either discard any wide characters already converted, or cope with
+truncated input.
+.It Po Vt size_t Pc Ns \-2
+.Fa s
+points to an incomplete byte sequence of length
+.Fa n
+which has been consumed and contains part of a valid multibyte character.
+The character may be completed by calling the same function again with
+.Fa s
+pointing to one or more subsequent bytes of the multibyte character and
+.Fa mbs
+pointing to the conversion state object used during conversion of the
+incomplete byte sequence.
+.It Po Vt size_t Pc Ns \-3
+The next character resulting from a previous call has been stored into
+.Fa wc ,
+without consuming any additional bytes from
+.Fa s .
+This never happens for
+.Fn mbrtowc ,
+and on
+.Ox ,
+it never happens for
+.Fn mbrtoc32
+either.
+.El
+.Sh ERRORS
+.Fn mbrtowc
+and
+.Fn mbrtoc32
+cause an error in the following cases:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+.Fa s
+points to an invalid multibyte character.
+.It Bq Er EINVAL
+.Fa mbs
+points to an invalid or uninitialized
+.Vt mbstate_t
+object.
+.El
+.Sh SEE ALSO
+.Xr mbrlen 3 ,
+.Xr mbtowc 3 ,
+.Xr setlocale 3 ,
+.Xr wcrtomb 3
+.Sh STANDARDS
+.Fn mbrtowc
+conforms to
+.St -isoC-amd1 .
+The restrict qualifier was added at
+.St -isoC-99 .
+.Pp
+.Fn mbrtoc32
+conforms to
+.St -isoC-2011 .
+.Sh HISTORY
+.Fn mbrtowc
+has been available since
+.Ox 3.8
+and has provided support for UTF-8 since
+.Ox 4.8 .
+.Pp
+.Fn mbrtoc32
+has been available since
+.Ox 7.4 .
+.Sh CAVEATS
+.Fn mbrtowc
+and
+.Fn mbrtoc32
+are not suitable for programs that care about internals of the character
+encoding scheme used by the byte string pointed to by
+.Fa s .
+.Pp
+It is possible that these functions
+fail because of locale configuration errors.
+An
+.Dq invalid
+character sequence may simply be encoded in a different encoding than that
+of the current locale.
+.Pp
+The special cases for
+.Fa s No == Dv NULL
+and
+.Fa mbs No == Dv NULL
+do not make any sense.
+Instead of passing
+.Dv NULL
+for
+.Fa mbs ,
+.Xr mbtowc 3
+can be used.
+.Pp
+Earlier versions of this man page implied that calling
+.Fn mbrtowc
+with a
+.Dv NULL
+.Fa s
+argument would always set
+.Fa mbs
+to the initial conversion state.
+But this is true only if the previous call to
+.Fn mbrtowc
+using
+.Fa mbs
+did not return (size_t)-1 or (size_t)-2.
+It is recommended to zero the mbstate_t object instead.

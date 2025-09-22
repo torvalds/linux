@@ -1,0 +1,15 @@
+static_library("lib") {
+  output_name = "LLVMDiff"
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "DiffConsumer.cpp",
+    "DiffConsumer.h",
+    "DiffLog.cpp",
+    "DiffLog.h",
+    "DifferenceEngine.cpp",
+    "DifferenceEngine.h",
+  ]
+}

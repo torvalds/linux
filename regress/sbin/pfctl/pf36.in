@@ -1,0 +1,17 @@
+# test nat pools syntax
+
+#match out on lo0 from any to 127.0.0.1 nat-to { 127.0.0.1, 127.0.0.2 }
+match out on lo0 from any to 127.0.0.1 nat-to { 127.0.0.1, 127.0.0.2 } round-robin
+match out on lo0 from any to 127.0.0.1 nat-to lo0/24 bitmask static-port
+match out on lo0 from any to 127.0.0.1 nat-to lo0/24 random
+match out on lo0 from any to lo0 nat-to 127.0.0.1/24 source-hash 0x0123456789ABCDEF0123456789abcdef
+match out on lo0 from any to 127.0.0.1 nat-to lo0/24 source-hash foobarlicious
+match out on lo0 from any to 127.0.0.1 nat-to lo0/24 round-robin
+
+match in on lo0 from any to lo0 rdr-to { 127.0.0.1, 127.0.0.2 }
+match in on lo0 from any to lo0 rdr-to { 127.0.0.1, 127.0.0.2 } round-robin
+match in on lo0 from any to lo0 rdr-to 127.0.0.1/24 bitmask
+match in on lo0 from any to lo0 rdr-to 127.0.0.1/24 random
+match in on lo0 from any to 127.0.0.1 rdr-to lo0/24 source-hash 0x0123456789ABCDEF0123456789abcdef
+match in on lo0 from any to lo0 rdr-to 127.0.0.1/24 source-hash foobarlicious
+match in on lo0 from any to lo0 rdr-to 127.0.0.1/24 round-robin

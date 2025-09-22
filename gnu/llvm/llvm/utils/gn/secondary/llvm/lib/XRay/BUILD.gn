@@ -1,0 +1,24 @@
+static_library("XRay") {
+  output_name = "LLVMXRay"
+  deps = [
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [
+    "BlockIndexer.cpp",
+    "BlockPrinter.cpp",
+    "BlockVerifier.cpp",
+    "FDRRecordProducer.cpp",
+    "FDRRecords.cpp",
+    "FDRTraceExpander.cpp",
+    "FDRTraceWriter.cpp",
+    "FileHeaderReader.cpp",
+    "InstrumentationMap.cpp",
+    "LogBuilderConsumer.cpp",
+    "Profile.cpp",
+    "RecordInitializer.cpp",
+    "RecordPrinter.cpp",
+    "Trace.cpp",
+  ]
+}

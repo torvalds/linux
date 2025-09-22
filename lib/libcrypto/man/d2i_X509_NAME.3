@@ -1,0 +1,214 @@
+.\" $OpenBSD: d2i_X509_NAME.3,v 1.19 2025/06/08 22:40:30 schwarze Exp $
+.\" checked up to:
+.\" OpenSSL crypto/d2i_X509_NAME 4692340e Jun 7 15:49:08 2016 -0400 and
+.\" OpenSSL man3/X509_NAME_get0_der 99d63d46 Oct 26 13:56:48 2016 -0400
+.\"
+.\" Copyright (c) 2016, 2018 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_X509_NAME 3
+.Os
+.Sh NAME
+.Nm d2i_X509_NAME ,
+.Nm i2d_X509_NAME ,
+.Nm X509_NAME_get0_der ,
+.Nm X509_NAME_dup ,
+.Nm X509_NAME_set ,
+.Nm d2i_X509_NAME_ENTRY ,
+.Nm i2d_X509_NAME_ENTRY ,
+.Nm X509_NAME_ENTRY_dup
+.\" In the following line, "X.501" and "Name" are not typos.
+.\" The "Name" type is defined in X.501, not in X.509.
+.\" The type is called "Name" with capital "N", not "name".
+.Nd decode and encode X.501 Name objects
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft X509_NAME *
+.Fo d2i_X509_NAME
+.Fa "X509_NAME **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_NAME
+.Fa "X509_NAME *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft int
+.Fo X509_NAME_get0_der
+.Fa "X509_NAME *val_in"
+.Fa "const unsigned char **der_out"
+.Fa "size_t *out_len"
+.Fc
+.Ft X509_NAME *
+.Fo X509_NAME_dup
+.Fa "X509_NAME *val_in"
+.Fc
+.Ft int
+.Fo X509_NAME_set
+.Fa "X509_NAME **val_out"
+.Fa "X509_NAME *val_in"
+.Fc
+.Ft X509_NAME_ENTRY *
+.Fo d2i_X509_NAME_ENTRY
+.Fa "X509_NAME_ENTRY **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_X509_NAME_ENTRY
+.Fa "X509_NAME_ENTRY *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.Ft X509_NAME_ENTRY *
+.Fo X509_NAME_ENTRY_dup
+.Fa "X509_NAME_ENTRY *val_in"
+.Fc
+.Sh DESCRIPTION
+These functions decode and encode X.501
+.Vt Name
+objects using DER format.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+.Fn d2i_X509_NAME
+and
+.Fn i2d_X509_NAME
+decode and encode an ASN.1
+.Vt Name
+structure defined in RFC 5280 section 4.1.2.4.
+.Pp
+.Fn X509_NAME_get0_der
+is a variant of
+.Fn i2d_X509_NAME
+that does not copy the encoded output but instead returns a pointer
+to the internally cached DER-encoded version of the name.
+Also, it does not return the length of the output in bytes,
+but instead stores it in
+.Fa out_len .
+If the cached encoded form happens to be out of date, both functions
+update it before copying it or returning a pointer to it.
+.Pp
+.Fn X509_NAME_dup
+copies
+.Fa val_in
+by calling
+.Fn i2d_X509_NAME
+and
+.Fn d2i_X509_NAME .
+.Pp
+.Fn X509_NAME_set
+makes sure that
+.Pf * Fa val_out
+contains the same data as
+.Fa val_in
+after the call, except that it fails if
+.Fa val_in
+is
+.Dv NULL .
+If
+.Pf * Fa val_out
+is the same pointer as
+.Fa val_in ,
+the function succeeds without changing anything.
+Otherwise, it copies
+.Fa val_in
+using
+.Fn X509_NAME_dup ,
+and in case of success, it frees
+.Pf * Fa val_out
+and sets it to a pointer to the new object.
+When the function fails, it never changes anything.
+In any case,
+.Fa val_in
+remains valid and may or may not be the same pointer as
+.Pf * Fa val_out
+after the call.
+.Pp
+.Fn d2i_X509_NAME_ENTRY
+and
+.Fn i2d_X509_NAME_ENTRY
+decode and encode an ASN.1
+.Vt RelativeDistinguishedName
+structure defined in RFC 5280 section 4.1.2.4.
+.Pp
+.Fn X509_NAME_ENTRY_dup
+copies
+.Fa val_in
+by calling
+.Fn i2d_X509_NAME_ENTRY
+and
+.Fn d2i_X509_NAME_ENTRY .
+.Sh RETURN VALUES
+.Fn d2i_X509_NAME
+and
+.Fn X509_NAME_dup
+return the new
+.Vt X509_NAME
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn X509_NAME_set
+and
+.Fn X509_NAME_get0_der
+return 1 on success or 0 if an error occurs.
+.Pp
+.Fn d2i_X509_NAME_ENTRY
+and
+.Fn X509_NAME_ENTRY_dup
+return the new
+.Vt X509_NAME_ENTRY
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn i2d_X509_NAME
+and
+.Fn i2d_X509_NAME_ENTRY
+return the number of bytes successfully encoded or a negative value
+if an error occurs.
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr X509_NAME_ENTRY_new 3 ,
+.Xr X509_NAME_new 3 ,
+.Xr X509_NAME_print_ex 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile
+.Pp
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules:
+Specification of Basic Encoding Rules (BER), Canonical Encoding
+Rules (CER) and Distinguished Encoding Rules (DER).
+.Sh HISTORY
+.Fn X509_NAME_dup
+first appeared in SSLeay 0.4.4.
+.Fn d2i_X509_NAME ,
+.Fn i2d_X509_NAME ,
+.Fn d2i_X509_NAME_ENTRY ,
+.Fn i2d_X509_NAME_ENTRY ,
+and
+.Fn X509_NAME_ENTRY_dup
+first appeared in SSLeay 0.5.1.
+.Fn X509_NAME_set
+first appeared in SSLeay 0.8.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn X509_NAME_get0_der
+first appeared in OpenSSL 1.1.0 and has been available since
+.Ox 6.3 .

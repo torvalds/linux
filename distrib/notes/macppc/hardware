@@ -1,0 +1,43 @@
+dnl	$OpenBSD: hardware,v 1.102 2014/02/27 18:48:15 deraadt Exp $
+OpenBSD/MACHINE OSREV runs on iMac, G4 Power Macintosh, and G4 Cube, as well
+as PowerBook and iBook machines.
+
+Machines with older firmware: 6xxx, 7xxx, 8xxx, and 9xxx machines are
+not supported.  PowerMac G3 Beige status is unknown.
+
+OpenBSD/MACHINE has been tested on iMac Revs A-C as well as on iMac DV(+)
+machines, Power Macintosh G4 systems (single and dual processor), as well as
+the G4 Cube, B&W G3, LCD iMac, Mac mini, iMac G5, PowerMac G5 and Xserve G5.
+
+For portables, PowerBook G3, PowerBook G4 (12", 15", 17"), iBook, iBook2
+and iBook G4 have been tested.  Note that power saving features on portables
+are very limited, limited power management features are available,
+suspend/sleep is not supported.  However battery level and status charging/AC
+connected/AC disconnected is supported via an APM emulation layer.
+
+
+Supported devices {:-include-:}:
+
+	IDE hard disk controllers
+		Onboard controllers (wdc_obio)
+		Onboard ATA100 controllers (kauaiata)
+		PCI controllers (pciide)
+
+	AGP/SVGA/VGA Display Adapters
+		Primary Open Firmware display only
+		The following cards will run an accelerated X server:
+		- ATI Mach64 GP
+		- ATI Mach64 GV
+		- ATI Mach64 128 PK
+		- ATI Mach64 128 VR AGP
+		- ATI Rage 128 Mobility M3
+		- ATI Rage Fury AGP4x
+		- ATI Radeon Mobility M7
+		- ATI Radeon Mobility 9200 (M9+)
+		- NVIDIA GeForce4 440 Go 64M
+
+	Serial ports
+		Built-in Zilog 8530-based serial ports (zs)
+		Internal non-USB modems.
+		Most modems, digital cellular modems, and serial
+		cards attached through PC-Cards should work (com)

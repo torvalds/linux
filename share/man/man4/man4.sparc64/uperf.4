@@ -1,0 +1,242 @@
+.\"     $OpenBSD: uperf.4,v 1.17 2015/02/15 22:26:45 bentley Exp $
+.\"
+.\" Copyright (c) 2002 Jason L. Wright (jason@thought.net)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: February 15 2015 $
+.Dt UPERF 4 sparc64
+.Os
+.Sh NAME
+.Nm uperf
+.Nd performance counters driver
+.Sh SYNOPSIS
+.Cd "uperf* at ebus?"
+.Cd "uperf* at sbus?"
+.Sh DESCRIPTION
+Some UltraSPARC host bridges provide performance counters on their host
+bridges.
+The counters are a part of the system controller chip (usc, dsc, or qsc).
+On PCI machines the system controller shows up as a device on the EBus, but
+on SBus machines the system controller exists in SBus space.
+The
+.Nm
+driver provides access to these counters via
+.Xr ioctl 2 .
+.Sh IOCTLS
+All of the ioctl calls supported by the
+.Nm
+driver take the following structure as an argument:
+.Bd -literal -offset indent
+struct uperf_io {
+	int cnt_flags;
+	int cnt_src0;
+	int cnt_src1;
+	u_int32_t cnt_val0;
+	u_int32_t cnt_val1;
+};
+.Ed
+.Pp
+The
+.Fa cnt_flags
+field specifies which counters are being operated on and is a bit mask
+of
+.Fa UPERF_CNT0
+and/or
+.Fa UPERF_CNT1 .
+.Pp
+The
+.Fa cnt_src0
+and
+.Fa cnt_src1
+fields specify the source for the counter.
+Not all counters support monitoring all sources and specifying an invalid
+source for a counter to monitor will result in an error.
+The sources are specified below:
+.Pp
+.Bl -tag -width "UPERFSRC_TLBMISS" -offset indent -compact
+.It Em UPERFSRC_SYSCK
+system clock ticks
+.It Em UPERFSRC_PRALL
+all p-requests
+.It Em UPERFSRC_PRP0
+p-requests from processor 0
+.It Em UPERFSRC_PRU2S
+p-requests from the U2S
+.It Em UPERFSRC_UPA128
+cycles UPA 128 bit data is busy
+.It Em UPERFSRC_UPA64
+cycles UPA 64 bit data is busy
+.It Em UPERFSRC_PIOS
+cycles stalled during PIO
+.It Em UPERFSRC_MEMRI
+memory requests issued
+.It Em UPERFSRC_MCBUSY
+cycles memory controller is busy
+.It Em UPERFSRC_PXSH
+stall cycles due to pending transaction scoreboard hit
+.It Em UPERFSRC_P0CWMR
+coherent write miss requests, processor 0
+.It Em UPERFSRC_P1CWMR
+coherent write miss requests, processor 1
+.It Em UPERFSRC_CIT
+coherent intervention transactions
+.It Em UPERFSRC_U2SDAT
+data transactions on U2S
+.It Em UPERFSRC_CRXI
+coherent read transactions issued
+.It Em UPERFSRC_RDP0
+read requests, processor 0
+.It Em UPERFSRC_P0CRMR
+coherent read misses, processor 0
+.It Em UPERFSRC_P0PIO
+PIO accesses, processor 0
+.It Em UPERFSRC_MEMRC
+memory requests completed
+.It Em UPERFSRC_P1RR
+read requests, processor 1
+.It Em UPERFSRC_CRMP1
+coherent read misses, processor 1
+.It Em UPERFSRC_PIOP1
+PIO accesses, processor 1
+.It Em UPERFSRC_CWXI
+coherent write transactions issued
+.It Em UPERFSRC_RP0
+read requests, processor 0
+.It Em UPERFSRC_SDVRA
+streaming DVMA read transfers, PCI bus A
+.It Em UPERFSRC_SDVWA
+streaming DVMA write transfers, PCI bus A
+.It Em UPERFSRC_CDVRA
+consistent DVMA read transfers, PCI bus A
+.It Em UPERFSRC_CDVWA
+consistent DVMA write transfers, PCI bus A
+.It Em UPERFSRC_SBMA
+streaming buffer misses, PCI bus A
+.It Em UPERFSRC_DVA
+DVMA cycles, PCI bus A
+.It Em UPERFSRC_DVWA
+words transferred via DVMA, PCI bus A
+.It Em UPERFSRC_PIOA
+cycles consumed by PIO, bus A
+.It Em UPERFSRC_SDVRB
+streaming DVMA read transfers, PCI bus B
+.It Em UPERFSRC_SDVWB
+streaming DVMA write transfers, PCI bus B
+.It Em UPERFSRC_CDVRB
+consistent DVMA read transfers, PCI bus B
+.It Em UPERFSRC_CDVWB
+consistent DVMA write transfers, PCI bus B
+.It Em UPERFSRC_SBMB
+streaming buffer misses, PCI bus B
+.It Em UPERFSRC_DVB
+DVMA cycles, PCI bus B
+.It Em UPERFSRC_DVWB
+words transferred via DVMA, PCI bus B
+.It Em UPERFSRC_PIOB
+cycles consumed by PIO, bus B
+.It Em UPERFSRC_TLBMISS
+TLB misses
+.It Em UPERFSRC_NINTRS
+interrupts
+.It Em UPERFSRC_INACK
+interrupt NACKS on UPA
+.It Em UPERFSRC_PIOR
+PIO read transfers
+.It Em UPERFSRC_PIOW
+PIO write transfers
+.It Em UPERFSRC_MERGE
+merge buffer transactions
+.It Em UPERFSRC_TBLA
+DMA requests retried due to tablewalks, PCI bus A
+.It Em UPERFSRC_STCA
+DMA requests retries due to STC, PCI bus A
+.It Em UPERFSRC_TBLB
+DMA requests retries due to tablewalks, PCI bus B
+.It Em UPERFSRC_STCB
+DMA requests retries due to STC, PCI bus B
+.El
+.Pp
+The
+.Fa cnt_val0
+and
+.Fa cnt_val1
+contain the values fetched for the counters.
+Software using this interface should be prepared to handle the counters
+rolling over.
+.Pp
+The
+.Nm
+device responds to the following
+.Xr ioctl 2
+calls, which are defined in
+.In dev/sun/uperfio.h .
+.Bl -tag -width UPIO_GCNTSRC
+.It Dv UPIO_GCNTSRC
+.Pq Li "struct uperf_io"
+Retrieve the source the counters are monitoring.
+The
+.Fa cnt_flags
+is a bit mask for which of the counters is to be fetched.
+The result is returned in
+.Fa cnt_src0
+and/or
+.Fa cnt_src1 .
+.It Dv UPIO_SCNTSRC
+.Pq Li "struct uperf_io"
+Set the source the counters should monitor.
+This call also clears the current value of the counters that are set.
+The
+.Fa cnt_flags
+is a bit mask for which of the counters is to be set.
+The
+.Fa cnt_src0
+and/or
+.Fa cnt_src1
+fields specify the source to be set for the respective counter.
+.It Dv UPIO_CLRCNT
+.Pq Li "struct uperf_io"
+Clear the counters specified in
+.Fa cnt_flags .
+.It Dv UPIO_GETCNT
+.Pq Li "struct uperf_io"
+Retrieve the value for the counters specified in
+.Fa cnt_flags .
+The values are returned in
+.Fa cnt_val0
+and/or
+.Fa cnt_val1 .
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr ebus 4 ,
+.Xr intro 4 ,
+.Xr sbus 4
+.Sh HISTORY
+The
+.Nm
+driver was first supported in
+.Ox 3.1 .
+.Sh AUTHORS
+The driver was written by
+.An Jason Wright Aq Mt jason@thought.net .

@@ -1,0 +1,426 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="content-type">
+  <title>Bitmap Allocator</title>
+  <meta content="Dhruv Matani" name="author">
+  <meta content="Bitmap Allocator" name="description">
+</head>
+<body>
+<h1 style="text-align: center;">Bitmap Allocator</h1>
+<em><br>
+<small><small>The latest version of this document is always available
+at <a
+ href="http://gcc.gnu.org/onlinedocs/libstdc++/ext/ballocator_doc.html">
+http://gcc.gnu.org/onlinedocs/libstdc++/ext/ballocator_doc.html</a>.</small></small></em><br>
+<br>
+<em> To the <a href="http://gcc.gnu.org/libstdc++/">libstdc++-v3
+homepage</a>.</em><br>
+<br>
+<hr style="width: 100%; height: 2px;"><br>
+As this name suggests, this allocator uses a bit-map to keep track of
+the used and unused memory locations for it's book-keeping purposes.<br>
+<br>
+This allocator will make use of 1 single bit to keep track of whether
+it has been allocated or not. A bit 1 indicates free, while 0 indicates
+allocated. This has been done so that you can easily check a collection
+of bits for a free block. This kind of Bitmapped strategy works best
+for single object allocations, and with the STL type parameterized
+allocators, we do not need to choose any size for the block which will
+be represented by a single bit. This will be the size of the parameter
+around which the allocator has been parameterized. Thus, close to
+optimal performance will result. Hence, this should be used for node
+based containers which call the allocate function with an argument of 1.<br>
+<br>
+The bitmapped allocator's internal pool is exponentially growing.
+Meaning that internally, the blocks acquired from the Free List Store
+will double every time the bitmapped allocator runs out of memory.<br>
+<br>
+<hr style="width: 100%; height: 2px;"><br>
+The macro __GTHREADS decides whether to use Mutex Protection around
+every allocation/deallocation. The state of the macro is picked up
+automatically from the gthr abstraction layer.<br>
+<br>
+<hr style="width: 100%; height: 2px;">
+<h3 style="text-align: center;">What is the Free List Store?</h3>
+<br>
+The Free List Store (referred to as FLS for the remaining part of this
+document) is the Global memory pool that is shared by all instances of
+the bitmapped allocator instantiated for any type. This maintains a
+sorted order of all free memory blocks given back to it by the
+bitmapped allocator, and is also responsible for giving memory to the
+bitmapped allocator when it asks for more.<br>
+<br>
+Internally, there is a Free List threshold which indicates the Maximum
+number of free lists that the FLS can hold internally (cache).
+Currently, this value is set at 64. So, if there are more than 64 free
+lists coming in, then some of them will be given back to the OS using
+operator delete so that at any given time the Free List's size does not
+exceed 64 entries. This is done because a Binary Search is used to
+locate an entry in a free list when a request for memory comes along.
+Thus, the run-time complexity of the search would go up given an
+increasing size, for 64 entries however, lg(64) == 6 comparisons are
+enough to locate the correct free list if it exists.<br>
+<br>
+Suppose the free list size has reached it's threshold, then the largest
+block from among those in the list and the new block will be selected
+and given back to the OS. This is done because it reduces external
+fragmentation, and allows the OS to use the larger blocks later in an
+orderly fashion, possibly merging them later. Also, on some systems,
+large blocks are obtained via calls to mmap, so giving them back to
+free system resources becomes most important.<br>
+<br>
+The function _S_should_i_give decides the policy that determines
+whether the current block of memory should be given to the allocator
+for the request that it has made. That's because we may not always have
+exact fits for the memory size that the allocator requests. We do this
+mainly to prevent external fragmentation at the cost of a little
+internal fragmentation. Now, the value of this internal fragmentation
+has to be decided by this function. I can see 3 possibilities right
+now. Please add more as and when you find better strategies.<br>
+<br>
+<ol>
+  <li>Equal size check. Return true only when the 2 blocks are of equal
+size.</li>
+  <li>Difference Threshold: Return true only when the _block_size is
+greater than or equal to the _required_size, and if the _BS is &gt; _RS
+by a difference of less than some THRESHOLD value, then return true,
+else return false. </li>
+  <li>Percentage Threshold. Return true only when the _block_size is
+greater than or equal to the _required_size, and if the _BS is &gt; _RS
+by a percentage of less than some THRESHOLD value, then return true,
+else return false.</li>
+</ol>
+<br>
+Currently, (3) is being used with a value of 36% Maximum wastage per
+Super Block.<br>
+<br>
+<hr style="width: 100%; height: 2px;"><span style="font-weight: bold;">1)
+What is a super block? Why is it needed?</span><br>
+<br>
+A super block is the block of memory acquired from the FLS from which
+the bitmap allocator carves out memory for single objects and satisfies
+the user's requests. These super blocks come in sizes that are powers
+of 2 and multiples of 32 (_Bits_Per_Block). Yes both at the same time!
+That's because the next super block acquired will be 2 times the
+previous one, and also all super blocks have to be multiples of the
+_Bits_Per_Block value. <br>
+<br>
+<span style="font-weight: bold;">2) How does it interact with the free
+list store?</span><br>
+<br>
+The super block is contained in the FLS, and the FLS is responsible for
+getting / returning Super Bocks to and from the OS using operator new
+as defined by the C++ standard.<br>
+<br>
+<hr style="width: 100%; height: 2px;">
+<h3 style="text-align: center;">How does the allocate function Work?</h3>
+<br>
+The allocate function is specialized for single object allocation ONLY.
+Thus, ONLY if n == 1, will the bitmap_allocator's specialized algorithm
+be used. Otherwise, the request is satisfied directly by calling
+operator new.<br>
+<br>
+Suppose n == 1, then the allocator does the following:<br>
+<br>
+<ol>
+  <li>Checks to see whether a free block exists somewhere in a
+region of memory close to the last satisfied request. If so, then that
+block is marked as allocated in the bit map and given to the user. If
+not, then (2) is executed.</li>
+  <li>Is there a free block anywhere after the current block right up to
+the end of the memory that we have? If so, that block is found, and the
+same procedure is applied as above, and returned to the user. If not,
+then (3) is executed.</li>
+  <li>Is there any block in whatever region of memory that we own free?
+This is done by checking <br>
+    <div style="margin-left: 40px;">
+    <ul>
+      <li>The use count for each super block, and if that fails then </li>
+      <li>The individual bit-maps for each super block. </li>
+    </ul>
+    </div>
+Note: Here we are never touching any of the memory that the user will
+be given, and we are confining all memory accesses to a small region of
+memory! This helps reduce cache misses. If this succeeds then we apply
+the same procedure on that bit-map as (1), and return that block of
+memory to the user. However, if this process fails, then we resort to
+(4).</li>
+  <li>This process involves Refilling the internal exponentially
+growing memory pool. The said effect is achieved by calling
+_S_refill_pool which does the following: <br>
+    <div style="margin-left: 40px;">
+    <ul>
+      <li>Gets more memory from the Global Free List of the Required
+size. </li>
+      <li>Adjusts the size for the next call to itself. </li>
+      <li>Writes the appropriate headers in the bit-maps.</li>
+      <li>Sets the use count for that super-block just allocated to 0
+(zero). </li>
+      <li>All of the above accounts to maintaining the basic invariant
+for the allocator. If the invariant is maintained, we are sure that all
+is well. Now, the same process is applied on the newly acquired free
+blocks, which are dispatched accordingly.</li>
+    </ul>
+    </div>
+  </li>
+</ol>
+<br>
+Thus, you can clearly see that the allocate function is nothing but a
+combination of the next-fit and first-fit algorithm optimized ONLY for
+single object allocations.<br>
+<br>
+<br>
+<hr style="width: 100%; height: 2px;">
+<h3 style="text-align: center;">How does the deallocate function work?</h3>
+<br>
+The deallocate function again is specialized for single objects ONLY.
+For all n belonging to &gt; 1, the operator delete is called without
+further ado, and the deallocate function returns.<br>
+<br>
+However for n == 1, a series of steps are performed:<br>
+<br>
+<ol>
+  <li>We first need to locate that super-block which holds the memory
+location given to us by the user. For that purpose, we maintain a
+static variable _S_last_dealloc_index, which holds the index into the
+vector of block pairs which indicates the index of the last super-block
+from which memory was freed. We use this strategy in the hope that the
+user will deallocate memory in a region close to what he/she
+deallocated the last time around. If the check for belongs_to succeeds,
+then we determine the bit-map for the given pointer, and locate the
+index into that bit-map, and mark that bit as free by setting it.</li>
+  <li>If the _S_last_dealloc_index does not point to the memory block
+that we're looking for, then we do a linear search on the block stored
+in the vector of Block Pairs. This vector in code is called
+_S_mem_blocks. When the corresponding super-block is found, we apply
+the same procedure as we did for (1) to mark the block as free in the
+bit-map.</li>
+</ol>
+<br>
+Now, whenever a block is freed, the use count of that particular super
+block goes down by 1. When this use count hits 0, we remove that super
+block from the list of all valid super blocks stored in the vector.
+While doing this, we also make sure that the basic invariant is
+maintained by making sure that _S_last_request and
+_S_last_dealloc_index point to valid locations within the vector.<br>
+<br>
+<hr style="width: 100%; height: 2px;"><br>
+<h3 style="text-align: center;">Data Layout for a Super Block:</h3>
+<br>
+Each Super Block will be of some size that is a multiple of the number
+of Bits Per Block. Typically, this value is chosen as Bits_Per_Byte x
+sizeof(size_t). On an x86 system, this gives the figure &nbsp;8 x
+4 = 32. Thus, each Super Block will be of size 32 x Some_Value. This
+Some_Value is sizeof(value_type). For now, let it be called 'K'. Thus,
+finally, Super Block size is 32 x K bytes.<br>
+<br>
+This value of 32 has been chosen because each size_t has 32-bits
+and Maximum use of these can be made with such a figure.<br>
+<br>
+Consider a block of size 64 ints. In memory, it would look like this:
+(assume a 32-bit system where, size_t is a 32-bit entity).<br>
+<br>
+<table cellpadding="0" cellspacing="0" border="1"
+ style="text-align: left; width: 763px; height: 21px;">
+  <tbody>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">268<br>
+      </td>
+      <td style="vertical-align: top; text-align: center;">0<br>
+      </td>
+      <td style="vertical-align: top; text-align: center;">4294967295<br>
+      </td>
+      <td style="vertical-align: top; text-align: center;">4294967295<br>
+      </td>
+      <td style="vertical-align: top; text-align: center;">Data -&gt;
+Space for 64 ints<br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<br>
+<br>
+The first Column(268) represents the size of the Block in bytes as seen
+by
+the Bitmap Allocator. Internally, a global free list is used to keep
+track of the free blocks used and given back by the bitmap allocator.
+It is this Free List Store that is responsible for writing and managing
+this information. Actually the number of bytes allocated in this case
+would be: 4 + 4 + (4x2) + (64x4) = 272 bytes, but the first 4 bytes are
+an
+addition by the Free List Store, so the Bitmap Allocator sees only 268
+bytes. These first 4 bytes about which the bitmapped allocator is not
+aware hold the value 268.<br>
+<br>
+<span style="font-weight: bold;">What do the remaining values represent?</span><br>
+<br>
+The 2nd 4 in the expression is the sizeof(size_t) because the
+Bitmapped Allocator maintains a used count for each Super Block, which
+is initially set to 0 (as indicated in the diagram). This is
+incremented every time a block is removed from this super block
+(allocated), and decremented whenever it is given back. So, when the
+used count falls to 0, the whole super block will be given back to the
+Free List Store.<br>
+<br>
+The value 4294967295 represents the integer corresponding to the bit
+representation of all bits set: 11111111111111111111111111111111.<br>
+<br>
+The 3rd 4x2 is size of the bitmap itself, which is the size of 32-bits
+x 2,
+which is 8-bytes, or 2 x sizeof(size_t).<br>
+<br>
+<hr style="width: 100%; height: 2px;"><br>
+Another issue would be whether to keep the all bitmaps in a separate
+area in memory, or to keep them near the actual blocks that will be
+given out or allocated for the client. After some testing, I've decided
+to keep these bitmaps close to the actual blocks. This will help in 2
+ways. <br>
+<br>
+<ol>
+  <li>Constant time access for the bitmap themselves, since no kind of
+look up will be needed to find the correct bitmap list or it's
+equivalent.</li>
+  <li>And also this would preserve the cache as far as possible.</li>
+</ol>
+<br>
+So in effect, this kind of an allocator might prove beneficial from a
+purely cache point of view. But this allocator has been made to try and
+roll out the defects of the node_allocator, wherein the nodes get
+skewed about in memory, if they are not returned in the exact reverse
+order or in the same order in which they were allocated. Also, the
+new_allocator's book keeping overhead is too much for small objects and
+single object allocations, though it preserves the locality of blocks
+very well when they are returned back to the allocator.<br>
+<br>
+<hr style="width: 100%; height: 2px;"><br>
+Expected overhead per block would be 1 bit in memory. Also, once the
+address of the free list has been found, the cost for
+allocation/deallocation would be negligible, and is supposed to be
+constant time. For these very reasons, it is very important to minimize
+the linear time costs, which include finding a free list with a free
+block while allocating, and finding the corresponding free list for a
+block while deallocating. Therefore, I have decided that the growth of
+the internal pool for this allocator will be exponential as compared to
+linear for node_allocator. There, linear time works well, because we
+are mainly concerned with speed of allocation/deallocation and memory
+consumption, whereas here, the allocation/deallocation part does have
+some linear/logarithmic complexity components in it. Thus, to try and
+minimize them would be a good thing to do at the cost of a little bit
+of memory.<br>
+<br>
+Another thing to be noted is the pool size will double every time
+the internal pool gets exhausted, and all the free blocks have been
+given away. The initial size of the pool would be sizeof(size_t) x 8
+which is the number of bits in an integer, which can fit exactly
+in a CPU register. Hence, the term given is exponential growth of the
+internal pool.<br>
+<br>
+<hr style="width: 100%; height: 2px;">After reading all this, you may
+still have a few questions about the internal working of this
+allocator, like my friend had!<br>
+<br>
+Well here are the exact questions that he posed:<br>
+<br>
+<span style="font-weight: bold;">Q1) The "Data Layout" section is
+cryptic. I have no idea of what you are trying to say. Layout of what?
+The free-list? Each bitmap? The Super Block?</span><br>
+<br>
+<div style="margin-left: 40px;"> The layout of a Super Block of a given
+size. In the example, a super block of size 32 x 1 is taken. The
+general formula for calculating the size of a super block is
+32 x sizeof(value_type) x 2^n, where n ranges from 0 to 32 for 32-bit
+systems.<br>
+</div>
+<br>
+<span style="font-weight: bold;">Q2) And since I just mentioned the
+term `each bitmap', what in the world is meant by it? What does each
+bitmap manage? How does it relate to the super block? Is the Super
+Block a bitmap as well?</span><br style="font-weight: bold;">
+<br>
+<div style="margin-left: 40px;"> Good question! Each bitmap is part of
+a
+Super Block which is made up of 3 parts as I have mentioned earlier.
+Re-iterating, 1. The use count, 2. The bit-map for that Super Block. 3.
+The actual memory that will be eventually given to the user. Each
+bitmap is a multiple of 32 in size. If there are 32 x (2^3) blocks of
+single objects to be given, there will be '32 x (2^3)' bits present.
+Each
+32 bits managing the allocated / free status for 32 blocks. Since each
+size_t contains 32-bits, one size_t can manage up to 32
+blocks' status. Each bit-map is made up of a number of size_t,
+whose exact number for a super-block of a given size I have just
+mentioned.<br>
+</div>
+<br>
+<span style="font-weight: bold;">Q3) How do the allocate and deallocate
+functions work in regard to bitmaps?</span><br>
+<br>
+<div style="margin-left: 40px;"> The allocate and deallocate functions
+manipulate the bitmaps and have nothing to do with the memory that is
+given to the user. As I have earlier mentioned, a 1 in the bitmap's bit
+field indicates free, while a 0 indicates allocated. This lets us check
+32 bits at a time to check whether there is at lease one free block in
+those 32 blocks by testing for equality with (0). Now, the allocate
+function will given a memory block find the corresponding bit in the
+bitmap, and will reset it (i.e., make it re-set (0)). And when the
+deallocate function is called, it will again set that bit after
+locating it to indicate that that particular block corresponding to
+this bit in the bit-map is not being used by anyone, and may be used to
+satisfy future requests.<br>
+<br>
+e.g.: Consider a bit-map of 64-bits as represented below:<br>
+1111111111111111111111111111111111111111111111111111111111111111<br>
+<br>
+Now, when the first request for allocation of a single object comes
+along, the first block in address order is returned. And since the
+bit-maps in the reverse order to that of the address order, the last
+bit (LSB if the bit-map is considered as a binary word of 64-bits) is
+re-set to 0.<br>
+<br>
+The bit-map now looks like this:<br>
+1111111111111111111111111111111111111111111111111111111111111110<br>
+</div>
+<br>
+<br>
+<hr style="width: 100%; height: 2px;"><br>
+(Tech-Stuff, Please stay out if you are not interested in the selection
+of certain constants. This has nothing to do with the algorithm per-se,
+only with some vales that must be chosen correctly to ensure that the
+allocator performs well in a real word scenario, and maintains a good
+balance between the memory consumption and the allocation/deallocation
+speed).<br>
+<br>
+The formula for calculating the maximum wastage as a percentage:<br>
+<br>
+(32 x k + 1) / (2 x (32 x k + 1 + 32 x c)) x 100.<br>
+<br>
+Where,<br>
+k =&gt; The constant overhead per node. eg. for list, it is 8 bytes,
+and for map it is 12 bytes.<br>
+c =&gt; The size of the base type on which the map/list is
+instantiated. Thus, suppose the type1 is int and type2 is double,
+they are related by the relation sizeof(double) == 2*sizeof(int). Thus,
+all types must have this double size relation for this formula to work
+properly.<br>
+<br>
+Plugging-in: For List: k = 8 and c = 4 (int and double), we get:<br>
+33.376%<br>
+<br>
+For map/multimap: k = 12, and c = 4 (int and double), we get:<br>
+37.524%<br>
+<br>
+Thus, knowing these values, and based on the sizeof(value_type), we may
+create a function that returns the Max_Wastage_Percentage for us to use.<br>
+<br>
+<hr style="width: 100%; height: 2px;"><small><small><em> See <a
+ href="file:///home/dhruv/projects/libstdc++-v3/gcc/libstdc++-v3/docs/html/17_intro/license.html">license.html</a>
+for copying conditions. Comments and suggestions are welcome, and may
+be
+sent to <a href="mailto:libstdc++@gcc.gnu.org">the libstdc++ mailing
+list</a>.</em><br>
+</small></small><br>
+<br>
+</body>
+</html>

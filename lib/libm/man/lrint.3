@@ -1,0 +1,113 @@
+.\" 	$OpenBSD: lrint.3,v 1.5 2025/06/07 10:33:06 schwarze Exp $
+.\" $NetBSD: lrint.3,v 1.1 2005/09/16 15:26:47 wiz Exp $
+.\"
+.\" Copyright (c) 2005 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: /repoman/r/ncvs/src/lib/msun/man/lrint.3,v 1.2.2.2 2005/03/01 16:18:39 brueffer Exp $
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt LRINT 3
+.Os
+.Sh NAME
+.Nm llrint ,
+.Nm llrintf ,
+.Nm llrintl ,
+.Nm lrint ,
+.Nm lrintf ,
+.Nm lrintl
+.Nd convert to integer
+.Sh SYNOPSIS
+.Lb libm
+.In math.h
+.Ft long long
+.Fn llrint "double x"
+.Ft long long
+.Fn llrintf "float x"
+.Ft long long
+.Fn llrintl "long double x"
+.Ft long
+.Fn lrint "double x"
+.Ft long
+.Fn lrintf "float x"
+.Ft long
+.Fn lrintl "long double x"
+.Sh DESCRIPTION
+The
+.Fn lrint
+function returns the integer nearest to its argument
+.Fa x
+according to the current rounding mode.
+.Pp
+The
+.Fn llrint ,
+.Fn llrintf ,
+.Fn llrintl ,
+.Fn lrintf ,
+and
+.Fn lrintl
+functions differ from
+.Fn lrint
+only in their input and output types.
+.Sh RETURN VALUES
+The
+.Nm llrint ,
+.Nm llrintf ,
+.Nm llrintl ,
+.Nm lrint ,
+.Nm lrintf ,
+and
+.Nm lrintl
+functions return the integer nearest to their argument
+.Fa x
+according to the current rounding mode.
+If the rounded result is too large to be represented as a
+.Vt long long
+or
+.Vt long
+value, respectively,
+.\" an invalid exception is raised and
+the return value is undefined.
+.\" Otherwise, if
+.\" .Fa x
+.\" is not an integer,
+.\" .Fn lrint
+.\" raises an inexact exception.
+.\" If
+.\" .Fa x
+.\" is too large, a range error may occur.
+.Sh SEE ALSO
+.Xr lround 3 ,
+.Xr rint 3
+.Sh STANDARDS
+The
+.Fn llrint ,
+.Fn llrintf ,
+.Fn llrintl ,
+.Fn lrint ,
+.Fn lrintf ,
+and
+.Fn lrintl
+functions conform to
+.St -isoC-99 .

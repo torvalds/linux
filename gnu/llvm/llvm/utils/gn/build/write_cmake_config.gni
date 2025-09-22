@@ -1,0 +1,50 @@
+# This file introduces a templates for calling write_cmake_config.py.
+#
+# write_cmake_config behaves like CMake's configure_file(), but runs at build
+# time, not at generator time.  See write_cmake_config.py for details.
+#
+# Parameters:
+#
+#   input (required) [string]
+#
+#   output (required) [string]
+#
+#   values (required) [list of strings]
+#       Each entry is a '='-separated key-value pair used for substitution.
+#
+# Example use:
+#
+#   write_cmake_config("attributes_compat_func_gen") {
+#     input = "Version.inc.in"
+#     output = "$root_gen_dir/clang/include/clang/Basic/Version.inc",
+#     values = [
+#       "CLANG_VERSION=$llvm_version",
+#     ]
+#   }
+
+template("write_cmake_config") {
+  assert(defined(invoker.input), "must set 'input' in $target_name")
+  assert(defined(invoker.output), "must set 'output' in $target_name")
+  assert(defined(invoker.values), "must set 'values' in $target_name")
+
+  action(target_name) {
+    script = "//llvm/utils/gn/build/write_cmake_config.py"
+
+    sources = [ invoker.input ]
+    outputs = [ invoker.output ]
+    args = [
+             "-o",
+             rebase_path(outputs[0], root_build_dir),
+             rebase_path(sources[0], root_build_dir),
+           ] + invoker.values
+
+    forward_variables_from(invoker,
+                           [
+                             "configs",
+                             "deps",
+                             "public_configs",
+                             "public_deps",
+                             "visibility",
+                           ])
+  }
+}

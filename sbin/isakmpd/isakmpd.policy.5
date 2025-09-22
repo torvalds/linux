@@ -1,0 +1,636 @@
+.\" $OpenBSD: isakmpd.policy.5,v 1.51 2022/02/06 00:29:02 jsg Exp $
+.\" $EOM: isakmpd.policy.5,v 1.24 2000/11/23 12:55:25 niklas Exp $
+.\"
+.\" Copyright (c) 1999-2001, Angelos D. Keromytis.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.\" Manual page, using -mandoc macros
+.\"
+.Dd $Mdocdate: February 6 2022 $
+.Dt ISAKMPD.POLICY 5
+.Os
+.Sh NAME
+.Nm isakmpd.policy
+.Nd policy configuration file for isakmpd
+.Sh DESCRIPTION
+.Nm
+is the policy configuration file for the
+.Xr isakmpd 8
+daemon, managing security association and key management for the
+.Xr ipsec 4
+layer of the kernel's networking stack.
+The
+.Xr isakmpd 8
+daemon,
+also known as the IKEv1 key management daemon,
+implements the Internet Key Exchange version 1 (IKEv1) protocol.
+It follows then that references to IKE in this document
+pertain to IKEv1 only,
+and not IKEv2.
+.Pp
+.Xr isakmpd 8
+is used when two
+systems need to automatically set up a pair of Security Associations
+(SAs) for secure communication using IPsec.
+IKEv1 operates in two stages:
+.Pp
+In the first stage (Main or Identity Protection Mode), the two IKE
+daemons establish a secure link between themselves, fully
+authenticating each other and establishing key material for
+encrypting/authenticating future communications between them.
+This step is typically only performed once for every pair of IKE daemons.
+.Pp
+In the second stage (also called Quick Mode), the two IKE daemons
+create the pair of SAs for the parties that wish to communicate using
+IPsec.
+These parties may be the hosts the IKE daemons run on, a host
+and a network behind a firewall, or two networks behind their
+respective firewalls.
+At this stage, the exact parameters of the SAs
+(e.g., algorithms to use, encapsulation mode, lifetime) and the
+identities of the communicating parties (hosts, networks, etc.) are
+specified.
+The reason for the existence of Quick Mode is to allow for fast
+SA setup, once the more heavy-weight Main Mode has been completed.
+Generally, Quick Mode uses the key material derived from Main Mode to
+provide keys to the IPsec transforms to be used.
+.Pp
+Alternatively, a new
+Diffie-Hellman computation may be performed, which significantly slows
+down the exchange, but at the same time provides Perfect Forward
+Secrecy (PFS).
+Briefly, this means that even should an attacker
+manage to break long-term keys used in other sessions (or,
+specifically, if an attacker breaks the Diffie-Hellman exchange
+performed during Main Mode), they will not be able to decrypt this
+traffic.
+Normally, no PFS is provided (the key material used by the
+IPsec SAs established as a result of this exchange will be derived
+from the key material of the Main Mode exchange), allowing for a
+faster Quick Mode exchange (no public key computations).
+.Pp
+IKE proposals are "suggestions" by the initiator of an exchange to the
+responder as to what protocols and attributes should be used on a
+class of packets.
+For example, a given exchange may ask for ESP with
+3DES and MD5 and AH with SHA1 (applied successively on the same
+packet), or just ESP with Blowfish and RIPEMD-160.
+The responder
+examines the proposals and determines which of them are acceptable,
+according to policy and any credentials.
+.Pp
+The following paragraphs assume some knowledge of the contents of the
+.Xr keynote 4
+and
+.Xr keynote 5
+man pages.
+.Pp
+In the KeyNote policy model for IPsec, no distinction is currently
+made based on the ordering of AH and ESP in the packet.
+Should this
+change in the future, an appropriate attribute (see below) will be
+added.
+.Pp
+The goal of security policy for IKE is thus to determine, based on
+local policy (provided in the
+.Nm
+file), credentials provided during the IKE exchanges (or obtained
+through other means), the SA attributes proposed during the exchange,
+and perhaps other (side-channel) information, whether a pair of SAs
+should be installed in the system (in fact, whether both the IPsec SAs
+and the flows should be installed).
+For each proposal suggested by or
+to the remote IKE daemon, the KeyNote system is consulted as to
+whether the proposal is acceptable based on local policy (contained in
+.Nm ,
+in the form of policy assertions) and remote credentials (e.g.,
+KeyNote credentials or X.509 certificates provided by the remote IKE
+daemon).
+.Pp
+.Nm
+is simply a flat
+.Xr ascii 7
+file containing KeyNote policy assertions, separated by blank lines
+(note that KeyNote assertions may not contain blank lines).
+.Nm
+is read when
+.Xr isakmpd 8
+is first started, and every time it receives a
+.Dv SIGHUP
+signal.
+The new policies read will be used for all new Phase 2 (IPsec)
+SAs established from that point on (even if the associated Phase 1 SA
+was already established when the new policies were loaded).
+The policy change will not affect already established Phase 2 SAs.
+.Pp
+For more details on KeyNote assertion format, see
+.Xr keynote 5 .
+Briefly, KeyNote policy assertions used in IKE have the following
+characteristics:
+.Bl -bullet
+.It
+The Authorizer field is typically "POLICY" (but see the examples
+below, for use of policy delegation).
+.It
+The Licensees field can be an expression of passphrases used for
+authentication of the Main Mode exchanges, and/or public keys
+(typically, X.509 certificates), and/or X.509 distinguished names.
+.It
+The Conditions field contains an expression of attributes from the
+IPsec policy action set (see below as well as the keynote syntax man
+page for more details).
+.It
+The ordered return-values set for IPsec policy is "false, true".
+.El
+.Pp
+For an explanation of these fields and their semantics, see
+.Xr keynote 5 .
+.Pp
+For example, the following policy assertion:
+.Bd -literal
+    Authorizer: "POLICY"
+    Licensees: "passphrase:foobar" || "x509-base64:abcd==" ||
+      "passphrase-md5-hex:3858f62230ac3c915f300c664312c63f" ||
+      "passphrase-sha1-hex:8843d7f92416211de9ebb963ff4ce28125932878"
+    Conditions: app_domain == "IPsec policy" && esp_present == "yes"
+		&& esp_enc_alg != "null" -> "true";
+.Ed
+.Pp
+says that any proposal from a remote host that authenticates using the
+passphrase "foobar" or the public key contained in the X.509
+certificate encoded as "abcd==" will be accepted, as long as it
+contains ESP with a non-null algorithm (i.e., the packet will be
+encrypted).
+The last two authorizers are the MD5 and SHA1 hashes respectively of
+the passphrase "foobar".
+This form may be used instead of the "passphrase:..." one to protect
+the passphrase as included in the policy file (or as distributed in a
+signed credential).
+.Pp
+The following policy assertion:
+.Bd -literal
+    Authorizer: "POLICY"
+    Licensees: "DN:/CN=CA Certificate"
+    Conditions: app_domain == "IPsec policy" && esp_present == "yes"
+		&& esp_enc_alg != "null" -> "true";
+.Ed
+.Pp
+is similar to the previous one, but instead of including a complete
+X.509 credential in the Licensees field, only the X.509 certificate's
+Subject Canonical Name needs to be specified (note that the "DN:"
+prefix is necessary).
+.Pp
+KeyNote credentials have the same format as policy assertions, with
+one difference: the Authorizer field always contains a public key, and
+the assertion is signed (and thus its integrity can be
+cryptographically verified).
+Credentials are used to build chains of delegation of authority.
+They can be exchanged during an IKE exchange,
+or can be retrieved through some out-of-band mechanism (no such
+mechanism is currently supported in this implementation however).
+See
+.Xr isakmpd.conf 5
+on how to specify what credentials to send in an IKE exchange.
+.Pp
+Passphrases that appear in the Licensees field are encoded as the
+string "passphrase:", followed by the passphrase itself
+(case-sensitive).
+Alternatively (and preferably), they may be encoded using the
+"passphrase-md5-hex:" or "passphrase-sha1-hex:" prefixes, followed
+by the
+.Xr md5 1
+or
+.Xr sha1 1
+hash of the passphrase itself, encoded as a hexadecimal string (using
+lower-case letters only).
+.Pp
+When X.509-based authentication is performed in Main Mode, any X.509
+certificates received from the remote IKE daemon are converted to very
+simple KeyNote credentials.
+The conversion is straightforward: the
+issuer of the X.509 certificate becomes the Authorizer of the KeyNote
+credential, the subject becomes the only Licensees entry, while the
+Conditions field simply asserts that the credential is only valid for
+"IPsec policy" use (see the app_domain action attribute below).
+.Pp
+Similarly, any X.509 CA certificates present in the directory pointed
+to by the appropriate
+.Xr isakmpd.conf 5
+entry are converted to such pseudo-credentials.
+This allows one to
+write KeyNote policies that delegate specific authority to CAs (and
+the keys those CAs certify, recursively).
+.Pp
+For more details on KeyNote assertion format, see
+.Xr keynote 5 .
+.Pp
+Information about the proposals, the identity of the remote IKE
+daemon, the packet classes to be protected, etc. are encoded in what
+is called an action set.
+The action set is composed of name-value
+attributes, similar in some ways to shell environment variables.
+These values are initialized by
+.Xr isakmpd 8
+before each query to the KeyNote system, and can be tested against in
+the Conditions field of assertions.
+See
+.Xr keynote 4
+and
+.Xr keynote 5
+for more details on the format and semantics of the Conditions field.
+.Pp
+Note that assertions and credentials can make references to
+non-existent attributes without catastrophic failures (access may be
+denied, depending on the overall structure, but will not be
+accidentally granted).
+One reason for credentials referencing
+non-existent attributes is that they were defined within a specific
+implementation or network only.
+.Pp
+In the following attribute set, IPv4 addresses are encoded as ASCII
+strings in the usual dotted-quad format.
+However, all quads are three digits long.
+For example, the IPv4 address 10.128.1.12 would be encoded as 010.128.001.012.
+Similarly, IPv6 addresses are encoded in the standard x:x:x:x:x:x:x:x
+format, where the 'x's are the hexadecimal values of the eight 16-bit
+pieces of the address.
+All 'x's are four digits long.
+For example, the address 1080:0:12:0:8:800:200C:417A
+would be encoded as 1080:0000:0012:0000:0008:0800:200C:417A.
+.Pp
+The following attributes are currently defined:
+.Bl -tag -width Ds
+.It ah_auth_alg
+One of
+.Va hmac-md5 ,
+.Va hmac-sha ,
+.Va des-mac ,
+.Va kpdk ,
+.Va hmac-sha2-256 ,
+.Va hmac-sha2-384 ,
+.Va hmac-sha2-512 ,
+or
+.Va hmac-ripemd .
+based on the authentication method specified in the AH proposal.
+.It ah_ecn, esp_ecn, comp_ecn
+Set to
+.Va yes
+or
+.Va no ,
+based on whether ECN was requested for the IPsec tunnel.
+.It ah_encapsulation, esp_encapsulation, comp_encapsulation
+Set to
+.Va tunnel
+or
+.Va transport ,
+based on the AH, ESP, and compression proposal.
+.It ah_group_desc, esp_group_desc, comp_group_desc
+The Diffie-Hellman group identifier from the AH, ESP, and compression
+proposal, used for PFS during Quick Mode (see the pfs attribute
+below).
+If more than one of these attributes are set to a value other
+than zero, they should have the same value (in valid IKE proposals).
+Valid values are 1 (768-bit MODP), 2 (1024-bit MODP), 3 (155-bit EC),
+4 (185-bit EC), 5 (1536-bit MODP), 14 (2048-bit MODP), 15 (3072-bit MODP),
+16 (4096-bit MODP), 17 (6144-bit MODP), and 18 (8192-bit MODP).
+.It ah_hash_alg
+One of
+.Va md5 ,
+.Va sha ,
+.Va ripemd ,
+.Va sha2-256 ,
+.Va sha2-384 ,
+.Va sha2-512 ,
+or
+.Va des ,
+based on the hash algorithm specified in the AH proposal.
+This attribute describes the generic transform to be used in the AH
+authentication.
+.It ah_key_length, esp_key_length
+The number of key bits to be used by the authentication and encryption
+algorithms respectively (for variable key-size algorithms).
+.It ah_key_rounds, esp_key_rounds
+The number of rounds of the authentication and encryption algorithms
+respectively (for variable round algorithms).
+.It ah_life_kbytes, esp_life_kbytes, comp_life_kbytes
+Set to the lifetime of the AH, ESP, and compression proposal, in
+kbytes of traffic.
+If no lifetime was proposed for the corresponding
+protocol (e.g., there was no proposal for AH), the corresponding
+attribute will be set to zero.
+.It ah_life_seconds, esp_life_seconds, comp_life_seconds
+Set to the lifetime of the AH, ESP, and compression proposal, in
+seconds.
+If no lifetime was proposed for the corresponding protocol
+(e.g., there was no proposal for AH), the corresponding attribute will
+be set to zero.
+.It ah_present, esp_present, comp_present
+Set to
+.Va yes
+if an AH, ESP, or compression proposal was received respectively,
+.Va no
+otherwise.
+.It app_domain
+Always set to
+.Va IPsec policy .
+.It comp_alg
+One of
+.Va oui
+or
+.Va deflate ,
+based on the compression algorithm specified in the compression
+proposal.
+.It comp_dict_size
+Specifies the log2 maximum size of the dictionary, according to the
+compression proposal.
+.It comp_private_alg
+Set to an integer specifying the private algorithm in use, according
+to the compression proposal.
+.It doi
+Always set to
+.Va ipsec .
+.It esp_auth_alg
+One of
+.Va hmac-md5 ,
+.Va hmac-sha ,
+.Va des-mac ,
+.Va kpdk ,
+.Va hmac-sha2-256 ,
+.Va hmac-sha2-384 ,
+.Va hmac-sha2-512 ,
+or
+.Va hmac-ripemd
+based on the authentication method specified in the ESP proposal.
+.It esp_enc_alg
+One of
+.Va des ,
+.Va des-iv64 ,
+.Va 3des ,
+.Va rc4 ,
+.Va idea ,
+.Va cast ,
+.Va blowfish ,
+.Va 3idea ,
+.Va des-iv32 ,
+.Va rc4 ,
+.Va null ,
+or
+.Va aes ,
+based on the encryption algorithm specified in the ESP proposal.
+.It GMTTimeOfDay
+Set to the UTC date/time, in YYYYMMDDHHmmSS format.
+.It initiator
+Set to
+.Va yes
+if the local daemon is initiating the Phase 2 SA,
+.Va no
+otherwise.
+.It local_negotiation_address
+Set to the IPv4 or IPv6 address of the local interface used by the local IKE
+daemon for this exchange.
+.It LocalTimeOfDay
+Set to the local date/time, in YYYYMMDDHHmmSS format.
+.It pfs
+Set to
+.Va yes
+if a Diffie-Hellman exchange will be performed during this Quick Mode,
+.Va no
+otherwise.
+.It phase_1
+Set to
+.Va aggressive
+if aggressive mode was used to establish the Phase 1 SA, or
+.Va main
+if main mode was used instead.
+.It phase1_group_desc
+The Diffie-Hellman group identifier used in IKE Phase 1.
+Takes the same values as
+.Va ah_group_desc .
+.It remote_filter, local_filter, remote_id
+When the corresponding filter_type specifies an address range or
+subnet, these are set to the upper and lower part of the address
+space separated by a dash ('-') character (if the type specifies a
+single address, they are set to that address).
+.Pp
+For FQDN and User FQDN types, these are set to the respective string.
+For Key ID, these are set to the hexadecimal representation of the
+associated byte string (lower-case letters used) if the Key ID payload
+contains non-printable characters.
+Otherwise, they are set to the respective string.
+.Pp
+For ASN1 DN, these are set to the text encoding of the Distinguished
+Name in the payload sent or received.
+The format is the same as that used in the Licensees field.
+.It remote_filter_addr_lower, local_filter_addr_lower, remote_id_addr_lower
+When the corresponding filter_type is
+.Va IPv4 address
+or
+.Va IPv6 address ,
+these contain the respective address.
+For
+.Va IPv4 range
+or
+.Va IPv6 range ,
+these contain the lower end of the address range.
+For
+.Va IPv4 subnet
+or
+.Va IPv6 subnet ,
+these contain the lowest address in the specified subnet.
+.It remote_filter_addr_upper, local_filter_addr_upper, remote_id_addr_upper
+When the corresponding filter_type is
+.Va IPv4 address
+or
+.Va IPv6 address ,
+these contain the respective address.
+For
+.Va IPv4 range
+or
+.Va IPv6 range ,
+they contain the upper end of the address range.
+For
+.Va IPv4 subnet
+or
+.Va IPv6 subnet ,
+they contain the highest address in the specified subnet.
+.It remote_filter_port, local_filter_port, remote_id_port
+Set to the transport protocol port.
+.It remote_filter_proto, local_filter_proto, remote_id_proto
+Set to
+.Va etherip ,
+.Va tcp ,
+.Va udp ,
+or the transport protocol number, depending on the transport protocol set
+in the IDci, IDcr, and Main Mode peer ID respectively.
+.It remote_filter_type, local_filter_type, remote_id_type
+Set to
+.Va IPv4 address ,
+.Va IPv4 range ,
+.Va IPv4 subnet ,
+.Va IPv6 address ,
+.Va IPv6 range ,
+.Va IPv6 subnet ,
+.Va FQDN ,
+.Va User FQDN ,
+.Va ASN1 DN ,
+.Va ASN1 GN ,
+or
+.Va Key ID ,
+based on the Quick Mode Initiator ID, Quick Mode Responder ID, and
+Main Mode peer ID respectively.
+.It remote_negotiation_address
+Set to the IPv4 or IPv6 address of the remote IKE daemon.
+.El
+.Sh FILES
+.Bl -tag -width /etc/isakmpd/isakmpd.policy
+.It Pa /etc/isakmpd/isakmpd.policy
+The default
+.Xr isakmpd 8
+policy configuration file.
+.El
+.Sh EXAMPLES
+.Bd -literal
+    Authorizer: "POLICY"
+    Comment: This bare-bones assertion accepts everything
+
+
+
+    Authorizer: "POLICY"
+    Licensees: "passphrase-md5-hex:10838982612aff543e2e62a67c786550"
+    Comment: This policy accepts anyone using shared-secret
+	     authentication using the password mekmitasdigoat,
+	     and does ESP with some form of encryption (not null).
+    Conditions: app_domain == "IPsec policy" &&
+                esp_present == "yes" &&
+                esp_enc_alg != "null" -> "true";
+
+
+
+    Authorizer: "POLICY"
+    Licensees: "subpolicy1" || "subpolicy2"
+    Comment: Delegate to two other sub-policies, so we
+             can manage our policy better. Since these subpolicies
+             are not "owned" by a key (and are thus unsigned), they
+	     have to be in isakmpd.policy.
+    Conditions: app_domain == "IPsec policy";
+
+
+
+    KeyNote-Version: 2
+    Licensees: "passphrase-md5-hex:9c42a1346e333a770904b2a2b37fa7d3"
+    Conditions: esp_present == "yes" -> "true";
+    Authorizer: "subpolicy1"
+
+
+
+    Conditions: ah_present == "yes" ->
+                   {
+                       ah_auth_alg == "md5" -> "true";
+                       ah_auth_alg == "sha" &&
+                       esp_present == "no" -> "true";
+                   };
+    Licensees: "passphrase:otherpassword" ||
+       "passphrase-sha1-hex:f5ed6e4abd30c36a89409b5da7ecb542c9fbf00f"
+    Authorizer: "subpolicy2"
+
+
+
+    keynote-version: 2
+    comment: this is an example of a policy delegating to a CN.
+    authorizer: "POLICY"
+    licensees: "DN:/CN=CA Certificate/emailAddress=ca@foo.bar.com"
+
+
+
+    keynote-version: 2
+    comment: This is an example of a policy delegating to a key.
+    authorizer: "POLICY"
+    licensees: "x509-base64:MIICGDCCAYGgAwIBAgIBADANBgkqhkiG9w0BAQQ\e
+		FADBSMQswCQYDVQQGEwJHQjEOMAwGA1UEChMFQmVuQ28xETAPBg\e
+		NVBAMTCEJlbkNvIENBMSAwHgYJKoZIhvcNAQkBFhFiZW5AYWxnc\e
+		m91cC5jby51azAeFw05OTEwMTEyMjQ5MzhaFw05OTExMTAyMjQ5\e
+		MzhaMFIxCzAJBgNVBAYTAkdCMQ4wDAYDVQQKEwVCZW5DbzERMA8\e
+		GA1UEAxMIQmVuQ28gQ0ExIDAeBgkqhkiG9w0BCQEWEWJlbkBhbG\e
+		dyb3VwLmNvLnVrMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBg\e
+		QCxyAte2HEVouXg1Yu+vDihbnjDRn+6k00Rv6cZqbwA3BQ30mC/\e
+		3TFJ09VGXCaM0UKfpnxIpkBYLmOA3FWkKI0RvPU7E1AhKkhC1Ds\e
+		PSBFjYHrB15T5lYzgfwKJCIxTDzZDx2iobUgPa0FRNGVUjpQ4/k\e
+		MJ2BF4Wh7zY3X08rMzsQIDAQABMA0GCSqGSIb3DQEBBAUAA4GBA\e
+		DWJ5pbTcE7iKHWLQTMYiz8i9jGi5+Eo1yr1Bab90tgaGQV0zrRH\e
+		jDHgAAy1h8WSXuyQrXfgbx2rnWFPhx9CfmuAXn7sZmQE3mnUqeP\e
+		ZL2dW87jdBGqtoUdNcoz5zKBkC943yasNui/O01MiqgadTThTJH\e
+		d1Pn17LbJC1ZVRNjR5"
+    conditions: app_domain == "IPsec policy" && doi == "ipsec" &&
+            pfs == "yes" && esp_present == "yes" && ah_present == "no" &&
+            (esp_enc_alg == "3des" || esp_enc_alg == "aes") -> "true";
+
+
+
+    keynote-version: 2
+    comment: This is an example of a credential, the signature does
+	     not really verify (although the keys are real).
+    licensees: "x509-base64:MIICGDCCAYGgAwIBAgIBADANBgkqhkiG9w0BAQQ\e
+		FADBSMQswCQYDVQQGEwJHQjEOMAwGA1UEChMFQmVuQ28xETAPBg\e
+		NVBAMTCEJlbkNvIENBMSAwHgYJKoZIhvcNAQkBFhFiZW5AYWxnc\e
+		m91cC5jby51azAeFw05OTEwMTEyMzA2MjJaFw05OTExMTAyMzA2\e
+		MjJaMFIxCzAJBgNVBAYTAkdCMQ4wDAYDVQQKEwVCZW5DbzERMA8\e
+		GA1UEAxMIQmVuQ28gQ0ExIDAeBgkqhkiG9w0BCQEWEWJlbkBhbG\e
+		dyb3VwLmNvLnVrMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBg\e
+		QDaCs+JAB6YRKAVkoi1NkOpE1V3syApjBj0Ahjq5HqYAACo1JhM\e
+		+QsPwuSWCNhBT51HX6G6UzfY3mOUz/vou6MJ/wor8EdeTX4nucx\e
+		NSz/r6XI262aXezAp+GdBviuJZx3Q67ON/IWYrB4QtvihI4bMn5\e
+		E55nF6TKtUMJTdATvs/wIDAQABMA0GCSqGSIb3DQEBBAUAA4GBA\e
+		MaQOSkaiR8id0h6Zo0VSB4HpBnjpWqz1jNG8N4RPN0W8muRA2b9\e
+		85GNP1bkC3fK1ZPpFTB0A76lLn11CfhAf/gV1iz3ELlUHo5J8nx\e
+		Pu6XfsGJm3HsXJOuvOog8Aean4ODo4KInuAsnbLzpGl0d+Jqa5u\e
+		TZUxsyg4QOBwYEU92H"
+    authorizer: "x509-base64:MIICGDCCAYGgAwIBAgIBADANBgkqhkiG9w0BAQQ\e
+		 FADBSMQswCQYDVQQGEwJHQjEOMAwGA1UEChMFQmVuQ28xETAPBg\e
+		 NVBAMTCEJlbkNvIENBMSAwHgYJKoZIhvcNAQkBFhFiZW5AYWxnc\e
+		 m91cC5jby51azAeFw05OTEwMTEyMjQ5MzhaFw05OTExMTAyMjQ5\e
+		 MzhaMFIxCzAJBgNVBAYTAkdCMQ4wDAYDVQQKEwVCZW5DbzERMA8\e
+		 GA1UEAxMIQmVuQ28gQ0ExIDAeBgkqhkiG9w0BCQEWEWJlbkBhbG\e
+		 dyb3VwLmNvLnVrMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBg\e
+		 QCxyAte2HEVouXg1Yu+vDihbnjDRn+6k00Rv6cZqbwA3BQ30mC/\e
+		 3TFJ09VGXCaM0UKfpnxIpkBYLmOA3FWkKI0RvPU7E1AhKkhC1Ds\e
+		 PSBFjYHrB15T5lYzgfwKJCIxTDzZDx2iobUgPa0FRNGVUjpQ4/k\e
+		 MJ2BF4Wh7zY3X08rMzsQIDAQABMA0GCSqGSIb3DQEBBAUAA4GBA\e
+		 DWJ5pbTcE7iKHWLQTMYiz8i9jGi5+Eo1yr1Bab90tgaGQV0zrRH\e
+		 jDHgAAy1h8WSXuyQrXfgbx2rnWFPhx9CfmuAXn7sZmQE3mnUqeP\e
+		 ZL2dW87jdBGqtoUdNcoz5zKBkC943yasNui/O01MiqgadTThTJH\e
+		 d1Pn17LbJC1ZVRNjR5"
+conditions: app_domain == "IPsec policy" && doi == "ipsec" &&
+	    pfs == "yes" && esp_present == "yes" && ah_present == "no" &&
+            (esp_enc_alg == "3des" || esp_enc_alg == "aes") -> "true";
+Signature: "sig-x509-sha1-base64:ql+vrUxv14DcBOQHR2jsbXayq6T\e
+            mmtMiUB745a8rjwSrQwh+KIVDlUrghPnqhSIkWSDi9oWWMbfg\e
+            mkdudZ0wjgeTLMI2NI4GibMMsToakOKMex/0q4cpdpln3DKcQ\e
+            IcjzRv4khDws69FT3QfELjcpShvbLrXmh1Z00OFmxjyqDw="
+.Ed
+.Sh SEE ALSO
+.Xr ipsec 4 ,
+.Xr keynote 4 ,
+.Xr keynote 5 ,
+.Xr isakmpd 8
+.Sh BUGS
+A more sane way of expressing IPv6 address ranges is needed.

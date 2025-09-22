@@ -1,0 +1,184 @@
+.\"     $OpenBSD: ml_init.9,v 1.15 2020/01/23 07:12:42 jmc Exp $
+.\"
+.\"  Copyright (c) 2015 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 23 2020 $
+.Dt ML_INIT 9
+.Os
+.Sh NAME
+.Nm ml_init ,
+.Nm ml_enqueue ,
+.Nm ml_dequeue ,
+.Nm ml_enlist ,
+.Nm ml_dechain ,
+.Nm ml_len ,
+.Nm ml_empty ,
+.Nm ml_hdatalen ,
+.Nm ml_purge ,
+.Nm MBUF_LIST_INITIALIZER ,
+.Nm MBUF_LIST_FIRST ,
+.Nm MBUF_LIST_NEXT ,
+.Nm MBUF_LIST_FOREACH
+.Nd mbuf list API
+.Sh SYNOPSIS
+.In sys/mbuf.h
+.Ft void
+.Fn ml_init "struct mbuf_list *ml"
+.Ft void
+.Fn ml_enqueue "struct mbuf_list *ml" "struct mbuf *m"
+.Ft struct mbuf *
+.Fn ml_dequeue "struct mbuf_list *ml"
+.Ft void
+.Fn ml_enlist "struct mbuf_list *ml" "struct mbuf_list *src"
+.Ft struct mbuf *
+.Fn ml_dechain "struct mbuf_list *ml"
+.Ft unsigned int
+.Fn ml_len "struct mbuf_list *ml"
+.Ft int
+.Fn ml_empty "struct mbuf_list *ml"
+.Ft unsigned int
+.Fn ml_hdatalen "struct mbuf_list *ml"
+.Ft unsigned int
+.Fn ml_purge "struct mbuf_list *ml"
+.Ft struct mbuf_list
+.Fn MBUF_LIST_INITIALIZER
+.Ft struct mbuf *
+.Fn MBUF_LIST_FIRST "struct mbuf_list *ml"
+.Ft struct mbuf *
+.Fn MBUF_LIST_NEXT "struct mbuf *m"
+.Fn MBUF_LIST_FOREACH "struct mbuf_list *ml" "VARNAME"
+.Sh DESCRIPTION
+The mbuf list API provides implementations of data structures and operations
+for managing lists of mbufs between contexts.
+.Pp
+mbuf_list structures support the following functionality:
+.Pp
+.Bl -enum -compact -offset indent
+.It
+Insertion of a new mbuf at the end of the list.
+.It
+Removal of an mbuf from the head of the list.
+.El
+.Bl -tag -width Ds
+.It Fn ml_init "struct mbuf_list *ml"
+Initialise the
+.Fa ml
+mbuf_list structure.
+.It Fn MBUF_LIST_INITIALIZER
+An initialiser for an mbuf_list structure declaration.
+.It Fn ml_enqueue "struct mbuf_list *ml" "struct mbuf *m"
+Enqueue mbuf
+.Fa m
+on the end of the
+.Fa ml
+mbuf list.
+.It Fn ml_dequeue "struct mbuf_list *ml"
+Dequeue an mbuf from the front of the
+.Fa ml
+mbuf list.
+.It Fn ml_enlist "struct mbuf_list *ml" "struct mbuf_list *src"
+Enqueue all the mbufs on the
+.Fa src
+mbuf list on to the end of the
+.Fa ml
+mbuf list.
+.It Fn ml_dechain "struct mbuf_list *ml"
+Dequeues all mbufs from the
+.Fa ml
+mbuf list.
+.It Fn ml_len "struct mbuf_list *ml"
+Return the number of mbufs on the
+.Fa ml
+mbuf list.
+.It Fn ml_empty "struct mbuf_list *ml"
+Return if the
+.Fa ml
+mbuf list is empty.
+.It Fn ml_hdatalen "struct mbuf_list *ml"
+Return the number of bytes in the packet at the head of the
+.Fa ml
+mbuf list.
+.It Fn ml_purge "struct mbuf_list *ml"
+Free all the mbufs on the
+.Fa ml
+mbuf list.
+.It Fn MBUF_LIST_FIRST "struct mbuf_list *ml"
+Access the first mbuf in the
+.Fa ml
+mbuf list for traversal.
+.It Fn MBUF_LIST_NEXT "struct mbuf *m"
+Access the next mbuf in the mbuf list after
+.Fa m .
+.It Fn MBUF_LIST_FOREACH "struct mbuf_list *ml" "VARNAME"
+A convenience macro that can be used to iterate over the contents of the
+.Fa ml
+mbuf list.
+.Fa VARNAME
+identifies the name (not the address) of an mbuf pointer that will
+be set to each entry on the list.
+Note that it is unsafe to modify the list while iterating over it.
+.El
+.Sh CONTEXT
+.Fn ml_init ,
+.Fn ml_enqueue ,
+.Fn ml_dequeue ,
+.Fn ml_enlist ,
+.Fn ml_dechain ,
+.Fn ml_len ,
+.Fn ml_empty ,
+.Fn ml_purge ,
+.Fn MBUF_LIST_INITIALIZER ,
+.Fn MBUF_LIST_FIRST ,
+.Fn MBUF_LIST_NEXT ,
+and
+.Fn MBUF_LIST_FOREACH
+can be called during autoconf, from process context, or from interrupt context.
+.Sh RETURN VALUES
+.Fn ml_dequeue
+returns the mbuf that was at the head of its list.
+If the list was empty,
+.Dv NULL
+is returned.
+.Pp
+.Fn ml_dechain
+returns all the mbufs that were on the list via
+a pointer to an mbuf with the chain accessible via m_nextpkt members.
+If the list was empty,
+.Dv NULL
+is returned.
+.Pp
+.Fn ml_len
+returns the number of mbufs on the list.
+.Pp
+.Fn ml_empty
+return a non-zero value if the list is empty, otherwise 0.
+.Pp
+.Fn ml_hdatalen
+returns the size of a packet on the list, or 0 if the list is empty.
+.Pp
+.Fn ml_purge
+returns the number of mbufs that were freed.
+.Pp
+.Fn MBUF_LIST_FIRST
+returns the first mbuf in the mbuf list, or
+.Dv NULL
+if the list is empty.
+.Pp
+.Fn MBUF_LIST_NEXT
+returns the next mbuf in the mbuf list, or
+.Dv NULL
+if the end of the list has been reached.
+.Sh SEE ALSO
+.Xr mbuf 9

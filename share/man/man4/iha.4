@@ -1,0 +1,80 @@
+.\"	$OpenBSD: iha.4,v 1.18 2015/01/15 20:37:36 schwarze Exp $
+.\"
+.\" Copyright (c) 2001, Kenneth R. Westerback.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd $Mdocdate: January 15 2015 $
+.Dt IHA 4
+.Os
+.Sh NAME
+.Nm iha
+.Nd Initio INIC-940/950 based PCI SCSI interface
+.Sh SYNOPSIS
+.Cd "iha* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports PCI SCSI host adapters based on the Initio INIC-940,
+INIC-941 and INIC-950 chips, including the following:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+DTC Domex 3194U Plus
+.It
+INI-9090U
+.It
+INI-9100U/UW
+.It
+Iwill 2935UW
+.El
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
+.Xr st 4 ,
+.Xr uk 4
+.Pp
+.Lk http://www.initio.com/
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 2.9 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written for
+.Ox
+by
+.An Kenneth R. Westerback ,
+based on a
+.Fx
+driver by
+.An Winston Hung .
+.Sh BUGS
+.Nm
+does not currently use tagged command queuing.

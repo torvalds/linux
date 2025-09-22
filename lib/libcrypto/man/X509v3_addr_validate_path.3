@@ -1,0 +1,204 @@
+.\" $OpenBSD: X509v3_addr_validate_path.3,v 1.6 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509V3_ADDR_VALIDATE_PATH 3
+.Os
+.Sh NAME
+.Nm X509v3_addr_validate_path ,
+.Nm X509v3_addr_validate_resource_set ,
+.Nm X509v3_asid_validate_path ,
+.Nm X509v3_asid_validate_resource_set
+.Nd RFC 3779 path validation for IP address and AS number delegation
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft int
+.Fn X509v3_addr_validate_path "X509_STORE_CTX *ctx"
+.Ft int
+.Fo X509v3_addr_validate_resource_set
+.Fa "STACK_OF(X509) *chain"
+.Fa "IPAddrBlocks *addrblocks"
+.Fa "int allow_inherit"
+.Fc
+.Ft int
+.Fn X509v3_asid_validate_path "X509_STORE_CTX *ctx"
+.Ft int
+.Fo X509v3_asid_validate_resource_set
+.Fa "STACK_OF(X509) *chain"
+.Fa "ASIdentifiers *asid"
+.Fa "int allow_inherit"
+.Fc
+.Sh DESCRIPTION
+Both RFC 3779 extensions require additional checking in the certification
+path validation.
+.Bl -enum
+.It
+The initial set of allowed IP address and AS number resources is defined in
+the trust anchor, where inheritance is not allowed.
+.It
+An issuer may only delegate subsets of resources present in its
+RFC 3779 extensions or subsets of resources inherited from its issuer.
+.It
+If an RFC 3779 extension is present in a certificate,
+the same type of extension must also be present in its issuer.
+.It
+All RFC 3779 extensions
+appearing in the validation path must be in canonical form
+according to
+.Xr X509v3_addr_is_canonical 3
+and
+.Xr X509v3_asid_is_canonical 3 .
+.El
+.Pp
+.Fn X509v3_addr_validate_path
+and
+.Fn X509v3_asid_validate_path
+are called from
+.Xr X509_verify_cert 3
+as part of the verification chain building.
+On encountering an error or a violation of the above rules,
+.Fa error ,
+.Fa error_depth ,
+and
+.Fa current_cert
+are set on
+.Fa ctx
+and the verify callback is called with
+.Fa ok
+set to 0.
+.Dv X509_V_ERR_INVALID_EXTENSION
+indicates a non-canonical resource,
+.Dv X509_V_ERR_UNNESTED_RESOURCE
+indicates a violation of the other rules above.
+In rare circumstances, the error can be
+.Dv X509_V_ERR_UNSPECIFIED
+and for IP address resources
+.Dv X509_V_ERR_OUT_OF_MEM
+is also possible.
+.Pp
+.Fn X509v3_addr_validate_resource_set
+validates the resources in
+.Fa addrblocks
+against a specific certificate
+.Fa chain .
+After checking that
+.Fa addrblocks
+is canonical, its IP addresses are checked to be covered in
+the certificate at depth 0,
+then the chain is walked all the way to the trust anchor
+until an error or a violation of the above rules is encountered.
+.Fa addrblocks
+is allowed to use inheritance according to
+.Xr X509v3_addr_inherits 3
+if and only if
+.Fa allow_inherit
+is non-zero.
+.Pp
+.Fn X509v3_asid_validate_resource_set
+performs similar checks as
+.Fn X509v3_addr_validate_resource_set
+for
+.Fa asid .
+.Sh RETURN VALUES
+All these functions return 1 on successful validation and 0 otherwise.
+.Pp
+For
+.Fn X509v3_addr_validate_path
+and
+.Fn X509v3_asid_validate_path
+a non-empty
+.Fa chain
+and a
+.Fa verify_cb
+must be present on
+.Fa ctx ,
+otherwise they fail and set the
+.Fa error
+on
+.Fa ctx
+to
+.Dv X509_V_ERR_UNSPECIFIED .
+The
+.Fa verify_cb
+is called with the error codes described above
+on most errors encountered during validation.
+Some malformed extensions can lead to an error
+that cannot be intercepted by the callback.
+With the exception of an allocation error,
+no error codes are set on the error stack.
+.Pp
+.Fn X509v3_addr_validate_resource_set
+accepts a
+.Dv NULL
+.Fa addrblocks
+and
+.Fn X509v3_asid_validate_resource_set
+accepts a
+.Dv NULL
+.Fa asid
+as valid.
+They fail if
+.Fa chain
+is
+.Dv NULL
+or empty.
+If
+.Fa allow_inherit
+is 0,
+.Fa addrblocks
+or
+.Fa asid
+is checked for inheritance with
+.Xr X509v3_addr_inherits 3
+or
+.Xr X509v3_asid_inherits 3 .
+The remaining failure cases are the same as for
+.Fn X509v3_addr_validate_path
+and
+.Fn X509v3_asid_validate_path .
+They cannot and do not attempt to communicate
+the cause of the error to the caller.
+.Sh SEE ALSO
+.Xr ASIdentifiers_new 3 ,
+.Xr crypto 3 ,
+.Xr IPAddressRange_new 3 ,
+.Xr X509_new 3 ,
+.Xr X509_STORE_CTX_get_error 3 ,
+.Xr X509_verify_cert 3 ,
+.Xr X509v3_addr_add_inherit 3 ,
+.Xr X509v3_addr_inherits 3 ,
+.Xr X509v3_asid_add_id_or_range 3
+.Sh STANDARDS
+RFC 3779: X.509 Extensions for IP Addresses and AS Identifiers:
+.Bl -dash -compact
+.It
+section 2.3: IP Address Delegation Extension Certification Path Validation
+.It
+section 3.3: Autonomous System Identifier Delegation Extension Certification
+Path Validation
+.El
+.Pp
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate
+and Certificate Revocation List (CRL) Profile
+.Bl -dash -compact
+.It
+section 6: Certification Path Validation
+.El
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8e
+and have been available since
+.Ox 7.1 .

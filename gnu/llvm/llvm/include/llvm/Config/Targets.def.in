@@ -1,0 +1,28 @@
+/*===- llvm/Config/Targets.def - LLVM Target Architectures ------*- C++ -*-===*\
+|*                                                                            *|
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM          *|
+|* Exceptions.                                                                *|
+|* See https://llvm.org/LICENSE.txt for license information.                  *|
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception                    *|
+|*                                                                            *|
+|*===----------------------------------------------------------------------===*|
+|*                                                                            *|
+|* This file enumerates all of the target architectures supported by          *|
+|* this build of LLVM. Clients of this file should define the                 *|
+|* LLVM_TARGET macro to be a function-like macro with a single                *|
+|* parameter (the name of the target); including this file will then          *|
+|* enumerate all of the targets.                                              *|
+|*                                                                            *|
+|* The set of targets supported by LLVM is generated at configuration         *|
+|* time, at which point this header is generated. Do not modify this          *|
+|* header directly.                                                           *|
+|*                                                                            *|
+\*===----------------------------------------------------------------------===*/
+
+#ifndef LLVM_TARGET
+#  error Please define the macro LLVM_TARGET(TargetName)
+#endif
+
+@LLVM_ENUM_TARGETS@
+
+#undef LLVM_TARGET

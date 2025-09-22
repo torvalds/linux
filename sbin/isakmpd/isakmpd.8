@@ -1,0 +1,827 @@
+.\" $OpenBSD: isakmpd.8,v 1.123 2019/08/30 17:51:47 jmc Exp $
+.\" $EOM: isakmpd.8,v 1.23 2000/05/02 00:30:23 niklas Exp $
+.\"
+.\" Copyright (c) 1998, 1999, 2000, 2001 Niklas Hallqvist.
+.\" All rights reserved.
+.\" Copyright (c) 1999 Angelos D. Keromytis.  All rights reserved.
+.\" Copyright (c) 2001, 2002 Håkan Olsson.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" This code was written under funding by Ericsson Radio Systems.
+.\"
+.\" Manual page, using -mandoc macros
+.\"
+.Dd $Mdocdate: August 30 2019 $
+.Dt ISAKMPD 8
+.Os
+.Sh NAME
+.Nm isakmpd
+.Nd ISAKMP/Oakley a.k.a. IKEv1 key management daemon
+.Sh SYNOPSIS
+.Nm isakmpd
+.Op Fl 46adKLnSTv
+.Op Fl c Ar config-file
+.Op Fl D Ar class Ns = Ns Ar level
+.Op Fl f Ar fifo
+.Op Fl i Ar pid-file
+.Op Fl l Ar packetlog-file
+.Op Fl N Ar udpencap-port
+.Op Fl p Ar listen-port
+.Op Fl R Ar report-file
+.Sh DESCRIPTION
+The
+.Nm
+daemon establishes Security Associations (SAs) for encrypted
+and/or authenticated network traffic.
+At this moment, and probably forever, this means
+.Xr ipsec 4
+traffic.
+Traditionally,
+.Nm
+was configured using the
+.Xr isakmpd.conf 5
+file format.
+A newer, much simpler format is now available:
+.Xr ipsec.conf 5 .
+.Pp
+.Nm
+implements the IKEv1 protocol which is defined in the standards
+ISAKMP/Oakley (RFC 2408), IKE (RFC 2409), and the Internet DOI (RFC 2407).
+The newer IKEv2 protocol,
+as defined in RFC 5996,
+is not supported by
+.Nm
+but by
+.Xr iked 8 .
+It follows then that references to IKE in this document
+pertain to IKEv1 only,
+and not IKEv2.
+.Pp
+The way
+.Nm
+goes about its work is by maintaining an internal configuration
+as well as a policy database which describes what kinds of SAs to negotiate,
+and by listening for different events that trigger these negotiations.
+The events that control
+.Nm
+consist of negotiation initiations from a remote party, user input via
+a FIFO or by signals, upcalls from the kernel via a
+.Dv PF_KEY
+socket, and lastly by scheduled events triggered by timers running out.
+.Pp
+Most uses of
+.Nm
+will be to implement so called "virtual private networks" (VPNs).
+The ability to provide redundancy is made available through
+.Xr carp 4
+and
+.Xr sasyncd 8 .
+For other uses, some more knowledge of IKEv1 as a protocol is required.
+The RFCs mentioned below are a possible starting point.
+.Pp
+On startup
+.Nm
+forks into two processes for privilege separation.
+The unprivileged child jails itself with
+.Xr chroot 8
+to
+.Pa /var/empty .
+The privileged process communicates with the child, reads configuration files
+and PKI information, and binds to privileged ports on its behalf.
+See the
+.Sx CAVEATS
+section below.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 4 | 6
+These options control what address family
+.Pf ( Dv AF_INET
+and/or
+.Dv AF_INET6 )
+.Nm
+will use.
+The default is to use both IPv4 and IPv6.
+.It Fl a
+If given,
+.Nm
+does not set up flows automatically.
+Instead manual flows may be configured using
+.Xr ipsec.conf 5
+or by programs such as
+.Xr bgpd 8 .
+Thus
+.Nm
+only takes care of SA establishment.
+.It Fl c Ar config-file
+If given, the
+.Fl c
+option specifies an alternate configuration file instead of
+.Pa /etc/isakmpd/isakmpd.conf .
+As this file may contain sensitive information, it must be readable
+only by the user running the daemon.
+.Nm
+will reread the configuration file when sent a
+.Dv SIGHUP
+signal.
+.Pp
+Note that this option applies only to configuration files in the
+.Xr isakmpd.conf 5
+format, not those in the
+.Xr ipsec.conf 5
+format.
+.It Fl D Ar class Ns = Ns Ar level
+Debugging class.
+It's possible to specify this argument many times.
+It takes a parameter of the form
+.Ar class Ns = Ns Ar level ,
+where both
+.Ar class
+and
+.Ar level
+are numbers.
+.Ar class
+denotes a debugging class, and
+.Ar level
+the level you want that debugging class to
+limit debug printouts at (i.e. all debug printouts above the level specified
+will not output anything).
+If
+.Ar class
+is set to
+.Sq A ,
+then all debugging classes are set to the specified level.
+.Pp
+Valid values for
+.Ar class
+are as follows:
+.Pp
+.Bl -tag -width 2n -offset indent -compact
+.It 0
+Misc
+.It 1
+Transport
+.It 2
+Message
+.It 3
+Crypto
+.It 4
+Timer
+.It 5
+Sysdep
+.It 6
+SA
+.It 7
+Exchange
+.It 8
+Negotiation
+.It 9
+Policy
+.It 10
+FIFO user interface
+.It A
+All
+.El
+.Pp
+Currently used values for
+.Ar level
+are 0 to 99.
+.It Fl d
+The
+.Fl d
+option is used to make the daemon run in the foreground, logging to stderr.
+.It Fl f Ar fifo
+The
+.Fl f
+option specifies the FIFO
+(a.k.a. named pipe) where the daemon listens for
+user requests.
+If the path given is a dash
+.Pq Sq \&- ,
+.Nm
+will listen to stdin instead.
+.It Fl i Ar pid-file
+By default the PID of the daemon process will be written to
+.Pa /var/run/isakmpd.pid .
+This path can be overridden by specifying another one as the argument to the
+.Fl i
+option.
+Note that only paths beginning with
+.Pa /var/run
+are allowed.
+.It Fl K
+When this option is given,
+.Nm
+does not read the policy configuration file and no
+.Xr keynote 4
+policy check is accomplished.
+This option can be used when policies for flows and SA establishment are
+arranged by other programs like
+.Xr ipsecctl 8
+or
+.Xr bgpd 8 .
+.It Fl L
+Enable IKE packet capture.
+When this option is given,
+.Nm
+will write an unencrypted copy of the negotiation packets it
+is sending and receiving to the file
+.Pa /var/run/isakmpd.pcap ,
+which can later be read by
+.Xr tcpdump 8
+and other utilities using
+.Xr pcap_open_offline 3 .
+.It Fl l Ar packetlog-file
+As option
+.Fl L
+above, but capture to a specified file.
+Note that only paths beginning with
+.Pa /var/run
+are allowed.
+.It Fl N Ar udpencap-port
+The
+.Fl N
+option specifies the listen port for encapsulated UDP
+that the daemon will bind to.
+.It Fl n
+When the
+.Fl n
+option is given, the kernel will not take part in the negotiations.
+This is a non-destructive mode, so to speak, in that it won't alter any
+SAs in the IPsec stack.
+.It Fl p Ar listen-port
+The
+.Fl p
+option specifies the listen port the daemon will bind to.
+.It Fl R Ar report-file
+When you signal
+.Nm
+a
+.Dv SIGUSR1 ,
+it will report its internal state to a report file, normally
+.Pa /var/run/isakmpd.report ,
+but this can be changed by feeding
+the file name as an argument to the
+.Fl R
+flag.
+Note that only paths beginning with
+.Pa /var/run
+are allowed.
+.It Fl S
+This option is used for setups using
+.Xr sasyncd 8
+and
+.Xr carp 4
+to provide redundancy.
+.Nm
+starts in passive mode and will not initiate any connections
+or process any incoming traffic until
+sasyncd has determined that the host is the carp master.
+Additionally,
+.Nm
+will not delete SAs on shutdown
+by sending delete messages to all peers.
+.It Fl T
+When this option is given, NAT-Traversal will be disabled and
+.Nm
+will not advertise support for NAT-Traversal to its peers.
+.It Fl v
+Enables verbose logging.
+Normally,
+.Nm
+is silent and outputs only messages when a warning or an error occurs.
+With verbose logging
+.Nm
+reports successful completion of phase 1 (Main and Aggressive) and phase 2
+(Quick) exchanges (Information and Transaction exchanges do not generate any
+additional status information).
+.El
+.Sh THE FIFO USER INTERFACE
+When
+.Nm
+starts, it creates a FIFO (named pipe) where it listens for user
+requests.
+All commands start with a single letter, followed by command-specific options.
+Available commands are:
+.Pp
+.Bl -tag -width Ds -compact
+.It Ic C add Oo Ar section Oc : Ns Ar tag Ns = Ns Ar value
+.It Ic C rmv Oo Ar section Oc : Ns Ar tag Ns = Ns Ar value
+.It Ic C rm Oo Ar section Oc : Ns Ar tag
+.It Ic C rms Op Ar section
+.It Ic C set Oo Ar section Oc : Ns Ar tag Ns = Ns Ar value Op Ic force
+Update the running
+.Nm
+configuration atomically.
+.Sq set
+sets a configuration value consisting of a section, tag, and value triplet.
+.Sq set
+will fail if the configuration already contains a section with the named tag;
+use the
+.Sq force
+option to change this behaviour.
+.Sq add
+appends a configuration value to the named configuration list tag,
+unless the value is already in the list.
+.Sq rm
+removes a tag in a section.
+.Sq rms
+removes an entire section.
+.Sq rmv
+removes an entry from a list, thus reversing an
+.Sq add
+operation.
+.Pp
+NOTE: Sending
+.Nm
+a
+.Dv SIGHUP
+or an "R" through the FIFO will void any updates done to the configuration.
+.Pp
+.It Ic C get Oo Ar section Oc : Ns Ar tag
+Get the configuration value of the specified section and tag.
+The result is stored in
+.Pa /var/run/isakmpd.result .
+.Pp
+.It Ic c Ar name
+Start the named connection, if stopped or inactive.
+.Pp
+.It Ic D Ar class level
+.It Ic D A Ar level
+.It Ic D T
+Set debug class
+.Ar class
+to level
+.Ar level .
+If
+.Ar class
+is specified as
+.Sq A ,
+the level applies to all debug classes.
+.Ic D T
+toggles all debug classes to level zero.
+Another
+.Ic D T
+command will toggle them back to the earlier levels.
+.Pp
+.It Ic d Ar cookies msgid
+Delete the specified SA from the system.
+Specify
+.Ar msgid
+as
+.Sq -
+to match a Phase 1 SA.
+.Pp
+.It Ic M active
+.It Ic M passive
+Set
+.Nm
+to active or passive mode.
+In passive mode no packets are sent to peers.
+.Pp
+.It Ic p on Ns Op = Ns Ar path
+.It Ic p off
+Enable or disable cleartext IKE packet capture.
+When enabling, optionally specify which file
+.Nm
+should capture the packets to
+(the default is
+.Pa /var/run/isakmpd.pcap ) .
+Note that only paths beginning with
+.Pa /var/run
+are allowed.
+.Pp
+.It Ic Q
+Cleanly shutdown the daemon, as when sent a
+.Dv SIGTERM
+signal.
+.Pp
+.It Ic R
+Reinitialize
+.Nm isakmpd ,
+as when sent a
+.Dv SIGHUP
+signal.
+.Pp
+.It Ic r
+Report
+.Nm
+internal state to
+.Xr syslog 3 .
+See the
+.Fl R
+option.
+Same as when sent a
+.Dv SIGUSR1
+signal.
+.Pp
+.It Ic S
+Report information on all known SAs to the
+.Pa /var/run/isakmpd.result
+file.
+.Pp
+.It Ic T
+Tear down all active quick mode connections.
+.Pp
+.It Ic t Oo Ar phase Oc Ar name
+Tear down the named connection, if active.
+For
+.Ar name ,
+the tag specified in
+.Xr isakmpd.conf 5
+or the IP address of the remote host can be used.
+The optional parameter
+.Ar phase
+specifies whether to delete a phase 1 or phase 2 SA.
+The value
+.Sq main
+indicates a phase 1 connection;
+the value
+.Sq quick
+a phase 2 connection.
+If no phase is specified,
+.Sq quick
+will be assumed.
+.El
+.Sh SETTING UP AN IKE PUBLIC KEY INFRASTRUCTURE (PKI)
+In order to use public key based authentication, there has to be an
+infrastructure managing the key signing.
+Either there is an already existing PKI
+.Nm
+should take part in, or there will be a need to set one up.
+The procedures for using a pre-existing PKI varies depending on the
+actual Certificate Authority (CA) used, and is therefore not covered here,
+other than mentioning that
+.Xr openssl 1
+needs to be used to create a Certificate Signing Request (CSR) that the
+CA understands.
+.Pp
+A number of methods exist to allow authentication:
+.Bl -ohang -offset indent
+.It Passphrase:
+This method does not use keys at all, but relies on a shared passphrase.
+.It Host Keys:
+Public keys are used to authenticate.
+See
+.Sx PUBLIC KEY AUTHENTICATION
+below.
+.It X.509 Certificates:
+X.509 Certificates are used to authenticate.
+See
+.Sx X.509 AUTHENTICATION
+below.
+.It Keynote Certificates:
+Keynote Certificates are used to authenticate.
+See
+.Sx KEYNOTE AUTHENTICATION
+below.
+.El
+.Pp
+When configuring
+.Nm
+for key- and certificate-based authentication,
+the
+.Dq Transforms
+tag in
+.Xr isakmpd.conf 5
+should include
+.Dq RSA_SIG .
+For example, the transform
+.Dq 3DES-SHA-RSA_SIG
+means:
+3DES encryption, SHA hash, authentication using RSA signatures.
+.Sh PUBLIC KEY AUTHENTICATION
+It is possible to store trusted public keys to make them directly
+usable by
+.Nm ,
+bypassing the need to use certificates.
+The keys should be saved in PEM format (see
+.Xr openssl 1 )
+and named and stored after this easy formula:
+.Pp
+.Bl -tag -width "for_ufqdn_identitiesXX" -offset 3n -compact
+.It For IPv4 identities:
+.Pa /etc/isakmpd/pubkeys/ipv4/A.B.C.D
+.It For IPv6 identities:
+.Pa /etc/isakmpd/pubkeys/ipv6/abcd:abcd::ab:bc
+.It For FQDN identities:
+.Pa /etc/isakmpd/pubkeys/fqdn/foo.bar.org
+.It For UFQDN identities:
+.Pa /etc/isakmpd/pubkeys/ufqdn/user@foo.bar.org
+.El
+.Pp
+Depending on the
+.Dv ID-type
+field of
+.Xr isakmpd.conf 5 ,
+keys may be named after their IPv4 address (IPV4_ADDR or IPV4_ADDR_SUBNET),
+IPv6 address (IPV6_ADDR or IPV6_ADDR_SUBNET),
+fully qualified domain name (FDQN),
+user fully qualified domain name (USER_FQDN),
+or key ID (KEY_ID).
+.Pp
+For example,
+.Nm
+can authenticate using the pre-generated keys if the local public key,
+by default
+.Pa /etc/isakmpd/local.pub ,
+is copied to the remote gateway as
+.Pa /etc/isakmpd/pubkeys/ipv4/local.gateway.ip.address
+and the remote gateway's public key
+is copied to the local gateway as
+.Pa /etc/isakmpd/pubkeys/ipv4/remote.gateway.ip.address .
+Of course, new keys may also be generated
+(the user is not required to use the pre-generated keys).
+In this example,
+.Dv ID-type
+would also have to be set to IPV4_ADDR or IPV4_ADDR_SUBNET
+in
+.Xr isakmpd.conf 5 .
+.Sh X.509 AUTHENTICATION
+X.509 is a framework for public key certificates.
+Certificates can be generated using
+.Xr openssl 1
+and provide a means for PKI authentication.
+In the following example, a CA is created along with host certificates
+to be signed by the CA.
+.Bl -enum
+.It
+Create your own Certificate Authority (CA).
+.Pp
+First, create a private key for the CA, and a Certificate Signing Request
+(CSR) to enable the CA to sign its own key:
+.Bd -literal -offset indent
+# openssl genrsa -out /etc/ssl/private/ca.key 2048
+# openssl req -new -key /etc/ssl/private/ca.key \e
+	-out /etc/ssl/private/ca.csr
+.Ed
+.Pp
+.Ic openssl req
+will prompt for information that will be incorporated
+into the certificate request.
+The information entered comprises a Distinguished Name (DN).
+There are quite a few fields, but some can be left blank.
+For some fields there will be a default value; if
+.Sq \&.
+is entered, the field will be left blank.
+.Pp
+After the CSR has been generated, it is used to create and sign
+a certificate for the CA:
+.Bd -literal -offset indent
+# openssl x509 -req -days 365 -in /etc/ssl/private/ca.csr \e
+	-signkey /etc/ssl/private/ca.key \e
+	-extfile /etc/ssl/x509v3.cnf -extensions x509v3_CA \e
+	-out /etc/ssl/ca.crt
+.Ed
+.It
+Create Certificate Signing Requests (CSRs) for IKE peers.
+The CSRs are signed with a pre-generated private key.
+.Pp
+This step, as well as the next one, needs to be done for every peer.
+Furthermore the last step will need to be done once for each ID you
+want the peer to have.
+The 10.0.0.1 below symbolizes that ID, in this case an IPv4 ID,
+and should be changed for each invocation.
+A fully qualified domain name (FQDN) may be used instead of an IPv4 ID.
+You will be asked for a DN for each run.
+Encoding the ID in the common name is recommended, as it should be unique.
+.Bd -literal -offset indent
+# openssl req -new -key /etc/isakmpd/private/local.key \e
+	-out /etc/isakmpd/private/10.0.0.1.csr
+.Ed
+.Pp
+Now take these certificate signing requests to your CA and process
+them as below.
+A configuration file is used to add a
+.Em subjectAltName
+extension field matching the ID used by
+.Nm
+to the certificate.
+.Pp
+If using an IPv4 ID, copy
+.Pa /etc/ssl/x509v3.cnf
+to a temporary file and edit it to replace
+.Dv $ENV::CERTIP
+with the IP address (10.0.0.1 in this example), then generate a signed
+certificate:
+.Bd -literal -offset indent
+# sed 's,\\$ENV::CERTIP,10.0.0.1,' \e
+	< /etc/ssl/x509v3.cnf > ~/tmp_x509v3.cnf
+# openssl x509 -req \e
+	-days 365 -in 10.0.0.1.csr \e
+	-CA /etc/ssl/ca.crt -CAkey /etc/ssl/private/ca.key \e
+	-CAcreateserial -extfile ~/tmp_x509v3.cnf \e
+	-extensions x509v3_IPAddr -out 10.0.0.1.crt
+.Ed
+.Pp
+For an FQDN certificate, replace
+.Dv $ENV::CERTFQDN
+with the hostname and generate a signed certificate:
+.Bd -literal -offset indent
+# sed 's,\\$ENV::CERTFQDN,somehost.somedomain,' \e
+	< /etc/ssl/x509v3.cnf > ~/tmp_x509v3.cnf
+# openssl x509 -req \e
+	-days 365 -in somehost.somedomain.csr \e
+	-CA /etc/ssl/ca.crt -CAkey /etc/ssl/private/ca.key \e
+	-CAcreateserial -extfile ~/tmp_x509v3.cnf \e
+	-extensions x509v3_FQDN -out somehost.somedomain.crt
+.Ed
+.Pp
+If CERTFQDN is being used,
+make sure that the
+.Va subjectAltName
+field of the certificate is specified using
+.Ic srcid
+in
+.Xr ipsec.conf 5 .
+A similar setup will be required if
+.Xr isakmpd.conf 5
+is being used instead.
+.Pp
+Put the certificate (the file ending in .crt) in
+.Pa /etc/isakmpd/certs/
+on your local system.
+Also carry over the CA cert
+.Pa /etc/ssl/ca.crt
+and put it in
+.Pa /etc/isakmpd/ca/ .
+.El
+.Pp
+To revoke certificates, create a Certificate Revocation List (CRL) file
+and install it in the
+.Pa /etc/isakmpd/crls/
+directory.
+See
+.Xr openssl 1
+and the
+.Sq crl
+subcommand for more info.
+.Sh KEYNOTE AUTHENTICATION
+Keynote is a trust-management framework.
+Keys can be generated using
+.Xr keynote 1
+and provide an alternative means for
+.Nm
+to authenticate.
+See
+.Xr keynote 4
+for further information.
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa /etc/isakmpd/ca/
+The directory where CA certificates are kept.
+.It Pa /etc/isakmpd/certs/
+The directory where IKE certificates are kept, both the local
+certificate(s) and those of the peers, if a choice to have them kept
+permanently has been made.
+.It Pa /etc/isakmpd/crls/
+The directory where CRLs are kept.
+.It Pa /etc/isakmpd/isakmpd.conf
+The configuration file.
+As this file can contain sensitive information
+it must not be readable by anyone but the user running
+.Nm .
+.It Pa /etc/isakmpd/isakmpd.policy
+The keynote policy configuration file.
+The same mode requirements as
+.Pa isakmpd.conf .
+.It Pa /etc/isakmpd/keynote/
+The directory where KeyNote credentials are kept.
+.It Pa /etc/isakmpd/private/
+The directory where local private keys used for public key authentication
+are kept.
+By default, the system startup script
+.Xr rc 8
+generates a key-pair when starting, if one does not already exist.
+The entire keypair is in
+.Pa local.key ,
+and a copy of the public key suitable for transferring to other hosts
+is extracted into
+.Pa /etc/isakmpd/local.pub .
+There has to be a certificate for
+.Pa local.key
+in the certificate directory,
+.Pa /etc/isakmpd/certs/ .
+.Pa local.key
+has the same mode requirements as
+.Pa isakmpd.conf .
+.It Pa /etc/isakmpd/pubkeys/
+The directory in which trusted public keys are kept.
+The keys must be named in the fashion described above.
+.It Pa /var/run/isakmpd.fifo
+The FIFO used to manually control
+.Nm isakmpd .
+.It Pa /var/run/isakmpd.pcap
+The default IKE packet capture file.
+.It Pa /var/run/isakmpd.pid
+The PID of the current daemon.
+.It Pa /var/run/isakmpd.report
+The report file written when
+.Dv SIGUSR1
+is received.
+.It Pa /var/run/isakmpd.result
+The report file written when the
+.Sq S
+or
+.Sq "C get"
+command is issued in the command FIFO.
+.El
+.Sh SEE ALSO
+.Xr openssl 1 ,
+.Xr getnameinfo 3 ,
+.Xr pcap_open_offline 3 ,
+.Xr ipsec 4 ,
+.Xr ipsec.conf 5 ,
+.Xr isakmpd.conf 5 ,
+.Xr isakmpd.policy 5 ,
+.Xr iked 8 ,
+.Xr sasyncd 8 ,
+.Xr ssl 8 ,
+.Xr tcpdump 8
+.Sh STANDARDS
+.Rs
+.%A D. Piper
+.%D November 1998
+.%R RFC 2407
+.%T The Internet IP Security Domain of Interpretation for ISAKMP
+.Re
+.Pp
+.Rs
+.%A D. Maughan
+.%A M. Schertler
+.%A M. Schneider
+.%A J. Turner
+.%D November 1998
+.%R RFC 2408
+.%T Internet Security Association and Key Management Protocol (ISAKMP)
+.Re
+.Pp
+.Rs
+.%A D. Harkins
+.%A D. Carrel
+.%D November 1998
+.%R RFC 2409
+.%T The Internet Key Exchange (IKE)
+.Re
+.Pp
+.Rs
+.%A T. Kivinen
+.%A B. Swander
+.%A A. Huttunen
+.%A V. Volpe
+.%D January 2005
+.%R RFC 3947
+.%T Negotiation of NAT-Traversal in the IKE
+.Re
+.Sh HISTORY
+This implementation of the ISAKMP/Oakley key management protocol
+was done in 1998 by Niklas Hallqvist and Niels Provos,
+sponsored by Ericsson Radio Systems.
+.Sh CAVEATS
+When storing a trusted public key for an IPv6 identity, the
+.Em most efficient
+form of address representation, i.e. "::" instead of ":0:0:0:",
+must be used or the matching will fail.
+.Nm
+uses the output from
+.Xr getnameinfo 3
+for the address-to-name translation.
+The privileged process only allows binding to the default port 500 or
+unprivileged ports (>1024).
+It is not possible to change the interfaces
+.Nm
+listens on without a restart.
+.Pp
+For redundant setups with
+.Xr carp 4
+and
+.Xr sasyncd 8 ,
+.Xr sasyncd 8
+must be manually restarted every time
+.Nm
+is restarted, and
+.Xr isakmpd.conf 5
+must explicitly configure
+.Nm
+to listen on the virtual IP address of each
+.Xr carp 4
+interface.

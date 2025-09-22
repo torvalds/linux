@@ -1,0 +1,10 @@
+static_library("Driver") {
+  output_name = "LLVMFrontendDriver"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+  sources = [ "CodeGenOptions.cpp" ]
+}

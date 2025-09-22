@@ -1,0 +1,15 @@
+Common Unix Printing System
+CUPS provides a portable printing layer for UNIX(r)-based operating
+systems.  CUPS provides the System V and Berkeley command-line
+interfaces.
+
+CUPS uses the Internet Printing Protocol ("IPP") as the basis for
+managing print jobs and queues.  The Line Printer Daemon ("LPD") Server
+Message Block ("SMB"), and AppSocket (a.k.a. JetDirect) protocols are
+also supported with reduced functionality.  CUPS adds network printer
+browsing and PostScript Printer Description ("PPD") based printing
+options to support real-world printing under UNIX.
+
+Maintainer: Antoine Jacoutot <ajacoutot@openbsd.org>
+
+WWW: http://www.cups.org/

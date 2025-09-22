@@ -1,0 +1,228 @@
+.\"	$OpenBSD: tmpnam.3,v 1.23 2019/08/30 23:33:45 deraadt Exp $
+.\"
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 30 2019 $
+.Dt TMPNAM 3
+.Os
+.Sh NAME
+.Nm tempnam ,
+.Nm tmpfile ,
+.Nm tmpnam
+.Nd temporary file routines
+.Sh SYNOPSIS
+.In stdio.h
+.Ft FILE *
+.Fn tmpfile void
+.Ft char *
+.Fn tmpnam "char *str"
+.Ft char *
+.Fn tempnam "const char *tmpdir" "const char *prefix"
+.Sh DESCRIPTION
+The
+.Fn tmpfile
+function returns a pointer to a stream associated with a file descriptor
+returned by the routine
+.Xr mkstemp 3 .
+The created file is unlinked before
+.Fn tmpfile
+returns, causing the file to be automatically deleted when the last
+reference to it is closed.
+The file is opened with the access value
+.Ql w+ .
+.Pp
+The
+.Fn tmpnam
+function returns a pointer to a file name, in the
+.Dv P_tmpdir
+directory, which did not reference an existing file at some
+indeterminate point in the past.
+.Dv P_tmpdir
+is defined in the include file
+.In stdio.h .
+If the argument
+.Fa str
+is non-null, the file name is copied to the buffer it references.
+Otherwise, the file name is copied to a static buffer.
+In either case,
+.Fn tmpnam
+returns a pointer to the file name.
+.Pp
+The buffer referenced by
+.Fa str
+is expected to be at least
+.Dv L_tmpnam
+bytes in length.
+.Dv L_tmpnam
+is defined in the include file
+.In stdio.h .
+.Pp
+The
+.Fn tempnam
+function is similar to
+.Fn tmpnam ,
+but provides the ability to specify the directory which will
+contain the temporary file and the file name prefix.
+.Pp
+The environment variable
+.Ev TMPDIR
+(if set), the argument
+.Fa tmpdir
+(if non-null),
+the directory
+.Dv P_tmpdir ,
+and the directory
+.Pa /tmp
+are tried, in the listed order, as directories in which to store the
+temporary file.
+.Pp
+The argument
+.Fa prefix ,
+if non-null, is used to specify a file name prefix, which will be the
+first part of the created file name.
+.Fn tempnam
+allocates memory in which to store the file name; the returned pointer
+may be used as a subsequent argument to
+.Xr free 3 .
+.Sh RETURN VALUES
+The
+.Fn tmpfile
+function returns a pointer to an open file stream on success, and a null
+pointer on error.
+.Pp
+The
+.Fn tmpnam
+and
+.Fn tempnam
+functions return a pointer to a file name on success, and a null pointer
+on error.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev TMPDIR
+.Pf [ Fn tempnam
+only]
+If set,
+the directory in which the temporary file is stored.
+.Ev TMPDIR
+is ignored for processes
+for which
+.Xr issetugid 2
+is true.
+.El
+.Sh ERRORS
+The
+.Fn tmpfile
+function may fail and set the global variable
+.Va errno
+for any of the errors specified for the library functions
+.Xr fdopen 3
+or
+.Xr mkstemp 3 .
+.Pp
+The
+.Fn tmpnam
+function may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr mktemp 3 .
+.Pp
+The
+.Fn tempnam
+function may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr malloc 3
+or
+.Xr mktemp 3 .
+.Sh SEE ALSO
+.Xr issetugid 2 ,
+.Xr mkstemp 3 ,
+.Xr mktemp 3
+.Sh STANDARDS
+The
+.Fn tmpfile
+and
+.Fn tmpnam
+functions conform to
+.St -ansiC .
+.Sh BUGS
+.Fn tmpnam
+and
+.Fn tempnam
+are provided for System V and ANSI compatibility only.
+These interfaces are typically not used in safe ways.
+The
+.Xr mkstemp 3
+interface is strongly preferred.
+.Pp
+There are four important problems with these interfaces (as well as
+with the historic
+.Xr mktemp 3
+interface).
+First, there is an obvious race between file name selection and file
+creation and deletion: the program is typically written to call
+.Fn tmpnam ,
+.Fn tempnam ,
+or
+.Xr mktemp 3 .
+Subsequently, the program calls
+.Xr open 2
+or
+.Xr fopen 3
+and erroneously opens a file (or symbolic link, or FIFO or other
+device) that the attacker has placed in the expected file location.
+Hence
+.Xr mkstemp 3
+is recommended, since it atomically creates the file.
+.Pp
+Second, most historic implementations provide only a limited number
+of possible temporary file names (usually 26) before file names will
+start being recycled.
+Third, the System V implementations of these functions (and of
+.Xr mktemp 3 )
+use the
+.Xr access 2
+function to determine whether or not the temporary file may be created.
+This has obvious ramifications for daemons or setuid/setgid programs,
+complicating the portable use of these interfaces in such programs.
+Finally, there is no specification of the permissions with which the
+temporary files are created.
+.Pp
+This implementation does not have these flaws, but portable software
+cannot depend on that.
+.Pp
+For these reasons,
+.Xr ld 1
+will output a warning message whenever it links code that uses the functions
+.Fn tmpnam
+or
+.Fn tempnam .

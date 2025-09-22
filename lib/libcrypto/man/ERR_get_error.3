@@ -1,0 +1,192 @@
+.\"	$OpenBSD: ERR_get_error.3,v 1.9 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Ulf Moeller <ulf@openssl.org>.
+.\" Copyright (c) 2000, 2002, 2014 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ERR_GET_ERROR 3
+.Os
+.Sh NAME
+.Nm ERR_get_error ,
+.Nm ERR_peek_error ,
+.Nm ERR_peek_last_error ,
+.Nm ERR_get_error_line ,
+.Nm ERR_peek_error_line ,
+.Nm ERR_peek_last_error_line ,
+.Nm ERR_get_error_line_data ,
+.Nm ERR_peek_error_line_data ,
+.Nm ERR_peek_last_error_line_data
+.Nd obtain OpenSSL error code and data
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/err.h
+.Ft unsigned long
+.Fn ERR_get_error void
+.Ft unsigned long
+.Fn ERR_peek_error void
+.Ft unsigned long
+.Fn ERR_peek_last_error void
+.Ft unsigned long
+.Fo ERR_get_error_line
+.Fa "const char **file"
+.Fa "int *line"
+.Fc
+.Ft unsigned long
+.Fo ERR_peek_error_line
+.Fa "const char **file"
+.Fa "int *line"
+.Fc
+.Ft unsigned long
+.Fo ERR_peek_last_error_line
+.Fa "const char **file"
+.Fa "int *line"
+.Fc
+.Ft unsigned long
+.Fo ERR_get_error_line_data
+.Fa "const char **file"
+.Fa "int *line"
+.Fa "const char **data"
+.Fa "int *flags"
+.Fc
+.Ft unsigned long
+.Fo ERR_peek_error_line_data
+.Fa "const char **file"
+.Fa "int *line"
+.Fa "const char **data"
+.Fa "int *flags"
+.Fc
+.Ft unsigned long
+.Fo ERR_peek_last_error_line_data
+.Fa "const char **file"
+.Fa "int *line"
+.Fa "const char **data"
+.Fa "int *flags"
+.Fc
+.Sh DESCRIPTION
+.Fn ERR_get_error
+returns the earliest error code from the thread's error queue and
+removes the entry.
+This function can be called repeatedly until there are no more error
+codes to return.
+.Pp
+.Fn ERR_peek_error
+returns the earliest error code from the thread's error queue without
+modifying it.
+.Pp
+.Fn ERR_peek_last_error
+returns the latest error code from the thread's error queue without
+modifying it.
+.Pp
+See
+.Xr ERR_GET_LIB 3
+for obtaining information about the location and reason for the error, and
+.Xr ERR_error_string 3
+for human-readable error messages.
+.Pp
+.Fn ERR_get_error_line ,
+.Fn ERR_peek_error_line ,
+and
+.Fn ERR_peek_last_error_line
+are the same as the above, but they additionally store the file name and
+line number where the error occurred in
+.Pf * Fa file
+and
+.Pf * Fa line ,
+unless these are
+.Dv NULL .
+.Pp
+.Fn ERR_get_error_line_data ,
+.Fn ERR_peek_error_line_data ,
+and
+.Fn ERR_peek_last_error_line_data
+store additional data and flags associated with the error code in
+.Pf * Fa data
+and
+.Pf * Fa flags ,
+unless these are
+.Dv NULL .
+.Pf * Fa data
+contains a string if
+.Pf * Fa flags Ns & Ns Dv ERR_TXT_STRING
+is true.
+.Pp
+An application
+.Sy MUST NOT
+free the
+.Pf * Fa data
+pointer (or any other pointers returned by these functions) with
+.Xr free 3
+as freeing is handled automatically by the error library.
+.Sh RETURN VALUES
+The error code, or 0 if there is no error in the queue.
+.Sh SEE ALSO
+.Xr ERR 3 ,
+.Xr ERR_error_string 3 ,
+.Xr ERR_GET_LIB 3
+.Sh HISTORY
+.Fn ERR_get_error
+and
+.Fn ERR_peek_error
+first appeared in SSLeay 0.4.4.
+.Fn ERR_get_error_line
+and
+.Fn ERR_peek_error_line
+first appeared in SSLeay 0.6.0.
+.Fn ERR_get_error_line_data
+and
+.Fn ERR_peek_error_line_data
+first appeared in SSLeay 0.9.0.
+All these functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn ERR_peek_last_error ,
+.Fn ERR_peek_last_error_line ,
+and
+.Fn ERR_peek_last_error_line_data
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .

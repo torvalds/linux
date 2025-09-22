@@ -1,0 +1,577 @@
+import("//llvm/include/llvm/Config/config.gni")
+import("//llvm/lib/DebugInfo/PDB/enable_dia.gni")
+import("//llvm/lib/Target/targets.gni")
+import("//llvm/lib/Target/targets_with_asm_parsers.gni")
+import("//llvm/lib/Target/targets_with_disassemblers.gni")
+import("//llvm/lib/Target/targets_with_exegesis.gni")
+import("//llvm/lib/Target/targets_with_mcas.gni")
+import("//llvm/triples.gni")
+import("//llvm/utils/gn/build/buildflags.gni")
+import("//llvm/utils/gn/build/libs/curl/enable.gni")
+import("//llvm/utils/gn/build/libs/edit/enable.gni")
+import("//llvm/utils/gn/build/libs/pthread/enable.gni")
+import("//llvm/utils/gn/build/libs/xar/enable.gni")
+import("//llvm/utils/gn/build/libs/xml/enable.gni")
+import("//llvm/utils/gn/build/libs/zlib/enable.gni")
+import("//llvm/utils/gn/build/libs/zstd/enable.gni")
+import("//llvm/utils/gn/build/write_cmake_config.gni")
+import("//llvm/version.gni")
+
+# Contains actions to create config.h, llvm-config.h, abi-breaking.h,
+# and the various .def files used by llvm/lib/Target.
+# Other than in the cmake build, these are created at build time, not at
+# config time. That way, they can run in parallel, and this pattern means that
+# e.g. creating the clang config header (which happens in another gn file)
+# doesn't block building lld.
+
+# The headers are created by processing the foo.h.cmake files as input,
+# to keep the gn build close to the cmake build.
+
+# Other than in the cmake build, header generation doesn't do any feature
+# checking. See also "Philosophy" in llvm/utils/gn/README.rst.
+
+##############################################################################
+# config.h, llvm-config.h, abi-breaking.h
+
+# FIXME: Several of the config settings go in a global config header but
+# are only used in a single translation unit -- so toggling that value
+# causes a full rebuild when it really only has to rebuild a single file.
+# Instead monolithing config headers, investigate using something like
+# https://is.gd/buildflag_header_gni instead (needs to be done in both the
+# cmake build and here).
+
+# FIXME: This hardcodes a bunch of settings I never use; some of them should
+# become declare_args if anyone wants to set them.
+
+declare_args() {
+  # Enable additional checks that alter the LLVM C++ ABI.
+  llvm_enable_abi_breaking_checks = llvm_enable_assertions
+
+  # Force enable statistics.
+  llvm_force_enable_stats = false
+
+  # glibc is at least 2.33 which has mallinfo2.
+  # TODO: remove this once nobody using the gn build is building against an old glibc.
+  llvm_have_mallinfo2 = current_os == "linux"
+}
+
+write_cmake_config("abi-breaking") {
+  input = "abi-breaking.h.cmake"
+  output = "$target_gen_dir/abi-breaking.h"
+  values = []
+
+  if (llvm_enable_abi_breaking_checks) {
+    values += [ "LLVM_ENABLE_ABI_BREAKING_CHECKS=1" ]
+  } else {
+    values += [ "LLVM_ENABLE_ABI_BREAKING_CHECKS=" ]
+  }
+
+  if (llvm_enable_reverse_iteration) {
+    values += [ "LLVM_ENABLE_REVERSE_ITERATION=1" ]
+  } else {
+    values += [ "LLVM_ENABLE_REVERSE_ITERATION=" ]
+  }
+}
+
+write_cmake_config("config") {
+  public_deps = [ ":llvm-config" ]
+
+  input = "config.h.cmake"
+  output = "$target_gen_dir/config.h"
+  values = [
+    "BUG_REPORT_URL=https://github.com/llvm/llvm-project/issues/",
+    "ENABLE_BACKTRACES=1",
+    "ENABLE_CRASH_OVERRIDES=1",
+    "BACKTRACE_HEADER=execinfo.h",
+    "HAVE_BUILTIN_THREAD_POINTER=",
+    "HAVE_CRASHREPORTERCLIENT_H=",
+    "HAVE_DECL_FE_ALL_EXCEPT=1",
+    "HAVE_DECL_FE_INEXACT=1",
+    "LLVM_ENABLE_CRASH_DUMPS=",
+    "HAVE_ERRNO_H=1",
+    "HAVE_FCNTL_H=1",
+    "HAVE_FENV_H=1",
+    "HAVE_FFI_CALL=",
+    "HAVE_FFI_FFI_H=",
+    "HAVE_FFI_H=",
+    "HAVE_LIBPFM=",
+    "HAVE_LIBPSAPI=",
+    "HAVE_MALLCTL=",
+    "HAVE_SIGNAL_H=1",
+    "HAVE_SYS_STAT_H=1",
+    "HAVE_SYS_TYPES_H=1",
+    "HAVE_VALGRIND_VALGRIND_H=",
+    "HAVE__ALLOCA=",
+    "HAVE___ALLOCA=",
+    "HAVE___ASHLDI3=",
+    "HAVE___ASHRDI3=",
+    "HAVE___CHKSTK=",
+    "HAVE___CHKSTK_MS=",
+    "HAVE___CMPDI2=",
+    "HAVE___DIVDI3=",
+    "HAVE___FIXDFDI=",
+    "HAVE___FIXSFDI=",
+    "HAVE___FLOATDIDF=",
+    "HAVE___LSHRDI3=",
+    "HAVE___MAIN=",
+    "HAVE___MODDI3=",
+    "HAVE___UDIVDI3=",
+    "HAVE___UMODDI3=",
+    "HAVE____CHKSTK=",
+    "HAVE____CHKSTK_MS=",
+    "HOST_LINK_VERSION=",
+    "LIBPFM_HAS_FIELD_CYCLES=",
+    "LLVM_TARGET_TRIPLE_ENV=",
+    "LLVM_VERSION_PRINTER_SHOW_BUILD_CONFIG=1",
+    "LLVM_VERSION_PRINTER_SHOW_HOST_TARGET_INFO=1",
+    "LLVM_WINDOWS_PREFER_FORWARD_SLASH=",
+    "PACKAGE_BUGREPORT=https://github.com/llvm/llvm-project/issues/",
+    "PACKAGE_NAME=LLVM",
+    "PACKAGE_STRING=LLVM ${llvm_version}git",
+    "PACKAGE_VERSION=${llvm_version}git",
+    "PACKAGE_VENDOR=",
+    "LLVM_GISEL_COV_ENABLED=",
+    "LLVM_GISEL_COV_PREFIX=",
+
+    # FIXME: Set to 1 on mac once the 10.14 SDK is in common use.
+    "LLVM_SUPPORT_XCODE_SIGNPOSTS=",
+  ]
+
+  if (current_os == "linux" || current_os == "android") {
+    values += [
+      "HAVE_FUTIMENS=1",
+      "HAVE_LINK_H=1",
+      "HAVE_MALLINFO=1",
+      "HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC=1",
+    ]
+  } else {
+    values += [
+      "HAVE_FUTIMENS=",
+      "HAVE_LINK_H=",
+      "HAVE_MALLINFO=",
+      "HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC=",
+    ]
+  }
+
+  if (current_os == "mac") {
+    values += [
+      "HAVE_CRASHREPORTER_INFO=1",
+      "HAVE_DECL_ARC4RANDOM=1",
+      "HAVE_MACH_MACH_H=1",
+      "HAVE_MALLOC_MALLOC_H=1",
+      "HAVE_MALLOC_ZONE_STATISTICS=1",
+      "HAVE_PROC_PID_RUSAGE=1",
+      "HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC=1",
+      "HAVE_UNW_ADD_DYNAMIC_FDE=1",
+    ]
+  } else {
+    values += [
+      "HAVE_CRASHREPORTER_INFO=",
+      "HAVE_DECL_ARC4RANDOM=",
+      "HAVE_MACH_MACH_H=",
+      "HAVE_MALLOC_MALLOC_H=",
+      "HAVE_MALLOC_ZONE_STATISTICS=",
+      "HAVE_PROC_PID_RUSAGE=",
+      "HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC=",
+      "HAVE_UNW_ADD_DYNAMIC_FDE=",
+    ]
+  }
+
+  if (current_os == "linux" || current_os == "mac") {
+    values += [
+      "HAVE_BACKTRACE=1",
+      "HAVE_POSIX_SPAWN=1",
+      "HAVE_PTHREAD_GETNAME_NP=1",
+    ]
+  } else {
+    values += [
+      "HAVE_BACKTRACE=",
+      "HAVE_POSIX_SPAWN=",
+      "HAVE_PTHREAD_GETNAME_NP=",
+    ]
+  }
+
+  if (current_os == "win" || current_cpu == "arm") {
+    values += [
+      "HAVE_DEREGISTER_FRAME=",
+      "HAVE_REGISTER_FRAME=",
+    ]
+  } else {
+    values += [
+      "HAVE_DEREGISTER_FRAME=1",
+      "HAVE_REGISTER_FRAME=1",
+    ]
+  }
+
+  if (current_os == "win") {
+    values += [
+      "HAVE_DECL_STRERROR_S=1",
+      "HAVE_DLADDR=",
+      "HAVE_DLFCN_H=",
+      "HAVE_DLOPEN=",
+      "HAVE_FUTIMES=",
+      "HAVE_GETPAGESIZE=",
+      "HAVE_GETRLIMIT=",
+      "HAVE_GETRUSAGE=",
+      "HAVE_ISATTY=",
+      "HAVE_LIBPTHREAD=",
+      "HAVE_PTHREAD_SETNAME_NP=",
+      "HAVE_PREAD=",
+      "HAVE_PTHREAD_H=",
+      "HAVE_PTHREAD_MUTEX_LOCK=",
+      "HAVE_PTHREAD_RWLOCK_INIT=",
+      "HAVE_SBRK=",
+      "HAVE_SETENV=",
+      "HAVE_SETRLIMIT=",
+      "HAVE_SIGALTSTACK=",
+      "HAVE_STRERROR_R=",
+      "HAVE_SYSCONF=",
+      "HAVE_SYS_IOCTL_H=",
+      "HAVE_SYS_MMAN_H=",
+      "HAVE_SYS_PARAM_H=",
+      "HAVE_SYS_RESOURCE_H=",
+      "HAVE_SYS_TIME_H=",
+      "HAVE_TERMIOS_H=",
+      "HAVE_UNISTD_H=",
+      "HAVE__CHSIZE_S=1",
+      "HAVE__UNWIND_BACKTRACE=",
+      "stricmp=_stricmp",
+      "strdup=_strdup",
+    ]
+  } else {
+    # POSIX-y system defaults.
+    values += [
+      "HAVE_DECL_STRERROR_S=",
+      "HAVE_DLADDR=1",
+      "HAVE_DLFCN_H=1",
+      "HAVE_DLOPEN=1",
+      "HAVE_FUTIMES=1",
+      "HAVE_GETPAGESIZE=1",
+      "HAVE_GETRLIMIT=1",
+      "HAVE_GETRUSAGE=1",
+      "HAVE_ISATTY=1",
+      "HAVE_LIBPTHREAD=1",
+      "HAVE_PTHREAD_SETNAME_NP=1",
+      "HAVE_PREAD=1",
+      "HAVE_PTHREAD_H=1",
+      "HAVE_PTHREAD_MUTEX_LOCK=1",
+      "HAVE_PTHREAD_RWLOCK_INIT=1",
+      "HAVE_SBRK=1",
+      "HAVE_SETENV=1",
+      "HAVE_SETRLIMIT=1",
+      "HAVE_SIGALTSTACK=1",
+      "HAVE_STRERROR_R=1",
+      "HAVE_SYSCONF=1",
+      "HAVE_SYS_IOCTL_H=1",
+      "HAVE_SYS_MMAN_H=1",
+      "HAVE_SYS_PARAM_H=1",
+      "HAVE_SYS_RESOURCE_H=1",
+      "HAVE_SYS_TIME_H=1",
+      "HAVE_TERMIOS_H=1",
+      "HAVE_UNISTD_H=1",
+      "HAVE__CHSIZE_S=",
+      "HAVE__UNWIND_BACKTRACE=1",
+      "stricmp=",
+      "strdup=",
+    ]
+  }
+
+  if (current_os == "mac") {
+    shlib_ext = ".dylib"
+  } else if (current_os == "win") {
+    shlib_ext = ".dll"
+  } else {
+    shlib_ext = ".so"
+  }
+  values += [
+    "LLVM_PLUGIN_EXT=$shlib_ext",
+    "LTDL_SHLIB_EXT=$shlib_ext",
+  ]
+
+  if (llvm_enable_libedit) {
+    values += [ "HAVE_LIBEDIT=1" ]
+  } else {
+    values += [ "HAVE_LIBEDIT=" ]
+  }
+
+  if (llvm_enable_libxml2) {
+    values += [ "LLVM_ENABLE_LIBXML2=1" ]
+  } else {
+    values += [ "LLVM_ENABLE_LIBXML2=" ]
+  }
+
+  if (llvm_have_mallinfo2) {
+    values += [ "HAVE_MALLINFO2=1" ]
+  } else {
+    values += [ "HAVE_MALLINFO2=" ]
+  }
+}
+
+write_cmake_config("llvm-config") {
+  input = "llvm-config.h.cmake"
+  output = "$target_gen_dir/llvm-config.h"
+  values = [
+    "LLVM_BUILD_LLVM_DYLIB=",
+    "LLVM_BUILD_SHARED_LIBS=",
+    "LLVM_DEFAULT_TARGET_TRIPLE=$llvm_target_triple",
+    "LLVM_ENABLE_DUMP=",
+    "LLVM_ENABLE_HTTPLIB=",
+    "LLVM_FORCE_USE_OLD_TOOLCHAIN=",
+    "LLVM_HAS_ATOMICS=1",
+    "LLVM_HAS_LOGF128=",
+    "LLVM_HAVE_TFLITE=",
+    "LLVM_HOST_TRIPLE=$llvm_current_triple",
+    "LLVM_NATIVE_ARCH=$native_target",
+    "LLVM_UNREACHABLE_OPTIMIZE=1",
+    "LLVM_USE_INTEL_JITEVENTS=",
+    "LLVM_USE_OPROFILE=",
+    "LLVM_USE_PERF=",
+    "LLVM_VERSION_MAJOR=$llvm_version_major",
+    "LLVM_VERSION_MINOR=$llvm_version_minor",
+    "LLVM_VERSION_PATCH=$llvm_version_patch",
+    "LLVM_WITH_Z3=",
+    "PACKAGE_VERSION=${llvm_version}git",
+  ]
+
+  if (llvm_build_native) {
+    values += [
+      "LLVM_NATIVE_ASMPARSER=1",
+      "LLVM_NATIVE_ASMPRINTER=1",
+      "LLVM_NATIVE_DISASSEMBLER=1",
+      "LLVM_NATIVE_TARGET=1",
+      "LLVM_NATIVE_TARGETINFO=1",
+      "LLVM_NATIVE_TARGETMC=1",
+      "LLVM_NATIVE_TARGETMCA=1",
+    ]
+  } else {
+    values += [
+      "LLVM_NATIVE_ASMPARSER=",
+      "LLVM_NATIVE_ASMPRINTER=",
+      "LLVM_NATIVE_DISASSEMBLER=",
+      "LLVM_NATIVE_TARGET=",
+      "LLVM_NATIVE_TARGETINFO=",
+      "LLVM_NATIVE_TARGETMC=",
+      "LLVM_NATIVE_TARGETMCA=",
+    ]
+  }
+
+  if (current_os == "win") {
+    values += [
+      "HAVE_SYSEXITS_H=",
+      "LLVM_ENABLE_PLUGINS=",
+      "LLVM_ON_UNIX=",
+    ]
+  } else {
+    values += [
+      "HAVE_SYSEXITS_H=1",
+      "LLVM_ENABLE_PLUGINS=1",
+      "LLVM_ON_UNIX=1",
+    ]
+  }
+
+  if (llvm_enable_dia_sdk) {
+    values += [ "LLVM_ENABLE_DIA_SDK=1" ]
+  } else {
+    values += [ "LLVM_ENABLE_DIA_SDK=" ]
+  }
+
+  if (llvm_enable_threads) {
+    values += [ "LLVM_ENABLE_THREADS=1" ]
+  } else {
+    values += [ "LLVM_ENABLE_THREADS=" ]
+  }
+
+  if (llvm_enable_zlib) {
+    values += [ "LLVM_ENABLE_ZLIB=1" ]
+  } else {
+    values += [ "LLVM_ENABLE_ZLIB=" ]
+  }
+
+  if (llvm_enable_zstd) {
+    values += [ "LLVM_ENABLE_ZSTD=1" ]
+  } else {
+    values += [ "LLVM_ENABLE_ZSTD=" ]
+  }
+
+  if (llvm_enable_libcurl) {
+    values += [ "LLVM_ENABLE_CURL=1" ]
+  } else {
+    values += [ "LLVM_ENABLE_CURL=" ]
+  }
+
+  if (llvm_force_enable_stats) {
+    values += [ "LLVM_FORCE_ENABLE_STATS=1" ]
+  } else {
+    values += [ "LLVM_FORCE_ENABLE_STATS=" ]
+  }
+
+  if (llvm_build_AArch64) {
+    values += [ "LLVM_HAS_AARCH64_TARGET=1" ]
+  } else {
+    values += [ "LLVM_HAS_AARCH64_TARGET=" ]
+  }
+
+  if (llvm_build_AMDGPU) {
+    values += [ "LLVM_HAS_AMDGPU_TARGET=1" ]
+  } else {
+    values += [ "LLVM_HAS_AMDGPU_TARGET=" ]
+  }
+
+  values += [ "LLVM_HAS_ARC_TARGET=" ]
+
+  if (llvm_build_ARM) {
+    values += [ "LLVM_HAS_ARM_TARGET=1" ]
+  } else {
+    values += [ "LLVM_HAS_ARM_TARGET=" ]
+  }
+
+  values += [ "LLVM_HAS_AVR_TARGET=" ]
+
+  if (llvm_build_BPF) {
+    values += [ "LLVM_HAS_BPF_TARGET=1" ]
+  } else {
+    values += [ "LLVM_HAS_BPF_TARGET=" ]
+  }
+
+  values += [ "LLVM_HAS_CSKY_TARGET=" ]
+  values += [ "LLVM_HAS_DIRECTX_TARGET=" ]
+  values += [ "LLVM_HAS_HEXAGON_TARGET=" ]
+  values += [ "LLVM_HAS_LANAI_TARGET=" ]
+
+  if (llvm_build_LoongArch) {
+    values += [ "LLVM_HAS_LOONGARCH_TARGET=1" ]
+  } else {
+    values += [ "LLVM_HAS_LOONGARCH_TARGET=" ]
+  }
+
+  values += [ "LLVM_HAS_M68K_TARGET=" ]
+
+  if (llvm_build_Mips) {
+    values += [ "LLVM_HAS_MIPS_TARGET=1" ]
+  } else {
+    values += [ "LLVM_HAS_MIPS_TARGET=" ]
+  }
+
+  values += [ "LLVM_HAS_MSP430_TARGET=" ]
+  values += [ "LLVM_HAS_NVPTX_TARGET=" ]
+
+  if (llvm_build_PowerPC) {
+    values += [ "LLVM_HAS_POWERPC_TARGET=1" ]
+  } else {
+    values += [ "LLVM_HAS_POWERPC_TARGET=" ]
+  }
+
+  if (llvm_build_RISCV) {
+    values += [ "LLVM_HAS_RISCV_TARGET=1" ]
+  } else {
+    values += [ "LLVM_HAS_RISCV_TARGET=" ]
+  }
+
+  values += [ "LLVM_HAS_SPARC_TARGET=" ]
+  values += [ "LLVM_HAS_SPIRV_TARGET=" ]
+
+  if (llvm_build_SystemZ) {
+    values += [ "LLVM_HAS_SYSTEMZ_TARGET=1" ]
+  } else {
+    values += [ "LLVM_HAS_SYSTEMZ_TARGET=" ]
+  }
+
+  values += [ "LLVM_HAS_VE_TARGET=" ]
+
+  if (llvm_build_WebAssembly) {
+    values += [ "LLVM_HAS_WEBASSEMBLY_TARGET=1" ]
+  } else {
+    values += [ "LLVM_HAS_WEBASSEMBLY_TARGET=" ]
+  }
+
+  if (llvm_build_X86) {
+    values += [ "LLVM_HAS_X86_TARGET=1" ]
+  } else {
+    values += [ "LLVM_HAS_X86_TARGET=" ]
+  }
+
+  values += [ "LLVM_HAS_XCORE_TARGET=" ]
+  values += [ "LLVM_HAS_XTENSA_TARGET=" ]
+}
+
+##############################################################################
+# .def files used by llvm/lib/Target
+
+template("write_target_def_file") {
+  assert(defined(invoker.key), "must set 'key' in $target_name")
+  assert(defined(invoker.value), "must set 'value' in $target_name")
+
+  write_cmake_config(target_name) {
+    visibility = [ ":write_target_def_files" ]
+    input = "$target_name.in"
+    output = "$target_gen_dir/$target_name"
+
+    if (defined(invoker.all_targets)) {
+      all_targets = invoker.all_targets
+    } else {
+      all_targets = llvm_targets_to_build
+    }
+
+    # Build something like
+    # `LLVM_ENUM_ASM_PARSERS=LLVM_ASM_PARSER(ARM)\nLLVM_ASM_PARSER(X86)\n`. Note
+    # that \n is a literal '\' followed by a literal 'n', not a newline
+    # character.  (write_cmake_config.py replaces that with a real newline).
+    value = ""
+    foreach(target, all_targets) {
+      value = "$value${invoker.value}($target)\n"
+    }
+    if (all_targets == []) {
+      not_needed(invoker, [ "value" ])
+    }
+    values = [ "${invoker.key}=$value" ]
+  }
+}
+
+write_target_def_file("AsmParsers.def") {
+  key = "LLVM_ENUM_ASM_PARSERS"
+  value = "LLVM_ASM_PARSER"
+  all_targets = targets_with_asm_parsers
+}
+
+write_target_def_file("AsmPrinters.def") {
+  key = "LLVM_ENUM_ASM_PRINTERS"
+  value = "LLVM_ASM_PRINTER"
+}
+
+write_target_def_file("Disassemblers.def") {
+  key = "LLVM_ENUM_DISASSEMBLERS"
+  value = "LLVM_DISASSEMBLER"
+  all_targets = targets_with_disassemblers
+}
+
+write_target_def_file("Targets.def") {
+  key = "LLVM_ENUM_TARGETS"
+  value = "LLVM_TARGET"
+}
+
+write_target_def_file("TargetMCAs.def") {
+  key = "LLVM_ENUM_TARGETMCAS"
+  value = "LLVM_TARGETMCA"
+  all_targets = targets_with_mcas
+}
+
+write_target_def_file("TargetExegesis.def") {
+  key = "LLVM_ENUM_EXEGESIS"
+  value = "LLVM_EXEGESIS"
+  all_targets = targets_with_exegesis
+}
+
+group("write_target_def_files") {
+  visibility = [
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+  ]
+  deps = [
+    ":AsmParsers.def",
+    ":AsmPrinters.def",
+    ":Disassemblers.def",
+    ":TargetExegesis.def",
+    ":TargetMCAs.def",
+    ":Targets.def",
+  ]
+}

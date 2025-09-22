@@ -1,0 +1,2 @@
+pass in log-all on lo0 all
+block out log-all quick on lo0 all

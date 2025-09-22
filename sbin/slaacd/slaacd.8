@@ -1,0 +1,166 @@
+.\"	$OpenBSD: slaacd.8,v 1.13 2024/08/11 06:07:37 jmc Exp $
+.\"
+.\" Copyright (c) 2017 Florian Obser <florian@openbsd.org>
+.\" Copyright (c) 2016 Kenneth R Westerback <kwesterback@gmail.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 11 2024 $
+.Dt SLAACD 8
+.Os
+.Sh NAME
+.Nm slaacd
+.Nd Stateless Address Autoconfiguration (SLAAC) daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dv
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+.Nm
+is a stateless address autoconfiguration (SLAAC) daemon for clients.
+If an interface has the
+.Sy AUTOCONF6
+flag set
+(auto configuration is enabled),
+.Nm
+regularly sends out requests for IPv6 router advertisement messages,
+such as those sent by
+.Xr rad 8 ,
+and uses those messages to configure the relevant interface.
+.Pp
+See
+.Xr hostname.if 5
+and
+.Xr ifconfig 8
+on how to enable auto configuration on an interface.
+.Pp
+.Nm
+monitors network interface states
+(interface going up or down, auto configuration enabled or disabled, etc.)\&
+and sends router solicitations when necessary.
+A running
+.Nm
+can be controlled with the
+.Xr slaacctl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl s Ar socket
+Use an alternate location for the default control socket.
+.It Fl v
+Produce more verbose output.
+Multiple
+.Fl v
+options increase the verbosity.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/slaacd.sockXX" -compact
+.It Pa /dev/slaacd.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr slaacctl 8 .
+.El
+.Sh SEE ALSO
+.Xr hostname.if 5 ,
+.Xr ifconfig 8 ,
+.Xr rad 8 ,
+.Xr slaacctl 8
+.Sh STANDARDS
+.Rs
+.%A R. Draves
+.%A D. Thaler
+.%D November 2005
+.%R RFC 4191
+.%T Default Router Preferences and More-Specific Routes
+.Re
+.Pp
+.Rs
+.%A R. Hinden
+.%A S. Deering
+.%D February 2006
+.%R RFC 4291
+.%T IP Version 6 Addressing Architecture
+.Re
+.Pp
+.Rs
+.%A T. Narten
+.%A E. Nordmark
+.%A W. Simpson
+.%A H. Soliman
+.%D September 2007
+.%R RFC 4861
+.%T Neighbor Discovery for IP version 6 (IPv6)
+.Re
+.Pp
+.Rs
+.%A F. Gont
+.%D April 2014
+.%R RFC 7217
+.%T A Method for Generating Semantically Opaque Interface Identifiers with IPv6 Stateless Address Autoconfiguration (SLAAC)
+.Re
+.Pp
+.Rs
+.%A A. Yourtchenko
+.%A L. Colitti
+.%D February 2016
+.%R RFC 7772
+.%T Reducing Energy Consumption of Router Advertisements
+.Re
+.Pp
+.Rs
+.%A F. Gont
+.%A A. Cooper
+.%A D. Thaler
+.%A W. Liu
+.%D February 2017
+.%R RFC 8064
+.%T Recommendation on Stable IPv6 Interface Identifiers
+.Re
+.Pp
+.Rs
+.%A J. Jeong
+.%A S. Park
+.%A L. Beloeil
+.%A S. Madanapalli
+.%D March 2017
+.%R RFC 8106
+.%T IPv6 Router Advertisement Options for DNS Configuration
+.Re
+.Pp
+.Rs
+.%A F. Gont
+.%A S. Krishnan
+.%A T. Narten
+.%A R. Draves
+.%D February 2021
+.%R RFC 8981
+.%T Temporary Address Extensions for Stateless Address Autoconfiguration in IPv6
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 6.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was written by
+.An Florian Obser Aq Mt florian@openbsd.org .

@@ -1,0 +1,93 @@
+#	$OpenBSD: Makefile.bsd-wrapper,v 1.20 2020/08/24 15:33:33 florian Exp $
+
+.include <bsd.own.mk>
+
+BINDIR=		/usr/sbin
+CHROOTDIR=	/var/unbound
+
+XCFLAGS=	CC="${CC}" CFLAGS="${CFLAGS} ${COPTS}" LDFLAGS="${LDFLAGS}"
+
+CONFIGURE_OPTS_UNBOUND=	--enable-allsymbols \
+			--with-ssl=/usr \
+			--with-libevent=/usr \
+			--with-libexpat=/usr \
+			--without-pythonmodule \
+			--with-chroot-dir=${CHROOTDIR} \
+			--with-pidfile="" \
+			--with-rootkey-file=/var/unbound/db/root.key \
+			--with-conf-file=${CHROOTDIR}/etc/unbound.conf \
+			--with-username=_unbound \
+			--disable-shared \
+			--disable-explicit-port-randomisation
+
+# do not remove, breaks unwind(8)
+CONFIGURE_OPTS_UNBOUND+= --without-pthreads
+
+PROG=	unbound \
+	unbound-anchor \
+	unbound-checkconf \
+	unbound-control \
+	unbound-host
+
+SCRIPT=	unbound-control-setup
+
+MAN=	doc/unbound.8 \
+	doc/unbound.conf.5 \
+	doc/unbound-anchor.8 \
+	doc/unbound-checkconf.8	\
+	doc/unbound-control.8 \
+	doc/unbound-host.1
+
+all:	${.OBJDIR}/config.status
+	exec ${MAKE}
+
+${MAN}: ${.OBJDIR}/config.status
+
+.FORCE: .IGNORE
+
+config: .FORCE
+	-rm -f ${.OBJDIR}/config.cache
+	cd ${.OBJDIR} && \
+		PATH="/bin:/usr/bin:/sbin:/usr/sbin" \
+		${XCFLAGS} \
+		sh ${.CURDIR}/configure ${CONFIGURE_OPTS_UNBOUND}
+
+${.OBJDIR}/config.status:
+	cd ${.OBJDIR} && \
+		PATH="/bin:/usr/bin:/sbin:/usr/sbin" \
+		${XCFLAGS} \
+		sh ${.CURDIR}/configure ${CONFIGURE_OPTS_UNBOUND}
+
+.ifdef NOMAN
+maninstall:
+	@echo NOMAN is set
+.endif
+
+install: maninstall
+.for file in ${PROG}
+	${INSTALL} ${INSTALL_COPY} ${INSTALL_STRIP} \
+		-o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${file} ${DESTDIR}${BINDIR}
+.endfor
+
+.for file in ${SCRIPT}
+	${INSTALL} ${INSTALL_COPY} \
+		-o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${file} ${DESTDIR}${BINDIR}
+.endfor
+
+CLEANFILES+= ${MAN} dnstap/dnstap_config.h doc/example.conf doc/libunbound.3 \
+		smallapp/unbound-control-setup.sh dnscrypt/dnscrypt_config.h
+
+clean cleandir:
+	-@if [ -e Makefile ]; then ${MAKE} realclean; fi
+	rm -f ${CLEANFILES}
+
+tags:
+	# Nothing here so far...
+
+.include <bsd.obj.mk>
+.include <bsd.subdir.mk>
+.ifndef NOMAN
+.include <bsd.man.mk>
+.endif

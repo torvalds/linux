@@ -1,0 +1,45 @@
+; Options for the Vitesse IQ2000 port of the compiler.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+march=
+Target RejectNegative Joined
+Specify CPU for code generation purposes
+
+mcpu=
+Target RejectNegative Joined
+Specify CPU for scheduling purposes
+
+membedded-data
+Target Mask(EMBEDDED_DATA)
+Use ROM instead of RAM
+
+mgpopt
+Target Mask(GPOPT)
+Use GP relative sdata/sbss sections
+
+; Not used by the compiler proper.
+mno-crt0
+Target RejectNegative
+No default crt0.o
+
+muninit-const-in-rodata
+Target Mask(UNINIT_CONST_IN_RODATA)
+Put uninitialized constants in ROM (needs -membedded-data)

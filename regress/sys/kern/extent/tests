@@ -1,0 +1,154 @@
+# $OpenBSD: tests,v 1.6 2019/09/11 12:30:35 kettenis Exp $
+# $NetBSD: tests,v 1.9 2005/03/15 18:27:23 bouyer Exp $
+
+#fill up an extent, should coalesce into one allocation
+extent test1 0 0x4f
+alloc_region 0x00 0x10
+alloc_region 0x20 0x10
+alloc_region 0x40 0x10
+alloc_region 0x10 0x10
+alloc_subregion 0 0x4f 0x10
+print
+
+#check whether subregion is obeyed (PR kern/7539)
+extent test2 0 0x2f EX_NOCOALESCE
+alloc_region 0x00 0x10
+alloc_subregion 0x20 0x2f 0x10
+print
+
+#check overlap into subregion (fixed in 1.25)
+extent test3 0 0x3f EX_NOCOALESCE
+alloc_region 0x00 0x20
+alloc_region 0x30 0x10
+alloc_subregion 0x10 0x3f 0x10
+print
+
+#check overflow in boundary check, before an allocated region (fixed in 1.32)
+extent test4 0xf0000000 0xffffffff
+alloc_region 0xf1000000 0x1
+boundary 0x20000000
+alloc_subregion 0xf0000000 0xffffffff 0x1
+print
+
+#check overflow in boundary check, before the subregion end (fixed in 1.32)
+extent test5 0xf0000000 0xffffffff
+boundary 0x20000000
+alloc_subregion 0xf0000000 0xffffffff 0x1
+print
+
+#check allocation beyond last boundary line (to be fixed)
+# last two allocations should succeed without boundary "fixups"
+extent test6 0 11
+boundary 8
+alloc_subregion 0 11 8
+alloc_subregion 0 11 2
+alloc_subregion 0 11 2
+print
+
+#check allocation beyond last boundary line (to be fixed)
+# last allocation should be bumped to the next boundary and exactly fit
+# the remaining space
+extent test7 0 11
+boundary 8
+alloc_subregion 0 11 7
+alloc_subregion 0 11 4
+print
+
+#don't allocate a region pasts the end of subregion (i.e., the second
+#alloc_subregion should fail).  subr_extent.c prior to rev. 1.43 allocates
+#region starts from 0x10.
+extent test8 0 0x4f EX_NOCOALESCE
+alloc_region 0x30 0x10
+alloc_subregion 0 0xf 0x10
+alloc_subregion 0 0xf 0x10
+print
+
+#When allocating a region with a boundary constraint, check that we properly
+#detect overlaps once the candidate region has been aligned.
+#subr_extent.c prior 1.45 could corrupt the extent map in this situation
+extent test9 0 0x4f
+boundary 0
+alloc_subregion 0 0x10 4
+alloc_subregion 0xd 0x20 2
+boundary 8
+alloc_subregion 0 0x4f 8
+print
+
+#check that free works
+extent test10 0xc0002000 0xffffe000 EX_BOUNDZERO
+boundary 0x10000
+align 0x10000
+alloc_subregion 0xc0002000 0xffffe000 0x2000
+alloc_subregion 0xc0002000 0xffffe000 0x2000
+print
+free 0xc0020000 0x2000
+print
+alloc_subregion 0xc0002000 0xffffe000 0x10000
+print
+#If we have something like that in the EX_NOCOALESCE case:
+#extent `test11' (0x10 - 0x20), flags = 0x2
+#  0x10 - 0x13
+#  0x1e - 0x1f
+#  0x20 - 0x20
+#then a new extent of size 1 could be allocated at 0x20.
+# fixed in 1.51
+extent test11 0x10 0x20 EX_NOCOALESCE
+alloc_subregion 0x10 0x13 0x4
+alloc_subregion 0x1e 0x1f 0x2
+alloc_subregion 0x20 0x20 0x1
+alloc_subregion 0x20 0x20 0x1
+alloc_subregion 0x10 0x20 0x1
+print
+
+# Overlapping regions should result in a failure
+extent test12 0x00000000 0xffffffff
+alloc_region 0xfce00000 0x100
+alloc_region 0xfce00000 0x100000
+
+# But not if we specify EX_CONFLICTOK
+extent test13 0x00000000 0xffffffff
+alloc_region 0xfce00000 0x100
+alloc_region 0xfce00000 0x100000 EX_CONFLICTOK
+print
+
+# Check partial overlap
+extent test14 0x00000000 0xffffffff
+alloc_region 0xfce00000 0x1000
+alloc_region 0xfce00100 0x1000 EX_CONFLICTOK
+print
+
+# Check multiple overlaps
+extent test15 0x00000000 0xffffffff
+alloc_region 0xfce00000 0x100
+alloc_region 0xfee00000 0x100
+alloc_region 0xf8000000 0x8000000 EX_CONFLICTOK
+print
+
+# Check coallescing in combination with overlaps
+extent test16 0x00000000 0xffffffff
+alloc_region 0x0 0xa0000
+alloc_region 0xf0000 0x1ff10000
+alloc_region 0xa0000 0x60000 EX_CONFLICTOK
+print
+
+# Check allocation of a conflicting region in an otherwise filled
+# extent does not trigger an infinite loop
+extent test17 0x00000000 -1L EX_FILLED
+alloc_region 0 0x4000 EX_CONFLICTOK
+print
+
+# Check freeing overkapping regions from a filled extent
+extent test18 0x0000 0xffff EX_FILLED
+free 0x164e 0x2
+free 0x0d00 0xe300 EX_CONFLICTOK
+print
+
+extent test19 0x0000 0xffff EX_FILLED
+free 0x164e 0x2
+free 0x0d00 0xf300 EX_CONFLICTOK
+print
+
+extent test20 0x0000 0xffff EX_FILLED
+free 0x164e 0x2
+free 0x0000 0xf000 EX_CONFLICTOK
+print

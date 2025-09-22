@@ -1,0 +1,238 @@
+.\" $OpenBSD: fb_setup.9,v 1.7 2017/11/30 11:29:03 helg Exp $
+.\"
+.\" Copyright (c) 2013 Sylvestre Gallon <ccna.syl@gmail.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 30 2017 $
+.Dt FB_SETUP 9
+.Os
+.Sh NAME
+.Nm fb_setup ,
+.Nm fb_queue ,
+.Nm fb_delete
+.Nd kernel messaging mechanism for file system in userland (FUSE)
+.Sh SYNOPSIS
+.In sys/fusebuf.h
+.Ft struct fusebuf *
+.Fn fb_setup "size_t size" "ino_t inode" "int type" "struct proc *p"
+.Ft int
+.Fn fb_queue "dev_t dev" "struct fusebuf *fbuf"
+.Ft void
+.Fn fb_delete "struct fusebuf *fbuf"
+.Bd -literal
+#define FUSEBUFMAXSIZE	(4096*1024)
+#define	FUSEBUFSIZE	(sizeof(struct fusebuf))
+
+struct fb_hdr {
+	SIMPLEQ_ENTRY(fusebuf)	fh_next;
+	size_t			fh_len;
+	int			fh_err;
+	int			fh_type;
+	ino_t			fh_ino;
+	uint64_t		fh_uuid;
+};
+
+struct fb_io {
+	uint64_t	fi_fd;
+	ino_t		fi_ino;
+	off_t		fi_off;
+	size_t		fi_len;
+	mode_t		fi_mode;
+	uint32_t	fi_flags;
+};
+
+struct fusebuf {
+	struct fb_hdr	fb_hdr;
+	union {
+		struct statvfs	FD_stat;
+		struct stat	FD_attr;
+		struct fb_io	FD_io;
+
+	} FD;
+	uint8_t	*fb_dat;
+};
+
+#define fb_next		fb_hdr.fh_next
+#define fb_len		fb_hdr.fh_len
+#define fb_err		fb_hdr.fh_err
+#define fb_type		fb_hdr.fh_type
+#define fb_ino		fb_hdr.fh_ino
+#define fb_uuid		fb_hdr.fh_uuid
+
+#define fb_stat		FD.FD_stat
+#define fb_attr		FD.FD_attr
+#define fb_io_fd	FD.FD_io.fi_fd
+#define fb_io_ino	FD.FD_io.fi_ino
+#define fb_io_off	FD.FD_io.fi_off
+#define fb_io_len	FD.FD_io.fi_len
+#define fb_io_mode	FD.FD_io.fi_mode
+#define fb_io_flags	FD.FD_io.fi_flags
+.Ed
+.Sh DESCRIPTION
+These functions provide a way to manage the kernel messaging mechanism for
+.Xr fuse 4
+file systems.
+It is based on
+.Xr mbuf 9 .
+.Pp
+Each FUSE operation fits in a fusebuf
+except for read, write, and readdirs,
+which are split into several fusebufs with a changing value in
+.Fa fb_io_off
+for each.
+The size of a fusebuf is
+.Fa FUSEBUFSIZE .
+.Pp
+A fusebuf structure is defined as an
+.Fa fb_hdr
+followed by a structure containing a union and a buffer
+.Fa F_Dat .
+The header contains the following elements:
+.Bl -tag -width foobarmoocow
+.It Fa fh_next
+A
+.Xr SIMPLEQ_ENTRY 3
+needed to store the different fusebufs stored with
+.Fn fb_queue .
+.It Fa fh_len
+Indicates the amount of data in
+.Fa F_dat .
+.It Fa fh_resid
+Used for partial
+.Xr fuse 4
+reads.
+If the read does not fill the fusebuf, the number of bytes of
+.Fa F_dat
+written in this field are stored.
+.It Fa fh_err
+Indicates the
+.Xr errno 2
+failure of a fusebuf.
+.It Fa fh_type
+Indicates the type of fusebuf transaction (see below).
+.It Fa fh_ino
+Indicates the inode on which the
+.Xr fuse 4
+operation is done.
+.It Fa fh_uuid
+UUID to track the answer.
+This number is generated with
+.Xr arc4random 9 .
+.El
+.Pp
+The
+.Fa fh_type
+variable can take the following values:
+.Pp
+.Bl -tag -compact -offset indent -width XXXXXXXXXXXXXXXXXX
+.It Dv FBT_LOOKUP
+The fusebuf is a lookup operation.
+.It Dv FBT_GETATTR
+The fusebuf is a gettattr operation.
+.It Dv FBT_SETATTR
+The fusebuf is a setattr operation.
+.It Dv FBT_READLINK
+The fusebuf is a readlink operation.
+.It Dv FBT_SYMLINK
+The fusebuf is a symlink operation.
+.It Dv FBT_MKNOD
+The fusebuf is a mknod operation.
+.It Dv FBT_MKDIR
+The fusebuf is a mkdir operation.
+.It Dv FBT_UNLINK
+The fusebuf is an unlink operation.
+.It Dv FBT_RMDIR
+The fusebuf is an rmdir operation.
+.It Dv FBT_RENAME
+The fusebuf is a rename operation.
+.It Dv FBT_LINK
+The fusebuf is a link operation.
+.It Dv FBT_OPEN
+The fusebuf is an open operation.
+.It Dv FBT_READ
+The fusebuf is a read operation.
+.It Dv FBT_WRITE
+The fusebuf is a write operation.
+.It Dv FBT_STATFS
+The fusebuf is a statfs operation.
+.It Dv FBT_RELEASE
+The fusebuf is a file close operation.
+.It Dv FBT_FSYNC
+The fusebuf is a file sync operation.
+.It Dv FBT_FLUSH
+The fusebuf is a flush operation.
+.It Dv FBT_INIT
+The fusebuf initializes the FUSE connection.
+.It Dv FBT_OPENDIR
+The fusebuf is an opendir operation.
+.It Dv FBT_READDIR
+The fusebuf is a readdir operation.
+.It Dv FBT_RELEASEDIR
+The fusebuf is a close dir operation.
+.It Dv FBT_FSYNCDIR
+The fusebuf is a dir sync operation.
+.It Dv FBT_ACCESS
+The fusebuf is an access operation.
+.It Dv FBT_DESTROY
+The fusebuf closes the FUSE connection.
+.El
+.Pp
+All the data needed by the FUSE clients is contained in the
+.Fa F_dat
+structure.
+This structure contains a union
+.Fa FD
+of frequently used type
+and a buffer
+.Fa F_databuf
+to send data to libfuse.
+The union contains the following elements:
+.Bl -tag -width foobarmoocow
+.It Fa FD_stat
+A struct
+.Xr statvfs 3
+filled in by the FUSE client statfs for the FUSE VFS statfs code.
+.It Fa FD_attr
+Used by the getattr and setattr calls.
+.It Fa FD_io
+Contains all fields commonly used by FUSE client callbacks to
+provide information to FUSE vnops.
+It is used by access, readdir, release, releasedir, read, write,
+mkdir, and setattr.
+.El
+.Pp
+Setattr uses a struct fb_io and a struct stat.
+Settattr uses
+.Fa FD_stat
+and encapsulates a struct fb_io in
+.Fa F_databuf
+with
+.Fa fbtod .
+.Pp
+Fusebufs can be deleted with the
+.Fn fb_delete
+helper.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr fuse_main 3 ,
+.Xr queue 3 ,
+.Xr statvfs 3 ,
+.Xr fuse 4 ,
+.Xr arc4random 9 ,
+.Xr mbuf 9
+.Sh HISTORY
+The
+.Nm
+API first appeared in
+.Ox 5.4 .

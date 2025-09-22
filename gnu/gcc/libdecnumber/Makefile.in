@@ -1,0 +1,156 @@
+# @configure_input@
+# Makefile for libdecnumber.  Run 'configure' to generate Makefile from Makefile.in
+
+# Copyright (C) 2005 Free Software Foundation, Inc.
+
+#This file is part of GCC.
+
+#GCC is free software; you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation; either version 2, or (at your option)
+#any later version.
+
+#GCC is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with GCC; see the file COPYING.  If not, write to
+#the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+#Boston MA 02110-1301, USA.
+
+@SET_MAKE@
+
+srcdir = @srcdir@
+top_builddir = .
+VPATH = @srcdir@
+INSTALL = @INSTALL@
+AR = ar
+ARFLAGS = cru
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOHEADER = @AUTOHEADER@
+CC = @CC@
+CFLAGS = @CFLAGS@
+WARN_CFLAGS = @WARN_CFLAGS@ @WARN_PEDANTIC@ @WERROR@
+CPP = @CPP@
+CPPFLAGS = @CPPFLAGS@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+LDFLAGS = @LDFLAGS@
+LIBICONV = @LIBICONV@
+PACKAGE = @PACKAGE@
+RANLIB = @RANLIB@
+SHELL = @SHELL@
+
+datadir = @datadir@
+exec_prefix = @prefix@
+libdir = @libdir@
+localedir = $(datadir)/locale
+prefix = @prefix@
+
+INCLUDES = -I$(srcdir) -I.
+
+ALL_CFLAGS = $(CFLAGS) $(WARN_CFLAGS) $(INCLUDES) $(CPPFLAGS)
+
+libdecnumber_a_OBJS = decNumber.o decContext.o decUtility.o \
+	decimal32.o decimal64.o decimal128.o
+
+libdecnumber_a_SOURCES = decContext.c decContext.h decDPD.h \
+	decNumber.c decNumber.h decNumberLocal.h \
+	decUtility.c decUtility.h \
+	decRound.c decimal128.c decimal128.h decimal32.c decimal32.h \
+	decimal64.c decimal64.h
+
+all: libdecnumber.a
+
+.SUFFIXES:
+.SUFFIXES: .c .o .obj
+
+libdecnumber.a: $(libdecnumber_a_OBJS)
+	-rm -f $@
+	$(AR) $(ARFLAGS) $@ $(libdecnumber_a_OBJS)
+	$(RANLIB) $@
+
+# Rules to rebuild the configuration
+
+Makefile: $(srcdir)/Makefile.in config.status
+	$(SHELL) ./config.status Makefile
+
+config.status: $(srcdir)/configure
+	$(SHELL) ./config.status --recheck
+
+$(srcdir)/configure: @MAINT@ $(srcdir)/aclocal.m4
+	cd $(srcdir) && $(AUTOCONF)
+
+$(srcdir)/aclocal.m4: @MAINT@ $(srcdir)/../config/acx.m4 \
+	$(srcdir)/../config/warnings.m4 \
+	$(srcdir)/configure.ac
+	cd $(srcdir) && $(ACLOCAL) -I ../config
+
+config.h: stamp-h1
+	test -f config.h || (rm -f stamp-h1 && $(MAKE) stamp-h1)
+
+stamp-h1: $(srcdir)/config.in config.status
+	-rm -f stamp-h1
+	$(SHELL) ./config.status config.h
+
+$(srcdir)/config.in: @MAINT@ $(srcdir)/configure
+	cd $(srcdir) && $(AUTOHEADER)
+	-rm -f stamp-h1
+
+# Dependencies.
+
+decContext.o: decContext.c decContext.h decNumberLocal.h
+decNumber.o:  decNumber.c decNumber.h decContext.h decNumberLocal.h
+decimal32.o:  decimal32.c decNumber.h decContext.h decNumberLocal.h \
+   decimal32.h decUtility.h
+decimal64.o:  decimal64.c decNumber.h decContext.h decNumberLocal.h \
+   decimal64.h decUtility.h
+decimal128.o: decimal128.c decNumber.h decNumberLocal.h decimal128.h \
+   decUtility.h
+
+# Other miscellaneous targets.
+
+mostlyclean:
+	-rm -f *.o
+
+clean: mostlyclean
+	-rm -rf makedepend$(EXEEXT) libdecnumber.a $(srcdir)/autom4te.cache
+
+distclean: clean
+	-rm -f config.h stamp-h1 config.status config.cache config.log \
+	  configure.lineno configure.status.lineno Makefile localedir.h \
+	  localedir.hs
+
+maintainer-clean: distclean
+	@echo "This command is intended for maintainers to use"
+	@echo "it deletes files that may require special tools to rebuild."
+	-rm -f $(srcdir)/configure $(srcdir)/aclocal.m4
+
+check:
+installcheck:
+dvi:
+pdf:
+html:
+info:
+install-info:
+install-man:
+install-html:
+install:
+
+.PHONY: installdirs install install-strip mostlyclean clean distclean \
+  maintainer-clean check installcheck dvi pdf html info install-info \
+  install-man update-po install-html
+
+COMPILE = source='$<' object='$@' libtool=no $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(ALL_CFLAGS) -c
+
+# Implicit rules
+
+.c.o:
+	$(COMPILE) $<
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

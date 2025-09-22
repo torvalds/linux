@@ -1,0 +1,4 @@
+pass in on tun1000000 proto tcp all user = 3 flags S/SA
+pass in on tun1000000 proto tcp all group = 7 flags S/SA
+pass in on tun1000000 proto tcp all user = 3 group = 0 flags S/SA
+pass in on tun1000000 proto tcp all user = 0 group = 0 flags S/SA

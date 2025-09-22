@@ -1,0 +1,24 @@
+#==============================================================================#
+# This file specifies intentionally untracked files that git should ignore.
+# See: http://www.kernel.org/pub/software/scm/git/docs/gitignore.html
+#==============================================================================#
+
+#==============================================================================#
+# File extensions to be ignored anywhere in the tree.
+#==============================================================================#
+# Temp files created by most text editors.
+*~
+# Merge files created by git.
+*.orig
+# Byte compiled python modules.
+*.pyc
+# vim swap files
+.*.swp
+# Mac OS X Finder layout info
+.DS_Store
+
+#==============================================================================#
+# Directories to be ignored.
+#==============================================================================#
+# Sphinx build files.
+docs/_build

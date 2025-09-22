@@ -1,0 +1,89 @@
+.\"	$OpenBSD: axen.4,v 1.11 2024/10/07 07:35:40 kevlo Exp $
+.\"
+.\" Copyright (c) 2013 Yojiro UO <yuo@nui.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 7 2024 $
+.Dt AXEN 4
+.Os
+.Sh NAME
+.Nm axen
+.Nd ASIX Electronics AX88179/AX88179A/AX88772D 10/100/1Gb USB Ethernet device
+.Sh SYNOPSIS
+.Cd "axen*   at uhub?"
+.Cd "rgephy* at mii?"
+.Cd "ukphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the ASIX
+Electronics AX88179/AX88179A/AX88772D chipset, including the following:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It D-Link DUB-1312
+.It Kuroutoshikou GbE-USB3.0
+.It Logitec LAN-GTJU3
+.It Sitecom LN-032
+.It StarTech USB31000S
+.It TP-LINK UE300C v2
+.It TP-Link UE306
+.It Ugreen CM650-15632
+.El
+.Pp
+The AX88772D is a USB 2.0 device which supports both
+10 and 100Mbps speeds in either full or half duplex.
+The AX88179 and AX88179A are USB 3.0 devices, which contain
+a 10/100/1Gb Ethernet MAC with a GMII/MII interface.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width "autoselect"
+.It autoselect
+Enable autoselection of the media type and options (this is the default).
+The user can manually override the autoselected mode by adding media
+options to the appropriate
+.Xr hostname.if 5
+file.
+.It 10baseT
+Set 10Mbps operation.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.It 1000baseT
+Set 1000Mbps (Gigabit Ethernet) operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr rgephy 4 ,
+.Xr ukphy 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 5.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Yojiro UO Aq Mt yuo@nui.org .

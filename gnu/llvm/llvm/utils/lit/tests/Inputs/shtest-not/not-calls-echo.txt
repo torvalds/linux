@@ -1,0 +1,3 @@
+# Internal "echo" always succeeds.
+# RUN: not not echo hello world
+# RUN: not --crash echo hello world

@@ -1,0 +1,50 @@
+/*	$OpenBSD: ld.script,v 1.2 2010/05/09 13:27:30 kettenis Exp $	*/
+
+OUTPUT_FORMAT("elf32-hppa")
+OUTPUT_ARCH(hppa)
+ENTRY(begin)
+
+SECTIONS {
+
+	/* Read-only sections, merged into text segment: */
+	. = + SIZEOF_HEADERS;
+	.text : {
+		*(.text)
+		*(.text.*)
+		*(.rodata)
+		*(.rodata1)
+		*(.rodata.*)
+		*($CODE$)
+		etext = .;
+	} = 0x08000240
+
+	/* Read-write sections, merged into data segment: */
+	.data : {
+		$global$ = .;
+		*(.data)
+		*(.data1)
+		*(.sdata)
+		*(.sdata2)
+		*(.dynamic)
+		CONSTRUCTORS
+		edata = ABSOLUTE(.);
+	} = 0
+
+	.bss : {
+		__bss_start = .;
+		*(.dynbss)
+		*(.bss)
+		*(.sbss)
+		*(.scommon)
+		*(COMMON)
+		end = ABSOLUTE(.);
+		__bss_end = .;
+	}
+
+	/* don't need an unwind in the boot, unless we'll have a boot-ddb (; */
+	/DISCARD/ :
+	{
+		*(.PARISC.unwind)
+	}
+}
+

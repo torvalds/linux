@@ -1,0 +1,97 @@
+.\"	$OpenBSD: wcsdup.3,v 1.4 2011/07/25 00:38:53 schwarze Exp $
+.\"	$NetBSD: wcsdup.3,v 1.3 2010/12/16 17:42:28 wiz Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strdup.3	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: July 25 2011 $
+.Dt WCSDUP 3
+.Os
+.Sh NAME
+.Nm wcsdup
+.Nd save a copy of a wide string
+.Sh SYNOPSIS
+.In wchar.h
+.Ft wchar_t *
+.Fn wcsdup "const wchar_t *str"
+.Sh DESCRIPTION
+The
+.Fn wcsdup
+function
+allocates sufficient memory for a copy
+of the wide-character string
+.Fa str ,
+does the copy, and returns a pointer to it.
+The pointer may subsequently be used as an
+argument to the function
+.Xr free 3 .
+.Pp
+If insufficient memory is available,
+.Dv NULL
+is returned.
+.Sh EXAMPLES
+The following will point
+.Va p
+to an allocated area of memory containing the nul-terminated string
+.Qq foobar :
+.Bd -literal -offset indent
+const char	*o = "foobar";
+wchar_t		*p, b[32];
+size_t		 blen;
+
+blen = sizeof(b) / sizeof(b[0]);
+if (mbstowcs(b, o, blen) == (size_t)-1)
+	err(1, NULL);
+b[blen - 1] = 0;
+if ((p = wcsdup(b)) == NULL)
+	err(1, NULL);
+.Ed
+.Sh ERRORS
+The
+.Fn wcsdup
+function may fail and set the external variable
+.Va errno
+for any of the errors specified for the library function
+.Xr malloc 3 .
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr malloc 3 ,
+.Xr strdup 3
+.Sh STANDARDS
+The
+.Fn wcsdup
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn wcsdup
+function was ported from
+.Nx
+and first appeared in
+.Ox 5.0 .

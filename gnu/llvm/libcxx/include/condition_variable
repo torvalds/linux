@@ -1,0 +1,369 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CONDITION_VARIABLE
+#define _LIBCPP_CONDITION_VARIABLE
+
+/*
+    condition_variable synopsis
+
+namespace std
+{
+
+enum class cv_status { no_timeout, timeout };
+
+class condition_variable
+{
+public:
+    condition_variable();
+    ~condition_variable();
+
+    condition_variable(const condition_variable&) = delete;
+    condition_variable& operator=(const condition_variable&) = delete;
+
+    void notify_one() noexcept;
+    void notify_all() noexcept;
+
+    void wait(unique_lock<mutex>& lock);
+    template <class Predicate>
+        void wait(unique_lock<mutex>& lock, Predicate pred);
+
+    template <class Clock, class Duration>
+        cv_status
+        wait_until(unique_lock<mutex>& lock,
+                   const chrono::time_point<Clock, Duration>& abs_time);
+
+    template <class Clock, class Duration, class Predicate>
+        bool
+        wait_until(unique_lock<mutex>& lock,
+                   const chrono::time_point<Clock, Duration>& abs_time,
+                   Predicate pred);
+
+    template <class Rep, class Period>
+        cv_status
+        wait_for(unique_lock<mutex>& lock,
+                 const chrono::duration<Rep, Period>& rel_time);
+
+    template <class Rep, class Period, class Predicate>
+        bool
+        wait_for(unique_lock<mutex>& lock,
+                 const chrono::duration<Rep, Period>& rel_time,
+                 Predicate pred);
+
+    typedef pthread_cond_t* native_handle_type;
+    native_handle_type native_handle();
+};
+
+void notify_all_at_thread_exit(condition_variable& cond, unique_lock<mutex> lk);
+
+class condition_variable_any
+{
+public:
+    condition_variable_any();
+    ~condition_variable_any();
+
+    condition_variable_any(const condition_variable_any&) = delete;
+    condition_variable_any& operator=(const condition_variable_any&) = delete;
+
+    void notify_one() noexcept;
+    void notify_all() noexcept;
+
+    template <class Lock>
+        void wait(Lock& lock);
+    template <class Lock, class Predicate>
+        void wait(Lock& lock, Predicate pred);
+
+    template <class Lock, class Clock, class Duration>
+        cv_status
+        wait_until(Lock& lock,
+                   const chrono::time_point<Clock, Duration>& abs_time);
+
+    template <class Lock, class Clock, class Duration, class Predicate>
+        bool
+        wait_until(Lock& lock,
+                   const chrono::time_point<Clock, Duration>& abs_time,
+                   Predicate pred);
+
+    template <class Lock, class Rep, class Period>
+        cv_status
+        wait_for(Lock& lock,
+                 const chrono::duration<Rep, Period>& rel_time);
+
+    template <class Lock, class Rep, class Period, class Predicate>
+        bool
+        wait_for(Lock& lock,
+                 const chrono::duration<Rep, Period>& rel_time,
+                 Predicate pred);
+
+    // [thread.condvarany.intwait], interruptible waits
+    template <class Lock, class Predicate>
+      bool wait(Lock& lock, stop_token stoken, Predicate pred);                               // since C++20
+
+    template <class Lock, class Clock, class Duration, class Predicate>
+      bool wait_until(Lock& lock, stop_token stoken,
+                      const chrono::time_point<Clock, Duration>& abs_time, Predicate pred);   // since C++20
+
+    template <class Lock, class Rep, class Period, class Predicate>
+      bool wait_for(Lock& lock, stop_token stoken,
+                    const chrono::duration<Rep, Period>& rel_time, Predicate pred);           // since C++20
+};
+
+}  // std
+
+*/
+
+#include <__chrono/duration.h>
+#include <__chrono/steady_clock.h>
+#include <__chrono/time_point.h>
+#include <__condition_variable/condition_variable.h>
+#include <__config>
+#include <__memory/shared_ptr.h>
+#include <__mutex/lock_guard.h>
+#include <__mutex/mutex.h>
+#include <__mutex/tag_types.h>
+#include <__mutex/unique_lock.h>
+#include <__stop_token/stop_callback.h>
+#include <__stop_token/stop_token.h>
+#include <__utility/move.h>
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#  pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+#ifndef _LIBCPP_HAS_NO_THREADS
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+class _LIBCPP_EXPORTED_FROM_ABI condition_variable_any {
+  condition_variable __cv_;
+  shared_ptr<mutex> __mut_;
+
+public:
+  _LIBCPP_HIDE_FROM_ABI condition_variable_any();
+
+  _LIBCPP_HIDE_FROM_ABI void notify_one() _NOEXCEPT;
+  _LIBCPP_HIDE_FROM_ABI void notify_all() _NOEXCEPT;
+
+  template <class _Lock>
+  _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS void wait(_Lock& __lock);
+  template <class _Lock, class _Predicate>
+  _LIBCPP_HIDE_FROM_ABI void wait(_Lock& __lock, _Predicate __pred);
+
+  template <class _Lock, class _Clock, class _Duration>
+  _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS cv_status
+  wait_until(_Lock& __lock, const chrono::time_point<_Clock, _Duration>& __t);
+
+  template <class _Lock, class _Clock, class _Duration, class _Predicate>
+  bool _LIBCPP_HIDE_FROM_ABI
+  wait_until(_Lock& __lock, const chrono::time_point<_Clock, _Duration>& __t, _Predicate __pred);
+
+  template <class _Lock, class _Rep, class _Period>
+  cv_status _LIBCPP_HIDE_FROM_ABI wait_for(_Lock& __lock, const chrono::duration<_Rep, _Period>& __d);
+
+  template <class _Lock, class _Rep, class _Period, class _Predicate>
+  bool _LIBCPP_HIDE_FROM_ABI wait_for(_Lock& __lock, const chrono::duration<_Rep, _Period>& __d, _Predicate __pred);
+
+#  if _LIBCPP_STD_VER >= 20 && !defined(_LIBCPP_HAS_NO_EXPERIMENTAL_STOP_TOKEN)
+
+  template <class _Lock, class _Predicate>
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI bool wait(_Lock& __lock, stop_token __stoken, _Predicate __pred);
+
+  template <class _Lock, class _Clock, class _Duration, class _Predicate>
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI bool wait_until(
+      _Lock& __lock, stop_token __stoken, const chrono::time_point<_Clock, _Duration>& __abs_time, _Predicate __pred);
+
+  template <class _Lock, class _Rep, class _Period, class _Predicate>
+  _LIBCPP_AVAILABILITY_SYNC _LIBCPP_HIDE_FROM_ABI bool
+  wait_for(_Lock& __lock, stop_token __stoken, const chrono::duration<_Rep, _Period>& __rel_time, _Predicate __pred);
+
+#  endif // _LIBCPP_STD_VER >= 20 && !defined(_LIBCPP_HAS_NO_EXPERIMENTAL_STOP_TOKEN)
+};
+
+inline condition_variable_any::condition_variable_any() : __mut_(make_shared<mutex>()) {}
+
+inline void condition_variable_any::notify_one() _NOEXCEPT {
+  { lock_guard<mutex> __lx(*__mut_); }
+  __cv_.notify_one();
+}
+
+inline void condition_variable_any::notify_all() _NOEXCEPT {
+  { lock_guard<mutex> __lx(*__mut_); }
+  __cv_.notify_all();
+}
+
+template <class _Lock>
+struct __unlock_guard {
+  _Lock& __lock_;
+
+  _LIBCPP_HIDE_FROM_ABI __unlock_guard(_Lock& __lock) : __lock_(__lock) { __lock_.unlock(); }
+
+  _LIBCPP_HIDE_FROM_ABI ~__unlock_guard() _NOEXCEPT // turns exception to std::terminate
+  {
+    __lock_.lock();
+  }
+
+  __unlock_guard(const __unlock_guard&)            = delete;
+  __unlock_guard& operator=(const __unlock_guard&) = delete;
+};
+
+template <class _Lock>
+void condition_variable_any::wait(_Lock& __lock) {
+  shared_ptr<mutex> __mut = __mut_;
+  unique_lock<mutex> __lk(*__mut);
+  __unlock_guard<_Lock> __unlock(__lock);
+  lock_guard<unique_lock<mutex> > __lx(__lk, adopt_lock_t());
+  __cv_.wait(__lk);
+} // __mut_.unlock(), __lock.lock()
+
+template <class _Lock, class _Predicate>
+inline void condition_variable_any::wait(_Lock& __lock, _Predicate __pred) {
+  while (!__pred())
+    wait(__lock);
+}
+
+template <class _Lock, class _Clock, class _Duration>
+cv_status condition_variable_any::wait_until(_Lock& __lock, const chrono::time_point<_Clock, _Duration>& __t) {
+  shared_ptr<mutex> __mut = __mut_;
+  unique_lock<mutex> __lk(*__mut);
+  __unlock_guard<_Lock> __unlock(__lock);
+  lock_guard<unique_lock<mutex> > __lx(__lk, adopt_lock_t());
+  return __cv_.wait_until(__lk, __t);
+} // __mut_.unlock(), __lock.lock()
+
+template <class _Lock, class _Clock, class _Duration, class _Predicate>
+inline bool
+condition_variable_any::wait_until(_Lock& __lock, const chrono::time_point<_Clock, _Duration>& __t, _Predicate __pred) {
+  while (!__pred())
+    if (wait_until(__lock, __t) == cv_status::timeout)
+      return __pred();
+  return true;
+}
+
+template <class _Lock, class _Rep, class _Period>
+inline cv_status condition_variable_any::wait_for(_Lock& __lock, const chrono::duration<_Rep, _Period>& __d) {
+  return wait_until(__lock, chrono::steady_clock::now() + __d);
+}
+
+template <class _Lock, class _Rep, class _Period, class _Predicate>
+inline bool
+condition_variable_any::wait_for(_Lock& __lock, const chrono::duration<_Rep, _Period>& __d, _Predicate __pred) {
+  return wait_until(__lock, chrono::steady_clock::now() + __d, std::move(__pred));
+}
+
+#  if _LIBCPP_STD_VER >= 20 && !defined(_LIBCPP_HAS_NO_EXPERIMENTAL_STOP_TOKEN)
+
+template <class _Lock, class _Predicate>
+bool condition_variable_any::wait(_Lock& __user_lock, stop_token __stoken, _Predicate __pred) {
+  if (__stoken.stop_requested())
+    return __pred();
+
+  // Per https://eel.is/c++draft/thread.condition.condvarany#general-note-2,
+  // we do need to take a copy of the shared pointer __mut_
+  // This ensures that a thread can call the destructor immediately after calling
+  // notify_all, without waiting all the wait calls.
+  // A thread can also safely call the destructor immediately after calling
+  // request_stop, as the call to request_stop would evaluate the callback,
+  // which accesses the internal condition variable, immediately on the same thread.
+  // In this situation, it is OK even without copying a shared ownership the internal
+  // condition variable. However, this needs the evaluation of stop_callback to
+  // happen-before the destruction.
+  // The spec only says "Only the notification to unblock the wait needs to happen
+  // before destruction". To make this work, we need to copy the shared ownership of
+  // the internal condition variable inside this function, which is not possible
+  // with the current ABI.
+  shared_ptr<mutex> __mut = __mut_;
+
+  stop_callback __cb(__stoken, [this] { notify_all(); });
+
+  while (true) {
+    if (__pred())
+      return true;
+
+    // We need to take the internal lock before checking stop_requested,
+    // so that the notification cannot come in between the stop_requested
+    // check and entering the wait.
+    // Note that the stop_callback takes the same internal lock before notifying
+    unique_lock<mutex> __internal_lock(*__mut);
+    if (__stoken.stop_requested())
+      break;
+
+    __unlock_guard<_Lock> __unlock(__user_lock);
+    unique_lock<mutex> __internal_lock2(
+        std::move(__internal_lock)); // switch unlock order between __internal_lock and __user_lock
+    __cv_.wait(__internal_lock2);
+  } // __internal_lock2.unlock(), __user_lock.lock()
+  return __pred();
+}
+
+template <class _Lock, class _Clock, class _Duration, class _Predicate>
+bool condition_variable_any::wait_until(
+    _Lock& __user_lock,
+    stop_token __stoken,
+    const chrono::time_point<_Clock, _Duration>& __abs_time,
+    _Predicate __pred) {
+  if (__stoken.stop_requested())
+    return __pred();
+
+  shared_ptr<mutex> __mut = __mut_;
+  stop_callback __cb(__stoken, [this] { notify_all(); });
+
+  while (true) {
+    if (__pred())
+      return true;
+
+    unique_lock<mutex> __internal_lock(*__mut);
+    if (__stoken.stop_requested())
+      break;
+
+    __unlock_guard<_Lock> __unlock(__user_lock);
+    unique_lock<mutex> __internal_lock2(
+        std::move(__internal_lock)); // switch unlock order between __internal_lock and __user_lock
+
+    if (__cv_.wait_until(__internal_lock2, __abs_time) == cv_status::timeout)
+      break;
+  } // __internal_lock2.unlock(), __user_lock.lock()
+  return __pred();
+}
+
+template <class _Lock, class _Rep, class _Period, class _Predicate>
+bool condition_variable_any::wait_for(
+    _Lock& __lock, stop_token __stoken, const chrono::duration<_Rep, _Period>& __rel_time, _Predicate __pred) {
+  return wait_until(__lock, std::move(__stoken), chrono::steady_clock::now() + __rel_time, std::move(__pred));
+}
+
+#  endif // _LIBCPP_STD_VER >= 20 && !defined(_LIBCPP_HAS_NO_EXPERIMENTAL_STOP_TOKEN)
+
+_LIBCPP_EXPORTED_FROM_ABI void notify_all_at_thread_exit(condition_variable&, unique_lock<mutex>);
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // !_LIBCPP_HAS_NO_THREADS
+
+_LIBCPP_POP_MACROS
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <atomic>
+#  include <concepts>
+#  include <cstdint>
+#  include <cstdlib>
+#  include <cstring>
+#  include <initializer_list>
+#  include <iosfwd>
+#  include <new>
+#  include <stdexcept>
+#  include <system_error>
+#  include <type_traits>
+#  include <typeinfo>
+#endif
+
+#endif // _LIBCPP_CONDITION_VARIABLE

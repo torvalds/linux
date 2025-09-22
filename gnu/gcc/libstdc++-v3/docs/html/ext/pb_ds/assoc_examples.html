@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Examples</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Associative-Container Examples</h1>
+
+    <h2><a name="basic_usage" id="basic_usage">Basic Use</a></h2>
+
+    <ol>
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/basic_map.cc"><tt>basic_map.cc</tt></a>
+      Basic use of "maps".</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/basic_set.cc"><tt>basic_set.cc</tt></a>
+      Basic use of "sets".</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/erase_if.cc"><tt>erase_if.cc</tt></a>
+      Conditionally erasing values from a container object.</li>
+    </ol>
+
+    <h2><a name="generics" id="generics">Generics</a></h2>
+
+    <ol>
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/assoc_container_traits.cc"><tt>assoc_container_traits.cc</tt></a>
+      Using <a href=
+      "assoc_container_traits.html"><tt>container_traits</tt></a> to query
+      about underlying data structure behavior.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/hash_find_neg.cc"><tt>hash_find_neg.cc</tt></a>
+      A non-compiling example showing wrong use of finding keys in
+      hash-based containers.</li>
+    </ol>
+
+    <h2><a name="hash_based" id="hash_based">Hash-Based
+    Containers</a></h2>
+
+  
+    <h3><a name="resize_related" id="resize_related">Resize
+    Related</a></h3>
+
+
+    <ol>
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/hash_initial_size.cc"><tt>hash_initial_size.cc</tt></a>
+      Setting the initial size of a hash-based container
+      object.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/hash_resize_neg.cc"><tt>hash_resize_neg.cc</tt></a>
+      A non-compiling example showing how not to resize a
+      hash-based container object.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/hash_resize.cc"><tt>hash_resize.cc</tt></a>
+      Resizing the size of a hash-based container object.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/hash_illegal_resize.cc"><tt>hash_illegal_resize.cc</tt></a>
+      Showing an illegal resize of a hash-based container
+      object.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/hash_load_set_change.cc"><tt>hash_load_set_change.cc</tt></a>
+      Changing the load factors of a hash-based container
+      object.</li>
+    </ol>
+
+    <h3><a name="hash_related" id="hash_related">Hash-Function
+    Related</a></h3>
+
+
+    <ol>
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/hash_mod.cc"><tt>hash_mod.cc</tt></a>
+      Using a modulo range-hashing function for the case of an
+      unknown skewed key distribution.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/hash_shift_mask.cc"><tt>shift_mask.cc</tt></a>
+      Writing a range-hashing functor for the case of a known
+      skewed key distribution.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/store_hash.cc"><tt>store_hash.cc</tt></a>
+      Storing the hash value along with each key.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/ranged_hash.cc"><tt>ranged_hash.cc</tt></a>
+      Writing a ranged-hash functor.</li>
+    </ol>
+
+    <h2><a name="tree_like_based" id=
+    "tree_like_based">Tree-Like Containers (Trees and
+    Tries)</a></h2>
+
+ 
+    <h3><a name="node_invariants" id=
+    "node_invariants">Node-Invariants</a></h3>
+
+ 
+    <ol>
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/tree_order_statistics.cc"><tt>tree_order_statistics.cc</tt></a>
+      Using trees for order statistics.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/tree_intervals.cc"><tt>tree_intervals.cc</tt></a>
+      Augmenting trees to support operations on line
+      intervals.</li>
+    </ol>
+
+    <h3><a name="split_join" id="split_join">Split and
+    Join</a></h3>
+
+
+    <ol>
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/tree_join.cc"><tt>tree_join.cc</tt></a>
+      Joining two tree-based container objects.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/trie_split.cc"><tt>trie_split.cc</tt></a>
+      Splitting a PATRICIA trie container object.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/tree_order_statistics_join.cc"><tt>tree_order_statistics_join.cc</tt></a>
+      Order statistics while joining two tree-based container
+      objects.</li>
+    </ol>
+
+    <h2><a name="trie_based" id="trie_based">Trie-Based
+    Containers</a></h2>
+
+
+    <ol>
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/trie_dna.cc"><tt>trie_dna.cc</tt></a>
+      Using a PATRICIA trie for DNA strings.</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/trie_prefix_search.cc"><tt>trie_prefix_search.cc</tt></a>
+      Using a PATRICIA trie for finding all entries whose key
+      matches a given prefix.</li>
+    </ol>
+
+    <h2><a name="mmaps" id="mmaps">"Multimaps" and
+    "Multisets".</a></h2>
+    <ol>
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/basic_multimap.cc"><tt>basic_multimap.cc</tt></a>
+      Basic use of "multimaps".</li>
+
+      <li><a href=
+      "../../../../testsuite/ext/pb_ds/example/basic_multiset.cc"><tt>basic_multiset.cc</tt></a>
+      Basic use of "multisets".</li>
+    </ol>
+  </div>
+</body>
+</html>

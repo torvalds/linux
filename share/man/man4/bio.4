@@ -1,0 +1,180 @@
+.\"	$OpenBSD: bio.4,v 1.35 2024/07/13 15:28:42 krw Exp $
+.\"
+.\" Copyright (c) 2002 Niklas Hallqvist
+.\" Copyright (c) 2006 Marco Peereboom
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 13 2024 $
+.Dt BIO 4
+.Os
+.Sh NAME
+.Nm bio
+.Nd block I/O ioctl tunnel pseudo-device
+.Sh SYNOPSIS
+.Cd "pseudo-device bio" Op Ar count
+.Sh DESCRIPTION
+The
+.Nm
+driver provides userland applications
+.Xr ioctl 2
+access to devices otherwise not found as
+.Pa /dev
+nodes.
+The
+.Pa /dev/bio
+device node operates by delegating ioctl
+calls to a requested device driver.
+Only drivers which have registered with the
+.Nm
+device can be accessed via this interface.
+.Pp
+If
+.Ar count
+is given in the specification, and is greater than 0, a maximum of one
+.Nm bio
+device is created.
+.Pp
+The following device drivers register with
+.Nm
+for volume management:
+.Pp
+.Bl -tag -width softraid(4)XX -offset indent -compact
+.It Xr ami 4
+American Megatrends Inc. MegaRAID PATA/SATA/SCSI RAID controller
+.It Xr arc 4
+Areca Technology Corporation SAS/SATA RAID controller
+.It Xr cac 4
+Compaq Smart Array 2/3/4 SCSI RAID controller
+.It Xr ciss 4
+Compaq Smart Array SAS/SATA/SCSI RAID controller
+.It Xr gdt 4
+ICP-Vortex and Intel GDT SATA/SCSI RAID controller
+.It Xr ips 4
+IBM SATA/SCSI ServeRAID controller
+.It Xr mfi 4
+LSI Logic & Dell MegaRAID SAS RAID controller
+.It Xr mfii 4
+LSI Logic MegaRAID SAS Fusion RAID controller
+.It Xr mpi 4
+LSI Logic Fusion-MPT Message Passing Interface
+.It Xr mpii 4
+LSI Logic Fusion-MPT Message Passing Interface II
+.It Xr nvme 4
+NVMe storage controllers
+.It Xr softraid 4
+Software RAID
+.El
+.Pp
+The following device drivers register with
+.Nm
+to provide enclosure management:
+.Pp
+.Bl -tag -width safte($)XX -offset indent -compact
+.It Xr safte 4
+SCSI Accessed Fault-Tolerant Enclosure
+.It Xr ses 4
+SCSI Enclosure Services
+.El
+.Pp
+The following ioctl calls apply to the
+.Nm
+device:
+.Bl -tag -width Ds
+.It Dv BIOCLOCATE Fa "struct bio_locate *"
+Locate a named device and give back a cookie to the application
+for subsequent ioctl calls.
+The cookie is used to tunnel further ioctls to the right device.
+.It Dv BIOCINQ Fa "struct bioc_inq *"
+Retrieve number of volumes and physical disks for a specific device.
+.It Dv BIOCDISK Fa "struct bioc_disk *"
+Retrieve detailed information for the specified physical disk.
+Information returned can include status, size, channel, target, lun,
+vendor name, serial number and processor device (ses or safte).
+.It Dv BIOCVOL Fa "struct bioc_vol *"
+Retrieve detailed information for the specified volume.
+Information returned can include status, size, RAID level, number of disks,
+device name association (sd?) and vendor name.
+.It Dv BIOCALARM Fa "struct bioc_alarm *"
+Control the alarm beeper on the device.
+Supported states are: disable alarm, enable alarm, silence alarm, status and
+test alarm.
+.Pp
+Note:  These options might not be supported on all hardware.
+.It Dv BIOCBLINK Fa "struct bioc_blink *"
+Blink an LED of the specified physical disk.
+Supported blink states are: blink LED, unblink LED and blink alarm LED.
+.Pp
+Note:  This option is only supported if the disk is governed by
+.Xr ses 4
+or
+.Xr safte 4
+and the hardware supports hardware blinking.
+.It Dv BIOCSETSTATE Fa "struct bioc_setstate *"
+Alter the state of specified physical disk.
+Supported states are: create hot-spare, online disk and offline disk.
+.El
+.Pp
+The following ioctl calls apply to the
+.Nm
+device only when talking to a
+.Xr softraid 4
+device:
+.Bl -tag -width Ds
+.It Dv BIOCCREATERAID Fa "struct bioc_createraid *"
+Create a new volume or assemble an existing volume.
+The volume will be attached as a system disk, if this capability is supported
+by the volume discipline.
+.It Dv BIOCDELETERAID Fa "struct bioc_deleteraid *"
+Remove system disk (if present) and disassemble the
+.Xr softraid 4
+volume.
+.It Dv BIOCDISCIPLINE Fa "struct bioc_discipline *"
+Dispatch a discipline specific ioctl.
+.It Dv BIOCINSTALLBOOT Fa "struct bioc_installboot *"
+Install a boot loader.
+.El
+.Sh FILES
+.Bl -tag -width /dev/bio -compact
+.It Pa /dev/bio
+ioctl tunnel device
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr softraid 4 ,
+.Xr bioctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Niklas Hallqvist Aq Mt niklas@openbsd.org .
+The API was written by
+.An Marco Peereboom Aq Mt marco@openbsd.org .

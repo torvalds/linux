@@ -1,0 +1,8 @@
+# Create two directories for further comparison.
+# RUN: rm -rf %t/dir1 %t/dir2
+# RUN: mkdir -p %t/dir1 %t/dir2
+
+# Non-empty extra directory, "diff -r" should fail.
+# RUN: mkdir -p %t/dir1/extra_subdir
+# RUN: echo ZYX > %t/dir1/extra_subdir/extra_file
+# RUN: diff -r %t/dir1 %t/dir2

@@ -1,0 +1,116 @@
+#	$OpenBSD: files.luna88k,v 1.35 2024/11/04 22:08:03 jsg Exp $
+#
+maxpartitions 16
+
+device 	mainbus {}
+attach 	mainbus at root
+file	arch/luna88k/luna88k/mainbus.c
+
+device clock
+attach clock at mainbus
+file	arch/luna88k/dev/timekeeper.c			clock
+
+device lcd
+attach lcd at mainbus
+file	arch/luna88k/dev/lcd.c				lcd needs-flag
+
+attach le at mainbus: le24
+file	arch/luna88k/dev/if_le.c			le
+
+device sio {[channel = -1]}
+attach sio at mainbus
+file	arch/luna88k/dev/sio.c				sio
+
+device siotty: tty
+attach siotty at sio
+file	arch/luna88k/dev/siotty.c			siotty needs-flag
+
+device xp
+attach xp at mainbus
+file	arch/luna88k/dev/xp.c				xp needs-flag
+
+device ws: wskbddev,wsmousedev
+attach ws at sio
+file arch/luna88k/dev/lunaws.c				ws
+file arch/luna88k/dev/omkbdmap.c			ws
+
+device fb: wsemuldisplaydev, rasops1
+attach fb at mainbus
+file arch/luna88k/dev/lunafb.c				fb
+file arch/luna88k/dev/omrasops.c			fb
+file arch/luna88k/dev/omrasops1.c			fb
+
+# Raster operations
+include "dev/rasops/files.rasops"
+include "dev/wsfont/files.wsfont"
+# "Workstation Console" glue.
+include "dev/wscons/files.wscons"
+
+device cpu
+attach cpu at mainbus
+
+include "scsi/files.scsi"
+
+major {sd = 4}
+major {cd = 6}
+major {rd = 7}
+major {vnd = 8}
+major {wd = 9}
+
+device spc: scsi
+attach spc at mainbus
+file arch/luna88k/dev/spc.c				spc
+file arch/luna88k/dev/mb89352.c				spc
+
+device	cbus {[port = -1], [size = 0],
+	[iomem = -1], [iosiz = 0], [int = -1]}
+attach	cbus at mainbus
+file	arch/luna88k/cbus/cbus.c			cbus needs-flag
+
+device pcex
+attach	pcex at cbus
+file	arch/luna88k/cbus/pcex.c			pcex needs-flag
+
+# Novell NE2000 based Ethernet board
+attach	ne at cbus with ne_cbus: rtl80x9
+file	arch/luna88k/cbus/if_ne_cbus.c			ne needs-flag
+
+# NEC PC-9801-86 sound board
+device	necsb: audio
+attach	necsb at cbus
+file	arch/luna88k/cbus/necsb.c			necsb needs-flag
+file	arch/luna88k/cbus/nec86.c			necsb needs-flag
+file	arch/luna88k/cbus/nec86hw.c			necsb needs-flag
+
+# PCMCIA devices via NEC PC-9801-102 / PC-9821X[AE]-E01
+device	pcic: pcmciabus
+attach	pcic at cbus with pcic_cbus
+file	dev/ic/i82365.c					pcic needs-flag
+file	arch/luna88k/cbus/i82365_cbus.c			pcic needs-flag
+include "dev/pcmcia/files.pcmcia"
+
+# Media Independent Interface (mii), used with PCMCIA
+include "dev/mii/files.mii"
+
+# Machine-independent ATAPI drivers, used with PCMCIA
+include "dev/atapiscsi/files.atapiscsi"
+include "dev/ata/files.ata"
+
+# list of standard files
+file	arch/luna88k/luna88k/clock.c
+
+file	arch/luna88k/luna88k/autoconf.c
+file	arch/luna88k/luna88k/conf.c
+file	arch/luna88k/luna88k/m8820x.c
+file	arch/luna88k/luna88k/disksubr.c
+file	arch/luna88k/luna88k/eh.S
+file	arch/luna88k/luna88k/isr.c
+file	arch/luna88k/luna88k/locore.S
+file	arch/luna88k/luna88k/machdep.c
+file	arch/luna88k/luna88k/pmap_table.c
+file	arch/luna88k/luna88k/romcons.c
+
+# Actually these devices are not supported on luna88k, but we need them in
+# order to create attribute header files (e.g. "ucom.h") required in MI part.
+include "dev/hid/files.hid"
+include "dev/usb/files.usb"

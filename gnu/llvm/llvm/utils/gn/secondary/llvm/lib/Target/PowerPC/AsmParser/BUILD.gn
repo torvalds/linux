@@ -1,0 +1,21 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("PPCGenAsmMatcher") {
+  visibility = [ ":AsmParser" ]
+  args = [ "-gen-asm-matcher" ]
+  td_file = "../PPC.td"
+}
+
+static_library("AsmParser") {
+  output_name = "LLVMPowerPCAsmParser"
+  deps = [
+    ":PPCGenAsmMatcher",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/PowerPC/MCTargetDesc",
+    "//llvm/lib/Target/PowerPC/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [ "PPCAsmParser.cpp" ]
+}

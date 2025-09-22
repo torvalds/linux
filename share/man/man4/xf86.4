@@ -1,0 +1,119 @@
+.\"	$OpenBSD: xf86.4,v 1.19 2015/05/28 20:53:05 jcs Exp $
+.\"
+.\" Copyright (c) 1998 Matthieu Herrb
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 28 2015 $
+.Dt XF86 4
+.Os
+.Sh NAME
+.Nm xf86
+.Nd X Window System aperture driver
+.Sh SYNOPSIS
+.Cd "option APERTURE"
+.Sh DESCRIPTION
+On
+the alpha, amd64, i386, macppc, and sparc64 architectures,
+the
+.Pa /dev/xf86
+driver provides access to the memory and I/O ports of a VGA board
+and to the PCI configuration registers
+for use by the X servers
+when running with a kernel security level greater than 0.
+.Pp
+The X servers require the use of this driver for
+.Xr isa 4
+or
+.Xr pci 4
+video cards on
+.Ar alpha ,
+.Ar amd64 ,
+.Ar i386 ,
+.Ar macppc ,
+and
+.Ar sparc64 .
+.Sh ACCESS CONTROL
+Access to the
+.Pa /dev/xf86
+device is allowed when the
+.Xr sysctl 8
+variable
+.Va machdep.allowaperture
+is greater than or equal to 1.
+This variable (which has a default value of 0)
+can only be raised when the security level
+is less than or equal to 0, so it should be
+set in
+.Pa /etc/sysctl.conf .
+The possible values for
+.Va machdep.allowaperture
+are:
+.Bl -tag -width Ds
+.It 0
+the aperture driver is disabled.
+Opening it returns
+.Dv EPERM .
+.It 1
+the aperture driver allows access to standard VGA framebuffer and BIOS.
+Access to
+.Xr pci 4
+configuration registers is also allowed.
+.It 2
+in addition to allowing access to
+.Xr pci 4
+configuration registers,
+the aperture driver allows access to the whole first megabyte of physical
+memory, permitting use of the int10 emulation in X.Org 6.8 and later.
+Note that this can cause some security problems, since the process that
+has access to the aperture driver can also access part of the kernel
+memory.
+This mode is not supported on alpha or sparc64.
+.It 3
+the aperture driver allows multiple processes to concurrently access
+.Xr pci 4
+configuration registers and the whole first megabyte of physical memory.
+.El
+.Sh SEE ALSO
+.Xr Xorg 1 ,
+.Xr options 4 ,
+.Xr pci 4 ,
+.Xr sysctl.conf 5 ,
+.Xr securelevel 7 ,
+.Xr config 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+.Pa /dev/xf86
+was integrated as an in-kernel device on
+.Ox 2.3 .
+It is required in order to allow access to I/O ports for all X servers since
+.Ox 2.4 .
+.Sh AUTHORS
+The aperture driver was written by
+.An Matthieu Herrb .
+.Sh BUGS
+This driver allows access to all addresses above
+.Va physmem .
+It should be restricted to the actual address range of the video
+memory.

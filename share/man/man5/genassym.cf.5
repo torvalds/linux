@@ -1,0 +1,139 @@
+.\"	$OpenBSD: genassym.cf.5,v 1.10 2014/07/05 07:18:33 jsg Exp $
+.\"	$NetBSD: genassym.cf.5,v 1.8 2001/06/19 12:34:27 wiz Exp $
+.\"
+.\" Copyright (c) 1997 Matthias Pfaller.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 5 2014 $
+.Dt GENASSYM.CF 5
+.Os
+.Sh NAME
+.Nm genassym.cf
+.Nd assym.h definition file
+.Sh DESCRIPTION
+The
+.Nm
+file is used by
+.Xr genassym.sh 8
+to make constant C expressions known to assembler source files.
+.Pp
+Lines starting with '#' are discarded by
+.Xr genassym.sh 8 .
+Lines starting with
+.Em include ,
+.Em ifdef ,
+.Em if ,
+.Em else
+or
+.Em endif
+are preceded with '#' and passed otherwise unmodified to the C compiler.
+.Pp
+Lines starting with
+.Em quote
+get passed on with the
+.Em quote
+command removed.
+.Pp
+The first word after a
+.Em define
+command is taken as a CPP identifier and the rest of the line has to be
+a constant C expression.
+The output of
+.Xr genassym.sh 8
+will assign the numerical value of this expression to the CPP identifier.
+.Pp
+.Em "export foo"
+.br
+is a shorthand for
+.br
+.Em "define foo foo" .
+.Pp
+.Em "struct foo"
+.br
+remembers foo for the
+.Em member
+command and does a
+.br
+.Em "define FOO_SIZEOF sizeof(foo)" ,
+.br
+with the structure name converted to upper
+case.
+.Pp
+.Em "member foo"
+.br
+does a
+.br
+.Em "define FOO offsetof(<last struct>, foo)" .
+.br
+The two argument form of
+.Em "member" ,
+as
+.br
+.Em "member foo bar"
+.br
+does a
+.br
+.Em "define FOO offsetof(<last struct>, bar)" ,
+.br
+with its first argument converted to upper case.
+In the case where struct was
+invoked with an extra argument, as in
+.br
+.Em "struct foo PREFIX_" ,
+.br
+the first argument of member will be prefixed by the remembered prefix, before
+being converted to upper case.
+.Pp
+.Em "union foo"
+.br
+is similar to the
+.Em struct
+command, but applies to a union instead of a struct.
+.Pp
+.Em "config <ctype> <gcc constraint> <asm print modifier>"
+.br
+can be used to customize the output of
+.Xr genassym.sh 8 .
+.br
+When producing C output, values are cast to <ctype> (default: long)
+before they get handed to printf.
+<gcc constraint> (default: n) is the constraint used in the __asm__ statements.
+<asm print modifier> (default: empty) can be used to force gcc to output
+operands in different ways than normal.
+The "a" modifier e.g. stops gcc from emitting immediate
+prefixes in front of constants for the i386 port.
+.Sh FILES
+.Pa /sys/arch/${MACHINE}/${MACHINE}/genassym.cf
+.Sh SEE ALSO
+.Xr genassym.sh 8
+.Sh HISTORY
+The first use of
+.Nm
+files occurred in
+.Ox 2.2 .
+Its use was generalized to all ports for
+.Ox 3.0 .
+The
+.Em union
+command appeared in
+.Ox 3.5 .

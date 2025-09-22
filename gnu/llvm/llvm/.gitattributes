@@ -1,0 +1,33 @@
+# binary files
+test/Object/Inputs/*.a* binary
+test/tools/dsymutil/Inputs/*.o binary
+test/tools/dsymutil/Inputs/*.a binary
+test/tools/dsymutil/Inputs/*.i386 binary
+test/tools/dsymutil/Inputs/*.x86_64 binary
+test/tools/dsymutil/Inputs/*.armv7m binary
+test/tools/dsymutil/Inputs/*.dylib binary
+test/tools/dsymutil/Inputs/*.dSYM binary
+test/tools/dsymutil/Inputs/*.swiftmodule binary
+test/tools/llvm-ar/Inputs/*.lib binary
+test/tools/llvm-ar/Inputs/*.a binary
+test/tools/llvm-objdump/Inputs/*.a binary
+test/tools/llvm-rc/Inputs/*.bmp binary
+test/tools/llvm-rc/Inputs/*.cur binary
+test/tools/llvm-rc/Inputs/*.ico binary
+test/tools/llvm-strings/Inputs/numbers binary
+test/MC/AsmParser/incbin_abcd binary
+test/YAMLParser/spec-09-02.test binary
+
+# These files must have CRLF line endings, therefore git should explicity treat
+# them as always having crlf line endings
+test/MC/AsmParser/preserve-comments-crlf.s text eol=crlf
+test/tools/llvm-mca/X86/directives-handle-crlf.s text eol=crlf
+
+# These files must have LF line endings because the test requires exact matching
+test/Object/Inputs/*.tbd eol=lf
+test/tools/llvm-strings/radix.test text eol=lf
+test/tools/llvm-tapi-diff/Inputs/*.tbd text eol=lf
+test/tools/split-file/basic.test text eol=lf
+test/tools/split-file/Inputs/basic-*.txt eol=lf
+test/tools/split-file/basic.crlf.test text eol=crlf
+test/tools/split-file/Inputs/basic-*.crlf eol=crlf

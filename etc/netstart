@@ -1,0 +1,430 @@
+#!/bin/sh -
+#
+#	$OpenBSD: netstart,v 1.236 2025/08/13 16:36:10 kn Exp $
+
+# Turn off Strict Bourne shell mode.
+set +o sh
+
+# Show usage of the netstart script and exit.
+usage() {
+	print -u2 "usage: sh $0 [-n] [interface ...]"
+	exit 1
+}
+
+# Test the first argument against the remaining ones, return success on a match.
+isin() {
+	local _a=$1 _b
+
+	shift
+	for _b; do
+		[[ $_a == "$_b" ]] && return 0
+	done
+	return 1
+}
+
+# Echo file $1 to stdout. Skip comment lines. Strip leading and trailing
+# whitespace if IFS is set.
+# Usage: stripcom /path/to/file
+stripcom() {
+	local _file=$1 _line
+
+	[[ -f $_file ]] || return
+
+	while read _line; do
+		[[ -n ${_line%%#*} ]] && print -r -- "$_line"
+	done <$_file
+}
+
+# Parse and "unpack" a hostname.if(5) line given as positional parameters.
+# Fill the _cmds array with the resulting interface configuration commands.
+parse_hn_line() {
+	local _af=0 _name=1 _mask=2 _bc=3 _prefix=2 _c _cmd _prev _daddr _dhcp _i
+	set -A _c -- "$@"
+	set -o noglob
+
+	case ${_c[_af]} in
+	''|*([[:blank:]])'#'*)
+		return
+		;;
+	inet)	((${#_c[*]} > 1)) || return
+		if [[ ${_c[_name]} == autoconf ]]; then
+			_cmds[${#_cmds[*]}]="ifconfig $_if ${_c[@]}"
+			V4_AUTOCONF=true
+			return
+		fi
+		[[ ${_c[_name]} == alias ]] && _mask=3 _bc=4
+		[[ -n ${_c[_mask]} ]] && _c[_mask]="netmask ${_c[_mask]}"
+		if [[ -n ${_c[_bc]} ]]; then
+			_c[_bc]="broadcast ${_c[_bc]}"
+			[[ ${_c[_bc]} == *NONE ]] && _c[_bc]=
+		fi
+		_cmds[${#_cmds[*]}]="ifconfig $_if ${_c[@]}"
+		;;
+	inet6)	((${#_c[*]} > 1)) || return
+		if [[ ${_c[_name]} == autoconf ]]; then
+			_cmds[${#_cmds[*]}]="ifconfig $_if ${_c[@]}"
+			V6_AUTOCONF=true
+			return
+		fi
+		[[ ${_c[_name]} == alias ]] && _prefix=3
+		[[ -n ${_c[_prefix]} ]] && _c[_prefix]="prefixlen ${_c[_prefix]}"
+		_cmds[${#_cmds[*]}]="ifconfig $_if ${_c[@]}"
+		;;
+	dest)	((${#_c[*]} == 2)) && _daddr=${_c[1]} || return
+		_prev=$((${#_cmds[*]} - 1))
+		((_prev >= 0)) || return
+		set -A _c -- ${_cmds[_prev]}
+		_name=3
+		[[ ${_c[_name]} == alias ]] && _name=4
+		_c[_name]="${_c[_name]} $_daddr"
+		_cmds[$_prev]="${_c[@]}"
+		;;
+	dhcp)	_cmds[${#_cmds[*]}]="ifconfig $_if inet autoconf"
+		V4_AUTOCONF=true
+		;;
+	'!'*)	_cmd=$(print -- "${_c[@]}" | sed 's/\$if/'$_if'/g')
+		_cmds[${#_cmds[*]}]="${_cmd#!}"
+		;;
+	*)	_cmds[${#_cmds[*]}]="ifconfig $_if ${_c[@]}"
+		;;
+	esac
+	unset _c
+	set +o noglob
+}
+
+# Create interface $1 if it does not yet exist.
+# Usage: ifcreate if1
+ifcreate() {
+	local _if=$1
+
+	if $PRINT_ONLY; then
+		print -r -- "{ ifconfig $_if || ifconfig $_if create; }"
+	else
+		{ ifconfig $_if || ifconfig $_if create; } >/dev/null 2>&1
+	fi
+}
+
+# Create interfaces for network pseudo-devices referred to by hostname.if files.
+# Optionally, limit creation to given interfaces only.
+# Usage: vifscreate [if ...]
+vifscreate() {
+	local _vif _hn _if
+
+	for _vif in $(ifconfig -C); do
+		for _hn in /etc/hostname.${_vif}+([[:digit:]]); do
+			[[ -f $_hn ]] || continue
+			_if=${_hn#/etc/hostname.}
+
+			# loopback for routing domain is created by kernel
+			[[ -n ${_if##lo[1-9]*} ]] || continue
+
+			if (($# > 0)) && ! isin $_if "$@"; then
+				continue
+			fi
+
+			if ! ifcreate $_if; then
+				print -u2 "${0##*/}: create for '$_if' failed."
+			fi
+		done
+	done
+}
+
+# Start a single interface.
+# Usage: ifstart if1
+ifstart() {
+	local _if=$1 _lladdr _hn=/etc/hostname.$1 _cmds _i=0 _line _stat
+	set -A _cmds
+
+	# Interface names must be alphanumeric only.  We check to avoid
+	# configuring backup or temp files, and to catch the "*" case.
+	if [[ $_if == +([[:alpha:]])+([[:digit:]]) ]]; then
+		_lladdr=$(ifconfig $_if 2>/dev/null |
+		    sed -n 's/^[[:space:]]*lladdr[[:space:]]//p')
+		if [[ -n $_lladdr && -f /etc/hostname.$_lladdr &&
+		    -n $(ifconfig -M "$_lladdr") ]]; then
+			print -u2 "${0##*/}: $_hn: /etc/hostname.$_lladdr overrides"
+			return
+		fi
+
+	# We also support hostname.lladdr, but it must resolve to be valid
+	elif [[ $_if == ??:??:??:??:??:?? ]]; then
+		_lladdr=$_if
+		_if=$(ifconfig -M $_lladdr)
+		if (($? != 0)); then
+			print -u2 "${0##*/}: $_lladdr is not unique."
+			return
+		fi
+
+		[[ -z $_if ]] && return
+	else
+		return
+	fi
+
+	if [[ ! -f $_hn ]]; then
+		print -u2 "${0##*/}: $_hn: No such file or directory."
+		return
+	fi
+
+	# Not using stat(1), we can't rely on having /usr yet.
+	set -A _stat -- $(ls -nL $_hn)
+	if [[ "${_stat[0]}${_stat[2]}${_stat[3]}" != *---00 ]]; then
+		print -u2 "WARNING: $_hn is insecure, fixing permissions."
+		chmod -LR o-rwx $_hn
+		chown -LR root:wheel $_hn
+	fi
+
+	# Check for ifconfig'able interface, except if -n option is specified.
+	ifcreate $_if || return
+
+	# Parse the hostname.if(5) file and fill _cmds array with interface
+	# configuration commands.
+	set -o noglob
+	while IFS= read -- _line; do
+		parse_hn_line $_line
+	done <$_hn
+
+	# Apply the interface configuration commands stored in _cmds array.
+	while ((_i < ${#_cmds[*]})); do
+		if $PRINT_ONLY; then
+			print -r -- "${_cmds[_i]}"
+		else
+			eval "${_cmds[_i]}"
+		fi
+		((_i++))
+	done
+	unset _cmds
+	set +o noglob
+}
+
+# Start multiple interfaces by driver name.
+# Usage: ifmstart "em iwm" "trunk vlan"
+#   Start "$1" interfaces in order or all interfaces if empty.
+#   Don't start "$2" interfaces. "$2" is optional.
+ifmstart() {
+	local _sifs=$1 _xifs=$2 _hn _if _sif _xif
+
+	for _sif in ${_sifs:-ALL}; do
+		for _hn in /etc/hostname.@(+([[:alpha:]])+([[:digit:]])|??:??:??:??:??:??); do
+			[[ -f $_hn ]] || continue
+			_if=${_hn#/etc/hostname.}
+
+			if [[ $_if == +([[:alpha:]])+([[:digit:]]) ]]; then
+				# Skip unwanted ifs.
+				for _xif in $_xifs; do
+					[[ $_xif == ${_if%%[0-9]*} ]] && continue 2
+				done
+			fi
+
+			# Start wanted ifs.
+			[[ $_sif == @(ALL|${_if%%[0-9]*}) ]] && ifstart $_if
+		done
+	done
+}
+
+# Parse /etc/mygate and add default routes for IPv4 and IPv6.
+# Usage: defaultroute
+defaultroute() {
+	local _cmd _v4set=false _v6set=false;
+	set -o noglob
+
+	stripcom /etc/mygate |
+	while read gw; do
+		case $gw in
+		'!'*)
+			_cmd=$(print -- "$gw")
+			_cmd="${_cmd#!}"
+			;;
+		!(*:*))
+			($_v4set || $V4_AUTOCONF) && continue
+			_cmd="route -qn add -host default $gw"
+			_v4set=true
+			;;
+		*)
+			($_v6set || $V6_AUTOCONF) && continue
+			_cmd="route -qn add -host -inet6 default $gw"
+			_v6set=true
+			;;
+		esac
+		if $PRINT_ONLY; then
+			print -r -- "$_cmd"
+		else
+			$_cmd
+		fi
+	done
+	set +o noglob
+}
+
+# add all the routes needed for IPv6
+ip6routes() {
+	local _i=0
+	set -A _cmds
+
+	# Disallow link-local unicast dest without outgoing scope identifiers.
+	_cmds[_i++]="route -qn add -inet6 fe80:: -prefixlen 10 ::1 -reject"
+
+	# Disallow site-local unicast dest without outgoing scope identifiers.
+	# If you configure site-locals without scope id (it is permissible
+	# config for routers that are not on scope boundary), you may want
+	# to comment the line out.
+	_cmds[_i++]="route -qn add -inet6 fec0:: -prefixlen 10 ::1 -reject"
+
+	# Disallow "internal" addresses to appear on the wire.
+	_cmds[_i++]="route -qn add -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject"
+
+	# Disallow packets to malicious 6to4 prefix.
+	_cmds[_i++]="route -qn add -inet6 2002:e000:: -prefixlen 20 ::1 -reject"
+	_cmds[_i++]="route -qn add -inet6 2002:7f00:: -prefixlen 24 ::1 -reject"
+	_cmds[_i++]="route -qn add -inet6 2002:0000:: -prefixlen 24 ::1 -reject"
+	_cmds[_i++]="route -qn add -inet6 2002:ff00:: -prefixlen 24 ::1 -reject"
+
+	# Disallow packets without scope identifier.
+	_cmds[_i++]="route -qn add -inet6 ff01:: -prefixlen 16 ::1 -reject"
+	_cmds[_i++]="route -qn add -inet6 ff02:: -prefixlen 16 ::1 -reject"
+
+	# Completely disallow packets to IPv4 compatible prefix.
+	#
+	# This may conflict with RFC1933 under following circumstances:
+	# (1) An IPv6-only KAME node tries to originate packets to IPv4
+	#     compatible destination.  The KAME node has no IPv4 compatible
+	#     support.  Under RFC1933, it should transmit native IPv6
+	#     packets toward IPv4 compatible destination, hoping it would
+	#     reach a router that forwards the packet toward auto-tunnel
+	#     interface.
+	# (2) An IPv6-only node originates a packet to an IPv4 compatible
+	#     destination.  A KAME node is acting as an IPv6 router, and
+	#     asked to forward it.
+	#
+	# Due to rare use of IPv4 compatible addresses, and security issues
+	# with it, we disable it by default.
+	_cmds[_i++]="route -qn add -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject"
+
+	# Apply the interface configuration commands stored in _cmds array.
+	_i=0
+	while ((_i < ${#_cmds[*]})); do
+		if $PRINT_ONLY; then
+			print -r -- "${_cmds[_i]}"
+		else
+			eval "${_cmds[_i]}"
+		fi
+		((_i++))
+	done
+	unset _cmds
+}
+
+# wait for autoconf interfaces
+wait_autoconf_default() {
+	local _count=0
+
+	if ifconfig | grep -q ': flags=.*<.*AUTOCONF.*>'; then
+		while ((_count++ < 20)); do
+			route -n show | grep -q ^default && break
+			sleep .5
+		done
+	fi
+}
+
+# Ensure IPv6 Duplicate Address Detection (DAD) is completed.
+wait_dad() {
+	local _count=0
+
+	while ((_count++ < 10 && $(sysctl -n net.inet6.ip6.dad_pending) != 0)); do
+		sleep 1
+	done
+}
+
+# Make sure the invoking user has the right privileges.  Check for presence of
+# id(1) to avoid problems with diskless setups.
+if [[ -x /usr/bin/id ]] && (($(id -u) != 0)); then
+	print -u2 "${0##*/}: need root privileges"
+	exit 1
+fi
+
+# Get network related vars from rc.conf using the parsing routine from rc.subr.
+FUNCS_ONLY=1 . /etc/rc.d/rc.subr
+_rc_parse_conf
+
+PRINT_ONLY=false
+V4_AUTOCONF=false
+V6_AUTOCONF=false
+IP6KERNEL=false
+
+while getopts ":n" opt; do
+	case $opt in
+	n)	PRINT_ONLY=true;;
+	*)	usage;;
+	esac
+done
+shift $((OPTIND-1))
+
+if ifconfig lo0 inet6 >/dev/null 2>&1; then
+	IP6KERNEL=true
+fi
+
+# If we were invoked with a list of interface names, just reconfigure these
+# interfaces (or bridges), add default routes and return.
+# Create virtual interfaces upfront to make ifconfig commands depending on
+# other interfaces, e.g. "patch", work regardless of in which order interface
+# names were specified.
+if (($# > 0)); then
+	vifscreate "$@"
+	for _if; do ifstart $_if; done
+	defaultroute
+	return
+fi
+
+# Otherwise, process with the complete network initialization.
+
+# Set the address for the loopback interface.  Bringing the interface up,
+# automatically invokes the IPv6 address ::1.
+if $PRINT_ONLY; then
+	print -r -- "ifconfig lo0 inet 127.0.0.1/8"
+else
+	ifconfig lo0 inet 127.0.0.1/8
+fi
+
+if $IP6KERNEL; then
+	ip6routes
+fi
+
+# Create all the pseudo interfaces up front.
+vifscreate
+
+# Configure all the non-loopback interfaces which we know about, but
+# do not start interfaces which must be delayed. Refer to hostname.if(5)
+ifmstart "" "aggr trunk svlan vlan carp pppoe tun tap gif etherip gre egre nvgre eoip vxlan pflow wg"
+
+# The aggr and trunk interfaces need to come up first in this list.
+# The (s)vlan interfaces need to come up after trunk.
+# Configure all the carp interfaces which we know about before default route.
+ifmstart "aggr trunk svlan vlan carp pppoe"
+
+# Set default routes for IPv4 and IPv6.
+defaultroute
+
+# Multicast routing.
+if [[ $multicast != YES ]]; then
+	if $PRINT_ONLY; then
+		print -r -- "route -qn delete 224.0.0.0/4"
+		print -r -- "route -qn add -net 224.0.0.0/4 -interface 127.0.0.1 -reject"
+	else
+		route -qn delete 224.0.0.0/4
+		route -qn add -net 224.0.0.0/4 -interface 127.0.0.1 -reject
+	fi
+fi
+
+# Reject 127/8 other than 127.0.0.1.
+if $PRINT_ONLY; then
+	print -r -- "route -qn add -net 127 127.0.0.1 -reject"
+else
+	route -qn add -net 127 127.0.0.1 -reject
+fi
+
+# If interface autoconf exists, pause a little for at least one default route
+$PRINT_ONLY || wait_autoconf_default
+
+# Configure interfaces that rely on routing
+ifmstart "tun tap gif etherip gre egre nvgre eoip vxlan pflow wg"
+
+if $IP6KERNEL && ! $PRINT_ONLY; then
+	wait_dad
+fi

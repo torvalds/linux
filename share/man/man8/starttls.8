@@ -1,0 +1,208 @@
+.\" $OpenBSD: starttls.8,v 1.29 2025/05/05 20:50:03 tedu Exp $
+.\"
+.\" Copyright (c) 2001 Jose Nazario <jose@monkey.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 5 2025 $
+.Dt STARTTLS 8
+.Os
+.Sh NAME
+.Nm starttls
+.Nd ESMTP over TLS/SSL
+.Sh DESCRIPTION
+STARTTLS is an ESMTP option, defined in RFC 3207, which is used to conduct
+ESMTP transactions over TLS circuits.
+This is used to increase the security of mail server transactions.
+.Pp
+STARTTLS allows for the combination of several security solutions for MTA
+(mail transport agent) level services through the TLS suite.
+These security features include:
+.Bl -tag -width Ds
+.It Confidentiality
+Encryption is used to protect data from passive monitoring.
+.It Integrity
+Hash algorithms are used to ensure the integrity of the
+transmitted data.
+This protects data from modification in transit.
+.It Authentication
+The use of public key encryption allows for the strong authentication of
+either, or both, communicating parties.
+This can be used to allow for select features, such as relaying,
+to be controlled more securely.
+.El
+.Pp
+A new ESMTP option, STARTTLS, has been added.
+This is presented by the server when an ESMTP session is initiated.
+The client then begins the TLS portion of the ESMTP session by issuing
+the command
+.Dq STARTTLS .
+The remaining portion of the ESMTP session occurs over a TLS channel.
+.Ss Creating a private key and certificate for an MTA
+This example assumes you are creating your own self-signed certificates
+for use with
+.Xr smtpd 8
+and STARTTLS.
+If you have an existing private key and you simply wish to generate
+a new certificate (for example, if your old certificate has expired),
+see the section entitled
+.Sx Creating a certificate with an existing private key .
+.Pp
+For the purposes of this example the certificates will be stored in
+.Pa /etc/ssl ,
+though it is possible to use a different directory if needed.
+.Pp
+Next, you must generate an
+.Ar RSA
+private key:
+.Pp
+.Dl # openssl genrsa -out /etc/ssl/private/mail.example.com.key 4096
+.Pp
+This would generate a 4096-bit
+.Ar RSA
+key stored in the file
+.Pa mail.example.com.key .
+.Pp
+Once you have generated the
+.Ar RSA
+key, you can generate a self-signed certificate from it using the command:
+.Bd -literal -offset indent
+# openssl req -x509 -new -key /etc/ssl/private/mail.example.com.key \e
+  -out /etc/ssl/mail.example.com.crt -days 365
+.Ed
+.Pp
+You may adjust the lifetime of the certificate via the
+.Fl days
+parameter (one year in this example).
+.Pp
+You can verify that the newly-generated certificate has correct information
+with the following command:
+.Pp
+.Dl # openssl x509 -in /etc/ssl/mail.example.com.crt -text
+.Pp
+It is better to configure and use
+.Xr acme-client 1
+to obtain a signed certificate.
+.Pp
+Because the private key files are unencrypted,
+MTAs can be picky about using tight permissions on those files.
+The certificate directory and the files therein should be
+readable and writable only by the owner (root).
+A simple way to ensure this is to run the following:
+.Pp
+.Dl # chmod -R go-rwx /etc/ssl/private
+.Ss Creating a certificate with an existing private key
+This example assumes you already have an existing private key,
+.Pa /etc/ssl/private/mail.example.com.key .
+You can generate a new certificate based on this key using the command:
+.Bd -literal -offset indent
+# openssl req -x509 -new -key /etc/ssl/private/mail.example.com.key \e
+  -out /etc/ssl/mail.example.com.crt -days 365
+# chmod 600 /etc/ssl/mail.example.com.crt
+.Ed
+.Pp
+You may adjust the lifetime of the certificate via the
+.Fl days
+parameter (one year in this example).
+.Pp
+After having installed the certificates,
+the mail server needs to be configured to accept TLS sessions
+and use the key and certificate.
+For
+.Xr smtpd 8 ,
+it's as simple as adding pki configuration to
+.Xr smtpd.conf 5 :
+.Bd -literal -offset indent
+pki mail.example.com cert "/etc/ssl/mail.example.com.crt"
+pki mail.example.com key "/etc/ssl/private/mail.example.com.key"
+
+listen on [...] tls pki mail.example.com auth
+.Ed
+.Pp
+After restarting the mail server, a new option should be presented for ESMTP
+transactions, STARTTLS.
+You can test this by connecting to the local host and issuing the
+.Dq EHLO
+command.
+.Bd -literal -offset indent
+# telnet localhost 25
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+220 localhost ESMTP OpenSMTPD
+EHLO localhost
+.Ed
+.Pp
+After typing
+.Em EHLO localhost ,
+you should receive something like the following back.
+.Bd -literal -offset indent
+250-localhost Hello localhost [127.0.0.1], pleased to meet you
+250-8BITMIME
+250-ENHANCEDSTATUSCODES
+250-SIZE 36700160
+250-DSN
+250-STARTTLS
+250 HELP
+.Ed
+.Pp
+You should see
+.Dq STARTTLS
+listed along with the other options.
+If so, congratulations, the MTA will now use TLS to encrypt your mail
+traffic when the remote server supports it.
+If not, check
+.Pa /var/log/maillog
+to see whether the MTA has reported any security problems or other errors.
+.Ss Uses for TLS equipped MTAs
+The most obvious use of a cryptographically enabled MTA
+is for confidentiality of the electronic mail transaction and the
+integrity checking provided by the cipher suite.
+All traffic between the two mail servers is encrypted, including the
+sender and recipient addresses.
+TLS also allows for authentication of either or both systems in the transaction.
+.Pp
+One use of public key cryptography is for strong authentication.
+We can use this authentication to selectively relay clients, including
+other mail servers and mobile clients like laptops.
+However, there have been some problems getting some mail clients to work using
+certificate-based authentication.
+Clients will have to generate certificates and have them
+signed (for trust validation) by a trusted CA (certificate authority).
+.Sh SEE ALSO
+.Xr mail 1 ,
+.Xr openssl 1 ,
+.Xr smtpd 8 ,
+.Xr ssl 8
+.Sh STANDARDS
+.Rs
+.%A P. Hoffman
+.%D February 2002
+.%R RFC 3207
+.%T SMTP Service Extension for Secure SMTP over Transport Layer Security
+.Re
+.Sh CAVEATS
+Because TLS can only authenticate at the server level, true
+end-to-end authentication of the mail message cannot be performed with
+only the use of STARTTLS on the server.
+The use of S/MIME or PGP email and trustworthy key hierarchies can guarantee
+full confidentiality and integrity of the entire message path.

@@ -1,0 +1,81 @@
+.\" $OpenBSD: pthread_attr_init.3,v 1.12 2025/06/07 00:16:52 schwarze Exp $
+.\" Manual page derived from TOG's UNIX98 documentation.
+.\"
+.\"  David Leonard, 2000. Public Domain.
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt PTHREAD_ATTR_INIT 3
+.Os
+.Sh NAME
+.Nm pthread_attr_init ,
+.Nm pthread_attr_destroy
+.Nd initialise and destroy threads attribute object
+.Sh SYNOPSIS
+.Lb libpthread
+.In pthread.h
+.Ft int
+.Fn pthread_attr_init "pthread_attr_t *attr"
+.Ft int
+.Fn pthread_attr_destroy "pthread_attr_t *attr"
+.Sh DESCRIPTION
+The function
+.Fn pthread_attr_init
+initialises a thread attributes
+object
+.Fa attr
+with the default value for all of the individual
+attributes used by a given implementation.
+.Pp
+The resulting attribute object (possibly modified by setting
+individual attribute values), when used by
+.Xr pthread_create 3 ,
+defines the attributes of the thread created.
+A single attributes object can be used in multiple simultaneous calls to
+.Xr pthread_create 3 .
+.Pp
+The
+.Fn pthread_attr_destroy
+function is used to destroy a thread
+attributes object.
+An implementation may cause
+.Fn pthread_attr_destroy
+to set
+.Fa attr
+to an implementation-dependent
+invalid value.
+The behaviour of using the attribute after it has
+been destroyed is undefined.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn pthread_attr_init
+and
+.Fn pthread_attr_destroy
+return a value of 0.
+Otherwise, an error number is returned to indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_attr_init
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient memory exists to initialise the thread attributes
+object.
+.El
+.Pp
+These functions will not return an error code of
+.Bq Er EINTR .
+.Sh SEE ALSO
+.Xr pthread_attr_setdetachstate 3 ,
+.Xr pthread_attr_setguardsize 3 ,
+.Xr pthread_attr_setstack 3 ,
+.Xr pthread_attr_setstackaddr 3 ,
+.Xr pthread_attr_setstacksize 3 ,
+.Xr pthread_create 3 ,
+.Xr pthreads 3
+.Sh STANDARDS
+.Fn pthread_attr_destroy
+and
+.Fn pthread_attr_init
+conform to ISO/IEC 9945-1 ANSI/IEEE
+.Pq Dq Tn POSIX
+Std 1003.1 Second Edition 1996-07-12.

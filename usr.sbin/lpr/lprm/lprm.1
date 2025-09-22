@@ -1,0 +1,149 @@
+.\"	$OpenBSD: lprm.1,v 1.13 2022/02/18 23:17:16 jsg Exp $
+.\"	$NetBSD: lprm.1,v 1.10 2002/01/19 03:23:47 wiz Exp $
+.\"
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)lprm.1	8.1 (Berkeley) 6/6/93
+.\"
+.Dd $Mdocdate: February 18 2022 $
+.Dt LPRM 1
+.Os
+.Sh NAME
+.Nm lprm
+.Nd remove jobs from the line printer spooling queue
+.Sh SYNOPSIS
+.Nm lprm
+.Op Fl
+.Op Fl P Ns Ar printer
+.Oo
+.Op Ar job# ...
+.Op Ar user ...
+.Oc
+.Sh DESCRIPTION
+.Nm lprm
+will remove a job, or jobs, from a printer's spool queue.
+Since the spooling directory is protected from users, using
+.Nm
+is normally the only method by which a user may remove a job.
+The owner of a job is determined by the user's login name
+and host name on the machine where the
+.Xr lpr 1
+command was invoked.
+.Pp
+Options and arguments:
+.Bl -tag -width indent
+.It Fl P Ns Ar printer
+Specify the queue associated with a specific
+.Ar printer
+(otherwise the default printer is used).
+.It Fl
+If a single
+.Dq Fl
+is given,
+.Nm
+will remove all jobs which a user
+owns.
+If the superuser employs this flag, the spool queue will
+be emptied entirely.
+.It Ar user
+Causes
+.Nm
+to attempt to remove any jobs queued belonging to that user (or users).
+This form of invoking
+.Nm
+is useful only to the superuser.
+.It Ar job#
+A user may dequeue an individual job by specifying its job number.
+This number may be obtained from the
+.Xr lpq 1
+program, e.g.,
+.Bd -literal -offset indent
+\&% lpq \-l
+
+1st:ken				[job #013ucbarpa]
+	(standard input)	100 bytes
+% lprm 13
+.Ed
+.El
+.Pp
+If neither arguments or options are given,
+.Nm
+will delete the currently active job if it is
+owned by the user who invoked
+.Nm lprm .
+.Pp
+.Nm lprm
+announces the names of any files it removes and is silent if
+there are no jobs in the queue which match the request list.
+.Pp
+.Nm
+will kill off an active daemon, if necessary, before removing
+any spooling files.
+If a daemon is killed, a new one is
+automatically restarted upon completion of file removals.
+.Sh ENVIRONMENT
+If the following environment variable exists, it is utilized by
+.Nm lprm :
+.Bl -tag -width PRINTER
+.It Ev PRINTER
+If the environment variable
+.Ev PRINTER
+exists,
+and a printer has not been specified with the
+.Fl P
+option,
+the default printer is assumed from
+.Ev PRINTER .
+.El
+.Sh FILES
+.Bl -tag -width /var/spool/output/*/lock/ -compact
+.It Pa /etc/printcap
+Printer characteristics file.
+.It Pa /var/spool/output/*
+Spooling directories.
+.It Pa /var/spool/output/*/lock
+Lock file used to obtain the PID of the current
+daemon and the job number of the currently active job.
+.El
+.Sh DIAGNOSTICS
+.Bl -tag -width Ds
+.It Sy Permission denied
+File to remove was owned by another user.
+.El
+.Sh SEE ALSO
+.Xr lpq 1 ,
+.Xr lpr 1 ,
+.Xr lpd 8
+.Sh HISTORY
+The
+.Nm lprm
+command appeared in
+.Bx 3.0 .
+.Sh BUGS
+Since there are race conditions possible in the update of the lock file,
+the currently active job may be incorrectly identified.

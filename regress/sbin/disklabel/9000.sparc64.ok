@@ -1,0 +1,32 @@
+=== Start 9000MB disk ===
+Primary GPT:
+Not Found
+
+Secondary GPT:
+Not Found
+
+MBR:
+Disk: vnd0	geometry: 184340/1/100 [18434048 Sectors]
+Offset: 0	Signature: 0x0
+            Starting         Ending         LBA Info:
+ #: id      C   H   S -      C   H   S [       start:        size ]
+-------------------------------------------------------------------------------
+ 0: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 1: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 2: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+ 3: 00      0   0   0 -      0   0   0 [           0:           0 ] Unused
+
+  a:             1.1G                0  4.2BSD   2048 16384     1 # /
+  a:          2310700                0  4.2BSD   2048 16384     1 
+  b:             0.3G          2310700    swap                    
+  b:           524300          2310700    swap                    
+  d:             3.0G          2835000  4.2BSD   2048 16384     1 # /usr
+  d:          6291500          2835000  4.2BSD   2048 16384     1 
+  e:             2.0G          9126500  4.2BSD   2048 16384     1 # /home
+  e:          4194400          9126500  4.2BSD   2048 16384     1 
+
+/dev/vnd0a / ffs rw 1 1
+/dev/vnd0e /home ffs rw 1 2
+/dev/vnd0d /usr ffs rw 1 2
+/dev/vnd0b none swap sw
+=== End 9000MB disk ===

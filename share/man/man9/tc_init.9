@@ -1,0 +1,141 @@
+.\"    $OpenBSD: tc_init.9,v 1.12 2023/04/02 00:02:26 cheloha Exp $
+.\"
+.\" Copyright (c) 2004 Alexander Yurchenko <grange@openbsd.org>
+.\" Copyright (c) 2023 Scott Cheloha <cheloha@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 2 2023 $
+.Dt TC_INIT 9
+.Os
+.Sh NAME
+.Nm tc_init
+.Nd timecounting subsystem
+.Sh SYNOPSIS
+.In sys/timetc.h
+.Ft void
+.Fn tc_init "struct timecounter *tc"
+.Sh DESCRIPTION
+The
+.Sy timecounting
+subsystem implements a uniform interface to timekeeping hardware,
+measures the passage of time,
+and implements the kernel's software clocks
+.Po see
+.Xr microtime 9
+for details
+.Pc .
+.Pp
+A hardware clock is suitable for counting time if it meets the following
+requirements:
+.Bl -enum -offset indent
+.It
+It is a binary counter.
+.It
+It advances at a fixed, known frequency.
+.It
+Its count is synchronized between all CPUs on the system.
+.It
+It continues counting when it rolls over.
+.It
+If
+.Xr hz 9
+is less than or equal to one millisecond,
+the counter does not roll over in less than two milliseconds.
+If
+.Xr hz 9
+exceeds one millisecond,
+the counter does not roll over in less than
+.Pq 2 / Va hz
+seconds.
+.El
+.Pp
+Hardware clocks are described with a
+.Va timecounter
+structure:
+.Bd -literal -offset indent
+struct timecounter {
+	u_int (*tc_get_timecount)(struct timecounter *);
+	u_int tc_counter_mask;
+	u_int64_t tc_frequency;
+	char *tc_name;
+	int tc_quality;
+	void *tc_priv;
+	u_int tc_user;
+};
+.Ed
+.Bl -tag -width indent
+.It Ft u_int Fn (*tc_get_timecount) "struct timecounter *"
+Reads the hardware clock and returns its count.
+Any unimplemented bits only need to be masked if they are not constant.
+If the counter is larger than 32 bits,
+this function must return a 32-bit subset.
+The subsystem requires an upward count;
+downward counts must be inverted before they are returned.
+.It Va tc_counter_mask
+The mask of implemented bits.
+Used to discard unimplemented bits from
+.Fn tc_get_timecount .
+.It Va tc_frequency
+The counter's fixed frequency.
+.It Va tc_name
+The counter's unique name.
+A
+.Dv NUL Ns -terminated string.
+.It Va tc_quality
+A relative quality metric used to compare counters.
+Higher values indicate a better counter.
+A negative value indicates that the counter is non-monotonic
+or otherwise deficient.
+The system will only use negative-quality counters if requested.
+.It Va tc_priv
+May point to anything the driver needs during
+.Fn tc_get_timecount .
+.It Va tc_user
+If non-zero,
+a unique value identifying the userspace implementation of
+.Fn tc_get_timecount .
+.El
+.Pp
+To register a timecounter,
+a device driver initializes the above-described fields of a
+.Va timecounter
+structure and calls
+.Fn tc_init
+with a pointer to that structure as argument.
+.Sh CONTEXT
+.Fn tc_init
+may only be called during autoconf.
+.Sh CODE REFERENCES
+.Pa sys/kern/kern_tc.c
+.Sh SEE ALSO
+.Xr amdpm 4 ,
+.Xr gscpm 4 ,
+.Xr ichpcib 4 ,
+.Xr viapm 4 ,
+.Xr hz 9 ,
+.Xr microtime 9
+.Rs
+.%A Poul-Henning Kamp
+.%T Timecounter: Efficient and precise timekeeping in SMP kernels
+.%J The FreeBSD Project
+.%D 2002
+.%U https://papers.freebsd.org/2002/phk-timecounters.files/timecounter.pdf
+.Re
+.Sh HISTORY
+The timecounting subsystem first appeared in
+.Fx 3.0 .
+It was ported to
+.Ox 3.6 .
+.Sh AUTHORS
+.An Poul-Henning Kamp

@@ -1,0 +1,23 @@
+executable("llvm-xray") {
+  deps = [
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/XRay",
+  ]
+  sources = [
+    "func-id-helper.cpp",
+    "llvm-xray.cpp",
+    "xray-account.cpp",
+    "xray-color-helper.cpp",
+    "xray-converter.cpp",
+    "xray-extract.cpp",
+    "xray-fdr-dump.cpp",
+    "xray-graph-diff.cpp",
+    "xray-graph.cpp",
+    "xray-registry.cpp",
+    "xray-stacks.cpp",
+  ]
+}

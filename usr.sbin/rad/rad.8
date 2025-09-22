@@ -1,0 +1,153 @@
+.\"	$OpenBSD: rad.8,v 1.7 2022/10/15 13:26:15 florian Exp $
+.\"
+.\" Copyright (c) 2018 Florian Obser <florian@openbsd.org>
+.\" Copyright (c) 2016 Kenneth R Westerback <kwesterback@gmail.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 15 2022 $
+.Dt RAD 8
+.Os
+.Sh NAME
+.Nm rad
+.Nd router advertisement daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnv
+.Op Fl f Ar file
+.Op Fl s Ar socket
+.Sh DESCRIPTION
+.Nm
+is an IPv6 router advertisement daemon.
+It periodically sends IPv6 router advertisement messages with prefix
+and default router information.
+Clients like
+.Xr slaacd 8
+use these to configure IPv6 addresses on network interfaces and set default
+routes.
+Additionally it listens for IPv6 router solicitation messages and responds
+with router advertisements.
+.Pp
+To have
+.Nm
+enabled at boot time, use
+.Dq rcctl enable rad ,
+which sets
+.Pp
+.Dl rad_flags=\(dq\(dq
+.Pp
+in
+.Xr rc.conf.local 8 .
+.Pp
+A running
+.Nm
+can be controlled with the
+.Xr ractl 8
+utility.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Specify an alternative configuration file.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl s Ar socket
+Use an alternate location for the default control socket.
+.It Fl v
+Produce more verbose output.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/rad.sockXX" -compact
+.It Pa /etc/rad.conf
+Default
+.Nm
+configuration file.
+.It Pa /var/run/rad.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr ractl 8 .
+.El
+.Sh SEE ALSO
+.Xr rad.conf 5 ,
+.Xr ractl 8 ,
+.Xr slaacd 8
+.Sh STANDARDS
+.Rs
+.%A R. Draves
+.%A D. Thaler
+.%D November 2005
+.%R RFC 4191
+.%T Default Router Preferences and More-Specific Routes
+.Re
+.Pp
+.Rs
+.%A R. Hinden
+.%A S. Deering
+.%D February 2006
+.%R RFC 4291
+.%T IP Version 6 Addressing Architecture
+.Re
+.Pp
+.Rs
+.%A T. Narten
+.%A E. Nordmark
+.%A W. Simpson
+.%A H. Soliman
+.%D September 2007
+.%R RFC 4861
+.%T Neighbor Discovery for IP version 6 (IPv6)
+.Re
+.Pp
+.Rs
+.%A A. Yourtchenko
+.%A L. Colitti
+.%D February 2016
+.%R RFC 7772
+.%T Reducing Energy Consumption of Router Advertisements
+.Re
+.Pp
+.Rs
+.%A J. Jeong
+.%A S. Park
+.%A L. Beloeil
+.%A S. Madanapalli
+.%D March 2017
+.%R RFC 8106
+.%T IPv6 Router Advertisement Options for DNS Configuration
+.Re
+.Pp
+.Rs
+.%A L. Colitti
+.%A J. Linkova
+.%D April 2020
+.%R RFC 8781
+.%T Discovering PREF64 in Router Advertisements
+.Re
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 6.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was written by
+.An Florian Obser Aq Mt florian@openbsd.org .

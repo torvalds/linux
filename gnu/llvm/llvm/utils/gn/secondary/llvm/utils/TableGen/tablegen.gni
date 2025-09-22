@@ -1,0 +1,82 @@
+# This file defines a template for running llvm-tblgen.
+#
+# Parameters:
+#
+#   args (required)
+#       [list of strings] Flags to pass to llvm-tblgen.
+#
+#   output_name (optional)
+#       Basename of the generated output file.
+#       Defaults to target name with ".inc" appended.
+#
+#   td_file (optional)
+#       The .td file to pass to llvm-tblgen.
+#       Defaults to target name with ".td" appended.
+#
+#   visibility (optional)
+#       GN's regular visibility attribute, see `gn help visibility`.
+#
+# Example use:
+#
+#   tablegen("attributes_compat_func_gen") {
+#     visibility = [ ":IR" ]
+#     args = [ "-gen-attrs" ]
+#     td_file = "AttributesCompatFunc.td"
+#   }
+
+import("//llvm/utils/gn/build/compiled_action.gni")
+
+template("tablegen") {
+  assert(defined(invoker.args), "must set 'args' in $target_name")
+
+  config_name = "${target_name}_config"
+  config(config_name) {
+    visibility = [ ":$target_name" ]
+    include_dirs = [ target_gen_dir ]
+  }
+
+  compiled_action(target_name) {
+    forward_variables_from(invoker, [ "visibility" ])
+
+    if (defined(invoker.tblgen_target)) {
+      tool = invoker.tblgen_target
+    } else {
+      tool = "//llvm/utils/TableGen:llvm-tblgen"
+    }
+    if (defined(invoker.td_file)) {
+      td_file = invoker.td_file
+    } else {
+      td_file = "$target_name.td"
+    }
+    inputs = [ td_file ]
+    if (defined(invoker.output_name)) {
+      gen_output = "$target_gen_dir/" + invoker.output_name
+    } else {
+      gen_output = "$target_gen_dir/$target_name.inc"
+    }
+    depfile = "$gen_output.d"
+    td_file = rebase_path(td_file, root_build_dir)
+
+    args = [
+             "--write-if-changed",
+
+             "-I",
+             rebase_path("//llvm/include", root_build_dir),
+
+             # FIXME: Rather than duplicating this -I flag in both the CMake and
+             # the gn build, let tablegen add input dir to include search path
+             # instead?
+             "-I",
+             get_path_info(td_file, "dir"),
+             "-d",
+             rebase_path(depfile, root_build_dir),
+             "-o",
+             rebase_path(gen_output, root_build_dir),
+             td_file,
+           ] + invoker.args
+    outputs = [ gen_output ]
+
+    # Let targets depending on this find the generated file.
+    public_configs = [ ":$config_name" ]
+  }
+}

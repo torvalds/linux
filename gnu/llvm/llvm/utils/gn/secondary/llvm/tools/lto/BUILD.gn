@@ -1,0 +1,36 @@
+import("//llvm/utils/gn/build/symbol_exports.gni")
+import("//llvm/version.gni")
+
+symbol_exports("exports") {
+  exports_file = "lto.exports"
+}
+
+shared_library("lto") {
+  output_name = "LTO"
+  deps = [
+    ":exports",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/IR",
+    "//llvm/lib/LTO",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+  ]
+  sources = [
+    "LTODisassembler.cpp",
+    "lto.cpp",
+  ]
+
+  if (host_os == "mac") {
+    ldflags = [
+      "-Wl,-compatibility_version,1",
+      "-Wl,-current_version,$llvm_version",
+
+      # See llvm_setup_rpath() in CMake.
+      "-Wl,-install_name,@rpath/libLTO.dylib",
+      "-Wl,-rpath,@loader_path/../lib",
+    ]
+  }
+}

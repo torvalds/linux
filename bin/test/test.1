@@ -1,0 +1,361 @@
+.\"	$OpenBSD: test.1,v 1.35 2024/06/18 16:41:39 schwarze Exp $
+.\"	$NetBSD: test.1,v 1.6 1995/03/21 07:04:03 cgd Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)test.1	8.1 (Berkeley) 5/31/93
+.\"
+.Dd $Mdocdate: June 18 2024 $
+.Dt TEST 1
+.Os
+.Sh NAME
+.Nm test ,
+.Nm \&[
+.Nd condition evaluation utility
+.Sh SYNOPSIS
+.Nm test
+.Ar expression
+.Nm \&[
+.Ar expression Nm \&]
+.Sh DESCRIPTION
+The
+.Nm
+utility evaluates the
+.Ar expression
+and, if it evaluates
+to true, returns a zero (true) exit status; otherwise
+it returns 1 (false).
+If no
+.Ar expression
+is given,
+.Nm
+also
+returns 1 (false).
+The form
+.Nm \&[
+is an alias for
+.Nm test .
+.Pp
+All operators and flags are separate arguments to the
+.Nm
+utility.
+Symbolic links are followed for all primaries except
+.Fl h
+and
+.Fl L .
+.Pp
+The following primaries are used to construct
+.Ar expression :
+.Bl -tag -width Ds
+.It Fl b Ar file
+True if
+.Ar file
+exists and is a block special
+file.
+.It Fl c Ar file
+True if
+.Ar file
+exists and is a character
+special file.
+.It Fl d Ar file
+True if
+.Ar file
+exists and is a directory.
+.It Fl e Ar file
+True if
+.Ar file
+exists (regardless of type).
+.It Fl f Ar file
+True if
+.Ar file
+exists and is a regular file.
+.It Fl G Ar file
+True if
+.Ar file
+exists and its group matches the effective group ID of this process.
+.It Fl g Ar file
+True if
+.Ar file
+exists and its set-group-ID flag
+is set.
+.It Fl h Ar file
+True if
+.Ar file
+exists and is a symbolic link.
+Identical to
+.Fl L .
+.It Fl k Ar file
+True if
+.Ar file
+exists and its sticky bit is set.
+.It Fl L Ar file
+True if
+.Ar file
+exists and is a symbolic link.
+Identical to
+.Fl h .
+.It Fl n Ar string
+True if the length of
+.Ar string
+is nonzero.
+.It Fl O Ar file
+True if
+.Ar file
+exists and its owner matches the effective user ID of this process.
+.It Fl p Ar file
+True if
+.Ar file
+is a named pipe
+.Pq Tn FIFO .
+.It Fl r Ar file
+True if
+.Ar file
+exists and is readable.
+.It Fl S Ar file
+True if
+.Ar file
+exists and is a socket.
+.It Fl s Ar file
+True if
+.Ar file
+exists and has a size greater
+than zero.
+.It Fl t Ar file_descriptor
+True if the file whose file descriptor number
+is
+.Ar file_descriptor
+is open and is associated with a terminal.
+.It Fl u Ar file
+True if
+.Ar file
+exists and its set-user-ID flag
+is set.
+.It Fl w Ar file
+True if
+.Ar file
+exists and is writable.
+True
+indicates only that the write flag is on.
+The file is not writable on a read-only file
+system even if this test indicates true.
+.It Fl x Ar file
+True if
+.Ar file
+exists and is executable.
+True
+indicates only that the execute flag is on.
+If
+.Ar file
+is a directory, true indicates that
+.Ar file
+can be searched.
+.It Fl z Ar string
+True if the length of
+.Ar string
+is zero.
+.It Ar file1 Fl nt Ar file2
+True if
+.Ar file1
+exists and is newer than
+.Ar file2 .
+.It Ar file1 Fl ot Ar file2
+True if
+.Ar file1
+exists and is older than
+.Ar file2 .
+.It Ar file1 Fl ef Ar file2
+True if
+.Ar file1
+and
+.Ar file2
+exist and refer to the same file.
+.It Ar s1 Cm = Ar s2
+True if the strings
+.Ar s1
+and
+.Ar s2
+are identical.
+.It Ar s1 Cm != Ar s2
+True if the strings
+.Ar s1
+and
+.Ar s2
+are not identical.
+.It Ar s1 Cm \*(Lt Ar s2
+True if string
+.Ar s1
+comes before
+.Ar s2
+based on the ASCII value of their characters.
+.It Ar s1 Cm \*(Gt Ar s2
+True if string
+.Ar s1
+comes after
+.Ar s2
+based on the ASCII value of their characters.
+.It Ar s1
+True if
+.Ar s1
+is not the null
+string.
+.It Ar n1 Fl eq Ar n2
+True if the integers
+.Ar n1
+and
+.Ar n2
+are algebraically
+equal.
+.It Ar n1 Fl ne Ar n2
+True if the integers
+.Ar n1
+and
+.Ar n2
+are not
+algebraically equal.
+.It Ar n1 Fl gt Ar n2
+True if the integer
+.Ar n1
+is algebraically
+greater than the integer
+.Ar n2 .
+.It Ar n1 Fl ge Ar n2
+True if the integer
+.Ar n1
+is algebraically
+greater than or equal to the integer
+.Ar n2 .
+.It Ar n1 Fl \&lt Ar n2
+True if the integer
+.Ar n1
+is algebraically less
+than the integer
+.Ar n2 .
+.It Ar n1 Fl le Ar n2
+True if the integer
+.Ar n1
+is algebraically less
+than or equal to the integer
+.Ar n2 .
+.El
+.Pp
+These primaries can be combined with the following operators.
+The
+.Fl a
+operator has higher precedence than the
+.Fl o
+operator.
+.Bl -tag -width Ds
+.It Cm \&! Ar expression
+True if
+.Ar expression
+is false.
+.It Ar expression1 Fl a Ar expression2
+True if both
+.Ar expression1
+and
+.Ar expression2
+are true.
+.It Ar expression1 Fl o Ar expression2
+True if either
+.Ar expression1
+or
+.Ar expression2
+are true.
+.It Cm \&( Ar expression Cm \&)
+True if
+.Ar expression
+is true.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 0
+Expression evaluated to true.
+.It 1
+Expression evaluated to false or expression was
+missing.
+.It \*(Gt1
+An error occurred.
+.El
+.Sh GRAMMAR AMBIGUITY
+The
+.Nm
+grammar is inherently ambiguous.
+In order to assure a degree of consistency,
+the cases described in
+.St -p1003.2
+section D11.2/4.62.4
+are evaluated consistently according to the rules specified in the
+standards document.
+All other cases are subject to the ambiguity in the
+command semantics.
+.Sh SEE ALSO
+.Xr ksh 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The primaries
+.Fl G ,
+.Fl k ,
+.Fl O ,
+.Fl nt ,
+.Fl ot ,
+.Fl ef ,
+.Cm \*(Lt ,
+and
+.Cm \*(Gt
+are extensions to that specification.
+.Pp
+The operators
+.Fl a ,
+.Fl o ,
+and
+.Cm ()
+are marked by
+.St -p1003.1-2008
+as part of X/Open System Interfaces and obsolete.
+.Pp
+.Nm
+also exists as a built-in to
+.Xr ksh 1 ,
+though with a different syntax.
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v7 .

@@ -1,0 +1,112 @@
+# BEGIN boiler-plate MIPS stuff
+
+# Don't let CTOR_LIST end up in sdata section.
+CRTSTUFF_T_CFLAGS = -G 0
+
+# We must build libgcc2.a with -G 0, in case the user wants to link
+# without the $gp register.
+TARGET_LIBGCC2_CFLAGS = -G 0
+
+LIB2FUNCS_STATIC_EXTRA = $(srcdir)/config/mips/mips16.S \
+			 $(srcdir)/config/mips/vr4120-div.S
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o crti.o crtn.o
+
+# Assemble startup files.
+$(T)crti.o: $(srcdir)/config/mips/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crti.o -x assembler-with-cpp $(srcdir)/config/mips/crti.asm
+
+$(T)crtn.o: $(srcdir)/config/mips/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crtn.o -x assembler-with-cpp $(srcdir)/config/mips/crtn.asm
+
+# END boiler-plate
+
+# Main multilibs
+# --------------
+#
+# Endianness: EB or EL
+#
+# ABIs: mabi=32
+#	mabi=o64
+#	mabi=eabi
+#	mabi=eabi/mlong32
+#	mabi=eabi/mgp32
+#	mabi=eabi/mgp32/mlong64
+#
+# Architecture: march=vr4120 with -mfix-vr4120
+#		march=vr4130 with -mfix-vr4130 (default)
+#		march=vr5000
+#		march=vr5400
+#		march=vr5500
+#
+# Total: 2 * 6 * 5 = 60 multilibs.
+#
+#
+# Extra vr4300 multilibs
+# ----------------------
+#
+# Endianness: EB or EL
+#
+# ABI: o64
+#
+# Architecture: vr4300.
+#
+# Total: 2 * 1 * 2 = 2 multilibs.
+#
+#
+# Extra MIPS16 multilibs
+# ----------------------
+#
+# Endianness: EB or EL
+#
+# ABIs: mabi=o64
+#	mabi=eabi/mlong32
+#	mabi=eabi/mgp32
+#
+# Architecture: march=vr4120 with -mfix-vr4120
+#		march=vr4130 with -mfix-vr4130 (default)
+#
+# Total: 2 * 3 * 2 = 12 multilibs.
+MULTILIB_OPTIONS =			\
+	EL/EB				\
+	mabi=32/mabi=o64/mabi=eabi	\
+	mgp32				\
+	mlong64				\
+	mips16				\
+	mfix-vr4120/mfix-vr4130/march=vr4300/march=vr5000/march=vr5400/march=vr5500
+
+MULTILIB_DIRNAMES =	\
+	el eb		\
+	o32 o64 eabi	\
+	gp32		\
+	long64		\
+	mips16		\
+	vr4120 vr4130 vr4300 vr5000 vr5400 vr5500
+
+MULTILIB_MATCHES = EL=mel EB=meb mfix-vr4120=march?vr4120 \
+		   mfix-vr4130=march?vr4130
+
+# Assume a 41xx-series is the default: we'd need a *mips16 entry if
+# the default processor didn't support mips16.  Also assume the
+# default ABI is EABI64 -mlong32.
+MULTILIB_EXCEPTIONS =				\
+	*mabi=32/mlong64*			\
+	*mabi=32/mgp32*				\
+	*mabi=o64/mgp32*			\
+	*mabi=o64/mlong64*			\
+	*mips16/march=vr5*			\
+	*mips16/march=vr4300			\
+	$(MIPS16_EXCEPTIONS)			\
+	$(VR4300_EXCEPTIONS)
+
+MIPS16_EXCEPTIONS =				\
+	*mabi=32*mips16*			\
+	*mlong64*mips16*
+
+VR4300_EXCEPTIONS =				\
+	*mabi=32*march=vr4300			\
+	*mgp32*march=vr4300			\
+	*mlong64*march=vr4300			\
+	march=vr4300				\
+	E[LB]/march=vr4300

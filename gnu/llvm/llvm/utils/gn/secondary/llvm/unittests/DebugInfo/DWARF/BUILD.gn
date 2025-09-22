@@ -1,0 +1,34 @@
+import("//third-party/unittest/unittest.gni")
+
+unittest("DebugInfoDWARFTests") {
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/ObjectYAML",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "DWARFAcceleratorTableTest.cpp",
+    "DWARFDataExtractorTest.cpp",
+    "DWARFDebugAbbrevTest.cpp",
+    "DWARFDebugArangeSetTest.cpp",
+    "DWARFDebugFrameTest.cpp",
+    "DWARFDebugInfoTest.cpp",
+    "DWARFDebugLineTest.cpp",
+    "DWARFDieManualExtractTest.cpp",
+    "DWARFDieTest.cpp",
+    "DWARFExpressionCompactPrinterTest.cpp",
+    "DWARFExpressionCopyBytesTest.cpp",
+    "DWARFFormValueTest.cpp",
+    "DWARFListTableTest.cpp",
+    "DWARFLocationExpressionTest.cpp",
+    "DwarfGenerator.cpp",
+    "DwarfUtils.cpp",
+  ]
+}

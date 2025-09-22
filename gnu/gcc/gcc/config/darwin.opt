@@ -1,0 +1,40 @@
+; Processor-independent options for Darwin.
+
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+mfix-and-continue
+Target Report Var(darwin_fix_and_continue)
+Generate code suitable for fast turn around debugging
+
+mmacosx-version-min=
+Target Joined Report Var(darwin_macosx_version_min)
+The earliest MacOS X version on which this program will run
+
+mone-byte-bool
+Target RejectNegative Report Var(darwin_one_byte_bool)
+Set sizeof(bool) to 1
+
+fapple-kext
+Target Report Var(flag_apple_kext)
+Generate code for darwin loadable kernel extentions
+
+mkernel
+Target Report Var(flag_mkernel)
+Generate code for the kernel or loadable kernel extentions

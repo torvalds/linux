@@ -1,0 +1,25 @@
+#! /usr/bin/perl
+
+# $OpenBSD: inject-badsum,v 1.2 2023/06/14 07:52:37 espie Exp $
+use strict;
+use warnings;
+
+use OpenBSD::md5;
+
+package OpenBSD::digest;
+use Wrapper;
+
+wrap('digest_file',
+    sub {
+	my $original = shift;
+    	if ($_[1] =~ m,/a$,) {
+		my $self = shift;
+		my $d = $self->_algo;
+		$d->addfile("/dev/null");
+		return $d->digest;
+	} else {
+		goto &$original;
+	}
+    });
+
+1;

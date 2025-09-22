@@ -1,0 +1,100 @@
+.\" $OpenBSD: X509_get_pubkey_parameters.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_GET_PUBKEY_PARAMETERS 3
+.Os
+.Sh NAME
+.Nm X509_get_pubkey_parameters
+.Nd copy public key parameters from a chain
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_get_pubkey_parameters
+.Fa "EVP_PKEY *pkey"
+.Fa "STACK_OF(X509) *chain"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_get_pubkey_parameters
+copies public key parameters from the first appropriate certificate in the
+.Fa chain .
+.Pp
+If
+.Fa pkey
+is not
+.Dv NULL
+and already contains complete public key parameters or uses an
+algorithm that does not use any parameters, no action occurs and
+the function indicates success without inspecting the existing
+parameters, without inspecting the
+.Fa chain ,
+and without comparing any parameters.
+.Pp
+Otherwise, all public key parameters are copied
+from the first certificate in the
+.Fa chain
+that contains complete public key parameters
+to each certificate preceding it in the
+.Fa chain .
+Unless
+.Fa pkey
+is a
+.Dv NULL
+pointer, the same parameters are also copied to
+.Fa pkey .
+.Sh RETURN VALUES
+.Fn X509_get_pubkey_parameters
+returns 1 for success or 0 for failure.
+.Sh ERRORS
+The following diagnostics can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3 :
+.Bl -tag -width Ds
+.It Dv X509_R_UNABLE_TO_GET_CERTS_PUBLIC_KEY Qq unable to get certs public key
+Retrieving the public key from a certificate in the
+.Fa chain
+failed before a certificate containing complete public key parameters
+could be found.
+.It Xo
+.Dv X509_R_UNABLE_TO_FIND_PARAMETERS_IN_CHAIN
+.Qq unable to find parameters in chain
+.Xc
+None of the certificates in the chain
+contain complete public key parameters.
+.El
+.Sh SEE ALSO
+.Xr EVP_PKEY_copy_parameters 3 ,
+.Xr EVP_PKEY_new 3 ,
+.Xr X509_get_pubkey 3 ,
+.Xr X509_new 3
+.Sh HISTORY
+.Fn X509_get_pubkey_parameters
+first appeared in SSLeay 0.8.0 and has been available since
+.Ox 2.4 .
+.Sh CAVEATS
+If
+.Fn X509_get_pubkey_parameters
+fails and returns 0, a part of the parameters may or may not have
+been copied before the failure was detected, whereas other parts of
+.Fa pkey
+and
+.Fa chain
+may remain unchanged.
+So in case of failure, the state of the arguments may change
+and possibly become inconsistent.

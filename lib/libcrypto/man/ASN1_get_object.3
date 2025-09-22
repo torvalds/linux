@@ -1,0 +1,201 @@
+.\" $OpenBSD: ASN1_get_object.3,v 1.3 2025/06/08 22:40:29 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_GET_OBJECT 3
+.Os
+.Sh NAME
+.Nm ASN1_get_object
+.Nd parse identifier and length octets
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft int
+.Fo ASN1_get_object
+.Fa "const unsigned char **ber_in"
+.Fa "long *plength"
+.Fa "int *ptag"
+.Fa "int *pclass"
+.Fa "long omax"
+.Fc
+.Sh DESCRIPTION
+.Fn ASN1_get_object
+parses the identifier and length octets of a BER-encoded value.
+On function entry,
+.Pf * Fa ber_in
+is expected to point to the first identifier octet.
+If the identifier and length octets turn out to be valid,
+the function advances
+.Pf * Fa ber_in
+to the first content octet before returning.
+.Pp
+If the identifier octets are valid,
+.Fn ASN1_get_object
+stores the tag number in
+.Pf * Fa ptag
+and the class of the tag in
+.Pf * Fa pclass .
+The class is either
+.Dv V_ASN1_UNIVERSAL
+or
+.Dv V_ASN1_APPLICATION
+or
+.Dv V_ASN1_CONTEXT_SPECIFIC
+or
+.Dv V_ASN1_PRIVATE .
+.Pp
+If the length octets are valid, too,
+.Fn ASN1_get_object
+stores the number encoded in the length octets in
+.Pf * Fa plength .
+If the length octet indicates the indefinite form,
+.Pf * Fa plength
+is set to 0.
+.Pp
+.Fn ASN1_get_object
+inspects at most
+.Fa omax
+bytes.
+If parsing of the length octets remains incomplete after inspecting
+that number of bytes, parsing fails with
+.Dv ASN1_R_HEADER_TOO_LONG .
+.Sh RETURN VALUES
+Bits set in the return value of
+.Fn ASN1_get_object
+have the following meanings:
+.Bl -tag -width Ds
+.It 0x80
+An error occurred.
+One of the
+.Sx ERRORS
+described below has been set.
+.It 0x20 = Dv V_ASN1_CONSTRUCTED
+The encoding is constructed rather than primitive,
+and the identifier and length octets are valid.
+.It 0x01
+The length octet indicates the indefinite form.
+This bit can only occur if
+.Dv V_ASN1_CONSTRUCTED
+is also set.
+.El
+.Pp
+Consequently, the following combinations can occur:
+.Bl -tag -width Ds
+.It 0x00
+A valid primitive encoding.
+.It 0x20
+A valid constructed encoding, definite form.
+.It 0x21
+A valid constructed encoding, indefinite form.
+.It 0x80
+Either a primitive encoding with a valid tag and definite length,
+but the content octets won't fit into
+.Fa omax ,
+or parsing failed.
+Use
+.Xr ERR_GET_REASON 3
+to distinguish the two cases.
+.It 0xa0
+A constructed encoding with a valid tag and definite length,
+but the content octets won't fit into
+.Fa omax .
+.El
+.Pp
+The bit combinations 0x01, 0x81, and 0xa1 cannot occur as return values.
+.Sh ERRORS
+If the bit 0x80 is set in the return value,
+diagnostics can be retrieved with
+.Xr ERR_get_error 3 ,
+.Xr ERR_GET_REASON 3 ,
+and
+.Xr ERR_reason_error_string 3 :
+.Bl -tag -width Ds
+.It Dv ASN1_R_HEADER_TOO_LONG Qq "header too long"
+Inspecting
+.Fa omax
+bytes was insufficient to finish parsing,
+the tag number encoded in the identifier octets exceeds
+.Dv INT_MAX ,
+the number encoded in the length octets exceeds
+.Dv LONG_MAX ,
+or using the indefinite form for the length octets is attempted
+even though the encoding is primitive.
+.Pp
+In this case, the return value is exactly 0x80; no other bits are set.
+.Pp
+If the problem occurred while parsing the identifier octets,
+.Pf * Fa ptag
+and
+.Pf * Fa pclass
+remain unchanged.
+If the problem occurred while parsing the length octets,
+.Pf * Fa ptag
+and
+.Pf * Fa pclass
+are set according to the identifier octets.
+In both cases,
+.Pf * Fa ber_in
+and
+.Pf * Fa plength
+remain unchanged.
+.Pp
+The wording of the error message is confusing.
+On the one hand, the header might be just fine,
+and the root cause of the problem could be that the chosen
+.Fa omax
+argument was too small.
+On the other hand, outright BER syntax errors are also reported as
+.Dv ASN1_R_HEADER_TOO_LONG .
+.It Dv ASN1_R_TOO_LONG Qq "too long"
+The identifier and length octets are valid,
+but the content octets won't fit into
+.Fa omax .
+The following have been set as appropriate and can safely be inspected:
+.Pf * pclass ,
+.Pf * ptag ,
+.Pf * plength ,
+and the bits
+.Dv V_ASN1_CONSTRUCTED
+and 0x01 in the return value.
+The parse pointer
+.Pf * ber_in
+has been advanced to the first content octet.
+.Pp
+Again, the error message may occasionally sound confusing.
+The length of the content may be reasonable, and the root cause of
+the problem could be that the chosen
+.Fa omax
+argument was too small.
+.El
+.Sh SEE ALSO
+.Xr ASN1_item_d2i 3 ,
+.Xr ASN1_item_new 3 ,
+.Xr ASN1_parse_dump 3
+.Sh STANDARDS
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules:
+Specification of Basic Encoding Rules (BER), Canonical Encoding
+Rules (CER) and Distinguished Encoding Rules (DER):
+.Bl -dash -offset 2n -width 1n -compact
+.It
+Section 8.1.2: Identifier octets
+.It
+Section 8.1.3: Length octets
+.El
+.Sh HISTORY
+.Fn ASN1_get_object
+first appeared in SSLeay 0.5.1 and has been available since
+.Ox 2.4 .

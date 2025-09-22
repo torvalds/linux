@@ -1,0 +1,105 @@
+.\" $OpenBSD: X509v3_addr_inherits.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509V3_ADDR_INHERITS 3
+.Os
+.Sh NAME
+.Nm X509v3_addr_inherits ,
+.Nm X509v3_asid_inherits
+.Nd RFC 3779 inheritance
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft int
+.Fn X509v3_addr_inherits "IPAddrBlocks *addrblocks"
+.Ft int
+.Fn X509v3_asid_inherits "ASIdentifiers *asids"
+.Sh DESCRIPTION
+.Fn X509v3_addr_inherits
+determines if there is at least one address family in
+.Fa addrblocks
+that uses inheritance.
+.Pp
+.Fn X509v3_asid_inherits
+is intended to determine if at least one of
+the list of autonomous system numbers or
+the list of routing domain identifiers
+uses inheritance.
+.Sh RETURN VALUES
+.Fn X509v3_addr_inherits
+returns 1 if and only if
+.Fa addrblocks
+contains at least one
+.Fa IPAddressFamily
+object that is correctly marked
+.Dq inherit :
+its
+.Fa IPAddressChoice
+is of
+.Fa type
+.Dv IPAddressChoice_inherit
+and its
+.Fa inherit
+element is present.
+Otherwise it returns 0.
+.Pp
+.Fn X509v3_asid_inherits
+returns 1 if and only if
+at least one of the
+.Fa asnum
+or the
+.Fa rdi
+lists has
+.Fa type
+.Dv ASIdentifierChoice_inherit .
+Otherwise it returns 0.
+.Sh SEE ALSO
+.Xr ASIdentifiers_new 3 ,
+.Xr ASRange_new 3 ,
+.Xr crypto 3 ,
+.Xr IPAddressRange_new 3 ,
+.Xr X509_new 3 ,
+.Xr X509v3_addr_add_inherit 3 ,
+.Xr X509v3_asid_add_inherit 3
+.Sh STANDARDS
+RFC 3779: X.509 Extensions for IP Addresses and AS Identifiers:
+.Bl -dash -compact
+.It
+section 2: IP Address delegation extension
+.It
+section 2.2.3.5: Element inherit
+.It
+section 3: AS identifiers delegation extension
+.It
+section 3.2.3.3: Element inherit
+.El
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8e
+and have been available since
+.Ox 7.1 .
+.Sh BUGS
+.Fn X509v3_asid_inherits
+ignores whether the
+.Fa inherit
+element is present or absent in the list that is considered to use inheritance.
+.Pp
+There is no API that determines whether all lists contained in an
+.Vt ASIdentifiers
+or an
+.Vt IPAddrBlocks
+object inherit.
+See RFC 9287, 5.1.2 for an example where this is relevant.

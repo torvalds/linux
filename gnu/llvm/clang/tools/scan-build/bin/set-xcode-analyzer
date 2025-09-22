@@ -1,0 +1,114 @@
+#!/usr/bin/env python
+
+# [PR 11661] Note that we hardwire to /usr/bin/python because we
+# want to the use the system version of Python on Mac OS X.
+# This one has the scripting bridge enabled.
+
+import sys
+if sys.version_info < (3, 6):
+    print "set-xcode-analyzer requires Python 3.6 or later"
+    sys.exit(1)
+
+import os
+import subprocess
+import re
+import tempfile
+import shutil
+import stat
+from AppKit import *
+
+def FindClangSpecs(path):
+  print "(+) Searching for xcspec file in: ", path
+  for root, dirs, files in os.walk(path):
+    for f in files:
+      if f.endswith(".xcspec") and f.startswith("Clang LLVM"):
+        yield os.path.join(root, f)
+
+def ModifySpec(path, isBuiltinAnalyzer, pathToChecker):
+  t = tempfile.NamedTemporaryFile(delete=False)
+  foundAnalyzer = False
+  with open(path) as f:
+    if isBuiltinAnalyzer:
+      # First search for CLANG_ANALYZER_EXEC.  Newer
+      # versions of Xcode set EXEC_PATH to be CLANG_ANALYZER_EXEC.
+      with open(path) as f2:
+        for line in f2:
+          if line.find("CLANG_ANALYZER_EXEC") >= 0:
+            pathToChecker = "$(CLANG_ANALYZER_EXEC)"
+            break
+    # Now create a new file.
+    for line in f:
+      if not foundAnalyzer:
+        if line.find("Static Analyzer") >= 0:
+          foundAnalyzer = True
+      else:
+        m = re.search(r'^(\s*ExecPath\s*=\s*")', line)
+        if m:
+          line = "".join([m.group(0), pathToChecker, '";\n'])
+          # Do not modify further ExecPath's later in the xcspec.
+          foundAnalyzer = False
+      t.write(line)
+  t.close()
+  print "(+) processing:", path
+  try:
+    shutil.copy(t.name, path)
+    os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+  except IOError, why:
+    print "    (-) Cannot update file:", why, "\n"
+  except OSError, why:
+    print "    (-) Cannot update file:", why, "\n"
+  os.unlink(t.name)
+
+def main():
+  from optparse import OptionParser
+  parser = OptionParser('usage: %prog [options]')
+  parser.set_description(__doc__)
+  parser.add_option("--use-checker-build", dest="path",
+                    help="Use the Clang located at the provided absolute path, e.g. /Users/foo/checker-1")
+  parser.add_option("--use-xcode-clang", action="store_const",
+                    const="$(CLANG)", dest="default",
+                    help="Use the Clang bundled with Xcode")
+  (options, args) = parser.parse_args()
+  if options.path is None and options.default is None:
+    parser.error("You must specify a version of Clang to use for static analysis.  Specify '-h' for details")
+
+  # determine if Xcode is running
+  for x in NSWorkspace.sharedWorkspace().runningApplications():
+    if x.localizedName().find("Xcode") >= 0:
+      print "(-) You must quit Xcode first before modifying its configuration files."
+      sys.exit(1)
+
+  isBuiltinAnalyzer = False
+  if options.path:
+    # Expand tildes.
+    path = os.path.expanduser(options.path)
+    if not path.endswith("clang"):
+      print "(+) Using Clang bundled with checker build:", path
+      path = os.path.join(path, "bin", "clang");
+    else:
+      print "(+) Using Clang located at:", path
+  else:
+    print "(+) Using the Clang bundled with Xcode"
+    path = options.default
+    isBuiltinAnalyzer = True
+
+  try:
+    xcode_path = subprocess.check_output(["xcode-select", "-print-path"])
+  except AttributeError:
+    # Fall back to the default install location when using Python < 2.7.0
+    xcode_path = "/Developer"
+  if (xcode_path.find(".app/") != -1):
+    # Cut off the 'Developer' dir, as the xcspec lies in another part
+    # of the Xcode.app subtree.
+    xcode_path = xcode_path.rsplit('/Developer', 1)[0]
+
+  foundSpec = False
+  for x in FindClangSpecs(xcode_path):
+    foundSpec = True
+    ModifySpec(x, isBuiltinAnalyzer, path)
+
+  if not foundSpec:
+      print "(-) No compiler configuration file was found.  Xcode's analyzer has not been updated."
+
+if __name__ == '__main__':
+  main()

@@ -1,0 +1,222 @@
+.\"	$OpenBSD: doc-nroff,v 1.7 2004/06/06 22:38:10 jmc Exp $
+.\"
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)doc-nroff	8.1 (Berkeley) 6/8/93
+.\"
+.\" tmac.mdoc-nroff
+.\"     %beginstrip%
+.\"
+.ds aD \fI
+.ds aR \fI
+.ds cM \fB
+.ds dF \fR
+.ds eM \fI
+.ds eR \fR
+.ds eV \fR
+.ds fA \fI
+.ds fD \fB
+.ds fL \fB
+.ds fN \fB
+.ds fP \fP
+.ds fS
+.ds fT \fI
+.ds Hs \fR
+.ds iC \fB
+.ds lI \fR
+.ds lP \fR\|(\fP
+.ds rP \fR\|)\fP
+.ds lp \fR\|(\fP
+.ds rp \fR\|)\fP
+.ds lB \fR\|[\|\fP
+.ds rB \fR\|]\fP
+.ds mL \fB
+.ds nM \fB
+.ds nO \fR
+.ds pA \fI
+.ds Pu {\ .\ ,\ ;\ :\ ?\ !\ (\ )\ [\ ]}
+.ds rA \fR
+.ds rT \fI
+.ds sH \fB
+.ds sP
+.ds sY \fB
+.ds sX \fI
+.ds tF \fR
+.ds tN
+.ds vA \fI
+.ds Vs \fR
+.ds vT \fB
+.ds vY \fI
+.ds xR \fR
+.\"	MISCELLANEOUS
+.nr sI .5i
+.nr Ti .5i
+.nr cR 1
+.nr Pp 1v
+.ds lS \0\0
+.nr lS \w'\0\0'u
+.nr dI 6n
+.\"
+.de pL
+.ie \\n(cR .nr Hm 0
+.el .nr Hm .5i
+.nr Fm .5i
+.nr ll 78n
+.ll 78n
+.nr lt 78n
+.lt 78n
+.nr po 0i
+.po 0i
+.nr dV 1v
+.ad l
+.na
+..
+.ds <= \&<\&=
+.ds >= \&>\&=
+.ds Rq ''
+.ds Lq ``
+.ds ua ^
+.ds aa \'
+.ds ga \`
+.ds sL `
+.ds sR '
+.ds q \&"
+.\" Math stuff
+.ds Pi pi
+.ds Ne !=
+.ds Le <=
+.ds Ge >=
+.ds Lt <
+.ds Gt >
+.ds Pm +-
+.ds If Infinity
+.ds Na \fINaN\fP
+.ds Ba \fR\&|\fP
+.\"
+.de hK
+.nr % 1
+.ds hT \\*(dT
+.if !"\\*(cH"Null" \{\
+.	ie !"\\*(gP"Null" .as hT \|(\|\\*(cH\\*(gP\|)
+.	el .as hT \\|(\\|\\*(cH\\|)
+.\}
+.if "\\*(cH"Null" .if !"\\*(gP"Null" .as hT \&\|(\|\\*(gP\|)
+.ie \\n(cR \{\
+.	hM
+.\}
+.el \{\
+.	wh 0 hM
+.	wh -1.167i fM
+.\}
+.if \\n(nl==0:\\n(nl==-1 'bp
+.em lM
+..
+.nr fW \w'0'
+.de sW
+.nr sW \w\\$1
+.ie \\n(sW>=\\n(fW \{\
+.       ie \\n(sW%\\n(fW .nr sW (\\n(sW/\\n(fW)+1
+.       el .nr sW \\n(sW/\\n(fW
+.\}
+.el .nr sW 0
+..
+.de aW
+.nr sW \w\\*(A\\$1
+.ie \\n(sW>=\\n(fW \{\
+.       ie \\n(sW%\\n(fW .nr sW (\\n(sW/\\n(fW)+1
+.       el .nr sW \\n(sW/\\n(fW
+.\}
+.el .nr sW 0
+..
+.\" NS Ql macro - Quoted literal define
+.de Ql
+.if \\n(aC==0  \{\
+.	ds mN Ql
+.	ds A1 \\$1
+.	ds A2 \\$2
+.	ds A3 \\$3
+.	ds A4 \\$4
+.	ds A5 \\$5
+.	ds A6 \\$6
+.	ds A7 \\$7
+.	ds A8 \\$8
+.	ds A9 \\$9
+.	nr fV \\n(.$
+. 	fV
+.\}
+.ds qL \&\\*(sL
+.ds qR \&\\*(sR
+.En \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+..
+.\" NS Sh macro - Section Headers
+.\" NS nS register - Section Header SYNOPSIS flag
+.\" NS nF register - Section Header FILES flag
+.\" NS nA register - Section Header SEE ALSO flag
+.\" NS nT register - Section Header STANDARDS flag
+.de Sh
+.nr nS 0
+.nr sE 0
+.nr iS 0
+.ie "\\$1"NAME" \{\
+.       hK
+'       in 0
+.\}
+.el \{\
+.       nr nS 0
+.       nr nA 0
+.       nr nF 0
+.       nr nT 0
+.       nr nY 0
+.       nr aN 0
+.       nr oT 0
+.       if "\\$1"SEE" .nr nA 1
+.       if "\\$1"FILES" .nr nF 1
+.       if "\\$1"STANDARDS" .nr nT 1
+.       if "\\$1"SYNOPSIS" .nr nS 1
+.       if "\\$1"DESCRIPTION" \{\
+.               rr fB
+.               rr Fb
+.               ds Fb
+.               nr fY 0
+.               nr fZ 0
+.       \}
+.	if "\\$1"AUTHORS" .nr nY 1
+.       in 0
+.\}
+.pL
+'sp
+.ns
+.ta .5i 1i 1.5i 2i 2.5i 3i 3.5i 4i 4.5i 5i 5.5i 6i 6.5i
+.if !\\n(cR .ne 3
+'fi
+\&\\*(sH\\$1 \|\\$2 \|\\$3 \|\\$4 \|\\$5 \|\\$6 \|\\$7 \|\\$8 \|\\$9
+\&\fP\s0\&
+.in \\n(.iu+\\n(Tiu
+.if "\\$1"SEE" .nr sE 1
+.ns
+..

@@ -1,0 +1,185 @@
+.\"	$OpenBSD: cat.1,v 1.37 2024/08/01 14:08:07 jmc Exp $
+.\"	$NetBSD: cat.1,v 1.12 1995/09/27 05:38:55 cgd Exp $
+.\"
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)cat.1	8.3 (Berkeley) 5/2/95
+.\"
+.Dd $Mdocdate: August 1 2024 $
+.Dt CAT 1
+.Os
+.Sh NAME
+.Nm cat
+.Nd concatenate and print files
+.Sh SYNOPSIS
+.Nm cat
+.Op Fl benstuv
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility reads files sequentially, writing them to the standard output.
+The
+.Ar file
+operands are processed in command-line order.
+If
+.Ar file
+is a single dash
+.Pq Sq -
+or absent,
+.Nm
+reads from the standard input.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl b
+Number the lines, but don't count blank lines.
+.It Fl e
+Print a dollar sign
+.Pq Ql \&$
+at the end of each line.
+Implies the
+.Fl v
+option to display non-printing characters.
+.It Fl n
+Number the output lines, starting at 1.
+.It Fl s
+Squeeze multiple adjacent empty lines, causing the output to be
+single spaced.
+.It Fl t
+Print tab characters as
+.Ql ^I .
+Implies the
+.Fl v
+option to display non-printing characters.
+.It Fl u
+The output is guaranteed to be unbuffered (see
+.Xr setvbuf 3 ) .
+.It Fl v
+Displays non-printing characters so they are visible.
+Control characters print as
+.Ql ^X
+for control-X, with the exception of the tab and EOL characters,
+which are displayed normally.
+The DEL character (octal 0177) prints as
+.Ql ^? .
+Non-ASCII characters (with the high bit set) are printed as
+.Ql M-
+(for meta) followed by the character for the low 7 bits.
+.El
+.Sh EXIT STATUS
+.Ex -std cat
+.Sh EXAMPLES
+Print the contents of
+.Ar file1
+to the standard output:
+.Pp
+.Dl $ cat file1
+.Pp
+Sequentially print the contents of
+.Ar file1
+and
+.Ar file2
+to the file
+.Ar file3 ,
+truncating
+.Ar file3
+if it already exists.
+See the manual page for your shell (e.g.,
+.Xr sh 1 )
+for more information on redirection.
+.Pp
+.Dl $ cat file1 file2 > file3
+.Pp
+Print the contents of
+.Ar file1 ,
+print data it receives from the standard input until it receives an
+.Dv EOF
+.Pq Sq ^D
+character, print the contents of
+.Ar file2 ,
+read and output contents of the standard input again, then finally output
+the contents of
+.Ar file3 .
+Note that if the standard input referred to a file, the second dash
+on the command line would have no effect, since the entire contents of the file
+would have already been read and printed by
+.Nm
+when it encountered the first
+.Ql \&-
+operand.
+.Pp
+.Dl $ cat file1 - file2 - file3
+.Sh SEE ALSO
+.Xr head 1 ,
+.Xr less 1 ,
+.Xr more 1 ,
+.Xr pr 1 ,
+.Xr sh 1 ,
+.Xr tail 1 ,
+.Xr vis 1 ,
+.Xr setvbuf 3
+.Rs
+.%A Rob Pike
+.%T "UNIX Style, or cat -v Considered Harmful"
+.%J "USENIX Summer Conference Proceedings"
+.%D 1983
+.Re
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2024
+specification.
+.Pp
+The flags
+.Op Fl benstv
+are extensions to that specification.
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v1 .
+.Sh CAVEATS
+Because of the shell language mechanism used to perform output
+redirection, the following command will cause the original data in
+.Ar file1
+to be destroyed:
+.Pp
+.Dl $ cat file1 file2 > file1
+.Pp
+To append
+.Ar file2
+to
+.Ar file1 ,
+instead use:
+.Pp
+.Dl $ cat file2 >> file1

@@ -1,0 +1,142 @@
+.\"	$OpenBSD: bindresvport.3,v 1.25 2013/06/05 03:39:23 tedu Exp $
+.\"
+.\" Copyright (c) 2010, Oracle America, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"     * Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"     * Redistributions in binary form must reproduce the above
+.\"       copyright notice, this list of conditions and the following
+.\"       disclaimer in the documentation and/or other materials
+.\"       provided with the distribution.
+.\"     * Neither the name of the "Oracle America, Inc." nor the names of its
+.\"       contributors may be used to endorse or promote products derived
+.\"       from this software without specific prior written permission.
+.\"
+.\"   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\"   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\"   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\"   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\"   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+.\"   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\"   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\"   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\"   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\"   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\"   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt BINDRESVPORT 3
+.Os
+.Sh NAME
+.Nm bindresvport ,
+.Nm bindresvport_sa
+.Nd bind a socket to a privileged IP port
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.Ft int
+.Fn bindresvport "int sd" "struct sockaddr_in *sin"
+.Ft int
+.Fn bindresvport_sa "int sd" "struct sockaddr *sa"
+.Sh DESCRIPTION
+The
+.Fn bindresvport
+and
+.Fn bindresvport_sa
+functions are used to bind a socket descriptor to a privileged IP
+port, that is, a port number in the range 0-1023.
+The
+.Fn bindresvport
+function operates solely on
+.Dv AF_INET
+sockets, whereas the
+.Fn bindresvport_sa
+function is capable of binding both
+.Dv AF_INET
+and
+.Dv AF_INET6
+sockets.
+.Pp
+Only the superuser may bind to a privileged port;
+these functions will fail for any other user.
+.Pp
+.Fa sd
+should be a socket descriptor that was returned by a call to
+.Xr socket 2 .
+.Pp
+If
+.Va sin
+is not the NULL pointer,
+.Va sin->sin_family
+must be initialized to the address family of the socket
+.Va sd .
+If the value of
+.Va sin->sin_port
+is non-zero,
+.Fn bindresvport
+will attempt to use the specified port.
+Otherwise, a free port in the range 600-1023 will be chosen and,
+if the
+.Xr bind 2
+succeeds,
+.Va sin->sin_port
+will be updated with the port that was assigned.
+.Pp
+If
+.Va sin
+is the NULL pointer, a free port in the range 600-1023 will be chosen
+(as above), but in this case there is no way for
+.Fn bindresvport
+to communicate to the caller which port was assigned.
+.Sh RETURN VALUES
+.Fn bindresvport
+returns 0 if it is successful, otherwise \-1 is returned and
+.Va errno
+set to reflect the cause of the error.
+.Sh ERRORS
+The
+.Fn bindresvport
+function fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+.Fa sd
+is not a valid descriptor.
+.It Bq Er ENOTSOCK
+.Fa sd
+is not a socket.
+.It Bq Er EADDRNOTAVAIL
+The specified address is not available from the local machine.
+.It Bq Er EADDRINUSE
+The specified address is already in use.
+.It Bq Er EINVAL
+The socket is already bound to an address.
+.It Bq Er EINVAL
+The family of the socket and that requested in
+.Va sa->sa_family
+are not equivalent.
+.It Bq Er EACCES
+The requested address is protected, and the current user
+has inadequate permission to access it.
+.It Bq Er EFAULT
+The
+.Fa name
+parameter is not in a valid part of the user
+address space.
+.It Bq Er ENOBUFS
+Insufficient resources were available in the system
+to perform the operation.
+.It Bq Er EPFNOSUPPORT
+The protocol family has not been configured into the
+system, no implementation for it exists,
+or address family did not match between arguments.
+.El
+.Sh SEE ALSO
+.Xr bind 2 ,
+.Xr socket 2 ,
+.Xr rresvport 3 ,
+.Xr rresvport_af 3

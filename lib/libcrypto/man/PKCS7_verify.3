@@ -1,0 +1,253 @@
+.\"	$OpenBSD: PKCS7_verify.3,v 1.12 2025/06/08 22:40:30 schwarze Exp $
+.\"	OpenSSL a528d4f0 Oct 27 13:40:11 2015 -0400
+.\"
+.\" This file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2002, 2006, 2013, 2014, 2015 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt PKCS7_VERIFY 3
+.Os
+.Sh NAME
+.Nm PKCS7_verify ,
+.Nm PKCS7_get0_signers
+.Nd verify a PKCS#7 signedData structure
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/pkcs7.h
+.Ft int
+.Fo PKCS7_verify
+.Fa "PKCS7 *p7"
+.Fa "STACK_OF(X509) *certs"
+.Fa "X509_STORE *store"
+.Fa "BIO *indata"
+.Fa "BIO *out"
+.Fa "int flags"
+.Fc
+.Ft STACK_OF(X509) *
+.Fo PKCS7_get0_signers
+.Fa "PKCS7 *p7"
+.Fa "STACK_OF(X509) *certs"
+.Fa "int flags"
+.Fc
+.Sh DESCRIPTION
+.Fn PKCS7_verify
+verifies a PKCS#7 signedData structure.
+.Fa p7
+is the
+.Vt PKCS7
+structure to verify.
+.Fa certs
+is a set of certificates in which to search for the signer's
+certificate.
+.Fa store
+is a trusted certificate store (used for chain verification).
+.Fa indata
+is the signed data if the content is not present in
+.Fa p7 ,
+that is if it is detached.
+The content is written to
+.Fa out
+if it is not
+.Dv NULL .
+.Pp
+.Fa flags
+is an optional set of flags, which can be used to modify the verify
+operation.
+.Pp
+.Fn PKCS7_get0_signers
+retrieves the signer's certificates from
+.Fa p7 .
+The signers must be freed with
+.Fn sk_X509_free .
+It does
+.Sy not
+check their validity or whether any signatures are valid.
+The
+.Fa certs
+and
+.Fa flags
+parameters have the same meanings as in
+.Fn PKCS7_verify .
+.Pp
+Normally the verify process proceeds as follows.
+.Pp
+Initially some sanity checks are performed on
+.Fa p7 .
+The type of
+.Fa p7
+must be signedData.
+There must be at least one signature on the data and if the content
+is detached,
+.Fa indata
+cannot be
+.Dv NULL .
+.Pp
+An attempt is made to locate all the signer's certificates, first
+looking in the
+.Fa certs
+parameter (if it is not
+.Dv NULL )
+and then looking in any certificates contained in the
+.Fa p7
+structure itself.
+If any signer's certificates cannot be located, the operation fails.
+.Pp
+Each signer's certificate is chain verified using the
+.Sy smimesign
+purpose and the supplied trusted certificate store.
+Any internal certificates in the message are used as untrusted CAs.
+If any chain verify fails, an error code is returned.
+.Pp
+Finally, the signed content is read (and written to
+.Fa out
+if it is not
+.Dv NULL )
+and the signature's checked.
+.Pp
+If all signature's verify correctly then the function is successful.
+.Pp
+Any of the following flags (OR'ed together) can be passed in the
+.Fa flags
+parameter to change the default verify behaviour.
+Only the flag
+.Dv PKCS7_NOINTERN
+is meaningful to
+.Fn PKCS7_get0_signers .
+.Pp
+If
+.Dv PKCS7_NOINTERN
+is set, the certificates in the message itself are not searched when
+locating the signer's certificate.
+This means that all the signer's certificates must be in the
+.Fa certs
+parameter.
+.Pp
+If the
+.Dv PKCS7_TEXT
+flag is set, MIME headers for type
+.Sy text/plain
+are deleted from the content.
+If the content is not of type
+.Sy text/plain ,
+then an error is returned.
+.Pp
+If
+.Dv PKCS7_NOVERIFY
+is set, the signer's certificates are not chain verified.
+.Pp
+If
+.Dv PKCS7_NOCHAIN
+is set, then the certificates contained in the message are not used as
+untrusted CAs.
+This means that the whole verify chain (apart from the signer's
+certificate) must be contained in the trusted store.
+.Pp
+If
+.Dv PKCS7_NOSIGS
+is set, then the signatures on the data are not checked.
+.Pp
+One application of
+.Dv PKCS7_NOINTERN
+is to only accept messages signed by a small number of certificates.
+The acceptable certificates would be passed in the
+.Fa certs
+parameter.
+In this case, if the signer is not one of the certificates supplied in
+.Fa certs ,
+then the verify will fail because the signer cannot be found.
+.Pp
+Care should be taken when modifying the default verify behaviour, for
+example setting
+.Dv PKCS7_NOVERIFY | PKCS7_NOSIGS
+will totally disable all verification and any signed message will be
+considered valid.
+This combination is however useful if one merely wishes to write the
+content to
+.Fa out
+and its validity is not considered important.
+.Pp
+Chain verification should arguably be performed using the signing time
+rather than the current time.
+However since the signing time is supplied by the signer, it cannot be
+trusted without additional evidence (such as a trusted timestamp).
+.Sh RETURN VALUES
+.Fn PKCS7_verify
+returns 1 for a successful verification and 0 or a negative value if
+an error occurs.
+.Pp
+.Fn PKCS7_get0_signers
+returns all signers or
+.Dv NULL
+if an error occurred.
+The signers must be freed with
+.Fn sk_X509_free .
+.Pp
+The error can be obtained from
+.Xr ERR_get_error 3 .
+.Sh SEE ALSO
+.Xr PKCS7_decrypt 3 ,
+.Xr PKCS7_new 3 ,
+.Xr PKCS7_sign 3 ,
+.Xr X509_STORE_new 3
+.Sh HISTORY
+.Fn PKCS7_verify
+and
+.Fn PKCS7_get0_signers
+first appeared in OpenSSL 0.9.5 and have been available since
+.Ox 2.7 .
+.Sh BUGS
+The trusted certificate store is not searched for the signer's
+certificate.
+This is primarily due to the inadequacies of the current
+.Vt X509_STORE
+functionality.
+.Pp
+The lack of single pass processing and the need to hold all data
+in memory as mentioned in
+.Xr PKCS7_sign 3
+also applies to
+.Fn PKCS7_verify .

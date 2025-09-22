@@ -1,0 +1,93 @@
+===========================================
+Libc++ 20.0.0 (In-Progress) Release Notes
+===========================================
+
+.. contents::
+   :local:
+   :depth: 2
+
+Written by the `Libc++ Team <https://libcxx.llvm.org>`_
+
+.. warning::
+
+   These are in-progress notes for the upcoming libc++ 20.0.0 release.
+   Release notes for previous releases can be found on
+   `the Download Page <https://releases.llvm.org/download.html>`_.
+
+Introduction
+============
+
+This document contains the release notes for the libc++ C++ Standard Library,
+part of the LLVM Compiler Infrastructure, release 20.0.0. Here we describe the
+status of libc++ in some detail, including major improvements from the previous
+release and new feature work. For the general LLVM release notes, see `the LLVM
+documentation <https://llvm.org/docs/ReleaseNotes.html>`_. All LLVM releases may
+be downloaded from the `LLVM releases web site <https://llvm.org/releases/>`_.
+
+For more information about libc++, please see the `Libc++ Web Site
+<https://libcxx.llvm.org>`_ or the `LLVM Web Site <https://llvm.org>`_.
+
+Note that if you are reading this file from a Git checkout or the
+main Libc++ web page, this document applies to the *next* release, not
+the current one. To see the release notes for a specific release, please
+see the `releases page <https://llvm.org/releases/>`_.
+
+What's New in Libc++ 20.0.0?
+==============================
+
+Implemented Papers
+------------------
+
+- TODO
+
+
+Improvements and New Features
+-----------------------------
+
+- TODO
+
+
+Deprecations and Removals
+-------------------------
+
+- TODO: The ``LIBCXX_ENABLE_ASSERTIONS`` CMake variable and the ``_LIBCPP_ENABLE_ASSERTIONS`` macro that were used to enable
+  the safe mode will be removed in LLVM 20.
+
+- TODO: The C++20 synchronization library will be removed entirely in language modes prior to C++20 in LLVM 20.
+
+- TODO: The relational operators for ``std::chrono::weekday`` will be removed entirely, and the
+  ``_LIBCPP_ENABLE_REMOVED_WEEKDAY_RELATIONAL_OPERATORS`` macro that was used to re-enable this extension will be
+  ignored in LLVM 20.
+
+- TODO: The ``_LIBCPP_ENABLE_REMOVED_ALLOCATOR_CONST`` macro will no longer have an effect.
+
+Upcoming Deprecations and Removals
+----------------------------------
+
+LLVM 20
+~~~~~~~
+
+- TODO
+
+
+LLVM 21
+~~~~~~~
+
+- The status of the C++03 implementation will be frozen after the LLVM 21 release. This means that starting in LLVM 22, non-critical bug fixes may not be back-ported
+  to C++03, including LWG issues. C++03 is a legacy platform, where most projects are no longer actively maintained. To
+  reduce the amount of fixes required to keep such legacy projects compiling with up-to-date toolchains, libc++ will aim to freeze the status of the headers in C++03 mode to avoid unintended breaking changes.
+  See https://discourse.llvm.org/t/rfc-freezing-c-03-headers-in-libc for more details.
+
+  If you are using C++03 in your project, you should consider moving to a newer version of the Standard to get the most out of libc++.
+
+
+ABI Affecting Changes
+---------------------
+
+- TODO
+
+
+Build System Changes
+--------------------
+
+- TODO

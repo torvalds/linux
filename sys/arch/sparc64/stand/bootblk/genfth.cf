@@ -1,0 +1,207 @@
+#	$OpenBSD: genfth.cf,v 1.6 2020/04/02 06:06:22 otto Exp $
+#	$NetBSD: genfth.cf,v 1.9 2013/06/10 10:26:22 hannken Exp $
+
+#
+# Copyright (c) 1997 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Christos Zoulas.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# Copyright (c) 1992, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# This software was developed by the Computer Systems Engineering group
+# at Lawrence Berkeley Laboratory under DARPA contract BG 91-66 and
+# contributed to Berkeley.
+#
+# All advertising materials mentioning features or use of this software
+# must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Lawrence Berkeley Laboratory.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Berkeley and its contributors.
+# 4. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)genassym.c	8.1 (Berkeley) 6/11/93
+#
+
+include <sys/param.h>
+include <sys/disklabel.h>
+include <sys/time.h>
+
+include <dev/sun/disklabel.h>
+
+include <ufs/ufs/dinode.h>
+include <ufs/ufs/dir.h>
+include <ufs/ffs/fs.h>
+
+#ifdef SOFTRAID
+include <sys/stdarg.h> /* XXX */
+include <sys/device.h>
+include <sys/sensors.h>
+include <dev/softraidvar.h>
+include <dev/biovar.h>
+#endif
+
+#
+# sun disklabel
+#
+struct sun_disklabel
+member sl_types
+member sl_magic
+
+define sun_dkmagic	SUN_DKMAGIC
+define fs_bsdffs	FS_BSDFFS
+define fs_raid		FS_RAID
+
+#
+# ufs sizing constants
+#
+define	dev_bsize	DEV_BSIZE
+define	maxbsize	MAXBSIZE
+define	bbsize		BBSIZE
+define	sbsize		SBLOCKSIZE
+define	bboff		BBOFF
+define	sboff		SBLOCK_UFS1
+define	bblock		BBLOCK
+# XXX: Will not work for UFS2!
+define	sblock		SBLOCK_UFS1
+
+#
+# ufs superblock
+#
+struct	fs
+member	fs_magic
+member	fs_bsize
+member	fs_npsect
+member	fs_nsect
+member	fs_interleave
+member	fs_postblformat
+member	fs_nrpos
+member	fs_inodefmt
+member	fs_maxfilesize
+member	fs_qbmask
+member	fs_qfmask
+member	fs_bmask
+member	fs_fmask
+member	fs_ipg
+member	fs_fpg
+member	fs_inopb
+member	fs_fragshift
+member	fs_bshift
+member	fs_fshift
+member	fs_cgoffset
+member	fs_cgmask
+member	fs_dblkno
+member	fs_iblkno
+member	fs_sblkno
+member	fs_cblkno
+member  fs_fsbtodb
+member	fs_nindir
+member	fs_frag
+member	fs_maxsymlinklen
+
+#
+# ufs1 dinode
+#
+struct	ufs1_dinode
+member	di1_size	di_size
+member	di1_mode	di_mode
+member	di1_db		di_db
+member	di1_ib		di_ib
+
+#
+# ufs2 dinode
+#
+struct	ufs2_dinode
+member	di2_size	di_size
+member	di2_mode	di_mode
+member	di2_db		di_db
+member	di2_ib		di_ib
+
+#
+# ufs direct
+#
+struct	direct
+member	d_ino
+member	d_reclen
+#member	d_type		# notused
+member	d_namlen
+member	d_name
+
+define	fs1_magic_value	FS_UFS1_MAGIC
+define	fs2_magic_value	FS_UFS2_MAGIC
+define	fs_42postblfmt	FS_42POSTBLFMT
+define	fs_44inodefmt	FS_44INODEFMT
+define	ndaddr		NDADDR
+define	niaddr		NIADDR
+define	rootino		ROOTINO
+define	ifmt		IFMT
+define	ifdir		IFDIR
+define	iflnk		IFLNK
+
+#
+# softraid
+#
+#ifdef SOFTRAID
+struct	sr_meta_invariant
+member	ssd_magic
+member	ssd_version
+member	ssd_vol_flags
+
+define	sr_magic1	(SR_MAGIC >> 32)
+define	sr_magic2	(SR_MAGIC & 0xffffffff)
+define	sr_meta_offset	SR_META_OFFSET
+define	sr_meta_size	SR_META_SIZE
+define	sr_boot_offset	SR_BOOT_LOADER_OFFSET
+define	sr_boot_size	SR_BOOT_LOADER_SIZE
+
+define	bioc_scbootable	BIOC_SCBOOTABLE
+#endif

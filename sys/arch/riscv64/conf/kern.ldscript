@@ -1,0 +1,82 @@
+/*	$OpenBSD: kern.ldscript,v 1.4 2022/01/07 13:56:54 kevlo Exp $	*/
+
+OUTPUT_ARCH(riscv64)
+
+/* Define how we want our ELF binary to look like. */
+PHDRS
+{
+	text PT_LOAD;
+	rodata PT_LOAD FLAGS (4);
+	data PT_LOAD;
+	openbsd_randomize PT_OPENBSD_RANDOMIZE;
+}
+
+__ALIGN_SIZE = 0x200000;
+__kernel_base = @KERNEL_BASE_VIRT@;
+
+ENTRY(_start)
+SECTIONS
+{
+	. = __kernel_base;
+	PROVIDE (__text_start = .);
+	.text :
+	{
+		*(.text .text.*)
+		*(.stub)
+	} :text =0
+	PROVIDE (_etext = .);
+	PROVIDE (etext = .);
+
+	/* Move rodata to the next page, so we can nuke X and W bit on it */
+	. = ALIGN(__ALIGN_SIZE);
+	PROVIDE (__rodata_start = .);
+	.rodata :
+	{
+		*(.rodata .rodata.*)
+	} :rodata
+	.openbsd.randomdata :
+	{
+		*(.openbsd.randomdata)
+	} :openbsd_randomize :rodata
+	PROVIDE (_erodata = .);
+
+	/* Move .data to the next page, so we can add W bit on it */
+	. = ALIGN(__ALIGN_SIZE);
+	PROVIDE (__data_start = .);
+	.got :
+	{
+		*(.got .got.*)
+	} :data
+	.data :
+	{
+		*(.data .data.*)
+	} :data
+	.sdata :
+	{
+		*(.sdata .sdata.*)
+	} :data
+	PROVIDE (_edata = .);
+
+	. = ALIGN(8);
+	PROVIDE (__bss_start = .);
+	.sbss :
+	{
+		*(.dynsbss)
+		*(.sbss)
+		*(.sbss.*)
+		*(.scommon)
+	} :data
+	.bss :
+	{
+		*(.dynbss)
+		*(.bss)
+		*(.bss.*)
+		*(COMMON)
+		/* Align here to ensure that the .bss section occupies space up to
+		   _end.  Align after .bss to ensure correct alignment even if the
+		   .bss section disappears because there are no input sections.  */
+		. = ALIGN(8);
+	} :data
+	PROVIDE (_end = .);
+	PROVIDE (end = .);
+}

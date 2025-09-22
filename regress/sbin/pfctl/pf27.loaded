@@ -1,0 +1,48 @@
+@0 match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.1
+  [ Skip steps: i=end d=6 r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 match out on lo0 inet from 127.0.0.1 to any nat-to 127.0.0.1
+  [ Skip steps: i=end d=6 r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 match out on lo0 inet from any to 127.0.0.1 nat-to 127.0.0.1
+  [ Skip steps: i=end d=6 r=end f=end p=end sa=4 da=4 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 match out on lo0 inet from any to 127.0.0.1 nat-to (lo0:1) round-robin
+  [ Skip steps: i=end d=6 r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 match out on lo0 inet from 127.0.0.1 to any nat-to (lo0:1) round-robin
+  [ Skip steps: i=end d=6 r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 match out on lo0 inet from any to (lo0:1) nat-to 127.0.0.1
+  [ Skip steps: i=end r=end f=end p=end sa=7 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.1
+  [ Skip steps: i=end d=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 match in on lo0 inet from 127.0.0.1 to any rdr-to 127.0.0.1
+  [ Skip steps: i=end d=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 match in on lo0 inet from any to 127.0.0.1 rdr-to 127.0.0.1
+  [ Skip steps: i=end d=end r=end f=end p=end sa=10 da=10 sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 match in on lo0 inet from any to 127.0.0.1 rdr-to (lo0:1) round-robin
+  [ Skip steps: i=end d=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 match in on lo0 inet from 127.0.0.1 to any rdr-to (lo0:1) round-robin
+  [ Skip steps: i=end d=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 match in on lo0 inet from any to (lo0:1) rdr-to 127.0.0.1
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

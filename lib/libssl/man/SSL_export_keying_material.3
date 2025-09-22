@@ -1,0 +1,134 @@
+.\"	$OpenBSD: SSL_export_keying_material.3,v 1.4 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL a599574b Jun 28 17:18:27 2017 +0100
+.\"	OpenSSL 23cec1f4 Jun 21 13:55:02 2017 +0100
+.\"
+.\" This file was written by Matt Caswell <matt@openssl.org>.
+.\" Copyright (c) 2017 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_EXPORT_KEYING_MATERIAL 3
+.Os
+.Sh NAME
+.Nm SSL_export_keying_material
+.Nd obtain keying material for application use
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft int
+.Fo SSL_export_keying_material
+.Fa "SSL *s"
+.Fa "unsigned char *out"
+.Fa "size_t olen"
+.Fa "const char *label"
+.Fa "size_t llen"
+.Fa "const unsigned char *context"
+.Fa "size_t contextlen"
+.Fa "int use_context"
+.Fc
+.Sh DESCRIPTION
+During the creation of a TLS or DTLS connection,
+shared keying material is established between the two endpoints.
+The function
+.Fn SSL_export_keying_material
+enables an application to use some of this keying material
+for its own purposes in accordance with RFC 5705.
+.Pp
+An application may need to securely establish the context
+within which this keying material will be used.
+For example, this may include identifiers for the application session,
+application algorithms or parameters, or the lifetime of the context.
+The context value is left to the application but must be the same on
+both sides of the communication.
+.Pp
+For a given SSL connection
+.Fa s ,
+.Fa olen
+bytes of data will be written to
+.Fa out .
+The application specific context should be supplied
+in the location pointed to by
+.Fa context
+and should be
+.Fa contextlen
+bytes long.
+Provision of a context is optional.
+If the context should be omitted entirely, then
+.Fa use_context
+should be set to 0.
+Otherwise it should be any other value.
+If
+.Fa use_context
+is 0, then the values of
+.Fa context
+and
+.Fa contextlen
+are ignored.
+.Pp
+In TLSv1.2 and below, a zero length context is treated differently
+from no context at all, and will result in different keying material
+being returned.
+.Pp
+An application specific label should be provided in the location pointed
+to by
+.Fa label
+and should be
+.Fa llen
+bytes long.
+Typically this will be a value from the
+.Lk https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#exporter-labels "IANA Exporter Label Registry" .
+.Pp
+Alternatively, labels beginning with "EXPERIMENTAL" are permitted by the
+standard to be used without registration.
+.Sh RETURN VALUES
+.Fn SSL_export_keying_material
+returns 1 on success or 0 or -1 on failure.
+.Sh SEE ALSO
+.Xr ssl 3
+.Sh HISTORY
+.Fn SSL_export_keying_material
+first appeared in OpenSSL 1.0.1 and has been available since
+.Ox 5.3 .

@@ -1,0 +1,138 @@
+$OpenBSD: PackingList.pod,v 1.1 2020/12/20 15:30:58 daniel Exp $
+
+=head1 NAME
+
+OpenBSD::PackingList - C<pkg_add(1)> packing-list manipulations
+
+=head1 SYNOPSIS
+
+    use OpenBSD::PackingList;
+    # different methods to create packing-lists
+    my $p1 = OpenBSD::PackingList->new;		# empty
+    my $p2 = OpenBSD::PackingList->read($fh);
+    my $p3 = OpenBSD::PackingList->fromfile($filename);
+    my $p4 = OpenBSD::PackingList->fromfile(\$scalar);
+    my $p5 = OpenBSD::PackingList->from_installation($pkgname);
+
+    # writing packing-lists
+    $p2->write($fh);
+    $p3->tofile($filename);
+    $p4->to_installation;
+    $p4->to_cache;
+
+    # building up packing-lists
+    OpenBSD::PackingElement::SUBCLASS->add($plist, @args);
+    my $o = OpenBSD::PackingElement::SUBCLASS->new(@args);
+    $o->add_object($plist);
+
+    # tests and access
+    $b = $p2->has($name);
+    $b = $p2->get($name);
+    # frequent accesses
+    print $p3->pkgname, $p3->localbase, "\n";
+
+    # processing packing-lists
+    $p4->visit('method', @args);
+
+    # auto visit
+    $p4->method(@args);
+
+    # signatures
+    if ($p3->signature eq $p4->signature) {
+    }
+
+=head1 DESCRIPTION
+
+C<OpenBSD::PackingList> is the only supported interface for access to
+packing-list information. It includes conversion methods from an external
+textual representation (file) into an internal structured representation.
+Basically, a packing-list is a collection of strongly-typed objects. Some
+of these objects are just properties of the package (like the package name,
+or dependencies), some objects have long lists of properties (files come
+with MD5 checksums, sizes, or linknames), some objects represent state
+information (like file modes) and must be kept in the proper order.
+The C<OpenBSD::PackingList> class handles all that.
+
+Packing-lists can be obtained using the following methods: from an
+opened file handle using C<OpenBSD::PackingList-E<gt>read($fh)>, from
+an existing file using C<OpenBSD::PackingList-E<gt>fromfile($filename)>,
+from a scalar in memory using C<OpenBSD::PackingList-E<gt>fromfile(\$scalar)>,
+or from an installed package using
+C<OpenBSD::PackingList-E<gt>from_installation($pkgname)>.
+
+Since building a full packing-list is a complex operation and can consume
+a large amount of memory, those methods may take an extra argument in order to
+obtain partial packing-lists with only some information:
+
+=over 16
+
+=item SharedItemsOnly
+
+read only stuff that may be shared between packages, e.g., new users,
+groups and directories.
+
+=item LibraryOnly
+
+read only shared library entries.
+
+=item FilesOnly
+
+read only files without the associated annotations like size or MD5.
+
+=item DependOnly
+
+read only dependency information.
+
+=item ExtraInfoOnly
+
+read only the extra information field.
+
+=item UpdateInfoOnly
+
+read only what is needed to decide to update a package.
+
+=item PrelinkStuffOnly
+
+read only what is need to figure out all binary/library information, e.g.,
+libraries, dependencies and binaries.
+
+=back
+
+A complete packing-list C<$plist> may be written to disk using the
+following methods:
+C<$plist-E<gt>write($fh)> will write a packing-list to an
+opened file handle C<$fh>, C<$plist-E<gt>tofile($filename)> will
+write a packing-list to a file named C<$filename>, and
+C<$plist-E<gt>to_installation> will write a packing-list during
+registration of a package.
+
+In addition C<$plist-E<gt>to_cache> will register enough
+information from a package to let the framework believe the package has
+been installed. This is used for the simulation modes of C<pkg_add(1)>
+and friends.
+
+Since a packing-list is structured information, reading a packing-list from
+the disk and writing it back offers no guarantee the information will remain
+in the same order.  It is a good way to validate packing-lists and normalize
+them, though.
+
+Building packing-lists entails cooperation with C<OpenBSD::PackingElement>.
+Packing-lists are usually built by adding objects from an
+C<OpenBSD::PackingElement> subclass to the packing-list, either with
+the C<add> constructor:
+C<OpenBSD::PackingElement::SUBCLASS-E<gt>add($plist, $args)>, which builds
+a packing element and adds it to the packing-list in one operation, or with
+the C<add_object> method, which takes an existing packing element and adds it
+to the packing-list (note that C<add_object> only makes sense for subclasses
+of C<OpenBSD::PackingElement::Object>).
+See L<OpenBSD::PackingElement> for more details.
+
+C<$plist-E<gt>pkgname> retrieves a packing-list name (mandatory).
+C<$plist-E<gt>signature> retrieves a packing-list full signature, composed
+of the package name and dependency information.
+
+C<$plist-E<gt>visit($method, @args)> is a visitor pattern, calling
+C<method(@args)> on each element of the packing-list in a specific order.
+
+As a feature, if C<OpenBSD::PackingElement-E<gt>can(method)>,
+C<$plist-E<gt>method(@args)> will be turned into a visitor call automatically.

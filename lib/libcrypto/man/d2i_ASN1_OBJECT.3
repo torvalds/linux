@@ -1,0 +1,165 @@
+.\" $OpenBSD: d2i_ASN1_OBJECT.3,v 1.16 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2017, 2022, 2023 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt D2I_ASN1_OBJECT 3
+.Os
+.Sh NAME
+.Nm d2i_ASN1_OBJECT ,
+.Nm i2d_ASN1_OBJECT ,
+.Nm OBJ_get0_data ,
+.Nm OBJ_length
+.Nd decode and encode ASN.1 object identifiers
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft ASN1_OBJECT *
+.Fo d2i_ASN1_OBJECT
+.Fa "ASN1_OBJECT **val_out"
+.Fa "const unsigned char **der_in"
+.Fa "long length"
+.Fc
+.Ft int
+.Fo i2d_ASN1_OBJECT
+.Fa "const ASN1_OBJECT *val_in"
+.Fa "unsigned char **der_out"
+.Fc
+.In openssl/objects.h
+.Ft const unsigned char *
+.Fn OBJ_get0_data "const ASN1_OBJECT *val_in"
+.Ft size_t
+.Fn OBJ_length "const ASN1_OBJECT *val_in"
+.Sh DESCRIPTION
+These functions decode and encode ASN.1 object identifiers.
+For details about the semantics, examples, caveats, and bugs, see
+.Xr ASN1_item_d2i 3 .
+.Pp
+The LibreSSL implementation of
+.Fn d2i_ASN1_OBJECT
+always calls
+.Xr ASN1_OBJECT_free 3
+if an existing object is passed in via
+.Fa val_out
+and it always creates a new object from scratch.
+Other implementations may attempt to reuse an existing object,
+which is fragile and prone to bugs.
+Consequently, always passing
+.Dv NULL
+for the
+.Fa val_out
+argument is recommended.
+.Pp
+The objects returned from
+.Fn d2i_ASN1_OBJECT
+and the data contained in them are always marked as dynamically
+allocated, so when they are no longer needed,
+.Xr ASN1_OBJECT_free 3
+can be called on them.
+.Pp
+.Fn i2d_ASN1_OBJECT
+encodes the object identifier pointed to by
+.Fa val_in
+into DER format.
+.Fn OBJ_get0_data
+and
+.Fn OBJ_length
+only deal with the content octets of that DER encoding,
+without taking the identifier and length octets into account.
+.Sh RETURN VALUES
+.Fn d2i_ASN1_OBJECT
+returns a pointer to the new
+.Vt ASN1_OBJECT
+object or
+.Dv NULL
+if an error occurs.
+With other implementations, it might return a pointer to the reused
+.Vt ASN1_OBJECT .
+.Pp
+.Fn i2d_ASN1_OBJECT
+returns the number of octets successfully encoded
+or a value <= 0 if an error occurs.
+.Pp
+.Fn OBJ_get0_data
+returns an internal pointer to the first content octet of the DER
+encoding of
+.Fa val_in .
+The other content octets follow the returned pointer contiguously.
+.Fn OBJ_length
+returns the number of content octets contained in the DER encoding of
+.Fa val_in .
+This number is always smaller than the total length of the encoding
+returned by
+.Xr ASN1_object_size 3 .
+.Pp
+If
+.Fa val_in
+is a
+.Dv NULL
+pointer or points to an empty object, for example one freshly created with
+.Xr ASN1_OBJECT_new 3 ,
+.Fn OBJ_get0_data
+returns
+.Dv NULL
+and
+.Fn OBJ_length
+returns zero.
+.Sh SEE ALSO
+.Xr a2d_ASN1_OBJECT 3 ,
+.Xr ASN1_item_d2i 3 ,
+.Xr ASN1_OBJECT_new 3 ,
+.Xr ASN1_put_object 3 ,
+.Xr OBJ_nid2obj 3
+.Sh STANDARDS
+ITU-T Recommendation X.690, also known as ISO/IEC 8825-1:
+Information technology - ASN.1 encoding rules:
+Specification of Basic Encoding Rules (BER), Canonical Encoding
+Rules (CER) and Distinguished Encoding Rules (DER),
+section 8.19: Encoding of an object identifier value
+.Sh HISTORY
+.Fn d2i_ASN1_OBJECT
+and
+.Fn i2d_ASN1_OBJECT
+first appeared in SSLeay 0.5.1 and have been available since
+.Ox 2.4 .
+.Pp
+.Fn OBJ_get0_data
+and
+.Fn OBJ_length
+first appeared in OpenSSL 1.1.0 and have been available since
+.Ox 7.1 .
+.Sh CAVEATS
+.Fn d2i_ASN1_OBJECT
+never sets the long and short names of the object, not even if the
+object identifier matches one that is built into the library.
+To find the names of an object identifier parsed from DER or BER
+input, call
+.Xr OBJ_obj2nid 3
+on the returned object, and then
+.Xr OBJ_nid2sn 3
+and
+.Xr OBJ_nid2ln 3
+on the result.
+.Pp
+Calling
+.Fn OBJ_get0_data
+and then accessing memory in front of the returned pointer
+results in undefined behaviour.
+In particular, it is not possible to find the identifier or
+length octets in that way; use
+.Xr ASN1_put_object 3
+or
+.Fn i2d_ASN1_OBJECT
+instead.

@@ -1,0 +1,1 @@
+declare-6.c:2: error: `minbytes' bound size must be a positive integer value

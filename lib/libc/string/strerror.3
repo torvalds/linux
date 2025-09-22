@@ -1,0 +1,154 @@
+.\"	$OpenBSD: strerror.3,v 1.16 2019/05/16 13:35:16 schwarze Exp $
+.\"
+.\" Copyright (c) 1980, 1991 Regents of the University of California.
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: May 16 2019 $
+.Dt STRERROR 3
+.Os
+.Sh NAME
+.Nm strerror ,
+.Nm strerror_l ,
+.Nm strerror_r
+.Nd get error message string
+.Sh SYNOPSIS
+.In string.h
+.Ft char *
+.Fn strerror "int errnum"
+.Ft char *
+.Fn strerror_l "int errnum" "locale_t locale"
+.Ft int
+.Fn strerror_r "int errnum" "char *strerrbuf" "size_t buflen"
+.Sh DESCRIPTION
+These functions map the error number
+.Fa errnum
+to an error message string.
+.Pp
+.Fn strerror
+and
+.Fn strerror_l
+return a string containing a maximum of
+.Dv NL_TEXTMAX
+characters, including the trailing NUL.
+This string is not to be modified by the calling program.
+The string returned by
+.Fn strerror
+may be overwritten by subsequent calls to
+.Fn strerror
+in any thread.
+The string returned by
+.Fn strerror_l
+may be overwritten by subsequent calls to
+.Fn strerror_l
+in the same thread.
+.Pp
+.Fn strerror_r
+is a thread safe version of
+.Fn strerror
+that places the error message in the specified buffer
+.Fa strerrbuf .
+.Pp
+On
+.Ox ,
+the global locale, the thread-specific locale, and the
+.Fa locale
+argument are ignored.
+.Sh RETURN VALUES
+.Fn strerror
+and
+.Fn strerror_l
+return a pointer to the error message string.
+If an error occurs, the error code is stored in
+.Va errno .
+.Pp
+.Fn strerror_r
+returns zero upon successful completion.
+If an error occurs, the error code is stored in
+.Va errno
+and the error code is returned.
+.Sh ERRORS
+All these functions may fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa errnum
+is not a valid error number.
+The returned error string will consist of an error message that includes
+.Fa errnum .
+.El
+.Pp
+.Fn strerror_r
+may also fail if:
+.Bl -tag -width Er
+.It Bq Er ERANGE
+The error message is larger than
+.Fa buflen
+characters.
+The message will be truncated to fit.
+.El
+.Sh SEE ALSO
+.Xr intro 2 ,
+.Xr newlocale 3 ,
+.Xr perror 3 ,
+.Xr setlocale 3
+.Sh STANDARDS
+The
+.Fn strerror
+function conforms to
+.St -isoC-99 .
+The
+.Fn strerror_l
+and
+.Fn strerror_r
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn strerror
+function has been available since
+.Bx 4.3 Reno ,
+.Fn strerror_r
+since
+.Ox 3.3 ,
+and
+.Fn strerror_l
+since
+.Ox 6.2 .
+.Sh CAVEATS
+On systems other than
+.Ox ,
+the
+.Dv LC_MESSAGES
+.Xr locale 1
+category can cause different strings to be returned instead of the
+normal error messages; see CAVEATS in
+.Xr setlocale 3
+for details.

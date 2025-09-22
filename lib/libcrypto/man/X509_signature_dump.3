@@ -1,0 +1,86 @@
+.\" $OpenBSD: X509_signature_dump.3,v 1.4 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509_SIGNATURE_DUMP 3
+.Os
+.Sh NAME
+.Nm X509_signature_dump ,
+.Nm X509_signature_print
+.Nd pretty-print ASN.1 strings
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509.h
+.Ft int
+.Fo X509_signature_dump
+.Fa "BIO *bio"
+.Fa "const ASN1_STRING *signature"
+.Fa "int indent"
+.Fc
+.Ft int
+.Fo X509_signature_print
+.Fa "BIO *bio"
+.Fa "const X509_ALGOR *algorithm"
+.Fa "const ASN1_STRING *signature"
+.Fc
+.Sh DESCRIPTION
+.Fn X509_signature_dump
+writes the data bytes contained in the
+.Fa signature
+to
+.Fa bio
+in hexadecimal format with colons between bytes,
+18 bytes per output line, each line indented with
+.Fa indent
+space characters.
+.Pp
+.Fn X509_signature_print
+writes the name of the signature
+.Fa algorithm ,
+or, if no name for it is known, its object identifier (OID) to
+.Fa bio
+using
+.Xr i2a_ASN1_OBJECT 3 .
+After that, if a method object for the algorithm can be retrieved with
+.Xr EVP_PKEY_asn1_find 3
+and if that object defines a printing method, that printing method is
+used to print the
+.Fa signature .
+Otherwise, unless the
+.Fa signature
+is
+.Dv NULL ,
+it is printed using
+.Fn X509_signature_dump .
+.Sh RETURN VALUES
+These functions return 1 on success or 0 on failure.
+They fail and return as soon as any write operation fails.
+.Sh SEE ALSO
+.Xr ASN1_STRING_new 3 ,
+.Xr ASN1_STRING_print_ex 3 ,
+.Xr BIO_new 3 ,
+.Xr EVP_PKEY_asn1_find 3 ,
+.Xr OBJ_find_sigid_algs 3 ,
+.Xr X509_ALGOR_new 3 ,
+.Xr X509_get0_signature 3
+.Sh HISTORY
+.Fn X509_signature_print
+first appeared in OpenSSL 0.9.7 and has been available since
+.Ox 3.2 .
+.Pp
+.Fn X509_signature_dump
+first appeared in OpenSSL 1.0.1 and has been available since
+.Ox 5.3 .

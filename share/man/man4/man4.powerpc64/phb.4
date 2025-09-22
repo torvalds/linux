@@ -1,0 +1,44 @@
+.\"	$OpenBSD: phb.4,v 1.2 2020/10/03 22:35:32 jmc Exp $
+.\"
+.\" Copyright (c) 2020 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECI`AL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 3 2020 $
+.Dt PHB 4 powerpc64
+.Os
+.Sh NAME
+.Nm phb
+.Nd IODA PCIe host bridge
+.Sh SYNOPSIS
+.Cd "phb* at fdt?"
+.Cd "pci* at phb?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCIe host bridges conforming to the IODA2
+and IODA3 specifications, as found on POWER CPUs.
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr pci 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 6.8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org .

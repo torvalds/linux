@@ -1,0 +1,137 @@
+.\" $OpenBSD: kue.4,v 1.21 2013/07/16 16:05:49 schwarze Exp $
+.\" $NetBSD: kue.4,v 1.5 2000/03/20 01:34:22 augustss Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999, 2000
+.\"     Bill Paul <wpaul@ee.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"     This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/share/man/man4/kue.4,v 1.2 2000/01/07 22:18:48 wpaul Exp $
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt KUE 4
+.Os
+.Sh NAME
+.Nm kue
+.Nd Kawasaki LSI KL5KUSB101B USB Ethernet device
+.Sh SYNOPSIS
+.Cd "kue* at uhub?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the Kawasaki
+LSI KL5KLUSB101B chipset.
+This includes the following adapters:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Tn 3Com 3c19250
+.It Tn 3Com 3c460 HomeConnect
+.It Tn AboCom Systems URE450 Ethernet
+.It Tn ADS Technologies USB-10BT
+.It Tn Aox USB101
+.It Tn Asante USB to Ethernet
+.It Tn ATen DSB-650C
+.It Tn ATen UC10T
+.It Tn Corega USB-T
+.It Tn D-Link DSB-650C
+.It Tn Entrega NET-USB-E45
+.It Tn I/O Data USB-ET/T
+.It Tn Jaton USB XpressNet
+.It Tn Kawasaki USB101
+.It Tn Kingston Ethernet
+.It Tn Linksys USB10T
+.It Tn Mobility Ethernet
+.It Tn Netgear EA101
+.It Tn Peracom USB
+.It Tn Portgear Ethernet
+.It Tn Portsmith Express Ethernet
+.It Tn Psion Dacom Gold Port Ethernet
+.It Tn Shark Pocket Adapter
+.It Tn Silicom U2E
+.It Tn SMC 2102USB
+.It Tn SMC 2104USB
+.El
+.Pp
+The KL5KLUSB101B supports a 128-entry multicast filter, single perfect
+filter entry for the station address and promiscuous mode.
+Packets are
+received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+The Kawasaki adapter supports only 10Mbps half-duplex mode, hence there
+are no
+.Xr ifmedia 4
+modes to select.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh FILES
+The driver needs a firmware file,
+which is loaded on demand when the device is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /etc/firmware/kue
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "kue0: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.It "kue0: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.0 .
+.Ox
+support was added in
+.Ox 2.7 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu
+and ported to
+.Ox
+by
+.An Aaron Campbell Aq Mt aaron@openbsd.org .
+.Sh BUGS
+The
+.Nm
+driver does not accumulate Ethernet collisions statistics because the
+Kawasaki firmware does not appear to maintain any internal statistics.

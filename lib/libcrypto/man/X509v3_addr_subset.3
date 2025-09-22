@@ -1,0 +1,177 @@
+.\" $OpenBSD: X509v3_addr_subset.3,v 1.3 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2023 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt X509V3_ADDR_SUBSET 3
+.Os
+.Sh NAME
+.Nm X509v3_addr_subset ,
+.Nm X509v3_asid_subset
+.Nd RFC 3779 subset relationship
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft int
+.Fn X509v3_addr_subset "IPAddrBlocks *child" "IPAddrBlocks *parent"
+.Ft int
+.Fn X509v3_asid_subset "ASIdentifiers *child" "ASIdentifiers *parent"
+.Sh DESCRIPTION
+.Fn X509v3_addr_subset
+determines if all IP address resources present in
+.Fa child
+are contained in the corresponding resources in
+.Fa parent .
+.Pp
+The implementation assumes but does not ensure that both
+.Fa child
+and
+.Fa parent
+are in canonical form as described in
+.Xr X509v3_addr_is_canonical 3 .
+In particular, both
+.Fa child
+and
+.Fa parent
+are sorted appropriately and they contain at most one
+.Vt IPAddressFamily
+object per address family identifier (AFI) and optional
+subsequent address family identifier (SAFI).
+.Pp
+The checks are, in order:
+.Bl -enum
+.It
+If
+.Fa child
+is
+.Dv NULL
+or identical to
+.Fa parent
+then
+.Fa child
+is a subset of
+.Fa parent .
+In particular, a
+.Dv NULL
+.Fa parent
+is allowed for a
+.Dv NULL
+.Fa child .
+.It
+If
+.Fa parent
+is
+.Dv NULL
+then
+.Fa child
+is not a subset of
+.Fa parent .
+.It
+If
+.Xr X509v3_addr_inherits 3
+determines that
+.Fa child
+inherits or that
+.Fa parent
+inherits
+then
+.Fa child
+is not a subset of
+.Fa parent .
+.It
+Each address prefix or range in
+.Fa child
+must be a subset of an address prefix or range in the
+.Fa parent ,
+taking AFI and optional SAFI into account:
+.Bl -bullet -compact
+.It
+For each
+.Vt IPAddressFamily
+of
+.Fa child
+there must be an
+.Vt IPAddressFamily
+of
+.Fa parent
+with the same AFI and optional SAFI.
+.It
+Since the address prefixes and ranges in corresponding
+.Vt IPAddressFamily
+objects in
+.Fa child
+and
+.Fa parent
+are sorted in ascending order,
+and do not overlap,
+they can be traversed simultaneously in linear time.
+For each prefix or range in
+.Fa child
+there must be a prefix or range in
+.Fa parent
+whose minimal address is smaller
+and whose maximal address is larger.
+.El
+If any of these steps fails,
+.Fa child
+is not a subset of
+.Fa parent .
+.El
+.Pp
+.Fn X509v3_asid_subset
+determines if all AS identifier resources in
+.Fa child
+are contained in the corresponding resources in
+.Fa parent .
+.Pp
+The description for
+.Fn X509v3_addr_subset
+applies mutatis mutandis.
+In particular,
+.Fa child
+and
+.Fa parent
+must be in canonical form per
+.Xr X509v3_asid_is_canonical 3 ,
+but this is not enforced.
+.Sh RETURN VALUES
+.Fn X509v3_addr_subset
+and
+.Fn X509v3_asid_subset
+return 1 if and only if
+.Fa child
+is a subset of
+.Fa parent ,
+otherwise they return 0.
+If both
+.Fa child
+and
+.Fa parent
+are in canonical form,
+these functions cannot fail.
+.Sh SEE ALSO
+.Xr ASIdentifiers_new 3 ,
+.Xr ASRange_new 3 ,
+.Xr crypto 3 ,
+.Xr IPAddressRange_new 3 ,
+.Xr X509_new 3 ,
+.Xr X509v3_addr_add_inherit 3 ,
+.Xr X509v3_asid_add_inherit 3
+.Sh STANDARDS
+RFC 3779: X.509 Extensions for IP Addresses and AS Identifiers.
+.Sh HISTORY
+These functions first appeared in OpenSSL 0.9.8e
+and have been available since
+.Ox 7.1 .

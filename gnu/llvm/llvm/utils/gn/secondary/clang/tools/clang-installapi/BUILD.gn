@@ -1,0 +1,26 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+import("//llvm/utils/gn/build/driver_executable.gni")
+
+tablegen("InstallAPIOpts") {
+  visibility = [ ":clang-installapi" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+driver_executable("clang-installapi") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    ":InstallAPIOpts",
+    "//clang/lib/Driver",
+    "//clang/lib/Frontend",
+    "//clang/lib/InstallAPI",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/TextAPI",
+    "//llvm/lib/TextAPI/BinaryReader",
+  ]
+  sources = [
+    "ClangInstallAPI.cpp",
+    "Options.cpp",
+  ]
+}

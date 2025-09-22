@@ -1,0 +1,105 @@
+.\"	$OpenBSD: cas.4,v 1.10 2022/03/21 14:56:16 miod Exp $
+.\"
+.\" Copyright (c) 2007 Mark Kettenis <kettenis@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 21 2022 $
+.Dt CAS 4
+.Os
+.Sh NAME
+.Nm cas
+.Nd Sun Cassini 10/100/1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "cas* at pci?"
+.Cd "brgphy* at mii?"
+.Cd "gentbi* at mii?"
+.Cd "nsgphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various NICs based on the Sun
+Cassini/Cassini+ and National Semiconductor Saturn Ethernet controller
+chips, including the following:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Sun GigaSwift Ethernet Adapter (10/100/1000baseT)
+.It
+Sun GigaSwift Ethernet MMF Adapter (1000baseSX)
+.It
+Sun Quad GigaSwift Ethernet UTP Adapter (10/100/1000baseT)
+.It
+Sun Quad GigaSwift PCI-X Adapter (10/100/1000baseT)
+.It
+Sun Dual Gigabit Ethernet and Dual SCSI/P Adapter (10/100/1000baseT)
+.El
+.Pp
+It uses an internal or external PHY or an external 10-bit interface.
+.Pp
+The
+.Nm
+driver supports several media types, which are selected via the
+.Xr ifconfig 8
+command.
+The supported media types are:
+.Bl -tag -width "media" -offset indent
+.It Cm media No autoselect
+Attempt to autoselect the media type (default)
+.It Cm media No 1000baseT Cm mediaopt No full-duplex
+Use 1000baseT on copper, full duplex
+.It Cm media No 1000baseT Cm mediaopt No half-duplex
+Use 1000baseT on copper, half duplex
+.It Cm media No 1000baseSX Cm mediaopt No full-duplex
+Use 1000baseSX on fiber, full duplex
+.It Cm media No 1000baseSX Cm mediaopt No half-duplex
+Use 1000baseSX on fiber, half duplex
+.It Cm media No 100baseTX Cm mediaopt No full-duplex
+Use 100baseTX, full duplex
+.It Cm media No 100baseTX Cm mediaopt No half-duplex
+Use 100baseTX, half duplex
+.It Cm media No 10baseT Cm mediaopt No full-duplex
+Use 10baseT, full duplex
+.It Cm media No 10baseT Cm mediaopt No half-duplex
+Use 10baseT, half duplex
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr brgphy 4 ,
+.Xr gentbi 4 ,
+.Xr ifmedia 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr nsgphy 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+.Ox
+support for
+.Nm
+first appeared in
+.Ox 4.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mark Kettenis Aq Mt kettenis@openbsd.org
+based on the
+.Xr gem 4
+driver.
+.Sh BUGS
+The
+.Nm
+driver does not yet use many of the advanced features the Cassini chip
+offers.

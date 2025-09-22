@@ -1,0 +1,176 @@
+dnl	$OpenBSD: hardware,v 1.109 2014/02/27 18:48:14 deraadt Exp $
+OpenBSD/MACHINE OSREV is expected to run on the following hardware.
+If you have hardware that is listed here and are unable to run OpenBSD,
+or if you are able to run OpenBSD on hardware not listed here, please
+send mail to <alpha@OpenBSD.org> with as much information as possible.
+
+Supported hardware:
+    DS15, DS15A, DS25, ES45, TS15 and TS202C
+	  Supported devices:
+		Built-in serial and parallel ports.
+		Built-in Ethernet.
+		Built-in SCSI.
+		Built-in IDE controller.
+		Most PCI devices (see below).
+	  Unsupported devices:
+		Floppy drive.
+
+    XP900, XP1000, CS20, DS10, DS20, DS20L, ES40, 264DP, and other EV6
+    machines using the Tsunami chipset
+	  Supported devices:
+		Built-in serial and parallel ports.
+		Built-in DEC21143 Ethernet.
+		Built-in ISP SCSI.
+		Built-in IDE controller.
+		Built-in USB should work, but has not been thoroughly
+		  tested.
+		Most PCI devices (see below).
+		Some ISA devices (see below).
+	  Unsupported devices:
+		Floppy drive.
+		ISA devices that require DMA operation.
+
+    API UP1000, UP1100, UP2000, and UP2000+ and other EV6 machines using the
+    Irongate chipset
+	  Supported devices:
+		Built-in serial and parallel ports.
+		Built-in DEC21040 Ethernet.
+		Built-in IDE controller works, though there may be stability
+		  issues.
+	  Unsupported devices:
+		Floppy drive.
+		ISA devices that require DMA operation.
+
+    Digital Personal Workstation (Miata)
+	  Supported devices:
+		Built-in serial and parallel ports.
+		Built-in DEC21043 Ethernet.
+		Built-in ISP SCSI, when present (i.e. on ``au'' models).
+		Built-in IDE controller.
+		Most PCI devices (see below).
+		Some ISA devices (see below).
+	  Unsupported devices:
+		Floppy drive.
+		Built-in audio.
+		ISA devices that require DMA operation.
+
+    EB164 based machines (including PC164, 164SX, 164LX, but NOT the 164UX)
+	  Supported devices:
+		Built-in serial and parallel ports.
+		Built-in PCIIDE controller, when present.
+		PCI graphics card (TGA or VGA compatible).
+		Most PCI devices (see below).
+		Some ISA devices (see below).
+	  Unsupported devices:
+		Floppy drive.
+		ISA IDE controller on the EB164.
+		ISA devices that require DMA operation.
+
+    AlphaStation 600A and 1200
+    AlphaServer 800 (also known as Digital Server 3300 and 3305), 1000, 1000A
+    AlphaServer 1200, 4000 and 4100
+	  Supported devices:
+		Built-in serial and parallel ports.
+		Built-in DEC21040 Ethernet.
+		Built-in ISP SCSI.
+		PCI graphics card (TGA or VGA compatible).
+		Most PCI devices (see below).
+		Some ISA and EISA devices (see below).
+	  Unsupported devices:
+		Floppy drive.
+		Built-in audio.
+		ISA and EISA devices that require DMA operation.
+
+    AlphaServer 300 and 400, and AlphaStation 200, 250, 255 and 400
+	  Supported devices:
+		Built-in serial and parallel ports.
+		Built-in DEC21040 Ethernet.
+		Built-in ISP SCSI.
+		PCI graphics card (TGA or VGA compatible).
+		Most PCI devices (see below).
+		Some ISA devices (see below).
+	  Unsupported devices:
+		Floppy drive.
+		Built-in audio.
+		ISA devices that require DMA operation.
+
+    AlphaStation 500 and 600
+	  Supported devices:
+		Built-in serial and parallel ports.
+		Built-in DEC21040 Ethernet.
+		Built-in ISP SCSI.
+		PCI graphics card (TGA or VGA compatible).
+		Most PCI devices (see below).
+		Some ISA and EISA devices (see below).
+	  Unsupported devices:
+		Floppy drive.
+		Built-in audio.
+		ISA and EISA devices that require DMA operation.
+
+    AXPpci based machines (including ``Noname'', UDB, Multia)
+	  Supported devices:
+		Built-in serial and parallel ports.
+		Built-in DEC21040 Ethernet.
+		Built-in 53C810 SCSI (siop).
+		Built-in IDE controller. (will not boot from IDE, though)
+		PCI graphics card (TGA or VGA compatible).
+dnl not tested yet
+dnl		PCMCIA slots on Multia.
+		Most PCI devices (see below).
+		Some ISA devices (see below).
+	  Unsupported devices:
+		Floppy drive.
+		ISA devices that require DMA operation.
+
+    DEC 3000 models 300{,L,X,LX}
+          Supported devices:
+		Built-in serial ports.
+		Built-in LANCE Ethernet.
+		Built-in SCSI (53C94).
+		TURBOchannel LANCE Ethernet cards (PMAD-A).
+		TURBOchannel SCSI (53C94) (PMAZ-A).
+		TURBOchannel DEFTA FDDI cards (PMAF-FA).
+	  Unsupported devices:
+		Built-in ISDN/audio chip.
+		Built-in framebuffer.
+		Other TURBOchannel cards.
+
+    DEC 3000 models 400,500,500X,600,700,800,900
+	  Supported devices:
+		Built-in serial ports.
+		Built-in LANCE Ethernet.
+		Built-in SCSI (53C94 or 53CF94-2).
+		TURBOchannel LANCE Ethernet cards (PMAD-A).
+		TURBOchannel SCSI (53C94) (PMAZ-A).
+		TURBOchannel DEFTA FDDI cards (PMAF-FA).
+	  Unsupported devices:
+		Built-in ISDN/audio chip.
+		Built-in framebuffer (when applicable).
+		Other TURBOchannel cards.
+
+    Tadpole AlphaBook
+	  Supported devices:
+	  	Built-in serial ports.
+		Built-in 53C810 SCSI (siop).
+		Built-in PCMCIA slots.
+dnl move to PCMCIA section once Multia PCMCIA has been tested
+		3Com 3C589 and 3C562 PCMCIA Ethernet adapters.
+	  Unsupported devices:
+		Built-in display (garbled output).
+		Other PCMCIA cards.
+
+    At this time none of the following systems are supported:
+	DECpc AXP150 (2000/300) ``Jensen'' systems (EISA-bus PC-like systems)
+	AlphaServer 2000, 2100 and 2100A
+	AlphaServer 8200, 8400, GS60 and GS140
+	AlphaServer ES47, ES80 and GS1280
+	AlphaServer GS80, GS160 and GS320
+	Alpha XL systems (no SRM)
+	DEC 4000, 7000, and 10000 systems (FutureBus+ and XMIBus-based)
+	EB64+ based systems
+	Samsung 164BX and 164UX (no SRM)
+	VME Alpha systems (AXPvme, ALPHAvme)
+
+Console frame buffers and keyboards are only supported on systems explicitly
+mentioned above.  On other systems, including all TURBOchannel-based machines,
+OpenBSD/MACHINE *must* be used with a serial console.

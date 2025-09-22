@@ -1,0 +1,20 @@
+@0 match out on lo0 inet from 192.168.1.1 to any nat-to 10.0.0.1
+  [ Skip steps: i=4 r=end f=4 sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 match in on lo0 inet proto tcp from any to 1.2.3.4 port = 2222 rdr-to 10.0.0.10 port 22
+  [ Skip steps: i=4 r=end f=4 sp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 match out on lo0 inet from 192.168.1.1 to any nat-to 10.0.0.1 static-port
+  [ Skip steps: i=4 r=end f=4 p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 match in on lo0 inet from any to 10.0.0.1 rdr-to 192.168.1.1
+  [ Skip steps: d=end r=end p=end sa=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 pass in on lo1000000 all no state
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

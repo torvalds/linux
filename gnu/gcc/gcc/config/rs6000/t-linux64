@@ -1,0 +1,19 @@
+
+#rs6000/t-linux64
+
+LIB2FUNCS_EXTRA += tramp.S $(srcdir)/config/rs6000/ppc64-fp.c \
+	$(srcdir)/config/rs6000/darwin-ldouble.c
+LIB2FUNCS_EXTRA := $(sort $(LIB2FUNCS_EXTRA))
+
+TARGET_LIBGCC2_CFLAGS += -mno-minimal-toc
+
+MULTILIB_OPTIONS        = m64/m32 msoft-float
+MULTILIB_DIRNAMES       = 64 32 nof
+MULTILIB_EXTRA_OPTS     = fPIC mstrict-align
+MULTILIB_EXCEPTIONS     = m64/msoft-float
+MULTILIB_EXCLUSIONS     = m64/!m32/msoft-float
+MULTILIB_OSDIRNAMES	= ../lib64 ../lib nof
+MULTILIB_MATCHES        = $(MULTILIB_MATCHES_FLOAT)
+
+softfp_wrap_start := '\#ifndef __powerpc64__'
+softfp_wrap_end := '\#endif'

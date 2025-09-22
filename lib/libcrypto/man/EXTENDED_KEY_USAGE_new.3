@@ -1,0 +1,85 @@
+.\" $OpenBSD: EXTENDED_KEY_USAGE_new.3,v 1.7 2025/06/08 22:40:30 schwarze Exp $
+.\"
+.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EXTENDED_KEY_USAGE_NEW 3
+.Os
+.Sh NAME
+.Nm EXTENDED_KEY_USAGE_new ,
+.Nm EXTENDED_KEY_USAGE_free
+.Nd X.509 key usage restrictions
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/x509v3.h
+.Ft EXTENDED_KEY_USAGE
+.Fn EXTENDED_KEY_USAGE_new void
+.Ft void
+.Fn EXTENDED_KEY_USAGE_free "EXTENDED_KEY_USAGE *eku"
+.Sh DESCRIPTION
+By using the key usage extension, the extended key usage extension,
+or both of them,
+.Vt X509
+end entity certificates may indicate that the key contained in them
+is only intended to be used for the specified purposes.
+If both extensions are present, only uses compatible with both
+extensions are intended.
+.Pp
+.Fn EXTENDED_KEY_USAGE_new
+allocates and initializes an empty
+.Vt EXTENDED_KEY_USAGE
+object, which is a
+.Vt STACK_OF(ASN1_OBJECT)
+and represents an ASN.1
+.Vt ExtKeyUsageSyntax
+structure defined in RFC 5280 section 4.2.1.12.
+It can hold key purpose identifiers.
+.Pp
+.Fn EXTENDED_KEY_USAGE_free
+frees
+.Fa eku .
+.Pp
+The key usage extension uses the ASN.1 BIT STRING data type
+and doesn't require any dedicated object.
+.Sh RETURN VALUES
+.Fn EXTENDED_KEY_USAGE_new
+returns the new
+.Vt EXTENDED_KEY_USAGE
+object or
+.Dv NULL
+if an error occurs.
+.Sh SEE ALSO
+.Xr BASIC_CONSTRAINTS_new 3 ,
+.Xr d2i_EXTENDED_KEY_USAGE 3 ,
+.Xr POLICYINFO_new 3 ,
+.Xr X509_check_purpose 3 ,
+.Xr X509_EXTENSION_new 3 ,
+.Xr X509_get_extension_flags 3 ,
+.Xr X509_new 3
+.Sh STANDARDS
+RFC 5280: Internet X.509 Public Key Infrastructure Certificate and
+Certificate Revocation List (CRL) Profile:
+.Bl -dash -compact
+.It
+section 4.2.1.3: Key Usage
+.It
+section 4.2.1.12: Extended Key Usage
+.El
+.Sh HISTORY
+.Fn EXTENDED_KEY_USAGE_new
+and
+.Fn EXTENDED_KEY_USAGE_free
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .

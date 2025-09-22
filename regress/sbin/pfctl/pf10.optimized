@@ -1,0 +1,76 @@
+@0 pass in inet proto icmp all
+  [ Skip steps: i=end d=end r=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 pass in inet6 proto ipv6-icmp all
+  [ Skip steps: i=end d=end r=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@2 block drop in inet proto icmp all
+  [ Skip steps: i=end d=end r=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@3 block drop in inet6 proto ipv6-icmp all
+  [ Skip steps: i=end d=end r=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@4 block return-rst in inet proto tcp all
+  [ Skip steps: i=end d=end r=end p=8 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@5 block return-rst in inet6 proto tcp all
+  [ Skip steps: i=end d=end r=end p=8 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@6 block return-rst(ttl 10) in inet proto tcp all
+  [ Skip steps: i=end d=end r=end p=8 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@7 block return-rst(ttl 10) in inet6 proto tcp all
+  [ Skip steps: i=end d=end r=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@8 block return-icmp(port-unr) in inet proto icmp all
+  [ Skip steps: i=end d=end r=end f=13 p=13 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@9 block return-icmp(net-unr) in inet proto icmp all
+  [ Skip steps: i=end d=end r=end f=13 p=13 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@10 block return-icmp(srcfail) in inet proto icmp all
+  [ Skip steps: i=end d=end r=end f=13 p=13 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@11 block return-icmp(host-prohib) in inet proto icmp all
+  [ Skip steps: i=end d=end r=end f=13 p=13 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@12 block return-icmp(cutoff-preced) in inet proto icmp all
+  [ Skip steps: i=end d=end r=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@13 block return-icmp6(port-unr) in inet6 proto ipv6-icmp all
+  [ Skip steps: i=end d=end r=end f=18 p=18 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@14 block return-icmp6(noroute-unr) in inet6 proto ipv6-icmp all
+  [ Skip steps: i=end d=end r=end f=18 p=18 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@15 block return-icmp6(admin-unr) in inet6 proto ipv6-icmp all
+  [ Skip steps: i=end d=end r=end f=18 p=18 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@16 block return-icmp6(beyond-unr) in inet6 proto ipv6-icmp all
+  [ Skip steps: i=end d=end r=end f=18 p=18 sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@17 block return-icmp6(addr-unr) in inet6 proto ipv6-icmp all
+  [ Skip steps: i=end d=end r=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@18 block return-icmp(srcfail, admin-unr) in all
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

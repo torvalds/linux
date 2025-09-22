@@ -1,0 +1,314 @@
+.\"	$OpenBSD: fstab.5,v 1.55 2023/07/07 13:21:28 job Exp $
+.\"	$NetBSD: fstab.5,v 1.5.2.1 1995/11/16 20:11:11 pk Exp $
+.\"
+.\" Copyright (c) 1980, 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
+.\"
+.Dd $Mdocdate: July 7 2023 $
+.Dt FSTAB 5
+.Os
+.Sh NAME
+.Nm fstab
+.Nd static information about the filesystems
+.Sh SYNOPSIS
+.In fstab.h
+.Sh DESCRIPTION
+The
+.Nm
+file contains descriptive information about the various file systems.
+.Nm
+is only read by programs, and not written;
+it is the duty of the system administrator to properly create
+and maintain this file.
+Each filesystem is described on a separate line;
+fields on each line are separated by tabs or spaces.
+Lines beginning with the
+.Sq #
+character are comments and are ignored.
+The order of records in
+.Nm
+is important because
+.Xr fsck 8
+and
+.Xr mount 8
+sequentially iterate through
+.Nm
+doing their thing.
+.Pp
+A line has the following format:
+.Bd -literal -offset indent
+fs_spec fs_file fs_vfstype fs_mntops fs_freq fs_passno
+.Ed
+.Pp
+The first field,
+.Fa fs_spec ,
+describes the block special device or remote filesystem to be mounted.
+A block special device may be specified by pathname
+or by
+.Xr disklabel 8
+UID (DUID).
+For filesystems of type MFS
+the special file name is typically that of the primary swap area;
+if the keyword
+.Dq swap
+is used instead of a special file name,
+default configuration parameters are used.
+If a program needs the character special file name,
+the program must create it by appending an
+.Sq r
+after the last
+.Sq /
+in the special file name.
+.Pp
+The second field,
+.Fa fs_file ,
+describes the mount point for the filesystem.
+For swap partitions, this field should be specified as
+.Dq none .
+.Pp
+The third field,
+.Fa fs_vfstype ,
+describes the type of the filesystem.
+The system currently supports the following types of filesystems:
+.Pp
+.Bl -tag -width indent -offset indent -compact
+.It cd9660
+An ISO 9660 CD-ROM filesystem.
+.It ext2fs
+A local Linux compatible ext2fs
+filesystem.
+.It ffs
+A local
+.Ux
+filesystem.
+.It mfs
+A local memory-based
+.Ux
+filesystem.
+.It msdos
+An
+.Tn MS-DOS
+FAT filesystem.
+.It nfs
+A Sun Microsystems compatible Network File System.
+.It ntfs
+An NTFS filesystem.
+.It swap
+A disk partition to be used for swapping.
+.It tmpfs
+A local memory-based
+.Ux
+filesystem.
+.It udf
+A UDF filesystem.
+.It vnd
+A VND image file.
+.El
+.Pp
+The fourth field,
+.Fa fs_mntops ,
+describes the mount options associated with the filesystem.
+It is formatted as a comma separated list of options.
+It contains at least the type of mount (see
+.Fa fs_type
+below) plus any additional options appropriate to the filesystem type.
+.Pp
+The option
+.Dq auto
+can be used in the
+.Dq noauto
+form to cause
+a file system not to be mounted automatically (with
+.Ic mount -A
+or
+.Ic mount -a ,
+or at system boot time).
+Similarly, the option
+.Dq net
+can be used to cause a file system to be considered only if the
+.Fl N
+flag is passed to
+.Xr mount 8
+or
+.Xr fsck 8 .
+.Pp
+If the options
+.Dq userquota
+and/or
+.Dq groupquota
+are specified, the filesystem is automatically processed by the
+.Xr quotacheck 8
+command, and user and/or group disk quotas are enabled with
+.Xr quotaon 8 .
+By default, filesystem quotas are maintained in files named
+.Pa quota.user
+and
+.Pa quota.group
+which are located at the root of the associated filesystem.
+These defaults may be overridden by putting an equal sign
+and an alternative absolute pathname following the quota option.
+Thus, if the user quota file for
+.Pa /tmp
+is stored in
+.Pa /var/quotas/tmp.user ,
+this location can be specified as:
+.Bd -literal -offset indent
+userquota=/var/quotas/tmp.user
+.Ed
+.Pp
+The type of the mount is extracted from the first parameter of the
+.Fa fs_mntops
+field and stored separately in the
+.Fa fs_type
+field (it is not deleted from the
+.Fa fs_mntops
+field).
+If
+.Fa fs_type
+is
+.Dq rw ,
+.Dq rq ,
+or
+.Dq ro
+then the filesystem whose name is given in the
+.Fa fs_file
+field is normally mounted read-write or read-only on the
+specified special file.
+If
+.Fa fs_type
+is
+.Dq sw
+then the special file is made available as a piece of swap space by the
+.Xr swapon 8
+command at the end of the system reboot procedure.
+The fields other than
+.Fa fs_spec
+and
+.Fa fs_type
+are unused.
+If
+.Fa fs_type
+is specified as
+.Dq xx ,
+the entry is ignored.
+This is useful to show disk partitions which are currently unused.
+.Pp
+The fifth field,
+.Fa fs_freq ,
+is used by the
+.Fl W
+and
+.Fl w
+options of
+.Xr dump 8
+to recommend which filesystems should be backed up.
+The value specifies the number of days
+after which a dump is regarded as being old;
+if it is not present, a value of zero is returned and
+.Xr dump 8
+will assume that the filesystem does not need to be dumped.
+.Pp
+The sixth field,
+.Fa fs_passno ,
+is used by the
+.Xr fsck 8
+program to determine the order in which filesystem checks are done
+at reboot time.
+The root filesystem should be specified with a
+.Fa fs_passno
+of 1, and other filesystems should have a
+.Fa fs_passno
+of 2.
+Filesystems within a drive will be checked sequentially,
+but filesystems on different drives will be checked at the
+same time to utilize parallelism available in the hardware.
+If the sixth field is not present or is zero,
+a value of zero is returned and
+.Xr fsck 8
+will assume that the filesystem does not need to be checked.
+.Bd -literal
+#define	FSTAB_RW	"rw"	/* read/write device */
+#define	FSTAB_RQ	"rq"	/* read/write with quotas */
+#define	FSTAB_RO	"ro"	/* read-only device */
+#define	FSTAB_SW	"sw"	/* swap device */
+#define	FSTAB_XX	"xx"	/* ignore totally */
+
+struct fstab {
+	char	*fs_spec;	/* block special device name */
+	char	*fs_file;	/* filesystem path prefix */
+	char	*fs_vfstype;	/* type of filesystem */
+	char	*fs_mntops;	/* comma separated mount options */
+	char	*fs_type;	/* rw, rq, ro, sw, or xx */
+	int	fs_freq;	/* dump frequency, in days */
+	int	fs_passno;	/* pass number on parallel fsck */
+};
+.Ed
+.Pp
+The proper way to read records from
+.Pa fstab
+is to use the routines
+.Xr getfsent 3 ,
+.Xr getfsspec 3 ,
+and
+.Xr getfsfile 3 .
+.Sh FILES
+.Bl -tag -width /etc/fstab -compact
+.It Pa /etc/fstab
+.El
+.Sh EXAMPLES
+Here is a sample
+.Pa /etc/fstab
+file:
+.Bd -literal -offset indent
+/dev/sd0b none swap sw
+/dev/sd1b none swap sw
+/dev/sd0a / ffs rw 1 1
+/dev/sd0e /var ffs rw,nodev,nosuid 1 2
+#/dev/sd0f /tmp ffs rw,nodev,nosuid 1 2
+swap /tmp mfs rw,nodev,nosuid,-s=153600 0 0
+/dev/sd0g /usr ffs rw,nodev 1 2
+/dev/sd0h /usr/local ffs rw,nodev 1 2
+/dev/sd0i /home ffs rw,nodev,nosuid 1 2
+/dev/sd0j /usr/src ffs rw,nodev,nosuid 1 2
+/dev/cd0a /cdrom cd9660 ro,noauto 0 0
+5b27c2761a9b0b06.i /mnt/key msdos rw,noauto 0 0
+server:/export/ports /usr/ports nfs rw,nodev,nosuid,soft,intr 0 0
+.Ed
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr getfsent 3 ,
+.Xr fsck 8 ,
+.Xr mount 8 ,
+.Xr quotacheck 8 ,
+.Xr quotaon 8
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.0 .

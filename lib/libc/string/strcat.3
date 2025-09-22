@@ -1,0 +1,76 @@
+.\"	$OpenBSD: strcat.3,v 1.19 2022/08/01 00:04:46 jsg Exp $
+.\"
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 1 2022 $
+.Dt STRCAT 3
+.Os
+.Sh NAME
+.Nm strcat
+.Nd concatenate two strings without bounds checking
+.Sh SYNOPSIS
+.In string.h
+.Ft char *
+.Fn strcat "char *dst" "const char *append"
+.Sh DESCRIPTION
+The
+.Fn strcat
+function appends a copy of the NUL-terminated string
+.Fa append
+to the end of the NUL-terminated string
+.Fa dst ,
+then adds a terminating
+.Ql \e0 .
+.Pp
+No bounds checking is performed.
+If the buffer
+.Fa dst
+is not large enough to hold the result,
+subsequent memory will be damaged.
+.Sh RETURN VALUES
+The
+.Fn strcat
+function return the pointer
+.Fa dst .
+.Sh SEE ALSO
+.Xr strlcpy 3 ,
+.Xr wcscat 3 ,
+.Xr wcslcpy 3
+.Sh STANDARDS
+The
+.Fn strcat
+function conforms to
+.St -ansiC .
+.Sh HISTORY
+The
+.Fn strcat
+function first appeared outside of Bell Labs in PWB/UNIX 1.0.

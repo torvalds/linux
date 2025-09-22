@@ -1,0 +1,80 @@
+.\"	$OpenBSD: i386_iopl.2,v 1.20 2025/06/05 18:47:18 schwarze Exp $
+.\"	$NetBSD: i386_iopl.2,v 1.3 1996/02/27 22:57:25 jtc Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by John T. Kohl and Charles M. Hannum.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 5 2025 $
+.Dt I386_IOPL 2 i386
+.Os
+.Sh NAME
+.Nm i386_iopl
+.Nd change the i386 I/O privilege level
+.Sh SYNOPSIS
+.Lb libi386
+.In sys/types.h
+.In machine/sysarch.h
+.Ft int
+.Fn i386_iopl "int iopl"
+.Sh DESCRIPTION
+.Fn i386_iopl
+sets the i386 I/O privilege level to the value specified by
+.Ar iopl .
+.Pp
+This call may only be made by the superuser.
+Additionally, it is only permitted when the
+.Xr securelevel 7
+is less than or equal to 0 or the
+.Va machdep.allowaperture
+sysctl has been set to a non-zero value.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn i386_iopl
+returns 0.
+Otherwise, a value of \-1 is returned and the global
+variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn i386_iopl
+will fail if:
+.Bl -tag -width [EINVAL]
+.It Bq Er EPERM
+The caller was not the superuser, or the securelevel is greater than zero and
+.Va machdep.allowaperture
+has not been set to a non-zero value.
+.El
+.Sh SEE ALSO
+.Xr securelevel 7
+.Sh REFERENCES
+.Rs
+.%A Intel
+.%T i386 Microprocessor Programmer's Reference Manual
+.Re
+.Sh WARNING
+You can really hose your machine if you enable user-level I/O and
+write to hardware ports without care.

@@ -1,0 +1,70 @@
+
+Specification for the unbound-control protocol.
+
+Server listens on 8953 TCP (localhost by default). Client connects,
+SSLv3 or TLSv1 connection setup (server selfsigned certificate, 
+client has cert signed by server certificate).
+
+Port 8953 is registered with IANA as:
+ub-dns-control  8953/tcp    unbound dns nameserver control
+# Wouter Wijngaards <wouter&nlnetlabs.nl> 10 May 2011
+On may 11 2011, ticket [IANA #442315].
+
+Query and Response
+------------------
+Client sends 
+	UBCT[version] [commandline] \n
+	fixed string UBCT1 (for version 1), then an ascii text line,
+	with a command, some whitespace allowed. Line ends with '\n'.
+
+Server executes command. And sends reply in ascii text over channel, 
+closes the channel when done.
+	in case of error the first line of the response is:
+		error <descriptive text possible> \n
+	or the remainder is data of the response, for many commands the 
+	response is 'ok\n'.
+
+Queries and responses
+---------------------
+stop
+	stops the server.
+reload
+	reloads the config file, and flushes the cache.
+verbosity <new value>
+	Change logging verbosity to new value.
+stats
+	output is a list of [name]=[value] lines.
+	clears the counters.
+dump_cache
+	output is a text representation of the cache contents.
+	data ends with a line 'EOF' before connection close.
+load_cache
+	client sends cache contents (like from dump_cache), which is stored 
+	in the cache. end of data indicated with a line with 'EOF' on it.
+	The data is sent after the query line.
+flush <name>
+	flushes some information regarding the name from the cache.
+	removes the A, AAAA, NS, SOA, CNAME, DNAME, MX, PTR, SRV, NAPTR types.
+	Does not remove other types.
+flush_type <name> <RR type>
+	removes rrtype entry from the cache.
+flush_zone <name>
+	removes name and everything below that name from the cache.
+	has to search through the cache item by item, so this is slow.
+lookup <name>
+	see what servers would be queried for a lookup of the given name.
+local_zone_remove <name of local-zone entry>
+	the local-zone entry is removed.
+	All data from the local zone is also deleted.
+	If it did not exist, nothing happens.
+local_zone <name of local zone> <type>
+	As the config file entry. Adds new local zone or updates
+	existing zone type.
+local_data_remove <name>
+	Removes local-data (all types) name.
+local_data <resource record string>
+	Add new local data record (on the rest of the line).
+	local_data_add www.example.com. IN A 192.0.2.2
+	if no local_zone exists for it; a transparent zone with the same
+	name as the data is created.
+Other commands in the unbound-control manual page.

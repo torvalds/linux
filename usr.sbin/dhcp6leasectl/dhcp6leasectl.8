@@ -1,0 +1,71 @@
+.\"	$OpenBSD: dhcp6leasectl.8,v 1.2 2024/06/07 17:38:22 jmc Exp $
+.\"
+.\" Copyright (c) 2021 Florian Obser <florian@openbsd.org>
+.\" Copyright (c) 2016 Kenneth R Westerback <kwesterback@gmail.com>
+.\" Copyright (c) 2004, 2005 Esben Norby <norby@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 7 2024 $
+.Dt DHCP6LEASECTL 8
+.Os
+.Sh NAME
+.Nm dhcp6leasectl
+.Nd control the dhcp6leased client
+.Sh SYNOPSIS
+.Nm
+.Op Fl l
+.Op Fl s Ar socket
+.Op Fl w Ar maxwait
+.Ar interface
+.Sh DESCRIPTION
+The
+.Nm
+program instructs the
+.Xr dhcp6leased 8
+daemon to request a new lease.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl l
+List the configured lease on
+.Ar interface
+instead of requesting a new lease.
+.It Fl s Ar socket
+Use
+.Ar socket
+instead of the default
+.Pa /dev/dhcp6leased.sock
+to communicate with
+.Xr dhcp6leased 8 .
+.It Fl w Ar maxwait
+Specify the maximum number of seconds to wait for
+.Ar interface
+to be configured.
+The default is 10 seconds.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/dhcp6leased.sockXX" -compact
+.It Pa /dev/dhcp6leased.sock
+.Ux Ns -domain
+socket used for communication with
+.Xr dhcp6leased 8 .
+.El
+.Sh SEE ALSO
+.Xr dhcp6leased.conf 5 ,
+.Xr dhcp6leased 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 7.6 .

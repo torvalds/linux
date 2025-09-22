@@ -1,0 +1,44 @@
+$OpenBSD: PkgCfl.pod,v 1.1 2020/12/20 15:30:58 daniel Exp $
+
+=head1 NAME
+
+OpenBSD::PkgCfl - C<pkg_create(1)> C<@conflict> handling
+
+=head1 SYNOPSIS
+
+    use OpenBSD::PkgCfl;
+
+    $clist = OpenBSD::PkgCfl->make_conflicts_list($plist);
+    @cfls = $clist->conflicts_with(@pkgnames);
+
+    OpenBSD::PkgCfl::register($plist, $state);
+    OpenBSD::PkgCfl::unregister($plist, $state);
+    @cfls = OpenBSD::PkgCfl::find_all($plist, $state);
+
+=head1 DESCRIPTION
+
+C<OpenBSD::PkgCfl> is the canonical interface to packing-list conflict
+handling.
+
+Conflict information can be extracted from a packing-list
+(see L<OpenBSD::PackingList>) through the
+C<OpenBSD::PkgCfl> class method. The result is an opaque object C<$clist> that
+can be queried to find out which package names conflict with the
+packing-list.   A query of the form C<$clist-E<gt>conflicts_with(@pkgnames)>
+will extract from the list the package names that actually conflict with
+the packing-list.
+
+Most handling of conflict information happens through the higher level
+interface: C<OpenBSD::PkgCfl::register>, C<OpenBSD::PkgCfl::unregister>
+and C<OpenBSD::PkgCfl::find_all>.  Package tools usually handle installed
+packages, and this interface automatically takes the initial set of installed
+packages into account. The C<register> and C<unregister> functions must
+be used to add and remove a packing-list from the set of installed packages,
+where conflict information is concerned.
+
+The C<find_all> function can be used to find out about all possible conflicts
+a new packing-list will entail, before actually adding the package.
+
+The extra argument C<$state> is a hash used to record system-wide options.
+In this case, it acts as a hidden object that records all conflict
+information. The hash key C<conflict_list> is reserved for that purpose.

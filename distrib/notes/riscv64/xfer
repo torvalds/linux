@@ -1,0 +1,9 @@
+dnl	$OpenBSD: xfer,v 1.1 2021/05/02 23:48:14 drahn Exp $
+
+Installation is supported from a media type, including:
+
+	Image files
+
+OpenBSDXferShortPrelude
+
+OpenBSDXferFFS

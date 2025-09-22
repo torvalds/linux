@@ -1,0 +1,11 @@
+/"nfs_prot.h"/a
+#include "am.h"
+#include <arpa/inet.h>
+.
+/_msgout(/-1,/^}/d
+/_msgout/;+1c
+		plog(XLOG_FATAL, "unable to free rpc arguments in nfs_program");
+		going_down(1);
+.
+g/_rpcsvcdirty/d
+wq

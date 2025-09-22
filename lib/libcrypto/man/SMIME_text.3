@@ -1,0 +1,61 @@
+.\" $OpenBSD: SMIME_text.3,v 1.3 2025/06/11 13:48:54 schwarze Exp $
+.\"
+.\" Copyright (c) 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 11 2025 $
+.Dt SMIME_TEXT 3
+.Os
+.Sh NAME
+.Nm SMIME_text
+.Nd remove text/plain MIME headers
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft int
+.Fo SMIME_text
+.Fa "BIO *in_bio"
+.Fa "BIO *out_bio"
+.Fc
+.Sh DESCRIPTION
+.Fn SMIME_text
+reads MIME headers from
+.Fa in_bio ,
+checks that the content type is
+.Dq text/plain ,
+discards the MIME headers,
+and copies the text that follows the headers from
+.Fa in_bio
+to
+.Fa out_bio .
+.Sh RETURN VALUES
+.Fn SMIME_text
+returns 1 on success or 0 if memory allocation, reading the input,
+or parsing the MIME headers fails, if there is no
+.Dq content-type
+header, or if the content type is not
+.Dq text/plain .
+.Sh SEE ALSO
+.Xr SMIME_crlf_copy 3 ,
+.Xr SMIME_read_CMS 3 ,
+.Xr SMIME_read_PKCS7 3 ,
+.Xr SMIME_write_CMS 3 ,
+.Xr SMIME_write_PKCS7 3
+.Sh HISTORY
+.Fn SMIME_text
+first appeared in OpenSSL 1.0.0 and has been available since
+.Ox 4.9 .
+.Sh CAVEATS
+.Fn SMIME_text
+does not support non-blocking BIOs.

@@ -1,0 +1,70 @@
+.\"	$OpenBSD: aps.4,v 1.10 2013/07/16 16:05:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt APS 4
+.Os
+.Sh NAME
+.Nm aps
+.Nd ThinkPad Active Protection System accelerometer
+.Sh SYNOPSIS
+.Cd "aps0 at isa? port 0x1600"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for several sensors found in some ThinkPad laptops.
+.Pp
+The sensors currently exposed via the
+.Xr sysctl 8
+interface are:
+.Bl -column "Keyboard Active" "Unknown" "Typical Use" -offset indent
+.It Sy "Sensor" Ta Sy "Units" Ta Sy "Typical Use"
+.It Li "X_ACCEL" Ta "Unknown" Ta "X Acceleration"
+.It Li "Y_ACCEL" Ta "Unknown" Ta "Y Acceleration"
+.It Li "X_VAR" Ta "Unknown" Ta "Weighted X Acceleration?"
+.It Li "Y_VAR" Ta "Unknown" Ta "Weighted Y Acceleration?"
+.It Li "Temp1" Ta "uK" Ta "Unknown"
+.It Li "Temp2" Ta "uK" Ta "Unknown"
+.It Li "Keyboard Active" Ta "boolean" Ta "Keyboard activity"
+.It Li "Mouse Active" Ta "boolean" Ta "Mouse activity"
+.It Li "Lid Open" Ta "boolean" Ta "Lid state"
+.El
+.Sh SEE ALSO
+.Xr isa 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.8 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jonathan Gray Aq Mt jsg@openbsd.org .
+.Sh CAVEATS
+The
+.Nm
+driver does not yet maintain state and subsequently does not take
+evasive action when it thinks the hard drive is in danger.
+.Pp
+The Y axis on X40 and possibly other models seems to be inverted.
+It is unknown how to distinguish between different versions of the
+accelerometer to compensate for this in the driver at this time.
+.Pp
+As IBM provides no documentation, it is not known what all the available
+sensors are used for.

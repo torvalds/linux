@@ -1,0 +1,164 @@
+.\"	$OpenBSD: SSL_CTX_set_cert_verify_callback.3,v 1.6 2025/06/08 22:52:00 schwarze Exp $
+.\"	OpenSSL b97fdb57 Nov 11 09:33:09 2016 +0100
+.\"
+.\" This file was written by Lutz Jaenicke <jaenicke@openssl.org>.
+.\" Copyright (c) 2001, 2002 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt SSL_CTX_SET_CERT_VERIFY_CALLBACK 3
+.Os
+.Sh NAME
+.Nm SSL_CTX_set_cert_verify_callback
+.Nd set peer certificate verification procedure
+.Sh SYNOPSIS
+.Lb libssl libcrypto
+.In openssl/ssl.h
+.Ft void
+.Fo SSL_CTX_set_cert_verify_callback
+.Fa "SSL_CTX *ctx"
+.Fa "int (*callback)(X509_STORE_CTX *, void *)"
+.Fa "void *arg"
+.Fc
+.Sh DESCRIPTION
+.Fn SSL_CTX_set_cert_verify_callback
+sets the verification callback function for
+.Fa ctx .
+.Vt SSL
+objects that are created from
+.Fa ctx
+inherit the setting valid at the time when
+.Xr SSL_new 3
+is called.
+.Pp
+Whenever a certificate is verified during a SSL/TLS handshake,
+a verification function is called.
+If the application does not explicitly specify a verification callback
+function, the built-in verification function is used.
+If a verification callback
+.Fa callback
+is specified via
+.Fn SSL_CTX_set_cert_verify_callback ,
+the supplied callback function is called instead.
+By setting
+.Fa callback
+to
+.Dv NULL ,
+the default behaviour is restored.
+.Pp
+When the verification must be performed,
+.Fa callback
+will be called with the arguments
+.Fn callback "X509_STORE_CTX *x509_store_ctx" "void *arg" .
+The argument
+.Fa arg
+is specified by the application when setting
+.Fa callback .
+.Pp
+.Fa callback
+should return 1 to indicate verification success and 0 to indicate verification
+failure.
+If
+.Dv SSL_VERIFY_PEER
+is set and
+.Fa callback
+returns 0, the handshake will fail.
+As the verification procedure may allow the connection to continue in case of
+failure (by always returning 1) the verification result must be set in any case
+using the
+.Fa error
+member of
+.Fa x509_store_ctx
+so that the calling application will be informed about the detailed result of
+the verification procedure!
+.Pp
+Within
+.Fa x509_store_ctx ,
+.Fa callback
+has access to the
+.Fa verify_callback
+function set using
+.Xr SSL_CTX_set_verify 3 .
+.Sh SEE ALSO
+.Xr ssl 3 ,
+.Xr SSL_CTX_load_verify_locations 3 ,
+.Xr SSL_CTX_set_verify 3 ,
+.Xr SSL_get_verify_result 3
+.Sh HISTORY
+.Fn SSL_CTX_set_cert_verify_callback
+first appeared in SSLeay 0.6.1 and has been available since
+.Ox 2.4 .
+.Pp
+Previous to OpenSSL 0.9.7, the
+.Fa arg
+argument to
+.Fn SSL_CTX_set_cert_verify_callback
+was ignored, and
+.Fa callback
+was called
+simply as
+.Ft int
+.Fn (*callback) "X509_STORE_CTX *" .
+To compile software written for previous versions of OpenSSL,
+a dummy argument will have to be added to
+.Fa callback .
+.Sh CAVEATS
+Do not mix the verification callback described in this function with the
+.Fa verify_callback
+function called during the verification process.
+The latter is set using the
+.Xr SSL_CTX_set_verify 3
+family of functions.
+.Pp
+Providing a complete verification procedure including certificate purpose
+settings, etc., is a complex task.
+The built-in procedure is quite powerful and in most cases it should be
+sufficient to modify its behaviour using the
+.Fa verify_callback
+function.
+.Sh BUGS
+.Fn SSL_CTX_set_cert_verify_callback
+does not provide diagnostic information.

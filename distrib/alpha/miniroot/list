@@ -1,0 +1,94 @@
+#	$OpenBSD: list,v 1.5 2021/07/18 15:18:47 deraadt Exp $
+
+SRCDIRS distrib/special
+
+# copy the crunched binary, link to it, and kill it
+COPY	${OBJDIR}/instbin			instbin
+LINK	instbin					bin/arch
+LINK	instbin					bin/cat
+LINK	instbin					bin/chmod bin/chgrp sbin/chown
+LINK	instbin					bin/cp
+LINK	instbin					bin/date
+LINK	instbin					bin/dd
+LINK	instbin					bin/df
+LINK	instbin					bin/ed
+LINK	instbin					bin/hostname
+LINK	instbin					bin/ksh bin/sh
+LINK	instbin					bin/ln
+LINK	instbin					bin/ls
+LINK	instbin					bin/md5 bin/sha256 bin/sha512
+LINK	instbin					bin/mkdir
+LINK	instbin					bin/mt bin/eject
+LINK	instbin					bin/mv
+LINK	instbin					bin/pax bin/tar
+LINK	instbin					bin/rm
+LINK	instbin					bin/sleep
+LINK	instbin					bin/stty
+LINK	instbin					bin/sync
+LINK	instbin					sbin/bioctl
+LINK	instbin					sbin/dhcpleased
+LINK	instbin					sbin/disklabel
+LINK	instbin					sbin/dmesg
+LINK	instbin					sbin/fsck
+LINK	instbin					sbin/fsck_ffs
+LINK	instbin					sbin/growfs
+LINK	instbin					sbin/ifconfig
+LINK	instbin					sbin/init
+LINK	instbin					sbin/mknod
+LINK	instbin					sbin/mount
+LINK	instbin					sbin/mount_cd9660
+LINK	instbin					sbin/mount_ffs
+LINK	instbin					sbin/newfs
+LINK	instbin					sbin/ping sbin/ping6
+LINK	instbin					sbin/reboot sbin/halt
+LINK	instbin					sbin/resolvd
+LINK	instbin					sbin/route
+LINK	instbin					sbin/slaacd
+LINK	instbin					sbin/sysctl
+LINK	instbin					sbin/umount
+LINK	instbin					usr/bin/doas
+LINK	instbin					usr/bin/encrypt
+LINK	instbin					usr/bin/ftp
+LINK	instbin					usr/bin/grep usr/bin/egrep usr/bin/fgrep
+LINK	instbin					usr/bin/gzip usr/bin/gunzip usr/bin/gzcat
+LINK	instbin					usr/bin/more usr/bin/less
+LINK	instbin					usr/bin/sed
+LINK	instbin					usr/bin/signify
+LINK	instbin					usr/bin/tee
+LINK	instbin					usr/sbin/chroot
+LINK	instbin					usr/sbin/pwd_mkdb
+ARGVLINK ksh					-sh
+SPECIAL	rm bin/md5
+
+# firmware we might need
+#COPY	${DESTDIR}/etc/firmware/tigon1		etc/firmware/tigon1
+#COPY	${DESTDIR}/etc/firmware/tigon2		etc/firmware/tigon2
+COPY	${DESTDIR}/etc/firmware/kue		etc/firmware/kue
+COPY	${DESTDIR}/etc/firmware/3c990		etc/firmware/3c990
+
+# copy the MAKEDEV script and make some devices
+SCRIPT	${DESTDIR}/dev/MAKEDEV			dev/MAKEDEV
+SPECIAL	cd dev; sh MAKEDEV ramdisk
+
+# various files that we need in /etc for the install
+COPY	${CURDIR}/../../miniroot/group		etc/group
+COPY	${CURDIR}/../../miniroot/master.passwd	etc/master.passwd
+SPECIAL	pwd_mkdb -p -d etc master.passwd; rm etc/master.passwd
+COPY	${DESTDIR}/etc/signify/openbsd-${OSrev}-base.pub	etc/signify/openbsd-${OSrev}-base.pub
+COPY	${CURDIR}/../../miniroot/protocols	etc/protocols
+COPY	${CURDIR}/../../miniroot/services	etc/services
+TERMCAP	vt100,vt220,dumb			usr/share/misc/termcap
+
+SYMLINK	/tmp/i/fstab.shadow			etc/fstab
+SYMLINK	/tmp/i/hosts				etc/hosts
+
+# and the installation tools
+SCRIPT	${CURDIR}/../../miniroot/dot.profile	.profile
+SCRIPT	${CURDIR}/../../miniroot/install.sub	install.sub
+SCRIPT	${CURDIR}/install.md			install.md
+SPECIAL	chmod 755 install.sub
+SYMLINK	install.sub				autoinstall
+SYMLINK	install.sub				install
+SYMLINK	install.sub				upgrade
+
+TZ

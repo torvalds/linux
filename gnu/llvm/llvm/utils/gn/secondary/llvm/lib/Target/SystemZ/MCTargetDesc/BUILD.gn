@@ -1,0 +1,63 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("SystemZGenAsmWriter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-asm-writer" ]
+  td_file = "../SystemZ.td"
+}
+
+tablegen("SystemZGenInstrInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-instr-info" ]
+  td_file = "../SystemZ.td"
+}
+
+tablegen("SystemZGenMCCodeEmitter") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-emitter" ]
+  td_file = "../SystemZ.td"
+}
+
+tablegen("SystemZGenRegisterInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-register-info" ]
+  td_file = "../SystemZ.td"
+}
+
+tablegen("SystemZGenSubtargetInfo") {
+  visibility = [ ":MCTargetDesc" ]
+  args = [ "-gen-subtarget" ]
+  td_file = "../SystemZ.td"
+}
+
+static_library("MCTargetDesc") {
+  output_name = "LLVMSystemZDesc"
+
+  # This should contain tablegen targets generating .inc files included
+  # by other targets. .inc files only used by .cpp files in this directory
+  # should be in deps on the static_library instead.
+  public_deps = [
+    ":SystemZGenInstrInfo",
+    ":SystemZGenRegisterInfo",
+    ":SystemZGenSubtargetInfo",
+  ]
+  deps = [
+    ":SystemZGenAsmWriter",
+    ":SystemZGenMCCodeEmitter",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/SystemZ/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "SystemZELFObjectWriter.cpp",
+    "SystemZGOFFObjectWriter.cpp",
+    "SystemZInstPrinter.cpp",
+    "SystemZMCAsmBackend.cpp",
+    "SystemZMCAsmInfo.cpp",
+    "SystemZMCCodeEmitter.cpp",
+    "SystemZMCExpr.cpp",
+    "SystemZMCTargetDesc.cpp",
+  ]
+}

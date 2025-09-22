@@ -1,0 +1,2606 @@
+# This file holds test cases for the demangler.
+# Each test consists of three lines in succession.
+# The first line is arguments to pass to the test filter program.
+# The second line is the mangled string.
+# The third line is the expected output.
+# A line starting with `#' is ignore.
+# However blank lines in this file are NOT ignored.
+#
+--format=gnu
+AddAlignment__9ivTSolverUiP12ivInteractorP7ivTGlue
+ivTSolver::AddAlignment(unsigned int, ivInteractor *, ivTGlue *)
+#
+--format=gnu
+ArrowheadIntersects__9ArrowLineP9ArrowheadR6BoxObjP7Graphic
+ArrowLine::ArrowheadIntersects(Arrowhead *, BoxObj &, Graphic *)
+#
+--format=gnu
+AtEnd__13ivRubberGroup
+ivRubberGroup::AtEnd(void)
+#
+--format=gnu
+BgFilter__9ivTSolverP12ivInteractor
+ivTSolver::BgFilter(ivInteractor *)
+#
+--format=gnu
+Check__6UArrayi
+UArray::Check(int)
+#
+--format=gnu
+CoreConstDecls__8TextCodeR7ostream
+TextCode::CoreConstDecls(ostream &)
+#
+--format=gnu
+Detach__8StateVarP12StateVarView
+StateVar::Detach(StateVarView *)
+#
+--format=gnu
+Done__9ComponentG8Iterator
+Component::Done(Iterator)
+#
+--format=gnu
+Effect__11RelateManipR7ivEvent
+RelateManip::Effect(ivEvent &)
+#
+--format=gnu
+FindFixed__FRP4CNetP4CNet
+FindFixed(CNet *&, CNet *)
+#
+--format=gnu
+Fix48_abort__FR8twolongs
+Fix48_abort(twolongs &)
+#
+--format=gnu
+GetBarInfo__15iv2_6_VScrollerP13ivPerspectiveRiT2
+iv2_6_VScroller::GetBarInfo(ivPerspective *, int &, int &)
+#
+--format=gnu
+GetBgColor__C9ivPainter
+ivPainter::GetBgColor(void) const
+#
+--format=gnu
+InsertBody__15H_PullrightMenuii
+H_PullrightMenu::InsertBody(int, int)
+#
+--format=gnu
+InsertCharacter__9TextManipc
+TextManip::InsertCharacter(char)
+#
+--format=gnu
+InsertToplevel__7ivWorldP12ivInteractorT1
+ivWorld::InsertToplevel(ivInteractor *, ivInteractor *)
+#
+--format=gnu
+InsertToplevel__7ivWorldP12ivInteractorT1iiUi
+ivWorld::InsertToplevel(ivInteractor *, ivInteractor *, int, int, unsigned int)
+#
+--format=gnu
+IsAGroup__FP11GraphicViewP11GraphicComp
+IsAGroup(GraphicView *, GraphicComp *)
+#
+--format=gnu
+IsA__10ButtonCodeUl
+ButtonCode::IsA(unsigned long)
+#
+--format=gnu
+ReadName__FR7istreamPc
+ReadName(istream &, char *)
+#
+--format=gnu
+Redraw__13StringBrowseriiii
+StringBrowser::Redraw(int, int, int, int)
+#
+--format=gnu
+Rotate__13ivTransformerf
+ivTransformer::Rotate(float)
+#
+--format=gnu
+Rotated__C13ivTransformerf
+ivTransformer::Rotated(float) const
+#
+--format=gnu
+Round__Ff
+Round(float)
+#
+--format=gnu
+SetExport__16MemberSharedNameUi
+MemberSharedName::SetExport(unsigned int)
+#
+--format=gnu
+Set__14ivControlState13ControlStatusUi
+ivControlState::Set(ControlStatus, unsigned int)
+#
+--format=gnu
+Set__5DFacePcii
+DFace::Set(char *, int, int)
+#
+--format=gnu
+VConvert__9ivTSolverP12ivInteractorRP8TElementT2
+ivTSolver::VConvert(ivInteractor *, TElement *&, TElement *&)
+#
+--format=gnu
+VConvert__9ivTSolverP7ivTGlueRP8TElement
+ivTSolver::VConvert(ivTGlue *, TElement *&)
+#
+--format=gnu
+VOrder__9ivTSolverUiRP12ivInteractorT2
+ivTSolver::VOrder(unsigned int, ivInteractor *&, ivInteractor *&)
+#
+--format=gnu
+_10PageButton$__both
+PageButton::__both
+#
+--format=gnu
+_3RNG$singleMantissa
+RNG::singleMantissa
+#
+--format=gnu
+_5IComp$_release
+IComp::_release
+#
+--format=gnu
+_$_10BitmapComp
+BitmapComp::~BitmapComp(void)
+#
+--format=gnu
+_$_9__io_defs
+__io_defs::~__io_defs(void)
+#
+--format=gnu
+_$_Q23foo3bar
+foo::bar::~bar(void)
+#
+--format=gnu
+_$_Q33foo3bar4bell
+foo::bar::bell::~bell(void)
+#
+--format=gnu
+__10ivTelltaleiP7ivGlyph
+ivTelltale::ivTelltale(int, ivGlyph *)
+#
+--format=gnu
+__10ivViewportiP12ivInteractorUi
+ivViewport::ivViewport(int, ivInteractor *, unsigned int)
+#
+--format=gnu
+__10ostrstream
+ostrstream::ostrstream(void)
+#
+--format=gnu
+__10ostrstreamPcii
+ostrstream::ostrstream(char *, int, int)
+#
+--format=gnu
+__11BitmapTablei
+BitmapTable::BitmapTable(int)
+#
+--format=gnu
+__12ViewportCodeP12ViewportComp
+ViewportCode::ViewportCode(ViewportComp *)
+#
+--format=gnu
+__12iv2_6_Borderii
+iv2_6_Border::iv2_6_Border(int, int)
+#
+--format=gnu
+__12ivBreak_Listl
+ivBreak_List::ivBreak_List(long)
+#
+--format=gnu
+__14iv2_6_MenuItemiP12ivInteractor
+iv2_6_MenuItem::iv2_6_MenuItem(int, ivInteractor *)
+#
+--format=gnu
+__20DisplayList_IteratorR11DisplayList
+DisplayList_Iterator::DisplayList_Iterator(DisplayList &)
+#
+--format=gnu
+__3fooRT0
+foo::foo(foo &)
+#
+--format=gnu
+__3fooiN31
+foo::foo(int, int, int, int)
+#
+--format=gnu
+__3fooiRT0iT2iT2
+foo::foo(int, foo &, int, foo &, int, foo &)
+#
+--format=gnu
+__6KeyMapPT0
+KeyMap::KeyMap(KeyMap *)
+#
+--format=gnu
+__8ArrowCmdP6EditorUiUi
+ArrowCmd::ArrowCmd(Editor *, unsigned int, unsigned int)
+#
+--format=gnu
+__9F_EllipseiiiiP7Graphic
+F_Ellipse::F_Ellipse(int, int, int, int, Graphic *)
+#
+--format=gnu
+__9FrameDataP9FrameCompi
+FrameData::FrameData(FrameComp *, int)
+#
+--format=gnu
+__9HVGraphicP9CanvasVarP7Graphic
+HVGraphic::HVGraphic(CanvasVar *, Graphic *)
+#
+--format=gnu
+__Q23foo3bar
+foo::bar::bar(void)
+#
+--format=gnu
+__Q33foo3bar4bell
+foo::bar::bell::bell(void)
+#
+--format=gnu
+__aa__3fooRT0
+foo::operator&&(foo &)
+#
+--format=gnu
+__aad__3fooRT0
+foo::operator&=(foo &)
+#
+--format=gnu
+__ad__3fooRT0
+foo::operator&(foo &)
+#
+--format=gnu
+__adv__3fooRT0
+foo::operator/=(foo &)
+#
+--format=gnu
+__aer__3fooRT0
+foo::operator^=(foo &)
+#
+--format=gnu
+__als__3fooRT0
+foo::operator<<=(foo &)
+#
+--format=gnu
+__amd__3fooRT0
+foo::operator%=(foo &)
+#
+--format=gnu
+__ami__3fooRT0
+foo::operator-=(foo &)
+#
+--format=gnu
+__aml__3FixRT0
+Fix::operator*=(Fix &)
+#
+--format=gnu
+__aml__5Fix16i
+Fix16::operator*=(int)
+#
+--format=gnu
+__aml__5Fix32RT0
+Fix32::operator*=(Fix32 &)
+#
+--format=gnu
+__aor__3fooRT0
+foo::operator|=(foo &)
+#
+--format=gnu
+__apl__3fooRT0
+foo::operator+=(foo &)
+#
+--format=gnu
+__ars__3fooRT0
+foo::operator>>=(foo &)
+#
+--format=gnu
+__as__3fooRT0
+foo::operator=(foo &)
+#
+--format=gnu
+__cl__3fooRT0
+foo::operator()(foo &)
+#
+--format=gnu
+__cl__6Normal
+Normal::operator()(void)
+#
+--format=gnu
+__cl__6Stringii
+String::operator()(int, int)
+#
+--format=gnu
+__cm__3fooRT0
+foo::operator, (foo &)
+#
+--format=gnu
+__co__3foo
+foo::operator~(void)
+#
+--format=gnu
+__dl__3fooPv
+foo::operator delete(void *)
+#
+--format=gnu
+__dv__3fooRT0
+foo::operator/(foo &)
+#
+--format=gnu
+__eq__3fooRT0
+foo::operator==(foo &)
+#
+--format=gnu
+__er__3fooRT0
+foo::operator^(foo &)
+#
+--format=gnu
+__ge__3fooRT0
+foo::operator>=(foo &)
+#
+--format=gnu
+__gt__3fooRT0
+foo::operator>(foo &)
+#
+--format=gnu
+__le__3fooRT0
+foo::operator<=(foo &)
+#
+--format=gnu
+__ls__3fooRT0
+foo::operator<<(foo &)
+#
+--format=gnu
+__ls__FR7ostreamPFR3ios_R3ios
+operator<<(ostream &, ios &(*)(ios &))
+#
+--format=gnu
+__ls__FR7ostreamR3Fix
+operator<<(ostream &, Fix &)
+#
+--format=gnu
+__lt__3fooRT0
+foo::operator<(foo &)
+#
+--format=gnu
+__md__3fooRT0
+foo::operator%(foo &)
+#
+--format=gnu
+__mi__3fooRT0
+foo::operator-(foo &)
+#
+--format=gnu
+__ml__3fooRT0
+foo::operator*(foo &)
+#
+--format=gnu
+__mm__3fooi
+foo::operator--(int)
+#
+--format=gnu
+__ne__3fooRT0
+foo::operator!=(foo &)
+#
+--format=gnu
+__nt__3foo
+foo::operator!(void)
+#
+--format=gnu
+__nw__3fooi
+foo::operator new(int)
+#
+--format=gnu
+__oo__3fooRT0
+foo::operator||(foo &)
+#
+--format=gnu
+__opPc__3foo
+foo::operator char *(void)
+#
+--format=gnu
+__opi__3foo
+foo::operator int(void)
+#
+--format=gnu
+__or__3fooRT0
+foo::operator|(foo &)
+#
+--format=gnu
+__pl__3fooRT0
+foo::operator+(foo &)
+#
+--format=gnu
+__pp__3fooi
+foo::operator++(int)
+#
+--format=gnu
+__rf__3foo
+foo::operator->(void)
+#
+--format=gnu
+__rm__3fooRT0
+foo::operator->*(foo &)
+#
+--format=gnu
+__rs__3fooRT0
+foo::operator>>(foo &)
+#
+--format=gnu
+_new_Fix__FUs
+_new_Fix(unsigned short)
+#
+--format=gnu
+_vt.foo
+foo virtual table
+#
+--format=gnu
+_vt.foo.bar
+foo::bar virtual table
+#
+--format=gnu
+_vt$foo
+foo virtual table
+#
+--format=gnu
+_vt$foo$bar
+foo::bar virtual table
+#
+--format=gnu
+append__7ivGlyphPT0
+ivGlyph::append(ivGlyph *)
+#
+--format=gnu
+clearok__FP7_win_sti
+clearok(_win_st *, int)
+#
+--format=gnu
+complexfunc2__FPFPc_i
+complexfunc2(int (*)(char *))
+#
+--format=gnu
+complexfunc3__FPFPFPl_s_i
+complexfunc3(int (*)(short (*)(long *)))
+#
+--format=gnu
+complexfunc4__FPFPFPc_s_i
+complexfunc4(int (*)(short (*)(char *)))
+#
+--format=gnu
+complexfunc5__FPFPc_PFl_i
+complexfunc5(int (*(*)(char *))(long))
+#
+--format=gnu
+complexfunc6__FPFPi_PFl_i
+complexfunc6(int (*(*)(int *))(long))
+#
+--format=gnu
+complexfunc7__FPFPFPc_i_PFl_i
+complexfunc7(int (*(*)(int (*)(char *)))(long))
+#
+--format=gnu
+foo__FiN30
+foo(int, int, int, int)
+#
+--format=gnu
+foo__FiR3fooiT1iT1
+foo(int, foo &, int, foo &, int, foo &)
+#
+--format=gnu
+foo___3barl
+bar::foo_(long)
+#
+--format=gnu
+insert__15ivClippingStacklRP8_XRegion
+ivClippingStack::insert(long, _XRegion *&)
+#
+--format=gnu
+insert__16ChooserInfo_ListlR11ChooserInfo
+ChooserInfo_List::insert(long, ChooserInfo &)
+#
+--format=gnu
+insert__17FontFamilyRepListlRP15ivFontFamilyRep
+FontFamilyRepList::insert(long, ivFontFamilyRep *&)
+#
+--format=gnu
+leaveok__FP7_win_stc
+leaveok(_win_st *, char)
+#
+--format=gnu
+left_mover__C7ivMFKitP12ivAdjustableP7ivStyle
+ivMFKit::left_mover(ivAdjustable *, ivStyle *) const
+#
+--format=gnu
+overload1arg__FSc
+overload1arg(signed char)
+#
+--format=gnu
+overload1arg__FUc
+overload1arg(unsigned char)
+#
+--format=gnu
+overload1arg__FUi
+overload1arg(unsigned int)
+#
+--format=gnu
+overload1arg__FUl
+overload1arg(unsigned long)
+#
+--format=gnu
+overload1arg__FUs
+overload1arg(unsigned short)
+#
+--format=gnu
+overload1arg__Fc
+overload1arg(char)
+#
+--format=gnu
+overload1arg__Fd
+overload1arg(double)
+#
+--format=gnu
+overload1arg__Ff
+overload1arg(float)
+#
+--format=gnu
+overload1arg__Fi
+overload1arg(int)
+#
+--format=gnu
+overload1arg__Fl
+overload1arg(long)
+#
+--format=gnu
+overload1arg__Fs
+overload1arg(short)
+#
+--format=gnu
+overload1arg__Fv
+overload1arg(void)
+#
+--format=gnu
+overloadargs__Fi
+overloadargs(int)
+#
+--format=gnu
+overloadargs__Fii
+overloadargs(int, int)
+#
+--format=gnu
+overloadargs__Fiii
+overloadargs(int, int, int)
+#
+--format=gnu
+overloadargs__Fiiii
+overloadargs(int, int, int, int)
+#
+--format=gnu
+overloadargs__Fiiiii
+overloadargs(int, int, int, int, int)
+#
+--format=gnu
+overloadargs__Fiiiiii
+overloadargs(int, int, int, int, int, int)
+#
+--format=gnu
+overloadargs__Fiiiiiii
+overloadargs(int, int, int, int, int, int, int)
+#
+--format=gnu
+overloadargs__Fiiiiiiii
+overloadargs(int, int, int, int, int, int, int, int)
+#
+--format=gnu
+overloadargs__Fiiiiiiiii
+overloadargs(int, int, int, int, int, int, int, int, int)
+#
+--format=gnu
+overloadargs__Fiiiiiiiiii
+overloadargs(int, int, int, int, int, int, int, int, int, int)
+#
+--format=gnu
+overloadargs__Fiiiiiiiiiii
+overloadargs(int, int, int, int, int, int, int, int, int, int, int)
+#
+--format=gnu
+poke__8ivRasterUlUlffff
+ivRaster::poke(unsigned long, unsigned long, float, float, float, float)
+#
+--format=gnu
+polar__Fdd
+polar(double, double)
+#
+--format=gnu
+scale__13ivTransformerff
+ivTransformer::scale(float, float)
+#
+--format=gnu
+sgetn__7filebufPci
+filebuf::sgetn(char *, int)
+#
+--format=gnu
+shift__FP5_FrepiT0
+shift(_Frep *, int, _Frep *)
+#
+--format=gnu
+test__C6BitSeti
+BitSet::test(int) const
+#
+--format=gnu
+test__C6BitSetii
+BitSet::test(int, int) const
+#
+--format=gnu
+text_source__8Documentl
+Document::text_source(long)
+#
+--format=gnu
+variance__6Erlangd
+Erlang::variance(double)
+#
+--format=gnu
+view__14DocumentViewerP8ItemViewP11TabularItem
+DocumentViewer::view(ItemView *, TabularItem *)
+#
+--format=gnu
+xy_extents__11ivExtensionffff
+ivExtension::xy_extents(float, float, float, float)
+#
+--format=gnu
+zero__8osMemoryPvUi
+osMemory::zero(void *, unsigned int)
+#
+--format=gnu
+_2T4$N
+T4::N
+#
+--format=gnu
+_Q22T42t1$N
+T4::t1::N
+#
+--format=gnu
+get__2T1
+T1::get(void)
+#
+--format=gnu
+get__Q22T11a
+T1::a::get(void)
+#
+--format=gnu
+get__Q32T11a1b
+T1::a::b::get(void)
+#
+--format=gnu
+get__Q42T11a1b1c
+T1::a::b::c::get(void)
+#
+--format=gnu
+get__Q52T11a1b1c1d
+T1::a::b::c::d::get(void)
+#
+--format=gnu
+put__2T1i
+T1::put(int)
+#
+--format=gnu
+put__Q22T11ai
+T1::a::put(int)
+#
+--format=gnu
+put__Q32T11a1bi
+T1::a::b::put(int)
+#
+--format=gnu
+put__Q42T11a1b1ci
+T1::a::b::c::put(int)
+#
+--format=gnu
+put__Q52T11a1b1c1di
+T1::a::b::c::d::put(int)
+#
+--format=gnu
+bar__3fooPv
+foo::bar(void *)
+#
+--format=gnu
+bar__C3fooPv
+foo::bar(void *) const
+#
+--format=gnu
+__eq__3fooRT0
+foo::operator==(foo &)
+#
+--format=gnu
+__eq__C3fooR3foo
+foo::operator==(foo &) const
+#
+--format=gnu
+elem__t6vector1Zdi
+vector<double>::elem(int)
+#
+--format=gnu
+elem__t6vector1Zii
+vector<int>::elem(int)
+#
+--format=gnu
+__t6vector1Zdi
+vector<double>::vector(int)
+#
+--format=gnu
+__t6vector1Zii
+vector<int>::vector(int)
+#
+--format=gnu
+_$_t6vector1Zdi
+vector<double>::~vector(int)
+#
+--format=gnu
+_$_t6vector1Zii
+vector<int>::~vector(int)
+#
+--format=gnu
+__nw__t2T11ZcUi
+T1<char>::operator new(unsigned int)
+#
+--format=gnu
+__nw__t2T11Z1tUi
+T1<t>::operator new(unsigned int)
+#
+--format=gnu
+__dl__t2T11ZcPv
+T1<char>::operator delete(void *)
+#
+--format=gnu
+__dl__t2T11Z1tPv
+T1<t>::operator delete(void *)
+#
+--format=gnu
+__t2T11Zci
+T1<char>::T1(int)
+#
+--format=gnu
+__t2T11Zc
+T1<char>::T1(void)
+#
+--format=gnu
+__t2T11Z1ti
+T1<t>::T1(int)
+#
+--format=gnu
+__t2T11Z1t
+T1<t>::T1(void)
+#
+--format=gnu
+__Q2t4List1Z10VHDLEntity3Pix
+List<VHDLEntity>::Pix::Pix(void)
+#
+--format=gnu
+__Q2t4List1Z10VHDLEntity3PixPQ2t4List1Z10VHDLEntity7element
+List<VHDLEntity>::Pix::Pix(List<VHDLEntity>::element *)
+#
+--format=gnu
+__Q2t4List1Z10VHDLEntity3PixRCQ2t4List1Z10VHDLEntity3Pix
+List<VHDLEntity>::Pix::Pix(List<VHDLEntity>::Pix const &)
+#
+--format=gnu
+__Q2t4List1Z10VHDLEntity7elementRC10VHDLEntityPT0
+List<VHDLEntity>::element::element(VHDLEntity const &, List<VHDLEntity>::element *)
+#
+--format=gnu
+__Q2t4List1Z10VHDLEntity7elementRCQ2t4List1Z10VHDLEntity7element
+List<VHDLEntity>::element::element(List<VHDLEntity>::element const &)
+#
+--format=gnu
+__cl__C11VHDLLibraryGt4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
+VHDLLibrary::operator()(PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >) const
+#
+--format=gnu
+__cl__Ct4List1Z10VHDLEntityRCQ2t4List1Z10VHDLEntity3Pix
+List<VHDLEntity>::operator()(List<VHDLEntity>::Pix const &) const
+#
+--format=gnu
+__ne__FPvRCQ2t4List1Z10VHDLEntity3Pix
+operator!=(void *, List<VHDLEntity>::Pix const &)
+#
+--format=gnu
+__ne__FPvRCt4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
+operator!=(void *, PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> > const &)
+#
+--format=gnu
+__t4List1Z10VHDLEntityRCt4List1Z10VHDLEntity
+List<VHDLEntity>::List(List<VHDLEntity> const &)
+#
+--format=gnu
+__t4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
+PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX(void)
+#
+--format=gnu
+__t4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntityP14VHDLLibraryRepGQ2t4List1Z10VHDLEntity3Pix
+PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX(VHDLLibraryRep *, List<VHDLEntity>::Pix)
+#
+--format=gnu
+__t4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntityRCt4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
+PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX(PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> > const &)
+#
+--format=gnu
+nextE__C11VHDLLibraryRt4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
+VHDLLibrary::nextE(PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> > &) const
+#
+--format=gnu
+next__Ct4List1Z10VHDLEntityRQ2t4List1Z10VHDLEntity3Pix
+List<VHDLEntity>::next(List<VHDLEntity>::Pix &) const
+#
+--format=gnu
+_GLOBAL_$D$set
+global destructors keyed to set
+#
+--format=gnu
+_GLOBAL_$I$set
+global constructors keyed to set
+#
+--format=gnu
+__as__t5ListS1ZUiRCt5ListS1ZUi
+ListS<unsigned int>::operator=(ListS<unsigned int> const &)
+#
+--format=gnu
+__cl__Ct5ListS1ZUiRCQ2t5ListS1ZUi3Vix
+ListS<unsigned int>::operator()(ListS<unsigned int>::Vix const &) const
+#
+--format=gnu
+__cl__Ct5SetLS1ZUiRCQ2t5SetLS1ZUi3Vix
+SetLS<unsigned int>::operator()(SetLS<unsigned int>::Vix const &) const
+#
+--format=gnu
+__t10ListS_link1ZUiRCUiPT0
+ListS_link<unsigned int>::ListS_link(unsigned int const &, ListS_link<unsigned int> *)
+#
+--format=gnu
+__t10ListS_link1ZUiRCt10ListS_link1ZUi
+ListS_link<unsigned int>::ListS_link(ListS_link<unsigned int> const &)
+#
+--format=gnu
+__t5ListS1ZUiRCt5ListS1ZUi
+ListS<unsigned int>::ListS(ListS<unsigned int> const &)
+#
+--format=gnu
+next__Ct5ListS1ZUiRQ2t5ListS1ZUi3Vix
+ListS<unsigned int>::next(ListS<unsigned int>::Vix &) const
+#
+--format=gnu
+__ne__FPvRCQ2t5SetLS1ZUi3Vix
+operator!=(void *, SetLS<unsigned int>::Vix const &)
+#
+--format=gnu
+__t8ListElem1Z5LabelRt4List1Z5Label
+ListElem<Label>::ListElem(List<Label> &)
+#
+--format=gnu
+__t8BDDHookV1ZPcRCPc
+BDDHookV<char *>::BDDHookV(char *const &)
+#
+--format=gnu
+_vt$t8BDDHookV1ZPc
+BDDHookV<char *> virtual table
+#
+--format=gnu
+__ne__FPvRCQ211BDDFunction4VixB
+operator!=(void *, BDDFunction::VixB const &)
+#
+--format=gnu
+__eq__FPvRCQ211BDDFunction4VixB
+operator==(void *, BDDFunction::VixB const &)
+#
+--format=gnu
+relativeId__CQ36T_phi210T_preserve8FPC_nextRCQ26T_phi210T_preserveRC10Parameters
+T_phi2::T_preserve::FPC_next::relativeId(T_phi2::T_preserve const &, Parameters const &) const
+#
+--format=lucid
+WS__FR7istream
+WS(istream &)
+#
+--format=lucid
+__aa__3fooFR3foo
+foo::operator&&(foo &)
+#
+--format=lucid
+__aad__3fooFR3foo
+foo::operator&=(foo &)
+#
+--format=lucid
+__ad__3fooFR3foo
+foo::operator&(foo &)
+#
+--format=lucid
+__adv__3fooFR3foo
+foo::operator/=(foo &)
+#
+--format=lucid
+__adv__7complexF7complex
+complex::operator/=(complex)
+#
+--format=lucid
+__aer__3fooFR3foo
+foo::operator^=(foo &)
+#
+--format=lucid
+__als__3fooFR3foo
+foo::operator<<=(foo &)
+#
+--format=lucid
+__amd__3fooFR3foo
+foo::operator%=(foo &)
+#
+--format=lucid
+__ami__3fooFR3foo
+foo::operator-=(foo &)
+#
+--format=lucid
+__amu__3fooFR3foo
+foo::operator*=(foo &)
+#
+--format=lucid
+__amu__7complexF7complex
+complex::operator*=(complex)
+#
+--format=lucid
+__aor__3fooFR3foo
+foo::operator|=(foo &)
+#
+--format=lucid
+__apl__3fooFR3foo
+foo::operator+=(foo &)
+#
+--format=lucid
+__ars__3fooFR3foo
+foo::operator>>=(foo &)
+#
+--format=lucid
+__as__18istream_withassignFP9streambuf
+istream_withassign::operator=(streambuf *)
+#
+--format=lucid
+__as__18istream_withassignFR7istream
+istream_withassign::operator=(istream &)
+#
+--format=lucid
+__as__3fooFR3foo
+foo::operator=(foo &)
+#
+--format=lucid
+__as__3iosFR3ios
+ios::operator=(ios &)
+#
+--format=lucid
+__cl__3fooFR3foo
+foo::operator()(foo &)
+#
+--format=lucid
+__cm__3fooFR3foo
+foo::operator, (foo &)
+#
+--format=lucid
+__co__3fooFv
+foo::operator~(void)
+#
+--format=lucid
+__ct__10istrstreamFPc
+istrstream::istrstream(char *)
+#
+--format=lucid
+__ct__10istrstreamFPci
+istrstream::istrstream(char *, int)
+#
+--format=lucid
+__ct__10ostrstreamFPciT2
+ostrstream::ostrstream(char *, int, int)
+#
+--format=lucid
+__ct__10ostrstreamFv
+ostrstream::ostrstream(void)
+#
+--format=lucid
+__ct__10smanip_intFPFR3iosi_R3iosi
+smanip_int::smanip_int(ios &(*)(ios &, int), int)
+#
+--format=lucid
+__ct__11fstreambaseFi
+fstreambase::fstreambase(int)
+#
+--format=lucid
+__ct__11fstreambaseFiPcT1
+fstreambase::fstreambase(int, char *, int)
+#
+--format=lucid
+__ct__11fstreambaseFv
+fstreambase::fstreambase(void)
+#
+--format=lucid
+__ct__11smanip_longFPFR3iosl_R3iosl
+smanip_long::smanip_long(ios &(*)(ios &, long), long)
+#
+--format=lucid
+__ct__11stdiostreamFP4FILE
+stdiostream::stdiostream(FILE *)
+#
+--format=lucid
+__ct__12strstreambufFPFl_PvPFPv_v
+strstreambuf::strstreambuf(void *(*)(long), void (*)(void *))
+#
+--format=lucid
+__ct__12strstreambufFPUciT1
+strstreambuf::strstreambuf(unsigned char *, int, unsigned char *)
+#
+--format=lucid
+__ct__12strstreambufFPciT1
+strstreambuf::strstreambuf(char *, int, char *)
+#
+--format=lucid
+__ct__12strstreambufFi
+strstreambuf::strstreambuf(int)
+#
+--format=lucid
+__ct__12strstreambufFv
+strstreambuf::strstreambuf(void)
+#
+--format=lucid
+__ct__13strstreambaseFPciT1
+strstreambase::strstreambase(char *, int, char *)
+#
+--format=lucid
+__ct__3fooFR3foo
+foo::foo(foo &)
+#
+--format=lucid
+__ct__3fooFi
+foo::foo(int)
+#
+--format=lucid
+__ct__3fooFiN31
+foo::foo(int, int, int, int)
+#
+--format=lucid
+__ct__3fooFiR3fooT1T2T1T2
+foo::foo(int, foo &, int, foo &, int, foo &)
+#
+--format=lucid
+__ct__3iosFP9streambuf
+ios::ios(streambuf *)
+#
+--format=lucid
+__ct__7filebufFiPcT1
+filebuf::filebuf(int, char *, int)
+#
+--format=lucid
+__ct__7fstreamFiPcT1
+fstream::fstream(int, char *, int)
+#
+--format=lucid
+__ct__7istreamFP9streambuf
+istream::istream(streambuf *)
+#
+--format=lucid
+__ct__7istreamFP9streambufiP7ostream
+istream::istream(streambuf *, int, ostream *)
+#
+--format=lucid
+__ct__7istreamFiPcT1
+istream::istream(int, char *, int)
+#
+--format=lucid
+__ct__7istreamFiT1P7ostream
+istream::istream(int, int, ostream *)
+#
+--format=lucid
+__ct__7ostreamFP9streambuf
+ostream::ostream(streambuf *)
+#
+--format=lucid
+__ct__7ostreamFiPc
+ostream::ostream(int, char *)
+#
+--format=lucid
+__ct__8ifstreamFiPcT1
+ifstream::ifstream(int, char *, int)
+#
+--format=lucid
+__ct__Q23foo3barFv
+foo::bar::bar(void)
+#
+--format=lucid
+__ct__Q33foo3bar4bellFv
+foo::bar::bell::bell(void)
+#
+--format=lucid
+__dl__3fooSFPv
+foo::operator delete(void *) static
+#
+--format=lucid
+__dl__FPv
+operator delete(void *)
+#
+--format=lucid
+__dt__10istrstreamFv
+istrstream::~istrstream(void)
+#
+--format=lucid
+__dt__Q23foo3barFv
+foo::bar::~bar(void)
+#
+--format=lucid
+__dt__Q33foo3bar4bellFv
+foo::bar::bell::~bell(void)
+#
+--format=lucid
+__dv__3fooFR3foo
+foo::operator/(foo &)
+#
+--format=lucid
+__dv__F7complexT1
+operator/(complex, complex)
+#
+--format=lucid
+__eq__3fooFR3foo
+foo::operator==(foo &)
+#
+--format=lucid
+__er__3fooFR3foo
+foo::operator^(foo &)
+#
+--format=lucid
+__ge__3fooFR3foo
+foo::operator>=(foo &)
+#
+--format=lucid
+__gt__3fooFR3foo
+foo::operator>(foo &)
+#
+--format=lucid
+__le__3fooFR3foo
+foo::operator<=(foo &)
+#
+--format=lucid
+__ls__3fooFR3foo
+foo::operator<<(foo &)
+#
+--format=lucid
+__ls__7ostreamFP9streambuf
+ostream::operator<<(streambuf *)
+#
+--format=lucid
+__ls__7ostreamFPFR3ios_R3ios
+ostream::operator<<(ios &(*)(ios &))
+#
+--format=lucid
+__ls__7ostreamFPv
+ostream::operator<<(void *)
+#
+--format=lucid
+__ls__7ostreamFUi
+ostream::operator<<(unsigned int)
+#
+--format=lucid
+__ls__7ostreamFUl
+ostream::operator<<(unsigned long)
+#
+--format=lucid
+__ls__7ostreamFd
+ostream::operator<<(double)
+#
+--format=lucid
+__ls__7ostreamFf
+ostream::operator<<(float)
+#
+--format=lucid
+__ls__7ostreamFi
+ostream::operator<<(int)
+#
+--format=lucid
+__ls__7ostreamFl
+ostream::operator<<(long)
+#
+--format=lucid
+__ls__FR7ostream7complex
+operator<<(ostream &, complex)
+#
+--format=lucid
+__lt__3fooFR3foo
+foo::operator<(foo &)
+#
+--format=lucid
+__md__3fooFR3foo
+foo::operator%(foo &)
+#
+--format=lucid
+__mi__3fooFR3foo
+foo::operator-(foo &)
+#
+--format=lucid
+__ml__3fooFR3foo
+foo::operator*(foo &)
+#
+--format=lucid
+__ml__F7complexT1
+operator*(complex, complex)
+#
+--format=lucid
+__mm__3fooFi
+foo::operator--(int)
+#
+--format=lucid
+__ne__3fooFR3foo
+foo::operator!=(foo &)
+#
+--format=lucid
+__nt__3fooFv
+foo::operator!(void)
+#
+--format=lucid
+__nw__3fooSFi
+foo::operator new(int) static
+#
+--format=lucid
+__nw__FUi
+operator new(unsigned int)
+#
+--format=lucid
+__nw__FUiPv
+operator new(unsigned int, void *)
+#
+--format=lucid
+__oo__3fooFR3foo
+foo::operator||(foo &)
+#
+--format=lucid
+__opPc__3fooFv
+foo::operator char *(void)
+#
+--format=lucid
+__opi__3fooFv
+foo::operator int(void)
+#
+--format=lucid
+__or__3fooFR3foo
+foo::operator|(foo &)
+#
+--format=lucid
+__pl__3fooFR3foo
+foo::operator+(foo &)
+#
+--format=lucid
+__pp__3fooFi
+foo::operator++(int)
+#
+--format=lucid
+__pt__3fooFv
+foo::operator->(void)
+#
+--format=lucid
+__rm__3fooFR3foo
+foo::operator->*(foo &)
+#
+--format=lucid
+__rs__3fooFR3foo
+foo::operator>>(foo &)
+#
+--format=lucid
+__rs__7istreamFP9streambuf
+istream::operator>>(streambuf *)
+#
+--format=lucid
+__rs__7istreamFPFR3ios_R3ios
+istream::operator>>(ios &(*)(ios &))
+#
+--format=lucid
+__rs__7istreamFPFR7istream_R7istream
+istream::operator>>(istream &(*)(istream &))
+#
+--format=lucid
+__rs__7istreamFPUc
+istream::operator>>(unsigned char *)
+#
+--format=lucid
+__rs__7istreamFPc
+istream::operator>>(char *)
+#
+--format=lucid
+__rs__7istreamFRUi
+istream::operator>>(unsigned int &)
+#
+--format=lucid
+__rs__7istreamFRUl
+istream::operator>>(unsigned long &)
+#
+--format=lucid
+__rs__7istreamFRUs
+istream::operator>>(unsigned short &)
+#
+--format=lucid
+__rs__7istreamFRd
+istream::operator>>(double &)
+#
+--format=lucid
+__rs__7istreamFRf
+istream::operator>>(float &)
+#
+--format=lucid
+__rs__7istreamFRi
+istream::operator>>(int &)
+#
+--format=lucid
+__rs__7istreamFRl
+istream::operator>>(long &)
+#
+--format=lucid
+__rs__7istreamFRs
+istream::operator>>(short &)
+#
+--format=lucid
+__rs__FR7istreamR7complex
+operator>>(istream &, complex &)
+#
+--format=lucid
+__vtbl__10istrstream
+istrstream virtual table
+#
+--format=lucid
+__vtbl__17ostream__iostream__19iostream_withassign
+iostream_withassign::ostream__iostream virtual table
+#
+--format=lucid
+__vtbl__3ios
+ios virtual table
+#
+--format=lucid
+__vtbl__3ios__13strstreambase
+strstreambase::ios virtual table
+#
+--format=lucid
+abs__F7complex
+abs(complex)
+#
+--format=lucid
+allocate__9streambufFv
+streambuf::allocate(void)
+#
+--format=lucid
+attach__11fstreambaseFi
+fstreambase::attach(int)
+#
+--format=lucid
+bitalloc__3iosSFv
+ios::bitalloc(void) static
+#
+--format=lucid
+chr__FiT1
+chr(int, int)
+#
+--format=lucid
+complex_error__FR11c_exception
+complex_error(c_exception &)
+#
+--format=lucid
+complexfunc2__FPFPc_i
+complexfunc2(int (*)(char *))
+#
+--format=lucid
+complexfunc3__FPFPFPl_s_i
+complexfunc3(int (*)(short (*)(long *)))
+#
+--format=lucid
+complexfunc4__FPFPFPc_s_i
+complexfunc4(int (*)(short (*)(char *)))
+#
+--format=lucid
+complexfunc5__FPFPc_PFl_i
+complexfunc5(int (*(*)(char *))(long))
+#
+--format=lucid
+complexfunc6__FPFPi_PFl_i
+complexfunc6(int (*(*)(int *))(long))
+#
+--format=lucid
+complexfunc7__FPFPFPc_i_PFl_i
+complexfunc7(int (*(*)(int (*)(char *)))(long))
+#
+--format=lucid
+complicated_put__7ostreamFc
+ostream::complicated_put(char)
+#
+--format=lucid
+conv10__FlPc
+conv10(long, char *)
+#
+--format=lucid
+conv16__FUlPc
+conv16(unsigned long, char *)
+#
+--format=lucid
+dec__FR3ios
+dec(ios &)
+#
+--format=lucid
+dec__Fli
+dec(long, int)
+#
+--format=lucid
+dofield__FP7ostreamPciT2T3
+dofield(ostream *, char *, int, char *, int)
+#
+--format=lucid
+flags__3iosFl
+ios::flags(long)
+#
+--format=lucid
+flags__3iosFv
+ios::flags(void)
+#
+--format=lucid
+foo__FiN31
+foo(int, int, int, int)
+#
+--format=lucid
+foo__FiR3fooT1T2T1T2
+foo(int, foo &, int, foo &, int, foo &)
+#
+--format=lucid
+foo___3barFl
+bar::foo_(long)
+#
+--format=lucid
+get__7istreamFPcic
+istream::get(char *, int, char)
+#
+--format=lucid
+get__7istreamFR9streambufc
+istream::get(streambuf &, char)
+#
+--format=lucid
+get_complicated__7istreamFRUc
+istream::get_complicated(unsigned char &)
+#
+--format=lucid
+get_complicated__7istreamFRc
+istream::get_complicated(char &)
+#
+--format=lucid
+getline__7istreamFPUcic
+istream::getline(unsigned char *, int, char)
+#
+--format=lucid
+getline__7istreamFPcic
+istream::getline(char *, int, char)
+#
+--format=lucid
+ignore__7istreamFiT1
+istream::ignore(int, int)
+#
+--format=lucid
+init__12strstreambufFPciT1
+strstreambuf::init(char *, int, char *)
+#
+--format=lucid
+init__3iosFP9streambuf
+ios::init(streambuf *)
+#
+--format=lucid
+initcount__13Iostream_init
+Iostream_init::initcount
+#
+--format=lucid
+ipfx__7istreamFi
+istream::ipfx(int)
+#
+--format=lucid
+ls_complicated__7ostreamFUc
+ostream::ls_complicated(unsigned char)
+#
+--format=lucid
+ls_complicated__7ostreamFc
+ostream::ls_complicated(char)
+#
+--format=lucid
+overload1arg__FSc
+overload1arg(signed char)
+#
+--format=lucid
+overload1arg__FUc
+overload1arg(unsigned char)
+#
+--format=lucid
+overload1arg__FUi
+overload1arg(unsigned int)
+#
+--format=lucid
+overload1arg__FUl
+overload1arg(unsigned long)
+#
+--format=lucid
+overload1arg__FUs
+overload1arg(unsigned short)
+#
+--format=lucid
+overload1arg__Fc
+overload1arg(char)
+#
+--format=lucid
+overload1arg__Fd
+overload1arg(double)
+#
+--format=lucid
+overload1arg__Ff
+overload1arg(float)
+#
+--format=lucid
+overload1arg__Fi
+overload1arg(int)
+#
+--format=lucid
+overload1arg__Fl
+overload1arg(long)
+#
+--format=lucid
+overload1arg__Fs
+overload1arg(short)
+#
+--format=lucid
+overload1arg__Fv
+overload1arg(void)
+#
+--format=lucid
+overloadargs__FiN21
+overloadargs(int, int, int)
+#
+--format=lucid
+overloadargs__FiN31
+overloadargs(int, int, int, int)
+#
+--format=lucid
+overloadargs__FiN41
+overloadargs(int, int, int, int, int)
+#
+--format=lucid
+overloadargs__FiN51
+overloadargs(int, int, int, int, int, int)
+#
+--format=lucid
+overloadargs__FiN61
+overloadargs(int, int, int, int, int, int, int)
+#
+--format=lucid
+overloadargs__FiN71
+overloadargs(int, int, int, int, int, int, int, int)
+#
+--format=lucid
+overloadargs__FiN81
+overloadargs(int, int, int, int, int, int, int, int, int)
+#
+--format=lucid
+overloadargs__FiN91
+overloadargs(int, int, int, int, int, int, int, int, int, int)
+#
+--format=lucid
+overloadargs__FiN91N11
+overloadargs(int, int, int, int, int, int, int, int, int, int, int)
+#
+--format=lucid
+overloadargs__FiT1
+overloadargs(int, int)
+#
+--format=lucid
+polar__FdT1
+polar(double, double)
+#
+--format=lucid
+pow__F7complexT1
+pow(complex, complex)
+#
+--format=lucid
+pow__F7complexd
+pow(complex, double)
+#
+--format=lucid
+pow__F7complexi
+pow(complex, int)
+#
+--format=lucid
+pow__Fd7complex
+pow(double, complex)
+#
+--format=lucid
+pstart__FPciT2
+pstart(char *, int, int)
+#
+--format=lucid
+put__7ostreamFc
+ostream::put(char)
+#
+--format=lucid
+read__7istreamFPci
+istream::read(char *, int)
+#
+--format=lucid
+resetiosflags__FR3iosl
+resetiosflags(ios &, long)
+#
+--format=lucid
+restore_errno__FRi
+restore_errno(int &)
+#
+--format=lucid
+rs_complicated__7istreamFRUc
+istream::rs_complicated(unsigned char &)
+#
+--format=lucid
+rs_complicated__7istreamFRc
+istream::rs_complicated(char &)
+#
+--format=lucid
+seekg__7istreamFl8seek_dir
+istream::seekg(long, seek_dir)
+#
+--format=lucid
+seekoff__12strstreambufFl8seek_diri
+strstreambuf::seekoff(long, seek_dir, int)
+#
+--format=lucid
+seekoff__9streambufFlQ2_3ios12ios_seek_diri
+streambuf::seekoff(long, ios::ios_seek_dir, int)
+#
+--format=lucid
+seekpos__9streambufFli
+streambuf::seekpos(long, int)
+#
+--format=lucid
+set_new_handler__FPFv_v
+set_new_handler(void (*)(void))
+#
+--format=lucid
+setb__9streambufFPcT1i
+streambuf::setb(char *, char *, int)
+#
+--format=lucid
+setb__FR3iosi
+setb(ios &, int)
+#
+--format=lucid
+setbuf__11fstreambaseFPci
+fstreambase::setbuf(char *, int)
+#
+--format=lucid
+setbuf__9streambufFPUci
+streambuf::setbuf(unsigned char *, int)
+#
+--format=lucid
+setbuf__9streambufFPciT2
+streambuf::setbuf(char *, int, int)
+#
+--format=lucid
+setf__3iosFlT1
+ios::setf(long, long)
+#
+--format=lucid
+setfill__FR3iosi
+setfill(ios &, int)
+#
+--format=lucid
+setg__9streambufFPcN21
+streambuf::setg(char *, char *, char *)
+#
+--format=lucid
+setp__9streambufFPcT1
+streambuf::setp(char *, char *)
+#
+--format=lucid
+tie__3iosFP7ostream
+ios::tie(ostream *)
+#
+--format=lucid
+uconv10__FUlPc
+uconv10(unsigned long, char *)
+#
+--format=lucid
+xget__7istreamFPc
+istream::xget(char *)
+#
+--format=lucid
+xsgetn__9streambufFPci
+streambuf::xsgetn(char *, int)
+#
+--format=arm
+__dt__21T5__pt__11_PFiPPdPv_iFv
+T5<int (*)(int, double **, void *)>::~T5(void)
+#
+--format=arm
+__ct__1cFi
+c::c(int)
+#
+--format=arm
+__dt__11T5__pt__2_iFv
+T5<int>::~T5(void)
+#
+--format=arm
+__dt__11T5__pt__2_cFv
+T5<char>::~T5(void)
+#
+--format=arm
+__ct__2T2Fi
+T2::T2(int)
+#
+--format=arm
+__dt__2T1Fv
+T1::~T1(void)
+#
+--format=arm
+__dt__12T5__pt__3_1xFv
+T5<x>::~T5(void)
+#
+--format=arm
+__dt__17T5__pt__8_PFcPv_iFv
+T5<int (*)(char, void *)>::~T5(void)
+#
+--format=arm
+__ct__21T5__pt__11_PFiPPdPv_iFi
+T5<int (*)(int, double **, void *)>::T5(int)
+#
+--format=arm
+__amd__FR2T2i
+operator%=(T2 &, int)
+#
+--format=arm
+__adv__FR2T2i
+operator/=(T2 &, int)
+#
+--format=arm
+__amu__FR2T2i
+operator*=(T2 &, int)
+#
+--format=arm
+__ami__FR2T2i
+operator-=(T2 &, int)
+#
+--format=arm
+__apl__FR2T2i
+operator+=(T2 &, int)
+#
+--format=arm
+__nw__2T1SFUi
+T1::operator new(unsigned int) static
+#
+--format=arm
+__dl__2T1SFPv
+T1::operator delete(void *) static
+#
+--format=arm
+put__2T7SFi
+T7::put(int) static
+#
+--format=arm
+__dl__12T5__pt__3_1xSFPv
+T5<x>::operator delete(void *) static
+#
+--format=arm
+h__FUc
+h(unsigned char)
+#
+--format=arm
+f__Fic
+f(int, char)
+#
+--format=arm
+h__FUi
+h(unsigned int)
+#
+--format=arm
+h__Fci
+h(char, int)
+#
+--format=arm
+h__FUl
+h(unsigned long)
+#
+--format=arm
+h__Fcl
+h(char, long)
+#
+--format=arm
+h__FUs
+h(unsigned short)
+#
+--format=arm
+h__Fcs
+h(char, short)
+#
+--format=arm
+X__12T5__pt__3_1x
+T5<x>::X
+#
+--format=arm
+__ct__11T5__pt__2_iFi
+T5<int>::T5(int)
+#
+--format=arm
+__ct__11T5__pt__2_cFi
+T5<char>::T5(int)
+#
+--format=arm
+h__FcT1
+h(char, char)
+#
+--format=arm
+f__Ficd
+f(int, char, double)
+#
+--format=arm
+__dl__17T5__pt__8_PFcPv_iSFPv
+T5<int (*)(char, void *)>::operator delete(void *) static
+#
+--format=arm
+X__17T5__pt__8_PFcPv_i
+T5<int (*)(char, void *)>::X
+#
+--format=arm
+__ct__12T5__pt__3_1xFi
+T5<x>::T5(int)
+#
+--format=arm
+__dl__21T5__pt__11_PFiPPdPv_iSFPv
+T5<int (*)(int, double **, void *)>::operator delete(void *) static
+#
+--format=arm
+__std__foo
+global destructors keyed to foo
+#
+--format=arm
+__sti__bar
+global constructors keyed to bar
+#
+--format=arm
+f__FicdPcPFci_v
+f(int, char, double, char *, void (*)(char, int))
+#
+--format=arm
+f__FicdPcPFic_v
+f(int, char, double, char *, void (*)(int, char))
+#
+--format=arm
+get__2T7SFv
+T7::get(void) static
+#
+--format=arm
+X__21T5__pt__11_PFiPPdPv_i
+T5<int (*)(int, double **, void *)>::X
+#
+--format=arm
+__dl__11T5__pt__2_iSFPv
+T5<int>::operator delete(void *) static
+#
+--format=arm
+__dl__11T5__pt__2_cSFPv
+T5<char>::operator delete(void *) static
+#
+--format=arm
+h__Fc
+h(char)
+#
+--format=arm
+h__Fd
+h(double)
+#
+--format=arm
+h__Ff
+h(float)
+#
+--format=arm
+h__Fi
+h(int)
+#
+--format=arm
+f__Fi
+f(int)
+#
+--format=arm
+h__Fl
+h(long)
+#
+--format=arm
+h__Fs
+h(short)
+#
+--format=arm
+X__11T5__pt__2_c
+T5<char>::X
+#
+--format=arm
+X__11T5__pt__2_i
+T5<int>::X
+#
+--format=arm
+__ct__17T5__pt__8_PFcPv_iFi
+T5<int (*)(char, void *)>::T5(int)
+#
+--format=arm
+f__FicdPc
+f(int, char, double, char *)
+#
+--format=arm
+__nw__FUi
+operator new(unsigned int)
+#
+--format=arm
+__ct__Q3_2T11a1bSFi
+T1::a::b::b(int) static
+#
+--format=arm
+__dt__Q3_2T11a1bSFi
+T1::a::b::~b(int) static
+#
+--format=arm
+put__Q3_2T11a1bSFi
+T1::a::b::put(int) static
+#
+--format=arm
+get__Q2_2T11aSFv
+T1::a::get(void) static
+#
+--format=arm
+put__2T1SFi
+T1::put(int) static
+#
+--format=arm
+put__Q5_2T11a1b1c1dSFi
+T1::a::b::c::d::put(int) static
+#
+--format=arm
+get__Q4_2T11a1b1cSFv
+T1::a::b::c::get(void) static
+#
+--format=arm
+put__Q2_2T11aSFi
+T1::a::put(int) static
+#
+--format=arm
+put__Q4_2T11a1b1cSFi
+T1::a::b::c::put(int) static
+#
+--format=arm
+get__Q3_2T11a1bSFv
+T1::a::b::get(void) static
+#
+--format=arm
+get__2T1SFv
+T1::get(void) static
+#
+--format=arm
+get__Q5_2T11a1b1c1dSFv
+T1::a::b::c::d::get(void) static
+#
+--format=arm
+__dt__11T1__pt__2_cFv
+T1<char>::~T1(void)
+#
+--format=arm
+__dt__12T1__pt__3_1tFv
+T1<t>::~T1(void)
+#
+--format=arm
+__dl__12T1__pt__3_1tSFPv
+T1<t>::operator delete(void *) static
+#
+--format=arm
+__ct__11T1__pt__2_cFi
+T1<char>::T1(int)
+#
+--format=arm
+__ct__11T1__pt__2_cFv
+T1<char>::T1(void)
+#
+--format=arm
+__ct__12T1__pt__3_1tFi
+T1<t>::T1(int)
+#
+--format=arm
+__ct__12T1__pt__3_1tFv
+T1<t>::T1(void)
+#
+--format=arm
+__dl__11T1__pt__2_cSFPv
+T1<char>::operator delete(void *) static
+#
+--format=arm
+bar__3fooFPv
+foo::bar(void *)
+#
+--format=arm
+bar__3fooCFPv
+foo::bar(void *) const
+#
+--format=arm
+__eq__3fooFR3foo
+foo::operator==(foo &)
+#
+--format=arm
+__eq__3fooCFR3foo
+foo::operator==(foo &) const
+#
+--format=arm
+elem__15vector__pt__2_dFi
+vector<double>::elem(int)
+#
+--format=arm
+elem__15vector__pt__2_iFi
+vector<int>::elem(int)
+#
+--format=arm
+__ct__15vector__pt__2_dFi
+vector<double>::vector(int)
+#
+--format=arm
+__ct__15vector__pt__2_iFi
+vector<int>::vector(int)
+#
+--format=arm
+__ct__25DListNode__pt__9_R6RLabelFR6RLabelP25DListNode__pt__9_R6RLabelT2
+DListNode<RLabel &>::DListNode(RLabel &, DListNode<RLabel &> *, DListNode<RLabel &> *)
+#
+--format=arm
+bar__3fooFiT16FooBar
+foo::bar(int, int, FooBar)
+#
+--format=arm
+bar__3fooFPiN51PdN37PcN211T1iN215
+foo::bar(int *, int *, int *, int *, int *, int *, double *, double *, double *, double *, char *, char *, char *, int *, int, int, int)
+#
+--format=hp
+__amd__FR2T2i
+operator%=(T2 &, int)
+#
+--format=hp
+__adv__FR2T2i
+operator/=(T2 &, int)
+#
+--format=hp
+__amu__FR2T2i
+operator*=(T2 &, int)
+#
+--format=hp
+__ami__FR2T2i
+operator-=(T2 &, int)
+#
+--format=hp
+__apl__FR2T2i
+operator+=(T2 &, int)
+#
+--format=hp
+__nw__2T1SFUi
+T1::operator new(unsigned int) static
+#
+--format=hp
+__dl__2T1SFPv
+T1::operator delete(void *) static
+#
+--format=hp
+put__2T7SFi
+T7::put(int) static
+#
+--format=hp
+h__FUc
+h(unsigned char)
+#
+--format=hp
+f__Fic
+f(int, char)
+#
+--format=hp
+h__FUi
+h(unsigned int)
+#
+--format=hp
+h__Fci
+h(char, int)
+#
+--format=hp
+h__FUl
+h(unsigned long)
+#
+--format=hp
+h__Fcl
+h(char, long)
+#
+--format=hp
+h__FUs
+h(unsigned short)
+#
+--format=hp
+h__Fcs
+h(char, short)
+#
+--format=hp
+h__FcT1
+h(char, char)
+#
+--format=hp
+f__Ficd
+f(int, char, double)
+#
+--format=hp
+f__FicdPcPFci_v
+f(int, char, double, char *, void (*)(char, int))
+#
+--format=hp
+f__FicdPcPFic_v
+f(int, char, double, char *, void (*)(int, char))
+#
+--format=hp
+get__2T7SFv
+T7::get(void) static
+#
+--format=hp
+h__Fc
+h(char)
+#
+--format=hp
+h__Fd
+h(double)
+#
+--format=hp
+h__Ff
+h(float)
+#
+--format=hp
+h__Fi
+h(int)
+#
+--format=hp
+f__Fi
+f(int)
+#
+--format=hp
+h__Fl
+h(long)
+#
+--format=hp
+h__Fs
+h(short)
+#
+--format=hp
+f__FicdPc
+f(int, char, double, char *)
+#
+--format=hp
+__nw__FUi
+operator new(unsigned int)
+#
+--format=hp
+__ct__Q3_2T11a1bSFi
+T1::a::b::b(int) static
+#
+--format=hp
+__dt__Q3_2T11a1bSFi
+T1::a::b::~b(int) static
+#
+--format=hp
+put__Q3_2T11a1bSFi
+T1::a::b::put(int) static
+#
+--format=hp
+get__Q2_2T11aSFv
+T1::a::get(void) static
+#
+--format=hp
+put__2T1SFi
+T1::put(int) static
+#
+--format=hp
+put__Q5_2T11a1b1c1dSFi
+T1::a::b::c::d::put(int) static
+#
+--format=hp
+get__Q4_2T11a1b1cSFv
+T1::a::b::c::get(void) static
+#
+--format=hp
+put__Q2_2T11aSFi
+T1::a::put(int) static
+#
+--format=hp
+put__Q4_2T11a1b1cSFi
+T1::a::b::c::put(int) static
+#
+--format=hp
+get__Q3_2T11a1bSFv
+T1::a::b::get(void) static
+#
+--format=hp
+get__2T1SFv
+T1::get(void) static
+#
+--format=hp
+get__Q5_2T11a1b1c1dSFv
+T1::a::b::c::d::get(void) static
+#
+--format=hp
+bar__3fooFPv
+foo::bar(void *)
+#
+--format=hp
+bar__3fooCFPv
+foo::bar(void *) const
+#
+--format=hp
+__eq__3fooFR3foo
+foo::operator==(foo &)
+#
+--format=hp
+__eq__3fooCFR3foo
+foo::operator==(foo &) const
+#
+--format=hp
+bar__3fooFiT16FooBar
+foo::bar(int, int, FooBar)
+#
+--format=hp
+bar__3fooFPiN51PdN37PcN211T1iN215
+foo::bar(int *, int *, int *, int *, int *, int *, double *, double *, double *, double *, char *, char *, char *, int *, int, int, int)
+#
+--format=hp
+__dt__2T5XTPFiPPdPv_i__Fv
+T5<int (*)(int, double **, void *)>::~T5(void)
+#
+--format=hp
+__ct__1cFi
+c::c(int)
+#
+--format=hp
+__dt__2T5XTi__Fv
+T5<int>::~T5(void)
+#
+--format=hp
+__dt__2T5XTc__Fv
+T5<char>::~T5(void)
+#
+--format=hp
+__ct__2T2Fi
+T2::T2(int)
+#
+--format=hp
+__dt__2T1Fv
+T1::~T1(void)
+#
+--format=hp
+__dt__2T5XT1x__Fv
+T5<x>::~T5(void)
+#
+--format=hp
+__dt__2T5XTPFcPv_i__Fv
+T5<int (*)(char, void *)>::~T5(void)
+#
+--format=hp
+__ct__2T5XTPFiPPdPv_i__Fi
+T5<int (*)(int, double **, void *)>::T5(int)
+#
+--format=hp
+__dl__2T5XT1x__SFPv
+T5<x>::operator delete(void *) static
+#
+--format=hp
+X__2T5XT1x
+T5<x>::X
+#
+--format=hp
+__ct__2T5XTi__Fi
+T5<int>::T5(int)
+#
+--format=hp
+__ct__2T5XTc__Fi
+T5<char>::T5(int)
+#
+--format=hp
+__dl__2T5XTPFcPv_i__SFPv
+T5<int (*)(char, void *)>::operator delete(void *) static
+#
+--format=hp
+X__2T5XTPFcPv_i
+T5<int (*)(char, void *)>::X
+#
+--format=hp
+__ct__2T5XT1x__Fi
+T5<x>::T5(int)
+#
+--format=hp
+__dl__2T5XTPFiPPdPv_i__SFPv
+T5<int (*)(int, double **, void *)>::operator delete(void *) static
+#
+--format=hp
+X__2T5XTPFiPPdPv_i
+T5<int (*)(int, double **, void *)>::X
+#
+--format=hp
+__dl__2T5XTi__SFPv
+T5<int>::operator delete(void *) static
+#
+--format=hp
+__dl__2T5XTc__SFPv
+T5<char>::operator delete(void *) static
+#
+--format=hp
+X__2T5XTc
+T5<char>::X
+#
+--format=hp
+X__2T5XTi
+T5<int>::X
+#
+--format=hp
+__ct__2T5XTPFcPv_i__Fi
+T5<int (*)(char, void *)>::T5(int)
+#
+--format=hp
+__dt__2T1XTc__Fv
+T1<char>::~T1(void)
+#
+--format=hp
+__dt__2T1XT1t__Fv
+T1<t>::~T1(void)
+#
+--format=hp
+__dl__2T1XT1t__SFPv
+T1<t>::operator delete(void *) static
+#
+--format=hp
+__ct__2T1XTc__Fi
+T1<char>::T1(int)
+#
+--format=hp
+__ct__2T1XTc__Fv
+T1<char>::T1(void)
+#
+--format=hp
+__ct__2T1XT1t__Fi
+T1<t>::T1(int)
+#
+--format=hp
+__ct__2T1XT1t__Fv
+T1<t>::T1(void)
+#
+--format=hp
+__dl__2T1XTc__SFPv
+T1<char>::operator delete(void *) static
+#
+--format=hp
+elem__6vectorXTd__Fi
+vector<double>::elem(int)
+#
+--format=hp
+elem__6vectorXTi__Fi
+vector<int>::elem(int)
+#
+--format=hp
+__ct__6vectorXTd__Fi
+vector<double>::vector(int)
+#
+--format=hp
+__ct__6vectorXTi__Fi
+vector<int>::vector(int)
+#
+--format=hp
+__ct__9DListNodeXTR6RLabel__FR6RLabelP9DListNodeXTR6RLabel_T2
+DListNode<RLabel &>::DListNode(RLabel &, DListNode<RLabel &> *, DListNode<RLabel &> *)
+#
+--format=hp
+elem__6vectorXTiUP34__Fi
+vector<int,34U>::elem(int)
+#
+--format=hp
+elem__6vectorXUP2701Td__Fi
+vector<2701U,double>::elem(int)
+#
+--format=hp
+elem__6vectorXTiSP334__Fi
+vector<int,334>::elem(int)
+#
+--format=hp
+elem__6vectorXTiSN67__Fi
+vector<int,-67>::elem(int)
+#
+--format=hp
+elem__6vectorXTiSM__SCFPPd
+vector<int,-2147483648>::elem(double **) static const
+#
+--format=hp
+elem__6vectorXTiSN67UP4000TRs__Fi
+vector<int,-67,4000U,short &>::elem(int)
+#
+--format=hp
+elem__6vectorXTiSN67TRdTFPv_i__Fi
+vector<int,-67,double &,int (void *)>::elem(int)
+#
+--format=hp
+X__6vectorXTiSN67TdTPvUP5TRs
+vector<int,-67,double,void *,5U,short &>::X
+#
+--format=hp
+elem__6vectorXTiA3foo__Fi
+vector<int,&foo>::elem(int)
+#
+--format=hp
+elem__6vectorXTiA3fooTPvA5Label__FiPPvT2
+vector<int,&foo,void *,&Label>::elem(int, void **, void **)
+#
+--format=hp
+elem__6vectorXTiSN42A3foo__Fi
+vector<int,-42,&foo>::elem(int)
+#
+--format=hp
+__ct__2T5XTPFcPv_i__Fi_2
+T5<int (*)(char, void *)>::T5(int)
+#
+--format=hp
+__ct__2T5XTPFcPv_i__Fi_19
+T5<int (*)(char, void *)>::T5(int)
+#
+--format=hp
+f__FicdPcPFci_v_34
+f(int, char, double, char *, void (*)(char, int))
+#
+--format=hp
+spec__13Spec<#1,#1.*>XTiTPi_FPi
+Spec<int,int *>::spec(int *)
+#
+--format=hp
+spec__16Spec<#1,#1.&,#1>XTiTRiTi_FPi
+Spec<int,int &,int>::spec(int *)
+#
+--format=hp
+add__XTc_FcT1
+add<char>(char, char)
+#
+--format=hp
+add__XTcSP9A5label_FcPPlT1
+add<char,9,&label>(char, long **, char)
+#
+--format=hp
+add__XTPfTFPd_f_FcT1
+add<float *,float (double *)>(char, char)
+#
+--format=hp
+unLink__12basic_stringXTcT18string_char_traitsXTc_T9allocator_Fv
+basic_string<char,string_char_traits<char>,allocator>::unLink(void)
+#
+# A regression test with no args.  This used to cause a segv.
+
+_Utf390_1__1_9223372036854775807__9223372036854775
+_Utf390_1__1_9223372036854775807__9223372036854775
+#
+--format=gnu
+call__H1Z4Test_RX01_t1C2ZX01PMX01FPX01i_vQ2X016output
+C<Test, Test::output> call<Test>(Test &)
+#
+--format=gnu
+fn__FPQ21n1cPMQ21n1cFPQ21n1c_i
+fn(n::c *, int (n::c::*)(n::c *))
+#
+--format=gnu
+f__FGt3Bar1i2G1i
+f(Bar<2>, i)
+#
+--format=gnu
+f__FGt3Bar1i21i
+f(Bar<21>, int)
+#
+--format=gnu
+f__FGt3Bar1i2G4XY_t
+f(Bar<2>, XY_t)
+#
+--format=gnu
+foo__H1Zt2TA2ZRCiZt2NA1Ui9_X01_i
+int foo<TA<int const &, NA<9> > >(TA<int const &, NA<9> >)
+#
+--format=gnu
+foo__H1Zt2TA2ZcZt2NA1Ui20_X01_i
+int foo<TA<char, NA<20> > >(TA<char, NA<20> >)
+#
+--format=gnu
+foo__H1Zt2TA2ZiZt8N___A___1Ui99_X01_i
+int foo<TA<int, N___A___<99> > >(TA<int, N___A___<99> >)
+#
+--format=gnu
+foo__H1Zt2TA2ZRCiZt2NA1im1_X01_i
+int foo<TA<int const &, NA<-1> > >(TA<int const &, NA<-1> >)
+#
+--format=gnu
+foo__H1Zt2TA2ZRCiZt2NA1im9_X01_i
+int foo<TA<int const &, NA<-9> > >(TA<int const &, NA<-9> >)
+#
+--format=gnu
+foo__H1Zt2TA2ZcZt2NA1i_m20__X01_i
+int foo<TA<char, NA<-20> > >(TA<char, NA<-20> >)
+#
+--format=gnu
+foo__H1Zt2TA2ZcZt2NA1im1_X01_i
+int foo<TA<char, NA<-1> > >(TA<char, NA<-1> >)
+#
+--format=gnu
+foo__H1Zt2TA2ZiZt4N__A1im9_X01_i
+int foo<TA<int, N__A<-9> > >(TA<int, N__A<-9> >)
+#
+--format=gnu
+foo__H1Zt2TA2ZiZt4N__A1i_m99__X01_i
+int foo<TA<int, N__A<-99> > >(TA<int, N__A<-99> >)
+#
+--format=gnu
+__opi__t2TA2ZiZt4N__A1i9
+TA<int, N__A<9> >::operator int(void)
+#
+--format=gnu
+__opi__t2TA2ZiZt8N___A___1i_m99_
+TA<int, N___A___<-99> >::operator int(void)
+#
+--format=gnu
+foo___bar__baz_____H1Zt2TA2ZiZt8N___A___1i99_X01_i
+int foo___bar__baz___<TA<int, N___A___<99> > >(TA<int, N___A___<99> >)
+#
+--format=gnu
+foo__bar___foobar_____t2TA2ZiZt8N___A___1i_m99_
+TA<int, N___A___<-99> >::foo__bar___foobar___(void)
+#
+--format=gnu
+foo__bar___foobar_____t2TA2ZiZt4N__A1i9
+TA<int, N__A<9> >::foo__bar___foobar___(void)
+#
+--format=gnu
+__tfP8sockaddr
+sockaddr * type_info function
+#
+--format=gnu
+__tfPQ25libcwt16option_event_tct1Z12burst_app_ct
+libcw::option_event_tct<burst_app_ct> * type_info function
+#
+--format=gnu
+__tiP8sockaddr
+sockaddr * type_info node
+#
+--format=gnu
+__tiPQ25libcwt16option_event_tct1Z12burst_app_ct
+libcw::option_event_tct<burst_app_ct> * type_info node
+#
+--format=gnu
+_27_GLOBAL_.N.__12burst_app_ct.app_instance
+{anonymous}::app_instance
+#
+--format=gnu
+_26_GLOBAL_$N$_tmp_n.iilg4Gya$app_instance
+{anonymous}::app_instance
+#
+--format=java
+_ZN4java3awt10ScrollPane7addImplEPNS0_9ComponentEPNS_4lang6ObjectEi
+java.awt.ScrollPane.addImpl(java.awt.Component, java.lang.Object, int)
+#
+--format=java
+_ZN4java3awt4geom15AffineTransform9getMatrixEP6JArrayIdE
+java.awt.geom.AffineTransform.getMatrix(double[])
+#
+--format=java
+_ZN23Mangle$Inner$InnerInner3fooEP6JArrayIPS0_IiEEdPS0_IPS0_IPS0_IPS0_IPN4java4lang6StringEEEEEPS0_IPS0_IPN6MangleEEE
+Mangle$Inner$InnerInner.foo(int[][], double, java.lang.String[][][][], Mangle[][])
+#
+--format=java
+_ZN6JArray1tEP6JArrayIPS_E
+JArray.t(JArray[])
+#
+--format=java
+_ZN4Prim1iEibcdfwPN4java4lang6StringEsx
+Prim.i(int, boolean, byte, double, float, char, java.lang.String, short, long)
+#
+--format=java
+_ZN4java4util14Map__U24_Entry11class__U24_E
+java.util.Map$Entry.class$
+#
+--format=hp
+_Utf58_0_1__1_2147483647__2147483648
+_Utf58_0_1__1_2147483647__2147483648
+#
+--format=gnu-v3
+St9bad_alloc
+std::bad_alloc
+# 
+# This caused an infinite loop.
+# We still don't demangle this correctly, but at least we don't hang.
+--format=auto
+__CPR212____ct__Q3_3std141list__tm__128_Q2_3edm41THandle__tm__26_Q2_4emid15EMparticleChunkQ2_3std68allocator__tm__51_Q2_3edmJ37J14const_iteratorFRCQ3_3std18list__tm__7_Z1ZZ2Z8iterator
+_Z1ZZ2Z::__CPR212____ct__Q3_3std141list__tm__128_Q2_3edm41THandle__tm__26_Q2_4emid15EMparticleChunkQ2_3std68allocator__tm__51_Q2_3edmJ37J14const_iteratorFRCQ3_3std18list__tm(iterator)

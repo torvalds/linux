@@ -1,0 +1,31 @@
+somepeer_v6 = "2001:DB8::1"
+someas = "64496"
+somenets_v6 = "{ 		2001:DB8:100::/64 		2001:DB8:200::/64 		2001:DB8:300::/64 		}"
+somemore_v6 = "{ 		2001:DB8:400::/64 		2001:DB8:500::/64 		}"
+AS 1
+router-id 127.0.0.1
+socket "/var/run/bgpd.sock.0"
+listen on 0.0.0.0
+listen on ::
+
+
+rde rib Adj-RIB-In no evaluate
+rde rib Loc-RIB rtable 0 fib-update yes
+
+neighbor 2001:db8::1 {
+	descr "v6SOMEPEER"
+	remote-as 64496
+	enforce neighbor-as yes
+	enforce local-as yes
+	announce IPv6 unicast
+	announce policy no
+}
+allow from 2001:db8::1 prefix 2001:db8:300::/64 
+allow from 2001:db8::1 prefix 2001:db8:200::/64 
+allow from 2001:db8::1 prefix 2001:db8:100::/64 
+allow from 2001:db8::1 prefix 2001:db8:300::/64 
+allow from 2001:db8::1 prefix 2001:db8:200::/64 
+allow from 2001:db8::1 prefix 2001:db8:100::/64 
+allow from 2001:db8::1 prefix 2001:db8:500::/64 
+allow from 2001:db8::1 prefix 2001:db8:400::/64 
+match from 2001:db8::1 set { large-community 64496:64496:64496 }

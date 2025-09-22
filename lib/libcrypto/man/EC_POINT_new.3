@@ -1,0 +1,208 @@
+.\" $OpenBSD: EC_POINT_new.3,v 1.21 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2025 Theo Buehler <tb@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt EC_POINT_NEW 3
+.Os
+.Sh NAME
+.Nm EC_POINT_new ,
+.Nm EC_POINT_free ,
+.Nm EC_POINT_clear_free ,
+.Nm EC_POINT_copy ,
+.Nm EC_POINT_dup
+.Nd allocate, free and copy elliptic curve points
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/ec.h
+.Pp
+.Ft EC_POINT *
+.Fo EC_POINT_new
+.Fa "const EC_GROUP *group"
+.Fc
+.Ft void
+.Fo EC_POINT_free
+.Fa "EC_POINT *point"
+.Fc
+.Ft void
+.Fo EC_POINT_clear_free
+.Fa "EC_POINT *point"
+.Fc
+.Ft int
+.Fo EC_POINT_copy
+.Fa "EC_POINT *dst"
+.Fa "const EC_POINT *src"
+.Fc
+.Ft EC_POINT *
+.Fo EC_POINT_dup
+.Fa "const EC_POINT *point"
+.Fa "const EC_GROUP *group"
+.Fc
+.Sh DESCRIPTION
+An
+.Vt EC_POINT
+object holds a point on the elliptic curve represented by an
+.Vt EC_GROUP .
+The details of the internal representation depend on the group
+and should never be an application's concern since the EC library
+has API to set a point's coordinates,
+.Xr EC_POINT_set_affine_coordinates 3 .
+.Pp
+.Fn EC_POINT_new
+allocates and initializes an
+.Vt EC_POINT
+object to be used with the
+.Fa group .
+Before explicitly setting its coordinates, the returned
+.Vt EC_POINT
+is invalid.
+.Pp
+.Fn EC_POINT_free
+frees
+.Fa point
+and all memory associated with it.
+If
+.Fa point
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn EC_POINT_clear_free
+is intended to destroy sensitive data held in
+.Fa point
+in addition to freeing all memory associated with it.
+Since elliptic curve points usually hold public data, this
+is rarely needed.
+In LibreSSL,
+.Fn EC_POINT_free
+and
+.Fn EC_POINT_clear_free
+behave identically.
+.Pp
+.Fn EC_POINT_copy
+copies the internal representation of
+.Fa src
+into
+.Fa dst .
+If
+.Fa src
+and
+.Fa dst
+are identical, no action occurs.
+Both
+.Fa src
+and
+.Fa dst
+should be the result of
+.Fn EC_POINT_new
+with the same
+.Fa group
+argument, although
+.Fn EC_POINT_copy
+cannot check that.
+.Pp
+.Fn EC_POINT_dup
+creates a deep copy of
+.Fa point
+by combining
+.Fn EC_POINT_new
+with
+.Fn EC_GROUP_copy .
+.Sh RETURN VALUES
+.Fn EC_POINT_new
+returns a newly allocated
+.Vt EC_POINT
+or
+.Dv NULL
+on memory allocation failure.
+.Pp
+.Fn EC_POINT_copy
+returns 1 on success or 0 on error.
+Error conditions include memory allocation failure and that
+.Fa dst
+is incompatible with the group on which
+.Fa src
+is defined.
+.Pp
+.Fn EC_POINT_dup
+returns a newly allocated
+.Vt EC_POINT
+or
+.Dv NULL
+on failure.
+Error conditions include memory allocation failure or that
+.Fa group
+is incompatible with
+.Fa src .
+.Sh SEE ALSO
+.Xr BN_CTX_new 3 ,
+.Xr BN_is_zero 3 ,
+.Xr crypto 3 ,
+.Xr d2i_ECPKParameters 3 ,
+.Xr EC_GROUP_check 3 ,
+.Xr EC_GROUP_get_curve_name 3 ,
+.Xr EC_GROUP_new_by_curve_name 3 ,
+.Xr EC_GROUP_new_curve_GFp 3 ,
+.Xr EC_KEY_METHOD_new 3 ,
+.Xr EC_KEY_new 3 ,
+.Xr EC_POINT_add 3 ,
+.Xr EC_POINT_get_affine_coordinates 3 ,
+.Xr EC_POINT_point2oct 3 ,
+.Xr ECDH_compute_key 3 ,
+.Xr ECDSA_SIG_new 3
+.Sh HISTORY
+.Fn EC_POINT_new ,
+.Fn EC_POINT_free ,
+.Fn EC_POINT_clear_free ,
+and
+.Fn EC_POINT_copy
+first appeared in OpenSSL 0.9.7 and have been available since
+.Ox 3.2 .
+.Pp
+.Fn EC_POINT_dup
+first appeared in OpenSSL 0.9.8 and has been available since
+.Ox 4.5 .
+.Sh BUGS
+A fundamental flaw in the OpenSSL API toolkit is that
+.Fn *_new
+functions usually create invalid objects that are tricky to
+turn into valid objects.
+One specific flaw in the EC library internals is that
+.Vt EC_POINT
+objects do not hold a reference to the group they live on
+despite the fact that
+.Fn EC_POINT_new
+has a
+.Fa group
+argument.
+This is difficult to fix because
+.Vt EC_GROUP
+objects are not reference counted and
+because of const qualifiers in the API.
+This is the root cause for various contortions in the EC library
+and API and
+there are security implications because not
+only does the library not know whether an
+.Fa EC_POINT
+object represents a valid point,
+even if it did know that it would still not know on what curve.
+.Pp
+The signature of
+.Fn EC_GROUP_dup
+is bizarre and the order of
+.Fa point
+and
+.Fa group
+is inconsistent with the rest of the EC API.

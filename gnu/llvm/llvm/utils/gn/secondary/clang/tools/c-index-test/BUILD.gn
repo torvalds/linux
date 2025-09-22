@@ -1,0 +1,28 @@
+executable("c-index-test") {
+  configs += [ "//llvm/utils/gn/build:clang_code" ]
+  deps = [
+    "//clang/include/clang/Config",
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/CodeGen",
+    "//clang/lib/Frontend",
+    "//clang/lib/Index",
+    "//clang/lib/Serialization",
+    "//clang/tools/libclang",
+    "//llvm/lib/Support",
+    "//llvm/utils/gn/build/libs/xml",
+  ]
+  if (host_os != "win") {
+    cflags_c = [ "-std=gnu89" ]
+  }
+  sources = [
+    "c-index-test.c",
+    "core_main.cpp",
+  ]
+
+  # See comment at top of clang/tools/libclang/BUILD.gn for why this isn't
+  # needed on Linux.
+  if (host_os == "mac") {
+    ldflags = [ "-Wl,-rpath,@loader_path/../lib" ]
+  }
+}

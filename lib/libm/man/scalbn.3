@@ -1,0 +1,102 @@
+.\"	$OpenBSD: scalbn.3,v 1.6 2025/06/07 10:33:06 schwarze Exp $
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
+.\"
+.Dd $Mdocdate: June 7 2025 $
+.Dt SCALBN 3
+.Os
+.Sh NAME
+.Nm scalbln ,
+.Nm scalblnf ,
+.Nm scalblnl ,
+.Nm scalbn ,
+.Nm scalbnf ,
+.Nm scalbnl
+.Nd adjust exponent by radix
+.Sh SYNOPSIS
+.Lb libm
+.In math.h
+.Ft double
+.Fn scalbln "double x" "long n"
+.Ft float
+.Fn scalblnf "float x" "long n"
+.Ft long double
+.Fn scalblnl "long double x" "long n"
+.Ft double
+.Fn scalbn "double x" "int n"
+.Ft float
+.Fn scalbnf "float x" "int n"
+.Ft long double
+.Fn scalbnl "long double x" "int n"
+.Sh DESCRIPTION
+.Fn scalbln
+and
+.Fn scalbn
+return
+.Fa x Ns *(2** Ns Fa n )
+computed by exponent manipulation.
+The
+.Fn scalblnf
+and
+.Fn scalbnf
+functions are single precision versions of
+.Fn scalbln
+and
+.Fn scalbn ,
+respectively.
+The
+.Fn scalblnl
+and
+.Fn scalbnl
+functions are extended precision versions of
+.Fn scalbln
+and
+.Fn scalbn ,
+respectively.
+.Sh STANDARDS
+.St -ieee754
+.Sh HISTORY
+The
+.Nm scalbln ,
+.Nm scalblnf
+and
+.Nm scalblnl
+functions appeared in
+.Ox 4.7 .
+The
+.Nm scalbn ,
+.Nm scalbnf ,
+and
+.Nm scalbnl ,
+functions appeared in
+.Bx 4.3 ,
+.Nx 1.1
+and
+.Ox 4.5 ,
+respectively.

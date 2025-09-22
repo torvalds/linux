@@ -1,0 +1,9 @@
+# Simple uses of '!'
+
+# RUN: ! %{python} fail.py
+# RUN: ! ! %{python} pass.py
+# RUN: ! ! ! %{python} fail.py
+# RUN: ! ! ! ! %{python} pass.py
+
+# pass.py succeeds but we expect failure
+# RUN: ! %{python} pass.py

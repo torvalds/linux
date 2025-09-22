@@ -1,0 +1,444 @@
+.\" $OpenBSD: ASN1_TYPE_get.3,v 1.20 2025/06/08 22:40:29 schwarze Exp $
+.\" selective merge up to: OpenSSL 6328d367 Jul 4 21:58:30 2020 +0200
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2017, 2021 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>.
+.\" Copyright (c) 2015, 2016 The OpenSSL Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt ASN1_TYPE_GET 3
+.Os
+.Sh NAME
+.Nm ASN1_TYPE_new ,
+.Nm ASN1_TYPE_free ,
+.Nm ASN1_TYPE_get ,
+.Nm ASN1_TYPE_set ,
+.Nm ASN1_TYPE_set1 ,
+.Nm ASN1_TYPE_set_octetstring ,
+.Nm ASN1_TYPE_get_octetstring ,
+.Nm ASN1_TYPE_set_int_octetstring ,
+.Nm ASN1_TYPE_get_int_octetstring ,
+.Nm ASN1_TYPE_cmp
+.Nd ASN.1 objects of arbitrary type
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/asn1.h
+.Ft ASN1_TYPE *
+.Fn ASN1_TYPE_new void
+.Ft void
+.Fn ASN1_TYPE_free "ASN1_TYPE *a"
+.Ft int
+.Fo ASN1_TYPE_get
+.Fa "const ASN1_TYPE *a"
+.Fc
+.Ft void
+.Fo ASN1_TYPE_set
+.Fa "ASN1_TYPE *a"
+.Fa "int type"
+.Fa "void *value"
+.Fc
+.Ft int
+.Fo ASN1_TYPE_set1
+.Fa "ASN1_TYPE *a"
+.Fa "int type"
+.Fa "const void *value"
+.Fc
+.Ft int
+.Fo ASN1_TYPE_set_octetstring
+.Fa "ASN1_TYPE *a"
+.Fa "const unsigned char *data"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo ASN1_TYPE_get_octetstring
+.Fa "const ASN1_TYPE *a"
+.Fa "unsigned char *buffer"
+.Fa "int buflen"
+.Fc
+.Ft int
+.Fo ASN1_TYPE_set_int_octetstring
+.Fa "ASN1_TYPE *a"
+.Fa "long num"
+.Fa "const unsigned char *data"
+.Fa "int len"
+.Fc
+.Ft int
+.Fo ASN1_TYPE_get_int_octetstring
+.Fa "const ASN1_TYPE *a",
+.Fa "long *num"
+.Fa "unsigned char *buffer",
+.Fa "int buflen"
+.Fc
+.Ft int
+.Fo ASN1_TYPE_cmp
+.Fa "const ASN1_TYPE *a"
+.Fa "const ASN1_TYPE *b"
+.Fc
+.Sh DESCRIPTION
+The
+.Vt ASN1_TYPE
+data type and the
+.Dv V_ASN1_ANY
+type identifier constant represent the ASN.1 ANY type.
+An
+.Vt ASN1_TYPE
+object can store an ASN.1 value of arbitrary type,
+including constructed types such as a SEQUENCE.
+It also remembers internally which type it currently holds.
+.Pp
+.Fn ASN1_TYPE_new
+allocates and initializes an empty
+.Vt ASN1_TYPE
+object of type
+.Dv V_ASN1_UNDEF .
+.Pp
+.Fn ASN1_TYPE_free
+frees
+.Fa a
+including the value stored in it, if any.
+If
+.Fa a
+is a
+.Dv NULL
+pointer, no action occurs.
+.Pp
+.Fn ASN1_TYPE_get
+returns the type currently held by
+.Fa a ,
+represented by one of the
+.Dv V_ASN1_*
+constants defined in
+.In openssl/asn1.h .
+.Pp
+.Fn ASN1_TYPE_set
+frees the value contained in
+.Fa a ,
+if any, and sets the
+.Fa value
+and
+.Fa type
+now held in
+.Fa a .
+This function uses the pointer
+.Fa value
+internally so it must
+.Sy not
+be freed up after the call.
+.Pp
+.Fn ASN1_TYPE_set1
+sets the type held by
+.Fa a
+to
+.Fa type
+and its value to a copy of
+.Fa value .
+If copying succeeds, the previous value that was contained in
+.Fa a
+is freed.
+If copying fails,
+.Fa a
+remains unchanged.
+.Pp
+The type and meaning of the
+.Fa value
+argument of
+.Fn ASN1_TYPE_set
+and
+.Fn ASN1_TYPE_set1
+is determined by the
+.Fa type
+argument.
+If
+.Fa type
+is
+.Dv V_ASN1_NULL ,
+.Fa value
+is ignored.
+If
+.Fa type
+is
+.Dv V_ASN1_BOOLEAN ,
+then the boolean is set to TRUE if
+.Fa value
+is not
+.Dv NULL .
+If
+.Fa type
+is
+.Dv V_ASN1_OBJECT ,
+then
+.Fa value
+is an
+.Vt ASN1_OBJECT
+structure.
+Otherwise
+.Fa type
+is an
+.Vt ASN1_STRING
+structure.
+If
+.Fa type
+corresponds to a primitive type or a string type, then the contents
+of the
+.Vt ASN1_STRING
+contains the content octets of the type.
+If
+.Fa type
+corresponds to a constructed type or a tagged type
+.Pq Dv V_ASN1_SEQUENCE , V_ASN1_SET , No or Dv V_ASN1_OTHER ,
+then the
+.Vt ASN1_STRING
+contains the entire ASN.1 encoding verbatim, including tag and
+length octets.
+.Pp
+.Fn ASN1_TYPE_set_octetstring
+allocates a new
+.Vt ASN1_OCTET_STRING
+object, copies
+.Fa len
+bytes of
+.Fa data
+into it using
+.Xr ASN1_STRING_set 3 ,
+and replaces the value of
+.Fa a
+with it by calling
+.Fn ASN1_TYPE_set
+with a type of
+.Dv V_ASN1_OCTET_STRING .
+.Pp
+.Fn ASN1_TYPE_get_octetstring
+copies the contents of the
+.Vt ASN1_OCTET_STRING
+object contained in
+.Fa a ,
+but not more than
+.Fa buflen
+bytes, into the
+.Fa buffer
+provided by the caller.
+.Pp
+.Fn ASN1_TYPE_set_int_octetstring
+frees the value contained in
+.Fa a ,
+if any, sets its type to
+.Dv V_ASN1_SEQUENCE ,
+and sets its value to a two-element ASN.1 sequence consisting of
+an ASN.1 INTEGER object with the value
+.Fa num
+and an ASN.1 OCTET STRING object
+containing a copy of the
+.Fa len
+bytes pointed to by
+.Fa data .
+.Pp
+.Fn ASN1_TYPE_get_int_octetstring
+copies the integer value from the first element of the ASN.1 sequence
+.Fa a
+to
+.Pf * Fa num
+unless
+.Fa num
+is a
+.Dv NULL
+pointer and copies the octet string value from the second element,
+but not more than
+.Fa buflen
+bytes, into the
+.Fa buffer
+provided by the caller unless
+.Fa buffer
+is a
+.Dv NULL
+pointer.
+.Pp
+.Fn ASN1_TYPE_cmp
+checks that
+.Fa a
+and
+.Fa b
+hold the same type, the same value, and are encoded in the same way.
+.Pp
+If the types agree and the values have the same meaning but are
+encoded differently, they are considered different.
+For example, a boolean value is represented
+using a single content octet.
+Under BER, any non-zero octet represents the TRUE value, but
+.Fn ASN1_TYPE_cmp
+will only report a match if the content octet is the same.
+.Pp
+If either or both of the arguments passed to
+.Fn ASN1_TYPE_cmp
+is
+.Dv NULL ,
+the result is a mismatch.
+Technically, if both arguments are
+.Dv NULL ,
+the two types could be absent OPTIONAL fields and so should match,
+however passing
+.Dv NULL
+values could also indicate a programming error (for example an
+unparsable type which returns
+.Dv NULL )
+for types which do
+.Sy not
+match.
+So applications should handle the case of two absent values separately.
+.Sh RETURN VALUES
+.Fn ASN1_TYPE_new
+returns the new
+.Vt ASN1_TYPE
+object or
+.Dv NULL
+if an error occurs.
+.Pp
+.Fn ASN1_TYPE_get
+returns the type currently held by
+.Fa a
+or 0 if an error occurs.
+The latter can happen if
+.Fa a
+does not contain a value even though its type is not
+.Dv V_ASN1_NULL .
+For example, it will always happen for empty objects
+newly constructed with
+.Fn ASN1_TYPE_new .
+.Pp
+.Fn ASN1_TYPE_set1 ,
+.Fn ASN1_TYPE_set_octetstring ,
+and
+.Fn ASN1_TYPE_set_int_octetstring
+return 1 on success or 0 on failure.
+.Pp
+.Fn ASN1_TYPE_get_octetstring
+returns the number of data bytes contained in the
+.Vt ASN1_OCTET_STRING
+object contained in
+.Fa a
+or \-1 if
+.Fa a
+is not of the type
+.Dv V_ASN1_OCTET_STRING
+or does not contain any object.
+If the return value is greater than the
+.Fa buflen
+argument, the content was truncated when copied to the
+.Fa buffer .
+.Pp
+.Fn ASN1_TYPE_get_int_octetstring
+returns the number of data bytes contained in the
+.Vt ASN1_OCTET_STRING
+object that is the second element of the ASN.1 sequence
+.Fa a
+or \-1 if
+.Fa a
+is not of the type
+.Dv V_ASN1_SEQUENCE
+or if decoding fails.
+If the return value is greater than the
+.Fa buflen
+argument, the content was truncated when copied to the
+.Fa buffer .
+.Pp
+.Fn ASN1_TYPE_cmp
+returns 0 for a match or non-zero for a mismatch.
+.Sh SEE ALSO
+.Xr ASN1_generate_nconf 3 ,
+.Xr ASN1_get_object 3 ,
+.Xr ASN1_item_free 3 ,
+.Xr ASN1_OBJECT_new 3 ,
+.Xr ASN1_parse_dump 3 ,
+.Xr ASN1_put_object 3 ,
+.Xr ASN1_STRING_dup 3 ,
+.Xr ASN1_STRING_new 3 ,
+.Xr crypto 3 ,
+.Xr d2i_ASN1_NULL 3 ,
+.Xr d2i_ASN1_SEQUENCE_ANY 3 ,
+.Xr d2i_ASN1_TYPE 3 ,
+.Xr OBJ_dup 3
+.Sh HISTORY
+.Fn ASN1_TYPE_new
+and
+.Fn ASN1_TYPE_free
+first appeared in SSLeay 0.5.1,
+.Fn ASN1_TYPE_get
+and
+.Fn ASN1_TYPE_set
+in SSLeay 0.8.0, and
+.Fn ASN1_TYPE_set_octetstring ,
+.Fn ASN1_TYPE_get_octetstring ,
+.Fn ASN1_TYPE_set_int_octetstring ,
+and
+.Fn ASN1_TYPE_get_int_octetstring
+in SSLeay 0.9.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn ASN1_TYPE_set1
+first appeared in OpenSSL 0.9.8h and has been available since
+.Ox 4.5 .
+.Pp
+.Fn ASN1_TYPE_cmp
+first appeared in OpenSSL 0.9.8zd, 1.0.0p, and 1.0.1k
+and has been available since
+.Ox 4.9 .

@@ -1,0 +1,108 @@
+.\"	$OpenBSD: vigra.4,v 1.7 2011/09/03 22:59:07 jmc Exp $
+.\" Copyright (c) 2002 Miodrag Vallat.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 3 2011 $
+.Dt VIGRA 4 sparc64
+.Os
+.Sh NAME
+.Nm vigra
+.Nd 8-bit SBus color frame buffer with VGA-compatible modes
+.Sh SYNOPSIS
+.Cd "vigra* at sbus?"
+.Cd "wsdisplay* at vigra?"
+.Sh DESCRIPTION
+The
+.Tn "Vigra VS10, VS11 and VS12"
+are 8-bit color frame buffers with user-selectable video modes, and a
+VGA-compatible connector.
+.Pp
+The
+.Nm
+driver interfaces the frame buffer with the
+.Xr wscons 4
+console framework.
+It does not provide direct device driver entry points
+but makes its functions available via the internal
+.Xr wsdisplay 4
+interface.
+.Pp
+The video resolution and signal synchronization modes are
+selected with four DIP switches on the back of the card.
+.Ss VS10 and VS12 Switch Settings:
+The VS10 and VS12 support the following basic modes:
+.Bl -column "Switches" "Resolution" "Refresh"
+.It Sy Switches Ta Sy Resolution Ta Sy Refresh Ta Sy Description
+.It Sy "1 2 3 4" Ta "" Ta Sy "Rate" Ta ""
+.It Li "D D D D" Ta 640x480 Ta 60Hz Ta "Standard VGA, negative separate sync"
+.It Li "U D D D" Ta 800x600 Ta 56Hz Ta "Super VGA, negative separate sync"
+.It Li "D U D D" Ta 800x600 Ta 56Hz Ta "Super VGA, positive separate sync"
+.It Li "U U D D" Ta 1024x768 Ta 60Hz Ta "Super VGA, negative separate sync"
+.It Li "D D U D" Ta 1024x768 Ta 60Hz Ta "Super VGA, composite sync"
+.It Li "U D U D" Ta 1024x768 Ta 60Hz Ta "Super VGA, sync-on-green"
+.It Li "D U U D" Ta 1024x768 Ta 66Hz Ta "Sun 386i, composite sync"
+.It Li "U U U D" Ta 1152x900 Ta 76Hz Ta "Sun SPARCstation, composite sync"
+.It Li "D D D U" Ta 1152x900 Ta 61.5Hz Ta "NEC 4D, composite sync"
+.It Li "U D D U" Ta 1152x900 Ta 66Hz Ta "Sun SPARCstation, composite sync"
+.It Li "D U D U" Ta 800x600 Ta 60Hz Ta "VESA, negative separate sync"
+.It Li "U U D U" Ta 800x600 Ta 72Hz Ta "VESA, negative separate sync"
+.El
+.Ss VS12-only Switch Settings:
+The VS12 supports all of the previously listed modes, as well as a few high
+resolution settings.
+.Bl -column "Switches" "Resolution" "Refresh"
+.It Sy Switches Ta Sy Resolution Ta Sy Refresh Ta Sy Description
+.It Sy "1 2 3 4" Ta "" Ta Sy "Rate" Ta ""
+.It Li "D D U U" Ta 1280x1024 Ta 60Hz Ta "NEC xD, negative separate sync"
+.It Li "U D U U" Ta 1280x1024 Ta 60Hz Ta "NEC xD, composite sync"
+.It Li "D U U U" Ta 1280x1024 Ta 60Hz Ta "NEC xD, sync-on-green"
+.It Li "U U U U" Ta 1280x1024 Ta 67Hz Ta "Sun SPARCstation, composite sync"
+.El
+.Ss VS11 Switch Settings:
+The VS11 supports a similar set of modes as the VS12, but with higher refresh
+rates.
+.Bl -column "Switches" "Resolution" "Refresh"
+.It Sy Switches Ta Sy Resolution Ta Sy Refresh Ta Sy Description
+.It Sy "1 2 3 4" Ta "" Ta Sy "Rate" Ta ""
+.It Li "D D D D" Ta 640x480 Ta 60Hz Ta "Standard VGA, negative separate sync"
+.It Li "U D D D" Ta 800x600 Ta 72Hz Ta "VESA, negative separate sync"
+.It Li "D U D D" Ta 1024x768 Ta 60Hz Ta "VESA, negative separate sync"
+.It Li "U U D D" Ta 1024x768 Ta 60Hz Ta "VESA, composite sync"
+.It Li "D D U D" Ta 1024x768 Ta 60Hz Ta "VESA, sync-on-green"
+.It Li "U D U D" Ta 1024x768 Ta 66Hz Ta "Sun 386i, composite sync"
+.It Li "D U U D" Ta 1152x900 Ta 66Hz Ta "Sun SPARCstation, composite sync"
+.It Li "U U U D" Ta 1152x900 Ta 76Hz Ta "Sun SPARCstation, composite sync"
+.It Li "D D D U" Ta 1280x1024 Ta 67Hz Ta "Sun SPARCstation, composite sync"
+.It Li "U D D U" Ta 1280x1024 Ta 60Hz Ta "NEC xFG, negative separate sync"
+.It Li "D U D U" Ta 1280x1024 Ta 60Hz Ta "NEC xFG, composite sync"
+.It Li "U U D U" Ta 1280x1024 Ta 60Hz Ta "NEC xFG, sync-on-green"
+.It Li "D D U U" Ta 1280x1024 Ta 74Hz Ta "NEC xFG, composite sync"
+.It Li "U D U U" Ta 1280x1024 Ta 74Hz Ta "NEC xFG, sync-on-green"
+.It Li "D U U U" Ta 1280x1024 Ta 72Hz Ta "HP A1097, composite sync"
+.It Li "U U U U" Ta 1280x1024 Ta 72Hz Ta "Special, composite sync"
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr sbus 4 ,
+.Xr wscons 4 ,
+.Xr wsdisplay 4

@@ -1,0 +1,19 @@
+#!/bin/ksh
+#
+# $OpenBSD: amd,v 1.11 2022/05/26 11:27:03 ajacoutot Exp $
+
+daemon="/usr/sbin/amd"
+daemon_execdir="/etc/amd"
+
+. /etc/rc.d/rc.subr
+
+pexp="${daemon}.*"
+rc_reload=NO
+rc_stop=NO
+
+rc_pre() {
+	[[ -e ${amd_master} ]] || return 1
+	daemon_flags="${daemon_flags} $(print -rn -- $(< ${amd_master}))"
+}
+
+rc_cmd $1

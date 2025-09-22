@@ -1,0 +1,97 @@
+.\" Copyright (c) 1980, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: killpg.3,v 1.14 2017/05/07 21:19:29 millert Exp $
+.\"
+.Dd $Mdocdate: May 7 2017 $
+.Dt KILLPG 3
+.Os
+.Sh NAME
+.Nm killpg
+.Nd send signal to a process group
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fn killpg "pid_t pgrp" "int sig"
+.Sh DESCRIPTION
+The
+.Fn killpg
+function sends the signal
+.Fa sig
+to the process group
+.Fa pgrp .
+See
+.Xr sigaction 2
+for a list of signals.
+If
+.Fa pgrp
+is 0,
+.Fn killpg
+sends the signal to the sending process's process group.
+.Pp
+The sending process and members of the process group must
+have the same effective user ID, or
+the sender must be the superuser.
+As a single special case the continue signal SIGCONT may be sent
+to any process with the same session ID as the caller.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn killpg
+will fail and no signal will be sent if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa sig
+is not a valid signal number.
+.It Bq Er ESRCH
+No process can be found in the process group specified by
+.Fa pgrp .
+.It Bq Er ESRCH
+The process group was given as 0
+but the sending process does not have a process group.
+.It Bq Er EPERM
+The sending process is not the superuser and one or more
+of the target processes has an effective user ID different from that
+of the sending process.
+.El
+.Sh SEE ALSO
+.Xr getpgrp 2 ,
+.Xr kill 2 ,
+.Xr sigaction 2
+.Sh STANDARDS
+The
+.Fn killpg
+function conforms to the X/Open System Interfaces option of the
+.St -p1003.1-2008
+specification.
+.Pp
+The handling of process group 0 is an extension to that standard.
+.Sh HISTORY
+The
+.Fn killpg
+function call appeared in
+.Bx 4.0 .

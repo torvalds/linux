@@ -1,0 +1,69 @@
+.\"	$OpenBSD: itherm.4,v 1.4 2013/07/16 16:05:49 schwarze Exp $
+.\"
+.\" Copyright (c) 2010 Mike Larkin <mlarkin@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt ITHERM 4
+.Os
+.Sh NAME
+.Nm itherm
+.Nd Intel 3400 temperature sensor
+.Sh SYNOPSIS
+.Cd "itherm* at pci?"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for several sensors found in Intel 3400 and 5 series
+chipsets.
+.Pp
+The sensors currently exposed via the
+.Xr sysctl 8
+interface are:
+.Bl -column "CPU power cons." "Units" "Typical Use" -offset indent
+.It Sy "Sensor" Ta Sy "Units" Ta Sy "Typical Use"
+.It Li "Thermometer" Ta "degC" Ta "Temperature"
+.It Li "Core 1" Ta "degC" Ta "Temperature"
+.It Li "Core 2" Ta "degC" Ta "Temperature"
+.It Li "CPU power cons." Ta "Watts" Ta "Power usage"
+.It Li "CPU/GPU Max" Ta "degC" Ta "Temperature"
+.It Li "DIMM 1" Ta "degC" Ta "Temperature"
+.It Li "DIMM 2" Ta "degC" Ta "Temperature"
+.It Li "DIMM 3" Ta "degC" Ta "Temperature"
+.It Li "DIMM 4" Ta "degC" Ta "Temperature"
+.It Li "GPU abs." Ta "degC" Ta "Temperature"
+.It Li "PCH abs." Ta "degC" Ta "Temperature"
+.El
+.Sh SEE ALSO
+.Xr pci 4 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.8 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mike Larkin Aq Mt mlarkin@openbsd.org .
+.Sh CAVEATS
+Not all sensors are wired on every machine, so the list of
+sensors shown in
+.Xr sysctl 8
+may not show all the sensors listed above.
+Furthermore, the
+.Nm
+driver will flag sensors as invalid if they report bogus data.

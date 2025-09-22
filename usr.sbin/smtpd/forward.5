@@ -1,0 +1,82 @@
+.\"	$OpenBSD: forward.5,v 1.12 2024/09/05 06:33:04 jmc Exp $
+.\"
+.\" Copyright (c) 2012 Gilles Chehade <gilles@poolp.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 5 2024 $
+.Dt FORWARD 5
+.Os
+.Sh NAME
+.Nm forward
+.Nd email forwarding information file
+.Sh DESCRIPTION
+Users may put a
+.Nm .forward
+file in their home directory.
+If this file exists,
+.Xr smtpd 8
+forwards email to the destinations specified therein.
+.Pp
+A
+.Nm .forward
+file contains a list of expansion values, as described in
+.Xr aliases 5 .
+Each expansion value should be on a line by itself.
+Expansion is performed under the user ID of the
+.Nm .forward
+file owner.
+.Pp
+Permissions on the
+.Nm .forward
+file are very strict and expansion is rejected if the file is
+group or world-writable;
+if the home directory is group writeable;
+or if the file is not owned by the user.
+.Pp
+Users should avoid editing the
+.Nm .forward
+file directly, to prevent delivery failures from occurring if a message
+arrives while the file is not fully written.
+The best option is to use a temporary file and use the
+.Xr mv 1
+command to atomically overwrite the former
+.Nm .forward .
+Alternatively, setting the
+.Xr sticky 8
+bit on the home directory will cause the
+.Nm .forward
+lookup to return a temporary failure, causing mails to be deferred.
+.Sh FILES
+.Bl -tag -width "~/.forwardXXX" -compact
+.It Pa ~/.forward
+Email forwarding information.
+.El
+.Sh EXAMPLES
+The following file forwards mail to
+.Dq user@example.com ,
+and pipes the same mail to
+.Dq examplemda .
+.Bd -literal -offset indent
+# empty lines are ignored
+
+user@example.com	# anything after # is ignored
+"|/path/to/examplemda"
+.Ed
+.Sh SEE ALSO
+.Xr aliases 5 ,
+.Xr smtpd 8
+.Sh CAVEATS
+The pipe
+.Sq |
+and :include: mechanisms are not allowed for the root user.

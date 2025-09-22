@@ -1,0 +1,141 @@
+.\"	$OpenBSD: ypserv.8,v 1.30 2020/11/01 21:32:04 jmc Exp $
+.\"
+.\" Copyright (c) 1994 Mats O Jansson <moj@stacken.kth.se>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 1 2020 $
+.Dt YPSERV 8
+.Os
+.Sh NAME
+.Nm ypserv
+.Nd YP server daemon
+.Sh SYNOPSIS
+.Nm ypserv
+.Op Fl 1dx
+.Op Fl a Ar aclfile
+.Sh DESCRIPTION
+.Nm
+is a fundamental part of the network information system called YP.
+This server provides information from YP maps to the YP clients
+on the network.
+.Pp
+A YP map is stored on the server as a Berkeley database.
+A number of YP maps are grouped together in a domain.
+.Nm
+determines the domains it serves by looking for a directory with
+the domain name in
+.Pa /var/yp .
+.Pp
+YP hasn't been known for high security through the years.
+In recent years
+security has improved by restricting access to the server.
+In SunOS 4.1
+has a new file occurred named
+.Pa /var/yp/securenet .
+It contains networks the server can assume is secure.
+For information about the file format, see
+.Xr securenet 5 .
+.Pp
+Before the author of this server had seen
+.Xr securenet 5
+another format,
+.Xr ypserv.acl 5 ,
+was implemented.
+This file format makes it possible to allow and deny hosts and networks
+access to the server.
+This file can have any name since it's given by the argument to
+.Fl a
+(use full path).
+.Pp
+If a host isn't secure, all queries to the server will result in a YP_NODOM
+result.
+.Pp
+If the file
+.Pa /var/yp/ypserv.log
+exists then messages will be written to the file.
+.Pp
+If a directory named the same as the system domainname exists in
+.Pa /var/yp
+(i.e., the domainname is
+.Dq foo
+and the directory
+.Pa /var/yp/foo
+exists), then
+.Nm
+will be automatically started at boot time.
+.Pp
+On receipt of a hangup signal,
+.Dv SIGHUP ,
+.Nm
+will reopen the log file and reread its configuration,
+including both the map files and the
+.Xr ypserv.acl 5
+or
+.Xr securenet 5
+configuration file.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 1
+Allow
+.Nm
+to answer old YP version 1 requests.
+.It Fl a Ar aclfile
+Don't use
+.Pa /var/yp/securenet .
+Use another file with a different file format.
+For further information see
+.Xr ypserv.acl 5 .
+.It Fl d
+Use Internet Domain Name System.
+If a query to map
+.Dq hosts.byname
+or
+.Dq hosts.byaddr
+fails, make a DNS query and return the result if successful.
+Alternately, if these maps were built on the YP master using
+.Nm makedbm
+.Fl b
+then DNS queries will be done without needing to specify
+.Fl d .
+.It Fl x
+Terminate the server after processing
+.Ar aclfile
+or
+.Pa /var/yp/securenet .
+.El
+.Sh FILES
+.Bl -tag -width /var/yp/ypserv.log -compact
+.It Pa /var/yp/ypserv.log
+.It Pa /var/yp/securenet
+.El
+.Sh SEE ALSO
+.Xr dbopen 3 ,
+.Xr securenet 5 ,
+.Xr ypserv.acl 5 ,
+.Xr Makefile.yp 8 ,
+.Xr yp 8 ,
+.Xr ypbind 8
+.Sh AUTHORS
+.An Mats O Jansson Aq Mt moj@stacken.kth.se

@@ -1,0 +1,18 @@
+#!/bin/ksh
+#
+# $OpenBSD: mountd,v 1.8 2018/01/11 21:09:26 rpe Exp $
+
+daemon="/sbin/mountd"
+
+. /etc/rc.d/rc.subr
+
+pexp="mountd: \[priv\]"
+rc_stop=NO
+
+rc_pre() {
+	[[ -s /etc/exports ]] && grep -qv '^#' /etc/exports &&
+		rm -f /var/db/mountdtab &&
+		echo -n > /var/db/mountdtab
+}
+
+rc_cmd $1

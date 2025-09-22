@@ -1,0 +1,74 @@
+import("//lldb/utils/TableGen/lldb_tablegen.gni")
+
+lldb_tablegen("SymbolFileDWARFProperties") {
+  args = [ "-gen-lldb-property-defs" ]
+}
+
+lldb_tablegen("SymbolFileDWARFPropertiesEnum") {
+  args = [ "-gen-lldb-property-enum-defs" ]
+  td_file = "SymbolFileDWARFProperties.td"
+}
+
+static_library("DWARF") {
+  output_name = "lldbPluginSymbolFileDWARF"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    ":SymbolFileDWARFProperties",
+    ":SymbolFileDWARFPropertiesEnum",
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//lldb/source/Core",
+    "//lldb/source/Expression",
+    "//lldb/source/Host",
+    "//lldb/source/Interpreter",
+    "//lldb/source/Plugins/ExpressionParser/Clang",
+
+    #"//lldb/source/Plugins/Language/CPlusPlus", # 3-hop dependency cycle.
+    "//lldb/source/Plugins/Language/ObjC",
+    "//lldb/source/Symbol",
+    "//lldb/source/Target",
+    "//lldb/source/Utility",
+
+    #"//lldb/source/Plugins/TypeSystem/Clang", # Dependency cycle.
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/Support",
+  ]
+
+  # Uses source-relative includes for own headers.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "AppleDWARFIndex.cpp",
+    "DIERef.cpp",
+    "DWARFASTParser.cpp",
+    "DWARFASTParserClang.cpp",
+    "DWARFAttribute.cpp",
+    "DWARFBaseDIE.cpp",
+    "DWARFCompileUnit.cpp",
+    "DWARFContext.cpp",
+    "DWARFDIE.cpp",
+    "DWARFDataExtractor.cpp",
+    "DWARFDebugArangeSet.cpp",
+    "DWARFDebugAranges.cpp",
+    "DWARFDebugInfo.cpp",
+    "DWARFDebugInfoEntry.cpp",
+    "DWARFDebugMacro.cpp",
+    "DWARFDebugRanges.cpp",
+    "DWARFDeclContext.cpp",
+    "DWARFDefines.cpp",
+    "DWARFFormValue.cpp",
+    "DWARFIndex.cpp",
+    "DWARFTypeUnit.cpp",
+    "DWARFUnit.cpp",
+    "DebugNamesDWARFIndex.cpp",
+    "LogChannelDWARF.cpp",
+    "ManualDWARFIndex.cpp",
+    "NameToDIE.cpp",
+    "SymbolFileDWARF.cpp",
+    "SymbolFileDWARFDebugMap.cpp",
+    "SymbolFileDWARFDwo.cpp",
+    "UniqueDWARFASTType.cpp",
+  ]
+}

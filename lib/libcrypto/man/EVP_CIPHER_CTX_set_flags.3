@@ -1,0 +1,234 @@
+.\" $OpenBSD: EVP_CIPHER_CTX_set_flags.3,v 1.3 2025/06/08 22:40:29 schwarze Exp $
+.\" full merge up to: OpenSSL 5211e094 Nov 11 14:39:11 2014 -0800
+.\"
+.\" This file is a derived work.
+.\" The changes are covered by the following Copyright and license:
+.\"
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The original file was written by Dr. Stephen Henson <steve@openssl.org>
+.\" and Patrick Steuer <patrick.steuer@de.ibm.com>.
+.\" Copyright (c) 2000, 2017 The OpenSSL Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" 3. All advertising materials mentioning features or use of this
+.\"    software must display the following acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+.\"
+.\" 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+.\"    endorse or promote products derived from this software without
+.\"    prior written permission. For written permission, please contact
+.\"    openssl-core@openssl.org.
+.\"
+.\" 5. Products derived from this software may not be called "OpenSSL"
+.\"    nor may "OpenSSL" appear in their names without prior written
+.\"    permission of the OpenSSL Project.
+.\"
+.\" 6. Redistributions of any form whatsoever must retain the following
+.\"    acknowledgment:
+.\"    "This product includes software developed by the OpenSSL Project
+.\"    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+.\" EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+.\" ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+.\" OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt EVP_CIPHER_CTX_SET_FLAGS 3
+.Os
+.Sh NAME
+.Nm EVP_CIPHER_CTX_set_flags ,
+.Nm EVP_CIPHER_CTX_clear_flags ,
+.Nm EVP_CIPHER_CTX_test_flags ,
+.Nm EVP_CIPHER_CTX_rand_key ,
+.Nm EVP_CIPHER_param_to_asn1 ,
+.Nm EVP_CIPHER_asn1_to_param ,
+.\" .Nm EVP_CIPHER_set_asn1_iv and
+.\" .Nm EVP_CIPHER_get_asn1_iv are intentionally undocumented
+.\" because they are unused according to codesearch.debian.net
+.\" and should probably not be public: they seem hardly useful
+.\" even for implementing custom EVP_CIPHER algorithms.
+.Nm EVP_CIPHER_CTX_get_app_data ,
+.Nm EVP_CIPHER_CTX_set_app_data
+.Nd unusual EVP cipher context configuration
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/evp.h
+.Ft void
+.Fo EVP_CIPHER_CTX_set_flags
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "int flags"
+.Fc
+.Ft void
+.Fo EVP_CIPHER_CTX_clear_flags
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_test_flags
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_CTX_rand_key
+.Fa "EVP_CIPHER_CTX *ctx"
+.Fa "unsigned char *key"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_param_to_asn1
+.Fa "EVP_CIPHER_CTX *c"
+.Fa "ASN1_TYPE *type"
+.Fc
+.Ft int
+.Fo EVP_CIPHER_asn1_to_param
+.Fa "EVP_CIPHER_CTX *c"
+.Fa "ASN1_TYPE *type"
+.Fc
+.Ft void *
+.Fo EVP_CIPHER_CTX_get_app_data
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fc
+.Ft void
+.Fo EVP_CIPHER_CTX_set_app_data
+.Fa "const EVP_CIPHER_CTX *ctx"
+.Fa "void *data"
+.Fc
+.Sh DESCRIPTION
+.Fn EVP_CIPHER_CTX_set_flags
+enables the given
+.Fa flags
+in
+.Fa ctx .
+.Fn EVP_CIPHER_CTX_clear_flags
+disables the given
+.Fa flags
+in
+.Fa ctx .
+.Fn EVP_CIPHER_CTX_test_flags
+checks whether any of the given
+.Fa flags
+are currently set in
+.Fa ctx ,
+returning the subset of the
+.Fa flags
+that are set, or 0 if none of them are set.
+Currently, the only supported cipher context flag is
+.Dv EVP_CIPHER_CTX_FLAG_WRAP_ALLOW ;
+see
+.Xr EVP_aes_128_wrap 3
+for details.
+.Pp
+.Fn EVP_CIPHER_CTX_rand_key
+generates a random key of the appropriate length based on the cipher
+context.
+The
+.Vt EVP_CIPHER
+can provide its own random key generation routine to support keys
+of a specific form.
+The
+.Fa key
+argument must point to a buffer at least as big as the value returned by
+.Xr EVP_CIPHER_CTX_key_length 3 .
+.Pp
+.Fn EVP_CIPHER_param_to_asn1
+sets the ASN.1
+.Vt AlgorithmIdentifier
+parameter based on the passed cipher.
+This will typically include any parameters and an IV.
+The cipher IV (if any) must be set when this call is made.
+This call should be made before the cipher is actually "used" (before any
+.Xr EVP_EncryptUpdate 3
+or
+.Xr EVP_DecryptUpdate 3
+calls, for example).
+This function may fail if the cipher does not have any ASN.1 support.
+.Pp
+.Fn EVP_CIPHER_asn1_to_param
+sets the cipher parameters based on an ASN.1
+.Vt AlgorithmIdentifier
+parameter.
+The precise effect depends on the cipher.
+In the case of RC2, for example, it will set the IV and effective
+key length.
+This function should be called after the base cipher type is set but
+before the key is set.
+For example
+.Xr EVP_CipherInit 3
+will be called with the IV and key set to
+.Dv NULL ,
+.Fn EVP_CIPHER_asn1_to_param
+will be called and finally
+.Xr EVP_CipherInit 3
+again with all parameters except the key set to
+.Dv NULL .
+It is possible for this function to fail if the cipher does not
+have any ASN.1 support or the parameters cannot be set (for example
+the RC2 effective key length is not supported).
+.Sh RETURN VALUES
+.Fn EVP_CIPHER_CTX_rand_key
+return 1 for success or 0 for failure.
+.Pp
+.Fn EVP_CIPHER_param_to_asn1
+and
+.Fn EVP_CIPHER_asn1_to_param
+return greater than zero for success and zero or a negative number
+for failure.
+.Sh SEE ALSO
+.Xr evp 3 ,
+.Xr EVP_CIPHER_CTX_ctrl 3 ,
+.Xr EVP_CIPHER_CTX_get_cipher_data 3 ,
+.Xr EVP_CIPHER_nid 3 ,
+.Xr EVP_EncryptInit 3
+.Sh HISTORY
+.Fn EVP_CIPHER_CTX_set_app_data
+and
+.Fn EVP_CIPHER_CTX_get_app_data
+first appeared in SSLeay 0.8.0.
+.Fn EVP_CIPHER_param_to_asn1
+and
+.Fn EVP_CIPHER_asn1_to_param
+first appeared in SSLeay 0.9.0.
+These functions have been available since
+.Ox 2.4 .
+.Pp
+.Fn EVP_CIPHER_CTX_rand_key
+first appeared in OpenSSL 0.9.8 and has been available since
+.Ox 4.5 .
+.Sh BUGS
+The ASN.1 code is incomplete (and sometimes inaccurate).
+It has only been tested for certain common S/MIME ciphers
+(RC2, DES, triple DES) in CBC mode.

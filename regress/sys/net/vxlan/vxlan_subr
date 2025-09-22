@@ -1,0 +1,83 @@
+#
+# Copyright (c) 2015 Vincent Gross <vgross@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+CLEANUP=0
+VERBOSE=0
+FAILS=0
+
+iface_exists()
+{
+	ifconfig_out=`ifconfig "$1" 2>&1`
+	[ "${ifconfig_out}" != "$1: no such interface" ]
+}
+
+rdomain_is_used()
+{
+	_rdomains=$(ifconfig |grep -v ^lo$1 | \
+	     sed -n '/^[a-z].* rdomain \([0-9]*\).*/s//\1/p' | sort | uniq)
+	for _r in $_rdomains; do
+		if [ $_r = $1 ]; then
+			return 1
+		fi
+	done
+	return 0
+}
+
+abort_test()
+{
+	echo "** Aborted" >&2
+	[ $# -ge 0 ] && echo "$1" >&2
+	cleanup
+	exit 1
+}
+
+test()
+{
+	if [ $VERBOSE -gt 0 ]; then
+		"$@"
+	else
+		"$@" > /dev/null 2>&1
+	fi
+	if [ $? -ne 0 ]; then
+		FAILS=$((FAILS + 1))
+	fi
+}
+
+RDOMAINS=""
+IFACE_NUMS=""
+AF=inet
+while getopts 'cvR:I:f:' ch "$@"; do
+	case $ch in
+	c)
+		CLEANUP=1
+		;;
+	v)
+		VERBOSE=$((VERBOSE + 1))
+		;;
+	R)
+		RDOMAINS="$RDOMAINS $OPTARG"
+		;;
+	I)
+		IFACE_NUMS="$IFACE_NUMS $OPTARG"
+		;;
+	f)
+		AF=$OPTARG
+		;;
+	*)
+		echo "usage: $(basename $0) [-cv][-R rodmains][-I iface_nums]"
+		exit 64
+		;;
+	esac
+done

@@ -1,0 +1,248 @@
+.\" $OpenBSD: btree.3,v 1.6 2025/06/13 18:34:00 schwarze Exp $
+.\"
+.\" Copyright (c) 2009, 2010 Martin Hedenfalk <martinh@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 13 2025 $
+.Dt BTREE 3
+.Os
+.Sh NAME
+.Nm btree_open ,
+.Nm btree_open_fd ,
+.Nm btree_close ,
+.Nm btree_txn_begin ,
+.Nm btree_txn_get ,
+.Nm btree_txn_put ,
+.Nm btree_txn_del ,
+.Nm btree_txn_commit ,
+.Nm btree_txn_abort ,
+.Nm btree_get ,
+.Nm btree_put ,
+.Nm btree_del ,
+.Nm btree_txn_cursor_open ,
+.Nm btree_cursor_open ,
+.Nm btree_cursor_close ,
+.Nm btree_cursor_get ,
+.Nm btree_stat ,
+.Nm btree_compact ,
+.Nm btree_revert ,
+.Nm btree_sync ,
+.Nm btree_set_cache_size ,
+.Nm btree_get_flags ,
+.Nm btree_get_path ,
+.Nm btree_cmp ,
+.Nm btval_reset
+.Nd append-only prefix B+tree database library
+.Sh SYNOPSIS
+.In <btree.h>
+.Ft struct btree *
+.Fn "btree_open_fd" "int fd" "unsigned int flags"
+.Ft struct btree *
+.Fn "btree_open" "const char *path" "unsigned int flags" "mode_t mode"
+.Ft void
+.Fn "btree_close" "struct btree *bt"
+.Ft struct btree_txn *
+.Fn "btree_txn_begin" "struct btree *bt" "int rdonly"
+.Ft int
+.Fn "btree_txn_get" "struct btree *bt" "struct btree_txn *" "struct btval *key" "struct btval *data"
+.Ft int
+.Fn "btree_txn_put" "struct btree *bt" "struct btree_txn *" "struct btval *key" "struct btval *data" "unsigned int flags"
+.Ft int
+.Fn "btree_txn_del" "struct btree *bt" "struct btree_txn *" "struct btval *key" "struct btval *data"
+.Ft int
+.Fn "btree_txn_commit" "struct btree_txn *txn"
+.Ft void
+.Fn "btree_txn_abort" "struct btree_txn *txn"
+.Ft int
+.Fn "btree_get" "struct btree *bt" "struct btval *key" "struct btval *data"
+.Ft int
+.Fn "btree_put" "struct btree *bt" "struct btval *key" "struct btval *data" "unsigned flags"
+.Ft int
+.Fn "btree_del" "struct btree *bt" "struct btval *key" "struct btval *data"
+.Ft struct cursor *
+.Fn "btree_txn_cursor_open" "struct btree *bt" "struct btree_txn *txn"
+.Ft struct cursor *
+.Fn "btree_cursor_open" "struct btree *bt"
+.Ft void
+.Fn "btree_cursor_close" "struct cursor *cursor"
+.Ft int
+.Fn "btree_cursor_get" "struct cursor *cursor" "struct btval *key" "struct btval *data" "enum cursor_op op"
+.Ft struct btree_stat *
+.Fn "btree_stat" "struct btree *bt"
+.Ft int
+.Fn "btree_compact" "struct btree *bt"
+.Ft int
+.Fn "btree_revert" "struct btree *bt"
+.Ft int
+.Fn "btree_sync" "struct btree *bt"
+.Ft void
+.Fn "btree_set_cache_size" "struct btree *bt" "unsigned int cache_size"
+.Ft unsigned int
+.Fn "btree_get_flags" "struct btree *bt"
+.Ft const char *
+.Fn "btree_get_path" "struct btree *bt"
+.Ft int
+.Fn "btree_cmp" "struct btree *bt" "const struct btval *a" "const struct btval *b"
+.Ft void
+.Fn "btval_reset" "struct btval *btv"
+.Sh DESCRIPTION
+The database is implemented as a modified prefix B+tree.
+Instead of modifying the database file inplace,
+each update appends any modified pages at the end of the file.
+The last block of the file contains metadata and a pointer to the root page.
+The first block of the file contains a header that specifies the page size.
+.Pp
+Append-only writing gives the following properties:
+.Bl -enum
+.It
+No locks.
+Since all writes are appended to the end of the file, multiple
+readers can continue reading from the tree as it was when they
+started.
+This snapshot view might contain outdated versions of entries.
+.It
+Resistance to corruption.
+The file content is never modified.
+When opening a database file, the last good meta-data page is searched
+by scanning backwards.
+If there is trailing garbage in the file, it will be skipped.
+.It
+Hot backups.
+Backups can be made on a running server simply by copying the files.
+There is no risk for inconsistencies.
+.El
+.Pp
+The drawback is that it wastes space.
+A 4-level B+tree database will write at least 5 new pages on each update,
+including the meta-data page.
+With 4 KiB pagesize, the file would grow by 20 KiB on each update.
+.Pp
+To reclaim the wasted space, the database should be compacted.
+The compaction process opens a write transaction and traverses the tree.
+Each active page is then written to a new file.
+When complete, a special
+.Dq tombstone
+page is written to the old file to
+signal that it is stale and all processes using the file should re-open it.
+Modifications are denied on a stale file and fail with errno set to ESTALE.
+.Sh CURSORS
+A new cursor may be opened with a call to
+.Fn btree_txn_cursor_open
+or
+.Fn btree_cursor_open .
+The latter is implemented as a macro to the former with a NULL
+.Ar txn
+argument.
+Multiple cursors may be open simultaneously.
+The cursor must be closed with
+.Fn btree_cursor_close
+after use.
+.Pp
+The cursor can be placed at a specific key by setting
+.Ar op
+to BT_CURSOR and filling in the
+.Ar key
+argument.
+The cursor will be placed at the smallest key greater or equal to
+the specified key.
+If
+.Ar op
+is instead set to BT_CURSOR_EXACT, the cursor will be placed at the
+specified key, or fail if it doesn't exist.
+.Pp
+The database may be traversed from the first key to the last by calling
+.Fn btree_cursor_get
+with
+.Ar op
+initially set to BT_FIRST and then set to BT_NEXT.
+If the cursor is not yet initialized, ie
+.Fn btree_cursor_get
+has not yet been called with
+.Ar op
+set to BT_FIRST or BT_CURSOR, then BT_NEXT behaves as BT_FIRST.
+.Sh TRANSACTIONS
+There are two types of transactions: write and read-only transactions.
+Only one write transaction is allowed at a time.
+A read-only transaction allows the grouping of several read operations
+to see a consistent state of the database.
+.Pp
+A transaction is started with
+.Fn btree_txn_begin .
+If the
+.Ar rdonly
+parameter is 0, a write transaction is started and an exclusive lock
+is taken on the file using
+.Xr flock 2 .
+No lock is taken for read-only transactions.
+.Pp
+The transaction is ended either with
+.Fn btree_txn_commit
+or
+.Fn btree_txn_abort .
+The
+.Ft btree_txn
+pointer must not be accessed afterwards.
+Any cursor opened inside the transaction must be closed before the
+transaction is ended.
+.Sh RETURN VALUES
+The
+.Fn btree_txn_get ,
+.Fn btree_txn_put ,
+.Fn btree_txn_del ,
+.Fn btree_txn_commit ,
+.Fn btree_get ,
+.Fn btree_put ,
+.Fn btree_del ,
+.Fn btree_cursor_get ,
+.Fn btree_compact
+and
+.Fn btree_revert
+functions all return 0 on success.
+On failure -1 is returned and errno is set.
+.Pp
+All functions returning pointers return NULL on error.
+.Pp
+.Fn btree_txn_put
+and
+.Fn btree_put
+sets errno to EEXIST if the key already exists and BT_NOOVERWRITE was not
+passed in the
+.Ar flags
+argument.
+.Pp
+.Fn btree_txn_get ,
+.Fn btree_txn_del ,
+.Fn btree_get ,
+.Fn btree_del
+and
+.Fn btree_cursor_get
+sets errno to ENOENT if the specified key was not found.
+.Pp
+The
+.Fn btree_txn_begin ,
+.Fn btree_cursor ,
+.Fn btree_cursor_get ,
+.Fn btree_get ,
+.Fn btree_put ,
+.Fn btree_del
+functions can fail and set errno to ESTALE if the database file has been
+compacted by another process.
+The file should be re-opened and the operation retried.
+.Sh AUTHORS
+The
+.Nm btree
+library was written by
+.An Martin Hedenfalk Aq Mt martin@bzero.se .
+.Sh BUGS
+Byte order is assumed never to change.

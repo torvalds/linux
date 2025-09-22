@@ -1,0 +1,448 @@
+#!/usr/bin/env bash
+
+# Script to do automated testing and data collection for various test
+# files, so that we don't have to do this by hand on every test file.
+# It attempts to collect some diagnostic info about size and speed that
+# should be useful in the future as the library gets tuned for size
+# and speed.  In addition, it tests static and shared linkage, iff each
+# has been enabled.
+
+# Invocation 
+# mkcheck [01] 
+
+# 1: variables
+#
+# WHICH determines if you are
+# (0) testing the build binary and headers, or
+# (1) testing the installed binary and headers, or
+WHICH=$1
+if [ "$WHICH"x = 0x ]; then
+  echo "running mkcheck"
+  echo "$0: testing the build directory"
+elif [ "$WHICH"x = 1x ]; then
+  echo "running mkcheck"
+  echo "$0: testing the install directory"
+else
+  echo 'Usage: mkcheck 0    /* test the build directory    */'
+  echo '       mkcheck 1    /* test the install directory  */'
+  exit 1;
+fi
+
+# Now that we've successfully translated the numerical option into
+# a symbolic one, we can safely ignore it.
+shift
+
+# This has been true all along.  Found out about it the hard way...
+case $BASH_VERSION in
+    1*)  echo 'You need bash 2.x to run mkcheck.  Exiting.'; exit 1 ;;
+    *)   ;;   # ??
+esac
+
+BUILD_DIR=@glibcpp_builddir@
+SRC_DIR=@glibcpp_srcdir@
+PREFIX_DIR=@glibcpp_prefixdir@
+if [ "$WHICH"x = 0x ]; then
+  CXX=`$BUILD_DIR/testsuite_flags --build-cxx`
+  INCLUDES=`$BUILD_DIR/testsuite_flags --build-includes`
+else
+  CXX=`$BUILD_DIR/testsuite_flags --install-cxx`
+  INCLUDES=`$BUILD_DIR/testsuite_flags --install-includes`
+fi
+CXXFLAGS=`$BUILD_DIR/testsuite_flags --cxxflags`
+LIBTOOL="$BUILD_DIR/libtool"
+LTEXE="$LIBTOOL --mode=execute"
+#LTCXX="$LIBTOOL --tag=CXX --mode=link $CXX $CXXFLAGS $INCLUDES"
+LTCXX="$CXX $CXXFLAGS $INCLUDES"
+
+# specific libtool flag(s) to use shared libraries, if any
+SH_FLAG="-Wl,--rpath -Wl,$BUILD_DIR/../../gcc -Wl,--rpath -Wl,$BUILD_DIR/src/.libs"
+
+# specific libtool flag(s) to use static libraries, if any
+ST_FLAG="-static"
+#ST_FLAG="-all-static"
+
+# Set up the testing directory, which should be in a directory called
+# "testsuite" in the root level of the build directory.
+TEST_DIR="$BUILD_DIR/testsuite"
+# help libtool keep quiet
+if [ ! -d ${TEST_DIR}/.libs ]; then
+    mkdir $TEST_DIR/.libs    
+fi
+
+# the name of the file that will collect and hold all this useful data:
+RESULTS_FILE="$TEST_DIR/$(date +%Y%m%d)-mkcheck.txt"
+
+# the name of the log file that will append compiler diagnostics:
+LOG_FILE="$TEST_DIR/$(date +%Y%m%d)-mkchecklog.txt"
+
+# the names of the specific test files to be run
+TESTS_FILE="$TEST_DIR/$(date +%Y%m%d)-mkcheckfiles.txt"
+
+
+#
+# 2: clean, make files, append general test info
+#
+
+# Remove old executables.
+rm -rf "$TEST_DIR"/*exe
+rm -rf "$TEST_DIR"/compile.out
+
+# Remove old core files (which now get left in cwd, not $TEST_DIR).
+rm -rf ./*core*
+
+if [ -f $RESULTS_FILE ]; then
+    rm $RESULTS_FILE
+fi
+if [ -f $LOG_FILE ]; then
+    rm $LOG_FILE
+fi
+
+# Make a list of the files we're going to run, or use an old one if it exists.
+if [ ! -f "$TESTS_FILE" ]; then
+    echo "making file $TESTS_FILE"
+    for LONG_NAME in $SRC_DIR/testsuite/*/*.cc
+    do
+        DIR_NAME=$(dirname $LONG_NAME)
+        SHORT_NAME="`basename $DIR_NAME`/`basename $LONG_NAME`"
+        echo "$SHORT_NAME" >> $TESTS_FILE
+    done
+fi
+
+# Nasty solution to replace GNU date(1)'s %s time_t output function.
+TIMER_COMMAND=$TEST_DIR/printnow.exe
+if [ ! -x "$TIMER_COMMAND" ]; then
+    echo "making utility $TIMER_COMMAND"
+    gcc -o "$TIMER_COMMAND" "$SRC_DIR/testsuite/printnow.c"
+    strip "$TIMER_COMMAND"
+fi
+
+# Copy over the data files for filebufs
+cp $SRC_DIR/testsuite/27_io/*.txt $TEST_DIR
+cp $SRC_DIR/testsuite/27_io/*.tst $TEST_DIR
+chmod u+w $TEST_DIR/*.txt
+chmod u+w $TEST_DIR/*.tst
+
+# Emit useful info about compiler and platform
+echo "host: $(uname -mrsv)" >> $RESULTS_FILE
+echo "compiler: $($CXX -v 2>&1)" >> $RESULTS_FILE
+echo "compiler flags: $CXXFLAGS" >> $RESULTS_FILE
+echo "date: $(date +%Y%m%d)" >> $RESULTS_FILE
+echo "" >> $RESULTS_FILE
+
+explanation='+: pass, -b: build failure, -r: run failure, x: disabled'
+printf "%s\n     %s\n"  'p == pass/fail execution test'  "$explanation"  \
+       >> $RESULTS_FILE
+echo "ctime == time to compile and link" >> $RESULTS_FILE
+echo "etime == time for executable to run" >> $RESULTS_FILE
+echo "text == size of the executable text section" >> $RESULTS_FILE
+echo "data == size of the executable data section" >> $RESULTS_FILE
+echo "total == size of the executable" >> $RESULTS_FILE
+echo "" >> $RESULTS_FILE
+
+echo "p" | awk '{printf("%s ", $1)}' >> $RESULTS_FILE
+echo "ctime" "etime" | awk '{printf("%s\t%s\t", $1, $2)}' >> $RESULTS_FILE
+echo "text" "data" | awk '{printf("%s\t%s\t", $1, $2)}' >> $RESULTS_FILE
+echo "total" "name" | awk '{printf("%s\t%s\t", $1, $2)}' >> $RESULTS_FILE
+echo "" >> $RESULTS_FILE
+
+# Counters.  These could be members of an array, but they'd all have to
+# become individuals anyhow if we ever change this script to super-portable sh.
+shared_pass=0
+shared_fail=0
+static_pass=0
+static_fail=0
+
+
+#
+# 2.5:  support functions
+#
+
+# Figure out how to extract size information from binaries.  We take
+# the text of the value we want as an argument, and leave the size in
+# the appropriate variable.
+#
+# We discover what kind of size(1) we are using *once* and build a shell
+# function named 'size_command' to wrap it.  (The "function" keyword is
+# redundant here, but helps me read it, so there.)  Previously we were
+# re-discovering the size(1) arguments three times for each test; sloooow.
+#
+# It is VERY IMPORTANT not to compare these numbers across platforms.
+# Different size(1)'s extract section information differently.  For
+# example, using the native Sun size(1) and GNU size(1) built for Suns
+# on the exact same binary will give very different numbers, due to all
+# the variance in command-line options and arbitrary names of ELF sections.
+#
+# and suddenly we go to 2-space indentations...
+setup_size_command()
+{
+  if size --version 2> /dev/null | grep -c GNU > /dev/null;
+  then    # Then we're using a GNU size(1) built for this platform.
+    # We lose .rodata and .data1 and who knows what else... kludge.
+    function size_command()
+    {
+      case $1 in
+        TEXT)  TEXT=$(size -B $EXENAME | tail -1 | awk '{print $1}')  ;;
+        DATA)  DATA=$(size -B $EXENAME | tail -1 | awk '{print $2}')  ;;
+        SIZE)  SIZE=$(size -B $EXENAME | tail -1 | awk '{print $4}')  ;;
+      esac
+    }
+  else
+    # Not using GNU size; check for platform.  These numbers seem to match
+    # up to text/data/total, although their meanings seem to be different.
+    # THIS TABLE IS SORTED.  KEEP IT THAT WAY.
+    case @host_os@ in
+      *aix*)
+        function size_command()
+        {
+          case $1 in
+            TEXT)  TEXT=$(size -X32_64 $EXENAME | awk '{print $2}')  ;;
+            DATA)  DATA=$(size -X32_64 $EXENAME | awk '{print $4}')  ;;
+            SIZE)  SIZE=$(size -X32_64 $EXENAME | awk '{print $12}')  ;;
+          esac
+        }
+        ;;
+      *hpux*)
+        function size_command()
+        {
+          case $1 in
+            TEXT)  TEXT=$(size  $EXENAME | awk '{print $1}')  ;;
+            DATA)  DATA=$(size  $EXENAME | awk '{print $3}')  ;;
+            SIZE)  SIZE=$(size  $EXENAME | awk '{print $7}')  ;;
+          esac
+        }
+        ;;
+      *irix*)
+        function size_command()
+        {
+          case $1 in
+            TEXT)  TEXT=$(size -4 $EXENAME | awk '{print $1}')  ;;
+            DATA)  DATA=$(size -4 $EXENAME | awk '{print $3}')  ;;
+            SIZE)  SIZE=$(size -4 $EXENAME | awk '{print $7}')  ;;
+          esac
+        }
+        ;;
+      *solaris*)
+        function size_command()
+        {
+          case $1 in
+            TEXT)  TEXT=$(size $EXENAME | awk '{print $1}')  ;;
+            DATA)  DATA=$(size $EXENAME | awk '{print $3}')  ;;
+            SIZE)  SIZE=$(size $EXENAME | awk '{print $7}')  ;;
+          esac
+        }
+        ;;
+      *)
+        echo ' * Warning!  Skipping section sizes!' 1>&2
+        function size_command()
+        {
+        case $1 in
+          TEXT)  TEXT=0 ;;
+          DATA)  DATA=0 ;;
+          SIZE)  SIZE=0 ;;
+        esac
+        }
+        ;;
+    esac
+  fi
+}
+
+# Test for file output
+test_for_output()
+{
+    # This checks for emitted output files, which is useful when
+    # testing file-related output.  The rules for this working are as
+    # follows: the emitted file must have the ".txt" extension, and be
+    # based on the actual *.cc file's name.  For example, 27/filbuf.cc
+    # currently outputs files named 27/filebuf-2.txt and 27/filebuf-3.txt.
+    # Also, the first emitted file must be in the form $NAME-1.txt.
+    # The control file must follow the same constraints, but have a
+    # ".tst" extension.  Thus, you have 27/filebuf-2.tst, etc.
+
+    # NAME contains the source name, like 27/filebuf.cc
+    # From that NAME, we want to generate some possible names, using
+    # ls on MATCH, a pattern description generated with sed.
+
+    # this is the name of the resulting diff file, if any
+    DIFF_FILE="`echo $TEST_NAME | sed 's/cc$/diff/'`"
+    # construct wildcard names, ie for $NAME=filebuf.cc, makes "filebuf*.tst"
+    DATA_FILES="`echo $TEST_NAME | sed 's/\.cc/\*\.tst/g'`"
+    # make sure there is at least one, then go
+    ST_E="`echo $TEST_NAME | sed 's/\.cc/\-1\.tst/g'`"
+    if [ -f $ST_E ]; then
+        # list of actual files that match the wildcard above, ie
+        # "filebuf-1.tst"
+        ST_MATCH_LIST="`ls $DATA_FILES`"
+        for i in $ST_MATCH_LIST; do
+            # ST_OUT_FILE is generated in the build directory.
+            PRE_NAME2="$TEST_DIR/`basename $i`"
+            ST_OUT_FILE="`echo $PRE_NAME2 | sed 's/tst$/txt/'`"
+            diff $ST_OUT_FILE $i > $DIFF_FILE
+            if [ -s $DIFF_FILE ]; then
+                RESULT="-r"
+            else
+                RESULT="+"
+            fi
+            rm $DIFF_FILE
+        done
+    else
+        # the file does no output, and didn't abnormally
+        # terminate, so assume passed.
+        RESULT="+"
+    fi
+}
+    
+
+#
+# 3: compile, link, execute, time
+#
+# Abstract out the common code for compiling, linking, executing and printing.
+test_file()
+{
+    # NB: S_FLAG has to be last argument because it may be null, and
+    # error checking hasn't been invented yet.
+    NAME=$1
+    EXENAME=$2
+    S_FLAG=$3
+
+    SRC_NAME="$SRC_DIR/testsuite/$1"
+    TEST_NAME="$TEST_DIR/`basename $NAME`"
+
+    # This would be deliciously easy if GNU date's %s were always around.
+    # There are three ways to do this:  1) use the builtin 'time' like we
+    # do later; then getting compiler errors into LOG_FILE is a nightmare.
+    # 2) Grab the output of a formatted date(1) and do the math; harder
+    # and harder as we try compiling at, say, top of the hour; we would
+    # eventually have to calculate time_t anyhow.  Or 3) just grab two
+    # time_t's (no more overhead than grabbing two date(1)'s).
+    our_libs="-L$TEST_DIR -lv3test"
+    compiler_invocation="$LTCXX $S_FLAG $SRC_NAME -o $EXENAME $our_libs"
+    echo $compiler_invocation >> compile.out 2>&1
+    COMP_TIME_START=$($TIMER_COMMAND)
+    $compiler_invocation >> compile.out 2>&1
+    COMP_TIME_END=$($TIMER_COMMAND)
+
+    if [ $COMP_TIME_START -lt $COMP_TIME_END ]; then
+        C_TIME=$[ $COMP_TIME_END - $COMP_TIME_START ]
+    else
+        C_TIME="0"
+    fi
+
+    if [ -f $EXENAME ]; then
+#        rm compile.out
+        size_command TEXT
+        size_command DATA
+        size_command SIZE
+
+        # Actually run the executable and time it.  Note that output
+        # printed by the executable will be lost and cannot be redirected,
+        # because we need to capture the output of 'time'.  Bummer.
+        TIMEFORMAT='timemark %R'
+        E_TIME_TEXT="$(exec 2>&1; time $LTEXE $EXENAME)"
+        E_ABNORMAL_TERMINATION=$?
+ 
+        if [ "$E_ABNORMAL_TERMINATION" -ne 0 ]; then
+            RESULT='-r'
+	    E_TIME="0"
+            rm -f ./*core
+            # sometimes you want to save all core files for review:
+            #mv ./core $EXENAME.core
+            # sometimes the OS allows you to name core files yourself:
+            #mv ./*core $EXENAME.core
+            #mv ./core* $EXENAME.core
+        else
+            test_for_output
+	    # XXX This doesn't always result in a number.
+	    # E_TIME="$(echo $E_TIME_TEXT | awk '{print $2}')"
+	    E_TIME="0"
+        fi
+
+        # sometimes you want to save all failing exe files for review:
+        if [ "$RESULT" = '+' ]; then
+            rm "$EXENAME"
+        fi
+    else
+        # the file did not compile/link.
+        printf "\n" >> $LOG_FILE
+        `cat compile.out >> $LOG_FILE` 
+        rm compile.out
+        RESULT="-b"
+        TEXT="0"
+        DATA="0"
+        SIZE="0"
+    fi
+
+    # update the counters
+    if test "$RESULT" = "+" ; then
+        if test x"$S_FLAG" = x"$ST_FLAG"; then
+            static_pass=`expr $static_pass + 1`
+        else
+            shared_pass=`expr $shared_pass + 1`
+        fi
+    else
+        if test x"$S_FLAG" = x"$ST_FLAG"; then
+            static_fail=`expr $static_fail + 1`
+        else
+            shared_fail=`expr $shared_fail + 1`
+        fi
+    fi
+
+    printf "%s\t" "$RESULT"
+    printf "%-2s %d\t%.3f\t%s\t%s\t%s\t%s %s\n"   \
+        "$RESULT" $C_TIME $E_TIME $TEXT $DATA $SIZE $NAME >> $RESULTS_FILE
+}
+
+setup_size_command
+echo ""
+echo "Detailed test results in .${RESULTS_FILE/$BUILD_DIR}"
+echo $explanation
+echo "------------------------------------------------------------------------"
+printf "static\tshared\ttest\n"
+echo "------------------------------------------------------------------------"
+
+TEST_TIME_START=$($TIMER_COMMAND)
+for NAME in `cat $TESTS_FILE`
+do
+    PRE_NAME="$TEST_DIR/`basename $NAME`"
+    ST_NAME="`echo $PRE_NAME | sed 's/cc$/st-exe/'`"
+    SH_NAME="`echo $PRE_NAME | sed 's/cc$/sh-exe/'`"
+
+    if test @enable_static@ = yes; then
+        test_file $NAME $ST_NAME "$ST_FLAG"
+    else
+        printf "x\t"
+        printf "static skipped\n" >> $RESULTS_FILE
+    fi
+    if test @enable_shared@ = yes; then
+        test_file $NAME $SH_NAME "$SH_FLAG"
+    else
+        printf "x\t"
+        printf "shared skipped\n" >> $RESULTS_FILE
+    fi
+    printf "%s\n" "$NAME"
+
+    echo "" >> $RESULTS_FILE
+done
+TEST_TIME_END=$($TIMER_COMMAND)
+
+
+#
+# 4: summary
+#
+# grep can count faster than we can...
+total_failures=`expr ${shared_fail} + ${static_fail}`
+total_successes=`expr ${shared_pass} + ${static_pass}`
+resultstext="pass/fail results:  ${static_pass}/${static_fail} static + ${shared_pass}/${shared_fail} shared = ${total_successes}/${total_failures} total"
+if [ $total_failures -eq 0 ]; then
+    resultstext="${resultstext}, WIN WIN"
+fi
+sed -e "/^date:/a\\
+$resultstext" $RESULTS_FILE > ${RESULTS_FILE}.tmp
+mv ${RESULTS_FILE}.tmp $RESULTS_FILE
+
+if [ $TEST_TIME_START -lt $TEST_TIME_END ]; then
+    TEST_TIME=$[ $TEST_TIME_END - $TEST_TIME_START ]
+    echo "testrun == $TEST_TIME seconds"
+    echo "testrun == $TEST_TIME seconds" >> $RESULTS_FILE
+fi
+
+exit 0

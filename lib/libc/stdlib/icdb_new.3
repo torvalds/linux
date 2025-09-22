@@ -1,0 +1,68 @@
+.\"	$OpenBSD: icdb_new.3,v 1.2 2016/09/04 19:05:09 jmc Exp $
+.\"
+.\" Copyright (c) Ted Unangst
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: September 4 2016 $
+.Dt ICBB_NEW 3
+.Os
+.Sh NAME
+.Nm icdb_new ,
+.Nm icdb_open ,
+.Nm icdb_get ,
+.Nm icdb_lookup ,
+.Nm icdb_nentries ,
+.Nm icdb_entries ,
+.Nm icdb_update ,
+.Nm icdb_add ,
+.Nm icdb_rehash ,
+.Nm icdb_save ,
+.Nm icdb_close
+.Nd simple database
+.Sh SYNOPSIS
+.In icbd.h
+.Ft struct icdb *
+.Fn icdb_new "uint32_t version" "uint32_t nentries" "uint32_t entrysize"
+.Ft struct icdb *
+.Fn icdb_open "const char *name" "int flags" "uint32_t version"
+.Ft int
+.Fn icdb_get "struct icdb *db" "void *entry" "uint32_t idx"
+.Ft int
+.Fn icdb_lookup "struct icdb *db" "int keynum" "const void *key" "void *entry" "uint32_t *idxp"
+.Ft int
+.Fn icdb_nentries "struct icdb *db"
+.Ft const void *
+.Fn icdb_entries "struct icdb *db"
+.Ft int
+.Fn icdb_update "struct icdb *db" "const void *entry" "int offset"
+.Ft int
+.Fn icdb_add "struct icdb *db" "const void *entry"
+.Ft int
+.Fn icdb_rehash "struct icdb *db"
+.Ft int
+.Fn icdb_save "struct icdb *db" "int fd"
+.Ft int
+.Fn icdb_close "struct icdb *db"
+.Sh DESCRIPTION
+These functions provide access to a simple memory mapped database format.
+.Sh EXAMPLES
+Look how easy it is to use.
+.Sh STANDARDS
+These functions are not standardized.
+.Sh HISTORY
+The icdb functions were introduced in
+.Ox 6.0 .
+.Sh AUTHORS
+.An Ted Unangst Aq Mt tedu@openbsd.org

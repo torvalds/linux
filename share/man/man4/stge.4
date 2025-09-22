@@ -1,0 +1,90 @@
+.\"	$OpenBSD: stge.4,v 1.22 2021/09/08 20:29:21 jmc Exp $
+.\"	$NetBSD: stge.4,v 1.5 2001/09/11 22:52:54 wiz Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: September 8 2021 $
+.Dt STGE 4
+.Os
+.Sh NAME
+.Nm stge
+.Nd Sundance/Tamarack TC9021 1Gb Ethernet device
+.Sh SYNOPSIS
+.Cd "stge* at pci?"
+.Cd "eephy* at mii?"
+.Cd "gentbi* at mii?"
+.Cd "ipgphy* at mii?"
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports the Sundance/Tamarack TC9021 Gigabit Ethernet
+chip.
+.Pp
+The Sundance/Tamarack TC9021 chip is found on adapters such as the
+following:
+.Pp
+.Bl -bullet -compact
+.It
+Allied Telesis CentreCOM LA1000-PCI-T
+.It
+Antares Microsystems TC9021
+.It
+Asus NX1101
+.It
+D-Link DGE-550T
+.El
+.Pp
+It uses an external PHY or an external 10-bit interface.
+.Pp
+The
+.Nm
+driver supports
+IPv4 receive IP/TCP/UDP checksum offload and
+VLAN tag insertion and stripping.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr eephy 4 ,
+.Xr gentbi 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr ipgphy 4 ,
+.Xr mii 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jason R. Thorpe Aq Mt thorpej@netbsd.org .

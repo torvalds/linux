@@ -1,0 +1,993 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for Linux/x86 (vers 12 April 2005), see www.w3.org" />
+
+  <title>Motivation</title>
+  <meta http-equiv="Content-Type" content=
+  "text/html; charset=us-ascii" />
+  </head>
+
+<body>
+  <div id="page">
+    <h1>Motivation</h1>
+
+    <p>Many fine associative-container libraries were already
+    written, most notably, the STL's associative containers. Why
+    then write another library? This section shows some possible
+    advantages of this library, when considering the challenges in
+    <a href="introduction.html">Introduction</a>. Many of these
+    points stem from the fact that the STL introduced
+    associative-containers in a two-step process (first
+    standardizing tree-based containers, only then adding
+    hash-based containers, which are fundamentally different), did
+    not standardize priority queues as containers, and (in our
+    opinion) overloads the iterator concept.</p>
+
+    <h2><a name="assoc" id="assoc">Associative Containers</a></h2>
+
+    <h3><a name="assoc_policies" id="assoc_policies">More
+    Configuration Choices</a></h3>
+
+    <p>Associative containers require a relatively large number of
+    policies to function efficiently in various settings. In some
+    cases this is needed for making their common operations more
+    efficient, and in other cases this allows them to support a
+    larger set of operations</p>
+
+    <ol>
+      <li>Hash-based containers, for example, support look-up and
+      insertion methods (<i>e.g.</i>, <tt>find</tt> and
+      <tt>insert</tt>). In order to locate elements quickly, they
+      are supplied a hash functor, which instruct how to transform
+      a key object into some size type; <i>e.g.</i>, a hash functor
+      might transform <tt>"hello"</tt> into <tt>1123002298</tt>. A
+      hash table, though, requires transforming each key object
+      into some size-type type in some specific domain;
+      <i>e.g.</i>, a hash table with a 128-long table might
+      transform <tt>"hello"</tt> into position 63. The policy by
+      which the hash value is transformed into a position within
+      the table can dramatically affect performance (see <a href=
+      "hash_based_containers.html#hash_policies">Design::Associative
+      Containers::Hash-Based Containers::Hash Policies</a>).
+      Hash-based containers also do not resize naturally (as
+      opposed to tree-based containers, for example). The
+      appropriate resize policy is unfortunately intertwined with
+      the policy that transforms hash value into a position within
+      the table (see <a href=
+      "hash_based_containers.html#resize_policies">Design::Associative
+      Containers::Hash-Based Containers::Resize Policies</a>).
+
+        <p><a href=
+        "assoc_performance_tests.html#hash_based">Associative-Container
+        Performance Tests::Hash-Based Containers</a> quantifies
+        some of these points.</p>
+      </li>
+
+      <li>Tree-based containers, for example, also support look-up
+      and insertion methods, and are primarily useful when
+      maintaining order between elements is important. In some
+      cases, though, one can utilize their balancing algorithms for
+      completely different purposes.
+
+        <p>Figure <a href="#node_invariants">Metadata for
+        order-statistics and interval intersections</a>-A, for
+        example, shows a tree whose each node contains two entries:
+        a floating-point key, and some size-type <i>metadata</i>
+        (in bold beneath it) that is the number of nodes in the
+        sub-tree. (<i>E.g.</i>, the root has key 0.99, and has 5
+        nodes (including itself) in its sub-tree.) A container based
+        on this data structure can obviously answer efficiently
+        whether 0.3 is in the container object, but it can also
+        answer what is the order of 0.3 among all those in the
+        container object [<a href=
+        "references.html#clrs2001">clrs2001</a>] (see <a href=
+        "assoc_examples.html#tree_like_based">Associative Container
+        Examples::Tree-Like-Based Containers (Trees and
+        Tries)</a>).</p>
+
+        <p>As another example, Figure <a href=
+        "#node_invariants">Metadata for order-statistics and
+        interval intersections</a>-B shows a tree whose each node
+        contains two entries: a half-open geometric line interval,
+        and a number <i>metadata</i> (in bold beneath it) that is
+        the largest endpoint of all intervals in its sub-tree.
+        (<i>E.g.</i>, the root describes the interval <i>[20,
+        36)</i>, and the largest endpoint in its sub-tree is 99.) A
+        container based on this data structure can obviously answer
+        efficiently whether <i>[3, 41)</i> is in the container
+        object, but it can also answer efficiently whether the
+        container object has intervals that intersect <i>[3,
+        41)</i> (see <a href=
+        "assoc_examples.html#tree_like_based">Associative Container
+        Examples::Tree-Like-Based Containers (Trees and
+        Tries)</a>). These types of queries are very useful in
+        geometric algorithms and lease-management algorithms.</p>
+
+        <p>It is important to note, however, that as the trees are
+        modified, their internal structure changes. To maintain
+        these invariants, one must supply some policy that is aware
+        of these changes (see <a href=
+        "tree_based_containers.html#invariants">Design::Associative
+        Containers::Tree-Based Containers::Node Invariants</a>);
+        without this, it would be better to use a linked list (in
+        itself very efficient for these purposes).</p>
+
+        <p><a href=
+        "assoc_performance_tests.html#tree_like_based">Associative-Container
+        Performance Tests::Tree-Like-Based Containers</a>
+        quantifies some of these points.</p>
+      </li>
+    </ol>
+
+    <h6 class="c1"><a name="node_invariants" id=
+    "node_invariants"><img src="node_invariants.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Metadata for order-statistics and interval
+    intersections.</h6>
+
+    <h3><a name="assoc_ds_genericity" id="assoc_ds_genericity">More
+    Data Structures and Traits</a></h3>
+
+    <p>The STL contains associative containers based on red-black
+    trees and collision-chaining hash tables. These are obviously
+    very useful, but they are not ideal for all types of
+    settings.</p>
+
+    <p>Figure <a href=
+    "#different_underlying_data_structures">Different underlying
+    data structures</a> shows different underlying data structures
+    (the ones currently supported in <tt>pb_ds</tt>). A shows a
+    collision-chaining hash-table, B shows a probing hash-table, C
+    shows a red-black tree, D shows a splay tree, E shows a tree
+    based on an ordered vector(implicit in the order of the
+    elements), F shows a PATRICIA trie, and G shows a list-based
+    container with update policies.</p>
+
+    <p>Each of these data structures has some performance benefits,
+    in terms of speed, size or both (see <a href=
+    "assoc_performance_tests.html">Associative-Container
+    Performance Tests</a> and <a href=
+    "assoc_performance_tests.html#dss_family_choice">Associative-Container
+    Performance Tests::Observations::Underlying Data-Structure
+    Families</a>). For now, though, note that <i>e.g.</i>,
+    vector-based trees and probing hash tables manipulate memory
+    more efficiently than red-black trees and collision-chaining
+    hash tables, and that list-based associative containers are
+    very useful for constructing "multimaps" (see <a href=
+    "#assoc_mapping_semantics">Alternative to Multiple Equivalent
+    Keys</a>, <a href=
+    "assoc_performance_tests.html#multimaps">Associative Container
+    Performance Tests::Multimaps</a>, and <a href=
+    "assoc_performance_tests.html#msc">Associative Container
+    Performance Tests::Observations::Mapping-Semantics
+    Considerations</a>).</p>
+
+    <h6 class="c1"><a name="different_underlying_data_structures"
+    id="different_underlying_data_structures"><img src=
+    "different_underlying_dss.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">Different underlying data structures.</h6>
+
+    <p>Now consider a function manipulating a generic associative
+    container, <i>e.g.</i>,</p>
+    <pre>
+<b>template</b>&lt;
+    <b>class</b> Cntnr&gt;
+<b>int</b> 
+    some_op_sequence
+    (Cntnr &amp;r_cnt)
+{
+    ...
+}
+</pre>
+
+    <p>Ideally, the underlying data structure of <tt>Cntnr</tt>
+    would not affect what can be done with <tt>r_cnt</tt>.
+    Unfortunately, this is not the case.</p>
+
+    <p>For example, if <tt>Cntnr</tt> is <tt>std::map</tt>, then
+    the function can use <tt>std::for_each(r_cnt.find(foo),
+    r_cnt.find(bar), foobar)</tt> in order to apply <tt>foobar</tt>
+    to all elements between <tt>foo</tt> and <tt>bar</tt>. If
+    <tt>Cntnr</tt> is a hash-based container, then this call's
+    results are undefined.</p>
+
+    <p>Also, if <tt>Cntnr</tt> is tree-based, the type and object
+    of the comparison functor can be accessed. If <tt>Cntnr</tt> is
+    hash based, these queries are nonsensical.</p>
+
+    <p>There are various other differences based on the container's
+    underlying data structure. For one, they can be constructed by,
+    and queried for, different policies. Furthermore:</p>
+
+    <ol>
+      <li>Containers based on C, D, E and F store elements in a
+      meaningful order; the others store elements in a meaningless
+      (and probably time-varying) order. By implication, only
+      containers based on C, D, E and F can support erase
+      operations taking an iterator and returning an iterator to
+      the following element without performance loss (see <a href=
+      "#assoc_ers_methods">Slightly Different Methods::Methods
+      Related to Erase</a>).</li>
+
+      <li>Containers based on C, D, E, and F can be split and
+      joined efficiently, while the others cannot. Containers based
+      on C and D, furthermore, can guarantee that this is
+      exception-free; containers based on E cannot guarantee
+      this.</li>
+
+      <li>Containers based on all but E can guarantee that erasing
+      an element is exception free; containers based on E cannot
+      guarantee this. Containers based on all but B and E can
+      guarantee that modifying an object of their type does not
+      invalidate iterators or references to their elements, while
+      containers based on B and E cannot. Containers based on C, D,
+      and E can furthermore make a stronger guarantee, namely that
+      modifying an object of their type does not affect the order
+      of iterators.</li>
+    </ol>
+
+    <p>A unified tag and traits system (as used for the STL's
+    iterators, for example) can ease generic manipulation of
+    associative containers based on different underlying
+    data structures (see <a href=
+    "tutorial.html#assoc_ds_gen">Tutorial::Associative
+    Containers::Determining Containers' Attributes</a> and <a href=
+    "ds_gen.html#container_traits">Design::Associative
+    Containers::Data-Structure Genericity::Data-Structure Tags and
+    Traits</a>).</p>
+
+    <h3><a name="assoc_diff_it" id="assoc_diff_it">Differentiating
+    between Iterator Types</a></h3>
+
+    <p>Iterators are centric to the STL's design, because of the
+    container/algorithm/iterator decomposition that allows an
+    algorithm to operate on a range through iterators of some
+    sequence (<i>e.g.</i>, one originating from a container).
+    Iterators, then, are useful because they allow going over a
+    <u>sequence</u>. The STL also uses iterators for accessing a
+    <u>specific</u> element - <i>e.g.</i>, when an associative
+    container returns one through <tt>find</tt>. The STL, however,
+    consistently uses the same types of iterators for both
+    purposes: going over a range, and accessing a specific found
+    element. Before the introduction of hash-based containers to
+    the STL, this made sense (with the exception of priority
+    queues, which are discussed in <a href="#pq">Priority
+    Queues</a>).</p>
+
+    <p>Using the STL's associative containers together with
+    non-order-preserving associative containers (and also because
+    of priority-queues container), there is a possible need for
+    different types of iterators for self-organizing containers -
+    the iterator concept seems overloaded to mean two different
+    things (in some cases). The following subsections explain this;
+    <a href="tutorial.html#assoc_find_range">Tutorial::Associative
+    Containers::Point-Type and Range-Type Methods</a> explains an
+    alternative design which does not complicate the use of
+    order-preserving containers, but is better for unordered
+    containers; <a href=
+    "ds_gen.html#find_range">Design::Associative
+    Containers::Data-Structure Genericity::Point-Type and
+    Range-Type Methods</a> explains the design further.</p>
+
+    <h4><a name="assoc_find_it_range_it" id=
+    "assoc_find_it_range_it">Using Point-Type Iterators for
+    Range-Type Operations</a></h4>
+
+    <p>Suppose <tt>cntnr</tt> is some associative container, and
+    say <tt>c</tt> is an object of type <tt>cntnr</tt>. Then what
+    will be the outcome of</p>
+    <pre>
+std::for_each(c.find(1), c.find(5), foo);
+</pre>
+
+    <p>If <tt>cntnr</tt> is a tree-based container object, then an
+    in-order walk will apply <tt>foo</tt> to the relevant elements,
+    <i>e.g.</i>, as in Figure <a href="#range_it_in_hts">Range
+    iteration in different data structures</a> -A. If <tt>c</tt> is
+    a hash-based container, then the order of elements between any
+    two elements is undefined (and probably time-varying); there is
+    no guarantee that the elements traversed will coincide with the
+    <i>logical</i> elements between 1 and 5, <i>e.g.</i>, as in
+    Figure <a href="#range_it_in_hts">Range iteration in different
+    data structures</a>-B.</p>
+
+    <h6 class="c1"><a name="range_it_in_hts" id=
+    "range_it_in_hts"><img src="point_iterators_range_ops_1.png"
+    alt="no image" /></a></h6>
+
+    <h6 class="c1">Range iteration in different
+    data structures.</h6>
+
+    <p>In our opinion, this problem is not caused just because
+    red-black trees are order preserving while collision-chaining
+    hash tables are (generally) not - it is more fundamental. Most
+    of the STL's containers order sequences in a well-defined
+    manner that is determined by their <u>interface</u>: calling
+    <tt>insert</tt> on a tree-based container modifies its sequence
+    in a predictable way, as does calling <tt>push_back</tt> on a
+    list or a vector. Conversely, collision-chaining hash tables,
+    probing hash tables, priority queues, and list-based containers
+    (which are very useful for "multimaps") are self-organizing
+    data structures; the effect of each operation modifies their
+    sequences in a manner that is (practically) determined by their
+    <u>implementation</u>.</p>
+
+    <p>Consequently, applying an algorithm to a sequence obtained
+    from most containers <u>may or may not</u> make sense, but
+    applying it to a sub-sequence of a self-organizing container
+    <u>does not</u>.</p>
+
+    <h4><a name="assoc_range_it_for_find_it" id=
+    "assoc_range_it_for_find_it">The Cost of Enabling Range
+    Capabilities to Point-Type Iterators</a></h4>
+
+    <p>Suppose <tt>c</tt> is some collision-chaining hash-based
+    container object, and one calls <tt>c.find(3)</tt>. Then what
+    composes the returned iterator?</p>
+
+    <p>Figure <a href="#find_its_in_hash_tables">Point-type
+    iterators in hash tables</a>-A shows the simplest (and most
+    efficient) implementation of a collision-chaining hash table.
+    The little box marked <tt>point_iterator</tt> shows an object
+    that contains a pointer to the element's node. Note that this
+    "iterator" has no way to move to the next element (<i>i.e.</i>,
+    it cannot support <tt><b>operator</b>++</tt>). Conversely, the
+    little box marked <tt>iterator</tt> stores both a pointer to
+    the element, as well as some other information (<i>e.g.</i>,
+    the bucket number of the element). the second iterator, then,
+    is "heavier" than the first one- it requires more time and
+    space. If we were to use a different container to
+    cross-reference into this hash-table using these iterators - it
+    would take much more space. As noted in <a href=
+    "#assoc_find_it_range_it">Using Point-Type Iterators for
+    Range-Type Operations</a>, nothing much can be done by
+    incrementing these iterators, so why is this extra information
+    needed?</p>
+
+    <p>Alternatively, one might create a collision-chaining
+    hash-table where the lists might be linked, forming a
+    monolithic total-element list, as in Figure <a href=
+    "#find_its_in_hash_tables">Point-type iterators in hash
+    tables</a>-B (this seems similar to the Dinkumware design
+    [<a href="references.html#dinkumware_stl">dinkumware_stl</a>]).
+    Here the iterators are as light as can be, but the hash-table's
+    operations are more complicated.</p>
+
+    <h6 class="c1"><a name="find_its_in_hash_tables" id=
+    "find_its_in_hash_tables"><img src=
+    "point_iterators_range_ops_2.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">Point-type iterators in hash tables.</h6>
+
+    <p>It should be noted that containers based on
+    collision-chaining hash-tables are not the only ones with this
+    type of behavior; many other self-organizing data structures
+    display it as well.</p>
+
+    <h4><a name="assoc_inv_guar" id="assoc_inv_guar">Invalidation
+    Guarantees</a></h4>
+
+    <p>Consider the following snippet:</p>
+    <pre>
+it = c.find(3);
+
+c.erase(5);
+</pre>
+
+    <p>Following the call to <tt>erase</tt>, what is the validity
+    of <tt>it</tt>: can it be de-referenced? can it be
+    incremented?</p>
+
+    <p>The answer depends on the underlying data structure of the
+    container. Figure <a href=
+    "#invalidation_guarantee_erase">Effect of erase in different
+    underlying data structures</a> shows three cases: A1 and A2
+    show a red-black tree; B1 and B2 show a probing hash-table; C1
+    and C2 show a collision-chaining hash table.</p>
+
+    <h6 class="c1"><a name="invalidation_guarantee_erase" id=
+    "invalidation_guarantee_erase"><img src=
+    "invalidation_guarantee_erase.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">Effect of erase in different underlying
+    data structures.</h6>
+
+    <ol>
+      <li>Erasing 5 from A1 yields A2. Clearly, an iterator to 3
+      can be de-referenced and incremented. The sequence of
+      iterators changed, but in a way that is well-defined by the
+      <u>interface</u>.</li>
+
+      <li>Erasing 5 from B1 yields B2. Clearly, an iterator to 3 is
+      not valid at all - it cannot be de-referenced or incremented;
+      the order of iterators changed in a way that is (practically)
+      determined by the <u>implementation</u> and not by the
+      <u>interface</u>.</li>
+
+      <li>Erasing 5 from C1 yields C2. Here the situation is more
+      complicated. On the one hand, there is no problem in
+      de-referencing <tt>it</tt>. On the other hand, the order of
+      iterators changed in a way that is (practically) determined
+      by the <u>implementation</u> and not by the
+      <u>interface</u>.</li>
+    </ol>
+
+    <p>So in classic STL, it is not always possible to express
+    whether <tt>it</tt> is valid or not. This is true also for
+    <tt>insert</tt>, <i>e.g.</i>. Again, the iterator concept seems
+    overloaded.</p>
+
+    <h3><a name="assoc_methods" id="assoc_methods">Slightly
+    Different Methods</a></h3>
+
+    <p>[<a href="references.html#meyers02both">meyers02both</a>]
+    points out that a class's methods should comprise only
+    operations which depend on the class's internal structure;
+    other operations are best designed as external functions.
+    Possibly, therefore, the STL's associative containers lack some
+    useful methods, and provide some other methods which would be
+    better left out (<i>e.g.</i>, [<a href=
+    "references.html#sgi_stl">sgi_stl</a>] ).</p>
+
+    <h4><a name="assoc_ers_methods" id="assoc_ers_methods">Methods
+    Related to Erase</a></h4>
+
+    <ol>
+      <li>Order-preserving STL associative containers provide the
+      method
+        <pre>
+iterator 
+    erase
+    (iterator it)
+</pre>which takes an iterator, erases the corresponding element,
+and returns an iterator to the following element. Also hash-based
+STL associative containers provide this method. This <u>seemingly
+increases</u> genericity between associative containers, since, <i>
+        e.g.</i>, it is possible to use
+        <pre>
+<b>typename</b> C::iterator it = c.begin();
+<b>typename</b> C::iterator e_it = c.end();
+
+<b>while</b>(it != e_it)
+    it = pred(*it)? c.erase(it) : ++it;
+</pre>in order to erase from a container object <tt>
+        c</tt> all element which match a predicate <tt>pred</tt>.
+        However, in a different sense this actually
+        <u>decreases</u> genericity: an integral implication of
+        this method is that tree-based associative containers'
+        memory use is linear in the total number of elements they
+        store, while hash-based containers' memory use is unbounded
+        in the total number of elements they store. Assume a
+        hash-based container is allowed to decrease its size when
+        an element is erased. Then the elements might be rehashed,
+        which means that there is no "next" element - it is simply
+        undefined. Consequently, it is possible to infer from the
+        fact that STL hash-based containers provide this method
+        that they cannot downsize when elements are erased
+        (<a href="assoc_performance_tests.html#hash_based">Performance
+        Tests::Hash-Based Container Tests</a> quantifies this.) As
+        a consequence, different code is needed to manipulate
+        different containers, assuming that memory should be
+        conserved. <tt>pb_ds</tt>'s non-order preserving
+        associative containers omit this method.
+      </li>
+
+      <li>All of <tt>pb_ds</tt>'s associative containers include a
+      conditional-erase method
+        <pre>
+<b>template</b>&lt;
+    <b>class</b> Pred&gt;
+size_type
+    erase_if
+    (Pred pred)
+</pre>which erases all elements matching a predicate. This is
+probably the only way to ensure linear-time multiple-item erase
+which can actually downsize a container.
+      </li>
+
+      <li>STL associative containers provide methods for
+      multiple-item erase of the form
+        <pre>
+size_type
+    erase
+    (It b, 
+        It e)
+</pre>erasing a range of elements given by a pair of iterators. For
+tree-based or trie-based containers, this can implemented more
+efficiently as a (small) sequence of split and join operations. For
+other, unordered, containers, this method isn't much better than an
+external loop. Moreover, if <tt>c</tt> is a hash-based container,
+then, <i>e.g.</i>, <tt>c.erase(c.find(2), c.find(5))</tt> is almost
+certain to do something different than erasing all elements whose
+keys are between 2 and 5, and is likely to produce other undefined
+behavior.
+      </li>
+    </ol>
+
+    <h4><a name="assoc_split_join_methods" id=
+    "assoc_split_join_methods">Methods Related to Split and
+    Join</a></h4>
+
+    <p>It is well-known that tree-based and trie-based container
+    objects can be efficiently split or joined [<a href=
+    "references.html#clrs2001">clrs2001</a>]. Externally splitting
+    or joining trees is super-linear, and, furthermore, can throw
+    exceptions. Split and join methods, consequently, seem good
+    choices for tree-based container methods, especially, since as
+    noted just before, they are efficient replacements for erasing
+    sub-sequences. <a href=
+    "assoc_performance_tests.html#tree_like_based">Performance
+    Tests::Tree-Like-Based Container Tests</a> quantifies this.</p>
+
+    <h4><a name="assoc_insert_methods" id=
+    "assoc_insert_methods">Methods Related to Insert</a></h4>
+
+    <p>STL associative containers provide methods of the form</p>
+    <pre>
+<b>template</b>&lt;
+    <b>class</b> It&gt;
+size_type
+    insert
+    (It b,
+        It e);
+</pre>for inserting a range of elements given by a pair of
+iterators. At best, this can be implemented as an external loop,
+or, even more efficiently, as a join operation (for the case of
+tree-based or trie-based containers). Moreover, these methods seem
+similar to constructors taking a range given by a pair of
+iterators; the constructors, however, are transactional, whereas
+the insert methods are not; this is possibly confusing.
+
+    <h4><a name="assoc_equiv_comp_methods" id=
+    "assoc_equiv_comp_methods">Functions Related to
+    Comparison</a></h4>
+
+    <p>Associative containers are parametrized by policies
+    allowing to test key equivalence; <i>e.g.</i> a hash-based
+    container can do this through its equivalence functor, and a
+    tree-based container can do this through its comparison
+    functor. In addition, some STL associative containers have
+    global function operators, <i>e.g.</i>,
+    <tt><b>operator</b>==</tt> and <tt><b>operator</b>&lt;=</tt>,
+    that allow comparing entire associative containers.</p>
+
+    <p>In our opinion, these functions are better left out. To
+    begin with, they do not significantly improve over an external
+    loop. More importantly, however, they are possibly misleading -
+    <tt><b>operator</b>==</tt>, for example, usually checks for
+    equivalence, or interchangeability, but the associative
+    container cannot check for values' equivalence, only keys'
+    equivalence; also, are two containers considered equivalent if
+    they store the same values in different order? this is an
+    arbitrary decision.</p>
+
+    <h3><a name="assoc_mapping_semantics" id=
+    "assoc_mapping_semantics">Alternative to Multiple Equivalent
+    Keys</a></h3>
+
+    <p>Maps (or sets) allow mapping (or storing) unique-key values.
+    The STL, however, also supplies associative containers which
+    map (or store) multiple values with equivalent keys:
+    <tt>std::multimap</tt>, <tt>std::multiset</tt>,
+    <tt>std::tr1::unordered_multimap</tt>, and
+    <tt>unordered_multiset</tt>. We first discuss how these might
+    be used, then why we think it is best to avoid them.</p>
+
+    <p>Suppose one builds a simple bank-account application that
+    records for each client (identified by an <tt>std::string</tt>)
+    and account-id (marked by an <tt><b>unsigned long</b></tt>) -
+    the balance in the account (described by a
+    <tt><b>float</b></tt>). Suppose further that ordering this
+    information is not useful, so a hash-based container is
+    preferable to a tree based container. Then one can use</p>
+    <pre>
+std::tr1::unordered_map&lt;std::pair&lt;std::string, <b>unsigned long</b>&gt;, <b>float</b>, ...&gt;
+</pre>which <u>hashes every combination of client and
+account-id</u>. This might work well, except for the fact that it
+is now impossible to efficiently list all of the accounts of a
+specific client (this would practically require iterating over all
+entries). Instead, one can use
+    <pre>
+std::tr1::unordered_multimap&lt;std::pair&lt;std::string, <tt><b>unsigned long</b></tt>&gt;, <b>float</b>, ...&gt;
+</pre>which <u>hashes every client</u>, and <u>decides equivalence
+based on client</u> only. This will ensure that all accounts
+belonging to a specific user are stored consecutively.
+
+    <p>Also, suppose one wants an integers' priority queue
+    (<i>i.e.,</i> a container that supports <tt>push</tt>,
+    <tt>pop</tt>, and <tt>top</tt> operations, the last of which
+    returns the largest <tt><b>int</b></tt>) that also supports
+    operations such as <tt>find</tt> and <tt>lower_bound</tt>. A
+    reasonable solution is to build an adapter over
+    <tt>std::set&lt;<b>int</b>&gt;</tt>. In this adapter,
+    <i>e.g.</i>, <tt>push</tt> will just call the tree-based
+    associative container's <tt>insert</tt> method; <tt>pop</tt>
+    will call its <tt>end</tt> method, and use it to return the
+    preceding element (which must be the largest). Then this might
+    work well, except that the container object cannot hold
+    multiple instances of the same integer (<tt>push(4)</tt>,
+    <i>e.g.</i>, will be a no-op if <tt>4</tt> is already in the
+    container object). If multiple keys are necessary, then one
+    might build the adapter over an
+    <tt>std::multiset&lt;<b>int</b>&gt;</tt>.</p>
+
+    <p class="c1">STL non-unique-mapping containers, then, are
+    useful when (1) a key can be decomposed in to a primary key and
+    a secondary key, (2) a key is needed multiple times, or (3) any
+    combination of (1) and (2).</p>
+
+    <p>Figure <a href="#embedded_lists_1">Non-unique mapping
+    containers in the STL's design</a> shows how the STL's design
+    works internally; in this figure nodes shaded equally represent
+    equivalent-key values. Equivalent keys are stored consecutively
+    using the properties of the underlying data structure: binary
+    search trees (Figure <a href="#embedded_lists_1">Non-unique
+    mapping containers in the STL's design</a>-A) store
+    equivalent-key values consecutively (in the sense of an
+    in-order walk) naturally; collision-chaining hash tables
+    (Figure <a href="#embedded_lists_1">Non-unique mapping
+    containers in the STL's design</a>-B) store equivalent-key
+    values in the same bucket, the bucket can be arranged so that
+    equivalent-key values are consecutive.</p>
+
+    <h6 class="c1"><a name="embedded_lists_1" id=
+    "embedded_lists_1"><img src="embedded_lists_1.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Non-unique mapping containers in the STL's
+    design.</h6>
+
+    <p>Put differently, STL non-unique mapping
+    associative-containers are associative containers that map
+    primary keys to linked lists that are embedded into the
+    container. Figure <a href="#embedded_lists_2">Effect of
+    embedded lists in STL multimaps</a> shows again the two
+    containers from Figure <a href="#embedded_lists_1">Non-unique
+    mapping containers in the STL's design</a>, this time with the
+    embedded linked lists of the grayed nodes marked
+    explicitly.</p>
+
+    <h6 class="c1"><a name="embedded_lists_2" id=
+    "embedded_lists_2"><img src="embedded_lists_2.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Effect of embedded lists in STL multimaps.</h6>
+
+    <p>These embedded linked lists have several disadvantages.</p>
+
+    <ol>
+      <li>The underlying data structure embeds the linked lists
+      according to its own consideration, which means that the
+      search path for a value might include several different
+      equivalent-key values. For example, the search path for the
+      the black node in either of Figures <a href=
+      "#embedded_lists_1">Non-unique mapping containers in the
+      STL's design</a> A or B, includes more than a single gray
+      node.</li>
+
+      <li>The links of the linked lists are the underlying
+      data structures' nodes, which typically are quite structured.
+      <i>E.g.</i>, in the case of tree-based containers (Figure
+      <a href="#embedded_lists_2">Effect of embedded lists in STL
+      multimaps</a>-B), each "link" is actually a node with three
+      pointers (one to a parent and two to children), and a
+      relatively-complicated iteration algorithm. The linked lists,
+      therefore, can take up quite a lot of memory, and iterating
+      over all values equal to a given key (<i>e.g.</i>, through
+      the return value of the STL's <tt>equal_range</tt>) can be
+      expensive.</li>
+
+      <li>The primary key is stored multiply; this uses more
+      memory.</li>
+
+      <li>Finally, the interface of this design excludes several
+      useful underlying data structures. <i>E.g.</i>, of all the
+      unordered self-organizing data structures, practically only
+      collision-chaining hash tables can (efficiently) guarantee
+      that equivalent-key values are stored consecutively.</li>
+    </ol>
+
+    <p>The above reasons hold even when the ratio of secondary keys
+    to primary keys (or average number of identical keys) is small,
+    but when it is large, there are more severe problems:</p>
+
+    <ol>
+      <li>The underlying data structures order the links inside
+      each embedded linked-lists according to their internal
+      considerations, which effectively means that each of the
+      links is unordered. Irrespective of the underlying
+      data structure, searching for a specific value can degrade to
+      linear complexity.</li>
+
+      <li>Similarly to the above point, it is impossible to apply
+      to the secondary keys considerations that apply to primary
+      keys. For example, it is not possible to maintain secondary
+      keys by sorted order.</li>
+
+      <li>While the interface "understands" that all equivalent-key
+      values constitute a distinct list (<i>e.g.</i>, through
+      <tt>equal_range</tt>), the underlying data structure
+      typically does not. This means, <i>e.g.</i>, that operations
+      such as erasing from a tree-based container all values whose
+      keys are equivalent to a a given key can be super-linear in
+      the size of the tree; this is also true also for several
+      other operations that target a specific list.</li>
+    </ol>
+
+    <p>In <tt>pb_ds</tt>, therefore, all associative containers map
+    (or store) unique-key values. One can (1) map primary keys to
+    secondary associative-containers (<i>i.e.</i>, containers of
+    secondary keys) or non-associative containers (2) map identical
+    keys to a size-type representing the number of times they
+    occur, or (3) any combination of (1) and (2). Instead of
+    allowing multiple equivalent-key values, <tt>pb_ds</tt>
+    supplies associative containers based on underlying
+    data structures that are suitable as secondary
+    associative-containers (see <a href=
+    "assoc_performance_tests.html#msc">Associative-Container
+    Performance Tests::Observations::Mapping-Semantics
+    Considerations</a>).</p>
+
+    <p>Figures <a href="#embedded_lists_3">Non-unique mapping
+    containers in <tt>pb_ds</tt></a> A and B show the equivalent
+    structures in <tt>pb_ds</tt>'s design, to those in Figures
+    <a href="#embedded_lists_1">Non-unique mapping containers in
+    the STL's design</a> A and B, respectively. Each shaded box
+    represents some size-type or secondary
+    associative-container.</p>
+
+    <h6 class="c1"><a name="embedded_lists_3" id=
+    "embedded_lists_3"><img src="embedded_lists_3.png" alt=
+    "no image" /></a></h6>
+
+    <h6 class="c1">Non-unique mapping containers in the
+    <tt>pb_ds</tt>.</h6>
+
+    <p>In the first example above, then, one would use an
+    associative container mapping each user to an associative
+    container which maps each application id to a start time (see
+    <a href=
+    "../../../../testsuite/ext/pb_ds/example/basic_multimap.cc"><tt>basic_multimap.cc</tt></a>);
+    in the second example, one would use an associative container
+    mapping each <tt><b>int</b></tt> to some size-type indicating
+    the number of times it logically occurs (see <a href=
+    "../../../../testsuite/ext/pb_ds/example/basic_multiset.cc"><tt>basic_multiset.cc</tt></a>).</p>
+
+    <p><a href=
+    "assoc_performance_tests.html#multimaps">Associative-Container
+    Performance Tests::Multimaps</a> quantifies some of these
+    points, and <a href=
+    "assoc_performance_tests.html#msc">Associative-Container
+    Performance Tests::Observations::Mapping-Semantics
+    Considerations</a> shows some simple calculations.</p>
+
+    <p><a href="assoc_examples.html#mmaps">Associative-Container
+    Examples::Multimaps</a> shows some simple examples of using
+    "multimaps".</p>
+
+    <p><a href="lu_based_containers.html">Design::Associative
+    Containers::List-Based Containers</a> discusses types of
+    containers especially suited as secondary
+    associative-containers.</p>
+
+    <h2><a name="pq" id="pq">Priority Queues</a></h2>
+
+    <h3><a name="pq_more_ops" id="pq_more_ops">Slightly Different
+    Methods</a></h3>
+
+    <p>Priority queues are containers that allow efficiently
+    inserting values and accessing the maximal value (in the sense
+    of the container's comparison functor); <i>i.e.</i>, their
+    interface supports <tt>push</tt> and <tt>pop</tt>. The STL's
+    priority queues indeed support these methods, but they support
+    little else. For algorithmic and software-engineering purposes,
+    other methods are needed:</p>
+
+    <ol>
+      <li>Many graph algorithms [<a href=
+      "references.html#clrs2001">clrs2001</a>] require increasing a
+      value in a priority queue (again, in the sense of the
+      container's comparison functor), or joining two
+      priority-queue objects.</li>
+
+      <li>It is sometimes necessary to erase an arbitrary value in
+      a priority queue. For example, consider the <tt>select</tt>
+      function for monitoring file descriptors:
+        <pre>
+<b>int</b> 
+    select
+    (<b>int</b> nfds,             
+        fd_set *readfds,                
+        fd_set *writefds,
+        fd_set *errorfds, 
+        <b>struct</b> timeval *timeout);
+</pre>then, as the <tt>select</tt> manual page [<a href=
+"references.html#select_man">select_man</a>] states:
+
+        <p><q>The nfds argument specifies the range of file
+        descriptors to be tested. The select() function tests file
+        descriptors in the range of 0 to nfds-1.</q></p>
+
+        <p>It stands to reason, therefore, that we might wish to
+        maintain a minimal value for <tt>nfds</tt>, and priority
+        queues immediately come to mind. Note, though, that when a
+        socket is closed, the minimal file description might
+        change; in the absence of an efficient means to erase an
+        arbitrary value from a priority queue, we might as well
+        avoid its use altogether.</p>
+
+        <p><a href="pq_examples.html#xref">Priority-Queue
+        Examples::Cross-Referencing</a> shows examples for these
+        types of operations.</p>
+      </li>
+
+      <li>STL containers typically support iterators. It is
+      somewhat unusual for <tt>std::priority_queue</tt> to omit
+      them (see, <i>e.g.</i>, [<a href=
+      "references.html#meyers01stl">meyers01stl</a>]). One might
+      ask why do priority queues need to support iterators, since
+      they are self-organizing containers with a different purpose
+      than abstracting sequences. There are several reasons:
+
+        <ol>
+          <li>Iterators (even in self-organizing containers) are
+          useful for many purposes, <i>e.g.</i>, cross-referencing
+          containers, serialization, and debugging code that uses
+          these containers.</li>
+
+          <li>The STL's hash-based containers support iterators,
+          even though they too are self-organizing containers with
+          a different purpose than abstracting sequences.</li>
+
+          <li>In STL-like containers, it is natural to specify the
+          interface of operations for modifying a value or erasing
+          a value (discussed previously) in terms of a iterators.
+          This is discussed further in <a href=
+          "pq_design.html#pq_it">Design::Priority
+          Queues::Iterators</a>. It should be noted that the STL's
+          containers also use iterators for accessing and
+          manipulating a specific value. <i>E.g.</i>, in hash-based
+          containers, one checks the existence of a key by
+          comparing the iterator returned by <tt>find</tt> to the
+          iterator returned by <tt>end</tt>, and not by comparing a
+          pointer returned by <tt>find</tt> to <tt>NULL</tt>.</li>
+        </ol>
+      </li>
+    </ol>
+
+    <p><a href="pq_performance_tests.html">Performance
+    Tests::Priority Queues</a> quantifies some of these points.</p>
+
+    <h3><a name="pq_ds_genericity" id="pq_ds_genericity">More Data
+    Structures and Traits</a></h3>
+
+    <p>There are three main implementations of priority queues: the
+    first employs a binary heap, typically one which uses a
+    sequence; the second uses a tree (or forest of trees), which is
+    typically less structured than an associative container's tree;
+    the third simply uses an associative container. These are
+    shown, respectively, in Figures <a href=
+    "#pq_different_underlying_dss">Underlying Priority-Queue
+    Data-Structures</a> A1 and A2, B, and C.</p>
+
+    <h6 class="c1"><a name="pq_different_underlying_dss" id=
+    "pq_different_underlying_dss"><img src=
+    "pq_different_underlying_dss.png" alt="no image" /></a></h6>
+
+    <h6 class="c1">Underlying Priority-Queue Data-Structures.</h6>
+
+    <p>No single implementation can completely replace any of the
+    others. Some have better <tt>push</tt> and <tt>pop</tt>
+    amortized performance, some have better bounded (worst case)
+    response time than others, some optimize a single method at the
+    expense of others, <i>etc.</i>. In general the "best"
+    implementation is dictated by the problem (see <a href=
+    "pq_performance_tests.html#pq_observations">Performance
+    Tests::Priority Queues::Observations</a>).</p>
+
+    <p>As with associative containers (see <a href=
+    "#assoc_ds_genericity">Associative Containers::Traits for
+    Underlying Data-Structures</a>), the more implementations
+    co-exist, the more necessary a traits mechanism is for handling
+    generic containers safely and efficiently. This is especially
+    important for priority queues, since the invalidation
+    guarantees of one of the most useful data structures - binary
+    heaps - is markedly different than those of most of the
+    others.</p>
+
+    <p><a href="pq_design.html#pq_traits">Design::Priority
+    Queues::Traits</a> discusses this further.</p>
+
+    <h3><a name="pq_binary_heap" id="pq_binary_heap">Binary Heap
+    Implementation</a></h3>
+
+    <p>Binary heaps are one of the most useful underlying
+    data structures for priority queues. They are very efficient in
+    terms of memory (since they don't require per-value structure
+    metadata), and have the best amortized <tt>push</tt> and
+    <tt>pop</tt> performance for primitive types (<i>e.g.</i>,
+    <tt><b>int</b></tt>s).</p>
+
+    <p>The STL's <tt>priority_queue</tt> implements this data
+    structure as an adapter over a sequence, typically
+    <tt>std::vector</tt> or <tt>std::deque</tt>, which correspond
+    to Figures <a href="#pq_different_underlying_dss">Underlying
+    Priority-Queue Data-Structures</a> A1 and A2, respectively.</p>
+
+    <p>This is indeed an elegant example of the adapter concept and
+    the algorithm/container/iterator decomposition (see [<a href=
+    "references.html#nelson96stlpq">nelson96stlpql</a>]). There are
+    possibly reasons, however, why a binary-heap priority queue
+    would be better implemented as a container instead of a
+    sequence adapter:</p>
+
+    <ol>
+      <li><tt>std::priority_queue</tt> cannot erase values from its
+      adapted sequence (irrespective of the sequence type). This
+      means that the memory use of an <tt>std::priority_queue</tt>
+      object is always proportional to the maximal number of values
+      it ever contained, and not to the number of values that it
+      currently contains (see <a href=
+      "priority_queue_text_pop_mem_usage_test.html">Priority Queue
+      Text <tt>pop</tt> Memory Use Test</a>); this implementation
+      of binary heaps acts very differently than other underlying
+      data structures (<i>e.g.</i>, pairing heaps).</li>
+
+      <li>Some combinations of adapted sequences and value types
+      are very inefficient or just don't make sense. If one uses
+      <tt>std::priority_queue&lt;std::vector&lt;std::string&gt;
+      &gt; &gt;</tt>, for example, then not only will each
+      operation perform a logarithmic number of
+      <tt>std::string</tt> assignments, but, furthermore, any
+      operation (including <tt>pop</tt>) can render the container
+      useless due to exceptions. Conversely, if one uses
+      <tt>std::priority_queue&lt;std::deque&lt;<b>int</b>&gt; &gt;
+      &gt;</tt>, then each operation uses incurs a logarithmic
+      number of indirect accesses (through pointers) unnecessarily.
+      It might be better to let the container make a conservative
+      deduction whether to use the structure in Figures <a href=
+      "#pq_different_underlying_dss">Underlying Priority-Queue
+      Data-Structures</a> A1 or A2.</li>
+
+      <li>There does not seem to be a systematic way to determine
+      what exactly can be done with the priority queue.
+
+        <ol>
+          <li>If <tt>p</tt> is a priority queue adapting an
+          <tt>std::vector</tt>, then it is possible to iterate over
+          all values by using <tt>&amp;p.top()</tt> and
+          <tt>&amp;p.top() + p.size()</tt>, but this will not work
+          if <tt>p</tt> is adapting an <tt>std::deque</tt>; in any
+          case, one cannot use <tt>p.begin()</tt> and
+          <tt>p.end()</tt>. If a different sequence is adapted, it
+          is even more difficult to determine what can be
+          done.</li>
+
+          <li>If <tt>p</tt> is a priority queue adapting an
+          <tt>std::deque</tt>, then the reference return by
+          <tt>p.top()</tt> will remain valid until it is popped,
+          but if <tt>p</tt> adapts an <tt>std::vector</tt>, the
+          next <tt>push</tt> will invalidate it. If a different
+          sequence is adapted, it is even more difficult to
+          determine what can be done.</li>
+        </ol>
+      </li>
+
+      <li>Sequence-based binary heaps can still implement
+      linear-time <tt>erase</tt> and <tt>modify</tt> operations.
+      This means that if one needs, <i>e.g.</i>, to erase a small
+      (say logarithmic) number of values, then one might still
+      choose this underlying data structure. Using
+      <tt>std::priority_queue</tt>, however, this will generally
+      change the order of growth of the entire sequence of
+      operations.</li>
+    </ol>
+  </div>
+</body>
+</html>

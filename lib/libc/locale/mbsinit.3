@@ -1,0 +1,78 @@
+.\" $OpenBSD: mbsinit.3,v 1.4 2022/03/29 18:15:52 naddy Exp $
+.\" $NetBSD: mbsinit.3,v 1.4 2003/04/16 13:34:40 wiz Exp $
+.\"
+.\" Copyright (c)2002 Citrus Project,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 29 2022 $
+.Dt MBSINIT 3
+.Os
+.\" ----------------------------------------------------------------------
+.Sh NAME
+.Nm mbsinit
+.Nd determines whether the state object is in initial state
+.\" ----------------------------------------------------------------------
+.Sh SYNOPSIS
+.In wchar.h
+.Ft int
+.Fn mbsinit "const mbstate_t *ps"
+.\" ----------------------------------------------------------------------
+.Sh DESCRIPTION
+.Fn mbsinit
+determines whether the state object pointed to by
+.Fa ps
+is in initial conversion state, or not.
+.Pp
+.Fa ps
+may be a
+.Dv NULL
+pointer.
+In this case,
+.Fn mbsinit
+will always return non-zero.
+.\" ----------------------------------------------------------------------
+.Sh RETURN VALUES
+.Fn mbsinit
+returns:
+.Bl -tag -width 0123456789
+.It 0
+The current state is not in initial state.
+.It non-zero
+The current state is in initial state or
+.Fa ps
+is a
+.Dv NULL
+pointer.
+.El
+.\" ----------------------------------------------------------------------
+.Sh ERRORS
+No errors are defined.
+.\" ----------------------------------------------------------------------
+.Sh STANDARDS
+The
+.Fn mbsinit
+function conforms to
+.\" .St -isoC-amd1 .
+ISO/IEC 9899/AMD1:1995
+.Pq Dq ISO C90, Amendment 1 .

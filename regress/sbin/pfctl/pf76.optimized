@@ -1,0 +1,8 @@
+@0 match out on lo0 inet from 1.2.3.4 to 5.6.7.8 nat-to 127.0.0.1 static-port
+  [ Skip steps: i=end r=end f=end p=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]
+@1 match in on lo0 inet from 5.6.7.8 to 127.0.0.1 rdr-to 1.2.3.4
+  [ Skip steps: i=end d=end r=end f=end p=end sa=end da=end sp=end dp=end ]
+  [ queue: qname= qid=0 pqname= pqid=0 ]
+  [ Evaluations: 0         Packets: 0         Bytes: 0           States: 0     ]

@@ -1,0 +1,182 @@
+.\"	$OpenBSD: srpl_rc_init.9,v 1.14 2016/11/21 07:11:13 dlg Exp $
+.\"
+.\" Copyright (c) 2015 David Gwynne <dlg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 21 2016 $
+.Dt SRPL_RC_INIT 9
+.Os
+.Sh NAME
+.Nm srpl_rc_init ,
+.Nm SRPL_HEAD ,
+.Nm SRPL_ENTRY ,
+.Nm SRPL_INIT ,
+.Nm SRPL_FIRST ,
+.Nm SRPL_NEXT ,
+.Nm SRPL_FOLLOW ,
+.Nm SRPL_FOREACH ,
+.Nm SRPL_LEAVE ,
+.Nm SRPL_RC_INITIALIZER
+.Nd singly-linked shared reference pointer list
+.Sh SYNOPSIS
+.In sys/srp.h
+.Vt struct srpl_rc;
+.Ft void
+.Fo "srpl_rc_init"
+.Fa "struct srpl_rc *rc"
+.Fa "void (*ref)(void *, void *)"
+.Fa "void (*unref)(void *, void *)"
+.Fa "void *ctx"
+.Fc
+.Fn SRPL_HEAD "HEADNAME" "TYPE"
+.Fn SRPL_ENTRY "TYPE"
+.Ft void
+.Fn "SRPL_INIT" "SRPL_HEAD *sl"
+.Ft void *
+.Fn "SRPL_FIRST" "struct srp_ref *sr" "SRPL_HEAD *sl"
+.Ft void *
+.Fn "SRPL_NEXT" "struct srp_ref *sr" "struct TYPE *listelm" "FIELDNAME"
+.Ft void *
+.Fn "SRPL_FOLLOW" "struct srp_ref *sr" "struct TYPE *listelm" "FIELDNAME"
+.Fo "SRPL_FOREACH"
+.Fa "VARNAME"
+.Fa "struct srp_ref *sr"
+.Fa "SRPL_HEAD *sl"
+.Fa "FIELDNAME"
+.Fc
+.Ft void
+.Fn "SRPL_LEAVE" "struct srp_ref *sr"
+.Fo "SRPL_RC_INITIALIZER"
+.Fa "void (*ref)(void *, void *)"
+.Fa "void (*unref)(void *, void *)"
+.Fa "void *ctx"
+.Fc
+.Sh DESCRIPTION
+The SRPL list
+macros build a linked list on top of shared reference pointers.
+This allows concurrent traversal of a linked list and access to the
+items on the list.
+.Pp
+SRP lists are a generic type represented by a
+.Vt SRPL_HEAD .
+The elements inserted into the list must be structures that contain a
+.Vt SRPL_ENTRY
+field.
+Further, the elements must also support reference counting as
+insertion and removal operations can cause items to be temporarily
+referenced by multiple SRPs within the list at the same time.
+.Pp
+.Fn srpl_rc_init
+initialises the SRP list refcounts
+.Fa rc
+structure so it can be used to manage the reference counts on
+elements in the list.
+The insertion or removal of an element in an SRP list will increment
+the reference counts on elements within the list via calls to
+.Fa ref .
+As these references are released by the SRP infrastructure, the
+reference counts will be decremented by calls to
+.Fa unref .
+.Fa unref
+is also responsible for freeing the element when the reference count
+reaches 0.
+Both
+.Fa ref
+and
+.Fa unref
+will be called with
+.Fa ctx
+as their first argument and a pointer to the element as their second
+argument.
+.Pp
+.Fn SRPL_INIT
+initialises the SRP list
+.Fa sl
+to an empty state.
+.Pp
+.Fn SRPL_FIRST
+accesses the first element in the SRP list
+.Fa sl
+and holds its reference via
+.Fa sr .
+.Pp
+.Fn SRPL_NEXT
+accesses the element in the SRP list after
+.Fa listelm
+and holds its reference via
+.Fa sr .
+.\".Pp
+.\"Every call to
+.\".Fn SRPL_FIRST
+.\"must have a corresponding call to
+.\".Fn SRPL_LEAVE
+.\"to release references to the list and its elements.
+.Pp
+.Fn SRPL_FOLLOW
+accesses the element in the SRP list after
+.Fa listelm
+and swaps the previous reference held via
+.Fa sr
+for the reference of the newly accessed item.
+.Pp
+.Fn SRPL_FOREACH
+creates a loop for traversing the list.
+Every call to
+.Fn SRPL_FOREACH
+must have a corresponding call to
+.Fn SRPL_LEAVE
+to release references to the list and its elements.
+.Pp
+.Fn SRPL_LEAVE
+releases references to the list and its elements held by previous
+calls to
+.Fn SRPL_FIRST ,
+.Fn SRPL_NEXT ,
+.Fn SRPL_FOLLOW ,
+or
+.Fn SRPL_FOREACH .
+.Pp
+An srpl_rc declaration can be initialised with the
+.Fn SRPL_RC_INITIALIZER
+macro.
+.Sh CONTEXT
+.Fn SRPL_INIT ,
+.Fn SRPL_FIRST ,
+.Fn SRPL_NEXT ,
+.Fn SRPL_FOLLOW ,
+.Fn SRPL_FOREACH ,
+and
+.Fn SRPL_LEAVE
+may be called during autoconf, from process context, or from interrupt
+context.
+.Pp
+.Fn srpl_rc_init ,
+may be called during autoconf or from process context.
+.Sh RETURN VALUES
+.Fn SRPL_FIRST ,
+.Fn SRPL_NEXT ,
+and
+.Fn SRPL_FOLLOW
+return a pointer to elements in the SRP list, or
+.Dv NULL
+if there are no more elements.
+.Sh SEE ALSO
+.Xr SRPL_FIRST_LOCKED 9
+.Sh HISTORY
+The srp API was originally written by
+.An Jonathan Matthew Aq Mt jmatthew@openbsd.org
+and
+.An David Gwynne Aq Mt dlg@openbsd.org .
+The SRP list API first appeared in
+.Ox 5.9 .

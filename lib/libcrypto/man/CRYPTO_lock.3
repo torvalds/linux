@@ -1,0 +1,122 @@
+.\"	$OpenBSD: CRYPTO_lock.3,v 1.4 2025/06/08 22:40:29 schwarze Exp $
+.\"	OpenSSL doc/crypto/threads.pod fb552ac6 Sep 30 23:43:01 2009 +0000
+.\"
+.\" Copyright (c) 2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2025 $
+.Dt CRYPTO_LOCK 3
+.Os
+.Sh NAME
+.Nm CRYPTO_lock ,
+.Nm CRYPTO_w_lock ,
+.Nm CRYPTO_w_unlock ,
+.Nm CRYPTO_r_lock ,
+.Nm CRYPTO_r_unlock ,
+.Nm CRYPTO_add
+.Nd thread support
+.Sh SYNOPSIS
+.Lb libcrypto
+.In openssl/crypto.h
+.Ft void
+.Fo CRYPTO_lock
+.Fa "int mode"
+.Fa "int type"
+.Fa "const char *file"
+.Fa "int line"
+.Fc
+.Ft int
+.Fo CRYPTO_add
+.Fa "int *p"
+.Fa "int amount"
+.Fa "int type"
+.Fc
+.Bd -literal
+#define	CRYPTO_w_lock(type) \e
+	CRYPTO_lock(CRYPTO_LOCK|CRYPTO_WRITE, type, __FILE__, __LINE__)
+#define	CRYPTO_w_unlock(type) \e
+	CRYPTO_lock(CRYPTO_UNLOCK|CRYPTO_WRITE, type, __FILE__, __LINE__)
+#define	CRYPTO_r_lock(type) \e
+	CRYPTO_lock(CRYPTO_LOCK|CRYPTO_READ, type, __FILE__, __LINE__)
+#define	CRYPTO_r_unlock(type) \e
+	CRYPTO_lock(CRYPTO_UNLOCK|CRYPTO_READ, type, __FILE__, __LINE__)
+.Ed
+.Sh DESCRIPTION
+These functions are obsolete.
+.Pp
+.Fn CRYPTO_lock
+locks or unlocks a mutex lock.
+.Pp
+.Fa mode
+is a bitfield describing what should be done with the lock.
+For each call, either
+.Dv CRYPTO_LOCK
+or
+.Dv CRYPTO_UNLOCK
+must be included.
+In the LibreSSL implementation,
+.Dv CRYPTO_READ
+and
+.Dv CRYPTO_WRITE
+are ignored.
+.Pp
+.Fa type
+is a number in the range 0 <=
+.Fa type No < Dv CRYPTO_NUM_LOCKS
+identifying a particular lock.
+Currently, the value of
+.Dv CRYPTO_NUM_LOCKS
+is 41.
+.Pp
+The
+.Ar file
+and
+.Ar line
+arguments are ignored.
+.Pp
+In the LibreSSL implementation,
+.Fn CRYPTO_lock
+is a wrapper around
+.Xr pthread_mutex_lock 3
+and
+.Xr pthread_mutex_unlock 3 .
+.Pp
+.Fn CRYPTO_add
+locks the lock number
+.Fa type ,
+adds
+.Fa amount
+to
+.Pf * Fa p ,
+and unlocks the lock number
+.Fa type
+again.
+.Sh RETURN VALUES
+.Fn CRYPTO_add
+returns the new value of
+.Pf * Fa p .
+.Sh SEE ALSO
+.Xr crypto 3
+.Sh HISTORY
+.Fn CRYPTO_lock ,
+.Fn CRYPTO_w_lock ,
+.Fn CRYPTO_w_unlock ,
+.Fn CRYPTO_r_lock ,
+and
+.Fn CRYPTO_r_unlock
+first appeared in SSLeay 0.6.0.
+.Fn CRYPTO_add
+first appeared in SSLeay 0.6.2.
+These functions have been available since
+.Ox 2.4 .

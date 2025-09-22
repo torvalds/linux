@@ -1,0 +1,713 @@
+.\" $OpenBSD: wsdisplay.4,v 1.57 2022/03/31 17:27:21 naddy Exp $
+.\" $NetBSD: wsdisplay.4,v 1.5 2000/05/13 15:22:19 mycroft Exp $
+.\"
+.\" Copyright (c) 2005, Miodrag Vallat.
+.\" Copyright (c) 1999 Matthias Drochner.
+.\" Copyright (c) 2002 Ben Harris.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: March 31 2022 $
+.Dt WSDISPLAY 4
+.Os
+.Sh NAME
+.Nm wsdisplay
+.Nd generic display device support in wscons
+.Sh SYNOPSIS
+.Cd "wsdisplay* at ..."
+.Cd "option WSDISPLAY_DEFAULTSCREENS=N"
+.Sh DESCRIPTION
+The
+.Nm
+driver is an abstraction layer for display devices within the
+.Xr wscons 4
+framework.
+It attaches to the hardware specific display device driver and
+makes it available as text terminal or graphics interface.
+.Pp
+Display devices have the ability to display characters on them
+(without help of an X server), either directly by hardware or through
+software drawing pixel data into the display memory.
+The
+.Nm
+driver will connect a terminal emulation module and provide a
+tty-like software interface.
+.Pp
+The
+.Em console
+locator in the configuration line refers to the device's use as output
+part of the operating system console.
+A device specification containing a positive value here will only match
+if the device is in use as system console.
+(The console device selection in early system startup is not influenced.)
+This way, the console device can be connected to a known
+.Nm wsdisplay
+device instance.
+.Pp
+The
+.Em mux
+locator in the configuration line refers to the
+.Xr wsmux 4
+that will be used to get keyboard events.
+If this locator is -1, no mux will be used.
+.Pp
+The logical unit of an independent contents displayed on a display
+(sometimes referred to as
+.Dq virtual terminal )
+is called a
+.Dq screen
+here.
+If the underlying device driver supports it, multiple screens can
+be used on one display.
+(As of this writing, only the
+.Xr lcd 4
+and
+.Xr vga 4
+display drivers provide this ability.)
+Screens have different minor device numbers and separate tty instances.
+One screen possesses the
+.Dq focus ,
+this means it is displayed on the display and its tty device will get
+the keyboard input.
+(In some cases, if no screen is set up or if a screen
+was just deleted, it is possible that no focus is present at all.)
+The focus can be switched by either special keyboard input (typically
+CTL-ALT-Fn) or an ioctl command issued by a user program.
+Screens are set up or deleted through the
+.Pa /dev/ttyCcfg
+control device (preferably using the
+.Xr wsconscfg 8
+utility).
+Alternatively, the compile-time
+.Cd "option WSDISPLAY_DEFAULTSCREENS=N"
+will set up N screens of the display driver's default type and using
+the system's default terminal emulator at autoconfiguration time.
+.Pp
+In addition and with help from backend drivers the following features
+are also provided:
+.Bl -bullet
+.It
+Loading, deleting and listing the loaded fonts.
+.It
+Browsing backwards in the screen output, the size of the
+buffer for saved text is defined by the particular hardware driver.
+.It
+Blanking the screen by timing out on inactivity in the
+screen holding the input focus.
+Awakening activities consist of:
+.Pp
+.Bl -bullet -compact
+.It
+pressing any keys on the keyboard;
+.It
+moving or clicking the mouse;
+.It
+any output to the screen.
+.El
+.Pp
+Blanking the screen is usually done by disabling the horizontal sync
+signal on video output, but may also include blanking the vertical
+sync in which case most monitors go into power saving mode.
+See
+.Xr wsconsctl 8
+for controlling variables.
+.El
+.Pp
+Consult the back-end drivers' documentation for which features are supported
+for each particular hardware type.
+.Ss IOCTL INTERFACE
+The following
+.Xr ioctl 2
+calls are provided by the
+.Nm
+driver or by devices which use it.
+Their definitions are found in
+.In dev/wscons/wsconsio.h .
+.Bl -tag -width 4n
+.It Dv WSDISPLAYIO_GTYPE Fa u_int
+Retrieve the type of the display.
+The list of types is in
+.In dev/wscons/wsconsio.h .
+.It Dv WSDISPLAYIO_GINFO Fa "struct wsdisplay_fbinfo"
+Retrieve basic information about a framebuffer display.
+The returned structure is as follows:
+.Bd -literal -offset indent
+struct wsdisplay_fbinfo {
+        u_int   height;
+        u_int   width;
+        u_int   depth;
+        u_int   cmsize;
+};
+.Ed
+.Pp
+The
+.Va height
+and
+.Va width
+members are counted in pixels.
+The
+.Va depth
+member indicates the number of bits per pixel, and
+.Va cmsize
+indicates the number of color map entries accessible through
+.Dv WSDISPLAYIO_GETCMAP
+and
+.Dv WSDISPLAYIO_PUTCMAP .
+This call is likely to be unavailable on text-only displays.
+.It Dv WSDISPLAYIO_GETSCREENTYPE Fa "struct wsdisplay_screentype"
+Retrieve basic information about a screen.
+The returned structure is as follows:
+.Bd -literal -offset indent
+struct wsdisplay_screentype {
+        int idx;
+        int nidx;
+        char name[WSSCREEN_NAME_SIZE];
+        int ncols, nrows;
+        int fontwidth, fontheight;
+};
+.Ed
+.Pp
+The
+.Va idx
+field indicates the index of the screen.
+The
+.Va nidx
+field indicates the number of screens.
+The
+.Va name
+field contains a human readable string used to identify the screen.
+The
+.Va ncols
+and
+.Va  nrows
+fields indicate the available number of columns and rows.
+The
+.Va fontwidth
+and
+.Va fontheight
+fields indicate the dimensions of a character cell, in pixels.
+.It Dv WSDISPLAYIO_GETCMAP Fa "struct wsdisplay_cmap"
+Retrieve the current color map from the display.
+This call needs the
+following structure set up beforehand:
+.Bd -literal -offset indent
+struct wsdisplay_cmap {
+        u_int   index;
+        u_int   count;
+        u_char  *red;
+        u_char  *green;
+        u_char  *blue;
+};
+.Ed
+.Pp
+The
+.Va index
+and
+.Va count
+members specify the range of color map entries to retrieve.
+The
+.Va red ,
+.Va green ,
+and
+.Va blue
+members should each point to an array of
+.Va count
+.Vt u_char Ns s .
+On return, these will be filled in with the appropriate entries from the
+color map.
+On all displays that support this call, values range from 0 for minimum
+intensity to 255 for maximum intensity, even if the display does not use
+eight bits internally to represent intensity.
+.It Dv WSDISPLAYIO_PUTCMAP Fa "struct wsdisplay_cmap"
+Change the display's color map.
+The argument structure is the same as for
+.Dv WSDISPLAYIO_GETCMAP ,
+but
+.Va red ,
+.Va green ,
+and
+.Va blue
+are taken as pointers to the values to use to set the color map.
+This call is not available on displays with fixed color maps.
+.It Dv WSDISPLAYIO_GVIDEO Fa u_int
+Get the current state of the display's video output.
+Possible values are:
+.Bl -tag -width 21n
+.It Dv WSDISPLAYIO_VIDEO_OFF
+The display is blanked.
+.It Dv WSDISPLAYIO_VIDEO_ON
+The display is enabled.
+.El
+.It Dv WSDISPLAYIO_SVIDEO Fa u_int
+Set the state of the display's video output.
+See
+.Dv WSDISPLAYIO_GVIDEO
+above for possible values.
+.It Dv WSDISPLAYIO_GCURPOS Fa "struct wsdisplay_curpos"
+Retrieve the current position of the hardware cursor.
+The returned structure
+is as follows:
+.Bd -literal -offset indent
+struct wsdisplay_curpos {
+        u_int x, y;
+};
+.Ed
+.Pp
+The
+.Va x
+and
+.Va y
+members count the number of pixels right and down, respectively, from
+the top-left corner of the display to the hot spot of the cursor.
+This call is not available on displays without a hardware cursor.
+.It Dv WSDISPLAYIO_SCURPOS Fa "struct wsdisplay_curpos"
+Set the current cursor position.
+The argument structure, and its semantics,
+are the same as for
+.Dv WSDISPLAYIO_GCURPOS .
+This call is not available on displays without a hardware cursor.
+.It Dv WSDISPLAYIO_GCURMAX Fa "struct wsdisplay_curpos"
+Retrieve the maximum size of cursor supported by the display.
+The
+.Va x
+and
+.Va y
+members of the returned structure indicate the maximum number of pixel rows
+and columns, respectively, in a hardware cursor on this display.
+This call is not available on displays without a hardware cursor.
+.It Dv WSDISPLAYIO_GCURSOR Fa "struct wsdisplay_cursor"
+Retrieve some or all of the hardware cursor's attributes.
+The argument structure is as follows:
+.Bd -literal -offset indent
+struct wsdisplay_cursor {
+        u_int   which;
+        u_int   enable;
+        struct wsdisplay_curpos pos;
+        struct wsdisplay_curpos hot;
+        struct wsdisplay_cmap cmap;
+        struct wsdisplay_curpos size;
+        u_char *image;
+        u_char *mask;
+};
+.Pp
+.Ed
+The
+.Va which
+member indicates which of the values the application requires to be returned.
+It should contain the logical OR of the following flags:
+.Bl -tag -width 4n
+.It Dv WSDISPLAY_CURSOR_DOCUR
+Get
+.Va enable ,
+which indicates whether the cursor is currently displayed (non-zero) or
+not (zero).
+.It Dv WSDISPLAY_CURSOR_DOPOS
+Get
+.Va pos ,
+which indicates the current position of the cursor on the display, as
+would be returned by
+.Dv WSDISPLAYIO_GCURPOS .
+.It Dv WSDISPLAY_CURSOR_DOHOT
+Get
+.Va hot ,
+which indicates the location of the
+.Dq hot spot
+within the cursor.
+This is the point on the cursor whose position on the display is treated
+as being the position of the cursor by other calls.
+Its location is counted in pixels from the top-left corner of the cursor.
+.It Dv WSDISPLAY_CURSOR_DOCMAP
+Get
+.Va cmap ,
+which indicates the current cursor color map.
+Unlike in a call to
+.Dv WSDISPLAYIO_GETCMAP ,
+.Va cmap
+here need not have its
+.Va index
+and
+.Va count
+members initialized.
+They will be set to 0 and 2 respectively by the call.
+This means that
+.Va cmap . Ns Va red ,
+.Va cmap . Ns Va green ,
+and
+.Va cmap . Ns Va blue
+must each point to at least enough space to hold two
+.Vt u_char Ns s .
+.It Dv WSDISPLAY_CURSOR_DOSHAPE
+Get
+.Va size , image ,
+and
+.Va mask .
+These are, respectively, the dimensions of the cursor in pixels, the
+bitmap of set pixels in the cursor and the bitmap of opaque pixels in
+the cursor.
+The format in which these bitmaps are returned, and hence the amount of
+space that must be provided by the application, are device-dependent.
+.It Dv WSDISPLAY_CURSOR_DOALL
+Get all of the above.
+.El
+.Pp
+The device may elect to return information that was not requested by the user,
+so those elements of
+.Vt struct wsdisplay_cursor
+which are pointers should be initialized to
+.Dv NULL
+if not otherwise used.
+This call is not available on displays without a hardware cursor.
+.It Dv WSDISPLAYIO_SCURSOR Fa "struct wsdisplay_cursor"
+Set some or all of the hardware cursor's attributes.
+The argument structure is the same as for
+.Dv WSDISPLAYIO_GCURSOR .
+The
+.Va which
+member specifies which attributes of the cursor are to be changed.
+It should contain the logical OR of the following flags:
+.Bl -tag -width 4n
+.It Dv WSDISPLAY_CURSOR_DOCUR
+If
+.Va enable
+is zero, hide the cursor.
+Otherwise, display it.
+.It Dv WSDISPLAY_CURSOR_DOPOS
+Set the cursor's position on the display to
+.Va pos ,
+the same as
+.Dv WSDISPLAYIO_SCURPOS .
+.It Dv WSDISPLAY_CURSOR_DOHOT
+Set the
+.Dq hot spot
+of the cursor, as defined above, to
+.Va hot .
+.It Dv WSDISPLAY_CURSOR_DOCMAP
+Set some or all of the cursor color map based on
+.Va cmap .
+The
+.Va index
+and
+.Va count
+elements of
+.Va cmap
+indicate which color map entries to set, and the entries themselves come from
+.Va cmap . Ns Va red ,
+.Va cmap . Ns Va green ,
+and
+.Va cmap . Ns Va blue .
+.It Dv WSDISPLAY_CURSOR_DOSHAPE
+Set the cursor shape from
+.Va size , image ,
+.Va mask .
+See above for their meanings.
+.It Dv WSDISPLAY_CURSOR_DOALL
+Do all of the above.
+.El
+.Pp
+This call is not available on displays without a hardware cursor.
+.It Dv WSDISPLAYIO_GMODE Fa u_int
+Get the current mode of the display.
+Possible results include:
+.Bl -tag -width 4n
+.It Dv WSDISPLAYIO_MODE_EMUL
+The display is in emulating (text) mode.
+.It Dv WSDISPLAYIO_MODE_MAPPED
+The display is in mapped (graphics) mode.
+.It Dv WSDISPLAYIO_MODE_DUMBFB
+The display is in mapped (frame buffer) mode.
+.El
+.It Dv WSDISPLAYIO_SMODE Fa u_int
+Set the current mode of the display.
+For possible arguments, see
+.Dv WSDISPLAYIO_GMODE .
+.It Dv WSDISPLAYIO_LDFONT Fa "struct wsdisplay_font"
+Loads a font specified by the wsdisplay_font structure.
+.Bd -literal -offset indent
+struct wsdisplay_font {
+        char name[WSFONT_NAME_SIZE];
+        int index;
+        int firstchar, numchars;
+        int encoding;
+        u_int fontwidth, fontheight, stride;
+        int bitorder, byteorder;
+        void *cookie;
+        void *data;
+};
+.Ed
+.Pp
+The
+.Va name
+field contains a human readable string used to identify the font.
+The
+.Va index
+field may be used to select a driver-specific font resource (for non-raster
+frame buffers).
+A value of -1 will pick the first available slot.
+The
+.Va firstchar
+field contains the index of the first character in the font, starting at zero.
+The
+.Va numchars
+field contains the number of characters in the font.
+The
+.Va encoding
+field describes the font character encoding, using one of the following values:
+.Bl -tag -width 4n
+.It Dv WSDISPLAY_FONTENC_ISO
+ISO-8859-1 encoding
+.Pq also known as Latin-1 .
+This is the preferred encoding for raster frame buffers.
+.It Dv WSDISPLAY_FONTENC_IBM
+IBM code page number 437.
+This is the preferred encoding for text-mode displays.
+.El
+.Pp
+The
+.Va fontwidth
+and
+.Va fontheight
+fields specify the dimensions of a character cell.
+The
+.Va stride
+field specify the number of bytes of font data per character cell line (usually
+.Va fontwidth
+rounded up to a byte boundary).
+The
+.Va bitorder
+and
+.Va byteorder
+fields specify the bit- and byte-ordering of the font data, using either one of
+the following values:
+.Bl -tag -width 4n
+.It Dv WSDISPLAY_FONTORDER_L2R
+Leftmost data contained in the most significant bits (left-to-right ordering).
+This is the most commonly encountered case.
+.It Dv WSDISPLAY_FONTORDER_R2L
+Leftmost data contained in the least significant bits (right-to-left ordering).
+.El
+.Pp
+The
+.Va data
+field contains the font character data to be loaded.
+The
+.Va cookie
+field is reserved for internal purposes.
+.It Dv WSDISPLAYIO_LSFONT Fa "struct wsdisplay_font"
+Retrieves the data for a loaded font into the wsdisplay_font structure.
+The
+.Va index
+field is set to the font resource to query.
+For the argument structure, see
+.Dv WSDISPLAYIO_LDFONT .
+.\" Dv WSDISPLAYIO_DELFONT Fa "struct wsdisplay_font"
+.It Dv WSDISPLAYIO_USEFONT Fa "struct wsdisplay_font"
+Selects the font specified in the
+.Va name
+field.
+An empty
+.Va name
+selects the next available font.
+For the argument structure, see
+.Dv WSDISPLAYIO_LDFONT .
+.It Dv WSDISPLAYIO_GBURNER Fa "struct wsdisplay_burner"
+Retrieves the state of the screen burner.
+The returned structure is as follows:
+.Bd -literal -offset indent
+struct wsdisplay_burner {
+        u_int   off;
+        u_int   on;
+        u_int   flags;
+};
+.Ed
+.Pp
+The
+.Va off
+member contains the inactivity time before the screen is turned off,
+in milliseconds.
+The
+.Va on
+member contains the time before the screen is turned back on,
+in milliseconds.
+The
+.Va flags
+member contains a logical OR of the following flags:
+.Bl -tag -width 4n
+.It Dv WSDISPLAY_BURN_VBLANK
+When turning the display off, disable the vertical synchronization signal.
+.It Dv WSDISPLAY_BURN_KBD
+Monitor keyboard activity.
+.It Dv WSDISPLAY_BURN_MOUSE
+Monitor mouse activity
+(this only works for mice using the
+.Xr wsmouse 4
+driver).
+.It Dv WSDISPLAY_BURN_OUTPUT
+Monitor display output activity.
+.El
+.Pp
+If none of the activity source flags are set, the screen burner is disabled.
+.It Dv WSDISPLAYIO_SBURNER Fa "struct wsdisplay_burner"
+Sets the state of the screen burner.
+The argument structure, and its semantics, are the same as for
+.Dv WSDISPLAYIO_GBURNER .
+.It Dv WSDISPLAYIO_ADDSCREEN Fa "struct wsdisplay_addscreendata"
+Creates a new screen.
+.Bd -literal -offset indent
+struct wsdisplay_addscreendata {
+        int idx; /* screen index */
+        char screentype[WSSCREEN_NAME_SIZE];
+        char emul[WSEMUL_NAME_SIZE];
+};
+.Ed
+.Pp
+The
+.Va idx
+field is the index of the screen to be configured.
+The
+.Va screentype
+field is matched against builtin screen types, which will be driver-dependent.
+The
+.Va emul
+field indicates the terminal emulation type.
+Available terminal emulations are:
+.Bl -tag -width 5n
+.It sun
+Sun terminal emulation.
+This is the default on the sparc64 architecture.
+.It vt100
+Dec VT100 terminal emulation, with some VT220 features.
+This is the default on all other architectures.
+.It dumb
+Dumb terminal.
+.El
+.Pp
+An empty string will select the default emulation.
+.It Dv WSDISPLAYIO_DELSCREEN Fa "struct wsdisplay_delscreendata"
+Deletes an existing screen.
+.Bd -literal -offset indent
+struct wsdisplay_delscreendata {
+        int idx; /* screen index */
+        int flags;
+};
+.Ed
+.Pp
+The
+.Va idx
+field indicates the index of the screen to be deleted.
+The
+.Va flags
+field is a logical OR of zero or more of the following:
+.Bl -tag -width 4n
+.It Dv WSDISPLAY_DELSCR_FORCE
+Force deletion of screen even if in use by a userspace program.
+.It Dv WSDISPLAY_DELSCR_QUIET
+Don't report deletion to console.
+.El
+.It Dv WSDISPLAYIO_GETSCREEN Fa "struct wsdisplay_addscreendata"
+Returns information on the screen indicated by
+.Va idx
+or the current screen if
+.Va idx
+is -1.
+The screen and emulation types are returned in the same structure
+.Pq see Dv WSDISPLAYIO_GETPARAM .
+.It Dv WSDISPLAYIO_SETSCREEN Fa u_int
+Switch to the screen with the given index.
+.It Dv WSDISPLAYIO_WSMOUSED Fa "struct wscons_event"
+This call is used by the
+.Xr wsmoused 8
+daemon to inject mouse events gathered from serial mice, as well as
+various control events.
+.It Dv WSDISPLAYIO_GETPARAM Fa "struct wsdisplay_param"
+Retrieves the state of a display parameter.
+This call needs the following structure set up beforehand:
+.Bd -literal -offset indent
+struct wsdisplay_param {
+        int param;
+        int min, max, curval;
+        int reserved[4];
+};
+.Ed
+.Pp
+The
+.Va param
+member should be set with the parameter to be returned.
+The following parameters are supported:
+.Bl -tag -width 4n
+.It Dv WSDISPLAYIO_PARAM_BACKLIGHT
+The intensity of the display backlight (usually on laptop computers).
+.It Dv WSDISPLAYIO_PARAM_BRIGHTNESS
+The brightness level.
+.It Dv WSDISPLAYIO_PARAM_CONTRAST
+The contrast level.
+.El
+.Pp
+On return,
+.Va min
+and
+.Va max
+specify the allowed range for the value, while
+.Va curval
+specifies the current setting.
+Not all parameters are supported by all display drivers.
+.It Dv WSDISPLAYIO_SETPARAM Fa "struct wsdisplay_param"
+Sets a display parameter.
+The argument structure is the same as for
+.Dv WSDISPLAYIO_GETPARAM ,
+with the
+.Va param
+and
+.Va curval
+members filled in.
+Not all parameters are supported by all display drivers.
+.It Dv WSDISPLAYIO_LINEBYTES Fa u_int
+Get the number of bytes per row when the device is in
+.Dv WSDISPLAYIO_MODE_DUMBFB
+mode.
+.El
+.Sh FILES
+.Bl -tag -width /usr/include/dev/wscons/wsconsio.h -compact
+.It Pa /dev/tty[C-F]*
+terminal devices (per screen)
+.It Pa /dev/tty[C-F]cfg
+control device (per screen)
+.It Pa /usr/include/dev/wscons/wsconsio.h
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr tty 4 ,
+.Xr wscons 4 ,
+.Xr wsmux 4 ,
+.Xr wsconscfg 8 ,
+.Xr wsconsctl 8 ,
+.Xr wsfontload 8
+.Sh BUGS
+The
+.Nm
+code currently limits the number of screens on one display to 12.
+.Pp
+The terms
+.Dq wscons
+and
+.Dq wsdisplay
+are not cleanly distinguished in the code and in manual pages.

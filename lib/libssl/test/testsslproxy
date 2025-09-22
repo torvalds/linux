@@ -1,0 +1,10 @@
+#! /bin/sh
+
+echo 'Testing a lot of proxy conditions.'
+echo 'Some of them may turn out being invalid, which is fine.'
+for auth in A B C BC; do
+    for cond in A B C 'A|B&!C'; do
+	sh ./testssl $1 $2 $3 "-proxy -proxy_auth $auth -proxy_cond $cond"
+	if [ $? = 3 ]; then exit 1; fi
+    done
+done

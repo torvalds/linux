@@ -1,0 +1,377 @@
+.\"	$OpenBSD: tzset.3,v 1.27 2025/06/23 13:53:11 millert Exp $
+.Dd $Mdocdate: June 23 2025 $
+.Dt TZSET 3
+.Os
+.Sh NAME
+.Nm tzset ,
+.Nm tzsetwall
+.Nd initialize time conversion information
+.Sh SYNOPSIS
+.In time.h
+.Vt extern char *tzname[2];
+.Vt extern long  timezone;
+.Vt extern long  daylight;
+.Ft void
+.Fn tzset "void"
+.Ft void
+.Fn tzsetwall "void"
+.Sh DESCRIPTION
+The
+.Fn tzset
+function uses the value of the environment variable
+.Ev TZ
+to set the time conversion information used by
+.Xr localtime 3 .
+It also sets the following external variables:
+.Bl -tag -width "tzname[2]"
+.It Vt tzname[2]
+the designations for standard and daylight saving time; see the description of
+.Ar std No and Ar dst
+below
+.It Vt timezone
+the number of seconds west of the Prime Meridian
+.It Vt daylight
+0 if the time zone has never observed daylight saving time, otherwise
+non-zero
+.El
+.Pp
+Most programs do not need to call
+.Fn tzset
+directly; it will be called automatically as needed by the functions
+described in
+.Xr localtime 3 .
+Privileged processes that use
+.Xr chroot 2
+may wish to call
+.Fn tzset
+to initialize the time conversion information before changing to
+a restricted root directory that does not include time conversion
+data files.
+.Pp
+If
+.Ev TZ
+does not appear in the environment, or if the calling process has
+changed its user or group ID, the system time zone file,
+.Pa /etc/localtime ,
+is used.
+.Pp
+If
+.Ev TZ
+appears in the environment it may be one of two formats:
+.Bl -bullet
+.It
+the pathname of a
+.Xr tzfile 5
+format file from which to read the time conversion information,
+optionally prefixed with a colon
+.Pq Ql \&: ,
+such as
+.Dq :America/Denver
+or
+.Dq Europe/Berlin
+.It
+a string that directly specifies the time conversion information
+(see below) which may not begin with a colon
+.Pq Ql \&:
+.El
+.Pp
+If
+.Ev TZ
+appears in the environment and its value does not begin with a colon,
+it is first used as the
+pathname of a
+.Xr tzfile 5
+format file from which to read the time conversion information
+and, if that file cannot be read, is used directly as a specification of
+the time conversion information.
+A value beginning with a colon
+.Pq Ql \&:
+is always treated as a pathname.
+.Pp
+If
+.Ev TZ
+is set to the empty string, Universal Time (UT) is used, with the abbreviation
+.Dq UTC
+and without leap second correction; please see
+.Xr ctime 3
+for more about UT, UTC, and leap seconds.
+.Pp
+When
+.Ev TZ
+is used as a pathname, it must either be a path relative to the system time
+conversion information directory,
+.Pa /usr/share/zoneinfo ,
+or an absolute path that begins with
+.Pa /usr/share/zoneinfo/ .
+Other absolute paths, or paths that contain
+.Ql \&../ ,
+will be ignored and the system local time zone file,
+.Pa /etc/localtime ,
+will be used instead.
+The file must be in the format specified in
+.Xr tzfile 5 .
+.Pp
+When
+.Ev TZ
+is used directly as a specification of the time conversion information,
+it must have the following syntax (without whitespace between
+.Ar std
+and
+.Ar offset ) :
+.Bd -ragged -offset indent
+.Ar std
+.Sm off
+.Ar offset
+.Op Ar dst Op Ar offset
+.Op , Ar rule
+.Sm on
+.Ed
+.Pp
+Where:
+.Bl -tag -width "std and dst"
+.It Ar std No and Ar dst
+Three or more bytes that are the designation for the standard
+.Pq Ar std
+or the daylight saving
+.Pq Ar dst
+time zone.
+Only
+.Ar std
+is required; if
+.Ar dst
+is missing, then daylight saving time does not apply in this locale.
+Upper and lowercase letters are explicitly allowed.
+Any characters except a leading colon
+.Pq Ql \&: ,
+digits, comma
+.Pq Ql \&, ,
+minus
+.Pq Ql \&- ,
+plus
+.Pq Ql \&+ ,
+and ASCII NUL are allowed.
+.It Ar offset
+Indicates the value one must add to the local time to arrive at
+Coordinated Universal Time.
+.Ar offset
+has the form:
+.Pp
+.D1 Ar hh Ns Op : Ns Ar mm Ns Op : Ns Ar ss
+.Pp
+The minutes
+.Pq Ar mm
+and seconds
+.Pq Ar ss
+are optional.
+The hour
+.Pq Ar hh
+is required and may be a single digit.
+The
+.Ar offset
+following
+.Ar std
+is required.
+If no
+.Ar offset
+follows
+.Ar dst ,
+daylight saving time is assumed to be one hour ahead of standard time.
+One or more digits may be used; the value is always interpreted as a
+decimal number.
+The hour must be between zero and 24, and the minutes (and
+seconds) \(em if present \(em between zero and 59.
+If preceded by a
+.Dq \&- ,
+the time zone shall be east of the Prime Meridian; otherwise it shall be
+west (which may be indicated by an optional preceding
+.Dq \&+ ) .
+.It Ar rule
+Indicates when to change to and back from daylight saving time.
+.Ar rule
+has the form:
+.Pp
+.D1 Ar date Ns / Ns Ar time , Ns Ar date Ns / Ns Ar time
+.Pp
+where the first
+.Ar date
+describes when the change from standard to daylight saving time occurs and the
+second
+.Ar date
+describes when the change back happens.
+Each
+.Ar time
+field describes when, in current local time, the change to the other
+time is made.
+As an extension to POSIX, daylight saving is assumed to be in effect
+all year if it begins January 1 at 00:00 and ends December 31 at
+24:00 plus the difference between daylight saving and standard time,
+leaving no room for standard time in the calendar.
+.Pp
+The format of
+.Ar date
+is one of the following:
+.Bl -tag -width Ds
+.It Cm J Ns Ar n
+The Julian day
+.Ar n
+.Pq 1 <= Ar n No <= 365 .
+Leap days are not counted; that is, in all years \(em including leap
+years \(em February 28 is day 59 and March 1 is day 60.
+It is impossible to explicitly refer to the occasional February 29.
+.It Ar n
+The zero-based Julian day
+.Pq 0 <= Ar n No <= 365 .
+Leap days are counted, and it is possible to refer to February 29.
+.It Cm M Ns Ar m . Ns Ar n . Ns Ar d
+Day
+.Ar d
+.Pq 1 <= Ar d No <= 6
+of week
+.Ar n
+.Pq 1 <= Ar n No <= 5
+of month
+.Ar m
+.Pq 1 <= Ar m No <= 12 ,
+where week 5 means
+.Do
+the last
+.Ar d
+day in month
+.Ar m
+.Dc
+which may occur in either the fourth or the fifth week.
+Week 1 is the first week in which the
+.Ar d Ns th
+day occurs.
+Day zero is Sunday.
+.El
+.Pp
+The
+.Ar time
+has the same format as
+.Ar offset
+except that POSIX does not allow a leading sign
+.Po
+.Dq \&-
+or
+.Dq \&+
+.Pc .
+As an extension to POSIX, the hours part of
+.Ar time
+can range from \-167 through 167; this allows for unusual rules such as
+.Dq the Saturday before the first Sunday of March .
+The default, if
+.Ar time
+is not given, is
+.Cm 02:00:00 .
+.El
+.Pp
+Here are some examples of
+.Ev TZ
+values that directly specify the time zone rules;
+they use some of the extensions to POSIX.
+.Bl -tag -width Ds
+.It EST5
+stands for US Eastern Standard Time (EST),
+5 hours behind UT, without daylight saving.
+.It FJT\-12FJST,M10.3.1/146,M1.3.4/75
+stands for Fiji Time (FJT) and Fiji Summer Time (FJST), 12 hours ahead
+of UT, springing forward on October's third Monday at
+146:00 (i.e., 02:00 on the first Sunday on or after October 21), and
+falling back on January's third Thursday at 75:00 (i.e., 03:00 on the
+first Sunday on or after January 18).
+.It IST\-2IDT,M3.4.4/26,M10.5.0
+stands for Israel Standard Time (IST) and Israel Daylight Time (IDT),
+2 hours ahead of UT, springing forward on March's fourth
+Tuesday at 26:00 (i.e., 02:00 on the first Friday on or after March
+23), and falling back on October's last Sunday at 02:00.
+.It WART4WARST,J1/0,J365/25
+stands for Western Argentina Summer Time (WARST), 3 hours behind UT.
+There is a dummy fall-back transition on December 31 at 25:00 daylight
+saving time (i.e., 24:00 standard time, equivalent to January 1 at
+00:00 standard time), and a simultaneous spring-forward transition on
+January 1 at 00:00 standard time, so daylight saving time is in effect
+all year and the initial
+.Dq WART
+is a placeholder.
+.It WGT3WGST,M3.5.0/\-2,M10.5.0/\-1
+stands for Western Greenland Time (WGT) and Western Greenland Summer
+Time (WGST), 3 hours behind UT, where clocks follow the EU rules of
+springing forward on March's last Sunday at 01:00 UT (\-02:00 local
+time) and falling back on October's last Sunday at 01:00 UT
+(\-01:00 local time).
+.Pp
+If no
+.Ar rule
+is present in
+.Ev TZ ,
+the rules specified
+by the
+.Xr tzfile 5
+format
+file
+.Cm posixrules
+in the system time conversion information directory are used, with the
+standard and daylight saving time offsets from UT replaced by those
+specified by the
+.Ar offset
+values in
+.Ev TZ .
+.Pp
+For compatibility with System V Release 3.1, a semicolon
+.Pq Ql \&;
+may be used to separate the
+.Ar rule
+from the rest of the specification.
+.Pp
+If the
+.Ev TZ
+environment variable does not specify a
+.Xr tzfile 5
+format file
+and cannot be interpreted as a direct specification,
+UT is used.
+.Pp
+.Fn tzsetwall
+behaves identically to
+.Fn tzset
+but it only uses the
+.Pa /etc/localtime
+file (that is, it ignores the
+.Ev TZ
+environment variable).
+.Sh FILES
+.Bl -tag -width "/usr/share/zoneinfo/posixrules" -compact
+.It Pa /usr/share/zoneinfo
+time zone information directory
+.It Pa /etc/localtime
+local time zone file
+.It Pa /usr/share/zoneinfo/posixrules
+used with POSIX-style
+.Ev TZ Ns s
+.It Pa /usr/share/zoneinfo/GMT
+for UTC leap seconds
+.El
+.Pp
+If
+.Pa /usr/share/zoneinfo/GMT
+is absent,
+UTC leap seconds are loaded from
+.Pa /usr/share/zoneinfo/posixrules .
+.Sh SEE ALSO
+.Xr ctime 3 ,
+.Xr getenv 3 ,
+.Xr strftime 3 ,
+.Xr time 3 ,
+.Xr tzfile 5
+.Sh STANDARDS
+The
+.Fn tzset
+function
+conforms to
+.St -p1003.1-2008 .
+The
+.Fn tzsetwall
+function is an extension to that specification.
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.

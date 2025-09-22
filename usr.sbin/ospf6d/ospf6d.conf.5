@@ -1,0 +1,358 @@
+.\"	$OpenBSD: ospf6d.conf.5,v 1.28 2025/07/08 14:26:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2005 Esben Norby <norby@openbsd.org>
+.\" Copyright (c) 2004 Claudio Jeker <claudio@openbsd.org>
+.\" Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2002 Daniel Hartmeier <dhartmei@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 8 2025 $
+.Dt OSPF6D.CONF 5
+.Os
+.Sh NAME
+.Nm ospf6d.conf
+.Nd OSPF for IPv6 routing daemon configuration file
+.Sh DESCRIPTION
+The
+.Xr ospf6d 8
+daemon implements the Open Shortest Path First protocol version 3 as described
+in RFC 5340.
+.Pp
+The
+.Nm
+config file is divided into the following main sections:
+.Bl -tag -width xxxx
+.It Sx Macros
+Definitions of variables that can be used later, simplifying the
+configuration file.
+.It Sx Global configuration
+Global settings for
+.Xr ospf6d 8 .
+A number of global settings can be overruled in specific areas or interfaces.
+.It Sx Areas
+An OSPF router must be a member of at least one area.
+Areas are used to group interfaces, simplifying configuration.
+.El
+.Pp
+Argument names not beginning with a letter, digit, or underscore
+must be quoted.
+.Pp
+Additional configuration files can be included with the
+.Ic include
+keyword, for example:
+.Bd -literal -offset indent
+include "/etc/ospf6d.sub.conf"
+.Ed
+.Ss Macros
+A macro is defined with a command of the form
+.Ar name Ns = Ns Ar value .
+The macro
+.Ar name
+can contain letters, digits, and underscores and cannot be a reserved word
+(for example,
+.Ic area ,
+.Ic interface ,
+or
+.Ic hello-interval ) .
+Within unquoted arguments, the string
+.Pf $ Ar name
+is later expanded to
+.Ar value .
+.Pp
+For example:
+.Bd -literal -offset indent
+hi="5"
+area 0.0.0.0 {
+	interface em0 {
+		hello-interval $hi
+	}
+}
+.Ed
+.Pp
+The same can be accomplished by specifying the hello-interval
+globally or within the area declaration.
+.Ss Global configuration
+All interface related settings can be configured globally, per area and per
+interface.
+The only settings that can be set globally and not overruled are listed below.
+.Pp
+.Bl -tag -width Ds -compact
+.It Ic fib-priority Ar prio
+Set the routing priority to
+.Ar prio .
+The default is 32.
+.Pp
+.It Xo
+.Ic fib-update
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+If set to
+.Ic \&no ,
+do not update the Forwarding Information Base, a.k.a. the kernel
+routing table.
+The default is
+.Ic yes .
+Setting
+.Ic fib-update
+to
+.Ic \&no
+will implicitly set the
+.Ic stub router
+option to ensure that no traffic tries to transit via this router.
+.Pp
+.It Ic rdomain Ar tableid
+Specifies the routing table
+.Xr ospfd 8
+should modify.
+Table 0 is the default table.
+.Pp
+.It Xo
+.Op Ic no
+.Ic redistribute
+.Sm off
+.Po Ic static Ns | Ns Ic connected Ns | Ns
+.Ic default Pc
+.Sm on
+.Op Ic set ...\&
+.Bk -words
+.Op Ic depend on Ar interface
+.Ek
+.Xc
+.It Xo
+.Op Ic no
+.Ic redistribute Ar prefix Op Ic set ...\&
+.Op Ic depend on Ar interface
+.Xc
+.It Xo
+.Op Ic no
+.Ic redistribute rtlabel Ar label Op Ic set ...\&
+.Op Ic depend on Ar interface
+.Xc
+If set to
+.Ic connected ,
+routes to directly attached networks will be announced over OSPF.
+If set to
+.Ic static ,
+static routes will be announced over OSPF.
+If set to
+.Ic default ,
+a default route pointing to this router will be announced over OSPF.
+It is possible to specify a network range with
+.Ar prefix ;
+networks need to be part of that range to be redistributed.
+Additionally it is possible to redistribute based on route labels
+using the
+.Ic rtlabel
+keyword.
+By default no additional routes will be announced over OSPF.
+.Pp
+.Ic redistribute
+statements are evaluated in sequential order, from first to last.
+The first matching rule decides if a route should be redistributed or not.
+Matching rules starting with
+.Ic no
+will force the route to be not announced.
+The only exception is
+.Ic default ,
+which will be set no matter what, and additionally
+.Ic no
+cannot be used together with it.
+.Pp
+With the
+.Ic depend on
+option, redistributed routes will have a metric of 65535 if the specified
+.Ar interface
+is down or in state backup.
+This is especially useful on a carp cluster to ensure all traffic goes to
+the carp master.
+.Pp
+It is possible to set the route
+.Ic metric
+and
+.Ic type
+for each redistribute rule.
+.Ic type
+is either 1 or 2.
+The default value for
+.Ic type
+is 1 and for
+.Ic metric
+is 100.
+Setting more than one option needs curly brackets:
+.Bd -literal -offset indent
+redistribute static set { metric 300 type 2 }
+.Ed
+.Pp
+.It Ic router-id Ar address
+Set the router ID; if not specified, the lowest IPv4 address of
+the interfaces used by
+.Xr ospf6d 8
+will be used.
+A router ID must be specified if no IPv4 address is configured on
+any interfaces used by
+.Xr ospf6d 8 .
+.Pp
+.It Ic rtlabel Ar label Ic external-tag Ar number
+Map route labels to external route tags and vice versa.
+The external route tag is a non-negative 32-bit number attached to
+AS-external OSPF LSAs.
+.Pp
+.It Ic spf-delay Ar seconds
+Set SPF delay in seconds.
+The delay between receiving an update to the link
+state database and starting the shortest path first calculation.
+The default value is 1; valid range is 1\-10 seconds.
+.Pp
+.It Ic spf-holdtime Ar seconds
+Set the SPF holdtime in seconds.
+The minimum time between two consecutive
+shortest path first calculations.
+The default value is 5 seconds; the valid range is 1\-5 seconds.
+.Pp
+.It Xo
+.Ic stub router
+.Pq Ic yes Ns | Ns Ic no
+.Xc
+If set to
+.Ic yes ,
+all interfaces with active neighbors will have a metric of infinity.
+This ensures that the other routers prefer routes around this router while
+still being able to reach directly connected IP prefixes.
+The
+.Ic stub router
+option is automatically enabled if either the
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.forwarding
+is set to a value different to 1 or if the FIB is not coupled.
+.El
+.Ss Areas
+Areas are used for grouping interfaces.
+All interface-specific parameters can
+be configured per area, overruling the global settings.
+These interface-specific parameters need to be defined before the interfaces.
+.Bl -tag -width Ds
+.It Ic area Ar address Ns | Ns Ar id
+Specify an area section, grouping one or more interfaces.
+.Bd -literal -offset indent
+area 0.0.0.0 {
+	hello-interval 3
+	interface em0
+	interface em1 {
+		metric 10
+	}
+}
+.Ed
+.El
+.Pp
+Area specific parameters are listed below.
+.Bl -tag -width Ds
+.It Ic demote Ar group Op Ar count
+Increase the
+.Xr carp 4
+demotion counter by
+.Ar count
+on the given interface group, usually
+.Ar carp ,
+when no neighbor in the area is in an active state.
+The demotion counter will be decreased when one neighbor in that
+area is in an active state.
+The default value for
+.Ar count
+is 1.
+.Pp
+For more information on interface groups,
+see the
+.Ic group
+keyword in
+.Xr ifconfig 8 .
+.El
+.Ss Interfaces
+Each interface can have several parameters configured individually, otherwise
+they are inherited.
+An interface is specified by its name.
+.Bd -literal -offset indent
+interface em0 {
+	...
+}
+.Ed
+.Pp
+Interface-specific parameters are listed below.
+.Bl -tag -width Ds
+.It Ic demote Ar group
+Increase the
+.Xr carp 4
+demotion counter by 1 on the given interface group, usually
+.Ar carp ,
+when the interface state is going down.
+The demotion counter will be decreased when the interface
+state is active again.
+.It Ic depend on Ar interface
+A metric of 65535 is used if the specified interface is down or in status
+backup.
+.It Ic hello-interval Ar seconds
+Set the hello interval.
+The default value is 10; valid range is 1\-65535 seconds.
+.It Ic metric Ar cost
+Set the interface metric a.k.a. cost.
+The default value is 10; valid range is 1\-65535.
+A metric of 65535 is used for
+.Xr carp 4
+interfaces with status backup.
+.It Ic passive
+Prevent transmission and reception of OSPF packets on this interface.
+The specified interface will be announced as a stub network.
+Passive mode is enforced for
+.Xr carp 4
+interfaces.
+.It Ic retransmit-interval Ar seconds
+Set retransmit interval.
+The default value is 5 seconds; valid range is 5\-3600 seconds.
+.It Ic router-dead-time Ar seconds
+Set the router dead time, a.k.a. neighbor inactivity timer.
+The default value is 40 seconds; valid range is 2\-65535 seconds.
+When a neighbor has been
+inactive for router-dead-time, its state is set to DOWN.
+Neighbors
+that have been inactive for more than 24 hours are completely removed.
+.It Ic router-priority Ar priority
+Set the router priority.
+The default value is 1; valid range is 0\-255.
+If set
+to 0, the router is not eligible as a Designated Router or Backup Designated
+Router.
+.It Ic transmit-delay Ar seconds
+Set the transmit delay.
+The default value is 1; valid range is 1\-3600 seconds.
+.It Ic type p2p
+Set the interface type to point to point.
+This disables the election of a DR and BDR for the given interface.
+.El
+.Sh FILES
+.Bl -tag -width /etc/examples/ospf6d.conf -compact
+.It Pa /etc/ospf6d.conf
+.Xr ospf6d 8
+configuration file.
+.It Pa /etc/examples/ospf6d.conf
+Example configuration file.
+.El
+.Sh SEE ALSO
+.Xr ospf6ctl 8 ,
+.Xr ospf6d 8 ,
+.Xr rc.conf.local 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Ox 4.2 .

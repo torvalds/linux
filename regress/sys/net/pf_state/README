@@ -1,0 +1,72 @@
+Regression tests for pf tcp state.
+
+The test suite runs on the machine LOCAL, the kernel under test is
+running on REMOTE.  On LOCAL a Scapy program is simulating a
+connection to REMOTE TCP echo service.  The source address is a non
+existing address on FAKE_NET.  The LOCAL machine acts as a router
+between REMOTE and virtual FAKE_NET_ADDR and can create ICMP packets.
+
+- run-challenge_ack subtest checks that the pf firewall sends TCP
+  challenge ACK if the sequence number is out of range.
+- run-beforegap_rst sends TCP stream with a gap.  Then a TCP reset
+  packet that matches the ACK before a sequence gap should terminate
+  the connection.
+- run-lessseq_fin sends TCP FIN packet that is not at the end of
+  the sequence.
+- run-negack_fin send TCP FIN packet that uses ack number that was
+  never sent before.  Packet is accepted although below range.
+- run-posack_fin sends TCP FIN packet that uses acknowledge number
+  that has not been sent yet.
+
+EXAMPLE
+
+To run this test I use the following configuration files.
+You should choose a different set of MAC and IP addresses.
+
+- My local machine where I run the regression test:
+
+/etc/hosts
+# to login to qemu with SSH via IPv6 link-local
+fe80::725f:caff:fe21:8d70%tap0		q70
+
+cat /etc/hostname.tap4
+lladdr fe:e1:ba:d0:d5:6d up
+inet 10.188.211.17 255.255.255.0
+inet6 fdd7:e83e:66bc:211::17
+!route add -inet 10.188.219.0/24 127.0.0.1 -blackhole
+!route add -inet6 fdd7:e83e:66bc:219::/64 ::1 -blackhole
+
+- My qemu where the kernel under test is running
+
+/etc/hostname.vio1
+lladdr 70:5f:ca:21:8d:80
+inet 10.188.211.70 255.255.255.0
+inet6 fdd7:e83e:66bc:211::70
+!route add -inet 10.188.219.0/24 10.188.211.17
+!route add -inet6 fdd7:e83e:66bc:219::/64 fdd7:e83e:66bc:211::17
+
+/etc/inetd.conf
+chargen stream  tcp     nowait  root    internal
+chargen stream  tcp6    nowait  root    internal
+echo            dgram   udp6    wait    root    internal
+
+/etc/rc.conf.local
+inetd_flags=
+sshd_flags=
+
+LOCAL_IF=tap4
+LOCAL_MAC=fe:e1:ba:d0:d5:6d
+REMOTE_MAC=70:5f:ca:21:8d:80
+REMOTE_SSH=q70
+
+LOCAL_ADDR=10.188.211.17
+REMOTE_ADDR=10.188.211.70
+FAKE_NET=10.188.219.0/24
+FAKE_NET_ADDR=10.188.219.188
+
+LOCAL_ADDR6=fdd7:e83e:66bc:211::17
+REMOTE_ADDR6=fdd7:e83e:66bc:211::70
+FAKE_NET6=fdd7:e83e:66bc:219::/64
+FAKE_NET_ADDR6=fdd7:e83e:66bc:219::188
+
+- Fix your configuration until make check-setup passes

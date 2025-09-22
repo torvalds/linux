@@ -1,0 +1,43 @@
+//===--- BuiltinHeaders.def - Builtin header info database ------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the standard builtin function header locations. Users of
+// this file must define the HEADER macro to make use of this information.
+//
+//===----------------------------------------------------------------------===//
+
+HEADER(NO_HEADER, nullptr)
+HEADER(BLOCKS_H, "Blocks.h")
+HEADER(COMPLEX_H, "complex.h")
+HEADER(CTYPE_H, "ctype.h")
+HEADER(EMMINTRIN_H, "emmintrin.h")
+HEADER(FOUNDATION_NSOBJCRUNTIME_H, "Foundation/NSObjCRuntime.h")
+HEADER(IMMINTRIN_H, "immintrin.h")
+HEADER(INTRIN_H, "intrin.h")
+HEADER(MALLOC_H, "malloc.h")
+HEADER(MATH_H, "math.h")
+HEADER(MEMORY, "memory")
+HEADER(OBJC_MESSAGE_H, "objc/message.h")
+HEADER(OBJC_OBJC_AUTO_H, "objc/objc-auto.h")
+HEADER(OBJC_OBJC_EXCEPTION_H, "objc/objc-exception.h")
+HEADER(OBJC_OBJC_SYNC_H, "objc/objc-sync.h")
+HEADER(OBJC_RUNTIME_H, "objc/runtime.h")
+HEADER(PTHREAD_H, "pthread.h")
+HEADER(SETJMPEX_H, "setjmpex.h")
+HEADER(SETJMP_H, "setjmp.h")
+HEADER(STDARG_H, "stdarg.h")
+HEADER(STDIO_H, "stdio.h")
+HEADER(STDLIB_H, "stdlib.h")
+HEADER(STRINGS_H, "strings.h")
+HEADER(STRING_H, "string.h")
+HEADER(UNISTD_H, "unistd.h")
+HEADER(UTILITY, "utility")
+HEADER(WCHAR_H, "wchar.h")
+HEADER(XMMINTRIN_H, "xmmintrin.h")
+
+#undef HEADER

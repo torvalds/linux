@@ -1,0 +1,36 @@
+static_library("NativePDB") {
+  output_name = "lldbPluginSymbolFileNativePDB"
+  configs += [
+    "//llvm/utils/gn/build:clang_code",
+    "//llvm/utils/gn/build:lldb_code",
+  ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Lex",
+    "//lldb/source/Core",
+    "//lldb/source/Plugins/ObjectFile/PDB",
+    "//lldb/source/Symbol",
+    "//lldb/source/Utility",
+
+    #"//lldb/source/Plugins/TypeSystem/Clang", # 3-hop dependency cycle.
+    "//llvm/lib/DebugInfo/CodeView",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/Support",
+    "//llvm/lib/TargetParser",
+  ]
+
+  # Reaches into Plugins/ExpressionParser.
+  include_dirs = [ "//lldb/source" ]
+  sources = [
+    "CodeViewRegisterMapping.cpp",
+    "CompileUnitIndex.cpp",
+    "DWARFLocationExpression.cpp",
+    "PdbAstBuilder.cpp",
+    "PdbFPOProgramToDWARFExpression.cpp",
+    "PdbIndex.cpp",
+    "PdbSymUid.cpp",
+    "PdbUtil.cpp",
+    "SymbolFileNativePDB.cpp",
+    "UdtRecordCompleter.cpp",
+  ]
+}

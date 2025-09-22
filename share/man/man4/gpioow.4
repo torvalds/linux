@@ -1,0 +1,66 @@
+.\"	$OpenBSD: gpioow.4,v 1.7 2013/07/16 16:05:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2006 Alexander Yurchenko <grange@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt GPIOOW 4
+.Os
+.Sh NAME
+.Nm gpioow
+.Nd 1-Wire bus bit-banging through GPIO pin
+.Sh SYNOPSIS
+.Cd "gpioow* at gpio? offset 0 mask 0x1"
+.Cd "gpioow* at gpio?"
+.Cd "onewire* at gpioow?"
+.Sh DESCRIPTION
+The
+.Nm
+driver allows bit-banging a 1-Wire bus as a master using one GPIO pin.
+The pin is used as a data signal.
+The GPIO pin must be able to drive an output and read an input.
+.Pp
+The pin number can be specified in the kernel configuration with the
+.Ar offset
+locator.
+The
+.Ar mask
+locator should always be 0x1 in this case.
+The
+.Ar offset
+and
+.Ar mask
+can also be specified when
+.Nm
+is attached at runtime using the
+.Dv GPIOATTACH
+.Xr ioctl 2
+on the
+.Xr gpio 4
+device.
+.Sh SEE ALSO
+.Xr gpio 4 ,
+.Xr intro 4 ,
+.Xr onewire 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Alexander Yurchenko Aq Mt grange@openbsd.org .

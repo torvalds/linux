@@ -1,0 +1,73 @@
+# Defines compiled_action().
+#
+# compiled_action() is like action(), except that it runs a built binary
+# instead of a script.
+#
+# Parameters:
+#
+#   tool (required)
+#       [label] Label of the tool to run. This should be an executable, and
+#       this label should not include a toolchain (anything in parens). This
+#       tool will be built for the host.
+#
+#   outputs (required)
+#       [list of files] Same meaning as for action().
+#
+#   args (required)
+#       [list of strings] Flags to pass to the built binary. Almost identical
+#       to action()'s `args`, except that `tool` is implicitly added as first
+#       element.
+#
+#   depfile
+#   inputs
+#   public_configs
+#   visibility   (all optional)
+#       Same meaning as for action().
+#
+# Example use:
+#
+#   compiled_action("run_my_tool") {
+#     tool = "//tools/something:mytool"
+#     inputs = [ "my_input_file.txt" ]
+#     outputs = [ "$target_gen_dir/mysource.inc" ]
+#     args = [
+#       rebase_path(inputs[0], root_build_dir),
+#       rebase_path(outputs[0], root_build_dir),
+#     ]
+#   }
+#
+# You would typically declare your tool like this:
+#   if (host_toolchain == current_toolchain) {
+#     executable("mytool") {
+#       ...
+#     }
+#   }
+# The if statement around the executable is optional. It means "I only care
+# about this target in the host toolchain". Usually this is what you want, and
+# saves unnecessarily compiling your tool for the target platform. If you
+# need a target build of your tool as well, omit the if statement.
+
+template("compiled_action") {
+  assert(defined(invoker.args), "must set 'args' in $target_name")
+  assert(defined(invoker.outputs), "must set 'outputs' in $target_name")
+  assert(defined(invoker.tool), "must set 'tool' in $target_name")
+  assert(!defined(invoker.sources),
+         "use 'inputs' instead of 'sources' in $target_name")
+
+  action(target_name) {
+    forward_variables_from(invoker,
+                           [
+                             "depfile",
+                             "inputs",
+                             "outputs",
+                             "public_configs",
+                             "visibility",
+                           ])
+    host_tool = invoker.tool + "($host_toolchain)"
+    host_executable = get_label_info(host_tool, "root_out_dir") + "/bin/" +
+                      get_label_info(host_tool, "name")
+    deps = [ host_tool ]
+    script = "//llvm/utils/gn/build/run_built_binary.py"
+    args = [ rebase_path(host_executable, root_build_dir) ] + invoker.args
+  }
+}

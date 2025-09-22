@@ -1,0 +1,1092 @@
+ABI Changelog
+==============
+This changelog contains information about ABI changes in libc++. Specifically
+the addition and deletion of symbols from the libc++ dylib.
+
+Each entry should start with the revision number followed by a description of
+the change. The entry should contain a summary of the ABI changes made,
+including what symbols were added, removed, or changed.
+
+To generate a summary, re-generate the new ABI list using the
+`generate-cxx-abilist` target, and look at the diff.
+
+New entries should be added directly below the "Version" header.
+
+------------
+Version 19.0
+------------
+
+* [libc++] Avoid re-exporting a few specific symbols from libc++abi
+
+  In 6a884a9aef39, I synchronized the export list of libc++abi to the
+  export list of libc++. From the linker's perspective, this caused
+  these symbols to be taken from libc++.dylib instead of libc++abi.dylib.
+
+  However, that can be problematic when back-deploying. Indeed, this means
+  that the linker will encode an undefined reference to be fullfilled by
+  libc++.dylib, but when backdeploying against an older system, that symbol
+  might only be available in libc++abi.dylib.
+
+  Most of the symbols that started being re-exported after 6a884a9aef39
+  turn out to be implementation details of libc++abi, so nobody really
+  depends on them and this back-deployment issue is inconsequential.
+
+  However, we ran into issues with a few of these symbols while testing
+  LLVM 19, which led to this patch.
+
+  In the future, a follow-up cleanup would be to stop exporting most of
+  the _cxxabiv1_foo_type_infoE symbols from both libc++abi and libc++
+  since they are implementation details that nobody should be relying
+  on.
+
+  <arch>-apple-darwin
+  -------------------
+  Symbol not reexported anymore: ___cxa_rethrow_primary_exception
+  Symbol not reexported anymore: __ZTIN10__cxxabiv117__class_type_infoE
+  Symbol not reexported anymore: __ZTIN10__cxxabiv120__si_class_type_infoE
+  Symbol not reexported anymore: __ZTIN10__cxxabiv121__vmi_class_type_infoE
+
+* [libc++] Always keep libc++abi re-exports up-to-date
+
+  This patch makes sure that the set of libc++abi symbols re-exported from libc++
+  is up-to-date with the symbols that libc++abi re-exports. As such, it adds several
+  symbols that were left out of the libc++ re-exports list. Exporting new symbols
+  is not an ABI break.
+
+  <arch>-apple-darwin
+  -------------------
+  Symbol reexported: ___cxa_current_primary_exception
+  Symbol reexported: ___cxa_decrement_exception_refcount
+  Symbol reexported: ___cxa_increment_exception_refcount
+  Symbol reexported: ___cxa_new_handler
+  Symbol reexported: ___cxa_rethrow_primary_exception
+  Symbol reexported: ___cxa_terminate_handler
+  Symbol reexported: ___cxa_uncaught_exception
+  Symbol reexported: ___cxa_unexpected_handler
+  Symbol reexported: __ZTIDh
+  Symbol reexported: __ZTIDu
+  Symbol reexported: __ZTIg
+  Symbol reexported: __ZTIn
+  Symbol reexported: __ZTIN10__cxxabiv116__enum_type_infoE
+  Symbol reexported: __ZTIN10__cxxabiv116__shim_type_infoE
+  Symbol reexported: __ZTIN10__cxxabiv117__array_type_infoE
+  Symbol reexported: __ZTIN10__cxxabiv117__class_type_infoE
+  Symbol reexported: __ZTIN10__cxxabiv117__pbase_type_infoE
+  Symbol reexported: __ZTIN10__cxxabiv119__pointer_type_infoE
+  Symbol reexported: __ZTIN10__cxxabiv120__function_type_infoE
+  Symbol reexported: __ZTIN10__cxxabiv120__si_class_type_infoE
+  Symbol reexported: __ZTIN10__cxxabiv121__vmi_class_type_infoE
+  Symbol reexported: __ZTIN10__cxxabiv123__fundamental_type_infoE
+  Symbol reexported: __ZTIN10__cxxabiv129__pointer_to_member_type_infoE
+  Symbol reexported: __ZTIo
+  Symbol reexported: __ZTIPDh
+  Symbol reexported: __ZTIPDu
+  Symbol reexported: __ZTIPg
+  Symbol reexported: __ZTIPKDh
+  Symbol reexported: __ZTIPKDu
+  Symbol reexported: __ZTIPKg
+  Symbol reexported: __ZTIPKn
+  Symbol reexported: __ZTIPKo
+  Symbol reexported: __ZTIPn
+  Symbol reexported: __ZTIPo
+  Symbol reexported: __ZTSDh
+  Symbol reexported: __ZTSDu
+  Symbol reexported: __ZTSg
+  Symbol reexported: __ZTSn
+  Symbol reexported: __ZTSN10__cxxabiv116__shim_type_infoE
+  Symbol reexported: __ZTSo
+  Symbol reexported: __ZTSPDh
+  Symbol reexported: __ZTSPDu
+  Symbol reexported: __ZTSPg
+  Symbol reexported: __ZTSPKDh
+  Symbol reexported: __ZTSPKDu
+  Symbol reexported: __ZTSPKg
+  Symbol reexported: __ZTSPKn
+  Symbol reexported: __ZTSPKo
+  Symbol reexported: __ZTSPn
+  Symbol reexported: __ZTSPo
+  Symbol reexported: __ZTVN10__cxxabiv116__shim_type_infoE
+
+------------
+Version 18.0
+------------
+
+* [libc++] Moves is_terminal to the dylib
+
+  The patch moves the POSIX implementation of is_terminal to the dylib. This is
+  needed to avoid using <unistd.h> in public headers.
+
+  All platforms
+  Symbol added: _ZNSt6__ndk119__is_posix_terminalEP7__sFILE
+
+* [libc++abi] Implement __cxa_init_primary_exception and use it to optimize std::make_exception_ptr (#65534)
+
+  This patch implements __cxa_init_primary_exception, an extension to the Itanium C++ ABI.
+  This extension is already present in both libsupc++ and libcxxrt. This patch also starts
+  making use of this function in std::make_exception_ptr: instead of going through a full
+  throw/catch cycle, we are now able to initialize an exception directly, thus making
+  std::make_exception_ptr around 30x faster. Adding a new symbol is not an ABI break.
+
+  All platforms
+  -------------
+  Symbol added: __cxa_init_primary_exception
+
+* [libc++] Simplify the implementation of locale::id
+
+  This patch removes a symbol defined in the library for std::locale::id::__init().
+  The symbol '__init' was defined as a private static function as part of the locale::id
+  class and was never visible from outside the dylib. The addition of this symbol to the
+  ABI was most likely accidental. The deletion of the symbol should not be a breaking change.
+
+  All platforms
+  -------------
+  Symbol removed: _ZNSt3__16locale2id6__initEv
+
+* [libc++] Remove symbol for std::system_error from the dylib
+
+  This patch removes a symbol defined in the library for std::system_error.
+  The symbol '__init' was defined as a private static function as part of the
+  system_error class and was never visible. The addition of this symbol to the ABI was most likely accidental.
+  The function '__init' is replaced by another equivalent function which is placed in the
+  anonymous namespace of the std::system_error source code file.
+  There are no internal references to this symbol which seems to support the reasoning that
+  this was never used outside of the dylib.
+  The deletion of the symbol should not be a breaking change.
+
+  All platforms
+  -------------
+  Symbol removed: _ZNSt3__112system_error6__initERKNS_10error_codeENS_12basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+
+------------
+Version 17.0
+------------
+
+* [libc++] Remove symbols for a std::allocator_arg & friends from the dylib
+
+  This patch removes the symbols defined in the library for std::allocator_arg,
+  std::defer_lock, std::try_to_lock, std::adopt_lock, and std::piecewise_construct.
+  Those were defined in the library because we provided them in C++03 as an
+  extension, and in C++03 it was impossible to define them as `constexpr`
+  variables, as required by the Standard.
+
+  This is technically an ABI break since we are removing symbols from the
+  library. However, in practice, only programs compiled in C++03 mode that
+  take the address of those objects (or pass them as a reference) will have
+  an undefined ref to those symbols. In practice, this is expected to be
+  rare. First, those are C++11 features that we happen to provide in C++03,
+  and only the C++03 definition can potentially lead to code referencing
+  the dylib definition. So any code that is using these objects but compiling
+  in C++11 mode (as they should) is not at risk. Second, all uses of these
+  types in the library is done by passing those types by value to a function
+  that can get inlined. Since they are empty types, the compiler won't
+  generate an undefined reference if passed by value, since there's nothing
+  to pass anyway.
+
+  Long story short, the risk for code actually containing an undefined
+  reference to one of these types is rather small (but non-zero).
+
+  All platforms
+  -------------
+  Symbol removed: _ZNSt3__110adopt_lockE
+  Symbol removed: _ZNSt3__110defer_lockE
+  Symbol removed: _ZNSt3__111try_to_lockE
+  Symbol removed: _ZNSt3__113allocator_argE
+  Symbol removed: _ZNSt3__119piecewise_constructE
+
+* [libc++] Remove explicit instantiations of __insertion_sort_incomplete and __sort5 from the dylib
+
+  These instantiations were never visible, because they are only used in `__sort`, which is also explicitly
+  instantiated in the dylib.
+
+  All platforms
+  -------------
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIaaEEPaEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIccEEPcEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIddEEPdEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIeeEEPeEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIffEEPfEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIhhEEPhEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIiiEEPiEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIjjEEPjEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIllEEPlEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessImmEEPmEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIssEEPsEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIttEEPtEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIwwEEPwEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIxxEEPxEEbT0_S5_T_
+  Symbol removed: _ZNSt3__127__insertion_sort_incompleteIRNS_6__lessIyyEEPyEEbT0_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIeeEEPeEEjT0_S5_S5_S5_S5_T_
+
+------------
+Version 16.0
+------------
+
+* [libc++][PMR] Move the pmr::memory_resource destructor into the dylib
+
+  All platforms
+  -------------
+  Symbol added: _ZNSt3__13pmr15memory_resourceD0Ev
+  Symbol added: _ZNSt3__13pmr15memory_resourceD1Ev
+  Symbol added: _ZNSt3__13pmr15memory_resourceD2Ev
+  Symbol added: _ZTVNSt3__13pmr15memory_resourceE
+
+* [libc++] [C++17] Implement <memory_resource>.
+
+  This commit adds <memory_resource> to the shared library.
+
+  All platforms
+  -------------
+  Symbol added: _ZNKSt3__13pmr26synchronized_pool_resource11do_is_equalERKNS0_15memory_resourceE
+  Symbol added: _ZNKSt3__13pmr28unsynchronized_pool_resource12__pool_indexEmm
+  Symbol added: _ZNKSt3__13pmr28unsynchronized_pool_resource17__pool_block_sizeEi
+  Symbol added: _ZNKSt3__13pmr28unsynchronized_pool_resource22__log2_pool_block_sizeEi
+  Symbol added: _ZNKSt3__13pmr28unsynchronized_pool_resource7optionsEv
+  Symbol added: _ZNSt3__13pmr19new_delete_resourceEv
+  Symbol added: _ZNSt3__13pmr20get_default_resourceEv
+  Symbol added: _ZNSt3__13pmr20null_memory_resourceEv
+  Symbol added: _ZNSt3__13pmr20set_default_resourceEPNS0_15memory_resourceE
+  Symbol added: _ZNSt3__13pmr25monotonic_buffer_resource11do_allocateEmm
+  Symbol added: _ZNSt3__13pmr25monotonic_buffer_resource14__chunk_footer25__try_allocate_from_chunkEmm
+  Symbol added: _ZNSt3__13pmr25monotonic_buffer_resource20__initial_descriptor25__try_allocate_from_chunkEmm
+  Symbol added: _ZNSt3__13pmr28unsynchronized_pool_resource11do_allocateEmm
+  Symbol added: _ZNSt3__13pmr28unsynchronized_pool_resource12__adhoc_pool13__do_allocateEPNS0_15memory_resourceEmm
+  Symbol added: _ZNSt3__13pmr28unsynchronized_pool_resource12__adhoc_pool13__release_ptrEPNS0_15memory_resourceE
+  Symbol added: _ZNSt3__13pmr28unsynchronized_pool_resource12__adhoc_pool15__do_deallocateEPNS0_15memory_resourceEPvmm
+  Symbol added: _ZNSt3__13pmr28unsynchronized_pool_resource13do_deallocateEPvmm
+  Symbol added: _ZNSt3__13pmr28unsynchronized_pool_resource7releaseEv
+  Symbol added: _ZNSt3__13pmr28unsynchronized_pool_resourceC1ERKNS0_12pool_optionsEPNS0_15memory_resourceE
+  Symbol added: _ZNSt3__13pmr28unsynchronized_pool_resourceC2ERKNS0_12pool_optionsEPNS0_15memory_resourceE
+  Symbol added: _ZTINSt3__13pmr15memory_resourceE
+  Symbol added: _ZTINSt3__13pmr25monotonic_buffer_resourceE
+  Symbol added: _ZTINSt3__13pmr26__null_memory_resource_impE
+  Symbol added: _ZTINSt3__13pmr26synchronized_pool_resourceE
+  Symbol added: _ZTINSt3__13pmr28unsynchronized_pool_resourceE
+  Symbol added: _ZTINSt3__13pmr32__new_delete_memory_resource_impE
+  Symbol added: _ZTSNSt3__13pmr15memory_resourceE
+  Symbol added: _ZTSNSt3__13pmr25monotonic_buffer_resourceE
+  Symbol added: _ZTSNSt3__13pmr26__null_memory_resource_impE
+  Symbol added: _ZTSNSt3__13pmr26synchronized_pool_resourceE
+  Symbol added: _ZTSNSt3__13pmr28unsynchronized_pool_resourceE
+  Symbol added: _ZTSNSt3__13pmr32__new_delete_memory_resource_impE
+  Symbol added: _ZTVNSt3__13pmr25monotonic_buffer_resourceE
+  Symbol added: _ZTVNSt3__13pmr26synchronized_pool_resourceE
+  Symbol added: _ZTVNSt3__13pmr28unsynchronized_pool_resourceE
+
+------------
+Version 15.0
+------------
+
+* f1c30135417f - [libc++] Drop the legacy debug mode symbols by default
+
+  This commit removed symbols implementing debug mode in the non-debug
+  configuration of the library. Using the debug mode now requires a
+  differently-configured version of libc++. This is technically an ABI
+  break, however any user having been using the debug mode support previously
+  was already at risk of non-benign ODR violations, and in practice we
+  never found it to work reliably.
+
+  All platforms
+  -------------
+  Symbol removed: _ZNKSt3__111__libcpp_db15__decrementableEPKv
+  Symbol removed: _ZNKSt3__111__libcpp_db15__find_c_from_iEPv
+  Symbol removed: _ZNKSt3__111__libcpp_db15__subscriptableEPKvl
+  Symbol removed: _ZNKSt3__111__libcpp_db17__dereferenceableEPKv
+  Symbol removed: _ZNKSt3__111__libcpp_db17__find_c_and_lockEPv
+  Symbol removed: _ZNKSt3__111__libcpp_db22__less_than_comparableEPKvS2_
+  Symbol removed: _ZNKSt3__111__libcpp_db6unlockEv
+  Symbol removed: _ZNKSt3__111__libcpp_db8__find_cEPv
+  Symbol removed: _ZNKSt3__111__libcpp_db9__addableEPKvl
+  Symbol removed: _ZNKSt3__119__libcpp_debug_info4whatEv
+  Symbol removed: _ZNSt3__111__libcpp_db10__insert_cEPvPFPNS_8__c_nodeES1_S1_S3_E
+  Symbol removed: _ZNSt3__111__libcpp_db10__insert_iEPv
+  Symbol removed: _ZNSt3__111__libcpp_db11__insert_icEPvPKv
+  Symbol removed: _ZNSt3__111__libcpp_db15__iterator_copyEPvPKv
+  Symbol removed: _ZNSt3__111__libcpp_db16__invalidate_allEPv
+  Symbol removed: _ZNSt3__111__libcpp_db4swapEPvS1_
+  Symbol removed: _ZNSt3__111__libcpp_db9__erase_cEPv
+  Symbol removed: _ZNSt3__111__libcpp_db9__erase_iEPv
+  Symbol removed: _ZNSt3__111__libcpp_dbC1Ev
+  Symbol removed: _ZNSt3__111__libcpp_dbC2Ev
+  Symbol removed: _ZNSt3__111__libcpp_dbD1Ev
+  Symbol removed: _ZNSt3__111__libcpp_dbD2Ev
+  Symbol removed: _ZNSt3__114__get_const_dbEv
+  Symbol removed: _ZNSt3__123__libcpp_debug_functionE
+  Symbol removed: _ZNSt3__127__libcpp_set_debug_functionEPFvRKNS_19__libcpp_debug_infoEE
+  Symbol removed: _ZNSt3__129__libcpp_abort_debug_functionERKNS_19__libcpp_debug_infoE
+  Symbol removed: _ZNSt3__18__c_node5__addEPNS_8__i_nodeE
+  Symbol removed: _ZNSt3__18__c_nodeD0Ev
+  Symbol removed: _ZNSt3__18__c_nodeD1Ev
+  Symbol removed: _ZNSt3__18__c_nodeD2Ev
+  Symbol removed: _ZNSt3__18__get_dbEv
+  Symbol removed: _ZNSt3__18__i_nodeD1Ev
+  Symbol removed: _ZNSt3__18__i_nodeD2Ev
+  Symbol removed: _ZTINSt3__18__c_nodeE
+  Symbol removed: _ZTSNSt3__18__c_nodeE
+  Symbol removed: _ZTVNSt3__18__c_nodeE
+
+* b0fd9497af6d, 7de5aca84c54 and 507125af3d0b - [libc++] Add a lightweight overridable assertion handler
+
+  This patch adds a lightweight assertion handler mechanism that can be
+  overriden at link-time in a fashion similar to `operator new`. A default
+  assertion handler is provided in the shared library, hence the added
+  symbol.
+
+  All platforms
+  -------------
+  Symbol added: _ZNSt3__122__libcpp_verbose_abortEPKcz
+
+------------
+Version 14.0
+------------
+
+* abb5dd6e99df - [libc++] `to_chars` for floating point.
+
+  This commit added the `to_chars` implementation for floating point values.
+  The entire implementation resides in the dylib and the functions specified
+  in the Standard are now part of the ABI.
+
+  All platforms
+  -------------
+  Symbol added: _ZNSt3__18to_charsEPcS0_d
+  Symbol added: _ZNSt3__18to_charsEPcS0_dNS_12chars_formatE
+  Symbol added: _ZNSt3__18to_charsEPcS0_dNS_12chars_formatEi
+  Symbol added: _ZNSt3__18to_charsEPcS0_e
+  Symbol added: _ZNSt3__18to_charsEPcS0_eNS_12chars_formatE
+  Symbol added: _ZNSt3__18to_charsEPcS0_eNS_12chars_formatEi
+  Symbol added: _ZNSt3__18to_charsEPcS0_f
+  Symbol added: _ZNSt3__18to_charsEPcS0_fNS_12chars_formatE
+  Symbol added: _ZNSt3__18to_charsEPcS0_fNS_12chars_formatEi
+
+* 049f6c29a6f0 - [libc++] Resolve missing table_size symbol
+
+  This commit added an out-of-line definition for `table_size` in the library.
+  This is not an ABI break since we are just adding a symbol to the library.
+  In fact, any program that would have attempted to refer to that symbol would
+  have previously failed to link.
+
+  <arch>-apple-darwin
+  -------------------------
+  Symbol added: _ZNSt3__15ctypeIcE10table_sizeE
+
+  x86_64-unknown-linux-gnu
+  ------------------------
+  Symbol added: _ZNSt3__15ctypeIcE10table_sizeE
+
+* 434dc0a5bcae - [libc++] Always define a key function for std::bad_function_call in the dylib
+
+  This commit added a new explicit instantiation of std::bad_function_call's
+  vtable in the shared library. This change is not an ABI break as it only
+  adds symbols to the library. Programs compiled against the library will not
+  rely on the vtable being defined in it by default. Reliance on the vtable
+  being in the shared library can be enabled by defining the
+  _LIBCPP_ABI_BAD_FUNCTION_CALL_KEY_FUNCTION macro.
+
+  Note that this commit also causes the libc++ shared library to start relying
+  on std::exception::what() being provided. This is due to the fact that the
+  shared library now contains the vtable for std::bad_function_call, which
+  references std::exception::what(). This shouldn't be an issue since that
+  function needs to be available to users in order to use std::bad_function_call
+  before this patch too.
+
+  All platforms
+  -------------
+  Symbol added: _ZNSt3__117bad_function_callD0Ev
+  Symbol added: _ZNSt3__117bad_function_callD1Ev
+  Symbol added: _ZNSt3__117bad_function_callD2Ev
+  Symbol added: _ZTINSt3__117bad_function_callE
+  Symbol added: _ZTSNSt3__117bad_function_callE
+  Symbol added: _ZTVNSt3__117bad_function_callE
+
+  <arch>-unknown-linux-gnu
+  ------------------------
+  Added dependency on symbol: _ZNKSt9exception4whatEv
+
+------------
+Version 12.0
+------------
+
+* a984dcaf7c21 - [libc++] [P0482] [C++20] Implement missing bits for codecvt and codecvt_byname.
+
+  This commit added new instantiations with char8_t for classes codecvt and
+  codecvt_byname in <locale> in the library.
+
+  All platforms
+  -------------
+  Symbol added: _ZNKSt3__17codecvtIDiDu11__mbstate_tE10do_unshiftERS1_PDuS4_RS4_
+  Symbol added: _ZNKSt3__17codecvtIDiDu11__mbstate_tE11do_encodingEv
+  Symbol added: _ZNKSt3__17codecvtIDiDu11__mbstate_tE13do_max_lengthEv
+  Symbol added: _ZNKSt3__17codecvtIDiDu11__mbstate_tE16do_always_noconvEv
+  Symbol added: _ZNKSt3__17codecvtIDiDu11__mbstate_tE5do_inERS1_PKDuS5_RS5_PDiS7_RS7_
+  Symbol added: _ZNKSt3__17codecvtIDiDu11__mbstate_tE6do_outERS1_PKDiS5_RS5_PDuS7_RS7_
+  Symbol added: _ZNKSt3__17codecvtIDiDu11__mbstate_tE9do_lengthERS1_PKDuS5_m
+  Symbol added: _ZNKSt3__17codecvtIDsDu11__mbstate_tE10do_unshiftERS1_PDuS4_RS4_
+  Symbol added: _ZNKSt3__17codecvtIDsDu11__mbstate_tE11do_encodingEv
+  Symbol added: _ZNKSt3__17codecvtIDsDu11__mbstate_tE13do_max_lengthEv
+  Symbol added: _ZNKSt3__17codecvtIDsDu11__mbstate_tE16do_always_noconvEv
+  Symbol added: _ZNKSt3__17codecvtIDsDu11__mbstate_tE5do_inERS1_PKDuS5_RS5_PDsS7_RS7_
+  Symbol added: _ZNKSt3__17codecvtIDsDu11__mbstate_tE6do_outERS1_PKDsS5_RS5_PDuS7_RS7_
+  Symbol added: _ZNKSt3__17codecvtIDsDu11__mbstate_tE9do_lengthERS1_PKDuS5_m
+  Symbol added: _ZNSt3__114codecvt_bynameIDiDu11__mbstate_tED0Ev
+  Symbol added: _ZNSt3__114codecvt_bynameIDiDu11__mbstate_tED1Ev
+  Symbol added: _ZNSt3__114codecvt_bynameIDiDu11__mbstate_tED2Ev
+  Symbol added: _ZNSt3__114codecvt_bynameIDsDu11__mbstate_tED0Ev
+  Symbol added: _ZNSt3__114codecvt_bynameIDsDu11__mbstate_tED1Ev
+  Symbol added: _ZNSt3__114codecvt_bynameIDsDu11__mbstate_tED2Ev
+  Symbol added: _ZNSt3__17codecvtIDiDu11__mbstate_tE2idE
+  Symbol added: _ZNSt3__17codecvtIDiDu11__mbstate_tED0Ev
+  Symbol added: _ZNSt3__17codecvtIDiDu11__mbstate_tED1Ev
+  Symbol added: _ZNSt3__17codecvtIDiDu11__mbstate_tED2Ev
+  Symbol added: _ZNSt3__17codecvtIDsDu11__mbstate_tE2idE
+  Symbol added: _ZNSt3__17codecvtIDsDu11__mbstate_tED0Ev
+  Symbol added: _ZNSt3__17codecvtIDsDu11__mbstate_tED1Ev
+  Symbol added: _ZNSt3__17codecvtIDsDu11__mbstate_tED2Ev
+  Symbol added: _ZTINSt3__114codecvt_bynameIDiDu11__mbstate_tEE
+  Symbol added: _ZTINSt3__114codecvt_bynameIDsDu11__mbstate_tEE
+  Symbol added: _ZTINSt3__17codecvtIDiDu11__mbstate_tEE
+  Symbol added: _ZTINSt3__17codecvtIDsDu11__mbstate_tEE
+  Symbol added: _ZTSNSt3__17codecvtIDiDu11__mbstate_tEE
+  Symbol added: _ZTSNSt3__17codecvtIDsDu11__mbstate_tEE
+  Symbol added: _ZTVNSt3__114codecvt_bynameIDiDu11__mbstate_tEE
+  Symbol added: _ZTVNSt3__114codecvt_bynameIDsDu11__mbstate_tEE
+  Symbol added: _ZTVNSt3__17codecvtIDiDu11__mbstate_tEE
+  Symbol added: _ZTVNSt3__17codecvtIDsDu11__mbstate_tEE
+
+  <arch>-unknown-linux-gnu
+  ------------------------
+  Symbol added: _ZTSNSt3__114codecvt_bynameIDiDu11__mbstate_tEE
+  Symbol added: _ZTSNSt3__114codecvt_bynameIDsDu11__mbstate_tEE
+
+* 997d41cdec53 - [libc++] Instantiate additional <iostream> members in the dylib
+
+  This commit added new explicit instantiations for classes in <iostream> in
+  the library. This was done after noticing that many programs that used streams
+  ended up containing weak definitions of these classes, which has a negative
+  impact on both code size and load times. This change is not an ABI break,
+  since we are just adding additional symbols.
+
+  All platforms
+  -------------
+  Symbol added: _ZNKSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEE3strEv
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE11__read_modeEv
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE12__write_modeEv
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE4openEPKcj
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE4swapERS3_
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE4syncEv
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE5closeEv
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE5imbueERKNS_6localeE
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE6setbufEPcl
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE7seekoffExNS_8ios_base7seekdirEj
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE7seekposENS_4fposI11__mbstate_tEEj
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE8overflowEi
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE9pbackfailEi
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEE9underflowEv
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEEC1EOS3_
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEEC1Ev
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEEC2EOS3_
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEEC2Ev
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEED0Ev
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEED1Ev
+  Symbol added: _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEED2Ev
+  Symbol added: _ZNSt3__114basic_ifstreamIcNS_11char_traitsIcEEE4openEPKcj
+  Symbol added: _ZNSt3__114basic_ifstreamIcNS_11char_traitsIcEEE4openERKNS_12basic_stringIcS2_NS_9allocatorIcEEEEj
+  Symbol added: _ZNSt3__114basic_ofstreamIcNS_11char_traitsIcEEE4openEPKcj
+  Symbol added: _ZNSt3__114basic_ofstreamIcNS_11char_traitsIcEEE4openERKNS_12basic_stringIcS2_NS_9allocatorIcEEEEj
+  Symbol added: _ZNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEE3strERKNS_12basic_stringIcS2_S4_EE
+  Symbol added: _ZNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEE4swapERS5_
+  Symbol added: _ZNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEE7seekoffExNS_8ios_base7seekdirEj
+  Symbol added: _ZNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEE8overflowEi
+  Symbol added: _ZNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEE9pbackfailEi
+  Symbol added: _ZNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEE9underflowEv
+  Symbol added: _ZNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEEC1EOS5_
+  Symbol added: _ZNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEEC2EOS5_
+  Symbol added: _ZNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEEaSEOS5_
+  Symbol added: _ZNSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEaSEOS5_
+  Symbol added: _ZNSt3__119basic_istringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEaSEOS5_
+  Symbol added: _ZNSt3__119basic_ostringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEaSEOS5_
+  Symbol added: _ZTCNSt3__114basic_ifstreamIcNS_11char_traitsIcEEEE0_NS_13basic_istreamIcS2_EE
+  Symbol added: _ZTCNSt3__114basic_ofstreamIcNS_11char_traitsIcEEEE0_NS_13basic_ostreamIcS2_EE
+  Symbol added: _ZTCNSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE0_NS_13basic_istreamIcS2_EE
+  Symbol added: _ZTCNSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE0_NS_14basic_iostreamIcS2_EE
+  Symbol added: _ZTCNSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE16_NS_13basic_ostreamIcS2_EE
+  Symbol added: _ZTCNSt3__119basic_istringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE0_NS_13basic_istreamIcS2_EE
+  Symbol added: _ZTCNSt3__119basic_ostringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE0_NS_13basic_ostreamIcS2_EE
+  Symbol added: _ZTINSt3__113basic_filebufIcNS_11char_traitsIcEEEE
+  Symbol added: _ZTINSt3__114basic_ifstreamIcNS_11char_traitsIcEEEE
+  Symbol added: _ZTINSt3__114basic_ofstreamIcNS_11char_traitsIcEEEE
+  Symbol added: _ZTINSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTINSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTINSt3__119basic_istringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTINSt3__119basic_ostringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTSNSt3__113basic_filebufIcNS_11char_traitsIcEEEE
+  Symbol added: _ZTSNSt3__114basic_ifstreamIcNS_11char_traitsIcEEEE
+  Symbol added: _ZTSNSt3__114basic_ofstreamIcNS_11char_traitsIcEEEE
+  Symbol added: _ZTSNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTSNSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTSNSt3__119basic_istringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTSNSt3__119basic_ostringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTTNSt3__114basic_ifstreamIcNS_11char_traitsIcEEEE
+  Symbol added: _ZTTNSt3__114basic_ofstreamIcNS_11char_traitsIcEEEE
+  Symbol added: _ZTTNSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTTNSt3__119basic_istringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTTNSt3__119basic_ostringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTVNSt3__113basic_filebufIcNS_11char_traitsIcEEEE
+  Symbol added: _ZTVNSt3__114basic_ifstreamIcNS_11char_traitsIcEEEE
+  Symbol added: _ZTVNSt3__114basic_ofstreamIcNS_11char_traitsIcEEEE
+  Symbol added: _ZTVNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTVNSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTVNSt3__119basic_istringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+  Symbol added: _ZTVNSt3__119basic_ostringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE
+
+* 9b40ee8eb0c1 - [libc++] Define new/delete in libc++abi only by default
+
+  By default, libc++ does not include the definition for new and delete anymore.
+  Those were previously defined in both libc++ and libc++abi, which was an
+  ODR violation.
+
+  <arch>-apple-darwin
+  -------------------------
+  The following symbols are now re-exported from libc++abi instead of exported
+  by libc++ directly (this should not be an ABI break):
+
+  Symbol moved: __ZdaPv
+  Symbol moved: __ZdaPvm
+  Symbol moved: __ZdaPvmSt11align_val_t
+  Symbol moved: __ZdaPvRKSt9nothrow_t
+  Symbol moved: __ZdaPvSt11align_val_t
+  Symbol moved: __ZdaPvSt11align_val_tRKSt9nothrow_t
+  Symbol moved: __ZdlPv
+  Symbol moved: __ZdlPvm
+  Symbol moved: __ZdlPvmSt11align_val_t
+  Symbol moved: __ZdlPvRKSt9nothrow_t
+  Symbol moved: __ZdlPvSt11align_val_t
+  Symbol moved: __ZdlPvSt11align_val_tRKSt9nothrow_t
+  Symbol moved: __Znam
+  Symbol moved: __ZnamRKSt9nothrow_t
+  Symbol moved: __ZnamSt11align_val_t
+  Symbol moved: __ZnamSt11align_val_tRKSt9nothrow_t
+  Symbol moved: __Znwm
+  Symbol moved: __ZnwmRKSt9nothrow_t
+  Symbol moved: __ZnwmSt11align_val_t
+  Symbol moved: __ZnwmSt11align_val_tRKSt9nothrow_t
+
+  <arch>-unknown-linux-gnu
+  ------------------------
+  The following symbols were moved to libc++abi, but are NOT being re-exported
+  by libc++. This constitutes an ABI break if one links against libc++ but
+  not libc++abi.
+
+  Symbol moved: _ZdaPv
+  Symbol moved: _ZdaPvm
+  Symbol moved: _ZdaPvmSt11align_val_t
+  Symbol moved: _ZdaPvRKSt9nothrow_t
+  Symbol moved: _ZdaPvSt11align_val_t
+  Symbol moved: _ZdaPvSt11align_val_tRKSt9nothrow_t
+  Symbol moved: _ZdlPv
+  Symbol moved: _ZdlPvm
+  Symbol moved: _ZdlPvmSt11align_val_t
+  Symbol moved: _ZdlPvRKSt9nothrow_t
+  Symbol moved: _ZdlPvSt11align_val_t
+  Symbol moved: _ZdlPvSt11align_val_tRKSt9nothrow_t
+  Symbol moved: _Znam
+  Symbol moved: _ZnamRKSt9nothrow_t
+  Symbol moved: _ZnamSt11align_val_t
+  Symbol moved: _ZnamSt11align_val_tRKSt9nothrow_t
+  Symbol moved: _Znwm
+  Symbol moved: _ZnwmRKSt9nothrow_t
+  Symbol moved: _ZnwmSt11align_val_t
+  Symbol moved: _ZnwmSt11align_val_tRKSt9nothrow_t
+
+* 4f13b9992971 - [libc++] Simplify how we re-export symbols from libc++abi
+
+  We re-export some symbols that were exported from libc++abi but not from
+  libc++. Exporting new symbols is not an ABI break.
+
+  <arch>-apple-darwin
+  -------------------
+  Symbol added: ___cxa_allocate_dependent_exception
+  Symbol added: ___cxa_free_dependent_exception
+
+------------
+Version 11.0
+------------
+
+* 54fa9ecd3088 - [libc++] Implementation of C++20's P1135R6 for libcxx
+
+  libc++ now implements P1135R6 (The C++20 Synchronization Library), which
+  adds a few symbols to the dylib. This is backwards-compatible since we're
+  just adding new symbols.
+
+  All platforms
+  -------------
+  Symbol added: __ZNSt3__120__libcpp_atomic_waitEPVKNS_17__cxx_atomic_implIxNS_22__cxx_atomic_base_implIxEEEEx
+  Symbol added: __ZNSt3__120__libcpp_atomic_waitEPVKvx
+  Symbol added: __ZNSt3__123__cxx_atomic_notify_allEPVKNS_17__cxx_atomic_implIxNS_22__cxx_atomic_base_implIxEEEE
+  Symbol added: __ZNSt3__123__cxx_atomic_notify_allEPVKv
+  Symbol added: __ZNSt3__123__cxx_atomic_notify_oneEPVKNS_17__cxx_atomic_implIxNS_22__cxx_atomic_base_implIxEEEE
+  Symbol added: __ZNSt3__123__cxx_atomic_notify_oneEPVKv
+  Symbol added: __ZNSt3__123__libcpp_atomic_monitorEPVKNS_17__cxx_atomic_implIxNS_22__cxx_atomic_base_implIxEEEE
+  Symbol added: __ZNSt3__123__libcpp_atomic_monitorEPVKv
+  Symbol added: __ZNSt3__131__arrive_barrier_algorithm_baseEPNS_24__barrier_algorithm_baseEh
+  Symbol added: __ZNSt3__132__destroy_barrier_algorithm_baseEPNS_24__barrier_algorithm_baseE
+  Symbol added: __ZNSt3__134__construct_barrier_algorithm_baseERl
+
+-----------
+Version 9.0
+-----------
+
+* r358690 - Re-rexport missing symbols from libc++abi
+
+  libc++ now re-exports `__cxa_throw_bad_array_new_length` and `__cxa_uncaught_exceptions`,
+  both of which are provided by libc++abi. This is not an ABI break because
+  we're just adding symbols. Also, this does mean that libc++ can't be linked
+  against an older version of libc++abi that doesn't provide those symbols,
+  however doing so is not supported anyway.
+
+  <arch>-apple-darwin
+  -------------------
+  Symbol added: ___cxa_throw_bad_array_new_length
+  Symbol added: ___cxa_uncaught_exceptions
+
+* r356518 - Integrate <filesystem> support into the shared library
+
+  This patch introduces support for <filesystem> into the shared library,
+  instead of requiring users to manually link against a static archive. As
+  such, new symbols required to implement <filesystem> are exported from
+  the shared library.
+
+  All platforms
+  -------------
+  Symbol added: _ZNKSt3__14__fs10filesystem18directory_iterator13__dereferenceEv
+  Symbol added: _ZNKSt3__14__fs10filesystem28recursive_directory_iterator13__dereferenceEv
+  Symbol added: _ZNKSt3__14__fs10filesystem28recursive_directory_iterator5depthEv
+  Symbol added: _ZNKSt3__14__fs10filesystem28recursive_directory_iterator7optionsEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path10__filenameEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path11__extensionEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path11__root_nameEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path13__parent_pathEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path15__relative_pathEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path15__root_path_rawEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path16__root_directoryEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path16lexically_normalEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path18lexically_relativeERKS2_
+  Symbol added: _ZNKSt3__14__fs10filesystem4path3endEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path5beginEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path6__stemEv
+  Symbol added: _ZNKSt3__14__fs10filesystem4path9__compareENS_17basic_string_viewIcNS_11char_traitsIcEEEE
+  Symbol added: _ZNSt3__14__fs10filesystem10__absoluteERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem10hash_valueERKNS1_4pathE
+  Symbol added: _ZNSt3__14__fs10filesystem11__canonicalERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem11__copy_fileERKNS1_4pathES4_NS1_12copy_optionsEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem11__file_sizeERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem12__equivalentERKNS1_4pathES4_PNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem12__remove_allERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem13__fs_is_emptyERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem13__permissionsERKNS1_4pathENS1_5permsENS1_12perm_optionsEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem13__resize_fileERKNS1_4pathEmPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem14__copy_symlinkERKNS1_4pathES4_PNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem14__current_pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem14__current_pathERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem14__read_symlinkERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem15directory_entry12__do_refreshEv
+  Symbol added: _ZNSt3__14__fs10filesystem16__create_symlinkERKNS1_4pathES4_PNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem16__symlink_statusERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem16_FilesystemClock3nowEv
+  Symbol added: _ZNSt3__14__fs10filesystem16_FilesystemClock9is_steadyE
+  Symbol added: _ZNSt3__14__fs10filesystem16filesystem_error13__create_whatEi
+  Symbol added: _ZNSt3__14__fs10filesystem16filesystem_errorD0Ev
+  Symbol added: _ZNSt3__14__fs10filesystem16filesystem_errorD1Ev
+  Symbol added: _ZNSt3__14__fs10filesystem16filesystem_errorD2Ev
+  Symbol added: _ZNSt3__14__fs10filesystem17__hard_link_countERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem17__last_write_timeERKNS1_4pathENS_6chrono10time_pointINS1_16_FilesystemClockENS5_8durationInNS_5ratioILl1ELl1000000000EEEEEEEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem17__last_write_timeERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem18__create_directoryERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem18__create_directoryERKNS1_4pathES4_PNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem18__create_hard_linkERKNS1_4pathES4_PNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem18__weakly_canonicalERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem18directory_iterator11__incrementEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem18directory_iteratorC1ERKNS1_4pathEPNS_10error_codeENS1_17directory_optionsE
+  Symbol added: _ZNSt3__14__fs10filesystem18directory_iteratorC2ERKNS1_4pathEPNS_10error_codeENS1_17directory_optionsE
+  Symbol added: _ZNSt3__14__fs10filesystem20__create_directoriesERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem21__temp_directory_pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem26__create_directory_symlinkERKNS1_4pathES4_PNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem28recursive_directory_iterator11__incrementEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem28recursive_directory_iterator15__try_recursionEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem28recursive_directory_iterator5__popEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem28recursive_directory_iterator9__advanceEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem28recursive_directory_iteratorC1ERKNS1_4pathENS1_17directory_optionsEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem28recursive_directory_iteratorC2ERKNS1_4pathENS1_17directory_optionsEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem4path17replace_extensionERKS2_
+  Symbol added: _ZNSt3__14__fs10filesystem4path19preferred_separatorE
+  Symbol added: _ZNSt3__14__fs10filesystem4path8iterator11__decrementEv
+  Symbol added: _ZNSt3__14__fs10filesystem4path8iterator11__incrementEv
+  Symbol added: _ZNSt3__14__fs10filesystem6__copyERKNS1_4pathES4_NS1_12copy_optionsEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem7__spaceERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem8__removeERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem8__renameERKNS1_4pathES4_PNS_10error_codeE
+  Symbol added: _ZNSt3__14__fs10filesystem8__statusERKNS1_4pathEPNS_10error_codeE
+  Symbol added: _ZTINSt3__14__fs10filesystem16filesystem_errorE
+  Symbol added: _ZTSNSt3__14__fs10filesystem16filesystem_errorE
+  Symbol added: _ZTVNSt3__14__fs10filesystem16filesystem_errorE
+
+* r356417 - Remove exception throwing debug mode handler support.
+
+  The reason libc++ implemented a throwing debug mode handler was for ease of testing. Specifically,
+  I thought that if a debug violation aborted, we could only test one violation per file. This made
+  it impossible to test debug mode. Which throwing behavior we could test more!
+
+  However, the throwing approach didn't work either, since there are debug violations underneath noexcept
+  functions. This lead to the introduction of `_NOEXCEPT_DEBUG`, which was only noexcept when debug
+  mode was off.
+
+  Having thought more and having grown wiser, `_NOEXCEPT_DEBUG` was a horrible decision. It was
+  viral, it didn't cover all the cases it needed to, and it was observable to the user -- at worst
+  changing the behavior of their program.
+
+  This patch removes the throwing debug handler, and rewrites the debug tests using 'fork-ing' style
+  death tests.
+
+  All Platforms (ignoring versioning namespaces)
+  ----------------------------------------------
+  Symbol added: _ZNKSt3__119__libcpp_debug_info4whatEv
+  Symbol removed: _ZNKSt3__124__libcpp_debug_exception4whatEv
+  Symbol removed: _ZNSt3__124__libcpp_debug_exceptionC1ERKNS_19__libcpp_debug_infoE
+  Symbol removed: _ZNSt3__124__libcpp_debug_exceptionC1ERKS0_
+  Symbol removed: _ZNSt3__124__libcpp_debug_exceptionC1Ev
+  Symbol removed: _ZNSt3__124__libcpp_debug_exceptionC2ERKNS_19__libcpp_debug_infoE
+  Symbol removed: _ZNSt3__124__libcpp_debug_exceptionC2ERKS0_
+  Symbol removed: _ZNSt3__124__libcpp_debug_exceptionC2Ev
+  Symbol removed: _ZNSt3__124__libcpp_debug_exceptionD0Ev
+  Symbol removed: _ZNSt3__124__libcpp_debug_exceptionD1Ev
+  Symbol removed: _ZNSt3__124__libcpp_debug_exceptionD2Ev
+  Symbol removed: _ZNSt3__129__libcpp_throw_debug_functionERKNS_19__libcpp_debug_infoE
+  Symbol removed: _ZTINSt3__124__libcpp_debug_exceptionE
+  Symbol removed: _ZTSNSt3__124__libcpp_debug_exceptionE
+  Symbol removed: _ZTVNSt3__124__libcpp_debug_exceptionE
+
+  <arch>-apple-darwin
+  -------------------
+  Symbol added: __ZNSt3__111__libcpp_db10__insert_cEPvPFPNS_8__c_nodeES1_S1_S3_E
+  Symbol removed: __ZNSt3__111__libcpp_db10__insert_cEPv
+
+* r355367 - Fix -fsanitize=vptr badness in <__debug>
+
+  This patch fixes a lifetime bug when inserting a new container into the debug database. It is
+  diagnosed by UBSAN when debug mode is enabled. This patch corrects how nodes are constructed
+  during insertion.
+
+  The fix requires unconditionally breaking the debug mode ABI. Users should not expect ABI
+  stability from debug mode.
+
+  All platforms
+  -------------
+  Symbol added: _ZNSt3__111__libcpp_db10__insert_cEPvPFPNS_8__c_nodeES1_S1_S3_E
+  Symbol removed: _ZNSt3__111__libcpp_db10__insert_cEPv
+
+-----------
+Version 8.0
+-----------
+
+* r347903 - Remove std::bad_array_length
+
+  The change removes the definition of std::bad_array_length (which never made
+  it into the standard) from the headers and the dylib. This is technically an
+  ABI break because the symbols are shipped starting with mac OSX 10.13, however
+  users couldn't be relying on the functionality because it is marked as being
+  unavailable using Clang's availability attribute.
+
+  <arch>-apple-darwin
+  -------------------
+  Symbol removed: __ZNKSt16bad_array_length4whatEv
+  Symbol removed: __ZNKSt16bad_array_length4whatEv
+  Symbol removed: __ZNSt16bad_array_lengthC1Ev
+  Symbol removed: __ZNSt16bad_array_lengthC1Ev
+  Symbol removed: __ZNSt16bad_array_lengthC2Ev
+  Symbol removed: __ZNSt16bad_array_lengthC2Ev
+  Symbol removed: __ZNSt16bad_array_lengthD0Ev
+  Symbol removed: __ZNSt16bad_array_lengthD0Ev
+  Symbol removed: __ZNSt16bad_array_lengthD1Ev
+  Symbol removed: __ZNSt16bad_array_lengthD1Ev
+  Symbol removed: __ZNSt16bad_array_lengthD2Ev
+  Symbol removed: __ZNSt16bad_array_lengthD2Ev
+  Symbol removed: __ZTISt16bad_array_length
+  Symbol removed: __ZTISt16bad_array_length
+  Symbol removed: __ZTSSt16bad_array_length
+  Symbol removed: __ZTSSt16bad_array_length
+  Symbol removed: __ZTVSt16bad_array_length
+  Symbol removed: __ZTVSt16bad_array_length
+
+* r347395 - Making libc++ build under -fvisibility=hidden on Linux
+
+  The change marks several function templates as hidden. This removes symbols
+  from the shared library, but this is not an ABI break because it's impossible
+  for programs linking against libc++.so to actually depend on that symbol.
+  The reason is that the symbol is exported from the shared library through
+  an implicit instantiation present in the shared object itself only. Furthermore,
+  if a user's shared object was implicitly instantiating one of these functions,
+  marking that symbol as hidden would not be an ABI break for them because none
+  of their users could actually be using the symbol in their dylib (because
+  it's an implicit instantiation).
+
+  x86_64-linux-gnu
+  ----------------
+  Symbol removed: _ZNSt3__125__num_get_signed_integralIlEET_PKcS3_Rji
+  Symbol removed: _ZNSt3__125__num_get_signed_integralIxEET_PKcS3_Rji
+  Symbol removed: _ZNSt3__127__num_get_unsigned_integralIjEET_PKcS3_Rji
+  Symbol removed: _ZNSt3__127__num_get_unsigned_integralImEET_PKcS3_Rji
+  Symbol removed: _ZNSt3__127__num_get_unsigned_integralItEET_PKcS3_Rji
+  Symbol removed: _ZNSt3__127__num_get_unsigned_integralIyEET_PKcS3_Rji
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIaaEEPaEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIccEEPcEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIddEEPdEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIffEEPfEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIhhEEPhEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIiiEEPiEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIjjEEPjEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIllEEPlEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessImmEEPmEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIssEEPsEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIttEEPtEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIwwEEPwEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIxxEEPxEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__17__sort5IRNS_6__lessIyyEEPyEEjT0_S5_S5_S5_S5_T_
+  Symbol removed: _ZNSt3__1plIcNS_11char_traitsIcEENS_9allocatorIcEEEENS_12basic_stringIT_T0_T1_EERKS9_PKS6_
+  Symbol removed: _ZSt18make_exception_ptrINSt3__112future_errorEESt13exception_ptrT_
+
+* r345260 - Making libc++ build under -fvisibility=hidden on Mac OS
+
+  The change marks __thread_specific_ptr<__thread_struct>::__at_thread_exit(void*)
+  with hidden visibility. This removes a symbol from the shared libraries,
+  however this is not an ABI break because it's impossible for programs linking
+  against libc++.dylib to actually depend on that symbol. The reason is that
+  the symbol is exported from the shared library through an implicit
+  instantiation present in the dylib itself only. Furthermore, if a user's
+  dylib was implicitly instantiating __thread_specific_ptr<T>::__at_thread_exit
+  (because it's defined in the headers), marking that symbol as hidden would
+  not be an ABI break for them because none of their users could actually be
+  using the symbol in their dylib (because it's an implicit instantiation).
+
+  This change also marks __start_std_streams as hidden -- this variable is
+  only required to initialize the streams, and nobody should depend on it
+  from outside the dylib.
+
+  x86_64-linux-gnu
+  ----------------
+  Symbol removed: _ZNSt3__121__thread_specific_ptrINS_15__thread_structEE16__at_thread_exitEPv
+  Symbol removed: _ZNSt3__119__start_std_streamsE
+
+  <arch>-apple-darwin
+  -------------------
+  Symbol removed: __ZNSt3__221__thread_specific_ptrINS_15__thread_structEE16__at_thread_exitEPv
+  Symbol removed: __ZNSt3__119__start_std_streamsE
+
+-----------
+Version 7.0
+-----------
+
+* r338479 - Elementary string conversions for integral types
+
+  The change emits __u64toa and __u32toa under std::__1::__itoa.
+
+  x86_64-linux-gnu
+  ----------------
+  Symbol added: _ZNSt3__16__itoa8__u64toaEmPc
+  Symbol added: _ZNSt3__16__itoa8__u32toaEjPc
+
+  <arch>-apple-darwin
+  -------------------
+  Symbol added: __ZNSt3__16__itoa8__u64toaEyPc
+  Symbol added: __ZNSt3__16__itoa8__u32toaEjPc
+
+
+* r333467 - Fix embarrasing typo in uncaught_exceptions.
+
+  This bug caused __uncaught_exception to be ODR used instead of
+  __uncaught_exceptions. This change is non-ABI breaking because the symbols
+  for std::uncaught_exception and std::uncaught_exceptions haven't changed,
+  and because users shouldn't be depending directly on libc++ exporting
+  __uncaught_exception/__uncaught_exceptions.
+
+  All Platforms
+  ----------------
+  Symbol removed: __cxa_uncaught_exception
+  Symbol added: __cxa_uncaught_exceptions
+
+-----------
+Version 5.0
+-----------
+
+* r313500 - Fix undefined "___cxa_deleted_virtual" symbol in macosx
+
+  x86_64-linux-gnu
+  ----------------
+  No changes
+
+  <arch>-apple-darwin
+  -------------------
+  Symbol added: ___cxa_deleted_virtual
+
+* r296729 - Remove std::num_get template methods which should be inline
+
+  These functions should never have had visible definitions in the dylib but
+  since they were previously not specified with 'inline' they accidentally
+  got emitted. This change is non-ABI breaking because every "linkage unit"
+  must contain its own definition.
+
+  x86_64-linux-gnu
+  ----------------
+  Symbol removed: _ZNKSt3__17num_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE15__do_get_signedIlEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE15__do_get_signedIxEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE17__do_get_unsignedIjEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE17__do_get_unsignedImEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE17__do_get_unsignedItEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE17__do_get_unsignedIyEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE23__do_get_floating_pointIdEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE23__do_get_floating_pointIeEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE23__do_get_floating_pointIfEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE15__do_get_signedIlEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE15__do_get_signedIxEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE17__do_get_unsignedIjEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE17__do_get_unsignedImEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE17__do_get_unsignedItEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE17__do_get_unsignedIyEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE23__do_get_floating_pointIdEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE23__do_get_floating_pointIeEES4_S4_S4_RNS_8ios_baseERjRT_
+  Symbol removed: _ZNKSt3__17num_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE23__do_get_floating_pointIfEES4_S4_S4_RNS_8ios_baseERjRT_
+
+  <arch>-apple-darwin
+  -------------------
+  No changes
+
+-----------
+Version 4.0
+-----------
+
+* r290651 - Add _LIBCPP_ASSERT debug handling functions
+
+  All Platforms
+  -------------
+  Symbol added: _ZNSt3__124__libcpp_debug_exceptionC2ERKNS_19__libcpp_debug_infoE
+  Symbol added: _ZNSt3__124__libcpp_debug_exceptionD1Ev
+  Symbol added: _ZTINSt3__124__libcpp_debug_exceptionE
+  Symbol added: _ZNSt3__129__libcpp_throw_debug_functionERKNS_19__libcpp_debug_infoE
+  Symbol added: _ZNSt3__124__libcpp_debug_exceptionD2Ev
+  Symbol added: _ZNSt3__129__libcpp_abort_debug_functionERKNS_19__libcpp_debug_infoE
+  Symbol added: _ZNSt3__124__libcpp_debug_exceptionC2ERKS0_
+  Symbol added: _ZNSt3__124__libcpp_debug_exceptionC1Ev
+  Symbol added: _ZNSt3__124__libcpp_debug_exceptionC1ERKNS_19__libcpp_debug_infoE
+  Symbol added: _ZNSt3__124__libcpp_debug_exceptionC2Ev
+  Symbol added: _ZTSNSt3__124__libcpp_debug_exceptionE
+  Symbol added: _ZNSt3__123__libcpp_debug_functionE
+  Symbol added: _ZNKSt3__124__libcpp_debug_exception4whatEv
+  Symbol added: _ZNSt3__124__libcpp_debug_exceptionC1ERKS0_
+  Symbol added: _ZNSt3__124__libcpp_debug_exceptionD0Ev
+  Symbol added: _ZTVNSt3__124__libcpp_debug_exceptionE
+  Symbol added: _ZNSt3__127__libcpp_set_debug_functionEPFvRKNS_19__libcpp_debug_infoEE
+
+* r288547 - Implement C++17 <variant>
+
+  All Platforms
+  -------------
+  Symbol added: _ZTVSt18bad_variant_access
+  Symbol added: _ZTISt18bad_variant_access
+  Symbol added: _ZTSSt18bad_variant_access
+  Symbol added: _ZNKSt18bad_variant_access4whatEv
+
+* r285537 - Remove std::string::append template methods which should be inline
+
+  These functions should never have had visible definitions in the dylib but
+  since they were previously not specified with 'inline' they accidentally
+  got emitted. This change is non-ABI breaking because every "linkage unit"
+  must contain its own definition.
+
+  x86_64-linux-gnu
+  ----------------
+  Symbol removed: _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendIPcEENS_9enable_ifIXaasr21__is_forward_iteratorIT_EE5valuesr38__libcpp_string_gets_noexcept_iteratorIS9_EE5valueERS5_E4typeES9_S9_
+  Symbol removed: _ZNSt3__112basic_stringIwNS_11char_traitsIwEENS_9allocatorIwEEE6appendIPwEENS_9enable_ifIXaasr21__is_forward_iteratorIT_EE5valuesr38__libcpp_string_gets_noexcept_iteratorIS9_EE5valueERS5_E4typeES9_S9_
+
+  <arch>-apple-darwin
+  -------------------
+  No changes
+
+* r285101 - Add -fvisibility-inlines-hidden when building libc++.
+
+  Although this change removes symbols, it should still be non-ABI breaking
+  since all of the definitions removed are inline functions. For this reason
+  removing these symbols is safe because every "linkage unit" which uses these
+  functions will contain their own definition.
+
+  x86_64-linux-gnu
+  ----------------
+  Symbol removed: _ZNSt12bad_any_castD0Ev
+  Symbol removed: _ZNSt12experimental15fundamentals_v112bad_any_castD0Ev
+  Symbol removed: _ZNSt3__114__codecvt_utf8IDiED0Ev
+  Symbol removed: _ZNSt3__114__codecvt_utf8IDsED0Ev
+  Symbol removed: _ZNSt3__114__codecvt_utf8IwED0Ev
+  Symbol removed: _ZNSt3__115__codecvt_utf16IDiLb0EED0Ev
+  Symbol removed: _ZNSt3__115__codecvt_utf16IDiLb1EED0Ev
+  Symbol removed: _ZNSt3__115__codecvt_utf16IDsLb0EED0Ev
+  Symbol removed: _ZNSt3__115__codecvt_utf16IDsLb1EED0Ev
+  Symbol removed: _ZNSt3__115__codecvt_utf16IwLb0EED0Ev
+  Symbol removed: _ZNSt3__115__codecvt_utf16IwLb1EED0Ev
+  Symbol removed: _ZNSt3__117__assoc_sub_stateD0Ev
+  Symbol removed: _ZNSt3__117__assoc_sub_stateD2Ev
+  Symbol removed: _ZNSt3__117__libcpp_sscanf_lEPKcP15__locale_structS1_z
+  Symbol removed: _ZNSt3__119__libcpp_asprintf_lEPPcP15__locale_structPKcz
+  Symbol removed: _ZNSt3__119__libcpp_snprintf_lEPcmP15__locale_structPKcz
+  Symbol removed: _ZNSt3__120__codecvt_utf8_utf16IDiED0Ev
+  Symbol removed: _ZNSt3__120__codecvt_utf8_utf16IDsED0Ev
+  Symbol removed: _ZNSt3__120__codecvt_utf8_utf16IwED0Ev
+
+  <arch>-apple-darwin
+  -------------------
+  No Changes - inline symbols are already hidden
+
+* r284206 - Implement C++17 aligned allocation in <new>
+
+  x86_64-linux-gnu
+  ----------------
+  Symbol added: _ZdaPvSt11align_val_t
+  Symbol added: _ZdlPvSt11align_val_t
+  Symbol added: _ZnamSt11align_val_t
+  Symbol added: _ZdaPvmSt11align_val_t
+  Symbol added: _ZdlPvmSt11align_val_t
+  Symbol added: _ZdlPvSt11align_val_tRKSt9nothrow_t
+  Symbol added: _ZnwmSt11align_val_tRKSt9nothrow_t
+  Symbol added: _ZnamSt11align_val_tRKSt9nothrow_t
+  Symbol added: _ZdaPvSt11align_val_tRKSt9nothrow_t
+  Symbol added: _ZnwmSt11align_val_t
+
+* r283980 - Implement C++17 <optional>
+
+  x86_64-linux-gnu
+  ----------------
+  Symbol added: _ZTISt19bad_optional_access
+  Symbol added: _ZNSt19bad_optional_accessD0Ev
+  Symbol added: _ZNSt19bad_optional_accessD1Ev
+  Symbol added: _ZNSt19bad_optional_accessD2Ev
+  Symbol added: _ZTVSt19bad_optional_access
+  Symbol added: _ZTSSt19bad_optional_access
+
+* r278310 - Implement C++17 <any>
+
+  x86_64-linux-gnu
+  ----------------
+  Symbol added: _ZNKSt12bad_any_cast4whatEv
+  Symbol added: _ZNSt12bad_any_castD0Ev
+  Symbol added: _ZTISt12bad_any_cast
+  Symbol added: _ZTSSt12bad_any_cast
+  Symbol added: _ZTVSt12bad_any_cast
+
+* r295398 - Remove basic_string::insert and basic_string::replace template methods which should be inline.
+
+  These functions should never have had visible definitions in the dylib but
+  since they were previously not specified with 'inline' they accidentally
+  got emitted. This change is non-ABI breaking because every "linkage unit"
+  must contain its own definition.
+
+  x86_64-linux-gnu
+  ----------------
+  Symbol removed: _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6insertIPKcEENS_9enable_ifIXaasr21__is_forward_iteratorIT_EE5valuesr38__libcpp_string_gets_noexcept_iteratorISA_EE5valueENS_11__wrap_iterIPcEEE4typeENSB_IS8_EESA_SA_
+  Symbol removed: _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE7replaceIPKcEENS_9enable_ifIXsr19__is_input_iteratorIT_EE5valueERS5_E4typeENS_11__wrap_iterIS8_EESF_SA_SA_
+  Symbol removed: _ZNSt3__112basic_stringIwNS_11char_traitsIwEENS_9allocatorIwEEE6insertIPKwEENS_9enable_ifIXaasr21__is_forward_iteratorIT_EE5valuesr38__libcpp_string_gets_noexcept_iteratorISA_EE5valueENS_11__wrap_iterIPwEEE4typeENSB_IS8_EESA_SA_
+  Symbol removed: _ZNSt3__112basic_stringIwNS_11char_traitsIwEENS_9allocatorIwEEE7replaceIPKwEENS_9enable_ifIXsr19__is_input_iteratorIT_EE5valueERS5_E4typeENS_11__wrap_iterIS8_EESF_SA_SA_

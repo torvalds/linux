@@ -1,0 +1,21 @@
+# Keyed off LLVM_ENABLE_PLUGINS in the CMake build, which is usually false
+# on Windows and true elsewhere.
+loadable_module("DoublerPlugin") {
+  # Put plugin next to the unit test executable.
+  output_dir = "$target_out_dir/.."
+
+  sources = [ "DoublerPlugin.cpp" ]
+
+  deps = [
+    # DoublerPlugin doesn't want to link in any LLVM code, it just needs its
+    # headers.
+    "//llvm/include/llvm/IR:public_tablegen",
+  ]
+
+  if (host_os != "mac" && host_os != "win") {
+    # The GN build currently doesn't globally pass -fPIC, but that's
+    # needed for building .so files on ELF.  Just pass it manually
+    # for loadable_modules for now.
+    cflags = [ "-fPIC" ]
+  }
+}

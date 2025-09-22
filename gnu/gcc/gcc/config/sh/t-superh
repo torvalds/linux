@@ -1,0 +1,15 @@
+EXTRA_MULTILIB_PARTS= crt1.o crti.o crtn.o \
+	crtbegin.o crtend.o crtbeginS.o crtendS.o \
+	crt1-mmu.o gcrt1-mmu.o gcrt1.o $(IC_EXTRA_PARTS) $(OPT_EXTRA_PARTS)
+
+# Compile crt1-mmu.o as crt1.o with -DMMU_SUPPORT
+$(T)crt1-mmu.o: $(srcdir)/config/sh/crt1.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crt1-mmu.o -DMMU_SUPPORT -x assembler-with-cpp $(srcdir)/config/sh/crt1.asm
+
+# Compile gcrt1-mmu.o as crt1-mmu.o with -DPROFILE
+$(T)gcrt1-mmu.o: $(srcdir)/config/sh/crt1.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)gcrt1-mmu.o -DPROFILE -DMMU_SUPPORT -x assembler-with-cpp $(srcdir)/config/sh/crt1.asm
+
+# For sh4-400: Compile gcrt1.o as crt1.o with -DPROFILE
+$(T)gcrt1.o: $(srcdir)/config/sh/crt1.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)gcrt1.o -DPROFILE -x assembler-with-cpp $(srcdir)/config/sh/crt1.asm

@@ -1,0 +1,80 @@
+.\"	$OpenBSD: ypconnect.2,v 1.3 2022/07/21 22:45:06 deraadt Exp $
+.\"
+.\" Copyright (c) 2022 Theo de Raadt <deraadt@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 21 2022 $
+.Dt YPCONNECT 2
+.Os
+.Sh NAME
+.Nm ypconnect
+.Nd create connected socket to a YP server
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn ypconnect "int type"
+.Sh DESCRIPTION
+The
+.Fn ypconnect
+system call creates a pre-connected
+.Va SOCK_STREAM
+or
+.Va SOCK_DGRAM
+socket to a YP server (either the original
+.Xr ypserv 8
+or
+.Xr ypldap 8 )
+for use by internal library routines.
+It verifies that the domainname is set, that
+.Xr ypbind 8
+has found a server and created an advisory locked binding file,
+and then creates the connected socket based upon the binding file.
+This type of socket is restricted in various ways and is not
+general purpose.
+.Nm
+is only intended for use by internal libc YP functions.
+.Sh RETURN VALUES
+If successful,
+.Fn ypconnect
+returns a non-negative integer, the socket file descriptor.
+Otherwise, a value of \-1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn ypconnect
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EAFNOSUPPORT
+The YP subsystem is not active.
+.It Bq Er EFTYPE
+The YP binding file is strange.
+.It Bq Er EOWNERDEAD
+The YP binding file is not locked.
+YP subsystem is not active.
+.It Bq Er EMFILE
+The per-process descriptor table is full.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er ENOBUFS
+Insufficient resources were available in the system to perform the operation.
+.El
+.Sh SEE ALSO
+.Xr connect 2 ,
+.Xr socket 2 ,
+.Xr ypbind 8
+.Sh HISTORY
+The
+.Fn ypconnect
+function first appeared in
+.Ox 7.2 .

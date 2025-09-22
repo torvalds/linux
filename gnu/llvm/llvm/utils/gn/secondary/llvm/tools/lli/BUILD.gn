@@ -1,0 +1,31 @@
+executable("lli") {
+  deps = [
+    "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/ExecutionEngine",
+    "//llvm/lib/ExecutionEngine/Interpreter",
+    "//llvm/lib/ExecutionEngine/MCJIT",
+    "//llvm/lib/ExecutionEngine/Orc",
+    "//llvm/lib/ExecutionEngine/Orc/Debugging",
+    "//llvm/lib/ExecutionEngine/Orc/Shared",
+    "//llvm/lib/ExecutionEngine/Orc/TargetProcess",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:NativeTarget",
+    "//llvm/lib/TargetParser",
+    "//llvm/lib/Transforms/Instrumentation",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [ "lli.cpp" ]
+  if (host_os != "mac" && host_os != "win") {
+    # Corresponds to export_executable_symbols() in cmake.
+    ldflags = [ "-rdynamic" ]
+  }
+}

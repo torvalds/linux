@@ -1,0 +1,756 @@
+.\"	$OpenBSD: re_format.7,v 1.14 2007/05/31 19:19:30 jmc Exp $
+.\"
+.\" Copyright (c) 1997, Phillip F Knaack. All rights reserved.
+.\"
+.\" Copyright (c) 1992, 1993, 1994 Henry Spencer.
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Henry Spencer.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)re_format.7	8.3 (Berkeley) 3/20/94
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt RE_FORMAT 7
+.Os
+.Sh NAME
+.Nm re_format
+.Nd POSIX regular expressions
+.Sh DESCRIPTION
+Regular expressions (REs),
+as defined in
+.St -p1003.1-2004 ,
+come in two forms:
+basic regular expressions
+(BREs)
+and extended regular expressions
+(EREs).
+Both forms of regular expressions are supported
+by the interfaces described in
+.Xr regex 3 .
+Applications dealing with regular expressions
+may use one or the other form
+(or indeed both).
+For example,
+.Xr ed 1
+uses BREs,
+whilst
+.Xr egrep 1
+talks EREs.
+Consult the manual page for the specific application to find out which
+it uses.
+.Pp
+POSIX leaves some aspects of RE syntax and semantics open;
+.Sq **
+marks decisions on these aspects that
+may not be fully portable to other POSIX implementations.
+.Pp
+This manual page first describes regular expressions in general,
+specifically extended regular expressions,
+and then discusses differences between them and basic regular expressions.
+.Sh EXTENDED REGULAR EXPRESSIONS
+An ERE is one** or more non-empty**
+.Em branches ,
+separated by
+.Sq \*(Ba .
+It matches anything that matches one of the branches.
+.Pp
+A branch is one** or more
+.Em pieces ,
+concatenated.
+It matches a match for the first, followed by a match for the second, etc.
+.Pp
+A piece is an
+.Em atom
+possibly followed by a single**
+.Sq * ,
+.Sq + ,
+.Sq ?\& ,
+or
+.Em bound .
+An atom followed by
+.Sq *
+matches a sequence of 0 or more matches of the atom.
+An atom followed by
+.Sq +
+matches a sequence of 1 or more matches of the atom.
+An atom followed by
+.Sq ?\&
+matches a sequence of 0 or 1 matches of the atom.
+.Pp
+A bound is
+.Sq {
+followed by an unsigned decimal integer,
+possibly followed by
+.Sq ,\&
+possibly followed by another unsigned decimal integer,
+always followed by
+.Sq } .
+The integers must lie between 0 and
+.Dv RE_DUP_MAX
+(255**) inclusive,
+and if there are two of them, the first may not exceed the second.
+An atom followed by a bound containing one integer
+.Ar i
+and no comma matches
+a sequence of exactly
+.Ar i
+matches of the atom.
+An atom followed by a bound
+containing one integer
+.Ar i
+and a comma matches
+a sequence of
+.Ar i
+or more matches of the atom.
+An atom followed by a bound
+containing two integers
+.Ar i
+and
+.Ar j
+matches a sequence of
+.Ar i
+through
+.Ar j
+(inclusive) matches of the atom.
+.Pp
+An atom is a regular expression enclosed in
+.Sq ()
+(matching a part of the regular expression),
+an empty set of
+.Sq ()
+(matching the null string)**,
+a
+.Em bracket expression
+(see below),
+.Sq .\&
+(matching any single character),
+.Sq ^
+(matching the null string at the beginning of a line),
+.Sq $
+(matching the null string at the end of a line),
+a
+.Sq \e
+followed by one of the characters
+.Sq ^.[$()|*+?{\e
+(matching that character taken as an ordinary character),
+a
+.Sq \e
+followed by any other character**
+(matching that character taken as an ordinary character,
+as if the
+.Sq \e
+had not been present**),
+or a single character with no other significance (matching that character).
+A
+.Sq {
+followed by a character other than a digit is an ordinary character,
+not the beginning of a bound**.
+It is illegal to end an RE with
+.Sq \e .
+.Pp
+A bracket expression is a list of characters enclosed in
+.Sq [] .
+It normally matches any single character from the list (but see below).
+If the list begins with
+.Sq ^ ,
+it matches any single character
+.Em not
+from the rest of the list
+(but see below).
+If two characters in the list are separated by
+.Sq - ,
+this is shorthand for the full
+.Em range
+of characters between those two (inclusive) in the
+collating sequence, e.g.\&
+.Sq [0-9]
+in ASCII matches any decimal digit.
+It is illegal** for two ranges to share an endpoint, e.g.\&
+.Sq a-c-e .
+Ranges are very collating-sequence-dependent,
+and portable programs should avoid relying on them.
+.Pp
+To include a literal
+.Sq ]\&
+in the list, make it the first character
+(following a possible
+.Sq ^ ) .
+To include a literal
+.Sq - ,
+make it the first or last character,
+or the second endpoint of a range.
+To use a literal
+.Sq -
+as the first endpoint of a range,
+enclose it in
+.Sq [.
+and
+.Sq .]
+to make it a collating element (see below).
+With the exception of these and some combinations using
+.Sq [
+(see next paragraphs),
+all other special characters, including
+.Sq \e ,
+lose their special significance within a bracket expression.
+.Pp
+Within a bracket expression, a collating element
+(a character,
+a multi-character sequence that collates as if it were a single character,
+or a collating-sequence name for either)
+enclosed in
+.Sq [.
+and
+.Sq .]
+stands for the sequence of characters of that collating element.
+The sequence is a single element of the bracket expression's list.
+A bracket expression containing a multi-character collating element
+can thus match more than one character,
+e.g. if the collating sequence includes a
+.Sq ch
+collating element,
+then the RE
+.Sq [[.ch.]]*c
+matches the first five characters of
+.Sq chchcc .
+.Pp
+Within a bracket expression, a collating element enclosed in
+.Sq [=
+and
+.Sq =]
+is an equivalence class, standing for the sequences of characters
+of all collating elements equivalent to that one, including itself.
+(If there are no other equivalent collating elements,
+the treatment is as if the enclosing delimiters were
+.Sq [.
+and
+.Sq .] . )
+For example, if
+.Sq x
+and
+.Sq y
+are the members of an equivalence class,
+then
+.Sq [[=x=]] ,
+.Sq [[=y=]] ,
+and
+.Sq [xy]
+are all synonymous.
+An equivalence class may not** be an endpoint of a range.
+.Pp
+Within a bracket expression, the name of a
+.Em character class
+enclosed
+in
+.Sq [:
+and
+.Sq :]
+stands for the list of all characters belonging to that class.
+Standard character class names are:
+.Bd -literal -offset indent
+alnum	digit	punct
+alpha	graph	space
+blank	lower	upper
+cntrl	print	xdigit
+.Ed
+.Pp
+These stand for the character classes defined in
+.Xr ctype 3 .
+A locale may provide others.
+A character class may not be used as an endpoint of a range.
+.Pp
+There are two special cases** of bracket expressions:
+the bracket expressions
+.Sq [[:<:]]
+and
+.Sq [[:>:]]
+match the null string at the beginning and end of a word, respectively.
+A word is defined as a sequence of
+characters starting and ending with a word character
+which is neither preceded nor followed by
+word characters.
+A word character is an
+.Em alnum
+character (as defined by
+.Xr ctype 3 )
+or an underscore.
+This is an extension,
+compatible with but not specified by POSIX,
+and should be used with
+caution in software intended to be portable to other systems.
+.Pp
+In the event that an RE could match more than one substring of a given
+string,
+the RE matches the one starting earliest in the string.
+If the RE could match more than one substring starting at that point,
+it matches the longest.
+Subexpressions also match the longest possible substrings, subject to
+the constraint that the whole match be as long as possible,
+with subexpressions starting earlier in the RE taking priority over
+ones starting later.
+Note that higher-level subexpressions thus take priority over
+their lower-level component subexpressions.
+.Pp
+Match lengths are measured in characters, not collating elements.
+A null string is considered longer than no match at all.
+For example,
+.Sq bb*
+matches the three middle characters of
+.Sq abbbc ;
+.Sq (wee|week)(knights|nights)
+matches all ten characters of
+.Sq weeknights ;
+when
+.Sq (.*).*
+is matched against
+.Sq abc ,
+the parenthesized subexpression matches all three characters;
+and when
+.Sq (a*)*
+is matched against
+.Sq bc ,
+both the whole RE and the parenthesized subexpression match the null string.
+.Pp
+If case-independent matching is specified,
+the effect is much as if all case distinctions had vanished from the
+alphabet.
+When an alphabetic that exists in multiple cases appears as an
+ordinary character outside a bracket expression, it is effectively
+transformed into a bracket expression containing both cases,
+e.g.\&
+.Sq x
+becomes
+.Sq [xX] .
+When it appears inside a bracket expression,
+all case counterparts of it are added to the bracket expression,
+so that, for example,
+.Sq [x]
+becomes
+.Sq [xX]
+and
+.Sq [^x]
+becomes
+.Sq [^xX] .
+.Pp
+No particular limit is imposed on the length of REs**.
+Programs intended to be portable should not employ REs longer
+than 256 bytes,
+as an implementation can refuse to accept such REs and remain
+POSIX-compliant.
+.Pp
+The following is a list of extended regular expressions:
+.Bl -tag -width Ds
+.It Ar c
+Any character
+.Ar c
+not listed below matches itself.
+.It \e Ns Ar c
+Any backslash-escaped character
+.Ar c
+matches itself.
+.It \&.
+Matches any single character that is not a newline
+.Pq Sq \en .
+.It Bq Ar char-class
+Matches any single character in
+.Ar char-class .
+To include a
+.Ql \&]
+in
+.Ar char-class ,
+it must be the first character.
+A range of characters may be specified by separating the end characters
+of the range with a
+.Ql - ;
+e.g.\&
+.Ar a-z
+specifies the lower case characters.
+The following literal expressions can also be used in
+.Ar char-class
+to specify sets of characters:
+.Bd -unfilled -offset indent
+[:alnum:] [:cntrl:] [:lower:] [:space:]
+[:alpha:] [:digit:] [:print:] [:upper:]
+[:blank:] [:graph:] [:punct:] [:xdigit:]
+.Ed
+.Pp
+If
+.Ql -
+appears as the first or last character of
+.Ar char-class ,
+then it matches itself.
+All other characters in
+.Ar char-class
+match themselves.
+.Pp
+Patterns in
+.Ar char-class
+of the form
+.Eo [.
+.Ar col-elm
+.Ec .]\&
+or
+.Eo [=
+.Ar col-elm
+.Ec =]\& ,
+where
+.Ar col-elm
+is a collating element, are interpreted according to
+.Xr setlocale 3
+.Pq not currently supported .
+.It Bq ^ Ns Ar char-class
+Matches any single character, other than newline, not in
+.Ar char-class .
+.Ar char-class
+is defined as above.
+.It ^
+If
+.Sq ^
+is the first character of a regular expression, then it
+anchors the regular expression to the beginning of a line.
+Otherwise, it matches itself.
+.It $
+If
+.Sq $
+is the last character of a regular expression,
+it anchors the regular expression to the end of a line.
+Otherwise, it matches itself.
+.It [[:<:]]
+Anchors the single character regular expression or subexpression
+immediately following it to the beginning of a word.
+.It [[:>:]]
+Anchors the single character regular expression or subexpression
+immediately following it to the end of a word.
+.It Pq Ar re
+Defines a subexpression
+.Ar re .
+Any set of characters enclosed in parentheses
+matches whatever the set of characters without parentheses matches
+(that is a long-winded way of saying the constructs
+.Sq (re)
+and
+.Sq re
+match identically).
+.It *
+Matches the single character regular expression or subexpression
+immediately preceding it zero or more times.
+If
+.Sq *
+is the first character of a regular expression or subexpression,
+then it matches itself.
+The
+.Sq *
+operator sometimes yields unexpected results.
+For example, the regular expression
+.Ar b*
+matches the beginning of the string
+.Qq abbb
+(as opposed to the substring
+.Qq bbb ) ,
+since a null match is the only leftmost match.
+.It +
+Matches the singular character regular expression
+or subexpression immediately preceding it
+one or more times.
+.It ?
+Matches the singular character regular expression
+or subexpression immediately preceding it
+0 or 1 times.
+.Sm off
+.It Xo
+.Pf { Ar n , m No }\ \&
+.Pf { Ar n , No }\ \&
+.Pf { Ar n No }
+.Xc
+.Sm on
+Matches the single character regular expression or subexpression
+immediately preceding it at least
+.Ar n
+and at most
+.Ar m
+times.
+If
+.Ar m
+is omitted, then it matches at least
+.Ar n
+times.
+If the comma is also omitted, then it matches exactly
+.Ar n
+times.
+.It \*(Ba
+Used to separate patterns.
+For example,
+the pattern
+.Sq cat\*(Badog
+matches either
+.Sq cat
+or
+.Sq dog .
+.El
+.Sh BASIC REGULAR EXPRESSIONS
+Basic regular expressions differ in several respects:
+.Bl -bullet -offset 3n
+.It
+.Sq \*(Ba ,
+.Sq + ,
+and
+.Sq ?\&
+are ordinary characters and there is no equivalent
+for their functionality.
+.It
+The delimiters for bounds are
+.Sq \e{
+and
+.Sq \e} ,
+with
+.Sq {
+and
+.Sq }
+by themselves ordinary characters.
+.It
+The parentheses for nested subexpressions are
+.Sq \e(
+and
+.Sq \e) ,
+with
+.Sq (
+and
+.Sq )\&
+by themselves ordinary characters.
+.It
+.Sq ^
+is an ordinary character except at the beginning of the
+RE or** the beginning of a parenthesized subexpression.
+.It
+.Sq $
+is an ordinary character except at the end of the
+RE or** the end of a parenthesized subexpression.
+.It
+.Sq *
+is an ordinary character if it appears at the beginning of the
+RE or the beginning of a parenthesized subexpression
+(after a possible leading
+.Sq ^ ) .
+.It
+Finally, there is one new type of atom, a
+.Em back-reference :
+.Sq \e
+followed by a non-zero decimal digit
+.Ar d
+matches the same sequence of characters matched by the
+.Ar d Ns th
+parenthesized subexpression
+(numbering subexpressions by the positions of their opening parentheses,
+left to right),
+so that, for example,
+.Sq \e([bc]\e)\e1
+matches
+.Sq bb\&
+or
+.Sq cc
+but not
+.Sq bc .
+.El
+.Pp
+The following is a list of basic regular expressions:
+.Bl -tag -width Ds
+.It Ar c
+Any character
+.Ar c
+not listed below matches itself.
+.It \e Ns Ar c
+Any backslash-escaped character
+.Ar c ,
+except for
+.Sq { ,
+.Sq } ,
+.Sq \&( ,
+and
+.Sq \&) ,
+matches itself.
+.It \&.
+Matches any single character that is not a newline
+.Pq Sq \en .
+.It Bq Ar char-class
+Matches any single character in
+.Ar char-class .
+To include a
+.Ql \&]
+in
+.Ar char-class ,
+it must be the first character.
+A range of characters may be specified by separating the end characters
+of the range with a
+.Ql - ;
+e.g.\&
+.Ar a-z
+specifies the lower case characters.
+The following literal expressions can also be used in
+.Ar char-class
+to specify sets of characters:
+.Bd -unfilled -offset indent
+[:alnum:] [:cntrl:] [:lower:] [:space:]
+[:alpha:] [:digit:] [:print:] [:upper:]
+[:blank:] [:graph:] [:punct:] [:xdigit:]
+.Ed
+.Pp
+If
+.Ql -
+appears as the first or last character of
+.Ar char-class ,
+then it matches itself.
+All other characters in
+.Ar char-class
+match themselves.
+.Pp
+Patterns in
+.Ar char-class
+of the form
+.Eo [.
+.Ar col-elm
+.Ec .]\&
+or
+.Eo [=
+.Ar col-elm
+.Ec =]\& ,
+where
+.Ar col-elm
+is a collating element, are interpreted according to
+.Xr setlocale 3
+.Pq not currently supported .
+.It Bq ^ Ns Ar char-class
+Matches any single character, other than newline, not in
+.Ar char-class .
+.Ar char-class
+is defined as above.
+.It ^
+If
+.Sq ^
+is the first character of a regular expression, then it
+anchors the regular expression to the beginning of a line.
+Otherwise, it matches itself.
+.It $
+If
+.Sq $
+is the last character of a regular expression,
+it anchors the regular expression to the end of a line.
+Otherwise, it matches itself.
+.It [[:<:]]
+Anchors the single character regular expression or subexpression
+immediately following it to the beginning of a word.
+.It [[:>:]]
+Anchors the single character regular expression or subexpression
+immediately following it to the end of a word.
+.It \e( Ns Ar re Ns \e)
+Defines a subexpression
+.Ar re .
+Subexpressions may be nested.
+A subsequent backreference of the form
+.Pf \e Ns Ar n ,
+where
+.Ar n
+is a number in the range [1,9], expands to the text matched by the
+.Ar n Ns th
+subexpression.
+For example, the regular expression
+.Ar \e(.*\e)\e1
+matches any string consisting of identical adjacent substrings.
+Subexpressions are ordered relative to their left delimiter.
+.It *
+Matches the single character regular expression or subexpression
+immediately preceding it zero or more times.
+If
+.Sq *
+is the first character of a regular expression or subexpression,
+then it matches itself.
+The
+.Sq *
+operator sometimes yields unexpected results.
+For example, the regular expression
+.Ar b*
+matches the beginning of the string
+.Qq abbb
+(as opposed to the substring
+.Qq bbb ) ,
+since a null match is the only leftmost match.
+.Sm off
+.It Xo
+.Pf \e{ Ar n , m No \e}\ \&
+.Pf \e{ Ar n , No \e}\ \&
+.Pf \e{ Ar n No \e}
+.Xc
+.Sm on
+Matches the single character regular expression or subexpression
+immediately preceding it at least
+.Ar n
+and at most
+.Ar m
+times.
+If
+.Ar m
+is omitted, then it matches at least
+.Ar n
+times.
+If the comma is also omitted, then it matches exactly
+.Ar n
+times.
+.El
+.Sh SEE ALSO
+.Xr ctype 3 ,
+.Xr regex 3
+.Sh STANDARDS
+.St -p1003.1-2004 :
+Base Definitions, Chapter 9 (Regular Expressions).
+.Sh BUGS
+Having two kinds of REs is a botch.
+.Pp
+The current POSIX spec says that
+.Sq )\&
+is an ordinary character in the absence of an unmatched
+.Sq ( ;
+this was an unintentional result of a wording error,
+and change is likely.
+Avoid relying on it.
+.Pp
+Back-references are a dreadful botch,
+posing major problems for efficient implementations.
+They are also somewhat vaguely defined
+(does
+.Sq a\e(\e(b\e)*\e2\e)*d
+match
+.Sq abbbd ? ) .
+Avoid using them.
+.Pp
+POSIX's specification of case-independent matching is vague.
+The
+.Dq one case implies all cases
+definition given above
+is the current consensus among implementors as to the right interpretation.
+.Pp
+The syntax for word boundaries is incredibly ugly.

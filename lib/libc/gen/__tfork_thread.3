@@ -1,0 +1,142 @@
+.\" $OpenBSD: __tfork_thread.3,v 1.4 2016/05/11 21:52:49 deraadt Exp $
+.\"
+.\" Copyright (c) 2011 Philip Guenther <guenther@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 11 2016 $
+.Dt __TFORK_THREAD 3
+.Os
+.Sh NAME
+.Nm __tfork_thread ,
+.Nm __tfork
+.Nd create a new kernel thread in the current process
+.Sh SYNOPSIS
+.In unistd.h
+.Bd -literal
+struct __tfork {
+        void    *tf_tcb;            /* TCB address for new thread */
+        pid_t   *tf_tid;            /* where to write child's thread ID */
+        void    *tf_stack;          /* stack address for new thread */
+};
+.Ed
+.Pp
+.Ft pid_t
+.Fn __tfork_thread "const struct __tfork *params" "size_t psize" "void (*startfunc)(void *)" "void *startarg"
+.Ft pid_t
+.Fn __tfork "const struct __tfork *params" "size_t psize"
+.Sh DESCRIPTION
+The
+.Fn __tfork_thread
+function creates a new kernel thread in the current process.
+The new thread starts by calling
+.Fa startfunc ,
+passing
+.Fa startarg
+as the only argument.
+If
+.Fa startfunc
+returns, the thread will exit.
+.Pp
+The
+.Fa params
+argument provides parameters used by the kernel during thread creation.
+The new thread's thread control block (TCB) address is set to
+.Em tf_tcb .
+If
+.Em tf_tid
+is not NULL, the new thread's thread ID is returned to the user at that
+address, with the guarantee that this is done before returning to
+userspace in either the calling thread or the new thread.
+If
+.Em tf_stack
+is not NULL, the new thread's stack is initialized to start at that address.
+On hppa that is the lowest address used;
+on other architectures that is the address after the highest address used.
+.Pp
+The
+.Fa psize
+argument provides the size of the
+.Vt "struct __tfork"
+passed via the
+.Fa params
+argument.
+.Pp
+The underlying system call used to create the thread is
+.Fn __tfork .
+Because the new thread returns without a stack frame,
+the syscall cannot be directly used from C and is therefore not
+provided as a function.
+However, the syscall may show up in the output of
+.Xr kdump 1 .
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn __tfork_thread
+returns in the calling thread the thread ID of new thread.
+The
+.Fn __tfork
+syscall itself, on success, returns a value of 0 in the new thread
+and returns the thread ID of the new thread to the calling thread.
+Otherwise, a value of -1 is returned, no thread is created, and the
+global variable
+.Va errno
+is set to indicate an error.
+.Sh ERRORS
+.Fn __tfork_thread
+and
+.Fn __tfork
+will fail and no thread will be created if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Cannot allocate memory.
+The new process image required more memory than was allowed by the hardware or
+by system-imposed memory management constraints.
+A lack of swap space is normally temporary; however, a lack of core is not.
+Soft limits may be increased to their corresponding hard limits.
+.It Bq Er EINVAL
+Invalid argument.
+Some invalid argument was supplied.
+.It Bq Er EAGAIN
+Resource temporarily unavailable.
+The system-imposed limit on the total
+number of threads under execution would be exceeded.
+This limit is configuration-dependent.
+.It Bq Er EAGAIN
+Resource temporarily unavailable.
+The system-imposed limit
+.Dv MAXUPRC
+on the total number of threads under execution by a single user would be
+exceeded.
+.Dv MAXUPRC
+is currently defined in
+.In sys/param.h
+as
+.Dv CHILD_MAX ,
+which is currently defined as 80 in
+.In sys/syslimits.h .
+.El
+.Sh STANDARDS
+The
+.Fn __tfork_thread
+function and
+.Fn __tfork
+syscall are specific to
+.Ox
+and should not be used in portable applications.
+.Sh HISTORY
+The
+.Fn __tfork_thread
+function and
+.Fn __tfork
+syscall appeared in
+.Ox 5.1 .

@@ -1,0 +1,326 @@
+.\"	$OpenBSD: setlocale.3,v 1.24 2022/08/04 06:20:24 jsg Exp $
+.\"	$NetBSD: setlocale.3,v 1.3 1997/07/14 23:19:47 kleink Exp $
+.\"
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Donn Seeley at BSDI.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)setlocale.3	8.1 (Berkeley) 6/9/93
+.\"
+.Dd $Mdocdate: August 4 2022 $
+.Dt SETLOCALE 3
+.Os
+.Sh NAME
+.Nm setlocale
+.Nd select character encoding
+.Sh SYNOPSIS
+.In locale.h
+.Ft char *
+.Fn setlocale "int category" "const char *locale"
+.Sh DESCRIPTION
+The
+.Fn setlocale
+function sets and retrieves the active
+.Fa locale
+for the current process.
+The locale modifies the behaviour of some functions in the C library
+with respect to the character encoding, and on other operating systems
+also with respect to some language and cultural conventions.
+For more information about locales in general, see the
+.Xr locale 1
+manual page.
+.Pp
+On
+.Ox ,
+the only useful value for the
+.Fa category
+is
+.Dv LC_CTYPE .
+It sets the locale used for character encoding, character classification,
+and case conversion.
+For compatibility with natural language support in
+.Xr packages 7 ,
+all other categories \(em
+.Dv LC_COLLATE ,
+.Dv LC_MESSAGES ,
+.Dv LC_MONETARY ,
+.Dv LC_NUMERIC ,
+and
+.Dv LC_TIME
+\(em can be set and retrieved, too, but their values are ignored by the
+.Ox
+C library.
+A category of
+.Dv LC_ALL
+sets the entire locale generically, which is strongly discouraged for
+security reasons in portable programs.
+.Pp
+The syntax and semantics of the
+.Fa locale
+argument are not standardized and vary among operating systems.
+On
+.Ox ,
+if the
+.Fa locale
+string ends with
+.Qq ".UTF-8" ,
+the UTF-8 locale is selected; otherwise, the
+.Qq C
+locale is selected, which uses the ASCII character set.
+If the
+.Fa locale
+contains a dot but does not end with
+.Qq ".UTF-8" ,
+.Fn setlocale
+fails.
+.Pp
+If
+.Fa locale
+is an empty string
+.Pq Qq ,
+the value of the environment variable
+.Ev LC_ALL ,
+with a fallback to the variable corresponding to
+.Fa category ,
+and with a further fallback to
+.Ev LANG ,
+is used instead, as documented in the
+.Xr locale 1
+manual page.
+.Pp
+If
+.Fa locale
+is
+.Dv NULL ,
+the locale remains unchanged.
+This can be used to determine the currently active locale.
+.Pp
+By default, C programs start in the
+.Qq C
+locale.
+The only function in the library that sets the locale is
+.Fn setlocale ;
+the locale is never changed as a side effect of some other routine.
+.Pp
+The
+.Dv LC_CTYPE
+category modifies the behaviour of at least the following functions:
+.Xr iswctype 3 ,
+.Xr mblen 3 ,
+.Xr mbrlen 3 ,
+.Xr mbrtowc 3 ,
+.Xr mbsrtowcs 3 ,
+.Xr mbstowcs 3 ,
+.Xr mbtowc 3 ,
+.Xr towctrans 3 ,
+.Xr towlower 3 ,
+.Xr towupper 3 ,
+.Xr wcrtomb 3 ,
+.Xr wcscasecmp 3 ,
+.Xr wcsrtombs 3 ,
+.Xr wcstombs 3 ,
+.Xr wctomb 3 ,
+.Xr wctrans 3 ,
+.Xr wctype 3 ,
+and the functions documented in
+.Xr iswalnum 3 .
+.Sh RETURN VALUES
+In case of success,
+.Fn setlocale
+returns a pointer to a static string describing the locale
+that is in force after the call.
+Subsequent calls to
+.Fn setlocale
+may change the content of the string.
+The format of the string is not standardized and varies among
+operating systems.
+.Pp
+On
+.Ox ,
+if
+.Fn setlocale
+was never called with a
+.Pf non- Dv NULL
+.Fa locale
+argument, the string
+.Qq C
+is returned.
+Otherwise, if the
+.Fa category
+was not
+.Dv LC_ALL
+or if the locale is the same for all categories, a copy of the
+.Fa locale
+argument is returned.
+Otherwise, the locales for the six categories
+.Dv LC_COLLATE ,
+.Dv LC_CTYPE ,
+.Dv LC_MESSAGES ,
+.Dv LC_MONETARY ,
+.Dv LC_NUMERIC ,
+.Dv LC_TIME
+are concatenated in that order, with slash
+.Pq Ql /
+characters in between.
+.Pp
+In case of failure,
+.Fn setlocale
+returns
+.Dv NULL .
+On
+.Ox ,
+that can only happen if the
+.Fa category
+is invalid, if a character encoding other than UTF-8 is requested,
+if the requested
+.Fa locale
+name is of excessive length, or if memory allocation fails.
+.Sh EXAMPLES
+Calling
+.Pp
+.Dl setlocale(LC_CTYPE, \(dqen_US.UTF-8\(dq);
+.Pp
+at the beginning of a program selects the UTF-8 locale and returns
+.Qq en_US.UTF-8 .
+Calling
+.Pp
+.Dl setlocale(LC_ALL, NULL);
+.Pp
+right afterwards leaves the locale unchanged and returns
+.Qq C/en_US.UTF-8/C/C/C/C .
+.Sh SEE ALSO
+.Xr locale 1 ,
+.Xr newlocale 3 ,
+.Xr nl_langinfo 3 ,
+.Xr uselocale 3
+.Sh STANDARDS
+The
+.Fn setlocale
+function conforms to
+.St -ansiC .
+.Sh HISTORY
+The
+.Fn setlocale
+function first appeared in
+.Bx 4.3 Net/2 .
+.Sh CAVEATS
+On systems other than
+.Ox ,
+calling
+.Fn setlocale
+or
+.Xr uselocale 3
+with a
+.Fa category
+other than
+.Dv LC_CTYPE
+can cause erratic behaviour of many library functions.
+For security reasons, make sure that portable programs only use
+.Dv LC_CTYPE .
+.Pp
+For example, the following functions may be affected.
+The list is probably incomplete.
+For example, additional library functions may be impacted
+if they directly or indirectly call affected functions,
+or if they attempt to imitate aspects of their behaviour.
+Functions that are not standardized may be affected too.
+.Bl -tag -width Ds
+.It Dv LC_COLLATE
+.Xr glob 3 ,
+.Xr strcoll 3 ,
+.Xr strxfrm 3 ,
+.Xr wcscoll 3 ,
+.Xr wcsxfrm 3 ,
+and the functions documented in
+.Xr regexec 3
+.It Dv LC_MESSAGES
+.Xr catgets 3 ,
+.Xr catopen 3 ,
+.Xr nl_langinfo 3 ,
+.Xr perror 3 ,
+.Xr psignal 3 ,
+.Xr strerror 3 ,
+.Xr strsignal 3 ,
+and the functions documented in
+.Xr err 3
+.It Dv LC_MONETARY
+.Xr localeconv 3 ,
+.Xr nl_langinfo 3 ,
+.Fn strfmon
+.It Dv LC_NUMERIC
+.Xr atof 3 ,
+.Xr localeconv 3 ,
+.Xr nl_langinfo 3 ,
+.Fn strfmon ,
+and the functions documented in
+.Xr printf 3 ,
+.Xr scanf 3 ,
+.Xr strtod 3 ,
+.Xr wcstod 3 ,
+.Xr wprintf 3 ,
+.Xr wscanf 3 .
+This category is particularly dangerous because it can cause bugs
+in the parsing and formatting of numbers, for example failures to
+recognize or properly write decimal points.
+.It Dv LC_TIME
+.Fn getdate ,
+.Xr nl_langinfo 3 ,
+.Xr strftime 3 ,
+.Xr strptime 3 .
+Similarly, this is prone to causing bugs in the parsing and formatting
+of date strings.
+.It Dv LC_CTYPE
+On systems other than
+.Ox ,
+this category may affect the behaviour of additional functions,
+for example:
+.Xr btowc 3 ,
+.Xr isalnum 3 ,
+.Xr isalpha 3 ,
+.Xr isblank 3 ,
+.Xr iscntrl 3 ,
+.Xr isdigit 3 ,
+.Xr isgraph 3 ,
+.Xr islower 3 ,
+.Xr isprint 3 ,
+.Xr ispunct 3 ,
+.Xr isspace 3 ,
+.Xr isupper 3 ,
+.Xr isxdigit 3 ,
+.Xr mbsinit 3 ,
+.Xr strcasecmp 3 ,
+.Xr strcoll 3 ,
+.Xr strxfrm 3 ,
+.Xr tolower 3 ,
+.Xr toupper 3 ,
+.Xr vis 3 ,
+.Xr wcscoll 3 ,
+.Xr wcsxfrm 3 ,
+.Xr wctob 3
+.El

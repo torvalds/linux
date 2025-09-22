@@ -1,0 +1,6 @@
+stdin:2: af-to cannot be used together with route-to, reply-to, dup-to
+stdin:3: af-to cannot be used together with route-to, reply-to, dup-to
+stdin:4: af-to cannot be used together with route-to, reply-to, dup-to
+stdin:6: af-to cannot be used together with route-to, reply-to, dup-to
+stdin:7: af-to cannot be used together with route-to, reply-to, dup-to
+stdin:8: af-to cannot be used together with route-to, reply-to, dup-to

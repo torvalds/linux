@@ -1,0 +1,125 @@
+$OpenBSD: README,v 1.4 2022/01/11 05:34:32 jsg Exp $
+$NetBSD: README,v 1.7 2015/01/12 19:50:47 christos Exp $
+
+makefs - build a file system image from a directory tree
+
+NOTES:
+
+    *   This tool uses modified local copies of source found in other
+	parts of the tree.  This is intentional.
+
+    *	makefs is a work in progress, and subject to change.
+
+
+user overview:
+--------------
+
+makefs creates a file system image from a given directory tree.
+the following file system types can be built:
+
+	cd9660	ISO 9660 file system
+	ffs	BSD fast file system
+	msdos	MS-DOS `FAT' file system (FAT12, FAT16, FAT32)
+
+Various file system independent parameters and constraints can be
+specified, such as:
+
+	- minimum file system size (in KB)
+	- maximum file system size (in KB)
+	- free inodes
+	- free blocks (in KB)
+	- file containing list of files to specifically exclude or include
+	- fnmatch(3) pattern of filenames to exclude or include
+	- endianness of target file system
+
+File system specific parameters can be given as well, with a command
+line option such as "-o fsspeccific-options,comma-separated".
+For example, ffs would allow tuning of:
+
+	- block & fragment size
+	- cylinder groups
+	- number of blocks per inode
+	- minimum free space
+
+Other file systems might have controls on how to "munge" file names to
+fit within the constraints of the target file system.
+
+Exit codes:
+	0	all ok
+	1	fatal error
+	2	some files couldn't be added during image creation
+		(bad perms, missing file, etc). image will continue
+		to be made
+
+
+Implementation overview:
+------------------------
+
+The implementation must allow for easy addition of extra file systems
+with minimal changes to the file system independent sections.
+
+The main program will:
+	- parse the options, including calling fs-specific routines to
+	  validate fs-specific options
+	- walk the tree, building up a data structure which represents
+	  the tree to stuff into the image. The structure will
+	  probably be a similar tree to what mtree(8) uses internally;
+	  a linked list of entries per directory with a child pointer
+	  to children of directories. ".." won't be stored in the list;
+	  the fs-specific tree walker should add this if required by the fs.
+	  this builder have the smarts to handle hard links correctly.
+	- Call an fs-specific routine to build the image based on the
+	  data structures.
+
+Each fs-specific module should have the following external interfaces:
+
+    prepare_options	optional file system specific defaults that need to be
+			setup before parsing fs-specific options.
+
+    parse_options	parse the string for fs-specific options, feeding
+			errors back to the user as appropriate
+
+    cleanup_options	optional file system specific data that need to be
+			cleaned up when done with this filesystem.
+
+    make_fs		take the data structures representing the
+			directory tree and fs parameters,
+			validate that the parameters are valid
+			(e.g, the requested image will be large enough),
+			create the image, and
+			populate the image
+
+prepare_options and cleanup_options are optional and can be NULL.
+
+NOTE: All file system specific options are referenced via the fs_specific
+pointer from the fsinfo_t structure. It is up to the filesystem to allocate
+and free any data needed for this via the prepare and cleanup callbacks.
+
+Each fs-specific module will need to add its routines to the dispatch array
+in makefs.c and add prototypes for these to makefs.h
+
+All other implementation details should not need to change any of the
+generic code.
+
+ffs implementation
+------------------
+
+In the ffs case, we can leverage off sbin/newfs/mkfs.c to actually build
+the image. When building and populating the image, the implementation
+can be greatly simplified if some assumptions are made:
+	- the total required size (in blocks and inodes) is determined
+	  as part of the validation phase
+	- a "file" (including a directory) has a known size, so
+	  support for growing a file is not necessary
+
+Two underlying primitives are provided:
+	make_inode	create an inode, returning the inode number
+
+	write_file	write file (from memory if DIR, file descriptor
+			if FILE or SYMLINK), referencing given inode.
+			it is smart enough to know if a short symlink
+			can be stuffed into the inode, etc.
+
+When creating a directory, the directory entries in the previously
+built tree data structure is scanned and built in memory so it can
+be written entirely as a single write_file() operation.

@@ -1,0 +1,33 @@
+.\" $OpenBSD: defaultdomain.5,v 1.5 2017/07/13 19:16:33 jmc Exp $
+.\" Written by Jared Yanovich
+.\" This file belongs to the public domain.
+.Dd $Mdocdate: July 13 2017 $
+.Dt DEFAULTDOMAIN 5
+.Os
+.Sh NAME
+.Nm defaultdomain
+.Nd default YP domain name
+.Sh DESCRIPTION
+The
+.Nm
+file is read by
+.Xr rc 8
+at system startup time.
+It is used to set the YP domain name of the host machine (see
+.Xr yp 8 ) .
+.Pp
+This file should contain a single line specifying the system domain name as
+supplied to
+.Xr domainname 1 .
+Empty lines and lines beginning with
+.Sq #
+in the file are ignored.
+.Sh FILES
+.Bl -tag -width "/etc/defaultdomain" -compact
+.It Pa /etc/defaultdomain
+default domain name
+.El
+.Sh SEE ALSO
+.Xr domainname 1 ,
+.Xr rc 8 ,
+.Xr yp 8

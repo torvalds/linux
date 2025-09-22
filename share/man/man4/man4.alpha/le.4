@@ -1,0 +1,28 @@
+.\"     $OpenBSD: le.4,v 1.13 2007/05/31 19:19:53 jmc Exp $
+.\"
+.\" Copyright (c) 1998 The OpenBSD Project
+.\" All rights reserved.
+.\"
+.Dd $Mdocdate: May 31 2007 $
+.Dt LE 4 alpha
+.Os
+.Sh NAME
+.Nm le
+.Nd AMD LANCE Ethernet device
+.Sh SYNOPSIS
+.Cd "le* at ioasic?" Pq "TURBOchannel Alphas"
+.Cd "le* at tc?" Pq "TURBOchannel Alphas"
+.Sh DESCRIPTION
+The
+.Nm
+interface provides access to the Ethernet network via the
+.Tn AMD
+.Tn LANCE
+Ethernet chip set.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr hostname.if 5 ,
+.Xr ifconfig 8

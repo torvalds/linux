@@ -1,0 +1,860 @@
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: malloc.3,v 1.147 2025/06/04 00:38:01 yasuoka Exp $
+.\"
+.Dd $Mdocdate: June 4 2025 $
+.Dt MALLOC 3
+.Os
+.Sh NAME
+.Nm malloc ,
+.Nm calloc ,
+.Nm realloc ,
+.Nm free ,
+.Nm reallocarray ,
+.Nm recallocarray ,
+.Nm freezero ,
+.Nm aligned_alloc ,
+.Nm malloc_conceal ,
+.Nm calloc_conceal
+.Nd memory allocation and deallocation
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft void *
+.Fn malloc "size_t size"
+.Ft void *
+.Fn calloc "size_t nmemb" "size_t size"
+.Ft void *
+.Fn realloc "void *ptr" "size_t size"
+.Ft void
+.Fn free "void *ptr"
+.Ft void *
+.Fn reallocarray "void *ptr" "size_t nmemb" "size_t size"
+.Ft void *
+.Fn recallocarray "void *ptr" "size_t oldnmemb" "size_t nmemb" "size_t size"
+.Ft void
+.Fn freezero "void *ptr" "size_t size"
+.Ft void *
+.Fn aligned_alloc "size_t alignment" "size_t size"
+.Ft void *
+.Fn malloc_conceal "size_t size"
+.Ft void *
+.Fn calloc_conceal "size_t nmemb" "size_t size"
+.Vt const char * const
+.Va malloc_options ;
+.Sh DESCRIPTION
+The standard functions
+.Fn malloc ,
+.Fn calloc ,
+and
+.Fn realloc
+allocate
+.Em objects ,
+regions of memory to store values.
+The
+.Fn malloc
+function allocates uninitialized space for an object of
+the specified
+.Fa size .
+.Fn malloc
+maintains multiple lists of free objects according to size, allocating
+from the appropriate list or requesting memory from the kernel.
+The allocated space is suitably aligned (after possible pointer coercion) for
+storage of any type of object.
+.Pp
+The
+.Fn calloc
+function allocates space for an array of
+.Fa nmemb
+objects, each of the specified
+.Fa size .
+The space is initialized to zero.
+.Pp
+The
+.Fn realloc
+function changes the size of the object pointed to by
+.Fa ptr
+to
+.Fa size
+bytes and returns a pointer to the (possibly moved) object.
+If
+.Fa ptr
+is not
+.Dv NULL ,
+it must be a pointer returned by an earlier call to an allocation or
+reallocation function that was not freed in between.
+The contents of the object are unchanged up to the lesser
+of the new and old sizes.
+If the new size is larger, the value of the newly allocated portion
+of the object is indeterminate and uninitialized.
+If the space cannot be allocated, the object
+pointed to by
+.Fa ptr
+is unchanged.
+If
+.Fa ptr
+is
+.Dv NULL ,
+.Fn realloc
+behaves like
+.Fn malloc
+and allocates a new object.
+.Pp
+The
+.Fn free
+function causes the space pointed to by
+.Fa ptr
+to be either placed on a list of free blocks to make it available for future
+allocation or, when appropriate, to be returned to the kernel using
+.Xr munmap 2 .
+If
+.Fa ptr
+is
+.Dv NULL ,
+no action occurs.
+If
+.Fa ptr
+was previously freed by
+.Fn free
+or a reallocation function,
+the behavior is undefined and the double free is a security concern.
+.Pp
+Designed for safe allocation of arrays,
+the
+.Fn reallocarray
+function is similar to
+.Fn realloc
+except it operates on
+.Fa nmemb
+members of size
+.Fa size
+and checks for integer overflow in the calculation
+.Fa nmemb
+*
+.Fa size .
+.Pp
+Used for the allocation of memory holding sensitive data,
+the
+.Fn recallocarray
+and
+.Fn freezero
+functions guarantee that memory becoming unallocated is explicitly
+.Em discarded ,
+meaning pages of memory are disposed via
+.Xr munmap 2
+and cached free objects are cleared with
+.Xr explicit_bzero 3 .
+.Pp
+The
+.Fn recallocarray
+function is similar to
+.Fn reallocarray
+except it ensures newly allocated memory is cleared similar to
+.Fn calloc .
+If
+.Fa ptr
+is
+.Dv NULL ,
+.Fa oldnmemb
+is ignored and the call is equivalent to
+.Fn calloc .
+If
+.Fa ptr
+is not
+.Dv NULL ,
+.Fa oldnmemb
+must be a value such that
+.Fa oldnmemb
+*
+.Fa size
+is the size of the earlier allocation that returned
+.Fa ptr ,
+otherwise the behavior is undefined.
+.Pp
+The
+.Fn freezero
+function is similar to the
+.Fn free
+function except it ensures memory is explicitly discarded.
+If
+.Fa ptr
+is
+.Dv NULL ,
+no action occurs.
+If
+.Fa ptr
+is not
+.Dv NULL ,
+the
+.Fa size
+argument must be equal to or smaller than the size of the earlier allocation
+that returned
+.Fa ptr .
+.Fn freezero
+guarantees the memory range starting at
+.Fa ptr
+with length
+.Fa size
+is discarded while deallocating the whole object originally allocated.
+.Pp
+The
+.Fn aligned_alloc
+function allocates
+.Fa size
+bytes of memory such that the allocation's base address is a multiple of
+.Fa alignment .
+The requested
+.Fa alignment
+must be a power of 2.
+If
+.Fa size
+is not a multiple of
+.Fa alignment ,
+behavior is undefined.
+.Pp
+The
+.Fn malloc_conceal
+and
+.Fn calloc_conceal
+functions behave the same as
+.Fn malloc
+and
+.Fn calloc
+respectively,
+with the exception that the allocation returned is marked with the
+.Dv MAP_CONCEAL
+.Xr mmap 2
+flag and calling
+.Fn free
+on the allocation will discard the contents explicitly.
+A reallocation of a concealed allocation will leave these properties intact.
+.Sh MALLOC OPTIONS
+Upon the first call to the
+.Fn malloc
+family of functions, an initialization sequence inspects the
+value of the
+.Va vm.malloc_conf
+.Xr sysctl 2 ,
+next checks the environment for a variable called
+.Ev MALLOC_OPTIONS ,
+and finally looks at the global variable
+.Va malloc_options
+in the program.
+Since
+.Fn malloc
+might already get called before the beginning of
+.Fn main ,
+either initialize
+.Va malloc_options
+to a string literal at file scope or do not declare it at all.
+.Pp
+Each of the three strings is scanned for the flags documented below.
+Unless otherwise noted uppercase means on, lowercase means off.
+During initialization, flags occurring later modify the behaviour
+that was requested by flags processed earlier.
+.Bl -tag -width indent
+.It Cm C
+.Dq Canaries .
+Add canaries at the end of allocations in order to detect
+heap overflows.
+The canary's content is checked when
+.Nm free
+is called.
+If it has been corrupted, the process is aborted.
+.It Cm D
+.Dq Dump .
+.Fn malloc
+will dump a leak report using
+.Xr utrace 2
+at exit.
+To record the dump:
+.Pp
+.Dl $ MALLOC_OPTIONS=D ktrace -tu program ...
+.Pp
+To view the leak report:
+.Pp
+.Dl $ kdump -u malloc ...
+.Pp
+By default, the immediate caller of a
+.Nm
+function will be recorded.
+Use malloc option
+.Cm 2 ,
+.Cm 3
+or
+.Cm 4
+to record deeper call stacks.
+These malloc options imply
+.Cm D .
+.It Cm F
+.Dq Freecheck .
+Enable more extensive double free and write after free detection.
+All chunks in the delayed free list will be checked for double frees and
+write after frees.
+Unused pages on the freelist are read and write protected to
+cause a segmentation fault upon access.
+.It Cm G
+.Dq Guard .
+Enable guard pages.
+Each page size or larger allocation is followed by a guard page that will
+cause a segmentation fault upon any access.
+.It Cm J
+.Dq More junking .
+Increase the junk level by one if it is smaller than 2.
+.It Cm j
+.Dq Less junking .
+Decrease the junk level by one if it is larger than 0.
+Junking writes some junk bytes into the area allocated.
+Junk is bytes of 0xdb when allocating;
+small allocations are initially junked with 0xdf as are freed allocations.
+By default the junk level is 1: after free,
+small chunks are completely junked;
+for pages the first part is junked.
+After a delay,
+the filling pattern is validated and the process is aborted if the pattern
+was modified.
+For junk level 2, junking is done on allocation as well and without size
+restrictions.
+If the junk level is zero, no junking is performed.
+.It Cm R
+.Dq realloc .
+Always reallocate when
+.Fn realloc
+is called, even if the initial allocation was big enough.
+.\".Pp
+.\".It Cm U
+.\".Dq utrace .
+.\"Generate entries for
+.\".Xr ktrace 1
+.\"for all operations.
+.\"Consult the source for this one.
+.It Cm S
+.\" Malloc option S is vaguely documented on purpose.
+Enable all options suitable for security auditing.
+.It Cm U
+.Dq Free unmap .
+Enable use after free protection for larger allocations.
+Unused pages on the freelist are read and write protected to
+cause a segmentation fault upon access.
+.It Cm V
+.Dq Verbose .
+Use with
+.Cm D
+to get a verbose dump of malloc's internal state.
+.It Cm X
+.Dq xmalloc .
+Rather than return failure to handle out-of-memory conditions gracefully,
+.Xr abort 3
+the program with a diagnostic message on stderr.
+.It Cm <
+.Dq Halve the cache size .
+Decrease the size of the free page cache by a factor of two.
+.It Cm >
+.Dq Double the cache size .
+Increase the size of the free page cache by a factor of two.
+.El
+.Pp
+If a program changes behavior if any of these options (except
+.Cm X )
+are used,
+it is buggy.
+.Pp
+The default size of the cache is 64 single page allocations.
+It also caches a number of larger regions.
+Multi-threaded programs use multiple pools.
+.Sh RETURN VALUES
+Upon successful completion, the allocation functions
+return a pointer to the allocated space; otherwise,
+.Dv NULL
+is returned and
+.Va errno
+is set to
+.Er ENOMEM .
+The function
+.Fn aligned_alloc
+returns
+.Dv NULL
+and sets
+.Va errno
+to
+.Er EINVAL
+if
+.Fa alignment
+is not a power of 2.
+.Pp
+If
+.Fa nmemb
+or
+.Fa size
+is equal to 0, a unique pointer to an access protected,
+zero sized object is returned.
+Access via this pointer will generate a
+.Dv SIGSEGV
+exception.
+.Pp
+If multiplying
+.Fa nmemb
+and
+.Fa size
+results in integer overflow,
+.Fn calloc ,
+.Fn reallocarray
+and
+.Fn recallocarray
+return
+.Dv NULL
+and set
+.Va errno
+to
+.Er ENOMEM .
+.Pp
+If
+.Fa ptr
+is not
+.Dv NULL
+and multiplying
+.Fa oldnmemb
+and
+.Fa size
+results in integer overflow,
+.Fn recallocarray
+returns
+.Dv NULL
+and sets
+.Va errno
+to
+.Er EINVAL .
+.Sh IDIOMS
+Consider
+.Fn calloc
+or the extensions
+.Fn reallocarray
+and
+.Fn recallocarray
+when there is multiplication in the
+.Fa size
+argument of
+.Fn malloc
+or
+.Fn realloc .
+For example, avoid this common idiom as it may lead to integer overflow:
+.Bd -literal -offset indent
+if ((p = malloc(num * size)) == NULL)
+	err(1, NULL);
+.Ed
+.Pp
+A drop-in replacement is the
+.Ox
+extension
+.Fn reallocarray :
+.Bd -literal -offset indent
+if ((p = reallocarray(NULL, num, size)) == NULL)
+	err(1, NULL);
+.Ed
+.Pp
+Alternatively,
+.Fn calloc
+may be used at the cost of initialization overhead.
+.Pp
+When using
+.Fn realloc ,
+be careful to avoid the following idiom:
+.Bd -literal -offset indent
+size += 50;
+if ((p = realloc(p, size)) == NULL)
+	return (NULL);
+.Ed
+.Pp
+Do not adjust the variable describing how much memory has been allocated
+until the allocation has been successful.
+This can cause aberrant program behavior if the incorrect size value is used.
+In most cases, the above sample will also result in a leak of memory.
+As stated earlier, a return value of
+.Dv NULL
+indicates that the old object still remains allocated.
+Better code looks like this:
+.Bd -literal -offset indent
+newsize = size + 50;
+if ((newp = realloc(p, newsize)) == NULL) {
+	free(p);
+	p = NULL;
+	size = 0;
+	return (NULL);
+}
+p = newp;
+size = newsize;
+.Ed
+.Pp
+As with
+.Fn malloc ,
+it is important to ensure the new size value will not overflow;
+i.e. avoid allocations like the following:
+.Bd -literal -offset indent
+if ((newp = realloc(p, num * size)) == NULL) {
+	...
+.Ed
+.Pp
+Instead, use
+.Fn reallocarray :
+.Bd -literal -offset indent
+if ((newp = reallocarray(p, num, size)) == NULL) {
+	...
+.Ed
+.Pp
+Calling
+.Fn realloc
+with a
+.Dv NULL
+.Fa ptr
+is equivalent to calling
+.Fn malloc .
+Instead of this idiom:
+.Bd -literal -offset indent
+if (p == NULL)
+	newp = malloc(newsize);
+else
+	newp = realloc(p, newsize);
+.Ed
+.Pp
+Use the following:
+.Bd -literal -offset indent
+newp = realloc(p, newsize);
+.Ed
+.Pp
+The
+.Fn recallocarray
+function should be used for resizing objects containing sensitive data like
+keys.
+To avoid leaking information,
+it guarantees memory is cleared before placing it on the internal free list.
+Deallocation of such an object should be done by calling
+.Fn freezero .
+.Sh ENVIRONMENT
+.Bl -tag -width "MALLOC_OPTIONS"
+.It Ev MALLOC_OPTIONS
+String of option flags.
+.El
+.Sh EXAMPLES
+If
+.Fn malloc
+must be used with multiplication, be sure to test for overflow:
+.Bd -literal -offset indent
+size_t num, size;
+\&...
+
+/* Check for size_t overflow */
+if (size && num > SIZE_MAX / size)
+	errc(1, EOVERFLOW, "overflow");
+
+if ((p = malloc(num * size)) == NULL)
+	err(1, NULL);
+.Ed
+.Pp
+The above test is not sufficient in all cases.
+For example, multiplying ints requires a different set of checks:
+.Bd -literal -offset indent
+int num, size;
+\&...
+
+/* Avoid invalid requests */
+if (size < 0 || num < 0)
+	errc(1, EOVERFLOW, "overflow");
+
+/* Check for signed int overflow */
+if (size && num > INT_MAX / size)
+	errc(1, EOVERFLOW, "overflow");
+
+if ((p = malloc(num * size)) == NULL)
+	err(1, NULL);
+.Ed
+.Pp
+Assuming the implementation checks for integer overflow as
+.Ox
+does, it is much easier to use
+.Fn calloc ,
+.Fn reallocarray ,
+or
+.Fn recallocarray .
+.Pp
+The above examples could be simplified to:
+.Bd -literal -offset indent
+if ((p = reallocarray(NULL, num, size)) == NULL)
+	err(1, NULL);
+.Ed
+.Pp
+or at the cost of initialization:
+.Bd -literal -offset indent
+if ((p = calloc(num, size)) == NULL)
+	err(1, NULL);
+.Ed
+.Pp
+Set a systemwide reduction of the cache to a quarter of the
+default size and use guard pages:
+.Pp
+.Dl # sysctl vm.malloc_conf='G<<'
+.Sh DIAGNOSTICS
+If any of the functions detect an error condition,
+a message will be printed to file descriptor
+2 (not using stdio).
+Errors will result in the process being aborted.
+.Pp
+Here is a brief description of the error messages and what they mean:
+.Bl -tag -width Ds
+.It Dq out of memory
+If the
+.Cm X
+option is specified, it is an error for the allocation functions
+to return
+.Dv NULL .
+.It Dq bogus pointer (double free?)
+An attempt to
+.Fn free
+or
+reallocate an unallocated pointer was made.
+.It Dq double free
+There was an attempt to free an allocation that had already been freed.
+.It Dq write to free mem Va address Ns [ Va start Ns .. Ns Va end Ns ]@ Ns Va size
+An allocation has been modified after it was freed,
+or a chunk that was never allocated was written to.
+The
+.Va range
+at which corruption was detected is printed between [ and ].
+.Pp
+Enabling option
+.Cm D
+allows malloc to print information about where the allocation
+was done.
+.It Dq modified chunk-pointer
+The pointer passed to
+.Fn free
+or a reallocation function has been modified.
+.It Dq canary corrupted Va address Ns [ Va offset Ns ]@ Ns Va length Ns / Ns Va size
+A byte after the requested
+.Va length
+has been overwritten,
+indicating a heap overflow.
+The
+.Va offset
+at which corruption was detected is printed between [ and ],
+the requested
+.Va length
+of the allocation is printed before the / and the
+.Va size
+of the allocation after the /.
+.It Dq recorded size Va oldsize No inconsistent with Va size
+.Fn recallocarray
+or
+.Fn freezero
+has detected that the given old size does not match the recorded size in its
+meta data.
+Enabling option
+.Cm C
+allows
+.Fn recallocarray
+to catch more of these cases.
+.It Dq recursive call
+An attempt was made to call recursively into these functions, i.e., from a
+signal handler.
+This behavior is not supported.
+In particular, signal handlers should
+.Em not
+use any of the
+.Fn malloc
+functions nor utilize any other functions which may call
+.Fn malloc
+(e.g.,
+.Xr stdio 3
+routines).
+.It Dq unknown char in Ev MALLOC_OPTIONS
+We found something we didn't understand.
+.It any other error
+.Fn malloc
+detected an internal error;
+consult sources and/or wizards.
+.El
+.Sh SEE ALSO
+.Xr brk 2 ,
+.Xr mmap 2 ,
+.Xr munmap 2 ,
+.Xr sysctl 2 ,
+.Xr alloca 3 ,
+.Xr getpagesize 3 ,
+.Xr posix_memalign 3
+.Sh STANDARDS
+The
+.Fn malloc ,
+.Fn calloc ,
+.Fn realloc ,
+and
+.Fn free
+functions conform to
+.St -ansiC .
+The
+.Fn aligned_alloc
+function conforms to
+.St -isoC-2011 .
+The
+.Fn reallocarray
+function conforms to
+.St -p1003.1-2024 .
+.Pp
+If
+.Fa nmemb
+or
+.Fa size
+are 0, the return value is implementation defined;
+other conforming implementations may return
+.Dv NULL
+in this case.
+.Pp
+The
+.Ev MALLOC_OPTIONS
+environment variable, the
+.Va vm.malloc_conf
+sysctl and the
+.Sx DIAGNOSTICS
+output are extensions to the standard.
+.Sh HISTORY
+A
+.Fn free
+internal kernel function and a predecessor to
+.Fn malloc ,
+.Fn alloc ,
+first appeared in
+.At v1 .
+C library functions
+.Fn alloc
+and
+.Fn free
+appeared in
+.At v6 .
+The functions
+.Fn malloc ,
+.Fn calloc ,
+and
+.Fn realloc
+first appeared in
+.At v7 .
+.Pp
+A new implementation by Chris Kingsley was introduced in
+.Bx 4.2 ,
+followed by a complete rewrite by Poul-Henning Kamp which appeared in
+.Fx 2.2
+and was included in
+.Ox 2.0 .
+These implementations were all
+.Xr sbrk 2
+based.
+In
+.Ox 3.8 ,
+Thierry Deval rewrote
+.Nm
+to use the
+.Xr mmap 2
+system call,
+making the page addresses returned by
+.Nm
+random.
+A rewrite by Otto Moerbeek introducing a new central data structure and more
+randomization appeared in
+.Ox 4.4 .
+.Pp
+The
+.Fn reallocarray
+function appeared in
+.Ox 5.6 .
+The
+.Fn recallocarray
+function appeared in
+.Ox 6.1 .
+The
+.Fn freezero
+function appeared in
+.Ox 6.2 .
+The
+.Fn aligned_alloc
+function appeared in
+.Ox 6.5 .
+The
+.Fn malloc_conceal
+and
+.Fn calloc_conceal
+functions appeared in
+.Ox 6.6 .
+.Sh CAVEATS
+When using
+.Fn malloc ,
+be wary of signed integer and
+.Vt size_t
+overflow especially when there is multiplication in the
+.Fa size
+argument.
+.Pp
+Signed integer overflow will cause undefined behavior which compilers
+typically handle by wrapping back around to negative numbers.
+Depending on the input, this can result in allocating more or less
+memory than intended.
+.Pp
+An unsigned overflow has defined behavior which will wrap back around and
+return less memory than intended.
+.Pp
+A signed or unsigned integer overflow is a
+.Em security
+risk if less memory is returned than intended.
+Subsequent code may corrupt the heap by writing beyond the memory that was
+allocated.
+An attacker may be able to leverage this heap corruption to execute arbitrary
+code.
+.Pp
+Consider using
+.Fn calloc ,
+.Fn reallocarray
+or
+.Fn recallocarray
+instead of using multiplication in
+.Fn malloc
+and
+.Fn realloc
+to avoid these problems on
+.Ox .
+.Pp
+The mechanism to record caller functions when using malloc options
+.Cm 2 ,
+.Cm 3 ,
+or
+.Cm 4
+is not guaranteed to work for all platforms, compilers or compilation
+options,
+and might even crash your program.
+Use
+.Em only
+for debugging purposes.

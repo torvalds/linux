@@ -1,0 +1,103 @@
+ SNMP-USM-HMAC-SHA2-MIB DEFINITIONS ::= BEGIN
+    IMPORTS
+       MODULE-IDENTITY, OBJECT-IDENTITY,
+           mib-2 FROM SNMPv2-SMI -- RFC 2578
+           snmpAuthProtocols FROM SNMP-FRAMEWORK-MIB; -- RFC 3411
+
+snmpUsmHmacSha2MIB MODULE-IDENTITY
+    LAST-UPDATED    "201604180000Z" -- 18 April 2016, midnight
+    ORGANIZATION    "SNMPv3 Working Group"
+    CONTACT-INFO    "WG email: OPSAWG@ietf.org
+                    Subscribe:
+                        https://www.ietf.org/mailman/listinfo/opsawg
+                    Editor:    Johannes Merkle
+                               secunet Security Networks
+                    Postal:    Mergenthaler Allee 77
+                               D-65760 Eschborn
+                               Germany
+                    Phone:     +49 20154543091
+                    Email:     johannes.merkle@secunet.com
+
+                    Co-Editor: Manfred Lochter
+                               Bundesamt fuer Sicherheit in der
+                               Informationstechnik (BSI)
+                    Postal:    Postfach 200363
+                               D-53133 Bonn
+                               Germany
+                    Phone:     +49 228 9582 5643
+                    Email:     manfred.lochter@bsi.bund.de"
+    DESCRIPTION
+        "Definitions of Object Identities needed for the use of
+        HMAC-SHA2 Authentication Protocols by SNMP's User-based Security
+        Model.
+
+        Copyright (c) 2016 IETF Trust and the persons identified as
+        authors of the code.  All rights reserved.
+
+        Redistribution and use in source and binary forms, with or
+        without modification, is permitted pursuant to, and subject
+        to the license terms contained in, the Simplified BSD License
+        set forth in Section 4.c of the IETF Trust's Legal Provisions
+
+        Relating to IETF Documents
+        (http://trustee.ietf.org/license-info)."
+
+    REVISION "201604180000Z" -- 18 April 2016, midnight
+    DESCRIPTION
+        "Version correcting the MODULE-IDENTITY value,
+        published as RFC 7860"
+
+    REVISION "201510140000Z" -- 14 October 2015, midnight
+    DESCRIPTION
+        "Initial version, published as RFC 7630"
+    ::= { mib-2 235 }
+
+usmHMAC128SHA224AuthProtocol OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION "The Authentication Protocol
+                usmHMAC128SHA224AuthProtocol uses HMAC-SHA-224 and
+                truncates output to 128 bits."
+    REFERENCE   "- Krawczyk, H., Bellare, M., and R. Canetti,
+                HMAC: Keyed-Hashing for Message Authentication,
+                RFC 2104.
+                - National Institute of Standards and Technology,
+                Secure Hash Standard (SHS), FIPS PUB 180-4, 2012."
+    ::= { snmpAuthProtocols 4 }
+
+usmHMAC192SHA256AuthProtocol OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION "The Authentication Protocol
+                usmHMAC192SHA256AuthProtocol uses HMAC-SHA-256 and
+                truncates output to 192 bits."
+    REFERENCE   "- Krawczyk, H., Bellare, M., and R. Canetti,
+                HMAC: Keyed-Hashing for Message Authentication,
+                RFC 2104.
+                - National Institute of Standards and Technology,
+                Secure Hash Standard (SHS), FIPS PUB 180-4, 2012."
+    ::= { snmpAuthProtocols 5 }
+
+usmHMAC256SHA384AuthProtocol OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION "The Authentication Protocol
+                usmHMAC256SHA384AuthProtocol uses HMAC-SHA-384 and
+                truncates output to 256 bits."
+    REFERENCE   "- Krawczyk, H., Bellare, M., and R. Canetti,
+                HMAC: Keyed-Hashing for Message Authentication,
+                RFC 2104.
+                - National Institute of Standards and Technology,
+                Secure Hash Standard (SHS), FIPS PUB 180-4, 2012."
+    ::= { snmpAuthProtocols 6 }
+
+usmHMAC384SHA512AuthProtocol OBJECT-IDENTITY
+    STATUS      current
+    DESCRIPTION "The Authentication Protocol
+                usmHMAC384SHA512AuthProtocol uses HMAC-SHA-512 and
+                truncates output to 384 bits."
+    REFERENCE   "- Krawczyk, H., Bellare, M., and R. Canetti,
+                HMAC: Keyed-Hashing for Message Authentication,
+                RFC 2104.
+                - National Institute of Standards and Technology,
+                Secure Hash Standard (SHS), FIPS PUB 180-4, 2012."
+    ::= { snmpAuthProtocols 7 }
+
+END

@@ -1,0 +1,34 @@
+//===--- AMDGPUAttributes.def ---------------------------------*- C++ -*---===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file contains descriptions of the various function attributes
+// that indicate *absence* of the corresponding implicit kernel
+// arguments.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+AMDGPU_ATTRIBUTE(DISPATCH_PTR, "amdgpu-no-dispatch-ptr")
+AMDGPU_ATTRIBUTE(QUEUE_PTR, "amdgpu-no-queue-ptr")
+AMDGPU_ATTRIBUTE(DISPATCH_ID, "amdgpu-no-dispatch-id")
+AMDGPU_ATTRIBUTE(IMPLICIT_ARG_PTR, "amdgpu-no-implicitarg-ptr")
+AMDGPU_ATTRIBUTE(MULTIGRID_SYNC_ARG, "amdgpu-no-multigrid-sync-arg")
+AMDGPU_ATTRIBUTE(HOSTCALL_PTR, "amdgpu-no-hostcall-ptr")
+AMDGPU_ATTRIBUTE(HEAP_PTR, "amdgpu-no-heap-ptr")
+AMDGPU_ATTRIBUTE(WORKGROUP_ID_X, "amdgpu-no-workgroup-id-x")
+AMDGPU_ATTRIBUTE(WORKGROUP_ID_Y, "amdgpu-no-workgroup-id-y")
+AMDGPU_ATTRIBUTE(WORKGROUP_ID_Z, "amdgpu-no-workgroup-id-z")
+AMDGPU_ATTRIBUTE(WORKITEM_ID_X, "amdgpu-no-workitem-id-x")
+AMDGPU_ATTRIBUTE(WORKITEM_ID_Y, "amdgpu-no-workitem-id-y")
+AMDGPU_ATTRIBUTE(WORKITEM_ID_Z, "amdgpu-no-workitem-id-z")
+AMDGPU_ATTRIBUTE(LDS_KERNEL_ID, "amdgpu-no-lds-kernel-id")
+AMDGPU_ATTRIBUTE(DEFAULT_QUEUE, "amdgpu-no-default-queue")
+AMDGPU_ATTRIBUTE(COMPLETION_ACTION, "amdgpu-no-completion-action")
+
+#undef AMDGPU_ATTRIBUTE

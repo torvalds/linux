@@ -1,0 +1,82 @@
+#	$OpenBSD: Makefile.bsd-wrapper,v 1.10 2019/12/21 21:40:00 espie Exp $
+
+.include "${.CURDIR}/shlib_version"
+SHLIB_MAJOR=${major}
+SHLIB_MINOR=${minor}
+
+LIBIBERTY_INCLUDES=${.CURDIR}/../libiberty/include
+LIBIBERTY_SRCDIR=${.CURDIR}/../libiberty/src
+GCC_SRCDIR=${.CURDIR}/../../usr.bin/gcc/gcc
+
+GXX_INCDIR=	/usr/include/g++
+
+MAKE_FLAGS= 	GCC_SRCDIR="${GCC_SRCDIR}" \
+		LIBIBERTY_INCLUDES="${LIBIBERTY_INCLUDES}" \
+		LIBIBERTY_SRCDIR="${LIBIBERTY_SRCDIR}" \
+		mkinstalldirs='mkdir -p' \
+		libtool_VERSION=${SHLIB_MAJOR}:${SHLIB_MINOR}:0
+
+.MAIN: all
+
+all:	config.status
+	${MAKE} ${MAKE_FLAGS} all
+
+install:	all
+	${MAKE} ${MAKE_FLAGS} \
+		install DESTDIR=${DESTDIR} INCLUDE_SUBDIR=
+# XXX
+	rm -f ${DESTDIR}/usr/lib/libstdc++.la ${DESTDIR}/usr/lib/libsupc++.la
+	chmod ${NONBINMODE} ${DESTDIR}/usr/lib/libstdc++.* \
+	    ${DESTDIR}/usr/lib/libsupc++.*
+
+#	cd ${.OBJDIR}/include && ${MAKE} ${MAKE_FLAGS} all
+
+.include <bsd.own.mk>
+
+.ifdef GLOBAL_AUTOCONF_CACHE
+CF=	--cache-file=${GLOBAL_AUTOCONF_CACHE}
+.else
+CF=
+.endif
+.ifdef NOPIC
+CF_SHARED= --disable-shared
+.else
+CF_SHARED= --enable-shared
+.endif
+
+config.status:
+	PATH="/bin:/usr/bin:/sbin:/usr/sbin" \
+	INSTALL_PROGRAM="${INSTALL} ${INSTALL_COPY} ${INSTALL_STRIP}" \
+	CC="${CC}" CXX="${CXX}" CFLAGS="${CFLAGS} ${COPTS}" \
+	CXXFLAGS="${CXXFLAGS} ${COPTS}" \
+	MAKE="${MAKE}" \
+	/bin/sh ${.CURDIR}/libstdc++/configure \
+		--prefix=/usr \
+		--disable-nls \
+		${CF_SHARED} \
+		--disable-multilib \
+		--with-gnu-ld \
+		--with-gxx-include-dir=${GXX_INCDIR} \
+		&& touch config.status
+
+#CPPFLAGS+=-DHAVE_CONFIG_H -I${.CURDIR}/libstdc++/libmath
+#SRCS=libmath/stubs.c libmath/nan.c libmath/signbit.c libmath/signbitf.c
+tags:
+	# Nothing here so far...
+
+prereq: config.status
+	cd ${.OBJDIR}/include && exec ${MAKE} ${MAKE_FLAGS} all
+	
+includes:
+	cd ${.OBJDIR}/include && exec ${MAKE} ${MAKE_FLAGS} install DESTDIR=${DESTDIR}
+	cd ${.OBJDIR}/libsupc++ && exec ${MAKE} ${MAKE_FLAGS} install-data DESTDIR=${DESTDIR}
+
+clean cleandir:
+	-@if [ -e Makefile ]; then ${MAKE} distclean; fi
+	-rm -f ${CLEANFILES}
+
+.include <bsd.obj.mk>
+.include <bsd.subdir.mk>
+.ifndef NOMAN
+.include <bsd.man.mk>
+.endif

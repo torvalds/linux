@@ -1,0 +1,27 @@
+esp transport from 3ffe::1 to 3ffe::10 spi 0x1eadbeef:0xbeef1ead \
+	authkey file "DIR/ak256:DIR/ak256" \
+	enckey file "DIR/ek128:DIR/ek128"
+esp transport from 3ffe::2 to 3ffe::10 spi 0x2eadbeef:0xbeef2ead \
+	enc 3des-cbc \
+	auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160" \
+	enckey file "DIR/ek192:DIR/ek192"
+esp transport from 3ffe::4 to 3ffe::10 spi 0x4eadbeef:0xbeef4ead \
+	enc aes \
+	auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160" \
+	enckey file "DIR/ek128:DIR/ek128"
+esp transport from 3ffe::6 to 3ffe::10 spi 0x6eadbeef:0xbeef6ead \
+	enc blowfish \
+	auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160" \
+	enckey file "DIR/ek160:DIR/ek160"
+esp transport from 3ffe::7 to 3ffe::10 spi 0x7eadbeef:0xbeef7ead \
+	enc cast128 \
+	auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160" \
+	enckey file "DIR/ek128:DIR/ek128"
+esp transport from 3ffe::8 to 3ffe::10 spi 0x8eadbeef:0xbeef8ead \
+	enc null \
+	auth hmac-sha1 \
+	authkey file "DIR/ak160:DIR/ak160"
